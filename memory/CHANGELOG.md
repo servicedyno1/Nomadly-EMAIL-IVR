@@ -1961,3 +1961,23 @@ boot:
 
 ### Pending (needs production deploy)
 - @scorch75 (testingpagebig.com): the CF Worker JSON-safety guard fixes their broken JSON API automatically ONCE the updated worker is deployed to Railway (the old edge worker still injects). Optional KV `honeypot_off:testingpagebig.com` only matters after deploy. Customer Telegram reply cannot be sent from this dev pod (mock Telegram + dev bot token) — must be sent from production/after deploy.
+
+## 2026-06 (fork) — P0 forged DynoPay webhook exploit FIXED + signature verification (backend, sandbox-verified)
+
+**The $9999 fake USDT top-up.** `POST /store/crypto-webhook` was unauthenticated and trusted the request body for BOTH the credited amount and the paid decision:
+- `creditTopup`/`fulfillHostingOrder` did `usdIn = parseFloat(req.body.base_amount)` (falling back to `order.amountUsd` only when absent). A forged `{ base_amount: 9999 }` with no `fee_payer` credited $9999.
+- `classifyStoreWebhook` returned `unverified-fulfill` (fulfilled anyway, admin-notified) even when the gateway CONTRADICTED with a `waiting`/unpaid status, and when the gateway was unreachable — so a forged "completed" body went through with no real payment.
+
+**Fix (files: `js/store-routes.js`, `js/store-payment-verify.js`, `js/pay-dynopay.js`, `js/_index.js`):**
+- **Amount + status now come from the authoritative DynoPay server-to-server status, NEVER `req.body`.** New `fetchAuthoritativeStatus(order)` prefers the new **`GET /user/getPaymentStatus/:payment_id`** ("Verify Payment by ID — recommended", `getDynopayPaymentStatusById` in pay-dynopay.js) and falls back to the address lookup. `authoritativeUsd(st)` reads only USD base fields (`amount_received_base`/`base_amount`). The webhook passes the gateway amount (or `null` → invoiced `order.amountUsd`) into credit/fulfill — the body's `base_amount` is ignored entirely.
+- **`classifyStoreWebhook` tightened** (now takes `signatureValid`): gateway-contradicts → **hold** (was unverified-fulfill); gateway-unreachable + unsigned → **hold** (was unverified-fulfill); gateway-unreachable + valid signature → unverified-fulfill (invoiced amount); gateway-confirmed → fulfill. `refunded` added to UNPAID.
+- **DynoPay webhook HMAC verification** (`verifyDynopayWebhook` V2 `X-Dynopay-Signature-V2` = HMAC-SHA256 over `"<t>.<rawBody>"` with ±300s replay window, legacy V1 fallback). Raw body captured via `express.json({ verify })` in `_index.js`. A present-but-invalid signature (when `DYNO_PAY_WEBHOOK_SECRET` is set) → **401 reject**. Gateway lookups are injectable (`deps.dynoStatusById/ByAddress/webhookSecret`) for testing.
+- Poll paths (`/wallet/topup/:orderId`, `/order/:orderId`) upgraded to the same authoritative fetch (fixes the flaky address-only lookup that historically dropped paid orders, e.g. lloyd-support.com).
+
+**Verified:** `js/tests/test_store_webhook_security_2026-06.js` **8/8** (real handler + local Mongo + stubbed gateway: forged 9999 → HOLD/no-credit; gateway-contradicts → HOLD; legit → credits gateway amount $20/$25 not 9999; invalid sig → 401; valid sig + gateway-down → invoiced $20; hosting forged → HOLD; forged `failed` → no credit). Live dev route `POST /dev/store-webhook-verify-test` pass:true (13 checks). Live forged curl against running node → order stays pending, wallet stays 0. Regression `test_payment_audit_sweep.js` 29/29. Node healthy. Read-only probe `js/ops/dynopay_inspect_create.js` (sandbox `DYNO_PAY_API_KEY` is stale → 401; prod uses Railway vars).
+
+**🔴 ACTION ON USER:**
+1. **Enable signature verification:** DynoPay dashboard → save webhook URL (company/API-key level) → copy the one-time `whsec_…` → set `DYNO_PAY_WEBHOOK_SECRET` in Railway env for BOTH services (Nomadly + SMADAV). Until set, DynoPay sends unsigned payloads and security relies on the (now solid) gateway re-verify.
+2. **Behavior change while unsigned:** if DynoPay's status API is unreachable, orders now **HOLD + admin-alert** (reconcile via `/api/store/admin/reconcile-order/<id>`) instead of auto-crediting. Setting the whsec secret restores cryptographic "never drop a paid order" via signed webhooks.
+3. Redeploy prod (Save to GitHub → Railway redeploy). Sandbox-only; prod untouched.
+

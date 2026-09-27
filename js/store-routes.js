@@ -18,9 +18,9 @@ const bcrypt = require('bcryptjs')
 const jwt = require('jsonwebtoken')
 const { log } = require('console')
 
-const { getDynopayCryptoAddress, getDynopayCryptoPaymentStatus } = require('./pay-dynopay')
+const { getDynopayCryptoAddress, getDynopayCryptoPaymentStatus, getDynopayPaymentStatusById } = require('./pay-dynopay')
 const { getCryptoDepositAddress, convert } = require('./pay-blockbee')
-const { isPaidStatus, classifyStoreWebhook, isStoreUnderpaid, storeUnderpayTolerance } = require('./store-payment-verify')
+const { isPaidStatus, classifyStoreWebhook, isStoreUnderpaid, storeUnderpayTolerance, verifyDynopayWebhook } = require('./store-payment-verify')
 
 const JWT_SECRET = process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex')
 const JWT_EXPIRY = '30d'
@@ -93,11 +93,40 @@ function createStoreRoutes(deps = {}) {
   const getDb = deps.getDb
   const SELF_URL = deps.selfUrl || process.env.SELF_URL
   const notifyAdmin = typeof deps.notifyAdmin === 'function' ? deps.notifyAdmin : (() => {})
+  // Injectable DynoPay status lookups (real by default; overridden in tests).
+  const dynoStatusById = typeof deps.dynoStatusById === 'function' ? deps.dynoStatusById : getDynopayPaymentStatusById
+  const dynoStatusByAddress = typeof deps.dynoStatusByAddress === 'function' ? deps.dynoStatusByAddress : getDynopayCryptoPaymentStatus
+  // DynoPay webhook signing secret (whsec_…). When set, a present-but-invalid
+  // signature is rejected outright and a valid signature lets a gateway-
+  // unreachable webhook still fulfill. When unset, DynoPay sends the payload
+  // unsigned and we rely purely on the server-to-server status re-verify.
+  const webhookSecret = () => (deps.webhookSecret || process.env.DYNO_PAY_WEBHOOK_SECRET || '')
 
   const col = (name) => {
     const db = getDb && getDb()
     if (!db) throw new Error('DB not ready')
     return db.collection(name)
+  }
+
+  // ── Authoritative DynoPay status for an order. UNTRUSTED webhook bodies must
+  // never be the source of truth — this fetches the real status/amount from
+  // DynoPay server-to-server. Prefers the immutable payment_id endpoint
+  // (recommended, survives address expiry); falls back to the address lookup.
+  async function fetchAuthoritativeStatus(order) {
+    let st = null
+    if (order.paymentId) { try { st = await dynoStatusById(order.paymentId) } catch (_) { st = null } }
+    if ((!st || st.status == null) && order.payAddress) { try { st = await dynoStatusByAddress(order.payAddress) } catch (_) { st = null } }
+    return (st && st.status != null) ? st : null
+  }
+
+  // Authoritative USD amount from a DynoPay status response. Uses ONLY the USD
+  // base-currency fields (never the crypto amount, never the webhook body).
+  function authoritativeUsd(st) {
+    if (!st) return null
+    const cand = (st.amount_received_base != null ? st.amount_received_base
+      : (st.base_amount != null ? st.base_amount : null))
+    const n = cand != null ? parseFloat(cand) : NaN
+    return Number.isFinite(n) && n > 0 ? n : null
   }
 
   // ── Auth middleware ──
@@ -451,11 +480,11 @@ function createStoreRoutes(deps = {}) {
       const order = await col('webOrders').findOne({ _id: req.params.orderId, webUserId: req.webUserId })
       if (!order) return res.status(404).json({ error: 'Order not found' })
       // Best-effort live check for DynoPay if still pending
-      if (order.status === 'pending' && order.provider === 'dynopay' && order.payAddress) {
+      if (order.status === 'pending' && order.provider === 'dynopay' && (order.payAddress || order.paymentId)) {
         try {
-          const st = await getDynopayCryptoPaymentStatus(order.payAddress)
+          const st = await fetchAuthoritativeStatus(order)
           if (st && isPaidStatus(st.status)) {
-            await creditTopup(order, st.base_amount, st.fee_payer, order.paymentId || st.payment_id, 'poll')
+            await creditTopup(order, authoritativeUsd(st), st.fee_payer, order.paymentId || st.payment_id, 'poll')
           }
         } catch (_) {}
       }
@@ -636,6 +665,23 @@ function createStoreRoutes(deps = {}) {
       const paymentId = req.body?.payment_id
       const refId = req.body?.meta_data?.refId
 
+      // ── Signature gate. DynoPay signs webhooks (X-Dynopay-Signature-V2 =
+      // HMAC-SHA256 over "<t>.<rawBody>") ONLY when a whsec_ secret is
+      // configured on the endpoint. If we hold a secret and a signature is
+      // present but INVALID → reject outright (kills forged callbacks). If no
+      // secret is configured, DynoPay sends the payload unsigned and we fall
+      // back to the server-to-server status re-verify below.
+      const secret = webhookSecret()
+      const sigState = verifyDynopayWebhook({
+        rawBody: req.rawBody, bodyObj: req.body, headers: req.headers, secret,
+      })
+      if (secret && sigState === 'invalid') {
+        log(`[Store] crypto-webhook REJECTED: invalid signature (ref=${refId}, pid=${paymentId})`)
+        try { notifyAdmin(`🚫 <b>Store crypto webhook REJECTED — invalid signature</b>\nRef: <code>${refId || '—'}</code>\nPaymentId: ${paymentId || '—'}\nEvent: ${event}\n(possible spoof attempt)`) } catch {}
+        return res.status(401).send('invalid signature')
+      }
+      const signatureValid = sigState === 'valid'
+
       // pending: just record the paymentId→order mapping
       if (event === 'payment.pending' || req.body?.status === 'pending') {
         if (refId && paymentId) {
@@ -656,35 +702,39 @@ function createStoreRoutes(deps = {}) {
 
       if (order.status === 'credited' || order.status === 'provisioned') { log(`[Store] webhook dup for ${order._id}`); return res.send('OK') }
 
-      // ── Re-verify with DynoPay (best-effort), then decide — PARITY with the
-      // working wallet-deposit path (authDyno in _index.js), which trusts the
-      // webhook event and only skips pending/failed/underpaid. Previously this
-      // required the gateway status ∈ [completed,confirmed,settled,paid] and
-      // SILENTLY dropped DynoPay's 'received' status with NO admin alert →
-      // fully-paid storefront orders vanished. See classifyStoreWebhook().
-      // (Dev/test bypass via STORE_DEV_TRUST_WEBHOOK.)
+      // ── Re-verify with DynoPay server-to-server. The webhook body is
+      // UNTRUSTED — both the paid DECISION and the credited AMOUNT come from the
+      // authoritative gateway status (or the invoiced order.amountUsd), NEVER
+      // from req.body.base_amount / req.body.status. A valid webhook signature
+      // (signatureValid) is an additional authenticity signal that lets a
+      // gateway-unreachable webhook still fulfill. (Dev bypass:
+      // STORE_DEV_TRUST_WEBHOOK=true — credits the INVOICED amount only.)
       const trustBody = process.env.STORE_DEV_TRUST_WEBHOOK === 'true'
-      if (!trustBody && order.provider === 'dynopay' && order.payAddress) {
-        let gatewayReached = false, gatewayStatus = null
-        try {
-          const st = await getDynopayCryptoPaymentStatus(order.payAddress)
-          if (st && st.status != null) { gatewayReached = true; gatewayStatus = st.status }
-        } catch (_) { gatewayReached = false }
-        const decision = classifyStoreWebhook({ event, gatewayReached, gatewayStatus })
-        log(`[Store] webhook ${order._id}: decision=${decision.action} (${decision.reason})`)
+      let authSt = null
+      if (!trustBody && order.provider === 'dynopay') {
+        authSt = await fetchAuthoritativeStatus(order)
+        const gatewayReached = !!authSt
+        const gatewayStatus = gatewayReached ? authSt.status : null
+        const decision = classifyStoreWebhook({ event, gatewayReached, gatewayStatus, signatureValid })
+        log(`[Store] webhook ${order._id}: decision=${decision.action} (${decision.reason}) sig=${sigState}`)
         if (decision.action === 'hold') {
-          try { notifyAdmin(`⚠️ <b>Store crypto webhook HELD</b>\nOrder: <code>${order._id}</code>\nKind: ${order.kind}\nDomain: ${order.domain || '—'}\nCustomer: ${order.email || order.webUserId || '—'}\nAmount: $${order.amountUsd} (${order.coin})\nEvent: ${event}\nReason: ${decision.reason}\n→ verify in DynoPay; if paid, reconcile via /api/store/admin/reconcile-order/${order._id}`) } catch {}
+          try { notifyAdmin(`⚠️ <b>Store crypto webhook HELD</b>\nOrder: <code>${order._id}</code>\nKind: ${order.kind}\nDomain: ${order.domain || '—'}\nCustomer: ${order.email || order.webUserId || '—'}\nAmount: $${order.amountUsd} (${order.coin})\nEvent: ${event}\nSignature: ${sigState}\nReason: ${decision.reason}\n→ verify in DynoPay; if genuinely paid, reconcile via /api/store/admin/reconcile-order/${order._id}`) } catch {}
           return res.send('OK')
         }
         if (decision.action === 'unverified-fulfill') {
-          try { notifyAdmin(`ℹ️ <b>Store crypto order fulfilling WITHOUT gateway re-verify</b>\nOrder: <code>${order._id}</code>\nDomain: ${order.domain || '—'}\nCustomer: ${order.email || order.webUserId || '—'}\nAmount: $${order.amountUsd} (${order.coin})\nReason: ${decision.reason} (gateway unreachable — trusting webhook, same policy as wallet deposits)`) } catch {}
+          try { notifyAdmin(`ℹ️ <b>Store crypto order fulfilling on SIGNED webhook (gateway unreachable)</b>\nOrder: <code>${order._id}</code>\nDomain: ${order.domain || '—'}\nCustomer: ${order.email || order.webUserId || '—'}\nAmount: $${order.amountUsd} (${order.coin})\nReason: ${decision.reason} — crediting invoiced amount; verify in DynoPay`) } catch {}
         }
       }
 
+      // Authoritative amount: gateway-confirmed USD when reachable, else the
+      // invoiced order.amountUsd (passed as null → creditTopup falls back).
+      const authAmount = authSt ? authoritativeUsd(authSt) : null
+      const authFeePayer = authSt ? (authSt.fee_payer != null ? authSt.fee_payer : 'company') : null
+
       if (order.kind === 'hosting') {
-        await fulfillHostingOrder(order, req.body?.base_amount, req.body?.fee_payer, paymentId, `dynopay:${event}`)
+        await fulfillHostingOrder(order, authAmount, authFeePayer, paymentId, `dynopay:${event}`)
       } else {
-        await creditTopup(order, req.body?.base_amount, req.body?.fee_payer, paymentId, `dynopay:${event}`)
+        await creditTopup(order, authAmount, authFeePayer, paymentId, `dynopay:${event}`)
       }
       return res.send('OK')
     } catch (err) {
@@ -1030,11 +1080,11 @@ function createStoreRoutes(deps = {}) {
     try {
       const o = await col('webOrders').findOne({ _id: req.params.orderId })
       if (!o || o.kind !== 'hosting') return res.status(404).json({ error: 'Order not found' })
-      if (o.status === 'pending' && o.provider === 'dynopay' && o.payAddress) {
+      if (o.status === 'pending' && o.provider === 'dynopay' && (o.payAddress || o.paymentId)) {
         try {
-          const st = await getDynopayCryptoPaymentStatus(o.payAddress)
+          const st = await fetchAuthoritativeStatus(o)
           if (st && isPaidStatus(st.status)) {
-            await fulfillHostingOrder(o, st.base_amount, st.fee_payer, o.paymentId || st.payment_id, 'poll')
+            await fulfillHostingOrder(o, authoritativeUsd(st), st.fee_payer, o.paymentId || st.payment_id, 'poll')
           }
         } catch (_) {}
       }

@@ -347,3 +347,10 @@ Both prod bots (Nomadly + SMADAV) run identical deploy config — `VPS_DEFAULT_P
 
 **Pending (deploy-dependent):**
 - Deploy updated CF Worker to Railway → auto-fixes @scorch75's JSON API. Then (optionally) set KV `honeypot_off:testingpagebig.com` and send the customer their fix confirmation from production (dev pod uses mock Telegram, cannot reach real users).
+
+## 2026-06 (fork) — P0 forged DynoPay webhook exploit FIXED (see CHANGELOG for full detail)
+- `POST /store/crypto-webhook` trusted the unauthenticated body for the credited amount (`req.body.base_amount`) and paid-status → forged `base_amount:9999` self-credited wallets. FIXED: amount + paid decision now come from DynoPay server-to-server (`getPaymentStatus/:payment_id`), never the body; `classifyStoreWebhook` HOLDs on gateway-contradiction / unreachable-unsigned; DynoPay HMAC webhook signatures (`X-Dynopay-Signature-V2`) verified when `DYNO_PAY_WEBHOOK_SECRET` set (invalid → 401).
+- Verified 8/8 integration + live curl + dev route + 29/29 regression; node healthy. Backend-only, sandbox-verified.
+- **P1 backlog still open from user's 3 prod bugs:** (2) `accesd-securite.ca` DNS — registry NS not delegated to Cloudflare (zone "moved"); registrar-side fix + optional bot/panel "zone moved" warning. (3) Web order / guest-checkout anomaly audit (`/guest/checkout`).
+- **User action to activate signatures:** save webhook URL in DynoPay dashboard → set `DYNO_PAY_WEBHOOK_SECRET` in Railway (both services); then redeploy.
+

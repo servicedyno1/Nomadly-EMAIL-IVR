@@ -15,15 +15,18 @@
  * Pure + side-effect free (except reading process.env for the tolerance).
  */
 
+const crypto = require('crypto')
+
 // Statuses that mean "funds arrived" (normalized, 'payment.' prefix stripped).
 const PAID = new Set([
   'completed', 'complete', 'confirmed', 'settled', 'paid', 'success',
   'received', 'received_unconfirmed',
 ])
 // Statuses that DEFINITIVELY mean "not paid (yet)" → never provision.
+// (2026-06) `refunded` added — funds were returned to the sender.
 const UNPAID = new Set([
   'pending', 'failed', 'expired', 'cancelled', 'canceled', 'waiting',
-  'underpaid', 'declined',
+  'underpaid', 'declined', 'refunded',
 ])
 
 const DEFAULT_STORE_UNDERPAY_TOLERANCE = 0.90
@@ -36,51 +39,125 @@ function isUnpaidStatus(s) { return UNPAID.has(normalizeStatus(s)) }
 
 /**
  * Decide what to do with a store crypto webhook that has ALREADY passed the
- * pending/failed skip. TRUE PARITY with the working wallet-deposit path
- * (authDyno in _index.js): TRUST the webhook event and only skip the
- * definitively-unpaid statuses (pending/failed/underpaid/expired/…). The
- * DynoPay status API (getDynopayCryptoPaymentStatus) is ADVISORY ONLY and can
- * NEVER block a paid webhook — it is frequently unreachable ("Application not
- * found") for storefront payment addresses, which historically DROPPED
- * fully-paid orders (see lloyd-support.com / order 9fd5da6a, 2026-08-29 — the
- * customer paid $69, got nothing, and had to message support).
+ * pending/failed skip.
  *
- * Difference vs the old allow-list model: we no longer require the event to be
- * in a hardcoded PAID set. Anything that is NOT empty and NOT explicitly
- * unpaid is treated as "funds arrived" — exactly what authDyno does — so a new
- * or unusual paid status (e.g. 'received', 'settlement_failed') can never be
- * silently dropped again. The network-fee underpayment check in
- * isStoreUnderpaid() remains the money-safety gate.
+ * SECURITY MODEL (2026-06 — forged-webhook exploit fix):
+ * The webhook body is UNTRUSTED. The authoritative signal is the server-to-server
+ * DynoPay status (getPaymentStatusById / getCryptoTransaction) and/or a VALID
+ * webhook HMAC signature (X-Dynopay-Signature-V2). We only fulfill when at least
+ * one authoritative source confirms payment. Previously this trusted the webhook
+ * event even when the gateway CONTRADICTED it ('unverified-fulfill' on a
+ * gateway-says-waiting reply), which let an attacker POST a forged
+ * "completed / base_amount:9999" body and self-credit — that path is now HELD.
+ *
+ * Rules:
+ *  - empty / definitively-unpaid webhook event  → hold
+ *  - gateway reachable & says PAID              → fulfill (authoritative)
+ *  - gateway reachable & says UNPAID (contradicts) → hold  (EXPLOIT FIX)
+ *  - gateway reachable & unknown status         → signatureValid ? fulfill : hold
+ *  - gateway UNREACHABLE                         → signatureValid ? unverified-fulfill : hold
+ *
+ * The network-fee underpayment check in isStoreUnderpaid() remains the
+ * money-amount safety gate applied AFTER this decision. The credited amount is
+ * always taken from the authoritative gateway response (or the invoiced
+ * order.amountUsd) — NEVER from the webhook body.
  *
  * @param {Object} p
  * @param {string}  p.event          - webhook body event/status
- * @param {boolean} p.gatewayReached - did getDynopayCryptoPaymentStatus return data?
+ * @param {boolean} p.gatewayReached - did the DynoPay status API return data?
  * @param {string} [p.gatewayStatus] - the gateway's reported status (when reached)
+ * @param {boolean}[p.signatureValid]- was a DynoPay webhook HMAC signature present AND valid?
  * @returns {{action:'fulfill'|'unverified-fulfill'|'hold', reason:string}}
  */
-function classifyStoreWebhook({ event, gatewayReached, gatewayStatus } = {}) {
+function classifyStoreWebhook({ event, gatewayReached, gatewayStatus, signatureValid } = {}) {
   const ev = normalizeStatus(event)
 
   // Never provision on an empty or definitively-unpaid webhook event.
   if (!ev) return { action: 'hold', reason: 'webhook-event-empty' }
   if (isUnpaidStatus(ev)) return { action: 'hold', reason: `webhook-event-unpaid:${ev}` }
 
-  // The webhook says funds arrived → fulfill. The gateway is ADVISORY ONLY and
-  // must never block a paid order (parity with the wallet-deposit path).
-  if (gatewayReached && isPaidStatus(gatewayStatus)) {
-    return { action: 'fulfill', reason: `gateway-confirmed:${normalizeStatus(gatewayStatus)}` }
+  if (gatewayReached) {
+    // Authoritative gateway confirmation → fulfill.
+    if (isPaidStatus(gatewayStatus)) {
+      return { action: 'fulfill', reason: `gateway-confirmed:${normalizeStatus(gatewayStatus)}` }
+    }
+    // Gateway explicitly contradicts a "paid" webhook → HOLD (this is the
+    // forged-webhook exploit path; the customer has NOT paid).
+    if (isUnpaidStatus(gatewayStatus)) {
+      return { action: 'hold', reason: `gateway-contradicts:${normalizeStatus(gatewayStatus)}` }
+    }
+    // Gateway reachable but reported an unknown/transitional status → only
+    // trust the webhook if it carried a valid DynoPay signature.
+    return signatureValid
+      ? { action: 'fulfill', reason: `webhook-paid:${ev}(gateway-unknown:${normalizeStatus(gatewayStatus)},signed)` }
+      : { action: 'hold', reason: `gateway-unknown:${normalizeStatus(gatewayStatus)}(unsigned)` }
   }
-  if (gatewayReached && isUnpaidStatus(gatewayStatus)) {
-    // Gateway contradicts a paid webhook → still fulfill (parity with wallet
-    // deposits) but flag it for admin review.
-    return { action: 'unverified-fulfill', reason: `webhook-paid:${ev}(gateway-contradicts:${normalizeStatus(gatewayStatus)})` }
+
+  // Gateway UNREACHABLE. Historically this "trusted the webhook" (wallet-deposit
+  // parity), which is exactly the forgery window. Now we only fulfill if the
+  // webhook is cryptographically authentic (valid HMAC signature); otherwise
+  // HOLD for admin reconcile so a paid order is never silently dropped OR
+  // fraudulently credited.
+  return signatureValid
+    ? { action: 'unverified-fulfill', reason: `webhook-paid:${ev}(gateway-unreachable,signed)` }
+    : { action: 'hold', reason: `gateway-unreachable:${ev}(unsigned)` }
+}
+
+// ─── DynoPay webhook signature verification (2026-06) ───────────────────────
+// DynoPay signs webhooks ONLY when the endpoint has a signing secret (whsec_…).
+// Prefer V2 (HMAC-SHA256 over "<t>.<rawBody>", the exact bytes on the wire) with
+// a ±toleranceSec replay window; fall back to the legacy V1 (HMAC over a
+// re-serialised JSON body). Returns a state so the caller can reject a
+// present-but-invalid signature and treat "no signature" separately.
+
+function _parseSigV2(header) {
+  const out = {}
+  for (const kv of String(header || '').split(',')) {
+    const [k, v] = kv.split('=')
+    if (k && v != null) out[k.trim()] = v.trim()
   }
-  // Gateway unreachable OR reported an unknown status → trust the webhook,
-  // same policy as the wallet-deposit path.
-  return {
-    action: gatewayReached ? 'fulfill' : 'unverified-fulfill',
-    reason: `webhook-paid:${ev}${gatewayReached ? '(gateway-unknown)' : '(gateway-unreachable)'}`,
-  }
+  return out
+}
+
+function verifyDynopayWebhookV2(rawBody, headerV2, secret, toleranceSec = 300) {
+  if (!secret || !headerV2 || rawBody == null) return false
+  const { t, v1 } = _parseSigV2(headerV2)
+  const ts = Number(t)
+  if (!ts || Math.abs(Date.now() / 1000 - ts) > toleranceSec) return false
+  const raw = Buffer.isBuffer(rawBody) ? rawBody.toString('utf8') : String(rawBody)
+  const expected = crypto.createHmac('sha256', secret).update(`${ts}.${raw}`).digest('hex')
+  const got = Buffer.from(String(v1 || ''), 'hex')
+  const exp = Buffer.from(expected, 'hex')
+  return got.length === exp.length && crypto.timingSafeEqual(got, exp)
+}
+
+function verifyDynopayWebhookV1(bodyObjOrRaw, headerV1, secret) {
+  if (!secret || !headerV1) return false
+  // Legacy V1 signs HMAC-SHA256 over JSON.stringify(parsedBody).
+  const payload = (typeof bodyObjOrRaw === 'string' || Buffer.isBuffer(bodyObjOrRaw))
+    ? String(bodyObjOrRaw)
+    : JSON.stringify(bodyObjOrRaw || {})
+  const expected = crypto.createHmac('sha256', secret).update(payload).digest('hex')
+  const got = Buffer.from(String(headerV1), 'hex')
+  const exp = Buffer.from(expected, 'hex')
+  return got.length === exp.length && crypto.timingSafeEqual(got, exp)
+}
+
+/**
+ * Classify the signature state of an inbound DynoPay webhook.
+ * @returns {'valid'|'invalid'|'unsigned'} — 'unsigned' when no signature header
+ *   is present (secret not configured on the DynoPay endpoint yet).
+ */
+function verifyDynopayWebhook({ rawBody, bodyObj, headers = {}, secret, toleranceSec = 300 } = {}) {
+  const h = {}
+  for (const k of Object.keys(headers || {})) h[k.toLowerCase()] = headers[k]
+  const v2 = h['x-dynopay-signature-v2']
+  const v1 = h['x-dynopay-signature']
+  if (!secret) return 'unsigned'          // we cannot verify without a secret
+  if (!v2 && !v1) return 'unsigned'       // DynoPay sent no signature
+  if (v2 && verifyDynopayWebhookV2(rawBody, v2, secret, toleranceSec)) return 'valid'
+  if (v1 && verifyDynopayWebhookV1(rawBody != null ? rawBody : bodyObj, v1, secret)) return 'valid'
+  return 'invalid'
 }
 
 function storeUnderpayTolerance() {
@@ -103,4 +180,5 @@ module.exports = {
   PAID, UNPAID, DEFAULT_STORE_UNDERPAY_TOLERANCE,
   normalizeStatus, isPaidStatus, isUnpaidStatus,
   classifyStoreWebhook, storeUnderpayTolerance, isStoreUnderpaid,
+  verifyDynopayWebhook, verifyDynopayWebhookV2, verifyDynopayWebhookV1,
 }

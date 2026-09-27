@@ -123,7 +123,12 @@ if (LEGACY_HOST_REDIRECTS.size) {
 // ── /Legacy host redirects ──────────────────────────────────────────────────
 
 earlyApp.use(cors())
-earlyApp.use(express.json({ limit: '50mb' }))
+earlyApp.use(express.json({
+  limit: '50mb',
+  // Keep the exact raw bytes so webhook HMAC signatures (e.g. DynoPay
+  // X-Dynopay-Signature-V2, signed over the raw body) can be verified.
+  verify: (req, _res, buf) => { if (buf && buf.length) req.rawBody = buf },
+}))
 earlyApp.use(express.urlencoded({ extended: true, limit: '50mb' }))
 earlyApp.use('/assets', express.static(require('path').join(__dirname, 'assets')))
 
@@ -40400,16 +40405,18 @@ app.post('/dev/store-webhook-verify-test', (req, res) => {
   const checks = []
   const ck = (name, got, want) => checks.push({ name, pass: JSON.stringify(got) === JSON.stringify(want), got, want })
 
-  // 1. DynoPay 'received' status must now FULFILL (this was the silent-drop bug).
+  // 1. DynoPay 'received' status must FULFILL when the gateway confirms it.
   ck('received_status_fulfills', V.classifyStoreWebhook({ event: 'received', gatewayReached: true, gatewayStatus: 'received' }).action, 'fulfill')
   // 2. classic confirmed still fulfills
   ck('confirmed_fulfills', V.classifyStoreWebhook({ event: 'payment.confirmed', gatewayReached: true, gatewayStatus: 'confirmed' }).action, 'fulfill')
-  // 3. gateway unreachable (IP-restricted 404) + paid webhook → trust webhook (wallet parity)
-  ck('gateway_unreachable_trusts_webhook', V.classifyStoreWebhook({ event: 'payment.confirmed', gatewayReached: false }).action, 'unverified-fulfill')
-  // 4. gateway says definitively unpaid → HOLD (never provision)
-  ck('gateway_pending_holds', V.classifyStoreWebhook({ event: 'payment.confirmed', gatewayReached: true, gatewayStatus: 'pending' }).action, 'hold')
-  // 5. non-paid webhook event + unreachable gateway → HOLD
-  ck('unknown_event_holds', V.classifyStoreWebhook({ event: 'foobar', gatewayReached: false }).action, 'hold')
+  // 3a. gateway UNREACHABLE + UNSIGNED webhook → HOLD (forgery window closed)
+  ck('unreachable_unsigned_holds', V.classifyStoreWebhook({ event: 'payment.confirmed', gatewayReached: false, signatureValid: false }).action, 'hold')
+  // 3b. gateway UNREACHABLE + VALID signature → fulfill (authentic, invoiced amount)
+  ck('unreachable_signed_fulfills', V.classifyStoreWebhook({ event: 'payment.confirmed', gatewayReached: false, signatureValid: true }).action, 'unverified-fulfill')
+  // 4. gateway says definitively unpaid (contradicts the paid webhook) → HOLD (EXPLOIT FIX)
+  ck('gateway_contradicts_holds', V.classifyStoreWebhook({ event: 'payment.confirmed', gatewayReached: true, gatewayStatus: 'waiting' }).action, 'hold')
+  // 5. non-paid webhook event → HOLD
+  ck('unpaid_event_holds', V.classifyStoreWebhook({ event: 'waiting', gatewayReached: false }).action, 'hold')
   // 6. $67.31 of a $69 order (fee-shave) is WITHIN tolerance → NOT underpaid
   ck('feeshave_within_tolerance', V.isStoreUnderpaid(67.31, 69), false)
   // 7. a real major underpayment IS underpaid
@@ -40418,6 +40425,20 @@ app.post('/dev/store-webhook-verify-test', (req, res) => {
   ck('exact_payment_ok', V.isStoreUnderpaid(69, 69), false)
   // 9. received_unconfirmed treated as paid (per requirement)
   ck('received_unconfirmed_paid', V.isPaidStatus('received_unconfirmed'), true)
+  // 10. refunded is NOT a paid status
+  ck('refunded_not_paid', V.isPaidStatus('refunded'), false)
+  // 11. signature: a correct V2 HMAC verifies
+  {
+    const secret = 'whsec_devtest'
+    const raw = JSON.stringify({ event: 'payment.confirmed', payment_id: 'pay_x', base_amount: '25.00' })
+    const t = Math.floor(Date.now() / 1000)
+    const sig = require('crypto').createHmac('sha256', secret).update(`${t}.${raw}`).digest('hex')
+    ck('sig_v2_valid', V.verifyDynopayWebhook({ rawBody: raw, headers: { 'x-dynopay-signature-v2': `t=${t},v1=${sig}` }, secret }), 'valid')
+    // 12. a tampered body fails
+    ck('sig_v2_tampered_invalid', V.verifyDynopayWebhook({ rawBody: raw + ' ', headers: { 'x-dynopay-signature-v2': `t=${t},v1=${sig}` }, secret }), 'invalid')
+    // 13. no signature header → unsigned
+    ck('sig_absent_unsigned', V.verifyDynopayWebhook({ rawBody: raw, headers: {}, secret }), 'unsigned')
+  }
 
   const pass = checks.every(c => c.pass)
   return res.json({ pass, tolerance: V.storeUnderpayTolerance(), checks })

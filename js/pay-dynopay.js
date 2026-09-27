@@ -69,4 +69,25 @@ const getDynopayCryptoPaymentStatus = async (address) => {
   }
 }
 
-module.exports = {  getDynopayCryptoAddress, getDynopayCryptoPaymentStatus }
+// Authoritative status by immutable payment_id (DynoPay "Verify Payment by ID —
+// recommended"): keyed on the payment_id, returns the DB-authoritative status +
+// amount, and stays correct after the checkout session/address expires. This is
+// the reliable replacement for getCryptoTransaction/:address, which is
+// intermittently "Application not found" for storefront payment addresses.
+const getDynopayPaymentStatusById = async (paymentId) => {
+  if (!paymentId) return false
+  const options = {
+    method: 'GET',
+    url: `${baseUrl}/user/getPaymentStatus/${paymentId}`,
+    headers: headers,
+  }
+  try {
+    const response = await axios.request(options)
+    return response?.data?.data || response?.data || false
+  } catch (error) {
+    console.error('Error fetching DynoPay payment status by id', error?.response?.data?.message || error?.message)
+    return false
+  }
+}
+
+module.exports = { getDynopayCryptoAddress, getDynopayCryptoPaymentStatus, getDynopayPaymentStatusById }
