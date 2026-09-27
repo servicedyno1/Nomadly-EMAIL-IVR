@@ -14,7 +14,7 @@ import json
 import sys
 
 # Backend URL from frontend/.env
-BACKEND_URL = "https://service-config-test.preview.emergentagent.com"
+BACKEND_URL = "https://cloud-integration-3.preview.emergentagent.com"
 
 def print_section(title):
     """Print a formatted section header"""

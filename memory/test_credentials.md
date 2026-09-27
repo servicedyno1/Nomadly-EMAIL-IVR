@@ -15,8 +15,8 @@
 - Bot token (dev==prod): 8822506525:... (env: TELEGRAM_BOT_TOKEN_PROD / _DEV)
 
 ## URLs
-- Frontend/preview (current pod, re-bootstrapped 2026 setup): https://8f4e256b-fcce-4a5a-bd2d-9d9f846a5096.preview.emergentagent.com
-- Frontend/preview (previous pod): https://service-config-test.preview.emergentagent.com
+- Frontend/preview (current pod, re-bootstrapped 2026 setup): https://cloud-integration-3.preview.emergentagent.com
+- Frontend/preview (previous pod): https://cloud-integration-3.preview.emergentagent.com
 - Backend API base (proxied to Node :5000): <preview>/api
 - Re-provisioned 2026-09-14 (WhiteLabel branch, this pod): fresh backend/.env + frontend/.env from user creds (BOT_ENVIRONMENT=development, SKIP_WEBHOOK_SYNC=true overrides); ran scripts/setup-nodejs.sh; restarted backend+frontend (both had started before .env existed — backend KeyError MONGO_URL + frontend un-interpolated %REACT_APP_BRAND_PANEL_NAME% — both fixed by restart). All services verified: nodejs RUNNING + Mongo pool ready, external /api/health healthy + DB connected, frontend title "SmadavHost | Hosting Panel", panel dashboard renders (Bot: Running / DB: Connected / REST APIs: Active). Dev guards confirmed in node log (NS-retry / AntiRed / CF-Sync / hosting scheduler / phone-health-monitor all SKIPPED). Known non-blocker: BalanceMonitor Telnyx HTTP 401 (provided TELNYX_API_KEY rejected by Telnyx balance endpoint — Twilio balance OK $11.50).
 - Panel domain: panel.smadavhost.com | SIP domain: sip.smadavspeech.com
