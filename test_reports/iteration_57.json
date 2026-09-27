@@ -1,0 +1,32 @@
+{
+  "summary": "Verified the DynoPay 'payment.created' idempotency fix and store webhook security regression suite against the running Node service on http://localhost:5000. All requested checks pass end-to-end.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "tests_executed": [
+    {"name": "health check", "cmd": "curl /health", "result": "status=healthy, db=connected"},
+    {"name": "authDyno created-fix E2E (bot wallet top-up)", "cmd": "node js/tests/test_authdyno_created_fix_2026-06.js", "result": "5/5 passed — created/pending do NOT claim idempotency slot; confirmed claims and credits wallet ($21.52 via convert() fallback on invoiced amount); settled is duplicate (no double credit)"},
+    {"name": "store webhook security suite", "cmd": "node js/tests/test_store_webhook_security_2026-06.js", "result": "9/9 passed — forged unsigned holds, gateway-contradicts holds, authoritative gateway amount used, invalid sig 401 under enforce, soft path holds when unreachable, valid sig unreachable credits invoiced, hosting exploit unsigned holds, failed event no credit, payment.created skip records mapping only"},
+    {"name": "dev self-test route", "cmd": "POST /dev/store-webhook-verify-test", "result": "pass=true; 14/14 sub-checks pass (classify + v2 signature scheme unit checks)"},
+    {"name": "signature diagnostic + ms tolerance assertion", "cmd": "node -e inline", "result": "verifyDynopayWebhookV2 accepts both seconds and millisecond timestamps; diagnoseDynopaySignature identifies scheme A_full_t_raw_hex and reports tsUnit=s vs tsUnit=ms correctly"}
+  ],
+  "verification_of_fix": {
+    "idempotency_gate": "Confirmed the positive gate `if (!isDynoPaidStatus(event)) { record chatIdOfDynopayPayment map; return OK }` runs BEFORE the dynopayProcessed.insertOne claim in authDyno. created/pending events return OK without claiming; only payment.confirmed (a PAID status) claims the slot and triggers wallet credit; settled arrives after and is treated as duplicate. Since /dynopay/crypto-pay-* routes share the same authDyno middleware, the same gate protects orders (not exercised live per instructions to avoid real WHM provisioning).",
+    "web_store_webhook": "payment.created early-skip records paymentId->order mapping only. Graduated signature enforcement working: invalid+enforce=401, invalid+soft=200 hold, valid+unreachable=unverified-fulfill credits invoiced amount. [Store][SIGDEBUG] logs emitted on invalid signatures as designed."
+  },
+  "test_report_links": [
+    "/app/js/tests/test_authdyno_created_fix_2026-06.js",
+    "/app/js/tests/test_store_webhook_security_2026-06.js"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "js/_index.js is enormous (~single-file monolith containing authDyno at ~line 37749). Consider extracting webhook middleware and dynopay handlers into dedicated modules for maintainability, but not a blocker.",
+    "authDyno relies on `isDynoPaidStatus` from store-payment-verify — good single source of truth for PAID status classification; keep it in sync with any new DynoPay event names.",
+    "verifyDynopayWebhookV2 tolerates ms timestamps for the freshness window only while still HMAC-signing over the exact delivered `t` string — correct design; documented in code."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100%"},
+  "seed_data_creation": "authdyno test seeds its own chatIdOfDynopayPayment + state doc in local Mongo and cleans up; store test uses ephemeral port + stubbed gateway.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "authDyno created-fix is verified. Do NOT hit /dynopay/crypto-pay-* live routes (real WHM provisioning). Use the two provided test scripts + /dev/store-webhook-verify-test as regression."
+}

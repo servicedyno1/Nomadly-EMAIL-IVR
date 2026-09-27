@@ -2015,3 +2015,10 @@ boot:
 - **Complaint drafted:** `/app/investigations/dynopay_payment/DYNOPAY_SIGNATURE_COMPLAINT.md` — verification request asking DynoPay to confirm message construction, key form (full whsec_ vs stripped vs base64-decoded), encoding (hex/base64), timestamp unit (s/ms), raw-vs-canonical body, per-payment-URL signing, secret binding, + send a signed test event.
 - **Next:** deploy → read SIGDEBUG on next webhook → if `matchedScheme` non-null, fix `verifyDynopayWebhookV2` to that scheme (it's a spec detail, NOT DynoPay's fault); if null, it's DynoPay's end (or transport re-serialization) → escalate via the complaint. Keep enforce OFF until a scheme matches.
 
+
+### 2026-06 (fork) — GitHub push unblocked (secret in log dump) + backend verified 100%
+- **Push blocked** by GitHub secret push-protection: the raw prod log dump I created, `investigations/dynopay_payment/nomadly_logs.jsonl`, contained live Twilio account SIDs and was committed in `3bb316a3`. Deleting in a new commit wouldn't clear protection (secret still in the unpushed commit's history).
+- **Fix:** deleted the file from disk, `git reset --soft 121a58d8` to rewind the 3 unpushed auto-commits (KEEPS all code changes staged), unstaged the file, and confirmed it's purged from all reachable history (`git log --all -- <file>` empty). Added `.gitignore` rules: `investigations/dynopay_payment/*.jsonl`, `memory/*.log`, `memory/e2e_logs/` so raw log dumps/runtime logs are never committed again. `_index.js` authDyno fix was in an earlier (already-pushed) commit — preserved. Node healthy after.
+- **Testing agent iteration_57.json: backend 100%, zero issues, zero code changes.** authDyno created-fix 5/5 (wallet credits once; orders covered by shared middleware), store webhook security 9/9, dev route 14/14, signature diagnostic + ms-timestamp tolerance verified. retest_needed=false.
+- **User should now retry Save to GitHub → Railway redeploy.** After deploy, the next real webhook auto-logs `[Store][SIGDEBUG]` to pin the DynoPay signature scheme.
+
