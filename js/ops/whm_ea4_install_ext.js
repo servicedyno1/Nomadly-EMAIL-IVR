@@ -1,3 +1,4 @@
+require("../log-redact.js").installConsoleRedaction()
 /* global process */
 // Install EasyApache 4 PHP extensions via WHM API 1 (package_manager_submit_actions).
 // Usage: node js/ops/whm_ea4_install_ext.js [--dry] pkg1 pkg2 ...

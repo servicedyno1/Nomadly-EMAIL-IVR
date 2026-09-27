@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+require("../log-redact.js").installConsoleRedaction()
 /* Read-only inspect of the SAMDAV (smadav) service on Railway. */
 const fs = require('fs')
 const path = require('path')

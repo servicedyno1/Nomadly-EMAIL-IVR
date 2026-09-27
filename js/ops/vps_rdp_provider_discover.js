@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+require("../log-redact.js").installConsoleRedaction()
 /* READ-ONLY: VPS/RDP provider config for both brands + DO account identity + golden image + droplet inventory. */
 const fs = require('fs')
 const path = require('path')

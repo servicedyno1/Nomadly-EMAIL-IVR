@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+require("../log-redact.js").installConsoleRedaction()
 /* READ-ONLY production health: WHM (shared), Twilio (shared), Telnyx (Nomadly + SMADAV), SIP DNS. */
 const fs = require('fs')
 const path = require('path')

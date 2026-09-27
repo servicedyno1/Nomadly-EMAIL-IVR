@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+require("../log-redact.js").installConsoleRedaction()
 /* Dump full JSON of the sip.* records in speechcue.com (to mirror onto smadavspeech.com). */
 const fs = require('fs')
 const path = require('path')

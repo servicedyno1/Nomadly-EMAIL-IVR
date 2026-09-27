@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+require("../log-redact.js").installConsoleRedaction()
 /* READ-ONLY: validate Telnyx + Twilio credentials for both prod bots against live APIs.
  * Fetches creds from Railway (SAMDAV + Nomadly). Keys redacted in output. */
 const fs = require('fs'), path = require('path'), https = require('https')

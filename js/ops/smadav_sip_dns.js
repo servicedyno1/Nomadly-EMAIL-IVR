@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+require("../log-redact.js").installConsoleRedaction()
 /* Add the Telnyx SIP DNS records for sip.smadavspeech.com, mirroring the working sip.speechcue.com set.
  * A -> 192.76.120.10 ; SRV _sip._tcp/_udp (5060) + _sips._tcp (5061) -> sip.telnyx.com. Idempotent. */
 const fs = require('fs')

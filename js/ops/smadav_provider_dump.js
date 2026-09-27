@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+require("../log-redact.js").installConsoleRedaction()
 /* Dump SAMDAV service source (repo+branch) and all SIP/Telnyx/Twilio/voice/provider-related vars (secrets masked). */
 const fs = require('fs')
 const path = require('path')

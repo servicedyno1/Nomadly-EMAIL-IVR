@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+require("../log-redact.js").installConsoleRedaction()
 // Linux VPS deploy E2E on DigitalOcean (same digitalocean-service.js the bots use).
 // Creates a small droplet -> waits active + public IP -> checks SSH:22 reachable -> destroys.
 // Billable ~a few cents; self-destroys on completion or SIGINT/SIGTERM. Uses local Mongo/env.

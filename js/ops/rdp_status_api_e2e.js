@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+require("../log-redact.js").installConsoleRedaction()
 // ============================================================
 // Reseller status-API end-to-end  (js/ops/rdp_status_api_e2e.js)
 // ------------------------------------------------------------

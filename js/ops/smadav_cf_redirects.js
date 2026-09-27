@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+require("../log-redact.js").installConsoleRedaction()
 /* Set up Cloudflare 301 redirects: bare smadav hosts -> 1.* hosts (path+query preserved).
  * Flips the old host DNS record to proxied (so CF edge handles it) and installs a
  * dynamic redirect rule in each zone's http_request_dynamic_redirect entrypoint.

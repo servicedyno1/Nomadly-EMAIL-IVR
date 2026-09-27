@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+require("../log-redact.js").installConsoleRedaction()
 // Focused live check: adopt an active droplet, REINSTALL to another edition (DO rebuild),
 // wait active, prove it with an NLA login using the ORIGINAL user-data password
 // (a reinstall boots the immutable user-data password; the new one is only applied by the agent).

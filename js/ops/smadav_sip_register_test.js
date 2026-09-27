@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+require("../log-redact.js").installConsoleRedaction()
 /* SIP REGISTER smoke test: register `smadavcloudphone@sip.smadavspeech.com` against Telnyx (via the
  * branded domain's A record) to prove the branded SIP domain + Telnyx creds authenticate end-to-end.
  * UDP + MD5 digest. Unregisters afterwards. Creds pulled from the SAMDAV Railway service (in-memory). */

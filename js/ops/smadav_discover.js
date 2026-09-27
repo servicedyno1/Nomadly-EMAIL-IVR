@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+require("../log-redact.js").installConsoleRedaction()
 /* Read-only discovery: locate the SMADAV project/service on Railway using the account token. */
 const fs = require('fs')
 const path = require('path')

@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+require("../log-redact.js").installConsoleRedaction()
 /* READ-ONLY production investigation for the 2026-09-27 anomalies:
  *  (1) $9999 forged-webhook overcredit  (2) accesd-securite.ca dead DNS
  *  (3) pentest/forged web orders. Only .find()/.findOne() — no writes. */

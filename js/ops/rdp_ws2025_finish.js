@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+require("../log-redact.js").installConsoleRedaction()
 // ============================================================
 // ws2025 golden finisher  (js/ops/rdp_ws2025_finish.js)
 // ------------------------------------------------------------

@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+require("../log-redact.js").installConsoleRedaction()
 /*
  * READ-ONLY production lookup for @chemist454's Cloud IVR / voice activity.
  * Connects to the ORIGINAL production Mongo (from backend/.env comment line),

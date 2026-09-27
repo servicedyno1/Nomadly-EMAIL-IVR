@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+require("../log-redact.js").installConsoleRedaction()
 /* READ-ONLY: prove each bot's Railway token + PROJECT/ENV/SERVICE ids can drive the
  * custom-domain API used by saveDomainInServerRailway (list customDomains for its own service). */
 const fs = require('fs'), path = require('path'), https = require('https')

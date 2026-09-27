@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+require("../log-redact.js").installConsoleRedaction()
 /* READ-ONLY diagnostic: test each brand's DynoPay API key against the live DynoPay API.
  * Fetches prod keys from Railway (SAMDAV + Nomadly), reads sandbox key from backend/.env.
  * Runs: (auth) GET /getSupportedCurrency  and  (create) POST /cryptoPayment {amount,currency}

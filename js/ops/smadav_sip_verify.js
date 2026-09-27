@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+require("../log-redact.js").installConsoleRedaction()
 /* READ-ONLY verify of SMADAV SIP providers, using SAMDAV's own Railway secrets (never printed). */
 const fs = require('fs')
 const path = require('path')

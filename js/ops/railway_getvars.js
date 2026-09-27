@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+require("../log-redact.js").installConsoleRedaction()
 /* Read-only: print specific env vars for a Railway service. Usage: node railway_getvars.js <serviceId> KEY1 KEY2 ... */
 const fs = require('fs'), path = require('path'), https = require('https')
 function parseEnv(t){const o={};for(const line of t.split('\n')){const m=line.match(/^([A-Z_0-9]+)=(.*)$/);if(!m)continue;let v=m[2].trim();if(v.length>=2&&v[0]===v[v.length-1]&&(v[0]==='"'||v[0]==="'"))v=v.slice(1,-1);o[m[1]]=v}return o}

@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+require("../log-redact.js").installConsoleRedaction()
 /* Update SAMDAV env vars: bare smadav domains -> 1.* subdomains. Leaves SIP untouched. Dry-run unless --apply. */
 const fs = require('fs')
 const path = require('path')

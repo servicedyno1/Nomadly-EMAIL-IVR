@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+require("../log-redact.js").installConsoleRedaction()
 /* Read-only Cloudflare inspection for smadavspeech.com + smadavhost.com zones. */
 const fs = require('fs')
 const path = require('path')

@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+require("../log-redact.js").installConsoleRedaction()
 /* Controlled cPanel/WHM provisioning smoke test on the shared prod server:
  *   createacct (test subdomain under smadavhost.com) -> accountsummary verify -> removeacct -> verify gone.
  * Always cleans up (removeacct) even on partial failure. No customer/payment involved. */

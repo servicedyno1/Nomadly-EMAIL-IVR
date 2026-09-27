@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+require("../log-redact.js").installConsoleRedaction()
 /* READ-ONLY: verify the Cloudflare Tunnel (customer hosting web) + bridge hostnames
  * (whm-api / cpanel-api → WHM :2087 / cPanel :2083) are healthy against the prod WHM box.
  * Usage: node js/ops/cf_tunnel_bridge_verify.js [--domains=12] */

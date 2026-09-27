@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+require("../log-redact.js").installConsoleRedaction()
 /* Create the Railway-required Cloudflare records for the SMADAV 1.* subdomains. Idempotent. */
 const fs = require('fs')
 const path = require('path')

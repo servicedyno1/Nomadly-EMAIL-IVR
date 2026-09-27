@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+require("../log-redact.js").installConsoleRedaction()
 /* Attach 1.smadavspeech.com + 1.panel.smadavhost.com to the SAMDAV Railway service and print required DNS. */
 const fs = require('fs')
 const path = require('path')

@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+require("../log-redact.js").installConsoleRedaction()
 /* Add www + root 301 redirects for the SMADAV zones (redirect-only proxied placeholder records +
  * dynamic-redirect rules appended to the existing entrypoint). Path+query preserved.
  *   www.smadavspeech.com        -> https://1.smadavspeech.com

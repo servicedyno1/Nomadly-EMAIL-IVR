@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+require("../log-redact.js").installConsoleRedaction()
 /* Read-only: print DynoPay/BlockBee/payment vars for a Railway service. */
 const fs = require('fs')
 const path = require('path')

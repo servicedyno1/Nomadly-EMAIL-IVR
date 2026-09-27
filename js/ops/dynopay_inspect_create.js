@@ -1,3 +1,4 @@
+require("../log-redact.js").installConsoleRedaction()
 /* global process */
 // READ-ONLY probe: create a tiny direct-crypto payment to inspect the FULL
 // response shape — specifically whether DynoPay returns a webhook signing

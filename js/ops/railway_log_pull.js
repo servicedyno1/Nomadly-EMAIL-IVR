@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+require("../log-redact.js").installConsoleRedaction()
 /*
  * READ-ONLY Railway production log puller (project "zippy-radiance", service Nomadly-EMAIL-IVR).
  * Uses the project-scoped API_KEY_RAILWAY via GraphQL environmentLogs.

@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+require("../log-redact.js").installConsoleRedaction()
 /*
  * Railway production bootstrap for the Nomadly bot (new project).
  *

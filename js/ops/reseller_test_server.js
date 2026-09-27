@@ -1,3 +1,4 @@
+require("../log-redact.js").installConsoleRedaction()
 /* Standalone reseller-API test server (sandbox only).
  * Mounts the REAL reseller router on :5000 so the FastAPI proxy
  * (/api/reseller/v1/* → 127.0.0.1:5000/reseller/v1/*) reaches it.

@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+require("../log-redact.js").installConsoleRedaction()
 // DEFINITIVE ws2022 golden-image DNS/internet verification (user-authorized, ~1 throwaway droplet).
 // Creates ONE droplet from the ws2022 golden image (246825481) with apply.ps1's CALLBACK_URL pointed
 // at a fresh public webhook.site capture bin. apply.ps1 reads its config from link-local metadata

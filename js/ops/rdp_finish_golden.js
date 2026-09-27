@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+require("../log-redact.js").installConsoleRedaction()
 // Finish an interrupted golden build whose build droplet already CONVERTED Windows and is
 // serving the qcow2 on :80, but whose orchestrator died before importing it as a DO custom
 // image. Per --os it: discovers the build droplet + qcow2 URL, imports it as a new custom
