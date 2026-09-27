@@ -1324,5 +1324,7 @@ memory/complaints_*.json
 # Raw production log dumps & runtime logs — contain live secrets (Twilio SIDs,
 # API keys). Never commit; GitHub secret push-protection will reject them.
 investigations/dynopay_payment/*.jsonl
+investigations/**/*.jsonl
+investigations/**/*.log
 memory/*.log
 memory/e2e_logs/

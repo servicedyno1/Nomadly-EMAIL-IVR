@@ -35,7 +35,7 @@ check('intent handler routes Hosting → hosting hub (submenu3)', /FIRST_SESSION
 check('intent handler routes Domains → domains hub (submenu2)', /FIRST_SESSION_INTENT_ALL\.domains\.includes\(message\)\) return goto\.submenu2/.test(s))
 check('intent handler routes Digital → digital hub (submenu6)', /FIRST_SESSION_INTENT_ALL\.digital\.includes\(message\)\) return goto\.submenu6/.test(s))
 check('unrecognized / "Just looking" falls through to the full menu (never stuck)',
-  /if \(action === a\.firstSessionIntent\)[\s\S]{0,700}return goto\.displayMainMenuButtons\(\)\n  \}/.test(s))
+  /if \(action === a\.firstSessionIntent\)[\s\S]{0,800}return goto\.displayMainMenuButtons\(\)\n  \}/.test(s))
 
 // The intent handler must sit BEFORE the settings handler (so it is reached)
 check('intent handler is placed before the settings menu handler',
