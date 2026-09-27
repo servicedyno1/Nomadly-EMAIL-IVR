@@ -9121,10 +9121,10 @@ bot?.on('message', msg => {
       const { usdBal } = await getBalance(walletOf, chatId)
       const tierInfo = await loyalty.getUserTier(walletOf, chatId)
       const greetings = {
-        en: { welcome: 'Welcome', hi: 'Hey', balance: 'Balance', tier: 'Tier', discount: 'off all purchases', noDiscount: 'Start spending to unlock discounts', selectOption: 'Select an option below' },
-        fr: { welcome: 'Bienvenue', hi: 'Salut', balance: 'Solde', tier: 'Niveau', discount: 'sur tous les achats', noDiscount: 'Commencez vos achats pour debloquer des reductions', selectOption: 'Choisissez une option' },
-        zh: { welcome: '欢迎', hi: '你好', balance: '余额', tier: '等级', discount: '所有购买折扣', noDiscount: '开始消费以解锁折扣', selectOption: '请选择一个选项' },
-        hi: { welcome: 'स्वागत है', hi: 'नमस्ते', balance: 'शेष', tier: 'स्तर', discount: 'सभी खरीदारी पर छूट', noDiscount: 'छूट पाने के लिए खर्च शुरू करें', selectOption: 'नीचे एक विकल्प चुनें' },
+        en: { welcome: 'Welcome', hi: 'Hey', balance: 'Balance', tier: 'Tier', discount: 'off all purchases', noDiscount: 'Choose a service below to get started 👇', selectOption: 'Select an option below' },
+        fr: { welcome: 'Bienvenue', hi: 'Salut', balance: 'Solde', tier: 'Niveau', discount: 'sur tous les achats', noDiscount: 'Choisissez un service ci-dessous pour commencer 👇', selectOption: 'Choisissez une option' },
+        zh: { welcome: '欢迎', hi: '你好', balance: '余额', tier: '等级', discount: '所有购买折扣', noDiscount: '选择下方服务开始使用 👇', selectOption: '请选择一个选项' },
+        hi: { welcome: 'स्वागत है', hi: 'नमस्ते', balance: 'शेष', tier: 'स्तर', discount: 'सभी खरीदारी पर छूट', noDiscount: 'शुरू करने के लिए नीचे एक सेवा चुनें 👇', selectOption: 'नीचे एक विकल्प चुनें' },
       }
       const g = greetings[lang] || greetings.en
       const name = msg?.from?.first_name || username
@@ -9135,25 +9135,27 @@ bot?.on('message', msg => {
         ? `${tierInfo.discountPercent}% ${g.discount}`
         : g.noDiscount
 
-      // Check if user has free trial IVR call available (only for users without active phone plan)
+      // Single consolidated "free to try" hint. Previously rendered as TWO
+      // overlapping lines (a Quick IVR trial hint + a separate SIP-test hint)
+      // that confused newcomers who couldn't tell the two "free calls" apart.
       const userData = await get(phoneNumbersOf, chatId)
       const hasActivePlan = (userData?.numbers || []).some(n => n.status === 'active')
       let freeTrialLine = ''
+      const sipTestLine = ''
       if (!hasActivePlan) {
-        const trialKey = `ivrTrialUsed_${chatId}`
-        const trialUsed = await get(state, trialKey)
-        if (!trialUsed) {
-          freeTrialLine = `\n📞 <i>You have a free trial Quick IVR Call! Tap Cloud IVR to try it.</i>\n`
+        const trialUsed = await get(state, `ivrTrialUsed_${chatId}`)
+        const testCreds = await db.collection('testCredentials').find({ chatId }).toArray()
+        const totalTestCalls = testCreds.reduce((sum, c) => sum + (c.callsMade || 0), 0)
+        const canSip = totalTestCalls === 0
+        if (!trialUsed || canSip) {
+          const freeHints = {
+            en: `🆓 <i>Free to try: tap 📞 Cloud IVR for a free call${canSip ? ', or send /testsip for a SIP test' : ''}.</i>`,
+            fr: `🆓 <i>Gratuit à tester : appuyez sur 📞 Cloud IVR pour un appel gratuit${canSip ? ', ou envoyez /testsip pour un test SIP' : ''}.</i>`,
+            zh: `🆓 <i>免费试用：点击 📞 Cloud IVR 进行免费通话${canSip ? '，或发送 /testsip 进行 SIP 测试' : ''}。</i>`,
+            hi: `🆓 <i>मुफ़्त आज़माएं: 📞 Cloud IVR पर टैप करके मुफ़्त कॉल करें${canSip ? ', या SIP टेस्ट के लिए /testsip भेजें' : ''}।</i>`,
+          }
+          freeTrialLine = `\n${freeHints[lang] || freeHints.en}\n`
         }
-      }
-
-      // Check if user has tried SIP test yet
-      const testCreds = await db.collection('testCredentials').find({ chatId }).toArray()
-      const totalTestCalls = testCreds.reduce((sum, c) => sum + (c.callsMade || 0), 0)
-      let sipTestLine = ''
-      if (totalTestCalls === 0) {
-        const pMsg = phoneConfig.getMsg(info?.userLanguage || 'en')
-        sipTestLine = `\n${pMsg.sipTestMenuHint}\n`
       }
 
       // ── Welcome Bonus hint removed — bonus is now awarded on /start ──
@@ -9166,6 +9168,40 @@ bot?.on('message', msg => {
         `${g.selectOption}`
     } catch (e) {
       return trans('t.welcome')
+    }
+  }
+
+  // Reusable first-session "what do you need today?" chooser (audit #17).
+  // Adds a one-line value prop + a first-deposit-bonus tip, and is RESILIENT:
+  // any send failure falls back to the full main menu so the user is NEVER
+  // left without a keyboard. Returns true on success, false if it fell back.
+  const showFirstSessionIntent = async (lang) => {
+    const _l = lang || info?.userLanguage || 'en'
+    const depBonus = (userConversion && userConversion.FIRST_DEPOSIT_BONUS_USD) || 5
+    try {
+      const q = ({
+        en: `👋 <b>Welcome to ${CHAT_BOT_NAME}</b> — your all-in-one toolkit: phone numbers, hosting, domains & digital products.\n\n<b>What do you need today?</b> Tap one to jump straight in — or 👀 Just looking to browse everything.\n\n💸 <i>Tip: deposit $20+ and get $${depBonus} free on your first deposit.</i>`,
+        fr: `👋 <b>Bienvenue sur ${CHAT_BOT_NAME}</b> — votre boîte à outils tout-en-un : numéros, hébergement, domaines & produits numériques.\n\n<b>De quoi avez-vous besoin aujourd'hui ?</b> Appuyez pour aller droit au but — ou 👀 Je regarde pour tout parcourir.\n\n💸 <i>Astuce : déposez 20 $+ et recevez ${depBonus} $ offerts sur votre premier dépôt.</i>`,
+        zh: `👋 <b>欢迎使用 ${CHAT_BOT_NAME}</b> — 一站式工具箱：电话号码、主机、域名和数字产品。\n\n<b>您今天需要什么？</b>点击直接进入 — 或点 👀 随便看看 浏览全部。\n\n💸 <i>提示：首次充值 $20+ 即可获得 $${depBonus} 赠金。</i>`,
+        hi: `👋 <b>${CHAT_BOT_NAME} में आपका स्वागत है</b> — फ़ोन नंबर, होस्टिंग, डोमेन और डिजिटल प्रोडक्ट के लिए ऑल-इन-वन टूलकिट।\n\n<b>आज आपको क्या चाहिए?</b> सीधे जाने के लिए टैप करें — या सब कुछ देखने के लिए 👀 बस देख रहे हैं।\n\n💸 <i>टिप: $20+ जमा करें और पहली जमा पर $${depBonus} मुफ़्त पाएं।</i>`,
+      })[_l] || `👋 <b>Welcome to ${CHAT_BOT_NAME}</b> — what do you need today?`
+      const rows = [
+        [FIRST_SESSION_INTENT.numbers[_l] || FIRST_SESSION_INTENT.numbers.en],
+        [FIRST_SESSION_INTENT.hosting[_l] || FIRST_SESSION_INTENT.hosting.en, FIRST_SESSION_INTENT.domains[_l] || FIRST_SESSION_INTENT.domains.en],
+        [FIRST_SESSION_INTENT.digital[_l] || FIRST_SESSION_INTENT.digital.en],
+        [FIRST_SESSION_INTENT.looking[_l] || FIRST_SESSION_INTENT.looking.en],
+      ]
+      // Send FIRST, then set the action — so a send failure never strands the
+      // user in the firstSessionIntent state with the full menu showing.
+      await bot.sendMessage(chatId, q, { parse_mode: 'HTML', reply_markup: { keyboard: rows, resize_keyboard: true } })
+      await set(state, chatId, 'action', a.firstSessionIntent)
+      return true
+    } catch (e) {
+      try {
+        const greeting = await getMainMenuGreeting()
+        await send(chatId, greeting, trans('o'))
+      } catch (_) { /* ignore */ }
+      return false
     }
   }
 
@@ -10746,7 +10782,7 @@ Enter new value:`), bc)
         const recent = parsed.slice(0, 15)
 
         if (recent.length === 0) {
-          return send(chatId, trans('t.wlt_9'), { parse_mode: 'HTML' })
+          return send(chatId, trans('t.wlt_9'), k.of([[user.wallet]]))
         }
 
         // Format output
@@ -14211,6 +14247,22 @@ All verified numbers generated during sourcing.`))
     // Returning user: reset action and show main menu with balance & tier
     await set(state, chatId, 'action', 'none')
     await set(state, chatId, 'processingPayment', false) // Clear any stale payment lock
+    // ── UX: gently re-onboard a returning but NOT-yet-activated user ──
+    // A returning user who has never purchased and hasn't seen/used the intent
+    // funnel gets the lightweight "what do you need today?" chooser ONCE more
+    // (bounded by firstIntentReshown), instead of the full 18-button wall.
+    // Activated customers and anyone who already saw it are unaffected.
+    if (!info.firstSessionIntentDone && !info.firstIntentReshown) {
+      try {
+        const _conv = await db.collection('userConversion').findOne({ chatId: String(chatId) }).catch(() => null)
+        if (!_conv?.hasPurchased) {
+          await set(state, chatId, 'firstIntentReshown', true)
+          await showFirstSessionIntent(info?.userLanguage || 'en')
+          return
+        }
+      } catch (e) { /* non-critical — fall through to the normal menu */ }
+    }
+
     const greeting = await getMainMenuGreeting()
     send(chatId, greeting, trans('o'))
     await maybeSendTrialNudge(chatId, info?.userLanguage || 'en')
@@ -14944,11 +14996,13 @@ All verified numbers generated during sourcing.`))
     )
 
     // ── Welcome Gift: Award $5 to new user ──
+    let welcomeBonusShown = false
     try {
       const bonus = await monetization.checkAndAwardWelcomeBonus(chatId, validLanguage || 'en')
       if (bonus?.awarded) {
         reactToMessage(chatId, msg?.message_id, '🎉', true) // UX #3: celebrate the welcome gift
         send(chatId, bonus.message, { parse_mode: 'HTML' })
+        welcomeBonusShown = true
         log(`[WelcomeBonus] Awarded $${bonus.amount} to new user chatId=${chatId}`)
       }
     } catch (e) { /* non-critical */ }
@@ -14972,27 +15026,12 @@ All verified numbers generated during sourcing.`))
 
       // First-session intent funnel (audit #17): ask once "what do you need
       // today?" so a first-timer jumps straight to a hub instead of the full
-      // 17-button menu. "👀 Just looking" (or any other input) opens the full
-      // menu, so users are never stuck. Lands after the welcome-bonus message.
-      setTimeout(async () => {
-        try {
-          const _l = validLanguage || 'en'
-          const q = ({
-            en: `👋 <b>Welcome!</b> What do you need today?\n\nTap one to jump straight in — or 👀 Just looking to browse everything.`,
-            fr: `👋 <b>Bienvenue !</b> De quoi avez-vous besoin aujourd'hui ?\n\nAppuyez pour aller droit au but — ou 👀 Je regarde pour tout parcourir.`,
-            zh: `👋 <b>欢迎！</b>您今天需要什么？\n\n点击直接进入 — 或点 👀 随便看看 浏览全部。`,
-            hi: `👋 <b>स्वागत है!</b> आज आपको क्या चाहिए?\n\nसीधे जाने के लिए टैप करें — या सब कुछ ब्राउज़ करने के लिए 👀 बस देख रहे हैं।`,
-          })[_l] || `👋 <b>Welcome!</b> What do you need today?`
-          const rows = [
-            [FIRST_SESSION_INTENT.numbers[_l] || FIRST_SESSION_INTENT.numbers.en],
-            [FIRST_SESSION_INTENT.hosting[_l] || FIRST_SESSION_INTENT.hosting.en, FIRST_SESSION_INTENT.domains[_l] || FIRST_SESSION_INTENT.domains.en],
-            [FIRST_SESSION_INTENT.digital[_l] || FIRST_SESSION_INTENT.digital.en],
-            [FIRST_SESSION_INTENT.looking[_l] || FIRST_SESSION_INTENT.looking.en],
-          ]
-          await set(state, chatId, 'action', a.firstSessionIntent)
-          send(chatId, q, { parse_mode: 'HTML', reply_markup: { keyboard: rows, resize_keyboard: true } })
-        } catch (e) { /* non-critical */ }
-      }, 2000)
+      // 18-button menu. Rendered via the resilient showFirstSessionIntent()
+      // helper (falls back to the full menu on any send error, so the user is
+      // never left keyboard-less). A short delay lets the $5 welcome-bonus
+      // message land first; when no bonus message was shown, fire almost
+      // immediately so there's no dead gap after the language pick.
+      setTimeout(() => { showFirstSessionIntent(validLanguage).catch(() => {}) }, welcomeBonusShown ? 1200 : 300)
 
       return
     } catch (e) { /* non-critical — fall through to normal menu */ }
@@ -15008,6 +15047,7 @@ All verified numbers generated during sourcing.`))
   // the firstSessionIntent action, which is set once after language selection).
   if (action === a.firstSessionIntent) {
     await set(state, chatId, 'action', 'none')
+    await set(state, chatId, 'firstSessionIntentDone', true)
     if (FIRST_SESSION_INTENT_ALL.numbers.includes(message)) return goto.submenu5 ? goto.submenu5() : goto.displayMainMenuButtons()
     if (FIRST_SESSION_INTENT_ALL.hosting.includes(message)) return goto.submenu3 ? goto.submenu3() : goto.displayMainMenuButtons()
     if (FIRST_SESSION_INTENT_ALL.domains.includes(message)) return goto.submenu2 ? goto.submenu2() : goto.displayMainMenuButtons()
