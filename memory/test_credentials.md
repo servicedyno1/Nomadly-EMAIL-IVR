@@ -15,9 +15,16 @@
 - Bot token (dev==prod): 8822506525:... (env: TELEGRAM_BOT_TOKEN_PROD / _DEV)
 
 ## URLs
-- Frontend/preview (current pod, re-bootstrapped 2026 setup): https://cloud-integration-3.preview.emergentagent.com
+- Frontend/preview (CURRENT pod, re-provisioned 2026-09-27): https://64c72270-6795-4729-97d7-6f338be7cee6.preview.emergentagent.com
 - Frontend/preview (previous pod): https://cloud-integration-3.preview.emergentagent.com
 - Backend API base (proxied to Node :5000): <preview>/api
+
+## Re-provision 2026-09-27 (this pod)
+- Fresh backend/.env + frontend/.env written from user-supplied creds. SAFE DEV SANDBOX overrides applied: BOT_ENVIRONMENT=development, SKIP_WEBHOOK_SYNC=true.
+- Verified: Telegram webhook LEFT UNTOUCHED (still https://samdav1.up.railway.app/telegram/webhook — NOT hijacked). CF-Sync skipped (dev). FastAPI phone health monitor skipped (SKIP_WEBHOOK_SYNC). Live Railway Mongo connected (DB=smadav).
+- Services: nodejs (:5000) RUNNING + Mongo connected; backend (:8001) proxy /api/health healthy; frontend title/brand = SmadavBot, panel badge ONLINE (Bot: Running / DB: Connected / REST APIs: Active).
+- Steps: yarn install --ignore-engines (root, node20 + --ignore-engines since pkg wants node22); bash scripts/setup-nodejs.sh (registers supervisord_nodejs.conf, updates SELF_URL to this pod +/api); restart backend+frontend so they load the new .env (frontend had booted before .env existed -> stale defaults until restart).
+- NOTE: a few reconciler/enforcer jobs still tick against the LIVE DB in this mode (ProtectionEnforcer, BalanceMonitor, FincraReconcile, EmailBlast queue). They are read/decision-heavy and mostly deferred, but not hard-disabled by the two flags. Gate further if strict isolation is needed.
 - Re-provisioned 2026-09-14 (WhiteLabel branch, this pod): fresh backend/.env + frontend/.env from user creds (BOT_ENVIRONMENT=development, SKIP_WEBHOOK_SYNC=true overrides); ran scripts/setup-nodejs.sh; restarted backend+frontend (both had started before .env existed — backend KeyError MONGO_URL + frontend un-interpolated %REACT_APP_BRAND_PANEL_NAME% — both fixed by restart). All services verified: nodejs RUNNING + Mongo pool ready, external /api/health healthy + DB connected, frontend title "SmadavHost | Hosting Panel", panel dashboard renders (Bot: Running / DB: Connected / REST APIs: Active). Dev guards confirmed in node log (NS-retry / AntiRed / CF-Sync / hosting scheduler / phone-health-monitor all SKIPPED). Known non-blocker: BalanceMonitor Telnyx HTTP 401 (provided TELNYX_API_KEY rejected by Telnyx balance endpoint — Twilio balance OK $11.50).
 - Panel domain: panel.smadavhost.com | SIP domain: sip.smadavspeech.com
 
