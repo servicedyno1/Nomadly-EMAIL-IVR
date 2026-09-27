@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+require("../log-redact.js").installConsoleRedaction()
 // ============================================================
 // FULL RDP MANAGEMENT end-to-end  (js/ops/rdp_full_mgmt_e2e.js)
 // ------------------------------------------------------------

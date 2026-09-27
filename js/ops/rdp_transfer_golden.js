@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+require("../log-redact.js").installConsoleRedaction()
 // One-off: copy a registered golden image to its remaining mapped regions, driving each
 // DO image-transfer action directly and WAITING for it to land (transferGolden() fires the
 // copies in a detached task, so a short-lived script would kill them). The DO image copy is

@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+require("../log-redact.js").installConsoleRedaction()
 // ============================================================
 // DigitalOcean Windows-RDP preflight probe  (js/ops/rdp_do_preflight.js)
 // ------------------------------------------------------------

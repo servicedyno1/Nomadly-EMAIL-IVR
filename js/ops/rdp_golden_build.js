@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+require("../log-redact.js").installConsoleRedaction()
 // ============================================================
 // Windows-RDP golden image ops CLI  (js/ops/rdp_golden_build.js)
 // ------------------------------------------------------------

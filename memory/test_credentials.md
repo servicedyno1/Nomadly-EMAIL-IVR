@@ -6,6 +6,12 @@
 - SKIP_WEBHOOK_SYNC=true  → production Telegram webhook is PRESERVED (points to https://smadav.up.railway.app/telegram/webhook), NOT this pod
 - Database: **LIVE Railway production MongoDB** (MONGO_URL → sakura.proxy.rlwy.net, DB_NAME=smadav)
 
+## PII log-redaction port 2026-09-27 (main 8a4fd9a → WhiteLabel)
+- Added js/log-redact.js (customer domains → ***, real-TLD allowlist; infra/own domains + code tokens + IPs kept). Wired installConsoleRedaction() at top of js/_index.js (right after dotenv.config). Added the one-liner require to the 14 js/ops/* scripts that exist in WhiteLabel (main's other 30 ops scripts aren't in this branch). New test js/tests/test_log_redact_2026-06.js 25/25.
+- Brand adaptation (config only, code identical to main): set LOG_REDACT_KEEP="smadavhost.com,smadavspeech.com" in backend/.env so WhiteLabel's own brand domains stay readable in logs (SELF_URL host auto-kept). Kill switch LOG_REDACT=0.
+- Verified live: evil-customer.ca → ***, 1.panel.smadavhost.com / api.telegram.org / cloudflareapi.com / store-routes.js / IPs all preserved. Node boots clean.
+- main commits newer than this that are already handled: f237ea7 (empty-state, ported), 65c9bd5 (sig rotation, in P0 port). The 0544a7a/f3a96e9/4149a23/d2ddb94 commits are platform auto-generated noise.
+
 ## Empty-state UX port 2026-09-27 (main f237ea7 → WhiteLabel)
 - Ported "Bot empty-state UX pass" from main commit f237ea7 into js/_index.js: resilient showFirstSessionIntent() helper (send-then-set, falls back to full menu), consolidated "free to try" hint (merged IVR-trial + SIP-test), softened no-activity greeting line, one-tap Wallet CTA on empty transaction history, returning-but-inactive re-onboarding (gated by firstSessionIntentDone + firstIntentReshown + hasPurchased), first-deposit-bonus tip. New test js/tests/test_empty_state_ux_2026-06.js 16/16; js/tests/test_intent_funnel_2026-06.js bumped to {0,800} 13/13. Node boots clean.
 - The commit's "DynoPay prod signature verification" half was already covered by the earlier P0 + multi-v1 rotation port (store-payment-verify.js) — f237ea7 touched no payment code, only _index.js + tests + an investigation doc.

@@ -4,6 +4,10 @@
 // Start HTTP server immediately to pass health checks
 // =====================================================
 require('dotenv').config()
+// Domain-name log redaction: mask CUSTOMER domains in ALL log output (console
+// is the single chokepoint — `log` is `console.log`). Infra/own domains stay
+// readable. Disable with LOG_REDACT=0. See js/log-redact.js.
+require('./log-redact.js').installConsoleRedaction()
 const express = require('express')
 const cors = require('cors')
 

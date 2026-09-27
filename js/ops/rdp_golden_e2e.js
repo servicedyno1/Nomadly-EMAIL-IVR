@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+require("../log-redact.js").installConsoleRedaction()
 // ============================================================
 // Golden-image end-to-end check  (js/ops/rdp_golden_e2e.js)
 // ------------------------------------------------------------
