@@ -18,10 +18,10 @@ const bcrypt = require('bcryptjs')
 const jwt = require('jsonwebtoken')
 const { log } = require('console')
 
-const { getDynopayCryptoAddress, getDynopayCryptoPaymentStatus } = require('./pay-dynopay')
+const { getDynopayCryptoAddress, getDynopayCryptoPaymentStatus, getDynopayPaymentStatusById } = require('./pay-dynopay')
 const { getCryptoDepositAddress, convert } = require('./pay-blockbee')
 const { branding } = require('./branding')
-const { classifyStoreWebhook, isStoreUnderpaid } = require('./store-payment-verify')
+const { isPaidStatus, classifyStoreWebhook, isStoreUnderpaid, storeUnderpayTolerance, verifyDynopayWebhook, diagnoseDynopaySignature } = require('./store-payment-verify')
 
 const JWT_SECRET = process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex')
 const JWT_EXPIRY = '30d'
@@ -107,11 +107,40 @@ function createStoreRoutes(deps = {}) {
   const getDb = deps.getDb
   const SELF_URL = deps.selfUrl || process.env.SELF_URL
   const notifyAdmin = typeof deps.notifyAdmin === 'function' ? deps.notifyAdmin : (() => {})
+  // Injectable DynoPay status lookups (real by default; overridden in tests).
+  const dynoStatusById = typeof deps.dynoStatusById === 'function' ? deps.dynoStatusById : getDynopayPaymentStatusById
+  const dynoStatusByAddress = typeof deps.dynoStatusByAddress === 'function' ? deps.dynoStatusByAddress : getDynopayCryptoPaymentStatus
+  // DynoPay webhook signing secret (whsec_…). When set, a present-but-invalid
+  // signature is rejected outright and a valid signature lets a gateway-
+  // unreachable webhook still fulfill. When unset, DynoPay sends the payload
+  // unsigned and we rely purely on the server-to-server status re-verify.
+  const webhookSecret = () => (deps.webhookSecret || process.env.DYNO_PAY_WEBHOOK_SECRET || '')
 
   const col = (name) => {
     const db = getDb && getDb()
     if (!db) throw new Error('DB not ready')
     return db.collection(name)
+  }
+
+  // ── Authoritative DynoPay status for an order. UNTRUSTED webhook bodies must
+  // never be the source of truth — this fetches the real status/amount from
+  // DynoPay server-to-server. Prefers the immutable payment_id endpoint
+  // (recommended, survives address expiry); falls back to the address lookup.
+  async function fetchAuthoritativeStatus(order) {
+    let st = null
+    if (order.paymentId) { try { st = await dynoStatusById(order.paymentId) } catch (_) { st = null } }
+    if ((!st || st.status == null) && order.payAddress) { try { st = await dynoStatusByAddress(order.payAddress) } catch (_) { st = null } }
+    return (st && st.status != null) ? st : null
+  }
+
+  // Authoritative USD amount from a DynoPay status response. Uses ONLY the USD
+  // base-currency fields (never the crypto amount, never the webhook body).
+  function authoritativeUsd(st) {
+    if (!st) return null
+    const cand = (st.amount_received_base != null ? st.amount_received_base
+      : (st.base_amount != null ? st.base_amount : null))
+    const n = cand != null ? parseFloat(cand) : NaN
+    return Number.isFinite(n) && n > 0 ? n : null
   }
 
   // ── Auth middleware ──
@@ -644,69 +673,106 @@ function createStoreRoutes(deps = {}) {
   }
 
   // ── DynoPay webhook (durable, DB-backed) ──
-  // Classification mirrors the bot's authDyno DENY-LIST: hold ONLY on empty /
-  // definitively-unpaid events; trust every other event as PAID and fulfill.
-  // The DynoPay status endpoint is ADVISORY-ONLY here — it must never block a
-  // paid webhook (it returns "Application not found" for storefront addresses,
-  // which is exactly the bug that stopped web orders from ever provisioning).
   router.post('/crypto-webhook', async (req, res) => {
     try {
+      const event = req.body?.event || req.body?.status
       const paymentId = req.body?.payment_id
       const refId = req.body?.meta_data?.refId
-      const verdict = classifyStoreWebhook(req.body)
 
-      // Record the payment_id → order mapping whenever we can, so a later
-      // confirmed event (which may lack meta_data) can still find the order.
-      if (refId && paymentId) {
-        await col('webOrders').updateOne({ _id: refId }, { $set: { paymentId, updatedAt: now() } }).catch(() => {})
+      // ── Signature gate. DynoPay signs webhooks (X-Dynopay-Signature-V2 =
+      // HMAC-SHA256 over "<t>.<rawBody>") ONLY when a whsec_ secret is
+      // configured on the endpoint. If we hold a secret and a signature is
+      // present but INVALID → reject outright (kills forged callbacks). If no
+      // secret is configured, DynoPay sends the payload unsigned and we fall
+      // back to the server-to-server status re-verify below.
+      const secret = webhookSecret()
+      const sigState = verifyDynopayWebhook({
+        rawBody: req.rawBody, bodyObj: req.body, headers: req.headers, secret,
+      })
+      // Signature scheme diagnostic: on ANY invalid signature (the anomaly we're
+      // chasing) — or whenever DYNO_PAY_WEBHOOK_SIG_DEBUG=true — log the sender's
+      // v1 vs every plausible HMAC construction, so we can pin down DynoPay's
+      // exact scheme (key form / encoding / ts unit / raw vs canonical body) from
+      // the next real webhook. Safe: signatures are truncated in the output.
+      if (secret && (sigState === 'invalid' || process.env.DYNO_PAY_WEBHOOK_SIG_DEBUG === 'true')) {
+        try { log(`[Store][SIGDEBUG] ${JSON.stringify(diagnoseDynopaySignature({ rawBody: req.rawBody, headers: req.headers, secret }))}`) } catch (_) {}
       }
+      // Graduated enforcement: by default an INVALID signature is logged +
+      // admin-alerted but NOT hard-rejected — it falls through to the
+      // authoritative server-to-server re-verify (which already holds on any
+      // unpaid/unreachable state), so a DynoPay signing-format quirk can never
+      // reject a genuinely-paid order. Flip DYNO_PAY_WEBHOOK_SIG_ENFORCE=true
+      // to 401 outright once prod logs confirm real webhooks show sig=valid.
+      const enforceSig = process.env.DYNO_PAY_WEBHOOK_SIG_ENFORCE === 'true'
+      if (secret && sigState === 'invalid') {
+        log(`[Store] crypto-webhook INVALID signature (ref=${refId}, pid=${paymentId}) enforce=${enforceSig}`)
+        try { notifyAdmin(`🚫 <b>Store crypto webhook — INVALID signature</b>\nRef: <code>${refId || '—'}</code>\nPaymentId: ${paymentId || '—'}\nEvent: ${event}\nEnforce: ${enforceSig}\n${enforceSig ? '(REJECTED 401)' : '(not enforced — falling through to gateway re-verify; possible spoof OR signing-format mismatch — check logs)'}`) } catch {}
+        if (enforceSig) return res.status(401).send('invalid signature')
+      }
+      const signatureValid = sigState === 'valid'
 
-      // HOLD (empty / pending / underpaid / waiting): do nothing terminal.
-      if (verdict.decision === 'hold') {
-        log(`[Store] webhook HOLD (${verdict.status || 'empty'}) ref=${refId} pid=${paymentId}`)
+      // pending: just record the paymentId→order mapping
+      if (event === 'payment.pending' || req.body?.status === 'pending') {
+        if (refId && paymentId) {
+          await col('webOrders').updateOne({ _id: refId }, { $set: { paymentId, updatedAt: now() } }).catch(() => {})
+        }
+        return res.send('OK')
+      }
+      // created (new DynoPay lifecycle event) / any non-paid informational
+      // event → record the paymentId→order mapping only; DON'T run the credit
+      // path (avoids spurious "HELD" admin alerts before the customer has paid).
+      if (event === 'payment.created' || req.body?.status === 'created') {
+        if (refId && paymentId) {
+          await col('webOrders').updateOne({ _id: refId }, { $set: { paymentId, updatedAt: now() } }).catch(() => {})
+        }
+        return res.send('OK')
+      }
+      if (event === 'payment.failed') {
+        if (refId) await col('webOrders').updateOne({ _id: refId, status: 'pending' }, { $set: { status: 'failed', updatedAt: now() } }).catch(() => {})
         return res.send('OK')
       }
 
-      // FAIL (failed / expired / cancelled / declined): mark a pending order failed.
-      if (verdict.decision === 'fail') {
-        if (refId) await col('webOrders').updateOne({ _id: refId, status: 'pending' }, { $set: { status: 'failed', note: verdict.status, updatedAt: now() } }).catch(() => {})
-        log(`[Store] webhook FAIL (${verdict.status}) ref=${refId}`)
-        return res.send('OK')
-      }
-
-      // FULFILL (trusted paid) — find the order.
+      // confirmed / settled / underpaid(with funds) → credit
       let order = null
       if (refId) order = await col('webOrders').findOne({ _id: refId })
       if (!order && paymentId) order = await col('webOrders').findOne({ paymentId })
       if (!order) { log(`[Store] webhook: no matching order (ref=${refId}, pid=${paymentId})`); return res.send('OK') }
 
-      if (['credited', 'provisioned', 'provisioning', 'fulfilling', 'crediting', 'failed'].includes(order.status)) {
-        log(`[Store] webhook dup/terminal for ${order._id} (status=${order.status})`); return res.send('OK')
-      }
+      if (order.status === 'credited' || order.status === 'provisioned') { log(`[Store] webhook dup for ${order._id}`); return res.send('OK') }
 
-      // ── Gateway status is ADVISORY-ONLY — NEVER blocks a paid webhook. ──
-      // If DynoPay's status endpoint positively CONTRADICTS the paid webhook
-      // (returns a known-unpaid status, not just unreachable/unknown), we still
-      // fulfill but flag the order unverified + alert admin for a spot-check.
-      if (order.provider === 'dynopay' && order.payAddress && process.env.STORE_DEV_TRUST_WEBHOOK !== 'true') {
-        let gateway = null
-        try {
-          const st = await getDynopayCryptoPaymentStatus(order.payAddress)
-          if (st && st.status != null) {
-            gateway = ['completed', 'confirmed', 'settled', 'paid'].includes(String(st.status).toLowerCase())
-          }
-        } catch (_) { gateway = null } // unreachable / "Application not found" → advisory unknown → still fulfill
-        if (gateway === false) {
-          log(`[Store] webhook: gateway status CONTRADICTS paid webhook for ${order._id} — unverified-fulfill + admin alert`)
-          try { await col('webOrders').updateOne({ _id: order._id }, { $set: { unverifiedFulfill: true, updatedAt: now() } }) } catch {}
-          try { notifyAdmin(`⚠️ <b>Store payment UNVERIFIED-fulfill</b>\nOrder: ${order._id}\nWebhook event: <code>${verdict.status}</code>\nGateway status endpoint disagrees (often "Application not found" for storefront addresses). Fulfilling on webhook trust — please spot-check.`) } catch {}
+      // ── Re-verify with DynoPay server-to-server. The webhook body is
+      // UNTRUSTED — both the paid DECISION and the credited AMOUNT come from the
+      // authoritative gateway status (or the invoiced order.amountUsd), NEVER
+      // from req.body.base_amount / req.body.status. A valid webhook signature
+      // (signatureValid) is an additional authenticity signal that lets a
+      // gateway-unreachable webhook still fulfill. (Dev bypass:
+      // STORE_DEV_TRUST_WEBHOOK=true — credits the INVOICED amount only.)
+      const trustBody = process.env.STORE_DEV_TRUST_WEBHOOK === 'true'
+      let authSt = null
+      if (!trustBody && order.provider === 'dynopay') {
+        authSt = await fetchAuthoritativeStatus(order)
+        const gatewayReached = !!authSt
+        const gatewayStatus = gatewayReached ? authSt.status : null
+        const decision = classifyStoreWebhook({ event, gatewayReached, gatewayStatus, signatureValid })
+        log(`[Store] webhook ${order._id}: decision=${decision.action} (${decision.reason}) sig=${sigState}`)
+        if (decision.action === 'hold') {
+          try { notifyAdmin(`⚠️ <b>Store crypto webhook HELD</b>\nOrder: <code>${order._id}</code>\nKind: ${order.kind}\nDomain: ${order.domain || '—'}\nCustomer: ${order.email || order.webUserId || '—'}\nAmount: $${order.amountUsd} (${order.coin})\nEvent: ${event}\nSignature: ${sigState}\nReason: ${decision.reason}\n→ verify in DynoPay; if genuinely paid, reconcile via /api/store/admin/reconcile-order/${order._id}`) } catch {}
+          return res.send('OK')
+        }
+        if (decision.action === 'unverified-fulfill') {
+          try { notifyAdmin(`ℹ️ <b>Store crypto order fulfilling on SIGNED webhook (gateway unreachable)</b>\nOrder: <code>${order._id}</code>\nDomain: ${order.domain || '—'}\nCustomer: ${order.email || order.webUserId || '—'}\nAmount: $${order.amountUsd} (${order.coin})\nReason: ${decision.reason} — crediting invoiced amount; verify in DynoPay`) } catch {}
         }
       }
 
+      // Authoritative amount: gateway-confirmed USD when reachable, else the
+      // invoiced order.amountUsd (passed as null → creditTopup falls back).
+      const authAmount = authSt ? authoritativeUsd(authSt) : null
+      const authFeePayer = authSt ? (authSt.fee_payer != null ? authSt.fee_payer : 'company') : null
+
       if (order.kind === 'hosting') {
-        await fulfillHostingOrder(order, req.body?.base_amount, req.body?.fee_payer, paymentId, `dynopay:${verdict.status}`)
+        await fulfillHostingOrder(order, authAmount, authFeePayer, paymentId, `dynopay:${event}`)
       } else {
-        await creditTopup(order, req.body?.base_amount, req.body?.fee_payer, paymentId, `dynopay:${verdict.status}`)
+        await creditTopup(order, authAmount, authFeePayer, paymentId, `dynopay:${event}`)
       }
       return res.send('OK')
     } catch (err) {
@@ -743,6 +809,51 @@ function createStoreRoutes(deps = {}) {
   }
   router.get('/blockbee-webhook', handleBlockbee)
   router.post('/blockbee-webhook', handleBlockbee)
+
+  // ── ADMIN: force-reconcile a stuck crypto order (provisions / credits). ──
+  // Gated by the admin key (first 16 chars of SESSION_SECRET). Because this
+  // registers a REAL domain + creates a REAL cPanel (or credits a wallet), it
+  // is a two-step call: without ?confirm=true it only PREVIEWS the order.
+  //   POST /api/store/admin/reconcile-order/<id>?key=<adminKey>            (preview)
+  //   POST /api/store/admin/reconcile-order/<id>?key=<adminKey>&confirm=true[&amountUsd=67.31][&feePayer=company]
+  router.post('/admin/reconcile-order/:orderId', async (req, res) => {
+    if (req.query.key !== (process.env.SESSION_SECRET || '').slice(0, 16)) {
+      return res.status(403).json({ error: 'forbidden' })
+    }
+    try {
+      const order = await col('webOrders').findOne({ _id: req.params.orderId })
+      if (!order) return res.status(404).json({ error: 'order not found' })
+      if (order.status === 'provisioned' || order.status === 'credited') {
+        return res.json({ ok: true, alreadyDone: true, status: order.status, username: order.username || null, domain: order.domain || null })
+      }
+      if (req.query.confirm !== 'true') {
+        return res.json({
+          ok: false, wouldReconcile: true,
+          order: { id: order._id, kind: order.kind, status: order.status, domain: order.domain, email: order.email || order.webUserId, amountUsd: order.amountUsd, coin: order.coin },
+          hint: 'add &confirm=true to actually provision/credit (optionally &amountUsd=<received>&feePayer=company)',
+        })
+      }
+      // Reset to pending so the atomic claim in fulfillHostingOrder succeeds.
+      if (['failed', 'fulfilling'].includes(order.status)) {
+        await col('webOrders').updateOne({ _id: order._id }, { $set: { status: 'pending', updatedAt: now() } })
+        order.status = 'pending'
+      }
+      const amountOverride = req.query.amountUsd != null ? parseFloat(req.query.amountUsd) : order.amountUsd
+      const feePayer = req.query.feePayer || 'company'
+      let result
+      if (order.kind === 'hosting') {
+        result = await fulfillHostingOrder(order, amountOverride, feePayer, order.paymentId, 'admin-reconcile')
+      } else {
+        result = await creditTopup(order, amountOverride, feePayer, order.paymentId, 'admin-reconcile')
+      }
+      const fresh = await col('webOrders').findOne({ _id: order._id })
+      log(`[Store] admin-reconcile ${order._id}: result=${!!result} status=${fresh?.status}`)
+      return res.json({ ok: !!result, status: fresh?.status, username: fresh?.username || null, domain: fresh?.domain || null, note: fresh?.note || null })
+    } catch (err) {
+      log(`[Store] reconcile-order error: ${err.message}`)
+      return res.status(500).json({ error: err.message })
+    }
+  })
 
   // health/info
   router.get('/health', (req, res) => res.json({ ok: true, coins: COINS.map(c => c.code) }))

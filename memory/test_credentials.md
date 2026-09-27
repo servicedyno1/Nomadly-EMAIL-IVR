@@ -9,6 +9,12 @@
 ## Web dashboards / panels
 - Sales & Profit Dashboard password: `Nomadly123@`  (env: SALES_DASHBOARD_PASSWORD)
 
+## Upstream port 2026-09-27 (main → WhiteLabel, Reseller API excluded)
+- Ported the P0 forged-DynoPay-webhook fix + crypto end-to-end + signature-rotation from `main`:
+  js/store-payment-verify.js (244-line hardened rewrite), js/store-routes.js (signature gate + gateway-authoritative /crypto-webhook + /admin/reconcile-order), js/pay-dynopay.js (getDynopayPaymentStatusById), js/_index.js (rawBody capture + authDyno non-paid idempotency gate). Plus js/ops/whm_ea4_install_ext.js. Excluded: apidoc-page.js + /apidoc (Reseller API docs).
+- Verified: js/tests/test_store_webhook_security_2026-06.js 9/9, js/tests/test_authdyno_created_fix_2026-06.js 5/5 (drove REAL handlers; live-DB test residue purged + verified clean).
+- OPTIONAL: set `DYNO_PAY_WEBHOOK_SECRET` (whsec_… from DynoPay dashboard → save webhook URL) in Railway for BOTH services to turn ON full HMAC signature verification. Until then, security rests on the (solid) server-to-server re-verify: gateway unreachable/contradicts → HOLD + admin alert. To hard-reject bad signatures once prod logs show sig=valid, set `DYNO_PAY_WEBHOOK_SIG_ENFORCE=true`.
+
 ## Telegram
 - Bot username: `@smadavv_bot`
 - Admin chat id: `5590563715`  (env: TELEGRAM_ADMIN_CHAT_ID)
