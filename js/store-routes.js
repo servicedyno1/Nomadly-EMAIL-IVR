@@ -696,6 +696,15 @@ function createStoreRoutes(deps = {}) {
         }
         return res.send('OK')
       }
+      // created (new DynoPay lifecycle event) / any non-paid informational
+      // event → record the paymentId→order mapping only; DON'T run the credit
+      // path (avoids spurious "HELD" admin alerts before the customer has paid).
+      if (event === 'payment.created' || req.body?.status === 'created') {
+        if (refId && paymentId) {
+          await col('webOrders').updateOne({ _id: refId }, { $set: { paymentId, updatedAt: now() } }).catch(() => {})
+        }
+        return res.send('OK')
+      }
       if (event === 'payment.failed') {
         if (refId) await col('webOrders').updateOne({ _id: refId, status: 'pending' }, { $set: { status: 'failed', updatedAt: now() } }).catch(() => {})
         return res.send('OK')

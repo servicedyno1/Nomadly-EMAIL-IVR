@@ -37745,6 +37745,7 @@ const dynopayPaymentIdToRef = new Map()
 
 const dynopayForensic = require('./dynopay-forensic')
 
+const { isPaidStatus: isDynoPaidStatus } = require('./store-payment-verify')
 const authDyno = async (req, res, next) => {
   log('=== DYNOPAY WEBHOOK RECEIVED ===')
   log('URL:', req.hostname + req.originalUrl)
@@ -37813,6 +37814,24 @@ const authDyno = async (req, res, next) => {
   }
   
   log('Extracted refId:', ref)
+
+  // ── Only PAID events may claim the idempotency slot + credit ─────────────
+  // DynoPay's API update added a `payment.created` event (and may add more).
+  // Any NON-paid lifecycle event must NOT insert into dynopayProcessed —
+  // otherwise it burns the payment_id slot with ref=null and the later
+  // confirmed/settled event is rejected as a duplicate and NEVER credits.
+  // This was the exact root cause of the 2026-09-27 $20 ETH deposit
+  // (ref VwIBe / payment 400af737) that stayed uncredited: payment.created
+  // claimed the slot first. pending/failed/underpaid already returned above;
+  // this positively gates everything else so only confirmed/settled/paid pass.
+  if (!isDynoPaidStatus(event)) {
+    if (paymentId && ref && !dynopayPaymentIdToRef.has(paymentId)) {
+      dynopayPaymentIdToRef.set(paymentId, ref)
+      setTimeout(() => dynopayPaymentIdToRef.delete(paymentId), 86400000)
+    }
+    log(`[DynoPay] Non-paid event '${event}' — not claiming idempotency; waiting for confirmed/settled (payment_id: ${paymentId})`)
+    return res.send(html('OK'))
+  }
 
   // ── Idempotency gate (persistent + atomic) ──────────────────────────────
   // DynoPay fires several webhooks per payment and retries across our restarts.

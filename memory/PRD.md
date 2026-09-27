@@ -354,3 +354,9 @@ Both prod bots (Nomadly + SMADAV) run identical deploy config — `VPS_DEFAULT_P
 - **P1 backlog still open from user's 3 prod bugs:** (2) `accesd-securite.ca` DNS — registry NS not delegated to Cloudflare (zone "moved"); registrar-side fix + optional bot/panel "zone moved" warning. (3) Web order / guest-checkout anomaly audit (`/guest/checkout`).
 - **User action to activate signatures:** save webhook URL in DynoPay dashboard → set `DYNO_PAY_WEBHOOK_SECRET` in Railway (both services); then redeploy.
 
+
+## 2026-06 (fork) — DynoPay `payment.created` idempotency bug FIXED (see CHANGELOG)
+- Bot deposit/order webhook (`authDyno` in `_index.js`) claimed the `payment_id` idempotency slot on DynoPay's new `payment.created` event, blocking the later confirmed/settled from crediting → $20 ETH deposit (ref VwIBe, chat 5168006768) stuck. FIXED with a positive `isPaidStatus` gate so only paid events claim+credit; web-store `/crypto-webhook` also skips `created`. Verified 5/5 live E2E + 9/9 store regression.
+- **Open user actions:** (1) credit the one stuck deposit manually (chatId 5168006768 / $20); (2) **deploy** (Save to GitHub → Railway) so prod stops re-blocking; (3) DynoPay webhook signature (`DYNO_PAY_WEBHOOK_SECRET`) is live in sandbox+vault — confirm on Nomadly prod, then decide SMADAV + flip `DYNO_PAY_WEBHOOK_SIG_ENFORCE=true` once logs show sig=valid.
+- **P1 backlog still open:** `accesd-securite.ca` DNS zone-moved warning; guest-checkout/web-order anomaly audit.
+
