@@ -1981,3 +1981,13 @@ boot:
 2. **Behavior change while unsigned:** if DynoPay's status API is unreachable, orders now **HOLD + admin-alert** (reconcile via `/api/store/admin/reconcile-order/<id>`) instead of auto-crediting. Setting the whsec secret restores cryptographic "never drop a paid order" via signed webhooks.
 3. Redeploy prod (Save to GitHub → Railway redeploy). Sandbox-only; prod untouched.
 
+
+### Follow-up (same session) — signature secret wired + graduated enforce + PROD pentest cleanup
+- **`DYNO_PAY_WEBHOOK_SECRET`** (`whsec_…`, user-supplied after saving the webhook URL in the DynoPay dashboard) added to sandbox `backend/.env` + **locked into the vault**. Verified live on the running server: valid V2 signature → accepted (credits invoiced amount, not the forged 9999); tampered body → 401 (when enforced); unsigned → held. User is setting it on Railway **Nomadly** prod themselves first to confirm before SMADAV.
+- **Graduated enforcement flag `DYNO_PAY_WEBHOOK_SIG_ENFORCE`** (default OFF): while off, an INVALID signature is logged + admin-alerted but falls through to the authoritative gateway re-verify (which already holds on unpaid/unreachable) — so a DynoPay signing-format quirk can never 401 a genuinely-paid order before we've seen a real signed webhook. Flip to `true` once prod logs show `sig=valid`. The webhook handler logs `sig=<valid|invalid|unsigned>` on every decision. Test suite `js/tests/test_store_webhook_security_2026-06.js` now **9/9** (adds enforce-on-401 + soft-mode-hold cases).
+- **⚠️ Open (SMADAV):** confirm whether SMADAV uses the SAME DynoPay account (same `whsec_`) or its own (needs a separate secret) before enabling there.
+- **PROD PENTEST CLEANUP (user-approved "delete all pentest records"):** the forged-webhook test left a live $9999 credit + fake orders/accounts in prod. Removed via read-write ops scripts (`js/ops/prod_cleanup_pentest_2026-06.js` + `prod_whm_remove_pentest_cpanels.js`, both dry-run-by-default):
+  - WHM: `removeacct` on `pent8321` (pent12708-a.example.com) + `pent753a` (pent12708-b.example.com) — both confirmed gone (domain-guarded before removal).
+  - Prod Mongo: deleted 3 webUsers (`pent_i12616`, `pent2_i12616`, `pent12708w`/$9999), 4 webOrders (incl. `be6daa6f` $9999 topup + the 2 provisioned hosting orders), 1 webWalletTxn ($9999), 2 cpanelAccounts.
+  - Post-verify: $9999 user/order gone, 0 `pent*` users/orders remain, **0 wallets ≥ $500**. Older June store-test records (`storetest@example.com`, `STORE-TEST-ORDER-1`, `pnldoctest`) were intentionally LEFT (not pentest) — flag to user if they want those gone too.
+
