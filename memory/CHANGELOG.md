@@ -2002,3 +2002,16 @@ boot:
 **Prod scan:** exactly ONE deposit was stuck by this bug — `VwIBe` chatId `5168006768` $20 ETH (payment `400af737-bf4b-4f8f-8e91-a627e93a6fba`). All other `address_generated` funnel rows have 0 paid webhooks (abandoned checkouts, nothing to recover). User is crediting the $20 manually (chatId 5168006768 / $20). Stale `payment.created` claim left in place (prevents double-credit).
 **🔴 ACTION ON USER:** deploy via Save to GitHub → Railway redeploy — prod still runs the old code; the next `payment.created` deposit will re-block until deployed.
 
+
+### 2026-06 (fork) — DynoPay webhook SIGNATURE verification: secret confirmed valid, scheme mismatch under diagnosis
+- **Secret verified on our end:** prod `DYNO_PAY_WEBHOOK_SECRET` (read via `railway_getvars.js`) is SET, 54 chars, `whsec_` prefix, and MATCHES the dashboard `whsec_` byte-for-byte. `DYNO_PAY_WEBHOOK_SIG_ENFORCE` unset (soft). (Sandbox `DYNO_PAY_API_KEY` is stale vs prod `dpk_live_…` — harmless; prod is authoritative.)
+- **Symptom (from prod logs 2026-09-27):** DynoPay's dashboard webhook lands on `/store/crypto-webhook` and our `verifyDynopayWebhook` returns `invalid` on 8/8 (0 valid). Because rollout is graduated (enforce off), ZERO real payments were rejected. So signature validation is effectively not yet functional — root cause not yet pinned.
+- **Forensic gap:** `dynopay-forensic.captureWebhook` stored only the parsed body — NOT the signature headers or raw bytes — so the mismatch couldn't be analyzed from history.
+- **Fixes/diagnostics added (`store-payment-verify.js`, `store-routes.js`):**
+  - `verifyDynopayWebhookV2` now tolerates **millisecond** epoch timestamps in the freshness window (a common gateway quirk that alone would fail every sig) and signs the HMAC with the exact `t` string as delivered.
+  - New `diagnoseDynopaySignature()` computes the sender's `v1` against 7 candidate schemes (full/stripped/base64-decoded key × hex/base64 × raw vs `t.raw`) and reports `matchedScheme`. Verified in unit tests (identifies Stripe-style AND Svix-style correctly).
+  - `/store/crypto-webhook` auto-logs `[Store][SIGDEBUG] {...}` on ANY invalid signature (no env flag needed — just deploy). Next real webhook (or a dashboard test event) will reveal the exact scheme.
+- Regression after changes: store 9/9, authdyno 5/5, dev route pass, node healthy.
+- **Complaint drafted:** `/app/investigations/dynopay_payment/DYNOPAY_SIGNATURE_COMPLAINT.md` — verification request asking DynoPay to confirm message construction, key form (full whsec_ vs stripped vs base64-decoded), encoding (hex/base64), timestamp unit (s/ms), raw-vs-canonical body, per-payment-URL signing, secret binding, + send a signed test event.
+- **Next:** deploy → read SIGDEBUG on next webhook → if `matchedScheme` non-null, fix `verifyDynopayWebhookV2` to that scheme (it's a spec detail, NOT DynoPay's fault); if null, it's DynoPay's end (or transport re-serialization) → escalate via the complaint. Keep enforce OFF until a scheme matches.
+

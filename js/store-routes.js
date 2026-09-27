@@ -20,7 +20,7 @@ const { log } = require('console')
 
 const { getDynopayCryptoAddress, getDynopayCryptoPaymentStatus, getDynopayPaymentStatusById } = require('./pay-dynopay')
 const { getCryptoDepositAddress, convert } = require('./pay-blockbee')
-const { isPaidStatus, classifyStoreWebhook, isStoreUnderpaid, storeUnderpayTolerance, verifyDynopayWebhook } = require('./store-payment-verify')
+const { isPaidStatus, classifyStoreWebhook, isStoreUnderpaid, storeUnderpayTolerance, verifyDynopayWebhook, diagnoseDynopaySignature } = require('./store-payment-verify')
 
 const JWT_SECRET = process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex')
 const JWT_EXPIRY = '30d'
@@ -675,6 +675,14 @@ function createStoreRoutes(deps = {}) {
       const sigState = verifyDynopayWebhook({
         rawBody: req.rawBody, bodyObj: req.body, headers: req.headers, secret,
       })
+      // Signature scheme diagnostic: on ANY invalid signature (the anomaly we're
+      // chasing) — or whenever DYNO_PAY_WEBHOOK_SIG_DEBUG=true — log the sender's
+      // v1 vs every plausible HMAC construction, so we can pin down DynoPay's
+      // exact scheme (key form / encoding / ts unit / raw vs canonical body) from
+      // the next real webhook. Safe: signatures are truncated in the output.
+      if (secret && (sigState === 'invalid' || process.env.DYNO_PAY_WEBHOOK_SIG_DEBUG === 'true')) {
+        try { log(`[Store][SIGDEBUG] ${JSON.stringify(diagnoseDynopaySignature({ rawBody: req.rawBody, headers: req.headers, secret }))}`) } catch (_) {}
+      }
       // Graduated enforcement: by default an INVALID signature is logged +
       // admin-alerted but NOT hard-rejected — it falls through to the
       // authoritative server-to-server re-verify (which already holds on any

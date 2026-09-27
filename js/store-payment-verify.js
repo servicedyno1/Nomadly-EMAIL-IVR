@@ -122,13 +122,62 @@ function _parseSigV2(header) {
 function verifyDynopayWebhookV2(rawBody, headerV2, secret, toleranceSec = 300) {
   if (!secret || !headerV2 || rawBody == null) return false
   const { t, v1 } = _parseSigV2(headerV2)
-  const ts = Number(t)
-  if (!ts || Math.abs(Date.now() / 1000 - ts) > toleranceSec) return false
+  const tNum = Number(t)
+  if (!tNum) return false
+  // Tolerate millisecond epoch timestamps (some gateways send ms, not s) for
+  // the FRESHNESS window only — the HMAC message still uses the exact `t`
+  // string as delivered, since that is what the sender signed.
+  const tsSec = tNum > 1e12 ? Math.floor(tNum / 1000) : tNum
+  if (Math.abs(Date.now() / 1000 - tsSec) > toleranceSec) return false
   const raw = Buffer.isBuffer(rawBody) ? rawBody.toString('utf8') : String(rawBody)
-  const expected = crypto.createHmac('sha256', secret).update(`${ts}.${raw}`).digest('hex')
+  const expected = crypto.createHmac('sha256', secret).update(`${t}.${raw}`).digest('hex')
   const got = Buffer.from(String(v1 || ''), 'hex')
   const exp = Buffer.from(expected, 'hex')
   return got.length === exp.length && crypto.timingSafeEqual(got, exp)
+}
+
+/**
+ * Non-verifying DIAGNOSTIC: given a real inbound webhook, compute the sender's
+ * v1 against EVERY plausible signing construction and report which (if any)
+ * matches. Used to pin down DynoPay's exact scheme without guessing. Returns a
+ * plain object safe to log (signatures truncated).
+ */
+function diagnoseDynopaySignature({ rawBody, headers = {}, secret } = {}) {
+  const h = {}
+  for (const k of Object.keys(headers || {})) h[k.toLowerCase()] = headers[k]
+  const v2 = h['x-dynopay-signature-v2']
+  const v1hdr = h['x-dynopay-signature']
+  const tsHdr = h['x-dynopay-timestamp']
+  const raw = rawBody == null ? '' : (Buffer.isBuffer(rawBody) ? rawBody.toString('utf8') : String(rawBody))
+  const parsed = _parseSigV2(v2)
+  const t = parsed.t != null ? parsed.t : tsHdr
+  const provided = String(parsed.v1 || v1hdr || '').toLowerCase()
+  const tNum = Number(t)
+  const tsSec = Number.isFinite(tNum) ? (tNum > 1e12 ? Math.floor(tNum / 1000) : tNum) : NaN
+  const keyFull = secret || ''
+  const keyNoPrefix = keyFull.replace(/^whsec_/, '')
+  let keyB64 = null; try { keyB64 = Buffer.from(keyNoPrefix, 'base64') } catch { keyB64 = null }
+  const hmac = (key, msg, enc = 'hex') => { try { return crypto.createHmac('sha256', key).update(msg).digest(enc) } catch { return null } }
+  const cand = {
+    A_full_t_raw_hex: hmac(keyFull, `${t}.${raw}`),
+    B_full_raw_hex: hmac(keyFull, raw),
+    C_noprefix_t_raw_hex: hmac(keyNoPrefix, `${t}.${raw}`),
+    D_b64key_t_raw_hex: keyB64 ? hmac(keyB64, `${t}.${raw}`) : null,
+    E_b64key_t_raw_b64: keyB64 ? hmac(keyB64, `${t}.${raw}`, 'base64') : null,
+    F_full_t_raw_b64: hmac(keyFull, `${t}.${raw}`, 'base64'),
+    G_b64key_raw_b64: keyB64 ? hmac(keyB64, raw, 'base64') : null,
+  }
+  const norm = s => String(s || '').toLowerCase().replace(/=+$/, '')
+  const matched = Object.keys(cand).find(k => cand[k] && provided && norm(cand[k]) === norm(provided)) || null
+  const trunc = s => s ? (String(s).slice(0, 14) + '…' + String(s).slice(-4)) : null
+  return {
+    hasV2: !!v2, hasV1Legacy: !!v1hdr, tsHeader: tsHdr || null,
+    t, tsUnit: tNum > 1e12 ? 'ms' : 's', tsDeltaSec: Number.isFinite(tsSec) ? Math.round(Date.now() / 1000 - tsSec) : null,
+    rawLen: raw.length, rawSha16: crypto.createHash('sha256').update(raw).digest('hex').slice(0, 16),
+    providedV1: trunc(provided),
+    matchedScheme: matched,
+    candidates: Object.fromEntries(Object.entries(cand).map(([k, v]) => [k, trunc(v)])),
+  }
 }
 
 function verifyDynopayWebhookV1(bodyObjOrRaw, headerV1, secret) {
@@ -180,5 +229,5 @@ module.exports = {
   PAID, UNPAID, DEFAULT_STORE_UNDERPAY_TOLERANCE,
   normalizeStatus, isPaidStatus, isUnpaidStatus,
   classifyStoreWebhook, storeUnderpayTolerance, isStoreUnderpaid,
-  verifyDynopayWebhook, verifyDynopayWebhookV2, verifyDynopayWebhookV1,
+  verifyDynopayWebhook, verifyDynopayWebhookV2, verifyDynopayWebhookV1, diagnoseDynopaySignature,
 }
