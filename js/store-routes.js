@@ -675,10 +675,17 @@ function createStoreRoutes(deps = {}) {
       const sigState = verifyDynopayWebhook({
         rawBody: req.rawBody, bodyObj: req.body, headers: req.headers, secret,
       })
+      // Graduated enforcement: by default an INVALID signature is logged +
+      // admin-alerted but NOT hard-rejected — it falls through to the
+      // authoritative server-to-server re-verify (which already holds on any
+      // unpaid/unreachable state), so a DynoPay signing-format quirk can never
+      // reject a genuinely-paid order. Flip DYNO_PAY_WEBHOOK_SIG_ENFORCE=true
+      // to 401 outright once prod logs confirm real webhooks show sig=valid.
+      const enforceSig = process.env.DYNO_PAY_WEBHOOK_SIG_ENFORCE === 'true'
       if (secret && sigState === 'invalid') {
-        log(`[Store] crypto-webhook REJECTED: invalid signature (ref=${refId}, pid=${paymentId})`)
-        try { notifyAdmin(`🚫 <b>Store crypto webhook REJECTED — invalid signature</b>\nRef: <code>${refId || '—'}</code>\nPaymentId: ${paymentId || '—'}\nEvent: ${event}\n(possible spoof attempt)`) } catch {}
-        return res.status(401).send('invalid signature')
+        log(`[Store] crypto-webhook INVALID signature (ref=${refId}, pid=${paymentId}) enforce=${enforceSig}`)
+        try { notifyAdmin(`🚫 <b>Store crypto webhook — INVALID signature</b>\nRef: <code>${refId || '—'}</code>\nPaymentId: ${paymentId || '—'}\nEvent: ${event}\nEnforce: ${enforceSig}\n${enforceSig ? '(REJECTED 401)' : '(not enforced — falling through to gateway re-verify; possible spoof OR signing-format mismatch — check logs)'}`) } catch {}
+        if (enforceSig) return res.status(401).send('invalid signature')
       }
       const signatureValid = sigState === 'valid'
 

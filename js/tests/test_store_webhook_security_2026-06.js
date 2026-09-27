@@ -103,10 +103,17 @@ async function main() {
   await axios.post(urlNoSecret, forged('o4')).catch(e => e.response)
   ck('amount_from_gateway_25_not_9999', (await wallet()) === 25, `wallet=${await wallet()} (expect 25)`)
 
-  // ── 5. Invalid signature (secret configured) → 401 reject, no credit ──
+  // ── 5a. ENFORCE mode: invalid signature → 401 reject, no credit ──
+  process.env.DYNO_PAY_WEBHOOK_SIG_ENFORCE = 'true'
   await resetWallet(); await seedTopup('o5', 20); gatewayReply = { status: 'settled', amount_received_base: '20.00', fee_payer: 'company' }
   let r5 = await axios.post(urlSecret, forged('o5'), { headers: { 'x-dynopay-signature-v2': 't=1,v1=deadbeef' } }).catch(e => e.response)
-  ck('invalid_signature_rejected_401', r5 && r5.status === 401 && (await order('o5')).status === 'pending' && (await wallet()) === 0, `http=${r5 && r5.status} wallet=${await wallet()}`)
+  ck('enforce_invalid_signature_rejected_401', r5 && r5.status === 401 && (await order('o5')).status === 'pending' && (await wallet()) === 0, `http=${r5 && r5.status} wallet=${await wallet()}`)
+  delete process.env.DYNO_PAY_WEBHOOK_SIG_ENFORCE
+
+  // ── 5b. DEFAULT (soft) mode: invalid signature + gateway unreachable → HOLD (no 401, no credit) ──
+  await resetWallet(); await seedTopup('o5b', 20); gatewayReply = null
+  let r5b = await axios.post(urlSecret, forged('o5b'), { headers: { 'x-dynopay-signature-v2': 't=1,v1=deadbeef' } }).catch(e => e.response)
+  ck('soft_invalid_sig_unreachable_holds', r5b && r5b.status === 200 && (await order('o5b')).status === 'pending' && (await wallet()) === 0, `http=${r5b && r5b.status} wallet=${await wallet()}`)
 
   // ── 6. VALID signature + gateway unreachable → fulfill INVOICED $20 (not body 9999) ──
   await resetWallet(); await seedTopup('o6', 20); gatewayReply = null
