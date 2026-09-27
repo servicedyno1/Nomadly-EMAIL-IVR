@@ -121,7 +121,9 @@ function _parseSigV2(header) {
 
 function verifyDynopayWebhookV2(rawBody, headerV2, secret, toleranceSec = 300) {
   if (!secret || !headerV2 || rawBody == null) return false
-  const { t, v1 } = _parseSigV2(headerV2)
+  const tokens = String(headerV2).split(',').map(s => s.trim())
+  const tTok = tokens.find(p => p.startsWith('t='))
+  const t = tTok ? tTok.slice(2) : null
   const tNum = Number(t)
   if (!tNum) return false
   // Tolerate millisecond epoch timestamps (some gateways send ms, not s) for
@@ -131,9 +133,15 @@ function verifyDynopayWebhookV2(rawBody, headerV2, secret, toleranceSec = 300) {
   if (Math.abs(Date.now() / 1000 - tsSec) > toleranceSec) return false
   const raw = Buffer.isBuffer(rawBody) ? rawBody.toString('utf8') : String(rawBody)
   const expected = crypto.createHmac('sha256', secret).update(`${t}.${raw}`).digest('hex')
-  const got = Buffer.from(String(v1 || ''), 'hex')
   const exp = Buffer.from(expected, 'hex')
-  return got.length === exp.length && crypto.timingSafeEqual(got, exp)
+  // DynoPay co-signs with the CURRENT and PREVIOUS secret during a ~24h secret-
+  // rotation grace window, so the header can carry MULTIPLE `v1=` tokens
+  // (t=…,v1=<current>,v1=<previous>). Match ANY of them — never just the first
+  // or last (Stripe / Standard-Webhooks convention; also rotation-proof).
+  return tokens.filter(p => p.startsWith('v1=')).some(p => {
+    const got = Buffer.from(p.slice(3), 'hex')
+    return got.length === exp.length && crypto.timingSafeEqual(got, exp)
+  })
 }
 
 /**
@@ -149,9 +157,12 @@ function diagnoseDynopaySignature({ rawBody, headers = {}, secret } = {}) {
   const v1hdr = h['x-dynopay-signature']
   const tsHdr = h['x-dynopay-timestamp']
   const raw = rawBody == null ? '' : (Buffer.isBuffer(rawBody) ? rawBody.toString('utf8') : String(rawBody))
-  const parsed = _parseSigV2(v2)
-  const t = parsed.t != null ? parsed.t : tsHdr
-  const provided = String(parsed.v1 || v1hdr || '').toLowerCase()
+  const v2tokens = String(v2 || '').split(',').map(s => s.trim())
+  const tTok = v2tokens.find(p => p.startsWith('t='))
+  const t = tTok ? tTok.slice(2) : tsHdr
+  // Collect ALL v1 tokens (DynoPay sends 2 during a rotation grace window).
+  const providedList = v2tokens.filter(p => p.startsWith('v1=')).map(p => p.slice(3).toLowerCase())
+  if (v1hdr) providedList.push(String(v1hdr).toLowerCase())
   const tNum = Number(t)
   const tsSec = Number.isFinite(tNum) ? (tNum > 1e12 ? Math.floor(tNum / 1000) : tNum) : NaN
   const keyFull = secret || ''
@@ -168,13 +179,13 @@ function diagnoseDynopaySignature({ rawBody, headers = {}, secret } = {}) {
     G_b64key_raw_b64: keyB64 ? hmac(keyB64, raw, 'base64') : null,
   }
   const norm = s => String(s || '').toLowerCase().replace(/=+$/, '')
-  const matched = Object.keys(cand).find(k => cand[k] && provided && norm(cand[k]) === norm(provided)) || null
+  const matched = Object.keys(cand).find(k => cand[k] && providedList.some(pv => norm(cand[k]) === norm(pv))) || null
   const trunc = s => s ? (String(s).slice(0, 14) + '…' + String(s).slice(-4)) : null
   return {
-    hasV2: !!v2, hasV1Legacy: !!v1hdr, tsHeader: tsHdr || null,
+    hasV2: !!v2, hasV1Legacy: !!v1hdr, tsHeader: tsHdr || null, v1TokenCount: providedList.length,
     t, tsUnit: tNum > 1e12 ? 'ms' : 's', tsDeltaSec: Number.isFinite(tsSec) ? Math.round(Date.now() / 1000 - tsSec) : null,
     rawLen: raw.length, rawSha16: crypto.createHash('sha256').update(raw).digest('hex').slice(0, 16),
-    providedV1: trunc(provided),
+    providedV1: providedList.map(trunc),
     matchedScheme: matched,
     candidates: Object.fromEntries(Object.entries(cand).map(([k, v]) => [k, trunc(v)])),
   }

@@ -40457,6 +40457,11 @@ app.post('/dev/store-webhook-verify-test', (req, res) => {
     ck('sig_v2_tampered_invalid', V.verifyDynopayWebhook({ rawBody: raw + ' ', headers: { 'x-dynopay-signature-v2': `t=${t},v1=${sig}` }, secret }), 'invalid')
     // 13. no signature header → unsigned
     ck('sig_absent_unsigned', V.verifyDynopayWebhook({ rawBody: raw, headers: {}, secret }), 'unsigned')
+    // 14-16. rotation grace window: header carries current+previous v1 — match ANY
+    const badSig = 'ab'.repeat(32)
+    ck('sig_v2_rotation_current_first', V.verifyDynopayWebhook({ rawBody: raw, headers: { 'x-dynopay-signature-v2': `t=${t},v1=${sig},v1=${badSig}` }, secret }), 'valid')
+    ck('sig_v2_rotation_current_last', V.verifyDynopayWebhook({ rawBody: raw, headers: { 'x-dynopay-signature-v2': `t=${t},v1=${badSig},v1=${sig}` }, secret }), 'valid')
+    ck('sig_v2_rotation_both_bad', V.verifyDynopayWebhook({ rawBody: raw, headers: { 'x-dynopay-signature-v2': `t=${t},v1=${badSig},v1=${badSig}` }, secret }), 'invalid')
   }
 
   const pass = checks.every(c => c.pass)

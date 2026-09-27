@@ -2022,3 +2022,11 @@ boot:
 - **Testing agent iteration_57.json: backend 100%, zero issues, zero code changes.** authDyno created-fix 5/5 (wallet credits once; orders covered by shared middleware), store webhook security 9/9, dev route 14/14, signature diagnostic + ms-timestamp tolerance verified. retest_needed=false.
 - **User should now retry Save to GitHub → Railway redeploy.** After deploy, the next real webhook auto-logs `[Store][SIGDEBUG]` to pin the DynoPay signature scheme.
 
+
+### 2026-06 (fork) — DynoPay signature RESOLVED: multi-`v1` rotation grace window
+- DynoPay replied confirming our construction is exactly right (message `"{t}.{raw_body}"`, key = full `whsec_` string verbatim, `v1` lowercase hex, `t` = Unix seconds, signed over exact transmitted bytes, account-level secret `…f69c` active/bound). Our HMAC **byte-matches** their worked example (`whsec_test_secret_example` / t=1700000000 → `f49a2735…cb1c66`).
+- **Real cause:** their account is in a ~24h secret-rotation grace window, so every webhook carries **two** `v1=` tokens (`t=…,v1=<current>,v1=<previous>`). Our `_parseSigV2` built a map and kept only the LAST token (the *previous* secret's sig) → mismatch on every delivery. Reproduced locally: header `[current,previous]` → old verifier returned false.
+- **Fix (`store-payment-verify.js`):** `verifyDynopayWebhookV2` now scans ALL `v1=` tokens and accepts if ANY matches (Stripe / Standard-Webhooks convention; rotation-proof). `diagnoseDynopaySignature` made multi-token aware (`v1TokenCount`, `providedV1[]`). Added rotation dev-route checks (current-first / current-last / both-bad).
+- **Verified:** rotation unit cases 6/6, dev route 17/17 (`pass:true`), store 9/9, authdyno 5/5, node healthy.
+- **Next:** deploy → the `[Store][SIGDEBUG] INVALID` lines should stop (sigs now validate). After confirming no more INVALID logs, set `DYNO_PAY_WEBHOOK_SIG_ENFORCE=true` for hard 401. Graduated design means zero payment risk in the meantime.
+
