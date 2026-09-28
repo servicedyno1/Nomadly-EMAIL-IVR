@@ -1,5 +1,14 @@
 # Test Credentials — Smadav/Nomadly Platform
 
+## Re-provision 2026-09-28 (pod f43fabf8) — fresh cred setup, Safe Dev Sandbox (user chose "a")
+- Pod preview URL: **https://f43fabf8-4f7b-4c8a-91cc-78302889c5b4.preview.emergentagent.com** (frontend/.env REACT_APP_BACKEND_URL → ingress /api → FastAPI :8001 → proxy → Node :5000).
+- On arrival: working tree present via `git checkout -f WhiteLabel`; `backend/.env` + `frontend/.env` MISSING; root `node_modules` MISSING (frontend node_modules present).
+- Steps: wrote both .env from the user's full cred dump; `yarn install --ignore-engines` (root, 528 pkgs, node20 vs pkg-wants-22); pip deps already satisfied; `bash scripts/setup-nodejs.sh` (registered supervisord_nodejs.conf, rewrote SELF_URL/SELF_URL_PROD → this pod + /api); restarted backend+frontend to load fresh .env.
+- SANDBOX OVERRIDES vs supplied creds: BOT_ENVIRONMENT=development (was production), SKIP_WEBHOOK_SYNC=true (was false), added DO_RDP_GOLDEN_AUTOSYNC=false, LOG_REDACT_KEEP=smadavhost.com,smadavspeech.com.
+- Verified: node :5000 boot clean (err log empty, "MongoDB connection pool ready"), `[AntiRed] worker upgrade SKIPPED`, `[CF-Sync] Skipped BOT_ENVIRONMENT=development`. /api/health → {healthy, database:connected} on :5000, :8001 proxy, AND external pod URL. Frontend title "SmadavHost | Hosting Panel", brand SmadavBot, panel badge ONLINE (Bot Running / DB Connected / REST APIs Active / 5+ modules).
+- Telegram prod webhook LEFT UNTOUCHED: getWebhookInfo → https://samdav1.up.railway.app/telegram/webhook (NOT this pod). NOTE prod webhook itself returns 404 (samdav1.up.railway.app is the user's live Railway service — out of scope for this sandbox setup; SELF_URL cred was smadav.up.railway.app, prod webhook is samdav1 — a prod-side detail, not touched here).
+
+
 ## Re-provision 2026-09-28 (NEW pod b9028aa6) — Safe Dev Sandbox (user chose "a")
 - Pod preview URL: **https://b9028aa6-7ff5-41a4-a02e-3939d5dad35b.preview.emergentagent.com** (frontend/.env REACT_APP_BACKEND_URL → proxies /api to Node :5000)
 - Both backend/.env + frontend/.env were MISSING on arrival + node_modules absent → wrote both .env from user cred dump, `yarn install --ignore-engines` (node20 vs pkg-wants-22), pip deps already satisfied, `bash scripts/setup-nodejs.sh` (SELF_URL/SELF_URL_PROD → this pod +/api), restarted backend+frontend+nodejs.
