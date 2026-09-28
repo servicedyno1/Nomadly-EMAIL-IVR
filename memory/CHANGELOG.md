@@ -1,3 +1,28 @@
+## 2026-09-28 — Auto-deploy pipeline review: bugs fixed + hardening (first live run already ✅)
+
+Reviewed the GitHub Actions → SSH → droplet pipeline after its first real run (36475062686). Fixed:
+- **Dropped Telegram updates after every restart** — `/telegram/webhook` (`js/_index.js`) now returns 503
+  until Mongo is connected so Telegram re-delivers (the first run's log showed `[Queue] Error … reading
+  'collection'` for a real user 2 s after boot). `/health` reports real DB readiness
+  (`appReady && db && isDbHealthy()`), still HTTP 200. Verified live: 503+"starting" with Mongo down →
+  200+"healthy" once connected.
+- **`scripts/droplet_deploy.sh`** (installed on the droplet as `/opt/nomadly/deploy.sh`): frontend built into
+  `build.next` and swapped only on success (a failed in-place CRA build left an EMPTY build dir);
+  post-reload health check (≤90 s on `/health` + PM2 crash-loop detection) with **auto-rollback** to the
+  previous commit and `exit 1`; `flock` single-flight; `trap '' HUP` + on-box log; lockfile churn excluded
+  from backups + 30-day prune; self-update of the installed copy from the `app-main` checkout only; Telegram
+  ✅/❌ notice to `TELEGRAM_ADMIN_CHAT_ID`. Honest wording: fork-mode `pm2 reload` ≈ 3 s restart.
+- **`.github/workflows/deploy.yml`**: `paths-ignore` for docs/memory/reports (no prod restart on
+  docs-only saves), secrets via `env:`, `permissions: {}`, `timeout-minutes: 25`, SSH keepalive, strict
+  host-key. `frontend/.gitignore` ignores `build.next`/`build.prev`.
+- Verified on the droplet with a throwaway PM2 app (T1–T8: happy path, real build+swap, broken build kept
+  previous, unhealthy→rollback, crash-loop→rollback, concurrent runs serialised, SSH-drop survival, Telegram
+  notice delivered) — all removed afterwards; prod `app-main` untouched. Static suite
+  `js/tests/test_deploy_pipeline_2026-09.js` 26/26.
+- Flagged for owner (not changed): repo is PUBLIC incl. `memory/**`; droplet `~/.git-credentials` holds an
+  over-scoped classic PAT (unneeded for a public repo).
+
+
 ## 2026-09-25 — Reseller API GAP FIXES (buy domain+hosting → live, end-to-end)
 
 Reviewed 7 gaps reported by the Nameword client agent and fixed the real ones (bot provisioning
