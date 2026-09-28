@@ -19,7 +19,7 @@ import sys
 import time
 
 # Base URL from frontend/.env
-BASE_URL = "https://passphrases-3.preview.emergentagent.com"
+BASE_URL = "https://secure-passphrase-7.preview.emergentagent.com"
 API_BASE = f"{BASE_URL}/api/reseller/v1"
 
 # API Key (bound to @onarrival1 / chatId 5590563715, wallet $5.00)

@@ -1,5 +1,5 @@
 {
-  "summary": "Frontend regression smoke for FileManager refactor (1534 → 1385 lines, sub-components extracted to /file-manager/). Source-inspection of all 5 new files (Toolbar.jsx, BulkBar.jsx, DragOverlay.jsx, ImagePreviewModal.jsx, useHotkeys.js) confirms data-testids preserved, props wired correctly, and FileManager.js imports + uses each. Live Playwright E2E (goldtest/123456 on https://passphrases-3.preview.emergentagent.com/panel) verified login → dashboard → Files tab → toolbar testids → '/' shortcut → Esc cascade → V2 coral theme. All assertions passed; zero JS page errors.",
+  "summary": "Frontend regression smoke for FileManager refactor (1534 → 1385 lines, sub-components extracted to /file-manager/). Source-inspection of all 5 new files (Toolbar.jsx, BulkBar.jsx, DragOverlay.jsx, ImagePreviewModal.jsx, useHotkeys.js) confirms data-testids preserved, props wired correctly, and FileManager.js imports + uses each. Live Playwright E2E (goldtest/123456 on https://secure-passphrase-7.preview.emergentagent.com/panel) verified login → dashboard → Files tab → toolbar testids → '/' shortcut → Esc cascade → V2 coral theme. All assertions passed; zero JS page errors.",
   "backend_issues": {"critical": [], "minor": []},
   "frontend_issues": {
     "ui_bugs": [],
