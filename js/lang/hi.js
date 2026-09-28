@@ -581,7 +581,9 @@ ${CHAT_BOT_NAME}`,
  const more = answers.length > 2 ? ` +${answers.length - 2} और` : ''
  return ` ${type}: ${count} रिकॉर्ड (${vals}${more})`
  },
- dnsHealthSummary: (resolving, total) => `\n${resolving}/${total} रिकॉर्ड प्रकार रिज़ॉल्व हो रहे हैं।`,
+ dnsHealthSummary: (resolving, total) => resolving > 0
+ ? `\n✅ स्थिति: <b>सक्रिय</b> — ${resolving}/${total} रिकॉर्ड प्रकार रिज़ॉल्व हो रहे हैं।`
+ : `\n⚠️ स्थिति: <b>निष्क्रिय</b> — यह डोमेन अभी कहीं भी रिज़ॉल्व नहीं हो रहा। यह रजिस्ट्री पर होल्ड पर हो सकता है या अभी सक्रिय हो रहा है।`,
  dnsCheckError: 'DNS जांच विफल। कृपया बाद में पुनः प्रयास करें।',
  manageNameservers: '🔄 नेमसर्वर प्रबंधित करें',
  manageNsMenu: (domain, nsRecords, nameserverType) => {

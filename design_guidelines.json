@@ -1,92 +1,257 @@
 {
-  "theme_archetype": "Archetype 4 (Swiss & High-Contrast) + Technical Developer",
-  "visual_direction": "Sunset Coral & Deep Indigo. High contrast, sharp edges, distinct technical typography, surprise and delight micro-interactions.",
+  "brand_identity": {
+    "name": "Nomadly",
+    "positioning": "Privacy-focused, offshore & anonymous digital services provider operating primarily via Telegram Bot with a companion Web Storefront.",
+    "archetype": "ARCHETYPE 7: ELECTRIC & NEON / ARCHETYPE 5: LUXURY UNDERGROUND",
+    "theme_preference": "CONFIDENT DARK THEME WITH COMMITTED ACCENT",
+    "tone": "Surveillanceless, high-precision, technical, discreet, ultra-trustworthy, premium",
+    "key_differentiators": [
+      "No KYC / No email verification required for basic tier",
+      "Pure crypto payment options (USDT, BTC, ETH, LTC, TRX, DOGE)",
+      "Automated Anti-Red hosting detection & self-healing proxies",
+      "Unified Telegram Bot & Web Store ecosystem",
+      "Bulletproof domain shielding with offshore DNS"
+    ]
+  },
   "color_system": {
-    "dark": {
-      "--bg-primary": "#05050A",
-      "--bg-panel": "#0A0A14",
-      "--bg-card": "#131323",
-      "--bg-card-hover": "#1C1C31",
-      "--border-subtle": "#26263B",
-      "--border-hover": "#3D3D5C",
-      "--text-primary": "#F4F4F9",
-      "--text-secondary": "#8B8B9F",
-      "--text-muted": "#5C5C70",
-      "--accent-coral": "#FF6B6B",
-      "--accent-indigo": "#6366F1",
-      "--emerald": "#34D399",
-      "--amber": "#FBBF24",
-      "--danger": "#FB7185",
-      "--selection-bg": "rgba(255, 107, 107, 0.15)"
+    "palette_name": "Obsidian Cyber Vault",
+    "css_variables": {
+      "--bg-primary": "#07090e",
+      "--bg-secondary": "#0d111a",
+      "--bg-card": "#121824",
+      "--bg-card-hover": "#1a2234",
+      "--bg-glass": "rgba(18, 24, 36, 0.75)",
+      "--border-subtle": "rgba(255, 255, 255, 0.08)",
+      "--border-hover": "rgba(0, 255, 157, 0.35)",
+      "--border-strong": "rgba(255, 255, 255, 0.16)",
+      "--accent-primary": "#00ff9d",
+      "--accent-primary-hover": "#00e08b",
+      "--accent-primary-glow": "rgba(0, 255, 157, 0.25)",
+      "--accent-secondary": "#3b82f6",
+      "--accent-secondary-glow": "rgba(59, 130, 246, 0.25)",
+      "--accent-gold": "#ffb800",
+      "--text-primary": "#f3f5f9",
+      "--text-secondary": "#94a3b8",
+      "--text-muted": "#64748b",
+      "--status-online": "#00ff9d",
+      "--status-warning": "#ffb800",
+      "--status-offline": "#ff4757"
     },
-    "light": {
-      "--bg-primary": "#FAFAFC",
-      "--bg-panel": "#FFFFFF",
-      "--bg-card": "#F3F4F8",
-      "--bg-card-hover": "#E9EBF2",
-      "--border-subtle": "#E1E3EA",
-      "--border-hover": "#C8CBD6",
-      "--text-primary": "#0F0F1A",
-      "--text-secondary": "#5C5C70",
-      "--text-muted": "#8B8B9F",
-      "--accent-coral": "#E11D48",
-      "--accent-indigo": "#4F46E5",
-      "--emerald": "#059669",
-      "--amber": "#D97706",
-      "--danger": "#E11D48",
-      "--selection-bg": "rgba(225, 29, 72, 0.1)"
+    "contrast_rules": {
+      "headings_on_dark": "Minimum 8.5:1 ratio (#f3f5f9 on #07090e)",
+      "accent_text_on_dark": "Minimum 7.2:1 ratio (#00ff9d on #07090e)",
+      "body_text": "#94a3b8 on dark backgrounds for non-fatiguing reading",
+      "cta_buttons": "#07090e text on #00ff9d background (Ratio 12:1 - AAA compliant)"
     }
   },
-  "typography_stack": {
-    "fonts": {
-      "display": "'IBM Plex Sans', system-ui, sans-serif",
-      "body": "'IBM Plex Sans', system-ui, sans-serif",
-      "mono": "'JetBrains Mono', 'Fira Code', monospace"
+  "typography": {
+    "font_imports": [
+      "https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@300;400;500;600;700&display=swap"
+    ],
+    "headings": {
+      "family": "'Space Grotesk', -apple-system, sans-serif",
+      "h1": "text-4xl sm:text-5xl lg:text-6xl (font-weight: 700, tracking-tight -0.03em)",
+      "h2": "text-2xl sm:text-3xl lg:text-4xl (font-weight: 700, tracking-tight -0.02em)",
+      "h3": "text-xl sm:text-2xl (font-weight: 600)",
+      "h4": "text-lg sm:text-xl (font-weight: 600)"
     },
-    "hierarchy": {
-      "h1": "text-4xl (36px) font-bold tracking-tight",
-      "h2": "text-2xl (24px) font-semibold tracking-tight",
-      "h3": "text-lg (18px) font-semibold",
-      "body": "text-sm (14px) leading-relaxed",
-      "mono": "text-[13px] tracking-tight"
+    "body": {
+      "family": "'Inter', -apple-system, sans-serif",
+      "regular": "text-base (16px), line-height 1.6, color var(--text-secondary)",
+      "small": "text-sm (14px), line-height 1.5, color var(--text-muted)"
+    },
+    "code_and_mono": {
+      "family": "'JetBrains Mono', monospace",
+      "use_cases": "Crypto addresses, DNS records, HostPanel credentials, terminal snippets, counter numbers"
+    },
+    "labels_and_badges": {
+      "style": "uppercase, tracking-wider (0.15em), text-xs (11px), font-weight: 700"
     }
   },
-  "layout_and_spacing": {
-    "login": "Split/Asymmetric focus: Bold center card with a heavy noise texture on the deep indigo root background. Login card uses generous p-10 padding.",
-    "dashboard_shell": "Top header with stark contrast. Sticky tab navigation below it using 'Control Room' tight spacing. Generous spacing (p-6) in the main container.",
-    "file_manager": "Bento-style file manager layout. Sticky toolbar. Dense table rows (py-3) with multi-select checkboxes on the left."
+  "spacing_and_layout": {
+    "padding_scale": {
+      "container_desktop": "max-w-7xl mx-auto px-6 lg:px-12 py-16 lg:py-24",
+      "container_mobile": "px-4 py-8",
+      "card_padding": "p-6 lg:p-8",
+      "section_gap": "gap-12 lg:gap-20"
+    },
+    "grid_layouts": {
+      "pillar_grid": "grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8",
+      "plans_grid": "grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8",
+      "social_proof_bar": "grid-cols-2 md:grid-cols-4 gap-4 lg:gap-8"
+    },
+    "bento_asymmetry": "Use uneven card spans (e.g. Hero cards spanning 2 cols) to create visual rhythm without layout predictability."
   },
-  "micro_animations": {
-    "hover": "transform -translate-y-[1px] and slight shadow increase.",
-    "transition_tokens": "all 0.25s cubic-bezier(0.4, 0, 0.2, 1)",
-    "active_ring": "focus:outline-none focus:ring-2 focus:ring-[var(--accent-coral)]"
+  "landing_page_blueprint": {
+    "header_nav": {
+      "logo": "Nomadly icon mark with gradient glow + 'Nomadly' text",
+      "nav_links": [
+        { "label": "Services", "target": "#services" },
+        { "label": "Social Proof", "target": "#proof" },
+        { "label": "Why Nomadly", "target": "#privacy" },
+        { "label": "How It Works", "target": "#how-it-works" },
+        { "label": "FAQ", "target": "#faq" },
+        { "label": "Store", "target": "/store" }
+      ],
+      "actions": [
+        { "type": "primary", "label": "Open in Telegram", "link": "https://t.me/NomadlyBot", "test_id": "landing-nav-telegram-btn" },
+        { "type": "secondary", "label": "Browse Store", "link": "/store", "test_id": "landing-nav-store-btn" }
+      ],
+      "system_status_link": "Relocated unobtrusively in footer or subtle top banner"
+    },
+    "hero_section": {
+      "headline": "Offshore Privacy Services. Zero KYC. Pure Crypto.",
+      "subheadline": "Anti-red hosting, bulletproof domains, cloud phone & SIP, shortener, and non-custodial crypto wallet — instantly provisioned via Telegram & Web Store.",
+      "primary_cta": { "label": "Open in Telegram Bot", "test_id": "hero-primary-telegram-cta" },
+      "secondary_cta": { "label": "Browse Web Storefront", "test_id": "hero-secondary-store-cta" },
+      "trust_badges": ["Instant Crypto Delivery", "100% No-Logs Policy", "Offshore Infrastructure", "Automated Anti-Red Shield"]
+    },
+    "social_proof_band": {
+      "title": "Live Network Activity (This Week)",
+      "counters": [
+        { "id": "domains_count", "label": "Domains Protected", "value": "232 domains", "test_id": "counter-domains" },
+        { "id": "hosting_count", "label": "Anti-Red Instances Active", "value": "107 hosting", "test_id": "counter-hosting" },
+        { "id": "uptime_stat", "label": "Anti-Red Uptime", "value": "99.98%", "test_id": "counter-uptime" },
+        { "id": "privacy_stat", "label": "Anonymous Transactions", "value": "100% Crypto", "test_id": "counter-crypto" }
+      ]
+    },
+    "product_pillars": [
+      {
+        "id": "anti-red-hosting",
+        "title": "Anti-Red Hosting",
+        "description": "High-availability, self-healing offshore hosting engineered to prevent Google Red Warning screens and registrar suspensions.",
+        "icon": "ShieldCheck",
+        "features": ["Self-healing cPanel proxies", "Automatic Cloudflare SSL & JA3 shielding", "Instant automated setup"],
+        "test_id": "pillar-anti-red"
+      },
+      {
+        "id": "bulletproof-domains",
+        "title": "Bulletproof Domains",
+        "description": "Offshore registrar integration with anonymous WHOIS shield, custom nameservers, and instant DNS record propagation.",
+        "icon": "Globe",
+        "features": ["WHOIS privacy shielded", "Offshore DNS delegation", "Multiple TLD options"],
+        "test_id": "pillar-domains"
+      },
+      {
+        "id": "cloud-phone-sip",
+        "title": "Cloud Phone + SIP",
+        "description": "Anonymous virtual phone numbers, inbound/outbound SIP trunking, SMS verification receiving, and IVR routing.",
+        "icon": "PhoneCall",
+        "features": ["Global virtual numbers", "SIP trunk credentials", "SMS & Voice forwarding"],
+        "test_id": "pillar-cloud-phone"
+      },
+      {
+        "id": "url-shortener",
+        "title": "Privacy URL Shortener",
+        "description": "Custom domain branded link shortener with real-time redirect analytics, anti-bot filtering, and zero referral leakage.",
+        "icon": "Link",
+        "features": ["Custom domain support", "Bot & crawler filtration", "Click intelligence analytics"],
+        "test_id": "pillar-shortener"
+      },
+      {
+        "id": "crypto-wallet",
+        "title": "Crypto Wallet & Payments",
+        "description": "Non-custodial multi-coin wallet integration for seamless service auto-renewals with zero identity verification.",
+        "icon": "Wallet",
+        "features": ["USDT (TRC20/ERC20), BTC, ETH, LTC", "Instant deposit crediting", "Zero transaction log policy"],
+        "test_id": "pillar-crypto"
+      }
+    ],
+    "privacy_trust_section": {
+      "headline": "Built for Absolute Anonymity",
+      "points": [
+        "No Personal Info Requested — Pay exclusively with cryptocurrency.",
+        "Offshore Jurisdictional Protection — Shielded from aggressive automated takedown bots.",
+        "No-Logs Network Policy — We never record IP logs or personal connection metadata."
+      ]
+    },
+    "how_it_works": [
+      { "step": "1", "title": "Select Service", "desc": "Pick your plan on Telegram Bot or Web Storefront." },
+      { "step": "2", "title": "Pay with Crypto", "desc": "Send precise crypto amount to generated single-use address." },
+      { "step": "3", "title": "Go Live Instantly", "desc": "HostPanel credentials and DNS records provisioned within 60s." }
+    ],
+    "faq": [
+      { "q": "What is Anti-Red hosting?", "a": "Anti-Red hosting uses automated reverse proxy layers and TLS fingerprint masking to prevent false-positive phishing flags from web crawlers." },
+      { "q": "Do I need an account to buy?", "a": "No account is required. You can buy directly as a guest on our web store or start immediately in our Telegram bot." },
+      { "q": "Which payment methods are accepted?", "a": "We accept pure cryptocurrency: USDT (TRC20 & ERC20), BTC, ETH, LTC, TRX, and DOGE." }
+    ],
+    "footer": {
+      "relocated_status_link": { "label": "System Status Board", "url": "/status", "test_id": "footer-system-status-link" },
+      "copyright": "© 2026 Nomadly Network. Privacy is a fundamental right."
+    }
   },
-  "glass_grain_depth_recipe": {
-    "glassmorphism": "backdrop-filter: blur(16px); background: rgba(var(--bg-card), 0.7); border: 1px solid var(--border-subtle); box-shadow: 0 8px 32px rgba(0,0,0,0.12);",
-    "noise_texture": "Use a subtle SVG noise filter overlay on the login background and dashboard header for a tactile, dev-tool feel.",
-    "depth": "Replace flat dark slate with layered depth. 1px solid inner strokes. Root bg -> Panel bg -> Card bg."
+  "storefront_blueprint": {
+    "hero": {
+      "headline": "Nomadly Storefront — Instant Anonymous Provisioning",
+      "subheadline": "Select your plan, choose or bring your domain, pay with crypto, and receive instant HostPanel credentials.",
+      "telegram_login_prompt": "Already a Telegram Bot user? Scan the QR code or click 'One-Tap Login' to sync your balance."
+    },
+    "plan_comparison_tiers": [
+      {
+        "id": "premium-1-week",
+        "name": "Premium Anti-Red (1-Week)",
+        "price": "$15.00",
+        "billing": "Billed weekly ($15.00/wk)",
+        "features": [
+          "1 Anti-Red Domain Slot",
+          "Full cPanel Access",
+          "SSL & Cloudflare Proxy",
+          "Weekly Auto-Heal Check",
+          "Ideal for short campaigns"
+        ],
+        "target_audience": "For short-term projects & trial campaigns",
+        "test_id": "store-plan-premium-1-week"
+      },
+      {
+        "id": "premium-30-days",
+        "name": "Premium Anti-Red HostPanel (30 Days)",
+        "price": "$45.00",
+        "billing": "Billed monthly ($45.00/mo)",
+        "features": [
+          "1 Anti-Red Domain Slot",
+          "Unmetered Bandwidth",
+          "Free SSL & DDOS Protection",
+          "24/7 Health Monitoring",
+          "Instant Crypto Checkout"
+        ],
+        "target_audience": "For ongoing sites requiring continuous protection",
+        "test_id": "store-plan-premium-30-days"
+      },
+      {
+        "id": "golden-30-days",
+        "name": "Golden Anti-Red HostPanel (30 Days)",
+        "price": "$89.00",
+        "billing": "Billed monthly ($89.00/mo)",
+        "badge": "MOST POPULAR",
+        "features": [
+          "Up to 5 Anti-Red Addon Domains",
+          "Priority Reverse Proxy Routing",
+          "VIP Anti-Red Self-Healing",
+          "Dedicated IP Option Available",
+          "Priority Telegram & Ticket Support"
+        ],
+        "target_audience": "For high-volume operators & agencies requiring maximum resilience",
+        "test_id": "store-plan-golden-30-days"
+      }
+    ],
+    "buy_modal_reassurance": {
+      "crypto_qr_display": "Generates real-time QR code + copyable address for selected coin",
+      "live_status_polling": "Polls backend every 6s until payment confirmation & provisioning",
+      "post_payment_instructions": "Shows HostPanel username, PIN, and exact Nameservers (NS1, NS2) to point domain."
+    }
   },
-  "component_recipes": {
-    "button_primary": "background: var(--accent-coral); color: white; font-weight: 600; border-radius: 8px; padding: 10px 16px; border-bottom: 2px solid rgba(0,0,0,0.2); transition: all 0.2s; hover: filter brightness(1.1); active: border-bottom-width: 0px; transform: translateY(2px);",
-    "button_ghost": "background: transparent; color: var(--text-secondary); border: 1px solid var(--border-subtle); hover: background: var(--bg-card); color: var(--text-primary);",
-    "button_danger": "background: rgba(var(--danger), 0.1); color: var(--danger); border: 1px solid rgba(var(--danger), 0.2); hover: background: var(--danger); color: white;",
-    "input_field": "background: var(--bg-panel); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 10px 14px; color: var(--text-primary); font-family: var(--font-mono); focus: border-color: var(--accent-coral); box-shadow: 0 0 0 2px rgba(var(--accent-coral), 0.2);",
-    "file_row": "border-bottom: 1px solid var(--border-subtle); padding: 12px 0; hover: background: var(--bg-card-hover); transition: background 0.2s. Checked state: background: var(--selection-bg);",
-    "action_chip": "background: var(--bg-card); border: 1px solid var(--border-subtle); color: var(--text-secondary); border-radius: 6px; padding: 6px 12px; font-size: 12px; font-weight: 500; hover: color: var(--accent-coral); border-color: var(--accent-coral);",
-    "modal": "Fixed center, glassmorphism overlay (background: rgba(0,0,0,0.6); backdrop-filter: blur(8px)). Modal content: background: var(--bg-panel); border: 1px solid var(--border-subtle); border-radius: 16px; box-shadow: 0 24px 48px rgba(0,0,0,0.3); padding: 24px;",
-    "tab_nav": "background: transparent; color: var(--text-secondary); font-weight: 500; padding: 12px 20px; border-bottom: 2px solid transparent; hover: color: var(--text-primary); Active: border-color: var(--accent-coral); color: var(--accent-coral);",
-    "drop_overlay": "position: absolute; inset: 0; background: rgba(var(--accent-indigo), 0.1); backdrop-filter: blur(4px); border: 2px dashed var(--accent-indigo); border-radius: 12px; display: flex; align-items: center; justify-content: center; color: var(--accent-indigo); font-weight: 600; font-size: 18px;"
+  "data_testid_conventions": {
+    "buttons": "kebab-case (e.g., data-testid='landing-hero-telegram-btn')",
+    "cards": "kebab-case (e.g., data-testid='pillar-card-anti-red')",
+    "inputs": "kebab-case (e.g., data-testid='store-guest-email-input')",
+    "modals": "kebab-case (e.g., data-testid='store-buy-modal')"
   },
   "instructions_to_main_agent": [
-    "1. Read this entire JSON file carefully to understand the Sunset Coral + Deep Indigo design language.",
-    "2. Edit /app/frontend/src/App.css: Replace the generic `:root` and `.panel-light` variables with the exact hex codes provided in `color_system`.",
-    "3. Edit /app/frontend/src/App.css: Change font imports from DM Sans/Inter to `IBM Plex Sans` and `JetBrains Mono` from Google Fonts. Apply them across body and headings/paths.",
-    "4. Edit /app/frontend/src/App.css: Overhaul component classes (e.g. `.fm-btn--primary`, `.panel-input-group input`, `.panel-tab`) matching the `component_recipes` mapping.",
-    "5. Edit /app/frontend/src/pages/PanelLogin.js: Implement functional features: 6-digit PIN input with show/hide toggle, rate-limit countdown logic (on error), caps-lock indicator on username, and remember-username checkbox.",
-    "6. Edit /app/frontend/src/components/panel/FileManager.js: Add multi-select rows (add a checkbox column to the left). Create a bulk action toolbar when items are selected allowing bulk delete/move.",
-    "7. Edit /app/frontend/src/components/panel/FileManager.js: Implement live folder search/filter (add an input field in `fm-toolbar` that filters the mapped `files` array by name).",
-    "8. Edit /app/frontend/src/components/panel/FileManager.js: Add keyboard shortcuts (e.g. `Delete` key for deletion modal, `Ctrl+A`/`Cmd+A` to select all files).",
-    "9. Edit /app/frontend/src/components/panel/FileManager.js: Add image-file thumbnail preview (if `isWebFile` or matches image extensions, load the thumbnail in the row or as an icon fallback).",
-    "CRITICAL: Do not remove or alter any existing `data-testid` attributes across all files. They are vital for testing."
+    "Ensure plain CSS variables in App.css and store.css drive all color and layout tokens.",
+    "Do NOT use raw bright gradients. Use dark obsidian surfaces (#07090e, #121824) with high-contrast accent text (#00ff9d).",
+    "Replace the public root status board with the high-converting Nomadly Marketing Landing Page.",
+    "Relocate the internal system status dashboard under an unobtrusive link ('System Status') in the footer.",
+    "Ensure every interactive element has a unique, descriptive data-testid attribute.",
+    "All media and graphics should use dark cyberpunk server & encrypted network themes."
   ]
 }

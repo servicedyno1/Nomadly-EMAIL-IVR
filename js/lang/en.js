@@ -753,7 +753,9 @@ Select below:`,
  const more = answers.length > 2 ? ` +${answers.length - 2} more` : ''
  return ` ${type}: ${count} record${count > 1 ? 's' : ''} (${vals}${more})`
  },
- dnsHealthSummary: (resolving, total) => `\n${resolving}/${total} record types resolving.`,
+ dnsHealthSummary: (resolving, total) => resolving > 0
+ ? `\n✅ Status: <b>Active</b> — ${resolving}/${total} record types resolving.`
+ : `\n⚠️ Status: <b>Inactive</b> — this domain isn't resolving anywhere yet. It may be on hold at the registry or still activating.`,
  dnsCheckError: 'DNS lookup failed. Please try again later.',
 
  // Manage Nameservers (consolidated NS menu)

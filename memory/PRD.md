@@ -360,3 +360,13 @@ Both prod bots (Nomadly + SMADAV) run identical deploy config — `VPS_DEFAULT_P
 - **Open user actions:** (1) credit the one stuck deposit manually (chatId 5168006768 / $20); (2) **deploy** (Save to GitHub → Railway) so prod stops re-blocking; (3) DynoPay webhook signature (`DYNO_PAY_WEBHOOK_SECRET`) is live in sandbox+vault — confirm on Nomadly prod, then decide SMADAV + flip `DYNO_PAY_WEBHOOK_SIG_ENFORCE=true` once logs show sig=valid.
 - **P1 backlog still open:** `accesd-securite.ca` DNS zone-moved warning; guest-checkout/web-order anomaly audit.
 
+## 2026-06 (fork) — Phase 1 UX/UI Gap Pass DONE (points 2–7; #1 CANCELLED). Full detail in CHANGELOG.md
+Approved order #4→#7→#2→#3→#5→#6, all implemented + sandbox-verified (syntax/parity/compile/screenshots). Point #4 kept intentionally SIMPLE per user ("active/inactive, skip CTA").
+- #4 DNS status: bot Check DNS + web NS badge now say plain **Active/Inactive** (not "0/6 resolving").
+- #7 HostPanel empty states: reusable `PanelEmptyState.jsx` (icon+title+desc+CTA) in Email/Domains/Analytics tabs.
+- #2 Storefront polish: green ✓ checks, plan-card accent strip, trust band (entrance animation removed — `both` fill-mode bug).
+- #3 Bot home: "📊 Your services: 📞·🏠·🌐" glance line for returning customers only.
+- #6 Web checkout recovery: localStorage-persisted pending crypto order + Resume banner/modal (frontend-only).
+- #5 Lifecycle: plan expiry chips + renewal hint on storefront My Plans.
+- **NEXT AGENT / OPEN:** (1) run testing_agent on the storefront (#2/#5/#6 flows incl. resume banner) + a bot sim for #3 greeting & #4 Check DNS — the #6 resume banner render was NOT confirmed in a sandbox screenshot yet. (2) User to deploy (Save to GitHub → Railway) for all of the above to go live. (3) Still-open pre-existing: stuck $20 deposit (chat 5168006768), `accesd-securite.ca` registry serverHold (manual/registrar), guest-checkout/web-order anomaly audit, DynoPay sig-enforce flip.
+

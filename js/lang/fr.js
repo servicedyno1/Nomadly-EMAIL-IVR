@@ -584,7 +584,9 @@ ${CHAT_BOT_NAME}`,
  const more = answers.length > 2 ? ` +${answers.length - 2} de plus` : ''
  return ` ${type}: ${count} enregistrement${count > 1 ? 's' : ''} (${vals}${more})`
  },
- dnsHealthSummary: (resolving, total) => `\n${resolving}/${total} types résolus.`,
+ dnsHealthSummary: (resolving, total) => resolving > 0
+ ? `\n✅ Statut : <b>Actif</b> — ${resolving}/${total} types d'enregistrements résolus.`
+ : `\n⚠️ Statut : <b>Inactif</b> — ce domaine ne résout encore nulle part. Il est peut-être suspendu au registre ou en cours d'activation.`,
  dnsCheckError: 'La vérification DNS a échoué. Réessayez plus tard.',
  manageNameservers: '🔄 Gérer les serveurs de noms',
  manageNsMenu: (domain, nsRecords, nameserverType) => {

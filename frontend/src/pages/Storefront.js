@@ -15,10 +15,45 @@ const COIN_OPTS = [
 
 const isEmail = (s) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(s || '').trim());
 
+// ── Point #5: lifecycle — humanize a plan's expiry into a status chip ──
+function expiryInfo(iso) {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return null;
+  const days = Math.ceil((d.getTime() - Date.now()) / 86400000);
+  if (days < 0) return { label: 'Expired', cls: 'exp', days };
+  if (days === 0) return { label: 'Expires today', cls: 'warn', days };
+  if (days <= 7) return { label: `Expires in ${days}d`, cls: 'warn', days };
+  return { label: `${days}d left`, cls: 'ok', days };
+}
+
 // Tokens already consumed in this page session. We track them at module scope
 // (not in component state / ref) so React 18 StrictMode's double-mount in dev
 // AND any spurious re-renders cannot replay a single-use bot-login token.
 const BT_CONSUMED = new Set();
+
+// ── Point #6: web checkout recovery ──
+// Persist an unfinished crypto order so a shopper who closes the tab mid-payment
+// can resume it. Cleared once provisioned/failed/dismissed. 24h self-expiry.
+const PENDING_KEY = 'nomadly_pending_order';
+const savePendingOrder = (o) => {
+  try {
+    if (o && o.orderId) localStorage.setItem(PENDING_KEY, JSON.stringify({
+      orderId: o.orderId, coin: o.coin, amountUsd: o.amountUsd, address: o.address,
+      plan: o.plan, domain: o.domain, at: Date.now(),
+    }));
+  } catch { /* ignore */ }
+};
+const loadPendingOrder = () => {
+  try {
+    const raw = localStorage.getItem(PENDING_KEY);
+    if (!raw) return null;
+    const o = JSON.parse(raw);
+    if (!o?.orderId || (o.at && Date.now() - o.at > 24 * 3600 * 1000)) { localStorage.removeItem(PENDING_KEY); return null; }
+    return o;
+  } catch { return null; }
+};
+const clearPendingOrder = () => { try { localStorage.removeItem(PENDING_KEY); } catch { /* ignore */ } };
 
 /* Shared crypto payment box — polls the public order endpoint until provisioned */
 function CryptoPayBox({ order, onProvisioned }) {
@@ -32,8 +67,8 @@ function CryptoPayBox({ order, onProvisioned }) {
         const r = await fetch(`${BACKEND}/api/store/order/${order.orderId}`).then(x => x.json());
         if (done || !r) return;
         setStatus(r.status);
-        if (r.status === 'provisioned') { done = true; clearInterval(iv); setCreds(r); onProvisioned && onProvisioned(r); }
-        if (r.status === 'failed') { done = true; clearInterval(iv); setStatus('failed'); }
+        if (r.status === 'provisioned') { done = true; clearInterval(iv); setCreds(r); clearPendingOrder(); onProvisioned && onProvisioned(r); }
+        if (r.status === 'failed') { done = true; clearInterval(iv); setStatus('failed'); clearPendingOrder(); }
       } catch { /* keep polling */ }
     };
     poll(); iv = setInterval(() => { if (!done) poll(); }, 6000);
@@ -106,6 +141,7 @@ function GuestBuyModal({ plan, onClose }) {
       const d = await r.json();
       if (!r.ok) throw new Error(d.error || 'Checkout failed');
       setOrder(d);
+      savePendingOrder(d);
     } catch (e) { setError(e.message); } finally { setBusy(false); }
   };
 
@@ -185,6 +221,8 @@ function StoreInner() {
   const [config, setConfig] = useState({ botUsername: 'NomadlyBot', botStartPayload: 'web-login' });
   const [botLoginStatus, setBotLoginStatus] = useState('idle'); // idle | exchanging | failed
   const [botLoginError, setBotLoginError] = useState('');
+  const [pending, setPending] = useState(() => loadPendingOrder());
+  const [resumeOpen, setResumeOpen] = useState(false);
   const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || '';
 
   useEffect(() => {
@@ -222,7 +260,49 @@ function StoreInner() {
       {botLoginStatus === 'exchanging' && (
         <div className="store-bot-toast" data-testid="store-bot-toast">Signing you in via Telegram…</div>
       )}
+      {pending && !resumeOpen && (
+        <PendingOrderBanner
+          order={pending}
+          onResume={() => setResumeOpen(true)}
+          onDismiss={() => { clearPendingOrder(); setPending(null); }}
+        />
+      )}
+      {resumeOpen && pending && (
+        <ResumePayModal
+          order={pending}
+          onClose={() => setResumeOpen(false)}
+          onDone={() => { clearPendingOrder(); setPending(null); setResumeOpen(false); }}
+        />
+      )}
       {user ? <Dashboard plans={plans} /> : <AuthGate plans={plans} config={config} botLoginError={botLoginStatus === 'failed' ? botLoginError : ''} />}
+    </div>
+  );
+}
+
+/* ── Point #6: pending-payment recovery banner + resume modal ── */
+function PendingOrderBanner({ order, onResume, onDismiss }) {
+  return (
+    <div className="store-resume-banner" data-testid="store-resume-banner">
+      <span className="store-resume-banner__text">
+        ⏳ You have an unfinished payment for <b>{order.plan}</b>{order.domain ? <> · <b>{order.domain}</b></> : null} — {money(order.amountUsd)} in {order.coin}.
+      </span>
+      <span className="store-resume-banner__actions">
+        <button className="store-btn store-btn--primary" onClick={onResume} data-testid="store-resume-btn">Resume payment →</button>
+        <button className="store-link" onClick={onDismiss} data-testid="store-resume-dismiss">Dismiss</button>
+      </span>
+    </div>
+  );
+}
+
+function ResumePayModal({ order, onClose, onDone }) {
+  return (
+    <div className="store-modal-overlay" onClick={onClose} role="dialog" aria-modal="true" data-testid="store-resume-modal">
+      <div className="store-modal" onClick={e => e.stopPropagation()}>
+        <button className="store-modal-x" onClick={onClose} data-testid="store-resume-close">×</button>
+        <h2>Resume payment</h2>
+        <div className="store-total" data-testid="store-resume-total">Plan: <b>{order.plan}</b>{order.domain ? <> · Domain: <b>{order.domain}</b></> : null}</div>
+        <CryptoPayBox order={order} onProvisioned={() => onDone && onDone()} />
+      </div>
     </div>
   );
 }
@@ -431,7 +511,7 @@ function AuthGate({ plans, config, botLoginError }) {
                   <div className="store-plan-billing" data-testid={`store-billing-${p.id}`}>
                     {moEq ? `${t('store.moEquiv', { amount: money(moEq) })} · ${t('store.billedWeekly')}` : t('store.billedMonthly')}
                   </div>
-                  <ul className="store-plan-feats">{(p.features || []).map((f, i) => <li key={i}>✓ {f}</li>)}</ul>
+                  <ul className="store-plan-feats">{(p.features || []).map((f, i) => <li key={i}><span className="store-feat-check" aria-hidden="true">✓</span>{f}</li>)}</ul>
                   <button
                     className={`store-btn store-btn--primary ${isGold ? 'store-btn--gold' : ''}`}
                     onClick={() => setBuyPlan(p)}
@@ -537,6 +617,7 @@ function BuyTab({ plans, goWallet, goPlans }) {
       if (payMethod === 'crypto') {
         const r = await api('/hosting/pay-crypto', { method: 'POST', body: JSON.stringify({ planId, domain: domain.trim().toLowerCase(), domainMode, coin }) });
         setCryptoOrder(r);
+        savePendingOrder(r);
       } else {
         const r = await api('/hosting/purchase', { method: 'POST', body: JSON.stringify({ planId, domain: domain.trim().toLowerCase(), domainMode }) });
         if (r.success) { setResult(r); if (typeof r.balanceUsd === 'number') setWallet(r.balanceUsd); }
@@ -749,11 +830,21 @@ function PlansTab() {
       {error && <div className="store-error">{error}</div>}
       {plans === null ? <div className="store-muted">{t('store.loading')}</div> :
         plans.length === 0 ? <div className="store-muted">{t('store.noPlans')}</div> :
-        plans.map(p => (
+        plans.map(p => {
+          const exp = expiryInfo(p.expiryDate);
+          return (
           <div key={p.cpUser} className="store-myplan" data-testid={`store-myplan-${p.domain}`}>
             <div>
               <div className="store-myplan-domain">{p.domain}</div>
               <div className="store-muted">{p.plan} · {p.addonCount} addon(s){p.suspended ? ' · SUSPENDED' : ''}</div>
+              {exp && (
+                <div className="store-myplan-lifecycle" data-testid={`store-myplan-expiry-${p.domain}`}>
+                  <span className={`store-exp-chip store-exp-chip--${exp.cls}`}>{exp.label}</span>
+                  {(exp.cls === 'warn' || exp.cls === 'exp') && (
+                    <span className="store-exp-hint">{exp.cls === 'exp' ? 'Renew now to restore your site.' : 'Top up your wallet to auto-renew.'}</span>
+                  )}
+                </div>
+              )}
             </div>
             <button
               className="store-btn store-btn--primary"
@@ -764,7 +855,8 @@ function PlansTab() {
               {openBusy === p.cpUser ? t('store.opening') : t('store.openPanel')}
             </button>
           </div>
-        ))}
+          );
+        })}
     </div>
   );
 }

@@ -730,3 +730,84 @@ html.dark .store-plan-badge { color: #1a1205; }
   outline: 2px solid var(--st-accent);
   outline-offset: 2px;
 }
+
+/* ═══════════ Point #2 — Storefront polish (2026-06) ═══════════ */
+
+/* Green "included" checkmarks in plan feature lists */
+.store-plan-feats li {
+  display: flex; align-items: flex-start; gap: 8px;
+  line-height: 1.4;
+}
+.store-feat-check {
+  flex-shrink: 0;
+  width: 16px; height: 16px; margin-top: 1px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 50%;
+  background: rgba(52, 211, 153, .14);
+  color: var(--st-pos);
+  font-size: 10px; font-weight: 800;
+}
+
+/* Subtle accent strip along the top edge of each plan card */
+.store-plan-card::before {
+  content: "";
+  position: absolute; top: 0; left: 18px; right: 18px; height: 2px;
+  border-radius: 0 0 3px 3px;
+  background: linear-gradient(90deg, transparent, var(--st-border-strong), transparent);
+  opacity: .8;
+}
+.store-plan-card--gold::before {
+  background: linear-gradient(90deg, transparent, var(--st-gold), transparent);
+  opacity: 1;
+}
+
+/* (entrance animation intentionally omitted — cards render solid on load) */
+
+/* Trust row → soft inset band that reads as a reassurance strip */
+.store-trust-row {
+  background: var(--st-bg-inset);
+  border: 1px solid var(--st-border);
+  border-radius: var(--st-radius-sm);
+  padding: 12px 14px;
+  margin: 18px 2px 0;
+}
+.store-trust-item { color: var(--st-text); }
+.store-trust-item::first-letter { color: var(--st-pos); }
+
+/* ═══════════ Point #6 — checkout recovery banner ═══════════ */
+.store-resume-banner {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
+  gap: 10px 16px;
+  margin: 0; padding: 12px clamp(14px, 4vw, 32px);
+  background: var(--st-accent-soft);
+  border-bottom: 1px solid var(--st-border);
+  color: var(--st-text);
+  font-size: 13.5px;
+}
+.store-resume-banner__text { flex: 1 1 240px; }
+.store-resume-banner__actions { display: flex; align-items: center; gap: 12px; }
+.store-resume-banner__actions .store-btn { margin-top: 0; width: auto; padding: 8px 16px; font-size: 13px; }
+
+/* ═══════════ Point #5 — plan lifecycle chips (My Plans) ═══════════ */
+.store-myplan-lifecycle {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 6px;
+}
+.store-exp-chip {
+  display: inline-flex; align-items: center;
+  font-size: 11px; font-weight: 700; letter-spacing: .01em;
+  padding: 3px 8px; border-radius: 999px;
+  border: 1px solid transparent;
+}
+.store-exp-chip--ok {
+  background: rgba(52, 211, 153, .12); color: var(--st-pos);
+  border-color: rgba(52, 211, 153, .25);
+}
+.store-exp-chip--warn {
+  background: rgba(245, 158, 11, .12); color: var(--st-gold);
+  border-color: rgba(245, 158, 11, .30);
+}
+.store-exp-chip--exp {
+  background: rgba(239, 68, 68, .12); color: var(--st-neg);
+  border-color: rgba(239, 68, 68, .30);
+}
+.store-exp-hint { font-size: 12px; color: var(--st-text-soft); }

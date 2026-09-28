@@ -9200,10 +9200,10 @@ bot?.on('message', msg => {
       const { usdBal } = await getBalance(walletOf, chatId)
       const tierInfo = await loyalty.getUserTier(walletOf, chatId)
       const greetings = {
-        en: { welcome: 'Welcome', hi: 'Hey', balance: 'Balance', tier: 'Tier', discount: 'off all purchases', noDiscount: 'Choose a service below to get started 👇', selectOption: 'Select an option below' },
-        fr: { welcome: 'Bienvenue', hi: 'Salut', balance: 'Solde', tier: 'Niveau', discount: 'sur tous les achats', noDiscount: 'Choisissez un service ci-dessous pour commencer 👇', selectOption: 'Choisissez une option' },
-        zh: { welcome: '欢迎', hi: '你好', balance: '余额', tier: '等级', discount: '所有购买折扣', noDiscount: '选择下方服务开始使用 👇', selectOption: '请选择一个选项' },
-        hi: { welcome: 'स्वागत है', hi: 'नमस्ते', balance: 'शेष', tier: 'स्तर', discount: 'सभी खरीदारी पर छूट', noDiscount: 'शुरू करने के लिए नीचे एक सेवा चुनें 👇', selectOption: 'नीचे एक विकल्प चुनें' },
+        en: { welcome: 'Welcome', hi: 'Hey', balance: 'Balance', tier: 'Tier', discount: 'off all purchases', noDiscount: 'Choose a service below to get started 👇', selectOption: 'Select an option below', services: 'Your services' },
+        fr: { welcome: 'Bienvenue', hi: 'Salut', balance: 'Solde', tier: 'Niveau', discount: 'sur tous les achats', noDiscount: 'Choisissez un service ci-dessous pour commencer 👇', selectOption: 'Choisissez une option', services: 'Vos services' },
+        zh: { welcome: '欢迎', hi: '你好', balance: '余额', tier: '等级', discount: '所有购买折扣', noDiscount: '选择下方服务开始使用 👇', selectOption: '请选择一个选项', services: '您的服务' },
+        hi: { welcome: 'स्वागत है', hi: 'नमस्ते', balance: 'शेष', tier: 'स्तर', discount: 'सभी खरीदारी पर छूट', noDiscount: 'शुरू करने के लिए नीचे एक सेवा चुनें 👇', selectOption: 'नीचे एक विकल्प चुनें', services: 'आपकी सेवाएँ' },
       }
       const g = greetings[lang] || greetings.en
       const name = msg?.from?.first_name || username
@@ -9240,10 +9240,29 @@ bot?.on('message', msg => {
       // ── Welcome Bonus hint removed — bonus is now awarded on /start ──
       let welcomeBonusLine = ''
 
+      // ── Point #3: "Your services" at-a-glance line for returning customers ──
+      // Personalizes the home for users who already own services. New users
+      // (all counts 0) get no line here — they still see the free-trial hint.
+      let accountGlanceLine = ''
+      try {
+        const activeNumbers = (userData?.numbers || []).filter(n => n.status === 'active').length
+        let hostingCount = 0
+        try {
+          hostingCount = await cpanelAccounts.countDocuments({ chatId: String(chatId), terminatedOnWhm: { $ne: true }, deleted: { $ne: true } })
+        } catch (_) { /* non-critical */ }
+        let domainCount = 0
+        try { domainCount = (await getPurchasedDomains(chatId)).length } catch (_) { /* non-critical */ }
+        const chips = []
+        if (activeNumbers > 0) chips.push(`📞 ${activeNumbers}`)
+        if (hostingCount > 0) chips.push(`🏠 ${hostingCount}`)
+        if (domainCount > 0) chips.push(`🌐 ${domainCount}`)
+        if (chips.length) accountGlanceLine = `\n📊 <b>${g.services}:</b> ${chips.join(' · ')}\n`
+      } catch (_) { /* non-critical — skip the glance line */ }
+
       return `${g.hi}, <b>${name}</b>\n\n` +
         `${tierBadge} ${tierName}  <b>${usdStr}</b>\n` +
         `<i>${discountLine}</i>` +
-        `${freeTrialLine}${sipTestLine}${welcomeBonusLine}\n` +
+        `${accountGlanceLine}${freeTrialLine}${sipTestLine}${welcomeBonusLine}\n` +
         `${g.selectOption}`
     } catch (e) {
       return trans('t.welcome')
