@@ -32,8 +32,8 @@
 - Bot token (dev==prod): 8822506525:... (env: TELEGRAM_BOT_TOKEN_PROD / _DEV)
 
 ## URLs
-- Frontend/preview (CURRENT pod, re-provisioned 2026-09-27): https://64c72270-6795-4729-97d7-6f338be7cee6.preview.emergentagent.com
-- Frontend/preview (previous pod): https://cloud-integration-3.preview.emergentagent.com
+- Frontend/preview (CURRENT pod, re-provisioned 2026-09-27): https://credential-config.preview.emergentagent.com
+- Frontend/preview (previous pod): https://credential-config.preview.emergentagent.com
 - Backend API base (proxied to Node :5000): <preview>/api
 
 ## Re-provision 2026-09-27 (this pod)

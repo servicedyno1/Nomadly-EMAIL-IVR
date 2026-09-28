@@ -493,7 +493,7 @@ last_error: "Wrong response from the webhook: 404 Not Found"
 ### Operational restoration
 - Called Telegram `setWebhook` to put the prod bot back on Railway:  
   `https://nomadly-email-ivr-production.up.railway.app/telegram/webhook` — verified `last_error: none, pending_update_count: 0`.
-- Local nodejs restarted cleanly; logs show `[Webhooks] SKIP_WEBHOOK_SYNC=true — preserving existing Telegram webhook (NOT overwriting)` and `📡 Existing webhook (left untouched): https://cloud-integration-3.preview.emergentagent.com/api/telegram/webhook` (the dev bot's webhook is preserved, even though it points at a dead preview pod — that's fine, we'll re-point it on demand if needed for dev testing).
+- Local nodejs restarted cleanly; logs show `[Webhooks] SKIP_WEBHOOK_SYNC=true — preserving existing Telegram webhook (NOT overwriting)` and `📡 Existing webhook (left untouched): https://credential-config.preview.emergentagent.com/api/telegram/webhook` (the dev bot's webhook is preserved, even though it points at a dead preview pod — that's fine, we'll re-point it on demand if needed for dev testing).
 
 ### Tests
 - `/app/backend/tests/test_webhook_isolation.js` — 3 cases (the SKIP_WEBHOOK_SYNC guard comes before `bot.setWebHook` in source order; the setup-nodejs.sh `SKIP_SELF_URL_UPDATE` gate is wired correctly and sits BEFORE the sed rewrite; `.env` is in dev mode with the safety flag set). All pass.

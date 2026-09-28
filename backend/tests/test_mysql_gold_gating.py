@@ -13,7 +13,7 @@ import os
 import pytest
 import requests
 
-BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "https://cloud-integration-3.preview.emergentagent.com").rstrip("/")
+BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "https://credential-config.preview.emergentagent.com").rstrip("/")
 PANEL = f"{BASE_URL}/api/panel"
 
 
