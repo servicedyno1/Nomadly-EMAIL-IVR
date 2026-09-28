@@ -447,9 +447,11 @@ earlyApp.get('/', (req, res) => {
 })
 
 earlyApp.get('/health', (req, res) => {
+  // Always HTTP 200; the body reports real readiness (deploy.sh waits for "healthy").
+  const ready = appReady && !!db && isDbHealthy()
   res.status(200).json({
-    status: appReady ? 'healthy' : 'starting',
-    database: appReady ? 'connected' : 'connecting',
+    status: ready ? 'healthy' : 'starting',
+    database: ready ? 'connected' : 'connecting',
     uptime: ((new Date() - serverStartTime) / (1000 * 60 * 60)).toFixed(2) + ' hours'
   })
 })
@@ -49063,6 +49065,12 @@ app.get('/r/:referrerCode', async (req, res) => {
 
 // Telegram Webhook Endpoint
 app.post('/telegram/webhook', (req, res) => {
+  // Express listens before Mongo is connected; a 503 makes Telegram re-deliver
+  // the update instead of losing it to a handler crash (`db` undefined).
+  if (!db) {
+    log('⏳ Telegram webhook before DB ready → 503 (Telegram retries)')
+    return res.sendStatus(503)
+  }
   try {
     log('📨 Telegram webhook received')
     bot.processUpdate(req.body)
