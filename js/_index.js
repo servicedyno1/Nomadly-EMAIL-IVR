@@ -49507,11 +49507,15 @@ const setupTelegramWebhook = async (retryCount = 0) => {
       const webhookUrl = `${SELF_URL}/telegram/webhook`
 
       // Set the new webhook (atomically replaces any existing webhook — no deleteWebhook needed)
-      await bot.setWebHook(webhookUrl, {
+      // TELEGRAM_WEBHOOK_IP pins delivery to a fixed IP (Telegram caches DNS for hours after a host move)
+      const webhookOpts = {
         allowed_updates: JSON.stringify(['message', 'callback_query', 'my_chat_member'])
-      })
+      }
+      const pinnedIp = (process.env.TELEGRAM_WEBHOOK_IP || '').trim()
+      if (pinnedIp) webhookOpts.ip_address = pinnedIp
+      await bot.setWebHook(webhookUrl, webhookOpts)
       log('✅ Telegram webhook set successfully')
-      log(`📡 Webhook URL: ${webhookUrl}`)
+      log(`📡 Webhook URL: ${webhookUrl}${pinnedIp ? ` (pinned ip ${pinnedIp})` : ''}`)
 
       // Verify webhook was set
       const webhookInfo = await bot.getWebHookInfo()
