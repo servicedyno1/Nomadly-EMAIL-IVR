@@ -9,6 +9,113 @@
 #====================================================================================================
 
 #====================================================================================================
+# CURRENT TASK (2026-09-28) — Phase 1 UX/UI Gap Pass: BOT flows #3 & #4  [test THIS]
+#====================================================================================================
+current_task_2026_09_28_phase1_bot: |
+  Verify the two Phase 1 BOT (Node.js Telegram) changes (frontend storefront #2/#5/#6 is a
+  SEPARATE later pass). App = Node.js Express bot behind the FastAPI proxy.
+  DEV SANDBOX: local Mongo `test`, SKIP_WEBHOOK_SYNC=true — NOTHING reaches real users.
+
+  Sim harness is ALREADY set up by the main agent (do NOT re-configure, just use it):
+    - Mock Telegram Bot API running on http://127.0.0.1:5099  (health: GET /_health)
+    - backend/.env has TELEGRAM_API_BASE_URL=http://127.0.0.1:5099 ; nodejs restarted & bound to it
+    - Fixtures seeded via `node /app/scripts/seed_phase1_botsim.js` (idempotent; re-run if needed):
+        * RETURNING customer chatId 777000123: 1 active number + 1 hosting acct + owns
+          domains phase1host.com (does NOT resolve) and example.com (RESOLVES).
+        * NEW customer chatId 777000888: onboarded, owns NOTHING.
+
+  HOW TO DRIVE THE BOT (webhook + read mock replies):
+    - Send an update:  POST http://localhost:5000/telegram/webhook  (Content-Type: application/json)
+        message update body:
+        {"update_id":<n>,"message":{"message_id":<n>,"date":<unix>,
+          "chat":{"id":777000123,"type":"private","first_name":"Sim"},
+          "from":{"id":777000123,"is_bot":false,"first_name":"Sim","username":"sim_rc"},
+          "text":"<button label or command>"}}
+    - Read replies: GET http://127.0.0.1:5099/_calls?chat_id=777000123&method=sendMessage
+        → JSON array of {ts,text,buttons[],reply_markup}. DELETE /_calls clears the log.
+    - Reply-keyboard buttons are "tapped" by sending their exact label as message text.
+    - Allow ~3s between steps; DNS checks (#4) need ~8s before reading the reply.
+
+  WHAT TO TEST:
+    #3 "Your services" glance line on the bot home greeting:
+       RETURNING (777000123): send "/start"; if the "What do you need today?" first-session
+         menu appears, tap "👀 Just looking" to reach the full home menu. The greeting MUST
+         contain a line:  📊 <b>Your services:</b> 📞 1 · 🏠 1 · 🌐 2   (counts may vary but all
+         three chips 📞/🏠/🌐 present with counts > 0).
+       NEW (777000888): same path. The greeting MUST NOT contain "Your services:" — instead it
+         shows the free-trial hint ("Free to try…"). This proves new users are unaffected.
+    #4 Check DNS Active/Inactive copy (returning customer 777000123):
+       Navigate: home menu → "🌐 Bulletproof Domains" → "🔧 DNS Management" → pick a domain → "Check DNS".
+       - Domain "example.com"    → reply ends with:  ✅ Status: <b>Active</b> — N/6 record types resolving.
+       - Domain "phase1host.com" → reply ends with:  ⚠️ Status: <b>Inactive</b> — this domain isn't
+         resolving anywhere yet. It may be on hold at the registry or still activating.
+       (To switch domains from the DNS-action menu, tap "Back" to return to the domain list.)
+       OLD copy "N/N record types resolving." with no Active/Inactive label = FAIL (change not applied).
+
+  Files changed this task: js/_index.js (#3 glance line ~line 9243; #4 uses t.dnsHealthSummary ~line 22762),
+    js/lang/{en,fr,zh,hi}.js (dnsHealthSummary Active/Inactive + `services` label).
+  Do NOT touch external providers / do NOT try to force live mode.
+
+#====================================================================================================
+# CURRENT TASK (2026-09-28) — Phase 1 UX/UI Gap Pass: STOREFRONT frontend #2/#5/#6  [VERIFIED ✅]
+#====================================================================================================
+current_task_2026_09_28_phase1_store: |
+  Verify the Phase 1 STOREFRONT (React) changes. Storefront route: ${REACT_APP_BACKEND_URL}/store
+  (NOTE: the site root "/" is the admin dashboard; the store is at "/store"). Dev sandbox, local Mongo.
+
+  Store test user (email/password login): phase1tester@example.com / Phase1Test!234
+  Seeds already applied: `node scripts/seed_phase1_store.js` gave this user 3 hosting plans with
+  green/amber/red expiry (re-run if My Plans is empty).
+
+  TEST #2 — Storefront polish (public, NO login needed): ✅ PASS
+    Load /store. On the plan cards (AuthGate) verify:
+      - each plan feature row has a GREEN check mark (span.store-feat-check "✓") — not a plain inline ✓
+      - plan cards render SOLID (not faded/transparent — the entrance animation was removed on purpose)
+      - a trust band is visible near the plans
+    Take a screenshot. Cards must be fully opaque (regression check: opacity ~1).
+    
+    VERIFIED: Found 12 green checkmarks (span.store-feat-check with color rgb(22, 163, 74)), all 3 plan 
+    cards fully opaque (opacity=1), trust band visible with all 4 expected items.
+
+  TEST #5 — Lifecycle expiry chips on "My Plans" (needs login): ✅ PASS
+    Log in with the store user → open the "My Plans" tab (container data-testid `store-myplans`).
+    Three plans must each show an expiry chip (data-testid `store-myplan-expiry-<domain>`):
+      - green-plan.com → chip class `store-exp-chip--ok`, label like "30d left" (green, NO hint)
+      - amber-plan.com → chip class `store-exp-chip--warn`, label "Expires in 3d" + hint "Top up your wallet to auto-renew."
+      - red-plan.com   → chip class `store-exp-chip--exp`, label "Expired" + hint "Renew now to restore your site." (+ " · SUSPENDED" in the sub-line)
+    
+    VERIFIED: All 3 expiry chips present with correct classes, labels, and hints. green-plan.com shows 
+    "30d left" (green, no hint), amber-plan.com shows "Expires in 3d" (amber, with hint), red-plan.com 
+    shows "Expired" (red, with hint + SUSPENDED in sub-line).
+
+  TEST #6 — Web checkout recovery resume banner (THE previously-unconfirmed item; NO login needed): ✅ PASS
+    Before loading /store, set localStorage key `nomadly_pending_order` to:
+      {"orderId":"test-resume-1","coin":"BTC","amountUsd":39,"plan":"Premium Anti-Red HostPanel","domain":"resume-test.com","at":<Date.now()>}
+    Then load /store. Verify:
+      - a resume banner (data-testid `store-resume-banner`) appears with text mentioning an
+        "unfinished payment" for the plan/domain and the amount in BTC.
+      - it has a "Resume payment →" button (data-testid `store-resume-btn`) and a "Dismiss" link
+        (data-testid `store-resume-dismiss`).
+      - clicking Resume opens a modal (data-testid `store-resume-modal`) containing the crypto
+        pay box (it will poll and stay "pending" for the fake orderId — that is EXPECTED/fine).
+      - closing the modal (data-testid `store-resume-close`) then clicking Dismiss removes the banner
+        and clears localStorage (`nomadly_pending_order` gone).
+    Take screenshots of the banner and the open modal.
+    
+    VERIFIED: Resume banner appears with correct content (plan, domain, amount, coin). "Resume payment →" 
+    button and "Dismiss" link present. Modal opens with crypto pay box (pending state as expected). Modal 
+    closes correctly, banner dismisses, and localStorage key removed.
+
+  Files changed this task: frontend/src/pages/Storefront.js, frontend/src/store.css,
+    frontend/src/components/panel/shared/PanelEmptyState.jsx (+ Analytics/DomainList/EmailManager for #7),
+    frontend/src/panel-v2.css, locales. (#7 panel empty states + #4 web NS badge are OPTIONAL/secondary.)
+  
+  TESTING COMPLETE (2026-09-28): All 3 tests PASSED. Phase 1 STOREFRONT UX changes verified and working correctly.
+
+
+
+
+#====================================================================================================
 # CURRENT TASK (2026-09-25) — Reseller API GAP FIXES (test THIS)
 #====================================================================================================
 current_task_2026_09_25: |
@@ -203,6 +310,121 @@ user_problem_statement: |
 
 
 backend:
+  - task: "Phase 1 UX/UI Gap Pass: BOT flows #3 & #4 (2026-09-28) — Verify two Phase 1 BOT (Node.js Telegram) changes in DEV SANDBOX. #3: 'Your services' glance line on bot home greeting (returning customer shows 📊 Your services: 📞 N · 🏠 N · 🌐 N; new customer shows free-trial hint instead). #4: Check DNS Active/Inactive copy (Active domain shows ✅ Status: Active — N/6 record types resolving; Inactive domain shows ⚠️ Status: Inactive — this domain isn't resolving anywhere yet). Environment: local Mongo test, SKIP_WEBHOOK_SYNC=true, mock Telegram Bot API on http://127.0.0.1:5099, fixtures seeded via seed_phase1_botsim.js (returning customer chatId 777000123 with 1 phone + 1 hosting + 2 domains; new customer chatId 777000888 with no services)."
+    implemented: true
+    working: true
+    file: "/app/js/_index.js (#3 glance line ~line 9243; #4 uses t.dnsHealthSummary ~line 22762); /app/js/lang/{en,fr,zh,hi}.js (dnsHealthSummary Active/Inactive + services label)"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: |
+          Implemented Phase 1 BOT UX/UI Gap Pass per 2026-09-28 task. Changes:
+          #3: Added "Your services" glance line to bot home greeting (shows service counts for returning customers)
+          #4: Enhanced DNS health check copy with Active/Inactive status labels
+          
+          Environment: DEV SANDBOX (local Mongo test, SKIP_WEBHOOK_SYNC=true, mock Telegram Bot API)
+          Mock API: http://127.0.0.1:5099 (health endpoint: GET /_health)
+          Fixtures: node /app/scripts/seed_phase1_botsim.js (idempotent)
+          
+          Test customers:
+          - RETURNING: chatId 777000123 (1 active number + 1 hosting + 2 domains: example.com RESOLVES, phase1host.com does NOT resolve)
+          - NEW: chatId 777000888 (onboarded, owns nothing)
+          
+          HOW TO TEST:
+          Drive bot via POST http://localhost:5000/telegram/webhook with Telegram update JSON
+          Read replies via GET http://127.0.0.1:5099/_calls?chat_id=<id>&method=sendMessage
+          DELETE /_calls clears the log
+          
+          TEST #3 (Your services glance line):
+          - RETURNING (777000123): send "/start" → greeting MUST contain "📊 Your services: 📞 1 · 🏠 1 · 🌐 2"
+          - NEW (777000888): send "/start" → greeting MUST NOT contain "Your services:", shows free-trial hint instead
+          
+          TEST #4 (Check DNS Active/Inactive):
+          - Navigate: home → "🌐 Bulletproof Domains" → "🔧 DNS Management" → tap domain → "Check DNS"
+          - example.com → reply MUST end with "✅ Status: Active — N/6 record types resolving."
+          - phase1host.com → reply MUST end with "⚠️ Status: Inactive — this domain isn't resolving anywhere yet..."
+
+      - working: true
+        agent: "testing"
+        comment: |
+          ✅ COMPREHENSIVE BOT TEST COMPLETE - Phase 1 UX/UI Gap Pass VERIFIED (4/4 tests, 100% pass rate)
+          
+          SCOPE: Independent verification of TWO Phase 1 BOT (Node.js Telegram) changes in DEV SANDBOX 
+          (local Mongo test, SKIP_WEBHOOK_SYNC=true, mock Telegram Bot API on http://127.0.0.1:5099). 
+          All tests executed via webhook simulation (POST to http://localhost:5000/telegram/webhook, 
+          read replies from mock API). NOTHING reaches real Telegram users.
+          
+          TEST RESULTS (4/4 PASSED):
+          
+          ★★★ TEST #3: "Your services" glance line (2/2 PASSED) ★★★
+          ✅ TEST 3a - RETURNING customer (chatId 777000123):
+             • Sent "/start" command
+             • Received home greeting with "Your services" line
+             • Exact text: "📊 <b>Your services:</b> 📞 1 · 🏠 1 · 🌐 2"
+             • All three service chips present (📞 phone, 🏠 hosting, 🌐 domains)
+             • Counts match seeded data (1 phone, 1 hosting, 2 domains)
+          
+          ✅ TEST 3b - NEW customer (chatId 777000888):
+             • Sent "/start" command
+             • Received home greeting WITHOUT "Your services" line
+             • Shows free-trial hint instead: "🆓 <i>Free to try: tap 📞 Cloud IVR for a free call, or send /testsip for a SIP test.</i>"
+             • Proves new users are unaffected by the "Your services" feature
+          
+          ★★★ TEST #4: Check DNS Active/Inactive copy (2/2 PASSED) ★★★
+          ✅ TEST 4a - Active domain (example.com):
+             • Navigation: home → "🌐 Bulletproof Domains" → "🔧 DNS Management" → "example.com" → "Check DNS"
+             • Received DNS health check with Active status
+             • Exact ending: "✅ Status: <b>Active</b> — 5/6 record types resolving."
+             • Shows record counts: A: 2, AAAA: 2, CNAME: —, MX: 1, TXT: 2, NS: 2
+             • Active label present and bold (NOT old copy "N/N record types resolving.")
+          
+          ✅ TEST 4b - Inactive domain (phase1host.com):
+             • Navigation: DNS Management → "↩️ Back" → "phase1host.com" → "Check DNS"
+             • Received DNS health check with Inactive status
+             • Exact ending: "⚠️ Status: <b>Inactive</b> — this domain isn't resolving anywhere yet. It may be on hold at the registry or still activating."
+             • All record types show "—" (no records resolving)
+             • Inactive label present and bold with explanatory message
+          
+          CRITICAL FUNCTIONALITY VERIFIED:
+          • ✅ TEST #3 - "Your services" glance line: Correctly shows service counts for returning customers (📞/🏠/🌐 chips with counts)
+          • ✅ TEST #3 - New customer behavior: Does NOT show "Your services" line, shows free-trial hint instead
+          • ✅ TEST #4 - Active DNS status: Shows "✅ Status: Active — N/6 record types resolving." for resolving domains
+          • ✅ TEST #4 - Inactive DNS status: Shows "⚠️ Status: Inactive — this domain isn't resolving..." for non-resolving domains
+          • ✅ Navigation flow: All bot menu navigation works correctly (home → domains → DNS management → domain → actions)
+          • ✅ Mock API integration: Webhook simulation works correctly, replies captured via mock API
+          
+          CRITICAL SAFETY VERIFIED:
+          • ✅ DEV SANDBOX mode: SKIP_WEBHOOK_SYNC=true, local Mongo test database
+          • ✅ Mock Telegram API: All bot interactions go to http://127.0.0.1:5099, NOTHING reaches real Telegram users
+          • ✅ Fixtures seeded correctly: Returning customer has services, new customer has none
+          • ✅ No external mutations: DNS checks are read-only operations
+          
+          EXACT TEXT VERIFICATION:
+          • TEST 3a (returning): "📊 <b>Your services:</b> 📞 1 · 🏠 1 · 🌐 2"
+          • TEST 3b (new): "🆓 <i>Free to try: tap 📞 Cloud IVR for a free call, or send /testsip for a SIP test.</i>"
+          • TEST 4a (active): "✅ Status: <b>Active</b> — 5/6 record types resolving."
+          • TEST 4b (inactive): "⚠️ Status: <b>Inactive</b> — this domain isn't resolving anywhere yet. It may be on hold at the registry or still activating."
+          
+          CONCLUSION:
+          The Phase 1 BOT UX/UI Gap Pass changes are COMPLETE and WORKING CORRECTLY. All 4 comprehensive 
+          tests passed (100% pass rate). Both features (#3 "Your services" glance line and #4 DNS Active/Inactive 
+          copy) are implemented correctly and verified via webhook simulation in the DEV SANDBOX.
+          
+          The changes deliver the promised functionality:
+          - #3: Returning customers see their service counts at a glance; new customers see the free-trial hint
+          - #4: DNS health checks now clearly label domains as Active or Inactive with appropriate messaging
+          
+          The bot is ready for production deployment. All tests executed safely in the DEV SANDBOX with mock 
+          Telegram API (no real user impact).
+          
+          Test method: Webhook simulation via POST http://localhost:5000/telegram/webhook
+          Mock API: http://127.0.0.1:5099 (health check passed, 7+ calls logged)
+          Test run: 2026-09-28 (all tests passed, 0 failures, 0 warnings)
+
+
   - task: "Reseller API GAP FIXES (2026-09-25) — Gap fixes on Node/Express reseller router (mounted by standalone server on 127.0.0.1:5000, reachable via FastAPI proxy). External providers (WHM/Cloudflare/registrar) are STUBBED and isLive()=false (SKIP_WEBHOOK_SYNC=true) → all mutating calls return {mode:'dry_run',...}. GAP5: GET /domains nameservers enrichment from registeredDomains (not empty domainsOf field). GAP4: GET /hosting/:user includes suspended_reason, auto_renew_last_error, suspended_at, auto_renew_last_attempt_at fields. GAP7: GET /hosting/:user suspended override from live WHM stub (overrides stale DB flag). GAP6: DELETE /hosting/:user honest dry_run (no fake terminated:true). GAP2: POST /dns/:zone/records apex/name normalization (@ → zone, zone → zone, subdomain → subdomain.zone). CHANGE-PRIMARY: NEW POST /hosting/:user/change-primary endpoint with validation (400 already_primary, 400 invalid_domain). Auth: X-API-Key or Authorization: Bearer. Error handling: 401 missing_api_key, 404 not_found, 400 validation errors."
     implemented: true
     working: true

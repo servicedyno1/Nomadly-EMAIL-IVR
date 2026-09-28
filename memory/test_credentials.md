@@ -86,3 +86,12 @@
 - WEEKLY hosting login (toggle LOCKED): username `hptestweekly`, PIN `135790`, plan "Premium Anti-Red (1-Week)", domain `hp-weekly-test.com`
 - Both owned by reseller-key owner chatId `5590563715`, so the reseller API endpoints `GET/POST /api/reseller/v1/hosting/honeypot/:domain` resolve them too.
 - Web panel: `${REACT_APP_BACKEND_URL}/panel` → login → Security tab → "Honeypot Traps" row (data-testid `sec-honeypot-toggle` / `sec-honeypot-locked`).
+
+
+## Phase 1 storefront test user (2026-09-28, sandbox, local Mongo `test`)
+- Web store login (email/password): `phase1tester@example.com` / `Phase1Test!234`
+- Storefront route: `${REACT_APP_BACKEND_URL}/store` (login → "My Plans" tab shows lifecycle expiry chips)
+- Seed 3 hosting plans (green/amber/red expiry) for #5: `node scripts/seed_phase1_store.js`
+  (green-plan.com = "30d left"/green, amber-plan.com = "Expires in 3d"/amber + hint, red-plan.com = "Expired"/red + hint + SUSPENDED). Re-signup the user first if webUsers is empty (see script header).
+- Point #6 resume banner needs NO account: inject localStorage key `nomadly_pending_order`
+  = `{"orderId":"test-resume-1","coin":"BTC","amountUsd":39,"plan":"Premium Anti-Red HostPanel","domain":"resume-test.com","at":<Date.now()>}` then load `/store` → banner `store-resume-banner`.
