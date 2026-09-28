@@ -1,5 +1,12 @@
 # Test Credentials — Smadav/Nomadly Platform
 
+## Re-provision 2026-09-28 (CURRENT pod) — fresh cred setup, Safe Dev Sandbox (user chose "a")
+- Pod preview URL: **https://8aa23bba-0ef0-43c2-bbeb-149d34ef20e2.preview.emergentagent.com**  (frontend/.env REACT_APP_BACKEND_URL → proxies /api to Node :5000)
+- Both `backend/.env` + `frontend/.env` were EMPTY on arrival → rewritten from the user's full cred dump.
+- SANDBOX OVERRIDES vs supplied creds: `BOT_ENVIRONMENT=development` (was production), `SKIP_WEBHOOK_SYNC=true` (was false), added `DO_RDP_GOLDEN_AUTOSYNC=false` (blocks billable DO golden builds from this dev pod).
+- Steps: wrote .env files; `yarn install --ignore-engines` (root, node20 vs pkg-wants-22); `pip install -r backend/requirements.txt`; `bash scripts/setup-nodejs.sh` (registered supervisord_nodejs.conf, updated SELF_URL/SELF_URL_PROD → this pod + /api); restarted backend+frontend to load fresh .env.
+- Verified: nodejs :5000 boot clean ("MongoDB connection pool ready", err log empty), `[CF-Sync] Skipped BOT_ENVIRONMENT=development`, `[AntiRed] worker upgrade SKIPPED`, FastAPI `[Scheduler] SKIP_WEBHOOK_SYNC=true phone health monitor DISABLED`. `/api/health` → {healthy, database:connected} on both :5000 and :8001 proxy. Frontend renders Smadav brand, panel badge ONLINE (Bot Running / DB Connected / REST APIs Active). Telegram prod webhook NOT hijacked.
+
 ## Run mode (this Emergent pod)
 - Mode: **Safe Dev Sandbox** (per user choice)
 - BOT_ENVIRONMENT=development
