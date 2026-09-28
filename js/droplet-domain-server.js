@@ -11,6 +11,8 @@ const { log } = require('console')
 const cfg = () => ({
   ip: (process.env.DROPLET_PUBLIC_IP || '').trim(),
   appPort: (process.env.DROPLET_APP_PORT || process.env.PORT || '5000').trim(),
+  // Blue/green deploys: nginx upstream name (e.g. app_main) so the block survives port switches.
+  upstream: (process.env.DROPLET_UPSTREAM || '').trim(),
   domainsDir: process.env.DROPLET_NGINX_DOMAINS_DIR || '/etc/nginx/nomadly-domains',
   certsDir: process.env.DROPLET_CERTS_DIR || '/etc/nginx/nomadly-certs',
   fallbackCert: process.env.DROPLET_FALLBACK_CERT || '',

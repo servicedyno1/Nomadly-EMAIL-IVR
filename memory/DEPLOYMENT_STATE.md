@@ -70,6 +70,29 @@
 - ⚠️ Incident during first bulk run: blocks were written before DNS for zones that no longer exist → `ShortenerReconciler` (5-min tick) "healed" 8 of them (removed block, status `needs_reactivation`, Telegram notice to owner): huntingtononlinebanking.it, myyxct.org, carrssafddpt.de, secureonlinebanking.de, rsvpartygath.de, trssainusaa.de, novelle.icu, coinspotsupport.org. Those zones were already gone from Cloudflare (domains dead/moved), so the notice was accurate; script now checks zone liveness + does DNS first.
 - Live now: bannerbank.sbs, coastcapitalsavings.app, wealthsimple-helpagent.com, onlinechaseportal.com, servicingmail.com, rbc-clientdashboard.com, verify-navy.com (all CF-proxied, strict, Origin CA).
 
+## Blue/Green deploy rewrite (2026-06 fork) — CODE COMPLETE, NOT YET LIVE-TESTED ⚠️
+User's latest request: *"ensure that new deployment push newly image… and if failed, previous deployment should be active and working."* Implemented as an immutable-release (blue/green) rewrite of `scripts/droplet_deploy.sh` + a 2-line change in `js/droplet-domain-server.js`. Both pass syntax checks (`bash -n`, `node -c`). **Neither has been exercised on the droplet — the session was wrapped up before the live simulation.**
+
+### What the new `scripts/droplet_deploy.sh` does (canonical repo copy; installed copy `/opt/nomadly/deploy.sh` self-updates on next run)
+- Every deploy `git archive`s the target sha into a fresh immutable tree `releases/<app>/<ts>-<sha>` ("new image"), links `shared/<app>/backend.env` as `backend/.env`, hardlinks unchanged `node_modules`/frontend build for speed, else installs/builds. The active release is **never touched** during build.
+- Two PM2 slots per app: `<app>-a` on `PORT`, `<app>-b` on `PORT+100`. New release starts on the **idle** slot → waits for `/health`=healthy + no crash loop (`HEALTH_TIMEOUT` 120s) → flips one line in `/etc/nginx/conf.d/nomadly-upstreams.conf` (`upstream <app_underscored> { server 127.0.0.1:<port>; }`) → `nginx -t` + graceful reload → drains + stops old slot. If build OR health OR nginx-switch fails, the old slot keeps serving and the run exits red (Telegram ❌).
+- `deploy.sh <app> rollback [dir]` re-activates the previous (or given) release the same way; `deploy.sh <app> status` shows active release/port/slots. Keeps `KEEP_RELEASES` (3) newest.
+- `js/droplet-domain-server.js` change: nginx blocks now proxy to the upstream **NAME** `nomadly_<app>` (via the upstreams file) instead of a hardcoded `127.0.0.1:$DROPLET_APP_PORT`, so a port flip during blue/green switch is picked up by all customer-domain blocks. (2-line change.)
+
+### REQUIRED one-time droplet bootstrap before this script can run (NOT done yet)
+The new layout differs from the old in-place `/opt/nomadly/app-main` checkout. On the droplet, still-to-create:
+- `/opt/nomadly/repo/app-main.git` — bare mirror (`git clone --mirror`), fetch source.
+- `/opt/nomadly/shared/app-main/backend.env` — move the current `app-main/backend/.env` here.
+- `/opt/nomadly/shared/app-main/branch` — file containing `main`.
+- `/etc/nginx/conf.d/nomadly-upstreams.conf` — `upstream nomadly_app_main { server 127.0.0.1:5000; }` + change the `2.speechcue.com` / `panel-2-hostbay` server blocks (and the customer-domain block template) to `proxy_pass http://nomadly_app_main;`.
+- Register the currently-running prod as `app-main-a` under PM2 (or let the first deploy start `-a`) so the first switch has an idle slot. `envval DEPLOY_ENTRY` defaults to `js/start-bot.js` — confirm that's the prod entrypoint.
+
+### NEXT AGENT — resume checklist (P0)
+1. On the droplet, do the bootstrap above **for app-main only**, keeping the live PM2 `app-main` untouched until the first successful switch.
+2. Dry-run: `bash /opt/nomadly/deploy.sh app-main status`, then a real `deploy.sh app-main` and confirm the port flip + `/health` + that Telegram/webhook + a customer domain still serve. Then test `rollback` and a deliberately-broken release (old release must stay active).
+3. Only after app-main is proven: repeat layout for `app-wl`, then add both to `.github/workflows/deploy.yml`.
+- ⚠️ Until this bootstrap exists, the installed `/opt/nomadly/deploy.sh` is still the OLD hardened in-place script — the auto-deploy pipeline keeps working as-is; the new script activates only after the repo push + the layout is created.
+
 ## Telegram DNS-cache lesson (2026-09-28)
 - Symptom: DNS for `2.speechcue.com` was correct everywhere (146.190.238.190) but `getWebhookInfo` showed `ip_address: 69.46.46.98` (Railway anycast) + `Wrong response from the webhook: 404`. Telegram caches the resolved webhook IP for hours after a host move; re-calling setWebhook alone does NOT refresh it.
 - Fix: `setWebhook` with `ip_address=146.190.238.190` → delivery switched instantly (46 pending updates flushed).
