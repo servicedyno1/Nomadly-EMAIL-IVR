@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from './AuthContext';
+import PanelEmptyState from './shared/PanelEmptyState';
 
 function formatBytes(bytes) {
   if (!bytes || bytes === 0) return '0 B';
@@ -93,7 +94,12 @@ export default function Analytics() {
       {loading ? (
         <div className="fm-loading">{t('an.loading')}</div>
       ) : !totals ? (
-        <div className="fm-empty">{t('an.emptyNoData')}</div>
+        <PanelEmptyState
+          testId="an-empty"
+          icon={<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>}
+          title={t('an.emptyTitle')}
+          description={t('an.emptyNoData')}
+        />
       ) : (
         <>
           {/* Stats Cards */}

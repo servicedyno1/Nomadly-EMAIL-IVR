@@ -577,7 +577,9 @@ ${CHAT_BOT_NAME}`,
  const more = answers.length > 2 ? ` +${answers.length - 2} 条` : ''
  return ` ${type}: ${count} 条记录 (${vals}${more})`
  },
- dnsHealthSummary: (resolving, total) => `\n${resolving}/${total} 种记录类型已解析。`,
+ dnsHealthSummary: (resolving, total) => resolving > 0
+ ? `\n✅ 状态：<b>有效</b> — ${resolving}/${total} 种记录类型已解析。`
+ : `\n⚠️ 状态：<b>无效</b> — 此域名尚未在任何地方解析。可能被注册局暂停或仍在激活中。`,
  dnsCheckError: 'DNS 查询失败，请稍后重试。',
  manageNameservers: '🔄 管理域名服务器',
  manageNsMenu: (domain, nsRecords, nameserverType) => {

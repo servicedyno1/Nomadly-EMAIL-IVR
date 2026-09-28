@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from './AuthContext';
 import { pickErrorMessage, friendlyMessage, isTransientError } from './shared/cpanelErrors';
+import PanelEmptyState from './shared/PanelEmptyState';
 
 // ── Shared subdomain name helpers ───────────────────────────────────────
 // The /subdomains payload varies by source: production list_domains returns
@@ -951,7 +952,14 @@ export default function DomainList() {
           )}
 
           {!mainDomain && addonDomains.length === 0 && visibleSubdomains.length === 0 && (
-            <div className="fm-empty">{t('dl.noDomainsConfigured')}</div>
+            <PanelEmptyState
+              testId="dl-empty"
+              icon={<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10A15.3 15.3 0 0112 2z"/></svg>}
+              title={t('dl.emptyTitle')}
+              description={t('dl.emptyDesc')}
+              actionLabel={t('dl.addDomain')}
+              onAction={() => { setShowAdd(true); setShowSubCreate(false); }}
+            />
           )}
         </div>
       )}
