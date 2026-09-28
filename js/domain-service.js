@@ -1542,13 +1542,17 @@ const switchToProviderDefault = async (domainName, db) => {
 const addShortenerCNAME = async (domainName, cnameTarget, db, txtHost, txtValue) => {
   try {
     const meta = await getDomainMeta(domainName, db)
+    // Droplet/Render hand us an IPv4 → apex A record; Railway hands us a hostname → apex CNAME.
+    const isIPv4 = /^(25[0-5]|2[0-4]\d|1?\d?\d)(\.(25[0-5]|2[0-4]\d|1?\d?\d)){3}$/.test(String(cnameTarget || '').trim())
+    const recType = isIPv4 ? 'A' : 'CNAME'
 
     if ((meta?.nameserverType === 'cloudflare' || meta?.cfZoneId) && meta?.cfZoneId) {
       // 1. Check for A/AAAA conflicts at root
       const conflict = await checkDNSConflict(domainName, 'CNAME', '', db)
       if (conflict.hasConflict && conflict.conflictingRecords?.length > 0) {
-        log(`[addShortenerCNAME] ${domainName}: removing ${conflict.conflictingRecords.length} conflicting A/AAAA record(s) before CNAME`)
+        log(`[addShortenerCNAME] ${domainName}: removing ${conflict.conflictingRecords.length} conflicting A/AAAA record(s) before ${recType}`)
         for (const rec of conflict.conflictingRecords) {
+          if (recType === 'A' && rec.type === 'A' && rec.content === cnameTarget) continue
           const delResult = await cfService.deleteDNSRecord(meta.cfZoneId, rec.id)
           if (delResult.success) {
             log(`[addShortenerCNAME] Deleted ${rec.type} ${rec.name} → ${rec.content}`)
@@ -1558,34 +1562,35 @@ const addShortenerCNAME = async (domainName, cnameTarget, db, txtHost, txtValue)
         }
       }
 
-      // 1b. Also check for existing CNAME records at root that point elsewhere
-      // This handles domains that were previously linked to a different shortener/service
+      // 1b. Also check for existing root records of our type that point elsewhere (and stale
+      // apex CNAMEs when we are adding an A record). Handles domains previously linked to a
+      // different shortener host (e.g. the old Railway CNAME).
       const cfRecords = await cfService.listDNSRecords(meta.cfZoneId)
-      const existingCNAME = cfRecords.filter(r => r.name === domainName && r.type === 'CNAME')
+      const existingSame = cfRecords.filter(r => r.name === domainName && (r.type === recType || (recType === 'A' && r.type === 'CNAME')))
       let cnameAlreadyCorrect = false
-      for (const rec of existingCNAME) {
-        if (rec.content !== cnameTarget) {
-          log(`[addShortenerCNAME] ${domainName}: removing existing CNAME → ${rec.content} before adding shortener CNAME`)
+      for (const rec of existingSame) {
+        if (rec.type !== recType || rec.content !== cnameTarget) {
+          log(`[addShortenerCNAME] ${domainName}: removing existing ${rec.type} → ${rec.content} before adding shortener ${recType}`)
           const delResult = await cfService.deleteDNSRecord(meta.cfZoneId, rec.id)
           if (delResult.success) {
-            log(`[addShortenerCNAME] Deleted existing CNAME ${rec.name} → ${rec.content}`)
+            log(`[addShortenerCNAME] Deleted existing ${rec.type} ${rec.name} → ${rec.content}`)
           } else {
-            log(`[addShortenerCNAME] Warning: failed to delete existing CNAME ${rec.name} → ${rec.content}`)
+            log(`[addShortenerCNAME] Warning: failed to delete existing ${rec.type} ${rec.name} → ${rec.content}`)
           }
         } else {
-          log(`[addShortenerCNAME] ${domainName}: CNAME already points to ${cnameTarget}`)
+          log(`[addShortenerCNAME] ${domainName}: ${recType} already points to ${cnameTarget}`)
           cnameAlreadyCorrect = true
         }
       }
 
-      // 2. Add the CNAME (proxied for CF CNAME flattening at root)
+      // 2. Add the record (proxied — CF terminates TLS at the edge)
       if (!cnameAlreadyCorrect) {
-        const result = await cfService.createDNSRecord(meta.cfZoneId, 'CNAME', domainName, cnameTarget, 300, true)
+        const result = await cfService.createDNSRecord(meta.cfZoneId, recType, domainName, cnameTarget, 300, true)
         if (!result.success && !result.alreadyExists) {
           const errMsg = result.errors?.map(e => e.message || e.code).join(', ') || 'Cloudflare DNS add failed'
           return { error: errMsg }
         }
-        log(`[addShortenerCNAME] ${domainName}: CNAME → ${cnameTarget} added (proxied)`)
+        log(`[addShortenerCNAME] ${domainName}: ${recType} → ${cnameTarget} added (proxied)`)
       }
 
       // 3. Add TXT verification record for Railway domain ownership
@@ -1615,7 +1620,7 @@ const addShortenerCNAME = async (domainName, cnameTarget, db, txtHost, txtValue)
     }
 
     // Non-CF domains: use generic addDNSRecord (OP/CR don't have CNAME flattening at root)
-    const result = await addDNSRecord(domainName, 'CNAME', cnameTarget, '', db)
+    const result = await addDNSRecord(domainName, recType, cnameTarget, '', db)
     if (result.success || result.alreadyExists) return { success: true }
     const errMsg = result.error || result.errors?.map(e => e.message).join(', ') || 'DNS add failed'
     return { error: errMsg }

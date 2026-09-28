@@ -20,6 +20,7 @@
  *   • repairDomain(domain, deps)     — single-shot repair (admin command)
  */
 const { log } = require('console')
+const { isShortenerDnsRecord } = require('./rl-save-domain-in-server.js')
 
 const TICK_INTERVAL_MS = 5 * 60 * 1000 // 5 minutes
 const ACTIVATION_COLLECTION = 'shortenerActivations'
@@ -73,7 +74,7 @@ async function processPendingDeactivations(deps) {
         const dnsResult = await domainService.viewDNSRecords(domain, db)
         const records = dnsResult?.records || []
         const stale = records.find(r =>
-          r.recordType === 'CNAME' && r.recordContent && r.recordContent.includes('.up.railway.app')
+          isShortenerDnsRecord(r)
         )
         if (stale) {
           const delResult = await domainService.deleteDNSRecord(domain, stale, db)
@@ -122,7 +123,7 @@ async function checkAndHealActivation(domain, deps) {
     if (!dnsResult || dnsResult.error) return 'unknown'
     const records = dnsResult.records || []
     const hasShortenerCNAME = records.some(r =>
-      r.recordType === 'CNAME' && r.recordContent && r.recordContent.includes('.up.railway.app')
+      isShortenerDnsRecord(r)
     )
     if (hasShortenerCNAME) return 'healthy' // both sides agree
 
@@ -201,7 +202,7 @@ async function repairDomain(domain, deps) {
         // finish DNS cleanup
         const dnsResult = await domainService.viewDNSRecords(domain, db)
         const stale = (dnsResult?.records || []).find(r =>
-          r.recordType === 'CNAME' && r.recordContent && r.recordContent.includes('.up.railway.app')
+          isShortenerDnsRecord(r)
         )
         if (stale) await domainService.deleteDNSRecord(domain, stale, db)
         await db.collection('shortenerDeactivations').updateOne(
@@ -227,7 +228,7 @@ async function repairDomain(domain, deps) {
     lines.push(`• Upstream claim now: ${upstream.includes(domain) ? 'YES' : 'no'}`)
     const dnsResult = await domainService.viewDNSRecords(domain, db)
     const cname = (dnsResult?.records || []).find(r =>
-      r.recordType === 'CNAME' && r.recordContent && r.recordContent.includes('.up.railway.app')
+      isShortenerDnsRecord(r)
     )
     lines.push(`• Shortener CNAME at apex: ${cname ? cname.recordContent : 'absent'}`)
   } catch (e) {

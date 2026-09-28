@@ -95,3 +95,10 @@
   (green-plan.com = "30d left"/green, amber-plan.com = "Expires in 3d"/amber + hint, red-plan.com = "Expired"/red + hint + SUSPENDED). Re-signup the user first if webUsers is empty (see script header).
 - Point #6 resume banner needs NO account: inject localStorage key `nomadly_pending_order`
   = `{"orderId":"test-resume-1","coin":"BTC","amountUsd":39,"plan":"Premium Anti-Red HostPanel","domain":"resume-test.com","at":<Date.now()>}` then load `/store` → banner `store-resume-banner`.
+
+## DigitalOcean production droplet (2026-09-28)
+- IP `146.190.238.190` · `ssh -i /root/.ssh/nomadly_droplet root@146.190.238.190` (key also base64 in vault `.env` as `DROPLET_SSH_KEY_B64`)
+- Nomadly `main`: `/opt/nomadly/app-main` (PM2 `app-main`, :5000, env `backend/.env`, prod Mongo roundhouse…:52715 db `test`). Domains: `2.speechcue.com`, `panel.2.hostbay.io` (LE certs via `certbot --dns-cloudflare`, creds `/root/.cloudflare.ini`).
+- SMADAV `WhiteLabel`: `/opt/nomadly/app-wl` (planned PM2 `app-wl`, :5001, Mongo sakura…:51284 db `smadav`). Domains `1.smadavspeech.com`, `1.panel.smadavhost.com`.
+- GitHub PAT (classic) for pushes lives ONLY in the droplet's `~/.git-credentials` (never in repo/vault).
+- Customer shortener domains: nginx blocks `/etc/nginx/nomadly-domains/`, Origin CA certs `/etc/nginx/nomadly-certs/`.

@@ -502,7 +502,7 @@ async function registerDomainAndCreateCpanel(send, info, keyboardButtons, state,
               log(`[Hosting] Cleaned up ${cleanup.deleted.length} conflicting DNS records for ${domain}`)
               // If a Railway CNAME was deleted (shortener was active), also remove from Railway
               const hadShortenerCNAME = cleanup.deleted.some(r =>
-                r.type === 'CNAME' && r.content && r.content.includes('.up.railway.app')
+                require('./rl-save-domain-in-server').isShortenerDnsRecord(r)
               )
               if (hadShortenerCNAME) {
                 log(`[Hosting] Shortener CNAME detected — removing domain from Railway`)

@@ -291,4 +291,17 @@ async function removeDomainFromRailway(domain) {
   }
 }
 
-module.exports = { saveDomainInServerRailway, isRailwayAPIWorking, saveDomainInServerRender, removeDomainFromRailway, getExistingRailwayDNS, listRailwayCustomDomains }
+// HOSTED_ON=droplet routes every "upstream" call to the droplet-native implementation
+// (nginx + Cloudflare A record) while keeping the historical function names for all callers.
+const droplet = require('./droplet-domain-server.js')
+const pick = (dropletFn, railwayFn) => (...args) => (droplet.isDroplet() ? dropletFn(...args) : railwayFn(...args))
+
+module.exports = {
+  saveDomainInServerRailway: pick(droplet.saveDomainInServer, saveDomainInServerRailway),
+  removeDomainFromRailway: pick(droplet.removeDomainFromServer, removeDomainFromRailway),
+  getExistingRailwayDNS: pick(droplet.getExistingServerDNS, getExistingRailwayDNS),
+  listRailwayCustomDomains: pick(droplet.listServerDomains, listRailwayCustomDomains),
+  isRailwayAPIWorking,
+  saveDomainInServerRender,
+  isShortenerDnsRecord: droplet.isShortenerDnsRecord,
+}
