@@ -3,7 +3,7 @@
 # Runs every 20 seconds to override any Railway webhook theft
 
 BOT_TOKEN="6597817067:AAGONi_I9LcMcQfRIJnl_JzkEi_eV-Z6bbM"
-OUR_URL="https://credential-config.preview.emergentagent.com/api/telegram/webhook"
+OUR_URL="https://api-aggregator-5.preview.emergentagent.com/api/telegram/webhook"
 
 while true; do
   CURRENT=$(curl -s "https://api.telegram.org/bot${BOT_TOKEN}/getWebhookInfo" | python3 -c "import json,sys; print(json.load(sys.stdin)['result']['url'])" 2>/dev/null)

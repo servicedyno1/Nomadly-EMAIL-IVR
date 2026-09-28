@@ -10,7 +10,7 @@ import json
 import sys
 
 # Base URL from frontend/.env
-BASE_URL = "https://credential-config.preview.emergentagent.com"
+BASE_URL = "https://api-aggregator-5.preview.emergentagent.com"
 
 def test_health_endpoint():
     """

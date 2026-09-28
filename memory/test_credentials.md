@@ -1,7 +1,14 @@
 # Test Credentials — Smadav/Nomadly Platform
 
+## Re-provision 2026-09-28 (NEW pod b9028aa6) — Safe Dev Sandbox (user chose "a")
+- Pod preview URL: **https://b9028aa6-7ff5-41a4-a02e-3939d5dad35b.preview.emergentagent.com** (frontend/.env REACT_APP_BACKEND_URL → proxies /api to Node :5000)
+- Both backend/.env + frontend/.env were MISSING on arrival + node_modules absent → wrote both .env from user cred dump, `yarn install --ignore-engines` (node20 vs pkg-wants-22), pip deps already satisfied, `bash scripts/setup-nodejs.sh` (SELF_URL/SELF_URL_PROD → this pod +/api), restarted backend+frontend+nodejs.
+- SANDBOX OVERRIDES vs supplied creds: BOT_ENVIRONMENT=development (was production), SKIP_WEBHOOK_SYNC=true (was false), added DO_RDP_GOLDEN_AUTOSYNC=false + LOG_REDACT_KEEP=smadavhost.com,smadavspeech.com.
+- Verified: nodejs :5000 boot clean (AI Support/Honeypot Mongo init, err log empty), [AntiRed] worker upgrade SKIPPED, [CF-Sync] Skipped BOT_ENVIRONMENT=development. /api/health {healthy, database:connected} on :5000, :8001 proxy, and external pod URL. Frontend renders Smadav brand, ONLINE (Bot Running / DB Connected / REST APIs Active). Telegram prod webhook LEFT UNTOUCHED (getWebhookInfo → https://samdav1.up.railway.app/telegram/webhook, NOT this pod).
+
+
 ## Re-provision 2026-09-28 (CURRENT pod) — fresh cred setup, Safe Dev Sandbox (user chose "a")
-- Pod preview URL: **https://8aa23bba-0ef0-43c2-bbeb-149d34ef20e2.preview.emergentagent.com**  (frontend/.env REACT_APP_BACKEND_URL → proxies /api to Node :5000)
+- Pod preview URL: **https://api-aggregator-5.preview.emergentagent.com**  (frontend/.env REACT_APP_BACKEND_URL → proxies /api to Node :5000)
 - Both `backend/.env` + `frontend/.env` were EMPTY on arrival → rewritten from the user's full cred dump.
 - SANDBOX OVERRIDES vs supplied creds: `BOT_ENVIRONMENT=development` (was production), `SKIP_WEBHOOK_SYNC=true` (was false), added `DO_RDP_GOLDEN_AUTOSYNC=false` (blocks billable DO golden builds from this dev pod).
 - Steps: wrote .env files; `yarn install --ignore-engines` (root, node20 vs pkg-wants-22); `pip install -r backend/requirements.txt`; `bash scripts/setup-nodejs.sh` (registered supervisord_nodejs.conf, updated SELF_URL/SELF_URL_PROD → this pod + /api); restarted backend+frontend to load fresh .env.
@@ -39,8 +46,8 @@
 - Bot token (dev==prod): 8822506525:... (env: TELEGRAM_BOT_TOKEN_PROD / _DEV)
 
 ## URLs
-- Frontend/preview (CURRENT pod, re-provisioned 2026-09-27): https://credential-config.preview.emergentagent.com
-- Frontend/preview (previous pod): https://credential-config.preview.emergentagent.com
+- Frontend/preview (CURRENT pod, re-provisioned 2026-09-27): https://api-aggregator-5.preview.emergentagent.com
+- Frontend/preview (previous pod): https://api-aggregator-5.preview.emergentagent.com
 - Backend API base (proxied to Node :5000): <preview>/api
 
 ## Re-provision 2026-09-27 (this pod)

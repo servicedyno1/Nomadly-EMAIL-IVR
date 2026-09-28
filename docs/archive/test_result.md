@@ -201,7 +201,7 @@ NOT testable on this sandbox (document for prod smoke-test):
 **Tested by:** Testing Sub-Agent (deep_testing_backend_v2)
 **Test Date:** 2026-06-19 13:19 UTC
 **Test Account:** pnldoctest / PIN 123456
-**Base URL:** https://credential-config.preview.emergentagent.com/api/panel
+**Base URL:** https://api-aggregator-5.preview.emergentagent.com/api/panel
 
 **ALL 10 VALIDATION/WIRING TEST CASES PASSED ✅**
 
@@ -284,7 +284,7 @@ WEBHOOK CREDIT (deterministic, uses seeded order; STORE_DEV_TRUST_WEBHOOK=true s
 ### Backend Testing Results (2026-06-19 14:10 UTC)
 **Tested by:** Testing Sub-Agent (deep_testing_backend_v2)
 **Test Date:** 2026-06-19 14:10 UTC
-**Base URL:** https://credential-config.preview.emergentagent.com/api/store
+**Base URL:** https://api-aggregator-5.preview.emergentagent.com/api/store
 
 **ALL 15 BACKEND TESTS PASSED ✅**
 
@@ -357,7 +357,7 @@ WEBHOOK CREDIT (deterministic, uses seeded order; STORE_DEV_TRUST_WEBHOOK=true s
 **Tested by:** Testing Sub-Agent (deep_testing_backend_v2)
 **Test Date:** 2026-06-19 14:30 UTC
 **Test Script:** `/app/test_storefront_final.sh`
-**Base URL:** https://credential-config.preview.emergentagent.com/api/store
+**Base URL:** https://api-aggregator-5.preview.emergentagent.com/api/store
 
 **ALL 10 BACKEND TESTS PASSED ✅**
 
