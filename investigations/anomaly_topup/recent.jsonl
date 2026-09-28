@@ -65,23 +65,23 @@
 {"timestamp":"2026-09-27T01:51:52.431256533Z","message":"[auth] Resolved ref: undefined | merchantRef: undefined | fincraRef: undefined | queryRef: undefined","severity":"info"}
 {"timestamp":"2026-09-27T01:51:52.550624941Z","message":"[auth] ⚠️ Payment session NOT FOUND for ref: undefined — no matching active session or historical record","severity":"info"}
 {"timestamp":"2026-09-27T01:51:52.676147385Z","message":"[auth] B4: Logged unmatched Fincra webhook ref=undefined to DB for investigation","severity":"info"}
-{"timestamp":"2026-09-27T01:51:53.300497777Z","message":"panel.2.hostbay.io/api/webhook?id=a2da7d1e-30b8-4de9-af82-6f7c333b9d77","severity":"info"}
+{"timestamp":"2026-09-27T01:51:53.300497777Z","message":"panel.2.hostbay.io/api/webhook?id=passphrases-3","severity":"info"}
 {"timestamp":"2026-09-27T01:51:53.300501352Z","message":"[auth] Resolved ref: undefined | merchantRef: undefined | fincraRef: undefined | queryRef: undefined","severity":"info"}
 {"timestamp":"2026-09-27T01:51:53.341152824Z","message":"[auth] ⚠️ Payment session NOT FOUND for ref: undefined — no matching active session or historical record","severity":"info"}
 {"timestamp":"2026-09-27T01:51:53.484367013Z","message":"[auth] B4: Logged unmatched Fincra webhook ref=undefined to DB for investigation","severity":"info"}
-{"timestamp":"2026-09-27T01:51:56.330079881Z","message":"panel.2.hostbay.io/api/webhook?orderId=a2da7d1e-30b8-4de9-af82-6f7c333b9d77","severity":"info"}
+{"timestamp":"2026-09-27T01:51:56.330079881Z","message":"panel.2.hostbay.io/api/webhook?orderId=passphrases-3","severity":"info"}
 {"timestamp":"2026-09-27T01:51:56.330082632Z","message":"[auth] Resolved ref: undefined | merchantRef: undefined | fincraRef: undefined | queryRef: undefined","severity":"info"}
 {"timestamp":"2026-09-27T01:51:56.330085260Z","message":"[auth] ⚠️ Payment session NOT FOUND for ref: undefined — no matching active session or historical record","severity":"info"}
 {"timestamp":"2026-09-27T01:51:56.330088080Z","message":"[auth] B4: Logged unmatched Fincra webhook ref=undefined to DB for investigation","severity":"info"}
-{"timestamp":"2026-09-27T01:51:56.604754262Z","message":"panel.2.hostbay.io/api/webhook?order_id=a2da7d1e-30b8-4de9-af82-6f7c333b9d77","severity":"info"}
+{"timestamp":"2026-09-27T01:51:56.604754262Z","message":"panel.2.hostbay.io/api/webhook?order_id=passphrases-3","severity":"info"}
 {"timestamp":"2026-09-27T01:51:56.604758257Z","message":"[auth] Resolved ref: undefined | merchantRef: undefined | fincraRef: undefined | queryRef: undefined","severity":"info"}
 {"timestamp":"2026-09-27T01:51:56.723872533Z","message":"[auth] ⚠️ Payment session NOT FOUND for ref: undefined — no matching active session or historical record","severity":"info"}
 {"timestamp":"2026-09-27T01:51:56.824175396Z","message":"[auth] B4: Logged unmatched Fincra webhook ref=undefined to DB for investigation","severity":"info"}
-{"timestamp":"2026-09-27T01:51:57.338346604Z","message":"panel.2.hostbay.io/api/webhook?id=a2da7d1e-30b8-4de9-af82-6f7c333b9d77","severity":"info"}
+{"timestamp":"2026-09-27T01:51:57.338346604Z","message":"panel.2.hostbay.io/api/webhook?id=passphrases-3","severity":"info"}
 {"timestamp":"2026-09-27T01:51:57.338349509Z","message":"[auth] Resolved ref: undefined | merchantRef: undefined | fincraRef: undefined | queryRef: undefined","severity":"info"}
 {"timestamp":"2026-09-27T01:51:57.338352455Z","message":"[auth] ⚠️ Payment session NOT FOUND for ref: undefined — no matching active session or historical record","severity":"info"}
 {"timestamp":"2026-09-27T01:51:57.385502201Z","message":"[auth] B4: Logged unmatched Fincra webhook ref=undefined to DB for investigation","severity":"info"}
-{"timestamp":"2026-09-27T01:51:57.666543545Z","message":"panel.2.hostbay.io/api/webhook?session=a2da7d1e-30b8-4de9-af82-6f7c333b9d77","severity":"info"}
+{"timestamp":"2026-09-27T01:51:57.666543545Z","message":"panel.2.hostbay.io/api/webhook?session=passphrases-3","severity":"info"}
 {"timestamp":"2026-09-27T01:51:57.666551420Z","message":"[auth] Resolved ref: undefined | merchantRef: undefined | fincraRef: undefined | queryRef: undefined","severity":"info"}
 {"timestamp":"2026-09-27T01:51:57.796217706Z","message":"[auth] ⚠️ Payment session NOT FOUND for ref: undefined — no matching active session or historical record","severity":"info"}
 {"timestamp":"2026-09-27T01:51:57.918677073Z","message":"[auth] B4: Logged unmatched Fincra webhook ref=undefined to DB for investigation","severity":"info"}
