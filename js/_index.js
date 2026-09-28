@@ -609,7 +609,7 @@ const dnsAutoCheck = async (send, chatId, t, domain, recordType, recordValue) =>
     // Silent fail — don't block the user flow
   }
 }
-const { saveDomainInServerRailway, saveDomainInServerRender, getExistingRailwayDNS } = require('./rl-save-domain-in-server.js')
+const { saveDomainInServerRailway, saveDomainInServerRender, getExistingRailwayDNS, isShortenerDnsRecord } = require('./rl-save-domain-in-server.js')
 const { get, set, setFields, del, increment, atomicIncrement, getAll, decrement, insert } = require('./db.js')
 const { getRegisteredDomainNames } = require('./cr-domain-purchased-get.js')
 const { getCryptoDepositAddress, convert } = require('./pay-blockbee.js')
@@ -10254,7 +10254,7 @@ bot?.on('message', msg => {
 
       // Detect if shortener is active (CNAME pointing to railway)
       const shortenerActive = records.some(r =>
-        r.recordType === 'CNAME' && r.recordContent && r.recordContent.includes('.up.railway.app')
+        isShortenerDnsRecord(r)
       )
       set(state, chatId, 'shortenerActive', shortenerActive)
 
@@ -22760,7 +22760,7 @@ ${message.replace(/\n/g, '<br>')}
         const dnsResult = await domainService.viewDNSRecords(domain, db)
         const records = dnsResult?.records || []
         const railwayCname = records.find(r =>
-          r.recordType === 'CNAME' && r.recordContent && r.recordContent.includes('.up.railway.app')
+          isShortenerDnsRecord(r)
         )
 
         if (railwayCname) {
@@ -22867,7 +22867,7 @@ ${message.replace(/\n/g, '<br>')}
       const migration = result.migration || {}
       if (shouldDeactivateShortener && migration.migrated) {
         migration.migrated = migration.migrated.filter(r =>
-          !(r.type === 'CNAME' && r.content && r.content.includes('.up.railway.app'))
+          !isShortenerDnsRecord(r)
         )
       }
 
@@ -22920,7 +22920,7 @@ ${message.replace(/\n/g, '<br>')}
       }
       const dnsData = await domainService.viewDNSRecords(domain, db)
       const hasShortener = (dnsData?.records || []).some(r =>
-        r.recordType === 'CNAME' && r.recordContent && r.recordContent.includes('.up.railway.app')
+        isShortenerDnsRecord(r)
       )
       let confirmMsg = t.switchToProviderConfirm(domain)
       if (hasShortener) {
@@ -23826,7 +23826,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       const dnsResult = await domainService.viewDNSRecords(domain, db)
       const records = dnsResult?.records || []
       const railwayCname = records.find(r =>
-        r.recordType === 'CNAME' && r.recordContent && r.recordContent.includes('.up.railway.app')
+        isShortenerDnsRecord(r)
       )
       if (railwayCname) {
         const deleteResult = await domainService.deleteDNSRecord(domain, railwayCname, db)
@@ -34069,7 +34069,7 @@ Select a category:`), k.of(catBtns))
       const dnsResult = await domainService.viewDNSRecords(domain, db)
       const records = dnsResult?.records || []
       const shortenerActive = records.some(r =>
-        r.recordType === 'CNAME' && r.recordContent && r.recordContent.includes('.up.railway.app')
+        isShortenerDnsRecord(r)
       )
 
       const shortenerBtn = shortenerActive ? t.domainActionDeactivateShortener : t.domainActionShortener
@@ -34200,7 +34200,7 @@ Select a category:`), k.of(catBtns))
         if (removeResult?.error) log(`[DeactivateShortener] Railway removal warning: ${removeResult.error}`)
         const dnsResult = await domainService.viewDNSRecords(domain, db)
         const records = dnsResult?.records || []
-        const railwayCname = records.find(r => r.recordType === 'CNAME' && r.recordContent && r.recordContent.includes('.up.railway.app'))
+        const railwayCname = records.find(r => isShortenerDnsRecord(r))
         if (railwayCname) {
           const deleteResult = await domainService.deleteDNSRecord(domain, railwayCname, db)
           if (deleteResult?.error) log(`[DeactivateShortener] DNS delete warning: ${deleteResult.error}`)
@@ -34295,7 +34295,7 @@ Select a category:`), k.of(catBtns))
       const dnsResult = await domainService.viewDNSRecords(domain, db)
       const records = dnsResult?.records || []
       const shortenerActive = records.some(r =>
-        r.recordType === 'CNAME' && r.recordContent && r.recordContent.includes('.up.railway.app')
+        isShortenerDnsRecord(r)
       )
       const shortenerBtn = shortenerActive ? t.domainActionDeactivateShortener : t.domainActionShortener
       await set(state, chatId, 'action', 'view-domain-actions')
@@ -34428,7 +34428,7 @@ Select a category:`), k.of(catBtns))
       const dnsData = await domainService.viewDNSRecords(domain, db)
       const records = dnsData?.records || []
       const shortenerActive2 = records.some(r =>
-        r.recordType === 'CNAME' && r.recordContent && r.recordContent.includes('.up.railway.app')
+        isShortenerDnsRecord(r)
       )
       const shortenerBtnReturn = shortenerActive2 ? t.domainActionDeactivateShortener : t.domainActionShortener
       menuButtons.push([shortenerBtnReturn], ['↩️ Back'])
@@ -49113,11 +49113,15 @@ const setupTelegramWebhook = async (retryCount = 0) => {
       const webhookUrl = `${SELF_URL}/telegram/webhook`
 
       // Set the new webhook (atomically replaces any existing webhook — no deleteWebhook needed)
-      await bot.setWebHook(webhookUrl, {
+      // TELEGRAM_WEBHOOK_IP pins delivery to a fixed IP (Telegram caches DNS for hours after a host move)
+      const webhookOpts = {
         allowed_updates: JSON.stringify(['message', 'callback_query', 'my_chat_member'])
-      })
+      }
+      const pinnedIp = (process.env.TELEGRAM_WEBHOOK_IP || '').trim()
+      if (pinnedIp) webhookOpts.ip_address = pinnedIp
+      await bot.setWebHook(webhookUrl, webhookOpts)
       log('✅ Telegram webhook set successfully')
-      log(`📡 Webhook URL: ${webhookUrl}`)
+      log(`📡 Webhook URL: ${webhookUrl}${pinnedIp ? ` (pinned ip ${pinnedIp})` : ''}`)
 
       // Verify webhook was set
       const webhookInfo = await bot.getWebHookInfo()
