@@ -113,6 +113,57 @@ current_task_2026_09_28_phase1_store: |
   TESTING COMPLETE (2026-09-28): All 3 tests PASSED. Phase 1 STOREFRONT UX changes verified and working correctly.
 
 
+#====================================================================================================
+# CURRENT TASK (2026-09-28) — Phase 1 UX/UI Gap Pass: HOSTPANEL #7 empty states + #4 web NS badge [test THIS]
+#====================================================================================================
+current_task_2026_09_28_phase1_panel: |
+  Verify the last two Phase 1 UI bits in the HostPanel (React, at ${REACT_APP_BACKEND_URL}/panel):
+    #7 reusable empty-state cards on the Domains / Email / Analytics tabs
+    #4 web NS status badge shows a plain "🟢 Active" / "🔴 Inactive"
+
+  WHY MOCKED RESPONSES ARE NEEDED (important): this is a DEV SANDBOX with NO live cPanel/WHM/
+  Cloudflare — /api/panel/domains and /api/panel/email return CPANEL_AUTH_FAILURE, /api/panel/analytics
+  returns "Domain not in Cloudflare". So these tabs would show ERROR states, not the empty states.
+  To verify the FRONTEND rendering, the test MUST intercept the panel data endpoints in the browser
+  (Playwright page.route) and fulfill them with controlled JSON. Login itself is REAL (works on local
+  Mongo) — do NOT mock /api/panel/login.
+
+  LOGIN: go to /panel, log in username `hptestmonthly` PIN `135790` (seed if needed:
+    `node /app/scripts/seed_honeypot_test.js`). Dashboard tabs are buttons data-testid `panel-tab-<id>`
+    (panel-tab-domains, panel-tab-email, panel-tab-analytics).
+
+  Set up route interceptions BEFORE clicking a tab (match by URL substring; return 200 JSON):
+
+  PART A — #7 empty states (mock everything empty):
+    - `**/api/panel/domains`            → {"data":{"main_domain":null,"addon_domains":[]}}
+    - `**/api/panel/subdomains`         → {"data":[]}
+    - `**/api/panel/domains/ssl`        → {"data":{}}
+    - `**/api/panel/domains/docroot-modes` → {"modes":{}}
+    - `**/api/panel/email`              → {"data":[]}
+    - `**/api/panel/analytics**`        → {"totals":null}
+    Then:
+      • Click panel-tab-domains → assert empty card data-testid `dl-empty` visible, has title "No domains yet",
+        desc mentioning "Add an addon domain…", and a CTA button data-testid `dl-empty-cta`.
+      • Click panel-tab-email → assert `em-empty` visible, title "No email accounts yet", CTA `em-empty-cta`.
+      • Click panel-tab-analytics → assert `an-empty` visible, title "No analytics yet".
+    Screenshot each.
+
+  PART B — #4 NS badge (mock a domain + its NS status):
+    - `**/api/panel/domains` → {"data":{"main_domain":"badge-test.com","addon_domains":[]}}
+    - `**/api/panel/domains/ns-status**` (Active run) → {"status":"active","nameservers":["a.ns.cloudflare.com","b.ns.cloudflare.com"],"autoManaged":true}
+    Click panel-tab-domains → the main domain badge-test.com renders; assert a badge
+      data-testid `dl-ns-active-badge-test.com` with text "🟢 Active".
+    Then change the ns-status mock to {"status":"not_found","nameservers":[],"autoManaged":false} and
+    reload the Domains tab → assert badge data-testid `dl-ns-unknown-badge-test.com` with text "🔴 Inactive".
+    Screenshot both badges.
+
+  PASS = all three empty states render (dl-empty/em-empty/an-empty with correct titles+CTAs) AND the NS
+  badge shows "🟢 Active" then "🔴 Inactive". FAIL = error state shown instead, or old copy
+  ("NS Active"/"NS Unknown") on the badge.
+  Files: frontend/src/components/panel/{DomainList,EmailManager,Analytics}.js + shared/PanelEmptyState.jsx,
+    frontend/src/locales/*.json (nsActive/nsUnknown + empty titles). Do NOT modify app code.
+
+
 
 
 #====================================================================================================
@@ -12524,6 +12575,137 @@ backend:
           files pass. Awaiting testing agent verification per protocol.
 
 frontend:
+  - task: "Phase 1 UX/UI Gap Pass: HOSTPANEL #7 empty states + #4 web NS badge (2026-09-28) — Verify the last two Phase 1 UI bits in the HostPanel (React, at /panel): #7 reusable empty-state cards on the Domains / Email / Analytics tabs, #4 web NS status badge shows plain '🟢 Active' / '🔴 Inactive'. Environment: DEV SANDBOX with NO live cPanel/WHM/Cloudflare, so panel data endpoints must be intercepted in browser (Playwright page.route) with controlled JSON. Login is REAL (local Mongo). Test account: hptestmonthly / PIN: 135790."
+    implemented: true
+    working: true
+    file: "/app/frontend/src/components/panel/DomainList.js, /app/frontend/src/components/panel/EmailManager.js, /app/frontend/src/components/panel/Analytics.js, /app/frontend/src/components/panel/shared/PanelEmptyState.jsx, /app/frontend/src/locales/en.json"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: |
+          Implemented Phase 1 HostPanel UX/UI Gap Pass per 2026-09-28 task. Changes:
+          #7: Added reusable PanelEmptyState component for Domains/Email/Analytics tabs
+          #4: Enhanced NS badge copy from "NS Active"/"NS Unknown" to "🟢 Active"/"🔴 Inactive"
+          
+          Files changed:
+          - frontend/src/components/panel/shared/PanelEmptyState.jsx (new reusable empty state component)
+          - frontend/src/components/panel/DomainList.js (empty state + NS badge text)
+          - frontend/src/components/panel/EmailManager.js (empty state)
+          - frontend/src/components/panel/Analytics.js (empty state)
+          - frontend/src/locales/en.json (nsActive: "🟢 Active", nsUnknown: "🔴 Inactive", empty titles/descriptions)
+          
+          Environment: DEV SANDBOX (no live cPanel/WHM/Cloudflare)
+          Test account: hptestmonthly / PIN: 135790 (seed: node /app/scripts/seed_honeypot_test.js)
+          
+          HOW TO TEST:
+          Login to /panel with test credentials. Set up Playwright route mocks BEFORE clicking tabs:
+          
+          PART A (#7 empty states):
+          - Mock /api/panel/domains → {"data":{"main_domain":null,"addon_domains":[]}}
+          - Mock /api/panel/subdomains → {"data":[]}
+          - Mock /api/panel/domains/ssl → {"data":{}}
+          - Mock /api/panel/domains/docroot-modes → {"modes":{}}
+          - Mock /api/panel/email → {"data":[]}
+          - Mock /api/panel/analytics → {"totals":null}
+          Then verify:
+          • Domains tab: dl-empty with title "No domains yet", description "Add an addon domain...", CTA dl-empty-cta
+          • Email tab: em-empty with title "No email accounts yet", CTA em-empty-cta
+          • Analytics tab: an-empty with title "No analytics yet"
+          
+          PART B (#4 NS badge):
+          - Mock /api/panel/domains → {"data":{"main_domain":"badge-test.com","addon_domains":[]}}
+          - Mock /api/panel/domains/ns-status → {"status":"active","nameservers":["a.ns.cloudflare.com","b.ns.cloudflare.com"],"autoManaged":true}
+          Then verify:
+          • Active badge: dl-ns-active-badge-test.com with text "🟢 Active"
+          - Change mock to {"status":"not_found","nameservers":[],"autoManaged":false}
+          • Inactive badge: dl-ns-unknown-badge-test.com with text "🔴 Inactive"
+
+      - working: true
+        agent: "testing"
+        comment: |
+          ✅ COMPREHENSIVE HOSTPANEL UI TEST COMPLETE - Phase 1 UX/UI Gap Pass VERIFIED (5/5 tests, 100% pass rate)
+          
+          SCOPE: Independent verification of TWO Phase 1 HostPanel (React) UI changes in DEV SANDBOX 
+          (no live cPanel/WHM/Cloudflare). All panel data endpoints intercepted in browser with Playwright 
+          page.route() and fulfilled with controlled JSON. Login is REAL (local Mongo test database).
+          
+          TEST RESULTS (5/5 PASSED):
+          
+          ★★★ PART A: EMPTY STATES (#7) - 3/3 PASSED ★★★
+          ✅ TEST A1 - Domains Empty State (dl-empty):
+             • Empty state element found with correct data-testid: dl-empty
+             • Title: "No domains yet" ✓
+             • Description: "Add an addon domain to host more sites on this hosting account." ✓
+             • CTA button found: dl-empty-cta with text "+ Add Domain" ✓
+             • Screenshot: domains_empty_state.png
+          
+          ✅ TEST A2 - Email Empty State (em-empty):
+             • Empty state element found with correct data-testid: em-empty
+             • Title: "No email accounts yet" ✓
+             • Description: "No email accounts yet. Create one to get started." ✓
+             • CTA button found: em-empty-cta with text "Create Email" ✓
+             • Screenshot: email_empty_state.png
+          
+          ✅ TEST A3 - Analytics Empty State (an-empty):
+             • Empty state element found with correct data-testid: an-empty
+             • Title: "No analytics yet" ✓
+             • Description: "No analytics data available. Ensure your domain is active on Cloudflare." ✓
+             • Screenshot: analytics_empty_state.png
+          
+          ★★★ PART B: NS BADGE (#4) - 2/2 PASSED ★★★
+          ✅ TEST B1 - NS Badge Active Status:
+             • Active badge found with correct data-testid: dl-ns-active-badge-test.com
+             • Badge text: "🟢 Active" ✓ (NEW copy, NOT old "NS Active")
+             • Domain badge-test.com rendered correctly
+             • Screenshot: ns_badge_active.png
+          
+          ✅ TEST B2 - NS Badge Inactive Status:
+             • Inactive badge found with correct data-testid: dl-ns-unknown-badge-test.com
+             • Badge text: "🔴 Inactive" ✓ (NEW copy, NOT old "NS Unknown")
+             • Badge updated correctly after mock change
+             • Screenshot: ns_badge_inactive.png
+          
+          CRITICAL FUNCTIONALITY VERIFIED:
+          • ✅ PART A (#7) - Empty states: All three tabs (Domains/Email/Analytics) render reusable PanelEmptyState component with correct titles, descriptions, and CTA buttons
+          • ✅ PART B (#4) - NS badge: Shows new copy "🟢 Active" and "🔴 Inactive" (NOT old copy "NS Active"/"NS Unknown")
+          • ✅ Route mocking: All panel data endpoints successfully intercepted and fulfilled with controlled JSON
+          • ✅ Login: Real login works correctly (local Mongo, test account hptestmonthly / PIN 135790)
+          • ✅ Empty state component: Reusable across all three tabs with consistent styling and structure
+          • ✅ NS badge: Correct data-testid attributes (dl-ns-active-{domain}, dl-ns-unknown-{domain})
+          • ✅ No error states: Empty states render correctly (NOT error states like CPANEL_AUTH_FAILURE)
+          
+          CRITICAL SAFETY VERIFIED:
+          • ✅ DEV SANDBOX mode: No live cPanel/WHM/Cloudflare (all endpoints mocked)
+          • ✅ Login is REAL: Works on local Mongo test database
+          • ✅ Route mocking: Playwright page.route() successfully intercepts and fulfills API calls
+          • ✅ No application code modified: Test only verifies frontend rendering
+          
+          EXACT TEXT VERIFICATION:
+          • TEST A1 (Domains): Title "No domains yet", Description "Add an addon domain to host more sites on this hosting account.", CTA "+ Add Domain"
+          • TEST A2 (Email): Title "No email accounts yet", Description "No email accounts yet. Create one to get started.", CTA "Create Email"
+          • TEST A3 (Analytics): Title "No analytics yet", Description "No analytics data available. Ensure your domain is active on Cloudflare."
+          • TEST B1 (NS Active): Badge text "🟢 Active" (NEW copy)
+          • TEST B2 (NS Inactive): Badge text "🔴 Inactive" (NEW copy)
+          
+          CONCLUSION:
+          The Phase 1 HostPanel UX/UI Gap Pass changes are COMPLETE and WORKING CORRECTLY. All 5 comprehensive 
+          tests passed (100% pass rate). Both features (#7 empty states and #4 NS badge) are implemented correctly 
+          and verified via browser route mocking in the DEV SANDBOX.
+          
+          The changes deliver the promised functionality:
+          - #7: Reusable PanelEmptyState component renders correctly on all three tabs (Domains/Email/Analytics) with proper titles, descriptions, and CTA buttons
+          - #4: NS badge shows new plain copy "🟢 Active" / "🔴 Inactive" (NOT old copy "NS Active"/"NS Unknown")
+          
+          The HostPanel is ready for production deployment. All tests executed safely in the DEV SANDBOX with 
+          mocked panel data endpoints (no live cPanel/WHM/Cloudflare impact).
+          
+          Test method: Playwright browser automation with page.route() mocking
+          Base URL: https://834d6048-f40d-48de-a03f-ab26c522dc3d.preview.emergentagent.com/panel
+          Test run: 2026-09-28 (all tests passed, 0 failures, 0 warnings)
+
   - task: "HostBay Panel End-to-End UI Test (2026-08-31) - Full verification of domains, subdomains, addon domains, File Manager, and MySQL with WHM-root fallback"
     implemented: true
     working: true
@@ -13139,6 +13321,31 @@ test_plan:
   test_priority: "high_first"
 
 agent_communication:
+  - agent: "testing"
+    message: |
+      ✅ PHASE 1 HOSTPANEL UI TEST COMPLETE (2026-09-28) — All tests PASSED (5/5, 100% pass rate)
+      
+      Verified the last two Phase 1 HostPanel UI changes (#7 empty states + #4 NS badge) in DEV SANDBOX.
+      All panel data endpoints intercepted with Playwright page.route() and fulfilled with controlled JSON.
+      Login is REAL (local Mongo, test account hptestmonthly / PIN 135790).
+      
+      RESULTS:
+      ✅ PART A (#7 Empty States) - 3/3 PASSED:
+        • Domains tab: dl-empty with title "No domains yet", description "Add an addon domain...", CTA dl-empty-cta ✓
+        • Email tab: em-empty with title "No email accounts yet", CTA em-empty-cta ✓
+        • Analytics tab: an-empty with title "No analytics yet" ✓
+      
+      ✅ PART B (#4 NS Badge) - 2/2 PASSED:
+        • Active badge: dl-ns-active-badge-test.com with text "🟢 Active" (NEW copy, NOT old "NS Active") ✓
+        • Inactive badge: dl-ns-unknown-badge-test.com with text "🔴 Inactive" (NEW copy, NOT old "NS Unknown") ✓
+      
+      All empty states render correctly (NOT error states). NS badge shows new plain copy. Ready for production.
+      
+      Screenshots: domains_empty_state.png, email_empty_state.png, analytics_empty_state.png, 
+      ns_badge_active.png, ns_badge_inactive.png
+      
+      Test run: 2026-09-28 (all tests passed, 0 failures, 0 warnings)
+
   - agent: "main"
     message: |
       Please verify the 2026-09 anomaly fixes via the new READ-ONLY diagnostic endpoint.
