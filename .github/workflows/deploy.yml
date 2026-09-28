@@ -1,0 +1,35 @@
+name: Deploy to Droplet
+
+# Auto-deploy: any push to `main` ships to the DigitalOcean droplet.
+# The runner SSHes in and runs /opt/nomadly/deploy.sh (git pull + smart deps
+# + pm2 reload). WhiteLabel/app-wl will be added here once it is live in PM2.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+# Never let two deploys of the same app overlap.
+concurrency:
+  group: droplet-deploy-main
+  cancel-in-progress: false
+
+jobs:
+  deploy-main:
+    name: Deploy app-main (branch main)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Configure SSH
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "${{ secrets.DROPLET_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          printf '%s\n' "${{ secrets.DROPLET_SSH_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
+          chmod 644 ~/.ssh/known_hosts
+
+      - name: Deploy over SSH
+        run: |
+          ssh -i ~/.ssh/deploy_key \
+              -o UserKnownHostsFile=~/.ssh/known_hosts \
+              -o ConnectTimeout=20 \
+              "${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }}" \
+              'bash /opt/nomadly/deploy.sh app-main'
