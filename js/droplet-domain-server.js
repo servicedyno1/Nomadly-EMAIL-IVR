@@ -55,14 +55,18 @@ async function reloadNginx() {
 }
 
 function nginxBlock(domain, cert, key) {
-  const { appPort, brand } = cfg()
+  const { appPort, brand, upstream } = cfg()
+  // Blue/green: when an nginx upstream name is configured (DROPLET_UPSTREAM=app_main),
+  // proxy to the upstream NAME so the block survives port switches. Otherwise fall
+  // back to the fixed app port (Railway/Render or single-slot droplets).
+  const target = upstream ? `http://${upstream}` : `http://127.0.0.1:${appPort}`
   return `# ${brand} shortener domain — managed by droplet-domain-server.js (do not edit)
 server {
     listen 80;
     listen [::]:80;
     server_name ${domain} *.${domain};
     location / {
-        proxy_pass http://127.0.0.1:${appPort};
+        proxy_pass ${target};
         proxy_http_version 1.1;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
@@ -80,7 +84,7 @@ server {
     ssl_protocols TLSv1.2 TLSv1.3;
     client_max_body_size 60M;
     location / {
-        proxy_pass http://127.0.0.1:${appPort};
+        proxy_pass ${target};
         proxy_http_version 1.1;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
