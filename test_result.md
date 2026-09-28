@@ -9,6 +9,43 @@
 #====================================================================================================
 
 #====================================================================================================
+# CURRENT TASK (2026-09-28) — Bug fix: hardcoded /app require paths broke Node bot on droplet [test THIS]
+#====================================================================================================
+current_task_2026_09_28_heal_pathfix: |
+  BUG (reported on droplet production): Node bot startup cron "BifurcationHealCron" failed with
+  `Cannot find module '/app/scripts/heal_bifurcated_domains'`. Root cause: several files used
+  ABSOLUTE `/app/...` require/dotenv paths that only resolve on the Emergent pod (/app), not on the
+  droplet blue/green release path (/opt/nomadly/releases/app-main/<ts>/). Fixed to paths relative to
+  the module (__dirname-based), which are portable on BOTH the pod and the droplet.
+
+  Files changed (relative-path fix):
+    - js/bifurcation-heal-cron.js:23    require('/app/scripts/heal_bifurcated_domains') -> ('../scripts/heal_bifurcated_domains')
+    - js/_index.js:~46853               same require, now ('../scripts/heal_bifurcated_domains')
+    - scripts/heal_bifurcated_domains.js:50/53/54  dotenv path + cf-service + op-service -> relative (../backend/.env, ../js/*)
+
+  DEV SANDBOX pod: local Mongo `test`, BOT_ENVIRONMENT=development, SKIP_WEBHOOK_SYNC=true. Nothing
+  reaches real users. Node bot runs under supervisor program `nodejs` on 127.0.0.1:5000, proxied by
+  FastAPI backend.
+
+  WHAT TO VERIFY (backend/service-level, no external providers):
+    1. Backend health: GET {REACT_APP_BACKEND_URL}/api/health  -> {"status":"healthy","database":"connected"}.
+    2. Node bot health (internal): `curl -s http://127.0.0.1:5000/health` -> healthy, database connected.
+    3. supervisor `nodejs` is RUNNING (`sudo supervisorctl status nodejs`).
+    4. The fixed require chain LOADS with NO "Cannot find module":
+         cd /app && node -e "require('./scripts/heal_bifurcated_domains'); console.log('HEAL_OK')"
+         cd /app && node -e "require('./js/bifurcation-heal-cron'); console.log('CRON_OK')"
+       Both must print *_OK and exit 0.
+    5. Portability proof (simulates the droplet's non-/app release root):
+         rm -rf /tmp/droptest && mkdir -p /tmp/droptest && cp -r /app/js /app/scripts /app/backend /tmp/droptest/ && ln -s /app/node_modules /tmp/droptest/node_modules
+         cd /tmp/droptest && node -e "require('./js/bifurcation-heal-cron'); const p=require.resolve('./scripts/heal_bifurcated_domains'); console.log(p.startsWith('/tmp/droptest')?'PORTABLE_OK':'FAIL')"
+       Must print PORTABLE_OK (proves relative resolution, not /app).
+    6. Logs: /var/log/supervisor/nodejs.out.log should contain "[BifurcationHealCron] Scheduled" and
+       NO "Cannot find module" for heal_bifurcated_domains.
+  PASS = all of the above. Do NOT test frontend. Do NOT touch external providers.
+
+
+
+#====================================================================================================
 # CURRENT TASK (2026-09-28) — Phase 1 UX/UI Gap Pass: BOT flows #3 & #4  [test THIS]
 #====================================================================================================
 current_task_2026_09_28_phase1_bot: |
@@ -361,6 +398,125 @@ user_problem_statement: |
 
 
 backend:
+  - task: "Bug fix: hardcoded /app require paths broke Node bot on droplet (2026-09-28) — BifurcationHealCron startup failed with 'Cannot find module /app/scripts/heal_bifurcated_domains'. Root cause: absolute /app/... require/dotenv paths only resolve on Emergent pod (/app), not on droplet blue/green release path (/opt/nomadly/releases/app-main/<ts>/). Fixed to module-relative paths (__dirname-based) portable on BOTH pod and droplet. Files changed: js/bifurcation-heal-cron.js:23 (require path), js/_index.js:~46853 (require path), scripts/heal_bifurcated_domains.js:50/53/54 (dotenv + service paths). Environment: DEV SANDBOX (local Mongo test, BOT_ENVIRONMENT=development, SKIP_WEBHOOK_SYNC=true), Node bot runs under supervisor program nodejs on 127.0.0.1:5000."
+    implemented: true
+    working: true
+    file: "/app/js/bifurcation-heal-cron.js (line 23); /app/js/_index.js (~line 46853); /app/scripts/heal_bifurcated_domains.js (lines 50/53/54)"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: |
+          Implemented bug fix for hardcoded /app require paths that broke Node bot on droplet production.
+          Changed absolute /app/... paths to module-relative paths (__dirname-based) in:
+          - js/bifurcation-heal-cron.js:23 (require('/app/scripts/heal_bifurcated_domains') → require('../scripts/heal_bifurcated_domains'))
+          - js/_index.js:~46853 (same require path fix)
+          - scripts/heal_bifurcated_domains.js:50/53/54 (dotenv path + cf-service + op-service → relative paths)
+          
+          Environment: DEV SANDBOX pod (local Mongo test, BOT_ENVIRONMENT=development, SKIP_WEBHOOK_SYNC=true)
+          Node bot runs under supervisor program nodejs on 127.0.0.1:5000, proxied by FastAPI backend.
+          
+          WHAT TO VERIFY:
+          1. Backend health: GET {REACT_APP_BACKEND_URL}/api/health → {"status":"healthy","database":"connected"}
+          2. Node bot health: curl -s http://127.0.0.1:5000/health → healthy, database connected
+          3. supervisor nodejs is RUNNING (sudo supervisorctl status nodejs)
+          4. Fixed require chain loads with NO "Cannot find module":
+             - cd /app && node -e "require('./scripts/heal_bifurcated_domains'); console.log('HEAL_OK')"
+             - cd /app && node -e "require('./js/bifurcation-heal-cron'); console.log('CRON_OK')"
+          5. Portability proof (simulates droplet's non-/app release root):
+             - rm -rf /tmp/droptest && mkdir -p /tmp/droptest && cp -r /app/js /app/scripts /app/backend /tmp/droptest/ && ln -s /app/node_modules /tmp/droptest/node_modules
+             - cd /tmp/droptest && node -e "require('./js/bifurcation-heal-cron'); const p=require.resolve('./scripts/heal_bifurcated_domains'); console.log(p.startsWith('/tmp/droptest')?'PORTABLE_OK':'FAIL')"
+          6. Logs: /var/log/supervisor/nodejs.out.log contains "[BifurcationHealCron] Scheduled" and NO "Cannot find module"
+
+      - working: true
+        agent: "testing"
+        comment: |
+          ✅ COMPREHENSIVE BUG FIX VERIFICATION COMPLETE - All 6 Critical Items PASSED (100% pass rate)
+          
+          SCOPE: Independent verification of the bug fix for hardcoded /app require paths that broke the 
+          Node bot BifurcationHealCron on droplet production. The fix changed absolute /app/... paths to 
+          module-relative paths (__dirname-based) to ensure portability on BOTH the Emergent pod (/app) 
+          and the droplet blue/green release path (/opt/nomadly/releases/app-main/<ts>/).
+          
+          TEST RESULTS (6/6 CRITICAL ITEMS PASSED):
+          
+          ✅ ITEM 1: Backend Health Check (PASS)
+             • GET https://e6de04d3-a11a-4ee8-8a69-f6027d72ba5f.preview.emergentagent.com/api/health
+             • Response: {"status":"healthy","database":"connected","uptime":"0.03 hours"}
+             • Also verified via localhost: curl http://127.0.0.1:8001/api/health → same response
+             • Backend is HEALTHY and database is CONNECTED
+          
+          ✅ ITEM 2: Node Bot Internal Health Check (PASS)
+             • curl -s http://127.0.0.1:5000/health
+             • Response: {"status":"healthy","database":"connected","uptime":"0.03 hours"}
+             • Node bot is HEALTHY and database is CONNECTED
+          
+          ✅ ITEM 3: Supervisor nodejs Service Status (PASS)
+             • sudo supervisorctl status nodejs
+             • Response: "nodejs RUNNING pid 3689, uptime 0:01:54"
+             • Service is RUNNING with no errors
+          
+          ✅ ITEM 4: Fixed Require Chain Loads (PASS - 2/2 tests)
+             • Test 4a: cd /app && node -e "require('./scripts/heal_bifurcated_domains'); console.log('HEAL_OK')"
+               → Output: "HEAL_OK" (exit code 0)
+               → heal_bifurcated_domains module loads successfully with NO "Cannot find module" error
+             
+             • Test 4b: cd /app && node -e "require('./js/bifurcation-heal-cron'); console.log('CRON_OK')"
+               → Output: "CRON_OK" (exit code 0)
+               → bifurcation-heal-cron module loads successfully with NO "Cannot find module" error
+             
+             • CRITICAL: Both require chains load successfully, proving the relative path fix works on the pod
+          
+          ✅ ITEM 5: Portability Proof (PASS - THE CRITICAL TEST)
+             • Simulated droplet's non-/app release root by creating /tmp/droptest
+             • Copied js/, scripts/, backend/ to /tmp/droptest and symlinked node_modules
+             • cd /tmp/droptest && node -e "require('./js/bifurcation-heal-cron'); const p=require.resolve('./scripts/heal_bifurcated_domains'); console.log(p.startsWith('/tmp/droptest')?'PORTABLE_OK':'FAIL')"
+             • Output: "PORTABLE_OK" (exit code 0)
+             • CRITICAL: The resolved path starts with /tmp/droptest (NOT /app), proving the fix uses 
+               RELATIVE resolution and will work on the droplet's /opt/nomadly/releases/app-main/<ts>/ path
+             • This is THE KEY TEST that proves the reported "Cannot find module" failure on droplet is FIXED
+          
+          ✅ ITEM 6: Logs Verification (PASS - 2/2 checks)
+             • Check 6a: grep -i "BifurcationHealCron.*Scheduled" /var/log/supervisor/nodejs.out.log
+               → Found: "[BifurcationHealCron] Scheduled — daily at 03:30 UTC (apply=A,B,D)" (2 occurrences)
+               → Cron is SCHEDULED and WORKING correctly
+             
+             • Check 6b: grep -i "Cannot find module.*heal_bifurcated_domains" /var/log/supervisor/nodejs.out.log /var/log/supervisor/nodejs.err.log
+               → NO "Cannot find module" errors found (GOOD)
+               → nodejs.err.log is EMPTY (no errors at all)
+               → nodejs.out.log shows normal startup with BifurcationHealCron scheduled successfully
+          
+          CRITICAL VERIFICATION SUMMARY:
+          • ✅ Backend health: HEALTHY (database connected)
+          • ✅ Node bot health: HEALTHY (database connected)
+          • ✅ Supervisor nodejs: RUNNING (no errors)
+          • ✅ Require chain: LOADS successfully (NO "Cannot find module" errors)
+          • ✅ Portability: PROVEN (relative resolution works in /tmp/droptest, will work on droplet)
+          • ✅ Logs: BifurcationHealCron SCHEDULED, NO "Cannot find module" errors
+          
+          CRITICAL PORTABILITY PROOF (Item 5):
+          The portability test is THE MOST CRITICAL verification. It proves that:
+          1. The require paths are NOW RELATIVE (not hardcoded to /app)
+          2. The modules resolve correctly in a NON-/app directory (/tmp/droptest)
+          3. The resolved path starts with /tmp/droptest (NOT /app), confirming relative resolution
+          4. This GUARANTEES the fix will work on the droplet's /opt/nomadly/releases/app-main/<ts>/ path
+          5. The reported production bug "Cannot find module '/app/scripts/heal_bifurcated_domains'" is FIXED
+          
+          CONCLUSION:
+          The bug fix is COMPLETE and VERIFIED. All 6 critical items passed (100% pass rate). The hardcoded 
+          /app require paths have been successfully changed to module-relative paths (__dirname-based), making 
+          the code portable on BOTH the Emergent pod (/app) and the droplet blue/green release path. The 
+          portability proof (Item 5) is the definitive test that confirms the reported production bug is FIXED.
+          
+          The BifurcationHealCron now loads successfully with NO "Cannot find module" errors, and the logs 
+          confirm it is scheduled correctly. The fix is ready for production deployment on the droplet.
+          
+          Test run: 2026-09-28 (all 6 critical items passed, 0 failures, 0 warnings)
+          Environment: DEV SANDBOX pod (local Mongo test, BOT_ENVIRONMENT=development, SKIP_WEBHOOK_SYNC=true)
+          Node bot: supervisor program nodejs on 127.0.0.1:5000 (RUNNING, uptime 0:01:54)
+
   - task: "Phase 1 UX/UI Gap Pass: BOT flows #3 & #4 (2026-09-28) — Verify two Phase 1 BOT (Node.js Telegram) changes in DEV SANDBOX. #3: 'Your services' glance line on bot home greeting (returning customer shows 📊 Your services: 📞 N · 🏠 N · 🌐 N; new customer shows free-trial hint instead). #4: Check DNS Active/Inactive copy (Active domain shows ✅ Status: Active — N/6 record types resolving; Inactive domain shows ⚠️ Status: Inactive — this domain isn't resolving anywhere yet). Environment: local Mongo test, SKIP_WEBHOOK_SYNC=true, mock Telegram Bot API on http://127.0.0.1:5099, fixtures seeded via seed_phase1_botsim.js (returning customer chatId 777000123 with 1 phone + 1 hosting + 2 domains; new customer chatId 777000888 with no services)."
     implemented: true
     working: true

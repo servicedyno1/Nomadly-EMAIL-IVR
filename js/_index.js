@@ -46850,7 +46850,7 @@ try {
     const apply = req.query.apply || null  // null = dry-run by default
     const onlyDomain = req.query.domain || null
     try {
-      const heal = require('/app/scripts/heal_bifurcated_domains')
+      const heal = require('../scripts/heal_bifurcated_domains')
       const result = await heal.runHealSweep({ db, apply, onlyDomain })
       res.json({ success: true, summary: result.summary, mode: result.mode, count: result.results.length })
     } catch (e) {

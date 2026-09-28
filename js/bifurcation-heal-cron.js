@@ -20,7 +20,9 @@
  * OpenProvider auth cache, and Cloudflare service time to settle.
  */
 const schedule = require('node-schedule')
-const heal = require('/app/scripts/heal_bifurcated_domains')
+// Portable require: resolve relative to this file (../scripts) so it works both on the
+// Emergent pod (/app) and on the droplet blue/green release (/opt/nomadly/releases/...).
+const heal = require('../scripts/heal_bifurcated_domains')
 
 const BOOT_DELAY_MS = 90 * 1000 // 90s — let auth tokens warm up
 const CRON_DAILY_0330_UTC = '30 3 * * *'
