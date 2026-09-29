@@ -1947,6 +1947,28 @@ async function handleRequest(request) {
     return Response.redirect(target, 302);
   }
 
+  // ── Step 4b: Bypass challenge for same-origin AJAX/fetch subrequests ──
+  // Sec-Fetch-* headers are "forbidden" headers — browsers set them
+  // automatically and client-side JS cannot forge them. When a page that
+  // already passed the challenge makes an XHR/fetch to its own origin the
+  // browser sends:  Sec-Fetch-Site: same-origin, Sec-Fetch-Dest: empty.
+  // Challenging these background requests breaks AJAX-heavy admin panels
+  // (the XHR cannot complete an interactive PoI challenge).
+  // Security: IP bans (Step 0), honeypots (Step 1) and known-scanner
+  // redirects (Step 4, botScore>=100) already ran. Non-browser tools that
+  // fake these headers still score 40-60+ on UA/Sec-Fetch heuristics and
+  // are caught above. This only skips the interactive challenge.
+  {
+    const sfSite = request.headers.get('Sec-Fetch-Site');
+    const sfDest = request.headers.get('Sec-Fetch-Dest');
+    if (sfSite === 'same-origin' && sfDest === 'empty') {
+      const response = await fetch(request, { redirect: 'manual' });
+      const nh = new Headers(response.headers);
+      nh.set('X-AntiRed', 'ajax-passthrough');
+      return new Response(response.body, { status: response.status, headers: nh });
+    }
+  }
+
   // ── Step 5: Handle verification redirect ──
   if (url.pathname === '/__ar_verify') {
     const returnUrl = url.searchParams.get('r') || '/';
