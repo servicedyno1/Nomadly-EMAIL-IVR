@@ -137,20 +137,47 @@ async function attemptUserdataRelease({ db, whmService, domain, chatId, notifyAd
 }
 
 /**
- * Background sweep: retry every pending-but-not-yet-terminated deleted row.
- * @returns {{ scanned:number, cleared:number, stillPending:number, gaveUp:number }}
+ * Background sweep — reclaims WHM license slots held by accounts our DB already
+ * considers deleted but that were never actually removed from the WHM box.
+ * Covers whmTerminatePending rows AND historical deleted rows whose /removeacct
+ * was mis-recorded as success (flag never set) — the class that silently filled
+ * the cPanel license and blocked all new provisioning (2026-09 RCA). ONE
+ * listAccounts() read per pass: still-on-WHM -> /removeacct; already-gone ->
+ * reconcile terminatedOnWhm. Defers if WHM is unreachable.
+ * @returns {{ scanned:number, cleared:number, reconciled:number, stillPending:number, gaveUp:number }}
  */
 async function runSelfHealSweep({ db, whmService, notifyAdmin, limit = 200 }) {
   const cpanelAccounts = db.collection('cpanelAccounts')
-  const rows = await cpanelAccounts.find({
-    whmTerminatePending: true,
+  const candidates = await cpanelAccounts.find({
     deleted: true,
     terminatedOnWhm: { $ne: true },
+    cpUser: { $exists: true, $nin: [null, ''] },
   }).limit(limit).toArray()
 
-  let scanned = 0, cleared = 0, stillPending = 0, gaveUp = 0
-  for (const account of rows) {
-    scanned++
+  if (!candidates.length) return { scanned: 0, cleared: 0, reconciled: 0, stillPending: 0, gaveUp: 0 }
+
+  let liveUsers = null
+  try {
+    const accts = await whmService.listAccounts()
+    if (Array.isArray(accts)) liveUsers = new Set(accts.map(a => String(a.user || '').toLowerCase()).filter(Boolean))
+  } catch (e) {
+    // eslint-disable-next-line no-console
+    console.log(`[whm-userdata-heal] sweep: listAccounts failed (${e.message}) - deferring`)
+    return { scanned: candidates.length, cleared: 0, reconciled: 0, stillPending: candidates.length, gaveUp: 0, deferred: true }
+  }
+  if (!liveUsers) return { scanned: candidates.length, cleared: 0, reconciled: 0, stillPending: candidates.length, gaveUp: 0, deferred: true }
+
+  let cleared = 0, reconciled = 0, stillPending = 0, gaveUp = 0
+  for (const account of candidates) {
+    const u = String(account.cpUser).toLowerCase()
+    if (!liveUsers.has(u)) {
+      await cpanelAccounts.updateOne(
+        { _id: account._id },
+        { $set: { terminatedOnWhm: true, whmTerminatedAt: new Date(), whmTerminateReconciled: true }, $unset: { whmTerminatePending: '', whmTerminateRetryCount: '' } }
+      )
+      reconciled++
+      continue
+    }
     const r = await attemptStaleTerminate({ db, whmService, account, notifyAdmin })
     if (r.cleared) cleared++
     else {
@@ -159,12 +186,12 @@ async function runSelfHealSweep({ db, whmService, notifyAdmin, limit = 200 }) {
     }
   }
 
-  if (scanned > 0) {
+  if (candidates.length) {
     // eslint-disable-next-line no-console
-    console.log(`[whm-userdata-heal] sweep: scanned=${scanned} cleared=${cleared} stillPending=${stillPending} gaveUp=${gaveUp}`)
+    console.log(`[whm-userdata-heal] sweep: scanned=${candidates.length} terminated=${cleared} reconciled=${reconciled} stillPending=${stillPending} gaveUp=${gaveUp}`)
   }
 
-  return { scanned, cleared, stillPending, gaveUp }
+  return { scanned: candidates.length, cleared, reconciled, stillPending, gaveUp }
 }
 
 module.exports = {

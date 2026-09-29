@@ -872,8 +872,14 @@ Login: ${panelUrl}
         // welcome email so the user knows what to point their registrar to.
         info.cfNameservers = Array.isArray(cfNameservers) ? cfNameservers : []
         info._isExternalDomain = !!isExternal
-        await sendEmail(info, response, pin)
-        send(chatId, `📧 Credentials sent to <b>${info.email}</b>`, rem)
+        const emailed = await sendEmail(info, response, pin)
+        if (emailed) {
+          send(chatId, `📧 Credentials sent to <b>${info.email}</b>`, rem)
+        } else {
+          // Email failed (e.g. SMTP port blocked) - creds were already shown in
+          // chat above, so don't mislead the user that an email went out.
+          send(chatId, `⚠️ We couldn't email your credentials to <b>${info.email}</b> right now - they're shown above in this chat. Save them safely.`, rem)
+        }
       } catch (error) {
         log('Error sending email:', error)
         send(TELEGRAM_DEV_CHAT_ID, 'Error sending email', keyboardButtons)
