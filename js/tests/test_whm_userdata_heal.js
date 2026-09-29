@@ -71,8 +71,12 @@ function makeFakeCol(seedRows = []) {
 function makeFakeDb(cpanelAccountsFake) {
   return { collection: name => (name === 'cpanelAccounts' ? cpanelAccountsFake : null) }
 }
-function makeWhmStub({ terminate }) {
-  return { terminateAccount: async (cpUser) => terminate(cpUser) }
+function makeWhmStub({ terminate, live }) {
+  return {
+    terminateAccount: async (cpUser) => (terminate ? terminate(cpUser) : true),
+    // live = array of cpUsers currently present on WHM (for runSelfHealSweep)
+    listAccounts: async () => (Array.isArray(live) ? live.map(u => ({ user: u })) : []),
+  }
 }
 
 const heal = require('../whm-userdata-heal')
@@ -175,27 +179,45 @@ console.log('\n=== (2) attemptStaleTerminate ===')
   r = await heal.attemptUserdataRelease({})
   ok('H: missing args → released:false', r.released === false && r.reason === 'missing-args')
 
-  console.log('\n=== (4) runSelfHealSweep ===')
+  console.log('\n=== (4) runSelfHealSweep (reclaim + reconcile) ===')
   const col3 = makeFakeCol([
-    { _id: 'a', cpUser: 'a', chatId: '1', domain: 'a.com', deleted: true, whmTerminatePending: true, whmTerminateRetryCount: 0 },
-    { _id: 'b', cpUser: 'b', chatId: '2', domain: 'b.com', deleted: true, whmTerminatePending: true, whmTerminateRetryCount: 0 },
-    { _id: 'c', cpUser: 'c', chatId: '3', domain: 'c.com', deleted: false /* live — ignored */ },
-    { _id: 'd', cpUser: 'd', chatId: '4', domain: 'd.com', deleted: true /* not pending — ignored */ },
+    { _id: 'a', cpUser: 'a', chatId: '1', domain: 'a.com', deleted: true, whmTerminatePending: true, whmTerminateRetryCount: 0 }, // on WHM, terminates OK → cleared
+    { _id: 'b', cpUser: 'b', chatId: '2', domain: 'b.com', deleted: true, whmTerminatePending: true, whmTerminateRetryCount: 0 }, // on WHM, terminate fails → stillPending
+    { _id: 'c', cpUser: 'c', chatId: '3', domain: 'c.com', deleted: false /* live account — never a candidate */ },
+    { _id: 'd', cpUser: 'd', chatId: '4', domain: 'd.com', deleted: true /* NO pending flag, already GONE from WHM → reconciled */ },
+    { _id: 'e', cpUser: 'e', chatId: '5', domain: 'e.com', deleted: true /* NO pending flag, still ON WHM (false-success class) → terminated */ },
   ])
   const db3 = makeFakeDb(col3)
 
+  // WHM currently has a, b, e (not d — already gone). terminate: a & e succeed, b fails.
   const summary = await heal.runSelfHealSweep({
     db: db3,
-    // Only 'a' clears; 'b' still stuck
-    whmService: makeWhmStub({ terminate: async (cpUser) => cpUser === 'a' }),
+    whmService: makeWhmStub({ live: ['a', 'b', 'e'], terminate: async (cpUser) => cpUser === 'a' || cpUser === 'e' }),
   })
-  ok('sweep scanned exactly the 2 pending rows', summary.scanned === 2)
-  ok('sweep cleared 1', summary.cleared === 1)
-  ok('sweep stillPending 1', summary.stillPending === 1)
+  ok('sweep scanned 4 deleted-not-terminated rows (c excluded)', summary.scanned === 4)
+  ok('sweep terminated 2 (a + historical e)', summary.cleared === 2)
+  ok('sweep reconciled 1 already-gone (d)', summary.reconciled === 1)
+  ok('sweep stillPending 1 (b)', summary.stillPending === 1)
   const aAfter = await col3.findOne({ _id: 'a' })
   const bAfter = await col3.findOne({ _id: 'b' })
+  const dAfter = await col3.findOne({ _id: 'd' })
+  const eAfter = await col3.findOne({ _id: 'e' })
   ok('a cleared (terminatedOnWhm=true, pending unset)', aAfter.terminatedOnWhm === true && aAfter.whmTerminatePending === undefined)
-  ok('b still pending', bAfter.whmTerminatePending === true && bAfter.whmTerminateRetryCount === 1)
+  ok('b still pending (retryCount 1)', bAfter.whmTerminatePending === true && bAfter.whmTerminateRetryCount === 1)
+  ok('d reconciled (gone from WHM → terminatedOnWhm true, reconciled flag)', dAfter.terminatedOnWhm === true && dAfter.whmTerminateReconciled === true)
+  ok('e (historical false-success) reclaimed → terminatedOnWhm true', eAfter.terminatedOnWhm === true)
+
+  // Deferral: if WHM is unreachable, make NO changes and report deferred.
+  const col4 = makeFakeCol([
+    { _id: 'x', cpUser: 'x', chatId: '9', domain: 'x.com', deleted: true },
+  ])
+  const summary2 = await heal.runSelfHealSweep({
+    db: makeFakeDb(col4),
+    whmService: { terminateAccount: async () => true, listAccounts: async () => { throw new Error('WHM down') } },
+  })
+  ok('sweep defers when listAccounts throws', summary2.deferred === true)
+  const xAfter = await col4.findOne({ _id: 'x' })
+  ok('deferred sweep made NO changes', xAfter.terminatedOnWhm === undefined)
 
   console.log('\n=== (5) static wiring guards ===')
   const slurp = rel => fs.readFileSync(path.join('/app', rel), 'utf8')

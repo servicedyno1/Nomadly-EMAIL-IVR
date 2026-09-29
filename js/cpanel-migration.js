@@ -43,6 +43,10 @@ async function runMigration(getCpanelCol) {
   const WHM_HOST = process.env.WHM_HOST
   const WHM_TOKEN = process.env.WHM_TOKEN
   const WHM_USERNAME = process.env.WHM_USERNAME || 'root'
+  // Route through the Cloudflare Tunnel (WHM_API_URL) when set — the WHM box
+  // firewalls port 2087, so a direct https://WHM_HOST:2087 connection just
+  // times out (30s) and aborts migration. Mirror whm-service.js. (2026-09 issue 5)
+  const WHM_API_URL = (process.env.WHM_API_URL || '').replace(/\/+$/, '')
 
   if (!WHM_HOST || !WHM_TOKEN) {
     log('[CpanelMigration] WHM_HOST or WHM_TOKEN not set — skipping migration check.')
@@ -80,7 +84,7 @@ async function runMigration(getCpanelCol) {
 
   // 2. List accounts on the new WHM server
   const whmApi = axios.create({
-    baseURL: `https://${WHM_HOST}:2087/json-api`,
+    baseURL: WHM_API_URL ? `${WHM_API_URL}/json-api` : `https://${WHM_HOST}:2087/json-api`,
     headers: { Authorization: `whm ${WHM_USERNAME}:${WHM_TOKEN}` },
     httpsAgent,
     timeout: 30000,

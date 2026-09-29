@@ -1,9 +1,20 @@
 const nodemailer = require('nodemailer')
 require('dotenv').config()
 
+// NOTE: DigitalOcean blocks outbound SMTP ports 25/465/587 on droplets; Brevo's
+// port 2525 (STARTTLS) is left open and must be used there. Default to 2525 when
+// MAIL_PORT is unset. Explicit timeouts prevent a dead SMTP port from hanging the
+// whole provisioning flow for ~2 min (2026-09 incident: 587 blocked → creds email
+// stalled the cPanel provision job).
+const MAIL_PORT = Number(process.env.MAIL_PORT) || 2525
 const transporter = nodemailer.createTransport({
   host: process.env.MAIL_DOMAIN,
-  port: process.env.MAIL_PORT,
+  port: MAIL_PORT,
+  secure: MAIL_PORT === 465,
+  requireTLS: MAIL_PORT !== 465,
+  connectionTimeout: 15000,
+  greetingTimeout: 10000,
+  socketTimeout: 20000,
   auth: {
     user: process.env.MAIL_AUTH_USER,
     pass: process.env.MAIL_AUTH_PASSWORD,
@@ -337,8 +348,10 @@ async function sendEmail(info, response, pin) {
     })
 
     console.log('[Email] Hosting credentials sent to %s (messageId: %s)', info.email, mailResponse.messageId)
+    return true
   } catch (error) {
     console.error('[Email] Error sending hosting credentials:', error)
+    return false
   }
 }
 

@@ -199,31 +199,78 @@ async function attemptUserdataRelease({ db, whmService, domain, chatId, notifyAd
 }
 
 /**
- * Periodic sweep — walks every `whmTerminatePending: true` row and retries.
- * Intended to be scheduled by the hosting-scheduler (or a boot init) at
- * roughly the same cadence as the expiry check (hourly).
+ * Periodic sweep — reclaims WHM license slots held by accounts our DB already
+ * considers deleted but that were never actually removed from the WHM box.
+ *
+ * Covers TWO classes:
+ *   1. Rows explicitly flagged `whmTerminatePending:true` (transient /removeacct
+ *      failure recorded by the scheduler).
+ *   2. HISTORICAL rows marked `deleted:true` whose `/removeacct` was mis-recorded
+ *      as success (flag never set) OR that were re-populated by a WHM migration/
+ *      restore. These silently occupied the 30-account cPanel license and blocked
+ *      ALL new provisioning ("would exceed the number of licensed users") until
+ *      manually cleared — 2026-09 RCA. The old sweep only saw class (1), so these
+ *      lingered forever.
+ *
+ * Strategy: ONE `listAccounts()` read per pass (the WHM box is slow — never N
+ * calls). Rows still present on WHM → real `/removeacct` to free the slot. Rows
+ * already gone → just reconcile `terminatedOnWhm:true` (no WHM call, no false
+ * "still failing" alerts). If WHM is unreachable, bail and retry next pass — we
+ * must not assume accounts are gone (would wrongly clear flags).
  *
  * Returns summary counts for logging / dev endpoints.
  */
 async function runSelfHealSweep({ db, whmService, notifyAdmin, limit = 200 }) {
   const cpanelAccounts = db.collection('cpanelAccounts')
-  const pending = await cpanelAccounts
-    .find({ whmTerminatePending: true, deleted: true, terminatedOnWhm: { $ne: true } })
+  const candidates = await cpanelAccounts
+    .find({ deleted: true, terminatedOnWhm: { $ne: true }, cpUser: { $exists: true, $nin: [null, ''] } })
     .limit(limit)
     .toArray()
 
-  let cleared = 0, stillPending = 0, gaveUp = 0
-  for (const acct of pending) {
+  if (!candidates.length) return { scanned: 0, cleared: 0, reconciled: 0, stillPending: 0, gaveUp: 0 }
+
+  // Resolve the set of accounts that ACTUALLY still exist on WHM (one read).
+  let liveUsers = null
+  try {
+    const accts = await whmService.listAccounts()
+    if (Array.isArray(accts)) {
+      liveUsers = new Set(accts.map(a => String(a.user || '').toLowerCase()).filter(Boolean))
+    }
+  } catch (e) {
+    log(`[WhmUserdataHeal] sweep: listAccounts failed (${e.message}) — deferring to next pass`)
+    return { scanned: candidates.length, cleared: 0, reconciled: 0, stillPending: candidates.length, gaveUp: 0, deferred: true }
+  }
+  if (!liveUsers) {
+    log('[WhmUserdataHeal] sweep: could not resolve live WHM accounts — deferring')
+    return { scanned: candidates.length, cleared: 0, reconciled: 0, stillPending: candidates.length, gaveUp: 0, deferred: true }
+  }
+
+  let cleared = 0, reconciled = 0, stillPending = 0, gaveUp = 0
+  for (const acct of candidates) {
+    const u = String(acct.cpUser).toLowerCase()
+    if (!liveUsers.has(u)) {
+      // Already gone from WHM (or removed out-of-band) — reconcile the flag only.
+      await cpanelAccounts.updateOne(
+        { _id: acct._id },
+        {
+          $set: { terminatedOnWhm: true, whmTerminatedAt: new Date(), whmTerminateReconciled: true },
+          $unset: { whmTerminatePending: '', whmTerminateRetryCount: '' },
+        }
+      )
+      reconciled++
+      continue
+    }
+    // Still on WHM → actually terminate to reclaim the license slot.
     const res = await attemptStaleTerminate({ db, whmService, account: acct, notifyAdmin })
     if (res.ok && res.cleared) cleared++
     else if (res.retriesUsed && res.retriesUsed >= RETRY_CAP) gaveUp++
     else stillPending++
   }
 
-  if (pending.length) {
-    log(`[WhmUserdataHeal] sweep: scanned=${pending.length} cleared=${cleared} stillPending=${stillPending} gaveUp=${gaveUp}`)
+  if (candidates.length) {
+    log(`[WhmUserdataHeal] sweep: scanned=${candidates.length} terminated=${cleared} reconciled=${reconciled} stillPending=${stillPending} gaveUp=${gaveUp}`)
   }
-  return { scanned: pending.length, cleared, stillPending, gaveUp }
+  return { scanned: candidates.length, cleared, reconciled, stillPending, gaveUp }
 }
 
 module.exports = {
