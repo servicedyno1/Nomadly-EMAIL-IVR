@@ -3911,6 +3911,14 @@ const loadData = async () => {
     _alertCronInitFailure('WhmDiskMonitor', e)
   }
 
+  // Initialize Daily cPanel Account Digest — DMs admin at 08:00 UTC with the
+  // WHM account count (total/license), active vs suspended, and this brand's
+  // share of the shared server. Runs on both bots (each to its own admin chat).
+  await safeInitCron('WhmAccountDigest', () => {
+    require('./whm-account-digest').initScheduler({ bot, db, whmService: require('./whm-service.js'), notifyAdmin })
+    log('[WhmAccountDigest] Initialized')
+  })
+
   // Initialize Hosting Upgrade Credit Nudge (daily DM 2 days before window closes)
   await safeInitCron('HostingUpgradeNudge', () => require('./hosting-upgrade-nudge').init({ bot, db }))
 
