@@ -46929,7 +46929,7 @@ app.get('/:id', async (req, res) => {
   }
 
   // Skip known frontend SPA routes — let them be handled by the React catch-all
-  const spaRoutes = ['call', 'panel', 'phone', 'login', 'signup', 'dashboard', 'settings']
+  const spaRoutes = ['call', 'panel', 'phone', 'login', 'signup', 'dashboard', 'settings', 'sales']
   if (spaRoutes.includes(id.toLowerCase())) {
     // Serve the React SPA index.html for these routes
     const buildPath = require('path').join(__dirname, '..', 'frontend', 'build', 'index.html')
