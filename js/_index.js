@@ -4293,6 +4293,11 @@ const loadData = async () => {
     else log('[Honeypot] KV namespace not available (Cloudflare credentials may be missing)')
   }).catch(err => log(`[Honeypot] KV init warning: ${err.message}`))
 
+  // Initialize Scanner IP Auto-Refresh (P0: dynamic scanner IP feeds)
+  const scannerIPRefresh = require('./scanner-ip-refresh')
+  scannerIPRefresh.init(db)
+  scannerIPRefresh.startRefreshScheduler()
+
   // Initialize Audio Library + Bulk Call Service
   audioLibraryService.initAudioLibrary(db)
   // Pass `app` so bulk-call-service registers its Twilio webhook routes ONLY

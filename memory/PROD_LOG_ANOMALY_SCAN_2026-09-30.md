@@ -1,51 +1,51 @@
-# Production Log Anomaly Scan — 2026-09-30 (05:45Z)
+# Production Log Anomaly Scan + Fixes — 2026-09-30
 
-Droplet `146.190.238.190` (nomadly-prod-ams3). Active PM2: `app-main-a` (Nomadly),
-`app-wl-b` (Smadav/WhiteLabel), `app-hb` (redirect/heartbeat bot).
-Logs scanned: `/root/.pm2/logs/{app-main-a,app-wl-b,app-hb}-{out,error}.log`.
+Droplet `146.190.238.190`. Active PM2: `app-main-a` (Nomadly), `app-wl-b` (Smadav), `app-hb`.
 
-## P1 — Broken / active
+## ✅ FIXED THIS SESSION
 
-### 1. Contabo auth circuit OPEN — `invalid_client` (Nomadly)
-- Hourly: `[Contabo] 🔌 Auth circuit OPEN — token fetch failed { error:'invalid_client', error_description:'Invalid client or Invalid client credentials' } — suppressing 30m`
-- Knock-on hourly: `[VPS Self-heal] Contabo auth down mid-cycle — aborting remaining checks`
-- Latest 2026-09-30T05:30Z. VPS provisioning + self-heal are DOWN. Needs valid `CONTABO_CLIENT_ID/SECRET/API_USER/API_PASSWORD`.
+### #3 — Per-user cPanel 401/403 AUTH-BROKEN (both bots)  [FIXED, verified]
+- ROOT CAUSE: WHM Tweak Setting `skiphttpauth=1` in `/var/cpanel/cpanel.config` had
+  **disabled HTTP Basic Authentication** server-wide. The per-user cPanel proxy authenticates
+  every `/execute/` UAPI call with HTTP Basic Auth (user:cpPass) over the CF tunnel
+  `cpanel-api.hostbay.io` → cpsrvd :2083. cpsrvd logged `DEFERRED LOGIN ... HTTP Basic
+  authentication is disabled on this server` and returned the cPanel login page (HTTP 401).
+  The self-heal cpPass rotation was a red herring — the password was always correct.
+- FIX (WHM box, no code/deploy): `whmapi1 set_tweaksetting key=skiphttpauth value=0`.
+- VERIFIED: acce35c9 → HTTP 200 json status:1 (3 files); scotd5d6 → HTTP 200 (12 files).
+  0 new AUTH-BROKEN errors after the change.
+- WATCH: a cPanel update could flip `skiphttpauth` back to 1. If 401s return, re-check this setting.
 
-### 2. `checkDomainPriceOnline` → HTTP 401 "Unauthenticated user" (Nomadly)
-- `checkDomainPriceOnline error: Request failed with status code 401 {"responseText":"Unauthenticated user"}`
-- Seen 2026-09-29T18:08 & 19:55 in app-main-a-error.log. Domain price preview API creds/whitelist broken.
-- NOTE: handoff attributed this to Smadav, but it fires in the **Nomadly** log.
+### #4 — ProtectionHeartbeat `whm_read_unreliable:9` (Smadav)  [FIXED, verified]
+- ROOT CAUSE: `protection-heartbeat.js` `whmApi` hardcoded `https://<WHM_HOST>:2087/json-api`
+  (direct origin). The DO firewall blocks direct origin access to :2087, so every
+  `get_file_content` hung the full 30s timeout → empty body → all 9 accounts marked
+  `whm_read_unreliable` and skipped every cycle (protection never verified; cycle took 2232s).
+  (Direct :2087 = timeout; tunnel `whm-api.hostbay.io` = 0.2s.)
+- FIX (code, deployed both branches): route through `WHM_API_URL` (tunnel) when set, mirroring
+  whm-service.js. Commits: main `5b1893f9`, WhiteLabel `c018b9bb`.
+- VERIFIED: heartbeat now `Done in 5.2s — total:9 ok:9 repaired:0 skipped:0 errors:0`.
 
-### 3. Per-user cPanel token 401/403 AUTH-BROKEN (both bots)
-- Nomadly (users `acce35c9`, `scotd5d6`): 86× upload_files "HTTP 200 with login-page HTML", 81× list_files 401, 33× list_domains 401, 26× API2 fileop 403, 25× upload 401, 19× mkdir 403, 13× SSL installed_hosts 401. Falls back to WHM session. Latest 2026-09-29T22:45.
-- Smadav (user `stel4c10` = stelworxllc.com): 33× list_files 401, upload 401, fileop 403. Latest 2026-09-29T20:31.
-- Root cause: per-user cPanel API tokens invalid → every file-manager op degrades to WHM fallback.
+### #6 — Mongo "collection is object" at Smadav boot  [FIXED, deployed]
+- ROOT CAUSE: `nameOf/planOf/chatIdOf/payments/clicksOf/clicksOn` were bound AFTER awaited
+  index-creation calls in `_index.js`, but `db` became truthy earlier. Early Telegram webhooks
+  during the boot await-window passed the `if (!db)` gate and hit the still-`{}` placeholders
+  → "collection is object (not a valid MongoDB collection)" on the username sync.
+- FIX (code, deployed both): bind those 6 collections synchronously right after
+  `db = client.db(DB_NAME)`, before any await. Commits: main `fd1d6bf4`, WhiteLabel `aebeb829`.
+- VERIFIED: both bots boot clean ("DB Connected lala"), 0 restarts, no new errors.
 
-## P2 — Degraded / needs attention
+## ⏸️ PENDING USER DECISION
 
-### 4. ProtectionHeartbeat — WHM reads unreliable (Smadav)
-- Every cycle (~37min): `Done in 2232.3s — total:9 ok:0 repaired:0 skipped:9 (whm_read_unreliable:9) errors:0`
-- ALL 9 domains skipped ⇒ anti-red protection is NOT being verified/repaired on any domain. Latest 2026-09-30T05:37. Tied to WHM box instability.
+### #7 — Orphaned voice number(s) (Smadav)  [investigated; NOT actioned]
+- `+18052615004` rejects inbound robocalls with no owner. Investigation found the Smadav
+  `phoneNumbersOf` collection is EMPTY (0 docs) while the Smadav Telnyx account holds
+  **34 active paid numbers** (6 local, 28 toll-free, ~$62/mo + inbound minutes). None owned in
+  either the smadav or nomadly DB. See SMADAV_ORPHAN_NUMBERS_2026-09-30.md for the full list.
+- Could be abandoned rentals OR active outbound caller-IDs — do NOT release without user
+  confirmation (releasing is irreversible). Awaiting user decision on which (if any) to release.
 
-### 5. CR-Whitelist (anti-red whitelist automation) login 401 (Smadav)
-- `[CR-Whitelist] API test failed (attempt #3): Request failed with status code 401`
-- `[CR-Whitelist] Browser automation failed: Login failed - landed on /login?returnUrl=/admin/dashboard`
-- Now on Retry #19, hourly. Outbound IP 146.190.238.190. `CR_PANEL_EMAIL/PASSWORD` failing. Latest 2026-09-30T04:54.
-
-### 6. Mongo "collection is object" at Smadav boot
-- 2026-09-28T22:53: `Error get: <chatId> — collection is object (not a valid MongoDB collection)` and
-  `Error set: <chatId> -> "<username>" in undefined: Invalid collection object provided` (MANOPAGANI, claradvid21, onarrival1).
-- username↔chatId cache map failed to persist — invalid/undefined collection handle at startup (init race). One-off at boot.
-
-### 7. Voice — ORPHANED NUMBER (Smadav)
-- `+18052615004` has no owner ⇒ inbound calls from +18055838840 rejected (6×). Latest 2026-09-29T23:43. Needs number cleanup/reassignment.
-
-### 8. Telnyx balance low warning (Smadav)
-- `[BalanceMonitor] Telnyx: $8.44 USD [warning]` (4×). Top-up before it blocks voice/SMS.
-
-## P3 — Noise / benign
-- AutoPromo broadcast skips users who blocked the bot: `ETELEGRAM: 403 Forbidden: bot was blocked by the user` (Nomadly 12×, Smadav 10×). Expected behaviour.
-- app-hb FastAPI warning: `Duplicate Operation ID catch_all_api__path__post` (cosmetic). Redirect bot otherwise healthy (webhook set, sendMessage 200 OK).
-
-## Healthy
-- All 3 PM2 processes `online`, 0 restarts. Host cpu 1.3%, ram 23.7%. Telegram webhook 200 OK.
+## Out of scope this session (still open)
+- P0 cPanel license upgrade steps (30→100) — still pending user request.
+- #1 Contabo `invalid_client` (needs creds), #2 domain-price 401, #5 CR-Whitelist 401,
+  stale nginx block, fail2ban, cPanel license-limit createacct failures.

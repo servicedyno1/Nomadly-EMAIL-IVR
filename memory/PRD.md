@@ -16,6 +16,35 @@ User inherited a fully-set-up Nomadly bot pod pointed at LIVE PRODUCTION. Task b
 - Sandbox `/app/backend/.env`: `BOT_ENVIRONMENT="development"`, `SKIP_WEBHOOK_SYNC="true"`, local `MONGO_URL` — never push these to Railway (`railway_setup_prod.js` strips/overrides them automatically)
 - Vault (`memory/nomadly.vault.enc`, passphrase in test_credentials.md) is the single source of truth for credentials; after editing `.env` always `vault.sh lock`, then `railway_setup_prod.js apply` to sync production
 
+## 2026-09-30 — Anti-Red P0/P1 Improvements
+
+### P0 #1: Scanner IP Auto-Refresh (Dynamic IPs)
+- **Problem**: `SCANNER_IP_RANGES` in `anti-red-service.js` was static. Scanner networks (Censys, Shodan, GreyNoise) regularly rotate/add IPs that slipped through unblocked.
+- **Solution**: New `js/scanner-ip-refresh.js` service fetches public scanner IP feeds daily, merges with the hardcoded base list, persists to MongoDB (`scannerIPFeeds` collection), and auto-redeploys the CF Worker when new IPs are found.
+- **New function**: `getAllScannerIPs()` — merges base + dynamic IPs for use in Worker/htaccess generation.
+- **Admin override**: `addAdminOverrides(ips, reason)` — manually add scanner IPs via code/Telegram.
+- **Boot**: Wired into `_index.js` — loads cached IPs from MongoDB immediately, then refreshes from feeds 5 min after boot and every 24h.
+
+### P0 #2: Chrome Version Ceiling Auto-Calculation
+- **Problem**: `calculateBotScore()` hardcoded Chrome version thresholds (`>165`, `<90`) that go stale as Chrome releases ~monthly.
+- **Solution**: `getChromeVersionCeiling()` dynamically calculates thresholds based on Chrome's release cadence (Chrome 120 = Dec 2023, +1 every 4 weeks). Returns `{ stable, suspicious: +15, maybeDev: +10, old: -40 }`. Embedded into both the CF Worker script and the client-side challenge page at generation time.
+
+### P1 #3: Protection Files Moved Outside public_html
+- **Problem**: `.user.ini` and `.antired-challenge.php` in `public_html` were vulnerable to accidental user deletion (uploads, zip extracts, File Manager).
+- **Solution**: Protection PHP now deploys to `/home/<user>/.antired/challenge.php` (outside public_html). `.user.ini` remains in public_html (PHP requires it there) but is now a tiny 2-line pointer. `isProtectedAntiRedFile()` also guards the new `/.antired/` directory. Legacy files get a "MIGRATED" stub.
+- **Heartbeat**: `checkAndRepair()` now checks both old and new locations (prefers protected).
+
+### P1 #4: HTTP Health Probe as STUCK Second-Opinion
+- **Problem**: False STUCK alerts when WHM reads are unreliable but the CF Worker is actually cloaking fine at the edge.
+- **Solution**: `probeProtectionHealth(domain)` — before marking an account STUCK, does an HTTP GET with a scanner UA to see if cloaking/challenge/redirect is active. If protection works at the edge, resets the repair counter instead of alerting.
+
+### P1 #5: Telegram Alert Dedup/Digest
+- **Problem**: During WHM load spikes, each stuck account fired its own Telegram message (28 messages in the 2026-06-24 incident).
+- **Solution**: `queueStuckAlert()` collects alerts during the heartbeat cycle; `flushStuckAlerts()` sends a single digest message at the end. Single-account alerts still get full detail; multi-account alerts get a bulleted summary.
+
+### Brevo API Key Update (2026-09-30)
+- Updated `BREVO_API_KEY` on both production bots (`app-main` + `app-wl`) on DO droplet + local dev `.env`.
+
 ## 2026-09-29 — Anti-Red CF Worker AJAX Bypass Fix
 - **Problem**: Customer `stelworxllc.com` reported Live Panel showing empty (no sessions) on our WHM hosting. Same panel code worked on `redroom.ke` (LiteSpeed, no Cloudflare).
 - **Root cause**: The Anti-Red Cloudflare Worker intercepted AJAX requests to `poll_sessions.php` with the "Verifying your browser" challenge HTML page. Since background XHR cannot complete an interactive PoI challenge, `$.getJSON` failed silently → no session cards rendered.
@@ -27,6 +56,7 @@ User inherited a fully-set-up Nomadly bot pod pointed at LIVE PRODUCTION. Task b
 ## Pending Issues (carried forward)
 
 ### P0
+- Telnyx orphan numbers (34 unmapped numbers ~$62/mo) — awaiting user decision
 - cPanel license upgrade steps (30 → 100) — provide exact procedure to the user
 
 ### P1
@@ -38,7 +68,6 @@ User inherited a fully-set-up Nomadly bot pod pointed at LIVE PRODUCTION. Task b
 - Anti-Red Whitelist automation login broken (401)
 - Droplet SSH Security Vulnerability (Root brute-force attacks) — need fail2ban
 - Delete unused cPanel accounts on WHM — 1 suspended account (`ghrx51df`) pending user confirmation
-- cPanel Proxy 401 AUTH-BROKEN (degraded proxy, falling back to WHM root)
 
 ### P2 (Future)
 - Boot-time Telegram ping for DO power-cycles
