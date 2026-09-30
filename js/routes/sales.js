@@ -538,6 +538,19 @@ function install(app, deps) {
       const usage = await loadUsage(db, since, until)
       const report = buildReport(normalized, usage, since, until)
 
+      // ── Eligible payout (range-independent) ──
+      // Cumulative profit that is safe to withdraw since the VERY FIRST sale —
+      // NOT the selected range and NOT just this week. Always all-time.
+      try {
+        const epoch = new Date(0)
+        const allNorm = raw.map(normalizeTxn).filter((r) => r.date)
+        const allUsage = await loadUsage(db, epoch, until)
+        const allReport = buildReport(allNorm, allUsage, epoch, until)
+        report.summary.eligiblePayout = allReport.summary.payout
+      } catch (_) {
+        report.summary.eligiblePayout = report.summary.payout
+      }
+
       // period-over-period deltas
       let deltas = null
       const pw = prevWindow(range, since)

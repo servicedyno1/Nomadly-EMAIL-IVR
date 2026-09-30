@@ -910,13 +910,13 @@ function Dashboard({ token, onLogout }) {
               />
               <Kpi
                 icon={Banknote}
-                label="This Week's Payout"
-                value={fmtUsd(summary.thisWeekPayout != null ? summary.thisWeekPayout : summary.thisWeekProfit)}
+                label="Eligible Payout"
+                value={fmtUsd(summary.eligiblePayout != null ? summary.eligiblePayout : (summary.payout != null ? summary.payout : summary.netProfit))}
                 accent="violet"
-                sub="profit — safe to withdraw"
-                testid="kpi-weekprofit"
-                valueClassName={(summary.thisWeekPayout != null ? summary.thisWeekPayout : summary.thisWeekProfit) < 0 ? 'text-[#FF3366]' : 'text-[#FAFAFA]'}
-                footnote="excludes deposits & bonuses"
+                sub="all-time · safe to withdraw"
+                testid="kpi-eligible-payout"
+                valueClassName={(summary.eligiblePayout != null ? summary.eligiblePayout : summary.payout) < 0 ? 'text-[#FF3366]' : 'text-[#FAFAFA]'}
+                footnote="since first sale · excludes deposits & bonuses"
               />
               <Kpi icon={ShoppingCart} label="Orders" value={fmtNum(summary.orders)} accent="amber" delta={deltas?.orders} sub={`AOV ${fmtUsd(summary.avgOrderValue)}`} testid="kpi-orders" />
             </div>
