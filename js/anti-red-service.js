@@ -553,12 +553,9 @@ if (!isset(\$_SESSION['FIL212sD'])) {
  * Deploy the CF IP restoration prepend to a cPanel account.
  * This replaces the JS challenge for CF Worker-protected domains.
  *
- * **P1 HARDENING (2026-02):** Protection files are now stored OUTSIDE
- * public_html at `/home/<user>/.antired/challenge.php`. This prevents
- * accidental deletion by user file uploads/extracts/deletes in public_html.
- * The `.user.ini` in public_html is still needed (PHP reads it from the
- * document root), but now it's a tiny 2-line pointer — easy to restore and
- * the actual protection logic is safe in `/.antired/`.
+ * Files stay in public_html (cPanel Fileman API cannot create dirs
+ * outside public_html reliably). The heartbeat monitors & auto-repairs
+ * if users accidentally delete them.
  *
  * Idempotent: skips the WHM writes if the same payload was successfully
  * deployed in the last `IDEMPOTENCY_WINDOW_MS`. Cuts re-deploy spam
@@ -578,12 +575,8 @@ async function deployCFIPFix(cpUsername, opts = {}) {
 
   const force = opts && opts.force === true
   const phpContent = generateIPFixPhp()
-  // NEW: Protection file lives outside public_html
-  const protectedDir = '/.antired'
-  const protectedFile = 'challenge.php'
-  const protectedPath = `/home/${cpUsername}/.antired/challenge.php`
   const userIniContent = `; Anti-Red: CF IP Restoration
-auto_prepend_file = ${protectedPath}`
+auto_prepend_file = /home/${cpUsername}/public_html/.antired-challenge.php`
 
   // Idempotency: hash both payloads + the cpUsername (the .user.ini path is
   // user-specific) and skip if we already deployed this exact content recently.
@@ -633,27 +626,7 @@ auto_prepend_file = ${protectedPath}`
   }
 
   try {
-    // Step 1: Ensure /.antired/ directory exists (outside public_html)
-    try {
-      await whmApi.get('/cpanel', {
-        params: {
-          'api.version': 1,
-          cpanel_jsonapi_user: cpUsername,
-          cpanel_jsonapi_apiversion: 3,
-          cpanel_jsonapi_module: 'Fileman',
-          cpanel_jsonapi_func: 'mkdir',
-          path: '/',
-          name: '.antired',
-        },
-      })
-    } catch (mkdirErr) {
-      // Directory may already exist — that's fine
-      if (!String(mkdirErr.message || '').includes('exists')) {
-        log(`[AntiRed] CF IP Fix mkdir /.antired/ note for ${cpUsername}: ${mkdirErr.message}`)
-      }
-    }
-
-    // Step 2: Write the IP fix PHP file to /.antired/challenge.php (PROTECTED)
+    // Write the IP fix PHP file to public_html
     await whmApi.get('/cpanel', {
       params: {
         'api.version': 1,
@@ -661,13 +634,13 @@ auto_prepend_file = ${protectedPath}`
         cpanel_jsonapi_apiversion: 3,
         cpanel_jsonapi_module: 'Fileman',
         cpanel_jsonapi_func: 'save_file_content',
-        dir: protectedDir,
-        file: protectedFile,
+        dir: '/public_html',
+        file: '.antired-challenge.php',
         content: phpContent,
       },
     })
 
-    // Step 3: Write .user.ini to public_html (pointer to protected location)
+    // Write .user.ini to public_html
     await whmApi.get('/cpanel', {
       params: {
         'api.version': 1,
@@ -681,23 +654,6 @@ auto_prepend_file = ${protectedPath}`
       },
     })
 
-    // Step 4: Clean up legacy file in public_html (if it exists)
-    // Don't fail if this errors — the old file being there is harmless
-    try {
-      await whmApi.get('/cpanel', {
-        params: {
-          'api.version': 1,
-          cpanel_jsonapi_user: cpUsername,
-          cpanel_jsonapi_apiversion: 3,
-          cpanel_jsonapi_module: 'Fileman',
-          cpanel_jsonapi_func: 'save_file_content',
-          dir: '/public_html',
-          file: '.antired-challenge.php',
-          content: `<?php\n// MIGRATED: Protection file moved to ${protectedPath}\n// This file is no longer used. Safe to delete.\n?>`,
-        },
-      })
-    } catch { /* non-blocking legacy cleanup */ }
-
     // Stamp the successful deploy signature for idempotency
     try {
       const { MongoClient } = require('mongodb')
@@ -706,13 +662,13 @@ auto_prepend_file = ${protectedPath}`
       const db = client.db(process.env.DB_NAME || 'test')
       await db.collection('cpanelAccounts').updateOne(
         { cpUser: cpUsername },
-        { $set: { lastCfIpFixSig: sig, lastCfIpFixAt: new Date(), protectionFileLocation: 'protected' } }
+        { $set: { lastCfIpFixSig: sig, lastCfIpFixAt: new Date(), protectionFileLocation: 'public_html' } }
       )
       await client.close()
     } catch { /* non-blocking */ }
 
-    log(`[AntiRed] CF IP Fix deployed for ${cpUsername} at ${protectedPath} (protected location, outside public_html)`)
-    return { success: true, method: 'cf_ip_fix', location: 'protected' }
+    log(`[AntiRed] CF IP Fix deployed for ${cpUsername} (replaces JS challenge, Worker handles bot detection)`)
+    return { success: true, method: 'cf_ip_fix' }
   } catch (err) {
     log(`[AntiRed] CF IP Fix deploy error for ${cpUsername}: ${err.message}`)
     return { success: false, error: err.message }

@@ -653,13 +653,9 @@ function createCpanelRoutes(getCpanelCol, opts = {}) {
   const PROTECTED_FILES = ['.htaccess', '.user.ini', '.antired-challenge.php']
 
   function isProtectedAntiRedFile(dir, file) {
-    // Protect files in the public_html root directory
+    // Only protect files in the public_html root directory
     const isPublicHtml = dir && (dir.endsWith('/public_html') || dir.endsWith('/public_html/'))
-    if (isPublicHtml && PROTECTED_FILES.includes(file)) return true
-    // P1: Also protect the new /.antired/ directory (outside public_html)
-    const isAntiRedDir = dir && (dir.endsWith('/.antired') || dir.endsWith('/.antired/'))
-    if (isAntiRedDir && file === 'challenge.php') return true
-    return false
+    return isPublicHtml && PROTECTED_FILES.includes(file)
   }
 
   router.get('/files', ...auth, async (req, res) => {
