@@ -3494,6 +3494,17 @@ const loadData = async () => {
   chatIdOfDynopayPayment = db.collection('chatIdOfDynopayPayment')
   paymentIntents = db.collection('paymentIntents') // P0: Payment intent persistence
   vpsPlansOf = db.collection('vpsPlansOf')
+  // Bind identity/view collections SYNCHRONOUSLY here, before the awaited
+  // index-creation calls below. `db` becomes truthy immediately, so an early
+  // Telegram webhook arriving during those awaits would otherwise pass the
+  // `if (!db)` gate in the message handler and hit these still-`{}` placeholders
+  // → "collection is object (not a valid MongoDB collection)" username-sync errors.
+  nameOf = db.collection('nameOf')
+  planOf = db.collection('planOf')
+  chatIdOf = db.collection('chatIdOf')
+  payments = db.collection('payments') // All payment records
+  clicksOf = db.collection('clicksOf')
+  clicksOn = db.collection('clicksOn')
   initVpsDb(db) // Initialize VPS DB for Contabo service
   // Durable store for fabricated VPS password secrets (DigitalOcean / Vultr).
   // Without this they live in a per-process Map and every redeploy wipes every
@@ -3603,15 +3614,9 @@ const loadData = async () => {
   } catch (e) { log(`[DynoPay] dynopayProcessed index create failed (non-fatal): ${e.message}`) }
 
 
-  // variables to view system information
-  nameOf = db.collection('nameOf')
-  planOf = db.collection('planOf')
-  chatIdOf = db.collection('chatIdOf')
-  payments = db.collection('payments') // All payment records
-  payments = db.collection('payments')
-  clicksOf = db.collection('clicksOf')
-  clicksOn = db.collection('clicksOn')
-  chatIdOf = db.collection('chatIdOf')
+  // (nameOf / planOf / chatIdOf / payments / clicksOf / clicksOn are now bound
+  // synchronously above, right after `db = client.db(DB_NAME)`, to avoid the
+  // startup race with early webhooks — see comment there.)
 
   log(`DB Connected lala. May peace be with you and Lord's mercy and blessings.`)
 
