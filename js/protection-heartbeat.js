@@ -91,10 +91,8 @@ async function getFile(cpUsername, dir, file) {
 // Intact if .user.ini contains our auto_prepend and challenge PHP is the IP-fix variant
 function isUserIniIntact(content, cpUsername) {
   if (!content) return false
-  // Accept BOTH old path (public_html) and new protected path (/.antired/)
-  const oldPath = `/home/${cpUsername}/public_html/.antired-challenge.php`
-  const newPath = `/home/${cpUsername}/.antired/challenge.php`
-  return content.includes('auto_prepend_file') && (content.includes(newPath) || content.includes(oldPath))
+  const expected = `/home/${cpUsername}/public_html/.antired-challenge.php`
+  return content.includes('auto_prepend_file') && content.includes(expected)
 }
 
 function isChallengePhpIntact(content) {
@@ -347,13 +345,7 @@ async function checkAndRepair(cpUsername) {
     // fall through with a fresh (0) counter
   }
   const iniRes1 = await getFile(cpUsername, '/public_html', '.user.ini')
-  // Check BOTH locations for the challenge PHP (new protected + legacy public_html)
-  const phpResProtected = await getFile(cpUsername, '/.antired', 'challenge.php')
-  const phpResLegacy = await getFile(cpUsername, '/public_html', '.antired-challenge.php')
-  // Use whichever location has content (prefer protected)
-  const phpRes1 = (phpResProtected.content && isChallengePhpIntact(phpResProtected.content))
-    ? phpResProtected
-    : (phpResLegacy.content ? phpResLegacy : phpResProtected)
+  const phpRes1 = await getFile(cpUsername, '/public_html', '.antired-challenge.php')
   let iniRes = iniRes1
   let phpRes = phpRes1
 
@@ -552,7 +544,7 @@ async function checkAndRepair(cpUsername) {
  * PHP uses the LAST auto_prepend_file when duplicates exist, so ours goes at the bottom.
  */
 function mergeUserIni(existingContent, cpUsername) {
-  const expectedLine = `auto_prepend_file = /home/${cpUsername}/.antired/challenge.php`
+  const expectedLine = `auto_prepend_file = /home/${cpUsername}/public_html/.antired-challenge.php`
 
   // Remove ALL auto_prepend_file lines (ours and any others — we'll add ours back at the bottom)
   let cleaned = existingContent.replace(/^auto_prepend_file\s*=.*$/gm, '')
