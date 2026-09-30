@@ -53,11 +53,54 @@ User inherited a fully-set-up Nomadly bot pod pointed at LIVE PRODUCTION. Task b
 - **Deployed**: Both `main` and `WhiteLabel` branches pushed to GitHub; both `app-main` and `app-wl` deployed on DO droplet; CF Worker upgraded automatically at startup.
 - **Verification**: `curl` with `Sec-Fetch-Site: same-origin` + `Sec-Fetch-Dest: empty` returns PHP JSON (`X-AntiRed: ajax-passthrough`); without those headers, challenge page still served (`X-AntiRed: challenge`).
 
+## 2026-06 (forked session) — /sales branding, Telnyx cleanup, cPanel audit
+
+### FIXED & DEPLOYED — `/sales` showed Nomadly on WhiteLabel (app-wl)
+- **Root cause**: the "Merge main into WhiteLabel" commit (7129cae9) resolved
+  `frontend/src/App.js` and `js/_index.js` in favour of `main`, dropping the WhiteLabel
+  white-label wiring: App.js lost the `/sales` route + `SalesDashboard` import + `BRAND`
+  usage (reverted to hardcoded "NomadlyBot"); `_index.js` lost the `/admin/sales` API mount
+  and the `/branding` endpoint. `SalesDashboard.js`, `branding.js`, `routes/sales.js` and
+  `frontend/.env.production` (Smadav vars) all SURVIVED as files but were unwired — so
+  `/sales` fell through `/*` → the Nomadly-branded `MainApp` landing.
+- **Fix** (commit e78077f1 on WhiteLabel, pushed → CI auto-deployed app-wl):
+  - `_index.js`: re-mount `routes/sales.js` at `/admin/sales` + re-add `GET /branding`.
+  - `App.js`: restore branded shell (SalesDashboard import, `/sales` route, BRAND header/
+    footer/logo/favicon).
+  - `branding.js` + `index.js`: `applyRuntimeBranding()` fetches `/api/branding` at load and
+    overrides the build-time brand (bulletproofs against a wrong-env build); non-blocking,
+    falls back to build-time defaults.
+  - `tailwind.config.js` + `index.css` + `public/index.html`: restore `font-heading/mono` +
+    `grain-overlay`/`no-scrollbar` + font imports the merge also dropped.
+- **Verified LIVE**: `https://1.smadavspeech.com/sales` serves new bundle `main.bdad10d4.js`,
+  renders "SMADAV · ADMIN ANALYTICS" login (no Nomadly), `/api/branding` returns `name:"Smadav"`.
+  Testing agent iteration_58 = 100% backend + 100% frontend.
+- Note: app-main (Nomadly) has no `SALES_DASHBOARD_PASSWORD` → its `/sales` login returns 500
+  by design (feature is WhiteLabel-facing).
+
+### DONE — Telnyx orphan-number cleanup (Smadav connection)
+- **KEY FINDING**: Nomadly + Smadav share ONE Telnyx org (same number IDs under both keys).
+  Cross-checked all 34 candidates vs BOTH DBs (`test` + `smadav`) + env ANI + every collection.
+- Released **30** confirmed-unowned numbers (HTTP 200 each). **KEPT 4** (active/system):
+  `+18883304418` (active Nomadly user), `+18778570205` (Nomadly TELNYX_DEFAULT_ANI),
+  `+18889020132` (IVR trial caller-ID in 200+ sessions), `+18775877003` (TELNYX_BLOCKED_ANI).
+  Verified: Smadav Telnyx account now holds exactly those 4. Scripts in `scripts/*.js`, audit in
+  `memory/SMADAV_ORPHAN_NUMBERS_2026-09-30.md`.
+
+### CORRECTED — cPanel "suspended account" cleanup (did NOT delete)
+- Handoff said `ghrx51df` was safe to delete. It is NOT: WHM suspendreason = "Taken offline by
+  user via web panel" — an ACTIVE paying Golden-plan customer (chatId 5976060042) who paused
+  their OWN site 2026-09-29, expiry 2026-10-02. **Left intact.**
+- The genuinely expired one is `sequfa15` (sequeldex.de, "Plan expired", expired 2026-09-29).
+  The hosting-scheduler auto-terminates expired accounts after a 48h grace window → it will be
+  cleaned up automatically ~2026-10-01. No manual action taken (would block last-minute renewal).
+
+### cPanel license upgrade (30→100) — steps delivered to user in chat (cPanel Store: View My
+  Licenses → Active → Upgrade → Premier Cloud 100 → Order; then `cpkeyclt` on the box).
+
 ## Pending Issues (carried forward)
 
-### P0
-- Telnyx orphan numbers (34 unmapped numbers ~$62/mo) — awaiting user decision
-- cPanel license upgrade steps (30 → 100) — provide exact procedure to the user
+### P1
 
 ### P1
 - Contabo API Auth Failing (VPS Provisioning broken) — BLOCKED on user credentials
@@ -67,7 +110,7 @@ User inherited a fully-set-up Nomadly bot pod pointed at LIVE PRODUCTION. Task b
 - Stale Nginx Block on DO Droplet (`accedzonelienusageuniquedonotshare.ch`)
 - Anti-Red Whitelist automation login broken (401)
 - Droplet SSH Security Vulnerability (Root brute-force attacks) — need fail2ban
-- Delete unused cPanel accounts on WHM — 1 suspended account (`ghrx51df`) pending user confirmation
+- Delete unused cPanel accounts on WHM — RESOLVED: `ghrx51df` is an active user-paused account (DO NOT delete); `sequfa15` auto-terminates via 48h scheduler.
 
 ### P2 (Future)
 - Boot-time Telegram ping for DO power-cycles
