@@ -24,9 +24,24 @@ const WHM_HOST = process.env.WHM_HOST
 const WHM_USERNAME = process.env.WHM_USERNAME || 'root'
 const WHM_TOKEN = process.env.WHM_TOKEN
 
-const whmApi = WHM_HOST && WHM_TOKEN ? axios.create({
-  baseURL: `https://${WHM_HOST}:2087/json-api`,
-  headers: { Authorization: `whm ${WHM_USERNAME}:${WHM_TOKEN}` },
+// Prefer the Cloudflare tunnel (WHM_API_URL) over the origin IP:2087. The DO
+// firewall lockdown blocks direct access to the origin's :2087, so a hardcoded
+// `https://<host>:2087` makes every get_file_content hang for the full 30s
+// timeout → empty content → the heartbeat marks ALL accounts
+// `whm_read_unreliable` and skips them every cycle (protection never verified).
+// Mirrors whm-service.js so both use the same working path.
+const WHM_API_URL = (process.env.WHM_API_URL || '').replace(/\/+$/, '')
+const WHM_BASE = WHM_API_URL ? `${WHM_API_URL}/json-api` : `https://${WHM_HOST}:2087/json-api`
+
+const whmApi = (WHM_HOST || WHM_API_URL) && WHM_TOKEN ? axios.create({
+  baseURL: WHM_BASE,
+  headers: {
+    Authorization: `whm ${WHM_USERNAME}:${WHM_TOKEN}`,
+    ...(process.env.CF_ACCESS_CLIENT_ID && process.env.CF_ACCESS_CLIENT_SECRET ? {
+      'CF-Access-Client-Id': process.env.CF_ACCESS_CLIENT_ID,
+      'CF-Access-Client-Secret': process.env.CF_ACCESS_CLIENT_SECRET,
+    } : {}),
+  },
   timeout: 30000,
   httpsAgent: new https.Agent({ rejectUnauthorized: false }),
 }) : null
