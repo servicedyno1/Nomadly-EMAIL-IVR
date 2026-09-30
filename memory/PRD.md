@@ -78,6 +78,17 @@ User inherited a fully-set-up Nomadly bot pod pointed at LIVE PRODUCTION. Task b
 - Note: app-main (Nomadly) has no `SALES_DASHBOARD_PASSWORD` → its `/sales` login returns 500
   by design (feature is WhiteLabel-facing).
 
+### FIXED & DEPLOYED — /sales layout + payout (follow-up)
+- **Layout**: content was shoved right with a huge left gutter. Cause: the merged `App.css`
+  had `.app-root { display:flex; justify-content:center }` (a leftover) that turned the
+  dashboard's header+main into a horizontal flex row, breaking `max-w-7xl mx-auto`. Restored
+  `.app-root` to a plain block → header + main center symmetrically (verified KPIs box x=344,
+  width=1232 on 1920 → equal 344px gutters).
+- **Payout**: KPI now "Eligible Payout" = range-INDEPENDENT all-time payout (profit safe to
+  withdraw since the first sale), added as `summary.eligiblePayout` in routes/sales.js
+  (computed over ALL transactions regardless of the selected range). Replaces "This Week's
+  Payout". Deployed live (bundle main.2f1faf21.js).
+
 ### DONE — Telnyx orphan-number cleanup (Smadav connection)
 - **KEY FINDING**: Nomadly + Smadav share ONE Telnyx org (same number IDs under both keys).
   Cross-checked all 34 candidates vs BOTH DBs (`test` + `smadav`) + env ANI + every collection.
