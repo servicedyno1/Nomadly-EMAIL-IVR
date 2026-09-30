@@ -57,7 +57,7 @@ async function verifySipCredentialFix() {
   // 3. Database Verification
   console.log('\n3. Database Verification');
   try {
-    const mongoUrl = 'mongodb://mongo:RQoOmIdwjRLFvhWMaatjidzqpvawUKcb@caboose.proxy.rlwy.net:59668';
+    const mongoUrl = 'mongodb://localhost:27017';
     const client = new MongoClient(mongoUrl);
     await client.connect();
     

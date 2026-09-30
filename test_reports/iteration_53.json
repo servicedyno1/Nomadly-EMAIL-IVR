@@ -1,0 +1,35 @@
+{
+  "summary": "Backend-only verification of RDP Grace Auto-Destroy (Phase D reseller API + Phase E unit tests). All 4 node unit suites pass with exact expected counts (64/91/44/34), `npm run lint:lang` clean (all 3 target locales in parity). Wrote a new HTTP smoke suite that hits the live sandbox reseller API and confirms: /health dry_run, /account owner match, /rdp list + credentials, GET /renewals surfaces grace fields (status='grace', in_grace=true, expired_at, delete_at, days_until_deletion=2, summary.in_grace>=1), GET /rdp/:id returns grace block for EXPIRED_GRACE + status='destroyed' + destroy_reason='expired_grace' for cancelled/expired_grace record, and POST /rdp/:id/renew dry_run pricing exactly matches spec ($56/$100.8/$142.8 for months=1/2/3), months clamped to 1..3, unknown id => 404 not_found, grace-destroyed record => 409 already_destroyed, sufficient_balance=true with funded wallet. Only 1 minor gap: GET /rdp/plans does not return `os_options`.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/reseller/v1/rdp/plans", "issue": "Response does not include `os_options` field. Body shape is {product, provider:'azure', region, plans:[{plan_id,name,vcpus,ram_gb,disk_gb,price_usd}]} — Phase D review request explicitly listed 'lists plans + os_options' as part of the reseller regression, but the current handler omits Windows OS choices. Not part of the new grace/renew work but flagged for completeness."}
+    ]
+  },
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/js/tests/test_reseller_api_grace_2026-06.js",
+    "/app/js/tests/test_rdp_grace_destroy_2026-06.js",
+    "/app/js/tests/test_do_rdp_golden_2026-06.js",
+    "/app/js/tests/verify_rdp_tasks_render.js",
+    "/app/js/tests/test_phone_scheduler_grace_fix.js"
+  ],
+  "action_items": [
+    "OPTIONAL: Decide whether GET /api/reseller/v1/rdp/plans should include `os_options` (e.g., available Windows Server images). If yes, add it to the handler in js/reseller-api.js; otherwise update the Phase D spec/docs to remove the os_options expectation."
+  ],
+  "critical_code_review_comments": [
+    "State machine (js/rdp-grace-lifecycle.js) is nicely pure with injected deps — good testability.",
+    "Reseller API renew handler correctly gates already-destroyed records with 409 + explanatory message, and 404 for unknowns.",
+    "Dry-run pricing calculation matches golden-tier bundle discount table exactly (56 / 100.8 / 142.8) — no off-by-one in months clamping (0 => 1, 99 => 3 both verified live).",
+    "RDP-service Sweep-2 destroy path is only covered by unit test on this sandbox (SKIP_WEBHOOK_SYNC=true gates the bot scheduler); the safety-net path is well-exercised against the fake DO API stub."
+  ],
+  "updated_files": [
+    "/app/js/tests/test_reseller_api_grace_2026-06.js (new HTTP smoke suite)"
+  ],
+  "success_rate": {"backend": "97% (39/40 live-API assertions; 64/64 + 91/91 + 44/44 + 34/34 unit assertions; lang parity OK)", "frontend": "N/A - backend only"},
+  "test_credentials": "Reseller API key X-API-Key: nmdly_e2e_51573577f5db956c5c0cb039 (owner chatId 5590563715). Same as request.",
+  "seed_data_creation": "Ran scripts/seed_rdp_reseller_e2e.js (seeded key+owner+e2e-rdp-1) and executed the inline node one-liner from the request to seed walletOf(500 usdIn), vpsPlansOf/e2e-rdp-1 (EXPIRED_GRACE, grace_until=now+2d), vpsPlansOf/e2e-rdp-dead (CANCELLED, cancelReason=expired_grace).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Reseller API runs in dry_run (SKIP_WEBHOOK_SYNC=true, RESELLER_API_LIVE not set) — do not attempt live provisioning. Response field for renew price is `price_usd` (not `price`/`total`). Reseller /rdp/plans currently returns Azure plans without os_options (may or may not be by design)."
+}

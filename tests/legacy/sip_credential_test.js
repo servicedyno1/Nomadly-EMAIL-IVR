@@ -20,7 +20,7 @@ async function testSipCredentialFix() {
   
   // 2. Test Database Connection and User Data
   console.log('\n2. Testing Database Connection and User Data...');
-  const mongoUrl = 'mongodb://mongo:RQoOmIdwjRLFvhWMaatjidzqpvawUKcb@caboose.proxy.rlwy.net:59668';
+  const mongoUrl = 'mongodb://localhost:27017';
   const dbName = 'test';
   const collectionName = 'phoneNumbersOf';
   const testUserId = '6604316166';

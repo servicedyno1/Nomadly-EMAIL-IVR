@@ -1,0 +1,6 @@
+{"t":"2026-09-08T17:53:25.867429601Z","s":"info","m":"[SingleIVR] Transfer leg billed: +13474702175 1 min @ IVR rate (dialSid=CA06eba8b52cddcb4a261f6ef3b685cf86, charge=$0.15)"}
+{"t":"2026-09-09T19:43:08.991568678Z","s":"info","m":"[BulkIVR] Transfer leg billed: campaign=vault-auth-7 lead=37 → +18889082460 6 min (dialSid=CA84b0447d319ef094d9b433ec8feecf65)"}
+{"t":"2026-09-12T00:29:13.337353645Z","s":"info","m":"[BulkIVR] Transfer leg billed: campaign=vault-auth-7 lead=149 → +18889082460 1 min (dialSid=CA8ab24b040e1b52f130f1f7f9957c70bf)"}
+{"t":"2026-09-12T00:32:14.909817975Z","s":"info","m":"[BulkIVR] Transfer leg billed: campaign=vault-auth-7 lead=166 → +18889082460 2 min (dialSid=CA3211c59433fc1ce3b9d83e7af71bff44)"}
+{"t":"2026-09-12T19:50:15.312099770Z","s":"info","m":"[BulkIVR] Transfer leg billed: campaign=vault-auth-7 lead=8 → +18055350087 1 min (dialSid=CAf8e8a4183221e45c6d1485acf389258e)"}
+{"t":"2026-09-12T20:55:00.318198916Z","s":"info","m":"[BulkIVR] Transfer leg billed: campaign=vault-auth-7 lead=15 → +18055350087 64 min (dialSid=CA3396f73a26f55e5c9e81821085d9ecbb)"}

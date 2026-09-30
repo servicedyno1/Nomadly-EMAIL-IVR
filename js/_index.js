@@ -104,6 +104,28 @@ earlyApp.get('/admin/scanner-block-stats', (req, res) => {
 })
 // ── /Edge scanner block ─────────────────────────────────────────────────────
 
+// ── Legacy host redirects (2026-06) ─────────────────────────────────────────
+// Old hostnames (1.speechcue.com, panel.1.hostbay.io) keep working after the
+// move to the 2.* hosts: LEGACY_HOST_REDIRECTS="old.host=new.host,old2=new2".
+// 301 for GET/HEAD, 308 otherwise; path + query preserved. Reseller API calls
+// (/reseller/v1/*) are served in place — API clients don't follow redirects.
+const LEGACY_HOST_REDIRECTS = new Map(
+  (process.env.LEGACY_HOST_REDIRECTS || '').split(',')
+    .map(p => p.split('=').map(s => s.trim().toLowerCase().replace(/^https?:\/\//, '').replace(/\/.*$/, '')))
+    .filter(([from, to]) => from && to && from !== to)
+)
+if (LEGACY_HOST_REDIRECTS.size) {
+  earlyApp.use((req, res, next) => {
+    const host = (req.headers['x-forwarded-host'] || req.headers.host || '').toString().split(',')[0].trim().toLowerCase().split(':')[0]
+    const target = LEGACY_HOST_REDIRECTS.get(host)
+    if (!target || (req.url || '').startsWith('/reseller/')) return next()
+    res.set('Cache-Control', 'public, max-age=3600')
+    res.redirect(req.method === 'GET' || req.method === 'HEAD' ? 301 : 308, `https://${target}${req.originalUrl || req.url || '/'}`)
+  })
+  console.log(`[Express] Legacy host redirects active: ${[...LEGACY_HOST_REDIRECTS].map(([f, t]) => `${f}→${t}`).join(', ')}`)
+}
+// ── /Legacy host redirects ──────────────────────────────────────────────────
+
 earlyApp.use(cors())
 earlyApp.use(express.json({
   limit: '50mb',
@@ -582,7 +604,7 @@ const callBillingReconciler = require('./call-billing-reconciler.js')
 const dialGuard = require('./dial-rate-guard.js')
 
 // ── New UX Enhancement Utilities ──
-const { generateTransactionId, logTransaction, updateTransactionStatus, getUserTransactions, buildSaleMeta } = require('./transaction-id.js')
+const { generateTransactionId, logTransaction, updateTransactionStatus, getUserTransactions } = require('./transaction-id.js')
 const { handleError, safeRefund, safeExecute } = require('./error-handler.js')
 const { createProgressTracker } = require('./progress-tracker.js')
 const { checkDNSStatus, formatDNSStatus } = require('./dns-status-checker.js')
@@ -1289,9 +1311,6 @@ const RATE_LEAD = Number(process.env.RATE_LEAD)
 const PRICE_BITLY_LINK = Number(process.env.PRICE_BITLY_LINK)
 const RATE_LEAD_VALIDATOR = Number(process.env.RATE_LEAD_VALIDATOR)
 const RATE_CNAM_VALIDATOR = Number(process.env.RATE_CNAM_VALIDATOR)
-// Retail CNAM (caller-name) surcharge for LEAD PURCHASES (per lead). Previously
-// defined but never wired in, so CNAM was given away free on lead buys. Now charged.
-const RATE_CNAM = Number(process.env.RATE_CNAM)
 const FREE_LINKS = Number(process.env.FREE_LINKS)
 const HOSTED_ON = process.env.HOSTED_ON
 // Shortit feature flag — disabled only when explicitly set to 'false' (production kill-switch)
@@ -1950,6 +1969,19 @@ function _tgIsRateLimited(err) {
   if (s === 429) return true
   return /too many requests|retry after|\b429\b/i.test((err && err.message) || '')
 }
+// "message can't be edited" / "message to edit not found" / "message is not
+// modified" — all mean the edit path is a dead end for THIS specific mid, so
+// don't waste a second attempt (which will fail with the exact same error and
+// produce the noisy duplicate log line seen in prod for @blacknmilds et al).
+function _tgEditIsTerminal(err) {
+  const m = (err && err.message) || ''
+  return /message can'?t be edited|message to edit not found|MESSAGE_ID_INVALID/i.test(m)
+}
+// Per-session dedup for the "streaming edit couldn't land, delivered via
+// fresh send" info line. Was previously logged on EVERY reply of every session
+// (2-3 lines/reply × chatty sessions = 40+ noise lines in a Railway hour).
+const _fallbackLoggedThisSession = new Set()
+function _resetSupportFallbackNoise(chatId) { _fallbackLoggedThisSession.delete(String(chatId)) }
 
 async function deliverFinalReply(botApi, chatId, mid, aiResponse, safeHtml, alreadyShown) {
   const html = safeHtml
@@ -1960,6 +1992,7 @@ async function deliverFinalReply(botApi, chatId, mid, aiResponse, safeHtml, alre
     // A single rate-limit-aware retry absorbs Telegram 429 bursts that previously
     // dumped every reply onto the noisy send() fallback (43 in a row for one user).
     let editErr = null
+    let terminal = false
     for (let attempt = 0; attempt < 2; attempt++) {
       try {
         await botApi.editMessageText(html, { chat_id: chatId, message_id: mid, parse_mode: 'HTML', disable_web_page_preview: true })
@@ -1967,6 +2000,7 @@ async function deliverFinalReply(botApi, chatId, mid, aiResponse, safeHtml, alre
       } catch (e) {
         editErr = e
         if (e && /not modified/i.test(e.message || '')) return { delivered: true, via: 'already' }
+        if (_tgEditIsTerminal(e)) { terminal = true; break } // plain retry will fail identically
         if (attempt === 0 && _tgIsRateLimited(e)) {
           await _sleep(_tgRetryAfterMs(e) || 1200)
           continue // retry the HTML edit once after backing off
@@ -1974,21 +2008,27 @@ async function deliverFinalReply(botApi, chatId, mid, aiResponse, safeHtml, alre
         break
       }
     }
-    // HTML edit exhausted — try a plain-text edit (handles HTML parse quirks).
+    // HTML edit exhausted — try a plain-text edit only if the error was NOT
+    // terminal (parse-quirk fallback still worth it; "can't be edited" is not).
     let plainErr = null
-    try {
-      await botApi.editMessageText(aiResponse, { chat_id: chatId, message_id: mid, disable_web_page_preview: true })
-      return { delivered: true, via: 'edit-plain' }
-    } catch (e2) {
-      plainErr = e2
+    if (!terminal) {
+      try {
+        await botApi.editMessageText(aiResponse, { chat_id: chatId, message_id: mid, disable_web_page_preview: true })
+        return { delivered: true, via: 'edit-plain' }
+      } catch (e2) {
+        plainErr = e2
+      }
     }
-    // Both edits failed — surface the REAL Telegram reason (was swallowed before,
-    // which is why the fallback kept recurring invisibly).
-    log(`[Support] editMessageText failed for ${chatId} mid=${mid}: html="${(editErr && editErr.message) || ''}" plain="${(plainErr && plainErr.message) || ''}"`)
+    // Both edits failed — log ONCE per session (dedup) with the real Telegram
+    // reason so operators still get signal without per-reply spam.
+    const sessionKey = String(chatId)
+    if (!_fallbackLoggedThisSession.has(sessionKey)) {
+      _fallbackLoggedThisSession.add(sessionKey)
+      log(`[Support] editMessageText unavailable for ${chatId} — falling back to fresh send${terminal ? ' (terminal)' : ''}: "${(editErr && editErr.message) || ''}"${plainErr ? ` / plain="${plainErr.message || ''}"` : ''}`)
+    }
     // Remove the stuck placeholder BEFORE sending a fresh copy so we never
-    // double-post (placeholder + answer). Log if it can't be removed.
-    try { await botApi.deleteMessage(chatId, mid) }
-    catch (e3) { log(`[Support] deleteMessage failed for ${chatId} mid=${mid}: ${(e3 && e3.message) || ''}`) }
+    // double-post (placeholder + answer). Silent on failure — non-critical.
+    try { await botApi.deleteMessage(chatId, mid) } catch { /* noop */ }
   }
   try {
     await botApi.sendMessage(chatId, html, { parse_mode: 'HTML', disable_web_page_preview: true, reply_markup: { keyboard: [['/done']], resize_keyboard: true } })
@@ -2032,8 +2072,14 @@ async function streamAiReply(chatId, message, lang = 'en') {
   let lastEditAt = 0
 
   // Returns true if the placeholder now shows `rawText`, false if the edit failed.
+  // Uses a session-scoped `terminalEdit` flag so once Telegram returns a permanent
+  // "message can't be edited"-class error, we STOP paying the round-trip cost for
+  // every subsequent stream chunk on this reply — deliverFinalReply will do the
+  // fallback send once at the end. (2026-02 @blacknmilds: 3× redundant terminal
+  // edit attempts per reply, ~600ms wasted per reply, log spam.)
+  let terminalEdit = false
   const doEdit = async (rawText) => {
-    if (!mid) return false
+    if (!mid || terminalEdit) return false
     const html = aiMarkdownToHtml(rawText)
     if (!html.trim()) return false
     if (html === lastShown) return true // already on screen
@@ -2046,12 +2092,16 @@ async function streamAiReply(chatId, message, lang = 'en') {
       return true
     } catch (e) {
       if (e && /not modified/i.test(e.message)) { lastShown = html; return true }
+      if (_tgEditIsTerminal(e)) { terminalEdit = true; return false } // dead placeholder — stop trying
       // HTML parse hiccup (e.g. a partial that cut mid-tag) — fall back to plain text.
       try {
         await bot.editMessageText(rawText, { chat_id: chatId, message_id: mid, disable_web_page_preview: true })
-        lastShown = rawText
+        lastShown = html // reflect what deliverFinalReply will compare against
         return true
-      } catch { return false /* caller guarantees delivery below */ }
+      } catch (e2) {
+        if (_tgEditIsTerminal(e2)) terminalEdit = true
+        return false /* caller guarantees delivery below */
+      }
     }
   }
 
@@ -2083,9 +2133,10 @@ async function streamAiReply(chatId, message, lang = 'en') {
   const delivery = await deliverFinalReply(bot, chatId, mid, aiResponse, safeHtml, lastShown)
   if (!delivery.delivered) {
     log(`[Support] ⚠️ Could not deliver AI reply to ${chatId} (all edit+send attempts failed)`)
-  } else if (delivery.via && delivery.via.startsWith('send')) {
-    log(`[Support] AI reply delivered via fallback message (${delivery.via}) for ${chatId} — editMessageText failed`)
   }
+  // Note: "delivered via fallback message (send)" spam is now deduped per session
+  // inside deliverFinalReply (see _fallbackLoggedThisSession). One line per
+  // session is enough — the info was in the log 40+ times per chatty user.
 
   // If the AI suggested actions, surface them on the reply keyboard.
   try {
@@ -3602,7 +3653,12 @@ const loadData = async () => {
       // gets stuck in a reboot loop.
       try {
         const autoRecover = require('./cpanel-auto-recover')
-        if (autoRecover._isConfigured()) {
+        // DEV SANDBOX GUARD: never power-cycle the PRODUCTION WHM droplet from a dev
+        // pod. If the pod simply can't reach WHM (network/CF-Access), that must NOT
+        // be misread as an outage and trigger a DigitalOcean reboot of the live box.
+        if (process.env.SKIP_WEBHOOK_SYNC === 'true') {
+          log('[AutoRecover] SKIP_WEBHOOK_SYNC=true — skipping droplet power-cycle (dev sandbox must not reboot prod WHM)')
+        } else if (autoRecover._isConfigured()) {
           autoRecover.attemptRecovery({ reason, notify: notifyAdmin })
             .then(r => log(`[AutoRecover] result: ${JSON.stringify(r)}`))
             .catch(e => log(`[AutoRecover] unexpected: ${e.message}`))
@@ -3827,7 +3883,7 @@ const loadData = async () => {
             const allUsers = await db.collection('phoneNumbersOf').find({}).toArray()
             let updated = 0, failed = 0, recovered = 0
             for (const user of allUsers) {
-              const numbers = (user.val?.numbers || []).filter(n => n.provider === 'twilio' && n.status === 'active' && n.twilioNumberSid)
+              const numbers = (user.val?.numbers || []).filter(n => n.provider === 'twilio' && n.status === 'active' && n.twilioNumberSid && !n.orphaned)
               if (!numbers.length) continue
               let subSid = user.val?.twilioSubAccountSid
               let subToken = user.val?.twilioSubAccountToken
@@ -3862,7 +3918,24 @@ const loadData = async () => {
               for (const num of numbers) {
                 try {
                   if (subSid && subToken) {
-                    await twilioService.updateSubAccountNumberWebhooks(subSid, num.twilioNumberSid, SELF_URL)
+                    const upd = await twilioService.updateSubAccountNumberWebhooks(subSid, num.twilioNumberSid, SELF_URL)
+                    // Twilio returns 404 when the incomingPhoneNumber SID no
+                    // longer exists in this sub-account (number released,
+                    // ported out, or moved). Flag the record as orphaned so
+                    // the next sync skips it — DON'T delete (the user may
+                    // re-port the number, and we want the phone history
+                    // intact for support/billing lookups).
+                    if (upd && upd.error && (upd.status === 404 || upd.twilioCode === 20404)) {
+                      try {
+                        await db.collection('phoneNumbersOf').updateOne(
+                          { _id: user._id, 'val.numbers.twilioNumberSid': num.twilioNumberSid },
+                          { $set: { 'val.numbers.$.orphaned': true, 'val.numbers.$.orphanedAt': new Date(), 'val.numbers.$.orphanedReason': 'twilio_404_incoming_phone_number_not_found' } }
+                        )
+                        log(`[Twilio Sync] ORPHAN flagged: chatId=${user._id} ${num.phoneNumber} (sid=${num.twilioNumberSid}) — no longer in sub-account ${subSid}; skipping future webhook sync`)
+                      } catch (e) { /* best-effort */ }
+                      failed++
+                      continue
+                    }
                   } else {
                     // ━━━ SECURITY: Skip webhook update for numbers without sub-account credentials ━━━
                     // Never fall back to main account for user-owned numbers
@@ -4219,6 +4292,11 @@ const loadData = async () => {
     if (nsId) log(`[Honeypot] KV namespace ready: ${nsId}`)
     else log('[Honeypot] KV namespace not available (Cloudflare credentials may be missing)')
   }).catch(err => log(`[Honeypot] KV init warning: ${err.message}`))
+
+  // Initialize Scanner IP Auto-Refresh (P0: dynamic scanner IP feeds)
+  const scannerIPRefresh = require('./scanner-ip-refresh')
+  scannerIPRefresh.init(db)
+  scannerIPRefresh.startRefreshScheduler()
 
   // Initialize Audio Library + Bulk Call Service
   audioLibraryService.initAudioLibrary(db)
@@ -7188,6 +7266,7 @@ bot?.on('callback_query', async (query) => {
         send(target, '✅ Support session closed. Use the menu below to continue.', translation('o', 'en'))
         send(adminId, `✅ Session closed for ${targetName || target} (${target})`)
         clearAiHistory(target)
+        _resetSupportFallbackNoise(target)
         await set(state, target, 'adminTakeover', false)
         // Auto-resolve any open/acknowledged escalations for this chat —
         // session close == ticket closed (added 2026-05-25 to fix the
@@ -8033,6 +8112,7 @@ bot?.on('message', msg => {
     send(targetChatId, '✅ Support session closed. Use the menu below to continue.', translation('o', 'en'))
     send(chatId, `✅ Session closed for ${targetName || targetChatId}`)
     clearAiHistory(targetChatId) // Clear AI conversation history
+    _resetSupportFallbackNoise(targetChatId)
     // Clear admin takeover flag on session close
     await set(state, targetChatId, 'adminTakeover', false)
     // Auto-resolve open/acknowledged escalations for this chat — see
@@ -9741,10 +9821,6 @@ bot?.on('message', msg => {
     const la = info?.loyaltyApplied
     if (la && la.step === step && Number(la.to) === current) return
     const d = await loyalty.applyDiscount(walletOf, chatId, current)
-    // WhiteLabel: tag the member's tier on the session so the sale transaction is
-    // attributed in the Sales Dashboard "Sales by Membership Tier" (saved even for
-    // Bronze/0% so every loyalty-eligible sale is tagged).
-    if (d && d.tier) await saveInfo('loyaltyTierKey', d.tier.key || 'bronze')
     if (!d || d.discount <= 0) return
     await saveInfo('loyaltyApplied', { step, key, from: current, to: d.finalPrice })
     await saveInfo('loyaltyDiscount', d.discount)
@@ -11908,6 +11984,10 @@ Enter new value:`), bc)
       // Visitor Captcha (Gold-only feature) — show locked button for non-Gold users
       const isGoldPlan = /Golden Anti-Red HostPanel/i.test(plan.plan || '')
       buttons.push([isGoldPlan ? user.manageVisitorCaptcha : user.manageVisitorCaptchaLocked])
+      // Honeypot Traps (Monthly-plan feature) — locked button for weekly plans
+      const { isWeeklyPlan } = require('./hosting-scheduler')
+      const isMonthlyHostPlan = !isWeeklyPlan(plan.plan || '')
+      buttons.push([isMonthlyHostPlan ? user.manageHoneypot : user.manageHoneypotLocked])
       // Site status toggle — label depends on current state
       if (siteStatus === 'online') {
         buttons.push([user.takeSiteOffline])
@@ -11939,9 +12019,10 @@ Enter new value:`), bc)
       const { pin } = await cpanelAuth.resetPin(cpanelAccounts, plan.cpUser)
 
       const panelDomain = process.env.PANEL_DOMAIN
-      const panelUrl = panelDomain
+      const panelBase = panelDomain
         ? (panelDomain.startsWith('http') ? panelDomain : `https://${panelDomain}`)
-        : `${process.env.SELF_URL_PROD?.replace('/api', '')}/panel`
+        : `${process.env.SELF_URL_PROD?.replace('/api', '')}`
+      const panelUrl = `${(panelBase || '').replace(/\/+$/, '').replace(/\/panel$/i, '')}/panel`
       const text = trans('t.credentialsHeader', plan.domain) + '\n\n'
         + `<b>${trans('t.usernameLabel')}</b> <code>${plan.cpUser}</code>\n`
         + `<b>${trans('t.credentialsPinLabel')}</b> <code>${pin}</code>\n\n`
@@ -12333,22 +12414,11 @@ Enter new value:`), bc)
           ))
         } else {
           console.log(`[VPS] Password reveal unavailable - ChatId: ${chatId}, Instance: ${record.vpsId || record._id}, reason=${res.reason}`)
-          // Part C: if the box is online but SSH/22 is firewalled, the recovery
-          // SSH login can't work — give actionable ufw guidance instead of a
-          // vague "not stored" message. (Linux only; RDP has no SSH path.)
-          let shownBlocked = false
-          try {
-            if (!isRDP && record.host) {
-              const { probeReachability, sshBlockedGuidance } = require('./vps-ssh-reachability')
-              const probe = await probeReachability({ host: record.host })
-              if (probe.verdict === 'ssh-blocked') {
-                console.log(`[VPS] Password reveal ssh-blocked (ufw) - ChatId: ${chatId}, Instance: ${record.vpsId || record._id}`)
-                send(chatId, sshBlockedGuidance({ name: record.name, host: record.host, username }))
-                shownBlocked = true
-              }
-            }
-          } catch (_) { /* fall through to the default copy */ }
-          if (!shownBlocked) send(chatId, vp.revealPasswordNotStored(record.name, res.reason))
+          if (res.sshBlocked) {
+            send(chatId, vp.vpsSshBlockedHelp(record.name, record.host, username))
+          } else {
+            send(chatId, vp.revealPasswordNotStored(record.name, res.reason))
+          }
         }
       } catch (err) {
         console.error(`[VPS] Password reveal failed - ChatId: ${chatId}, Error:`, err.message || err)
@@ -13387,7 +13457,7 @@ Enter new value:`), bc)
             amount: price,
             currency: 'USD',
             status: 'completed',
-            metadata: { phoneNumber: selectedNumber, plan: planKey, provider, ...buildSaleMeta((typeof info !== 'undefined' ? info : null), price) }
+            metadata: { phoneNumber: selectedNumber, plan: planKey, provider }
           })
         } catch (txErr) {
           log('[Phone] Failed to log transaction (non-blocking):', txErr.message)
@@ -13626,6 +13696,7 @@ All verified numbers generated during sourcing.`))
     [a.validatorSelectFormat]: async coin => {
       await set(state, chatId, 'action', 'none')
       const price = info?.couponApplied ? info?.newPrice : info?.price
+      const leadsAmount = info?.amount
       const { usdBal } = await getBalance(walletOf, chatId)
       const preSpend = await loyalty.getTotalSpend(walletOf, chatId)
 
@@ -13645,7 +13716,6 @@ All verified numbers generated during sourcing.`))
       // buy leads
       send(chatId, t.validatorBulkNumbersStart, trans('o')) // main keyboard view
       const phones = info?.phones?.slice(0, info?.amount)
-      const leadsAmount = info?.amount
 
       // ── Deduct wallet BEFORE validation to prevent lost charges on crash ──
       await atomicIncrement(walletOf, chatId, 'usdOut', priceUsd)
@@ -14327,7 +14397,7 @@ All verified numbers generated during sourcing.`))
     if (result.error === 'limit_reached') {
       let msg = pMsg.sipTestComplete
       const refResult = await getOrCreateReferralCode(chatId)
-      const refLink = refResult ? `https://t.me/${process.env.BOT_USERNAME || 'Nomadlybot'}?start=ref_${refResult.code}` : null
+      const refLink = refResult ? `https://t.me/Nomadlybot?start=ref_${refResult.code}` : null
       if (refLink && !refResult.bonusEarned) {
         msg += pMsg.sipTestReferral(refLink)
       }
@@ -14371,6 +14441,7 @@ All verified numbers generated during sourcing.`))
     send(chatId, t.supportEnded, trans('o'))
     send(TELEGRAM_ADMIN_CHAT_ID, `📴 Support session closed by user <b>${adminUserTag(name, chatId)}</b>`, adminMsgOpts({ chatId, supportSession: true }))
     clearAiHistory(chatId) // Clear AI conversation history
+    _resetSupportFallbackNoise(chatId) // Clear per-session editMessageText fallback dedup
     log(`[Support] Session ended by user ${chatId} — admin takeover OFF`)
     return
   }
@@ -14925,6 +14996,7 @@ All verified numbers generated during sourcing.`))
       await set(supportSessions, chatId, 0)
       await set(state, chatId, 'adminTakeover', false)
       clearAiHistory(chatId)
+      _resetSupportFallbackNoise(chatId)
       const name = await get(nameOf, chatId)
       send(TELEGRAM_ADMIN_CHAT_ID, `📴 Support session closed by user <b>${adminUserTag(name, chatId)}</b> via Cancel/Main Menu`, adminMsgOpts({ chatId, supportSession: true }))
       log(`[Support] Session ended by user ${chatId} via Cancel/Main Menu`)
@@ -15637,6 +15709,51 @@ All verified numbers generated during sourcing.`))
         return send(chatId, t.antiRedStatusOff(domain), k.of([[t.antiRedTurnOn], ['↩️ Back']]), { parse_mode: 'HTML' })
       }
       return send(chatId, t.antiRedStatusOn(domain), k.of([[t.antiRedTurnOff], ['↩️ Back']]), { parse_mode: 'HTML' })
+    }
+    // 🍯 Honeypot Traps button (Monthly-only) — locked variant nudges upgrade; active variant opens toggle
+    if (message === user.manageHoneypotLocked) {
+      return send(chatId, t.honeypotMonthlyOnly, k.of([[user.upgradeHostingPlan], [user.backToMyHostingPlans]]), { parse_mode: 'HTML' })
+    }
+    if (message === user.manageHoneypot) {
+      const domain = info?.selectedHostingDomain
+      if (!domain) return goto.myHostingPlans()
+      const plan = await cpanelAccounts.findOne({ chatId: String(chatId), domain, deleted: { $ne: true } })
+      if (!plan) return send(chatId, trans('t.planNotFound'), k.of([[user.backToMyHostingPlans]]))
+      const { isWeeklyPlan } = require('./hosting-scheduler')
+      if (isWeeklyPlan(plan.plan || '')) {
+        return send(chatId, t.honeypotMonthlyOnly, k.of([[user.upgradeHostingPlan], [user.backToMyHostingPlans]]), { parse_mode: 'HTML' })
+      }
+      // Main + every addon domain — each has its own Worker route / KV flag.
+      const allPlanDomains = [plan.domain, ...(Array.isArray(plan.addonDomains) ? plan.addonDomains : [])]
+        .map(d => (typeof d === 'string' ? d : d?.domain) || '')
+        .map(d => d.toLowerCase())
+        .filter(Boolean)
+      const uniquePlanDomains = Array.from(new Set(allPlanDomains))
+      await saveInfo('honeypotFromPlan', true)
+      const antiRedService = require('./anti-red-service')
+
+      if (uniquePlanDomains.length > 1) {
+        const states = await Promise.all(uniquePlanDomains.map(async d => {
+          const s = await antiRedService.resolveDomainCfState(d, db)
+          return { d, hasCF: s.hasCloudflare, off: s.honeypotOff }
+        }))
+        const rows = states.map(s => [t.honeypotDomainButton(s.d, s.off, s.hasCF)])
+        rows.push([user.backToMyHostingPlans])
+        await saveInfo('honeypotPickerDomains', uniquePlanDomains)
+        await set(state, chatId, 'action', 'honeypot-pick-domain')
+        return send(chatId, t.honeypotPickDomain, k.of(rows), { parse_mode: 'HTML' })
+      }
+
+      await set(state, chatId, 'domainToManage', domain)
+      const cf = await antiRedService.resolveDomainCfState(domain, db)
+      if (!cf.hasCloudflare) {
+        return send(chatId, t.antiRedNoCF(domain), k.of([[user.backToMyHostingPlans]]), { parse_mode: 'HTML' })
+      }
+      await set(state, chatId, 'action', 'honeypot-toggle')
+      if (cf.honeypotOff) {
+        return send(chatId, t.honeypotStatusOff(domain), k.of([[t.honeypotTurnOn], ['↩️ Back']]), { parse_mode: 'HTML' })
+      }
+      return send(chatId, t.honeypotStatusOn(domain), k.of([[t.honeypotTurnOff], ['↩️ Back']]), { parse_mode: 'HTML' })
     }
     if (message === user.toggleAutoRenew) {
       const domain = info?.selectedHostingDomain
@@ -16380,9 +16497,10 @@ All verified numbers generated during sourcing.`))
       await send(chatId, t.attachDomainAlreadyAttached(candidate), { parse_mode: 'HTML' })
     } else if (result.ok) {
       const panelDomain = process.env.PANEL_DOMAIN
-      const panelUrl = panelDomain
+      const panelBase = panelDomain
         ? (panelDomain.startsWith('http') ? panelDomain : `https://${panelDomain}`)
-        : `${(process.env.SELF_URL_PROD || '').replace('/api', '')}/panel`
+        : `${(process.env.SELF_URL_PROD || '').replace('/api', '')}`
+      const panelUrl = `${(panelBase || '').replace(/\/+$/, '').replace(/\/panel$/i, '')}/panel`
       await send(chatId, t.attachDomainSuccess(candidate, result.docRoot, panelUrl), { parse_mode: 'HTML' })
       try {
         notifyAdmin(`➕ <b>Addon domain attached</b>\nUser: ${chatId}\nPlan: <code>${plan.plan}</code>\nPrimary: <b>${plan.domain}</b>\nAttached: <b>${candidate}</b>`)
@@ -16484,23 +16602,32 @@ All verified numbers generated during sourcing.`))
       result = { success: false, error: e.message }
     }
 
-    // ── Self-heal: stale userdata from THIS user's earlier (deleted) plan ──
-    // WHM modifyacct rejects change-primary when `candidate` still lives in the
-    // userdata layer from a same-user plan whose /removeacct silently failed.
-    // Release it (chatId-scoped) and retry once. Heal errors never mask the
-    // original WHM error.
+    // ── Self-heal: "domain already exists in the userdata" ──
+    // Mirror of the addon-flow rescue: if a prior deleted account of the
+    // SAME chatId is still holding `candidate` in WHM userdata (because
+    // /removeacct silently failed on grace-period termination), retry
+    // /removeacct on that stale row via whm-userdata-heal, then retry
+    // changePrimaryDomain once. Never cross-user (heal helper enforces).
     if (!result || !result.success) {
       const errMsg = String(result?.error || '')
       const heal = require('./whm-userdata-heal')
       if (heal.isStaleUserdataError(errMsg)) {
         try {
           const release = await heal.attemptUserdataRelease({
-            db, whmService, domain: candidate, chatId: String(chatId),
+            db,
+            whmService,
+            domain: candidate,
+            chatId: String(chatId),
           })
           if (release.released) {
             log(`[ChangePrimary] userdata self-heal released ${candidate} from stale ${release.staleCpUser} — retrying changePrimaryDomain`)
-            try { result = await whmService.changePrimaryDomain(plan.cpUser, candidate) }
-            catch (e) { result = { success: false, error: e.message } }
+            try {
+              result = await whmService.changePrimaryDomain(plan.cpUser, candidate)
+            } catch (e) {
+              result = { success: false, error: e.message }
+            }
+          } else {
+            log(`[ChangePrimary] userdata self-heal did NOT release ${candidate}: ${release.reason}`)
           }
         } catch (healErr) {
           log(`[ChangePrimary] userdata self-heal error (non-blocking): ${healErr.message}`)
@@ -16558,9 +16685,10 @@ All verified numbers generated during sourcing.`))
     })()
 
     const panelDomain = process.env.PANEL_DOMAIN
-    const panelUrl = panelDomain
+    const panelBase = panelDomain
       ? (panelDomain.startsWith('http') ? panelDomain : `https://${panelDomain}`)
-      : `${(process.env.SELF_URL_PROD || '').replace('/api', '')}/panel`
+      : `${(process.env.SELF_URL_PROD || '').replace('/api', '')}`
+    const panelUrl = `${(panelBase || '').replace(/\/+$/, '').replace(/\/panel$/i, '')}/panel`
     await send(chatId, t.changePrimaryDomainSuccess(candidate, oldDomain, panelUrl), { parse_mode: 'HTML' })
     try {
       notifyAdmin(`🔄 <b>Primary domain changed</b>\nUser: ${chatId}\nPlan: <code>${plan.plan}</code>\ncpUser: ${plan.cpUser}\nOld: <b>${oldDomain}</b>\nNew: <b>${candidate}</b>`)
@@ -17234,7 +17362,7 @@ All verified numbers generated during sourcing.`))
       }
 
       const msg = `🤝 <b>Refer & Earn — now with instant bonus</b>\n\n` +
-        `Invite friends to ${process.env.CHAT_BOT_BRAND || 'Nomadly'}. When they deposit <b>$5</b>, you get <b>$1</b> instantly. When their total spend hits <b>$30</b>, you get another <b>$5</b>.\n\n` +
+        `Invite friends to Nomadly. When they deposit <b>$5</b>, you get <b>$1</b> instantly. When their total spend hits <b>$30</b>, you get another <b>$5</b>.\n\n` +
         `🔗 <a href="${referralLink}">Tap to copy your invite link</a>\n\n` +
         `${'─'.repeat(22)}\n` +
         `👥  <b>${totalReferred}</b> referred   ✅  <b>${qualified}</b> qualified   💰  <b>$${totalEarned.toFixed(2)}</b> earned` +
@@ -20618,8 +20746,7 @@ ${message.replace(/\n/g, '<br>')}
         // tried first.
         const sshPrivateKeys = await fetchUserSSHPrivateKeys(chatId, userVPSDetails.sshKeySecretId)
 
-        const { password, secretId, reinstalled, note, raw, verified, sshBlocked } = await provider.resetPassword(instanceId, {
-          name: userVPSDetails.name,
+        const { password, secretId, reinstalled, note, raw, verified } = await provider.resetPassword(instanceId, {
           defaultUser: userVPSDetails.defaultUser,
           imageId: userVPSDetails.imageId,
           osType: userVPSDetails.osType,
@@ -20631,20 +20758,7 @@ ${message.replace(/\n/g, '<br>')}
           sshPrivateKeys,
           currentSecretId: userVPSDetails.rootPasswordSecretId,
         })
-
-        // Part C: box is online but SSH/22 is firewalled (ufw). We could not set
-        // the password over SSH and we did NOT email anything — `note` is the
-        // actionable ufw guidance. Show it and stop (don't render "emailed" copy).
-        if (sshBlocked) {
-          await vpsPlansOf.updateOne(
-            { vpsId: userVPSDetails._id },
-            { $set: { lastPasswordReset: new Date() } }
-          )
-          console.log(`[VPS] Password reset ssh-blocked (ufw) - ChatId: ${chatId}, Instance: ${instanceId}, Name: ${userVPSDetails.name}`)
-          send(chatId, note)
-          return goto.getVPSDetails()
-        }
-
+        
         // Update MongoDB with new password secret ID (if the provider returned one)
         await vpsPlansOf.updateOne(
           { vpsId: userVPSDetails._id },
@@ -20679,13 +20793,20 @@ ${message.replace(/\n/g, '<br>')}
             }
           ))
         } else {
-          // OVH cannot return the password (it emails it / SSH-key access)
-          send(chatId, vp.passwordResetEmailed(
-            userVPSDetails.name,
-            userVPSDetails.host,
-            username,
-            note
-          ))
+          // Provider could not return a password inline.
+          if (raw?.fallback === 'ssh-blocked') {
+            // Box is up but SSH (22) is firewalled — a reset can't help until
+            // the port is reopened. Give actionable recovery-console guidance.
+            send(chatId, vp.vpsSshBlockedHelp(userVPSDetails.name, userVPSDetails.host, username))
+          } else {
+            // OVH cannot return the password (it emails it / SSH-key access)
+            send(chatId, vp.passwordResetEmailed(
+              userVPSDetails.name,
+              userVPSDetails.host,
+              username,
+              note
+            ))
+          }
         }
         
         return goto.getVPSDetails()
@@ -21380,9 +21501,9 @@ ${message.replace(/\n/g, '<br>')}
     }
     // Reserved words — must match the SPA + system routes in app.get('/:id')
     const reserved = new Set([
-      'call', 'panel', 'phone', 'login', 'signup', 'dashboard', 'settings', 'sales',
+      'call', 'panel', 'phone', 'login', 'signup', 'dashboard', 'settings',
       'api', 'admin', 'webhook', 'webhooks', 'twilio', 'telnyx', 'static',
-      'health', 'sms-app', 'voice', 'sms', 'auth',
+      'health', 'sms-app', 'voice', 'sms', 'auth', 'apidoc',
     ])
     if (reserved.has(alias.toLowerCase())) {
       return send(chatId, trans('t.notValidHalf'))
@@ -24383,7 +24504,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     if (result.error === 'limit_reached') {
       let msg = pMsg.sipTestComplete
       const refResult = await getOrCreateReferralCode(chatId)
-      const refLink = refResult ? `https://t.me/${process.env.BOT_USERNAME || 'Nomadlybot'}?start=ref_${refResult.code}` : null
+      const refLink = refResult ? `https://t.me/Nomadlybot?start=ref_${refResult.code}` : null
       if (refLink && !refResult.bonusEarned) {
         msg += pMsg.sipTestReferral(refLink)
       }
@@ -24685,7 +24806,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       if (result.error === 'limit_reached') {
         let msg = pMsg.sipTestComplete
         const refResult = await getOrCreateReferralCode(chatId)
-        const refLink = refResult ? `https://t.me/${process.env.BOT_USERNAME || 'Nomadlybot'}?start=ref_${refResult.code}` : null
+        const refLink = refResult ? `https://t.me/Nomadlybot?start=ref_${refResult.code}` : null
         if (refLink && !refResult.bonusEarned) {
           msg += pMsg.sipTestReferral(refLink)
         }
@@ -33577,11 +33698,7 @@ Select a category:`), k.of(catBtns))
       return send(chatId, t.whatNum)
 
     saveInfo('amount', amount)
-    // CNAM (caller-name) is now a PAID add-on on lead purchases: auto-on for USA
-    // targeted leads, opt-in for other USA leads, N/A for non-USA. Mirrors the
-    // cnam logic used at generation time (line ~12897). Previously free.
-    const cnam = info?.country === 'USA' ? (info?.targetName ? true : info?.cnam) : false
-    const price = amount * RATE_LEAD + (cnam ? amount * RATE_CNAM : 0)
+    const price = amount * RATE_LEAD
     await saveInfo('price', price)
     // FIX: Reset stale coupon state from previous orders (domain, hosting, etc.)
     // Without this, couponApplied+newPrice from a prior product leak into the leads confirm screen
@@ -34419,6 +34536,80 @@ Select a category:`), k.of(catBtns))
       log(`[AntiRed-Bot] Error disabling for ${domain}: ${e.message}`)
       return send(chatId, t.antiRedError)
     }
+  }
+
+  // ── 🍯 Honeypot Traps: multi-domain picker (Monthly plans with addons) ──
+  if (action === 'honeypot-pick-domain') {
+    if (isBackPress(message) || message === user.backToMyHostingPlans) {
+      await saveInfo('honeypotFromPlan', false)
+      if (info?.selectedHostingDomain) return goto.viewHostingPlanDetails(info.selectedHostingDomain)
+      return goto.myHostingPlans()
+    }
+    const allowed = Array.isArray(info?.honeypotPickerDomains) ? info.honeypotPickerDomains : []
+    const m = typeof message === 'string' ? message.match(/·\s*([^\s·]+)\s*$/) : null
+    const picked = m ? m[1].toLowerCase() : ''
+    if (!picked || !allowed.includes(picked)) {
+      return send(chatId, trans('t.selectValidOption'))
+    }
+    await set(state, chatId, 'domainToManage', picked)
+    const antiRedService = require('./anti-red-service')
+    const cf = await antiRedService.resolveDomainCfState(picked, db)
+    if (!cf.hasCloudflare) {
+      return send(chatId, t.antiRedNoCF(picked), k.of([[user.backToMyHostingPlans]]), { parse_mode: 'HTML' })
+    }
+    await set(state, chatId, 'action', 'honeypot-toggle')
+    if (cf.honeypotOff) {
+      return send(chatId, t.honeypotStatusOff(picked), k.of([[t.honeypotTurnOn], ['↩️ Back']]), { parse_mode: 'HTML' })
+    }
+    return send(chatId, t.honeypotStatusOn(picked), k.of([[t.honeypotTurnOff], ['↩️ Back']]), { parse_mode: 'HTML' })
+  }
+
+  // ── 🍯 Honeypot Traps: on/off toggle (Monthly plans) ──
+  // Turning off ONLY suppresses trap injection via the CF Worker KV flag
+  // ('honeypot_off:{domain}'). Visitor Captcha, scanner cloaking, IP bans and
+  // WAF rules keep running — nothing else about anti-red is disabled.
+  if (action === 'honeypot-toggle') {
+    if (isBackPress(message)) {
+      if (info?.honeypotFromPlan && info?.selectedHostingDomain) {
+        await saveInfo('honeypotFromPlan', false)
+        return goto.viewHostingPlanDetails(info.selectedHostingDomain)
+      }
+      if (info?.selectedHostingDomain) return goto.viewHostingPlanDetails(info.selectedHostingDomain)
+      return goto.myHostingPlans()
+    }
+    if (message === t.honeypotTurnOff || message === t.honeypotTurnOn) {
+      const disable = message === t.honeypotTurnOff
+      const domain = info?.domainToManage
+      if (!domain) return send(chatId, trans('t.noDomainSelected'))
+      send(chatId, disable ? t.honeypotTurningOff(domain) : t.honeypotTurningOn(domain), { parse_mode: 'HTML' })
+      try {
+        const antiRedService = require('./anti-red-service')
+        const cf = await antiRedService.resolveDomainCfState(domain, db)
+        if (!cf.hasCloudflare) return send(chatId, t.antiRedNoCF(domain), { parse_mode: 'HTML' })
+        const result = await antiRedService.setDomainHoneypot(domain, disable)
+        if (result?.success) {
+          await db.collection('registeredDomains').updateOne(
+            { _id: domain },
+            disable ? { $set: { 'val.honeypotOff': true } } : { $unset: { 'val.honeypotOff': '' } },
+            { upsert: true }
+          )
+          const doneMsg = disable ? t.honeypotDisabled(domain) : t.honeypotEnabled(domain)
+          if (info?.honeypotFromPlan && info?.selectedHostingDomain) {
+            await send(chatId, doneMsg, { parse_mode: 'HTML' })
+            await saveInfo('honeypotFromPlan', false)
+            return goto.viewHostingPlanDetails(info.selectedHostingDomain)
+          }
+          await set(state, chatId, 'action', 'honeypot-toggle')
+          if (disable) return send(chatId, doneMsg, k.of([[t.honeypotTurnOn], ['↩️ Back']]), { parse_mode: 'HTML' })
+          return send(chatId, doneMsg, k.of([[t.honeypotTurnOff], ['↩️ Back']]), { parse_mode: 'HTML' })
+        }
+        return send(chatId, t.honeypotError)
+      } catch (e) {
+        log(`[Honeypot-Bot] Error toggling for ${domain}: ${e.message}`)
+        return send(chatId, t.honeypotError)
+      }
+    }
+    return send(chatId, trans('t.selectValidOption'))
   }
   
   // DNS Management Confirmation for Hosting Domains
@@ -35969,7 +36160,7 @@ const buyDomainFullProcess = async (chatId, lang, domain, opts = {}) => {
         amount: buyResult.actualPrice || info?.price || 0,
         currency: 'USD',
         status: 'completed',
-        metadata: { domain, registrar: buyResult.registrar, nameservers: buyResult.nameservers, ...buildSaleMeta((typeof info !== 'undefined' ? info : null), buyResult.actualPrice || info?.price || 0) }
+        metadata: { domain, registrar: buyResult.registrar, nameservers: buyResult.nameservers }
       })
     } catch (txErr) {
       log('[Domain] Failed to log transaction (non-blocking):', txErr.message)
@@ -36706,6 +36897,7 @@ async function checkVPSPlansExpiryandPayment() {
   // after a 3-day grace period (not just powered off). This scheduler OWNS that lifecycle
   // (it can notify the user); the RDP-service processExpiries() sweep is only a safety net.
   const rdpGrace = require('./rdp-grace-lifecycle')
+  const resellerWebhooks = require('./reseller-webhooks')
   const _isDoRdp = (vpsPlan) => rdpGrace.isDigitalOceanRdp(vpsPlan)
   // Renewal length = the prepaid period the customer bought (DO RDP: 1/2/3 months; everything else monthly).
   // Providers that enforce their own expiry (DO-RDP sweep on doRdpServers.expires_at) must be told about
@@ -36949,6 +37141,7 @@ async function checkVPSPlansExpiryandPayment() {
           mirrorGrace: (inst, fields) => (typeof rdpSvc.markGrace === 'function') ? rdpSvc.markGrace(inst, fields) : Promise.resolve(),
           mirrorDestroy: (inst) => (typeof rdpSvc.markGraceDestroy === 'function') ? rdpSvc.markGraceDestroy(inst) : Promise.resolve(),
           notifyUser: (cid, key, args) => { try { send(cid, translation(key, lang, ...(args || []))) } catch (e) { log(`[RDP Grace] notify failed: ${e.message}`) } },
+          notifyReseller: (event, payload) => { try { resellerWebhooks.emit(db, { chatId: vpsPlan.chatId, event, instanceId: vpsPlan.vpsId || vpsPlan._id, payload, log }).catch(() => {}) } catch (_) {} },
           notifyAdmin: (text) => { try { send(TELEGRAM_ADMIN_CHAT_ID, text, adminMsgOpts({ chatId: vpsPlan.chatId })) } catch (_) {} },
           log,
         })
@@ -37281,7 +37474,7 @@ const buyVPSPlanFullProcess = async (chatId, lang, vpsDetails) => {
         amount: vpsDetails.totalPrice || 0,
         currency: 'USD',
         status: 'completed',
-        metadata: { plan: vpsDetails.plan, host: vpsData.host, region: vpsDetails.region, ...buildSaleMeta((typeof info !== 'undefined' ? info : null), vpsDetails.totalPrice || 0) }
+        metadata: { plan: vpsDetails.plan, host: vpsData.host, region: vpsDetails.region }
       })
     } catch (txErr) {
       log('[VPS] Failed to log transaction (non-blocking):', txErr.message)
@@ -37453,17 +37646,6 @@ const upgradeVPSDetails = async (chatId, lang, vpsDetails) => {
 // provisioned. See the Apr-30-2026 audit-trail sweep for context.
 async function auditCryptoTx(chatId, type, amount, metadata, psp) {
   try {
-    // Tag product SALES with discount / membership-tier / list-price so the
-    // Sales & Profit dashboard is accurate. Pulls the live checkout session
-    // (holds loyalty + coupon detail). Defensive — any failure just omits them.
-    let saleMeta = {}
-    try {
-      const NON_SALE = /credit|refund|savings|topup|deposit|bonus|validation/i
-      if (!NON_SALE.test(String(type || ''))) {
-        const sess = await get(state, chatId)
-        saleMeta = buildSaleMeta(sess, amount)
-      }
-    } catch (_) { saleMeta = {} }
     await logTransaction(db, {
       transactionId: generateTransactionId(),
       chatId,
@@ -37471,7 +37653,7 @@ async function auditCryptoTx(chatId, type, amount, metadata, psp) {
       amount,
       currency: 'USD',
       status: 'completed',
-      metadata: { ...(metadata || {}), psp, ...saleMeta },
+      metadata: { ...(metadata || {}), psp },
     })
   } catch (txErr) {
     log(`[Audit] Failed to log ${psp} ${type} transaction (non-blocking): ${txErr.message}`)
@@ -37810,201 +37992,27 @@ require('./routes/admin.js').install(app, {
   },
 })
 
-// ── Sales & Profit dashboard (web admin) ──
-// Read-only analytics over `transactions` + call usage from `walletLedger`.
-// Mounted at /admin/sales — external <pod>/api/admin/sales/*.
-require('./routes/sales.js').install(app, {
-  getDb: () => db,
-  log,
-})
-
-// ── Public white-label branding (frontend fetches this at load) ──
-// External: <pod>/api/branding  →  node /branding
-app.get('/branding', (_req, res) => {
-  try { res.json(require('./branding').publicBranding()) } catch (e) { res.json({}) }
-})
-
 // ── cPanel Panel Routes ──
 const { createCpanelRoutes } = require('./cpanel-routes')
 app.use('/panel', createCpanelRoutes(() => cpanelAccounts, { notifyAdmin }))
-
-// ── READ-ONLY dev endpoint: verify the cPanel auth-broken classifier + wiring
-// (no real WHM traffic, no data mutation). Motivated by @HHR2009 2026-08-26
-// bug fix — lets the testing agent + ops verify the classifier truth table
-// and check that /panel/files, /panel/files/mkdir, /panel/files/extract,
-// /panel/files/upload, /panel/files/upload-chunk all reference the new
-// _isAuthBroken() helper without hitting a real cPanel account.
-//
-// External path is /api/dev/cpanel-auth-broken-check (the middleware at
-// line ~36686 strips the /api prefix before Express matches, so we register
-// as /dev/… here). Access model:
-//   • 404 in production (NODE_ENV=production && BOT_ENVIRONMENT=production)
-//     unless caller supplies ?key=<SESSION_SECRET>
-//   • Always available in dev/staging
-app.get('/dev/cpanel-auth-broken-check', (req, res) => {
-  const isProd = process.env.NODE_ENV === 'production' && process.env.BOT_ENVIRONMENT === 'production'
-  const supplied = String(req.query.key || '')
-  const secret = String(process.env.SESSION_SECRET || '')
-  const authorised = supplied && secret && supplied === secret
-  if (isProd && !authorised) return res.status(404).json({ error: 'Not Found' })
-  if (!authorised && !isProd && process.env.BOT_ENVIRONMENT === 'production') {
-    return res.status(403).json({ error: 'admin key required in prod-like env' })
-  }
-
-  try {
-    const cp = require('./cpanel-proxy')
-    // ── 1. Classifier truth table ──
-    const cases = [
-      // auth-broken (should ALL be true)
-      { name: 'uapi 401 blank body',        status: 401, msg: '',                              want: 'auth' },
-      { name: 'uapi 401 HTML login body',   status: 401, msg: '<html>cPanel Login</html>',    want: 'auth' },
-      { name: 'api2 403 Access denied',     status: 403, msg: 'Access denied',                 want: 'auth' },
-      { name: 'api2 403 mixed case body',   status: 403, msg: 'access DENIED',                 want: 'auth' },
-      { name: 'axios generic 401 message',  status: null, msg: 'Request failed with status code 401', want: 'auth' },
-      { name: 'axios generic 403 message',  status: null, msg: 'Request failed with status code 403', want: 'auth' },
-      // eperm (should stay EPERM, NOT tagged auth)
-      { name: 'uapi status 1 EPERM',        status: 500, msg: '"/usr/local/cpanel/uapi" exited with status 1 (EPERM)', want: 'eperm' },
-      { name: 'plain EPERM msg',            status: 500, msg: 'EPERM: permission denied',      want: 'eperm' },
-      { name: 'permission denied on 403',   status: 403, msg: 'permission denied',             want: 'eperm' }, // EPERM regex catches this first
-      // legit non-auth errors (should be neither)
-      { name: 'File exists 400',            status: 400, msg: 'File exists',                   want: 'none' },
-      { name: '404 not found',              status: 404, msg: 'File not found',                want: 'none' },
-      { name: '502 upstream',               status: 502, msg: 'Bad Gateway',                   want: 'none' },
-      { name: 'no status ECONNRESET',       status: null, msg: 'ECONNRESET',                    want: 'none' },
-    ]
-    const classifier = cases.map(c => {
-      const isAuth = cp.looksLikeAuthFailure(c.status, c.msg)
-      const isEperm = cp.looksLikeUapiPermFailure(c.msg)
-      // Mutual exclusion — code precedence is EPERM first, then AUTH
-      const code = isEperm ? 'CPANEL_UAPI_EPERM' : (isAuth ? 'CPANEL_AUTH_FAILURE' : null)
-      let got
-      if (code === 'CPANEL_AUTH_FAILURE') got = 'auth'
-      else if (code === 'CPANEL_UAPI_EPERM') got = 'eperm'
-      else got = 'none'
-      return { ...c, isAuth, isEperm, code, got, pass: got === c.want }
-    })
-    const classifierAllPass = classifier.every(c => c.pass)
-
-    // ── 2. Wiring check: grep the route source ─────────────────────────
-    // The CURRENT fix is uploadFileViaSession (WHM impersonation session
-    // cookie). Two earlier iterations are RETIRED and must NOT appear in
-    // the upload-route branches:
-    //   (a) uploadFileAsRoot() — WHM /json-api gateway strips multipart
-    //   (b) _repairCpPass() — cpsrvd still denies Basic Auth after rotate
-    const path = require('path')
-    const fs = require('fs')
-    const routesPath = path.join(__dirname, 'cpanel-routes.js')
-    const proxyPath = path.join(__dirname, 'cpanel-proxy.js')
-    const routesSrc = fs.readFileSync(routesPath, 'utf8')
-    const proxySrc = fs.readFileSync(proxyPath, 'utf8')
-
-    // Extract a single route body so localised greps don't leak across routes.
-    // ALSO strip out // ... comments so we don't confuse retired-approach
-    // documentation ("uploadFileAsRoot()" mentioned in a comment) for a
-    // real code call.
-    const routeBody = (method, path_) => {
-      const rx = new RegExp(`router\\.${method}\\(['"]${path_.replace(/\//g, '\\/')}['"][\\s\\S]{0,8000}?\\n {2}\\}\\)`)
-      const m = routesSrc.match(rx)
-      if (!m) return ''
-      // Strip // line comments and /* block */ comments so grep matches only real code
-      return m[0]
-        .replace(/\/\*[\s\S]*?\*\//g, '')
-        .replace(/(^|[^:'"])\/\/[^\n]*/g, '$1')
-    }
-    const uploadBody       = routeBody('post', '/files/upload')
-    const uploadChunkBody  = routeBody('post', '/files/upload-chunk')
-    const mkdirBody        = routeBody('post', '/files/mkdir')
-    const listBody         = routeBody('get',  '/files')
-    const extractBody      = routeBody('post', '/files/extract')
-    const deleteBody       = routeBody('post', '/files/delete')
-
-    // Isolate the uploadFile function body from proxy (for HTML-detection check)
-    // and uploadFileViaSession function body (for sub-implementation checks).
-    const uploadFileFnMatch = proxySrc.match(/async\s+function\s+uploadFile\s*\([\s\S]{0,10000}?\n\}\n/)
-    const uploadFileFn = uploadFileFnMatch ? uploadFileFnMatch[0] : ''
-    const sessionFnMatch = proxySrc.match(/async\s+function\s+uploadFileViaSession[\s\S]{0,12000}?\n\}\n/)
-    const sessionFn = sessionFnMatch ? sessionFnMatch[0] : ''
-
-    const wiring = {
-      // ── (Existing) auth-broken gates on list/mkdir/extract — untouched ─
-      list_files_gate:         /_isAuthBroken\(/.test(listBody),
-      mkdir_gate:              /_isAuthBroken\(/.test(mkdirBody),
-      extract_gate:            /_isAuthBroken\(/.test(extractBody),
-      // ── (New) uploadFileViaSession helper + implementation checks ─
-      session_helper_defined:              /async\s+function\s+uploadFileViaSession\s*\(\s*cpUser\s*,\s*dir\s*,\s*fileName\s*,\s*fileBuffer\s*,\s*whmHost\s*\)/.test(proxySrc),
-      session_uses_create_user_session:    /['"`]\/json-api\/create_user_session['"`]|\$\{whmApiUrl\}\/json-api\/create_user_session/.test(sessionFn),
-      session_uses_cpanel_api_url:         /cpanelApiUrl\}/.test(sessionFn) && /CPANEL_API_URL/.test(sessionFn),
-      session_max_redirects_zero:          /maxRedirects\s*:\s*0/.test(sessionFn),
-      session_regex_cpsession_cookie:      /cpsession=\(\[\^;\]\+\)/.test(sessionFn),
-      session_posts_upload_files:          /\/execute\/Fileman\/upload_files/.test(sessionFn),
-      session_uses_whm_root_header:        /whm \$\{[^}]+\}:\$\{whmToken\}|Authorization:\s*whmAuthHeader/.test(sessionFn),
-      // ── (New) uploadFile catches HTTP-200-Login-page ─
-      uploadFile_catches_login_html:       /<title>cPanel Login<\/title>|<!DOCTYPE html>/i.test(uploadFileFn) && /CPANEL_AUTH_FAILURE/.test(uploadFileFn),
-      // ── (New) _verifyDeleted returns null on failed listing ─
-      verify_deleted_null_on_bad_listing:  /_verifyDeleted[\s\S]{0,1500}listing\.status\s*!==\s*1/.test(proxySrc),
-      // ── (New) deleteFile only promotes to status:1 if original was 1 ─
-      delete_promote_only_on_original_ok:  /gone\s*===\s*true\s*&&\s*result\?\.status\s*===\s*1/.test(proxySrc),
-      // ── Route wiring: both upload routes call the session helper ─
-      upload_calls_session:                /uploadFileViaSession\(req\.cpUser/.test(uploadBody),
-      upload_chunk_calls_session:          /uploadFileViaSession\(req\.cpUser/.test(uploadChunkBody),
-      // ── Route wiring: retired helpers are gone from the upload branches ─
-      upload_no_repair_cppass:             !/_repairCpPass\(/.test(uploadBody),
-      upload_chunk_no_repair_cppass:       !/_repairCpPass\(/.test(uploadChunkBody),
-      upload_no_root_upload:               !/uploadFileAsRoot\(/.test(uploadBody),
-      upload_chunk_no_root_upload:         !/uploadFileAsRoot\(/.test(uploadChunkBody),
-      // ── (New) Failure via: tags emitted ─
-      emits_session_tags:                  /['"]whm-session['"]/.test(proxySrc)
-                                            && /['"]session-cookie-missing['"]/.test(proxySrc)
-                                            && /['"]session-upload-rejected['"]/.test(proxySrc)
-                                            && /['"]session-upload-failed['"]/.test(proxySrc)
-                                            && /['"]session-exception['"]/.test(proxySrc)
-                                            && /['"]session-create-failed['"]/.test(proxySrc)
-                                            && /['"]session-unavailable['"]/.test(proxySrc),
-      // ── Regression: /files/delete untouched ─
-      delete_untouched_by_session:         !/uploadFileViaSession\(/.test(deleteBody) && !/_repairCpPass\(/.test(deleteBody),
-      // ── Env presence ─
-      env_whm_token:                       !!process.env.WHM_TOKEN,
-      env_whm_host:                        !!process.env.WHM_HOST,
-      env_whm_api_url:                     !!process.env.WHM_API_URL,
-      env_cpanel_api_url:                  !!process.env.CPANEL_API_URL,
-    }
-    const wiringAllPass = Object.values(wiring).every(Boolean)
-
-    // ── 3. Exports check ──
-    const exports_check = {
-      classifier_exported:      typeof cp.looksLikeAuthFailure === 'function',
-      session_upload_exported:  typeof cp.uploadFileViaSession === 'function',
-      root_upload_still_exported: typeof cp.uploadFileAsRoot === 'function', // kept for legacy compat
-      eperm_classifier_kept:    typeof cp.looksLikeUapiPermFailure === 'function',
-    }
-    const exportsAllPass = Object.values(exports_check).every(Boolean)
-
-    const passed = classifierAllPass && wiringAllPass && exportsAllPass
-    return res.json({
-      passed,
-      counts: {
-        classifier_cases: classifier.length,
-        classifier_pass:  classifier.filter(c => c.pass).length,
-        wiring_checks:    Object.keys(wiring).length,
-        wiring_pass:      Object.values(wiring).filter(Boolean).length,
-        exports_checks:   Object.keys(exports_check).length,
-        exports_pass:     Object.values(exports_check).filter(Boolean).length,
-      },
-      classifier,
-      wiring,
-      exports: exports_check,
-      note: 'READ-ONLY diagnostic — greps source only, no real WHM traffic, no DB writes. Verifies the WHM impersonation session upload path (uploadFileViaSession); retired uploadFileAsRoot/_repairCpPass must NOT appear in upload-route branches.',
-    })
-  } catch (e) {
-    return res.status(500).json({ error: `dev check failed: ${e.message}` })
-  }
-})
 
 // ── Public Web Storefront Routes (account + wallet + crypto top-up) ──
 const { createStoreRoutes, mintBotLoginToken } = require('./store-routes')
 app.use('/store', createStoreRoutes({
   getDb: () => (cpanelAccounts && cpanelAccounts.s && cpanelAccounts.s.db) || null,
   selfUrl: SELF_URL,
+  notifyAdmin,
+}))
+
+// ── Reseller API (API-key authenticated public REST API) ──
+// Lets a reseller programmatically resell domains, DNS, VPS, RDP & cPanel
+// hosting. Billing debits the wallet system (walletOf). Provisioning only runs
+// LIVE when RESELLER_API_LIVE=true AND SKIP_WEBHOOK_SYNC!=='true' (dev pod = dry-run).
+// External URL: /api/reseller/v1/*  (FastAPI strips /api → node /reseller/v1)
+const { createResellerApi } = require('./reseller-api')
+app.use('/reseller/v1', createResellerApi({
+  getDb: () => db,
+  log,
   notifyAdmin,
 }))
 
@@ -38020,23 +38028,35 @@ try {
 
 // ── cPanel Server Migration (auto-sync accounts when WHM_HOST changes) ──
 const { runMigration: runCpanelMigration } = require('./cpanel-migration')
-setTimeout(() => {
-  runCpanelMigration(() => cpanelAccounts).catch(err => {
-    log(`[CpanelMigration] Error: ${err.message}`)
-  })
-}, 15000) // Run 15s after startup to let DB settle
+// DEV SANDBOX GUARD: runCpanelMigration rotates REAL cPanel passwords via WHM /passwd
+// and rewrites PRODUCTION Cloudflare DNS records. A dev pod shares the production Mongo,
+// so it must never run this (parity with CF-Sync / AntiRed / hosting-scheduler guards).
+if (process.env.SKIP_WEBHOOK_SYNC === 'true') {
+  log('[CpanelMigration] SKIP_WEBHOOK_SYNC=true — skipping (dev sandbox must not rotate prod cPanel passwords or rewrite prod DNS)')
+} else {
+  setTimeout(() => {
+    runCpanelMigration(() => cpanelAccounts).catch(err => {
+      log(`[CpanelMigration] Error: ${err.message}`)
+    })
+  }, 15000) // Run 15s after startup to let DB settle
+}
 
 // ── MAXSQL Migration (one-shot: raise MySQL quota on Premium Monthly accounts) ──
 // Idempotent. Recorded in `migrations` collection so it only runs once. If WHM
 // is unreachable (e.g. sandbox CF Access 403), the marker is NOT set and the
 // migration retries on the next startup (production has the WHM tunnel allowlist).
 const { runMaxsqlMigration } = require('./maxsql-migration')
-setTimeout(() => {
-  const getDb = () => (cpanelAccounts && cpanelAccounts.s && cpanelAccounts.s.db) || null
-  runMaxsqlMigration(getDb).catch(err => {
-    log(`[MaxsqlMigration] Error: ${err.message}`)
-  })
-}, 20000) // Run 20s after startup, after cpanel-migration
+// DEV SANDBOX GUARD: mutates real WHM MySQL quotas. Skip on the dev pod (shared prod Mongo/WHM).
+if (process.env.SKIP_WEBHOOK_SYNC === 'true') {
+  log('[MaxsqlMigration] SKIP_WEBHOOK_SYNC=true — skipping (dev sandbox must not mutate prod WHM quotas)')
+} else {
+  setTimeout(() => {
+    const getDb = () => (cpanelAccounts && cpanelAccounts.s && cpanelAccounts.s.db) || null
+    runMaxsqlMigration(getDb).catch(err => {
+      log(`[MaxsqlMigration] Error: ${err.message}`)
+    })
+  }, 20000) // Run 20s after startup, after cpanel-migration
+}
 
 // ── Honeypot Routes (receive reports from CF Workers + analytics) ──
 honeypotService.createHoneypotRoutes(app)
@@ -38153,7 +38173,7 @@ async function sendRdpConnectionFile(chatId, ip, lang = 'en') {
       chatId,
       Buffer.from(content, 'utf8'),
       { caption, parse_mode: 'HTML' },
-      { filename: `${(process.env.CHAT_BOT_BRAND || 'server').toLowerCase().replace(/[^a-z0-9]/g, '') || 'server'}-rdp-${String(ip).replace(/[^0-9.]/g, '')}.rdp`, contentType: 'application/x-rdp' }
+      { filename: `nomadly-rdp-${String(ip).replace(/[^0-9.]/g, '')}.rdp`, contentType: 'application/x-rdp' }
     )
   } catch (e) { try { log(`[DO-RDP] sendRdpConnectionFile failed: ${e.message || e}`) } catch (_) {} }
 }
@@ -38612,7 +38632,7 @@ const bankApis = {
         amount: price,
         currency: 'NGN',
         status: 'completed',
-        metadata: { phoneNumber: selectedNumber, plan: planKey, paymentMethod: 'bank_ngn', ...buildSaleMeta((typeof info !== 'undefined' ? info : null), price) }
+        metadata: { phoneNumber: selectedNumber, plan: planKey, paymentMethod: 'bank_ngn' }
       })
     } catch (txErr) {
       log('[Phone] Failed to log transaction (non-blocking):', txErr.message)
@@ -39228,7 +39248,7 @@ app.get('/crypto-pay-plan', auth, async (req, res) => {
       amount: price,
       currency: 'USD',
       status: 'completed',
-      metadata: { plan, coin, value, ref, psp: 'blockbee', ...buildSaleMeta((typeof info !== 'undefined' ? info : null), price) },
+      metadata: { plan, coin, value, ref, psp: 'blockbee' },
     })
   } catch (txErr) {
     log('[Plan] Failed to log BlockBee subscription transaction (non-blocking): ' + txErr.message)
@@ -39327,7 +39347,7 @@ app.get('/crypto-pay-domain', auth, async (req, res) => {
       amount: updatedInfo?.actualPrice || cheaperPrice || price,
       currency: 'USD',
       status: 'completed',
-      metadata: { domain, registrar: updatedInfo?.actualRegistrar, coin, value, ref, psp: 'blockbee', ...buildSaleMeta((typeof info !== 'undefined' ? info : null), updatedInfo?.actualPrice || cheaperPrice || price) },
+      metadata: { domain, registrar: updatedInfo?.actualRegistrar, coin, value, ref, psp: 'blockbee' },
     })
   } catch (txErr) {
     log('[Domain] Failed to log BlockBee domain transaction (non-blocking): ' + txErr.message)
@@ -40474,6 +40494,231 @@ app.post('/dev/idempotency-test', async (req, res) => {
   return res.json({ ...out, pass: out.first === 'inserted' && out.second === 'duplicate-blocked' })
 })
 
+// ── DEV-ONLY: storefront DynoPay webhook classification + underpay tolerance ─
+// Verifies the fix for the silent-drop bug: DynoPay's 'received' status now
+// FULFILLS, a gateway-unreachable re-verify falls back to trusting the webhook
+// event (wallet-deposit parity), definitive-unpaid statuses HOLD, and the
+// $67.31/$69 network-fee shave provisions. Pure logic, no DB writes. 404 in prod.
+app.post('/dev/store-webhook-verify-test', (req, res) => {
+  if ((process.env.BOT_ENVIRONMENT || '').toLowerCase() === 'production') {
+    return res.status(404).json({ error: 'not found' })
+  }
+  const V = require('./store-payment-verify')
+  const checks = []
+  const ck = (name, got, want) => checks.push({ name, pass: JSON.stringify(got) === JSON.stringify(want), got, want })
+
+  // 1. DynoPay 'received' status must FULFILL when the gateway confirms it.
+  ck('received_status_fulfills', V.classifyStoreWebhook({ event: 'received', gatewayReached: true, gatewayStatus: 'received' }).action, 'fulfill')
+  // 2. classic confirmed still fulfills
+  ck('confirmed_fulfills', V.classifyStoreWebhook({ event: 'payment.confirmed', gatewayReached: true, gatewayStatus: 'confirmed' }).action, 'fulfill')
+  // 3a. gateway UNREACHABLE + UNSIGNED webhook → HOLD (forgery window closed)
+  ck('unreachable_unsigned_holds', V.classifyStoreWebhook({ event: 'payment.confirmed', gatewayReached: false, signatureValid: false }).action, 'hold')
+  // 3b. gateway UNREACHABLE + VALID signature → fulfill (authentic, invoiced amount)
+  ck('unreachable_signed_fulfills', V.classifyStoreWebhook({ event: 'payment.confirmed', gatewayReached: false, signatureValid: true }).action, 'unverified-fulfill')
+  // 4. gateway says definitively unpaid (contradicts the paid webhook) → HOLD (EXPLOIT FIX)
+  ck('gateway_contradicts_holds', V.classifyStoreWebhook({ event: 'payment.confirmed', gatewayReached: true, gatewayStatus: 'waiting' }).action, 'hold')
+  // 5. non-paid webhook event → HOLD
+  ck('unpaid_event_holds', V.classifyStoreWebhook({ event: 'waiting', gatewayReached: false }).action, 'hold')
+  // 6. $67.31 of a $69 order (fee-shave) is WITHIN tolerance → NOT underpaid
+  ck('feeshave_within_tolerance', V.isStoreUnderpaid(67.31, 69), false)
+  // 7. a real major underpayment IS underpaid
+  ck('major_underpayment_blocked', V.isStoreUnderpaid(30, 69), true)
+  // 8. exact payment is fine
+  ck('exact_payment_ok', V.isStoreUnderpaid(69, 69), false)
+  // 9. received_unconfirmed treated as paid (per requirement)
+  ck('received_unconfirmed_paid', V.isPaidStatus('received_unconfirmed'), true)
+  // 10. refunded is NOT a paid status
+  ck('refunded_not_paid', V.isPaidStatus('refunded'), false)
+  // 11. signature: a correct V2 HMAC verifies
+  {
+    const secret = 'whsec_devtest'
+    const raw = JSON.stringify({ event: 'payment.confirmed', payment_id: 'pay_x', base_amount: '25.00' })
+    const t = Math.floor(Date.now() / 1000)
+    const sig = require('crypto').createHmac('sha256', secret).update(`${t}.${raw}`).digest('hex')
+    ck('sig_v2_valid', V.verifyDynopayWebhook({ rawBody: raw, headers: { 'x-dynopay-signature-v2': `t=${t},v1=${sig}` }, secret }), 'valid')
+    // 12. a tampered body fails
+    ck('sig_v2_tampered_invalid', V.verifyDynopayWebhook({ rawBody: raw + ' ', headers: { 'x-dynopay-signature-v2': `t=${t},v1=${sig}` }, secret }), 'invalid')
+    // 13. no signature header → unsigned
+    ck('sig_absent_unsigned', V.verifyDynopayWebhook({ rawBody: raw, headers: {}, secret }), 'unsigned')
+    // 14-16. rotation grace window: header carries current+previous v1 — match ANY
+    const badSig = 'ab'.repeat(32)
+    ck('sig_v2_rotation_current_first', V.verifyDynopayWebhook({ rawBody: raw, headers: { 'x-dynopay-signature-v2': `t=${t},v1=${sig},v1=${badSig}` }, secret }), 'valid')
+    ck('sig_v2_rotation_current_last', V.verifyDynopayWebhook({ rawBody: raw, headers: { 'x-dynopay-signature-v2': `t=${t},v1=${badSig},v1=${sig}` }, secret }), 'valid')
+    ck('sig_v2_rotation_both_bad', V.verifyDynopayWebhook({ rawBody: raw, headers: { 'x-dynopay-signature-v2': `t=${t},v1=${badSig},v1=${badSig}` }, secret }), 'invalid')
+  }
+
+  const pass = checks.every(c => c.pass)
+  return res.json({ pass, tolerance: V.storeUnderpayTolerance(), checks })
+})
+
+// ── DEV-ONLY: verify the @HHR2009 "Create folder failed: Access denied" fix ─
+// 2026-08-26 bug — chatId 1960615421, cpUser nnliae74, WHM 68.183.77.106.
+// User's cached cpPass no longer matches the actual cPanel account password:
+//   API2 Fileman::mkdir  → HTTP 403 "Access denied"        (×3 in Railway logs)
+//   UAPI Fileman::upload_files → HTTP 401 (login page)
+//   UAPI Fileman::list_files   → HTTP 401 (login page)
+//   ProtectionHeartbeat        → "empty content after 3 retries" hourly
+//                                since 2026-08-24
+// Previously, /files/mkdir + /files (+ /files/extract + upload paths) only
+// tripped the WHM-root fallback on `httpStatus >= 500` or EPERM-class error
+// strings — never on 401/403 — so the raw "Access denied" leaked to the UI.
+// Fix: classify 401/403 (and body "Access denied") as user-auth-broken →
+// trip the WHM-root fallback ladder (root token + cpanel_jsonapi_user=X
+// impersonation → bypasses stale cpPass entirely). Also added
+// uploadFileAsRoot() so multipart uploads have a matching root-impersonation
+// path. Read-only endpoint: does NOT hit WHM or cPanel and does NOT mutate
+// the DB. 404 in production.
+app.get('/dev/cpanel-auth-broken-check', async (req, res) => {
+  if ((process.env.BOT_ENVIRONMENT || '').toLowerCase() === 'production') {
+    return res.status(404).json({ error: 'not found' })
+  }
+  if (req?.query?.key !== process.env.SESSION_SECRET?.slice(0, 16)) {
+    return res.status(403).json({ error: 'forbidden' })
+  }
+
+  const cpProxy = require('./cpanel-proxy')
+  const fs = require('fs')
+  const path = require('path')
+  const routesSrc = fs.readFileSync(path.resolve(__dirname, 'cpanel-routes.js'), 'utf8')
+  const proxySrc = fs.readFileSync(path.resolve(__dirname, 'cpanel-proxy.js'), 'utf8')
+
+  const checks = []
+  const add = (name, pass, detail) => checks.push({ name, pass: !!pass, detail: String(detail == null ? '' : detail).slice(0, 400) })
+
+  // ── 1. looksLikeAuthFailure classifies user-auth breaks correctly ───────
+  add('looksLikeAuthFailure exported', typeof cpProxy.looksLikeAuthFailure === 'function', typeof cpProxy.looksLikeAuthFailure)
+  if (typeof cpProxy.looksLikeAuthFailure === 'function') {
+    add('  401 → true', cpProxy.looksLikeAuthFailure(401, '') === true, '')
+    add('  403 → true', cpProxy.looksLikeAuthFailure(403, '') === true, '')
+    add('  body "Access denied" (no status) → true', cpProxy.looksLikeAuthFailure(null, 'Access denied') === true, '')
+    add('  body "access denied" case-insensitive → true', cpProxy.looksLikeAuthFailure(null, 'access denied') === true, '')
+    add('  axios "Request failed with status code 401" → true', cpProxy.looksLikeAuthFailure(null, 'Request failed with status code 401') === true, '')
+    add('  500 → false (that is EPERM/server class)', cpProxy.looksLikeAuthFailure(500, '') === false, '')
+    add('  404 → false', cpProxy.looksLikeAuthFailure(404, '') === false, '')
+    add('  legit "File exists" mkdir error → false', cpProxy.looksLikeAuthFailure(null, 'File exists') === false, '')
+  }
+
+  // ── 2. EPERM vs AUTH classifiers don't collide ────────────────────────
+  add('AUTH: "Access denied" is AUTH, not EPERM',
+    cpProxy.looksLikeUapiPermFailure('Access denied') === false &&
+    cpProxy.looksLikeAuthFailure(null, 'Access denied') === true, '')
+  add('EPERM: "permission denied" is EPERM, not AUTH',
+    cpProxy.looksLikeUapiPermFailure('permission denied') === true &&
+    cpProxy.looksLikeAuthFailure(null, 'permission denied') === false, '')
+
+  // ── 3. Return-shape simulation for the 3 real @HHR2009 responses ──────
+  const scenarios = [
+    { name: '403 Access denied (mkdir @HHR2009)', status: 403, msg: 'Access denied', expectedCode: 'CPANEL_AUTH_FAILURE' },
+    { name: '401 HTML login page (list_files @HHR2009)', status: 401, msg: '<!DOCTYPE html>', expectedCode: 'CPANEL_AUTH_FAILURE' },
+    { name: '500 EPERM (@hellpeaces, regression)', status: 500, msg: '"/usr/local/cpanel/uapi" exited with status 1 (EPERM)', expectedCode: 'CPANEL_UAPI_EPERM' },
+    { name: '404 "File exists" (legit mkdir error, regression)', status: 404, msg: 'File exists', expectedCode: undefined },
+  ]
+  for (const s of scenarios) {
+    const eperm = cpProxy.looksLikeUapiPermFailure(s.msg)
+    const authFail = !eperm && cpProxy.looksLikeAuthFailure(s.status, s.msg)
+    const actual = eperm ? 'CPANEL_UAPI_EPERM' : (authFail ? 'CPANEL_AUTH_FAILURE' : undefined)
+    add(`classify: ${s.name} → ${s.expectedCode || 'undefined'}`, actual === s.expectedCode, `actual=${actual}`)
+  }
+
+  // ── 4. WHM-root multipart upload helper wired ─────────────────────────
+  add('uploadFileAsRoot exported', typeof cpProxy.uploadFileAsRoot === 'function', typeof cpProxy.uploadFileAsRoot)
+  add('cpanel-proxy: uploadFileAsRoot uses whm root Authorization header',
+    /Authorization:\s*`whm\s+\$\{process\.env\.WHM_USERNAME\s*\|\|\s*'root'\}:\$\{whmToken\}`/.test(proxySrc), '')
+  add('cpanel-proxy: uploadFileAsRoot impersonates via cpanel_jsonapi_user',
+    /cpanel_jsonapi_user:\s*cpUser[\s\S]{0,120}cpanel_jsonapi_func:\s*'upload_files'/.test(proxySrc), '')
+
+  // ── 5. cpanel-proxy: api2 / uapi / uploadFile all tag CPANEL_AUTH_FAILURE ─
+  add('api2 error: sets code CPANEL_AUTH_FAILURE on auth-fail',
+    (proxySrc.match(/code:\s*eperm\s*\?\s*'CPANEL_UAPI_EPERM'\s*:\s*\(authFail\s*\?\s*'CPANEL_AUTH_FAILURE'/g) || []).length >= 2, '')
+  add('uploadFile error: sets code CPANEL_AUTH_FAILURE + httpStatus',
+    /Fileman::upload_files error[\s\S]{0,400}httpStatus:\s*status\s*\|\|\s*null,\s*code:\s*authFail\s*\?\s*'CPANEL_AUTH_FAILURE'/.test(proxySrc), '')
+
+  // ── 6. cpanel-routes: _isAuthBroken + WHM-root wiring on 401/403 ──────
+  add('_isAuthBroken defined', /function _isAuthBroken/.test(routesSrc), '')
+  add('_isAuthBroken checks CPANEL_AUTH_FAILURE code', /result\.code === 'CPANEL_AUTH_FAILURE'/.test(routesSrc), '')
+  add('_isAuthBroken checks httpStatus 401/403', /result\.httpStatus === 401 \|\| result\.httpStatus === 403/.test(routesSrc), '')
+  add('mkdir: looksBroken includes authBroken', /const authBroken = _isAuthBroken\(result\)[\s\S]{0,80}const looksBroken =[\s\S]{0,40}authBroken/.test(routesSrc), '')
+  add('list_files: looksBroken includes authBrokenList', /const authBrokenList = _isAuthBroken\(result\)[\s\S]{0,120}looksBroken = authBrokenList/.test(routesSrc), '')
+  add('extract: looksBroken includes authBrokenExt', /const authBrokenExt = _isAuthBroken\(result\)[\s\S]{0,120}looksBroken = authBrokenExt/.test(routesSrc), '')
+  add('single-upload: falls back to uploadFileViaSession on auth-broken', /Upload user-level auth-broken[\s\S]{0,400}uploadFileViaSession/.test(routesSrc), '')
+  add('chunk-upload: falls back to uploadFileViaSession on auth-broken', /Chunk upload user-level auth-broken[\s\S]{0,400}uploadFileViaSession/.test(routesSrc), '')
+  add('mkdir source anchored to 2026-08-26 @HHR2009 fix', /2026-08-26 @HHR2009/.test(routesSrc), '')
+  add('mkdir logs "user-auth-broken" reason tag for ops audit', /user-auth-broken/.test(routesSrc), '')
+
+  // ── 7. Backward-compat regressions ────────────────────────────────────
+  add('EPERM path preserved: _replyEperm still defined', /function _replyEperm/.test(routesSrc), '')
+  add('EPERM path preserved: CPANEL_UAPI_EPERM still referenced', /CPANEL_UAPI_EPERM/.test(routesSrc), '')
+
+  // ── 7b. Self-heal cpPass rotation wiring (RETIRED — kept as documentation)
+  //         The cpPass rotation attempt from the earlier session did succeed
+  //         at the WHM /passwd layer but couldn't restore user-level UAPI
+  //         (cpsrvd was still denying Basic Auth even with the fresh pass —
+  //         confirmed via live probe 23:37Z). We keep _repairCpPass defined
+  //         for anyone poking around the code but the upload flow no longer
+  //         calls it. See section 7c for the working architecture.
+  add('_repairCpPass helper still defined (legacy)', /async function _repairCpPass/.test(routesSrc), '')
+
+  // ── 7c. WHM impersonation-session upload (2026-08-26 FINAL architecture) ─
+  // WHM /create_user_session → cpsession cookie → POST /execute/Fileman/upload_files
+  // Bypasses cpsrvd-denies-Basic-Auth state entirely without any password
+  // churn. Live-tested against @HHR2009 / nnliae74 — 18/18 upload+list+
+  // mkdir+extract+delete pass end-to-end.
+  const proxySrcForSession = fs.readFileSync(path.resolve(__dirname, 'cpanel-proxy.js'), 'utf8')
+  add('uploadFileViaSession helper defined in cpanel-proxy.js', /async function uploadFileViaSession/.test(proxySrcForSession), '')
+  add('uploadFileViaSession calls WHM /create_user_session', /create_user_session/.test(proxySrcForSession), '')
+  add('uploadFileViaSession uses CPANEL_API_URL for /cpsess... path (NOT WHM_API_URL)', /const cpanelApiUrl = process\.env\.CPANEL_API_URL/.test(proxySrcForSession), '')
+  add('uploadFileViaSession follows login with maxRedirects:0 (capture real cpsession)', /maxRedirects:\s*0/.test(proxySrcForSession), '')
+  add('uploadFileViaSession extracts cpsession cookie from set-cookie', /cpsession=\(\[\^;\]\+\)/.test(proxySrcForSession), '')
+  add('uploadFileViaSession POST to /execute/Fileman/upload_files via cpsess path', /\$\{cpsess\}\/execute\/Fileman\/upload_files/.test(proxySrcForSession), '')
+  add('uploadFile detects HTTP-200 login-page HTML → CPANEL_AUTH_FAILURE', /login-page HTML — treating as auth failure/.test(proxySrcForSession), '')
+  add('_verifyDeleted returns null when listing itself failed (false-positive fix)', /listing\.status !== 1[\s\S]{0,80}return null/.test(proxySrcForSession), '')
+  add('deleteFile only promotes to status:1 when original op also status:1', /gone === true && result\?\.status === 1/.test(proxySrcForSession), '')
+  add('single upload routes to uploadFileViaSession on auth-broken', /Upload user-level auth-broken[\s\S]{0,400}uploadFileViaSession/.test(routesSrc), '')
+  add('chunk upload routes to uploadFileViaSession on auth-broken', /Chunk upload user-level auth-broken[\s\S]{0,400}uploadFileViaSession/.test(routesSrc), '')
+  add('upload paths no longer call _repairCpPass (WHM session supersedes)', !/Upload user-level auth-broken[\s\S]{0,600}_repairCpPass\(getCpanelCol/.test(routesSrc) && !/Chunk upload user-level auth-broken[\s\S]{0,600}_repairCpPass\(getCpanelCol/.test(routesSrc), '')
+
+  // ── 8. Environment: WHM_TOKEN + CPANEL_API_URL present so session fallback works ─
+  add('env WHM_TOKEN present (root fallback usable)', !!process.env.WHM_TOKEN, process.env.WHM_TOKEN ? `len=${process.env.WHM_TOKEN.length}` : 'MISSING')
+  add('env WHM_HOST present', !!process.env.WHM_HOST, process.env.WHM_HOST || 'MISSING')
+  add('env WHM_API_URL present (Cloudflare tunnel for WHM :2087)', !!process.env.WHM_API_URL, process.env.WHM_API_URL || 'MISSING')
+  add('env CPANEL_API_URL present (Cloudflare tunnel for cPanel :2083 — cpsess/execute path)', !!process.env.CPANEL_API_URL, process.env.CPANEL_API_URL || 'MISSING')
+
+  // ── 9. @HHR2009 record actually exists in Mongo (audit anchor, read-only) ─
+  let accountFound = null
+  try {
+    const col = db && db.collection ? db.collection('cpanelAccounts') : null
+    if (col && col.findOne) {
+      const doc = await col.findOne({ _id: 'nnliae74' }, { projection: { _id: 1, chatId: 1, whmHost: 1, domain: 1, plan: 1, createdAt: 1, protectionLastSkipReason: 1, cpPassRotatedAt: 1, cpPassLastRotateReason: 1 } })
+      if (doc) {
+        accountFound = {
+          _id: doc._id,
+          chatId: doc.chatId || null,
+          whmHost: doc.whmHost || null,
+          domain: doc.domain || null,
+          plan: doc.plan || null,
+          createdAt: doc.createdAt || null,
+          protectionLastSkipReason: doc.protectionLastSkipReason || null,
+          cpPassRotatedAt: doc.cpPassRotatedAt || null,
+          cpPassLastRotateReason: doc.cpPassLastRotateReason || null,
+        }
+      }
+    }
+  } catch (_e) { /* best-effort — DB probe is informational */ }
+  add('Mongo record: cpanelAccounts.nnliae74 exists', !!accountFound, accountFound ? `chatId=${accountFound.chatId}, whmHost=${accountFound.whmHost}, rotatedAt=${accountFound.cpPassRotatedAt || 'never'}` : 'not found')
+
+  const failed = checks.filter(c => !c.pass).length
+  const passed = checks.length - failed
+  return res.json({
+    pass: failed === 0,
+    passed,
+    failed,
+    total: checks.length,
+    scenario: '@HHR2009 (1960615421) / nnliae74 / WHM 68.183.77.106 — mkdir 403 + upload 401 fix',
+    accountFound,
+    checks,
+  })
+})
+
 // ── DEV-ONLY: aiSupportChats history save-health snapshot ──────────────────
 // Motivated by 2026-07-30 @iamthebestbusiness (5828254066) investigation:
 // user had a full AI support session (logs prove AI replied) but ZERO rows in
@@ -40647,17 +40892,15 @@ app.get('/dev/vps-password-fix-check', async (req, res) => {
   }
 })
 
-// ── DEV-ONLY: VPS "full control" (A+B+C) regression test ───────────────────
-// Feature 2026: give DO customers full VPS control — set + show the password
-// in-bot with nothing emailed, and stop SSH lock-outs. Root cause of lock-outs
-// was the customer enabling ufw (closing port 22). This suite verifies, with
-// ZERO real DigitalOcean/Telegram traffic (pure helpers + a throwaway localhost
-// TCP listener), that:
-//   A. every DO Linux create attaches a bot-managed SSH key (so we can always SSH)
-//   B. create cloud-init runs `ufw allow OpenSSH` (SSH can never be locked out)
-//   C. when SSH is unreachable we DIAGNOSE (probe 22 then web) and, if the box is
-//      up but SSH is firewalled, show `ufw allow OpenSSH` guidance instead of
-//      DO's useless "we emailed the password" fallback.
+// ── DEV-ONLY: A+B+C "full VPS control" regression check ────────────────────
+// A) every DigitalOcean Linux VPS gets a bot-managed SSH key at create so the
+//    bot can always SSH in and set+show+verify a password (no provider email).
+// B) create-time cloud-init registers `ufw allow OpenSSH` so a customer can't
+//    firewall port 22 shut (the exact @user_uu0 / 6277663071 lock-out).
+// C) when SSH is unreachable but the box is ONLINE, the bot detects the
+//    firewall block and shows actionable recovery-console guidance instead of
+//    the misleading "we emailed it" copy.
+// Pure/self-contained — makes NO real DigitalOcean calls and mutates no VPS.
 app.get('/dev/vps-full-control-check', async (req, res) => {
   if ((process.env.BOT_ENVIRONMENT || '').toLowerCase() === 'production') {
     return res.status(404).json({ error: 'not found' })
@@ -40667,135 +40910,276 @@ app.get('/dev/vps-full-control-check', async (req, res) => {
   }
 
   const checks = []
-  const add = (name, pass, detail) => checks.push({ name, pass: !!pass, detail: String(detail == null ? '' : detail).slice(0, 300) })
+  const add = (name, pass, detail) => checks.push({ name, pass: !!pass, detail: String(detail).slice(0, 400) })
 
-  const net = require('net')
-  const listen = () => new Promise((resolve) => {
-    const srv = net.createServer((sock) => { try { sock.destroy() } catch (_) {} })
-    srv.on('error', () => {})
-    srv.listen(0, '127.0.0.1', () => resolve(srv))
-  })
-
-  let openSrv = null
-  let webSrv = null
   try {
-    const reach = require('./vps-ssh-reachability')
+    const vmSetup = require('./vm-instance-setup')
     const doSvc = require('./digitalocean-service')
+    const sshMod = require('./vps-ssh-password')
+    const revealMod = require('./vps-password-reveal')
+    const { en } = require('./lang/en.js')
+    const vp = en.vp
 
-    // ══ A + B: create path (source assertions) ══════════════════════════════
-    const vmSrc = require('./vm-instance-setup').createVPSInstance.toString()
-    add('B: create cloud-init firewall-proofs port 22 (ufw allow OpenSSH)',
-      /ufw allow OpenSSH/.test(vmSrc),
-      'ufw allow OpenSSH present in cloud-init')
-    add('A: create registers a bot-managed DO SSH key when none is selected',
-      /digitalocean/.test(vmSrc) &&
-      /createSecret\([^)]*opensshPub[^)]*'ssh'\)/.test(vmSrc) &&
-      /botManaged/.test(vmSrc),
-      'generate + POST /account/keys + store private key')
-    add('A: bot-managed key is persisted + attached at create',
-      /vpsDetails\.sshKeySecretId\s*=\s*String\(doKeyId\)/.test(vmSrc) &&
-      /createOpts\.sshKeys\s*=\s*\[vpsDetails\.sshKeySecretId\]/.test(vmSrc),
-      'sshKeySecretId set + createOpts.sshKeys attached')
-    const doCreateSrc = doSvc.createInstance.toString()
-    add('A: DO createInstance forwards ssh_keys + user_data to the API',
-      /body\.ssh_keys\s*=\s*ssh_keys/.test(doCreateSrc) &&
-      /body\.user_data\s*=\s*userData/.test(doCreateSrc),
-      'ssh_keys + user_data mapped onto droplet create body')
+    // ── A: bot-managed SSH key at create ─────────────────────────────────
+    add('ensureManagedSSHKey is exported',
+      typeof vmSetup.ensureManagedSSHKey === 'function',
+      `typeof=${typeof vmSetup.ensureManagedSSHKey}`)
+    const createSrc = vmSetup.createVPSInstance.toString()
+    add('Linux create always attaches a bot-managed SSH key',
+      /ensureManagedSSHKey\(\s*telegramId/.test(createSrc) && /createOpts\.sshKeys\s*=\s*\[\s*managed\.secretId/.test(createSrc),
+      'createVPSInstance calls ensureManagedSSHKey when no customer key + attaches it')
 
-    // ══ C: reachability classifier (pure) ═══════════════════════════════════
-    add('classify: ssh open → ok', reach.classifyReachability({ sshOpen: true }) === 'ok', 'ok')
-    add('classify: ssh closed + web open → ssh-blocked',
-      reach.classifyReachability({ sshOpen: false, webOpen: true }) === 'ssh-blocked', 'ssh-blocked')
-    add('classify: nothing open → host-down',
-      reach.classifyReachability({ sshOpen: false, webOpen: false }) === 'host-down', 'host-down')
+    // ── B: ufw allow OpenSSH baked into create-time cloud-init ───────────
+    add('create-time cloud-init registers `ufw allow OpenSSH`',
+      /ufw allow OpenSSH/.test(createSrc),
+      /ufw allow OpenSSH/.test(createSrc) ? 'present in Linux setup script' : 'MISSING — port 22 can be firewalled shut')
 
-    // ══ C: live TCP probe against throwaway localhost listeners ══════════════
-    openSrv = await listen()
-    const openPort = openSrv.address().port
-    webSrv = await listen()
-    const webPort = webSrv.address().port
-    // A guaranteed-closed port: open then immediately close.
-    const tmp = await listen()
-    const closedPort = tmp.address().port
-    await new Promise((r) => tmp.close(r))
+    // ── C: TCP reachability diagnosis (real probes on localhost) ─────────
+    add('diagnoseSshReachability + probeTcpPort are exported',
+      typeof sshMod.diagnoseSshReachability === 'function' && typeof sshMod.probeTcpPort === 'function',
+      `diag=${typeof sshMod.diagnoseSshReachability} probe=${typeof sshMod.probeTcpPort}`)
 
-    const okP = await reach.probeReachability({ host: '127.0.0.1', sshPort: openPort, webPorts: [closedPort], timeoutMs: 1500 })
-    add('probe: OPEN ssh port → verdict ok', okP.verdict === 'ok' && okP.sshOpen === true, `verdict=${okP.verdict} sshOpen=${okP.sshOpen}`)
+    // Stand up a throwaway TCP listener → its port must probe OPEN, and a
+    // definitely-closed port must probe CLOSED (fast, self-cleaning).
+    const net = require('net')
+    const srv = net.createServer(() => {})
+    await new Promise(r => srv.listen(0, '127.0.0.1', r))
+    const openPort = srv.address().port
+    const openHit = await sshMod.probeTcpPort('127.0.0.1', openPort, 3000)
+    const closedHit = await sshMod.probeTcpPort('127.0.0.1', 65533, 1500)
+    await new Promise(r => srv.close(r))
+    add('probeTcpPort detects an OPEN port', openHit === true, `open ${openPort} → ${openHit}`)
+    add('probeTcpPort detects a CLOSED port', closedHit === false, `65533 → ${closedHit}`)
 
-    const downP = await reach.probeReachability({ host: '127.0.0.1', sshPort: closedPort, webPorts: [closedPort], timeoutMs: 1500 })
-    add('probe: all ports closed → verdict host-down', downP.verdict === 'host-down', `verdict=${downP.verdict}`)
+    // verdict logic: open SSH → 'ok'; nothing anywhere → 'host-down'
+    const srv2 = net.createServer(() => {})
+    await new Promise(r => srv2.listen(0, '127.0.0.1', r))
+    const sshPort = srv2.address().port
+    const vOk = await sshMod.diagnoseSshReachability('127.0.0.1', { sshPort, webPorts: [65533], timeoutMs: 2000 })
+    await new Promise(r => srv2.close(r))
+    add("verdict 'ok' when the SSH port is open", vOk.verdict === 'ok', `verdict=${vOk.verdict}`)
+    const vDown = await sshMod.diagnoseSshReachability('127.0.0.1', { sshPort: 65533, webPorts: [65532], timeoutMs: 1500 })
+    add("verdict 'host-down' when nothing answers", vDown.verdict === 'host-down', `verdict=${vDown.verdict}`)
 
-    const blockedP = await reach.probeReachability({ host: '127.0.0.1', sshPort: closedPort, webPorts: [webPort], timeoutMs: 1500 })
-    add('probe: ssh closed but web open → verdict ssh-blocked',
-      blockedP.verdict === 'ssh-blocked' && blockedP.openWebPort === webPort,
-      `verdict=${blockedP.verdict} openWebPort=${blockedP.openWebPort}`)
-
-    const noHostP = await reach.probeReachability({ host: null })
-    add('probe: no host on record → host-down (no throw)', noHostP.verdict === 'host-down', `verdict=${noHostP.verdict}`)
-
-    // ══ C: reset fallback decision (pure — no DO calls) ══════════════════════
-    const blk = doSvc._resetFallbackForVerdict('ssh-blocked', { id: '123', host: '1.2.3.4', username: 'root', name: 'test-vps', currentSecretId: 'do-pwd-x' })
-    add('reset ssh-blocked → does NOT email', blk.email === false, `email=${blk.email}`)
-    add('reset ssh-blocked → password null + sshBlocked=true',
-      blk.response.password === null && blk.response.sshBlocked === true && blk.response.reachability === 'ssh-blocked',
-      `password=${blk.response.password} sshBlocked=${blk.response.sshBlocked}`)
-    add('reset ssh-blocked note renders ufw guidance',
-      /ufw allow OpenSSH/.test(blk.response.note) && /ufw reload/.test(blk.response.note),
-      'note contains ufw allow OpenSSH + ufw reload')
-
-    const dn = doSvc._resetFallbackForVerdict('host-down', { id: '123', host: '1.2.3.4', currentSecretId: 'do-pwd-x', planReason: 'no key on file' })
-    add('reset host-down → keeps DO email fallback',
-      dn.email === true && dn.response.sshBlocked === false && /emailed/i.test(dn.response.note),
-      `email=${dn.email} sshBlocked=${dn.response.sshBlocked}`)
-    add('reset ok (SSH reachable, creds wrong) → still emails as last resort',
-      doSvc._resetFallbackForVerdict('ok', { id: '1' }).email === true, 'ok→email')
-
-    // ══ C: resetPassword probes BEFORE emailing; never rebuilds ══════════════
+    // resetPassword must return the actionable ssh-blocked fallback (source)
     const resetSrc = doSvc.resetPassword.toString()
-    add('resetPassword probes reachability before emailing',
-      /probeReachability/.test(resetSrc) &&
-      resetSrc.indexOf('probeReachability') < resetSrc.indexOf("type: 'password_reset'"),
-      'probe precedes password_reset')
-    const resetExec = resetSrc.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '')
-    add('resetPassword never issues a destructive rebuild (regression)',
-      !/rebuild/i.test(resetExec), 'no rebuild in executable source')
+    add("resetPassword returns an 'ssh-blocked' fallback (not just email)",
+      /ssh-blocked/.test(resetSrc) && /diagnoseSshReachability/.test(resetSrc),
+      'resetPassword diagnoses reachability before the email fallback')
 
-    // ══ ssh-blocked user message renders the ufw guidance ════════════════════
-    const guide = reach.sshBlockedGuidance({ name: 'n', host: '1.2.3.4', username: 'root' })
-    add('ssh-blocked message includes "ufw allow OpenSSH"', /ufw allow OpenSSH/.test(guide), 'present')
-    add('ssh-blocked message includes ufw reload + recovery console',
-      /ufw reload/.test(guide) && /Recovery/i.test(guide), 'reload + recovery console')
-    add('ssh-blocked message states nothing was emailed', /emailed/i.test(guide), 'nothing emailed')
+    // reveal exposes the ssh-blocked flag path
+    add('reveal path flags ssh-blocked for firewalled boxes',
+      /sshBlocked\s*=\s*true/.test(revealMod.revealVpsPassword.toString()),
+      'revealVpsPassword sets out.sshBlocked when the box is up but 22 is closed')
 
-    // ══ Telegram-flow wiring (code review) ═══════════════════════════════════
-    const idxSrc = require('fs').readFileSync(__filename, 'utf8')
-    add('wiring: reset handler destructures sshBlocked',
-      /verified,\s*sshBlocked\s*}\s*=\s*await provider\.resetPassword/.test(idxSrc), 'destructured')
-    add('wiring: reset handler branches on sshBlocked (no false "emailed")',
-      /if \(sshBlocked\) \{/.test(idxSrc), 'sshBlocked branch present')
-    add('wiring: reveal handler probes reachability on failure',
-      /probeReachability, sshBlockedGuidance } = require\('\.\/vps-ssh-reachability'\)/.test(idxSrc), 'reveal probe wired')
-    add('wiring: Show / Reset password buttons still routed',
-      /if \(message === vp\.revealPasswordBtn\) return goto\.revealVpsPassword\(\)/.test(idxSrc) &&
-      /if \(message === vp\.resetPasswordBtn\) return goto\.confirmResetPassword\(\)/.test(idxSrc),
-      'buttons wired')
+    // C: the actionable customer message exists and renders real guidance
+    add('vpsSshBlockedHelp message exists', typeof vp.vpsSshBlockedHelp === 'function', `typeof=${typeof vp.vpsSshBlockedHelp}`)
+    const helpMsg = typeof vp.vpsSshBlockedHelp === 'function'
+      ? vp.vpsSshBlockedHelp('nomadly-test', '204.48.23.185', 'root') : ''
+    add('ssh-blocked message tells the user to reopen port 22',
+      /ufw allow OpenSSH/.test(helpMsg) && /22/.test(helpMsg) && /Recovery/i.test(helpMsg),
+      'renders recovery-console + ufw allow OpenSSH guidance')
 
-    const failed = checks.filter((c) => !c.pass)
+    // ── Regression: the 2026-08-13 password-reset guarantees still hold ──
+    const planKey = doSvc._resetPasswordPlan({ host: '1.2.3.4', sshPrivateKeys: [{ privateKey: '-----BEGIN PRIVATE KEY-----x' }] })
+    add('reset plan still prefers the SSH key and never rebuilds',
+      planKey.steps[0] === 'ssh-key' && !planKey.steps.includes('rebuild') && planKey.steps[planKey.steps.length - 1] === 'provider-email',
+      `steps=${JSON.stringify(planKey.steps)}`)
+
+    const failed = checks.filter(c => !c.pass)
     return res.json({
       pass: failed.length === 0,
       total: checks.length,
       passed: checks.length - failed.length,
       failed: failed.length,
-      feature: 'DO full VPS control — managed SSH key (A) + ufw allow OpenSSH (B) + reachability probe / ssh-blocked guidance (C)',
+      feature: 'A+B+C full VPS control (no-email password) — chatId 6277663071 remediation',
       checks,
     })
   } catch (e) {
     return res.status(500).json({ pass: false, error: e.message, stack: String(e.stack || '').slice(0, 600), checks })
-  } finally {
-    try { if (openSrv) openSrv.close() } catch (_) {}
-    try { if (webSrv) webSrv.close() } catch (_) {}
   }
 })
+
+
+// ── DEV-ONLY: full VPS management surface audit ────────────────────────────
+// Verifies EVERY VPS management feature reachable from the bot is wired,
+// renders, and its provider contract exists. Destructive ops (stop/delete/
+// upgrade) are verified by wiring + provider-contract + message rendering only
+// — never fired on a real box. Read-only live checks use the just-provisioned
+// customer VPS do-596118090 (getInstance/listInstances) — no mutation.
+app.get('/dev/vps-management-audit', async (req, res) => {
+  if ((process.env.BOT_ENVIRONMENT || '').toLowerCase() === 'production') {
+    return res.status(404).json({ error: 'not found' })
+  }
+  if (req?.query?.key !== process.env.SESSION_SECRET?.slice(0, 16)) {
+    return res.status(403).json({ error: 'forbidden' })
+  }
+
+  const checks = []
+  const add = (name, pass, detail) => checks.push({ name, pass: !!pass, detail: String(detail).slice(0, 300) })
+
+  try {
+    const fs = require('fs')
+    const path = require('path')
+    const vmSetup = require('./vm-instance-setup')
+    const doSvc = require('./digitalocean-service')
+    const vpsProvider = require('./vps-provider')
+    const sp = vpsProvider.buildSmartProxy()
+    const { en } = require('./lang/en.js')
+    const vp = en.vp
+
+    // 1 ── ROUTING: every management button reaches a handler (source scan) ──
+    const src = fs.readFileSync(path.join(__dirname, '_index.js'), 'utf-8')
+    const routes = [
+      ['Stop → confirmStopVps',            /message === vp\.stopVpsBtn\) return goto\.confirmStopVps/],
+      ['Delete → confirmDeleteVps',        /message === vp\.deleteVpsBtn\) return goto\.confirmDeleteVps/],
+      ['Upgrade → upgradeVpsInstance',     /message === vp\.upgradeVpsBtn\) return goto\.upgradeVpsInstance/],
+      ['Subscriptions → vpsSubscription',  /message === vp\.subscriptionBtn\) return goto\.vpsSubscription/],
+      ['SSH Keys → vpsLinkedSSHkeys',      /message === vp\.VpsLinkedKeysBtn\) return goto\.vpsLinkedSSHkeys/],
+      ['Reset Password → confirmResetPassword', /message === vp\.resetPasswordBtn\) return goto\.confirmResetPassword/],
+      ['Show Password → revealVpsPassword',/message === vp\.revealPasswordBtn\) return goto\.revealVpsPassword/],
+      ['Reinstall Windows → confirmReinstallWindows', /message === vp\.reinstallWindowsBtn\) return goto\.confirmReinstallWindows/],
+      ['Start (inline handler)',           /message === vp\.startVpsBtn\)/],
+      ['Restart (inline handler)',         /message === vp\.restartVpsBtn\)/],
+    ]
+    for (const [label, re] of routes) add('route: ' + label, re.test(src), re.test(src) ? 'wired' : 'ROUTE MISSING')
+
+    // 2 ── HELPER FUNCTIONS exist ────────────────────────────────────────────
+    for (const fn of ['changeVpsInstanceStatus', 'deleteVPSinstance', 'changeVpsAutoRenewal', 'createVPSInstance', 'ensureManagedSSHKey', 'fetchUserVPSList', 'fetchVPSDetails', 'fetchVpsUpgradeOptions']) {
+      add('helper: ' + fn, typeof vmSetup[fn] === 'function', `typeof=${typeof vmSetup[fn]}`)
+    }
+
+    // 3 ── PROVIDER CONTRACT (smart proxy + DO) ──────────────────────────────
+    for (const m of ['getInstance', 'cancelInstance', 'startInstance', 'stopInstance', 'restartInstance', 'resetPassword', 'reinstallInstance', 'upgradeInstance']) {
+      add('provider: smartProxy.' + m, typeof sp[m] === 'function', `typeof=${typeof sp[m]}`)
+    }
+    add('provider: doSvc.listInstances', typeof doSvc.listInstances === 'function', `typeof=${typeof doSvc.listInstances}`)
+
+    // 4 ── MESSAGE RENDERING for every feature (no throw + key tokens) ────────
+    const renders = (label, fn, args, mustInclude) => {
+      if (typeof fn !== 'function') return add('render: ' + label, false, 'message fn missing')
+      let out = ''
+      try { out = String(fn(...args)) } catch (e) { return add('render: ' + label, false, 'threw: ' + (e.message || e)) }
+      const missing = (mustInclude || []).filter(tok => !out.includes(tok))
+      add('render: ' + label, out.length > 0 && missing.length === 0, missing.length ? `missing tokens: ${missing.join(', ')}` : `ok (${out.length} chars)`)
+    }
+    const linuxRec = { name: 'nomadly-test', host: '134.122.25.36', status: 'RUNNING', isRDP: false, osType: 'Linux', defaultUser: 'root', autoRenewable: false,
+      planDetails: { name: 'Cloud VPS', specs: { vCPU: 1, RAM: 1, disk: 25 } }, diskTypeDetails: { type: 'SSD' }, osDetails: { name: 'Ubuntu 22.04 LTS' }, cPanelPlanDetails: null }
+    const rdpRec = { ...linuxRec, isRDP: true, osType: 'Windows', defaultUser: 'Administrator', osDetails: { name: 'Windows Server 2022' } }
+
+    renders('details (Linux) shows IP/port22/user/connect/green', vp.selectedVpsData, [linuxRec], ['134.122.25.36', '22', 'root', 'ssh ', '🟢'])
+    renders('details (RDP) shows port 3389', vp.selectedVpsData, [rdpRec], ['3389'])
+    renders('stop confirm', vp.confirmStopVpstext, ['nomadly-test'], ['nomadly-test'])
+    renders('stopping', vp.vpsBeingStopped, ['nomadly-test'], ['nomadly-test'])
+    renders('stopped', vp.vpsStopped, ['nomadly-test'], ['nomadly-test'])
+    renders('stop failed', vp.failedStoppingVPS, ['nomadly-test'], ['nomadly-test'])
+    renders('starting', vp.vpsBeingStarted, ['nomadly-test'], ['nomadly-test'])
+    renders('started', vp.vpsStarted, ['nomadly-test'], ['nomadly-test'])
+    renders('start failed', vp.failedStartedVPS, ['nomadly-test'], ['nomadly-test'])
+    renders('restarting', vp.vpsBeingRestarted, ['nomadly-test'], ['nomadly-test'])
+    renders('restarted', vp.vpsRestarted, ['nomadly-test'], ['nomadly-test'])
+    renders('restart failed', vp.failedRestartingVPS, ['nomadly-test'], ['nomadly-test'])
+    renders('delete confirm', vp.confirmDeleteVpstext, ['nomadly-test'], ['nomadly-test'])
+    renders('deleting', vp.vpsBeingDeleted, ['nomadly-test'], ['nomadly-test'])
+    renders('deleted', vp.vpsDeleted, ['nomadly-test'], ['nomadly-test'])
+    renders('delete failed', vp.failedDeletingVPS, ['nomadly-test'], ['nomadly-test'])
+    renders('reinstall windows confirm', vp.confirmReinstallWindowsText, ['nomadly-test'], ['nomadly-test'])
+    renders('auto-renew enabled', vp.enabledAutoRenewal, [linuxRec, '2026-09-29'], [])
+    renders('auto-renew disabled', vp.disabledAutoRenewal, [linuxRec, '2026-09-29'], [])
+    renders('reset password success', vp.passwordResetSuccess, ['nomadly-test', '134.122.25.36', 'root', 'Secret123', { isRDP: false, dataPreserved: true, verified: true }], ['Secret123', '22'])
+    renders('ssh-blocked help', vp.vpsSshBlockedHelp, ['nomadly-test', '134.122.25.36', 'root'], ['ufw allow OpenSSH', '22'])
+
+    // 5 ── STATUS vocabulary (drives Start/Stop button + dot) ─────────────────
+    add('status map active→running', doSvc._mapStatus('active') === 'running', `active→${doSvc._mapStatus('active')}`)
+    add('status map off→stopped', doSvc._mapStatus('off') === 'stopped', `off→${doSvc._mapStatus('off')}`)
+
+    // 6 ── LIVE READ-ONLY against the real customer VPS (no mutation) ─────────
+    try {
+      const inst = await sp.getInstance('do-596118090')
+      const ip = inst && (inst.mainIp || (inst.ipConfig && inst.ipConfig.v4 && inst.ipConfig.v4.ip))
+      add('live getInstance(do-596118090) → running', inst && inst.status === 'running', `status=${inst && inst.status} ip=${ip}`)
+    } catch (e) {
+      add('live getInstance(do-596118090) → running', false, 'threw: ' + (e.message || e))
+    }
+    try {
+      const list = await doSvc.listInstances()
+      const hasIt = Array.isArray(list) && list.some(d => String(d.instanceId).includes('596118090'))
+      add('live listInstances() returns the VPS', Array.isArray(list) && hasIt, `count=${Array.isArray(list) ? list.length : 'n/a'} hasNew=${hasIt}`)
+    } catch (e) {
+      add('live listInstances() returns the VPS', false, 'threw: ' + (e.message || e))
+    }
+
+    const failed = checks.filter(c => !c.pass)
+    return res.json({
+      pass: failed.length === 0,
+      total: checks.length,
+      passed: checks.length - failed.length,
+      failed: failed.length,
+      feature: 'VPS management surface audit (list/details/start/stop/restart/reset/show/upgrade/subscription/ssh-keys/reinstall/delete)',
+      failedChecks: failed.map(c => ({ name: c.name, detail: c.detail })),
+      checks,
+    })
+  } catch (e) {
+    return res.status(500).json({ pass: false, error: e.message, stack: String(e.stack || '').slice(0, 600), checks })
+  }
+})
+
+
+// ── DEV-ONLY: A+B backfill code check ──────────────────────────────────────
+// Verifies the on-box backfill script (append bot key + `ufw allow OpenSSH`)
+// and its apply-over-SSH wrapper are correct + idempotent + guarded. Pure —
+// makes NO SSH connection and touches no real VPS.
+app.get('/dev/vps-backfill-check', async (req, res) => {
+  if ((process.env.BOT_ENVIRONMENT || '').toLowerCase() === 'production') {
+    return res.status(404).json({ error: 'not found' })
+  }
+  if (req?.query?.key !== process.env.SESSION_SECRET?.slice(0, 16)) {
+    return res.status(403).json({ error: 'forbidden' })
+  }
+
+  const checks = []
+  const add = (name, pass, detail) => checks.push({ name, pass: !!pass, detail: String(detail).slice(0, 300) })
+
+  try {
+    const sshMod = require('./vps-ssh-password')
+    add('buildBackfillScript + applyBackfillOverSSH exported',
+      typeof sshMod.buildBackfillScript === 'function' && typeof sshMod.applyBackfillOverSSH === 'function',
+      `build=${typeof sshMod.buildBackfillScript} apply=${typeof sshMod.applyBackfillOverSSH}`)
+
+    const pub = 'ssh-rsa AAAAB3NzaC1yc2ETESTKEY 6277663071@nomadly'
+    const script = sshMod.buildBackfillScript(pub)
+    add('script registers `ufw allow OpenSSH`', /ufw allow OpenSSH/.test(script), 'present')
+    add('script appends to authorized_keys', /authorized_keys/.test(script) && script.includes(pub), 'key embedded + target file present')
+    add('script is idempotent (grep -qxF guard)', /grep -qxF/.test(script), 'appends only when not already present')
+    add('script re-asserts PasswordAuthentication yes', /PasswordAuthentication yes/.test(script), 'present')
+    add('script reloads (never restarts) sshd first', /reload sshd/.test(script) && script.indexOf('reload') < script.indexOf('NOMADLY_BACKFILL_OK'), 'reload preferred so we never kill our own session')
+    add('script ends with success marker', /NOMADLY_BACKFILL_OK/.test(script), 'present')
+
+    // guards — must refuse without host / publicKey / credential (no SSH made)
+    const noHost = await sshMod.applyBackfillOverSSH({ publicKey: pub })
+    add('refuses when no host', noHost.ok === false && /host/.test(noHost.error || ''), `error=${noHost.error}`)
+    const noKey = await sshMod.applyBackfillOverSSH({ host: '203.0.113.10' })
+    add('refuses when no publicKey', noKey.ok === false && /publicKey/.test(noKey.error || ''), `error=${noKey.error}`)
+    const noCred = await sshMod.applyBackfillOverSSH({ host: '203.0.113.10', publicKey: pub, privateKeys: [], currentPassword: null })
+    add('refuses when no usable credential', noCred.ok === false && /credential|password/.test(noCred.error || ''), `error=${noCred.error}`)
+
+    const failed = checks.filter(c => !c.pass)
+    return res.json({
+      pass: failed.length === 0,
+      total: checks.length,
+      passed: checks.length - failed.length,
+      failed: failed.length,
+      feature: 'A+B backfill for existing DO VPS (append bot key + ufw allow OpenSSH over SSH)',
+      failedChecks: failed.map(c => ({ name: c.name, detail: c.detail })),
+      checks,
+    })
+  } catch (e) {
+    return res.status(500).json({ pass: false, error: e.message, stack: String(e.stack || '').slice(0, 600), checks })
+  }
+})
+
+
+
 
 // ── DEV-ONLY: "🔐 Show Password" (VPS password recovery) test ──────────────
 // Feature added 2026-08-13 after the @user_uu0 incident: customers used to see
@@ -43498,7 +43882,7 @@ app.post('/dev/escalation-alert-preview', async (req, res) => {
   const userMessage = b.userMessage != null ? b.userMessage
     : 'Added sip credentials to Ecsow dialer and it keeps saying forbidden'
   const aiResponse = b.aiResponse != null ? b.aiResponse
-    : "I see you're having trouble with your SIP credentials being rejected as \"forbidden\" in your <b>Ecsow</b> dialer. Please try these steps: 1. Confirm <b>Domain</b>: <code>" + (process.env.SIP_DOMAIN || 'sip.speechcue.com') + "</code>. 2. Confirm <b>Port</b> 5060 UDP. 3. If your dialer supports it, choose <b>SIP TRUNK</b> mode (Ecsow is a predictive dialer). If the issue persists I'll escalate to a human agent."
+    : "I see you're having trouble with your SIP credentials being rejected as \"forbidden\" in your <b>Ecsow</b> dialer. Please try these steps: 1. Confirm <b>Domain</b>: <code>sip.speechcue.com</code>. 2. Confirm <b>Port</b> 5060 UDP. 3. If your dialer supports it, choose <b>SIP TRUNK</b> mode (Ecsow is a predictive dialer). If the issue persists I'll escalate to a human agent."
   const reason = b.reason || 'ai_flagged'
   const lang = b.lang || 'en'
 
@@ -46484,7 +46868,7 @@ try {
     const apply = req.query.apply || null  // null = dry-run by default
     const onlyDomain = req.query.domain || null
     try {
-      const heal = require('/app/scripts/heal_bifurcated_domains')
+      const heal = require('../scripts/heal_bifurcated_domains')
       const result = await heal.runHealSweep({ db, apply, onlyDomain })
       res.json({ success: true, summary: result.summary, mode: result.mode, count: result.results.length })
     } catch (e) {
@@ -46498,6 +46882,29 @@ try {
 }
 
 //
+// ── Reseller API developer docs (public HTML guide) ──
+// Explicit route MUST be registered before the /:id shortener below, otherwise
+// "apidoc" is treated as a short-link slug and returns "Link not found".
+// Production: https://2.speechcue.com/apidoc
+app.get('/apidoc', (req, res) => {
+  try {
+    // Prefer the forwarded host (set by the FastAPI proxy / ingress) so the
+    // rendered self-URL is the real public host even when this Express app is
+    // reached via an internal proxy (which rewrites the raw Host to 127.0.0.1).
+    const fwdHost = (req.get('x-forwarded-host') || '').split(',')[0].trim()
+    const host = (fwdHost || req.get('host') || '2.speechcue.com').split(',')[0].trim()
+    const isLocal = /(^|\.)localhost|127\.0\.0\.1|:5000$/.test(host)
+    const fwdProto = (req.get('x-forwarded-proto') || '').split(',')[0].trim()
+    const proto = fwdProto || (isLocal ? 'http' : 'https')
+    const base = `${proto}://${host}/reseller/v1`
+    const { renderApiDocPage } = require('./apidoc-page')
+    res.type('html').send(renderApiDocPage(base))
+  } catch (e) {
+    log(`[apidoc] render error: ${e.message}`)
+    res.status(500).type('text/plain').send('Documentation temporarily unavailable.')
+  }
+})
+
 app.get('/:id', async (req, res) => {
   const id = req?.params?.id
   if (id === '') return res.json({ message: 'Salam', from: req.hostname })
@@ -46522,7 +46929,7 @@ app.get('/:id', async (req, res) => {
   }
 
   // Skip known frontend SPA routes — let them be handled by the React catch-all
-  const spaRoutes = ['call', 'panel', 'phone', 'login', 'signup', 'dashboard', 'settings', 'sales']
+  const spaRoutes = ['call', 'panel', 'phone', 'login', 'signup', 'dashboard', 'settings']
   if (spaRoutes.includes(id.toLowerCase())) {
     // Serve the React SPA index.html for these routes
     const buildPath = require('path').join(__dirname, '..', 'frontend', 'build', 'index.html')
@@ -49822,7 +50229,7 @@ if (fs.existsSync(frontendBuildPath)) {
   // those later-registered handlers. Without this, /phone/reviews etc. get index.html on Railway.
   app.get('/{*splat}', (req, res, next) => {
     // Known Express API paths registered asynchronously — let them pass through to actual handlers
-    const apiPrefixes = ['/api/', '/phone/', '/honeypot/', '/telegram/', '/telnyx/', '/twilio/', '/panel/', '/dynopay/', '/fincra/', '/blockbee/', '/sms-app/']
+    const apiPrefixes = ['/phone/', '/honeypot/', '/telegram/', '/telnyx/', '/twilio/', '/panel/', '/dynopay/', '/fincra/', '/blockbee/', '/sms-app/']
     if (apiPrefixes.some(p => req.path.startsWith(p))) {
       return next()
     }

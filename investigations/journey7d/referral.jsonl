@@ -1,0 +1,22 @@
+{"t":"2026-09-06T16:43:31.389486421Z","s":"info","m":"[Referral] Created referral code 502mxhk2 for chatId 7146578755"}
+{"t":"2026-09-08T16:48:04.813313574Z","s":"info","m":"[Referral] Created referral code uofpnpaf for chatId 5833835818"}
+{"t":"2026-09-08T16:48:55.212877082Z","s":"info","m":"[Referral] /start ref_uofpnpaf from chatId=6962648149"}
+{"t":"2026-09-08T16:48:55.212885012Z","s":"info","m":"[Referral] Referrer 5833835818 earned bonus call from 6962648149"}
+{"t":"2026-09-08T16:48:55.212892550Z","s":"info","m":"[Referral] outcome=sip_test_credited chatId=6962648149 refCode=uofpnpaf referrerChatId=5833835818"}
+{"t":"2026-09-08T16:48:55.212897186Z","s":"info","m":"[Referral] outcome=referrer_not_found chatId=6962648149 refCode=uofpnpaf"}
+{"t":"2026-09-09T23:02:17.951429240Z","s":"info","m":"[Referral] /start ref_8273560746 from chatId=7605557802"}
+{"t":"2026-09-09T23:02:17.966207601Z","s":"info","m":"[Referral] outcome=already_referred chatId=7605557802 existingReferrerChatId=8273560746"}
+{"t":"2026-09-10T20:54:27.527826000Z","s":"info","m":"<i>I understand you're having trouble with an invitation code when connecting your account. Could you please confirm where you are trying to enter the invitation code? Also, if you can share the exact error message or the code you're using (without exposing sensitive info), that will help me assist you better. If this is related to a referral or coupon code during subscription or purchase, sometimes codes have expiration or usage limits. Let me know, or if you prefer, a human agent will assist shor...</i>"}
+{"t":"2026-09-10T23:32:10.246606080Z","s":"info","m":"[Referral] Created referral code n58qjffx for chatId 7859617687"}
+{"t":"2026-09-10T23:32:45.140982244Z","s":"info","m":"[Referral] /start ref_n58qjffx from chatId=6580245354"}
+{"t":"2026-09-10T23:32:45.158522600Z","s":"info","m":"[Referral] Referrer 7859617687 earned bonus call from 6580245354"}
+{"t":"2026-09-10T23:32:45.158527390Z","s":"info","m":"[Referral] outcome=sip_test_credited chatId=6580245354 refCode=n58qjffx referrerChatId=7859617687"}
+{"t":"2026-09-10T23:32:45.161609003Z","s":"info","m":"[Referral] outcome=referrer_not_found chatId=6580245354 refCode=n58qjffx"}
+{"t":"2026-09-11T07:15:08.034368094Z","s":"info","m":"[Referral] /start ref_7859617687 from chatId=7913817297"}
+{"t":"2026-09-11T07:15:08.052075572Z","s":"info","m":"[Referral] outcome=wallet_referral_saved chatId=7913817297 referrerChatId=7859617687 referrerUsername=7859617687"}
+{"t":"2026-09-11T08:59:14.361369604Z","s":"info","m":"[Referral] /start ref_7859617687 from chatId=7913817297"}
+{"t":"2026-09-11T08:59:14.361373474Z","s":"info","m":"[Referral] outcome=already_referred chatId=7913817297 existingReferrerChatId=7859617687"}
+{"t":"2026-09-11T09:08:20.773120934Z","s":"info","m":"[Referral] /start ref_7859617687 from chatId=7913817297"}
+{"t":"2026-09-11T09:08:20.773123524Z","s":"info","m":"[Referral] outcome=already_referred chatId=7913817297 existingReferrerChatId=7859617687"}
+{"t":"2026-09-13T12:00:27.667823207Z","s":"info","m":"[Referral] /start ref_7859617687 from chatId=7913817297"}
+{"t":"2026-09-13T12:00:27.667827203Z","s":"info","m":"[Referral] outcome=already_referred chatId=7913817297 existingReferrerChatId=7859617687"}

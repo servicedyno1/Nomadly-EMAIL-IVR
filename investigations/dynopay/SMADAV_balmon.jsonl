@@ -1,0 +1,55 @@
+{"timestamp":"2026-09-25T18:30:11.901142603Z","message":"[BalanceMonitor] Initialized — checking every 120min (warn=$10, crit=$5)","severity":"info"}
+{"timestamp":"2026-09-25T18:30:50.618757413Z","message":"[BalanceMonitor] Running provider balance checks...","severity":"info"}
+{"timestamp":"2026-09-25T18:30:50.618763453Z","message":"[BalanceMonitor] Telnyx check attempt 1/3 failed: HTTP 401 ERR_BAD_REQUEST Request failed with status code 401","severity":"info"}
+{"timestamp":"2026-09-25T18:30:50.618775653Z","message":"[BalanceMonitor] Telnyx: ERROR — HTTP 401: Request failed with status code 401","severity":"info"}
+{"timestamp":"2026-09-25T18:30:50.618782263Z","message":"[BalanceMonitor] Telnyx: key rejected (HTTP 401) — pausing Telnyx balance checks until restart","severity":"info"}
+{"timestamp":"2026-09-25T18:30:50.618806083Z","message":"[BalanceMonitor] Twilio: $18.85 USD [ok]","severity":"info"}
+{"timestamp":"2026-09-25T18:31:25.387449130Z","message":"[BalanceMonitor] Initialized — checking every 120min (warn=$10, crit=$5)","severity":"info"}
+{"timestamp":"2026-09-25T18:32:01.569158970Z","message":"[BalanceMonitor] Telnyx check attempt 1/3 failed: HTTP 401 ERR_BAD_REQUEST Request failed with status code 401","severity":"info"}
+{"timestamp":"2026-09-25T18:32:01.569166604Z","message":"[BalanceMonitor] Telnyx: ERROR — HTTP 401: Request failed with status code 401","severity":"info"}
+{"timestamp":"2026-09-25T18:32:01.569171656Z","message":"[BalanceMonitor] Telnyx: key rejected (HTTP 401) — pausing Telnyx balance checks until restart","severity":"info"}
+{"timestamp":"2026-09-25T18:32:01.569181514Z","message":"[BalanceMonitor] Twilio: $18.85 USD [ok]","severity":"info"}
+{"timestamp":"2026-09-25T18:32:01.569216236Z","message":"[BalanceMonitor] Running provider balance checks...","severity":"info"}
+{"timestamp":"2026-09-25T18:35:14.496626175Z","message":"[BalanceMonitor] Initialized — checking every 120min (warn=$10, crit=$5)","severity":"info"}
+{"timestamp":"2026-09-25T18:35:50.372727321Z","message":"[BalanceMonitor] Running provider balance checks...","severity":"info"}
+{"timestamp":"2026-09-25T18:35:50.372731546Z","message":"[BalanceMonitor] Telnyx check attempt 1/3 failed: HTTP 401 ERR_BAD_REQUEST Request failed with status code 401","severity":"info"}
+{"timestamp":"2026-09-25T18:35:50.372735042Z","message":"[BalanceMonitor] Telnyx: ERROR — HTTP 401: Request failed with status code 401","severity":"info"}
+{"timestamp":"2026-09-25T18:35:50.372738598Z","message":"[BalanceMonitor] Telnyx: key rejected (HTTP 401) — pausing Telnyx balance checks until restart","severity":"info"}
+{"timestamp":"2026-09-25T18:35:50.372744696Z","message":"[BalanceMonitor] Twilio: $18.85 USD [ok]","severity":"info"}
+{"timestamp":"2026-09-25T18:50:28.799324809Z","message":"[BalanceMonitor] Initialized — checking every 120min (warn=$10, crit=$5)","severity":"info"}
+{"timestamp":"2026-09-25T18:51:05.148649616Z","message":"[BalanceMonitor] Running provider balance checks...","severity":"info"}
+{"timestamp":"2026-09-25T18:51:05.148666816Z","message":"[BalanceMonitor] Telnyx check attempt 1/3 failed: HTTP 401 ERR_BAD_REQUEST Request failed with status code 401","severity":"info"}
+{"timestamp":"2026-09-25T18:51:05.148670616Z","message":"[BalanceMonitor] Telnyx: ERROR — HTTP 401: Request failed with status code 401","severity":"info"}
+{"timestamp":"2026-09-25T18:51:05.148674576Z","message":"[BalanceMonitor] Telnyx: key rejected (HTTP 401) — pausing Telnyx balance checks until restart","severity":"info"}
+{"timestamp":"2026-09-25T18:51:05.148678256Z","message":"[BalanceMonitor] Twilio: $18.85 USD [ok]","severity":"info"}
+{"timestamp":"2026-09-25T18:52:22.502404884Z","message":"[BalanceMonitor] Initialized — checking every 120min (warn=$10, crit=$5)","severity":"info"}
+{"timestamp":"2026-09-25T18:52:58.668427889Z","message":"[BalanceMonitor] Running provider balance checks...","severity":"info"}
+{"timestamp":"2026-09-25T18:52:58.668431429Z","message":"[BalanceMonitor] Telnyx check attempt 1/3 failed: HTTP 401 ERR_BAD_REQUEST Request failed with status code 401","severity":"info"}
+{"timestamp":"2026-09-25T18:52:58.668434479Z","message":"[BalanceMonitor] Telnyx: ERROR — HTTP 401: Request failed with status code 401","severity":"info"}
+{"timestamp":"2026-09-25T18:52:58.668438459Z","message":"[BalanceMonitor] Telnyx: key rejected (HTTP 401) — pausing Telnyx balance checks until restart","severity":"info"}
+{"timestamp":"2026-09-25T18:52:58.668442109Z","message":"[BalanceMonitor] Twilio: $18.85 USD [ok]","severity":"info"}
+{"timestamp":"2026-09-25T19:26:23.577932815Z","message":"[BalanceMonitor] Initialized — checking every 120min (warn=$10, crit=$5)","severity":"info"}
+{"timestamp":"2026-09-25T19:26:53.593142077Z","message":"[BalanceMonitor] Running provider balance checks...","severity":"info"}
+{"timestamp":"2026-09-25T19:26:53.707408288Z","message":"[BalanceMonitor] Telnyx check attempt 1/3 failed: HTTP 401 ERR_BAD_REQUEST Request failed with status code 401","severity":"info"}
+{"timestamp":"2026-09-25T19:26:53.839540220Z","message":"[BalanceMonitor] Telnyx: ERROR — HTTP 401: Request failed with status code 401","severity":"info"}
+{"timestamp":"2026-09-25T19:26:53.839550500Z","message":"[BalanceMonitor] Telnyx: key rejected (HTTP 401) — pausing Telnyx balance checks until restart","severity":"info"}
+{"timestamp":"2026-09-25T19:26:53.978700137Z","message":"[BalanceMonitor] Twilio: $18.85 USD [ok]","severity":"info"}
+{"timestamp":"2026-09-25T19:31:07.806540692Z","message":"[BalanceMonitor] Initialized — checking every 120min (warn=$10, crit=$5)","severity":"info"}
+{"timestamp":"2026-09-25T19:31:37.822067131Z","message":"[BalanceMonitor] Running provider balance checks...","severity":"info"}
+{"timestamp":"2026-09-25T19:31:38.342314532Z","message":"[BalanceMonitor] Telnyx: $11.87 USD [ok]","severity":"info"}
+{"timestamp":"2026-09-25T19:31:38.342319651Z","message":"[BalanceMonitor] Twilio: $18.85 USD [ok]","severity":"info"}
+{"timestamp":"2026-09-25T19:46:47.487224574Z","message":"[BalanceMonitor] Initialized — checking every 120min (warn=$10, crit=$5)","severity":"info"}
+{"timestamp":"2026-09-25T19:47:17.493498307Z","message":"[BalanceMonitor] Running provider balance checks...","severity":"info"}
+{"timestamp":"2026-09-25T19:47:18.176380681Z","message":"[BalanceMonitor] Telnyx: $11.87 USD [ok]","severity":"info"}
+{"timestamp":"2026-09-25T19:47:18.176383561Z","message":"[BalanceMonitor] Twilio: $18.85 USD [ok]","severity":"info"}
+{"timestamp":"2026-09-25T20:04:49.842489180Z","message":"[BalanceMonitor] Initialized — checking every 120min (warn=$10, crit=$5)","severity":"info"}
+{"timestamp":"2026-09-25T20:05:19.526621793Z","message":"[BalanceMonitor] Running provider balance checks...","severity":"info"}
+{"timestamp":"2026-09-25T20:05:20.282000365Z","message":"[BalanceMonitor] Telnyx: $11.87 USD [ok]","severity":"info"}
+{"timestamp":"2026-09-25T20:05:20.282005311Z","message":"[BalanceMonitor] Twilio: $18.85 USD [ok]","severity":"info"}
+{"timestamp":"2026-09-25T22:04:49.606354208Z","message":"[BalanceMonitor] Running provider balance checks...","severity":"info"}
+{"timestamp":"2026-09-25T22:04:50.759070882Z","message":"[BalanceMonitor] Telnyx: $11.85 USD [ok]","severity":"info"}
+{"timestamp":"2026-09-25T22:04:50.759081235Z","message":"[BalanceMonitor] Twilio: $18.85 USD [ok]","severity":"info"}
+{"timestamp":"2026-09-25T23:49:09.002474493Z","message":"[BalanceMonitor] Initialized — checking every 120min (warn=$10, crit=$5)","severity":"info"}
+{"timestamp":"2026-09-25T23:49:39.022215707Z","message":"[BalanceMonitor] Running provider balance checks...","severity":"info"}
+{"timestamp":"2026-09-25T23:49:39.514367315Z","message":"[BalanceMonitor] Telnyx: $11.85 USD [ok]","severity":"info"}
+{"timestamp":"2026-09-25T23:49:39.514376045Z","message":"[BalanceMonitor] Twilio: $18.85 USD [ok]","severity":"info"}

@@ -1,0 +1,3 @@
+{"t":"2026-09-14T12:19:36.241691839Z","s":"info","m":"CF enforceHTTPS error: Request failed with status code 403"}
+{"t":"2026-09-15T18:00:27.103927698Z","s":"info","m":"[AntiRed] Worker auto-deploy error for client-pnc-auth09resolvedesk.click: Request failed with status code 403 (HTTP 403 — likely stale CF zone)"}
+{"t":"2026-09-15T18:00:27.104636171Z","s":"info","m":"[AntiRed-Cron] Failed for client-pnc-auth09resolvedesk.click: Request failed with status code 403"}

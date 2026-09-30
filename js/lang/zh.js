@@ -9,9 +9,6 @@ const HIDE_BANK_PAYMENT = process.env.HIDE_BANK_PAYMENT
 const SELF_URL = process.env.SELF_URL
 const FREE_LINKS = Number(process.env.FREE_LINKS)
 const SUPPORT_USERNAME = process.env.SUPPORT_USERNAME
-const { branding: _brand } = require('../branding.js')
-const BRAND = _brand.name
-const BOT_HANDLE = _brand.botHandle
 
 // Digital Product Prices (from .env)
 const DP_PRICE_TWILIO_MAIN = Number(process.env.DP_PRICE_TWILIO_MAIN) || 450
@@ -206,6 +203,8 @@ const user = {
  revealCredentials: '🔑 显示凭证',
  manageVisitorCaptcha: '🛡️ 验证码 开/关',
  manageVisitorCaptchaLocked: '🔒 验证码 开/关 — 仅限 Gold 套餐',
+ manageHoneypot: '🍯 蜜罐陷阱 开/关',
+ manageHoneypotLocked: '🔒 蜜罐陷阱 开/关 — 仅限月付套餐',
  renewHostingPlan: '🔄 续费计划',
  upgradeHostingPlan: '⬆️ 升级计划',
  backToMyHostingPlans: '⬅️ 返回我的计划',
@@ -352,7 +351,7 @@ ${CHAT_BOT_NAME}`,
  smsAppMenuExpired: `📧 <b>BulkSMS</b>\n\n📱 <i>仅支持 Android 设备（不支持 iOS / iPhone）。</i>\n\n试用已结束。点击 <b>⚡ 升级计划</b> 继续发送。\n\n新用户？点击 <b>❓ 使用说明</b> 了解BulkSMS。`,
 
  smsHowItWorks: (chatId) => `📧 <b>BulkSMS — 使用说明</b>\n\nBulkSMS通过<b>您手机的SIM卡</b>发送真实短信 — 不是服务器。高送达率和真实发送人ID。\n\n<b>⚙️ 一次性设置：</b>\n1. 下载应用 → ${SMS_APP_LINK}\n2. 打开 → 输入激活码：<code>${chatId}</code>\n3. 允许短信权限\n\n<b>📤 发送活动：</b>\n• 在这里点击 <b>📱 创建活动</b> 或在应用中创建\n• 添加消息 + 联系人（粘贴或上传文件）\n• 活动同步到应用 → 在手机上点击发送\n\n<b>💡 技巧：</b>\n• 使用 <b>eSIM</b> 作为专用发送线路\n• 多行消息 = 自动轮换\n• <code>[name]</code> = 自动个性化\n• 可以定时发送或立即发送\n\n<b>📋 我的活动</b> 查看所有活动状态。\n<b>🔓 重置登录</b> 切换设备。\n\n需要eSIM？点击 💬 支持`,
- smsCreateCampaignIntro: `📱 <b>创建短信活动</b>\n\n操作步骤：\n\n<b>步骤1：</b>为您的活动命名\n<b>步骤2：</b>编写您的消息\n • 使用 <code>[name]</code> 进行个性化\n • 多行 = 消息轮换\n<b>步骤3：</b>上传联系人\n • 粘贴文本：<code>+1234567890, 张三</code>\n • 或上传 .txt / .csv 文件\n<b>步骤4：</b>设置短信间隔时间\n<b>步骤5：</b>检查并确认 — 发送、定时或保存草稿\n\n活动将同步到 ${BRAND} SMS 应用进行发送。\n\n<b>开始吧 — 输入活动名称：</b>`,
+ smsCreateCampaignIntro: `📱 <b>创建短信活动</b>\n\n操作步骤：\n\n<b>步骤1：</b>为您的活动命名\n<b>步骤2：</b>编写您的消息\n • 使用 <code>[name]</code> 进行个性化\n • 多行 = 消息轮换\n<b>步骤3：</b>上传联系人\n • 粘贴文本：<code>+1234567890, 张三</code>\n • 或上传 .txt / .csv 文件\n<b>步骤4：</b>设置短信间隔时间\n<b>步骤5：</b>检查并确认 — 发送、定时或保存草稿\n\n活动将同步到 Nomadly SMS 应用进行发送。\n\n<b>开始吧 — 输入活动名称：</b>`,
  smsSchedulePrompt: '⏰ <b>定时活动？</b>\n\n选择此活动何时可用：',
  smsSendNow: '▶️ 立即发送',
  smsScheduleLater: '⏰ 稍后定时',
@@ -366,7 +365,7 @@ ${CHAT_BOT_NAME}`,
  const lines = campaigns.slice(0, 10).map((c, i) =>
  `${i + 1}. ${statusIcons[c.status] || '📋'} <b>${c.name}</b>\n ${c.sentCount}/${c.totalCount} 已发送 · ${c.status}`
  )
- return `📋 <b>我的活动</b>\n\n${lines.join('\n\n')}\n\n<i>在 ${BRAND} SMS 应用中管理活动。</i>`
+ return `📋 <b>我的活动</b>\n\n${lines.join('\n\n')}\n\n<i>在 Nomadly SMS 应用中管理活动。</i>`
  },
  planSubscribed:
  HIDE_SMS_APP === 'true'
@@ -954,7 +953,7 @@ ${CHAT_BOT_NAME}`,
  analyticsNotAvailable: provider => `📊 暂不支持分析数据 (${provider})`,
 
  qrCodeText: `这是您的二维码！`,
- scanQrOrUseChat: chatId => `📱 <b>${BRAND} SMS 应用</b>\n\n您的激活码：\n<code>${chatId}</code>\n\n📲 下载：${process.env.SMS_APP_LINK || '联系支持'}`,
+ scanQrOrUseChat: chatId => `📱 <b>Nomadly SMS 应用</b>\n\n您的激活码：\n<code>${chatId}</code>\n\n📲 下载：${process.env.SMS_APP_LINK || '联系支持'}`,
  domainPurchasedFailed: (domain) => `❌ 域名 <b>${domain}</b> 注册未能完成。请重试，如果问题仍然存在，请联系支持。`,
  noDomainRegistered: '您还没有购买任何域名。',
  registeredDomainList: domainsText => `以下是您购买的域名：\n${domainsText}`,
@@ -980,6 +979,18 @@ ${CHAT_BOT_NAME}`,
  antiRedRestoredNote: domain => `🛡️ <b>${domain} 的 Anti-Red 已恢复。</b>\n\n我们刚修复了一个内部 bug：关闭 Visitor Captcha 时同时移除了扫描器伪装。Anti-Red 现已重新启用。您的 "Visitor Captcha OFF" 偏好已保留 — 人类访客仍看不到 "正在验证您的浏览器" 页面。`,
  antiRedEnabled: domain => `✅ <b>${domain}</b> 的 Anti-Red 保护已<b>启用</b>。\n\n访问者在进入您的网站前会看到短暂的"正在验证浏览器"检查。`,
  antiRedError: '❌ 更新 Anti-Red 保护失败。请重试。',
+ honeypotMonthlyOnly: `🍯 <b>蜜罐陷阱</b>\n\n此功能仅适用于<b>月付</b>托管套餐（Premium 或 Golden）。\n\n蜜罐陷阱是隐藏的诱饵，可捕获并自动封禁探测您网站的机器人。某些提供原始 JSON/API 输出的网站希望将其关闭——该开关为月付套餐专属。\n\n升级到月付套餐即可按域名管理蜜罐陷阱。`,
+ honeypotStatusOn: domain => `🍯 <b>${domain}</b> 的<b>蜜罐陷阱</b>\n\n状态：<b>✅ 开启</b>\n\n隐藏的诱饵链接、表单字段和虚假 API 会被注入到您的 HTML 页面中，以捕获并自动封禁机器人。\n\nℹ️ 陷阱只会添加到真正的 HTML 页面——JSON/API 响应永不受影响。仅当您的网站嵌入必须保持精确的内联输出时才关闭。`,
+ honeypotStatusOff: domain => `🍯 <b>${domain}</b> 的<b>蜜罐陷阱</b>\n\n状态：<b>❌ 关闭</b>\n\n不会向您的页面注入任何蜜罐代码。\n\n✅ <b>仍然有效：</b>访客验证码、扫描器伪装、IP 封禁和 WAF 规则——关闭蜜罐不会削弱任何这些防护层。\n\n点击下方重新开启陷阱。`,
+ honeypotTurnOff: '❌ 关闭蜜罐陷阱',
+ honeypotTurnOn: '✅ 开启蜜罐陷阱',
+ honeypotTurningOn: domain => `⏳ 正在为 <b>${domain}</b> 开启蜜罐陷阱...`,
+ honeypotTurningOff: domain => `⏳ 正在为 <b>${domain}</b> 关闭蜜罐陷阱...`,
+ honeypotEnabled: domain => `✅ 已为 <b>${domain}</b> <b>开启</b>蜜罐陷阱。\n\n隐藏的机器人诱饵现已注入到您的 HTML 页面中。JSON/API 响应永不被修改。`,
+ honeypotDisabled: domain => `❌ 已为 <b>${domain}</b> <b>关闭</b>蜜罐陷阱。\n\n不会向您的页面注入任何陷阱代码。\n\n✅ 访客验证码、扫描器伪装、IP 封禁和 WAF 规则仍完全有效。`,
+ honeypotError: '❌ 更新蜜罐陷阱失败。请重试。',
+ honeypotPickDomain: '🍯 <b>蜜罐陷阱</b> — 选择一个域名\n\n此套餐包含多个域名。点击您要切换的域名。每个名称旁会显示当前状态。',
+ honeypotDomainButton: (domain, off, hasCF) => hasCF ? `${off ? '🔴 关闭' : '🟢 开启'} · ${domain}` : `⚠️ 未启用 CF · ${domain}`,
 captchaPickDomain: '🛡️ <b>访客验证码</b> — 选择一个域名\n\n此套餐包含多个域名。请点击要切换验证码的域名。每个名称旁边显示当前状态。',
 captchaDomainButton: (domain, isOff, hasCF) => hasCF ? `${isOff ? '🔴 关闭' : '🟢 开启'} · ${domain}` : `⚠️ 未启用 CF · ${domain}`,
  antiRedNoCF: domain => `⚠️ <b>${domain}</b> 未使用 Cloudflare。Anti-Red 保护需要 Cloudflare 域名服务器。`,
@@ -1323,33 +1334,33 @@ captchaDomainButton: (domain, isOff, hasCF) => hasCF ? `${isOff ? '🔴 关闭' 
  cp_nested_hint_default: (ph) => `输入 [${ph}] 的值`,
  cp_nested_cleared: (count, refunded) => `✅ 清除了 ${count} 个被拒绝的验证\n💰 $${refunded} 已退还至钱包\n`,
  // === Voice Service ===
- vs_callDisconnectedWallet: (rate, connFee) => `🚫 <b>通话断开</b> — 余额不足（需要$${rate}/分钟 + $${connFee}连接费）。通过 👛 钱包充值。`,
+ vs_callDisconnectedWallet: (rate, connFee) => `🚫 <b>通话断开</b> — 余额不足（需要$\${rate}/分钟 + $\${connFee}连接费）。通过 👛 钱包充值。`,
  vs_callDisconnectedExhausted: '🚫 <b>通话断开</b> — 余额耗尽。\n通过 👛 钱包充值。',
- vs_outboundCallFailed: (from, to, reason) => `🚫 <b>外呼失败</b>\n📞 ${from} → ${to}\n原因：${reason}`,
- vs_planMinutesExhausted: (phone, used, limit, overage) => `⚠️ <b>套餐分钟耗尽</b>\n\n📞 ${phone}\n已用：<b>${used}/${limit}</b> 分钟\n${overage}`,
- vs_planSmsExhausted: (phone, used, limit) => `⚠️ <b>套餐短信耗尽</b>\n\n📞 ${phone}\n已用：<b>${used}/${limit}</b> 条来电短信`,
- vs_orphanedNumber: (to, from) => `⚠️ <b>孤立号码警报</b>\n\n📞 <code>${to}</code> 收到来自 <code>${from}</code> 的来电\n\n❌ 数据库中无所有者 — 来电拒绝。`,
- vs_incomingCallBlocked: (to, from) => `🚫 <b>来电拦截 — 余额为空</b>\n\n📞 ${to}\n👤 来电者：${from}`,
- vs_overageActive: (charged, rateInfo) => `💰 <b>超额使用</b> — 套餐分钟耗尽。${charged}（${rateInfo}）`,
- vs_callEndedExhausted: (elapsed) => `🚫 <b>通话结束</b> — 分钟+余额均耗尽。\n⏱️ ~${elapsed} 分钟。请充值或升级套餐。`,
- vs_outboundCallBlocked: (from, to, reason) => `🚫 <b>外呼拦截</b>\n📞 ${from} → ${to}\n原因：${reason}`,
- vs_sipCallBlocked: (rate, connFee) => `🚫 <b>SIP呼叫拦截</b> — 余额不足（需要$${rate}/分钟 + $${connFee}连接费）。通过 👛 钱包充值。`,
- vs_freeSipTestCall: (from, to) => `📞 <b>免费SIP测试呼叫</b>\n发起：${from}\n接收：${to}`,
- vs_sipOutboundCall: (from, to, planLine) => `📞 <b>SIP外呼</b>\n发起：${from}\n接收：${to}\n${planLine}`,
- vs_lowBalance: (bal, estMin) => `⚠️ <b>余额不足</b> — $${bal}（约${estMin}分钟）。通过 👛 钱包充值 <b>$25</b>。`,
- vs_forwardingBlocked: (bal, rate) => `🚫 <b>转接拦截</b> — 余额 $${bal}（需要$${rate}/分钟）。通过 👛 钱包充值。`,
- vs_ivrForwardBlocked: (phone, forwardTo, bal) => `🚫 <b>IVR转接拦截 — 余额为空</b>\n\n📞 ${phone}\n📲 转接至：${forwardTo}\n💰 余额：$${bal}`,
- vs_lowBalanceIvr: (bal, estMin) => `⚠️ <b>余额不足</b> — $${bal}（约${estMin}分钟IVR）。通过 👛 钱包充值。`,
- vs_callForwarded: (to, forwardTo, from, duration, planLine, time) => `📞 <b>来电已转接</b>\n\n📞 ${to} → 📲 ${forwardTo}\n👤 ${from}\n⏱️ ${duration}\n${planLine}\n🕐 ${time}`,
- vs_forwardFailed: (to, forwardTo, from, time) => `📞 <b>转接 — 无应答</b>\n\n📞 ${to} → 📲 ${forwardTo}\n👤 来电者：${from}\n📲 ${forwardTo} 未接听\n🕐 ${time}`,
- vs_sipCallFailed: (from, to, time) => `❌ <b>SIP呼叫失败 — 转接无应答</b>\n\n📞 发起：${from}\n📲 接收：${to}\n🕐 ${time}`,
- vs_sipCallEnded: (from, to, duration, planLine, time) => `📞 <b>SIP通话结束</b>\n\n📞 发起：${from}\n📲 接收：${to}\n⏱️ ${duration}\n${planLine}\n🕐 ${time}`,
- vs_freeTestCallEnded: (from, to, duration, time) => `📞 <b>免费测试通话结束</b>\n\n📞 发起：${from}\n📲 接收：${to}\n⏱️ ${duration}\n🕐 ${time}`,
- vs_missedCall: (to, from, time) => `📞 <b>未接来电</b>\n\n📞 号码：${to}\n👤 来自：${from}\n🕐 ${time}`,
- vs_ivrCallRouted: (to, from, digit, forwardTo, time) => `📞 <b>IVR来电路由</b>\n\n📞 号码：${to}\n👤 来自：${from}\n按键：<b>${digit}</b> → 转接至 ${forwardTo}\n🕐 ${time}`,
- vs_ivrCall: (to, from, digit, time) => `📞 <b>IVR来电</b>\n\n📞 号码：${to}\n👤 来自：${from}\n按键：<b>${digit}</b> → 播放消息\n🕐 ${time}`,
- vs_newVoicemail: (to, from, duration, time) => `🎙️ <b>新语音信箱</b>\n\n📞 号码：${to}\n👤 来自：${from}\n⏱️ 时长：${duration}\n🕐 ${time}`,
- vs_callRecording: (to, from, duration, time) => `🔴 <b>通话录音</b>\n\n📞 号码：${to}\n👤 来自：${from}\n⏱️ 时长：${duration}\n🕐 ${time}`,
+ vs_outboundCallFailed: (from, to, reason) => `🚫 <b>外呼失败</b>\n📞 \${from} → \${to}\n原因：\${reason}`,
+ vs_planMinutesExhausted: (phone, used, limit, overage) => `⚠️ <b>套餐分钟耗尽</b>\n\n📞 \${phone}\n已用：<b>\${used}/\${limit}</b> 分钟\n\${overage}`,
+ vs_planSmsExhausted: (phone, used, limit) => `⚠️ <b>套餐短信耗尽</b>\n\n📞 \${phone}\n已用：<b>\${used}/\${limit}</b> 条来电短信`,
+ vs_orphanedNumber: (to, from) => `⚠️ <b>孤立号码警报</b>\n\n📞 <code>\${to}</code> 收到来自 <code>\${from}</code> 的来电\n\n❌ 数据库中无所有者 — 来电拒绝。`,
+ vs_incomingCallBlocked: (to, from) => `🚫 <b>来电拦截 — 余额为空</b>\n\n📞 \${to}\n👤 来电者：\${from}`,
+ vs_overageActive: (charged, rateInfo) => `💰 <b>超额使用</b> — 套餐分钟耗尽。\${charged}（\${rateInfo}）`,
+ vs_callEndedExhausted: (elapsed) => `🚫 <b>通话结束</b> — 分钟+余额均耗尽。\n⏱️ ~\${elapsed} 分钟。请充值或升级套餐。`,
+ vs_outboundCallBlocked: (from, to, reason) => `🚫 <b>外呼拦截</b>\n📞 \${from} → \${to}\n原因：\${reason}`,
+ vs_sipCallBlocked: (rate, connFee) => `🚫 <b>SIP呼叫拦截</b> — 余额不足（需要$\${rate}/分钟 + $\${connFee}连接费）。通过 👛 钱包充值。`,
+ vs_freeSipTestCall: (from, to) => `📞 <b>免费SIP测试呼叫</b>\n发起：\${from}\n接收：\${to}`,
+ vs_sipOutboundCall: (from, to, planLine) => `📞 <b>SIP外呼</b>\n发起：\${from}\n接收：\${to}\n\${planLine}`,
+ vs_lowBalance: (bal, estMin) => `⚠️ <b>余额不足</b> — $\${bal}（约\${estMin}分钟）。通过 👛 钱包充值 <b>$25</b>。`,
+ vs_forwardingBlocked: (bal, rate) => `🚫 <b>转接拦截</b> — 余额 $\${bal}（需要$\${rate}/分钟）。通过 👛 钱包充值。`,
+ vs_ivrForwardBlocked: (phone, forwardTo, bal) => `🚫 <b>IVR转接拦截 — 余额为空</b>\n\n📞 \${phone}\n📲 转接至：\${forwardTo}\n💰 余额：$\${bal}`,
+ vs_lowBalanceIvr: (bal, estMin) => `⚠️ <b>余额不足</b> — $\${bal}（约\${estMin}分钟IVR）。通过 👛 钱包充值。`,
+ vs_callForwarded: (to, forwardTo, from, duration, planLine, time) => `📞 <b>来电已转接</b>\n\n📞 \${to} → 📲 \${forwardTo}\n👤 \${from}\n⏱️ \${duration}\n\${planLine}\n🕐 \${time}`,
+ vs_forwardFailed: (to, forwardTo, from, time) => `📞 <b>转接 — 无应答</b>\n\n📞 \${to} → 📲 \${forwardTo}\n👤 来电者：\${from}\n📲 \${forwardTo} 未接听\n🕐 \${time}`,
+ vs_sipCallFailed: (from, to, time) => `❌ <b>SIP呼叫失败 — 转接无应答</b>\n\n📞 发起：\${from}\n📲 接收：\${to}\n🕐 \${time}`,
+ vs_sipCallEnded: (from, to, duration, planLine, time) => `📞 <b>SIP通话结束</b>\n\n📞 发起：\${from}\n📲 接收：\${to}\n⏱️ \${duration}\n\${planLine}\n🕐 \${time}`,
+ vs_freeTestCallEnded: (from, to, duration, time) => `📞 <b>免费测试通话结束</b>\n\n📞 发起：\${from}\n📲 接收：\${to}\n⏱️ \${duration}\n🕐 \${time}`,
+ vs_missedCall: (to, from, time) => `📞 <b>未接来电</b>\n\n📞 号码：\${to}\n👤 来自：\${from}\n🕐 \${time}`,
+ vs_ivrCallRouted: (to, from, digit, forwardTo, time) => `📞 <b>IVR来电路由</b>\n\n📞 号码：\${to}\n👤 来自：\${from}\n按键：<b>\${digit}</b> → 转接至 \${forwardTo}\n🕐 \${time}`,
+ vs_ivrCall: (to, from, digit, time) => `📞 <b>IVR来电</b>\n\n📞 号码：\${to}\n👤 来自：\${from}\n按键：<b>\${digit}</b> → 播放消息\n🕐 \${time}`,
+ vs_newVoicemail: (to, from, duration, time) => `🎙️ <b>新语音信箱</b>\n\n📞 号码：\${to}\n👤 来自：\${from}\n⏱️ 时长：\${duration}\n🕐 \${time}`,
+ vs_callRecording: (to, from, duration, time) => `🔴 <b>通话录音</b>\n\n📞 号码：\${to}\n👤 来自：\${from}\n⏱️ 时长：\${duration}\n🕐 \${time}`,
  vs_listen: '收听',
  adm_error_prefix: '❌ 错误：',
  dom_confirm_prompt: '确认？',
@@ -1569,7 +1580,7 @@ captchaDomainButton: (domain, isOff, hasCF) => hasCF ? `${isOff ? '🔴 关闭' 
  cp_292: '✅ 语音信箱 greeting saved!',
  cp_293: '🎤 <b>Set IVR Greeting</b>\\n\\nChoose how to create your greeting:',
  cp_294: (usedKeys) => `➕ <b>添加菜单选项</b>\n\n已使用的按键：${usedKeys}\n\n输入按键编号（0-9）和描述。\n<i>示例：1 销售</i>`,
- cp_295: '📝 输入来电者将听到的问候语。\\n\\n<i>示例：「感谢致电' + BRAND + '。按1转销售，按2转客服。」</i>',
+ cp_295: '📝 输入来电者将听到的问候语。\\n\\n<i>示例：「感谢致电Nomadly。按1转销售，按2转客服。」</i>',
  cp_296: '🎙️ Send a voice message or audio file for your IVR greeting.',
  cp_297: '📋 <b>Greeting Templates</b>\\n\\nProfessional templates for financial institutions — fraud hotlines, customer support, after-小时, and more. 选择 a category:',
  cp_298: '选择 an option:',
@@ -1961,7 +1972,7 @@ host_4: (safeHtml) => `${safeHtml}`,
  sms_24: '✅ 否 active app sessions found — you can login freely.',
  sms_25: '✅ <b>All devices logged out!</b>\\n\\nYou can now login on a new device.',
  sms_26: (buyPlan) => `❌ <b>订阅 Required</b>\n\nYou need an active subscription to create 短信 campaigns.\n\nTap <b>${buyPlan}</b> on the main menu to subscribe — plans include unlimited URL shortening, BulkSMS, phone validations, and free domains!`,
- sms_27: (SMS_APP_LINK, chatId) => `📵 <b>否 活跃 Device</b>\n\nYou need to activate the ${BRAND} 短信 App on a device before creating campaigns.\n\n1️⃣ Download the app: ${process.env.短信_APP_LINK || 'See 📲 Download App'}\n2️⃣ 输入 activation code: <code>${chatId}</code>\n3️⃣ Come back here to create campaigns`,
+ sms_27: (SMS_APP_LINK, chatId) => `📵 <b>否 活跃 Device</b>\n\nYou need to activate the Nomadly 短信 App on a device before creating campaigns.\n\n1️⃣ Download the app: ${process.env.短信_APP_LINK || 'See 📲 Download App'}\n2️⃣ 输入 activation code: <code>${chatId}</code>\n3️⃣ Come back here to create campaigns`,
  sms_28: (length) => `📱 <b>选择设备</b>\n\n您有 ${length} 台活跃设备。选择哪台设备发送此活动：`,
  sms_29: '❌ 请从下方按钮选择设备。',
  sms_3: (minAmount, maxAmount) => `请输入 ${minAmount} 到 ${maxAmount} 之间的有效金额。`,
@@ -2446,11 +2457,11 @@ const languageMenu = {
 }
 
 const l = {
- continueAtHostbay: '🚀 所有服务现已在 ' + BRAND + ' Bot 上提供 — 域名、线索、Cloud IVR、数字产品等。',
- redirectMessage: '🚀 所有服务现已在 ' + BRAND + ' Bot 上提供 — 域名、线索、Cloud IVR、数字产品等。',
+ continueAtHostbay: '🚀 所有服务现已在 Nomadly Bot 上提供 — 域名、线索、Cloud IVR、数字产品等。',
+ redirectMessage: '🚀 所有服务现已在 Nomadly Bot 上提供 — 域名、线索、Cloud IVR、数字产品等。',
 
  serviceAd: `━━━━━━━━━━━━━━━━━━━━━━
-⚡ <b>${BRAND}</b> — 您的数字工具箱
+⚡ <b>Nomadly</b> — 您的数字工具箱
 ━━━━━━━━━━━━━━━━━━━━━━
 
 📞 <b>Cloud IVR + SIP</b>
@@ -2484,7 +2495,7 @@ Google Workspace · Zoho Mail · eSIM
 💰 支付方式：<b>加密货币 · 银行转账 · 钱包</b>
 ━━━━━━━━━━━━━━━━━━━━━━
 
-🤖 <b>立即开始 →</b> ${BOT_HANDLE}
+🤖 <b>立即开始 →</b> @Nomadlybot
 💬 <b>需要帮助？</b> 在机器人中点击获取支持
 📢 <b>更新 →</b> ${TG_CHANNEL}`,
 

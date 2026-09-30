@@ -1,0 +1,221 @@
+{"t":"2026-09-15T03:32:40.091533614Z","s":"info","m":"[C] onlinesecureauth.com (chatId=6395648769, registrar=OpenProvider)"}
+{"t":"2026-09-15T10:59:10.706595656Z","s":"info","m":"OpenProvider auth success"}
+{"t":"2026-09-15T10:59:12.057818497Z","s":"info","m":"[domain-service] c8raauthaplly.com available on OpenProvider only @ $39"}
+{"t":"2026-09-15T11:09:02.165256067Z","s":"info","m":"[domain-service] Registering c8raauthaplly.com on OpenProvider with NS: a.dnspod.com, c.dnspod.com"}
+{"t":"2026-09-15T11:09:15.516958712Z","s":"info","m":"[domain-service] c8raauthaplly.com registered on OpenProvider (ID: 30239924)"}
+{"t":"2026-09-15T11:09:15.521327643Z","s":"info","m":"[buyDomainFullProcess] c8raauthaplly.com registered via primary registrar OpenProvider — potential savings"}
+{"t":"2026-09-15T11:09:15.542218010Z","s":"info","m":"[buyDomainFullProcess] c8raauthaplly.com registered with Custom NS: a.dnspod.com, c.dnspod.com (registrar: OpenProvider)"}
+{"t":"2026-09-15T16:01:40.700498160Z","s":"info","m":"OpenProvider auth success"}
+{"t":"2026-09-15T16:01:54.905596049Z","s":"info","m":"OP updateNameservers error for rbc-verify.com: Request failed with status code 500 | desc: An error has occurred; for more details, please refer to the registry message below. For more information please check https://openprovider.help/books/quick-start/page/whoops-an-error-has-occurred  | full: {\"desc\":\"An error has occurred; for more details, please refer to the registry message below. For more information please check https://openprovider.help/books/quick-start/page/whoops-an-error-has-occurred\",\"code\":399,\"data\":\"Unexpected response from the registry EPP server: 2308, Domain is not active, or does not belong to this user\"}"}
+{"t":"2026-09-15T16:11:50.903534765Z","s":"info","m":"OP updateNameservers error for rbc-verify.com: Request failed with status code 500 | desc: An error has occurred; for more details, please refer to the registry message below. For more information please check https://openprovider.help/books/quick-start/page/whoops-an-error-has-occurred  | full: {\"desc\":\"An error has occurred; for more details, please refer to the registry message below. For more information please check https://openprovider.help/books/quick-start/page/whoops-an-error-has-occurred\",\"code\":399,\"data\":\"Unexpected response from the registry EPP server: 2308, Domain is not active, or does not belong to this user\"}"}
+{"t":"2026-09-15T16:26:50.070752310Z","s":"info","m":"OP updateNameservers error for rbc-verify.com: Request failed with status code 500 | desc: An error has occurred; for more details, please refer to the registry message below. For more information please check https://openprovider.help/books/quick-start/page/whoops-an-error-has-occurred  | full: {\"desc\":\"An error has occurred; for more details, please refer to the registry message below. For more information please check https://openprovider.help/books/quick-start/page/whoops-an-error-has-occurred\",\"code\":399,\"data\":\"Unexpected response from the registry EPP server: 2308, Domain is not active, or does not belong to this user\"}"}
+{"t":"2026-09-15T20:13:19.607260825Z","s":"info","m":"OpenProvider auth success"}
+{"t":"2026-09-15T20:13:20.080469341Z","s":"info","m":"[domain-service] invitationcardsonline.com available on OpenProvider only @ $39"}
+{"t":"2026-09-15T20:13:20.186994022Z","s":"info","m":"[domain-service] invitationcardsonline.de available on OpenProvider only @ $30"}
+{"t":"2026-09-15T20:13:20.186999111Z","s":"info","m":"[domain-service] invitationcardsonline.net available on OpenProvider only @ $51"}
+{"t":"2026-09-15T20:13:20.208729248Z","s":"info","m":"[domain-service] invitationcardsonline.fr available on OpenProvider only @ $30"}
+{"t":"2026-09-15T20:13:20.247394146Z","s":"info","m":"[domain-service] invitationcardsonline.io available on OpenProvider only @ $244"}
+{"t":"2026-09-15T20:13:20.275207572Z","s":"info","m":"[domain-service] invitationcardsonline.sbs available on OpenProvider only @ $30"}
+{"t":"2026-09-15T20:13:20.301033628Z","s":"info","m":"[domain-service] invitationcardsonline.dev available on OpenProvider only @ $52"}
+{"t":"2026-09-15T20:13:20.322334898Z","s":"info","m":"[domain-service] invitationcardsonline.co available on OpenProvider only @ $33"}
+{"t":"2026-09-15T20:13:20.397376059Z","s":"info","m":"[domain-service] invitationcardsonline.org available on OpenProvider only @ $30"}
+{"t":"2026-09-15T20:13:20.403198351Z","s":"info","m":"[domain-service] invitationcardsonline.it available on OpenProvider only @ $30"}
+{"t":"2026-09-15T20:13:20.694341232Z","s":"info","m":"[domain-service] invitationcardsonline.app available on OpenProvider only @ $52"}
+{"t":"2026-09-15T20:13:40.696756925Z","s":"info","m":"[domain-service] invitationcardsonline.online available on OpenProvider only @ $98"}
+{"t":"2026-09-15T20:17:36.625079291Z","s":"info","m":"[domain-service] invitationcardsonline.live available on OpenProvider only @ $30"}
+{"t":"2026-09-15T22:26:21.355720133Z","s":"info","m":"OpenProvider auth success"}
+{"t":"2026-09-15T22:26:21.357496896Z","s":"info","m":"[domain-service] td-support.xyz available on OpenProvider only @ $30"}
+{"t":"2026-09-15T22:26:21.357500056Z","s":"info","m":"[domain-service] td-support.app available on OpenProvider only @ $52"}
+{"t":"2026-09-15T22:26:21.357502866Z","s":"info","m":"[domain-service] td-support.co available on OpenProvider only @ $33"}
+{"t":"2026-09-15T22:26:21.357505516Z","s":"info","m":"[domain-service] td-support.io available on OpenProvider only @ $244"}
+{"t":"2026-09-15T22:26:21.357508346Z","s":"info","m":"[domain-service] td-support.dev available on OpenProvider only @ $52"}
+{"t":"2026-09-15T22:26:21.357511036Z","s":"info","m":"[domain-service] td-support.sbs available on OpenProvider only @ $30"}
+{"t":"2026-09-15T22:26:21.357514006Z","s":"info","m":"[domain-service] td-support.it available on OpenProvider only @ $30"}
+{"t":"2026-09-15T22:26:21.357516716Z","s":"info","m":"[domain-service] td-support.fr available on OpenProvider only @ $30"}
+{"t":"2026-09-15T22:26:21.357519516Z","s":"info","m":"[domain-service] td-support.org available on OpenProvider only @ $30"}
+{"t":"2026-09-15T22:27:57.666711586Z","s":"info","m":"[domain-service] www1td.de available on OpenProvider only @ $30"}
+{"t":"2026-09-15T22:27:57.666715726Z","s":"info","m":"[domain-service] www1td.net available on OpenProvider only @ $51"}
+{"t":"2026-09-15T22:27:57.666719686Z","s":"info","m":"[domain-service] www1td.xyz available on OpenProvider only @ $30"}
+{"t":"2026-09-15T22:27:57.666723276Z","s":"info","m":"[domain-service] www1td.app available on OpenProvider only @ $52"}
+{"t":"2026-09-15T22:27:57.666727486Z","s":"info","m":"[domain-service] www1td.sbs available on OpenProvider only @ $30"}
+{"t":"2026-09-15T22:27:57.666731886Z","s":"info","m":"[domain-service] www1td.io available on OpenProvider only @ $244"}
+{"t":"2026-09-15T22:27:57.666735606Z","s":"info","m":"[domain-service] www1td.dev available on OpenProvider only @ $52"}
+{"t":"2026-09-15T22:27:57.666739166Z","s":"info","m":"[domain-service] www1td.it available on OpenProvider only @ $30"}
+{"t":"2026-09-15T22:27:57.666742996Z","s":"info","m":"[domain-service] www1td.fr available on OpenProvider only @ $30"}
+{"t":"2026-09-15T22:27:57.666746306Z","s":"info","m":"[domain-service] www1td.org available on OpenProvider only @ $30"}
+{"t":"2026-09-15T22:27:57.666749826Z","s":"info","m":"[domain-service] www1td.co available on OpenProvider only @ $33"}
+{"t":"2026-09-15T22:29:08.508242171Z","s":"info","m":"[domain-service] tdsupport.app available on OpenProvider only @ $52"}
+{"t":"2026-09-15T22:41:01.043215654Z","s":"info","m":"[domain-service] td-mail.ca available on OpenProvider only @ $52"}
+{"t":"2026-09-15T22:41:37.729015503Z","s":"info","m":"[domain-service] td-email.net available on OpenProvider only @ $51"}
+{"t":"2026-09-15T22:41:37.765108935Z","s":"info","m":"[domain-service] td-email.co available on OpenProvider only @ $33"}
+{"t":"2026-09-15T22:41:37.784857524Z","s":"info","m":"[domain-service] td-email.xyz available on OpenProvider only @ $30"}
+{"t":"2026-09-15T22:41:37.795023981Z","s":"info","m":"[domain-service] td-email.app available on OpenProvider only @ $52"}
+{"t":"2026-09-15T22:41:37.818083736Z","s":"info","m":"[domain-service] td-email.sbs available on OpenProvider only @ $30"}
+{"t":"2026-09-15T22:41:37.872101510Z","s":"info","m":"[domain-service] td-email.dev available on OpenProvider only @ $52"}
+{"t":"2026-09-15T22:41:38.220655115Z","s":"info","m":"[domain-service] td-email.fr available on OpenProvider only @ $30"}
+{"t":"2026-09-15T22:41:38.290017288Z","s":"info","m":"[domain-service] td-email.io available on OpenProvider only @ $244"}
+{"t":"2026-09-15T22:41:38.407317608Z","s":"info","m":"[domain-service] td-email.org available on OpenProvider only @ $30"}
+{"t":"2026-09-15T22:41:38.438571065Z","s":"info","m":"[domain-service] td-email.it available on OpenProvider only @ $30"}
+{"t":"2026-09-15T22:41:57.058297742Z","s":"info","m":"[domain-service] td-email.live available on OpenProvider only @ $30"}
+{"t":"2026-09-16T03:30:05.783088770Z","s":"info","m":"  scanned 4/383\rOpenProvider auth success"}
+{"t":"2026-09-16T03:30:06.522396099Z","s":"info","m":"OpenProvider auth success"}
+{"t":"2026-09-16T03:34:30.104338470Z","s":"info","m":"[A] 1passvvord.org (chatId=8355565115, registrar=OpenProvider)"}
+{"t":"2026-09-16T03:34:30.104341260Z","s":"info","m":"[C] 1bmo.live (chatId=8868602470, registrar=OpenProvider)"}
+{"t":"2026-09-16T03:34:30.104359790Z","s":"info","m":"        opNs:   ns1.openprovider.nl, ns2.openprovider.be, ns3.openprovider.eu"}
+{"t":"2026-09-16T03:34:30.105812506Z","s":"info","m":"[A] 1passwords.org (chatId=8355565115, registrar=OpenProvider)"}
+{"t":"2026-09-16T03:34:30.105823176Z","s":"info","m":"        opNs:   ns1.openprovider.nl, ns2.openprovider.be, ns3.openprovider.eu"}
+{"t":"2026-09-16T03:34:30.105840976Z","s":"info","m":"[A] 1psswd.org (chatId=8355565115, registrar=OpenProvider)"}
+{"t":"2026-09-16T03:34:30.105847096Z","s":"info","m":"        opNs:   ns1.openprovider.nl, ns2.openprovider.be, ns3.openprovider.eu"}
+{"t":"2026-09-16T03:34:30.106361831Z","s":"info","m":"[C] adminpanelsec.com (chatId=5833835818, registrar=OpenProvider)"}
+{"t":"2026-09-16T03:34:30.106374891Z","s":"info","m":"[C] accessdsecurityservices.com (chatId=8837636204, registrar=OpenProvider)"}
+{"t":"2026-09-16T03:34:30.106394341Z","s":"info","m":"[C] accesslog45security.com (chatId=840923854, registrar=OpenProvider)"}
+{"t":"2026-09-16T03:34:30.106409271Z","s":"info","m":"[C] account-verify.ca (chatId=6331544767, registrar=OpenProvider)"}
+{"t":"2026-09-16T03:34:30.108476462Z","s":"info","m":"[C] assist-user04.com (chatId=5991214713, registrar=OpenProvider)"}
+{"t":"2026-09-16T03:34:30.109718031Z","s":"info","m":"[C] blissfultoparti.de (chatId=7290657217, registrar=OpenProvider)"}
+{"t":"2026-09-16T03:34:30.109732461Z","s":"info","m":"[C] bmoonlinegateway.com (chatId=6395648769, registrar=OpenProvider)"}
+{"t":"2026-09-16T03:34:30.110597753Z","s":"info","m":"[C] canadatrust.live (chatId=8352542716, registrar=OpenProvider)"}
+{"t":"2026-09-16T03:34:30.110614113Z","s":"info","m":"[C] carrssafddpt.de (chatId=7775130199, registrar=OpenProvider)"}
+{"t":"2026-09-16T03:34:30.110630153Z","s":"info","m":"[C] cashproauthentication.com (chatId=6395648769, registrar=OpenProvider)"}
+{"t":"2026-09-16T03:34:30.111345846Z","s":"info","m":"[C] coinspotsupport.com.au (chatId=6550622589, registrar=OpenProvider)"}
+{"t":"2026-09-16T03:34:30.111361076Z","s":"info","m":"[C] coinspotsupport.org (chatId=6550622589, registrar=OpenProvider)"}
+{"t":"2026-09-16T03:34:30.111365446Z","s":"info","m":"[C] client-05sec.com (chatId=5731435538, registrar=OpenProvider)"}
+{"t":"2026-09-16T03:34:30.111934891Z","s":"info","m":"[C] customeraccountprofile.com (chatId=6395648769, registrar=OpenProvider)"}
+{"t":"2026-09-16T03:34:30.111946101Z","s":"info","m":"[C] customeraccountconnect.com (chatId=6395648769, registrar=OpenProvider)"}
+{"t":"2026-09-16T03:34:30.111949141Z","s":"info","m":"[C] customerprofileaccess.com (chatId=6395648769, registrar=OpenProvider)"}
+{"t":"2026-09-16T03:34:30.112764584Z","s":"info","m":"[C] customerprofilecenter.com (chatId=6395648769, registrar=OpenProvider)"}
+{"t":"2026-09-16T03:34:30.112780404Z","s":"info","m":"[C] desjardins1.com (chatId=8868602470, registrar=OpenProvider)"}
+{"t":"2026-09-16T03:34:30.112790964Z","s":"info","m":"[C] customerprofileconnect.com (chatId=6395648769, registrar=OpenProvider)"}
+{"t":"2026-09-16T03:34:30.112810073Z","s":"info","m":"[C] deviceonlinescan.com (chatId=6395648769, registrar=OpenProvider)"}
+{"t":"2026-09-16T03:34:30.112819573Z","s":"info","m":"[C] customerprofileportal.com (chatId=6395648769, registrar=OpenProvider)"}
+{"t":"2026-09-16T03:34:30.112830623Z","s":"info","m":"[C] dashboard-online04.com (chatId=5731435538, registrar=OpenProvider)"}
+{"t":"2026-09-16T03:34:30.113501917Z","s":"info","m":"[C] devicescanportal.com (chatId=6395648769, registrar=OpenProvider)"}
+{"t":"2026-09-16T03:34:30.113515477Z","s":"info","m":"[C] devicesecurityshield.com (chatId=6395648769, registrar=OpenProvider)"}
+{"t":"2026-09-16T03:34:30.113530327Z","s":"info","m":"[C] dgpn-crypto.fr (chatId=8355565115, registrar=OpenProvider)"}
+{"t":"2026-09-16T03:34:30.114434228Z","s":"info","m":"[C] dndprtlrg.com (chatId=7290657217, registrar=OpenProvider)"}
+{"t":"2026-09-16T03:34:30.114900104Z","s":"info","m":"[C] etradeonlinegateway.com (chatId=6395648769, registrar=OpenProvider)"}
+{"t":"2026-09-16T03:34:30.114942064Z","s":"info","m":"[C] eventiestopart.de (chatId=7290657217, registrar=OpenProvider)"}
+{"t":"2026-09-16T03:34:30.114948134Z","s":"info","m":"[A] easywebtd.live (chatId=8352542716, registrar=OpenProvider)"}
+{"t":"2026-09-16T03:34:30.114962394Z","s":"info","m":"[C] entsecurity.xyz (chatId=6543817440, registrar=OpenProvider)"}
+{"t":"2026-09-16T03:34:30.115800616Z","s":"info","m":"[C] firstpacgateway.com (chatId=6395648769, registrar=OpenProvider)"}
+{"t":"2026-09-16T03:34:30.115808286Z","s":"info","m":"[C] fielityinvs.com (chatId=5115600485, registrar=OpenProvider)"}
+{"t":"2026-09-16T03:34:30.115817616Z","s":"info","m":"[C] eventrsvp.sbs (chatId=8011229362, registrar=OpenProvider)"}
+{"t":"2026-09-16T03:34:30.115837695Z","s":"info","m":"[C] fdic-verify-secure.com (chatId=7893016294, registrar=OpenProvider)"}
+{"t":"2026-09-16T03:34:30.115849475Z","s":"info","m":"[C] ffideelty.de (chatId=5115600485, registrar=OpenProvider)"}
+{"t":"2026-09-16T03:34:30.116499609Z","s":"info","m":"[C] gntysecure.com (chatId=6395648769, registrar=OpenProvider)"}
+{"t":"2026-09-16T03:34:30.119231656Z","s":"info","m":"[C] helpassistportal.com (chatId=6395648769, registrar=OpenProvider)"}
+{"t":"2026-09-16T03:34:30.119823240Z","s":"info","m":"[C] homepage-navyfed.com (chatId=7394693056, registrar=OpenProvider)"}
+{"t":"2026-09-16T03:34:30.120686722Z","s":"info","m":"[C] inviowelcoparty.de (chatId=1960615421, registrar=OpenProvider)"}
+{"t":"2026-09-16T03:34:30.120702182Z","s":"info","m":"[C] interac.live (chatId=8868602470, registrar=OpenProvider)"}
+{"t":"2026-09-16T03:34:30.120967089Z","s":"info","m":"[A] hostinbox.co (chatId=6331544767, registrar=OpenProvider)"}
+{"t":"2026-09-16T03:34:30.120984209Z","s":"info","m":"[C] huntingtononlinebanking.it (chatId=7893016294, registrar=OpenProvider)"}
+{"t":"2026-09-16T03:34:30.120995089Z","s":"info","m":"[C] icloudsecurecare.com (chatId=6395648769, registrar=OpenProvider)"}
+{"t":"2026-09-16T03:34:30.121882832Z","s":"info","m":"[C] itsonlytravel.com (chatId=8737445617, registrar=OpenProvider)"}
+{"t":"2026-09-16T03:34:30.121882932Z","s":"info","m":"[C] invitatoadbedownldupdtxnow.com (chatId=6372476120, registrar=OpenProvider)"}
+{"t":"2026-09-16T03:34:30.121898102Z","s":"info","m":"[C] invitesccm.com (chatId=7152424040, registrar=OpenProvider)"}
+{"t":"2026-09-16T03:34:30.121912121Z","s":"info","m":"[C] invupdat2atode.com (chatId=7793281862, registrar=OpenProvider)"}
+{"t":"2026-09-16T03:34:30.123776805Z","s":"info","m":"[C] ledger-recovery.org (chatId=7520972603, registrar=OpenProvider)"}
+{"t":"2026-09-16T03:34:30.123793124Z","s":"info","m":"        opNs:   ns1.openprovider.nl, ns2.openprovider.be, ns3.openprovider.eu"}
+{"t":"2026-09-16T03:34:30.123793994Z","s":"info","m":"[C] ledger-recuperation.fr (chatId=7520972603, registrar=OpenProvider)"}
+{"t":"2026-09-16T03:34:30.123804764Z","s":"info","m":"[C] madenias.de (chatId=821572555, registrar=OpenProvider)"}
+{"t":"2026-09-16T03:34:30.123811824Z","s":"info","m":"[A] midfloridaportal.com (chatId=6395648769, registrar=OpenProvider)"}
+{"t":"2026-09-16T03:34:30.123824684Z","s":"info","m":"[C] mail-bnc.live (chatId=8868602470, registrar=OpenProvider)"}
+{"t":"2026-09-16T03:34:30.123825704Z","s":"info","m":"[C] livehelpportal.com (chatId=6395648769, registrar=OpenProvider)"}
+{"t":"2026-09-16T03:34:30.125221981Z","s":"info","m":"[C] misecure-ca.live (chatId=6156677266, registrar=OpenProvider)"}
+{"t":"2026-09-16T03:34:30.125235041Z","s":"info","m":"[C] mssollution.com (chatId=6344836722, registrar=OpenProvider)"}
+{"t":"2026-09-16T03:34:30.125248561Z","s":"info","m":"[C] myelitexz.com (chatId=7152424040, registrar=OpenProvider)"}
+{"t":"2026-09-16T03:34:30.125281311Z","s":"info","m":"[C] myyxct.org (chatId=6773929524, registrar=OpenProvider)"}
+{"t":"2026-09-16T03:34:30.144571167Z","s":"info","m":"[C] wdpaperandshare.com (chatId=8158677991, registrar=OpenProvider)"}
+{"t":"2026-09-16T16:50:32.340653688Z","s":"info","m":"OpenProvider auth success"}
+{"t":"2026-09-16T16:50:35.442331552Z","s":"info","m":"[domain-service] schwabonlineprofile.app available on OpenProvider only @ $52"}
+{"t":"2026-09-16T16:50:35.442339229Z","s":"info","m":"[domain-service] schwabonlineprofile.io available on OpenProvider only @ $244"}
+{"t":"2026-09-16T16:50:35.442343349Z","s":"info","m":"[domain-service] schwabonlineprofile.sbs available on OpenProvider only @ $30"}
+{"t":"2026-09-16T16:50:35.442346982Z","s":"info","m":"[domain-service] schwabonlineprofile.it available on OpenProvider only @ $30"}
+{"t":"2026-09-16T16:50:35.442376997Z","s":"info","m":"[domain-service] schwabonlineprofile.co available on OpenProvider only @ $33"}
+{"t":"2026-09-16T16:50:35.442385996Z","s":"info","m":"[domain-service] schwabonlineprofile.fr available on OpenProvider only @ $30"}
+{"t":"2026-09-16T16:50:35.442398855Z","s":"info","m":"[domain-service] schwabonlineprofile.de available on OpenProvider only @ $30"}
+{"t":"2026-09-16T16:50:35.533294227Z","s":"info","m":"[domain-service] schwabonlineprofile.org available on OpenProvider only @ $30"}
+{"t":"2026-09-16T16:50:35.651944367Z","s":"info","m":"[domain-service] schwabonlineprofile.dev available on OpenProvider only @ $52"}
+{"t":"2026-09-16T16:50:35.722008427Z","s":"info","m":"[domain-service] schwabonlineprofile.xyz available on OpenProvider only @ $30"}
+{"t":"2026-09-16T16:50:35.722015248Z","s":"info","m":"[domain-service] schwabonlineprofile.net available on OpenProvider only @ $51"}
+{"t":"2026-09-16T16:51:01.144676394Z","s":"info","m":"[domain-service] schwabonlineportal.com available on OpenProvider only @ $39"}
+{"t":"2026-09-16T16:51:21.031918444Z","s":"info","m":"[domain-service] Registering schwabonlineportal.com on OpenProvider with NS: anderson.ns.cloudflare.com, leanna.ns.cloudflare.com"}
+{"t":"2026-09-16T16:51:41.032752900Z","s":"info","m":"[domain-service] schwabonlineportal.com registered on OpenProvider (ID: 30247884)"}
+{"t":"2026-09-16T16:51:41.032763569Z","s":"info","m":"[buyDomainFullProcess] schwabonlineportal.com registered via primary registrar OpenProvider — potential savings"}
+{"t":"2026-09-16T16:51:41.034408221Z","s":"info","m":"[buyDomainFullProcess] schwabonlineportal.com registered with Cloudflare NS: anderson.ns.cloudflare.com, leanna.ns.cloudflare.com (registrar: OpenProvider)"}
+{"t":"2026-09-16T21:45:11.986834207Z","s":"info","m":"OpenProvider auth success"}
+{"t":"2026-09-16T21:45:11.990153032Z","s":"info","m":"[domain-service] bannerbank.dev available on OpenProvider only @ $52"}
+{"t":"2026-09-16T21:45:11.990157072Z","s":"info","m":"[domain-service] bannerbank.sbs available on OpenProvider only @ $30"}
+{"t":"2026-09-16T21:45:11.990162962Z","s":"info","m":"[domain-service] bannerbank.fr available on OpenProvider only @ $30"}
+{"t":"2026-09-16T21:45:11.990167492Z","s":"info","m":"[domain-service] bannerbank.app available on OpenProvider only @ $52"}
+{"t":"2026-09-16T21:45:11.990170952Z","s":"info","m":"[domain-service] bannerbank.io available on OpenProvider only @ $244"}
+{"t":"2026-09-16T21:45:11.990175342Z","s":"info","m":"[domain-service] bannerbank.it available on OpenProvider only @ $30"}
+{"t":"2026-09-17T03:30:06.318115138Z","s":"info","m":"OpenProvider auth success"}
+{"t":"2026-09-17T03:30:06.318117848Z","s":"info","m":"OpenProvider auth success"}
+{"t":"2026-09-17T03:30:06.973606793Z","s":"info","m":"OpenProvider auth success"}
+{"t":"2026-09-17T03:34:31.830087349Z","s":"info","m":"        opNs:   ns1.openprovider.nl, ns2.openprovider.be, ns3.openprovider.eu"}
+{"t":"2026-09-17T03:34:31.830116079Z","s":"info","m":"[A] 1passvvord.org (chatId=8355565115, registrar=OpenProvider)"}
+{"t":"2026-09-17T03:34:31.830154358Z","s":"info","m":"[C] 1bmo.live (chatId=8868602470, registrar=OpenProvider)"}
+{"t":"2026-09-17T03:34:31.831056588Z","s":"info","m":"[A] 1passwords.org (chatId=8355565115, registrar=OpenProvider)"}
+{"t":"2026-09-17T03:34:31.831063308Z","s":"info","m":"        opNs:   ns1.openprovider.nl, ns2.openprovider.be, ns3.openprovider.eu"}
+{"t":"2026-09-17T03:34:31.831072048Z","s":"info","m":"[A] 1psswd.org (chatId=8355565115, registrar=OpenProvider)"}
+{"t":"2026-09-17T03:34:31.831076817Z","s":"info","m":"        opNs:   ns1.openprovider.nl, ns2.openprovider.be, ns3.openprovider.eu"}
+{"t":"2026-09-17T03:34:31.832184946Z","s":"info","m":"[C] account-verify.ca (chatId=6331544767, registrar=OpenProvider)"}
+{"t":"2026-09-17T03:34:31.832185126Z","s":"info","m":"[C] accessdsecurityservices.com (chatId=8837636204, registrar=OpenProvider)"}
+{"t":"2026-09-17T03:34:31.832214395Z","s":"info","m":"[C] adminpanelsec.com (chatId=5833835818, registrar=OpenProvider)"}
+{"t":"2026-09-17T03:34:31.832217545Z","s":"info","m":"[C] accesslog45security.com (chatId=840923854, registrar=OpenProvider)"}
+{"t":"2026-09-17T03:34:31.833977906Z","s":"info","m":"[C] assist-user04.com (chatId=5991214713, registrar=OpenProvider)"}
+{"t":"2026-09-17T03:34:31.835091524Z","s":"info","m":"[C] blissfultoparti.de (chatId=7290657217, registrar=OpenProvider)"}
+{"t":"2026-09-17T03:34:31.835109394Z","s":"info","m":"[C] bmoonlinegateway.com (chatId=6395648769, registrar=OpenProvider)"}
+{"t":"2026-09-17T03:34:31.836198741Z","s":"info","m":"[C] canadatrust.live (chatId=8352542716, registrar=OpenProvider)"}
+{"t":"2026-09-17T03:34:31.836211371Z","s":"info","m":"[C] carrssafddpt.de (chatId=7775130199, registrar=OpenProvider)"}
+{"t":"2026-09-17T03:34:31.836223801Z","s":"info","m":"[C] cashproauthentication.com (chatId=6395648769, registrar=OpenProvider)"}
+{"t":"2026-09-17T03:34:31.837320259Z","s":"info","m":"[C] client-05sec.com (chatId=5731435538, registrar=OpenProvider)"}
+{"t":"2026-09-17T03:34:31.837368609Z","s":"info","m":"[C] coinspotsupport.com.au (chatId=6550622589, registrar=OpenProvider)"}
+{"t":"2026-09-17T03:34:31.837385369Z","s":"info","m":"[C] coinspotsupport.org (chatId=6550622589, registrar=OpenProvider)"}
+{"t":"2026-09-17T03:34:31.838027062Z","s":"info","m":"[C] customeraccountconnect.com (chatId=6395648769, registrar=OpenProvider)"}
+{"t":"2026-09-17T03:34:31.838056991Z","s":"info","m":"[C] customeraccountprofile.com (chatId=6395648769, registrar=OpenProvider)"}
+{"t":"2026-09-17T03:34:31.838070961Z","s":"info","m":"[C] customerprofileaccess.com (chatId=6395648769, registrar=OpenProvider)"}
+{"t":"2026-09-17T03:34:31.839408446Z","s":"info","m":"[C] desjardins1.com (chatId=8868602470, registrar=OpenProvider)"}
+{"t":"2026-09-17T03:34:31.839416626Z","s":"info","m":"[C] customerprofilecenter.com (chatId=6395648769, registrar=OpenProvider)"}
+{"t":"2026-09-17T03:34:31.839434506Z","s":"info","m":"[C] deviceonlinescan.com (chatId=6395648769, registrar=OpenProvider)"}
+{"t":"2026-09-17T03:34:31.839446816Z","s":"info","m":"[C] customerprofileconnect.com (chatId=6395648769, registrar=OpenProvider)"}
+{"t":"2026-09-17T03:34:31.839458746Z","s":"info","m":"[C] customerprofileportal.com (chatId=6395648769, registrar=OpenProvider)"}
+{"t":"2026-09-17T03:34:31.839471615Z","s":"info","m":"[C] dashboard-online04.com (chatId=5731435538, registrar=OpenProvider)"}
+{"t":"2026-09-17T03:34:31.840240187Z","s":"info","m":"[C] devicescanportal.com (chatId=6395648769, registrar=OpenProvider)"}
+{"t":"2026-09-17T03:34:31.840251847Z","s":"info","m":"[C] devicesecurityshield.com (chatId=6395648769, registrar=OpenProvider)"}
+{"t":"2026-09-17T03:34:31.840262317Z","s":"info","m":"[C] dgpn-crypto.fr (chatId=8355565115, registrar=OpenProvider)"}
+{"t":"2026-09-17T03:34:31.841424254Z","s":"info","m":"[C] dndprtlrg.com (chatId=7290657217, registrar=OpenProvider)"}
+{"t":"2026-09-17T03:34:31.843493141Z","s":"info","m":"[A] easywebtd.live (chatId=8352542716, registrar=OpenProvider)"}
+{"t":"2026-09-17T03:34:31.843514691Z","s":"info","m":"[C] entsecurity.xyz (chatId=6543817440, registrar=OpenProvider)"}
+{"t":"2026-09-17T03:34:31.843528901Z","s":"info","m":"[C] etradeonlinegateway.com (chatId=6395648769, registrar=OpenProvider)"}
+{"t":"2026-09-17T03:34:31.843546760Z","s":"info","m":"[C] eventiestopart.de (chatId=7290657217, registrar=OpenProvider)"}
+{"t":"2026-09-17T03:34:31.844701358Z","s":"info","m":"[C] fielityinvs.com (chatId=5115600485, registrar=OpenProvider)"}
+{"t":"2026-09-17T03:34:31.844725998Z","s":"info","m":"[C] firstpacgateway.com (chatId=6395648769, registrar=OpenProvider)"}
+{"t":"2026-09-17T03:34:31.844753148Z","s":"info","m":"[C] eventrsvp.sbs (chatId=8011229362, registrar=OpenProvider)"}
+{"t":"2026-09-17T03:34:31.844773898Z","s":"info","m":"[C] fdic-verify-secure.com (chatId=7893016294, registrar=OpenProvider)"}
+{"t":"2026-09-17T03:34:31.844792947Z","s":"info","m":"[C] ffideelty.de (chatId=5115600485, registrar=OpenProvider)"}
+{"t":"2026-09-17T03:34:31.846438869Z","s":"info","m":"[C] gntysecure.com (chatId=6395648769, registrar=OpenProvider)"}
+{"t":"2026-09-17T03:34:31.851383844Z","s":"info","m":"[C] helpassistportal.com (chatId=6395648769, registrar=OpenProvider)"}
+{"t":"2026-09-17T03:34:31.852098867Z","s":"info","m":"[C] homepage-navyfed.com (chatId=7394693056, registrar=OpenProvider)"}
+{"t":"2026-09-17T03:34:31.853065227Z","s":"info","m":"[A] hostinbox.co (chatId=6331544767, registrar=OpenProvider)"}
+{"t":"2026-09-17T03:34:31.853090376Z","s":"info","m":"[C] huntingtononlinebanking.it (chatId=7893016294, registrar=OpenProvider)"}
+{"t":"2026-09-17T03:34:31.853109056Z","s":"info","m":"[C] icloudsecurecare.com (chatId=6395648769, registrar=OpenProvider)"}
+{"t":"2026-09-17T03:34:31.853138556Z","s":"info","m":"[C] interac.live (chatId=8868602470, registrar=OpenProvider)"}
+{"t":"2026-09-17T03:34:31.853154636Z","s":"info","m":"[C] inviowelcoparty.de (chatId=1960615421, registrar=OpenProvider)"}
+{"t":"2026-09-17T03:34:31.855242333Z","s":"info","m":"[C] invitatoadbedownldupdtxnow.com (chatId=6372476120, registrar=OpenProvider)"}
+{"t":"2026-09-17T03:34:31.855263052Z","s":"info","m":"[C] invitesccm.com (chatId=7152424040, registrar=OpenProvider)"}
+{"t":"2026-09-17T03:34:31.855306592Z","s":"info","m":"[C] invupdat2atode.com (chatId=7793281862, registrar=OpenProvider)"}
+{"t":"2026-09-17T03:34:31.855342591Z","s":"info","m":"[C] itsonlytravel.com (chatId=8737445617, registrar=OpenProvider)"}
+{"t":"2026-09-17T03:34:31.857519697Z","s":"info","m":"[C] mail-bnc.live (chatId=8868602470, registrar=OpenProvider)"}
+{"t":"2026-09-17T03:34:31.857536877Z","s":"info","m":"[C] ledger-recovery.org (chatId=7520972603, registrar=OpenProvider)"}
+{"t":"2026-09-17T03:34:31.857560017Z","s":"info","m":"[A] midfloridaportal.com (chatId=6395648769, registrar=OpenProvider)"}
+{"t":"2026-09-17T03:34:31.857577417Z","s":"info","m":"        opNs:   ns1.openprovider.nl, ns2.openprovider.be, ns3.openprovider.eu"}
+{"t":"2026-09-17T03:34:31.857580177Z","s":"info","m":"[C] ledger-recuperation.fr (chatId=7520972603, registrar=OpenProvider)"}
+{"t":"2026-09-17T03:34:31.857597357Z","s":"info","m":"[C] livehelpportal.com (chatId=6395648769, registrar=OpenProvider)"}
+{"t":"2026-09-17T03:34:31.857619316Z","s":"info","m":"[C] madenias.de (chatId=821572555, registrar=OpenProvider)"}
+{"t":"2026-09-17T03:34:31.858419228Z","s":"info","m":"[C] myyxct.org (chatId=6773929524, registrar=OpenProvider)"}
+{"t":"2026-09-17T03:34:31.858419758Z","s":"info","m":"[C] misecure-ca.live (chatId=6156677266, registrar=OpenProvider)"}
+{"t":"2026-09-17T03:34:31.858443698Z","s":"info","m":"[C] mssollution.com (chatId=6344836722, registrar=OpenProvider)"}
+{"t":"2026-09-17T03:34:31.858462937Z","s":"info","m":"[C] myelitexz.com (chatId=7152424040, registrar=OpenProvider)"}
+{"t":"2026-09-17T03:34:31.860664433Z","s":"info","m":"[C] navyfed-verify.com (chatId=7893016294, registrar=OpenProvider)"}
+{"t":"2026-09-17T03:34:31.865670828Z","s":"info","m":"[C] onlinesecureauth.com (chatId=6395648769, registrar=OpenProvider)"}

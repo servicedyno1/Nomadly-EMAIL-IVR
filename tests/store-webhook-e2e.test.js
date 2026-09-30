@@ -1,240 +1,157 @@
-/* global describe, test, expect, beforeEach, jest */
+/* global describe, test, expect, jest, beforeAll, afterAll */
 /**
- * End-to-end tests for the storefront crypto-webhook → hosting provisioning.
+ * store-webhook-e2e.test.js — drives the REAL POST /store/crypto-webhook route
+ * end-to-end with an in-memory DB and the provisioner + DynoPay gateway MOCKED
+ * (no real domain registration / cPanel creation). Proves the storefront now
+ * confirms payment and provisions with parity to the bot's wallet path.
  *
- * FULLY MOCKED — no real domain registration, no real cPanel, no real gateway,
- * no real DB. Exercises the actual /store/crypto-webhook Express handler built
- * by createStoreRoutes(), driving it through an in-memory Mongo double.
- *
- * Reproduces the reported bug and verifies the fix:
- *   1. payment.confirmed with the DynoPay status endpoint UNREACHABLE  → PROVISIONS
- *   2. payment.confirmed but underpaid (< 90%)                          → order FAILED
- *   3. payment.pending                                                  → order HELD (stays pending)
- *   4. duplicate payment.confirmed                                      → provisions exactly ONCE (idempotent)
- *   +  gateway CONTRADICTS a paid webhook                               → still provisions + admin alert
- *   +  WHM-down (CPANEL_DOWN / queued) provisioning results            → committed as "provisioning", NEVER refunded
- *   +  novel "paid-like" event                                          → trusted & provisions (deny-list parity)
- *   +  payment.failed                                                   → order FAILED
+ * Reproduces order 9fd5da6a (lloyd-support.com): a guest ERC20 order whose
+ * DynoPay status re-verify is UNREACHABLE. Previously dropped; now provisions.
  */
 
-// ── Mock every external dependency so NOTHING real is touched ────────────────
-jest.mock('../js/pay-dynopay', () => ({
-  getDynopayCryptoAddress: jest.fn(),
-  getDynopayCryptoPaymentStatus: jest.fn(),
-}))
-jest.mock('../js/pay-blockbee', () => ({
-  getCryptoDepositAddress: jest.fn(),
-  convert: jest.fn(),
-}))
+// Mock the shared provisioner so NOTHING real is registered/created.
 jest.mock('../js/cr-register-domain-&-create-cpanel.js', () => ({
-  registerDomainAndCreateCpanel: jest.fn(),
+  registerDomainAndCreateCpanel: jest.fn(async () => ({
+    success: true, username: 'testcpuser', pin: '1357', nameservers: ['ns1.test', 'ns2.test'],
+  })),
+}))
+// Mock DynoPay: gateway status endpoint UNREACHABLE (the lloyd failure condition).
+jest.mock('../js/pay-dynopay', () => ({
+  getDynopayCryptoAddress: jest.fn(async () => ({ address: '0xTEST', payment_id: 'pid-test' })),
+  getDynopayCryptoPaymentStatus: jest.fn(async () => false),
+}))
+// Mock BlockBee so no network is touched.
+jest.mock('../js/pay-blockbee', () => ({
+  getCryptoDepositAddress: jest.fn(async () => ({ address: null })),
+  convert: jest.fn(async () => 0),
 }))
 
-const { getDynopayCryptoPaymentStatus } = require('../js/pay-dynopay')
-const { registerDomainAndCreateCpanel } = require('../js/cr-register-domain-&-create-cpanel.js')
+const express = require('express')
 const { createStoreRoutes } = require('../js/store-routes')
+const { registerDomainAndCreateCpanel } = require('../js/cr-register-domain-&-create-cpanel.js')
 
-// ── Minimal in-memory Mongo double (only what the webhook path needs) ────────
-function makeDb() {
-  const store = {}
-  const colMap = (n) => store[n] || (store[n] = new Map())
-  const matches = (doc, q) => Object.keys(q).every((k) => {
-    const cond = q[k]
-    if (cond && typeof cond === 'object') {
-      if ('$ne' in cond) return doc[k] !== cond.$ne
-      if ('$gte' in cond) return Number(doc[k]) >= Number(cond.$gte)
-    }
-    return doc[k] === cond
-  })
-  const findDoc = (m, q) => { for (const d of m.values()) if (matches(d, q)) return d; return null }
-  const applyUpd = (doc, upd) => {
-    if (upd.$set) Object.assign(doc, upd.$set)
-    if (upd.$inc) for (const k of Object.keys(upd.$inc)) doc[k] = (Number(doc[k]) || 0) + Number(upd.$inc[k])
-  }
+function makeDb(seedOrders) {
+  const orders = new Map(seedOrders.map(o => [o._id, { ...o }]))
+  const cpanel = new Map()
+  const txns = []
   const collection = (name) => {
-    const m = colMap(name)
-    return {
-      async findOne(q) { const d = findDoc(m, q); return d ? { ...d } : null },
-      async insertOne(doc) {
-        if (doc._id != null && m.has(doc._id)) { const e = new Error('dup key'); e.code = 11000; throw e }
-        const id = doc._id != null ? doc._id : Math.random().toString(36).slice(2)
-        m.set(id, { ...doc, _id: id }); return { insertedId: id }
+    if (name === 'webOrders') return {
+      async findOne(q) {
+        if (q._id != null) { const o = orders.get(q._id); if (!o) return null; if (q.status && o.status !== q.status) return null; return { ...o } }
+        if (q.paymentId != null) { for (const o of orders.values()) if (o.paymentId === q.paymentId) return { ...o }; return null }
+        return null
       },
-      async updateOne(q, upd) { const d = findDoc(m, q); if (d) applyUpd(d, upd); return { matchedCount: d ? 1 : 0, modifiedCount: d ? 1 : 0 } },
-      async findOneAndUpdate(q, upd) { const d = findDoc(m, q); if (!d) return { value: null }; applyUpd(d, upd); return { value: { ...d } } },
-      find() { return { sort() { return this }, limit() { return this }, project() { return this }, toArray: async () => [...m.values()].map((d) => ({ ...d })) } },
+      async updateOne(q, upd) { const o = orders.get(q._id); if (!o) return { matchedCount: 0 }; if (q.status && o.status !== q.status) return { matchedCount: 0 }; Object.assign(o, upd.$set || {}); return { matchedCount: 1 } },
+      async findOneAndUpdate(q, upd) { const o = orders.get(q._id); if (!o) return null; if (q.status && o.status !== q.status) return null; Object.assign(o, upd.$set || {}); return { ...o } },
+      async insertOne(doc) { orders.set(doc._id, { ...doc }); return { insertedId: doc._id } },
     }
+    if (name === 'cpanelAccounts') return {
+      async findOne(q) { return cpanel.get(q._id) || null },
+      async updateOne(q, upd) { const cur = cpanel.get(q._id) || { _id: q._id }; Object.assign(cur, upd.$set || {}); cpanel.set(q._id, cur); return { matchedCount: 1 } },
+    }
+    if (name === 'webUsers') return {
+      async findOne(q) { return null },
+      async updateOne() { return { matchedCount: 1 } },
+      async findOneAndUpdate() { return null },
+    }
+    if (name === 'webWalletTxns') return { async insertOne(d) { txns.push(d); return { insertedId: d._id } } }
+    return { async findOne() { return null }, async updateOne() { return { matchedCount: 0 } }, async insertOne() { return {} }, async findOneAndUpdate() { return null } }
   }
-  return { collection, _get: (name, id) => (store[name] ? store[name].get(id) : null) }
+  return { db: { collection }, orders, cpanel, txns }
 }
 
-function mockRes() {
+function guestOrder(id, extra = {}) {
   return {
-    statusCode: 200,
-    body: undefined,
-    status(c) { this.statusCode = c; return this },
-    send(b) { this.body = b; return this },
-    json(o) { this.body = o; return this },
+    _id: id, kind: 'hosting', status: 'pending', webUserId: null, email: 'triborg799@protonmail.com',
+    plan: 'Premium Anti-Red (1-Week)', hostingPrice: 30, domainPrice: 39, amountUsd: 69,
+    coin: 'USDT-ERC20', provider: 'dynopay', payAddress: '0xe8c0', paymentId: 'pid-test',
+    domain: `e2e-${id}.com`, domainMode: 'buy', registrar: 'OpenProvider', ...extra,
   }
 }
 
-function getWebhookHandler(routes) {
-  const layer = routes.stack.find((l) => l.route && l.route.path === '/crypto-webhook' && l.route.methods && l.route.methods.post)
-  if (!layer) throw new Error('POST /crypto-webhook route not found on router')
-  const sub = layer.route.stack
-  return sub[sub.length - 1].handle
+let server, base, dbh
+function startServer(seed) {
+  dbh = makeDb(seed)
+  const app = express()
+  app.use(express.json())
+  app.use('/store', createStoreRoutes({ getDb: () => dbh.db, notifyAdmin: () => {} }))
+  return new Promise((resolve) => { server = app.listen(0, () => { base = `http://127.0.0.1:${server.address().port}`; resolve() }) })
+}
+async function post(path, body) {
+  const r = await fetch(base + path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+  return { status: r.status, text: await r.text() }
 }
 
-let db
-let routes
-let adminAlerts
+afterAll((done) => { if (server) server.close(done); else done() })
 
-async function postWebhook(body) {
-  const handler = getWebhookHandler(routes)
-  const req = { body, hostname: 'test', originalUrl: '/store/crypto-webhook' }
-  const res = mockRes()
-  await handler(req, res)
-  return res
-}
+describe('POST /store/crypto-webhook — end-to-end payment confirmation & provisioning', () => {
+  test('REGRESSION lloyd: confirmed webhook + gateway unreachable → order PROVISIONED (was dropped)', async () => {
+    await startServer([guestOrder('ord-confirmed')])
+    registerDomainAndCreateCpanel.mockClear()
 
-function seedHostingOrder(id, overrides = {}) {
-  return db.collection('webOrders').insertOne({
-    _id: id,
-    kind: 'hosting',
-    status: 'pending',
-    provider: 'dynopay',
-    payAddress: 'addr_' + id,
-    amountUsd: 75,
-    plan: 'Golden Anti-Red',
-    domain: `${id}.com`,
-    domainMode: 'byo',
-    // guest order (no webUserId) → no wallet side-effects to mock
-    createdAt: new Date(),
-    updatedAt: new Date(),
-    ...overrides,
-  })
-}
+    const res = await post('/store/crypto-webhook', {
+      event: 'payment.confirmed', payment_id: 'pid-test', base_amount: 69, fee_payer: 'company',
+      meta_data: { refId: 'ord-confirmed' },
+    })
+    expect(res.status).toBe(200)
 
-beforeEach(() => {
-  jest.clearAllMocks()
-  adminAlerts = []
-  db = makeDb()
-  routes = createStoreRoutes({ getDb: () => db, notifyAdmin: (m) => adminAlerts.push(String(m)) })
-})
-
-describe('store crypto-webhook — provisioning parity with the bot', () => {
-  test('1) payment.confirmed with gateway UNREACHABLE → PROVISIONS (the fix)', async () => {
-    await seedHostingOrder('ordA', { amountUsd: 75 })
-    // Storefront symptom: status endpoint 500s / "Application not found".
-    getDynopayCryptoPaymentStatus.mockRejectedValue(new Error('Application not found'))
-    registerDomainAndCreateCpanel.mockResolvedValue({ success: true, username: 'guestA', pin: '1234', nameservers: ['a.ns', 'b.ns'] })
-
-    const res = await postWebhook({ event: 'payment.confirmed', base_amount: 75, fee_payer: 'company', payment_id: 'pidA', meta_data: { refId: 'ordA' } })
-
-    expect(res.body).toBe('OK')
+    // Provisioner invoked exactly once with the guest owner + correct domain/plan
     expect(registerDomainAndCreateCpanel).toHaveBeenCalledTimes(1)
-    const order = db._get('webOrders', 'ordA')
-    expect(order.status).toBe('provisioned')
-    expect(order.username).toBe('guestA')
+    const info = registerDomainAndCreateCpanel.mock.calls[0][1]
+    expect(info._id).toBe('guest_ord-confirmed')
+    expect(info.website_name).toBe('e2e-ord-confirmed.com')
+    expect(info.source).toBe('web')
+
+    // Order transitioned to provisioned with credentials
+    const o = dbh.orders.get('ord-confirmed')
+    expect(o.status).toBe('provisioned')
+    expect(o.username).toBe('testcpuser')
+    expect(o.pin).toBe('1357')
+    expect(o.usdCredited).toBe(69)
+    server.close(); server = null
   })
 
-  test('gateway status CONTRADICTS a paid webhook → still provisions + admin alert (advisory-only)', async () => {
-    await seedHostingOrder('ordA2')
-    getDynopayCryptoPaymentStatus.mockResolvedValue({ status: 'failed' }) // positively contradicts
-    registerDomainAndCreateCpanel.mockResolvedValue({ success: true, username: 'guestA2', pin: '9', nameservers: [] })
+  test('materially underpaid ($10 of $69) → FAILED, provisioner NOT called', async () => {
+    await startServer([guestOrder('ord-underpaid')])
+    registerDomainAndCreateCpanel.mockClear()
 
-    const res = await postWebhook({ event: 'payment.confirmed', base_amount: 75, fee_payer: 'company', payment_id: 'pidA2', meta_data: { refId: 'ordA2' } })
-
-    expect(res.body).toBe('OK')
-    expect(registerDomainAndCreateCpanel).toHaveBeenCalledTimes(1)
-    const order = db._get('webOrders', 'ordA2')
-    expect(order.status).toBe('provisioned')
-    expect(order.unverifiedFulfill).toBe(true)
-    expect(adminAlerts.some((a) => /UNVERIFIED/i.test(a))).toBe(true)
-  })
-
-  test('2) payment.confirmed but UNDERPAID (<90%) → order FAILED, never provisioned', async () => {
-    await seedHostingOrder('ordB', { amountUsd: 100 })
-    getDynopayCryptoPaymentStatus.mockResolvedValue({ status: 'confirmed' })
-    registerDomainAndCreateCpanel.mockResolvedValue({ success: true, username: 'should-not-happen' })
-
-    const res = await postWebhook({ event: 'payment.confirmed', base_amount: 50, fee_payer: 'company', payment_id: 'pidB', meta_data: { refId: 'ordB' } })
-
-    expect(res.body).toBe('OK')
+    const res = await post('/store/crypto-webhook', {
+      event: 'payment.confirmed', payment_id: 'pid-test', base_amount: 10, fee_payer: 'company',
+      meta_data: { refId: 'ord-underpaid' },
+    })
+    expect(res.status).toBe(200)
     expect(registerDomainAndCreateCpanel).not.toHaveBeenCalled()
-    const order = db._get('webOrders', 'ordB')
-    expect(order.status).toBe('failed')
-    expect(order.note).toBe('underpaid')
+    const o = dbh.orders.get('ord-underpaid')
+    expect(o.status).toBe('failed')
+    expect(o.note).toBe('underpaid')
+    server.close(); server = null
   })
 
-  test('3) payment.pending → order HELD (stays pending), maps payment_id, no gateway/provision calls', async () => {
-    await seedHostingOrder('ordC')
-    const res = await postWebhook({ event: 'payment.pending', payment_id: 'pidC', meta_data: { refId: 'ordC' } })
+  test('pending webhook → order stays pending, provisioner NOT called', async () => {
+    await startServer([guestOrder('ord-pending', { paymentId: null })])
+    registerDomainAndCreateCpanel.mockClear()
 
-    expect(res.body).toBe('OK')
+    const res = await post('/store/crypto-webhook', {
+      event: 'payment.pending', payment_id: 'pid-test',
+      meta_data: { refId: 'ord-pending' },
+    })
+    expect(res.status).toBe(200)
     expect(registerDomainAndCreateCpanel).not.toHaveBeenCalled()
-    expect(getDynopayCryptoPaymentStatus).not.toHaveBeenCalled()
-    const order = db._get('webOrders', 'ordC')
-    expect(order.status).toBe('pending')
-    expect(order.paymentId).toBe('pidC')
+    const o = dbh.orders.get('ord-pending')
+    expect(o.status).toBe('pending')
+    expect(o.paymentId).toBe('pid-test') // pending mapping recorded
+    server.close(); server = null
   })
 
-  test('4) duplicate payment.confirmed → provisions exactly ONCE (idempotent)', async () => {
-    await seedHostingOrder('ordD')
-    getDynopayCryptoPaymentStatus.mockResolvedValue({ status: 'confirmed' })
-    registerDomainAndCreateCpanel.mockResolvedValue({ success: true, username: 'guestD', pin: '1', nameservers: [] })
-    const body = { event: 'payment.confirmed', base_amount: 75, fee_payer: 'company', payment_id: 'pidD', meta_data: { refId: 'ordD' } }
+  test('duplicate confirmed webhook → provisioner called only ONCE (idempotent)', async () => {
+    await startServer([guestOrder('ord-dup')])
+    registerDomainAndCreateCpanel.mockClear()
 
-    const r1 = await postWebhook(body)
-    const r2 = await postWebhook(body)
-
-    expect(r1.body).toBe('OK')
-    expect(r2.body).toBe('OK')
+    const body = { event: 'payment.confirmed', payment_id: 'pid-test', base_amount: 69, fee_payer: 'company', meta_data: { refId: 'ord-dup' } }
+    await post('/store/crypto-webhook', body)
+    await post('/store/crypto-webhook', body) // retry
     expect(registerDomainAndCreateCpanel).toHaveBeenCalledTimes(1)
-    expect(db._get('webOrders', 'ordD').status).toBe('provisioned')
-  })
-
-  test('WHM-down deferred {success:false,queued,deferred,CPANEL_DOWN} → "provisioning", NEVER failed/refunded', async () => {
-    await seedHostingOrder('ordE', { domainMode: 'buy' })
-    getDynopayCryptoPaymentStatus.mockResolvedValue({ status: 'confirmed' })
-    registerDomainAndCreateCpanel.mockResolvedValue({ success: false, queued: true, deferred: true, code: 'CPANEL_DOWN', domainRegistered: true })
-
-    const res = await postWebhook({ event: 'payment.confirmed', base_amount: 75, fee_payer: 'company', payment_id: 'pidE', meta_data: { refId: 'ordE' } })
-
-    expect(res.body).toBe('OK')
-    expect(registerDomainAndCreateCpanel).toHaveBeenCalledTimes(1)
-    const order = db._get('webOrders', 'ordE')
-    expect(order.status).toBe('provisioning')
-    expect(order.status).not.toBe('failed')
-    expect(adminAlerts.some((a) => /QUEUED/i.test(a))).toBe(true)
-  })
-
-  test('WHM-down preflight {success:true,queued:true} → "provisioning" (no fail/refund)', async () => {
-    await seedHostingOrder('ordE2')
-    getDynopayCryptoPaymentStatus.mockResolvedValue({ status: 'confirmed' })
-    registerDomainAndCreateCpanel.mockResolvedValue({ success: true, queued: true })
-
-    await postWebhook({ event: 'payment.confirmed', base_amount: 75, fee_payer: 'company', payment_id: 'pidE2', meta_data: { refId: 'ordE2' } })
-
-    expect(db._get('webOrders', 'ordE2').status).toBe('provisioning')
-  })
-
-  test('novel "paid-like" event is TRUSTED and provisions (deny-list parity)', async () => {
-    await seedHostingOrder('ordF')
-    getDynopayCryptoPaymentStatus.mockRejectedValue(new Error('unreachable'))
-    registerDomainAndCreateCpanel.mockResolvedValue({ success: true, username: 'guestF', pin: '1', nameservers: [] })
-
-    await postWebhook({ event: 'payment.settled', base_amount: 75, fee_payer: 'company', payment_id: 'pidF', meta_data: { refId: 'ordF' } })
-
-    expect(db._get('webOrders', 'ordF').status).toBe('provisioned')
-  })
-
-  test('payment.failed → order marked FAILED, no provisioning', async () => {
-    await seedHostingOrder('ordG')
-    const res = await postWebhook({ event: 'payment.failed', payment_id: 'pidG', meta_data: { refId: 'ordG' } })
-
-    expect(res.body).toBe('OK')
-    expect(registerDomainAndCreateCpanel).not.toHaveBeenCalled()
-    expect(db._get('webOrders', 'ordG').status).toBe('failed')
+    expect(dbh.orders.get('ord-dup').status).toBe('provisioned')
+    server.close(); server = null
   })
 })

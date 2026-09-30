@@ -195,15 +195,6 @@
   pointer-events: none;
 }
 
-/* Real brand logo supplied: drop the coloured tile + gloss so a transparent
-   logo reads cleanly (works in both dark and .panel-light themes). */
-.panel-login-icon.panel-login-icon--img,
-.panel-light .panel-login-icon.panel-login-icon--img {
-  background: transparent;
-  box-shadow: none;
-}
-.panel-login-icon.panel-login-icon--img::before { display: none; }
-
 .panel-login-logo h1 {
   font-family: var(--pv-font-display);
   font-weight: 700;
@@ -2332,6 +2323,70 @@
   margin-bottom: 14px;
   animation: pv-slide-down 200ms var(--pv-ease);
 }
+
+.dl-bulk-form {
+  background: var(--pv-bg-card);
+  border: 1px solid var(--pv-border-subtle);
+  border-radius: var(--pv-radius);
+  padding: 14px;
+  margin-bottom: 14px;
+  animation: pv-slide-down 200ms var(--pv-ease);
+}
+
+.dl-docroot-link {
+  background: none;
+  border: 1px solid var(--pv-border-subtle);
+  color: var(--pv-accent);
+  cursor: pointer;
+  font-size: 0.75rem;
+  padding: 2px 8px;
+  border-radius: 4px;
+  margin-left: 8px;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.dl-docroot-link:hover {
+  background: rgba(96,165,250,0.12);
+  border-color: var(--pv-accent);
+}
+
+.dl-bulk-textarea {
+  width: 100%;
+  min-height: 80px;
+  resize: vertical;
+  background: var(--pv-bg-input, rgba(255,255,255,0.06));
+  border: 1px solid var(--pv-border-subtle);
+  border-radius: var(--pv-radius);
+  color: inherit;
+  padding: 10px;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+.dl-bulk-results {
+  margin-top: 8px;
+  border: 1px solid var(--pv-border-subtle);
+  border-radius: var(--pv-radius);
+  overflow: hidden;
+}
+.dl-bulk-summary {
+  padding: 8px 12px;
+  background: var(--pv-bg-hover);
+  font-weight: 600;
+  font-size: 0.85rem;
+  border-bottom: 1px solid var(--pv-border-subtle);
+}
+.dl-bulk-details { max-height: 200px; overflow-y: auto; }
+.dl-bulk-item {
+  padding: 6px 12px;
+  font-size: 0.82rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-bottom: 1px solid var(--pv-border-subtle);
+}
+.dl-bulk-item--fail { background: rgba(239,68,68,0.08); }
+.dl-bulk-item-error { color: #f87171; font-size: 0.78rem; }
 
 .dl-add-row,
 .dl-sub-input-row {

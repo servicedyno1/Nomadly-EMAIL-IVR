@@ -202,12 +202,6 @@ async function ensureCloudflareTweaks() {
  * @param {string} [customUsername] - Optional custom username
  * @param {object} [opts] - Options { useCloudflareNS: boolean }
  * @returns {{ success, username, password, domain, url, error }}
- *   NOTE: intentionally does NOT return `nameservers`. WHM_HOST is our origin
- *   IP/hostname (not a delegated NS), so returning a fake ns1/ns2 pair built
- *   from the host was both meaningless AND an origin-IP-leak vector once served
- *   to the browser (defeats the Anti-Red cloaking premise). Callers MUST source
- *   real nameservers from Cloudflare / the registrar (cfNameservers /
- *   registeredDomains.val.nameservers), never from this function.
  */
 async function createAccount(domain, plan, email, customUsername, opts = {}) {
   const pkg = PLAN_MAP[plan.toLowerCase()]
@@ -273,9 +267,15 @@ async function createAccount(domain, plan, email, customUsername, opts = {}) {
         password,
         domain,
         url: `https://${WHM_HOST}:2083`,
-        // NB: no `nameservers` here — WHM_HOST is the origin IP/hostname, not a
-        // delegated NS. Returning it leaked the origin to the browser via the
-        // storefront order payload. Real NS come from Cloudflare/registrar.
+        // NOTE: We intentionally DO NOT return "server" nameservers here.
+        // Historically this returned `{ns1: 'ns1.<WHM_HOST>', ns2: 'ns2.<WHM_HOST>'}`
+        // which is (a) meaningless (WHM_HOST is our origin IP/hostname, not the
+        // delegated NS the user should point to) and (b) an origin-IP leak
+        // vector when the value gets surfaced to a browser via
+        // /api/store/order/:orderId → Storefront React. Callers (currently
+        // `cr-register-domain-&-create-cpanel.js`) must source the real
+        // (Cloudflare / registrar) nameservers from `cfNameservers` /
+        // `registeredDomains.val.nameservers` instead.
         package: pkg,
       }
     } catch (err) {
@@ -477,6 +477,27 @@ async function getAccountInfo(username) {
       return { success: true, data: res.data.data.acct?.[0] || res.data.data.acct }
     }
     return { success: false }
+  } catch (err) {
+    return { success: false, error: err.message }
+  }
+}
+
+// Per-account bandwidth usage for the current month via WHM /showbw.
+// accountsummary does NOT carry bandwidth, so this is the source for it.
+// Returns { success, data:{ user, maindomain, totalbytes, limit, bwlimited } }.
+async function getAccountBandwidth(username) {
+  try {
+    const now = new Date()
+    const res = await whmApi.get('/showbw', {
+      params: { 'api.version': 1, month: now.getMonth() + 1, year: now.getFullYear() },
+    })
+    if (res.data?.metadata?.result === 1) {
+      const list = res.data.data?.acct || []
+      const acct = list.find(a => String(a.user).toLowerCase() === String(username).toLowerCase())
+      if (acct) return { success: true, data: acct }
+      return { success: false, error: 'account_not_in_bandwidth_report' }
+    }
+    return { success: false, error: res.data?.metadata?.reason || 'showbw_failed' }
   } catch (err) {
     return { success: false, error: err.message }
   }
@@ -826,6 +847,7 @@ module.exports = {
   changePackage,
   changePrimaryDomain,
   getAccountInfo,
+  getAccountBandwidth,
   createUserSession,
   generatePassword,
   ensureCloudflareTweaks,

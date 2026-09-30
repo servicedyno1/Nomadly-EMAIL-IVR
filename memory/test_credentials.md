@@ -1,97 +1,113 @@
-# Test Credentials — Smadav/Nomadly Platform
+# Test / Setup Credentials
 
-## Re-provision 2026-09-28 (pod f43fabf8) — fresh cred setup, Safe Dev Sandbox (user chose "a")
-- Pod preview URL: **https://f43fabf8-4f7b-4c8a-91cc-78302889c5b4.preview.emergentagent.com** (frontend/.env REACT_APP_BACKEND_URL → ingress /api → FastAPI :8001 → proxy → Node :5000).
-- On arrival: working tree present via `git checkout -f WhiteLabel`; `backend/.env` + `frontend/.env` MISSING; root `node_modules` MISSING (frontend node_modules present).
-- Steps: wrote both .env from the user's full cred dump; `yarn install --ignore-engines` (root, 528 pkgs, node20 vs pkg-wants-22); pip deps already satisfied; `bash scripts/setup-nodejs.sh` (registered supervisord_nodejs.conf, rewrote SELF_URL/SELF_URL_PROD → this pod + /api); restarted backend+frontend to load fresh .env.
-- SANDBOX OVERRIDES vs supplied creds: BOT_ENVIRONMENT=development (was production), SKIP_WEBHOOK_SYNC=true (was false), added DO_RDP_GOLDEN_AUTOSYNC=false, LOG_REDACT_KEEP=smadavhost.com,smadavspeech.com.
-- Verified: node :5000 boot clean (err log empty, "MongoDB connection pool ready"), `[AntiRed] worker upgrade SKIPPED`, `[CF-Sync] Skipped BOT_ENVIRONMENT=development`. /api/health → {healthy, database:connected} on :5000, :8001 proxy, AND external pod URL. Frontend title "SmadavHost | Hosting Panel", brand SmadavBot, panel badge ONLINE (Bot Running / DB Connected / REST APIs Active / 5+ modules).
-- Telegram prod webhook LEFT UNTOUCHED: getWebhookInfo → https://samdav1.up.railway.app/telegram/webhook (NOT this pod). NOTE prod webhook itself returns 404 (samdav1.up.railway.app is the user's live Railway service — out of scope for this sandbox setup; SELF_URL cred was smadav.up.railway.app, prod webhook is samdav1 — a prod-side detail, not touched here).
+## Vault (secrets restore)
+- Vault file: `memory/nomadly.vault.enc`
+- Unlock: `VAULT_PASSWORD='Katiekendra123@' bash scripts/vault.sh unlock`
+- Vault password: `Katiekendra123@`
+- Unlocking restores `/app/backend/.env` (all app/API credentials) (never creates a root `/app/.env`).
 
+## Environment mode (this preview pod)
+- Configured as DEVELOPMENT sandbox: `BOT_ENVIRONMENT=development`, `SKIP_WEBHOOK_SYNC=true`
+- Uses `TELEGRAM_BOT_TOKEN_DEV` (never the production bot on a preview pod)
+- `SELF_URL` / `SELF_URL_DEV` point to the current pod `/api`; `SELF_URL_PROD` kept as the Railway URL reference.
 
-## Re-provision 2026-09-28 (NEW pod b9028aa6) — Safe Dev Sandbox (user chose "a")
-- Pod preview URL: **https://b9028aa6-7ff5-41a4-a02e-3939d5dad35b.preview.emergentagent.com** (frontend/.env REACT_APP_BACKEND_URL → proxies /api to Node :5000)
-- Both backend/.env + frontend/.env were MISSING on arrival + node_modules absent → wrote both .env from user cred dump, `yarn install --ignore-engines` (node20 vs pkg-wants-22), pip deps already satisfied, `bash scripts/setup-nodejs.sh` (SELF_URL/SELF_URL_PROD → this pod +/api), restarted backend+frontend+nodejs.
-- SANDBOX OVERRIDES vs supplied creds: BOT_ENVIRONMENT=development (was production), SKIP_WEBHOOK_SYNC=true (was false), added DO_RDP_GOLDEN_AUTOSYNC=false + LOG_REDACT_KEEP=smadavhost.com,smadavspeech.com.
-- Verified: nodejs :5000 boot clean (AI Support/Honeypot Mongo init, err log empty), [AntiRed] worker upgrade SKIPPED, [CF-Sync] Skipped BOT_ENVIRONMENT=development. /api/health {healthy, database:connected} on :5000, :8001 proxy, and external pod URL. Frontend renders Smadav brand, ONLINE (Bot Running / DB Connected / REST APIs Active). Telegram prod webhook LEFT UNTOUCHED (getWebhookInfo → https://samdav1.up.railway.app/telegram/webhook, NOT this pod).
+## DATABASE ISOLATION (IMPORTANT — 2026 setup)
+- This pod's `MONGO_URL` is intentionally repointed to the LOCAL MongoDB: `mongodb://localhost:27017`.
+  Reason: the vault's real `MONGO_URL` points at LIVE PRODUCTION (`roundhouse.proxy.rlwy.net:52715`).
+  Booting the Node bot against prod immediately resumed a real bulk-call campaign and placed live
+  Twilio calls, plus ran prod maintenance jobs (phone/hosting schedulers, DNS healer, protection
+  enforcer, balance monitor, email-blast queue). Isolating to local Mongo makes the sandbox safe:
+  empty DB ⇒ no campaigns to resume, no numbers/domains/users to act on ⇒ zero prod side-effects.
+- The original production `MONGO_URL` is preserved as a comment (`ORIGINAL_PROD_MONGO_URL=`) in
+  `/app/backend/.env` and remains inside the encrypted vault.
+- To go back to LIVE PRODUCTION data (only if you truly intend to, and Railway prod is stopped):
+  restore the prod `MONGO_URL` line and restart `backend` + `nodejs`. Before doing so, gate every
+  outbound/mutating startup job behind `SKIP_WEBHOOK_SYNC=true`, otherwise real calls/emails/renewals
+  will fire again.
 
+## Railway PRODUCTION (2026-06 fork — bot re-homed to a new project)
+- Project **zippy-radiance** `0f41a48b-d2f6-4be5-acbd-524c6df6d2c6` · service **Nomadly-EMAIL-IVR** `73e2050b-586d-41d4-a1b5-6b0914e7a0f9` · env **production** `b9a9e5d2-0f71-42c4-925b-ac843adcb656`
+- Public URL: `https://nomadly1.up.railway.app` (SELF_URL / SELF_URL_PROD). Custom: `2.speechcue.com`, `panel.2.hostbay.io`
+- Tokens live ONLY in the vault (`backend/.env` after unlock): `API_KEY_RAILWAY` = project token (runtime + ops), `RAILWAY_ACCOUNT_TOKEN` = account token (ops only, never pushed), `API_KEY_RAILWAY_NEW_HOSTING` = legacy "New Hosting" project token (read-only history), `RAILWAY_PROD_*` = the IDs above.
+- Ops tool: `VAULT_PASSWORD=… node js/ops/railway_setup_prod.js inspect|plan|apply|verify|deploy|domains|status`
+- Legacy prod config snapshot (236 vars, dead "New Hosting" service): `memory/railway_newhosting_prod_vars.enc` (same vault passphrase).
 
-## Re-provision 2026-09-28 (CURRENT pod) — fresh cred setup, Safe Dev Sandbox (user chose "a")
-- Pod preview URL: **https://api-aggregator-5.preview.emergentagent.com**  (frontend/.env REACT_APP_BACKEND_URL → proxies /api to Node :5000)
-- Both `backend/.env` + `frontend/.env` were EMPTY on arrival → rewritten from the user's full cred dump.
-- SANDBOX OVERRIDES vs supplied creds: `BOT_ENVIRONMENT=development` (was production), `SKIP_WEBHOOK_SYNC=true` (was false), added `DO_RDP_GOLDEN_AUTOSYNC=false` (blocks billable DO golden builds from this dev pod).
-- Steps: wrote .env files; `yarn install --ignore-engines` (root, node20 vs pkg-wants-22); `pip install -r backend/requirements.txt`; `bash scripts/setup-nodejs.sh` (registered supervisord_nodejs.conf, updated SELF_URL/SELF_URL_PROD → this pod + /api); restarted backend+frontend to load fresh .env.
-- Verified: nodejs :5000 boot clean ("MongoDB connection pool ready", err log empty), `[CF-Sync] Skipped BOT_ENVIRONMENT=development`, `[AntiRed] worker upgrade SKIPPED`, FastAPI `[Scheduler] SKIP_WEBHOOK_SYNC=true phone health monitor DISABLED`. `/api/health` → {healthy, database:connected} on both :5000 and :8001 proxy. Frontend renders Smadav brand, panel badge ONLINE (Bot Running / DB Connected / REST APIs Active). Telegram prod webhook NOT hijacked.
+## Frontend env (recreated during setup)
+- `/app/frontend/.env` present with:
+  `REACT_APP_BACKEND_URL=https://vault-init-6.preview.emergentagent.com` (current pod; earlier forks had a different preview host — always trust the live value in frontend/.env, not older docs)
 
-## Run mode (this Emergent pod)
-- Mode: **Safe Dev Sandbox** (per user choice)
-- BOT_ENVIRONMENT=development
-- SKIP_WEBHOOK_SYNC=true  → production Telegram webhook is PRESERVED (points to https://smadav.up.railway.app/telegram/webhook), NOT this pod
-- Database: **LIVE Railway production MongoDB** (MONGO_URL → sakura.proxy.rlwy.net, DB_NAME=smadav)
+## Admin panel
+- Frontend admin dashboard is open (no login) at the pod root URL.
 
-## PII log-redaction port 2026-09-27 (main 8a4fd9a → WhiteLabel)
-- Added js/log-redact.js (customer domains → ***, real-TLD allowlist; infra/own domains + code tokens + IPs kept). Wired installConsoleRedaction() at top of js/_index.js (right after dotenv.config). Added the one-liner require to the 14 js/ops/* scripts that exist in WhiteLabel (main's other 30 ops scripts aren't in this branch). New test js/tests/test_log_redact_2026-06.js 25/25.
-- Brand adaptation (config only, code identical to main): set LOG_REDACT_KEEP="smadavhost.com,smadavspeech.com" in backend/.env so WhiteLabel's own brand domains stay readable in logs (SELF_URL host auto-kept). Kill switch LOG_REDACT=0.
-- Verified live: evil-customer.ca → ***, 1.panel.smadavhost.com / api.telegram.org / cloudflareapi.com / store-routes.js / IPs all preserved. Node boots clean.
-- main commits newer than this that are already handled: f237ea7 (empty-state, ported), 65c9bd5 (sig rotation, in P0 port). The 0544a7a/f3a96e9/4149a23/d2ddb94 commits are platform auto-generated noise.
+## Reseller API (sandbox, local Mongo `test`)
+- Key label `golden e2e sandbox key` (`resellerApiKeys._id = e2e-golden-key`)
+- `X-API-Key: nmdly_e2e_51573577f5db956c5c0cb039` (or `Authorization: Bearer ...`)
+- Base: `${REACT_APP_BACKEND_URL}/api/reseller/v1` — e.g. `GET /rdp/plans`, `POST /rdp`
+- Re-seed on a fresh pod: `node scripts/seed_rdp_reseller_e2e.js` (idempotent — upserts the key + owner
+  wallet $1000 AND the `e2e-rdp-1` RDP record below). The older `seed_e2e_sandbox.js` seeds only the key+wallet.
+- Sandbox owned RDP record for the key owner: `vpsPlansOf._id = "e2e-rdp-1"` (provider `digitalocean-rdp`,
+  instanceId `rdp-11111111-2222-3333-4444-555555555555`, os_id `ws2022`). Used to exercise the new
+  `POST /rdp/:id/password-reset`, `POST /rdp/:id/reinstall`, and `agent_online` on `GET /rdp/:id`
+  in dry-run mode (SKIP_WEBHOOK_SYNC=true ⇒ isLive()=false ⇒ every mutating call returns mode:"dry_run").
 
-## Empty-state UX port 2026-09-27 (main f237ea7 → WhiteLabel)
-- Ported "Bot empty-state UX pass" from main commit f237ea7 into js/_index.js: resilient showFirstSessionIntent() helper (send-then-set, falls back to full menu), consolidated "free to try" hint (merged IVR-trial + SIP-test), softened no-activity greeting line, one-tap Wallet CTA on empty transaction history, returning-but-inactive re-onboarding (gated by firstSessionIntentDone + firstIntentReshown + hasPurchased), first-deposit-bonus tip. New test js/tests/test_empty_state_ux_2026-06.js 16/16; js/tests/test_intent_funnel_2026-06.js bumped to {0,800} 13/13. Node boots clean.
-- The commit's "DynoPay prod signature verification" half was already covered by the earlier P0 + multi-v1 rotation port (store-payment-verify.js) — f237ea7 touched no payment code, only _index.js + tests + an investigation doc.
-- NOTE: this pod's git remote/token is disconnected (origin URL empty; ghu_ token expired mid-session). Ported by pulling the public commit diff over HTTPS (github.com/servicedyno1/Nomadly-EMAIL-IVR is Public). If Save-to-GitHub fails, the GitHub connection may need re-linking (support).
+## RDP golden-image admin endpoints (sandbox)
+- `GET/POST ${REACT_APP_BACKEND_URL}/api/admin/rdp-golden/{status|build|sync|transfer|cancel}?key=<first 16 chars of SESSION_SECRET in backend/.env>` (URL-encode the key)
+- CLI wrappers: `node js/ops/rdp_golden_build.js status|watch|build|transfer|cancel`, E2E: `node js/ops/rdp_golden_e2e.js --os ws2019|ws2022|ws2025 --region US` (creates + destroys one real droplet)
 
-## Web dashboards / panels
-- Sales & Profit Dashboard password: `Nomadly123@`  (env: SALES_DASHBOARD_PASSWORD)
+## Telegram bot simulation harness (sandbox only, added 2026-09-23)
+- `backend/.env` has `TELEGRAM_API_BASE_URL=http://127.0.0.1:5099` → the bot talks to the local mock Bot API
+  `js/tests/mock_telegram_api.js` instead of Telegram (nothing reaches real users). Start it if not running:
+  `nohup node js/tests/mock_telegram_api.js > /tmp/mock_tg.log 2>&1 &`  (health: `GET http://127.0.0.1:5099/_health`)
+- Drive the bot: `POST http://localhost:5000/telegram/webhook` with a Telegram update JSON
+  (`{"update_id":1,"message":{"message_id":1,"date":<unix>,"chat":{"id":777000123,"type":"private","first_name":"Sim"},"from":{"id":777000123,"is_bot":false,"first_name":"Sim","username":"sim_user"},"text":"<button label or text>"}}`).
+- Read replies: `GET http://127.0.0.1:5099/_calls?chat_id=777000123&since=<epoch_ms>&method=sendMessage` → `[{ts,method,chat_id,text,buttons[],reply_markup}]`.
+  `DELETE /_calls` clears the log. Reply-keyboard buttons are "tapped" by sending their exact label as the message text.
+- Sim user chat_id `777000123`: onboarded (English), wallet `walletOf._id="777000123"` seeded usdIn=500.
+- Vault `.env` restores `VPS_RDP_PROVIDER="azure"`; production uses `digitalocean-rdp` (2026-09-23). Set `digitalocean-rdp` locally only if you need the bot's DO-RDP order flow.
+- 2026-09-24 pod: fresh setup done via vault unlock + `scripts/setup-nodejs.sh`; frontend/.env recreated with the current pod URL. `TELEGRAM_API_BASE_URL` mock harness is NOT set in the vault .env (add it manually before driving the bot in a sim).
 
-## Upstream port 2026-09-27 (main → WhiteLabel, Reseller API excluded)
-- Ported the P0 forged-DynoPay-webhook fix + crypto end-to-end + signature-rotation from `main`:
-  js/store-payment-verify.js (244-line hardened rewrite), js/store-routes.js (signature gate + gateway-authoritative /crypto-webhook + /admin/reconcile-order), js/pay-dynopay.js (getDynopayPaymentStatusById), js/_index.js (rawBody capture + authDyno non-paid idempotency gate). Plus js/ops/whm_ea4_install_ext.js. Excluded: apidoc-page.js + /apidoc (Reseller API docs).
-- Verified: js/tests/test_store_webhook_security_2026-06.js 9/9, js/tests/test_authdyno_created_fix_2026-06.js 5/5 (drove REAL handlers; live-DB test residue purged + verified clean).
-- OPTIONAL: set `DYNO_PAY_WEBHOOK_SECRET` (whsec_… from DynoPay dashboard → save webhook URL) in Railway for BOTH services to turn ON full HMAC signature verification. Until then, security rests on the (solid) server-to-server re-verify: gateway unreachable/contradicts → HOLD + admin alert. To hard-reject bad signatures once prod logs show sig=valid, set `DYNO_PAY_WEBHOOK_SIG_ENFORCE=true`.
+## Reseller API — GAP-FIX test key (2026-09-25, sandbox, local Mongo `test`)
+- `X-API-Key: nmdly_test_reseller_gapfix` (owner `gapfix-owner`)
+- Stood up by `node js/ops/reseller_test_server.js` (standalone reseller router on :5000, external
+  providers stubbed, isLive()=false). Seeds domainsOf/registeredDomains/cpanelAccounts for the owner.
+- Base: `${REACT_APP_BACKEND_URL}/api/reseller/v1`. Used to verify the 7 gap fixes + change-primary.
 
-## Telegram
-- Bot username: `@smadavv_bot`
-- Admin chat id: `5590563715`  (env: TELEGRAM_ADMIN_CHAT_ID)
-- Bot token (dev==prod): 8822506525:... (env: TELEGRAM_BOT_TOKEN_PROD / _DEV)
+## SMADAV / SAMDAV white-label (2026-09-25) — same Railway account, DIFFERENT branch + service
+- White-label of Nomadly. Railway project **zippy-radiance** `0f41a48b-…` (same as Nomadly) · service **SAMDAV** `6d40a2dd-dfdf-4d05-9c68-4962a065885c` · env **production** `b9a9e5d2-…`.
+- Deploys from GitHub branch **`WhiteLabel`** (NOT `main`; Nomadly = `main`). Same repo `servicedyno1/Nomadly-EMAIL-IVR`. Platform auto-commits land on `main`, so ops scripts here do NOT rebuild SAMDAV.
+- Public URL `samdav1.up.railway.app`. Custom domains (attached this session): `1.smadavspeech.com` (call page) + `1.panel.smadavhost.com` (host panel).
+- Cloudflare zones (same CF account, `expressdrop247@gmail.com`): `smadavspeech.com` `4e3fa86fdd52ea305d3ae2e57a9705aa`, `smadavhost.com` `b3667eb4a8adce1f33b86d7f9d614431`.
+- SIP (branded Telnyx domain `sip.smadavspeech.com`): needs A `192.76.120.10` + SRV `_sip._tcp/_udp`(5060) `_sips._tcp`(5061) → `sip.telnyx.com` (mirrors Nomadly `sip.speechcue.com`). Added this session. Telnyx conn `3034191521164298080` ("Smadav Cloud Phone SIP", active). Twilio SIP domain `smadav-7937a0.sip.twilio.com` (Twilio-hosted, no DNS). Shared Twilio account with Nomadly, isolated via `TWILIO_SIP_DOMAIN_PREFIX=smadav`.
+- Ops helpers (js/ops/, read the SAMDAV service by id): `smadav_discover.js`, `smadav_inspect.js`, `smadav_domains.js` (attach 1.* domains), `smadav_cf_apply.js` (railway DNS), `smadav_cf_redirects.js` (bare→1. 301), `smadav_env_update.js` (--apply), `smadav_sip_dns.js`, `smadav_sip_verify.js`, `smadav_provider_dump.js`.
 
-## URLs
-- Frontend/preview (CURRENT pod, re-provisioned 2026-09-27): https://api-aggregator-5.preview.emergentagent.com
-- Frontend/preview (previous pod): https://api-aggregator-5.preview.emergentagent.com
-- Backend API base (proxied to Node :5000): <preview>/api
-
-## Re-provision 2026-09-27 (this pod)
-- Fresh backend/.env + frontend/.env written from user-supplied creds. SAFE DEV SANDBOX overrides applied: BOT_ENVIRONMENT=development, SKIP_WEBHOOK_SYNC=true.
-- Verified: Telegram webhook LEFT UNTOUCHED (still https://samdav1.up.railway.app/telegram/webhook — NOT hijacked). CF-Sync skipped (dev). FastAPI phone health monitor skipped (SKIP_WEBHOOK_SYNC). Live Railway Mongo connected (DB=smadav).
-- Services: nodejs (:5000) RUNNING + Mongo connected; backend (:8001) proxy /api/health healthy; frontend title/brand = SmadavBot, panel badge ONLINE (Bot: Running / DB: Connected / REST APIs: Active).
-- Steps: yarn install --ignore-engines (root, node20 + --ignore-engines since pkg wants node22); bash scripts/setup-nodejs.sh (registers supervisord_nodejs.conf, updates SELF_URL to this pod +/api); restart backend+frontend so they load the new .env (frontend had booted before .env existed -> stale defaults until restart).
-- NOTE: a few reconciler/enforcer jobs still tick against the LIVE DB in this mode (ProtectionEnforcer, BalanceMonitor, FincraReconcile, EmailBlast queue). They are read/decision-heavy and mostly deferred, but not hard-disabled by the two flags. Gate further if strict isolation is needed.
-- Re-provisioned 2026-09-14 (WhiteLabel branch, this pod): fresh backend/.env + frontend/.env from user creds (BOT_ENVIRONMENT=development, SKIP_WEBHOOK_SYNC=true overrides); ran scripts/setup-nodejs.sh; restarted backend+frontend (both had started before .env existed — backend KeyError MONGO_URL + frontend un-interpolated %REACT_APP_BRAND_PANEL_NAME% — both fixed by restart). All services verified: nodejs RUNNING + Mongo pool ready, external /api/health healthy + DB connected, frontend title "SmadavHost | Hosting Panel", panel dashboard renders (Bot: Running / DB: Connected / REST APIs: Active). Dev guards confirmed in node log (NS-retry / AntiRed / CF-Sync / hosting scheduler / phone-health-monitor all SKIPPED). Known non-blocker: BalanceMonitor Telnyx HTTP 401 (provided TELNYX_API_KEY rejected by Telnyx balance endpoint — Twilio balance OK $11.50).
-- Panel domain: panel.smadavhost.com | SIP domain: sip.smadavspeech.com
-
-## Panel (cPanel management UI) testing
-- No live customer panel credentials are stored here. cPanel/WHM operations run
-  against the LIVE production WHM (68.183.77.106) + live customer accounts.
-- DO NOT run destructive cPanel ops (add/delete subdomain/domain, MySQL
-  create/delete, file rename/move) against real accounts from this pod.
-
-### Bulk-Subdomain feature test — VERIFIED then TORN DOWN (2026-08-30)
-- An isolated throwaway cPanel account (btpk8j / btpk8jbulk.com) was created on
-  the WHM only to verify the Bulk Subdomain Import UI end-to-end (4/4 subdomains
-  created, display-name doubling fix confirmed), then DELETED via
-  /tmp/teardown_bulk_test_account.js. No artifacts remain on the WHM or DB.
-- To re-run this E2E test later, recreate the account:
-    set -a; source /app/backend/.env; set +a; NODE_PATH=/app/node_modules node /tmp/setup_bulk_test_account.js
-  (prints fresh PANEL_USERNAME / PANEL_PIN / PRIMARY_DOMAIN), then tear down with
-    NODE_PATH=/app/node_modules node /tmp/teardown_bulk_test_account.js
-
-- The cPanel "broken user-auth" WHM-root fallback fix is verified with the
-  fully-mocked jest suite: `cd /app && npx jest tests/cpanel-auth-broken-fallback.test.js`
-  (nock — no live cPanel/WHM/DB calls).
-
+## Honeypot Traps feature test accounts (sandbox, local Mongo `test`) — added 2026-06-25
+- Re-seed: `cd /app && node scripts/seed_honeypot_test.js`
+- MONTHLY hosting login (toggle ENABLED): username `hptestmonthly`, PIN `135790`, plan "Premium Anti-Red HostPanel", domain `hp-monthly-test.com`
+- WEEKLY hosting login (toggle LOCKED): username `hptestweekly`, PIN `135790`, plan "Premium Anti-Red (1-Week)", domain `hp-weekly-test.com`
+- Both owned by reseller-key owner chatId `5590563715`, so the reseller API endpoints `GET/POST /api/reseller/v1/hosting/honeypot/:domain` resolve them too.
+- Web panel: `${REACT_APP_BACKEND_URL}/panel` → login → Security tab → "Honeypot Traps" row (data-testid `sec-honeypot-toggle` / `sec-honeypot-locked`).
 
 
-## Architecture
-- Frontend (React, :3000) → FastAPI (:8001) → proxy → Node Express (:5000) → MongoDB (live).
-- All destructive background jobs (billing reconcilers, protection heartbeat, NS retry,
-  CF discovery sync, phone health monitor) are DISABLED in sandbox mode.
-- Note: webhook-crond (supervisor) is an Emergent platform cron daemon (FATAL: no cron in base image); it is NOT part of this app and does not affect functionality.
+## Phase 1 storefront test user (2026-09-28, sandbox, local Mongo `test`)
+- Web store login (email/password): `phase1tester@example.com` / `Phase1Test!234`
+- Storefront route: `${REACT_APP_BACKEND_URL}/store` (login → "My Plans" tab shows lifecycle expiry chips)
+- Seed 3 hosting plans (green/amber/red expiry) for #5: `node scripts/seed_phase1_store.js`
+  (green-plan.com = "30d left"/green, amber-plan.com = "Expires in 3d"/amber + hint, red-plan.com = "Expired"/red + hint + SUSPENDED). Re-signup the user first if webUsers is empty (see script header).
+- Point #6 resume banner needs NO account: inject localStorage key `nomadly_pending_order`
+  = `{"orderId":"test-resume-1","coin":"BTC","amountUsd":39,"plan":"Premium Anti-Red HostPanel","domain":"resume-test.com","at":<Date.now()>}` then load `/store` → banner `store-resume-banner`.
+
+## DigitalOcean production droplet (2026-09-28)
+- IP `146.190.238.190` · `ssh -i /root/.ssh/nomadly_droplet root@146.190.238.190`
+- Nomadly `main`: `/opt/nomadly/app-main` (PM2 `app-main`, :5000, env `backend/.env`, prod Mongo roundhouse…:52715 db `test`). Domains: `2.speechcue.com`, `panel.2.hostbay.io` (LE certs via `certbot --dns-cloudflare`, creds `/root/.cloudflare.ini`).
+- SMADAV `WhiteLabel`: `/opt/nomadly/app-wl` (planned PM2 `app-wl`, :5001, Mongo sakura…:51284 db `smadav`). Domains `1.smadavspeech.com`, `1.panel.smadavhost.com`.
+- Customer shortener domains: nginx blocks `/etc/nginx/nomadly-domains/`, Origin CA certs `/etc/nginx/nomadly-certs/`.
+
+## INFRA SSH keys + GitHub PAT now stored in the vault (2026-09-30)
+- The vault (`memory/nomadly.vault.enc`, same password `Katiekendra123@`) now also holds infra access:
+  `DROPLET_IP`, `DROPLET_SSH_KEY_B64` (+ `DROPLET_SSH_PUB`), `WHM_IP`, `WHM_BOX_SSH_KEY_B64` (+ `WHM_BOX_SSH_PUB`),
+  `GITHUB_PAT_CLASSIC`, `GITHUB_REPO`, `GITHUB_BRANCH_NOMADLY=main`, `GITHUB_BRANCH_SMADAV=WhiteLabel`.
+- Restore on a fresh pod (writes keys to `/root/.ssh` with correct perms + prints git remote line):
+  `VAULT_PASSWORD='Katiekendra123@' bash scripts/restore_infra_keys.sh`
+- WHM box: `ssh -i /root/.ssh/whm_box root@68.183.77.106`
+- These were added WITHOUT re-locking the sandbox `backend/.env` (decrypt→append→re-encrypt of a temp copy),
+  so the vault's real production `MONGO_URL` is untouched. Pre-change backup: `nomadly.vault.enc.bak.*`.

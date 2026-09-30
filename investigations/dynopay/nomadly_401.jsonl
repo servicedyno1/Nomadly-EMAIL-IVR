@@ -1,0 +1,47 @@
+{"timestamp":"2026-09-25T18:52:45.439226276Z","message":"[CR-Whitelist] API test failed (attempt #1): Request failed with status code 401","severity":"info"}
+{"timestamp":"2026-09-25T18:52:45.970045811Z","message":"[CR-Whitelist] API test failed (attempt #1): Request failed with status code 401","severity":"info"}
+{"timestamp":"2026-09-25T18:53:07.121545770Z","message":"[PhoneMonitor] Error checking number +18883304418: Request failed with status code 401","severity":"error"}
+{"timestamp":"2026-09-25T18:53:08.134485491Z","message":"[CR-Whitelist] API test failed (attempt #1): Request failed with status code 401","severity":"info"}
+{"timestamp":"2026-09-25T18:53:16.717454666Z","message":"[BalanceMonitor] Telnyx check attempt 1/3 failed: HTTP 401 ERR_BAD_REQUEST Request failed with status code 401","severity":"info"}
+{"timestamp":"2026-09-25T18:53:16.826003261Z","message":"[BalanceMonitor] Telnyx: ERROR — HTTP 401: Request failed with status code 401","severity":"info"}
+{"timestamp":"2026-09-25T18:53:16.826007791Z","message":"[BalanceMonitor] Telnyx: key rejected (HTTP 401) — pausing Telnyx balance checks until restart","severity":"info"}
+{"timestamp":"2026-09-25T18:53:24.275766874Z","message":"[CR-Whitelist] API test failed (attempt #1): Request failed with status code 401","severity":"info"}
+{"timestamp":"2026-09-25T18:53:43.133280757Z","message":"[PhoneMonitor] Error checking number +18883304418: Request failed with status code 401","severity":"error"}
+{"timestamp":"2026-09-25T18:54:03.963035612Z","message":"[BalanceMonitor] Telnyx check attempt 1/3 failed: HTTP 401 ERR_BAD_REQUEST Request failed with status code 401","severity":"info"}
+{"timestamp":"2026-09-25T18:54:03.963039692Z","message":"[BalanceMonitor] Telnyx: ERROR — HTTP 401: Request failed with status code 401","severity":"info"}
+{"timestamp":"2026-09-25T18:54:03.963043582Z","message":"[BalanceMonitor] Telnyx: key rejected (HTTP 401) — pausing Telnyx balance checks until restart","severity":"info"}
+{"timestamp":"2026-09-25T18:54:41.931797367Z","message":"[CR-Whitelist] API test failed (attempt #2): Request failed with status code 401","severity":"info"}
+{"timestamp":"2026-09-25T18:55:41.970251607Z","message":"[CR-Whitelist] API test failed (attempt #3): Request failed with status code 401","severity":"info"}
+{"timestamp":"2026-09-25T19:00:08.000151622Z","message":"[CR-Whitelist] API test failed (attempt #1): Request failed with status code 401","severity":"info"}
+{"timestamp":"2026-09-25T19:00:08.707149180Z","message":"[CR-Whitelist] API test failed (attempt #2): Request failed with status code 401","severity":"info"}
+{"timestamp":"2026-09-25T19:00:08.877336674Z","message":"[CR-Whitelist] API test failed (attempt #3): Request failed with status code 401","severity":"info"}
+{"timestamp":"2026-09-25T19:00:14.410173451Z","message":"These are <b>NOT</b> single-line softphones — they're built for outbound campaigns and expect a <b>SIP TRUNK</b>. If you added the credentials as a \"SIP Account\" / \"Extension\", you'll see registration errors (401/403) or calls that connect but drop instantly. Switch the account type to <b>SIP Trunk</b> and use the same domain / port / username / password.","severity":"info"}
+{"timestamp":"2026-09-25T19:00:31.214511931Z","message":"[PhoneMonitor] Error checking number +18883304418: Request failed with status code 401","severity":"error"}
+{"timestamp":"2026-09-25T19:00:39.965023667Z","message":"[BalanceMonitor] Telnyx check attempt 1/3 failed: HTTP 401 ERR_BAD_REQUEST Request failed with status code 401","severity":"info"}
+{"timestamp":"2026-09-25T19:00:40.082665445Z","message":"[BalanceMonitor] Telnyx: ERROR — HTTP 401: Request failed with status code 401","severity":"info"}
+{"timestamp":"2026-09-25T19:00:40.082670785Z","message":"[BalanceMonitor] Telnyx: key rejected (HTTP 401) — pausing Telnyx balance checks until restart","severity":"info"}
+{"timestamp":"2026-09-25T19:06:20.160336367Z","message":"[CR-Whitelist] API test failed (attempt #1): Request failed with status code 401","severity":"info"}
+{"timestamp":"2026-09-25T19:06:43.021423836Z","message":"[CR-Whitelist] API test failed (attempt #2): Request failed with status code 401","severity":"info"}
+{"timestamp":"2026-09-25T19:06:43.021442685Z","message":"[CR-Whitelist] API test failed (attempt #3): Request failed with status code 401","severity":"info"}
+{"timestamp":"2026-09-25T19:06:45.112796623Z","message":"[PhoneMonitor] Error checking number +18883304418: Request failed with status code 401","severity":"error"}
+{"timestamp":"2026-09-25T19:06:47.283239534Z","message":"[BalanceMonitor] Telnyx check attempt 1/3 failed: HTTP 401 ERR_BAD_REQUEST Request failed with status code 401","severity":"info"}
+{"timestamp":"2026-09-25T19:06:47.283255344Z","message":"[BalanceMonitor] Telnyx: ERROR — HTTP 401: Request failed with status code 401","severity":"info"}
+{"timestamp":"2026-09-25T19:06:47.283263580Z","message":"[BalanceMonitor] Telnyx: key rejected (HTTP 401) — pausing Telnyx balance checks until restart","severity":"info"}
+{"timestamp":"2026-09-25T19:13:10.639156587Z","message":"[CR-Whitelist] API test failed (attempt #1): Request failed with status code 401","severity":"info"}
+{"timestamp":"2026-09-25T19:13:19.515324462Z","message":"[CR-Whitelist] API test failed (attempt #2): Request failed with status code 401","severity":"info"}
+{"timestamp":"2026-09-25T19:13:19.685114772Z","message":"[CR-Whitelist] API test failed (attempt #3): Request failed with status code 401","severity":"info"}
+{"timestamp":"2026-09-25T19:19:26.470560732Z","message":"[CR-Whitelist] API test failed (attempt #1): Request failed with status code 401","severity":"info"}
+{"timestamp":"2026-09-25T19:19:41.219823549Z","message":"[CR-Whitelist] API test failed (attempt #2): Request failed with status code 401","severity":"info"}
+{"timestamp":"2026-09-25T19:19:41.435395272Z","message":"[CR-Whitelist] API test failed (attempt #3): Request failed with status code 401","severity":"info"}
+{"timestamp":"2026-09-25T19:46:13.880102614Z","message":"[CR-Whitelist] API test failed (attempt #1): Request failed with status code 401","severity":"info"}
+{"timestamp":"2026-09-25T19:46:16.115511282Z","message":"[CR-Whitelist] API test failed (attempt #2): Request failed with status code 401","severity":"info"}
+{"timestamp":"2026-09-25T19:46:16.273625215Z","message":"[CR-Whitelist] API test failed (attempt #3): Request failed with status code 401","severity":"info"}
+{"timestamp":"2026-09-25T19:57:13.587809555Z","message":"Error in getting Crypto address Request failed with status code 401","severity":"error"}
+{"timestamp":"2026-09-25T20:20:30.773952120Z","message":"Error in getting Crypto address Request failed with status code 401","severity":"error"}
+{"timestamp":"2026-09-25T20:29:19.191118224Z","message":"[CR-Whitelist] API test failed (attempt #10): Request failed with status code 401","severity":"info"}
+{"timestamp":"2026-09-25T20:46:03.552741379Z","message":"[cPanel Proxy] Fileman::list_files error (401): <!DOCTYPE html> [AUTH]","severity":"info"}
+{"timestamp":"2026-09-25T20:46:03.552744749Z","message":"[Panel] Self-heal: rotated cpPass for ghrx51df (WHM was rejecting cached pass with 401/403 — @HHR2009 pattern)","severity":"info"}
+{"timestamp":"2026-09-25T20:46:03.552755468Z","message":"[cPanel Proxy] Fileman::list_files error (401): <!DOCTYPE html> [AUTH]","severity":"info"}
+{"timestamp":"2026-09-25T23:35:06.605192254Z","message":"[CR-Whitelist] API test failed (attempt #1): Request failed with status code 401","severity":"info"}
+{"timestamp":"2026-09-25T23:36:31.893578556Z","message":"[CR-Whitelist] API test failed (attempt #2): Request failed with status code 401","severity":"info"}
+{"timestamp":"2026-09-25T23:37:24.562422108Z","message":"[CR-Whitelist] API test failed (attempt #3): Request failed with status code 401","severity":"info"}

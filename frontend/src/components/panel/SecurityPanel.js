@@ -14,7 +14,7 @@ function StatusBadge({ active, loading, label }) {
 
 // Layer keys drive both the data wiring (to security/status response) and the
 // i18n lookup (sec.layers.<key>.label / .desc). Keep in sync with en.json.
-const LAYER_KEYS = ['htaccessCloaking', 'scannerUaBlocking', 'cfWafRules', 'cfWorker', 'jsChallenge'];
+const LAYER_KEYS = ['htaccessCloaking', 'scannerUaBlocking', 'cfWafRules', 'cfWorker', 'jsChallenge', 'honeypot'];
 
 export default function SecurityPanel() {
   const { t } = useTranslation();
@@ -73,12 +73,47 @@ export default function SecurityPanel() {
     }
   };
 
+  const toggleHoneypot = async () => {
+    const current = status?.protectionLayers?.honeypot;
+    if (honeypotMonthlyOnly && !isMonthly) {
+      setError(t('sec.honeypotMonthlyOnlyError'));
+      return;
+    }
+    if (current) {
+      const confirmed = window.confirm(t('sec.honeypotDisableWarning'));
+      if (!confirmed) return;
+    }
+    setToggling(true);
+    setError('');
+    setSuccess('');
+    try {
+      const res = await api('/security/honeypot/toggle', {
+        method: 'POST',
+        body: JSON.stringify({ enabled: !current }),
+      });
+      if (res.honeypotEnabled !== undefined) {
+        setSuccess(res.honeypotEnabled ? t('sec.honeypotStatusEnabled') : t('sec.honeypotStatusDisabled'));
+        fetchStatus();
+      } else if (res.honeypotMonthlyOnly) {
+        setError(res.error || t('sec.honeypotMonthlyOnlyError'));
+      } else {
+        setError(res.error || t('sec.failedToggle'));
+      }
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setToggling(false);
+    }
+  };
+
   const layers = status?.protectionLayers || {};
   const stats = status?.stats || {};
   const sb = status?.antiRed?.safeBrowsing;  // eslint-disable-line no-unused-vars
   const bl = status?.antiRed?.blacklist;
   const isGold = !!status?.isGold;
   const captchaGoldOnly = !!status?.captchaGoldOnly;
+  const isMonthly = status?.isMonthly !== false;
+  const honeypotMonthlyOnly = !!status?.honeypotMonthlyOnly;
   const activeCount = Object.values(layers).filter(Boolean).length;
   const totalCount = LAYER_KEYS.length;
 
@@ -122,6 +157,7 @@ export default function SecurityPanel() {
               {LAYER_KEYS.map(key => {
                 const active = layers[key];
                 const isJsChallenge = key === 'jsChallenge';
+                const isHoneypot = key === 'honeypot';
                 const label = t(`sec.layers.${key}.label`);
                 const desc = t(`sec.layers.${key}.desc`);
                 return (
@@ -150,6 +186,26 @@ export default function SecurityPanel() {
                             disabled={toggling}
                             data-testid="sec-js-toggle"
                             title={active ? t('sec.disableCaptchaTitle') : t('sec.enableCaptchaTitle')}
+                          >
+                            <span className="sec-toggle-knob" />
+                          </button>
+                        )
+                      ) : isHoneypot ? (
+                        honeypotMonthlyOnly && !isMonthly ? (
+                          <span
+                            className="sec-badge sec-badge--locked"
+                            title={t('sec.monthlyOnlyTooltip', { plan: status?.plan || t('sec.unknownPlan') })}
+                            data-testid="sec-honeypot-locked"
+                          >
+                            🔒 {t('sec.monthlyOnly')}
+                          </span>
+                        ) : (
+                          <button
+                            className={`sec-toggle ${active ? 'sec-toggle--on' : 'sec-toggle--off'}`}
+                            onClick={toggleHoneypot}
+                            disabled={toggling}
+                            data-testid="sec-honeypot-toggle"
+                            title={active ? t('sec.disableHoneypotTitle') : t('sec.enableHoneypotTitle')}
                           >
                             <span className="sec-toggle-knob" />
                           </button>

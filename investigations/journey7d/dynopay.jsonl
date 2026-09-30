@@ -1,0 +1,197 @@
+{"t":"2026-09-07T12:54:08.666039353Z","s":"info","m":"[DynoPay] Duplicate webhook ignored (already claimed): payment_id 1742954e-ff65-41ce-be2d-9257c358f466"}
+{"t":"2026-09-08T11:22:16.964251962Z","s":"info","m":"[DynoPay] processed-payment idempotency collection ready"}
+{"t":"2026-09-08T12:12:40.196922056Z","s":"info","m":"[DynoPay] processed-payment idempotency collection ready"}
+{"t":"2026-09-08T14:05:20.827052850Z","s":"info","m":"[DynoPay] processed-payment idempotency collection ready"}
+{"t":"2026-09-08T16:32:59.299831617Z","s":"info","m":"=== DYNOPAY WEBHOOK RECEIVED ==="}
+{"t":"2026-09-08T16:32:59.299840162Z","s":"info","m":"URL: nomadly-email-ivr-production.up.railway.app/dynopay/crypto-pay-domain"}
+{"t":"2026-09-08T16:32:59.299850000Z","s":"info","m":"[DynoPay] Stored payment_id → refId mapping: 68d78df3-5c72-466e-96fe-964a1d03f739 → lRT6O"}
+{"t":"2026-09-08T16:32:59.299859320Z","s":"info","m":"=== DYNOPAY WEBHOOK RECEIVED ==="}
+{"t":"2026-09-08T16:32:59.299862610Z","s":"info","m":"URL: nomadly-email-ivr-production.up.railway.app/dynopay/crypto-pay-domain"}
+{"t":"2026-09-08T16:32:59.299909750Z","s":"info","m":"  method: 'dynopay/crypto-pay-domain',"}
+{"t":"2026-09-08T16:32:59.301112758Z","s":"info","m":"=== DYNOPAY WEBHOOK RECEIVED ==="}
+{"t":"2026-09-08T16:32:59.301112804Z","s":"info","m":"[CryptoCredit] /dynopay/crypto-pay-domain: recv=0.00044532 BTC | blockbee=$35.01 dynopay=$35.03 src=dynopay-rate invoice=$35.10 → credit=$35.10 (minor-underpayment)"}
+{"t":"2026-09-08T16:32:59.301120782Z","s":"info","m":"URL: nomadly-email-ivr-production.up.railway.app/dynopay/crypto-pay-domain"}
+{"t":"2026-09-08T16:32:59.301144631Z","s":"info","m":"[DynoPay] Duplicate webhook ignored (already claimed): payment_id 68d78df3-5c72-466e-96fe-964a1d03f739"}
+{"t":"2026-09-08T16:33:19.346306782Z","s":"info","m":"=== DYNOPAY WEBHOOK RECEIVED ==="}
+{"t":"2026-09-08T16:33:19.346312630Z","s":"info","m":"URL: nomadly-email-ivr-production.up.railway.app/dynopay/crypto-pay-domain"}
+{"t":"2026-09-08T16:33:19.347772170Z","s":"info","m":"[DynoPay] Duplicate webhook ignored (already claimed): payment_id 68d78df3-5c72-466e-96fe-964a1d03f739"}
+{"t":"2026-09-08T19:03:06.448915261Z","s":"info","m":"[DynoPay] processed-payment idempotency collection ready"}
+{"t":"2026-09-08T19:28:49.066316798Z","s":"info","m":"[DynoPay] processed-payment idempotency collection ready"}
+{"t":"2026-09-09T03:21:27.887643814Z","s":"info","m":"=== DYNOPAY WEBHOOK RECEIVED ==="}
+{"t":"2026-09-09T03:21:27.887653438Z","s":"info","m":"URL: nomadly-email-ivr-production.up.railway.app/dynopay/crypto-pay-domain"}
+{"t":"2026-09-09T03:21:27.887664706Z","s":"info","m":"[DynoPay] Stored payment_id → refId mapping: 47301b3a-4c4d-42a2-b812-a5271a7189ae → MVL5Q"}
+{"t":"2026-09-09T03:21:28.118512956Z","s":"info","m":"=== DYNOPAY WEBHOOK RECEIVED ==="}
+{"t":"2026-09-09T03:21:28.118516471Z","s":"info","m":"URL: nomadly-email-ivr-production.up.railway.app/dynopay/crypto-pay-domain"}
+{"t":"2026-09-09T03:21:28.133068680Z","s":"info","m":"  method: 'dynopay/crypto-pay-domain',"}
+{"t":"2026-09-09T03:21:28.791314850Z","s":"info","m":"[CryptoCredit] /dynopay/crypto-pay-domain: recv=0.00038101 BTC | blockbee=$29.94 dynopay=$29.94 src=dynopay-rate invoice=$30.00 → credit=$30.00 (minor-underpayment)"}
+{"t":"2026-09-09T03:21:32.895841607Z","s":"info","m":"=== DYNOPAY WEBHOOK RECEIVED ==="}
+{"t":"2026-09-09T03:21:32.895846522Z","s":"info","m":"URL: nomadly-email-ivr-production.up.railway.app/dynopay/crypto-pay-domain"}
+{"t":"2026-09-09T03:21:32.895856299Z","s":"info","m":"[DynoPay] Duplicate webhook ignored (already claimed): payment_id 47301b3a-4c4d-42a2-b812-a5271a7189ae"}
+{"t":"2026-09-09T03:23:09.662615771Z","s":"info","m":"=== DYNOPAY WALLET WEBHOOK PROCESSING START ==="}
+{"t":"2026-09-09T03:23:09.662659134Z","s":"info","m":"=== DYNOPAY WEBHOOK RECEIVED ==="}
+{"t":"2026-09-09T03:23:09.662661888Z","s":"info","m":"URL: nomadly-email-ivr-production.up.railway.app/dynopay/crypto-wallet"}
+{"t":"2026-09-09T03:23:09.662667452Z","s":"info","m":"[DynoPay] Stored payment_id → refId mapping: 624eb200-9099-4e35-b00a-615d93a8a635 → 69jXu"}
+{"t":"2026-09-09T03:23:09.662672947Z","s":"info","m":"=== DYNOPAY WEBHOOK RECEIVED ==="}
+{"t":"2026-09-09T03:23:09.662675614Z","s":"info","m":"URL: nomadly-email-ivr-production.up.railway.app/dynopay/crypto-wallet"}
+{"t":"2026-09-09T03:23:09.663925241Z","s":"info","m":"=== DYNOPAY WALLET WEBHOOK PROCESSING COMPLETE ==="}
+{"t":"2026-09-09T03:23:17.942945775Z","s":"info","m":"=== DYNOPAY WEBHOOK RECEIVED ==="}
+{"t":"2026-09-09T03:23:17.942950231Z","s":"info","m":"URL: nomadly-email-ivr-production.up.railway.app/dynopay/crypto-wallet"}
+{"t":"2026-09-09T03:23:17.942959641Z","s":"info","m":"[DynoPay] Duplicate webhook ignored (already claimed): payment_id 624eb200-9099-4e35-b00a-615d93a8a635"}
+{"t":"2026-09-09T19:36:15.791171753Z","s":"info","m":"=== DYNOPAY WEBHOOK RECEIVED ==="}
+{"t":"2026-09-09T19:36:15.791179483Z","s":"info","m":"URL: nomadly-email-ivr-production.up.railway.app/dynopay/crypto-wallet"}
+{"t":"2026-09-09T19:36:15.791190368Z","s":"info","m":"[DynoPay] Stored payment_id → refId mapping: 44b87c74-45b3-482a-ab93-49bfdfcad811 → X7L6Y"}
+{"t":"2026-09-09T19:36:20.827544716Z","s":"info","m":"=== DYNOPAY WALLET WEBHOOK PROCESSING START ==="}
+{"t":"2026-09-09T19:36:20.827578868Z","s":"info","m":"=== DYNOPAY WEBHOOK RECEIVED ==="}
+{"t":"2026-09-09T19:36:20.827584590Z","s":"info","m":"URL: nomadly-email-ivr-production.up.railway.app/dynopay/crypto-wallet"}
+{"t":"2026-09-09T19:36:21.449578474Z","s":"info","m":"=== DYNOPAY WALLET WEBHOOK PROCESSING COMPLETE ==="}
+{"t":"2026-09-09T19:36:21.831767106Z","s":"info","m":"=== DYNOPAY WEBHOOK RECEIVED ==="}
+{"t":"2026-09-09T19:36:21.831772575Z","s":"info","m":"URL: nomadly-email-ivr-production.up.railway.app/dynopay/crypto-wallet"}
+{"t":"2026-09-09T19:36:21.831784449Z","s":"info","m":"[DynoPay] Duplicate webhook ignored (already claimed): payment_id 44b87c74-45b3-482a-ab93-49bfdfcad811"}
+{"t":"2026-09-09T23:32:03.619621294Z","s":"info","m":"=== DYNOPAY WEBHOOK RECEIVED ==="}
+{"t":"2026-09-09T23:32:03.619621334Z","s":"info","m":"  method: 'dynopay/crypto-pay-domain',"}
+{"t":"2026-09-09T23:32:03.619633002Z","s":"info","m":"URL: nomadly-email-ivr-production.up.railway.app/dynopay/crypto-pay-domain"}
+{"t":"2026-09-09T23:32:03.619646286Z","s":"info","m":"[DynoPay] Stored payment_id → refId mapping: fa79e1fc-4075-463c-9d1e-33d79cab455c → vGcxU"}
+{"t":"2026-09-09T23:32:03.619653378Z","s":"info","m":"=== DYNOPAY WEBHOOK RECEIVED ==="}
+{"t":"2026-09-09T23:32:03.619657808Z","s":"info","m":"URL: nomadly-email-ivr-production.up.railway.app/dynopay/crypto-pay-domain"}
+{"t":"2026-09-09T23:32:03.621022058Z","s":"info","m":"[CryptoCredit] /dynopay/crypto-pay-domain: recv=0.0003583 BTC | blockbee=$27.99 dynopay=$27.99 src=dynopay-rate invoice=$27.00 → credit=$27.99 (overpayment)"}
+{"t":"2026-09-09T23:32:03.621864715Z","s":"info","m":"=== DYNOPAY WEBHOOK RECEIVED ==="}
+{"t":"2026-09-09T23:32:03.621868724Z","s":"info","m":"URL: nomadly-email-ivr-production.up.railway.app/dynopay/crypto-pay-domain"}
+{"t":"2026-09-09T23:32:03.621881343Z","s":"info","m":"[DynoPay] Duplicate webhook ignored (already claimed): payment_id fa79e1fc-4075-463c-9d1e-33d79cab455c"}
+{"t":"2026-09-09T23:32:19.823002819Z","s":"info","m":"=== DYNOPAY WEBHOOK RECEIVED ==="}
+{"t":"2026-09-09T23:32:19.823007658Z","s":"info","m":"URL: nomadly-email-ivr-production.up.railway.app/dynopay/crypto-pay-domain"}
+{"t":"2026-09-09T23:32:19.829545290Z","s":"info","m":"[DynoPay] Duplicate webhook ignored (already claimed): payment_id fa79e1fc-4075-463c-9d1e-33d79cab455c"}
+{"t":"2026-09-10T00:09:00.530350503Z","s":"info","m":"=== DYNOPAY WEBHOOK RECEIVED ==="}
+{"t":"2026-09-10T00:09:00.530357207Z","s":"info","m":"URL: nomadly-email-ivr-production.up.railway.app/dynopay/crypto-pay-hosting"}
+{"t":"2026-09-10T00:09:00.530368997Z","s":"info","m":"[DynoPay] Stored payment_id → refId mapping: 8a93c052-527f-4ec7-bd29-659452e2a726 → LNfX8"}
+{"t":"2026-09-10T00:09:00.530381661Z","s":"info","m":"  method: 'dynopay/crypto-pay-hosting',"}
+{"t":"2026-09-10T00:09:00.530383367Z","s":"info","m":"=== DYNOPAY WEBHOOK RECEIVED ==="}
+{"t":"2026-09-10T00:09:00.530391847Z","s":"info","m":"URL: nomadly-email-ivr-production.up.railway.app/dynopay/crypto-pay-hosting"}
+{"t":"2026-09-10T00:09:00.532077813Z","s":"info","m":"[CryptoCredit] /dynopay/crypto-pay-hosting: recv=0.00129245 BTC | blockbee=$101.24 dynopay=$101.19 src=dynopay-rate invoice=$100.00 → credit=$101.19 (overpayment)"}
+{"t":"2026-09-10T00:09:16.554361127Z","s":"info","m":"=== DYNOPAY WEBHOOK RECEIVED ==="}
+{"t":"2026-09-10T00:09:16.554364978Z","s":"info","m":"URL: nomadly-email-ivr-production.up.railway.app/dynopay/crypto-pay-hosting"}
+{"t":"2026-09-10T00:09:16.554376604Z","s":"info","m":"[DynoPay] Duplicate webhook ignored (already claimed): payment_id 8a93c052-527f-4ec7-bd29-659452e2a726"}
+{"t":"2026-09-10T05:40:56.134124449Z","s":"info","m":"=== DYNOPAY WEBHOOK RECEIVED ==="}
+{"t":"2026-09-10T05:40:56.134127540Z","s":"info","m":"URL: nomadly-email-ivr-production.up.railway.app/dynopay/crypto-wallet"}
+{"t":"2026-09-10T05:40:56.134133736Z","s":"info","m":"[DynoPay] Stored payment_id → refId mapping: 8cce3b5a-4a4e-4b4e-a2e5-f02dc425db96 → tSNWr"}
+{"t":"2026-09-10T05:40:56.134149561Z","s":"info","m":"=== DYNOPAY WEBHOOK RECEIVED ==="}
+{"t":"2026-09-10T05:40:56.134153433Z","s":"info","m":"URL: nomadly-email-ivr-production.up.railway.app/dynopay/crypto-wallet"}
+{"t":"2026-09-10T05:40:56.134195050Z","s":"info","m":"=== DYNOPAY WALLET WEBHOOK PROCESSING START ==="}
+{"t":"2026-09-10T05:40:56.450692119Z","s":"info","m":"=== DYNOPAY WALLET WEBHOOK PROCESSING COMPLETE ==="}
+{"t":"2026-09-10T05:41:00.501541719Z","s":"info","m":"=== DYNOPAY WEBHOOK RECEIVED ==="}
+{"t":"2026-09-10T05:41:00.501544530Z","s":"info","m":"URL: nomadly-email-ivr-production.up.railway.app/dynopay/crypto-wallet"}
+{"t":"2026-09-10T05:41:00.501552830Z","s":"info","m":"[DynoPay] Duplicate webhook ignored (already claimed): payment_id 8cce3b5a-4a4e-4b4e-a2e5-f02dc425db96"}
+{"t":"2026-09-10T07:48:56.752084790Z","s":"info","m":"=== DYNOPAY WEBHOOK RECEIVED ==="}
+{"t":"2026-09-10T07:48:56.752088639Z","s":"info","m":"URL: nomadly-email-ivr-production.up.railway.app/dynopay/crypto-pay-vps"}
+{"t":"2026-09-10T07:48:56.752117680Z","s":"info","m":"[DynoPay] Stored payment_id → refId mapping: c3106f71-2c67-4cef-8b02-12c4e92bf2d9 → nTBJT"}
+{"t":"2026-09-10T07:48:56.795908391Z","s":"info","m":"=== DYNOPAY WEBHOOK RECEIVED ==="}
+{"t":"2026-09-10T07:48:56.795912201Z","s":"info","m":"URL: nomadly-email-ivr-production.up.railway.app/dynopay/crypto-pay-vps"}
+{"t":"2026-09-10T07:48:56.810598679Z","s":"info","m":"  method: 'dynopay/crypto-pay-vps',"}
+{"t":"2026-09-10T07:48:57.797078998Z","s":"info","m":"[CryptoCredit] /dynopay/crypto-pay-vps: recv=0.000618 BTC | blockbee=$48.22 dynopay=$48.22 src=dynopay-rate invoice=$48.15 → credit=$48.22 (overpayment)"}
+{"t":"2026-09-10T07:49:01.804824512Z","s":"info","m":"=== DYNOPAY WEBHOOK RECEIVED ==="}
+{"t":"2026-09-10T07:49:01.804827517Z","s":"info","m":"URL: nomadly-email-ivr-production.up.railway.app/dynopay/crypto-pay-vps"}
+{"t":"2026-09-10T07:49:01.804839270Z","s":"info","m":"[DynoPay] Duplicate webhook ignored (already claimed): payment_id c3106f71-2c67-4cef-8b02-12c4e92bf2d9"}
+{"t":"2026-09-10T15:17:20.642678837Z","s":"info","m":"=== DYNOPAY WEBHOOK RECEIVED ==="}
+{"t":"2026-09-10T15:17:20.642684508Z","s":"info","m":"URL: nomadly-email-ivr-production.up.railway.app/dynopay/crypto-pay-hosting"}
+{"t":"2026-09-10T15:17:20.642691749Z","s":"info","m":"[DynoPay] Stored payment_id → refId mapping: e1ab72cf-9d5a-404a-b858-5f9d7a7f9539 → cUEGi"}
+{"t":"2026-09-10T15:17:20.642699629Z","s":"info","m":"=== DYNOPAY WEBHOOK RECEIVED ==="}
+{"t":"2026-09-10T15:17:20.642702912Z","s":"info","m":"URL: nomadly-email-ivr-production.up.railway.app/dynopay/crypto-pay-hosting"}
+{"t":"2026-09-10T15:17:20.642745126Z","s":"info","m":"  method: 'dynopay/crypto-pay-hosting',"}
+{"t":"2026-09-10T15:17:20.645619431Z","s":"info","m":"[CryptoCredit] /dynopay/crypto-pay-hosting: recv=0.0282737 ETH | blockbee=$69.04 dynopay=$69.07 src=dynopay-rate invoice=$69.00 → credit=$69.07 (overpayment)"}
+{"t":"2026-09-10T15:17:32.193847770Z","s":"info","m":"=== DYNOPAY WEBHOOK RECEIVED ==="}
+{"t":"2026-09-10T15:17:32.193851156Z","s":"info","m":"URL: nomadly-email-ivr-production.up.railway.app/dynopay/crypto-pay-hosting"}
+{"t":"2026-09-10T15:17:32.197719074Z","s":"info","m":"[DynoPay] Duplicate webhook ignored (already claimed): payment_id e1ab72cf-9d5a-404a-b858-5f9d7a7f9539"}
+{"t":"2026-09-10T15:17:55.668504078Z","s":"info","m":"=== DYNOPAY WEBHOOK RECEIVED ==="}
+{"t":"2026-09-10T15:17:55.668508403Z","s":"info","m":"URL: nomadly-email-ivr-production.up.railway.app/dynopay/crypto-pay-hosting"}
+{"t":"2026-09-10T15:17:55.694217301Z","s":"info","m":"[DynoPay] Duplicate webhook ignored (already claimed): payment_id e1ab72cf-9d5a-404a-b858-5f9d7a7f9539"}
+{"t":"2026-09-10T16:23:01.223067500Z","s":"info","m":"=== DYNOPAY WEBHOOK RECEIVED ==="}
+{"t":"2026-09-10T16:23:01.223072590Z","s":"info","m":"URL: nomadly-email-ivr-production.up.railway.app/dynopay/crypto-pay-domain"}
+{"t":"2026-09-10T16:23:01.223080141Z","s":"info","m":"[DynoPay] Stored payment_id → refId mapping: 2263bd6a-166e-4c9f-8feb-8eebf541e422 → pfSSE"}
+{"t":"2026-09-10T16:23:01.223089424Z","s":"info","m":"=== DYNOPAY WEBHOOK RECEIVED ==="}
+{"t":"2026-09-10T16:23:01.223093240Z","s":"info","m":"URL: nomadly-email-ivr-production.up.railway.app/dynopay/crypto-pay-domain"}
+{"t":"2026-09-10T16:23:01.223127077Z","s":"info","m":"  method: 'dynopay/crypto-pay-domain',"}
+{"t":"2026-09-10T16:23:01.224675120Z","s":"info","m":"[CryptoCredit] /dynopay/crypto-pay-domain: recv=0.00050703 BTC | blockbee=$39.02 dynopay=$38.98 src=dynopay-rate invoice=$39.00 → credit=$39.00 (minor-underpayment)"}
+{"t":"2026-09-10T16:23:04.730458668Z","s":"info","m":"=== DYNOPAY WEBHOOK RECEIVED ==="}
+{"t":"2026-09-10T16:23:04.730463705Z","s":"info","m":"URL: nomadly-email-ivr-production.up.railway.app/dynopay/crypto-pay-domain"}
+{"t":"2026-09-10T16:23:04.736666664Z","s":"info","m":"[DynoPay] Duplicate webhook ignored (already claimed): payment_id 2263bd6a-166e-4c9f-8feb-8eebf541e422"}
+{"t":"2026-09-10T19:50:49.085267260Z","s":"info","m":"[DynoPay] processed-payment idempotency collection ready"}
+{"t":"2026-09-10T20:01:50.273577119Z","s":"info","m":"[DynoPay] processed-payment idempotency collection ready"}
+{"t":"2026-09-10T21:23:32.153564628Z","s":"info","m":"[DynoPay] processed-payment idempotency collection ready"}
+{"t":"2026-09-10T21:49:51.625644847Z","s":"info","m":"=== DYNOPAY WEBHOOK RECEIVED ==="}
+{"t":"2026-09-10T21:49:51.625651367Z","s":"info","m":"=== DYNOPAY WALLET WEBHOOK PROCESSING COMPLETE ==="}
+{"t":"2026-09-10T21:49:51.625654577Z","s":"info","m":"URL: nomadly-email-ivr-production.up.railway.app/dynopay/crypto-wallet"}
+{"t":"2026-09-10T21:49:51.625675277Z","s":"info","m":"[DynoPay] Stored payment_id → refId mapping: 4c0dd820-1076-4432-979c-1220515fb224 → 8SntY"}
+{"t":"2026-09-10T21:49:51.625687227Z","s":"info","m":"=== DYNOPAY WEBHOOK RECEIVED ==="}
+{"t":"2026-09-10T21:49:51.625691956Z","s":"info","m":"URL: nomadly-email-ivr-production.up.railway.app/dynopay/crypto-wallet"}
+{"t":"2026-09-10T21:49:51.625702046Z","s":"info","m":"[DynoPay] Skipping underpaid event — waiting for confirmed/settled (payment_id: 4c0dd820-1076-4432-979c-1220515fb224)"}
+{"t":"2026-09-10T21:49:51.625709676Z","s":"info","m":"=== DYNOPAY WEBHOOK RECEIVED ==="}
+{"t":"2026-09-10T21:49:51.625714206Z","s":"info","m":"URL: nomadly-email-ivr-production.up.railway.app/dynopay/crypto-wallet"}
+{"t":"2026-09-10T21:49:51.625776085Z","s":"info","m":"=== DYNOPAY WALLET WEBHOOK PROCESSING START ==="}
+{"t":"2026-09-10T21:49:52.301120317Z","s":"info","m":"=== DYNOPAY WEBHOOK RECEIVED ==="}
+{"t":"2026-09-10T21:49:52.301124127Z","s":"info","m":"URL: nomadly-email-ivr-production.up.railway.app/dynopay/crypto-wallet"}
+{"t":"2026-09-10T21:49:52.301134967Z","s":"info","m":"[DynoPay] Duplicate webhook ignored (already claimed): payment_id 4c0dd820-1076-4432-979c-1220515fb224"}
+{"t":"2026-09-10T23:02:52.720874473Z","s":"info","m":"=== DYNOPAY WEBHOOK RECEIVED ==="}
+{"t":"2026-09-10T23:02:52.720885693Z","s":"info","m":"URL: nomadly-email-ivr-production.up.railway.app/dynopay/crypto-wallet"}
+{"t":"2026-09-10T23:02:52.720894902Z","s":"info","m":"[DynoPay] Stored payment_id → refId mapping: db41660c-9089-42f6-a5eb-d254eb360e55 → sWSpc"}
+{"t":"2026-09-10T23:02:52.720903152Z","s":"info","m":"=== DYNOPAY WEBHOOK RECEIVED ==="}
+{"t":"2026-09-10T23:02:52.720908912Z","s":"info","m":"URL: nomadly-email-ivr-production.up.railway.app/dynopay/crypto-wallet"}
+{"t":"2026-09-10T23:02:52.720946102Z","s":"info","m":"=== DYNOPAY WALLET WEBHOOK PROCESSING START ==="}
+{"t":"2026-09-10T23:02:52.721116110Z","s":"info","m":"=== DYNOPAY WALLET WEBHOOK PROCESSING COMPLETE ==="}
+{"t":"2026-09-10T23:02:52.721120170Z","s":"info","m":"=== DYNOPAY WEBHOOK RECEIVED ==="}
+{"t":"2026-09-10T23:02:52.721123430Z","s":"info","m":"URL: nomadly-email-ivr-production.up.railway.app/dynopay/crypto-wallet"}
+{"t":"2026-09-10T23:02:52.721134300Z","s":"info","m":"[DynoPay] Duplicate webhook ignored (already claimed): payment_id db41660c-9089-42f6-a5eb-d254eb360e55"}
+{"t":"2026-09-10T23:13:57.434535571Z","s":"info","m":"[DynoPay] processed-payment idempotency collection ready"}
+{"t":"2026-09-10T23:17:33.719801341Z","s":"info","m":"[DynoPay] processed-payment idempotency collection ready"}
+{"t":"2026-09-11T00:00:24.050367934Z","s":"info","m":"=== DYNOPAY WEBHOOK RECEIVED ==="}
+{"t":"2026-09-11T00:00:24.050371754Z","s":"info","m":"URL: nomadly-email-ivr-production.up.railway.app/dynopay/crypto-pay-domain"}
+{"t":"2026-09-11T00:00:24.050379384Z","s":"info","m":"[DynoPay] Stored payment_id → refId mapping: d27e8c68-478b-42a5-b7a0-564cb62a6404 → fdYdO"}
+{"t":"2026-09-11T00:00:24.231177919Z","s":"info","m":"URL: nomadly-email-ivr-production.up.railway.app/dynopay/crypto-pay-domain"}
+{"t":"2026-09-11T00:00:24.231190618Z","s":"info","m":"[DynoPay] Skipping underpaid event — waiting for confirmed/settled (payment_id: d27e8c68-478b-42a5-b7a0-564cb62a6404)"}
+{"t":"2026-09-11T00:00:24.231223818Z","s":"info","m":"=== DYNOPAY WEBHOOK RECEIVED ==="}
+{"t":"2026-09-11T00:00:24.490599129Z","s":"info","m":"  method: 'dynopay/crypto-pay-domain',"}
+{"t":"2026-09-11T00:00:24.490611218Z","s":"info","m":"=== DYNOPAY WEBHOOK RECEIVED ==="}
+{"t":"2026-09-11T00:00:24.490618948Z","s":"info","m":"URL: nomadly-email-ivr-production.up.railway.app/dynopay/crypto-pay-domain"}
+{"t":"2026-09-11T00:00:25.052220126Z","s":"info","m":"[CryptoCredit] /dynopay/crypto-pay-domain: recv=0.0213092 ETH | blockbee=$51.94 dynopay=$51.93 src=dynopay-rate invoice=$52.00 → credit=$52.00 (minor-underpayment)"}
+{"t":"2026-09-11T00:00:43.883319307Z","s":"info","m":"=== DYNOPAY WEBHOOK RECEIVED ==="}
+{"t":"2026-09-11T00:00:43.883323697Z","s":"info","m":"URL: nomadly-email-ivr-production.up.railway.app/dynopay/crypto-pay-domain"}
+{"t":"2026-09-11T00:00:43.883337476Z","s":"info","m":"[DynoPay] Duplicate webhook ignored (already claimed): payment_id d27e8c68-478b-42a5-b7a0-564cb62a6404"}
+{"t":"2026-09-12T03:29:55.379153321Z","s":"info","m":"  • <code>cUEGi</code> $69 hosting rbc-verify.com (2178m ago, via dynopay)"}
+{"t":"2026-09-12T03:29:55.379167440Z","s":"info","m":"  • <code>9lyx3</code> $69 hosting royalbank-verification.com (2184m ago, via dynopay)"}
+{"t":"2026-09-12T18:11:35.391903044Z","s":"info","m":"=== DYNOPAY WEBHOOK RECEIVED ==="}
+{"t":"2026-09-12T18:11:35.391908053Z","s":"info","m":"URL: nomadly-email-ivr-production.up.railway.app/dynopay/crypto-wallet"}
+{"t":"2026-09-12T18:11:35.391914143Z","s":"info","m":"[DynoPay] Stored payment_id → refId mapping: 8d4d1068-fc96-401b-9be1-01abe88bb941 → HARJF"}
+{"t":"2026-09-12T18:11:35.391920623Z","s":"info","m":"=== DYNOPAY WEBHOOK RECEIVED ==="}
+{"t":"2026-09-12T18:11:35.391923873Z","s":"info","m":"URL: nomadly-email-ivr-production.up.railway.app/dynopay/crypto-wallet"}
+{"t":"2026-09-12T18:11:35.391943762Z","s":"info","m":"=== DYNOPAY WALLET WEBHOOK PROCESSING COMPLETE ==="}
+{"t":"2026-09-12T18:11:35.391967872Z","s":"info","m":"=== DYNOPAY WALLET WEBHOOK PROCESSING START ==="}
+{"t":"2026-09-12T18:11:40.661281677Z","s":"info","m":"=== DYNOPAY WEBHOOK RECEIVED ==="}
+{"t":"2026-09-12T18:11:40.661286497Z","s":"info","m":"URL: nomadly-email-ivr-production.up.railway.app/dynopay/crypto-wallet"}
+{"t":"2026-09-12T18:11:40.661294647Z","s":"info","m":"[DynoPay] Duplicate webhook ignored (already claimed): payment_id 8d4d1068-fc96-401b-9be1-01abe88bb941"}
+{"t":"2026-09-12T18:31:05.377648422Z","s":"info","m":"=== DYNOPAY WEBHOOK RECEIVED ==="}
+{"t":"2026-09-12T18:31:05.377657582Z","s":"info","m":"URL: nomadly-email-ivr-production.up.railway.app/dynopay/crypto-wallet"}
+{"t":"2026-09-12T18:31:05.377666932Z","s":"info","m":"[DynoPay] Stored payment_id → refId mapping: 2f2aea75-665d-4ac0-a57c-cf9fb2854dee → cytpk"}
+{"t":"2026-09-12T18:31:05.377676972Z","s":"info","m":"=== DYNOPAY WEBHOOK RECEIVED ==="}
+{"t":"2026-09-12T18:31:05.377682832Z","s":"info","m":"URL: nomadly-email-ivr-production.up.railway.app/dynopay/crypto-wallet"}
+{"t":"2026-09-12T18:31:05.377686241Z","s":"info","m":"=== DYNOPAY WALLET WEBHOOK PROCESSING START ==="}
+{"t":"2026-09-12T18:31:05.377856798Z","s":"info","m":"=== DYNOPAY WALLET WEBHOOK PROCESSING COMPLETE ==="}
+{"t":"2026-09-12T18:31:10.436722724Z","s":"info","m":"=== DYNOPAY WEBHOOK RECEIVED ==="}
+{"t":"2026-09-12T18:31:10.436732804Z","s":"info","m":"URL: nomadly-email-ivr-production.up.railway.app/dynopay/crypto-wallet"}
+{"t":"2026-09-12T18:31:10.439622609Z","s":"info","m":"[DynoPay] Duplicate webhook ignored (already claimed): payment_id 2f2aea75-665d-4ac0-a57c-cf9fb2854dee"}
+{"t":"2026-09-12T19:53:33.613763297Z","s":"info","m":"[DynoPay] processed-payment idempotency collection ready"}
+{"t":"2026-09-12T20:08:40.230832136Z","s":"info","m":"[DynoPay] processed-payment idempotency collection ready"}
+{"t":"2026-09-13T09:06:30.747552161Z","s":"info","m":"[DynoPay] processed-payment idempotency collection ready"}
+{"t":"2026-09-13T09:48:02.995311686Z","s":"info","m":"[DynoPay] processed-payment idempotency collection ready"}
+{"t":"2026-09-13T22:05:09.618431268Z","s":"info","m":"[DynoPay] processed-payment idempotency collection ready"}
+{"t":"2026-09-14T01:47:20.506831212Z","s":"info","m":"=== DYNOPAY WEBHOOK RECEIVED ==="}
+{"t":"2026-09-14T01:47:20.506836094Z","s":"info","m":"URL: nomadly-email-ivr-production.up.railway.app/dynopay/crypto-wallet"}
+{"t":"2026-09-14T01:47:20.506854043Z","s":"info","m":"[DynoPay] Stored payment_id → refId mapping: cb16d57c-e42b-4105-9a0d-5d92a2876f30 → 6x3kQ"}
+{"t":"2026-09-14T01:47:20.680745789Z","s":"info","m":"=== DYNOPAY WEBHOOK RECEIVED ==="}
+{"t":"2026-09-14T01:47:20.680760428Z","s":"info","m":"URL: nomadly-email-ivr-production.up.railway.app/dynopay/crypto-wallet"}
+{"t":"2026-09-14T01:47:20.680831843Z","s":"info","m":"=== DYNOPAY WALLET WEBHOOK PROCESSING START ==="}
+{"t":"2026-09-14T01:47:21.628960886Z","s":"info","m":"=== DYNOPAY WALLET WEBHOOK PROCESSING COMPLETE ==="}
+{"t":"2026-09-14T01:47:25.629312233Z","s":"info","m":"=== DYNOPAY WEBHOOK RECEIVED ==="}
+{"t":"2026-09-14T01:47:25.629317580Z","s":"info","m":"URL: nomadly-email-ivr-production.up.railway.app/dynopay/crypto-wallet"}
+{"t":"2026-09-14T01:47:25.629334865Z","s":"info","m":"[DynoPay] Duplicate webhook ignored (already claimed): payment_id cb16d57c-e42b-4105-9a0d-5d92a2876f30"}
+{"t":"2026-09-14T18:21:02.531184800Z","s":"info","m":"[CryptoFallback] DynoPay unavailable for wallet, falling back to BlockBee"}
+{"t":"2026-09-14T18:27:24.168277924Z","s":"info","m":"[DynoPay] processed-payment idempotency collection ready"}
+{"t":"2026-09-14T19:45:17.814162415Z","s":"info","m":"[DynoPay] processed-payment idempotency collection ready"}
+{"t":"2026-09-14T19:58:03.020211282Z","s":"info","m":"[DynoPay] processed-payment idempotency collection ready"}

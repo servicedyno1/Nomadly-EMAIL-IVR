@@ -1,0 +1,558 @@
+{"t":"2026-09-15T04:30:18.039888493Z","s":"info","m":"[AutoPromo]   ↳ failed chatId=8733350077 error=\"ETELEGRAM: 403 Forbidden: bot was blocked by the user\""}
+{"t":"2026-09-15T05:00:07.148027964Z","s":"error","m":"  error: 'invalid_client',"}
+{"t":"2026-09-15T05:00:07.148031234Z","s":"error","m":"  error_description: 'Invalid client or Invalid client credentials'"}
+{"t":"2026-09-15T05:10:03.860912625Z","s":"info","m":"[Twilio] cleanupOrphanDrafts: scanned=0 deleted=0 errors=0"}
+{"t":"2026-09-15T05:11:54.600619275Z","s":"info","m":"[ProtectionEnforcer] Total: 388 | Protected: 276 | Fixed: 0 | No Zone: 112 | Errors: 0 | DNS Cached: 122 | Zone Skipped: 0"}
+{"t":"2026-09-15T05:30:05.692940018Z","s":"error","m":"  error: 'invalid_client',"}
+{"t":"2026-09-15T05:30:05.692953837Z","s":"error","m":"  error_description: 'Invalid client or Invalid client credentials'"}
+{"t":"2026-09-15T06:00:06.670622746Z","s":"error","m":"  error: 'invalid_client',"}
+{"t":"2026-09-15T06:00:06.670625706Z","s":"error","m":"  error_description: 'Invalid client or Invalid client credentials'"}
+{"t":"2026-09-15T06:12:06.535341189Z","s":"info","m":"[ProtectionHeartbeat] Done in 3720.4s — total:15 ok:0 repaired:0 skipped:15 (whm_read_unreliable:15) errors:0"}
+{"t":"2026-09-15T06:30:00.591646113Z","s":"error","m":"  error: 'invalid_client',"}
+{"t":"2026-09-15T06:30:00.591653463Z","s":"error","m":"  error_description: 'Invalid client or Invalid client credentials'"}
+{"t":"2026-09-15T07:00:04.470621314Z","s":"error","m":"  error: 'invalid_client',"}
+{"t":"2026-09-15T07:00:04.470624074Z","s":"error","m":"  error_description: 'Invalid client or Invalid client credentials'"}
+{"t":"2026-09-15T07:30:04.479436044Z","s":"error","m":"  error: 'invalid_client',"}
+{"t":"2026-09-15T07:30:04.479439414Z","s":"error","m":"  error_description: 'Invalid client or Invalid client credentials'"}
+{"t":"2026-09-15T07:41:47.028720016Z","s":"error","m":"npm error path /app"}
+{"t":"2026-09-15T07:41:47.028727576Z","s":"error","m":"npm error command failed"}
+{"t":"2026-09-15T07:41:47.028731736Z","s":"error","m":"npm error signal SIGTERM"}
+{"t":"2026-09-15T07:41:47.028735546Z","s":"error","m":"npm error command sh -c node --max-old-space-size=2048 js/start-bot.js"}
+{"t":"2026-09-15T07:41:47.028740226Z","s":"error","m":"npm error A complete log of this run can be found in: /root/.npm/_logs/2026-09-14T23_09_53_804Z-debug-0.log"}
+{"t":"2026-09-15T07:43:46.776129729Z","s":"info","m":"[ProtectionEnforcer] Total: 388 | Protected: 276 | Fixed: 0 | No Zone: 112 | Errors: 0 | DNS Cached: 121 | Zone Skipped: 0"}
+{"t":"2026-09-15T08:00:00.602334480Z","s":"error","m":"  error: 'invalid_client',"}
+{"t":"2026-09-15T08:00:00.602339130Z","s":"error","m":"  error_description: 'Invalid client or Invalid client credentials'"}
+{"t":"2026-09-15T08:01:37.281727207Z","s":"info","m":"[Twilio] cleanupOrphanDrafts: scanned=0 deleted=0 errors=0"}
+{"t":"2026-09-15T08:30:00.671030829Z","s":"error","m":"  error: 'invalid_client',"}
+{"t":"2026-09-15T08:30:00.671034099Z","s":"error","m":"  error_description: 'Invalid client or Invalid client credentials'"}
+{"t":"2026-09-15T08:45:44.782499442Z","s":"info","m":"[ProtectionHeartbeat] Done in 3720.5s — total:15 ok:0 repaired:0 skipped:15 (whm_read_unreliable:15) errors:0"}
+{"t":"2026-09-15T08:56:38.552126900Z","s":"info","m":"[cPanel Health] license check error: socket hang up"}
+{"t":"2026-09-15T08:56:58.558300553Z","s":"info","m":"[cPanel Health] license check error: socket hang up"}
+{"t":"2026-09-15T09:00:08.608149402Z","s":"error","m":"  error: 'invalid_client',"}
+{"t":"2026-09-15T09:00:08.608151642Z","s":"error","m":"  error_description: 'Invalid client or Invalid client credentials'"}
+{"t":"2026-09-15T09:00:30.814467374Z","s":"info","m":"[AutoPromo] OpenAI error for antired_hosting/fr: 429 You have no credits remaining. Add credits to continue using the API at https://platform.openai.com/settings/organization/billing/."}
+{"t":"2026-09-15T09:01:04.672453329Z","s":"info","m":"[AutoPromo] Done: {\"theme\":\"antired_hosting\",\"lang\":\"fr\",\"slot\":\"morning\",\"variation\":3,\"usedAI\":false,\"total\":32,\"success\":27,\"errors\":5,\"skipped\":0,\"errorBreakdown\":{\"ETELEGRAM\":5},\"timestamp\":\"2026-09-15T09:00:54.757Z\",\"sentAt\":\"2026-09-15T09:00:54.757Z\",\"diet\":{\"cap\":0,\"welcome\":1,\"balanceWall\":1},\"liftStartCount\":0,\"liftHubTapCount\":0,\"liftUserIds\":[],\"liftWindowMs\":2700000,\"liftEvaluated\":false}"}
+{"t":"2026-09-15T09:01:04.672458599Z","s":"info","m":"[AutoPromo] Error breakdown for antired_hosting/fr/morning: ETELEGRAM=5"}
+{"t":"2026-09-15T09:01:04.672462459Z","s":"info","m":"[AutoPromo]   ↳ failed chatId=1873399997 error=\"ETELEGRAM: 403 Forbidden: bot was blocked by the user\""}
+{"t":"2026-09-15T09:01:04.672465709Z","s":"info","m":"[AutoPromo]   ↳ failed chatId=6474590449 error=\"ETELEGRAM: 403 Forbidden: bot was blocked by the user\""}
+{"t":"2026-09-15T09:01:04.672468699Z","s":"info","m":"[AutoPromo]   ↳ failed chatId=8365304678 error=\"ETELEGRAM: 403 Forbidden: bot was blocked by the user\""}
+{"t":"2026-09-15T09:01:04.672471139Z","s":"info","m":"[AutoPromo]   ↳ failed chatId=1125405900 error=\"ETELEGRAM: 403 Forbidden: bot was blocked by the user\""}
+{"t":"2026-09-15T09:01:04.672473909Z","s":"info","m":"[AutoPromo]   ↳ failed chatId=1185746700 error=\"ETELEGRAM: 403 Forbidden: bot was blocked by the user\""}
+{"t":"2026-09-15T09:30:00.651684148Z","s":"error","m":"  error: 'invalid_client',"}
+{"t":"2026-09-15T09:30:00.651687248Z","s":"error","m":"  error_description: 'Invalid client or Invalid client credentials'"}
+{"t":"2026-09-15T10:00:01.217725694Z","s":"error","m":"  error: 'invalid_client',"}
+{"t":"2026-09-15T10:00:01.217728424Z","s":"error","m":"  error_description: 'Invalid client or Invalid client credentials'"}
+{"t":"2026-09-15T10:00:21.114019466Z","s":"info","m":"[AutoPromo] OpenAI error for antired_hosting/en: 429 You have no credits remaining. Add credits to continue using the API at https://platform.openai.com/settings/organization/billing/."}
+{"t":"2026-09-15T10:08:11.305496139Z","s":"info","m":"[AutoPromo]   ↳ failed chatId=7153699847 error=\"ETELEGRAM: 403 Forbidden: bot was blocked by the user\""}
+{"t":"2026-09-15T10:08:11.305513259Z","s":"info","m":"[AutoPromo]   ↳ failed chatId=7080940684 error=\"ETELEGRAM: 403 Forbidden: bot was blocked by the user\""}
+{"t":"2026-09-15T10:08:11.305519529Z","s":"info","m":"[AutoPromo]   ↳ failed chatId=6705277278 error=\"ETELEGRAM: 403 Forbidden: bot was blocked by the user\""}
+{"t":"2026-09-15T10:08:11.305529438Z","s":"info","m":"[AutoPromo]   ↳ failed chatId=5499846618 error=\"ETELEGRAM: 403 Forbidden: bot was blocked by the user\""}
+{"t":"2026-09-15T10:08:11.305534928Z","s":"info","m":"[AutoPromo]   ↳ failed chatId=8227698477 error=\"ETELEGRAM: 403 Forbidden: bot was blocked by the user\""}
+{"t":"2026-09-15T10:08:11.305599888Z","s":"info","m":"[AutoPromo] Done: {\"theme\":\"antired_hosting\",\"lang\":\"en\",\"slot\":\"morning\",\"variation\":3,\"usedAI\":false,\"total\":723,\"success\":657,\"errors\":62,\"skipped\":4,\"errorBreakdown\":{\"ETELEGRAM\":62},\"timestamp\":\"2026-09-15T10:08:11.187Z\",\"sentAt\":\"2026-09-15T10:08:11.187Z\",\"diet\":{\"cap\":0,\"welcome\":9,\"balanceWall\":39},\"liftStartCount\":0,\"liftHubTapCount\":0,\"liftUserIds\":[],\"liftWindowMs\":2700000,\"liftEvaluated\":false}"}
+{"t":"2026-09-15T10:08:11.305602308Z","s":"info","m":"[AutoPromo] Error breakdown for antired_hosting/en/morning: ETELEGRAM=62"}
+{"t":"2026-09-15T10:08:11.305605028Z","s":"info","m":"[AutoPromo]   ↳ failed chatId=8583207407 error=\"ETELEGRAM: 403 Forbidden: bot was blocked by the user\""}
+{"t":"2026-09-15T10:08:11.305607818Z","s":"info","m":"[AutoPromo]   ↳ failed chatId=8571206732 error=\"ETELEGRAM: 403 Forbidden: bot was blocked by the user\""}
+{"t":"2026-09-15T10:08:11.305610408Z","s":"info","m":"[AutoPromo]   ↳ failed chatId=6622198745 error=\"ETELEGRAM: 403 Forbidden: bot was blocked by the user\""}
+{"t":"2026-09-15T10:08:11.305613518Z","s":"info","m":"[AutoPromo]   ↳ failed chatId=2134337702 error=\"ETELEGRAM: 403 Forbidden: bot was blocked by the user\""}
+{"t":"2026-09-15T10:08:11.305616158Z","s":"info","m":"[AutoPromo]   ↳ failed chatId=7001762019 error=\"ETELEGRAM: 403 Forbidden: bot was blocked by the user\""}
+{"t":"2026-09-15T10:30:10.628003244Z","s":"error","m":"  error: 'invalid_client',"}
+{"t":"2026-09-15T10:30:10.628005944Z","s":"error","m":"  error_description: 'Invalid client or Invalid client credentials'"}
+{"t":"2026-09-15T10:43:37.383514140Z","s":"info","m":"[ProtectionHeartbeat] Done in 3720.5s — total:15 ok:0 repaired:0 skipped:15 (whm_read_unreliable:15) errors:0"}
+{"t":"2026-09-15T10:59:10.609966523Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-15T11:00:00.116117019Z","s":"info","m":"[LowBalanceNudge] Cycle complete — scanned:1 sent:0 skipped:1 errors:0"}
+{"t":"2026-09-15T11:00:00.620133294Z","s":"error","m":"  error: 'invalid_client',"}
+{"t":"2026-09-15T11:00:00.620137934Z","s":"error","m":"  error_description: 'Invalid client or Invalid client credentials'"}
+{"t":"2026-09-15T11:30:00.588440594Z","s":"error","m":"  error: 'invalid_client',"}
+{"t":"2026-09-15T11:30:00.588444454Z","s":"error","m":"  error_description: 'Invalid client or Invalid client credentials'"}
+{"t":"2026-09-15T12:00:00.677106477Z","s":"error","m":"  error: 'invalid_client',"}
+{"t":"2026-09-15T12:00:00.677109817Z","s":"error","m":"  error_description: 'Invalid client or Invalid client credentials'"}
+{"t":"2026-09-15T12:30:09.440789819Z","s":"error","m":"  error: 'invalid_client',"}
+{"t":"2026-09-15T12:30:09.440796079Z","s":"error","m":"  error_description: 'Invalid client or Invalid client credentials'"}
+{"t":"2026-09-15T12:43:43.817815452Z","s":"info","m":"[ProtectionHeartbeat] Done in 3720.5s — total:15 ok:0 repaired:0 skipped:15 (whm_read_unreliable:15) errors:0"}
+{"t":"2026-09-15T13:00:00.649309522Z","s":"error","m":"  error: 'invalid_client',"}
+{"t":"2026-09-15T13:00:00.649313952Z","s":"error","m":"  error_description: 'Invalid client or Invalid client credentials'"}
+{"t":"2026-09-15T13:30:00.600084335Z","s":"error","m":"  error: 'invalid_client',"}
+{"t":"2026-09-15T13:30:00.600087615Z","s":"error","m":"  error_description: 'Invalid client or Invalid client credentials'"}
+{"t":"2026-09-15T13:30:20.633383469Z","s":"info","m":"[AutoPromo] Done: {\"theme\":\"email_validation\",\"lang\":\"hi\",\"slot\":\"evening\",\"variation\":3,\"usedAI\":false,\"total\":2,\"success\":0,\"errors\":2,\"skipped\":0,\"errorBreakdown\":{\"ETELEGRAM\":2},\"timestamp\":\"2026-09-15T13:30:18.753Z\",\"sentAt\":\"2026-09-15T13:30:18.753Z\",\"diet\":{\"cap\":0,\"welcome\":0,\"balanceWall\":0},\"liftStartCount\":0,\"liftHubTapCount\":0,\"liftUserIds\":[],\"liftWindowMs\":2700000,\"liftEvaluated\":false}"}
+{"t":"2026-09-15T13:30:20.633386568Z","s":"info","m":"[AutoPromo] Error breakdown for email_validation/hi/evening: ETELEGRAM=2"}
+{"t":"2026-09-15T13:30:20.633389498Z","s":"info","m":"[AutoPromo]   ↳ failed chatId=5165954611 error=\"ETELEGRAM: 403 Forbidden: bot was blocked by the user\""}
+{"t":"2026-09-15T13:30:20.633392418Z","s":"info","m":"[AutoPromo]   ↳ failed chatId=8733350077 error=\"ETELEGRAM: 403 Forbidden: bot was blocked by the user\""}
+{"t":"2026-09-15T13:41:37.230303472Z","s":"info","m":"[Twilio] cleanupOrphanDrafts: scanned=0 deleted=0 errors=0"}
+{"t":"2026-09-15T13:43:31.977943485Z","s":"info","m":"[ProtectionEnforcer] Total: 389 | Protected: 276 | Fixed: 0 | No Zone: 113 | Errors: 0 | DNS Cached: 115 | Zone Skipped: 0"}
+{"t":"2026-09-15T14:00:00.373618775Z","s":"error","m":"  error: 'invalid_client',"}
+{"t":"2026-09-15T14:00:00.373623615Z","s":"error","m":"  error_description: 'Invalid client or Invalid client credentials'"}
+{"t":"2026-09-15T14:15:01.070246587Z","s":"info","m":"[HostingUpgradeNudge] Cycle complete — scanned:10 sent:1 errors:0"}
+{"t":"2026-09-15T14:30:01.532604183Z","s":"error","m":"  error: 'invalid_client',"}
+{"t":"2026-09-15T14:30:01.532610683Z","s":"error","m":"  error_description: 'Invalid client or Invalid client credentials'"}
+{"t":"2026-09-15T14:43:37.471420867Z","s":"info","m":"[ProtectionHeartbeat] Done in 3720.6s — total:15 ok:0 repaired:0 skipped:15 (whm_read_unreliable:15) errors:0"}
+{"t":"2026-09-15T15:00:03.571327810Z","s":"error","m":"  error: 'invalid_client',"}
+{"t":"2026-09-15T15:00:03.571331160Z","s":"error","m":"  error_description: 'Invalid client or Invalid client credentials'"}
+{"t":"2026-09-15T15:30:09.603408466Z","s":"error","m":"  error: 'invalid_client',"}
+{"t":"2026-09-15T15:30:09.603415036Z","s":"error","m":"  error_description: 'Invalid client or Invalid client credentials'"}
+{"t":"2026-09-15T16:00:05.793282763Z","s":"error","m":"  error: 'invalid_client',"}
+{"t":"2026-09-15T16:00:05.793286513Z","s":"error","m":"  error_description: 'Invalid client or Invalid client credentials'"}
+{"t":"2026-09-15T16:01:54.905596049Z","s":"info","m":"OP updateNameservers error for rbc-verify.com: Request failed with status code 500 | desc: An error has occurred; for more details, please refer to the registry message below. For more information please check https://openprovider.help/books/quick-start/page/whoops-an-error-has-occurred  | full: {\"desc\":\"An error has occurred; for more details, please refer to the registry message below. For more information please check https://openprovider.help/books/quick-start/page/whoops-an-error-has-occurred\",\"code\":399,\"data\":\"Unexpected response from the registry EPP server: 2308, Domain is not active, or does not belong to this user\"}"}
+{"t":"2026-09-15T16:11:50.903534765Z","s":"info","m":"OP updateNameservers error for rbc-verify.com: Request failed with status code 500 | desc: An error has occurred; for more details, please refer to the registry message below. For more information please check https://openprovider.help/books/quick-start/page/whoops-an-error-has-occurred  | full: {\"desc\":\"An error has occurred; for more details, please refer to the registry message below. For more information please check https://openprovider.help/books/quick-start/page/whoops-an-error-has-occurred\",\"code\":399,\"data\":\"Unexpected response from the registry EPP server: 2308, Domain is not active, or does not belong to this user\"}"}
+{"t":"2026-09-15T16:26:50.070752310Z","s":"info","m":"OP updateNameservers error for rbc-verify.com: Request failed with status code 500 | desc: An error has occurred; for more details, please refer to the registry message below. For more information please check https://openprovider.help/books/quick-start/page/whoops-an-error-has-occurred  | full: {\"desc\":\"An error has occurred; for more details, please refer to the registry message below. For more information please check https://openprovider.help/books/quick-start/page/whoops-an-error-has-occurred\",\"code\":399,\"data\":\"Unexpected response from the registry EPP server: 2308, Domain is not active, or does not belong to this user\"}"}
+{"t":"2026-09-15T16:30:10.198329653Z","s":"error","m":"  error: 'invalid_client',"}
+{"t":"2026-09-15T16:30:10.198335953Z","s":"error","m":"  error_description: 'Invalid client or Invalid client credentials'"}
+{"t":"2026-09-15T16:43:41.205231953Z","s":"info","m":"[ProtectionHeartbeat] Done in 3720.6s — total:15 ok:0 repaired:0 skipped:15 (whm_read_unreliable:15) errors:0"}
+{"t":"2026-09-15T17:00:01.690998243Z","s":"error","m":"  error: 'invalid_client',"}
+{"t":"2026-09-15T17:00:01.691001073Z","s":"error","m":"  error_description: 'Invalid client or Invalid client credentials'"}
+{"t":"2026-09-15T17:30:01.092623698Z","s":"error","m":"  error: 'invalid_client',"}
+{"t":"2026-09-15T17:30:01.092627118Z","s":"error","m":"  error_description: 'Invalid client or Invalid client credentials'"}
+{"t":"2026-09-15T18:00:05.539748444Z","s":"error","m":"  error: 'invalid_client',"}
+{"t":"2026-09-15T18:00:05.539752544Z","s":"error","m":"  error_description: 'Invalid client or Invalid client credentials'"}
+{"t":"2026-09-15T18:00:27.103927698Z","s":"info","m":"[AntiRed] Worker auto-deploy error for client-pnc-auth09resolvedesk.click: Request failed with status code 403 (HTTP 403 — likely stale CF zone)"}
+{"t":"2026-09-15T18:00:41.134036900Z","s":"info","m":"[AutoPromo] Done: {\"theme\":\"email_validation\",\"lang\":\"fr\",\"slot\":\"evening\",\"variation\":2,\"usedAI\":false,\"total\":5,\"success\":0,\"errors\":5,\"skipped\":0,\"errorBreakdown\":{\"ETELEGRAM\":5},\"timestamp\":\"2026-09-15T18:00:37.219Z\",\"sentAt\":\"2026-09-15T18:00:37.219Z\",\"diet\":{\"cap\":27,\"welcome\":1,\"balanceWall\":1},\"liftStartCount\":0,\"liftHubTapCount\":0,\"liftUserIds\":[],\"liftWindowMs\":2700000,\"liftEvaluated\":false}"}
+{"t":"2026-09-15T18:00:41.134041790Z","s":"info","m":"[AutoPromo] Error breakdown for email_validation/fr/evening: ETELEGRAM=5"}
+{"t":"2026-09-15T18:00:41.134046630Z","s":"info","m":"[AutoPromo]   ↳ failed chatId=1873399997 error=\"ETELEGRAM: 403 Forbidden: bot was blocked by the user\""}
+{"t":"2026-09-15T18:00:41.134051670Z","s":"info","m":"[AutoPromo]   ↳ failed chatId=6474590449 error=\"ETELEGRAM: 403 Forbidden: bot was blocked by the user\""}
+{"t":"2026-09-15T18:00:41.134056300Z","s":"info","m":"[AutoPromo]   ↳ failed chatId=8365304678 error=\"ETELEGRAM: 403 Forbidden: bot was blocked by the user\""}
+{"t":"2026-09-15T18:00:41.134061850Z","s":"info","m":"[AutoPromo]   ↳ failed chatId=1125405900 error=\"ETELEGRAM: 403 Forbidden: bot was blocked by the user\""}
+{"t":"2026-09-15T18:00:41.134067810Z","s":"info","m":"[AutoPromo]   ↳ failed chatId=1185746700 error=\"ETELEGRAM: 403 Forbidden: bot was blocked by the user\""}
+{"t":"2026-09-15T18:30:00.865960648Z","s":"error","m":"  error: 'invalid_client',"}
+{"t":"2026-09-15T18:30:00.865965478Z","s":"error","m":"  error_description: 'Invalid client or Invalid client credentials'"}
+{"t":"2026-09-15T18:43:40.836860444Z","s":"info","m":"[ProtectionHeartbeat] Done in 3720.6s — total:15 ok:0 repaired:0 skipped:15 (whm_read_unreliable:15) errors:0"}
+{"t":"2026-09-15T19:00:01.181901000Z","s":"error","m":"  error: 'invalid_client',"}
+{"t":"2026-09-15T19:00:01.181907380Z","s":"error","m":"  error_description: 'Invalid client or Invalid client credentials'"}
+{"t":"2026-09-15T19:00:52.454961252Z","s":"info","m":"[AutoPromo] Done: {\"theme\":\"email_validation\",\"lang\":\"en\",\"slot\":\"evening\",\"variation\":2,\"usedAI\":false,\"total\":68,\"success\":2,\"errors\":62,\"skipped\":4,\"errorBreakdown\":{\"ETELEGRAM\":62},\"timestamp\":\"2026-09-15T19:00:52.452Z\",\"sentAt\":\"2026-09-15T19:00:52.452Z\",\"diet\":{\"cap\":657,\"welcome\":7,\"balanceWall\":39},\"liftStartCount\":0,\"liftHubTapCount\":0,\"liftUserIds\":[],\"liftWindowMs\":2700000,\"liftEvaluated\":false}"}
+{"t":"2026-09-15T19:00:52.454964492Z","s":"info","m":"[AutoPromo] Error breakdown for email_validation/en/evening: ETELEGRAM=62"}
+{"t":"2026-09-15T19:00:52.454967232Z","s":"info","m":"[AutoPromo]   ↳ failed chatId=8583207407 error=\"ETELEGRAM: 403 Forbidden: bot was blocked by the user\""}
+{"t":"2026-09-15T19:00:52.454969932Z","s":"info","m":"[AutoPromo]   ↳ failed chatId=8571206732 error=\"ETELEGRAM: 403 Forbidden: bot was blocked by the user\""}
+{"t":"2026-09-15T19:00:52.454972592Z","s":"info","m":"[AutoPromo]   ↳ failed chatId=6622198745 error=\"ETELEGRAM: 403 Forbidden: bot was blocked by the user\""}
+{"t":"2026-09-15T19:00:52.454975132Z","s":"info","m":"[AutoPromo]   ↳ failed chatId=2134337702 error=\"ETELEGRAM: 403 Forbidden: bot was blocked by the user\""}
+{"t":"2026-09-15T19:00:52.454978842Z","s":"info","m":"[AutoPromo]   ↳ failed chatId=7001762019 error=\"ETELEGRAM: 403 Forbidden: bot was blocked by the user\""}
+{"t":"2026-09-15T19:00:52.454981462Z","s":"info","m":"[AutoPromo]   ↳ failed chatId=7153699847 error=\"ETELEGRAM: 403 Forbidden: bot was blocked by the user\""}
+{"t":"2026-09-15T19:00:52.454983812Z","s":"info","m":"[AutoPromo]   ↳ failed chatId=7080940684 error=\"ETELEGRAM: 403 Forbidden: bot was blocked by the user\""}
+{"t":"2026-09-15T19:00:52.454986332Z","s":"info","m":"[AutoPromo]   ↳ failed chatId=6705277278 error=\"ETELEGRAM: 403 Forbidden: bot was blocked by the user\""}
+{"t":"2026-09-15T19:00:52.454989122Z","s":"info","m":"[AutoPromo]   ↳ failed chatId=5499846618 error=\"ETELEGRAM: 403 Forbidden: bot was blocked by the user\""}
+{"t":"2026-09-15T19:00:52.454991462Z","s":"info","m":"[AutoPromo]   ↳ failed chatId=8227698477 error=\"ETELEGRAM: 403 Forbidden: bot was blocked by the user\""}
+{"t":"2026-09-15T19:30:01.186425823Z","s":"error","m":"  error: 'invalid_client',"}
+{"t":"2026-09-15T19:30:01.186430383Z","s":"error","m":"  error_description: 'Invalid client or Invalid client credentials'"}
+{"t":"2026-09-15T19:41:37.251751658Z","s":"info","m":"[Twilio] cleanupOrphanDrafts: scanned=0 deleted=0 errors=0"}
+{"t":"2026-09-15T19:43:38.654833510Z","s":"info","m":"[ProtectionEnforcer] Total: 389 | Protected: 275 | Fixed: 0 | No Zone: 114 | Errors: 0 | DNS Cached: 120 | Zone Skipped: 0"}
+{"t":"2026-09-15T20:00:01.026328115Z","s":"error","m":"  error: 'invalid_client',"}
+{"t":"2026-09-15T20:00:01.026331275Z","s":"error","m":"  error_description: 'Invalid client or Invalid client credentials'"}
+{"t":"2026-09-15T20:13:19.607258595Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-15T20:13:19.607263085Z","s":"info","m":"OP checkDomainAvailability error: Request failed with status code 500"}
+{"t":"2026-09-15T20:13:19.608855519Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-15T20:13:19.608857959Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-15T20:13:19.608860209Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-15T20:13:19.608862299Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-15T20:13:19.608864779Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-15T20:13:19.608866989Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-15T20:13:19.608869369Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-15T20:13:19.609929478Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-15T20:13:19.609932308Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-15T20:13:19.609934928Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-15T20:13:19.609937558Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-15T20:13:19.609939828Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-15T20:13:40.696754085Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-15T20:17:35.395690176Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-15T20:27:05.964823422Z","s":"info","m":"These are <b>NOT</b> single-line softphones — they're built for outbound campaigns and expect a <b>SIP TRUNK</b>. If you added the credentials as a \"SIP Account\" / \"Extension\", you'll see registration errors (401/403) or calls that connect but drop instantly. Switch the account type to <b>SIP Trunk</b> and use the same domain / port / username / password."}
+{"t":"2026-09-15T20:30:05.984650776Z","s":"error","m":"  error: 'invalid_client',"}
+{"t":"2026-09-15T20:30:05.984653936Z","s":"error","m":"  error_description: 'Invalid client or Invalid client credentials'"}
+{"t":"2026-09-15T20:43:45.382388919Z","s":"info","m":"[ProtectionHeartbeat] Done in 3720.5s — total:15 ok:0 repaired:0 skipped:15 (whm_read_unreliable:15) errors:0"}
+{"t":"2026-09-15T21:00:00.942488415Z","s":"error","m":"  error: 'invalid_client',"}
+{"t":"2026-09-15T21:00:00.942492885Z","s":"error","m":"  error_description: 'Invalid client or Invalid client credentials'"}
+{"t":"2026-09-15T21:30:05.073112188Z","s":"error","m":"  error: 'invalid_client',"}
+{"t":"2026-09-15T21:30:05.073115148Z","s":"error","m":"  error_description: 'Invalid client or Invalid client credentials'"}
+{"t":"2026-09-15T22:00:01.311963710Z","s":"error","m":"  error: 'invalid_client',"}
+{"t":"2026-09-15T22:00:01.311967970Z","s":"error","m":"  error_description: 'Invalid client or Invalid client credentials'"}
+{"t":"2026-09-15T22:26:21.355716833Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-15T22:26:21.356240138Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-15T22:26:21.356245228Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-15T22:26:21.356246278Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-15T22:26:21.356249408Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-15T22:26:21.356250008Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-15T22:26:21.356255348Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-15T22:26:21.356257788Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-15T22:26:21.356260848Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-15T22:26:21.356263448Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-15T22:26:21.357478456Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-15T22:26:21.357488156Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-15T22:26:21.357493786Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-15T22:27:57.665040862Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-15T22:27:57.665746135Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-15T22:27:57.665748545Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-15T22:27:57.665751285Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-15T22:27:57.665753875Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-15T22:27:57.665756915Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-15T22:27:57.665759375Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-15T22:27:57.665761705Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-15T22:27:57.665763895Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-15T22:27:57.665766135Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-15T22:27:57.666697056Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-15T22:27:57.666702796Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-15T22:27:57.666706856Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-15T22:29:07.672009507Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-15T22:30:00.609228629Z","s":"error","m":"  error: 'invalid_client',"}
+{"t":"2026-09-15T22:30:00.609232359Z","s":"error","m":"  error_description: 'Invalid client or Invalid client credentials'"}
+{"t":"2026-09-15T22:41:01.043212164Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-15T22:41:35.257146919Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-15T22:41:36.464346260Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-15T22:41:36.713638307Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-15T22:41:36.713642797Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-15T22:41:36.713646526Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-15T22:41:36.713651336Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-15T22:41:36.713667286Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-15T22:41:36.713671676Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-15T22:41:36.713675886Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-15T22:41:36.713680206Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-15T22:41:36.713684106Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-15T22:41:36.713687946Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-15T22:41:36.715657172Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-15T22:41:55.932797229Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-15T22:43:43.961867928Z","s":"info","m":"[ProtectionHeartbeat] Done in 3720.4s — total:15 ok:0 repaired:0 skipped:15 (whm_read_unreliable:15) errors:0"}
+{"t":"2026-09-15T23:00:01.649477850Z","s":"error","m":"  error: 'invalid_client',"}
+{"t":"2026-09-15T23:00:01.649481320Z","s":"error","m":"  error_description: 'Invalid client or Invalid client credentials'"}
+{"t":"2026-09-15T23:30:01.295688947Z","s":"error","m":"  error: 'invalid_client',"}
+{"t":"2026-09-15T23:30:01.295692057Z","s":"error","m":"  error_description: 'Invalid client or Invalid client credentials'"}
+{"t":"2026-09-16T00:00:08.067300119Z","s":"error","m":"  error: 'invalid_client',"}
+{"t":"2026-09-16T00:00:08.067302739Z","s":"error","m":"  error_description: 'Invalid client or Invalid client credentials'"}
+{"t":"2026-09-16T00:30:00.638344996Z","s":"error","m":"  error: 'invalid_client',"}
+{"t":"2026-09-16T00:30:00.638348376Z","s":"error","m":"  error_description: 'Invalid client or Invalid client credentials'"}
+{"t":"2026-09-16T00:43:37.470062448Z","s":"info","m":"[ProtectionHeartbeat] Done in 3720.4s — total:15 ok:0 repaired:0 skipped:15 (whm_read_unreliable:15) errors:0"}
+{"t":"2026-09-16T01:00:07.163039052Z","s":"error","m":"  error: 'invalid_client',"}
+{"t":"2026-09-16T01:00:07.163052692Z","s":"error","m":"  error_description: 'Invalid client or Invalid client credentials'"}
+{"t":"2026-09-16T01:30:00.591902432Z","s":"error","m":"  error: 'invalid_client',"}
+{"t":"2026-09-16T01:30:00.591906361Z","s":"error","m":"  error_description: 'Invalid client or Invalid client credentials'"}
+{"t":"2026-09-16T01:41:38.087881979Z","s":"info","m":"[Twilio] cleanupOrphanDrafts: scanned=0 deleted=0 errors=0"}
+{"t":"2026-09-16T01:46:51.855899996Z","s":"info","m":"[ProtectionEnforcer] Total: 389 | Protected: 275 | Fixed: 0 | No Zone: 114 | Errors: 0 | DNS Cached: 118 | Zone Skipped: 0"}
+{"t":"2026-09-16T02:00:08.545223833Z","s":"error","m":"  error: 'invalid_client',"}
+{"t":"2026-09-16T02:00:08.545227853Z","s":"error","m":"  error_description: 'Invalid client or Invalid client credentials'"}
+{"t":"2026-09-16T02:30:03.863365060Z","s":"error","m":"  error: 'invalid_client',"}
+{"t":"2026-09-16T02:30:03.863368750Z","s":"error","m":"  error_description: 'Invalid client or Invalid client credentials'"}
+{"t":"2026-09-16T02:43:43.627073039Z","s":"info","m":"[ProtectionHeartbeat] Done in 3720.5s — total:15 ok:0 repaired:0 skipped:15 (whm_read_unreliable:15) errors:0"}
+{"t":"2026-09-16T03:00:07.991932056Z","s":"error","m":"  error: 'invalid_client',"}
+{"t":"2026-09-16T03:00:07.991936456Z","s":"error","m":"  error_description: 'Invalid client or Invalid client credentials'"}
+{"t":"2026-09-16T03:30:02.426218418Z","s":"error","m":"  error: 'invalid_client',"}
+{"t":"2026-09-16T03:30:02.426221968Z","s":"error","m":"  error_description: 'Invalid client or Invalid client credentials'"}
+{"t":"2026-09-16T03:34:30.104166731Z","s":"info","m":"  ERROR                             : 0"}
+{"t":"2026-09-16T04:00:10.330127328Z","s":"error","m":"  error: 'invalid_client',"}
+{"t":"2026-09-16T04:00:10.330135868Z","s":"error","m":"  error_description: 'Invalid client or Invalid client credentials'"}
+{"t":"2026-09-16T04:30:01.494732559Z","s":"error","m":"  error: 'invalid_client',"}
+{"t":"2026-09-16T04:30:01.494736599Z","s":"error","m":"  error_description: 'Invalid client or Invalid client credentials'"}
+{"t":"2026-09-16T04:30:15.904693246Z","s":"info","m":"[AutoPromo] Done: {\"theme\":\"vps_rdp\",\"lang\":\"hi\",\"slot\":\"morning\",\"variation\":\"ai\",\"usedAI\":true,\"total\":2,\"success\":0,\"errors\":2,\"skipped\":0,\"errorBreakdown\":{\"ETELEGRAM\":2},\"timestamp\":\"2026-09-16T04:30:15.900Z\",\"sentAt\":\"2026-09-16T04:30:15.900Z\",\"diet\":{\"cap\":0,\"welcome\":0,\"balanceWall\":0},\"liftStartCount\":0,\"liftHubTapCount\":0,\"liftUserIds\":[],\"liftWindowMs\":2700000,\"liftEvaluated\":false}"}
+{"t":"2026-09-16T04:30:15.904696416Z","s":"info","m":"[AutoPromo] Error breakdown for vps_rdp/hi/morning: ETELEGRAM=2"}
+{"t":"2026-09-16T04:30:15.904699806Z","s":"info","m":"[AutoPromo]   ↳ failed chatId=5165954611 error=\"ETELEGRAM: 403 Forbidden: bot was blocked by the user\""}
+{"t":"2026-09-16T04:30:15.904702686Z","s":"info","m":"[AutoPromo]   ↳ failed chatId=8733350077 error=\"ETELEGRAM: 403 Forbidden: bot was blocked by the user\""}
+{"t":"2026-09-16T04:43:44.541346471Z","s":"info","m":"[ProtectionHeartbeat] Done in 3720.4s — total:15 ok:0 repaired:0 skipped:15 (whm_read_unreliable:15) errors:0"}
+{"t":"2026-09-16T05:00:01.326537509Z","s":"error","m":"  error: 'invalid_client',"}
+{"t":"2026-09-16T05:00:01.326540289Z","s":"error","m":"  error_description: 'Invalid client or Invalid client credentials'"}
+{"t":"2026-09-16T05:30:08.930207236Z","s":"error","m":"  error: 'invalid_client',"}
+{"t":"2026-09-16T05:30:08.930211416Z","s":"error","m":"  error_description: 'Invalid client or Invalid client credentials'"}
+{"t":"2026-09-16T06:00:00.628505784Z","s":"error","m":"  error: 'invalid_client',"}
+{"t":"2026-09-16T06:00:00.628509364Z","s":"error","m":"  error_description: 'Invalid client or Invalid client credentials'"}
+{"t":"2026-09-16T06:30:01.927552855Z","s":"error","m":"  error: 'invalid_client',"}
+{"t":"2026-09-16T06:30:01.927558675Z","s":"error","m":"  error_description: 'Invalid client or Invalid client credentials'"}
+{"t":"2026-09-16T06:43:42.098850474Z","s":"info","m":"[ProtectionHeartbeat] Done in 3720.4s — total:15 ok:0 repaired:0 skipped:15 (whm_read_unreliable:15) errors:0"}
+{"t":"2026-09-16T07:00:01.446332463Z","s":"error","m":"  error: 'invalid_client',"}
+{"t":"2026-09-16T07:00:01.446335173Z","s":"error","m":"  error_description: 'Invalid client or Invalid client credentials'"}
+{"t":"2026-09-16T07:30:01.473287242Z","s":"error","m":"  error: 'invalid_client',"}
+{"t":"2026-09-16T07:30:01.473290422Z","s":"error","m":"  error_description: 'Invalid client or Invalid client credentials'"}
+{"t":"2026-09-16T07:41:37.996450183Z","s":"info","m":"[Twilio] cleanupOrphanDrafts: scanned=0 deleted=0 errors=0"}
+{"t":"2026-09-16T07:43:21.991987014Z","s":"info","m":"[ProtectionEnforcer] Total: 389 | Protected: 275 | Fixed: 0 | No Zone: 114 | Errors: 0 | DNS Cached: 119 | Zone Skipped: 0"}
+{"t":"2026-09-16T08:00:01.983965558Z","s":"error","m":"  error: 'invalid_client',"}
+{"t":"2026-09-16T08:00:01.983968078Z","s":"error","m":"  error_description: 'Invalid client or Invalid client credentials'"}
+{"t":"2026-09-16T08:30:01.863975636Z","s":"error","m":"  error: 'invalid_client',"}
+{"t":"2026-09-16T08:30:01.863979546Z","s":"error","m":"  error_description: 'Invalid client or Invalid client credentials'"}
+{"t":"2026-09-16T08:43:43.147701153Z","s":"info","m":"[ProtectionHeartbeat] Done in 3720.4s — total:15 ok:0 repaired:0 skipped:15 (whm_read_unreliable:15) errors:0"}
+{"t":"2026-09-16T09:00:03.232073536Z","s":"error","m":"  error: 'invalid_client',"}
+{"t":"2026-09-16T09:00:03.232079436Z","s":"error","m":"  error_description: 'Invalid client or Invalid client credentials'"}
+{"t":"2026-09-16T09:00:16.705373007Z","s":"info","m":"[AutoPromo] Done: {\"theme\":\"vps_rdp\",\"lang\":\"fr\",\"slot\":\"morning\",\"variation\":\"ai\",\"usedAI\":true,\"total\":6,\"success\":1,\"errors\":5,\"skipped\":0,\"errorBreakdown\":{\"ETELEGRAM\":5},\"timestamp\":\"2026-09-16T09:00:16.701Z\",\"sentAt\":\"2026-09-16T09:00:16.701Z\",\"diet\":{\"cap\":27,\"welcome\":0,\"balanceWall\":1},\"liftStartCount\":0,\"liftHubTapCount\":0,\"liftUserIds\":[],\"liftWindowMs\":2700000,\"liftEvaluated\":false}"}
+{"t":"2026-09-16T09:00:16.705375587Z","s":"info","m":"[AutoPromo] Error breakdown for vps_rdp/fr/morning: ETELEGRAM=5"}
+{"t":"2026-09-16T09:00:16.705378307Z","s":"info","m":"[AutoPromo]   ↳ failed chatId=1873399997 error=\"ETELEGRAM: 403 Forbidden: bot was blocked by the user\""}
+{"t":"2026-09-16T09:00:16.705381017Z","s":"info","m":"[AutoPromo]   ↳ failed chatId=6474590449 error=\"ETELEGRAM: 403 Forbidden: bot was blocked by the user\""}
+{"t":"2026-09-16T09:00:16.705384947Z","s":"info","m":"[AutoPromo]   ↳ failed chatId=8365304678 error=\"ETELEGRAM: 403 Forbidden: bot was blocked by the user\""}
+{"t":"2026-09-16T09:00:16.705387417Z","s":"info","m":"[AutoPromo]   ↳ failed chatId=1125405900 error=\"ETELEGRAM: 403 Forbidden: bot was blocked by the user\""}
+{"t":"2026-09-16T09:00:16.705389637Z","s":"info","m":"[AutoPromo]   ↳ failed chatId=1185746700 error=\"ETELEGRAM: 403 Forbidden: bot was blocked by the user\""}
+{"t":"2026-09-16T09:30:00.265419609Z","s":"error","m":"  error: 'invalid_client',"}
+{"t":"2026-09-16T09:30:00.265424529Z","s":"error","m":"  error_description: 'Invalid client or Invalid client credentials'"}
+{"t":"2026-09-16T10:00:01.986859713Z","s":"error","m":"  error: 'invalid_client',"}
+{"t":"2026-09-16T10:00:01.986862063Z","s":"error","m":"  error_description: 'Invalid client or Invalid client credentials'"}
+{"t":"2026-09-16T10:00:39.066006290Z","s":"info","m":"[AutoPromo] Done: {\"theme\":\"vps_rdp\",\"lang\":\"en\",\"slot\":\"morning\",\"variation\":\"ai\",\"usedAI\":true,\"total\":82,\"success\":17,\"errors\":62,\"skipped\":3,\"errorBreakdown\":{\"ETELEGRAM\":62},\"timestamp\":\"2026-09-16T10:00:39.051Z\",\"sentAt\":\"2026-09-16T10:00:39.051Z\",\"diet\":{\"cap\":645,\"welcome\":9,\"balanceWall\":39},\"liftStartCount\":0,\"liftHubTapCount\":0,\"liftUserIds\":[],\"liftWindowMs\":2700000,\"liftEvaluated\":false}"}
+{"t":"2026-09-16T10:00:39.066015530Z","s":"info","m":"[AutoPromo] Error breakdown for vps_rdp/en/morning: ETELEGRAM=62"}
+{"t":"2026-09-16T10:00:39.066021720Z","s":"info","m":"[AutoPromo]   ↳ failed chatId=8583207407 error=\"ETELEGRAM: 403 Forbidden: bot was blocked by the user\""}
+{"t":"2026-09-16T10:00:39.066027640Z","s":"info","m":"[AutoPromo]   ↳ failed chatId=8571206732 error=\"ETELEGRAM: 403 Forbidden: bot was blocked by the user\""}
+{"t":"2026-09-16T10:00:39.066033620Z","s":"info","m":"[AutoPromo]   ↳ failed chatId=6622198745 error=\"ETELEGRAM: 403 Forbidden: bot was blocked by the user\""}
+{"t":"2026-09-16T10:00:39.066038430Z","s":"info","m":"[AutoPromo]   ↳ failed chatId=2134337702 error=\"ETELEGRAM: 403 Forbidden: bot was blocked by the user\""}
+{"t":"2026-09-16T10:00:39.066043310Z","s":"info","m":"[AutoPromo]   ↳ failed chatId=7001762019 error=\"ETELEGRAM: 403 Forbidden: bot was blocked by the user\""}
+{"t":"2026-09-16T10:00:39.066047970Z","s":"info","m":"[AutoPromo]   ↳ failed chatId=7153699847 error=\"ETELEGRAM: 403 Forbidden: bot was blocked by the user\""}
+{"t":"2026-09-16T10:00:39.066053170Z","s":"info","m":"[AutoPromo]   ↳ failed chatId=7080940684 error=\"ETELEGRAM: 403 Forbidden: bot was blocked by the user\""}
+{"t":"2026-09-16T10:00:39.066063540Z","s":"info","m":"[AutoPromo]   ↳ failed chatId=6705277278 error=\"ETELEGRAM: 403 Forbidden: bot was blocked by the user\""}
+{"t":"2026-09-16T10:00:39.066068220Z","s":"info","m":"[AutoPromo]   ↳ failed chatId=5499846618 error=\"ETELEGRAM: 403 Forbidden: bot was blocked by the user\""}
+{"t":"2026-09-16T10:00:39.066073030Z","s":"info","m":"[AutoPromo]   ↳ failed chatId=8227698477 error=\"ETELEGRAM: 403 Forbidden: bot was blocked by the user\""}
+{"t":"2026-09-16T10:30:02.729118843Z","s":"error","m":"  error: 'invalid_client',"}
+{"t":"2026-09-16T10:30:02.729123713Z","s":"error","m":"  error_description: 'Invalid client or Invalid client credentials'"}
+{"t":"2026-09-16T10:43:45.889484964Z","s":"info","m":"[ProtectionHeartbeat] Done in 3720.5s — total:15 ok:0 repaired:0 skipped:15 (whm_read_unreliable:15) errors:0"}
+{"t":"2026-09-16T11:00:07.723638423Z","s":"info","m":"[LowBalanceNudge] Cycle complete — scanned:1 sent:0 skipped:1 errors:0"}
+{"t":"2026-09-16T11:00:07.723645313Z","s":"error","m":"  error: 'invalid_client',"}
+{"t":"2026-09-16T11:00:07.723648883Z","s":"error","m":"  error_description: 'Invalid client or Invalid client credentials'"}
+{"t":"2026-09-16T11:30:00.568332004Z","s":"error","m":"  error: 'invalid_client',"}
+{"t":"2026-09-16T11:30:00.568336344Z","s":"error","m":"  error_description: 'Invalid client or Invalid client credentials'"}
+{"t":"2026-09-16T12:00:02.753742268Z","s":"error","m":"  error: 'invalid_client',"}
+{"t":"2026-09-16T12:00:02.753747978Z","s":"error","m":"  error_description: 'Invalid client or Invalid client credentials'"}
+{"t":"2026-09-16T12:11:08.592794391Z","s":"error","m":"npm error path /app"}
+{"t":"2026-09-16T12:11:08.592797911Z","s":"error","m":"npm error command failed"}
+{"t":"2026-09-16T12:11:08.592801181Z","s":"error","m":"npm error signal SIGTERM"}
+{"t":"2026-09-16T12:11:08.592804701Z","s":"error","m":"npm error command sh -c node --max-old-space-size=2048 js/start-bot.js"}
+{"t":"2026-09-16T12:11:08.592807751Z","s":"error","m":"npm error A complete log of this run can be found in: /root/.npm/_logs/2026-09-15T07_41_28_826Z-debug-0.log"}
+{"t":"2026-09-16T12:13:07.797734330Z","s":"info","m":"[ProtectionEnforcer] Total: 389 | Protected: 275 | Fixed: 0 | No Zone: 114 | Errors: 0 | DNS Cached: 120 | Zone Skipped: 0"}
+{"t":"2026-09-16T12:30:03.042399380Z","s":"error","m":"  error: 'invalid_client',"}
+{"t":"2026-09-16T12:30:03.042402640Z","s":"error","m":"  error_description: 'Invalid client or Invalid client credentials'"}
+{"t":"2026-09-16T12:31:03.413254165Z","s":"info","m":"[Twilio] cleanupOrphanDrafts: scanned=0 deleted=0 errors=0"}
+{"t":"2026-09-16T13:00:03.457996740Z","s":"error","m":"  error: 'invalid_client',"}
+{"t":"2026-09-16T13:00:03.457999900Z","s":"error","m":"  error_description: 'Invalid client or Invalid client credentials'"}
+{"t":"2026-09-16T13:15:04.370802453Z","s":"info","m":"[ProtectionHeartbeat] Done in 3720.5s — total:15 ok:0 repaired:0 skipped:15 (whm_read_unreliable:15) errors:0"}
+{"t":"2026-09-16T13:30:04.578570335Z","s":"error","m":"  error: 'invalid_client',"}
+{"t":"2026-09-16T13:30:04.578574415Z","s":"error","m":"  error_description: 'Invalid client or Invalid client credentials'"}
+{"t":"2026-09-16T13:30:13.263347555Z","s":"info","m":"[AutoPromo] Done: {\"theme\":\"leads_validation\",\"lang\":\"hi\",\"slot\":\"evening\",\"variation\":1,\"usedAI\":false,\"total\":2,\"success\":0,\"errors\":2,\"skipped\":0,\"errorBreakdown\":{\"ETELEGRAM\":2},\"timestamp\":\"2026-09-16T13:30:13.259Z\",\"sentAt\":\"2026-09-16T13:30:13.259Z\",\"diet\":{\"cap\":0,\"welcome\":0,\"balanceWall\":0},\"liftStartCount\":0,\"liftHubTapCount\":0,\"liftUserIds\":[],\"liftWindowMs\":2700000,\"liftEvaluated\":false}"}
+{"t":"2026-09-16T13:30:13.263359005Z","s":"info","m":"[AutoPromo] Error breakdown for leads_validation/hi/evening: ETELEGRAM=2"}
+{"t":"2026-09-16T13:30:13.263364155Z","s":"info","m":"[AutoPromo]   ↳ failed chatId=5165954611 error=\"ETELEGRAM: 403 Forbidden: bot was blocked by the user\""}
+{"t":"2026-09-16T13:30:13.263369055Z","s":"info","m":"[AutoPromo]   ↳ failed chatId=8733350077 error=\"ETELEGRAM: 403 Forbidden: bot was blocked by the user\""}
+{"t":"2026-09-16T14:00:04.627530539Z","s":"error","m":"  error: 'invalid_client',"}
+{"t":"2026-09-16T14:00:04.627538579Z","s":"error","m":"  error_description: 'Invalid client or Invalid client credentials'"}
+{"t":"2026-09-16T14:30:07.466513368Z","s":"error","m":"  error: 'invalid_client',"}
+{"t":"2026-09-16T14:30:07.466516048Z","s":"error","m":"  error_description: 'Invalid client or Invalid client credentials'"}
+{"t":"2026-09-16T15:00:01.265273115Z","s":"error","m":"  error: 'invalid_client',"}
+{"t":"2026-09-16T15:00:01.265279805Z","s":"error","m":"  error_description: 'Invalid client or Invalid client credentials'"}
+{"t":"2026-09-16T15:13:01.069463516Z","s":"info","m":"[ProtectionHeartbeat] Done in 3720.5s — total:15 ok:0 repaired:0 skipped:15 (whm_read_unreliable:15) errors:0"}
+{"t":"2026-09-16T15:30:04.607603643Z","s":"error","m":"  error: 'invalid_client',"}
+{"t":"2026-09-16T15:30:04.607606843Z","s":"error","m":"  error_description: 'Invalid client or Invalid client credentials'"}
+{"t":"2026-09-16T15:50:40.379779351Z","s":"info","m":"[cPanel Proxy] Fileman::list_files error (401): <!DOCTYPE html> [AUTH]"}
+{"t":"2026-09-16T15:50:49.928564716Z","s":"info","m":"[cPanel Proxy] Fileman::list_files error (401): <!DOCTYPE html> [AUTH]"}
+{"t":"2026-09-16T15:50:54.204927397Z","s":"info","m":"[cPanel Proxy] Fileman::list_files error (401): <!DOCTYPE html> [AUTH]"}
+{"t":"2026-09-16T15:51:21.414881617Z","s":"info","m":"[cPanel Proxy] Fileman::get_file_content error (401): <!DOCTYPE html> [AUTH]"}
+{"t":"2026-09-16T15:52:12.056660662Z","s":"info","m":"[cPanel Proxy] Fileman::list_files error (401): <!DOCTYPE html> [AUTH]"}
+{"t":"2026-09-16T15:52:16.676740205Z","s":"info","m":"[cPanel Proxy] Fileman::list_files error (401): <!DOCTYPE html> [AUTH]"}
+{"t":"2026-09-16T15:52:58.778148339Z","s":"info","m":"[cPanel Proxy] Fileman::get_file_content error (401): <!DOCTYPE html> [AUTH]"}
+{"t":"2026-09-16T15:53:07.639405488Z","s":"info","m":"[cPanel Proxy] Fileman::list_files error (401): <!DOCTYPE html> [AUTH]"}
+{"t":"2026-09-16T15:54:08.362561457Z","s":"info","m":"[cPanel Proxy API2] Fileman::fileop error (403): Access denied [AUTH]"}
+{"t":"2026-09-16T15:54:08.362898450Z","s":"info","m":"[cPanel Proxy] Fileman::list_files error (401): <!DOCTYPE html> [AUTH]"}
+{"t":"2026-09-16T15:54:08.363781385Z","s":"info","m":"[cPanel Proxy API2] Fileman::fileop error (403): Access denied [AUTH]"}
+{"t":"2026-09-16T15:54:08.364352444Z","s":"info","m":"[cPanel Proxy] Fileman::list_files error (401): <!DOCTYPE html> [AUTH]"}
+{"t":"2026-09-16T15:54:08.364371183Z","s":"info","m":"[cPanel Proxy] Fileman::list_files error (401): <!DOCTYPE html> [AUTH]"}
+{"t":"2026-09-16T15:54:28.363822736Z","s":"info","m":"[cPanel Proxy API2] Fileman::mkdir error (403): Access denied [AUTH]"}
+{"t":"2026-09-16T15:54:28.363841996Z","s":"info","m":"[cPanel Proxy] Fileman::list_files error (401): <!DOCTYPE html> [AUTH]"}
+{"t":"2026-09-16T15:54:30.846598716Z","s":"info","m":"[cPanel Proxy] Fileman::list_files error (401): <!DOCTYPE html> [AUTH]"}
+{"t":"2026-09-16T15:54:57.416776447Z","s":"info","m":"[cPanel Proxy] Fileman::upload_files error (401): Request failed with status code 401 [AUTH]"}
+{"t":"2026-09-16T15:54:57.416812686Z","s":"info","m":"[cPanel Proxy] Fileman::list_files error (401): <!DOCTYPE html> [AUTH]"}
+{"t":"2026-09-16T15:55:17.417047900Z","s":"info","m":"[cPanel Proxy] Fileman::list_files error (401): <!DOCTYPE html> [AUTH]"}
+{"t":"2026-09-16T15:56:09.850895404Z","s":"info","m":"[cPanel Proxy] Fileman::list_files error (401): <!DOCTYPE html> [AUTH]"}
+{"t":"2026-09-16T15:57:10.212557874Z","s":"info","m":"[cPanel Proxy] Fileman::upload_files error (401): Request failed with status code 401 [AUTH]"}
+{"t":"2026-09-16T15:57:13.042100483Z","s":"info","m":"[cPanel Proxy API2] Fileman::fileop error (403): Access denied [AUTH]"}
+{"t":"2026-09-16T15:57:15.038795085Z","s":"info","m":"[cPanel Proxy] Fileman::list_files error (401): <!DOCTYPE html> [AUTH]"}
+{"t":"2026-09-16T15:57:35.754568475Z","s":"info","m":"[cPanel Proxy API2] Fileman::fileop error (403): Access denied [AUTH]"}
+{"t":"2026-09-16T15:57:35.754572235Z","s":"info","m":"[cPanel Proxy] Fileman::list_files error (401): <!DOCTYPE html> [AUTH]"}
+{"t":"2026-09-16T15:57:35.754594965Z","s":"info","m":"[cPanel Proxy API2] Fileman::fileop error (403): Access denied [AUTH]"}
+{"t":"2026-09-16T15:57:35.754597405Z","s":"info","m":"[cPanel Proxy] Fileman::list_files error (401): <!DOCTYPE html> [AUTH]"}
+{"t":"2026-09-16T15:57:35.754606995Z","s":"info","m":"[cPanel Proxy] Fileman::list_files error (401): <!DOCTYPE html> [AUTH]"}
+{"t":"2026-09-16T15:57:41.845920320Z","s":"info","m":"[cPanel Proxy] Fileman::list_files error (401): <!DOCTYPE html> [AUTH]"}
+{"t":"2026-09-16T15:57:50.890194396Z","s":"info","m":"[cPanel Proxy API2] Fileman::fileop error (403): Access denied [AUTH]"}
+{"t":"2026-09-16T15:57:51.846953446Z","s":"info","m":"[cPanel Proxy] Fileman::list_files error (401): <!DOCTYPE html> [AUTH]"}
+{"t":"2026-09-16T15:58:12.174681894Z","s":"info","m":"[cPanel Proxy] Fileman::list_files error (401): <!DOCTYPE html> [AUTH]"}
+{"t":"2026-09-16T15:58:12.174685654Z","s":"info","m":"[cPanel Proxy API2] Fileman::fileop error (403): Access denied [AUTH]"}
+{"t":"2026-09-16T15:58:12.174699084Z","s":"info","m":"[cPanel Proxy] Fileman::list_files error (401): <!DOCTYPE html> [AUTH]"}
+{"t":"2026-09-16T15:58:12.174716594Z","s":"info","m":"[cPanel Proxy] Fileman::list_files error (401): <!DOCTYPE html> [AUTH]"}
+{"t":"2026-09-16T15:58:24.634821235Z","s":"info","m":"[cPanel Proxy] Fileman::get_file_content error (401): <!DOCTYPE html> [AUTH]"}
+{"t":"2026-09-16T15:58:32.997026729Z","s":"info","m":"[cPanel Proxy] Fileman::list_files error (401): <!DOCTYPE html> [AUTH]"}
+{"t":"2026-09-16T15:58:43.053713241Z","s":"info","m":"[cPanel Proxy API2] Fileman::fileop error (403): Access denied [AUTH]"}
+{"t":"2026-09-16T15:58:43.718409017Z","s":"info","m":"[cPanel Proxy] Fileman::list_files error (401): <!DOCTYPE html> [AUTH]"}
+{"t":"2026-09-16T15:58:45.298244717Z","s":"info","m":"[cPanel Proxy] Fileman::list_files error (401): <!DOCTYPE html> [AUTH]"}
+{"t":"2026-09-16T15:59:13.630235457Z","s":"info","m":"[cPanel Proxy] Fileman::get_file_content error (401): <!DOCTYPE html> [AUTH]"}
+{"t":"2026-09-16T16:00:04.800896072Z","s":"error","m":"  error: 'invalid_client',"}
+{"t":"2026-09-16T16:00:04.800899802Z","s":"error","m":"  error_description: 'Invalid client or Invalid client credentials'"}
+{"t":"2026-09-16T16:01:07.418157526Z","s":"info","m":"[cPanel Proxy] Fileman::save_file_content error (401): <!DOCTYPE html> [AUTH]"}
+{"t":"2026-09-16T16:13:04.766822494Z","s":"error","m":"npm error path /app"}
+{"t":"2026-09-16T16:13:04.766828113Z","s":"error","m":"npm error command failed"}
+{"t":"2026-09-16T16:13:04.766832943Z","s":"error","m":"npm error signal SIGTERM"}
+{"t":"2026-09-16T16:13:04.766836623Z","s":"error","m":"npm error command sh -c node --max-old-space-size=2048 js/start-bot.js"}
+{"t":"2026-09-16T16:13:04.766840163Z","s":"error","m":"npm error A complete log of this run can be found in: /root/.npm/_logs/2026-09-16T12_10_52_442Z-debug-0.log"}
+{"t":"2026-09-16T16:15:17.134592179Z","s":"info","m":"[ProtectionEnforcer] Total: 389 | Protected: 275 | Fixed: 0 | No Zone: 114 | Errors: 0 | DNS Cached: 120 | Zone Skipped: 0"}
+{"t":"2026-09-16T16:23:13.912321825Z","s":"info","m":"Broadcast bcast_1789575620135_dr54z5 completed - Total: 807, Success: 734, Errors: 73, NewlyDead: 73, PreFiltered: 45"}
+{"t":"2026-09-16T16:30:05.166463699Z","s":"error","m":"  error_description: 'Invalid client or Invalid client credentials'"}
+{"t":"2026-09-16T16:30:05.166518094Z","s":"error","m":"  error: 'invalid_client',"}
+{"t":"2026-09-16T16:32:54.255664564Z","s":"info","m":"[Twilio] cleanupOrphanDrafts: scanned=0 deleted=0 errors=0"}
+{"t":"2026-09-16T16:44:28.015513111Z","s":"error","m":"npm error path /app"}
+{"t":"2026-09-16T16:44:28.015517936Z","s":"error","m":"npm error command failed"}
+{"t":"2026-09-16T16:44:28.015523004Z","s":"error","m":"npm error signal SIGTERM"}
+{"t":"2026-09-16T16:44:28.015535888Z","s":"error","m":"npm error command sh -c node --max-old-space-size=2048 js/start-bot.js"}
+{"t":"2026-09-16T16:44:28.015541101Z","s":"error","m":"npm error A complete log of this run can be found in: /root/.npm/_logs/2026-09-16T16_12_43_918Z-debug-0.log"}
+{"t":"2026-09-16T16:46:44.481055648Z","s":"info","m":"[ProtectionEnforcer] Total: 389 | Protected: 275 | Fixed: 0 | No Zone: 114 | Errors: 0 | DNS Cached: 120 | Zone Skipped: 0"}
+{"t":"2026-09-16T16:50:31.331691043Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-16T16:50:33.772414218Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-16T16:50:33.772419245Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-16T16:50:34.322828716Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-16T16:50:34.322832971Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-16T16:50:34.322835992Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-16T16:50:34.322840264Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-16T16:50:34.322844347Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-16T16:50:34.322848778Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-16T16:50:34.322853265Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-16T16:50:34.322858459Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-16T16:50:34.322861730Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-16T16:50:34.322865365Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-16T16:51:01.144928942Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-16T17:00:05.886988657Z","s":"error","m":"  error: 'invalid_client',"}
+{"t":"2026-09-16T17:00:05.886993094Z","s":"error","m":"  error_description: 'Invalid client or Invalid client credentials'"}
+{"t":"2026-09-16T17:04:15.734511831Z","s":"info","m":"[Twilio] cleanupOrphanDrafts: scanned=0 deleted=0 errors=0"}
+{"t":"2026-09-16T17:19:12.411794334Z","s":"error","m":"npm error path /app"}
+{"t":"2026-09-16T17:19:12.411801817Z","s":"error","m":"npm error command failed"}
+{"t":"2026-09-16T17:19:12.411812537Z","s":"error","m":"npm error signal SIGTERM"}
+{"t":"2026-09-16T17:19:12.411816000Z","s":"error","m":"npm error command sh -c node --max-old-space-size=2048 js/start-bot.js"}
+{"t":"2026-09-16T17:19:12.411819343Z","s":"error","m":"npm error A complete log of this run can be found in: /root/.npm/_logs/2026-09-16T16_44_04_193Z-debug-0.log"}
+{"t":"2026-09-16T17:21:23.828113279Z","s":"info","m":"[ProtectionEnforcer] Total: 390 | Protected: 276 | Fixed: 0 | No Zone: 114 | Errors: 0 | DNS Cached: 122 | Zone Skipped: 0"}
+{"t":"2026-09-16T17:30:06.117678604Z","s":"error","m":"  error: 'invalid_client',"}
+{"t":"2026-09-16T17:30:06.117682303Z","s":"error","m":"  error_description: 'Invalid client or Invalid client credentials'"}
+{"t":"2026-09-16T17:39:04.614664682Z","s":"info","m":"[Twilio] cleanupOrphanDrafts: scanned=0 deleted=0 errors=0"}
+{"t":"2026-09-16T18:00:09.302817036Z","s":"error","m":"  error: 'invalid_client',"}
+{"t":"2026-09-16T18:00:09.302820176Z","s":"error","m":"  error_description: 'Invalid client or Invalid client credentials'"}
+{"t":"2026-09-16T18:00:20.392838406Z","s":"info","m":"[AutoPromo] Done: {\"theme\":\"leads_validation\",\"lang\":\"fr\",\"slot\":\"evening\",\"variation\":1,\"usedAI\":false,\"total\":32,\"success\":27,\"errors\":5,\"skipped\":0,\"errorBreakdown\":{\"ETELEGRAM\":5},\"timestamp\":\"2026-09-16T18:00:20.356Z\",\"sentAt\":\"2026-09-16T18:00:20.356Z\",\"diet\":{\"cap\":1,\"welcome\":0,\"balanceWall\":1},\"liftStartCount\":0,\"liftHubTapCount\":0,\"liftUserIds\":[],\"liftWindowMs\":2700000,\"liftEvaluated\":false}"}
+{"t":"2026-09-16T18:00:20.392848476Z","s":"info","m":"[AutoPromo] Error breakdown for leads_validation/fr/evening: ETELEGRAM=5"}
+{"t":"2026-09-16T18:00:20.392852735Z","s":"info","m":"[AutoPromo]   ↳ failed chatId=1873399997 error=\"ETELEGRAM: 403 Forbidden: bot was blocked by the user\""}
+{"t":"2026-09-16T18:00:20.392856545Z","s":"info","m":"[AutoPromo]   ↳ failed chatId=6474590449 error=\"ETELEGRAM: 403 Forbidden: bot was blocked by the user\""}
+{"t":"2026-09-16T18:00:20.392861195Z","s":"info","m":"[AutoPromo]   ↳ failed chatId=8365304678 error=\"ETELEGRAM: 403 Forbidden: bot was blocked by the user\""}
+{"t":"2026-09-16T18:00:20.392866115Z","s":"info","m":"[AutoPromo]   ↳ failed chatId=1125405900 error=\"ETELEGRAM: 403 Forbidden: bot was blocked by the user\""}
+{"t":"2026-09-16T18:00:20.392870395Z","s":"info","m":"[AutoPromo]   ↳ failed chatId=1185746700 error=\"ETELEGRAM: 403 Forbidden: bot was blocked by the user\""}
+{"t":"2026-09-16T18:03:44.462188043Z","s":"error","m":"npm error path /app"}
+{"t":"2026-09-16T18:03:44.462192693Z","s":"error","m":"npm error command failed"}
+{"t":"2026-09-16T18:03:44.462195663Z","s":"error","m":"npm error signal SIGTERM"}
+{"t":"2026-09-16T18:03:44.462198712Z","s":"error","m":"npm error command sh -c node --max-old-space-size=2048 js/start-bot.js"}
+{"t":"2026-09-16T18:03:44.462201472Z","s":"error","m":"npm error A complete log of this run can be found in: /root/.npm/_logs/2026-09-16T17_18_52_353Z-debug-0.log"}
+{"t":"2026-09-16T18:06:09.302884715Z","s":"info","m":"[ProtectionEnforcer] Total: 390 | Protected: 276 | Fixed: 0 | No Zone: 114 | Errors: 0 | DNS Cached: 122 | Zone Skipped: 0"}
+{"t":"2026-09-16T18:23:44.715023416Z","s":"info","m":"[Twilio] cleanupOrphanDrafts: scanned=0 deleted=0 errors=0"}
+{"t":"2026-09-16T18:24:48.486332421Z","s":"error","m":"npm error path /app"}
+{"t":"2026-09-16T18:24:48.486338976Z","s":"error","m":"npm error command failed"}
+{"t":"2026-09-16T18:24:48.486344023Z","s":"error","m":"npm error signal SIGTERM"}
+{"t":"2026-09-16T18:24:48.486349760Z","s":"error","m":"npm error command sh -c node --max-old-space-size=2048 js/start-bot.js"}
+{"t":"2026-09-16T18:24:48.486357060Z","s":"error","m":"npm error A complete log of this run can be found in: /root/.npm/_logs/2026-09-16T18_03_31_972Z-debug-0.log"}
+{"t":"2026-09-16T18:27:08.540119237Z","s":"info","m":"[ProtectionEnforcer] Total: 390 | Protected: 276 | Fixed: 0 | No Zone: 114 | Errors: 0 | DNS Cached: 122 | Zone Skipped: 0"}
+{"t":"2026-09-16T18:30:08.497018296Z","s":"error","m":"  error: 'invalid_client',"}
+{"t":"2026-09-16T18:30:08.497021456Z","s":"error","m":"  error_description: 'Invalid client or Invalid client credentials'"}
+{"t":"2026-09-16T18:44:48.476179495Z","s":"info","m":"[Twilio] cleanupOrphanDrafts: scanned=0 deleted=0 errors=0"}
+{"t":"2026-09-16T18:58:55.554682706Z","s":"info","m":"[Express] Unhandled route error: Parse Error (POST /)"}
+{"t":"2026-09-16T19:00:09.358535932Z","s":"error","m":"  error: 'invalid_client',"}
+{"t":"2026-09-16T19:00:09.358539312Z","s":"error","m":"  error_description: 'Invalid client or Invalid client credentials'"}
+{"t":"2026-09-16T19:00:13.146655800Z","s":"info","m":"- Any error messages or specific behavior you see when the number is reassigned? I'll escalate this to our techni...</i>"}
+{"t":"2026-09-16T19:02:01.624698122Z","s":"info","m":"[AutoPromo]   ↳ failed chatId=8227698477 error=\"ETELEGRAM: 403 Forbidden: bot was blocked by the user\""}
+{"t":"2026-09-16T19:02:01.624729181Z","s":"info","m":"[AutoPromo] Done: {\"theme\":\"leads_validation\",\"lang\":\"en\",\"slot\":\"evening\",\"variation\":2,\"usedAI\":false,\"total\":706,\"success\":638,\"errors\":63,\"skipped\":5,\"errorBreakdown\":{\"ETELEGRAM\":63},\"timestamp\":\"2026-09-16T19:02:01.623Z\",\"sentAt\":\"2026-09-16T19:02:01.623Z\",\"diet\":{\"cap\":23,\"welcome\":7,\"balanceWall\":39},\"liftStartCount\":0,\"liftHubTapCount\":0,\"liftUserIds\":[],\"liftWindowMs\":2700000,\"liftEvaluated\":false}"}
+{"t":"2026-09-16T19:02:01.624734711Z","s":"info","m":"[AutoPromo] Error breakdown for leads_validation/en/evening: ETELEGRAM=63"}
+{"t":"2026-09-16T19:02:01.624738971Z","s":"info","m":"[AutoPromo]   ↳ failed chatId=8583207407 error=\"ETELEGRAM: 403 Forbidden: bot was blocked by the user\""}
+{"t":"2026-09-16T19:02:01.624743351Z","s":"info","m":"[AutoPromo]   ↳ failed chatId=8571206732 error=\"ETELEGRAM: 403 Forbidden: bot was blocked by the user\""}
+{"t":"2026-09-16T19:02:01.624747121Z","s":"info","m":"[AutoPromo]   ↳ failed chatId=6622198745 error=\"ETELEGRAM: 403 Forbidden: bot was blocked by the user\""}
+{"t":"2026-09-16T19:02:01.624750791Z","s":"info","m":"[AutoPromo]   ↳ failed chatId=2134337702 error=\"ETELEGRAM: 403 Forbidden: bot was blocked by the user\""}
+{"t":"2026-09-16T19:02:01.624754611Z","s":"info","m":"[AutoPromo]   ↳ failed chatId=7001762019 error=\"ETELEGRAM: 403 Forbidden: bot was blocked by the user\""}
+{"t":"2026-09-16T19:02:01.624758431Z","s":"info","m":"[AutoPromo]   ↳ failed chatId=7153699847 error=\"ETELEGRAM: 403 Forbidden: bot was blocked by the user\""}
+{"t":"2026-09-16T19:02:01.624762720Z","s":"info","m":"[AutoPromo]   ↳ failed chatId=7080940684 error=\"ETELEGRAM: 403 Forbidden: bot was blocked by the user\""}
+{"t":"2026-09-16T19:02:01.624766600Z","s":"info","m":"[AutoPromo]   ↳ failed chatId=6705277278 error=\"ETELEGRAM: 403 Forbidden: bot was blocked by the user\""}
+{"t":"2026-09-16T19:02:01.624771320Z","s":"info","m":"[AutoPromo]   ↳ failed chatId=5499846618 error=\"ETELEGRAM: 403 Forbidden: bot was blocked by the user\""}
+{"t":"2026-09-16T19:28:48.759639643Z","s":"info","m":"[ProtectionHeartbeat] Done in 3720.9s — total:15 ok:0 repaired:0 skipped:15 (whm_read_unreliable:15) errors:0"}
+{"t":"2026-09-16T19:30:08.504179891Z","s":"error","m":"  error: 'invalid_client',"}
+{"t":"2026-09-16T19:30:08.504184761Z","s":"error","m":"  error_description: 'Invalid client or Invalid client credentials'"}
+{"t":"2026-09-16T19:46:27.529836888Z","s":"error","m":"npm error path /app"}
+{"t":"2026-09-16T19:46:27.529847658Z","s":"error","m":"npm error command failed"}
+{"t":"2026-09-16T19:46:27.529855738Z","s":"error","m":"npm error signal SIGTERM"}
+{"t":"2026-09-16T19:46:27.529860968Z","s":"error","m":"npm error command sh -c node --max-old-space-size=2048 js/start-bot.js"}
+{"t":"2026-09-16T19:46:27.529867948Z","s":"error","m":"npm error A complete log of this run can be found in: /root/.npm/_logs/2026-09-16T18_24_36_719Z-debug-0.log"}
+{"t":"2026-09-16T19:48:52.582123693Z","s":"info","m":"[ProtectionEnforcer] Total: 390 | Protected: 276 | Fixed: 0 | No Zone: 114 | Errors: 0 | DNS Cached: 121 | Zone Skipped: 0"}
+{"t":"2026-09-16T19:51:59.789659868Z","s":"error","m":"Error in getting Crypto address Request failed with status code 401"}
+{"t":"2026-09-16T19:56:10.057068507Z","s":"info","m":"SIP Connection webhook update error: An unexpected error occurred."}
+{"t":"2026-09-16T19:56:13.078349680Z","s":"error","m":"npm error path /app"}
+{"t":"2026-09-16T19:56:13.078355470Z","s":"error","m":"npm error command failed"}
+{"t":"2026-09-16T19:56:13.078358700Z","s":"error","m":"npm error signal SIGTERM"}
+{"t":"2026-09-16T19:56:13.078361759Z","s":"error","m":"npm error command sh -c node --max-old-space-size=2048 js/start-bot.js"}
+{"t":"2026-09-16T19:56:13.078364729Z","s":"error","m":"npm error A complete log of this run can be found in: /root/.npm/_logs/2026-09-16T19_46_12_548Z-debug-0.log"}
+{"t":"2026-09-16T19:58:07.586396074Z","s":"error","m":"  error: 'invalid_client',"}
+{"t":"2026-09-16T19:58:07.586399044Z","s":"error","m":"  error_description: 'Invalid client or Invalid client credentials'"}
+{"t":"2026-09-16T19:58:08.440077963Z","s":"error","m":"  error: 'invalid_client',"}
+{"t":"2026-09-16T19:58:08.440083313Z","s":"error","m":"  error_description: 'Invalid client or Invalid client credentials'"}
+{"t":"2026-09-16T19:58:13.595324797Z","s":"error","m":"  error: 'invalid_client',"}
+{"t":"2026-09-16T19:58:13.595327397Z","s":"error","m":"  error_description: 'Invalid client or Invalid client credentials'"}
+{"t":"2026-09-16T19:58:13.595333087Z","s":"info","m":"Error in fetchVPSDetails (contabo): VPS provider authentication failed"}
+{"t":"2026-09-16T19:58:13.595335937Z","s":"info","m":"reply: Error fetching, Please try again after some time. 📞 Cloud IVR + SIP,🛡️ Anti-Red Hosting,🌐 Bulletproof Domains,🛒 Digital Products,🏪 Marketplace,🤝 Refer & Earn,🖥️ VPS / RDP,📧 Email Validation,💳 Virtual Card,👛 Wallet,📱 SMS Leads,🔗✂️ URL Shortener — 5 Free Links,⚡ Upgrade Plan,📢 Join Channel,💼 Reseller,⚙️ Settings,💬 Support\tto: 404562920"}
+{"t":"2026-09-16T19:58:33.987841757Z","s":"info","m":"[ProtectionEnforcer] Total: 390 | Protected: 276 | Fixed: 0 | No Zone: 114 | Errors: 0 | DNS Cached: 123 | Zone Skipped: 0"}
+{"t":"2026-09-16T19:58:56.088637202Z","s":"error","m":"  error: 'invalid_client',"}
+{"t":"2026-09-16T19:58:56.088639872Z","s":"error","m":"  error_description: 'Invalid client or Invalid client credentials'"}
+{"t":"2026-09-16T19:58:56.291645324Z","s":"error","m":"  error: 'invalid_client',"}
+{"t":"2026-09-16T19:58:56.291649164Z","s":"error","m":"  error_description: 'Invalid client or Invalid client credentials'"}
+{"t":"2026-09-16T19:58:58.466405647Z","s":"info","m":"Error in fetchVPSDetails (contabo): Azure ARM GET /subscriptions/7eefc36f-f32d-4eab-b2a5-82353c9a6a00/resourceGroups/nomadly-vps/providers/Microsoft.Compute/virtualMachines/nmdcbaec20f3 → HTTP 404: The subscription '7eefc36f-f32d-4eab-b2a5-82353c9a6a00' could not be found."}
+{"t":"2026-09-16T19:58:58.466409117Z","s":"info","m":"reply: Error fetching, Please try again after some time. 📞 Cloud IVR + SIP,🛡️ Anti-Red Hosting,🌐 Bulletproof Domains,🛒 Digital Products,🏪 Marketplace,🤝 Refer & Earn,🖥️ VPS / RDP,📧 Email Validation,💳 Virtual Card,👛 Wallet,📱 SMS Leads,🔗✂️ URL Shortener — 5 Free Links,⚡ Upgrade Plan,📢 Join Channel,💼 Reseller,⚙️ Settings,💬 Support\tto: 404562920"}
+{"t":"2026-09-16T20:00:06.488551282Z","s":"error","m":"  error: 'invalid_client',"}
+{"t":"2026-09-16T20:00:06.488554552Z","s":"error","m":"  error_description: 'Invalid client or Invalid client credentials'"}
+{"t":"2026-09-16T20:16:15.942914041Z","s":"info","m":"[Twilio] cleanupOrphanDrafts: scanned=0 deleted=0 errors=0"}
+{"t":"2026-09-16T20:20:08.803276071Z","s":"error","m":"Error in getting Crypto address Request failed with status code 401"}
+{"t":"2026-09-16T20:30:05.552029234Z","s":"error","m":"  error: 'invalid_client',"}
+{"t":"2026-09-16T20:30:05.552032064Z","s":"error","m":"  error_description: 'Invalid client or Invalid client credentials'"}
+{"t":"2026-09-16T21:00:00.610706383Z","s":"error","m":"  error: 'invalid_client',"}
+{"t":"2026-09-16T21:00:00.610711873Z","s":"error","m":"  error_description: 'Invalid client or Invalid client credentials'"}
+{"t":"2026-09-16T21:00:16.126801847Z","s":"info","m":"[ProtectionHeartbeat] Done in 3720.6s — total:15 ok:0 repaired:0 skipped:15 (whm_read_unreliable:15) errors:0"}
+{"t":"2026-09-16T21:10:19.336610942Z","s":"error","m":"Error in getting Crypto address Request failed with status code 401"}
+{"t":"2026-09-16T21:18:24.303124072Z","s":"error","m":"Error in getting Crypto address Request failed with status code 401"}
+{"t":"2026-09-16T21:28:58.868440823Z","s":"error","m":"npm error path /app"}
+{"t":"2026-09-16T21:28:58.868446693Z","s":"error","m":"npm error command failed"}
+{"t":"2026-09-16T21:28:58.868450433Z","s":"error","m":"npm error signal SIGTERM"}
+{"t":"2026-09-16T21:28:58.868453983Z","s":"error","m":"npm error command sh -c node --max-old-space-size=2048 js/start-bot.js"}
+{"t":"2026-09-16T21:28:58.868457283Z","s":"error","m":"npm error A complete log of this run can be found in: /root/.npm/_logs/2026-09-16T19_56_03_034Z-debug-0.log"}
+{"t":"2026-09-16T21:30:07.107207636Z","s":"error","m":"  error: 'invalid_client',"}
+{"t":"2026-09-16T21:30:07.107210396Z","s":"error","m":"  error_description: 'Invalid client or Invalid client credentials'"}
+{"t":"2026-09-16T21:31:18.406090306Z","s":"info","m":"[ProtectionEnforcer] Total: 390 | Protected: 276 | Fixed: 0 | No Zone: 114 | Errors: 0 | DNS Cached: 123 | Zone Skipped: 0"}
+{"t":"2026-09-16T21:34:27.869662305Z","s":"info","m":"EFATAL: AggregateError: 7245277126"}
+{"t":"2026-09-16T21:45:11.986826347Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-16T21:45:11.988794167Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-16T21:45:11.988798357Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-16T21:45:11.988800817Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-16T21:45:11.988805107Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-16T21:45:11.988808187Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-16T21:45:11.988811187Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-16T21:45:11.988813877Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-16T21:45:11.988816617Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-16T21:45:11.990095353Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-16T21:45:11.990100343Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-16T21:45:11.990105153Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-16T21:45:11.990108803Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-16T21:49:01.333777549Z","s":"info","m":"[Twilio] cleanupOrphanDrafts: scanned=0 deleted=0 errors=0"}
+{"t":"2026-09-16T22:00:00.645715905Z","s":"error","m":"  error: 'invalid_client',"}
+{"t":"2026-09-16T22:00:00.645720195Z","s":"error","m":"  error_description: 'Invalid client or Invalid client credentials'"}
+{"t":"2026-09-16T22:30:09.712357750Z","s":"error","m":"  error: 'invalid_client',"}
+{"t":"2026-09-16T22:30:09.712363000Z","s":"error","m":"  error_description: 'Invalid client or Invalid client credentials'"}
+{"t":"2026-09-16T22:33:10.930647530Z","s":"info","m":"[ProtectionHeartbeat] Done in 3721.1s — total:15 ok:0 repaired:0 skipped:15 (whm_read_unreliable:15) errors:0"}
+{"t":"2026-09-16T23:00:02.449603861Z","s":"error","m":"  error: 'invalid_client',"}
+{"t":"2026-09-16T23:00:02.449606891Z","s":"error","m":"  error_description: 'Invalid client or Invalid client credentials'"}
+{"t":"2026-09-16T23:30:09.003188482Z","s":"error","m":"  error: 'invalid_client',"}
+{"t":"2026-09-16T23:30:09.003192242Z","s":"error","m":"  error_description: 'Invalid client or Invalid client credentials'"}
+{"t":"2026-09-17T00:00:09.103902812Z","s":"error","m":"  error: 'invalid_client',"}
+{"t":"2026-09-17T00:00:09.103966000Z","s":"error","m":"  error_description: 'Invalid client or Invalid client credentials'"}
+{"t":"2026-09-17T00:30:03.038759516Z","s":"error","m":"  error: 'invalid_client',"}
+{"t":"2026-09-17T00:30:03.038762556Z","s":"error","m":"  error_description: 'Invalid client or Invalid client credentials'"}
+{"t":"2026-09-17T00:31:02.176949292Z","s":"info","m":"[ProtectionHeartbeat] Done in 3720.4s — total:15 ok:0 repaired:0 skipped:15 (whm_read_unreliable:15) errors:0"}
+{"t":"2026-09-17T01:00:00.361793275Z","s":"error","m":"  error: 'invalid_client',"}
+{"t":"2026-09-17T01:00:00.361797425Z","s":"error","m":"  error_description: 'Invalid client or Invalid client credentials'"}
+{"t":"2026-09-17T01:30:00.633483150Z","s":"error","m":"  error: 'invalid_client',"}
+{"t":"2026-09-17T01:30:00.633487840Z","s":"error","m":"  error_description: 'Invalid client or Invalid client credentials'"}
+{"t":"2026-09-17T02:00:06.283659094Z","s":"error","m":"  error: 'invalid_client',"}
+{"t":"2026-09-17T02:00:06.283662044Z","s":"error","m":"  error_description: 'Invalid client or Invalid client credentials'"}
+{"t":"2026-09-17T02:30:02.540598965Z","s":"error","m":"  error: 'invalid_client',"}
+{"t":"2026-09-17T02:30:02.540601825Z","s":"error","m":"  error_description: 'Invalid client or Invalid client credentials'"}
+{"t":"2026-09-17T02:31:01.399618827Z","s":"info","m":"[ProtectionHeartbeat] Done in 3720.5s — total:15 ok:0 repaired:0 skipped:15 (whm_read_unreliable:15) errors:0"}
+{"t":"2026-09-17T02:49:23.226626545Z","s":"info","m":"[cPanel Proxy] Fileman::list_files error (401): <!DOCTYPE html> [AUTH]"}
+{"t":"2026-09-17T02:49:23.226637755Z","s":"info","m":"[cPanel Proxy] Fileman::list_files error (401): <!DOCTYPE html> [AUTH]"}
+{"t":"2026-09-17T02:50:26.039346041Z","s":"info","m":"[cPanel Proxy API2] Fileman::fileop error (403): Access denied [AUTH]"}
+{"t":"2026-09-17T02:50:28.442934658Z","s":"info","m":"[cPanel Proxy] Fileman::list_files error (401): <!DOCTYPE html> [AUTH]"}
+{"t":"2026-09-17T03:00:02.526708487Z","s":"error","m":"  error: 'invalid_client',"}
+{"t":"2026-09-17T03:00:02.526713607Z","s":"error","m":"  error_description: 'Invalid client or Invalid client credentials'"}
+{"t":"2026-09-17T03:29:01.293607248Z","s":"info","m":"[Twilio] cleanupOrphanDrafts: scanned=0 deleted=0 errors=0"}
+{"t":"2026-09-17T03:30:02.618321281Z","s":"error","m":"  error: 'invalid_client',"}
+{"t":"2026-09-17T03:30:02.618323681Z","s":"error","m":"  error_description: 'Invalid client or Invalid client credentials'"}
+{"t":"2026-09-17T03:34:13.298716205Z","s":"info","m":"[ProtectionEnforcer] Total: 390 | Protected: 276 | Fixed: 0 | No Zone: 114 | Errors: 0 | DNS Cached: 122 | Zone Skipped: 0"}
+{"t":"2026-09-17T03:34:31.829094879Z","s":"info","m":"  ERROR                             : 0"}
+{"t":"2026-09-17T04:00:00.659372924Z","s":"error","m":"  error: 'invalid_client',"}
+{"t":"2026-09-17T04:00:00.659378594Z","s":"error","m":"  error_description: 'Invalid client or Invalid client credentials'"}
+{"t":"2026-09-17T04:30:00.602905219Z","s":"error","m":"  error: 'invalid_client',"}
+{"t":"2026-09-17T04:30:00.602909139Z","s":"error","m":"  error_description: 'Invalid client or Invalid client credentials'"}
+{"t":"2026-09-17T04:30:18.543316329Z","s":"info","m":"[AutoPromo] Done: {\"theme\":\"domains_shortener\",\"lang\":\"hi\",\"slot\":\"morning\",\"variation\":\"ai\",\"usedAI\":true,\"total\":2,\"success\":0,\"errors\":2,\"skipped\":0,\"errorBreakdown\":{\"ETELEGRAM\":2},\"timestamp\":\"2026-09-17T04:30:18.528Z\",\"sentAt\":\"2026-09-17T04:30:18.528Z\",\"diet\":{\"cap\":0,\"welcome\":0,\"balanceWall\":0},\"liftStartCount\":0,\"liftHubTapCount\":0,\"liftUserIds\":[],\"liftWindowMs\":2700000,\"liftEvaluated\":false}"}
+{"t":"2026-09-17T04:30:18.543319689Z","s":"info","m":"[AutoPromo] Error breakdown for domains_shortener/hi/morning: ETELEGRAM=2"}
+{"t":"2026-09-17T04:30:18.543326989Z","s":"info","m":"[AutoPromo]   ↳ failed chatId=5165954611 error=\"ETELEGRAM: 403 Forbidden: bot was blocked by the user\""}
+{"t":"2026-09-17T04:30:18.543329749Z","s":"info","m":"[AutoPromo]   ↳ failed chatId=8733350077 error=\"ETELEGRAM: 403 Forbidden: bot was blocked by the user\""}
+{"t":"2026-09-17T04:31:08.813930744Z","s":"info","m":"[ProtectionHeartbeat] Done in 3720.4s — total:15 ok:0 repaired:0 skipped:15 (whm_read_unreliable:15) errors:0"}

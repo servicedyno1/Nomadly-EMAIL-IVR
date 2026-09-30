@@ -1,0 +1,4 @@
+{"t":"2026-09-14T22:28:17.753375019Z","s":"info","m":"[Support] editMessageText unavailable for 1185070608 — falling back to fresh send (terminal): \"ETELEGRAM: 400 Bad Request: message can't be edited\""}
+{"t":"2026-09-15T19:53:12.231563547Z","s":"info","m":"[Support] editMessageText unavailable for 1185070608 — falling back to fresh send (terminal): \"ETELEGRAM: 400 Bad Request: message can't be edited\""}
+{"t":"2026-09-16T19:00:12.729548296Z","s":"info","m":"[Support] editMessageText unavailable for 5976284267 — falling back to fresh send (terminal): \"ETELEGRAM: 400 Bad Request: message can't be edited\""}
+{"t":"2026-09-16T19:10:02.216633686Z","s":"info","m":"[Support] editMessageText unavailable for 1185070608 — falling back to fresh send (terminal): \"ETELEGRAM: 400 Bad Request: message can't be edited\""}

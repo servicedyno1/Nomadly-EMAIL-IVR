@@ -1,0 +1,5 @@
+{"t":"2026-09-09T13:10:10.368629380Z","s":"info","m":"[Voice] Outbound SIP: LOW BALANCE LOCK for +18778570205 → +19194381517 (Available: $0.01 < $1 trigger [balance $0.01, reserved $0.00], need $50 to resume)"}
+{"t":"2026-09-10T23:29:46.013207615Z","s":"info","m":"[Voice] Outbound SIP: LOW BALANCE LOCK for +18778570205 → +919336546703 (Available: $0.01 < $1 trigger [balance $0.01, reserved $0.00], need $50 to resume)"}
+{"t":"2026-09-11T15:39:20.691899600Z","s":"info","m":"[Voice] Outbound SIP: LOW BALANCE LOCK for +18778570205 → +918905108613 (Available: $0.01 < $1 trigger [balance $0.01, reserved $0.00], need $50 to resume)"}
+{"t":"2026-09-12T08:12:56.097303643Z","s":"info","m":"[Voice] Outbound SIP: LOW BALANCE LOCK for +18778570205 → +918905108613 (Available: $0.01 < $1 trigger [balance $0.01, reserved $0.00], need $50 to resume)"}
+{"t":"2026-09-13T12:07:29.574208476Z","s":"info","m":"[Voice] Outbound SIP: LOW BALANCE LOCK for +18778570205 → +918905108613 (Available: $0.01 < $1 trigger [balance $0.01, reserved $0.00], need $50 to resume)"}

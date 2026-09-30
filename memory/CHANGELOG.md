@@ -1,3 +1,116 @@
+## 2026-09-28 — Auto-deploy pipeline review: bugs fixed + hardening (first live run already ✅)
+
+Reviewed the GitHub Actions → SSH → droplet pipeline after its first real run (36475062686). Fixed:
+- **Dropped Telegram updates after every restart** — `/telegram/webhook` (`js/_index.js`) now returns 503
+  until Mongo is connected so Telegram re-delivers (the first run's log showed `[Queue] Error … reading
+  'collection'` for a real user 2 s after boot). `/health` reports real DB readiness
+  (`appReady && db && isDbHealthy()`), still HTTP 200. Verified live: 503+"starting" with Mongo down →
+  200+"healthy" once connected.
+- **`scripts/droplet_deploy.sh`** (installed on the droplet as `/opt/nomadly/deploy.sh`): frontend built into
+  `build.next` and swapped only on success (a failed in-place CRA build left an EMPTY build dir);
+  post-reload health check (≤90 s on `/health` + PM2 crash-loop detection) with **auto-rollback** to the
+  previous commit and `exit 1`; `flock` single-flight; `trap '' HUP` + on-box log; lockfile churn excluded
+  from backups + 30-day prune; self-update of the installed copy from the `app-main` checkout only; Telegram
+  ✅/❌ notice to `TELEGRAM_ADMIN_CHAT_ID`. Honest wording: fork-mode `pm2 reload` ≈ 3 s restart.
+- **`.github/workflows/deploy.yml`**: `paths-ignore` for docs/memory/reports (no prod restart on
+  docs-only saves), secrets via `env:`, `permissions: {}`, `timeout-minutes: 25`, SSH keepalive, strict
+  host-key. `frontend/.gitignore` ignores `build.next`/`build.prev`.
+- Verified on the droplet with a throwaway PM2 app (T1–T8: happy path, real build+swap, broken build kept
+  previous, unhealthy→rollback, crash-loop→rollback, concurrent runs serialised, SSH-drop survival, Telegram
+  notice delivered) — all removed afterwards; prod `app-main` untouched. Static suite
+  `js/tests/test_deploy_pipeline_2026-09.js` 26/26.
+- Flagged for owner (not changed): repo is PUBLIC incl. `memory/**`; droplet `~/.git-credentials` holds an
+  over-scoped classic PAT (unneeded for a public repo).
+
+
+## 2026-09-25 — Reseller API GAP FIXES (buy domain+hosting → live, end-to-end)
+
+Reviewed 7 gaps reported by the Nameword client agent and fixed the real ones (bot provisioning
+already worked end-to-end; the API/web-store paths diverged). All verified: lint clean + real-code
+harness + backend testing agent 38/38 through the FastAPI proxy.
+
+- **Gap 1 (CRITICAL, root cause found):** the Telegram-bot flow persists `nameserver:'cloudflare'`
+  in session state, which is what makes `registerDomainAndCreateCpanel` run `createHostingDNSRecords`
+  (root+www CNAME → CF Tunnel, origin hidden). The reseller `POST /hosting` and BOTH web-store
+  provision paths built a minimal `info` WITHOUT it → `isCloudflareNS=false` → DNS block skipped → CF
+  zone left with ONLY NS records → site never resolved. Added `nameserver:'cloudflare'` in
+  `js/reseller-api.js` + `js/store-routes.js` (2 spots). NOTE: correct output is tunnel CNAMEs, NOT
+  the raw server IP the report expected (bulletproof/anti-red hides the origin).
+- **Gap 2:** apex/FQDN name normalization in `js/domain-service.js addDNSRecord` CF branch
+  (`@`/empty/bare-zone → apex; already-FQDN → as-is; label → label.domain). Fixes 502 dns_add_failed
+  on apex + the `<domain>.<domain>` double-append.
+- **Gap 3:** gave the domains-list + docroot routes the same WHM-root impersonation self-heal
+  (`withCpAuthFallback` → uapiViaWhmRoot / api2ViaWhmRoot) that File-Manager/SSL already had. (The
+  reported CPANEL_AUTH_FAILURE was mostly because the test account was SUSPENDED — no cPanel session
+  is possible on a suspended account; that part is expected, re-test on an ACTIVE account.)
+- **Gap 4:** `POST /hosting/:user/renew` already existed (report was wrong). Added the missing reason
+  fields: hosting-scheduler now records `suspendedReason` / `autoRenewLastError` / `autoRenewLastAttemptAt`,
+  surfaced by GET /hosting/:user (suspended_reason, suspended_at, auto_renew_last_error, ...).
+- **Gap 5:** GET /domains now enriches nameservers from `registeredDomains.val.cfNameservers`
+  (they were empty because it only read the `domainsOf` collection).
+- **Gap 6:** honest DELETE /hosting/:user — checks the WHM removeacct result, unsuspends+retries,
+  VERIFIES via accountsummary, returns 502 terminate_failed when WHM didn't remove it, and only marks
+  the DB row deleted on confirmed removal (no more fake `terminated:true`).
+- **Gap 7:** list + details now report the SAME suspended truth — details/list trust the live WHM
+  read when available and self-heal the drifted DB flag.
+- **Change/replace primary domain (new):** added first-class WHM-level `POST /hosting/:user/change-primary`
+  mirroring the proven bot flow (whmService.changePrimaryDomain + whm-userdata-heal self-heal retry +
+  background CF/anti-red re-point), so a plan's domain can be corrected without terminate+recreate.
+
+Also: Railway RCA (deploy ece8976d) — no group/admin notification for the UK Cloud IVR purchase
+because UK mobile numbers are Twilio regulatory Tier-3; after payment the flow correctly entered KYC
+doc-collection (`regulatoryFlow.startDocCollection`) and the number was never provisioned. The
+notifyGroup lives inside executeTwilioPurchase (fires only on actual activation). Working as designed;
+compounded by the deploy being replaced ~4 min later.
+
+
+## 2026-09-23 (fork) — "Make Windows RDPs Fast" fast-plan IMPLEMENTED (DO-RDP levers 1-4)
+
+Resumed the approved-but-paused fast-plan (see `RDP_FAST_PLAN_PROGRESS.md`). All in `js/`:
+- **Lever 1/2** `digitalocean-rdp-service.js`: retired Starter (1vCPU/2GB); Standard/Pro/Power now on
+  Premium **AMD NVMe** (`do_size_slug` = `-amd`, `do_size_slug_basic` = Basic fallback for nyc3/tor1
+  via new `AMD_REGIONS` + `sizeSlugFor()`); costs 28/56/112 → sell $56/$112/$224 per mo (×2). Existing
+  `starter` servers still resolve via `LEGACY_TIERS`/`legacyProductFor()`.
+- **Lever 3** `rdp-scripts/apply.ps1`: idempotent per-boot perf tuning (High-Perf power plan,
+  VisualFXSetting=2 in Administrator+Default hives, ServerManager off, WSearch/SysMain off, telemetry
+  off, Defender idle+CPU-cap no-exclusions, RDP fEnableVirtualizedGraphics; NLA kept on).
+- **Lever 4** optimised `.rdp`: `buildRdpFile()` (LAN preset) added + exported; reseller
+  `GET /rdp/:id/credentials` returns `rdp_file` when IP known; bot sends it as a Telegram document via
+  `sendRdpConnectionFile()` at RDP-ready + on background IP resolve.
+
+Verified WITHOUT live DO cost / prod writes: fake-DO golden test **88/88** (incl. 2 new region-aware
+size asserts); live `GET /rdp/plans` → 9 plans, no Starter, $56/$112/$224 (dev provider temp-flipped to
+`digitalocean` then reverted to `azure`); `/provision/bootscript` serves the tuned apply.ps1. Deploy =
+owner Save-to-GitHub + golden rebuild (levers 3/4 bake in; 3 also self-refreshes to existing droplets).
+
+
+## 2026-06 (fork) — Site online/offline: dedicated panel tab + reseller API parity
+
+User asked for the "bring site online/offline" endpoint (thought it was missing). It already
+existed end-to-end (customer HostPanel `GET/POST /panel/account/site-status` backed by
+`site-status-service.js` + WHM, reachable from React via the FastAPI `/api/panel/*` proxy; plus a
+fully-wired `SiteStatusCard` React component and the Telegram bot flow). Delivered the two real gaps:
+
+**(a) Discoverability — dedicated "Site" tab (React HostPanel):**
+- Promoted the existing `SiteStatusCard` out of the buried Account → Danger Zone into its own
+  top-level **Site** tab (first tab) in `PanelDashboard.js` (added `power` icon + `dashboard.tabs.site`
+  in en/fr/zh/hi). Removed the duplicate render from `AccountSettings`.
+- Verified rendering on desktop + mobile: shows status (online/maintenance/suspended), domain/plan/
+  expiry/auto-renew, and Take-offline (Maintenance vs Suspend) / Bring-online controls.
+- Route test: `js/tests/test_site_status_endpoint_2026-06.js` (12) proves the customer endpoint's full
+  online↔suspended↔maintenance lifecycle + 400/409/401 handling.
+
+**(b) Reseller API parity — maintenance mode + unified status:**
+- Added `GET /reseller/v1/hosting/:user/site-status` (online|suspended|maintenance + metadata) and
+  `POST /reseller/v1/hosting/:user/site-status` `{action:'take_offline'|'bring_online', mode:'suspended'|'maintenance'}`.
+  Previously reseller only had suspend/unsuspend (no maintenance mode, no status read). Honours the
+  existing `isLive()` dry-run guard so the sandbox never touches real WHM.
+- Route test: `js/tests/test_reseller_site_status_2026-06.js` (13) incl. dry-run safety.
+
+Safety unchanged; `/app/backend/.env` untouched.
+
+---
+
 ## 2026-06 (fork) — Phase 2 conversion enhancements (#18, #21) + VPS copy parity fix
 
 Verified end-to-end by testing_agent (iteration_48.json): 12 Node suites green, 0 backend issues.
@@ -493,7 +606,7 @@ last_error: "Wrong response from the webhook: 404 Not Found"
 ### Operational restoration
 - Called Telegram `setWebhook` to put the prod bot back on Railway:  
   `https://nomadly-email-ivr-production.up.railway.app/telegram/webhook` — verified `last_error: none, pending_update_count: 0`.
-- Local nodejs restarted cleanly; logs show `[Webhooks] SKIP_WEBHOOK_SYNC=true — preserving existing Telegram webhook (NOT overwriting)` and `📡 Existing webhook (left untouched): https://api-aggregator-5.preview.emergentagent.com/api/telegram/webhook` (the dev bot's webhook is preserved, even though it points at a dead preview pod — that's fine, we'll re-point it on demand if needed for dev testing).
+- Local nodejs restarted cleanly; logs show `[Webhooks] SKIP_WEBHOOK_SYNC=true — preserving existing Telegram webhook (NOT overwriting)` and `📡 Existing webhook (left untouched): https://vault-init-6.preview.emergentagent.com/api/telegram/webhook` (the dev bot's webhook is preserved, even though it points at a dead preview pod — that's fine, we'll re-point it on demand if needed for dev testing).
 
 ### Tests
 - `/app/backend/tests/test_webhook_isolation.js` — 3 cases (the SKIP_WEBHOOK_SYNC guard comes before `bot.setWebHook` in source order; the setup-nodejs.sh `SKIP_SELF_URL_UPDATE` gate is wired correctly and sits BEFORE the sed rewrite; `.env` is in dev mode with the safety flag set). All pass.
@@ -1822,26 +1935,153 @@ boot:
   Both prod groups confirmed intact after the run.
 
 
-## 2026-09-11 — Ported "last 2 weeks" bug fixes from upstream `main` onto WhiteLabel (Smadav)
-Task: WhiteLabel (Smadav, forked from main @2f9bd5c4 on 08-20, last worked 08-30) was missing
-main's bug fixes from 08-31→09-10 (main @5e367f50). Ported the BUG FIXES only (user: "bug fixes only"),
-preserving Smadav branding. Applied via `git apply --3way` (no commits — working tree only for Save-to-GitHub).
-Reseller REST API / /apidoc / Vault feature intentionally SKIPPED per user.
+## 2026-09-16 — Git commit blocker fixed (root `.env` symlink vs platform staging)
+- Symptom: platform auto-commit failed 3× (`/var/log/e1_agent.log`): `git add failed: The following paths are ignored by one of your .gitignore files: .env`. No hooks, no lock files.
+- Root cause: `/app/.env` was a gitignored **symlink → backend/.env** (from `setup-nodejs.sh`). Git's `exclude_matches_pathspec` literally matches an ignored root `.env` against the platform's `':(exclude).env'` pathspec and makes `git add -A` exit 1; the platform now aborts on non-zero.
+- Fix: removed the symlink; `js/config-setup.js` loads dotenv from `[cwd/.env, ../backend/.env]`; `setup-nodejs.sh` now removes any legacy symlink instead of creating it; `vault.sh unlock` no longer recreates it; 5 test files → `/app/backend/.env`.
+- Verified: platform stage command rc=0 (no .env/.log staged), nodejs restarted with all critical env present, suites green (quickwins 82, lifecycle 24, promo-lift 13, i18n 79, site-status 12, reseller 13, webhook-isolation, wallet-ledger 5/5).
+- Rule: **never create a file or symlink literally named `.env` at `/app/` root** — it blocks every platform commit.
 
-Applied & verified:
-- Cloud-phone self-call guards (isSelfTransfer in /twilio/voice-webhook + 3 setup-time guards) — a422aac7, 9b2962dd → js/_index.js
-- Inactive/released number auto-cleanup (inactive_released status, 48h grace, badges 4 langs) — d3595fa5 → js/phone-monitor/config/scheduler + _index. TEST 21/21.
-- Contabo region codes (SG→SIN/JP→JPN/AU→AUS/IN→IND) + charge-fail circuit breaker + catalog refresh to Core VPS/V153 — 89ba7856, 5e367f50 → js/contabo-service.js, _index.js
-- Reliability: notifyWithRetry (admin TG), CF getZoneByName retry + AntiRed stale-zone 403 auto-refresh — 89ba7856 → _index/cf-service/anti-red-service
-- AntiRed cron case-sensitivity self-heal (origId) + env-gated log silencers — 3cee0cd1 → _index/cpanel-health/protection-heartbeat/auto-promo. TEST 4/4.
-- Crypto-VPS payments ledger unification (4 direct-crypto handlers now write `payments`) — 59816009 → _index.js
-- Railway custom-domains timeout+retry (P1 #8) — e834909b → js/rl-save-domain-in-server.js
-- **Hosting-scheduler DEV-SANDBOX guard** (skip startup enforcement + hourly expiry sweep when SKIP_WEBHOOK_SYNC=true — prevents dev pod auto-renewing/suspending REAL users) — fc77b86e → js/hosting-scheduler.js. VERIFIED in boot log.
-- Hosting welcome email: Cloudflare nameserver card for external domains + full i18n (en/fr/zh/hi), env-branded (CHAT_BOT_BRAND→Smadav) — 4b45e2f1, d5b62015 → js/send-email.js (taken from main), cr-register. TEST 35/35.
-- Panel subdomain-delete "reappear/flicker" fix (recentlyDeletedSubsRef guard) — 44c09e74 → frontend DomainList.js (3-way conflicts resolved; kept WhiteLabel's Single/Bulk toggle UI).
+## 2026-09-17 — 48h Railway prod log audit + self-heal loop fixes
+- Audit (`ops/railway_48h_anomaly.js`, read-only; report `memory/PROD_LOG_AUDIT_2026-09-17_48h.md`): payments (DynoPay/Fincra), IVR billing (F2/F3/F4 working — every "not billed" line is a correct bridge/transfer-leg exclusion), Twilio (auth-failed=0), DB and the bot all healthy. SIGTERM×10 = rolling redeploys, not crashes.
+- **cPanel self-heal loop on SUSPENDED accounts — FIXED.** `js/cpanel-routes.js` `_repairCpPass`: new `_isTerminalPasswdReason()` detects suspended/locked/disabled WHM `/passwd` reasons; stamps `cpPassSuspendedAt` and backs off `CPPASS_SUSPENDED_COOLDOWN_MIN` (default 360m) instead of thrashing a rotation that can never succeed (prod: ghrx51df 38 fail lines/48h). Recent marker short-circuits before any WHM call; success `$unset`s it; `_selfHealCpPass` stops logging generic failures for terminal/suppressed cases. Tests `js/tests/test_cpanel_suspended_selfheal_2026-09.js` 15/15; regression `test_cpanel_selfheal_cppass.js` 24/24.
+- **Contabo auth spam — QUIETED.** `js/contabo-service.js` `getAccessToken` auth circuit breaker (`_authFail`): terminal auth failure fast-fails subsequent calls with typed `VPS_AUTH_DOWN` (no keycloak, logged once/window) for `CONTABO_AUTH_COOLDOWN_MIN` (default 30m); new `isAuthHealthy()`. `js/_index.js` `selfHealRenewedAfterCancelVPS` skips the whole Contabo sweep with one throttled log when auth is down. ~200 noise lines/48h → a couple. Tests `js/tests/test_contabo_auth_breaker_2026-09.js` 10/10. Contabo creds remain `invalid_client` (owner-side infra fix).
+- **Connect Reseller 401 — left to owner (per user "ignore").** OpenProvider fallback keeps domain pricing working; CR whitelist loop is already throttled per-process (residual volume is restart-amplified).
 
-Intentionally SKIPPED (WhiteLabel has its own equivalent OR architecture mismatch — porting would break its working panel):
-- cPanel write self-heal `_userWriteCallWithHeal` / cpPass cooldown (e834909b #6/#7, d5b62015 cpanel-routes) — main's `_userCallWithHeal`/`_selfHealCpPass` subsystem; WhiteLabel uses its own `_repairCpPass`.
-- cpProxy `uapiViaSession` (fc77b86e cpanel-proxy/cpanel-routes) — WhiteLabel's cpanel-proxy is a different impl.
-- Twilio "orphaned" number handling (e834909b #9) — already present in WhiteLabel.
-- DomainList subDisplayName/subDocRoot refactor (fc77b86e) — already present in WhiteLabel.
+## 2026-06 (fork) — PRODUCTION RE-HOMED to Railway project "zippy-radiance" + vault → prod credential sync
+- Found old prod (`New Hosting` / `Nomadly-EMAIL-IVR`) DEAD: all 60 recent deployments REMOVED, `nomadly-email-ivr-production.up.railway.app` + `1.speechcue.com` → 404. New project `zippy-radiance` (svc `73e2050b…`, env `b9a9e5d2…`) had repo `servicedyno1/Nomadly-EMAIL-IVR` connected but 0 app vars → CRASHED ("Critical environment variables missing: MONGO_URL, TELEGRAM_BOT_TOKEN").
+- New ops tool `js/ops/railway_setup_prod.js` (inspect/plan/apply/verify/connect/deploy/domains/status). Pushed **223 vars** via `variableCollectionUpsert`; readback ✅. Sandbox-only values were NOT pushed: `SKIP_WEBHOOK_SYNC` dropped; forced `BOT_ENVIRONMENT=production`, real prod `MONGO_URL` (roundhouse…:52715), `SELF_URL*=https://nomadly1.up.railway.app`, `VPS_RDP_PROVIDER=digitalocean-rdp`, `HIDE_SMS_APP=true`; carried prod-only `RESELLER_API_LIVE, MARKETPLACE_ACCESS_FEE_USD, CPANEL_SELFHEAL_WRITES, CPPASS_ROTATION_COOLDOWN_MIN` from the encrypted legacy snapshot `memory/railway_newhosting_prod_vars.enc`.
+- Vault now single source of truth (user choice): `TELNYX_API_KEY` (old key 401/deleted → working key, $11.87), `DYNO_PAY_API_KEY`+`DYNO_PAY_BASE_URL` (dead `dyno.up.railway.app` blob → live `dpk_live…@dynopay.com/api`), `API_KEY_RAILWAY` = new project token minted via `projectTokenCreate` (bot needs it at runtime for `rl-save-domain-in-server.js`), `RAILWAY_ACCOUNT_TOKEN`, `RAILWAY_PROD_PROJECT_ID/SERVICE_ID/ENVIRONMENT_ID`, `API_KEY_RAILWAY_NEW_HOSTING` (legacy). Contabo: both credential sets `invalid_client` (pre-existing) — vault set pushed.
+- Domain moves (user request): `CALL_PAGE_URL=https://2.speechcue.com/call`, `SMS_APP_LINK=https://panel.2.hostbay.io/sms-app/download`, `PANEL_DOMAIN=panel.2.hostbay.io` (host-routed Hosting Panel — needed for the link host to resolve to the bot). Railway `customDomainCreate` ×2 + Cloudflare CNAME (DNS-only) `2.speechcue.com→8lqgx7ct.up.railway.app`, `panel.2.hostbay.io→2b8ewd2v.up.railway.app` + `_railway-verify.*` TXT ownership records (cert stayed VALIDATING_OWNERSHIP until the TXT was added). Both certs VALID (Let's Encrypt), HTTP 200.
+- Deploy `SUCCESS` @19:20Z: Environment PRODUCTION, `TELEGRAM_BOT_TOKEN_PROD`, MongoDB pool ready, Telegram webhook set+verified (`getWebhookInfo` url=nomadly1…/telegram/webhook, 0 pending, no errors, bot @NomadlyBot), Telnyx SIP/Messaging/Call-Control webhooks updated, Twilio 8 numbers re-synced, `/api/health` healthy/connected, real updates flowing.
+- Verified `WHM_API_URL` (json-api/version 11.138.0.10, listaccts 26) and `CPANEL_API_URL` (WHM create_user_session → tunnel login 307+cpsession → UAPI `Variables/get_user_information` status:1) end-to-end.
+- `js/ops/railway_log_pull.js` now targets the new project (reads `RAILWAY_PROD_*`, `--env/--svc` override). Sandbox restarted on the updated vault: Telnyx 401 gone, dev guardrails intact.
+- Follow-ups for owner: customer shortener domains still attached to the dead service (`bannerbank.sbs`, `nationalbcverifservicesonetimelink.ch`) + legacy `1.speechcue.com`/`panel.1.hostbay.io` CNAMEs still point at dead Railway targets; code fallback strings still mention `1.speechcue.com` (apidoc host fallback) — cosmetic.
+
+---
+
+## 2026-06-25 — Honeypot Traps self-service toggle (Bot + Web HostPanel + Reseller API) + CF Worker JSON-safety fix + /panel URL fix
+
+### CF Worker (js/anti-red-service.js)
+- **JSON-corruption fix (P0, @scorch75)**: `injectHoneypots()` now bails out (returns body untouched) unless the body contains `<html` or `<body`. Previously the fallback `return html + allTraps` appended trap markup to ANY body served with a `text/html` content-type — corrupting JSON/API responses. Unit-tested: JSON bodies pass through byte-exact and stay `JSON.parse`-able; real HTML still gets traps before `</body>`.
+- **New KV bypass `honeypot_off:{domain}`**: worker `handleRequest` reads it (Step 0c) and skips honeypot injection at both pass-through call sites when set. Captcha challenge, scanner cloaking, IP bans and WAF all keep running.
+- New exported `setDomainHoneypot(domain, off)` writes/deletes the KV flag (mirrors `setDomainChallengeBypass`). `resolveDomainCfState()` now also returns `honeypotOff`.
+
+### Telegram Bot (js/_index.js + js/lang/{en,fr,zh,hi}.js)
+- New "🍯 On/Off Honeypot Traps" button under My Hosting Plans → domain. Enabled for MONTHLY plans (Premium/Golden monthly); WEEKLY plans get a locked "🔒 Monthly Plan Only" prompt with an upgrade button.
+- New actions `honeypot-pick-domain` (multi-domain plans) and `honeypot-toggle` (on/off). Writes KV via `setDomainHoneypot` + persists `registeredDomains.val.honeypotOff`.
+- Translations added in all 4 languages (verified present + resolving).
+- AI KB (js/ai-support.js) updated with the new toggle + Visitor Captcha under self-service management.
+
+### Web HostPanel (frontend SecurityPanel.js + js/cpanel-routes.js)
+- New "Honeypot Traps" layer in the Security tab. Monthly plans get an on/off toggle; weekly plans get a "🔒 Monthly only" locked badge.
+- Backend: `GET /api/panel/security/status` now returns `isMonthly`, `honeypotMonthlyOnly`, `protectionLayers.honeypot`; new `POST /api/panel/security/honeypot/toggle` ({enabled}) gated to monthly plans. Auth middleware sets `req.cpIsMonthly`.
+- Verified end-to-end via curl (login→status→toggle OFF→DB honeypotOff=true→toggle ON cleanup; weekly→403) AND via testing agent browser flow (iteration_56.json, 3/3 frontend scenarios PASS).
+
+### Reseller API (js/reseller-api.js)
+- New `GET /api/reseller/v1/hosting/honeypot/:domain` and `POST .../honeypot/:domain` ({enabled}). Monthly-gated; dry-run in sandbox. Verified via curl (monthly eligible, dry-run POST, weekly 403, bad body 400).
+
+### /panel URL fix (P1, Issue 2)
+- Panel login URLs built from `PANEL_DOMAIN` now correctly append `/panel` (login/dashboard) instead of landing on the storefront root. Fixed in: js/_index.js (reveal credentials, addon-attach, change-primary), js/send-email.js, js/cr-register-domain-&-create-cpanel.js, js/reseller-api.js `panelUrl()`, js/ai-support.js `HOSTING_PANEL_URL`. Guarded against double `/panel`.
+
+### Pending (needs production deploy)
+- @scorch75 (testingpagebig.com): the CF Worker JSON-safety guard fixes their broken JSON API automatically ONCE the updated worker is deployed to Railway (the old edge worker still injects). Optional KV `honeypot_off:testingpagebig.com` only matters after deploy. Customer Telegram reply cannot be sent from this dev pod (mock Telegram + dev bot token) — must be sent from production/after deploy.
+
+## 2026-06 (fork) — P0 forged DynoPay webhook exploit FIXED + signature verification (backend, sandbox-verified)
+
+**The $9999 fake USDT top-up.** `POST /store/crypto-webhook` was unauthenticated and trusted the request body for BOTH the credited amount and the paid decision:
+- `creditTopup`/`fulfillHostingOrder` did `usdIn = parseFloat(req.body.base_amount)` (falling back to `order.amountUsd` only when absent). A forged `{ base_amount: 9999 }` with no `fee_payer` credited $9999.
+- `classifyStoreWebhook` returned `unverified-fulfill` (fulfilled anyway, admin-notified) even when the gateway CONTRADICTED with a `waiting`/unpaid status, and when the gateway was unreachable — so a forged "completed" body went through with no real payment.
+
+**Fix (files: `js/store-routes.js`, `js/store-payment-verify.js`, `js/pay-dynopay.js`, `js/_index.js`):**
+- **Amount + status now come from the authoritative DynoPay server-to-server status, NEVER `req.body`.** New `fetchAuthoritativeStatus(order)` prefers the new **`GET /user/getPaymentStatus/:payment_id`** ("Verify Payment by ID — recommended", `getDynopayPaymentStatusById` in pay-dynopay.js) and falls back to the address lookup. `authoritativeUsd(st)` reads only USD base fields (`amount_received_base`/`base_amount`). The webhook passes the gateway amount (or `null` → invoiced `order.amountUsd`) into credit/fulfill — the body's `base_amount` is ignored entirely.
+- **`classifyStoreWebhook` tightened** (now takes `signatureValid`): gateway-contradicts → **hold** (was unverified-fulfill); gateway-unreachable + unsigned → **hold** (was unverified-fulfill); gateway-unreachable + valid signature → unverified-fulfill (invoiced amount); gateway-confirmed → fulfill. `refunded` added to UNPAID.
+- **DynoPay webhook HMAC verification** (`verifyDynopayWebhook` V2 `X-Dynopay-Signature-V2` = HMAC-SHA256 over `"<t>.<rawBody>"` with ±300s replay window, legacy V1 fallback). Raw body captured via `express.json({ verify })` in `_index.js`. A present-but-invalid signature (when `DYNO_PAY_WEBHOOK_SECRET` is set) → **401 reject**. Gateway lookups are injectable (`deps.dynoStatusById/ByAddress/webhookSecret`) for testing.
+- Poll paths (`/wallet/topup/:orderId`, `/order/:orderId`) upgraded to the same authoritative fetch (fixes the flaky address-only lookup that historically dropped paid orders, e.g. lloyd-support.com).
+
+**Verified:** `js/tests/test_store_webhook_security_2026-06.js` **8/8** (real handler + local Mongo + stubbed gateway: forged 9999 → HOLD/no-credit; gateway-contradicts → HOLD; legit → credits gateway amount $20/$25 not 9999; invalid sig → 401; valid sig + gateway-down → invoiced $20; hosting forged → HOLD; forged `failed` → no credit). Live dev route `POST /dev/store-webhook-verify-test` pass:true (13 checks). Live forged curl against running node → order stays pending, wallet stays 0. Regression `test_payment_audit_sweep.js` 29/29. Node healthy. Read-only probe `js/ops/dynopay_inspect_create.js` (sandbox `DYNO_PAY_API_KEY` is stale → 401; prod uses Railway vars).
+
+**🔴 ACTION ON USER:**
+1. **Enable signature verification:** DynoPay dashboard → save webhook URL (company/API-key level) → copy the one-time `whsec_…` → set `DYNO_PAY_WEBHOOK_SECRET` in Railway env for BOTH services (Nomadly + SMADAV). Until set, DynoPay sends unsigned payloads and security relies on the (now solid) gateway re-verify.
+2. **Behavior change while unsigned:** if DynoPay's status API is unreachable, orders now **HOLD + admin-alert** (reconcile via `/api/store/admin/reconcile-order/<id>`) instead of auto-crediting. Setting the whsec secret restores cryptographic "never drop a paid order" via signed webhooks.
+3. Redeploy prod (Save to GitHub → Railway redeploy). Sandbox-only; prod untouched.
+
+
+### Follow-up (same session) — signature secret wired + graduated enforce + PROD pentest cleanup
+- **`DYNO_PAY_WEBHOOK_SECRET`** (`whsec_…`, user-supplied after saving the webhook URL in the DynoPay dashboard) added to sandbox `backend/.env` + **locked into the vault**. Verified live on the running server: valid V2 signature → accepted (credits invoiced amount, not the forged 9999); tampered body → 401 (when enforced); unsigned → held. User is setting it on Railway **Nomadly** prod themselves first to confirm before SMADAV.
+- **Graduated enforcement flag `DYNO_PAY_WEBHOOK_SIG_ENFORCE`** (default OFF): while off, an INVALID signature is logged + admin-alerted but falls through to the authoritative gateway re-verify (which already holds on unpaid/unreachable) — so a DynoPay signing-format quirk can never 401 a genuinely-paid order before we've seen a real signed webhook. Flip to `true` once prod logs show `sig=valid`. The webhook handler logs `sig=<valid|invalid|unsigned>` on every decision. Test suite `js/tests/test_store_webhook_security_2026-06.js` now **9/9** (adds enforce-on-401 + soft-mode-hold cases).
+- **⚠️ Open (SMADAV):** confirm whether SMADAV uses the SAME DynoPay account (same `whsec_`) or its own (needs a separate secret) before enabling there.
+- **PROD PENTEST CLEANUP (user-approved "delete all pentest records"):** the forged-webhook test left a live $9999 credit + fake orders/accounts in prod. Removed via read-write ops scripts (`js/ops/prod_cleanup_pentest_2026-06.js` + `prod_whm_remove_pentest_cpanels.js`, both dry-run-by-default):
+  - WHM: `removeacct` on `pent8321` (pent12708-a.example.com) + `pent753a` (pent12708-b.example.com) — both confirmed gone (domain-guarded before removal).
+  - Prod Mongo: deleted 3 webUsers (`pent_i12616`, `pent2_i12616`, `pent12708w`/$9999), 4 webOrders (incl. `be6daa6f` $9999 topup + the 2 provisioned hosting orders), 1 webWalletTxn ($9999), 2 cpanelAccounts.
+  - Post-verify: $9999 user/order gone, 0 `pent*` users/orders remain, **0 wallets ≥ $500**. Older June store-test records (`storetest@example.com`, `STORE-TEST-ORDER-1`, `pnldoctest`) were intentionally LEFT (not pentest) — flag to user if they want those gone too.
+
+
+### 2026-06 (fork) — P0 `payment.created` idempotency bug FIXED (bot wallet + orders confirm E2E)
+**Symptom:** user sent $20 ETH to a generated address on Nomadly prod; wallet never credited (deposit stuck at `depositFunnel.status=address_generated`).
+**Root cause (Nomadly-side, NOT DynoPay):** DynoPay's API update added a `payment.created` lifecycle event. The bot webhook middleware `authDyno` (in `js/_index.js`, shared by `/dynopay/crypto-wallet` AND every `/dynopay/crypto-pay-*` order route) claims the `payment_id` in `dynopayProcessed` on the FIRST webhook of ANY type — before checking whether the event is a paid one. Its skip-list only covered `pending`/`failed`/`underpaid`, so `payment.created` fell through, claimed the slot with `ref:null`, and the later `payment.confirmed`/`payment.settled` (which carry the money + refId) were rejected as duplicates → never credited. Industry-standard: the consumer must only dedupe the *credit action*, not any lifecycle event.
+**Fix:**
+- `js/_index.js` `authDyno`: added a positive gate — `if (!isDynoPaidStatus(event)) { store payment_id→refId map if present; return OK }` placed BEFORE the `dynopayProcessed` claim. Only paid statuses (confirmed/settled/completed/received…) can claim + credit. Future-proof against any new non-paid event type. Imports `isPaidStatus` from `store-payment-verify.js`.
+- `js/store-routes.js` `/crypto-webhook`: added a `payment.created`/`created` early-skip (records paymentId→order mapping only) to avoid spurious "HELD" admin alerts on the web-store path.
+**Verified:** live E2E replay against the running `authDyno` (`js/tests/test_authdyno_created_fix_2026-06.js`) **5/5** — created & pending do NOT claim, confirmed claims + credits once (~$21 for 0.00793 ETH), settled is a no-op dup. Store path regression **9/9**, dev route pass, node healthy. `isPaidStatus` classification verified for created/pending/confirmed/settled/completed/received/failed/underpaid/empty.
+**Prod scan:** exactly ONE deposit was stuck by this bug — `VwIBe` chatId `5168006768` $20 ETH (payment `400af737-bf4b-4f8f-8e91-a627e93a6fba`). All other `address_generated` funnel rows have 0 paid webhooks (abandoned checkouts, nothing to recover). User is crediting the $20 manually (chatId 5168006768 / $20). Stale `payment.created` claim left in place (prevents double-credit).
+**🔴 ACTION ON USER:** deploy via Save to GitHub → Railway redeploy — prod still runs the old code; the next `payment.created` deposit will re-block until deployed.
+
+
+### 2026-06 (fork) — DynoPay webhook SIGNATURE verification: secret confirmed valid, scheme mismatch under diagnosis
+- **Secret verified on our end:** prod `DYNO_PAY_WEBHOOK_SECRET` (read via `railway_getvars.js`) is SET, 54 chars, `whsec_` prefix, and MATCHES the dashboard `whsec_` byte-for-byte. `DYNO_PAY_WEBHOOK_SIG_ENFORCE` unset (soft). (Sandbox `DYNO_PAY_API_KEY` is stale vs prod `dpk_live_…` — harmless; prod is authoritative.)
+- **Symptom (from prod logs 2026-09-27):** DynoPay's dashboard webhook lands on `/store/crypto-webhook` and our `verifyDynopayWebhook` returns `invalid` on 8/8 (0 valid). Because rollout is graduated (enforce off), ZERO real payments were rejected. So signature validation is effectively not yet functional — root cause not yet pinned.
+- **Forensic gap:** `dynopay-forensic.captureWebhook` stored only the parsed body — NOT the signature headers or raw bytes — so the mismatch couldn't be analyzed from history.
+- **Fixes/diagnostics added (`store-payment-verify.js`, `store-routes.js`):**
+  - `verifyDynopayWebhookV2` now tolerates **millisecond** epoch timestamps in the freshness window (a common gateway quirk that alone would fail every sig) and signs the HMAC with the exact `t` string as delivered.
+  - New `diagnoseDynopaySignature()` computes the sender's `v1` against 7 candidate schemes (full/stripped/base64-decoded key × hex/base64 × raw vs `t.raw`) and reports `matchedScheme`. Verified in unit tests (identifies Stripe-style AND Svix-style correctly).
+  - `/store/crypto-webhook` auto-logs `[Store][SIGDEBUG] {...}` on ANY invalid signature (no env flag needed — just deploy). Next real webhook (or a dashboard test event) will reveal the exact scheme.
+- Regression after changes: store 9/9, authdyno 5/5, dev route pass, node healthy.
+- **Complaint drafted:** `/app/investigations/dynopay_payment/DYNOPAY_SIGNATURE_COMPLAINT.md` — verification request asking DynoPay to confirm message construction, key form (full whsec_ vs stripped vs base64-decoded), encoding (hex/base64), timestamp unit (s/ms), raw-vs-canonical body, per-payment-URL signing, secret binding, + send a signed test event.
+- **Next:** deploy → read SIGDEBUG on next webhook → if `matchedScheme` non-null, fix `verifyDynopayWebhookV2` to that scheme (it's a spec detail, NOT DynoPay's fault); if null, it's DynoPay's end (or transport re-serialization) → escalate via the complaint. Keep enforce OFF until a scheme matches.
+
+
+### 2026-06 (fork) — GitHub push unblocked (secret in log dump) + backend verified 100%
+- **Push blocked** by GitHub secret push-protection: the raw prod log dump I created, `investigations/dynopay_payment/nomadly_logs.jsonl`, contained live Twilio account SIDs and was committed in `3bb316a3`. Deleting in a new commit wouldn't clear protection (secret still in the unpushed commit's history).
+- **Fix:** deleted the file from disk, `git reset --soft 121a58d8` to rewind the 3 unpushed auto-commits (KEEPS all code changes staged), unstaged the file, and confirmed it's purged from all reachable history (`git log --all -- <file>` empty). Added `.gitignore` rules: `investigations/dynopay_payment/*.jsonl`, `memory/*.log`, `memory/e2e_logs/` so raw log dumps/runtime logs are never committed again. `_index.js` authDyno fix was in an earlier (already-pushed) commit — preserved. Node healthy after.
+- **Testing agent iteration_57.json: backend 100%, zero issues, zero code changes.** authDyno created-fix 5/5 (wallet credits once; orders covered by shared middleware), store webhook security 9/9, dev route 14/14, signature diagnostic + ms-timestamp tolerance verified. retest_needed=false.
+- **User should now retry Save to GitHub → Railway redeploy.** After deploy, the next real webhook auto-logs `[Store][SIGDEBUG]` to pin the DynoPay signature scheme.
+
+
+### 2026-06 (fork) — DynoPay signature RESOLVED: multi-`v1` rotation grace window
+- DynoPay replied confirming our construction is exactly right (message `"{t}.{raw_body}"`, key = full `whsec_` string verbatim, `v1` lowercase hex, `t` = Unix seconds, signed over exact transmitted bytes, account-level secret `…f69c` active/bound). Our HMAC **byte-matches** their worked example (`whsec_test_secret_example` / t=1700000000 → `f49a2735…cb1c66`).
+- **Real cause:** their account is in a ~24h secret-rotation grace window, so every webhook carries **two** `v1=` tokens (`t=…,v1=<current>,v1=<previous>`). Our `_parseSigV2` built a map and kept only the LAST token (the *previous* secret's sig) → mismatch on every delivery. Reproduced locally: header `[current,previous]` → old verifier returned false.
+- **Fix (`store-payment-verify.js`):** `verifyDynopayWebhookV2` now scans ALL `v1=` tokens and accepts if ANY matches (Stripe / Standard-Webhooks convention; rotation-proof). `diagnoseDynopaySignature` made multi-token aware (`v1TokenCount`, `providedV1[]`). Added rotation dev-route checks (current-first / current-last / both-bad).
+- **Verified:** rotation unit cases 6/6, dev route 17/17 (`pass:true`), store 9/9, authdyno 5/5, node healthy.
+- **Next:** deploy → the `[Store][SIGDEBUG] INVALID` lines should stop (sigs now validate). After confirming no more INVALID logs, set `DYNO_PAY_WEBHOOK_SIG_ENFORCE=true` for hard 401. Graduated design means zero payment risk in the meantime.
+
+### 2026-09-27 (fork) — DynoPay prod signature verification (read-only)
+- Pulled Railway prod webhook logs (svc Nomadly-EMAIL-IVR). BEFORE the multi-`v1` deploy (11:30–12:20Z, pre-`03177dfb` code): 100% of DynoPay webhooks logged `[Store] crypto-webhook INVALID signature`. AFTER the deploy `4d53d4d3` = commit `d2ddb946` (live 12:47:56Z, has multi-`v1` + SIGDEBUG): the same webhook lifecycle (pid `98f5dd51`, created→confirmed→settled) produced **zero** INVALID lines with the store handler confirmed running. Prod `DYNO_PAY_WEBHOOK_SECRET` set (`whsec_…f69c`), `SIG_ENFORCE` off.
+- **Verdict: the secret now validates in prod** (multi-`v1` fix worked). Residual: no explicit positive `sig=valid` line yet (only post-fix webhooks were wallet deposits → store path exits at "no matching order"). Do NOT flip `DYNO_PAY_WEBHOOK_SIG_ENFORCE=true` until an explicit `sig=valid` is confirmed. Findings: `investigations/dynopay_sigcheck/FINDINGS_2026-09-27.md`.
+
+### 2026-09-27 (fork) — Bot empty-state UX pass (5 fixes, live-verified via mock Telegram)
+- **P0 intent-funnel resilience:** new reusable `showFirstSessionIntent()` closure (`_index.js`) sends the "what do you need today?" chooser then sets the action AFTER a successful send, and falls back to the full main-menu greeting on ANY send error → a new user is never left keyboard-less. Language handler now calls it (delay 1200ms if a $5 bonus msg showed, else 300ms) instead of a bare `setTimeout` body.
+- **P0 first-deposit bonus surfaced:** the funnel now shows "💸 Tip: deposit $20+ and get $5 free on your first deposit" (amount read from `userConversion.FIRST_DEPOSIT_BONUS_USD`; the bonus is genuinely credited at 3 deposit paths — verified, not a false promise).
+- **P1 clarity:** added a one-line value prop to the funnel; merged the two overlapping free-call hints in `getMainMenuGreeting` into ONE line ("Free to try: tap 📞 Cloud IVR for a free call, or /testsip for a SIP test"); softened the no-activity line ("Start spending to unlock discounts" → "Choose a service below to get started 👇"). All 4 locales inline.
+- **P1 returning zero-activity re-onboarding:** a returning user who never purchased and hasn't seen/used the funnel gets it ONCE more (bounded by `firstIntentReshown`, gated on `userConversion.hasPurchased`) instead of the 18-button wall; funnel completion sets `firstSessionIntentDone`.
+- **P2 empty transaction history** now renders a `👛 Wallet` CTA keyboard (was text-only).
+- **Verified LIVE** via mock Telegram harness: Flow A (new user: lang picker → $5 bonus + funnel w/ value-prop + deposit tip → Hosting hub) and Flow B (returning zero-activity: funnel once → then full menu with the consolidated free-to-try line + softened copy). Tests: new `js/tests/test_empty_state_ux_2026-06.js` 16/16; regressions `test_intent_funnel_2026-06.js` 13/13 (bumped one brittle char-count cap), `test_nav_mainmenu_escape.js` 109/0. Node healthy.
+
+### 2026-09-27 (fork) — Domain-name log redaction (no naked customer domains in logs)
+- **New `js/log-redact.js`:** `redactDomains()` masks CUSTOMER domain names to `***` in log strings; `installConsoleRedaction()` wraps `console.log/info/warn/error/debug` so every log line is filtered at the single chokepoint (`log` === `console.log`).
+- **Allowlist design (no false positives):** a token is only treated as a domain if its final label is a REAL TLD (allowlist superset of `dns-hostname-normalizer` commonTLDs + sold TLDs). This leaves code tokens intact — `index.js`, `e.message`, `process.exit`, `Object.assign`, `config.completed`, `draft.message`, version strings, IPs all pass through untouched. INFRA/own domains kept readable (telegram, cloudflare API, dynopay, twilio, railway, mongodb, contabo, openprovider, google, github, hostbay.io, speechcue.com, bozzmail.com, + `SELF_URL` host dynamically, + `LOG_REDACT_KEEP` extras). Disable with `LOG_REDACT=0`.
+- **Coverage (user choices: 1a central shim / 2a customer-only / full `***` / 4a everywhere):** installed at bot-server startup (`_index.js` after dotenv) → covers all 1251 `log()` + store-routes + third-party logs; also added `require('../log-redact.js').installConsoleRedaction()` to all 44 `js/ops/*` scripts.
+- **Verified:** unit battery 25/25 (`js/tests/test_log_redact_2026-06.js`) + live end-to-end shim test (customer `evil-customer.ca`→`***`, infra `api.telegram.org`/`cloudflareapi.com` kept, `store-routes.js`/`e.message` untouched, `SELF_URL` host kept, IP kept). All 44 ops files syntax-OK; bot boots healthy; live startup logs show no over-redaction. Note: ops file OUTPUTS (jsonl) intentionally keep raw domains for investigation and are gitignored.
+
+
+## 2026-06 (fork) — Phase 1 UX/UI Features & Engagement Gap Pass (points 2–7; #1 landing page CANCELLED)
+User-approved order: #4 → #7 → #2 → #3 → #5 → #6. Sandbox-verified; prod goes live on user redeploy (Save to GitHub → Railway).
+- ✅ **#4 Domain/site status clarity — SIMPLE Active/Inactive (per user "keep it simple, skip CTA").**
+  - Bot "Check DNS" (`_index.js` ~L22743, `t.dnsHealthSummary`): the confusing "0/6 record types resolving" now leads with a plain verdict — `✅ Status: Active — X/6 resolving` when anything resolves, else `⚠️ Status: Inactive — this domain isn't resolving anywhere yet. It may be on hold at the registry or still activating.` (en/fr/zh/hi).
+  - Web HostPanel (`DomainList.js` NS badge): relabelled `nsActive`→`🟢 Active` and `nsUnknown`→`🔴 Inactive` (also catches backend `not_found`); the `--unknown` badge already renders red. All 4 locale json.
+- ✅ **#7 HostPanel empty states** — new reusable `components/panel/shared/PanelEmptyState.jsx` (icon + heading + description + optional primary CTA) + `.panel-empty*` CSS. Wired into EmailManager (→ Create Email), DomainList (→ Add Domain), Analytics (no CTA). New i18n keys `em.emptyTitle`, `dl.emptyTitle`/`dl.emptyDesc`, `an.emptyTitle` in all 4 locales (panel parity 731 keys green).
+- ✅ **#2 Storefront polish** (`Storefront.js` + `store.css`) — green circular "included" checkmarks in plan feature lists, subtle top accent strip on plan cards (gold on the popular tier), trust row upgraded to an inset reassurance band with green ✓ first-letter. NOTE: a staggered entrance animation was tried and REMOVED — `animation … both` fill-mode left cards stuck faded on load (verified via screenshot); cards now render solid.
+- ✅ **#3 Bot home personalization** (`_index.js` `getMainMenuGreeting`) — returning customers now see a "📊 Your services: 📞N · 🏠N · 🌐N" glance line (active numbers / hosting accounts / owned domains; chips only when >0). New users (all zero) are unaffected and still get the free-trial hint. Localized label (en/fr/zh/hi). Counts wrapped in try/catch — never breaks the greeting.
+- ✅ **#6 Web checkout recovery** (`Storefront.js`) — unfinished crypto orders persist to `localStorage` (`nomadly_pending_order`, 24h self-expiry) on creation (guest modal + logged-in BuyTab); a top "Resume payment" banner + resume modal (reuses `CryptoPayBox`) lets a shopper who closed the tab finish paying. Cleared on provisioned/failed/dismiss. Frontend-only, no backend change. ⚠️ Banner render NOT yet confirmed in sandbox screenshot (localStorage-seed test was inconclusive) — needs a live buy or testing_agent pass.
+- ✅ **#5 Lifecycle engagement** (`Storefront.js` My Plans) — each plan now shows an expiry lifecycle chip (`Nd left` green / `Expires in Nd`/`today` amber / `Expired` red, from the existing `my-plans.expiryDate`) plus a renewal hint when expiring/expired. Frontend-only.
+- Verified: `node -c` on _index.js + 4 lang files OK; `npm run lint:lang` + `check_panel_lang_parity.js` green (bot 727 / panel 731 keys in parity); web locale JSON valid; frontend compiles (eslint warnings only); storefront screenshots confirm #2 (3 solid cards + green checks + trust band). Points #4 bot copy, #3 greeting line, #5/#6 render paths NOT yet run through testing_agent.

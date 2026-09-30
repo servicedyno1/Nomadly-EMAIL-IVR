@@ -147,161 +147,6 @@ function _makeWhmApi(whmHost) {
   })
 }
 
-// ─── Shared WHM-root impersonation helpers (UAPI v3 / session / fileop) ──
-//
-// These let a route recover a user-level op that failed because the user's
-// cPanel Basic Auth is dead (stale cpPass / cPHulk lockout / login-page HTML).
-// The WHM root token authenticates; cpanel_jsonapi_user=<user> impersonates.
-// They intentionally NEVER throw — a null/failed result lets the caller keep
-// the ORIGINAL user-level error rather than masking it with a WHM transport
-// error, so genuine "already exists" / bad-input errors still surface.
-
-// UAPI (api.version 3) via WHM /json-api/cpanel. Unwraps r.data.result to the
-// same { status, data, errors, messages, metadata } shape UAPI callers know.
-async function _uapiViaWhmRoot(whmApi, cpUser, module, func, params = {}) {
-  try {
-    const r = await whmApi.get('/cpanel', {
-      params: {
-        'api.version': 1,
-        cpanel_jsonapi_user: cpUser,
-        cpanel_jsonapi_apiversion: 3,
-        cpanel_jsonapi_module: module,
-        cpanel_jsonapi_func: func,
-        ...params,
-      },
-    })
-    const result = r.data?.result || {}
-    const errs = Array.isArray(result.errors) && result.errors.length ? result.errors : null
-    return {
-      status: result.status === 1 && !errs ? 1 : 0,
-      data: result.data != null ? result.data : null,
-      errors: errs,
-      messages: result.messages != null ? result.messages : null,
-      metadata: result.metadata != null ? result.metadata : null,
-      reason: errs ? errs[0] : null,
-      via: 'whm-fallback',
-    }
-  } catch (e) {
-    return { status: 0, data: null, errors: [e.message], reason: e.message, via: 'whm-fallback-failed' }
-  }
-}
-
-// UAPI via a WHM-minted cPanel login SESSION — required for get/save file
-// content because the plain /json-api query-string wrapper mangles large or
-// binary-ish file bodies. Ladder: create_user_session → cpsession cookie →
-// /execute/<module>/<func>. GET for reads, POST (form-encoded) for writes.
-// Reuses the CPANEL_API_URL tunnel when the session URL points at the default
-// firewalled host (direct :2083 is unreachable on the shared box).
-async function _uapiViaWhmSession(whmApi, cpUser, module, func, params = {}, method = 'POST') {
-  const https = require('https')
-  const axios = require('axios')
-  const httpsAgent = new https.Agent({ rejectUnauthorized: false })
-  const accessHeaders = (process.env.CF_ACCESS_CLIENT_ID && process.env.CF_ACCESS_CLIENT_SECRET) ? {
-    'CF-Access-Client-Id': process.env.CF_ACCESS_CLIENT_ID,
-    'CF-Access-Client-Secret': process.env.CF_ACCESS_CLIENT_SECRET,
-  } : {}
-  try {
-    const sess = await whmApi.get('/create_user_session', {
-      params: { 'api.version': 1, user: cpUser, service: 'cpaneld' },
-    })
-    if (sess.data?.metadata?.result !== 1 || !sess.data?.data?.session) {
-      return { status: 0, data: null, errors: [sess.data?.metadata?.reason || 'create_user_session failed'], via: 'whm-session-failed' }
-    }
-    const sessionToken = sess.data.data.session
-    const rawUrl = String(sess.data.data.url || '')
-    const cpsessMatch = rawUrl.match(/\/(cpsess\d+)\//)
-    const cpsessPath = cpsessMatch ? `/${cpsessMatch[1]}` : null
-    if (!cpsessPath) return { status: 0, data: null, errors: ['could not extract cp_security_token from session url'], via: 'whm-session-failed' }
-    // Prefer the CPANEL tunnel; else use the origin WHM returned.
-    let cpBase = (process.env.CPANEL_API_URL || '').replace(/\/+$/, '')
-    if (!cpBase) {
-      const m = rawUrl.match(/^(https?:\/\/[^/]+)/)
-      cpBase = m ? m[1] : null
-    }
-    if (!cpBase) return { status: 0, data: null, errors: ['no cPanel base URL for session'], via: 'whm-session-failed' }
-
-    // Consume the session to capture the cpsession cookie (maxRedirects:0!).
-    const loginRes = await axios.get(`${cpBase}${cpsessPath}/login/`, {
-      params: { session: sessionToken },
-      headers: accessHeaders,
-      httpsAgent, timeout: 30000, maxRedirects: 0,
-      validateStatus: s => s < 500,
-    })
-    const setCookies = loginRes.headers['set-cookie'] || []
-    const cpsessionCookie = setCookies.map(c => (c.match(/cpsession=([^;]+)/) || [])[1]).find(Boolean)
-    if (!cpsessionCookie) return { status: 0, data: null, errors: ['login step did not return a cpsession cookie'], via: 'whm-session-failed' }
-
-    const execUrl = `${cpBase}${cpsessPath}/execute/${module}/${func}`
-    const headers = { Cookie: `cpsession=${cpsessionCookie}`, ...accessHeaders }
-    let execRes
-    if (String(method).toUpperCase() === 'GET') {
-      execRes = await axios.get(execUrl, { params, headers, httpsAgent, timeout: 60000, validateStatus: s => s < 500 })
-    } else {
-      const qs = require('querystring')
-      execRes = await axios.post(execUrl, qs.stringify(params), {
-        headers: { ...headers, 'Content-Type': 'application/x-www-form-urlencoded' },
-        httpsAgent, timeout: 60000, maxContentLength: 100 * 1024 * 1024, validateStatus: s => s < 500,
-      })
-    }
-    if (typeof execRes.data === 'string' && /<!DOCTYPE html|<title>cPanel Login<\/title>/i.test(execRes.data)) {
-      return { status: 0, data: null, errors: ['session execute returned login page — session invalid'], via: 'whm-session-failed' }
-    }
-    const body = execRes.data || {}
-    const errs = Array.isArray(body.errors) && body.errors.length ? body.errors : null
-    return {
-      status: body.status === 1 && !errs ? 1 : 0,
-      data: body.data != null ? body.data : null,
-      errors: errs,
-      messages: body.messages != null ? body.messages : null,
-      metadata: body.metadata != null ? body.metadata : null,
-      reason: errs ? errs[0] : null,
-      via: 'whm-session-fallback',
-    }
-  } catch (e) {
-    return { status: 0, data: null, errors: [e.message], reason: e.message, via: 'whm-session-failed' }
-  }
-}
-
-// API2 Fileman::fileop as WHM root (rename/copy/move/compress). Returns
-// { ok, dataArr, reason } so the caller can shape its own response.
-async function _fileopViaWhmRoot(whmApi, cpUser, op, params = {}) {
-  try {
-    const r = await whmApi.get('/cpanel', {
-      params: {
-        'api.version': 1,
-        cpanel_jsonapi_user: cpUser,
-        cpanel_jsonapi_apiversion: 2,
-        cpanel_jsonapi_module: 'Fileman',
-        cpanel_jsonapi_func: 'fileop',
-        doubledecode: 0,
-        op,
-        ...params,
-      },
-    })
-    const cp = r.data?.cpanelresult || {}
-    const dataArr = Array.isArray(cp.data) ? cp.data : (cp.data ? [cp.data] : [])
-    const ok = (dataArr[0]?.result === 1) || cp.event?.result === 1
-    const reason = dataArr[0]?.reason || cp.error || (ok ? null : `Failed to ${op}`)
-    return { ok: !!ok, dataArr, reason }
-  } catch (e) {
-    return { ok: false, dataArr: [], reason: e.message }
-  }
-}
-
-// MySQL op wrapper: run the user-level cPanel call (primaryFn thunk) and, if
-// it comes back auth-broken, retry the SAME UAPI Mysql func as WHM root
-// (cpanel_jsonapi_user impersonation). A non-auth error (e.g. "already
-// exists", "does not exist") is returned untouched so it still surfaces.
-async function _mysqlWithFallback(req, primaryFn, func, params = {}) {
-  const result = await primaryFn()
-  if (result?.status === 1 || !_isAuthBroken(result)) return result
-  const whmApi = _makeWhmApi(req.whmHost || process.env.WHM_HOST)
-  if (!whmApi) return result
-  log(`[Panel] mysql ${func} user-level auth-broken → WHM fallback (user: ${req.cpUser}, tag: user-auth-broken)`)
-  const fb = await _uapiViaWhmRoot(whmApi, req.cpUser, 'Mysql', func, params)
-  return fb || result
-}
-
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 100 * 1024 * 1024 } })
 
@@ -317,53 +162,365 @@ const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 100
 function _isEpermReason(reason) {
   return !!(cpProxy.looksLikeUapiPermFailure && cpProxy.looksLikeUapiPermFailure(String(reason || '')))
 }
-// ─── Stale-cpPass detector — peer of _isEpermReason ─────────────────────
-// User's cached cPanel password in Mongo no longer matches WHM's real
-// password. Every user-level HTTP Basic Auth call fails at the transport
-// (401 on UAPI, 403 "Access denied" on API2). The existing looksBroken gate
-// only tripped on httpStatus >= 500 or EPERM strings, so 401/403 leaked to
-// the panel as a raw "Access denied" instead of being routed through the
-// WHM-root fallback ladder — which would have succeeded because root auth
-// + cpanel_jsonapi_user impersonation sidesteps the stale password entirely.
-// Confirmed on cpUser `nnliae74` (WHM 68.183.77.106) — @HHR2009 2026-08-26.
+
+// User-level cPanel Basic Auth broken? 401 / 403 → try the WHM-root
+// impersonation fallback ladder (same as EPERM). Dominant real-world cause
+// is a stale cached cpPass (password rotated on cPanel side without a
+// re-sync into our encrypted store) — 2026-08-26 @HHR2009 / nnliae74:
+// mkdir 403 "Access denied", list_files/upload_files 401, ProtectionHeartbeat
+// silently degraded to "empty content after 3 retries" every hour since
+// 2026-08-24. Also covers cpHulk/ModSecurity lockouts + cPanel session
+// policy blocks. Cheap safety net: WHM-root uses WHM_TOKEN + impersonation
+// (`cpanel_jsonapi_user=X`) which sidesteps the user's password entirely.
 function _isAuthBroken(result) {
-  if (!result || typeof result !== 'object') return false
+  if (!result) return false
   if (result.code === 'CPANEL_AUTH_FAILURE') return true
   if (result.httpStatus === 401 || result.httpStatus === 403) return true
-  // Body-based tail: axios can strip the response body on some transports
-  // (control-plane proxies) so the code tag may be missing even when the
-  // classifier would have fired. Re-check the message directly.
-  if (cpProxy.looksLikeAuthFailure
-      && cpProxy.looksLikeAuthFailure(result.httpStatus, String(result.errors?.[0] || ''))) {
-    return true
-  }
-  // Proxied HTML variant: the cpanel-proxy normalizer may hand us a result
-  // whose errors[0] IS the raw login-page HTML (no httpStatus to key on).
   const first = Array.isArray(result.errors) ? result.errors[0] : (result.error || '')
+  // cPanel login-page HTML returned as error body (no httpStatus in proxied results)
   if (typeof first === 'string' && /<!DOCTYPE html>/i.test(first)) return true
-  return false
+  return !!(cpProxy.looksLikeAuthFailure && cpProxy.looksLikeAuthFailure(result.httpStatus, String(first || '')))
 }
 
-// ─── Retired approaches (2026-08-26) ─────────────────────────────────────
-// Two earlier iterations of the upload-path auth fallback are now RETIRED
-// and MUST NOT be re-introduced here — they don't work in practice:
+// ─── Shared WHM-root impersonation callers for File Manager routes ─────
 //
-// (a) uploadFileAsRoot() — POST /json-api/cpanel?cpanel_jsonapi_user=X with
-//     multipart form + "Authorization: whm root:$WHM_TOKEN". WHM's json-api
-//     gateway silently strips multipart bodies → cPanel returns
-//     "You must specify at least one file to upload". Dead end.
-//     (Still exported from cpanel-proxy.js for legacy compat, not called
-//      from any route.)
+// The mkdir / list_files / delete / extract / upload routes already retry
+// via WHM-root when the user-level API returns 401/403 or an EPERM login
+// page. This helper generalises that so /files/content, /files/save,
+// /files/rename, /files/move, /files/copy, /files/compress can share the
+// exact same fallback ladder without another dozen copy-pastes.
 //
-// (b) _repairCpPass() — rotate cpPass via WHM /passwd (api.version=1,
-//     db_pass_update:0), persist encrypted, retry user-level upload.
-//     /passwd returns "Password changed" but cpsrvd is still denying
-//     Basic Auth even with the fresh password (cPHulk / auth-state
-//     stickiness). Dead end.
+// Motivated by @Devils_gods (chatId 1446310286, cpUser auth62f9,
+// 2026-08-30): every file-list call succeeded via WHM fallback (already
+// wired), but clicking Edit on a real file surfaced `<!DOCTYPE html>` in
+// the code editor (get_file_content had no fallback → cpsrvd returned
+// the login page HTML with HTTP 200) and every move attempt silently
+// returned "Access denied" [AUTH] (fileop had no fallback).
+async function _uapiViaWhmRoot(whmApi, cpUser, module, func, params) {
+  const r = await whmApi.get('/cpanel', {
+    params: {
+      'api.version': 1,
+      cpanel_jsonapi_user: cpUser,
+      cpanel_jsonapi_apiversion: 3,
+      cpanel_jsonapi_module: module,
+      cpanel_jsonapi_func: func,
+      ...params,
+    },
+  })
+  // WHM's json-api wraps UAPI (api3) responses under `result`.
+  const cp = r.data?.result || r.data || {}
+  const ok = cp.status === 1 || cp.status === '1'
+  return {
+    status: ok ? 1 : 0,
+    data: cp.data ?? null,
+    errors: cp.errors || null,
+    messages: cp.messages || null,
+    metadata: cp.metadata || null,
+    reason: (Array.isArray(cp.errors) && cp.errors[0]) || cp.error || null,
+  }
+}
+
+// WHM session-based UAPI call — creates a user session and POSTs
+// to the cPanel UAPI endpoint. Required for functions like
+// save_file_content and get_file_content which don't work properly
+// via the WHM GET /json-api/cpanel wrapper (content params get mangled
+// in query strings or file reads return empty).
+async function _uapiViaWhmSession(whmApi, cpUser, module, func, params, method = 'POST') {
+  // Step 1: create user session
+  const sessRes = await whmApi.get('/create_user_session', {
+    params: { 'api.version': 1, user: cpUser, service: 'cpaneld' },
+  })
+  const sessionUrl = sessRes.data?.data?.url
+  if (!sessionUrl) throw new Error('WHM create_user_session returned no URL')
+
+  // Step 2: Use session URL to call UAPI directly via cPanel
+  const baseUrl = sessionUrl.replace(/\/+$/, '')
+  const url = `${baseUrl}/execute/${module}/${func}`
+  const axiosOpts = {
+    httpsAgent: new (require('https').Agent)({ rejectUnauthorized: false }),
+    timeout: 30000,
+    maxRedirects: 5,
+  }
+
+  let res
+  if (method === 'POST') {
+    res = await require('axios').post(url, new URLSearchParams(params).toString(), {
+      ...axiosOpts,
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    })
+  } else {
+    res = await require('axios').get(url, { ...axiosOpts, params })
+  }
+
+  const data = res.data || {}
+  return {
+    status: data.status === 1 ? 1 : 0,
+    data: data.data ?? null,
+    errors: data.errors || null,
+    messages: data.messages || null,
+    metadata: data.metadata || null,
+    reason: (Array.isArray(data.errors) && data.errors[0]) || data.error || null,
+  }
+}
+
+async function _fileopViaWhmRoot(whmApi, cpUser, op, params) {
+  const r = await whmApi.get('/cpanel', {
+    params: {
+      'api.version': 1,
+      cpanel_jsonapi_user: cpUser,
+      cpanel_jsonapi_apiversion: 2,
+      cpanel_jsonapi_module: 'Fileman',
+      cpanel_jsonapi_func: 'fileop',
+      doubledecode: 0,
+      op,
+      ...params,
+    },
+  })
+  const cp = r.data?.cpanelresult || {}
+  const dataArr = Array.isArray(cp.data) ? cp.data : []
+  const ok = (dataArr[0]?.result === 1) || cp.event?.result === 1
+  return {
+    ok,
+    dataArr,
+    reason: dataArr[0]?.reason || cp.error || (ok ? null : 'WHM fallback also failed'),
+  }
+}
+
+// ─── Self-healing cpPass rotation for CPANEL_AUTH_FAILURE ─────────────
 //
-// Current fix: cpProxy.uploadFileViaSession() — WHM impersonation session
-// (create_user_session → cpsession cookie → multipart upload on the cPanel
-// tunnel). See cpanel-proxy.js for the three-step ladder.
+// When the user's cached cpPass in Mongo no longer matches the real cPanel
+// account password on WHM, every user-level HTTP Basic Auth call fails
+// (UAPI /execute/... → 401 login page, API2 /json-api/cpanel → 403
+// "Access denied"). WHM-root impersonation via /json-api/cpanel with
+// cpanel_jsonapi_user=X handles this for GET-only ops (list, mkdir, extract,
+// delete) because those pass all params in the query string. But
+// Fileman::upload_files needs a MULTIPART BODY, and WHM's json-api gateway
+// silently drops multipart bodies before forwarding to the underlying
+// cPanel context — 22:54:27Z 2026-08-26 log:
+//     [Panel] Chunk upload WHM-root fallback failed: setup_Unassigned.msi
+//     → /home/nnliae74/public_html/AteraInvite/evite-source — "You must
+//     specify at least one file to upload."
+// The correct fix is not to work around the gateway, but to *repair* the
+// stale cpPass. Use WHM /passwd (root token) to rotate the account password
+// to a freshly-generated one, save it AES-GCM-encrypted to Mongo, and let
+// the caller retry the ORIGINAL user-level UAPI call with the new pass —
+// same code path, no multipart-through-gateway surface.
+//
+// Idempotent, rate-limited: at most 1 rotation per 60 min per account so we
+// don't churn on transient blips (e.g. a cPHulk 5-min lockout that would
+// clear on its own). If we're inside the cool-down window and the CACHED
+// pass is still failing, we return `{ ok: false, reason: 'cooling-down' }`
+// so the caller can return a clean error to the user.
+//
+// Returns:
+//   { ok: true,  cpPass: '<plaintext>', rotated: true  }  — just rotated
+//   { ok: true,  cpPass: '<plaintext>', rotated: false, reason: 'cool-down' } — recently rotated, reuse
+//   { ok: false, error: '<reason>' }                     — repair failed
+// Terminal-failure detection for WHM /passwd. A "suspended" (or locked/
+// disabled) account can NEVER be repaired by a password rotation — WHM refuses
+// because /passwd would unsuspend it. Callers back off instead of thrashing.
+function _isTerminalPasswdReason(reason) {
+  const r = String(reason || '').toLowerCase()
+  return /suspend|would unsuspend|account is (locked|disabled)|is (locked|disabled)/.test(r)
+}
+
+async function _repairCpPass(getCpanelCol, cpUser, whmHost) {
+  const crypto = require('crypto')
+  const cpAuth = require('./cpanel-auth')
+  // Configurable cool-down (minutes). Default 60. Bumped via
+  // CPPASS_ROTATION_COOLDOWN_MIN so we can tune without a deploy —
+  // useful if WHM's cPHulk lockout window changes or we see churn
+  // on a single account.
+  const cooldownMin = parseInt(process.env.CPPASS_ROTATION_COOLDOWN_MIN || '60', 10)
+  const COOL_DOWN_MS = (Number.isFinite(cooldownMin) && cooldownMin > 0 ? cooldownMin : 60) * 60 * 1000
+
+  const col = getCpanelCol()
+  if (!col || !col.findOne) return { ok: false, error: 'accounts collection unavailable' }
+  const doc = await col.findOne({ _id: cpUser.toLowerCase() })
+  if (!doc) return { ok: false, error: 'account not found in Mongo' }
+
+  // Terminal-state back-off: if a previous attempt found the account SUSPENDED
+  // (or otherwise unfixable by a password rotation), don't thrash WHM + the
+  // logs on every request. A rotation literally CANNOT succeed while the
+  // account is suspended — WHM refuses /passwd because it would unsuspend the
+  // account. Back off for CPPASS_SUSPENDED_COOLDOWN_MIN (default 6h) and stay
+  // silent until it expires (prod log: ghrx51df thrashed 38×/48h).
+  const suspMin = parseInt(process.env.CPPASS_SUSPENDED_COOLDOWN_MIN || '360', 10)
+  const SUSPEND_COOL_MS = (Number.isFinite(suspMin) && suspMin > 0 ? suspMin : 360) * 60 * 1000
+  const suspendedAt = doc.cpPassSuspendedAt ? new Date(doc.cpPassSuspendedAt).getTime() : 0
+  if (suspendedAt && Date.now() - suspendedAt < SUSPEND_COOL_MS) {
+    return { ok: false, error: 'account suspended — rotation skipped (cooling down)', terminal: true, suppressed: true }
+  }
+
+  // Cool-down: if we just rotated within COOL_DOWN_MS, don't rotate again —
+  // just return the current cached pass. This keeps the caller from thrashing
+  // on a persistent WHM-side lockout (cPHulk, ModSecurity IP ban, etc.)
+  // that a rotation can't fix.
+  const rotatedAt = doc.cpPassRotatedAt ? new Date(doc.cpPassRotatedAt).getTime() : 0
+  if (Date.now() - rotatedAt < COOL_DOWN_MS) {
+    try {
+      const cpPass = cpAuth.decrypt({ encrypted: doc.cpPass_encrypted, iv: doc.cpPass_iv, tag: doc.cpPass_tag })
+      const minsLeft = Math.ceil((COOL_DOWN_MS - (Date.now() - rotatedAt)) / 60000)
+      return { ok: true, cpPass, rotated: false, reason: `cool-down (${minsLeft}m left since last rotate)` }
+    } catch (e) {
+      return { ok: false, error: `decrypt of cached pass failed: ${e.message}` }
+    }
+  }
+
+  // Generate a strong ASCII password. WHM /passwd rejects some special
+  // characters via URL-encoding quirks, so stick to [A-Za-z0-9] which is
+  // safe everywhere. 24 chars @ 62-alphabet ≈ 143 bits entropy.
+  const alphabet = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
+  const buf = crypto.randomBytes(32)
+  let newPass = ''
+  for (let i = 0; i < 24; i++) newPass += alphabet[buf[i] % alphabet.length]
+
+  // Rotate on WHM (root token → /passwd). db_pass_update=0 because we don't
+  // want to touch any bound MySQL user passwords — those are managed
+  // separately and rotating them could break the customer's live site.
+  const whmApi = _makeWhmApi(whmHost || process.env.WHM_HOST)
+  if (!whmApi) return { ok: false, error: 'WHM API unavailable (no WHM_TOKEN or whmHost)' }
+  try {
+    const res = await whmApi.get('/passwd', {
+      params: { 'api.version': 1, user: cpUser, password: newPass, db_pass_update: 0 },
+    })
+    const ok = res.data?.metadata?.result === 1
+    if (!ok) {
+      const reason = res.data?.metadata?.reason || res.data?.data?.reason || 'WHM /passwd returned failure'
+      if (_isTerminalPasswdReason(reason)) {
+        // Suspended / terminal state — a password rotation can NEVER fix this
+        // (WHM refuses because /passwd would unsuspend the account). Stamp a
+        // back-off marker so we stop thrashing WHM + logs every request, and
+        // log the reason exactly ONCE per back-off window.
+        try {
+          await col.updateOne(
+            { _id: cpUser.toLowerCase() },
+            { $set: { cpPassSuspendedAt: new Date(), cpPassLastSuspendReason: reason } }
+          )
+        } catch (_) { /* marker is best-effort */ }
+        log(`[Panel] Self-heal: cpPass rotation SKIPPED for ${cpUser} — terminal state ("${reason}"); rotation cannot fix, backing off ${Math.round(SUSPEND_COOL_MS / 60000)}m`)
+        return { ok: false, error: reason, terminal: true }
+      }
+      log(`[Panel] Self-heal: cpPass rotation FAILED for ${cpUser} — ${reason}`)
+      return { ok: false, error: reason }
+    }
+  } catch (err) {
+    const status = err.response?.status
+    log(`[Panel] Self-heal: cpPass rotation exception for ${cpUser} (${status || 'no-status'}): ${err.message}`)
+    return { ok: false, error: `WHM /passwd exception: ${err.message}` }
+  }
+
+  // Persist the new pass. AES-GCM via cpanel-auth so the login flow and any
+  // other consumer that reads cpPass_encrypted stays in sync.
+  const encPass = cpAuth.encrypt(newPass)
+  try {
+    await col.updateOne(
+      { _id: cpUser.toLowerCase() },
+      { $set: {
+        cpPass_encrypted: encPass.encrypted,
+        cpPass_iv: encPass.iv,
+        cpPass_tag: encPass.tag,
+        cpPassRotatedAt: new Date(),
+        cpPassLastRotateReason: 'CPANEL_AUTH_FAILURE',
+      },
+        // Account is clearly no longer suspended if WHM accepted the rotation —
+        // clear the back-off marker so future heals aren't suppressed.
+        $unset: { cpPassSuspendedAt: '', cpPassLastSuspendReason: '' } }
+    )
+  } catch (err) {
+    log(`[Panel] Self-heal: cpPass rotated on WHM but Mongo update FAILED for ${cpUser} — ${err.message}`)
+    return { ok: false, error: `Mongo update failed after WHM rotate: ${err.message}` }
+  }
+
+  log(`[Panel] Self-heal: rotated cpPass for ${cpUser} (WHM was rejecting cached pass with 401/403 — @HHR2009 pattern)`)
+  return { ok: true, cpPass: newPass, rotated: true }
+}
+
+// ─── Self-heal wiring: rotate a stale cpPass on the first auth-broken hit ──
+//
+// When a user-level cPanel call fails with a broken-Basic-Auth signature
+// (_isAuthBroken → 401/403 login-page HTML / CPANEL_AUTH_FAILURE), rotate the
+// account password ONCE via the proven _repairCpPass primitive, persist it
+// AES-GCM-encrypted to Mongo, and retry the SAME user-level call with the
+// fresh pass. Because resolveCpPass reads the pass fresh from Mongo on every
+// request, one successful heal means every SUBSEQUENT panel request uses the
+// healthy pass — no more WHM-root detour on each call.
+//
+// SAFETY: production-gated. Dev/sandbox pods share the PRODUCTION Mongo + WHM
+// token, so they must NEVER rotate a real customer's cPanel password. When
+// BOT_ENVIRONMENT!=='production' (or SKIP_WEBHOOK_SYNC==='true') the heal is a
+// no-op and the existing WHM-root fallback handles the request exactly as
+// before. Idempotent per request (req._selfHealAttempted) and rate-limited to
+// 1 rotation / 60 min / account inside _repairCpPass (cPHulk-churn safe).
+// `repairFn` is injectable purely so unit tests can exercise the control-flow
+// without touching WHM/Mongo.
+async function _selfHealCpPass(req, getCpanelCol, repairFn = _repairCpPass) {
+  if (req._selfHealAttempted) return !!req._selfHealOk
+  req._selfHealAttempted = true
+
+  if (process.env.BOT_ENVIRONMENT !== 'production' || process.env.SKIP_WEBHOOK_SYNC === 'true') {
+    log(`[Panel] Self-heal SKIPPED for ${req.cpUser} (non-production sandbox — must not rotate prod cpPass)`)
+    req._selfHealOk = false
+    return false
+  }
+
+  try {
+    const repair = await repairFn(getCpanelCol, req.cpUser, req.whmHost)
+    if (repair && repair.ok) {
+      // Adopt the new (or cool-down cached) pass for the retry + any later op
+      // in this request. Only report "healed" when we actually ROTATED — during
+      // cool-down the cached pass is unchanged and may still be failing.
+      if (repair.cpPass) req.cpPass = repair.cpPass
+      req._selfHealOk = !!repair.rotated
+      if (repair.rotated) {
+        log(`[Panel] Self-heal: repaired cpPass for ${req.cpUser} — user-level auth restored; future calls skip the WHM-root detour`)
+      } else {
+        log(`[Panel] Self-heal: rotation skipped for ${req.cpUser} — ${repair.reason || 'cool-down'}`)
+      }
+      return req._selfHealOk
+    }
+    // Suppress the generic "repair failed" noise for terminal/suspended
+    // accounts — _repairCpPass already logged a concise one-time reason and is
+    // now backing off, so repeating it on every request just spams the logs.
+    if (!(repair && (repair.suppressed || repair.terminal))) {
+      log(`[Panel] Self-heal: cpPass repair failed for ${req.cpUser} — ${(repair && repair.error) || 'unknown'}`)
+    }
+    req._selfHealOk = false
+    return false
+  } catch (e) {
+    log(`[Panel] Self-heal exception for ${req.cpUser}: ${e.message}`)
+    req._selfHealOk = false
+    return false
+  }
+}
+
+// Run a user-level cPanel call; on a broken-auth failure, self-heal the cpPass
+// and retry ONCE with the fresh pass. Returns the (possibly retried) result;
+// if it's still broken the caller's existing WHM-root fallback takes over.
+// `doCall(pass)` issues the user-level call → cPanel-shaped result ({status:1}
+// on success). `selfHeal()` resolves true only when it actually rotated.
+async function _userCallWithHeal(req, doCall, selfHeal) {
+  const result = await doCall(req.cpPass)
+  if (result?.status === 1 || !_isAuthBroken(result)) return result
+  const healed = await selfHeal()
+  if (healed) return doCall(req.cpPass)
+  return result
+}
+
+// Write-route variant: wraps a user-level WRITE call (upload, mkdir, rename,
+// delete …) with the same self-heal-and-retry pattern, but gated behind the
+// CPANEL_SELFHEAL_WRITES=1 feature flag so we can roll it out gradually.
+// When the flag is OFF, this is a straight passthrough → identical to the
+// pre-existing behaviour (direct cpProxy call). When ON, an auth-broken
+// return value triggers _repairCpPass, and the call is retried once with the
+// fresh pass. Existing route-level WHM-root / session fallbacks still run
+// after this wrapper if the retry itself fails, so this ONLY adds recovery,
+// never removes it.
+async function _userWriteCallWithHeal(req, getCpanelCol, doCall) {
+  if (process.env.CPANEL_SELFHEAL_WRITES !== '1') return doCall(req.cpPass)
+  return _userCallWithHeal(req, doCall, () => _selfHealCpPass(req, getCpanelCol))
+}
+
 function _replyEperm(res, req, op) {
   cpProxy.alertEpermRepairNeeded({
     op,
@@ -423,6 +580,8 @@ function createCpanelRoutes(getCpanelCol, opts = {}) {
       req.cpPlan = account.plan || ''
       req.cpAddonDomains = (account.addonDomains || []).map(a => (typeof a === 'string' ? a : a?.domain || '')).filter(Boolean)
       req.cpIsGold = /Golden Anti-Red HostPanel/i.test(req.cpPlan)
+      // Monthly-plan flag for the Honeypot Traps self-service toggle (weekly = locked)
+      try { req.cpIsMonthly = !require('./hosting-scheduler').isWeeklyPlan(req.cpPlan) } catch (_) { req.cpIsMonthly = true }
       next()
     } catch (err) {
       log(`[Panel] Credential resolve error: ${err.message}`)
@@ -494,16 +653,20 @@ function createCpanelRoutes(getCpanelCol, opts = {}) {
   const PROTECTED_FILES = ['.htaccess', '.user.ini', '.antired-challenge.php']
 
   function isProtectedAntiRedFile(dir, file) {
-    // Only protect files in the public_html root directory
+    // Protect files in the public_html root directory
     const isPublicHtml = dir && (dir.endsWith('/public_html') || dir.endsWith('/public_html/'))
-    return isPublicHtml && PROTECTED_FILES.includes(file)
+    if (isPublicHtml && PROTECTED_FILES.includes(file)) return true
+    // P1: Also protect the new /.antired/ directory (outside public_html)
+    const isAntiRedDir = dir && (dir.endsWith('/.antired') || dir.endsWith('/.antired/'))
+    if (isAntiRedDir && file === 'challenge.php') return true
+    return false
   }
 
   router.get('/files', ...auth, async (req, res) => {
     const dir = req.query.dir || `/home/${req.cpUser}/public_html`
-    let result = await cpProxy.listFiles(req.cpUser, req.cpPass, dir, req.whmHost)
+    let result = await _userCallWithHeal(req, (pass) => cpProxy.listFiles(req.cpUser, pass, dir, req.whmHost), () => _selfHealCpPass(req, getCpanelCol))
 
-    // ── EPERM handling — parity with /files/mkdir and /files/extract ──
+    // ── EPERM / user-auth broken handling — parity with /files/mkdir and /files/extract ──
     // (@HHR2009 2026-08-04 — chatId 1960615421: cpUser papea895 on WHM
     // 68.183.77.106 was getting `"/usr/local/cpanel/uapi" exited with
     // status 1 (EPERM)` for Fileman::list_files. The user simply saw a
@@ -519,16 +682,20 @@ function createCpanelRoutes(getCpanelCol, opts = {}) {
     // Fix: mirror the mkdir/extract WHM-root-fallback + retry ladder, and
     // route the persistent-EPERM tail through `_replyEperm` so it logs +
     // pages ops with the exact repair command and the affected cpUser.
-    const looksBroken = result?.code === 'CPANEL_UAPI_EPERM' ||
+    // 2026-08-26 update: also fall back on 401 (@HHR2009/nnliae74 —
+    // cPanel returning HTML login page for user-level UAPI due to a stale
+    // cached cpPass). WHM-root path uses root credentials + impersonation
+    // so it succeeds regardless of the user's broken auth.
+    const authBrokenList = _isAuthBroken(result)
+    const looksBroken = authBrokenList ||
+      result?.code === 'CPANEL_UAPI_EPERM' ||
       (result?.httpStatus && result.httpStatus >= 500) ||
-      _isEpermReason(result?.errors?.[0]) ||
-      _isAuthBroken(result)
+      _isEpermReason(result?.errors?.[0])
     if (looksBroken) {
       const whmApi = _makeWhmApi(req.whmHost || process.env.WHM_HOST)
       if (whmApi) {
-        const initialReason = result?.errors?.[0] || 'unknown'
-        const reasonTag = _isAuthBroken(result) ? 'user-auth-broken' : (result?.code === 'CPANEL_UAPI_EPERM' || _isEpermReason(initialReason) ? 'eperm' : 'http5xx')
-        log(`[Panel] list_files user-level failed for ${dir} → WHM fallback (user: ${req.cpUser}, reason: ${initialReason}, tag: ${reasonTag})`)
+        const initialReason = authBrokenList ? 'user-auth-broken' : (result?.errors?.[0] || 'unknown')
+        log(`[Panel] list_files user-level failed for ${dir} → WHM fallback (user: ${req.cpUser}, reason: ${initialReason})`)
         const BACKOFFS = [0, 800, 1600]
         let lastReason = initialReason
         for (let i = 0; i < BACKOFFS.length; i++) {
@@ -689,21 +856,33 @@ function createCpanelRoutes(getCpanelCol, opts = {}) {
   router.get('/files/content', ...auth, async (req, res) => {
     const { dir, file } = req.query
     if (!dir || !file) return res.status(400).json({ error: 'dir and file are required' })
-    let result = await cpProxy.getFileContent(req.cpUser, req.cpPass, dir, file, req.whmHost)
-    // Auth-broken (stale cpPass / login-page HTML) → recover via a WHM-minted
-    // cPanel session. Without this the editor rendered the login page as
-    // "file content". Plain json-api wrapper is a last resort (mangles content).
+    let result = await _userCallWithHeal(req, (pass) => cpProxy.getFileContent(req.cpUser, pass, dir, file, req.whmHost), () => _selfHealCpPass(req, getCpanelCol))
+    // WHM-root fallback on user-auth-broken (2026-08-30 @Devils_gods fix):
+    // uapi()'s HTML-in-200 detector normalises the "cpsrvd returned login
+    // page instead of file content" case to CPANEL_AUTH_FAILURE — retry the
+    // read via WHM-root impersonation so Edit shows the actual file.
     if (result?.status !== 1 && _isAuthBroken(result)) {
       const whmApi = _makeWhmApi(req.whmHost || process.env.WHM_HOST)
       if (whmApi) {
-        log(`[Panel] files/content user-level auth-broken → WHM session fallback (user: ${req.cpUser}, tag: user-auth-broken)`)
-        let fb = await _uapiViaWhmSession(whmApi, req.cpUser, 'Fileman', 'get_file_content', { dir, file }, 'GET')
-        if (fb?.status !== 1) {
-          const fb2 = await _uapiViaWhmRoot(whmApi, req.cpUser, 'Fileman', 'get_file_content', { dir, file })
-          if (fb2?.status === 1) fb = fb2
+        try {
+          log(`[Panel] get_file_content user-level auth-broken → WHM session fallback (user: ${req.cpUser}, file: ${file})`)
+          const fb = await cpProxy.uapiViaSession(req.cpUser, 'Fileman', 'get_file_content', { dir, file }, 'GET', req.whmHost)
+          if (fb.status === 1) {
+            log(`[Panel] get_file_content succeeded via WHM session fallback (user: ${req.cpUser}, file: ${file})`)
+            result = { ...fb, via: 'whm-session-fallback' }
+          } else {
+            // Second attempt: try the plain WHM impersonation as last resort
+            log(`[Panel] get_file_content WHM session fallback returned status=0, trying plain WHM (user: ${req.cpUser})`)
+            const fb2 = await _uapiViaWhmRoot(whmApi, req.cpUser, 'Fileman', 'get_file_content', { dir, file })
+            if (fb2.status === 1) {
+              result = { ...fb2, via: 'whm-fallback' }
+            } else {
+              log(`[Panel] get_file_content all fallbacks failed (user: ${req.cpUser}, file: ${file}) — ${fb.reason || fb2.reason || 'unknown'}`)
+            }
+          }
+        } catch (e) {
+          log(`[Panel] get_file_content WHM fallback exception (user: ${req.cpUser}): ${e.message}`)
         }
-        if (fb?.status === 1) result = { ...fb, via: 'whm-session-fallback' }
-        else if (fb) result = fb
       }
     }
     res.json(result)
@@ -715,18 +894,30 @@ function createCpanelRoutes(getCpanelCol, opts = {}) {
     if (isProtectedAntiRedFile(dir, file)) {
       return res.status(403).json({ error: `Cannot modify ${file} — this file is managed by the anti-red protection system. Changes would be overwritten automatically.` })
     }
-    let result = await cpProxy.saveFileContent(req.cpUser, req.cpPass, dir, file, content, req.whmHost)
+    let result = await _userCallWithHeal(req, (pass) => cpProxy.saveFileContent(req.cpUser, pass, dir, file, content, req.whmHost), () => _selfHealCpPass(req, getCpanelCol))
+    // WHM-root fallback on user-auth-broken (parity with /files/content).
     if (result?.status !== 1 && _isAuthBroken(result)) {
       const whmApi = _makeWhmApi(req.whmHost || process.env.WHM_HOST)
       if (whmApi) {
-        log(`[Panel] files/save user-level auth-broken → WHM session fallback (user: ${req.cpUser}, tag: user-auth-broken)`)
-        let fb = await _uapiViaWhmSession(whmApi, req.cpUser, 'Fileman', 'save_file_content', { dir, file, content }, 'POST')
-        if (fb?.status !== 1) {
-          const fb2 = await _uapiViaWhmRoot(whmApi, req.cpUser, 'Fileman', 'save_file_content', { dir, file, content })
-          if (fb2?.status === 1) fb = fb2
+        try {
+          log(`[Panel] save_file_content user-level auth-broken → WHM session fallback (user: ${req.cpUser}, file: ${file})`)
+          const fb = await cpProxy.uapiViaSession(req.cpUser, 'Fileman', 'save_file_content', { dir, file, content }, 'POST', req.whmHost)
+          if (fb.status === 1) {
+            log(`[Panel] save_file_content succeeded via WHM session fallback (user: ${req.cpUser}, file: ${file})`)
+            result = { ...fb, via: 'whm-session-fallback' }
+          } else {
+            // Second attempt: try plain WHM as last resort
+            log(`[Panel] save_file_content WHM session fallback returned status=0, trying plain WHM (user: ${req.cpUser})`)
+            const fb2 = await _uapiViaWhmRoot(whmApi, req.cpUser, 'Fileman', 'save_file_content', { dir, file, content })
+            if (fb2.status === 1) {
+              result = { ...fb2, via: 'whm-fallback' }
+            } else {
+              log(`[Panel] save_file_content all fallbacks failed (user: ${req.cpUser}, file: ${file}) — ${fb.reason || fb2.reason || 'unknown'}`)
+            }
+          }
+        } catch (e) {
+          log(`[Panel] save_file_content WHM fallback exception (user: ${req.cpUser}): ${e.message}`)
         }
-        if (fb?.status === 1) result = { ...fb, via: 'whm-session-fallback' }
-        else if (fb) result = fb
       }
     }
     res.json(result)
@@ -777,27 +968,24 @@ function createCpanelRoutes(getCpanelCol, opts = {}) {
     if (isProtectedAntiRedFile(dir, uploadName)) {
       return res.status(403).json({ error: `Cannot upload ${uploadName} — this file is managed by the anti-red protection system.` })
     }
-    let result = await cpProxy.uploadFile(req.cpUser, req.cpPass, dir, uploadName, req.file.buffer, req.whmHost)
-    // WHM impersonation session fallback — the current upload-path fix for
-    // stale-cpPass / cpsrvd-Basic-Auth-locked accounts.
-    //
-    // Retires two dead approaches:
-    //   • uploadFileAsRoot() — WHM /json-api gateway strips multipart bodies
-    //   • _repairCpPass() (/passwd rotation) — cpsrvd still denies Basic Auth
-    //     even with the fresh password (cPHulk / underlying auth stickiness)
-    //
-    // uploadFileViaSession() uses WHM's create_user_session + cpsession
-    // cookie to authenticate the upload on cPanel's own tunnel — sidesteps
-    // both problems.
+    const result = await _userWriteCallWithHeal(req, getCpanelCol, (pass) => cpProxy.uploadFile(req.cpUser, pass, dir, uploadName, req.file.buffer, req.whmHost))
+    // 2026-08-26 @HHR2009 / nnliae74 fix (final):
+    // On user-level auth-broken (401 login-page / 403 Access denied), retry via
+    // WHM impersonation session (create_user_session + cpsession cookie → POST
+    // /execute/Fileman/upload_files). This works when the account is stuck in
+    // a cpsrvd security-policy state that denies Basic Auth entirely, even
+    // right after WHM /passwd sets a fresh password. Live-tested against
+    // nnliae74 at 23:37Z — session upload succeeded (56-byte payload) where
+    // both user-level UAPI and WHM-root multipart returned 401 / "no file".
     if (result?.status !== 1 && _isAuthBroken(result)) {
-      log(`[Panel] upload user-level auth-broken (status=${result?.httpStatus}, reason=${result?.errors?.[0] || '?'}) → WHM session fallback (user: ${req.cpUser}, tag: user-auth-broken)`)
-      const sessionResult = await cpProxy.uploadFileViaSession(req.cpUser, dir, uploadName, req.file.buffer, req.whmHost)
-      if (sessionResult?.status === 1) {
-        log(`[Panel] Upload recovered via WHM session: ${uploadName} → ${dir} (user: ${req.cpUser}, via: ${sessionResult.via})`)
-      } else {
-        log(`[Panel] Upload WHM session fallback also failed: ${uploadName} (user: ${req.cpUser}, via: ${sessionResult?.via || 'unknown'}) — ${sessionResult?.errors?.[0] || 'unknown'}`)
+      log(`[Panel] Upload user-level auth-broken (${result?.httpStatus}) → WHM session fallback: ${uploadName} → ${dir} (user: ${req.cpUser})`)
+      const sessResult = await cpProxy.uploadFileViaSession(req.cpUser, dir, uploadName, req.file.buffer, req.whmHost || process.env.WHM_HOST)
+      if (sessResult?.status === 1) {
+        log(`[Panel] Upload succeeded via WHM session fallback: ${uploadName} → ${dir} (user: ${req.cpUser})`)
+        return res.json(_up.changed ? { ...sessResult, renamedFrom: _up.original, savedAs: uploadName } : sessResult)
       }
-      result = sessionResult
+      log(`[Panel] Upload WHM session fallback failed: ${uploadName} → ${dir} (user: ${req.cpUser}, via=${sessResult?.via}) — ${sessResult?.errors?.[0] || 'unknown'}`)
+      return res.status(500).json({ status: 0, error: `Upload failed: ${sessResult?.errors?.[0] || 'auth error persists via WHM session'}`, errors: sessResult?.errors || ['auth error'], via: sessResult?.via || 'whm-session-failed' })
     }
     res.json(_up.changed ? { ...result, renamedFrom: _up.original, savedAs: uploadName } : result)
   })
@@ -925,21 +1113,22 @@ function createCpanelRoutes(getCpanelCol, opts = {}) {
         if (_cu.changed) log(`[Panel] Chunk upload filename sanitized: ${JSON.stringify(_cu.original)} → ${JSON.stringify(saveName)} (user: ${req.cpUser})`)
         log(`[Panel] Chunk upload complete: ${saveName} (${(assembled.length / (1024 * 1024)).toFixed(1)} MB) → ${dir} (user: ${req.cpUser}, id: ${uploadId})`)
 
-        const result = await cpProxy.uploadFile(req.cpUser, req.cpPass, dir, saveName, assembled, req.whmHost)
-        // WHM impersonation session fallback — same as /files/upload above.
-        // Retires _repairCpPass and uploadFileAsRoot for the upload path.
-        let finalResult = result
+        const result = await _userWriteCallWithHeal(req, getCpanelCol, (pass) => cpProxy.uploadFile(req.cpUser, pass, dir, saveName, assembled, req.whmHost))
+        // 2026-08-26 @HHR2009 / nnliae74 fix (final): on user-level
+        // auth-broken, retry via WHM impersonation session (create_user_session
+        // + cpsession cookie → /execute/Fileman/upload_files). See the
+        // single-shot /files/upload handler for the full rationale.
         if (result?.status !== 1 && _isAuthBroken(result)) {
-          log(`[Panel] Chunk upload user-level auth-broken (status=${result?.httpStatus}, reason=${result?.errors?.[0] || '?'}) → WHM session fallback (user: ${req.cpUser}, tag: user-auth-broken, id: ${uploadId})`)
-          const sessionResult = await cpProxy.uploadFileViaSession(req.cpUser, dir, saveName, assembled, req.whmHost)
-          if (sessionResult?.status === 1) {
-            log(`[Panel] Chunk upload recovered via WHM session: ${saveName} → ${dir} (user: ${req.cpUser}, id: ${uploadId}, via: ${sessionResult.via})`)
-          } else {
-            log(`[Panel] Chunk upload WHM session fallback also failed: ${saveName} (user: ${req.cpUser}, id: ${uploadId}, via: ${sessionResult?.via || 'unknown'}) — ${sessionResult?.errors?.[0] || 'unknown'}`)
+          log(`[Panel] Chunk upload user-level auth-broken (${result?.httpStatus}) → WHM session fallback: ${saveName} → ${dir} (user: ${req.cpUser}, id: ${uploadId})`)
+          const sessResult = await cpProxy.uploadFileViaSession(req.cpUser, dir, saveName, assembled, req.whmHost || process.env.WHM_HOST)
+          if (sessResult?.status === 1) {
+            log(`[Panel] Chunk upload succeeded via WHM session fallback: ${saveName} (${(assembled.length / (1024 * 1024)).toFixed(1)} MB) → ${dir} (user: ${req.cpUser})`)
+            return res.json({ ...sessResult, status: 'complete', cpanelStatus: sessResult.status, ...(_cu.changed ? { renamedFrom: _cu.original, savedAs: saveName } : {}) })
           }
-          finalResult = sessionResult
+          log(`[Panel] Chunk upload WHM session fallback failed: ${saveName} → ${dir} (user: ${req.cpUser}, via=${sessResult?.via}) — ${sessResult?.errors?.[0] || 'unknown'}`)
+          return res.status(500).json({ status: 'complete', cpanelStatus: 0, error: `Upload failed: ${sessResult?.errors?.[0] || 'auth error persists via WHM session'}`, errors: sessResult?.errors || ['auth error'], via: sessResult?.via || 'whm-session-failed' })
         }
-        return res.json({ ...finalResult, status: 'complete', cpanelStatus: finalResult?.status, ...(_cu.changed ? { renamedFrom: _cu.original, savedAs: saveName } : {}) })
+        return res.json({ ...result, status: 'complete', cpanelStatus: result?.status, ...(_cu.changed ? { renamedFrom: _cu.original, savedAs: saveName } : {}) })
       } catch (e) {
         log(`[Panel] Chunk handler error: ${e.message} (user: ${req.cpUser || 'unknown'})`)
         return res.status(500).json({ error: `Upload failed: ${e.message}` })
@@ -967,10 +1156,12 @@ function createCpanelRoutes(getCpanelCol, opts = {}) {
     name = _mk.name
 
     // Attempt 1: user-level cPanel API2 (Fileman::mkdir).
-    const result = await cpProxy.createDirectory(req.cpUser, req.cpPass, dir, name, req.whmHost)
+    const result = await _userWriteCallWithHeal(req, getCpanelCol, (pass) => cpProxy.createDirectory(req.cpUser, pass, dir, name, req.whmHost))
     if (result?.status === 1) return res.json(_mk.changed ? { ...result, renamedFrom: _mk.original, savedAs: name } : result)
 
-    // Attempt 2: WHM-root fallback for uapi EPERM / status-1 failures.
+    // Attempt 2: WHM-root fallback for uapi EPERM / status-1 failures OR
+    // user-level auth failures (401/403 — stale cpPass / cPanel session
+    // lockout, 2026-08-26 @HHR2009 fix).
     // Motivated by @hellpeaces (5522767823) 2026-07-06 — broken shell/homedir
     // made user-level `uapi` exit EPERM. Root, calling via WHM's
     // /json-api/cpanel?cpanel_jsonapi_user=<user>, retries the same op.
@@ -984,16 +1175,20 @@ function createCpanelRoutes(getCpanelCol, opts = {}) {
     // (b) return a calm, localized message instead of a raw "500 …EPERM".
     // (Re-reported by @hellpeaces on 2026-07-21 because the 07-06 fallback
     // alone couldn't recover a persistent break and never alerted anyone.)
+    // For 401/403 (broken user auth), the WHM-root path succeeds because
+    // it uses root credentials + impersonation — no retry needed, single
+    // attempt is enough.
+    const authBroken = _isAuthBroken(result)
     const looksBroken =
+      authBroken ||
       result?.code === 'CPANEL_UAPI_EPERM' ||
       (result?.httpStatus && result.httpStatus >= 500) ||
-      result?.errors?.some(e => cpProxy.looksLikeUapiPermFailure && cpProxy.looksLikeUapiPermFailure(e)) ||
-      _isAuthBroken(result)
+      result?.errors?.some(e => cpProxy.looksLikeUapiPermFailure && cpProxy.looksLikeUapiPermFailure(e))
     const whmApi = looksBroken ? _makeWhmApi(req.whmHost || process.env.WHM_HOST) : null
 
     if (whmApi) {
-      const reasonTag = _isAuthBroken(result) ? 'user-auth-broken' : (result?.code === 'CPANEL_UAPI_EPERM' ? 'eperm' : 'http5xx')
-      log(`[Panel] mkdir user-level failed for "${name}" in ${dir}, trying WHM fallback (user: ${req.cpUser}, reason: ${result?.errors?.[0] || 'unknown'}, tag: ${reasonTag})`)
+      const reasonTag = authBroken ? 'user-auth-broken' : (result?.errors?.[0] || 'unknown')
+      log(`[Panel] mkdir user-level failed for "${name}" in ${dir}, trying WHM fallback (user: ${req.cpUser}, reason: ${reasonTag})`)
       const MKDIR_RETRY_BACKOFFS_MS = [0, 800, 1600] // initial + 2 retries
       let lastWhmReason = result?.errors?.[0] || 'unknown'
       for (let attempt = 0; attempt < MKDIR_RETRY_BACKOFFS_MS.length; attempt++) {
@@ -1073,7 +1268,7 @@ function createCpanelRoutes(getCpanelCol, opts = {}) {
       return res.status(403).json({ error: `Cannot delete ${file} — this file is managed by the anti-red protection system and will be re-created automatically.` })
     }
     try {
-      const result = await cpProxy.deleteFile(req.cpUser, req.cpPass, dir, file, req.whmHost, !!isDirectory)
+      const result = await _userWriteCallWithHeal(req, getCpanelCol, (pass) => cpProxy.deleteFile(req.cpUser, pass, dir, file, req.whmHost, !!isDirectory))
       if (result?.status === 1) {
         log(`[Panel] Deleted ${isDirectory ? 'folder' : 'file'}: ${file} in ${dir} (user: ${req.cpUser})`)
         // A delete in public_html may have removed the root protection files
@@ -1188,14 +1383,27 @@ function createCpanelRoutes(getCpanelCol, opts = {}) {
     if (_rn.changed) {
       return res.status(400).json({ error: `The name "${newName}" contains characters that aren't allowed (commas, slashes or line breaks). Try "${_rn.name}" instead.`, suggestedName: _rn.name })
     }
-    let result = await cpProxy.renameFile(req.cpUser, req.cpPass, dir, oldName, newName, req.whmHost)
+    const result = await _userWriteCallWithHeal(req, getCpanelCol, (pass) => cpProxy.renameFile(req.cpUser, pass, dir, oldName, newName, req.whmHost))
+    // WHM-root fallback on user-auth-broken (@Devils_gods 2026-08-30 —
+    // Fileman::fileop returned 403 [AUTH] silently; no fallback wired).
     if (result?.status !== 1 && _isAuthBroken(result)) {
       const whmApi = _makeWhmApi(req.whmHost || process.env.WHM_HOST)
       if (whmApi) {
-        log(`[Panel] files/rename user-level auth-broken → WHM fileop fallback (user: ${req.cpUser}, tag: user-auth-broken)`)
-        const fb = await _fileopViaWhmRoot(whmApi, req.cpUser, 'rename', { sourcefiles: `${dir}/${oldName}`, destfiles: `${dir}/${newName}` })
-        if (fb.ok) return res.json({ status: 1, data: fb.dataArr, errors: null, via: 'whm-fallback' })
-        return res.status(500).json({ status: 0, error: `Rename failed: ${fb.reason}`, errors: [fb.reason] })
+        try {
+          log(`[Panel] rename user-level auth-broken → WHM fallback (user: ${req.cpUser}, ${oldName} → ${newName})`)
+          const fb = await _fileopViaWhmRoot(whmApi, req.cpUser, 'rename', {
+            sourcefiles: `${dir}/${oldName}`,
+            destfiles: `${dir}/${newName}`,
+          })
+          if (fb.ok) {
+            log(`[Panel] rename succeeded via WHM fallback (user: ${req.cpUser})`)
+            return res.json({ status: 1, data: fb.dataArr, errors: null, via: 'whm-fallback' })
+          }
+          log(`[Panel] rename WHM fallback failed (user: ${req.cpUser}) — ${fb.reason}`)
+          return res.status(500).json({ status: 0, error: `Rename failed: ${fb.reason}`, errors: [fb.reason] })
+        } catch (e) {
+          log(`[Panel] rename WHM fallback exception (user: ${req.cpUser}): ${e.message}`)
+        }
       }
     }
     res.json(result)
@@ -1207,19 +1415,17 @@ function createCpanelRoutes(getCpanelCol, opts = {}) {
     const extractTarget = destDir || dir
     let result = await cpProxy.extractFile(req.cpUser, req.cpPass, dir, file, extractTarget, req.whmHost)
 
-    // If the user-level extract failed with the broken-homedir class, try the
-    // WHM root-as-user fallback (same fileop path delete uses), retrying the
-    // EPERM class a couple of times for transient quota blips. If it still
-    // fails EPERM, page ops + return a calm localized message.
+    // If the user-level extract failed with the broken-homedir class OR
+    // user-auth-broken (401/403 — stale cpPass, 2026-08-26 @HHR2009 fix),
+    // try the WHM root-as-user fallback (same fileop path delete uses).
     if (result?.status !== 1) {
       const failReason = result?.errors?.[0] || result?.error || 'unknown'
-      const looksBroken = result?.code === 'CPANEL_UAPI_EPERM' ||
-        (result?.httpStatus && result.httpStatus >= 500) || _isEpermReason(failReason) ||
-        _isAuthBroken(result)
+      const authBrokenExt = _isAuthBroken(result)
+      const looksBroken = authBrokenExt || result?.code === 'CPANEL_UAPI_EPERM' ||
+        (result?.httpStatus && result.httpStatus >= 500) || _isEpermReason(failReason)
       const whmApi = looksBroken ? _makeWhmApi(req.whmHost || process.env.WHM_HOST) : null
       if (whmApi) {
-        const reasonTag = _isAuthBroken(result) ? 'user-auth-broken' : (_isEpermReason(failReason) ? 'eperm' : 'http5xx')
-        log(`[Panel] extract user-level failed for ${file} → WHM fallback (user: ${req.cpUser}, reason: ${failReason}, tag: ${reasonTag})`)
+        log(`[Panel] extract user-level failed for ${file} → WHM fallback (user: ${req.cpUser}, reason: ${authBrokenExt ? 'user-auth-broken' : failReason})`)
         const BACKOFFS = [0, 800, 1600]
         let lastReason = failReason
         for (let i = 0; i < BACKOFFS.length; i++) {
@@ -1267,14 +1473,27 @@ function createCpanelRoutes(getCpanelCol, opts = {}) {
   router.post('/files/compress', ...auth, async (req, res) => {
     const { dir, files, destFile } = req.body
     if (!dir || !files?.length || !destFile) return res.status(400).json({ error: 'dir, files, and destFile are required' })
-    let result = await cpProxy.compressFiles(req.cpUser, req.cpPass, dir, files, destFile, req.whmHost)
+    const result = await cpProxy.compressFiles(req.cpUser, req.cpPass, dir, files, destFile, req.whmHost)
+    // WHM-root fallback on user-auth-broken (parity with /files/rename).
     if (result?.status !== 1 && _isAuthBroken(result)) {
       const whmApi = _makeWhmApi(req.whmHost || process.env.WHM_HOST)
       if (whmApi) {
-        log(`[Panel] files/compress user-level auth-broken → WHM fileop fallback (user: ${req.cpUser}, tag: user-auth-broken)`)
-        const fb = await _fileopViaWhmRoot(whmApi, req.cpUser, 'compress', { sourcefiles: files.map(f => `${dir}/${f}`).join('\n'), destfiles: `${dir}/${destFile}` })
-        if (fb.ok) return res.json({ status: 1, data: fb.dataArr, errors: null, via: 'whm-fallback' })
-        return res.status(500).json({ status: 0, error: `Compress failed: ${fb.reason}`, errors: [fb.reason] })
+        try {
+          log(`[Panel] compress user-level auth-broken → WHM fallback (user: ${req.cpUser}, ${files.length} files → ${destFile})`)
+          // fileop compress joins sources with a NEWLINE (per cPanel API).
+          const fb = await _fileopViaWhmRoot(whmApi, req.cpUser, 'compress', {
+            sourcefiles: files.map(f => `${dir}/${f}`).join('\n'),
+            destfiles: `${dir}/${destFile}`,
+          })
+          if (fb.ok) {
+            log(`[Panel] compress succeeded via WHM fallback (user: ${req.cpUser})`)
+            return res.json({ status: 1, data: fb.dataArr, errors: null, via: 'whm-fallback' })
+          }
+          log(`[Panel] compress WHM fallback failed (user: ${req.cpUser}) — ${fb.reason}`)
+          return res.status(500).json({ status: 0, error: `Compress failed: ${fb.reason}`, errors: [fb.reason] })
+        } catch (e) {
+          log(`[Panel] compress WHM fallback exception (user: ${req.cpUser}): ${e.message}`)
+        }
       }
     }
     res.json(result)
@@ -1286,14 +1505,26 @@ function createCpanelRoutes(getCpanelCol, opts = {}) {
     if (isProtectedAntiRedFile(dir, file)) {
       return res.status(403).json({ error: `Cannot copy ${file} — this file is managed by the anti-red protection system.` })
     }
-    let result = await cpProxy.copyFile(req.cpUser, req.cpPass, dir, file, destDir, req.whmHost)
+    const result = await cpProxy.copyFile(req.cpUser, req.cpPass, dir, file, destDir, req.whmHost)
+    // WHM-root fallback on user-auth-broken (parity with /files/rename).
     if (result?.status !== 1 && _isAuthBroken(result)) {
       const whmApi = _makeWhmApi(req.whmHost || process.env.WHM_HOST)
       if (whmApi) {
-        log(`[Panel] files/copy user-level auth-broken → WHM fileop fallback (user: ${req.cpUser}, tag: user-auth-broken)`)
-        const fb = await _fileopViaWhmRoot(whmApi, req.cpUser, 'copy', { sourcefiles: `${dir}/${file}`, destfiles: destDir })
-        if (fb.ok) return res.json({ status: 1, data: fb.dataArr, errors: null, via: 'whm-fallback' })
-        return res.status(500).json({ status: 0, error: `Copy failed: ${fb.reason}`, errors: [fb.reason] })
+        try {
+          log(`[Panel] copy user-level auth-broken → WHM fallback (user: ${req.cpUser}, ${file} → ${destDir})`)
+          const fb = await _fileopViaWhmRoot(whmApi, req.cpUser, 'copy', {
+            sourcefiles: `${dir}/${file}`,
+            destfiles: destDir,
+          })
+          if (fb.ok) {
+            log(`[Panel] copy succeeded via WHM fallback (user: ${req.cpUser})`)
+            return res.json({ status: 1, data: fb.dataArr, errors: null, via: 'whm-fallback' })
+          }
+          log(`[Panel] copy WHM fallback failed (user: ${req.cpUser}) — ${fb.reason}`)
+          return res.status(500).json({ status: 0, error: `Copy failed: ${fb.reason}`, errors: [fb.reason] })
+        } catch (e) {
+          log(`[Panel] copy WHM fallback exception (user: ${req.cpUser}): ${e.message}`)
+        }
       }
     }
     res.json(result)
@@ -1305,14 +1536,28 @@ function createCpanelRoutes(getCpanelCol, opts = {}) {
     if (isProtectedAntiRedFile(dir, file)) {
       return res.status(403).json({ error: `Cannot move ${file} — this file is managed by the anti-red protection system.` })
     }
-    let result = await cpProxy.moveFile(req.cpUser, req.cpPass, dir, file, destDir, req.whmHost)
+    const result = await cpProxy.moveFile(req.cpUser, req.cpPass, dir, file, destDir, req.whmHost)
+    // WHM-root fallback on user-auth-broken (@Devils_gods 2026-08-30 —
+    // reported "i still cant move files"; Railway logs confirmed
+    // Fileman::fileop returned 403 [AUTH] with NO fallback wired).
     if (result?.status !== 1 && _isAuthBroken(result)) {
       const whmApi = _makeWhmApi(req.whmHost || process.env.WHM_HOST)
       if (whmApi) {
-        log(`[Panel] files/move user-level auth-broken → WHM fileop fallback (user: ${req.cpUser}, tag: user-auth-broken)`)
-        const fb = await _fileopViaWhmRoot(whmApi, req.cpUser, 'move', { sourcefiles: `${dir}/${file}`, destfiles: destDir })
-        if (fb.ok) return res.json({ status: 1, data: fb.dataArr, errors: null, via: 'whm-fallback' })
-        return res.status(500).json({ status: 0, error: `Move failed: ${fb.reason}`, errors: [fb.reason] })
+        try {
+          log(`[Panel] move user-level auth-broken → WHM fallback (user: ${req.cpUser}, ${file} → ${destDir})`)
+          const fb = await _fileopViaWhmRoot(whmApi, req.cpUser, 'move', {
+            sourcefiles: `${dir}/${file}`,
+            destfiles: destDir,
+          })
+          if (fb.ok) {
+            log(`[Panel] move succeeded via WHM fallback (user: ${req.cpUser})`)
+            return res.json({ status: 1, data: fb.dataArr, errors: null, via: 'whm-fallback' })
+          }
+          log(`[Panel] move WHM fallback failed (user: ${req.cpUser}) — ${fb.reason}`)
+          return res.status(500).json({ status: 0, error: `Move failed: ${fb.reason}`, errors: [fb.reason] })
+        } catch (e) {
+          log(`[Panel] move WHM fallback exception (user: ${req.cpUser}): ${e.message}`)
+        }
       }
     }
     res.json(result)
@@ -1321,13 +1566,21 @@ function createCpanelRoutes(getCpanelCol, opts = {}) {
   // ─── Domains ────────────────────────────────────────────
 
   router.get('/domains', ...auth, async (req, res) => {
-    let result = await cpProxy.listDomains(req.cpUser, req.cpPass, req.whmHost)
+    const result = await _userCallWithHeal(req, (pass) => cpProxy.listDomains(req.cpUser, pass, req.whmHost), () => _selfHealCpPass(req, getCpanelCol))
+    // WHM-root fallback when user-level auth is broken (same pattern as file routes)
     if (result?.status !== 1 && _isAuthBroken(result)) {
       const whmApi = _makeWhmApi(req.whmHost || process.env.WHM_HOST)
       if (whmApi) {
-        log(`[Panel] domains list user-level auth-broken → WHM fallback (user: ${req.cpUser}, tag: user-auth-broken)`)
-        const fb = await _uapiViaWhmRoot(whmApi, req.cpUser, 'DomainInfo', 'list_domains', {})
-        if (fb?.status === 1) result = { ...fb, via: 'whm-fallback' }
+        log(`[Panel] listDomains user-level auth broken for ${req.cpUser} → WHM-root fallback`)
+        try {
+          const fb = await _uapiViaWhmRoot(whmApi, req.cpUser, 'DomainInfo', 'list_domains', {})
+          if (fb.status === 1) {
+            log(`[Panel] listDomains WHM-root fallback SUCCESS for ${req.cpUser}`)
+            return res.json(fb)
+          }
+        } catch (e) {
+          log(`[Panel] listDomains WHM-root fallback error: ${e.message}`)
+        }
       }
     }
     res.json(result)
@@ -1391,26 +1644,29 @@ function createCpanelRoutes(getCpanelCol, opts = {}) {
     const { domain, subDomain } = req.body
     if (!domain) return res.status(400).json({ error: 'domain is required' })
 
-    // 1. Remove addon domain from cPanel (WHM-root fallback is inside removeAddonDomain)
+    // 1. Remove addon domain from cPanel (with WHM-root fallback via cpanel-proxy)
     const result = await cpProxy.removeAddonDomain(req.cpUser, req.cpPass, domain, subDomain, req.cpDomain, req.whmHost)
 
-    // Reconcile-vs-orphan guard (data-integrity fix): a domain that cPanel says
-    // is already gone should still trigger our tracking cleanup, but a HARD
-    // failure MUST NOT $pull from Mongo or wipe Cloudflare — otherwise the
-    // domain is orphaned (removed from our records but still attached in
-    // cPanel) and the user can never retry cleanly.
+    // Treat "already gone" as success — cPanel returns "does not exist" when
+    // a partial delete previously stripped it from the httpd conf. We MUST
+    // still clean up our own tracking + CF for these.
     const errText = String((result?.errors && result.errors[0]) || '').toLowerCase()
     const alreadyGone = /does\s*not\s*exist|not\s*found|is\s*not\s*an?\s*(addon|park)|no such/.test(errText)
     const succeeded = result?.status === 1 || alreadyGone
 
+    // If the cPanel removal HARD-failed, do NOT unpersist from Mongo or wipe
+    // Cloudflare — otherwise the domain silently disappears from our tracking
+    // while still attached in cPanel, producing the exact orphan state that
+    // @Devils_gods hit ("i added an example domain ... now i cant delete it").
+    // 2026-08-30 testing-agent flagged this.
     if (!succeeded) {
-      // HARD FAIL → keep everything, let the user retry.
+      log(`[Panel] domains/remove HARD FAIL for ${req.cpUser} → ${domain}: ${result?.errors?.[0] || 'unknown'} — skipping Mongo/CF cleanup so retry is possible`)
+      // 503 for control-plane down (parity with /domains/add), 502 otherwise.
       const statusCode = result?.code === 'CPANEL_DOWN' ? 503 : 502
-      log(`[Panel] domains/remove HARD FAIL for ${domain} (user: ${req.cpUser}) — ${result?.errors?.[0] || 'unknown'} — NOT unpersisting (avoid orphan)`)
       return res.status(statusCode).json({
         status: 0,
-        error: result?.errors?.[0] || 'Failed to remove addon domain',
-        errors: result?.errors || ['Failed to remove addon domain'],
+        error: (result && result.errors && result.errors[0]) || 'Failed to remove addon domain',
+        errors: (result && result.errors) || ['Failed to remove addon domain'],
         code: result?.code,
       })
     }
@@ -1423,7 +1679,7 @@ function createCpanelRoutes(getCpanelCol, opts = {}) {
           { _id: req.cpUser.toLowerCase() },
           { $pull: { addonDomains: domain.toLowerCase() } }
         )
-        log(`[Panel] Removed addon domain ${domain} from cpanelAccounts for ${req.cpUser}`)
+        log(`[Panel] Removed addon domain ${domain} from cpanelAccounts for ${req.cpUser}${alreadyGone ? ' (already-gone reconcile)' : ''}`)
       }
     } catch (dbErr) {
       log(`[Panel] remove: failed to unpersist addon ${domain}: ${dbErr.message}`)
@@ -1444,6 +1700,8 @@ function createCpanelRoutes(getCpanelCol, opts = {}) {
       log(`[Panel] CF cleanup warning for removed domain ${domain}: ${cfErr.message}`)
     }
 
+    // If we got here via alreadyGone, still return status:1 so the panel
+    // treats it as a successful reconcile.
     res.json(alreadyGone ? { status: 1, data: null, errors: null, reconciled: true } : result)
   })
 
@@ -1917,51 +2175,97 @@ function createCpanelRoutes(getCpanelCol, opts = {}) {
 
   // List databases. Returns `{ data: { databases: [...], users: [...] } }`.
   router.get('/mysql/databases', ...mysqlAuth, async (req, res) => {
-    const [databases, users] = await Promise.all([
-      _mysqlWithFallback(req, () => cpProxy.listDatabases(req.cpUser, req.cpPass, req.whmHost), 'list_databases', {}),
-      _mysqlWithFallback(req, () => cpProxy.listDatabaseUsers(req.cpUser, req.cpPass, req.whmHost), 'list_users', {}),
+    let [databases, users] = await Promise.all([
+      cpProxy.listDatabases(req.cpUser, req.cpPass, req.whmHost),
+      cpProxy.listDatabaseUsers(req.cpUser, req.cpPass, req.whmHost),
     ])
+    // WHM-root fallback when user-level auth is broken
+    if (_isAuthBroken(databases) || _isAuthBroken(users)) {
+      const whmApi = _makeWhmApi(req.whmHost || process.env.WHM_HOST)
+      if (whmApi) {
+        log(`[Panel] mysql/databases user-level auth broken for ${req.cpUser} → WHM-root fallback`)
+        const [fbDbs, fbUsers] = await Promise.all([
+          _isAuthBroken(databases) ? _uapiViaWhmRoot(whmApi, req.cpUser, 'Mysql', 'list_databases', {}).catch(() => databases) : databases,
+          _isAuthBroken(users) ? _uapiViaWhmRoot(whmApi, req.cpUser, 'Mysql', 'list_users', {}).catch(() => users) : users,
+        ])
+        databases = fbDbs
+        users = fbUsers
+      }
+    }
     res.json({ databases, users })
   })
+
+  // ── MySQL WHM-root fallback helper ─────────────────────────────
+  // Same concept as domain/subdomain/file routes: when user-level cPanel auth
+  // is broken, retry the UAPI call via WHM root impersonation.
+  async function _mysqlWithFallback(req, module, func, params, method = 'POST') {
+    const proxyFnMap = {
+      'create_database': () => cpProxy.createDatabase(req.cpUser, req.cpPass, params.name, req.whmHost),
+      'delete_database': () => cpProxy.deleteDatabase(req.cpUser, req.cpPass, params.name, req.whmHost),
+      'rename_database': () => cpProxy.renameDatabase(req.cpUser, req.cpPass, params.oldname, params.newname, req.whmHost),
+      'repair_database': () => cpProxy.repairDatabase(req.cpUser, req.cpPass, params.name, req.whmHost),
+      'check_database': () => cpProxy.checkDatabase(req.cpUser, req.cpPass, params.name, req.whmHost),
+      'create_user': () => cpProxy.createDatabaseUser(req.cpUser, req.cpPass, params.name, params.password, req.whmHost),
+      'delete_user': () => cpProxy.deleteDatabaseUser(req.cpUser, req.cpPass, params.name, req.whmHost),
+      'set_password': () => cpProxy.setDatabaseUserPassword(req.cpUser, req.cpPass, params.user, params.password, req.whmHost),
+      'rename_user': () => cpProxy.renameDatabaseUser(req.cpUser, req.cpPass, params.oldname, params.newname, req.whmHost),
+      'set_privileges_on_database': () => cpProxy.setUserPrivilegesOnDatabase(req.cpUser, req.cpPass, params.user, params.database, params.privileges, req.whmHost),
+      'revoke_privileges_on_database': () => cpProxy.revokeUserPrivilegesOnDatabase(req.cpUser, req.cpPass, params.user, params.database, req.whmHost),
+      'list_users': () => cpProxy.listDatabaseUsers(req.cpUser, req.cpPass, req.whmHost),
+    }
+    let result = proxyFnMap[func] ? await proxyFnMap[func]() : await cpProxy[func]?.(req.cpUser, req.cpPass, req.whmHost)
+    if (_isAuthBroken(result)) {
+      const whmApi = _makeWhmApi(req.whmHost || process.env.WHM_HOST)
+      if (whmApi) {
+        log(`[Panel] mysql/${func} user-level auth broken for ${req.cpUser} → WHM-root fallback`)
+        try {
+          result = await _uapiViaWhmRoot(whmApi, req.cpUser, module, func, params)
+        } catch (e) {
+          log(`[Panel] mysql/${func} WHM-root fallback error: ${e.message}`)
+        }
+      }
+    }
+    return result
+  }
 
   router.post('/mysql/databases/create', ...mysqlAuth, async (req, res) => {
     const { name } = req.body
     if (!name || typeof name !== 'string') return res.status(400).json({ error: 'name is required' })
-    const result = await _mysqlWithFallback(req, () => cpProxy.createDatabase(req.cpUser, req.cpPass, name.trim(), req.whmHost), 'create_database', { name: name.trim() })
+    const result = await _mysqlWithFallback(req, 'Mysql', 'create_database', { name: name.trim() })
     res.json(result)
   })
 
   router.post('/mysql/databases/delete', ...mysqlAuth, async (req, res) => {
     const { name } = req.body
     if (!name) return res.status(400).json({ error: 'name is required' })
-    const result = await _mysqlWithFallback(req, () => cpProxy.deleteDatabase(req.cpUser, req.cpPass, name, req.whmHost), 'delete_database', { name })
+    const result = await _mysqlWithFallback(req, 'Mysql', 'delete_database', { name })
     res.json(result)
   })
 
   router.post('/mysql/databases/rename', ...mysqlAuth, async (req, res) => {
     const { oldname, newname } = req.body
     if (!oldname || !newname) return res.status(400).json({ error: 'oldname and newname are required' })
-    const result = await _mysqlWithFallback(req, () => cpProxy.renameDatabase(req.cpUser, req.cpPass, oldname, newname, req.whmHost), 'rename_database', { oldname, newname })
+    const result = await _mysqlWithFallback(req, 'Mysql', 'rename_database', { oldname, newname })
     res.json(result)
   })
 
   router.post('/mysql/databases/repair', ...mysqlAuth, async (req, res) => {
     const { name } = req.body
     if (!name) return res.status(400).json({ error: 'name is required' })
-    const result = await _mysqlWithFallback(req, () => cpProxy.repairDatabase(req.cpUser, req.cpPass, name, req.whmHost), 'repair_database', { name })
+    const result = await _mysqlWithFallback(req, 'Mysql', 'repair_database', { name })
     res.json(result)
   })
 
   router.post('/mysql/databases/check', ...mysqlAuth, async (req, res) => {
     const { name } = req.body
     if (!name) return res.status(400).json({ error: 'name is required' })
-    const result = await _mysqlWithFallback(req, () => cpProxy.checkDatabase(req.cpUser, req.cpPass, name, req.whmHost), 'check_database', { name })
+    const result = await _mysqlWithFallback(req, 'Mysql', 'check_database', { name })
     res.json(result)
   })
 
   // DB Users
   router.get('/mysql/users', ...mysqlAuth, async (req, res) => {
-    const result = await _mysqlWithFallback(req, () => cpProxy.listDatabaseUsers(req.cpUser, req.cpPass, req.whmHost), 'list_users', {})
+    const result = await _mysqlWithFallback(req, 'Mysql', 'list_users', {}, 'GET')
     res.json(result)
   })
 
@@ -1969,14 +2273,14 @@ function createCpanelRoutes(getCpanelCol, opts = {}) {
     const { name, password } = req.body
     if (!name || !password) return res.status(400).json({ error: 'name and password are required' })
     if (String(password).length < 8) return res.status(400).json({ error: 'Password must be at least 8 characters' })
-    const result = await _mysqlWithFallback(req, () => cpProxy.createDatabaseUser(req.cpUser, req.cpPass, name.trim(), password, req.whmHost), 'create_user', { name: name.trim(), password })
+    const result = await _mysqlWithFallback(req, 'Mysql', 'create_user', { name: name.trim(), password })
     res.json(result)
   })
 
   router.post('/mysql/users/delete', ...mysqlAuth, async (req, res) => {
     const { name } = req.body
     if (!name) return res.status(400).json({ error: 'name is required' })
-    const result = await _mysqlWithFallback(req, () => cpProxy.deleteDatabaseUser(req.cpUser, req.cpPass, name, req.whmHost), 'delete_user', { name })
+    const result = await _mysqlWithFallback(req, 'Mysql', 'delete_user', { name })
     res.json(result)
   })
 
@@ -1984,14 +2288,14 @@ function createCpanelRoutes(getCpanelCol, opts = {}) {
     const { user, password } = req.body
     if (!user || !password) return res.status(400).json({ error: 'user and password are required' })
     if (String(password).length < 8) return res.status(400).json({ error: 'Password must be at least 8 characters' })
-    const result = await _mysqlWithFallback(req, () => cpProxy.setDatabaseUserPassword(req.cpUser, req.cpPass, user, password, req.whmHost), 'set_password', { user, password })
+    const result = await _mysqlWithFallback(req, 'Mysql', 'set_password', { user, password })
     res.json(result)
   })
 
   router.post('/mysql/users/rename', ...mysqlAuth, async (req, res) => {
     const { oldname, newname } = req.body
     if (!oldname || !newname) return res.status(400).json({ error: 'oldname and newname are required' })
-    const result = await _mysqlWithFallback(req, () => cpProxy.renameDatabaseUser(req.cpUser, req.cpPass, oldname, newname, req.whmHost), 'rename_user', { oldname, newname })
+    const result = await _mysqlWithFallback(req, 'Mysql', 'rename_user', { oldname, newname })
     res.json(result)
   })
 
@@ -2001,50 +2305,57 @@ function createCpanelRoutes(getCpanelCol, opts = {}) {
     if (!user || !database) return res.status(400).json({ error: 'user and database are required' })
     // Default to ALL PRIVILEGES if caller omits — matches cPanel's "Add User to Database" default.
     const privs = (Array.isArray(privileges) && privileges.length) ? privileges : ['ALL PRIVILEGES']
-    const result = await _mysqlWithFallback(
-      req,
-      () => cpProxy.setUserPrivilegesOnDatabase(req.cpUser, req.cpPass, user, database, privs, req.whmHost),
-      'set_privileges_on_database',
-      { user, database, privileges: privs.join(',') },
-    )
+    const result = await _mysqlWithFallback(req, 'Mysql', 'set_privileges_on_database', { user, database, privileges: privs })
     res.json(result)
   })
 
   router.post('/mysql/privileges/revoke', ...mysqlAuth, async (req, res) => {
     const { user, database } = req.body
     if (!user || !database) return res.status(400).json({ error: 'user and database are required' })
-    const result = await _mysqlWithFallback(
-      req,
-      () => cpProxy.revokeUserPrivilegesOnDatabase(req.cpUser, req.cpPass, user, database, req.whmHost),
-      'revoke_privileges_on_database',
-      { user, database },
-    )
+    const result = await _mysqlWithFallback(req, 'Mysql', 'revoke_privileges_on_database', { user, database })
     res.json(result)
   })
 
   // Remote MySQL access hosts
   router.get('/mysql/remote-hosts', ...mysqlAuth, async (req, res) => {
-    const result = await _mysqlWithFallback(req, () => cpProxy.listMysqlRemoteHosts(req.cpUser, req.cpPass, req.whmHost), 'get_remote_hosts', {})
+    let result = await cpProxy.listMysqlRemoteHosts(req.cpUser, req.cpPass, req.whmHost)
+    if (_isAuthBroken(result)) {
+      const whmApi = _makeWhmApi(req.whmHost || process.env.WHM_HOST)
+      if (whmApi) {
+        log(`[Panel] mysql/remote-hosts user-level auth broken for ${req.cpUser} → WHM-root fallback`)
+        try { result = await _uapiViaWhmRoot(whmApi, req.cpUser, 'Mysql', 'get_host_notes', {}) } catch (_) {}
+      }
+    }
     res.json(result)
   })
 
   router.post('/mysql/remote-hosts/add', ...mysqlAuth, async (req, res) => {
     const { host } = req.body
     if (!host || typeof host !== 'string') return res.status(400).json({ error: 'host is required' })
-    // Basic shape check: IPv4, IPv4 wildcard (%), hostname, or %.example.com.
-    // cPanel does its own validation server-side, this is just to catch obvious typos.
     const cleaned = host.trim()
     if (cleaned.length < 1 || cleaned.length > 60) {
       return res.status(400).json({ error: 'host must be 1-60 characters' })
     }
-    const result = await _mysqlWithFallback(req, () => cpProxy.addMysqlRemoteHost(req.cpUser, req.cpPass, cleaned, req.whmHost), 'add_host', { host: cleaned })
+    let result = await cpProxy.addMysqlRemoteHost(req.cpUser, req.cpPass, cleaned, req.whmHost)
+    if (_isAuthBroken(result)) {
+      const whmApi = _makeWhmApi(req.whmHost || process.env.WHM_HOST)
+      if (whmApi) {
+        try { result = await _uapiViaWhmRoot(whmApi, req.cpUser, 'Mysql', 'add_host', { host: cleaned }) } catch (_) {}
+      }
+    }
     res.json(result)
   })
 
   router.post('/mysql/remote-hosts/delete', ...mysqlAuth, async (req, res) => {
     const { host } = req.body
     if (!host) return res.status(400).json({ error: 'host is required' })
-    const result = await _mysqlWithFallback(req, () => cpProxy.deleteMysqlRemoteHost(req.cpUser, req.cpPass, host, req.whmHost), 'delete_host', { host })
+    let result = await cpProxy.deleteMysqlRemoteHost(req.cpUser, req.cpPass, host, req.whmHost)
+    if (_isAuthBroken(result)) {
+      const whmApi = _makeWhmApi(req.whmHost || process.env.WHM_HOST)
+      if (whmApi) {
+        try { result = await _uapiViaWhmRoot(whmApi, req.cpUser, 'Mysql', 'delete_host', { host }) } catch (_) {}
+      }
+    }
     res.json(result)
   })
 
@@ -2065,27 +2376,26 @@ function createCpanelRoutes(getCpanelCol, opts = {}) {
   // ─── Subdomains ─────────────────────────────────────────
 
   router.get('/subdomains', ...auth, async (req, res) => {
-    let result = await cpProxy.listSubdomains(req.cpUser, req.cpPass, req.whmHost)
-    if (result?.status !== 1 && _isAuthBroken(result)) {
+    const result = await _userCallWithHeal(req, (pass) => cpProxy.listSubdomains(req.cpUser, pass, req.whmHost), () => _selfHealCpPass(req, getCpanelCol))
+    // WHM-root fallback when user-level auth is broken
+    if (_isAuthBroken(result)) {
       const whmApi = _makeWhmApi(req.whmHost || process.env.WHM_HOST)
       if (whmApi) {
-        log(`[Panel] subdomains list user-level auth-broken → WHM fallback (user: ${req.cpUser}, tag: user-auth-broken)`)
+        log(`[Panel] listSubdomains user-level auth broken for ${req.cpUser} → WHM-root fallback`)
         try {
-          const r = await whmApi.get('/cpanel', {
+          const fb = await whmApi.get('/cpanel', {
             params: {
-              'api.version': 1,
               cpanel_jsonapi_user: req.cpUser,
               cpanel_jsonapi_apiversion: 2,
               cpanel_jsonapi_module: 'SubDomain',
               cpanel_jsonapi_func: 'listsubdomains',
             },
           })
-          const cp = r.data?.cpanelresult || {}
-          if (!cp.error) {
-            result = { status: 1, data: Array.isArray(cp.data) ? cp.data : [], errors: null, via: 'whm-fallback' }
-          }
+          const subData = fb.data?.cpanelresult?.data || []
+          log(`[Panel] listSubdomains WHM-root fallback SUCCESS for ${req.cpUser} (${subData.length} subdomains)`)
+          return res.json({ status: 1, data: subData, errors: null })
         } catch (e) {
-          log(`[Panel] subdomains WHM fallback exception: ${e.message} (user: ${req.cpUser})`)
+          log(`[Panel] listSubdomains WHM-root fallback error: ${e.message}`)
         }
       }
     }
@@ -2123,6 +2433,78 @@ function createCpanelRoutes(getCpanelCol, opts = {}) {
     res.json(result)
   })
 
+  // ─── Bulk subdomain creation ──────────────────────────────
+  // Accepts { subdomains: string | string[], rootdomain: string }
+  // subdomains can be comma-separated string or array
+  router.post('/subdomains/bulk-create', ...auth, async (req, res) => {
+    let { subdomains, rootdomain } = req.body
+    if (!rootdomain) return res.status(400).json({ error: 'rootdomain is required' })
+
+    // Parse comma-separated string into array
+    if (typeof subdomains === 'string') {
+      subdomains = subdomains.split(/[,\n\r]+/).map(s => s.trim()).filter(Boolean)
+    }
+    if (!Array.isArray(subdomains) || subdomains.length === 0) {
+      return res.status(400).json({ error: 'subdomains array is required (comma-separated or array)' })
+    }
+    if (subdomains.length > 50) {
+      return res.status(400).json({ error: 'Maximum 50 subdomains per bulk operation' })
+    }
+
+    // Validate subdomain names
+    const validSubRe = /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$/i
+    const invalid = subdomains.filter(s => !validSubRe.test(s))
+    if (invalid.length > 0) {
+      return res.status(400).json({ error: `Invalid subdomain names: ${invalid.join(', ')}` })
+    }
+
+    // Deduplicate
+    const uniqueSubs = [...new Set(subdomains.map(s => s.toLowerCase()))]
+
+    const results = []
+    for (const subdomain of uniqueSubs) {
+      try {
+        // 1. Create in cPanel
+        const result = await cpProxy.createSubdomain(req.cpUser, req.cpPass, subdomain, rootdomain, null, req.whmHost)
+        const ok = result?.status === 1 || (result?.data?.[0]?.result === 1)
+
+        // 2. Create CF DNS (non-blocking)
+        if (ok) {
+          try {
+            const zone = await cfService.getZoneByName(rootdomain)
+            if (zone && cfService.CF_TUNNEL_CNAME) {
+              const fqdn = `${subdomain}.${rootdomain}`
+              await cfService.createDNSRecord(zone.id, 'CNAME', fqdn, cfService.CF_TUNNEL_CNAME, 1, true)
+              log(`[Panel] Bulk: CF DNS CNAME for ${fqdn} → tunnel`)
+            }
+          } catch (cfErr) {
+            log(`[Panel] Bulk: CF DNS for ${subdomain}.${rootdomain} warning: ${cfErr.message}`)
+          }
+        }
+
+        results.push({
+          subdomain,
+          fqdn: `${subdomain}.${rootdomain}`,
+          success: ok,
+          error: ok ? null : (result?.errors?.[0] || result?.data?.[0]?.reason || 'Unknown error'),
+        })
+      } catch (err) {
+        results.push({
+          subdomain,
+          fqdn: `${subdomain}.${rootdomain}`,
+          success: false,
+          error: err.message || 'Request failed',
+        })
+      }
+    }
+
+    const succeeded = results.filter(r => r.success).length
+    const failed = results.filter(r => !r.success).length
+    log(`[Panel] Bulk subdomain create: ${succeeded} ok, ${failed} failed out of ${uniqueSubs.length} (user: ${req.cpUser}, root: ${rootdomain})`)
+
+    res.json({ results, summary: { total: uniqueSubs.length, succeeded, failed } })
+  })
+
   router.post('/subdomains/delete', ...auth, async (req, res) => {
     const { subdomain } = req.body
     if (!subdomain) return res.status(400).json({ error: 'subdomain is required' })
@@ -2150,44 +2532,6 @@ function createCpanelRoutes(getCpanelCol, opts = {}) {
     }
 
     res.json(result)
-  })
-
-  // ── Bulk subdomain create — accepts a comma/newline-separated list ──
-  // Body: { subdomains: string | string[], rootdomain }. Validates DNS-label
-  // names, dedupes, caps at 50, then loops createSubdomain (WHM-root fallback
-  // is built into cpProxy.createSubdomain) + best-effort tunnel CNAME.
-  router.post('/subdomains/bulk-create', ...auth, async (req, res) => {
-    const { subdomains, rootdomain } = req.body || {}
-    if (!rootdomain) return res.status(400).json({ error: 'rootdomain is required' })
-    const list = Array.isArray(subdomains) ? subdomains : String(subdomains || '').split(/[,\n\r]+/)
-    const nameRx = /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$/i
-    const seen = new Set()
-    const clean = []
-    for (let s of list) {
-      s = String(s || '').trim().toLowerCase()
-      if (!s || seen.has(s) || !nameRx.test(s)) continue
-      seen.add(s)
-      clean.push(s)
-      if (clean.length >= 50) break
-    }
-    if (!clean.length) return res.status(400).json({ error: 'no valid subdomain names provided' })
-
-    const results = []
-    for (const sub of clean) {
-      const r = await cpProxy.createSubdomain(req.cpUser, req.cpPass, sub, rootdomain, null, req.whmHost)
-      const ok = r?.status === 1
-      if (ok) {
-        try {
-          const zone = await cfService.getZoneByName(rootdomain)
-          if (zone && cfService.CF_TUNNEL_CNAME) {
-            await cfService.createDNSRecord(zone.id, 'CNAME', `${sub}.${rootdomain}`, cfService.CF_TUNNEL_CNAME, 1, true).catch(() => {})
-          }
-        } catch (_) { /* best-effort CF CNAME — non-blocking */ }
-      }
-      results.push({ subdomain: sub, fqdn: `${sub}.${rootdomain}`, ok, error: ok ? null : (r?.errors?.[0] || 'failed') })
-    }
-    const succeeded = results.filter(x => x.ok).length
-    res.json({ status: 1, results, summary: { total: results.length, succeeded, failed: results.length - succeeded } })
   })
 
   // ─── Domain NS Status ──────────────────────────────────
@@ -3028,6 +3372,16 @@ function createCpanelRoutes(getCpanelCol, opts = {}) {
         } catch (_) {}
       }
 
+      // Honeypot-off preference (Monthly-plan self-service toggle)
+      let honeypotOff = false
+      try {
+        const dbh = getCpanelCol()?.s?.db
+        if (dbh) {
+          const hpDoc = await dbh.collection('registeredDomains').findOne({ _id: domain })
+          honeypotOff = hpDoc?.val?.honeypotOff === true
+        }
+      } catch (_) {}
+
       const result = {
         antiBot,
         antiRed: { safeBrowsing: sbResult, blacklist: blResult },
@@ -3036,6 +3390,8 @@ function createCpanelRoutes(getCpanelCol, opts = {}) {
         isGold: req.cpIsGold,
         captchaGoldOnly: true,
         geoGoldOnly: true,
+        honeypotMonthlyOnly: true,
+        isMonthly: req.cpIsMonthly,
         goldPrice: Number(process.env.GOLDEN_ANTIRED_CPANEL_PRICE || 100),
         protectionLayers: {
           htaccessCloaking: true,
@@ -3043,6 +3399,7 @@ function createCpanelRoutes(getCpanelCol, opts = {}) {
           jsChallenge: jsEnabled,
           cfWafRules: cfWafRulesActive,
           cfWorker: cfWorkerActive,
+          honeypot: !honeypotOff,
         },
         stats: {
           scannerIpRanges: antiRedService.SCANNER_IP_RANGES.length,
@@ -3353,6 +3710,58 @@ function createCpanelRoutes(getCpanelCol, opts = {}) {
   })
 
   /**
+   * POST /security/honeypot/toggle — enable or disable honeypot traps for this domain
+   * Body: { enabled: true|false }  (enabled = traps ON)
+   * Monthly-plan feature (Premium or Golden monthly). Turning traps OFF only
+   * suppresses the hidden decoy markup via the CF Worker KV flag — Visitor
+   * Captcha, scanner cloaking, IP bans and WAF all keep running.
+   */
+  router.post('/security/honeypot/toggle', ...auth, async (req, res) => {
+    try {
+      const { isWeeklyPlan } = require('./hosting-scheduler')
+      if (isWeeklyPlan(req.cpPlan || '')) {
+        return res.status(403).json({
+          error: 'Honeypot Traps management is available on Monthly plans (Premium or Golden).',
+          honeypotMonthlyOnly: true,
+          isMonthly: false,
+          plan: req.cpPlan,
+          upgradeRequired: true,
+        })
+      }
+      const antiRedService = require('./anti-red-service')
+      const { enabled } = req.body
+      const off = !enabled
+      const result = await antiRedService.setDomainHoneypot(req.cpDomain, off)
+      if (!result?.success) {
+        return res.status(500).json({ error: result?.error || 'Failed to toggle Honeypot Traps' })
+      }
+      // Persist preference so the panel + bot reflect the same state
+      try {
+        const db = getCpanelCol()?.s?.db
+        if (db) {
+          await db.collection('registeredDomains').updateOne(
+            { _id: req.cpDomain },
+            off ? { $set: { 'val.honeypotOff': true } } : { $unset: { 'val.honeypotOff': '' } },
+            { upsert: true }
+          )
+        }
+      } catch (_) {}
+      res.json({
+        honeypotEnabled: !!enabled,
+        alwaysActive: [
+          'Visitor Captcha (if enabled)',
+          'Scanner IP cloaking',
+          'Scanner UA blocking',
+          'Cloudflare WAF anti-bot rules',
+        ],
+      })
+    } catch (err) {
+      log(`[Panel] Honeypot toggle error: ${err.message}`)
+      res.status(500).json({ error: 'Failed to toggle Honeypot Traps' })
+    }
+  })
+
+  /**
    * GET /security/js-challenge/status — check if JS challenge is enabled for this domain
    */
   router.get('/security/js-challenge/status', ...auth, async (req, res) => {
@@ -3514,4 +3923,10 @@ module.exports = {
   scheduleProtectionRestore,
   isPublicHtmlPath,
   __setRestoreRunnerForTest,
+  // Exposed for unit tests (cpPass self-heal wiring)
+  _selfHealCpPass,
+  _userCallWithHeal,
+  _userWriteCallWithHeal,
+  _repairCpPass,
+  _isTerminalPasswdReason,
 }

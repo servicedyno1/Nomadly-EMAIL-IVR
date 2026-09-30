@@ -10,7 +10,7 @@ const { MongoClient } = require('mongodb');
   console.log('   DATABASE INDEXES CREATION');
   console.log('═══════════════════════════════════════════════════════════\n');
 
-  const MONGO_URL = 'mongodb://mongo:RQoOmIdwjRLFvhWMaatjidzqpvawUKcb@caboose.proxy.rlwy.net:59668';
+  const MONGO_URL = 'mongodb://localhost:27017';
   const client = await MongoClient.connect(MONGO_URL);
   const db = client.db('test');
 

@@ -1,31 +1,49 @@
 {
-  "summary": "Frontend-only test of the Smadav Sales Dashboard /sales — new Bot Users section, drill-down, KPI cards, search, sort, and regressions. All requested flows work end-to-end against production-linked Mongo data.",
-  "backend_issues": {"critical": [], "minor": []},
-  "frontend_issues": {
-    "ui_bugs": [],
-    "integration_issues": [],
-    "design_issues": [
-      {"screen": "SalesDashboard", "issues": [
-        "Recharts warning: 'width(-1) and height(-1) of chart should be greater than 0' — Profit by Category / Weekly charts render inside a hidden/zero-size container on first paint. Cosmetic but pollutes console.",
-        "Hydration warnings: multiple 'span cannot be a child of tbody/select/tr' warnings caused by a wrapper span injected around dynamic children in <tbody> (Bot Users, Transactions) and inside <select data-testid=user-sort>. Likely from a dev-time instrumentation span (x-ve-dynamic). Does not break functionality but produces React hydration errors in console."
-      ]}
+  "summary": "Backend-only re-verification of the two hardening items main agent applied after iteration_40. BOTH CONFIRMED DONE AND CORRECT. (1) `_detectLoginPageHtml` is hoisted into a single shared helper (js/cpanel-proxy.js:247) and invoked from all 6 required call sites: uapi() l.433, api2() l.626, addAddonDomain l.891, removeAddonDomain l.944, createSubdomain l.1070, deleteSubdomain l.1123 — grep count 8 = 1 decl + 6 calls + 1 docstring reference, exactly as specified. uapi()/api2() return {status:0, code:'CPANEL_AUTH_FAILURE', httpStatus}; the 4 direct-axios funcs call _api2ViaWhmRoot() first and only surface CPANEL_AUTH_FAILURE if the fallback returns null. Verified _isAuthBroken (cpanel-routes.js:176) short-circuits on code==='CPANEL_AUTH_FAILURE', so the api2/fileop coverage gap from iteration_40 is genuinely closed end-to-end. (2) /domains/remove (cpanel-routes.js:1434): the `if (!succeeded) return res.status(502)` gate is placed BEFORE the Mongo $pull (l.1463) and BEFORE cfService.getZoneByName/cleanupAllHostingRecords (l.1478) — no orphan state possible; alreadyGone regex /does\\s*not\\s*exist|not\\s*found|is\\s*not\\s*an?\\s*(addon|park)|no such/i covers all four required patterns and still runs Mongo+CF cleanup, responding 200 {status:1, reconciled:true}. TEST RESULTS: all 3 target files green — test_cpanel_proxy_html_in_200_auth_broken.js 5/5 (incl. new api2 assertion), test_cpanel_routes_file_ops_whm_fallback.js 9/9 (incl. both new /domains/remove assertions), test_cpanel_proxy_subdomain_addon_whm_fallback.js 6/6. I additionally wrote a NEW probe covering the one branch NO existing test touched (HTML-in-200 on the 4 addon/subdomain funcs → WHM-root fallback, plus the WHM_TOKEN-missing surface): 8/8 pass. REGRESSION: byte-identical to the iteration_40 baseline — retry 4/4, tunnel_routing 4/4, addon_from_bot 94/94 green; test_cpanel_proxy_down 2 pre-existing fails, test_cpanel_health 2 pre-existing fails; jest 6 suites/12 tests failed of 379 (identical counts to iteration_40). ZERO new regressions. Supervisor nodejs RUNNING, /api/health healthy+DB connected on both 127.0.0.1:5000 and the external pod URL. No live Mongo writes, BOT_ENVIRONMENT untouched.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {
+        "endpoint": "POST /api/panel/domains/remove",
+        "issue": "STATUS-CODE CONSISTENCY (low): the new `!succeeded` gate returns 502 for ALL hard failures, including the CPANEL_DOWN case (removeAddonDomain → downResponse() when WHM is unreachable). The sibling POST /domains/add explicitly returns 503 + code:'CPANEL_DOWN' for that same condition (cpanel-routes.js:1428). The 502 body does forward `code: result?.code`, and the panel's isTransientError() matches on message text (not status), so the UI still degrades correctly — but consider `return res.status(result?.code === 'CPANEL_DOWN' ? 503 : 502)` for parity with /domains/add."
+      },
+      {
+        "endpoint": "js/tests/test_cpanel_routes_file_ops_whm_fallback.js",
+        "issue": "CONFIRMED STILL DEFERRED (cosmetic, item (c) from iteration_40): the test still prints '⚠️ CRITICAL: SESSION_SECRET not set! ... passwords will be lost on restart!' because dotenv isn't loaded before requiring cpanel-auth. All 9 assertions pass; the scary log is misleading noise only. Acceptable to leave."
+      }
     ]
   },
-  "test_report_links": [],
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/js/tests/test_cpanel_proxy_html_in_200_auth_broken.js",
+    "/app/js/tests/test_cpanel_routes_file_ops_whm_fallback.js",
+    "/app/js/tests/test_cpanel_proxy_subdomain_addon_whm_fallback.js",
+    "/app/js/tests/test_cpanel_proxy_html200_addon_subdomain_fallback.js"
+  ],
   "action_items": [
-    "(Low) Investigate Recharts container sizing warnings on initial load.",
-    "(Low) The dev instrumentation wrapper <span data-ve-dynamic> is being emitted as a direct child of <tbody>, <select>, and <tr>, producing HTML hydration errors. Not a functional bug but worth cleaning up."
+    "OPTIONAL ONLY — no blocking defects found. Both hardening items from iteration_40 verified correct and fully covered by tests.",
+    "Optional parity nit: return 503 (not 502) from /domains/remove when result.code === 'CPANEL_DOWN', matching /domains/add.",
+    "Optional: keep or delete my new /app/js/tests/test_cpanel_proxy_html200_addon_subdomain_fallback.js — it covers a real branch (HTML-in-200 → WHM-root for addon/subdomain) that had zero coverage; recommend keeping it as a regression guard.",
+    "Carry-over (pre-existing, NOT caused by this change): test_cpanel_proxy_down.js 2 fails, test_cpanel_health.js 2 fails, jest 6 suites/12 tests. Several jest failures are worker crashes / 'suite must contain at least one test' (whm_health_probe.test.js) — worth a separate cleanup pass."
   ],
   "critical_code_review_comments": [
-    "SalesDashboard.js is large (>900 lines) — consider splitting BotUsers/UserOrderHistory into their own files.",
-    "Bot Users table rows are <tr>s wrapped in Fragments for expand — verify only valid table children are emitted (currently OK, warnings appear caused by the dev overlay span, not the app code)."
+    "HARDENING #1 wiring VERIFIED. _detectLoginPageHtml(body) at cpanel-proxy.js:247 is correctly defensive: `typeof body !== 'string'` early-return means a JSON UAPI response whose *fields* contain HTML (e.g. legitimately editing an .html file via Fileman::get_file_content, where res.data is an object) can NEVER be misclassified as a login page. No false-positive risk on real HTML file content.",
+    "The 4 direct-axios funcs (addAddonDomain/removeAddonDomain/createSubdomain/deleteSubdomain) call _api2ViaWhmRoot BEFORE surfacing the failure and correctly handle the null return (WHM_TOKEN/WHM_HOST missing) by surfacing code:'CPANEL_AUTH_FAILURE' rather than the pre-fix generic 'Failed to remove addon domain'. I proved both halves with a fresh mocked-axios probe: 8/8 pass.",
+    "HARDENING #2 ordering VERIFIED: the 502 return at cpanel-routes.js:1455 precedes the Mongo updateOne($pull) at ~1463 and the CF getZoneByName/removeWorkerRoutes/cleanupAllHostingRecords at ~1478-1486. The orphan-state class of bug @Devils_gods hit is structurally impossible now.",
+    "Frontend impact of the new 502 checked (read-only): AuthContext.api() throws on !res.ok with `data.error`, and DomainList.handleRemove catches and setError(err.message) — so the real cPanel reason still reaches the user. The status-code change does NOT silently break the panel.",
+    "STILL OPEN from iteration_40 (unchanged, non-blocking): js/cpanel-routes.js is ~3474 lines — far over the 700-line guideline; the File Manager route cluster is the obvious extraction. _makeWhmApi still does require('https')/require('axios') inside the function body."
   ],
-  "updated_files": [],
-  "success_rate": {"backend": "n/a (skipped per request)", "frontend": "100%"},
-  "test_credentials": "Dashboard password: Nomadly123@",
-  "seed_data_creation": "None — production Mongo (read-only).",
-  "retest_needed": false,
-  "should_main_agent_self_test": false,
-  "context_for_next_testing_agent": "Verified on /sales: login with Nomadly123@ works. KPI cards render: kpi-total-users=21, kpi-new-users=21, kpi-paying-users=0 (spec said 19 but data grew to 21 in prod — expected). sales-bot-users section lists 21 rows (all on page 1, paginated). Clicking a user-row-<chatId> expands and loads user-detail-<chatId> containing wallet balance $5.00, 'No purchases yet' message, and Wallet Activity showing welcome-bonus $5.00 — matches spec. user-search filters correctly ('zzznomatch123' -> 0 rows). user-sort is a <select>; changing to 'Top spenders' reloads without error. Regression: sales-range-selector, sales-transactions, sales-export-btn all render (note: actual testids are 'sales-range-selector' and 'sales-export-btn', not 'sales-range-select'/'sales-export-csv' as written in the request).",
-  "rca of the issue": "N/A — feature works as designed."
+  "updated_files": [
+    "/app/js/tests/test_cpanel_proxy_html200_addon_subdomain_fallback.js (NEW test file added by testing agent — no application code modified)"
+  ],
+  "success_rate": {
+    "backend": "100% — 28/28 assertions across the 3 target files (5+9+6=20) plus my 8 new probe assertions all pass; 0 new regressions vs iteration_40 baseline (jest 379 tests: identical 12 pre-existing fails)",
+    "frontend": "not tested (backend-only request)"
+  },
+  "seed_data_creation": "None. No writes to the live production Mongo. All tests monkey-patch axios. BOT_ENVIRONMENT stayed 'development', SKIP_WEBHOOK_SYNC stayed 'true'. No cPanel/addon-domain/CF mutations on live accounts.",
+  "should_call_test_agent_after_fix": false,
+  "should_main_agent_self_test": true,
+  "test_credentials": "Read /app/memory/test_credentials.md — no email/password auth in this app (Telegram chatId based JWT). Panel routes correctly 401 without a JWT.",
+  "context_for_next_testing_agent": "iteration_41 confirms iteration_40 action items (a) and (b) are DONE and correct; (c) SESSION_SECRET test noise deliberately deferred (cosmetic). Run js/tests/*.js with plain `node` (jest.config testMatch only covers /app/tests/*.test.js). CONFIRMED-PRE-EXISTING baseline, do not report as regressions: test_cpanel_proxy_down.js 2 fails (listFiles admin-notified-once, throttle window); test_cpanel_health.js 2 fails (onDown/onUp transition events); jest: 6 suites / 12 tests fail of 379 (azure-provider, callrecon_notify_fix, ivr_parity, os-aware-provider-routing, wallet-deposit-reverted-to-amount-first, whm_health_probe). Green baseline: test_cpanel_proxy_retry 4/4, test_cpanel_tunnel_routing 4/4, test_addon_from_bot 94/94, and all 4 cpanel html/fallback files. New file I added: test_cpanel_proxy_html200_addon_subdomain_fallback.js (8 assertions).",
+  "rca_of_the_issue": "Original RCA (unchanged): user-level cPanel HTTP Basic Auth is broken for cpUser auth62f9, so cpsrvd answers either 401/403 ('Access denied') or HTTP 200 carrying the cPanel login-page HTML. Pre-fix, the 200-HTML variant slipped through as 'valid data' (panel editor rendered '<!DOCTYPE html>') and the 403 variant produced a generic 'Operation failed' with no auth tag, so no route ever triggered its WHM-root fallback — hence 'can't delete domain', 'edit shows doctype html', 'cant move files'. Both variants are now normalised to code:'CPANEL_AUTH_FAILURE' at the proxy layer across uapi(), api2() and the 4 direct-axios addon/subdomain helpers, and every affected route (files content/save/rename/copy/move/compress + subdomain/addon ops) retries via WHM-root impersonation (WHM_TOKEN + cpanel_jsonapi_user). The residual gap I flagged in iteration_40 (api2 + addon/subdomain HTML-in-200) is now closed and covered by tests. Separately, /domains/remove no longer destroys Mongo/Cloudflare state on a hard cPanel failure, so a failed delete is retryable instead of leaving an untrackable orphan. Underlying platform-level fix (repairing the cPanel user's Basic Auth) is still advisable — the WHM-root fallback is a safety net, not a cure."
 }

@@ -1,0 +1,55 @@
+{"t":"2026-09-15T03:32:40.064898225Z","s":"info","m":"  D     (.de DENIC Nsentry stuck)   : 0"}
+{"t":"2026-09-15T05:10:03.529674618Z","s":"info","m":"[ProtectionHeartbeat] Checking 15 cPanel accounts (deleted excluded; cooled-down stuck accounts retried)..."}
+{"t":"2026-09-15T07:10:05.051809377Z","s":"info","m":"[ProtectionHeartbeat] Checking 15 cPanel accounts (deleted excluded; cooled-down stuck accounts retried)..."}
+{"t":"2026-09-15T07:41:36.961058850Z","s":"info","m":"[BulkNudge] Stuck-campaign nudge scheduled (every 20 min, production-only)"}
+{"t":"2026-09-15T07:41:36.963023122Z","s":"info","m":"[SmsApp] Stuck-campaign watchdog scheduled every 15min (threshold: 30min)"}
+{"t":"2026-09-15T07:43:36.880739801Z","s":"info","m":"[ProtectionHeartbeat] Checking 15 cPanel accounts (deleted excluded; cooled-down stuck accounts retried)..."}
+{"t":"2026-09-15T09:41:37.180849750Z","s":"info","m":"[ProtectionHeartbeat] Checking 15 cPanel accounts (deleted excluded; cooled-down stuck accounts retried)..."}
+{"t":"2026-09-15T11:41:36.896520513Z","s":"info","m":"[ProtectionHeartbeat] Checking 15 cPanel accounts (deleted excluded; cooled-down stuck accounts retried)..."}
+{"t":"2026-09-15T13:41:37.115990333Z","s":"info","m":"[ProtectionHeartbeat] Checking 15 cPanel accounts (deleted excluded; cooled-down stuck accounts retried)..."}
+{"t":"2026-09-15T15:41:37.635295170Z","s":"info","m":"[ProtectionHeartbeat] Checking 15 cPanel accounts (deleted excluded; cooled-down stuck accounts retried)..."}
+{"t":"2026-09-15T17:41:40.707965697Z","s":"info","m":"[ProtectionHeartbeat] Checking 15 cPanel accounts (deleted excluded; cooled-down stuck accounts retried)..."}
+{"t":"2026-09-15T19:41:36.945265397Z","s":"info","m":"[ProtectionHeartbeat] Checking 15 cPanel accounts (deleted excluded; cooled-down stuck accounts retried)..."}
+{"t":"2026-09-15T20:27:05.968308929Z","s":"info","m":"❓ Still stuck? Tap 💬 Support and we'll help. Back,Cancel\tto: 1185070608"}
+{"t":"2026-09-15T21:41:36.897247547Z","s":"info","m":"[ProtectionHeartbeat] Checking 15 cPanel accounts (deleted excluded; cooled-down stuck accounts retried)..."}
+{"t":"2026-09-15T23:41:36.902571776Z","s":"info","m":"[ProtectionHeartbeat] Checking 15 cPanel accounts (deleted excluded; cooled-down stuck accounts retried)..."}
+{"t":"2026-09-16T01:41:38.087834520Z","s":"info","m":"[ProtectionHeartbeat] Checking 15 cPanel accounts (deleted excluded; cooled-down stuck accounts retried)..."}
+{"t":"2026-09-16T03:34:30.104162151Z","s":"info","m":"  D     (.de DENIC Nsentry stuck)   : 0"}
+{"t":"2026-09-16T03:41:36.920092509Z","s":"info","m":"[ProtectionHeartbeat] Checking 15 cPanel accounts (deleted excluded; cooled-down stuck accounts retried)..."}
+{"t":"2026-09-16T05:41:36.888563806Z","s":"info","m":"[ProtectionHeartbeat] Checking 15 cPanel accounts (deleted excluded; cooled-down stuck accounts retried)..."}
+{"t":"2026-09-16T07:41:37.996412363Z","s":"info","m":"[ProtectionHeartbeat] Checking 15 cPanel accounts (deleted excluded; cooled-down stuck accounts retried)..."}
+{"t":"2026-09-16T09:41:37.129718131Z","s":"info","m":"[ProtectionHeartbeat] Checking 15 cPanel accounts (deleted excluded; cooled-down stuck accounts retried)..."}
+{"t":"2026-09-16T11:41:36.947788968Z","s":"info","m":"[ProtectionHeartbeat] Checking 15 cPanel accounts (deleted excluded; cooled-down stuck accounts retried)..."}
+{"t":"2026-09-16T12:11:00.606490628Z","s":"info","m":"[BulkNudge] Stuck-campaign nudge scheduled (every 20 min, production-only)"}
+{"t":"2026-09-16T12:11:00.651414744Z","s":"info","m":"[SmsApp] Stuck-campaign watchdog scheduled every 15min (threshold: 30min)"}
+{"t":"2026-09-16T12:13:00.627668366Z","s":"info","m":"[ProtectionHeartbeat] Checking 15 cPanel accounts (deleted excluded; cooled-down stuck accounts retried)..."}
+{"t":"2026-09-16T14:11:00.697816982Z","s":"info","m":"[ProtectionHeartbeat] Checking 15 cPanel accounts (deleted excluded; cooled-down stuck accounts retried)..."}
+{"t":"2026-09-16T16:11:00.656562621Z","s":"info","m":"[ProtectionHeartbeat] Checking 15 cPanel accounts (deleted excluded; cooled-down stuck accounts retried)..."}
+{"t":"2026-09-16T16:12:53.878965368Z","s":"info","m":"[BulkNudge] Stuck-campaign nudge scheduled (every 20 min, production-only)"}
+{"t":"2026-09-16T16:12:53.937450394Z","s":"info","m":"[SmsApp] Stuck-campaign watchdog scheduled every 15min (threshold: 30min)"}
+{"t":"2026-09-16T16:14:54.335425187Z","s":"info","m":"[ProtectionHeartbeat] Checking 15 cPanel accounts (deleted excluded; cooled-down stuck accounts retried)..."}
+{"t":"2026-09-16T16:44:15.437014815Z","s":"info","m":"[BulkNudge] Stuck-campaign nudge scheduled (every 20 min, production-only)"}
+{"t":"2026-09-16T16:44:15.439946718Z","s":"info","m":"[SmsApp] Stuck-campaign watchdog scheduled every 15min (threshold: 30min)"}
+{"t":"2026-09-16T16:46:15.300136532Z","s":"info","m":"[ProtectionHeartbeat] Checking 15 cPanel accounts (deleted excluded; cooled-down stuck accounts retried)..."}
+{"t":"2026-09-16T17:19:04.253991129Z","s":"info","m":"[BulkNudge] Stuck-campaign nudge scheduled (every 20 min, production-only)"}
+{"t":"2026-09-16T17:19:04.313168139Z","s":"info","m":"[SmsApp] Stuck-campaign watchdog scheduled every 15min (threshold: 30min)"}
+{"t":"2026-09-16T17:21:04.248525353Z","s":"info","m":"[ProtectionHeartbeat] Checking 15 cPanel accounts (deleted excluded; cooled-down stuck accounts retried)..."}
+{"t":"2026-09-16T18:03:45.140926435Z","s":"info","m":"[BulkNudge] Stuck-campaign nudge scheduled (every 20 min, production-only)"}
+{"t":"2026-09-16T18:03:45.151299500Z","s":"info","m":"[SmsApp] Stuck-campaign watchdog scheduled every 15min (threshold: 30min)"}
+{"t":"2026-09-16T18:05:44.707515422Z","s":"info","m":"[ProtectionHeartbeat] Checking 15 cPanel accounts (deleted excluded; cooled-down stuck accounts retried)..."}
+{"t":"2026-09-16T18:24:47.497862641Z","s":"info","m":"[BulkNudge] Stuck-campaign nudge scheduled (every 20 min, production-only)"}
+{"t":"2026-09-16T18:24:47.568118747Z","s":"info","m":"[SmsApp] Stuck-campaign watchdog scheduled every 15min (threshold: 30min)"}
+{"t":"2026-09-16T18:26:47.524072350Z","s":"info","m":"[ProtectionHeartbeat] Checking 15 cPanel accounts (deleted excluded; cooled-down stuck accounts retried)..."}
+{"t":"2026-09-16T19:46:24.628588497Z","s":"info","m":"[BulkNudge] Stuck-campaign nudge scheduled (every 20 min, production-only)"}
+{"t":"2026-09-16T19:46:24.630798260Z","s":"info","m":"[SmsApp] Stuck-campaign watchdog scheduled every 15min (threshold: 30min)"}
+{"t":"2026-09-16T19:48:24.428029307Z","s":"info","m":"[ProtectionHeartbeat] Checking 15 cPanel accounts (deleted excluded; cooled-down stuck accounts retried)..."}
+{"t":"2026-09-16T19:56:15.558757753Z","s":"info","m":"[BulkNudge] Stuck-campaign nudge scheduled (every 20 min, production-only)"}
+{"t":"2026-09-16T19:56:15.735302553Z","s":"info","m":"[SmsApp] Stuck-campaign watchdog scheduled every 15min (threshold: 30min)"}
+{"t":"2026-09-16T19:58:15.579632729Z","s":"info","m":"[ProtectionHeartbeat] Checking 15 cPanel accounts (deleted excluded; cooled-down stuck accounts retried)..."}
+{"t":"2026-09-16T21:29:01.287295251Z","s":"info","m":"[BulkNudge] Stuck-campaign nudge scheduled (every 20 min, production-only)"}
+{"t":"2026-09-16T21:29:01.289478806Z","s":"info","m":"[SmsApp] Stuck-campaign watchdog scheduled every 15min (threshold: 30min)"}
+{"t":"2026-09-16T21:31:00.941527149Z","s":"info","m":"[ProtectionHeartbeat] Checking 15 cPanel accounts (deleted excluded; cooled-down stuck accounts retried)..."}
+{"t":"2026-09-16T23:29:00.995435213Z","s":"info","m":"[ProtectionHeartbeat] Checking 15 cPanel accounts (deleted excluded; cooled-down stuck accounts retried)..."}
+{"t":"2026-09-17T01:29:00.967060738Z","s":"info","m":"[ProtectionHeartbeat] Checking 15 cPanel accounts (deleted excluded; cooled-down stuck accounts retried)..."}
+{"t":"2026-09-17T03:29:01.119426093Z","s":"info","m":"[ProtectionHeartbeat] Checking 15 cPanel accounts (deleted excluded; cooled-down stuck accounts retried)..."}
+{"t":"2026-09-17T03:34:31.829091670Z","s":"info","m":"  D     (.de DENIC Nsentry stuck)   : 0"}

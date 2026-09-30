@@ -10,9 +10,6 @@
  */
 
 const { v4: uuidv4 } = require('uuid')
-const { branding: _brand } = require('./branding.js')
-const BRAND = _brand.name
-const BOT_HANDLE = _brand.botHandle
 
 let db
 let smsCampaigns
@@ -148,7 +145,7 @@ function initSmsAppService(_db, _nameOf, _planEndingTime, _freeSmsCountOf, _logi
 
       // Build the announcement message (conversational, human-first)
       const announcement =
-`Hey — a new ${BRAND} SMS update is ready (v${SMS_APP_VERSION}).
+`Hey — a new Nomadly SMS update is ready (v${SMS_APP_VERSION}).
 
 ${SMS_APP_RELEASE_NOTE}
 
@@ -203,7 +200,7 @@ async function authenticateUser(chatId) {
 
   const nameDoc = await nameOf.findOne({ _id: strChatId })
   const name = nameDoc?.val || nameDoc?.name
-  if (!name) return { valid: false, error: `Invalid activation code. Open ${BOT_HANDLE} on Telegram to get your code.` }
+  if (!name) return { valid: false, error: 'Invalid activation code. Open @NomadlyBot on Telegram to get your code.' }
 
   const planExpiry = await getVal(planEndingTime, strChatId) || 0
   const freeSmsCount = await getVal(freeSmsCountOf, strChatId) || 0
@@ -410,7 +407,7 @@ async function maybeNudgeImsUser(strChatId, simCarrier, appVersion) {
     `even though the messages are <b>actually being sent successfully</b>.\n\n` +
     `📊 We saw ${recentFails} "timed out" reports from you in the last 2 hours — ` +
     `most likely <i>all of those SMS reached their recipients</i>.\n\n` +
-    `✅ A fix is available in <b>${BRAND} SMS v2.7.5</b>. The new version verifies ` +
+    `✅ A fix is available in <b>Nomadly SMS v2.7.5</b>. The new version verifies ` +
     `delivery via Android's system SMS log, so you'll see accurate results.\n\n` +
     `Tap the button below to download and reinstall.`
 
@@ -500,7 +497,7 @@ function registerRoutes(app, get, set, increment, clicksOfSms, today, week, mont
             return res.status(403).json({
               valid: false,
               error: 'device_limit',
-              message: `${planLabel} allows ${limitLabel}. You have ${devices.length} active. Logout from another device first, or type /resetlogin in ${BOT_HANDLE}.`,
+              message: `${planLabel} allows ${limitLabel}. You have ${devices.length} active. Logout from another device first, or type /resetlogin in @NomadlyBot.`,
               deviceLimit,
               activeDevices: devices.length,
             })
@@ -686,7 +683,7 @@ function registerRoutes(app, get, set, increment, clicksOfSms, today, week, mont
         }
         return res.status(403).json({
           error: 'subscription_required',
-          message: `Active subscription or free trial required to create campaigns. Tap ⚡ Upgrade Plan on the main menu of ${BOT_HANDLE} to subscribe — includes BulkSMS, unlimited links, validations & more!`
+          message: 'Active subscription or free trial required to create campaigns. Tap ⚡ Upgrade Plan on the main menu of @NomadlyBot to subscribe — includes BulkSMS, unlimited links, validations & more!'
         })
       }
 
@@ -721,7 +718,7 @@ function registerRoutes(app, get, set, increment, clicksOfSms, today, week, mont
         }
         return res.status(403).json({
           error: 'subscription_required',
-          message: `Active subscription required to edit campaigns. Tap ⚡ Upgrade Plan in ${BOT_HANDLE} to subscribe.`
+          message: 'Active subscription required to edit campaigns. Tap ⚡ Upgrade Plan in @NomadlyBot to subscribe.'
         })
       }
 
@@ -756,7 +753,7 @@ function registerRoutes(app, get, set, increment, clicksOfSms, today, week, mont
       if (!sub.canUseSms) {
         return res.status(403).json({
           error: 'subscription_required',
-          message: `Subscription expired. Sending paused. Tap ⚡ Upgrade Plan in ${BOT_HANDLE} to reactivate.`
+          message: 'Subscription expired. Sending paused. Tap ⚡ Upgrade Plan in @NomadlyBot to reactivate.'
         })
       }
 
@@ -822,7 +819,7 @@ function registerRoutes(app, get, set, increment, clicksOfSms, today, week, mont
       if (!sub.canUseSms) {
         return res.status(403).json({
           error: 'subscription_required',
-          message: `SMS limit reached or subscription expired. Tap ⚡ Upgrade Plan in ${BOT_HANDLE} to continue.`
+          message: 'SMS limit reached or subscription expired. Tap ⚡ Upgrade Plan in @NomadlyBot to continue.'
         })
       }
 
@@ -888,7 +885,7 @@ function registerRoutes(app, get, set, increment, clicksOfSms, today, week, mont
         if (!alreadyNotified || needsRepeatReminder) {
           // Send update reminder with urgency if far behind
           const urgencyPrefix = versionsBehind >= 2 ? '🚨 <b>URGENT:</b> ' : ''
-          const updateMsg = `📱 ${urgencyPrefix}<b>${BRAND} SMS App Update Available</b>
+          const updateMsg = `📱 ${urgencyPrefix}<b>Nomadly SMS App Update Available</b>
 
 Your version: ${userVersion}
 Latest version: ${latestVersion}
@@ -901,7 +898,7 @@ ${versionsBehind >= 2 ? `⚠️ You are <b>${versionsBehind} versions behind</b>
 ✅ Better background service sync
 
 <b>To update:</b>
-1. ⚠️ <b>UNINSTALL</b> the current app first (Settings → Apps → ${BRAND} SMS → Uninstall)
+1. ⚠️ <b>UNINSTALL</b> the current app first (Settings → Apps → Nomadly SMS → Uninstall)
 2. Click link below to download latest version
 3. Install and login again
 
@@ -1203,7 +1200,7 @@ ${versionsBehind >= 2 ? `⚠️ You are <b>${versionsBehind} versions behind</b>
 
           const msg =
             `⚠️ <b>Carrier rate limit detected</b>\n\n` +
-            `Your ${BRAND} SMS app ${actionText}\n\n` +
+            `Your Nomadly SMS app ${actionText}\n\n` +
             `Want to dodge this automatically on future campaigns?`
 
           const rows = []

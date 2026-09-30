@@ -9,7 +9,7 @@ import useHotkeys from './file-manager/useHotkeys';
 import AntiRedStatusCard from './AntiRedStatusCard';
 import { pickErrorMessage, friendlyMessage, isTransientError } from './shared/cpanelErrors';
 
-export default function FileManager() {
+export default function FileManager({ targetDir, onTargetDirConsumed }) {
   const { t, i18n } = useTranslation();
   const lang = (i18n.language || 'en').slice(0, 2);
   const { api, user } = useAuth();
@@ -91,6 +91,15 @@ export default function FileManager() {
   useEffect(() => {
     fetchFiles(currentDir);
   }, [currentDir, fetchFiles]);
+
+  // Cross-tab navigation: when DomainList sends a targetDir, navigate to it
+  useEffect(() => {
+    if (targetDir) {
+      setCurrentDir(targetDir);
+      if (onTargetDirConsumed) onTargetDirConsumed();
+    }
+  }, [targetDir, onTargetDirConsumed]);
+
 
   // Reset selection + search when changing directory
   useEffect(() => {

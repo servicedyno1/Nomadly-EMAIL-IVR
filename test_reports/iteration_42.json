@@ -1,24 +1,58 @@
 {
-  "summary": "Frontend-only test of the new Conversion Funnel card on /sales. Login worked, funnel card renders in the correct DOM position (immediately after sales-user-kpis, before secondary KPIs kpi-deposits/bonuses/refunds). All three stage testids (funnel-stage-joined/deposited/purchased) and count testids present with counts 21/0/0 matching prod data. Joined bar full width, deposited & purchased bars empty. Drop-off text '0% continued · 100% dropped off' shown under deposited and purchased. Range switching (7 Days, All Time, 30 Days) works without errors; joined stays at 21 as expected. Regression: sales-bot-users + kpi-total-users/new-users/paying-users all render fine.",
-  "backend_issues": {"critical": [], "minor": []},
+  "summary": "Frontend-only comprehensive testing of the hosting panel (Nomadly/HostBay). Tested login, dashboard tabs, Domains tab features (main domain, subdomains, quick-nav, bulk import), and File Manager. Found and FIXED one bug: subdomain display names were showing doubled domain (e.g., 'api.testingbays.sbs.testingbays.sbs' instead of 'api.testingbays.sbs'). All requested features verified working.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
   "frontend_issues": {
-    "ui_bugs": [],
+    "ui_bugs": [
+      {
+        "component": "DomainList.js",
+        "issue": "FIXED: Subdomain display names were showing doubled domain names (e.g., 'api.testingbays.sbs.testingbays.sbs'). Root cause: code was concatenating s.domain (already full FQDN) with s.rootdomain. Fixed by using s.domain directly when available.",
+        "selector": "[data-testid^='dl-sub-']",
+        "priority": "FIXED"
+      }
+    ],
     "integration_issues": [],
     "design_issues": [
-      {"screen": "SalesDashboard", "issues": ["React hydration warnings from a visual-edit wrapper (<span> inside <tbody>, <span> as child of <select>/<tr>) — not caused by the new ConversionFunnel component but noticed while testing. Cosmetic console noise only; does not affect rendering."]}
+      {
+        "screen": "Console warnings",
+        "issues": ["React hydration warnings about <span> inside <tbody>/<option>/<select> - pre-existing issue, likely from a dev tool or wrapper component"]
+      }
     ]
   },
-  "test_report_links": [],
+  "test_report_links": [
+    "/app/test_reports/iteration_42.json"
+  ],
   "action_items": [],
   "critical_code_review_comments": [
-    "ConversionFunnel implementation looks clean; testids are in place and DOM order matches spec.",
-    "Consider guarding recharts containers with a minHeight to silence 'width(-1)/height(-1)' console warnings (pre-existing, not from funnel)."
+    "DomainList.js has pre-existing lint issues: nested component definitions (CaptchaBadge, NSBadge, SSLBadge, NSPendingInfo) should be moved outside the parent component",
+    "Empty catch blocks at lines 71, 85, 93 should at least log errors",
+    "The subdomain display bug fix was straightforward - the backend returns s.domain as full FQDN, so no need to concatenate with rootdomain"
   ],
-  "updated_files": [],
-  "success_rate": {"backend": "N/A", "frontend": "100%"},
-  "test_credentials": "Dashboard password: Nomadly123@",
-  "seed_data_creation": "None (read-only prod DB)",
+  "updated_files": [
+    "/app/frontend/src/components/panel/DomainList.js"
+  ],
+  "success_rate": {
+    "backend": "N/A (frontend-only test)",
+    "frontend": "100% - All features working correctly after fix"
+  },
+  "test_credentials": "username=nbayftest, PIN=241743, domain=testingbays.sbs",
+  "seed_data_creation": "Created 2 test subdomains via bulk import: testbulk1.testingbays.sbs, testbulk2.testingbays.sbs",
   "retest_needed": false,
-  "main_agent_can_self_test": true,
-  "context_for_next_testing_agent": "Funnel feature verified end-to-end on /sales. testids: sales-funnel, funnel-stage-{joined|deposited|purchased}, funnel-count-{joined|deposited|purchased}. Current prod values: 21/0/0. Range buttons are plain buttons with text labels ('Today','7 Days','30 Days','90 Days','1 Year','All Time') — no dedicated data-testid on individual range buttons."
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Frontend panel testing complete. Login works with nbayftest/241743. All tabs accessible (Files, Domains, Email, Databases, Security, Geo Cloak, Analytics, Account). Domains tab shows main domain testingbays.sbs with Primary badge, SSL/NS status badges. Subdomains (api, blog, dev, shop, testbulk1, testbulk2) display correctly with document roots as /home/nbayftest/public_html/<name>. Quick-nav 'Open →' links work - clicking switches to Files tab and navigates to correct directory. Bulk Import feature works - tested creating testbulk1 and testbulk2 subdomains. Add Subdomain form has all required elements. File Manager shows all subdomain folders. Fixed subdomain display bug in DomainList.js line 886-893.",
+  "features_tested": {
+    "LOGIN": "PASS - User can login with username 'nbayftest' and PIN '241743'. Dashboard loads with all expected tabs.",
+    "DOMAINS_TAB": "PASS - Shows main domain 'testingbays.sbs' with Primary badge, SSL and NS status badges, document root 'public_html/' with 'Open →' link.",
+    "SUBDOMAINS_LIST": "PASS (after fix) - Shows subdomains (shop, blog, api, dev, testbulk1, testbulk2) with correct display names (e.g., 'shop.testingbays.sbs'). Document roots show as '/home/nbayftest/public_html/<name>'. Each has 'Open →' link and folder icon button.",
+    "SUBDOMAIN_QUICK_NAV": "PASS - Clicking 'Open →' switches to Files tab and navigates File Manager to correct directory (e.g., /home/nbayftest/public_html/shop).",
+    "MAIN_DOMAIN_QUICK_NAV": "PASS - Clicking 'Open →' on main domain switches to Files tab and shows /home/nbayftest/public_html.",
+    "BULK_IMPORT_BUTTON": "PASS - 'Bulk Import' button visible in header actions area with data-testid='dl-bulk-btn'. Clicking toggles bulk import form.",
+    "BULK_IMPORT_FORM": "PASS - Form contains textarea (dl-bulk-textarea), root domain selector (dl-bulk-root-select), 'Create All' button (dl-bulk-submit), and counter showing subdomain count.",
+    "BULK_IMPORT_EXECUTION": "PASS - Entered 'testbulk1, testbulk2', submitted. Results showed '2 created' with success for both subdomains. Subdomains list refreshed to include new entries.",
+    "ADD_SUBDOMAIN_FORM": "PASS - Clicking 'Add Subdomain' shows form with subdomain name input (dl-sub-name-input) and root domain dropdown (dl-sub-root-select).",
+    "FILE_MANAGER_TAB": "PASS - File Manager loads and displays files in public_html directory. Shows all subdomain folders (shop, blog, api, dev, testbulk1, testbulk2).",
+    "SSL_AND_NS_BADGES": "PASS - Main domain shows 'NO SSL' and 'NS UNKNOWN' badges, plus 'CAPTCHA - GOLD $100/MO' and 'PRIMARY' badges."
+  }
 }

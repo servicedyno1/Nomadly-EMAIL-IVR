@@ -1,0 +1,110 @@
+{"t":"2026-09-07T13:05:35.816175584Z","s":"info","m":"[OutboundIVR] Trial marked as used for chatId 8192237922 (call was answered)"}
+{"t":"2026-09-08T17:09:26.520339562Z","s":"info","m":"[OutboundIVR] Wallet check passed: $19.06 (IVR rate: $0.15/min)"}
+{"t":"2026-09-08T17:09:26.774212832Z","s":"info","m":"[OutboundIVR] Twilio call initiated: CAa4f4608a4bef834a9b308c78ad904f1f +18887884511 → +13474702175 (sessionId: 150b6e1c-6f0f-4595-8bac-93ee5e4c25ae)"}
+{"t":"2026-09-08T17:29:00.942465791Z","s":"info","m":"[OutboundIVR] Wallet check passed: $18.76 (IVR rate: $0.15/min)"}
+{"t":"2026-09-08T17:29:00.942479108Z","s":"info","m":"[OutboundIVR] Twilio call initiated: CAfc160d51d9c99fa65fe0b4cb1538591f +18887884511 → +13474702175 (sessionId: e129ee12-f144-4ea4-8c9b-9b36950507b2)"}
+{"t":"2026-09-08T17:49:20.779092424Z","s":"info","m":"[Voice] Memory cleanup: removed 1 orphaned session(s). Current: activeCalls=2, outboundIvr=0, twilioIvr=0, bridges=0"}
+{"t":"2026-09-08T17:51:30.181771881Z","s":"info","m":"[OutboundIVR] Wallet check passed: $18.46 (IVR rate: $0.15/min)"}
+{"t":"2026-09-08T17:51:30.389443480Z","s":"info","m":"[OutboundIVR] Twilio call initiated: CAb2492db2e9ce436ac5fcdfb6b3283989 +18887884511 → +13474702175 (sessionId: b4ed603e-30c1-45f9-8d1a-359d67b44a48)"}
+{"t":"2026-09-08T17:57:15.903894980Z","s":"info","m":"[OutboundIVR] Wallet check passed: $18.01 (IVR rate: $0.15/min)"}
+{"t":"2026-09-08T17:57:16.111270949Z","s":"info","m":"[OutboundIVR] Twilio call initiated: CAf405e9be4cf15f87027e7e6103f065c0 +18887884511 → +13474702175 (sessionId: c6136dd7-f953-4759-9d0d-f497950f41f5)"}
+{"t":"2026-09-08T17:57:20.693985937Z","s":"info","m":"[Voice] Memory cleanup: removed 1 orphaned session(s). Current: activeCalls=2, outboundIvr=0, twilioIvr=1, bridges=0"}
+{"t":"2026-09-08T18:21:20.705337810Z","s":"info","m":"[Voice] Memory cleanup: removed 1 orphaned session(s). Current: activeCalls=1, outboundIvr=0, twilioIvr=0, bridges=0"}
+{"t":"2026-09-09T13:31:54.534475966Z","s":"info","m":"[Voice] Memory cleanup: removed 1 orphaned session(s). Current: activeCalls=2, outboundIvr=0, twilioIvr=0, bridges=0"}
+{"t":"2026-09-09T13:33:51.654398470Z","s":"info","m":"[Voice] Memory cleanup: removed 1 orphaned session(s). Current: activeCalls=1, outboundIvr=0, twilioIvr=0, bridges=0"}
+{"t":"2026-09-09T22:32:09.580803036Z","s":"info","m":"[OutboundIVR] Call initiated: +18889020132 → +916362588405 (chatId: 8798213337, template: Custom Script)"}
+{"t":"2026-09-09T22:32:09.899888767Z","s":"info","m":"[OutboundIVR] Ringing: +916362588405"}
+{"t":"2026-09-09T22:32:18.891791219Z","s":"info","m":"[OutboundIVR] Answered: +916362588405 — playing IVR audio"}
+{"t":"2026-09-09T22:32:20.695807409Z","s":"info","m":"[OutboundIVR] AMD: +916362588405 → machine"}
+{"t":"2026-09-09T22:32:35.819097347Z","s":"info","m":"[OutboundIVR] Hangup: +916362588405 (17s [telnyx=0s, tracked=17s], 1 min, cause: normal_clearing)"}
+{"t":"2026-09-09T22:32:35.819100664Z","s":"info","m":"[OutboundIVR] Trial marked as used for chatId 8798213337 (call was answered)"}
+{"t":"2026-09-10T23:38:32.714617434Z","s":"info","m":"[OutboundIVR] Call initiated: +18889020132 → +919336546703 (chatId: 7859617687, template: Custom Script)"}
+{"t":"2026-09-10T23:38:33.024981991Z","s":"info","m":"[OutboundIVR] Ringing: +919336546703"}
+{"t":"2026-09-10T23:38:53.996654723Z","s":"info","m":"[OutboundIVR] Answered: +919336546703 — playing IVR audio"}
+{"t":"2026-09-10T23:38:53.996678412Z","s":"info","m":"[OutboundIVR] AMD: +919336546703 → machine"}
+{"t":"2026-09-10T23:39:13.992170984Z","s":"info","m":"[OutboundIVR] DTMF received: \"1\" for +919336546703"}
+{"t":"2026-09-10T23:39:13.992191323Z","s":"info","m":"[OutboundIVR] Transferring to +919336546703"}
+{"t":"2026-09-10T23:39:13.992213313Z","s":"info","m":"[OutboundIVR] Transfer leg initiated: +18889020132 → +919336546703 (leg: v3:blnB4e6B0I1V3A7oJqX4D6O9LosN67c9gLx-GJwfeIPv_KSfmDx_IQ)"}
+{"t":"2026-09-10T23:39:13.992225233Z","s":"info","m":"[OutboundIVR] Transfer leg bridged: +919336546703"}
+{"t":"2026-09-10T23:39:13.992235822Z","s":"info","m":"[OutboundIVR] Bridged: +919336546703 → +919336546703"}
+{"t":"2026-09-10T23:39:16.894376410Z","s":"info","m":"[OutboundIVR] Transfer leg hangup: +919336546703 (0s [telnyx=0s, tracked=0s], 1 min, cause: originator_cancel)"}
+{"t":"2026-09-10T23:39:16.894381930Z","s":"info","m":"[OutboundIVR] Could not find owner for +18889020132 — skipping transfer billing"}
+{"t":"2026-09-10T23:39:16.894402160Z","s":"info","m":"[OutboundIVR] Hangup: +919336546703 (32s [telnyx=0s, tracked=32s], 1 min, cause: normal_clearing)"}
+{"t":"2026-09-10T23:39:16.894406410Z","s":"info","m":"[OutboundIVR] Trial marked as used for chatId 7859617687 (call was answered)"}
+{"t":"2026-09-10T23:44:33.975579298Z","s":"info","m":"[Voice] Memory cleanup: removed 1 orphaned session(s). Current: activeCalls=0, outboundIvr=0, twilioIvr=0, bridges=0"}
+{"t":"2026-09-11T00:26:14.831864144Z","s":"info","m":"[OutboundIVR] Wallet check passed: $289.06 (IVR rate: $0.15/min)"}
+{"t":"2026-09-11T00:26:15.048066058Z","s":"info","m":"[OutboundIVR] Twilio call initiated: CA09555ac3f311fbe3e9bbc1c79a9861a3 +18448030327 → +17182564142 (sessionId: 4fefbf61-7289-4308-8d76-b32c93883c6f)"}
+{"t":"2026-09-11T00:26:17.074216997Z","s":"info","m":"[OutboundIVR] Wallet check passed: $289.06 (IVR rate: $0.15/min)"}
+{"t":"2026-09-11T00:26:17.262957702Z","s":"info","m":"[OutboundIVR] Twilio call initiated: CAefb7d156d72e2b7cb672a7d847989fdb +18448030327 → +17182564260 (sessionId: 3a99ce37-0a8b-42b8-b273-54ef01362627)"}
+{"t":"2026-09-11T00:26:19.274985624Z","s":"info","m":"[OutboundIVR] Wallet check passed: $289.06 (IVR rate: $0.15/min)"}
+{"t":"2026-09-11T00:26:19.538984890Z","s":"info","m":"[OutboundIVR] Twilio call initiated: CAd2124d5425dede8da29220caf7e9b8d0 +18448030327 → +17182343391 (sessionId: 646cbc1d-5e3b-4e03-af8d-d6d84ba42b73)"}
+{"t":"2026-09-11T00:38:03.842052171Z","s":"info","m":"[OutboundIVR] Wallet check passed: $288.68 (IVR rate: $0.15/min)"}
+{"t":"2026-09-11T00:38:04.048118051Z","s":"info","m":"[OutboundIVR] Twilio call initiated: CAdc0c80e288fa9d95bb65541d8e8c0da4 +18448030327 → +19177057447 (sessionId: 2588e809-2c12-447a-9710-095f0afd3d3b)"}
+{"t":"2026-09-11T00:38:06.122061808Z","s":"info","m":"[OutboundIVR] Wallet check passed: $288.68 (IVR rate: $0.15/min)"}
+{"t":"2026-09-11T00:38:06.406781004Z","s":"info","m":"[OutboundIVR] Twilio call initiated: CA7dba8bbc76591c6feb6fc66d20b3ad24 +18448030327 → +16465087824 (sessionId: 1daac12a-57a6-4ccd-acac-a08fc68485fa)"}
+{"t":"2026-09-11T00:38:08.404780382Z","s":"info","m":"[OutboundIVR] Wallet check passed: $288.68 (IVR rate: $0.15/min)"}
+{"t":"2026-09-11T00:38:08.621862275Z","s":"info","m":"[OutboundIVR] Twilio call initiated: CA018a4520ba7d48a8d2bf71910ba6b062 +18448030327 → +13472213082 (sessionId: 4985a788-8f6e-4e6e-afb5-7e655c6080d3)"}
+{"t":"2026-09-11T00:38:10.686679320Z","s":"info","m":"[OutboundIVR] Wallet check passed: $288.55 (IVR rate: $0.15/min)"}
+{"t":"2026-09-11T00:38:10.892841850Z","s":"info","m":"[OutboundIVR] Twilio call initiated: CA3308f06d476daf404428b34660114d86 +18448030327 → +13473576686 (sessionId: 788a8a25-3b6b-4bd7-8a00-40c2b7412ec6)"}
+{"t":"2026-09-11T00:38:12.897400897Z","s":"info","m":"[OutboundIVR] Wallet check passed: $288.17 (IVR rate: $0.15/min)"}
+{"t":"2026-09-11T00:38:13.090958310Z","s":"info","m":"[OutboundIVR] Twilio call initiated: CAdad3169f6e1f328df5b01bc60464f623 +18448030327 → +19177055744 (sessionId: be622d3a-be68-4cb3-a37a-6a21f525ac7f)"}
+{"t":"2026-09-11T00:38:15.131823805Z","s":"info","m":"[OutboundIVR] Wallet check passed: $288.17 (IVR rate: $0.15/min)"}
+{"t":"2026-09-11T00:38:15.284180613Z","s":"info","m":"[OutboundIVR] Twilio call initiated: CA3686eb367df4e658613ba351b1b4f220 +18448030327 → +17188261772 (sessionId: 90cc9527-aafd-45ea-bb8c-7fb64429c1e5)"}
+{"t":"2026-09-11T00:38:17.325952953Z","s":"info","m":"[OutboundIVR] Wallet check passed: $288.17 (IVR rate: $0.15/min)"}
+{"t":"2026-09-11T00:38:17.482651766Z","s":"info","m":"[OutboundIVR] Twilio call initiated: CAaac4fe5178c41833012372132b4ff688 +18448030327 → +16463795607 (sessionId: 4423f800-e095-4fea-98cd-d7d16c503872)"}
+{"t":"2026-09-11T01:06:53.994948205Z","s":"info","m":"[OutboundIVR] Wallet check passed: $286.51 (IVR rate: $0.15/min)"}
+{"t":"2026-09-11T01:06:53.994956675Z","s":"info","m":"[OutboundIVR] Twilio call initiated: CA6ae716e180ec33ab9a3dcb03c924e0cd +18448030327 → +19177053158 (sessionId: a7e9dd5c-4337-4e82-937d-040413ee9e5c)"}
+{"t":"2026-09-11T01:06:54.382397934Z","s":"info","m":"[OutboundIVR] Wallet check passed: $286.51 (IVR rate: $0.15/min)"}
+{"t":"2026-09-11T01:06:54.593000481Z","s":"info","m":"[OutboundIVR] Twilio call initiated: CA20d80f31e9d044ff041f2a1d2f229508 +18448030327 → +19292685468 (sessionId: 1b9bc3ad-4aac-45e9-97e9-d225c36ea743)"}
+{"t":"2026-09-11T01:06:56.628043764Z","s":"info","m":"[OutboundIVR] Wallet check passed: $286.51 (IVR rate: $0.15/min)"}
+{"t":"2026-09-11T01:06:56.907212191Z","s":"info","m":"[OutboundIVR] Twilio call initiated: CA59f4365045605e4fc442e2ecf8256b6f +18448030327 → +17189417150 (sessionId: feb8bd92-ec0d-44b8-84bd-c5945e90a18e)"}
+{"t":"2026-09-11T01:06:58.883094726Z","s":"info","m":"[OutboundIVR] Wallet check passed: $286.51 (IVR rate: $0.15/min)"}
+{"t":"2026-09-11T01:06:59.093907229Z","s":"info","m":"[OutboundIVR] Twilio call initiated: CA228c8533429bbfe54982dec5f5c2e72f +18448030327 → +17189413351 (sessionId: 3703ac0e-9a8f-4f32-bf21-df0dea766e45)"}
+{"t":"2026-09-11T07:07:28.955864909Z","s":"info","m":"[OutboundIVR] Call initiated: +18889020132 → +918905108613 (chatId: 6580245354, template: Custom Script)"}
+{"t":"2026-09-11T07:07:29.029550050Z","s":"info","m":"[OutboundIVR] Ringing: +918905108613"}
+{"t":"2026-09-11T07:07:58.451167199Z","s":"info","m":"[OutboundIVR] Hangup: +918905108613 (0s [telnyx=0s, tracked=0s], 1 min, cause: timeout)"}
+{"t":"2026-09-11T07:07:58.454625076Z","s":"info","m":"[OutboundIVR] Trial NOT consumed for chatId 6580245354 (call not answered, cause: timeout)"}
+{"t":"2026-09-11T07:09:25.244926154Z","s":"info","m":"[OutboundIVR] Call initiated: +18889020132 → +918905108613 (chatId: 6580245354, template: Custom Script)"}
+{"t":"2026-09-11T07:09:55.399164113Z","s":"info","m":"[OutboundIVR] Hangup: +918905108613 (0s [telnyx=0s, tracked=0s], 1 min, cause: timeout)"}
+{"t":"2026-09-11T07:09:55.399166473Z","s":"info","m":"[OutboundIVR] Trial NOT consumed for chatId 6580245354 (call not answered, cause: timeout)"}
+{"t":"2026-09-11T07:11:51.629739472Z","s":"info","m":"[OutboundIVR] Ringing: +918905108613"}
+{"t":"2026-09-11T07:11:51.629757222Z","s":"info","m":"[OutboundIVR] Call initiated: +18889020132 → +918905108613 (chatId: 6580245354, template: Custom Script)"}
+{"t":"2026-09-11T07:11:57.004670231Z","s":"info","m":"[OutboundIVR] Answered: +918905108613 — playing IVR audio"}
+{"t":"2026-09-11T07:11:58.742405721Z","s":"info","m":"[OutboundIVR] AMD: +918905108613 → machine"}
+{"t":"2026-09-11T07:13:12.566307588Z","s":"info","m":"[OutboundIVR] DTMF received: \"\" for +918905108613"}
+{"t":"2026-09-11T07:13:12.700858988Z","s":"info","m":"[OutboundIVR] Hangup: +918905108613 (76s [telnyx=0s, tracked=76s], 2 min, cause: normal_clearing)"}
+{"t":"2026-09-11T07:13:12.700862488Z","s":"info","m":"[OutboundIVR] Trial marked as used for chatId 6580245354 (call was answered)"}
+{"t":"2026-09-11T07:17:04.994220260Z","s":"info","m":"[OutboundIVR] Call initiated: +18889020132 → +918905108613 (chatId: 7913817297, template: Custom Script)"}
+{"t":"2026-09-11T07:17:05.119401973Z","s":"info","m":"[OutboundIVR] Ringing: +918905108613"}
+{"t":"2026-09-11T07:17:35.529057856Z","s":"info","m":"[OutboundIVR] Hangup: +918905108613 (0s [telnyx=0s, tracked=0s], 1 min, cause: timeout)"}
+{"t":"2026-09-11T07:17:35.529060756Z","s":"info","m":"[OutboundIVR] Trial NOT consumed for chatId 7913817297 (call not answered, cause: timeout)"}
+{"t":"2026-09-11T09:00:35.853871537Z","s":"info","m":"[OutboundIVR] Call initiated: +18889020132 → +919868464490 (chatId: 7913817297, template: Custom Script)"}
+{"t":"2026-09-11T09:00:35.888936476Z","s":"info","m":"[OutboundIVR] Ringing: +919868464490"}
+{"t":"2026-09-11T09:01:05.931578626Z","s":"info","m":"[OutboundIVR] Hangup: +919868464490 (0s [telnyx=0s, tracked=0s], 1 min, cause: timeout)"}
+{"t":"2026-09-11T09:01:05.931581396Z","s":"info","m":"[OutboundIVR] Trial NOT consumed for chatId 7913817297 (call not answered, cause: timeout)"}
+{"t":"2026-09-11T09:02:48.364033551Z","s":"info","m":"[OutboundIVR] Call initiated: +18889020132 → +919868464490 (chatId: 7913817297, template: Custom Script)"}
+{"t":"2026-09-11T09:02:48.412816807Z","s":"info","m":"[OutboundIVR] Ringing: +919868464490"}
+{"t":"2026-09-11T09:03:08.401006464Z","s":"info","m":"[OutboundIVR] Answered: +919868464490 — playing IVR audio"}
+{"t":"2026-09-11T09:03:08.401022673Z","s":"info","m":"[OutboundIVR] AMD: +919868464490 → machine"}
+{"t":"2026-09-11T09:04:33.280508314Z","s":"info","m":"[OutboundIVR] DTMF received: \"\" for +919868464490"}
+{"t":"2026-09-11T09:04:33.415015186Z","s":"info","m":"[OutboundIVR] Hangup: +919868464490 (88s [telnyx=0s, tracked=88s], 2 min, cause: normal_clearing)"}
+{"t":"2026-09-11T09:04:33.415018426Z","s":"info","m":"[OutboundIVR] Trial marked as used for chatId 7913817297 (call was answered)"}
+{"t":"2026-09-12T02:36:54.810553642Z","s":"info","m":"[OutboundIVR] Wallet check passed: $212.96 (IVR rate: $0.15/min)"}
+{"t":"2026-09-12T02:36:54.810560432Z","s":"info","m":"[OutboundIVR] Twilio call initiated: CA96f7c143cf7bc5fd0228bfd805377a19 +18889654113 → +19733252604 (sessionId: a0f9e010-653a-4a6a-b292-2ac0be0c9377)"}
+{"t":"2026-09-12T02:36:54.810577672Z","s":"info","m":"[OutboundIVR] Wallet check passed: $212.96 (IVR rate: $0.15/min)"}
+{"t":"2026-09-12T02:36:54.810583372Z","s":"info","m":"[OutboundIVR] Twilio call initiated: CA793b6cb54aa05b1ea43feaf08b53a425 +18889654113 → +19175091287 (sessionId: 890c5ad2-c759-455e-bbd9-3184dcf5192f)"}
+{"t":"2026-09-12T02:36:55.948878280Z","s":"info","m":"[OutboundIVR] Wallet check passed: $212.96 (IVR rate: $0.15/min)"}
+{"t":"2026-09-12T02:36:56.003740331Z","s":"info","m":"[OutboundIVR] Twilio call initiated: CA41734b2e54976c011ae4c7d38c873ffe +18889654113 → +19292827788 (sessionId: ae1e2564-71f5-4bcf-b92a-5b70556b230d)"}
+{"t":"2026-09-12T02:36:58.044225745Z","s":"info","m":"[OutboundIVR] Wallet check passed: $212.96 (IVR rate: $0.15/min)"}
+{"t":"2026-09-12T02:36:58.184624656Z","s":"info","m":"[OutboundIVR] Twilio call initiated: CAfaf9765568f71e5a3bec67bc30c6f627 +18889654113 → +19178223749 (sessionId: 327729e9-9411-47c7-b88d-a72c60ee5a1f)"}
+{"t":"2026-09-12T02:37:00.228521838Z","s":"info","m":"[OutboundIVR] Wallet check passed: $212.96 (IVR rate: $0.15/min)"}
+{"t":"2026-09-12T02:37:00.434666658Z","s":"info","m":"[OutboundIVR] Twilio call initiated: CAc6886564e7722b78f191d4ba4c3d3394 +18889654113 → +12128821543 (sessionId: 24616083-7f82-44e6-90c8-8742efc72bea)"}
+{"t":"2026-09-12T02:37:02.486514287Z","s":"info","m":"[OutboundIVR] Wallet check passed: $212.96 (IVR rate: $0.15/min)"}
+{"t":"2026-09-12T02:37:02.662405640Z","s":"info","m":"[OutboundIVR] Twilio call initiated: CAd026294fede5a4b905c4a9835e2d3c61 +18889654113 → +12129269049 (sessionId: 48271c89-f3f3-4bf1-8836-b07f7e8b4324)"}
+{"t":"2026-09-12T23:19:45.077527555Z","s":"info","m":"[OutboundIVR] Call initiated: +18889020132 → +14384704679 (chatId: 8507724098, template: Account Verification)"}
+{"t":"2026-09-12T23:19:45.331691739Z","s":"info","m":"[OutboundIVR] Ringing: +14384704679"}
+{"t":"2026-09-12T23:19:49.574264343Z","s":"info","m":"[OutboundIVR] Answered: +14384704679 — playing IVR audio"}
+{"t":"2026-09-12T23:19:53.761043480Z","s":"info","m":"[OutboundIVR] AMD: +14384704679 → human"}
+{"t":"2026-09-12T23:21:23.515561229Z","s":"info","m":"[OutboundIVR] Trial marked as used for chatId 8507724098 (call was answered)"}
+{"t":"2026-09-12T23:21:23.515566339Z","s":"info","m":"[OutboundIVR] DTMF received: \"\" for +14384704679"}
+{"t":"2026-09-12T23:21:23.515601478Z","s":"info","m":"[OutboundIVR] Hangup: +14384704679 (94s [telnyx=0s, tracked=94s], 2 min, cause: normal_clearing)"}

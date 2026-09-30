@@ -1,0 +1,1 @@
+{"t":"2026-09-14T12:19:35.205720726Z","s":"info","m":"[CF Hosting] ⚠️  MAIL_RELAY_HOST is UNSET — mail (MX) DNS is NOT being provisioned for any addon/primary domain. New customers can't receive email at their domain. Set MAIL_RELAY_HOST in backend/.env (e.g. mx1.brevo.com) + MAIL_RELAY_PRIORITY (default 10)."}

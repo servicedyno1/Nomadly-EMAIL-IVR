@@ -741,8 +741,11 @@ NS2: <code>${cfNameservers[1]}</code>
       username: result.username,
       password: result.password,
       url: result.url,
-      // Real Cloudflare NS only — never the WHM createAccount return (which used
-      // to carry the WHM origin IP as ns1/ns2.<WHM_HOST>, an origin-leak vector).
+      // Use the ACTUAL Cloudflare / registrar nameservers we set up above —
+      // NOT the deprecated origin-IP `result.nameservers` from WHM (removed
+      // 2026-08-29 to close an origin-IP-leak vector on the storefront).
+      // `cfNameservers` is populated by every branch of the NS-setup block
+      // (existing zone lookup / new zone creation / re-run from queue).
       nameservers: Array.isArray(cfNameservers) ? cfNameservers : [],
     }
 
@@ -806,7 +809,7 @@ NS2: <code>${cfNameservers[1]}</code>
     // Users should only get the HostPanel PIN login
     if (pin) {
       // Generate transaction ID for tracking
-      const { generateTransactionId, logTransaction, buildSaleMeta } = require('./transaction-id')
+      const { generateTransactionId, logTransaction } = require('./transaction-id')
       const { getDNSPropagationMessage } = require('./improved-messages')
       const txnId = generateTransactionId()
       
@@ -823,7 +826,7 @@ NS2: <code>${cfNameservers[1]}</code>
           amount: info.price || 0,
           currency: 'USD',
           status: 'completed',
-          metadata: { domain, plan: info.plan, cpUser: result.username, ...buildSaleMeta(info, info.price || 0) }
+          metadata: { domain, plan: info.plan, cpUser: result.username }
         })
         await client.close()
       } catch (txErr) {
@@ -831,9 +834,10 @@ NS2: <code>${cfNameservers[1]}</code>
       }
       
       const panelDomain = process.env.PANEL_DOMAIN
-      const panelUrl = panelDomain
+      const panelBase = panelDomain
         ? (panelDomain.startsWith('http') ? panelDomain : `https://${panelDomain}`)
-        : `${process.env.SELF_URL_PROD?.replace('/api', '')}/panel`
+        : `${process.env.SELF_URL_PROD?.replace('/api', '')}`
+      const panelUrl = `${(panelBase || '').replace(/\/+$/, '').replace(/\/panel$/i, '')}/panel`
 
       // If the registry hasn't published our nameservers yet (pre-delegation
       // TLD race), the DnsHealer worker is already retrying in the background
@@ -876,9 +880,9 @@ Login: ${panelUrl}
         if (emailed) {
           send(chatId, `📧 Credentials sent to <b>${info.email}</b>`, rem)
         } else {
-          // Email failed (e.g. SMTP port blocked) - creds were already shown in
+          // Email failed (e.g. SMTP port blocked) — creds were already shown in
           // chat above, so don't mislead the user that an email went out.
-          send(chatId, `⚠️ We couldn't email your credentials to <b>${info.email}</b> right now - they're shown above in this chat. Save them safely.`, rem)
+          send(chatId, `⚠️ We couldn't email your credentials to <b>${info.email}</b> right now — they're shown above in this chat. Save them safely.`, rem)
         }
       } catch (error) {
         log('Error sending email:', error)

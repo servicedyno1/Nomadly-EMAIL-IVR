@@ -1,0 +1,831 @@
+{"t":"2026-09-15T04:40:11.417941531Z","s":"info","m":"[PhoneMonitor] === Health check complete: 38 checked, 0 newly suspended, 0 inactive_released, 0 auth-failed ==="}
+{"t":"2026-09-15T05:00:07.148024934Z","s":"error","m":"[Contabo] Token fetch failed (attempt 1): {"}
+{"t":"2026-09-15T05:00:07.148037534Z","s":"info","m":"[VPS Self-heal] Could not fetch 203508080: VPS provider authentication failed"}
+{"t":"2026-09-15T05:10:10.694870876Z","s":"info","m":"[PhoneMonitor] === Health check complete: 38 checked, 0 newly suspended, 0 inactive_released, 0 auth-failed ==="}
+{"t":"2026-09-15T05:30:05.692937248Z","s":"error","m":"[Contabo] Token fetch failed (attempt 1): {"}
+{"t":"2026-09-15T05:30:05.692960407Z","s":"info","m":"[VPS Self-heal] Could not fetch 203508080: VPS provider authentication failed"}
+{"t":"2026-09-15T05:40:11.102308727Z","s":"info","m":"[PhoneMonitor] === Health check complete: 38 checked, 0 newly suspended, 0 inactive_released, 0 auth-failed ==="}
+{"t":"2026-09-15T06:00:06.670619356Z","s":"error","m":"[Contabo] Token fetch failed (attempt 1): {"}
+{"t":"2026-09-15T06:00:06.670631066Z","s":"info","m":"[VPS Self-heal] Could not fetch 203508080: VPS provider authentication failed"}
+{"t":"2026-09-15T06:00:29.389047125Z","s":"info","m":"[AntiRed-Cron] Done. Deployed: 86, Already: 0, Failed: 0, ZoneRefreshed: 0"}
+{"t":"2026-09-15T06:10:11.162653444Z","s":"info","m":"[PhoneMonitor] === Health check complete: 38 checked, 0 newly suspended, 0 inactive_released, 0 auth-failed ==="}
+{"t":"2026-09-15T06:30:00.591631753Z","s":"error","m":"[Contabo] Token fetch failed (attempt 1): {"}
+{"t":"2026-09-15T06:30:00.591664763Z","s":"info","m":"[VPS Self-heal] Could not fetch 203508080: VPS provider authentication failed"}
+{"t":"2026-09-15T06:40:10.658619060Z","s":"info","m":"[PhoneMonitor] === Health check complete: 38 checked, 0 newly suspended, 0 inactive_released, 0 auth-failed ==="}
+{"t":"2026-09-15T07:00:04.470615404Z","s":"info","m":"[VPS Self-heal] Could not fetch 203508080: VPS provider authentication failed"}
+{"t":"2026-09-15T07:00:04.470618254Z","s":"error","m":"[Contabo] Token fetch failed (attempt 1): {"}
+{"t":"2026-09-15T07:10:11.793773227Z","s":"info","m":"[PhoneMonitor] === Health check complete: 38 checked, 0 newly suspended, 0 inactive_released, 0 auth-failed ==="}
+{"t":"2026-09-15T07:30:04.479432084Z","s":"error","m":"[Contabo] Token fetch failed (attempt 1): {"}
+{"t":"2026-09-15T07:30:04.479447814Z","s":"info","m":"[VPS Self-heal] Could not fetch 203508080: VPS provider authentication failed"}
+{"t":"2026-09-15T07:40:11.171529548Z","s":"info","m":"[PhoneMonitor] === Health check complete: 38 checked, 0 newly suspended, 0 inactive_released, 0 auth-failed ==="}
+{"t":"2026-09-15T07:41:30.931538842Z","s":"info","m":"[CR-Whitelist] API test failed (attempt #1): Request failed with status code 401"}
+{"t":"2026-09-15T07:41:39.920203588Z","s":"info","m":"[Twilio Sync] Webhook sync complete: 9 updated, 0 failed, 0 credentials recovered"}
+{"t":"2026-09-15T07:41:47.028727576Z","s":"error","m":"npm error command failed"}
+{"t":"2026-09-15T07:41:49.567858164Z","s":"info","m":"[CR-Whitelist] Browser result: Login failed - landed on https://global.connectreseller.com/login?returnUrl=%2Fadmin%2Fdashboard"}
+{"t":"2026-09-15T07:41:49.567863064Z","s":"info","m":"[CR-Whitelist] Browser automation failed: Login failed - landed on https://global.connectreseller.com/login?returnUrl=%2Fadmin%2Fdashboard"}
+{"t":"2026-09-15T07:41:53.974848893Z","s":"info","m":"[PhoneMonitor] === Health check complete: 38 checked, 0 newly suspended, 0 inactive_released, 0 auth-failed ==="}
+{"t":"2026-09-15T07:42:15.426564506Z","s":"info","m":"[CpanelMigration] Failed to list WHM accounts: timeout of 30000ms exceeded. Aborting migration."}
+{"t":"2026-09-15T07:42:50.044672623Z","s":"info","m":"[CR-Whitelist] API test failed (attempt #2): Request failed with status code 401"}
+{"t":"2026-09-15T07:43:50.339513452Z","s":"info","m":"[CR-Whitelist] API test failed (attempt #3): Request failed with status code 401"}
+{"t":"2026-09-15T08:00:00.602324980Z","s":"error","m":"[Contabo] Token fetch failed (attempt 1): {"}
+{"t":"2026-09-15T08:00:00.602362449Z","s":"info","m":"[VPS Self-heal] Could not fetch 203508080: VPS provider authentication failed"}
+{"t":"2026-09-15T08:11:44.281832588Z","s":"info","m":"[PhoneMonitor] === Health check complete: 38 checked, 0 newly suspended, 0 inactive_released, 0 auth-failed ==="}
+{"t":"2026-09-15T08:30:00.671028529Z","s":"error","m":"[Contabo] Token fetch failed (attempt 1): {"}
+{"t":"2026-09-15T08:30:00.671042449Z","s":"info","m":"[VPS Self-heal] Could not fetch 203508080: VPS provider authentication failed"}
+{"t":"2026-09-15T08:41:44.391439347Z","s":"info","m":"[PhoneMonitor] === Health check complete: 38 checked, 0 newly suspended, 0 inactive_released, 0 auth-failed ==="}
+{"t":"2026-09-15T09:00:08.608146952Z","s":"error","m":"[Contabo] Token fetch failed (attempt 1): {"}
+{"t":"2026-09-15T09:00:08.608163032Z","s":"info","m":"[VPS Self-heal] Could not fetch 203508080: VPS provider authentication failed"}
+{"t":"2026-09-15T09:01:04.672462459Z","s":"info","m":"[AutoPromo]   ↳ failed chatId=1873399997 error=\"ETELEGRAM: 403 Forbidden: bot was blocked by the user\""}
+{"t":"2026-09-15T09:01:04.672465709Z","s":"info","m":"[AutoPromo]   ↳ failed chatId=6474590449 error=\"ETELEGRAM: 403 Forbidden: bot was blocked by the user\""}
+{"t":"2026-09-15T09:01:04.672468699Z","s":"info","m":"[AutoPromo]   ↳ failed chatId=8365304678 error=\"ETELEGRAM: 403 Forbidden: bot was blocked by the user\""}
+{"t":"2026-09-15T09:01:04.672471139Z","s":"info","m":"[AutoPromo]   ↳ failed chatId=1125405900 error=\"ETELEGRAM: 403 Forbidden: bot was blocked by the user\""}
+{"t":"2026-09-15T09:01:04.672473909Z","s":"info","m":"[AutoPromo]   ↳ failed chatId=1185746700 error=\"ETELEGRAM: 403 Forbidden: bot was blocked by the user\""}
+{"t":"2026-09-15T09:11:44.859616733Z","s":"info","m":"[PhoneMonitor] === Health check complete: 38 checked, 0 newly suspended, 0 inactive_released, 0 auth-failed ==="}
+{"t":"2026-09-15T09:30:00.651680208Z","s":"error","m":"[Contabo] Token fetch failed (attempt 1): {"}
+{"t":"2026-09-15T09:30:00.651692618Z","s":"info","m":"[VPS Self-heal] Could not fetch 203508080: VPS provider authentication failed"}
+{"t":"2026-09-15T09:35:01.340342644Z","s":"info","m":"[CR-Whitelist] API test failed (attempt #10): Request failed with status code 401"}
+{"t":"2026-09-15T09:41:45.144436671Z","s":"info","m":"[PhoneMonitor] === Health check complete: 38 checked, 0 newly suspended, 0 inactive_released, 0 auth-failed ==="}
+{"t":"2026-09-15T10:00:01.217722714Z","s":"error","m":"[Contabo] Token fetch failed (attempt 1): {"}
+{"t":"2026-09-15T10:00:01.217733994Z","s":"info","m":"[VPS Self-heal] Could not fetch 203508080: VPS provider authentication failed"}
+{"t":"2026-09-15T10:08:11.305496139Z","s":"info","m":"[AutoPromo]   ↳ failed chatId=7153699847 error=\"ETELEGRAM: 403 Forbidden: bot was blocked by the user\""}
+{"t":"2026-09-15T10:08:11.305513259Z","s":"info","m":"[AutoPromo]   ↳ failed chatId=7080940684 error=\"ETELEGRAM: 403 Forbidden: bot was blocked by the user\""}
+{"t":"2026-09-15T10:08:11.305519529Z","s":"info","m":"[AutoPromo]   ↳ failed chatId=6705277278 error=\"ETELEGRAM: 403 Forbidden: bot was blocked by the user\""}
+{"t":"2026-09-15T10:08:11.305529438Z","s":"info","m":"[AutoPromo]   ↳ failed chatId=5499846618 error=\"ETELEGRAM: 403 Forbidden: bot was blocked by the user\""}
+{"t":"2026-09-15T10:08:11.305534928Z","s":"info","m":"[AutoPromo]   ↳ failed chatId=8227698477 error=\"ETELEGRAM: 403 Forbidden: bot was blocked by the user\""}
+{"t":"2026-09-15T10:08:11.305605028Z","s":"info","m":"[AutoPromo]   ↳ failed chatId=8583207407 error=\"ETELEGRAM: 403 Forbidden: bot was blocked by the user\""}
+{"t":"2026-09-15T10:08:11.305607818Z","s":"info","m":"[AutoPromo]   ↳ failed chatId=8571206732 error=\"ETELEGRAM: 403 Forbidden: bot was blocked by the user\""}
+{"t":"2026-09-15T10:08:11.305610408Z","s":"info","m":"[AutoPromo]   ↳ failed chatId=6622198745 error=\"ETELEGRAM: 403 Forbidden: bot was blocked by the user\""}
+{"t":"2026-09-15T10:08:11.305613518Z","s":"info","m":"[AutoPromo]   ↳ failed chatId=2134337702 error=\"ETELEGRAM: 403 Forbidden: bot was blocked by the user\""}
+{"t":"2026-09-15T10:08:11.305616158Z","s":"info","m":"[AutoPromo]   ↳ failed chatId=7001762019 error=\"ETELEGRAM: 403 Forbidden: bot was blocked by the user\""}
+{"t":"2026-09-15T10:11:46.156862718Z","s":"info","m":"[PhoneMonitor] === Health check complete: 38 checked, 0 newly suspended, 0 inactive_released, 0 auth-failed ==="}
+{"t":"2026-09-15T10:30:10.628000644Z","s":"error","m":"[Contabo] Token fetch failed (attempt 1): {"}
+{"t":"2026-09-15T10:30:10.628011284Z","s":"info","m":"[VPS Self-heal] Could not fetch 203508080: VPS provider authentication failed"}
+{"t":"2026-09-15T10:41:44.470624377Z","s":"info","m":"[PhoneMonitor] === Health check complete: 38 checked, 0 newly suspended, 0 inactive_released, 0 auth-failed ==="}
+{"t":"2026-09-15T10:59:10.609966523Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-15T11:00:00.620125214Z","s":"error","m":"[Contabo] Token fetch failed (attempt 1): {"}
+{"t":"2026-09-15T11:00:00.620144754Z","s":"info","m":"[VPS Self-heal] Could not fetch 203508080: VPS provider authentication failed"}
+{"t":"2026-09-15T11:11:45.516724806Z","s":"info","m":"[PhoneMonitor] === Health check complete: 38 checked, 0 newly suspended, 0 inactive_released, 0 auth-failed ==="}
+{"t":"2026-09-15T11:22:10.652840355Z","s":"info","m":"[Railway] listRailwayCustomDomains failed after 2 attempts: Request failed with status code 503 — returning empty list"}
+{"t":"2026-09-15T11:22:11.484063844Z","s":"info","m":"[Railway] listRailwayCustomDomains failed after 2 attempts: Request failed with status code 503 — returning empty list"}
+{"t":"2026-09-15T11:30:00.588434914Z","s":"error","m":"[Contabo] Token fetch failed (attempt 1): {"}
+{"t":"2026-09-15T11:30:00.588451243Z","s":"info","m":"[VPS Self-heal] Could not fetch 203508080: VPS provider authentication failed"}
+{"t":"2026-09-15T11:41:43.511008190Z","s":"info","m":"[PhoneMonitor] === Health check complete: 38 checked, 0 newly suspended, 0 inactive_released, 0 auth-failed ==="}
+{"t":"2026-09-15T12:00:00.677102787Z","s":"error","m":"[Contabo] Token fetch failed (attempt 1): {"}
+{"t":"2026-09-15T12:00:00.677116547Z","s":"info","m":"[VPS Self-heal] Could not fetch 203508080: VPS provider authentication failed"}
+{"t":"2026-09-15T12:00:32.812017478Z","s":"info","m":"[AntiRed-Cron] Done. Deployed: 86, Already: 0, Failed: 0, ZoneRefreshed: 0"}
+{"t":"2026-09-15T12:11:44.446688489Z","s":"info","m":"[PhoneMonitor] === Health check complete: 38 checked, 0 newly suspended, 0 inactive_released, 0 auth-failed ==="}
+{"t":"2026-09-15T12:30:09.440777959Z","s":"error","m":"[Contabo] Token fetch failed (attempt 1): {"}
+{"t":"2026-09-15T12:30:09.440805649Z","s":"info","m":"[VPS Self-heal] Could not fetch 203508080: VPS provider authentication failed"}
+{"t":"2026-09-15T12:32:10.371120659Z","s":"info","m":"[Railway] listRailwayCustomDomains failed after 2 attempts: Request failed with status code 503 — returning empty list"}
+{"t":"2026-09-15T12:41:43.790819509Z","s":"info","m":"[PhoneMonitor] === Health check complete: 38 checked, 0 newly suspended, 0 inactive_released, 0 auth-failed ==="}
+{"t":"2026-09-15T13:00:00.649296312Z","s":"error","m":"[Contabo] Token fetch failed (attempt 1): {"}
+{"t":"2026-09-15T13:00:00.649322602Z","s":"info","m":"[VPS Self-heal] Could not fetch 203508080: VPS provider authentication failed"}
+{"t":"2026-09-15T13:11:44.407883714Z","s":"info","m":"[PhoneMonitor] === Health check complete: 38 checked, 0 newly suspended, 0 inactive_released, 0 auth-failed ==="}
+{"t":"2026-09-15T13:30:00.600077705Z","s":"error","m":"[Contabo] Token fetch failed (attempt 1): {"}
+{"t":"2026-09-15T13:30:00.600093125Z","s":"info","m":"[VPS Self-heal] Could not fetch 203508080: VPS provider authentication failed"}
+{"t":"2026-09-15T13:30:20.633389498Z","s":"info","m":"[AutoPromo]   ↳ failed chatId=5165954611 error=\"ETELEGRAM: 403 Forbidden: bot was blocked by the user\""}
+{"t":"2026-09-15T13:30:20.633392418Z","s":"info","m":"[AutoPromo]   ↳ failed chatId=8733350077 error=\"ETELEGRAM: 403 Forbidden: bot was blocked by the user\""}
+{"t":"2026-09-15T13:41:45.209338127Z","s":"info","m":"[PhoneMonitor] === Health check complete: 38 checked, 0 newly suspended, 0 inactive_released, 0 auth-failed ==="}
+{"t":"2026-09-15T13:47:13.256878326Z","s":"info","m":"[Railway] listRailwayCustomDomains failed after 2 attempts: Request failed with status code 503 — returning empty list"}
+{"t":"2026-09-15T14:00:00.373607015Z","s":"error","m":"[Contabo] Token fetch failed (attempt 1): {"}
+{"t":"2026-09-15T14:00:00.373634365Z","s":"info","m":"[VPS Self-heal] Could not fetch 203508080: VPS provider authentication failed"}
+{"t":"2026-09-15T14:11:46.356457907Z","s":"info","m":"[PhoneMonitor] === Health check complete: 38 checked, 0 newly suspended, 0 inactive_released, 0 auth-failed ==="}
+{"t":"2026-09-15T14:30:01.532591843Z","s":"error","m":"[Contabo] Token fetch failed (attempt 1): {"}
+{"t":"2026-09-15T14:30:01.532593483Z","s":"info","m":"[VPS Self-heal] Could not fetch 203508080: VPS provider authentication failed"}
+{"t":"2026-09-15T14:34:57.001356369Z","s":"info","m":"[CR-Whitelist] API test failed (attempt #20): Request failed with status code 401"}
+{"t":"2026-09-15T14:41:45.032304537Z","s":"info","m":"[PhoneMonitor] === Health check complete: 38 checked, 0 newly suspended, 0 inactive_released, 0 auth-failed ==="}
+{"t":"2026-09-15T15:00:03.571323980Z","s":"error","m":"[Contabo] Token fetch failed (attempt 1): {"}
+{"t":"2026-09-15T15:00:03.571337690Z","s":"info","m":"[VPS Self-heal] Could not fetch 203508080: VPS provider authentication failed"}
+{"t":"2026-09-15T15:08:16.328900622Z","s":"info","m":"[Twilio] Dial status: failed (0s) chatId=6604316166 type=sip_bridge sid=CAdd397875b998aeff8884c4d3950c3e79"}
+{"t":"2026-09-15T15:08:16.328903772Z","s":"info","m":"[Twilio] SIP Bridge Call Call failed 0s — not billed (+18884384595 is not a Nomadly-owned Twilio number for chatId=6604316166; likely a destination/transfer leg, which is correct)."}
+{"t":"2026-09-15T15:11:45.133434806Z","s":"info","m":"[PhoneMonitor] === Health check complete: 38 checked, 0 newly suspended, 0 inactive_released, 0 auth-failed ==="}
+{"t":"2026-09-15T15:30:09.603396006Z","s":"error","m":"[Contabo] Token fetch failed (attempt 1): {"}
+{"t":"2026-09-15T15:30:09.603424756Z","s":"info","m":"[VPS Self-heal] Could not fetch 203508080: VPS provider authentication failed"}
+{"t":"2026-09-15T15:41:45.518576318Z","s":"info","m":"[PhoneMonitor] === Health check complete: 38 checked, 0 newly suspended, 0 inactive_released, 0 auth-failed ==="}
+{"t":"2026-09-15T16:00:05.793279353Z","s":"error","m":"[Contabo] Token fetch failed (attempt 1): {"}
+{"t":"2026-09-15T16:00:05.793349103Z","s":"info","m":"[VPS Self-heal] Could not fetch 203508080: VPS provider authentication failed"}
+{"t":"2026-09-15T16:01:54.905596049Z","s":"info","m":"OP updateNameservers error for rbc-verify.com: Request failed with status code 500 | desc: An error has occurred; for more details, please refer to the registry message below. For more information please check https://openprovider.help/books/quick-start/page/whoops-an-error-has-occurred  | full: {\"desc\":\"An error has occurred; for more details, please refer to the registry message below. For more information please check https://openprovider.help/books/quick-start/page/whoops-an-error-has-occurred\",\"code\":399,\"data\":\"Unexpected response from the registry EPP server: 2308, Domain is not active, or does not belong to this user\"}"}
+{"t":"2026-09-15T16:11:44.825048194Z","s":"info","m":"[PhoneMonitor] === Health check complete: 38 checked, 0 newly suspended, 0 inactive_released, 0 auth-failed ==="}
+{"t":"2026-09-15T16:11:50.903534765Z","s":"info","m":"OP updateNameservers error for rbc-verify.com: Request failed with status code 500 | desc: An error has occurred; for more details, please refer to the registry message below. For more information please check https://openprovider.help/books/quick-start/page/whoops-an-error-has-occurred  | full: {\"desc\":\"An error has occurred; for more details, please refer to the registry message below. For more information please check https://openprovider.help/books/quick-start/page/whoops-an-error-has-occurred\",\"code\":399,\"data\":\"Unexpected response from the registry EPP server: 2308, Domain is not active, or does not belong to this user\"}"}
+{"t":"2026-09-15T16:26:50.070752310Z","s":"info","m":"OP updateNameservers error for rbc-verify.com: Request failed with status code 500 | desc: An error has occurred; for more details, please refer to the registry message below. For more information please check https://openprovider.help/books/quick-start/page/whoops-an-error-has-occurred  | full: {\"desc\":\"An error has occurred; for more details, please refer to the registry message below. For more information please check https://openprovider.help/books/quick-start/page/whoops-an-error-has-occurred\",\"code\":399,\"data\":\"Unexpected response from the registry EPP server: 2308, Domain is not active, or does not belong to this user\"}"}
+{"t":"2026-09-15T16:30:10.198309023Z","s":"info","m":"[VPS Self-heal] Could not fetch 203508080: VPS provider authentication failed"}
+{"t":"2026-09-15T16:30:10.198312133Z","s":"error","m":"[Contabo] Token fetch failed (attempt 1): {"}
+{"t":"2026-09-15T16:41:44.757987924Z","s":"info","m":"[PhoneMonitor] === Health check complete: 38 checked, 0 newly suspended, 0 inactive_released, 0 auth-failed ==="}
+{"t":"2026-09-15T17:00:01.690994783Z","s":"error","m":"[Contabo] Token fetch failed (attempt 1): {"}
+{"t":"2026-09-15T17:00:01.691007253Z","s":"info","m":"[VPS Self-heal] Could not fetch 203508080: VPS provider authentication failed"}
+{"t":"2026-09-15T17:11:45.998139021Z","s":"info","m":"[PhoneMonitor] === Health check complete: 38 checked, 0 newly suspended, 0 inactive_released, 0 auth-failed ==="}
+{"t":"2026-09-15T17:30:01.092620128Z","s":"error","m":"[Contabo] Token fetch failed (attempt 1): {"}
+{"t":"2026-09-15T17:30:01.092634558Z","s":"info","m":"[VPS Self-heal] Could not fetch 203508080: VPS provider authentication failed"}
+{"t":"2026-09-15T17:41:45.871837665Z","s":"info","m":"[PhoneMonitor] === Health check complete: 38 checked, 0 newly suspended, 0 inactive_released, 0 auth-failed ==="}
+{"t":"2026-09-15T18:00:05.539736824Z","s":"info","m":"[VPS Self-heal] Could not fetch 203508080: VPS provider authentication failed"}
+{"t":"2026-09-15T18:00:05.539743984Z","s":"error","m":"[Contabo] Token fetch failed (attempt 1): {"}
+{"t":"2026-09-15T18:00:27.103927698Z","s":"info","m":"[AntiRed] Worker auto-deploy error for client-pnc-auth09resolvedesk.click: Request failed with status code 403 (HTTP 403 — likely stale CF zone)"}
+{"t":"2026-09-15T18:00:27.104636171Z","s":"info","m":"[AntiRed-Cron] Failed for client-pnc-auth09resolvedesk.click: Request failed with status code 403"}
+{"t":"2026-09-15T18:00:35.640622236Z","s":"info","m":"[AntiRed-Cron] Done. Deployed: 85, Already: 0, Failed: 1, ZoneRefreshed: 0"}
+{"t":"2026-09-15T18:00:41.134046630Z","s":"info","m":"[AutoPromo]   ↳ failed chatId=1873399997 error=\"ETELEGRAM: 403 Forbidden: bot was blocked by the user\""}
+{"t":"2026-09-15T18:00:41.134051670Z","s":"info","m":"[AutoPromo]   ↳ failed chatId=6474590449 error=\"ETELEGRAM: 403 Forbidden: bot was blocked by the user\""}
+{"t":"2026-09-15T18:00:41.134056300Z","s":"info","m":"[AutoPromo]   ↳ failed chatId=8365304678 error=\"ETELEGRAM: 403 Forbidden: bot was blocked by the user\""}
+{"t":"2026-09-15T18:00:41.134061850Z","s":"info","m":"[AutoPromo]   ↳ failed chatId=1125405900 error=\"ETELEGRAM: 403 Forbidden: bot was blocked by the user\""}
+{"t":"2026-09-15T18:00:41.134067810Z","s":"info","m":"[AutoPromo]   ↳ failed chatId=1185746700 error=\"ETELEGRAM: 403 Forbidden: bot was blocked by the user\""}
+{"t":"2026-09-15T18:11:46.190008852Z","s":"info","m":"[PhoneMonitor] === Health check complete: 38 checked, 0 newly suspended, 0 inactive_released, 0 auth-failed ==="}
+{"t":"2026-09-15T18:30:00.865955809Z","s":"error","m":"[Contabo] Token fetch failed (attempt 1): {"}
+{"t":"2026-09-15T18:30:00.865974108Z","s":"info","m":"[VPS Self-heal] Could not fetch 203508080: VPS provider authentication failed"}
+{"t":"2026-09-15T18:41:46.155831720Z","s":"info","m":"[PhoneMonitor] === Health check complete: 38 checked, 0 newly suspended, 0 inactive_released, 0 auth-failed ==="}
+{"t":"2026-09-15T19:00:01.181897980Z","s":"error","m":"[Contabo] Token fetch failed (attempt 1): {"}
+{"t":"2026-09-15T19:00:01.181914850Z","s":"info","m":"[VPS Self-heal] Could not fetch 203508080: VPS provider authentication failed"}
+{"t":"2026-09-15T19:00:52.454967232Z","s":"info","m":"[AutoPromo]   ↳ failed chatId=8583207407 error=\"ETELEGRAM: 403 Forbidden: bot was blocked by the user\""}
+{"t":"2026-09-15T19:00:52.454969932Z","s":"info","m":"[AutoPromo]   ↳ failed chatId=8571206732 error=\"ETELEGRAM: 403 Forbidden: bot was blocked by the user\""}
+{"t":"2026-09-15T19:00:52.454972592Z","s":"info","m":"[AutoPromo]   ↳ failed chatId=6622198745 error=\"ETELEGRAM: 403 Forbidden: bot was blocked by the user\""}
+{"t":"2026-09-15T19:00:52.454975132Z","s":"info","m":"[AutoPromo]   ↳ failed chatId=2134337702 error=\"ETELEGRAM: 403 Forbidden: bot was blocked by the user\""}
+{"t":"2026-09-15T19:00:52.454978842Z","s":"info","m":"[AutoPromo]   ↳ failed chatId=7001762019 error=\"ETELEGRAM: 403 Forbidden: bot was blocked by the user\""}
+{"t":"2026-09-15T19:00:52.454981462Z","s":"info","m":"[AutoPromo]   ↳ failed chatId=7153699847 error=\"ETELEGRAM: 403 Forbidden: bot was blocked by the user\""}
+{"t":"2026-09-15T19:00:52.454983812Z","s":"info","m":"[AutoPromo]   ↳ failed chatId=7080940684 error=\"ETELEGRAM: 403 Forbidden: bot was blocked by the user\""}
+{"t":"2026-09-15T19:00:52.454986332Z","s":"info","m":"[AutoPromo]   ↳ failed chatId=6705277278 error=\"ETELEGRAM: 403 Forbidden: bot was blocked by the user\""}
+{"t":"2026-09-15T19:00:52.454989122Z","s":"info","m":"[AutoPromo]   ↳ failed chatId=5499846618 error=\"ETELEGRAM: 403 Forbidden: bot was blocked by the user\""}
+{"t":"2026-09-15T19:00:52.454991462Z","s":"info","m":"[AutoPromo]   ↳ failed chatId=8227698477 error=\"ETELEGRAM: 403 Forbidden: bot was blocked by the user\""}
+{"t":"2026-09-15T19:11:46.720002426Z","s":"info","m":"[PhoneMonitor] === Health check complete: 38 checked, 0 newly suspended, 0 inactive_released, 0 auth-failed ==="}
+{"t":"2026-09-15T19:30:01.186420083Z","s":"error","m":"[Contabo] Token fetch failed (attempt 1): {"}
+{"t":"2026-09-15T19:30:01.186440083Z","s":"info","m":"[VPS Self-heal] Could not fetch 203508080: VPS provider authentication failed"}
+{"t":"2026-09-15T19:41:45.474809865Z","s":"info","m":"[PhoneMonitor] === Health check complete: 38 checked, 0 newly suspended, 0 inactive_released, 0 auth-failed ==="}
+{"t":"2026-09-15T20:00:01.026324975Z","s":"error","m":"[Contabo] Token fetch failed (attempt 1): {"}
+{"t":"2026-09-15T20:00:01.026341005Z","s":"info","m":"[VPS Self-heal] Could not fetch 203508080: VPS provider authentication failed"}
+{"t":"2026-09-15T20:11:45.362506185Z","s":"info","m":"[PhoneMonitor] === Health check complete: 38 checked, 0 newly suspended, 0 inactive_released, 0 auth-failed ==="}
+{"t":"2026-09-15T20:13:19.607258595Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-15T20:13:19.607263085Z","s":"info","m":"OP checkDomainAvailability error: Request failed with status code 500"}
+{"t":"2026-09-15T20:13:19.608855519Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-15T20:13:19.608857959Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-15T20:13:19.608860209Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-15T20:13:19.608862299Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-15T20:13:19.608864779Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-15T20:13:19.608866989Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-15T20:13:19.608869369Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-15T20:13:19.609929478Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-15T20:13:19.609932308Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-15T20:13:19.609934928Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-15T20:13:19.609937558Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-15T20:13:19.609939828Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-15T20:13:40.696754085Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-15T20:17:35.395690176Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-15T20:27:05.964780773Z","s":"info","m":"⚠️ <b>Getting \"403 Forbidden\" / registration failed?</b>"}
+{"t":"2026-09-15T20:27:05.964840692Z","s":"info","m":"Don't add the SIP credential as a \"user / extension\" — a PBX answers the call and dumps it straight to its own voicemail (you'll hear \"Record your message and press pound, or press star to contact the operator\", then \"transfer failed\" on star). Configure it as a <b>SIP TRUNK</b> instead:"}
+{"t":"2026-09-15T20:30:05.984644156Z","s":"error","m":"[Contabo] Token fetch failed (attempt 1): {"}
+{"t":"2026-09-15T20:30:05.984659176Z","s":"info","m":"[VPS Self-heal] Could not fetch 203508080: VPS provider authentication failed"}
+{"t":"2026-09-15T20:41:45.363610427Z","s":"info","m":"[PhoneMonitor] === Health check complete: 38 checked, 0 newly suspended, 0 inactive_released, 0 auth-failed ==="}
+{"t":"2026-09-15T21:00:00.942484405Z","s":"error","m":"[Contabo] Token fetch failed (attempt 1): {"}
+{"t":"2026-09-15T21:00:00.942500785Z","s":"info","m":"[VPS Self-heal] Could not fetch 203508080: VPS provider authentication failed"}
+{"t":"2026-09-15T21:11:44.632628745Z","s":"info","m":"[PhoneMonitor] === Health check complete: 38 checked, 0 newly suspended, 0 inactive_released, 0 auth-failed ==="}
+{"t":"2026-09-15T21:30:05.073108578Z","s":"error","m":"[Contabo] Token fetch failed (attempt 1): {"}
+{"t":"2026-09-15T21:30:05.073121178Z","s":"info","m":"[VPS Self-heal] Could not fetch 203508080: VPS provider authentication failed"}
+{"t":"2026-09-15T21:35:04.904539766Z","s":"info","m":"[CR-Whitelist] API test failed (attempt #30): Request failed with status code 401"}
+{"t":"2026-09-15T21:41:43.831748462Z","s":"info","m":"[PhoneMonitor] === Health check complete: 38 checked, 0 newly suspended, 0 inactive_released, 0 auth-failed ==="}
+{"t":"2026-09-15T22:00:01.311953670Z","s":"info","m":"[VPS Self-heal] Could not fetch 203508080: VPS provider authentication failed"}
+{"t":"2026-09-15T22:00:01.311958600Z","s":"error","m":"[Contabo] Token fetch failed (attempt 1): {"}
+{"t":"2026-09-15T22:11:44.104687419Z","s":"info","m":"[PhoneMonitor] === Health check complete: 38 checked, 0 newly suspended, 0 inactive_released, 0 auth-failed ==="}
+{"t":"2026-09-15T22:26:21.355716833Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-15T22:26:21.356240138Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-15T22:26:21.356245228Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-15T22:26:21.356246278Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-15T22:26:21.356249408Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-15T22:26:21.356250008Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-15T22:26:21.356255348Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-15T22:26:21.356257788Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-15T22:26:21.356260848Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-15T22:26:21.356263448Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-15T22:26:21.357478456Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-15T22:26:21.357488156Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-15T22:26:21.357493786Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-15T22:27:57.665040862Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-15T22:27:57.665746135Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-15T22:27:57.665748545Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-15T22:27:57.665751285Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-15T22:27:57.665753875Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-15T22:27:57.665756915Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-15T22:27:57.665759375Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-15T22:27:57.665761705Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-15T22:27:57.665763895Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-15T22:27:57.665766135Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-15T22:27:57.666697056Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-15T22:27:57.666702796Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-15T22:27:57.666706856Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-15T22:29:07.672009507Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-15T22:30:00.609222389Z","s":"error","m":"[Contabo] Token fetch failed (attempt 1): {"}
+{"t":"2026-09-15T22:30:00.609240009Z","s":"info","m":"[VPS Self-heal] Could not fetch 203508080: VPS provider authentication failed"}
+{"t":"2026-09-15T22:41:01.043212164Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-15T22:41:35.257146919Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-15T22:41:36.464346260Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-15T22:41:36.713638307Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-15T22:41:36.713642797Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-15T22:41:36.713646526Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-15T22:41:36.713651336Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-15T22:41:36.713667286Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-15T22:41:36.713671676Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-15T22:41:36.713675886Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-15T22:41:36.713680206Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-15T22:41:36.713684106Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-15T22:41:36.713687946Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-15T22:41:36.715657172Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-15T22:41:45.669105631Z","s":"info","m":"[PhoneMonitor] === Health check complete: 38 checked, 0 newly suspended, 0 inactive_released, 0 auth-failed ==="}
+{"t":"2026-09-15T22:41:55.932797229Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-15T23:00:01.649472790Z","s":"error","m":"[Contabo] Token fetch failed (attempt 1): {"}
+{"t":"2026-09-15T23:00:01.649488530Z","s":"info","m":"[VPS Self-heal] Could not fetch 203508080: VPS provider authentication failed"}
+{"t":"2026-09-15T23:11:45.066527172Z","s":"info","m":"[PhoneMonitor] === Health check complete: 38 checked, 0 newly suspended, 0 inactive_released, 0 auth-failed ==="}
+{"t":"2026-09-15T23:30:01.295682067Z","s":"error","m":"[Contabo] Token fetch failed (attempt 1): {"}
+{"t":"2026-09-15T23:30:01.295697737Z","s":"info","m":"[VPS Self-heal] Could not fetch 203508080: VPS provider authentication failed"}
+{"t":"2026-09-15T23:41:45.091440775Z","s":"info","m":"[PhoneMonitor] === Health check complete: 38 checked, 0 newly suspended, 0 inactive_released, 0 auth-failed ==="}
+{"t":"2026-09-16T00:00:08.067297579Z","s":"error","m":"[Contabo] Token fetch failed (attempt 1): {"}
+{"t":"2026-09-16T00:00:08.067308409Z","s":"info","m":"[VPS Self-heal] Could not fetch 203508080: VPS provider authentication failed"}
+{"t":"2026-09-16T00:00:29.503108108Z","s":"info","m":"[AntiRed-Cron] Done. Deployed: 85, Already: 0, Failed: 0, ZoneRefreshed: 0"}
+{"t":"2026-09-16T00:11:46.293768152Z","s":"info","m":"[PhoneMonitor] === Health check complete: 38 checked, 0 newly suspended, 0 inactive_released, 0 auth-failed ==="}
+{"t":"2026-09-16T00:30:00.638305886Z","s":"info","m":"[VPS Self-heal] Could not fetch 203508080: VPS provider authentication failed"}
+{"t":"2026-09-16T00:30:00.638341056Z","s":"error","m":"[Contabo] Token fetch failed (attempt 1): {"}
+{"t":"2026-09-16T00:41:44.132802635Z","s":"info","m":"[PhoneMonitor] === Health check complete: 38 checked, 0 newly suspended, 0 inactive_released, 0 auth-failed ==="}
+{"t":"2026-09-16T01:00:07.163025842Z","s":"error","m":"[Contabo] Token fetch failed (attempt 1): {"}
+{"t":"2026-09-16T01:00:07.163062662Z","s":"info","m":"[VPS Self-heal] Could not fetch 203508080: VPS provider authentication failed"}
+{"t":"2026-09-16T01:11:44.189384084Z","s":"info","m":"[PhoneMonitor] === Health check complete: 38 checked, 0 newly suspended, 0 inactive_released, 0 auth-failed ==="}
+{"t":"2026-09-16T01:30:00.591891962Z","s":"info","m":"[VPS Self-heal] Could not fetch 203508080: VPS provider authentication failed"}
+{"t":"2026-09-16T01:30:00.591898052Z","s":"error","m":"[Contabo] Token fetch failed (attempt 1): {"}
+{"t":"2026-09-16T01:41:44.015049037Z","s":"info","m":"[PhoneMonitor] === Health check complete: 38 checked, 0 newly suspended, 0 inactive_released, 0 auth-failed ==="}
+{"t":"2026-09-16T01:44:02.536261130Z","s":"info","m":"[Twilio] Dial status: failed (0s) chatId=6604316166 type=sip_bridge sid=CAe910ff0b7b890edcd139707fcc0e6c46"}
+{"t":"2026-09-16T01:44:02.547659045Z","s":"info","m":"[Twilio] SIP Bridge Call Call failed 0s — not billed (+18884384595 is not a Nomadly-owned Twilio number for chatId=6604316166; likely a destination/transfer leg, which is correct)."}
+{"t":"2026-09-16T01:44:10.648982375Z","s":"info","m":"[Twilio] Dial status: failed (0s) chatId=6604316166 type=sip_bridge sid=CAb7e9fff86f487357a934ac8d11524250"}
+{"t":"2026-09-16T01:44:10.648986385Z","s":"info","m":"[Twilio] SIP Bridge Call Call failed 0s — not billed (+18884384595 is not a Nomadly-owned Twilio number for chatId=6604316166; likely a destination/transfer leg, which is correct)."}
+{"t":"2026-09-16T02:00:08.545219373Z","s":"error","m":"[Contabo] Token fetch failed (attempt 1): {"}
+{"t":"2026-09-16T02:00:08.545234293Z","s":"info","m":"[VPS Self-heal] Could not fetch 203508080: VPS provider authentication failed"}
+{"t":"2026-09-16T02:10:11.555139606Z","s":"info","m":"[Twilio] Dial status: failed (0s) chatId=6604316166 type=sip_bridge sid=CA33c6e23166e5042ebcff7a697d7a0f76"}
+{"t":"2026-09-16T02:10:11.555143386Z","s":"info","m":"[Twilio] SIP Bridge Call Call failed 0s — not billed (+18884384595 is not a Nomadly-owned Twilio number for chatId=6604316166; likely a destination/transfer leg, which is correct)."}
+{"t":"2026-09-16T02:11:43.942785199Z","s":"info","m":"[PhoneMonitor] === Health check complete: 38 checked, 0 newly suspended, 0 inactive_released, 0 auth-failed ==="}
+{"t":"2026-09-16T02:30:03.863361410Z","s":"error","m":"[Contabo] Token fetch failed (attempt 1): {"}
+{"t":"2026-09-16T02:30:03.863384980Z","s":"info","m":"[VPS Self-heal] Could not fetch 203508080: VPS provider authentication failed"}
+{"t":"2026-09-16T02:41:43.661777968Z","s":"info","m":"[PhoneMonitor] === Health check complete: 38 checked, 0 newly suspended, 0 inactive_released, 0 auth-failed ==="}
+{"t":"2026-09-16T03:00:07.991928086Z","s":"error","m":"[Contabo] Token fetch failed (attempt 1): {"}
+{"t":"2026-09-16T03:00:07.991946456Z","s":"info","m":"[VPS Self-heal] Could not fetch 203508080: VPS provider authentication failed"}
+{"t":"2026-09-16T03:11:43.805528645Z","s":"info","m":"[PhoneMonitor] === Health check complete: 38 checked, 0 newly suspended, 0 inactive_released, 0 auth-failed ==="}
+{"t":"2026-09-16T03:30:02.426214968Z","s":"error","m":"[Contabo] Token fetch failed (attempt 1): {"}
+{"t":"2026-09-16T03:30:02.426229798Z","s":"info","m":"[VPS Self-heal] Could not fetch 203508080: VPS provider authentication failed"}
+{"t":"2026-09-16T03:41:43.999928635Z","s":"info","m":"[PhoneMonitor] === Health check complete: 38 checked, 0 newly suspended, 0 inactive_released, 0 auth-failed ==="}
+{"t":"2026-09-16T04:00:10.330123858Z","s":"error","m":"[Contabo] Token fetch failed (attempt 1): {"}
+{"t":"2026-09-16T04:00:10.330143468Z","s":"info","m":"[VPS Self-heal] Could not fetch 203508080: VPS provider authentication failed"}
+{"t":"2026-09-16T04:11:43.731958477Z","s":"info","m":"[PhoneMonitor] === Health check complete: 38 checked, 0 newly suspended, 0 inactive_released, 0 auth-failed ==="}
+{"t":"2026-09-16T04:30:01.494729709Z","s":"error","m":"[Contabo] Token fetch failed (attempt 1): {"}
+{"t":"2026-09-16T04:30:01.494742208Z","s":"info","m":"[VPS Self-heal] Could not fetch 203508080: VPS provider authentication failed"}
+{"t":"2026-09-16T04:30:15.904699806Z","s":"info","m":"[AutoPromo]   ↳ failed chatId=5165954611 error=\"ETELEGRAM: 403 Forbidden: bot was blocked by the user\""}
+{"t":"2026-09-16T04:30:15.904702686Z","s":"info","m":"[AutoPromo]   ↳ failed chatId=8733350077 error=\"ETELEGRAM: 403 Forbidden: bot was blocked by the user\""}
+{"t":"2026-09-16T04:41:44.031930592Z","s":"info","m":"[PhoneMonitor] === Health check complete: 38 checked, 0 newly suspended, 0 inactive_released, 0 auth-failed ==="}
+{"t":"2026-09-16T05:00:01.326534689Z","s":"error","m":"[Contabo] Token fetch failed (attempt 1): {"}
+{"t":"2026-09-16T05:00:01.326547179Z","s":"info","m":"[VPS Self-heal] Could not fetch 203508080: VPS provider authentication failed"}
+{"t":"2026-09-16T05:11:43.983645449Z","s":"info","m":"[PhoneMonitor] === Health check complete: 38 checked, 0 newly suspended, 0 inactive_released, 0 auth-failed ==="}
+{"t":"2026-09-16T05:30:08.930192067Z","s":"info","m":"[VPS Self-heal] Could not fetch 203508080: VPS provider authentication failed"}
+{"t":"2026-09-16T05:30:08.930202297Z","s":"error","m":"[Contabo] Token fetch failed (attempt 1): {"}
+{"t":"2026-09-16T05:41:43.889086442Z","s":"info","m":"[PhoneMonitor] === Health check complete: 38 checked, 0 newly suspended, 0 inactive_released, 0 auth-failed ==="}
+{"t":"2026-09-16T06:00:00.628501884Z","s":"error","m":"[Contabo] Token fetch failed (attempt 1): {"}
+{"t":"2026-09-16T06:00:00.628516204Z","s":"info","m":"[VPS Self-heal] Could not fetch 203508080: VPS provider authentication failed"}
+{"t":"2026-09-16T06:00:29.795078171Z","s":"info","m":"[AntiRed-Cron] Done. Deployed: 85, Already: 0, Failed: 0, ZoneRefreshed: 0"}
+{"t":"2026-09-16T06:11:44.367367135Z","s":"info","m":"[PhoneMonitor] === Health check complete: 38 checked, 0 newly suspended, 0 inactive_released, 0 auth-failed ==="}
+{"t":"2026-09-16T06:30:01.927547815Z","s":"error","m":"[Contabo] Token fetch failed (attempt 1): {"}
+{"t":"2026-09-16T06:30:01.927568715Z","s":"info","m":"[VPS Self-heal] Could not fetch 203508080: VPS provider authentication failed"}
+{"t":"2026-09-16T06:41:44.940591054Z","s":"info","m":"[PhoneMonitor] === Health check complete: 38 checked, 0 newly suspended, 0 inactive_released, 0 auth-failed ==="}
+{"t":"2026-09-16T07:00:01.446328543Z","s":"error","m":"[Contabo] Token fetch failed (attempt 1): {"}
+{"t":"2026-09-16T07:00:01.446341562Z","s":"info","m":"[VPS Self-heal] Could not fetch 203508080: VPS provider authentication failed"}
+{"t":"2026-09-16T07:11:44.056438130Z","s":"info","m":"[PhoneMonitor] === Health check complete: 38 checked, 0 newly suspended, 0 inactive_released, 0 auth-failed ==="}
+{"t":"2026-09-16T07:30:01.473282452Z","s":"error","m":"[Contabo] Token fetch failed (attempt 1): {"}
+{"t":"2026-09-16T07:30:01.473297211Z","s":"info","m":"[VPS Self-heal] Could not fetch 203508080: VPS provider authentication failed"}
+{"t":"2026-09-16T07:41:43.566678965Z","s":"info","m":"[PhoneMonitor] === Health check complete: 38 checked, 0 newly suspended, 0 inactive_released, 0 auth-failed ==="}
+{"t":"2026-09-16T08:00:01.983960828Z","s":"info","m":"[VPS Self-heal] Could not fetch 203508080: VPS provider authentication failed"}
+{"t":"2026-09-16T08:00:01.983963198Z","s":"error","m":"[Contabo] Token fetch failed (attempt 1): {"}
+{"t":"2026-09-16T08:11:43.615351862Z","s":"info","m":"[PhoneMonitor] === Health check complete: 38 checked, 0 newly suspended, 0 inactive_released, 0 auth-failed ==="}
+{"t":"2026-09-16T08:30:01.863970926Z","s":"error","m":"[Contabo] Token fetch failed (attempt 1): {"}
+{"t":"2026-09-16T08:30:01.863987676Z","s":"info","m":"[VPS Self-heal] Could not fetch 203508080: VPS provider authentication failed"}
+{"t":"2026-09-16T08:41:43.252451044Z","s":"info","m":"[PhoneMonitor] === Health check complete: 38 checked, 0 newly suspended, 0 inactive_released, 0 auth-failed ==="}
+{"t":"2026-09-16T09:00:03.232060547Z","s":"info","m":"[VPS Self-heal] Could not fetch 203508080: VPS provider authentication failed"}
+{"t":"2026-09-16T09:00:03.232068136Z","s":"error","m":"[Contabo] Token fetch failed (attempt 1): {"}
+{"t":"2026-09-16T09:00:16.705378307Z","s":"info","m":"[AutoPromo]   ↳ failed chatId=1873399997 error=\"ETELEGRAM: 403 Forbidden: bot was blocked by the user\""}
+{"t":"2026-09-16T09:00:16.705381017Z","s":"info","m":"[AutoPromo]   ↳ failed chatId=6474590449 error=\"ETELEGRAM: 403 Forbidden: bot was blocked by the user\""}
+{"t":"2026-09-16T09:00:16.705384947Z","s":"info","m":"[AutoPromo]   ↳ failed chatId=8365304678 error=\"ETELEGRAM: 403 Forbidden: bot was blocked by the user\""}
+{"t":"2026-09-16T09:00:16.705387417Z","s":"info","m":"[AutoPromo]   ↳ failed chatId=1125405900 error=\"ETELEGRAM: 403 Forbidden: bot was blocked by the user\""}
+{"t":"2026-09-16T09:00:16.705389637Z","s":"info","m":"[AutoPromo]   ↳ failed chatId=1185746700 error=\"ETELEGRAM: 403 Forbidden: bot was blocked by the user\""}
+{"t":"2026-09-16T09:11:44.176225058Z","s":"info","m":"[PhoneMonitor] === Health check complete: 38 checked, 0 newly suspended, 0 inactive_released, 0 auth-failed ==="}
+{"t":"2026-09-16T09:25:30.185186518Z","s":"info","m":"[cPanel Proxy] AddonDomain::deladdondomain WHM-root fallback returned failure (user: ghrx51df): Failed to parse adminbin request: Cpanel::Cpanel::Api2::AddonDomain::deladdondomain::run is not allowed for suspended accounts at /usr/local/cpanel/Cpanel/AdminBin/Server.pm line 87."}
+{"t":"2026-09-16T09:25:30.185197698Z","s":"info","m":"[Hosting] unlink: removeAddonDomain failed for cunetsballs.com on ghrx51df: Failed to parse adminbin request: Cpanel::Cpanel::Api2::AddonDomain::deladdondomain::run is not allowed for suspended accounts at /usr/local/cpanel/Cpanel/AdminBin/Server.pm line 87."}
+{"t":"2026-09-16T09:25:31.606958310Z","s":"info","m":"reply: ❌ Failed to unlink <b>cunetsballs.com</b>. Please try again, or contact support if the problem persists. \tto: 5976060042"}
+{"t":"2026-09-16T09:30:00.265412959Z","s":"error","m":"[Contabo] Token fetch failed (attempt 1): {"}
+{"t":"2026-09-16T09:30:00.265433149Z","s":"info","m":"[VPS Self-heal] Could not fetch 203508080: VPS provider authentication failed"}
+{"t":"2026-09-16T09:33:26.078206900Z","s":"info","m":"[cPanel Proxy] AddonDomain::deladdondomain WHM-root fallback returned failure (user: ghrx51df): Failed to parse adminbin request: Cpanel::Cpanel::Api2::AddonDomain::deladdondomain::run is not allowed for suspended accounts at /usr/local/cpanel/Cpanel/AdminBin/Server.pm line 87."}
+{"t":"2026-09-16T09:33:26.078218990Z","s":"info","m":"[Hosting] unlink: removeAddonDomain failed for hdjhsfuywuywhjd.info on ghrx51df: Failed to parse adminbin request: Cpanel::Cpanel::Api2::AddonDomain::deladdondomain::run is not allowed for suspended accounts at /usr/local/cpanel/Cpanel/AdminBin/Server.pm line 87."}
+{"t":"2026-09-16T09:33:27.517390405Z","s":"info","m":"reply: ❌ Failed to unlink <b>hdjhsfuywuywhjd.info</b>. Please try again, or contact support if the problem persists. \tto: 5976060042"}
+{"t":"2026-09-16T09:41:43.955070478Z","s":"info","m":"[PhoneMonitor] === Health check complete: 38 checked, 0 newly suspended, 0 inactive_released, 0 auth-failed ==="}
+{"t":"2026-09-16T10:00:01.986857113Z","s":"error","m":"[Contabo] Token fetch failed (attempt 1): {"}
+{"t":"2026-09-16T10:00:01.986866593Z","s":"info","m":"[VPS Self-heal] Could not fetch 203508080: VPS provider authentication failed"}
+{"t":"2026-09-16T10:00:39.066021720Z","s":"info","m":"[AutoPromo]   ↳ failed chatId=8583207407 error=\"ETELEGRAM: 403 Forbidden: bot was blocked by the user\""}
+{"t":"2026-09-16T10:00:39.066027640Z","s":"info","m":"[AutoPromo]   ↳ failed chatId=8571206732 error=\"ETELEGRAM: 403 Forbidden: bot was blocked by the user\""}
+{"t":"2026-09-16T10:00:39.066033620Z","s":"info","m":"[AutoPromo]   ↳ failed chatId=6622198745 error=\"ETELEGRAM: 403 Forbidden: bot was blocked by the user\""}
+{"t":"2026-09-16T10:00:39.066038430Z","s":"info","m":"[AutoPromo]   ↳ failed chatId=2134337702 error=\"ETELEGRAM: 403 Forbidden: bot was blocked by the user\""}
+{"t":"2026-09-16T10:00:39.066043310Z","s":"info","m":"[AutoPromo]   ↳ failed chatId=7001762019 error=\"ETELEGRAM: 403 Forbidden: bot was blocked by the user\""}
+{"t":"2026-09-16T10:00:39.066047970Z","s":"info","m":"[AutoPromo]   ↳ failed chatId=7153699847 error=\"ETELEGRAM: 403 Forbidden: bot was blocked by the user\""}
+{"t":"2026-09-16T10:00:39.066053170Z","s":"info","m":"[AutoPromo]   ↳ failed chatId=7080940684 error=\"ETELEGRAM: 403 Forbidden: bot was blocked by the user\""}
+{"t":"2026-09-16T10:00:39.066063540Z","s":"info","m":"[AutoPromo]   ↳ failed chatId=6705277278 error=\"ETELEGRAM: 403 Forbidden: bot was blocked by the user\""}
+{"t":"2026-09-16T10:00:39.066068220Z","s":"info","m":"[AutoPromo]   ↳ failed chatId=5499846618 error=\"ETELEGRAM: 403 Forbidden: bot was blocked by the user\""}
+{"t":"2026-09-16T10:00:39.066073030Z","s":"info","m":"[AutoPromo]   ↳ failed chatId=8227698477 error=\"ETELEGRAM: 403 Forbidden: bot was blocked by the user\""}
+{"t":"2026-09-16T10:11:44.559586367Z","s":"info","m":"[PhoneMonitor] === Health check complete: 38 checked, 0 newly suspended, 0 inactive_released, 0 auth-failed ==="}
+{"t":"2026-09-16T10:17:12.022076729Z","s":"info","m":"[Railway] listRailwayCustomDomains failed after 2 attempts: Request failed with status code 503 — returning empty list"}
+{"t":"2026-09-16T10:30:02.729114203Z","s":"error","m":"[Contabo] Token fetch failed (attempt 1): {"}
+{"t":"2026-09-16T10:30:02.729133233Z","s":"info","m":"[VPS Self-heal] Could not fetch 203508080: VPS provider authentication failed"}
+{"t":"2026-09-16T10:41:45.705196999Z","s":"info","m":"[PhoneMonitor] === Health check complete: 38 checked, 0 newly suspended, 0 inactive_released, 0 auth-failed ==="}
+{"t":"2026-09-16T11:00:07.723641903Z","s":"error","m":"[Contabo] Token fetch failed (attempt 1): {"}
+{"t":"2026-09-16T11:00:07.723660783Z","s":"info","m":"[VPS Self-heal] Could not fetch 203508080: VPS provider authentication failed"}
+{"t":"2026-09-16T11:11:43.617183271Z","s":"info","m":"[PhoneMonitor] === Health check complete: 38 checked, 0 newly suspended, 0 inactive_released, 0 auth-failed ==="}
+{"t":"2026-09-16T11:30:00.568325304Z","s":"error","m":"[Contabo] Token fetch failed (attempt 1): {"}
+{"t":"2026-09-16T11:30:00.568344414Z","s":"info","m":"[VPS Self-heal] Could not fetch 203508080: VPS provider authentication failed"}
+{"t":"2026-09-16T11:41:44.568848152Z","s":"info","m":"[PhoneMonitor] === Health check complete: 38 checked, 0 newly suspended, 0 inactive_released, 0 auth-failed ==="}
+{"t":"2026-09-16T12:00:02.753738058Z","s":"error","m":"[Contabo] Token fetch failed (attempt 1): {"}
+{"t":"2026-09-16T12:00:02.753755588Z","s":"info","m":"[VPS Self-heal] Could not fetch 203508080: VPS provider authentication failed"}
+{"t":"2026-09-16T12:00:28.043270078Z","s":"info","m":"[AntiRed-Cron] Done. Deployed: 83, Already: 0, Failed: 0, ZoneRefreshed: 0"}
+{"t":"2026-09-16T12:10:56.813162623Z","s":"info","m":"[CR-Whitelist] API test failed (attempt #1): Request failed with status code 401"}
+{"t":"2026-09-16T12:11:04.199316110Z","s":"info","m":"[Twilio Sync] Webhook sync complete: 9 updated, 0 failed, 2 credentials recovered"}
+{"t":"2026-09-16T12:11:08.592797911Z","s":"error","m":"npm error command failed"}
+{"t":"2026-09-16T12:11:14.734968977Z","s":"info","m":"[CR-Whitelist] Browser result: Login failed - landed on https://global.connectreseller.com/login"}
+{"t":"2026-09-16T12:11:14.734973707Z","s":"info","m":"[CR-Whitelist] Browser automation failed: Login failed - landed on https://global.connectreseller.com/login"}
+{"t":"2026-09-16T12:11:17.980455696Z","s":"info","m":"[PhoneMonitor] === Health check complete: 38 checked, 0 newly suspended, 0 inactive_released, 0 auth-failed ==="}
+{"t":"2026-09-16T12:11:39.294862729Z","s":"info","m":"[CpanelMigration] Failed to list WHM accounts: timeout of 30000ms exceeded. Aborting migration."}
+{"t":"2026-09-16T12:12:29.862796926Z","s":"info","m":"[CR-Whitelist] API test failed (attempt #2): timeout of 15000ms exceeded"}
+{"t":"2026-09-16T12:13:37.806473419Z","s":"info","m":"[CR-Whitelist] API test failed (attempt #3): Request failed with status code 502"}
+{"t":"2026-09-16T12:30:03.042395170Z","s":"error","m":"[Contabo] Token fetch failed (attempt 1): {"}
+{"t":"2026-09-16T12:30:03.042410050Z","s":"info","m":"[VPS Self-heal] Could not fetch 203508080: VPS provider authentication failed"}
+{"t":"2026-09-16T12:41:08.624053973Z","s":"info","m":"[PhoneMonitor] === Health check complete: 38 checked, 0 newly suspended, 0 inactive_released, 0 auth-failed ==="}
+{"t":"2026-09-16T12:54:43.407116869Z","s":"info","m":"[CR-Whitelist] API test failed (attempt #10): Request failed with status code 401"}
+{"t":"2026-09-16T13:00:03.457993410Z","s":"error","m":"[Contabo] Token fetch failed (attempt 1): {"}
+{"t":"2026-09-16T13:00:03.458006090Z","s":"info","m":"[VPS Self-heal] Could not fetch 203508080: VPS provider authentication failed"}
+{"t":"2026-09-16T13:11:08.000221643Z","s":"info","m":"[PhoneMonitor] === Health check complete: 38 checked, 0 newly suspended, 0 inactive_released, 0 auth-failed ==="}
+{"t":"2026-09-16T13:30:04.578566485Z","s":"error","m":"[Contabo] Token fetch failed (attempt 1): {"}
+{"t":"2026-09-16T13:30:04.578584445Z","s":"info","m":"[VPS Self-heal] Could not fetch 203508080: VPS provider authentication failed"}
+{"t":"2026-09-16T13:30:13.263364155Z","s":"info","m":"[AutoPromo]   ↳ failed chatId=5165954611 error=\"ETELEGRAM: 403 Forbidden: bot was blocked by the user\""}
+{"t":"2026-09-16T13:30:13.263369055Z","s":"info","m":"[AutoPromo]   ↳ failed chatId=8733350077 error=\"ETELEGRAM: 403 Forbidden: bot was blocked by the user\""}
+{"t":"2026-09-16T13:41:09.493670011Z","s":"info","m":"[PhoneMonitor] === Health check complete: 38 checked, 0 newly suspended, 0 inactive_released, 0 auth-failed ==="}
+{"t":"2026-09-16T14:00:04.627523219Z","s":"error","m":"[Contabo] Token fetch failed (attempt 1): {"}
+{"t":"2026-09-16T14:00:04.627538279Z","s":"info","m":"[VPS Self-heal] Could not fetch 203508080: VPS provider authentication failed"}
+{"t":"2026-09-16T14:11:09.843452038Z","s":"info","m":"[PhoneMonitor] === Health check complete: 38 checked, 0 newly suspended, 0 inactive_released, 0 auth-failed ==="}
+{"t":"2026-09-16T14:30:07.466510058Z","s":"error","m":"[Contabo] Token fetch failed (attempt 1): {"}
+{"t":"2026-09-16T14:30:07.466521207Z","s":"info","m":"[VPS Self-heal] Could not fetch 203508080: VPS provider authentication failed"}
+{"t":"2026-09-16T14:41:08.790288454Z","s":"info","m":"[PhoneMonitor] === Health check complete: 38 checked, 0 newly suspended, 0 inactive_released, 0 auth-failed ==="}
+{"t":"2026-09-16T15:00:01.265266985Z","s":"error","m":"[Contabo] Token fetch failed (attempt 1): {"}
+{"t":"2026-09-16T15:00:01.265287365Z","s":"info","m":"[VPS Self-heal] Could not fetch 203508080: VPS provider authentication failed"}
+{"t":"2026-09-16T15:11:09.073131085Z","s":"info","m":"[PhoneMonitor] === Health check complete: 38 checked, 0 newly suspended, 0 inactive_released, 0 auth-failed ==="}
+{"t":"2026-09-16T15:30:04.607599514Z","s":"error","m":"[Contabo] Token fetch failed (attempt 1): {"}
+{"t":"2026-09-16T15:30:04.607611973Z","s":"info","m":"[VPS Self-heal] Could not fetch 203508080: VPS provider authentication failed"}
+{"t":"2026-09-16T15:41:08.470446626Z","s":"info","m":"[PhoneMonitor] === Health check complete: 38 checked, 0 newly suspended, 0 inactive_released, 0 auth-failed ==="}
+{"t":"2026-09-16T15:50:41.122309744Z","s":"info","m":"[Panel] Self-heal: cpPass rotation FAILED for ghrx51df — Sorry, the user “ghrx51df” is currently suspended. Changing the user’s password would unsuspend the account."}
+{"t":"2026-09-16T15:50:41.122315554Z","s":"info","m":"[Panel] Self-heal: cpPass repair failed for ghrx51df — Sorry, the user “ghrx51df” is currently suspended. Changing the user’s password would unsuspend the account."}
+{"t":"2026-09-16T15:50:41.122319114Z","s":"info","m":"[Panel] list_files user-level failed for /home/ghrx51df/public_html → WHM fallback (user: ghrx51df, reason: user-auth-broken)"}
+{"t":"2026-09-16T15:50:50.285209124Z","s":"info","m":"[Panel] Self-heal: cpPass rotation FAILED for ghrx51df — Sorry, the user “ghrx51df” is currently suspended. Changing the user’s password would unsuspend the account."}
+{"t":"2026-09-16T15:50:50.285213645Z","s":"info","m":"[Panel] Self-heal: cpPass repair failed for ghrx51df — Sorry, the user “ghrx51df” is currently suspended. Changing the user’s password would unsuspend the account."}
+{"t":"2026-09-16T15:50:50.285216985Z","s":"info","m":"[Panel] list_files user-level failed for /home/ghrx51df/public_html/trentase.com → WHM fallback (user: ghrx51df, reason: user-auth-broken)"}
+{"t":"2026-09-16T15:50:54.542678136Z","s":"info","m":"[Panel] Self-heal: cpPass rotation FAILED for ghrx51df — Sorry, the user “ghrx51df” is currently suspended. Changing the user’s password would unsuspend the account."}
+{"t":"2026-09-16T15:50:54.542681876Z","s":"info","m":"[Panel] Self-heal: cpPass repair failed for ghrx51df — Sorry, the user “ghrx51df” is currently suspended. Changing the user’s password would unsuspend the account."}
+{"t":"2026-09-16T15:50:54.542684426Z","s":"info","m":"[Panel] list_files user-level failed for /home/ghrx51df/public_html → WHM fallback (user: ghrx51df, reason: user-auth-broken)"}
+{"t":"2026-09-16T15:51:03.076442809Z","s":"info","m":"[Panel] Self-heal: cpPass rotation FAILED for ghrx51df — Sorry, the user “ghrx51df” is currently suspended. Changing the user’s password would unsuspend the account."}
+{"t":"2026-09-16T15:51:03.076452869Z","s":"info","m":"[Panel] Self-heal: cpPass repair failed for ghrx51df — Sorry, the user “ghrx51df” is currently suspended. Changing the user’s password would unsuspend the account."}
+{"t":"2026-09-16T15:51:03.076460259Z","s":"info","m":"[Panel] list_files user-level failed for /home/ghrx51df/public_html/oioioi → WHM fallback (user: ghrx51df, reason: user-auth-broken)"}
+{"t":"2026-09-16T15:51:21.768296857Z","s":"info","m":"[Panel] Self-heal: cpPass rotation FAILED for ghrx51df — Sorry, the user “ghrx51df” is currently suspended. Changing the user’s password would unsuspend the account."}
+{"t":"2026-09-16T15:51:21.768308817Z","s":"info","m":"[Panel] Self-heal: cpPass repair failed for ghrx51df — Sorry, the user “ghrx51df” is currently suspended. Changing the user’s password would unsuspend the account."}
+{"t":"2026-09-16T15:51:22.048457143Z","s":"info","m":"[cPanel Proxy] uapiViaSession: create_user_session failed for ghrx51df — You cannot create a session for the user “ghrx51df” because they are currently suspended."}
+{"t":"2026-09-16T15:52:12.077636324Z","s":"info","m":"[Panel] Self-heal: cpPass rotation FAILED for ghrx51df — Sorry, the user “ghrx51df” is currently suspended. Changing the user’s password would unsuspend the account."}
+{"t":"2026-09-16T15:52:12.077645334Z","s":"info","m":"[Panel] Self-heal: cpPass repair failed for ghrx51df — Sorry, the user “ghrx51df” is currently suspended. Changing the user’s password would unsuspend the account."}
+{"t":"2026-09-16T15:52:12.077649964Z","s":"info","m":"[Panel] list_files user-level failed for /home/ghrx51df/public_html → WHM fallback (user: ghrx51df, reason: user-auth-broken)"}
+{"t":"2026-09-16T15:52:17.034354799Z","s":"info","m":"[Panel] Self-heal: cpPass rotation FAILED for ghrx51df — Sorry, the user “ghrx51df” is currently suspended. Changing the user’s password would unsuspend the account."}
+{"t":"2026-09-16T15:52:17.034358809Z","s":"info","m":"[Panel] Self-heal: cpPass repair failed for ghrx51df — Sorry, the user “ghrx51df” is currently suspended. Changing the user’s password would unsuspend the account."}
+{"t":"2026-09-16T15:52:17.034361659Z","s":"info","m":"[Panel] list_files user-level failed for /home/ghrx51df/public_html/cunetsballs.com → WHM fallback (user: ghrx51df, reason: user-auth-broken)"}
+{"t":"2026-09-16T15:52:57.663047072Z","s":"info","m":"[Panel] Self-heal: cpPass rotation FAILED for ghrx51df — Sorry, the user “ghrx51df” is currently suspended. Changing the user’s password would unsuspend the account."}
+{"t":"2026-09-16T15:52:57.663052672Z","s":"info","m":"[Panel] Self-heal: cpPass repair failed for ghrx51df — Sorry, the user “ghrx51df” is currently suspended. Changing the user’s password would unsuspend the account."}
+{"t":"2026-09-16T15:52:57.663056932Z","s":"info","m":"[Panel] list_files user-level failed for /home/ghrx51df/public_html/cunetsballs.com/cunetsballs.com → WHM fallback (user: ghrx51df, reason: user-auth-broken)"}
+{"t":"2026-09-16T15:52:59.125805440Z","s":"info","m":"[Panel] Self-heal: cpPass rotation FAILED for ghrx51df — Sorry, the user “ghrx51df” is currently suspended. Changing the user’s password would unsuspend the account."}
+{"t":"2026-09-16T15:52:59.125811580Z","s":"info","m":"[Panel] Self-heal: cpPass repair failed for ghrx51df — Sorry, the user “ghrx51df” is currently suspended. Changing the user’s password would unsuspend the account."}
+{"t":"2026-09-16T15:52:59.442562812Z","s":"info","m":"[cPanel Proxy] uapiViaSession: create_user_session failed for ghrx51df — You cannot create a session for the user “ghrx51df” because they are currently suspended."}
+{"t":"2026-09-16T15:53:08.014810216Z","s":"info","m":"[Panel] Self-heal: cpPass rotation FAILED for ghrx51df — Sorry, the user “ghrx51df” is currently suspended. Changing the user’s password would unsuspend the account."}
+{"t":"2026-09-16T15:53:08.014813136Z","s":"info","m":"[Panel] Self-heal: cpPass repair failed for ghrx51df — Sorry, the user “ghrx51df” is currently suspended. Changing the user’s password would unsuspend the account."}
+{"t":"2026-09-16T15:53:08.014815686Z","s":"info","m":"[Panel] list_files user-level failed for /home/ghrx51df/public_html → WHM fallback (user: ghrx51df, reason: user-auth-broken)"}
+{"t":"2026-09-16T15:54:08.362925230Z","s":"info","m":"[Panel] Self-heal: cpPass rotation FAILED for ghrx51df — Sorry, the user “ghrx51df” is currently suspended. Changing the user’s password would unsuspend the account."}
+{"t":"2026-09-16T15:54:08.362930060Z","s":"info","m":"[Panel] Self-heal: cpPass repair failed for ghrx51df — Sorry, the user “ghrx51df” is currently suspended. Changing the user’s password would unsuspend the account."}
+{"t":"2026-09-16T15:54:08.362934800Z","s":"info","m":"[Panel] Delete user-level failed for trentase.com, trying WHM fallback (user: ghrx51df, reason: Access denied)"}
+{"t":"2026-09-16T15:54:08.364356843Z","s":"info","m":"[Panel] Self-heal: cpPass rotation FAILED for ghrx51df — Sorry, the user “ghrx51df” is currently suspended. Changing the user’s password would unsuspend the account."}
+{"t":"2026-09-16T15:54:08.364359913Z","s":"info","m":"[Panel] Self-heal: cpPass repair failed for ghrx51df — Sorry, the user “ghrx51df” is currently suspended. Changing the user’s password would unsuspend the account."}
+{"t":"2026-09-16T15:54:08.364363333Z","s":"info","m":"[Panel] Delete user-level failed for hdjhsfuywuywhjd.info, trying WHM fallback (user: ghrx51df, reason: Access denied)"}
+{"t":"2026-09-16T15:54:08.364374603Z","s":"info","m":"[Panel] Self-heal: cpPass rotation FAILED for ghrx51df — Sorry, the user “ghrx51df” is currently suspended. Changing the user’s password would unsuspend the account."}
+{"t":"2026-09-16T15:54:08.364378403Z","s":"info","m":"[Panel] Self-heal: cpPass repair failed for ghrx51df — Sorry, the user “ghrx51df” is currently suspended. Changing the user’s password would unsuspend the account."}
+{"t":"2026-09-16T15:54:08.364381553Z","s":"info","m":"[Panel] list_files user-level failed for /home/ghrx51df/public_html → WHM fallback (user: ghrx51df, reason: user-auth-broken)"}
+{"t":"2026-09-16T15:54:28.363826836Z","s":"info","m":"[Panel] Self-heal: cpPass rotation FAILED for ghrx51df — Sorry, the user “ghrx51df” is currently suspended. Changing the user’s password would unsuspend the account."}
+{"t":"2026-09-16T15:54:28.363830936Z","s":"info","m":"[Panel] Self-heal: cpPass repair failed for ghrx51df — Sorry, the user “ghrx51df” is currently suspended. Changing the user’s password would unsuspend the account."}
+{"t":"2026-09-16T15:54:28.363834636Z","s":"info","m":"[Panel] mkdir user-level failed for \"lopy\" in /home/ghrx51df/public_html, trying WHM fallback (user: ghrx51df, reason: user-auth-broken)"}
+{"t":"2026-09-16T15:54:28.363846556Z","s":"info","m":"[Panel] Self-heal: cpPass rotation FAILED for ghrx51df — Sorry, the user “ghrx51df” is currently suspended. Changing the user’s password would unsuspend the account."}
+{"t":"2026-09-16T15:54:28.363849796Z","s":"info","m":"[Panel] Self-heal: cpPass repair failed for ghrx51df — Sorry, the user “ghrx51df” is currently suspended. Changing the user’s password would unsuspend the account."}
+{"t":"2026-09-16T15:54:28.363853266Z","s":"info","m":"[Panel] list_files user-level failed for /home/ghrx51df/public_html → WHM fallback (user: ghrx51df, reason: user-auth-broken)"}
+{"t":"2026-09-16T15:54:31.161704381Z","s":"info","m":"[Panel] Self-heal: cpPass rotation FAILED for ghrx51df — Sorry, the user “ghrx51df” is currently suspended. Changing the user’s password would unsuspend the account."}
+{"t":"2026-09-16T15:54:31.161709561Z","s":"info","m":"[Panel] Self-heal: cpPass repair failed for ghrx51df — Sorry, the user “ghrx51df” is currently suspended. Changing the user’s password would unsuspend the account."}
+{"t":"2026-09-16T15:54:31.161713071Z","s":"info","m":"[Panel] list_files user-level failed for /home/ghrx51df/public_html/lopy → WHM fallback (user: ghrx51df, reason: user-auth-broken)"}
+{"t":"2026-09-16T15:54:57.416776447Z","s":"info","m":"[cPanel Proxy] Fileman::upload_files error (401): Request failed with status code 401 [AUTH]"}
+{"t":"2026-09-16T15:54:57.416787897Z","s":"info","m":"[Panel] Self-heal: cpPass rotation FAILED for ghrx51df — Sorry, the user “ghrx51df” is currently suspended. Changing the user’s password would unsuspend the account."}
+{"t":"2026-09-16T15:54:57.416794327Z","s":"info","m":"[Panel] Self-heal: cpPass repair failed for ghrx51df — Sorry, the user “ghrx51df” is currently suspended. Changing the user’s password would unsuspend the account."}
+{"t":"2026-09-16T15:54:57.416804267Z","s":"info","m":"[cPanel Proxy] uploadFileViaSession: create_user_session failed for ghrx51df — You cannot create a session for the user “ghrx51df” because they are currently suspended."}
+{"t":"2026-09-16T15:54:57.416808097Z","s":"info","m":"[Panel] Upload WHM session fallback failed: water_v2.html → /home/ghrx51df/public_html/lopy (user: ghrx51df, via=session-create-failed) — You cannot create a session for the user “ghrx51df” because they are currently suspended."}
+{"t":"2026-09-16T15:54:57.416816236Z","s":"info","m":"[Panel] Self-heal: cpPass rotation FAILED for ghrx51df — Sorry, the user “ghrx51df” is currently suspended. Changing the user’s password would unsuspend the account."}
+{"t":"2026-09-16T15:54:57.416820246Z","s":"info","m":"[Panel] Self-heal: cpPass repair failed for ghrx51df — Sorry, the user “ghrx51df” is currently suspended. Changing the user’s password would unsuspend the account."}
+{"t":"2026-09-16T15:54:57.416823786Z","s":"info","m":"[Panel] list_files user-level failed for /home/ghrx51df/public_html/lopy → WHM fallback (user: ghrx51df, reason: user-auth-broken)"}
+{"t":"2026-09-16T15:55:17.417052200Z","s":"info","m":"[Panel] Self-heal: cpPass rotation FAILED for ghrx51df — Sorry, the user “ghrx51df” is currently suspended. Changing the user’s password would unsuspend the account."}
+{"t":"2026-09-16T15:55:17.417055919Z","s":"info","m":"[Panel] Self-heal: cpPass repair failed for ghrx51df — Sorry, the user “ghrx51df” is currently suspended. Changing the user’s password would unsuspend the account."}
+{"t":"2026-09-16T15:55:17.417059749Z","s":"info","m":"[Panel] list_files user-level failed for /home/ghrx51df/public_html → WHM fallback (user: ghrx51df, reason: user-auth-broken)"}
+{"t":"2026-09-16T15:56:09.850899714Z","s":"info","m":"[Panel] list_files user-level failed for /home/ghrx51df/public_html/lopy → WHM fallback (user: ghrx51df, reason: user-auth-broken)"}
+{"t":"2026-09-16T15:57:10.212557874Z","s":"info","m":"[cPanel Proxy] Fileman::upload_files error (401): Request failed with status code 401 [AUTH]"}
+{"t":"2026-09-16T15:57:10.212574153Z","s":"info","m":"[Panel] list_files user-level failed for /home/ghrx51df/public_html/lopy → WHM fallback (user: ghrx51df, reason: user-auth-broken)"}
+{"t":"2026-09-16T15:57:13.042106553Z","s":"info","m":"[Panel] extract user-level failed for mytlp.zip → WHM fallback (user: ghrx51df, reason: user-auth-broken)"}
+{"t":"2026-09-16T15:57:15.042943138Z","s":"info","m":"[Panel] list_files user-level failed for /home/ghrx51df/public_html/lopy → WHM fallback (user: ghrx51df, reason: user-auth-broken)"}
+{"t":"2026-09-16T15:57:35.754578385Z","s":"info","m":"[Panel] Delete user-level failed for mytlp.zip, trying WHM fallback (user: ghrx51df, reason: Access denied)"}
+{"t":"2026-09-16T15:57:35.754602345Z","s":"info","m":"[Panel] Delete user-level failed for skp, trying WHM fallback (user: ghrx51df, reason: Access denied)"}
+{"t":"2026-09-16T15:57:35.754612705Z","s":"info","m":"[Panel] list_files user-level failed for /home/ghrx51df/public_html/lopy → WHM fallback (user: ghrx51df, reason: user-auth-broken)"}
+{"t":"2026-09-16T15:57:41.866368033Z","s":"info","m":"[Panel] list_files user-level failed for /home/ghrx51df/public_html/lopy/mytlp → WHM fallback (user: ghrx51df, reason: user-auth-broken)"}
+{"t":"2026-09-16T15:57:51.858763739Z","s":"info","m":"[Panel] list_files user-level failed for /home/ghrx51df/public_html/lopy/mytlp → WHM fallback (user: ghrx51df, reason: user-auth-broken)"}
+{"t":"2026-09-16T15:58:12.174697574Z","s":"info","m":"[Panel] list_files user-level failed for /home/ghrx51df/public_html/lopy → WHM fallback (user: ghrx51df, reason: user-auth-broken)"}
+{"t":"2026-09-16T15:58:12.174708034Z","s":"info","m":"[Panel] Delete user-level failed for index.html, trying WHM fallback (user: ghrx51df, reason: Access denied)"}
+{"t":"2026-09-16T15:58:12.174725594Z","s":"info","m":"[Panel] list_files user-level failed for /home/ghrx51df/public_html/lopy/mytlp → WHM fallback (user: ghrx51df, reason: user-auth-broken)"}
+{"t":"2026-09-16T15:58:32.997038949Z","s":"info","m":"[Panel] list_files user-level failed for /home/ghrx51df/public_html/lopy → WHM fallback (user: ghrx51df, reason: user-auth-broken)"}
+{"t":"2026-09-16T15:58:43.741531811Z","s":"info","m":"[Panel] Delete user-level failed for mytlp, trying WHM fallback (user: ghrx51df, reason: Access denied)"}
+{"t":"2026-09-16T15:58:45.308821282Z","s":"info","m":"[Panel] list_files user-level failed for /home/ghrx51df/public_html/lopy → WHM fallback (user: ghrx51df, reason: user-auth-broken)"}
+{"t":"2026-09-16T16:00:04.800891372Z","s":"error","m":"[Contabo] Token fetch failed (attempt 1): {"}
+{"t":"2026-09-16T16:00:04.800906982Z","s":"info","m":"[VPS Self-heal] Could not fetch 203508080: VPS provider authentication failed"}
+{"t":"2026-09-16T16:01:10.850641934Z","s":"info","m":"[Panel] list_files user-level failed for /home/ghrx51df/public_html/lopy → WHM fallback (user: ghrx51df, reason: user-auth-broken)"}
+{"t":"2026-09-16T16:02:22.848287626Z","s":"info","m":"[Twilio] Dial status: failed (0s) chatId=6604316166 type=sip_bridge sid=CA0a8c90923e289a226fc31c4310a8d559"}
+{"t":"2026-09-16T16:02:22.848290606Z","s":"info","m":"[Twilio] SIP Bridge Call Call failed 0s — not billed (+18884384595 is not a Nomadly-owned Twilio number for chatId=6604316166; likely a destination/transfer leg, which is correct)."}
+{"t":"2026-09-16T16:04:25.732182132Z","s":"info","m":"[Twilio] Dial status: failed (0s) chatId=6604316166 type=sip_bridge sid=CA409697044b5ec511d21cc8d39e6c58ee"}
+{"t":"2026-09-16T16:04:25.732188222Z","s":"info","m":"[Twilio] SIP Bridge Call Call failed 0s — not billed (+18884384595 is not a Nomadly-owned Twilio number for chatId=6604316166; likely a destination/transfer leg, which is correct)."}
+{"t":"2026-09-16T16:11:09.036644720Z","s":"info","m":"[PhoneMonitor] === Health check complete: 38 checked, 0 newly suspended, 0 inactive_released, 0 auth-failed ==="}
+{"t":"2026-09-16T16:12:47.035268499Z","s":"info","m":"[CR-Whitelist] API test failed (attempt #1): Request failed with status code 401"}
+{"t":"2026-09-16T16:12:57.769173206Z","s":"info","m":"[Twilio Sync] Webhook sync complete: 9 updated, 0 failed, 0 credentials recovered"}
+{"t":"2026-09-16T16:13:04.766828113Z","s":"error","m":"npm error command failed"}
+{"t":"2026-09-16T16:13:05.782765644Z","s":"info","m":"[CR-Whitelist] Browser result: Login failed - landed on https://global.connectreseller.com/login?returnUrl=%2Fadmin%2Fdashboard"}
+{"t":"2026-09-16T16:13:05.782770617Z","s":"info","m":"[CR-Whitelist] Browser automation failed: Login failed - landed on https://global.connectreseller.com/login?returnUrl=%2Fadmin%2Fdashboard"}
+{"t":"2026-09-16T16:13:10.948819351Z","s":"info","m":"[PhoneMonitor] === Health check complete: 38 checked, 0 newly suspended, 0 inactive_released, 0 auth-failed ==="}
+{"t":"2026-09-16T16:13:32.099707617Z","s":"info","m":"[CpanelMigration] Failed to list WHM accounts: timeout of 30000ms exceeded. Aborting migration."}
+{"t":"2026-09-16T16:14:06.031404893Z","s":"info","m":"[CR-Whitelist] API test failed (attempt #2): Request failed with status code 401"}
+{"t":"2026-09-16T16:15:07.258148827Z","s":"info","m":"[CR-Whitelist] API test failed (attempt #3): Request failed with status code 401"}
+{"t":"2026-09-16T16:20:21.229885334Z","s":"info","m":"Attempt 1 failed for 8583207407, retrying in 2s..."}
+{"t":"2026-09-16T16:20:24.320940039Z","s":"info","m":"Attempt 2 failed for 8583207407, retrying in 2s..."}
+{"t":"2026-09-16T16:20:27.392478946Z","s":"info","m":"Attempt 1 failed for 8571206732, retrying in 2s..."}
+{"t":"2026-09-16T16:20:28.301582603Z","s":"info","m":"Attempt 1 failed for 1873399997, retrying in 2s..."}
+{"t":"2026-09-16T16:20:28.301587860Z","s":"info","m":"Attempt 1 failed for 6622198745, retrying in 2s..."}
+{"t":"2026-09-16T16:20:29.449858428Z","s":"info","m":"Attempt 2 failed for 8571206732, retrying in 2s..."}
+{"t":"2026-09-16T16:20:30.528451522Z","s":"info","m":"Attempt 2 failed for 1873399997, retrying in 2s..."}
+{"t":"2026-09-16T16:20:30.528463247Z","s":"info","m":"Attempt 2 failed for 6622198745, retrying in 2s..."}
+{"t":"2026-09-16T16:20:34.338599369Z","s":"info","m":"Attempt 1 failed for 2134337702, retrying in 2s..."}
+{"t":"2026-09-16T16:20:34.338617115Z","s":"info","m":"Attempt 1 failed for 7001762019, retrying in 2s..."}
+{"t":"2026-09-16T16:20:34.338627032Z","s":"info","m":"Attempt 1 failed for 7153699847, retrying in 2s..."}
+{"t":"2026-09-16T16:20:35.276489642Z","s":"info","m":"Attempt 1 failed for 7080940684, retrying in 2s..."}
+{"t":"2026-09-16T16:20:35.276497644Z","s":"info","m":"Attempt 1 failed for 6705277278, retrying in 2s..."}
+{"t":"2026-09-16T16:20:36.274389300Z","s":"info","m":"Attempt 2 failed for 2134337702, retrying in 2s..."}
+{"t":"2026-09-16T16:20:36.274396615Z","s":"info","m":"Attempt 2 failed for 7001762019, retrying in 2s..."}
+{"t":"2026-09-16T16:20:36.396731153Z","s":"info","m":"Attempt 2 failed for 7153699847, retrying in 2s..."}
+{"t":"2026-09-16T16:20:37.241592753Z","s":"info","m":"Attempt 2 failed for 7080940684, retrying in 2s..."}
+{"t":"2026-09-16T16:20:37.241622790Z","s":"info","m":"Attempt 2 failed for 6705277278, retrying in 2s..."}
+{"t":"2026-09-16T16:20:40.583866212Z","s":"info","m":"Attempt 1 failed for 5499846618, retrying in 2s..."}
+{"t":"2026-09-16T16:20:41.287273303Z","s":"info","m":"Attempt 1 failed for 8227698477, retrying in 2s..."}
+{"t":"2026-09-16T16:20:42.535330800Z","s":"info","m":"Attempt 2 failed for 5499846618, retrying in 2s..."}
+{"t":"2026-09-16T16:20:43.406503440Z","s":"info","m":"Attempt 2 failed for 8227698477, retrying in 2s..."}
+{"t":"2026-09-16T16:20:47.323269347Z","s":"info","m":"Attempt 1 failed for 7871534890, retrying in 2s..."}
+{"t":"2026-09-16T16:20:47.557028846Z","s":"info","m":"Attempt 1 failed for 7143370403, retrying in 2s..."}
+{"t":"2026-09-16T16:20:49.319661509Z","s":"info","m":"Attempt 2 failed for 7871534890, retrying in 2s..."}
+{"t":"2026-09-16T16:20:50.340531550Z","s":"info","m":"Attempt 2 failed for 7143370403, retrying in 2s..."}
+{"t":"2026-09-16T16:20:53.370612477Z","s":"info","m":"Attempt 1 failed for 7483890978, retrying in 2s..."}
+{"t":"2026-09-16T16:20:54.324236434Z","s":"info","m":"Attempt 1 failed for 608689870, retrying in 2s..."}
+{"t":"2026-09-16T16:20:54.324246359Z","s":"info","m":"Attempt 1 failed for 8535445436, retrying in 2s..."}
+{"t":"2026-09-16T16:20:54.324251698Z","s":"info","m":"Attempt 1 failed for 5840976965, retrying in 2s..."}
+{"t":"2026-09-16T16:20:55.645073550Z","s":"info","m":"Attempt 2 failed for 7483890978, retrying in 2s..."}
+{"t":"2026-09-16T16:20:56.344832956Z","s":"info","m":"Attempt 2 failed for 8535445436, retrying in 2s..."}
+{"t":"2026-09-16T16:20:56.344834476Z","s":"info","m":"Attempt 2 failed for 608689870, retrying in 2s..."}
+{"t":"2026-09-16T16:20:56.419086821Z","s":"info","m":"Attempt 2 failed for 5840976965, retrying in 2s..."}
+{"t":"2026-09-16T16:21:00.337266623Z","s":"info","m":"Attempt 1 failed for 7788328049, retrying in 2s..."}
+{"t":"2026-09-16T16:21:02.518860421Z","s":"info","m":"Attempt 2 failed for 7788328049, retrying in 2s..."}
+{"t":"2026-09-16T16:21:07.309025209Z","s":"info","m":"Attempt 1 failed for 5285007353, retrying in 2s..."}
+{"t":"2026-09-16T16:21:09.296286265Z","s":"info","m":"Attempt 2 failed for 5285007353, retrying in 2s..."}
+{"t":"2026-09-16T16:21:12.484196797Z","s":"info","m":"Attempt 1 failed for 7811056850, retrying in 2s..."}
+{"t":"2026-09-16T16:21:14.650850822Z","s":"info","m":"Attempt 2 failed for 7811056850, retrying in 2s..."}
+{"t":"2026-09-16T16:21:18.550593067Z","s":"info","m":"Attempt 1 failed for 7265172586, retrying in 2s..."}
+{"t":"2026-09-16T16:21:19.373709313Z","s":"info","m":"Attempt 1 failed for 6212781460, retrying in 2s..."}
+{"t":"2026-09-16T16:21:19.373716840Z","s":"info","m":"Attempt 1 failed for 7997864593, retrying in 2s..."}
+{"t":"2026-09-16T16:21:21.387232611Z","s":"info","m":"Attempt 2 failed for 7265172586, retrying in 2s..."}
+{"t":"2026-09-16T16:21:21.387245743Z","s":"info","m":"Attempt 2 failed for 6212781460, retrying in 2s..."}
+{"t":"2026-09-16T16:21:21.469057653Z","s":"info","m":"Attempt 2 failed for 7997864593, retrying in 2s..."}
+{"t":"2026-09-16T16:21:26.483822365Z","s":"info","m":"Attempt 1 failed for 6474590449, retrying in 2s..."}
+{"t":"2026-09-16T16:21:28.613128825Z","s":"info","m":"Attempt 2 failed for 6474590449, retrying in 2s..."}
+{"t":"2026-09-16T16:21:33.495837719Z","s":"info","m":"Attempt 1 failed for 8365304678, retrying in 2s..."}
+{"t":"2026-09-16T16:21:33.495844232Z","s":"info","m":"Attempt 1 failed for 8672338591, retrying in 2s..."}
+{"t":"2026-09-16T16:21:35.430193786Z","s":"info","m":"Attempt 2 failed for 8365304678, retrying in 2s..."}
+{"t":"2026-09-16T16:21:35.430199551Z","s":"info","m":"Attempt 2 failed for 8672338591, retrying in 2s..."}
+{"t":"2026-09-16T16:21:38.616287383Z","s":"info","m":"Attempt 1 failed for 7592390430, retrying in 2s..."}
+{"t":"2026-09-16T16:21:38.724597208Z","s":"info","m":"Attempt 1 failed for 890522022, retrying in 2s..."}
+{"t":"2026-09-16T16:21:40.663625493Z","s":"info","m":"Attempt 1 failed for 8072077320, retrying in 2s..."}
+{"t":"2026-09-16T16:21:40.663638410Z","s":"info","m":"Attempt 1 failed for 7197038796, retrying in 2s..."}
+{"t":"2026-09-16T16:21:40.663645060Z","s":"info","m":"Attempt 2 failed for 7592390430, retrying in 2s..."}
+{"t":"2026-09-16T16:21:41.535340110Z","s":"info","m":"Attempt 2 failed for 890522022, retrying in 2s..."}
+{"t":"2026-09-16T16:21:42.594308576Z","s":"info","m":"Attempt 2 failed for 8072077320, retrying in 2s..."}
+{"t":"2026-09-16T16:21:42.594321908Z","s":"info","m":"Attempt 2 failed for 7197038796, retrying in 2s..."}
+{"t":"2026-09-16T16:21:45.508800453Z","s":"info","m":"Attempt 1 failed for 1125405900, retrying in 2s..."}
+{"t":"2026-09-16T16:21:46.422632610Z","s":"info","m":"Attempt 1 failed for 8154286492, retrying in 2s..."}
+{"t":"2026-09-16T16:21:47.668365250Z","s":"info","m":"Attempt 2 failed for 1125405900, retrying in 2s..."}
+{"t":"2026-09-16T16:21:48.634845235Z","s":"info","m":"Attempt 2 failed for 8154286492, retrying in 2s..."}
+{"t":"2026-09-16T16:21:52.831760063Z","s":"info","m":"Attempt 1 failed for 1891976674, retrying in 2s..."}
+{"t":"2026-09-16T16:21:53.781185974Z","s":"info","m":"Attempt 1 failed for 7342356372, retrying in 2s..."}
+{"t":"2026-09-16T16:21:53.781201010Z","s":"info","m":"Attempt 1 failed for 7642510889, retrying in 2s..."}
+{"t":"2026-09-16T16:21:54.772718117Z","s":"info","m":"Attempt 2 failed for 1891976674, retrying in 2s..."}
+{"t":"2026-09-16T16:21:55.554348219Z","s":"info","m":"Attempt 2 failed for 7342356372, retrying in 2s..."}
+{"t":"2026-09-16T16:21:55.554354393Z","s":"info","m":"Attempt 2 failed for 7642510889, retrying in 2s..."}
+{"t":"2026-09-16T16:21:59.586037364Z","s":"info","m":"Attempt 1 failed for 6773976684, retrying in 2s..."}
+{"t":"2026-09-16T16:21:59.713877697Z","s":"info","m":"Attempt 1 failed for 8028976972, retrying in 2s..."}
+{"t":"2026-09-16T16:22:00.800245573Z","s":"info","m":"Attempt 1 failed for 7920112461, retrying in 2s..."}
+{"t":"2026-09-16T16:22:01.691849828Z","s":"info","m":"Attempt 2 failed for 6773976684, retrying in 2s..."}
+{"t":"2026-09-16T16:22:02.563042378Z","s":"info","m":"Attempt 2 failed for 8028976972, retrying in 2s..."}
+{"t":"2026-09-16T16:22:02.563054122Z","s":"info","m":"Attempt 2 failed for 7920112461, retrying in 2s..."}
+{"t":"2026-09-16T16:22:05.752474813Z","s":"info","m":"Attempt 1 failed for 7825211958, retrying in 2s..."}
+{"t":"2026-09-16T16:22:07.169219006Z","s":"info","m":"Attempt 1 failed for 8982092691, retrying in 2s..."}
+{"t":"2026-09-16T16:22:07.169228298Z","s":"info","m":"Attempt 1 failed for 8403823134, retrying in 2s..."}
+{"t":"2026-09-16T16:22:07.169664932Z","s":"info","m":"Attempt 1 failed for 7838037760, retrying in 2s..."}
+{"t":"2026-09-16T16:22:07.169672084Z","s":"info","m":"Attempt 1 failed for 1185746700, retrying in 2s..."}
+{"t":"2026-09-16T16:22:08.316346511Z","s":"info","m":"Attempt 2 failed for 7825211958, retrying in 2s..."}
+{"t":"2026-09-16T16:22:08.316351622Z","s":"info","m":"Attempt 2 failed for 7838037760, retrying in 2s..."}
+{"t":"2026-09-16T16:22:09.721123106Z","s":"info","m":"Attempt 2 failed for 1185746700, retrying in 2s..."}
+{"t":"2026-09-16T16:22:09.721129702Z","s":"info","m":"Attempt 2 failed for 8982092691, retrying in 2s..."}
+{"t":"2026-09-16T16:22:09.721136131Z","s":"info","m":"Attempt 2 failed for 8403823134, retrying in 2s..."}
+{"t":"2026-09-16T16:22:13.665792347Z","s":"info","m":"Attempt 1 failed for 6065371962, retrying in 2s..."}
+{"t":"2026-09-16T16:22:13.665892065Z","s":"info","m":"Attempt 1 failed for 5301743043, retrying in 2s..."}
+{"t":"2026-09-16T16:22:13.665902598Z","s":"info","m":"Attempt 1 failed for 8550834705, retrying in 2s..."}
+{"t":"2026-09-16T16:22:14.701028811Z","s":"info","m":"Attempt 2 failed for 6065371962, retrying in 2s..."}
+{"t":"2026-09-16T16:22:15.642201754Z","s":"info","m":"Attempt 2 failed for 5301743043, retrying in 2s..."}
+{"t":"2026-09-16T16:22:15.642206617Z","s":"info","m":"Attempt 2 failed for 8550834705, retrying in 2s..."}
+{"t":"2026-09-16T16:22:19.855664776Z","s":"info","m":"Attempt 1 failed for 8277768870, retrying in 2s..."}
+{"t":"2026-09-16T16:22:19.855669736Z","s":"info","m":"Attempt 1 failed for 1481251555, retrying in 2s..."}
+{"t":"2026-09-16T16:22:19.855675344Z","s":"info","m":"Attempt 1 failed for 5165954611, retrying in 2s..."}
+{"t":"2026-09-16T16:22:19.855682042Z","s":"info","m":"Attempt 1 failed for 8733350077, retrying in 2s..."}
+{"t":"2026-09-16T16:22:21.337196778Z","s":"info","m":"Attempt 2 failed for 8277768870, retrying in 2s..."}
+{"t":"2026-09-16T16:22:21.337203094Z","s":"info","m":"Attempt 2 failed for 1481251555, retrying in 2s..."}
+{"t":"2026-09-16T16:22:21.337210680Z","s":"info","m":"Attempt 2 failed for 5165954611, retrying in 2s..."}
+{"t":"2026-09-16T16:22:22.678753159Z","s":"info","m":"Attempt 2 failed for 8733350077, retrying in 2s..."}
+{"t":"2026-09-16T16:22:26.505296976Z","s":"info","m":"Attempt 1 failed for 6313684029, retrying in 2s..."}
+{"t":"2026-09-16T16:22:26.505303121Z","s":"info","m":"Attempt 1 failed for 7545101404, retrying in 2s..."}
+{"t":"2026-09-16T16:22:26.505309370Z","s":"info","m":"Attempt 1 failed for 8814381030, retrying in 2s..."}
+{"t":"2026-09-16T16:22:26.505316708Z","s":"info","m":"Attempt 1 failed for 1783970745, retrying in 2s..."}
+{"t":"2026-09-16T16:22:28.812255661Z","s":"info","m":"Attempt 2 failed for 6313684029, retrying in 2s..."}
+{"t":"2026-09-16T16:22:28.812262145Z","s":"info","m":"Attempt 2 failed for 7545101404, retrying in 2s..."}
+{"t":"2026-09-16T16:22:28.812268874Z","s":"info","m":"Attempt 2 failed for 8814381030, retrying in 2s..."}
+{"t":"2026-09-16T16:22:28.812280816Z","s":"info","m":"Attempt 2 failed for 1783970745, retrying in 2s..."}
+{"t":"2026-09-16T16:22:33.191203707Z","s":"info","m":"Attempt 1 failed for 1839732010, retrying in 2s..."}
+{"t":"2026-09-16T16:22:33.191230601Z","s":"info","m":"Attempt 1 failed for 8753242095, retrying in 2s..."}
+{"t":"2026-09-16T16:22:34.313777651Z","s":"info","m":"Attempt 1 failed for 8832658547, retrying in 2s..."}
+{"t":"2026-09-16T16:22:34.313787685Z","s":"info","m":"Attempt 1 failed for 966945512, retrying in 2s..."}
+{"t":"2026-09-16T16:22:35.321295413Z","s":"info","m":"Attempt 2 failed for 1839732010, retrying in 2s..."}
+{"t":"2026-09-16T16:22:35.321301190Z","s":"info","m":"Attempt 2 failed for 8753242095, retrying in 2s..."}
+{"t":"2026-09-16T16:22:36.727926384Z","s":"info","m":"Attempt 2 failed for 8832658547, retrying in 2s..."}
+{"t":"2026-09-16T16:22:36.727933657Z","s":"info","m":"Attempt 2 failed for 966945512, retrying in 2s..."}
+{"t":"2026-09-16T16:22:42.017294751Z","s":"info","m":"Attempt 1 failed for 5609177382, retrying in 2s..."}
+{"t":"2026-09-16T16:22:42.017356698Z","s":"info","m":"Attempt 1 failed for 1062801090, retrying in 2s..."}
+{"t":"2026-09-16T16:22:42.017366661Z","s":"info","m":"Attempt 1 failed for 8541034217, retrying in 2s..."}
+{"t":"2026-09-16T16:22:42.960677251Z","s":"info","m":"Attempt 1 failed for 6656614307, retrying in 2s..."}
+{"t":"2026-09-16T16:22:42.960679988Z","s":"info","m":"Attempt 1 failed for 5036192323, retrying in 2s..."}
+{"t":"2026-09-16T16:22:44.018746643Z","s":"info","m":"Attempt 2 failed for 1062801090, retrying in 2s..."}
+{"t":"2026-09-16T16:22:44.932927414Z","s":"info","m":"Attempt 2 failed for 8541034217, retrying in 2s..."}
+{"t":"2026-09-16T16:22:44.932940796Z","s":"info","m":"Attempt 2 failed for 5609177382, retrying in 2s..."}
+{"t":"2026-09-16T16:22:44.944352150Z","s":"info","m":"Attempt 2 failed for 5036192323, retrying in 2s..."}
+{"t":"2026-09-16T16:22:44.990767670Z","s":"info","m":"Attempt 2 failed for 6656614307, retrying in 2s..."}
+{"t":"2026-09-16T16:22:49.006102830Z","s":"info","m":"Attempt 1 failed for 8174647568, retrying in 2s..."}
+{"t":"2026-09-16T16:22:49.802177375Z","s":"info","m":"Attempt 1 failed for 719267642, retrying in 2s..."}
+{"t":"2026-09-16T16:22:49.802185269Z","s":"info","m":"Attempt 1 failed for 7129789280, retrying in 2s..."}
+{"t":"2026-09-16T16:22:51.725649306Z","s":"info","m":"Attempt 2 failed for 8174647568, retrying in 2s..."}
+{"t":"2026-09-16T16:22:51.725657181Z","s":"info","m":"Attempt 2 failed for 719267642, retrying in 2s..."}
+{"t":"2026-09-16T16:22:51.729170108Z","s":"info","m":"Attempt 2 failed for 7129789280, retrying in 2s..."}
+{"t":"2026-09-16T16:22:55.999664463Z","s":"info","m":"Attempt 1 failed for 7118709222, retrying in 2s..."}
+{"t":"2026-09-16T16:22:55.999678215Z","s":"info","m":"Attempt 1 failed for 8001798956, retrying in 2s..."}
+{"t":"2026-09-16T16:22:56.886154918Z","s":"info","m":"Attempt 1 failed for 5502850003, retrying in 2s..."}
+{"t":"2026-09-16T16:22:57.810883893Z","s":"info","m":"Attempt 2 failed for 7118709222, retrying in 2s..."}
+{"t":"2026-09-16T16:22:57.810890066Z","s":"info","m":"Attempt 2 failed for 8001798956, retrying in 2s..."}
+{"t":"2026-09-16T16:22:58.805339248Z","s":"info","m":"Attempt 2 failed for 5502850003, retrying in 2s..."}
+{"t":"2026-09-16T16:23:02.983609020Z","s":"info","m":"Attempt 1 failed for 6533163539, retrying in 2s..."}
+{"t":"2026-09-16T16:23:06.038873704Z","s":"info","m":"Attempt 2 failed for 6533163539, retrying in 2s..."}
+{"t":"2026-09-16T16:23:08.963394118Z","s":"info","m":"Attempt 1 failed for 8729309678, retrying in 2s..."}
+{"t":"2026-09-16T16:23:09.939332029Z","s":"info","m":"Attempt 1 failed for 8917446434, retrying in 2s..."}
+{"t":"2026-09-16T16:23:10.999108472Z","s":"info","m":"Attempt 2 failed for 8729309678, retrying in 2s..."}
+{"t":"2026-09-16T16:23:11.927845569Z","s":"info","m":"Attempt 2 failed for 8917446434, retrying in 2s..."}
+{"t":"2026-09-16T16:30:05.166479482Z","s":"info","m":"[VPS Self-heal] Could not fetch 203508080: VPS provider authentication failed"}
+{"t":"2026-09-16T16:30:05.166510239Z","s":"error","m":"[Contabo] Token fetch failed (attempt 1): {"}
+{"t":"2026-09-16T16:31:28.538569856Z","s":"info","m":"[Twilio] Dial status: failed (0s) chatId=8944352220 type=sip_bridge sid=CA4f41a3160b7b2fb2543c885f31b1e282"}
+{"t":"2026-09-16T16:31:28.538579332Z","s":"info","m":"[Twilio] SIP Bridge Call Call failed 0s — not billed (+18883361570 is not a Nomadly-owned Twilio number for chatId=8944352220; likely a destination/transfer leg, which is correct)."}
+{"t":"2026-09-16T16:43:03.441238796Z","s":"info","m":"[PhoneMonitor] === Health check complete: 38 checked, 0 newly suspended, 0 inactive_released, 0 auth-failed ==="}
+{"t":"2026-09-16T16:44:06.572946553Z","s":"info","m":"[CR-Whitelist] API test failed (attempt #1): Request failed with status code 401"}
+{"t":"2026-09-16T16:44:18.802351005Z","s":"info","m":"[Twilio Sync] Webhook sync complete: 9 updated, 0 failed, 0 credentials recovered"}
+{"t":"2026-09-16T16:44:25.828049875Z","s":"info","m":"[CR-Whitelist] Browser result: Login failed - landed on https://global.connectreseller.com/login?returnUrl=%2Fadmin%2Fdashboard"}
+{"t":"2026-09-16T16:44:25.828057115Z","s":"info","m":"[CR-Whitelist] Browser automation failed: Login failed - landed on https://global.connectreseller.com/login?returnUrl=%2Fadmin%2Fdashboard"}
+{"t":"2026-09-16T16:44:28.015517936Z","s":"error","m":"npm error command failed"}
+{"t":"2026-09-16T16:44:33.141852948Z","s":"info","m":"[PhoneMonitor] === Health check complete: 38 checked, 0 newly suspended, 0 inactive_released, 0 auth-failed ==="}
+{"t":"2026-09-16T16:44:51.163344048Z","s":"info","m":"[CpanelMigration] Failed to list WHM accounts: timeout of 30000ms exceeded. Aborting migration."}
+{"t":"2026-09-16T16:45:26.292205112Z","s":"info","m":"[CR-Whitelist] API test failed (attempt #2): Request failed with status code 401"}
+{"t":"2026-09-16T16:46:26.790083211Z","s":"info","m":"[CR-Whitelist] API test failed (attempt #3): Request failed with status code 401"}
+{"t":"2026-09-16T16:50:31.331691043Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-16T16:50:33.772414218Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-16T16:50:33.772419245Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-16T16:50:34.322828716Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-16T16:50:34.322832971Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-16T16:50:34.322835992Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-16T16:50:34.322840264Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-16T16:50:34.322844347Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-16T16:50:34.322848778Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-16T16:50:34.322853265Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-16T16:50:34.322858459Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-16T16:50:34.322861730Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-16T16:50:34.322865365Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-16T16:51:01.144928942Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-16T17:00:05.886985079Z","s":"error","m":"[Contabo] Token fetch failed (attempt 1): {"}
+{"t":"2026-09-16T17:00:05.887005889Z","s":"info","m":"[VPS Self-heal] Could not fetch 203508080: VPS provider authentication failed"}
+{"t":"2026-09-16T17:14:23.025171795Z","s":"info","m":"[PhoneMonitor] === Health check complete: 38 checked, 0 newly suspended, 0 inactive_released, 0 auth-failed ==="}
+{"t":"2026-09-16T17:18:54.876833935Z","s":"info","m":"[CR-Whitelist] API test failed (attempt #1): Request failed with status code 401"}
+{"t":"2026-09-16T17:19:07.731545464Z","s":"info","m":"[Twilio Sync] Webhook sync complete: 9 updated, 0 failed, 0 credentials recovered"}
+{"t":"2026-09-16T17:19:12.411801817Z","s":"error","m":"npm error command failed"}
+{"t":"2026-09-16T17:19:14.776290757Z","s":"info","m":"[CR-Whitelist] Browser result: Login failed - landed on https://global.connectreseller.com/login?returnUrl=%2Fadmin%2Fdashboard"}
+{"t":"2026-09-16T17:19:14.776294777Z","s":"info","m":"[CR-Whitelist] Browser automation failed: Login failed - landed on https://global.connectreseller.com/login?returnUrl=%2Fadmin%2Fdashboard"}
+{"t":"2026-09-16T17:19:21.919041895Z","s":"info","m":"[PhoneMonitor] === Health check complete: 38 checked, 0 newly suspended, 0 inactive_released, 0 auth-failed ==="}
+{"t":"2026-09-16T17:19:39.296624539Z","s":"info","m":"[CpanelMigration] Failed to list WHM accounts: timeout of 30000ms exceeded. Aborting migration."}
+{"t":"2026-09-16T17:20:19.271143414Z","s":"info","m":"[CR-Whitelist] API test failed (attempt #2): Request failed with status code 401"}
+{"t":"2026-09-16T17:21:15.500172157Z","s":"info","m":"[CR-Whitelist] API test failed (attempt #3): Request failed with status code 401"}
+{"t":"2026-09-16T17:30:06.117674874Z","s":"error","m":"[Contabo] Token fetch failed (attempt 1): {"}
+{"t":"2026-09-16T17:30:06.117688253Z","s":"info","m":"[VPS Self-heal] Could not fetch 203508080: VPS provider authentication failed"}
+{"t":"2026-09-16T17:49:11.794370537Z","s":"info","m":"[PhoneMonitor] === Health check complete: 38 checked, 0 newly suspended, 0 inactive_released, 0 auth-failed ==="}
+{"t":"2026-09-16T18:00:09.302813606Z","s":"error","m":"[Contabo] Token fetch failed (attempt 1): {"}
+{"t":"2026-09-16T18:00:09.302827766Z","s":"info","m":"[VPS Self-heal] Could not fetch 203508080: VPS provider authentication failed"}
+{"t":"2026-09-16T18:00:20.392852735Z","s":"info","m":"[AutoPromo]   ↳ failed chatId=1873399997 error=\"ETELEGRAM: 403 Forbidden: bot was blocked by the user\""}
+{"t":"2026-09-16T18:00:20.392856545Z","s":"info","m":"[AutoPromo]   ↳ failed chatId=6474590449 error=\"ETELEGRAM: 403 Forbidden: bot was blocked by the user\""}
+{"t":"2026-09-16T18:00:20.392861195Z","s":"info","m":"[AutoPromo]   ↳ failed chatId=8365304678 error=\"ETELEGRAM: 403 Forbidden: bot was blocked by the user\""}
+{"t":"2026-09-16T18:00:20.392866115Z","s":"info","m":"[AutoPromo]   ↳ failed chatId=1125405900 error=\"ETELEGRAM: 403 Forbidden: bot was blocked by the user\""}
+{"t":"2026-09-16T18:00:20.392870395Z","s":"info","m":"[AutoPromo]   ↳ failed chatId=1185746700 error=\"ETELEGRAM: 403 Forbidden: bot was blocked by the user\""}
+{"t":"2026-09-16T18:00:31.746470988Z","s":"info","m":"[AntiRed-Cron] Done. Deployed: 83, Already: 0, Failed: 0, ZoneRefreshed: 0"}
+{"t":"2026-09-16T18:02:24.396476972Z","s":"info","m":"[CR-Whitelist] API test failed (attempt #10): Request failed with status code 401"}
+{"t":"2026-09-16T18:03:35.744724960Z","s":"info","m":"[CR-Whitelist] API test failed (attempt #1): Request failed with status code 401"}
+{"t":"2026-09-16T18:03:44.462192693Z","s":"error","m":"npm error command failed"}
+{"t":"2026-09-16T18:03:48.125355017Z","s":"info","m":"[Twilio Sync] Webhook sync complete: 9 updated, 0 failed, 0 credentials recovered"}
+{"t":"2026-09-16T18:03:54.043795341Z","s":"info","m":"[CR-Whitelist] Browser result: Login failed - landed on https://global.connectreseller.com/login?returnUrl=%2Fadmin%2Fdashboard"}
+{"t":"2026-09-16T18:03:54.043801490Z","s":"info","m":"[CR-Whitelist] Browser automation failed: Login failed - landed on https://global.connectreseller.com/login?returnUrl=%2Fadmin%2Fdashboard"}
+{"t":"2026-09-16T18:04:03.030924213Z","s":"info","m":"[PhoneMonitor] === Health check complete: 38 checked, 0 newly suspended, 0 inactive_released, 0 auth-failed ==="}
+{"t":"2026-09-16T18:04:19.905827179Z","s":"info","m":"[CpanelMigration] Failed to list WHM accounts: timeout of 30000ms exceeded. Aborting migration."}
+{"t":"2026-09-16T18:04:54.179790351Z","s":"info","m":"[CR-Whitelist] API test failed (attempt #2): Request failed with status code 401"}
+{"t":"2026-09-16T18:05:54.714845173Z","s":"info","m":"[CR-Whitelist] API test failed (attempt #3): Request failed with status code 401"}
+{"t":"2026-09-16T18:24:38.929185595Z","s":"info","m":"[CR-Whitelist] API test failed (attempt #1): Request failed with status code 401"}
+{"t":"2026-09-16T18:24:48.486338976Z","s":"error","m":"npm error command failed"}
+{"t":"2026-09-16T18:24:50.991377926Z","s":"info","m":"[Twilio Sync] Webhook sync complete: 9 updated, 0 failed, 0 credentials recovered"}
+{"t":"2026-09-16T18:24:57.830828188Z","s":"info","m":"[CR-Whitelist] Browser result: Login failed - landed on https://global.connectreseller.com/login?returnUrl=%2Fadmin%2Fdashboard"}
+{"t":"2026-09-16T18:24:57.830837198Z","s":"info","m":"[CR-Whitelist] Browser automation failed: Login failed - landed on https://global.connectreseller.com/login?returnUrl=%2Fadmin%2Fdashboard"}
+{"t":"2026-09-16T18:25:05.877862514Z","s":"info","m":"[PhoneMonitor] === Health check complete: 38 checked, 0 newly suspended, 0 inactive_released, 0 auth-failed ==="}
+{"t":"2026-09-16T18:25:23.471293953Z","s":"info","m":"[CpanelMigration] Failed to list WHM accounts: timeout of 30000ms exceeded. Aborting migration."}
+{"t":"2026-09-16T18:25:58.365596527Z","s":"info","m":"[CR-Whitelist] API test failed (attempt #2): Request failed with status code 401"}
+{"t":"2026-09-16T18:26:58.774343412Z","s":"info","m":"[CR-Whitelist] API test failed (attempt #3): Request failed with status code 401"}
+{"t":"2026-09-16T18:30:08.497014076Z","s":"error","m":"[Contabo] Token fetch failed (attempt 1): {"}
+{"t":"2026-09-16T18:30:08.497026706Z","s":"info","m":"[VPS Self-heal] Could not fetch 203508080: VPS provider authentication failed"}
+{"t":"2026-09-16T18:54:55.553513814Z","s":"info","m":"[PhoneMonitor] === Health check complete: 38 checked, 0 newly suspended, 0 inactive_released, 0 auth-failed ==="}
+{"t":"2026-09-16T19:00:09.358532442Z","s":"error","m":"[Contabo] Token fetch failed (attempt 1): {"}
+{"t":"2026-09-16T19:00:09.358547192Z","s":"info","m":"[VPS Self-heal] Could not fetch 203508080: VPS provider authentication failed"}
+{"t":"2026-09-16T19:02:01.624698122Z","s":"info","m":"[AutoPromo]   ↳ failed chatId=8227698477 error=\"ETELEGRAM: 403 Forbidden: bot was blocked by the user\""}
+{"t":"2026-09-16T19:02:01.624738971Z","s":"info","m":"[AutoPromo]   ↳ failed chatId=8583207407 error=\"ETELEGRAM: 403 Forbidden: bot was blocked by the user\""}
+{"t":"2026-09-16T19:02:01.624743351Z","s":"info","m":"[AutoPromo]   ↳ failed chatId=8571206732 error=\"ETELEGRAM: 403 Forbidden: bot was blocked by the user\""}
+{"t":"2026-09-16T19:02:01.624747121Z","s":"info","m":"[AutoPromo]   ↳ failed chatId=6622198745 error=\"ETELEGRAM: 403 Forbidden: bot was blocked by the user\""}
+{"t":"2026-09-16T19:02:01.624750791Z","s":"info","m":"[AutoPromo]   ↳ failed chatId=2134337702 error=\"ETELEGRAM: 403 Forbidden: bot was blocked by the user\""}
+{"t":"2026-09-16T19:02:01.624754611Z","s":"info","m":"[AutoPromo]   ↳ failed chatId=7001762019 error=\"ETELEGRAM: 403 Forbidden: bot was blocked by the user\""}
+{"t":"2026-09-16T19:02:01.624758431Z","s":"info","m":"[AutoPromo]   ↳ failed chatId=7153699847 error=\"ETELEGRAM: 403 Forbidden: bot was blocked by the user\""}
+{"t":"2026-09-16T19:02:01.624762720Z","s":"info","m":"[AutoPromo]   ↳ failed chatId=7080940684 error=\"ETELEGRAM: 403 Forbidden: bot was blocked by the user\""}
+{"t":"2026-09-16T19:02:01.624766600Z","s":"info","m":"[AutoPromo]   ↳ failed chatId=6705277278 error=\"ETELEGRAM: 403 Forbidden: bot was blocked by the user\""}
+{"t":"2026-09-16T19:02:01.624771320Z","s":"info","m":"[AutoPromo]   ↳ failed chatId=5499846618 error=\"ETELEGRAM: 403 Forbidden: bot was blocked by the user\""}
+{"t":"2026-09-16T19:08:07.568883767Z","s":"info","m":"[CR-Whitelist] API test failed (attempt #10): Request failed with status code 401"}
+{"t":"2026-09-16T19:24:54.949898895Z","s":"info","m":"[PhoneMonitor] === Health check complete: 38 checked, 0 newly suspended, 0 inactive_released, 0 auth-failed ==="}
+{"t":"2026-09-16T19:30:08.504174491Z","s":"error","m":"[Contabo] Token fetch failed (attempt 1): {"}
+{"t":"2026-09-16T19:30:08.504194831Z","s":"info","m":"[VPS Self-heal] Could not fetch 203508080: VPS provider authentication failed"}
+{"t":"2026-09-16T19:46:15.106506953Z","s":"info","m":"[CR-Whitelist] API test failed (attempt #1): Request failed with status code 401"}
+{"t":"2026-09-16T19:46:27.529847658Z","s":"error","m":"npm error command failed"}
+{"t":"2026-09-16T19:46:27.923774875Z","s":"info","m":"[Twilio Sync] Webhook sync complete: 9 updated, 0 failed, 0 credentials recovered"}
+{"t":"2026-09-16T19:46:34.229785363Z","s":"info","m":"[CR-Whitelist] Browser result: Login failed - landed on https://global.connectreseller.com/login?returnUrl=%2Fadmin%2Fdashboard"}
+{"t":"2026-09-16T19:46:34.229807813Z","s":"info","m":"[CR-Whitelist] Browser automation failed: Login failed - landed on https://global.connectreseller.com/login?returnUrl=%2Fadmin%2Fdashboard"}
+{"t":"2026-09-16T19:46:42.864394972Z","s":"info","m":"[PhoneMonitor] === Health check complete: 38 checked, 0 newly suspended, 0 inactive_released, 0 auth-failed ==="}
+{"t":"2026-09-16T19:46:59.901507579Z","s":"info","m":"[CpanelMigration] Failed to list WHM accounts: timeout of 30000ms exceeded. Aborting migration."}
+{"t":"2026-09-16T19:47:34.644778251Z","s":"info","m":"[CR-Whitelist] API test failed (attempt #2): Request failed with status code 401"}
+{"t":"2026-09-16T19:48:35.185040745Z","s":"info","m":"[CR-Whitelist] API test failed (attempt #3): Request failed with status code 401"}
+{"t":"2026-09-16T19:51:59.789659868Z","s":"error","m":"Error in getting Crypto address Request failed with status code 401"}
+{"t":"2026-09-16T19:56:05.943408947Z","s":"info","m":"[CR-Whitelist] API test failed (attempt #1): Request failed with status code 401"}
+{"t":"2026-09-16T19:56:09.502131852Z","s":"info","m":"[CR-Whitelist] API test failed (attempt #2): Request failed with status code 401"}
+{"t":"2026-09-16T19:56:09.680905875Z","s":"info","m":"[CR-Whitelist] API test failed (attempt #3): Request failed with status code 401"}
+{"t":"2026-09-16T19:56:13.078355470Z","s":"error","m":"npm error command failed"}
+{"t":"2026-09-16T19:56:19.442300104Z","s":"info","m":"[Twilio Sync] Webhook sync complete: 9 updated, 0 failed, 0 credentials recovered"}
+{"t":"2026-09-16T19:56:26.084473110Z","s":"info","m":"[CR-Whitelist] Browser result: Login failed - landed on https://global.connectreseller.com/login?returnUrl=%2Fadmin%2Fdashboard"}
+{"t":"2026-09-16T19:56:26.084476180Z","s":"info","m":"[CR-Whitelist] Browser automation failed: Login failed - landed on https://global.connectreseller.com/login?returnUrl=%2Fadmin%2Fdashboard"}
+{"t":"2026-09-16T19:56:36.368083007Z","s":"info","m":"[PhoneMonitor] === Health check complete: 38 checked, 0 newly suspended, 0 inactive_released, 0 auth-failed ==="}
+{"t":"2026-09-16T19:56:50.503115457Z","s":"info","m":"[CpanelMigration] Failed to list WHM accounts: timeout of 30000ms exceeded. Aborting migration."}
+{"t":"2026-09-16T19:58:07.586392924Z","s":"error","m":"[Contabo] Token fetch failed (attempt 1): {"}
+{"t":"2026-09-16T19:58:08.440071613Z","s":"error","m":"[Contabo] Token fetch failed (attempt 1): {"}
+{"t":"2026-09-16T19:58:13.595321917Z","s":"error","m":"[Contabo] Token fetch failed (attempt 1): {"}
+{"t":"2026-09-16T19:58:13.595333087Z","s":"info","m":"Error in fetchVPSDetails (contabo): VPS provider authentication failed"}
+{"t":"2026-09-16T19:58:56.088634302Z","s":"error","m":"[Contabo] Token fetch failed (attempt 1): {"}
+{"t":"2026-09-16T19:58:56.291641084Z","s":"error","m":"[Contabo] Token fetch failed (attempt 1): {"}
+{"t":"2026-09-16T20:00:06.488548202Z","s":"error","m":"[Contabo] Token fetch failed (attempt 1): {"}
+{"t":"2026-09-16T20:00:06.488560482Z","s":"info","m":"[VPS Self-heal] Could not fetch 203508080: VPS provider authentication failed"}
+{"t":"2026-09-16T20:06:12.546342647Z","s":"info","m":"[BulkIVR] Status: campaign=vault-auth-7 lead=4 sid=CAdea9c48c7e12cdb389239f969140ccbe status=failed duration=0s"}
+{"t":"2026-09-16T20:06:12.567891058Z","s":"info","m":"[BulkCall] Skipped billing — call never connected (status=failed, 0s) campaign=vault-auth-7 lead=4"}
+{"t":"2026-09-16T20:06:13.492690298Z","s":"info","m":"[BulkIVR] Status: campaign=vault-auth-7 lead=5 sid=CAd36916db032d5a0a244caf853e426d38 status=failed duration=0s"}
+{"t":"2026-09-16T20:06:13.511355924Z","s":"info","m":"[BulkCall] Skipped billing — call never connected (status=failed, 0s) campaign=vault-auth-7 lead=5"}
+{"t":"2026-09-16T20:10:23.714383766Z","s":"info","m":"[BulkIVR] Status: campaign=vault-auth-7 lead=14 sid=CA8d3ca024353ca5aaeaa5675d8e550c7a status=failed duration=0s"}
+{"t":"2026-09-16T20:10:23.714390925Z","s":"info","m":"[BulkCall] Skipped billing — call never connected (status=failed, 0s) campaign=vault-auth-7 lead=14"}
+{"t":"2026-09-16T20:10:24.706188972Z","s":"info","m":"[BulkIVR] Status: campaign=vault-auth-7 lead=15 sid=CAc8794233372c3c88c554c5a41fcacde2 status=failed duration=0s"}
+{"t":"2026-09-16T20:10:24.706192742Z","s":"info","m":"[BulkCall] Skipped billing — call never connected (status=failed, 0s) campaign=vault-auth-7 lead=15"}
+{"t":"2026-09-16T20:10:26.851626578Z","s":"info","m":"[BulkIVR] Status: campaign=vault-auth-7 lead=15 sid=CA16ac332b1f70ea0e713cf3b10d6ba679 status=failed duration=0s"}
+{"t":"2026-09-16T20:10:26.860822489Z","s":"info","m":"[BulkCall] Skipped billing — call never connected (status=failed, 0s) campaign=vault-auth-7 lead=15"}
+{"t":"2026-09-16T20:20:08.803276071Z","s":"error","m":"Error in getting Crypto address Request failed with status code 401"}
+{"t":"2026-09-16T20:26:23.647028372Z","s":"info","m":"[PhoneMonitor] === Health check complete: 39 checked, 0 newly suspended, 0 inactive_released, 0 auth-failed ==="}
+{"t":"2026-09-16T20:30:05.552025844Z","s":"error","m":"[Contabo] Token fetch failed (attempt 1): {"}
+{"t":"2026-09-16T20:30:05.552037954Z","s":"info","m":"[VPS Self-heal] Could not fetch 203508080: VPS provider authentication failed"}
+{"t":"2026-09-16T20:39:16.997636380Z","s":"info","m":"[CR-Whitelist] API test failed (attempt #10): Request failed with status code 401"}
+{"t":"2026-09-16T20:56:24.363206596Z","s":"info","m":"[PhoneMonitor] === Health check complete: 39 checked, 0 newly suspended, 0 inactive_released, 0 auth-failed ==="}
+{"t":"2026-09-16T21:00:00.610701333Z","s":"error","m":"[Contabo] Token fetch failed (attempt 1): {"}
+{"t":"2026-09-16T21:00:00.610717263Z","s":"info","m":"[VPS Self-heal] Could not fetch 203508080: VPS provider authentication failed"}
+{"t":"2026-09-16T21:10:19.336610942Z","s":"error","m":"Error in getting Crypto address Request failed with status code 401"}
+{"t":"2026-09-16T21:18:24.303124072Z","s":"error","m":"Error in getting Crypto address Request failed with status code 401"}
+{"t":"2026-09-16T21:26:24.126074229Z","s":"info","m":"[PhoneMonitor] === Health check complete: 39 checked, 0 newly suspended, 0 inactive_released, 0 auth-failed ==="}
+{"t":"2026-09-16T21:28:52.450996300Z","s":"info","m":"[CR-Whitelist] API test failed (attempt #1): Request failed with status code 401"}
+{"t":"2026-09-16T21:28:58.868446693Z","s":"error","m":"npm error command failed"}
+{"t":"2026-09-16T21:28:59.394042010Z","s":"info","m":"[CR-Whitelist] API test failed (attempt #2): Request failed with status code 401"}
+{"t":"2026-09-16T21:28:59.579192443Z","s":"info","m":"[CR-Whitelist] API test failed (attempt #3): Request failed with status code 401"}
+{"t":"2026-09-16T21:29:04.803407669Z","s":"info","m":"[Twilio Sync] Webhook sync complete: 10 updated, 0 failed, 0 credentials recovered"}
+{"t":"2026-09-16T21:29:10.985019444Z","s":"info","m":"[CR-Whitelist] Browser result: Login failed - landed on https://global.connectreseller.com/login?returnUrl=%2Fadmin%2Fdashboard"}
+{"t":"2026-09-16T21:29:10.985024804Z","s":"info","m":"[CR-Whitelist] Browser automation failed: Login failed - landed on https://global.connectreseller.com/login?returnUrl=%2Fadmin%2Fdashboard"}
+{"t":"2026-09-16T21:29:21.594114550Z","s":"info","m":"[PhoneMonitor] === Health check complete: 39 checked, 0 newly suspended, 0 inactive_released, 0 auth-failed ==="}
+{"t":"2026-09-16T21:29:37.070776713Z","s":"info","m":"[CpanelMigration] Failed to list WHM accounts: timeout of 30000ms exceeded. Aborting migration."}
+{"t":"2026-09-16T21:30:07.107203996Z","s":"error","m":"[Contabo] Token fetch failed (attempt 1): {"}
+{"t":"2026-09-16T21:30:07.107216715Z","s":"info","m":"[VPS Self-heal] Could not fetch 203508080: VPS provider authentication failed"}
+{"t":"2026-09-16T21:45:11.986826347Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-16T21:45:11.988794167Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-16T21:45:11.988798357Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-16T21:45:11.988800817Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-16T21:45:11.988805107Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-16T21:45:11.988808187Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-16T21:45:11.988811187Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-16T21:45:11.988813877Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-16T21:45:11.988816617Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-16T21:45:11.990095353Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-16T21:45:11.990100343Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-16T21:45:11.990105153Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-16T21:45:11.990108803Z","s":"error","m":"checkDomainPriceOnline checkDomainPriceOnline error: Request failed with status code 401 {\"statusCode\":401,\"statusText\":\"Unauthorized\",\"responseText\":\"Unauthenticated user\"}"}
+{"t":"2026-09-16T21:59:09.455208471Z","s":"info","m":"[PhoneMonitor] === Health check complete: 39 checked, 0 newly suspended, 0 inactive_released, 0 auth-failed ==="}
+{"t":"2026-09-16T22:00:00.645710055Z","s":"error","m":"[Contabo] Token fetch failed (attempt 1): {"}
+{"t":"2026-09-16T22:00:00.645727355Z","s":"info","m":"[VPS Self-heal] Could not fetch 203508080: VPS provider authentication failed"}
+{"t":"2026-09-16T22:12:02.505599775Z","s":"info","m":"[CR-Whitelist] API test failed (attempt #10): Request failed with status code 401"}
+{"t":"2026-09-16T22:29:09.462468139Z","s":"info","m":"[PhoneMonitor] === Health check complete: 39 checked, 0 newly suspended, 0 inactive_released, 0 auth-failed ==="}
+{"t":"2026-09-16T22:30:09.712350760Z","s":"error","m":"[Contabo] Token fetch failed (attempt 1): {"}
+{"t":"2026-09-16T22:30:09.712371040Z","s":"info","m":"[VPS Self-heal] Could not fetch 203508080: VPS provider authentication failed"}
+{"t":"2026-09-16T22:59:09.401352551Z","s":"info","m":"[PhoneMonitor] === Health check complete: 39 checked, 0 newly suspended, 0 inactive_released, 0 auth-failed ==="}
+{"t":"2026-09-16T23:00:02.449597711Z","s":"info","m":"[VPS Self-heal] Could not fetch 203508080: VPS provider authentication failed"}
+{"t":"2026-09-16T23:00:02.449600641Z","s":"error","m":"[Contabo] Token fetch failed (attempt 1): {"}
+{"t":"2026-09-16T23:29:08.843415432Z","s":"info","m":"[PhoneMonitor] === Health check complete: 39 checked, 0 newly suspended, 0 inactive_released, 0 auth-failed ==="}
+{"t":"2026-09-16T23:30:09.003184302Z","s":"error","m":"[Contabo] Token fetch failed (attempt 1): {"}
+{"t":"2026-09-16T23:30:09.003201952Z","s":"info","m":"[VPS Self-heal] Could not fetch 203508080: VPS provider authentication failed"}
+{"t":"2026-09-16T23:59:09.503099006Z","s":"info","m":"[PhoneMonitor] === Health check complete: 39 checked, 0 newly suspended, 0 inactive_released, 0 auth-failed ==="}
+{"t":"2026-09-17T00:00:09.103898002Z","s":"error","m":"[Contabo] Token fetch failed (attempt 1): {"}
+{"t":"2026-09-17T00:00:09.103975710Z","s":"info","m":"[VPS Self-heal] Could not fetch 203508080: VPS provider authentication failed"}
+{"t":"2026-09-17T00:00:31.778254691Z","s":"info","m":"[AntiRed-Cron] Done. Deployed: 83, Already: 0, Failed: 0, ZoneRefreshed: 0"}
+{"t":"2026-09-17T00:29:09.069990032Z","s":"info","m":"[PhoneMonitor] === Health check complete: 39 checked, 0 newly suspended, 0 inactive_released, 0 auth-failed ==="}
+{"t":"2026-09-17T00:30:03.038756346Z","s":"error","m":"[Contabo] Token fetch failed (attempt 1): {"}
+{"t":"2026-09-17T00:30:03.038770426Z","s":"info","m":"[VPS Self-heal] Could not fetch 203508080: VPS provider authentication failed"}
+{"t":"2026-09-17T00:49:24.269366781Z","s":"info","m":"[Twilio] Dial status: failed (0s) chatId=6604316166 type=sip_bridge sid=CA67764e37da6f803eda9d17e0ad54b9e8"}
+{"t":"2026-09-17T00:49:24.269372151Z","s":"info","m":"[Twilio] SIP Bridge Call Call failed 0s — 1-min minimum is charged on the Telnyx SIP leg, not here"}
+{"t":"2026-09-17T00:55:31.849851089Z","s":"info","m":"[Twilio] Dial status: failed (0s) chatId=6604316166 type=sip_bridge sid=CAbc89410ca4aa9670490156f5c533adb2"}
+{"t":"2026-09-17T00:55:31.849855669Z","s":"info","m":"[Twilio] SIP Bridge Call Call failed 0s — 1-min minimum is charged on the Telnyx SIP leg, not here"}
+{"t":"2026-09-17T00:59:09.146781055Z","s":"info","m":"[PhoneMonitor] === Health check complete: 39 checked, 0 newly suspended, 0 inactive_released, 0 auth-failed ==="}
+{"t":"2026-09-17T01:00:00.361785575Z","s":"error","m":"[Contabo] Token fetch failed (attempt 1): {"}
+{"t":"2026-09-17T01:00:00.361805485Z","s":"info","m":"[VPS Self-heal] Could not fetch 203508080: VPS provider authentication failed"}
+{"t":"2026-09-17T01:19:20.607842533Z","s":"info","m":"[Twilio] Dial status: failed (0s) chatId=6604316166 type=sip_bridge sid=CAfb518223a575d3e691bcb7091d514044"}
+{"t":"2026-09-17T01:19:20.607849033Z","s":"info","m":"[Twilio] SIP Bridge Call Call failed 0s — 1-min minimum is charged on the Telnyx SIP leg, not here"}
+{"t":"2026-09-17T01:29:08.679659716Z","s":"info","m":"[PhoneMonitor] === Health check complete: 39 checked, 0 newly suspended, 0 inactive_released, 0 auth-failed ==="}
+{"t":"2026-09-17T01:30:00.633476170Z","s":"error","m":"[Contabo] Token fetch failed (attempt 1): {"}
+{"t":"2026-09-17T01:30:00.633496310Z","s":"info","m":"[VPS Self-heal] Could not fetch 203508080: VPS provider authentication failed"}
+{"t":"2026-09-17T01:31:35.800820071Z","s":"info","m":"[Twilio] Dial status: failed (0s) chatId=6604316166 type=sip_bridge sid=CA02fb578be9497788a7ff2a3c8141afb5"}
+{"t":"2026-09-17T01:31:35.800823051Z","s":"info","m":"[Twilio] SIP Bridge Call Call failed 0s — 1-min minimum is charged on the Telnyx SIP leg, not here"}
+{"t":"2026-09-17T01:59:09.216949618Z","s":"info","m":"[PhoneMonitor] === Health check complete: 39 checked, 0 newly suspended, 0 inactive_released, 0 auth-failed ==="}
+{"t":"2026-09-17T02:00:06.283656244Z","s":"error","m":"[Contabo] Token fetch failed (attempt 1): {"}
+{"t":"2026-09-17T02:00:06.283668324Z","s":"info","m":"[VPS Self-heal] Could not fetch 203508080: VPS provider authentication failed"}
+{"t":"2026-09-17T02:13:22.574349648Z","s":"info","m":"[Twilio] Dial status: failed (0s) chatId=6604316166 type=sip_bridge sid=CA5ef44d51d001fa19f5d961ef7a3965aa"}
+{"t":"2026-09-17T02:13:22.574353987Z","s":"info","m":"[Twilio] SIP Bridge Call Call failed 0s — 1-min minimum is charged on the Telnyx SIP leg, not here"}
+{"t":"2026-09-17T02:29:09.825717149Z","s":"info","m":"[PhoneMonitor] === Health check complete: 39 checked, 0 newly suspended, 0 inactive_released, 0 auth-failed ==="}
+{"t":"2026-09-17T02:30:02.540589765Z","s":"info","m":"[VPS Self-heal] Could not fetch 203508080: VPS provider authentication failed"}
+{"t":"2026-09-17T02:30:02.540594555Z","s":"error","m":"[Contabo] Token fetch failed (attempt 1): {"}
+{"t":"2026-09-17T02:49:23.226640865Z","s":"info","m":"[Panel] list_files user-level failed for /home/clai1622/public_html → WHM fallback (user: clai1622, reason: user-auth-broken)"}
+{"t":"2026-09-17T02:50:26.039354791Z","s":"info","m":"[Panel] extract user-level failed for office.zip → WHM fallback (user: clai1622, reason: user-auth-broken)"}
+{"t":"2026-09-17T02:50:28.442943158Z","s":"info","m":"[Panel] list_files user-level failed for /home/clai1622/public_html → WHM fallback (user: clai1622, reason: user-auth-broken)"}
+{"t":"2026-09-17T02:59:08.625828114Z","s":"info","m":"[PhoneMonitor] === Health check complete: 39 checked, 0 newly suspended, 0 inactive_released, 0 auth-failed ==="}
+{"t":"2026-09-17T03:00:02.526702537Z","s":"error","m":"[Contabo] Token fetch failed (attempt 1): {"}
+{"t":"2026-09-17T03:00:02.526723747Z","s":"info","m":"[VPS Self-heal] Could not fetch 203508080: VPS provider authentication failed"}
+{"t":"2026-09-17T03:29:08.558429705Z","s":"info","m":"[PhoneMonitor] === Health check complete: 39 checked, 0 newly suspended, 0 inactive_released, 0 auth-failed ==="}
+{"t":"2026-09-17T03:30:02.618318951Z","s":"error","m":"[Contabo] Token fetch failed (attempt 1): {"}
+{"t":"2026-09-17T03:30:02.618328421Z","s":"info","m":"[VPS Self-heal] Could not fetch 203508080: VPS provider authentication failed"}
+{"t":"2026-09-17T03:59:08.789221702Z","s":"info","m":"[PhoneMonitor] === Health check complete: 39 checked, 0 newly suspended, 0 inactive_released, 0 auth-failed ==="}
+{"t":"2026-09-17T04:00:00.659362804Z","s":"error","m":"[Contabo] Token fetch failed (attempt 1): {"}
+{"t":"2026-09-17T04:00:00.659386644Z","s":"info","m":"[VPS Self-heal] Could not fetch 203508080: VPS provider authentication failed"}
+{"t":"2026-09-17T04:29:09.502069814Z","s":"info","m":"[PhoneMonitor] === Health check complete: 39 checked, 0 newly suspended, 0 inactive_released, 0 auth-failed ==="}
+{"t":"2026-09-17T04:30:00.602902269Z","s":"error","m":"[Contabo] Token fetch failed (attempt 1): {"}
+{"t":"2026-09-17T04:30:00.602915149Z","s":"info","m":"[VPS Self-heal] Could not fetch 203508080: VPS provider authentication failed"}
+{"t":"2026-09-17T04:30:18.543326989Z","s":"info","m":"[AutoPromo]   ↳ failed chatId=5165954611 error=\"ETELEGRAM: 403 Forbidden: bot was blocked by the user\""}
+{"t":"2026-09-17T04:30:18.543329749Z","s":"info","m":"[AutoPromo]   ↳ failed chatId=8733350077 error=\"ETELEGRAM: 403 Forbidden: bot was blocked by the user\""}
+{"t":"2026-09-17T04:59:08.646552907Z","s":"info","m":"[PhoneMonitor] === Health check complete: 39 checked, 0 newly suspended, 0 inactive_released, 0 auth-failed ==="}

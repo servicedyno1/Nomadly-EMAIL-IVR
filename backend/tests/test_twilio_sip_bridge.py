@@ -16,7 +16,7 @@ from pymongo import MongoClient
 
 # Use the public URL for testing
 BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', '').rstrip('/')
-MONGO_URL = os.environ.get('MONGO_URL', 'mongodb://mongo:RQoOmIdwjRLFvhWMaatjidzqpvawUKcb@caboose.proxy.rlwy.net:59668')
+MONGO_URL = os.environ.get('MONGO_URL', 'mongodb://localhost:27017')
 
 # Test user configuration
 TEST_CHAT_ID = 6604316166

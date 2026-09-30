@@ -1,0 +1,31 @@
+{
+  "summary": "Re-ran all 4 node test suites plus lang-parity lint and sanity one-liner for the RDP bundle-discount presentation-layer change. All green with expected pass counts.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_results": {
+    "test_rdp_discount_2026-06.js": "15 passed / 0 failed (exit 0)",
+    "verify_rdp_tasks_render.js": "56 passed / 0 failed",
+    "test_rdp_grace_destroy_2026-06.js": "73 passed / 0 failed",
+    "test_do_rdp_golden_2026-06.js": "91 passed / 0 failed",
+    "npm run lint:lang": "fr/hi/zh parity OK with en (716 keys each)",
+    "sanity_one_liner": "standard tier via _products('US',true): 1m={total:56,discountPct:0}, 2m={total:100.8,discountPct:10}, 3m={total:142.8,discountPct:15} — matches spec exactly. (Note: exported function is _products, not listProducts — matches file.)"
+  },
+  "test_report_links": [
+    "/app/js/tests/test_rdp_discount_2026-06.js",
+    "/app/js/tests/verify_rdp_tasks_render.js",
+    "/app/js/tests/test_rdp_grace_destroy_2026-06.js",
+    "/app/js/tests/test_do_rdp_golden_2026-06.js"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Discount math (BUNDLE_DISCOUNT {1:0,2:0.10,3:0.15}) and presentation (pricing.discountPct, localized Save X% labels in en/fr/zh/hi, reseller /rdp/plans + /pricing exposing duration_months + discount_pct, and apidoc-page update) are all consistent and covered by tests.",
+    "Bot 1-month button correctly has no savings label (asserted per-locale).",
+    "Nothing was restarted per instructions — no interference with the long-running golden-image job."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100%", "frontend": "n/a (skipped per request)"},
+  "seed_data_creation": "The discount suite seeded a temporary reseller key in local Mongo and cleaned up itself; no residual test data.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "RDP bundle-discount surfacing is fully verified on the code side. Production fix requires user redeploy on Railway (outside our tooling). Live sandbox /api/rdp/plans is pinned to VPS_RDP_PROVIDER=azure (monthly-only, no discount) by design — do not use it to validate discounts; use the in-process test harness."
+}

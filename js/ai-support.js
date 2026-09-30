@@ -48,10 +48,7 @@ const SUPPORT_HANDLE = process.env.SUPPORT_HANDLE || '@support'
 const SIP_DOMAIN = process.env.SIP_DOMAIN || 'sip.speechcue.com'
 const CALL_PAGE_URL = process.env.CALL_PAGE_URL || 'https://speechcue.com/call'
 const PANEL_DOMAIN = process.env.PANEL_DOMAIN || ''
-const { branding: _brandingCfg } = require('./branding.js')
-const NS1 = (_brandingCfg.nameservers && _brandingCfg.nameservers[0]) || 'ns1.hostbay.io'
-const NS_DOMAIN = NS1.split('.').slice(1).join('.') || 'hostbay.io'
-const HOSTING_PANEL_URL = PANEL_DOMAIN ? (PANEL_DOMAIN.startsWith('http') ? PANEL_DOMAIN : `https://${PANEL_DOMAIN}`) : ''
+const HOSTING_PANEL_URL = PANEL_DOMAIN ? `${(PANEL_DOMAIN.startsWith('http') ? PANEL_DOMAIN : `https://${PANEL_DOMAIN}`).replace(/\/+$/, '').replace(/\/panel$/i, '')}/panel` : ''
 
 // ── Subscription plan data (from environment) ──
 const PRICE_DAILY = process.env.PRICE_DAILY_SUBSCRIPTION || '50'
@@ -298,12 +295,30 @@ If the issue persists, I'll connect you with our technical team who can check yo
 2. Your SIP credentials may have expired — regenerate them via <b>📞 Cloud IVR + SIP</b> → <b>📋 My Plans</b> → Select number → <b>🔑 SIP Credentials</b> → <b>🔄 Reset Password</b>
 I'll flag this for our technical team to review your call logs.
 
-### "IVR call not working / TTS audio failing"
-→ If your IVR call fails to generate audio:
+### "IVR call not working / no sound plays / audio failing"
+→ First disambiguate WHICH IVR flow the user is on — they behave completely differently:
+
+<b>A) Quick IVR Call — uses TTS (text-to-speech), no upload.</b> Path: 📞 Cloud IVR + SIP → 📢 Quick IVR Call. Audio is generated live from your script + selected voice. If audio fails here:
 1. Try a different voice from the voice selection menu
 2. Keep your script text under 1000 characters
 3. Try again — some TTS providers occasionally have temporary outages
-If the issue persists, our team can check the audio generation logs.
+This flow has NO file upload — do NOT ask the user about file formats.
+
+<b>B) Bulk IVR Campaign — uses an uploaded audio file from your Audio Library, NOT TTS.</b> Path: 📞 Cloud IVR + SIP → 📞 Bulk IVR Campaign → Select Caller ID → paste/upload leads → Select IVR Audio (🎵 from library, or 📎 Upload New Audio, or 📝 Use IVR Template for TTS). There is NO "voice selection menu" in this flow — never suggest that. If the recipient hears silence or the campaign shows calls completed but nothing played, the cause is almost always the uploaded audio file itself:
+1. Preferred format: <b>MP3</b> (mono, any sample rate). MP3 uploads always play correctly.
+2. WAV uploads are auto-converted to MP3 on upload (Feb 2026 fix). If you uploaded a WAV BEFORE that fix, re-upload the same file — it will be re-encoded and play correctly.
+3. If you generated the audio in a DAW/browser at high quality (44.1 kHz stereo, 32-bit float, etc.), export it as MP3 rather than WAV to be safe.
+4. Audio Library files under 🎵 that failed once will keep failing until re-uploaded — the fix runs at upload time. Tap 📎 Upload New Audio and re-send the file.
+5. Bulk IVR Templates (📝 Use IVR Template) also use TTS and behave like Quick IVR — if a template's audio fails, try a different voice.
+If a customer still hears silence AFTER re-uploading a fresh MP3, escalate — the audio-proxy or the campaign's stored audioUrl needs manual inspection.
+
+<b>C) IVR Auto-attendant / Voicemail greetings (Business plan)</b> — uploaded via 📞 Cloud IVR + SIP → 📋 My Plans → number → 🤖 IVR — same audio rules as (B). Re-upload if silent.
+
+### "Bulk IVR — calls failing with 'Account not authorized to call' or hitting the wrong country"
+→ This used to happen when a bare 10-digit US number (e.g. <code>4065067340</code>) was pasted without <code>+1</code> — the parser turned it into <code>+4065067340</code> (Romania +40), and Twilio rejected the call as unauthorized geo. <b>Fixed Feb 2026</b>: bare 10-digit numbers now auto-prepend <code>+1</code>, and <code>1XXXXXXXXXX</code> auto-gets <code>+</code>. If the user is still seeing "Account not authorized" errors after the fix:
+1. Confirm the numbers actually START with +1 in the "leads loaded" preview screen — if they show <code>+40…</code> or <code>+41…</code> etc for what should be US numbers, escalate.
+2. For legitimate international destinations (non-NANP), the user must include the correct country code with <code>+</code>. Twilio geo-permissions must be enabled per destination country on the sub-account — this is a support/billing action, escalate.
+
 
 ### 📱 SMS Leads
 From main menu → tap <b>📱 SMS Leads</b>
@@ -359,11 +374,11 @@ Sub-menu:
 1. <b>🔗✂️ URL Shortener — Unlimited</b> → <b>✂️🌐 Custom Domain Shortener</b> → enter your domain.
 2. Create a single <b>A</b> record at your registrar: <code>@</code> → IP shown on screen (or CNAME to <code>shortit.${BRAND.toLowerCase()}.app</code> if displayed).
 
-<b>If user mentions ${NS1} / ${NS_DOMAIN} / ${BRAND} nameservers:</b> These are <b>internal</b> nameservers for domains <b>registered through ${BRAND}</b> only — they do <b>not</b> work for external domains. Tell the user to ignore those and follow Option A (DNS A records) above.
+<b>If user mentions ns1.hostbay.io / hostbay.io / Nomadly nameservers:</b> These are <b>internal</b> nameservers for domains <b>registered through ${BRAND}</b> only — they do <b>not</b> work for external domains. Tell the user to ignore those and follow Option A (DNS A records) above.
 
 <b>Common confused questions and the correct answer:</b>
 - "What nameservers should I set?" → Don't change nameservers. Set DNS A records at your registrar.
-- "Should I use ${NS1}?" → No, that's only for ${BRAND}-registered domains.
+- "Should I use ns1.hostbay.io?" → No, that's only for ${BRAND}-registered domains.
 - "Where do I add nameservers in ${BRAND}?" → You don't. External-domain DNS is managed at your registrar.
 
 ### 🛡️🔥 Anti-Red Hosting
@@ -381,6 +396,8 @@ To view/reveal your hosting credentials: <b>🛡️🔥 Anti-Red Hosting</b> →
 - 🔄 <b>Renew Now</b> — pay for another billing cycle from your wallet
 - ⬆️ <b>Upgrade Plan</b> (weekly only) — move to monthly with a 25% credit applied
 - 🔁 <b>Toggle Auto-Renew</b> (monthly only) — switch automatic renewal on/off; weekly plans never auto-renew
+- 🛡️ <b>On/Off Captcha</b> (Golden Anti-Red HostPanel only) — show/hide the "Verifying your browser" interstitial for human visitors. Turning it off does NOT disable scanner cloaking, honeypots, IP bans or WAF.
+- 🍯 <b>On/Off Honeypot Traps</b> (Monthly plans only — Premium or Golden; locked on Weekly) — turn the hidden bot decoys (fake links/forms/APIs injected into HTML pages) on or off per domain. Turn OFF if your site serves raw JSON/API output and you want pages left byte-exact. Honeypot markup is only ever added to real HTML pages — JSON/API responses are never modified either way. Turning honeypots off does NOT weaken Visitor Captcha, scanner cloaking, IP bans or WAF. Weekly-plan users see a locked prompt to upgrade to a monthly plan.
 - 🔌 <b>Take Site Offline</b> / 🌐 <b>Bring Site Online</b> — pick maintenance mode (clean "We'll be back soon" page; email/FTP/DBs keep working) or full suspend (everything stopped). <b>Does NOT pause expiry or auto-renewal billing.</b>
 - 🗑️ <b>Unlink a Domain</b> (only when addon domains exist) — remove an addon domain from cPanel + Cloudflare + DB. Permanent and non-refundable.
 - 🔄 <b>Change Primary Domain</b> — swap the plan's main domain for another domain the user owns (e.g. they bought hosting on a bad/typo domain and now want to use a fresh one). The old domain is removed from hosting (it stays registered to the user), files in <code>public_html</code> are kept and served on the new domain, DNS + Anti-Red are auto-configured for the new domain, and the same cPanel username/PIN is kept. No need to cancel and rebuy.
@@ -454,7 +471,7 @@ Our virtual cards do <b>NOT</b> support 3D Secure (3DS / Verified-by-Visa / Mast
 <b>Workarounds when a merchant requires 3DS:</b>
 1. <b>Try a different merchant</b> or sub-merchant that does NOT require 3DS (common for small online shops, digital products, and SaaS sign-ups).
 2. <b>Use the card to top up a wallet</b> (e.g. PayPal, Skrill, Wise, Revolut) that DOES support 3DS, then pay the original merchant from that wallet. Many wallets accept non-3DS top-ups.
-3. <b>Buy a different ${BRAND} product</b> directly through the bot (Cloud IVR, eSIM, VPS, etc.) — those payments are charged via the wallet, no card needed.
+3. <b>Buy a different Nomadly product</b> directly through the bot (Cloud IVR, eSIM, VPS, etc.) — those payments are charged via the wallet, no card needed.
 
 Do <b>NOT</b> promise 3DS support is coming. If the user keeps insisting after the workarounds, escalate.
 
@@ -579,7 +596,7 @@ Activates a free trial of the BulkSMS Android app for sending SMS messages.
 From main menu → tap <b>📦 Ship & Mail</b>
 Opens BozzMail — a web-based service for creating shipping labels, sending letters, and postcards.
 - Ships from the US to worldwide destinations
-- Integrates with the ${BRAND} wallet for payment
+- Integrates with the Nomadly wallet for payment
 
 ### 🎁 Service Bundles
 From main menu → tap <b>🎁 Service Bundles</b>
@@ -593,7 +610,7 @@ Pre-packaged service combinations at a 15–20% discount:
 From main menu → tap <b>🤝 Refer & Earn</b>
 Invite friends and earn money:
 - Share your unique referral link
-- When your referral spends $30 total on ${BRAND}, you earn <b>$5</b> credited to your wallet
+- When your referral spends $30 total on Nomadly, you earn <b>$5</b> credited to your wallet
 - Track referrals, progress bars, and earnings in the Refer & Earn screen
 - No limit on number of referrals
 
@@ -867,7 +884,7 @@ If the user complains that <code>[name]</code> stays literal in the sent SMS:
 → Main menu → <b>📦 Ship & Mail</b> → Opens BozzMail web app for creating shipping labels, sending letters, and postcards. Ships from the US to worldwide destinations.
 
 ### "How does Refer & Earn work?"
-→ Main menu → <b>🤝 Refer & Earn</b> → Share your unique referral link → When your friend joins and spends $30 total on ${BRAND}, you earn <b>$5</b> credited to your wallet. Track referrals, progress bars, and earnings. No limit on referrals.
+→ Main menu → <b>🤝 Refer & Earn</b> → Share your unique referral link → When your friend joins and spends $30 total on Nomadly, you earn <b>$5</b> credited to your wallet. Track referrals, progress bars, and earnings. No limit on referrals.
 
 ## ESCALATION RULES
 You MUST escalate to a human agent (set needsEscalation: true) for:
@@ -1136,7 +1153,7 @@ async function getUserContext(chatId, userMessage = '') {
           const addons = Array.isArray(c.addonDomains) && c.addonDomains.length ? ` (addons: ${c.addonDomains.join(', ')})` : ''
           return `• ${c.cpUser} on ${c.domain} — ${c.plan || 'hosting'} — cancelled ${fmtTs(c.deletedAt)} by ${c.deletedBy || 'user'}${addons}`
         }).join('\n')
-        context.push(`RECENTLY CANCELLED HOSTING PLANS (last 7d):\n${lines}\n⚠️ These plans are GONE — files, emails, databases wiped. No refund per ${BRAND} cancellation policy. If the user asks "where did my site / files go?" the answer is the cancellation above. Explain kindly, offer to spin up a new plan (they can reuse the domain since domains stay registered).`)
+        context.push(`RECENTLY CANCELLED HOSTING PLANS (last 7d):\n${lines}\n⚠️ These plans are GONE — files, emails, databases wiped. No refund per Nomadly cancellation policy. If the user asks "where did my site / files go?" the answer is the cancellation above. Explain kindly, offer to spin up a new plan (they can reuse the domain since domains stay registered).`)
       }
     } catch (e) { /* cpanelAccounts collection may not exist */ }
 
@@ -1385,10 +1402,10 @@ async function getUserContext(chatId, userMessage = '') {
           const parts = [d]
 
           if (purchasedSet.has(d) || reg) {
-            const rawRegistrar = reg?.val?.registrar || reg?.val?.provider || (purchasedSet.has(d) ? BRAND : 'external')
+            const rawRegistrar = reg?.val?.registrar || reg?.val?.provider || (purchasedSet.has(d) ? 'Nomadly' : 'external')
             // Sanitize: never expose third-party registrar names (OpenProvider, ConnectReseller, etc.)
             // to the LLM context — it will faithfully repeat them to the user. Map all known
-            // upstream registrars to the consumer-facing brand name.
+            // upstream registrars to the consumer-facing brand "Nomadly".
             const registrar = sanitizeAiContext(String(rawRegistrar))
             parts.push(`registered ✅ (${registrar})`)
           } else {

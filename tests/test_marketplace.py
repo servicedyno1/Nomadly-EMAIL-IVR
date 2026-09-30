@@ -14,7 +14,7 @@ import sys
 BASE = "http://localhost:5000/telegram/webhook"
 HEADERS = {"Content-Type": "application/json"}
 
-MONGO_URI = "mongodb://mongo:RQoOmIdwjRLFvhWMaatjidzqpvawUKcb@caboose.proxy.rlwy.net:59668"
+MONGO_URI = "mongodb://localhost:27017"
 DB_NAME = "test"
 
 # Two test users

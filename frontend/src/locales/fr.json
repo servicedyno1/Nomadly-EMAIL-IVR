@@ -1,17 +1,5 @@
 {
   "store": {
-    "mostPopular": "★ Le plus populaire",
-    "billedMonthly": "facturé mensuellement",
-    "perMonthEquiv": "≈ {{price}}/mois · facturé chaque semaine",
-    "antiRedExplain": "« Anti-Red » empêche vos liens d’apparaître sur les pages d’avertissement rouge « site trompeur » des navigateurs et de Google.",
-    "byoDomainHint": "Après le paiement, vous dirigerez les serveurs de noms de votre domaine vers nous — nous vous montrerons exactement comment (environ 5 min).",
-    "returningCustomer": "Déjà client ? Connectez-vous ↓",
-    "discardConfirm": "Abandonner cette commande ? Les informations saisies seront perdues.",
-    "close": "Fermer",
-    "trustInstant": "Configuration instantanée",
-    "trustProtection": "Protection Anti-Red",
-    "trustReplace": "Remplacement gratuit en cas de signalement",
-    "trustSupport": "Assistance 24h/24 et 7j/7",
     "heroTitle": "Hébergement Anti-Red blindé",
     "tagline": "Achetez un hébergement, payez en crypto, accès instantané — sans Telegram.",
     "panelLogin": "Vous avez un PIN ? Connexion au panneau →",
@@ -66,7 +54,23 @@
     "orDivider": "OU",
     "tgButton": "Continuer avec Telegram",
     "tgScanCap": "Scannez avec votre téléphone pour vous connecter via le bot Telegram.",
-    "tgLinked": "Telegram lié"
+    "tgLinked": "Telegram lié",
+    "antiRedExplainer": "« Anti-Red » signifie que vos liens restent cliquables — un hébergement renforcé pour que vos pages ne soient pas signalées en rouge ni bloquées par les navigateurs, Telegram ou WhatsApp.",
+    "signInMobile": "Déjà client ? Se connecter",
+    "loginHelper": "Acheteurs → connectez-vous avec votre e-mail · Clients hébergement → identifiant du panneau + PIN",
+    "perWeek": "sem",
+    "perMonth": "mois",
+    "moEquiv": "≈ {{amount}}/mois",
+    "billedWeekly": "facturé chaque semaine",
+    "billedMonthly": "facturé chaque mois",
+    "badgePopular": "★ Le plus populaire",
+    "getPlan": "Choisir {{name}} →",
+    "byoHint": "À noter : après le paiement, vous pointerez les serveurs de noms/DNS de votre domaine vers ceux que nous vous enverrons par e-mail.",
+    "trustUptime": "Disponibilité 99,9 %",
+    "trustReplace": "Garantie de remplacement gratuit",
+    "trustInstant": "Livraison crypto instantanée",
+    "trustSupport": "Support humain {{handle}}",
+    "trustNoLogin": "Aucun compte requis"
   },
   "common": {
     "appName": "Panneau d'hébergement",
@@ -127,6 +131,7 @@
   "dashboard": {
     "tabs": {
       "overview": "Aperçu",
+      "site": "Site",
       "domains": "Domaines",
       "files": "Fichiers",
       "email": "Email",
@@ -446,6 +451,10 @@
       "jsChallenge": {
         "label": "Captcha Visiteur (Défi JS)",
         "desc": "Défi bot par domaine — plan Gold uniquement. Gérer par domaine dans l'onglet Domaines."
+      },
+      "honeypot": {
+        "label": "Pièges Honeypot",
+        "desc": "Leurres cachés qui piègent et bannissent les bots. Plans mensuels uniquement. Les réponses JSON/API ne sont jamais modifiées."
       }
     },
     "captchaGoldOnlyError": "Le Captcha Visiteur est exclusif aux plans Golden Anti-Red HostPanel. Mettez à niveau votre plan pour l'activer.",
@@ -454,6 +463,14 @@
     "captchaStatusDisabled": "Captcha Visiteur désactivé",
     "failedToggle": "Échec du basculement",
     "captchaDefaultGoldError": "Le Captcha Visiteur est exclusif aux plans Golden Anti-Red HostPanel.",
+    "honeypotMonthlyOnlyError": "La gestion des pièges Honeypot est disponible sur les plans mensuels (Premium ou Golden). Passez à un plan supérieur pour la gérer.",
+    "honeypotDisableWarning": "Désactiver les pièges Honeypot retire les leurres anti-bots cachés de vos pages HTML. Le Captcha Visiteur, le masquage anti-scanner, les bannissements d'IP et le WAF restent actifs.\n\nDésactiver les pièges Honeypot ?",
+    "honeypotStatusEnabled": "Pièges Honeypot activés",
+    "honeypotStatusDisabled": "Pièges Honeypot désactivés",
+    "monthlyOnly": "Mensuel uniquement",
+    "monthlyOnlyTooltip": "La gestion des pièges Honeypot est disponible sur les plans mensuels. Votre plan : {{plan}}",
+    "disableHoneypotTitle": "Désactiver les pièges Honeypot",
+    "enableHoneypotTitle": "Activer les pièges Honeypot",
     "protectionActive": "Protection Active",
     "protectionSub": "{{active}} sur {{total}} couches de sécurité activées",
     "protectionLayers": "Couches de Protection",
@@ -474,6 +491,15 @@
     "unknownPlan": "inconnu"
   },
   "dl": {
+    "bulkImport": "Import groupé",
+    "bulkSingle": "Simple",
+    "bulkNote": "Créez plusieurs sous-domaines à la fois — séparez les noms par des virgules ou des retours à la ligne (max 50). Chacun obtient son propre dossier public_html/.",
+    "bulkPlaceholder": "shop, blog, api, dev, staging",
+    "bulkCreateAll": "Tout créer",
+    "bulkCreating": "Création...",
+    "bulkSummary": "{{succeeded}} sur {{total}} créés · {{failed}} échec(s)",
+    "bulkEmpty": "Saisissez au moins un nom de sous-domaine.",
+    "bulkDone": "Terminé",
     "title": "Domaines",
     "runAutoSSL": "Exécuter AutoSSL",
     "running": "En cours...",
@@ -574,16 +600,7 @@
     "nsRecheckNow": "Re-vérifier maintenant",
     "nsExternalUpdate": "Mettre à jour vos serveurs de noms chez votre registraire de domaine :",
     "nsExternalNote": "La propagation peut prendre jusqu'à 24-48 heures.",
-    "nsExternalNoteTail": "(déclenche également l'émission SSL si NS actif)",
-    "bulkImport": "Import groupé",
-    "bulkSingle": "Simple",
-    "bulkNote": "Collez plusieurs noms de sous-domaines — un par ligne ou séparés par des virgules. Ils seront tous créés sous le domaine sélectionné (max 50).",
-    "bulkPlaceholder": "blog, shop, app\nmail\nnews",
-    "bulkCreateAll": "Tout créer",
-    "bulkCreating": "Création en cours…",
-    "bulkSummary": "{{succeeded}} créés, {{failed}} échoués sur {{total}}",
-    "bulkEmpty": "Entrez au moins un nom de sous-domaine valide.",
-    "bulkDone": "Terminé"
+    "nsExternalNoteTail": "(déclenche également l'émission SSL si NS actif)"
   },
   "an": {
     "title": "Analyse des Visiteurs",

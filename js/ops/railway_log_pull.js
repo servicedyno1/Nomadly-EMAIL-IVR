@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 require("../log-redact.js").installConsoleRedaction()
 /*
- * READ-ONLY Railway production log puller (project "New Hosting", service Nomadly-EMAIL-IVR).
+ * READ-ONLY Railway production log puller (project "zippy-radiance", service Nomadly-EMAIL-IVR).
  * Uses the project-scoped API_KEY_RAILWAY via GraphQL environmentLogs.
  * Pages backward from --anchor using beforeDate until --max lines or window start.
  *
@@ -13,12 +13,14 @@ const fs = require('fs')
 const path = require('path')
 const https = require('https')
 
-const ENV = '889fd56a-720a-4020-884c-034784992666'
-const SVC = 'b9c4ad64-7667-4dd3-8b9a-3867ede47885'
-
 function arg(name, def) { const i = process.argv.indexOf('--' + name); return i > -1 ? process.argv[i + 1] : def }
-const TOKEN = fs.readFileSync(path.resolve(__dirname, '../../backend/.env'), 'utf8')
-  .match(/API_KEY_RAILWAY\s*=\s*"?([^"\n]+)"?/)[1].trim()
+const _envText = fs.readFileSync(path.resolve(__dirname, '../../backend/.env'), 'utf8')
+const _envVal = k => { const m = _envText.match(new RegExp(`^${k}\\s*=\\s*"?([^"\\n]+)"?`, 'm')); return m ? m[1].trim() : null }
+// Defaults = current production (project zippy-radiance, service Nomadly-EMAIL-IVR); override with --env / --svc
+const ENV = arg('env', _envVal('RAILWAY_PROD_ENVIRONMENT_ID') || 'b9a9e5d2-0f71-42c4-925b-ac843adcb656')
+const SVC = arg('svc', _envVal('RAILWAY_PROD_SERVICE_ID') || '73e2050b-586d-41d4-a1b5-6b0914e7a0f9')
+
+const TOKEN = _envVal('API_KEY_RAILWAY')
 
 const anchor = arg('anchor', new Date().toISOString())
 const totalWanted = parseInt(arg('max', arg('before', '800')), 10)

@@ -2,8 +2,8 @@
 # Keeps the Telegram bot webhook pointed to our Emergent pod
 # Runs every 20 seconds to override any Railway webhook theft
 
-BOT_TOKEN="6597817067:AAGONi_I9LcMcQfRIJnl_JzkEi_eV-Z6bbM"
-OUR_URL="https://api-aggregator-5.preview.emergentagent.com/api/telegram/webhook"
+BOT_TOKEN="${TELEGRAM_BOT_TOKEN_DEV:?set TELEGRAM_BOT_TOKEN_DEV in the environment}"
+OUR_URL="${WEBHOOK_URL:?set WEBHOOK_URL to <pod>/api/telegram/webhook}"
 
 while true; do
   CURRENT=$(curl -s "https://api.telegram.org/bot${BOT_TOKEN}/getWebhookInfo" | python3 -c "import json,sys; print(json.load(sys.stdin)['result']['url'])" 2>/dev/null)

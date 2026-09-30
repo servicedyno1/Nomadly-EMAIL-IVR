@@ -1,0 +1,744 @@
+{"t":"2026-09-15T04:55:16.883238386Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T05:00:16.698133805Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T05:05:16.760226374Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T05:10:03.529674618Z","s":"info","m":"[ProtectionHeartbeat] Checking 15 cPanel accounts (deleted excluded; cooled-down stuck accounts retried)..."}
+{"t":"2026-09-15T05:10:03.557354574Z","s":"info","m":"[ProtectionEnforcer] cpanelAccounts: 111 accounts"}
+{"t":"2026-09-15T05:10:16.725469321Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T05:15:24.889819958Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T05:20:25.430726291Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T05:25:25.466610529Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T05:30:26.365787283Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T05:35:25.564426090Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T05:40:16.832092150Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T05:45:16.732409344Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T05:50:16.725087149Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T05:55:16.728717066Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T06:00:16.754289835Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T06:05:26.717723183Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T06:10:16.986035380Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T06:15:16.713761160Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T06:20:16.720908197Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T06:25:23.611238136Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T06:30:23.649780343Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T06:35:16.881843671Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T06:40:16.756248311Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T06:45:23.633765247Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T06:50:23.641401447Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T06:55:23.880613335Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T07:00:24.545217796Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T07:05:24.829214950Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T07:10:05.051809377Z","s":"info","m":"[ProtectionHeartbeat] Checking 15 cPanel accounts (deleted excluded; cooled-down stuck accounts retried)..."}
+{"t":"2026-09-15T07:10:16.777506542Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T07:15:23.555086542Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T07:20:23.901375647Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T07:25:23.694513608Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T07:30:24.473726295Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T07:35:25.239600998Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T07:40:16.748879566Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T07:41:30.476738962Z","s":"info","m":"[cPanel Queue] worker started"}
+{"t":"2026-09-15T07:41:30.476743392Z","s":"info","m":"[cPanel Health] probe + queue worker initialised"}
+{"t":"2026-09-15T07:41:30.571471125Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T07:41:45.417429244Z","s":"info","m":"[CpanelMigration] Found 44 account(s) not on current WHM_HOST (68.183.77.106). Checking new server..."}
+{"t":"2026-09-15T07:42:07.017953137Z","s":"info","m":"[ProtectionEnforcer] cpanelAccounts: 111 accounts"}
+{"t":"2026-09-15T07:42:15.426564506Z","s":"info","m":"[CpanelMigration] Failed to list WHM accounts: timeout of 30000ms exceeded. Aborting migration."}
+{"t":"2026-09-15T07:43:36.880739801Z","s":"info","m":"[ProtectionHeartbeat] Checking 15 cPanel accounts (deleted excluded; cooled-down stuck accounts retried)..."}
+{"t":"2026-09-15T07:46:40.257237573Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T07:51:40.359525806Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T07:56:40.563589126Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T08:01:30.612059093Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T08:06:37.273403789Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T08:11:37.226773720Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T08:16:40.437164849Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T08:21:30.774361389Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T08:26:40.454687870Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T08:31:30.669531304Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T08:36:40.356595589Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T08:41:30.974476075Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T08:46:34.822404693Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T08:51:30.619828065Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T08:56:38.552126900Z","s":"info","m":"[cPanel Health] license check error: socket hang up"}
+{"t":"2026-09-15T08:56:58.558300553Z","s":"info","m":"[cPanel Health] license check error: socket hang up"}
+{"t":"2026-09-15T08:58:58.353182953Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T09:03:57.088834258Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T09:08:57.701332258Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T09:13:50.624558346Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T09:18:50.611696019Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T09:23:51.612152752Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T09:28:50.837140823Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T09:34:00.625906413Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T09:38:51.854548454Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T09:41:37.180849750Z","s":"info","m":"[ProtectionHeartbeat] Checking 15 cPanel accounts (deleted excluded; cooled-down stuck accounts retried)..."}
+{"t":"2026-09-15T09:43:55.257253247Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T09:48:51.515872952Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T09:53:50.797832719Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T09:59:10.874751334Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T10:04:10.646070372Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T10:09:10.673413217Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T10:14:10.928713898Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T10:19:16.993882687Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T10:24:16.817091380Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T10:29:11.357284590Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T10:34:10.863281287Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T10:37:27.784332052Z","s":"info","m":"buyPlan goldenCpanel"}
+{"t":"2026-09-15T10:39:17.833439741Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T10:44:17.706428327Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T10:49:17.883847960Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T10:54:18.002188915Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T10:59:10.666000147Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T11:04:10.696665606Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T11:09:10.712151297Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T11:14:20.670167277Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T11:19:20.508031132Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T11:24:11.567286180Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T11:29:11.639368902Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T11:34:10.731899574Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T11:39:11.595846307Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T11:41:36.896520513Z","s":"info","m":"[ProtectionHeartbeat] Checking 15 cPanel accounts (deleted excluded; cooled-down stuck accounts retried)..."}
+{"t":"2026-09-15T11:44:13.483452871Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T11:49:14.106956805Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T11:54:10.954480806Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T11:59:20.700517435Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T12:04:11.015758877Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T12:09:10.731089104Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T12:14:10.914194849Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T12:19:10.734921586Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T12:24:10.724725074Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T12:29:11.721822044Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T12:34:10.888251161Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T12:39:20.589939860Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T12:44:13.820669004Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T12:49:31.354646006Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T12:54:31.358423942Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T12:59:30.883910320Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T13:04:40.695772933Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T13:09:31.123939026Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T13:14:34.691247920Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T13:19:31.212902466Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T13:24:31.432124585Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T13:29:51.654405195Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T13:34:51.363199607Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T13:39:55.190894884Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T13:41:37.115990333Z","s":"info","m":"[ProtectionHeartbeat] Checking 15 cPanel accounts (deleted excluded; cooled-down stuck accounts retried)..."}
+{"t":"2026-09-15T13:41:37.116006803Z","s":"info","m":"[ProtectionEnforcer] cpanelAccounts: 111 accounts"}
+{"t":"2026-09-15T13:44:52.008239169Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T13:49:53.812629126Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T13:54:55.267574964Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T13:59:57.528895237Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T14:04:51.691424229Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T14:10:12.288117480Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T14:15:10.807215198Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T14:20:11.880485308Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T14:25:11.077603879Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T14:30:21.461269404Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T14:35:17.007890313Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T14:40:17.572022122Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T14:45:17.598871334Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T14:50:17.763290044Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T14:55:18.165068727Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T15:00:10.840781230Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T15:05:12.621568874Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T15:10:20.843713600Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T15:15:18.736996196Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T15:20:19.024835972Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T15:25:19.357956011Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T15:30:10.817759966Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T15:35:17.740302856Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T15:40:17.741293245Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T15:41:37.635295170Z","s":"info","m":"[ProtectionHeartbeat] Checking 15 cPanel accounts (deleted excluded; cooled-down stuck accounts retried)..."}
+{"t":"2026-09-15T15:45:16.023225137Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T15:50:16.235571583Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T15:55:15.537576025Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T16:00:10.898586676Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T16:05:15.187663478Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T16:10:10.979864270Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T16:15:11.357016025Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T16:20:17.681493298Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T16:25:18.466071837Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T16:30:10.876019022Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T16:35:10.872547303Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T16:40:11.477152133Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T16:45:20.983243162Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T16:50:11.827031693Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T16:55:11.352481665Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T17:00:11.001102835Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T17:05:10.990157011Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T17:10:11.400451945Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T17:15:16.616722350Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T17:20:16.649771378Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T17:25:10.970243251Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T17:30:11.779096558Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T17:35:20.905627998Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T17:40:20.693985965Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T17:41:40.707965697Z","s":"info","m":"[ProtectionHeartbeat] Checking 15 cPanel accounts (deleted excluded; cooled-down stuck accounts retried)..."}
+{"t":"2026-09-15T17:45:15.894886033Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T17:50:15.772257751Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T17:55:15.883865144Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T18:00:11.968878153Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T18:05:17.024344527Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T18:10:16.894973055Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T18:15:16.203159688Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T18:20:16.585232114Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T18:25:20.831712351Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T18:30:20.871798627Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T18:35:20.589985637Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T18:40:20.768697645Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T18:45:21.399267101Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T18:50:10.989970760Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T18:55:20.757589675Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T19:00:11.154579792Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T19:05:12.277852575Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T19:10:11.131243143Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T19:15:16.749715522Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T19:20:21.215795849Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T19:25:21.018837549Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T19:30:20.965615297Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T19:35:17.527932071Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T19:40:11.055919812Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T19:41:36.945265397Z","s":"info","m":"[ProtectionHeartbeat] Checking 15 cPanel accounts (deleted excluded; cooled-down stuck accounts retried)..."}
+{"t":"2026-09-15T19:41:37.064114110Z","s":"info","m":"[ProtectionEnforcer] cpanelAccounts: 111 accounts"}
+{"t":"2026-09-15T19:45:18.486539951Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T19:50:18.510877558Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T19:55:11.114252111Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T20:00:11.085767407Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T20:05:11.151981646Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T20:10:13.401215169Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T20:15:11.130567262Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T20:20:16.867090441Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T20:25:11.210215982Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T20:30:31.035797655Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T20:35:36.883132090Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T20:40:37.867418849Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T20:45:35.410391043Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T20:50:31.018588764Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T20:55:37.404838157Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T21:00:40.657353612Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T21:05:40.685554584Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T21:10:40.560274753Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T21:15:34.648871796Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T21:20:34.721084889Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T21:25:34.748381577Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T21:30:35.072890512Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T21:35:44.903602305Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T21:40:35.092857560Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T21:41:36.897247547Z","s":"info","m":"[ProtectionHeartbeat] Checking 15 cPanel accounts (deleted excluded; cooled-down stuck accounts retried)..."}
+{"t":"2026-09-15T21:45:39.090808832Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T21:50:38.986646283Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T21:55:31.043401362Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T22:00:31.052605364Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T22:05:31.041306751Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T22:10:31.003663674Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T22:15:40.512689612Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T22:20:40.531102370Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T22:25:31.355092360Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T22:30:40.610567560Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T22:35:31.285651245Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T22:40:41.041522453Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T22:45:31.259261243Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T22:50:31.154889255Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T22:55:31.175627644Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T23:00:31.432436787Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T23:05:31.447082248Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T23:10:31.315223735Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T23:15:34.922888362Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T23:20:37.223282252Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T23:25:31.409024254Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T23:30:31.293522749Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T23:35:31.168960224Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T23:40:31.328691021Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T23:41:36.902571776Z","s":"info","m":"[ProtectionHeartbeat] Checking 15 cPanel accounts (deleted excluded; cooled-down stuck accounts retried)..."}
+{"t":"2026-09-15T23:45:41.055371838Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T23:50:31.053524855Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-15T23:55:31.071995323Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T00:00:31.062896584Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T00:05:31.063742293Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T00:10:37.498395863Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T00:15:31.068499682Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T00:20:34.846990029Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T00:25:31.939200808Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T00:30:36.856427782Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T00:35:37.389584056Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T00:40:31.363097095Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T00:45:32.801340992Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T00:50:33.184174438Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T00:55:31.110714004Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T01:00:31.347349997Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T01:05:37.402481720Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T01:10:38.320207879Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T01:15:34.749294761Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T01:20:31.797352075Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T01:25:31.520837231Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T01:30:31.274628358Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T01:35:31.157994702Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T01:40:33.709162552Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T01:41:38.087834520Z","s":"info","m":"[ProtectionHeartbeat] Checking 15 cPanel accounts (deleted excluded; cooled-down stuck accounts retried)..."}
+{"t":"2026-09-16T01:41:38.087869389Z","s":"info","m":"[ProtectionEnforcer] cpanelAccounts: 111 accounts"}
+{"t":"2026-09-16T01:45:31.253696761Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T01:50:31.227806422Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T01:55:38.836963394Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T02:00:31.145008598Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T02:05:33.694699310Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T02:10:40.577041994Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T02:15:34.030180595Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T02:20:34.358239305Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T02:25:34.902094130Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T02:30:31.445899457Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T02:35:31.251960138Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T02:40:31.150236515Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T02:45:31.147987148Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T02:50:37.151205025Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T02:55:37.397339083Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T03:00:37.829404911Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T03:05:31.794824446Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T03:10:31.779726251Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T03:15:33.683336162Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T03:20:32.185442119Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T03:25:32.173908399Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T03:30:31.310184283Z","s":"info","m":"  scanned 8/383\r  scanned 12/383\r  scanned 16/383\r  scanned 20/383\r  scanned 24/383\r[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T03:35:31.201599203Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T03:40:31.449454287Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T03:41:36.920092509Z","s":"info","m":"[ProtectionHeartbeat] Checking 15 cPanel accounts (deleted excluded; cooled-down stuck accounts retried)..."}
+{"t":"2026-09-16T03:45:31.316719877Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T03:50:31.554314345Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T03:55:37.690703503Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T04:00:37.994135383Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T04:05:38.505599333Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T04:10:38.890104259Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T04:15:33.897690332Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T04:20:32.170899297Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T04:25:31.733220014Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T04:30:35.880802435Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T04:35:36.003484281Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T04:40:36.105759451Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T04:45:34.640548251Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T04:50:31.206394767Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T04:55:31.219726066Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T05:00:41.192122485Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T05:05:31.471873218Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T05:10:37.174189850Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T05:15:34.550169959Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T05:20:37.683078873Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T05:25:38.670708386Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T05:30:58.885968750Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T05:35:59.263516101Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T05:40:54.029064056Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T05:41:36.888563806Z","s":"info","m":"[ProtectionHeartbeat] Checking 15 cPanel accounts (deleted excluded; cooled-down stuck accounts retried)..."}
+{"t":"2026-09-16T05:45:54.086086675Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T05:50:51.228367252Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T05:55:51.791852814Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T06:00:59.101638074Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T06:05:59.435373652Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T06:10:59.500139079Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T06:15:52.443646087Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T06:20:52.254067699Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T06:25:51.282570226Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T06:30:51.635582363Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T06:35:51.532353152Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T06:40:51.417036749Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T06:45:51.855602844Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T06:50:52.085897152Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T06:55:51.921946029Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T07:00:51.407583872Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T07:05:51.313322995Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T07:10:52.059433307Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T07:15:52.789879687Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T07:20:51.699516089Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T07:25:51.397206794Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T07:31:01.495553402Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T07:35:52.016888037Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T07:40:57.734319397Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T07:41:37.996412363Z","s":"info","m":"[ProtectionHeartbeat] Checking 15 cPanel accounts (deleted excluded; cooled-down stuck accounts retried)..."}
+{"t":"2026-09-16T07:41:37.996423533Z","s":"info","m":"[ProtectionEnforcer] cpanelAccounts: 111 accounts"}
+{"t":"2026-09-16T07:45:51.835335709Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T07:50:57.198642230Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T07:55:51.323775278Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T08:00:51.300743420Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T08:05:51.500253893Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T08:10:51.326263490Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T08:15:54.012593808Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T08:20:51.790294858Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T08:25:51.989419958Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T08:30:51.430637381Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T08:35:51.939140563Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T08:40:52.573001804Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T08:45:53.163917180Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T08:50:52.102326381Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T08:55:52.633169016Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T09:00:56.744421786Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T09:05:57.028593444Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T09:08:53.257470361Z","s":"info","m":"HTTP, FTP, email, databases all stopped. Visitors see the standard cPanel \"Account Suspended\" notice. Use this if you want to fully shut everything down."}
+{"t":"2026-09-16T09:09:43.258559722Z","s":"info","m":"Visitors will see cPanel's standard \"Account Suspended\" page. You can bring everything back online at any time from this same menu."}
+{"t":"2026-09-16T09:10:03.254612740Z","s":"info","m":"HTTP, FTP, email, databases all stopped. Visitors see the standard cPanel \"Account Suspended\" notice. Use this if you want to fully shut everything down."}
+{"t":"2026-09-16T09:10:15.011070826Z","s":"info","m":"HTTP, FTP, email, databases all stopped. Visitors see the standard cPanel \"Account Suspended\" notice. Use this if you want to fully shut everything down."}
+{"t":"2026-09-16T09:10:19.360379824Z","s":"info","m":"Visitors will see cPanel's standard \"Account Suspended\" page. You can bring everything back online at any time from this same menu."}
+{"t":"2026-09-16T09:10:59.615011412Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T09:15:51.385381552Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T09:20:51.485929784Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T09:23:29.492154146Z","s":"info","m":"• Remove the addon domain from cPanel"}
+{"t":"2026-09-16T09:25:19.635758597Z","s":"info","m":"• Remove the addon domain from cPanel"}
+{"t":"2026-09-16T09:25:30.185186518Z","s":"info","m":"[cPanel Proxy] AddonDomain::deladdondomain WHM-root fallback returned failure (user: ghrx51df): Failed to parse adminbin request: Cpanel::Cpanel::Api2::AddonDomain::deladdondomain::run is not allowed for suspended accounts at /usr/local/cpanel/Cpanel/AdminBin/Server.pm line 87."}
+{"t":"2026-09-16T09:25:30.185197698Z","s":"info","m":"[Hosting] unlink: removeAddonDomain failed for cunetsballs.com on ghrx51df: Failed to parse adminbin request: Cpanel::Cpanel::Api2::AddonDomain::deladdondomain::run is not allowed for suspended accounts at /usr/local/cpanel/Cpanel/AdminBin/Server.pm line 87."}
+{"t":"2026-09-16T09:25:51.648354099Z","s":"info","m":"This will restore public access immediately. If you used <i>Maintenance Mode</i>, the redirect block is removed from your <code>.htaccess</code>. If you used <i>Full Suspend</i>, the cPanel account is unsuspended and HTTP/FTP/email/DB all come back."}
+{"t":"2026-09-16T09:25:51.650780985Z","s":"info","m":"• Remove the addon domain from cPanel"}
+{"t":"2026-09-16T09:25:51.651501301Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T09:25:58.721152273Z","s":"info","m":"• Remove the addon domain from cPanel"}
+{"t":"2026-09-16T09:28:12.538301728Z","s":"info","m":"HTTP, FTP, email, databases all stopped. Visitors see the standard cPanel \"Account Suspended\" notice. Use this if you want to fully shut everything down."}
+{"t":"2026-09-16T09:28:12.539090582Z","s":"info","m":"Visitors will see cPanel's standard \"Account Suspended\" page. You can bring everything back online at any time from this same menu."}
+{"t":"2026-09-16T09:30:51.321760435Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T09:33:21.966469521Z","s":"info","m":"• Remove the addon domain from cPanel"}
+{"t":"2026-09-16T09:33:22.485495110Z","s":"info","m":"• Remove the addon domain from cPanel"}
+{"t":"2026-09-16T09:33:26.078206900Z","s":"info","m":"[cPanel Proxy] AddonDomain::deladdondomain WHM-root fallback returned failure (user: ghrx51df): Failed to parse adminbin request: Cpanel::Cpanel::Api2::AddonDomain::deladdondomain::run is not allowed for suspended accounts at /usr/local/cpanel/Cpanel/AdminBin/Server.pm line 87."}
+{"t":"2026-09-16T09:33:26.078218990Z","s":"info","m":"[Hosting] unlink: removeAddonDomain failed for hdjhsfuywuywhjd.info on ghrx51df: Failed to parse adminbin request: Cpanel::Cpanel::Api2::AddonDomain::deladdondomain::run is not allowed for suspended accounts at /usr/local/cpanel/Cpanel/AdminBin/Server.pm line 87."}
+{"t":"2026-09-16T09:35:51.346432290Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T09:40:51.751807090Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T09:41:37.129718131Z","s":"info","m":"[ProtectionHeartbeat] Checking 15 cPanel accounts (deleted excluded; cooled-down stuck accounts retried)..."}
+{"t":"2026-09-16T09:45:52.863339731Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T09:50:53.428777156Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T09:55:51.653706347Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T10:00:59.095871164Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T10:05:53.024577312Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T10:10:52.520627271Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T10:15:55.361538618Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T10:20:52.080844053Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T10:25:51.981981491Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T10:30:52.518715752Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T10:35:57.206837017Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T10:40:57.281310039Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T10:45:55.811845392Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T10:50:56.376711523Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T10:55:56.741125811Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T11:01:20.318755711Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T11:06:20.601740914Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T11:11:20.465275054Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T11:16:14.937912297Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T11:21:12.252357118Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T11:26:12.232443365Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T11:31:20.573684193Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T11:36:20.531482629Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T11:41:11.430496535Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T11:41:36.947788968Z","s":"info","m":"[ProtectionHeartbeat] Checking 15 cPanel accounts (deleted excluded; cooled-down stuck accounts retried)..."}
+{"t":"2026-09-16T11:46:11.448340350Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T11:51:11.466367331Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T11:56:11.805647018Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T12:01:18.174302150Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T12:06:18.214414683Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T12:10:54.350344877Z","s":"info","m":"[cPanel Queue] worker started"}
+{"t":"2026-09-16T12:10:54.350348057Z","s":"info","m":"[cPanel Health] probe + queue worker initialised"}
+{"t":"2026-09-16T12:10:54.439929362Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T12:11:09.294125783Z","s":"info","m":"[CpanelMigration] Found 44 account(s) not on current WHM_HOST (68.183.77.106). Checking new server..."}
+{"t":"2026-09-16T12:11:30.689877780Z","s":"info","m":"[ProtectionEnforcer] cpanelAccounts: 111 accounts"}
+{"t":"2026-09-16T12:11:39.294862729Z","s":"info","m":"[CpanelMigration] Failed to list WHM accounts: timeout of 30000ms exceeded. Aborting migration."}
+{"t":"2026-09-16T12:13:00.627668366Z","s":"info","m":"[ProtectionHeartbeat] Checking 15 cPanel accounts (deleted excluded; cooled-down stuck accounts retried)..."}
+{"t":"2026-09-16T12:15:57.828847394Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T12:21:04.446333351Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T12:26:02.978675909Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T12:31:03.413251665Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T12:36:04.305020090Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T12:41:04.439226670Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T12:45:58.729442111Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T12:51:00.729716522Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T12:56:03.421026122Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T13:01:03.479998084Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T13:06:03.853038250Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T13:11:04.005005225Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T13:16:04.418876471Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T13:21:04.495097970Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T13:26:04.557564671Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T13:31:03.281340471Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T13:36:03.550650522Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T13:41:03.583588146Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T13:45:59.618016668Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T13:51:01.223734704Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T13:56:04.458335549Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T14:01:04.369455303Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T14:06:04.380546542Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T14:10:59.866167518Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T14:11:00.697816982Z","s":"info","m":"[ProtectionHeartbeat] Checking 15 cPanel accounts (deleted excluded; cooled-down stuck accounts retried)..."}
+{"t":"2026-09-16T14:15:59.923129568Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T14:21:04.384805088Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T14:26:04.366641843Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T14:30:57.478545985Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T14:36:00.871997527Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T14:41:00.879663522Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T14:45:58.906445958Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T14:51:04.396311418Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T14:55:54.525296383Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T15:00:54.536572028Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T15:05:54.662911843Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T15:11:00.750448629Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T15:16:01.155251952Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T15:21:01.407758012Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T15:26:01.421228184Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T15:30:54.616376681Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T15:35:59.423622377Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T15:41:04.421031208Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T15:46:04.362309844Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T15:50:40.379779351Z","s":"info","m":"[cPanel Proxy] Fileman::list_files error (401): <!DOCTYPE html> [AUTH]"}
+{"t":"2026-09-16T15:50:49.928564716Z","s":"info","m":"[cPanel Proxy] Fileman::list_files error (401): <!DOCTYPE html> [AUTH]"}
+{"t":"2026-09-16T15:50:54.204927397Z","s":"info","m":"[cPanel Proxy] Fileman::list_files error (401): <!DOCTYPE html> [AUTH]"}
+{"t":"2026-09-16T15:50:54.590825614Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T15:51:02.729401242Z","s":"info","m":"[cPanel Proxy] Fileman::list_files got HTTP 200 with login-page HTML — treating as auth failure"}
+{"t":"2026-09-16T15:51:21.414881617Z","s":"info","m":"[cPanel Proxy] Fileman::get_file_content error (401): <!DOCTYPE html> [AUTH]"}
+{"t":"2026-09-16T15:51:22.048457143Z","s":"info","m":"[cPanel Proxy] uapiViaSession: create_user_session failed for ghrx51df — You cannot create a session for the user “ghrx51df” because they are currently suspended."}
+{"t":"2026-09-16T15:52:12.056660662Z","s":"info","m":"[cPanel Proxy] Fileman::list_files error (401): <!DOCTYPE html> [AUTH]"}
+{"t":"2026-09-16T15:52:16.676740205Z","s":"info","m":"[cPanel Proxy] Fileman::list_files error (401): <!DOCTYPE html> [AUTH]"}
+{"t":"2026-09-16T15:52:57.663040112Z","s":"info","m":"[cPanel Proxy] Fileman::list_files got HTTP 200 with login-page HTML — treating as auth failure"}
+{"t":"2026-09-16T15:52:58.778148339Z","s":"info","m":"[cPanel Proxy] Fileman::get_file_content error (401): <!DOCTYPE html> [AUTH]"}
+{"t":"2026-09-16T15:52:59.442562812Z","s":"info","m":"[cPanel Proxy] uapiViaSession: create_user_session failed for ghrx51df — You cannot create a session for the user “ghrx51df” because they are currently suspended."}
+{"t":"2026-09-16T15:53:07.639405488Z","s":"info","m":"[cPanel Proxy] Fileman::list_files error (401): <!DOCTYPE html> [AUTH]"}
+{"t":"2026-09-16T15:54:08.362561457Z","s":"info","m":"[cPanel Proxy API2] Fileman::fileop error (403): Access denied [AUTH]"}
+{"t":"2026-09-16T15:54:08.362898450Z","s":"info","m":"[cPanel Proxy] Fileman::list_files error (401): <!DOCTYPE html> [AUTH]"}
+{"t":"2026-09-16T15:54:08.363781385Z","s":"info","m":"[cPanel Proxy API2] Fileman::fileop error (403): Access denied [AUTH]"}
+{"t":"2026-09-16T15:54:08.364352444Z","s":"info","m":"[cPanel Proxy] Fileman::list_files error (401): <!DOCTYPE html> [AUTH]"}
+{"t":"2026-09-16T15:54:08.364371183Z","s":"info","m":"[cPanel Proxy] Fileman::list_files error (401): <!DOCTYPE html> [AUTH]"}
+{"t":"2026-09-16T15:54:28.363822736Z","s":"info","m":"[cPanel Proxy API2] Fileman::mkdir error (403): Access denied [AUTH]"}
+{"t":"2026-09-16T15:54:28.363841996Z","s":"info","m":"[cPanel Proxy] Fileman::list_files error (401): <!DOCTYPE html> [AUTH]"}
+{"t":"2026-09-16T15:54:30.846598716Z","s":"info","m":"[cPanel Proxy] Fileman::list_files error (401): <!DOCTYPE html> [AUTH]"}
+{"t":"2026-09-16T15:54:57.416776447Z","s":"info","m":"[cPanel Proxy] Fileman::upload_files error (401): Request failed with status code 401 [AUTH]"}
+{"t":"2026-09-16T15:54:57.416804267Z","s":"info","m":"[cPanel Proxy] uploadFileViaSession: create_user_session failed for ghrx51df — You cannot create a session for the user “ghrx51df” because they are currently suspended."}
+{"t":"2026-09-16T15:54:57.416812686Z","s":"info","m":"[cPanel Proxy] Fileman::list_files error (401): <!DOCTYPE html> [AUTH]"}
+{"t":"2026-09-16T15:55:17.417047900Z","s":"info","m":"[cPanel Proxy] Fileman::list_files error (401): <!DOCTYPE html> [AUTH]"}
+{"t":"2026-09-16T15:55:36.467804023Z","s":"info","m":"This will restore public access immediately. If you used <i>Maintenance Mode</i>, the redirect block is removed from your <code>.htaccess</code>. If you used <i>Full Suspend</i>, the cPanel account is unsuspended and HTTP/FTP/email/DB all come back."}
+{"t":"2026-09-16T15:56:04.443954778Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T15:56:08.434829966Z","s":"info","m":"[cPanel Proxy] Fileman::list_files got HTTP 200 with login-page HTML — treating as auth failure"}
+{"t":"2026-09-16T15:56:09.850895404Z","s":"info","m":"[cPanel Proxy] Fileman::list_files error (401): <!DOCTYPE html> [AUTH]"}
+{"t":"2026-09-16T15:57:10.212557874Z","s":"info","m":"[cPanel Proxy] Fileman::upload_files error (401): Request failed with status code 401 [AUTH]"}
+{"t":"2026-09-16T15:57:10.212569684Z","s":"info","m":"[cPanel Proxy] Fileman::list_files got HTTP 200 with login-page HTML — treating as auth failure"}
+{"t":"2026-09-16T15:57:13.042100483Z","s":"info","m":"[cPanel Proxy API2] Fileman::fileop error (403): Access denied [AUTH]"}
+{"t":"2026-09-16T15:57:15.038795085Z","s":"info","m":"[cPanel Proxy] Fileman::list_files error (401): <!DOCTYPE html> [AUTH]"}
+{"t":"2026-09-16T15:57:35.754568475Z","s":"info","m":"[cPanel Proxy API2] Fileman::fileop error (403): Access denied [AUTH]"}
+{"t":"2026-09-16T15:57:35.754572235Z","s":"info","m":"[cPanel Proxy] Fileman::list_files error (401): <!DOCTYPE html> [AUTH]"}
+{"t":"2026-09-16T15:57:35.754594965Z","s":"info","m":"[cPanel Proxy API2] Fileman::fileop error (403): Access denied [AUTH]"}
+{"t":"2026-09-16T15:57:35.754597405Z","s":"info","m":"[cPanel Proxy] Fileman::list_files error (401): <!DOCTYPE html> [AUTH]"}
+{"t":"2026-09-16T15:57:35.754606995Z","s":"info","m":"[cPanel Proxy] Fileman::list_files error (401): <!DOCTYPE html> [AUTH]"}
+{"t":"2026-09-16T15:57:41.845920320Z","s":"info","m":"[cPanel Proxy] Fileman::list_files error (401): <!DOCTYPE html> [AUTH]"}
+{"t":"2026-09-16T15:57:50.890194396Z","s":"info","m":"[cPanel Proxy API2] Fileman::fileop error (403): Access denied [AUTH]"}
+{"t":"2026-09-16T15:57:51.846953446Z","s":"info","m":"[cPanel Proxy] Fileman::list_files error (401): <!DOCTYPE html> [AUTH]"}
+{"t":"2026-09-16T15:58:12.174681894Z","s":"info","m":"[cPanel Proxy] Fileman::list_files error (401): <!DOCTYPE html> [AUTH]"}
+{"t":"2026-09-16T15:58:12.174685654Z","s":"info","m":"[cPanel Proxy API2] Fileman::fileop error (403): Access denied [AUTH]"}
+{"t":"2026-09-16T15:58:12.174699084Z","s":"info","m":"[cPanel Proxy] Fileman::list_files error (401): <!DOCTYPE html> [AUTH]"}
+{"t":"2026-09-16T15:58:12.174716594Z","s":"info","m":"[cPanel Proxy] Fileman::list_files error (401): <!DOCTYPE html> [AUTH]"}
+{"t":"2026-09-16T15:58:24.634821235Z","s":"info","m":"[cPanel Proxy] Fileman::get_file_content error (401): <!DOCTYPE html> [AUTH]"}
+{"t":"2026-09-16T15:58:31.039362956Z","s":"info","m":"[cPanel Proxy] Fileman::save_file_content got HTTP 200 with login-page HTML — treating as auth failure"}
+{"t":"2026-09-16T15:58:32.997026729Z","s":"info","m":"[cPanel Proxy] Fileman::list_files error (401): <!DOCTYPE html> [AUTH]"}
+{"t":"2026-09-16T15:58:43.053713241Z","s":"info","m":"[cPanel Proxy API2] Fileman::fileop error (403): Access denied [AUTH]"}
+{"t":"2026-09-16T15:58:43.718409017Z","s":"info","m":"[cPanel Proxy] Fileman::list_files error (401): <!DOCTYPE html> [AUTH]"}
+{"t":"2026-09-16T15:58:45.298244717Z","s":"info","m":"[cPanel Proxy] Fileman::list_files error (401): <!DOCTYPE html> [AUTH]"}
+{"t":"2026-09-16T15:59:13.630235457Z","s":"info","m":"[cPanel Proxy] Fileman::get_file_content error (401): <!DOCTYPE html> [AUTH]"}
+{"t":"2026-09-16T16:01:07.418157526Z","s":"info","m":"[cPanel Proxy] Fileman::save_file_content error (401): <!DOCTYPE html> [AUTH]"}
+{"t":"2026-09-16T16:01:10.844334480Z","s":"info","m":"[cPanel Proxy] Fileman::list_files got HTTP 200 with login-page HTML — treating as auth failure"}
+{"t":"2026-09-16T16:01:14.582508111Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T16:06:14.533994473Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T16:11:00.656562621Z","s":"info","m":"[ProtectionHeartbeat] Checking 15 cPanel accounts (deleted excluded; cooled-down stuck accounts retried)..."}
+{"t":"2026-09-16T16:11:14.534648938Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T16:12:46.992717269Z","s":"info","m":"[cPanel Queue] worker started"}
+{"t":"2026-09-16T16:12:46.992725016Z","s":"info","m":"[cPanel Health] probe + queue worker initialised"}
+{"t":"2026-09-16T16:12:47.025141304Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T16:13:01.730923995Z","s":"info","m":"[CpanelMigration] Found 44 account(s) not on current WHM_HOST (68.183.77.106). Checking new server..."}
+{"t":"2026-09-16T16:13:23.937071479Z","s":"info","m":"[ProtectionEnforcer] cpanelAccounts: 111 accounts"}
+{"t":"2026-09-16T16:13:32.099707617Z","s":"info","m":"[CpanelMigration] Failed to list WHM accounts: timeout of 30000ms exceeded. Aborting migration."}
+{"t":"2026-09-16T16:14:54.335425187Z","s":"info","m":"[ProtectionHeartbeat] Checking 15 cPanel accounts (deleted excluded; cooled-down stuck accounts retried)..."}
+{"t":"2026-09-16T16:17:47.579192189Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T16:22:46.825249147Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T16:27:46.846216508Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T16:32:54.110378860Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T16:37:47.334154634Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T16:42:57.015990706Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T16:44:06.363363638Z","s":"info","m":"[cPanel Queue] worker started"}
+{"t":"2026-09-16T16:44:06.363366933Z","s":"info","m":"[cPanel Health] probe + queue worker initialised"}
+{"t":"2026-09-16T16:44:06.367073579Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T16:44:21.162784189Z","s":"info","m":"[CpanelMigration] Found 44 account(s) not on current WHM_HOST (68.183.77.106). Checking new server..."}
+{"t":"2026-09-16T16:44:45.665201567Z","s":"info","m":"[ProtectionEnforcer] cpanelAccounts: 111 accounts"}
+{"t":"2026-09-16T16:44:51.163344048Z","s":"info","m":"[CpanelMigration] Failed to list WHM accounts: timeout of 30000ms exceeded. Aborting migration."}
+{"t":"2026-09-16T16:46:15.300136532Z","s":"info","m":"[ProtectionHeartbeat] Checking 15 cPanel accounts (deleted excluded; cooled-down stuck accounts retried)..."}
+{"t":"2026-09-16T16:49:07.358876475Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T16:54:11.482145923Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T16:59:07.450481453Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T17:04:15.331703791Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T17:09:06.613270307Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T17:14:16.102190782Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T17:18:54.319141335Z","s":"info","m":"[cPanel Queue] worker started"}
+{"t":"2026-09-16T17:18:54.319145405Z","s":"info","m":"[cPanel Health] probe + queue worker initialised"}
+{"t":"2026-09-16T17:18:54.437725010Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T17:19:09.274379840Z","s":"info","m":"[CpanelMigration] Found 44 account(s) not on current WHM_HOST (68.183.77.106). Checking new server..."}
+{"t":"2026-09-16T17:19:34.328762438Z","s":"info","m":"[ProtectionEnforcer] cpanelAccounts: 111 accounts"}
+{"t":"2026-09-16T17:19:39.296624539Z","s":"info","m":"[CpanelMigration] Failed to list WHM accounts: timeout of 30000ms exceeded. Aborting migration."}
+{"t":"2026-09-16T17:21:04.248525353Z","s":"info","m":"[ProtectionHeartbeat] Checking 15 cPanel accounts (deleted excluded; cooled-down stuck accounts retried)..."}
+{"t":"2026-09-16T17:23:57.131739339Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T17:28:54.557174146Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T17:33:56.869912877Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T17:38:55.479958309Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T17:43:55.406976576Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T17:49:04.443992041Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T17:53:54.504040350Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T17:58:54.576801791Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T18:03:34.955117759Z","s":"info","m":"[cPanel Queue] worker started"}
+{"t":"2026-09-16T18:03:34.955123474Z","s":"info","m":"[cPanel Health] probe + queue worker initialised"}
+{"t":"2026-09-16T18:03:35.112290438Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T18:03:50.135119187Z","s":"info","m":"[CpanelMigration] Found 44 account(s) not on current WHM_HOST (68.183.77.106). Checking new server..."}
+{"t":"2026-09-16T18:04:14.825594763Z","s":"info","m":"[ProtectionEnforcer] cpanelAccounts: 111 accounts"}
+{"t":"2026-09-16T18:04:19.905827179Z","s":"info","m":"[CpanelMigration] Failed to list WHM accounts: timeout of 30000ms exceeded. Aborting migration."}
+{"t":"2026-09-16T18:05:44.707515422Z","s":"info","m":"[ProtectionHeartbeat] Checking 15 cPanel accounts (deleted excluded; cooled-down stuck accounts retried)..."}
+{"t":"2026-09-16T18:08:35.987861805Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T18:13:43.503496409Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T18:18:45.126293644Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T18:23:35.293354609Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T18:24:38.583168555Z","s":"info","m":"[cPanel Queue] worker started"}
+{"t":"2026-09-16T18:24:38.583173365Z","s":"info","m":"[cPanel Health] probe + queue worker initialised"}
+{"t":"2026-09-16T18:24:38.720337274Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T18:24:53.468162355Z","s":"info","m":"[CpanelMigration] Found 44 account(s) not on current WHM_HOST (68.183.77.106). Checking new server..."}
+{"t":"2026-09-16T18:25:17.685192808Z","s":"info","m":"[ProtectionEnforcer] cpanelAccounts: 111 accounts"}
+{"t":"2026-09-16T18:25:23.471293953Z","s":"info","m":"[CpanelMigration] Failed to list WHM accounts: timeout of 30000ms exceeded. Aborting migration."}
+{"t":"2026-09-16T18:26:47.524072350Z","s":"info","m":"[ProtectionHeartbeat] Checking 15 cPanel accounts (deleted excluded; cooled-down stuck accounts retried)..."}
+{"t":"2026-09-16T18:29:38.715760099Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T18:34:48.646400360Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T18:39:39.518924111Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T18:44:48.476165685Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T18:49:40.067956404Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T18:54:47.049358574Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T19:00:09.358511203Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T19:05:07.563134358Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T19:09:58.745762444Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T19:15:08.490793014Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T19:19:58.694954826Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T19:24:58.750703372Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T19:30:08.504167101Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T19:34:58.731835687Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T19:40:08.736362936Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T19:45:18.939998190Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T19:46:14.766894601Z","s":"info","m":"[cPanel Queue] worker started"}
+{"t":"2026-09-16T19:46:14.766898071Z","s":"info","m":"[cPanel Health] probe + queue worker initialised"}
+{"t":"2026-09-16T19:46:14.967141047Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T19:46:29.679699551Z","s":"info","m":"[CpanelMigration] Found 44 account(s) not on current WHM_HOST (68.183.77.106). Checking new server..."}
+{"t":"2026-09-16T19:46:54.471853988Z","s":"info","m":"[ProtectionEnforcer] cpanelAccounts: 111 accounts"}
+{"t":"2026-09-16T19:46:59.901507579Z","s":"info","m":"[CpanelMigration] Failed to list WHM accounts: timeout of 30000ms exceeded. Aborting migration."}
+{"t":"2026-09-16T19:48:24.428029307Z","s":"info","m":"[ProtectionHeartbeat] Checking 15 cPanel accounts (deleted excluded; cooled-down stuck accounts retried)..."}
+{"t":"2026-09-16T19:51:15.392565968Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T19:56:05.915910301Z","s":"info","m":"[cPanel Queue] worker started"}
+{"t":"2026-09-16T19:56:05.915918171Z","s":"info","m":"[cPanel Health] probe + queue worker initialised"}
+{"t":"2026-09-16T19:56:06.150360124Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T19:56:20.499641190Z","s":"info","m":"[CpanelMigration] Found 44 account(s) not on current WHM_HOST (68.183.77.106). Checking new server..."}
+{"t":"2026-09-16T19:56:45.788796652Z","s":"info","m":"[ProtectionEnforcer] cpanelAccounts: 111 accounts"}
+{"t":"2026-09-16T19:56:50.503115457Z","s":"info","m":"[CpanelMigration] Failed to list WHM accounts: timeout of 30000ms exceeded. Aborting migration."}
+{"t":"2026-09-16T19:58:15.579632729Z","s":"info","m":"[ProtectionHeartbeat] Checking 15 cPanel accounts (deleted excluded; cooled-down stuck accounts retried)..."}
+{"t":"2026-09-16T20:01:06.024602774Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T20:06:06.032182646Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T20:11:06.210122079Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T20:16:09.080752752Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T20:21:06.045174177Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T20:26:15.889890539Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T20:31:15.553594315Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T20:36:15.735701916Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T20:41:07.007028331Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T20:46:15.918411428Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T20:51:08.680281322Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T20:56:10.541463672Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T21:01:10.763087745Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T21:06:07.181187050Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T21:11:11.368818563Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T21:16:15.782815759Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T21:21:06.415497257Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T21:26:15.663528530Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T21:28:52.168914310Z","s":"info","m":"[cPanel Queue] worker started"}
+{"t":"2026-09-16T21:28:52.168920740Z","s":"info","m":"[cPanel Health] probe + queue worker initialised"}
+{"t":"2026-09-16T21:28:52.271606354Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T21:29:07.207858431Z","s":"info","m":"[CpanelMigration] Found 44 account(s) not on current WHM_HOST (68.183.77.106). Checking new server..."}
+{"t":"2026-09-16T21:29:31.010614433Z","s":"info","m":"[ProtectionEnforcer] cpanelAccounts: 111 accounts"}
+{"t":"2026-09-16T21:29:37.070776713Z","s":"info","m":"[CpanelMigration] Failed to list WHM accounts: timeout of 30000ms exceeded. Aborting migration."}
+{"t":"2026-09-16T21:31:00.941527149Z","s":"info","m":"[ProtectionHeartbeat] Checking 15 cPanel accounts (deleted excluded; cooled-down stuck accounts retried)..."}
+{"t":"2026-09-16T21:33:52.445924281Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T21:38:56.743589576Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T21:43:54.952193304Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T21:48:52.766760260Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T21:53:52.806389447Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T21:58:52.682890046Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T22:03:52.721564814Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T22:08:53.387812675Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T22:13:53.296888499Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T22:18:53.511308867Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T22:23:53.242766236Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T22:28:52.732395000Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T22:34:01.359464170Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T22:38:53.017755727Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T22:43:52.786402225Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T22:48:53.109105753Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T22:53:52.788831435Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T22:58:52.979166542Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T23:03:57.016175295Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T23:09:02.144560912Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T23:14:02.261937084Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T23:18:53.505238204Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T23:23:52.871950913Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T23:28:52.500930372Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T23:29:00.995435213Z","s":"info","m":"[ProtectionHeartbeat] Checking 15 cPanel accounts (deleted excluded; cooled-down stuck accounts retried)..."}
+{"t":"2026-09-16T23:33:59.813905186Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T23:39:01.935772828Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T23:43:53.924698029Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T23:48:53.231146208Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T23:54:01.552768909Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-16T23:58:52.472576238Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-17T00:04:01.987245212Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-17T00:09:12.485483104Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-17T00:14:12.363422096Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-17T00:19:12.370747820Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-17T00:24:12.396970257Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-17T00:29:12.629592123Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-17T00:34:12.447875234Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-17T00:39:12.534500478Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-17T00:44:12.405923435Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-17T00:49:21.167873027Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-17T00:54:21.235502809Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-17T00:59:12.904090614Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-17T01:04:21.977791086Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-17T01:09:20.995533284Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-17T01:14:21.071978364Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-17T01:19:12.436876540Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-17T01:24:21.204726991Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-17T01:29:00.967060738Z","s":"info","m":"[ProtectionHeartbeat] Checking 15 cPanel accounts (deleted excluded; cooled-down stuck accounts retried)..."}
+{"t":"2026-09-17T01:29:12.563263863Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-17T01:34:41.598529694Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-17T01:39:41.053340729Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-17T01:44:33.445054580Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-17T01:49:32.589573896Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-17T01:54:38.244227348Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-17T01:59:32.475093939Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-17T02:04:32.622538918Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-17T02:09:42.162652409Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-17T02:14:42.478089170Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-17T02:19:42.407421808Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-17T02:24:32.486497500Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-17T02:29:32.554534245Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-17T02:34:32.536552925Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-17T02:39:32.590827026Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-17T02:44:32.456923050Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-17T02:49:23.226626545Z","s":"info","m":"[cPanel Proxy] Fileman::list_files error (401): <!DOCTYPE html> [AUTH]"}
+{"t":"2026-09-17T02:49:23.226637755Z","s":"info","m":"[cPanel Proxy] Fileman::list_files error (401): <!DOCTYPE html> [AUTH]"}
+{"t":"2026-09-17T02:49:32.570248886Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-17T02:50:26.039346041Z","s":"info","m":"[cPanel Proxy API2] Fileman::fileop error (403): Access denied [AUTH]"}
+{"t":"2026-09-17T02:50:28.442934658Z","s":"info","m":"[cPanel Proxy] Fileman::list_files error (401): <!DOCTYPE html> [AUTH]"}
+{"t":"2026-09-17T02:54:32.617107677Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-17T02:59:32.493210921Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-17T03:04:35.876138239Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-17T03:09:37.034808161Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-17T03:14:38.106912314Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-17T03:19:34.580589002Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-17T03:24:33.234779527Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-17T03:29:01.119426093Z","s":"info","m":"[ProtectionHeartbeat] Checking 15 cPanel accounts (deleted excluded; cooled-down stuck accounts retried)..."}
+{"t":"2026-09-17T03:29:01.119442613Z","s":"info","m":"[ProtectionEnforcer] cpanelAccounts: 111 accounts"}
+{"t":"2026-09-17T03:29:38.713254356Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-17T03:34:32.515322261Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-17T03:39:52.680704612Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-17T03:44:52.520620514Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-17T03:49:52.603125615Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-17T03:54:52.545963186Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-17T03:59:52.494879037Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-17T04:04:52.553578962Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-17T04:09:52.565856999Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-17T04:14:52.779414869Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-17T04:20:01.825646157Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-17T04:24:56.475410745Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-17T04:29:59.914341982Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-17T04:34:59.252867287Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-17T04:39:53.387849518Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-17T04:44:52.875929621Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-17T04:49:54.323647426Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}
+{"t":"2026-09-17T04:54:53.255795577Z","s":"info","m":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed"}

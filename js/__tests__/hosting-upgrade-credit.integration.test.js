@@ -15,7 +15,7 @@
  * Run: node js/__tests__/hosting-upgrade-credit.integration.test.js
  */
 
-require('dotenv').config({ path: '/app/backend/.env' })
+require('dotenv').config({ path: require('path').join(__dirname, '../../.env') })
 
 const { MongoClient } = require('mongodb')
 const { computeUpgradeQuote, getBestUpgradeQuote } = require('../hosting-upgrade-credit')

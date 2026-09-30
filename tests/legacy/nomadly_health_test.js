@@ -215,7 +215,7 @@ async function testDatabaseConnectivity() {
     
     // Check if we can connect to MongoDB 
     // Note: Using connection string from environment or default
-    const mongoUrl = process.env.MONGO_URL || 'mongodb://mongo:RQoOmIdwjRLFvhWMaatjidzqpvawUKcb@caboose.proxy.rlwy.net:59668'
+    const mongoUrl = process.env.MONGO_URL || 'mongodb://localhost:27017'
     const client = new MongoClient(mongoUrl)
     
     await client.connect()

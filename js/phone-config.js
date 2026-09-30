@@ -31,9 +31,6 @@ if (!process.env.PHONE_STARTER_PRICE || !process.env.PHONE_PRO_PRICE || !process
 }
 const SIP_DOMAIN = process.env.SIP_DOMAIN || 'sip.speechcue.com'
 const CALL_PAGE_URL = process.env.CALL_PAGE_URL || 'https://speechcue.com/call'
-// Brand support-group handle — env-driven so whitelabel deploys never leak
-// another tenant's support handle. Default is the origin brand's handle.
-const SUPPORT_HANDLE_2 = process.env.SUPPORT_HANDLE_2 || '@Hostbay_support'
 
 // ── Configurable plan minutes & SMS from .env ──
 // IMPORTANT: env keys are UN-prefixed (STARTER_MINUTES / PRO_MINUTES / BUSINESS_MINUTES …).
@@ -457,10 +454,10 @@ const upgradeMessage = (feature, currentPlan, lang) => {
   // contact support instead of trying to upgrade to a plan they're already
   // on (which would do nothing).
   const lockedTemplates = {
-    en: (fn, cp) => `🔒 <b>${fn}</b> is temporarily unavailable on this number.\n\nYour current plan: <b>${cp}</b> (already includes this feature).\n\nPlease contact <b>${SUPPORT_HANDLE_2}</b> — we'll re-enable it for you.`,
-    fr: (fn, cp) => `🔒 <b>${fn}</b> est temporairement indisponible sur ce numéro.\n\nVotre forfait actuel : <b>${cp}</b> (inclut déjà cette fonctionnalité).\n\nContactez <b>${SUPPORT_HANDLE_2}</b> — nous la réactiverons pour vous.`,
-    zh: (fn, cp) => `🔒 <b>${fn}</b> 在此号码上暂时不可用。\n\n当前套餐：<b>${cp}</b>（已包含此功能）。\n\n请联系 <b>${SUPPORT_HANDLE_2}</b> — 我们将为您重新启用。`,
-    hi: (fn, cp) => `🔒 इस नंबर पर <b>${fn}</b> अस्थायी रूप से अनुपलब्ध है।\n\nआपका वर्तमान प्लान: <b>${cp}</b> (इस सुविधा को पहले से शामिल करता है)।\n\nकृपया <b>${SUPPORT_HANDLE_2}</b> से संपर्क करें — हम इसे पुनः सक्षम करेंगे।`,
+    en: (fn, cp) => `🔒 <b>${fn}</b> is temporarily unavailable on this number.\n\nYour current plan: <b>${cp}</b> (already includes this feature).\n\nPlease contact <b>@Hostbay_support</b> — we'll re-enable it for you.`,
+    fr: (fn, cp) => `🔒 <b>${fn}</b> est temporairement indisponible sur ce numéro.\n\nVotre forfait actuel : <b>${cp}</b> (inclut déjà cette fonctionnalité).\n\nContactez <b>@Hostbay_support</b> — nous la réactiverons pour vous.`,
+    zh: (fn, cp) => `🔒 <b>${fn}</b> 在此号码上暂时不可用。\n\n当前套餐：<b>${cp}</b>（已包含此功能）。\n\n请联系 <b>@Hostbay_support</b> — 我们将为您重新启用。`,
+    hi: (fn, cp) => `🔒 इस नंबर पर <b>${fn}</b> अस्थायी रूप से अनुपलब्ध है।\n\nआपका वर्तमान प्लान: <b>${cp}</b> (इस सुविधा को पहले से शामिल करता है)।\n\nकृपया <b>@Hostbay_support</b> से संपर्क करें — हम इसे पुनः सक्षम करेंगे।`,
   }
   // SIP-credentials specific upgrade pitch — for STARTER users who tap the
   // gated menu. Reassures them that credentials already exist on Telnyx
@@ -597,7 +594,7 @@ planByButton[btn.businessPlan] = 'business'
 
 // ── Text messages ──
 const txt = {
-  hubWelcome: `📞 <b>Cloud IVR</b> <i>by ${process.env.BRAND_PHONE_NAME || 'SpeechCue'}</i>
+  hubWelcome: `📞 <b>Cloud IVR</b> <i>by Speechcue</i>
 
 Virtual numbers in 30+ countries · Active in 2 minutes
 
@@ -978,7 +975,7 @@ Incoming calls answered via SIP/browser + SMS included · Call forwarding & outb
 
   // ── Test My Number ──
   testMyNumber: {
-    placing: (phone) => `📞 Calling <code>${phone}</code> from a ${process.env.CHAT_BOT_BRAND || 'Nomadly'} test line… pick up on your softphone and press <b>1</b> when it rings (you have ~12 seconds after answer).\n\nResult will appear here within 60 seconds.`,
+    placing: (phone) => `📞 Calling <code>${phone}</code> from a Nomadly test line… pick up on your softphone and press <b>1</b> when it rings (you have ~12 seconds after answer).\n\nResult will appear here within 60 seconds.`,
     successDtmf: (phone) => `✅ <b>Reached your SIP device</b> — calls to <code>${phone}</code> are working end-to-end. The far end answered and a key was pressed.`,
     voicemail: (phone) => `⚠️ <b>Got voicemail / PBX answer</b> on <code>${phone}</code>.\n\nThis usually means a PBX (3CX, FreePBX, Asterisk…) is answering and dumping the call to its own voicemail instead of ringing your extension.\n\nFix: open /sipguide for the SIP TRUNK setup walk-through, or switch to a single-line softphone (Linphone, Zoiper) for an instant fix.`,
     answeredNoDtmf: (phone) => `⚠️ <b>Call answered, but no key was pressed</b> on <code>${phone}</code> within 12 seconds.\n\nIf you didn't pick up, your softphone may not be receiving the call. If you DID pick up but didn't press 1, just retry. If a PBX (3CX/FreePBX) is involved, see /sipguide for SIP TRUNK setup.`,
@@ -992,7 +989,7 @@ Incoming calls answered via SIP/browser + SMS included · Call forwarding & outb
   testOutboundSip: {
     listening: (phone, sipUser) => `📤 <b>Outbound SIP Test — listening for 90s</b>\n\n📞 Number: <code>${phone}</code>\n🔑 SIP user: <code>${sipUser}</code>\n\nFrom your softphone, dial <b>any number</b> within the next 90 seconds — your own mobile is ideal.\n\n💡 The call will be intercepted safely: <b>no wallet charges</b>, <b>no PSTN leg</b> will be placed. We just verify your softphone's outbound path reaches our servers with the correct SIP credentials.\n\nResult will appear here as soon as your call arrives.`,
     success: (phone, sipUser, provider, destination, elapsedSec) => `✅ <b>Outbound SIP verified</b>\n\nYour softphone successfully placed an outbound call.\n\n📞 Number: <code>${phone}</code>\n🔑 SIP user: <code>${sipUser}</code>\n🌐 Provider: <code>${provider}</code>\n📍 You dialed: <code>${destination}</code>\n⏱️ Latency to our servers: ${elapsedSec}s\n\n💡 The call was intercepted — no wallet charges, no PSTN leg placed. Your outbound SIP path is working end-to-end.`,
-    timeout: (phone) => `❌ <b>No outbound SIP call detected</b> on <code>${phone}</code> in 90 seconds.\n\nLikely causes:\n• <b>SIP 403 Forbidden on register</b> — long <code>gencred…</code> usernames (49 chars) get truncated by some dialers. Copy-paste from 🔑 SIP Credentials; don't retype. Also make sure the domain <code>${SIP_DOMAIN}</code> is in the <i>Domain / SIP Server</i> field, NOT appended to the username.\n• Softphone not registered — check the registration/status light in Linphone/Zoiper/MicroSIP\n• Wrong SIP credentials — verify username + password via <b>🔑 SIP Credentials</b>\n• Firewall blocking UDP 5060 / SIP traffic\n• <b>Predictive / auto-dialer</b> (Ecsow, DialFire, X-Lite) or PBX (3CX / FreePBX) misconfigured as user/extension instead of SIP TRUNK — see /sipguide\n\nOnce you see "Registered" in your softphone, run the test again.`,
+    timeout: (phone) => `❌ <b>No outbound SIP call detected</b> on <code>${phone}</code> in 90 seconds.\n\nLikely causes:\n• <b>SIP 403 Forbidden on register</b> — long <code>gencred…</code> usernames (49 chars) get truncated by some dialers. Copy-paste from 🔑 SIP Credentials; don't retype. Also make sure the domain <code>sip.speechcue.com</code> is in the <i>Domain / SIP Server</i> field, NOT appended to the username.\n• Softphone not registered — check the registration/status light in Linphone/Zoiper/MicroSIP\n• Wrong SIP credentials — verify username + password via <b>🔑 SIP Credentials</b>\n• Firewall blocking UDP 5060 / SIP traffic\n• <b>Predictive / auto-dialer</b> (Ecsow, DialFire, X-Lite) or PBX (3CX / FreePBX) misconfigured as user/extension instead of SIP TRUNK — see /sipguide\n\nOnce you see "Registered" in your softphone, run the test again.`,
     throttled: (max) => `⏳ You've already run ${max} outbound SIP tests on this number in the last 24 hours. Try again later.`,
     inactive: (phone) => `❌ Number <code>${phone}</code> is not active — outbound SIP testing is only available for active numbers.`,
     noSipConfigured: (phone) => `❌ No SIP credentials on <code>${phone}</code>. Set up SIP first via <b>🔑 SIP Credentials</b>, then retry.`,
@@ -1781,7 +1778,7 @@ function btnKeyOf(message) {
 // ── Translated txt (user-facing message texts) ──
 const txtI18n = {
   fr: {
-    hubWelcome: `📞 <b>Cloud IVR</b> <i>par ${process.env.BRAND_PHONE_NAME || 'SpeechCue'}</i>
+    hubWelcome: `📞 <b>Cloud IVR</b> <i>par Speechcue</i>
 
 Obtenez un numéro virtuel dans plus de 30 pays — en moins de 2 minutes.
 
@@ -2246,7 +2243,7 @@ Envoyez /testsip ici pour obtenir votre code test.
     btnUploadNewAudio: '📎 Uploader Nouveau',
     btnBack: '↩️ Retour',
     testMyNumber: {
-      placing: (phone) => `📞 Appel vers <code>${phone}</code> depuis une ligne de test ${process.env.CHAT_BOT_BRAND || 'Nomadly'}… décrochez sur votre softphone et appuyez sur <b>1</b> quand ça sonne (vous avez ~12 secondes après décrochage).\n\nLe résultat apparaîtra ici dans les 60 secondes.`,
+      placing: (phone) => `📞 Appel vers <code>${phone}</code> depuis une ligne de test Nomadly… décrochez sur votre softphone et appuyez sur <b>1</b> quand ça sonne (vous avez ~12 secondes après décrochage).\n\nLe résultat apparaîtra ici dans les 60 secondes.`,
       successDtmf: (phone) => `✅ <b>Votre appareil SIP a répondu</b> — les appels vers <code>${phone}</code> fonctionnent de bout en bout. Le destinataire a répondu et une touche a été pressée.`,
       voicemail: (phone) => `⚠️ <b>Messagerie vocale / PBX a répondu</b> sur <code>${phone}</code>.\n\nCela signifie généralement qu'un PBX (3CX, FreePBX, Asterisk…) répond et bascule l'appel vers sa propre messagerie au lieu de faire sonner votre extension.\n\nSolution : ouvrez /sipguide pour la configuration SIP TRUNK, ou passez à un softphone monoligne (Linphone, Zoiper) pour une solution immédiate.`,
       answeredNoDtmf: (phone) => `⚠️ <b>Appel répondu, mais aucune touche pressée</b> sur <code>${phone}</code> dans les 12 secondes.\n\nSi vous n'avez pas décroché, votre softphone ne reçoit peut-être pas l'appel. Si vous avez décroché mais pas appuyé sur 1, réessayez. Si un PBX (3CX/FreePBX) est impliqué, consultez /sipguide pour la configuration SIP TRUNK.`,
@@ -2265,7 +2262,7 @@ Envoyez /testsip ici pour obtenir votre code test.
     },
   },
   zh: {
-    hubWelcome: `📞 <b>Cloud IVR</b> <i>由 ${process.env.BRAND_PHONE_NAME || 'SpeechCue'} 提供</i>
+    hubWelcome: `📞 <b>Cloud IVR</b> <i>由 Speechcue 提供</i>
 
 在30多个国家获取虚拟号码 — 不到2分钟。
 
@@ -2749,7 +2746,7 @@ Envoyez /testsip ici pour obtenir votre code test.
     },
   },
   hi: {
-    hubWelcome: `📞 <b>Cloud IVR</b> <i>${process.env.BRAND_PHONE_NAME || 'SpeechCue'} द्वारा</i>
+    hubWelcome: `📞 <b>Cloud IVR</b> <i>Speechcue द्वारा</i>
 
 30 से अधिक देशों में वर्चुअल नंबर प्राप्त करें — 2 मिनट से भी कम में।
 

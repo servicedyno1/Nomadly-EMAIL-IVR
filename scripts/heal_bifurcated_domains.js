@@ -47,11 +47,11 @@
  *     instead of touched so the user isn't routed into a dead zone.
  */
 
-require('dotenv').config({ path: '/app/backend/.env' })
+require('dotenv').config({ path: require('path').join(__dirname, '..', 'backend', '.env') })
 const { MongoClient } = require('mongodb')
 const { execSync } = require('child_process')
-const cfService = require('/app/js/cf-service.js')
-const opService = require('/app/js/op-service.js')
+const cfService = require('../js/cf-service.js')
+const opService = require('../js/op-service.js')
 
 const CF_NS = ['anderson.ns.cloudflare.com', 'leanna.ns.cloudflare.com'] // CF will tell us the real pair per zone
 const OP_DEFAULT_NS_PATTERNS = [/^ns\d?\.openprovider\.(nl|be|eu)$/i]

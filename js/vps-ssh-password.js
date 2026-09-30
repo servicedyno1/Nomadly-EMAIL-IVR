@@ -28,6 +28,7 @@
  */
 
 const crypto = require('crypto')
+const net = require('net')
 const { Client } = require('ssh2')
 
 const log = (...a) => console.log('[VPS-SSH]', ...a)
@@ -401,6 +402,135 @@ async function diagnosePasswordAccess(opts = {}) {
   return { status: 'unreachable', detail: 'could not reach the server to check' }
 }
 
+/**
+ * Open a bare TCP connection to host:port and resolve true if it accepts the
+ * connection within `timeoutMs`. Never throws. Used to tell "the box is down"
+ * apart from "the box is up but SSH (22) is firewalled".
+ */
+function probeTcpPort(host, port, timeoutMs = 6000) {
+  return new Promise((resolve) => {
+    if (!host) return resolve(false)
+    const sock = new net.Socket()
+    let done = false
+    const finish = (val) => {
+      if (done) return
+      done = true
+      try { sock.destroy() } catch (_) { /* noop */ }
+      resolve(val)
+    }
+    sock.setTimeout(timeoutMs)
+    sock.once('connect', () => finish(true))
+    sock.once('timeout', () => finish(false))
+    sock.once('error', () => finish(false))
+    try {
+      sock.connect(Number(port) || 22, host)
+    } catch (_) {
+      finish(false)
+    }
+  })
+}
+
+/**
+ * Diagnose why an SSH operation could not reach a VPS.
+ *   verdict 'ok'          — SSH port is open (problem is auth, not reachability)
+ *   verdict 'ssh-blocked' — box is ONLINE (a web port answers) but SSH is closed
+ *                           → almost always the guest firewall (ufw) blocking 22
+ *   verdict 'host-down'   — nothing answers on SSH or the common web ports
+ *
+ * @returns {Promise<{sshOpen:boolean, webOpen:boolean, hostUp:boolean, verdict:string}>}
+ */
+async function diagnoseSshReachability(host, opts = {}) {
+  const sshPort = Number(opts.sshPort) || 22
+  const timeoutMs = Number(opts.timeoutMs) || 6000
+  const sshOpen = await probeTcpPort(host, sshPort, timeoutMs)
+  if (sshOpen) {
+    return { sshOpen: true, webOpen: false, hostUp: true, verdict: 'ok' }
+  }
+  // SSH closed — is the box otherwise alive? Probe common always-on ports.
+  const webPorts = Array.isArray(opts.webPorts) && opts.webPorts.length ? opts.webPorts : [80, 443]
+  let webOpen = false
+  for (const p of webPorts) {
+    if (await probeTcpPort(host, p, timeoutMs)) { webOpen = true; break }
+  }
+  return {
+    sshOpen: false,
+    webOpen,
+    hostUp: webOpen,
+    verdict: webOpen ? 'ssh-blocked' : 'host-down',
+  }
+}
+
+/**
+ * A+B BACKFILL for EXISTING droplets — DO has no API to add an SSH key or
+ * change the firewall after create, so we do it over SSH on the running box:
+ * append the bot's managed PUBLIC key to root's authorized_keys (idempotent)
+ * and register `ufw allow OpenSSH` (idempotent — only OPENS a port, never
+ * closes one). Also re-asserts password auth to match create-time hardening.
+ * Requires an existing working credential (a stored key or the current/
+ * recoverable password) — locked-out boxes can't be reached and must be fixed
+ * via the provider recovery console.
+ */
+function buildBackfillScript(publicKey) {
+  const pub = String(publicKey || '').trim().replace(/'/g, "'\"'\"'")
+  return [
+    '#!/bin/bash',
+    'mkdir -p /root/.ssh && chmod 700 /root/.ssh',
+    'touch /root/.ssh/authorized_keys && chmod 600 /root/.ssh/authorized_keys',
+    `KEY='${pub}'`,
+    // idempotent: only append if the exact key line is not already present
+    'grep -qxF "$KEY" /root/.ssh/authorized_keys || echo "$KEY" >> /root/.ssh/authorized_keys',
+    // never firewall SSH out — additive only
+    'if command -v ufw >/dev/null 2>&1; then ufw allow OpenSSH 2>/dev/null || ufw allow 22/tcp 2>/dev/null || true; fi',
+    // re-assert password auth + root login (idempotent), incl. drop-ins
+    "sed -i 's/^#*PasswordAuthentication.*/PasswordAuthentication yes/' /etc/ssh/sshd_config 2>/dev/null || true",
+    "sed -i 's/^#*PermitRootLogin.*/PermitRootLogin yes/' /etc/ssh/sshd_config 2>/dev/null || true",
+    'for f in /etc/ssh/sshd_config.d/*.conf; do [ -f "$f" ] && sed -i "s/^PasswordAuthentication no/PasswordAuthentication yes/" "$f" 2>/dev/null; done || true',
+    // reload (not restart) so we never kill our own session
+    'systemctl reload sshd 2>/dev/null || systemctl reload ssh 2>/dev/null || systemctl restart ssh 2>/dev/null || pkill -HUP -x sshd 2>/dev/null || true',
+    'echo NOMADLY_BACKFILL_OK',
+  ].join('\n')
+}
+
+/**
+ * Apply the A+B backfill to a RUNNING droplet over SSH.
+ * Auth order: every stored private key, then the current password.
+ * @returns {Promise<{ok:boolean, method:string|null, attempts:Array, error?:string}>}
+ */
+async function applyBackfillOverSSH(opts = {}) {
+  const {
+    host, port = 22, username = 'root', publicKey,
+    privateKeys = [], currentPassword = null, timeoutMs = DEFAULT_TIMEOUT_MS,
+  } = opts
+  const attempts = []
+  if (!host) return { ok: false, method: null, attempts, error: 'no host on record' }
+  if (!publicKey) return { ok: false, method: null, attempts, error: 'no publicKey supplied' }
+
+  const script = buildBackfillScript(publicKey)
+  const candidates = []
+  for (const k of (Array.isArray(privateKeys) ? privateKeys : [privateKeys])) {
+    const key = typeof k === 'string' ? k : (k && (k.privateKey || k.key))
+    const name = (k && k.sshKeyName) || (k && k.name) || 'ssh-key'
+    if (key && String(key).includes('PRIVATE KEY')) candidates.push({ method: `ssh-key:${name}`, privateKey: String(key) })
+  }
+  if (currentPassword) candidates.push({ method: 'ssh-password', password: currentPassword })
+  if (!candidates.length) return { ok: false, method: null, attempts, error: 'no SSH key and no known current password' }
+
+  for (const cand of candidates) {
+    try {
+      const res = await execOverSSH({
+        host, port, username, script, timeoutMs,
+        privateKey: cand.privateKey || null, password: cand.password || null,
+      })
+      const ok = res.code === 0 || String(res.stdout).includes('NOMADLY_BACKFILL_OK')
+      attempts.push({ method: cand.method, ok, code: res.code, stderr: String(res.stderr || '').slice(0, 150) })
+      if (ok) { log(`backfill applied on ${host} via ${cand.method}`); return { ok: true, method: cand.method, attempts } }
+    } catch (e) {
+      attempts.push({ method: cand.method, ok: false, error: String(e.message || e).slice(0, 150) })
+    }
+  }
+  return { ok: false, method: null, attempts, error: 'all auth attempts failed' }
+}
+
 module.exports = {
   applyPasswordOverSSH,
   verifyPasswordLogin,
@@ -410,4 +540,8 @@ module.exports = {
   execOverSSH,
   buildPasswordScript,
   normalizePrivateKey,
+  probeTcpPort,
+  diagnoseSshReachability,
+  buildBackfillScript,
+  applyBackfillOverSSH,
 }

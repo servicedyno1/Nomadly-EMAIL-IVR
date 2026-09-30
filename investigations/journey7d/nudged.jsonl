@@ -1,0 +1,17 @@
+{"t":"2026-09-07T17:11:01.684186486Z","s":"info","m":"17:10:59 [CartRecovery] ✅ Nudged 5833835818 for domain abandonment (lang: en)"}
+{"t":"2026-09-08T00:12:16.918436040Z","s":"info","m":"00:12:13 [CartRecovery] ✅ Nudged 1885282275 for domain abandonment (lang: en)"}
+{"t":"2026-09-08T01:52:30.991710766Z","s":"info","m":"01:52:24 [CartRecovery] ✅ Nudged 8544440496 for domain abandonment (lang: en)"}
+{"t":"2026-09-08T06:02:45.887467037Z","s":"info","m":"06:02:45 [CartRecovery] ✅ Nudged 7977501762 for digitalproduct abandonment (lang: en)"}
+{"t":"2026-09-08T11:24:01.962948683Z","s":"info","m":"11:24:01 [CartRecovery] Skipping 5976060042 — nudged recently"}
+{"t":"2026-09-08T13:36:16.312802439Z","s":"info","m":"13:36:14 [CartRecovery] ✅ Nudged 8811620667 for digitalproduct abandonment (lang: en)"}
+{"t":"2026-09-09T01:54:40.119191960Z","s":"info","m":"01:54:40 [CartRecovery] ✅ Nudged 5833835818 for domain abandonment (lang: en)"}
+{"t":"2026-09-09T06:40:23.665478754Z","s":"info","m":"06:40:23 [CartRecovery] ✅ Nudged 5480655289 for wallet abandonment (lang: en)"}
+{"t":"2026-09-09T23:32:08.109188629Z","s":"info","m":"23:32:08 [CartRecovery] ✅ Nudged 8798213337 for digitalproduct abandonment (lang: en)"}
+{"t":"2026-09-10T05:32:29.035028103Z","s":"info","m":"05:32:29 [CartRecovery] ✅ Nudged 6635602837 for hosting abandonment (lang: en)"}
+{"t":"2026-09-10T05:43:30.431574453Z","s":"info","m":"05:43:23 [CartRecovery] Skipping 6635602837 — nudged recently"}
+{"t":"2026-09-10T13:05:14.643603002Z","s":"info","m":"13:05:13 [CartRecovery] Skipping 6635602837 — nudged recently"}
+{"t":"2026-09-12T01:42:05.291564057Z","s":"info","m":"01:41:56 [CartRecovery] ✅ Nudged 738186522 for digitalproduct abandonment (lang: en)"}
+{"t":"2026-09-12T19:00:00.334498682Z","s":"info","m":"[BulkNudge] Nudged 1 stuck 'created' campaign(s)"}
+{"t":"2026-09-14T11:31:19.881218204Z","s":"info","m":"11:31:11 [CartRecovery] ✅ Nudged 5662467585 for virtualcard abandonment (lang: en)"}
+{"t":"2026-09-14T17:11:19.863048313Z","s":"info","m":"17:11:13 [CartRecovery] ✅ Nudged 652303768 for digitalproduct abandonment (lang: en)"}
+{"t":"2026-09-14T20:13:34.310033901Z","s":"info","m":"20:13:34 [CartRecovery] ✅ Nudged 603020296 for domain abandonment (lang: en)"}

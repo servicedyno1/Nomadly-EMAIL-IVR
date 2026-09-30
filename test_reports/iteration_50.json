@@ -1,0 +1,25 @@
+{
+  "summary": "Backend-only verification for RDP provisioning status block, credentials IP fix, list, docs, unit suite, DO droplet inventory, mongo sanity, admin-alert wiring, and admin golden status. All checks PASS. Pytest 10/10, unit suite 81/81, exactly 4 droplets on DO (whm2-fra1, dynopay-prod-ams3, golden-ws2022-e3624e, golden-ws2025-3d1260) with no rdp-* leaks, 0 volumes, 0 dangling doRdpServers referencing a droplet, init(db,{notifyAdmin}) wired at _index.js:3476, alertAdmin used 9 times in digitalocean-rdp-service.js.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": { "ui_bugs": [], "integration_issues": [], "design_issues": [] },
+  "test_report_links": [
+    "/app/backend/tests/test_rdp_provisioning_status.py",
+    "/app/test_reports/pytest/iter50.xml"
+  ],
+  "action_items": [
+    "Docs path: the review request said GET /api/reseller/docs but the actual route is GET /api/apidoc (returns 200 and contains provisioning/credentials_ready/eta_seconds/stage_label). /api/reseller/docs falls through to the SPA fallback and returns 500 (ENOENT /app/frontend/build/index.html). Not a functional regression for this iteration (docs are reachable at /api/apidoc), but the SPA fallback should return a proper 404 instead of 500 for unknown reseller sub-paths."
+  ],
+  "critical_code_review_comments": [
+    "Express SPA fallback in _index.js returns HTTP 500 with 'Internal server error' when index.html is missing (build not present in this env). Should 404 or serve a stub — right now any unknown route under /api/reseller/* leaks a 500.",
+    "provisioningStatus() shape is stable and mirrored at top-level credentials_ready + credentials_url as documented — good. credentials_url is correctly null for terminal/destroyed orders.",
+    "vpsCredsHandler correctly resolves persisted host (104.131.68.132) even when droplet is destroyed — the earlier ip=null bug is fixed."
+  ],
+  "updated_files": ["/app/backend/tests/test_rdp_provisioning_status.py"],
+  "success_rate": { "backend": "100%", "frontend": "n/a (skipped per request)" },
+  "test_credentials": "X-API-Key: nmdly_e2e_51573577f5db956c5c0cb039 ; admin key o/Qb8ArGahlquhCQ (URL-enc o%2FQb8ArGahlquhCQ)",
+  "seed_data_creation": "None. Read-only verification. No droplets/orders created or deleted.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Docs live at /api/apidoc, NOT /api/reseller/docs. Admin golden status shape is {build_size, build_region, all_regions, os_options:[{id, golden_status, golden_regions, ...}], builds:[...]}. Test file /app/backend/tests/test_rdp_provisioning_status.py covers the whole provisioning-status contract and can be re-run as a regression. Node bot must NOT be restarted while golden builds import (ws2022/ws2025 currently in transferring/building states).",
+  "rca of the issue": "N/A — no issues found. Only nit: /api/reseller/docs 500 (route not implemented, docs actually at /api/apidoc)."
+}

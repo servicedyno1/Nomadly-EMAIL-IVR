@@ -1,0 +1,12 @@
+{"timestamp":"2026-09-25T18:52:45.452300659Z","message":"[DynoPay] processed-payment idempotency collection ready","severity":"info"}
+{"timestamp":"2026-09-25T18:52:47.266594745Z","message":"[DynoPay] processed-payment idempotency collection ready","severity":"info"}
+{"timestamp":"2026-09-25T18:53:08.566379717Z","message":"[DynoPay] processed-payment idempotency collection ready","severity":"info"}
+{"timestamp":"2026-09-25T18:53:24.265191057Z","message":"[DynoPay] processed-payment idempotency collection ready","severity":"info"}
+{"timestamp":"2026-09-25T19:00:08.532510596Z","message":"[DynoPay] processed-payment idempotency collection ready","severity":"info"}
+{"timestamp":"2026-09-25T19:06:20.160585379Z","message":"[DynoPay] processed-payment idempotency collection ready","severity":"info"}
+{"timestamp":"2026-09-25T19:13:10.845121768Z","message":"[DynoPay] processed-payment idempotency collection ready","severity":"info"}
+{"timestamp":"2026-09-25T19:19:26.897054678Z","message":"[DynoPay] processed-payment idempotency collection ready","severity":"info"}
+{"timestamp":"2026-09-25T19:46:13.901951271Z","message":"[DynoPay] processed-payment idempotency collection ready","severity":"info"}
+{"timestamp":"2026-09-25T19:57:13.587761656Z","message":"[CryptoFallback] DynoPay unavailable for wallet, falling back to BlockBee","severity":"info"}
+{"timestamp":"2026-09-25T20:20:30.773948270Z","message":"[CryptoFallback] DynoPay unavailable for wallet, falling back to BlockBee","severity":"info"}
+{"timestamp":"2026-09-25T23:35:06.302663218Z","message":"[DynoPay] processed-payment idempotency collection ready","severity":"info"}

@@ -1,0 +1,67 @@
+[
+  {
+    "_id": "6587790422",
+    "val": {
+      "numbers": [
+        {
+          "phoneNumber": "+18883304418",
+          "telnyxOrderId": "3c55c646-7c07-4721-b5a5-d4a08b593a1a",
+          "provider": "telnyx",
+          "country": "US",
+          "countryName": "🇺🇸 United States",
+          "type": "toll_free",
+          "plan": "pro",
+          "planPrice": 75,
+          "purchaseDate": "2026-09-02T21:16:44.525Z",
+          "expiresAt": "2026-10-02T21:16:44.525Z",
+          "autoRenew": true,
+          "status": "active",
+          "sipUsername": "gencredKxFYirFGvP6yA6C9Ri1RH99V27ybeAe0uvz07EVn4i",
+          "sipPassword": "880f4d5330a74de490dc30947c9d9347",
+          "telnyxSipUsername": "gencredKxFYirFGvP6yA6C9Ri1RH99V27ybeAe0uvz07EVn4i",
+          "telnyxSipPassword": "880f4d5330a74de490dc30947c9d9347",
+          "telnyxCredentialId": "9cddfb46-c398-4183-bcac-f80b9b1f566c",
+          "sipDomain": "sip.speechcue.com",
+          "messagingProfileId": "40019c71-59a6-497a-8246-49536bd08d87",
+          "connectionId": "2898118323872990714",
+          "smsUsed": 4,
+          "minutesUsed": 4,
+          "capabilities": {
+            "voice": true,
+            "sms": true,
+            "mms": true,
+            "fax": true
+          },
+          "features": {
+            "sms": true,
+            "callForwarding": {
+              "enabled": true,
+              "mode": "always",
+              "forwardTo": "+19296449122",
+              "ringTimeout": 25,
+              "holdMusic": false
+            },
+            "voicemail": {
+              "enabled": false,
+              "greetingType": "default",
+              "customGreetingUrl": null,
+              "forwardToTelegram": true,
+              "forwardToEmail": null,
+              "ringTimeout": 25
+            },
+            "smsForwarding": {
+              "toTelegram": true,
+              "toEmail": null,
+              "webhookUrl": null
+            },
+            "faxForwarding": {
+              "toTelegram": true
+            },
+            "recording": false
+          },
+          "updatedAt": "2026-09-23T15:44:26.769Z"
+        }
+      ]
+    }
+  }
+]

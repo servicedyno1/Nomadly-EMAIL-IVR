@@ -30,7 +30,7 @@ class NomadlyTester:
     def _init_mongo(self):
         """Initialize MongoDB connection"""
         try:
-            mongo_url = os.getenv('MONGO_URL', 'mongodb://mongo:RQoOmIdwjRLFvhWMaatjidzqpvawUKcb@caboose.proxy.rlwy.net:59668')
+            mongo_url = os.getenv('MONGO_URL', 'mongodb://localhost:27017')
             self.mongo_client = pymongo.MongoClient(mongo_url)
             self.db = self.mongo_client.test  # DB_NAME from .env
             # Test connection

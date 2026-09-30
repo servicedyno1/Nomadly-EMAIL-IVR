@@ -171,6 +171,20 @@ async function revealVpsPassword(record = {}, opts = {}) {
           ? 'this Windows password was created before we stored passwords durably'
           : 'no stored password and no SSH key available to recover it')
     }
+    // If we could not read the password AND the box is a reachable-but-SSH-
+    // blocked Linux VPS, tell the caller so the UI can give firewall guidance
+    // (a plain "reset password" won't help while port 22 is closed).
+    if (host && !isRdpRecord(record)) {
+      try {
+        const { diagnoseSshReachability } = require('./vps-ssh-password')
+        const diag = await diagnoseSshReachability(host, { sshPort: 22 })
+        if (diag.verdict === 'ssh-blocked') {
+          out.sshBlocked = true
+          out.diag = diag
+          out.reason = 'your VPS is online but SSH port 22 is blocked by a firewall on the server'
+        }
+      } catch (_) { /* best-effort diagnosis only */ }
+    }
     return out
   }
 

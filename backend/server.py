@@ -238,6 +238,14 @@ async def proxy_to_nodejs(request: Request, path: str):
         body = await request.body()
         
         headers = dict(request.headers)
+        # Preserve the public host/proto for downstream self-URL rendering
+        # (e.g. the /apidoc developer page) since we strip the raw Host below.
+        _lower = {k.lower() for k in headers}
+        _orig_host = headers.get("host")
+        if _orig_host and "x-forwarded-host" not in _lower:
+            headers["x-forwarded-host"] = _orig_host
+        if "x-forwarded-proto" not in _lower:
+            headers["x-forwarded-proto"] = "https"
         headers.pop("host", None)
         headers.pop("content-length", None)
         

@@ -1,0 +1,61 @@
+{"timestamp":"2026-09-25T20:08:17.424087177Z","message":"[cPanel Proxy] Fileman::list_files error (401): <!DOCTYPE html> [AUTH-BROKEN]","severity":"info"}
+{"timestamp":"2026-09-25T20:08:25.548064315Z","message":"[cPanel Proxy] Fileman::list_files error (401): <!DOCTYPE html> [AUTH-BROKEN]","severity":"info"}
+{"timestamp":"2026-09-25T20:08:26.940652141Z","message":"[cPanel Proxy] Fileman::list_files error (401): <!DOCTYPE html> [AUTH-BROKEN]","severity":"info"}
+{"timestamp":"2026-09-25T20:08:53.078463017Z","message":"[cPanel Proxy] Fileman::list_files error (401): <!DOCTYPE html> [AUTH-BROKEN]","severity":"info"}
+{"timestamp":"2026-09-25T20:08:58.000029495Z","message":"[cPanel Proxy] Fileman::list_files error (401): <!DOCTYPE html> [AUTH-BROKEN]","severity":"info"}
+{"timestamp":"2026-09-25T20:09:05.036748592Z","message":"[cPanel Proxy] Fileman::get_file_content error (401): <!DOCTYPE html> [AUTH-BROKEN]","severity":"info"}
+{"timestamp":"2026-09-25T20:09:57.851450049Z","message":"[cPanel Proxy] Fileman::list_files error (401): <!DOCTYPE html> [AUTH-BROKEN]","severity":"info"}
+{"timestamp":"2026-09-25T20:11:25.861375390Z","message":"[cPanel Proxy] Fileman::upload_files error (401): <!DOCTYPE html> [AUTH-BROKEN]","severity":"info"}
+{"timestamp":"2026-09-25T20:11:25.861383589Z","message":"[Panel] upload user-level auth-broken (status=401, reason=<!DOCTYPE html>) → WHM session fallback (user: invica3f, tag: user-auth-broken)","severity":"info"}
+{"timestamp":"2026-09-25T20:11:38.200244319Z","message":"[cPanel Proxy] Fileman::list_files error (401): <!DOCTYPE html> [AUTH-BROKEN]","severity":"info"}
+{"timestamp":"2026-09-25T20:14:53.295295053Z","message":"[cPanel Proxy] Fileman::list_files error (401): <!DOCTYPE html> [AUTH-BROKEN]","severity":"info"}
+{"timestamp":"2026-09-25T20:14:54.372024665Z","message":"[cPanel Proxy] Fileman::list_files error (401): <!DOCTYPE html> [AUTH-BROKEN]","severity":"info"}
+{"timestamp":"2026-09-25T20:15:18.722624764Z","message":"[cPanel Proxy] Fileman::list_files error (401): <!DOCTYPE html> [AUTH-BROKEN]","severity":"info"}
+{"timestamp":"2026-09-25T20:15:25.628858128Z","message":"[cPanel Proxy] Fileman::list_files error (401): <!DOCTYPE html> [AUTH-BROKEN]","severity":"info"}
+{"timestamp":"2026-09-25T20:15:34.868063092Z","message":"[cPanel Proxy] Fileman::get_file_content error (401): <!DOCTYPE html> [AUTH-BROKEN]","severity":"info"}
+{"timestamp":"2026-09-25T20:16:54.612811623Z","message":"[cPanel Proxy] Fileman::list_files error (401): <!DOCTYPE html> [AUTH-BROKEN]","severity":"info"}
+{"timestamp":"2026-09-25T20:17:14.091654760Z","message":"[cPanel Proxy] Fileman::list_files error (401): <!DOCTYPE html> [AUTH-BROKEN]","severity":"info"}
+{"timestamp":"2026-09-25T20:24:20.029920179Z","message":"[cPanel Proxy] Fileman::get_file_content error (401): <!DOCTYPE html> [AUTH-BROKEN]","severity":"info"}
+{"timestamp":"2026-09-25T20:25:54.120951371Z","message":"[cPanel Proxy] Fileman::list_files error (401): <!DOCTYPE html> [AUTH-BROKEN]","severity":"info"}
+{"timestamp":"2026-09-25T20:28:15.883870696Z","message":"[cPanel Proxy] Fileman::list_files error (401): <!DOCTYPE html> [AUTH-BROKEN]","severity":"info"}
+{"timestamp":"2026-09-25T20:28:15.884228344Z","message":"[cPanel Proxy] Fileman::list_files error (401): <!DOCTYPE html> [AUTH-BROKEN]","severity":"info"}
+{"timestamp":"2026-09-25T20:33:53.073677720Z","message":"[cPanel Proxy] Fileman::list_files error (401): <!DOCTYPE html> [AUTH-BROKEN]","severity":"info"}
+{"timestamp":"2026-09-25T20:34:34.365611968Z","message":"[cPanel Proxy] Fileman::list_files error (401): <!DOCTYPE html> [AUTH-BROKEN]","severity":"info"}
+{"timestamp":"2026-09-25T20:35:29.848341298Z","message":"[cPanel Proxy] Fileman::list_files error (401): <!DOCTYPE html> [AUTH-BROKEN]","severity":"info"}
+{"timestamp":"2026-09-25T20:36:39.228712073Z","message":"[cPanel Proxy] Fileman::list_files error (401): <!DOCTYPE html> [AUTH-BROKEN]","severity":"info"}
+{"timestamp":"2026-09-25T20:36:41.957497014Z","message":"[cPanel Proxy] Fileman::list_files error (401): <!DOCTYPE html> [AUTH-BROKEN]","severity":"info"}
+{"timestamp":"2026-09-25T20:37:11.351246996Z","message":"[cPanel Proxy] Fileman::list_files error (401): <!DOCTYPE html> [AUTH-BROKEN]","severity":"info"}
+{"timestamp":"2026-09-25T21:02:43.219324809Z","message":"[CR-Whitelist] API test failed (attempt #10): Request failed with status code 401","severity":"info"}
+{"timestamp":"2026-09-25T21:07:29.503214986Z","message":"[cPanel Proxy] Fileman::get_file_content error (401): <!DOCTYPE html> [AUTH-BROKEN]","severity":"info"}
+{"timestamp":"2026-09-25T21:14:43.421009364Z","message":"[cPanel Proxy] Fileman::list_files error (401): <!DOCTYPE html> [AUTH-BROKEN]","severity":"info"}
+{"timestamp":"2026-09-25T21:14:43.421030237Z","message":"[cPanel Proxy] Fileman::list_files error (401): <!DOCTYPE html> [AUTH-BROKEN]","severity":"info"}
+{"timestamp":"2026-09-25T21:15:23.000754188Z","message":"[cPanel Proxy] Fileman::upload_files error (401): <!DOCTYPE html> [AUTH-BROKEN]","severity":"info"}
+{"timestamp":"2026-09-25T21:15:23.000759532Z","message":"[Panel] upload user-level auth-broken (status=401, reason=<!DOCTYPE html>) → WHM session fallback (user: invica3f, tag: user-auth-broken)","severity":"info"}
+{"timestamp":"2026-09-25T21:15:32.933068405Z","message":"[cPanel Proxy] Fileman::list_files error (401): <!DOCTYPE html> [AUTH-BROKEN]","severity":"info"}
+{"timestamp":"2026-09-25T21:16:22.782060235Z","message":"[cPanel Proxy] Fileman::list_files error (401): <!DOCTYPE html> [AUTH-BROKEN]","severity":"info"}
+{"timestamp":"2026-09-25T21:16:22.782080809Z","message":"[cPanel Proxy] Fileman::list_files error (401): <!DOCTYPE html> [AUTH-BROKEN]","severity":"info"}
+{"timestamp":"2026-09-25T21:16:42.239575406Z","message":"[cPanel Proxy] Fileman::upload_files error (401): <!DOCTYPE html> [AUTH-BROKEN]","severity":"info"}
+{"timestamp":"2026-09-25T21:16:42.239582513Z","message":"[Panel] upload user-level auth-broken (status=401, reason=<!DOCTYPE html>) → WHM session fallback (user: invica3f, tag: user-auth-broken)","severity":"info"}
+{"timestamp":"2026-09-25T21:17:01.565963942Z","message":"[cPanel Proxy] Fileman::list_files error (401): <!DOCTYPE html> [AUTH-BROKEN]","severity":"info"}
+{"timestamp":"2026-09-25T21:17:23.816105875Z","message":"[cPanel Proxy] Fileman::list_files error (401): <!DOCTYPE html> [AUTH-BROKEN]","severity":"info"}
+{"timestamp":"2026-09-25T21:17:28.790829038Z","message":"[cPanel Proxy] Fileman::list_files error (401): <!DOCTYPE html> [AUTH-BROKEN]","severity":"info"}
+{"timestamp":"2026-09-25T21:17:32.819189763Z","message":"[cPanel Proxy] Fileman::list_files error (401): <!DOCTYPE html> [AUTH-BROKEN]","severity":"info"}
+{"timestamp":"2026-09-25T21:17:42.098776736Z","message":"[cPanel Proxy] Fileman::get_file_content error (401): <!DOCTYPE html> [AUTH-BROKEN]","severity":"info"}
+{"timestamp":"2026-09-25T21:18:37.365691611Z","message":"[cPanel Proxy] Fileman::list_files error (401): <!DOCTYPE html> [AUTH-BROKEN]","severity":"info"}
+{"timestamp":"2026-09-25T21:20:11.905249734Z","message":"[cPanel Proxy] Fileman::list_files error (401): <!DOCTYPE html> [AUTH-BROKEN]","severity":"info"}
+{"timestamp":"2026-09-25T21:20:14.941347809Z","message":"[cPanel Proxy] Fileman::list_files error (401): <!DOCTYPE html> [AUTH-BROKEN]","severity":"info"}
+{"timestamp":"2026-09-25T21:20:26.979233394Z","message":"[cPanel Proxy] Fileman::list_files error (401): <!DOCTYPE html> [AUTH-BROKEN]","severity":"info"}
+{"timestamp":"2026-09-25T21:20:35.044846952Z","message":"[cPanel Proxy] Fileman::list_files error (401): <!DOCTYPE html> [AUTH-BROKEN]","severity":"info"}
+{"timestamp":"2026-09-25T21:20:41.198891255Z","message":"[cPanel Proxy] Fileman::list_files error (401): <!DOCTYPE html> [AUTH-BROKEN]","severity":"info"}
+{"timestamp":"2026-09-25T21:20:42.213040317Z","message":"[cPanel Proxy] Fileman::list_files error (401): <!DOCTYPE html> [AUTH-BROKEN]","severity":"info"}
+{"timestamp":"2026-09-25T21:21:02.323363790Z","message":"[cPanel Proxy] Fileman::upload_files error (401): <!DOCTYPE html> [AUTH-BROKEN]","severity":"info"}
+{"timestamp":"2026-09-25T21:21:02.323369568Z","message":"[Panel] upload user-level auth-broken (status=401, reason=<!DOCTYPE html>) → WHM session fallback (user: invica3f, tag: user-auth-broken)","severity":"info"}
+{"timestamp":"2026-09-25T21:21:12.560466486Z","message":"[cPanel Proxy] Fileman::list_files error (401): <!DOCTYPE html> [AUTH-BROKEN]","severity":"info"}
+{"timestamp":"2026-09-25T21:21:29.550890986Z","message":"[cPanel Proxy] Fileman::list_files error (401): <!DOCTYPE html> [AUTH-BROKEN]","severity":"info"}
+{"timestamp":"2026-09-25T21:21:33.518371102Z","message":"[cPanel Proxy] Fileman::list_files error (401): <!DOCTYPE html> [AUTH-BROKEN]","severity":"info"}
+{"timestamp":"2026-09-25T21:21:53.112076312Z","message":"[cPanel Proxy] Fileman::get_file_content error (401): <!DOCTYPE html> [AUTH-BROKEN]","severity":"info"}
+{"timestamp":"2026-09-25T21:22:31.454697655Z","message":"[cPanel Proxy] Fileman::list_files error (401): <!DOCTYPE html> [AUTH-BROKEN]","severity":"info"}
+{"timestamp":"2026-09-25T21:26:51.820192855Z","message":"[cPanel Proxy] Fileman::list_files error (401): <!DOCTYPE html> [AUTH-BROKEN]","severity":"info"}
+{"timestamp":"2026-09-25T21:26:51.820214682Z","message":"[cPanel Proxy] Fileman::list_files error (401): <!DOCTYPE html> [AUTH-BROKEN]","severity":"info"}
+{"timestamp":"2026-09-25T21:26:51.820255526Z","message":"[cPanel Proxy] Fileman::list_files error (401): <!DOCTYPE html> [AUTH-BROKEN]","severity":"info"}
+{"timestamp":"2026-09-25T21:26:51.820269565Z","message":"[cPanel Proxy] Fileman::list_files error (401): <!DOCTYPE html> [AUTH-BROKEN]","severity":"info"}

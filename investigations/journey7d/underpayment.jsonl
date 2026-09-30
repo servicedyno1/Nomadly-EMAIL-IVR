@@ -1,0 +1,6 @@
+{"t":"2026-09-07T12:54:02.054584630Z","s":"info","m":"[Wallet] minor underpayment (fee-shave): invoice=$160 actual=$156 — crediting invoice $160 (goodwill)"}
+{"t":"2026-09-08T16:32:59.301112804Z","s":"info","m":"[CryptoCredit] /dynopay/crypto-pay-domain: recv=0.00044532 BTC | blockbee=$35.01 dynopay=$35.03 src=dynopay-rate invoice=$35.10 → credit=$35.10 (minor-underpayment)"}
+{"t":"2026-09-09T03:21:28.791314850Z","s":"info","m":"[CryptoCredit] /dynopay/crypto-pay-domain: recv=0.00038101 BTC | blockbee=$29.94 dynopay=$29.94 src=dynopay-rate invoice=$30.00 → credit=$30.00 (minor-underpayment)"}
+{"t":"2026-09-10T16:23:01.224675120Z","s":"info","m":"[CryptoCredit] /dynopay/crypto-pay-domain: recv=0.00050703 BTC | blockbee=$39.02 dynopay=$38.98 src=dynopay-rate invoice=$39.00 → credit=$39.00 (minor-underpayment)"}
+{"t":"2026-09-10T21:49:51.625795945Z","s":"info","m":"[Wallet] minor underpayment (fee-shave): invoice=$30 actual=$28.990999729899997 — crediting invoice $30 (goodwill)"}
+{"t":"2026-09-11T00:00:25.052220126Z","s":"info","m":"[CryptoCredit] /dynopay/crypto-pay-domain: recv=0.0213092 ETH | blockbee=$51.94 dynopay=$51.93 src=dynopay-rate invoice=$52.00 → credit=$52.00 (minor-underpayment)"}

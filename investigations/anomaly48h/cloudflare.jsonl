@@ -1,0 +1,191 @@
+{"t":"2026-09-15T03:32:40.090825588Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=da9c5a74ea797385bac88811afc7e457, nsT=cloudflare}"}
+{"t":"2026-09-15T10:59:42.172453650Z","s":"info","m":"<b>🛡️ Cloudflare DNS</b> — Enhanced security & performance"}
+{"t":"2026-09-15T10:59:42.172458080Z","s":"info","m":"<b>⚙️ Custom DNS</b> — Use your own nameservers 🔒 Standard DNS,🛡️ Cloudflare DNS,⚙️ Custom DNS,Back,Cancel\tto: 7151473772"}
+{"t":"2026-09-15T16:01:40.700484341Z","s":"info","m":"[DnsHealer] rbc-verify.com: unhealthy (no NS in public DNS (registry not delegating)) — heal attempt 1/3, CF NS=anderson.ns.cloudflare.com,leanna.ns.cloudflare.com"}
+{"t":"2026-09-15T16:11:37.078981047Z","s":"info","m":"[DnsHealer] rbc-verify.com: unhealthy (no NS in public DNS (registry not delegating)) — heal attempt 2/3, CF NS=anderson.ns.cloudflare.com,leanna.ns.cloudflare.com"}
+{"t":"2026-09-15T16:26:37.048678034Z","s":"info","m":"[DnsHealer] rbc-verify.com: unhealthy (no NS in public DNS (registry not delegating)) — heal attempt 3/3, CF NS=anderson.ns.cloudflare.com,leanna.ns.cloudflare.com"}
+{"t":"2026-09-15T18:00:27.104640661Z","s":"info","m":"[AntiRed-Cron] Zone not found on CF for client-pnc-auth09resolvedesk.click — domain may have been removed from Cloudflare"}
+{"t":"2026-09-16T03:34:30.104184001Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=1c499aa6f0b0e7b28af91775873f2f94, nsT=cloudflare}"}
+{"t":"2026-09-16T03:34:30.104206790Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=8669e5cfa3bcffbeac959f24d0f11d15, nsT=cloudflare}"}
+{"t":"2026-09-16T03:34:30.104355390Z","s":"info","m":"        opNs:   hunts.ns.cloudflare.com, khloe.ns.cloudflare.com"}
+{"t":"2026-09-16T03:34:30.104362130Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=6d3e31e338a3b56c4c956508db8856ed, nsT=cloudflare}"}
+{"t":"2026-09-16T03:34:30.105838246Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=a9bf294e897e29896f38b54a399f3d6c, nsT=cloudflare}"}
+{"t":"2026-09-16T03:34:30.105860136Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=2e79d0d91c813dcb31d5ef208492aa9d, nsT=cloudflare}"}
+{"t":"2026-09-16T03:34:30.106337252Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=60d2f05e8010b730a740853350f636e7, nsT=cloudflare}"}
+{"t":"2026-09-16T03:34:30.106372311Z","s":"info","m":"        opNs:   bryce.ns.cloudflare.com, kate.ns.cloudflare.com"}
+{"t":"2026-09-16T03:34:30.106385981Z","s":"info","m":"        opNs:   anderson.ns.cloudflare.com, leanna.ns.cloudflare.com"}
+{"t":"2026-09-16T03:34:30.106401841Z","s":"info","m":"        opNs:   peter.ns.cloudflare.com, rachel.ns.cloudflare.com"}
+{"t":"2026-09-16T03:34:30.106994456Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=c178e6cf0188d2d34798219ac16fa6c5, nsT=cloudflare}"}
+{"t":"2026-09-16T03:34:30.107018725Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=1303bc191dbe505f5b498b56addebc8f, nsT=cloudflare}"}
+{"t":"2026-09-16T03:34:30.108482632Z","s":"info","m":"        opNs:   anderson.ns.cloudflare.com, leanna.ns.cloudflare.com"}
+{"t":"2026-09-16T03:34:30.108498922Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=4822b002edf6e00377c9bf865f193aa7, nsT=cloudflare}"}
+{"t":"2026-09-16T03:34:30.109700661Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=2b261112ebbc38d4e2f51e458147694c, nsT=cloudflare}"}
+{"t":"2026-09-16T03:34:30.109725451Z","s":"info","m":"        opNs:   anderson.ns.cloudflare.com, leanna.ns.cloudflare.com"}
+{"t":"2026-09-16T03:34:30.109738761Z","s":"info","m":"        opNs:   anderson.ns.cloudflare.com, leanna.ns.cloudflare.com"}
+{"t":"2026-09-16T03:34:30.110577503Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=1716257b0438534a175a32bd295db636, nsT=cloudflare}"}
+{"t":"2026-09-16T03:34:30.110605163Z","s":"info","m":"        opNs:   ivan.ns.cloudflare.com, susan.ns.cloudflare.com"}
+{"t":"2026-09-16T03:34:30.110624013Z","s":"info","m":"        opNs:   sandy.ns.cloudflare.com, vicente.ns.cloudflare.com"}
+{"t":"2026-09-16T03:34:30.110636272Z","s":"info","m":"        opNs:   anderson.ns.cloudflare.com, leanna.ns.cloudflare.com"}
+{"t":"2026-09-16T03:34:30.111390336Z","s":"info","m":"        opNs:   anderson.ns.cloudflare.com, leanna.ns.cloudflare.com"}
+{"t":"2026-09-16T03:34:30.111421566Z","s":"info","m":"        opNs:   arvind.ns.cloudflare.com, wren.ns.cloudflare.com"}
+{"t":"2026-09-16T03:34:30.111930751Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=ed612289a16c77e58ff066c60f005c81, nsT=cloudflare}"}
+{"t":"2026-09-16T03:34:30.111942881Z","s":"info","m":"        opNs:   ken.ns.cloudflare.com, linda.ns.cloudflare.com"}
+{"t":"2026-09-16T03:34:30.111952831Z","s":"info","m":"        opNs:   ariadne.ns.cloudflare.com, beau.ns.cloudflare.com"}
+{"t":"2026-09-16T03:34:30.111955041Z","s":"info","m":"        opNs:   elinore.ns.cloudflare.com, marty.ns.cloudflare.com"}
+{"t":"2026-09-16T03:34:30.112777244Z","s":"info","m":"        opNs:   emily.ns.cloudflare.com, phil.ns.cloudflare.com"}
+{"t":"2026-09-16T03:34:30.112795524Z","s":"info","m":"        opNs:   hunts.ns.cloudflare.com, khloe.ns.cloudflare.com"}
+{"t":"2026-09-16T03:34:30.112805954Z","s":"info","m":"        opNs:   bryce.ns.cloudflare.com, meiling.ns.cloudflare.com"}
+{"t":"2026-09-16T03:34:30.112825403Z","s":"info","m":"        opNs:   kia.ns.cloudflare.com, yew.ns.cloudflare.com"}
+{"t":"2026-09-16T03:34:30.112836823Z","s":"info","m":"        opNs:   dina.ns.cloudflare.com, nero.ns.cloudflare.com"}
+{"t":"2026-09-16T03:34:30.113491127Z","s":"info","m":"        opNs:   katja.ns.cloudflare.com, tadeo.ns.cloudflare.com"}
+{"t":"2026-09-16T03:34:30.113508787Z","s":"info","m":"        opNs:   arvind.ns.cloudflare.com, paityn.ns.cloudflare.com"}
+{"t":"2026-09-16T03:34:30.113523687Z","s":"info","m":"        opNs:   karl.ns.cloudflare.com, laila.ns.cloudflare.com"}
+{"t":"2026-09-16T03:34:30.114445718Z","s":"info","m":"        opNs:   anderson.ns.cloudflare.com, leanna.ns.cloudflare.com"}
+{"t":"2026-09-16T03:34:30.114455488Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=6f7feafa6fb5736fcd4de49dcf816982, nsT=cloudflare}"}
+{"t":"2026-09-16T03:34:30.114473138Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=96264626d905adb54b5a5c2120f75f33, nsT=cloudflare}"}
+{"t":"2026-09-16T03:34:30.114907864Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=a2b560f9dace8383c005eb340c9dbd2e, nsT=cloudflare}"}
+{"t":"2026-09-16T03:34:30.114915814Z","s":"info","m":"        opNs:   ingrid.ns.cloudflare.com, tate.ns.cloudflare.com"}
+{"t":"2026-09-16T03:34:30.114953634Z","s":"info","m":"        opNs:   dolly.ns.cloudflare.com, zahir.ns.cloudflare.com"}
+{"t":"2026-09-16T03:34:30.114968454Z","s":"info","m":"        opNs:   anderson.ns.cloudflare.com, leanna.ns.cloudflare.com"}
+{"t":"2026-09-16T03:34:30.115803896Z","s":"info","m":"        opNs:   anderson.ns.cloudflare.com, leanna.ns.cloudflare.com"}
+{"t":"2026-09-16T03:34:30.115817416Z","s":"info","m":"        opNs:   anderson.ns.cloudflare.com, leanna.ns.cloudflare.com"}
+{"t":"2026-09-16T03:34:30.115822156Z","s":"info","m":"        opNs:   cosmin.ns.cloudflare.com, kay.ns.cloudflare.com"}
+{"t":"2026-09-16T03:34:30.115826146Z","s":"info","m":"        opNs:   anderson.ns.cloudflare.com, leanna.ns.cloudflare.com"}
+{"t":"2026-09-16T03:34:30.115843505Z","s":"info","m":"        opNs:   anderson.ns.cloudflare.com, leanna.ns.cloudflare.com"}
+{"t":"2026-09-16T03:34:30.115855345Z","s":"info","m":"        opNs:   donna.ns.cloudflare.com, weston.ns.cloudflare.com"}
+{"t":"2026-09-16T03:34:30.116516639Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=cbc06a934a2f43bf323349570687c167, nsT=cloudflare}"}
+{"t":"2026-09-16T03:34:30.116608799Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=40bf0344878dda3085ca0c3abeb5e727, nsT=cloudflare}"}
+{"t":"2026-09-16T03:34:30.117395922Z","s":"info","m":"        opNs:   natasha.ns.cloudflare.com, rajeev.ns.cloudflare.com"}
+{"t":"2026-09-16T03:34:30.117401212Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=7945a18e77131189a0ba467fad1c91c3, nsT=cloudflare}"}
+{"t":"2026-09-16T03:34:30.117415242Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=b9e141062baa57a831f736f809bfa8e6, nsT=cloudflare}"}
+{"t":"2026-09-16T03:34:30.119179465Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=13113aa71d6168e057705875a35fb0bc, nsT=cloudflare}"}
+{"t":"2026-09-16T03:34:30.119208226Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=e12d53d8627fc20a92fd92f8b080bfc0, nsT=cloudflare}"}
+{"t":"2026-09-16T03:34:30.119826660Z","s":"info","m":"        opNs:   autumn.ns.cloudflare.com, harley.ns.cloudflare.com"}
+{"t":"2026-09-16T03:34:30.119840969Z","s":"info","m":"        opNs:   anderson.ns.cloudflare.com, leanna.ns.cloudflare.com"}
+{"t":"2026-09-16T03:34:30.119855550Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=dddf484dbc01f747016cb8e2448b40c4, nsT=cloudflare}"}
+{"t":"2026-09-16T03:34:30.119872420Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=bf185e39ecb7d981623bfeff51ea4509, nsT=cloudflare}"}
+{"t":"2026-09-16T03:34:30.120677262Z","s":"info","m":"        opNs:   ace.ns.cloudflare.com, daniella.ns.cloudflare.com"}
+{"t":"2026-09-16T03:34:30.120974979Z","s":"info","m":"        opNs:   dante.ns.cloudflare.com, wally.ns.cloudflare.com"}
+{"t":"2026-09-16T03:34:30.120989909Z","s":"info","m":"        opNs:   anderson.ns.cloudflare.com, leanna.ns.cloudflare.com"}
+{"t":"2026-09-16T03:34:30.121000749Z","s":"info","m":"        opNs:   algin.ns.cloudflare.com, stevie.ns.cloudflare.com"}
+{"t":"2026-09-16T03:34:30.121866202Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=7e61c50c5d9e0e36b3f42e5ede37b7ff, nsT=cloudflare}"}
+{"t":"2026-09-16T03:34:30.121873862Z","s":"info","m":"        opNs:   anderson.ns.cloudflare.com, leanna.ns.cloudflare.com"}
+{"t":"2026-09-16T03:34:30.121875052Z","s":"info","m":"        opNs:   sydney.ns.cloudflare.com, vern.ns.cloudflare.com"}
+{"t":"2026-09-16T03:34:30.121890672Z","s":"info","m":"        opNs:   leland.ns.cloudflare.com, megan.ns.cloudflare.com"}
+{"t":"2026-09-16T03:34:30.121891002Z","s":"info","m":"        opNs:   ali.ns.cloudflare.com, jeff.ns.cloudflare.com"}
+{"t":"2026-09-16T03:34:30.121905081Z","s":"info","m":"        opNs:   olga.ns.cloudflare.com, yoxall.ns.cloudflare.com"}
+{"t":"2026-09-16T03:34:30.122813983Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=c62837004c408835f1bfedc69c43529c, nsT=cloudflare}"}
+{"t":"2026-09-16T03:34:30.122832993Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=58b68f3658d5190c1a545f94dd59fc00, nsT=cloudflare}"}
+{"t":"2026-09-16T03:34:30.123783625Z","s":"info","m":"        opNs:   chin.ns.cloudflare.com, jake.ns.cloudflare.com"}
+{"t":"2026-09-16T03:34:30.123787705Z","s":"info","m":"        opNs:   byron.ns.cloudflare.com, kara.ns.cloudflare.com"}
+{"t":"2026-09-16T03:34:30.123794984Z","s":"info","m":"        opNs:   hunts.ns.cloudflare.com, khloe.ns.cloudflare.com"}
+{"t":"2026-09-16T03:34:30.123803614Z","s":"info","m":"        opNs:   lex.ns.cloudflare.com, magali.ns.cloudflare.com"}
+{"t":"2026-09-16T03:34:30.125228621Z","s":"info","m":"        opNs:   adi.ns.cloudflare.com, tom.ns.cloudflare.com"}
+{"t":"2026-09-16T03:34:30.125242551Z","s":"info","m":"        opNs:   iris.ns.cloudflare.com, tate.ns.cloudflare.com"}
+{"t":"2026-09-16T03:34:30.125255381Z","s":"info","m":"        opNs:   chin.ns.cloudflare.com, jihoon.ns.cloudflare.com"}
+{"t":"2026-09-16T03:34:30.125265441Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=78e3d9ee8d22e63461b882add81cc440, nsT=cloudflare}"}
+{"t":"2026-09-16T09:23:29.492156706Z","s":"info","m":"• Delete its DNS records on Cloudflare"}
+{"t":"2026-09-16T09:25:51.650783635Z","s":"info","m":"• Delete its DNS records on Cloudflare"}
+{"t":"2026-09-16T09:25:58.721156523Z","s":"info","m":"• Delete its DNS records on Cloudflare"}
+{"t":"2026-09-16T09:33:21.966472931Z","s":"info","m":"• Delete its DNS records on Cloudflare"}
+{"t":"2026-09-16T16:51:21.031121272Z","s":"info","m":"[domain-service] Creating Cloudflare zone for schwabonlineportal.com..."}
+{"t":"2026-09-16T16:51:21.031912755Z","s":"info","m":"[domain-service] Cloudflare zone created. NS: anderson.ns.cloudflare.com, leanna.ns.cloudflare.com"}
+{"t":"2026-09-16T16:51:21.031918444Z","s":"info","m":"[domain-service] Registering schwabonlineportal.com on OpenProvider with NS: anderson.ns.cloudflare.com, leanna.ns.cloudflare.com"}
+{"t":"2026-09-16T16:51:21.031923057Z","s":"info","m":"[registerDomain] Registering schwabonlineportal.com | contact: JC960450-US | NS: anderson.ns.cloudflare.com, leanna.ns.cloudflare.com | additional_data: {}"}
+{"t":"2026-09-16T16:51:41.034408221Z","s":"info","m":"[buyDomainFullProcess] schwabonlineportal.com registered with Cloudflare NS: anderson.ns.cloudflare.com, leanna.ns.cloudflare.com (registrar: OpenProvider)"}
+{"t":"2026-09-16T16:54:43.667701785Z","s":"info","m":"<b>NAMESERVERS</b> <i>(Cloudflare)</i>"}
+{"t":"2026-09-16T16:54:43.667705007Z","s":"info","m":" NS1: <code>leanna.ns.cloudflare.com</code>"}
+{"t":"2026-09-16T16:54:43.667708103Z","s":"info","m":" NS2: <code>anderson.ns.cloudflare.com</code>"}
+{"t":"2026-09-16T16:56:04.332648761Z","s":"info","m":"<b>NAMESERVERS</b> <i>(Cloudflare)</i>"}
+{"t":"2026-09-16T16:56:04.332651888Z","s":"info","m":" NS1: <code>leanna.ns.cloudflare.com</code>"}
+{"t":"2026-09-16T16:56:04.332654945Z","s":"info","m":" NS2: <code>anderson.ns.cloudflare.com</code>"}
+{"t":"2026-09-16T16:56:36.610818283Z","s":"info","m":"reply: ⚙️ <b>Cloudflare mode for this A record</b>"}
+{"t":"2026-09-16T16:56:36.610875132Z","s":"info","m":"🟠  <b>Proxied through Cloudflare</b>"}
+{"t":"2026-09-16T16:56:36.610879187Z","s":"info","m":"<i>Cloudflare fronts your origin — free SSL, CDN caching, DDoS protection, and your origin IP stays hidden. Best for public websites.</i> ⚪ DNS Only (Recommended),🟠 Proxied through Cloudflare,Back,Cancel\tto: 6395648769"}
+{"t":"2026-09-16T16:56:42.699358091Z","s":"info","m":" NS2: <code>anderson.ns.cloudflare.com</code>"}
+{"t":"2026-09-16T16:56:42.699378962Z","s":"info","m":"<b>NAMESERVERS</b> <i>(Cloudflare)</i>"}
+{"t":"2026-09-16T16:56:42.699382421Z","s":"info","m":" NS1: <code>leanna.ns.cloudflare.com</code>"}
+{"t":"2026-09-16T21:01:36.275025696Z","s":"info","m":"✅ All plans: Free SSL · HostPanel · Cloudflare DNS · live in minutes"}
+{"t":"2026-09-17T03:34:31.829062810Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=8669e5cfa3bcffbeac959f24d0f11d15, nsT=cloudflare}"}
+{"t":"2026-09-17T03:34:31.829112379Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=1c499aa6f0b0e7b28af91775873f2f94, nsT=cloudflare}"}
+{"t":"2026-09-17T03:34:31.830101839Z","s":"info","m":"        opNs:   hunts.ns.cloudflare.com, khloe.ns.cloudflare.com"}
+{"t":"2026-09-17T03:34:31.830126589Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=6d3e31e338a3b56c4c956508db8856ed, nsT=cloudflare}"}
+{"t":"2026-09-17T03:34:31.831091957Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=2e79d0d91c813dcb31d5ef208492aa9d, nsT=cloudflare}"}
+{"t":"2026-09-17T03:34:31.831107017Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=a9bf294e897e29896f38b54a399f3d6c, nsT=cloudflare}"}
+{"t":"2026-09-17T03:34:31.832168376Z","s":"info","m":"        opNs:   peter.ns.cloudflare.com, rachel.ns.cloudflare.com"}
+{"t":"2026-09-17T03:34:31.832203126Z","s":"info","m":"        opNs:   anderson.ns.cloudflare.com, leanna.ns.cloudflare.com"}
+{"t":"2026-09-17T03:34:31.832227845Z","s":"info","m":"        opNs:   bryce.ns.cloudflare.com, kate.ns.cloudflare.com"}
+{"t":"2026-09-17T03:34:31.832236765Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=60d2f05e8010b730a740853350f636e7, nsT=cloudflare}"}
+{"t":"2026-09-17T03:34:31.833372462Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=c178e6cf0188d2d34798219ac16fa6c5, nsT=cloudflare}"}
+{"t":"2026-09-17T03:34:31.833400702Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=1303bc191dbe505f5b498b56addebc8f, nsT=cloudflare}"}
+{"t":"2026-09-17T03:34:31.833989116Z","s":"info","m":"        opNs:   anderson.ns.cloudflare.com, leanna.ns.cloudflare.com"}
+{"t":"2026-09-17T03:34:31.834012225Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=4822b002edf6e00377c9bf865f193aa7, nsT=cloudflare}"}
+{"t":"2026-09-17T03:34:31.835072194Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=2b261112ebbc38d4e2f51e458147694c, nsT=cloudflare}"}
+{"t":"2026-09-17T03:34:31.835100064Z","s":"info","m":"        opNs:   anderson.ns.cloudflare.com, leanna.ns.cloudflare.com"}
+{"t":"2026-09-17T03:34:31.835117674Z","s":"info","m":"        opNs:   anderson.ns.cloudflare.com, leanna.ns.cloudflare.com"}
+{"t":"2026-09-17T03:34:31.836204681Z","s":"info","m":"        opNs:   ivan.ns.cloudflare.com, susan.ns.cloudflare.com"}
+{"t":"2026-09-17T03:34:31.836217311Z","s":"info","m":"        opNs:   sandy.ns.cloudflare.com, vicente.ns.cloudflare.com"}
+{"t":"2026-09-17T03:34:31.836229521Z","s":"info","m":"        opNs:   anderson.ns.cloudflare.com, leanna.ns.cloudflare.com"}
+{"t":"2026-09-17T03:34:31.836247711Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=1716257b0438534a175a32bd295db636, nsT=cloudflare}"}
+{"t":"2026-09-17T03:34:31.837327149Z","s":"info","m":"        opNs:   anderson.ns.cloudflare.com, leanna.ns.cloudflare.com"}
+{"t":"2026-09-17T03:34:31.837391288Z","s":"info","m":"        opNs:   arvind.ns.cloudflare.com, wren.ns.cloudflare.com"}
+{"t":"2026-09-17T03:34:31.838009592Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=ed612289a16c77e58ff066c60f005c81, nsT=cloudflare}"}
+{"t":"2026-09-17T03:34:31.838035022Z","s":"info","m":"        opNs:   ariadne.ns.cloudflare.com, beau.ns.cloudflare.com"}
+{"t":"2026-09-17T03:34:31.838063381Z","s":"info","m":"        opNs:   ken.ns.cloudflare.com, linda.ns.cloudflare.com"}
+{"t":"2026-09-17T03:34:31.838078891Z","s":"info","m":"        opNs:   elinore.ns.cloudflare.com, marty.ns.cloudflare.com"}
+{"t":"2026-09-17T03:34:31.839398956Z","s":"info","m":"        opNs:   dina.ns.cloudflare.com, nero.ns.cloudflare.com"}
+{"t":"2026-09-17T03:34:31.839419876Z","s":"info","m":"        opNs:   hunts.ns.cloudflare.com, khloe.ns.cloudflare.com"}
+{"t":"2026-09-17T03:34:31.839434316Z","s":"info","m":"        opNs:   emily.ns.cloudflare.com, phil.ns.cloudflare.com"}
+{"t":"2026-09-17T03:34:31.839452696Z","s":"info","m":"        opNs:   bryce.ns.cloudflare.com, meiling.ns.cloudflare.com"}
+{"t":"2026-09-17T03:34:31.839465575Z","s":"info","m":"        opNs:   kia.ns.cloudflare.com, yew.ns.cloudflare.com"}
+{"t":"2026-09-17T03:34:31.840234467Z","s":"info","m":"        opNs:   katja.ns.cloudflare.com, tadeo.ns.cloudflare.com"}
+{"t":"2026-09-17T03:34:31.840246567Z","s":"info","m":"        opNs:   arvind.ns.cloudflare.com, paityn.ns.cloudflare.com"}
+{"t":"2026-09-17T03:34:31.840257047Z","s":"info","m":"        opNs:   karl.ns.cloudflare.com, laila.ns.cloudflare.com"}
+{"t":"2026-09-17T03:34:31.841433654Z","s":"info","m":"        opNs:   anderson.ns.cloudflare.com, leanna.ns.cloudflare.com"}
+{"t":"2026-09-17T03:34:31.841445983Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=6f7feafa6fb5736fcd4de49dcf816982, nsT=cloudflare}"}
+{"t":"2026-09-17T03:34:31.841469153Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=96264626d905adb54b5a5c2120f75f33, nsT=cloudflare}"}
+{"t":"2026-09-17T03:34:31.843471852Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=a2b560f9dace8383c005eb340c9dbd2e, nsT=cloudflare}"}
+{"t":"2026-09-17T03:34:31.843503331Z","s":"info","m":"        opNs:   dolly.ns.cloudflare.com, zahir.ns.cloudflare.com"}
+{"t":"2026-09-17T03:34:31.843521451Z","s":"info","m":"        opNs:   anderson.ns.cloudflare.com, leanna.ns.cloudflare.com"}
+{"t":"2026-09-17T03:34:31.843538510Z","s":"info","m":"        opNs:   ingrid.ns.cloudflare.com, tate.ns.cloudflare.com"}
+{"t":"2026-09-17T03:34:31.844715988Z","s":"info","m":"        opNs:   cosmin.ns.cloudflare.com, kay.ns.cloudflare.com"}
+{"t":"2026-09-17T03:34:31.844735568Z","s":"info","m":"        opNs:   anderson.ns.cloudflare.com, leanna.ns.cloudflare.com"}
+{"t":"2026-09-17T03:34:31.844741078Z","s":"info","m":"        opNs:   anderson.ns.cloudflare.com, leanna.ns.cloudflare.com"}
+{"t":"2026-09-17T03:34:31.844764648Z","s":"info","m":"        opNs:   anderson.ns.cloudflare.com, leanna.ns.cloudflare.com"}
+{"t":"2026-09-17T03:34:31.844782737Z","s":"info","m":"        opNs:   anderson.ns.cloudflare.com, leanna.ns.cloudflare.com"}
+{"t":"2026-09-17T03:34:31.844801767Z","s":"info","m":"        opNs:   donna.ns.cloudflare.com, weston.ns.cloudflare.com"}
+{"t":"2026-09-17T03:34:31.846363790Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=cbc06a934a2f43bf323349570687c167, nsT=cloudflare}"}
+{"t":"2026-09-17T03:34:31.846419079Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=40bf0344878dda3085ca0c3abeb5e727, nsT=cloudflare}"}
+{"t":"2026-09-17T03:34:31.849979150Z","s":"info","m":"        opNs:   natasha.ns.cloudflare.com, rajeev.ns.cloudflare.com"}
+{"t":"2026-09-17T03:34:31.849990710Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=b9e141062baa57a831f736f809bfa8e6, nsT=cloudflare}"}
+{"t":"2026-09-17T03:34:31.850058990Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=7945a18e77131189a0ba467fad1c91c3, nsT=cloudflare}"}
+{"t":"2026-09-17T03:34:31.851322045Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=13113aa71d6168e057705875a35fb0bc, nsT=cloudflare}"}
+{"t":"2026-09-17T03:34:31.851356715Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=e12d53d8627fc20a92fd92f8b080bfc0, nsT=cloudflare}"}
+{"t":"2026-09-17T03:34:31.852011898Z","s":"info","m":"        opNs:   autumn.ns.cloudflare.com, harley.ns.cloudflare.com"}
+{"t":"2026-09-17T03:34:31.852044287Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=dddf484dbc01f747016cb8e2448b40c4, nsT=cloudflare}"}
+{"t":"2026-09-17T03:34:31.852073637Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=bf185e39ecb7d981623bfeff51ea4509, nsT=cloudflare}"}
+{"t":"2026-09-17T03:34:31.852107057Z","s":"info","m":"        opNs:   anderson.ns.cloudflare.com, leanna.ns.cloudflare.com"}
+{"t":"2026-09-17T03:34:31.853075147Z","s":"info","m":"        opNs:   dante.ns.cloudflare.com, wally.ns.cloudflare.com"}
+{"t":"2026-09-17T03:34:31.853100526Z","s":"info","m":"        opNs:   anderson.ns.cloudflare.com, leanna.ns.cloudflare.com"}
+{"t":"2026-09-17T03:34:31.853117846Z","s":"info","m":"        opNs:   algin.ns.cloudflare.com, stevie.ns.cloudflare.com"}
+{"t":"2026-09-17T03:34:31.853146896Z","s":"info","m":"        opNs:   ace.ns.cloudflare.com, daniella.ns.cloudflare.com"}
+{"t":"2026-09-17T03:34:31.855227263Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=7e61c50c5d9e0e36b3f42e5ede37b7ff, nsT=cloudflare}"}
+{"t":"2026-09-17T03:34:31.855228043Z","s":"info","m":"        opNs:   anderson.ns.cloudflare.com, leanna.ns.cloudflare.com"}
+{"t":"2026-09-17T03:34:31.855251842Z","s":"info","m":"        opNs:   ali.ns.cloudflare.com, jeff.ns.cloudflare.com"}
+{"t":"2026-09-17T03:34:31.855284902Z","s":"info","m":"        opNs:   olga.ns.cloudflare.com, yoxall.ns.cloudflare.com"}
+{"t":"2026-09-17T03:34:31.855327162Z","s":"info","m":"        opNs:   sydney.ns.cloudflare.com, vern.ns.cloudflare.com"}
+{"t":"2026-09-17T03:34:31.855362171Z","s":"info","m":"        opNs:   leland.ns.cloudflare.com, megan.ns.cloudflare.com"}
+{"t":"2026-09-17T03:34:31.856612137Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=58b68f3658d5190c1a545f94dd59fc00, nsT=cloudflare}"}
+{"t":"2026-09-17T03:34:31.856684056Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=c62837004c408835f1bfedc69c43529c, nsT=cloudflare}"}
+{"t":"2026-09-17T03:34:31.857537987Z","s":"info","m":"        opNs:   hunts.ns.cloudflare.com, khloe.ns.cloudflare.com"}
+{"t":"2026-09-17T03:34:31.857557137Z","s":"info","m":"        opNs:   chin.ns.cloudflare.com, jake.ns.cloudflare.com"}
+{"t":"2026-09-17T03:34:31.857607106Z","s":"info","m":"        opNs:   byron.ns.cloudflare.com, kara.ns.cloudflare.com"}
+{"t":"2026-09-17T03:34:31.857629526Z","s":"info","m":"        opNs:   lex.ns.cloudflare.com, magali.ns.cloudflare.com"}
+{"t":"2026-09-17T03:34:31.858434098Z","s":"info","m":"        opNs:   adi.ns.cloudflare.com, tom.ns.cloudflare.com"}
+{"t":"2026-09-17T03:34:31.858452877Z","s":"info","m":"        opNs:   iris.ns.cloudflare.com, tate.ns.cloudflare.com"}
+{"t":"2026-09-17T03:34:31.858472847Z","s":"info","m":"        opNs:   chin.ns.cloudflare.com, jihoon.ns.cloudflare.com"}
+{"t":"2026-09-17T03:34:31.858484567Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=78e3d9ee8d22e63461b882add81cc440, nsT=cloudflare}"}
+{"t":"2026-09-17T03:34:31.860650713Z","s":"info","m":"        opNs:   ns1.cloudflare.com, ns2.cloudflare.com"}
+{"t":"2026-09-17T03:34:31.860674043Z","s":"info","m":"        opNs:   anderson.ns.cloudflare.com, leanna.ns.cloudflare.com"}
+{"t":"2026-09-17T03:34:31.873048447Z","s":"info","m":"        opNs:   anderson.ns.cloudflare.com, leanna.ns.cloudflare.com"}
+{"t":"2026-09-17T03:34:31.892966318Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=28f4cd5293749f926d18cec54eb608fc, nsT=cloudflare}"}

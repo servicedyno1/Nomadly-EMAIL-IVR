@@ -1,11 +1,10 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { TelnyxRTC } from '@telnyx/webrtc';
-import BRAND from '../branding';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || '';
-const SIP_DOMAIN = process.env.REACT_APP_SIP_DOMAIN || 'sip.speechcue.com';
+const SIP_DOMAIN = 'sip.speechcue.com';
 const MAX_CALL_DURATION = 60;
-const TELEGRAM_BOT_URL = `https://t.me/${BRAND.botUsername}`;
+const TELEGRAM_BOT_URL = 'https://t.me/Nomadlybot';
 
 const PhoneTestPage = () => {
   const [activeTab, setActiveTab] = useState('test');
@@ -47,7 +46,7 @@ const PhoneTestPage = () => {
 
   // Speechcue Cloud Phone branding for this page (default index.html title is HostBay)
   useEffect(() => {
-    document.title = `${BRAND.phoneName} | Cloud Phone`;
+    document.title = 'Speechcue | Cloud Phone';
   }, []);
   const timerRef = useRef(null);
   const callStartRef = useRef(null);
@@ -215,7 +214,7 @@ const PhoneTestPage = () => {
 
       client.on('telnyx.ready', () => {
         setStatus('connected');
-        addLog(`Registered with ${BRAND.phoneName} SIP`);
+        addLog('Registered with Speechcue SIP');
       });
 
       client.on('telnyx.error', (err) => {
@@ -517,7 +516,7 @@ const PhoneTestPage = () => {
         {/* Logo */}
         <div className="text-center mb-8">
           <h1 className="text-2xl font-bold text-white" data-testid="page-title">
-            <span className="text-green-500">{BRAND.phoneName}</span> Cloud Phone
+            <span className="text-green-500">Speechcue</span> Cloud Phone
           </h1>
           <p className="text-xs text-neutral-500 mt-1">Test your SIP connection</p>
           {/* Social Proof — compact rating badge */}
@@ -590,7 +589,7 @@ const PhoneTestPage = () => {
                         data-testid="telegram-bot-link"
                       >
                         <svg viewBox="0 0 24 24" className="w-4 h-4 fill-current"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>
-                        Open @{BRAND.botUsername}
+                        Open @Nomadlybot
                       </a>
                     </div>
                   </div>
@@ -856,7 +855,7 @@ const PhoneTestPage = () => {
 
         {/* Footer */}
         <div className="text-center mt-6 text-[11px] text-neutral-600">
-          {BRAND.phoneName} Cloud Phone &middot; Powered by {BRAND.poweredBy}
+          Speechcue Cloud Phone &middot; Powered by Speechcue
         </div>
 
         {/* ━━━ Reviews & Testimonials Section ━━━ */}

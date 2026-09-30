@@ -1,0 +1,17 @@
+{"t":"2026-09-15T03:14:18.740720832Z","s":"info","m":"[Panel] Delete user-level failed for redirect.html, trying WHM fallback (user: clai1622, reason: Access denied)"}
+{"t":"2026-09-16T15:54:08.362561457Z","s":"info","m":"[cPanel Proxy API2] Fileman::fileop error (403): Access denied [AUTH]"}
+{"t":"2026-09-16T15:54:08.362934800Z","s":"info","m":"[Panel] Delete user-level failed for trentase.com, trying WHM fallback (user: ghrx51df, reason: Access denied)"}
+{"t":"2026-09-16T15:54:08.363781385Z","s":"info","m":"[cPanel Proxy API2] Fileman::fileop error (403): Access denied [AUTH]"}
+{"t":"2026-09-16T15:54:08.364363333Z","s":"info","m":"[Panel] Delete user-level failed for hdjhsfuywuywhjd.info, trying WHM fallback (user: ghrx51df, reason: Access denied)"}
+{"t":"2026-09-16T15:54:28.363822736Z","s":"info","m":"[cPanel Proxy API2] Fileman::mkdir error (403): Access denied [AUTH]"}
+{"t":"2026-09-16T15:57:13.042100483Z","s":"info","m":"[cPanel Proxy API2] Fileman::fileop error (403): Access denied [AUTH]"}
+{"t":"2026-09-16T15:57:35.754568475Z","s":"info","m":"[cPanel Proxy API2] Fileman::fileop error (403): Access denied [AUTH]"}
+{"t":"2026-09-16T15:57:35.754578385Z","s":"info","m":"[Panel] Delete user-level failed for mytlp.zip, trying WHM fallback (user: ghrx51df, reason: Access denied)"}
+{"t":"2026-09-16T15:57:35.754594965Z","s":"info","m":"[cPanel Proxy API2] Fileman::fileop error (403): Access denied [AUTH]"}
+{"t":"2026-09-16T15:57:35.754602345Z","s":"info","m":"[Panel] Delete user-level failed for skp, trying WHM fallback (user: ghrx51df, reason: Access denied)"}
+{"t":"2026-09-16T15:57:50.890194396Z","s":"info","m":"[cPanel Proxy API2] Fileman::fileop error (403): Access denied [AUTH]"}
+{"t":"2026-09-16T15:58:12.174685654Z","s":"info","m":"[cPanel Proxy API2] Fileman::fileop error (403): Access denied [AUTH]"}
+{"t":"2026-09-16T15:58:12.174708034Z","s":"info","m":"[Panel] Delete user-level failed for index.html, trying WHM fallback (user: ghrx51df, reason: Access denied)"}
+{"t":"2026-09-16T15:58:43.053713241Z","s":"info","m":"[cPanel Proxy API2] Fileman::fileop error (403): Access denied [AUTH]"}
+{"t":"2026-09-16T15:58:43.741531811Z","s":"info","m":"[Panel] Delete user-level failed for mytlp, trying WHM fallback (user: ghrx51df, reason: Access denied)"}
+{"t":"2026-09-17T02:50:26.039346041Z","s":"info","m":"[cPanel Proxy API2] Fileman::fileop error (403): Access denied [AUTH]"}

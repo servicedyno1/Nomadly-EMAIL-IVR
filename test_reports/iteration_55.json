@@ -1,0 +1,25 @@
+{
+  "summary": "Backend-only validation of the D1 fix for @chemist454 dropped calls (Telnyx PSTN transfer B-leg re-entering SIP pipeline). Re-ran the new unit suite, 5 regression suites, and the live webhook route test against localhost:5000. All 6 suites PASS. Live curl with client_state=base64('nomadly_pstn_leg') returned HTTP 200 and produced the exact 'Skipping self-originated PSTN transfer leg cc=cc-agent-marked' log line with NO reverse lookup for that leg. Node service supervisor status RUNNING, no crash or stacktrace.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/js/tests/test_sip_pstn_leg_skip_2026-09.js",
+    "/app/js/tests/test_no_ghost_direct_call_2026-09.js",
+    "/app/js/tests/test_dial_status_billing_fix_2026-09.js",
+    "/app/js/tests/test_reconciler_altcallref_2026-09.js",
+    "/app/js/tests/test_test_outbound_sip.js",
+    "/app/js/tests/test_sip_ring_result_fallback.js"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Fix is scoped and defensive: primary signal via base64 target_leg_client_state marker + backup short-TTL guard keyed by connectionId|to|ani, single-use. Good separation between telnyx-service.transferCall (maps targetLegClientState→base64 body.target_leg_client_state, omitted when absent — no regression) and voice-service._isSelfPstnLeg/_markSelfPstnLeg. Skip check placed at the very top of handleCallInitiated so no reverse lookup, no answer, no transfer, no wallet charge occurs on the self-originated B-leg — verified by unit assertions (listSIPCredentials calls=0 marked vs =1 unmarked). No obvious concerns."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100%", "frontend": "N/A (skipped per request)"},
+  "test_credentials": "none required (sandbox, BOT_ENVIRONMENT=development)",
+  "seed_data_creation": "none",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "D1 fix validated end-to-end at the webhook boundary. Suites to re-run on any voice-service.js / telnyx-service.js change: test_sip_pstn_leg_skip_2026-09.js (new), plus the 5 regressions listed in test_report_links. Live curl reproducer: POST http://localhost:5000/telnyx/voice-webhook with body {\"data\":{\"event_type\":\"call.initiated\",\"payload\":{\"direction\":\"outgoing\",\"from\":\"+18883304418\",\"to\":\"+14155550123\",\"call_control_id\":\"cc-agent-marked\",\"connection_id\":\"agentconn\",\"client_state\":\"bm9tYWRseV9wc3RuX2xlZw==\"}}} — expect HTTP 200 and log 'Skipping self-originated PSTN transfer leg cc=cc-agent-marked'.",
+  "rca of the issue": "See /app/memory/CHEMIST454_DROPPED_CALLS_RCA_2026-09.md. Telnyx `transfer` creates a new outbound B-leg that emits its own call.initiated (direction=outgoing, no SIP credential). Previously it re-entered handleOutboundSipCall, triggering a 250-credential Telnyx reverse lookup that resolved the wrong owner and delayed setup ~3s, causing dropped calls. Fix D1 tags the B-leg with target_leg_client_state='nomadly_pstn_leg' (base64) and short-circuits it at the top of handleCallInitiated (with a backup connectionId|to|ani guard). Validated: unit suite ALL PASSED (skip prevents reverse lookup / transfer / answer / wallet charge on marked leg; unmarked leg still executes reverse lookup), live webhook returns 200 with the skip log and no reverse-lookup line, no regressions, node stays healthy."
+}

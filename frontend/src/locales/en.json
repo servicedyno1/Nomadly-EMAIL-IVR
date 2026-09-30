@@ -43,7 +43,7 @@
     "recentActivity": "Recent activity",
     "noTxns": "No transactions yet.",
     "loginTitle": "Sign in",
-    "loginSub": "Shoppers sign in with your email. Existing hosting customers use your HostPanel username + PIN.",
+    "loginSub": "One login for everyone — web shoppers and HostPanel users.",
     "userOrEmail": "Email or HostPanel username",
     "userOrEmailPh": "you@email.com or yourpanel",
     "passOrPin": "Password or PIN",
@@ -55,18 +55,22 @@
     "tgButton": "Continue with Telegram",
     "tgScanCap": "Scan with your phone to log in via the Telegram bot.",
     "tgLinked": "Telegram linked",
-    "mostPopular": "★ Most Popular",
+    "antiRedExplainer": "\"Anti-Red\" means your links stay clickable — hosting hardened so pages aren't flagged red or blocked by browsers, Telegram, or WhatsApp.",
+    "signInMobile": "Already a customer? Sign in",
+    "loginHelper": "Shoppers → sign in with your email · Hosting customers → panel username + PIN",
+    "perWeek": "wk",
+    "perMonth": "mo",
+    "moEquiv": "≈ {{amount}}/mo",
+    "billedWeekly": "billed weekly",
     "billedMonthly": "billed monthly",
-    "perMonthEquiv": "≈ {{price}}/mo · billed weekly",
-    "antiRedExplain": "“Anti-Red” keeps your links out of browser & Google “deceptive site” red-warning pages.",
-    "byoDomainHint": "After checkout you’ll point your domain’s nameservers to us — we’ll show you exactly how (takes ~5 min).",
-    "returningCustomer": "Already a customer? Sign in ↓",
-    "discardConfirm": "Discard this order? The details you entered will be lost.",
-    "close": "Close",
-    "trustInstant": "Instant setup",
-    "trustProtection": "Anti-Red protection",
-    "trustReplace": "Free replacement if flagged",
-    "trustSupport": "24/7 support"
+    "badgePopular": "★ Most Popular",
+    "getPlan": "Get {{name}} →",
+    "byoHint": "Heads-up: after payment you'll point your domain's nameservers/DNS to the ones we email you.",
+    "trustUptime": "99.9% uptime",
+    "trustReplace": "Free replacement guarantee",
+    "trustInstant": "Instant crypto delivery",
+    "trustSupport": "Human support {{handle}}",
+    "trustNoLogin": "No account needed"
   },
   "common": {
     "appName": "Hosting Panel",
@@ -127,8 +131,9 @@
   "dashboard": {
     "tabs": {
       "overview": "Overview",
-      "domains": "Domains",
+      "site": "Site",
       "files": "Files",
+      "domains": "Domains",
       "email": "Email",
       "mysql": "Databases",
       "geo": "Geo Cloak",
@@ -361,6 +366,10 @@
       "jsChallenge": {
         "label": "Visitor Captcha (JS Challenge)",
         "desc": "Per-domain bot challenge — Golden plan only. Manage per-domain in the Domains tab."
+      },
+      "honeypot": {
+        "label": "Honeypot Traps",
+        "desc": "Hidden decoys that catch & auto-ban bots. Monthly plans only. JSON/API responses are never modified."
       }
     },
     "captchaGoldOnlyError": "Visitor Captcha is exclusive to Golden Anti-Red HostPanel plans. Upgrade your plan to enable it.",
@@ -369,6 +378,14 @@
     "captchaStatusDisabled": "Visitor Captcha disabled",
     "failedToggle": "Failed to toggle",
     "captchaDefaultGoldError": "Visitor Captcha is exclusive to Golden Anti-Red HostPanel plans.",
+    "honeypotMonthlyOnlyError": "Honeypot Traps management is available on Monthly plans (Premium or Golden). Upgrade to manage it.",
+    "honeypotDisableWarning": "Turning off Honeypot Traps removes the hidden bot decoys from your HTML pages. Visitor Captcha, scanner cloaking, IP bans and WAF stay active.\n\nDisable Honeypot Traps?",
+    "honeypotStatusEnabled": "Honeypot Traps enabled",
+    "honeypotStatusDisabled": "Honeypot Traps disabled",
+    "monthlyOnly": "Monthly only",
+    "monthlyOnlyTooltip": "Honeypot Traps management is available on Monthly plans. Your plan: {{plan}}",
+    "disableHoneypotTitle": "Disable Honeypot Traps",
+    "enableHoneypotTitle": "Enable Honeypot Traps",
     "protectionActive": "Protection Active",
     "protectionSub": "{{active}} of {{total}} security layers enabled",
     "protectionLayers": "Protection Layers",
@@ -389,6 +406,15 @@
     "unknownPlan": "unknown"
   },
   "dl": {
+    "bulkImport": "Bulk import",
+    "bulkSingle": "Single",
+    "bulkNote": "Create multiple subdomains at once — separate names with commas or new lines (max 50). Each gets its own public_html/ folder.",
+    "bulkPlaceholder": "shop, blog, api, dev, staging",
+    "bulkCreateAll": "Create all",
+    "bulkCreating": "Creating...",
+    "bulkSummary": "{{succeeded}} of {{total}} created · {{failed}} failed",
+    "bulkEmpty": "Enter at least one subdomain name.",
+    "bulkDone": "Done",
     "title": "Domains",
     "runAutoSSL": "Run AutoSSL",
     "running": "Running...",
@@ -489,16 +515,7 @@
     "nsRecheckNow": "Re-check now",
     "nsExternalUpdate": "Update your nameservers at your domain registrar:",
     "nsExternalNote": "Propagation can take up to 24-48 hours.",
-    "nsExternalNoteTail": "(also triggers SSL issuance if NS active)",
-    "bulkImport": "Bulk import",
-    "bulkSingle": "Single",
-    "bulkNote": "Paste multiple subdomain names — one per line or comma-separated. They'll all be created under the selected domain (max 50).",
-    "bulkPlaceholder": "blog, shop, app\nmail\nnews",
-    "bulkCreateAll": "Create all",
-    "bulkCreating": "Creating…",
-    "bulkSummary": "{{succeeded}} created, {{failed}} failed of {{total}}",
-    "bulkEmpty": "Enter at least one valid subdomain name.",
-    "bulkDone": "Done"
+    "nsExternalNoteTail": "(also triggers SSL issuance if NS active)"
   },
   "an": {
     "title": "Visitor Analytics",

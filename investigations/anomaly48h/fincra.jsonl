@@ -1,0 +1,22 @@
+{"t":"2026-09-14T23:10:03.675136781Z","s":"info","m":"[FincraReconcile] Payment recovery scheduled every 5min"}
+{"t":"2026-09-15T07:41:29.990547810Z","s":"info","m":"Working, Fincra API"}
+{"t":"2026-09-15T07:41:36.963633377Z","s":"info","m":"[FincraReconcile] Payment recovery scheduled every 5min"}
+{"t":"2026-09-16T12:10:53.928545506Z","s":"info","m":"Working, Fincra API"}
+{"t":"2026-09-16T12:11:00.655585782Z","s":"info","m":"[FincraReconcile] Payment recovery scheduled every 5min"}
+{"t":"2026-09-16T16:12:46.074958402Z","s":"info","m":"Working, Fincra API"}
+{"t":"2026-09-16T16:12:53.947160239Z","s":"info","m":"[FincraReconcile] Payment recovery scheduled every 5min"}
+{"t":"2026-09-16T16:44:05.734760069Z","s":"info","m":"Working, Fincra API"}
+{"t":"2026-09-16T16:44:15.441684988Z","s":"info","m":"[FincraReconcile] Payment recovery scheduled every 5min"}
+{"t":"2026-09-16T17:18:53.899955415Z","s":"info","m":"Working, Fincra API"}
+{"t":"2026-09-16T17:19:04.319812047Z","s":"info","m":"[FincraReconcile] Payment recovery scheduled every 5min"}
+{"t":"2026-09-16T18:03:34.096207360Z","s":"info","m":"Working, Fincra API"}
+{"t":"2026-09-16T18:03:45.157193481Z","s":"info","m":"[FincraReconcile] Payment recovery scheduled every 5min"}
+{"t":"2026-09-16T18:24:38.069111447Z","s":"info","m":"Working, Fincra API"}
+{"t":"2026-09-16T18:24:47.568379122Z","s":"info","m":"[FincraReconcile] Payment recovery scheduled every 5min"}
+{"t":"2026-09-16T19:46:14.186616532Z","s":"info","m":"Working, Fincra API"}
+{"t":"2026-09-16T19:46:24.631620143Z","s":"info","m":"[FincraReconcile] Payment recovery scheduled every 5min"}
+{"t":"2026-09-16T19:53:11.563198276Z","s":"info","m":"[auth] Resolved ref: uhzSp | merchantRef: undefined | fincraRef: undefined | queryRef: uhzSp"}
+{"t":"2026-09-16T19:56:05.110968405Z","s":"info","m":"Working, Fincra API"}
+{"t":"2026-09-16T19:56:15.735409742Z","s":"info","m":"[FincraReconcile] Payment recovery scheduled every 5min"}
+{"t":"2026-09-16T21:28:51.572727046Z","s":"info","m":"Working, Fincra API"}
+{"t":"2026-09-16T21:29:01.289708094Z","s":"info","m":"[FincraReconcile] Payment recovery scheduled every 5min"}

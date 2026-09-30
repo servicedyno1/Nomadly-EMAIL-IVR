@@ -15,18 +15,6 @@ const MAIN_ACCOUNT_SID = ACCOUNT_SID
 // Stores the active Twilio SIP domain name (set during initialization)
 let activeSipDomainName = null
 
-// ━━━ Brand-aware SIP domain / credential-list naming (white-label isolation) ━━━
-// Two brands sharing ONE Twilio account must NOT fight over the same account-level
-// SIP domain (whose voiceUrl is rewritten on every boot). Default stays 'speechcue'
-// so existing (Nomadly) deployments are byte-for-byte UNCHANGED. A second brand sets
-// TWILIO_SIP_DOMAIN_PREFIX (e.g. 'smadav') to get its OWN SIP domain + credential list,
-// leaving the other brand's softphone routing untouched.
-const SIP_DOMAIN_PREFIX = (process.env.TWILIO_SIP_DOMAIN_PREFIX || 'speechcue')
-  .toLowerCase().replace(/[^a-z0-9]/g, '') || 'speechcue'
-const SIP_IS_DEFAULT_BRAND = SIP_DOMAIN_PREFIX === 'speechcue'
-const SIP_BRAND_LABEL = SIP_IS_DEFAULT_BRAND ? 'Speechcue' : (process.env.CHAT_BOT_BRAND || SIP_DOMAIN_PREFIX)
-const SIP_CRED_LIST_NAME = `${SIP_BRAND_LABEL} SIP Credentials`
-
 let mainClient = null
 
 function getClient() {
@@ -737,10 +725,8 @@ async function getTwilioResourcesFromEnv() {
 
     // Find existing SIP domain — DO NOT create or update
     const domains = await client.sip.domains.list({ limit: 20 })
-    const sipDomain = domains.find(d => d.domainName?.startsWith(SIP_DOMAIN_PREFIX + '-'))
-      || (SIP_IS_DEFAULT_BRAND
-          ? domains.find(d => d.friendlyName?.includes('Nomadly') || d.domainName?.startsWith('nomadly-'))
-          : undefined)
+    const sipDomain = domains.find(d => d.domainName?.startsWith('speechcue-'))
+      || domains.find(d => d.friendlyName?.includes('Nomadly') || d.domainName?.startsWith('nomadly-'))
 
     if (!sipDomain) {
       log('[Twilio] READ-ONLY: No SIP domain found — cannot proceed without full init')
@@ -751,8 +737,8 @@ async function getTwilioResourcesFromEnv() {
 
     // Find existing credential list — DO NOT create
     const credLists = await client.sip.credentialLists.list({ limit: 20 })
-    const credList = credLists.find(cl => cl.friendlyName?.includes(SIP_BRAND_LABEL))
-      || (SIP_IS_DEFAULT_BRAND ? credLists.find(cl => cl.friendlyName?.includes('Nomadly')) : undefined)
+    const credList = credLists.find(cl => cl.friendlyName?.includes('Speechcue'))
+      || credLists.find(cl => cl.friendlyName?.includes('Nomadly'))
 
     activeSipDomainName = sipDomain.domainName
     return {
@@ -784,14 +770,14 @@ async function initializeTwilioResources(selfUrl) {
 
     // Get or create master SIP domain — prefer 'speechcue-' prefix, migrate from 'nomadly-' if needed
     const domains = await client.sip.domains.list({ limit: 20 })
-    let sipDomain = domains.find(d => d.domainName?.startsWith(SIP_DOMAIN_PREFIX + '-'))
-    const oldDomain = (!sipDomain && SIP_IS_DEFAULT_BRAND) ? domains.find(d => d.friendlyName?.includes('Nomadly') || d.domainName?.startsWith('nomadly-')) : null
+    let sipDomain = domains.find(d => d.domainName?.startsWith('speechcue-'))
+    const oldDomain = !sipDomain ? domains.find(d => d.friendlyName?.includes('Nomadly') || d.domainName?.startsWith('nomadly-')) : null
 
     if (!sipDomain) {
-      const domainPrefix = SIP_DOMAIN_PREFIX + '-' + ACCOUNT_SID.slice(-6).toLowerCase()
+      const domainPrefix = 'speechcue-' + ACCOUNT_SID.slice(-6).toLowerCase()
       sipDomain = await client.sip.domains.create({
         domainName: `${domainPrefix}.sip.twilio.com`,
-        friendlyName: `${SIP_BRAND_LABEL} Cloud Phone SIP`,
+        friendlyName: 'Speechcue Cloud Phone SIP',
         voiceUrl: `${selfUrl}/twilio/sip-voice`,
         voiceMethod: 'POST',
         sipRegistration: true,
@@ -807,7 +793,7 @@ async function initializeTwilioResources(selfUrl) {
     }
 
     // Get or create master credential list
-    const credList = await getOrCreateCredentialList(SIP_CRED_LIST_NAME)
+    const credList = await getOrCreateCredentialList('Speechcue SIP Credentials')
 
     // Map credential list to domain if not already mapped
     try {
@@ -947,7 +933,10 @@ async function updateSubAccountNumberWebhooks(subSid, numberSid, webhookBaseUrl)
     return { success: true }
   } catch (e) {
     log(`[Twilio] updateSubAccountNumberWebhooks error: ${e.message}`)
-    return { error: e.message }
+    // Surface HTTP status so callers can detect a 404 (number no longer
+    // exists in this sub-account → orphan in phoneNumbersOf) and flag the
+    // record without deleting it. `e.status` is Twilio SDK's field.
+    return { error: e.message, status: e.status || e.statusCode || null, twilioCode: e.code || null }
   }
 }
 

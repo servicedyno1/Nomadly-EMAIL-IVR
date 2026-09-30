@@ -1,0 +1,45 @@
+{
+  "summary": "End-to-end tested Nomadly Telegram bot RDP integration via mock Bot API + local webhook (chat 777000123). Ran FLOW 1 (VPS/RDP hub), FLOW 2 (live DigitalOcean RDP purchase: NY, Starter 1-month, ws2025), FLOW 3 (management: Show PW, Reset PW cancel, Subscriptions, Reinstall Windows, Delete + DO 404 verification), FLOW 4 (Linux VPS flow separation), FLOW 5 (Node regression suites) and FLOW 6 (reseller /rdp/plans and /rdp dry-run). ONE bug found: 'Reinstall Windows' does NOT show a Windows edition picker between '✅ Confirm' and the actual reinstall — it silently reinstalls (osType was ws2025, became ws2022 with no user choice). Also osId not persisted at purchase (plan.imageId=None initially at RDP details lookup on subsequent update). Everything else passes: droplet provisioning, credentials delivery (~90s), wallet debit $24, Linux vs Windows flow separation, DO droplet destruction on delete, and Node/reseller test suites (86+79+109+lang-parity all green). No leaked rdp-reseller droplets remain.",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "bot 'RDP Reinstall Windows'", "issue": "After the '⚠️ CRITICAL WARNING' confirm screen tapping '✅ Confirm' does NOT show the Windows edition picker (ws2019/ws2022/ws2025) — the reinstall runs immediately and silently switches the OS (e.g. our ws2025 server became ws2022 with no user input). Spec (workflow FLOW 3d) requires: Confirm → edition picker → tap ws2022 → 'reinstall started' message → new creds arrive. The picker step is skipped in js/_index.js 'reinstall-windows' / rdp management action.", "priority": "HIGH"}
+    ],
+    "minor": [
+      {"endpoint": "vpsPlansOf record on RDP re-fetch", "issue": "After the reinstall path completed, a later Mongo re-fetch by vpsId showed plan.imageId=None and plan.status=None (fields temporarily blanked while the follow-up upsert races), even though the original creation persisted imageId='ws2025' correctly. Suggests an update step overwrites/omits imageId/status during reinstall/DB sync. Recommend PATCH-style update ({$set:{imageId:newOs,status:'RUNNING'}}) rather than full replace."},
+      {"endpoint": "bot 'Delete' success reply", "issue": "After tapping '✅ Confirm' on delete, the bot goes straight to 'You have no server yet.' with no explicit 'server deleted successfully' toast/message. Minor UX gap (deletion itself is correct — DO droplet 404s, doRdpServers.status='destroyed')."},
+      {"endpoint": "bot 'RDP details' during provisioning", "issue": "While status=🔴 PROVISIONING/booting the details screen omits '⏹️ Stop' / '🔄 Restart' buttons (only '▶️ Start' offered). Once status becomes 🟢 RUNNING they appear. Acceptable but could show a disabled Stop instead of hiding it."}
+    ]
+  },
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/tests/bot_harness.py",
+    "/app/tests/test_bot_flows.py",
+    "/app/tests/test_bot_flow2_pay.py",
+    "/app/tests/test_bot_flow3_mgmt.py",
+    "/app/tests/test_bot_flow4_linux.py"
+  ],
+  "action_items": [
+    "FIX (HIGH): Inject the Windows edition picker between the 'Reinstall Windows' confirmation and the actual reinstall in js/_index.js (mirror the askRdpEdition step used in the purchase flow). Currently Confirm → immediate provisionServer, which silently switches OS.",
+    "FIX (MINOR): Ensure the reinstall update path preserves osId/imageId and status in vpsPlansOf ($set instead of replace).",
+    "IMPROVE (MINOR): Add an explicit 'RDP deleted successfully' confirmation message after '🗑️ Delete → ✅ Confirm'.",
+    "OPTIONAL: Show '⏹️ Stop' as disabled while PROVISIONING instead of hiding it."
+  ],
+  "critical_code_review_comments": [
+    "js/_index.js 'reinstall-windows' handler bypasses askRdpEdition — the golden-image service supports 3 editions per region, but the bot forces a single OS after Confirm.",
+    "vpsPlansOf update during reinstall appears to replace some fields (imageId, status observed as null on re-fetch). Use partial updates and log the new osId explicitly."
+  ],
+  "updated_files": [
+    "/app/tests/bot_harness.py (new)",
+    "/app/tests/test_bot_flows.py (new)",
+    "/app/tests/test_bot_flow2_pay.py (new)",
+    "/app/tests/test_bot_flow3_mgmt.py (new)",
+    "/app/tests/test_bot_flow4_linux.py (new)"
+  ],
+  "success_rate": {"backend": "94% (60/64 assertions across 4 flows + all regression + reseller checks)", "frontend": "N/A (backend-only test)"},
+  "test_credentials": "Sim chat_id 777000123, wallet $500 pre-seeded. Reseller X-API-Key nmdly_e2e_51573577f5db956c5c0cb039.",
+  "seed_data_creation": "None — used existing walletOf/777000123 seed. One live DigitalOcean droplet was created (starter 1 vCPU/2GB in nyc3, ws2025) and destroyed by the delete flow; DO API returned 404 for the droplet ID; no rdp-reseller-tagged droplets remain.",
+  "retest_needed": true,
+  "main_agent_can_self_test": false,
+  "context_for_next_testing_agent": "Bot harness at /app/tests/bot_harness.py drives the bot via http://localhost:5000/telegram/webhook and reads replies from the mock at http://127.0.0.1:5099/_calls. reply_markup is stored as a JSON *string* in the mock — parse before reading .keyboard/.inline_keyboard. The DB fields on vpsPlansOf for RDP are: vpsId ('rdp-<uuid>'), contaboInstanceId (same), imageId (os id like 'ws2025'), osType, provider='digitalocean-rdp'. doRdpServers keys off server_id=uuid without 'rdp-' prefix. Purchase flow requires an extra 'Pay from Wallet' tap after '✅ Confirm Order'. Reinstall bug is reproducible: buy an RDP with ws2025, tap Reinstall Windows → Confirm, and observe the OS silently switches to ws2022 without a picker.",
+  "rca_of_the_issue": "Reinstall bug RCA: In the bot's rdp management (js/_index.js, action ~L20442-20470), the 'reinstall-windows' Confirm branch calls the reinstall path directly and passes a fixed/default os_id (looks like the default_os 'ws2022' from digitalocean-rdp-service.js OS_OPTIONS) rather than routing through askRdpEdition (~L12104 / L20128). Reproduction: Buy RDP ws2025 → server RUNNING → tap 🔄 Reinstall Windows → tap ✅ Confirm → within seconds the details screen shows OS: Windows Server 2022 without any edition prompt. Fix: after Confirm, call askRdpEdition using region-aware listOsOptionsForRegion() and pass the tapped edition into the reinstall call; keep the same droplet IP (already correct)."
+}

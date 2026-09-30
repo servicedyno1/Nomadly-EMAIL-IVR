@@ -1340,6 +1340,19 @@ async function _mirrorVpsPlan(serverId, set) {
   } catch (e) { log(`_mirrorVpsPlan(${serverId}) warn: ${e.message}`) }
 }
 
+// Best-effort reseller webhook from the SAFETY-NET sweep. The bot scheduler owns the
+// grace lifecycle and normally emits these; the resellerWebhookDeliveries dedup makes
+// this a no-op if the scheduler already sent the same (keyId,event,instanceId).
+async function _emitResellerWebhook(serverId, event, extra = {}) {
+  if (!_db || typeof _db.collection !== 'function') return
+  try {
+    const plan = await _db.collection('vpsPlansOf').findOne({ $or: [{ contaboInstanceId: extId(serverId) }, { vpsId: extId(serverId) }] })
+    if (!plan || !plan.chatId) return
+    const webhooks = require('./reseller-webhooks')
+    await webhooks.emit(_db, { chatId: plan.chatId, event, instanceId: plan.vpsId || plan._id, payload: { plan: plan.plan || null, region: plan.region || null, ...extra }, log })
+  } catch (e) { log(`_emitResellerWebhook(${serverId}) warn: ${e.message}`) }
+}
+
 // Enter grace on doRdpServers (called by the bot scheduler after it powers the box off).
 async function markGrace(instanceId, { expired_at, grace_until } = {}) {
   if (!_servers) return false
@@ -1383,6 +1396,7 @@ async function processExpiries() {
     const graceUntil = new Date(new Date(s.expires_at || now).getTime() + T.graceDays * 86400000)
     await _servers.updateOne({ server_id: s.server_id }, { $set: { status: 'expired', expired_at: now, grace_until: graceUntil } })
     await _mirrorVpsPlan(s.server_id, { status: 'EXPIRED_GRACE', expired_at: now, grace_until: graceUntil })
+    _emitResellerWebhook(s.server_id, 'rdp.grace_start', { expired_at: now.toISOString(), delete_at: graceUntil.toISOString() }).catch(() => {})
     suspended.push(s.server_id)
   }
   // Sweep-2 — expired past the grace deadline → destroy (safety net).
@@ -1391,6 +1405,7 @@ async function processExpiries() {
     try {
       await cancelInstance(s.server_id, { reason: 'expired_grace' })
       await _mirrorVpsPlan(s.server_id, { status: 'CANCELLED', cancelledAt: now, cancelReason: 'expired_grace' })
+      _emitResellerWebhook(s.server_id, 'rdp.deleted', { reason: 'expired_grace' }).catch(() => {})
       destroyed.push(s.server_id)
     } catch (e) { log(`processExpiries: grace-destroy error for ${s.server_id}: ${e.message}`) }
   }

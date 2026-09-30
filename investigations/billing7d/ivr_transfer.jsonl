@@ -1,0 +1,9 @@
+{"t":"2026-09-08T17:53:25.867426599Z","s":"info","m":"[Voice] Outbound billed: $0.15 (1 min × $0.15 US/CA) for IVR_Transfer"}
+{"t":"2026-09-09T19:43:08.631517487Z","s":"info","m":"[Voice] Loyalty discount: 💎 Platinum (15% off) — rate $0.15 → $0.1275 for IVR_Transfer"}
+{"t":"2026-09-09T19:43:08.670346191Z","s":"info","m":"[Voice] Outbound billed: $0.77 (6 min × $0.1275 US/CA) for IVR_Transfer"}
+{"t":"2026-09-12T00:29:13.292924744Z","s":"info","m":"[Voice] Loyalty discount: 💎 Platinum (15% off) — rate $0.15 → $0.1275 for IVR_Transfer"}
+{"t":"2026-09-12T00:29:13.301623827Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for IVR_Transfer"}
+{"t":"2026-09-12T00:32:14.909810765Z","s":"info","m":"[Voice] Loyalty discount: 💎 Platinum (15% off) — rate $0.15 → $0.1275 for IVR_Transfer"}
+{"t":"2026-09-12T00:32:14.909813855Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for IVR_Transfer"}
+{"t":"2026-09-12T19:50:15.289087923Z","s":"info","m":"[Voice] Outbound billed: $0.15 (1 min × $0.15 US/CA) for IVR_Transfer"}
+{"t":"2026-09-12T20:55:00.318195866Z","s":"info","m":"[Voice] Outbound billed: $9.60 (64 min × $0.15 US/CA) for IVR_Transfer"}

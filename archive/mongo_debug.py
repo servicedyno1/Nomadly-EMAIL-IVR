@@ -4,7 +4,7 @@ import os
 from pymongo import MongoClient
 
 # Get MongoDB connection
-mongo_url = os.getenv('MONGO_URL', 'mongodb://mongo:RQoOmIdwjRLFvhWMaatjidzqpvawUKcb@caboose.proxy.rlwy.net:59668')
+mongo_url = os.getenv('MONGO_URL', 'mongodb://localhost:27017')
 db_name = os.getenv('DB_NAME', 'test')
 
 client = MongoClient(mongo_url)

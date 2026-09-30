@@ -9,9 +9,6 @@ const HIDE_BANK_PAYMENT = process.env.HIDE_BANK_PAYMENT
 const SELF_URL = process.env.SELF_URL
 const FREE_LINKS = Number(process.env.FREE_LINKS)
 const SUPPORT_USERNAME = process.env.SUPPORT_USERNAME
-const { branding: _brand } = require('../branding.js')
-const BRAND = _brand.name
-const BOT_HANDLE = _brand.botHandle
 
 const HIDE_SMS_APP = process.env.HIDE_SMS_APP
 const HIDE_BECOME_RESELLER = process.env.HIDE_BECOME_RESELLER
@@ -207,6 +204,8 @@ Port 25 open · bulletproof hosting. Please choose an option:`,
  revealCredentials: '🔑 Show Credentials',
  manageVisitorCaptcha: '🛡️ On/Off Captcha',
  manageVisitorCaptchaLocked: '🔒 On/Off Captcha — Gold Plan Only',
+ manageHoneypot: '🍯 On/Off Honeypot Traps',
+ manageHoneypotLocked: '🔒 Honeypot Traps — Monthly Plan Only',
  renewHostingPlan: '🔄 Renew Now',
  upgradeHostingPlan: '⬆️ Upgrade Hosting',
  confirmRenewNow: '✅ Confirm & Pay',
@@ -373,7 +372,7 @@ ${CHAT_BOT_NAME}`,
 
  smsHowItWorks: (chatId) => `📧 <b>BulkSMS — How It Works</b>\n\nBulkSMS sends real SMS <b>from your phone's SIM card</b> — not a server. This gives you high deliverability and a real sender ID.\n\n<b>⚙️ One-time setup:</b>\n1. Download the app → ${SMS_APP_LINK}\n2. Open it → enter code: <code>${chatId}</code>\n3. Grant SMS permission when prompted\n\n<b>📤 Sending a campaign:</b>\n• Tap <b>📱 Create Campaign</b> here or create in the app\n• Add your message + contacts (paste or upload file)\n• Campaign syncs to the app → tap Send on your phone\n\n<b>💡 Tips:</b>\n• Use an <b>eSIM</b> for a dedicated sending line\n• Separate messages with <code>---</code> on its own line for rotation\n• <code>[name]</code> in your message = auto-personalization\n• Schedule campaigns for later or send immediately\n\n<b>📋 My Campaigns</b> shows all your campaigns + status.\n<b>🔓 Reset Login</b> lets you switch to a new device.\n\nNeed eSIM? Tap 💬 Support`,
 
- smsCreateCampaignIntro: `📱 <b>Create SMS Campaign</b>\n\nHere's how it works:\n\n<b>Step 1:</b> Name your campaign\n<b>Step 2:</b> Write your message(s)\n • Use <code>[name]</code> to personalize\n • Multiple lines = message rotation\n<b>Step 3:</b> Upload contacts\n • Paste as text: <code>+1234567890, John</code>\n • Or upload a .txt / .csv file\n<b>Step 4:</b> Set SMS gap time (delay between sends)\n<b>Step 5:</b> Review & confirm — send, schedule, or save as draft\n\nThe campaign syncs to the ${BRAND} SMS App for sending.\n\n<b>Let's start — enter a campaign name:</b>`,
+ smsCreateCampaignIntro: `📱 <b>Create SMS Campaign</b>\n\nHere's how it works:\n\n<b>Step 1:</b> Name your campaign\n<b>Step 2:</b> Write your message(s)\n • Use <code>[name]</code> to personalize\n • Multiple lines = message rotation\n<b>Step 3:</b> Upload contacts\n • Paste as text: <code>+1234567890, John</code>\n • Or upload a .txt / .csv file\n<b>Step 4:</b> Set SMS gap time (delay between sends)\n<b>Step 5:</b> Review & confirm — send, schedule, or save as draft\n\nThe campaign syncs to the Nomadly SMS App for sending.\n\n<b>Let's start — enter a campaign name:</b>`,
 
  smsSchedulePrompt: '⏰ <b>Schedule Campaign?</b>\n\nChoose when to make this campaign available:',
  smsSendNow: '▶️ Send Now',
@@ -390,7 +389,7 @@ ${CHAT_BOT_NAME}`,
  const lines = campaigns.slice(0, 10).map((c, i) =>
  `${i + 1}. ${statusIcons[c.status] || '📋'} <b>${c.name}</b>\n ${c.sentCount}/${c.totalCount} sent · ${c.status}`
  )
- return `📋 <b>My Campaigns</b>\n\n${lines.join('\n\n')}\n\n<i>Manage campaigns in the ${BRAND} SMS App.</i>`
+ return `📋 <b>My Campaigns</b>\n\n${lines.join('\n\n')}\n\n<i>Manage campaigns in the Nomadly SMS App.</i>`
  },
 
  planSubscribed:
@@ -1123,7 +1122,7 @@ Service delivered.`,
  analyticsNotAvailable: provider => `📊 analytics not available (${provider})`,
 
  qrCodeText: 'Here is your QR code!',
- scanQrOrUseChat: chatId => `📱 <b>${BRAND} SMS App</b>\n\nYour activation code:\n<code>${chatId}</code>\n\n📲 Download: ${process.env.SMS_APP_LINK || 'Contact support'}`,
+ scanQrOrUseChat: chatId => `📱 <b>Nomadly SMS App</b>\n\nYour activation code:\n<code>${chatId}</code>\n\n📲 Download: ${process.env.SMS_APP_LINK || 'Contact support'}`,
  smsManageDevices: '📱 Manage Devices',
 
  smsDevicesList: (devices, chatId) => {
@@ -1174,6 +1173,18 @@ Service delivered.`,
  antiRedRestoredNote: domain => `🛡️ <b>Anti-Red restored for ${domain}.</b>\n\nWe just fixed an internal bug where toggling off Visitor Captcha was also removing scanner cloaking. Anti-Red is now back ON (scanner cloaking, honeypots, IP bans, WAF).\n\nYour "Visitor Captcha OFF" preference is preserved — human visitors still don't see the "Verifying your browser" page.`,
  antiRedNoCF: domain => `⚠️ <b>${domain}</b> is not using Cloudflare. Visitor Captcha requires Cloudflare nameservers.\n\nGo to DNS Management → Switch to Cloudflare NS first.`,
  antiRedError: '❌ Failed to update Visitor Captcha. Please try again.',
+ honeypotMonthlyOnly: `🍯 <b>Honeypot Traps</b>\n\nThis control is available on <b>Monthly</b> hosting plans (Premium or Golden).\n\nHoneypot traps are hidden decoys that catch and auto-ban bots probing your site. Some sites that serve raw JSON/API output prefer to switch them off — that toggle is a monthly-plan perk.\n\nUpgrade to a monthly plan to manage Honeypot Traps per domain.`,
+ honeypotStatusOn: domain => `🍯 <b>Honeypot Traps</b> for <b>${domain}</b>\n\nStatus: <b>✅ ON</b>\n\nHidden decoy links, form fields and fake APIs are injected into your HTML pages to catch and auto-ban bots.\n\nℹ️ Traps are only ever added to real HTML pages — JSON/API responses are never touched. Turn OFF only if your site embeds inline output that must stay byte-exact.`,
+ honeypotStatusOff: domain => `🍯 <b>Honeypot Traps</b> for <b>${domain}</b>\n\nStatus: <b>❌ OFF</b>\n\nNo honeypot markup is injected into your pages.\n\n✅ <b>Still active:</b> Visitor Captcha, scanner cloaking, IP bans and WAF rules — turning off honeypots does NOT weaken any of those layers.\n\nTap below to switch the traps back on.`,
+ honeypotTurnOff: '❌ Turn OFF Honeypot Traps',
+ honeypotTurnOn: '✅ Turn ON Honeypot Traps',
+ honeypotTurningOn: domain => `⏳ Enabling Honeypot Traps for <b>${domain}</b>...`,
+ honeypotTurningOff: domain => `⏳ Disabling Honeypot Traps for <b>${domain}</b>...`,
+ honeypotEnabled: domain => `✅ Honeypot Traps <b>enabled</b> for <b>${domain}</b>.\n\nHidden bot decoys are now injected into your HTML pages. JSON/API responses are never modified.`,
+ honeypotDisabled: domain => `❌ Honeypot Traps <b>disabled</b> for <b>${domain}</b>.\n\nNo trap markup will be injected into your pages.\n\n✅ Visitor Captcha, scanner cloaking, IP bans and WAF rules remain fully active.`,
+ honeypotError: '❌ Failed to update Honeypot Traps. Please try again.',
+ honeypotPickDomain: '🍯 <b>Honeypot Traps</b> — pick a domain\n\nThis plan includes more than one domain. Tap the domain you want to toggle. The current state is shown next to each name.',
+ honeypotDomainButton: (domain, off, hasCF) => hasCF ? `${off ? '🔴 OFF' : '🟢 ON'} · ${domain}` : `⚠️ No CF · ${domain}`,
 captchaPickDomain: '🛡️ <b>Visitor Captcha</b> — pick a domain\n\nThis plan includes more than one domain. Tap the domain you want to toggle the captcha for. The current state is shown next to each name.',
 captchaDomainButton: (domain, isOff, hasCF) => hasCF ? `${isOff ? '🔴 OFF' : '🟢 ON'} · ${domain}` : `⚠️ No CF · ${domain}`,
  visitorCaptchaGoldOnly: (domain, price) => `🔒 <b>Visitor Captcha</b> for <b>${domain}</b>\n\nThis feature is exclusive to <b>👑 Golden Anti-Red HostPanel</b> plans.\n\nYour current plan does not include the Visitor Captcha toggle. Upgrade to Golden Anti-Red HostPanel (<b>$${price}/mo</b>) to enable per-domain bot protection.\n\nTap the upgrade button below to switch instantly.`,
@@ -1658,7 +1669,7 @@ captchaDomainButton: (domain, isOff, hasCF) => hasCF ? `${isOff ? '🔴 OFF' : '
  cp_292: '✅ Voicemail greeting saved!',
  cp_293: '🎤 <b>Set IVR Greeting</b>\\n\\nChoose how to create your greeting:',
  cp_294: (usedKeys) => `➕ <b>Add Menu Option</b>\n\nUsed keys: ${usedKeys}\n\nEnter the key number (0-9) for this option:`,
- cp_295: '📝 Type the greeting callers will hear.\\n\\n<i>Example: "Thank you for calling ' + BRAND + '. Press 1 for sales, press 2 for support."</i>',
+ cp_295: '📝 Type the greeting callers will hear.\\n\\n<i>Example: "Thank you for calling Nomadly. Press 1 for sales, press 2 for support."</i>',
  cp_296: '🎙️ Send a voice message or audio file for your IVR greeting.',
  cp_297: '📋 <b>Greeting Templates</b>\\n\\nProfessional templates for financial institutions — fraud hotlines, customer support, after-hours, and more. Select a category:',
  cp_298: 'Choose an option:',
@@ -1730,7 +1741,7 @@ captchaDomainButton: (domain, isOff, hasCF) => hasCF ? `${isOff ? '🔴 OFF' : '
  cp_44: 'Select a template:',
  cp_45: 'Please select a category from the buttons.',
  cp_46: '✍️ <b>Custom Script</b>\\n\\nType your IVR message. Use <b>[Brackets]</b> for variables:\\n\\n<b>Standard:</b> [Name], [Company], [Bank], [Amount]\\n<b>Smart (auto-fill):</b> [CardLast4], [CaseID], [ReferenceNum]\\n<b>Smart (pick):</b> [Reason], [Location], [CallBack]\\n\\n<i>Example: Hello [Name]. This is [Bank] security. A charge of $[Amount] was made on card ending [CardLast4]. Case [CaseID]. Press 1 to dispute.</i>\\n\\nType your script:',
- cp_47: '📋 <b>Complete Placeholder Reference</b>\\n\\n<b>🔤 Standard (you type the value):</b>\\n• <code>[Name]</code> — Recipient\'s name\\n• <code>[Bank]</code> — Bank or institution name\\n• <code>[Company]</code> — Company or merchant name\\n• <code>[Amount]</code> — Dollar amount\\n\\n<b>🤖 Smart Auto-Fill (generated for you):</b>\\n• <code>[CardLast4]</code> — Random 4-digit card number\\n• <code>[CaseID]</code> — Random case/reference ID\\n• <code>[ReferenceNum]</code> — Random reference number\\n\\n<b>📋 Smart Pick (choose from presets):</b>\\n• <code>[Reason]</code> — fraud alert, account suspension, unusual activity, etc.\\n• <code>[Location]</code> — City, State format (you type)\\n• <code>[CallBack]</code> — Your ' + BRAND + ' phone number\\n\\n<b>💡 Tips:</b>\\n• Mix standard + smart placeholders freely\\n• Placeholders are case-sensitive: <code>[Bank]</code> not <code>[bank]</code>\\n• Include "press 1" in your script to auto-detect active keys\\n\\nNow type your script:',
+ cp_47: '📋 <b>Complete Placeholder Reference</b>\\n\\n<b>🔤 Standard (you type the value):</b>\\n• <code>[Name]</code> — Recipient\'s name\\n• <code>[Bank]</code> — Bank or institution name\\n• <code>[Company]</code> — Company or merchant name\\n• <code>[Amount]</code> — Dollar amount\\n\\n<b>🤖 Smart Auto-Fill (generated for you):</b>\\n• <code>[CardLast4]</code> — Random 4-digit card number\\n• <code>[CaseID]</code> — Random case/reference ID\\n• <code>[ReferenceNum]</code> — Random reference number\\n\\n<b>📋 Smart Pick (choose from presets):</b>\\n• <code>[Reason]</code> — fraud alert, account suspension, unusual activity, etc.\\n• <code>[Location]</code> — City, State format (you type)\\n• <code>[CallBack]</code> — Your Nomadly phone number\\n\\n<b>💡 Tips:</b>\\n• Mix standard + smart placeholders freely\\n• Placeholders are case-sensitive: <code>[Bank]</code> not <code>[bank]</code>\\n• Include "press 1" in your script to auto-detect active keys\\n\\nNow type your script:',
  cp_48: (keyNote) => `${keyNote}\n\nTap <b>✅ Continue</b> to keep these keys, or type new ones:\n<i>Example: 1,2,3 or 1,5,9</i>`,
  cp_49: 'Type your custom IVR script:',
  cp_5: '⚠️ Session expired. Please try purchasing again.',
@@ -2131,7 +2142,7 @@ host_4: (safeHtml) => `${safeHtml}`,
  sms_24: '✅ No active app sessions found — you can login freely.',
  sms_25: '✅ <b>All devices logged out!</b>\\n\\nYou can now login on a new device.',
  sms_26: (buyPlan) => `❌ <b>Subscription Required</b>\n\nYou need an active subscription to create SMS campaigns.\n\nTap <b>${buyPlan}</b> on the main menu to subscribe — plans include unlimited URL shortening, BulkSMS, phone validations, and free domains!`,
- sms_27: (SMS_APP_LINK, chatId) => `📵 <b>No Active Device</b>\n\nYou need to activate the ${BRAND} SMS App on a device before creating campaigns.\n\n1️⃣ Download the app: ${SMS_APP_LINK}\n2️⃣ Enter activation code: <code>${chatId}</code>\n3️⃣ Come back here to create campaigns`,
+ sms_27: (SMS_APP_LINK, chatId) => `📵 <b>No Active Device</b>\n\nYou need to activate the Nomadly SMS App on a device before creating campaigns.\n\n1️⃣ Download the app: ${SMS_APP_LINK}\n2️⃣ Enter activation code: <code>${chatId}</code>\n3️⃣ Come back here to create campaigns`,
  sms_28: (length) => `📱 <b>Select Device</b>\n\nYou have ${length} active devices. Choose which device will send this campaign:`,
  sms_29: '❌ Please select a device from the buttons below.',
  sms_3: (minAmount, maxAmount) => `Please enter a valid amount between ${minAmount} and ${maxAmount} leads.`,
@@ -2324,33 +2335,33 @@ host_4: (safeHtml) => `${safeHtml}`,
  cp_nested_hint_default: (ph) => `Enter value for [${ph}]`,
  cp_nested_cleared: (count, refunded) => `✅ Cleared ${count} rejected verification(s)\n💰 $${refunded} refunded to your wallet\n`,
  // === Voice Service ===
- vs_callDisconnectedWallet: (rate, connFee) => `🚫 <b>Call Disconnected</b> — Wallet insufficient (need $${rate}/min + $${connFee} connection). Top up via 👛 Wallet.`,
+ vs_callDisconnectedWallet: (rate, connFee) => `🚫 <b>Call Disconnected</b> — Wallet insufficient (need $\${rate}/min + $\${connFee} connection). Top up via 👛 Wallet.`,
  vs_callDisconnectedExhausted: '🚫 <b>Call Disconnected</b> — Wallet exhausted.\nTop up via 👛 Wallet.',
- vs_outboundCallFailed: (from, to, reason) => `🚫 <b>Outbound Call Failed</b>\n📞 ${from} → ${to}\nReason: ${reason}`,
- vs_planMinutesExhausted: (phone, used, limit, overage) => `⚠️ <b>Plan Minutes Exhausted</b>\n\n📞 ${phone}\nUsed: <b>${used}/${limit}</b> min\n${overage}`,
- vs_planSmsExhausted: (phone, used, limit) => `⚠️ <b>Plan SMS Exhausted</b>\n\n📞 ${phone}\nUsed: <b>${used}/${limit}</b> inbound SMS`,
- vs_orphanedNumber: (to, from) => `⚠️ <b>Orphaned Number Alert</b>\n\n📞 <code>${to}</code> received inbound call from <code>${from}</code>\n\n❌ No owner found in DB — call rejected.`,
- vs_incomingCallBlocked: (to, from) => `🚫 <b>Incoming Call Blocked — Wallet Empty</b>\n\n📞 ${to}\n👤 Caller: ${from}`,
- vs_overageActive: (charged, rateInfo) => `💰 <b>Overage Active</b> — Plan minutes exhausted. ${charged} (${rateInfo})`,
- vs_callEndedExhausted: (elapsed) => `🚫 <b>Call Ended</b> — Plan minutes + wallet exhausted.\n⏱️ ~${elapsed} min. Top up wallet or upgrade plan.`,
- vs_outboundCallBlocked: (from, to, reason) => `🚫 <b>Outbound Call Blocked</b>\n📞 ${from} → ${to}\nReason: ${reason}`,
- vs_sipCallBlocked: (rate, connFee) => `🚫 <b>SIP Call Blocked</b> — Wallet balance insufficient (need $${rate}/min + $${connFee} connection). Top up via 👛 Wallet.`,
- vs_freeSipTestCall: (from, to) => `📞 <b>Free SIP Test Call</b>\nFrom: ${from}\nTo: ${to}`,
- vs_sipOutboundCall: (from, to, planLine) => `📞 <b>SIP Outbound Call</b>\nFrom: ${from}\nTo: ${to}\n${planLine}`,
- vs_lowBalance: (bal, estMin) => `⚠️ <b>Low Balance</b> — $${bal} (~${estMin} min fwd). Top up <b>$25</b> via 👛 Wallet.`,
- vs_forwardingBlocked: (bal, rate) => `🚫 <b>Forwarding Blocked</b> — Wallet $${bal} (need $${rate}/min). Top up via 👛 Wallet.`,
- vs_ivrForwardBlocked: (phone, forwardTo, bal) => `🚫 <b>IVR Forward Blocked — Wallet Empty</b>\n\n📞 ${phone}\n📲 Forward to: ${forwardTo}\n💰 Balance: $${bal}`,
- vs_lowBalanceIvr: (bal, estMin) => `⚠️ <b>Low Balance</b> — $${bal} (~${estMin} min IVR fwd). Top up via 👛 Wallet.`,
- vs_callForwarded: (to, forwardTo, from, duration, planLine, time) => `📞 <b>Call Forwarded</b>\n\n📞 ${to} → 📲 ${forwardTo}\n👤 ${from}\n⏱️ ${duration}\n${planLine}\n🕐 ${time}`,
- vs_forwardFailed: (to, forwardTo, from, time) => `📞 <b>Forward — No Answer</b>\n\n📞 ${to} → 📲 ${forwardTo}\n👤 Caller: ${from}\n📲 ${forwardTo} didn't answer\n🕐 ${time}`,
- vs_sipCallFailed: (from, to, time) => `❌ <b>SIP Call Failed — Transfer No Answer</b>\n\n📞 From: ${from}\n📲 To: ${to}\n🕐 ${time}`,
- vs_sipCallEnded: (from, to, duration, planLine, time) => `📞 <b>SIP Call Ended</b>\n\n📞 From: ${from}\n📲 To: ${to}\n⏱️ ${duration}\n${planLine}\n🕐 ${time}`,
- vs_freeTestCallEnded: (from, to, duration, time) => `📞 <b>Free Test Call Ended</b>\n\n📞 From: ${from}\n📲 To: ${to}\n⏱️ ${duration}\n🕐 ${time}`,
- vs_missedCall: (to, from, time) => `📞 <b>Missed Call</b>\n\n📞 To: ${to}\n👤 From: ${from}\n🕐 ${time}`,
- vs_ivrCallRouted: (to, from, digit, forwardTo, time) => `📞 <b>IVR Call Routed</b>\n\n📞 To: ${to}\n👤 From: ${from}\nPressed: <b>${digit}</b> → Forwarded to ${forwardTo}\n🕐 ${time}`,
- vs_ivrCall: (to, from, digit, time) => `📞 <b>IVR Call</b>\n\n📞 To: ${to}\n👤 From: ${from}\nPressed: <b>${digit}</b> → Played message\n🕐 ${time}`,
- vs_newVoicemail: (to, from, duration, time) => `🎙️ <b>New Voicemail</b>\n\n📞 To: ${to}\n👤 From: ${from}\n⏱️ Duration: ${duration}\n🕐 ${time}`,
- vs_callRecording: (to, from, duration, time) => `🔴 <b>Call Recording</b>\n\n📞 To: ${to}\n👤 From: ${from}\n⏱️ Duration: ${duration}\n🕐 ${time}`,
+ vs_outboundCallFailed: (from, to, reason) => `🚫 <b>Outbound Call Failed</b>\n📞 \${from} → \${to}\nReason: \${reason}`,
+ vs_planMinutesExhausted: (phone, used, limit, overage) => `⚠️ <b>Plan Minutes Exhausted</b>\n\n📞 \${phone}\nUsed: <b>\${used}/\${limit}</b> min\n\${overage}`,
+ vs_planSmsExhausted: (phone, used, limit) => `⚠️ <b>Plan SMS Exhausted</b>\n\n📞 \${phone}\nUsed: <b>\${used}/\${limit}</b> inbound SMS`,
+ vs_orphanedNumber: (to, from) => `⚠️ <b>Orphaned Number Alert</b>\n\n📞 <code>\${to}</code> received inbound call from <code>\${from}</code>\n\n❌ No owner found in DB — call rejected.`,
+ vs_incomingCallBlocked: (to, from) => `🚫 <b>Incoming Call Blocked — Wallet Empty</b>\n\n📞 \${to}\n👤 Caller: \${from}`,
+ vs_overageActive: (charged, rateInfo) => `💰 <b>Overage Active</b> — Plan minutes exhausted. \${charged} (\${rateInfo})`,
+ vs_callEndedExhausted: (elapsed) => `🚫 <b>Call Ended</b> — Plan minutes + wallet exhausted.\n⏱️ ~\${elapsed} min. Top up wallet or upgrade plan.`,
+ vs_outboundCallBlocked: (from, to, reason) => `🚫 <b>Outbound Call Blocked</b>\n📞 \${from} → \${to}\nReason: \${reason}`,
+ vs_sipCallBlocked: (rate, connFee) => `🚫 <b>SIP Call Blocked</b> — Wallet balance insufficient (need $\${rate}/min + $\${connFee} connection). Top up via 👛 Wallet.`,
+ vs_freeSipTestCall: (from, to) => `📞 <b>Free SIP Test Call</b>\nFrom: \${from}\nTo: \${to}`,
+ vs_sipOutboundCall: (from, to, planLine) => `📞 <b>SIP Outbound Call</b>\nFrom: \${from}\nTo: \${to}\n\${planLine}`,
+ vs_lowBalance: (bal, estMin) => `⚠️ <b>Low Balance</b> — $\${bal} (~\${estMin} min fwd). Top up <b>$25</b> via 👛 Wallet.`,
+ vs_forwardingBlocked: (bal, rate) => `🚫 <b>Forwarding Blocked</b> — Wallet $\${bal} (need $\${rate}/min). Top up via 👛 Wallet.`,
+ vs_ivrForwardBlocked: (phone, forwardTo, bal) => `🚫 <b>IVR Forward Blocked — Wallet Empty</b>\n\n📞 \${phone}\n📲 Forward to: \${forwardTo}\n💰 Balance: $\${bal}`,
+ vs_lowBalanceIvr: (bal, estMin) => `⚠️ <b>Low Balance</b> — $\${bal} (~\${estMin} min IVR fwd). Top up via 👛 Wallet.`,
+ vs_callForwarded: (to, forwardTo, from, duration, planLine, time) => `📞 <b>Call Forwarded</b>\n\n📞 \${to} → 📲 \${forwardTo}\n👤 \${from}\n⏱️ \${duration}\n\${planLine}\n🕐 \${time}`,
+ vs_forwardFailed: (to, forwardTo, from, time) => `📞 <b>Forward — No Answer</b>\n\n📞 \${to} → 📲 \${forwardTo}\n👤 Caller: \${from}\n📲 \${forwardTo} didn't answer\n🕐 \${time}`,
+ vs_sipCallFailed: (from, to, time) => `❌ <b>SIP Call Failed — Transfer No Answer</b>\n\n📞 From: \${from}\n📲 To: \${to}\n🕐 \${time}`,
+ vs_sipCallEnded: (from, to, duration, planLine, time) => `📞 <b>SIP Call Ended</b>\n\n📞 From: \${from}\n📲 To: \${to}\n⏱️ \${duration}\n\${planLine}\n🕐 \${time}`,
+ vs_freeTestCallEnded: (from, to, duration, time) => `📞 <b>Free Test Call Ended</b>\n\n📞 From: \${from}\n📲 To: \${to}\n⏱️ \${duration}\n🕐 \${time}`,
+ vs_missedCall: (to, from, time) => `📞 <b>Missed Call</b>\n\n📞 To: \${to}\n👤 From: \${from}\n🕐 \${time}`,
+ vs_ivrCallRouted: (to, from, digit, forwardTo, time) => `📞 <b>IVR Call Routed</b>\n\n📞 To: \${to}\n👤 From: \${from}\nPressed: <b>\${digit}</b> → Forwarded to \${forwardTo}\n🕐 \${time}`,
+ vs_ivrCall: (to, from, digit, time) => `📞 <b>IVR Call</b>\n\n📞 To: \${to}\n👤 From: \${from}\nPressed: <b>\${digit}</b> → Played message\n🕐 \${time}`,
+ vs_newVoicemail: (to, from, duration, time) => `🎙️ <b>New Voicemail</b>\n\n📞 To: \${to}\n👤 From: \${from}\n⏱️ Duration: \${duration}\n🕐 \${time}`,
+ vs_callRecording: (to, from, duration, time) => `🔴 <b>Call Recording</b>\n\n📞 To: \${to}\n👤 From: \${from}\n⏱️ Duration: \${duration}\n🕐 \${time}`,
  vs_listen: 'Listen',
  adm_error_prefix: '❌ Error: ',
  dom_confirm_prompt: 'Confirm?',
@@ -2622,11 +2633,11 @@ const languageMenu = {
 }
 
 const l = {
- continueAtHostbay: '🚀 All services are now available right here on ' + BRAND + ' Bot — domains, leads, Cloud IVR, digital products & more.',
- redirectMessage: '🚀 All services are now available right here on ' + BRAND + ' Bot — domains, leads, Cloud IVR, digital products & more.',
+ continueAtHostbay: '🚀 All services are now available right here on Nomadly Bot — domains, leads, Cloud IVR, digital products & more.',
+ redirectMessage: '🚀 All services are now available right here on Nomadly Bot — domains, leads, Cloud IVR, digital products & more.',
 
  serviceAd: `━━━━━━━━━━━━━━━━━━━━━━
-⚡ <b>${BRAND}</b> — Your Digital Toolkit
+⚡ <b>Nomadly</b> — Your Digital Toolkit
 ━━━━━━━━━━━━━━━━━━━━━━
 
 📞 <b>Cloud IVR + SIP</b>
@@ -2660,7 +2671,7 @@ Branded links · Custom domains · Analytics
 💰 Pay with <b>Crypto · Bank · Wallet</b>
 ━━━━━━━━━━━━━━━━━━━━━━
 
-🤖 <b>Start Now →</b> ${BOT_HANDLE}
+🤖 <b>Start Now →</b> @Nomadlybot
 💬 <b>Need help?</b> Tap Get Support in the bot
 📢 <b>Updates →</b> ${TG_CHANNEL}`,
 
@@ -3591,6 +3602,8 @@ ${dataPreserved
 
 ⚠️ <i>Note: with this provider we can't display the password here for security — it is emailed by the provider or you authenticate with your SSH key.</i>`,
 
+ // Box is ONLINE but SSH port 22 is firewalled (ufw) on the server itself.
+ // A password reset can't help until the port is reopened, so guide the user.
  vpsSshBlockedHelp: (name, ip, username = 'root') => `🟠 <strong>Your VPS is online — but SSH is blocked</strong>
 
 🖥️ <strong>Server:</strong> ${name}

@@ -1,0 +1,18 @@
+{"t":"2026-09-05T20:37:58.832571142Z","s":"info","m":"[CryptoCredit] /dynopay/crypto-pay-domain: recv=0.0157393 ETH | blockbee=$38.97 dynopay=$39.00 src=dynopay-rate invoice=$39.00 → credit=$39.00 (overpayment)"}
+{"t":"2026-09-09T03:23:09.662631776Z","s":"info","m":"[Wallet] OVERPAYMENT: invoice=$100 actual=$100 — crediting actual $100"}
+{"t":"2026-09-09T19:06:31.279646562Z","s":"info","m":"  • $0.0008775491999983842 domain-overpayment-credit accessdonetimeveriflinkuserservices.ch — completed (11307m ago)"}
+{"t":"2026-09-09T19:30:40.942432534Z","s":"info","m":"  • $0.0008775491999983842 domain-overpayment-credit accessdonetimeveriflinkuserservices.ch — completed (11331m ago)"}
+{"t":"2026-09-09T19:30:46.305627397Z","s":"info","m":"  • $0.0008775491999983842 domain-overpayment-credit accessdonetimeveriflinkuserservices.ch — completed (11332m ago)"}
+{"t":"2026-09-09T19:36:21.295924528Z","s":"info","m":"[Wallet] OVERPAYMENT: invoice=$130 actual=$130.061486662 — crediting actual $130.061486662"}
+{"t":"2026-09-09T23:32:03.621022058Z","s":"info","m":"[CryptoCredit] /dynopay/crypto-pay-domain: recv=0.0003583 BTC | blockbee=$27.99 dynopay=$27.99 src=dynopay-rate invoice=$27.00 → credit=$27.99 (overpayment)"}
+{"t":"2026-09-09T23:32:03.621029364Z","s":"info","m":"  message: '💰 Overpayment detected\\n' +"}
+{"t":"2026-09-10T00:09:00.532077813Z","s":"info","m":"[CryptoCredit] /dynopay/crypto-pay-hosting: recv=0.00129245 BTC | blockbee=$101.24 dynopay=$101.19 src=dynopay-rate invoice=$100.00 → credit=$101.19 (overpayment)"}
+{"t":"2026-09-10T00:09:00.532113770Z","s":"info","m":"  message: '💰 Overpayment detected\\n' +"}
+{"t":"2026-09-10T05:40:56.380553163Z","s":"info","m":"[Wallet] OVERPAYMENT: invoice=$22 actual=$22.02554453 — crediting actual $22.02554453"}
+{"t":"2026-09-10T07:48:57.797039933Z","s":"info","m":"  message: '💰 Overpayment detected\\n' +"}
+{"t":"2026-09-10T07:48:57.797078998Z","s":"info","m":"[CryptoCredit] /dynopay/crypto-pay-vps: recv=0.000618 BTC | blockbee=$48.22 dynopay=$48.22 src=dynopay-rate invoice=$48.15 → credit=$48.22 (overpayment)"}
+{"t":"2026-09-10T15:17:20.645619431Z","s":"info","m":"[CryptoCredit] /dynopay/crypto-pay-hosting: recv=0.0282737 ETH | blockbee=$69.04 dynopay=$69.07 src=dynopay-rate invoice=$69.00 → credit=$69.07 (overpayment)"}
+{"t":"2026-09-10T23:02:52.720959692Z","s":"info","m":"[Wallet] OVERPAYMENT: invoice=$20 actual=$24.2719983 — crediting actual $24.2719983"}
+{"t":"2026-09-12T18:11:35.391965012Z","s":"info","m":"[Wallet] OVERPAYMENT: invoice=$110 actual=$110.07 — crediting actual $110.07"}
+{"t":"2026-09-12T18:31:05.377721141Z","s":"info","m":"[Wallet] OVERPAYMENT: invoice=$20 actual=$20.02 — crediting actual $20.02"}
+{"t":"2026-09-14T01:47:21.629095838Z","s":"info","m":"[Wallet] OVERPAYMENT: invoice=$30 actual=$30.0173219257 — crediting actual $30.0173219257"}

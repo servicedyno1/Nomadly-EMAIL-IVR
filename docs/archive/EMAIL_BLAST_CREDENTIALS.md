@@ -7,7 +7,7 @@
 | **VPS Host (IP 1)** | `5.189.166.127` |
 | **VPS Host (IP 2)** | `109.199.115.95` |
 | **SSH User** | `root` |
-| **SSH Password** | `Onlygod123@` |
+| **SSH Password** | `<REDACTED — see server SSH creds in backend/.env>` |
 | **OS** | Linux (Postfix + OpenDKIM) |
 
 ## 2. Postfix / SMTP
@@ -15,7 +15,7 @@
 | Key | Value |
 |-----|-------|
 | **SMTP User** | `nomadlybot@mail.tracking-assist.com` |
-| **SMTP Password** | `N0m4dly_Bl4st_2025!` |
+| **SMTP Password** | `<REDACTED>` |
 | **DKIM Selector** | `mail2025` |
 | **SMTP Port** | `25` (direct Postfix delivery) |
 
@@ -31,18 +31,18 @@
 | Key | Value |
 |-----|-------|
 | **Email** | `expressdrop247@gmail.com` |
-| **API Key** | `f34d09dc650e795a0025e790535264a932021` |
+| **API Key** | `<REDACTED — CLOUDFLARE_API_KEY in backend/.env>` |
 | **Env Vars** | `CLOUDFLARE_EMAIL`, `CLOUDFLARE_API_KEY` in `backend/.env` |
 
 ## 5. Brevo (Test Email Sending)
 
 | Key | Value |
 |-----|-------|
-| **API Key** | `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` |
+| **API Key** | `<REDACTED — BREVO_API_KEY in backend/.env>` |
 | **SMTP Host** | `smtp-relay.brevo.com` |
 | **SMTP Port** | `587` |
 | **SMTP User** | `76a914001@smtp-brevo.com` |
-| **SMTP Password** | `IR8sFEYnZw0TC9Om` |
+| **SMTP Password** | `<REDACTED — MAIL_AUTH_PASSWORD in backend/.env>` |
 | **Sender Address** | `hosting@priv.host` |
 | **Env Vars** | `BREVO_API_KEY`, `MAIL_DOMAIN`, `MAIL_PORT`, `MAIL_AUTH_USER`, `MAIL_AUTH_PASSWORD`, `MAIL_SENDER` in `backend/.env` |
 
@@ -50,7 +50,7 @@
 
 | Key | Value |
 |-----|-------|
-| **Bot Token** | `6597817067:AAGONi_I9LcMcQfRIJnl_JzkEi_eV-Z6bbM` |
+| **Bot Token** | `<REDACTED — TELEGRAM_BOT_TOKEN_PROD in backend/.env>` |
 | **Admin Chat ID** | `5590563715` |
 | **Env Vars** | `TELEGRAM_BOT_TOKEN_PROD`, `TELEGRAM_ADMIN_CHAT_ID` in `backend/.env` |
 
@@ -58,7 +58,7 @@
 
 | Key | Value |
 |-----|-------|
-| **Connection URL** | `mongodb://mongo:RQoOmIdwjRLFvhWMaatjidzqpvawUKcb@caboose.proxy.rlwy.net:59668` |
+| **Connection URL** | `<REDACTED — MONGO_URL in backend/.env>` |
 | **DB Name** | `test` |
 | **Env Vars** | `MONGO_URL`, `DB_NAME` in `backend/.env` |
 

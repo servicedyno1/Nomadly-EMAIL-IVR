@@ -1,17 +1,5 @@
 {
   "store": {
-    "mostPopular": "★ सबसे लोकप्रिय",
-    "billedMonthly": "मासिक बिलिंग",
-    "perMonthEquiv": "≈ {{price}}/माह · साप्ताहिक बिलिंग",
-    "antiRedExplain": "“Anti-Red” आपके लिंक को ब्राउज़र और Google के “deceptive site” लाल-चेतावनी पेजों से दूर रखता है।",
-    "byoDomainHint": "चेकआउट के बाद आप अपने डोमेन के नेमसर्वर हमारी ओर इंगित करेंगे — हम आपको बिलकुल तरीका दिखाएँगे (लगभग 5 मिनट)।",
-    "returningCustomer": "पहले से ग्राहक हैं? साइन इन करें ↓",
-    "discardConfirm": "इस ऑर्डर को छोड़ें? आपके द्वारा दर्ज विवरण खो जाएगा।",
-    "close": "बंद करें",
-    "trustInstant": "तुरंत सेटअप",
-    "trustProtection": "Anti-Red सुरक्षा",
-    "trustReplace": "फ़्लैग होने पर मुफ़्त प्रतिस्थापन",
-    "trustSupport": "24/7 सहायता",
     "heroTitle": "बुलेटप्रूफ़ Anti-Red होस्टिंग",
     "tagline": "होस्टिंग खरीदें, क्रिप्टो से भुगतान करें, तुरंत एक्सेस पाएं — Telegram की ज़रूरत नहीं।",
     "panelLogin": "PIN है? पैनल लॉगिन →",
@@ -66,7 +54,23 @@
     "orDivider": "या",
     "tgButton": "Telegram के साथ जारी रखें",
     "tgScanCap": "Telegram बॉट के माध्यम से लॉगिन करने के लिए अपने फ़ोन से स्कैन करें।",
-    "tgLinked": "Telegram जुड़ा है"
+    "tgLinked": "Telegram जुड़ा है",
+    "antiRedExplainer": "\"Anti-Red\" का मतलब है कि आपके लिंक क्लिक करने योग्य रहते हैं — ऐसी मज़बूत होस्टिंग जिससे आपके पेज ब्राउज़र, Telegram या WhatsApp द्वारा लाल फ़्लैग या ब्लॉक नहीं किए जाते।",
+    "signInMobile": "पहले से ग्राहक हैं? साइन इन करें",
+    "loginHelper": "खरीदार → अपने ईमेल से साइन इन करें · होस्टिंग ग्राहक → पैनल यूज़रनेम + PIN",
+    "perWeek": "सप्ताह",
+    "perMonth": "माह",
+    "moEquiv": "≈ {{amount}}/माह",
+    "billedWeekly": "साप्ताहिक बिलिंग",
+    "billedMonthly": "मासिक बिलिंग",
+    "badgePopular": "★ सबसे लोकप्रिय",
+    "getPlan": "{{name}} लें →",
+    "byoHint": "ध्यान दें: भुगतान के बाद आप अपने डोमेन के नेमसर्वर/DNS को उन पर पॉइंट करेंगे जो हम आपको ईमेल करेंगे।",
+    "trustUptime": "99.9% अपटाइम",
+    "trustReplace": "मुफ़्त रिप्लेसमेंट गारंटी",
+    "trustInstant": "तुरंत क्रिप्टो डिलीवरी",
+    "trustSupport": "मानव सहायता {{handle}}",
+    "trustNoLogin": "खाता ज़रूरी नहीं"
   },
   "common": {
     "appName": "हॉस्टिंग पैनल",
@@ -127,6 +131,7 @@
   "dashboard": {
     "tabs": {
       "overview": "सारांश",
+      "site": "साइट",
       "domains": "डोमेन",
       "files": "फाइलें",
       "email": "ईमेल",
@@ -446,6 +451,10 @@
       "jsChallenge": {
         "label": "विज़िटर कैप्चा (JS चुनौती)",
         "desc": "प्रति-डोमेन बॉट चुनौती — गोल्डन योजना केवल। डोमेन टैब में प्रति-डोमेन प्रबंधित करें।"
+      },
+      "honeypot": {
+        "label": "Honeypot ट्रैप",
+        "desc": "छिपे हुए चारे जो बॉट्स को पकड़कर स्वतः बैन करते हैं। केवल मासिक प्लान। JSON/API प्रतिक्रियाएँ कभी संशोधित नहीं होतीं।"
       }
     },
     "captchaGoldOnlyError": "विज़िटर कैप्चा गोल्डन एंटी-रेड होस्टपैनल योजनाओं के लिए विशेष है। इसे सक्षम करने के लिए अपनी योजना को अपग्रेड करें।",
@@ -454,6 +463,14 @@
     "captchaStatusDisabled": "विज़िटर कैप्चा डिसेबल",
     "failedToggle": "टॉगल करने में विफल",
     "captchaDefaultGoldError": "विज़िटर कैप्चा गोल्डन एंटी-रेड होस्टपैनल योजनाओं के लिए विशेष है।",
+    "honeypotMonthlyOnlyError": "Honeypot ट्रैप प्रबंधन मासिक प्लान (Premium या Golden) पर उपलब्ध है। प्रबंधित करने के लिए अपग्रेड करें।",
+    "honeypotDisableWarning": "Honeypot ट्रैप बंद करने से आपके HTML पेजों से छिपे बॉट चारे हट जाते हैं। विज़िटर Captcha, स्कैनर क्लोकिंग, IP बैन और WAF सक्रिय रहते हैं।\n\nHoneypot ट्रैप बंद करें?",
+    "honeypotStatusEnabled": "Honeypot ट्रैप सक्षम",
+    "honeypotStatusDisabled": "Honeypot ट्रैप अक्षम",
+    "monthlyOnly": "केवल मासिक",
+    "monthlyOnlyTooltip": "Honeypot ट्रैप प्रबंधन मासिक प्लान पर उपलब्ध है। आपका प्लान: {{plan}}",
+    "disableHoneypotTitle": "Honeypot ट्रैप अक्षम करें",
+    "enableHoneypotTitle": "Honeypot ट्रैप सक्षम करें",
     "protectionActive": "सुरक्षा सक्रिय",
     "protectionSub": "{{active}} में से {{total}} सुरक्षा परतें सक्षम हैं",
     "protectionLayers": "सुरक्षा परतें",
@@ -474,6 +491,15 @@
     "unknownPlan": "अज्ञात"
   },
   "dl": {
+    "bulkImport": "बल्क इम्पोर्ट",
+    "bulkSingle": "एकल",
+    "bulkNote": "एक साथ कई सबडोमेन बनाएं — नामों को कॉमा या नई लाइनों से अलग करें (अधिकतम 50)। हर एक को अपना public_html/ फ़ोल्डर मिलता है।",
+    "bulkPlaceholder": "shop, blog, api, dev, staging",
+    "bulkCreateAll": "सभी बनाएं",
+    "bulkCreating": "बना रहे हैं...",
+    "bulkSummary": "{{total}} में से {{succeeded}} बने · {{failed}} विफल",
+    "bulkEmpty": "कम से कम एक सबडोमेन नाम दर्ज करें।",
+    "bulkDone": "पूर्ण",
     "title": "डोमेन",
     "runAutoSSL": "ऑटोSSL चलाएँ",
     "running": "चल रहा है...",
@@ -574,16 +600,7 @@
     "nsRecheckNow": "अब पुनः जाँच करें",
     "nsExternalUpdate": "अपने डोमेन रजिस्ट्रार पर अपने नाम सर्वर अपडेट करें:",
     "nsExternalNote": "प्रसार में 24-48 घंटे लग सकते हैं।",
-    "nsExternalNoteTail": "(अगर NS सक्रिय है तो SSL जारी करने को भी प्रेरित करता है)",
-    "bulkImport": "बल्क इम्पोर्ट",
-    "bulkSingle": "एकल",
-    "bulkNote": "एक साथ कई सबडोमेन नाम पेस्ट करें — प्रति पंक्ति एक या कॉमा से अलग। ये सभी चयनित डोमेन के अंतर्गत बनाए जाएंगे (अधिकतम 50)।",
-    "bulkPlaceholder": "blog, shop, app\nmail\nnews",
-    "bulkCreateAll": "सभी बनाएँ",
-    "bulkCreating": "बनाया जा रहा है…",
-    "bulkSummary": "{{total}} में से {{succeeded}} बने, {{failed}} विफल",
-    "bulkEmpty": "कम से कम एक मान्य सबडोमेन नाम दर्ज करें।",
-    "bulkDone": "पूर्ण"
+    "nsExternalNoteTail": "(अगर NS सक्रिय है तो SSL जारी करने को भी प्रेरित करता है)"
   },
   "an": {
     "title": "अतिथि विश्लेषण",

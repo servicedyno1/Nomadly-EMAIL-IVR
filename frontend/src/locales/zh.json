@@ -1,17 +1,5 @@
 {
   "store": {
-    "mostPopular": "★ 最受欢迎",
-    "billedMonthly": "按月计费",
-    "perMonthEquiv": "≈ {{price}}/月 · 按周计费",
-    "antiRedExplain": "“Anti-Red”可防止您的链接出现在浏览器和 Google 的“欺骗性网站”红色警告页面上。",
-    "byoDomainHint": "结账后，您需要将域名的名称服务器指向我们——我们会告诉您具体操作方法（约需 5 分钟）。",
-    "returningCustomer": "已经是客户？登录 ↓",
-    "discardConfirm": "放弃此订单？您输入的信息将会丢失。",
-    "close": "关闭",
-    "trustInstant": "即时开通",
-    "trustProtection": "Anti-Red 保护",
-    "trustReplace": "被标记可免费更换",
-    "trustSupport": "全天候支持",
     "heroTitle": "坚不可摧的防红主机",
     "tagline": "购买主机，使用加密货币付款，即时开通 — 无需 Telegram。",
     "panelLogin": "有 PIN？面板登录 →",
@@ -66,7 +54,23 @@
     "orDivider": "或",
     "tgButton": "使用 Telegram 继续",
     "tgScanCap": "用手机扫描以通过 Telegram 机器人登录。",
-    "tgLinked": "已连接 Telegram"
+    "tgLinked": "已连接 Telegram",
+    "antiRedExplainer": "“Anti-Red”意味着您的链接始终可点击——经过加固的托管，确保页面不会被浏览器、Telegram 或 WhatsApp 标红或拦截。",
+    "signInMobile": "已经是客户？登录",
+    "loginHelper": "购买者 → 使用邮箱登录 · 托管客户 → 面板用户名 + PIN",
+    "perWeek": "周",
+    "perMonth": "月",
+    "moEquiv": "≈ {{amount}}/月",
+    "billedWeekly": "按周计费",
+    "billedMonthly": "按月计费",
+    "badgePopular": "★ 最受欢迎",
+    "getPlan": "选择 {{name}} →",
+    "byoHint": "提示：付款后，请将您域名的名称服务器/DNS 指向我们通过邮件发送给您的地址。",
+    "trustUptime": "99.9% 在线率",
+    "trustReplace": "免费更换保障",
+    "trustInstant": "加密货币即时交付",
+    "trustSupport": "人工支持 {{handle}}",
+    "trustNoLogin": "无需注册账户"
   },
   "common": {
     "appName": "主机面板",
@@ -127,6 +131,7 @@
   "dashboard": {
     "tabs": {
       "overview": "概览",
+      "site": "网站",
       "domains": "域名",
       "files": "文件",
       "email": "邮件",
@@ -446,6 +451,10 @@
       "jsChallenge": {
         "label": "访客验证码（JS挑战）",
         "desc": "每个域的机器人挑战 — 仅限黄金计划。请在域名选项卡中管理每个域。"
+      },
+      "honeypot": {
+        "label": "蜜罐陷阱",
+        "desc": "捕获并自动封禁机器人的隐藏诱饵。仅限月付套餐。JSON/API 响应永不被修改。"
       }
     },
     "captchaGoldOnlyError": "访客验证码仅适用于黄金反红HostPanel计划。请升级您的计划以启用此功能。",
@@ -454,6 +463,14 @@
     "captchaStatusDisabled": "访客验证码已禁用",
     "failedToggle": "切换失败",
     "captchaDefaultGoldError": "访客验证码仅适用于黄金反红HostPanel计划。",
+    "honeypotMonthlyOnlyError": "蜜罐陷阱管理仅适用于月付套餐（Premium 或 Golden）。请升级以进行管理。",
+    "honeypotDisableWarning": "关闭蜜罐陷阱会从您的 HTML 页面中移除隐藏的机器人诱饵。访客验证码、扫描器伪装、IP 封禁和 WAF 仍然有效。\n\n确定关闭蜜罐陷阱吗？",
+    "honeypotStatusEnabled": "蜜罐陷阱已开启",
+    "honeypotStatusDisabled": "蜜罐陷阱已关闭",
+    "monthlyOnly": "仅限月付",
+    "monthlyOnlyTooltip": "蜜罐陷阱管理仅适用于月付套餐。您的套餐：{{plan}}",
+    "disableHoneypotTitle": "关闭蜜罐陷阱",
+    "enableHoneypotTitle": "开启蜜罐陷阱",
     "protectionActive": "保护已激活",
     "protectionSub": "{{active}} 个中的 {{total}} 个安全层已启用",
     "protectionLayers": "保护层",
@@ -474,6 +491,15 @@
     "unknownPlan": "未知"
   },
   "dl": {
+    "bulkImport": "批量导入",
+    "bulkSingle": "单个",
+    "bulkNote": "一次创建多个子域名——用逗号或换行分隔名称（最多 50 个）。每个都会获得自己的 public_html/ 文件夹。",
+    "bulkPlaceholder": "shop, blog, api, dev, staging",
+    "bulkCreateAll": "全部创建",
+    "bulkCreating": "创建中...",
+    "bulkSummary": "已创建 {{total}} 个中的 {{succeeded}} 个 · {{failed}} 个失败",
+    "bulkEmpty": "请至少输入一个子域名。",
+    "bulkDone": "完成",
     "title": "域名",
     "runAutoSSL": "运行 AutoSSL",
     "running": "运行中...",
@@ -574,16 +600,7 @@
     "nsRecheckNow": "立即重新检查",
     "nsExternalUpdate": "在您的域名注册商处更新您的名称服务器：",
     "nsExternalNote": "传播可能需要24-48小时。",
-    "nsExternalNoteTail": "(如果NS处于活动状态，还会触发SSL签发)",
-    "bulkImport": "批量导入",
-    "bulkSingle": "单个",
-    "bulkNote": "粘贴多个子域名——每行一个或用逗号分隔。它们都将创建在所选域名下（最多 50 个）。",
-    "bulkPlaceholder": "blog, shop, app\nmail\nnews",
-    "bulkCreateAll": "全部创建",
-    "bulkCreating": "正在创建…",
-    "bulkSummary": "共 {{total}} 个：成功 {{succeeded}}，失败 {{failed}}",
-    "bulkEmpty": "请至少输入一个有效的子域名。",
-    "bulkDone": "完成"
+    "nsExternalNoteTail": "(如果NS处于活动状态，还会触发SSL签发)"
   },
   "an": {
     "title": "访客分析",

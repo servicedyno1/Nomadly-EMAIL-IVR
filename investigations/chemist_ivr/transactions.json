@@ -1,0 +1,62 @@
+[
+  {
+    "_id": "TXN-20260918-22A76",
+    "amount": 95,
+    "chatId": "6587790422",
+    "createdAt": "2026-09-18T13:45:00.943Z",
+    "currency": "USD",
+    "metadata": {
+      "coin": "USDT-TRC20",
+      "value": 95,
+      "ref": "ZaI0j",
+      "psp": "dynopay"
+    },
+    "status": "completed",
+    "type": "wallet-topup",
+    "updatedAt": "2026-09-18T13:45:00.943Z"
+  },
+  {
+    "_id": "TXN-20260902-359C1",
+    "amount": 75,
+    "chatId": "6587790422",
+    "createdAt": "2026-09-02T21:16:44.558Z",
+    "currency": "USD",
+    "metadata": {
+      "phoneNumber": "+18883304418",
+      "plan": "pro",
+      "provider": "telnyx"
+    },
+    "status": "completed",
+    "type": "phone-number",
+    "updatedAt": "2026-09-02T21:16:44.558Z"
+  },
+  {
+    "_id": "TXN-20260902-E9D33",
+    "amount": 70,
+    "chatId": "6587790422",
+    "createdAt": "2026-09-02T21:15:55.540Z",
+    "currency": "USD",
+    "metadata": {
+      "coin": "USDT-TRC20",
+      "value": 70,
+      "ref": "uOLLf",
+      "psp": "dynopay"
+    },
+    "status": "completed",
+    "type": "wallet-topup",
+    "updatedAt": "2026-09-02T21:15:55.540Z"
+  },
+  {
+    "_id": "TXN-20260730-WALPV",
+    "chatId": "6587790422",
+    "type": "welcome-bonus",
+    "amount": 5,
+    "currency": "USD",
+    "status": "completed",
+    "metadata": {
+      "source": "automated"
+    },
+    "createdAt": "2026-07-30T13:54:00.440Z",
+    "updatedAt": "2026-07-30T13:54:00.440Z"
+  }
+]

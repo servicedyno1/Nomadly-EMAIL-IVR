@@ -1,0 +1,494 @@
+{"t":"2026-09-07T19:28:32.063368798Z","s":"info","m":"19:28:29 [Conversion] Social proof refreshed: {\"hosting\":88,\"domains\":205,\"cloudphone\":77,\"digitalproducts\":72,\"vps\":66,\"virtualcard\":69,\"general\":118}"}
+{"t":"2026-09-07T20:28:35.112081043Z","s":"info","m":"20:28:29 [Conversion] Social proof refreshed: {\"hosting\":88,\"domains\":205,\"cloudphone\":77,\"digitalproducts\":72,\"vps\":66,\"virtualcard\":69,\"general\":118}"}
+{"t":"2026-09-07T21:28:36.584412741Z","s":"info","m":"21:28:29 [Conversion] Social proof refreshed: {\"hosting\":88,\"domains\":205,\"cloudphone\":77,\"digitalproducts\":72,\"vps\":66,\"virtualcard\":69,\"general\":118}"}
+{"t":"2026-09-07T22:28:32.110885553Z","s":"info","m":"22:28:29 [Conversion] Social proof refreshed: {\"hosting\":88,\"domains\":205,\"cloudphone\":77,\"digitalproducts\":72,\"vps\":66,\"virtualcard\":69,\"general\":118}"}
+{"t":"2026-09-07T23:24:07.591935078Z","s":"info","m":"23:24:07 [Conversion] Onboarding tracked for 1885282275 (lang: en, no guided message)"}
+{"t":"2026-09-07T23:24:07.593758331Z","s":"info","m":"23:24:07 [Conversion] Welcome offer scheduled for 1885282275 in 120 min"}
+{"t":"2026-09-07T23:28:30.252925153Z","s":"info","m":"23:28:29 [Conversion] Social proof refreshed: {\"hosting\":88,\"domains\":205,\"cloudphone\":77,\"digitalproducts\":72,\"vps\":66,\"virtualcard\":69,\"general\":118}"}
+{"t":"2026-09-08T00:07:31.284957040Z","s":"info","m":"00:07:30 [Conversion] Processed 1 scheduled event(s)"}
+{"t":"2026-09-08T00:28:32.403691721Z","s":"info","m":"00:28:29 [Conversion] Social proof refreshed: {\"hosting\":88,\"domains\":205,\"cloudphone\":77,\"digitalproducts\":72,\"vps\":66,\"virtualcard\":69,\"general\":118}"}
+{"t":"2026-09-08T01:24:31.294311793Z","s":"info","m":"01:24:31 [Conversion] ✅ Welcome offer sent to 1885282275: WELCOME25-QLTEGT (25% off, expires 2026-09-09T01:24:30.244Z)"}
+{"t":"2026-09-08T01:24:31.294318368Z","s":"info","m":"01:24:31 [Conversion] Processed 1 scheduled event(s)"}
+{"t":"2026-09-08T01:28:32.961934237Z","s":"info","m":"01:28:29 [Conversion] Social proof refreshed: {\"hosting\":88,\"domains\":205,\"cloudphone\":77,\"digitalproducts\":72,\"vps\":66,\"virtualcard\":69,\"general\":118}"}
+{"t":"2026-09-08T01:29:33.168123461Z","s":"info","m":"01:29:30 [Conversion] Processed 1 scheduled event(s)"}
+{"t":"2026-09-08T01:29:33.168206293Z","s":"info","m":"01:29:30 [Conversion] ✅ Browse follow-up sent to 1885282275 for category: digitalproducts"}
+{"t":"2026-09-08T01:49:31.119241797Z","s":"info","m":"01:49:30 [Conversion] Processed 1 scheduled event(s)"}
+{"t":"2026-09-08T02:26:30.253724787Z","s":"info","m":"02:26:30 [Conversion] Processed 1 scheduled event(s)"}
+{"t":"2026-09-08T02:28:30.345234094Z","s":"info","m":"02:28:29 [Conversion] Social proof refreshed: {\"hosting\":88,\"domains\":205,\"cloudphone\":77,\"digitalproducts\":72,\"vps\":66,\"virtualcard\":69,\"general\":118}"}
+{"t":"2026-09-08T02:33:36.760804257Z","s":"info","m":"02:33:30 [Conversion] Processed 1 scheduled event(s)"}
+{"t":"2026-09-08T02:47:31.553618863Z","s":"info","m":"02:47:30 [Conversion] Processed 1 scheduled event(s)"}
+{"t":"2026-09-08T02:49:31.328538749Z","s":"info","m":"02:49:31 [Conversion] ✅ Browse follow-up sent to 6184648665 for category: digitalproducts"}
+{"t":"2026-09-08T02:49:31.328542286Z","s":"info","m":"02:49:31 [Conversion] Processed 1 scheduled event(s)"}
+{"t":"2026-09-08T03:28:37.070271313Z","s":"info","m":"03:28:29 [Conversion] Social proof refreshed: {\"hosting\":88,\"domains\":205,\"cloudphone\":77,\"digitalproducts\":72,\"vps\":66,\"virtualcard\":69,\"general\":118}"}
+{"t":"2026-09-08T04:28:30.724483470Z","s":"info","m":"04:28:29 [Conversion] Social proof refreshed: {\"hosting\":88,\"domains\":205,\"cloudphone\":77,\"digitalproducts\":72,\"vps\":66,\"virtualcard\":69,\"general\":118}"}
+{"t":"2026-09-08T05:16:11.963309803Z","s":"info","m":"05:16:11 [Conversion] Onboarding tracked for 7977501762 (lang: en, no guided message)"}
+{"t":"2026-09-08T05:16:11.970199492Z","s":"info","m":"05:16:11 [Conversion] Welcome offer scheduled for 7977501762 in 120 min"}
+{"t":"2026-09-08T05:16:30.378437205Z","s":"info","m":"05:16:30 [Conversion] Onboarding tracked for 8560534611 (lang: en, no guided message)"}
+{"t":"2026-09-08T05:16:30.384890300Z","s":"info","m":"05:16:30 [Conversion] Welcome offer scheduled for 8560534611 in 120 min"}
+{"t":"2026-09-08T05:28:29.941364026Z","s":"info","m":"05:28:29 [Conversion] Social proof refreshed: {\"hosting\":88,\"domains\":205,\"cloudphone\":77,\"digitalproducts\":72,\"vps\":66,\"virtualcard\":69,\"general\":118}"}
+{"t":"2026-09-08T06:28:31.203608868Z","s":"info","m":"06:28:29 [Conversion] Social proof refreshed: {\"hosting\":88,\"domains\":205,\"cloudphone\":77,\"digitalproducts\":72,\"vps\":66,\"virtualcard\":69,\"general\":118}"}
+{"t":"2026-09-08T07:16:32.576003992Z","s":"info","m":"07:16:31 [Conversion] ✅ Welcome offer sent to 7977501762: WELCOME25-32UGYG (25% off, expires 2026-09-09T07:16:30.281Z)"}
+{"t":"2026-09-08T07:16:32.576006665Z","s":"info","m":"07:16:31 [Conversion] Processed 1 scheduled event(s)"}
+{"t":"2026-09-08T07:20:32.400259579Z","s":"info","m":"07:20:30 [Conversion] ✅ Browse follow-up sent to 7977501762 for category: digitalproducts"}
+{"t":"2026-09-08T07:20:32.400263156Z","s":"info","m":"07:20:30 [Conversion] Processed 1 scheduled event(s)"}
+{"t":"2026-09-08T07:28:32.393871957Z","s":"info","m":"07:28:29 [Conversion] Social proof refreshed: {\"hosting\":88,\"domains\":205,\"cloudphone\":77,\"digitalproducts\":72,\"vps\":66,\"virtualcard\":69,\"general\":118}"}
+{"t":"2026-09-08T08:28:36.312790820Z","s":"info","m":"08:28:29 [Conversion] Social proof refreshed: {\"hosting\":88,\"domains\":205,\"cloudphone\":77,\"digitalproducts\":72,\"vps\":66,\"virtualcard\":69,\"general\":118}"}
+{"t":"2026-09-08T09:28:30.013545261Z","s":"info","m":"09:28:29 [Conversion] Social proof refreshed: {\"hosting\":88,\"domains\":205,\"cloudphone\":77,\"digitalproducts\":72,\"vps\":66,\"virtualcard\":69,\"general\":118}"}
+{"t":"2026-09-08T10:28:31.207282714Z","s":"info","m":"10:28:29 [Conversion] Social proof refreshed: {\"hosting\":88,\"domains\":205,\"cloudphone\":77,\"digitalproducts\":72,\"vps\":66,\"virtualcard\":69,\"general\":118}"}
+{"t":"2026-09-08T11:22:16.976589638Z","s":"info","m":"11:22:16 [Conversion] New User Conversion Engine initialized — 5 features active"}
+{"t":"2026-09-08T11:22:16.976593888Z","s":"info","m":"11:22:16 [Conversion] First deposit bonus: $5 (min $20), Welcome offer: 25% (2h delay), Social proof: ×3"}
+{"t":"2026-09-08T11:22:16.976597888Z","s":"info","m":"[Conversion] System loaded successfully"}
+{"t":"2026-09-08T11:22:27.173045897Z","s":"info","m":"11:22:27 [Conversion] Social proof refreshed: {\"hosting\":88,\"domains\":205,\"cloudphone\":77,\"digitalproducts\":72,\"vps\":66,\"virtualcard\":69,\"general\":118}"}
+{"t":"2026-09-08T12:12:40.198111171Z","s":"info","m":"12:12:40 [Conversion] New User Conversion Engine initialized — 5 features active"}
+{"t":"2026-09-08T12:12:40.198120801Z","s":"info","m":"12:12:40 [Conversion] First deposit bonus: $5 (min $20), Welcome offer: 25% (2h delay), Social proof: ×3"}
+{"t":"2026-09-08T12:12:40.199852868Z","s":"info","m":"[Conversion] System loaded successfully"}
+{"t":"2026-09-08T12:12:50.276397279Z","s":"info","m":"12:12:50 [Conversion] Social proof refreshed: {\"hosting\":88,\"domains\":205,\"cloudphone\":77,\"digitalproducts\":72,\"vps\":66,\"virtualcard\":69,\"general\":118}"}
+{"t":"2026-09-08T12:55:40.171972250Z","s":"info","m":"12:55:33 [Conversion] Onboarding tracked for 5926968060 (lang: en, no guided message)"}
+{"t":"2026-09-08T12:55:40.171976410Z","s":"info","m":"12:55:33 [Conversion] Welcome offer scheduled for 5926968060 in 120 min"}
+{"t":"2026-09-08T13:12:50.121147483Z","s":"info","m":"13:12:40 [Conversion] Social proof refreshed: {\"hosting\":88,\"domains\":205,\"cloudphone\":77,\"digitalproducts\":72,\"vps\":66,\"virtualcard\":69,\"general\":118}"}
+{"t":"2026-09-08T13:36:46.322370427Z","s":"info","m":"13:36:40 [Conversion] Processed 1 scheduled event(s)"}
+{"t":"2026-09-08T13:59:50.496668584Z","s":"info","m":"13:59:50 [Conversion] Onboarding tracked for 7319536872 (lang: en, no guided message)"}
+{"t":"2026-09-08T13:59:50.500078730Z","s":"info","m":"13:59:50 [Conversion] Welcome offer scheduled for 7319536872 in 120 min"}
+{"t":"2026-09-08T14:05:20.833301992Z","s":"info","m":"14:05:20 [Conversion] New User Conversion Engine initialized — 5 features active"}
+{"t":"2026-09-08T14:05:20.833305639Z","s":"info","m":"14:05:20 [Conversion] First deposit bonus: $5 (min $20), Welcome offer: 25% (2h delay), Social proof: ×3"}
+{"t":"2026-09-08T14:05:20.833309124Z","s":"info","m":"[Conversion] System loaded successfully"}
+{"t":"2026-09-08T14:05:31.014380904Z","s":"info","m":"14:05:31 [Conversion] Social proof refreshed: {\"hosting\":88,\"domains\":205,\"cloudphone\":77,\"digitalproducts\":72,\"vps\":66,\"virtualcard\":69,\"general\":118}"}
+{"t":"2026-09-08T14:07:36.434906804Z","s":"info","m":"14:07:36 [Conversion] Onboarding tracked for 7151473772 (lang: en, no guided message)"}
+{"t":"2026-09-08T14:07:36.434910548Z","s":"info","m":"14:07:36 [Conversion] Welcome offer scheduled for 7151473772 in 120 min"}
+{"t":"2026-09-08T14:48:28.721368277Z","s":"info","m":"14:48:21 [Conversion] ✅ Browse follow-up sent to 8811620667 for category: digitalproducts"}
+{"t":"2026-09-08T14:48:28.721372016Z","s":"info","m":"14:48:21 [Conversion] Processed 1 scheduled event(s)"}
+{"t":"2026-09-08T14:56:21.585567649Z","s":"info","m":"14:56:21 [Conversion] ✅ Welcome offer sent to 5926968060: WELCOME25-F8VAR7 (25% off, expires 2026-09-09T14:56:20.886Z)"}
+{"t":"2026-09-08T14:56:21.585570305Z","s":"info","m":"14:56:21 [Conversion] Processed 1 scheduled event(s)"}
+{"t":"2026-09-08T14:57:21.282055363Z","s":"info","m":"14:57:21 [Conversion] ✅ Browse follow-up sent to 5926968060 for category: digitalproducts"}
+{"t":"2026-09-08T14:57:21.282059174Z","s":"info","m":"14:57:21 [Conversion] Processed 1 scheduled event(s)"}
+{"t":"2026-09-08T15:05:30.512606315Z","s":"info","m":"15:05:21 [Conversion] Social proof refreshed: {\"hosting\":88,\"domains\":205,\"cloudphone\":77,\"digitalproducts\":72,\"vps\":66,\"virtualcard\":69,\"general\":118}"}
+{"t":"2026-09-08T15:08:23.543846974Z","s":"info","m":"15:08:20 [Conversion] Processed 1 scheduled event(s)"}
+{"t":"2026-09-08T15:20:30.673533494Z","s":"info","m":"15:20:27 [Conversion] Onboarding tracked for 8045194968 (lang: en, no guided message)"}
+{"t":"2026-09-08T15:20:30.673544980Z","s":"info","m":"15:20:27 [Conversion] Welcome offer scheduled for 8045194968 in 120 min"}
+{"t":"2026-09-08T15:45:10.930791315Z","s":"info","m":"15:45:09 [Conversion] Onboarding tracked for 1507830586 (lang: fr, no guided message)"}
+{"t":"2026-09-08T15:45:10.930800220Z","s":"info","m":"15:45:09 [Conversion] Welcome offer scheduled for 1507830586 in 120 min"}
+{"t":"2026-09-08T16:00:21.511878862Z","s":"info","m":"16:00:21 [Conversion] ✅ Welcome offer sent to 7319536872: WELCOME25-WPZGL7 (25% off, expires 2026-09-09T16:00:20.909Z)"}
+{"t":"2026-09-08T16:00:21.511883321Z","s":"info","m":"16:00:21 [Conversion] Processed 1 scheduled event(s)"}
+{"t":"2026-09-08T16:05:24.533558172Z","s":"info","m":"16:05:20 [Conversion] Social proof refreshed: {\"hosting\":88,\"domains\":205,\"cloudphone\":77,\"digitalproducts\":72,\"vps\":66,\"virtualcard\":69,\"general\":118}"}
+{"t":"2026-09-08T16:08:21.123792407Z","s":"info","m":"16:08:21 [Conversion] ✅ Welcome offer sent to 7151473772: WELCOME25-KWBUHT (25% off, expires 2026-09-09T16:08:20.896Z)"}
+{"t":"2026-09-08T16:08:21.123800297Z","s":"info","m":"16:08:21 [Conversion] Processed 1 scheduled event(s)"}
+{"t":"2026-09-08T17:05:21.072856723Z","s":"info","m":"17:05:21 [Conversion] Social proof refreshed: {\"hosting\":88,\"domains\":205,\"cloudphone\":77,\"digitalproducts\":72,\"vps\":66,\"virtualcard\":69,\"general\":118}"}
+{"t":"2026-09-08T17:21:21.169345411Z","s":"info","m":"17:21:21 [Conversion] ✅ Welcome offer sent to 8045194968: WELCOME25-WC7QXX (25% off, expires 2026-09-09T17:21:20.926Z)"}
+{"t":"2026-09-08T17:21:21.169349608Z","s":"info","m":"17:21:21 [Conversion] Processed 1 scheduled event(s)"}
+{"t":"2026-09-08T17:33:20.997016678Z","s":"info","m":"17:33:20 [Conversion] Processed 1 scheduled event(s)"}
+{"t":"2026-09-08T17:45:28.548281963Z","s":"info","m":"17:45:21 [Conversion] ✅ Welcome offer sent to 1507830586: WELCOME25-2M84EQ (25% off, expires 2026-09-09T17:45:21.364Z)"}
+{"t":"2026-09-08T17:45:28.548284767Z","s":"info","m":"17:45:21 [Conversion] Processed 1 scheduled event(s)"}
+{"t":"2026-09-08T18:05:23.175367210Z","s":"info","m":"18:05:21 [Conversion] Social proof refreshed: {\"hosting\":88,\"domains\":205,\"cloudphone\":77,\"digitalproducts\":72,\"vps\":66,\"virtualcard\":69,\"general\":118}"}
+{"t":"2026-09-08T18:08:26.359641685Z","s":"info","m":"18:08:20 [Conversion] Processed 1 scheduled event(s)"}
+{"t":"2026-09-08T18:09:21.477258677Z","s":"info","m":"18:09:21 [Conversion] Processed 1 scheduled event(s)"}
+{"t":"2026-09-08T19:03:06.460106818Z","s":"info","m":"19:03:06 [Conversion] New User Conversion Engine initialized — 5 features active"}
+{"t":"2026-09-08T19:03:06.460112368Z","s":"info","m":"19:03:06 [Conversion] First deposit bonus: $5 (min $20), Welcome offer: 25% (2h delay), Social proof: ×3"}
+{"t":"2026-09-08T19:03:06.460117218Z","s":"info","m":"[Conversion] System loaded successfully"}
+{"t":"2026-09-08T19:03:16.920944259Z","s":"info","m":"19:03:16 [Conversion] Social proof refreshed: {\"hosting\":88,\"domains\":205,\"cloudphone\":77,\"digitalproducts\":72,\"vps\":66,\"virtualcard\":69,\"general\":118}"}
+{"t":"2026-09-08T19:28:49.072494880Z","s":"info","m":"19:28:49 [Conversion] New User Conversion Engine initialized — 5 features active"}
+{"t":"2026-09-08T19:28:49.072498229Z","s":"info","m":"19:28:49 [Conversion] First deposit bonus: $5 (min $20), Welcome offer: 25% (2h delay), Social proof: ×3"}
+{"t":"2026-09-08T19:28:49.072501471Z","s":"info","m":"[Conversion] System loaded successfully"}
+{"t":"2026-09-08T19:28:59.473305997Z","s":"info","m":"19:28:59 [Conversion] Social proof refreshed: {\"hosting\":88,\"domains\":205,\"cloudphone\":77,\"digitalproducts\":72,\"vps\":66,\"virtualcard\":69,\"general\":118}"}
+{"t":"2026-09-08T20:05:52.424851740Z","s":"info","m":"20:05:49 [Conversion] Processed 1 scheduled event(s)"}
+{"t":"2026-09-08T20:09:49.524612512Z","s":"info","m":"20:09:49 [Conversion] Processed 1 scheduled event(s)"}
+{"t":"2026-09-08T20:18:51.598085278Z","s":"info","m":"20:18:49 [Conversion] Processed 1 scheduled event(s)"}
+{"t":"2026-09-08T20:26:49.161471307Z","s":"info","m":"20:26:49 [Conversion] Processed 1 scheduled event(s)"}
+{"t":"2026-09-08T20:28:59.235354315Z","s":"info","m":"20:28:49 [Conversion] Social proof refreshed: {\"hosting\":88,\"domains\":205,\"cloudphone\":77,\"digitalproducts\":72,\"vps\":66,\"virtualcard\":69,\"general\":118}"}
+{"t":"2026-09-08T21:28:49.363170685Z","s":"info","m":"21:28:49 [Conversion] Social proof refreshed: {\"hosting\":88,\"domains\":205,\"cloudphone\":77,\"digitalproducts\":72,\"vps\":66,\"virtualcard\":69,\"general\":118}"}
+{"t":"2026-09-08T22:28:53.074349999Z","s":"info","m":"22:28:49 [Conversion] Social proof refreshed: {\"hosting\":88,\"domains\":205,\"cloudphone\":77,\"digitalproducts\":72,\"vps\":66,\"virtualcard\":69,\"general\":118}"}
+{"t":"2026-09-08T23:05:52.150361923Z","s":"info","m":"23:05:49 [Conversion] Processed 1 scheduled event(s)"}
+{"t":"2026-09-08T23:16:50.623691908Z","s":"info","m":"23:16:49 [Conversion] Processed 1 scheduled event(s)"}
+{"t":"2026-09-08T23:24:59.099290287Z","s":"info","m":"23:24:49 [Conversion] Processed 1 scheduled event(s)"}
+{"t":"2026-09-08T23:28:49.959741776Z","s":"info","m":"23:28:49 [Conversion] Social proof refreshed: {\"hosting\":88,\"domains\":205,\"cloudphone\":77,\"digitalproducts\":72,\"vps\":66,\"virtualcard\":69,\"general\":118}"}
+{"t":"2026-09-09T00:28:49.702291765Z","s":"info","m":"00:28:49 [Conversion] Social proof refreshed: {\"hosting\":88,\"domains\":205,\"cloudphone\":77,\"digitalproducts\":72,\"vps\":66,\"virtualcard\":69,\"general\":118}"}
+{"t":"2026-09-09T01:28:52.401576228Z","s":"info","m":"01:28:49 [Conversion] Social proof refreshed: {\"hosting\":88,\"domains\":205,\"cloudphone\":77,\"digitalproducts\":72,\"vps\":66,\"virtualcard\":69,\"general\":118}"}
+{"t":"2026-09-09T02:17:49.330875783Z","s":"info","m":"02:17:49 [Conversion] Processed 1 scheduled event(s)"}
+{"t":"2026-09-09T02:21:12.620141124Z","s":"info","m":"02:21:12 [Conversion] Welcome offer scheduled for 5480655289 in 120 min"}
+{"t":"2026-09-09T02:21:12.620203656Z","s":"info","m":"02:21:12 [Conversion] Onboarding tracked for 5480655289 (lang: en, no guided message)"}
+{"t":"2026-09-09T02:28:57.625277977Z","s":"info","m":"02:28:49 [Conversion] Social proof refreshed: {\"hosting\":88,\"domains\":205,\"cloudphone\":77,\"digitalproducts\":72,\"vps\":66,\"virtualcard\":69,\"general\":118}"}
+{"t":"2026-09-09T02:48:57.875653201Z","s":"info","m":"02:48:49 [Conversion] Processed 1 scheduled event(s)"}
+{"t":"2026-09-09T02:56:55.002039174Z","s":"info","m":"02:56:54 [Conversion] Onboarding tracked for 1615382593 (lang: zh, no guided message)"}
+{"t":"2026-09-09T02:56:55.002043052Z","s":"info","m":"02:56:54 [Conversion] Welcome offer scheduled for 1615382593 in 120 min"}
+{"t":"2026-09-09T03:23:09.663875742Z","s":"info","m":"03:23:08 [Conversion] First deposit bonus: $5 for chatId=1615382593 (deposited $100)"}
+{"t":"2026-09-09T03:23:09.663918151Z","s":"info","m":"[Conversion] First deposit bonus $5 awarded to 1615382593"}
+{"t":"2026-09-09T03:28:50.559465724Z","s":"info","m":"03:28:49 [Conversion] Social proof refreshed: {\"hosting\":88,\"domains\":205,\"cloudphone\":77,\"digitalproducts\":72,\"vps\":66,\"virtualcard\":69,\"general\":118}"}
+{"t":"2026-09-09T04:21:50.020653771Z","s":"info","m":"04:21:50 [Conversion] ✅ Welcome offer sent to 5480655289: WELCOME25-NX6SA4 (25% off, expires 2026-09-10T04:21:49.239Z)"}
+{"t":"2026-09-09T04:21:50.027497608Z","s":"info","m":"04:21:50 [Conversion] Processed 1 scheduled event(s)"}
+{"t":"2026-09-09T04:28:51.136897133Z","s":"info","m":"04:28:49 [Conversion] Social proof refreshed: {\"hosting\":88,\"domains\":205,\"cloudphone\":77,\"digitalproducts\":72,\"vps\":66,\"virtualcard\":69,\"general\":118}"}
+{"t":"2026-09-09T05:13:53.746415312Z","s":"info","m":"05:13:49 [Conversion] Skipping browse follow-up for 1748979630 — not a conversion-onboarded user"}
+{"t":"2026-09-09T05:13:53.746423889Z","s":"info","m":"05:13:49 [Conversion] Processed 1 scheduled event(s)"}
+{"t":"2026-09-09T05:14:59.326536150Z","s":"info","m":"05:14:50 [Conversion] ✅ Browse follow-up sent to 5480655289 for category: hosting"}
+{"t":"2026-09-09T05:14:59.326540973Z","s":"info","m":"05:14:50 [Conversion] Processed 1 scheduled event(s)"}
+{"t":"2026-09-09T05:25:49.710201527Z","s":"info","m":"05:25:49 [Conversion] Processed 1 scheduled event(s)"}
+{"t":"2026-09-09T05:28:49.816368617Z","s":"info","m":"05:28:49 [Conversion] Social proof refreshed: {\"hosting\":88,\"domains\":205,\"cloudphone\":77,\"digitalproducts\":72,\"vps\":66,\"virtualcard\":69,\"general\":118}"}
+{"t":"2026-09-09T06:28:49.967246267Z","s":"info","m":"06:28:49 [Conversion] Social proof refreshed: {\"hosting\":88,\"domains\":205,\"cloudphone\":77,\"digitalproducts\":72,\"vps\":66,\"virtualcard\":69,\"general\":118}"}
+{"t":"2026-09-09T07:28:49.402187494Z","s":"info","m":"07:28:49 [Conversion] Social proof refreshed: {\"hosting\":88,\"domains\":205,\"cloudphone\":77,\"digitalproducts\":72,\"vps\":66,\"virtualcard\":69,\"general\":118}"}
+{"t":"2026-09-09T08:06:49.276626697Z","s":"info","m":"08:06:49 [Conversion] Processed 1 scheduled event(s)"}
+{"t":"2026-09-09T08:28:49.448615192Z","s":"info","m":"08:28:49 [Conversion] Social proof refreshed: {\"hosting\":88,\"domains\":205,\"cloudphone\":77,\"digitalproducts\":72,\"vps\":66,\"virtualcard\":69,\"general\":118}"}
+{"t":"2026-09-09T09:28:49.793287857Z","s":"info","m":"09:28:49 [Conversion] Social proof refreshed: {\"hosting\":88,\"domains\":205,\"cloudphone\":77,\"digitalproducts\":72,\"vps\":66,\"virtualcard\":69,\"general\":118}"}
+{"t":"2026-09-09T10:28:53.449353116Z","s":"info","m":"10:28:49 [Conversion] Social proof refreshed: {\"hosting\":88,\"domains\":205,\"cloudphone\":77,\"digitalproducts\":72,\"vps\":66,\"virtualcard\":69,\"general\":118}"}
+{"t":"2026-09-09T11:28:57.050688517Z","s":"info","m":"11:28:49 [Conversion] Social proof refreshed: {\"hosting\":88,\"domains\":205,\"cloudphone\":77,\"digitalproducts\":72,\"vps\":66,\"virtualcard\":69,\"general\":118}"}
+{"t":"2026-09-09T12:28:49.351443745Z","s":"info","m":"12:28:49 [Conversion] Social proof refreshed: {\"hosting\":88,\"domains\":205,\"cloudphone\":77,\"digitalproducts\":72,\"vps\":66,\"virtualcard\":69,\"general\":118}"}
+{"t":"2026-09-09T13:28:51.847797520Z","s":"info","m":"13:28:49 [Conversion] Social proof refreshed: {\"hosting\":88,\"domains\":205,\"cloudphone\":77,\"digitalproducts\":72,\"vps\":66,\"virtualcard\":69,\"general\":118}"}
+{"t":"2026-09-09T14:28:49.531069620Z","s":"info","m":"14:28:49 [Conversion] Social proof refreshed: {\"hosting\":88,\"domains\":205,\"cloudphone\":77,\"digitalproducts\":72,\"vps\":66,\"virtualcard\":69,\"general\":118}"}
+{"t":"2026-09-09T15:28:00.523821177Z","s":"info","m":"15:28:00 [Conversion] Onboarding tracked for 6533163539 (lang: en, no guided message)"}
+{"t":"2026-09-09T15:28:00.536443287Z","s":"info","m":"15:28:00 [Conversion] Welcome offer scheduled for 6533163539 in 120 min"}
+{"t":"2026-09-09T15:28:57.152771271Z","s":"info","m":"15:28:49 [Conversion] Social proof refreshed: {\"hosting\":88,\"domains\":205,\"cloudphone\":77,\"digitalproducts\":72,\"vps\":66,\"virtualcard\":69,\"general\":118}"}
+{"t":"2026-09-09T15:44:50.337403171Z","s":"info","m":"15:44:49 [Conversion] Processed 1 scheduled event(s)"}
+{"t":"2026-09-09T16:28:49.964558378Z","s":"info","m":"16:28:49 [Conversion] Social proof refreshed: {\"hosting\":88,\"domains\":205,\"cloudphone\":77,\"digitalproducts\":72,\"vps\":66,\"virtualcard\":69,\"general\":118}"}
+{"t":"2026-09-09T17:28:51.388890085Z","s":"info","m":"17:28:49 [Conversion] Social proof refreshed: {\"hosting\":88,\"domains\":205,\"cloudphone\":77,\"digitalproducts\":72,\"vps\":66,\"virtualcard\":69,\"general\":118}"}
+{"t":"2026-09-09T17:28:51.388893533Z","s":"info","m":"17:28:50 [Conversion] ✅ Welcome offer sent to 6533163539: WELCOME25-LTTMRU (25% off, expires 2026-09-10T17:28:49.347Z)"}
+{"t":"2026-09-09T17:28:51.388897334Z","s":"info","m":"17:28:50 [Conversion] Processed 1 scheduled event(s)"}
+{"t":"2026-09-09T17:29:50.122860103Z","s":"info","m":"17:29:49 [Conversion] ❌ Send failed for 6533163539: ETELEGRAM: 403 Forbidden: bot was blocked by the user"}
+{"t":"2026-09-09T17:29:50.122863519Z","s":"info","m":"17:29:49 [Conversion] Processed 1 scheduled event(s)"}
+{"t":"2026-09-09T18:28:51.526489194Z","s":"info","m":"18:28:49 [Conversion] Social proof refreshed: {\"hosting\":88,\"domains\":205,\"cloudphone\":77,\"digitalproducts\":72,\"vps\":66,\"virtualcard\":69,\"general\":118}"}
+{"t":"2026-09-09T19:03:07.656642885Z","s":"info","m":"19:03:07 [Conversion] Onboarding tracked for 8839481819 (lang: en, no guided message)"}
+{"t":"2026-09-09T19:03:07.656647579Z","s":"info","m":"19:03:07 [Conversion] Welcome offer scheduled for 8839481819 in 120 min"}
+{"t":"2026-09-09T19:28:49.578676129Z","s":"info","m":"19:28:49 [Conversion] Social proof refreshed: {\"hosting\":88,\"domains\":205,\"cloudphone\":77,\"digitalproducts\":72,\"vps\":66,\"virtualcard\":69,\"general\":118}"}
+{"t":"2026-09-09T19:36:21.414377806Z","s":"info","m":"19:36:21 [Conversion] First deposit bonus: $5 for chatId=8837636204 (deposited $130.061486662)"}
+{"t":"2026-09-09T19:36:21.428278546Z","s":"info","m":"[Conversion] First deposit bonus $5 awarded to 8837636204"}
+{"t":"2026-09-09T20:28:50.600313220Z","s":"info","m":"20:28:49 [Conversion] Social proof refreshed: {\"hosting\":88,\"domains\":205,\"cloudphone\":77,\"digitalproducts\":72,\"vps\":66,\"virtualcard\":69,\"general\":118}"}
+{"t":"2026-09-09T20:45:50.856829743Z","s":"info","m":"20:45:49 [Conversion] Processed 1 scheduled event(s)"}
+{"t":"2026-09-09T20:47:50.657203872Z","s":"info","m":"20:47:49 [Conversion] Processed 1 scheduled event(s)"}
+{"t":"2026-09-09T21:03:54.314841958Z","s":"info","m":"21:03:50 [Conversion] ✅ Welcome offer sent to 8839481819: WELCOME25-NJTPUY (25% off, expires 2026-09-10T21:03:49.432Z)"}
+{"t":"2026-09-09T21:03:54.314846504Z","s":"info","m":"21:03:50 [Conversion] Processed 1 scheduled event(s)"}
+{"t":"2026-09-09T21:09:55.868838392Z","s":"info","m":"21:09:49 [Conversion] ✅ Browse follow-up sent to 8839481819 for category: domains"}
+{"t":"2026-09-09T21:09:55.868841301Z","s":"info","m":"21:09:49 [Conversion] Processed 1 scheduled event(s)"}
+{"t":"2026-09-09T21:28:56.242094816Z","s":"info","m":"21:28:49 [Conversion] Social proof refreshed: {\"hosting\":88,\"domains\":205,\"cloudphone\":77,\"digitalproducts\":72,\"vps\":66,\"virtualcard\":69,\"general\":118}"}
+{"t":"2026-09-09T22:22:02.048506511Z","s":"info","m":"22:22:02 [Conversion] Onboarding tracked for 8798213337 (lang: en, no guided message)"}
+{"t":"2026-09-09T22:22:02.074094139Z","s":"info","m":"22:22:02 [Conversion] Welcome offer scheduled for 8798213337 in 120 min"}
+{"t":"2026-09-09T22:28:49.559757192Z","s":"info","m":"22:28:49 [Conversion] Social proof refreshed: {\"hosting\":88,\"domains\":205,\"cloudphone\":77,\"digitalproducts\":72,\"vps\":66,\"virtualcard\":69,\"general\":118}"}
+{"t":"2026-09-09T22:34:49.425315334Z","s":"info","m":"22:34:49 [Conversion] Processed 1 scheduled event(s)"}
+{"t":"2026-09-09T22:51:00.700336709Z","s":"info","m":"22:51:00 [Conversion] Onboarding tracked for 8927688988 (lang: en, no guided message)"}
+{"t":"2026-09-09T22:51:00.700341397Z","s":"info","m":"22:51:00 [Conversion] Welcome offer scheduled for 8927688988 in 120 min"}
+{"t":"2026-09-09T23:28:49.618633992Z","s":"info","m":"23:28:49 [Conversion] Social proof refreshed: {\"hosting\":88,\"domains\":205,\"cloudphone\":77,\"digitalproducts\":72,\"vps\":66,\"virtualcard\":69,\"general\":118}"}
+{"t":"2026-09-09T23:31:10.758235534Z","s":"info","m":"23:31:05 [Conversion] Onboarding tracked for 8729309678 (lang: en, no guided message)"}
+{"t":"2026-09-09T23:31:10.758239152Z","s":"info","m":"23:31:05 [Conversion] Welcome offer scheduled for 8729309678 in 120 min"}
+{"t":"2026-09-10T00:22:49.950108498Z","s":"info","m":"00:22:49 [Conversion] ✅ Welcome offer sent to 8798213337: WELCOME25-ZFBE6B (25% off, expires 2026-09-11T00:22:49.401Z)"}
+{"t":"2026-09-10T00:22:49.956462631Z","s":"info","m":"00:22:49 [Conversion] Processed 1 scheduled event(s)"}
+{"t":"2026-09-10T00:28:49.770329883Z","s":"info","m":"00:28:49 [Conversion] Social proof refreshed: {\"hosting\":78,\"domains\":190,\"cloudphone\":70,\"digitalproducts\":66,\"vps\":62,\"virtualcard\":64,\"general\":108}"}
+{"t":"2026-09-10T00:47:57.931630268Z","s":"info","m":"00:47:49 [Conversion] ✅ Browse follow-up sent to 8798213337 for category: cloudphone"}
+{"t":"2026-09-10T00:47:57.931634703Z","s":"info","m":"00:47:49 [Conversion] Processed 1 scheduled event(s)"}
+{"t":"2026-09-10T00:51:58.235615497Z","s":"info","m":"00:51:49 [Conversion] ✅ Welcome offer sent to 8927688988: WELCOME25-J55DCA (25% off, expires 2026-09-11T00:51:49.406Z)"}
+{"t":"2026-09-10T00:51:58.235618770Z","s":"info","m":"00:51:49 [Conversion] Processed 1 scheduled event(s)"}
+{"t":"2026-09-10T01:28:50.377408907Z","s":"info","m":"01:28:49 [Conversion] Social proof refreshed: {\"hosting\":78,\"domains\":190,\"cloudphone\":70,\"digitalproducts\":66,\"vps\":62,\"virtualcard\":64,\"general\":108}"}
+{"t":"2026-09-10T01:31:52.628969603Z","s":"info","m":"01:31:49 [Conversion] ✅ Welcome offer sent to 8729309678: WELCOME25-8KNQV5 (25% off, expires 2026-09-11T01:31:49.407Z)"}
+{"t":"2026-09-10T01:31:52.628977988Z","s":"info","m":"01:31:49 [Conversion] Processed 1 scheduled event(s)"}
+{"t":"2026-09-10T01:55:50.391345802Z","s":"info","m":"01:55:50 [Conversion] ✅ Browse follow-up sent to 8729309678 for category: domains"}
+{"t":"2026-09-10T01:55:50.391355959Z","s":"info","m":"01:55:50 [Conversion] Processed 1 scheduled event(s)"}
+{"t":"2026-09-10T02:28:50.469529217Z","s":"info","m":"02:28:49 [Conversion] Social proof refreshed: {\"hosting\":78,\"domains\":190,\"cloudphone\":70,\"digitalproducts\":66,\"vps\":62,\"virtualcard\":64,\"general\":108}"}
+{"t":"2026-09-10T02:40:50.237316776Z","s":"info","m":"02:40:49 [Conversion] Processed 1 scheduled event(s)"}
+{"t":"2026-09-10T03:28:57.407904468Z","s":"info","m":"03:28:49 [Conversion] Social proof refreshed: {\"hosting\":78,\"domains\":190,\"cloudphone\":70,\"digitalproducts\":66,\"vps\":62,\"virtualcard\":64,\"general\":108}"}
+{"t":"2026-09-10T04:28:58.637457510Z","s":"info","m":"04:28:49 [Conversion] Social proof refreshed: {\"hosting\":78,\"domains\":190,\"cloudphone\":70,\"digitalproducts\":66,\"vps\":62,\"virtualcard\":64,\"general\":108}"}
+{"t":"2026-09-10T04:35:56.101634733Z","s":"info","m":"04:35:49 [Conversion] Processed 1 scheduled event(s)"}
+{"t":"2026-09-10T05:28:55.989694436Z","s":"info","m":"05:28:49 [Conversion] Social proof refreshed: {\"hosting\":78,\"domains\":190,\"cloudphone\":70,\"digitalproducts\":66,\"vps\":62,\"virtualcard\":64,\"general\":108}"}
+{"t":"2026-09-10T06:28:49.458827172Z","s":"info","m":"06:28:49 [Conversion] Social proof refreshed: {\"hosting\":78,\"domains\":190,\"cloudphone\":70,\"digitalproducts\":66,\"vps\":62,\"virtualcard\":64,\"general\":108}"}
+{"t":"2026-09-10T07:28:49.248586538Z","s":"info","m":"07:28:49 [Conversion] Social proof refreshed: {\"hosting\":78,\"domains\":190,\"cloudphone\":70,\"digitalproducts\":66,\"vps\":62,\"virtualcard\":64,\"general\":108}"}
+{"t":"2026-09-10T07:50:49.510271886Z","s":"info","m":"07:50:49 [Conversion] Processed 1 scheduled event(s)"}
+{"t":"2026-09-10T08:28:56.724368308Z","s":"info","m":"08:28:49 [Conversion] Social proof refreshed: {\"hosting\":78,\"domains\":190,\"cloudphone\":70,\"digitalproducts\":66,\"vps\":62,\"virtualcard\":64,\"general\":108}"}
+{"t":"2026-09-10T09:28:56.770747517Z","s":"info","m":"09:28:49 [Conversion] Social proof refreshed: {\"hosting\":78,\"domains\":190,\"cloudphone\":70,\"digitalproducts\":66,\"vps\":62,\"virtualcard\":64,\"general\":108}"}
+{"t":"2026-09-10T10:28:56.810339046Z","s":"info","m":"10:28:49 [Conversion] Social proof refreshed: {\"hosting\":78,\"domains\":190,\"cloudphone\":70,\"digitalproducts\":66,\"vps\":62,\"virtualcard\":64,\"general\":108}"}
+{"t":"2026-09-10T11:28:50.883904933Z","s":"info","m":"11:28:49 [Conversion] Social proof refreshed: {\"hosting\":78,\"domains\":190,\"cloudphone\":70,\"digitalproducts\":66,\"vps\":62,\"virtualcard\":64,\"general\":108}"}
+{"t":"2026-09-10T12:28:50.840031516Z","s":"info","m":"12:28:49 [Conversion] Social proof refreshed: {\"hosting\":78,\"domains\":190,\"cloudphone\":70,\"digitalproducts\":66,\"vps\":62,\"virtualcard\":64,\"general\":108}"}
+{"t":"2026-09-10T13:28:50.159884618Z","s":"info","m":"13:28:49 [Conversion] Social proof refreshed: {\"hosting\":78,\"domains\":190,\"cloudphone\":70,\"digitalproducts\":66,\"vps\":62,\"virtualcard\":64,\"general\":108}"}
+{"t":"2026-09-10T14:28:51.508321507Z","s":"info","m":"14:28:49 [Conversion] Social proof refreshed: {\"hosting\":78,\"domains\":190,\"cloudphone\":70,\"digitalproducts\":66,\"vps\":62,\"virtualcard\":64,\"general\":108}"}
+{"t":"2026-09-10T15:28:50.581399255Z","s":"info","m":"15:28:49 [Conversion] Social proof refreshed: {\"hosting\":78,\"domains\":190,\"cloudphone\":70,\"digitalproducts\":66,\"vps\":62,\"virtualcard\":64,\"general\":108}"}
+{"t":"2026-09-10T15:33:49.834226696Z","s":"info","m":"15:33:49 [Conversion] Processed 1 scheduled event(s)"}
+{"t":"2026-09-10T15:38:22.062745129Z","s":"info","m":"15:38:15 [Conversion] Onboarding tracked for 1893905026 (lang: en, no guided message)"}
+{"t":"2026-09-10T15:38:22.062750226Z","s":"info","m":"15:38:15 [Conversion] Welcome offer scheduled for 1893905026 in 120 min"}
+{"t":"2026-09-10T16:28:49.362556469Z","s":"info","m":"16:28:49 [Conversion] Social proof refreshed: {\"hosting\":78,\"domains\":190,\"cloudphone\":70,\"digitalproducts\":66,\"vps\":62,\"virtualcard\":64,\"general\":108}"}
+{"t":"2026-09-10T17:28:55.290604198Z","s":"info","m":"17:28:49 [Conversion] Social proof refreshed: {\"hosting\":78,\"domains\":190,\"cloudphone\":70,\"digitalproducts\":66,\"vps\":62,\"virtualcard\":64,\"general\":108}"}
+{"t":"2026-09-10T17:38:53.341437667Z","s":"info","m":"17:38:50 [Conversion] ✅ Welcome offer sent to 1893905026: WELCOME25-NZTZNE (25% off, expires 2026-09-11T17:38:49.662Z)"}
+{"t":"2026-09-10T17:38:53.341440372Z","s":"info","m":"17:38:50 [Conversion] Processed 1 scheduled event(s)"}
+{"t":"2026-09-10T17:39:56.006085147Z","s":"info","m":"17:39:50 [Conversion] ✅ Browse follow-up sent to 1893905026 for category: cloudphone"}
+{"t":"2026-09-10T17:39:56.006088234Z","s":"info","m":"17:39:50 [Conversion] Processed 1 scheduled event(s)"}
+{"t":"2026-09-10T18:21:49.870657168Z","s":"info","m":"18:21:49 [Conversion] Processed 1 scheduled event(s)"}
+{"t":"2026-09-10T18:28:49.538328610Z","s":"info","m":"18:28:49 [Conversion] Social proof refreshed: {\"hosting\":78,\"domains\":190,\"cloudphone\":70,\"digitalproducts\":66,\"vps\":62,\"virtualcard\":64,\"general\":108}"}
+{"t":"2026-09-10T18:28:49.614717805Z","s":"info","m":"18:28:49 [Conversion] Processed 1 scheduled event(s)"}
+{"t":"2026-09-10T19:28:51.401787066Z","s":"info","m":"19:28:49 [Conversion] Social proof refreshed: {\"hosting\":78,\"domains\":190,\"cloudphone\":70,\"digitalproducts\":66,\"vps\":62,\"virtualcard\":64,\"general\":108}"}
+{"t":"2026-09-10T19:50:49.092887366Z","s":"info","m":"19:50:49 [Conversion] New User Conversion Engine initialized — 5 features active"}
+{"t":"2026-09-10T19:50:49.092890646Z","s":"info","m":"19:50:49 [Conversion] First deposit bonus: $5 (min $20), Welcome offer: 25% (2h delay), Social proof: ×3"}
+{"t":"2026-09-10T19:50:49.092893306Z","s":"info","m":"[Conversion] System loaded successfully"}
+{"t":"2026-09-10T19:50:59.373416867Z","s":"info","m":"19:50:59 [Conversion] Social proof refreshed: {\"hosting\":78,\"domains\":190,\"cloudphone\":70,\"digitalproducts\":66,\"vps\":62,\"virtualcard\":64,\"general\":108}"}
+{"t":"2026-09-10T20:01:50.284200327Z","s":"info","m":"20:01:50 [Conversion] New User Conversion Engine initialized — 5 features active"}
+{"t":"2026-09-10T20:01:50.284205497Z","s":"info","m":"20:01:50 [Conversion] First deposit bonus: $5 (min $20), Welcome offer: 25% (2h delay), Social proof: ×3"}
+{"t":"2026-09-10T20:01:50.284210780Z","s":"info","m":"[Conversion] System loaded successfully"}
+{"t":"2026-09-10T20:02:02.096450206Z","s":"info","m":"20:02:01 [Conversion] Social proof refreshed: {\"hosting\":78,\"domains\":190,\"cloudphone\":70,\"digitalproducts\":66,\"vps\":62,\"virtualcard\":64,\"general\":108}"}
+{"t":"2026-09-10T21:01:59.876659117Z","s":"info","m":"21:01:50 [Conversion] Social proof refreshed: {\"hosting\":78,\"domains\":190,\"cloudphone\":70,\"digitalproducts\":66,\"vps\":62,\"virtualcard\":64,\"general\":108}"}
+{"t":"2026-09-10T21:23:32.160972180Z","s":"info","m":"21:23:32 [Conversion] New User Conversion Engine initialized — 5 features active"}
+{"t":"2026-09-10T21:23:32.160976839Z","s":"info","m":"21:23:32 [Conversion] First deposit bonus: $5 (min $20), Welcome offer: 25% (2h delay), Social proof: ×3"}
+{"t":"2026-09-10T21:23:32.160979959Z","s":"info","m":"[Conversion] System loaded successfully"}
+{"t":"2026-09-10T21:23:42.427574097Z","s":"info","m":"21:23:42 [Conversion] Social proof refreshed: {\"hosting\":78,\"domains\":190,\"cloudphone\":70,\"digitalproducts\":66,\"vps\":62,\"virtualcard\":64,\"general\":108}"}
+{"t":"2026-09-10T21:38:25.918642636Z","s":"info","m":"21:38:25 [Conversion] Onboarding tracked for 7652757393 (lang: en, no guided message)"}
+{"t":"2026-09-10T21:38:25.936475748Z","s":"info","m":"21:38:25 [Conversion] Welcome offer scheduled for 7652757393 in 120 min"}
+{"t":"2026-09-10T22:23:42.352789329Z","s":"info","m":"22:23:32 [Conversion] Social proof refreshed: {\"hosting\":78,\"domains\":190,\"cloudphone\":70,\"digitalproducts\":66,\"vps\":62,\"virtualcard\":64,\"general\":108}"}
+{"t":"2026-09-10T23:02:32.730858079Z","s":"info","m":"23:02:27 [Conversion] Onboarding tracked for 8593214452 (lang: en, no guided message)"}
+{"t":"2026-09-10T23:02:32.730865769Z","s":"info","m":"23:02:27 [Conversion] Welcome offer scheduled for 8593214452 in 120 min"}
+{"t":"2026-09-10T23:13:57.435600306Z","s":"info","m":"23:13:57 [Conversion] New User Conversion Engine initialized — 5 features active"}
+{"t":"2026-09-10T23:13:57.435604756Z","s":"info","m":"23:13:57 [Conversion] First deposit bonus: $5 (min $20), Welcome offer: 25% (2h delay), Social proof: ×3"}
+{"t":"2026-09-10T23:13:57.435608796Z","s":"info","m":"[Conversion] System loaded successfully"}
+{"t":"2026-09-10T23:14:07.591737980Z","s":"info","m":"23:14:07 [Conversion] Social proof refreshed: {\"hosting\":78,\"domains\":190,\"cloudphone\":70,\"digitalproducts\":66,\"vps\":62,\"virtualcard\":64,\"general\":108}"}
+{"t":"2026-09-10T23:17:33.727536918Z","s":"info","m":"23:17:33 [Conversion] New User Conversion Engine initialized — 5 features active"}
+{"t":"2026-09-10T23:17:33.727539518Z","s":"info","m":"23:17:33 [Conversion] First deposit bonus: $5 (min $20), Welcome offer: 25% (2h delay), Social proof: ×3"}
+{"t":"2026-09-10T23:17:33.727541838Z","s":"info","m":"[Conversion] System loaded successfully"}
+{"t":"2026-09-10T23:17:44.013017590Z","s":"info","m":"23:17:43 [Conversion] Social proof refreshed: {\"hosting\":78,\"domains\":190,\"cloudphone\":70,\"digitalproducts\":66,\"vps\":62,\"virtualcard\":64,\"general\":108}"}
+{"t":"2026-09-10T23:28:01.314199682Z","s":"info","m":"23:28:00 [Conversion] Onboarding tracked for 7859617687 (lang: en, no guided message)"}
+{"t":"2026-09-10T23:28:01.314205232Z","s":"info","m":"23:28:00 [Conversion] Welcome offer scheduled for 7859617687 in 120 min"}
+{"t":"2026-09-10T23:32:47.175531564Z","s":"info","m":"23:32:47 [Conversion] Onboarding tracked for 6580245354 (lang: en, no guided message)"}
+{"t":"2026-09-10T23:32:47.184200653Z","s":"info","m":"23:32:47 [Conversion] Welcome offer scheduled for 6580245354 in 120 min"}
+{"t":"2026-09-10T23:36:33.665367647Z","s":"info","m":"23:36:28 [Conversion] Onboarding tracked for 8848165913 (lang: en, no guided message)"}
+{"t":"2026-09-10T23:36:33.665376287Z","s":"info","m":"23:36:28 [Conversion] Welcome offer scheduled for 8848165913 in 120 min"}
+{"t":"2026-09-10T23:38:34.012324112Z","s":"info","m":"23:38:33 [Conversion] ✅ Welcome offer sent to 7652757393: WELCOME25-AA8NMM (25% off, expires 2026-09-11T23:38:33.750Z)"}
+{"t":"2026-09-10T23:38:34.012329012Z","s":"info","m":"23:38:33 [Conversion] Processed 1 scheduled event(s)"}
+{"t":"2026-09-11T00:01:35.589486775Z","s":"info","m":"00:01:33 [Conversion] Processed 1 scheduled event(s)"}
+{"t":"2026-09-11T00:17:34.205458678Z","s":"info","m":"00:17:34 [Conversion] Social proof refreshed: {\"hosting\":78,\"domains\":190,\"cloudphone\":70,\"digitalproducts\":66,\"vps\":62,\"virtualcard\":64,\"general\":108}"}
+{"t":"2026-09-11T01:02:34.950236395Z","s":"info","m":"01:02:34 [Conversion] ✅ Welcome offer sent to 8593214452: WELCOME25-5JZEXR (25% off, expires 2026-09-12T01:02:33.822Z)"}
+{"t":"2026-09-11T01:02:34.962388619Z","s":"info","m":"01:02:34 [Conversion] Processed 1 scheduled event(s)"}
+{"t":"2026-09-11T01:05:33.975602024Z","s":"info","m":"01:05:33 [Conversion] ✅ Browse follow-up sent to 8593214452 for category: domains"}
+{"t":"2026-09-11T01:05:33.975613694Z","s":"info","m":"01:05:33 [Conversion] Processed 1 scheduled event(s)"}
+{"t":"2026-09-11T01:17:34.451700471Z","s":"info","m":"01:17:33 [Conversion] Social proof refreshed: {\"hosting\":78,\"domains\":190,\"cloudphone\":70,\"digitalproducts\":66,\"vps\":62,\"virtualcard\":64,\"general\":108}"}
+{"t":"2026-09-11T01:28:34.346609227Z","s":"info","m":"01:28:34 [Conversion] ✅ Welcome offer sent to 7859617687: WELCOME25-KGB939 (25% off, expires 2026-09-12T01:28:33.787Z)"}
+{"t":"2026-09-11T01:28:34.346613457Z","s":"info","m":"01:28:34 [Conversion] Processed 1 scheduled event(s)"}
+{"t":"2026-09-11T01:33:44.066394541Z","s":"info","m":"01:33:34 [Conversion] ✅ Welcome offer sent to 6580245354: WELCOME25-ESEFML (25% off, expires 2026-09-12T01:33:33.782Z)"}
+{"t":"2026-09-11T01:33:44.066397401Z","s":"info","m":"01:33:34 [Conversion] Processed 1 scheduled event(s)"}
+{"t":"2026-09-11T01:34:43.743368008Z","s":"info","m":"01:34:33 [Conversion] ✅ Browse follow-up sent to 6580245354 for category: cloudphone"}
+{"t":"2026-09-11T01:34:43.743370738Z","s":"info","m":"01:34:33 [Conversion] Processed 1 scheduled event(s)"}
+{"t":"2026-09-11T01:36:43.782348331Z","s":"info","m":"01:36:33 [Conversion] ✅ Welcome offer sent to 8848165913: WELCOME25-9BRF9V (25% off, expires 2026-09-12T01:36:33.783Z)"}
+{"t":"2026-09-11T01:36:43.782355311Z","s":"info","m":"01:36:33 [Conversion] Processed 1 scheduled event(s)"}
+{"t":"2026-09-11T01:40:33.995340846Z","s":"info","m":"01:40:33 [Conversion] ✅ Browse follow-up sent to 7859617687 for category: cloudphone"}
+{"t":"2026-09-11T01:40:33.995348046Z","s":"info","m":"01:40:33 [Conversion] Processed 1 scheduled event(s)"}
+{"t":"2026-09-11T02:17:35.157096490Z","s":"info","m":"02:17:33 [Conversion] Social proof refreshed: {\"hosting\":78,\"domains\":190,\"cloudphone\":70,\"digitalproducts\":66,\"vps\":62,\"virtualcard\":64,\"general\":108}"}
+{"t":"2026-09-11T02:34:34.536861729Z","s":"info","m":"02:34:33 [Conversion] Processed 1 scheduled event(s)"}
+{"t":"2026-09-11T03:07:01.093733671Z","s":"info","m":"03:07:01 [Conversion] Onboarding tracked for 1748979630 (lang: en, no guided message)"}
+{"t":"2026-09-11T03:07:01.111865994Z","s":"info","m":"03:07:01 [Conversion] Welcome offer scheduled for 1748979630 in 120 min"}
+{"t":"2026-09-11T03:17:37.792616775Z","s":"info","m":"03:17:34 [Conversion] Social proof refreshed: {\"hosting\":78,\"domains\":190,\"cloudphone\":70,\"digitalproducts\":66,\"vps\":62,\"virtualcard\":64,\"general\":108}"}
+{"t":"2026-09-11T03:59:47.804961087Z","s":"info","m":"03:59:47 [Conversion] Onboarding tracked for 819987472 (lang: en, no guided message)"}
+{"t":"2026-09-11T03:59:47.804963887Z","s":"info","m":"03:59:47 [Conversion] Welcome offer scheduled for 819987472 in 120 min"}
+{"t":"2026-09-11T04:17:38.826276041Z","s":"info","m":"04:17:33 [Conversion] Social proof refreshed: {\"hosting\":78,\"domains\":190,\"cloudphone\":70,\"digitalproducts\":66,\"vps\":62,\"virtualcard\":64,\"general\":108}"}
+{"t":"2026-09-11T05:07:40.776113969Z","s":"info","m":"05:07:34 [Conversion] ✅ Welcome offer sent to 1748979630: WELCOME25-4WEVG7 (25% off, expires 2026-09-12T05:07:33.838Z)"}
+{"t":"2026-09-11T05:07:40.776129748Z","s":"info","m":"05:07:35 [Conversion] ✅ Browse follow-up sent to 1748979630 for category: domains"}
+{"t":"2026-09-11T05:07:40.776132188Z","s":"info","m":"05:07:35 [Conversion] Processed 2 scheduled event(s)"}
+{"t":"2026-09-11T05:17:34.470093890Z","s":"info","m":"05:17:34 [Conversion] Social proof refreshed: {\"hosting\":78,\"domains\":190,\"cloudphone\":70,\"digitalproducts\":66,\"vps\":62,\"virtualcard\":64,\"general\":108}"}
+{"t":"2026-09-11T05:32:40.609384415Z","s":"info","m":"05:32:33 [Conversion] Processed 1 scheduled event(s)"}
+{"t":"2026-09-11T06:00:34.919613068Z","s":"info","m":"06:00:34 [Conversion] ✅ Welcome offer sent to 819987472: WELCOME25-JESHHZ (25% off, expires 2026-09-12T06:00:33.885Z)"}
+{"t":"2026-09-11T06:00:34.937872903Z","s":"info","m":"06:00:34 [Conversion] Processed 1 scheduled event(s)"}
+{"t":"2026-09-11T06:01:34.172724610Z","s":"info","m":"06:01:34 [Conversion] ✅ Browse follow-up sent to 819987472 for category: digitalproducts"}
+{"t":"2026-09-11T06:01:34.172734040Z","s":"info","m":"06:01:34 [Conversion] Processed 1 scheduled event(s)"}
+{"t":"2026-09-11T06:17:34.291819335Z","s":"info","m":"06:17:33 [Conversion] Social proof refreshed: {\"hosting\":78,\"domains\":190,\"cloudphone\":70,\"digitalproducts\":66,\"vps\":62,\"virtualcard\":64,\"general\":108}"}
+{"t":"2026-09-11T07:15:09.998609744Z","s":"info","m":"07:15:09 [Conversion] Welcome offer scheduled for 7913817297 in 120 min"}
+{"t":"2026-09-11T07:15:09.998693142Z","s":"info","m":"07:15:09 [Conversion] Onboarding tracked for 7913817297 (lang: en, no guided message)"}
+{"t":"2026-09-11T07:17:33.937092322Z","s":"info","m":"07:17:33 [Conversion] Social proof refreshed: {\"hosting\":78,\"domains\":190,\"cloudphone\":70,\"digitalproducts\":66,\"vps\":62,\"virtualcard\":64,\"general\":108}"}
+{"t":"2026-09-11T08:17:36.542549284Z","s":"info","m":"08:17:33 [Conversion] Social proof refreshed: {\"hosting\":78,\"domains\":190,\"cloudphone\":70,\"digitalproducts\":66,\"vps\":62,\"virtualcard\":64,\"general\":108}"}
+{"t":"2026-09-11T09:15:34.672758941Z","s":"info","m":"09:15:34 [Conversion] ✅ Welcome offer sent to 7913817297: WELCOME25-88Z875 (25% off, expires 2026-09-12T09:15:33.939Z)"}
+{"t":"2026-09-11T09:15:34.672770151Z","s":"info","m":"09:15:34 [Conversion] Processed 1 scheduled event(s)"}
+{"t":"2026-09-11T09:17:35.016641880Z","s":"info","m":"09:17:33 [Conversion] Social proof refreshed: {\"hosting\":78,\"domains\":190,\"cloudphone\":70,\"digitalproducts\":66,\"vps\":62,\"virtualcard\":64,\"general\":108}"}
+{"t":"2026-09-11T09:21:38.154483250Z","s":"info","m":"09:21:33 [Conversion] Processed 1 scheduled event(s)"}
+{"t":"2026-09-11T10:17:43.299885417Z","s":"info","m":"10:17:33 [Conversion] Social proof refreshed: {\"hosting\":78,\"domains\":190,\"cloudphone\":70,\"digitalproducts\":66,\"vps\":62,\"virtualcard\":64,\"general\":108}"}
+{"t":"2026-09-11T11:02:39.201930658Z","s":"info","m":"11:02:34 [Conversion] ✅ Browse follow-up sent to 7913817297 for category: cloudphone"}
+{"t":"2026-09-11T11:02:39.201933208Z","s":"info","m":"11:02:35 [Conversion] Processed 2 scheduled event(s)"}
+{"t":"2026-09-11T11:07:34.488508699Z","s":"info","m":"11:07:33 [Conversion] Processed 1 scheduled event(s)"}
+{"t":"2026-09-11T11:08:40.068702222Z","s":"info","m":"11:08:33 [Conversion] Processed 1 scheduled event(s)"}
+{"t":"2026-09-11T11:17:36.192917484Z","s":"info","m":"11:17:33 [Conversion] Social proof refreshed: {\"hosting\":78,\"domains\":190,\"cloudphone\":70,\"digitalproducts\":66,\"vps\":62,\"virtualcard\":64,\"general\":108}"}
+{"t":"2026-09-11T12:17:34.273325893Z","s":"info","m":"12:17:34 [Conversion] Social proof refreshed: {\"hosting\":78,\"domains\":190,\"cloudphone\":70,\"digitalproducts\":66,\"vps\":62,\"virtualcard\":64,\"general\":108}"}
+{"t":"2026-09-11T13:17:34.003313021Z","s":"info","m":"13:17:33 [Conversion] Social proof refreshed: {\"hosting\":78,\"domains\":190,\"cloudphone\":70,\"digitalproducts\":66,\"vps\":62,\"virtualcard\":64,\"general\":108}"}
+{"t":"2026-09-11T13:39:42.955496687Z","s":"info","m":"13:39:35 [Conversion] Onboarding tracked for 642257478 (lang: en, no guided message)"}
+{"t":"2026-09-11T13:39:42.955501237Z","s":"info","m":"13:39:35 [Conversion] Welcome offer scheduled for 642257478 in 120 min"}
+{"t":"2026-09-11T14:17:34.495146664Z","s":"info","m":"14:17:34 [Conversion] Social proof refreshed: {\"hosting\":78,\"domains\":190,\"cloudphone\":70,\"digitalproducts\":66,\"vps\":62,\"virtualcard\":64,\"general\":108}"}
+{"t":"2026-09-11T15:17:43.746648329Z","s":"info","m":"15:17:33 [Conversion] Social proof refreshed: {\"hosting\":78,\"domains\":190,\"cloudphone\":70,\"digitalproducts\":66,\"vps\":62,\"virtualcard\":64,\"general\":108}"}
+{"t":"2026-09-11T15:40:40.686495529Z","s":"info","m":"15:40:34 [Conversion] ✅ Welcome offer sent to 642257478: WELCOME25-96988B (25% off, expires 2026-09-12T15:40:33.988Z)"}
+{"t":"2026-09-11T15:40:40.686516949Z","s":"info","m":"15:40:34 [Conversion] ✅ Browse follow-up sent to 642257478 for category: digitalproducts"}
+{"t":"2026-09-11T15:40:40.686520169Z","s":"info","m":"15:40:34 [Conversion] Processed 2 scheduled event(s)"}
+{"t":"2026-09-11T15:43:41.227916015Z","s":"info","m":"15:43:34 [Conversion] Processed 1 scheduled event(s)"}
+{"t":"2026-09-11T15:46:41.649980625Z","s":"info","m":"15:46:33 [Conversion] Processed 1 scheduled event(s)"}
+{"t":"2026-09-11T16:17:44.286032543Z","s":"info","m":"16:17:34 [Conversion] Social proof refreshed: {\"hosting\":78,\"domains\":190,\"cloudphone\":70,\"digitalproducts\":66,\"vps\":62,\"virtualcard\":64,\"general\":108}"}
+{"t":"2026-09-11T16:49:38.146631759Z","s":"info","m":"16:49:34 [Conversion] Processed 1 scheduled event(s)"}
+{"t":"2026-09-11T17:17:41.737107406Z","s":"info","m":"17:17:34 [Conversion] Social proof refreshed: {\"hosting\":78,\"domains\":190,\"cloudphone\":70,\"digitalproducts\":66,\"vps\":62,\"virtualcard\":64,\"general\":108}"}
+{"t":"2026-09-11T17:18:34.028395478Z","s":"info","m":"17:18:34 [Conversion] Processed 1 scheduled event(s)"}
+{"t":"2026-09-11T17:19:34.080801119Z","s":"info","m":"17:19:34 [Conversion] Processed 1 scheduled event(s)"}
+{"t":"2026-09-11T17:38:34.944786114Z","s":"info","m":"17:38:34 [Conversion] Processed 1 scheduled event(s)"}
+{"t":"2026-09-11T17:59:34.176789579Z","s":"info","m":"17:59:34 [Conversion] Processed 1 scheduled event(s)"}
+{"t":"2026-09-11T18:17:40.896853939Z","s":"info","m":"18:17:33 [Conversion] Social proof refreshed: {\"hosting\":78,\"domains\":190,\"cloudphone\":70,\"digitalproducts\":66,\"vps\":62,\"virtualcard\":64,\"general\":108}"}
+{"t":"2026-09-11T19:17:34.006049747Z","s":"info","m":"19:17:33 [Conversion] Social proof refreshed: {\"hosting\":78,\"domains\":190,\"cloudphone\":70,\"digitalproducts\":66,\"vps\":62,\"virtualcard\":64,\"general\":108}"}
+{"t":"2026-09-11T19:46:34.515815734Z","s":"info","m":"19:46:34 [Conversion] Processed 1 scheduled event(s)"}
+{"t":"2026-09-11T20:17:43.757246865Z","s":"info","m":"20:17:34 [Conversion] Social proof refreshed: {\"hosting\":78,\"domains\":190,\"cloudphone\":70,\"digitalproducts\":66,\"vps\":62,\"virtualcard\":64,\"general\":108}"}
+{"t":"2026-09-11T20:45:37.078121226Z","s":"info","m":"20:45:34 [Conversion] Processed 1 scheduled event(s)"}
+{"t":"2026-09-11T21:17:34.464087605Z","s":"info","m":"21:17:33 [Conversion] Social proof refreshed: {\"hosting\":78,\"domains\":190,\"cloudphone\":70,\"digitalproducts\":66,\"vps\":62,\"virtualcard\":64,\"general\":108}"}
+{"t":"2026-09-11T21:35:35.045834114Z","s":"info","m":"21:35:34 [Conversion] Processed 1 scheduled event(s)"}
+{"t":"2026-09-11T22:17:38.845735478Z","s":"info","m":"22:17:33 [Conversion] Social proof refreshed: {\"hosting\":78,\"domains\":190,\"cloudphone\":70,\"digitalproducts\":66,\"vps\":62,\"virtualcard\":64,\"general\":108}"}
+{"t":"2026-09-11T22:20:40.898516140Z","s":"info","m":"22:20:40 [Conversion] Onboarding tracked for 6626227831 (lang: en, no guided message)"}
+{"t":"2026-09-11T22:20:40.902067349Z","s":"info","m":"22:20:40 [Conversion] Welcome offer scheduled for 6626227831 in 120 min"}
+{"t":"2026-09-11T22:46:34.925707178Z","s":"info","m":"22:46:34 [Conversion] Processed 1 scheduled event(s)"}
+{"t":"2026-09-11T22:53:35.245992047Z","s":"info","m":"22:53:34 [Conversion] Processed 1 scheduled event(s)"}
+{"t":"2026-09-11T23:17:35.513557229Z","s":"info","m":"23:17:33 [Conversion] Social proof refreshed: {\"hosting\":78,\"domains\":190,\"cloudphone\":70,\"digitalproducts\":66,\"vps\":62,\"virtualcard\":64,\"general\":108}"}
+{"t":"2026-09-12T00:17:33.924574072Z","s":"info","m":"00:17:33 [Conversion] Social proof refreshed: {\"hosting\":78,\"domains\":190,\"cloudphone\":70,\"digitalproducts\":66,\"vps\":62,\"virtualcard\":64,\"general\":108}"}
+{"t":"2026-09-12T00:21:34.346844792Z","s":"info","m":"00:21:34 [Conversion] ✅ Welcome offer sent to 6626227831: WELCOME25-N9RVL3 (25% off, expires 2026-09-13T00:21:34.045Z)"}
+{"t":"2026-09-12T00:21:34.346855172Z","s":"info","m":"00:21:34 [Conversion] Processed 1 scheduled event(s)"}
+{"t":"2026-09-12T01:17:36.830911037Z","s":"info","m":"01:17:33 [Conversion] Social proof refreshed: {\"hosting\":78,\"domains\":190,\"cloudphone\":70,\"digitalproducts\":66,\"vps\":62,\"virtualcard\":64,\"general\":108}"}
+{"t":"2026-09-12T02:17:34.772338616Z","s":"info","m":"02:17:34 [Conversion] Social proof refreshed: {\"hosting\":78,\"domains\":190,\"cloudphone\":70,\"digitalproducts\":66,\"vps\":62,\"virtualcard\":64,\"general\":108}"}
+{"t":"2026-09-12T03:14:35.441731216Z","s":"info","m":"03:14:34 [Conversion] Processed 1 scheduled event(s)"}
+{"t":"2026-09-12T03:17:35.133809065Z","s":"info","m":"03:17:33 [Conversion] Social proof refreshed: {\"hosting\":78,\"domains\":190,\"cloudphone\":70,\"digitalproducts\":66,\"vps\":62,\"virtualcard\":64,\"general\":108}"}
+{"t":"2026-09-12T03:36:34.079978779Z","s":"info","m":"03:36:34 [Conversion] Processed 1 scheduled event(s)"}
+{"t":"2026-09-12T04:07:57.109214381Z","s":"info","m":"04:07:57 [Conversion] Onboarding tracked for 1823540405 (lang: en, no guided message)"}
+{"t":"2026-09-12T04:07:57.112907669Z","s":"info","m":"04:07:57 [Conversion] Welcome offer scheduled for 1823540405 in 120 min"}
+{"t":"2026-09-12T04:17:35.710992212Z","s":"info","m":"04:17:33 [Conversion] Social proof refreshed: {\"hosting\":78,\"domains\":190,\"cloudphone\":70,\"digitalproducts\":66,\"vps\":62,\"virtualcard\":64,\"general\":108}"}
+{"t":"2026-09-12T05:17:35.244599042Z","s":"info","m":"05:17:33 [Conversion] Social proof refreshed: {\"hosting\":78,\"domains\":190,\"cloudphone\":70,\"digitalproducts\":66,\"vps\":62,\"virtualcard\":64,\"general\":108}"}
+{"t":"2026-09-12T06:17:33.931806273Z","s":"info","m":"06:17:33 [Conversion] Social proof refreshed: {\"hosting\":78,\"domains\":190,\"cloudphone\":70,\"digitalproducts\":66,\"vps\":62,\"virtualcard\":64,\"general\":108}"}
+{"t":"2026-09-12T07:17:35.268692636Z","s":"info","m":"07:17:33 [Conversion] Social proof refreshed: {\"hosting\":78,\"domains\":190,\"cloudphone\":70,\"digitalproducts\":66,\"vps\":62,\"virtualcard\":64,\"general\":108}"}
+{"t":"2026-09-12T08:17:34.123507692Z","s":"info","m":"08:17:33 [Conversion] Social proof refreshed: {\"hosting\":78,\"domains\":190,\"cloudphone\":70,\"digitalproducts\":66,\"vps\":62,\"virtualcard\":64,\"general\":108}"}
+{"t":"2026-09-12T09:17:33.891539351Z","s":"info","m":"09:17:33 [Conversion] Social proof refreshed: {\"hosting\":78,\"domains\":190,\"cloudphone\":70,\"digitalproducts\":66,\"vps\":62,\"virtualcard\":64,\"general\":108}"}
+{"t":"2026-09-12T10:17:35.672502285Z","s":"info","m":"10:17:33 [Conversion] Social proof refreshed: {\"hosting\":78,\"domains\":190,\"cloudphone\":70,\"digitalproducts\":66,\"vps\":62,\"virtualcard\":64,\"general\":108}"}
+{"t":"2026-09-12T11:17:41.838662821Z","s":"info","m":"11:17:33 [Conversion] Social proof refreshed: {\"hosting\":78,\"domains\":190,\"cloudphone\":70,\"digitalproducts\":66,\"vps\":62,\"virtualcard\":64,\"general\":108}"}
+{"t":"2026-09-12T12:17:38.070934903Z","s":"info","m":"12:17:33 [Conversion] Social proof refreshed: {\"hosting\":78,\"domains\":190,\"cloudphone\":70,\"digitalproducts\":66,\"vps\":62,\"virtualcard\":64,\"general\":108}"}
+{"t":"2026-09-12T13:17:36.758830401Z","s":"info","m":"13:17:33 [Conversion] Social proof refreshed: {\"hosting\":78,\"domains\":190,\"cloudphone\":70,\"digitalproducts\":66,\"vps\":62,\"virtualcard\":64,\"general\":108}"}
+{"t":"2026-09-12T13:38:35.710005175Z","s":"info","m":"13:38:34 [Conversion] Processed 1 scheduled event(s)"}
+{"t":"2026-09-12T14:17:41.810001265Z","s":"info","m":"14:17:33 [Conversion] Social proof refreshed: {\"hosting\":78,\"domains\":190,\"cloudphone\":70,\"digitalproducts\":66,\"vps\":62,\"virtualcard\":64,\"general\":108}"}
+{"t":"2026-09-12T15:17:35.191992172Z","s":"info","m":"15:17:33 [Conversion] Social proof refreshed: {\"hosting\":78,\"domains\":190,\"cloudphone\":70,\"digitalproducts\":66,\"vps\":62,\"virtualcard\":64,\"general\":108}"}
+{"t":"2026-09-12T16:12:50.423544343Z","s":"info","m":"16:12:50 [Conversion] Onboarding tracked for 8339126938 (lang: en, no guided message)"}
+{"t":"2026-09-12T16:12:50.423552643Z","s":"info","m":"16:12:50 [Conversion] Welcome offer scheduled for 8339126938 in 120 min"}
+{"t":"2026-09-12T16:17:35.290430933Z","s":"info","m":"16:17:33 [Conversion] Social proof refreshed: {\"hosting\":78,\"domains\":190,\"cloudphone\":70,\"digitalproducts\":66,\"vps\":62,\"virtualcard\":64,\"general\":108}"}
+{"t":"2026-09-12T16:40:39.799303453Z","s":"info","m":"16:40:34 [Conversion] Processed 2 scheduled event(s)"}
+{"t":"2026-09-12T17:17:34.879666959Z","s":"info","m":"17:17:33 [Conversion] Social proof refreshed: {\"hosting\":78,\"domains\":190,\"cloudphone\":70,\"digitalproducts\":66,\"vps\":62,\"virtualcard\":64,\"general\":108}"}
+{"t":"2026-09-12T18:11:35.391934463Z","s":"info","m":"[Conversion] First deposit bonus $5 awarded to 1185070608"}
+{"t":"2026-09-12T18:11:35.392043110Z","s":"info","m":"18:11:26 [Conversion] First deposit bonus: $5 for chatId=1185070608 (deposited $110.07)"}
+{"t":"2026-09-12T18:13:35.982643627Z","s":"info","m":"18:13:34 [Conversion] ✅ Welcome offer sent to 8339126938: WELCOME25-FKKM3M (25% off, expires 2026-09-13T18:13:34.200Z)"}
+{"t":"2026-09-12T18:13:35.982653267Z","s":"info","m":"18:13:34 [Conversion] Processed 1 scheduled event(s)"}
+{"t":"2026-09-12T18:17:42.196245210Z","s":"info","m":"18:17:33 [Conversion] Social proof refreshed: {\"hosting\":78,\"domains\":190,\"cloudphone\":70,\"digitalproducts\":66,\"vps\":62,\"virtualcard\":64,\"general\":108}"}
+{"t":"2026-09-12T18:38:10.357006146Z","s":"info","m":"18:38:07 [Conversion] Onboarding tracked for 602622389 (lang: en, no guided message)"}
+{"t":"2026-09-12T18:38:10.357009396Z","s":"info","m":"18:38:07 [Conversion] Welcome offer scheduled for 602622389 in 120 min"}
+{"t":"2026-09-12T19:02:13.372228970Z","s":"info","m":"19:02:13 [Conversion] Onboarding tracked for 7970418630 (lang: fr, no guided message)"}
+{"t":"2026-09-12T19:02:13.378979168Z","s":"info","m":"19:02:13 [Conversion] Welcome offer scheduled for 7970418630 in 120 min"}
+{"t":"2026-09-12T19:17:41.347678141Z","s":"info","m":"19:17:34 [Conversion] Social proof refreshed: {\"hosting\":78,\"domains\":190,\"cloudphone\":70,\"digitalproducts\":66,\"vps\":62,\"virtualcard\":64,\"general\":108}"}
+{"t":"2026-09-12T19:53:33.616197705Z","s":"info","m":"19:53:33 [Conversion] New User Conversion Engine initialized — 5 features active"}
+{"t":"2026-09-12T19:53:33.616213208Z","s":"info","m":"19:53:33 [Conversion] First deposit bonus: $5 (min $20), Welcome offer: 25% (2h delay), Social proof: ×3"}
+{"t":"2026-09-12T19:53:33.616222872Z","s":"info","m":"[Conversion] System loaded successfully"}
+{"t":"2026-09-12T19:53:43.818303458Z","s":"info","m":"19:53:43 [Conversion] Social proof refreshed: {\"hosting\":78,\"domains\":190,\"cloudphone\":70,\"digitalproducts\":66,\"vps\":62,\"virtualcard\":64,\"general\":108}"}
+{"t":"2026-09-12T20:08:40.236044422Z","s":"info","m":"20:08:40 [Conversion] New User Conversion Engine initialized — 5 features active"}
+{"t":"2026-09-12T20:08:40.236046962Z","s":"info","m":"20:08:40 [Conversion] First deposit bonus: $5 (min $20), Welcome offer: 25% (2h delay), Social proof: ×3"}
+{"t":"2026-09-12T20:08:40.236049762Z","s":"info","m":"[Conversion] System loaded successfully"}
+{"t":"2026-09-12T20:08:50.470776726Z","s":"info","m":"20:08:50 [Conversion] Social proof refreshed: {\"hosting\":78,\"domains\":190,\"cloudphone\":70,\"digitalproducts\":66,\"vps\":62,\"virtualcard\":64,\"general\":108}"}
+{"t":"2026-09-12T20:38:48.256336616Z","s":"info","m":"20:38:41 [Conversion] ✅ Welcome offer sent to 602622389: WELCOME25-3MAAW9 (25% off, expires 2026-09-13T20:38:40.272Z)"}
+{"t":"2026-09-12T20:38:48.256339226Z","s":"info","m":"20:38:41 [Conversion] Processed 2 scheduled event(s)"}
+{"t":"2026-09-12T21:02:40.852650352Z","s":"info","m":"21:02:40 [Conversion] ✅ Welcome offer sent to 7970418630: WELCOME25-K9KND5 (25% off, expires 2026-09-13T21:02:40.268Z)"}
+{"t":"2026-09-12T21:02:40.870129001Z","s":"info","m":"21:02:40 [Conversion] Processed 1 scheduled event(s)"}
+{"t":"2026-09-12T21:08:50.316316353Z","s":"info","m":"21:08:40 [Conversion] Social proof refreshed: {\"hosting\":78,\"domains\":190,\"cloudphone\":70,\"digitalproducts\":66,\"vps\":62,\"virtualcard\":64,\"general\":108}"}
+{"t":"2026-09-12T21:44:46.649399943Z","s":"info","m":"21:44:40 [Conversion] Processed 1 scheduled event(s)"}
+{"t":"2026-09-12T22:08:47.086801770Z","s":"info","m":"22:08:40 [Conversion] Social proof refreshed: {\"hosting\":78,\"domains\":190,\"cloudphone\":70,\"digitalproducts\":66,\"vps\":62,\"virtualcard\":64,\"general\":108}"}
+{"t":"2026-09-12T23:08:40.889438378Z","s":"info","m":"23:08:40 [Conversion] Social proof refreshed: {\"hosting\":78,\"domains\":190,\"cloudphone\":70,\"digitalproducts\":66,\"vps\":62,\"virtualcard\":64,\"general\":108}"}
+{"t":"2026-09-12T23:09:47.385873301Z","s":"info","m":"23:09:40 [Conversion] Processed 1 scheduled event(s)"}
+{"t":"2026-09-13T00:08:40.562197511Z","s":"info","m":"00:08:40 [Conversion] Social proof refreshed: {\"hosting\":78,\"domains\":190,\"cloudphone\":70,\"digitalproducts\":66,\"vps\":62,\"virtualcard\":64,\"general\":108}"}
+{"t":"2026-09-13T01:00:49.563680822Z","s":"info","m":"01:00:40 [Conversion] Processed 1 scheduled event(s)"}
+{"t":"2026-09-13T01:08:50.072592460Z","s":"info","m":"01:08:40 [Conversion] Social proof refreshed: {\"hosting\":78,\"domains\":190,\"cloudphone\":70,\"digitalproducts\":66,\"vps\":62,\"virtualcard\":64,\"general\":108}"}
+{"t":"2026-09-13T01:17:41.617888916Z","s":"info","m":"01:17:40 [Conversion] Processed 1 scheduled event(s)"}
+{"t":"2026-09-13T02:08:40.568479211Z","s":"info","m":"02:08:40 [Conversion] Social proof refreshed: {\"hosting\":78,\"domains\":190,\"cloudphone\":70,\"digitalproducts\":66,\"vps\":62,\"virtualcard\":64,\"general\":108}"}
+{"t":"2026-09-13T02:44:46.753599491Z","s":"info","m":"02:44:40 [Conversion] ✅ Browse follow-up sent to 8339126938 for category: cloudphone"}
+{"t":"2026-09-13T02:44:46.753601781Z","s":"info","m":"02:44:40 [Conversion] Processed 1 scheduled event(s)"}
+{"t":"2026-09-13T03:08:40.844328164Z","s":"info","m":"03:08:40 [Conversion] Social proof refreshed: {\"hosting\":78,\"domains\":190,\"cloudphone\":70,\"digitalproducts\":66,\"vps\":62,\"virtualcard\":64,\"general\":108}"}
+{"t":"2026-09-13T04:08:41.275523349Z","s":"info","m":"04:08:40 [Conversion] Social proof refreshed: {\"hosting\":78,\"domains\":190,\"cloudphone\":70,\"digitalproducts\":66,\"vps\":62,\"virtualcard\":64,\"general\":108}"}
+{"t":"2026-09-13T05:08:49.425105813Z","s":"info","m":"05:08:40 [Conversion] Social proof refreshed: {\"hosting\":78,\"domains\":190,\"cloudphone\":70,\"digitalproducts\":66,\"vps\":62,\"virtualcard\":64,\"general\":108}"}
+{"t":"2026-09-13T06:08:40.697985189Z","s":"info","m":"06:08:40 [Conversion] Social proof refreshed: {\"hosting\":78,\"domains\":190,\"cloudphone\":70,\"digitalproducts\":66,\"vps\":62,\"virtualcard\":64,\"general\":108}"}
+{"t":"2026-09-13T07:08:40.442618692Z","s":"info","m":"07:08:40 [Conversion] Social proof refreshed: {\"hosting\":78,\"domains\":190,\"cloudphone\":70,\"digitalproducts\":66,\"vps\":62,\"virtualcard\":64,\"general\":108}"}
+{"t":"2026-09-13T08:08:41.381788609Z","s":"info","m":"08:08:40 [Conversion] Social proof refreshed: {\"hosting\":78,\"domains\":190,\"cloudphone\":70,\"digitalproducts\":66,\"vps\":62,\"virtualcard\":64,\"general\":108}"}
+{"t":"2026-09-13T09:06:30.748080400Z","s":"info","m":"09:06:30 [Conversion] New User Conversion Engine initialized — 5 features active"}
+{"t":"2026-09-13T09:06:30.748083970Z","s":"info","m":"09:06:30 [Conversion] First deposit bonus: $5 (min $20), Welcome offer: 25% (2h delay), Social proof: ×3"}
+{"t":"2026-09-13T09:06:30.748088940Z","s":"info","m":"[Conversion] System loaded successfully"}
+{"t":"2026-09-13T09:06:41.024313553Z","s":"info","m":"09:06:40 [Conversion] Social proof refreshed: {\"hosting\":78,\"domains\":190,\"cloudphone\":70,\"digitalproducts\":66,\"vps\":62,\"virtualcard\":64,\"general\":108}"}
+{"t":"2026-09-13T09:48:03.002035424Z","s":"info","m":"09:48:03 [Conversion] New User Conversion Engine initialized — 5 features active"}
+{"t":"2026-09-13T09:48:03.002039010Z","s":"info","m":"09:48:03 [Conversion] First deposit bonus: $5 (min $20), Welcome offer: 25% (2h delay), Social proof: ×3"}
+{"t":"2026-09-13T09:48:03.002042025Z","s":"info","m":"[Conversion] System loaded successfully"}
+{"t":"2026-09-13T09:48:13.230888241Z","s":"info","m":"09:48:13 [Conversion] Social proof refreshed: {\"hosting\":78,\"domains\":190,\"cloudphone\":70,\"digitalproducts\":66,\"vps\":62,\"virtualcard\":64,\"general\":108}"}
+{"t":"2026-09-13T10:20:03.052162118Z","s":"info","m":"10:20:03 [Conversion] Processed 1 scheduled event(s)"}
+{"t":"2026-09-13T10:48:04.456497379Z","s":"info","m":"10:48:03 [Conversion] Social proof refreshed: {\"hosting\":78,\"domains\":190,\"cloudphone\":70,\"digitalproducts\":66,\"vps\":62,\"virtualcard\":64,\"general\":108}"}
+{"t":"2026-09-13T11:09:03.194582005Z","s":"info","m":"11:09:03 [Conversion] Skipping browse follow-up for 1046923090 — user opted out of promos"}
+{"t":"2026-09-13T11:09:03.194604165Z","s":"info","m":"11:09:03 [Conversion] Processed 1 scheduled event(s)"}
+{"t":"2026-09-13T11:48:03.185625140Z","s":"info","m":"11:48:03 [Conversion] Social proof refreshed: {\"hosting\":78,\"domains\":190,\"cloudphone\":70,\"digitalproducts\":66,\"vps\":62,\"virtualcard\":64,\"general\":108}"}
+{"t":"2026-09-13T12:48:08.750680467Z","s":"info","m":"12:48:03 [Conversion] Social proof refreshed: {\"hosting\":78,\"domains\":190,\"cloudphone\":70,\"digitalproducts\":66,\"vps\":62,\"virtualcard\":64,\"general\":108}"}
+{"t":"2026-09-13T13:48:12.849028886Z","s":"info","m":"13:48:03 [Conversion] Social proof refreshed: {\"hosting\":78,\"domains\":190,\"cloudphone\":70,\"digitalproducts\":66,\"vps\":62,\"virtualcard\":64,\"general\":108}"}
+{"t":"2026-09-13T14:01:03.148258482Z","s":"info","m":"14:01:03 [Conversion] Processed 1 scheduled event(s)"}
+{"t":"2026-09-13T14:48:11.903922881Z","s":"info","m":"14:48:03 [Conversion] Social proof refreshed: {\"hosting\":78,\"domains\":190,\"cloudphone\":70,\"digitalproducts\":66,\"vps\":62,\"virtualcard\":64,\"general\":108}"}
+{"t":"2026-09-13T15:03:29.054104094Z","s":"info","m":"15:03:29 [Conversion] Onboarding tracked for 7626520140 (lang: en, no guided message)"}
+{"t":"2026-09-13T15:03:29.060653629Z","s":"info","m":"15:03:29 [Conversion] Welcome offer scheduled for 7626520140 in 120 min"}
+{"t":"2026-09-13T15:48:03.305953137Z","s":"info","m":"15:48:03 [Conversion] Social proof refreshed: {\"hosting\":78,\"domains\":190,\"cloudphone\":70,\"digitalproducts\":66,\"vps\":62,\"virtualcard\":64,\"general\":108}"}
+{"t":"2026-09-13T16:16:03.332824545Z","s":"info","m":"16:16:03 [Conversion] Processed 1 scheduled event(s)"}
+{"t":"2026-09-13T16:48:07.797918588Z","s":"info","m":"16:48:03 [Conversion] Social proof refreshed: {\"hosting\":78,\"domains\":190,\"cloudphone\":70,\"digitalproducts\":66,\"vps\":62,\"virtualcard\":64,\"general\":108}"}
+{"t":"2026-09-13T17:04:04.188601111Z","s":"info","m":"17:04:04 [Conversion] ✅ Welcome offer sent to 7626520140: WELCOME25-3ZBPYC (25% off, expires 2026-09-14T17:04:03.198Z)"}
+{"t":"2026-09-13T17:04:04.199483272Z","s":"info","m":"17:04:04 [Conversion] Processed 1 scheduled event(s)"}
+{"t":"2026-09-13T17:28:03.623494127Z","s":"info","m":"17:28:03 [Conversion] Processed 1 scheduled event(s)"}
+{"t":"2026-09-13T17:48:09.540203109Z","s":"info","m":"17:48:03 [Conversion] Social proof refreshed: {\"hosting\":78,\"domains\":190,\"cloudphone\":70,\"digitalproducts\":66,\"vps\":62,\"virtualcard\":64,\"general\":108}"}
+{"t":"2026-09-13T18:48:03.661045650Z","s":"info","m":"18:48:03 [Conversion] Social proof refreshed: {\"hosting\":78,\"domains\":190,\"cloudphone\":70,\"digitalproducts\":66,\"vps\":62,\"virtualcard\":64,\"general\":108}"}
+{"t":"2026-09-13T19:48:09.148084654Z","s":"info","m":"19:48:03 [Conversion] Social proof refreshed: {\"hosting\":78,\"domains\":190,\"cloudphone\":70,\"digitalproducts\":66,\"vps\":62,\"virtualcard\":64,\"general\":108}"}
+{"t":"2026-09-13T20:48:03.464802505Z","s":"info","m":"20:48:03 [Conversion] Social proof refreshed: {\"hosting\":78,\"domains\":190,\"cloudphone\":70,\"digitalproducts\":66,\"vps\":62,\"virtualcard\":64,\"general\":108}"}
+{"t":"2026-09-13T21:41:14.475391565Z","s":"info","m":"21:41:14 [Conversion] Onboarding tracked for 8995937188 (lang: en, no guided message)"}
+{"t":"2026-09-13T21:41:14.481375561Z","s":"info","m":"21:41:14 [Conversion] Welcome offer scheduled for 8995937188 in 120 min"}
+{"t":"2026-09-13T21:48:03.872597545Z","s":"info","m":"21:48:03 [Conversion] Social proof refreshed: {\"hosting\":78,\"domains\":190,\"cloudphone\":70,\"digitalproducts\":66,\"vps\":62,\"virtualcard\":64,\"general\":108}"}
+{"t":"2026-09-13T22:05:09.620429557Z","s":"info","m":"22:05:09 [Conversion] New User Conversion Engine initialized — 5 features active"}
+{"t":"2026-09-13T22:05:09.620435685Z","s":"info","m":"22:05:09 [Conversion] First deposit bonus: $5 (min $20), Welcome offer: 25% (2h delay), Social proof: ×3"}
+{"t":"2026-09-13T22:05:09.622606011Z","s":"info","m":"[Conversion] System loaded successfully"}
+{"t":"2026-09-13T22:05:19.860351434Z","s":"info","m":"22:05:19 [Conversion] Social proof refreshed: {\"hosting\":78,\"domains\":190,\"cloudphone\":70,\"digitalproducts\":66,\"vps\":62,\"virtualcard\":64,\"general\":108}"}
+{"t":"2026-09-13T23:05:17.654526324Z","s":"info","m":"23:05:09 [Conversion] Social proof refreshed: {\"hosting\":78,\"domains\":190,\"cloudphone\":70,\"digitalproducts\":66,\"vps\":62,\"virtualcard\":64,\"general\":108}"}
+{"t":"2026-09-13T23:42:10.463759620Z","s":"info","m":"23:42:10 [Conversion] ✅ Welcome offer sent to 8995937188: WELCOME25-Y9CKWX (25% off, expires 2026-09-14T23:42:09.309Z)"}
+{"t":"2026-09-13T23:42:10.463765309Z","s":"info","m":"23:42:10 [Conversion] Processed 1 scheduled event(s)"}
+{"t":"2026-09-13T23:56:21.563852224Z","s":"info","m":"23:56:21 [Conversion] Onboarding tracked for 1241951568 (lang: en, no guided message)"}
+{"t":"2026-09-13T23:56:21.563860541Z","s":"info","m":"23:56:21 [Conversion] Welcome offer scheduled for 1241951568 in 120 min"}
+{"t":"2026-09-14T00:05:09.586912150Z","s":"info","m":"00:05:09 [Conversion] Social proof refreshed: {\"hosting\":78,\"domains\":190,\"cloudphone\":70,\"digitalproducts\":66,\"vps\":62,\"virtualcard\":64,\"general\":108}"}
+{"t":"2026-09-14T00:46:11.947951648Z","s":"info","m":"00:46:09 [Conversion] Skipping browse follow-up for 5171548735 — not a conversion-onboarded user"}
+{"t":"2026-09-14T00:46:11.947956658Z","s":"info","m":"00:46:09 [Conversion] Processed 1 scheduled event(s)"}
+{"t":"2026-09-14T01:05:19.311688262Z","s":"info","m":"01:05:09 [Conversion] Social proof refreshed: {\"hosting\":78,\"domains\":190,\"cloudphone\":70,\"digitalproducts\":66,\"vps\":62,\"virtualcard\":64,\"general\":108}"}
+{"t":"2026-09-14T01:57:18.921024741Z","s":"info","m":"01:57:09 [Conversion] ✅ Welcome offer sent to 1241951568: WELCOME25-478Y84 (25% off, expires 2026-09-15T01:57:09.390Z)"}
+{"t":"2026-09-14T01:57:18.921033603Z","s":"info","m":"01:57:09 [Conversion] Processed 1 scheduled event(s)"}
+{"t":"2026-09-14T01:58:19.197683164Z","s":"info","m":"01:58:09 [Conversion] ✅ Browse follow-up sent to 1241951568 for category: cloudphone"}
+{"t":"2026-09-14T01:58:19.197689162Z","s":"info","m":"01:58:09 [Conversion] Processed 1 scheduled event(s)"}
+{"t":"2026-09-14T02:05:09.807989255Z","s":"info","m":"02:05:09 [Conversion] Social proof refreshed: {\"hosting\":78,\"domains\":190,\"cloudphone\":70,\"digitalproducts\":66,\"vps\":62,\"virtualcard\":64,\"general\":108}"}
+{"t":"2026-09-14T02:48:18.994253785Z","s":"info","m":"02:48:09 [Conversion] Processed 1 scheduled event(s)"}
+{"t":"2026-09-14T03:05:10.352480354Z","s":"info","m":"03:05:09 [Conversion] Social proof refreshed: {\"hosting\":78,\"domains\":190,\"cloudphone\":70,\"digitalproducts\":66,\"vps\":62,\"virtualcard\":64,\"general\":108}"}
+{"t":"2026-09-14T03:27:10.594339716Z","s":"info","m":"03:27:10 [Conversion] Processed 1 scheduled event(s)"}
+{"t":"2026-09-14T03:27:10.594446752Z","s":"info","m":"03:27:10 [Conversion] ✅ Browse follow-up sent to 8995937188 for category: digitalproducts"}
+{"t":"2026-09-14T04:05:09.816068946Z","s":"info","m":"04:05:09 [Conversion] Social proof refreshed: {\"hosting\":78,\"domains\":190,\"cloudphone\":70,\"digitalproducts\":66,\"vps\":62,\"virtualcard\":64,\"general\":108}"}
+{"t":"2026-09-14T05:05:19.554809281Z","s":"info","m":"05:05:09 [Conversion] Social proof refreshed: {\"hosting\":78,\"domains\":190,\"cloudphone\":70,\"digitalproducts\":66,\"vps\":62,\"virtualcard\":64,\"general\":108}"}
+{"t":"2026-09-14T06:05:11.244945443Z","s":"info","m":"06:05:09 [Conversion] Social proof refreshed: {\"hosting\":78,\"domains\":190,\"cloudphone\":70,\"digitalproducts\":66,\"vps\":62,\"virtualcard\":64,\"general\":108}"}
+{"t":"2026-09-14T07:05:12.084239912Z","s":"info","m":"07:05:09 [Conversion] Social proof refreshed: {\"hosting\":78,\"domains\":190,\"cloudphone\":70,\"digitalproducts\":66,\"vps\":62,\"virtualcard\":64,\"general\":108}"}
+{"t":"2026-09-14T08:05:10.793076600Z","s":"info","m":"08:05:09 [Conversion] Social proof refreshed: {\"hosting\":78,\"domains\":190,\"cloudphone\":70,\"digitalproducts\":66,\"vps\":62,\"virtualcard\":64,\"general\":108}"}
+{"t":"2026-09-14T09:05:19.705466401Z","s":"info","m":"09:05:09 [Conversion] Social proof refreshed: {\"hosting\":78,\"domains\":190,\"cloudphone\":70,\"digitalproducts\":66,\"vps\":62,\"virtualcard\":64,\"general\":108}"}
+{"t":"2026-09-14T10:05:09.586812893Z","s":"info","m":"10:05:09 [Conversion] Social proof refreshed: {\"hosting\":78,\"domains\":190,\"cloudphone\":70,\"digitalproducts\":66,\"vps\":62,\"virtualcard\":64,\"general\":108}"}
+{"t":"2026-09-14T10:41:49.470471034Z","s":"info","m":"10:41:48 [Conversion] Onboarding tracked for 5662467585 (lang: en, no guided message)"}
+{"t":"2026-09-14T10:41:49.470475796Z","s":"info","m":"10:41:48 [Conversion] Welcome offer scheduled for 5662467585 in 120 min"}
+{"t":"2026-09-14T11:05:09.612319925Z","s":"info","m":"11:05:09 [Conversion] Social proof refreshed: {\"hosting\":78,\"domains\":190,\"cloudphone\":70,\"digitalproducts\":66,\"vps\":62,\"virtualcard\":64,\"general\":108}"}
+{"t":"2026-09-14T12:05:10.424164687Z","s":"info","m":"12:05:09 [Conversion] Social proof refreshed: {\"hosting\":78,\"domains\":190,\"cloudphone\":70,\"digitalproducts\":66,\"vps\":62,\"virtualcard\":64,\"general\":108}"}
+{"t":"2026-09-14T12:38:09.707187142Z","s":"info","m":"12:38:09 [Conversion] Processed 1 scheduled event(s)"}
+{"t":"2026-09-14T12:42:11.185918683Z","s":"info","m":"12:42:10 [Conversion] ✅ Welcome offer sent to 5662467585: WELCOME25-AS97GC (25% off, expires 2026-09-15T12:42:09.693Z)"}
+{"t":"2026-09-14T12:42:11.185933210Z","s":"info","m":"12:42:10 [Conversion] Processed 1 scheduled event(s)"}
+{"t":"2026-09-14T12:47:11.298652949Z","s":"info","m":"12:47:10 [Conversion] ✅ Browse follow-up sent to 5662467585 for category: cloudphone"}
+{"t":"2026-09-14T12:47:11.298676831Z","s":"info","m":"12:47:10 [Conversion] Processed 1 scheduled event(s)"}
+{"t":"2026-09-14T13:05:19.544492474Z","s":"info","m":"13:05:09 [Conversion] Social proof refreshed: {\"hosting\":78,\"domains\":190,\"cloudphone\":70,\"digitalproducts\":66,\"vps\":62,\"virtualcard\":64,\"general\":108}"}
+{"t":"2026-09-14T13:44:49.614910640Z","s":"info","m":"13:44:46 [Conversion] Onboarding tracked for 5842648141 (lang: en, no guided message)"}
+{"t":"2026-09-14T13:44:49.617600598Z","s":"info","m":"13:44:46 [Conversion] Welcome offer scheduled for 5842648141 in 120 min"}
+{"t":"2026-09-14T14:05:16.748310520Z","s":"info","m":"14:05:09 [Conversion] Social proof refreshed: {\"hosting\":78,\"domains\":190,\"cloudphone\":70,\"digitalproducts\":66,\"vps\":62,\"virtualcard\":64,\"general\":108}"}
+{"t":"2026-09-14T15:05:19.320089367Z","s":"info","m":"15:05:09 [Conversion] Social proof refreshed: {\"hosting\":78,\"domains\":190,\"cloudphone\":70,\"digitalproducts\":66,\"vps\":62,\"virtualcard\":64,\"general\":108}"}
+{"t":"2026-09-14T15:45:12.355672658Z","s":"info","m":"15:45:11 [Conversion] ✅ Browse follow-up sent to 5842648141 for category: cloudphone"}
+{"t":"2026-09-14T15:45:12.355687186Z","s":"info","m":"15:45:11 [Conversion] Processed 2 scheduled event(s)"}
+{"t":"2026-09-14T15:45:12.355727723Z","s":"info","m":"15:45:10 [Conversion] ✅ Welcome offer sent to 5842648141: WELCOME25-ZZM363 (25% off, expires 2026-09-15T15:45:09.750Z)"}
+{"t":"2026-09-14T16:05:14.283974784Z","s":"info","m":"16:05:09 [Conversion] Social proof refreshed: {\"hosting\":78,\"domains\":190,\"cloudphone\":70,\"digitalproducts\":66,\"vps\":62,\"virtualcard\":64,\"general\":108}"}
+{"t":"2026-09-14T16:23:31.391694295Z","s":"info","m":"16:23:30 [Conversion] Onboarding tracked for 8139084237 (lang: en, no guided message)"}
+{"t":"2026-09-14T16:23:31.391705913Z","s":"info","m":"16:23:30 [Conversion] Welcome offer scheduled for 8139084237 in 120 min"}
+{"t":"2026-09-14T16:56:10.048264017Z","s":"info","m":"16:56:09 [Conversion] Processed 1 scheduled event(s)"}
+{"t":"2026-09-14T17:05:12.332957819Z","s":"info","m":"17:05:09 [Conversion] Social proof refreshed: {\"hosting\":78,\"domains\":190,\"cloudphone\":70,\"digitalproducts\":66,\"vps\":62,\"virtualcard\":64,\"general\":108}"}
+{"t":"2026-09-14T18:05:18.579946957Z","s":"info","m":"18:05:09 [Conversion] Social proof refreshed: {\"hosting\":78,\"domains\":190,\"cloudphone\":70,\"digitalproducts\":66,\"vps\":62,\"virtualcard\":64,\"general\":108}"}
+{"t":"2026-09-14T18:06:11.379024996Z","s":"info","m":"18:06:09 [Conversion] Processed 1 scheduled event(s)"}
+{"t":"2026-09-14T18:24:13.528613700Z","s":"info","m":"18:24:10 [Conversion] ✅ Welcome offer sent to 8139084237: WELCOME25-FGDHEN (25% off, expires 2026-09-15T18:24:09.755Z)"}
+{"t":"2026-09-14T18:24:13.528617323Z","s":"info","m":"18:24:10 [Conversion] Processed 1 scheduled event(s)"}
+{"t":"2026-09-14T18:27:19.617264820Z","s":"info","m":"18:27:10 [Conversion] ✅ Browse follow-up sent to 8139084237 for category: cloudphone"}
+{"t":"2026-09-14T18:27:19.617271981Z","s":"info","m":"18:27:10 [Conversion] Processed 1 scheduled event(s)"}
+{"t":"2026-09-14T18:27:24.169074336Z","s":"info","m":"18:27:24 [Conversion] New User Conversion Engine initialized — 5 features active"}
+{"t":"2026-09-14T18:27:24.169076866Z","s":"info","m":"18:27:24 [Conversion] First deposit bonus: $5 (min $20), Welcome offer: 25% (2h delay), Social proof: ×3"}
+{"t":"2026-09-14T18:27:24.169079386Z","s":"info","m":"[Conversion] System loaded successfully"}
+{"t":"2026-09-14T18:27:34.601580203Z","s":"info","m":"18:27:34 [Conversion] Social proof refreshed: {\"hosting\":78,\"domains\":190,\"cloudphone\":70,\"digitalproducts\":66,\"vps\":62,\"virtualcard\":64,\"general\":108}"}
+{"t":"2026-09-14T19:00:28.154569820Z","s":"info","m":"19:00:24 [Conversion] Processed 1 scheduled event(s)"}
+{"t":"2026-09-14T19:27:24.539649790Z","s":"info","m":"19:27:24 [Conversion] Social proof refreshed: {\"hosting\":78,\"domains\":190,\"cloudphone\":70,\"digitalproducts\":66,\"vps\":62,\"virtualcard\":64,\"general\":108}"}
+{"t":"2026-09-14T19:33:26.687404099Z","s":"info","m":"19:33:24 [Conversion] Processed 1 scheduled event(s)"}
+{"t":"2026-09-14T19:45:17.825593962Z","s":"info","m":"19:45:17 [Conversion] New User Conversion Engine initialized — 5 features active"}
+{"t":"2026-09-14T19:45:17.825596472Z","s":"info","m":"19:45:17 [Conversion] First deposit bonus: $5 (min $20), Welcome offer: 25% (2h delay), Social proof: ×3"}
+{"t":"2026-09-14T19:45:17.825599762Z","s":"info","m":"[Conversion] System loaded successfully"}
+{"t":"2026-09-14T19:45:28.615724027Z","s":"info","m":"19:45:28 [Conversion] Social proof refreshed: {\"hosting\":78,\"domains\":190,\"cloudphone\":70,\"digitalproducts\":66,\"vps\":62,\"virtualcard\":64,\"general\":108}"}
+{"t":"2026-09-14T19:58:03.029788232Z","s":"info","m":"19:58:03 [Conversion] New User Conversion Engine initialized — 5 features active"}
+{"t":"2026-09-14T19:58:03.029790952Z","s":"info","m":"19:58:03 [Conversion] First deposit bonus: $5 (min $20), Welcome offer: 25% (2h delay), Social proof: ×3"}
+{"t":"2026-09-14T19:58:03.029793852Z","s":"info","m":"[Conversion] System loaded successfully"}
+{"t":"2026-09-14T19:58:13.397843160Z","s":"info","m":"19:58:13 [Conversion] Social proof refreshed: {\"hosting\":78,\"domains\":190,\"cloudphone\":70,\"digitalproducts\":66,\"vps\":62,\"virtualcard\":64,\"general\":108}"}

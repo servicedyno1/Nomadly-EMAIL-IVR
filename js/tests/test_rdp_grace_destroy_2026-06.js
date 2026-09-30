@@ -11,6 +11,7 @@
 //   node js/tests/test_rdp_grace_destroy_2026-06.js
 const path = require('path')
 require('dotenv').config({ path: path.resolve(__dirname, '../../backend/.env') })
+const http = require('http')
 const { MongoClient } = require('mongodb')
 
 let pass = 0, fail = 0
@@ -43,6 +44,7 @@ async function fakeDO({ method, url, data }) {
 }
 const axiosPath = require.resolve('axios')
 require(axiosPath)
+const realAxios = require.cache[axiosPath].exports
 require.cache[axiosPath].exports = fakeDO
 
 process.env.DIGITALOCEAN_API_TOKEN = 'test-token'
@@ -54,6 +56,7 @@ const grace = require('../rdp-grace-lifecycle.js')
 const svc = require('../digitalocean-rdp-service.js')
 Object.assign(svc._timing, { offPoll: 20, actionPoll: 20 })
 const { translation } = require('../translation.js')
+const webhooks = require('../reseller-webhooks.js')
 
 const MONGO_URL = process.env.MONGO_URL || 'mongodb://localhost:27017'
 const TEST_DB = 'rdp_grace_test'
@@ -73,6 +76,7 @@ function makeDeps(now, over = {}) {
     mirrorGrace: spy(() => Promise.resolve()),
     mirrorDestroy: spy(() => Promise.resolve()),
     notifyUser: spy(),
+    notifyReseller: spy(),
     notifyAdmin: spy(),
     log: () => {},
     ...over,
@@ -83,6 +87,7 @@ async function partA() {
   console.log('\n── Part A: rdp-grace-lifecycle state machine ──')
   const G = grace.GRACE_DAYS
   ok('GRACE_DAYS reads RDP_GRACE_DAYS (=3)', G === 3, `got ${G}`)
+  ok('REMINDER_LEAD_HOURS default 24 (configurable via env)', grace.REMINDER_LEAD_HOURS === 24 && grace.REMINDER_LEAD_MS === 24 * 3600000, `got ${grace.REMINDER_LEAD_HOURS}`)
 
   // isDigitalOceanRdp
   ok('isDigitalOceanRdp true for provider=digitalocean-rdp', grace.isDigitalOceanRdp({ provider: 'digitalocean-rdp' }) === true)
@@ -127,6 +132,7 @@ async function partA() {
   ok('enter_grace: updatePlan status=EXPIRED_GRACE + grace fields', setArg && setArg.status === 'EXPIRED_GRACE' && setArg.expired_at && setArg.grace_until && setArg._graceReminderSent === false)
   ok('enter_grace: mirrorGrace called', dep1.mirrorGrace.calls.length === 1)
   ok('enter_grace: notifyUser(rdpGraceStart) fired', dep1.notifyUser.calls.length === 1 && dep1.notifyUser.calls[0][1] === 't.rdpGraceStart' && dep1.notifyUser.calls[0][0] === '111')
+  ok('enter_grace: notifyReseller(rdp.grace_start) fired', dep1.notifyReseller.calls.length === 1 && dep1.notifyReseller.calls[0][0] === 'rdp.grace_start' && dep1.notifyReseller.calls[0][1].delete_at)
   ok('enter_grace: does NOT destroy', dep1.destroy.calls.length === 0)
 
   // b2 remind
@@ -143,6 +149,7 @@ async function partA() {
   ok('destroy: updatePlan CANCELLED + cancelReason=expired_grace', dep3.updatePlan.calls[0] && dep3.updatePlan.calls[0][1].status === 'CANCELLED' && dep3.updatePlan.calls[0][1].cancelReason === 'expired_grace')
   ok('destroy: mirrorDestroy called', dep3.mirrorDestroy.calls.length === 1)
   ok('destroy: notifyUser(rdpDeletedAfterGrace) fired', dep3.notifyUser.calls.length === 1 && dep3.notifyUser.calls[0][1] === 't.rdpDeletedAfterGrace')
+  ok('destroy: notifyReseller(rdp.deleted) fired', dep3.notifyReseller.calls.length === 1 && dep3.notifyReseller.calls[0][0] === 'rdp.deleted' && dep3.notifyReseller.calls[0][1].reason === 'expired_grace')
 
   // b4 destroy failure → admin alert + retry counter, NO user "deleted" notice
   const dep4 = makeDeps(now, { destroy: spy(() => Promise.resolve({ success: false, error: 'DO 500' })) })
@@ -245,6 +252,52 @@ function partC() {
   }
 }
 
+async function partD(db) {
+  console.log('\n── Part D: reseller push webhooks (emit + dedup + delivery) ──')
+  require.cache[axiosPath].exports = realAxios // real HTTP for the local capture server
+  const received = []
+  const server = http.createServer((req, res) => {
+    let body = ''
+    req.on('data', c => { body += c })
+    req.on('end', () => { try { received.push(JSON.parse(body)) } catch (_) { received.push(body) } ; res.writeHead(200); res.end('ok') })
+  })
+  await new Promise(r => server.listen(0, '127.0.0.1', r))
+  const url = `http://127.0.0.1:${server.address().port}/hook`
+
+  const keys = db.collection('resellerApiKeys')
+  const deliveries = db.collection('resellerWebhookDeliveries')
+  await keys.deleteMany({ _id: { $in: ['wh-key-1', 'wh-key-nourl'] } })
+  await deliveries.deleteMany({})
+  await keys.insertOne({ _id: 'wh-key-1', ownerChatId: '777', enabled: true, webhookUrl: url })
+  await keys.insertOne({ _id: 'wh-key-nourl', ownerChatId: '777', enabled: true })
+
+  // First emit → delivered once.
+  const r1 = await webhooks.emit(db, { chatId: '777', event: 'rdp.grace_start', instanceId: 'rdp-wh1', payload: { plan: 'Standard', delete_at: '2026-07-01T00:00:00Z' } })
+  await sleep(100)
+  ok('webhook: delivered exactly once to the key with a URL', r1.delivered === 1, JSON.stringify(r1))
+  ok('webhook: POST body carries event + data.id', received.length === 1 && received[0].event === 'rdp.grace_start' && received[0].data && received[0].data.id === 'rdp-wh1')
+
+  // Second emit for the SAME (key,event,instance) → deduped, no second POST.
+  const r2 = await webhooks.emit(db, { chatId: '777', event: 'rdp.grace_start', instanceId: 'rdp-wh1', payload: {} })
+  await sleep(50)
+  ok('webhook: duplicate (key,event,instance) is NOT re-sent', r2.delivered === 0 && received.length === 1, JSON.stringify(r2))
+
+  // A different event on the same instance IS sent.
+  const r3 = await webhooks.emit(db, { chatId: '777', event: 'rdp.deleted', instanceId: 'rdp-wh1', payload: { reason: 'expired_grace' } })
+  await sleep(100)
+  ok('webhook: a different event IS delivered', r3.delivered === 1 && received.length === 2 && received[1].event === 'rdp.deleted')
+
+  // No keys for an unknown owner → no-op.
+  const r4 = await webhooks.emit(db, { chatId: 'nobody', event: 'rdp.deleted', instanceId: 'x' })
+  ok('webhook: owner with no keys → no-op', r4.delivered === 0 && r4.skipped === 0)
+
+  // isHttpUrl validation
+  ok('webhook: isHttpUrl accepts https, rejects junk', webhooks.isHttpUrl('https://a.com') && !webhooks.isHttpUrl('ftp://a') && !webhooks.isHttpUrl('not-a-url'))
+
+  await keys.deleteMany({ _id: { $in: ['wh-key-1', 'wh-key-nourl'] } })
+  await new Promise(r => server.close(r))
+}
+
 async function main() {
   const client = new MongoClient(MONGO_URL)
   await client.connect()
@@ -253,6 +306,7 @@ async function main() {
     await partA()
     await partB(db)
     partC()
+    await partD(db)
   } catch (e) {
     fail++; console.log('  ❌ EXCEPTION:', e.stack || e.message)
   } finally {

@@ -1,0 +1,2 @@
+{"t":"2026-09-07T17:12:32.474198849Z","s":"info","m":"[Voice] Bridge transfer leg hangup: sip:gencred0u53hdTRrVkuOCs1xTsE0Wymwk4JRa47W94DBbPXv3@sip.telnyx.com (0s = 0 min, cause: normal_clearing)"}
+{"t":"2026-09-10T23:39:16.894376410Z","s":"info","m":"[OutboundIVR] Transfer leg hangup: +919336546703 (0s [telnyx=0s, tracked=0s], 1 min, cause: originator_cancel)"}

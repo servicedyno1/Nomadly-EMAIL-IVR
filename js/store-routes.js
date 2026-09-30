@@ -20,7 +20,6 @@ const { log } = require('console')
 
 const { getDynopayCryptoAddress, getDynopayCryptoPaymentStatus, getDynopayPaymentStatusById } = require('./pay-dynopay')
 const { getCryptoDepositAddress, convert } = require('./pay-blockbee')
-const { branding } = require('./branding')
 const { isPaidStatus, classifyStoreWebhook, isStoreUnderpaid, storeUnderpayTolerance, verifyDynopayWebhook, diagnoseDynopaySignature } = require('./store-payment-verify')
 
 const JWT_SECRET = process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex')
@@ -41,19 +40,6 @@ const coinByCode = (c) => COINS.find(x => x.code === String(c || '').toUpperCase
 
 const uuid = () => crypto.randomUUID()
 const now = () => new Date()
-
-// ── WHM-down provisioning outcome (parity with the bot) ──────────────────────
-// cr-register-domain-&-create-cpanel returns, when WHM is unreachable:
-//   • { success:true,  queued:true }                                  (preflight: nothing done yet, queued)
-//   • { success:false, queued:true, deferred:true, code:'CPANEL_DOWN' } (mid-flight: DOMAIN ALREADY REGISTERED, cPanel deferred)
-// Both mean "committed, will auto-provision when WHM is back" — the caller must
-// NEVER refund (a refund after the domain was registered loses the domain cost).
-function isQueuedDeferredResult(r) {
-  if (!r) return false
-  if (r.success === true && r.queued === true) return true
-  if (r.success === false && r.queued === true && (r.deferred === true || r.code === 'CPANEL_DOWN')) return true
-  return false
-}
 
 function signToken(payload) { return jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRY }) }
 function verifyToken(token) { try { return jwt.verify(token, JWT_SECRET) } catch { return null } }
@@ -402,17 +388,8 @@ function createStoreRoutes(deps = {}) {
   // Public storefront config — exposes the Telegram bot username so the
   // landing page can render the "Continue with Telegram" QR / deep-link.
   router.get('/config', (req, res) => {
-    // Resolve the bot username from this deploy's OWN brand config — never a
-    // hardcoded cross-tenant literal. `branding.botHandle` is driven by
-    // CHAT_BOT_USERNAME and defaults to the deploy's own brand, so a missing
-    // BOT_USERNAME/TELEGRAM_BOT_USERNAME can never re-leak another tenant's bot.
-    const botUsername = (
-      process.env.TELEGRAM_BOT_USERNAME ||
-      process.env.BOT_USERNAME ||
-      branding.botHandle
-    ).replace(/^@/, '')
     res.json({
-      botUsername,
+      botUsername: process.env.TELEGRAM_BOT_USERNAME || 'NomadlyBot',
       botStartPayload: 'web-login',
     })
   })
@@ -503,11 +480,11 @@ function createStoreRoutes(deps = {}) {
       const order = await col('webOrders').findOne({ _id: req.params.orderId, webUserId: req.webUserId })
       if (!order) return res.status(404).json({ error: 'Order not found' })
       // Best-effort live check for DynoPay if still pending
-      if (order.status === 'pending' && order.provider === 'dynopay' && order.payAddress) {
+      if (order.status === 'pending' && order.provider === 'dynopay' && (order.payAddress || order.paymentId)) {
         try {
-          const st = await getDynopayCryptoPaymentStatus(order.payAddress)
-          if (st && (st.status === 'completed' || st.status === 'confirmed' || st.status === 'settled')) {
-            await creditTopup(order, st.base_amount, st.fee_payer, order.paymentId || st.payment_id, 'poll')
+          const st = await fetchAuthoritativeStatus(order)
+          if (st && isPaidStatus(st.status)) {
+            await creditTopup(order, authoritativeUsd(st), st.fee_payer, order.paymentId || st.payment_id, 'poll')
           }
         } catch (_) {}
       }
@@ -566,6 +543,10 @@ function createStoreRoutes(deps = {}) {
     const info = {
       _id: webUserId, website_name: domain, plan: planName, email: email || null,
       userLanguage: 'en', price: total, hostingPrice, registrar: registrar || null, source: 'web',
+      // GAP-1 FIX (2026-09): match the bot — set Cloudflare NS so registerDomainAndCreateCpanel
+      // creates the web DNS (root+www CNAME → tunnel). Without this the CF zone was left with only
+      // NS records and the customer's site never resolved after a web-store purchase.
+      nameserver: 'cloudflare', nsChoice: 'cloudflare',
     }
     if (domainMode === 'byo') { info.existingDomain = true; info.connectExternalDomain = true }
     let result
@@ -614,7 +595,8 @@ function createStoreRoutes(deps = {}) {
       await col('webWalletTxns').insertOne({ _id: uuid(), webUserId: order.webUserId, type, amountUsd: amt, balanceAfter: u?.walletUsd || 0, coin: order.coin, provider: order.provider, orderId: order._id, status: 'done', note, createdAt: now() })
     }
 
-    // Underpaid → don't provision. (0.90 tolerance — parity with the bot; unchanged.)
+    // Underpaid beyond the network-fee tolerance → don't provision. A minor
+    // fee-shave (e.g. $67.31 of a $69 order) is WITHIN tolerance and provisions.
     if (isStoreUnderpaid(usdIn, total)) {
       if (isGuest) {
         await col('webOrders').updateOne({ _id: order._id }, { $set: { status: 'failed', note: 'underpaid', usdCredited: usdIn, updatedAt: now() } })
@@ -623,7 +605,7 @@ function createStoreRoutes(deps = {}) {
         await creditWallet(usdIn, 'topup', `Underpaid hosting order → credited to wallet (${source})`)
         await col('webOrders').updateOne({ _id: order._id }, { $set: { status: 'failed', usdCredited: usdIn, note: 'underpaid', updatedAt: now() } })
       }
-      log(`[Store] hosting order ${order._id} UNDERPAID ($${usdIn}<$${total})`)
+      log(`[Store] hosting order ${order._id} UNDERPAID ($${usdIn} < $${total} × tol ${storeUnderpayTolerance()})`)
       return false
     }
 
@@ -633,10 +615,26 @@ function createStoreRoutes(deps = {}) {
       hostingPrice: order.hostingPrice, total, domain: order.domain, domainMode: order.domainMode, registrar: order.registrar,
     })
 
-    const queuedDeferred = isQueuedDeferredResult(result)
+    // ── WHM down at provisioning time → order is COMMITTED; the background
+    // cpanel-job-queue worker finishes the moment WHM recovers. Parity with the
+    // bot, which shows "being prepared" and NEVER refunds. Covers BOTH queued
+    // shapes the provisioner returns: {success:true,queued} (WHM down before
+    // domain registration) and {success:false,queued,deferred,code:'CPANEL_DOWN'}
+    // (WHM down AFTER the domain was already registered — refunding here would
+    // be wrong because the domain purchase already happened).
+    if (result?.queued) {
+      if (!isGuest) {
+        const overpay = Math.round((usdIn - total) * 100) / 100
+        if (overpay >= 0.01) await creditWallet(overpay, 'topup', `Overpayment credited to wallet (${order.domain})`)
+        await creditWallet(-total, 'purchase', `Hosting (crypto): ${order.plan} — ${order.domain}`)
+      }
+      await col('webOrders').updateOne({ _id: order._id }, { $set: { status: 'provisioning', usdCredited: usdIn, note: 'whm_down_queued', updatedAt: now() } })
+      log(`[Store] hosting order ${order._id} QUEUED (WHM down) — worker will finish provisioning (guest=${isGuest})`)
+      try { notifyAdmin(`⏳ <b>Web hosting QUEUED (WHM down)</b>\nOrder: <code>${order._id}</code>\n${isGuest ? 'GUEST ' + order.email : order.webUserId}\nDomain: ${order.domain}\nPaid $${usdIn} — background worker will provision on WHM recovery`) } catch {}
+      return true
+    }
 
-    // Genuine provisioning failure (NOT a WHM-down deferral) → refund / fail.
-    if (!result?.success && !queuedDeferred) {
+    if (!result?.success) {
       if (isGuest) {
         await col('webOrders').updateOne({ _id: order._id }, { $set: { status: 'failed', usdCredited: usdIn, updatedAt: now() } })
         try { notifyAdmin(`❌ <b>Guest hosting provision FAILED</b>\nOrder: ${order._id}\nEmail: ${order.email}\nDomain: ${order.domain}\nPaid $${usdIn} → manual refund needed`) } catch {}
@@ -648,24 +646,12 @@ function createStoreRoutes(deps = {}) {
       return false
     }
 
-    // Charge the order (committed) — applies to BOTH full success and the
-    // WHM-down deferral. For logged-in: credit overpayment + log the purchase.
+    // Success — store creds on the order; for logged-in, credit overpayment + log purchase.
     if (!isGuest) {
       const overpay = Math.round((usdIn - total) * 100) / 100
       if (overpay >= 0.01) await creditWallet(overpay, 'topup', `Overpayment credited to wallet (${order.domain})`)
       await creditWallet(-total, 'purchase', `Hosting (crypto): ${order.plan} — ${order.domain}`)
     }
-
-    // WHM-down: domain may already be registered, cPanel is queued to auto-
-    // complete. Commit as 'provisioning' — NEVER refund — and alert admin.
-    if (queuedDeferred) {
-      await col('webOrders').updateOne({ _id: order._id }, { $set: { status: 'provisioning', usdCredited: usdIn, note: 'whm_down_queued', updatedAt: now() } })
-      log(`[Store] hosting order ${order._id} QUEUED (WHM down) — committed, will auto-provision (guest=${isGuest})`)
-      try { notifyAdmin(`⏳ <b>Web hosting QUEUED (WHM down)</b>\n${isGuest ? 'GUEST' : order.webUserId}\nPlan: ${order.plan}\nDomain: ${order.domain}\nPaid $${usdIn}\nDomain ${result.domainRegistered ? 'registered ✅' : 'pending'} — cPanel auto-completes when WHM is back. NO refund.`) } catch {}
-      return true
-    }
-
-    // Full success — store creds on the order.
     await col('webOrders').updateOne({ _id: order._id }, { $set: { status: 'provisioned', username: result.username, pin: result.pin, nameservers: result.nameservers || [], usdCredited: usdIn, updatedAt: now() } })
     log(`[Store] hosting order ${order._id} PROVISIONED → ${result.username}@${order.domain} (guest=${isGuest})`)
     try { notifyAdmin(`🆕 <b>Web hosting purchase (crypto)</b>\n${isGuest ? 'GUEST' : order.webUserId}\nPlan: ${order.plan}\nDomain: ${order.domain}\ncpUser: ${result.username}`) } catch {}
@@ -961,6 +947,10 @@ function createStoreRoutes(deps = {}) {
         domainPrice,
         registrar,
         source: 'web',
+        // GAP-1 FIX (2026-09): Cloudflare NS so the web DNS (root+www CNAME → tunnel) is created,
+        // matching the bot. Omitting it left the CF zone with only NS records → site never resolved.
+        nameserver: 'cloudflare',
+        nsChoice: 'cloudflare',
       }
       if (domainMode === 'byo') { info.existingDomain = true; info.connectExternalDomain = true }
 
@@ -971,19 +961,6 @@ function createStoreRoutes(deps = {}) {
       } catch (e) {
         log(`[Store] provision threw: ${e.message}`)
         result = { success: false, error: e.message }
-      }
-
-      // WHM-down: domain may already be registered, cPanel is queued to auto-
-      // complete when WHM recovers. Do NOT refund — the purchase is committed
-      // (parity with the bot). Return 202 so the UI shows "provisioning".
-      if (isQueuedDeferredResult(result)) {
-        try { notifyAdmin(`⏳ <b>Web hosting QUEUED (WHM down)</b>\nUser: ${req.webUserId}\nPlan: ${plan.name}\nDomain: ${domain}\nCharged $${total}\nDomain ${result.domainRegistered ? 'registered ✅' : 'pending'} — cPanel auto-completes when WHM is back. NO refund.`) } catch {}
-        log(`[Store] PURCHASE queued (WHM down) — ${req.webUserId} ${plan.name} on ${domain} (committed, no refund)`)
-        return res.status(202).json({
-          success: true, queued: true, provisioning: true, domain, plan: plan.name,
-          balanceUsd: balanceAfter,
-          message: 'Your hosting is being set up — this can take a few minutes while our control plane finishes. You will not be charged twice; refresh "My Plans" shortly.',
-        })
       }
 
       if (!result?.success) {
@@ -1127,11 +1104,11 @@ function createStoreRoutes(deps = {}) {
     try {
       const o = await col('webOrders').findOne({ _id: req.params.orderId })
       if (!o || o.kind !== 'hosting') return res.status(404).json({ error: 'Order not found' })
-      if (o.status === 'pending' && o.provider === 'dynopay' && o.payAddress) {
+      if (o.status === 'pending' && o.provider === 'dynopay' && (o.payAddress || o.paymentId)) {
         try {
-          const st = await getDynopayCryptoPaymentStatus(o.payAddress)
-          if (st && ['completed', 'confirmed', 'settled', 'paid'].includes(String(st.status || '').toLowerCase())) {
-            await fulfillHostingOrder(o, st.base_amount, st.fee_payer, o.paymentId || st.payment_id, 'poll')
+          const st = await fetchAuthoritativeStatus(o)
+          if (st && isPaidStatus(st.status)) {
+            await fulfillHostingOrder(o, authoritativeUsd(st), st.fee_payer, o.paymentId || st.payment_id, 'poll')
           }
         } catch (_) {}
       }

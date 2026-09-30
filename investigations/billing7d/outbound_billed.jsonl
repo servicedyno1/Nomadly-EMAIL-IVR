@@ -1,0 +1,682 @@
+{"t":"2026-09-09T19:17:27.410844926Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-09T19:26:20.303590159Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-09T19:26:23.906585111Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-09T19:27:47.633700868Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-09T19:29:42.552368796Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-09T19:30:02.326812681Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for Twilio_Forwarding"}
+{"t":"2026-09-09T19:30:11.023724095Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-09T19:30:16.976881314Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-09T19:31:41.502505956Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-09T19:32:10.256418390Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-09T19:32:14.054699629Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-09T19:33:42.324819393Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-09T19:35:17.300363472Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-09T19:35:29.198062788Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-09T19:35:42.274822804Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-09T19:37:10.148168388Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-09T19:41:32.768807838Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-09T19:43:00.953141661Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-09T19:43:06.245474167Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-09T19:43:08.670346191Z","s":"info","m":"[Voice] Outbound billed: $0.77 (6 min × $0.1275 US/CA) for IVR_Transfer"}
+{"t":"2026-09-09T19:43:44.870237150Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-09T19:45:21.355723541Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-09T19:46:02.743096901Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-09T19:47:47.423570363Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-09T19:47:53.553510059Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-09T19:48:06.178699467Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-09T19:48:13.166351290Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-09T19:49:26.761320927Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-09T19:49:47.003648398Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-09T19:51:01.384385306Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-09T19:51:07.127614799Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-09T19:53:04.610393102Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-09T19:53:10.940338593Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-09T19:54:46.603529307Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-09T19:56:39.223937489Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-09T19:57:59.617732734Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-09T19:59:32.481638264Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-09T20:00:04.719129008Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for Twilio_Forwarding"}
+{"t":"2026-09-09T20:01:09.693407352Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-09T20:01:23.931471466Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-09T20:02:50.695812088Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-09T20:04:03.850896130Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-09T20:04:11.840472336Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-09T20:05:08.300022207Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-09T20:06:21.758551573Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-09T20:08:01.915023532Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-09T20:08:01.917722386Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for Telnyx_SIP_Leg"}
+{"t":"2026-09-09T20:09:15.188114897Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-09T20:10:58.538039616Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-09T20:12:05.968760431Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-09T20:13:40.030400451Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-09T20:13:45.956163416Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-09T20:14:40.417669937Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-09T20:14:44.529847193Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-09T20:15:37.829153734Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-09T20:15:42.759175942Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-09T20:17:22.544767697Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-09T20:17:33.797970861Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-09T20:17:57.687196098Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-09T20:18:04.262880000Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-09T20:18:05.882334161Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for Telnyx_SIP_Leg"}
+{"t":"2026-09-09T20:19:56.606305430Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-09T20:20:19.028972388Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-09T20:21:34.137340772Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-09T20:21:45.847769118Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-09T20:23:09.017269688Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-09T20:24:49.998624746Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-09T20:26:09.837800202Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-09T20:27:26.250076183Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-09T20:29:02.864393522Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-09T20:30:55.954505992Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-09T20:32:17.872564873Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-09T20:33:39.432456765Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-09T20:33:50.432069441Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-09T20:35:34.331449991Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-09T20:38:00.190083614Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-09T20:38:07.684145472Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-09T20:39:31.969307535Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-09T20:41:20.233117172Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-09T20:43:00.543027231Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-09T21:00:03.183941278Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for Twilio_Forwarding"}
+{"t":"2026-09-09T21:00:03.575352850Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for Twilio_Forwarding"}
+{"t":"2026-09-09T22:25:40.385056406Z","s":"info","m":"Plans from <b>$50/mo</b> (100 inbound min + 50 SMS included — incoming calls answered via SIP/browser · call forwarding & outbound billed from wallet)"}
+{"t":"2026-09-09T22:33:15.979281821Z","s":"info","m":"Plans from <b>$50/mo</b> (100 inbound min + 50 SMS included — incoming calls answered via SIP/browser · call forwarding & outbound billed from wallet)"}
+{"t":"2026-09-09T22:34:51.708565965Z","s":"info","m":"Plans from <b>$50/mo</b> (100 inbound min + 50 SMS included — incoming calls answered via SIP/browser · call forwarding & outbound billed from wallet)"}
+{"t":"2026-09-10T15:39:03.841742636Z","s":"info","m":"Plans from <b>$50/mo</b> (100 inbound min + 50 SMS included — incoming calls answered via SIP/browser · call forwarding & outbound billed from wallet)"}
+{"t":"2026-09-10T16:21:40.370813857Z","s":"info","m":"Plans from <b>$50/mo</b> (100 inbound min + 50 SMS included — incoming calls answered via SIP/browser · call forwarding & outbound billed from wallet)"}
+{"t":"2026-09-10T18:30:02.866283656Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for Twilio_Forwarding"}
+{"t":"2026-09-10T20:00:08.220296562Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for Twilio_Forwarding"}
+{"t":"2026-09-10T21:00:00.454749502Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for Twilio_Forwarding"}
+{"t":"2026-09-10T22:00:02.517038338Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for Twilio_Forwarding"}
+{"t":"2026-09-10T23:03:12.635766742Z","s":"info","m":"Plans from <b>$50/mo</b> (100 inbound min + 50 SMS included — incoming calls answered via SIP/browser · call forwarding & outbound billed from wallet)"}
+{"t":"2026-09-10T23:28:23.695143475Z","s":"info","m":"Plans from <b>$50/mo</b> (100 inbound min + 50 SMS included — incoming calls answered via SIP/browser · call forwarding & outbound billed from wallet)"}
+{"t":"2026-09-10T23:31:43.673985957Z","s":"info","m":"Plans from <b>$50/mo</b> (100 inbound min + 50 SMS included — incoming calls answered via SIP/browser · call forwarding & outbound billed from wallet)"}
+{"t":"2026-09-10T23:32:10.246575450Z","s":"info","m":"Plans from <b>$50/mo</b> (100 inbound min + 50 SMS included — incoming calls answered via SIP/browser · call forwarding & outbound billed from wallet)"}
+{"t":"2026-09-10T23:34:05.537367535Z","s":"info","m":"Plans from <b>$50/mo</b> (100 inbound min + 50 SMS included — incoming calls answered via SIP/browser · call forwarding & outbound billed from wallet)"}
+{"t":"2026-09-10T23:34:48.775436219Z","s":"info","m":"Plans from <b>$50/mo</b> (100 inbound min + 50 SMS included — incoming calls answered via SIP/browser · call forwarding & outbound billed from wallet)"}
+{"t":"2026-09-10T23:35:33.779603282Z","s":"info","m":"Plans from <b>$50/mo</b> (100 inbound min + 50 SMS included — incoming calls answered via SIP/browser · call forwarding & outbound billed from wallet)"}
+{"t":"2026-09-10T23:39:44.357381397Z","s":"info","m":"Plans from <b>$50/mo</b> (100 inbound min + 50 SMS included — incoming calls answered via SIP/browser · call forwarding & outbound billed from wallet)"}
+{"t":"2026-09-10T23:40:04.816058443Z","s":"info","m":"Plans from <b>$50/mo</b> (100 inbound min + 50 SMS included — incoming calls answered via SIP/browser · call forwarding & outbound billed from wallet)"}
+{"t":"2026-09-11T00:22:08.417719989Z","s":"info","m":"Plans from <b>$50/mo</b> (100 inbound min + 50 SMS included — incoming calls answered via SIP/browser · call forwarding & outbound billed from wallet)"}
+{"t":"2026-09-11T00:26:45.172573925Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for IVR_Outbound_Twilio"}
+{"t":"2026-09-11T00:26:48.901739603Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for IVR_Outbound_Twilio"}
+{"t":"2026-09-11T00:26:51.369364548Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for IVR_Outbound_Twilio"}
+{"t":"2026-09-11T00:30:04.919311600Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for Twilio_Forwarding"}
+{"t":"2026-09-11T00:30:04.919320120Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for Twilio_Forwarding"}
+{"t":"2026-09-11T00:30:55.273646390Z","s":"info","m":"Plans from <b>$50/mo</b> (100 inbound min + 50 SMS included — incoming calls answered via SIP/browser · call forwarding & outbound billed from wallet)"}
+{"t":"2026-09-11T00:38:09.034860259Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for IVR_Outbound_Twilio"}
+{"t":"2026-09-11T00:38:10.892828560Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for IVR_Outbound_Twilio"}
+{"t":"2026-09-11T00:38:11.525166079Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for IVR_Outbound_Twilio"}
+{"t":"2026-09-11T00:38:12.738266977Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for IVR_Outbound_Twilio"}
+{"t":"2026-09-11T00:38:35.742590201Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for IVR_Outbound_Twilio"}
+{"t":"2026-09-11T00:38:46.322280108Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for IVR_Outbound_Twilio"}
+{"t":"2026-09-11T00:38:52.226336107Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for IVR_Outbound_Twilio"}
+{"t":"2026-09-11T00:56:46.261099867Z","s":"info","m":"Plans from <b>$50/mo</b> (100 inbound min + 50 SMS included — incoming calls answered via SIP/browser · call forwarding & outbound billed from wallet)"}
+{"t":"2026-09-11T01:00:01.239878344Z","s":"info","m":"[Voice] Outbound billed: $1.27 (10 min × $0.1275 US/CA) for Twilio_Forwarding"}
+{"t":"2026-09-11T01:02:39.600862950Z","s":"info","m":"Plans from <b>$50/mo</b> (100 inbound min + 50 SMS included — incoming calls answered via SIP/browser · call forwarding & outbound billed from wallet)"}
+{"t":"2026-09-11T01:07:09.325007997Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for IVR_Outbound_Twilio"}
+{"t":"2026-09-11T01:07:29.367528737Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for IVR_Outbound_Twilio"}
+{"t":"2026-09-11T01:07:34.493930298Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for IVR_Outbound_Twilio"}
+{"t":"2026-09-11T01:08:00.327755804Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for IVR_Outbound_Twilio"}
+{"t":"2026-09-11T03:07:05.518726984Z","s":"info","m":"Plans from <b>$50/mo</b> (100 inbound min + 50 SMS included — incoming calls answered via SIP/browser · call forwarding & outbound billed from wallet)"}
+{"t":"2026-09-11T04:00:57.391933942Z","s":"info","m":"Plans from <b>$50/mo</b> (100 inbound min + 50 SMS included — incoming calls answered via SIP/browser · call forwarding & outbound billed from wallet)"}
+{"t":"2026-09-11T06:59:05.333750256Z","s":"info","m":"Plans from <b>$50/mo</b> (100 inbound min + 50 SMS included — incoming calls answered via SIP/browser · call forwarding & outbound billed from wallet)"}
+{"t":"2026-09-11T07:03:28.120925808Z","s":"info","m":"Plans from <b>$50/mo</b> (100 inbound min + 50 SMS included — incoming calls answered via SIP/browser · call forwarding & outbound billed from wallet)"}
+{"t":"2026-09-11T07:08:13.289835656Z","s":"info","m":"Plans from <b>$50/mo</b> (100 inbound min + 50 SMS included — incoming calls answered via SIP/browser · call forwarding & outbound billed from wallet)"}
+{"t":"2026-09-11T07:10:46.513807868Z","s":"info","m":"Plans from <b>$50/mo</b> (100 inbound min + 50 SMS included — incoming calls answered via SIP/browser · call forwarding & outbound billed from wallet)"}
+{"t":"2026-09-11T07:13:52.693656290Z","s":"info","m":"Plans from <b>$50/mo</b> (100 inbound min + 50 SMS included — incoming calls answered via SIP/browser · call forwarding & outbound billed from wallet)"}
+{"t":"2026-09-11T07:15:20.476097382Z","s":"info","m":"Plans from <b>$50/mo</b> (100 inbound min + 50 SMS included — incoming calls answered via SIP/browser · call forwarding & outbound billed from wallet)"}
+{"t":"2026-09-11T08:59:16.494501262Z","s":"info","m":"Plans from <b>$50/mo</b> (100 inbound min + 50 SMS included — incoming calls answered via SIP/browser · call forwarding & outbound billed from wallet)"}
+{"t":"2026-09-11T09:01:39.962358864Z","s":"info","m":"Plans from <b>$50/mo</b> (100 inbound min + 50 SMS included — incoming calls answered via SIP/browser · call forwarding & outbound billed from wallet)"}
+{"t":"2026-09-11T09:07:11.321747102Z","s":"info","m":"Plans from <b>$50/mo</b> (100 inbound min + 50 SMS included — incoming calls answered via SIP/browser · call forwarding & outbound billed from wallet)"}
+{"t":"2026-09-11T09:07:35.853551468Z","s":"info","m":"Plans from <b>$50/mo</b> (100 inbound min + 50 SMS included — incoming calls answered via SIP/browser · call forwarding & outbound billed from wallet)"}
+{"t":"2026-09-11T13:43:09.852453031Z","s":"info","m":"Plans from <b>$50/mo</b> (100 inbound min + 50 SMS included — incoming calls answered via SIP/browser · call forwarding & outbound billed from wallet)"}
+{"t":"2026-09-11T15:08:30.840862031Z","s":"info","m":"Plans from <b>$50/mo</b> (100 inbound min + 50 SMS included — incoming calls answered via SIP/browser · call forwarding & outbound billed from wallet)"}
+{"t":"2026-09-11T15:17:43.746708598Z","s":"info","m":"Plans from <b>$50/mo</b> (100 inbound min + 50 SMS included — incoming calls answered via SIP/browser · call forwarding & outbound billed from wallet)"}
+{"t":"2026-09-11T15:19:24.906600442Z","s":"info","m":"Plans from <b>$50/mo</b> (100 inbound min + 50 SMS included — incoming calls answered via SIP/browser · call forwarding & outbound billed from wallet)"}
+{"t":"2026-09-11T15:38:00.520882027Z","s":"info","m":"Plans from <b>$50/mo</b> (100 inbound min + 50 SMS included — incoming calls answered via SIP/browser · call forwarding & outbound billed from wallet)"}
+{"t":"2026-09-11T15:58:42.094185758Z","s":"info","m":"Plans from <b>$50/mo</b> (100 inbound min + 50 SMS included — incoming calls answered via SIP/browser · call forwarding & outbound billed from wallet)"}
+{"t":"2026-09-11T17:45:34.410510156Z","s":"info","m":"Plans from <b>$50/mo</b> (100 inbound min + 50 SMS included — incoming calls answered via SIP/browser · call forwarding & outbound billed from wallet)"}
+{"t":"2026-09-11T20:44:49.552004237Z","s":"info","m":"Plans from <b>$50/mo</b> (100 inbound min + 50 SMS included — incoming calls answered via SIP/browser · call forwarding & outbound billed from wallet)"}
+{"t":"2026-09-11T20:45:14.087535723Z","s":"info","m":"Plans from <b>$50/mo</b> (100 inbound min + 50 SMS included — incoming calls answered via SIP/browser · call forwarding & outbound billed from wallet)"}
+{"t":"2026-09-11T20:45:37.078154855Z","s":"info","m":"Plans from <b>$50/mo</b> (100 inbound min + 50 SMS included — incoming calls answered via SIP/browser · call forwarding & outbound billed from wallet)"}
+{"t":"2026-09-11T23:47:42.640436212Z","s":"info","m":"Plans from <b>$50/mo</b> (100 inbound min + 50 SMS included — incoming calls answered via SIP/browser · call forwarding & outbound billed from wallet)"}
+{"t":"2026-09-11T23:50:31.331367941Z","s":"info","m":"Plans from <b>$50/mo</b> (100 inbound min + 50 SMS included — incoming calls answered via SIP/browser · call forwarding & outbound billed from wallet)"}
+{"t":"2026-09-12T00:00:01.525998860Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for Twilio_Forwarding"}
+{"t":"2026-09-12T00:00:01.526027060Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for Twilio_Forwarding"}
+{"t":"2026-09-12T00:05:22.405152714Z","s":"info","m":"Plans from <b>$50/mo</b> (100 inbound min + 50 SMS included — incoming calls answered via SIP/browser · call forwarding & outbound billed from wallet)"}
+{"t":"2026-09-12T00:29:13.301623827Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for IVR_Transfer"}
+{"t":"2026-09-12T00:30:00.295486358Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for Twilio_Forwarding"}
+{"t":"2026-09-12T00:32:14.909813855Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for IVR_Transfer"}
+{"t":"2026-09-12T01:13:26.230554302Z","s":"info","m":"Plans from <b>$50/mo</b> (100 inbound min + 50 SMS included — incoming calls answered via SIP/browser · call forwarding & outbound billed from wallet)"}
+{"t":"2026-09-12T01:14:03.221645417Z","s":"info","m":"Plans from <b>$50/mo</b> (100 inbound min + 50 SMS included — incoming calls answered via SIP/browser · call forwarding & outbound billed from wallet)"}
+{"t":"2026-09-12T01:35:55.823261103Z","s":"info","m":"Plans from <b>$50/mo</b> (100 inbound min + 50 SMS included — incoming calls answered via SIP/browser · call forwarding & outbound billed from wallet)"}
+{"t":"2026-09-12T02:37:18.844471519Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for IVR_Outbound_Twilio"}
+{"t":"2026-09-12T02:37:26.152035613Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for IVR_Outbound_Twilio"}
+{"t":"2026-09-12T02:37:27.800818606Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for IVR_Outbound_Twilio"}
+{"t":"2026-09-12T02:37:32.773471150Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for IVR_Outbound_Twilio"}
+{"t":"2026-09-12T02:38:11.428598204Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for IVR_Outbound_Twilio"}
+{"t":"2026-09-12T02:38:13.666232874Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for IVR_Outbound_Twilio"}
+{"t":"2026-09-12T11:37:52.313108343Z","s":"info","m":"Plans from <b>$50/mo</b> (100 inbound min + 50 SMS included — incoming calls answered via SIP/browser · call forwarding & outbound billed from wallet)"}
+{"t":"2026-09-12T11:38:21.467202747Z","s":"info","m":"Plans from <b>$50/mo</b> (100 inbound min + 50 SMS included — incoming calls answered via SIP/browser · call forwarding & outbound billed from wallet)"}
+{"t":"2026-09-12T16:00:00.463926677Z","s":"info","m":"[Voice] Outbound billed: $2.29 (18 min × $0.1275 US/CA) for Twilio_Forwarding"}
+{"t":"2026-09-12T18:15:35.994241030Z","s":"info","m":"Plans from <b>$50/mo</b> (100 inbound min + 50 SMS included — incoming calls answered via SIP/browser · call forwarding & outbound billed from wallet)"}
+{"t":"2026-09-12T18:24:03.032506822Z","s":"info","m":"Plans from <b>$50/mo</b> (100 inbound min + 50 SMS included — incoming calls answered via SIP/browser · call forwarding & outbound billed from wallet)"}
+{"t":"2026-09-12T18:34:10.632000758Z","s":"info","m":"Plans from <b>$50/mo</b> (100 inbound min + 50 SMS included — incoming calls answered via SIP/browser · call forwarding & outbound billed from wallet)"}
+{"t":"2026-09-12T18:39:06.520374936Z","s":"info","m":"Plans from <b>$50/mo</b> (100 inbound min + 50 SMS included — incoming calls answered via SIP/browser · call forwarding & outbound billed from wallet)"}
+{"t":"2026-09-12T18:40:10.389347077Z","s":"info","m":"Plans from <b>$50/mo</b> (100 inbound min + 50 SMS included — incoming calls answered via SIP/browser · call forwarding & outbound billed from wallet)"}
+{"t":"2026-09-12T18:42:08.867691086Z","s":"info","m":"Plans from <b>$50/mo</b> (100 inbound min + 50 SMS included — incoming calls answered via SIP/browser · call forwarding & outbound billed from wallet)"}
+{"t":"2026-09-12T18:56:45.520683544Z","s":"info","m":"Plans from <b>$50/mo</b> (100 inbound min + 50 SMS included — incoming calls answered via SIP/browser · call forwarding & outbound billed from wallet)"}
+{"t":"2026-09-12T18:59:58.773974755Z","s":"info","m":"Plans from <b>$50/mo</b> (100 inbound min + 50 SMS included — incoming calls answered via SIP/browser · call forwarding & outbound billed from wallet)"}
+{"t":"2026-09-12T19:00:11.516140384Z","s":"info","m":"Plans from <b>$50/mo</b> (100 inbound min + 50 SMS included — incoming calls answered via SIP/browser · call forwarding & outbound billed from wallet)"}
+{"t":"2026-09-12T19:13:21.033146843Z","s":"info","m":"Plans from <b>$50/mo</b> (100 inbound min + 50 SMS included — incoming calls answered via SIP/browser · call forwarding & outbound billed from wallet)"}
+{"t":"2026-09-12T19:22:40.403950473Z","s":"info","m":"Plans from <b>$50/mo</b> (100 inbound min + 50 SMS included — incoming calls answered via SIP/browser · call forwarding & outbound billed from wallet)"}
+{"t":"2026-09-12T19:22:49.033023065Z","s":"info","m":"Plans from <b>$50/mo</b> (100 inbound min + 50 SMS included — incoming calls answered via SIP/browser · call forwarding & outbound billed from wallet)"}
+{"t":"2026-09-12T19:36:46.454772509Z","s":"info","m":"Plans from <b>$50/mo</b> (100 inbound min + 50 SMS included — incoming calls answered via SIP/browser · call forwarding & outbound billed from wallet)"}
+{"t":"2026-09-12T19:44:26.241239941Z","s":"info","m":"Plans from <b>$50/mo</b> (100 inbound min + 50 SMS included — incoming calls answered via SIP/browser · call forwarding & outbound billed from wallet)"}
+{"t":"2026-09-12T19:44:31.355276450Z","s":"info","m":"Plans from <b>$50/mo</b> (100 inbound min + 50 SMS included — incoming calls answered via SIP/browser · call forwarding & outbound billed from wallet)"}
+{"t":"2026-09-12T19:47:09.706329667Z","s":"info","m":"Plans from <b>$50/mo</b> (100 inbound min + 50 SMS included — incoming calls answered via SIP/browser · call forwarding & outbound billed from wallet)"}
+{"t":"2026-09-12T19:47:50.985107934Z","s":"info","m":"Plans from <b>$50/mo</b> (100 inbound min + 50 SMS included — incoming calls answered via SIP/browser · call forwarding & outbound billed from wallet)"}
+{"t":"2026-09-12T19:50:15.289087923Z","s":"info","m":"[Voice] Outbound billed: $0.15 (1 min × $0.15 US/CA) for IVR_Transfer"}
+{"t":"2026-09-12T20:55:00.318195866Z","s":"info","m":"[Voice] Outbound billed: $9.60 (64 min × $0.15 US/CA) for IVR_Transfer"}
+{"t":"2026-09-12T20:58:31.455684107Z","s":"info","m":"Plans from <b>$50/mo</b> (100 inbound min + 50 SMS included — incoming calls answered via SIP/browser · call forwarding & outbound billed from wallet)"}
+{"t":"2026-09-12T21:09:13.189037553Z","s":"info","m":"Plans from <b>$50/mo</b> (100 inbound min + 50 SMS included — incoming calls answered via SIP/browser · call forwarding & outbound billed from wallet)"}
+{"t":"2026-09-13T00:44:27.847101526Z","s":"info","m":"Plans from <b>$50/mo</b> (100 inbound min + 50 SMS included — incoming calls answered via SIP/browser · call forwarding & outbound billed from wallet)"}
+{"t":"2026-09-13T08:19:46.758914833Z","s":"info","m":"Plans from <b>$50/mo</b> (100 inbound min + 50 SMS included — incoming calls answered via SIP/browser · call forwarding & outbound billed from wallet)"}
+{"t":"2026-09-13T08:55:28.496265072Z","s":"info","m":"Plans from <b>$50/mo</b> (100 inbound min + 50 SMS included — incoming calls answered via SIP/browser · call forwarding & outbound billed from wallet)"}
+{"t":"2026-09-13T12:00:32.866384511Z","s":"info","m":"Plans from <b>$50/mo</b> (100 inbound min + 50 SMS included — incoming calls answered via SIP/browser · call forwarding & outbound billed from wallet)"}
+{"t":"2026-09-13T12:00:38.864861266Z","s":"info","m":"Plans from <b>$50/mo</b> (100 inbound min + 50 SMS included — incoming calls answered via SIP/browser · call forwarding & outbound billed from wallet)"}
+{"t":"2026-09-13T14:15:19.698846928Z","s":"info","m":"Plans from <b>$50/mo</b> (100 inbound min + 50 SMS included — incoming calls answered via SIP/browser · call forwarding & outbound billed from wallet)"}
+{"t":"2026-09-13T14:15:19.882469324Z","s":"info","m":"Plans from <b>$50/mo</b> (100 inbound min + 50 SMS included — incoming calls answered via SIP/browser · call forwarding & outbound billed from wallet)"}
+{"t":"2026-09-13T18:30:03.359301246Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for Twilio_Forwarding"}
+{"t":"2026-09-13T23:56:42.862358609Z","s":"info","m":"Plans from <b>$50/mo</b> (100 inbound min + 50 SMS included — incoming calls answered via SIP/browser · call forwarding & outbound billed from wallet)"}
+{"t":"2026-09-14T00:47:00.093358765Z","s":"info","m":"Plans from <b>$50/mo</b> (100 inbound min + 50 SMS included — incoming calls answered via SIP/browser · call forwarding & outbound billed from wallet)"}
+{"t":"2026-09-14T00:47:20.216215132Z","s":"info","m":"Plans from <b>$50/mo</b> (100 inbound min + 50 SMS included — incoming calls answered via SIP/browser · call forwarding & outbound billed from wallet)"}
+{"t":"2026-09-14T00:47:34.236316147Z","s":"info","m":"Plans from <b>$50/mo</b> (100 inbound min + 50 SMS included — incoming calls answered via SIP/browser · call forwarding & outbound billed from wallet)"}
+{"t":"2026-09-14T10:46:27.301876883Z","s":"info","m":"Plans from <b>$50/mo</b> (100 inbound min + 50 SMS included — incoming calls answered via SIP/browser · call forwarding & outbound billed from wallet)"}
+{"t":"2026-09-14T13:45:03.652653047Z","s":"info","m":"Plans from <b>$50/mo</b> (100 inbound min + 50 SMS included — incoming calls answered via SIP/browser · call forwarding & outbound billed from wallet)"}
+{"t":"2026-09-14T16:23:54.606123993Z","s":"info","m":"Plans from <b>$50/mo</b> (100 inbound min + 50 SMS included — incoming calls answered via SIP/browser · call forwarding & outbound billed from wallet)"}
+{"t":"2026-09-14T16:26:51.910976302Z","s":"info","m":"Plans from <b>$50/mo</b> (100 inbound min + 50 SMS included — incoming calls answered via SIP/browser · call forwarding & outbound billed from wallet)"}
+{"t":"2026-09-14T19:22:04.780638275Z","s":"info","m":"Plans from <b>$50/mo</b> (100 inbound min + 50 SMS included — incoming calls answered via SIP/browser · call forwarding & outbound billed from wallet)"}
+{"t":"2026-09-14T19:22:22.426329443Z","s":"info","m":"Plans from <b>$50/mo</b> (100 inbound min + 50 SMS included — incoming calls answered via SIP/browser · call forwarding & outbound billed from wallet)"}
+{"t":"2026-09-14T19:23:54.008400095Z","s":"info","m":"Plans from <b>$50/mo</b> (100 inbound min + 50 SMS included — incoming calls answered via SIP/browser · call forwarding & outbound billed from wallet)"}
+{"t":"2026-09-14T19:25:01.660177615Z","s":"info","m":"Plans from <b>$50/mo</b> (100 inbound min + 50 SMS included — incoming calls answered via SIP/browser · call forwarding & outbound billed from wallet)"}
+{"t":"2026-09-14T19:25:02.385714566Z","s":"info","m":"Plans from <b>$50/mo</b> (100 inbound min + 50 SMS included — incoming calls answered via SIP/browser · call forwarding & outbound billed from wallet)"}
+{"t":"2026-09-14T19:27:07.053338265Z","s":"info","m":"Plans from <b>$50/mo</b> (100 inbound min + 50 SMS included — incoming calls answered via SIP/browser · call forwarding & outbound billed from wallet)"}
+{"t":"2026-09-14T19:27:28.026556447Z","s":"info","m":"Plans from <b>$50/mo</b> (100 inbound min + 50 SMS included — incoming calls answered via SIP/browser · call forwarding & outbound billed from wallet)"}
+{"t":"2026-09-14T20:00:01.688390608Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for Twilio_Forwarding"}
+{"t":"2026-09-14T22:25:50.711273406Z","s":"info","m":"Plans from <b>$50/mo</b> (100 inbound min + 50 SMS included — incoming calls answered via SIP/browser · call forwarding & outbound billed from wallet)"}
+{"t":"2026-09-14T22:27:10.657174430Z","s":"info","m":"Plans from <b>$50/mo</b> (100 inbound min + 50 SMS included — incoming calls answered via SIP/browser · call forwarding & outbound billed from wallet)"}
+{"t":"2026-09-14T22:29:18.900801129Z","s":"info","m":"Plans from <b>$50/mo</b> (100 inbound min + 50 SMS included — incoming calls answered via SIP/browser · call forwarding & outbound billed from wallet)"}
+{"t":"2026-09-14T23:38:06.426014948Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-14T23:39:26.430638615Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-14T23:40:31.969689587Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-14T23:40:45.830522909Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-14T23:40:53.146933524Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-14T23:41:34.297922700Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-14T23:41:42.395125977Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-14T23:41:49.886294796Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-14T23:41:56.364737067Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-14T23:42:09.557187549Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-14T23:55:13.016904594Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-14T23:55:25.961848284Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-14T23:56:26.390302120Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-14T23:57:06.406082122Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-14T23:57:36.424562993Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-14T23:57:40.896882670Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-14T23:59:36.300809670Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-14T23:59:36.304629886Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-14T23:59:39.707362947Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-14T23:59:44.993168739Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T00:01:19.176558923Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T00:02:53.378164092Z","s":"info","m":"Plans from <b>$50/mo</b> (100 inbound min + 50 SMS included — incoming calls answered via SIP/browser · call forwarding & outbound billed from wallet)"}
+{"t":"2026-09-15T00:03:10.352950738Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T00:03:13.410570838Z","s":"info","m":"Plans from <b>$50/mo</b> (100 inbound min + 50 SMS included — incoming calls answered via SIP/browser · call forwarding & outbound billed from wallet)"}
+{"t":"2026-09-15T00:04:41.896516239Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T00:04:41.901253487Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T00:05:12.453382661Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T00:05:18.433127846Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T00:06:29.765031480Z","s":"info","m":"[Voice] Outbound billed: $0.14 (1 min × $0.1425 US/CA) for IVR_Outbound_Twilio"}
+{"t":"2026-09-15T00:06:29.769649179Z","s":"info","m":"[Voice] Outbound billed: $0.14 (1 min × $0.1425 US/CA) for Twilio_SIP_Outbound"}
+{"t":"2026-09-15T00:06:38.801896773Z","s":"info","m":"Plans from <b>$50/mo</b> (100 inbound min + 50 SMS included — incoming calls answered via SIP/browser · call forwarding & outbound billed from wallet)"}
+{"t":"2026-09-15T00:06:40.205771181Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T00:08:12.253586558Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T00:08:17.911958498Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T00:08:24.265623617Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T00:08:47.482614187Z","s":"info","m":"Plans from <b>$50/mo</b> (100 inbound min + 50 SMS included — incoming calls answered via SIP/browser · call forwarding & outbound billed from wallet)"}
+{"t":"2026-09-15T00:09:17.574341678Z","s":"info","m":"Plans from <b>$50/mo</b> (100 inbound min + 50 SMS included — incoming calls answered via SIP/browser · call forwarding & outbound billed from wallet)"}
+{"t":"2026-09-15T00:09:37.853273988Z","s":"info","m":"[Voice] Outbound billed: $0.14 (1 min × $0.1425 US/CA) for IVR_Outbound_Twilio"}
+{"t":"2026-09-15T00:10:02.444250146Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T00:10:09.572813740Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T00:10:47.890051089Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T00:11:47.898805450Z","s":"info","m":"[Voice] Outbound billed: $0.28 (2 min × $0.1425 US/CA) for IVR_Outbound_Twilio"}
+{"t":"2026-09-15T00:11:54.949965072Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T00:12:00.948531586Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T00:12:36.491432507Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T00:13:46.496644588Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T00:13:50.395829971Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T00:15:04.035419950Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T00:15:09.056737704Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T00:15:10.116490560Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for Telnyx_SIP_Leg"}
+{"t":"2026-09-15T00:15:44.310353307Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T00:17:14.744645124Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T00:18:36.366729355Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T00:19:47.885000987Z","s":"info","m":"Plans from <b>$50/mo</b> (100 inbound min + 50 SMS included — incoming calls answered via SIP/browser · call forwarding & outbound billed from wallet)"}
+{"t":"2026-09-15T00:19:47.885949420Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T00:19:53.087922388Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T00:19:59.505957728Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T00:20:05.496590212Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T00:21:26.378455600Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T00:22:38.846946024Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T00:22:44.885837082Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T00:22:51.085517664Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T00:24:14.658931414Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T00:24:14.665180691Z","s":"info","m":"Plans from <b>$50/mo</b> (100 inbound min + 50 SMS included — incoming calls answered via SIP/browser · call forwarding & outbound billed from wallet)"}
+{"t":"2026-09-15T00:24:16.608209967Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T00:24:33.757896604Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T00:25:23.645724485Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T00:25:27.128268809Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T00:25:37.213089478Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T00:25:42.203845881Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T00:25:47.757232233Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T00:26:11.724580078Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T00:26:11.729171567Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T00:26:14.222676710Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T00:27:37.858011671Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T00:29:01.526904168Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T00:30:04.764103942Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for Twilio_SIP_Bridge"}
+{"t":"2026-09-15T00:30:35.331373654Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T00:30:35.344104919Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T00:32:17.657192340Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T00:32:17.919239298Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T00:32:46.355587198Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T00:32:46.749356197Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T00:32:56.149448488Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T00:34:37.424617621Z","s":"info","m":"Plans from <b>$50/mo</b> (100 inbound min + 50 SMS included — incoming calls answered via SIP/browser · call forwarding & outbound billed from wallet)"}
+{"t":"2026-09-15T00:34:38.002692803Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T00:34:45.177085014Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T00:35:25.803101551Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T00:35:31.837067152Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T00:36:15.568794886Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T00:36:59.431667727Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T00:37:04.845942414Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T00:37:13.452545809Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T00:37:24.023173316Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T00:37:37.692130316Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for IVR_Outbound_Twilio"}
+{"t":"2026-09-15T00:37:40.616576885Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for IVR_Outbound_Twilio"}
+{"t":"2026-09-15T00:38:40.070722467Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for IVR_Outbound_Twilio"}
+{"t":"2026-09-15T00:38:44.979459840Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T00:39:34.750434128Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T00:41:22.262294825Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T00:43:06.476021762Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T00:44:16.397639493Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T00:44:26.528277945Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T00:45:37.842568295Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T00:46:11.067040097Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T00:47:31.066730549Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T00:48:31.007817434Z","s":"info","m":"Plans from <b>$50/mo</b> (100 inbound min + 50 SMS included — incoming calls answered via SIP/browser · call forwarding & outbound billed from wallet)"}
+{"t":"2026-09-15T00:50:18.162714357Z","s":"info","m":"Plans from <b>$50/mo</b> (100 inbound min + 50 SMS included — incoming calls answered via SIP/browser · call forwarding & outbound billed from wallet)"}
+{"t":"2026-09-15T00:51:32.607786249Z","s":"info","m":"Plans from <b>$50/mo</b> (100 inbound min + 50 SMS included — incoming calls answered via SIP/browser · call forwarding & outbound billed from wallet)"}
+{"t":"2026-09-15T00:51:53.827575114Z","s":"info","m":"Plans from <b>$50/mo</b> (100 inbound min + 50 SMS included — incoming calls answered via SIP/browser · call forwarding & outbound billed from wallet)"}
+{"t":"2026-09-15T00:53:20.212112995Z","s":"info","m":"Plans from <b>$50/mo</b> (100 inbound min + 50 SMS included — incoming calls answered via SIP/browser · call forwarding & outbound billed from wallet)"}
+{"t":"2026-09-15T00:54:24.925623091Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for IVR_Outbound_Twilio"}
+{"t":"2026-09-15T00:54:33.062681186Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for IVR_Outbound_Twilio"}
+{"t":"2026-09-15T00:54:34.444402614Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for IVR_Outbound_Twilio"}
+{"t":"2026-09-15T00:54:36.700465036Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for IVR_Outbound_Twilio"}
+{"t":"2026-09-15T00:54:45.391603015Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for IVR_Outbound_Twilio"}
+{"t":"2026-09-15T00:55:05.661003978Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T00:55:11.793334753Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T00:55:15.813546522Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for IVR_Outbound_Twilio"}
+{"t":"2026-09-15T00:55:17.369435346Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T00:55:28.726480889Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T00:55:35.422923696Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T00:55:38.161019621Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for IVR_Outbound_Twilio"}
+{"t":"2026-09-15T00:55:38.378500249Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for IVR_Outbound_Twilio"}
+{"t":"2026-09-15T00:55:41.876073675Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for IVR_Outbound_Twilio"}
+{"t":"2026-09-15T00:55:45.910057756Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for IVR_Outbound_Twilio"}
+{"t":"2026-09-15T00:57:05.714798573Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T00:58:13.536192946Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T00:58:14.783166760Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T00:58:25.212115133Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T00:59:47.867331575Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T01:10:38.338306974Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T01:10:43.657645739Z","s":"info","m":"Plans from <b>$50/mo</b> (100 inbound min + 50 SMS included — incoming calls answered via SIP/browser · call forwarding & outbound billed from wallet)"}
+{"t":"2026-09-15T01:10:44.819652183Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T01:10:50.507475988Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T01:10:56.257005293Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T01:11:02.194753408Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T01:11:07.977645757Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T01:11:16.845200779Z","s":"info","m":"Plans from <b>$50/mo</b> (100 inbound min + 50 SMS included — incoming calls answered via SIP/browser · call forwarding & outbound billed from wallet)"}
+{"t":"2026-09-15T01:12:22.175782699Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T01:12:30.804751816Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T01:12:36.038184359Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T01:12:41.860914438Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T01:25:08.989714473Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T01:25:46.439081815Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T01:26:06.442431757Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T01:26:56.651944149Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T01:26:58.485928336Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T01:28:30.968165978Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T01:29:00.551171456Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T01:29:20.534309886Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T01:29:20.537432365Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T01:29:21.953461426Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T01:29:30.429922106Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T01:29:36.400037607Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T01:29:47.131886537Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T01:31:16.710195746Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T01:31:20.629270877Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T01:31:27.625542379Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T01:33:06.807039397Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T01:45:41.527670712Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T01:46:54.127762200Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T01:47:04.501146301Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T01:47:10.330740275Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T01:47:24.369797064Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T01:47:30.090468274Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T01:48:53.682325140Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T01:50:15.602898363Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T01:51:29.101425395Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T01:53:09.066208589Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T01:54:41.100229032Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T01:55:48.244028795Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T01:57:11.557530900Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T01:57:46.501063783Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T01:57:48.230426375Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for Telnyx_SIP_Leg"}
+{"t":"2026-09-15T01:59:04.850087956Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T01:59:10.445641189Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T02:00:36.577027614Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T02:01:56.919651322Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T02:01:56.923309434Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T02:03:36.028913267Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T02:03:59.364224301Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T02:04:01.704527547Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T02:04:46.513856361Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T02:05:27.151455860Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T02:06:21.573352356Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T02:06:30.974308200Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T02:07:54.819610049Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T02:08:04.642683655Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T02:08:06.198841487Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for Telnyx_SIP_Leg"}
+{"t":"2026-09-15T02:08:14.287983391Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T02:09:26.309014673Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T02:09:31.850366271Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T02:10:56.515561329Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T02:12:50.109129560Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T02:14:00.518182680Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T02:15:00.325266997Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T02:16:35.597715071Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T02:16:42.553970651Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T02:18:27.036121872Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T02:18:27.039433538Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T02:19:36.182623013Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T02:20:56.506128049Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T02:22:06.531775109Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T02:22:06.534976175Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T02:23:48.153859230Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T02:23:50.348407985Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T02:23:56.370167258Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T02:24:35.007619713Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T02:24:40.589800602Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T02:24:56.982653091Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T02:25:02.452989338Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T02:25:11.663340057Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T02:25:18.953504582Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T02:26:30.026611477Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T02:26:52.830499297Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T02:26:54.844548173Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T02:28:18.621670777Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T02:28:18.625281938Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T02:28:22.191715247Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T10:08:31.146028707Z","s":"info","m":"Plans from <b>$50/mo</b> (100 inbound min + 50 SMS included — incoming calls answered via SIP/browser · call forwarding & outbound billed from wallet)"}
+{"t":"2026-09-15T12:00:00.651955693Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for Twilio_Forwarding"}
+{"t":"2026-09-15T12:00:00.782022703Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for Twilio_Forwarding"}
+{"t":"2026-09-15T12:29:49.523155189Z","s":"info","m":"Plans from <b>$50/mo</b> (100 inbound min + 50 SMS included — incoming calls answered via SIP/browser · call forwarding & outbound billed from wallet)"}
+{"t":"2026-09-15T14:10:12.288112800Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T14:12:16.390575168Z","s":"info","m":"Plans from <b>$50/mo</b> (100 inbound min + 50 SMS included — incoming calls answered via SIP/browser · call forwarding & outbound billed from wallet)"}
+{"t":"2026-09-15T14:14:15.939115538Z","s":"info","m":"Plans from <b>$50/mo</b> (100 inbound min + 50 SMS included — incoming calls answered via SIP/browser · call forwarding & outbound billed from wallet)"}
+{"t":"2026-09-15T15:07:06.256395982Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T15:08:16.325775960Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T15:08:16.329804014Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T15:08:25.008237424Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T15:09:49.275578592Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T15:09:49.277312115Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for Telnyx_SIP_Leg"}
+{"t":"2026-09-15T15:11:21.284360159Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T15:30:09.603439486Z","s":"info","m":"[Voice] Outbound billed: $0.51 (4 min × $0.1275 US/CA) for Twilio_Forwarding"}
+{"t":"2026-09-15T17:30:01.092603058Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for Twilio_Forwarding"}
+{"t":"2026-09-15T17:30:01.092610208Z","s":"info","m":"[Voice] Outbound billed: $2.29 (18 min × $0.1275 US/CA) for Twilio_Forwarding"}
+{"t":"2026-09-15T20:25:56.993609353Z","s":"info","m":"Plans from <b>$50/mo</b> (100 inbound min + 50 SMS included — incoming calls answered via SIP/browser · call forwarding & outbound billed from wallet)"}
+{"t":"2026-09-15T21:00:00.942504345Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for Twilio_Forwarding"}
+{"t":"2026-09-15T21:30:05.073100988Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for Twilio_Forwarding"}
+{"t":"2026-09-15T21:36:04.903872053Z","s":"info","m":"Plans from <b>$50/mo</b> (100 inbound min + 50 SMS included — incoming calls answered via SIP/browser · call forwarding & outbound billed from wallet)"}
+{"t":"2026-09-15T23:00:01.649464460Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for Twilio_Forwarding"}
+{"t":"2026-09-15T23:56:27.236611866Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T23:56:45.418669421Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T23:56:55.368314716Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T23:57:19.164641714Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T23:58:28.803220189Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T23:58:52.244085442Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-15T23:58:54.051100887Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T00:00:14.074958733Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T00:02:01.093129732Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T00:03:21.614915168Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T00:03:26.725700943Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T00:03:32.512348148Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T00:03:38.537288899Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T00:05:02.999729855Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T00:05:08.930447832Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T00:06:39.702554864Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T00:06:45.928183053Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T00:08:09.545643918Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T00:09:19.540258666Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T00:09:22.055695541Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T00:09:33.915423842Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T00:10:07.468997668Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T00:11:52.089690763Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T00:11:53.486264006Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for Telnyx_SIP_Leg"}
+{"t":"2026-09-16T00:12:00.537095574Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T00:13:34.064096699Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T00:13:37.171373949Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T00:13:54.263021224Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T00:15:21.342253642Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T00:15:25.340419947Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T00:17:01.401331521Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T00:17:01.404118686Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T00:17:06.646170805Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T00:17:30.517671584Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T00:19:10.292784993Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T00:19:13.713625637Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T00:19:37.095671093Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T00:20:01.547660634Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T00:21:24.858672512Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T00:21:35.644016190Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T00:21:49.189246012Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T00:22:01.632730347Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T00:23:24.940121621Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T00:24:34.668230452Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T00:24:35.455665536Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T00:24:58.321799607Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T00:26:22.060819673Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T00:27:41.196043372Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T00:29:01.076450781Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T00:30:56.758823532Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T00:31:30.674054363Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T00:31:40.704764653Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T00:33:21.322892117Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T00:34:56.754841048Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T00:35:02.459879095Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T00:35:08.587068319Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T00:35:14.222338355Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T00:36:57.270123980Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T00:36:57.274109942Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T00:38:30.158634834Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T00:38:37.847192991Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T00:39:11.210357222Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T00:39:15.292735695Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T00:39:21.079321953Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T00:39:26.200418759Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T00:39:32.182847558Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T00:40:06.936973543Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T00:40:31.362755389Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T01:30:20.601133924Z","s":"info","m":"[Voice] Outbound billed: $0.15 (1 min × $0.15 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T01:30:20.606837259Z","s":"info","m":"[Voice] Outbound billed: $0.15 (1 min × $0.15 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T01:30:22.517517043Z","s":"info","m":"[Voice] Outbound billed: $0.15 (1 min × $0.15 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T01:30:23.442024726Z","s":"info","m":"[Voice] Outbound billed: $0.15 (1 min × $0.15 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T01:30:26.792066855Z","s":"info","m":"[Voice] Outbound billed: $0.15 (1 min × $0.15 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T01:30:27.753959396Z","s":"info","m":"[Voice] Outbound billed: $0.15 (1 min × $0.15 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T01:30:30.633015303Z","s":"info","m":"[Voice] Outbound billed: $0.15 (1 min × $0.15 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T01:30:32.205504919Z","s":"info","m":"[Voice] Outbound billed: $0.15 (1 min × $0.15 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T01:30:34.752052777Z","s":"info","m":"[Voice] Outbound billed: $0.15 (1 min × $0.15 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T01:30:36.126273475Z","s":"info","m":"[Voice] Outbound billed: $0.15 (1 min × $0.15 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T01:43:05.731151208Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T01:43:07.316306765Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for Telnyx_SIP_Leg"}
+{"t":"2026-09-16T01:43:58.811743372Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T01:43:58.812441886Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for Telnyx_SIP_Leg"}
+{"t":"2026-09-16T01:44:05.592278651Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T01:44:13.691492484Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T01:44:21.515579207Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T01:45:14.808035592Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T01:46:37.658958947Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T01:46:49.231554690Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T02:00:08.545216193Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for Twilio_Forwarding"}
+{"t":"2026-09-16T02:00:08.548230848Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for Telnyx_SIP_Leg"}
+{"t":"2026-09-16T02:01:37.454046503Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T02:03:20.786833913Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T02:04:20.651655977Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T02:06:11.474277603Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T02:06:12.502171475Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for Telnyx_SIP_Leg"}
+{"t":"2026-09-16T02:07:41.510249028Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T02:09:21.686652825Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T02:09:21.687792252Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for Telnyx_SIP_Leg"}
+{"t":"2026-09-16T02:10:11.551938018Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T02:10:11.556231805Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T02:10:17.108465521Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T02:11:01.484066339Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T02:11:32.419166566Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T02:11:32.423835549Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for Telnyx_SIP_Leg"}
+{"t":"2026-09-16T02:12:53.669124715Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T02:26:53.189918309Z","s":"info","m":"[Voice] Outbound billed: $0.15 (1 min × $0.15 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T02:26:58.222426051Z","s":"info","m":"[Voice] Outbound billed: $0.15 (1 min × $0.15 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T02:27:02.280809659Z","s":"info","m":"[Voice] Outbound billed: $0.15 (1 min × $0.15 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T02:27:06.488107417Z","s":"info","m":"[Voice] Outbound billed: $0.15 (1 min × $0.15 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T02:27:10.693931022Z","s":"info","m":"[Voice] Outbound billed: $0.15 (1 min × $0.15 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T02:27:15.361126862Z","s":"info","m":"[Voice] Outbound billed: $0.15 (1 min × $0.15 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T02:27:19.495064101Z","s":"info","m":"[Voice] Outbound billed: $0.15 (1 min × $0.15 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T02:27:22.940030483Z","s":"info","m":"[Voice] Outbound billed: $0.15 (1 min × $0.15 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T02:29:10.482254713Z","s":"info","m":"[Voice] Outbound billed: $0.30 (2 min × $0.15 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T02:29:12.055848655Z","s":"info","m":"[Voice] Outbound billed: $0.15 (1 min × $0.15 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T14:23:07.741971523Z","s":"info","m":"[Voice] Outbound billed: $0.30 (2 min × $0.15 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T14:24:49.940176151Z","s":"info","m":"[Voice] Outbound billed: $0.15 (1 min × $0.15 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T14:25:29.959364677Z","s":"info","m":"[Voice] Outbound billed: $0.45 (3 min × $0.15 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T14:26:41.544685039Z","s":"info","m":"[Voice] Outbound billed: $0.30 (2 min × $0.15 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T14:27:07.446468579Z","s":"info","m":"[Voice] Outbound billed: $0.15 (1 min × $0.15 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T14:47:51.350697242Z","s":"info","m":"[Voice] Outbound billed: $0.15 (1 min × $0.15 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T14:47:53.316046783Z","s":"info","m":"[Voice] Outbound billed: $0.15 (1 min × $0.15 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T14:49:07.022040811Z","s":"info","m":"[Voice] Outbound billed: $0.30 (2 min × $0.15 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T14:50:37.017944706Z","s":"info","m":"[Voice] Outbound billed: $0.15 (1 min × $0.15 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T14:52:35.630829518Z","s":"info","m":"[Voice] Outbound billed: $0.45 (3 min × $0.15 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T14:53:51.483669273Z","s":"info","m":"[Voice] Outbound billed: $0.30 (2 min × $0.15 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T14:55:02.148573924Z","s":"info","m":"[Voice] Outbound billed: $0.30 (2 min × $0.15 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T14:55:46.376653710Z","s":"info","m":"[Voice] Outbound billed: $0.15 (1 min × $0.15 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T14:55:46.377118042Z","s":"info","m":"[Voice] Outbound billed: $0.15 (1 min × $0.15 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T15:31:24.427616375Z","s":"info","m":"[Voice] Outbound billed: $0.15 (1 min × $0.15 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T15:32:21.080860085Z","s":"info","m":"[Voice] Outbound billed: $0.15 (1 min × $0.15 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T15:32:22.359571434Z","s":"info","m":"[Voice] Outbound billed: $0.15 (1 min × $0.15 US/CA) for Telnyx_SIP_Leg"}
+{"t":"2026-09-16T15:33:47.085938850Z","s":"info","m":"[Voice] Outbound billed: $0.30 (2 min × $0.15 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T15:35:59.423615467Z","s":"info","m":"[Voice] Outbound billed: $0.15 (1 min × $0.15 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T15:38:44.535481505Z","s":"info","m":"[Voice] Outbound billed: $0.45 (3 min × $0.15 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T15:40:14.548167759Z","s":"info","m":"[Voice] Outbound billed: $0.15 (1 min × $0.15 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T15:40:21.670944763Z","s":"info","m":"[Voice] Outbound billed: $0.45 (3 min × $0.15 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T15:40:44.423228729Z","s":"info","m":"[Voice] Outbound billed: $0.15 (1 min × $0.15 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T15:42:54.419528181Z","s":"info","m":"[Voice] Outbound billed: $0.15 (1 min × $0.15 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T15:42:55.971764182Z","s":"info","m":"[Voice] Outbound billed: $0.45 (3 min × $0.15 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T15:43:00.737652107Z","s":"info","m":"[Voice] Outbound billed: $0.15 (1 min × $0.15 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T15:44:54.278282197Z","s":"info","m":"[Voice] Outbound billed: $0.30 (2 min × $0.15 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T15:46:12.035423958Z","s":"info","m":"[Voice] Outbound billed: $0.30 (2 min × $0.15 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T15:46:41.278689048Z","s":"info","m":"[Voice] Outbound billed: $0.15 (1 min × $0.15 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T15:46:42.561573008Z","s":"info","m":"[Voice] Outbound billed: $0.15 (1 min × $0.15 US/CA) for Telnyx_SIP_Leg"}
+{"t":"2026-09-16T15:46:56.983531988Z","s":"info","m":"[Voice] Outbound billed: $0.15 (1 min × $0.15 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T15:47:04.765661320Z","s":"info","m":"Plans from <b>$50/mo</b> (100 inbound min + 50 SMS included — incoming calls answered via SIP/browser · call forwarding & outbound billed from wallet)"}
+{"t":"2026-09-16T15:48:39.618932560Z","s":"info","m":"[Voice] Outbound billed: $0.15 (1 min × $0.15 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T15:48:49.643093226Z","s":"info","m":"[Voice] Outbound billed: $0.30 (2 min × $0.15 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T15:51:18.964119092Z","s":"info","m":"[Voice] Outbound billed: $0.45 (3 min × $0.15 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T15:54:28.362971922Z","s":"info","m":"[Voice] Outbound billed: $0.15 (1 min × $0.15 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T15:54:37.416473863Z","s":"info","m":"[Voice] Outbound billed: $0.75 (5 min × $0.15 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T16:00:04.800375821Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for Twilio_Forwarding"}
+{"t":"2026-09-16T16:00:04.800914572Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T16:00:07.474475190Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for Telnyx_SIP_Leg"}
+{"t":"2026-09-16T16:00:24.390422783Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T16:01:01.419030266Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T16:01:44.592369514Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T16:01:49.823383415Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T16:02:22.848851966Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T16:03:18.613992544Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T16:04:25.732486886Z","s":"info","m":"[Voice] Outbound billed: $0.13 (1 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T16:04:52.133786855Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T16:04:57.684988532Z","s":"info","m":"[Voice] Outbound billed: $0.26 (2 min × $0.1275 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T16:14:57.301625281Z","s":"info","m":"[Voice] Outbound billed: $0.15 (1 min × $0.15 US/CA) for Telnyx_SIP_Leg"}
+{"t":"2026-09-16T16:17:37.650099912Z","s":"info","m":"[Voice] Outbound billed: $0.30 (2 min × $0.15 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T16:17:37.662975088Z","s":"info","m":"[Voice] Outbound billed: $0.15 (1 min × $0.15 US/CA) for Telnyx_SIP_Leg"}
+{"t":"2026-09-16T16:20:13.217582496Z","s":"info","m":"[Voice] Outbound billed: $0.45 (3 min × $0.15 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T16:24:44.216783900Z","s":"info","m":"[Voice] Outbound billed: $0.15 (1 min × $0.15 US/CA) for Telnyx_SIP_Leg"}
+{"t":"2026-09-16T16:24:54.255907248Z","s":"info","m":"[Voice] Outbound billed: $0.75 (5 min × $0.15 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T16:25:07.149812724Z","s":"info","m":"[Voice] Outbound billed: $0.43 (3 min × $0.1425 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T16:25:24.363384380Z","s":"info","m":"[Voice] Outbound billed: $0.14 (1 min × $0.1425 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T16:26:45.878302678Z","s":"info","m":"[Voice] Outbound billed: $0.14 (1 min × $0.1425 US/CA) for Telnyx_SIP_Leg"}
+{"t":"2026-09-16T16:26:54.812353342Z","s":"info","m":"[Voice] Outbound billed: $0.28 (2 min × $0.1425 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T16:26:55.852444757Z","s":"info","m":"[Voice] Outbound billed: $0.14 (1 min × $0.1425 US/CA) for Telnyx_SIP_Leg"}
+{"t":"2026-09-16T16:27:44.896609028Z","s":"info","m":"[Voice] Outbound billed: $0.14 (1 min × $0.1425 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T16:30:13.257873300Z","s":"info","m":"[Voice] Outbound billed: $0.43 (3 min × $0.1425 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T16:31:08.585983096Z","s":"info","m":"[Voice] Outbound billed: $0.14 (1 min × $0.1425 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T16:31:21.392458821Z","s":"info","m":"[Voice] Outbound billed: $0.28 (2 min × $0.1425 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T16:31:31.918640489Z","s":"info","m":"[Voice] Outbound billed: $0.14 (1 min × $0.1425 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T16:33:24.335781042Z","s":"info","m":"[Voice] Outbound billed: $0.14 (1 min × $0.1425 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T16:33:54.383482658Z","s":"info","m":"[Voice] Outbound billed: $0.43 (3 min × $0.1425 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T16:34:46.971532683Z","s":"info","m":"[Voice] Outbound billed: $0.14 (1 min × $0.1425 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T16:34:48.917196156Z","s":"info","m":"[Voice] Outbound billed: $0.14 (1 min × $0.1425 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T16:35:02.270396059Z","s":"info","m":"[Voice] Outbound billed: $0.14 (1 min × $0.1425 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T16:35:36.536316708Z","s":"info","m":"[Voice] Outbound billed: $0.14 (1 min × $0.1425 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T16:35:49.344298549Z","s":"info","m":"[Voice] Outbound billed: $0.14 (1 min × $0.1425 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T16:36:24.872661241Z","s":"info","m":"[Voice] Outbound billed: $0.14 (1 min × $0.1425 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T16:40:23.885293947Z","s":"info","m":"[Voice] Outbound billed: $0.14 (1 min × $0.1425 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T16:40:33.985568939Z","s":"info","m":"[Voice] Outbound billed: $0.71 (5 min × $0.1425 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T16:40:36.849116521Z","s":"info","m":"[Voice] Outbound billed: $0.43 (3 min × $0.1425 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T16:40:36.853195606Z","s":"info","m":"[Voice] Outbound billed: $0.14 (1 min × $0.1425 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T16:42:20.349786604Z","s":"info","m":"[Voice] Outbound billed: $0.28 (2 min × $0.1425 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T16:43:47.804427993Z","s":"info","m":"[Voice] Outbound billed: $0.28 (2 min × $0.1425 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T16:43:55.342067970Z","s":"info","m":"[Voice] Outbound billed: $0.14 (1 min × $0.1425 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T16:43:56.106778309Z","s":"info","m":"[Voice] Outbound billed: $0.14 (1 min × $0.1425 US/CA) for Telnyx_SIP_Leg"}
+{"t":"2026-09-16T16:45:48.530249121Z","s":"info","m":"[Voice] Outbound billed: $0.14 (1 min × $0.1425 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T16:46:54.113965429Z","s":"info","m":"[Voice] Outbound billed: $0.14 (1 min × $0.1425 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T16:49:23.672933448Z","s":"info","m":"[Voice] Outbound billed: $0.43 (3 min × $0.1425 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T16:51:50.524105268Z","s":"info","m":"[Voice] Outbound billed: $0.43 (3 min × $0.1425 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T16:52:06.035938282Z","s":"info","m":"[Voice] Outbound billed: $0.28 (2 min × $0.1425 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T16:52:07.661969422Z","s":"info","m":"[Voice] Outbound billed: $0.14 (1 min × $0.1425 US/CA) for Telnyx_SIP_Leg"}
+{"t":"2026-09-16T16:53:12.034051774Z","s":"info","m":"[Voice] Outbound billed: $0.14 (1 min × $0.1425 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T16:53:12.035968476Z","s":"info","m":"[Voice] Outbound billed: $0.14 (1 min × $0.1425 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T16:54:11.484107271Z","s":"info","m":"[Voice] Outbound billed: $0.28 (2 min × $0.1425 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T16:56:28.576111012Z","s":"info","m":"[Voice] Outbound billed: $0.14 (1 min × $0.1425 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T16:59:31.153269150Z","s":"info","m":"[Voice] Outbound billed: $0.43 (3 min × $0.1425 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T17:00:05.887012933Z","s":"info","m":"[Voice] Outbound billed: $0.14 (1 min × $0.1425 US/CA) for Twilio_SIP_Bridge"}
+{"t":"2026-09-16T17:00:39.119122634Z","s":"info","m":"[Voice] Outbound billed: $0.43 (3 min × $0.1425 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T17:00:43.884448149Z","s":"info","m":"[Voice] Outbound billed: $0.14 (1 min × $0.1425 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T17:02:49.726582356Z","s":"info","m":"[Voice] Outbound billed: $0.14 (1 min × $0.1425 US/CA) for Telnyx_SIP_Leg"}
+{"t":"2026-09-16T17:02:51.107058940Z","s":"info","m":"[Voice] Outbound billed: $0.14 (1 min × $0.1425 US/CA) for Telnyx_SIP_Leg"}
+{"t":"2026-09-16T17:02:54.678310618Z","s":"info","m":"[Voice] Outbound billed: $0.43 (3 min × $0.1425 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T17:03:25.355530222Z","s":"info","m":"[Voice] Outbound billed: $0.14 (1 min × $0.1425 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T17:04:35.669813912Z","s":"info","m":"[Voice] Outbound billed: $0.28 (2 min × $0.1425 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T17:06:15.323093480Z","s":"info","m":"[Voice] Outbound billed: $0.14 (1 min × $0.1425 US/CA) for Telnyx_SIP_Leg"}
+{"t":"2026-09-16T17:06:35.007048338Z","s":"info","m":"[Voice] Outbound billed: $0.28 (2 min × $0.1425 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T17:08:45.659759425Z","s":"info","m":"[Voice] Outbound billed: $0.14 (1 min × $0.1425 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T17:09:29.803464034Z","s":"info","m":"[Voice] Outbound billed: $0.57 (4 min × $0.1425 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T17:11:26.729276874Z","s":"info","m":"[Voice] Outbound billed: $0.28 (2 min × $0.1425 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T17:11:26.733487353Z","s":"info","m":"[Voice] Outbound billed: $0.14 (1 min × $0.1425 US/CA) for Telnyx_SIP_Leg"}
+{"t":"2026-09-16T17:13:16.846009962Z","s":"info","m":"[Voice] Outbound billed: $0.28 (2 min × $0.1425 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T17:13:21.702186585Z","s":"info","m":"[Voice] Outbound billed: $0.14 (1 min × $0.1425 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T17:13:56.097866123Z","s":"info","m":"[Voice] Outbound billed: $0.14 (1 min × $0.1425 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T17:20:30.645287907Z","s":"info","m":"[Voice] Outbound billed: $0.28 (2 min × $0.1425 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T17:22:41.708390672Z","s":"info","m":"[Voice] Outbound billed: $0.28 (2 min × $0.1425 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T17:22:47.129276358Z","s":"info","m":"[Voice] Outbound billed: $0.14 (1 min × $0.1425 US/CA) for SIPOutbound"}
+{"t":"2026-09-16T18:52:08.799981625Z","s":"info","m":"Plans from <b>$50/mo</b> (100 inbound min + 50 SMS included — incoming calls answered via SIP/browser · call forwarding & outbound billed from wallet)"}
+{"t":"2026-09-16T18:52:14.455957939Z","s":"info","m":"Plans from <b>$50/mo</b> (100 inbound min + 50 SMS included — incoming calls answered via SIP/browser · call forwarding & outbound billed from wallet)"}

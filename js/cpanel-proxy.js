@@ -228,6 +228,28 @@ function downResponse(reason) {
   }
 }
 
+// ─── cpsrvd "login-page HTML" auth-failure detector ─────
+//
+// cpsrvd is inconsistent about signalling denied Basic Auth:
+//   • Sometimes it returns HTTP 401 with the login page as body — this is
+//     caught by the axios catch block via `err.response.status === 401`.
+//   • Sometimes it returns HTTP 403 with `{"cpanelresult":{"error":"Access
+//     denied"}}` — also caught by catch (used by @Devils_gods 2026-08-30
+//     for AddonDomain/SubDomain/fileop).
+//   • Sometimes it returns HTTP 200 with the raw login-page HTML — the
+//     axios success path fires, `res.data` is a string starting with
+//     `<!DOCTYPE html>`, and callers happily "succeed" while parsing
+//     garbage. Panel editor renders it verbatim; API2 callers see
+//     `cpanelresult` missing → they invent a generic "Operation failed".
+//
+// This helper unifies detection of the third case. Returns
+// `{ reason }` when the body is a login page, null otherwise.
+function _detectLoginPageHtml(body) {
+  if (typeof body !== 'string') return null
+  if (!/<!DOCTYPE html|<title>cPanel Login<\/title>|<title>Login<\/title>/i.test(body)) return null
+  return { reason: 'cPanel returned login page HTML (session/auth denied at cpsrvd layer)' }
+}
+
 // ─── Sanitization ───────────────────────────────────────
 
 function sanitizeString(str, extraHost) {
@@ -299,56 +321,32 @@ function looksLikeUapiPermFailure(msg) {
   return typeof msg === 'string' && UAPI_EPERM_RX.test(msg)
 }
 
-// ─── Auth-broken classifier (stale cpPass in Mongo vs. real WHM password) ──
+// Detect user-level cPanel auth failures — cPanel refusing the user's
+// HTTP Basic Auth. Same class of "user session is broken, use WHM root as
+// impersonator" problem as EPERM, but caused by:
+//   • stale cached cpPass (password rotated on the panel side, not synced
+//     back to our encrypted store) — the dominant real-world case
+//     (2026-08-26 @HHR2009 / nnliae74: 401 on upload_files+list_files,
+//      403 "Access denied" on mkdir; ProtectionHeartbeat has been logging
+//      "empty content after 3 retries" every hour since 2026-08-24 — same
+//      root, same class)
+//   • cPanel session-security policy blocking the user
+//   • WAF (ModSecurity / cPHulk) rate-limiting the user's IP or account
 //
-// A user's cached cPanel password in Mongo can silently drift out of sync
-// with the actual password on WHM (rotation on the server, restore from a
-// backup, admin manual change, etc.). When that happens EVERY user-level
-// HTTP Basic Auth call fails at the transport layer:
-//
-//   • UAPI  /execute/Fileman/upload_files, list_files     → HTTP 401
-//       (body: cPanel HTML login page — NOT the usual JSON error shape)
-//   • API2  /json-api/cpanel?...Fileman::mkdir            → HTTP 403
-//       (body may say "Access denied" or return the login page)
-//   • Occasionally the transport surfaces only axios' generic message
-//     "Request failed with status code 401" / "…403" with no body clue.
-//
-// Because httpStatus is 401/403 (not >= 500) and the message doesn't match
-// the EPERM regex, the existing WHM-root fallback never triggered — the raw
-// "Access denied" leaked to the panel UI. This classifier lets callers spot
-// the auth-broken case so they can trip the SAME root-impersonation ladder
-// EPERM already uses, which sidesteps the stale password entirely by
-// authenticating as root and passing cpanel_jsonapi_user=<user>.
-//
-// Confirmed in prod on cpUser `nnliae74` (WHM 68.183.77.106, domain
-// evitesapp.org) — @HHR2009 2026-08-26. Fix mirrors the sister-repo pattern.
+// UAPI /execute/... returns 401 with an HTML login page.
+// API2 /json-api/cpanel returns 403 with plain "Access denied".
+// Both should trigger the WHM-root fallback ladder (Authorization: whm
+// root:TOKEN + cpanel_jsonapi_user=<user>) which authenticates as root and
+// impersonates the user — bypassing the user's password entirely.
 function looksLikeAuthFailure(status, msg) {
   if (status === 401 || status === 403) return true
-  const s = String(msg == null ? '' : msg)
-  if (/access\s*denied/i.test(s)) return true
-  // axios's generic transport message when a response body doesn't carry a
-  // richer error — the number is the same 401/403 we just tested for.
-  if (/Request failed with status code\s*40[13]/i.test(s)) return true
+  if (typeof msg === 'string') {
+    // Body-based fallback: some deployments strip the HTTP status (e.g. via
+    // Cloudflare Access) but still leak the string in the body.
+    if (/^Access denied$/i.test(msg.trim())) return true
+    if (/Request failed with status code 40[13]/.test(msg)) return true
+  }
   return false
-}
-
-// ─── HTTP-200-with-login-page-HTML detector ─────────────────────────────
-//
-// The nastiest of the three auth-denial signals: cpsrvd sometimes answers a
-// perfectly normal HTTP 200 whose *body* is the raw cPanel login page HTML
-// (Basic Auth silently rejected by cPHulk / ModSecurity / session policy).
-// axios resolves this as a success, so callers happily treat
-// `<!DOCTYPE html>…` as valid data — the file editor literally rendered the
-// login page as "file content", and API2 callers saw a missing
-// `cpanelresult` and invented a generic "Operation failed".
-//
-// This detector lets uapi()/api2()/domain ops normalize that case into the
-// same CPANEL_AUTH_FAILURE shape the 401/403 paths already produce, so the
-// WHM-root impersonation fallback can kick in.
-function _detectLoginPageHtml(body) {
-  if (typeof body !== 'string') return null
-  if (!/<!DOCTYPE html|<title>cPanel Login<\/title>|<title>Login<\/title>/i.test(body)) return null
-  return { reason: 'cPanel returned login page HTML (session/auth denied at cpsrvd layer)' }
 }
 
 // ─── File-name safety for cPanel Fileman::fileop ────────────────────────
@@ -426,14 +424,22 @@ async function uapi(cpUser, cpPass, module, func, params = {}, method = 'GET', h
     }
 
     const data = res.data
-    // HTTP-200-with-login-page-HTML → cpsrvd denied auth. Normalize to the
-    // same CPANEL_AUTH_FAILURE shape the 401/403 error path produces so the
-    // route-level WHM-root fallback triggers instead of the editor rendering
-    // the login page as "file content".
+    // 2026-08-30 @Devils_gods fix: cpsrvd sometimes returns HTTP 200 with
+    // the cPanel login-page HTML instead of a proper 401 when Basic Auth
+    // is denied at the cpsrvd layer (see uploadFile check below for the
+    // original occurrence). Without this, /files/content silently returned
+    // the raw HTML as the "file content" — the panel editor rendered
+    // `<!DOCTYPE html>...` when clicking Edit on a real file.
     const htmlAuthFail = _detectLoginPageHtml(data)
     if (htmlAuthFail) {
-      log(`[cPanel Proxy] ${module}::${func} got HTTP ${res.status} with cPanel Login HTML → AUTH-BROKEN`)
-      return { status: 0, errors: [htmlAuthFail.reason], data: null, httpStatus: res.status, code: 'CPANEL_AUTH_FAILURE' }
+      log(`[cPanel Proxy] ${module}::${func} got HTTP ${res.status} with login-page HTML — treating as auth failure`)
+      return {
+        status: 0,
+        errors: [htmlAuthFail.reason],
+        data: null,
+        httpStatus: res.status,
+        code: 'CPANEL_AUTH_FAILURE',
+      }
     }
     // Sanitize: strip server IP from response
     return sanitize(data, host)
@@ -448,31 +454,21 @@ async function uapi(cpUser, cpPass, module, func, params = {}, method = 'GET', h
     // before falling back to axios's generic status-code message.
     const cpanelMsg = extractCpanelErrorFromResponse(err, host)
     const msg = cpanelMsg || err.response?.data?.errors?.[0] || err.message
-    const rawErrText = cpanelMsg || err.response?.data?.errors?.[0] || err.message || ''
-    const eperm = looksLikeUapiPermFailure(rawErrText)
-    // EPERM takes precedence over auth-broken — some responses can carry both
-    // signals (a broken-homedir account may 500 with "permission denied") and
-    // callers rely on CPANEL_UAPI_EPERM to trigger the ops-repair page.
-    const authBroken = !eperm && looksLikeAuthFailure(status, rawErrText)
-    let code
-    if (eperm) code = 'CPANEL_UAPI_EPERM'
-    else if (authBroken) code = 'CPANEL_AUTH_FAILURE'
-    log(`[cPanel Proxy] ${module}::${func} error (${status}): ${msg}${eperm ? ' [EPERM]' : ''}${authBroken ? ' [AUTH-BROKEN]' : ''}`)
+    const eperm = looksLikeUapiPermFailure(cpanelMsg || err.response?.data?.errors?.[0] || '')
+    const authFail = !eperm && looksLikeAuthFailure(status, msg)
+    log(`[cPanel Proxy] ${module}::${func} error (${status}): ${msg}${eperm ? ' [EPERM]' : ''}${authFail ? ' [AUTH]' : ''}`)
     return {
       status: 0,
       errors: [sanitizeString(String(msg), host)],
       data: null,
       httpStatus: status || null,
-      code,
+      code: eperm ? 'CPANEL_UAPI_EPERM' : (authFail ? 'CPANEL_AUTH_FAILURE' : undefined),
     }
   }
 }
 
 /**
- * Upload file to cPanel via multipart/form-data (user-level HTTP Basic Auth).
- * Returns { status, data, errors, httpStatus, code } — httpStatus/code are
- * exposed so route-level fallback logic can spot stale-cpPass auth failures
- * (401/403) and retry via uploadFileAsRoot() below.
+ * Upload file to cPanel via multipart/form-data
  */
 async function uploadFile(cpUser, cpPass, dir, fileName, fileBuffer, host = null) {
   const baseUrl = getBaseUrl(host)
@@ -491,19 +487,18 @@ async function uploadFile(cpUser, cpPass, dir, fileName, fileBuffer, host = null
       headers: { ...form.getHeaders(), ..._maybeAccessHeaders(baseUrl) },
       maxContentLength: 100 * 1024 * 1024, // 100MB
     })
-    // ── HTTP-200-HTML-login-page detection ──────────────────────────
-    // cpsrvd sometimes returns HTTP 200 with the cPanel login HTML in
-    // the body (typically when Basic Auth is silently rejected by
-    // ModSecurity/cPHulk mid-request). Without body-based detection this
-    // leaks to the client as a false "successful upload" because the JSON
-    // callers rely on doesn't check status:1 first. Tag as auth-broken so
-    // the route triggers the session fallback.
-    if (typeof res.data === 'string'
-        && /<title>cPanel Login<\/title>|<!DOCTYPE html>/i.test(res.data)) {
-      log(`[cPanel Proxy] Fileman::upload_files got HTTP 200 with cPanel Login HTML → treating as AUTH-BROKEN`)
+    // 2026-08-26 @HHR2009 fix: cpsrvd sometimes returns HTTP 200 with the
+    // cPanel login-page HTML instead of a proper 401. That's the same
+    // auth-broken class as a 401 login page — surface it as such so the
+    // route triggers the WHM impersonation-session fallback (which uses
+    // a WHM-root-minted session and bypasses the cpsrvd-denies-basic-auth
+    // state entirely). Without this check the raw HTML would leak to the
+    // client as a "successful" upload.
+    if (typeof res.data === 'string' && /<title>cPanel Login<\/title>|<!DOCTYPE html>/i.test(res.data)) {
+      log(`[cPanel Proxy] Fileman::upload_files got HTTP ${res.status} with login-page HTML — treating as auth failure`)
       return {
         status: 0,
-        errors: ['cPanel returned the login page instead of an upload response — auth broken'],
+        errors: ['cPanel returned login page HTML (session/auth denied at cpsrvd layer)'],
         data: null,
         httpStatus: res.status,
         code: 'CPANEL_AUTH_FAILURE',
@@ -517,302 +512,158 @@ async function uploadFile(cpUser, cpPass, dir, fileName, fileBuffer, host = null
       return downResponse(err.code || err.message)
     }
     const status = err.response?.status
-    const cpanelMsg = extractCpanelErrorFromResponse(err, host)
-    const rawErrText = cpanelMsg || err.response?.data?.errors?.[0] || err.message || ''
-    const eperm = looksLikeUapiPermFailure(rawErrText)
-    const authBroken = !eperm && looksLikeAuthFailure(status, rawErrText)
-    let code
-    if (eperm) code = 'CPANEL_UAPI_EPERM'
-    else if (authBroken) code = 'CPANEL_AUTH_FAILURE'
-    const msg = cpanelMsg || err.message
-    log(`[cPanel Proxy] Fileman::upload_files error (${status}): ${msg}${eperm ? ' [EPERM]' : ''}${authBroken ? ' [AUTH-BROKEN]' : ''}`)
+    const authFail = looksLikeAuthFailure(status, err.message)
+    log(`[cPanel Proxy] Fileman::upload_files error (${status || 'no-status'}): ${err.message}${authFail ? ' [AUTH]' : ''}`)
     return {
       status: 0,
-      errors: [sanitizeString(String(msg), host)],
+      errors: [sanitizeString(err.message, host)],
       data: null,
       httpStatus: status || null,
-      code,
+      code: authFail ? 'CPANEL_AUTH_FAILURE' : undefined,
     }
   }
 }
 
-/**
- * Upload file impersonating the user via WHM's root token — bypasses the
- * user's cPanel password entirely. Used as a fallback when uploadFile()
- * returns CPANEL_AUTH_FAILURE (stale cpPass in Mongo vs real WHM password).
- *
- * Auth model: HTTP header `Authorization: whm <username>:<WHM_TOKEN>` + query
- * param `cpanel_jsonapi_user=<cpUser>` tells WHM to route the call into the
- * cPanel user's context. Same shape used by the EPERM fallback ladder in
- * /files/mkdir and /files/delete.
- *
- * Returns { status, data, errors, httpStatus, via } — via='whm-root-upload'
- * so callers can log the ladder step for ops.
- */
-async function uploadFileAsRoot(cpUser, dir, fileName, fileBuffer, whmHost) {
-  const host = whmHost || WHM_HOST
-  const whmToken = process.env.WHM_TOKEN
-  if (!host || !whmToken) {
-    return { status: 0, errors: ['WHM credentials unavailable for root fallback'], data: null, httpStatus: null, via: 'whm-root-upload-unavailable' }
-  }
-  // Prefer the internal tunnel base if configured for the default host — the
-  // direct :2087 endpoint is firewalled on the shared box.
+// ─── WHM-root impersonation for cPanel API2 ────────────────────────────
+//
+// When the user's cPanel HTTP Basic Auth is broken (401 login-page /
+// 403 "Access denied" — typically a stale cached cpPass in Mongo, cPHulk
+// lockout or session-security policy block), user-level API2 calls fail
+// silently but WHM-root can still drive the exact same cPanel op via
+// `/json-api/cpanel?cpanel_jsonapi_user=<user>` — root token authenticates,
+// `cpanel_jsonapi_user` impersonates.
+//
+// Existing use in cpanel-routes.js gives every File Manager op a
+// WHM-root fallback (mkdir/list/upload). This helper extends the same
+// safety net to the AddonDomain / SubDomain API2 calls below —
+// otherwise a fresh account with broken user-auth (@greyhound110 /
+// laup48f8, 2026-08-30) sees "Add Subdomain" silently fail with a
+// generic error and no fallback, even though WHM package allows it.
+//
+// Returns the SAME response shape as the direct-Basic-Auth call so
+// callers don't have to branch. Returns `null` when WHM_TOKEN /
+// WHM_HOST are missing so the caller can surface the original error.
+function _resolveWhmBaseUrl(host) {
   const whmApiUrl = process.env.WHM_API_URL
-  const baseUrl = (whmApiUrl && host === WHM_HOST)
-    ? `${whmApiUrl.replace(/\/+$/, '')}/json-api/cpanel`
-    : `https://${host}:2087/json-api/cpanel`
+  const eff = host || WHM_HOST
+  if (whmApiUrl && eff === WHM_HOST) {
+    return `${whmApiUrl.replace(/\/+$/, '')}/json-api`
+  }
+  return `https://${eff}:2087/json-api`
+}
 
-  const form = new FormData()
-  form.append('dir', dir)
-  form.append('file-1', fileBuffer, { filename: fileName })
-
+async function _api2ViaWhmRoot(cpUser, module, func, params = {}, host = null) {
+  const whmToken = process.env.WHM_TOKEN
+  const whmUser = process.env.WHM_USERNAME || 'root'
+  const eff = host || WHM_HOST
+  if (!eff || !whmToken) return null
+  const baseUrl = _resolveWhmBaseUrl(host)
+  const url = `${baseUrl}/cpanel`
+  const queryParams = {
+    'api.version': 1,
+    cpanel_jsonapi_user: cpUser,
+    cpanel_jsonapi_apiversion: 2,
+    cpanel_jsonapi_module: module,
+    cpanel_jsonapi_func: func,
+    ...params,
+  }
   const headers = {
-    ...form.getHeaders(),
-    Authorization: `whm ${process.env.WHM_USERNAME || 'root'}:${whmToken}`,
-    ...(process.env.CF_ACCESS_CLIENT_ID && process.env.CF_ACCESS_CLIENT_SECRET ? {
-      'CF-Access-Client-Id': process.env.CF_ACCESS_CLIENT_ID,
-      'CF-Access-Client-Secret': process.env.CF_ACCESS_CLIENT_SECRET,
+    Authorization: `whm ${whmUser}:${whmToken}`,
+    ...(CF_ACCESS_CLIENT_ID && CF_ACCESS_CLIENT_SECRET ? {
+      'CF-Access-Client-Id': CF_ACCESS_CLIENT_ID,
+      'CF-Access-Client-Secret': CF_ACCESS_CLIENT_SECRET,
     } : {}),
   }
-
   try {
-    const res = await axios.post(baseUrl, form, {
-      params: {
-        cpanel_jsonapi_user: cpUser,
-        cpanel_jsonapi_apiversion: 3,
-        cpanel_jsonapi_module: 'Fileman',
-        cpanel_jsonapi_func: 'upload_files',
-      },
+    const res = await axios.get(url, {
+      params: queryParams,
       headers,
       httpsAgent,
-      timeout: 120000,
-      maxContentLength: 100 * 1024 * 1024,
+      timeout: 30000,
     })
     const raw = sanitize(res.data, host)
-    // WHM wraps the UAPI response in .result (v3) — normalize to the same
-    // { status, data, errors } shape the caller already knows how to consume.
-    const wrapped = raw && (raw.result || raw)
-    const okStatus = wrapped?.status === 1 || (Array.isArray(wrapped?.data) && wrapped.data.length > 0)
-    return {
-      status: okStatus ? 1 : 0,
-      data: wrapped?.data || null,
-      errors: (Array.isArray(wrapped?.errors) && wrapped.errors.length) ? wrapped.errors : null,
-      httpStatus: res.status,
-      via: 'whm-root-upload',
+    const cp = raw?.cpanelresult || {}
+    const dataArr = Array.isArray(cp.data) ? cp.data : (cp.data ? [cp.data] : [])
+    const first = dataArr[0] || {}
+    // cPanel's api2 result field is sometimes '1' (string) sometimes 1 (number).
+    const okBit = (v) => v === 1 || v === '1' || v === true
+    const opOk = okBit(first.result)
+    const eventOk = okBit(cp.event?.result)
+    if ((opOk || eventOk) && !cp.error) {
+      log(`[cPanel Proxy] ${module}::${func} succeeded via WHM-root fallback (user: ${cpUser})`)
+      return { status: 1, data: first, errors: null, via: 'whm-fallback' }
     }
+    const reason = first.reason || cp.error || `Failed to ${func}`
+    log(`[cPanel Proxy] ${module}::${func} WHM-root fallback returned failure (user: ${cpUser}): ${reason}`)
+    return { status: 0, data: null, errors: [sanitizeString(String(reason), host)], via: 'whm-fallback-failed' }
   } catch (err) {
-    const status = err.response?.status
-    const cpanelMsg = extractCpanelErrorFromResponse(err, host)
-    const msg = cpanelMsg || err.response?.data?.errors?.[0] || err.message
-    log(`[cPanel Proxy] Fileman::upload_files (WHM-root) error (${status}): ${msg}`)
-    return {
-      status: 0,
-      errors: [sanitizeString(String(msg), host)],
-      data: null,
-      httpStatus: status || null,
-      via: 'whm-root-upload-failed',
-    }
+    log(`[cPanel Proxy] ${module}::${func} WHM-root fallback error (user: ${cpUser}): ${err.message}`)
+    return null
   }
 }
 
-/**
- * Upload file via WHM impersonation session — the FIX for stale-cpPass and
- * cpsrvd-Basic-Auth-locked accounts.
- *
- * Why not the older approaches:
- *   • RETIRED: WHM-root multipart (uploadFileAsRoot above) —
- *     WHM's /json-api/cpanel gateway silently strips multipart bodies, so
- *     cPanel returns "You must specify at least one file to upload." Dead end.
- *   • RETIRED: cpPass rotation via WHM /passwd — /passwd returns
- *     "Password changed" but cpsrvd is still denying Basic Auth even with
- *     the fresh password. cPHulk / underlying auth-state stickiness.
- *
- * How this works (three-step ladder against WHM impersonation):
- *   1. WHM ─▶ GET /json-api/create_user_session?api.version=1&user=<cpUser>
- *      &service=cpaneld  with Authorization: whm root:${WHM_TOKEN}
- *      Returns { data: { url, session } } — url contains the cp_security_token
- *      like /cpsess1234567890/, session is the one-shot login token.
- *   2. cPanel ─▶ GET <CPANEL_API_URL><cp_security_token>/login/?session=<token>
- *      with maxRedirects: 0 (critical!). cPanel replies 307 → set-cookie
- *      contains the real cpsession=… cookie we need. Following redirects
- *      loses it (the redirect target overwrites cpsession with a ~pre
- *      pre-auth marker).
- *   3. cPanel ─▶ POST <CPANEL_API_URL><cp_security_token>/execute/
- *      Fileman/upload_files  with Cookie: cpsession=<value> and multipart form.
- *
- * Env URL distinction (easy to get wrong):
- *   • WHM_API_URL    → CF tunnel to port 2087 (WHM). ONLY step 1 uses this.
- *   • CPANEL_API_URL → separate CF tunnel to port 2083 (cPanel).
- *     Steps 2 & 3 use this — /cpsess<N>/login/ + /cpsess<N>/execute/... only
- *     work on the cPanel tunnel. If you use WHM_API_URL you get 401 login page.
- *
- * Cookie parsing note: manual regex on set-cookie header. Deliberately NOT
- * using tough-cookie or axios-cookiejar-support — those conflict with the
- * existing overrides.tough-cookie entry in package.json (npm EOVERRIDE on
- * Railway build).
- *
- * Returns { status, data, errors, httpStatus, via } with via tags:
- *   'whm-session'                — success
- *   'session-unavailable'        — WHM_TOKEN / WHM_API_URL / CPANEL_API_URL missing
- *   'session-create-failed'      — /create_user_session returned non-success
- *   'session-cookie-missing'     — /login step didn't return a cpsession= cookie
- *   'session-upload-rejected'    — POST returned cPanel Login HTML (session invalid)
- *   'session-upload-failed'      — POST returned non-status:1 with a real error
- *   'session-exception'          — thrown exception during ladder
- */
-async function uploadFileViaSession(cpUser, dir, fileName, fileBuffer, whmHost) {
+// ─── WHM-root impersonation for cPanel UAPI (api3) ─────────────────────
+//
+// Sibling of _api2ViaWhmRoot, but for UAPI (api3) functions like
+// Fileman::list_files, Fileman::get_file_content and SSL::installed_hosts.
+// WHM's /json-api/cpanel wrapper with cpanel_jsonapi_apiversion=3 runs the
+// UAPI call authenticated as WHM root and impersonates <cpUser> — bypassing
+// the user's (possibly stale/rotated) Basic-Auth password entirely.
+//
+// 2026 File-Manager/SSL reseller bug: for a live account whose cpsrvd was
+// refusing the stored cpPass, the cpsession-cookie mechanism (uapiViaSession)
+// 308-redirected on the SSL module (no cpsession cookie → SSL never healed),
+// whereas THIS root wrapper returned both list_files AND SSL::installed_hosts
+// cleanly. It is therefore the preferred fallback for UAPI reads.
+//
+// Returns the SAME { status, data, errors, ... } shape as the direct call so
+// callers don't branch. Returns `null` when WHM_TOKEN / host is missing so the
+// caller can surface the original error.
+async function _uapiViaWhmRoot(cpUser, module, func, params = {}, host = null) {
   const whmToken = process.env.WHM_TOKEN
-  const whmApiUrl = (process.env.WHM_API_URL || '').replace(/\/+$/, '')
-  const cpanelApiUrl = (process.env.CPANEL_API_URL || '').replace(/\/+$/, '')
-  if (!whmToken || !whmApiUrl || !cpanelApiUrl) {
-    log(`[cPanel Proxy] Fileman::upload_files (session) unavailable — missing WHM_TOKEN/WHM_API_URL/CPANEL_API_URL`)
-    return {
-      status: 0,
-      errors: ['session fallback unavailable: WHM_TOKEN / WHM_API_URL / CPANEL_API_URL not configured'],
-      data: null,
-      httpStatus: null,
-      via: 'session-unavailable',
-    }
+  const whmUser = process.env.WHM_USERNAME || 'root'
+  const eff = host || WHM_HOST
+  if (!eff || !whmToken) return null
+  const baseUrl = _resolveWhmBaseUrl(host)
+  const url = `${baseUrl}/cpanel`
+  const queryParams = {
+    'api.version': 1,
+    cpanel_jsonapi_user: cpUser,
+    cpanel_jsonapi_apiversion: 3,
+    cpanel_jsonapi_module: module,
+    cpanel_jsonapi_func: func,
+    ...params,
   }
-  // Warn (don't hard-fail) if the caller passed a non-default whmHost — the
-  // session ladder only works against the shared WHM box wired to the tunnels.
-  if (whmHost && whmHost !== WHM_HOST) {
-    log(`[cPanel Proxy] Fileman::upload_files (session) warning — non-default host ${whmHost} may not be reachable via CPANEL_API_URL tunnel`)
+  const headers = {
+    Authorization: `whm ${whmUser}:${whmToken}`,
+    ...(CF_ACCESS_CLIENT_ID && CF_ACCESS_CLIENT_SECRET ? {
+      'CF-Access-Client-Id': CF_ACCESS_CLIENT_ID,
+      'CF-Access-Client-Secret': CF_ACCESS_CLIENT_SECRET,
+    } : {}),
   }
-
-  const whmAuthHeader = `whm ${process.env.WHM_USERNAME || 'root'}:${whmToken}`
-
   try {
-    // ── Step 1: mint a one-shot login session via WHM ─────────────
-    const sessRes = await axios.get(`${whmApiUrl}/json-api/create_user_session`, {
-      params: { 'api.version': 1, user: cpUser, service: 'cpaneld' },
-      headers: {
-        Authorization: whmAuthHeader,
-        ..._maybeAccessHeaders(whmApiUrl),
-      },
-      httpsAgent,
-      timeout: 30000,
-      validateStatus: s => s < 500,
-    })
-    if (sessRes.data?.metadata?.result !== 1 || !sessRes.data?.data?.session) {
-      const reason = sessRes.data?.metadata?.reason || 'create_user_session non-success'
-      log(`[cPanel Proxy] Fileman::upload_files (session) create_user_session FAILED for ${cpUser}: ${reason}`)
-      return {
-        status: 0,
-        errors: [`session create failed: ${reason}`],
-        data: null,
-        httpStatus: sessRes.status,
-        via: 'session-create-failed',
-      }
-    }
-    const sessionToken = sessRes.data.data.session
-    // WHM returns a partial URL like "cpsess1234567890/frontend/..." OR a full
-    // URL. Extract the /cpsess<N>/ prefix — that's the security token we need
-    // for step 2 & 3.
-    const rawUrl = String(sessRes.data.data.url || '')
-    const cpsessMatch = rawUrl.match(/\/(cpsess\d+)\//)
-    const cpsessPath = cpsessMatch ? `/${cpsessMatch[1]}` : null
-    if (!cpsessPath) {
-      log(`[cPanel Proxy] Fileman::upload_files (session) could not extract /cpsessN/ from url: ${rawUrl}`)
-      return {
-        status: 0,
-        errors: ['could not extract cp_security_token from session url'],
-        data: null,
-        httpStatus: sessRes.status,
-        via: 'session-create-failed',
-      }
-    }
-
-    // ── Step 2: consume the session, capture cpsession=... cookie ─
-    // maxRedirects:0 is CRITICAL. The 307 response's set-cookie carries the
-    // real cpsession cookie. Following the redirect overwrites cpsession with
-    // a ~pre pre-auth marker and the upload becomes unauthenticated.
-    const loginRes = await axios.get(`${cpanelApiUrl}${cpsessPath}/login/`, {
-      params: { session: sessionToken },
-      headers: _maybeAccessHeaders(cpanelApiUrl),
-      httpsAgent,
-      timeout: 30000,
-      maxRedirects: 0,
-      validateStatus: s => s < 500, // allow 3xx
-    })
-    // Manual cookie parse — do NOT introduce tough-cookie (conflicts with
-    // existing package.json overrides).
-    const setCookies = loginRes.headers['set-cookie'] || []
-    const cpsessionCookie = setCookies
-      .map(c => (c.match(/cpsession=([^;]+)/) || [])[1])
-      .find(Boolean)
-    if (!cpsessionCookie) {
-      log(`[cPanel Proxy] Fileman::upload_files (session) no cpsession cookie in login response for ${cpUser} (status: ${loginRes.status})`)
-      return {
-        status: 0,
-        errors: ['login step did not return a cpsession cookie'],
-        data: null,
-        httpStatus: loginRes.status,
-        via: 'session-cookie-missing',
-      }
-    }
-
-    // ── Step 3: POST the multipart upload on the authenticated session ─
-    const form = new FormData()
-    form.append('dir', dir)
-    form.append('file-1', fileBuffer, { filename: fileName })
-    const uploadRes = await axios.post(
-      `${cpanelApiUrl}${cpsessPath}/execute/Fileman/upload_files`,
-      form,
-      {
-        headers: {
-          ...form.getHeaders(),
-          Cookie: `cpsession=${cpsessionCookie}`,
-          ..._maybeAccessHeaders(cpanelApiUrl),
-        },
-        httpsAgent,
-        timeout: 120000,
-        maxContentLength: 100 * 1024 * 1024,
-      },
-    )
-    // Same HTTP-200-HTML detection as uploadFile()
-    if (typeof uploadRes.data === 'string'
-        && /<title>cPanel Login<\/title>|<!DOCTYPE html>/i.test(uploadRes.data)) {
-      log(`[cPanel Proxy] Fileman::upload_files (session) got HTTP 200 with cPanel Login HTML — session rejected`)
-      return {
-        status: 0,
-        errors: ['session upload returned login page — session invalid'],
-        data: null,
-        httpStatus: uploadRes.status,
-        via: 'session-upload-rejected',
-      }
-    }
-    const wrapped = uploadRes.data || {}
-    if (wrapped.status === 1) {
-      log(`[cPanel Proxy] Fileman::upload_files (session) OK for ${cpUser}${cpsessPath}`)
+    const res = await axios.get(url, { params: queryParams, headers, httpsAgent, timeout: 30000, validateStatus: () => true })
+    const body = sanitize(res.data, host)
+    // WHM wraps the UAPI (api3) response under `result`.
+    const cp = body?.result || body || {}
+    const ok = cp.status === 1 || cp.status === '1'
+    if (ok) {
+      log(`[cPanel Proxy] ${module}::${func} succeeded via WHM-root UAPI fallback (user: ${cpUser})`)
       return {
         status: 1,
-        data: wrapped.data || null,
+        data: cp.data ?? null,
         errors: null,
-        httpStatus: uploadRes.status,
-        via: 'whm-session',
+        messages: cp.messages || null,
+        metadata: cp.metadata || null,
+        via: 'whm-root-uapi',
       }
     }
-    log(`[cPanel Proxy] Fileman::upload_files (session) upload rejected: ${wrapped.errors?.[0] || 'non-status:1'}`)
-    return {
-      status: 0,
-      data: wrapped.data || null,
-      errors: Array.isArray(wrapped.errors) && wrapped.errors.length ? wrapped.errors : ['session upload failed'],
-      httpStatus: uploadRes.status,
-      via: 'session-upload-failed',
-    }
+    const reason = (Array.isArray(cp.errors) && cp.errors[0]) || cp.error || `Failed to ${func}`
+    log(`[cPanel Proxy] ${module}::${func} WHM-root UAPI fallback returned failure (user: ${cpUser}): ${reason}`)
+    return { status: 0, data: null, errors: [sanitizeString(String(reason), host)], via: 'whm-root-uapi-failed' }
   } catch (err) {
-    const status = err.response?.status
-    const cpanelMsg = extractCpanelErrorFromResponse(err, whmHost || WHM_HOST)
-    const msg = cpanelMsg || err.response?.data?.errors?.[0] || err.message
-    log(`[cPanel Proxy] Fileman::upload_files (session) exception (${status}): ${msg}`)
-    return {
-      status: 0,
-      errors: [sanitizeString(String(msg), whmHost || WHM_HOST)],
-      data: null,
-      httpStatus: status || null,
-      via: 'session-exception',
-    }
+    log(`[cPanel Proxy] ${module}::${func} WHM-root UAPI fallback error (user: ${cpUser}): ${err.message}`)
+    return null
   }
 }
 
@@ -833,12 +684,20 @@ async function api2(cpUser, cpPass, module, func, params = {}, host = null) {
 
   try {
     const res = await axios.get(url, { params: queryParams, auth, httpsAgent, timeout: 60000, headers: _maybeAccessHeaders(baseUrl) })
-    // HTTP-200-with-login-page-HTML variant — treat as auth broken (same as
-    // the 401/403 catch path) so callers can trip the WHM-root fallback.
+    // Detect the "HTTP 200 + login-page HTML" auth-broken variant (see
+    // _detectLoginPageHtml docstring). Without this, api2() invents a
+    // generic "Operation failed" for the missing cpanelresult and callers
+    // never trigger their WHM-root fallback.
     const htmlAuthFail = _detectLoginPageHtml(res.data)
     if (htmlAuthFail) {
-      log(`[cPanel Proxy API2] ${module}::${func} got HTTP ${res.status} with cPanel Login HTML → AUTH-BROKEN`)
-      return { status: 0, errors: [htmlAuthFail.reason], data: null, httpStatus: res.status, code: 'CPANEL_AUTH_FAILURE' }
+      log(`[cPanel Proxy API2] ${module}::${func} got HTTP ${res.status} with login-page HTML — treating as auth failure`)
+      return {
+        status: 0,
+        errors: [htmlAuthFail.reason],
+        data: null,
+        httpStatus: res.status,
+        code: 'CPANEL_AUTH_FAILURE',
+      }
     }
     const raw = sanitize(res.data, host)
 
@@ -871,71 +730,17 @@ async function api2(cpUser, cpPass, module, func, params = {}, host = null) {
     // back to axios's generic "Request failed with status code NNN".
     const cpanelMsg = extractCpanelErrorFromResponse(err, host)
     const msg = cpanelMsg || err.response?.data?.errors?.[0] || err.message
-    const rawErrText = cpanelMsg || err.response?.data?.errors?.[0] || err.message || ''
-    const eperm = looksLikeUapiPermFailure(rawErrText)
-    // Auth-broken (stale cpPass ↔ WHM) — API2 typically 403s with body
-    // "Access denied". EPERM takes precedence for accounts that are also broken.
-    const authBroken = !eperm && looksLikeAuthFailure(status, rawErrText)
-    let code
-    if (eperm) code = 'CPANEL_UAPI_EPERM'
-    else if (authBroken) code = 'CPANEL_AUTH_FAILURE'
-    log(`[cPanel Proxy API2] ${module}::${func} error (${status}): ${msg}${eperm ? ' [EPERM]' : ''}${authBroken ? ' [AUTH-BROKEN]' : ''}`)
+    const eperm = looksLikeUapiPermFailure(cpanelMsg || err.response?.data?.errors?.[0] || '')
+    const authFail = !eperm && looksLikeAuthFailure(status, msg)
+    log(`[cPanel Proxy API2] ${module}::${func} error (${status}): ${msg}${eperm ? ' [EPERM]' : ''}${authFail ? ' [AUTH]' : ''}`)
     return {
       status: 0,
       errors: [sanitizeString(String(msg), host)],
       data: null,
       httpStatus: status || null,
-      code,
+      code: eperm ? 'CPANEL_UAPI_EPERM' : (authFail ? 'CPANEL_AUTH_FAILURE' : undefined),
     }
   }
-}
-
-// ─── WHM-root API2 impersonation fallback ───────────────────────────────
-//
-// When a user's cPanel HTTP Basic Auth is dead (stale cpPass, cPHulk lockout,
-// session-security policy), WHM-root can still drive the exact same cPanel
-// API2 op on the user's behalf via /json-api/cpanel with
-// cpanel_jsonapi_user=<user> (the WHM root token authenticates; the query
-// param impersonates the user). This is the API2 sibling of the UAPI
-// root-impersonation ladder that file-list/mkdir/upload/delete already use.
-//
-// Returns a normalized { status, data, errors, via } on a reachable result,
-// or null when WHM creds are unavailable / the request throws — so the caller
-// can surface the ORIGINAL user-level error instead of a misleading one.
-function _resolveWhmBaseUrl(host) {
-  const whmApiUrl = process.env.WHM_API_URL
-  const eff = host || WHM_HOST
-  if (whmApiUrl && eff === WHM_HOST) return `${whmApiUrl.replace(/\/+$/, '')}/json-api`
-  return `https://${eff}:2087/json-api`
-}
-
-async function _api2ViaWhmRoot(cpUser, module, func, params = {}, host = null) {
-  const whmToken = process.env.WHM_TOKEN
-  const whmUser  = process.env.WHM_USERNAME || 'root'
-  const eff = host || WHM_HOST
-  if (!eff || !whmToken) return null            // no creds → let caller surface original error
-  const url = `${_resolveWhmBaseUrl(host)}/cpanel`
-  const queryParams = {
-    'api.version': 1, cpanel_jsonapi_user: cpUser, cpanel_jsonapi_apiversion: 2,
-    cpanel_jsonapi_module: module, cpanel_jsonapi_func: func, ...params,
-  }
-  const headers = {
-    Authorization: `whm ${whmUser}:${whmToken}`,
-    ...(CF_ACCESS_CLIENT_ID && CF_ACCESS_CLIENT_SECRET ? {
-      'CF-Access-Client-Id': CF_ACCESS_CLIENT_ID, 'CF-Access-Client-Secret': CF_ACCESS_CLIENT_SECRET } : {}),
-  }
-  try {
-    const res = await axios.get(url, { params: queryParams, headers, httpsAgent, timeout: 30000 })
-    const cp = sanitize(res.data, host)?.cpanelresult || {}
-    const first = (Array.isArray(cp.data) ? cp.data : (cp.data ? [cp.data] : []))[0] || {}
-    const ok = v => v === 1 || v === '1' || v === true
-    if ((ok(first.result) || ok(cp.event?.result)) && !cp.error) {
-      log(`[cPanel Proxy] ${module}::${func} recovered via WHM-root impersonation for ${cpUser}`)
-      return { status: 1, data: first, errors: null, via: 'whm-fallback' }
-    }
-    const reason = first.reason || cp.error || `Failed to ${func}`
-    return { status: 0, data: null, errors: [sanitizeString(String(reason), host)], via: 'whm-fallback-failed' }
-  } catch (err) { return null }
 }
 
 // ─── High-level operations ──────────────────────────────
@@ -988,23 +793,21 @@ async function _fileopDelete(cpUser, cpPass, dir, file, op, host) {
 /**
  * Verify a target file/dir is no longer present in `dir` by listing the parent.
  * Returns true when target is gone, false when it still appears, null if the
- * listing call itself failed (treat null as "unknown — do NOT trust").
+ * listing call itself failed (treat null as "unknown — assume best").
  *
- * Historical bug (fixed 2026-08-26): previous version returned `true` (gone)
- * whenever the verifying listFiles returned `data:null` — which is exactly
- * what a broken UAPI does. Combined with deleteFile promoting status:0 →
- * status:1 on gone===true, this silently made every failed delete look
- * successful.  Fix: null unless listing.status===1 AND data is a real array.
+ * 2026-08-26 — HHR2009/nnliae74 fix: previously we treated `data:null` from a
+ * failed listFiles (user-level UAPI returning 401 login-page) as an empty
+ * directory, which made verifyDeleted return true (gone) → deleteFile
+ * promoted the actual FAILED delete (status:0) to a false success (status:1).
+ * Now we treat any non-`status:1` listing as null (unknown) so the caller
+ * keeps the original delete result and can trigger the WHM-root fallback.
  */
 async function _verifyDeleted(cpUser, cpPass, dir, file, host) {
   try {
     const listing = await listFiles(cpUser, cpPass, dir, host)
-    // Only trust an explicit success shape. A UAPI failure (status:0,
-    // data:null, or non-array data) means we cannot verify — return null.
-    if (!listing || listing.status !== 1 || !Array.isArray(listing.data)) {
-      return null
-    }
-    return !listing.data.some(f => f && (f.file === file || f.fullname === file))
+    if (!listing || listing.status !== 1 || !Array.isArray(listing.data)) return null
+    const items = listing.data
+    return !items.some(f => f && (f.file === file || f.fullname === file))
   } catch (_) {
     return null
   }
@@ -1031,7 +834,7 @@ async function deleteFile(cpUser, cpPass, dir, file, host = null, isDirectory = 
   const primary = isDirectory ? 'trash' : 'unlink'
   const fallback = isDirectory ? 'unlink' : 'trash'
 
-  const result = await _fileopDelete(cpUser, cpPass, dir, file, primary, host)
+  let result = await _fileopDelete(cpUser, cpPass, dir, file, primary, host)
   let gone = await _verifyDeleted(cpUser, cpPass, dir, file, host)
 
   if (gone === false) {
@@ -1050,29 +853,26 @@ async function deleteFile(cpUser, cpPass, dir, file, host = null, isDirectory = 
         fallback_response: fallbackResult,
       }
     }
-    // Fallback worked — but only promote to status:1 if the fallback's
-    // ORIGINAL op response was status:1 (never promote purely on gone).
-    if (fallbackResult?.status === 1) {
-      return {
-        ...fallbackResult,
-        status: 1,
-        attempted_ops: [primary, fallback],
-        verified_via: 'fallback',
-      }
+    // Fallback worked — promote it.
+    return {
+      ...fallbackResult,
+      status: 1,
+      attempted_ops: [primary, fallback],
+      verified_via: 'fallback',
     }
-    return { ...fallbackResult, attempted_ops: [primary, fallback] }
   }
 
-  // Primary path — only promote to status:1 if the primary op was
-  // actually reported success by cPanel. Never promote purely on gone===true:
-  // a broken UAPI returning data:null on the verify would otherwise silently
-  // rescue a failed delete.
+  // Primary worked (or verification failed but we'll trust the API's success).
+  // 2026-08-26 fix: only promote to status:1 if the original op ALSO said status:1.
+  // Previously we promoted status:0 → status:1 whenever verifyDeleted returned
+  // true, which false-positived when both the deleteFile AND the verifying
+  // listFiles were auth-broken (both returning empty). Now we only *demote*
+  // status:1 → status:0 when verification says "still there"; we never
+  // promote in the other direction.
   if (gone === true && result?.status === 1) {
     return { ...result, status: 1, attempted_ops: [primary], verified_via: 'primary' }
   }
-  // gone === null (verify unknown) OR result.status !== 1 — return the
-  // original op response untouched. Callers decide from status/errors.
-  return { ...result, attempted_ops: [primary], verified_via: gone === null ? 'unknown' : 'unverified' }
+  return result
 }
 
 async function renameFile(cpUser, cpPass, dir, oldName, newName, host = null) {
@@ -1151,11 +951,14 @@ async function addAddonDomain(cpUser, cpPass, domain, subDomain, dir, host = nul
       timeout: 30000,
       headers: _maybeAccessHeaders(getBaseUrl(host)),
     })
-    // HTTP-200-with-login-page-HTML → auth denied at cpsrvd. Try WHM-root.
-    if (_detectLoginPageHtml(res.data)) {
-      const fb = await _api2ViaWhmRoot(cpUser, 'AddonDomain', 'addaddondomain', p2, host)
-      if (fb) return fb
-      return { status: 0, data: null, errors: ['cPanel returned login page HTML (session/auth denied at cpsrvd layer)'], code: 'CPANEL_AUTH_FAILURE' }
+    // 200-with-login-page-HTML variant → treat as auth failure and let
+    // the caller's WHM-root fallback path kick in.
+    const htmlAuthFailAddon = _detectLoginPageHtml(res.data)
+    if (htmlAuthFailAddon) {
+      log(`[cPanel Proxy] AddonDomain::addaddondomain got HTTP ${res.status} with login-page HTML — falling back via WHM-root`)
+      const fallback = await _api2ViaWhmRoot(cpUser, 'AddonDomain', 'addaddondomain', p2, host)
+      if (fallback) return fallback
+      return { status: 0, data: null, errors: [htmlAuthFailAddon.reason], httpStatus: res.status, code: 'CPANEL_AUTH_FAILURE' }
     }
     const result = res.data?.cpanelresult?.data?.[0] || {}
     if (result.result === 1) {
@@ -1167,12 +970,17 @@ async function addAddonDomain(cpUser, cpPass, domain, subDomain, dir, host = nul
       _adminAlertDown(err.code || err.message, host || WHM_HOST)
       return downResponse(err.code || err.message)
     }
-    // Stale-cpPass / cpHulk 401/403 → drive the op as WHM root instead.
-    if (looksLikeAuthFailure(err.response?.status, err.message)) {
-      const fb = await _api2ViaWhmRoot(cpUser, 'AddonDomain', 'addaddondomain', p2, host)
-      if (fb) return fb
+    // User-level Basic Auth broken (401 login-page / 403 "Access denied") →
+    // retry via WHM-root impersonation. Fixes @greyhound110 / laup48f8
+    // (2026-08-30): fresh account had a broken user auth so every panel
+    // subdomain / addon-domain create silently failed with a generic 403,
+    // even though the WHM package (Premium-Anti-Red-1-Week) allows both.
+    const status = err.response?.status
+    if (looksLikeAuthFailure(status, err.message)) {
+      const fallback = await _api2ViaWhmRoot(cpUser, 'AddonDomain', 'addaddondomain', p2, host)
+      if (fallback) return fallback
     }
-    return { status: 0, data: null, errors: [err.message] }
+    return { status: 0, data: null, errors: [err.message], httpStatus: status || null }
   }
 }
 
@@ -1198,10 +1006,12 @@ async function removeAddonDomain(cpUser, cpPass, domain, subDomain, mainDomain, 
       timeout: 30000,
       headers: _maybeAccessHeaders(getBaseUrl(host)),
     })
-    if (_detectLoginPageHtml(res.data)) {
-      const fb = await _api2ViaWhmRoot(cpUser, 'AddonDomain', 'deladdondomain', p2, host)
-      if (fb) return fb
-      return { status: 0, data: null, errors: ['cPanel returned login page HTML (session/auth denied at cpsrvd layer)'], code: 'CPANEL_AUTH_FAILURE' }
+    const htmlAuthFailRemove = _detectLoginPageHtml(res.data)
+    if (htmlAuthFailRemove) {
+      log(`[cPanel Proxy] AddonDomain::deladdondomain got HTTP ${res.status} with login-page HTML — falling back via WHM-root`)
+      const fallback = await _api2ViaWhmRoot(cpUser, 'AddonDomain', 'deladdondomain', p2, host)
+      if (fallback) return fallback
+      return { status: 0, data: null, errors: [htmlAuthFailRemove.reason], httpStatus: res.status, code: 'CPANEL_AUTH_FAILURE' }
     }
     const result = res.data?.cpanelresult?.data?.[0] || {}
     if (result.result === 1) {
@@ -1213,11 +1023,13 @@ async function removeAddonDomain(cpUser, cpPass, domain, subDomain, mainDomain, 
       _adminAlertDown(err.code || err.message, host || WHM_HOST)
       return downResponse(err.code || err.message)
     }
-    if (looksLikeAuthFailure(err.response?.status, err.message)) {
-      const fb = await _api2ViaWhmRoot(cpUser, 'AddonDomain', 'deladdondomain', p2, host)
-      if (fb) return fb
+    // WHM-root fallback for user-auth-broken (parity with addAddonDomain).
+    const status = err.response?.status
+    if (looksLikeAuthFailure(status, err.message)) {
+      const fallback = await _api2ViaWhmRoot(cpUser, 'AddonDomain', 'deladdondomain', p2, host)
+      if (fallback) return fallback
     }
-    return { status: 0, data: null, errors: [err.message] }
+    return { status: 0, data: null, errors: [err.message], httpStatus: status || null }
   }
 }
 
@@ -1293,10 +1105,6 @@ async function listSubdomains(cpUser, cpPass, host = null) {
     }),
     status: domains.status,
     errors: domains.errors,
-    // Propagate auth-broken signals so the route can trip the WHM fallback
-    // (listDomains itself returns CPANEL_AUTH_FAILURE / httpStatus on 401/403).
-    code: domains.code,
-    httpStatus: domains.httpStatus,
   }
 }
 
@@ -1307,9 +1115,6 @@ async function createSubdomain(cpUser, cpPass, subdomain, rootdomain, dir, host 
   const p2 = {
     domain: subdomain,
     rootdomain: rootdomain,
-    // docroot default is public_html/<subdomain> — NOT
-    // public_html/<subdomain>.<rootdomain> (the old value produced a wrong
-    // docroot and fed the frontend display-name doubling bug).
     dir: dir || `public_html/${subdomain}`,
   }
   const params = {
@@ -1327,10 +1132,12 @@ async function createSubdomain(cpUser, cpPass, subdomain, rootdomain, dir, host 
       timeout: 30000,
       headers: _maybeAccessHeaders(getBaseUrl(host)),
     })
-    if (_detectLoginPageHtml(res.data)) {
-      const fb = await _api2ViaWhmRoot(cpUser, 'SubDomain', 'addsubdomain', p2, host)
-      if (fb) return fb
-      return { status: 0, data: null, errors: ['cPanel returned login page HTML (session/auth denied at cpsrvd layer)'], code: 'CPANEL_AUTH_FAILURE' }
+    const htmlAuthFailCreate = _detectLoginPageHtml(res.data)
+    if (htmlAuthFailCreate) {
+      log(`[cPanel Proxy] SubDomain::addsubdomain got HTTP ${res.status} with login-page HTML — falling back via WHM-root`)
+      const fallback = await _api2ViaWhmRoot(cpUser, 'SubDomain', 'addsubdomain', p2, host)
+      if (fallback) return fallback
+      return { status: 0, data: null, errors: [htmlAuthFailCreate.reason], httpStatus: res.status, code: 'CPANEL_AUTH_FAILURE' }
     }
     const result = res.data?.cpanelresult?.data?.[0] || {}
     if (result.result === 1) {
@@ -1342,11 +1149,16 @@ async function createSubdomain(cpUser, cpPass, subdomain, rootdomain, dir, host 
       _adminAlertDown(err.code || err.message, host || WHM_HOST)
       return downResponse(err.code || err.message)
     }
-    if (looksLikeAuthFailure(err.response?.status, err.message)) {
-      const fb = await _api2ViaWhmRoot(cpUser, 'SubDomain', 'addsubdomain', p2, host)
-      if (fb) return fb
+    // WHM-root fallback for user-auth-broken (401/403). Fixes @greyhound110
+    // 2026-08-30: fresh laup48f8 account had broken user Basic Auth so the
+    // panel's "Add Subdomain" silently failed with 403 even though the plan
+    // (Premium-Anti-Red-1-Week, MAXSUB=unlimited) permits it.
+    const status = err.response?.status
+    if (looksLikeAuthFailure(status, err.message)) {
+      const fallback = await _api2ViaWhmRoot(cpUser, 'SubDomain', 'addsubdomain', p2, host)
+      if (fallback) return fallback
     }
-    return { status: 0, data: null, errors: [err.message] }
+    return { status: 0, data: null, errors: [err.message], httpStatus: status || null }
   }
 }
 
@@ -1373,10 +1185,12 @@ async function deleteSubdomain(cpUser, cpPass, fullSubdomain, host = null) {
       timeout: 30000,
       headers: _maybeAccessHeaders(getBaseUrl(host)),
     })
-    if (_detectLoginPageHtml(res.data)) {
-      const fb = await _api2ViaWhmRoot(cpUser, 'SubDomain', 'delsubdomain', p2, effectiveHost)
-      if (fb) return fb
-      return { status: 0, data: null, errors: ['cPanel returned login page HTML (session/auth denied at cpsrvd layer)'], code: 'CPANEL_AUTH_FAILURE' }
+    const htmlAuthFailDelete = _detectLoginPageHtml(res.data)
+    if (htmlAuthFailDelete) {
+      log(`[cPanel Proxy] SubDomain::delsubdomain got HTTP ${res.status} with login-page HTML — falling back via WHM-root`)
+      const fallback = await _api2ViaWhmRoot(cpUser, 'SubDomain', 'delsubdomain', p2, host)
+      if (fallback) return fallback
+      return { status: 0, data: null, errors: [htmlAuthFailDelete.reason], httpStatus: res.status, code: 'CPANEL_AUTH_FAILURE' }
     }
     const result = res.data?.cpanelresult?.data?.[0] || {}
     if (result.result === 1) {
@@ -1388,11 +1202,13 @@ async function deleteSubdomain(cpUser, cpPass, fullSubdomain, host = null) {
       _adminAlertDown(err.code || err.message, host || WHM_HOST)
       return downResponse(err.code || err.message)
     }
-    if (looksLikeAuthFailure(err.response?.status, err.message)) {
-      const fb = await _api2ViaWhmRoot(cpUser, 'SubDomain', 'delsubdomain', p2, effectiveHost)
-      if (fb) return fb
+    // WHM-root fallback for user-auth-broken (parity with createSubdomain).
+    const status = err.response?.status
+    if (looksLikeAuthFailure(status, err.message)) {
+      const fallback = await _api2ViaWhmRoot(cpUser, 'SubDomain', 'delsubdomain', p2, host)
+      if (fallback) return fallback
     }
-    return { status: 0, data: null, errors: [err.message] }
+    return { status: 0, data: null, errors: [err.message], httpStatus: status || null }
   }
 }
 
@@ -1488,6 +1304,304 @@ async function deleteMysqlRemoteHost(cpUser, cpPass, remoteHost, host = null) {
   return uapi(cpUser, cpPass, 'Mysql', 'delete_host', { host: remoteHost }, 'POST', host)
 }
 
+// ─── WHM impersonation-session upload fallback ────────────────────────
+//
+// Definitive fix for the @HHR2009 / nnliae74 pattern (2026-08-26). This
+// account is stuck in a state where its user-level UAPI Basic Auth is
+// rejected by cpsrvd (HTTP 401 with cPanel login-page HTML) *regardless
+// of the actual password* — even immediately after WHM /passwd confirms
+// "Password changed for user X". That rules out stale cpPass, cPHulk,
+// and ModSecurity (all confirmed via live probes 22:37→23:37Z). The
+// underlying trigger is a per-account cpsrvd security-policy state that
+// only clears with a session that ORIGINATES from WHM root, not from raw
+// Basic Auth. The path:
+//   1) WHM /json-api/create_user_session?user=X&service=cpaneld
+//        → returns { session, cp_security_token, url }
+//   2) GET  <tunnel>/cpsess<N>/login/?session=<sessionToken>
+//        → sets the `cpsession` cookie
+//   3) POST <tunnel>/cpsess<N>/execute/Fileman/upload_files
+//        → cpsrvd accepts multipart via session cookie (which raw Basic
+//          Auth is being denied) and forwards to Fileman properly. This
+//          is the same session mechanism the cPanel UI uses.
+//
+// Advantages over the earlier cpPass-rotation attempt (which "worked" at
+// the WHM /passwd level but didn't restore user-level UAPI):
+//   • Zero writes to Mongo — no cpPass churn.
+//   • Zero risk of breaking bound MySQL passwords.
+//   • Works even when cpsrvd is denying Basic Auth entirely.
+//   • Same code path handles all Fileman ops (multipart upload, list,
+//     mkdir, extract, delete) — no /json-api/cpanel gateway multipart
+//     limitations because it goes to /execute/... directly.
+//
+// Session is short-lived (~30 min from WHM) so we don't cache it — a
+// per-op call is cheap and always fresh.
+async function uploadFileViaSession(cpUser, dir, fileName, fileBuffer, whmHost) {
+  const whmToken = process.env.WHM_TOKEN
+  if (!whmToken || !whmHost) {
+    return { status: 0, errors: ['WHM session fallback not configured (missing WHM_TOKEN or whmHost)'], data: null, via: 'session-unavailable' }
+  }
+  const whmApiUrl = process.env.WHM_API_URL
+  const useTunnel = whmApiUrl && whmHost === process.env.WHM_HOST
+  const whmBase = useTunnel ? `${whmApiUrl.replace(/\/+$/, '')}/json-api` : `https://${whmHost}:2087/json-api`
+
+  const cfAccess = (process.env.CF_ACCESS_CLIENT_ID && process.env.CF_ACCESS_CLIENT_SECRET) ? {
+    'CF-Access-Client-Id': process.env.CF_ACCESS_CLIENT_ID,
+    'CF-Access-Client-Secret': process.env.CF_ACCESS_CLIENT_SECRET,
+  } : {}
+
+  try {
+    // Step 1 — Ask WHM for a fresh user session.
+    const sess = await axios.get(`${whmBase}/create_user_session`, {
+      params: { 'api.version': 1, user: cpUser, service: 'cpaneld' },
+      headers: { Authorization: `whm ${process.env.WHM_USERNAME || 'root'}:${whmToken}`, ...cfAccess },
+      httpsAgent, timeout: 30000, validateStatus: () => true,
+    })
+    if (sess.data?.metadata?.result !== 1) {
+      const reason = sess.data?.metadata?.reason || 'WHM create_user_session returned failure'
+      log(`[cPanel Proxy] uploadFileViaSession: create_user_session failed for ${cpUser} — ${reason}`)
+      return { status: 0, errors: [sanitizeString(String(reason), whmHost)], data: null, via: 'session-create-failed' }
+    }
+    const sessInfo = sess.data.data || {}
+    const cpsess = sessInfo.cp_security_token
+    const sessionToken = sessInfo.session
+    if (!cpsess || !sessionToken) {
+      return { status: 0, errors: ['WHM session response missing cp_security_token or session'], data: null, via: 'session-malformed' }
+    }
+
+    // Step 2 — Follow the session URL on the cPanel tunnel host to seed the
+    // cpsession cookie. WHM's create_user_session returns a cprapid.com URL
+    // by default; we rewrite it to CPANEL_API_URL (Cloudflare tunnel → port
+    // 2083) so we don't need direct :2083 egress (which the ingress firewall
+    // blocks). NOTE: cpsession + /execute/ endpoints live on 2083 (cpanel),
+    // not 2087 (whm), so we must use CPANEL_API_URL here — using WHM_API_URL
+    // sends us to the wrong service and gets 401 back with a wrong-service
+    // login page.
+    const cpanelApiUrl = process.env.CPANEL_API_URL || ''
+    const useCpanelTunnel = cpanelApiUrl && whmHost === process.env.WHM_HOST
+    const tunnelBase = useCpanelTunnel ? cpanelApiUrl.replace(/\/+$/, '') : `https://${whmHost}:2083`
+    // Manually manage the cpsession cookie so we don't depend on tough-cookie.
+    // (Only one cookie is set on the login redirect: `cpsession=<value>`.)
+    const loginUrl = `${tunnelBase}${cpsess}/login/?session=${encodeURIComponent(sessionToken)}`
+    const loginRes = await axios.get(loginUrl, {
+      headers: { ...cfAccess },
+      httpsAgent, timeout: 30000, validateStatus: () => true, maxRedirects: 0,
+    })
+    // cpsession cookie comes back on either the 200 or the 302
+    const setCookies = loginRes.headers['set-cookie'] || []
+    const cpsessionCookie = setCookies
+      .map(c => (c.match(/cpsession=([^;]+)/) || [])[1])
+      .find(Boolean)
+    if (!cpsessionCookie) {
+      log(`[cPanel Proxy] uploadFileViaSession: no cpsession cookie in login response for ${cpUser} (status ${loginRes.status})`)
+      return { status: 0, errors: ['session login did not set cpsession cookie'], data: null, via: 'session-cookie-missing' }
+    }
+
+    // Step 3 — Multipart upload via /execute/Fileman/upload_files with the cpsession cookie.
+    const uploadUrl = `${tunnelBase}${cpsess}/execute/Fileman/upload_files`
+    const form = new FormData()
+    form.append('dir', dir)
+    form.append('file-1', fileBuffer, { filename: fileName })
+    const up = await axios.post(uploadUrl, form, {
+      headers: {
+        ...form.getHeaders(),
+        Cookie: `cpsession=${cpsessionCookie}`,
+        ...cfAccess,
+      },
+      httpsAgent, timeout: 120000, validateStatus: () => true,
+      maxContentLength: 100 * 1024 * 1024,
+      maxBodyLength:    100 * 1024 * 1024,
+    })
+
+    // /execute/... always returns JSON on 2xx.
+    if (up.status !== 200 || typeof up.data !== 'object') {
+      const preview = (typeof up.data === 'string' ? up.data : JSON.stringify(up.data)).slice(0, 200)
+      log(`[cPanel Proxy] uploadFileViaSession: upload_files HTTP ${up.status} for ${cpUser} — ${preview}`)
+      return { status: 0, errors: [sanitizeString(`HTTP ${up.status}: ${preview}`, whmHost)], data: null, httpStatus: up.status, via: 'session-upload-failed' }
+    }
+
+    // UAPI shape: { status: 1|0, data: { uploads: [{status,file,reason,...}], succeeded, failed }, errors, ... }
+    const body = sanitize(up.data, whmHost)
+    const succeeded = body?.status === 1 && (body?.data?.uploads || []).some(u => u && u.status === 1)
+    if (succeeded) {
+      return { status: 1, data: body.data || null, errors: null, via: 'whm-session' }
+    }
+    const reason = (body?.data?.uploads || [])[0]?.reason || body?.errors?.[0] || 'WHM session upload also failed'
+    return { status: 0, errors: [sanitizeString(String(reason), whmHost)], data: body?.data || null, via: 'session-upload-rejected' }
+  } catch (err) {
+    const status = err.response?.status
+    const msg = extractCpanelErrorFromResponse(err, whmHost) || err.message
+    log(`[cPanel Proxy] uploadFileViaSession exception for ${cpUser}: (${status || 'no-status'}) ${msg}`)
+    return { status: 0, errors: [sanitizeString(String(msg), whmHost)], data: null, httpStatus: status || null, via: 'session-exception' }
+  }
+}
+
+// ─── Generic UAPI over a WHM-minted cpsession ────────────────────────
+//
+// Same session ladder as uploadFileViaSession, but for non-multipart
+// /execute/<module>/<func> ops — specifically Fileman::get_file_content and
+// save_file_content. Those MUST go through a real cpsession on the
+// CPANEL_API_URL tunnel (port 2083), NOT the WHM json-api gateway (2087):
+//   - get_file_content over json-api returns the login-page HTML for a
+//     broken-auth user, and
+//   - the raw session URL WHM returns points at the origin IP:2083, which the
+//     ingress firewall blocks (30s timeout — the 2026-08-31 @nbayftest bug).
+// So we rewrite the cpsess path onto CPANEL_API_URL and carry the cpsession
+// cookie ourselves, exactly like the upload path.
+async function uapiViaSession(cpUser, module, func, params = {}, method = 'GET', whmHost = null) {
+  const whmToken = process.env.WHM_TOKEN
+  const eff = whmHost || WHM_HOST
+  if (!whmToken || !eff) {
+    return { status: 0, errors: ['WHM session fallback not configured (missing WHM_TOKEN or whmHost)'], data: null, via: 'session-unavailable' }
+  }
+  const whmApiUrl = process.env.WHM_API_URL
+  const useTunnel = whmApiUrl && eff === WHM_HOST
+  const whmBase = useTunnel ? `${whmApiUrl.replace(/\/+$/, '')}/json-api` : `https://${eff}:2087/json-api`
+  const cfAccess = (CF_ACCESS_CLIENT_ID && CF_ACCESS_CLIENT_SECRET) ? {
+    'CF-Access-Client-Id': CF_ACCESS_CLIENT_ID,
+    'CF-Access-Client-Secret': CF_ACCESS_CLIENT_SECRET,
+  } : {}
+  try {
+    // Step 1 — WHM mints a user session (this call goes over the WHM tunnel, which is reachable).
+    const sess = await axios.get(`${whmBase}/create_user_session`, {
+      params: { 'api.version': 1, user: cpUser, service: 'cpaneld' },
+      headers: { Authorization: `whm ${process.env.WHM_USERNAME || 'root'}:${whmToken}`, ...cfAccess },
+      httpsAgent, timeout: 30000, validateStatus: () => true,
+    })
+    if (sess.data?.metadata?.result !== 1) {
+      const reason = sess.data?.metadata?.reason || 'WHM create_user_session returned failure'
+      log(`[cPanel Proxy] uapiViaSession: create_user_session failed for ${cpUser} — ${reason}`)
+      return { status: 0, errors: [sanitizeString(String(reason), eff)], data: null, via: 'session-create-failed' }
+    }
+    const sessInfo = sess.data.data || {}
+    const cpsess = sessInfo.cp_security_token
+    const sessionToken = sessInfo.session
+    if (!cpsess || !sessionToken) {
+      return { status: 0, errors: ['WHM session response missing cp_security_token or session'], data: null, via: 'session-malformed' }
+    }
+
+    // Step 2 — Seed the cpsession cookie on the CPANEL tunnel host (port 2083).
+    const cpanelApiUrl = process.env.CPANEL_API_URL || ''
+    const useCpanelTunnel = cpanelApiUrl && eff === WHM_HOST
+    const tunnelBase = useCpanelTunnel ? cpanelApiUrl.replace(/\/+$/, '') : `https://${eff}:2083`
+    const loginUrl = `${tunnelBase}${cpsess}/login/?session=${encodeURIComponent(sessionToken)}`
+    const loginRes = await axios.get(loginUrl, {
+      headers: { ...cfAccess },
+      httpsAgent, timeout: 30000, validateStatus: () => true, maxRedirects: 0,
+    })
+    const setCookies = loginRes.headers['set-cookie'] || []
+    const cpsessionCookie = setCookies.map(c => (c.match(/cpsession=([^;]+)/) || [])[1]).find(Boolean)
+    if (!cpsessionCookie) {
+      log(`[cPanel Proxy] uapiViaSession: no cpsession cookie in login response for ${cpUser} (status ${loginRes.status})`)
+      return { status: 0, errors: ['session login did not set cpsession cookie'], data: null, via: 'session-cookie-missing' }
+    }
+
+    // Step 3 — Call /execute/<module>/<func> with the cpsession cookie.
+    const execUrl = `${tunnelBase}${cpsess}/execute/${module}/${func}`
+    const commonHeaders = { Cookie: `cpsession=${cpsessionCookie}`, ...cfAccess }
+    let res
+    if (method === 'POST') {
+      res = await axios.post(execUrl, new URLSearchParams(params).toString(), {
+        headers: { ...commonHeaders, 'Content-Type': 'application/x-www-form-urlencoded' },
+        httpsAgent, timeout: 60000, validateStatus: () => true,
+        maxContentLength: 50 * 1024 * 1024, maxBodyLength: 50 * 1024 * 1024,
+      })
+    } else {
+      res = await axios.get(execUrl, { params, headers: commonHeaders, httpsAgent, timeout: 60000, validateStatus: () => true })
+    }
+    if (res.status !== 200 || typeof res.data !== 'object') {
+      const preview = (typeof res.data === 'string' ? res.data : JSON.stringify(res.data)).slice(0, 200)
+      log(`[cPanel Proxy] uapiViaSession: ${module}::${func} HTTP ${res.status} for ${cpUser} — ${preview}`)
+      return { status: 0, errors: [sanitizeString(`HTTP ${res.status}: ${preview}`, eff)], data: null, httpStatus: res.status, via: 'session-exec-failed' }
+    }
+    const body = sanitize(res.data, eff)
+    return {
+      status: body?.status === 1 ? 1 : 0,
+      data: body?.data ?? null,
+      errors: body?.errors || null,
+      messages: body?.messages || null,
+      metadata: body?.metadata || null,
+      reason: (Array.isArray(body?.errors) && body.errors[0]) || body?.error || null,
+      via: 'whm-session',
+    }
+  } catch (err) {
+    const status = err.response?.status
+    const msg = extractCpanelErrorFromResponse(err, eff) || err.message
+    log(`[cPanel Proxy] uapiViaSession exception for ${cpUser} (${module}::${func}): (${status || 'no-status'}) ${msg}`)
+    return { status: 0, errors: [sanitizeString(String(msg), eff)], data: null, httpStatus: status || null, via: 'session-exception' }
+  }
+}
+
+// ─── WHM-root multipart upload fallback ──────────────────────────────
+//
+// When user-level UAPI upload_files fails with 401/403 (stale cpPass /
+// cPanel session-security lockout — 2026-08-26 @HHR2009 / nnliae74), retry
+// the upload via WHM's /json-api/cpanel gateway authenticated as root, with
+// cpanel_jsonapi_user=<user> to impersonate. Uses multipart POST (same body
+// shape as user-level upload_files) and returns a normalized
+// { status, data, errors, via } shape so callers can treat it identically.
+//
+// Requires process.env.WHM_TOKEN and a whmHost. Returns a canonical failure
+// shape if either is missing so callers can log + report cleanly.
+async function uploadFileAsRoot(cpUser, dir, fileName, fileBuffer, whmHost) {
+  const whmToken = process.env.WHM_TOKEN
+  if (!whmToken || !whmHost) {
+    return { status: 0, errors: ['WHM root fallback not configured (missing WHM_TOKEN or whmHost)'], data: null, via: 'whm-root-unavailable' }
+  }
+  // Resolve WHM base URL: prefer WHM_API_URL (Cloudflare tunnel) when the
+  // account is pinned to the primary WHM_HOST — matches _resolveWhmBaseUrl in
+  // cpanel-routes.js.
+  const whmApiUrl = process.env.WHM_API_URL
+  const useTunnel = whmApiUrl && whmHost === process.env.WHM_HOST
+  const base = useTunnel ? `${whmApiUrl.replace(/\/+$/, '')}/json-api` : `https://${whmHost}:2087/json-api`
+  const url = `${base}/cpanel`
+
+  const form = new FormData()
+  form.append('dir', dir)
+  form.append('file-1', fileBuffer, { filename: fileName })
+
+  const cfAccess = (process.env.CF_ACCESS_CLIENT_ID && process.env.CF_ACCESS_CLIENT_SECRET) ? {
+    'CF-Access-Client-Id': process.env.CF_ACCESS_CLIENT_ID,
+    'CF-Access-Client-Secret': process.env.CF_ACCESS_CLIENT_SECRET,
+  } : {}
+
+  try {
+    const res = await axios.post(url, form, {
+      params: {
+        'api.version': 1,
+        cpanel_jsonapi_user: cpUser,
+        cpanel_jsonapi_apiversion: 3,
+        cpanel_jsonapi_module: 'Fileman',
+        cpanel_jsonapi_func: 'upload_files',
+      },
+      headers: {
+        Authorization: `whm ${process.env.WHM_USERNAME || 'root'}:${whmToken}`,
+        ...form.getHeaders(),
+        ...cfAccess,
+      },
+      httpsAgent,
+      timeout: 120000,
+      maxContentLength: 100 * 1024 * 1024,
+    })
+    const body = sanitize(res.data, whmHost)
+    // WHM wraps UAPI result under `result:`. Accept either shape.
+    const inner = body?.result || body?.cpanelresult || body || {}
+    const uploaded = inner?.data?.uploads?.uploaded
+    const succeeded = Array.isArray(uploaded)
+      ? uploaded.some(u => u && (u.status === 1 || u.uploaded === 1))
+      : (inner?.status === 1 || inner?.data?.uploaded === 1)
+    if (succeeded) {
+      return { status: 1, data: inner.data || null, errors: null, via: 'whm-root' }
+    }
+    const reason = inner?.errors?.[0] || inner?.error || 'WHM root upload also failed'
+    return { status: 0, errors: [sanitizeString(String(reason), whmHost)], data: null, via: 'whm-root-failed' }
+  } catch (err) {
+    const status = err.response?.status
+    const msg = extractCpanelErrorFromResponse(err, whmHost) || err.message
+    log(`[cPanel Proxy] WHM-root upload_files error (${status || 'no-status'}): ${msg}`)
+    return { status: 0, errors: [sanitizeString(String(msg), whmHost)], data: null, httpStatus: status || null, via: 'whm-root-exception' }
+  }
+}
+
 module.exports = {
   uapi,
   uploadFile,
@@ -1549,14 +1663,25 @@ module.exports = {
   extractCpanelErrorFromResponse,
   looksLikeUapiPermFailure,
   looksLikeAuthFailure,
+  // Low-level API2 caller — surfaced so tests can assert the "HTTP 200 +
+  // login-page HTML" → CPANEL_AUTH_FAILURE normalisation directly (uapi is
+  // already exported above).
+  api2,
   sanitizeCpanelFileName,
-  // Stale-cpPass fallback (WHM root impersonation) — peer of the EPERM ladder
+  // WHM-root multipart upload fallback (2026-08-26 @HHR2009 /nnliae74 fix)
   uploadFileAsRoot,
-  // WHM impersonation session — the CURRENT upload-path fallback for stale
-  // cpPass / cpsrvd-Basic-Auth-locked accounts (retires uploadFileAsRoot for
-  // the upload flow, which is dead because the /json-api gateway strips
-  // multipart bodies).
+  // WHM impersonation-session upload — definitive fix for cpsrvd-denies-basic-auth
+  // (2026-08-26 @HHR2009 /nnliae74 final fix, superseded uploadFileAsRoot in routes)
   uploadFileViaSession,
+  // Generic UAPI over a WHM cpsession — file get/save fallback via CPANEL_API_URL
+  // tunnel (2026-08-31 fix: the routes' inline session helper hit the origin IP → 30s timeout)
+  uapiViaSession,
+  // WHM-root impersonation fallbacks — authenticate as root + impersonate the
+  // user, bypassing a stale/rotated user cpPass. Surfaced so the reseller API
+  // (js/reseller-hosting-mgmt.js) can heal File-Manager/SSL CPANEL_AUTH_FAILURE
+  // the same way the HostPanel already does (2026 reseller File Manager/SSL bug).
+  uapiViaWhmRoot: _uapiViaWhmRoot,   // UAPI / api3  (list_files, SSL::installed_hosts, get_file_content)
+  api2ViaWhmRoot: _api2ViaWhmRoot,   // API2         (Fileman::mkdir, Fileman::fileop extract/copy/move/rename/compress)
   // EPERM (broken homedir/quota) — UX + ops alerting
   getEpermUserMessage,
   getEpermLocalizedMessages,

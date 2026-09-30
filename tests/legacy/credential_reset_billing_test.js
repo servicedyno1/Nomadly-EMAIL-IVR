@@ -10,7 +10,7 @@ require('dotenv').config()
 
 // Test Configuration from review request
 const BASE_URL = 'http://localhost:5000'
-const DB_URL = 'mongodb://mongo:RQoOmIdwjRLFvhWMaatjidzqpvawUKcb@caboose.proxy.rlwy.net:59668'
+const DB_URL = 'mongodb://localhost:27017'
 const DB_NAME = 'test'
 
 // Test User Context from review request

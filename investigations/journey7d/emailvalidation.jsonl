@@ -1,0 +1,26 @@
+{"t":"2026-09-05T21:28:36.226960020Z","s":"info","m":"[EmailValidation] Service initialized"}
+{"t":"2026-09-08T11:22:23.505894224Z","s":"info","m":"[EmailValidation] Service initialized"}
+{"t":"2026-09-08T12:12:46.470627437Z","s":"info","m":"[EmailValidation] Service initialized"}
+{"t":"2026-09-08T14:05:27.629065858Z","s":"info","m":"[EmailValidation] Service initialized"}
+{"t":"2026-09-08T19:03:13.034716584Z","s":"info","m":"[EmailValidation] Service initialized"}
+{"t":"2026-09-08T19:28:56.086206528Z","s":"info","m":"[EmailValidation] Service initialized"}
+{"t":"2026-09-09T22:42:00.440165918Z","s":"info","m":"[EmailValidation] FREE TRIAL used by chatId=8798213337 for 10 emails"}
+{"t":"2026-09-09T22:42:00.669963828Z","s":"info","m":"[EmailValidation] Catch-all probe error for gmail.com: Worker connection error: connect ECONNREFUSED 5.189.166.127:8787"}
+{"t":"2026-09-09T22:42:01.110497891Z","s":"info","m":"[EmailValidation] Worker batch error: Worker connection error: connect ECONNREFUSED 5.189.166.127:8787 — marking 8 as unknown"}
+{"t":"2026-09-09T22:42:01.110500940Z","s":"info","m":"[EmailValidation] Catch-all probe error for uberip.com: Worker connection error: connect ECONNREFUSED 5.189.166.127:8787"}
+{"t":"2026-09-09T22:42:01.117450657Z","s":"info","m":"[EmailValidation] Worker batch error: Worker connection error: connect ECONNREFUSED 5.189.166.127:8787 — marking 1 as unknown"}
+{"t":"2026-09-09T22:42:01.339305534Z","s":"info","m":"[EmailValidation] Catch-all probe error for emalupe.com: Worker connection error: connect ECONNREFUSED 5.189.166.127:8787"}
+{"t":"2026-09-09T22:42:01.445945503Z","s":"info","m":"[EmailValidation] Worker batch error: Worker connection error: connect ECONNREFUSED 5.189.166.127:8787 — marking 1 as unknown"}
+{"t":"2026-09-10T19:50:55.549231820Z","s":"info","m":"[EmailValidation] Service initialized"}
+{"t":"2026-09-10T20:01:57.329102005Z","s":"info","m":"[EmailValidation] Service initialized"}
+{"t":"2026-09-10T21:23:41.322041386Z","s":"info","m":"[EmailValidation] Service initialized"}
+{"t":"2026-09-10T23:14:04.145191732Z","s":"info","m":"[EmailValidation] Service initialized"}
+{"t":"2026-09-10T23:17:40.344681491Z","s":"info","m":"[EmailValidation] Service initialized"}
+{"t":"2026-09-12T19:53:39.755100434Z","s":"info","m":"[EmailValidation] Service initialized"}
+{"t":"2026-09-12T20:08:46.706997741Z","s":"info","m":"[EmailValidation] Service initialized"}
+{"t":"2026-09-13T09:06:36.758706432Z","s":"info","m":"[EmailValidation] Service initialized"}
+{"t":"2026-09-13T09:48:09.071848373Z","s":"info","m":"[EmailValidation] Service initialized"}
+{"t":"2026-09-13T22:05:16.655966386Z","s":"info","m":"[EmailValidation] Service initialized"}
+{"t":"2026-09-14T18:27:31.106348071Z","s":"info","m":"[EmailValidation] Service initialized"}
+{"t":"2026-09-14T19:45:25.538302612Z","s":"info","m":"[EmailValidation] Service initialized"}
+{"t":"2026-09-14T19:58:10.155399596Z","s":"info","m":"[EmailValidation] Service initialized"}

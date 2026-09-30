@@ -128,10 +128,10 @@ async function getAccessToken() {
 The 5 "errors" on HostingBotNew are actually HTTP-200 OKs from `python-telegram-bot` being tagged as `severity=error` by Railway because they were written to stderr. **The problem is not the misclassification — it's the content:**
 ```
 2026-05-12 22:22:54,970 [REDIRECT] HTTP Request:
-  POST https://api.telegram.org/bot8291977061:AAFxUISRxrnYJVb9CkrKhhYRkXkwt4j5_3Q/sendMessage
+  POST https://api.telegram.org/bot<REDACTED_BOT_TOKEN>/sendMessage
   "HTTP/1.1 200 OK"
 ```
-The bot token `8291977061:AAFxUI…j5_3Q` is in plain text in the deployment log buffer. Anyone with Railway-team read access (or any future log-drain export) can hijack the bot.
+The bot token `<REDACTED>` is in plain text in the deployment log buffer. Anyone with Railway-team read access (or any future log-drain export) can hijack the bot.
 
 **Recommended fix (P0 — do this immediately):**
 1. **Rotate the token** via @BotFather → `/revoke` → `/token` (or `/myget` if PTB CLI), update `TELEGRAM_BOT_TOKEN` in Railway env, redeploy.

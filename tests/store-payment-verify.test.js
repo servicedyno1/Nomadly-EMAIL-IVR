@@ -1,107 +1,95 @@
 /* global describe, test, expect */
 /**
- * Unit tests for js/store-payment-verify.js
+ * store-payment-verify.test.js — proves the storefront crypto-webhook confirms
+ * payment with TRUE PARITY to the bot's wallet-deposit path (authDyno):
+ * trust the webhook event; skip only definitively-unpaid statuses; the DynoPay
+ * status API is advisory-only and can NEVER block a paid order.
  *
- * Verifies the storefront webhook classifier is a DENY-LIST (parity with the
- * bot's authDyno): hold ONLY on empty / definitively-unpaid events, and TRUST
- * every other event as paid. This is the core of the fix — the old code
- * defaulted to NOT-paid unless a gateway status endpoint said otherwise, which
- * dropped every real web payment (the endpoint returns "Application not found"
- * for storefront addresses).
+ * Regression anchor: order 9fd5da6a (lloyd-support.com, 2026-08-29) — a $69
+ * ERC20 payment was CONFIRMED by webhook but DROPPED because the DynoPay status
+ * re-verify returned "Application not found" (gateway unreachable).
  */
-
 const {
   classifyStoreWebhook,
   isStoreUnderpaid,
-  normalizeStatus,
+  isPaidStatus,
+  isUnpaidStatus,
 } = require('../js/store-payment-verify')
 
-describe('classifyStoreWebhook — deny-list (parity with bot authDyno)', () => {
-  const paidEvents = [
-    'payment.confirmed', 'confirmed', 'settled', 'payment.settled',
-    'completed', 'payment.completed', 'paid', 'success',
-    // Unknown / novel provider "paid-like" events MUST still be trusted —
-    // this is what proves the deny-list default (and fixes the bug).
-    'payment.fully_paid', 'some_new_paid_status', 'overpaid',
-  ]
-  test.each(paidEvents)('trusts "%s" as PAID → fulfill', (ev) => {
-    const v = classifyStoreWebhook({ event: ev })
-    expect(v.decision).toBe('fulfill')
-    expect(v.paid).toBe(true)
+describe('classifyStoreWebhook — bot parity (trust webhook, gateway advisory-only)', () => {
+  test('REGRESSION lloyd-support.com: confirmed webhook + gateway UNREACHABLE → fulfills (was dropped)', () => {
+    const d = classifyStoreWebhook({ event: 'payment.confirmed', gatewayReached: false, gatewayStatus: null })
+    expect(d.action).toBe('unverified-fulfill')
   })
 
-  const holdEvents = ['pending', 'payment.pending', 'underpaid', 'payment.underpaid', 'waiting', 'processing', 'unpaid']
-  test.each(holdEvents)('holds non-terminal unpaid "%s"', (ev) => {
-    const v = classifyStoreWebhook({ event: ev })
-    expect(v.decision).toBe('hold')
-    expect(v.paid).toBe(false)
+  test('confirmed webhook + gateway CONFIRMS paid → fulfill (fully verified)', () => {
+    const d = classifyStoreWebhook({ event: 'payment.confirmed', gatewayReached: true, gatewayStatus: 'confirmed' })
+    expect(d.action).toBe('fulfill')
   })
 
-  const failEvents = ['failed', 'payment.failed', 'expired', 'cancelled', 'canceled', 'declined', 'rejected']
-  test.each(failEvents)('fails terminal unpaid "%s"', (ev) => {
-    const v = classifyStoreWebhook({ event: ev })
-    expect(v.decision).toBe('fail')
-    expect(v.paid).toBe(false)
+  test('settled webhook + gateway unreachable → fulfills', () => {
+    expect(classifyStoreWebhook({ event: 'payment.settled', gatewayReached: false }).action).toBe('unverified-fulfill')
   })
 
-  test('empty / missing event → hold (never provision blind)', () => {
-    expect(classifyStoreWebhook({}).decision).toBe('hold')
-    expect(classifyStoreWebhook({ event: '' }).decision).toBe('hold')
-    expect(classifyStoreWebhook({ event: '   ' }).decision).toBe('hold')
-    expect(classifyStoreWebhook(null).decision).toBe('hold')
-    expect(classifyStoreWebhook(undefined).decision).toBe('hold')
+  test("original silent-drop status 'received' + gateway unreachable → fulfills", () => {
+    expect(classifyStoreWebhook({ event: 'received', gatewayReached: false }).action).toBe('unverified-fulfill')
   })
 
-  test('falls back to body.status when event is missing', () => {
-    expect(classifyStoreWebhook({ status: 'confirmed' }).decision).toBe('fulfill')
-    expect(classifyStoreWebhook({ status: 'pending' }).decision).toBe('hold')
-    expect(classifyStoreWebhook({ status: 'failed' }).decision).toBe('fail')
+  test('unusual-but-paid status (settlement_failed) is NOT silently dropped → fulfills', () => {
+    // authDyno only skips payment.failed exactly; settlement_failed is processed.
+    expect(classifyStoreWebhook({ event: 'payment.settlement_failed', gatewayReached: false }).action).toBe('unverified-fulfill')
   })
 
-  test('case-insensitive + strips "payment." prefix', () => {
-    expect(classifyStoreWebhook({ event: 'PAYMENT.CONFIRMED' }).decision).toBe('fulfill')
-    expect(classifyStoreWebhook({ event: '  Confirmed  ' }).decision).toBe('fulfill')
-    expect(classifyStoreWebhook({ event: 'Payment.Failed' }).decision).toBe('fail')
-    expect(normalizeStatus('payment.Settled')).toBe('settled')
-    expect(normalizeStatus('  PENDING ')).toBe('pending')
+  test('gateway CONTRADICTS a paid webhook (says pending) → still fulfills (parity, flagged)', () => {
+    const d = classifyStoreWebhook({ event: 'payment.confirmed', gatewayReached: true, gatewayStatus: 'pending' })
+    expect(d.action).toBe('unverified-fulfill')
   })
 
-  test('classification does NOT require any gateway call (the bug)', () => {
-    // A confirmed webhook classifies as paid purely from the body — no network.
-    const v = classifyStoreWebhook({ event: 'payment.confirmed', payment_id: 'x', meta_data: { refId: 'r' } })
-    expect(v.paid).toBe(true)
-    expect(v.decision).toBe('fulfill')
+  test.each(['payment.pending', 'pending', 'payment.failed', 'failed', 'payment.underpaid', 'underpaid', 'expired', 'cancelled', 'waiting', 'declined'])(
+    'definitively-unpaid event %s → hold (never provision)',
+    (event) => {
+      expect(classifyStoreWebhook({ event, gatewayReached: false }).action).toBe('hold')
+    }
+  )
+
+  test('empty/missing event → hold (never provision on nothing)', () => {
+    expect(classifyStoreWebhook({ event: '', gatewayReached: false }).action).toBe('hold')
+    expect(classifyStoreWebhook({ event: undefined, gatewayReached: false }).action).toBe('hold')
+    expect(classifyStoreWebhook({}).action).toBe('hold')
+  })
+
+  test('no paid webhook event is ever dropped to hold when gateway is down', () => {
+    for (const ev of ['confirmed', 'payment.confirmed', 'settled', 'completed', 'complete', 'paid', 'success', 'received', 'received_unconfirmed']) {
+      expect(classifyStoreWebhook({ event: ev, gatewayReached: false }).action).not.toBe('hold')
+    }
   })
 })
 
-describe('isStoreUnderpaid — 0.90 tolerance (unchanged)', () => {
-  test('full / over payment → not underpaid', () => {
-    expect(isStoreUnderpaid(100, 100)).toBe(false)
-    expect(isStoreUnderpaid(200, 100)).toBe(false)
+describe('isStoreUnderpaid — network-fee tolerance (money-safety gate stays intact)', () => {
+  test('fee-shaved payment within tolerance provisions ($67.31 of $69)', () => {
+    expect(isStoreUnderpaid(67.31, 69)).toBe(false)
   })
-
-  test('short by <=10% → NOT underpaid', () => {
-    expect(isStoreUnderpaid(95, 100)).toBe(false)
-    expect(isStoreUnderpaid(90, 100)).toBe(false)     // exactly 90% is accepted
-    expect(isStoreUnderpaid(90.01, 100)).toBe(false)
+  test('exact payment provisions ($69 of $69)', () => {
+    expect(isStoreUnderpaid(69, 69)).toBe(false)
   })
-
-  test('short by >10% → underpaid', () => {
-    expect(isStoreUnderpaid(89.99, 100)).toBe(true)
-    expect(isStoreUnderpaid(50, 100)).toBe(true)
-    expect(isStoreUnderpaid(0, 100)).toBe(true)
+  test('overpayment provisions ($75 of $69)', () => {
+    expect(isStoreUnderpaid(75, 69)).toBe(false)
   })
-
-  test('custom tolerance override works', () => {
-    expect(isStoreUnderpaid(80, 100, 0.75)).toBe(false)
-    expect(isStoreUnderpaid(70, 100, 0.75)).toBe(true)
+  test('materially underpaid does NOT provision ($10 of $69)', () => {
+    expect(isStoreUnderpaid(10, 69)).toBe(true)
   })
+  test('zero / invalid amount does NOT provision', () => {
+    expect(isStoreUnderpaid(0, 69)).toBe(true)
+    expect(isStoreUnderpaid(NaN, 69)).toBe(true)
+  })
+})
 
-  test('non-finite paid / non-positive owed → not underpaid (fail-open)', () => {
-    expect(isStoreUnderpaid(NaN, 100)).toBe(false)
-    expect(isStoreUnderpaid('abc', 100)).toBe(false)
-    expect(isStoreUnderpaid(50, 0)).toBe(false)
-    expect(isStoreUnderpaid(50, -5)).toBe(false)
-    expect(isStoreUnderpaid(50, NaN)).toBe(false)
+describe('status helpers reflect real DynoPay events observed in production forensics', () => {
+  test('confirmed + settled are paid; pending/underpaid/failed are unpaid', () => {
+    expect(isPaidStatus('payment.confirmed')).toBe(true)
+    expect(isPaidStatus('payment.settled')).toBe(true)
+    expect(isUnpaidStatus('payment.pending')).toBe(true)
+    expect(isUnpaidStatus('payment.underpaid')).toBe(true)
+    expect(isUnpaidStatus('payment.failed')).toBe(true)
   })
 })

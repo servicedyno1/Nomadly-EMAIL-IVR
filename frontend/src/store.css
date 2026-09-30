@@ -14,7 +14,7 @@
   --st-border-strong: rgba(10, 14, 30, 0.16);
   --st-text: #0f172a;
   --st-text-soft: #475569;
-  --st-text-muted: #94a3b8;
+  --st-text-muted: #5b6576;
   --st-accent: #ff5670;
   --st-accent-soft: rgba(255, 86, 112, 0.10);
   --st-accent-hover: #ff3e5c;
@@ -25,8 +25,6 @@
   --st-shadow-strong: 0 20px 50px rgba(15, 23, 42, 0.12);
   --st-radius: 14px;
   --st-radius-sm: 10px;
-  --st-disabled-bg: #e6eaf0;
-  --st-disabled-fg: #9aa4b6;
 }
 
 html.dark, [data-theme="dark"] {
@@ -38,7 +36,7 @@ html.dark, [data-theme="dark"] {
   --st-border-strong: rgba(255, 255, 255, 0.16);
   --st-text: #e8ecf3;
   --st-text-soft: #aab2c5;
-  --st-text-muted: #7a8299;
+  --st-text-muted: #a3adc2;
   --st-accent: #ff6b85;
   --st-accent-soft: rgba(255, 107, 133, 0.14);
   --st-accent-hover: #ff7a92;
@@ -47,8 +45,6 @@ html.dark, [data-theme="dark"] {
   --st-neg: #ff8585;
   --st-shadow: 0 10px 32px rgba(0, 0, 0, 0.45);
   --st-shadow-strong: 0 24px 60px rgba(0, 0, 0, 0.55);
-  --st-disabled-bg: #232a3a;
-  --st-disabled-fg: #6b7488;
 }
 
 /* ─── Base ─── */
@@ -110,15 +106,6 @@ html.dark .store-root::before { opacity: 1; }
   color: #fff; font-weight: 800; font-size: 15px;
   box-shadow: 0 4px 14px rgba(238, 77, 106, .35);
   flex: 0 0 auto;
-  overflow: hidden;
-}
-/* When a real brand logo image is supplied, drop the coloured tile + shadow so
-   a transparent logo reads cleanly on the header (light AND dark themes). */
-.store-logo--img {
-  width: 38px; height: 38px;
-  background: transparent;
-  box-shadow: none;
-  border-radius: 0;
 }
 .store-sub {
   font-size: 12px; font-weight: 500;
@@ -175,7 +162,8 @@ html.dark .store-tg-pill { color: #5db8e0; }
   grid-template-columns: 1fr;
   gap: clamp(16px, 3vw, 28px);
 }
-/* Mobile/tablet: lead with plans (DOM order), login below. Desktop: plans left, login right. */
+/* Mobile/tablet: hero + PLANS first (conversion), login demoted below.
+   Desktop: 2-col with plans on the left and a sticky login on the right. */
 .store-landing-left { order: 0; }
 .store-landing-right { order: 1; }
 @media (min-width: 1024px) {
@@ -186,18 +174,6 @@ html.dark .store-tg-pill { color: #5db8e0; }
   .store-landing-left { order: 0; }
   .store-landing-right { order: 1; position: sticky; top: 88px; }
 }
-
-/* Returning-customer shortcut to the login card — mobile only */
-.store-returning-hint {
-  display: inline-block;
-  margin: 2px 4px 6px;
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--st-accent);
-  text-decoration: none;
-}
-.store-returning-hint:hover { text-decoration: underline; }
-@media (min-width: 1024px) { .store-returning-hint { display: none; } }
 
 /* ─── Hero ─── */
 .store-hero {
@@ -219,9 +195,6 @@ html.dark .store-tg-pill { color: #5db8e0; }
   color: var(--st-text-soft); margin: 0;
   font-size: clamp(14px, 2vw, 17px);
   max-width: 60ch;
-}
-.store-hero-explain {
-  color: var(--st-text-soft); font-size: 13px; margin: 8px 0 0; max-width: 62ch; line-height: 1.5;
 }
 
 /* ─── Plans grid ─── */
@@ -271,50 +244,6 @@ html.dark .store-plan-card--gold {
 .store-plan-feats li { margin: 5px 0; }
 .store-plan-card .store-btn { margin-top: auto; }
 
-/* Recommended-tier badge + normalized billing note + trust row */
-.store-plan-card--gold { position: relative; }
-.store-plan-badge {
-  position: absolute;
-  top: -11px; left: 14px;
-  background: linear-gradient(135deg, var(--st-gold), #ffb020);
-  color: #3a2a00;
-  font-size: 11px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase;
-  padding: 4px 10px; border-radius: 999px;
-  box-shadow: 0 4px 12px rgba(245, 158, 11, .35);
-}
-.store-plan-per { font-size: 14px; font-weight: 500; color: var(--st-text-muted); margin-left: 2px; }
-.store-plan-period-note {
-  font-size: 12px; color: var(--st-text-soft); font-weight: 600;
-  margin: -6px 0 12px;
-}
-.store-trust-row {
-  list-style: none; padding: 0; margin: 14px 4px 0;
-  display: flex; flex-wrap: wrap; gap: 8px 18px;
-}
-.store-trust-item {
-  font-size: 13px; font-weight: 600; color: var(--st-text-soft);
-  display: inline-flex; align-items: center; gap: 6px;
-}
-.store-domain-hint {
-  font-size: 12px; color: var(--st-text-soft);
-  margin: 2px 0 10px; line-height: 1.45;
-}
-
-/* Nameserver callout on purchase success (real CF NS only) */
-.store-ns-callout {
-  margin: 16px 0; padding: 14px 16px;
-  background: var(--st-bg-inset);
-  border: 1px solid var(--st-gold, #f5a623);
-  border-left: 3px solid var(--st-gold, #f5a623);
-  border-radius: var(--st-radius-sm);
-}
-.store-ns-callout > p:first-child { margin: 0 0 10px 0; font-size: 14px; color: var(--st-text); }
-.store-ns-list { list-style: none; margin: 0 0 10px 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
-.store-ns-list li { display: flex; align-items: center; gap: 8px; font-size: 13px; }
-.store-ns-list li span { display: inline-block; min-width: 40px; font-size: 10px; color: var(--st-text-muted); text-transform: uppercase; letter-spacing: .06em; font-weight: 700; }
-.store-ns-list li code { flex: 1; word-break: break-all; background: var(--st-surface); padding: 6px 10px; border-radius: var(--st-radius-sm); color: var(--st-accent); font-weight: 600; font-size: 13px; border: 1px solid var(--st-border); }
-.store-ns-callout > p:last-child { margin: 0; }
-
 /* ─── Auth card (unified login) ─── */
 .store-auth-card {
   background: var(--st-surface);
@@ -326,9 +255,9 @@ html.dark .store-plan-card--gold {
 .store-auth-title {
   margin: 0 0 4px; font-size: 22px; font-weight: 800; letter-spacing: -0.02em;
 }
-.store-auth-sub { margin: 0 0 18px; font-size: 14px; color: var(--st-text-soft); line-height: 1.5; }
+.store-auth-sub { margin: 0 0 18px; font-size: 13px; }
 .store-auth-help {
-  margin: 14px 0 0; font-size: 13px; text-align: center;
+  margin: 14px 0 0; font-size: 12px; text-align: center;
 }
 
 .store-auth-card input,
@@ -448,15 +377,20 @@ html.dark .store-plan-card--gold {
 }
 .store-btn:hover { background: var(--st-surface); border-color: var(--st-border-strong); }
 .store-btn:active { transform: scale(0.98); }
-.store-btn:disabled,
-.store-btn:disabled:hover {
-  background: var(--st-disabled-bg) !important;
-  color: var(--st-disabled-fg) !important;
-  border-color: transparent !important;
-  box-shadow: none !important;
-  cursor: not-allowed;
+.store-btn:disabled {
   opacity: 1;
-  transform: none;
+  background: var(--st-bg-inset);
+  color: var(--st-text-muted);
+  border-color: var(--st-border);
+  box-shadow: none;
+  cursor: not-allowed;
+}
+/* keep the primary CTA's disabled state clearly NEUTRAL (not faded pink) so the
+   enabled gradient reads as the affordance */
+.store-btn--primary:disabled {
+  background: var(--st-bg-inset);
+  color: var(--st-text-muted);
+  box-shadow: none;
 }
 .store-btn--primary {
   background: linear-gradient(135deg, var(--st-accent), var(--st-accent-hover));
@@ -470,17 +404,6 @@ html.dark .store-plan-card--gold {
   background: linear-gradient(135deg, var(--st-accent-hover), var(--st-accent));
   box-shadow: 0 10px 24px rgba(255, 86, 112, .40);
 }
-/* Emphasized CTA for the recommended (gold) tier — defined after --primary so it wins */
-.store-btn--gold {
-  background: linear-gradient(135deg, var(--st-gold), #ff9f1a);
-  box-shadow: 0 6px 18px rgba(245, 158, 11, .38);
-  color: #3a2a00;
-}
-.store-btn--gold:hover {
-  background: linear-gradient(135deg, #ff9f1a, var(--st-gold));
-  box-shadow: 0 10px 24px rgba(245, 158, 11, .5);
-  color: #3a2a00;
-}
 .store-card .store-btn { margin-top: 10px; }
 
 .store-error {
@@ -489,7 +412,7 @@ html.dark .store-plan-card--gold {
   padding: 10px 12px; border-radius: var(--st-radius-sm);
   font-size: 13px; margin-bottom: 12px;
 }
-.store-muted { color: var(--st-text-soft); font-size: 14px; line-height: 1.5; }
+.store-muted { color: var(--st-text-muted); font-size: 13px; }
 
 /* ─── Success state + credentials ─── */
 .store-success h2 { color: var(--st-pos); }
@@ -513,6 +436,41 @@ html.dark .store-plan-card--gold {
   font-size: 16px; font-weight: 700; color: var(--st-accent);
   word-break: break-all;
 }
+
+/* ─── Nameserver callout (post-purchase / post-provision) ─── */
+.store-ns-callout {
+  margin: 16px 0;
+  padding: 14px 16px;
+  background: var(--st-bg-inset);
+  border: 1px solid var(--st-gold, #f5a623);
+  border-left: 3px solid var(--st-gold, #f5a623);
+  border-radius: var(--st-radius-sm);
+}
+.store-ns-callout > p:first-child {
+  margin: 0 0 10px 0; font-size: 14px; color: var(--st-text);
+}
+.store-ns-list {
+  list-style: none; margin: 0 0 10px 0; padding: 0;
+  display: flex; flex-direction: column; gap: 6px;
+}
+.store-ns-list li {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 13px;
+}
+.store-ns-list li span {
+  display: inline-block; min-width: 40px;
+  font-size: 10px; color: var(--st-text-muted);
+  text-transform: uppercase; letter-spacing: .06em; font-weight: 700;
+}
+.store-ns-list li code {
+  flex: 1; word-break: break-all;
+  background: var(--st-surface);
+  padding: 6px 10px; border-radius: var(--st-radius-sm);
+  color: var(--st-accent); font-weight: 600;
+  font-size: 13px;
+  border: 1px solid var(--st-border);
+}
+.store-ns-callout > p:last-child { margin: 0; }
 
 /* ─── Wallet ─── */
 .store-wallet-head {
@@ -635,7 +593,7 @@ html.dark .store-plan-card--gold {
   display: inline-block;
   box-shadow: 0 4px 14px rgba(0, 0, 0, .12);
 }
-.store-tg-qr-cap { font-size: 13px; text-align: center; margin: 0; }
+.store-tg-qr-cap { font-size: 12px; text-align: center; margin: 0; }
 
 /* Auto-login toast */
 .store-bot-toast {
@@ -661,6 +619,116 @@ html.dark .store-plan-card--gold {
   .store-wallet-pill { font-size: 11px; padding: 4px 9px; }
   .store-auth-title { font-size: 20px; }
   .store-tabs { top: 60px; }
+}
+
+/* ═══════════ Storefront UX pass (conversion + clarity + a11y) ═══════════ */
+
+/* Logo image variant with graceful onError fallback to the letter mark */
+.store-logo--img {
+  width: 32px; height: 32px; border-radius: 9px;
+  object-fit: cover; background: transparent; box-shadow: none;
+}
+
+/* Hero: plain-language Anti-Red line + mobile-only "sign in" shortcut */
+.store-hero-explainer {
+  color: var(--st-text-soft);
+  font-size: clamp(13px, 1.6vw, 15px);
+  margin: 10px 0 0;
+  max-width: 62ch;
+}
+.store-hero-signin {
+  display: inline-block;
+  margin-top: 12px;
+  color: var(--st-accent);
+  font-weight: 600; font-size: 14px; text-decoration: none;
+}
+.store-hero-signin:hover { color: var(--st-accent-hover); }
+@media (min-width: 1024px) {
+  /* On desktop the login card is always visible on the right → hide the jump link */
+  .store-hero-signin { display: none; }
+}
+
+/* Plan cards: badge + billing clarity + equalized structure */
+.store-plan-card { position: relative; }
+.store-plan-badge {
+  position: absolute; top: -11px; left: 16px;
+  background: linear-gradient(135deg, var(--st-gold), #f59e0b);
+  color: #1a1205; font-weight: 800; font-size: 11px;
+  letter-spacing: .02em; padding: 4px 10px; border-radius: 999px;
+  box-shadow: 0 4px 12px rgba(245, 158, 11, .40);
+}
+html.dark .store-plan-badge { color: #1a1205; }
+.store-plan-card--gold { transform: none; }
+@media (min-width: 1024px) {
+  /* let the anchor tier stand slightly proud on desktop */
+  .store-plan-card--gold { transform: translateY(-4px); }
+  .store-plan-card--gold:hover { transform: translateY(-6px); }
+}
+.store-plan-per {
+  font-size: 14px; font-weight: 500; color: var(--st-text-muted);
+  margin-left: 1px;
+}
+.store-plan-billing {
+  font-size: 12px; color: var(--st-text-soft);
+  margin: -4px 0 12px;
+}
+/* Equalize card body so CTAs line up across mixed feature lists */
+.store-plan-feats { min-height: 96px; }
+.store-btn--gold {
+  background: linear-gradient(135deg, var(--st-gold), #f59e0b);
+  color: #1a1205;
+  box-shadow: 0 8px 20px rgba(245, 158, 11, .38);
+}
+.store-btn--gold:hover {
+  background: linear-gradient(135deg, #f59e0b, var(--st-gold));
+  box-shadow: 0 12px 26px rgba(245, 158, 11, .48);
+  color: #1a1205;
+}
+
+/* Trust row under plans / in checkout */
+.store-trust-row {
+  display: flex; flex-wrap: wrap; gap: 8px 16px;
+  margin: 16px 2px 0; padding-top: 14px;
+  border-top: 1px solid var(--st-border);
+}
+.store-trust-item {
+  font-size: 12.5px; font-weight: 600; color: var(--st-text-soft);
+  display: inline-flex; align-items: center; gap: 4px;
+}
+
+/* Clearer, higher-contrast login helper (was tiny + muted) */
+.store-auth-hint {
+  margin: 0 0 16px;
+  font-size: 12.5px; line-height: 1.45;
+  color: var(--st-text-soft);
+  background: var(--st-bg-inset);
+  border: 1px solid var(--st-border);
+  border-radius: var(--st-radius-sm);
+  padding: 8px 10px;
+}
+/* bump the once-tiny muted lines to a readable size/contrast */
+.store-auth-sub { color: var(--st-text-soft); }
+.store-auth-help { font-size: 13px; color: var(--st-text-soft); }
+.store-tg-qr-cap { color: var(--st-text-soft); }
+
+/* Inline hint (e.g. bring-your-own-domain DNS note) */
+.store-hint {
+  font-size: 12.5px; line-height: 1.45;
+  color: var(--st-text-soft);
+  background: var(--st-accent-soft);
+  border-radius: var(--st-radius-sm);
+  padding: 8px 10px; margin: 2px 0 12px;
+}
+
+/* Visible keyboard focus for accessibility (focus-trap lives in JS) */
+.store-modal a:focus-visible,
+.store-modal button:focus-visible,
+.store-modal input:focus-visible,
+.store-modal select:focus-visible,
+.store-btn:focus-visible,
+.store-hero-signin:focus-visible {
+  outline: 2px solid var(--st-accent);
+  outline-offset: 2px;
 }
 
 /* ═══════════ Point #2 — Storefront polish (2026-06) ═══════════ */

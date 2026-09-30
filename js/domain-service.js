@@ -679,7 +679,19 @@ const addDNSRecord = async (domainName, recordType, recordValue, hostName, db, p
   }
 
   if ((meta?.nameserverType === 'cloudflare' || meta?.cfZoneId) && meta?.cfZoneId) {
-    const name = hostName ? `${hostName}.${domainName}` : domainName
+    // GAP-2 FIX (2026-09): normalize the record name so the apex is reachable and a
+    // fully-qualified name is never re-suffixed with the zone (Cloudflare rejected
+    // "@.<domain>" → dns_add_failed, and the bare zone produced "<domain>.<domain>").
+    //   • '@' | '' | the bare zone apex        → apex (name = domainName)
+    //   • a name already ending in '.<domain>'  → used as-is (no double-append)
+    //   • a bare label ('www')                  → '<label>.<domain>'
+    const _hn = String(hostName == null ? '' : hostName).trim().replace(/\.$/, '')
+    const _dn = String(domainName).toLowerCase()
+    const _hnLower = _hn.toLowerCase()
+    let name
+    if (!_hn || _hn === '@' || _hnLower === _dn) name = domainName
+    else if (_hnLower.endsWith('.' + _dn)) name = _hn
+    else name = `${_hn}.${domainName}`
     // Proxied (orange-cloud) vs DNS-only (grey-cloud) decision.
     //
     // BUG FIX (@LevelupwithME assist-user04.com, 2026-07-06):

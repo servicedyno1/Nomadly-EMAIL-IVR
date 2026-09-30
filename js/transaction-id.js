@@ -17,43 +17,6 @@ function generateTransactionId() {
 }
 
 /**
- * Build standardized discount/tier metadata for a product SALE.
- * Lets the Sales & Profit dashboard show list price, loyalty + coupon discounts
- * and membership tier, and compute ACCURATE profit (cost anchored to the LIST
- * price so every dollar of discount comes straight out of margin).
- *
- * Reconstructs listPrice from the net paid + discounts:
- *   listPrice = amountPaid + loyaltyDiscount + couponDiscount
- * (holds regardless of the order coupon/loyalty were applied).
- *
- * Defensive by design — NEVER throws (returns {} on any problem) so it can be
- * safely spread into any purchase flow's metadata without risk.
- *
- * @param {object} info       checkout session (loyaltyDiscount, couponApplied, couponDiscount, couponCode, loyaltyTierKey)
- * @param {number} amountPaid net amount actually charged after all discounts
- */
-function buildSaleMeta(info, amountPaid) {
-  try {
-    const r2 = (n) => Math.round((Number(n) || 0) * 100) / 100
-    const paid = r2(amountPaid)
-    const loyaltyDiscount = Math.max(0, r2(info && info.loyaltyDiscount))
-    const couponDiscount = (info && info.couponApplied) ? Math.max(0, r2(info && info.couponDiscount)) : 0
-    const totalDiscount = r2(loyaltyDiscount + couponDiscount)
-    const listPrice = r2(paid + totalDiscount)
-    return {
-      listPrice,
-      loyaltyTier: (info && info.loyaltyTierKey) ? String(info.loyaltyTierKey) : 'bronze',
-      loyaltyDiscount,
-      couponCode: (info && info.couponApplied && info.couponCode) ? String(info.couponCode) : null,
-      couponDiscount,
-      totalDiscount,
-    }
-  } catch (_) {
-    return {}
-  }
-}
-
-/**
  * Store transaction metadata in DB
  */
 async function logTransaction(db, transactionData) {
@@ -129,6 +92,5 @@ module.exports = {
   generateTransactionId,
   logTransaction,
   updateTransactionStatus,
-  getUserTransactions,
-  buildSaleMeta,
+  getUserTransactions
 }

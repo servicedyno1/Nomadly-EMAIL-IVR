@@ -1,0 +1,903 @@
+{"t":"2026-09-07T16:25:31.573527473Z","s":"info","m":"🌐 205 domains registered this week 🛒🌐 Buy Domain Names,📂 My Domain Names,🔧 DNS Management,Back,Cancel\tto: 5833835818"}
+{"t":"2026-09-07T21:28:36.584445972Z","s":"info","m":"[ProtectionEnforcer] registeredDomains: 347 entries"}
+{"t":"2026-09-07T22:14:09.810892463Z","s":"info","m":"<i>I see that your domain oasisresortcasinoes.com is registered and has an active Golden Anti-Red HostPanel hosting plan. If you cannot see your domain in the hosting panel or in 📋 My Hosting Plans, please note that your primary domain should appear there. For addon domains, they nest under the primary domain and do not show as separate rows. To manage your hosting: 1. Tap <b>🛡️🔥 Anti-Red Hosting</b> 2. Tap <b>📋 My Hosting Plans</b> 3. Select <code>oasisresortcasinoes.com</code> (your primary d...</i>"}
+{"t":"2026-09-07T22:14:09.810908715Z","s":"info","m":"[Support] AI -> 5976060042: I see that your domain oasisresortcasinoes.com is registered and has an active Golden Anti-Red HostP... (escalate: true)"}
+{"t":"2026-09-07T23:24:07.578050412Z","s":"info","m":"[NotifyGroup] Auto-registered groups found: 2 → Lockbay Market 🛒, Bagging The Bag 🎒🛅💰"}
+{"t":"2026-09-07T23:24:19.152320104Z","s":"info","m":"🌐 205 domains registered this week 🛒🌐 Buy Domain Names,📂 My Domain Names,🔧 DNS Management,Back,Cancel\tto: 1885282275"}
+{"t":"2026-09-08T00:00:05.015765247Z","s":"info","m":"[NotifyGroup] Auto-registered groups found: 2 → Lockbay Market 🛒, Bagging The Bag 🎒🛅💰"}
+{"t":"2026-09-08T00:23:03.144451854Z","s":"info","m":"[NotifyGroup] Auto-registered groups found: 2 → Lockbay Market 🛒, Bagging The Bag 🎒🛅💰"}
+{"t":"2026-09-08T00:43:22.339813458Z","s":"info","m":"🌐 205 domains registered this week 🛒🌐 Buy Domain Names,📂 My Domain Names,🔧 DNS Management,Back,Cancel\tto: 8544440496"}
+{"t":"2026-09-08T00:47:06.045879082Z","s":"info","m":"🌐 205 domains registered this week 🛒🌐 Buy Domain Names,📂 My Domain Names,🔧 DNS Management,Back,Cancel\tto: 8544440496"}
+{"t":"2026-09-08T03:28:37.070293232Z","s":"info","m":"[ProtectionEnforcer] registeredDomains: 349 entries"}
+{"t":"2026-09-08T03:35:22.595568858Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=8669e5cfa3bcffbeac959f24d0f11d15, nsT=cloudflare}"}
+{"t":"2026-09-08T03:35:22.595585913Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=8669e5cfa3bcffbeac959f24d0f11d15)"}
+{"t":"2026-09-08T03:35:22.595605404Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=1c499aa6f0b0e7b28af91775873f2f94, nsT=cloudflare}"}
+{"t":"2026-09-08T03:35:22.595614143Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=1c499aa6f0b0e7b28af91775873f2f94)"}
+{"t":"2026-09-08T03:35:22.597327419Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=6d3e31e338a3b56c4c956508db8856ed, nsT=cloudflare}"}
+{"t":"2026-09-08T03:35:22.597336411Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=6d3e31e338a3b56c4c956508db8856ed)"}
+{"t":"2026-09-08T03:35:22.597356574Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=provider_default} vs registeredDomains{cfZoneId=null, nsT=null}"}
+{"t":"2026-09-08T03:35:22.598935195Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=2e79d0d91c813dcb31d5ef208492aa9d)"}
+{"t":"2026-09-08T03:35:22.598942828Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=provider_default} vs registeredDomains{cfZoneId=null, nsT=null}"}
+{"t":"2026-09-08T03:35:22.598957293Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=a9bf294e897e29896f38b54a399f3d6c, nsT=cloudflare}"}
+{"t":"2026-09-08T03:35:22.598965499Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=provider_default} vs registeredDomains{cfZoneId=null, nsT=null}"}
+{"t":"2026-09-08T03:35:22.598980490Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=2e79d0d91c813dcb31d5ef208492aa9d, nsT=cloudflare}"}
+{"t":"2026-09-08T03:35:22.600918448Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=a9bf294e897e29896f38b54a399f3d6c)"}
+{"t":"2026-09-08T03:35:22.600930301Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=60d2f05e8010b730a740853350f636e7)"}
+{"t":"2026-09-08T03:35:22.600945322Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=c178e6cf0188d2d34798219ac16fa6c5, nsT=cloudflare}"}
+{"t":"2026-09-08T03:35:22.600961868Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=60d2f05e8010b730a740853350f636e7, nsT=cloudflare}"}
+{"t":"2026-09-08T03:35:22.603032099Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=c178e6cf0188d2d34798219ac16fa6c5)"}
+{"t":"2026-09-08T03:35:22.603056631Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=1303bc191dbe505f5b498b56addebc8f, nsT=cloudflare}"}
+{"t":"2026-09-08T03:35:22.603065483Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=1303bc191dbe505f5b498b56addebc8f)"}
+{"t":"2026-09-08T03:35:22.604766446Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=4822b002edf6e00377c9bf865f193aa7, nsT=cloudflare}"}
+{"t":"2026-09-08T03:35:22.604775914Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=4822b002edf6e00377c9bf865f193aa7)"}
+{"t":"2026-09-08T03:35:22.604791905Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=c55b76a5fdaddddd3a8dfd48c8855cbf, nsT=cloudflare}"}
+{"t":"2026-09-08T03:35:22.604801982Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=c55b76a5fdaddddd3a8dfd48c8855cbf)"}
+{"t":"2026-09-08T03:35:22.606743216Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=2b261112ebbc38d4e2f51e458147694c, nsT=cloudflare}"}
+{"t":"2026-09-08T03:35:22.606757571Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=2b261112ebbc38d4e2f51e458147694c)"}
+{"t":"2026-09-08T03:35:22.608417692Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=441dc8e2b0ea4962654bbe15da6dd01c, nsT=cloudflare}"}
+{"t":"2026-09-08T03:35:22.610366410Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=441dc8e2b0ea4962654bbe15da6dd01c)"}
+{"t":"2026-09-08T03:35:22.610379915Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=d21f96f50be3b53c83281f865fdbf08f)"}
+{"t":"2026-09-08T03:35:22.610398431Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=72dc4a58424850ff0dedf6b824fad6f1, nsT=cloudflare}"}
+{"t":"2026-09-08T03:35:22.610410037Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=72dc4a58424850ff0dedf6b824fad6f1)"}
+{"t":"2026-09-08T03:35:22.610419160Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=d21f96f50be3b53c83281f865fdbf08f, nsT=cloudflare}"}
+{"t":"2026-09-08T03:35:22.612187294Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=ed612289a16c77e58ff066c60f005c81, nsT=cloudflare}"}
+{"t":"2026-09-08T03:35:22.612201107Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=ed612289a16c77e58ff066c60f005c81)"}
+{"t":"2026-09-08T03:35:22.617430660Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=96264626d905adb54b5a5c2120f75f33, nsT=cloudflare}"}
+{"t":"2026-09-08T03:35:22.617442132Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=6f7feafa6fb5736fcd4de49dcf816982)"}
+{"t":"2026-09-08T03:35:22.617488556Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=6f7feafa6fb5736fcd4de49dcf816982, nsT=cloudflare}"}
+{"t":"2026-09-08T03:35:22.618779104Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=96264626d905adb54b5a5c2120f75f33)"}
+{"t":"2026-09-08T03:35:22.618795631Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=a2b560f9dace8383c005eb340c9dbd2e, nsT=cloudflare}"}
+{"t":"2026-09-08T03:35:22.618804255Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=a2b560f9dace8383c005eb340c9dbd2e)"}
+{"t":"2026-09-08T03:35:22.618812305Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=custom} vs registeredDomains{cfZoneId=null, nsT=null}"}
+{"t":"2026-09-08T03:35:22.621999489Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=cbc06a934a2f43bf323349570687c167, nsT=cloudflare}"}
+{"t":"2026-09-08T03:35:22.622016929Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=cbc06a934a2f43bf323349570687c167)"}
+{"t":"2026-09-08T03:35:22.622030995Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=40bf0344878dda3085ca0c3abeb5e727, nsT=cloudflare}"}
+{"t":"2026-09-08T03:35:22.624081579Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=40bf0344878dda3085ca0c3abeb5e727)"}
+{"t":"2026-09-08T03:35:22.624122115Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=b9e141062baa57a831f736f809bfa8e6, nsT=cloudflare}"}
+{"t":"2026-09-08T03:35:22.624137336Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=b9e141062baa57a831f736f809bfa8e6)"}
+{"t":"2026-09-08T03:35:22.625859014Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=13113aa71d6168e057705875a35fb0bc, nsT=cloudflare}"}
+{"t":"2026-09-08T03:35:22.625862267Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=7945a18e77131189a0ba467fad1c91c3, nsT=cloudflare}"}
+{"t":"2026-09-08T03:35:22.625877406Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=13113aa71d6168e057705875a35fb0bc)"}
+{"t":"2026-09-08T03:35:22.625879845Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=7945a18e77131189a0ba467fad1c91c3)"}
+{"t":"2026-09-08T03:35:22.625892436Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=e12d53d8627fc20a92fd92f8b080bfc0, nsT=cloudflare}"}
+{"t":"2026-09-08T03:35:22.627879848Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=e12d53d8627fc20a92fd92f8b080bfc0)"}
+{"t":"2026-09-08T03:35:22.627915240Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=dddf484dbc01f747016cb8e2448b40c4)"}
+{"t":"2026-09-08T03:35:22.627931761Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=dddf484dbc01f747016cb8e2448b40c4, nsT=cloudflare}"}
+{"t":"2026-09-08T03:35:22.627933120Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=bf185e39ecb7d981623bfeff51ea4509, nsT=cloudflare}"}
+{"t":"2026-09-08T03:35:22.629922226Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=bf185e39ecb7d981623bfeff51ea4509)"}
+{"t":"2026-09-08T03:35:22.629967482Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=custom} vs registeredDomains{cfZoneId=null, nsT=null}"}
+{"t":"2026-09-08T03:35:22.633912812Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=c62837004c408835f1bfedc69c43529c)"}
+{"t":"2026-09-08T03:35:22.633919107Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=7e61c50c5d9e0e36b3f42e5ede37b7ff, nsT=cloudflare}"}
+{"t":"2026-09-08T03:35:22.633930919Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=7e61c50c5d9e0e36b3f42e5ede37b7ff)"}
+{"t":"2026-09-08T03:35:22.633955680Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=c62837004c408835f1bfedc69c43529c, nsT=cloudflare}"}
+{"t":"2026-09-08T03:35:22.636065016Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=58b68f3658d5190c1a545f94dd59fc00, nsT=cloudflare}"}
+{"t":"2026-09-08T03:35:22.636075999Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=58b68f3658d5190c1a545f94dd59fc00)"}
+{"t":"2026-09-08T03:35:22.638211601Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=provider_default} vs registeredDomains{cfZoneId=null, nsT=null}"}
+{"t":"2026-09-08T03:35:22.638283975Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=78e3d9ee8d22e63461b882add81cc440, nsT=cloudflare}"}
+{"t":"2026-09-08T03:35:22.640107097Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=78e3d9ee8d22e63461b882add81cc440)"}
+{"t":"2026-09-08T03:35:22.641976310Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=custom} vs registeredDomains{cfZoneId=1129c4f92131afd2a85f9f09a091a446, nsT=cloudflare}"}
+{"t":"2026-09-08T03:35:22.701070060Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=9d5e6a4fbf59963e2009fcdbb6aeca05, nsT=cloudflare}"}
+{"t":"2026-09-08T03:35:22.706345355Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=35f6a10f27eea1d278c1a75830610aee, nsT=cloudflare}"}
+{"t":"2026-09-08T05:16:11.924259748Z","s":"info","m":"[NotifyGroup] Auto-registered groups found: 2 → Lockbay Market 🛒, Bagging The Bag 🎒🛅💰"}
+{"t":"2026-09-08T05:16:30.347986571Z","s":"info","m":"[NotifyGroup] Auto-registered groups found: 2 → Lockbay Market 🛒, Bagging The Bag 🎒🛅💰"}
+{"t":"2026-09-08T05:18:11.807413499Z","s":"info","m":"[Voice] Registered recent test credential: gencredqea4iCqrmvpz2wDJo5sa1XIF7FAcPQe9qnnrdNmdks → chatId 8560534611"}
+{"t":"2026-09-08T07:26:02.354165754Z","s":"info","m":"[NotifyGroups] Auto-registered group: Lockbay Market 🛒 (-1001843794247)"}
+{"t":"2026-09-08T07:30:03.388603006Z","s":"info","m":"[NotifyGroups] Auto-registered group: Lockbay Market 🛒 (-1001843794247)"}
+{"t":"2026-09-08T09:28:36.207815115Z","s":"info","m":"[ProtectionEnforcer] registeredDomains: 349 entries"}
+{"t":"2026-09-08T11:22:16.946659531Z","s":"info","m":"[BundleWebhook] Twilio bundle-status route registered"}
+{"t":"2026-09-08T11:22:17.913530996Z","s":"info","m":"✅ Admin bot commands registered for chat 5590563715"}
+{"t":"2026-09-08T11:22:17.913575456Z","s":"info","m":"✅ Default bot commands registered"}
+{"t":"2026-09-08T11:22:23.497939271Z","s":"info","m":"[VoiceService] Twilio webhook routes registered"}
+{"t":"2026-09-08T11:22:23.497943131Z","s":"info","m":"[VoiceService] Extra Twilio routes registered (verify-callerid, sip-voice, voice-status, sms-webhook)"}
+{"t":"2026-09-08T11:22:23.498935602Z","s":"info","m":"[Telnyx] Webhook routes registered (sms / voice / fax)"}
+{"t":"2026-09-08T11:22:23.505889304Z","s":"info","m":"[SmsApp] Routes registered"}
+{"t":"2026-09-08T11:22:23.559037885Z","s":"info","m":"[BulkCall] Twilio webhook routes registered"}
+{"t":"2026-09-08T11:22:53.538104545Z","s":"info","m":"[ProtectionEnforcer] registeredDomains: 349 entries"}
+{"t":"2026-09-08T11:30:48.067598869Z","s":"info","m":"[NotifyGroups] Auto-registered group: Lockbay Market 🛒 (-1001843794247)"}
+{"t":"2026-09-08T12:12:40.196911786Z","s":"info","m":"[BundleWebhook] Twilio bundle-status route registered"}
+{"t":"2026-09-08T12:12:41.241511689Z","s":"info","m":"✅ Default bot commands registered"}
+{"t":"2026-09-08T12:12:41.241516249Z","s":"info","m":"✅ Admin bot commands registered for chat 5590563715"}
+{"t":"2026-09-08T12:12:46.460281662Z","s":"info","m":"[VoiceService] Twilio webhook routes registered"}
+{"t":"2026-09-08T12:12:46.460286961Z","s":"info","m":"[VoiceService] Extra Twilio routes registered (verify-callerid, sip-voice, voice-status, sms-webhook)"}
+{"t":"2026-09-08T12:12:46.462708190Z","s":"info","m":"[Telnyx] Webhook routes registered (sms / voice / fax)"}
+{"t":"2026-09-08T12:12:46.470617078Z","s":"info","m":"[SmsApp] Routes registered"}
+{"t":"2026-09-08T12:12:46.537743279Z","s":"info","m":"[BulkCall] Twilio webhook routes registered"}
+{"t":"2026-09-08T12:13:16.421549827Z","s":"info","m":"[ProtectionEnforcer] registeredDomains: 349 entries"}
+{"t":"2026-09-08T12:27:48.851374532Z","s":"info","m":"[NotifyGroups] Auto-registered group: Lockbay Market 🛒 (-1001843794247)"}
+{"t":"2026-09-08T12:55:40.171997650Z","s":"info","m":"[NotifyGroup] Auto-registered groups found: 2 → Lockbay Market 🛒, Bagging The Bag 🎒🛅💰"}
+{"t":"2026-09-08T13:43:33.060718468Z","s":"info","m":"Google Workspace business email setup on a freshly registered domain. Custom @yourdomain email with Gmail, Drive, Docs, and Meet."}
+{"t":"2026-09-08T13:59:50.448559890Z","s":"info","m":"[NotifyGroup] Auto-registered groups found: 2 → Lockbay Market 🛒, Bagging The Bag 🎒🛅💰"}
+{"t":"2026-09-08T14:05:20.797741660Z","s":"info","m":"[BundleWebhook] Twilio bundle-status route registered"}
+{"t":"2026-09-08T14:05:21.734013058Z","s":"info","m":"✅ Default bot commands registered"}
+{"t":"2026-09-08T14:05:21.926615130Z","s":"info","m":"✅ Admin bot commands registered for chat 5590563715"}
+{"t":"2026-09-08T14:05:27.627584521Z","s":"info","m":"[VoiceService] Extra Twilio routes registered (verify-callerid, sip-voice, voice-status, sms-webhook)"}
+{"t":"2026-09-08T14:05:27.627608709Z","s":"info","m":"[Telnyx] Webhook routes registered (sms / voice / fax)"}
+{"t":"2026-09-08T14:05:27.627642994Z","s":"info","m":"[VoiceService] Twilio webhook routes registered"}
+{"t":"2026-09-08T14:05:27.629055588Z","s":"info","m":"[SmsApp] Routes registered"}
+{"t":"2026-09-08T14:05:27.631069318Z","s":"info","m":"[BulkCall] Twilio webhook routes registered"}
+{"t":"2026-09-08T14:05:57.372159447Z","s":"info","m":"[ProtectionEnforcer] registeredDomains: 349 entries"}
+{"t":"2026-09-08T14:07:36.434973200Z","s":"info","m":"[NotifyGroup] Auto-registered groups found: 2 → Lockbay Market 🛒, Bagging The Bag 🎒🛅💰"}
+{"t":"2026-09-08T15:20:30.673521005Z","s":"info","m":"[NotifyGroup] Auto-registered groups found: 2 → Lockbay Market 🛒, Bagging The Bag 🎒🛅💰"}
+{"t":"2026-09-08T15:32:59.173280455Z","s":"info","m":"<b>Domain Type:</b> 🏷️ Registered with us"}
+{"t":"2026-09-08T15:33:29.065998375Z","s":"info","m":"<b>Domain Type:</b> 🏷️ Registered with us"}
+{"t":"2026-09-08T15:45:10.930802290Z","s":"info","m":"[NotifyGroup] Auto-registered groups found: 2 → Lockbay Market 🛒, Bagging The Bag 🎒🛅💰"}
+{"t":"2026-09-08T16:01:22.284724408Z","s":"info","m":"[NotifyGroup] Auto-registered groups found: 2 → Lockbay Market 🛒, Bagging The Bag 🎒🛅💰"}
+{"t":"2026-09-08T16:07:34.736395659Z","s":"info","m":"🌐 205 domains registered this week 🛒🌐 Buy Domain Names,📂 My Domain Names,🔧 DNS Management,Back,Cancel\tto: 5833835818"}
+{"t":"2026-09-08T16:07:43.731551569Z","s":"info","m":"<b>Domain Type:</b> 🏷️ Registered with us"}
+{"t":"2026-09-08T16:19:56.303301564Z","s":"info","m":"🌐 205 domains registered this week 🛒🌐 Buy Domain Names,📂 My Domain Names,🔧 DNS Management,Back,Cancel\tto: 5833835818"}
+{"t":"2026-09-08T16:31:56.948679446Z","s":"info","m":"🌐 205 domains registered this week 🛒🌐 Buy Domain Names,📂 My Domain Names,🔧 DNS Management,Back,Cancel\tto: 5833835818"}
+{"t":"2026-09-08T16:33:19.345445423Z","s":"info","m":"[OP] Domain registered: adminpanelsec.com, ID: 30206138"}
+{"t":"2026-09-08T16:33:19.345449522Z","s":"info","m":"[domain-service] adminpanelsec.com registered on OpenProvider (ID: 30206138)"}
+{"t":"2026-09-08T16:33:19.345455796Z","s":"info","m":"[buyDomainFullProcess] adminpanelsec.com registered via primary registrar OpenProvider — potential savings"}
+{"t":"2026-09-08T16:33:19.345484391Z","s":"info","m":"reply: 🎉 Domain Registered Successfully!"}
+{"t":"2026-09-08T16:33:19.346325137Z","s":"info","m":"[buyDomainFullProcess] adminpanelsec.com registered with Cloudflare NS: anderson.ns.cloudflare.com, leanna.ns.cloudflare.com (registrar: OpenProvider)"}
+{"t":"2026-09-08T16:33:19.346341969Z","s":"info","m":"  message: '✅ <b>Step 1 of 3 — Registered.</b>\\n' +"}
+{"t":"2026-09-08T16:33:19.347794393Z","s":"info","m":"[NotifyGroup] Auto-registered groups found: 2 → Lockbay Market 🛒, Bagging The Bag 🎒🛅💰"}
+{"t":"2026-09-08T16:33:19.347807348Z","s":"info","m":"    'Your domain <b>adminpanelsec.com</b> is fully registered and linked to your account.\\n' +"}
+{"t":"2026-09-08T16:49:34.970364887Z","s":"info","m":"[Voice] Registered recent test credential: gencreduGh8AUCrEUsyEJI45I9FnGSeUFCZZGMTmW4cicGwqn → chatId 6962648149"}
+{"t":"2026-09-08T17:39:28.918451581Z","s":"info","m":"🌐 205 domains registered this week 🛒🌐 Buy Domain Names,📂 My Domain Names,🔧 DNS Management,Back,Cancel\tto: 8496995709"}
+{"t":"2026-09-08T17:44:00.681999262Z","s":"info","m":"🌐 205 domains registered this week 🛒🌐 Buy Domain Names,📂 My Domain Names,🔧 DNS Management,Back,Cancel\tto: 5833835818"}
+{"t":"2026-09-08T18:05:35.165455101Z","s":"info","m":"🌐 205 domains registered this week 🛒🌐 Buy Domain Names,📂 My Domain Names,🔧 DNS Management,Back,Cancel\tto: 6395648769"}
+{"t":"2026-09-08T18:18:08.558414135Z","s":"info","m":"🌐 205 domains registered this week 🛒🌐 Buy Domain Names,📂 My Domain Names,🔧 DNS Management,Back,Cancel\tto: 5168006768"}
+{"t":"2026-09-08T18:18:50.996529729Z","s":"info","m":"[NotifyGroups] Auto-registered group: Lockbay Market 🛒 (-1001843794247)"}
+{"t":"2026-09-08T18:26:16.781181264Z","s":"info","m":"🌐 205 domains registered this week 🛒🌐 Buy Domain Names,📂 My Domain Names,🔧 DNS Management,Back,Cancel\tto: 8407493003"}
+{"t":"2026-09-08T18:30:43.559968523Z","s":"info","m":"[NotifyGroups] Auto-registered group: Lockbay Market 🛒 (-1001843794247)"}
+{"t":"2026-09-08T19:03:06.370494445Z","s":"info","m":"[BundleWebhook] Twilio bundle-status route registered"}
+{"t":"2026-09-08T19:03:13.028622839Z","s":"info","m":"[VoiceService] Twilio webhook routes registered"}
+{"t":"2026-09-08T19:03:13.030571185Z","s":"info","m":"[VoiceService] Extra Twilio routes registered (verify-callerid, sip-voice, voice-status, sms-webhook)"}
+{"t":"2026-09-08T19:03:13.030594115Z","s":"info","m":"[Telnyx] Webhook routes registered (sms / voice / fax)"}
+{"t":"2026-09-08T19:03:13.034709845Z","s":"info","m":"[SmsApp] Routes registered"}
+{"t":"2026-09-08T19:03:13.072822515Z","s":"info","m":"[BulkCall] Twilio webhook routes registered"}
+{"t":"2026-09-08T19:03:17.451393025Z","s":"info","m":"✅ Default bot commands registered"}
+{"t":"2026-09-08T19:03:17.939084574Z","s":"info","m":"✅ Admin bot commands registered for chat 5590563715"}
+{"t":"2026-09-08T19:03:43.070164210Z","s":"info","m":"[ProtectionEnforcer] registeredDomains: 350 entries"}
+{"t":"2026-09-08T19:28:49.040764124Z","s":"info","m":"[BundleWebhook] Twilio bundle-status route registered"}
+{"t":"2026-09-08T19:28:50.050447798Z","s":"info","m":"✅ Default bot commands registered"}
+{"t":"2026-09-08T19:28:50.073332577Z","s":"info","m":"✅ Admin bot commands registered for chat 5590563715"}
+{"t":"2026-09-08T19:28:56.084597711Z","s":"info","m":"[Telnyx] Webhook routes registered (sms / voice / fax)"}
+{"t":"2026-09-08T19:28:56.084630444Z","s":"info","m":"[VoiceService] Twilio webhook routes registered"}
+{"t":"2026-09-08T19:28:56.084633194Z","s":"info","m":"[VoiceService] Extra Twilio routes registered (verify-callerid, sip-voice, voice-status, sms-webhook)"}
+{"t":"2026-09-08T19:28:56.086200862Z","s":"info","m":"[SmsApp] Routes registered"}
+{"t":"2026-09-08T19:28:56.087632517Z","s":"info","m":"[BulkCall] Twilio webhook routes registered"}
+{"t":"2026-09-08T19:29:25.949606430Z","s":"info","m":"[ProtectionEnforcer] registeredDomains: 350 entries"}
+{"t":"2026-09-08T20:07:21.045806199Z","s":"info","m":"No websiteId, Domain testingbays.sbs is not registered with us"}
+{"t":"2026-09-08T20:07:21.045809997Z","s":"info","m":"No websiteId, Domain mysite.com is not registered with us"}
+{"t":"2026-09-08T20:07:21.045817722Z","s":"info","m":"No websiteId, Domain mysite.com is not registered with us"}
+{"t":"2026-09-08T20:16:26.623931722Z","s":"info","m":"No websiteId, Domain testingbays.sbs is not registered with us"}
+{"t":"2026-09-08T20:16:56.764862039Z","s":"info","m":"No websiteId, Domain testingbays.sbs is not registered with us"}
+{"t":"2026-09-08T20:17:16.736153260Z","s":"info","m":"No websiteId, Domain testingbays.sbs is not registered with us"}
+{"t":"2026-09-08T20:17:39.074154089Z","s":"info","m":"No websiteId, Domain testingbays.sbs is not registered with us"}
+{"t":"2026-09-08T20:17:39.074156816Z","s":"info","m":"No websiteId, Domain testingbays.sbs is not registered with us"}
+{"t":"2026-09-08T20:17:39.074159823Z","s":"info","m":"No websiteId, Domain testingbays.sbs is not registered with us"}
+{"t":"2026-09-08T20:17:39.074162509Z","s":"info","m":"No websiteId, Domain mysite.com is not registered with us"}
+{"t":"2026-09-08T20:20:13.939009960Z","s":"info","m":"No websiteId, Domain testingbays.sbs is not registered with us"}
+{"t":"2026-09-08T20:21:08.686833044Z","s":"info","m":"No websiteId, Domain testingbays.sbs is not registered with us"}
+{"t":"2026-09-08T20:21:08.686835812Z","s":"info","m":"No websiteId, Domain testingbays.sbs is not registered with us"}
+{"t":"2026-09-08T20:46:29.515127678Z","s":"info","m":"No websiteId, Domain testingbays.sbs is not registered with us"}
+{"t":"2026-09-08T20:55:19.635351654Z","s":"info","m":"No websiteId, Domain testingbays.sbs is not registered with us"}
+{"t":"2026-09-08T21:24:09.544214964Z","s":"info","m":"🌐 205 domains registered this week 🛒🌐 Buy Domain Names,📂 My Domain Names,🔧 DNS Management,Back,Cancel\tto: 5168006768"}
+{"t":"2026-09-08T22:46:59.461339385Z","s":"info","m":"[NotifyGroups] Auto-registered group: Lockbay Market 🛒 (-1001843794247)"}
+{"t":"2026-09-09T00:06:56.836681977Z","s":"info","m":"🌐 205 domains registered this week 🛒🌐 Buy Domain Names,📂 My Domain Names,🔧 DNS Management,Back,Cancel\tto: 5833835818"}
+{"t":"2026-09-09T00:47:10.881908773Z","s":"info","m":"🌐 205 domains registered this week 🛒🌐 Buy Domain Names,📂 My Domain Names,🔧 DNS Management,Back,Cancel\tto: 5833835818"}
+{"t":"2026-09-09T00:48:13.994357648Z","s":"info","m":"🌐 205 domains registered this week 🛒🌐 Buy Domain Names,📂 My Domain Names,🔧 DNS Management,Back,Cancel\tto: 5833835818"}
+{"t":"2026-09-09T01:28:56.113884423Z","s":"info","m":"[ProtectionEnforcer] registeredDomains: 350 entries"}
+{"t":"2026-09-09T02:21:12.620152087Z","s":"info","m":"[NotifyGroup] Auto-registered groups found: 2 → Lockbay Market 🛒, Bagging The Bag 🎒🛅💰"}
+{"t":"2026-09-09T02:56:55.001996111Z","s":"info","m":"[NotifyGroup] Auto-registered groups found: 2 → Lockbay Market 🛒, Bagging The Bag 🎒🛅💰"}
+{"t":"2026-09-09T03:03:22.298900351Z","s":"info","m":"🌐 205 domains registered this week 🛒🌐 Buy Domain Names,📂 My Domain Names,🔧 DNS Management,Back,Cancel\tto: 5833835818"}
+{"t":"2026-09-09T03:03:27.021636694Z","s":"info","m":"🌐 205 domains registered this week 🛒🌐 Buy Domain Names,📂 My Domain Names,🔧 DNS Management,Back,Cancel\tto: 5833835818"}
+{"t":"2026-09-09T03:13:17.691135051Z","s":"info","m":"🌐 205 domains registered this week 🛒🌐 Buy Domain Names,📂 My Domain Names,🔧 DNS Management,Back,Cancel\tto: 1748979630"}
+{"t":"2026-09-09T03:21:44.020253743Z","s":"info","m":"[OP] Domain registered: anfct.ch, ID: 30207542"}
+{"t":"2026-09-09T03:21:44.020258413Z","s":"info","m":"[domain-service] anfct.ch registered on OpenProvider (ID: 30207542)"}
+{"t":"2026-09-09T03:21:44.035124067Z","s":"info","m":"[buyDomainFullProcess] anfct.ch registered via primary registrar OpenProvider — potential savings"}
+{"t":"2026-09-09T03:21:44.054922558Z","s":"info","m":"[buyDomainFullProcess] anfct.ch registered with Cloudflare NS: anderson.ns.cloudflare.com, leanna.ns.cloudflare.com (registrar: OpenProvider)"}
+{"t":"2026-09-09T03:21:44.103189995Z","s":"info","m":"[NotifyGroup] Auto-registered groups found: 2 → Lockbay Market 🛒, Bagging The Bag 🎒🛅💰"}
+{"t":"2026-09-09T03:23:09.663879546Z","s":"info","m":"[NotifyGroup] Auto-registered groups found: 2 → Lockbay Market 🛒, Bagging The Bag 🎒🛅💰"}
+{"t":"2026-09-09T03:24:58.646984387Z","s":"info","m":"🌐 205 domains registered this week 🛒🌐 Buy Domain Names,📂 My Domain Names,🔧 DNS Management,Back,Cancel\tto: 5833835818"}
+{"t":"2026-09-09T03:25:01.448413422Z","s":"info","m":"🌐 205 domains registered this week 🛒🌐 Buy Domain Names,📂 My Domain Names,🔧 DNS Management,Back,Cancel\tto: 5833835818"}
+{"t":"2026-09-09T03:37:09.111468569Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=8669e5cfa3bcffbeac959f24d0f11d15)"}
+{"t":"2026-09-09T03:37:09.111511748Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=1c499aa6f0b0e7b28af91775873f2f94, nsT=cloudflare}"}
+{"t":"2026-09-09T03:37:09.111521624Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=1c499aa6f0b0e7b28af91775873f2f94)"}
+{"t":"2026-09-09T03:37:09.111530905Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=8669e5cfa3bcffbeac959f24d0f11d15, nsT=cloudflare}"}
+{"t":"2026-09-09T03:37:09.397238570Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=6d3e31e338a3b56c4c956508db8856ed, nsT=cloudflare}"}
+{"t":"2026-09-09T03:37:09.397252202Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=6d3e31e338a3b56c4c956508db8856ed)"}
+{"t":"2026-09-09T03:37:09.397280605Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=provider_default} vs registeredDomains{cfZoneId=null, nsT=null}"}
+{"t":"2026-09-09T03:37:09.397677845Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=provider_default} vs registeredDomains{cfZoneId=null, nsT=null}"}
+{"t":"2026-09-09T03:37:09.397692858Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=provider_default} vs registeredDomains{cfZoneId=null, nsT=null}"}
+{"t":"2026-09-09T03:37:09.397706992Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=2e79d0d91c813dcb31d5ef208492aa9d, nsT=cloudflare}"}
+{"t":"2026-09-09T03:37:09.397715878Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=2e79d0d91c813dcb31d5ef208492aa9d)"}
+{"t":"2026-09-09T03:37:09.397724225Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=a9bf294e897e29896f38b54a399f3d6c, nsT=cloudflare}"}
+{"t":"2026-09-09T03:37:09.399363696Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=a9bf294e897e29896f38b54a399f3d6c)"}
+{"t":"2026-09-09T03:37:09.399365863Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=c178e6cf0188d2d34798219ac16fa6c5, nsT=cloudflare}"}
+{"t":"2026-09-09T03:37:09.399403709Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=60d2f05e8010b730a740853350f636e7, nsT=cloudflare}"}
+{"t":"2026-09-09T03:37:09.399413223Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=60d2f05e8010b730a740853350f636e7)"}
+{"t":"2026-09-09T03:37:09.401078192Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=c178e6cf0188d2d34798219ac16fa6c5)"}
+{"t":"2026-09-09T03:37:09.401098010Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=1303bc191dbe505f5b498b56addebc8f, nsT=cloudflare}"}
+{"t":"2026-09-09T03:37:09.401107580Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=1303bc191dbe505f5b498b56addebc8f)"}
+{"t":"2026-09-09T03:37:09.402551094Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=4822b002edf6e00377c9bf865f193aa7, nsT=cloudflare}"}
+{"t":"2026-09-09T03:37:09.402561156Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=4822b002edf6e00377c9bf865f193aa7)"}
+{"t":"2026-09-09T03:37:09.402579108Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=c55b76a5fdaddddd3a8dfd48c8855cbf, nsT=cloudflare}"}
+{"t":"2026-09-09T03:37:09.402588850Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=c55b76a5fdaddddd3a8dfd48c8855cbf)"}
+{"t":"2026-09-09T03:37:09.404037433Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=2b261112ebbc38d4e2f51e458147694c, nsT=cloudflare}"}
+{"t":"2026-09-09T03:37:09.404063544Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=2b261112ebbc38d4e2f51e458147694c)"}
+{"t":"2026-09-09T03:37:09.405946507Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=441dc8e2b0ea4962654bbe15da6dd01c, nsT=cloudflare}"}
+{"t":"2026-09-09T03:37:09.407293628Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=441dc8e2b0ea4962654bbe15da6dd01c)"}
+{"t":"2026-09-09T03:37:09.407322055Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=72dc4a58424850ff0dedf6b824fad6f1, nsT=cloudflare}"}
+{"t":"2026-09-09T03:37:09.407330632Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=72dc4a58424850ff0dedf6b824fad6f1)"}
+{"t":"2026-09-09T03:37:09.407338944Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=d21f96f50be3b53c83281f865fdbf08f, nsT=cloudflare}"}
+{"t":"2026-09-09T03:37:09.407347381Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=d21f96f50be3b53c83281f865fdbf08f)"}
+{"t":"2026-09-09T03:37:09.409096088Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=ed612289a16c77e58ff066c60f005c81, nsT=cloudflare}"}
+{"t":"2026-09-09T03:37:09.409110471Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=ed612289a16c77e58ff066c60f005c81)"}
+{"t":"2026-09-09T03:37:09.414362652Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=6f7feafa6fb5736fcd4de49dcf816982)"}
+{"t":"2026-09-09T03:37:09.414383082Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=96264626d905adb54b5a5c2120f75f33, nsT=cloudflare}"}
+{"t":"2026-09-09T03:37:09.414396822Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=6f7feafa6fb5736fcd4de49dcf816982, nsT=cloudflare}"}
+{"t":"2026-09-09T03:37:09.415920966Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=96264626d905adb54b5a5c2120f75f33)"}
+{"t":"2026-09-09T03:37:09.415944298Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=a2b560f9dace8383c005eb340c9dbd2e, nsT=cloudflare}"}
+{"t":"2026-09-09T03:37:09.415954886Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=a2b560f9dace8383c005eb340c9dbd2e)"}
+{"t":"2026-09-09T03:37:09.415965335Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=custom} vs registeredDomains{cfZoneId=null, nsT=null}"}
+{"t":"2026-09-09T03:37:09.419215846Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=cbc06a934a2f43bf323349570687c167, nsT=cloudflare}"}
+{"t":"2026-09-09T03:37:09.419226918Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=cbc06a934a2f43bf323349570687c167)"}
+{"t":"2026-09-09T03:37:09.419260152Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=40bf0344878dda3085ca0c3abeb5e727, nsT=cloudflare}"}
+{"t":"2026-09-09T03:37:09.420904106Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=40bf0344878dda3085ca0c3abeb5e727)"}
+{"t":"2026-09-09T03:37:09.420944714Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=b9e141062baa57a831f736f809bfa8e6, nsT=cloudflare}"}
+{"t":"2026-09-09T03:37:09.420954831Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=b9e141062baa57a831f736f809bfa8e6)"}
+{"t":"2026-09-09T03:37:09.422445438Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=13113aa71d6168e057705875a35fb0bc)"}
+{"t":"2026-09-09T03:37:09.422447076Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=7945a18e77131189a0ba467fad1c91c3, nsT=cloudflare}"}
+{"t":"2026-09-09T03:37:09.422464326Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=7945a18e77131189a0ba467fad1c91c3)"}
+{"t":"2026-09-09T03:37:09.422464577Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=e12d53d8627fc20a92fd92f8b080bfc0, nsT=cloudflare}"}
+{"t":"2026-09-09T03:37:09.422491073Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=13113aa71d6168e057705875a35fb0bc, nsT=cloudflare}"}
+{"t":"2026-09-09T03:37:09.424189813Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=dddf484dbc01f747016cb8e2448b40c4)"}
+{"t":"2026-09-09T03:37:09.424198394Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=e12d53d8627fc20a92fd92f8b080bfc0)"}
+{"t":"2026-09-09T03:37:09.424212989Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=bf185e39ecb7d981623bfeff51ea4509, nsT=cloudflare}"}
+{"t":"2026-09-09T03:37:09.424241753Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=dddf484dbc01f747016cb8e2448b40c4, nsT=cloudflare}"}
+{"t":"2026-09-09T03:37:09.425823732Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=bf185e39ecb7d981623bfeff51ea4509)"}
+{"t":"2026-09-09T03:37:09.425848536Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=custom} vs registeredDomains{cfZoneId=null, nsT=null}"}
+{"t":"2026-09-09T03:37:09.429149992Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=c62837004c408835f1bfedc69c43529c)"}
+{"t":"2026-09-09T03:37:09.429187323Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=7e61c50c5d9e0e36b3f42e5ede37b7ff, nsT=cloudflare}"}
+{"t":"2026-09-09T03:37:09.429196819Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=7e61c50c5d9e0e36b3f42e5ede37b7ff)"}
+{"t":"2026-09-09T03:37:09.429225781Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=c62837004c408835f1bfedc69c43529c, nsT=cloudflare}"}
+{"t":"2026-09-09T03:37:09.430688247Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=58b68f3658d5190c1a545f94dd59fc00, nsT=cloudflare}"}
+{"t":"2026-09-09T03:37:09.430705448Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=58b68f3658d5190c1a545f94dd59fc00)"}
+{"t":"2026-09-09T03:37:09.432386296Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=78e3d9ee8d22e63461b882add81cc440, nsT=cloudflare}"}
+{"t":"2026-09-09T03:37:09.432406726Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=provider_default} vs registeredDomains{cfZoneId=null, nsT=null}"}
+{"t":"2026-09-09T03:37:09.433882605Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=78e3d9ee8d22e63461b882add81cc440)"}
+{"t":"2026-09-09T03:37:09.435482936Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=custom} vs registeredDomains{cfZoneId=1129c4f92131afd2a85f9f09a091a446, nsT=cloudflare}"}
+{"t":"2026-09-09T03:37:09.443450257Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=b8ed112b7eb3b3a0f4cd94db95a2af62)"}
+{"t":"2026-09-09T03:37:09.445044534Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=ab246ca667a1e86a7479f8b3efe5f504)"}
+{"t":"2026-09-09T03:37:09.448013423Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=dc02889fe511e1392b46fcb00a09ee21)"}
+{"t":"2026-09-09T03:43:57.093696706Z","s":"info","m":"[NotifyGroup] Auto-registered groups found: 2 → Lockbay Market 🛒, Bagging The Bag 🎒🛅💰"}
+{"t":"2026-09-09T06:02:53.848411844Z","s":"info","m":"[NotifyGroups] Auto-registered group: Lockbay Market 🛒 (-1001843794247)"}
+{"t":"2026-09-09T06:02:54.411049274Z","s":"info","m":"[NotifyGroups] Auto-registered group: Lockbay Market 🛒 (-1001843794247)"}
+{"t":"2026-09-09T07:28:56.006397835Z","s":"info","m":"[ProtectionEnforcer] registeredDomains: 352 entries"}
+{"t":"2026-09-09T09:13:18.364120168Z","s":"info","m":"[NotifyGroups] Auto-registered group: Lockbay Market 🛒 (-1001843794247)"}
+{"t":"2026-09-09T09:14:40.080179938Z","s":"info","m":"[NotifyGroups] Auto-registered group: Lockbay Market 🛒 (-1001843794247)"}
+{"t":"2026-09-09T09:18:09.323323120Z","s":"info","m":"[NotifyGroups] Auto-registered group: Lockbay Market 🛒 (-1001843794247)"}
+{"t":"2026-09-09T13:08:19.113615899Z","s":"info","m":"[Voice] Registered recent test credential: gencredARkKYesmDr5gSlL8EUWngimTsQlEZkKI2vFYOPxy81 → chatId 561172758"}
+{"t":"2026-09-09T13:28:55.961155286Z","s":"info","m":"[ProtectionEnforcer] registeredDomains: 352 entries"}
+{"t":"2026-09-09T15:28:00.457129485Z","s":"info","m":"[NotifyGroup] Auto-registered groups found: 2 → Lockbay Market 🛒, Bagging The Bag 🎒🛅💰"}
+{"t":"2026-09-09T18:44:15.754610016Z","s":"info","m":"🌐 205 domains registered this week 🛒🌐 Buy Domain Names,📂 My Domain Names,🔧 DNS Management,Back,Cancel\tto: 8407493003"}
+{"t":"2026-09-09T19:03:07.656625844Z","s":"info","m":"[NotifyGroup] Auto-registered groups found: 2 → Lockbay Market 🛒, Bagging The Bag 🎒🛅💰"}
+{"t":"2026-09-09T19:03:30.568337673Z","s":"info","m":"🌐 205 domains registered this week 🛒🌐 Buy Domain Names,📂 My Domain Names,🔧 DNS Management,Back,Cancel\tto: 8839481819"}
+{"t":"2026-09-09T19:28:55.953420082Z","s":"info","m":"[ProtectionEnforcer] registeredDomains: 352 entries"}
+{"t":"2026-09-09T19:36:21.414382791Z","s":"info","m":"[NotifyGroup] Auto-registered groups found: 2 → Lockbay Market 🛒, Bagging The Bag 🎒🛅💰"}
+{"t":"2026-09-09T22:22:01.924953447Z","s":"info","m":"[NotifyGroup] Auto-registered groups found: 2 → Lockbay Market 🛒, Bagging The Bag 🎒🛅💰"}
+{"t":"2026-09-09T22:51:00.686539560Z","s":"info","m":"[NotifyGroup] Auto-registered groups found: 2 → Lockbay Market 🛒, Bagging The Bag 🎒🛅💰"}
+{"t":"2026-09-09T23:20:50.045950987Z","s":"info","m":"🌐 205 domains registered this week 🛒🌐 Buy Domain Names,📂 My Domain Names,🔧 DNS Management,Back,Cancel\tto: 7893016294"}
+{"t":"2026-09-09T23:31:10.758217452Z","s":"info","m":"[NotifyGroup] Auto-registered groups found: 2 → Lockbay Market 🛒, Bagging The Bag 🎒🛅💰"}
+{"t":"2026-09-09T23:31:11.014760708Z","s":"info","m":"🌐 205 domains registered this week 🛒🌐 Buy Domain Names,📂 My Domain Names,🔧 DNS Management,Back,Cancel\tto: 8729309678"}
+{"t":"2026-09-09T23:32:12.583806080Z","s":"info","m":"[OP] Domain registered: charlesschwab-secure.org, ID: 30213615"}
+{"t":"2026-09-09T23:32:12.583809485Z","s":"info","m":"[domain-service] charlesschwab-secure.org registered on OpenProvider (ID: 30213615)"}
+{"t":"2026-09-09T23:32:12.596211967Z","s":"info","m":"[buyDomainFullProcess] charlesschwab-secure.org registered via primary registrar OpenProvider — potential savings"}
+{"t":"2026-09-09T23:32:12.619481511Z","s":"info","m":"reply: 🎉 Domain Registered Successfully!"}
+{"t":"2026-09-09T23:32:12.619496820Z","s":"info","m":"[buyDomainFullProcess] charlesschwab-secure.org registered with Cloudflare NS: anderson.ns.cloudflare.com, leanna.ns.cloudflare.com (registrar: OpenProvider)"}
+{"t":"2026-09-09T23:32:14.128659347Z","s":"info","m":"  message: '✅ <b>Step 1 of 3 — Registered.</b>\\n' +"}
+{"t":"2026-09-09T23:32:19.721523269Z","s":"info","m":"    'Your domain <b>charlesschwab-secure.org</b> is fully registered and linked to your account.\\n' +"}
+{"t":"2026-09-09T23:32:19.790144045Z","s":"info","m":"[NotifyGroup] Auto-registered groups found: 2 → Lockbay Market 🛒, Bagging The Bag 🎒🛅💰"}
+{"t":"2026-09-09T23:32:58.833092126Z","s":"info","m":"reply: Select a domain from your registered domains: cap1online360.com,huntingtononlinebanking.it,hunt-verify.org,navyfed-verify.com,everwise-secure.com,navy-fed-verify.com,wellsfargo-secure.org,navy-verify.com,fdic-verify-secure.com,verify-nsecu.com,secure-peakcu.org,charlesschwab-secure.org,↩️ Back,🏠 Main Menu,Cancel\tto: 7893016294"}
+{"t":"2026-09-10T00:09:16.399929867Z","s":"info","m":"[NotifyGroup] Auto-registered groups found: 2 → Lockbay Market 🛒, Bagging The Bag 🎒🛅💰"}
+{"t":"2026-09-10T00:40:36.081513363Z","s":"info","m":"<b>Domain Type:</b> 🏷️ Registered with us"}
+{"t":"2026-09-10T01:28:56.110852749Z","s":"info","m":"[ProtectionEnforcer] registeredDomains: 353 entries"}
+{"t":"2026-09-10T02:53:22.907719538Z","s":"info","m":"[NotifyGroup] Auto-registered groups found: 2 → Lockbay Market 🛒, Bagging The Bag 🎒🛅💰"}
+{"t":"2026-09-10T03:34:31.830532304Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=1c499aa6f0b0e7b28af91775873f2f94, nsT=cloudflare}"}
+{"t":"2026-09-10T03:34:31.830541093Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=1c499aa6f0b0e7b28af91775873f2f94)"}
+{"t":"2026-09-10T03:34:31.830549705Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=8669e5cfa3bcffbeac959f24d0f11d15, nsT=cloudflare}"}
+{"t":"2026-09-10T03:34:31.830559786Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=8669e5cfa3bcffbeac959f24d0f11d15)"}
+{"t":"2026-09-10T03:34:31.832166055Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=provider_default} vs registeredDomains{cfZoneId=null, nsT=null}"}
+{"t":"2026-09-10T03:34:31.832171045Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=6d3e31e338a3b56c4c956508db8856ed)"}
+{"t":"2026-09-10T03:34:31.832195781Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=6d3e31e338a3b56c4c956508db8856ed, nsT=cloudflare}"}
+{"t":"2026-09-10T03:34:31.834132730Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=provider_default} vs registeredDomains{cfZoneId=null, nsT=null}"}
+{"t":"2026-09-10T03:34:31.834132921Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=2e79d0d91c813dcb31d5ef208492aa9d, nsT=cloudflare}"}
+{"t":"2026-09-10T03:34:31.834151644Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=2e79d0d91c813dcb31d5ef208492aa9d)"}
+{"t":"2026-09-10T03:34:31.834159463Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=provider_default} vs registeredDomains{cfZoneId=null, nsT=null}"}
+{"t":"2026-09-10T03:34:31.834170813Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=a9bf294e897e29896f38b54a399f3d6c, nsT=cloudflare}"}
+{"t":"2026-09-10T03:34:31.835981646Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=60d2f05e8010b730a740853350f636e7, nsT=cloudflare}"}
+{"t":"2026-09-10T03:34:31.835984011Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=a9bf294e897e29896f38b54a399f3d6c)"}
+{"t":"2026-09-10T03:34:31.835998598Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=60d2f05e8010b730a740853350f636e7)"}
+{"t":"2026-09-10T03:34:31.836015988Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=c178e6cf0188d2d34798219ac16fa6c5, nsT=cloudflare}"}
+{"t":"2026-09-10T03:34:31.837865841Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=c178e6cf0188d2d34798219ac16fa6c5)"}
+{"t":"2026-09-10T03:34:31.837886119Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=1303bc191dbe505f5b498b56addebc8f, nsT=cloudflare}"}
+{"t":"2026-09-10T03:34:31.837894556Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=1303bc191dbe505f5b498b56addebc8f)"}
+{"t":"2026-09-10T03:34:31.839463249Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=4822b002edf6e00377c9bf865f193aa7, nsT=cloudflare}"}
+{"t":"2026-09-10T03:34:31.839476232Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=4822b002edf6e00377c9bf865f193aa7)"}
+{"t":"2026-09-10T03:34:31.839496266Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=c55b76a5fdaddddd3a8dfd48c8855cbf, nsT=cloudflare}"}
+{"t":"2026-09-10T03:34:31.839506336Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=c55b76a5fdaddddd3a8dfd48c8855cbf)"}
+{"t":"2026-09-10T03:34:31.841386923Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=2b261112ebbc38d4e2f51e458147694c, nsT=cloudflare}"}
+{"t":"2026-09-10T03:34:31.841397315Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=2b261112ebbc38d4e2f51e458147694c)"}
+{"t":"2026-09-10T03:34:31.843154376Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=1716257b0438534a175a32bd295db636, nsT=cloudflare}"}
+{"t":"2026-09-10T03:34:31.843163366Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=1716257b0438534a175a32bd295db636)"}
+{"t":"2026-09-10T03:34:31.845076876Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=441dc8e2b0ea4962654bbe15da6dd01c, nsT=cloudflare}"}
+{"t":"2026-09-10T03:34:31.845090391Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=441dc8e2b0ea4962654bbe15da6dd01c)"}
+{"t":"2026-09-10T03:34:31.845116112Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=72dc4a58424850ff0dedf6b824fad6f1, nsT=cloudflare}"}
+{"t":"2026-09-10T03:34:31.845128075Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=72dc4a58424850ff0dedf6b824fad6f1)"}
+{"t":"2026-09-10T03:34:31.847231580Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=d21f96f50be3b53c83281f865fdbf08f, nsT=cloudflare}"}
+{"t":"2026-09-10T03:34:31.847250360Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=d21f96f50be3b53c83281f865fdbf08f)"}
+{"t":"2026-09-10T03:34:31.847272884Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=ed612289a16c77e58ff066c60f005c81, nsT=cloudflare}"}
+{"t":"2026-09-10T03:34:31.848748020Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=ed612289a16c77e58ff066c60f005c81)"}
+{"t":"2026-09-10T03:34:31.852086259Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=6f7feafa6fb5736fcd4de49dcf816982, nsT=cloudflare}"}
+{"t":"2026-09-10T03:34:31.854428808Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=a2b560f9dace8383c005eb340c9dbd2e, nsT=cloudflare}"}
+{"t":"2026-09-10T03:34:31.854443410Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=a2b560f9dace8383c005eb340c9dbd2e)"}
+{"t":"2026-09-10T03:34:31.854443619Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=6f7feafa6fb5736fcd4de49dcf816982)"}
+{"t":"2026-09-10T03:34:31.854461442Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=96264626d905adb54b5a5c2120f75f33, nsT=cloudflare}"}
+{"t":"2026-09-10T03:34:31.854461507Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=custom} vs registeredDomains{cfZoneId=null, nsT=null}"}
+{"t":"2026-09-10T03:34:31.854472889Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=96264626d905adb54b5a5c2120f75f33)"}
+{"t":"2026-09-10T03:34:31.858291822Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=cbc06a934a2f43bf323349570687c167, nsT=cloudflare}"}
+{"t":"2026-09-10T03:34:31.858306923Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=cbc06a934a2f43bf323349570687c167)"}
+{"t":"2026-09-10T03:34:31.860040213Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=40bf0344878dda3085ca0c3abeb5e727, nsT=cloudflare}"}
+{"t":"2026-09-10T03:34:31.860051913Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=40bf0344878dda3085ca0c3abeb5e727)"}
+{"t":"2026-09-10T03:34:31.860075836Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=b9e141062baa57a831f736f809bfa8e6, nsT=cloudflare}"}
+{"t":"2026-09-10T03:34:31.860086554Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=b9e141062baa57a831f736f809bfa8e6)"}
+{"t":"2026-09-10T03:34:31.861229900Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=7945a18e77131189a0ba467fad1c91c3, nsT=cloudflare}"}
+{"t":"2026-09-10T03:34:31.861238507Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=7945a18e77131189a0ba467fad1c91c3)"}
+{"t":"2026-09-10T03:34:31.861255795Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=13113aa71d6168e057705875a35fb0bc, nsT=cloudflare}"}
+{"t":"2026-09-10T03:34:31.862402939Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=13113aa71d6168e057705875a35fb0bc)"}
+{"t":"2026-09-10T03:34:31.862403238Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=dddf484dbc01f747016cb8e2448b40c4)"}
+{"t":"2026-09-10T03:34:31.862426408Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=e12d53d8627fc20a92fd92f8b080bfc0, nsT=cloudflare}"}
+{"t":"2026-09-10T03:34:31.862428930Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=dddf484dbc01f747016cb8e2448b40c4, nsT=cloudflare}"}
+{"t":"2026-09-10T03:34:31.862438070Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=e12d53d8627fc20a92fd92f8b080bfc0)"}
+{"t":"2026-09-10T03:34:31.863482451Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=bf185e39ecb7d981623bfeff51ea4509, nsT=cloudflare}"}
+{"t":"2026-09-10T03:34:31.863490791Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=bf185e39ecb7d981623bfeff51ea4509)"}
+{"t":"2026-09-10T03:34:31.863513334Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=custom} vs registeredDomains{cfZoneId=null, nsT=null}"}
+{"t":"2026-09-10T03:34:31.866057528Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=c62837004c408835f1bfedc69c43529c, nsT=cloudflare}"}
+{"t":"2026-09-10T03:34:31.866079721Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=7e61c50c5d9e0e36b3f42e5ede37b7ff, nsT=cloudflare}"}
+{"t":"2026-09-10T03:34:31.866089041Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=7e61c50c5d9e0e36b3f42e5ede37b7ff)"}
+{"t":"2026-09-10T03:34:31.867153520Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=c62837004c408835f1bfedc69c43529c)"}
+{"t":"2026-09-10T03:34:31.867164734Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=58b68f3658d5190c1a545f94dd59fc00, nsT=cloudflare}"}
+{"t":"2026-09-10T03:34:31.867176304Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=58b68f3658d5190c1a545f94dd59fc00)"}
+{"t":"2026-09-10T03:34:31.868835763Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=provider_default} vs registeredDomains{cfZoneId=null, nsT=null}"}
+{"t":"2026-09-10T03:34:31.870581158Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=78e3d9ee8d22e63461b882add81cc440, nsT=cloudflare}"}
+{"t":"2026-09-10T03:34:31.870591239Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=78e3d9ee8d22e63461b882add81cc440)"}
+{"t":"2026-09-10T03:34:31.890853050Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=custom} vs registeredDomains{cfZoneId=null, nsT=null}"}
+{"t":"2026-09-10T03:34:31.894460643Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=483f470681dfdc8ea76979ff101bd1fa)"}
+{"t":"2026-09-10T04:27:19.801213911Z","s":"info","m":"reply: Select a domain from your registered domains: commercesupport.online,chainbridgebank.support,bylinebank.capital,texascapitalbank.capital,texascapitalbank.cc,bylinebank.cc,↩️ Back,🏠 Main Menu,Cancel\tto: 6635602837"}
+{"t":"2026-09-10T05:40:56.438772376Z","s":"info","m":"[NotifyGroup] Auto-registered groups found: 2 → Lockbay Market 🛒, Bagging The Bag 🎒🛅💰"}
+{"t":"2026-09-10T05:42:20.465178215Z","s":"info","m":"reply: Select a domain from your registered domains: commercesupport.online,chainbridgebank.support,bylinebank.capital,texascapitalbank.capital,texascapitalbank.cc,bylinebank.cc,↩️ Back,🏠 Main Menu,Cancel\tto: 6635602837"}
+{"t":"2026-09-10T07:28:55.933209780Z","s":"info","m":"[ProtectionEnforcer] registeredDomains: 353 entries"}
+{"t":"2026-09-10T13:04:31.146865429Z","s":"info","m":"reply: Select a domain from your registered domains: commercesupport.online,chainbridgebank.support,bylinebank.capital,texascapitalbank.capital,texascapitalbank.cc,bylinebank.cc,↩️ Back,🏠 Main Menu,Cancel\tto: 6635602837"}
+{"t":"2026-09-10T13:06:01.932037535Z","s":"info","m":"reply: Select a domain from your registered domains: commercesupport.online,chainbridgebank.support,bylinebank.capital,texascapitalbank.capital,texascapitalbank.cc,bylinebank.cc,↩️ Back,🏠 Main Menu,Cancel\tto: 6635602837"}
+{"t":"2026-09-10T13:07:55.775449301Z","s":"info","m":"[Hosting] re-run: chainbridgebank.support already registered to 6635602837 — skipping domain registration step"}
+{"t":"2026-09-10T13:08:05.275821941Z","s":"info","m":"[NotifyGroup] Auto-registered groups found: 2 → Lockbay Market 🛒, Bagging The Bag 🎒🛅💰"}
+{"t":"2026-09-10T13:28:55.935060132Z","s":"info","m":"[ProtectionEnforcer] registeredDomains: 353 entries"}
+{"t":"2026-09-10T13:33:36.054006384Z","s":"info","m":"🌐 190 domains registered this week 🛒🌐 Buy Domain Names,📂 My Domain Names,🔧 DNS Management,Back,Cancel\tto: 7893016294"}
+{"t":"2026-09-10T14:00:34.303622201Z","s":"info","m":"[NotifyGroups] Auto-registered group: Lockbay Market 🛒 (-1001843794247)"}
+{"t":"2026-09-10T15:12:48.238968469Z","s":"info","m":"[NotifyGroups] Auto-registered group: Lockbay Market 🛒 (-1001843794247)"}
+{"t":"2026-09-10T15:17:28.840792990Z","s":"info","m":"[OP] Domain registered: rbc-verify.com, ID: 30217970"}
+{"t":"2026-09-10T15:17:28.840798044Z","s":"info","m":"[domain-service] rbc-verify.com registered on OpenProvider (ID: 30217970)"}
+{"t":"2026-09-10T15:17:29.180653489Z","s":"info","m":"[Hosting] Domain rbc-verify.com registered at OpenProvider (ID: 30217970)"}
+{"t":"2026-09-10T15:17:49.746772161Z","s":"info","m":"[NotifyGroup] Auto-registered groups found: 2 → Lockbay Market 🛒, Bagging The Bag 🎒🛅💰"}
+{"t":"2026-09-10T15:38:22.062763921Z","s":"info","m":"[NotifyGroup] Auto-registered groups found: 2 → Lockbay Market 🛒, Bagging The Bag 🎒🛅💰"}
+{"t":"2026-09-10T15:48:31.392751251Z","s":"info","m":"[NotifyGroup] Auto-registered groups found: 2 → Lockbay Market 🛒, Bagging The Bag 🎒🛅💰"}
+{"t":"2026-09-10T15:48:44.632945557Z","s":"info","m":"[NotifyGroups] Auto-registered group: Lockbay Market 🛒 (-1001843794247)"}
+{"t":"2026-09-10T16:08:25.608763984Z","s":"info","m":"🌐 190 domains registered this week 🛒🌐 Buy Domain Names,📂 My Domain Names,🔧 DNS Management,Back,Cancel\tto: 5833835818"}
+{"t":"2026-09-10T16:23:17.383336301Z","s":"info","m":"[OP] Domain registered: behindminilab.com, ID: 30218374"}
+{"t":"2026-09-10T16:23:17.383341354Z","s":"info","m":"[domain-service] behindminilab.com registered on OpenProvider (ID: 30218374)"}
+{"t":"2026-09-10T16:23:17.391016398Z","s":"info","m":"[buyDomainFullProcess] behindminilab.com registered via primary registrar OpenProvider — potential savings"}
+{"t":"2026-09-10T16:23:17.719890684Z","s":"info","m":"[buyDomainFullProcess] behindminilab.com registered with Cloudflare NS: anderson.ns.cloudflare.com, leanna.ns.cloudflare.com (registrar: OpenProvider)"}
+{"t":"2026-09-10T16:23:17.719900987Z","s":"info","m":"[NotifyGroup] Auto-registered groups found: 2 → Lockbay Market 🛒, Bagging The Bag 🎒🛅💰"}
+{"t":"2026-09-10T16:28:08.947062983Z","s":"info","m":"🌐 190 domains registered this week 🛒🌐 Buy Domain Names,📂 My Domain Names,🔧 DNS Management,Back,Cancel\tto: 5833835818"}
+{"t":"2026-09-10T17:05:33.106600647Z","s":"info","m":"[NotifyGroups] Auto-registered group: Lockbay Market 🛒 (-1001843794247)"}
+{"t":"2026-09-10T19:28:55.965952352Z","s":"info","m":"[ProtectionEnforcer] registeredDomains: 355 entries"}
+{"t":"2026-09-10T19:50:49.072411059Z","s":"info","m":"[BundleWebhook] Twilio bundle-status route registered"}
+{"t":"2026-09-10T19:50:49.917649074Z","s":"info","m":"✅ Default bot commands registered"}
+{"t":"2026-09-10T19:50:50.079523456Z","s":"info","m":"✅ Admin bot commands registered for chat 5590563715"}
+{"t":"2026-09-10T19:50:55.548332268Z","s":"info","m":"[VoiceService] Twilio webhook routes registered"}
+{"t":"2026-09-10T19:50:55.548335738Z","s":"info","m":"[VoiceService] Extra Twilio routes registered (verify-callerid, sip-voice, voice-status, sms-webhook)"}
+{"t":"2026-09-10T19:50:55.548356088Z","s":"info","m":"[Telnyx] Webhook routes registered (sms / voice / fax)"}
+{"t":"2026-09-10T19:50:55.549196171Z","s":"info","m":"[SmsApp] Routes registered"}
+{"t":"2026-09-10T19:50:55.579665548Z","s":"info","m":"[BulkCall] Twilio webhook routes registered"}
+{"t":"2026-09-10T19:51:25.516332542Z","s":"info","m":"[ProtectionEnforcer] registeredDomains: 355 entries"}
+{"t":"2026-09-10T20:01:50.238639608Z","s":"info","m":"[BundleWebhook] Twilio bundle-status route registered"}
+{"t":"2026-09-10T20:01:51.109957548Z","s":"info","m":"✅ Default bot commands registered"}
+{"t":"2026-09-10T20:01:51.189676719Z","s":"info","m":"✅ Admin bot commands registered for chat 5590563715"}
+{"t":"2026-09-10T20:01:57.314147829Z","s":"info","m":"[VoiceService] Twilio webhook routes registered"}
+{"t":"2026-09-10T20:01:57.314153514Z","s":"info","m":"[VoiceService] Extra Twilio routes registered (verify-callerid, sip-voice, voice-status, sms-webhook)"}
+{"t":"2026-09-10T20:01:57.319110417Z","s":"info","m":"[Telnyx] Webhook routes registered (sms / voice / fax)"}
+{"t":"2026-09-10T20:01:57.329089031Z","s":"info","m":"[SmsApp] Routes registered"}
+{"t":"2026-09-10T20:01:58.183371153Z","s":"info","m":"[BulkCall] Twilio webhook routes registered"}
+{"t":"2026-09-10T20:02:27.246396953Z","s":"info","m":"[ProtectionEnforcer] registeredDomains: 355 entries"}
+{"t":"2026-09-10T20:14:48.361455493Z","s":"info","m":"[NotifyGroups] Auto-registered group: Lockbay Market 🛒 (-1001843794247)"}
+{"t":"2026-09-10T21:23:32.131392184Z","s":"info","m":"[BundleWebhook] Twilio bundle-status route registered"}
+{"t":"2026-09-10T21:23:33.038525518Z","s":"info","m":"✅ Default bot commands registered"}
+{"t":"2026-09-10T21:23:33.302433442Z","s":"info","m":"✅ Admin bot commands registered for chat 5590563715"}
+{"t":"2026-09-10T21:23:41.321792389Z","s":"info","m":"[Telnyx] Webhook routes registered (sms / voice / fax)"}
+{"t":"2026-09-10T21:23:41.321970397Z","s":"info","m":"[VoiceService] Twilio webhook routes registered"}
+{"t":"2026-09-10T21:23:41.321975647Z","s":"info","m":"[VoiceService] Extra Twilio routes registered (verify-callerid, sip-voice, voice-status, sms-webhook)"}
+{"t":"2026-09-10T21:23:41.322034456Z","s":"info","m":"[SmsApp] Routes registered"}
+{"t":"2026-09-10T21:23:41.322425551Z","s":"info","m":"[BulkCall] Twilio webhook routes registered"}
+{"t":"2026-09-10T21:24:11.233131674Z","s":"info","m":"[ProtectionEnforcer] registeredDomains: 355 entries"}
+{"t":"2026-09-10T21:38:25.835556874Z","s":"info","m":"[NotifyGroup] Auto-registered groups found: 2 → Lockbay Market 🛒, Bagging The Bag 🎒🛅💰"}
+{"t":"2026-09-10T21:39:24.215097849Z","s":"info","m":"[Voice] Registered recent test credential: gencredtvqceviEbMITNvsFDpTCw1CF71LgporZkUpeNCUybb → chatId 7652757393"}
+{"t":"2026-09-10T21:49:51.625824724Z","s":"info","m":"[NotifyGroup] Auto-registered groups found: 2 → Lockbay Market 🛒, Bagging The Bag 🎒🛅💰"}
+{"t":"2026-09-10T23:02:32.730921698Z","s":"info","m":"[NotifyGroup] Auto-registered groups found: 2 → Lockbay Market 🛒, Bagging The Bag 🎒🛅💰"}
+{"t":"2026-09-10T23:02:52.721102181Z","s":"info","m":"[NotifyGroup] Auto-registered groups found: 2 → Lockbay Market 🛒, Bagging The Bag 🎒🛅💰"}
+{"t":"2026-09-10T23:03:51.001604125Z","s":"info","m":"🌐 190 domains registered this week 🛒🌐 Buy Domain Names,📂 My Domain Names,🔧 DNS Management,Back,Cancel\tto: 8593214452"}
+{"t":"2026-09-10T23:04:00.575961399Z","s":"info","m":"🌐 190 domains registered this week 🛒🌐 Buy Domain Names,📂 My Domain Names,🔧 DNS Management,Back,Cancel\tto: 8593214452"}
+{"t":"2026-09-10T23:13:57.411827675Z","s":"info","m":"[BundleWebhook] Twilio bundle-status route registered"}
+{"t":"2026-09-10T23:13:58.306288530Z","s":"info","m":"✅ Default bot commands registered"}
+{"t":"2026-09-10T23:13:58.458215860Z","s":"info","m":"✅ Admin bot commands registered for chat 5590563715"}
+{"t":"2026-09-10T23:14:04.143918750Z","s":"info","m":"[VoiceService] Twilio webhook routes registered"}
+{"t":"2026-09-10T23:14:04.143923610Z","s":"info","m":"[VoiceService] Extra Twilio routes registered (verify-callerid, sip-voice, voice-status, sms-webhook)"}
+{"t":"2026-09-10T23:14:04.143950799Z","s":"info","m":"[Telnyx] Webhook routes registered (sms / voice / fax)"}
+{"t":"2026-09-10T23:14:04.145185142Z","s":"info","m":"[SmsApp] Routes registered"}
+{"t":"2026-09-10T23:14:04.172524475Z","s":"info","m":"[BulkCall] Twilio webhook routes registered"}
+{"t":"2026-09-10T23:14:34.121161117Z","s":"info","m":"[ProtectionEnforcer] registeredDomains: 355 entries"}
+{"t":"2026-09-10T23:17:33.711898318Z","s":"info","m":"[BundleWebhook] Twilio bundle-status route registered"}
+{"t":"2026-09-10T23:17:34.422158634Z","s":"info","m":"✅ Default bot commands registered"}
+{"t":"2026-09-10T23:17:34.584060189Z","s":"info","m":"✅ Admin bot commands registered for chat 5590563715"}
+{"t":"2026-09-10T23:17:40.344435746Z","s":"info","m":"[Telnyx] Webhook routes registered (sms / voice / fax)"}
+{"t":"2026-09-10T23:17:40.344495465Z","s":"info","m":"[VoiceService] Twilio webhook routes registered"}
+{"t":"2026-09-10T23:17:40.344499205Z","s":"info","m":"[VoiceService] Extra Twilio routes registered (verify-callerid, sip-voice, voice-status, sms-webhook)"}
+{"t":"2026-09-10T23:17:40.344668751Z","s":"info","m":"[SmsApp] Routes registered"}
+{"t":"2026-09-10T23:17:40.345250908Z","s":"info","m":"[BulkCall] Twilio webhook routes registered"}
+{"t":"2026-09-10T23:18:10.260835570Z","s":"info","m":"[ProtectionEnforcer] registeredDomains: 355 entries"}
+{"t":"2026-09-10T23:28:01.314124793Z","s":"info","m":"[NotifyGroup] Auto-registered groups found: 2 → Lockbay Market 🛒, Bagging The Bag 🎒🛅💰"}
+{"t":"2026-09-10T23:28:54.423551099Z","s":"info","m":"[Voice] Registered recent test credential: gencred9K4NMre52BUmolKRJCAexBVXXajm2hun9Z7pHhn62m → chatId 7859617687"}
+{"t":"2026-09-10T23:32:47.136769739Z","s":"info","m":"[NotifyGroup] Auto-registered groups found: 2 → Lockbay Market 🛒, Bagging The Bag 🎒🛅💰"}
+{"t":"2026-09-10T23:34:33.666553542Z","s":"info","m":"[Voice] Registered recent test credential: gencredUKj5nCc7N1XfI0MWXQXfXArdb8LwCqEI96ExCi6unW → chatId 6580245354"}
+{"t":"2026-09-10T23:36:33.665299758Z","s":"info","m":"[NotifyGroup] Auto-registered groups found: 2 → Lockbay Market 🛒, Bagging The Bag 🎒🛅💰"}
+{"t":"2026-09-11T00:00:43.575529420Z","s":"info","m":"[OP] Domain registered: rbc-verification.ca, ID: 30219568"}
+{"t":"2026-09-11T00:00:43.575534000Z","s":"info","m":"[domain-service] rbc-verification.ca registered on OpenProvider (ID: 30219568)"}
+{"t":"2026-09-11T00:00:43.588063983Z","s":"info","m":"[buyDomainFullProcess] rbc-verification.ca registered via primary registrar OpenProvider — potential savings"}
+{"t":"2026-09-11T00:00:43.597328675Z","s":"info","m":"[buyDomainFullProcess] rbc-verification.ca registered with Cloudflare NS: anderson.ns.cloudflare.com, leanna.ns.cloudflare.com (registrar: OpenProvider)"}
+{"t":"2026-09-11T00:00:43.633317077Z","s":"info","m":"[NotifyGroup] Auto-registered groups found: 2 → Lockbay Market 🛒, Bagging The Bag 🎒🛅💰"}
+{"t":"2026-09-11T03:07:01.045117830Z","s":"info","m":"[NotifyGroup] Auto-registered groups found: 2 → Lockbay Market 🛒, Bagging The Bag 🎒🛅💰"}
+{"t":"2026-09-11T03:36:19.034112244Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=1c499aa6f0b0e7b28af91775873f2f94, nsT=cloudflare}"}
+{"t":"2026-09-11T03:36:19.034124174Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=1c499aa6f0b0e7b28af91775873f2f94)"}
+{"t":"2026-09-11T03:36:19.034137534Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=8669e5cfa3bcffbeac959f24d0f11d15, nsT=cloudflare}"}
+{"t":"2026-09-11T03:36:19.034148953Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=8669e5cfa3bcffbeac959f24d0f11d15)"}
+{"t":"2026-09-11T03:36:19.034568804Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=6d3e31e338a3b56c4c956508db8856ed, nsT=cloudflare}"}
+{"t":"2026-09-11T03:36:19.034582673Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=6d3e31e338a3b56c4c956508db8856ed)"}
+{"t":"2026-09-11T03:36:19.034616962Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=provider_default} vs registeredDomains{cfZoneId=null, nsT=null}"}
+{"t":"2026-09-11T03:36:19.034620652Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=60d2f05e8010b730a740853350f636e7)"}
+{"t":"2026-09-11T03:36:19.034656832Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=c178e6cf0188d2d34798219ac16fa6c5, nsT=cloudflare}"}
+{"t":"2026-09-11T03:36:19.034657382Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=a9bf294e897e29896f38b54a399f3d6c)"}
+{"t":"2026-09-11T03:36:19.034671051Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=provider_default} vs registeredDomains{cfZoneId=null, nsT=null}"}
+{"t":"2026-09-11T03:36:19.034673781Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=60d2f05e8010b730a740853350f636e7, nsT=cloudflare}"}
+{"t":"2026-09-11T03:36:19.034714890Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=provider_default} vs registeredDomains{cfZoneId=null, nsT=null}"}
+{"t":"2026-09-11T03:36:19.034739370Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=2e79d0d91c813dcb31d5ef208492aa9d, nsT=cloudflare}"}
+{"t":"2026-09-11T03:36:19.034750609Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=2e79d0d91c813dcb31d5ef208492aa9d)"}
+{"t":"2026-09-11T03:36:19.034761599Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=a9bf294e897e29896f38b54a399f3d6c, nsT=cloudflare}"}
+{"t":"2026-09-11T03:36:19.034909416Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=c178e6cf0188d2d34798219ac16fa6c5)"}
+{"t":"2026-09-11T03:36:19.034929185Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=1303bc191dbe505f5b498b56addebc8f, nsT=cloudflare}"}
+{"t":"2026-09-11T03:36:19.034937665Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=1303bc191dbe505f5b498b56addebc8f)"}
+{"t":"2026-09-11T03:36:19.035082622Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=4822b002edf6e00377c9bf865f193aa7, nsT=cloudflare}"}
+{"t":"2026-09-11T03:36:19.035091011Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=4822b002edf6e00377c9bf865f193aa7)"}
+{"t":"2026-09-11T03:36:19.035107891Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=c55b76a5fdaddddd3a8dfd48c8855cbf, nsT=cloudflare}"}
+{"t":"2026-09-11T03:36:19.035115601Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=c55b76a5fdaddddd3a8dfd48c8855cbf)"}
+{"t":"2026-09-11T03:36:19.035590271Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=2b261112ebbc38d4e2f51e458147694c, nsT=cloudflare}"}
+{"t":"2026-09-11T03:36:19.035599061Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=2b261112ebbc38d4e2f51e458147694c)"}
+{"t":"2026-09-11T03:36:19.036044870Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=1716257b0438534a175a32bd295db636, nsT=cloudflare}"}
+{"t":"2026-09-11T03:36:19.036055910Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=1716257b0438534a175a32bd295db636)"}
+{"t":"2026-09-11T03:36:19.036305754Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=441dc8e2b0ea4962654bbe15da6dd01c, nsT=cloudflare}"}
+{"t":"2026-09-11T03:36:19.036314224Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=441dc8e2b0ea4962654bbe15da6dd01c)"}
+{"t":"2026-09-11T03:36:19.036331564Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=72dc4a58424850ff0dedf6b824fad6f1, nsT=cloudflare}"}
+{"t":"2026-09-11T03:36:19.036339464Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=72dc4a58424850ff0dedf6b824fad6f1)"}
+{"t":"2026-09-11T03:36:19.036715655Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=d21f96f50be3b53c83281f865fdbf08f, nsT=cloudflare}"}
+{"t":"2026-09-11T03:36:19.036737924Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=ed612289a16c77e58ff066c60f005c81, nsT=cloudflare}"}
+{"t":"2026-09-11T03:36:19.036738924Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=d21f96f50be3b53c83281f865fdbf08f)"}
+{"t":"2026-09-11T03:36:19.036865811Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=ed612289a16c77e58ff066c60f005c81)"}
+{"t":"2026-09-11T03:36:19.037559915Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=6f7feafa6fb5736fcd4de49dcf816982, nsT=cloudflare}"}
+{"t":"2026-09-11T03:36:19.037593185Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=6f7feafa6fb5736fcd4de49dcf816982)"}
+{"t":"2026-09-11T03:36:19.037610694Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=96264626d905adb54b5a5c2120f75f33, nsT=cloudflare}"}
+{"t":"2026-09-11T03:36:19.037610984Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=a2b560f9dace8383c005eb340c9dbd2e, nsT=cloudflare}"}
+{"t":"2026-09-11T03:36:19.037628194Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=96264626d905adb54b5a5c2120f75f33)"}
+{"t":"2026-09-11T03:36:19.037631534Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=a2b560f9dace8383c005eb340c9dbd2e)"}
+{"t":"2026-09-11T03:36:19.038038195Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=custom} vs registeredDomains{cfZoneId=null, nsT=null}"}
+{"t":"2026-09-11T03:36:19.038381227Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=cbc06a934a2f43bf323349570687c167, nsT=cloudflare}"}
+{"t":"2026-09-11T03:36:19.038405657Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=cbc06a934a2f43bf323349570687c167)"}
+{"t":"2026-09-11T03:36:19.038872696Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=13113aa71d6168e057705875a35fb0bc, nsT=cloudflare}"}
+{"t":"2026-09-11T03:36:19.038929625Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=7945a18e77131189a0ba467fad1c91c3, nsT=cloudflare}"}
+{"t":"2026-09-11T03:36:19.038940614Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=7945a18e77131189a0ba467fad1c91c3)"}
+{"t":"2026-09-11T03:36:19.039021192Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=40bf0344878dda3085ca0c3abeb5e727, nsT=cloudflare}"}
+{"t":"2026-09-11T03:36:19.039036822Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=40bf0344878dda3085ca0c3abeb5e727)"}
+{"t":"2026-09-11T03:36:19.039072191Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=b9e141062baa57a831f736f809bfa8e6, nsT=cloudflare}"}
+{"t":"2026-09-11T03:36:19.039086981Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=b9e141062baa57a831f736f809bfa8e6)"}
+{"t":"2026-09-11T03:36:19.039163759Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=13113aa71d6168e057705875a35fb0bc)"}
+{"t":"2026-09-11T03:36:19.039176699Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=e12d53d8627fc20a92fd92f8b080bfc0, nsT=cloudflare}"}
+{"t":"2026-09-11T03:36:19.039191289Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=e12d53d8627fc20a92fd92f8b080bfc0)"}
+{"t":"2026-09-11T03:36:19.039233298Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=dddf484dbc01f747016cb8e2448b40c4, nsT=cloudflare}"}
+{"t":"2026-09-11T03:36:19.039386084Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=dddf484dbc01f747016cb8e2448b40c4)"}
+{"t":"2026-09-11T03:36:19.039403624Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=bf185e39ecb7d981623bfeff51ea4509, nsT=cloudflare}"}
+{"t":"2026-09-11T03:36:19.039418663Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=bf185e39ecb7d981623bfeff51ea4509)"}
+{"t":"2026-09-11T03:36:19.039449323Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=custom} vs registeredDomains{cfZoneId=null, nsT=null}"}
+{"t":"2026-09-11T03:36:19.040035699Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=c62837004c408835f1bfedc69c43529c, nsT=cloudflare}"}
+{"t":"2026-09-11T03:36:19.040074308Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=7e61c50c5d9e0e36b3f42e5ede37b7ff, nsT=cloudflare}"}
+{"t":"2026-09-11T03:36:19.040084548Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=7e61c50c5d9e0e36b3f42e5ede37b7ff)"}
+{"t":"2026-09-11T03:36:19.040451849Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=c62837004c408835f1bfedc69c43529c)"}
+{"t":"2026-09-11T03:36:19.040463229Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=58b68f3658d5190c1a545f94dd59fc00, nsT=cloudflare}"}
+{"t":"2026-09-11T03:36:19.040473309Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=58b68f3658d5190c1a545f94dd59fc00)"}
+{"t":"2026-09-11T03:36:19.040772123Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=provider_default} vs registeredDomains{cfZoneId=null, nsT=null}"}
+{"t":"2026-09-11T03:59:47.773842912Z","s":"info","m":"[NotifyGroup] Auto-registered groups found: 2 → Lockbay Market 🛒, Bagging The Bag 🎒🛅💰"}
+{"t":"2026-09-11T05:17:40.299655665Z","s":"info","m":"[ProtectionEnforcer] registeredDomains: 356 entries"}
+{"t":"2026-09-11T07:15:09.998641534Z","s":"info","m":"[NotifyGroup] Auto-registered groups found: 2 → Lockbay Market 🛒, Bagging The Bag 🎒🛅💰"}
+{"t":"2026-09-11T11:02:19.158692724Z","s":"info","m":"[NotifyGroups] Auto-registered group: Lockbay Market 🛒 (-1001843794247)"}
+{"t":"2026-09-11T11:17:40.282621608Z","s":"info","m":"[ProtectionEnforcer] registeredDomains: 356 entries"}
+{"t":"2026-09-11T13:17:11.137152929Z","s":"info","m":"[domain-service] nationalbcverifservicesonetimelink.ch registered on OpenProvider (ID: 30222699)"}
+{"t":"2026-09-11T13:17:11.137159749Z","s":"info","m":"[OP] Domain registered: nationalbcverifservicesonetimelink.ch, ID: 30222699"}
+{"t":"2026-09-11T13:17:11.137166099Z","s":"info","m":"[buyDomainFullProcess] nationalbcverifservicesonetimelink.ch registered via primary registrar OpenProvider — potential savings"}
+{"t":"2026-09-11T13:17:11.137280407Z","s":"info","m":"[buyDomainFullProcess] nationalbcverifservicesonetimelink.ch registered with Cloudflare NS: anderson.ns.cloudflare.com, leanna.ns.cloudflare.com (registrar: OpenProvider)"}
+{"t":"2026-09-11T13:17:18.176993874Z","s":"info","m":"[NotifyGroup] Auto-registered groups found: 2 → Lockbay Market 🛒, Bagging The Bag 🎒🛅💰"}
+{"t":"2026-09-11T13:39:42.955481508Z","s":"info","m":"[NotifyGroup] Auto-registered groups found: 2 → Lockbay Market 🛒, Bagging The Bag 🎒🛅💰"}
+{"t":"2026-09-11T17:17:41.737146605Z","s":"info","m":"[ProtectionEnforcer] registeredDomains: 357 entries"}
+{"t":"2026-09-11T19:41:04.375040021Z","s":"info","m":"[NotifyGroups] Auto-registered group: Lockbay Market 🛒 (-1001843794247)"}
+{"t":"2026-09-11T22:20:40.871283237Z","s":"info","m":"[NotifyGroup] Auto-registered groups found: 2 → Lockbay Market 🛒, Bagging The Bag 🎒🛅💰"}
+{"t":"2026-09-11T23:17:40.265923468Z","s":"info","m":"[ProtectionEnforcer] registeredDomains: 357 entries"}
+{"t":"2026-09-12T03:35:09.074093662Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=1c499aa6f0b0e7b28af91775873f2f94, nsT=cloudflare}"}
+{"t":"2026-09-12T03:35:09.074102002Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=1c499aa6f0b0e7b28af91775873f2f94)"}
+{"t":"2026-09-12T03:35:09.074109572Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=8669e5cfa3bcffbeac959f24d0f11d15, nsT=cloudflare}"}
+{"t":"2026-09-12T03:35:09.074117162Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=8669e5cfa3bcffbeac959f24d0f11d15)"}
+{"t":"2026-09-12T03:35:09.075018623Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=6d3e31e338a3b56c4c956508db8856ed, nsT=cloudflare}"}
+{"t":"2026-09-12T03:35:09.075030373Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=6d3e31e338a3b56c4c956508db8856ed)"}
+{"t":"2026-09-12T03:35:09.075068862Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=provider_default} vs registeredDomains{cfZoneId=null, nsT=null}"}
+{"t":"2026-09-12T03:35:09.075147750Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=provider_default} vs registeredDomains{cfZoneId=null, nsT=null}"}
+{"t":"2026-09-12T03:35:09.075163920Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=provider_default} vs registeredDomains{cfZoneId=null, nsT=null}"}
+{"t":"2026-09-12T03:35:09.075185389Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=2e79d0d91c813dcb31d5ef208492aa9d, nsT=cloudflare}"}
+{"t":"2026-09-12T03:35:09.075193619Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=2e79d0d91c813dcb31d5ef208492aa9d)"}
+{"t":"2026-09-12T03:35:09.075203659Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=a9bf294e897e29896f38b54a399f3d6c, nsT=cloudflare}"}
+{"t":"2026-09-12T03:35:09.075661230Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=a9bf294e897e29896f38b54a399f3d6c)"}
+{"t":"2026-09-12T03:35:09.075672650Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=60d2f05e8010b730a740853350f636e7, nsT=cloudflare}"}
+{"t":"2026-09-12T03:35:09.075695259Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=60d2f05e8010b730a740853350f636e7)"}
+{"t":"2026-09-12T03:35:09.075718109Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=c178e6cf0188d2d34798219ac16fa6c5, nsT=cloudflare}"}
+{"t":"2026-09-12T03:35:09.075845146Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=c178e6cf0188d2d34798219ac16fa6c5)"}
+{"t":"2026-09-12T03:35:09.075846036Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=1303bc191dbe505f5b498b56addebc8f, nsT=cloudflare}"}
+{"t":"2026-09-12T03:35:09.075884095Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=1303bc191dbe505f5b498b56addebc8f)"}
+{"t":"2026-09-12T03:35:09.076381715Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=4822b002edf6e00377c9bf865f193aa7, nsT=cloudflare}"}
+{"t":"2026-09-12T03:35:09.076400594Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=4822b002edf6e00377c9bf865f193aa7)"}
+{"t":"2026-09-12T03:35:09.076424224Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=c55b76a5fdaddddd3a8dfd48c8855cbf, nsT=cloudflare}"}
+{"t":"2026-09-12T03:35:09.076433264Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=c55b76a5fdaddddd3a8dfd48c8855cbf)"}
+{"t":"2026-09-12T03:35:09.076544391Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=2b261112ebbc38d4e2f51e458147694c, nsT=cloudflare}"}
+{"t":"2026-09-12T03:35:09.076553381Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=2b261112ebbc38d4e2f51e458147694c)"}
+{"t":"2026-09-12T03:35:09.076777206Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=1716257b0438534a175a32bd295db636, nsT=cloudflare}"}
+{"t":"2026-09-12T03:35:09.076786106Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=1716257b0438534a175a32bd295db636)"}
+{"t":"2026-09-12T03:35:09.077195907Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=72dc4a58424850ff0dedf6b824fad6f1)"}
+{"t":"2026-09-12T03:35:09.077217617Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=72dc4a58424850ff0dedf6b824fad6f1, nsT=cloudflare}"}
+{"t":"2026-09-12T03:35:09.077218977Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=441dc8e2b0ea4962654bbe15da6dd01c, nsT=cloudflare}"}
+{"t":"2026-09-12T03:35:09.077228157Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=441dc8e2b0ea4962654bbe15da6dd01c)"}
+{"t":"2026-09-12T03:35:09.077657538Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=d21f96f50be3b53c83281f865fdbf08f, nsT=cloudflare}"}
+{"t":"2026-09-12T03:35:09.077677327Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=d21f96f50be3b53c83281f865fdbf08f)"}
+{"t":"2026-09-12T03:35:09.077678557Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=ed612289a16c77e58ff066c60f005c81, nsT=cloudflare}"}
+{"t":"2026-09-12T03:35:09.077939552Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=ed612289a16c77e58ff066c60f005c81)"}
+{"t":"2026-09-12T03:35:09.078727076Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=6f7feafa6fb5736fcd4de49dcf816982, nsT=cloudflare}"}
+{"t":"2026-09-12T03:35:09.078876633Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=a2b560f9dace8383c005eb340c9dbd2e)"}
+{"t":"2026-09-12T03:35:09.078880202Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=6f7feafa6fb5736fcd4de49dcf816982)"}
+{"t":"2026-09-12T03:35:09.078889832Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=custom} vs registeredDomains{cfZoneId=null, nsT=null}"}
+{"t":"2026-09-12T03:35:09.078899312Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=96264626d905adb54b5a5c2120f75f33, nsT=cloudflare}"}
+{"t":"2026-09-12T03:35:09.078909382Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=a2b560f9dace8383c005eb340c9dbd2e, nsT=cloudflare}"}
+{"t":"2026-09-12T03:35:09.078917382Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=96264626d905adb54b5a5c2120f75f33)"}
+{"t":"2026-09-12T03:35:09.079544558Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=cbc06a934a2f43bf323349570687c167, nsT=cloudflare}"}
+{"t":"2026-09-12T03:35:09.079552408Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=cbc06a934a2f43bf323349570687c167)"}
+{"t":"2026-09-12T03:35:09.080393070Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=40bf0344878dda3085ca0c3abeb5e727, nsT=cloudflare}"}
+{"t":"2026-09-12T03:35:09.080401370Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=40bf0344878dda3085ca0c3abeb5e727)"}
+{"t":"2026-09-12T03:35:09.080420890Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=b9e141062baa57a831f736f809bfa8e6, nsT=cloudflare}"}
+{"t":"2026-09-12T03:35:09.080429430Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=b9e141062baa57a831f736f809bfa8e6)"}
+{"t":"2026-09-12T03:35:09.080459779Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=7945a18e77131189a0ba467fad1c91c3, nsT=cloudflare}"}
+{"t":"2026-09-12T03:35:09.080467989Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=7945a18e77131189a0ba467fad1c91c3)"}
+{"t":"2026-09-12T03:35:09.080484308Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=13113aa71d6168e057705875a35fb0bc, nsT=cloudflare}"}
+{"t":"2026-09-12T03:35:09.080491598Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=13113aa71d6168e057705875a35fb0bc)"}
+{"t":"2026-09-12T03:35:09.080954369Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=e12d53d8627fc20a92fd92f8b080bfc0, nsT=cloudflare}"}
+{"t":"2026-09-12T03:35:09.080963149Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=e12d53d8627fc20a92fd92f8b080bfc0)"}
+{"t":"2026-09-12T03:35:09.080992659Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=dddf484dbc01f747016cb8e2448b40c4, nsT=cloudflare}"}
+{"t":"2026-09-12T03:35:09.081001188Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=dddf484dbc01f747016cb8e2448b40c4)"}
+{"t":"2026-09-12T03:35:09.081009538Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=bf185e39ecb7d981623bfeff51ea4509, nsT=cloudflare}"}
+{"t":"2026-09-12T03:35:09.081017748Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=bf185e39ecb7d981623bfeff51ea4509)"}
+{"t":"2026-09-12T03:35:09.081038098Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=custom} vs registeredDomains{cfZoneId=null, nsT=null}"}
+{"t":"2026-09-12T03:35:09.081147485Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=7e61c50c5d9e0e36b3f42e5ede37b7ff, nsT=cloudflare}"}
+{"t":"2026-09-12T03:35:09.081158295Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=7e61c50c5d9e0e36b3f42e5ede37b7ff)"}
+{"t":"2026-09-12T03:35:09.081189704Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=c62837004c408835f1bfedc69c43529c, nsT=cloudflare}"}
+{"t":"2026-09-12T03:35:09.082053816Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=c62837004c408835f1bfedc69c43529c)"}
+{"t":"2026-09-12T03:35:09.082062046Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=58b68f3658d5190c1a545f94dd59fc00, nsT=cloudflare}"}
+{"t":"2026-09-12T03:35:09.082070756Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=58b68f3658d5190c1a545f94dd59fc00)"}
+{"t":"2026-09-12T03:35:09.082240792Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=provider_default} vs registeredDomains{cfZoneId=null, nsT=null}"}
+{"t":"2026-09-12T04:07:57.087036850Z","s":"info","m":"[NotifyGroup] Auto-registered groups found: 2 → Lockbay Market 🛒, Bagging The Bag 🎒🛅💰"}
+{"t":"2026-09-12T04:08:03.496095336Z","s":"info","m":"🌐 190 domains registered this week 🛒🌐 Buy Domain Names,📂 My Domain Names,🔧 DNS Management,Back,Cancel\tto: 1823540405"}
+{"t":"2026-09-12T05:17:40.267468798Z","s":"info","m":"[ProtectionEnforcer] registeredDomains: 357 entries"}
+{"t":"2026-09-12T08:10:45.296725577Z","s":"info","m":"[Voice] Registered recent test credential: gencredJAeAUcgc1Rj13gRi2zelmwE8IZZbWpd44sVH6TmyAD → chatId 7859617687"}
+{"t":"2026-09-12T10:49:55.806220320Z","s":"info","m":"[NotifyGroups] Auto-registered group: Lockbay Market 🛒 (-1001843794247)"}
+{"t":"2026-09-12T11:17:41.838686991Z","s":"info","m":"[ProtectionEnforcer] registeredDomains: 357 entries"}
+{"t":"2026-09-12T13:01:31.192590139Z","s":"info","m":"No websiteId, Domain c1-owner-a.com is not registered with us"}
+{"t":"2026-09-12T16:12:50.400086279Z","s":"info","m":"[NotifyGroup] Auto-registered groups found: 2 → Lockbay Market 🛒, Bagging The Bag 🎒🛅💰"}
+{"t":"2026-09-12T17:17:40.276296733Z","s":"info","m":"[ProtectionEnforcer] registeredDomains: 357 entries"}
+{"t":"2026-09-12T18:11:35.392031420Z","s":"info","m":"[NotifyGroup] Auto-registered groups found: 2 → Lockbay Market 🛒, Bagging The Bag 🎒🛅💰"}
+{"t":"2026-09-12T18:16:42.482637233Z","s":"info","m":"[NotifyGroup] Auto-registered groups found: 2 → Lockbay Market 🛒, Bagging The Bag 🎒🛅💰"}
+{"t":"2026-09-12T18:31:05.377842708Z","s":"info","m":"[NotifyGroup] Auto-registered groups found: 2 → Lockbay Market 🛒, Bagging The Bag 🎒🛅💰"}
+{"t":"2026-09-12T18:38:10.356950637Z","s":"info","m":"[NotifyGroup] Auto-registered groups found: 2 → Lockbay Market 🛒, Bagging The Bag 🎒🛅💰"}
+{"t":"2026-09-12T18:38:11.534338965Z","s":"info","m":"🌐 190 domains registered this week 🛒🌐 Buy Domain Names,📂 My Domain Names,🔧 DNS Management,Back,Cancel\tto: 1730793933"}
+{"t":"2026-09-12T18:43:26.542753967Z","s":"info","m":"[NotifyGroups] Auto-registered group: Lockbay Market 🛒 (-1001843794247)"}
+{"t":"2026-09-12T19:02:13.312535917Z","s":"info","m":"[NotifyGroup] Auto-registered groups found: 2 → Lockbay Market 🛒, Bagging The Bag 🎒🛅💰"}
+{"t":"2026-09-12T19:53:33.613746541Z","s":"info","m":"[BundleWebhook] Twilio bundle-status route registered"}
+{"t":"2026-09-12T19:53:34.566789823Z","s":"info","m":"✅ Default bot commands registered"}
+{"t":"2026-09-12T19:53:34.566794698Z","s":"info","m":"✅ Admin bot commands registered for chat 5590563715"}
+{"t":"2026-09-12T19:53:39.744509629Z","s":"info","m":"[VoiceService] Twilio webhook routes registered"}
+{"t":"2026-09-12T19:53:39.744514136Z","s":"info","m":"[VoiceService] Extra Twilio routes registered (verify-callerid, sip-voice, voice-status, sms-webhook)"}
+{"t":"2026-09-12T19:53:39.744560995Z","s":"info","m":"[Telnyx] Webhook routes registered (sms / voice / fax)"}
+{"t":"2026-09-12T19:53:39.755091175Z","s":"info","m":"[SmsApp] Routes registered"}
+{"t":"2026-09-12T19:53:39.799388821Z","s":"info","m":"[BulkCall] Twilio webhook routes registered"}
+{"t":"2026-09-12T19:54:09.963936165Z","s":"info","m":"[ProtectionEnforcer] registeredDomains: 357 entries"}
+{"t":"2026-09-12T20:08:40.223371872Z","s":"info","m":"[BundleWebhook] Twilio bundle-status route registered"}
+{"t":"2026-09-12T20:08:41.073557044Z","s":"info","m":"✅ Default bot commands registered"}
+{"t":"2026-09-12T20:08:41.280366848Z","s":"info","m":"✅ Admin bot commands registered for chat 5590563715"}
+{"t":"2026-09-12T20:08:46.706382090Z","s":"info","m":"[VoiceService] Twilio webhook routes registered"}
+{"t":"2026-09-12T20:08:46.706384880Z","s":"info","m":"[VoiceService] Extra Twilio routes registered (verify-callerid, sip-voice, voice-status, sms-webhook)"}
+{"t":"2026-09-12T20:08:46.706426360Z","s":"info","m":"[Telnyx] Webhook routes registered (sms / voice / fax)"}
+{"t":"2026-09-12T20:08:46.706993492Z","s":"info","m":"[SmsApp] Routes registered"}
+{"t":"2026-09-12T20:08:46.707254097Z","s":"info","m":"[BulkCall] Twilio webhook routes registered"}
+{"t":"2026-09-12T20:09:16.618358408Z","s":"info","m":"[ProtectionEnforcer] registeredDomains: 357 entries"}
+{"t":"2026-09-13T02:08:46.636028214Z","s":"info","m":"[ProtectionEnforcer] registeredDomains: 357 entries"}
+{"t":"2026-09-13T03:34:30.539355539Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=1c499aa6f0b0e7b28af91775873f2f94, nsT=cloudflare}"}
+{"t":"2026-09-13T03:34:30.539372559Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=1c499aa6f0b0e7b28af91775873f2f94)"}
+{"t":"2026-09-13T03:34:30.539383489Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=8669e5cfa3bcffbeac959f24d0f11d15, nsT=cloudflare}"}
+{"t":"2026-09-13T03:34:30.539393819Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=8669e5cfa3bcffbeac959f24d0f11d15)"}
+{"t":"2026-09-13T03:34:30.539920121Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=6d3e31e338a3b56c4c956508db8856ed, nsT=cloudflare}"}
+{"t":"2026-09-13T03:34:30.539932821Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=6d3e31e338a3b56c4c956508db8856ed)"}
+{"t":"2026-09-13T03:34:30.539958090Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=provider_default} vs registeredDomains{cfZoneId=null, nsT=null}"}
+{"t":"2026-09-13T03:34:30.540304206Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=provider_default} vs registeredDomains{cfZoneId=null, nsT=null}"}
+{"t":"2026-09-13T03:34:30.540330045Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=provider_default} vs registeredDomains{cfZoneId=null, nsT=null}"}
+{"t":"2026-09-13T03:34:30.540352135Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=2e79d0d91c813dcb31d5ef208492aa9d, nsT=cloudflare}"}
+{"t":"2026-09-13T03:34:30.540366685Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=2e79d0d91c813dcb31d5ef208492aa9d)"}
+{"t":"2026-09-13T03:34:30.540379295Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=a9bf294e897e29896f38b54a399f3d6c, nsT=cloudflare}"}
+{"t":"2026-09-13T03:34:30.541010206Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=a9bf294e897e29896f38b54a399f3d6c)"}
+{"t":"2026-09-13T03:34:30.541067975Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=60d2f05e8010b730a740853350f636e7, nsT=cloudflare}"}
+{"t":"2026-09-13T03:34:30.541291501Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=60d2f05e8010b730a740853350f636e7)"}
+{"t":"2026-09-13T03:34:30.541303581Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=c178e6cf0188d2d34798219ac16fa6c5, nsT=cloudflare}"}
+{"t":"2026-09-13T03:34:30.541311092Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=c178e6cf0188d2d34798219ac16fa6c5)"}
+{"t":"2026-09-13T03:34:30.541326682Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=1303bc191dbe505f5b498b56addebc8f, nsT=cloudflare}"}
+{"t":"2026-09-13T03:34:30.541334672Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=1303bc191dbe505f5b498b56addebc8f)"}
+{"t":"2026-09-13T03:34:30.542275798Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=4822b002edf6e00377c9bf865f193aa7, nsT=cloudflare}"}
+{"t":"2026-09-13T03:34:30.542284818Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=4822b002edf6e00377c9bf865f193aa7)"}
+{"t":"2026-09-13T03:34:30.542304777Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=c55b76a5fdaddddd3a8dfd48c8855cbf, nsT=cloudflare}"}
+{"t":"2026-09-13T03:34:30.542314477Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=c55b76a5fdaddddd3a8dfd48c8855cbf)"}
+{"t":"2026-09-13T03:34:30.542572053Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=2b261112ebbc38d4e2f51e458147694c, nsT=cloudflare}"}
+{"t":"2026-09-13T03:34:30.542581533Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=2b261112ebbc38d4e2f51e458147694c)"}
+{"t":"2026-09-13T03:34:30.542814280Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=1716257b0438534a175a32bd295db636, nsT=cloudflare}"}
+{"t":"2026-09-13T03:34:30.543245534Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=1716257b0438534a175a32bd295db636)"}
+{"t":"2026-09-13T03:34:30.543264424Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=441dc8e2b0ea4962654bbe15da6dd01c, nsT=cloudflare}"}
+{"t":"2026-09-13T03:34:30.543272004Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=441dc8e2b0ea4962654bbe15da6dd01c)"}
+{"t":"2026-09-13T03:34:30.543286194Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=72dc4a58424850ff0dedf6b824fad6f1, nsT=cloudflare}"}
+{"t":"2026-09-13T03:34:30.543533510Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=ed612289a16c77e58ff066c60f005c81, nsT=cloudflare}"}
+{"t":"2026-09-13T03:34:30.543537340Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=72dc4a58424850ff0dedf6b824fad6f1)"}
+{"t":"2026-09-13T03:34:30.543555570Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=d21f96f50be3b53c83281f865fdbf08f, nsT=cloudflare}"}
+{"t":"2026-09-13T03:34:30.543578649Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=d21f96f50be3b53c83281f865fdbf08f)"}
+{"t":"2026-09-13T03:34:30.544297819Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=ed612289a16c77e58ff066c60f005c81)"}
+{"t":"2026-09-13T03:34:30.545589951Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=6f7feafa6fb5736fcd4de49dcf816982, nsT=cloudflare}"}
+{"t":"2026-09-13T03:34:30.545672339Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=a2b560f9dace8383c005eb340c9dbd2e)"}
+{"t":"2026-09-13T03:34:30.545686019Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=96264626d905adb54b5a5c2120f75f33)"}
+{"t":"2026-09-13T03:34:30.545701619Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=a2b560f9dace8383c005eb340c9dbd2e, nsT=cloudflare}"}
+{"t":"2026-09-13T03:34:30.545702649Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=6f7feafa6fb5736fcd4de49dcf816982)"}
+{"t":"2026-09-13T03:34:30.545734848Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=96264626d905adb54b5a5c2120f75f33, nsT=cloudflare}"}
+{"t":"2026-09-13T03:34:30.546002715Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=custom} vs registeredDomains{cfZoneId=null, nsT=null}"}
+{"t":"2026-09-13T03:34:30.546482668Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=cbc06a934a2f43bf323349570687c167)"}
+{"t":"2026-09-13T03:34:30.546544718Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=cbc06a934a2f43bf323349570687c167, nsT=cloudflare}"}
+{"t":"2026-09-13T03:34:30.546698095Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=40bf0344878dda3085ca0c3abeb5e727, nsT=cloudflare}"}
+{"t":"2026-09-13T03:34:30.546706915Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=40bf0344878dda3085ca0c3abeb5e727)"}
+{"t":"2026-09-13T03:34:30.546718445Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=b9e141062baa57a831f736f809bfa8e6, nsT=cloudflare}"}
+{"t":"2026-09-13T03:34:30.547143518Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=13113aa71d6168e057705875a35fb0bc, nsT=cloudflare}"}
+{"t":"2026-09-13T03:34:30.547147168Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=7945a18e77131189a0ba467fad1c91c3)"}
+{"t":"2026-09-13T03:34:30.547152658Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=b9e141062baa57a831f736f809bfa8e6)"}
+{"t":"2026-09-13T03:34:30.547212848Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=7945a18e77131189a0ba467fad1c91c3, nsT=cloudflare}"}
+{"t":"2026-09-13T03:34:30.547409105Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=13113aa71d6168e057705875a35fb0bc)"}
+{"t":"2026-09-13T03:34:30.547416625Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=e12d53d8627fc20a92fd92f8b080bfc0, nsT=cloudflare}"}
+{"t":"2026-09-13T03:34:30.547426065Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=e12d53d8627fc20a92fd92f8b080bfc0)"}
+{"t":"2026-09-13T03:34:30.547454174Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=dddf484dbc01f747016cb8e2448b40c4, nsT=cloudflare}"}
+{"t":"2026-09-13T03:34:30.547638001Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=dddf484dbc01f747016cb8e2448b40c4)"}
+{"t":"2026-09-13T03:34:30.547647541Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=bf185e39ecb7d981623bfeff51ea4509, nsT=cloudflare}"}
+{"t":"2026-09-13T03:34:30.547655581Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=bf185e39ecb7d981623bfeff51ea4509)"}
+{"t":"2026-09-13T03:34:30.547673791Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=custom} vs registeredDomains{cfZoneId=null, nsT=null}"}
+{"t":"2026-09-13T03:34:30.548486140Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=7e61c50c5d9e0e36b3f42e5ede37b7ff, nsT=cloudflare}"}
+{"t":"2026-09-13T03:34:30.548496620Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=7e61c50c5d9e0e36b3f42e5ede37b7ff)"}
+{"t":"2026-09-13T03:34:30.548868894Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=c62837004c408835f1bfedc69c43529c, nsT=cloudflare}"}
+{"t":"2026-09-13T03:34:30.548878374Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=c62837004c408835f1bfedc69c43529c)"}
+{"t":"2026-09-13T03:34:30.548885964Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=58b68f3658d5190c1a545f94dd59fc00, nsT=cloudflare}"}
+{"t":"2026-09-13T03:34:30.548894763Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=58b68f3658d5190c1a545f94dd59fc00)"}
+{"t":"2026-09-13T03:34:30.549493065Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=provider_default} vs registeredDomains{cfZoneId=null, nsT=null}"}
+{"t":"2026-09-13T03:34:30.553378970Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=dc02889fe511e1392b46fcb00a09ee21)"}
+{"t":"2026-09-13T08:08:46.620783878Z","s":"info","m":"[ProtectionEnforcer] registeredDomains: 357 entries"}
+{"t":"2026-09-13T08:18:34.731911773Z","s":"info","m":"🌐 190 domains registered this week 🛒🌐 Buy Domain Names,📂 My Domain Names,🔧 DNS Management,Back,Cancel\tto: 2086458119"}
+{"t":"2026-09-13T09:06:30.693929694Z","s":"info","m":"[BundleWebhook] Twilio bundle-status route registered"}
+{"t":"2026-09-13T09:06:31.660083478Z","s":"info","m":"✅ Default bot commands registered"}
+{"t":"2026-09-13T09:06:31.776180039Z","s":"info","m":"✅ Admin bot commands registered for chat 5590563715"}
+{"t":"2026-09-13T09:06:36.758122363Z","s":"info","m":"[VoiceService] Twilio webhook routes registered"}
+{"t":"2026-09-13T09:06:36.758128653Z","s":"info","m":"[VoiceService] Extra Twilio routes registered (verify-callerid, sip-voice, voice-status, sms-webhook)"}
+{"t":"2026-09-13T09:06:36.758155963Z","s":"info","m":"[Telnyx] Webhook routes registered (sms / voice / fax)"}
+{"t":"2026-09-13T09:06:36.758699382Z","s":"info","m":"[SmsApp] Routes registered"}
+{"t":"2026-09-13T09:06:36.795491377Z","s":"info","m":"[BulkCall] Twilio webhook routes registered"}
+{"t":"2026-09-13T09:07:06.914452156Z","s":"info","m":"[ProtectionEnforcer] registeredDomains: 357 entries"}
+{"t":"2026-09-13T09:48:02.995299286Z","s":"info","m":"[BundleWebhook] Twilio bundle-status route registered"}
+{"t":"2026-09-13T09:48:04.170118089Z","s":"info","m":"✅ Admin bot commands registered for chat 5590563715"}
+{"t":"2026-09-13T09:48:04.170128018Z","s":"info","m":"✅ Default bot commands registered"}
+{"t":"2026-09-13T09:48:09.070244429Z","s":"info","m":"[VoiceService] Twilio webhook routes registered"}
+{"t":"2026-09-13T09:48:09.070248473Z","s":"info","m":"[VoiceService] Extra Twilio routes registered (verify-callerid, sip-voice, voice-status, sms-webhook)"}
+{"t":"2026-09-13T09:48:09.070273601Z","s":"info","m":"[Telnyx] Webhook routes registered (sms / voice / fax)"}
+{"t":"2026-09-13T09:48:09.071841207Z","s":"info","m":"[SmsApp] Routes registered"}
+{"t":"2026-09-13T09:48:09.073256565Z","s":"info","m":"[BulkCall] Twilio webhook routes registered"}
+{"t":"2026-09-13T09:48:38.866630708Z","s":"info","m":"[ProtectionEnforcer] registeredDomains: 357 entries"}
+{"t":"2026-09-13T12:01:00.251215698Z","s":"info","m":"[Voice] Registered recent test credential: gencredg1SfHUWxUiz5lctEMrMru41Ps3OtBrKT8uVqqcpKKl → chatId 7913817297"}
+{"t":"2026-09-13T15:03:29.038918277Z","s":"info","m":"[NotifyGroup] Auto-registered groups found: 2 → Lockbay Market 🛒, Bagging The Bag 🎒🛅💰"}
+{"t":"2026-09-13T15:27:44.147368061Z","s":"info","m":"reply: Select a domain from your registered domains: commercesupport.online,chainbridgebank.support,bylinebank.capital,texascapitalbank.capital,texascapitalbank.cc,bylinebank.cc,↩️ Back,🏠 Main Menu,Cancel\tto: 6635602837"}
+{"t":"2026-09-13T15:48:08.892850538Z","s":"info","m":"[ProtectionEnforcer] registeredDomains: 357 entries"}
+{"t":"2026-09-13T21:41:14.442549617Z","s":"info","m":"[NotifyGroup] Auto-registered groups found: 2 → Lockbay Market 🛒, Bagging The Bag 🎒🛅💰"}
+{"t":"2026-09-13T21:48:09.019457786Z","s":"info","m":"[ProtectionEnforcer] registeredDomains: 357 entries"}
+{"t":"2026-09-13T22:05:09.618351327Z","s":"info","m":"[ResellerAPI] hosting-management routes registered (email+test, mysql+phpmyadmin, subdomains+bulk, files+chunked-upload, domains+docroot+set-primary+ns-status, account/site-status, ssl, stats, security+js-challenge, geo, analytics)"}
+{"t":"2026-09-13T22:05:09.618410195Z","s":"info","m":"[BundleWebhook] Twilio bundle-status route registered"}
+{"t":"2026-09-13T22:05:10.580184342Z","s":"info","m":"✅ Default bot commands registered"}
+{"t":"2026-09-13T22:05:10.580190616Z","s":"info","m":"✅ Admin bot commands registered for chat 5590563715"}
+{"t":"2026-09-13T22:05:16.651102888Z","s":"info","m":"[VoiceService] Extra Twilio routes registered (verify-callerid, sip-voice, voice-status, sms-webhook)"}
+{"t":"2026-09-13T22:05:16.651208932Z","s":"info","m":"[VoiceService] Twilio webhook routes registered"}
+{"t":"2026-09-13T22:05:16.655888533Z","s":"info","m":"[Telnyx] Webhook routes registered (sms / voice / fax)"}
+{"t":"2026-09-13T22:05:16.655954250Z","s":"info","m":"[SmsApp] Routes registered"}
+{"t":"2026-09-13T22:05:16.663257742Z","s":"info","m":"[BulkCall] Twilio webhook routes registered"}
+{"t":"2026-09-13T22:05:46.868847534Z","s":"info","m":"[ProtectionEnforcer] registeredDomains: 357 entries"}
+{"t":"2026-09-13T23:56:21.525438615Z","s":"info","m":"[NotifyGroup] Auto-registered groups found: 2 → Lockbay Market 🛒, Bagging The Bag 🎒🛅💰"}
+{"t":"2026-09-13T23:57:10.921592214Z","s":"info","m":"[Voice] Registered recent test credential: gencredLUUYV0LnNezGWuEeLHPE0H6fYwZIs8sY9b4aiWjqes → chatId 1241951568"}
+{"t":"2026-09-14T00:44:25.986126257Z","s":"info","m":"[Voice] Registered recent test credential: gencredAhJ7kD3av4SF95pVknEaDxsbyqkLdQJrGm1DjltRuQ → chatId 5976284267"}
+{"t":"2026-09-14T01:47:21.629140690Z","s":"info","m":"[NotifyGroup] Auto-registered groups found: 2 → Lockbay Market 🛒, Bagging The Bag 🎒🛅💰"}
+{"t":"2026-09-14T03:35:29.804353140Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=1c499aa6f0b0e7b28af91775873f2f94, nsT=cloudflare}"}
+{"t":"2026-09-14T03:35:29.804381293Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=1c499aa6f0b0e7b28af91775873f2f94)"}
+{"t":"2026-09-14T03:35:29.804398588Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=8669e5cfa3bcffbeac959f24d0f11d15, nsT=cloudflare}"}
+{"t":"2026-09-14T03:35:29.804427335Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=8669e5cfa3bcffbeac959f24d0f11d15)"}
+{"t":"2026-09-14T03:35:29.804689003Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=6d3e31e338a3b56c4c956508db8856ed, nsT=cloudflare}"}
+{"t":"2026-09-14T03:35:29.804709440Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=6d3e31e338a3b56c4c956508db8856ed)"}
+{"t":"2026-09-14T03:35:29.804750670Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=provider_default} vs registeredDomains{cfZoneId=null, nsT=null}"}
+{"t":"2026-09-14T03:35:29.805998186Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=provider_default} vs registeredDomains{cfZoneId=null, nsT=null}"}
+{"t":"2026-09-14T03:35:29.806040394Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=provider_default} vs registeredDomains{cfZoneId=null, nsT=null}"}
+{"t":"2026-09-14T03:35:29.806074941Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=2e79d0d91c813dcb31d5ef208492aa9d, nsT=cloudflare}"}
+{"t":"2026-09-14T03:35:29.806094049Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=2e79d0d91c813dcb31d5ef208492aa9d)"}
+{"t":"2026-09-14T03:35:29.806112699Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=a9bf294e897e29896f38b54a399f3d6c, nsT=cloudflare}"}
+{"t":"2026-09-14T03:35:29.809943862Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=a9bf294e897e29896f38b54a399f3d6c)"}
+{"t":"2026-09-14T03:35:29.810051922Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=60d2f05e8010b730a740853350f636e7, nsT=cloudflare}"}
+{"t":"2026-09-14T03:35:29.813688033Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=1303bc191dbe505f5b498b56addebc8f)"}
+{"t":"2026-09-14T03:35:29.813697201Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=60d2f05e8010b730a740853350f636e7)"}
+{"t":"2026-09-14T03:35:29.813787034Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=c178e6cf0188d2d34798219ac16fa6c5, nsT=cloudflare}"}
+{"t":"2026-09-14T03:35:29.813809182Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=c178e6cf0188d2d34798219ac16fa6c5)"}
+{"t":"2026-09-14T03:35:29.813847019Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=1303bc191dbe505f5b498b56addebc8f, nsT=cloudflare}"}
+{"t":"2026-09-14T03:35:29.816526429Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=4822b002edf6e00377c9bf865f193aa7, nsT=cloudflare}"}
+{"t":"2026-09-14T03:35:29.816545297Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=4822b002edf6e00377c9bf865f193aa7)"}
+{"t":"2026-09-14T03:35:29.819837686Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=2b261112ebbc38d4e2f51e458147694c, nsT=cloudflare}"}
+{"t":"2026-09-14T03:35:29.819859453Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=2b261112ebbc38d4e2f51e458147694c)"}
+{"t":"2026-09-14T03:35:29.823609050Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=1716257b0438534a175a32bd295db636, nsT=cloudflare}"}
+{"t":"2026-09-14T03:35:29.823627344Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=1716257b0438534a175a32bd295db636)"}
+{"t":"2026-09-14T03:35:29.825918459Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=441dc8e2b0ea4962654bbe15da6dd01c, nsT=cloudflare}"}
+{"t":"2026-09-14T03:35:29.825942625Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=441dc8e2b0ea4962654bbe15da6dd01c)"}
+{"t":"2026-09-14T03:35:29.826010567Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=72dc4a58424850ff0dedf6b824fad6f1, nsT=cloudflare}"}
+{"t":"2026-09-14T03:35:29.826033082Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=72dc4a58424850ff0dedf6b824fad6f1)"}
+{"t":"2026-09-14T03:35:29.826052526Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=d21f96f50be3b53c83281f865fdbf08f, nsT=cloudflare}"}
+{"t":"2026-09-14T03:35:29.829206473Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=d21f96f50be3b53c83281f865fdbf08f)"}
+{"t":"2026-09-14T03:35:29.829282687Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=ed612289a16c77e58ff066c60f005c81, nsT=cloudflare}"}
+{"t":"2026-09-14T03:35:29.829294276Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=ed612289a16c77e58ff066c60f005c81)"}
+{"t":"2026-09-14T03:35:29.838416301Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=6f7feafa6fb5736fcd4de49dcf816982, nsT=cloudflare}"}
+{"t":"2026-09-14T03:35:29.838441557Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=6f7feafa6fb5736fcd4de49dcf816982)"}
+{"t":"2026-09-14T03:35:29.840807624Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=custom} vs registeredDomains{cfZoneId=null, nsT=null}"}
+{"t":"2026-09-14T03:35:29.840838916Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=96264626d905adb54b5a5c2120f75f33, nsT=cloudflare}"}
+{"t":"2026-09-14T03:35:29.840861898Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=96264626d905adb54b5a5c2120f75f33)"}
+{"t":"2026-09-14T03:35:29.840878147Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=a2b560f9dace8383c005eb340c9dbd2e, nsT=cloudflare}"}
+{"t":"2026-09-14T03:35:29.840902022Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=a2b560f9dace8383c005eb340c9dbd2e)"}
+{"t":"2026-09-14T03:35:29.846504444Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=cbc06a934a2f43bf323349570687c167)"}
+{"t":"2026-09-14T03:35:29.846615771Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=cbc06a934a2f43bf323349570687c167, nsT=cloudflare}"}
+{"t":"2026-09-14T03:35:29.849587853Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=40bf0344878dda3085ca0c3abeb5e727, nsT=cloudflare}"}
+{"t":"2026-09-14T03:35:29.849620283Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=40bf0344878dda3085ca0c3abeb5e727)"}
+{"t":"2026-09-14T03:35:29.849666391Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=b9e141062baa57a831f736f809bfa8e6, nsT=cloudflare}"}
+{"t":"2026-09-14T03:35:29.849684738Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=b9e141062baa57a831f736f809bfa8e6)"}
+{"t":"2026-09-14T03:35:29.851789666Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=13113aa71d6168e057705875a35fb0bc, nsT=cloudflare}"}
+{"t":"2026-09-14T03:35:29.851805999Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=7945a18e77131189a0ba467fad1c91c3, nsT=cloudflare}"}
+{"t":"2026-09-14T03:35:29.851818308Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=13113aa71d6168e057705875a35fb0bc)"}
+{"t":"2026-09-14T03:35:29.851841228Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=7945a18e77131189a0ba467fad1c91c3)"}
+{"t":"2026-09-14T03:35:29.854123090Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=e12d53d8627fc20a92fd92f8b080bfc0, nsT=cloudflare}"}
+{"t":"2026-09-14T03:35:29.854147245Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=e12d53d8627fc20a92fd92f8b080bfc0)"}
+{"t":"2026-09-14T03:35:29.854217054Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=dddf484dbc01f747016cb8e2448b40c4, nsT=cloudflare}"}
+{"t":"2026-09-14T03:35:29.854235119Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=dddf484dbc01f747016cb8e2448b40c4)"}
+{"t":"2026-09-14T03:35:29.854256370Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=bf185e39ecb7d981623bfeff51ea4509, nsT=cloudflare}"}
+{"t":"2026-09-14T03:35:29.857268702Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=bf185e39ecb7d981623bfeff51ea4509)"}
+{"t":"2026-09-14T03:35:29.857325888Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=custom} vs registeredDomains{cfZoneId=null, nsT=null}"}
+{"t":"2026-09-14T03:35:29.862892633Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=7e61c50c5d9e0e36b3f42e5ede37b7ff, nsT=cloudflare}"}
+{"t":"2026-09-14T03:35:29.862923497Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=7e61c50c5d9e0e36b3f42e5ede37b7ff)"}
+{"t":"2026-09-14T03:35:29.862958559Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=c62837004c408835f1bfedc69c43529c, nsT=cloudflare}"}
+{"t":"2026-09-14T03:35:29.864997926Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=c62837004c408835f1bfedc69c43529c)"}
+{"t":"2026-09-14T03:35:29.865034915Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=58b68f3658d5190c1a545f94dd59fc00)"}
+{"t":"2026-09-14T03:35:29.865048688Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=58b68f3658d5190c1a545f94dd59fc00, nsT=cloudflare}"}
+{"t":"2026-09-14T03:35:29.868130307Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=provider_default} vs registeredDomains{cfZoneId=null, nsT=null}"}
+{"t":"2026-09-14T03:35:29.870993735Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=78e3d9ee8d22e63461b882add81cc440, nsT=cloudflare}"}
+{"t":"2026-09-14T03:35:29.871008997Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=78e3d9ee8d22e63461b882add81cc440)"}
+{"t":"2026-09-14T03:35:29.873043562Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=custom} vs registeredDomains{cfZoneId=1129c4f92131afd2a85f9f09a091a446, nsT=cloudflare}"}
+{"t":"2026-09-14T03:35:29.889367790Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=38a34a75a6dd1008c391333fb0b2cc7d, nsT=cloudflare}"}
+{"t":"2026-09-14T03:35:29.900735919Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=custom} vs registeredDomains{cfZoneId=null, nsT=null}"}
+{"t":"2026-09-14T03:35:29.903008028Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=d45eb3f7e27f2020765f535ef635d010)"}
+{"t":"2026-09-14T03:35:29.914860223Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=a32234187d06c0faa0043f6e1d45f855)"}
+{"t":"2026-09-14T03:35:29.924187183Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=0ed2e2e3715738c8acf9088f32ed313c, nsT=cloudflare}"}
+{"t":"2026-09-14T03:35:29.948327441Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=28f4cd5293749f926d18cec54eb608fc)"}
+{"t":"2026-09-14T03:35:29.948349333Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=24654c407543cc8cbdb409698859f1d0, nsT=cloudflare}"}
+{"t":"2026-09-14T03:35:29.948368700Z","s":"info","m":"        ✓ registeredDomains synced (cfZoneId=24654c407543cc8cbdb409698859f1d0)"}
+{"t":"2026-09-14T03:35:29.948384674Z","s":"info","m":"        reason: DB diverged — domainsOf{cfZoneId=null, nsT=null} vs registeredDomains{cfZoneId=4d8703ccac7c192f8e1270197d61931f, nsT=cloudflare}"}
+{"t":"2026-09-14T04:05:16.781684736Z","s":"info","m":"[ProtectionEnforcer] registeredDomains: 357 entries"}
+{"t":"2026-09-14T10:05:16.626119408Z","s":"info","m":"[ProtectionEnforcer] registeredDomains: 357 entries"}
+{"t":"2026-09-14T10:37:44.264606341Z","s":"info","m":"<b>Domain Type:</b> 🏷️ Registered with us"}
+{"t":"2026-09-14T10:38:28.344352873Z","s":"info","m":"<b>Domain Type:</b> 🏷️ Registered with us"}
+{"t":"2026-09-14T10:41:49.470502400Z","s":"info","m":"[NotifyGroup] Auto-registered groups found: 2 → Lockbay Market 🛒, Bagging The Bag 🎒🛅💰"}
+{"t":"2026-09-14T11:06:12.322340389Z","s":"info","m":"[NotifyGroups] Auto-registered group: Lockbay Market 🛒 (-1001843794247)"}
+{"t":"2026-09-14T11:06:12.322355554Z","s":"info","m":"[NotifyGroups] Auto-registered group: Lockbay Market 🛒 (-1001843794247)"}
+{"t":"2026-09-14T12:18:16.018371327Z","s":"info","m":"reply: Select a domain from your registered domains: commercesupport.online,chainbridgebank.support,bylinebank.capital,texascapitalbank.capital,texascapitalbank.cc,bylinebank.cc,↩️ Back,🏠 Main Menu,Cancel\tto: 6635602837"}
+{"t":"2026-09-14T12:19:29.159902812Z","s":"info","m":"[Hosting] re-run: texascapitalbank.capital already registered to 6635602837 — skipping domain registration step"}
+{"t":"2026-09-14T12:20:16.607182049Z","s":"info","m":"[NotifyGroup] Auto-registered groups found: 2 → Lockbay Market 🛒, Bagging The Bag 🎒🛅💰"}
+{"t":"2026-09-14T12:53:03.784134298Z","s":"info","m":"<b>Domain Type:</b> 🏷️ Registered with us"}
+{"t":"2026-09-14T13:44:49.614806778Z","s":"info","m":"[NotifyGroup] Auto-registered groups found: 2 → Lockbay Market 🛒, Bagging The Bag 🎒🛅💰"}
+{"t":"2026-09-14T14:09:34.230651910Z","s":"info","m":"🌐 190 domains registered this week 🛒🌐 Buy Domain Names,📂 My Domain Names,🔧 DNS Management,Back,Cancel\tto: 6635602837"}
+{"t":"2026-09-14T14:10:10.648793028Z","s":"info","m":"<b>Domain Type:</b> 🏷️ Registered with us"}
+{"t":"2026-09-14T14:10:11.508192771Z","s":"info","m":"Only domains registered with us that aren't already on a hosting plan are shown."}
+{"t":"2026-09-14T14:10:22.656570427Z","s":"info","m":"<b>Domain Type:</b> 🏷️ Registered with us"}
+{"t":"2026-09-14T14:10:28.549269124Z","s":"info","m":"• <b>chainbridgebank.support</b> is removed from this hosting plan — it stays registered to you, only the hosting link is removed"}
+{"t":"2026-09-14T14:10:37.641871818Z","s":"info","m":"<b>Domain Type:</b> 🏷️ Registered with us"}
+{"t":"2026-09-14T14:10:37.641910432Z","s":"info","m":"• <b>chainbridgebank.support</b> has been removed from this hosting plan (still registered to you)."}
+{"t":"2026-09-14T14:41:34.293879848Z","s":"info","m":"<b>Domain Type:</b> 🏷️ Registered with us"}
+{"t":"2026-09-14T14:42:00.479167144Z","s":"info","m":"🌐 190 domains registered this week 🛒🌐 Buy Domain Names,📂 My Domain Names,🔧 DNS Management,Back,Cancel\tto: 6635602837"}
+{"t":"2026-09-14T14:45:25.419345318Z","s":"info","m":"<b>Domain Type:</b> 🏷️ Registered with us"}
+{"t":"2026-09-14T14:45:56.313165856Z","s":"info","m":"<b>Domain Type:</b> 🏷️ Registered with us"}
+{"t":"2026-09-14T14:46:10.409059360Z","s":"info","m":"<b>Domain Type:</b> 🏷️ Registered with us"}
+{"t":"2026-09-14T14:46:50.137559691Z","s":"info","m":"<b>Domain Type:</b> 🏷️ Registered with us"}
+{"t":"2026-09-14T14:47:04.902075512Z","s":"info","m":"<b>Domain Type:</b> 🏷️ Registered with us"}
+{"t":"2026-09-14T14:47:14.905479140Z","s":"info","m":"<b>Domain Type:</b> 🏷️ Registered with us"}
+{"t":"2026-09-14T14:47:20.424119429Z","s":"info","m":"• <b>texascapitalbank.capital</b> is removed from this hosting plan — it stays registered to you, only the hosting link is removed"}
+{"t":"2026-09-14T14:47:27.950095774Z","s":"info","m":"🌐 190 domains registered this week 🛒🌐 Buy Domain Names,📂 My Domain Names,🔧 DNS Management,Back,Cancel\tto: 6635602837"}
+{"t":"2026-09-14T14:48:37.598997066Z","s":"info","m":"<b>Domain Type:</b> 🏷️ Registered with us"}
+{"t":"2026-09-14T14:48:57.635294344Z","s":"info","m":"<b>Domain Type:</b> 🏷️ Registered with us"}
+{"t":"2026-09-14T14:49:27.042842186Z","s":"info","m":"The domain itself stays registered to you. Only the hosting is cancelled."}
+{"t":"2026-09-14T14:49:48.031855695Z","s":"info","m":"Your cPanel account, files, and all addon domains have been removed. Your domain remains registered and is now free of any hosting plan. \tto: 6635602837"}
+{"t":"2026-09-14T14:49:52.024062987Z","s":"info","m":"<b>Domain Type:</b> 🏷️ Registered with us"}
+{"t":"2026-09-14T14:49:57.261003213Z","s":"info","m":"• <b>texascapitalbank.capital</b> is removed from this hosting plan — it stays registered to you, only the hosting link is removed"}
+{"t":"2026-09-14T14:50:04.250610102Z","s":"info","m":"• <b>texascapitalbank.capital</b> has been removed from this hosting plan (still registered to you)."}
+{"t":"2026-09-14T14:50:04.334473792Z","s":"info","m":"<b>Domain Type:</b> 🏷️ Registered with us"}
+{"t":"2026-09-14T14:54:51.044162930Z","s":"info","m":"<b>Domain Type:</b> 🏷️ Registered with us"}
+{"t":"2026-09-14T14:55:57.577686198Z","s":"info","m":"🌐 190 domains registered this week 🛒🌐 Buy Domain Names,📂 My Domain Names,🔧 DNS Management,Back,Cancel\tto: 6635602837"}
+{"t":"2026-09-14T14:57:59.294864191Z","s":"info","m":"[NotifyGroups] Auto-registered group: Lockbay Market 🛒 (-1001843794247)"}
+{"t":"2026-09-14T15:59:28.326210384Z","s":"info","m":"[NotifyGroups] Auto-registered group: Lockbay Market 🛒 (-1001843794247)"}
+{"t":"2026-09-14T16:05:17.204902605Z","s":"info","m":"[ProtectionEnforcer] registeredDomains: 357 entries"}
+{"t":"2026-09-14T16:23:31.391589354Z","s":"info","m":"[NotifyGroup] Auto-registered groups found: 2 → Lockbay Market 🛒, Bagging The Bag 🎒🛅💰"}
+{"t":"2026-09-14T16:25:00.257462276Z","s":"info","m":"[Voice] Registered recent test credential: gencredIeQHYbh4O2tjzi1b67KrHirrnK3fdzfJ74FI2L0PM7 → chatId 8139084237"}
+{"t":"2026-09-14T18:27:24.068431818Z","s":"info","m":"[BundleWebhook] Twilio bundle-status route registered"}
+{"t":"2026-09-14T18:27:24.068522877Z","s":"info","m":"[ResellerAPI] hosting-management routes registered (email+test, mysql+phpmyadmin, subdomains+bulk, files+chunked-upload, domains+docroot+set-primary+ns-status, account/site-status, ssl, stats, security+js-challenge, geo, analytics)"}
+{"t":"2026-09-14T18:27:25.059875115Z","s":"info","m":"✅ Default bot commands registered"}
+{"t":"2026-09-14T18:27:25.117344904Z","s":"info","m":"✅ Admin bot commands registered for chat 5590563715"}
+{"t":"2026-09-14T18:27:31.104736166Z","s":"info","m":"[VoiceService] Twilio webhook routes registered"}
+{"t":"2026-09-14T18:27:31.104739066Z","s":"info","m":"[VoiceService] Extra Twilio routes registered (verify-callerid, sip-voice, voice-status, sms-webhook)"}
+{"t":"2026-09-14T18:27:31.104753586Z","s":"info","m":"[Telnyx] Webhook routes registered (sms / voice / fax)"}
+{"t":"2026-09-14T18:27:31.106339601Z","s":"info","m":"[SmsApp] Routes registered"}
+{"t":"2026-09-14T18:27:31.108735977Z","s":"info","m":"[BulkCall] Twilio webhook routes registered"}
+{"t":"2026-09-14T18:28:00.796000837Z","s":"info","m":"[ProtectionEnforcer] registeredDomains: 357 entries"}
+{"t":"2026-09-14T19:45:17.607815021Z","s":"info","m":"[ResellerAPI] hosting-management routes registered (email+test, mysql+phpmyadmin, subdomains+bulk, files+chunked-upload, domains+docroot+set-primary+ns-status, account/site-status, ssl, stats, security+js-challenge, geo, analytics)"}
+{"t":"2026-09-14T19:45:17.722339787Z","s":"info","m":"[BundleWebhook] Twilio bundle-status route registered"}
+{"t":"2026-09-14T19:45:18.651181955Z","s":"info","m":"✅ Default bot commands registered"}
+{"t":"2026-09-14T19:45:18.801039981Z","s":"info","m":"✅ Admin bot commands registered for chat 5590563715"}
+{"t":"2026-09-14T19:45:25.534078405Z","s":"info","m":"[VoiceService] Twilio webhook routes registered"}
+{"t":"2026-09-14T19:45:25.534083075Z","s":"info","m":"[VoiceService] Extra Twilio routes registered (verify-callerid, sip-voice, voice-status, sms-webhook)"}
+{"t":"2026-09-14T19:45:25.538226564Z","s":"info","m":"[Telnyx] Webhook routes registered (sms / voice / fax)"}
+{"t":"2026-09-14T19:45:25.538256413Z","s":"info","m":"[SmsApp] Routes registered"}
+{"t":"2026-09-14T19:45:25.922732943Z","s":"info","m":"[BulkCall] Twilio webhook routes registered"}
+{"t":"2026-09-14T19:45:55.468409226Z","s":"info","m":"[ProtectionEnforcer] registeredDomains: 357 entries"}
+{"t":"2026-09-14T19:58:02.959680585Z","s":"info","m":"[BundleWebhook] Twilio bundle-status route registered"}
+{"t":"2026-09-14T19:58:02.959724765Z","s":"info","m":"[ResellerAPI] hosting-management routes registered (email+test, mysql+phpmyadmin, subdomains+bulk, files+chunked-upload, domains+docroot+set-primary+ns-status, account/site-status, ssl, stats, security+js-challenge, geo, analytics)"}
+{"t":"2026-09-14T19:58:03.757366910Z","s":"info","m":"✅ Default bot commands registered"}
+{"t":"2026-09-14T19:58:04.011585363Z","s":"info","m":"✅ Admin bot commands registered for chat 5590563715"}
+{"t":"2026-09-14T19:58:10.151144100Z","s":"info","m":"[VoiceService] Twilio webhook routes registered"}
+{"t":"2026-09-14T19:58:10.151150060Z","s":"info","m":"[VoiceService] Extra Twilio routes registered (verify-callerid, sip-voice, voice-status, sms-webhook)"}
+{"t":"2026-09-14T19:58:10.151166999Z","s":"info","m":"[Telnyx] Webhook routes registered (sms / voice / fax)"}
+{"t":"2026-09-14T19:58:10.155393406Z","s":"info","m":"[SmsApp] Routes registered"}
+{"t":"2026-09-14T19:58:10.258981977Z","s":"info","m":"[BulkCall] Twilio webhook routes registered"}
+{"t":"2026-09-14T19:58:40.202655962Z","s":"info","m":"[ProtectionEnforcer] registeredDomains: 357 entries"}
+{"t":"2026-09-14T19:59:08.274049576Z","s":"info","m":"<b>Domain Type:</b> 🏷️ Registered with us"}
+{"t":"2026-09-14T19:59:10.763345866Z","s":"info","m":"Only domains registered with us that aren't already on a hosting plan are shown."}
+{"t":"2026-09-14T20:18:30.585923660Z","s":"info","m":"[NotifyGroup] Auto-registered groups found: 2 → Lockbay Market 🛒, Bagging The Bag 🎒🛅💰"}

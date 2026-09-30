@@ -1,0 +1,247 @@
+{
+  "hours": 48,
+  "from": "2026-09-15T04:58:41.971Z",
+  "pulledAt": "2026-09-17T04:59:12.508Z",
+  "summary": [
+    {
+      "f": "failed",
+      "total": 831
+    },
+    {
+      "f": "cPanel",
+      "total": 744
+    },
+    {
+      "f": "Error",
+      "total": 558
+    },
+    {
+      "f": "expired",
+      "total": 520
+    },
+    {
+      "f": "WHM",
+      "total": 235
+    },
+    {
+      "f": "Openprovider",
+      "total": 221
+    },
+    {
+      "f": "Cloudflare",
+      "total": 191
+    },
+    {
+      "f": "NOT BILLED",
+      "total": 161
+    },
+    {
+      "f": "\"Request failed\"",
+      "total": 140
+    },
+    {
+      "f": "timeout",
+      "total": 140
+    },
+    {
+      "f": "\"status code 401\"",
+      "total": 128
+    },
+    {
+      "f": "Contabo",
+      "total": 105
+    },
+    {
+      "f": "invalid_client",
+      "total": 102
+    },
+    {
+      "f": "ETELEGRAM",
+      "total": 96
+    },
+    {
+      "f": "\"blocked by the user\"",
+      "total": 69
+    },
+    {
+      "f": "DYNOPAY",
+      "total": 65
+    },
+    {
+      "f": "stuck",
+      "total": 55
+    },
+    {
+      "f": "Escalation",
+      "total": 29
+    },
+    {
+      "f": "Fincra",
+      "total": 22
+    },
+    {
+      "f": "\"Access denied\"",
+      "total": 17
+    },
+    {
+      "f": "\"status code 503\"",
+      "total": 6
+    },
+    {
+      "f": "BlockBee",
+      "total": 6
+    },
+    {
+      "f": "\"status code 500\"",
+      "total": 5
+    },
+    {
+      "f": "\"can't be edited\"",
+      "total": 4
+    },
+    {
+      "f": "\"socket hang up\"",
+      "total": 3
+    },
+    {
+      "f": "\"status code 403\"",
+      "total": 3
+    },
+    {
+      "f": "FATAL",
+      "total": 2
+    },
+    {
+      "f": "\"status code 502\"",
+      "total": 2
+    },
+    {
+      "f": "unhandledRejection",
+      "total": 1
+    },
+    {
+      "f": "ECONNRESET",
+      "total": 1
+    },
+    {
+      "f": "ECONNREFUSED",
+      "total": 1
+    },
+    {
+      "f": "ETIMEDOUT",
+      "total": 1
+    },
+    {
+      "f": "ENOTFOUND",
+      "total": 1
+    },
+    {
+      "f": "Brevo",
+      "total": 1
+    },
+    {
+      "f": "\"Provisioning failed\"",
+      "total": 1
+    },
+    {
+      "f": "crash",
+      "total": 1
+    },
+    {
+      "f": "UnhandledPromiseRejection",
+      "total": 0
+    },
+    {
+      "f": "uncaughtException",
+      "total": 0
+    },
+    {
+      "f": "TypeError",
+      "total": 0
+    },
+    {
+      "f": "ReferenceError",
+      "total": 0
+    },
+    {
+      "f": "RangeError",
+      "total": 0
+    },
+    {
+      "f": "SyntaxError",
+      "total": 0
+    },
+    {
+      "f": "panic",
+      "total": 0
+    },
+    {
+      "f": "EAI_AGAIN",
+      "total": 0
+    },
+    {
+      "f": "\"status code 429\"",
+      "total": 0
+    },
+    {
+      "f": "\"Internal Server Error\"",
+      "total": 0
+    },
+    {
+      "f": "MongoNetworkError",
+      "total": 0
+    },
+    {
+      "f": "MongoServerError",
+      "total": 0
+    },
+    {
+      "f": "MongoTimeoutError",
+      "total": 0
+    },
+    {
+      "f": "\"topology was destroyed\"",
+      "total": 0
+    },
+    {
+      "f": "\"connection closed\"",
+      "total": 0
+    },
+    {
+      "f": "\"invalid credentials\"",
+      "total": 0
+    },
+    {
+      "f": "polling_error",
+      "total": 0
+    },
+    {
+      "f": "webhook_error",
+      "total": 0
+    },
+    {
+      "f": "\"chat not found\"",
+      "total": 0
+    },
+    {
+      "f": "\"billing error\"",
+      "total": 0
+    },
+    {
+      "f": "\"charge error\"",
+      "total": 0
+    },
+    {
+      "f": "BillingLeak",
+      "total": 0
+    },
+    {
+      "f": "FORCE-SETTLED",
+      "total": 0
+    },
+    {
+      "f": "HELD",
+      "total": 0
+    }
+  ]
+}

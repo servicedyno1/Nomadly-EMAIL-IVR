@@ -1,0 +1,17 @@
+{"timestamp":"2026-09-25T19:11:16.289355431Z","message":"👛 Wallet: <b>$4.94</b> — <b>$115.06 short</b>. Tap <b>💵 Deposit</b> and we'll bring you straight back to finish this order. 💵 Deposit $116,Crypto,🎟️ Apply Coupon,Back,🏠 Main Menu,Cancel\tto: 7482721777","severity":"info"}
+{"timestamp":"2026-09-25T19:15:28.033366033Z","message":"👛 Wallet: <b>$4.94</b> — <b>$145.06 short</b>. Tap <b>💵 Deposit</b> and we'll bring you straight back to finish this order. 💵 Deposit $146,Crypto,💬 Ask Question,↩️ Back,🏠 Main Menu,Cancel\tto: 7482721777","severity":"info"}
+{"timestamp":"2026-09-25T19:15:54.217274040Z","message":"👛 Wallet: <b>$4.94</b> — <b>$395.06 short</b>. Tap <b>💵 Deposit</b> and we'll bring you straight back to finish this order. 💵 Deposit $396,Crypto,💬 Ask Question,↩️ Back,🏠 Main Menu,Cancel\tto: 7482721777","severity":"info"}
+{"timestamp":"2026-09-25T19:16:41.896732071Z","message":"Fastest: crypto (USDT-TRC20, no fees, ~2 min confirm). 💵 Deposit Funds,✅ Pay 25.00 USD,🎟️ Apply Coupon,Back,Cancel\tto: 7482721777","severity":"info"}
+{"timestamp":"2026-09-25T19:26:21.726861683Z","message":"👛 Wallet: <b>$5.00</b> — <b>$145.00 short</b>. Tap <b>💵 Deposit</b> and we'll bring you straight back to finish this order. 💵 Deposit $145,Crypto,💬 Ask Question,↩️ Back,🏠 Main Menu,Cancel\tto: 8407493003","severity":"info"}
+{"timestamp":"2026-09-25T19:26:54.857016043Z","message":"👛 Wallet: <b>$5.00</b> — <b>$245.00 short</b>. Tap <b>💵 Deposit</b> and we'll bring you straight back to finish this order. 💵 Deposit $245,Crypto,💬 Ask Question,↩️ Back,🏠 Main Menu,Cancel\tto: 8407493003","severity":"info"}
+{"timestamp":"2026-09-25T19:33:40.401867400Z","message":"Payez par crypto, virement bancaire ou portefeuille. Sélectionnez ci-dessous :","severity":"info"}
+{"timestamp":"2026-09-25T19:55:23.534518567Z","message":"Fastest: crypto (USDT-TRC20, no fees, ~2 min confirm). 💵 Deposit Funds,✅ Pay 25.00 USD,🎟️ Apply Coupon,Back,Cancel\tto: 5999851454","severity":"info"}
+{"timestamp":"2026-09-25T19:56:51.273416745Z","message":"reply: Please choose a crypto currency:","severity":"info"}
+{"timestamp":"2026-09-25T19:57:13.587761656Z","message":"[CryptoFallback] DynoPay unavailable for wallet, falling back to BlockBee","severity":"info"}
+{"timestamp":"2026-09-25T19:57:13.587798025Z","message":"Crypto payments are confirmed quickly — usually within a few minutes. Once confirmed, you will be promptly notified, and your wallet will be updated.","severity":"info"}
+{"timestamp":"2026-09-25T19:57:13.587809555Z","message":"Error in getting Crypto address Request failed with status code 401","severity":"error"}
+{"timestamp":"2026-09-25T20:20:25.136388644Z","message":"reply: Please choose a crypto currency:","severity":"info"}
+{"timestamp":"2026-09-25T20:20:30.773948270Z","message":"[CryptoFallback] DynoPay unavailable for wallet, falling back to BlockBee","severity":"info"}
+{"timestamp":"2026-09-25T20:20:30.773952120Z","message":"Error in getting Crypto address Request failed with status code 401","severity":"error"}
+{"timestamp":"2026-09-25T20:20:32.980869766Z","message":"Crypto payments are confirmed quickly — usually within a few minutes. Once confirmed, you will be promptly notified, and your wallet will be updated.","severity":"info"}
+{"timestamp":"2026-09-25T21:56:49.080379968Z","message":"👛 Wallet: <b>$5.00</b> — <b>$145.00 short</b>. Tap <b>💵 Deposit</b> and we'll bring you straight back to finish this order. 💵 Deposit $145,Crypto,💬 Ask Question,↩️ Back,🏠 Main Menu,Cancel\tto: 5574788766","severity":"info"}

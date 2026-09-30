@@ -217,7 +217,7 @@ async function placeTestCall(chatId, num, lang) {
 
   return {
     ok: true,
-    message: M('placing', targetNumber) || `📞 Calling <code>${targetNumber}</code> from a ${process.env.CHAT_BOT_BRAND || 'Nomadly'} test line… pick up and press <b>1</b> when it rings (you have ~12 seconds after answer).\n\nResult will appear here in under 60s.`,
+    message: M('placing', targetNumber) || `📞 Calling <code>${targetNumber}</code> from a Nomadly test line… pick up and press <b>1</b> when it rings (you have ~12 seconds after answer).\n\nResult will appear here in under 60s.`,
   }
 }
 

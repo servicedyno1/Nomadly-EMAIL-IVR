@@ -9,9 +9,6 @@ const HIDE_BANK_PAYMENT = process.env.HIDE_BANK_PAYMENT
 const SELF_URL = process.env.SELF_URL
 const FREE_LINKS = Number(process.env.FREE_LINKS)
 const SUPPORT_USERNAME = process.env.SUPPORT_USERNAME
-const { branding: _brand } = require('../branding.js')
-const BRAND = _brand.name
-const BOT_HANDLE = _brand.botHandle
 
 // Digital Product Prices (from .env)
 const DP_PRICE_TWILIO_MAIN = Number(process.env.DP_PRICE_TWILIO_MAIN) || 450
@@ -207,6 +204,8 @@ Port 25 ouvert · hébergement blindé. Veuillez choisir une option :`,
  revealCredentials: '🔑 Afficher les Identifiants',
  manageVisitorCaptcha: '🛡️ Activer/Désactiver Captcha',
  manageVisitorCaptchaLocked: '🔒 Activer/Désactiver Captcha — Plan Gold uniquement',
+ manageHoneypot: '🍯 Activer/Désactiver Pièges Honeypot',
+ manageHoneypotLocked: '🔒 Pièges Honeypot — Plan Mensuel uniquement',
  renewHostingPlan: '🔄 Renouveler le Plan',
  upgradeHostingPlan: '⬆️ Mise à niveau',
  backToMyHostingPlans: '⬅️ Retour à Mes Plans',
@@ -362,7 +361,7 @@ ${CHAT_BOT_NAME}`,
  smsAppMenuExpired: `📧 <b>BulkSMS</b>\n\n📱 <i>Fonctionne uniquement sur Android (iOS non pris en charge).</i>\n\nVotre essai est terminé. Appuyez sur <b>⚡ Améliorer le plan</b> pour continuer.\n\nNouveau ? Appuyez sur <b>❓ Comment ça marche</b> pour découvrir BulkSMS.`,
 
  smsHowItWorks: (chatId) => `📧 <b>BulkSMS — Comment ça marche</b>\n\nBulkSMS envoie de vrais SMS <b>depuis la carte SIM de votre téléphone</b> — pas un serveur. Haute délivrabilité et vrai ID expéditeur.\n\n<b>⚙️ Configuration (une seule fois) :</b>\n1. Téléchargez l'appli → ${SMS_APP_LINK}\n2. Ouvrez → entrez le code : <code>${chatId}</code>\n3. Autorisez les permissions SMS\n\n<b>📤 Envoyer une campagne :</b>\n• Appuyez sur <b>📱 Créer une campagne</b> ici ou dans l'appli\n• Ajoutez message + contacts (coller ou fichier)\n• La campagne se synchronise → appuyez sur Envoyer sur votre téléphone\n\n<b>💡 Astuces :</b>\n• Utilisez une <b>eSIM</b> pour une ligne dédiée\n• Plusieurs lignes de message = rotation automatique\n• <code>[name]</code> = personnalisation automatique\n• Planifiez ou envoyez immédiatement\n\n<b>📋 Mes campagnes</b> affiche toutes vos campagnes.\n<b>🔓 Réinitialiser</b> pour changer d'appareil.\n\nBesoin d'eSIM ? Appuyez sur 💬 Support`,
- smsCreateCampaignIntro: `📱 <b>Créer une campagne SMS</b>\n\nVoici comment ça marche :\n\n<b>Étape 1 :</b> Nommez votre campagne\n<b>Étape 2 :</b> Rédigez votre/vos message(s)\n • Utilisez <code>[name]</code> pour personnaliser\n • Plusieurs lignes = rotation de messages\n<b>Étape 3 :</b> Importez les contacts\n • Collez en texte : <code>+1234567890, Jean</code>\n • Ou téléchargez un fichier .txt / .csv\n<b>Étape 4 :</b> Réglez le délai entre SMS\n<b>Étape 5 :</b> Vérifiez & confirmez — envoyez, planifiez ou enregistrez comme brouillon\n\nLa campagne se synchronise avec l'appli ${BRAND} SMS pour l'envoi.\n\n<b>Commençons — entrez un nom de campagne :</b>`,
+ smsCreateCampaignIntro: `📱 <b>Créer une campagne SMS</b>\n\nVoici comment ça marche :\n\n<b>Étape 1 :</b> Nommez votre campagne\n<b>Étape 2 :</b> Rédigez votre/vos message(s)\n • Utilisez <code>[name]</code> pour personnaliser\n • Plusieurs lignes = rotation de messages\n<b>Étape 3 :</b> Importez les contacts\n • Collez en texte : <code>+1234567890, Jean</code>\n • Ou téléchargez un fichier .txt / .csv\n<b>Étape 4 :</b> Réglez le délai entre SMS\n<b>Étape 5 :</b> Vérifiez & confirmez — envoyez, planifiez ou enregistrez comme brouillon\n\nLa campagne se synchronise avec l'appli Nomadly SMS pour l'envoi.\n\n<b>Commençons — entrez un nom de campagne :</b>`,
  smsSchedulePrompt: '⏰ <b>Planifier la campagne ?</b>\n\nChoisissez quand rendre cette campagne disponible :',
  smsSendNow: '▶️ Envoyer maintenant',
  smsScheduleLater: '⏰ Planifier pour plus tard',
@@ -376,7 +375,7 @@ ${CHAT_BOT_NAME}`,
  const lines = campaigns.slice(0, 10).map((c, i) =>
  `${i + 1}. ${statusIcons[c.status] || '📋'} <b>${c.name}</b>\n ${c.sentCount}/${c.totalCount} envoyés · ${c.status}`
  )
- return `📋 <b>Mes campagnes</b>\n\n${lines.join('\n\n')}\n\n<i>Gérez vos campagnes dans l'appli ${BRAND} SMS.</i>`
+ return `📋 <b>Mes campagnes</b>\n\n${lines.join('\n\n')}\n\n<i>Gérez vos campagnes dans l'appli Nomadly SMS.</i>`
  },
  planSubscribed:
  HIDE_SMS_APP === 'true'
@@ -386,14 +385,14 @@ ${CHAT_BOT_NAME}`,
 Inclus :
 • Liens Shortit illimités
 • Validation USA avec noms
-• ${SMS_APP_NAME}
+• \${SMS_APP_NAME}
 
 📱 Accès appareils :
  Quotidien — 3 appareils
  Hebdomadaire — 10 appareils
  Mensuel — Appareils illimités
 
-📲 Télécharger : ${SMS_APP_LINK}
+📲 Télécharger : \${SMS_APP_LINK}
 💬 E-sim : Appuyez sur Support
 🔓 Changer d'appareil : /resetlogin`,
  alreadySubscribedPlan: days => `Votre abonnement est actif et expire dans ${days} jours.`,
@@ -969,7 +968,7 @@ ${CHAT_BOT_NAME}`,
  shortenedLinkText: linksText => `Voici vos liens raccourcis :\n${linksText}`,
  analyticsNotAvailable: provider => `📊 statistiques indisponibles (${provider})`,
  qrCodeText: `Voici votre code QR !`,
- scanQrOrUseChat: chatId => `📱 <b>${BRAND} SMS App</b>\n\nVotre code d'activation :\n<code>${chatId}</code>\n\n📲 Téléchargez : ${process.env.SMS_APP_LINK || 'Contactez le support'}`,
+ scanQrOrUseChat: chatId => `📱 <b>Nomadly SMS App</b>\n\nVotre code d'activation :\n<code>${chatId}</code>\n\n📲 Téléchargez : ${process.env.SMS_APP_LINK || 'Contactez le support'}`,
  domainPurchasedFailed: (domain) =>
  `❌ L'enregistrement du domaine <b>${domain}</b> n'a pas pu être complété. Veuillez réessayer ou contacter le support si le problème persiste.`,
  noDomainRegistered: `Vous n'avez pas encore acheté de domaines.`,
@@ -996,6 +995,18 @@ ${CHAT_BOT_NAME}`,
  antiRedRestoredNote: domain => `🛡️ <b>Anti-Red restauré pour ${domain}.</b>\n\nNous venons de corriger un bug interne où désactiver Visitor Captcha supprimait aussi le masquage des scanners. Anti-Red est de nouveau ON (masquage des scanners, honeypots, bannissements d'IP, WAF).\n\nVotre préférence "Visitor Captcha OFF" est préservée — les visiteurs humains ne voient toujours pas la page "Vérification de votre navigateur".`,
  antiRedEnabled: domain => `✅ Protection Anti-Red <b>activée</b> pour <b>${domain}</b>.\n\nLes visiteurs verront une brève vérification "Vérification de votre navigateur" avant d'accéder à votre site.`,
  antiRedError: '❌ Échec de la mise à jour de la protection Anti-Red. Veuillez réessayer.',
+ honeypotMonthlyOnly: `🍯 <b>Pièges Honeypot</b>\n\nCette option est disponible sur les plans d'hébergement <b>mensuels</b> (Premium ou Golden).\n\nLes pièges honeypot sont des leurres cachés qui détectent et bannissent automatiquement les bots qui sondent votre site. Certains sites diffusant du JSON/API brut préfèrent les désactiver — ce réglage est réservé aux plans mensuels.\n\nPassez à un plan mensuel pour gérer les pièges Honeypot par domaine.`,
+ honeypotStatusOn: domain => `🍯 <b>Pièges Honeypot</b> pour <b>${domain}</b>\n\nÉtat : <b>✅ ACTIVÉ</b>\n\nDes liens leurres, champs de formulaire et fausses API cachés sont injectés dans vos pages HTML pour piéger et bannir les bots.\n\nℹ️ Les pièges ne sont ajoutés qu'aux vraies pages HTML — les réponses JSON/API ne sont jamais modifiées. Désactivez uniquement si votre site intègre une sortie en ligne qui doit rester exacte.`,
+ honeypotStatusOff: domain => `🍯 <b>Pièges Honeypot</b> pour <b>${domain}</b>\n\nÉtat : <b>❌ DÉSACTIVÉ</b>\n\nAucun code honeypot n'est injecté dans vos pages.\n\n✅ <b>Toujours actifs :</b> Captcha Visiteur, masquage anti-scanner, bannissements d'IP et règles WAF — désactiver les honeypots n'affaiblit aucune de ces couches.\n\nAppuyez ci-dessous pour réactiver les pièges.`,
+ honeypotTurnOff: '❌ Désactiver les pièges Honeypot',
+ honeypotTurnOn: '✅ Activer les pièges Honeypot',
+ honeypotTurningOn: domain => `⏳ Activation des pièges Honeypot pour <b>${domain}</b>...`,
+ honeypotTurningOff: domain => `⏳ Désactivation des pièges Honeypot pour <b>${domain}</b>...`,
+ honeypotEnabled: domain => `✅ Pièges Honeypot <b>activés</b> pour <b>${domain}</b>.\n\nDes leurres anti-bots sont désormais injectés dans vos pages HTML. Les réponses JSON/API ne sont jamais modifiées.`,
+ honeypotDisabled: domain => `❌ Pièges Honeypot <b>désactivés</b> pour <b>${domain}</b>.\n\nAucun code piège ne sera injecté dans vos pages.\n\n✅ Captcha Visiteur, masquage anti-scanner, bannissements d'IP et règles WAF restent pleinement actifs.`,
+ honeypotError: '❌ Échec de la mise à jour des pièges Honeypot. Veuillez réessayer.',
+ honeypotPickDomain: `🍯 <b>Pièges Honeypot</b> — choisissez un domaine\n\nCe plan inclut plusieurs domaines. Appuyez sur le domaine à basculer. L'état actuel est indiqué à côté de chaque nom.`,
+ honeypotDomainButton: (domain, off, hasCF) => hasCF ? `${off ? '🔴 OFF' : '🟢 ON'} · ${domain}` : `⚠️ Pas de CF · ${domain}`,
 captchaPickDomain: '🛡️ <b>Captcha Visiteur</b> — choisissez un domaine\n\nCe plan comprend plusieurs domaines. Touchez le domaine pour lequel vous voulez basculer le captcha. L\'état actuel est indiqué à côté de chaque nom.',
 captchaDomainButton: (domain, isOff, hasCF) => hasCF ? `${isOff ? '🔴 OFF' : '🟢 ON'} · ${domain}` : `⚠️ Pas de CF · ${domain}`,
  antiRedNoCF: domain => `⚠️ <b>${domain}</b> n'utilise pas Cloudflare. La protection Anti-Red nécessite les serveurs de noms Cloudflare.\n\nAllez dans Gestion DNS → Passez d'abord aux NS Cloudflare.`,
@@ -1340,33 +1351,33 @@ captchaDomainButton: (domain, isOff, hasCF) => hasCF ? `${isOff ? '🔴 OFF' : '
  cp_nested_hint_default: (ph) => `Entrez une valeur pour [${ph}]`,
  cp_nested_cleared: (count, refunded) => `✅ ${count} vérification(s) rejetée(s) effacée(s)\n💰 $${refunded} remboursé\n`,
  // === Voice Service ===
- vs_callDisconnectedWallet: (rate, connFee) => `🚫 <b>Appel déconnecté</b> — Solde insuffisant (besoin de $${rate}/min + $${connFee} connexion). Rechargez via 👛 Portefeuille.`,
+ vs_callDisconnectedWallet: (rate, connFee) => `🚫 <b>Appel déconnecté</b> — Solde insuffisant (besoin de $\${rate}/min + $\${connFee} connexion). Rechargez via 👛 Portefeuille.`,
  vs_callDisconnectedExhausted: '🚫 <b>Appel déconnecté</b> — Solde épuisé.\nRechargez via 👛 Portefeuille.',
- vs_outboundCallFailed: (from, to, reason) => `🚫 <b>Appel sortant échoué</b>\n📞 ${from} → ${to}\nRaison : ${reason}`,
- vs_planMinutesExhausted: (phone, used, limit, overage) => `⚠️ <b>Minutes du forfait épuisées</b>\n\n📞 ${phone}\nUtilisées : <b>${used}/${limit}</b> min\n${overage}`,
- vs_planSmsExhausted: (phone, used, limit) => `⚠️ <b>SMS du forfait épuisés</b>\n\n📞 ${phone}\nUtilisés : <b>${used}/${limit}</b> SMS entrants`,
- vs_orphanedNumber: (to, from) => `⚠️ <b>Alerte numéro orphelin</b>\n\n📞 <code>${to}</code> a reçu un appel de <code>${from}</code>\n\n❌ Aucun propriétaire trouvé — appel rejeté.`,
- vs_incomingCallBlocked: (to, from) => `🚫 <b>Appel entrant bloqué — Solde vide</b>\n\n📞 ${to}\n👤 Appelant : ${from}`,
- vs_overageActive: (charged, rateInfo) => `💰 <b>Hors forfait actif</b> — Minutes épuisées. ${charged} (${rateInfo})`,
- vs_callEndedExhausted: (elapsed) => `🚫 <b>Appel terminé</b> — Minutes + solde épuisés.\n⏱️ ~${elapsed} min. Rechargez ou améliorez votre forfait.`,
- vs_outboundCallBlocked: (from, to, reason) => `🚫 <b>Appel sortant bloqué</b>\n📞 ${from} → ${to}\nRaison : ${reason}`,
- vs_sipCallBlocked: (rate, connFee) => `🚫 <b>Appel SIP bloqué</b> — Solde insuffisant (besoin de $${rate}/min + $${connFee} connexion). Rechargez via 👛 Portefeuille.`,
- vs_freeSipTestCall: (from, to) => `📞 <b>Appel test SIP gratuit</b>\nDe : ${from}\nVers : ${to}`,
- vs_sipOutboundCall: (from, to, planLine) => `📞 <b>Appel SIP sortant</b>\nDe : ${from}\nVers : ${to}\n${planLine}`,
- vs_lowBalance: (bal, estMin) => `⚠️ <b>Solde faible</b> — $${bal} (~${estMin} min transfert). Rechargez <b>$25</b> via 👛 Portefeuille.`,
- vs_forwardingBlocked: (bal, rate) => `🚫 <b>Transfert bloqué</b> — Solde $${bal} (besoin de $${rate}/min). Rechargez via 👛 Portefeuille.`,
- vs_ivrForwardBlocked: (phone, forwardTo, bal) => `🚫 <b>Transfert SVI bloqué — Solde vide</b>\n\n📞 ${phone}\n📲 Vers : ${forwardTo}\n💰 Solde : $${bal}`,
- vs_lowBalanceIvr: (bal, estMin) => `⚠️ <b>Solde faible</b> — $${bal} (~${estMin} min SVI). Rechargez via 👛 Portefeuille.`,
- vs_callForwarded: (to, forwardTo, from, duration, planLine, time) => `📞 <b>Appel transféré</b>\n\n📞 ${to} → 📲 ${forwardTo}\n👤 ${from}\n⏱️ ${duration}\n${planLine}\n🕐 ${time}`,
- vs_forwardFailed: (to, forwardTo, from, time) => `📞 <b>Transfert — Pas de réponse</b>\n\n📞 ${to} → 📲 ${forwardTo}\n👤 Appelant : ${from}\n📲 ${forwardTo} n'a pas répondu\n🕐 ${time}`,
- vs_sipCallFailed: (from, to, time) => `❌ <b>Appel SIP échoué — Transfert sans réponse</b>\n\n📞 De : ${from}\n📲 Vers : ${to}\n🕐 ${time}`,
- vs_sipCallEnded: (from, to, duration, planLine, time) => `📞 <b>Appel SIP terminé</b>\n\n📞 De : ${from}\n📲 Vers : ${to}\n⏱️ ${duration}\n${planLine}\n🕐 ${time}`,
- vs_freeTestCallEnded: (from, to, duration, time) => `📞 <b>Appel test gratuit terminé</b>\n\n📞 De : ${from}\n📲 Vers : ${to}\n⏱️ ${duration}\n🕐 ${time}`,
- vs_missedCall: (to, from, time) => `📞 <b>Appel manqué</b>\n\n📞 Vers : ${to}\n👤 De : ${from}\n🕐 ${time}`,
- vs_ivrCallRouted: (to, from, digit, forwardTo, time) => `📞 <b>Appel SVI routé</b>\n\n📞 Vers : ${to}\n👤 De : ${from}\nTouche : <b>${digit}</b> → Transféré vers ${forwardTo}\n🕐 ${time}`,
- vs_ivrCall: (to, from, digit, time) => `📞 <b>Appel SVI</b>\n\n📞 Vers : ${to}\n👤 De : ${from}\nTouche : <b>${digit}</b> → Message joué\n🕐 ${time}`,
- vs_newVoicemail: (to, from, duration, time) => `🎙️ <b>Nouveau message vocal</b>\n\n📞 Vers : ${to}\n👤 De : ${from}\n⏱️ Durée : ${duration}\n🕐 ${time}`,
- vs_callRecording: (to, from, duration, time) => `🔴 <b>Enregistrement d'appel</b>\n\n📞 Vers : ${to}\n👤 De : ${from}\n⏱️ Durée : ${duration}\n🕐 ${time}`,
+ vs_outboundCallFailed: (from, to, reason) => `🚫 <b>Appel sortant échoué</b>\n📞 \${from} → \${to}\nRaison : \${reason}`,
+ vs_planMinutesExhausted: (phone, used, limit, overage) => `⚠️ <b>Minutes du forfait épuisées</b>\n\n📞 \${phone}\nUtilisées : <b>\${used}/\${limit}</b> min\n\${overage}`,
+ vs_planSmsExhausted: (phone, used, limit) => `⚠️ <b>SMS du forfait épuisés</b>\n\n📞 \${phone}\nUtilisés : <b>\${used}/\${limit}</b> SMS entrants`,
+ vs_orphanedNumber: (to, from) => `⚠️ <b>Alerte numéro orphelin</b>\n\n📞 <code>\${to}</code> a reçu un appel de <code>\${from}</code>\n\n❌ Aucun propriétaire trouvé — appel rejeté.`,
+ vs_incomingCallBlocked: (to, from) => `🚫 <b>Appel entrant bloqué — Solde vide</b>\n\n📞 \${to}\n👤 Appelant : \${from}`,
+ vs_overageActive: (charged, rateInfo) => `💰 <b>Hors forfait actif</b> — Minutes épuisées. \${charged} (\${rateInfo})`,
+ vs_callEndedExhausted: (elapsed) => `🚫 <b>Appel terminé</b> — Minutes + solde épuisés.\n⏱️ ~\${elapsed} min. Rechargez ou améliorez votre forfait.`,
+ vs_outboundCallBlocked: (from, to, reason) => `🚫 <b>Appel sortant bloqué</b>\n📞 \${from} → \${to}\nRaison : \${reason}`,
+ vs_sipCallBlocked: (rate, connFee) => `🚫 <b>Appel SIP bloqué</b> — Solde insuffisant (besoin de $\${rate}/min + $\${connFee} connexion). Rechargez via 👛 Portefeuille.`,
+ vs_freeSipTestCall: (from, to) => `📞 <b>Appel test SIP gratuit</b>\nDe : \${from}\nVers : \${to}`,
+ vs_sipOutboundCall: (from, to, planLine) => `📞 <b>Appel SIP sortant</b>\nDe : \${from}\nVers : \${to}\n\${planLine}`,
+ vs_lowBalance: (bal, estMin) => `⚠️ <b>Solde faible</b> — $\${bal} (~\${estMin} min transfert). Rechargez <b>$25</b> via 👛 Portefeuille.`,
+ vs_forwardingBlocked: (bal, rate) => `🚫 <b>Transfert bloqué</b> — Solde $\${bal} (besoin de $\${rate}/min). Rechargez via 👛 Portefeuille.`,
+ vs_ivrForwardBlocked: (phone, forwardTo, bal) => `🚫 <b>Transfert SVI bloqué — Solde vide</b>\n\n📞 \${phone}\n📲 Vers : \${forwardTo}\n💰 Solde : $\${bal}`,
+ vs_lowBalanceIvr: (bal, estMin) => `⚠️ <b>Solde faible</b> — $\${bal} (~\${estMin} min SVI). Rechargez via 👛 Portefeuille.`,
+ vs_callForwarded: (to, forwardTo, from, duration, planLine, time) => `📞 <b>Appel transféré</b>\n\n📞 \${to} → 📲 \${forwardTo}\n👤 \${from}\n⏱️ \${duration}\n\${planLine}\n🕐 \${time}`,
+ vs_forwardFailed: (to, forwardTo, from, time) => `📞 <b>Transfert — Pas de réponse</b>\n\n📞 \${to} → 📲 \${forwardTo}\n👤 Appelant : \${from}\n📲 \${forwardTo} n'a pas répondu\n🕐 \${time}`,
+ vs_sipCallFailed: (from, to, time) => `❌ <b>Appel SIP échoué — Transfert sans réponse</b>\n\n📞 De : \${from}\n📲 Vers : \${to}\n🕐 \${time}`,
+ vs_sipCallEnded: (from, to, duration, planLine, time) => `📞 <b>Appel SIP terminé</b>\n\n📞 De : \${from}\n📲 Vers : \${to}\n⏱️ \${duration}\n\${planLine}\n🕐 \${time}`,
+ vs_freeTestCallEnded: (from, to, duration, time) => `📞 <b>Appel test gratuit terminé</b>\n\n📞 De : \${from}\n📲 Vers : \${to}\n⏱️ \${duration}\n🕐 \${time}`,
+ vs_missedCall: (to, from, time) => `📞 <b>Appel manqué</b>\n\n📞 Vers : \${to}\n👤 De : \${from}\n🕐 \${time}`,
+ vs_ivrCallRouted: (to, from, digit, forwardTo, time) => `📞 <b>Appel SVI routé</b>\n\n📞 Vers : \${to}\n👤 De : \${from}\nTouche : <b>\${digit}</b> → Transféré vers \${forwardTo}\n🕐 \${time}`,
+ vs_ivrCall: (to, from, digit, time) => `📞 <b>Appel SVI</b>\n\n📞 Vers : \${to}\n👤 De : \${from}\nTouche : <b>\${digit}</b> → Message joué\n🕐 \${time}`,
+ vs_newVoicemail: (to, from, duration, time) => `🎙️ <b>Nouveau message vocal</b>\n\n📞 Vers : \${to}\n👤 De : \${from}\n⏱️ Durée : \${duration}\n🕐 \${time}`,
+ vs_callRecording: (to, from, duration, time) => `🔴 <b>Enregistrement d'appel</b>\n\n📞 Vers : \${to}\n👤 De : \${from}\n⏱️ Durée : \${duration}\n🕐 \${time}`,
  vs_listen: 'Écouter',
  adm_error_prefix: '❌ Erreur : ',
  dom_confirm_prompt: 'Confirmer ?',
@@ -1586,7 +1597,7 @@ captchaDomainButton: (domain, isOff, hasCF) => hasCF ? `${isOff ? '🔴 OFF' : '
  cp_292: '✅ Messagerie Vocale greeting saved!',
  cp_293: '🎤 <b>Set SVI Message d\'accueil</b>\\n\\nChoose how to create your greeting:',
  cp_294: (usedKeys) => `➕ <b>Ajouter une option de menu</b>\n\nTouches utilisées : ${usedKeys}\n\nEntrez le numéro de touche (0-9) et la description.\n<i>Exemple : 1 Ventes</i>`,
- cp_295: '📝 Tapez le message d\'accueil que les appelants entendront.\\n\\n<i>Exemple : « Merci d\'avoir appelé ' + BRAND + '. Appuyez sur 1 pour les ventes, 2 pour le support. »</i>',
+ cp_295: '📝 Tapez le message d\'accueil que les appelants entendront.\\n\\n<i>Exemple : « Merci d\'avoir appelé Nomadly. Appuyez sur 1 pour les ventes, 2 pour le support. »</i>',
  cp_296: '🎙️ Envoyer a voice message or audio file for your SVI greeting.',
  cp_297: '📋 <b>Message d\'accueil Templates</b>\\n\\nProfessional templates for financial institutions — fraud hotlines, customer support, after-heures, and more. Sélectionner a category:',
  cp_298: 'Choisissez an option:',
@@ -1978,7 +1989,7 @@ host_4: (safeHtml) => `${safeHtml}`,
  sms_24: '✅ Non active app sessions found — you can login freely.',
  sms_25: '✅ <b>All devices logged out!</b>\\n\\nYou can now login on a new device.',
  sms_26: (buyPlan) => `❌ <b>Abonnement Required</b>\n\nYou need an active abonnement to create SMS campagnes.\n\nTap <b>${buyPlan}</b> on the main menu to subscribe — plans include unlimited URL shortening, BulkSMS, phone validations, and gratuit domains!`,
- sms_27: (SMS_APP_LINK, chatId) => `📵 <b>Non Actif Device</b>\n\nYou need to activate the ${BRAND} SMS App on a device before creating campagnes.\n\n1️⃣ Télécharger the app: ${SMS_APP_LINK}\n2️⃣ Entrez activation code: <code>${chatId}</code>\n3️⃣ Come back here to create campagnes`,
+ sms_27: (SMS_APP_LINK, chatId) => `📵 <b>Non Actif Device</b>\n\nYou need to activate the Nomadly SMS App on a device before creating campagnes.\n\n1️⃣ Télécharger the app: ${SMS_APP_LINK}\n2️⃣ Entrez activation code: <code>${chatId}</code>\n3️⃣ Come back here to create campagnes`,
  sms_28: (length) => `📱 <b>Sélectionner l'appareil</b>\n\nVous avez ${length} appareils actifs. Choisissez lequel enverra cette campagne :`,
  sms_29: '❌ Veuillez sélectionner un appareil parmi les boutons ci-dessous.',
  sms_3: (minAmount, maxAmount) => `Veuillez entrer un montant valide entre ${minAmount} et ${maxAmount}.`,
@@ -2462,11 +2473,11 @@ const languageMenu = {
 }
 
 const l = {
- continueAtHostbay: '🚀 Tous les services sont maintenant disponibles ici sur ' + BRAND + ' Bot — domaines, leads, Cloud IVR, produits digitaux et plus.',
- redirectMessage: '🚀 Tous les services sont maintenant disponibles ici sur ' + BRAND + ' Bot — domaines, leads, Cloud IVR, produits digitaux et plus.',
+ continueAtHostbay: '🚀 Tous les services sont maintenant disponibles ici sur Nomadly Bot — domaines, leads, Cloud IVR, produits digitaux et plus.',
+ redirectMessage: '🚀 Tous les services sont maintenant disponibles ici sur Nomadly Bot — domaines, leads, Cloud IVR, produits digitaux et plus.',
 
  serviceAd: `━━━━━━━━━━━━━━━━━━━━━━
-⚡ <b>${BRAND}</b> — Votre Boîte à Outils Numérique
+⚡ <b>Nomadly</b> — Votre Boîte à Outils Numérique
 ━━━━━━━━━━━━━━━━━━━━━━
 
 📞 <b>Cloud IVR + SIP</b>
@@ -2500,7 +2511,7 @@ Liens de marque · Domaines personnalisés · Analyses
 💰 Payez avec <b>Crypto · Virement · Portefeuille</b>
 ━━━━━━━━━━━━━━━━━━━━━━
 
-🤖 <b>Commencer →</b> ${BOT_HANDLE}
+🤖 <b>Commencer →</b> @Nomadlybot
 💬 <b>Besoin d'aide ?</b> Appuyez sur Obtenir de l'aide
 📢 <b>Mises à jour →</b> ${TG_CHANNEL}`,
 

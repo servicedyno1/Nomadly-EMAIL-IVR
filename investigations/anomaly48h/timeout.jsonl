@@ -1,0 +1,140 @@
+{"t":"2026-09-15T01:18:38.537477105Z","s":"info","m":"[Voice] Buffer timeout — processing late hangup for v3:3wzRszf8OgChalTuyyw7Qg7vr-wliyWMxFNuDqQaUs6yrogPxTZfOg (no matching call.initiated — likely post-deploy orphan)"}
+{"t":"2026-09-15T05:11:48.829165246Z","s":"info","m":"[ProtectionEnforcer] SSL DEFERRED: rbc-verify.com staying on 'flexible' — origin not ready (Origin probe socket timeout). Grace period started, will retry in 24h."}
+{"t":"2026-09-15T07:41:30.478930743Z","s":"info","m":"07:41:30 [CartRecovery] Initialized — nudge delay: 45min, cooldown: 24h, silent timeout: 20min, languages: en/fr/zh/hi"}
+{"t":"2026-09-15T07:41:36.963012743Z","s":"info","m":"[PaymentTimeout] Scheduled every 30min (timeout: 6h)"}
+{"t":"2026-09-15T07:41:36.963673757Z","s":"info","m":"[StaleOrderCleanup] Scheduled every 60min (timeout: 24h)"}
+{"t":"2026-09-15T07:41:36.963676367Z","s":"info","m":"[PaymentIntentCleanup] Scheduled every 6h (timeout: 72h)"}
+{"t":"2026-09-15T07:42:15.426564506Z","s":"info","m":"[CpanelMigration] Failed to list WHM accounts: timeout of 30000ms exceeded. Aborting migration."}
+{"t":"2026-09-15T19:43:24.641907952Z","s":"info","m":"[ProtectionEnforcer] SSL DEFERRED: charlesschwab-secure.org staying on 'flexible' — origin not ready (Origin probe socket timeout). Grace period started, will retry in 24h."}
+{"t":"2026-09-15T19:43:33.450492693Z","s":"info","m":"[ProtectionEnforcer] SSL DEFERRED: rbc-verification.ca staying on 'flexible' — origin not ready (Origin probe socket timeout). Grace period started, will retry in 24h."}
+{"t":"2026-09-16T01:42:19.333712808Z","s":"info","m":"[ProtectionEnforcer] SSL DEFERRED: sbclient-dashboard.com staying on 'flexible' — origin not ready (Origin probe socket timeout). Grace period started, will retry in 24h."}
+{"t":"2026-09-16T01:42:39.198985170Z","s":"info","m":"[ProtectionEnforcer] SSL DEFERRED: paperlessgrandivio.com staying on 'flexible' — origin not ready (Origin probe socket timeout). Grace period started, will retry in 24h."}
+{"t":"2026-09-16T01:42:40.257997538Z","s":"info","m":"[ProtectionEnforcer] SSL DEFERRED: netflixsecure-dashboard.com staying on 'flexible' — origin not ready (Origin probe socket timeout). Grace period started, will retry in 24h."}
+{"t":"2026-09-16T01:42:47.903868078Z","s":"info","m":"[ProtectionEnforcer] SSL DEFERRED: securitedesjardins.com staying on 'flexible' — origin not ready (Origin probe socket timeout). Grace period started, will retry in 24h."}
+{"t":"2026-09-16T01:42:56.610065223Z","s":"info","m":"[ProtectionEnforcer] SSL DEFERRED: nymcub.com staying on 'flexible' — origin not ready (Origin probe socket timeout). Grace period started, will retry in 24h."}
+{"t":"2026-09-16T01:43:06.176297653Z","s":"info","m":"[ProtectionEnforcer] SSL DEFERRED: primeguestvirevite.com staying on 'flexible' — origin not ready (Origin probe socket timeout). Grace period started, will retry in 24h."}
+{"t":"2026-09-16T01:43:14.236246620Z","s":"info","m":"[ProtectionEnforcer] SSL DEFERRED: evitelesspost.com staying on 'flexible' — origin not ready (Origin probe socket timeout). Grace period started, will retry in 24h."}
+{"t":"2026-09-16T01:43:22.077082818Z","s":"info","m":"[ProtectionEnforcer] SSL DEFERRED: digitalpaperlesseviteview.com staying on 'flexible' — origin not ready (Origin probe socket timeout). Grace period started, will retry in 24h."}
+{"t":"2026-09-16T01:43:31.007647970Z","s":"info","m":"[ProtectionEnforcer] SSL DEFERRED: streakevents.fr staying on 'flexible' — origin not ready (Origin probe socket timeout). Grace period started, will retry in 24h."}
+{"t":"2026-09-16T01:43:38.941709474Z","s":"info","m":"[ProtectionEnforcer] SSL DEFERRED: ivirna.com staying on 'flexible' — origin not ready (Origin probe socket timeout). Grace period started, will retry in 24h."}
+{"t":"2026-09-16T01:43:58.810910170Z","s":"info","m":"[ProtectionEnforcer] SSL DEFERRED: secure2task.us staying on 'flexible' — origin not ready (Origin probe socket timeout). Grace period started, will retry in 24h."}
+{"t":"2026-09-16T01:44:00.507892955Z","s":"info","m":"[ProtectionEnforcer] SSL DEFERRED: paperlessparttyleafvu.com staying on 'flexible' — origin not ready (Origin probe socket timeout). Grace period started, will retry in 24h."}
+{"t":"2026-09-16T01:44:09.261091641Z","s":"info","m":"[ProtectionEnforcer] SSL DEFERRED: wafradex.de staying on 'flexible' — origin not ready (Origin probe socket timeout). Grace period started, will retry in 24h."}
+{"t":"2026-09-16T01:44:19.685066425Z","s":"info","m":"[ProtectionEnforcer] SSL DEFERRED: endless-eviteonline.com staying on 'flexible' — origin not ready (Origin probe socket timeout). Grace period started, will retry in 24h."}
+{"t":"2026-09-16T01:44:27.874185222Z","s":"info","m":"[ProtectionEnforcer] SSL DEFERRED: recover-authafcu.click staying on 'flexible' — origin not ready (Origin probe socket timeout). Grace period started, will retry in 24h."}
+{"t":"2026-09-16T01:44:37.028631152Z","s":"info","m":"[ProtectionEnforcer] SSL DEFERRED: commercesupport.online staying on 'flexible' — origin not ready (Origin probe socket timeout). Grace period started, will retry in 24h."}
+{"t":"2026-09-16T01:44:57.048624607Z","s":"info","m":"[ProtectionEnforcer] SSL DEFERRED: sequeldex.de staying on 'flexible' — origin not ready (Origin probe socket timeout). Grace period started, will retry in 24h."}
+{"t":"2026-09-16T01:44:58.865418057Z","s":"info","m":"[ProtectionEnforcer] SSL DEFERRED: statefrmfcu.com staying on 'flexible' — origin not ready (Origin probe socket timeout). Grace period started, will retry in 24h."}
+{"t":"2026-09-16T01:45:09.996535316Z","s":"info","m":"[ProtectionEnforcer] SSL DEFERRED: securitedesjardins.ca staying on 'flexible' — origin not ready (Origin probe socket timeout). Grace period started, will retry in 24h."}
+{"t":"2026-09-16T01:45:18.790482631Z","s":"info","m":"[ProtectionEnforcer] SSL DEFERRED: e-viteme.cfd staying on 'flexible' — origin not ready (Origin probe socket timeout). Grace period started, will retry in 24h."}
+{"t":"2026-09-16T01:45:27.309057639Z","s":"info","m":"[ProtectionEnforcer] SSL DEFERRED: 45679aib.com staying on 'flexible' — origin not ready (Origin probe socket timeout). Grace period started, will retry in 24h."}
+{"t":"2026-09-16T01:45:38.906818348Z","s":"info","m":"[ProtectionEnforcer] SSL DEFERRED: evitefyme.org staying on 'flexible' — origin not ready (Origin probe socket timeout). Grace period started, will retry in 24h."}
+{"t":"2026-09-16T01:45:48.364759920Z","s":"info","m":"[ProtectionEnforcer] SSL DEFERRED: la-update-our-records.com staying on 'flexible' — origin not ready (Origin probe socket timeout). Grace period started, will retry in 24h."}
+{"t":"2026-09-16T01:45:57.269783081Z","s":"info","m":"[ProtectionEnforcer] SSL DEFERRED: single-auth.com staying on 'flexible' — origin not ready (Origin probe socket timeout). Grace period started, will retry in 24h."}
+{"t":"2026-09-16T01:46:06.630861627Z","s":"info","m":"[ProtectionEnforcer] SSL DEFERRED: furrycitadel.com staying on 'flexible' — origin not ready (Origin probe socket timeout). Grace period started, will retry in 24h."}
+{"t":"2026-09-16T01:46:14.648715705Z","s":"info","m":"[ProtectionEnforcer] SSL DEFERRED: help-providerconnect.ca staying on 'flexible' — origin not ready (Origin probe socket timeout). Grace period started, will retry in 24h."}
+{"t":"2026-09-16T01:46:23.851035323Z","s":"info","m":"[ProtectionEnforcer] SSL DEFERRED: secure-peakcu.org staying on 'flexible' — origin not ready (Origin probe socket timeout). Grace period started, will retry in 24h."}
+{"t":"2026-09-16T01:46:32.002418426Z","s":"info","m":"[ProtectionEnforcer] SSL DEFERRED: accesd-securite.ca staying on 'flexible' — origin not ready (Origin probe socket timeout). Grace period started, will retry in 24h."}
+{"t":"2026-09-16T01:46:42.822532846Z","s":"info","m":"[ProtectionEnforcer] SSL DEFERRED: claimoffericers.online staying on 'flexible' — origin not ready (Origin probe socket timeout). Grace period started, will retry in 24h."}
+{"t":"2026-09-16T07:43:16.523183039Z","s":"info","m":"[ProtectionEnforcer] SSL DEFERRED: rbc-verify.com staying on 'flexible' — origin not ready (Origin probe socket timeout). Grace period started, will retry in 24h."}
+{"t":"2026-09-16T12:10:54.355497896Z","s":"info","m":"12:10:54 [CartRecovery] Initialized — nudge delay: 45min, cooldown: 24h, silent timeout: 20min, languages: en/fr/zh/hi"}
+{"t":"2026-09-16T12:11:00.655563393Z","s":"info","m":"[PaymentTimeout] Scheduled every 30min (timeout: 6h)"}
+{"t":"2026-09-16T12:11:00.655567132Z","s":"info","m":"[StaleOrderCleanup] Scheduled every 60min (timeout: 24h)"}
+{"t":"2026-09-16T12:11:00.655571042Z","s":"info","m":"[PaymentIntentCleanup] Scheduled every 6h (timeout: 72h)"}
+{"t":"2026-09-16T12:11:39.294862729Z","s":"info","m":"[CpanelMigration] Failed to list WHM accounts: timeout of 30000ms exceeded. Aborting migration."}
+{"t":"2026-09-16T12:12:29.862796926Z","s":"info","m":"[CR-Whitelist] API test failed (attempt #2): timeout of 15000ms exceeded"}
+{"t":"2026-09-16T14:25:29.959408466Z","s":"info","m":"[Voice] Buffer timeout — processing late hangup for v3:ZvtTcblDP7g-LWA-Xd-mrMXZiCXyIj4JUDydqaoFeepwEaaiNrkKhQ (no matching call.initiated — likely post-deploy orphan)"}
+{"t":"2026-09-16T14:52:35.584433518Z","s":"info","m":"[Voice] Buffer timeout — processing late hangup for v3:xsOHt03o8_Vsc0qeSoa1AwAWMMSgH8Juy5pQbuL6Tz9FAl7zvmkFOg (no matching call.initiated — likely post-deploy orphan)"}
+{"t":"2026-09-16T15:38:44.535391847Z","s":"info","m":"[Voice] Buffer timeout — processing late hangup for v3:PBwwEdKvr_saxZP43mymH7DaczsQWjRwkkkvzjM0--9ELxX1jTCH9w (no matching call.initiated — likely post-deploy orphan)"}
+{"t":"2026-09-16T15:40:21.633420655Z","s":"info","m":"[Voice] Buffer timeout — processing late hangup for v3:e7xdAs7tB5osCV2INdvFjYeE8ELS1TW7fatczF9bg8e0PRJptZHhMw (no matching call.initiated — likely post-deploy orphan)"}
+{"t":"2026-09-16T15:42:55.917640680Z","s":"info","m":"[Voice] Buffer timeout — processing late hangup for v3:U3-A0sI3WmMMe7cv_YlX4yzGDsARjfju-BXyqGgt6O6UsPqp6TcqKQ (no matching call.initiated — likely post-deploy orphan)"}
+{"t":"2026-09-16T15:51:18.907133637Z","s":"info","m":"[Voice] Buffer timeout — processing late hangup for v3:tiE2HJBOyFtKIDesihU7rAdICW50CY-IGz7SaZ9b8Gc_WjYEG-z3jQ (no matching call.initiated — likely post-deploy orphan)"}
+{"t":"2026-09-16T15:54:37.371455615Z","s":"info","m":"[Voice] Buffer timeout — processing late hangup for v3:vuuP-5cTpKJGlgNPLk9ozX1F7wnvQItw_Eh1T2DyDVpqHUqk5cOUwQ (no matching call.initiated — likely post-deploy orphan)"}
+{"t":"2026-09-16T16:12:46.998073402Z","s":"info","m":"16:12:46 [CartRecovery] Initialized — nudge delay: 45min, cooldown: 24h, silent timeout: 20min, languages: en/fr/zh/hi"}
+{"t":"2026-09-16T16:12:53.947134507Z","s":"info","m":"[PaymentTimeout] Scheduled every 30min (timeout: 6h)"}
+{"t":"2026-09-16T16:12:53.947139451Z","s":"info","m":"[StaleOrderCleanup] Scheduled every 60min (timeout: 24h)"}
+{"t":"2026-09-16T16:12:53.947143704Z","s":"info","m":"[PaymentIntentCleanup] Scheduled every 6h (timeout: 72h)"}
+{"t":"2026-09-16T16:13:32.099707617Z","s":"info","m":"[CpanelMigration] Failed to list WHM accounts: timeout of 30000ms exceeded. Aborting migration."}
+{"t":"2026-09-16T16:15:57.275684933Z","s":"info","m":"[Voice] Buffer timeout — processing late hangup for v3:mcbw5ryP7SlxDcVvT57hvyKrLWN0auBo8u0iYFwyxASNvjfVC_jtMw (no matching call.initiated — likely post-deploy orphan)"}
+{"t":"2026-09-16T16:20:13.217540313Z","s":"info","m":"[Voice] Buffer timeout — processing late hangup for v3:eIQyhPI3q3iIa27WgmvYCwlAO5uWwJjffGBXJN57C6mgEVeinwo0rg (no matching call.initiated — likely post-deploy orphan)"}
+{"t":"2026-09-16T16:24:54.255899410Z","s":"info","m":"[Voice] Buffer timeout — processing late hangup for v3:JGF5cdsi8mrczKV9rXdiZaY6yaHhcomPhJra9h0vo-g2JPe9ofvZaw (no matching call.initiated — likely post-deploy orphan)"}
+{"t":"2026-09-16T16:25:07.149774013Z","s":"info","m":"[Voice] Buffer timeout — processing late hangup for v3:NjqSuvaVngi2INoegZsyZtnbgezzhJjszmaIiXAHrwxfd5F7GBsKkQ (no matching call.initiated — likely post-deploy orphan)"}
+{"t":"2026-09-16T16:30:13.257908210Z","s":"info","m":"[Voice] Buffer timeout — processing late hangup for v3:Zk209Xhi0AhuQrGBl3E-Bwflwcx_34pmoRg4rjPGZmONeUx_cSOwOQ (no matching call.initiated — likely post-deploy orphan)"}
+{"t":"2026-09-16T16:33:54.383458744Z","s":"info","m":"[Voice] Buffer timeout — processing late hangup for v3:khwfA5yuIFi32wNzwZ_zWLjZaPN1CP3DYWYtp1ldtad1j8rA8Qw-eQ (no matching call.initiated — likely post-deploy orphan)"}
+{"t":"2026-09-16T16:40:33.985547925Z","s":"info","m":"[Voice] Buffer timeout — processing late hangup for v3:1k1BeE4KCF3aVzAOqVzBz69QEizV2yKeroPVOg-o8g24ZfnSCcZ0dQ (no matching call.initiated — likely post-deploy orphan)"}
+{"t":"2026-09-16T16:40:36.849095190Z","s":"info","m":"[Voice] Buffer timeout — processing late hangup for v3:TbdWhg7fvGQZqugbMXX_76m6qFCooQSdro2-4f5_Q6zt4hW4lLtU6w (no matching call.initiated — likely post-deploy orphan)"}
+{"t":"2026-09-16T16:44:06.365298278Z","s":"info","m":"16:44:06 [CartRecovery] Initialized — nudge delay: 45min, cooldown: 24h, silent timeout: 20min, languages: en/fr/zh/hi"}
+{"t":"2026-09-16T16:44:15.439994405Z","s":"info","m":"[PaymentTimeout] Scheduled every 30min (timeout: 6h)"}
+{"t":"2026-09-16T16:44:15.441668306Z","s":"info","m":"[StaleOrderCleanup] Scheduled every 60min (timeout: 24h)"}
+{"t":"2026-09-16T16:44:15.441672070Z","s":"info","m":"[PaymentIntentCleanup] Scheduled every 6h (timeout: 72h)"}
+{"t":"2026-09-16T16:44:51.163344048Z","s":"info","m":"[CpanelMigration] Failed to list WHM accounts: timeout of 30000ms exceeded. Aborting migration."}
+{"t":"2026-09-16T16:46:25.300419609Z","s":"info","m":"[Voice] Buffer timeout — processing late hangup for v3:BE9VlJDdT0tlekIqfBQ4q8xvS3LQHLhG9zetDW5POtdW2zk5GDMwpQ (no matching call.initiated — likely post-deploy orphan)"}
+{"t":"2026-09-16T16:49:23.634249059Z","s":"info","m":"[Voice] Buffer timeout — processing late hangup for v3:f0uvUa1TG6SyUKxIix9glH_vrkhoo5yOydTBzWB0lTHdWu3U4lEUzQ (no matching call.initiated — likely post-deploy orphan)"}
+{"t":"2026-09-16T16:51:50.508527773Z","s":"info","m":"[Voice] Buffer timeout — processing late hangup for v3:S_yMpEpWOSRVupcXyXLDiRXX3SR66O7oUTJ-hpBIzDXQDVGzaU6fpw (no matching call.initiated — likely post-deploy orphan)"}
+{"t":"2026-09-16T16:59:31.153258979Z","s":"info","m":"[Voice] Buffer timeout — processing late hangup for v3:5Q8WRR5HLioSKUW2WegzA2XvTgwCd2m7qtcZUhNMXxBsr_QM8Ln-jQ (no matching call.initiated — likely post-deploy orphan)"}
+{"t":"2026-09-16T17:00:39.079932162Z","s":"info","m":"[Voice] Buffer timeout — processing late hangup for v3:nSAFuGPjLesgPefh99eUA4qNXxV9wl5Lq17UCOrDyoc3KmC2ge4uMg (no matching call.initiated — likely post-deploy orphan)"}
+{"t":"2026-09-16T17:02:54.678300770Z","s":"info","m":"[Voice] Buffer timeout — processing late hangup for v3:qHXayZll7k3Wgd91OHoDGlI6TOC8aIONf86qmnbHvaGrnTvuTInv2g (no matching call.initiated — likely post-deploy orphan)"}
+{"t":"2026-09-16T17:09:29.803453440Z","s":"info","m":"[Voice] Buffer timeout — processing late hangup for v3:WvbWP4wG7qoW1GpBAJaZMXq81nPuMgdk8oUxErNBUpbaNwjJ8pbmSA (no matching call.initiated — likely post-deploy orphan)"}
+{"t":"2026-09-16T17:18:54.327565200Z","s":"info","m":"17:18:54 [CartRecovery] Initialized — nudge delay: 45min, cooldown: 24h, silent timeout: 20min, languages: en/fr/zh/hi"}
+{"t":"2026-09-16T17:19:04.319778718Z","s":"info","m":"[PaymentTimeout] Scheduled every 30min (timeout: 6h)"}
+{"t":"2026-09-16T17:19:04.319784118Z","s":"info","m":"[StaleOrderCleanup] Scheduled every 60min (timeout: 24h)"}
+{"t":"2026-09-16T17:19:04.319789088Z","s":"info","m":"[PaymentIntentCleanup] Scheduled every 6h (timeout: 72h)"}
+{"t":"2026-09-16T17:19:26.994080709Z","s":"info","m":"[Voice] Buffer timeout — processing late hangup for v3:GRizhcHViKlWaLT1oPMMH2hTiMLBRhTJWhVM9Dm0gBgOOBeMPqGZjA (no matching call.initiated — likely post-deploy orphan)"}
+{"t":"2026-09-16T17:19:39.296624539Z","s":"info","m":"[CpanelMigration] Failed to list WHM accounts: timeout of 30000ms exceeded. Aborting migration."}
+{"t":"2026-09-16T17:20:47.495368828Z","s":"info","m":"[Voice] Buffer timeout — processing late hangup for v3:zRdcyEhmveCawPGdfpgsa54an1zqiuFQ_luxOSOPjTwnFUjCnL4Zsw (no matching call.initiated — likely post-deploy orphan)"}
+{"t":"2026-09-16T18:03:34.967314455Z","s":"info","m":"18:03:34 [CartRecovery] Initialized — nudge delay: 45min, cooldown: 24h, silent timeout: 20min, languages: en/fr/zh/hi"}
+{"t":"2026-09-16T18:03:45.151179293Z","s":"info","m":"[PaymentTimeout] Scheduled every 30min (timeout: 6h)"}
+{"t":"2026-09-16T18:03:45.157160266Z","s":"info","m":"[StaleOrderCleanup] Scheduled every 60min (timeout: 24h)"}
+{"t":"2026-09-16T18:03:45.157168260Z","s":"info","m":"[PaymentIntentCleanup] Scheduled every 6h (timeout: 72h)"}
+{"t":"2026-09-16T18:04:19.905827179Z","s":"info","m":"[CpanelMigration] Failed to list WHM accounts: timeout of 30000ms exceeded. Aborting migration."}
+{"t":"2026-09-16T18:24:38.589942705Z","s":"info","m":"18:24:38 [CartRecovery] Initialized — nudge delay: 45min, cooldown: 24h, silent timeout: 20min, languages: en/fr/zh/hi"}
+{"t":"2026-09-16T18:24:47.568166356Z","s":"info","m":"[PaymentTimeout] Scheduled every 30min (timeout: 6h)"}
+{"t":"2026-09-16T18:24:47.568170636Z","s":"info","m":"[StaleOrderCleanup] Scheduled every 60min (timeout: 24h)"}
+{"t":"2026-09-16T18:24:47.568174236Z","s":"info","m":"[PaymentIntentCleanup] Scheduled every 6h (timeout: 72h)"}
+{"t":"2026-09-16T18:25:23.471293953Z","s":"info","m":"[CpanelMigration] Failed to list WHM accounts: timeout of 30000ms exceeded. Aborting migration."}
+{"t":"2026-09-16T19:46:14.768830365Z","s":"info","m":"19:46:14 [CartRecovery] Initialized — nudge delay: 45min, cooldown: 24h, silent timeout: 20min, languages: en/fr/zh/hi"}
+{"t":"2026-09-16T19:46:24.630798450Z","s":"info","m":"[PaymentTimeout] Scheduled every 30min (timeout: 6h)"}
+{"t":"2026-09-16T19:46:24.631606593Z","s":"info","m":"[StaleOrderCleanup] Scheduled every 60min (timeout: 24h)"}
+{"t":"2026-09-16T19:46:24.631609773Z","s":"info","m":"[PaymentIntentCleanup] Scheduled every 6h (timeout: 72h)"}
+{"t":"2026-09-16T19:46:59.901507579Z","s":"info","m":"[CpanelMigration] Failed to list WHM accounts: timeout of 30000ms exceeded. Aborting migration."}
+{"t":"2026-09-16T19:48:38.713376714Z","s":"info","m":"[ProtectionEnforcer] SSL DEFERRED: charlesschwab-secure.org staying on 'flexible' — origin not ready (Origin probe socket timeout). Grace period started, will retry in 24h."}
+{"t":"2026-09-16T19:48:47.852251670Z","s":"info","m":"[ProtectionEnforcer] SSL DEFERRED: rbc-verification.ca staying on 'flexible' — origin not ready (Origin probe socket timeout). Grace period started, will retry in 24h."}
+{"t":"2026-09-16T19:56:05.916707787Z","s":"info","m":"19:56:05 [CartRecovery] Initialized — nudge delay: 45min, cooldown: 24h, silent timeout: 20min, languages: en/fr/zh/hi"}
+{"t":"2026-09-16T19:56:15.735302413Z","s":"info","m":"[PaymentTimeout] Scheduled every 30min (timeout: 6h)"}
+{"t":"2026-09-16T19:56:15.735309583Z","s":"info","m":"[StaleOrderCleanup] Scheduled every 60min (timeout: 24h)"}
+{"t":"2026-09-16T19:56:15.735318173Z","s":"info","m":"[PaymentIntentCleanup] Scheduled every 6h (timeout: 72h)"}
+{"t":"2026-09-16T19:56:50.503115457Z","s":"info","m":"[CpanelMigration] Failed to list WHM accounts: timeout of 30000ms exceeded. Aborting migration."}
+{"t":"2026-09-16T21:28:52.175217001Z","s":"info","m":"21:28:52 [CartRecovery] Initialized — nudge delay: 45min, cooldown: 24h, silent timeout: 20min, languages: en/fr/zh/hi"}
+{"t":"2026-09-16T21:29:01.289515536Z","s":"info","m":"[PaymentTimeout] Scheduled every 30min (timeout: 6h)"}
+{"t":"2026-09-16T21:29:01.289687204Z","s":"info","m":"[StaleOrderCleanup] Scheduled every 60min (timeout: 24h)"}
+{"t":"2026-09-16T21:29:01.289692484Z","s":"info","m":"[PaymentIntentCleanup] Scheduled every 6h (timeout: 72h)"}
+{"t":"2026-09-16T21:29:37.070776713Z","s":"info","m":"[CpanelMigration] Failed to list WHM accounts: timeout of 30000ms exceeded. Aborting migration."}
+{"t":"2026-09-17T03:29:40.988516120Z","s":"info","m":"[ProtectionEnforcer] SSL DEFERRED: sbclient-dashboard.com staying on 'flexible' — origin not ready (Origin probe socket timeout). Grace period started, will retry in 24h."}
+{"t":"2026-09-17T03:30:02.618293582Z","s":"info","m":"[ProtectionEnforcer] SSL DEFERRED: paperlessgrandivio.com staying on 'flexible' — origin not ready (Origin probe socket timeout). Grace period started, will retry in 24h."}
+{"t":"2026-09-17T03:30:02.618315751Z","s":"info","m":"  scanned 4/384\r[ProtectionEnforcer] SSL DEFERRED: netflixsecure-dashboard.com staying on 'flexible' — origin not ready (Origin probe socket timeout). Grace period started, will retry in 24h."}
+{"t":"2026-09-17T03:30:12.571452661Z","s":"info","m":"  scanned 8/384\r[ProtectionEnforcer] SSL DEFERRED: securitedesjardins.com staying on 'flexible' — origin not ready (Origin probe socket timeout). Grace period started, will retry in 24h."}
+{"t":"2026-09-17T03:30:21.408582721Z","s":"info","m":"  scanned 12/384\r  scanned 16/384\r[ProtectionEnforcer] SSL DEFERRED: nymcub.com staying on 'flexible' — origin not ready (Origin probe socket timeout). Grace period started, will retry in 24h."}
+{"t":"2026-09-17T03:30:31.954370246Z","s":"info","m":"  scanned 20/384\r  scanned 24/384\r  scanned 28/384\r  scanned 32/384\r[ProtectionEnforcer] SSL DEFERRED: primeguestvirevite.com staying on 'flexible' — origin not ready (Origin probe socket timeout). Grace period started, will retry in 24h."}
+{"t":"2026-09-17T03:30:40.316968111Z","s":"info","m":"  scanned 36/384\r  scanned 40/384\r[ProtectionEnforcer] SSL DEFERRED: evitelesspost.com staying on 'flexible' — origin not ready (Origin probe socket timeout). Grace period started, will retry in 24h."}
+{"t":"2026-09-17T03:30:48.306797536Z","s":"info","m":"  scanned 44/384\r  scanned 48/384\r[ProtectionEnforcer] SSL DEFERRED: digitalpaperlesseviteview.com staying on 'flexible' — origin not ready (Origin probe socket timeout). Grace period started, will retry in 24h."}
+{"t":"2026-09-17T03:30:57.262946877Z","s":"info","m":"  scanned 52/384\r  scanned 56/384\r[ProtectionEnforcer] SSL DEFERRED: streakevents.fr staying on 'flexible' — origin not ready (Origin probe socket timeout). Grace period started, will retry in 24h."}
+{"t":"2026-09-17T03:31:05.854919178Z","s":"info","m":"  scanned 60/384\r  scanned 64/384\r  scanned 68/384\r[ProtectionEnforcer] SSL DEFERRED: ivirna.com staying on 'flexible' — origin not ready (Origin probe socket timeout). Grace period started, will retry in 24h."}
+{"t":"2026-09-17T03:31:17.734962410Z","s":"info","m":"  scanned 72/384\r  scanned 76/384\r  scanned 80/384\r  scanned 84/384\r[ProtectionEnforcer] SSL DEFERRED: secure2task.us staying on 'flexible' — origin not ready (Origin probe socket timeout). Grace period started, will retry in 24h."}
+{"t":"2026-09-17T03:31:28.883210586Z","s":"info","m":"  scanned 88/384\r  scanned 92/384\r  scanned 96/384\r  scanned 100/384\r[ProtectionEnforcer] SSL DEFERRED: paperlessparttyleafvu.com staying on 'flexible' — origin not ready (Origin probe socket timeout). Grace period started, will retry in 24h."}
+{"t":"2026-09-17T03:31:37.292356801Z","s":"info","m":"  scanned 104/384\r  scanned 108/384\r  scanned 112/384\r[ProtectionEnforcer] SSL DEFERRED: wafradex.de staying on 'flexible' — origin not ready (Origin probe socket timeout). Grace period started, will retry in 24h."}
+{"t":"2026-09-17T03:31:47.692642700Z","s":"info","m":"  scanned 124/384\r  scanned 128/384\r[ProtectionEnforcer] SSL DEFERRED: endless-eviteonline.com staying on 'flexible' — origin not ready (Origin probe socket timeout). Grace period started, will retry in 24h."}
+{"t":"2026-09-17T03:31:55.965683681Z","s":"info","m":"  scanned 132/384\r  scanned 136/384\r[ProtectionEnforcer] SSL DEFERRED: recover-authafcu.click staying on 'flexible' — origin not ready (Origin probe socket timeout). Grace period started, will retry in 24h."}
+{"t":"2026-09-17T03:32:05.301249261Z","s":"info","m":"  scanned 140/384\r  scanned 144/384\r  scanned 148/384\r[ProtectionEnforcer] SSL DEFERRED: commercesupport.online staying on 'flexible' — origin not ready (Origin probe socket timeout). Grace period started, will retry in 24h."}
+{"t":"2026-09-17T03:32:18.508115031Z","s":"info","m":"  scanned 152/384\r  scanned 156/384\r  scanned 160/384\r  scanned 164/384\r  scanned 168/384\r[ProtectionEnforcer] SSL DEFERRED: sequeldex.de staying on 'flexible' — origin not ready (Origin probe socket timeout). Grace period started, will retry in 24h."}
+{"t":"2026-09-17T03:32:26.756758647Z","s":"info","m":"  scanned 172/384\r  scanned 176/384\r  scanned 180/384\r[ProtectionEnforcer] SSL DEFERRED: statefrmfcu.com staying on 'flexible' — origin not ready (Origin probe socket timeout). Grace period started, will retry in 24h."}
+{"t":"2026-09-17T03:32:35.956478572Z","s":"info","m":"  scanned 184/384\r  scanned 188/384\r  scanned 192/384\r[ProtectionEnforcer] SSL DEFERRED: securitedesjardins.ca staying on 'flexible' — origin not ready (Origin probe socket timeout). Grace period started, will retry in 24h."}
+{"t":"2026-09-17T03:32:44.473961382Z","s":"info","m":"[ProtectionEnforcer] SSL DEFERRED: e-viteme.cfd staying on 'flexible' — origin not ready (Origin probe socket timeout). Grace period started, will retry in 24h."}
+{"t":"2026-09-17T03:32:53.358463670Z","s":"info","m":"  scanned 208/384\r  scanned 212/384\r  scanned 216/384\r[ProtectionEnforcer] SSL DEFERRED: 45679aib.com staying on 'flexible' — origin not ready (Origin probe socket timeout). Grace period started, will retry in 24h."}
+{"t":"2026-09-17T03:33:04.145456584Z","s":"info","m":"  scanned 224/384\r  scanned 228/384\r  scanned 232/384\r  scanned 236/384\r[ProtectionEnforcer] SSL DEFERRED: evitefyme.org staying on 'flexible' — origin not ready (Origin probe socket timeout). Grace period started, will retry in 24h."}
+{"t":"2026-09-17T03:33:13.391096745Z","s":"info","m":"  scanned 240/384\r  scanned 244/384\r[ProtectionEnforcer] SSL DEFERRED: la-update-our-records.com staying on 'flexible' — origin not ready (Origin probe socket timeout). Grace period started, will retry in 24h."}
+{"t":"2026-09-17T03:33:22.210897139Z","s":"info","m":"  scanned 248/384\r  scanned 252/384\r  scanned 256/384\r  scanned 260/384\r[ProtectionEnforcer] SSL DEFERRED: single-auth.com staying on 'flexible' — origin not ready (Origin probe socket timeout). Grace period started, will retry in 24h."}
+{"t":"2026-09-17T03:33:31.451935865Z","s":"info","m":"  scanned 264/384\r  scanned 268/384\r  scanned 272/384\r  scanned 276/384\r[ProtectionEnforcer] SSL DEFERRED: furrycitadel.com staying on 'flexible' — origin not ready (Origin probe socket timeout). Grace period started, will retry in 24h."}
+{"t":"2026-09-17T03:33:39.284430976Z","s":"info","m":"  scanned 280/384\r  scanned 284/384\r  scanned 288/384\r[ProtectionEnforcer] SSL DEFERRED: help-providerconnect.ca staying on 'flexible' — origin not ready (Origin probe socket timeout). Grace period started, will retry in 24h."}
+{"t":"2026-09-17T03:33:48.577138356Z","s":"info","m":"  scanned 296/384\r  scanned 300/384\r[ProtectionEnforcer] SSL DEFERRED: secure-peakcu.org staying on 'flexible' — origin not ready (Origin probe socket timeout). Grace period started, will retry in 24h."}
+{"t":"2026-09-17T03:33:56.768994627Z","s":"info","m":"  scanned 304/384\r  scanned 308/384\r  scanned 312/384\r[ProtectionEnforcer] SSL DEFERRED: accesd-securite.ca staying on 'flexible' — origin not ready (Origin probe socket timeout). Grace period started, will retry in 24h."}
+{"t":"2026-09-17T03:34:05.870357503Z","s":"info","m":"  scanned 328/384\r  scanned 332/384\r[ProtectionEnforcer] SSL DEFERRED: claimoffericers.online staying on 'flexible' — origin not ready (Origin probe socket timeout). Grace period started, will retry in 24h."}

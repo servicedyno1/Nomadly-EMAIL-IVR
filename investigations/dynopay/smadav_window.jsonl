@@ -1,0 +1,251 @@
+{"timestamp":"2026-09-25T22:00:23.599248330Z","message":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed","severity":"info"}
+{"timestamp":"2026-09-25T22:01:12.858693466Z","message":"[Memory] rss=183.2MB heap=57.8MB/69.3MB limit=2240.0MB external=21.1MB arrayBuffers=17.6MB heapPct=2.6%","severity":"info"}
+{"timestamp":"2026-09-25T22:02:13.460519126Z","message":"[Memory] rss=183.2MB heap=57.9MB/69.3MB limit=2240.0MB external=21.1MB arrayBuffers=17.6MB heapPct=2.6%","severity":"info"}
+{"timestamp":"2026-09-25T22:03:13.743601474Z","message":"[Memory] rss=183.2MB heap=58.0MB/69.3MB limit=2240.0MB external=21.1MB arrayBuffers=17.6MB heapPct=2.6%","severity":"info"}
+{"timestamp":"2026-09-25T22:04:13.403138243Z","message":"[Memory] rss=183.2MB heap=58.0MB/69.3MB limit=2240.0MB external=21.2MB arrayBuffers=17.7MB heapPct=2.6%","severity":"info"}
+{"timestamp":"2026-09-25T22:04:43.397922091Z","message":"22:04:43 [Conversion] Social proof refreshed: {\"hosting\":107,\"domains\":232,\"cloudphone\":91,\"digitalproducts\":83,\"vps\":75,\"virtualcard\":79,\"general\":137,\"rdp\":55}","severity":"info"}
+{"timestamp":"2026-09-25T22:04:49.606346552Z","message":"[ProtectionHeartbeat] Checking 6 cPanel accounts (deleted excluded; cooled-down stuck accounts retried)...","severity":"info"}
+{"timestamp":"2026-09-25T22:04:49.606354208Z","message":"[BalanceMonitor] Running provider balance checks...","severity":"info"}
+{"timestamp":"2026-09-25T22:04:49.606361187Z","message":"[PhoneMonitor] === Health check started ===","severity":"info"}
+{"timestamp":"2026-09-25T22:04:50.759070882Z","message":"[BalanceMonitor] Telnyx: $11.85 USD [ok]","severity":"info"}
+{"timestamp":"2026-09-25T22:04:50.759081235Z","message":"[BalanceMonitor] Twilio: $18.85 USD [ok]","severity":"info"}
+{"timestamp":"2026-09-25T22:04:50.759089161Z","message":"[DnsHealer] tick: probed=0 healthy=0 stable=0 unhealthy=0 healing=0 escalated=0","severity":"info"}
+{"timestamp":"2026-09-25T22:04:50.759096219Z","message":"[PhoneMonitor] Checking 0 Twilio subaccounts","severity":"info"}
+{"timestamp":"2026-09-25T22:04:50.759104192Z","message":"[PhoneMonitor] Verifying 0 active Twilio number SIDs on sub-accounts","severity":"info"}
+{"timestamp":"2026-09-25T22:04:50.759110396Z","message":"[PhoneMonitor] Checking 0 Telnyx numbers","severity":"info"}
+{"timestamp":"2026-09-25T22:04:50.759116573Z","message":"[PhoneMonitor] === Health check complete: 0 checked, 0 newly suspended, 0 inactive_released, 0 auth-failed ===","severity":"info"}
+{"timestamp":"2026-09-25T22:04:50.759126292Z","message":"[DialRateGuard] loaded 1260 high-cost prefixes from dialRateDeck","severity":"info"}
+{"timestamp":"2026-09-25T22:05:19.998845305Z","message":"[Memory] rss=183.2MB heap=59.7MB/72.3MB limit=2240.0MB external=21.3MB arrayBuffers=17.7MB heapPct=2.7%","severity":"info"}
+{"timestamp":"2026-09-25T22:05:23.240141208Z","message":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed","severity":"info"}
+{"timestamp":"2026-09-25T22:06:13.487866792Z","message":"[Memory] rss=183.2MB heap=58.9MB/69.3MB limit=2240.0MB external=21.3MB arrayBuffers=17.8MB heapPct=2.6%","severity":"info"}
+{"timestamp":"2026-09-25T22:07:12.849847829Z","message":"[Memory] rss=183.2MB heap=59.2MB/69.6MB limit=2240.0MB external=21.3MB arrayBuffers=17.8MB heapPct=2.6%","severity":"info"}
+{"timestamp":"2026-09-25T22:08:12.610192247Z","message":"[Memory] rss=183.2MB heap=59.4MB/69.6MB limit=2240.0MB external=21.3MB arrayBuffers=17.8MB heapPct=2.7%","severity":"info"}
+{"timestamp":"2026-09-25T22:09:12.938859970Z","message":"[Memory] rss=183.2MB heap=59.6MB/69.6MB limit=2240.0MB external=21.4MB arrayBuffers=17.9MB heapPct=2.7%","severity":"info"}
+{"timestamp":"2026-09-25T22:09:52.685570174Z","message":"[DnsHealer] tick: probed=0 healthy=0 stable=0 unhealthy=0 healing=0 escalated=0","severity":"info"}
+{"timestamp":"2026-09-25T22:10:12.766902991Z","message":"[Memory] rss=183.2MB heap=60.0MB/70.6MB limit=2240.0MB external=21.4MB arrayBuffers=17.9MB heapPct=2.7%","severity":"info"}
+{"timestamp":"2026-09-25T22:10:32.776526650Z","message":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed","severity":"info"}
+{"timestamp":"2026-09-25T22:11:12.543254675Z","message":"[Memory] rss=183.2MB heap=59.9MB/69.6MB limit=2240.0MB external=21.4MB arrayBuffers=17.9MB heapPct=2.7%","severity":"info"}
+{"timestamp":"2026-09-25T22:12:12.737250396Z","message":"[Memory] rss=183.2MB heap=60.1MB/69.6MB limit=2240.0MB external=21.4MB arrayBuffers=17.9MB heapPct=2.7%","severity":"info"}
+{"timestamp":"2026-09-25T22:13:13.029919720Z","message":"[Memory] rss=183.2MB heap=60.3MB/69.6MB limit=2240.0MB external=21.5MB arrayBuffers=18.0MB heapPct=2.7%","severity":"info"}
+{"timestamp":"2026-09-25T22:14:13.310050231Z","message":"[Memory] rss=183.2MB heap=60.4MB/69.6MB limit=2240.0MB external=21.5MB arrayBuffers=18.0MB heapPct=2.7%","severity":"info"}
+{"timestamp":"2026-09-25T22:14:52.962562390Z","message":"[DnsHealer] tick: probed=0 healthy=0 stable=0 unhealthy=0 healing=0 escalated=0","severity":"info"}
+{"timestamp":"2026-09-25T22:15:12.365350642Z","message":"[Memory] rss=183.2MB heap=60.5MB/69.6MB limit=2240.0MB external=21.5MB arrayBuffers=18.0MB heapPct=2.7%","severity":"info"}
+{"timestamp":"2026-09-25T22:15:32.376467708Z","message":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed","severity":"info"}
+{"timestamp":"2026-09-25T22:16:12.957445203Z","message":"[Memory] rss=183.2MB heap=60.9MB/69.6MB limit=2240.0MB external=21.6MB arrayBuffers=18.0MB heapPct=2.7%","severity":"info"}
+{"timestamp":"2026-09-25T22:17:12.719845203Z","message":"[Memory] rss=183.2MB heap=61.0MB/69.6MB limit=2240.0MB external=21.6MB arrayBuffers=18.1MB heapPct=2.7%","severity":"info"}
+{"timestamp":"2026-09-25T22:18:13.074405174Z","message":"[Memory] rss=183.2MB heap=61.5MB/69.6MB limit=2240.0MB external=21.6MB arrayBuffers=18.1MB heapPct=2.7%","severity":"info"}
+{"timestamp":"2026-09-25T22:19:14.042408787Z","message":"[Memory] rss=183.2MB heap=61.0MB/69.6MB limit=2240.0MB external=21.6MB arrayBuffers=18.1MB heapPct=2.7%","severity":"info"}
+{"timestamp":"2026-09-25T22:19:53.812091001Z","message":"[DnsHealer] tick: probed=0 healthy=0 stable=0 unhealthy=0 healing=0 escalated=0","severity":"info"}
+{"timestamp":"2026-09-25T22:20:13.403515621Z","message":"[Memory] rss=183.2MB heap=61.8MB/70.6MB limit=2240.0MB external=21.7MB arrayBuffers=18.2MB heapPct=2.8%","severity":"info"}
+{"timestamp":"2026-09-25T22:20:23.335175374Z","message":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed","severity":"info"}
+{"timestamp":"2026-09-25T22:21:13.308280903Z","message":"[Memory] rss=183.6MB heap=61.6MB/69.6MB limit=2240.0MB external=21.7MB arrayBuffers=18.2MB heapPct=2.7%","severity":"info"}
+{"timestamp":"2026-09-25T22:22:13.892113911Z","message":"[Memory] rss=183.6MB heap=61.7MB/69.6MB limit=2240.0MB external=21.7MB arrayBuffers=18.2MB heapPct=2.8%","severity":"info"}
+{"timestamp":"2026-09-25T22:23:14.354233989Z","message":"[Memory] rss=183.6MB heap=61.8MB/69.6MB limit=2240.0MB external=21.8MB arrayBuffers=18.2MB heapPct=2.8%","severity":"info"}
+{"timestamp":"2026-09-25T22:24:14.625385613Z","message":"[Memory] rss=183.6MB heap=62.0MB/69.6MB limit=2240.0MB external=21.8MB arrayBuffers=18.3MB heapPct=2.8%","severity":"info"}
+{"timestamp":"2026-09-25T22:24:54.390391804Z","message":"[DnsHealer] tick: probed=0 healthy=0 stable=0 unhealthy=0 healing=0 escalated=0","severity":"info"}
+{"timestamp":"2026-09-25T22:25:14.378178803Z","message":"[Memory] rss=183.6MB heap=62.2MB/70.6MB limit=2240.0MB external=21.8MB arrayBuffers=18.3MB heapPct=2.8%","severity":"info"}
+{"timestamp":"2026-09-25T22:25:23.525648791Z","message":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed","severity":"info"}
+{"timestamp":"2026-09-25T22:26:13.480280483Z","message":"[Memory] rss=183.6MB heap=62.6MB/69.6MB limit=2240.0MB external=21.8MB arrayBuffers=18.3MB heapPct=2.8%","severity":"info"}
+{"timestamp":"2026-09-25T22:27:13.760134509Z","message":"[Memory] rss=183.6MB heap=62.8MB/69.6MB limit=2240.0MB external=21.9MB arrayBuffers=18.4MB heapPct=2.8%","severity":"info"}
+{"timestamp":"2026-09-25T22:28:14.147523227Z","message":"[Memory] rss=183.6MB heap=62.9MB/69.6MB limit=2240.0MB external=21.9MB arrayBuffers=18.4MB heapPct=2.8%","severity":"info"}
+{"timestamp":"2026-09-25T22:29:14.453522910Z","message":"[Memory] rss=183.6MB heap=63.0MB/69.6MB limit=2240.0MB external=21.9MB arrayBuffers=18.4MB heapPct=2.8%","severity":"info"}
+{"timestamp":"2026-09-25T22:29:44.059117113Z","message":"[ProtectionHeartbeat] Done in 1489.8s — total:6 ok:0 repaired:0 skipped:6 (whm_read_unreliable:6) errors:0","severity":"info"}
+{"timestamp":"2026-09-25T22:29:50.197937224Z","message":"[DnsHealer] tick: probed=0 healthy=0 stable=0 unhealthy=0 healing=0 escalated=0","severity":"info"}
+{"timestamp":"2026-09-25T22:30:20.550956737Z","message":"[Memory] rss=183.6MB heap=63.5MB/72.6MB limit=2240.0MB external=22.0MB arrayBuffers=18.4MB heapPct=2.8%","severity":"info"}
+{"timestamp":"2026-09-25T22:30:50.640894599Z","message":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed","severity":"info"}
+{"timestamp":"2026-09-25T22:31:19.938278128Z","message":"[Memory] rss=183.6MB heap=63.1MB/69.6MB limit=2240.0MB external=22.0MB arrayBuffers=18.5MB heapPct=2.8%","severity":"info"}
+{"timestamp":"2026-09-25T22:32:20.351301937Z","message":"[Memory] rss=183.6MB heap=63.1MB/69.6MB limit=2240.0MB external=22.0MB arrayBuffers=18.5MB heapPct=2.8%","severity":"info"}
+{"timestamp":"2026-09-25T22:33:20.347274849Z","message":"[Memory] rss=183.6MB heap=63.2MB/69.6MB limit=2240.0MB external=22.0MB arrayBuffers=18.5MB heapPct=2.8%","severity":"info"}
+{"timestamp":"2026-09-25T22:34:11.092820750Z","message":"[Memory] rss=183.6MB heap=63.3MB/69.6MB limit=2240.0MB external=22.0MB arrayBuffers=18.5MB heapPct=2.8%","severity":"info"}
+{"timestamp":"2026-09-25T22:34:50.388515912Z","message":"[PhoneMonitor] === Health check started ===","severity":"info"}
+{"timestamp":"2026-09-25T22:34:50.388523408Z","message":"[PhoneMonitor] Checking 0 Twilio subaccounts","severity":"info"}
+{"timestamp":"2026-09-25T22:34:50.388528647Z","message":"[PhoneMonitor] Verifying 0 active Twilio number SIDs on sub-accounts","severity":"info"}
+{"timestamp":"2026-09-25T22:34:50.388533949Z","message":"[PhoneMonitor] Checking 0 Telnyx numbers","severity":"info"}
+{"timestamp":"2026-09-25T22:34:50.388539270Z","message":"[PhoneMonitor] === Health check complete: 0 checked, 0 newly suspended, 0 inactive_released, 0 auth-failed ===","severity":"info"}
+{"timestamp":"2026-09-25T22:34:50.646966112Z","message":"[DnsHealer] tick: probed=1 healthy=0 stable=0 unhealthy=0 healing=0 escalated=1","severity":"info"}
+{"timestamp":"2026-09-25T22:35:29.890339683Z","message":"[Memory] rss=183.6MB heap=63.7MB/69.6MB limit=2240.0MB external=22.1MB arrayBuffers=18.6MB heapPct=2.8%","severity":"info"}
+{"timestamp":"2026-09-25T22:35:49.552387657Z","message":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed","severity":"info"}
+{"timestamp":"2026-09-25T22:36:29.173462963Z","message":"[Memory] rss=183.6MB heap=63.9MB/69.6MB limit=2240.0MB external=22.1MB arrayBuffers=18.6MB heapPct=2.9%","severity":"info"}
+{"timestamp":"2026-09-25T22:37:29.160511601Z","message":"[Memory] rss=183.6MB heap=64.0MB/69.6MB limit=2240.0MB external=22.2MB arrayBuffers=18.6MB heapPct=2.9%","severity":"info"}
+{"timestamp":"2026-09-25T22:38:29.544917200Z","message":"[Memory] rss=184.7MB heap=64.1MB/69.6MB limit=2240.0MB external=22.2MB arrayBuffers=18.7MB heapPct=2.9%","severity":"info"}
+{"timestamp":"2026-09-25T22:39:39.548928103Z","message":"[Memory] rss=184.7MB heap=57.9MB/69.1MB limit=2240.0MB external=21.1MB arrayBuffers=17.6MB heapPct=2.6%","severity":"info"}
+{"timestamp":"2026-09-25T22:39:59.209908065Z","message":"[DnsHealer] tick: probed=0 healthy=0 stable=0 unhealthy=0 healing=0 escalated=0","severity":"info"}
+{"timestamp":"2026-09-25T22:40:39.486413676Z","message":"[Memory] rss=184.7MB heap=58.2MB/69.1MB limit=2240.0MB external=21.1MB arrayBuffers=17.6MB heapPct=2.6%","severity":"info"}
+{"timestamp":"2026-09-25T22:40:43.420401597Z","message":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed","severity":"info"}
+{"timestamp":"2026-09-25T22:41:33.087293380Z","message":"[Memory] rss=184.7MB heap=58.2MB/69.1MB limit=2240.0MB external=21.2MB arrayBuffers=17.6MB heapPct=2.6%","severity":"info"}
+{"timestamp":"2026-09-25T22:42:33.316299632Z","message":"[Memory] rss=184.7MB heap=58.3MB/69.1MB limit=2240.0MB external=21.2MB arrayBuffers=17.7MB heapPct=2.6%","severity":"info"}
+{"timestamp":"2026-09-25T22:43:33.857864952Z","message":"[Memory] rss=184.7MB heap=58.5MB/69.1MB limit=2240.0MB external=21.2MB arrayBuffers=17.7MB heapPct=2.6%","severity":"info"}
+{"timestamp":"2026-09-25T22:44:33.457743349Z","message":"[Memory] rss=184.7MB heap=59.2MB/69.1MB limit=2240.0MB external=21.3MB arrayBuffers=17.7MB heapPct=2.6%","severity":"info"}
+{"timestamp":"2026-09-25T22:44:52.942395768Z","message":"[DnsHealer] tick: probed=0 healthy=0 stable=0 unhealthy=0 healing=0 escalated=0","severity":"info"}
+{"timestamp":"2026-09-25T22:45:32.402161530Z","message":"[Memory] rss=184.7MB heap=59.4MB/69.1MB limit=2240.0MB external=21.3MB arrayBuffers=17.8MB heapPct=2.7%","severity":"info"}
+{"timestamp":"2026-09-25T22:45:52.038112830Z","message":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed","severity":"info"}
+{"timestamp":"2026-09-25T22:46:32.346382264Z","message":"[Memory] rss=184.7MB heap=58.9MB/69.1MB limit=2240.0MB external=21.3MB arrayBuffers=17.8MB heapPct=2.6%","severity":"info"}
+{"timestamp":"2026-09-25T22:47:31.869905948Z","message":"[Memory] rss=184.7MB heap=59.0MB/69.1MB limit=2240.0MB external=21.3MB arrayBuffers=17.8MB heapPct=2.6%","severity":"info"}
+{"timestamp":"2026-09-25T22:48:31.932200012Z","message":"[Memory] rss=184.7MB heap=59.7MB/69.1MB limit=2240.0MB external=21.4MB arrayBuffers=17.8MB heapPct=2.7%","severity":"info"}
+{"timestamp":"2026-09-25T22:49:31.698781482Z","message":"[Memory] rss=184.7MB heap=59.8MB/69.1MB limit=2240.0MB external=21.4MB arrayBuffers=17.9MB heapPct=2.7%","severity":"info"}
+{"timestamp":"2026-09-25T22:49:51.317074089Z","message":"[DnsHealer] tick: probed=0 healthy=0 stable=0 unhealthy=0 healing=0 escalated=0","severity":"info"}
+{"timestamp":"2026-09-25T22:50:41.220339569Z","message":"[Memory] rss=184.7MB heap=59.5MB/69.1MB limit=2240.0MB external=21.4MB arrayBuffers=17.9MB heapPct=2.7%","severity":"info"}
+{"timestamp":"2026-09-25T22:50:43.922960461Z","message":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed","severity":"info"}
+{"timestamp":"2026-09-25T22:51:44.215481594Z","message":"[Memory] rss=184.7MB heap=59.7MB/69.1MB limit=2240.0MB external=21.4MB arrayBuffers=17.9MB heapPct=2.7%","severity":"info"}
+{"timestamp":"2026-09-25T22:52:44.704481566Z","message":"[Memory] rss=184.7MB heap=59.7MB/70.1MB limit=2240.0MB external=21.5MB arrayBuffers=17.9MB heapPct=2.7%","severity":"info"}
+{"timestamp":"2026-09-25T22:53:44.746457504Z","message":"[Memory] rss=184.7MB heap=59.7MB/69.1MB limit=2240.0MB external=21.5MB arrayBuffers=18.0MB heapPct=2.7%","severity":"info"}
+{"timestamp":"2026-09-25T22:54:24.826682612Z","message":"📨 Telegram webhook received","severity":"info"}
+{"timestamp":"2026-09-25T22:54:24.826689064Z","message":"message: 👛 Wallet\tfrom: 5168006768 Hostbay_support","severity":"info"}
+{"timestamp":"2026-09-25T22:54:27.305151994Z","message":"reply: Wallet Balance:","severity":"info"}
+{"timestamp":"2026-09-25T22:54:27.305160270Z","message":"","severity":"info"}
+{"timestamp":"2026-09-25T22:54:27.305166350Z","message":"$26.99","severity":"info"}
+{"timestamp":"2026-09-25T22:54:27.305173078Z","message":"","severity":"info"}
+{"timestamp":"2026-09-25T22:54:27.305179699Z","message":"Select wallet option:","severity":"info"}
+{"timestamp":"2026-09-25T22:54:27.305185594Z","message":"🥉 Bronze — Spend $100 more to unlock <b>5% off</b>","severity":"info"}
+{"timestamp":"2026-09-25T22:54:27.305191914Z","message":"","severity":"info"}
+{"timestamp":"2026-09-25T22:54:27.305197929Z","message":"🏆 Spend <b>$100</b> more → <b>Silver 🥈</b> (5% off everything) ➕💵 Deposit,📜 Transactions,🏆 My Tier,↩️ Back,🏠 Main Menu,Cancel\tto: 5168006768","severity":"info"}
+{"timestamp":"2026-09-25T22:54:27.305204475Z","message":"","severity":"info"}
+{"timestamp":"2026-09-25T22:54:28.909975046Z","message":"📨 Telegram webhook received","severity":"info"}
+{"timestamp":"2026-09-25T22:54:29.056655113Z","message":"message: ➕💵 Deposit\tfrom: 5168006768 Hostbay_support","severity":"info"}
+{"timestamp":"2026-09-25T22:54:31.282311653Z","message":"reply: 📍 <i>Wallet › Deposit › Amount</i>","severity":"info"}
+{"timestamp":"2026-09-25T22:54:31.282335535Z","message":"","severity":"info"}
+{"timestamp":"2026-09-25T22:54:31.282371296Z","message":"💵 Deposit Amount (min. $10): $20,$50,$100,$200,↩️ Back,🏠 Main Menu,Cancel\tto: 5168006768","severity":"info"}
+{"timestamp":"2026-09-25T22:54:31.282382554Z","message":"","severity":"info"}
+{"timestamp":"2026-09-25T22:54:32.332030047Z","message":"📨 Telegram webhook received","severity":"info"}
+{"timestamp":"2026-09-25T22:54:32.957470609Z","message":"message: $20\tfrom: 5168006768 Hostbay_support","severity":"info"}
+{"timestamp":"2026-09-25T22:54:35.042149883Z","message":"","severity":"info"}
+{"timestamp":"2026-09-25T22:54:35.042230229Z","message":"reply: Please choose a crypto currency:","severity":"info"}
+{"timestamp":"2026-09-25T22:54:35.042237638Z","message":"","severity":"info"}
+{"timestamp":"2026-09-25T22:54:35.042244708Z","message":"<i>ℹ️ USDT (TRC20) requires a minimum deposit of $20.</i> ₿ Bitcoin (BTC),Ł Litecoin (LTC),Ð Dogecoin (DOGE),Ƀ Bitcoin Cash (BCH),Ξ Ethereum (ETH),🌐 Tron (TRX),₮ Tether (USDT - TRC20),₮ Tether (USDT - ERC20),Back,Cancel\tto: 5168006768","severity":"info"}
+{"timestamp":"2026-09-25T22:54:37.224934360Z","message":"📨 Telegram webhook received","severity":"info"}
+{"timestamp":"2026-09-25T22:54:37.224940363Z","message":"message: Ξ Ethereum (ETH)\tfrom: 5168006768 Hostbay_support","severity":"info"}
+{"timestamp":"2026-09-25T22:54:40.251663388Z","message":"{ ref: 'Puz9n' }","severity":"info"}
+{"timestamp":"2026-09-25T22:54:40.294980597Z","message":"","severity":"info"}
+{"timestamp":"2026-09-25T22:54:40.294990346Z","message":"reply: 💰 <b>Payment Amount: $20.00 USD</b>","severity":"info"}
+{"timestamp":"2026-09-25T22:54:40.295004543Z","message":"","severity":"info"}
+{"timestamp":"2026-09-25T22:54:40.295013346Z","message":"Send exactly <b>0.00742718 ETH</b> to:","severity":"info"}
+{"timestamp":"2026-09-25T22:54:40.295020463Z","message":"","severity":"info"}
+{"timestamp":"2026-09-25T22:54:40.295027681Z","message":"<code>0x73AB5B9C43d9bb8c6e99df5993de23954786D384</code>","severity":"info"}
+{"timestamp":"2026-09-25T22:54:40.295035074Z","message":"","severity":"info"}
+{"timestamp":"2026-09-25T22:54:40.295041553Z","message":"Crypto payments are confirmed quickly — usually within a few minutes. Once confirmed, you will be promptly notified, and your wallet will be updated.","severity":"info"}
+{"timestamp":"2026-09-25T22:54:40.295048260Z","message":"","severity":"info"}
+{"timestamp":"2026-09-25T22:54:40.295054933Z","message":"Best regards,","severity":"info"}
+{"timestamp":"2026-09-25T22:54:40.295062269Z","message":"Smadav Bot 📞 Cloud IVR + SIP,🛡️ Anti-Red Hosting,🌐 Bulletproof Domains,🛒 Digital Products,🏪 Marketplace,🤝 Refer & Earn,🖥️ VPS / RDP,📧 Email Validation,💳 Virtual Card,👛 Wallet,📱 SMS Leads,🔗✂️ URL Shortener — 5 Free Links,⚡ Upgrade Plan,📢 Join Channel,💼 Reseller,⚙️ Settings,💬 Support\tto: 5168006768","severity":"info"}
+{"timestamp":"2026-09-25T22:54:59.744598407Z","message":"[DnsHealer] tick: probed=0 healthy=0 stable=0 unhealthy=0 healing=0 escalated=0","severity":"info"}
+{"timestamp":"2026-09-25T22:54:59.744603950Z","message":"[Memory] rss=177.9MB heap=60.9MB/70.9MB limit=2240.0MB external=21.2MB arrayBuffers=17.6MB heapPct=2.7%","severity":"info"}
+{"timestamp":"2026-09-25T22:55:49.452756030Z","message":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed","severity":"info"}
+{"timestamp":"2026-09-25T22:55:50.714191447Z","message":"[Memory] rss=177.9MB heap=61.4MB/71.1MB limit=2240.0MB external=21.2MB arrayBuffers=17.7MB heapPct=2.7%","severity":"info"}
+{"timestamp":"2026-09-25T22:56:50.964621679Z","message":"[Memory] rss=177.9MB heap=61.5MB/72.1MB limit=2240.0MB external=21.2MB arrayBuffers=17.7MB heapPct=2.7%","severity":"info"}
+{"timestamp":"2026-09-25T22:57:51.338958490Z","message":"[Memory] rss=177.9MB heap=61.6MB/71.1MB limit=2240.0MB external=21.2MB arrayBuffers=17.7MB heapPct=2.8%","severity":"info"}
+{"timestamp":"2026-09-25T22:58:20.903956849Z","message":"[CR-Whitelist] Outbound IP: 208.77.244.67","severity":"info"}
+{"timestamp":"2026-09-25T22:58:20.903963302Z","message":"[CR-Whitelist] Retry #11 scheduled in 3600s","severity":"info"}
+{"timestamp":"2026-09-25T22:59:00.757774169Z","message":"[Memory] rss=177.9MB heap=61.3MB/71.1MB limit=2240.0MB external=21.3MB arrayBuffers=17.7MB heapPct=2.7%","severity":"info"}
+{"timestamp":"2026-09-25T22:59:50.800476419Z","message":"[DnsHealer] tick: probed=0 healthy=0 stable=0 unhealthy=0 healing=0 escalated=0","severity":"info"}
+{"timestamp":"2026-09-25T22:59:50.800481947Z","message":"[Memory] rss=177.9MB heap=61.5MB/71.1MB limit=2240.0MB external=21.3MB arrayBuffers=17.8MB heapPct=2.7%","severity":"info"}
+{"timestamp":"2026-09-25T23:00:00.047173025Z","message":"[PhoneScheduler] Running hourly expiry check...","severity":"info"}
+{"timestamp":"2026-09-25T23:00:01.845493966Z","message":"[PhoneScheduler] Expiry check complete: 0 reminders, 0 auto-renewed, 0 released","severity":"info"}
+{"timestamp":"2026-09-25T23:00:51.904540858Z","message":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed","severity":"info"}
+{"timestamp":"2026-09-25T23:00:51.904546801Z","message":"[Memory] rss=177.9MB heap=61.6MB/71.1MB limit=2240.0MB external=21.4MB arrayBuffers=17.8MB heapPct=2.8%","severity":"info"}
+{"timestamp":"2026-09-25T23:01:52.678021719Z","message":"[Memory] rss=177.9MB heap=62.4MB/71.1MB limit=2240.0MB external=21.4MB arrayBuffers=17.8MB heapPct=2.8%","severity":"info"}
+{"timestamp":"2026-09-25T23:02:53.157400425Z","message":"[Memory] rss=177.9MB heap=61.8MB/71.1MB limit=2240.0MB external=21.4MB arrayBuffers=17.8MB heapPct=2.8%","severity":"info"}
+{"timestamp":"2026-09-25T23:03:54.365048695Z","message":"[Memory] rss=177.9MB heap=62.6MB/71.1MB limit=2240.0MB external=21.4MB arrayBuffers=17.9MB heapPct=2.8%","severity":"info"}
+{"timestamp":"2026-09-25T23:04:44.982805231Z","message":"23:04:43 [Conversion] Social proof refreshed: {\"hosting\":107,\"domains\":232,\"cloudphone\":91,\"digitalproducts\":83,\"vps\":75,\"virtualcard\":79,\"general\":137,\"rdp\":55}","severity":"info"}
+{"timestamp":"2026-09-25T23:04:49.239177615Z","message":"[ProtectionHeartbeat] Checking 6 cPanel accounts (deleted excluded; cooled-down stuck accounts retried)...","severity":"info"}
+{"timestamp":"2026-09-25T23:04:50.051474966Z","message":"[PhoneMonitor] === Health check started ===","severity":"info"}
+{"timestamp":"2026-09-25T23:04:50.116223690Z","message":"[DnsHealer] tick: probed=0 healthy=0 stable=0 unhealthy=0 healing=0 escalated=0","severity":"info"}
+{"timestamp":"2026-09-25T23:04:50.131069699Z","message":"[PhoneMonitor] Checking 0 Twilio subaccounts","severity":"info"}
+{"timestamp":"2026-09-25T23:04:50.131076849Z","message":"[PhoneMonitor] Verifying 0 active Twilio number SIDs on sub-accounts","severity":"info"}
+{"timestamp":"2026-09-25T23:04:50.131084173Z","message":"[PhoneMonitor] Checking 0 Telnyx numbers","severity":"info"}
+{"timestamp":"2026-09-25T23:04:50.131090197Z","message":"[PhoneMonitor] === Health check complete: 0 checked, 0 newly suspended, 0 inactive_released, 0 auth-failed ===","severity":"info"}
+{"timestamp":"2026-09-25T23:04:51.124823836Z","message":"[DialRateGuard] loaded 1260 high-cost prefixes from dialRateDeck","severity":"info"}
+{"timestamp":"2026-09-25T23:04:51.124828935Z","message":"[Memory] rss=180.5MB heap=62.5MB/72.1MB limit=2240.0MB external=21.5MB arrayBuffers=17.9MB heapPct=2.8%","severity":"info"}
+{"timestamp":"2026-09-25T23:05:51.148272708Z","message":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed","severity":"info"}
+{"timestamp":"2026-09-25T23:06:10.576225817Z","message":"[Memory] rss=180.5MB heap=62.9MB/72.1MB limit=2240.0MB external=21.5MB arrayBuffers=18.0MB heapPct=2.8%","severity":"info"}
+{"timestamp":"2026-09-25T23:07:09.976806957Z","message":"[Memory] rss=180.5MB heap=63.0MB/71.1MB limit=2240.0MB external=21.5MB arrayBuffers=18.0MB heapPct=2.8%","severity":"info"}
+{"timestamp":"2026-09-25T23:08:00.775496687Z","message":"[Memory] rss=180.5MB heap=63.1MB/71.1MB limit=2240.0MB external=21.6MB arrayBuffers=18.0MB heapPct=2.8%","severity":"info"}
+{"timestamp":"2026-09-25T23:09:00.831920963Z","message":"[Memory] rss=180.5MB heap=63.2MB/71.1MB limit=2240.0MB external=21.6MB arrayBuffers=18.1MB heapPct=2.8%","severity":"info"}
+{"timestamp":"2026-09-25T23:09:50.690368145Z","message":"[DnsHealer] tick: probed=0 healthy=0 stable=0 unhealthy=0 healing=0 escalated=0","severity":"info"}
+{"timestamp":"2026-09-25T23:10:10.267661352Z","message":"[Memory] rss=180.5MB heap=63.3MB/72.1MB limit=2240.0MB external=21.6MB arrayBuffers=18.1MB heapPct=2.8%","severity":"info"}
+{"timestamp":"2026-09-25T23:10:50.780526696Z","message":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed","severity":"info"}
+{"timestamp":"2026-09-25T23:11:10.234934539Z","message":"[Memory] rss=180.5MB heap=64.2MB/71.1MB limit=2240.0MB external=21.6MB arrayBuffers=18.1MB heapPct=2.9%","severity":"info"}
+{"timestamp":"2026-09-25T23:12:10.386164538Z","message":"[Memory] rss=180.5MB heap=63.7MB/71.1MB limit=2240.0MB external=21.7MB arrayBuffers=18.1MB heapPct=2.8%","severity":"info"}
+{"timestamp":"2026-09-25T23:13:10.099566257Z","message":"[Memory] rss=180.5MB heap=63.8MB/71.1MB limit=2240.0MB external=21.7MB arrayBuffers=18.2MB heapPct=2.8%","severity":"info"}
+{"timestamp":"2026-09-25T23:14:20.263102708Z","message":"[Memory] rss=180.5MB heap=64.2MB/71.1MB limit=2240.0MB external=21.7MB arrayBuffers=18.2MB heapPct=2.9%","severity":"info"}
+{"timestamp":"2026-09-25T23:14:50.237121723Z","message":"[DnsHealer] tick: probed=0 healthy=0 stable=0 unhealthy=0 healing=0 escalated=0","severity":"info"}
+{"timestamp":"2026-09-25T23:15:20.052896433Z","message":"[Memory] rss=180.5MB heap=64.6MB/72.1MB limit=2240.0MB external=21.8MB arrayBuffers=18.2MB heapPct=2.9%","severity":"info"}
+{"timestamp":"2026-09-25T23:15:50.484439789Z","message":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed","severity":"info"}
+{"timestamp":"2026-09-25T23:16:30.067941213Z","message":"[Memory] rss=180.5MB heap=64.8MB/71.1MB limit=2240.0MB external=21.8MB arrayBuffers=18.3MB heapPct=2.9%","severity":"info"}
+{"timestamp":"2026-09-25T23:17:30.597322686Z","message":"[Memory] rss=180.5MB heap=65.0MB/71.1MB limit=2240.0MB external=21.8MB arrayBuffers=18.3MB heapPct=2.9%","severity":"info"}
+{"timestamp":"2026-09-25T23:18:20.839926282Z","message":"[Memory] rss=180.5MB heap=65.1MB/71.1MB limit=2240.0MB external=21.8MB arrayBuffers=18.3MB heapPct=2.9%","severity":"info"}
+{"timestamp":"2026-09-25T23:19:20.708846425Z","message":"[Memory] rss=180.5MB heap=65.3MB/71.1MB limit=2240.0MB external=21.9MB arrayBuffers=18.3MB heapPct=2.9%","severity":"info"}
+{"timestamp":"2026-09-25T23:19:50.320014075Z","message":"[DnsHealer] tick: probed=0 healthy=0 stable=0 unhealthy=0 healing=0 escalated=0","severity":"info"}
+{"timestamp":"2026-09-25T23:20:29.566112235Z","message":"[Memory] rss=180.5MB heap=64.9MB/72.1MB limit=2240.0MB external=21.9MB arrayBuffers=18.4MB heapPct=2.9%","severity":"info"}
+{"timestamp":"2026-09-25T23:20:49.146277602Z","message":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed","severity":"info"}
+{"timestamp":"2026-09-25T23:21:29.671210788Z","message":"[Memory] rss=180.5MB heap=65.4MB/71.1MB limit=2240.0MB external=21.9MB arrayBuffers=18.4MB heapPct=2.9%","severity":"info"}
+{"timestamp":"2026-09-25T23:22:29.847234955Z","message":"[Memory] rss=180.5MB heap=65.7MB/71.1MB limit=2240.0MB external=22.0MB arrayBuffers=18.4MB heapPct=2.9%","severity":"info"}
+{"timestamp":"2026-09-25T23:23:29.576302699Z","message":"[Memory] rss=180.5MB heap=65.8MB/71.1MB limit=2240.0MB external=22.0MB arrayBuffers=18.5MB heapPct=2.9%","severity":"info"}
+{"timestamp":"2026-09-25T23:24:29.334636941Z","message":"[Memory] rss=180.5MB heap=65.9MB/72.1MB limit=2240.0MB external=22.0MB arrayBuffers=18.5MB heapPct=2.9%","severity":"info"}
+{"timestamp":"2026-09-25T23:24:59.021294703Z","message":"[DnsHealer] tick: probed=0 healthy=0 stable=0 unhealthy=0 healing=0 escalated=0","severity":"info"}
+{"timestamp":"2026-09-25T23:25:28.629539395Z","message":"[Memory] rss=180.5MB heap=65.7MB/71.1MB limit=2240.0MB external=22.1MB arrayBuffers=18.5MB heapPct=2.9%","severity":"info"}
+{"timestamp":"2026-09-25T23:25:48.109331519Z","message":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed","severity":"info"}
+{"timestamp":"2026-09-25T23:26:27.707887336Z","message":"[Memory] rss=180.5MB heap=65.9MB/71.1MB limit=2240.0MB external=22.1MB arrayBuffers=18.6MB heapPct=2.9%","severity":"info"}
+{"timestamp":"2026-09-25T23:27:27.661715859Z","message":"[Memory] rss=180.5MB heap=66.1MB/71.1MB limit=2240.0MB external=22.1MB arrayBuffers=18.6MB heapPct=2.9%","severity":"info"}
+{"timestamp":"2026-09-25T23:28:27.572708290Z","message":"[Memory] rss=180.5MB heap=66.2MB/71.1MB limit=2240.0MB external=22.1MB arrayBuffers=18.6MB heapPct=3.0%","severity":"info"}
+{"timestamp":"2026-09-25T23:29:27.733032868Z","message":"[Memory] rss=180.5MB heap=66.3MB/71.4MB limit=2240.0MB external=22.2MB arrayBuffers=18.6MB heapPct=3.0%","severity":"info"}
+{"timestamp":"2026-09-25T23:29:47.428316338Z","message":"[ProtectionHeartbeat] Done in 1489.6s — total:6 ok:0 repaired:0 skipped:6 (whm_read_unreliable:6) errors:0","severity":"info"}
+{"timestamp":"2026-09-25T23:29:50.205512128Z","message":"[DnsHealer] tick: probed=0 healthy=0 stable=0 unhealthy=0 healing=0 escalated=0","severity":"info"}
+{"timestamp":"2026-09-25T23:30:30.593788615Z","message":"[Memory] rss=180.5MB heap=60.2MB/71.4MB limit=2240.0MB external=21.1MB arrayBuffers=17.6MB heapPct=2.7%","severity":"info"}
+{"timestamp":"2026-09-25T23:30:50.806074691Z","message":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed","severity":"info"}
+{"timestamp":"2026-09-25T23:31:40.377987191Z","message":"[Memory] rss=180.5MB heap=61.0MB/71.4MB limit=2240.0MB external=21.1MB arrayBuffers=17.6MB heapPct=2.7%","severity":"info"}
+{"timestamp":"2026-09-25T23:32:40.333973948Z","message":"[Memory] rss=180.5MB heap=61.1MB/71.4MB limit=2240.0MB external=21.2MB arrayBuffers=17.6MB heapPct=2.7%","severity":"info"}
+{"timestamp":"2026-09-25T23:33:40.569500951Z","message":"[Memory] rss=180.5MB heap=60.7MB/71.4MB limit=2240.0MB external=21.2MB arrayBuffers=17.6MB heapPct=2.7%","severity":"info"}
+{"timestamp":"2026-09-25T23:34:40.887845934Z","message":"[Memory] rss=180.5MB heap=60.7MB/71.4MB limit=2240.0MB external=21.2MB arrayBuffers=17.7MB heapPct=2.7%","severity":"info"}
+{"timestamp":"2026-09-25T23:34:50.079688377Z","message":"[PhoneMonitor] === Health check started ===","severity":"info"}
+{"timestamp":"2026-09-25T23:34:50.130527259Z","message":"[PhoneMonitor] Checking 0 Twilio subaccounts","severity":"info"}
+{"timestamp":"2026-09-25T23:34:50.130536727Z","message":"[PhoneMonitor] Verifying 0 active Twilio number SIDs on sub-accounts","severity":"info"}
+{"timestamp":"2026-09-25T23:34:50.130543506Z","message":"[PhoneMonitor] Checking 0 Telnyx numbers","severity":"info"}
+{"timestamp":"2026-09-25T23:34:50.130549953Z","message":"[PhoneMonitor] === Health check complete: 0 checked, 0 newly suspended, 0 inactive_released, 0 auth-failed ===","severity":"info"}
+{"timestamp":"2026-09-25T23:34:50.274968565Z","message":"[DnsHealer] tick: probed=0 healthy=0 stable=0 unhealthy=0 healing=0 escalated=0","severity":"info"}
+{"timestamp":"2026-09-25T23:35:39.983277513Z","message":"[Memory] rss=180.5MB heap=61.3MB/72.4MB limit=2240.0MB external=21.2MB arrayBuffers=17.7MB heapPct=2.7%","severity":"info"}
+{"timestamp":"2026-09-25T23:35:43.270600871Z","message":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed","severity":"info"}
+{"timestamp":"2026-09-25T23:36:32.826042246Z","message":"[Memory] rss=180.5MB heap=61.6MB/71.4MB limit=2240.0MB external=21.3MB arrayBuffers=17.7MB heapPct=2.7%","severity":"info"}
+{"timestamp":"2026-09-25T23:37:33.025511611Z","message":"[Memory] rss=180.5MB heap=61.6MB/71.4MB limit=2240.0MB external=21.3MB arrayBuffers=17.8MB heapPct=2.7%","severity":"info"}
+{"timestamp":"2026-09-25T23:38:33.174139642Z","message":"[Memory] rss=180.9MB heap=61.5MB/71.4MB limit=2240.0MB external=21.3MB arrayBuffers=17.8MB heapPct=2.7%","severity":"info"}
+{"timestamp":"2026-09-25T23:39:33.296725939Z","message":"[Memory] rss=180.9MB heap=61.4MB/71.4MB limit=2240.0MB external=21.3MB arrayBuffers=17.8MB heapPct=2.7%","severity":"info"}
+{"timestamp":"2026-09-25T23:39:52.955896355Z","message":"[DnsHealer] tick: probed=0 healthy=0 stable=0 unhealthy=0 healing=0 escalated=0","severity":"info"}
+{"timestamp":"2026-09-25T23:40:33.455820314Z","message":"[Memory] rss=180.9MB heap=61.5MB/71.4MB limit=2240.0MB external=21.4MB arrayBuffers=17.9MB heapPct=2.7%","severity":"info"}
+{"timestamp":"2026-09-25T23:40:53.055338294Z","message":"[cPanel Health] ✅ verify.cpanel.net confirms 68.183.77.106 licensed","severity":"info"}
+{"timestamp":"2026-09-25T23:41:33.485544603Z","message":"[Memory] rss=180.9MB heap=61.7MB/71.4MB limit=2240.0MB external=21.4MB arrayBuffers=17.9MB heapPct=2.8%","severity":"info"}
+{"timestamp":"2026-09-25T23:42:23.740910692Z","message":"📨 Telegram webhook received","severity":"info"}
+{"timestamp":"2026-09-25T23:42:23.740919287Z","message":"message: 👛 Wallet\tfrom: 5168006768 Hostbay_support","severity":"info"}
+{"timestamp":"2026-09-25T23:42:25.863163432Z","message":"reply: Wallet Balance:","severity":"info"}
+{"timestamp":"2026-09-25T23:42:25.863173898Z","message":"","severity":"info"}
+{"timestamp":"2026-09-25T23:42:25.863180227Z","message":"$26.99","severity":"info"}
+{"timestamp":"2026-09-25T23:42:25.863185327Z","message":"","severity":"info"}
+{"timestamp":"2026-09-25T23:42:25.863190387Z","message":"Select wallet option:","severity":"info"}
+{"timestamp":"2026-09-25T23:42:25.863195296Z","message":"🥉 Bronze — Spend $100 more to unlock <b>5% off</b>","severity":"info"}
+{"timestamp":"2026-09-25T23:42:25.863200225Z","message":"","severity":"info"}
+{"timestamp":"2026-09-25T23:42:25.863205392Z","message":"🏆 Spend <b>$100</b> more → <b>Silver 🥈</b> (5% off everything) ➕💵 Deposit,📜 Transactions,🏆 My Tier,↩️ Back,🏠 Main Menu,Cancel\tto: 5168006768","severity":"info"}
+{"timestamp":"2026-09-25T23:42:25.863212329Z","message":"","severity":"info"}
+{"timestamp":"2026-09-25T23:42:27.660948871Z","message":"📨 Telegram webhook received","severity":"info"}
+{"timestamp":"2026-09-25T23:42:27.681924996Z","message":"message: ➕💵 Deposit\tfrom: 5168006768 Hostbay_support","severity":"info"}
+{"timestamp":"2026-09-25T23:42:29.705265050Z","message":"💵 Deposit Amount (min. $10): $20,$50,$100,$200,↩️ Back,🏠 Main Menu,Cancel\tto: 5168006768","severity":"info"}
+{"timestamp":"2026-09-25T23:42:29.705278206Z","message":"","severity":"info"}
+{"timestamp":"2026-09-25T23:42:29.705346539Z","message":"reply: 📍 <i>Wallet › Deposit › Amount</i>","severity":"info"}
+{"timestamp":"2026-09-25T23:42:29.705351565Z","message":"","severity":"info"}
+{"timestamp":"2026-09-25T23:42:30.810408286Z","message":"[Memory] rss=180.9MB heap=63.2MB/71.6MB limit=2240.0MB external=21.4MB arrayBuffers=17.9MB heapPct=2.8%","severity":"info"}
+{"timestamp":"2026-09-25T23:42:31.094013678Z","message":"📨 Telegram webhook received","severity":"info"}
+{"timestamp":"2026-09-25T23:42:31.726598886Z","message":"message: $20\tfrom: 5168006768 Hostbay_support","severity":"info"}
+{"timestamp":"2026-09-25T23:42:33.913898122Z","message":"reply: Please choose a crypto currency:","severity":"info"}
+{"timestamp":"2026-09-25T23:42:33.913906646Z","message":"","severity":"info"}
+{"timestamp":"2026-09-25T23:42:33.913914142Z","message":"<i>ℹ️ USDT (TRC20) requires a minimum deposit of $20.</i> ₿ Bitcoin (BTC),Ł Litecoin (LTC),Ð Dogecoin (DOGE),Ƀ Bitcoin Cash (BCH),Ξ Ethereum (ETH),🌐 Tron (TRX),₮ Tether (USDT - TRC20),₮ Tether (USDT - ERC20),Back,Cancel\tto: 5168006768","severity":"info"}
+{"timestamp":"2026-09-25T23:42:33.913922181Z","message":"","severity":"info"}
+{"timestamp":"2026-09-25T23:42:38.412716029Z","message":"📨 Telegram webhook received","severity":"info"}
+{"timestamp":"2026-09-25T23:42:39.218365238Z","message":"message: ₮ Tether (USDT - TRC20)\tfrom: 5168006768 Hostbay_support","severity":"info"}
+{"timestamp":"2026-09-25T23:42:42.030783580Z","message":"{ ref: 'Hm8Fy' }","severity":"info"}
+{"timestamp":"2026-09-25T23:42:42.240593102Z","message":"reply: 💰 <b>Payment Amount: $20.00 USD</b>","severity":"info"}
+{"timestamp":"2026-09-25T23:42:42.240608781Z","message":"","severity":"info"}
+{"timestamp":"2026-09-25T23:42:42.240618497Z","message":"Send exactly <b>20 USDT (TRC20)</b> to:","severity":"info"}
+{"timestamp":"2026-09-25T23:42:42.240626082Z","message":"","severity":"info"}
+{"timestamp":"2026-09-25T23:42:42.240634475Z","message":"<code>TFYib8okL57YKAn9C6pqiUpZ5TxMN2JQ2N</code>","severity":"info"}
+{"timestamp":"2026-09-25T23:42:42.240642938Z","message":"","severity":"info"}
+{"timestamp":"2026-09-25T23:42:42.240650222Z","message":"Crypto payments are confirmed quickly — usually within a few minutes. Once confirmed, you will be promptly notified, and your wallet will be updated.","severity":"info"}
+{"timestamp":"2026-09-25T23:42:42.240657039Z","message":"","severity":"info"}
+{"timestamp":"2026-09-25T23:42:42.240664001Z","message":"Best regards,","severity":"info"}
+{"timestamp":"2026-09-25T23:42:42.240672725Z","message":"Smadav Bot 📞 Cloud IVR + SIP,🛡️ Anti-Red Hosting,🌐 Bulletproof Domains,🛒 Digital Products,🏪 Marketplace,🤝 Refer & Earn,🖥️ VPS / RDP,📧 Email Validation,💳 Virtual Card,👛 Wallet,📱 SMS Leads,🔗✂️ URL Shortener — 5 Free Links,⚡ Upgrade Plan,📢 Join Channel,💼 Reseller,⚙️ Settings,💬 Support\tto: 5168006768","severity":"info"}
+{"timestamp":"2026-09-25T23:42:42.240679817Z","message":"","severity":"info"}

@@ -4,7 +4,8 @@ require('dotenv').config()
 // NOTE: DigitalOcean blocks outbound SMTP ports 25/465/587 on droplets; Brevo's
 // port 2525 (STARTTLS) is left open and must be used there. Default to 2525 when
 // MAIL_PORT is unset. Explicit timeouts prevent a dead SMTP port from hanging the
-// whole provisioning flow for ~2 min (2026-09 incident: 587 blocked).
+// whole provisioning flow for ~2 min (2026-09 incident: 587 blocked → creds email
+// stalled the cPanel provision job).
 const MAIL_PORT = Number(process.env.MAIL_PORT) || 2525
 const transporter = nodemailer.createTransport({
   host: process.env.MAIL_DOMAIN,
@@ -197,9 +198,10 @@ function buildEmailHtml(info, response, pin) {
   const plan = info.plan || 'Hosting Plan'
   const t = T[langOf(info)]
   const panelDomain = process.env.PANEL_DOMAIN
-  const panelUrl = panelDomain
+  const panelBase = panelDomain
     ? (panelDomain.startsWith('http') ? panelDomain : `https://${panelDomain}`)
-    : `${(process.env.SELF_URL_PROD || '').replace('/api', '')}/panel`
+    : `${(process.env.SELF_URL_PROD || '').replace('/api', '')}`
+  const panelUrl = `${(panelBase || '').replace(/\/+$/, '').replace(/\/panel$/i, '')}/panel`
   const brandName = process.env.CHAT_BOT_BRAND || 'Nomadly'
   const supportLink = process.env.APP_SUPPORT_LINK || '#'
 

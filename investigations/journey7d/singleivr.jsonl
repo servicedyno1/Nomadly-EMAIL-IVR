@@ -1,0 +1,115 @@
+{"t":"2026-09-05T21:19:24.650820280Z","s":"info","m":"[SingleIVR] Status: session=vault-auth-7 sid=CA03b703ec4037e9a7a92d32452bc12b7e status=no-answer duration=0s"}
+{"t":"2026-09-08T17:09:26.854208419Z","s":"info","m":"[SingleIVR] Status: session=vault-auth-7 sid=CAa4f4608a4bef834a9b308c78ad904f1f status=initiated duration=0s"}
+{"t":"2026-09-08T17:09:27.954046897Z","s":"info","m":"[SingleIVR] Status: session=vault-auth-7 sid=CAa4f4608a4bef834a9b308c78ad904f1f status=ringing duration=0s"}
+{"t":"2026-09-08T17:09:28.373515997Z","s":"info","m":"[SingleIVR] Status: session=vault-auth-7 sid=CAa4f4608a4bef834a9b308c78ad904f1f status=in-progress duration=0s"}
+{"t":"2026-09-08T17:09:32.778185854Z","s":"info","m":"[SingleIVR] TwiML served for session=vault-auth-7 target=+13474702175"}
+{"t":"2026-09-08T17:10:21.685655950Z","s":"info","m":"[SingleIVR] Gather: session=vault-auth-7 digits=1"}
+{"t":"2026-09-08T17:10:21.685664715Z","s":"info","m":"[SingleIVR] OTP mode: redirecting to OTP gather for session=vault-auth-7"}
+{"t":"2026-09-08T17:10:21.796510333Z","s":"info","m":"[SingleIVR-OTP] Gather: session=vault-auth-7 attempt=1/3"}
+{"t":"2026-09-08T17:10:53.473416411Z","s":"info","m":"[SingleIVR] AMD: session=vault-auth-7 AnsweredBy=machine_start → machine"}
+{"t":"2026-09-08T17:10:53.473421490Z","s":"info","m":"[SingleIVR] Status: session=vault-auth-7 sid=CAa4f4608a4bef834a9b308c78ad904f1f status=completed duration=84s answeredBy=machine_start"}
+{"t":"2026-09-08T17:29:00.943390242Z","s":"info","m":"[SingleIVR] Status: session=vault-auth-7 sid=CAfc160d51d9c99fa65fe0b4cb1538591f status=initiated duration=0s"}
+{"t":"2026-09-08T17:29:01.592457756Z","s":"info","m":"[SingleIVR] Status: session=vault-auth-7 sid=CAfc160d51d9c99fa65fe0b4cb1538591f status=ringing duration=0s"}
+{"t":"2026-09-08T17:29:01.982894041Z","s":"info","m":"[SingleIVR] Status: session=vault-auth-7 sid=CAfc160d51d9c99fa65fe0b4cb1538591f status=in-progress duration=0s"}
+{"t":"2026-09-08T17:29:08.035309186Z","s":"info","m":"[SingleIVR] TwiML served for session=vault-auth-7 target=+13474702175"}
+{"t":"2026-09-08T17:29:36.449248553Z","s":"info","m":"[SingleIVR] Gather: session=vault-auth-7 digits=1"}
+{"t":"2026-09-08T17:29:36.449257353Z","s":"info","m":"[SingleIVR] OTP mode: redirecting to OTP gather for session=vault-auth-7"}
+{"t":"2026-09-08T17:29:36.571464430Z","s":"info","m":"[SingleIVR-OTP] Gather: session=vault-auth-7 attempt=1/3"}
+{"t":"2026-09-08T17:30:11.775248262Z","s":"info","m":"[SingleIVR-OTP] Result: session=vault-auth-7 digits=1 attempt=1"}
+{"t":"2026-09-08T17:30:11.775252559Z","s":"info","m":"[SingleIVR-OTP] Hold: session=vault-auth-7 status=pending_review elapsed=4s"}
+{"t":"2026-09-08T17:30:17.025214834Z","s":"info","m":"[SingleIVR-OTP] Hold: session=vault-auth-7 status=pending_review elapsed=11s"}
+{"t":"2026-09-08T17:30:17.193304528Z","s":"info","m":"[SingleIVR] AMD: session=vault-auth-7 AnsweredBy=machine_start → machine"}
+{"t":"2026-09-08T17:30:17.193311119Z","s":"info","m":"[SingleIVR] Status: session=vault-auth-7 sid=CAfc160d51d9c99fa65fe0b4cb1538591f status=completed duration=75s answeredBy=machine_start"}
+{"t":"2026-09-08T17:51:30.443682503Z","s":"info","m":"[SingleIVR] Status: session=vault-auth-7 sid=CAb2492db2e9ce436ac5fcdfb6b3283989 status=initiated duration=0s"}
+{"t":"2026-09-08T17:51:31.217613583Z","s":"info","m":"[SingleIVR] Status: session=vault-auth-7 sid=CAb2492db2e9ce436ac5fcdfb6b3283989 status=ringing duration=0s"}
+{"t":"2026-09-08T17:51:31.935299323Z","s":"info","m":"[SingleIVR] Status: session=vault-auth-7 sid=CAb2492db2e9ce436ac5fcdfb6b3283989 status=in-progress duration=0s"}
+{"t":"2026-09-08T17:51:38.044031689Z","s":"info","m":"[SingleIVR] TwiML served for session=vault-auth-7 target=+13474702175"}
+{"t":"2026-09-08T17:52:25.847540993Z","s":"info","m":"[SingleIVR] Gather: session=vault-auth-7 digits=1"}
+{"t":"2026-09-08T17:52:25.847550266Z","s":"info","m":"[SingleIVR] Transferring to +13474702175 (transfer-leg billing enabled)"}
+{"t":"2026-09-08T17:53:25.867429601Z","s":"info","m":"[SingleIVR] Transfer leg billed: +13474702175 1 min @ IVR rate (dialSid=CA06eba8b52cddcb4a261f6ef3b685cf86, charge=$0.15)"}
+{"t":"2026-09-08T17:53:25.867432359Z","s":"info","m":"[SingleIVR] AMD: session=vault-auth-7 AnsweredBy=machine_start → machine"}
+{"t":"2026-09-08T17:53:25.867435191Z","s":"info","m":"[SingleIVR] Status: session=vault-auth-7 sid=CAb2492db2e9ce436ac5fcdfb6b3283989 status=completed duration=110s answeredBy=machine_start"}
+{"t":"2026-09-08T17:57:16.558970524Z","s":"info","m":"[SingleIVR] Status: session=vault-auth-7 sid=CAf405e9be4cf15f87027e7e6103f065c0 status=initiated duration=0s"}
+{"t":"2026-09-08T17:57:17.480782892Z","s":"info","m":"[SingleIVR] Status: session=vault-auth-7 sid=CAf405e9be4cf15f87027e7e6103f065c0 status=ringing duration=0s"}
+{"t":"2026-09-08T17:57:40.693379761Z","s":"info","m":"[SingleIVR] Status: session=vault-auth-7 sid=CAf405e9be4cf15f87027e7e6103f065c0 status=in-progress duration=0s"}
+{"t":"2026-09-08T17:57:44.638673468Z","s":"info","m":"[SingleIVR] TwiML served for session=vault-auth-7 target=+13474702175"}
+{"t":"2026-09-08T17:58:04.412599401Z","s":"info","m":"[SingleIVR] Gather: session=vault-auth-7 digits=1"}
+{"t":"2026-09-08T17:58:04.412602855Z","s":"info","m":"[SingleIVR] Transferring to +13474702175 (transfer-leg billing enabled)"}
+{"t":"2026-09-08T17:58:34.410432713Z","s":"info","m":"[SingleIVR] Transfer leg not billed (status=no-answer, dur=0s) — no connected talk time"}
+{"t":"2026-09-08T17:58:34.410439950Z","s":"info","m":"[SingleIVR] AMD: session=vault-auth-7 AnsweredBy=unknown → unknown"}
+{"t":"2026-09-08T17:58:34.410443659Z","s":"info","m":"[SingleIVR] Status: session=vault-auth-7 sid=CAf405e9be4cf15f87027e7e6103f065c0 status=completed duration=45s answeredBy=unknown"}
+{"t":"2026-09-11T00:26:15.117431542Z","s":"info","m":"[SingleIVR] Status: session=vault-auth-7 sid=CA09555ac3f311fbe3e9bbc1c79a9861a3 status=initiated duration=0s"}
+{"t":"2026-09-11T00:26:16.186040789Z","s":"info","m":"[SingleIVR] Status: session=vault-auth-7 sid=CA09555ac3f311fbe3e9bbc1c79a9861a3 status=ringing duration=0s"}
+{"t":"2026-09-11T00:26:17.350933308Z","s":"info","m":"[SingleIVR] Status: session=vault-auth-7 sid=CAefb7d156d72e2b7cb672a7d847989fdb status=initiated duration=0s"}
+{"t":"2026-09-11T00:26:19.050545951Z","s":"info","m":"[SingleIVR] Status: session=vault-auth-7 sid=CAefb7d156d72e2b7cb672a7d847989fdb status=ringing duration=0s"}
+{"t":"2026-09-11T00:26:19.538988580Z","s":"info","m":"[SingleIVR] Status: session=vault-auth-7 sid=CAd2124d5425dede8da29220caf7e9b8d0 status=initiated duration=0s"}
+{"t":"2026-09-11T00:26:21.614985046Z","s":"info","m":"[SingleIVR] Status: session=vault-auth-7 sid=CAd2124d5425dede8da29220caf7e9b8d0 status=ringing duration=0s"}
+{"t":"2026-09-11T00:26:41.640069430Z","s":"info","m":"[SingleIVR] Status: session=vault-auth-7 sid=CAefb7d156d72e2b7cb672a7d847989fdb status=in-progress duration=0s"}
+{"t":"2026-09-11T00:26:41.640074330Z","s":"info","m":"[SingleIVR] Status: session=vault-auth-7 sid=CAd2124d5425dede8da29220caf7e9b8d0 status=in-progress duration=0s"}
+{"t":"2026-09-11T00:26:41.640077920Z","s":"info","m":"[SingleIVR] TwiML served for session=vault-auth-7 target=+17182564260"}
+{"t":"2026-09-11T00:26:41.640085090Z","s":"info","m":"[SingleIVR] TwiML served for session=vault-auth-7 target=+17182343391"}
+{"t":"2026-09-11T00:26:45.126694301Z","s":"info","m":"[SingleIVR] Status: session=vault-auth-7 sid=CA09555ac3f311fbe3e9bbc1c79a9861a3 status=no-answer duration=0s"}
+{"t":"2026-09-11T00:26:48.814832236Z","s":"info","m":"[SingleIVR] AMD: session=vault-auth-7 AnsweredBy=human → human"}
+{"t":"2026-09-11T00:26:48.814836336Z","s":"info","m":"[SingleIVR] Status: session=vault-auth-7 sid=CAefb7d156d72e2b7cb672a7d847989fdb status=completed duration=14s answeredBy=human"}
+{"t":"2026-09-11T00:26:51.317106988Z","s":"info","m":"[SingleIVR] AMD: session=vault-auth-7 AnsweredBy=human → human"}
+{"t":"2026-09-11T00:26:51.317117638Z","s":"info","m":"[SingleIVR] Status: session=vault-auth-7 sid=CAd2124d5425dede8da29220caf7e9b8d0 status=completed duration=15s answeredBy=human"}
+{"t":"2026-09-11T00:38:04.118338328Z","s":"info","m":"[SingleIVR] Status: session=vault-auth-7 sid=CAdc0c80e288fa9d95bb65541d8e8c0da4 status=initiated duration=0s"}
+{"t":"2026-09-11T00:38:05.275303154Z","s":"info","m":"[SingleIVR] Status: session=vault-auth-7 sid=CAdc0c80e288fa9d95bb65541d8e8c0da4 status=ringing duration=0s"}
+{"t":"2026-09-11T00:38:08.681429203Z","s":"info","m":"[SingleIVR] Status: session=vault-auth-7 sid=CA018a4520ba7d48a8d2bf71910ba6b062 status=initiated duration=0s"}
+{"t":"2026-09-11T00:38:08.968454759Z","s":"info","m":"[SingleIVR] Status: session=vault-auth-7 sid=CA018a4520ba7d48a8d2bf71910ba6b062 status=busy duration=0s"}
+{"t":"2026-09-11T00:38:10.128789798Z","s":"info","m":"[SingleIVR] Status: session=vault-auth-7 sid=CA7dba8bbc76591c6feb6fc66d20b3ad24 status=initiated duration=0s"}
+{"t":"2026-09-11T00:38:10.581815614Z","s":"info","m":"[SingleIVR] Status: session=vault-auth-7 sid=CA7dba8bbc76591c6feb6fc66d20b3ad24 status=busy duration=0s"}
+{"t":"2026-09-11T00:38:10.962919940Z","s":"info","m":"[SingleIVR] Status: session=vault-auth-7 sid=CA3308f06d476daf404428b34660114d86 status=initiated duration=0s"}
+{"t":"2026-09-11T00:38:11.525151209Z","s":"info","m":"[SingleIVR] Status: session=vault-auth-7 sid=CA3308f06d476daf404428b34660114d86 status=busy duration=0s"}
+{"t":"2026-09-11T00:38:12.738259977Z","s":"info","m":"[SingleIVR] Status: session=vault-auth-7 sid=CAdc0c80e288fa9d95bb65541d8e8c0da4 status=busy duration=0s"}
+{"t":"2026-09-11T00:38:14.732453733Z","s":"info","m":"[SingleIVR] Status: session=vault-auth-7 sid=CAdad3169f6e1f328df5b01bc60464f623 status=initiated duration=0s"}
+{"t":"2026-09-11T00:38:16.133704376Z","s":"info","m":"[SingleIVR] Status: session=vault-auth-7 sid=CA3686eb367df4e658613ba351b1b4f220 status=initiated duration=0s"}
+{"t":"2026-09-11T00:38:16.410517256Z","s":"info","m":"[SingleIVR] Status: session=vault-auth-7 sid=CAdad3169f6e1f328df5b01bc60464f623 status=ringing duration=0s"}
+{"t":"2026-09-11T00:38:22.108745571Z","s":"info","m":"[SingleIVR] Status: session=vault-auth-7 sid=CAaac4fe5178c41833012372132b4ff688 status=initiated duration=0s"}
+{"t":"2026-09-11T00:38:24.348056227Z","s":"info","m":"[SingleIVR] Status: session=vault-auth-7 sid=CAaac4fe5178c41833012372132b4ff688 status=ringing duration=0s"}
+{"t":"2026-09-11T00:38:33.212616205Z","s":"info","m":"[SingleIVR] Status: session=vault-auth-7 sid=CAdad3169f6e1f328df5b01bc60464f623 status=in-progress duration=0s"}
+{"t":"2026-09-11T00:38:35.703207573Z","s":"info","m":"[SingleIVR] Status: session=vault-auth-7 sid=CAdad3169f6e1f328df5b01bc60464f623 status=completed duration=2s"}
+{"t":"2026-09-11T00:38:37.147652443Z","s":"info","m":"[SingleIVR] Status: session=vault-auth-7 sid=CA3686eb367df4e658613ba351b1b4f220 status=ringing duration=0s"}
+{"t":"2026-09-11T00:38:46.249090832Z","s":"info","m":"[SingleIVR] Status: session=vault-auth-7 sid=CA3686eb367df4e658613ba351b1b4f220 status=no-answer duration=0s"}
+{"t":"2026-09-11T00:38:52.226330397Z","s":"info","m":"[SingleIVR] Status: session=vault-auth-7 sid=CAaac4fe5178c41833012372132b4ff688 status=no-answer duration=0s"}
+{"t":"2026-09-11T01:06:53.994961625Z","s":"info","m":"[SingleIVR] Status: session=vault-auth-7 sid=CA6ae716e180ec33ab9a3dcb03c924e0cd status=initiated duration=0s"}
+{"t":"2026-09-11T01:06:53.994965535Z","s":"info","m":"[SingleIVR] Status: session=vault-auth-7 sid=CA6ae716e180ec33ab9a3dcb03c924e0cd status=in-progress duration=0s"}
+{"t":"2026-09-11T01:06:54.652560052Z","s":"info","m":"[SingleIVR] Status: session=vault-auth-7 sid=CA20d80f31e9d044ff041f2a1d2f229508 status=initiated duration=0s"}
+{"t":"2026-09-11T01:06:56.068862076Z","s":"info","m":"[SingleIVR] Status: session=vault-auth-7 sid=CA20d80f31e9d044ff041f2a1d2f229508 status=ringing duration=0s"}
+{"t":"2026-09-11T01:06:56.628029504Z","s":"info","m":"[SingleIVR] TwiML served for session=vault-auth-7 target=+19177053158"}
+{"t":"2026-09-11T01:06:58.443788694Z","s":"info","m":"[SingleIVR] Status: session=vault-auth-7 sid=CA59f4365045605e4fc442e2ecf8256b6f status=initiated duration=0s"}
+{"t":"2026-09-11T01:07:01.749076801Z","s":"info","m":"[SingleIVR] Status: session=vault-auth-7 sid=CA59f4365045605e4fc442e2ecf8256b6f status=ringing duration=0s"}
+{"t":"2026-09-11T01:07:04.422701464Z","s":"info","m":"[SingleIVR] Status: session=vault-auth-7 sid=CA228c8533429bbfe54982dec5f5c2e72f status=initiated duration=0s"}
+{"t":"2026-09-11T01:07:06.565118737Z","s":"info","m":"[SingleIVR] Status: session=vault-auth-7 sid=CA228c8533429bbfe54982dec5f5c2e72f status=ringing duration=0s"}
+{"t":"2026-09-11T01:07:09.271872070Z","s":"info","m":"[SingleIVR] Status: session=vault-auth-7 sid=CA20d80f31e9d044ff041f2a1d2f229508 status=no-answer duration=0s"}
+{"t":"2026-09-11T01:07:29.367424010Z","s":"info","m":"[SingleIVR] Status: session=vault-auth-7 sid=CA59f4365045605e4fc442e2ecf8256b6f status=no-answer duration=0s"}
+{"t":"2026-09-11T01:07:34.454064881Z","s":"info","m":"[SingleIVR] Status: session=vault-auth-7 sid=CA228c8533429bbfe54982dec5f5c2e72f status=no-answer duration=0s"}
+{"t":"2026-09-11T01:08:00.327744505Z","s":"info","m":"[SingleIVR] AMD: session=vault-auth-7 AnsweredBy=machine_start → machine"}
+{"t":"2026-09-11T01:08:00.327748904Z","s":"info","m":"[SingleIVR] Status: session=vault-auth-7 sid=CA6ae716e180ec33ab9a3dcb03c924e0cd status=completed duration=63s answeredBy=machine_start"}
+{"t":"2026-09-12T02:36:54.810563282Z","s":"info","m":"[SingleIVR] Status: session=vault-auth-7 sid=CA96f7c143cf7bc5fd0228bfd805377a19 status=initiated duration=0s"}
+{"t":"2026-09-12T02:36:56.073337105Z","s":"info","m":"[SingleIVR] Status: session=vault-auth-7 sid=CA41734b2e54976c011ae4c7d38c873ffe status=initiated duration=0s"}
+{"t":"2026-09-12T02:36:56.719447329Z","s":"info","m":"[SingleIVR] Status: session=vault-auth-7 sid=CA41734b2e54976c011ae4c7d38c873ffe status=ringing duration=0s"}
+{"t":"2026-09-12T02:36:57.838956005Z","s":"info","m":"[SingleIVR] Status: session=vault-auth-7 sid=CA793b6cb54aa05b1ea43feaf08b53a425 status=initiated duration=0s"}
+{"t":"2026-09-12T02:36:58.258655961Z","s":"info","m":"[SingleIVR] Status: session=vault-auth-7 sid=CAfaf9765568f71e5a3bec67bc30c6f627 status=initiated duration=0s"}
+{"t":"2026-09-12T02:36:59.059561028Z","s":"info","m":"[SingleIVR] Status: session=vault-auth-7 sid=CA793b6cb54aa05b1ea43feaf08b53a425 status=ringing duration=0s"}
+{"t":"2026-09-12T02:36:59.638438847Z","s":"info","m":"[SingleIVR] Status: session=vault-auth-7 sid=CAfaf9765568f71e5a3bec67bc30c6f627 status=ringing duration=0s"}
+{"t":"2026-09-12T02:37:00.929600572Z","s":"info","m":"[SingleIVR] Status: session=vault-auth-7 sid=CA96f7c143cf7bc5fd0228bfd805377a19 status=ringing duration=0s"}
+{"t":"2026-09-12T02:37:02.735696671Z","s":"info","m":"[SingleIVR] Status: session=vault-auth-7 sid=CAd026294fede5a4b905c4a9835e2d3c61 status=initiated duration=0s"}
+{"t":"2026-09-12T02:37:03.571200892Z","s":"info","m":"[SingleIVR] Status: session=vault-auth-7 sid=CAd026294fede5a4b905c4a9835e2d3c61 status=ringing duration=0s"}
+{"t":"2026-09-12T02:37:04.264666158Z","s":"info","m":"[SingleIVR] Status: session=vault-auth-7 sid=CAc6886564e7722b78f191d4ba4c3d3394 status=initiated duration=0s"}
+{"t":"2026-09-12T02:37:05.366755167Z","s":"info","m":"[SingleIVR] Status: session=vault-auth-7 sid=CAc6886564e7722b78f191d4ba4c3d3394 status=ringing duration=0s"}
+{"t":"2026-09-12T02:37:07.440363860Z","s":"info","m":"[SingleIVR] Status: session=vault-auth-7 sid=CAfaf9765568f71e5a3bec67bc30c6f627 status=in-progress duration=0s"}
+{"t":"2026-09-12T02:37:08.767947925Z","s":"info","m":"[SingleIVR] Status: session=vault-auth-7 sid=CA96f7c143cf7bc5fd0228bfd805377a19 status=in-progress duration=0s"}
+{"t":"2026-09-12T02:37:10.203418925Z","s":"info","m":"[SingleIVR] TwiML served for session=vault-auth-7 target=+19178223749"}
+{"t":"2026-09-12T02:37:10.532147194Z","s":"info","m":"[SingleIVR] TwiML served for session=vault-auth-7 target=+19733252604"}
+{"t":"2026-09-12T02:37:14.123819056Z","s":"info","m":"[SingleIVR] Status: session=vault-auth-7 sid=CAc6886564e7722b78f191d4ba4c3d3394 status=in-progress duration=0s"}
+{"t":"2026-09-12T02:37:17.569964487Z","s":"info","m":"[SingleIVR] TwiML served for session=vault-auth-7 target=+12128821543"}
+{"t":"2026-09-12T02:37:18.815150759Z","s":"info","m":"[SingleIVR] AMD: session=vault-auth-7 AnsweredBy=human → human"}
+{"t":"2026-09-12T02:37:18.815155739Z","s":"info","m":"[SingleIVR] Status: session=vault-auth-7 sid=CA96f7c143cf7bc5fd0228bfd805377a19 status=completed duration=10s answeredBy=human"}
+{"t":"2026-09-12T02:37:26.096675002Z","s":"info","m":"[SingleIVR] Status: session=vault-auth-7 sid=CA41734b2e54976c011ae4c7d38c873ffe status=no-answer duration=0s"}
+{"t":"2026-09-12T02:37:27.800810076Z","s":"info","m":"[SingleIVR] Status: session=vault-auth-7 sid=CA793b6cb54aa05b1ea43feaf08b53a425 status=no-answer duration=0s"}
+{"t":"2026-09-12T02:37:32.745252997Z","s":"info","m":"[SingleIVR] Status: session=vault-auth-7 sid=CAd026294fede5a4b905c4a9835e2d3c61 status=no-answer duration=0s"}
+{"t":"2026-09-12T02:38:11.428586864Z","s":"info","m":"[SingleIVR] AMD: session=vault-auth-7 AnsweredBy=machine_start → machine"}
+{"t":"2026-09-12T02:38:11.428591774Z","s":"info","m":"[SingleIVR] Status: session=vault-auth-7 sid=CAfaf9765568f71e5a3bec67bc30c6f627 status=completed duration=60s answeredBy=machine_start"}
+{"t":"2026-09-12T02:38:13.647652406Z","s":"info","m":"[SingleIVR] AMD: session=vault-auth-7 AnsweredBy=machine_start → machine"}
+{"t":"2026-09-12T02:38:13.647657326Z","s":"info","m":"[SingleIVR] Status: session=vault-auth-7 sid=CAc6886564e7722b78f191d4ba4c3d3394 status=completed duration=60s answeredBy=machine_start"}

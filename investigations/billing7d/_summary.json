@@ -1,0 +1,30 @@
+{
+  "days": 7,
+  "pulledAt": "2026-09-16T19:22:36.427Z",
+  "summary": [
+    {
+      "f": "\"Concurrency Guard\"",
+      "total": 241
+    },
+    {
+      "f": "\"Outbound billed\"",
+      "total": 682
+    },
+    {
+      "f": "\"Connection fee charged\"",
+      "total": 520
+    },
+    {
+      "f": "\"Outbound call hangup\"",
+      "total": 507
+    },
+    {
+      "f": "\"Dial status\"",
+      "total": 537
+    },
+    {
+      "f": "\"Loyalty discount\"",
+      "total": 564
+    }
+  ]
+}

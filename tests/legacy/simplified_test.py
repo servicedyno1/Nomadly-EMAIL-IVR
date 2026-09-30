@@ -9,7 +9,7 @@ from pymongo import MongoClient
 import subprocess
 
 # MongoDB connection from review request
-MONGO_CONNECTION_STRING = "mongodb://mongo:RQoOmIdwjRLFvhWMaatjidzqpvawUKcb@caboose.proxy.rlwy.net:59668"
+MONGO_CONNECTION_STRING = "mongodb://localhost:27017"
 DATABASE_NAME = "test"
 BACKEND_URL = "http://localhost:5000"
 

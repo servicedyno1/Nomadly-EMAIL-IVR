@@ -9,9 +9,6 @@ const HIDE_BANK_PAYMENT = process.env.HIDE_BANK_PAYMENT
 const SELF_URL = process.env.SELF_URL
 const FREE_LINKS = Number(process.env.FREE_LINKS)
 const SUPPORT_USERNAME = process.env.SUPPORT_USERNAME
-const { branding: _brand } = require('../branding.js')
-const BRAND = _brand.name
-const BOT_HANDLE = _brand.botHandle
 
 // Digital Product Prices (from .env)
 const DP_PRICE_TWILIO_MAIN = Number(process.env.DP_PRICE_TWILIO_MAIN) || 450
@@ -206,6 +203,8 @@ const user = {
  revealCredentials: '🔑 क्रेडेंशियल दिखाएं',
  manageVisitorCaptcha: '🛡️ Captcha चालू/बंद',
  manageVisitorCaptchaLocked: '🔒 Captcha चालू/बंद — केवल Gold प्लान',
+ manageHoneypot: '🍯 Honeypot ट्रैप चालू/बंद',
+ manageHoneypotLocked: '🔒 Honeypot ट्रैप चालू/बंद — केवल मासिक प्लान',
  renewHostingPlan: '🔄 प्लान नवीनीकरण',
  upgradeHostingPlan: '⬆️ प्लान अपग्रेड',
  backToMyHostingPlans: '⬅️ मेरे प्लान पर वापस',
@@ -357,7 +356,7 @@ ${CHAT_BOT_NAME}`,
  smsAppMenuExpired: `📧 <b>BulkSMS</b>\n\n📱 <i>केवल Android डिवाइस पर काम करता है (iOS / iPhone समर्थित नहीं)।</i>\n\nआपका ट्रायल समाप्त हो गया। <b>⚡ प्लान अपग्रेड करें</b> दबाकर जारी रखें।\n\nनए हैं? <b>❓ कैसे काम करता है</b> दबाएं।`,
 
  smsHowItWorks: (chatId) => `📧 <b>BulkSMS — कैसे काम करता है</b>\n\nBulkSMS <b>आपके फोन की SIM कार्ड</b> से असली SMS भेजता है — सर्वर से नहीं। उच्च डिलीवरी और असली सेंडर ID।\n\n<b>⚙️ एक बार सेटअप:</b>\n1. ऐप डाउनलोड करें → ${SMS_APP_LINK}\n2. खोलें → कोड दर्ज करें: <code>${chatId}</code>\n3. SMS अनुमति दें\n\n<b>📤 अभियान भेजें:</b>\n• यहां <b>📱 अभियान बनाएं</b> दबाएं या ऐप में बनाएं\n• संदेश + संपर्क जोड़ें (पेस्ट या फ़ाइल अपलोड)\n• अभियान ऐप में सिंक → फोन पर भेजें दबाएं\n\n<b>💡 सुझाव:</b>\n• समर्पित लाइन के लिए <b>eSIM</b> उपयोग करें\n• कई संदेश पंक्तियां = स्वचालित रोटेशन\n• <code>[name]</code> = स्वचालित व्यक्तिगतकरण\n• शेड्यूल करें या तुरंत भेजें\n\n<b>📋 मेरे अभियान</b> सभी अभियान देखें।\n<b>🔓 लॉगिन रीसेट</b> डिवाइस बदलें।\n\neSIM चाहिए? 💬 सहायता दबाएं`,
- smsCreateCampaignIntro: `📱 <b>SMS अभियान बनाएं</b>\n\nइस तरह काम करता है:\n\n<b>चरण 1:</b> अपने अभियान का नाम दें\n<b>चरण 2:</b> अपना/अपने संदेश लिखें\n • व्यक्तिगत बनाने के लिए <code>[name]</code> उपयोग करें\n • कई पंक्तियां = संदेश रोटेशन\n<b>चरण 3:</b> संपर्क अपलोड करें\n • टेक्स्ट में चिपकाएं: <code>+1234567890, राम</code>\n • या .txt / .csv फ़ाइल अपलोड करें\n<b>चरण 4:</b> SMS के बीच विलंब समय सेट करें\n<b>चरण 5:</b> समीक्षा करें और पुष्टि करें — भेजें, शेड्यूल करें, या ड्राफ्ट सहेजें\n\nअभियान भेजने के लिए ${BRAND} SMS ऐप में सिंक होता है।\n\n<b>शुरू करें — अभियान का नाम दर्ज करें:</b>`,
+ smsCreateCampaignIntro: `📱 <b>SMS अभियान बनाएं</b>\n\nइस तरह काम करता है:\n\n<b>चरण 1:</b> अपने अभियान का नाम दें\n<b>चरण 2:</b> अपना/अपने संदेश लिखें\n • व्यक्तिगत बनाने के लिए <code>[name]</code> उपयोग करें\n • कई पंक्तियां = संदेश रोटेशन\n<b>चरण 3:</b> संपर्क अपलोड करें\n • टेक्स्ट में चिपकाएं: <code>+1234567890, राम</code>\n • या .txt / .csv फ़ाइल अपलोड करें\n<b>चरण 4:</b> SMS के बीच विलंब समय सेट करें\n<b>चरण 5:</b> समीक्षा करें और पुष्टि करें — भेजें, शेड्यूल करें, या ड्राफ्ट सहेजें\n\nअभियान भेजने के लिए Nomadly SMS ऐप में सिंक होता है।\n\n<b>शुरू करें — अभियान का नाम दर्ज करें:</b>`,
  smsSchedulePrompt: '⏰ <b>अभियान शेड्यूल करें?</b>\n\nचुनें कि यह अभियान कब उपलब्ध हो:',
  smsSendNow: '▶️ अभी भेजें',
  smsScheduleLater: '⏰ बाद के लिए शेड्यूल करें',
@@ -371,7 +370,7 @@ ${CHAT_BOT_NAME}`,
  const lines = campaigns.slice(0, 10).map((c, i) =>
  `${i + 1}. ${statusIcons[c.status] || '📋'} <b>${c.name}</b>\n ${c.sentCount}/${c.totalCount} भेजे · ${c.status}`
  )
- return `📋 <b>मेरे अभियान</b>\n\n${lines.join('\n\n')}\n\n<i>${BRAND} SMS ऐप में अभियान प्रबंधित करें।</i>`
+ return `📋 <b>मेरे अभियान</b>\n\n${lines.join('\n\n')}\n\n<i>Nomadly SMS ऐप में अभियान प्रबंधित करें।</i>`
  },
  planSubscribed:
  HIDE_SMS_APP === 'true'
@@ -954,7 +953,7 @@ ${CHAT_BOT_NAME}`,
  analyticsNotAvailable: provider => `📊 एनालिटिक्स उपलब्ध नहीं (${provider})`,
 
  qrCodeText: `यह आपका क्यूआर कोड है!`,
- scanQrOrUseChat: chatId => `📱 <b>${BRAND} SMS ऐप</b>\n\nआपका एक्टिवेशन कोड:\n<code>${chatId}</code>\n\n📲 डाउनलोड: ${process.env.SMS_APP_LINK || 'सहायता से संपर्क करें'}`,
+ scanQrOrUseChat: chatId => `📱 <b>Nomadly SMS ऐप</b>\n\nआपका एक्टिवेशन कोड:\n<code>${chatId}</code>\n\n📲 डाउनलोड: ${process.env.SMS_APP_LINK || 'सहायता से संपर्क करें'}`,
  domainPurchasedFailed: (domain) =>
  `❌ डोमेन <b>${domain}</b> का पंजीकरण पूरा नहीं हो सका। कृपया पुनः प्रयास करें या समस्या बनी रहने पर सहायता से संपर्क करें।`,
  noDomainRegistered: 'आपके पास अभी तक कोई खरीदा हुआ डोमेन नहीं है।',
@@ -981,6 +980,18 @@ ${CHAT_BOT_NAME}`,
  antiRedRestoredNote: domain => `🛡️ <b>${domain} के लिए Anti-Red पुनर्स्थापित।</b>\n\nहमने एक आंतरिक बग ठीक किया जहां Visitor Captcha बंद करने से scanner cloaking भी हट जाता था। Anti-Red अब फिर से ON है। आपकी "Visitor Captcha OFF" प्राथमिकता संरक्षित है।`,
  antiRedEnabled: domain => `✅ <b>${domain}</b> के लिए Anti-Red सुरक्षा <b>सक्षम</b>।\n\nआगंतुकों को साइट पर जाने से पहले "ब्राउज़र सत्यापन" दिखाई देगा।`,
  antiRedError: '❌ Anti-Red सुरक्षा अपडेट करने में विफल। कृपया पुनः प्रयास करें।',
+ honeypotMonthlyOnly: `🍯 <b>Honeypot ट्रैप</b>\n\nयह नियंत्रण <b>मासिक</b> होस्टिंग प्लान (Premium या Golden) पर उपलब्ध है।\n\nHoneypot ट्रैप छिपे हुए चारे होते हैं जो आपकी साइट को स्कैन करने वाले बॉट्स को पकड़कर स्वतः बैन कर देते हैं। कच्चा JSON/API आउटपुट देने वाली कुछ साइटें इन्हें बंद रखना पसंद करती हैं — यह टॉगल मासिक-प्लान सुविधा है।\n\nप्रति-डोमेन Honeypot ट्रैप प्रबंधित करने के लिए मासिक प्लान में अपग्रेड करें।`,
+ honeypotStatusOn: domain => `🍯 <b>${domain}</b> के लिए <b>Honeypot ट्रैप</b>\n\nस्थिति: <b>✅ चालू</b>\n\nबॉट्स को पकड़ने और स्वतः बैन करने के लिए आपके HTML पेजों में छिपे हुए चारा लिंक, फ़ॉर्म फ़ील्ड और नकली API इंजेक्ट किए जाते हैं।\n\nℹ️ ट्रैप केवल असली HTML पेजों में ही जोड़े जाते हैं — JSON/API प्रतिक्रियाओं को कभी नहीं छुआ जाता। केवल तभी बंद करें जब आपकी साइट में इनलाइन आउटपुट हो जो सटीक रहना चाहिए।`,
+ honeypotStatusOff: domain => `🍯 <b>${domain}</b> के लिए <b>Honeypot ट्रैप</b>\n\nस्थिति: <b>❌ बंद</b>\n\nआपके पेजों में कोई honeypot मार्कअप इंजेक्ट नहीं किया जाता।\n\n✅ <b>अभी भी सक्रिय:</b> विज़िटर Captcha, स्कैनर क्लोकिंग, IP बैन और WAF नियम — honeypot बंद करने से इनमें से कोई भी परत कमज़ोर नहीं होती।\n\nट्रैप वापस चालू करने के लिए नीचे टैप करें।`,
+ honeypotTurnOff: '❌ Honeypot ट्रैप बंद करें',
+ honeypotTurnOn: '✅ Honeypot ट्रैप चालू करें',
+ honeypotTurningOn: domain => `⏳ <b>${domain}</b> के लिए Honeypot ट्रैप चालू किए जा रहे हैं...`,
+ honeypotTurningOff: domain => `⏳ <b>${domain}</b> के लिए Honeypot ट्रैप बंद किए जा रहे हैं...`,
+ honeypotEnabled: domain => `✅ <b>${domain}</b> के लिए Honeypot ट्रैप <b>चालू</b> कर दिए गए।\n\nअब आपके HTML पेजों में छिपे बॉट चारे इंजेक्ट किए जाते हैं। JSON/API प्रतिक्रियाएँ कभी संशोधित नहीं होतीं।`,
+ honeypotDisabled: domain => `❌ <b>${domain}</b> के लिए Honeypot ट्रैप <b>बंद</b> कर दिए गए।\n\nआपके पेजों में कोई ट्रैप मार्कअप इंजेक्ट नहीं किया जाएगा।\n\n✅ विज़िटर Captcha, स्कैनर क्लोकिंग, IP बैन और WAF नियम पूरी तरह सक्रिय रहते हैं।`,
+ honeypotError: '❌ Honeypot ट्रैप अपडेट करने में विफल। कृपया पुनः प्रयास करें।',
+ honeypotPickDomain: '🍯 <b>Honeypot ट्रैप</b> — एक डोमेन चुनें\n\nइस प्लान में एक से अधिक डोमेन हैं। जिसे टॉगल करना है उस डोमेन पर टैप करें। प्रत्येक नाम के आगे वर्तमान स्थिति दिखाई गई है।',
+ honeypotDomainButton: (domain, off, hasCF) => hasCF ? `${off ? '🔴 OFF' : '🟢 ON'} · ${domain}` : `⚠️ No CF · ${domain}`,
 captchaPickDomain: '🛡️ <b>Visitor Captcha</b> — डोमेन चुनें\n\nइस प्लान में एक से अधिक डोमेन हैं। जिस डोमेन के लिए कैप्चा टॉगल करना है उस पर टैप करें। प्रत्येक नाम के बगल में वर्तमान स्थिति दिखाई गई है।',
 captchaDomainButton: (domain, isOff, hasCF) => hasCF ? `${isOff ? '🔴 OFF' : '🟢 ON'} · ${domain}` : `⚠️ No CF · ${domain}`,
  antiRedNoCF: domain => `⚠️ <b>${domain}</b> Cloudflare का उपयोग नहीं कर रहा। Anti-Red सुरक्षा के लिए Cloudflare नेमसर्वर आवश्यक हैं।`,
@@ -1324,33 +1335,33 @@ captchaDomainButton: (domain, isOff, hasCF) => hasCF ? `${isOff ? '🔴 OFF' : '
  cp_nested_hint_default: (ph) => `[${ph}] के लिए मान दर्ज करें`,
  cp_nested_cleared: (count, refunded) => `✅ ${count} अस्वीकृत सत्यापन साफ़\n💰 $${refunded} वॉलेट में वापस\n`,
  // === Voice Service ===
- vs_callDisconnectedWallet: (rate, connFee) => `🚫 <b>कॉल डिस्कनेक्ट</b> — वॉलेट अपर्याप्त ($${rate}/मिनट + $${connFee} कनेक्शन)। 👛 वॉलेट से रिचार्ज करें।`,
+ vs_callDisconnectedWallet: (rate, connFee) => `🚫 <b>कॉल डिस्कनेक्ट</b> — वॉलेट अपर्याप्त ($\${rate}/मिनट + $\${connFee} कनेक्शन)। 👛 वॉलेट से रिचार्ज करें।`,
  vs_callDisconnectedExhausted: '🚫 <b>कॉल डिस्कनेक्ट</b> — वॉलेट खाली।\n👛 वॉलेट से रिचार्ज करें।',
- vs_outboundCallFailed: (from, to, reason) => `🚫 <b>आउटबाउंड कॉल विफल</b>\n📞 ${from} → ${to}\nकारण: ${reason}`,
- vs_planMinutesExhausted: (phone, used, limit, overage) => `⚠️ <b>प्लान मिनट समाप्त</b>\n\n📞 ${phone}\nउपयोग: <b>${used}/${limit}</b> मिनट\n${overage}`,
- vs_planSmsExhausted: (phone, used, limit) => `⚠️ <b>प्लान SMS समाप्त</b>\n\n📞 ${phone}\nउपयोग: <b>${used}/${limit}</b> इनबाउंड SMS`,
- vs_orphanedNumber: (to, from) => `⚠️ <b>अनाथ नंबर अलर्ट</b>\n\n📞 <code>${to}</code> को <code>${from}</code> से कॉल आई\n\n❌ DB में कोई मालिक नहीं — कॉल अस्वीकृत।`,
- vs_incomingCallBlocked: (to, from) => `🚫 <b>इनकमिंग कॉल ब्लॉक — वॉलेट खाली</b>\n\n📞 ${to}\n👤 कॉलर: ${from}`,
- vs_overageActive: (charged, rateInfo) => `💰 <b>ओवरेज सक्रिय</b> — प्लान मिनट समाप्त। ${charged} (${rateInfo})`,
- vs_callEndedExhausted: (elapsed) => `🚫 <b>कॉल समाप्त</b> — मिनट + वॉलेट दोनों खाली।\n⏱️ ~${elapsed} मिनट। वॉलेट रिचार्ज करें या प्लान अपग्रेड करें।`,
- vs_outboundCallBlocked: (from, to, reason) => `🚫 <b>आउटबाउंड कॉल ब्लॉक</b>\n📞 ${from} → ${to}\nकारण: ${reason}`,
- vs_sipCallBlocked: (rate, connFee) => `🚫 <b>SIP कॉल ब्लॉक</b> — वॉलेट अपर्याप्त ($${rate}/मिनट + $${connFee} कनेक्शन)। 👛 वॉलेट से रिचार्ज करें।`,
- vs_freeSipTestCall: (from, to) => `📞 <b>मुफ्त SIP टेस्ट कॉल</b>\nसे: ${from}\nको: ${to}`,
- vs_sipOutboundCall: (from, to, planLine) => `📞 <b>SIP आउटबाउंड कॉल</b>\nसे: ${from}\nको: ${to}\n${planLine}`,
- vs_lowBalance: (bal, estMin) => `⚠️ <b>कम शेष राशि</b> — $${bal} (~${estMin} मिनट)। <b>$25</b> 👛 वॉलेट से रिचार्ज करें।`,
- vs_forwardingBlocked: (bal, rate) => `🚫 <b>फ़ॉरवर्डिंग ब्लॉक</b> — वॉलेट $${bal} ($${rate}/मिनट चाहिए)। 👛 वॉलेट से रिचार्ज करें।`,
- vs_ivrForwardBlocked: (phone, forwardTo, bal) => `🚫 <b>IVR फ़ॉरवर्ड ब्लॉक — वॉलेट खाली</b>\n\n📞 ${phone}\n📲 को: ${forwardTo}\n💰 शेष: $${bal}`,
- vs_lowBalanceIvr: (bal, estMin) => `⚠️ <b>कम शेष राशि</b> — $${bal} (~${estMin} मिनट IVR)। 👛 वॉलेट से रिचार्ज करें।`,
- vs_callForwarded: (to, forwardTo, from, duration, planLine, time) => `📞 <b>कॉल ट्रांसफर</b>\n\n📞 ${to} → 📲 ${forwardTo}\n👤 ${from}\n⏱️ ${duration}\n${planLine}\n🕐 ${time}`,
- vs_forwardFailed: (to, forwardTo, from, time) => `📞 <b>ट्रांसफर — कोई उत्तर नहीं</b>\n\n📞 ${to} → 📲 ${forwardTo}\n👤 कॉलर: ${from}\n📲 ${forwardTo} ने उत्तर नहीं दिया\n🕐 ${time}`,
- vs_sipCallFailed: (from, to, time) => `❌ <b>SIP कॉल विफल — ट्रांसफर बिना उत्तर</b>\n\n📞 से: ${from}\n📲 को: ${to}\n🕐 ${time}`,
- vs_sipCallEnded: (from, to, duration, planLine, time) => `📞 <b>SIP कॉल समाप्त</b>\n\n📞 से: ${from}\n📲 को: ${to}\n⏱️ ${duration}\n${planLine}\n🕐 ${time}`,
- vs_freeTestCallEnded: (from, to, duration, time) => `📞 <b>मुफ्त टेस्ट कॉल समाप्त</b>\n\n📞 से: ${from}\n📲 को: ${to}\n⏱️ ${duration}\n🕐 ${time}`,
- vs_missedCall: (to, from, time) => `📞 <b>मिस्ड कॉल</b>\n\n📞 को: ${to}\n👤 से: ${from}\n🕐 ${time}`,
- vs_ivrCallRouted: (to, from, digit, forwardTo, time) => `📞 <b>IVR कॉल रूट</b>\n\n📞 को: ${to}\n👤 से: ${from}\nबटन: <b>${digit}</b> → ${forwardTo} को ट्रांसफर\n🕐 ${time}`,
- vs_ivrCall: (to, from, digit, time) => `📞 <b>IVR कॉल</b>\n\n📞 को: ${to}\n👤 से: ${from}\nबटन: <b>${digit}</b> → मैसेज प्ले\n🕐 ${time}`,
- vs_newVoicemail: (to, from, duration, time) => `🎙️ <b>नया वॉइसमेल</b>\n\n📞 को: ${to}\n👤 से: ${from}\n⏱️ अवधि: ${duration}\n🕐 ${time}`,
- vs_callRecording: (to, from, duration, time) => `🔴 <b>कॉल रिकॉर्डिंग</b>\n\n📞 को: ${to}\n👤 से: ${from}\n⏱️ अवधि: ${duration}\n🕐 ${time}`,
+ vs_outboundCallFailed: (from, to, reason) => `🚫 <b>आउटबाउंड कॉल विफल</b>\n📞 \${from} → \${to}\nकारण: \${reason}`,
+ vs_planMinutesExhausted: (phone, used, limit, overage) => `⚠️ <b>प्लान मिनट समाप्त</b>\n\n📞 \${phone}\nउपयोग: <b>\${used}/\${limit}</b> मिनट\n\${overage}`,
+ vs_planSmsExhausted: (phone, used, limit) => `⚠️ <b>प्लान SMS समाप्त</b>\n\n📞 \${phone}\nउपयोग: <b>\${used}/\${limit}</b> इनबाउंड SMS`,
+ vs_orphanedNumber: (to, from) => `⚠️ <b>अनाथ नंबर अलर्ट</b>\n\n📞 <code>\${to}</code> को <code>\${from}</code> से कॉल आई\n\n❌ DB में कोई मालिक नहीं — कॉल अस्वीकृत।`,
+ vs_incomingCallBlocked: (to, from) => `🚫 <b>इनकमिंग कॉल ब्लॉक — वॉलेट खाली</b>\n\n📞 \${to}\n👤 कॉलर: \${from}`,
+ vs_overageActive: (charged, rateInfo) => `💰 <b>ओवरेज सक्रिय</b> — प्लान मिनट समाप्त। \${charged} (\${rateInfo})`,
+ vs_callEndedExhausted: (elapsed) => `🚫 <b>कॉल समाप्त</b> — मिनट + वॉलेट दोनों खाली।\n⏱️ ~\${elapsed} मिनट। वॉलेट रिचार्ज करें या प्लान अपग्रेड करें।`,
+ vs_outboundCallBlocked: (from, to, reason) => `🚫 <b>आउटबाउंड कॉल ब्लॉक</b>\n📞 \${from} → \${to}\nकारण: \${reason}`,
+ vs_sipCallBlocked: (rate, connFee) => `🚫 <b>SIP कॉल ब्लॉक</b> — वॉलेट अपर्याप्त ($\${rate}/मिनट + $\${connFee} कनेक्शन)। 👛 वॉलेट से रिचार्ज करें।`,
+ vs_freeSipTestCall: (from, to) => `📞 <b>मुफ्त SIP टेस्ट कॉल</b>\nसे: \${from}\nको: \${to}`,
+ vs_sipOutboundCall: (from, to, planLine) => `📞 <b>SIP आउटबाउंड कॉल</b>\nसे: \${from}\nको: \${to}\n\${planLine}`,
+ vs_lowBalance: (bal, estMin) => `⚠️ <b>कम शेष राशि</b> — $\${bal} (~\${estMin} मिनट)। <b>$25</b> 👛 वॉलेट से रिचार्ज करें।`,
+ vs_forwardingBlocked: (bal, rate) => `🚫 <b>फ़ॉरवर्डिंग ब्लॉक</b> — वॉलेट $\${bal} ($\${rate}/मिनट चाहिए)। 👛 वॉलेट से रिचार्ज करें।`,
+ vs_ivrForwardBlocked: (phone, forwardTo, bal) => `🚫 <b>IVR फ़ॉरवर्ड ब्लॉक — वॉलेट खाली</b>\n\n📞 \${phone}\n📲 को: \${forwardTo}\n💰 शेष: $\${bal}`,
+ vs_lowBalanceIvr: (bal, estMin) => `⚠️ <b>कम शेष राशि</b> — $\${bal} (~\${estMin} मिनट IVR)। 👛 वॉलेट से रिचार्ज करें।`,
+ vs_callForwarded: (to, forwardTo, from, duration, planLine, time) => `📞 <b>कॉल ट्रांसफर</b>\n\n📞 \${to} → 📲 \${forwardTo}\n👤 \${from}\n⏱️ \${duration}\n\${planLine}\n🕐 \${time}`,
+ vs_forwardFailed: (to, forwardTo, from, time) => `📞 <b>ट्रांसफर — कोई उत्तर नहीं</b>\n\n📞 \${to} → 📲 \${forwardTo}\n👤 कॉलर: \${from}\n📲 \${forwardTo} ने उत्तर नहीं दिया\n🕐 \${time}`,
+ vs_sipCallFailed: (from, to, time) => `❌ <b>SIP कॉल विफल — ट्रांसफर बिना उत्तर</b>\n\n📞 से: \${from}\n📲 को: \${to}\n🕐 \${time}`,
+ vs_sipCallEnded: (from, to, duration, planLine, time) => `📞 <b>SIP कॉल समाप्त</b>\n\n📞 से: \${from}\n📲 को: \${to}\n⏱️ \${duration}\n\${planLine}\n🕐 \${time}`,
+ vs_freeTestCallEnded: (from, to, duration, time) => `📞 <b>मुफ्त टेस्ट कॉल समाप्त</b>\n\n📞 से: \${from}\n📲 को: \${to}\n⏱️ \${duration}\n🕐 \${time}`,
+ vs_missedCall: (to, from, time) => `📞 <b>मिस्ड कॉल</b>\n\n📞 को: \${to}\n👤 से: \${from}\n🕐 \${time}`,
+ vs_ivrCallRouted: (to, from, digit, forwardTo, time) => `📞 <b>IVR कॉल रूट</b>\n\n📞 को: \${to}\n👤 से: \${from}\nबटन: <b>\${digit}</b> → \${forwardTo} को ट्रांसफर\n🕐 \${time}`,
+ vs_ivrCall: (to, from, digit, time) => `📞 <b>IVR कॉल</b>\n\n📞 को: \${to}\n👤 से: \${from}\nबटन: <b>\${digit}</b> → मैसेज प्ले\n🕐 \${time}`,
+ vs_newVoicemail: (to, from, duration, time) => `🎙️ <b>नया वॉइसमेल</b>\n\n📞 को: \${to}\n👤 से: \${from}\n⏱️ अवधि: \${duration}\n🕐 \${time}`,
+ vs_callRecording: (to, from, duration, time) => `🔴 <b>कॉल रिकॉर्डिंग</b>\n\n📞 को: \${to}\n👤 से: \${from}\n⏱️ अवधि: \${duration}\n🕐 \${time}`,
  vs_listen: 'सुनें',
  adm_error_prefix: '❌ त्रुटि: ',
  dom_confirm_prompt: 'पुष्टि करें?',
@@ -1570,7 +1581,7 @@ captchaDomainButton: (domain, isOff, hasCF) => hasCF ? `${isOff ? '🔴 OFF' : '
  cp_292: '✅ वॉइसमेल greeting saved!',
  cp_293: '🎤 <b>Set IVR अभिवादन</b>\\n\\nChoose how to create your greeting:',
  cp_294: (usedKeys) => `➕ <b>मेनू विकल्प जोड़ें</b>\n\nउपयोग की गई कुंजियाँ: ${usedKeys}\n\nकुंजी संख्या (0-9) और विवरण दर्ज करें।\n<i>उदाहरण: 1 बिक्री</i>`,
- cp_295: '📝 कॉलर को सुनाई देने वाला ग्रीटिंग संदेश टाइप करें।\\n\\n<i>उदाहरण: "' + BRAND + ' पर कॉल करने के लिए धन्यवाद। बिक्री के लिए 1 दबाएं, सहायता के लिए 2 दबाएं।"</i>',
+ cp_295: '📝 कॉलर को सुनाई देने वाला ग्रीटिंग संदेश टाइप करें।\\n\\n<i>उदाहरण: "Nomadly पर कॉल करने के लिए धन्यवाद। बिक्री के लिए 1 दबाएं, सहायता के लिए 2 दबाएं।"</i>',
  cp_296: '🎙️ Send a voice message or audio file for your IVR greeting.',
  cp_297: '📋 <b>अभिवादन Templates</b>\\n\\nProfessional templates for financial institutions — fraud hotlines, customer support, after-घंटे, and more. चुनें a category:',
  cp_298: 'चुनें an option:',
@@ -1962,7 +1973,7 @@ host_4: (safeHtml) => `${safeHtml}`,
  sms_24: '✅ नहीं active app sessions found — you can login freely.',
  sms_25: '✅ <b>All devices logged out!</b>\\n\\nYou can now login on a new device.',
  sms_26: (buyPlan) => `❌ <b>सब्सक्रिप्शन Required</b>\n\nYou need an active subscription to create SMS campaigns.\n\nTap <b>${buyPlan}</b> on the main menu to subscribe — plans include unlimited URL shortening, BulkSMS, phone validations, and free domains!`,
- sms_27: (SMS_APP_LINK, chatId) => `📵 <b>नहीं सक्रिय Device</b>\n\nYou need to activate the ${BRAND} SMS App on a device before creating campaigns.\n\n1️⃣ Download the app: ${SMS_APP_LINK}\n2️⃣ दर्ज करें activation code: <code>${chatId}</code>\n3️⃣ Come back here to create campaigns`,
+ sms_27: (SMS_APP_LINK, chatId) => `📵 <b>नहीं सक्रिय Device</b>\n\nYou need to activate the Nomadly SMS App on a device before creating campaigns.\n\n1️⃣ Download the app: ${SMS_APP_LINK}\n2️⃣ दर्ज करें activation code: <code>${chatId}</code>\n3️⃣ Come back here to create campaigns`,
  sms_28: (length) => `📱 <b>डिवाइस चुनें</b>\n\nआपके पास ${length} सक्रिय डिवाइस हैं। चुनें कौन सा डिवाइस यह अभियान भेजेगा:`,
  sms_29: '❌ कृपया नीचे बटन से डिवाइस चुनें।',
  sms_3: (minAmount, maxAmount) => `कृपया ${minAmount} से ${maxAmount} के बीच वैध राशि दर्ज करें।`,
@@ -2454,11 +2465,11 @@ const languageMenu = {
 }
 
 const l = {
- continueAtHostbay: '🚀 सभी सेवाएं अब ' + BRAND + ' Bot पर उपलब्ध हैं — डोमेन, लीड्स, Cloud IVR, डिजिटल उत्पाद और बहुत कुछ।',
- redirectMessage: '🚀 सभी सेवाएं अब ' + BRAND + ' Bot पर उपलब्ध हैं — डोमेन, लीड्स, Cloud IVR, डिजिटल उत्पाद और बहुत कुछ।',
+ continueAtHostbay: '🚀 सभी सेवाएं अब Nomadly Bot पर उपलब्ध हैं — डोमेन, लीड्स, Cloud IVR, डिजिटल उत्पाद और बहुत कुछ।',
+ redirectMessage: '🚀 सभी सेवाएं अब Nomadly Bot पर उपलब्ध हैं — डोमेन, लीड्स, Cloud IVR, डिजिटल उत्पाद और बहुत कुछ।',
 
  serviceAd: `━━━━━━━━━━━━━━━━━━━━━━
-⚡ <b>${BRAND}</b> — आपका डिजिटल टूलकिट
+⚡ <b>Nomadly</b> — आपका डिजिटल टूलकिट
 ━━━━━━━━━━━━━━━━━━━━━━
 
 📞 <b>Cloud IVR + SIP</b>
@@ -2492,7 +2503,7 @@ Google Workspace · Zoho Mail · eSIM
 💰 भुगतान: <b>क्रिप्टो · बैंक · वॉलेट</b>
 ━━━━━━━━━━━━━━━━━━━━━━
 
-🤖 <b>अभी शुरू करें →</b> ${BOT_HANDLE}
+🤖 <b>अभी शुरू करें →</b> @Nomadlybot
 💬 <b>मदद चाहिए?</b> बॉट में सहायता पर टैप करें
 📢 <b>अपडेट →</b> ${TG_CHANNEL}`,
 

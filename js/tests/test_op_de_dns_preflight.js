@@ -13,7 +13,7 @@
 'use strict'
 
 const path = require('path')
-require('dotenv').config({ path: '/app/backend/.env' })
+require('dotenv').config({ path: path.join(__dirname, '..', '..', '.env') })
 
 const opService = require('../op-service')
 const dnsHealer = require('../dns-healer')

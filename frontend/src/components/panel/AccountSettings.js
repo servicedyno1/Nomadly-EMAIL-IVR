@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from './AuthContext';
-import SiteStatusCard from './SiteStatusCard';
 
 /**
  * AccountSettings — Danger Zone.
@@ -87,8 +86,6 @@ export default function AccountSettings() {
           dangerouslySetInnerHTML={{ __html: t('acct.signedInAs', { username: user?.username || '', domain: user?.domain || '' }) }}
         />
       </div>
-
-      <SiteStatusCard />
 
       <div className="acct-card acct-card--danger" data-testid="account-danger-zone">
         <div className="acct-card-head">

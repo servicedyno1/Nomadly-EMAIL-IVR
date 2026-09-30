@@ -1,0 +1,86 @@
+{
+  "summary": "Backend-only verification of Nomadly RDP performance fixes (apply.ps1 perf tuning + DO size ladder with 422 fallback + bootscript endpoint). All requested checks pass. iteration_51.json already existed on disk, so this report is written as iteration_52.json.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/js/tests/test_do_rdp_golden_2026-06.js",
+    "/app/js/tests/verify_rdp_tasks_render.js",
+    "/app/js/tests/test_reseller_site_status_2026-06.js"
+  ],
+  "test_results": {
+    "unit_suite_golden_run1": "91 passed, 0 failed (exit 0)",
+    "unit_suite_golden_run2": "91 passed, 0 failed (exit 0) — stable, race flake gone",
+    "size_ladder": {
+      "nyc3_tor1_fra1": "first candidate is -intel, no -amd present, ends with basic slug — OK",
+      "ams3_lon1_syd1": "first candidate is -amd, ends with basic slug — OK",
+      "blr1_sfo3_sgp1": "[-amd, -intel, basic] in exact order — OK",
+      "no_duplicates": true,
+      "getProduct_standard_1m_intel_slug": "s-2vcpu-4gb-intel — OK"
+    },
+    "bootscript_endpoint": {
+      "http": "200 text/plain; charset=utf-8",
+      "sha256_match_apply_ps1": true,
+      "sha256": "f121fab18268f875db572fdd4eae3efef1be162611b1354c296b90373474ace2",
+      "byte_identical": true,
+      "markers_present": [
+        "UserPreferencesMask /t REG_BINARY /d 9012038012000000",
+        "hive busy",
+        "'WSearch', 'SysMain', 'DiagTrack'",
+        "Microsoft Compatibility Appraiser",
+        "-DisableCatchupFullScan $true (line 316)",
+        "Update-MpSignature -UpdateSource MMPC",
+        "MemorySaverModeSavings",
+        "HighEfficiencyModeEnabled",
+        "SleepingTabsTimeout",
+        "StartupBoostEnabled",
+        "AutomaticManagedPagefile",
+        "powercfg /s SCHEME_MIN",
+        "performance tuning applied",
+        "UserAuthentication /t REG_DWORD /d 1 (NLA kept ON)"
+      ],
+      "forbidden_absent": ["DisableRealtimeMonitoring $true (0 hits)", "Set-MpPreference -ExclusionPath (0 hits)"]
+    },
+    "apply_ps1_static_sanity": {
+      "open_braces": 186,
+      "close_braces": 186,
+      "balanced": true,
+      "perf_tuning_section_count": 1,
+      "callback_section_count": 1,
+      "live_box_sha256_match": "F121FAB18268 (matches sandbox file prefix)",
+      "live_box_syntax_errors": 0
+    },
+    "regression_suites": {
+      "verify_rdp_tasks_render.js": "44 passed, 0 failed",
+      "test_reseller_site_status_2026-06.js": "13 passed, 0 failed"
+    },
+    "service_health": {
+      "backend_api_health": "HTTP 200",
+      "module_load_digitalocean_rdp_service": "ok",
+      "nodejs_supervisor_log_errors_since_change": "none observed"
+    },
+    "live_box_evidence_out_txt": {
+      "syntax_errors": 0,
+      "power_scheme": "High performance",
+      "services": "DiagTrack/SysMain/WSearch all Stopped/Disabled",
+      "defender_prefs": "cpu=20 lowprio=True nocatchup=True/True idleonly=True (rtp=True kept)",
+      "chrome_policy": "hwaccel=0 bg=0 memsaver=1/2",
+      "edge_policy": "hwaccel=0 boost=0 sleeping=1/300s",
+      "visualfx_mask": "9012038012000000",
+      "pagefile": "auto=False C:\\pagefile.sys 4096-8192MB",
+      "defender_signature_updated": "09/23/2026"
+    }
+  },
+  "action_items": [],
+  "critical_code_review_comments": [
+    "sizeCandidatesFor produces the intended ordering for all 9 audited regions and dedupes cleanly; consider a small unit test on the standalone function (currently only covered indirectly via golden suite + ad-hoc script).",
+    "createWithSizeFallback log line uses region name correctly on 422; verified in golden test [3c] with two consecutive fallbacks before success.",
+    "apply.ps1 keeps NLA (UserAuthentication=1) and Defender real-time protection ON — safety invariants preserved."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100%", "frontend": "N/A (skipped per request)"},
+  "test_credentials": "N/A (no auth flows exercised)",
+  "seed_data_creation": "None (golden suite uses its own local test DB do_rdp_golden_test)",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "iteration_51.json was already present when this run started, so this report is iteration_52.json. Do NOT restart supervisor services (golden image builds are in flight). Bootscript endpoint currently serves sha256 f121fab18268f8... — any change to apply.ps1 will change that hash. Golden suite is fully stable (2 back-to-back green runs, 91/91)."
+}
