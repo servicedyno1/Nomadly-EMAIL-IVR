@@ -29,10 +29,11 @@ User inherited a fully-set-up Nomadly bot pod pointed at LIVE PRODUCTION. Task b
 - **Problem**: `calculateBotScore()` hardcoded Chrome version thresholds (`>165`, `<90`) that go stale as Chrome releases ~monthly.
 - **Solution**: `getChromeVersionCeiling()` dynamically calculates thresholds based on Chrome's release cadence (Chrome 120 = Dec 2023, +1 every 4 weeks). Returns `{ stable, suspicious: +15, maybeDev: +10, old: -40 }`. Embedded into both the CF Worker script and the client-side challenge page at generation time.
 
-### P1 #3: Protection Files Moved Outside public_html
-- **Problem**: `.user.ini` and `.antired-challenge.php` in `public_html` were vulnerable to accidental user deletion (uploads, zip extracts, File Manager).
-- **Solution**: Protection PHP now deploys to `/home/<user>/.antired/challenge.php` (outside public_html). `.user.ini` remains in public_html (PHP requires it there) but is now a tiny 2-line pointer. `isProtectedAntiRedFile()` also guards the new `/.antired/` directory. Legacy files get a "MIGRATED" stub.
-- **Heartbeat**: `checkAndRepair()` now checks both old and new locations (prefers protected).
+### P1 #3: Protection Files Outside public_html — REVERTED
+- **Attempted**: Deployed protection PHP to `/home/<user>/.antired/challenge.php` (outside public_html).
+- **Failed**: cPanel Fileman API `mkdir` silently fails for directories outside `public_html`. The `/.antired/` directory was never created, but `.user.ini` was updated to point to the non-existent file → PHP fatal error on every request → 3 customer accounts broken (clai1622, happ87c3, surpfa26).
+- **Hotfix**: Reverted to deploying in `public_html` as before. Manually restored `.user.ini` on WHM box for affected accounts. Reset repair counters in MongoDB.
+- **Lesson**: cPanel Fileman API only operates within the user's home tree but `mkdir` does not work for hidden dirs at home root level. Any future attempt needs WHM root-level file operations (e.g., `sshapi` or direct SSH), not the cPanel proxy.
 
 ### P1 #4: HTTP Health Probe as STUCK Second-Opinion
 - **Problem**: False STUCK alerts when WHM reads are unreliable but the CF Worker is actually cloaking fine at the edge.
