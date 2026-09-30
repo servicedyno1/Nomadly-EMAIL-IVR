@@ -1,13 +1,14 @@
 name: Deploy to Droplet
 
-# Auto-deploy: a push to `main` that touches runtime files ships to the
-# DigitalOcean droplet. The runner SSHes in and runs /opt/nomadly/deploy.sh
-# (git sync + smart deps + pm2 restart + /health check with auto-rollback).
-# Canonical deploy logic: scripts/droplet_deploy.sh (self-installs on the box
-# after each sync). WhiteLabel/app-wl will be added once it is live in PM2.
+# Auto-deploy: a push to `main` or `WhiteLabel` that touches runtime files
+# ships to the DigitalOcean droplet. The runner SSHes in and runs
+# /opt/nomadly/deploy.sh (git sync + smart deps + pm2 restart + /health
+# check with auto-rollback).
+# Canonical deploy logic: scripts/droplet_deploy.sh (self-installs on the
+# box after each sync).
 on:
   push:
-    branches: [main]
+    branches: [main, WhiteLabel]
     # Docs / memory / reports never need a production restart.
     paths-ignore:
       - 'memory/**'
@@ -15,7 +16,17 @@ on:
       - 'test_reports/**'
       - 'investigations/**'
       - '**.md'
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      app:
+        description: 'Which app to deploy (app-main, app-wl, or both)'
+        required: false
+        default: 'both'
+        type: choice
+        options:
+          - both
+          - app-main
+          - app-wl
 
 # The job only SSHes out — it needs no GITHUB_TOKEN permissions at all.
 permissions: {}
@@ -30,6 +41,9 @@ jobs:
     name: Deploy app-main (branch main)
     runs-on: ubuntu-latest
     timeout-minutes: 25
+    if: >-
+      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'workflow_dispatch' && (github.event.inputs.app == 'both' || github.event.inputs.app == 'app-main'))
     env:
       DROPLET_HOST: ${{ secrets.DROPLET_HOST }}
       DROPLET_USER: ${{ secrets.DROPLET_USER }}
@@ -55,3 +69,36 @@ jobs:
               -o ServerAliveCountMax=6 \
               "$DROPLET_USER@$DROPLET_HOST" \
               'bash /opt/nomadly/deploy.sh app-main'
+
+  deploy-wl:
+    name: Deploy app-wl (branch WhiteLabel)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    if: >-
+      (github.event_name == 'push' && github.ref == 'refs/heads/WhiteLabel') ||
+      (github.event_name == 'workflow_dispatch' && (github.event.inputs.app == 'both' || github.event.inputs.app == 'app-wl'))
+    env:
+      DROPLET_HOST: ${{ secrets.DROPLET_HOST }}
+      DROPLET_USER: ${{ secrets.DROPLET_USER }}
+    steps:
+      - name: Configure SSH
+        env:
+          SSH_KEY: ${{ secrets.DROPLET_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.DROPLET_SSH_KNOWN_HOSTS }}
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 644 ~/.ssh/known_hosts
+
+      - name: Deploy over SSH
+        run: |
+          ssh -i ~/.ssh/deploy_key \
+              -o UserKnownHostsFile=~/.ssh/known_hosts \
+              -o StrictHostKeyChecking=yes \
+              -o ConnectTimeout=20 \
+              -o ServerAliveInterval=30 \
+              -o ServerAliveCountMax=6 \
+              "$DROPLET_USER@$DROPLET_HOST" \
+              'bash /opt/nomadly/deploy.sh app-wl'
