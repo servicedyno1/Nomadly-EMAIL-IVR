@@ -1,0 +1,146 @@
+{
+  "at": "2026-10-01T07:14:41.521Z",
+  "chatId": "999100071",
+  "lang": "🇬🇧 English",
+  "maxDepth": 3,
+  "steps": 187,
+  "issues": [
+    {
+      "type": "STRANDED",
+      "path": "🌐 Bulletproof Domains → 📂 My Domain Names",
+      "text": "Missing domain extension. Please add .com, .net, .org, or another extension.\n\nExample: ***"
+    },
+    {
+      "type": "STRANDED",
+      "path": "🌐 Bulletproof Domains → 🔧 DNS Management",
+      "text": "Missing domain extension. Please add .com, .net, .org, or another extension.\n\nExample: ***"
+    },
+    {
+      "type": "PROMPT_NO_KB",
+      "sev": "low",
+      "path": "📱 SMS Leads",
+      "text": "That option isn't available right now. Please pick from the buttons below, or type /start to see the full menu."
+    },
+    {
+      "type": "PROMPT_NO_KB",
+      "sev": "low",
+      "path": "🔗✂️ URL Shortener — 5 Free Links",
+      "text": "That option isn't available right now. Please pick from the buttons below, or type /start to see the full menu."
+    },
+    {
+      "type": "INVALID_OPT",
+      "path": "📢 Join Channel",
+      "text": "Please choose a valid plan"
+    },
+    {
+      "type": "INVALID_OPT",
+      "path": "📢 Join Channel → Weekly",
+      "text": "Please choose a valid payment option"
+    },
+    {
+      "type": "INVALID_OPT",
+      "path": "📢 Join Channel → Weekly → ✅ Complete My Order",
+      "text": "Please choose a valid payment option"
+    },
+    {
+      "type": "STRANDED",
+      "path": "📢 Join Channel → Weekly → ✅ Complete My Order",
+      "text": "Please choose a valid payment option"
+    },
+    {
+      "type": "KB_LOST",
+      "path": "📢 Join Channel → Weekly → ✅ Complete My Order",
+      "text": "Please choose a valid payment option"
+    },
+    {
+      "type": "INVALID_OPT",
+      "path": "📢 Join Channel → Weekly → 🆕 Start Fresh",
+      "text": "Please choose a valid payment option"
+    },
+    {
+      "type": "INVALID_OPT",
+      "path": "📢 Join Channel → Monthly",
+      "text": "Please choose a valid payment option"
+    },
+    {
+      "type": "INVALID_OPT",
+      "path": "💼 Reseller",
+      "text": "Please choose a valid payment option"
+    },
+    {
+      "type": "STRANDED",
+      "path": "💼 Reseller",
+      "text": "Please choose a valid payment option"
+    },
+    {
+      "type": "KB_LOST",
+      "path": "💼 Reseller",
+      "text": "Please choose a valid payment option"
+    },
+    {
+      "type": "UNRECOGNIZED",
+      "path": "⚙️ Settings → 📢 Join Channel",
+      "text": "💡 सुझाव: नेविगेट करने के लिए नीचे बटन का उपयोग करें!\nNomadly Bot को चुनने के लिए धन्यवाद! कृपया नीचे एक विकल्प चुनें :"
+    },
+    {
+      "type": "STRANDED",
+      "path": "💬 Support → ✅ मेरा ऑर्डर पूरा करें",
+      "text": "यह विकल्प अभी उपलब्ध नहीं है। कृपया नीचे दिए बटनों में से चुनें।"
+    },
+    {
+      "type": "KB_LOST",
+      "path": "💬 Support → ✅ मेरा ऑर्डर पूरा करें",
+      "text": "यह विकल्प अभी उपलब्ध नहीं है। कृपया नीचे दिए बटनों में से चुनें।"
+    },
+    {
+      "type": "STRANDED",
+      "path": "💬 Support → 🆕 नए सिरे से शुरू करें",
+      "text": "यह विकल्प अभी उपलब्ध नहीं है। कृपया नीचे दिए बटनों में से चुनें।"
+    },
+    {
+      "type": "KB_LOST",
+      "path": "💬 Support → 🆕 नए सिरे से शुरू करें",
+      "text": "यह विकल्प अभी उपलब्ध नहीं है। कृपया नीचे दिए बटनों में से चुनें।"
+    },
+    {
+      "type": "STRANDED",
+      "path": "(onboarding) 📞 Phone Numbers / IVR",
+      "text": "यह विकल्प अभी उपलब्ध नहीं है। कृपया नीचे दिए बटनों में से चुनें।"
+    },
+    {
+      "type": "KB_LOST",
+      "path": "(onboarding) 📞 Phone Numbers / IVR",
+      "text": "यह विकल्प अभी उपलब्ध नहीं है। कृपया नीचे दिए बटनों में से चुनें।"
+    },
+    {
+      "type": "STRANDED",
+      "path": "(onboarding) 🛡️ Bulletproof Hosting",
+      "text": "यह विकल्प अभी उपलब्ध नहीं है। कृपया नीचे दिए बटनों में से चुनें।"
+    },
+    {
+      "type": "KB_LOST",
+      "path": "(onboarding) 🛡️ Bulletproof Hosting",
+      "text": "यह विकल्प अभी उपलब्ध नहीं है। कृपया नीचे दिए बटनों में से चुनें।"
+    },
+    {
+      "type": "STRANDED",
+      "path": "(onboarding) 🌐 Domains",
+      "text": "यह विकल्प अभी उपलब्ध नहीं है। कृपया नीचे दिए बटनों में से चुनें।"
+    },
+    {
+      "type": "KB_LOST",
+      "path": "(onboarding) 🌐 Domains",
+      "text": "यह विकल्प अभी उपलब्ध नहीं है। कृपया नीचे दिए बटनों में से चुनें।"
+    },
+    {
+      "type": "STRANDED",
+      "path": "(onboarding) 🛒 Digital Products",
+      "text": "यह विकल्प अभी उपलब्ध नहीं है। कृपया नीचे दिए बटनों में से चुनें।"
+    },
+    {
+      "type": "KB_LOST",
+      "path": "(onboarding) 🛒 Digital Products",
+      "text": "यह विकल्प अभी उपलब्ध नहीं है। कृपया नीचे दिए बटनों में से चुनें।"
+    }
+  ]
+}

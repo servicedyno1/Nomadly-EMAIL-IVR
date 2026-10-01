@@ -1,0 +1,49 @@
+{
+  "at": "2026-10-01T08:15:50.555Z",
+  "chatId": "999101303",
+  "lang": "🇮🇳 Hindi",
+  "maxDepth": 3,
+  "steps": 318,
+  "issues": [
+    {
+      "type": "JS_ERROR",
+      "path": "📞 Cloud IVR + SIP → 🛒 प्लान चुनें",
+      "text": "[Queue] Error processing message for 999101303: phoneConfig is not defined"
+    },
+    {
+      "type": "JS_ERROR",
+      "path": "📞 Cloud IVR + SIP → 📞 बल्क IVR अभियान → 🛒 प्लान चुनें",
+      "text": "[Queue] Error processing message for 999101303: phoneConfig is not defined"
+    },
+    {
+      "type": "JS_ERROR",
+      "path": "📞 Cloud IVR + SIP → 📋 मेरे प्लान → 🛒 प्लान चुनें",
+      "text": "[Queue] Error processing message for 999101303: phoneConfig is not defined"
+    },
+    {
+      "type": "JS_ERROR",
+      "path": "📞 Cloud IVR + SIP → 📖 SIP सेटअप गाइड → 🛒 प्लान चुनें",
+      "text": "[Queue] Error processing message for 999101303: phoneConfig is not defined"
+    },
+    {
+      "type": "JS_ERROR",
+      "path": "📞 Cloud IVR + SIP → 📊 उपयोग और बिलिंग → 🛒 प्लान चुनें",
+      "text": "[Queue] Error processing message for 999101303: phoneConfig is not defined"
+    },
+    {
+      "type": "JS_ERROR",
+      "path": "📞 Cloud IVR + SIP → ❓ कैसे काम करता है",
+      "text": "[Queue] Error processing message for 999101505: phoneConfig is not defined"
+    },
+    {
+      "type": "JS_ERROR",
+      "path": "📞 Cloud IVR + SIP → ❓ कैसे काम करता है → 🛒 प्लान चुनें",
+      "text": "[Queue] Error processing message for 999101303: phoneConfig is not defined"
+    },
+    {
+      "type": "JS_ERROR",
+      "path": "🛡️ Anti-Red होस्टिंग → 🔼 Premium Anti-Red (1 सप्ताह)",
+      "text": "[Queue] Error processing message for 999101505: phoneConfig is not defined"
+    }
+  ]
+}

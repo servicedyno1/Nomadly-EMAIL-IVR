@@ -1,0 +1,28 @@
+{
+  "at": "2026-10-01T07:28:31.744Z",
+  "chatId": "999100101",
+  "lang": "🇬🇧 English",
+  "maxDepth": 3,
+  "steps": 156,
+  "issues": [
+    {
+      "type": "STRANDED",
+      "path": "🌐 Bulletproof Domains → 📂 My Domain Names",
+      "text": "Missing domain extension. Please add .com, .net, .org, or another extension.\n\nExample: ***"
+    },
+    {
+      "type": "STRANDED",
+      "path": "🌐 Bulletproof Domains → 🔧 DNS Management",
+      "text": "Missing domain extension. Please add .com, .net, .org, or another extension.\n\nExample: ***"
+    },
+    {
+      "type": "UNRECOGNIZED",
+      "path": "(onboarding) 🛡️ Bulletproof Hosting",
+      "text": "💡 Tip: Use the buttons below to navigate! Just tap on any option to get started.\nThank you for choosing Nomadly Bot! Please choose an option below:"
+    },
+    {
+      "type": "NO_REPLY",
+      "path": "(onboarding) 🌐 Domains"
+    }
+  ]
+}

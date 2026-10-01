@@ -1,0 +1,39 @@
+{
+  "at": "2026-10-01T08:16:41.076Z",
+  "chatId": "999101505",
+  "lang": "🇨🇳 Chinese",
+  "maxDepth": 3,
+  "steps": 318,
+  "issues": [
+    {
+      "type": "JS_ERROR",
+      "path": "📞 Cloud IVR + SIP → 🛒 选择套餐",
+      "text": "[Queue] Error processing message for 999101505: phoneConfig is not defined"
+    },
+    {
+      "type": "JS_ERROR",
+      "path": "📞 Cloud IVR + SIP → 📞 批量IVR活动 → 🛒 选择套餐",
+      "text": "[Queue] Error processing message for 999101505: phoneConfig is not defined"
+    },
+    {
+      "type": "JS_ERROR",
+      "path": "📞 Cloud IVR + SIP → 📋 我的套餐 → 🛒 选择套餐",
+      "text": "[Queue] Error processing message for 999101505: phoneConfig is not defined"
+    },
+    {
+      "type": "JS_ERROR",
+      "path": "📞 Cloud IVR + SIP → 📖 SIP 设置指南 → 🛒 选择套餐",
+      "text": "[Queue] Error processing message for 999101505: phoneConfig is not defined"
+    },
+    {
+      "type": "JS_ERROR",
+      "path": "📞 Cloud IVR + SIP → 📊 使用量与账单 → 🛒 选择套餐",
+      "text": "[Queue] Error processing message for 999101505: phoneConfig is not defined"
+    },
+    {
+      "type": "JS_ERROR",
+      "path": "📞 Cloud IVR + SIP → ❓ 使用说明 → 🛒 选择套餐",
+      "text": "[Queue] Error processing message for 999101505: phoneConfig is not defined"
+    }
+  ]
+}
