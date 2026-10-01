@@ -1745,6 +1745,11 @@ for (const [lang, labels] of Object.entries(btnI18n)) {
   for (const [key, val] of Object.entries(labels)) {
     if (typeof val === 'string') _allBtnValueToKey[val] = key
   }
+  // planByButton was English-only → FR/ZH/HI users tapping "⭐ Pro — $75/mois" got
+  // "Veuillez sélectionner un forfait" forever and could never buy a plan. (2026-10-01)
+  if (labels.starterPlan) planByButton[labels.starterPlan] = 'starter'
+  if (labels.proPlan) planByButton[labels.proPlan] = 'pro'
+  if (labels.businessPlan) planByButton[labels.businessPlan] = 'business'
 }
 
 /** Get full translated btn object for a language (falls back to English) */

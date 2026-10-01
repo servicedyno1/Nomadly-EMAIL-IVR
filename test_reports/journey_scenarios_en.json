@@ -1,0 +1,47 @@
+{
+  "at": "2026-10-01T07:33:11.024Z",
+  "chatId": "999100601",
+  "lang": "en",
+  "results": [
+    {
+      "name": "subscription upgrade (Daily/Weekly/Monthly) reaches payment screen and Back/Cancel work",
+      "ok": true,
+      "fails": []
+    },
+    {
+      "name": "phone-number plan → country → number → payment screen (the production complaint path)",
+      "ok": true,
+      "fails": []
+    },
+    {
+      "name": "/start \"Welcome back — resume?\" → Complete My Order is NOT swallowed",
+      "ok": true,
+      "fails": []
+    },
+    {
+      "name": "/start resume prompt → Back and Start Fresh both escape to a menu",
+      "ok": true,
+      "fails": []
+    },
+    {
+      "name": "stale plan button at main menu does not strand",
+      "ok": true,
+      "fails": []
+    },
+    {
+      "name": "random text at main menu gets a keyboard back",
+      "ok": true,
+      "fails": []
+    },
+    {
+      "name": "domain search (free text) always answers with a keyboard",
+      "ok": true,
+      "fails": []
+    },
+    {
+      "name": "support chat opens with /done and /done returns to the menu",
+      "ok": true,
+      "fails": []
+    }
+  ]
+}
