@@ -51,6 +51,35 @@ const HEARTBEAT_INTERVAL_MS = parseInt(process.env.PROTECTION_HEARTBEAT_INTERVAL
 
 // Rate limit WHM calls — sleep between accounts
 const PER_ACCOUNT_DELAY_MS = 250
+const WHM_TIMEOUT_BREAKER = 3          // consecutive timed-out accounts → abort cycle
+const WHM_OUTAGE_ALERT_CYCLES = 3      // consecutive aborted/all-skipped cycles → page admin
+let _whmOutageCycles = 0
+let _whmOutageAlerted = false
+
+// Page admin once when WHM reads have been unusable for N cycles in a row, and once on recovery.
+async function trackWhmOutage(summary) {
+  const checked = summary.total - summary.skipped
+  const unusable = !!summary.aborted || (summary.total > 0 && checked <= 0 && summary.skippedWhmReadUnreliable === summary.total)
+  if (unusable) {
+    _whmOutageCycles++
+    if (_whmOutageCycles >= WHM_OUTAGE_ALERT_CYCLES && !_whmOutageAlerted) {
+      _whmOutageAlerted = true
+      await alertAdmin(
+        `\ud83d\udea8 <b>WHM API unreachable — Anti-Red protection UNVERIFIED</b>\n\n` +
+        `Protection heartbeat could not read any cPanel files for ${_whmOutageCycles} consecutive cycles (~${_whmOutageCycles}h).\n` +
+        `Host: <code>${process.env.WHM_HOST || '?'}</code> via <code>${process.env.WHM_API_URL || 'direct :2087'}</code>\n\n` +
+        `Check cpsrvd on the WHM box (<code>/scripts/restartsrv_cpsrvd</code>) and the Cloudflare tunnel. ` +
+        `Panel uploads/file ops are likely failing for customers too.`
+      )
+    }
+    return
+  }
+  if (_whmOutageAlerted) {
+    await alertAdmin(`\u2705 <b>WHM API recovered</b> — heartbeat verified ${checked}/${summary.total} accounts after ${_whmOutageCycles} unusable cycles.`)
+  }
+  _whmOutageCycles = 0
+  _whmOutageAlerted = false
+}
 
 let db = null
 let heartbeatTimer = null
@@ -409,7 +438,8 @@ async function checkAndRepair(cpUsername) {
       if (process.env.PROTECTION_HEARTBEAT_VERBOSE === '1') {
         log(`[ProtectionHeartbeat] ${cpUsername} — WHM read unreliable (empty content after ${RETRY_DELAYS_MS.length} retries, no explicit errors). lastCfIpFixSig present → SKIPPING this cycle (assuming files intact on disk). No counter increment, no alert.`)
       }
-      return { cpUsername, ok: true, action: 'skipped', reason: 'whm_read_unreliable' }
+      const isTimeout = r => !!(r && r.fetchError && !r.status)
+      return { cpUsername, ok: true, action: 'skipped', reason: 'whm_read_unreliable', timedOut: isTimeout(iniRes) && isTimeout(phpRes) }
     }
   }
 
@@ -603,7 +633,9 @@ async function runHeartbeat() {
     summary.total = accounts.length
     log(`[ProtectionHeartbeat] Checking ${accounts.length} cPanel accounts (deleted excluded; cooled-down stuck accounts retried)...`)
 
-    for (const account of accounts) {
+    let consecutiveTimeouts = 0
+    for (let idx = 0; idx < accounts.length; idx++) {
+      const account = accounts[idx]
       const cpUsername = account._id || account.cpUser
       if (!cpUsername || typeof cpUsername !== 'string') continue
 
@@ -616,6 +648,19 @@ async function runHeartbeat() {
       }
       else summary.errors++
 
+      // ── Circuit breaker (2026-10-01) ── WHM API hung for 32h after the 09-28 whm2
+      // reboot: every getFile timed out (30s × 8 per account) so each cycle ground
+      // through ALL accounts for 70 min and nobody was alerted. Abort the cycle once
+      // WHM_TIMEOUT_BREAKER accounts in a row time out; the outage alert below pages admin.
+      consecutiveTimeouts = (result.reason === 'whm_read_unreliable' && result.timedOut) ? consecutiveTimeouts + 1 : 0
+      if (consecutiveTimeouts >= WHM_TIMEOUT_BREAKER) {
+        const remaining = accounts.length - idx - 1
+        summary.skipped += remaining
+        summary.aborted = 'whm_api_timeouts'
+        log(`[ProtectionHeartbeat] WHM API timing out (${consecutiveTimeouts} accounts in a row) — aborting cycle, ${remaining} accounts not checked`)
+        break
+      }
+
       await new Promise(r => setTimeout(r, PER_ACCOUNT_DELAY_MS))
     }
   } catch (err) {
@@ -624,7 +669,9 @@ async function runHeartbeat() {
   }
 
   const elapsed = ((Date.now() - startTime) / 1000).toFixed(1)
-  log(`[ProtectionHeartbeat] Done in ${elapsed}s — total:${summary.total} ok:${summary.ok} repaired:${summary.repaired} skipped:${summary.skipped}${summary.skippedWhmReadUnreliable ? ` (whm_read_unreliable:${summary.skippedWhmReadUnreliable})` : ''} errors:${summary.errors}`)
+  log(`[ProtectionHeartbeat] Done in ${elapsed}s — total:${summary.total} ok:${summary.ok} repaired:${summary.repaired} skipped:${summary.skipped}${summary.skippedWhmReadUnreliable ? ` (whm_read_unreliable:${summary.skippedWhmReadUnreliable})` : ''} errors:${summary.errors}${summary.aborted ? ` ABORTED:${summary.aborted}` : ''}`)
+
+  await trackWhmOutage(summary)
 
   // ── P1: Flush queued STUCK alerts as a single digest ──
   try { await flushStuckAlerts() } catch (e) { /* best-effort */ }

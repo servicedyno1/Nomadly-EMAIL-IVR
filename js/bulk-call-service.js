@@ -486,7 +486,19 @@ async function resetInflightLeads(campaignId, leads) {
  * @param {string} content - File content
  * @returns {{ leads: Array<{number, name}>, errors: string[] }}
  */
+// 2026-10-01 (@jameswalker3646): a binary upload (xlsx/pdf/audio) read as text yielded
+// garbage "leads" whose names contained "<" → Telegram HTML parse error → user saw nothing.
+function looksBinary(content) {
+  const sample = String(content || '').slice(0, 4000)
+  if (!sample) return false
+  if (sample.includes('\u0000') || sample.includes('\uFFFD')) return true
+  // eslint-disable-next-line no-control-regex
+  const bad = (sample.match(/[^\x09\x0A\x0D\x20-\x7E\u00A0-\uFFFC]/g) || []).length
+  return bad >= 8 && bad / sample.length > 0.1
+}
+
 function parseLeadsFile(content) {
+  if (looksBinary(content)) return { leads: [], errors: ['File is not plain text (binary/spreadsheet/audio). Upload a .txt or .csv file.'], binary: true }
   const lines = content.split(/\r?\n/).map(l => l.trim()).filter(l => l && !l.startsWith('#'))
   const leads = []
   const errors = []
@@ -521,13 +533,14 @@ function parseLeadsFile(content) {
     number = number.replace(/[^+\d]/g, '')
 
     if (!number.match(/^\+\d{8,15}$/)) {
-      errors.push(`Line ${i + 1}: Invalid number "${lines[i].substring(0, 30)}"`)
+      errors.push(`Line ${i + 1}: Invalid number "${lines[i].substring(0, 30).replace(/[<>&]/g, '')}"`)
       continue
     }
 
     if (seen.has(number)) continue // skip duplicates
     seen.add(number)
-    leads.push({ number, name: name ? name.trim() : null })
+    const cleanName = name ? name.replace(/[^\x20-\x7E\u00A0-\uFFFC]/g, '').trim().slice(0, 60) : ''
+    leads.push({ number, name: cleanName || null })
   }
 
   return { leads, errors }

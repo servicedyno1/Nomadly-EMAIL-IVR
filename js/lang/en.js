@@ -1498,6 +1498,7 @@ captchaDomainButton: (domain, isOff, hasCF) => hasCF ? `${isOff ? '🔴 OFF' : '
  cp_132: (phoneNumber) => `📱 Caller ID: <b>${phoneNumber}</b>\n\n📋 <b>Upload Leads File</b>\n\nSend a text file (.txt or .csv) with one phone number per line.\nOptional: <code>number,name</code> per line.\n\nOr paste the numbers directly (one per line):`,
  cp_133: 'Select the Caller ID:',
  cp_134: (message) => `❌ Failed to read file: ${message}\n\nTry again or paste numbers directly.`,
+ cp_134b: (fname) => `❌ <b>${fname}</b> is not a plain-text file.\n\nPlease upload a <b>.txt</b> or <b>.csv</b> file (one number per line, or number,name), or paste the numbers directly.`,
  cp_135: 'Please send a file or paste phone numbers.',
  cp_136: (errMsg) => `❌ No valid phone numbers found.${errMsg}\n\nPlease check format: one number per line, with + country code.`,
  cp_137: (maxLeads, length) => `❌ <b>Too many leads!</b>\n\nMaximum <b>${maxLeads}</b> numbers per campaign.\nYou uploaded <b>${length}</b>.\n\nPlease reduce your list and try again.`,

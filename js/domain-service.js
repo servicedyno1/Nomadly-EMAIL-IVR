@@ -1299,8 +1299,27 @@ const ensureCloudflare = async (domainName, db) => {
   if (!meta) return { error: 'Domain metadata not found' }
 
   if ((meta.nameserverType === 'cloudflare' || meta.cfZoneId) && meta.cfZoneId) {
-    log(`[ensureCloudflare] ${domainName} already on CF (zone: ${meta.cfZoneId})`)
-    return { success: true, cfZoneId: meta.cfZoneId, nameservers: meta.nameservers || [], alreadyActive: true }
+    // 2026-10-01 (accesslog45security.com / 840923854): 96 registeredDomains carry a cfZoneId
+    // whose zone was deleted from (or never belonged to) our CF account → every DNS write
+    // failed with "Authentication error". Verify the zone is really ours; if definitively not,
+    // re-link to an existing same-name zone in our account or drop the id and re-create.
+    const live = await cfService.zoneExistsInAccount(meta.cfZoneId)
+    if (live !== false) {
+      log(`[ensureCloudflare] ${domainName} already on CF (zone: ${meta.cfZoneId})`)
+      return { success: true, cfZoneId: meta.cfZoneId, nameservers: meta.nameservers || [], alreadyActive: true }
+    }
+    const sameName = await cfService.getZoneByName(domainName)
+    if (sameName?.id) {
+      log(`[ensureCloudflare] ${domainName}: stale cfZoneId ${meta.cfZoneId} → re-linked to existing zone ${sameName.id}`)
+      await _updateDBMeta(domainName, sameName.id, sameName.name_servers || meta.nameservers || [], db)
+      return { success: true, cfZoneId: sameName.id, nameservers: sameName.name_servers || [], alreadyActive: true, relinked: true }
+    }
+    log(`[ensureCloudflare] ${domainName}: cfZoneId ${meta.cfZoneId} not in our CF account — clearing and re-creating zone`)
+    if (db) {
+      await db.collection('domainsOf').updateOne({ domainName }, { $unset: { cfZoneId: '' } }).catch(() => {})
+      await db.collection('registeredDomains').updateOne({ _id: domainName }, { $unset: { 'val.cfZoneId': '' } }).catch(() => {})
+    }
+    meta.cfZoneId = null
   }
 
   log(`[ensureCloudflare] ${domainName} NOT on Cloudflare — switching now`)

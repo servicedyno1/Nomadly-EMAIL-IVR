@@ -1409,6 +1409,7 @@ captchaDomainButton: (domain, isOff, hasCF) => hasCF ? `${isOff ? '🔴 关闭' 
  cp_132: (phoneNumber) => `📱 来电显示: <b>${phoneNumber}</b>\n\n📋 <b>Upload 线索 File</b>\n\nSend a text file (.txt or .csv) with one phone number per line.\nOptional: <code>number,name</code> per line.\n\nOr paste the 个号码 directly (one per line):`,
  cp_133: '选择 the 来电显示:',
  cp_134: (message) => `❌ 失败 to read file: ${message}\n\nTry again or paste 个号码 directly.`,
+ cp_134b: (fname) => `❌ <b>${fname}</b> 不是纯文本文件。\n\n请上传 <b>.txt</b> 或 <b>.csv</b> 文件（每行一个号码，或 号码,姓名），或直接粘贴号码。`,
  cp_135: 'Please send a file or paste phone 个号码.',
  cp_136: (errMsg) => `❌ 否 valid phone 个号码 found.${errMsg}\n\nPlease check format: one number per line, with + country code.`,
  cp_137: (maxLeads, length) => `❌ <b>联系人过多！</b>\n\n每个活动最多 <b>${maxLeads}</b> 个号码。\n您上传了 <b>${length}</b> 个号码。\n\n请减少列表后重试。`,
