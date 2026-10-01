@@ -1410,6 +1410,7 @@ captchaDomainButton: (domain, isOff, hasCF) => hasCF ? `${isOff ? '🔴 OFF' : '
  cp_132: (phoneNumber) => `📱 कॉलर ID: <b>${phoneNumber}</b>\n\n📋 <b>Upload लीड्स File</b>\n\nSend a text file (.txt or .csv) with one phone number per line.\nOptional: <code>number,name</code> per line.\n\nOr paste the नंबर directly (one per line):`,
  cp_133: 'चुनें the कॉलर ID:',
  cp_134: (message) => `❌ विफल to read file: ${message}\n\nTry again or paste नंबर directly.`,
+ cp_134b: (fname) => `❌ <b>${fname}</b> एक plain-text फ़ाइल नहीं है।\n\nकृपया <b>.txt</b> या <b>.csv</b> फ़ाइल भेजें (प्रति पंक्ति एक नंबर, या नंबर,नाम), या नंबर सीधे पेस्ट करें।`,
  cp_135: 'Please send a file or paste phone नंबर.',
  cp_136: (errMsg) => `❌ नहीं valid phone नंबर found.${errMsg}\n\nPlease check format: one number per line, with + country code.`,
  cp_137: (maxLeads, length) => `❌ <b>बहुत अधिक संपर्क!</b>\n\nप्रति अभियान अधिकतम <b>${maxLeads}</b> नंबर।\nआपने <b>${length}</b> नंबर अपलोड किए।\n\nकृपया सूची कम करें और पुनः प्रयास करें।`,

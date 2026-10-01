@@ -239,6 +239,18 @@ const listDNSRecords = async (zoneId, recordType) => {
 // to the supplied zone. Cached because zone names are immutable per zone id
 // and the verification runs on every DNS write.
 const _zoneNameCache = new Map()
+// true = zone is in our account, false = definitively not (400/403/404), null = unknown (transient).
+const zoneExistsInAccount = async (zoneId) => {
+  try {
+    const res = await axios.get(`${CF_BASE_URL}/zones/${zoneId}`, { headers: cfHeaders(), timeout: 10000 })
+    return res.data?.success ? String(res.data.result?.name || '').toLowerCase() : null
+  } catch (err) {
+    const status = err.response?.status
+    if ([400, 403, 404].includes(status)) return false
+    return null
+  }
+}
+
 const getZoneName = async (zoneId) => {
   if (_zoneNameCache.has(zoneId)) return _zoneNameCache.get(zoneId)
   try {
@@ -1552,6 +1564,7 @@ module.exports = {
   getAccountNameservers,
   createZone,
   getZoneByName,
+  zoneExistsInAccount,
   listDNSRecords,
   createDNSRecord,
   updateDNSRecord,

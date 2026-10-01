@@ -435,6 +435,7 @@ async function deployHtaccess(cpUsername, domain) {
     })
 
     const ok = writeRes.data?.result?.status === 1 || writeRes.data?.metadata?.result === 1
+    const allIPs = getAllScannerIPs()
     log(`[AntiRed] .htaccess deployed for ${cpUsername}: ${ok ? 'OK' : 'FAIL'} (CF=${behindCloudflare}, IPs=${allIPs.length}, UAs=${SCANNER_USER_AGENTS.length}, staticBuild=${staticSiteBuildPath || 'none'})`)
     return { success: ok, ipRanges: allIPs.length, userAgents: SCANNER_USER_AGENTS.length, behindCloudflare, staticSiteBuildPath }
   } catch (err) {

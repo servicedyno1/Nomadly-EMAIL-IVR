@@ -26889,9 +26889,16 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       const numBtns = allCallerIds.map(c => [c.label])
       return send(chatId, trans('t.cp_133'), k.of([...numBtns, ['↩️ Back']]))
     }
+    const escHtml = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
     let content = ''
     // Handle file upload
     if (msg.document) {
+      const fname = String(msg.document.file_name || '').toLowerCase()
+      const mime = String(msg.document.mime_type || '').toLowerCase()
+      const textLike = /\.(txt|csv|tsv|text|lst)$/.test(fname) || mime.startsWith('text/') || mime === 'application/csv'
+      if (fname && !textLike) {
+        return send(chatId, trans('t.cp_134b', escHtml(msg.document.file_name || 'file')), k.of([['↩️ Back']]))
+      }
       try {
         const fileLink = await bot.getFileLink(msg.document.file_id)
         const response = await require('axios').get(fileLink, { responseType: 'text', timeout: 15000 })
@@ -26905,7 +26912,8 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
 
     if (!content.trim()) return send(chatId, trans('t.cp_135'), k.of([['↩️ Back']]))
 
-    const { leads, errors } = bulkCallService.parseLeadsFile(content)
+    const { leads, errors, binary } = bulkCallService.parseLeadsFile(content)
+    if (binary) return send(chatId, trans('t.cp_134b', escHtml(msg.document?.file_name || 'file')), k.of([['↩️ Back']]))
     if (leads.length === 0) {
       const errMsg = errors.length > 0 ? `\n\nErrors:\n${errors.slice(0, 5).join('\n')}` : ''
       return send(chatId, trans('t.cp_136', errMsg), k.of([['↩️ Back']]))
@@ -26923,7 +26931,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
 
     const bulkRate = bulkCallService.BULK_CALL_RATE || 0.15
     const estCost = (leads.length * bulkRate).toFixed(2)
-    const preview = leads.slice(0, 5).map(l => `  ${l.number}${l.name ? ' — ' + l.name : ''}`).join('\n')
+    const preview = leads.slice(0, 5).map(l => `  ${l.number}${l.name ? ' — ' + escHtml(l.name) : ''}`).join('\n')
     const more = leads.length > 5 ? `\n  ... and ${leads.length - 5} more` : ''
     const errNote = errors.length > 0 ? `\n⚠️ ${errors.length} invalid lines skipped` : ''
 
