@@ -587,6 +587,7 @@ const { log } = require('console')
 const { MongoClient, ServerApiVersion } = require('mongodb')
 const { customAlphabet } = require('nanoid')
 const TelegramBot = require('node-telegram-bot-api')
+const { cloneTgOpts, wrapBotMethods } = require('./tg-opts.js')
 const { createCheckout } = require('./pay-fincra.js')
 const viewDNSRecords = require('./cr-view-dns-records.js')
 const { deleteDNSRecord } = require('./cr-dns-record-del.js')
@@ -1369,6 +1370,9 @@ let bot
 if (TELEGRAM_BOT_ON === 'true') {
   // TELEGRAM_API_BASE_URL: sandbox-only override pointing at js/tests/mock_telegram_api.js (unset in production).
   bot = new TelegramBot(TELEGRAM_BOT_TOKEN, { webHook: false, baseApiUrl: process.env.TELEGRAM_API_BASE_URL || undefined })
+  // Clone options at the boundary (node-telegram-bot-api mutates reply_markup in place — shared lang-dict
+  // option objects lost their keyboards after the first send) + sandbox-only [tg-out] trace for the crawler.
+  wrapBotMethods(bot, { trace: process.env.BOT_ENVIRONMENT === 'development' || process.env.TG_OUT_TRACE === 'true', log })
   log('TELEGRAM_BOT_ON: ' + TELEGRAM_BOT_ON + (process.env.TELEGRAM_API_BASE_URL ? ` (Bot API → ${process.env.TELEGRAM_API_BASE_URL})` : ''))
   log('Bot initialized with webhook support')
   log('Bot ran away! ' + new Date())
@@ -1779,8 +1783,9 @@ async function findShortenerBlockingHostingPlan(domain) {
 
 
 const send = (chatId, message, options) => {
+  // Clone: shared lang-dict option objects must never be mutated by the Telegram client (see js/tg-opts.js).
+  const opts = cloneTgOpts(options || {})
   // Auto-detect HTML in message and add parse_mode if not already set
-  const opts = options || {}
   if (typeof message === 'string' && !opts.parse_mode && /<\/?(?:b|i|u|s|code|pre|a)\b/.test(message)) {
     opts.parse_mode = 'HTML'
   }
@@ -1788,7 +1793,8 @@ const send = (chatId, message, options) => {
   if (opts?.reply_markup?.keyboard && !opts.reply_markup.resize_keyboard) {
     opts.reply_markup.resize_keyboard = true
   }
-  log('reply: ' + message + ' ' + (opts?.reply_markup?.keyboard?.map(i => i) || '') + '\tto: ' + chatId + '\n')
+  const _ik = opts?.reply_markup?.inline_keyboard
+  log('reply: ' + message + ' ' + (opts?.reply_markup?.keyboard?.map(i => i) || '') + (Array.isArray(_ik) ? ` [inline:${_ik.flat().map(b => b?.text).filter(Boolean).join('|')}]` : '') + '\tto: ' + chatId + '\n')
   bot?.sendMessage(chatId, message, opts)?.catch(e => {
     // Permanent delivery failures (user deactivated / blocked / chat gone) —
     // mark the user dead so future sends skip them, and keep the log quiet.
@@ -1879,7 +1885,7 @@ function reactToMessage(chatId, messageId, emoji, isBig = false) {
 // messages in private chats. Falls back gracefully to a plain send on error.
 async function sendAndReact(chatId, text, emoji, opts = {}) {
   try {
-    const o = { ...(opts || {}) }
+    const o = cloneTgOpts(opts || {})
     if (typeof text === 'string' && !o.parse_mode && /<\/?(?:b|i|u|s|code|pre|a)\b/.test(text)) {
       o.parse_mode = 'HTML'
     }
@@ -14179,8 +14185,11 @@ All verified numbers generated during sourcing.`))
       const _now = Date.now()
       globalThis.__startDebounce ||= new Map()
       const last = globalThis.__startDebounce.get(chatId)
-      if (last && _now - last < 3000) {
-        try { await bot.sendMessage(chatId, '👆 You\'re already on the main menu — tap a button above.') } catch { /* ignore */ }
+      // Only short-circuit when the user really is at the main menu (action none); a /start sent
+      // mid-flow must always do the full reset or the "already on the main menu" hint is a lie.
+      if (last && _now - last < 3000 && (!action || action === 'none')) {
+        const _againMsg = { en: '👆 You\'re already on the main menu — tap a button above.', fr: '👆 Vous êtes déjà sur le menu principal — touchez un bouton ci-dessus.', zh: '👆 您已经在主菜单 — 请点击上方按钮。', hi: '👆 आप पहले से मुख्य मेनू पर हैं — ऊपर कोई बटन टैप करें।' }
+        try { await bot.sendMessage(chatId, _againMsg[info?.userLanguage] || _againMsg.en) } catch { /* ignore */ }
         globalThis.__startDebounce.set(chatId, _now)
         return
       }
@@ -14280,6 +14289,12 @@ All verified numbers generated during sourcing.`))
       const resumableSession = await getResumableSession(db, chatId)
       if (resumableSession) {
         const { message: resumeMsg, keyboard } = generateResumePrompt(resumableSession, info.userLanguage)
+        // Reset the stale flow action FIRST: otherwise the previous step's handler (e.g.
+        // choose-subscription / payment-method validation) swallows "✅ Complete My Order"
+        // with "That option isn't available" and the user loops /start → prompt → error forever.
+        // The session itself (step + data) stays saved; the CTA handler restores it. (2026-10-01)
+        await set(state, chatId, 'action', 'none')
+        await set(state, chatId, 'processingPayment', false)
         await set(state, chatId, 'pendingResume', resumableSession)
         return send(chatId, resumeMsg, k.of(keyboard))
       }
@@ -15153,9 +15168,12 @@ All verified numbers generated during sourcing.`))
     return
   }
 
-  // First-session intent funnel routing (audit #17) — new-user only (gated by
-  // the firstSessionIntent action, which is set once after language selection).
-  if (action === a.firstSessionIntent) {
+  // First-session intent funnel routing (audit #17) — set once after language selection. The
+  // same labels are also honoured from a STALE intent keyboard at base state (users tap them
+  // minutes later): previously "📞 Phone Numbers / IVR" fell into AI support, "🛡️ Bulletproof
+  // Hosting" hit the menu reset and "🌐 Domains" got silence from the reset cooldown. (2026-10-01)
+  const _intentLabelPressed = Object.values(FIRST_SESSION_INTENT_ALL).some(labels => labels.includes(message))
+  if (action === a.firstSessionIntent || ((!action || action === 'none' || action === 'mainMenu' || action === 'menu') && _intentLabelPressed)) {
     await set(state, chatId, 'action', 'none')
     await set(state, chatId, 'firstSessionIntentDone', true)
     if (FIRST_SESSION_INTENT_ALL.numbers.includes(message)) return goto.submenu5 ? goto.submenu5() : goto.displayMainMenuButtons()

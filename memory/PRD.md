@@ -123,6 +123,19 @@ User inherited a fully-set-up Nomadly bot pod pointed at LIVE PRODUCTION. Task b
 - **USER ACTION**: ConnectReseller panel password expired ("reset your password and enable 2FA") → IP
   146.190.238.190 cannot be auto-whitelisted → domain price checks 401 on both bots. Telnyx balance ~$8.
 
+## 2026-10-01 — Bot journey dead-end audit ("user couldn't select a plan") — see memory/BOT_JOURNEY_AUDIT_2026-10-01.md
+- ROOT CAUSES FIXED (5): FR/ZH/HI phone-plan buttons unmapped (`planByButton` EN-only) → "Veuillez sélectionner un
+  forfait" loop; `/start` resume prompt returned before resetting `action` → "Complete My Order" swallowed forever;
+  node-telegram-bot-api mutating shared `reply_markup` objects (now cloned in `js/tg-opts.js`); stale first-session
+  intent buttons mis-routed (AI/reset/silence); `/start` debounce lying mid-flow. PLUS 20 hi/zh locale templates
+  that threw ReferenceError (`${phoneConfig.plans.starter.मिनट}`, `${sp.hint}`, …) → HI/ZH never saw "Choose a Plan".
+- TOOLING: `scripts/journey_crawler.js` (walks every reply/inline button; flags NO_REPLY/STRANDED/UNRECOGNIZED/
+  AI_FALLBACK/INVALID_OPT/KB_LOST/NO_PROGRESS/JS_ERROR), `scripts/journey_scenarios.js` (scripted purchase journeys
+  incl. free text), `scripts/lib/tg_sim.js`, dev-only `[tg-out]` trace, `js/tests/mock_telegram_api.js`
+  (sandbox `TELEGRAM_API_BASE_URL=http://127.0.0.1:5099`). Jest: `tests/tg-reply-markup-mutation.test.js`,
+  `tests/phone-plan-buttons-i18n.test.js`, `tests/locale-templates-render.test.js`.
+- RESULTS: crawler depth 3 EN/FR/ZH/HI = 0 issues (≈270–320 screens each); scenarios EN 8/8, FR 8/8.
+
 ## Pending Issues (carried forward)
 
 ### P1
