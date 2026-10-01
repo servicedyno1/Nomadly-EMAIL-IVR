@@ -109,20 +109,35 @@ User inherited a fully-set-up Nomadly bot pod pointed at LIVE PRODUCTION. Task b
 ### cPanel license upgrade (30→100) — steps delivered to user in chat (cPanel Store: View My
   Licenses → Active → Upgrade → Premier Cloud 100 → Order; then `cpkeyclt` on the box).
 
+## 2026-10-01 — Production log audit (DO droplet, both bots) — see memory/PROD_LOG_AUDIT_2026-10-01.md
+- **No real crashes** (PM2 ↺=0). Earlier "16 FATAL / 4 crashed / 429s" were scheduler `tick crashed` lines during a
+  5-min Railway-Mongo blip + phone numbers containing "429".
+- FIXED & DEPLOYED (main af732fb8 / WhiteLabel 04c9c3c0): binary leads upload → Telegram parse error (bulk IVR),
+  `allIPs` ReferenceError in .htaccess deploy, ProtectionHeartbeat WHM-timeout circuit breaker + outage paging,
+  `ensureCloudflare` stale-cfZoneId self-heal (96 stale zone ids in DB).
+- ENV FIXED on droplet: `MAIL_PORT=2525` (DO blocks 587/465 — hosting-credential emails were timing out) and the
+  Brevo key that was "rotated" 09-30 but never reached the live env (`/opt/nomadly/shared/<app>/backend.env` is the
+  runtime env; legacy `/opt/nomadly/<app>/backend/.env` is now a symlink to it). Both apps blue/green redeployed.
+- NGINX cleaned: stale `accedzonelienusageuniquedonotshare.ch` vhost, duplicate `nomadly-domains` include, duplicate
+  `panel.2.hostbay.io` site → `nginx -t` warning-free.
+- **USER ACTION**: ConnectReseller panel password expired ("reset your password and enable 2FA") → IP
+  146.190.238.190 cannot be auto-whitelisted → domain price checks 401 on both bots. Telnyx balance ~$8.
+
 ## Pending Issues (carried forward)
 
 ### P1
-
-### P1
+- **ConnectReseller 401 (domain pricing) — BLOCKED on user**: reset CR panel password, whitelist 146.190.238.190,
+  update `CR_PANEL_PASSWORD` in both `shared/*/backend.env` + vault. (Was listed as two issues: Domain Price API 401 +
+  CR-Whitelist login 401 — same root cause.)
 - Contabo API Auth Failing (VPS Provisioning broken) — BLOCKED on user credentials
-- Smadav Domain Price API Returning 401
+- Telnyx balance low (~$8) — top up
 
 ### P2
-- Stale Nginx Block on DO Droplet (`accedzonelienusageuniquedonotshare.ch`)
-- Anti-Red Whitelist automation login broken (401)
-- Droplet SSH Security Vulnerability (Root brute-force attacks) — need fail2ban
+- Droplet SSH Security Vulnerability (Root brute-force attacks) — need fail2ban (user deferred this session)
 - Delete unused cPanel accounts on WHM — RESOLVED: `ghrx51df` is an active user-paused account (DO NOT delete); `sequfa15` auto-terminates via 48h scheduler.
+- Panel test-email / EmailBlast transports use ports 25/465/587 → blocked from the droplet by DO policy (only matters if those features are used from the droplet)
 
 ### P2 (Future)
 - Boot-time Telegram ping for DO power-cycles
-- WHM `whm2-fra1` physical server stability investigation
+- WHM `whm2-fra1` stability: rebooted twice on 09-28; cpsrvd stopped serving per-user API reads for 32h afterwards until its nightly restart (now detected + paged by the heartbeat breaker)
+- Stale-zone sweep: 96 registeredDomains carry cfZoneIds not in our CF account (now self-healed lazily on next DNS action; a one-off sweep could clear them proactively)

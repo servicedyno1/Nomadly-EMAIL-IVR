@@ -14,3 +14,8 @@
 - Restore SSH keys: `VAULT_PASSWORD='Katiekendra123@' bash scripts/restore_infra_keys.sh`
 - DO droplet: `ssh -i /root/.ssh/nomadly_droplet root@146.190.238.190`
 - WHM box:   `ssh -i /root/.ssh/whm_box root@68.183.77.106`
+- **Droplet RUNTIME env = `/opt/nomadly/shared/<app>/backend.env`** (deploy.sh symlinks it into every release).
+  `/opt/nomadly/<app>/backend/.env` is now a symlink to it — edit either, then blue/green redeploy
+  (`bash /opt/nomadly/deploy.sh app-main|app-wl`) so dotenv reloads.
+- ConnectReseller panel (`CR_PANEL_EMAIL/CR_PANEL_PASSWORD` in env): password EXPIRED as of 2026-10-01 — CR demands
+  reset + 2FA. Browser auto-whitelist is down until the user resets it.
