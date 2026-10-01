@@ -134,7 +134,8 @@ User inherited a fully-set-up Nomadly bot pod pointed at LIVE PRODUCTION. Task b
   incl. free text), `scripts/lib/tg_sim.js`, dev-only `[tg-out]` trace, `js/tests/mock_telegram_api.js`
   (sandbox `TELEGRAM_API_BASE_URL=http://127.0.0.1:5099`). Jest: `tests/tg-reply-markup-mutation.test.js`,
   `tests/phone-plan-buttons-i18n.test.js`, `tests/locale-templates-render.test.js`.
-- RESULTS: crawler depth 3 EN/FR/ZH/HI = 0 issues (≈270–320 screens each); scenarios EN 8/8, FR 8/8.
+- RESULTS: crawler depth 3 EN 273 / FR 274 / HI 313 / ZH 313 screens = 0 issues; scenarios EN 8/8, FR 8/8.
+- DEPLOYED 2026-10-01 08:40Z: main 092363f0 → app-main-a, WhiteLabel fc9b943c → app-wl-b (blue/green, /health 200, no boot errors).
 
 ## Pending Issues (carried forward)
 
