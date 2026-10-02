@@ -29,6 +29,18 @@ User inherited a fully-set-up Nomadly bot pod pointed at LIVE PRODUCTION. Task b
   `GET /admin/vps-catalog-check?key=…` → `providers.rdp.name === 'digitalocean-rdp'`, `providers.vps.name === 'digitalocean'`.
 - **Tests**: testing agent iteration_58 — 7/7 backend checks pass (4 langs, catalog routing, 403 auth guard, call-site grep).
 
+## 2026-10-02 (follow-up) — Provisioning poll-hardening + Morgan credential re-send
+- **Poll-hardening shipped & deployed** (`main` e92a09ed, `WhiteLabel` 16bb4dd7, both bots live): `buyVPSPlanFullProcess`
+  now aborts immediately when `getInstance` reports `failed`/`destroyed`/`error` (the DO 403 outstanding-balance case),
+  deletes the orphan `vpsPlansOf` record, marks progress failed, and sends the RDP-aware failure message — instead of
+  polling 25 min then DMing credentials for a server that never existed. Setup-tracker title, wallet-refund message and
+  the background IP-ready note are all RDP-aware now. Guard logic unit-tested (12/12, regex anchored). Verified present
+  in both live releases, `/health` 200, pm2 online.
+- **@morganfreebandzz (7706803914) delivery closed**: the original comp-vps #2 provision left NO retained log and there is
+  no outbound-message collection, so the original Telegram delivery was unprovable. Re-sent creds + `.rdp` via Bot API
+  (Telegram ACK message_id 3354723 + 3354724 → delivery proven). Fixed a wrong `rootPasswordSecretId` pointer so in-bot
+  "Show Password" returns the applied password. Details in `memory/RDP_MORGANFREEBANDZZ_MANUAL_COMPLETION_2026-10-02.md`.
+
 ## 2026-10-02 — Full i18n: central keyboard-button localization (fr/hi/zh)
 - **Dictionaries + hosting-panel locales 100% translated**: `scripts/check_untranslated.js` reports 0 English leaks across `js/lang/*.js`, `js/i18n/*.json`, and `frontend/src/locales/*.json`.
 - **Central button interceptor populated** (`js/kb-i18n-buttons.js`, was empty): 40 high-traffic CUSTOMER-facing hard-coded buttons — IVR outbound-call setup, bulk-campaign scheduling, payment, feedback, URL shortener, marketplace/escrow. `js/tg-opts.js` localizes them OUTBOUND via the chatId→lang cache; `js/_index.js` `canonicalizeIncoming` (line ~7507) maps the localized press back to English BEFORE the literal `message === '...'` handlers run.

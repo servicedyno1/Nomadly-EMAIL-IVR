@@ -20,6 +20,34 @@
 4. `finalize`: comp flags removed → normal paid order; `_manualOrderCompletion` audit set; abandoned cart closed.
    Record: status RUNNING, planPrice 156, autoRenewable false, end_time 2026-11-02. DO-RDP status `active` 20:59:45Z, agent heartbeat OK, 3389 open.
 
+## Delivery re-verification (follow-up session)
+- **DB ground truth = order is real & complete**: wallet bal $0.49 (charged $156, NOT refunded), `vpsPlansOf`
+  `6ac01ad5…` status RUNNING host 164.90.171.80 productId power-1m isRDP, finalized (`_manualOrderCompletion`
+  set, comp flags gone), autoRenewable false, end 2026-11-02; `transactions` TXN-20261002-8EE96 $156 completed;
+  abandonedCart status=completed @21:00:30Z. **Server LIVE**: TCP 3389 OPEN right now.
+- **⚠️ Telegram DELIVERY to the user is UNPROVEN.** The only comp-vps line in PM2 logs is the 20:53 attempt #1
+  (DO 403 fail). The successful provision #2 (20:57:57Z) + its credential/.rdp DM left **no trace** in any
+  retained log (app-main-a stopped 20:54; app-main-b has nothing for this chat) and there is **no outbound-
+  message collection in Mongo**. So the earlier "Bot sent vpsBoughtSuccess + .rdp + admin notice" claim
+  **cannot be confirmed** — provision #2 ran on an ephemeral/unlogged process.
+- Customer safety net: they CAN self-retrieve creds in-bot (🖥️ VPS/RDP → My Plans → Show Password →
+  `revealVpsPassword`). A proactive re-send is the way to guarantee delivery (pending operator OK).
+
+## RESOLUTION (follow-up session) — credentials re-sent + reveal bug fixed
+- **Re-sent** the full credentials message + fast-connect `.rdp` to chat 7706803914 via Bot API —
+  Telegram ACKed both: `message_id 3354723` (creds) + `3354724` (.rdp). **Delivery now proven.**
+  Used the applied password stored under secret key = serverId `60811b81…` (password_confirmed:true on
+  `doRdpServers`). Script: `ops/resend_rdp_credentials_7706803914.js` (existing password, no reset).
+- **Latent bug fixed**: `vpsPlansOf.rootPasswordSecretId` pointed at the per-order *seed* key
+  (`pwd-7706803914-…`) which held a DIFFERENT, non-applied password — so in-bot "Show Password" would
+  have returned a broken credential. Repointed `rootPasswordSecretId → 60811b81…`; `revealVpsPassword`
+  now returns the applied password (verified MATCH). Self-serve retrieval works.
+- **Root-cause note for the product**: `digitalocean-rdp-service.createInstance` stores the applied
+  password under `serverId` (line ~1106) but returns/records `passwordSecretId = opts.rootPassword`
+  (the seed, line ~1120). When the seed holds a different value than the genPassword() that actually
+  gets applied, the record points at the wrong secret. Worth a general fix (record `serverId` as the
+  password secret id, or always putSecret under the seed too). Not fixed globally this session.
+
 ## Lessons
 - `/admin/comp-vps` + separate wallet debit is the reproducible way to "replay" a wallet RDP/VPS order (script phases are idempotent & guarded).
 - DO billing (`GET /v2/customers/my/balance`, `/invoices`) must be checked before any provisioning op; a PAST_DUE invoice blocks every create with 403.
