@@ -34,8 +34,9 @@ describe('locale template functions render without ReferenceError', () => {
     const args = ['H', 50, 100, 50, 3, 75, 500, 100, 6, 120, 'Unlimited', 300, 10]
     for (const lang of ['hi', 'zh']) {
       const out = langs[lang].t.cp_8(...args)
-      expect(out).toContain('100 min')
-      expect(out).toContain('500 min')
+      // "min" is localized (मिनट / 分钟); the interpolated values must still be present.
+      expect(out).toMatch(/100 (min|मिनट|分钟)/)
+      expect(out).toMatch(/500 (min|मिनट|分钟)/)
       expect(out).toContain('Unlimited')
     }
   })
