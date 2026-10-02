@@ -3059,7 +3059,7 @@ ${list.map(item => `${name == 'whm' ? `<strong>• ${item.name} - </strong>` : '
  vpsWaitingTime: '⚙️ विवरण प्राप्त कर रहे हैं... इसमें बस एक क्षण लगेगा।',
  failedCostRetrieval: 'लागत जानकारी प्राप्त करने में विफल... कृपया कुछ समय बाद पुनः प्रयास करें।',
 
- errorPurchasingVPS: plan => `कुछ गलत हो गया जब आप अपना ${plan} VPS योजना सेटअप कर रहे थे।
+ errorPurchasingVPS: (plan, isRDP) => `कुछ गलत हो गया जब आप अपना ${plan} ${isRDP ? 'RDP' : 'VPS'} योजना सेटअप कर रहे थे।
 
 कृपया सहायता के लिए 💬 सहायता प्राप्त करें बटन दबाएं।
 अधिक जानने के लिए ${TG_HANDLE} पर जाएं।`,

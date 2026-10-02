@@ -3041,7 +3041,7 @@ ${list.map(item => `${name == 'whm' ? `<strong>• ${item.name} - </strong>` : '
  vpsWaitingTime: '⚙️ 正在获取详细信息... 这只需要一点时间。',
  failedCostRetrieval: '获取成本信息失败... 请稍后再试。',
 
- errorPurchasingVPS: plan => `在设置您的 ${plan} VPS 计划时出现问题。
+ errorPurchasingVPS: (plan, isRDP) => `在设置您的 ${plan} ${isRDP ? 'RDP' : 'VPS'} 计划时出现问题。
 
 请点击 💬 获取支持。
 了解更多 ${TG_HANDLE}。`,

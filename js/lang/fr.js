@@ -3070,7 +3070,7 @@ ${list.map(item => `${name == 'whm' ? `<strong>• ${item.name} - </strong>` : '
  vpsWaitingTime: "⚙️ Récupération des détails... Cela ne prendra qu'un instant.",
  failedCostRetrieval: 'Échec de la récupération des informations de coût... Veuillez réessayer après un moment.',
 
- errorPurchasingVPS: plan => `Une erreur est survenue lors de la configuration de votre plan VPS ${plan}.
+ errorPurchasingVPS: (plan, isRDP) => `Une erreur est survenue lors de la configuration de votre plan ${isRDP ? 'RDP' : 'VPS'} ${plan}.
 
 Veuillez appuyer sur 💬 Obtenir de l'aide.
 Découvrez-en plus sur ${TG_HANDLE}.`,
