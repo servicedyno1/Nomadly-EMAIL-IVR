@@ -3236,7 +3236,7 @@ ${list.map(item => `${name == 'whm' ? `<strong>• ${item.name} - </strong>` : '
  vpsWaitingTime: '⚙️ Retrieving Details... This will only take a moment.',
  failedCostRetrieval: 'Failied in retrieving cost information... Please try again after some time.',
 
- errorPurchasingVPS: plan => `Something went wrong while setting up your ${plan} VPS Plan.
+ errorPurchasingVPS: (plan, isRDP) => `Something went wrong while setting up your ${plan} ${isRDP ? 'RDP' : 'VPS'} Plan.
 
  Please tap 💬 Get Support for assistance.
  Discover more ${TG_HANDLE}.`,

@@ -37345,7 +37345,7 @@ const buyVPSPlanFullProcess = async (chatId, lang, vpsDetails) => {
     await progress.startStep(1)
     const vmInstance = await createVPSInstance(chatId, vpsDetails)
     if (!vmInstance.success) {
-      const m = translation('vp.errorPurchasingVPS', lang, vpsDetails.plan)
+      const m = translation('vp.errorPurchasingVPS', lang, vpsDetails.plan, vpsDetails.isRDP)
       log(m)
       sendMessage(TELEGRAM_DEV_CHAT_ID, m)
       sendMessage(chatId, m)
@@ -37565,7 +37565,7 @@ const buyVPSPlanFullProcess = async (chatId, lang, vpsDetails) => {
     return true
   } catch (error) {
     const errorMessage = `err buyVPSPlanFullProcess ${error?.message} ${safeStringify(error?.response?.data)}`
-    const m = translation('vp.errorPurchasingVPS', lang, vpsDetails.plan)
+    const m = translation('vp.errorPurchasingVPS', lang, vpsDetails.plan, vpsDetails.isRDP)
     sendMessage(chatId, m)
     sendMessage(TELEGRAM_DEV_CHAT_ID, errorMessage)
     console.error(errorMessage)
@@ -37642,7 +37642,7 @@ const upgradeVPSDetails = async (chatId, lang, vpsDetails) => {
         break;
     }
     if (!vmInstanceUpgrade?.success) {
-      const m = translation('vp.errorPurchasingVPS', lang, vpsDetails.name)
+      const m = translation('vp.errorPurchasingVPS', lang, vpsDetails.name, vpsDetails.isRDP)
       log(m)
       sendMessage(TELEGRAM_DEV_CHAT_ID, m)
       sendMessage(chatId, m)
@@ -37667,7 +37667,7 @@ const upgradeVPSDetails = async (chatId, lang, vpsDetails) => {
     return true
   } catch (error) {
     const errorMessage = `err buyUPgradingVPSProcess ${error?.message} ${safeStringify(error?.response?.data)}`
-    const m = translation('vp.errorPurchasingVPS', lang, vpsDetails.name)
+    const m = translation('vp.errorPurchasingVPS', lang, vpsDetails.name, vpsDetails.isRDP)
     sendMessage(chatId, m)
     sendMessage(TELEGRAM_DEV_CHAT_ID, errorMessage)
     console.error(errorMessage)
@@ -46018,6 +46018,11 @@ app.get('/admin/vps-flow-check', (req, res) => {
 
     const containsEmailWording = (s) => /email|emailed|registered email|sent to your/i.test(String(s))
 
+    // errorPurchasingVPS must be RDP-aware: RDP orders say "RDP", Linux/VPS orders say "VPS"
+    // (fix for @morganfreebandzz 2026-10-02 — provisioning-failure message mislabeled RDP as VPS).
+    const rdpErrMsg = translation('vp.errorPurchasingVPS', lang, 'Monthly', true)
+    const vpsErrMsg = translation('vp.errorPurchasingVPS', lang, 'Monthly', false)
+
     return res.json({
       lang,
       paymentRecieved: { rdp: translation('vp.paymentRecieved', lang, true), vps: translation('vp.paymentRecieved', lang, false) },
@@ -46031,6 +46036,12 @@ app.get('/admin/vps-flow-check', (req, res) => {
         rdpHasEmailWording: containsEmailWording(rdpSuccess),
         rdpLength: rdpSuccess.length,
         rdpRendered: rdpSuccess,
+      },
+      errorPurchasingMessage: {
+        rdpRendered: rdpErrMsg,
+        vpsRendered: vpsErrMsg,
+        rdpSaysRDP: /\bRDP\b/.test(rdpErrMsg) && !/\bVPS\b/.test(rdpErrMsg),
+        vpsSaysVPS: /\bVPS\b/.test(vpsErrMsg) && !/\bRDP\b/.test(vpsErrMsg),
       },
       paymentRecievedHasEmailWording: containsEmailWording(translation('vp.paymentRecieved', lang, true)),
       priceRule: {
