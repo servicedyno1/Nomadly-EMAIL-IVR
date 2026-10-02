@@ -1,0 +1,19 @@
+{
+  "summary": "Backend-only validation of RDP vs VPS error-message fix and provider routing. Ran 7 checks: (1) /admin/vps-flow-check en/fr/hi/zh render — all 4 langs show 'RDP Plan' for RDP and 'VPS Plan' for Linux VPS with 'Monthly' plan name and no cross-contamination; (2) /admin/vps-catalog-check routes rdp→digitalocean-rdp (9 catalog items) and vps→digitalocean (6 catalog items); (3) auth guard returns 403 on missing/wrong key for both diagnostic endpoints; (4) static grep of /app/js: all 4 call sites of translation('vp.errorPurchasingVPS', ...) in /app/js/_index.js (lines 37348, 37568, 37645, 37670) correctly pass vpsDetails.isRDP as the 4th arg — no stale 3-arg call sites remain; (5) node unit check of js/lang/{en,fr,hi,zh}.js confirms vp.errorPurchasingVPS(plan, isRDP) renders 'RDP' when true and 'VPS' when false and interpolates the plan name in all 4 languages (RDP/VPS kept as untranslated brand tokens); (6) regression — pre-existing fields (paymentRecieved.rdp, paymentRecieved.vps, priceRule, linuxPriceRule, vpsBoughtSuccess, vps_5d, paymentRecievedHasEmailWording) still present/unchanged in shape; (7) no ReferenceError thrown by any template. All assertions pass.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": ["/app/test_reports/iteration_58.json"],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Fix is clean and minimal: single-arg -> two-arg signature change propagated consistently across 4 call sites and 4 locale files; brand tokens 'RDP'/'VPS' intentionally kept untranslated which is correct.",
+    "/app/js/_index.js is extremely large (>46000 lines). Not caused by this fix but worth flagging for future modularization — files >700 lines are hard to review and increase regression risk."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100%", "frontend": "N/A (skipped per request)"},
+  "test_credentials": "Admin diagnostic key: key=o/Qb8ArGahlquhCQ",
+  "seed_data_creation": "None",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Fix verified end-to-end. If regression testing later: hit http://127.0.0.1:5000/admin/vps-flow-check?key=o/Qb8ArGahlquhCQ&lang={en|fr|hi|zh} and assert errorPurchasingMessage.rdpSaysRDP && vpsSaysVPS. Also curl /admin/vps-catalog-check and assert providers.rdp.name==='digitalocean-rdp'. Auth guard returns 403 (not 401) which is acceptable.",
+  "rca of the issue": "Original bug: @morganfreebandzz got a generic 'VPS Plan' failure message after an RDP order failed. Two root causes: (a) VPS_RDP_PROVIDER was 'azure' (subscription 404) — fixed by setting backend/.env VPS_RDP_PROVIDER=digitalocean-rdp and routing via pickProviderForOs(isRDP); (b) vp.errorPurchasingVPS was hardcoded to 'VPS Plan' — fixed by changing locale template signature from (plan) to (plan, isRDP) and updating all 4 call sites and all 4 language files. Verified via diagnostic endpoints and node-level unit check of locale exports."
+}

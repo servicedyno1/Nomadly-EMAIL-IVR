@@ -16,6 +16,19 @@ User inherited a fully-set-up Nomadly bot pod pointed at LIVE PRODUCTION. Task b
 - Sandbox `/app/backend/.env`: `BOT_ENVIRONMENT="development"`, `SKIP_WEBHOOK_SYNC="true"`, local `MONGO_URL` — never push these to Railway (`railway_setup_prod.js` strips/overrides them automatically)
 - Vault (`memory/nomadly.vault.enc`, passphrase in test_credentials.md) is the single source of truth for credentials; after editing `.env` always `vault.sh lock`, then `railway_setup_prod.js apply` to sync production
 
+
+## 2026-10-02 — RDP order failure (@morganfreebandzz) — FIXED, tested, deployed to both bots
+- **Symptom**: user ordered a Windows RDP; provisioning failed and the bot/admin message said "…your Monthly **VPS** Plan".
+- **Root cause 1 (provisioning)**: `VPS_RDP_PROVIDER=azure` on app-main → Azure subscription returned 404. Switched to
+  `digitalocean-rdp` (DO Ubuntu→Windows conversion service, `js/digitalocean-rdp-service.js`) in local `.env`, vault,
+  and BOTH droplet envs (`/opt/nomadly/shared/app-main|app-wl/backend.env`). `VPS_DEFAULT_PROVIDER=digitalocean` on both.
+- **Root cause 2 (message)**: `vp.errorPurchasingVPS` template was `plan => "...${plan} VPS Plan"`. Now
+  `(plan, isRDP) => "...${plan} ${isRDP ? 'RDP' : 'VPS'} Plan"` in `js/lang/{en,fr,hi,zh}.js`; all 4 call sites in
+  `js/_index.js` (`buyVPSPlanFullProcess` ×2, `upgradeVPSDetails` ×2) pass `vpsDetails.isRDP`.
+- **Diagnostics**: `GET /admin/vps-flow-check?key=<SESSION_SECRET[:16]>&lang=en|fr|hi|zh` → `errorPurchasingMessage.rdpSaysRDP/vpsSaysVPS`;
+  `GET /admin/vps-catalog-check?key=…` → `providers.rdp.name === 'digitalocean-rdp'`, `providers.vps.name === 'digitalocean'`.
+- **Tests**: testing agent iteration_58 — 7/7 backend checks pass (4 langs, catalog routing, 403 auth guard, call-site grep).
+
 ## 2026-10-02 — Full i18n: central keyboard-button localization (fr/hi/zh)
 - **Dictionaries + hosting-panel locales 100% translated**: `scripts/check_untranslated.js` reports 0 English leaks across `js/lang/*.js`, `js/i18n/*.json`, and `frontend/src/locales/*.json`.
 - **Central button interceptor populated** (`js/kb-i18n-buttons.js`, was empty): 40 high-traffic CUSTOMER-facing hard-coded buttons — IVR outbound-call setup, bulk-campaign scheduling, payment, feedback, URL shortener, marketplace/escrow. `js/tg-opts.js` localizes them OUTBOUND via the chatId→lang cache; `js/_index.js` `canonicalizeIncoming` (line ~7507) maps the localized press back to English BEFORE the literal `message === '...'` handlers run.
