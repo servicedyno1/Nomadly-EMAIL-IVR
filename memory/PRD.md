@@ -16,6 +16,17 @@ User inherited a fully-set-up Nomadly bot pod pointed at LIVE PRODUCTION. Task b
 - Sandbox `/app/backend/.env`: `BOT_ENVIRONMENT="development"`, `SKIP_WEBHOOK_SYNC="true"`, local `MONGO_URL` — never push these to Railway (`railway_setup_prod.js` strips/overrides them automatically)
 - Vault (`memory/nomadly.vault.enc`, passphrase in test_credentials.md) is the single source of truth for credentials; after editing `.env` always `vault.sh lock`, then `railway_setup_prod.js apply` to sync production
 
+## 2026-10-02 — Full i18n: central keyboard-button localization (fr/hi/zh)
+- **Dictionaries + hosting-panel locales 100% translated**: `scripts/check_untranslated.js` reports 0 English leaks across `js/lang/*.js`, `js/i18n/*.json`, and `frontend/src/locales/*.json`.
+- **Central button interceptor populated** (`js/kb-i18n-buttons.js`, was empty): 40 high-traffic CUSTOMER-facing hard-coded buttons — IVR outbound-call setup, bulk-campaign scheduling, payment, feedback, URL shortener, marketplace/escrow. `js/tg-opts.js` localizes them OUTBOUND via the chatId→lang cache; `js/_index.js` `canonicalizeIncoming` (line ~7507) maps the localized press back to English BEFORE the literal `message === '...'` handlers run.
+- **Safety rule (why only a subset)**: only PURE labels were centralized — hard-coded English labels that are NOT a lang-dict value, so no `message === trans()/vp.key/btn.key` matcher exists for them and canonicalize can never hijack a legitimately-translated button. Admin buttons stay English (per user). Brand tokens kept untranslated (Cloud IVR, HostPanel, Anti-Red, BulkSMS, Bit.ly, SIP, VPS/RDP, CSV/TXT, USD/NGN).
+- **NOT centralized (intentional, would break handlers)**: dict/helper-backed labels matched via their translated value — `✅ Confirm` (`confirmChangeBtn`, VPS flows `message === vp.confirmChangeBtn`), `📝 Type Text (AI Voice)` (`btn.typeText`), `🎙️ Upload Audio` (`btn.uploadAudio`). These remain handled by the existing dict/helper path.
+- **New guard** `tests/kb-i18n.test.js` (8 tests): full fr/hi/zh coverage, per-lang uniqueness (incl. generic Back/Cancel/Main Menu), no collision with a dict value of a DIFFERENT English canonical (caught + fixed a bulk-campaign vs SMS `⏰ Schedule for later` clash → bulk now `⏰ Programmer plus tard` etc.), every key present in `_index.js`, canonicalize round-trip.
+- **Tests**: Jest i18n/keyboard suites 32/32 pass; `scripts/journey_crawler.js` FR depth-3 walked 134 screens with 0 issue markers (NO_REPLY/STRANDED/JS_ERROR none) — nav + feature buttons localized correctly. (HI/ZH crawl not re-run this session; FR exercises the same central path.)
+- **Deploy**: committed + pushed to `WhiteLabel` (app-wl Smadav) and `main` (app-main Nomadly) on `servicedyno1/Nomadly-EMAIL-IVR`. The `/admin/sales` + `/branding` WL wiring (`_index.js` ~line 38018) is untouched — translation changes all sit below line ~34000, so the cross-branch propagation does not re-introduce the historical white-label clobbering.
+- **Files**: `js/kb-i18n-buttons.js` (map), `js/kb-i18n.js` + `js/tg-opts.js` (interceptor, from prior session), `js/_index.js` (canonicalize wiring + codemod), `js/lang/*.js` + `frontend/src/locales/fr.json` (dictionaries), `scripts/check_untranslated.js` + `scripts/i18n_fill/` (lint/codemod tooling), `tests/kb-i18n.test.js`.
+
+
 ## 2026-09-30 — Anti-Red P0/P1 Improvements
 
 ### P0 #1: Scanner IP Auto-Refresh (Dynamic IPs)

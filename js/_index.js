@@ -588,6 +588,7 @@ const { MongoClient, ServerApiVersion } = require('mongodb')
 const { customAlphabet } = require('nanoid')
 const TelegramBot = require('node-telegram-bot-api')
 const { cloneTgOpts, wrapBotMethods } = require('./tg-opts.js')
+const { setChatLang, canonicalizeIncoming } = require('./kb-i18n.js')
 const { createCheckout } = require('./pay-fincra.js')
 const viewDNSRecords = require('./cr-view-dns-records.js')
 const { deleteDNSRecord } = require('./cr-dns-record-del.js')
@@ -1372,7 +1373,12 @@ if (TELEGRAM_BOT_ON === 'true') {
   bot = new TelegramBot(TELEGRAM_BOT_TOKEN, { webHook: false, baseApiUrl: process.env.TELEGRAM_API_BASE_URL || undefined })
   // Clone options at the boundary (node-telegram-bot-api mutates reply_markup in place — shared lang-dict
   // option objects lost their keyboards after the first send) + sandbox-only [tg-out] trace for the crawler.
-  wrapBotMethods(bot, { trace: process.env.BOT_ENVIRONMENT === 'development' || process.env.TG_OUT_TRACE === 'true', log })
+  wrapBotMethods(bot, {
+    trace: process.env.BOT_ENVIRONMENT === 'development' || process.env.TG_OUT_TRACE === 'true',
+    log,
+    // Warm the keyboard-localization language cache on a miss (scheduler/webhook sends before the user has spoken).
+    resolveLang: async id => (state?.findOne ? ((await get(state, id))?.userLanguage || 'en') : null),
+  })
   log('TELEGRAM_BOT_ON: ' + TELEGRAM_BOT_ON + (process.env.TELEGRAM_API_BASE_URL ? ` (Bot API → ${process.env.TELEGRAM_API_BASE_URL})` : ''))
   log('Bot initialized with webhook support')
   log('Bot ran away! ' + new Date())
@@ -5942,6 +5948,7 @@ bot?.on('callback_query', async (query) => {
   try {
     const data = query?.data || ''
     const chatId = String(query?.message?.chat?.id) // Always convert to string for DB consistency
+    try { setChatLang(chatId, (await get(state, chatId))?.userLanguage || 'en') } catch { /* non-fatal */ }
 
     // ── Post-purchase action shortcuts (UX P-Domain/VPS/Phone #4, 2026-06-21) ──
     // Inline-button shortcuts sent right after a successful purchase. Lets the
@@ -7494,6 +7501,10 @@ bot?.on('message', msg => {
   // ────────────────────────────────────────────────────────────────────────
   let _earlyInfo = null
   try { _earlyInfo = await get(state, chatId) } catch (e) { /* non-fatal */ }
+  // Keyboard localization (js/kb-i18n.js): refresh the chat's language and map a localized
+  // hard-coded button label back to its English canonical so literal handlers keep matching.
+  setChatLang(chatId, _earlyInfo?.userLanguage || 'en')
+  message = canonicalizeIncoming(message, _earlyInfo?.userLanguage)
   let trans = (key, ...args) => {
     const lang = _earlyInfo?.userLanguage || 'en'
     return translation(key, lang, ...args)
@@ -15108,6 +15119,7 @@ All verified numbers generated during sourcing.`))
     if (!validLanguage) return send(chatId, trans('l.askValidLanguage'), trans('languageMenu') )
     info.userLanguage = validLanguage
     await set(state, chatId, 'userLanguage', validLanguage)
+    setChatLang(chatId, validLanguage)
     await set(state, chatId, 'action', 'none')
 
     // Notify admin + groups about new member.
@@ -15211,6 +15223,7 @@ All verified numbers generated during sourcing.`))
     if (!validLanguage) return send(chatId, trans('l.askValidLanguage'), trans('languageMenu') )
     info.userLanguage = validLanguage
     await set(state, chatId, 'userLanguage', validLanguage)
+    setChatLang(chatId, validLanguage)
     await set(state, chatId, 'action', 'none')
     const greeting = await getMainMenuGreeting()
     return send(chatId, greeting, trans('o'))
@@ -15271,7 +15284,7 @@ All verified numbers generated during sourcing.`))
   }
 
   if (action === a.domainAvailableContinue) {
-    if (message === '↩️ Back' || message === user.searchAnotherDomain) return goto.getFreeTrialPlanNow()
+    if (isBackPress(message) || message === user.searchAnotherDomain) return goto.getFreeTrialPlanNow()
     if ((message === user.continueWithDomainNameSBS(info.website_name))) {
       // Auto-set Cloudflare NS — skip NS selection
       saveInfo('nameserver', 'cloudflare')
@@ -15280,7 +15293,7 @@ All verified numbers generated during sourcing.`))
   }
 
   if (action === a.continueWithDomainNameSBS) {
-    if (message === '↩️ Back') return goto.continueWithDomainNameSBS(info.website_name)
+    if (isBackPress(message)) return goto.continueWithDomainNameSBS(info.website_name)
     // Skip email for free trial
     if (message === t.skipEmail) {
       saveInfo('email', null)
@@ -15291,7 +15304,7 @@ All verified numbers generated during sourcing.`))
   }
 
   if (action === a.confirmEmailBeforeProceedingSBS) {
-    if (message === '↩️ Back') return goto.proceedContinueWithDomainNameSBS()
+    if (isBackPress(message)) return goto.proceedContinueWithDomainNameSBS()
     if (message === t.yesProceedWithThisEmail(info.email)) return goto.sendcPanelCredentialsAsEmailToUser()
   }
 
@@ -15387,7 +15400,7 @@ All verified numbers generated during sourcing.`))
 
   // Use My Domain — user selects from their purchased domains
   if (action === a.useMyDomain) {
-    if (message === '↩️ Back' || isBackPress(message)) return goto.selectPlan(currentPlanAction())
+    if (isBackPress(message)) return goto.selectPlan(currentPlanAction())
     // User tapped a domain name from the list → shared 1-tap path (awaits every
     // saveInfo — see BUG FIX 2026-05-06 / @jasonthekidd loop — and stamps
     // `domain` so payment intents never carry a stale earlier search).
@@ -15398,7 +15411,7 @@ All verified numbers generated during sourcing.`))
 
   // Connect External Domain — user types a domain they own elsewhere
   if (action === a.connectExternalDomain) {
-    if (isBackPress(message) || message === '↩️ Back' || isCancelPress(message)) return goto.selectPlan(currentPlanAction())
+    if (isBackPress(message) || isCancelPress(message)) return goto.selectPlan(currentPlanAction())
     let modifiedDomain = removeProtocolFromDomain(message)
     // Validate it looks like a domain (hostname chars + TLD — not just "contains a dot")
     if (!hcx.isDomainLike(modifiedDomain)) {
@@ -15562,7 +15575,7 @@ All verified numbers generated during sourcing.`))
 
   // 💳 My Plan / Billing — handle in-menu actions
   if (action === a.billingMenu) {
-    if (message === '↩️ Back' || isBackPress(message)) {
+    if (isBackPress(message)) {
       saveInfo('billingFlow', false)
       return goto.submenu3()
     }
@@ -15634,7 +15647,7 @@ All verified numbers generated during sourcing.`))
 
   // My Hosting Plans — select a plan to view
   if (action === a.myHostingPlans) {
-    if (message === '↩️ Back' || isBackPress(message)) return goto.submenu3()
+    if (isBackPress(message)) return goto.submenu3()
     // 🎁 Loyalty-credit deep-link from the list — "🎁 Use $X.XX credit on <domain>"
     if (typeof message === 'string' && message.startsWith('🎁 Use $')) {
       const m = message.match(/^🎁 Use \$[\d.]+ credit on (.+)$/)
@@ -17409,7 +17422,7 @@ All verified numbers generated during sourcing.`))
 
   // ━━━ Bundle Selection Handler ━━━
   if (action === a.bundleMenu) {
-    if (isBackPress(message) || message === '↩️ Back') return goto.displayMainMenuButtons()
+    if (isBackPress(message)) return goto.displayMainMenuButtons()
     // Match selected bundle by name
     const cleanMsg = message.replace('⭐ ', '')
     const bundleIds = Object.keys(monetization.SERVICE_BUNDLES)
@@ -17441,7 +17454,7 @@ All verified numbers generated during sourcing.`))
 
   // ━━━ Bundle Confirm/Purchase ━━━
   if (action === a.bundleConfirm) {
-    if (isBackPress(message) || message === '↩️ Back') {
+    if (isBackPress(message)) {
       // Go back to bundle menu
       await set(state, chatId, 'action', a.bundleMenu)
       const bundleMenuMsg = monetization.formatBundleMenu(lang)
@@ -17532,7 +17545,7 @@ All verified numbers generated during sourcing.`))
 
   // ── Email Validation Menu Handler ──
   if (action === a.evMenu) {
-    if (isBackPress(message) || isCancelPress(message) || message === '↩️ Back' || message === '❌ Cancel') return goto.displayMainMenuButtons()
+    if (isBackPress(message) || isCancelPress(message)) return goto.displayMainMenuButtons()
 
     if (message === '📤 Upload List (CSV/TXT)') {
       await set(state, chatId, 'action', a.evUploadList)
@@ -17645,7 +17658,7 @@ All verified numbers generated during sourcing.`))
 
   // ── Email Validation: Admin IP Manager ──
   if (action === a.evAdminIps && isAdmin(chatId)) {
-    if (message === '↩️ Back') {
+    if (isBackPress(message)) {
       await set(state, chatId, 'action', a.evMenu)
       // Re-show EV menu
       return send(chatId, trans('t.ev_2'), { parse_mode: 'HTML', reply_markup: { keyboard: [['📤 Upload List (CSV/TXT)'], ['📋 Paste Emails'], ['📜 My Validations'], ['⚙️ EV IP Manager'], ['↩️ Back']], resize_keyboard: true } })
@@ -17729,7 +17742,7 @@ All verified numbers generated during sourcing.`))
 
     // Handle IP input (add or remove)
     const ipAction = info?.evAdminIpAction
-    if (ipAction && message !== '❌ Cancel') {
+    if (ipAction && !isCancelPress(message)) {
       const ipInput = message.trim()
       if (!/^\d{1,3}(\.\d{1,3}){3}$/.test(ipInput)) {
         return send(chatId, trans('t.ev_11'), { parse_mode: 'HTML' })
@@ -17747,7 +17760,7 @@ All verified numbers generated during sourcing.`))
         return send(chatId, trans('t.ev_14', e.message), { parse_mode: 'HTML' })
       }
     }
-    if (message === '❌ Cancel') {
+    if (isCancelPress(message)) {
       await saveInfo('evAdminIpAction', null)
       await set(state, chatId, 'action', a.evAdminIps)
       return send(chatId, trans('t.ev_15'), { parse_mode: 'HTML', reply_markup: { keyboard: [['🔄 Refresh IPs', '📡 Fetch from Cloud'], ['➕ Add IP', '🗑 Remove IP'], ['♻️ Reset Health'], ['↩️ Back']], resize_keyboard: true } })
@@ -17755,7 +17768,7 @@ All verified numbers generated during sourcing.`))
   }
 
   if (action === a.evUploadList) {
-    if (message === '❌ Cancel' || isBackPress(message) || isCancelPress(message)) {
+    if (isCancelPress(message) || isBackPress(message)) {
       await set(state, chatId, 'action', a.evMenu)
       // Re-render the EV menu so the keyboard is replaced (not just text reply)
       const evBtnsBack = [
@@ -17873,7 +17886,7 @@ All verified numbers generated during sourcing.`))
 
   // ── Email Validation: Paste Emails ──
   if (action === a.evPasteEmails) {
-    if (message === '❌ Cancel' || isBackPress(message) || isCancelPress(message)) {
+    if (isCancelPress(message) || isBackPress(message)) {
       await set(state, chatId, 'action', a.evMenu)
       // Re-render the EV menu so the keyboard is replaced (not just text reply)
       const evBtnsBack = [
@@ -17972,7 +17985,7 @@ All verified numbers generated during sourcing.`))
 
   // ── Email Validation: Confirm & Pay ──
   if (action === a.evConfirmPay) {
-    if (message === '❌ Cancel' || isBackPress(message) || isCancelPress(message)) {
+    if (isCancelPress(message) || isBackPress(message)) {
       await set(state, chatId, 'action', a.evMenu)
       await saveInfo('evEmails', null)
       return send(chatId, trans('t.ev_28'), { parse_mode: 'HTML' })
@@ -18173,7 +18186,7 @@ All verified numbers generated during sourcing.`))
 
   // Email Blast Menu Handler
   if (action === a.ebMenu) {
-    if (isBackPress(message) || isCancelPress(message) || message === '↩️ Back' || message === '❌ Cancel' || message === (trans('t.ebCancelBtn'))) return goto.displayMainMenuButtons()
+    if (isBackPress(message) || isCancelPress(message) || message === (trans('t.ebCancelBtn'))) return goto.displayMainMenuButtons()
 
     if (message === t.ebSendBlast || message === '📤 Send Email Blast') {
       await set(state, chatId, 'action', a.ebUploadList)
@@ -18229,7 +18242,7 @@ All verified numbers generated during sourcing.`))
 
   // Upload Email List (handles both file and text paste)
   if (action === a.ebUploadList) {
-    if (message === (trans('t.ebCancelBtn')) || message === '❌ Cancel' || isBackPress(message) || isCancelPress(message)) {
+    if (message === (trans('t.ebCancelBtn')) || isCancelPress(message) || isBackPress(message)) {
       await set(state, chatId, 'action', a.ebMenu)
       return send(chatId, trans('t.ebCancelled'), { parse_mode: 'HTML' })
     }
@@ -18267,7 +18280,7 @@ All verified numbers generated during sourcing.`))
 
   // Enter Subject
   if (action === a.ebEnterSubject) {
-    if (message === (trans('t.ebCancelBtn')) || message === '❌ Cancel') return goto.displayMainMenuButtons()
+    if (message === (trans('t.ebCancelBtn')) || isCancelPress(message)) return goto.displayMainMenuButtons()
     await saveInfo('ebSubject', message)
     await set(state, chatId, 'action', a.ebEnterFromName)
     const subjectConfirmMsg = { en: `✅ Subject: <b>${message}</b>\n\n👤 Now enter the <b>From Name</b> (sender name recipients will see):`, fr: `✅ Objet : <b>${message}</b>\n\n👤 Entrez le <b>Nom de l'expéditeur</b> :`, zh: `✅ 主题：<b>${message}</b>\n\n👤 请输入<b>发件人名称</b>（收件人将看到的名称）：`, hi: `✅ विषय: <b>${message}</b>\n\n👤 अब <b>प्रेषक नाम</b> दर्ज करें:` }
@@ -18278,7 +18291,7 @@ All verified numbers generated during sourcing.`))
 
   // Enter From Name
   if (action === a.ebEnterFromName) {
-    if (message === (trans('t.ebCancelBtn')) || message === '❌ Cancel') return goto.displayMainMenuButtons()
+    if (message === (trans('t.ebCancelBtn')) || isCancelPress(message)) return goto.displayMainMenuButtons()
     await saveInfo('ebFromName', message)
     await set(state, chatId, 'action', a.ebSelectContentType)
     const fromConfirmMsg = { en: `✅ From: <b>${message}</b>\n\n📝 <b>How would you like to provide your email content?</b>\n\nChoose an option:`, fr: `✅ De : <b>${message}</b>\n\n📝 <b>Comment souhaitez-vous fournir le contenu ?</b>\n\nChoisissez :`, zh: `✅ 发件人：<b>${message}</b>\n\n📝 <b>您想如何提供邮件内容？</b>\n\n请选择：`, hi: `✅ प्रेषक: <b>${message}</b>\n\n📝 <b>आप ईमेल सामग्री कैसे प्रदान करना चाहेंगे?</b>\n\nविकल्प चुनें:` }
@@ -18293,7 +18306,7 @@ All verified numbers generated during sourcing.`))
 
   // Select Content Type
   if (action === a.ebSelectContentType) {
-    if (message === (trans('t.ebCancelBtn')) || message === '❌ Cancel') return goto.displayMainMenuButtons()
+    if (message === (trans('t.ebCancelBtn')) || isCancelPress(message)) return goto.displayMainMenuButtons()
 
     if (message === (trans('t.ebTypeText')) || message === '📝 Type Plain Text') {
       await saveInfo('ebContentType', 'text')
@@ -18318,7 +18331,7 @@ All verified numbers generated during sourcing.`))
 
   // Enter Email Content
   if (action === a.ebEnterContent) {
-    if (message === '❌ Cancel') return goto.displayMainMenuButtons()
+    if (isCancelPress(message)) return goto.displayMainMenuButtons()
 
     let htmlContent = ''
     let textContent = ''
@@ -18391,7 +18404,7 @@ ${message.replace(/\n/g, '<br>')}
 
   // Campaign Preview — Confirm/Edit/Cancel/Test
   if (action === a.ebPreview) {
-    if (message === (trans('t.ebCancelBtn')) || message === '❌ Cancel') return goto.displayMainMenuButtons()
+    if (message === (trans('t.ebCancelBtn')) || isCancelPress(message)) return goto.displayMainMenuButtons()
 
     if (message === '✏️ Edit') {
       await set(state, chatId, 'action', a.ebEnterSubject)
@@ -18454,7 +18467,7 @@ ${message.replace(/\n/g, '<br>')}
 
   // Payment Handler
   if (action === a.ebPayment) {
-    if (message === (trans('t.ebCancelBtn')) || message === '❌ Cancel') {
+    if (message === (trans('t.ebCancelBtn')) || isCancelPress(message)) {
       if (info.ebCampaignId) await emailBlastService.cancelCampaign(info.ebCampaignId)
       return goto.displayMainMenuButtons()
     }
@@ -18547,7 +18560,7 @@ ${message.replace(/\n/g, '<br>')}
 
   // ━━━ Email Blast: Test Email via Brevo ━━━
   if (action === a.ebTestEmail) {
-    if (message === '↩️ Back') {
+    if (isBackPress(message)) {
       await set(state, chatId, 'action', a.ebPreview)
       // Re-show preview
       const subject = info.ebSubject || 'No Subject'
@@ -18651,7 +18664,7 @@ ${message.replace(/\n/g, '<br>')}
 
   // Test Email Result — user decides to continue, edit, or resend
   if (action === a.ebTestEmailSent) {
-    if (message === '❌ Cancel') return goto.displayMainMenuButtons()
+    if (isCancelPress(message)) return goto.displayMainMenuButtons()
 
     if (message === '✅ Looks Good — Continue to Payment' || message === '✅ Continue to Payment Anyway') {
       // Go to payment step — reuse the preview's "Pay & Send" logic
@@ -18705,7 +18718,7 @@ ${message.replace(/\n/g, '<br>')}
 
   // ━━━ Email Blast Admin Handlers ━━━
   if (action === a.ebAdminMenu && chatId.toString() === process.env.TELEGRAM_ADMIN_CHAT_ID) {
-    if (message === '↩️ Back') return goto.displayMainMenuButtons()
+    if (isBackPress(message)) return goto.displayMainMenuButtons()
 
     if (message === '📊 Dashboard') {
       const analytics = await emailBlastService.getAnalytics()
@@ -18795,7 +18808,7 @@ ${message.replace(/\n/g, '<br>')}
 
   // Admin: Domain Management
   if (action === a.ebAdminDomains && chatId.toString() === process.env.TELEGRAM_ADMIN_CHAT_ID) {
-    if (message === '↩️ Back') {
+    if (isBackPress(message)) {
       await set(state, chatId, 'action', a.ebAdminMenu)
       return send(chatId, trans('t.vps_11'), { parse_mode: 'HTML', reply_markup: { keyboard: [['📊 Dashboard'], ['🌐 Manage Domains'], ['🖥️ Manage IPs & Warming'], ['💰 Pricing Settings'], ['🚫 Suppression List'], ['↩️ Back']], resize_keyboard: true } })
     }
@@ -18822,7 +18835,7 @@ ${message.replace(/\n/g, '<br>')}
 
   // Admin: Remove Domain
   if (action === 'ebAdminRemoveDomain' && chatId.toString() === process.env.TELEGRAM_ADMIN_CHAT_ID) {
-    if (message === '↩️ Back') {
+    if (isBackPress(message)) {
       const domains = await emailBlastService.getDomains()
       const domainList = domains && domains.length > 0
         ? domains.map(d => `• <b>${d.domain}</b> (${d.assignedIps?.length || 0} IPs)`).join('\n')
@@ -18848,7 +18861,7 @@ ${message.replace(/\n/g, '<br>')}
 
   // Admin: Add Domain
   if (action === a.ebAdminAddDomain && chatId.toString() === process.env.TELEGRAM_ADMIN_CHAT_ID) {
-    if (message === '↩️ Back') {
+    if (isBackPress(message)) {
       await set(state, chatId, 'action', a.ebAdminDomains)
       return send(chatId, trans('t.vps_18'), { parse_mode: 'HTML' })
     }
@@ -18882,7 +18895,7 @@ ${message.replace(/\n/g, '<br>')}
 
   // Admin: IP Management
   if (action === a.ebAdminIps && chatId.toString() === process.env.TELEGRAM_ADMIN_CHAT_ID) {
-    if (message === '↩️ Back') {
+    if (isBackPress(message)) {
       await set(state, chatId, 'action', a.ebAdminMenu)
       return send(chatId, trans('t.vps_22'), { parse_mode: 'HTML', reply_markup: { keyboard: [['📊 Dashboard'], ['🌐 Manage Domains'], ['🖥️ Manage IPs & Warming'], ['💰 Pricing Settings'], ['🚫 Suppression List'], ['↩️ Back']], resize_keyboard: true } })
     }
@@ -18928,7 +18941,7 @@ ${message.replace(/\n/g, '<br>')}
 
   // Admin: Add IP → Select Domain
   if (action === a.ebAdminAddIp && chatId.toString() === process.env.TELEGRAM_ADMIN_CHAT_ID) {
-    if (message === '↩️ Back') {
+    if (isBackPress(message)) {
       await set(state, chatId, 'action', a.ebAdminIps)
       return send(chatId, trans('t.vps_29'))
     }
@@ -18949,7 +18962,7 @@ ${message.replace(/\n/g, '<br>')}
 
   // Admin: Assign IP to Domain
   if (action === a.ebAdminAssignIpDomain && chatId.toString() === process.env.TELEGRAM_ADMIN_CHAT_ID) {
-    if (message === '↩️ Back') {
+    if (isBackPress(message)) {
       await set(state, chatId, 'action', a.ebAdminIps)
       return send(chatId, trans('t.vps_32'))
     }
@@ -18974,7 +18987,7 @@ ${message.replace(/\n/g, '<br>')}
 
   // Admin: Pricing Settings
   if (action === a.ebAdminPricing && chatId.toString() === process.env.TELEGRAM_ADMIN_CHAT_ID) {
-    if (message === '↩️ Back') {
+    if (isBackPress(message)) {
       await set(state, chatId, 'action', a.ebAdminMenu)
       return send(chatId, trans('t.vps_34'), { parse_mode: 'HTML', reply_markup: { keyboard: [['📊 Dashboard'], ['🌐 Manage Domains'], ['🖥️ Manage IPs & Warming'], ['💰 Pricing Settings'], ['🚫 Suppression List'], ['↩️ Back']], resize_keyboard: true } })
     }
@@ -18995,7 +19008,7 @@ ${message.replace(/\n/g, '<br>')}
 
   // Admin: Update Pricing Rate
   if (action === a.ebAdminPricingRate && chatId.toString() === process.env.TELEGRAM_ADMIN_CHAT_ID) {
-    if (message === '↩️ Back') { await set(state, chatId, 'action', a.ebAdminPricing); return send(chatId, trans('t.vps_38')) }
+    if (isBackPress(message)) { await set(state, chatId, 'action', a.ebAdminPricing); return send(chatId, trans('t.vps_38')) }
     const rate = parseFloat(message)
     if (isNaN(rate) || rate <= 0) return send(chatId, trans('t.vps_39'))
     await emailBlastService.updateSettings({ pricePerEmail: rate })
@@ -19004,7 +19017,7 @@ ${message.replace(/\n/g, '<br>')}
   }
 
   if (action === a.ebAdminPricingMin && chatId.toString() === process.env.TELEGRAM_ADMIN_CHAT_ID) {
-    if (message === '↩️ Back') { await set(state, chatId, 'action', a.ebAdminPricing); return send(chatId, trans('t.vps_41')) }
+    if (isBackPress(message)) { await set(state, chatId, 'action', a.ebAdminPricing); return send(chatId, trans('t.vps_41')) }
     const min = parseInt(message)
     if (isNaN(min) || min < 1) return send(chatId, trans('t.vps_42'))
     await emailBlastService.updateSettings({ minEmails: min })
@@ -19013,7 +19026,7 @@ ${message.replace(/\n/g, '<br>')}
   }
 
   if (action === a.ebAdminPricingMax && chatId.toString() === process.env.TELEGRAM_ADMIN_CHAT_ID) {
-    if (message === '↩️ Back') { await set(state, chatId, 'action', a.ebAdminPricing); return send(chatId, trans('t.vps_44')) }
+    if (isBackPress(message)) { await set(state, chatId, 'action', a.ebAdminPricing); return send(chatId, trans('t.vps_44')) }
     const max = parseInt(message)
     if (isNaN(max) || max < 1) return send(chatId, trans('t.vps_45'))
     await emailBlastService.updateSettings({ maxEmails: max })
@@ -19081,7 +19094,7 @@ ${message.replace(/\n/g, '<br>')}
   // Digital Products: payment method selection
   if (action === a.digitalProductPay) {
     if (isBackPress(message)) return goto.submenu6()
-    if (message === '🏠 Main Menu') return goto.displayMainMenuButtons()
+    if (isMainMenuPress(message)) return goto.displayMainMenuButtons()
     
     // Handle "Ask Question" button - direct user to support
     if (message === '💬 Ask Question') {
@@ -19537,7 +19550,7 @@ ${message.replace(/\n/g, '<br>')}
     // handler upstream (line ~12853) BEFORE this mpChat handler runs, so
     // conversation-closure for that button is done there. This local escape
     // hatch handles /done + ↩️ Back only.
-    if (message === '/done' || isBackPress(message) || message === '↩️ Back') {
+    if (message === '/done' || isBackPress(message)) {
       await marketplaceService.closeConversation(convId)
       const conv = await marketplaceService.getConversation(convId)
       const otherParty = conv?.buyerId === chatId ? conv?.sellerId : conv?.buyerId
@@ -19680,7 +19693,7 @@ ${message.replace(/\n/g, '<br>')}
 
   // ── Marketplace AI Helper ──
   if (action === a.mpAiHelper) {
-    if (isBackPress(message) || message === '↩️ Back') return goto.marketplace()
+    if (isBackPress(message)) return goto.marketplace()
     // User asked a question → get AI response
     send(chatId, t.mpAiThinking)
     try {
@@ -19697,8 +19710,8 @@ ${message.replace(/\n/g, '<br>')}
 
   // ── Marketplace SELLER-fee paywall (reply keyboard: Wallet / Crypto / NGN) ──
   if (action === a.mpSellerPaywall) {
-    if (isBackPress(message) || message === '↩️ Back') return goto.marketplace()
-    if (isCancelPress(message) || message === '🏠 Main Menu') return goto.displayMainMenuButtons()
+    if (isBackPress(message)) return goto.marketplace()
+    if (isCancelPress(message) || isMainMenuPress(message)) return goto.displayMainMenuButtons()
     const fee = marketplaceService.MARKETPLACE_ACCESS_FEE_USD
     const L = _mpPaywallLabels(lang)
     const intent = info?.mpPaywallIntent || 'list'
@@ -19799,8 +19812,8 @@ ${message.replace(/\n/g, '<br>')}
 
   // ── Marketplace Home ──
   if (action === a.mpHome) {
-    if (isBackPress(message) || message === '↩️ Back') return goto.displayMainMenuButtons()
-    if (message === '🏠 Main Menu') return goto.displayMainMenuButtons()
+    if (isBackPress(message)) return goto.displayMainMenuButtons()
+    if (isMainMenuPress(message)) return goto.displayMainMenuButtons()
     // NOTE: Opening & browsing the marketplace is FREE for everyone. The $50
     // one-time SELLER fee is enforced only on the LIST action below (and on
     // seller replies via mp:reply), NOT on browsing/viewing.
@@ -19875,7 +19888,7 @@ ${message.replace(/\n/g, '<br>')}
 
   // ── Browse Category Selection ──
   if (action === a.mpBrowseCategory) {
-    if (isBackPress(message) || message === '↩️ Back') return goto.marketplace()
+    if (isBackPress(message)) return goto.marketplace()
 
     let cat = message === t.mpAllCategories ? 'all' : _mpCategoryFromTranslated(message) || message
     if (cat !== 'all' && !marketplaceService.CATEGORIES.includes(cat)) {
@@ -19920,7 +19933,7 @@ ${message.replace(/\n/g, '<br>')}
 
   // ── My Listings — select a listing to manage ──
   if (action === a.mpMyListings) {
-    if (isBackPress(message) || message === '↩️ Back') return goto.marketplace()
+    if (isBackPress(message)) return goto.marketplace()
     if (message === t.mpListProduct) {
       // Check marketplace ban before allowing listing
       const mpBanList2 = await marketplaceService.isUserBanned(chatId)
@@ -19957,7 +19970,7 @@ ${message.replace(/\n/g, '<br>')}
 
   // ── Manage Listing ──
   if (action === a.mpManageListing) {
-    if (isBackPress(message) || message === '↩️ Back') {
+    if (isBackPress(message)) {
       await set(state, chatId, 'action', a.mpHome)
       return send(chatId, t.mpHome, k.of([[t.mpBrowse], [t.mpListProduct], [t.mpMyConversations], [t.mpMyListings], [t.mpAiHelper]]))
     }
@@ -20017,7 +20030,7 @@ ${message.replace(/\n/g, '<br>')}
 
   // ── Edit Title ──
   if (action === a.mpEditTitle) {
-    if (isBackPress(message) || message === '↩️ Back') { await set(state, chatId, 'action', a.mpManageListing); return send(chatId, t.mpEditWhat, k.of([[t.mpEditTitle], [t.mpEditDesc], [t.mpEditPrice]])) }
+    if (isBackPress(message)) { await set(state, chatId, 'action', a.mpManageListing); return send(chatId, t.mpEditWhat, k.of([[t.mpEditTitle], [t.mpEditDesc], [t.mpEditPrice]])) }
     const pid = info?.mpActiveProduct
     if (!pid) return goto.marketplace()
     // Defense-in-depth: unpaid sellers who had this action persisted before
@@ -20035,7 +20048,7 @@ ${message.replace(/\n/g, '<br>')}
 
   // ── Edit Description ──
   if (action === a.mpEditDesc) {
-    if (isBackPress(message) || message === '↩️ Back') { await set(state, chatId, 'action', a.mpManageListing); return send(chatId, t.mpEditWhat, k.of([[t.mpEditTitle], [t.mpEditDesc], [t.mpEditPrice]])) }
+    if (isBackPress(message)) { await set(state, chatId, 'action', a.mpManageListing); return send(chatId, t.mpEditWhat, k.of([[t.mpEditTitle], [t.mpEditDesc], [t.mpEditPrice]])) }
     const pid = info?.mpActiveProduct
     if (!pid) return goto.marketplace()
     if (!(await marketplaceService.hasMarketplaceAccess(chatId))) {
@@ -20050,7 +20063,7 @@ ${message.replace(/\n/g, '<br>')}
 
   // ── Edit Price ──
   if (action === a.mpEditPrice) {
-    if (isBackPress(message) || message === '↩️ Back') { await set(state, chatId, 'action', a.mpManageListing); return send(chatId, t.mpEditWhat, k.of([[t.mpEditTitle], [t.mpEditDesc], [t.mpEditPrice]])) }
+    if (isBackPress(message)) { await set(state, chatId, 'action', a.mpManageListing); return send(chatId, t.mpEditWhat, k.of([[t.mpEditTitle], [t.mpEditDesc], [t.mpEditPrice]])) }
     const pid = info?.mpActiveProduct
     if (!pid) return goto.marketplace()
     if (!(await marketplaceService.hasMarketplaceAccess(chatId))) {
@@ -20067,7 +20080,7 @@ ${message.replace(/\n/g, '<br>')}
 
   // ── New Product: Upload Images ──
   if (action === a.mpNewImage) {
-    if (isBackPress(message) || message === '↩️ Back' || message === t.mpCancel) return goto.marketplace()
+    if (isBackPress(message) || message === t.mpCancel) return goto.marketplace()
     if (message === t.mpDoneUpload) {
       const images = info?.mpImages || []
       if (images.length === 0) return send(chatId, t.mpNoImage)
@@ -20080,7 +20093,7 @@ ${message.replace(/\n/g, '<br>')}
 
   // ── New Product: Title ──
   if (action === a.mpNewTitle) {
-    if (isBackPress(message) || message === '↩️ Back') {
+    if (isBackPress(message)) {
       await set(state, chatId, 'action', a.mpNewImage)
       return send(chatId, t.mpUploadImages, k.of([[t.mpDoneUpload]]))
     }
@@ -20091,7 +20104,7 @@ ${message.replace(/\n/g, '<br>')}
 
   // ── New Product: Description ──
   if (action === a.mpNewDesc) {
-    if (isBackPress(message) || message === '↩️ Back') {
+    if (isBackPress(message)) {
       await set(state, chatId, 'action', a.mpNewTitle)
       return send(chatId, t.mpEnterTitle, bc)
     }
@@ -20102,7 +20115,7 @@ ${message.replace(/\n/g, '<br>')}
 
   // ── New Product: Price ──
   if (action === a.mpNewPrice) {
-    if (isBackPress(message) || message === '↩️ Back') {
+    if (isBackPress(message)) {
       await set(state, chatId, 'action', a.mpNewDesc)
       return send(chatId, t.mpEnterDesc, bc)
     }
@@ -20116,7 +20129,7 @@ ${message.replace(/\n/g, '<br>')}
 
   // ── New Product: Category ──
   if (action === a.mpNewCategory) {
-    if (isBackPress(message) || message === '↩️ Back') {
+    if (isBackPress(message)) {
       await set(state, chatId, 'action', a.mpNewPrice)
       return send(chatId, t.mpEnterPrice, bc)
     }
@@ -20133,7 +20146,7 @@ ${message.replace(/\n/g, '<br>')}
 
   // ── New Product: Confirm & Publish ──
   if (action === a.mpNewConfirm) {
-    if (message === t.mpCancel || isBackPress(message) || message === '↩️ Back') return goto.marketplace()
+    if (message === t.mpCancel || isBackPress(message)) return goto.marketplace()
     if (message === t.mpPublish) {
       // ── SELLER FEE GATE (defense in depth) ──
       // The entry gate at t.mpListProduct already blocks unpaid sellers, but
@@ -20171,7 +20184,7 @@ ${message.replace(/\n/g, '<br>')}
 
   // ── My Conversations — select one to resume ──
   if (action === a.mpConversations) {
-    if (isBackPress(message) || message === '↩️ Back') return goto.marketplace()
+    if (isBackPress(message)) return goto.marketplace()
     const convList = info?.mpConvList || []
     const match = convList.find(c => message.includes(c.title.slice(0, 30)))
     if (!match) return goto.marketplace()
@@ -21183,7 +21196,7 @@ ${message.replace(/\n/g, '<br>')}
   // QUICK SHORTEN FROM URL AUTO-DETECTION
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   if (action === 'quick-shorten-confirm') {
-    if (message === '❌ Cancel') {
+    if (isCancelPress(message)) {
       await set(state, chatId, 'action', 'none')
       return send(chatId, trans('t.cancelled'), trans('o'))
     }
@@ -21282,7 +21295,7 @@ ${message.replace(/\n/g, '<br>')}
   }
   
   if (action === 'quick-shorten-custom-alias') {
-    if (isBackPress(message) || message === '❌ Cancel') {
+    if (isBackPress(message) || isCancelPress(message)) {
       await set(state, chatId, 'action', 'none')
       return send(chatId, trans('t.cancelled'), trans('o'))
     }
@@ -25435,7 +25448,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
   // Quick IVR — Confirm/edit active keys (after custom script)
   if (action === a.ivrObConfirmKeys) {
     if (message === 'Cancel' || isCancelPress(message)) return goto.submenu5()
-    if (message === '↩️ Back' || isBackPress(message)) {
+    if (isBackPress(message)) {
       await set(state, chatId, 'action', a.ivrObCustomScript)
       return send(chatId, trans('t.cp_49'), k.of([['↩️ Back']]))
     }
@@ -25504,7 +25517,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
   }
 
   if (action === a.ivrObSelectTemplate) {
-    if (message === '↩️ Back' || isBackPress(message)) {
+    if (isBackPress(message)) {
       await set(state, chatId, 'action', a.ivrObSelectCategory)
       const ivrOb = require('./ivr-outbound.js')
       const catBtns = ivrOb.getCategoryButtons(lang)
@@ -25706,7 +25719,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
   // Quick IVR — Select mode (Transfer vs OTP Collection)
   if (action === a.ivrObSelectMode) {
     if (message === 'Cancel' || isCancelPress(message)) return goto.submenu5()
-    if (message === '↩️ Back' || isBackPress(message)) {
+    if (isBackPress(message)) {
       await set(state, chatId, 'action', a.ivrObSelectCategory)
       const ivrOb = require('./ivr-outbound.js')
       const catBtns = ivrOb.getCategoryButtons(lang)
@@ -25749,7 +25762,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
   // Quick IVR — OTP digit length
   if (action === a.ivrObOtpLength) {
     if (message === 'Cancel' || isCancelPress(message)) return goto.submenu5()
-    if (message === '↩️ Back' || isBackPress(message)) {
+    if (isBackPress(message)) {
       await set(state, chatId, 'action', a.ivrObSelectMode)
       return send(chatId, trans('t.cp_79'), k.of([['🔗 Transfer'], ['🔑 OTP Collection'], ['↩️ Back']]))
     }
@@ -25790,7 +25803,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
   // Quick IVR — OTP Messages customization (confirm/reject)
   if (action === a.ivrObOtpMessages) {
     if (message === 'Cancel' || isCancelPress(message)) return goto.submenu5()
-    if (message === '↩️ Back' || isBackPress(message)) {
+    if (isBackPress(message)) {
       await set(state, chatId, 'action', a.ivrObOtpLength)
       return send(chatId, trans('t.cp_83'), k.of([['4 digits'], ['5 digits'], ['6 digits'], ['8 digits'], ['↩️ Back']]))
     }
@@ -25819,7 +25832,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
   // Quick IVR — OTP Confirm message
   if (action === a.ivrObOtpConfirmMsg) {
     if (message === 'Cancel' || isCancelPress(message)) return goto.submenu5()
-    if (message === '↩️ Back' || isBackPress(message)) {
+    if (isBackPress(message)) {
       await set(state, chatId, 'action', a.ivrObOtpMessages)
       return send(chatId, trans('t.cp_87'), k.of([['✍️ Customize Messages'], ['⏭️ Use Defaults'], ['↩️ Back']]))
     }
@@ -25835,7 +25848,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
   // Quick IVR — OTP Reject message
   if (action === a.ivrObOtpRejectMsg) {
     if (message === 'Cancel' || isCancelPress(message)) return goto.submenu5()
-    if (message === '↩️ Back' || isBackPress(message)) {
+    if (isBackPress(message)) {
       await set(state, chatId, 'action', a.ivrObOtpConfirmMsg)
       return send(chatId, trans('t.cp_89'), k.of([['↩️ Back']]))
     }
@@ -26223,7 +26236,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     let speedLabel = 'Normal'
     if (ivrObData._awaitingCustomSpeed) {
       // Parse custom speed value
-      if (message === '↩️ Back') {
+      if (isBackPress(message)) {
         delete ivrObData._awaitingCustomSpeed
         await saveInfo('ivrObData', ivrObData)
         const speedBtns = ttsService.getSpeedButtons().map(b => [b])
@@ -26667,7 +26680,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
   }
 
   if (action === a.audioLibMenu) {
-    if (message === '↩️ Back' || isBackPress(message)) {
+    if (isBackPress(message)) {
       // Fix 2026-08-02: return to IVR greeting picker if we jumped here from
       // the IVR sub-menu (via "🛠 Manage Library"), not to the Bulk-IVR submenu.
       const returnTo = info?.audioLibReturnTo
@@ -26746,7 +26759,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     const selectedId = info?.audioLibSelectedId
     const audios = await audioLibraryService.listAudios(chatId)
     const picked = selectedId ? audios.find(a => a.id === selectedId) : null
-    if (isBackPress(message) || message === '↩️ Back' || isCancelPress(message)) {
+    if (isBackPress(message) || isCancelPress(message)) {
       await saveInfo('audioLibSelectedId', null)
       await set(state, chatId, 'action', a.audioLibMenu)
       return _renderAudioLibMenu(chatId, audios)
@@ -26797,7 +26810,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
   // ── Audio Library: collect new name for rename ──
   if (action === a.audioLibRename) {
     const selectedId = info?.audioLibSelectedId
-    if (isBackPress(message) || message === '↩️ Back' || isCancelPress(message)) {
+    if (isBackPress(message) || isCancelPress(message)) {
       await set(state, chatId, 'action', a.audioLibAudioDetail)
       const audios = await audioLibraryService.listAudios(chatId)
       const picked = selectedId ? audios.find(a => a.id === selectedId) : null
@@ -26830,7 +26843,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
   }
 
   if (action === a.audioLibUpload) {
-    if (message === '↩️ Back' || isBackPress(message)) {
+    if (isBackPress(message)) {
       await set(state, chatId, 'action', a.audioLibMenu)
       const audios = await audioLibraryService.listAudios(chatId)
       return _renderAudioLibMenu(chatId, audios)
@@ -26858,7 +26871,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
   }
 
   if (action === a.audioLibName) {
-    if (message === '↩️ Back' || isBackPress(message)) {
+    if (isBackPress(message)) {
       await set(state, chatId, 'action', a.audioLibUpload)
       return send(chatId, trans('t.cp_129'), k.of([['↩️ Back']]))
     }
@@ -26884,7 +26897,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
   // BULK CALL CAMPAIGN — Full conversational flow
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   if (action === a.bulkSelectCaller) {
-    if (message === '↩️ Back' || isBackPress(message) || isCancelPress(message)) return goto.submenu5()
+    if (isBackPress(message) || isCancelPress(message)) return goto.submenu5()
     // Match against caller ID labels
     const allCallerIds = info?.bulkCallerIds || []
     const found = allCallerIds.find(c => c.label === message)
@@ -26901,7 +26914,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
   }
 
   if (action === a.bulkUploadLeads) {
-    if (message === '↩️ Back' || isBackPress(message)) {
+    if (isBackPress(message)) {
       await set(state, chatId, 'action', a.bulkSelectCaller)
       const allCallerIds = info?.bulkCallerIds || []
       const numBtns = allCallerIds.map(c => [c.label])
@@ -26961,7 +26974,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
   }
 
   if (action === a.bulkSelectAudio) {
-    if (message === '↩️ Back' || isBackPress(message)) {
+    if (isBackPress(message)) {
       await set(state, chatId, 'action', a.bulkUploadLeads)
       return send(chatId, trans('t.cp_139'), k.of([['↩️ Back']]))
     }
@@ -26994,7 +27007,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
   }
 
   if (action === a.bulkUploadAudio) {
-    if (message === '↩️ Back' || isBackPress(message)) {
+    if (isBackPress(message)) {
       await set(state, chatId, 'action', a.bulkSelectAudio)
       const audios = await audioLibraryService.listAudios(chatId)
       const audioBtns = audios.map(a => [`🎵 ${a.name.substring(0, 30)}`])
@@ -27039,7 +27052,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
   }
 
   if (action === a.bulkSelectMode) {
-    if (message === '↩️ Back' || isBackPress(message)) {
+    if (isBackPress(message)) {
       await set(state, chatId, 'action', a.bulkSelectAudio)
       const audios = await audioLibraryService.listAudios(chatId)
       const audioBtns = audios.map(a => [`🎵 ${a.name.substring(0, 30)}`])
@@ -27068,7 +27081,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
   }
 
   if (action === a.bulkEnterTransfer) {
-    if (message === '↩️ Back' || isBackPress(message)) {
+    if (isBackPress(message)) {
       await set(state, chatId, 'action', a.bulkSelectMode)
       return send(chatId, trans('t.cp_154'), k.of([['🔗 Transfer + Report'], ['📊 Report Only'], ['↩️ Back']]))
     }
@@ -27119,7 +27132,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
   // ── Bulk IVR: reuse a saved preset's menu (Phase 2 — Preset Menu Reuse) ──
   if (action === a.bulkPickPresetMenu) {
     if (isCancelPress(message)) return goto.submenu5()
-    if (message === '↩️ Back' || isBackPress(message)) {
+    if (isBackPress(message)) {
       await set(state, chatId, 'action', a.bulkEnterTransfer)
       const _presetsWithMenu = (Array.isArray(info?.ivrPresets) ? info.ivrPresets : []).filter(p => p && p.menu && Object.keys(p.menu).length)
       const _rows = [['🔀 Route each key (menu)']]
@@ -27148,7 +27161,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
 
   // ── Bulk IVR: Select Active Keys ──
   if (action === a.bulkSelectKeys) {
-    if (message === '↩️ Back' || isBackPress(message)) {
+    if (isBackPress(message)) {
       const bulkData = info?.bulkData || {}
       if (bulkData.mode === 'transfer') {
         await set(state, chatId, 'action', a.bulkEnterTransfer)
@@ -27182,7 +27195,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
   }
 
   if (action === a.bulkEnterCustomKeys) {
-    if (message === '↩️ Back' || isBackPress(message)) {
+    if (isBackPress(message)) {
       await set(state, chatId, 'action', a.bulkSelectKeys)
       return send(chatId, trans('t.cp_162'), k.of([['1 only'], ['1 and 2'], ['1, 2, and 3'], ['0-9 (any key)'], ['✍️ Custom keys'], ['↩️ Back']]))
     }
@@ -27199,7 +27212,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
 
   // ── Bulk IVR: Inline TTS Template Flow ──
   if (action === a.bulkTTSCategory) {
-    if (message === '↩️ Back' || isBackPress(message)) {
+    if (isBackPress(message)) {
       await set(state, chatId, 'action', a.bulkSelectAudio)
       const audios = await audioLibraryService.listAudios(chatId)
       const audioBtns = audios.map(a => [`🎵 ${a.name.substring(0, 30)}`])
@@ -27225,7 +27238,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
   }
 
   if (action === a.bulkTTSCustomScript) {
-    if (message === '↩️ Back' || isBackPress(message)) {
+    if (isBackPress(message)) {
       const ivrOb = require('./ivr-outbound.js')
       const catBtns = ivrOb.getCategoryButtons(lang).filter(b => !b.startsWith('✍️')).map(b => [b])
       await set(state, chatId, 'action', a.bulkTTSCategory)
@@ -27279,7 +27292,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
   }
 
   if (action === a.bulkTTSTemplate) {
-    if (message === '↩️ Back' || isBackPress(message)) {
+    if (isBackPress(message)) {
       const ivrOb = require('./ivr-outbound.js')
       const catBtns = ivrOb.getCategoryButtons(lang).filter(b => !b.startsWith('✍️')).map(b => [b])
       await set(state, chatId, 'action', a.bulkTTSCategory)
@@ -27336,7 +27349,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
   }
 
   if (action === a.bulkTTSPlaceholder) {
-    if (message === '↩️ Back' || isBackPress(message)) {
+    if (isBackPress(message)) {
       const ivrOb = require('./ivr-outbound.js')
       const catBtns = ivrOb.getCategoryButtons(lang).filter(b => !b.startsWith('✍️')).map(b => [b])
       await set(state, chatId, 'action', a.bulkTTSCategory)
@@ -27419,7 +27432,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
 
   // ── Bulk TTS: Provider Selection (OpenAI / ElevenLabs) ──
   if (action === a.bulkTTSProvider) {
-    if (message === '↩️ Back' || isBackPress(message)) {
+    if (isBackPress(message)) {
       const ivrOb = require('./ivr-outbound.js')
       const catBtns = ivrOb.getCategoryButtons(lang).filter(b => !b.startsWith('✍️')).map(b => [b])
       await set(state, chatId, 'action', a.bulkTTSCategory)
@@ -27442,7 +27455,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
 
 
   if (action === a.bulkTTSVoice) {
-    if (message === '↩️ Back' || isBackPress(message)) {
+    if (isBackPress(message)) {
       // Go back to provider selection
       await set(state, chatId, 'action', a.bulkTTSProvider)
       const ttsService = require('./tts-service.js')
@@ -27471,7 +27484,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
   }
 
   if (action === a.bulkTTSSpeed) {
-    if (message === '↩️ Back' || isBackPress(message)) {
+    if (isBackPress(message)) {
       await set(state, chatId, 'action', a.bulkTTSProvider)
       const ttsService = require('./tts-service.js')
       const providerBtns = ttsService.getProviderButtons().map(b => [b])
@@ -27488,7 +27501,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
 
     let speed = 1.0
     if (bulkTTS._awaitingCustomSpeed) {
-      if (message === '↩️ Back') {
+      if (isBackPress(message)) {
         delete bulkTTS._awaitingCustomSpeed
         await saveInfo('bulkTTS', bulkTTS)
         const speedBtns = ttsService.getSpeedButtons().map(b => [b])
@@ -27552,7 +27565,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
   }
 
   if (action === a.bulkTTSPreview) {
-    if (message === '↩️ Back' || isBackPress(message)) {
+    if (isBackPress(message)) {
       const ivrOb = require('./ivr-outbound.js')
       const catBtns = ivrOb.getCategoryButtons(lang).filter(b => !b.startsWith('✍️')).map(b => [b])
       await set(state, chatId, 'action', a.bulkTTSCategory)
@@ -27599,7 +27612,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
   }
 
   if (action === a.bulkSetConcurrency) {
-    if (message === '↩️ Back' || isBackPress(message)) {
+    if (isBackPress(message)) {
       await set(state, chatId, 'action', a.bulkSelectKeys)
       return send(chatId, trans('t.cp_214'), k.of([['1 only'], ['1 and 2'], ['1, 2, and 3'], ['0-9 (any key)'], ['✍️ Custom keys'], ['↩️ Back']]))
     }
@@ -27636,7 +27649,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
   }
 
   if (action === a.bulkConfirm) {
-    if (message === '↩️ Back' || isBackPress(message)) {
+    if (isBackPress(message)) {
       await set(state, chatId, 'action', a.bulkSetConcurrency)
       return send(chatId, trans('t.cp_216'), k.of([['5'], ['10'], ['15'], ['20'], ['↩️ Back']]))
     }
@@ -27688,7 +27701,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
 
   if (action === a.bulkScheduleTime) {
     if (isCancelPress(message)) return goto.submenu5()
-    if (message === '↩️ Back' || isBackPress(message)) {
+    if (isBackPress(message)) {
       await set(state, chatId, 'action', a.bulkConfirm)
       return send(chatId, `Tap <b>🚀 Launch Campaign</b> to start now, or <b>⏰ Schedule for later</b>.`, { parse_mode: 'HTML', reply_markup: { keyboard: [['🚀 Launch Campaign'], ['⏰ Schedule for later'], ['↩️ Back']], resize_keyboard: true } })
     }
@@ -32796,7 +32809,7 @@ Select a category:`), k.of(catBtns))
     const draft = info?.cpIvrDraft || {}
     const parentKey = draft.parentKey
     if (!num || !parentKey) return goto.submenu5()
-    if (isBackPress(message) || message === '↩️ Back') {
+    if (isBackPress(message)) {
       await set(state, chatId, 'action', a.cpIvrSubMenuManage)
       return _renderSubMenuOverview(chatId, num, parentKey)
     }
@@ -32826,7 +32839,7 @@ Select a category:`), k.of(catBtns))
     const pc = phoneConfig.getBtn(info?.userLanguage || 'en')
     const num = info?.cpActiveNumber
     if (!num) return goto.submenu5()
-    if (isBackPress(message) || message === '↩️ Back' || message === pc.back) {
+    if (isBackPress(message) || message === pc.back) {
       await set(state, chatId, 'action', a.cpIvr)
       const ivrConf = num.features?.ivr || {}
       return send(chatId, cpTxt.ivrMenu(num.phoneNumber, ivrConf), k.of([
@@ -32851,7 +32864,7 @@ Select a category:`), k.of(catBtns))
     const draft = info?.cpIvrDraft || {}
     const parentKey = draft.parentKey
     if (!num || !parentKey) return goto.submenu5()
-    if (isBackPress(message) || message === '↩️ Back') {
+    if (isBackPress(message)) {
       await set(state, chatId, 'action', a.cpIvrSubMenuManage)
       return _renderSubMenuOverview(chatId, num, parentKey)
     }
@@ -32877,7 +32890,7 @@ Select a category:`), k.of(catBtns))
     const parentKey = draft.parentKey
     const subKey = draft.subKey
     if (!num || !parentKey || !subKey) return goto.submenu5()
-    if (isBackPress(message) || message === '↩️ Back') {
+    if (isBackPress(message)) {
       await set(state, chatId, 'action', a.cpIvrSubMenuOptionKey)
       draft.subKey = null; await saveInfo('cpIvrDraft', draft)
       return send(chatId, ({ en: `➕ Pick a digit (0-9) for the sub-option:`, fr: `➕ Choisissez un chiffre (0-9) :`, zh: `➕ 选择数字 (0-9)：`, hi: `➕ अंक चुनें (0-9):` }[lang] || `➕ Pick a digit (0-9) for the sub-option:`), k.of([['0','1','2','3','4','5','6','7','8','9'], ['↩️ Back']]))
@@ -32916,7 +32929,7 @@ Select a category:`), k.of(catBtns))
     const subKey = draft.subKey
     const subAction = draft.subAction
     if (!num || !parentKey || !subKey || !subAction) return goto.submenu5()
-    if (isBackPress(message) || message === '↩️ Back') {
+    if (isBackPress(message)) {
       await set(state, chatId, 'action', a.cpIvrSubMenuOptionAction)
       draft.subAction = null; await saveInfo('cpIvrDraft', draft)
       return send(chatId, ({ en: `Pick an action for sub-key <b>${subKey}</b>:`, fr: `Choisissez :`, zh: `选择：`, hi: `चुनें:` }[lang] || `Pick an action for sub-key <b>${subKey}</b>:`), { parse_mode: 'HTML', reply_markup: { keyboard: [[btn.forwardCall], [btn.playMessage], [btn.sendToVoicemail], ['↩️ Back']], resize_keyboard: true } })
@@ -32967,7 +32980,7 @@ Select a category:`), k.of(catBtns))
     const draft = info?.cpIvrDraft || {}
     const parentKey = draft.parentKey
     if (!num || !parentKey) return goto.submenu5()
-    if (isBackPress(message) || message === '↩️ Back') {
+    if (isBackPress(message)) {
       await set(state, chatId, 'action', a.cpIvrSubMenuManage)
       return _renderSubMenuOverview(chatId, num, parentKey)
     }
@@ -33613,19 +33626,19 @@ Select a category:`), k.of(catBtns))
   // Custom Lead Request Flow
   // ═══════════════════════════════════════════════════
   if (action === a.customLeadRequestName) {
-    if (message === ('↩️ Back')) return goto.targetSelectTarget()
+    if (isBackPress(message)) return goto.targetSelectTarget()
     if (message.length < 2 || message.length > 100) return send(chatId, t.validInstitutionName)
     await saveInfo('customLeadTarget', message)
     return goto.customLeadRequestCity()
   }
   if (action === a.customLeadRequestCity) {
-    if (message === ('↩️ Back')) return goto.customLeadRequestName()
+    if (isBackPress(message)) return goto.customLeadRequestName()
     if (message.length < 2 || message.length > 100) return send(chatId, t.validCityName)
     await saveInfo('customLeadCity', message)
     return goto.customLeadRequestDetails()
   }
   if (action === a.customLeadRequestDetails) {
-    if (message === ('↩️ Back')) return goto.customLeadRequestCity()
+    if (isBackPress(message)) return goto.customLeadRequestCity()
     const details = (message === (trans('t.leadNone'))) ? '' : message
     const target = info?.customLeadTarget
     const city = info?.customLeadCity
@@ -33967,7 +33980,7 @@ Select a category:`), k.of(catBtns))
 
   // ━━━ Bundle Coupon Apply ━━━
   if (action === a.askCoupon + a.bundleConfirm) {
-    if (isBackPress(message) || message === '↩️ Back') {
+    if (isBackPress(message)) {
       // Go back to bundle confirm
       const bundleId = info?.selectedBundle
       const bundle = monetization.getBundleDetails(bundleId, lang)
