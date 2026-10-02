@@ -12920,6 +12920,7 @@ Enter new value:`), bc)
       }
 
       let walletDeducted = false
+      const kind = vpsDetails?.isRDP ? 'RDP' : 'VPS'
 
       try {
         set(payments, nanoid(), `Wallet,VPSPlan,${vpsDetails?.plan},$${priceUsd},${chatId},${name},${new Date()}`)
@@ -12950,7 +12951,7 @@ Enter new value:`), bc)
         if (walletDeducted) {
           await atomicIncrement(walletOf, chatId, 'usdIn', priceUsd)
           log(`[VPS] Refunded ${priceUsd} USD to ${chatId}`)
-          send(chatId, ({ en: `❌ <b>VPS provisioning failed</b>\n\n✅ Refund of $${priceUsd} issued to your wallet.\n\nError: ${sanitizeProviderError(error.message)}\n\nPlease contact support if the issue persists.`, fr: `❌ <b>Échec du provisionnement VPS</b>\n\n✅ Remboursement de $${priceUsd} sur votre portefeuille.\n\nErreur : ${sanitizeProviderError(error.message)}\n\nContactez le support si le problème persiste.`, zh: `❌ <b>VPS 配置失败</b>\n\n✅ 已退还 $${priceUsd} 到您的钱包。\n\n错误：${sanitizeProviderError(error.message)}\n\n如问题持续，请联系客服。`, hi: `❌ <b>VPS प्रोविज़निंग विफल</b>\n\n✅ $${priceUsd} आपके वॉलेट में वापस किया गया।\n\nत्रुटि: ${sanitizeProviderError(error.message)}\n\nसमस्या बनी रहे तो सहायता से संपर्क करें।` }[lang] || `❌ <b>VPS provisioning failed</b>\n\n✅ Refund of $${priceUsd} issued to your wallet.\n\nError: ${sanitizeProviderError(error.message)}\n\nPlease contact support if the issue persists.`), { parse_mode: 'HTML' })
+          send(chatId, ({ en: `❌ <b>${kind} provisioning failed</b>\n\n✅ Refund of $${priceUsd} issued to your wallet.\n\nError: ${sanitizeProviderError(error.message)}\n\nPlease contact support if the issue persists.`, fr: `❌ <b>Échec du provisionnement ${kind}</b>\n\n✅ Remboursement de $${priceUsd} sur votre portefeuille.\n\nErreur : ${sanitizeProviderError(error.message)}\n\nContactez le support si le problème persiste.`, zh: `❌ <b>${kind} 配置失败</b>\n\n✅ 已退还 $${priceUsd} 到您的钱包。\n\n错误：${sanitizeProviderError(error.message)}\n\n如问题持续，请联系客服。`, hi: `❌ <b>${kind} प्रोविज़निंग विफल</b>\n\n✅ $${priceUsd} आपके वॉलेट में वापस किया गया।\n\nत्रुटि: ${sanitizeProviderError(error.message)}\n\nसमस्या बनी रहे तो सहायता से संपर्क करें।` }[lang] || `❌ <b>${kind} provisioning failed</b>\n\n✅ Refund of $${priceUsd} issued to your wallet.\n\nError: ${sanitizeProviderError(error.message)}\n\nPlease contact support if the issue persists.`), { parse_mode: 'HTML' })
         }
       }
     },
@@ -37331,8 +37332,9 @@ async function checkVPSPlansExpiryandPayment() {
 const buyVPSPlanFullProcess = async (chatId, lang, vpsDetails) => {
   try {
     // Create progress tracker for VPS provisioning
+    const setupKind = vpsDetails?.isRDP ? 'RDP' : 'VPS'
     const progress = createProgressTracker(bot, chatId,
-      { en: 'VPS Setup', fr: 'Configuration VPS', zh: 'VPS 设置', hi: 'VPS सेटअप' }[lang] || 'VPS Setup',
+      { en: `${setupKind} Setup`, fr: `Configuration ${setupKind}`, zh: `${setupKind} 设置`, hi: `${setupKind} सेटअप` }[lang] || `${setupKind} Setup`,
       [
         { en: 'Creating instance', fr: 'Création instance', zh: '创建实例', hi: 'इंस्टेंस बना रहे हैं' }[lang] || 'Creating instance',
         { en: 'Assigning IP address', fr: 'Attribution IP', zh: '分配 IP 地址', hi: 'IP पता आवंटित कर रहे हैं' }[lang] || 'Assigning IP address',
@@ -37395,6 +37397,19 @@ const buyVPSPlanFullProcess = async (chatId, lang, vpsDetails) => {
         await sleep(15000) // wait 15s between each poll
         try {
           const details = await proxyService.getInstance(pollId)
+          // DO-RDP marks the server doc 'failed' when the droplet create is rejected (e.g. DO 403
+          // outstanding balance, 2026-10-02). Without this check the loop ran the full 25 min and
+          // then DMed credentials for a server that never existed.
+          if (/^(failed|destroyed|error)$/i.test(String(details?.status || ''))) {
+            const reason = (details?.logs || []).slice(-1)[0]?.message || details.status
+            console.log(`[VPS] provider reports ${details.status} for ${pollId} — aborting purchase: ${reason}`)
+            if (typeof vpsPlansOf !== 'undefined' && vpsPlansOf) await vpsPlansOf.deleteOne(dbMatchKey)
+            try { await progress.fail(({ en: 'Setup failed', fr: 'Échec de la configuration', zh: '设置失败', hi: 'सेटअप विफल' }[lang]) || 'Setup failed') } catch (_) {}
+            const m = translation('vp.errorPurchasingVPS', lang, vpsDetails.plan, vpsDetails.isRDP)
+            sendMessage(chatId, m)
+            sendMessage(TELEGRAM_DEV_CHAT_ID, `${m}\n\n${pollId}: ${reason}`)
+            return false
+          }
           const ip = extractIp(details)
           if (ip && ip !== 'provisioning...' && ip !== 'pending' && ip !== '0.0.0.0') {
             resolvedIp = ip
@@ -37439,15 +37454,16 @@ const buyVPSPlanFullProcess = async (chatId, lang, vpsDetails) => {
                     )
                   }
                   console.log(`[VPS bg-IP] ${cInstId} resolved after ${a} bg attempts: ${ip}`)
-                  // Notify the user the VPS is now reachable
+                  // Notify the user the VPS/RDP is now reachable (RDP-aware wording)
                   try {
+                    const kind = vpsData.isRDP ? 'RDP' : 'VPS'
                     const note = (cLang === 'fr')
-                      ? `🎉 Votre VPS est maintenant prêt ! Adresse IP : <code>${ip}</code>`
+                      ? `🎉 Votre ${kind} est maintenant prêt ! Adresse IP : <code>${ip}</code>`
                       : (cLang === 'zh')
-                        ? `🎉 您的 VPS 已就绪！IP 地址：<code>${ip}</code>`
+                        ? `🎉 您的 ${kind} 已就绪！IP 地址：<code>${ip}</code>`
                         : (cLang === 'hi')
-                          ? `🎉 आपका VPS अब तैयार है! IP पता: <code>${ip}</code>`
-                          : `🎉 Your VPS is now ready! IP address: <code>${ip}</code>\nYou can now connect: <code>${vpsData.isRDP ? 'RDP' : 'ssh'} ${ip}</code>`
+                          ? `🎉 आपका ${kind} अब तैयार है! IP पता: <code>${ip}</code>`
+                          : `🎉 Your ${kind} is now ready! IP address: <code>${ip}</code>\nYou can now connect: <code>${vpsData.isRDP ? 'RDP' : 'ssh'} ${ip}</code>`
                     sendMessage(cChat, note, { parse_mode: 'HTML' })
                   } catch (_) { /* noop */ }
                   // Speed lever 4: RDP now has an IP → deliver the pre-tuned fast-connect .rdp file.
