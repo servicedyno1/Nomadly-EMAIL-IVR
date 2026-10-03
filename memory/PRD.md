@@ -17,6 +17,20 @@ User inherited a fully-set-up Nomadly bot pod pointed at LIVE PRODUCTION. Task b
 - Vault (`memory/nomadly.vault.enc`, passphrase in test_credentials.md) is the single source of truth for credentials; after editing `.env` always `vault.sh lock`, then `railway_setup_prod.js apply` to sync production
 
 
+## 2026-10-03 — Reseller API flipped to LIVE on production main bot (env-only change)
+- Finding: `RESELLER_API_LIVE` was absent from both `/opt/nomadly/shared/{app-main,app-wl}/backend.env`, so
+  `/reseller/v1/*` ran in `dry_run` on prod (gate in `js/reseller-api.js:134`:
+  `RESELLER_API_LIVE==='true' && SKIP_WEBHOOK_SYNC!=='true'`).
+- Change (user-approved: **main only**, blue/green): appended `RESELLER_API_LIVE=true` to
+  `shared/app-main/backend.env` (backup `backend.env.bak.20261003T092653Z`), ran `/opt/nomadly/deploy.sh app-main deploy`
+  → release `20261003T092654Z-e376022` on `app-main-a :5000`, nginx flipped, `app-main-b` retired, zero downtime.
+- Verified: `http://127.0.0.1:5000/reseller/v1/health` and public `https://2.speechcue.com/api/reseller/v1/health`
+  → `mode: live`; `app-wl` (:5001) untouched → `dry_run`. Bot `/health` healthy, no boot errors.
+- NOTE: prod main is still at GitHub `e376022`; this session's local commits (shortlink analytics fix, RDP
+  diag endpoints, HEAD `29ab43ff`) are NOT yet pushed — user must use "Save to Github" then redeploy.
+- Also sync vault/`memory/test_credentials.md` env snapshot if the vault is regenerated (new key not in vault yet).
+
+
 ## 2026-10-02 — RDP order failure (@morganfreebandzz) — FIXED, tested, deployed to both bots
 - **Symptom**: user ordered a Windows RDP; provisioning failed and the bot/admin message said "…your Monthly **VPS** Plan".
 - **Root cause 1 (provisioning)**: `VPS_RDP_PROVIDER=azure` on app-main → Azure subscription returned 404. Switched to
