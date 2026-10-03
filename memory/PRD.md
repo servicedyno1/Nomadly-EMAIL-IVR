@@ -38,6 +38,12 @@ User inherited a fully-set-up Nomadly bot pod pointed at LIVE PRODUCTION. Task b
   added did NOT sync because the workflow was manual-only (0 runs on GitHub) — fixed by the push trigger.
 - Repo made PRIVATE by owner 2026-10-03 ~10:20Z. Droplet mirrors still fetch (credential.helper=store, /root/.git-credentials);
   app-main deployed c1709532 OK after the save. Secret rotation + vault re-lock still pending (owner).
+- ✅ VERIFIED LIVE 2026-10-03 10:22Z: save 7bda58cc → auto run 37116152861 (push, success) → WhiteLabel 16bb4dd7→480ec0e6
+  (shortener-analytics fix + merged _index.js, brand files untouched) → dispatched deploy run 37116166198 (deploy-wl success)
+  → droplet app-wl release 20261003T102156Z-480ec0e on :5101, /health healthy, /branding = Smadav, fix live, 0 boot errors.
+- Cosmetic: GitHub compare still shows WhiteLabel "31 behind / 124 ahead" main because sync commits copy changes rather
+  than recording main as a merge parent. Possible follow-up: make sync commits 2-parent merges (tree unchanged) — CAUTION:
+  GitHub may reject GITHUB_TOKEN pushes whose newly-reachable history touches .github/workflows (community #151442); test first.
 
 
 ## 2026-10-03 — Reseller API flipped to LIVE on production main bot (env-only change)
