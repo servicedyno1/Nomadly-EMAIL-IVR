@@ -1,0 +1,26 @@
+{
+  "summary": "Targeted retest of the scenario (h) fix in /app/scripts/sync_whitelabel.py (self-verify now uses `git diff --name-only -z` + NUL split with surrogateescape decoding at line 376-377, matching the main-changed-paths computation on line 270-271). Ran full local harness `bash /app/scripts/test_sync_whitelabel.sh` -> RESULT: 17 passed, 0 failed (new T9 covers unicode/space path). Ran an isolated /tmp/adv_h sandbox (bare clone of /tmp/gh as origin, work clone with /app/scripts/sync_whitelabel.py copied in) reproducing scenario (h) with THREE adversarial path types in one commit on main: 'assets/weird dir/résumé spaced.txt' (unicode+space), 'docs2/a\"b.txt' (double-quote), and '🚀 launch.txt' (emoji). `python3 scripts/sync_whitelabel.py --push` exited 0, pushed commit fe173d2e, and WhiteLabel in the sandbox now contains all three files with identical content (A/B/C). Also re-confirmed after the fix: (i) `--dry-run` on a new main change pushed nothing (WL ref unchanged, 'DRY RUN' logged, exit 0), (ii) a real runtime conflict in frontend/src/App.js still stops the sync with exit 2 and WL ref unchanged ('CONFLICTS' message present). `python3 -m py_compile /app/scripts/sync_whitelabel.py` OK. Real GitHub untouched: `git -C /app ls-remote origin refs/heads/WhiteLabel refs/heads/main` returns WhiteLabel 16bb4dd753ed89a6289a47adeb748cf97804db75 and main 5384b46841ddd78d2233836822b28879ab0c25f1 — exact expected values. No pushes to real origin were made at any point.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/scripts/test_sync_whitelabel.sh",
+    "/app/scripts/sync_whitelabel.py"
+  ],
+  "action_items": [
+    "None. Scenario (h) is fixed and all adversarial path variants (unicode+space, double-quote, emoji) now sync cleanly. Full harness 17/17."
+  ],
+  "critical_code_review_comments": [
+    "Fix at /app/scripts/sync_whitelabel.py lines 376-377 is correct: uses `git diff --name-only -z target commit`, decodes stdout with `errors='surrogateescape'`, splits on NUL — mirrors the earlier `changed` computation. Comment on line 375 ('# -z: raw paths') documents intent.",
+    "No --force on push preserved; dry-run path still pushes nothing; conflict path still exits 2 with WL untouched — all guardrails intact after the fix."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100% (17/17 harness + 3/3 extra adversarial path types + conflict/dry-run reverify)", "frontend": "n/a (skipped per request)"},
+  "seed_data_creation": "Isolated /tmp/adv_h sandbox (bare clone of /tmp/gh). Can be removed with `rm -rf /tmp/adv_h`. /tmp/gh (read-only mirror) and /tmp/sim (harness scratch) left intact for the next agent.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Scenario (h) regression is fully closed. Harness at /app/scripts/test_sync_whitelabel.sh now has T9 (unicode/space) covering the regression. If you need to probe more exotic path variants, extend T9 or create a fresh /tmp sandbox following the pattern used in iteration_61 (bare clone of /tmp/gh -> work clone -> copy script -> add weird paths on main -> run `--push` -> check origin WhiteLabel). Real origin ref values unchanged: WhiteLabel 16bb4dd7, main 5384b468.",
+  "rca of the issue": "Previous issue RCA (iteration_60): default `core.quotepath=true` caused `git diff --name-only` to C-quote non-ASCII/space paths, breaking the planned-vs-touched self-verify. Fix now in place at lines 376-377: `touched = {p for p in git('diff', '--name-only', '-z', target, commit).stdout.decode(errors='surrogateescape').split('\\0') if p}`. Verified end-to-end in /tmp/adv_h: unicode+space ('résumé spaced.txt' in 'weird dir'), double-quote ('a\"b.txt'), and emoji ('🚀 launch.txt') paths all pass self-verify and land on WhiteLabel with correct bytes."
+}
