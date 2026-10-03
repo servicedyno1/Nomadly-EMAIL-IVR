@@ -1,0 +1,23 @@
+{
+  "summary": "Backend-only validation of (1) /api/health, (2) /api/dev/rdp-pricing-test for DigitalOcean-RDP 1/2/3-month plans & math, and (3) /api/dev/shortlink-analytics-test regression. All 7 pytest cases pass against the external REACT_APP_BACKEND_URL (FastAPI :8001 -> Node Express :5000 under supervisor 'nodejs'). RDP catalog + bot layers return the exact spec prices (standard 56/100.8/142.8, pro 112/201.6/285.6, power 224/403.2/571.2) with discountPct 0/10/15 for 1/2/3 months; all 9 bot checks have okCycle=true, chargeTotalPrice equals the selected duration price, and endTimeMonthsAhead==durationMonths. couponExample.couponOk=true with 25% off power-3m => 428.40. Shortlink analytics: customShowsClicks, externalsStillNA, bitlyShowsClicks all true; custom-domain lines (sfrsclaim.com/recovery, mydomain.com/promo) show real click counts and NOT 'analytics not available', while srtn.me and ap1s.net show 'analytics not available'.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_rdp_pricing_and_shortlink.py",
+    "/app/test_reports/pytest/iter59_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Dev-only endpoints /api/dev/rdp-pricing-test and /api/dev/shortlink-analytics-test correctly 404 when BOT_ENVIRONMENT=production; keep this gate intact.",
+    "Response schema for the 'bot' layer uses cyclePrice/chargeTotalPrice (string) while 'catalog' uses got (number). Harmless for current tests but consider normalizing to a single numeric field across layers for easier downstream assertions."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_rdp_pricing_and_shortlink.py"
+  ],
+  "success_rate": {"backend": "100%", "frontend": "N/A (skipped per request)"},
+  "test_credentials": "None required (dev-only endpoints open in sandbox)",
+  "seed_data_creation": "None",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Pytest suite at /app/backend/tests/test_rdp_pricing_and_shortlink.py exercises the two dev diagnostic endpoints and health. Reuse as regression. Catalog-layer checks carry got/want; bot-layer checks carry cyclePrice/chargeTotalPrice/endTimeMonthsAhead/durationMonths with okCycle flag. Shortlink test parses the rendered[] array of strings and asserts click-count vs 'analytics not available' per domain."
+}
