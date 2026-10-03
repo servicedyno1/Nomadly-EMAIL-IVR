@@ -327,6 +327,14 @@ def main():
         gh_output(changed='false', runtime_changed='false', pushed='false', commit=target)
         return 2
 
+    if not ops:
+        # Only docs / brand / workflow / kept-WL test files changed — nothing to carry.
+        # Don't create a marker-only commit on every save (automatic runs).
+        print('✅ No code changes to carry over to WhiteLabel — nothing pushed.')
+        gh_summary(f'### ✅ No code to carry over (main `{base[:8]}..{source[:8]}`) — WhiteLabel unchanged\n```\n{report}```')
+        gh_output(changed='false', runtime_changed='false', pushed='false', commit=target)
+        return 0
+
     failures, warnings = syntax_check(ops, T)
     for w in warnings:
         print(f'⚠️  {w}')

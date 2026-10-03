@@ -1,13 +1,27 @@
 name: Sync main → WhiteLabel
 
-# One-click, brand-safe sync. Carries every CODE change made on `main` since the
-# last sync over to the `WhiteLabel` branch (Smadav bot, app-wl), keeps every
-# Smadav/brand-owned file untouched, STOPS without pushing on any real conflict,
-# then redeploys app-wl through the normal "Deploy to Droplet" workflow.
+# Brand-safe sync. Carries every CODE change made on `main` since the last sync
+# over to the `WhiteLabel` branch (Smadav bot, app-wl), keeps every Smadav/
+# brand-owned file untouched, STOPS without pushing on any real conflict (the
+# run turns red and GitHub emails the owner), then redeploys app-wl through the
+# normal "Deploy to Droplet" workflow.
 #
-# How to use: GitHub → Actions → "Sync main → WhiteLabel" → Run workflow.
+# Runs AUTOMATICALLY on every push to main (i.e. every "Save to GitHub") that
+# touches more than docs/notes. To pause auto-sync without a code change:
+#   GitHub → Settings → Secrets and variables → Actions → Variables →
+#   New repository variable  WL_AUTO_SYNC = false
+# Manual run / preview: Actions → "Sync main → WhiteLabel" → Run workflow.
 # Logic lives in scripts/sync_whitelabel.py (testable locally with --dry-run).
 on:
+  push:
+    branches: [main]
+    # Notes-only saves have no code to carry over.
+    paths-ignore:
+      - 'memory/**'
+      - '.emergent/**'
+      - 'test_reports/**'
+      - 'investigations/**'
+      - '**.md'
   workflow_dispatch:
     inputs:
       dry_run:
@@ -23,6 +37,8 @@ permissions:
   contents: write   # push the sync commit to WhiteLabel (fast-forward only)
   actions: write    # start the "Deploy to Droplet" workflow for app-wl
 
+# One sync at a time; a newer save simply queues behind (each run syncs up to
+# the newest main, so nothing is lost).
 concurrency:
   group: sync-whitelabel
   cancel-in-progress: false
@@ -30,6 +46,8 @@ concurrency:
 jobs:
   sync:
     name: Sync main → WhiteLabel
+    # Manual runs always go; automatic runs unless WL_AUTO_SYNC is set to 'false'.
+    if: ${{ github.event_name == 'workflow_dispatch' || vars.WL_AUTO_SYNC != 'false' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -57,6 +75,7 @@ jobs:
           GIT_AUTHOR_EMAIL: 41898282+github-actions[bot]@users.noreply.github.com
           GIT_COMMITTER_NAME: github-actions[bot]
           GIT_COMMITTER_EMAIL: 41898282+github-actions[bot]@users.noreply.github.com
+          # push events have no inputs → dry_run is empty → --push
           MODE_FLAG: ${{ inputs.dry_run && '--dry-run' || '--push' }}
         run: |
           python3 scripts/sync_whitelabel.py \
@@ -67,8 +86,9 @@ jobs:
       # deploy is started explicitly (workflow_dispatch IS allowed for GITHUB_TOKEN).
       # --ref main = use main's canonical deploy.yml; deploy.sh app-wl always ships
       # the WhiteLabel branch (/opt/nomadly/shared/app-wl/branch).
+      # Automatic (push) runs always redeploy; manual runs honour the `deploy` box.
       - name: Redeploy app-wl (Smadav bot)
-        if: ${{ steps.sync.outputs.pushed == 'true' && steps.sync.outputs.runtime_changed == 'true' && inputs.deploy }}
+        if: ${{ steps.sync.outputs.pushed == 'true' && steps.sync.outputs.runtime_changed == 'true' && (github.event_name == 'push' || inputs.deploy) }}
         env:
           GH_TOKEN: ${{ github.token }}
         run: |

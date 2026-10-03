@@ -76,6 +76,11 @@ main_commit "mkdir -p 'assets/weird dir' && echo hi > 'assets/weird dir/résumé
 $S --push > /tmp/t9.log 2>&1; rc=$?; git fetch -q origin
 check "exit 0 and WL contains the unicode/space path" "[ $rc = 0 ] && [ \"\$(git show 'origin/WhiteLabel:assets/weird dir/résumé spaced.txt')\" = hi ]"
 
+echo "T10 main change touches only brand/workflow/notes -> nothing pushed (no marker-only commit)"
+B=$(wl); main_commit "echo '// brand-only' >> js/branding.js; echo '# note' >> memory/PRD.md; echo '# wf' >> .github/workflows/lint.yml" "T10"
+$S --push > /tmp/t10.log 2>&1; rc=$?
+check "exit 0, 'No code changes', WL unchanged" "[ $rc = 0 ] && grep -q 'No code changes to carry over' /tmp/t10.log && [ \"\$(wl)\" = $B ]"
+
 echo "T8 WhiteLabel moved after we fetched -> push refused (never forced)"
 ( cd "$SIM/wlc" && git pull -q && echo '// concurrent' >> js/branding.js && git commit -qam "concurrent WL edit" && git push -q origin WhiteLabel )
 main_commit "echo '// T8' >> js/shortener-analytics.js" "T8"   # main_commit fetches; re-point WL to the stale tip:

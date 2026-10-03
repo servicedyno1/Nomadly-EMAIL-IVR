@@ -20,6 +20,11 @@ current_task_2026_10_03_whitelabel_sync: |
   Files: scripts/sync_whitelabel.py, .github/workflows/sync-whitelabel.yml, .github/workflows/deploy.yml
   (paths-ignore additions), scripts/test_sync_whitelabel.sh (local harness, /tmp only, 16 checks).
   NEVER push to GitHub, never modify /app/.git, never SSH to production while testing.
+  FOLLOW-UP BUG (2026-10-03 ~10:25Z) "i saved but it didn't sync": user pressed Save to GitHub (main=c1709532 on GitHub,
+  workflow registered) but the sync workflow had 0 runs — it was workflow_dispatch-only. FIX: added `on: push: branches
+  [main]` (docs-only paths-ignore), job-level opt-out `vars.WL_AUTO_SYNC != 'false'`, deploy step also runs for push
+  events, and the script no longer pushes marker-only commits when there is no code to carry (new harness T10).
+  Repo is now PRIVATE (GitHub API needs auth; anonymous = 404).
 
 
 #====================================================================================================

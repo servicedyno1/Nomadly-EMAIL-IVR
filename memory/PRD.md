@@ -32,8 +32,12 @@ User inherited a fully-set-up Nomadly bot pod pointed at LIVE PRODUCTION. Task b
   fast-forward push only, then `gh workflow run deploy.yml --ref main -f app=app-wl`.
 - deploy.yml `paths-ignore` += `.github/**`, `.whitelabel-sync`, `scripts/sync_whitelabel.py`, `scripts/test_sync_whitelabel.sh`.
 - Tests: `bash scripts/test_sync_whitelabel.sh` (throw-away bare repo in /tmp from REAL main+WL) — 16/16 pass.
-- USER STEPS: "Save to GitHub" (main) → GitHub Actions → "Sync main → WhiteLabel" → Run workflow. Then verify
-  app-wl release sha on the droplet (`/opt/nomadly/current/app-wl/RELEASE`) and `getAnalyticsCapability` fix.
+- USER STEPS: just "Save to GitHub" (main) — since 2026-10-03 10:30Z the sync also runs **automatically on every push to
+  main** (docs-only pushes ignored; no marker-only commits; pause with repo variable `WL_AUTO_SYNC=false`). Manual
+  run/preview still available (Actions → "Sync main → WhiteLabel" → Run workflow). First save after the button was
+  added did NOT sync because the workflow was manual-only (0 runs on GitHub) — fixed by the push trigger.
+- Repo made PRIVATE by owner 2026-10-03 ~10:20Z. Droplet mirrors still fetch (credential.helper=store, /root/.git-credentials);
+  app-main deployed c1709532 OK after the save. Secret rotation + vault re-lock still pending (owner).
 
 
 ## 2026-10-03 — Reseller API flipped to LIVE on production main bot (env-only change)
