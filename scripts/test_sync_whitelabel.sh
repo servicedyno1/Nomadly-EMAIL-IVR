@@ -71,6 +71,11 @@ main_commit "L=\$(grep -n \"app.get('/dev/rdp-pricing-test'\" js/_index.js | cut
 $S --push > /tmp/t7.log 2>&1; rc=$?; git fetch -q origin
 check "exit 0, merged, WL has hotfix AND main edit" "[ $rc = 0 ] && git show origin/WhiteLabel:js/_index.js | grep -q WL-HOTFIX-T7 && git show origin/WhiteLabel:js/_index.js | grep -q MAIN-T7"
 
+echo "T9 main adds a file with spaces + unicode in its path -> synced (no false self-verify abort)"
+main_commit "mkdir -p 'assets/weird dir' && echo hi > 'assets/weird dir/résumé spaced.txt' && git add 'assets/weird dir/résumé spaced.txt'" "T9"
+$S --push > /tmp/t9.log 2>&1; rc=$?; git fetch -q origin
+check "exit 0 and WL contains the unicode/space path" "[ $rc = 0 ] && [ \"\$(git show 'origin/WhiteLabel:assets/weird dir/résumé spaced.txt')\" = hi ]"
+
 echo "T8 WhiteLabel moved after we fetched -> push refused (never forced)"
 ( cd "$SIM/wlc" && git pull -q && echo '// concurrent' >> js/branding.js && git commit -qam "concurrent WL edit" && git push -q origin WhiteLabel )
 main_commit "echo '// T8' >> js/shortener-analytics.js" "T8"   # main_commit fetches; re-point WL to the stale tip:

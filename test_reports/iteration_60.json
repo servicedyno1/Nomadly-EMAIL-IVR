@@ -1,0 +1,40 @@
+{
+  "summary": "Backend-only review of the brand-safe WhiteLabel sync tooling (scripts/sync_whitelabel.py + .github/workflows/sync-whitelabel.yml + deploy.yml paths-ignore). Static checks (actionlint, py_compile, flake8 --max-line-length=140) all pass. Local harness scripts/test_sync_whitelabel.sh: 16/16 pass. Adversarial scenarios (a–i) run in an isolated /tmp/adv sandbox (bare clone of /tmp/gh): (a) delete-on-main propagates, (b) new binary added, (c) binary conflict → exit 2 nothing pushed, (d) index.html title conflict → exit 2 nothing pushed, (e) backend/tests/* conflict kept-WL + sync still succeeds, (f) --dry-run leaves WL ref untouched, (g) non-ancestor --base → exit 1 with clear msg, (i) 100755 exec bit preserved on new scripts/bin/newexec.sh. (h) Unicode/space path FAILS: self-verify rejects with 'internal check failed — unexpected paths' and nothing is pushed. Runtime: workspace WhiteLabel ref still 16bb4dd7, main still 5384b468 (no pushes made). Running bot: /api/health 200; /dev/shortlink-analytics-test ok:true (customShowsClicks/externalsStillNA/bitlyShowsClicks all true); /dev/rdp-pricing-test ok:true tierCount=3 durationsPerTier=3 failures=[]; node require of js/shortener-analytics.js: sfrsclaim.com/recovery=true, srtn.me=false, bit.ly=true (current WhiteLabel copy still returns false for sfrsclaim.com — the exact bug the sync carries over).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {
+        "endpoint": "scripts/sync_whitelabel.py line 375 (self-verify)",
+        "issue": "Unicode/space/special-char paths break the planned-vs-touched self-verify and abort the entire sync with exit 1 ('internal check failed — unexpected paths'), so no sync at all is published if main introduces such a file. `out('diff','--name-only',target,commit)` returns C-quoted paths like `\"assets/weird dir/r\\303\\251sum\\303\\251 spaced.txt\"` while `planned` holds the raw UTF-8 path, so `touched <= planned` is False. Scenario (h) in adversarial run. Fix: use `-z` + NUL split, e.g. `touched = {p for p in out('diff','--name-only','-z',target,commit).split(chr(0)) if p}` (or add `-c core.quotepath=false`). This matches how `changed` is already computed on line 270."
+      }
+    ]
+  },
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/scripts/test_sync_whitelabel.sh",
+    "/app/scripts/sync_whitelabel.py",
+    "/app/.github/workflows/sync-whitelabel.yml",
+    "/app/.github/workflows/deploy.yml"
+  ],
+  "action_items": [
+    "FIX sync_whitelabel.py self-verify to use -z + NUL split (or core.quotepath=false) so paths with spaces/unicode don't trip the 'unexpected paths' guard. One-line change at line 375.",
+    "No other action needed; harness + all other adversarial scenarios pass; runtime bot shows the fix the sync is meant to carry; workspace untouched; actionlint clean."
+  ],
+  "critical_code_review_comments": [
+    "sync_whitelabel.py line 270 already uses `diff --name-only -z` for the main-change list but line 375's self-verify forgot the same flag. Fix in-place.",
+    "merge3() correctly treats git merge-file exit >=128 as error and uses exit code as conflict count (0 clean, N = N conflicts) — matches man page.",
+    "update-index -z --index-info with ZERO_OID + mode 0 for deletions is correct per git docs.",
+    "syntax_check() is well-scoped: only js/,scripts/,backend/ *.js and non-test *.py; 'already broken on WL' is downgraded to warning (good).",
+    "DOC_PATTERNS / BRAND_PATTERNS / CI_PATTERNS classification is sound; is_non_runtime() correctly matches test files + root-level artifact files only.",
+    "No --force on push (line 393): any concurrent WL edit will cause a non-FF rejection (scenario T8 proves it). Correct.",
+    "deploy.yml paths-ignore additions ('.github/**', '.whitelabel-sync', 'scripts/sync_whitelabel.py', 'scripts/test_sync_whitelabel.sh') do NOT suppress real runtime pushes — only the sync tooling itself and workflows (which already can't change on sync-token pushes).",
+    "sync-whitelabel.yml correctly uses MODE_FLAG expression, checks out ref main fetch-depth 0, has permissions contents:write + actions:write, dispatches `deploy.yml --ref main -f app=app-wl` only when pushed==true && runtime_changed==true && inputs.deploy."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "95% (16/16 harness + 8/9 adversarial = 24/25)", "frontend": "n/a (skipped per request)"},
+  "seed_data_creation": "Built isolated /tmp/adv sandbox with bare clone of /tmp/gh (NEVER touched real origin or /app git). Used only to validate the script; sandbox can be removed with `rm -rf /tmp/adv`.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Harness lives at /app/scripts/test_sync_whitelabel.sh — rerun to confirm 16/16 after fix. For the unicode-path regression, repro: create a file at 'assets/weird dir/résumé spaced.txt' on main in a /tmp sandbox bare clone, run `python3 scripts/sync_whitelabel.py --push`; before the fix the self-verify raises 'internal check failed — unexpected paths' and exits 1 with WL unchanged; after fix it should succeed and WL should contain the file. /tmp/gh is a read-only mirror of real GitHub, keep it. /tmp/adv is a scratch sandbox. Real repo was NEVER pushed to.",
+  "rca of the issue": "File: /app/scripts/sync_whitelabel.py, line 375 — `touched = set(out('diff', '--name-only', target, commit).splitlines())`. With default `core.quotepath=true`, git encodes non-ASCII/space bytes in paths using C-escape quoting, so `touched` contains strings like `\"assets/weird dir/r\\303\\251sum\\303\\251 spaced.txt\"` (including surrounding quotes) while `planned` (built from the raw `changed` list computed with `-z` on line 270) contains the UTF-8 path. The subset check `touched <= planned` therefore fails and raises RuntimeError, which main() catches and exits 1 — nothing is pushed. Reproduction: scenario (h) in the adversarial run. Mitigation: switch line 375 to `touched = {p for p in out('diff', '--name-only', '-z', target, commit).split(chr(0)) if p}` (preferred — mirrors line 270) or prefix the git call with `-c core.quotepath=false`. Scenario (i) was then re-run in isolation and confirmed 100755 exec mode is preserved end-to-end."
+}

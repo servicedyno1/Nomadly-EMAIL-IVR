@@ -372,7 +372,9 @@ def main():
     commit = out('commit-tree', tree, '-p', target, input=body.encode(), env=env)
 
     # 3) self-verify: the new commit changes ONLY what we planned
-    touched = set(out('diff', '--name-only', target, commit).splitlines())
+    # -z: raw paths (no C-quoting of spaces/unicode), same decoding as `changed` above
+    touched = {p for p in git('diff', '--name-only', '-z', target, commit)
+               .stdout.decode(errors='surrogateescape').split('\0') if p}
     planned = {p for p, _ in ops} | {MARKER}
     if not touched <= planned:
         raise RuntimeError(f'internal check failed — unexpected paths: {sorted(touched - planned)[:10]}')
