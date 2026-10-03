@@ -462,7 +462,7 @@ backend:
           TEST RESULTS (6/6 CRITICAL ITEMS PASSED):
           
           ✅ ITEM 1: Backend Health Check (PASS)
-             • GET https://vault-setup-15.preview.emergentagent.com/api/health
+             • GET https://vault-setup-fix.preview.emergentagent.com/api/health
              • Response: {"status":"healthy","database":"connected","uptime":"0.03 hours"}
              • Also verified via localhost: curl http://127.0.0.1:8001/api/health → same response
              • Backend is HEALTHY and database is CONNECTED
@@ -925,7 +925,7 @@ backend:
         comment: |
           ✅ RE-VERIFICATION COMPLETE - RDP Reseller API D1/D2/D3 CONFIRMED WORKING (33/33 tests, 100% pass rate)
           
-          Re-verified all RDP Reseller API endpoints on the current pod (https://vault-setup-15.preview.emergentagent.com).
+          Re-verified all RDP Reseller API endpoints on the current pod (https://vault-setup-fix.preview.emergentagent.com).
           All 33 tests passed with identical results to the previous test run. The API continues to work correctly.
           
           TEST RESULTS (33/33 PASSED):
@@ -3648,7 +3648,7 @@ backend:
               
               ✅ ok === true
               ✅ audio.audioUrl present and ending in .mp3
-                URL: https://vault-setup-15.preview.emergentagent.com/api/assets/user-audio/tts_1786329027952_rachel.mp3
+                URL: https://vault-setup-fix.preview.emergentagent.com/api/assets/user-audio/tts_1786329027952_rachel.mp3
               ✅ NO audio.error field
               ✅ audio.voice === "Rachel"
               ✅ audio.fallbackUsed === false
@@ -6820,7 +6820,7 @@ backend:
             
             ✅ Step 2: permanent_mp3_url (CORE FIX)
                 • pass: true ✅
-                • audioUrl: "https://vault-setup-15.preview.emergentagent.com/api/assets/user-audio/DEVTEST-VM_01e0ce71-bbb.mp3" ✅
+                • audioUrl: "https://vault-setup-fix.preview.emergentagent.com/api/assets/user-audio/DEVTEST-VM_01e0ce71-bbb.mp3" ✅
                 ★ CORE FIX VERIFIED: The saved audioUrl is a PERMANENT /assets/user-audio/*.mp3 URL
                 ★ NOT an api.telegram.org link (which would expire in ~1h)
                 ★ The OGG voice note was transcoded to MP3 format
@@ -11540,7 +11540,7 @@ backend:
             • test_phone_scheduler_no_leak.js: 12 passed, 0 failed ✓
           
           TEST 10 - Admin endpoint smoke test: ✅ PASSED
-            • GET https://vault-setup-15.preview.emergentagent.com/api/admin/dns-heal-status?key=o/Qb8ArGahlquhCQ
+            • GET https://vault-setup-fix.preview.emergentagent.com/api/admin/dns-heal-status?key=o/Qb8ArGahlquhCQ
             • HTTP 200, ok=true ✓
           
           CONCLUSION:
@@ -12878,7 +12878,7 @@ frontend:
           mocked panel data endpoints (no live cPanel/WHM/Cloudflare impact).
           
           Test method: Playwright browser automation with page.route() mocking
-          Base URL: https://vault-setup-15.preview.emergentagent.com/panel
+          Base URL: https://vault-setup-fix.preview.emergentagent.com/panel
           Test run: 2026-09-28 (all tests passed, 0 failures, 0 warnings)
 
   - task: "HostBay Panel End-to-End UI Test (2026-08-31) - Full verification of domains, subdomains, addon domains, File Manager, and MySQL with WHM-root fallback"
@@ -12895,7 +12895,7 @@ frontend:
           ✅ HOSTBAY PANEL END-TO-END TEST PASSED (2026-08-31) - All core functionality working with WHM-root fallback:
           
           TEST ENVIRONMENT:
-          • URL: https://vault-setup-15.preview.emergentagent.com/panel
+          • URL: https://vault-setup-fix.preview.emergentagent.com/panel
           • Test account: nbayftest / PIN: 241743
           • Domain: testingbays.sbs
           • Context: Account has DEAD user-level cPanel auth (by design) - all operations use WHM-root fallback
@@ -12987,7 +12987,7 @@ frontend:
           ❌ CRITICAL ISSUES FOUND - Subdomain quick-nav and bulk import features tested (2026-08-30):
           
           TEST ENVIRONMENT:
-          • URL: https://vault-setup-15.preview.emergentagent.com/panel
+          • URL: https://vault-setup-fix.preview.emergentagent.com/panel
           • Test account: nbayftest / PIN: 241743
           • Domain: testingbays.sbs
           
@@ -13056,7 +13056,7 @@ frontend:
         comment: |
           ✅ READ-ONLY UI VERIFICATION COMPLETE - ALL TESTS PASSED (100% pass rate)
           
-          SCOPE: Verified the Nomadly admin panel UI at https://vault-setup-15.preview.emergentagent.com
+          SCOPE: Verified the Nomadly admin panel UI at https://vault-setup-fix.preview.emergentagent.com
           in READ-ONLY mode. This is a LIVE PRODUCTION environment with real MongoDB and payment/domain/telephony APIs.
           NO data-modifying actions were taken (no clicks on Buy, Register, Purchase, Create, Delete, Send, Connect, 
           Verify, Submit, Save buttons). Only page navigation, reading text, and capturing console/network errors.
@@ -14459,7 +14459,7 @@ agent_communication:
         
         ✅ ok === true
         ✅ audio.audioUrl present and ending in .mp3
-          URL: https://vault-setup-15.preview.emergentagent.com/api/assets/user-audio/tts_1786329027952_rachel.mp3
+          URL: https://vault-setup-fix.preview.emergentagent.com/api/assets/user-audio/tts_1786329027952_rachel.mp3
         ✅ NO audio.error field
         ✅ audio.voice === "Rachel"
         ✅ audio.fallbackUsed === false
@@ -20212,7 +20212,7 @@ frontend_ui_test_scope_2026-08-31: |
       TEST SCOPE:
       • Account: nbayftest / PIN: 241743 / domain: testingbays.sbs
       • User-level cPanel auth is BROKEN on purpose (must use WHM session fallback)
-      • Backend URL: https://vault-setup-15.preview.emergentagent.com
+      • Backend URL: https://vault-setup-fix.preview.emergentagent.com
       • Test file: qa-content-test.txt in /public_html
       • Test content: "hello-fallback-2026-verify-XYZ"
       
@@ -20294,7 +20294,7 @@ frontend_ui_test_scope_2026-08-31: |
       ✅ VERIFICATION PASSED - HostBay Panel subdomain delete fix WORKING (2/2 tests passed):
       
       SCOPE: Re-verified the subdomain delete fix in the HostBay hosting panel (React app at 
-      https://vault-setup-15.preview.emergentagent.com/panel). This is a 
+      https://vault-setup-fix.preview.emergentagent.com/panel). This is a 
       PRODUCTION-connected environment. Account: nbayftest / PIN: 241743 / domain: testingbays.sbs.
       
       [TEST 1] PRIMARY - Subdomain delete must not "reappear": ✅ PASSED
@@ -20407,7 +20407,7 @@ frontend_ui_test_scope_2026-08-31: |
       ❌ VERIFICATION FAILED - HostBay Panel subdomain delete & console warnings (3/3 CRITICAL FAILURES):
       
       SCOPE: Verified two specific fixes in the HostBay hosting panel (React app at 
-      https://vault-setup-15.preview.emergentagent.com/panel). This is a 
+      https://vault-setup-fix.preview.emergentagent.com/panel). This is a 
       PRODUCTION-connected environment. Account: nbayftest / PIN: 241743 / domain: testingbays.sbs.
       
       [TEST 1] FIX #1 - Subdomain delete must not "reappear": ❌ CRITICAL FAILURE
@@ -20796,7 +20796,7 @@ frontend_ui_test_scope_2026-08-31: |
       The API is working correctly and ready for production use when RESELLER_API_LIVE=true is set.
       
       VERIFICATION SCOPE:
-      • Base URL: https://vault-setup-15.preview.emergentagent.com/api/reseller/v1
+      • Base URL: https://vault-setup-fix.preview.emergentagent.com/api/reseller/v1
       • Auth: X-API-Key: nmdly_e2e_51573577f5db956c5c0cb039 (or Authorization: Bearer)
       • Test RDP: e2e-rdp-1 (provider digitalocean-rdp, os_id ws2022)
       • Environment: DEV SANDBOX (SKIP_WEBHOOK_SYNC=true, dry_run mode)
