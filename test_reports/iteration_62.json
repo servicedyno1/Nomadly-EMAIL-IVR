@@ -1,0 +1,44 @@
+{
+  "summary": "Backend-only verification of the 'Sync main → WhiteLabel' auto-trigger fix. Static validation of the new workflow (actionlint, yaml parse, GitHub Actions semantics reasoning), end-to-end run of the local harness (bash /app/scripts/test_sync_whitelabel.sh → 18 passed, 0 failed), and read-only GitHub API checks against the private repo confirming the user bug's root cause and current real state. No pushes, dispatches, or non-GET API calls were made. /app has no origin remote (left as-is).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/scripts/test_sync_whitelabel.sh",
+    "/app/scripts/sync_whitelabel.py",
+    "/app/.github/workflows/sync-whitelabel.yml"
+  ],
+  "action_items": [
+    "User must perform ONE more 'Save to GitHub' so the updated .github/workflows/sync-whitelabel.yml (with on: push) lands on GitHub main — after that save, every subsequent save will auto-run the sync.",
+    "That first save itself WILL trigger the sync because the save's diff includes .github/workflows/sync-whitelabel.yml + scripts/* (not in paths-ignore).",
+    "Optional: document the WL_AUTO_SYNC repo variable (Settings → Actions → Variables, set to 'false' to pause auto-sync) in README/memory."
+  ],
+  "critical_code_review_comments": [
+    "FIX 1 verified statically: `on: push: branches:[main]` with paths-ignore (memory/**, .emergent/**, test_reports/**, investigations/**, **.md) plus workflow_dispatch. actionlint exit 0, yaml.safe_load parses cleanly.",
+    "Job-level `if: github.event_name == 'workflow_dispatch' || vars.WL_AUTO_SYNC != 'false'` is correct — vars.X unset = '' and '' != 'false' is true, so push runs by default; setting WL_AUTO_SYNC=false pauses push runs while manual dispatch still works.",
+    "`MODE_FLAG: ${{ inputs.dry_run && '--dry-run' || '--push' }}` — on push events `inputs.dry_run` is null/empty (falsy) → MODE_FLAG='--push'. Verified by GitHub Actions expression semantics.",
+    "Deploy step `if: steps.sync.outputs.pushed == 'true' && steps.sync.outputs.runtime_changed == 'true' && (github.event_name == 'push' || inputs.deploy)` — auto-redeploys on push, honours checkbox on manual.",
+    "No loop risk: scripts/sync_whitelabel.py pushes to WhiteLabel using GITHUB_TOKEN; GitHub explicitly does NOT fire `on: push` workflows for GITHUB_TOKEN pushes, and the workflow listens only on main anyway.",
+    "`gh workflow run deploy.yml --ref main -f app=app-wl` — permissions block includes `actions: write` (required for workflow_dispatch via GITHUB_TOKEN).",
+    "Concurrency `group: sync-whitelabel, cancel-in-progress: false` — queues overlapping saves safely; each run syncs through newest main so nothing is lost.",
+    "FIX 2 verified: scripts/sync_whitelabel.py (line ~330) returns 0 with 'No code changes to carry over to WhiteLabel — nothing pushed.' and outputs pushed=false when `ops` is empty. Covered by new harness test T10 (passes).",
+    "Harness T1 still verifies first real sync fast-forwards from real WhiteLabel 16bb4dd7, carries js/shortener-analytics.js, 3-way merges js/_index.js (both dev routes present AND /sales + /branding wiring kept), all brand files byte-identical, .github/workflows/* skipped.",
+    "Harness T8 placement (after T10) still correctly validates non-fast-forward rejection (never --force)."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100%", "frontend": "N/A (skipped per request)"},
+  "seed_data_creation": "None. Harness builds throw-away /tmp/sim from /tmp/gh (no-checkout clone of real main+WhiteLabel). /tmp/gh preserved per instructions.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Live GitHub real-state (read-only GET, verified in this iteration): main=c170953223e4ddc5c934e9f6b21d568653985e4f, WhiteLabel=16bb4dd753ed89a6289a47adeb748cf97804db75, workflow 'Sync main → WhiteLabel' registered+active at .github/workflows/sync-whitelabel.yml with 0 historical runs (root cause of user bug confirmed). GitHub's copy of the workflow is still workflow_dispatch-only — workspace copy adds `on: push` and will take effect after the user's NEXT 'Save to GitHub'. That save's diff includes the workflow file + scripts, which are NOT in paths-ignore → the sync will auto-trigger on landing. Harness is at /app/scripts/test_sync_whitelabel.sh (18 tests, run with plain bash; depends on /tmp/gh pre-cloned read-only). Keep /tmp/gh. STRICT GUARDRAILS still apply: no pushes, no workflow dispatches, no non-GET GitHub API calls; /app has no origin remote — leave it that way.",
+  "verification_evidence": {
+    "actionlint": "exit 0 on sync-whitelabel.yml + deploy.yml",
+    "yaml_parse": "python3 -c 'import yaml; yaml.safe_load(open(...))' OK; triggers = {push:{branches:[main], paths-ignore:[memory/**, .emergent/**, test_reports/**, investigations/**, **.md]}, workflow_dispatch:{inputs:{dry_run,deploy}}}",
+    "harness": "bash /app/scripts/test_sync_whitelabel.sh → RESULT: 18 passed, 0 failed (T1 9 assertions + T2..T10)",
+    "github_api_main_sha": "c170953223e4ddc5c934e9f6b21d568653985e4f",
+    "github_api_whitelabel_sha": "16bb4dd753ed89a6289a47adeb748cf97804db75 (unchanged — root cause: sync workflow never ran)",
+    "github_api_workflows": "'Sync main → WhiteLabel' listed, state=active, path=.github/workflows/sync-whitelabel.yml",
+    "github_api_runs_sync_count": "0 'Sync main → WhiteLabel' runs in last 15 (confirmed: dispatch-only on live main, never fired on save)",
+    "github_api_workflow_file_on_main": "contents API shows GitHub main's sync-whitelabel.yml still has `on: workflow_dispatch` only — no push trigger yet (will arrive with user's next save, which itself will trigger it)."
+  },
+  "rca_of_the_issue": "User reported 'I saved but it didn't sync'. Diagnosis: Save to GitHub succeeded (GitHub main == workspace HEAD c1709532), workflow 'Sync main → WhiteLabel' is registered & active, but 0 runs existed because the live workflow had `on: workflow_dispatch` only — saves never triggered it. Mitigation (now in workspace, awaiting one more save to land): (1) workflow adds `on: push: branches:[main]` with narrow paths-ignore so only docs-only saves skip; (2) script no longer creates marker-only commits when nothing code-level changed (ops empty → exit 0, pushed=false), so auto-runs on docs-only saves don't flap WhiteLabel. The user's next 'Save to GitHub' will deliver the push trigger AND, because the save's diff touches the workflow and scripts (not paths-ignored), that very save will fire the first automatic sync."
+}
