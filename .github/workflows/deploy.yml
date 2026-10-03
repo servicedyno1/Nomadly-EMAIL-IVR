@@ -16,6 +16,11 @@ on:
       - 'test_reports/**'
       - 'investigations/**'
       - '**.md'
+      # CI/workflow files + the WhiteLabel sync tooling never run on the droplet.
+      - '.github/**'
+      - '.whitelabel-sync'
+      - 'scripts/sync_whitelabel.py'
+      - 'scripts/test_sync_whitelabel.sh'
   workflow_dispatch:
     inputs:
       app:

@@ -9,6 +9,20 @@
 #====================================================================================================
 
 #====================================================================================================
+# CURRENT TASK (2026-10-03) — "WhiteLabel branch not updated": brand-safe Sync main → WhiteLabel [test THIS]
+#====================================================================================================
+current_task_2026_10_03_whitelabel_sync: |
+  USER: "the main branch and whitelabel branch appears not to be updated with recent changes. whitelabel needs
+  to be updated". Findings: GitHub main == workspace == live app-main runtime. GitHub WhiteLabel (16bb4dd7, live
+  on app-wl) lacks main's custom-domain shortlink click-count fix (js/shortener-analytics.js) + 2 dev-only
+  endpoints in js/_index.js. Agent may NOT push to GitHub (platform rule) and "Save to GitHub" onto WhiteLabel
+  would wipe the Smadav branding, so we built a one-click GitHub Action the user runs after "Save to GitHub".
+  Files: scripts/sync_whitelabel.py, .github/workflows/sync-whitelabel.yml, .github/workflows/deploy.yml
+  (paths-ignore additions), scripts/test_sync_whitelabel.sh (local harness, /tmp only, 16 checks).
+  NEVER push to GitHub, never modify /app/.git, never SSH to production while testing.
+
+
+#====================================================================================================
 # CURRENT TASK (2026-09-28) — Bug fix: hardcoded /app require paths broke Node bot on droplet [test THIS]
 #====================================================================================================
 current_task_2026_09_28_heal_pathfix: |

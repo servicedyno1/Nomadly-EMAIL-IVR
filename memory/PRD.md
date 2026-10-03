@@ -15,6 +15,25 @@ User inherited a fully-set-up Nomadly bot pod pointed at LIVE PRODUCTION. Task b
 ## Guardrails (never touch)
 - Sandbox `/app/backend/.env`: `BOT_ENVIRONMENT="development"`, `SKIP_WEBHOOK_SYNC="true"`, local `MONGO_URL` — never push these to Railway (`railway_setup_prod.js` strips/overrides them automatically)
 - Vault (`memory/nomadly.vault.enc`, passphrase in test_credentials.md) is the single source of truth for credentials; after editing `.env` always `vault.sh lock`, then `railway_setup_prod.js apply` to sync production
+- **Never "Save to GitHub" onto `WhiteLabel`** and never `git merge main` into it — that clobbers the Smadav branding (7129cae9). Use the **"Sync main → WhiteLabel"** GitHub Action (below).
+
+
+## 2026-10-03 — One-click brand-safe "Sync main → WhiteLabel" (GitHub Action)
+- Finding: GitHub `main` (5384b468) == workspace == live app-main runtime (e376022). `WhiteLabel` (16bb4dd7, live
+  on app-wl) was missing main's custom-domain shortlink click-count fix (`js/shortener-analytics.js`) + 2 dev-only
+  check endpoints (`/dev/shortlink-analytics-test`, `/dev/rdp-pricing-test` in `js/_index.js`). Every other
+  main↔WL difference is intentional Smadav branding (`frontend/src/{App.js,App.css,index.js,index.css,branding.js,
+  pages/SalesDashboard.js}`, `frontend/.env.production`, `frontend/public/smadav-*`, `js/branding.js`,
+  `js/routes/sales.js`, `/admin/sales` + `/branding` mount in `_index.js` ~38047) + WL-only `js/vps-ssh-reachability.js`.
+- Agent may NOT push to GitHub (platform rule) → built `.github/workflows/sync-whitelabel.yml` (workflow_dispatch;
+  inputs `dry_run`, `deploy`) + `scripts/sync_whitelabel.py`: per-file 3-way merge on git objects (no checkout),
+  base = `main=` in `.whitelabel-sync` on WhiteLabel (bootstrap `e92a09ed`), skips docs/brand/workflow files
+  (Actions token can't modify `.github/workflows/*`), runtime conflict ⇒ exit 2 nothing pushed, broken JS/PY ⇒ exit 3,
+  fast-forward push only, then `gh workflow run deploy.yml --ref main -f app=app-wl`.
+- deploy.yml `paths-ignore` += `.github/**`, `.whitelabel-sync`, `scripts/sync_whitelabel.py`, `scripts/test_sync_whitelabel.sh`.
+- Tests: `bash scripts/test_sync_whitelabel.sh` (throw-away bare repo in /tmp from REAL main+WL) — 16/16 pass.
+- USER STEPS: "Save to GitHub" (main) → GitHub Actions → "Sync main → WhiteLabel" → Run workflow. Then verify
+  app-wl release sha on the droplet (`/opt/nomadly/current/app-wl/RELEASE`) and `getAnalyticsCapability` fix.
 
 
 ## 2026-10-03 — Reseller API flipped to LIVE on production main bot (env-only change)
