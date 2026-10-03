@@ -141,7 +141,7 @@ def main():
     if passed_fixes == 7 and syntax_ok and health_ok:
         print("🎉 ALL 7 BUG FIXES SUCCESSFULLY VERIFIED!")
         print("✅ Node.js codebase is working correctly")
-        print("✅ Backend URL: https://vault-config-5.preview.emergentagent.com")
+        print("✅ Backend URL: https://vault-setup-15.preview.emergentagent.com")
         print("✅ Node.js on port 5000 behind FastAPI proxy at port 8001")
         return True
     else:
