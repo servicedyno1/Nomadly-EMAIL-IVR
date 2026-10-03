@@ -43,14 +43,14 @@ function getAnalyticsCapability(maskUrl) {
   if (_isOwnHost(url)) return { available: true,  provider: 'self'    }
   for (const p of WITH_ANALYTICS_PROVIDERS) if (p.match.test(url)) return { available: true,  provider: p.label }
   for (const p of NO_ANALYTICS_PROVIDERS)   if (p.match.test(url)) return { available: false, provider: p.label }
-  // Unknown provider — conservative default: mark unavailable so we don't
-  // mislead the user with a stale "0 clicks".
-  return { available: false, provider: _extractHost(url) || 'unknown' }
-}
-
-function _extractHost(url) {
-  const m = String(url || '').match(/^(?:https?:\/\/)?([^\/?#]+)/i)
-  return m ? m[1].toLowerCase() : ''
+  // Anything else here is a user-owned CUSTOM DOMAIN shortlink (e.g.
+  // mydomain.com/alias). Those are served by our own `app.get('/:id')` redirect
+  // handler, which records every hit via `increment(clicksOn, lookupKey)` under
+  // the exact same key the link is stored with. So the click count genuinely
+  // lives in the `clicksOn` collection — report it instead of hiding it behind
+  // "analytics not available". (Known external shorteners with no stats API are
+  // already caught by NO_ANALYTICS_PROVIDERS above, so they never reach here.)
+  return { available: true, provider: 'self' }
 }
 
 module.exports = { getAnalyticsCapability }

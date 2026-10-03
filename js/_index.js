@@ -40454,6 +40454,147 @@ app.get('/dev/domain-payment-msg-test', (req, res) => {
   })
 })
 
+// ── DEV-ONLY: verify custom-domain shortlink analytics reporting ───────────
+// Reported 2026-10-03: a user's CUSTOM-DOMAIN shortlink (e.g. sfrsclaim.com/recovery)
+// showed "📊 analytics not available" under "View Shortlink Analytics" even though
+// every hit IS recorded in the clicksOn collection by app.get('/:id'). Root cause:
+// getAnalyticsCapability()'s fallback marked any non-SELF_URL / non-bitly host as
+// unavailable, so the real click count was hidden. This runs representative links
+// through the REAL getAnalyticsCapability + formatLinks render path (exactly what
+// getShortLinks → "My Links" produces) and asserts a custom-domain link now shows
+// its click count, while genuine no-stats externals (srtn.me, ap1s.net) still say
+// N/A and bitly still reports. Read-only — no DB writes. 404 in production.
+app.get('/dev/shortlink-analytics-test', (req, res) => {
+  if ((process.env.BOT_ENVIRONMENT || '').toLowerCase() === 'production') {
+    return res.status(404).json({ error: 'not found' })
+  }
+  const t = translation('t', 'en')
+
+  // Mirror exactly what getShortLinks() builds for each link type:
+  //   clicks    ← clicksOn collection (unchanged by the fix)
+  //   shorter   ← display short URL
+  //   analytics ← getAnalyticsCapability(shorter)   ← the piece that was broken
+  const sampleLinks = [
+    { clicks: 7,  shorter: 'sfrsclaim.com/recovery',    url: 'https://smilefundsrecoveryservice.com/', analytics: getAnalyticsCapability('sfrsclaim.com/recovery') },
+    { clicks: 3,  shorter: 'https://mydomain.com/promo', url: 'https://example.com/landing',            analytics: getAnalyticsCapability('https://mydomain.com/promo') },
+    { clicks: 0,  shorter: 'https://srtn.me/abc',        url: 'https://example.com',                     analytics: getAnalyticsCapability('https://srtn.me/abc') },
+    { clicks: 0,  shorter: 'https://ap1s.net/xyz',       url: 'https://example.com',                     analytics: getAnalyticsCapability('https://ap1s.net/xyz') },
+    { clicks: 11, shorter: 'https://bit.ly/zzz',         url: 'https://example.com',                     analytics: getAnalyticsCapability('https://bit.ly/zzz') },
+  ]
+
+  const rendered = formatLinks(sampleLinks, t)
+  const [customDomainLine, customDomainLine2, srtnLine, ap1sLine, bitlyLine] = rendered
+
+  const customShowsClicks =
+    /\b7 clicks\b/.test(customDomainLine) && !/analytics not available/i.test(customDomainLine) &&
+    /\b3 clicks\b/.test(customDomainLine2) && !/analytics not available/i.test(customDomainLine2)
+  const externalsStillNA =
+    /analytics not available/i.test(srtnLine) &&
+    /analytics not available/i.test(ap1sLine)
+  const bitlyShowsClicks =
+    /\b11 clicks\b/.test(bitlyLine) && !/analytics not available/i.test(bitlyLine)
+
+  return res.json({
+    ok: customShowsClicks && externalsStillNA && bitlyShowsClicks,
+    customShowsClicks,
+    externalsStillNA,
+    bitlyShowsClicks,
+    capabilities: sampleLinks.map(l => ({ shorter: l.shorter, analytics: l.analytics })),
+    rendered,
+  })
+})
+
+// ── DEV-ONLY: verify DigitalOcean-RDP 1/2/3-month plan pricing & math ──────
+// User ask (2026-10-03): ensure the bot offers 1/2/3-month DO-RDP plans and the
+// price maths are correct. Runs the REAL path the bot screens consume —
+// digitalocean-rdp-service.listProducts() (catalog) + vm-instance-setup
+// fetchAvailableVPSConfigs() (per-tier buttons + billingCycles) — and asserts
+// every tier×duration price, the multi-month discount %, the headline monthly
+// price, the selected-duration charge (plantotalPrice→totalPrice), coupon math
+// on a multi-month plan, and the end_time month offset. Read-only. 404 in prod.
+app.get('/dev/rdp-pricing-test', async (req, res) => {
+  if ((process.env.BOT_ENVIRONMENT || '').toLowerCase() === 'production') {
+    return res.status(404).json({ error: 'not found' })
+  }
+  try {
+    const doRdp = require('./digitalocean-rdp-service.js')
+    const vm = require('./vm-instance-setup.js')
+    const vpsProviderMod = require('./vps-provider.js')
+
+    // Source-of-truth table (user-confirmed). base = monthly_do_cost × months × 2;
+    // multi-month incentive: 2-month −10%, 3-month −15%.
+    const EXPECTED = {
+      standard: { 1: 56,  2: 100.8, 3: 142.8 },
+      pro:      { 1: 112, 2: 201.6, 3: 285.6 },
+      power:    { 1: 224, 2: 403.2, 3: 571.2 },
+    }
+    const DISC = { 1: 0, 2: 10, 3: 15 }
+    const fail = []
+    const checks = []
+
+    // 1) Raw catalog (digitalocean-rdp-service.listProducts)
+    const catalog = doRdp.listProducts('EU', true) || []
+    for (const slug of Object.keys(EXPECTED)) {
+      for (const m of [1, 2, 3]) {
+        const p = catalog.find(x => x.slug === slug && Number(x.durationMonths) === m)
+        const got = p ? p.pricing.totalWithMarkup : null
+        const want = EXPECTED[slug][m]
+        const okPrice = got === want
+        const okDisc = !!p && Number(p.pricing.discountPct) === DISC[m]
+        checks.push({ layer: 'catalog', productId: `${slug}-${m}m`, got, want, discountPct: p && p.pricing.discountPct, okPrice, okDisc })
+        if (!okPrice || !okDisc) fail.push(`catalog ${slug}-${m}m: price ${got} (want ${want}) / disc ${p && p.pricing.discountPct} (want ${DISC[m]})`)
+      }
+    }
+
+    // 2) Bot config builder (fetchAvailableVPSConfigs) → one button per tier + billingCycles
+    const cfgs = (await vm.fetchAvailableVPSConfigs('dev-rdp-pricing-test', { region: 'EU', isRDP: true })) || []
+    for (const slug of Object.keys(EXPECTED)) {
+      const cfg = cfgs.find(c => String(c._id).startsWith(slug + '-'))
+      if (!cfg) { fail.push(`config missing for tier ${slug}`); continue }
+      if (Number(cfg.monthlyPrice) !== EXPECTED[slug][1]) fail.push(`${slug} headline $${cfg.monthlyPrice} != $${EXPECTED[slug][1]}`)
+      const cycles = cfg.billingCycles || []
+      if (cycles.length !== 3) fail.push(`${slug} has ${cycles.length} billing cycles (want 3)`)
+      for (const m of [1, 2, 3]) {
+        const bc = cycles.find(c => Number(c.period) === m)
+        const got = bc ? bc.price : null
+        const want = EXPECTED[slug][m]
+        // Mirror handler a.askRdpDuration: plantotalPrice = cycle.price → totalPrice = toFixed(2)
+        const plantotalPrice = bc ? bc.price : null
+        const totalPrice = plantotalPrice != null ? Number(plantotalPrice).toFixed(2) : null
+        // Mirror vm-instance-setup expiresAt.setMonth(+durationMonths)
+        const start = new Date('2026-01-15T00:00:00Z')
+        const end = new Date(start); end.setMonth(end.getMonth() + m)
+        const monthsAhead = (end.getUTCFullYear() - start.getUTCFullYear()) * 12 + (end.getUTCMonth() - start.getUTCMonth())
+        const okCycle = got === want && Number(totalPrice) === want && monthsAhead === m && (bc && Number(bc.discountPct || 0) === DISC[m])
+        checks.push({ layer: 'bot', productId: (bc && bc.productId) || `${slug}-${m}m`, durationMonths: m, cyclePrice: got, chargeTotalPrice: totalPrice, discountPct: bc && bc.discountPct, endTimeMonthsAhead: monthsAhead, want, okCycle })
+        if (!okCycle) fail.push(`bot ${slug}-${m}m: cycle $${got} / charge $${totalPrice} / end+${monthsAhead}mo / disc ${bc && bc.discountPct}% (want $${want}, +${m}mo, ${DISC[m]}%)`)
+      }
+    }
+
+    // 3) Coupon math on a multi-month plan (mirror a.askCouponForVPSPlan):
+    //    25% off power-3m → max(1, 571.2 − 571.2×0.25) = 428.40
+    const base = EXPECTED.power[3]
+    const discountPct = 25
+    const couponDiscount = (base * discountPct) / 100
+    const couponNewPrice = Math.max(1, base - couponDiscount)
+    const couponOk = Math.round(couponNewPrice * 100) / 100 === 428.4
+    if (!couponOk) fail.push(`coupon math: ${couponNewPrice} != 428.4`)
+
+    return res.json({
+      ok: fail.length === 0,
+      rdpProvider: vpsProviderMod.RDP_PROVIDER || null,
+      tierCount: cfgs.length,
+      durationsPerTier: (cfgs[0] && (cfgs[0].billingCycles || []).length) || 0,
+      expected: EXPECTED,
+      couponExample: { plan: 'power-3m', base, discountPct, couponDiscount, couponNewPrice, couponOk },
+      failures: fail,
+      checks,
+    })
+  } catch (e) {
+    return res.status(500).json({ ok: false, error: e.message })
+  }
+})
+
 // ── DEV-ONLY: preview the File Manager EPERM decision (@hellpeaces fix) ─────
 // Given a simulated cPanel failure reason, returns what the /files & /files/mkdir
 // routes would now do: detect the broken-homedir EPERM class, surface a calm
