@@ -345,6 +345,17 @@ function createResellerApi(deps = {}) {
       provision: async () => {
         const r = await domainService.registerDomain(domain, registrar, nsChoice, getDb(), req.reseller.ownerChatId, customNS)
         if (r && r.success === false) return { success: false, error: r.error || r.message }
+        // ISSUE-9 FIX (2026-10): also write the BOT's ownership map so the domain
+        // shows up in Telegram "📂 My Domain Names" for the key owner. The bot reads
+        // domainsOf as a per-chatId doc keyed by _id=chatId with each owned domain as a
+        // (dot→@ sanitised) boolean field (see _index.js getPurchasedDomains). registerDomain
+        // only wrote the {domainName,chatId} doc (for GET /domains) + registeredDomains — not
+        // this map — so API-registered domains were invisible in the bot. Best-effort.
+        try {
+          const owner = String(req.reseller.ownerChatId)
+          const domainKey = domain.replace(/\./g, '@')
+          await col('domainsOf').updateOne({ _id: owner }, { $set: { [domainKey]: true } }, { upsert: true })
+        } catch (e) { log(`[ResellerAPI] domains/register ownership-map warn: ${e.message}`) }
         return { success: true, domain, registrar, nameservers: r?.nameservers || customNS || [], detail: r || null }
       },
     })
@@ -778,7 +789,22 @@ function createResellerApi(deps = {}) {
     if (!plan) return res.status(400).json({ error: 'invalid_plan', message: 'Unknown plan_id. Call GET /hosting/plans.' })
     const domain = String(req.body?.domain || '').trim().toLowerCase()
     if (!domainOk(domain)) return res.status(400).json({ error: 'invalid_domain', message: 'Provide a valid domain.' })
-    const domainMode = req.body?.domain_mode === 'buy' ? 'buy' : 'byo'
+    // ISSUE-7 FIX (2026-10): domain_mode no longer conflates the bot's two distinct
+    // BYO paths. Accept:
+    //   'buy'      → register a brand-new domain in the same call
+    //   'existing' → link a domain already registered on THIS platform (already on
+    //                Cloudflare — "Use Existing Domain")
+    //   'external' → connect a domain held at an OUTSIDE registrar (needs an NS
+    //                change at the registrar — "Connect External Domain")
+    // Legacy 'byo' (the documented default) maps to 'external' — that is the
+    // behaviour byo callers already received (external NS-update path), minus the
+    // bug where BOTH existingDomain+connectExternalDomain were set at once.
+    const dmRaw = String(req.body?.domain_mode || 'byo').toLowerCase()
+    let domainMode
+    if (dmRaw === 'buy') domainMode = 'buy'
+    else if (dmRaw === 'existing') domainMode = 'existing'
+    else if (dmRaw === 'external' || dmRaw === 'byo') domainMode = 'external'
+    else return res.status(400).json({ error: 'invalid_domain_mode', message: 'domain_mode must be one of: buy, existing, external (legacy "byo" = external).' })
     const email = req.body?.email || null
 
     // duplicate guard (mirrors store provisioning)
@@ -811,7 +837,9 @@ function createResellerApi(deps = {}) {
           // resolved. Passing it here makes the API provision DNS identically to the bot.
           nameserver: 'cloudflare', nsChoice: 'cloudflare',
         }
-        if (domainMode === 'byo') { info.existingDomain = true; info.connectExternalDomain = true }
+        if (domainMode === 'existing') { info.existingDomain = true }
+        else if (domainMode === 'external') { info.connectExternalDomain = true }
+        // domainMode === 'buy' → neither flag; registerDomainAndCreateCpanel registers a new domain.
         const r = await registerDomainAndCreateCpanel(() => {}, info, [], col('state'), null)
         if (!r || r.success === false) return { success: false, error: r?.error || 'Provisioning failed' }
         // tag the account with the reseller owner for listing
@@ -905,7 +933,10 @@ function createResellerApi(deps = {}) {
   //   • take_offline + mode 'suspended'   → WHM suspend (blocks HTTP/FTP/mail/DB)
   //   • take_offline + mode 'maintenance' → friendly 503 maintenance page (mail/FTP stay up)
   //   • bring_online                      → auto-reverses whichever mode is active
-  router.get('/hosting/:user/site-status', apiKeyAuth, h(async (req, res) => {
+  // ISSUE-6 FIX (2026-10): single implementation registered at BOTH the documented
+  // `/hosting/:user/site-status` and the legacy `/hosting/:user/account/site-status`
+  // (the mgmt-module duplicate has been removed) so the two can never drift apart.
+  const siteStatusGet = h(async (req, res) => {
     const acct = await loadOwnedCpanel(req, req.params.user)
     if (!acct) return res.status(404).json({ error: 'not_found' })
     const siteStatus = require('./site-status-service')
@@ -914,14 +945,15 @@ function createResellerApi(deps = {}) {
       domain: acct.domain,
       status: siteStatus.readStatus(acct),
       plan: acct.plan || null,
+      auto_renew: acct.autoRenew !== false,
       expires_at: acct.expiryDate ? new Date(acct.expiryDate).toISOString() : null,
       suspended_at: acct.suspendedAt ? new Date(acct.suspendedAt).toISOString() : null,
       maintenance_mode_at: acct.maintenanceModeAt ? new Date(acct.maintenanceModeAt).toISOString() : null,
       last_brought_online_at: acct.lastBroughtOnlineAt ? new Date(acct.lastBroughtOnlineAt).toISOString() : null,
     })
-  }))
+  })
 
-  router.post('/hosting/:user/site-status', apiKeyAuth, h(async (req, res) => {
+  const siteStatusPost = h(async (req, res) => {
     const { action, mode } = req.body || {}
     if (action !== 'take_offline' && action !== 'bring_online') {
       return res.status(400).json({ error: 'action must be take_offline or bring_online' })
@@ -966,33 +998,104 @@ function createResellerApi(deps = {}) {
     if (!result?.ok) return res.status(502).json({ error: result?.error || 'failed_bring_online' })
     await cpCol.updateOne({ _id: acct._id }, { $set: { suspended: false, maintenanceMode: false, lastBroughtOnlineAt: new Date() } })
     return res.json({ mode: 'live', username: acct._id, status: 'online' })
+  })
+
+  router.get('/hosting/:user/site-status', apiKeyAuth, siteStatusGet)
+  router.post('/hosting/:user/site-status', apiKeyAuth, siteStatusPost)
+  // Legacy alias — same handler, no duplicated logic.
+  router.get('/hosting/:user/account/site-status', apiKeyAuth, siteStatusGet)
+  router.post('/hosting/:user/account/site-status', apiKeyAuth, siteStatusPost)
+
+  // ── Auto-Renew toggle (ISSUE-5 FIX, 2026-10) ──
+  // The bot lets a user flip auto-renew on a hosting plan; the reseller API had no
+  // equivalent. Body { enabled:true|false } sets it explicitly; omit `enabled` to
+  // toggle (bot behaviour: autoRenew===false ? true : false). Free, works in any mode.
+  router.post('/hosting/:user/auto-renew', apiKeyAuth, h(async (req, res) => {
+    const acct = await loadOwnedCpanel(req, req.params.user)
+    if (!acct) return res.status(404).json({ error: 'not_found' })
+    if (acct.deleted) return res.status(409).json({ error: 'account_terminated', message: 'This hosting plan has been cancelled.' })
+    const raw = req.body?.enabled
+    let newAutoRenew
+    if (typeof raw === 'boolean') newAutoRenew = raw
+    else if (raw === undefined || raw === null) newAutoRenew = acct.autoRenew === false ? true : false
+    else return res.status(400).json({ error: 'invalid_body', message: 'Optional body { "enabled": true|false }; omit to toggle.' })
+    await col('cpanelAccounts').updateOne({ _id: acct._id }, { $set: { autoRenew: newAutoRenew } })
+    res.json({ username: acct._id, domain: acct.domain, auto_renew: newAutoRenew })
   }))
 
   router.delete('/hosting/:user', apiKeyAuth, h(async (req, res) => {
     const acct = await loadOwnedCpanel(req, req.params.user)
     if (!acct) return res.status(404).json({ error: 'not_found' })
     if (!isLive()) return res.json({ mode: 'dry_run', username: acct._id, note: 'Dry-run: account not terminated.' })
-    // GAP-6 FIX (2026-09): terminate HONESTLY. whmService.terminateAccount() returns a boolean
-    // (WHM removeacct result===1). WHM commonly refuses to remove a SUSPENDED account, so if the
-    // first attempt fails we unsuspend and retry once, then VERIFY the account is actually gone via
-    // accountsummary. Only mark the DB row deleted (which hides it from GET /hosting) when WHM
-    // confirms removal — otherwise the account becomes a ghost (hidden from us, alive on the server).
-    let ok = await whmService.terminateAccount(acct._id)
-    if (!ok) {
-      try { await whmService.unsuspendAccount(acct._id) } catch (_) { /* best-effort — WHM may refuse a suspended account */ }
-      ok = await whmService.terminateAccount(acct._id)
+    // ISSUE-4 FIX (2026-10): mirror the bot's cancel flow exactly.
+    //  1) Check the WHM account still exists.
+    //  2) If it does, try terminate; if WHM refuses (suspended/frozen/license), unsuspend + retry,
+    //     and if it STILL refuses, SOFT-DELETE the row + flag whmTerminatePending=true so the
+    //     self-heal queue finishes it — never strand the user (21-day RCA: docxsndr.com).
+    //  3) Cloudflare cleanup (worker routes + hosting DNS) for the PRIMARY and EVERY addon domain.
+    //  4) Mark the row deleted/cancelled, autoRenew off.
+    const cfService = require('./cf-service')
+    const antiRedService = require('./anti-red-service')
+    let terminated = false
+    let softDeleteFallback = false
+    let alreadyGone = false
+    try {
+      const acctCheck = await whmService.getAccountInfo(acct._id)
+      if (acctCheck && acctCheck.success) {
+        terminated = await whmService.terminateAccount(acct._id)
+        if (!terminated) {
+          try { await whmService.unsuspendAccount(acct._id) } catch (_) { /* WHM may refuse a suspended account */ }
+          terminated = await whmService.terminateAccount(acct._id)
+        }
+        if (!terminated) {
+          // WHM still refuses — don't strand the user. Soft-delete + queue admin/self-heal.
+          log(`[ResellerAPI] cancel: WHM terminateAccount refused for ${acct._id} — soft-delete + whmTerminatePending`)
+          softDeleteFallback = true
+          terminated = true
+        }
+      } else {
+        // Already gone on WHM — just clean up locally.
+        alreadyGone = true
+        terminated = true
+      }
+    } catch (e) {
+      log(`[ResellerAPI] cancel WHM step error for ${acct._id}: ${e.message}`)
+      // Fall through to CF cleanup + soft delete so the row doesn't get stuck active.
+      softDeleteFallback = true
+      terminated = true
     }
-    let stillExists = false
-    try { const info = await whmService.getAccountInfo(acct._id); stillExists = !!(info && info.success) } catch (_) { stillExists = false }
-    if (!ok || stillExists) {
-      return res.status(502).json({
-        error: 'terminate_failed',
-        message: 'WHM did not remove the account (it may still be suspended or held by the server). Unsuspend and retry, or terminate at the panel.',
-        username: acct._id, terminated: false, whm_result: ok, still_exists: stillExists,
-      })
+
+    // Cloudflare cleanup for primary + every addon domain (addonDomains = strings;
+    // tolerate any legacy {domain} objects too). CF doesn't depend on WHM uptime.
+    const addonList = (acct.addonDomains || []).map(a => (typeof a === 'string' ? a : (a && a.domain) || '')).filter(Boolean)
+    const allDomains = [acct.domain, ...addonList].filter(Boolean)
+    const seen = new Set()
+    for (const d of allDomains) {
+      const key = (d || '').toLowerCase()
+      if (!key || seen.has(key)) continue
+      seen.add(key)
+      try {
+        const zone = await cfService.getZoneByName(d)
+        if (zone) {
+          await antiRedService.removeWorkerRoutes(d, zone.id).catch(() => {})
+          await cfService.cleanupAllHostingRecords(zone.id, d).catch(() => {})
+        }
+      } catch (cfErr) {
+        log(`[ResellerAPI] cancel: CF cleanup warning for ${d}: ${cfErr.message}`)
+      }
     }
-    await col('cpanelAccounts').updateOne({ _id: acct._id }, { $set: { deleted: true, deletedAt: new Date() } })
-    res.json({ mode: 'live', username: acct._id, terminated: true })
+
+    await col('cpanelAccounts').updateOne({ _id: acct._id }, { $set: {
+      deleted: true, deletedAt: new Date(), deletedBy: 'reseller_api', cancelledByUser: true, autoRenew: false,
+      ...(softDeleteFallback ? { whmTerminatePending: true } : {}),
+    } })
+    res.json({
+      mode: 'live', username: acct._id, terminated: true,
+      whm_terminate_pending: softDeleteFallback,
+      note: softDeleteFallback
+        ? 'WHM refused removal right now — the account is cancelled in our records and queued for server-side termination + verification.'
+        : (alreadyGone ? 'Account was already gone on the server; cleaned up records + Cloudflare.' : 'Account terminated and Cloudflare cleaned up.'),
+    })
   }))
 
   router.get('/hosting/:user/login', apiKeyAuth, h(async (req, res) => {
@@ -1008,7 +1111,17 @@ function createResellerApi(deps = {}) {
     const chatId = String(req.reseller.ownerChatId)
     const rx = new RegExp('^' + String(domain).replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '$', 'i')
     let acct = await col('cpanelAccounts').findOne({ chatId, deleted: { $ne: true }, domain: { $regex: rx } })
-    if (!acct) acct = await col('cpanelAccounts').findOne({ chatId, deleted: { $ne: true }, addonDomains: { $elemMatch: { domain: { $regex: rx } } } })
+    // ISSUE-1 FIX (2026-10): addonDomains is canonically an array of lowercase STRINGS
+    // (bot/panel/scheduler/addon-flow). Older reseller-API writes left some as
+    // {domain,createdAt} objects. Match BOTH shapes so captcha/honeypot lookups by an
+    // addon domain never miss a bot-attached addon.
+    if (!acct) acct = await col('cpanelAccounts').findOne({
+      chatId, deleted: { $ne: true },
+      $or: [
+        { addonDomains: { $regex: rx } },                                // string element
+        { addonDomains: { $elemMatch: { domain: { $regex: rx } } } },    // legacy {domain} object
+      ],
+    })
     return acct
   }
 
@@ -1232,10 +1345,35 @@ function createResellerApi(deps = {}) {
       product: 'hosting', action: 'renew', priceUsd: price,
       request: { username: acct._id, domain: acct.domain, plan: acct.plan, duration_days: durationDays },
       provision: async () => {
+        // ISSUE-3 FIX (2026-10): mirror the bot's renew.
+        // 1) Verify the WHM account still exists BEFORE keeping the charge — a grace-period
+        //    termination means there's nothing to renew. Returning {success:false} makes
+        //    billedProvision refund the wallet, and we flag the row as terminated-on-WHM.
+        try {
+          const info = await whmService.getAccountInfo(acct._id)
+          if (!info || !info.success) {
+            await col('cpanelAccounts').updateOne({ _id: acct._id }, { $set: { terminatedOnWhm: true, terminatedAt: new Date(), terminationNote: 'WHM account not found during renew attempt' } })
+            return { success: false, error: 'This hosting account has been terminated on the server (not renewed within the grace period). Purchase a new plan to restore it.' }
+          }
+        } catch (e) { return { success: false, error: `WHM account check failed: ${e.message}` } }
+        // 2) Extend from the later of now / current expiry; reset notification + renewal counters.
         const base = (acct.expiryDate && new Date(acct.expiryDate) > new Date()) ? new Date(acct.expiryDate) : new Date()
         const newExpiry = new Date(base.getTime() + durationDays * 86400000)
-        await col('cpanelAccounts').updateOne({ _id: acct._id }, { $set: { expiryDate: newExpiry, lastRenewedAt: new Date(), renewalPriceUsd: price, suspended: false, suspendedReason: null, autoRenewLastError: null } })
+        await col('cpanelAccounts').updateOne({ _id: acct._id }, {
+          $set: {
+            expiryDate: newExpiry, lastRenewedAt: new Date(), renewalPriceUsd: price,
+            suspended: false, suspendedReason: null, autoRenewLastError: null,
+            expiryNotified: false, renewalCount: (acct.renewalCount || 0) + 1,
+          },
+          $unset: { suspendedAt: '', deleted: '', deletedAt: '', cancelledByUser: '', deletedBy: '', expiryUserNotified: '' },
+        })
+        // 3) Unsuspend if it was suspended.
         if (acct.suspended) { try { await whmService.unsuspendAccount(acct._id) } catch (e) { log(`[ResellerAPI] renew unsuspend warn: ${e.message}`) } }
+        // 4) Redeploy Anti-Red (non-blocking, like the bot).
+        try {
+          require('./anti-red-service').deployFullProtection(acct._id, acct.domain, acct.plan)
+            .catch(e => log(`[ResellerAPI] renew anti-red redeploy warn for ${acct.domain}: ${e.message}`))
+        } catch (_) { /* best-effort */ }
         return { success: true, username: acct._id, domain: acct.domain, plan: acct.plan, new_expiry: newExpiry.toISOString() }
       },
     })
@@ -1258,10 +1396,38 @@ function createResellerApi(deps = {}) {
       product: 'hosting', action: 'upgrade', priceUsd: quote.chargeAmount,
       request: { username: acct._id, domain: acct.domain, from_plan: acct.plan, to_plan: target.name, sticker_price_usd: target.price, loyalty_credit_usd: quote.creditApplied, charge_usd: quote.chargeAmount },
       provision: async () => {
-        try { if (typeof whmService.changePackage === 'function') await whmService.changePackage(acct._id, target.name) }
+        // ISSUE-2 FIX (2026-10): mirror the bot's upgrade exactly so the API can't
+        // charge + flip the plan when WHM refuses, and so the new tier is fully active.
+        // 1) Verify the WHM account still exists.
+        try {
+          const info = await whmService.getAccountInfo(acct._id)
+          if (!info || !info.success) return { success: false, error: 'WHM account not found — cannot upgrade a terminated/missing account.' }
+        } catch (e) { return { success: false, error: `WHM account check failed: ${e.message}` } }
+        // 2) Auto-unsuspend first (WHM refuses changepackage / expired accounts are suspended).
+        if (acct.suspended) {
+          try { const un = await whmService.unsuspendAccount(acct._id); if (!un) return { success: false, error: 'Could not unsuspend the account before upgrade.' } }
+          catch (e) { return { success: false, error: `WHM unsuspend failed: ${e.message}` } }
+        }
+        // 3) Change package — HONOUR the {success:false} WHM refusal (billedProvision refunds).
+        let cr
+        try { cr = await whmService.changePackage(acct._id, target.name) }
         catch (e) { return { success: false, error: `WHM changePackage failed: ${e.message}` } }
-        await col('cpanelAccounts').updateOne({ _id: acct._id }, { $set: { plan: target.name, renewalPriceUsd: target.price, upgradedAt: new Date() } })
-        return { success: true, username: acct._id, domain: acct.domain, plan: target.name }
+        if (!cr || cr.success === false) return { success: false, error: `WHM refused the plan change: ${cr?.error || 'unknown error'}` }
+        // 4) Fresh 30-day cycle + autoRenew + clear suspended/deleted flags (matches bot).
+        const newExpiry = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+        await col('cpanelAccounts').updateOne({ _id: acct._id }, {
+          $set: {
+            plan: target.name, renewalPriceUsd: target.price, expiryDate: newExpiry,
+            autoRenew: true, suspended: false, upgradedAt: new Date(), upgradedFrom: acct.plan,
+          },
+          $unset: { suspendedAt: '', deleted: '', deletedAt: '', cancelledByUser: '', deletedBy: '', expiryNotified: '', expiryUserNotified: '' },
+        })
+        // 5) Redeploy Anti-Red for the new tier (non-blocking, like the bot).
+        try {
+          require('./anti-red-service').deployFullProtection(acct._id, acct.domain, target.name)
+            .catch(e => log(`[ResellerAPI] upgrade anti-red redeploy warn for ${acct.domain}: ${e.message}`))
+        } catch (_) { /* best-effort */ }
+        return { success: true, username: acct._id, domain: acct.domain, plan: target.name, new_expiry: newExpiry.toISOString() }
       },
     })
   }))
@@ -1297,7 +1463,11 @@ function createResellerApi(deps = {}) {
     if (!cpPass) return res.status(501).json({ error: 'no_credentials', message: 'cPanel password is not on file for this account; cannot create the addon via API.' })
     const r = await addonFlow.attachAddonDomain({ account: { cpUser: acct._id, ...acct }, cpPass, domain, db: getDb() })
     if (!r || r.ok === false) return res.status(502).json({ error: 'addon_failed', message: r?.error || 'Addon creation failed.', kind: r?.errorKind || null })
-    await col('cpanelAccounts').updateOne({ _id: acct._id }, { $push: { addonDomains: { domain, createdAt: new Date() } } })
+    // ISSUE-1 FIX (2026-10): do NOT push a {domain,createdAt} object here.
+    // attachAddonDomain already persisted the addon as a lowercase STRING via
+    // `$addToSet: { addonDomains: domain }` (addon-domain-flow.js). The extra object
+    // push created a DUPLICATE entry (quota double-counted) and a mixed-shape array
+    // that crashed the bot's "Unlink a Domain" / cancel-cleanup on `.toLowerCase()`.
     res.json({ mode: 'live', username: acct._id, addon_domain: domain, created: true })
   }))
 

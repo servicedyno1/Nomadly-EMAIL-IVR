@@ -1,661 +1,641 @@
 #!/usr/bin/env python3
 """
-Comprehensive Backend Test for Reseller API GAP FIXES (2026-09-25)
-
-This test suite verifies all GAP fixes on the Node/Express reseller router:
-- GAP5: GET /domains - nameservers enrichment from registeredDomains
-- GAP4: GET /hosting/gapacct2 - suspended_reason, auto_renew_last_error, suspended_at, auto_renew_last_attempt_at
-- GAP7: GET /hosting/gapacct1 - suspended override from WHM stub
-- GAP6: DELETE /hosting/gapacct2 - honest dry_run (no fake terminated:true)
-- GAP2: POST /dns/zone-a.example/records - apex/name normalization
-- CHANGE-PRIMARY: POST /hosting/:user/change-primary - new endpoint with validation
-- Auth/negative tests
-
-Environment: DEV SANDBOX (SKIP_WEBHOOK_SYNC=true, isLive()=false)
-All mutating calls return {"mode":"dry_run", ...}
+Reseller API Parity Test Suite (2026-10-03)
+Tests 9 bug fixes for Nomadly Reseller API (Node bot behind FastAPI proxy)
+All tests run in DRY-RUN mode (RESELLER_API_LIVE not set)
 """
 
 import requests
 import json
 import sys
-from typing import Dict, Any, List, Tuple
 
 # Configuration
-# Using local Node.js server directly (FastAPI proxy has routing issues)
-BASE_URL = "http://127.0.0.1:5000/reseller/v1"
-API_KEY = "nmdly_test_reseller_gapfix"
+BASE_URL = "https://a678cfe7-e3ae-4279-98e0-b557f221164e.preview.emergentagent.com/api/reseller/v1"
+API_KEY = "rsk_live_6fc131dd06c97b3dd6fe3a4cbbd69d0c6eac28871fbf0f7c"
 HEADERS = {
-    "X-API-Key": API_KEY,
-    "Content-Type": "application/json"
-}
-HEADERS_BEARER = {
     "Authorization": f"Bearer {API_KEY}",
     "Content-Type": "application/json"
 }
 
-# Test results tracking
+# Test counters
+passed = 0
+failed = 0
 test_results = []
-total_tests = 0
-passed_tests = 0
-failed_tests = 0
 
-
-def log_test(test_name: str, passed: bool, details: str = "", response_data: Any = None):
+def log_test(test_name, success, details=""):
     """Log test result"""
-    global total_tests, passed_tests, failed_tests
-    total_tests += 1
-    if passed:
-        passed_tests += 1
-        status = "✅ PASS"
-    else:
-        failed_tests += 1
-        status = "❌ FAIL"
-    
-    result = {
-        "test": test_name,
-        "status": status,
-        "details": details,
-        "response": response_data
-    }
-    test_results.append(result)
-    print(f"{status}: {test_name}")
+    global passed, failed
+    status = "✅ PASS" if success else "❌ FAIL"
+    result = f"{status}: {test_name}"
     if details:
-        print(f"  → {details}")
-    if not passed and response_data:
-        print(f"  → Response: {json.dumps(response_data, indent=2)}")
+        result += f"\n    {details}"
+    print(result)
+    test_results.append({"name": test_name, "success": success, "details": details})
+    if success:
+        passed += 1
+    else:
+        failed += 1
 
-
-def test_gap5_domains_nameservers():
-    """GAP5: GET /domains - nameservers enrichment from registeredDomains"""
-    print("\n" + "="*80)
-    print("★★★ GAP5: GET /domains - Nameservers Enrichment ★★★")
-    print("="*80)
-    
+def test_health():
+    """Test 1: GET /health → {ok:true, mode:"dry_run"}"""
+    print("\n=== TEST 1: Health Check ===")
     try:
-        response = requests.get(f"{BASE_URL}/domains", headers=HEADERS, timeout=10)
-        data = response.json()
+        resp = requests.get(f"{BASE_URL}/health", headers=HEADERS, timeout=10)
+        data = resp.json()
         
-        # Test 1: HTTP 200
-        log_test(
-            "GAP5.1: GET /domains returns 200",
-            response.status_code == 200,
-            f"Status: {response.status_code}",
-            data if response.status_code != 200 else None
-        )
+        if resp.status_code == 200:
+            log_test("GET /health returns 200", True, f"Response: {json.dumps(data)}")
+        else:
+            log_test("GET /health returns 200", False, f"Got {resp.status_code}: {data}")
+            return
         
-        if response.status_code == 200:
-            # Test 2: Find zone-a.example
-            domains = data.get("domains", [])
-            zone_a = None
-            for domain in domains:
-                if domain.get("domain") == "zone-a.example":
-                    zone_a = domain
-                    break
+        if data.get("ok") is True:
+            log_test("Health check ok=true", True)
+        else:
+            log_test("Health check ok=true", False, f"Got ok={data.get('ok')}")
+        
+        if data.get("mode") == "dry_run":
+            log_test("Health check mode=dry_run", True)
+        else:
+            log_test("Health check mode=dry_run", False, f"Got mode={data.get('mode')}")
+    except Exception as e:
+        log_test("GET /health", False, f"Exception: {str(e)}")
+
+def test_account():
+    """Test 2: GET /account → owner_chat_id "999000111", wallet_balance"""
+    print("\n=== TEST 2: Account Info ===")
+    try:
+        resp = requests.get(f"{BASE_URL}/account", headers=HEADERS, timeout=10)
+        data = resp.json()
+        
+        if resp.status_code == 200:
+            log_test("GET /account returns 200", True, f"Response: {json.dumps(data)[:200]}")
+        else:
+            log_test("GET /account returns 200", False, f"Got {resp.status_code}: {data}")
+            return
+        
+        if str(data.get("owner_chat_id")) == "999000111":
+            log_test("Account owner_chat_id=999000111", True)
+        else:
+            log_test("Account owner_chat_id=999000111", False, f"Got {data.get('owner_chat_id')}")
+        
+        if "wallet_balance_usd" in data:
+            log_test("Account has wallet_balance_usd", True, f"Balance: ${data.get('wallet_balance_usd')}")
+        else:
+            log_test("Account has wallet_balance_usd", False, "Field missing")
+    except Exception as e:
+        log_test("GET /account", False, f"Exception: {str(e)}")
+
+def test_hosting_plans():
+    """Test 3: GET /hosting/plans → 200 plan array"""
+    print("\n=== TEST 3: Hosting Plans ===")
+    try:
+        resp = requests.get(f"{BASE_URL}/hosting/plans", headers=HEADERS, timeout=10)
+        data = resp.json()
+        
+        if resp.status_code == 200:
+            log_test("GET /hosting/plans returns 200", True)
+        else:
+            log_test("GET /hosting/plans returns 200", False, f"Got {resp.status_code}: {data}")
+            return
+        
+        # Handle both direct array and dict with 'plans' key
+        plans = data.get('plans', data) if isinstance(data, dict) else data
+        
+        if isinstance(plans, list) and len(plans) > 0:
+            log_test("Plans array is non-empty", True, f"Found {len(plans)} plans")
+        else:
+            log_test("Plans array is non-empty", False, f"Got {type(plans)}: {plans}")
+        
+        # Check for golden-monthly and premium-monthly
+        plan_ids = [p.get("plan_id") for p in plans if isinstance(p, dict)]
+        if "golden-monthly" in plan_ids:
+            log_test("Plans include golden-monthly", True)
+        else:
+            log_test("Plans include golden-monthly", False, f"Plan IDs: {plan_ids}")
+        
+        if "premium-monthly" in plan_ids:
+            log_test("Plans include premium-monthly", True)
+        else:
+            log_test("Plans include premium-monthly", False, f"Plan IDs: {plan_ids}")
+    except Exception as e:
+        log_test("GET /hosting/plans", False, f"Exception: {str(e)}")
+
+def test_hosting_create_domain_modes():
+    """Test 4: POST /hosting with various domain_mode values (ISSUE-7)"""
+    print("\n=== TEST 4: POST /hosting domain_mode validation (ISSUE-7) ===")
+    
+    # Test 4a: Invalid domain_mode "foo" → 400
+    try:
+        payload = {
+            "plan_id": "golden-monthly",
+            "domain": "dryruntest-apifix.com",
+            "domain_mode": "foo"
+        }
+        resp = requests.post(f"{BASE_URL}/hosting", headers=HEADERS, json=payload, timeout=10)
+        data = resp.json()
+        
+        if resp.status_code == 400:
+            log_test("POST /hosting with invalid domain_mode → 400", True, f"Error: {data.get('error')}")
+        else:
+            log_test("POST /hosting with invalid domain_mode → 400", False, f"Got {resp.status_code}: {data}")
+    except Exception as e:
+        log_test("POST /hosting invalid domain_mode", False, f"Exception: {str(e)}")
+    
+    # Test 4b: domain_mode "existing" → 200 dry_run
+    try:
+        payload = {
+            "plan_id": "golden-monthly",
+            "domain": "dryruntest-a.com",
+            "domain_mode": "existing"
+        }
+        resp = requests.post(f"{BASE_URL}/hosting", headers=HEADERS, json=payload, timeout=10)
+        data = resp.json()
+        
+        if resp.status_code == 200 and data.get("mode") == "dry_run":
+            log_test("POST /hosting domain_mode=existing → 200 dry_run", True)
+        else:
+            log_test("POST /hosting domain_mode=existing → 200 dry_run", False, f"Got {resp.status_code}: {data}")
+    except Exception as e:
+        log_test("POST /hosting domain_mode=existing", False, f"Exception: {str(e)}")
+    
+    # Test 4c: domain_mode "external" → 200 dry_run
+    try:
+        payload = {
+            "plan_id": "golden-monthly",
+            "domain": "dryruntest-b.com",
+            "domain_mode": "external"
+        }
+        resp = requests.post(f"{BASE_URL}/hosting", headers=HEADERS, json=payload, timeout=10)
+        data = resp.json()
+        
+        if resp.status_code == 200 and data.get("mode") == "dry_run":
+            log_test("POST /hosting domain_mode=external → 200 dry_run", True)
+        else:
+            log_test("POST /hosting domain_mode=external → 200 dry_run", False, f"Got {resp.status_code}: {data}")
+    except Exception as e:
+        log_test("POST /hosting domain_mode=external", False, f"Exception: {str(e)}")
+    
+    # Test 4d: domain_mode "byo" (legacy) → 200 dry_run (must NOT 400, must NOT error)
+    try:
+        payload = {
+            "plan_id": "golden-monthly",
+            "domain": "dryruntest-c.com",
+            "domain_mode": "byo"
+        }
+        resp = requests.post(f"{BASE_URL}/hosting", headers=HEADERS, json=payload, timeout=10)
+        data = resp.json()
+        
+        if resp.status_code == 200 and data.get("mode") == "dry_run":
+            log_test("POST /hosting domain_mode=byo (legacy) → 200 dry_run", True)
+        else:
+            log_test("POST /hosting domain_mode=byo (legacy) → 200 dry_run", False, f"Got {resp.status_code}: {data}")
+    except Exception as e:
+        log_test("POST /hosting domain_mode=byo", False, f"Exception: {str(e)}")
+
+def test_domain_register():
+    """Test 5: POST /domains/register (ISSUE-9)"""
+    print("\n=== TEST 5: POST /domains/register (ISSUE-9) ===")
+    try:
+        payload = {"domain": "dryruntest-regfix.com"}
+        resp = requests.post(f"{BASE_URL}/domains/register", headers=HEADERS, json=payload, timeout=30)
+        data = resp.json()
+        
+        if resp.status_code == 200:
+            log_test("POST /domains/register returns 200", True, f"Response: {json.dumps(data)[:200]}")
+        else:
+            log_test("POST /domains/register returns 200", False, f"Got {resp.status_code}: {data}")
+            return
+        
+        if data.get("mode") == "dry_run":
+            log_test("Domain register mode=dry_run", True)
+        else:
+            log_test("Domain register mode=dry_run", False, f"Got mode={data.get('mode')}")
+        
+        if "would_provision" in data:
+            log_test("Domain register has would_provision", True)
+        else:
+            log_test("Domain register has would_provision", False, "Field missing")
+    except Exception as e:
+        log_test("POST /domains/register", False, f"Exception: {str(e)}")
+
+def test_hosting_list():
+    """Test 6: GET /hosting → lists apifix01 AND apifix02"""
+    print("\n=== TEST 6: GET /hosting (list accounts) ===")
+    try:
+        resp = requests.get(f"{BASE_URL}/hosting", headers=HEADERS, timeout=10)
+        data = resp.json()
+        
+        if resp.status_code == 200:
+            log_test("GET /hosting returns 200", True)
+        else:
+            log_test("GET /hosting returns 200", False, f"Got {resp.status_code}: {data}")
+            return
+        
+        # Handle both direct list and dict with 'accounts' or 'hosting' key
+        accounts = data
+        if isinstance(data, dict):
+            accounts = data.get('accounts', data.get('hosting', data.get('data', [])))
+        
+        if isinstance(accounts, list):
+            usernames = [acc.get("username") for acc in accounts if isinstance(acc, dict)]
             
-            log_test(
-                "GAP5.2: zone-a.example found in domains list",
-                zone_a is not None,
-                f"Found: {zone_a is not None}",
-                {"domains_count": len(domains), "zone_a": zone_a}
-            )
+            if "apifix01" in usernames:
+                log_test("Hosting list includes apifix01", True)
+            else:
+                log_test("Hosting list includes apifix01", False, f"Usernames: {usernames}")
             
-            if zone_a:
-                # Test 3: Nameservers field exists
-                has_ns = "nameservers" in zone_a
-                log_test(
-                    "GAP5.3: zone-a.example has nameservers field",
-                    has_ns,
-                    f"Has nameservers: {has_ns}",
-                    zone_a
-                )
-                
-                # Test 4: Nameservers are enriched from registeredDomains
-                ns = zone_a.get("nameservers", [])
-                expected_ns = ["x.ns.cloudflare.com", "y.ns.cloudflare.com"]
-                ns_match = set(ns) == set(expected_ns)
-                log_test(
-                    "GAP5.4: nameservers = [x.ns.cloudflare.com, y.ns.cloudflare.com]",
-                    ns_match,
-                    f"Expected: {expected_ns}, Got: {ns}",
-                    zone_a
-                )
+            if "apifix02" in usernames:
+                log_test("Hosting list includes apifix02", True)
+            else:
+                log_test("Hosting list includes apifix02", False, f"Usernames: {usernames}")
+        else:
+            log_test("GET /hosting returns list", False, f"Got {type(accounts)}, keys: {list(data.keys()) if isinstance(data, dict) else 'N/A'}")
     except Exception as e:
-        log_test("GAP5: GET /domains", False, f"Exception: {str(e)}")
+        log_test("GET /hosting", False, f"Exception: {str(e)}")
 
-
-def test_gap4_hosting_gapacct2_details():
-    """GAP4: GET /hosting/gapacct2 - suspended_reason, auto_renew_last_error, suspended_at, auto_renew_last_attempt_at"""
-    print("\n" + "="*80)
-    print("★★★ GAP4: GET /hosting/gapacct2 - Suspension Details ★★★")
-    print("="*80)
-    
+def test_hosting_detail():
+    """Test 7: GET /hosting/apifix01 → 200"""
+    print("\n=== TEST 7: GET /hosting/apifix01 (detail) ===")
     try:
-        response = requests.get(f"{BASE_URL}/hosting/gapacct2", headers=HEADERS, timeout=10)
-        data = response.json()
+        resp = requests.get(f"{BASE_URL}/hosting/apifix01", headers=HEADERS, timeout=10)
+        data = resp.json()
         
-        # Test 1: HTTP 200
-        log_test(
-            "GAP4.1: GET /hosting/gapacct2 returns 200",
-            response.status_code == 200,
-            f"Status: {response.status_code}",
-            data if response.status_code != 200 else None
-        )
-        
-        if response.status_code == 200:
-            # Test 2: suspended_reason field
-            has_suspended_reason = "suspended_reason" in data
-            suspended_reason = data.get("suspended_reason")
-            log_test(
-                "GAP4.2: suspended_reason field present",
-                has_suspended_reason and suspended_reason is not None,
-                f"suspended_reason: {suspended_reason}",
-                data
-            )
-            
-            # Test 3: suspended_reason value
-            log_test(
-                "GAP4.3: suspended_reason == 'auto_renew_insufficient_funds'",
-                suspended_reason == "auto_renew_insufficient_funds",
-                f"Expected: 'auto_renew_insufficient_funds', Got: {suspended_reason}",
-                data
-            )
-            
-            # Test 4: auto_renew_last_error field
-            has_auto_renew_error = "auto_renew_last_error" in data
-            auto_renew_error = data.get("auto_renew_last_error")
-            log_test(
-                "GAP4.4: auto_renew_last_error field present",
-                has_auto_renew_error and auto_renew_error is not None,
-                f"auto_renew_last_error: {auto_renew_error}",
-                data
-            )
-            
-            # Test 5: auto_renew_last_error value
-            log_test(
-                "GAP4.5: auto_renew_last_error == 'insufficient_funds'",
-                auto_renew_error == "insufficient_funds",
-                f"Expected: 'insufficient_funds', Got: {auto_renew_error}",
-                data
-            )
-            
-            # Test 6: suspended_at field (ISO date)
-            has_suspended_at = "suspended_at" in data
-            suspended_at = data.get("suspended_at")
-            log_test(
-                "GAP4.6: suspended_at field present (ISO date)",
-                has_suspended_at and suspended_at is not None and isinstance(suspended_at, str),
-                f"suspended_at: {suspended_at}",
-                data
-            )
-            
-            # Test 7: auto_renew_last_attempt_at field (ISO date)
-            has_attempt_at = "auto_renew_last_attempt_at" in data
-            attempt_at = data.get("auto_renew_last_attempt_at")
-            log_test(
-                "GAP4.7: auto_renew_last_attempt_at field present (ISO date)",
-                has_attempt_at and attempt_at is not None and isinstance(attempt_at, str),
-                f"auto_renew_last_attempt_at: {attempt_at}",
-                data
-            )
+        if resp.status_code == 200:
+            log_test("GET /hosting/apifix01 returns 200", True, f"Domain: {data.get('domain')}")
+        else:
+            log_test("GET /hosting/apifix01 returns 200", False, f"Got {resp.status_code}: {data}")
     except Exception as e:
-        log_test("GAP4: GET /hosting/gapacct2", False, f"Exception: {str(e)}")
+        log_test("GET /hosting/apifix01", False, f"Exception: {str(e)}")
 
-
-def test_gap7_hosting_gapacct1_suspended_override():
-    """GAP7: GET /hosting/gapacct1 - suspended override from WHM stub"""
-    print("\n" + "="*80)
-    print("★★★ GAP7: GET /hosting/gapacct1 - Suspended Override ★★★")
-    print("="*80)
+def test_auto_renew():
+    """Test 8: ISSUE-5 auto-renew toggle"""
+    print("\n=== TEST 8: POST /hosting/apifix01/auto-renew (ISSUE-5) ===")
     
+    # Test 8a: Set auto_renew to false
     try:
-        # Test 1: GET /hosting/gapacct1
-        response = requests.get(f"{BASE_URL}/hosting/gapacct1", headers=HEADERS, timeout=10)
-        data = response.json()
+        payload = {"enabled": False}
+        resp = requests.post(f"{BASE_URL}/hosting/apifix01/auto-renew", headers=HEADERS, json=payload, timeout=10)
+        data = resp.json()
         
-        log_test(
-            "GAP7.1: GET /hosting/gapacct1 returns 200",
-            response.status_code == 200,
-            f"Status: {response.status_code}",
-            data if response.status_code != 200 else None
-        )
-        
-        if response.status_code == 200:
-            # Test 2: suspended field is true (WHM override)
-            suspended = data.get("suspended")
-            log_test(
-                "GAP7.2: suspended == true (WHM stub overrides DB false)",
-                suspended is True,
-                f"Expected: true, Got: {suspended}",
-                data
-            )
-        
-        # Test 3: GET /hosting?usage=true - gapacct1 also shows suspended:true
-        response_list = requests.get(f"{BASE_URL}/hosting?usage=true", headers=HEADERS, timeout=10)
-        data_list = response_list.json()
-        
-        log_test(
-            "GAP7.3: GET /hosting?usage=true returns 200",
-            response_list.status_code == 200,
-            f"Status: {response_list.status_code}",
-            data_list if response_list.status_code != 200 else None
-        )
-        
-        if response_list.status_code == 200:
-            # Find gapacct1 in list
-            accounts = data_list.get("accounts", [])
-            gapacct1 = None
-            for account in accounts:
-                if account.get("user") == "gapacct1" or account.get("username") == "gapacct1":
-                    gapacct1 = account
-                    break
-            
-            log_test(
-                "GAP7.4: gapacct1 found in hosting list",
-                gapacct1 is not None,
-                f"Found: {gapacct1 is not None}",
-                {"accounts_count": len(accounts), "gapacct1": gapacct1}
-            )
-            
-            if gapacct1:
-                suspended_in_list = gapacct1.get("suspended")
-                log_test(
-                    "GAP7.5: gapacct1 suspended == true in list",
-                    suspended_in_list is True,
-                    f"Expected: true, Got: {suspended_in_list}",
-                    gapacct1
-                )
+        if resp.status_code == 200 and data.get("auto_renew") is False:
+            log_test("POST auto-renew enabled=false → auto_renew=false", True)
+        else:
+            log_test("POST auto-renew enabled=false → auto_renew=false", False, f"Got {resp.status_code}: {data}")
     except Exception as e:
-        log_test("GAP7: GET /hosting/gapacct1", False, f"Exception: {str(e)}")
-
-
-def test_gap6_delete_hosting_honest_dryrun():
-    """GAP6: DELETE /hosting/gapacct2 - honest dry_run (no fake terminated:true)"""
-    print("\n" + "="*80)
-    print("★★★ GAP6: DELETE /hosting/gapacct2 - Honest Dry-Run ★★★")
-    print("="*80)
+        log_test("POST auto-renew enabled=false", False, f"Exception: {str(e)}")
     
+    # Test 8b: Toggle with no body → should toggle to true
     try:
-        response = requests.delete(f"{BASE_URL}/hosting/gapacct2", headers=HEADERS, timeout=10)
-        data = response.json()
+        resp = requests.post(f"{BASE_URL}/hosting/apifix01/auto-renew", headers=HEADERS, json={}, timeout=10)
+        data = resp.json()
         
-        # Test 1: HTTP 200
-        log_test(
-            "GAP6.1: DELETE /hosting/gapacct2 returns 200",
-            response.status_code == 200,
-            f"Status: {response.status_code}",
-            data if response.status_code != 200 else None
-        )
-        
-        if response.status_code == 200:
-            # Test 2: mode == "dry_run"
-            mode = data.get("mode")
-            log_test(
-                "GAP6.2: mode == 'dry_run'",
-                mode == "dry_run",
-                f"Expected: 'dry_run', Got: {mode}",
-                data
-            )
-            
-            # Test 3: MUST NOT contain terminated:true (no fake success)
-            has_terminated = "terminated" in data
-            terminated = data.get("terminated")
-            log_test(
-                "GAP6.3: MUST NOT contain terminated:true (honest dry-run)",
-                not (has_terminated and terminated is True),
-                f"terminated field: {terminated if has_terminated else 'not present'}",
-                data
-            )
+        if resp.status_code == 200 and data.get("auto_renew") is True:
+            log_test("POST auto-renew no body → toggle to true", True)
+        else:
+            log_test("POST auto-renew no body → toggle to true", False, f"Got {resp.status_code}: {data}")
     except Exception as e:
-        log_test("GAP6: DELETE /hosting/gapacct2", False, f"Exception: {str(e)}")
-
-
-def test_gap2_dns_apex_name_normalization():
-    """GAP2: POST /dns/zone-a.example/records - apex/name normalization"""
-    print("\n" + "="*80)
-    print("★★★ GAP2: POST /dns/zone-a.example/records - Apex/Name Normalization ★★★")
-    print("="*80)
+        log_test("POST auto-renew no body", False, f"Exception: {str(e)}")
     
-    # Test 1: @ → zone-a.example (NOT @.zone-a.example)
+    # Test 8c: Invalid body → 400
     try:
-        payload = {"type": "A", "name": "@", "value": "1.2.3.4"}
-        response = requests.post(
-            f"{BASE_URL}/dns/zone-a.example/records",
-            headers=HEADERS,
-            json=payload,
-            timeout=10
-        )
-        data = response.json()
+        payload = {"enabled": "notbool"}
+        resp = requests.post(f"{BASE_URL}/hosting/apifix01/auto-renew", headers=HEADERS, json=payload, timeout=10)
+        data = resp.json()
         
-        log_test(
-            "GAP2.1: POST /dns/zone-a.example/records (name='@') returns 200",
-            response.status_code == 200,
-            f"Status: {response.status_code}",
-            data if response.status_code != 200 else None
-        )
-        
-        if response.status_code == 200:
-            detail = data.get("detail", {})
-            record_name = detail.get("name")
-            log_test(
-                "GAP2.2: name='@' → detail.name == 'zone-a.example' (NOT '@.zone-a.example')",
-                record_name == "zone-a.example",
-                f"Expected: 'zone-a.example', Got: {record_name}",
-                data
-            )
+        if resp.status_code == 400:
+            log_test("POST auto-renew invalid body → 400", True, f"Error: {data.get('error')}")
+        else:
+            log_test("POST auto-renew invalid body → 400", False, f"Got {resp.status_code}: {data}")
     except Exception as e:
-        log_test("GAP2.1-2: POST /dns (name='@')", False, f"Exception: {str(e)}")
-    
-    # Test 2: zone-a.example → zone-a.example (NOT zone-a.example.zone-a.example)
-    try:
-        payload = {"type": "A", "name": "zone-a.example", "value": "1.2.3.4"}
-        response = requests.post(
-            f"{BASE_URL}/dns/zone-a.example/records",
-            headers=HEADERS,
-            json=payload,
-            timeout=10
-        )
-        data = response.json()
-        
-        log_test(
-            "GAP2.3: POST /dns/zone-a.example/records (name='zone-a.example') returns 200",
-            response.status_code == 200,
-            f"Status: {response.status_code}",
-            data if response.status_code != 200 else None
-        )
-        
-        if response.status_code == 200:
-            detail = data.get("detail", {})
-            record_name = detail.get("name")
-            log_test(
-                "GAP2.4: name='zone-a.example' → detail.name == 'zone-a.example' (NOT double-appended)",
-                record_name == "zone-a.example",
-                f"Expected: 'zone-a.example', Got: {record_name}",
-                data
-            )
-    except Exception as e:
-        log_test("GAP2.3-4: POST /dns (name='zone-a.example')", False, f"Exception: {str(e)}")
-    
-    # Test 3: www → www.zone-a.example
-    try:
-        payload = {"type": "A", "name": "www", "value": "1.2.3.4"}
-        response = requests.post(
-            f"{BASE_URL}/dns/zone-a.example/records",
-            headers=HEADERS,
-            json=payload,
-            timeout=10
-        )
-        data = response.json()
-        
-        log_test(
-            "GAP2.5: POST /dns/zone-a.example/records (name='www') returns 200",
-            response.status_code == 200,
-            f"Status: {response.status_code}",
-            data if response.status_code != 200 else None
-        )
-        
-        if response.status_code == 200:
-            detail = data.get("detail", {})
-            record_name = detail.get("name")
-            log_test(
-                "GAP2.6: name='www' → detail.name == 'www.zone-a.example'",
-                record_name == "www.zone-a.example",
-                f"Expected: 'www.zone-a.example', Got: {record_name}",
-                data
-            )
-    except Exception as e:
-        log_test("GAP2.5-6: POST /dns (name='www')", False, f"Exception: {str(e)}")
+        log_test("POST auto-renew invalid body", False, f"Exception: {str(e)}")
 
-
-def test_change_primary_endpoint():
-    """CHANGE-PRIMARY: POST /hosting/:user/change-primary - new endpoint with validation"""
-    print("\n" + "="*80)
-    print("★★★ CHANGE-PRIMARY: POST /hosting/:user/change-primary ★★★")
-    print("="*80)
+def test_site_status():
+    """Test 9: ISSUE-6 site-status (both routes, same response)"""
+    print("\n=== TEST 9: GET site-status (ISSUE-6) ===")
     
-    # Test 1: Valid domain (not current primary) → dry_run
+    # Test 9a: GET /hosting/apifix01/site-status
     try:
-        payload = {"domain": "newprimary.example"}
-        response = requests.post(
-            f"{BASE_URL}/hosting/gapacct1/change-primary",
-            headers=HEADERS,
-            json=payload,
-            timeout=10
-        )
-        data = response.json()
+        resp = requests.get(f"{BASE_URL}/hosting/apifix01/site-status", headers=HEADERS, timeout=10)
+        data1 = resp.json()
         
-        log_test(
-            "CHANGE-PRIMARY.1: POST /hosting/gapacct1/change-primary (valid domain) returns 200",
-            response.status_code == 200,
-            f"Status: {response.status_code}",
-            data if response.status_code != 200 else None
-        )
+        if resp.status_code == 200:
+            log_test("GET /hosting/apifix01/site-status returns 200", True)
+        else:
+            log_test("GET /hosting/apifix01/site-status returns 200", False, f"Got {resp.status_code}: {data1}")
+            return
         
-        if response.status_code == 200:
-            # Test 2: mode == "dry_run"
-            mode = data.get("mode")
-            log_test(
-                "CHANGE-PRIMARY.2: mode == 'dry_run'",
-                mode == "dry_run",
-                f"Expected: 'dry_run', Got: {mode}",
-                data
-            )
-            
-            # Test 3: from == "primary-a.example"
-            from_domain = data.get("from")
-            log_test(
-                "CHANGE-PRIMARY.3: from == 'primary-a.example'",
-                from_domain == "primary-a.example",
-                f"Expected: 'primary-a.example', Got: {from_domain}",
-                data
-            )
-            
-            # Test 4: to == "newprimary.example"
-            to_domain = data.get("to")
-            log_test(
-                "CHANGE-PRIMARY.4: to == 'newprimary.example'",
-                to_domain == "newprimary.example",
-                f"Expected: 'newprimary.example', Got: {to_domain}",
-                data
-            )
+        if "status" in data1:
+            log_test("site-status has status field", True, f"Status: {data1.get('status')}")
+        else:
+            log_test("site-status has status field", False, "Field missing")
+        
+        if "auto_renew" in data1:
+            log_test("site-status has auto_renew field", True, f"auto_renew: {data1.get('auto_renew')}")
+        else:
+            log_test("site-status has auto_renew field", False, "Field missing")
+        
+        # Test 9b: GET /hosting/apifix01/account/site-status (alias)
+        resp2 = requests.get(f"{BASE_URL}/hosting/apifix01/account/site-status", headers=HEADERS, timeout=10)
+        data2 = resp2.json()
+        
+        if resp2.status_code == 200:
+            log_test("GET /hosting/apifix01/account/site-status returns 200", True)
+        else:
+            log_test("GET /hosting/apifix01/account/site-status returns 200", False, f"Got {resp2.status_code}: {data2}")
+            return
+        
+        if data1.get("status") == data2.get("status"):
+            log_test("Both site-status routes return same status", True)
+        else:
+            log_test("Both site-status routes return same status", False, f"Route1: {data1.get('status')}, Route2: {data2.get('status')}")
+        
+        if "auto_renew" in data2:
+            log_test("account/site-status has auto_renew field", True)
+        else:
+            log_test("account/site-status has auto_renew field", False, "Field missing")
     except Exception as e:
-        log_test("CHANGE-PRIMARY.1-4: Valid domain", False, f"Exception: {str(e)}")
+        log_test("GET site-status", False, f"Exception: {str(e)}")
     
-    # Test 5: Already primary → 400 already_primary
+    # Test 9c: POST /hosting/apifix01/site-status (take offline)
     try:
-        payload = {"domain": "primary-a.example"}
-        response = requests.post(
-            f"{BASE_URL}/hosting/gapacct1/change-primary",
-            headers=HEADERS,
-            json=payload,
-            timeout=10
-        )
-        data = response.json()
+        payload = {"action": "take_offline", "mode": "maintenance"}
+        resp = requests.post(f"{BASE_URL}/hosting/apifix01/site-status", headers=HEADERS, json=payload, timeout=10)
+        data = resp.json()
         
-        log_test(
-            "CHANGE-PRIMARY.5: POST /hosting/gapacct1/change-primary (already primary) returns 400",
-            response.status_code == 400,
-            f"Status: {response.status_code}",
-            data if response.status_code != 400 else None
-        )
-        
-        if response.status_code == 400:
-            error = data.get("error")
-            log_test(
-                "CHANGE-PRIMARY.6: error == 'already_primary'",
-                error == "already_primary",
-                f"Expected: 'already_primary', Got: {error}",
-                data
-            )
+        if resp.status_code == 200 and data.get("mode") == "dry_run":
+            log_test("POST site-status take_offline → 200 dry_run", True)
+        else:
+            log_test("POST site-status take_offline → 200 dry_run", False, f"Got {resp.status_code}: {data}")
     except Exception as e:
-        log_test("CHANGE-PRIMARY.5-6: Already primary", False, f"Exception: {str(e)}")
+        log_test("POST site-status take_offline", False, f"Exception: {str(e)}")
     
-    # Test 7: Invalid domain → 400 invalid_domain
+    # Test 9d: POST /hosting/apifix01/account/site-status (alias)
     try:
-        payload = {"domain": "notadomain"}
-        response = requests.post(
-            f"{BASE_URL}/hosting/gapacct1/change-primary",
-            headers=HEADERS,
-            json=payload,
-            timeout=10
-        )
-        data = response.json()
+        payload = {"action": "take_offline", "mode": "maintenance"}
+        resp = requests.post(f"{BASE_URL}/hosting/apifix01/account/site-status", headers=HEADERS, json=payload, timeout=10)
+        data = resp.json()
         
-        log_test(
-            "CHANGE-PRIMARY.7: POST /hosting/gapacct1/change-primary (invalid domain) returns 400",
-            response.status_code == 400,
-            f"Status: {response.status_code}",
-            data if response.status_code != 400 else None
-        )
-        
-        if response.status_code == 400:
-            error = data.get("error")
-            log_test(
-                "CHANGE-PRIMARY.8: error == 'invalid_domain'",
-                error == "invalid_domain",
-                f"Expected: 'invalid_domain', Got: {error}",
-                data
-            )
+        if resp.status_code == 200 and data.get("mode") == "dry_run":
+            log_test("POST account/site-status take_offline → 200 dry_run", True)
+        else:
+            log_test("POST account/site-status take_offline → 200 dry_run", False, f"Got {resp.status_code}: {data}")
     except Exception as e:
-        log_test("CHANGE-PRIMARY.7-8: Invalid domain", False, f"Exception: {str(e)}")
+        log_test("POST account/site-status", False, f"Exception: {str(e)}")
 
-
-def test_auth_negative():
-    """Auth/negative tests"""
-    print("\n" + "="*80)
-    print("★★★ AUTH/NEGATIVE TESTS ★★★")
-    print("="*80)
-    
-    # Test 1: No API key → 401 missing_api_key
+def test_renew():
+    """Test 10: ISSUE-3 renew"""
+    print("\n=== TEST 10: POST /hosting/apifix01/renew (ISSUE-3) ===")
     try:
-        response = requests.get(f"{BASE_URL}/domains", timeout=10)
-        data = response.json()
+        resp = requests.post(f"{BASE_URL}/hosting/apifix01/renew", headers=HEADERS, json={}, timeout=10)
+        data = resp.json()
         
-        log_test(
-            "AUTH.1: GET /domains (no API key) returns 401",
-            response.status_code == 401,
-            f"Status: {response.status_code}",
-            data if response.status_code != 401 else None
-        )
+        if resp.status_code == 200:
+            log_test("POST /hosting/apifix01/renew returns 200", True)
+        else:
+            log_test("POST /hosting/apifix01/renew returns 200", False, f"Got {resp.status_code}: {data}")
+            return
         
-        if response.status_code == 401:
-            error = data.get("error")
-            log_test(
-                "AUTH.2: error == 'missing_api_key'",
-                error == "missing_api_key",
-                f"Expected: 'missing_api_key', Got: {error}",
-                data
-            )
+        if data.get("mode") == "dry_run":
+            log_test("Renew mode=dry_run", True)
+        else:
+            log_test("Renew mode=dry_run", False, f"Got mode={data.get('mode')}")
+        
+        if "would_provision" in data:
+            log_test("Renew has would_provision", True)
+        else:
+            log_test("Renew has would_provision", False, "Field missing")
     except Exception as e:
-        log_test("AUTH.1-2: No API key", False, f"Exception: {str(e)}")
+        log_test("POST /hosting/apifix01/renew", False, f"Exception: {str(e)}")
+
+def test_upgrade():
+    """Test 11: ISSUE-2 upgrade"""
+    print("\n=== TEST 11: POST upgrade (ISSUE-2) ===")
     
-    # Test 2: Non-existent account → 404 not_found
+    # Test 11a: apifix02 (Premium) → golden-monthly (valid upgrade)
     try:
-        response = requests.get(f"{BASE_URL}/hosting/does-not-exist", headers=HEADERS, timeout=10)
-        data = response.json()
+        payload = {"plan_id": "golden-monthly"}
+        resp = requests.post(f"{BASE_URL}/hosting/apifix02/upgrade", headers=HEADERS, json=payload, timeout=10)
+        data = resp.json()
         
-        log_test(
-            "AUTH.3: GET /hosting/does-not-exist returns 404",
-            response.status_code == 404,
-            f"Status: {response.status_code}",
-            data if response.status_code != 404 else None
-        )
-        
-        if response.status_code == 404:
-            error = data.get("error")
-            log_test(
-                "AUTH.4: error == 'not_found'",
-                error == "not_found",
-                f"Expected: 'not_found', Got: {error}",
-                data
-            )
+        if resp.status_code == 200 and data.get("mode") == "dry_run":
+            log_test("POST apifix02/upgrade to golden → 200 dry_run", True)
+        else:
+            log_test("POST apifix02/upgrade to golden → 200 dry_run", False, f"Got {resp.status_code}: {data}")
     except Exception as e:
-        log_test("AUTH.3-4: Non-existent account", False, f"Exception: {str(e)}")
+        log_test("POST apifix02/upgrade", False, f"Exception: {str(e)}")
     
-    # Test 3: Bearer auth header works
+    # Test 11b: apifix01 (Golden) → golden-monthly (no upgrade path, 409)
     try:
-        response = requests.get(f"{BASE_URL}/domains", headers=HEADERS_BEARER, timeout=10)
+        payload = {"plan_id": "golden-monthly"}
+        resp = requests.post(f"{BASE_URL}/hosting/apifix01/upgrade", headers=HEADERS, json=payload, timeout=10)
+        data = resp.json()
         
-        log_test(
-            "AUTH.5: GET /domains with Authorization: Bearer header returns 200",
-            response.status_code == 200,
-            f"Status: {response.status_code}",
-            None
-        )
+        if resp.status_code == 409 and data.get("error") == "no_upgrade_path":
+            log_test("POST apifix01/upgrade to golden → 409 no_upgrade_path", True)
+        else:
+            log_test("POST apifix01/upgrade to golden → 409 no_upgrade_path", False, f"Got {resp.status_code}: {data}")
     except Exception as e:
-        log_test("AUTH.5: Bearer auth", False, f"Exception: {str(e)}")
+        log_test("POST apifix01/upgrade no_upgrade_path", False, f"Exception: {str(e)}")
+    
+    # Test 11c: Invalid plan_id → 400 with available list
+    try:
+        payload = {"plan_id": "garbage"}
+        resp = requests.post(f"{BASE_URL}/hosting/apifix02/upgrade", headers=HEADERS, json=payload, timeout=10)
+        data = resp.json()
+        
+        if resp.status_code == 400 and data.get("error") == "invalid_upgrade_target":
+            log_test("POST upgrade invalid plan → 400 invalid_upgrade_target", True)
+            if "available" in data:
+                log_test("Invalid upgrade response has available list", True)
+            else:
+                log_test("Invalid upgrade response has available list", False, "Field missing")
+        else:
+            log_test("POST upgrade invalid plan → 400", False, f"Got {resp.status_code}: {data}")
+    except Exception as e:
+        log_test("POST upgrade invalid plan", False, f"Exception: {str(e)}")
 
+def test_addons():
+    """Test 12: ISSUE-1 addon shape (string handling)"""
+    print("\n=== TEST 12: GET /hosting/apifix01/addons (ISSUE-1) ===")
+    try:
+        resp = requests.get(f"{BASE_URL}/hosting/apifix01/addons", headers=HEADERS, timeout=10)
+        data = resp.json()
+        
+        if resp.status_code == 200:
+            log_test("GET /hosting/apifix01/addons returns 200", True)
+        else:
+            log_test("GET /hosting/apifix01/addons returns 200", False, f"Got {resp.status_code}: {data}")
+            return
+        
+        if data.get("addon_count") == 1:
+            log_test("Addon count is 1", True)
+        else:
+            log_test("Addon count is 1", False, f"Got addon_count={data.get('addon_count')}")
+        
+        addons = data.get("addons", [])
+        if len(addons) > 0:
+            # Check if addon is a string OR an object with 'domain' field
+            addon = addons[0]
+            if isinstance(addon, str) and addon == "addon-apifix.com":
+                log_test("Addon is string 'addon-apifix.com'", True)
+            elif isinstance(addon, dict) and addon.get("domain") == "addon-apifix.com":
+                log_test("Addon has domain 'addon-apifix.com' (object format)", True, f"Format: {addon}")
+            else:
+                log_test("Addon is 'addon-apifix.com'", False, f"Got addons={addons}")
+        else:
+            log_test("Addon is present", False, f"Got addons={addons}")
+    except Exception as e:
+        log_test("GET /hosting/apifix01/addons", False, f"Exception: {str(e)}")
 
-def print_summary():
-    """Print test summary"""
-    print("\n" + "="*80)
-    print("★★★ TEST SUMMARY ★★★")
-    print("="*80)
-    print(f"Total Tests: {total_tests}")
-    print(f"Passed: {passed_tests} ({passed_tests/total_tests*100:.1f}%)")
-    print(f"Failed: {failed_tests} ({failed_tests/total_tests*100:.1f}%)")
-    print("="*80)
+def test_addon_lookup():
+    """Test 13: ISSUE-1 addon lookup by string"""
+    print("\n=== TEST 13: GET captcha/honeypot by addon domain (ISSUE-1) ===")
     
-    if failed_tests > 0:
-        print("\n❌ FAILED TESTS:")
-        for result in test_results:
-            if "❌" in result["status"]:
-                print(f"  - {result['test']}: {result['details']}")
+    # Test 13a: GET /hosting/captcha/addon-apifix.com
+    try:
+        resp = requests.get(f"{BASE_URL}/hosting/captcha/addon-apifix.com", headers=HEADERS, timeout=10)
+        data = resp.json()
+        
+        if resp.status_code == 200:
+            log_test("GET /hosting/captcha/addon-apifix.com returns 200", True, f"Response: {json.dumps(data)[:100]}")
+        else:
+            log_test("GET /hosting/captcha/addon-apifix.com returns 200", False, f"Got {resp.status_code}: {data}")
+    except Exception as e:
+        log_test("GET captcha by addon", False, f"Exception: {str(e)}")
     
-    print("\n" + "="*80)
-    print("★★★ DETAILED RESULTS BY GAP ★★★")
-    print("="*80)
-    
-    # Group by GAP
-    gaps = {
-        "GAP5": [],
-        "GAP4": [],
-        "GAP7": [],
-        "GAP6": [],
-        "GAP2": [],
-        "CHANGE-PRIMARY": [],
-        "AUTH": []
-    }
-    
-    for result in test_results:
-        for gap in gaps.keys():
-            if result["test"].startswith(gap):
-                gaps[gap].append(result)
-                break
-    
-    for gap, results in gaps.items():
-        if results:
-            passed = sum(1 for r in results if "✅" in r["status"])
-            total = len(results)
-            print(f"\n{gap}: {passed}/{total} tests passed")
-            for result in results:
-                print(f"  {result['status']}: {result['test']}")
+    # Test 13b: GET /hosting/honeypot/addon-apifix.com
+    try:
+        resp = requests.get(f"{BASE_URL}/hosting/honeypot/addon-apifix.com", headers=HEADERS, timeout=10)
+        data = resp.json()
+        
+        if resp.status_code == 200:
+            log_test("GET /hosting/honeypot/addon-apifix.com returns 200", True, f"Response: {json.dumps(data)[:100]}")
+        else:
+            log_test("GET /hosting/honeypot/addon-apifix.com returns 200", False, f"Got {resp.status_code}: {data}")
+    except Exception as e:
+        log_test("GET honeypot by addon", False, f"Exception: {str(e)}")
 
+def test_cancel():
+    """Test 14: ISSUE-4 cancel (DELETE /hosting/:user)"""
+    print("\n=== TEST 14: DELETE /hosting/apifix01 (ISSUE-4) ===")
+    try:
+        resp = requests.delete(f"{BASE_URL}/hosting/apifix01", headers=HEADERS, timeout=10)
+        data = resp.json()
+        
+        if resp.status_code == 200:
+            log_test("DELETE /hosting/apifix01 returns 200", True)
+        else:
+            log_test("DELETE /hosting/apifix01 returns 200", False, f"Got {resp.status_code}: {data}")
+            return
+        
+        if data.get("mode") == "dry_run":
+            log_test("Cancel mode=dry_run", True)
+        else:
+            log_test("Cancel mode=dry_run", False, f"Got mode={data.get('mode')}")
+        
+        # Check for note about account not terminated
+        if "note" in data or "message" in data:
+            log_test("Cancel has note/message field", True, f"Note: {data.get('note') or data.get('message')}")
+        else:
+            log_test("Cancel has note/message field", False, "Field missing")
+    except Exception as e:
+        log_test("DELETE /hosting/apifix01", False, f"Exception: {str(e)}")
+
+def test_negative_auth():
+    """Test 15: Negative tests (no auth, not found)"""
+    print("\n=== TEST 15: Negative Tests (Auth & Not Found) ===")
+    
+    # Test 15a: No Authorization header → 401
+    try:
+        resp = requests.get(f"{BASE_URL}/hosting", timeout=10)
+        data = resp.json()
+        
+        if resp.status_code == 401:
+            log_test("GET /hosting without auth → 401", True, f"Error: {data.get('error')}")
+        else:
+            log_test("GET /hosting without auth → 401", False, f"Got {resp.status_code}: {data}")
+    except Exception as e:
+        log_test("GET /hosting without auth", False, f"Exception: {str(e)}")
+    
+    # Test 15b: Non-existent user → 404
+    try:
+        resp = requests.get(f"{BASE_URL}/hosting/nonexistentuser", headers=HEADERS, timeout=10)
+        data = resp.json()
+        
+        if resp.status_code == 404:
+            log_test("GET /hosting/nonexistentuser → 404", True, f"Error: {data.get('error')}")
+        else:
+            log_test("GET /hosting/nonexistentuser → 404", False, f"Got {resp.status_code}: {data}")
+    except Exception as e:
+        log_test("GET /hosting/nonexistentuser", False, f"Exception: {str(e)}")
+
+def test_service_health():
+    """Test 16: Service health check"""
+    print("\n=== TEST 16: Service Health ===")
+    
+    # Check supervisor nodejs status
+    import subprocess
+    try:
+        result = subprocess.run(["sudo", "supervisorctl", "status", "nodejs"], 
+                              capture_output=True, text=True, timeout=5)
+        if "RUNNING" in result.stdout:
+            log_test("Supervisor nodejs is RUNNING", True, result.stdout.strip())
+        else:
+            log_test("Supervisor nodejs is RUNNING", False, result.stdout.strip())
+    except Exception as e:
+        log_test("Supervisor nodejs status", False, f"Exception: {str(e)}")
+    
+    # Check for errors in nodejs logs
+    try:
+        result = subprocess.run(["tail", "-n", "50", "/var/log/supervisor/nodejs.err.log"], 
+                              capture_output=True, text=True, timeout=5)
+        if "Cannot find module" in result.stdout or "Error:" in result.stdout:
+            log_test("nodejs.err.log has no critical errors", False, f"Found errors: {result.stdout[:200]}")
+        else:
+            log_test("nodejs.err.log has no critical errors", True, "No 'Cannot find module' or stack traces")
+    except Exception as e:
+        log_test("nodejs.err.log check", False, f"Exception: {str(e)}")
 
 def main():
     """Run all tests"""
-    print("="*80)
-    print("RESELLER API GAP FIXES - COMPREHENSIVE BACKEND TEST")
-    print("="*80)
-    print(f"Base URL: {BASE_URL}")
-    print(f"API Key: {API_KEY}")
-    print(f"Environment: DEV SANDBOX (dry_run mode)")
-    print("="*80)
+    print("=" * 80)
+    print("RESELLER API PARITY TEST SUITE (2026-10-03)")
+    print("Testing 9 bug fixes for Nomadly Reseller API")
+    print("Mode: DRY-RUN (RESELLER_API_LIVE not set)")
+    print("=" * 80)
     
-    # Run all test groups
-    test_gap5_domains_nameservers()
-    test_gap4_hosting_gapacct2_details()
-    test_gap7_hosting_gapacct1_suspended_override()
-    test_gap6_delete_hosting_honest_dryrun()
-    test_gap2_dns_apex_name_normalization()
-    test_change_primary_endpoint()
-    test_auth_negative()
+    test_health()
+    test_account()
+    test_hosting_plans()
+    test_hosting_create_domain_modes()
+    test_domain_register()
+    test_hosting_list()
+    test_hosting_detail()
+    test_auto_renew()
+    test_site_status()
+    test_renew()
+    test_upgrade()
+    test_addons()
+    test_addon_lookup()
+    test_cancel()
+    test_negative_auth()
+    test_service_health()
     
-    # Print summary
-    print_summary()
+    print("\n" + "=" * 80)
+    print(f"TEST SUMMARY: {passed} PASSED, {failed} FAILED")
+    print("=" * 80)
     
-    # Exit with appropriate code
-    sys.exit(0 if failed_tests == 0 else 1)
-
+    # Print failed tests
+    if failed > 0:
+        print("\n❌ FAILED TESTS:")
+        for result in test_results:
+            if not result["success"]:
+                print(f"  - {result['name']}")
+                if result["details"]:
+                    print(f"    {result['details']}")
+    
+    return 0 if failed == 0 else 1
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

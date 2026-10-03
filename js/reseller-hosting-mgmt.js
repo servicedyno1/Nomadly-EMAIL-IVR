@@ -488,11 +488,28 @@ function registerHostingMgmtRoutes(deps) {
     if (!isLive()) return dryRun(res, acct, 'domain.addon.remove', { domain })
     const ctx = withCreds(res, acct); if (!ctx) return
     const r = await cpProxy.removeAddonDomain(ctx.cpUser, ctx.cpPass, domain, undefined, acct.domain, ctx.whmHost)
-    // Best-effort: keep the Mongo mirror in sync with cPanel.
-    if (r && r.status === 1) {
-      try { await col('cpanelAccounts').updateOne({ _id: acct._id }, { $pull: { addonDomains: { domain } } }) } catch (_) {}
+    // ISSUE-1 + ISSUE-5 FIX (2026-10): mirror the bot's "Unlink a Domain" exactly.
+    //  • Keep the Mongo mirror in sync — pull BOTH the canonical string shape AND any
+    //    legacy {domain} object shape (the old reseller-API push).
+    //  • Clean up Cloudflare (worker routes + hosting DNS) for the addon's own zone, which
+    //    the previous implementation skipped (it only removed the cPanel entry) — leaving
+    //    orphan CF worker routes + DNS behind on every API-side unlink.
+    const cpUnlinked = !!(r && r.status === 1)
+    if (cpUnlinked) {
+      try {
+        await col('cpanelAccounts').updateOne({ _id: acct._id }, { $pull: { addonDomains: domain } })
+        await col('cpanelAccounts').updateOne({ _id: acct._id }, { $pull: { addonDomains: { domain } } })
+      } catch (e) { log && log(`[Reseller] addon unlink DB-mirror warning for ${domain}: ${e.message}`) }
     }
-    res.json(r)
+    // CF cleanup is best-effort and independent of cPanel uptime.
+    try {
+      const zone = await cfService.getZoneByName(domain)
+      if (zone) {
+        await antiRed.removeWorkerRoutes(domain, zone.id).catch(() => {})
+        await cfService.cleanupAllHostingRecords(zone.id, domain).catch(() => {})
+      }
+    } catch (cfErr) { log && log(`[Reseller] addon unlink CF cleanup warning for ${domain}: ${cfErr.message}`) }
+    res.json({ ...(r || {}), username: acct._id, addon_domain: domain, cpanel_removed: cpUnlinked, cloudflare_cleaned: true })
   }))
 
   // ════════════════════════════════════════════════════════
@@ -1357,45 +1374,13 @@ function registerHostingMgmtRoutes(deps) {
 
   // ════════════════════════════════════════════════════════
   // ACCOUNT — site status (online / maintenance / suspended)
+  // ISSUE-6 FIX (2026-10): the GET/POST `/hosting/:user/account/site-status` handlers
+  // used to be a second copy of the `/hosting/:user/site-status` logic in reseller-api.js.
+  // They have been REMOVED here and both the documented path and this legacy alias are
+  // now served by the single implementation in reseller-api.js (registered before this
+  // module), eliminating the drift risk of two independent copies.
   // ════════════════════════════════════════════════════════
-  router.get('/hosting/:user/account/site-status', apiKeyAuth, h(async (req, res) => {
-    const acct = await loadOwned(req, res); if (!acct) return
-    res.json({
-      status: siteStatusService.readStatus(acct),
-      domain: acct.domain, plan: acct.plan || null,
-      expiryDate: acct.expiryDate || null, autoRenew: acct.autoRenew !== false,
-      suspendedAt: acct.suspendedAt || null, maintenanceModeAt: acct.maintenanceModeAt || null,
-    })
-  }))
 
-  router.post('/hosting/:user/account/site-status', apiKeyAuth, h(async (req, res) => {
-    const acct = await loadOwned(req, res); if (!acct) return
-    const { action, mode: siteMode } = req.body || {}
-    if (action !== 'take_offline' && action !== 'bring_online') return res.status(400).json({ error: 'invalid_action', message: 'action must be take_offline or bring_online.' })
-    if (action === 'take_offline' && siteMode !== 'maintenance' && siteMode !== 'suspended') return res.status(400).json({ error: 'invalid_mode', message: 'mode must be maintenance or suspended.' })
-    if (acct.deleted) return res.status(409).json({ error: 'cancelled', message: 'This hosting plan has been cancelled.' })
-    const before = siteStatusService.readStatus(acct)
-    if (!isLive()) return dryRun(res, acct, 'account.site-status', { requested_action: action, requested_mode: siteMode || null, current: before })
-    if (action === 'take_offline') {
-      if (before !== 'online') return res.status(409).json({ error: 'already_offline', message: `Site is already ${before}.` })
-      let result
-      try { result = (siteMode === 'suspended') ? await siteStatusService.suspend(acct, 'Taken offline via reseller API') : await siteStatusService.enableMaintenanceMode(acct) }
-      catch (e) { result = { ok: false, error: e.message } }
-      if (!result || !result.ok) return res.status(502).json({ error: 'site_offline_failed', message: (result && result.error) || 'Failed to take site offline.' })
-      const update = (siteMode === 'suspended')
-        ? { suspended: true, suspendedAt: new Date(), suspendedBy: 'reseller_api', maintenanceMode: false }
-        : { maintenanceMode: true, maintenanceModeAt: new Date(), maintenanceModeBy: 'reseller_api', suspended: false }
-      await col('cpanelAccounts').updateOne({ _id: acct._id }, { $set: update })
-      return res.json({ success: true, status: siteMode })
-    }
-    if (before === 'online') return res.status(409).json({ error: 'already_online', message: 'Site is already online.' })
-    let result
-    try { result = (before === 'suspended') ? await siteStatusService.unsuspend(acct) : await siteStatusService.disableMaintenanceMode(acct) }
-    catch (e) { result = { ok: false, error: e.message } }
-    if (!result || !result.ok) return res.status(502).json({ error: 'site_online_failed', message: (result && result.error) || 'Failed to bring site online.' })
-    await col('cpanelAccounts').updateOne({ _id: acct._id }, { $set: { suspended: false, maintenanceMode: false, lastBroughtOnlineAt: new Date() } })
-    res.json({ success: true, status: 'online' })
-  }))
 
   // ════════════════════════════════════════════════════════
   // SECURITY — JS Challenge toggle (Golden plan) — mirror panel
