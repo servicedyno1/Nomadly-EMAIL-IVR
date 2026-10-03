@@ -429,17 +429,17 @@ function endpointGroups(base) {
         },
         {
           method: 'POST', path: '/hosting', auth: true, billed: true,
-          desc: 'Create a cPanel hosting account. Use domain_mode "byo" to host a domain you already own, or "buy" to register a new domain in the same call (domain price is added to the charge).',
+          desc: 'Create a cPanel hosting account. domain_mode "buy" registers a new domain in the same call (domain price is added to the charge); "existing" links a domain you already registered on this platform (already on Cloudflare); "external" connects a domain held at an outside registrar (you then point its nameservers at Cloudflare). Legacy "byo" is treated as "external".',
           params: [
             ['plan_id', true, 'A plan_id from GET /hosting/plans'],
             ['domain', true, 'The primary domain for the account'],
-            ['domain_mode', false, '"byo" (default) or "buy"'],
+            ['domain_mode', false, '"buy" | "existing" | "external" (legacy "byo" = external, default)'],
             ['email', false, 'Contact email for the account'],
           ],
           curl: `curl -s -X POST ${base}/hosting \\
   -H "Authorization: Bearer YOUR_API_KEY" \\
   -H "Content-Type: application/json" \\
-  -d '{"plan_id":"golden-monthly","domain":"mysite.com","domain_mode":"byo","email":"client@mysite.com"}'`,
+  -d '{"plan_id":"golden-monthly","domain":"mysite.com","domain_mode":"external","email":"client@mysite.com"}'`,
           resp: `{
   "mode": "live",
   "product": "hosting",
@@ -902,8 +902,10 @@ function endpointGroups(base) {
   -H "Authorization: Bearer YOUR_API_KEY" -H "Content-Type: application/json" -d '{"domain":"blog.com"}'`, resp: `{ "success": true, "oldDomain": "mysite.com", "newDomain": "blog.com" }` },
         { method: 'GET', path: '/hosting/:user/domains/ns-status', auth: true, billed: false, desc: 'Cloudflare nameserver / zone activation status for a domain.', params: [['domain', true, 'Domain to check']], curl: `curl -s "${base}/hosting/mysite01/domains/ns-status?domain=mysite.com" \\
   -H "Authorization: Bearer YOUR_API_KEY"`, resp: `{ "status": "active", "nameservers": ["ada.ns.cloudflare.com","rob.ns.cloudflare.com"], "zoneId": "…" }` },
-        { method: 'GET', path: '/hosting/:user/site-status', auth: true, billed: false, desc: 'Whether the site is online, in maintenance, or suspended. Change with POST /hosting/:user/site-status {action:"take_offline"|"bring_online", mode:"maintenance"|"suspended"}.', curl: `curl -s ${base}/hosting/mysite01/site-status \\
-  -H "Authorization: Bearer YOUR_API_KEY"`, resp: `{ "status": "online", "domain": "mysite.com", "plan": "Golden Anti-Red HostPanel (1-Month)", "autoRenew": true }` },
+        { method: 'GET', path: '/hosting/:user/site-status', auth: true, billed: false, desc: 'Whether the site is online, in maintenance, or suspended. Change with POST /hosting/:user/site-status {action:"take_offline"|"bring_online", mode:"maintenance"|"suspended"}. Also available at the legacy alias /hosting/:user/account/site-status.', curl: `curl -s ${base}/hosting/mysite01/site-status \\
+  -H "Authorization: Bearer YOUR_API_KEY"`, resp: `{ "status": "online", "domain": "mysite.com", "plan": "Golden Anti-Red HostPanel (1-Month)", "auto_renew": true }` },
+        { method: 'POST', path: '/hosting/:user/auto-renew', auth: true, billed: false, desc: 'Turn auto-renew on or off for a hosting plan. Send {enabled:true|false} to set it explicitly, or omit the body to toggle the current value.', params: [['enabled', false, 'boolean — omit to toggle']], curl: `curl -s -X POST ${base}/hosting/mysite01/auto-renew \\
+  -H "Authorization: Bearer YOUR_API_KEY" -H "Content-Type: application/json" -d '{"enabled":false}'`, resp: `{ "username": "mysite01", "domain": "mysite.com", "auto_renew": false }` },
         { method: 'POST', path: '/hosting/:user/security/js-challenge', auth: true, billed: false, desc: 'Enable/disable the JS "verify your browser" challenge for the primary domain (Golden plan only). Read state: GET /security/js-challenge.', params: [['enabled', true, 'boolean']], curl: `curl -s -X POST ${base}/hosting/mysite01/security/js-challenge \\
   -H "Authorization: Bearer YOUR_API_KEY" -H "Content-Type: application/json" -d '{"enabled":true}'`, resp: `{ "jsChallengeEnabled": true, "workerRoutes": { "success": true } }` },
         { method: 'POST', path: '/hosting/:user/files/upload-chunk', auth: true, billed: false, desc: 'Large-file upload via base64 chunks (up to 100 MB). Send each chunk with the same uploadId; the API acks {status:"chunk-received"} until the final chunk assembles and uploads. Cancel with POST /files/upload-chunk/cancel {uploadId}.', params: [['uploadId', true, 'Client-generated id for the upload'], ['chunkIndex', true, '0-based chunk index'], ['totalChunks', true, 'Total number of chunks'], ['fileName', true, 'Target file name'], ['dir', true, 'Target directory'], ['content_base64', true, 'Base64 of this chunk']], curl: `curl -s -X POST ${base}/hosting/mysite01/files/upload-chunk \\

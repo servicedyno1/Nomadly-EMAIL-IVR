@@ -29,6 +29,16 @@ const QUEUED_PROVISIONING_MSG = {
 async function registerDomainAndCreateCpanel(send, info, keyboardButtons, state, bot = null) {
   const lang = info?.userLanguage ?? 'en'
   const chatId = info._id
+  // ── Domain-ownership chatId (ISSUE-8 FIX, 2026-10) ──
+  // `chatId` (= info._id) is the SESSION/state key. For the Telegram bot and the
+  // web store this IS the owner. For the Reseller API it is a synthetic
+  // `reseller_<uuid>` used only to isolate the provisioning session state — the
+  // REAL owner is the API key's bot chatId, passed in as info.ownerChatId.
+  // All DOMAIN-ownership persistence (domainsOf map, registeredDomains.ownerChatId,
+  // the cpanelAccounts.chatId tag) MUST key off the real owner so GET /domains,
+  // /renewals, captcha/honeypot AND the bot's "My Domain Names" all see it.
+  // Falls back to chatId when ownerChatId is absent → no change for bot/store.
+  const ownerChatId = info.ownerChatId ? String(info.ownerChatId) : String(chatId)
   const domain = info.website_name
 
   // ── domainRegistered tracker (2026-07-06 defense-in-depth) ──
@@ -78,7 +88,7 @@ async function registerDomainAndCreateCpanel(send, info, keyboardButtons, state,
     if (!info.skipDomainRegistration) {
       const alreadyReg = await guardDb.collection('registeredDomains').findOne({
         _id: domain,
-        'val.ownerChatId': String(chatId),
+        'val.ownerChatId': ownerChatId,
         'val.status': 'registered',
       })
       if (alreadyReg) {
@@ -107,7 +117,7 @@ async function registerDomainAndCreateCpanel(send, info, keyboardButtons, state,
       const archiveDb = archiveClient.db(process.env.DB_NAME || 'test')
       const oldTerminated = await archiveDb.collection('cpanelAccounts').find({
         domain: domain,
-        chatId: String(chatId),
+        chatId: ownerChatId,
         $or: [{ deleted: true }, { terminatedOnWhm: true }],
       }).toArray()
       if (oldTerminated.length > 0) {
@@ -283,7 +293,7 @@ async function registerDomainAndCreateCpanel(send, info, keyboardButtons, state,
         await regClient.connect()
         const regDb = regClient.db(process.env.DB_NAME || 'test')
 
-        const regResult = await domainService.registerDomain(domain, registrar, regNsChoice, regDb, chatId)
+        const regResult = await domainService.registerDomain(domain, registrar, regNsChoice, regDb, ownerChatId)
         await regClient.close()
 
         if (regResult.success) {
@@ -328,7 +338,7 @@ async function registerDomainAndCreateCpanel(send, info, keyboardButtons, state,
           const regDb2 = regClient2.db(process.env.DB_NAME || 'test')
           const domainKey = domain.replace(/\./g, '@')
           await regDb2.collection('domainsOf').updateOne(
-            { _id: String(chatId) },
+            { _id: ownerChatId },
             { $set: { [domainKey]: true } },
             { upsert: true }
           )
@@ -343,7 +353,7 @@ async function registerDomainAndCreateCpanel(send, info, keyboardButtons, state,
                 nameserverType: regNsChoice,
                 nameservers: regResult.nameservers || [],
                 autoRenew: true,
-                ownerChatId: String(chatId),
+                ownerChatId: ownerChatId,
                 status: 'registered',
                 registeredAt: new Date(),
                 linkedAt: new Date(),
@@ -367,7 +377,7 @@ async function registerDomainAndCreateCpanel(send, info, keyboardButtons, state,
                 regDb2,
                 domain,
                 regResult.nameservers,
-                String(chatId)
+                ownerChatId
               )
               if (!guard.healthy) {
                 info._delegationDeferred = true
@@ -768,7 +778,7 @@ NS2: <code>${cfNameservers[1]}</code>
       const stored = await cpAuth.storeCredentials(cpanelAccountsCol, {
         cpUser: result.username,
         cpPass: result.password,
-        chatId: String(chatId),
+        chatId: ownerChatId,
         email: info.email || null,
         domain: domain,
         plan: info.plan,
