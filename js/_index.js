@@ -40440,6 +40440,56 @@ app.get('/dev/domain-payment-msg-test', (req, res) => {
   })
 })
 
+// ── DEV-ONLY: verify custom-domain shortlink analytics reporting ───────────
+// Reported 2026-10-03: a user's CUSTOM-DOMAIN shortlink (e.g. sfrsclaim.com/recovery)
+// showed "📊 analytics not available" under "View Shortlink Analytics" even though
+// every hit IS recorded in the clicksOn collection by app.get('/:id'). Root cause:
+// getAnalyticsCapability()'s fallback marked any non-SELF_URL / non-bitly host as
+// unavailable, so the real click count was hidden. This runs representative links
+// through the REAL getAnalyticsCapability + formatLinks render path (exactly what
+// getShortLinks → "My Links" produces) and asserts a custom-domain link now shows
+// its click count, while genuine no-stats externals (srtn.me, ap1s.net) still say
+// N/A and bitly still reports. Read-only — no DB writes. 404 in production.
+app.get('/dev/shortlink-analytics-test', (req, res) => {
+  if ((process.env.BOT_ENVIRONMENT || '').toLowerCase() === 'production') {
+    return res.status(404).json({ error: 'not found' })
+  }
+  const t = translation('t', 'en')
+
+  // Mirror exactly what getShortLinks() builds for each link type:
+  //   clicks    ← clicksOn collection (unchanged by the fix)
+  //   shorter   ← display short URL
+  //   analytics ← getAnalyticsCapability(shorter)   ← the piece that was broken
+  const sampleLinks = [
+    { clicks: 7,  shorter: 'sfrsclaim.com/recovery',    url: 'https://smilefundsrecoveryservice.com/', analytics: getAnalyticsCapability('sfrsclaim.com/recovery') },
+    { clicks: 3,  shorter: 'https://mydomain.com/promo', url: 'https://example.com/landing',            analytics: getAnalyticsCapability('https://mydomain.com/promo') },
+    { clicks: 0,  shorter: 'https://srtn.me/abc',        url: 'https://example.com',                     analytics: getAnalyticsCapability('https://srtn.me/abc') },
+    { clicks: 0,  shorter: 'https://ap1s.net/xyz',       url: 'https://example.com',                     analytics: getAnalyticsCapability('https://ap1s.net/xyz') },
+    { clicks: 11, shorter: 'https://bit.ly/zzz',         url: 'https://example.com',                     analytics: getAnalyticsCapability('https://bit.ly/zzz') },
+  ]
+
+  const rendered = formatLinks(sampleLinks, t)
+  const [customDomainLine, customDomainLine2, srtnLine, ap1sLine, bitlyLine] = rendered
+
+  const customShowsClicks =
+    /\b7 clicks\b/.test(customDomainLine) && !/analytics not available/i.test(customDomainLine) &&
+    /\b3 clicks\b/.test(customDomainLine2) && !/analytics not available/i.test(customDomainLine2)
+  const externalsStillNA =
+    /analytics not available/i.test(srtnLine) &&
+    /analytics not available/i.test(ap1sLine)
+  const bitlyShowsClicks =
+    /\b11 clicks\b/.test(bitlyLine) && !/analytics not available/i.test(bitlyLine)
+
+  return res.json({
+    ok: customShowsClicks && externalsStillNA && bitlyShowsClicks,
+    customShowsClicks,
+    externalsStillNA,
+    bitlyShowsClicks,
+    capabilities: sampleLinks.map(l => ({ shorter: l.shorter, analytics: l.analytics })),
+    rendered,
+  })
+})
+
 // ── DEV-ONLY: preview the File Manager EPERM decision (@hellpeaces fix) ─────
 // Given a simulated cPanel failure reason, returns what the /files & /files/mkdir
 // routes would now do: detect the broken-homedir EPERM class, surface a calm
