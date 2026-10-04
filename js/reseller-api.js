@@ -40,6 +40,7 @@ const antiRed = require('./anti-red-service')                 // resolveDomainCf
 const addonFlow = require('./addon-domain-flow')              // attachAddonDomain
 const cpanelAuth = require('./cpanel-auth')                   // resetPin (reveal = reset, prod mutation)
 const { registerHostingMgmtRoutes } = require('./reseller-hosting-mgmt') // in-account cPanel mgmt (reuses cpanel-proxy + services, no duplication)
+const { registerShortenerRoutes } = require('./reseller-shortener')      // URL shortener: buy/connect domain + link CRUD (reuses fullUrlOf/linksOf/clicksOn)
 
 // Customer-facing HostPanel URL (same one the Telegram bot shows).
 function panelUrl() {
@@ -258,7 +259,7 @@ function createResellerApi(deps = {}) {
   // ════════════════════════════════════════════════════════
   router.get('/health', (req, res) => res.json({
     ok: true, service: 'reseller-api', version: 'v1', mode: mode(),
-    products: ['domains', 'dns', 'vps', 'rdp', 'hosting'],
+    products: ['domains', 'dns', 'vps', 'rdp', 'hosting', 'shortener'],
   }))
 
   router.get('/account', apiKeyAuth, h(async (req, res) => {
@@ -1505,6 +1506,11 @@ function createResellerApi(deps = {}) {
   // routes win first. Reuses cpanel-proxy.js + services (no duplicated logic).
   // ════════════════════════════════════════════════════════
   registerHostingMgmtRoutes({ router, apiKeyAuth, h, col, getDb, loadOwnedCpanel, isLive, mode, log })
+
+  // URL Shortener — activate domains (buy/existing/external) + full link CRUD. Buying a domain
+  // reuses domain pricing (billed); activation + links are FREE. Reuses the existing self-hosted
+  // shortener (fullUrlOf/linksOf/clicksOn/expiryOf) so links resolve through app.get('/:id').
+  registerShortenerRoutes({ router, apiKeyAuth, h, col, getDb, isLive, mode, log, billedProvision })
 
   // Account details/usage — 2-segment dynamic route registered LAST so the
   // literal 3-segment routes above (renew/upgrade/addons/login/…) win first.
