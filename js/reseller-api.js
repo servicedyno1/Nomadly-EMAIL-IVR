@@ -706,41 +706,60 @@ function createResellerApi(deps = {}) {
     }
   }
 
-  // POST /rdp/:id/renew {months} → extend the paid period (1/2/3 months, bundle-discounted),
-  // power the box back on if it was expired/in grace, and CLEAR the 3-day grace state so the
-  // RDP-service safety-net sweep + the bot scheduler stop counting it down for deletion.
-  // Billed against the API key's wallet (mirrors GET /rdp/plans pricing).
-  async function rdpRenewHandler(req, res) {
-    const rec = await loadOwnedVps(req, req.params.id, true)
+  // POST /vps/:id/renew and /rdp/:id/renew {months} → extend the paid period, power the box back
+  // on if it was expired/in grace, and CLEAR the grace/cancel state so neither the bot scheduler
+  // nor the VPS/RDP-service safety-net sweep counts it down for deletion. Billed to the API key's
+  // wallet (mirrors GET /vps|/rdp/plans pricing). Shared handler, isRDP selects the provider.
+  async function vpsRenewHandler(req, res, isRDP) {
+    const label = isRDP ? 'RDP' : 'VPS'
+    const rec = await loadOwnedVps(req, req.params.id, isRDP)
     if (!rec) return res.status(404).json({ error: 'not_found' })
     const destroyedByGrace = rec.cancelReason === 'expired_grace' || rec.destroy_reason === 'expired_grace'
     if (destroyedByGrace || ['destroyed', 'DESTROYED', 'CANCELLED', 'DELETED'].includes(String(rec.status))) {
-      return res.status(409).json({ error: 'already_destroyed', message: 'This RDP was permanently deleted (grace period ended) and cannot be renewed. Order a new one.' })
+      return res.status(409).json({ error: 'already_destroyed', message: `This ${label} was permanently deleted (grace period ended) and cannot be renewed. Order a new one.` })
     }
-    const prov = rdpProviderForRecord(rec)
-    const months = Math.min(3, Math.max(1, parseInt(req.body?.months, 10) || 1))
-    // Price the renewal for the record's tier at the requested month count (bundle discount applies).
-    const slug = String(rec.productId || '').replace(/-\d+m$/i, '')
-    const product = (slug && typeof prov.getProduct === 'function') ? prov.getProduct(`${slug}-${months}m`) : null
-    if (!product || !product.pricing) {
-      return res.status(400).json({ error: 'pricing_failed', message: 'Could not determine a renewal price for this RDP plan. Contact support.' })
+    const prov = isRDP ? rdpProviderForRecord(rec) : vpsProvider.getProviderForRecord(rec)
+    const months = Math.min(isRDP ? 3 : 12, Math.max(1, parseInt(req.body?.months, 10) || 1))
+    // Pricing differs by product model:
+    //   RDP → month-bundled products (1m/2m/3m) with term discounts (getProduct('slug-Nm')).
+    //   VPS → single-term (monthly) product; renew = stored monthly price × months, mirroring the
+    //         bot's VPS auto-renew which charges record.planPrice for the plan's native duration.
+    let priceUsd = null
+    let planName = rec.plan
+    if (isRDP) {
+      const slug = String(rec.productId || '').replace(/-\d+m$/i, '')
+      const product = (slug && typeof prov.getProduct === 'function') ? prov.getProduct(`${slug}-${months}m`) : null
+      if (!product || !product.pricing) {
+        return res.status(400).json({ error: 'pricing_failed', message: `Could not determine a renewal price for this RDP plan${months > 1 ? ` at ${months} month(s)` : ''}. Contact support.` })
+      }
+      priceUsd = product.pricing.totalWithMarkup
+      planName = rec.plan || product.name
+    } else {
+      let unit = Number(rec.planPrice)
+      if (!unit && typeof prov.getProduct === 'function') { const p = prov.getProduct(rec.productId); if (p && p.pricing) { unit = p.pricing.totalWithMarkup; planName = rec.plan || p.name } }
+      if (!unit) return res.status(400).json({ error: 'pricing_failed', message: 'Could not determine a renewal price for this VPS. Contact support.' })
+      priceUsd = +(unit * months).toFixed(2)
     }
-    if (!rec.instanceId || typeof prov.renewInstance !== 'function') return res.status(501).json({ error: 'not_supported' })
+    const canProviderRenew = !!rec.instanceId && typeof prov.renewInstance === 'function'
+    // RDP must power the box back on + cancel its pending deletion via the provider. VPS on PAYG
+    // providers (DigitalOcean/Vultr/Azure) has no provider "renew" op — the box keeps running and
+    // renewal is just the wallet charge + expiry extension (mirrors the bot's _syncProviderRenewal).
+    if (isRDP && !canProviderRenew) return res.status(501).json({ error: 'not_supported', message: 'This RDP cannot be renewed automatically. Contact support.' })
 
     return billedProvision(req, res, {
-      product: 'rdp', action: 'renew', priceUsd: product.pricing.totalWithMarkup,
-      request: { id: rec.vpsId || rec._id, months, plan: rec.plan || product.name },
+      product: isRDP ? 'rdp' : 'vps', action: 'renew', priceUsd,
+      request: { id: rec.vpsId || rec._id, months, plan: planName },
       provision: async () => {
-        const r = await prov.renewInstance(rec.instanceId, months)
+        const r = canProviderRenew ? await prov.renewInstance(rec.instanceId, months) : null
         const base = (rec.end_time && new Date(rec.end_time) > new Date()) ? new Date(rec.end_time) : new Date()
         const newExpiry = r?.expires_at ? new Date(r.expires_at) : new Date(base.getTime() + 30 * months * 86400000)
         // Mirror onto vpsPlansOf: back to good standing + clear every grace/cancel field so
-        // neither the bot scheduler nor the RDP-service sweep destroys the box.
+        // neither the bot scheduler nor the VPS/RDP-service sweep destroys the box.
         await col('vpsPlansOf').updateOne({ _id: rec._id }, {
           $set: { status: 'RUNNING', end_time: newExpiry, renewed_at: new Date() },
           $unset: { expired_at: '', grace_until: '', _graceReminderSent: '', cancelReason: '', cancelledAt: '', deleteRetryCount: '', lastDeleteError: '', lastDeleteAlertAt: '' },
         })
-        return { success: true, id: rec.vpsId || rec._id, months, plan: rec.plan || product.name, expires_at: newExpiry.toISOString() }
+        return { success: true, id: rec.vpsId || rec._id, months, plan: planName, expires_at: newExpiry.toISOString() }
       },
     })
   }
@@ -753,6 +772,7 @@ function createResellerApi(deps = {}) {
   router.post('/vps/:id/action', apiKeyAuth, h((req, res) => vpsActionHandler(req, res, false)))
   router.delete('/vps/:id', apiKeyAuth, h((req, res) => vpsDestroyHandler(req, res, false)))
   router.get('/vps/:id/credentials', apiKeyAuth, h((req, res) => vpsCredsHandler(req, res, false)))
+  router.post('/vps/:id/renew', apiKeyAuth, h((req, res) => vpsRenewHandler(req, res, false)))
 
   // RDP routes (Windows)
   router.get('/rdp/plans', apiKeyAuth, h((req, res) => vpsPlansHandler(req, res, true)))
@@ -762,7 +782,7 @@ function createResellerApi(deps = {}) {
   router.post('/rdp/:id/action', apiKeyAuth, h((req, res) => vpsActionHandler(req, res, true)))
   router.post('/rdp/:id/password-reset', apiKeyAuth, h((req, res) => rdpPasswordResetHandler(req, res)))
   router.post('/rdp/:id/reinstall', apiKeyAuth, h((req, res) => rdpReinstallHandler(req, res)))
-  router.post('/rdp/:id/renew', apiKeyAuth, h((req, res) => rdpRenewHandler(req, res)))
+  router.post('/rdp/:id/renew', apiKeyAuth, h((req, res) => vpsRenewHandler(req, res, true)))
   router.delete('/rdp/:id', apiKeyAuth, h((req, res) => vpsDestroyHandler(req, res, true)))
   router.get('/rdp/:id/credentials', apiKeyAuth, h((req, res) => vpsCredsHandler(req, res, true)))
 
@@ -893,6 +913,7 @@ function createResellerApi(deps = {}) {
         const u = d._id || d.username
         const suspended = Object.prototype.hasOwnProperty.call(liveSuspendedByUser, d._id) ? liveSuspendedByUser[d._id] : !!d.suspended
         return {
+          id: u,
           username: u,
           domain: d.domain,
           plan: d.plan || null,
@@ -1022,6 +1043,48 @@ function createResellerApi(deps = {}) {
     else return res.status(400).json({ error: 'invalid_body', message: 'Optional body { "enabled": true|false }; omit to toggle.' })
     await col('cpanelAccounts').updateOne({ _id: acct._id }, { $set: { autoRenew: newAutoRenew } })
     res.json({ username: acct._id, domain: acct.domain, auto_renew: newAutoRenew })
+  }))
+
+  // ── Manual hosting renew ──
+  // Extend a hosting plan by its native billing period(s), charged to the API key's wallet at the
+  // plan's renewal price (getPlanPrice × periods). Mirrors the bot's renew flow: verifies the WHM
+  // account still exists, pushes expiry out, unsuspends if suspended and re-deploys anti-red.
+  // Body { periods?: 1..12 } (default 1). Billed (dry-run on a sandbox pod).
+  router.post('/hosting/:user/renew', apiKeyAuth, h(async (req, res) => {
+    const acct = await loadOwnedCpanel(req, req.params.user)
+    if (!acct) return res.status(404).json({ error: 'not_found' })
+    if (acct.deleted || acct.terminatedOnWhm) return res.status(409).json({ error: 'account_terminated', message: 'This hosting account was terminated and cannot be renewed. Order a new plan.' })
+    const { getPlanPrice, getPlanDuration } = require('./hosting-scheduler')
+    const periods = Math.min(12, Math.max(1, parseInt(req.body?.periods, 10) || 1))
+    const unitPrice = Number(getPlanPrice(acct))
+    const duration = Number(getPlanDuration(acct.plan))
+    if (!unitPrice || !duration) return res.status(400).json({ error: 'pricing_failed', message: 'Could not determine a renewal price/duration for this plan. Contact support.' })
+    const priceUsd = +(unitPrice * periods).toFixed(2)
+
+    return billedProvision(req, res, {
+      product: 'hosting', action: 'renew', priceUsd,
+      request: { id: acct._id, username: acct._id, domain: acct.domain, plan: acct.plan, periods },
+      provision: async () => {
+        // Make sure the underlying WHM account still exists before extending (else it was terminated).
+        const whm = require('./whm-service')
+        const info = await whm.getAccountInfo(acct.cpUser).catch(() => ({ success: false }))
+        if (!info || info.success === false) {
+          await col('cpanelAccounts').updateOne({ _id: acct._id }, { $set: { terminatedOnWhm: true, terminatedAt: new Date(), terminationNote: 'WHM account not found during reseller-API renew' } })
+          return { success: false, error: 'The underlying hosting account no longer exists on the server (terminated). Order a new plan.' }
+        }
+        const now = new Date()
+        const currentExpiry = acct.expiryDate ? new Date(acct.expiryDate) : now
+        const base = currentExpiry > now ? currentExpiry : now
+        const newExpiry = new Date(base.getTime() + duration * periods * 86400000)
+        await col('cpanelAccounts').updateOne({ _id: acct._id }, {
+          $set: { expiryDate: newExpiry, expiryNotified: false, lastRenewedAt: now, suspended: false, renewalCount: (acct.renewalCount || 0) + periods },
+          $unset: { suspendedAt: '', deleted: '', deletedAt: '', cancelledByUser: '', deletedBy: '', expiryUserNotified: '' },
+        })
+        if (acct.suspended) { try { await whm.unsuspendAccount(acct.cpUser) } catch (_) {} }
+        try { require('./anti-red-service').deployFullProtection(acct.cpUser, acct.domain, acct.plan).catch(() => {}) } catch (_) {}
+        return { success: true, id: acct._id, username: acct._id, domain: acct.domain, plan: acct.plan, periods, duration_days: duration * periods, expires_at: newExpiry.toISOString() }
+      },
+    })
   }))
 
   router.delete('/hosting/:user', apiKeyAuth, h(async (req, res) => {
@@ -1556,6 +1619,7 @@ function createResellerApi(deps = {}) {
       col('cpanelAccounts').updateOne({ _id: acct._id }, { $set: { suspended: liveSuspended, suspendedSyncedAt: new Date() } }).catch(() => {})
     }
     res.json({
+      id: acct._id || acct.username,
       username: acct._id || acct.username,
       domain: acct.domain || null,
       plan: acct.plan || null,

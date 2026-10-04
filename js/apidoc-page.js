@@ -421,6 +421,16 @@ function endpointGroups(base) {
   -H "Authorization: Bearer YOUR_API_KEY"`,
           resp: `{ "id": "b2f1c0a4-…", "ip": "203.0.113.55", "username": "root", "password": "Xy8!kP2q…", "mode": "live" }`,
         },
+        {
+          method: 'POST', path: '/vps/:id/renew', auth: true, billed: true,
+          desc: 'Renew (extend) a VPS subscription and, if it had expired, bring it out of its grace period — the server is powered back on and its scheduled deletion is cancelled. Charged from your wallet at the bundle-discounted rate for the chosen term. Returns 409 if the VPS was already permanently deleted after grace (order a new one instead). months defaults to 1 and is clamped to 1–12.',
+          params: [['months', false, 'Renewal term in months (default 1, max 12). Price uses the plan\u2019s bundle rate for that term.']],
+          curl: `curl -s -X POST ${base}/vps/b2f1c0a4-…/renew \\
+  -H "Authorization: Bearer YOUR_API_KEY" -H "Content-Type: application/json" \\
+  -d '{"months":1}'`,
+          resp: `{ "mode": "live", "product": "vps", "action": "renew", "charged_usd": 12.00, "wallet_balance_usd": 88.00,
+  "result": { "success": true, "id": "b2f1c0a4-…", "months": 1, "plan": "VPS 2vCPU / 4GB", "expires_at": "2026-07-20T10:00:00.000Z" } }`,
+        },
       ],
     },
     {
@@ -485,7 +495,7 @@ function endpointGroups(base) {
     },
     {
       id: 'hosting', title: 'cPanel Hosting',
-      blurb: 'Sell Anti-Red cPanel hosting plans. Creation is wallet-billed (plan price + domain price when domain_mode=buy).',
+      blurb: 'Sell Anti-Red cPanel hosting plans. Creation is wallet-billed (plan price + domain price when domain_mode=buy). The account "id" is its cPanel username — it is returned as both id and username, and is the value you pass as the :user path segment (so hosting reads consistently with /vps/:id and /rdp/:id).',
       endpoints: [
         {
           method: 'GET', path: '/hosting/plans', auth: true, billed: false,
@@ -545,7 +555,7 @@ function endpointGroups(base) {
   "server_ip": "68.183.77.106",
   "usage_included": true,
   "accounts": [
-    { "username": "mysite01", "domain": "mysite.com",
+    { "id": "mysite01", "username": "mysite01", "domain": "mysite.com",
       "plan": "Golden Anti-Red HostPanel (1-Month)", "suspended": false,
       "created_at": "2026-09-08T11:00:00.000Z",
       "expires_at": "2026-10-08T11:00:00.000Z",
@@ -591,6 +601,7 @@ function endpointGroups(base) {
           curl: `curl -s ${base}/hosting/mysite01 \\
   -H "Authorization: Bearer YOUR_API_KEY"`,
           resp: `{
+  "id": "mysite01",
   "username": "mysite01",
   "domain": "mysite.com",
   "plan": "Golden Anti-Red HostPanel (1-Month)",
@@ -637,14 +648,16 @@ function endpointGroups(base) {
         },
         {
           method: 'POST', path: '/hosting/:user/renew', auth: true, billed: true,
-          desc: 'Renew a hosting account for another term at the exact bot price for its plan. Extends the expiry and unsuspends if needed.',
+          desc: 'Renew a hosting account for another term at the exact bot price for its plan. Extends the expiry (from the later of today or the current expiry), unsuspends the account if it was suspended, and re-deploys anti-red protection. Verifies the account still exists on the server first (returns provisioning_failed + full refund, and marks it terminated, if it was already removed). Optional body { periods: 1..12 } renews several billing cycles at once (price × periods). Returns 409 account_terminated if the plan was already cancelled.',
+          params: [['periods', false, 'Number of billing cycles to renew at once (default 1, max 12).']],
           curl: `curl -s -X POST ${base}/hosting/mysite01/renew \\
-  -H "Authorization: Bearer YOUR_API_KEY"`,
+  -H "Authorization: Bearer YOUR_API_KEY" -H "Content-Type: application/json" \\
+  -d '{"periods":1}'`,
           resp: `{
-  "mode": "live", "product": "hosting", "action": "renew", "charged_usd": 100,
-  "wallet_balance_usd": 42.51,
-  "result": { "success": true, "username": "mysite01", "plan": "Golden Anti-Red HostPanel (1-Month)",
-    "new_expiry": "2026-11-08T11:00:00.000Z" }
+  "mode": "live", "product": "hosting", "action": "renew", "charged_usd": 100, "wallet_balance_usd": 42.51,
+  "result": { "success": true, "username": "mysite01", "domain": "mysite.com",
+    "plan": "Golden Anti-Red HostPanel (1-Month)", "periods": 1, "duration_days": 30,
+    "expires_at": "2026-11-08T11:00:00.000Z" }
 }`,
         },
         {
