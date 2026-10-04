@@ -1,0 +1,24 @@
+{
+  "summary": "Comprehensive backend testing of new Reseller URL Shortener feature (29 pytest cases, all passing). Covered: health product list, domain listing w/ seed, 3 activation sources (existing/external/buy) dry-run envelopes, owner-404 guard, invalid source/domain 400s, auth required (missing + bad key -> 401), link CRUD (custom alias, auto 7-char slug, expiry, non-activated 409, reserved alias 409, duplicate alias 409, invalid URL 400), list w/ ?domain filter, GET single + 404, PATCH disable/enable, PATCH expiry set + clear via null, PATCH empty-body & invalid-expiry 400s, DELETE flow with follow-up 404, DB redirect-compat assertion (fullUrlOf _id='golink-test@com/qa1' with val=longUrl), and /apidoc contains 'URL Shortener' + PATCH badge with no render errors.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": { "ui_bugs": [], "integration_issues": [], "design_issues": [] },
+  "test_report_links": [
+    "/app/backend/tests/test_reseller_shortener.py",
+    "/app/test_reports/pytest/shortener_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Activation dry-run envelope uses `mode: 'dry_run'` string, not a `dry_run: true` boolean — consider documenting this consistently in /apidoc so client SDKs don't check the wrong field.",
+    "Dry-run envelope for source='existing' returns `would_activate: true` but source='external' and source='buy' do not — consider standardising all three envelopes to the same shape for predictable client parsing."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_reseller_shortener.py (new)"
+  ],
+  "success_rate": { "backend": "100% (29/29)", "frontend": "N/A (skipped per request)" },
+  "test_credentials": "Reseller API key rsk_live_566a19727b74061600ef1d0b671132070b47892ab7b1d900 (owner 999000111); seeded activated domain golink-test.com",
+  "seed_data_creation": "Did not re-seed — pre-seeded golink-test.com was already present (status=completed). All test-created links are DELETE'd by test_cleanup_created_links. The fullUrlOf doc with _id 'golink-test@com/qa1' is also removed as part of cleanup via the alias delete.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Reseller shortener endpoints live at http://127.0.0.1:5000/reseller/v1/shortener/{domains,links} on the Node bot (port 5000, not /api FastAPI). Sandbox is non-live (isLive=false, SKIP_WEBHOOK_SYNC=true), so domain activation returns a dry-run envelope with mode='dry_run' — this is the expected success. Link CRUD writes real Mongo (fullUrlOf, linksOf, clicksOn, expiryOf). Key format for redirect compat: (domain+'/'+slug).replaceAll('.','@'). Run tests via: pytest /app/backend/tests/test_reseller_shortener.py -v",
+  "rca of the issue": "N/A — no bugs found."
+}

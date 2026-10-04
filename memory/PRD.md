@@ -1,5 +1,15 @@
 # PRD — Nomadly Cloud IVR + Telegram Bot
 
+## 2026-06 — Reseller API: URL Shortener (buy / connect existing / connect external) — DONE & tested (sandbox)
+- New `js/reseller-shortener.js` mounted into `reseller-api.js` (after hosting-mgmt). Reuses the existing self-hosted shortener (`fullUrlOf`/`linksOf`/`clicksOn`/`expiryOf` + `app.get('/:id')` redirect) — no new infra.
+- **Domains**: `POST /shortener/domains {domain, source}` where source = `buy` (register via domain flow, wallet-billed at domain price, then auto-activate), `existing` (owned on-account domain → free, auto CNAME+TXT via Cloudflare), `external` (domain hosted elsewhere → free; returns CNAME+TXT to add, then `POST /shortener/domains/:domain/verify`). Plus `GET /shortener/domains`, `DELETE /shortener/domains/:domain`. Activation chain reused: `ensureCloudflare` → `saveDomainInServerRailway/Render` → `addShortenerCNAME` → mark completed. Non-live pods return a `dry_run` envelope.
+- **Links** (free, own activated domains only): `POST /shortener/links {domain, url, alias?, expires_in_days?}`, `GET /shortener/links[?domain=]`, `GET /shortener/links/:slug?domain=` (+click analytics), `PATCH /shortener/links/:slug {disabled?, expires_in_days?}` (disable/enable + expiry — mapped onto `expiryOf` which the redirect's `isValid()` already honors, redirect handler untouched), `DELETE /shortener/links/:slug?domain=`. Custom-alias validation + reserved-word + collision guards.
+- Billing: 1a (buy billed; activation + links free). External: CNAME+TXT then /verify. Owner-scoped via `req.reseller.ownerChatId`.
+- `/apidoc`: new "URL Shortener" group (between DNS and VPS) + PATCH badge styling.
+- Testing: backend testing agent **29/29 pass, 0 issues** (`backend/tests/test_reseller_shortener.py`, report iteration_63). Seed: `scripts/seed_reseller_test_shortener.js` (owner 999000111, domain golink-test.com).
+- ⚠️ Not yet deployed — needs "Save to GitHub" to ship to app-main/app-wl. Live activation is only exercisable on a production pod (`RESELLER_API_LIVE`).
+
+
 ## 2026-06 — `/apidoc` page audit: brought reseller API docs to full parity
 - Audited `js/apidoc-page.js` vs. implemented routes (`reseller-api.js` + `reseller-hosting-mgmt.js`, 120 routes). Result: 0 stale entries; doc already covered endpoint families via inline sibling mentions. Only 2 truly-undocumented reseller-facing endpoints were missing → added: `GET`/`POST /hosting/honeypot/:domain` (honeypot-traps toggle, Monthly-gated) under *Hosting · Security*, and `POST /hosting/:user/change-primary` (promote any owned domain) under *Hosting · Advanced*. Blurbs updated. Verified: `/apidoc` HTTP 200, 82→84 endpoints, 0 render errors.
 - Side-check: RapidAPI URL-shortener key in `backend/.env` (`srtn-me-url-shortener.p.rapidapi.com`) is **working** (live 200); the key in the user's screenshot is the **same integration** (same host/endpoint) and also works — `.env` left unchanged per the "only if broken" condition.

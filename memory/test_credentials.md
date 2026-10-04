@@ -27,3 +27,9 @@
 - API KEY: rsk_live_566a19727b74061600ef1d0b671132070b47892ab7b1d900
 - Mode: dry_run (RESELLER_API_LIVE not set) — no WHM/Cloudflare/registrar calls.
 - Re-seed/rotate: `node /app/scripts/seed_reseller_test_owner.js`
+
+### URL Shortener test fixture — added 2026-06
+- Seed: `node /app/scripts/seed_reseller_test_shortener.js` → gives owner 999000111 an OWNED + COMPLETED shortener domain `golink-test.com` (cname target `nomadly.up.railway.app`).
+- Endpoints: `/reseller/v1/shortener/domains` (POST buy|existing|external, GET list, POST :domain/verify, DELETE :domain) and `/reseller/v1/shortener/links` (POST, GET, GET :slug?domain=, PATCH :slug, DELETE :slug?domain=).
+- On sandbox (non-live) domain activation returns a `dry_run` envelope; link CRUD writes real Mongo (`fullUrlOf`/`linksOf`/`clicksOn`/`expiryOf`, key = `domain/slug` with dots→@).
+- Pytest: `backend/tests/test_reseller_shortener.py` (29 cases, all green).
