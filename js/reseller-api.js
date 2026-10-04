@@ -254,6 +254,66 @@ function createResellerApi(deps = {}) {
     if (!res.headersSent) res.status(500).json({ error: 'internal_error', message: e.message })
   })
 
+  // ── Lifecycle / renewability helpers (shared by reads, /renewals, renew pre-flight) ──
+  // Hosting grace = the window between expiry-suspension and permanent deletion. The
+  // hosting scheduler suspends the moment a plan expires and deletes HOSTING_GRACE_HOURS
+  // later, so delete_at = expiryDate + HOSTING_GRACE_HOURS. Hosting grace is 48h (shorter
+  // than the 72h / 3-day VPS+RDP grace) — kept in sync with hosting-scheduler.GRACE_PERIOD_HOURS.
+  const HOSTING_GRACE_HOURS = 48
+
+  function hostingGraceInfo(acct, nowMs) {
+    const exp = acct.expiryDate ? new Date(acct.expiryDate) : null
+    if (!exp || isNaN(exp.getTime())) return null
+    const deleteAtMs = exp.getTime() + HOSTING_GRACE_HOURS * 3600000
+    return {
+      in_grace: true,
+      expired_at: exp.toISOString(),
+      delete_at: new Date(deleteAtMs).toISOString(),
+      grace_hours: HOSTING_GRACE_HOURS,
+      days_remaining: Math.max(0, Math.ceil((deleteAtMs - nowMs) / 86400000)),
+      hours_remaining: Math.max(0, Math.ceil((deleteAtMs - nowMs) / 3600000)),
+      _deleteAtMs: deleteAtMs,
+    }
+  }
+
+  // state ∈ online | suspended | grace | terminated. `suspended` is forced false when
+  // terminated so the legacy boolean never lies. Pass price/duration to resolve renewable.
+  function hostingLifecycle(acct, { price, duration, liveSuspended } = {}) {
+    const nowMs = Date.now()
+    const terminated = !!(acct.deleted || acct.terminatedOnWhm)
+    const exp = acct.expiryDate ? new Date(acct.expiryDate) : null
+    const expired = !!(exp && !isNaN(exp.getTime()) && exp.getTime() <= nowMs)
+    const suspended = terminated ? false : (liveSuspended != null ? liveSuspended : !!acct.suspended)
+
+    let state = 'online'
+    let grace = null
+    if (terminated) {
+      state = 'terminated'
+    } else if (expired && suspended) {
+      const g = hostingGraceInfo(acct, nowMs)
+      if (g && nowMs < g._deleteAtMs) { state = 'grace'; delete g._deleteAtMs; grace = g }
+      else state = 'suspended'
+    } else if (suspended) {
+      state = 'suspended'
+    }
+
+    let renewable = true, reason = null
+    if (terminated) { renewable = false; reason = 'account_terminated' }
+    else if (price != null && duration != null && (!(price > 0) || !(duration > 0))) { renewable = false; reason = 'pricing_unavailable' }
+    return { state, terminated, suspended, grace, renewable, renew_blocked_reason: reason }
+  }
+
+  const VPS_TERMINAL = ['CANCELLED', 'DESTROYED', 'destroyed', 'DELETED']
+  function vpsRenewability(rec, isRDP, prov) {
+    const destroyedByGrace = rec.cancelReason === 'expired_grace' || rec.destroy_reason === 'expired_grace'
+    if (destroyedByGrace || VPS_TERMINAL.includes(String(rec.status))) return { renewable: false, renew_blocked_reason: 'already_destroyed' }
+    if (isRDP) {
+      const canProviderRenew = !!rec.instanceId && prov && typeof prov.renewInstance === 'function'
+      if (!canProviderRenew) return { renewable: false, renew_blocked_reason: 'not_supported' }
+    }
+    return { renewable: true, renew_blocked_reason: null }
+  }
+
   // ════════════════════════════════════════════════════════
   // META
   // ════════════════════════════════════════════════════════
@@ -270,21 +330,25 @@ function createResellerApi(deps = {}) {
   // ── Push webhooks (optional): register a URL to receive RDP lifecycle events
   // (rdp.grace_start, rdp.deleted) instead of polling /renewals. Plain POST, no signature.
   const resellerWebhooks = require('./reseller-webhooks')
+  const WEBHOOK_DELIVERY_NOTE = 'POST signed with HMAC-SHA256. Header X-Nomadly-Signature: "sha256=<hex of HMAC(webhook_secret, raw_request_body)>" (verify it before acting on any *.deleted). Auto-retried with backoff and de-duplicated per server+event.'
   router.get('/account/webhook', apiKeyAuth, h(async (req, res) => {
-    const keyDoc = await col('resellerApiKeys').findOne({ _id: req.reseller.keyId }, { projection: { webhookUrl: 1 } })
-    res.json({ webhook_url: (keyDoc && keyDoc.webhookUrl) || null, events: ['rdp.grace_start', 'rdp.deleted'], delivery: 'POST (no signature), auto-retry with backoff' })
+    const keyDoc = await col('resellerApiKeys').findOne({ _id: req.reseller.keyId }, { projection: { webhookUrl: 1, webhookSecret: 1 } })
+    res.json({ webhook_url: (keyDoc && keyDoc.webhookUrl) || null, webhook_secret: (keyDoc && keyDoc.webhookSecret) || null, events: resellerWebhooks.EVENTS, delivery: WEBHOOK_DELIVERY_NOTE })
   }))
   router.put('/account/webhook', apiKeyAuth, h(async (req, res) => {
     const raw = req.body?.webhook_url
-    // null / '' clears the webhook.
+    // null / '' clears the URL (the signing secret is KEPT so re-enabling reuses it).
     if (raw === null || raw === '' || raw === undefined) {
       await col('resellerApiKeys').updateOne({ _id: req.reseller.keyId }, { $unset: { webhookUrl: '' } })
       return res.json({ webhook_url: null, cleared: true })
     }
     const url = String(raw).trim()
     if (!resellerWebhooks.isHttpUrl(url)) return res.status(400).json({ error: 'invalid_webhook_url', message: 'Provide a valid http(s) URL, or null to clear.' })
-    await col('resellerApiKeys').updateOne({ _id: req.reseller.keyId }, { $set: { webhookUrl: url } })
-    res.json({ webhook_url: url, events: ['rdp.grace_start', 'rdp.deleted'], delivery: 'POST (no signature), auto-retry with backoff' })
+    // Mint a signing secret on first set so the reseller can verify deliveries.
+    const keyDoc = await col('resellerApiKeys').findOne({ _id: req.reseller.keyId }, { projection: { webhookSecret: 1 } })
+    const secret = (keyDoc && keyDoc.webhookSecret) || resellerWebhooks.newWebhookSecret()
+    await col('resellerApiKeys').updateOne({ _id: req.reseller.keyId }, { $set: { webhookUrl: url, webhookSecret: secret } })
+    res.json({ webhook_url: url, webhook_secret: secret, events: resellerWebhooks.EVENTS, delivery: WEBHOOK_DELIVERY_NOTE })
   }))
 
   // ── Bot pricing catalog (the same prices the Telegram bot charges) ──
@@ -575,6 +639,7 @@ function createResellerApi(deps = {}) {
       id: d.vpsId || d._id, instance_id: d.instanceId || d.contaboInstanceId || null, ip: d.host || null,
       plan: d.plan || null, region: d.region || null, os: d.osType || null, os_id: d.osId || null, status: d.status || null,
       ...hwFromRecord(isRDP ? rdpProviderForRecord(d) : providerFor(false), d),
+      ...vpsRenewability(d, isRDP, isRDP ? rdpProviderForRecord(d) : null),
       created_at: d.start_time || d.timestamp || null,
     })) })
   }
@@ -611,6 +676,11 @@ function createResellerApi(deps = {}) {
       out.credentials_ready = !!live.provisioning.credentials_ready
       out.credentials_url = live.provisioning.credentials_ready ? `/api/reseller/v1/${isRDP ? 'rdp' : 'vps'}/${out.id}/credentials` : null
     }
+    // Renewability so a storefront can disable a dead "Renew" button without a charge→409 round-trip.
+    const _prov = isRDP ? rdpProviderForRecord(rec) : (() => { try { return vpsProvider.getProviderForRecord(rec) } catch (_) { return null } })()
+    const rn = vpsRenewability({ ...rec, status: out.status }, isRDP, _prov)
+    out.renewable = rn.renewable
+    out.renew_blocked_reason = rn.renew_blocked_reason
     res.json(out)
   }
 
@@ -716,7 +786,7 @@ function createResellerApi(deps = {}) {
     if (!rec) return res.status(404).json({ error: 'not_found' })
     const destroyedByGrace = rec.cancelReason === 'expired_grace' || rec.destroy_reason === 'expired_grace'
     if (destroyedByGrace || ['destroyed', 'DESTROYED', 'CANCELLED', 'DELETED'].includes(String(rec.status))) {
-      return res.status(409).json({ error: 'already_destroyed', message: `This ${label} was permanently deleted (grace period ended) and cannot be renewed. Order a new one.` })
+      return res.status(409).json({ error: 'already_destroyed', renew_blocked_reason: 'already_destroyed', message: `This ${label} was permanently deleted (grace period ended) and cannot be renewed. Order a new one.` })
     }
     const prov = isRDP ? rdpProviderForRecord(rec) : vpsProvider.getProviderForRecord(rec)
     const months = Math.min(isRDP ? 3 : 12, Math.max(1, parseInt(req.body?.months, 10) || 1))
@@ -730,21 +800,34 @@ function createResellerApi(deps = {}) {
       const slug = String(rec.productId || '').replace(/-\d+m$/i, '')
       const product = (slug && typeof prov.getProduct === 'function') ? prov.getProduct(`${slug}-${months}m`) : null
       if (!product || !product.pricing) {
-        return res.status(400).json({ error: 'pricing_failed', message: `Could not determine a renewal price for this RDP plan${months > 1 ? ` at ${months} month(s)` : ''}. Contact support.` })
+        return res.status(400).json({ error: 'pricing_failed', renew_blocked_reason: 'pricing_unavailable', message: `Could not determine a renewal price for this RDP plan${months > 1 ? ` at ${months} month(s)` : ''}. Contact support.` })
       }
       priceUsd = product.pricing.totalWithMarkup
       planName = rec.plan || product.name
     } else {
       let unit = Number(rec.planPrice)
       if (!unit && typeof prov.getProduct === 'function') { const p = prov.getProduct(rec.productId); if (p && p.pricing) { unit = p.pricing.totalWithMarkup; planName = rec.plan || p.name } }
-      if (!unit) return res.status(400).json({ error: 'pricing_failed', message: 'Could not determine a renewal price for this VPS. Contact support.' })
+      if (!unit) return res.status(400).json({ error: 'pricing_failed', renew_blocked_reason: 'pricing_unavailable', message: 'Could not determine a renewal price for this VPS. Contact support.' })
       priceUsd = +(unit * months).toFixed(2)
     }
     const canProviderRenew = !!rec.instanceId && typeof prov.renewInstance === 'function'
     // RDP must power the box back on + cancel its pending deletion via the provider. VPS on PAYG
     // providers (DigitalOcean/Vultr/Azure) has no provider "renew" op — the box keeps running and
     // renewal is just the wallet charge + expiry extension (mirrors the bot's _syncProviderRenewal).
-    if (isRDP && !canProviderRenew) return res.status(501).json({ error: 'not_supported', message: 'This RDP cannot be renewed automatically. Contact support.' })
+    if (isRDP && !canProviderRenew) return res.status(501).json({ error: 'not_supported', renew_blocked_reason: 'not_supported', message: 'This RDP cannot be renewed automatically. Contact support.' })
+
+    // No-charge pre-flight: {"dry_run":true} returns price + renewability WITHOUT any charge or
+    // write (works on a LIVE key too). Blocked items 409/400/501 above before we ever reach this.
+    if (req.body?.dry_run === true) {
+      const balance = await walletBalance(req.reseller.ownerChatId)
+      return res.json({
+        dry_run: true, product: isRDP ? 'rdp' : 'vps', action: 'renew',
+        id: rec.vpsId || rec._id, renewable: true, renew_blocked_reason: null,
+        months, plan: planName, price_usd: priceUsd,
+        wallet_balance_usd: balance, sufficient_balance: balance >= priceUsd,
+        note: 'Pre-flight only: nothing was charged and no state changed. Re-send without dry_run to renew.',
+      })
+    }
 
     return billedProvision(req, res, {
       product: isRDP ? 'rdp' : 'vps', action: 'renew', priceUsd,
@@ -911,13 +994,18 @@ function createResellerApi(deps = {}) {
       usage_included: wantUsage,
       accounts: docs.map(d => {
         const u = d._id || d.username
-        const suspended = Object.prototype.hasOwnProperty.call(liveSuspendedByUser, d._id) ? liveSuspendedByUser[d._id] : !!d.suspended
+        const liveSusp = Object.prototype.hasOwnProperty.call(liveSuspendedByUser, d._id) ? liveSuspendedByUser[d._id] : null
+        const lc = hostingLifecycle(d, { price: hostingScheduler.getPlanPrice(d), duration: hostingScheduler.getPlanDuration(d.plan), liveSuspended: liveSusp })
         return {
           id: u,
           username: u,
           domain: d.domain,
           plan: d.plan || null,
-          suspended,
+          suspended: lc.suspended,
+          state: lc.state,
+          grace: lc.grace,
+          renewable: lc.renewable,
+          renew_blocked_reason: lc.renew_blocked_reason,
           created_at: d.createdAt || null,
           expires_at: d.expiryDate ? new Date(d.expiryDate).toISOString() : null,
           credentials_url: `/hosting/${u}/credentials`,
@@ -1053,13 +1141,30 @@ function createResellerApi(deps = {}) {
   router.post('/hosting/:user/renew', apiKeyAuth, h(async (req, res) => {
     const acct = await loadOwnedCpanel(req, req.params.user)
     if (!acct) return res.status(404).json({ error: 'not_found' })
-    if (acct.deleted || acct.terminatedOnWhm) return res.status(409).json({ error: 'account_terminated', message: 'This hosting account was terminated and cannot be renewed. Order a new plan.' })
+    if (acct.deleted || acct.terminatedOnWhm) return res.status(409).json({ error: 'account_terminated', renew_blocked_reason: 'account_terminated', message: 'This hosting account was terminated and cannot be renewed. Order a new plan.' })
     const { getPlanPrice, getPlanDuration } = require('./hosting-scheduler')
     const periods = Math.min(12, Math.max(1, parseInt(req.body?.periods, 10) || 1))
     const unitPrice = Number(getPlanPrice(acct))
     const duration = Number(getPlanDuration(acct.plan))
-    if (!unitPrice || !duration) return res.status(400).json({ error: 'pricing_failed', message: 'Could not determine a renewal price/duration for this plan. Contact support.' })
+    if (!unitPrice || !duration) return res.status(400).json({ error: 'pricing_failed', renew_blocked_reason: 'pricing_unavailable', message: 'Could not determine a renewal price/duration for this plan. Contact support.' })
     const priceUsd = +(unitPrice * periods).toFixed(2)
+
+    // No-charge pre-flight (works on a LIVE key too): report price + renewability, change nothing.
+    if (req.body?.dry_run === true) {
+      const balance = await walletBalance(req.reseller.ownerChatId)
+      const now = new Date()
+      const base = (acct.expiryDate && new Date(acct.expiryDate) > now) ? new Date(acct.expiryDate) : now
+      const wouldExpireAt = new Date(base.getTime() + duration * periods * 86400000)
+      return res.json({
+        dry_run: true, product: 'hosting', action: 'renew',
+        id: acct._id, username: acct._id, domain: acct.domain, plan: acct.plan,
+        renewable: true, renew_blocked_reason: null,
+        periods, duration_days: duration * periods, price_usd: priceUsd,
+        wallet_balance_usd: balance, sufficient_balance: balance >= priceUsd,
+        would_expire_at: wouldExpireAt.toISOString(),
+        note: 'Pre-flight only: nothing was charged and no state changed. Re-send without dry_run to renew.',
+      })
+    }
 
     return billedProvision(req, res, {
       product: 'hosting', action: 'renew', priceUsd,
@@ -1221,19 +1326,52 @@ function createResellerApi(deps = {}) {
   router.get('/renewals', apiKeyAuth, h(async (req, res) => {
     const chatId = String(req.reseller.ownerChatId)
     const withinDays = num(req.query.days, 30)
+    // Default /renewals returns only ACTIONABLE items (upcoming / expiring_soon / grace). Terminated
+    // items are opt-in via ?include_terminated=true and bounded to the last 90 days so the payload
+    // can't grow unbounded for a high-churn reseller. Per-item `renewable` + the *.deleted webhooks
+    // cover real-time reconciliation without this list.
+    const includeTerminated = String(req.query.include_terminated || '') === 'true'
     const nowMs = Date.now()
     const DAY = 86400000
+    const TERMINATED_WINDOW_MS = 90 * DAY
     const bucket = (days) => (days < 0 ? 'expired' : (days <= 3 ? 'expiring_soon' : 'upcoming'))
+    const VPS_TERM = ['CANCELLED', 'DESTROYED', 'destroyed', 'DELETED']
     const items = []
 
     // Hosting (cpanelAccounts.expiryDate)
     try {
-      const hosting = await col('cpanelAccounts').find({ chatId, deleted: { $ne: true } }).limit(500).toArray()
+      const q = includeTerminated ? { chatId } : { chatId, deleted: { $ne: true } }
+      const hosting = await col('cpanelAccounts').find(q).limit(500).toArray()
       for (const hp of hosting) {
+        const terminated = !!(hp.deleted || hp.terminatedOnWhm)
+        if (terminated) {
+          if (!includeTerminated) continue
+          const tAt = hp.deletedAt || hp.terminatedAt || null
+          const tMs = tAt ? new Date(tAt).getTime() : null
+          if (tMs && (nowMs - tMs) > TERMINATED_WINDOW_MS) continue
+          items.push({
+            product: 'hosting', id: hp._id || hp.username, domain: hp.domain || null, plan: hp.plan || null,
+            expires_at: hp.expiryDate ? new Date(hp.expiryDate).toISOString() : null,
+            days_until_expiry: hp.expiryDate ? Math.ceil((new Date(hp.expiryDate).getTime() - nowMs) / DAY) : null,
+            status: 'terminated', state: 'terminated', terminated: true,
+            terminated_at: tMs ? new Date(tMs).toISOString() : null,
+            suspended: false, auto_renew: false, renewable: false, renew_blocked_reason: 'account_terminated',
+          })
+          continue
+        }
         if (!hp.expiryDate) continue
         const exp = new Date(hp.expiryDate); if (isNaN(exp)) continue
         const days = Math.ceil((exp.getTime() - nowMs) / DAY)
-        items.push({ product: 'hosting', id: hp._id || hp.username, domain: hp.domain || null, plan: hp.plan || null, expires_at: exp.toISOString(), days_until_expiry: days, status: bucket(days), suspended: !!hp.suspended, auto_renew: hp.autoRenew !== false })
+        const lc = hostingLifecycle(hp, { price: hostingScheduler.getPlanPrice(hp), duration: hostingScheduler.getPlanDuration(hp.plan) })
+        const item = {
+          product: 'hosting', id: hp._id || hp.username, domain: hp.domain || null, plan: hp.plan || null,
+          expires_at: exp.toISOString(), days_until_expiry: days,
+          status: lc.state === 'grace' ? 'grace' : bucket(days),
+          state: lc.state, suspended: lc.suspended, auto_renew: hp.autoRenew !== false,
+          renewable: lc.renewable, renew_blocked_reason: lc.renew_blocked_reason,
+        }
+        if (lc.grace) { item.in_grace = true; item.expired_at = lc.grace.expired_at; item.delete_at = lc.grace.delete_at; item.days_until_deletion = lc.grace.days_remaining }
+        items.push(item)
       }
     } catch (e) { log(`[ResellerAPI] renewals hosting warn: ${e.message}`) }
 
@@ -1251,18 +1389,35 @@ function createResellerApi(deps = {}) {
 
     // VPS + RDP (reseller-owned flat docs)
     try {
-      const vpsDocs = await col('vpsPlansOf').find({ chatId, status: { $ne: 'destroyed' } }).limit(500).toArray()
-      const TERMINAL = ['CANCELLED', 'DESTROYED', 'destroyed', 'DELETED']
+      const q = includeTerminated ? { chatId } : { chatId, status: { $nin: VPS_TERM } }
+      const vpsDocs = await col('vpsPlansOf').find(q).limit(500).toArray()
       for (const v of vpsDocs) {
+        const terminalV = VPS_TERM.includes(String(v.status)) || v.cancelReason === 'expired_grace' || v.destroy_reason === 'expired_grace'
+        if (terminalV) {
+          if (!includeTerminated) continue
+          const tAt = v.cancelledAt || v.end_time || null
+          const tMs = tAt ? new Date(tAt).getTime() : null
+          if (tMs && (nowMs - tMs) > TERMINATED_WINDOW_MS) continue
+          items.push({
+            product: v.isRDP ? 'rdp' : 'vps', id: v.vpsId || v._id, plan: v.plan || null, region: v.region || null,
+            expires_at: v.end_time ? new Date(v.end_time).toISOString() : null,
+            days_until_expiry: v.end_time ? Math.ceil((new Date(v.end_time).getTime() - nowMs) / DAY) : null,
+            status: 'terminated', state: 'terminated', terminated: true,
+            terminated_at: tMs ? new Date(tMs).toISOString() : null,
+            renewable: false, renew_blocked_reason: 'already_destroyed',
+          })
+          continue
+        }
         const raw = v.end_time || v.expiresAt || v.subscriptionEnd || (v.subscription && v.subscription.subscriptionEnd) || null
         if (!raw) continue
         const exp = new Date(raw); if (isNaN(exp)) continue
         const days = Math.ceil((exp.getTime() - nowMs) / DAY)
-        const item = { product: v.isRDP ? 'rdp' : 'vps', id: v.vpsId || v._id, plan: v.plan || null, region: v.region || null, expires_at: exp.toISOString(), days_until_expiry: days, status: bucket(days) }
+        const rn = vpsRenewability(v, v.isRDP, v.isRDP ? rdpProviderForRecord(v) : null)
+        const item = { product: v.isRDP ? 'rdp' : 'vps', id: v.vpsId || v._id, plan: v.plan || null, region: v.region || null, expires_at: exp.toISOString(), days_until_expiry: days, status: bucket(days), renewable: rn.renewable, renew_blocked_reason: rn.renew_blocked_reason }
         // RDP 3-day grace: an expired-but-not-yet-deleted box is powered off and pending
         // permanent deletion at grace_until. Surface it so a polling reseller can renew in time.
         const graceUntil = v.grace_until ? new Date(v.grace_until) : null
-        if (v.isRDP && graceUntil && !isNaN(graceUntil.getTime()) && !TERMINAL.includes(String(v.status))) {
+        if (v.isRDP && graceUntil && !isNaN(graceUntil.getTime()) && !VPS_TERM.includes(String(v.status))) {
           item.status = 'grace'
           item.in_grace = true
           item.expired_at = v.expired_at ? new Date(v.expired_at).toISOString() : null
@@ -1273,15 +1428,20 @@ function createResellerApi(deps = {}) {
       }
     } catch (e) { log(`[ResellerAPI] renewals vps warn: ${e.message}`) }
 
-    const filtered = items.filter(i => i.days_until_expiry <= withinDays).sort((a, b) => a.days_until_expiry - b.days_until_expiry)
+    // Keep actionable items within the window PLUS every (opt-in) terminated item.
+    const filtered = items
+      .filter(i => i.terminated === true || (i.days_until_expiry != null && i.days_until_expiry <= withinDays))
+      .sort((a, b) => (a.days_until_expiry == null ? 1e9 : a.days_until_expiry) - (b.days_until_expiry == null ? 1e9 : b.days_until_expiry))
     res.json({
       within_days: withinDays,
+      include_terminated: includeTerminated,
       count: filtered.length,
       summary: {
         expired: filtered.filter(i => i.status === 'expired').length,
         expiring_soon: filtered.filter(i => i.status === 'expiring_soon').length,
         upcoming: filtered.filter(i => i.status === 'upcoming').length,
         in_grace: filtered.filter(i => i.status === 'grace').length,
+        terminated: filtered.filter(i => i.status === 'terminated').length,
       },
       renewals: filtered,
     })
@@ -1397,52 +1557,10 @@ function createResellerApi(deps = {}) {
   }))
 
   // ════════════════════════════════════════════════════════
-  // HOSTING — details, renew, upgrade, addon domains
+  // HOSTING — details, upgrade, addon domains
+  // (manual renew lives above at POST /hosting/:user/renew — the periods-aware,
+  //  dry-run-capable handler; the earlier duplicate here was dead code and removed.)
   // ════════════════════════════════════════════════════════
-  router.post('/hosting/:user/renew', apiKeyAuth, h(async (req, res) => {
-    const acct = await loadOwnedCpanel(req, req.params.user)
-    if (!acct) return res.status(404).json({ error: 'not_found' })
-    const price = hostingScheduler.getPlanPrice(acct)
-    const durationDays = hostingScheduler.getPlanDuration(acct.plan)
-    if (!price || price <= 0) return res.status(502).json({ error: 'pricing_failed', message: 'Could not determine a renewal price for this plan.' })
-    return billedProvision(req, res, {
-      product: 'hosting', action: 'renew', priceUsd: price,
-      request: { username: acct._id, domain: acct.domain, plan: acct.plan, duration_days: durationDays },
-      provision: async () => {
-        // ISSUE-3 FIX (2026-10): mirror the bot's renew.
-        // 1) Verify the WHM account still exists BEFORE keeping the charge — a grace-period
-        //    termination means there's nothing to renew. Returning {success:false} makes
-        //    billedProvision refund the wallet, and we flag the row as terminated-on-WHM.
-        try {
-          const info = await whmService.getAccountInfo(acct._id)
-          if (!info || !info.success) {
-            await col('cpanelAccounts').updateOne({ _id: acct._id }, { $set: { terminatedOnWhm: true, terminatedAt: new Date(), terminationNote: 'WHM account not found during renew attempt' } })
-            return { success: false, error: 'This hosting account has been terminated on the server (not renewed within the grace period). Purchase a new plan to restore it.' }
-          }
-        } catch (e) { return { success: false, error: `WHM account check failed: ${e.message}` } }
-        // 2) Extend from the later of now / current expiry; reset notification + renewal counters.
-        const base = (acct.expiryDate && new Date(acct.expiryDate) > new Date()) ? new Date(acct.expiryDate) : new Date()
-        const newExpiry = new Date(base.getTime() + durationDays * 86400000)
-        await col('cpanelAccounts').updateOne({ _id: acct._id }, {
-          $set: {
-            expiryDate: newExpiry, lastRenewedAt: new Date(), renewalPriceUsd: price,
-            suspended: false, suspendedReason: null, autoRenewLastError: null,
-            expiryNotified: false, renewalCount: (acct.renewalCount || 0) + 1,
-          },
-          $unset: { suspendedAt: '', deleted: '', deletedAt: '', cancelledByUser: '', deletedBy: '', expiryUserNotified: '' },
-        })
-        // 3) Unsuspend if it was suspended.
-        if (acct.suspended) { try { await whmService.unsuspendAccount(acct._id) } catch (e) { log(`[ResellerAPI] renew unsuspend warn: ${e.message}`) } }
-        // 4) Redeploy Anti-Red (non-blocking, like the bot).
-        try {
-          require('./anti-red-service').deployFullProtection(acct._id, acct.domain, acct.plan)
-            .catch(e => log(`[ResellerAPI] renew anti-red redeploy warn for ${acct.domain}: ${e.message}`))
-        } catch (_) { /* best-effort */ }
-        return { success: true, username: acct._id, domain: acct.domain, plan: acct.plan, new_expiry: newExpiry.toISOString() }
-      },
-    })
-  }))
-
   router.post('/hosting/:user/upgrade', apiKeyAuth, h(async (req, res) => {
     const acct = await loadOwnedCpanel(req, req.params.user)
     if (!acct) return res.status(404).json({ error: 'not_found' })
@@ -1582,6 +1700,46 @@ function createResellerApi(deps = {}) {
     if (!acct) return res.status(404).json({ error: 'not_found' })
     const addons = Array.isArray(acct.addonDomains) ? acct.addonDomains : []
     const nameservers = await resolveNameservers(acct)
+    // Terminated short-circuit: a cancelled/removed account has nothing on the server, so skip the
+    // WHM read and null out credentials/deliverables. Keep identifying metadata (domain/plan/
+    // expires_at/terminated_at) so a storefront can reconcile its catalog and render
+    // "Terminated — order a new plan." The legacy `suspended` boolean is forced false.
+    if (acct.deleted || acct.terminatedOnWhm) {
+      return res.json({
+        id: acct._id || acct.username,
+        username: acct._id || acct.username,
+        domain: acct.domain || null,
+        plan: acct.plan || null,
+        price_usd: hostingScheduler.getPlanPrice(acct),
+        duration_days: hostingScheduler.getPlanDuration(acct.plan),
+        state: 'terminated',
+        terminated: true,
+        terminated_at: (acct.deletedAt || acct.terminatedAt) ? new Date(acct.deletedAt || acct.terminatedAt).toISOString() : null,
+        termination_reason: acct.terminationNote || acct.suspendedReason || 'account_terminated',
+        suspended: false,
+        grace: null,
+        renewable: false,
+        renew_blocked_reason: 'account_terminated',
+        suspended_reason: acct.suspendedReason || null,
+        suspended_at: null,
+        auto_renew: false,
+        auto_renew_last_error: acct.autoRenewLastError || null,
+        auto_renew_last_attempt_at: acct.autoRenewLastAttemptAt ? new Date(acct.autoRenewLastAttemptAt).toISOString() : null,
+        auto_renew_next_attempt_at: null,
+        created_at: acct.createdAt || null,
+        expires_at: acct.expiryDate ? new Date(acct.expiryDate).toISOString() : null,
+        panel_url: null,
+        server_ip: null,
+        deliverables: null,
+        credentials_url: null,
+        addon_quota: addonQuota(acct.plan),
+        addon_domain_count: addons.length,
+        addon_domains: addons.map(a => a.domain || a),
+        usage: null,
+        note: 'This hosting account was terminated — order a new plan. Identifying metadata is retained for reconciliation only.',
+        mode: mode(),
+      })
+    }
     // Live disk/bandwidth usage from WHM (/accountsummary — a READ, safe on any
     // pod). Best-effort: null if WHM is unreachable or the account is unknown.
     let usage = null
@@ -1614,18 +1772,28 @@ function createResellerApi(deps = {}) {
     //  read `usage.suspended === true` means suspended and anything else means active.)
     const liveRead = !!(usage && !usage.error)
     const liveSuspended = liveRead ? (usage.suspended === true) : null
-    const suspended = (liveSuspended !== null) ? liveSuspended : !!acct.suspended
     if (liveSuspended !== null && liveSuspended !== !!acct.suspended) {
       col('cpanelAccounts').updateOne({ _id: acct._id }, { $set: { suspended: liveSuspended, suspendedSyncedAt: new Date() } }).catch(() => {})
     }
+    const price = hostingScheduler.getPlanPrice(acct)
+    const duration = hostingScheduler.getPlanDuration(acct.plan)
+    const lc = hostingLifecycle(acct, { price, duration, liveSuspended })
     res.json({
       id: acct._id || acct.username,
       username: acct._id || acct.username,
       domain: acct.domain || null,
       plan: acct.plan || null,
-      price_usd: hostingScheduler.getPlanPrice(acct),
-      duration_days: hostingScheduler.getPlanDuration(acct.plan),
-      suspended,
+      price_usd: price,
+      duration_days: duration,
+      // Full lifecycle so a storefront never has to infer state from suspended+expiry:
+      //   online | suspended | grace | terminated.  `grace` (when state==='grace') carries
+      //   delete_at (= expiry + 48h) + days/hours_remaining so you can message the customer.
+      state: lc.state,
+      terminated: false,
+      suspended: lc.suspended,
+      grace: lc.grace,
+      renewable: lc.renewable,
+      renew_blocked_reason: lc.renew_blocked_reason,
       // GAP-4 FIX (2026-09): surface WHY the account is suspended / why auto-renew didn't run, so an
       // integrator can act (e.g. auto_renew_last_error 'insufficient_funds' → top up wallet, then
       // POST /hosting/:user/renew). Populated by the hosting scheduler's expiry/auto-renew sweep.
@@ -1634,8 +1802,11 @@ function createResellerApi(deps = {}) {
       auto_renew: acct.autoRenew !== false,
       auto_renew_last_error: acct.autoRenewLastError || null,
       auto_renew_last_attempt_at: acct.autoRenewLastAttemptAt ? new Date(acct.autoRenewLastAttemptAt).toISOString() : null,
+      auto_renew_next_attempt_at: acct.autoRenewNextAttemptAt ? new Date(acct.autoRenewNextAttemptAt).toISOString() : null,
       created_at: acct.createdAt || null,
       expires_at: acct.expiryDate ? new Date(acct.expiryDate).toISOString() : null,
+      panel_url: panelUrl(),
+      server_ip: serverIp(),
       deliverables: hostingDeliverables(acct, nameservers),
       addon_quota: addonQuota(acct.plan),
       addon_domain_count: addons.length,
