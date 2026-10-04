@@ -495,7 +495,7 @@ function endpointGroups(base) {
     },
     {
       id: 'hosting', title: 'cPanel Hosting',
-      blurb: 'Sell Anti-Red cPanel hosting plans. Creation is wallet-billed (plan price + domain price when domain_mode=buy).',
+      blurb: 'Sell Anti-Red cPanel hosting plans. Creation is wallet-billed (plan price + domain price when domain_mode=buy). The account "id" is its cPanel username — it is returned as both id and username, and is the value you pass as the :user path segment (so hosting reads consistently with /vps/:id and /rdp/:id).',
       endpoints: [
         {
           method: 'GET', path: '/hosting/plans', auth: true, billed: false,
@@ -555,7 +555,7 @@ function endpointGroups(base) {
   "server_ip": "68.183.77.106",
   "usage_included": true,
   "accounts": [
-    { "username": "mysite01", "domain": "mysite.com",
+    { "id": "mysite01", "username": "mysite01", "domain": "mysite.com",
       "plan": "Golden Anti-Red HostPanel (1-Month)", "suspended": false,
       "created_at": "2026-09-08T11:00:00.000Z",
       "expires_at": "2026-10-08T11:00:00.000Z",
@@ -601,6 +601,7 @@ function endpointGroups(base) {
           curl: `curl -s ${base}/hosting/mysite01 \\
   -H "Authorization: Bearer YOUR_API_KEY"`,
           resp: `{
+  "id": "mysite01",
   "username": "mysite01",
   "domain": "mysite.com",
   "plan": "Golden Anti-Red HostPanel (1-Month)",

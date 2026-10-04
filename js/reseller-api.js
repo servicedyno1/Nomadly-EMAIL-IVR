@@ -913,6 +913,7 @@ function createResellerApi(deps = {}) {
         const u = d._id || d.username
         const suspended = Object.prototype.hasOwnProperty.call(liveSuspendedByUser, d._id) ? liveSuspendedByUser[d._id] : !!d.suspended
         return {
+          id: u,
           username: u,
           domain: d.domain,
           plan: d.plan || null,
@@ -1062,7 +1063,7 @@ function createResellerApi(deps = {}) {
 
     return billedProvision(req, res, {
       product: 'hosting', action: 'renew', priceUsd,
-      request: { username: acct._id, domain: acct.domain, plan: acct.plan, periods },
+      request: { id: acct._id, username: acct._id, domain: acct.domain, plan: acct.plan, periods },
       provision: async () => {
         // Make sure the underlying WHM account still exists before extending (else it was terminated).
         const whm = require('./whm-service')
@@ -1081,7 +1082,7 @@ function createResellerApi(deps = {}) {
         })
         if (acct.suspended) { try { await whm.unsuspendAccount(acct.cpUser) } catch (_) {} }
         try { require('./anti-red-service').deployFullProtection(acct.cpUser, acct.domain, acct.plan).catch(() => {}) } catch (_) {}
-        return { success: true, username: acct._id, domain: acct.domain, plan: acct.plan, periods, duration_days: duration * periods, expires_at: newExpiry.toISOString() }
+        return { success: true, id: acct._id, username: acct._id, domain: acct.domain, plan: acct.plan, periods, duration_days: duration * periods, expires_at: newExpiry.toISOString() }
       },
     })
   }))
@@ -1618,6 +1619,7 @@ function createResellerApi(deps = {}) {
       col('cpanelAccounts').updateOne({ _id: acct._id }, { $set: { suspended: liveSuspended, suspendedSyncedAt: new Date() } }).catch(() => {})
     }
     res.json({
+      id: acct._id || acct.username,
       username: acct._id || acct.username,
       domain: acct.domain || null,
       plan: acct.plan || null,

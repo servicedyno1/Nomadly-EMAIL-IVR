@@ -1,5 +1,8 @@
 # PRD — Nomadly Cloud IVR + Telegram Bot
 
+## 2026-06 — Reseller API: hosting `id` field for cross-product consistency
+- Answer to "why can't we have a hosting id": hosting already HAS a stable id — the cPanel username (`cpanelAccounts._id`) — it was just surfaced as `username` while VPS/RDP use `id`. Added an explicit `id` field (= username) to hosting responses (`GET /hosting` list items, `GET /hosting/:user` detail, and the renew `request`/result) so every product reads the same way. `username` kept for backward-compat; the `:user` path segment is that same id. Doc blurb clarifies it. Additive, curl-verified. Files: `js/reseller-api.js`, `js/apidoc-page.js`.
+
 ## 2026-06 — Reseller API: manual renew for hosting / VPS / RDP — DONE & tested (21/21)
 - Gap: only RDP had a manual renew; **hosting** (doc promised `POST /hosting/:user/renew` but it was never implemented) and **VPS** had none. Added both; generalized the RDP handler into a shared `vpsRenewHandler(isRDP)`.
 - **`POST /hosting/:user/renew`** `{periods?:1..12}` — charges plan price × periods (`getPlanPrice`×`getPlanDuration`), verifies the WHM account still exists (else refund + mark terminated), extends `expiryDate` from max(now, current), unsuspends, re-deploys anti-red. Mirrors the bot's `confirmRenewNow`.
