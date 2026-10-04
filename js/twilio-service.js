@@ -9,6 +9,17 @@ const ACCOUNT_SID = process.env.TWILIO_ACCOUNT_SID
 const AUTH_TOKEN = process.env.TWILIO_AUTH_TOKEN
 const CALL_FORWARDING_RATE_MIN = parseFloat(process.env.CALL_FORWARDING_RATE_MIN || '0.50')
 
+// Per-brand Twilio SIP domain prefix. Nomadly (main) and Smadav (WhiteLabel) share ONE Twilio
+// account; each bot must own its OWN SIP domain or the last bot to boot overwrites the other's
+// Voice URL and bridge callbacks land on the wrong process ("Call routing session expired").
+const SIP_DOMAIN_PREFIX = (process.env.TWILIO_SIP_DOMAIN_PREFIX || 'speechcue').toLowerCase().replace(/[^a-z0-9]/g, '') || 'speechcue'
+const IS_DEFAULT_SIP_PREFIX = SIP_DOMAIN_PREFIX === 'speechcue'
+const isOwnSipDomain = d => d.domainName?.startsWith(`${SIP_DOMAIN_PREFIX}-`)
+// Legacy 'nomadly-' domain fallback only applies to the default brand
+const findLegacySipDomain = domains => IS_DEFAULT_SIP_PREFIX
+  ? domains.find(d => d.friendlyName?.includes('Nomadly') || d.domainName?.startsWith('nomadly-'))
+  : null
+
 // ━━━ SECURITY: Main account SID — used to detect and block unauthorized main-account usage ━━━
 const MAIN_ACCOUNT_SID = ACCOUNT_SID
 
@@ -725,11 +736,10 @@ async function getTwilioResourcesFromEnv() {
 
     // Find existing SIP domain — DO NOT create or update
     const domains = await client.sip.domains.list({ limit: 20 })
-    const sipDomain = domains.find(d => d.domainName?.startsWith('speechcue-'))
-      || domains.find(d => d.friendlyName?.includes('Nomadly') || d.domainName?.startsWith('nomadly-'))
+    const sipDomain = domains.find(isOwnSipDomain) || findLegacySipDomain(domains)
 
     if (!sipDomain) {
-      log('[Twilio] READ-ONLY: No SIP domain found — cannot proceed without full init')
+      log(`[Twilio] READ-ONLY: No SIP domain with prefix '${SIP_DOMAIN_PREFIX}-' found — cannot proceed without full init`)
       return null
     }
 
@@ -768,16 +778,18 @@ async function initializeTwilioResources(selfUrl) {
     const account = await client.api.v2010.accounts(ACCOUNT_SID).fetch()
     log(`[Twilio] Connected: ${account.friendlyName} (${account.status})`)
 
-    // Get or create master SIP domain — prefer 'speechcue-' prefix, migrate from 'nomadly-' if needed
+    // Get or create THIS brand's SIP domain (`<prefix>-<sid6>`); never touch another brand's domain.
+    // Legacy 'nomadly-' migration applies to the default prefix only.
     const domains = await client.sip.domains.list({ limit: 20 })
-    let sipDomain = domains.find(d => d.domainName?.startsWith('speechcue-'))
-    const oldDomain = !sipDomain ? domains.find(d => d.friendlyName?.includes('Nomadly') || d.domainName?.startsWith('nomadly-')) : null
+    let sipDomain = domains.find(isOwnSipDomain)
+    const oldDomain = !sipDomain ? findLegacySipDomain(domains) : null
+    log(`[Twilio] SIP domain prefix: '${SIP_DOMAIN_PREFIX}-' (TWILIO_SIP_DOMAIN_PREFIX=${process.env.TWILIO_SIP_DOMAIN_PREFIX || '<unset>'})`)
 
     if (!sipDomain) {
-      const domainPrefix = 'speechcue-' + ACCOUNT_SID.slice(-6).toLowerCase()
+      const domainPrefix = `${SIP_DOMAIN_PREFIX}-` + ACCOUNT_SID.slice(-6).toLowerCase()
       sipDomain = await client.sip.domains.create({
         domainName: `${domainPrefix}.sip.twilio.com`,
-        friendlyName: 'Speechcue Cloud Phone SIP',
+        friendlyName: `${SIP_DOMAIN_PREFIX.charAt(0).toUpperCase()}${SIP_DOMAIN_PREFIX.slice(1)} Cloud Phone SIP`,
         voiceUrl: `${selfUrl}/twilio/sip-voice`,
         voiceMethod: 'POST',
         sipRegistration: true,
@@ -789,7 +801,7 @@ async function initializeTwilioResources(selfUrl) {
         voiceUrl: `${selfUrl}/twilio/sip-voice`,
         voiceMethod: 'POST',
       })
-      log(`[Twilio] Updated SIP domain webhook: ${sipDomain.domainName}`)
+      log(`[Twilio] Updated SIP domain webhook: ${sipDomain.domainName} → ${selfUrl}/twilio/sip-voice`)
     }
 
     // Get or create master credential list

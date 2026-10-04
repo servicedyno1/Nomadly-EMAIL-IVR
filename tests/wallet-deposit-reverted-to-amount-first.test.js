@@ -23,7 +23,9 @@
  *   4. Webhook handler:
  *        - NO `openEnded` branch (would credit raw convertedValue)
  *        - NO dust-forfeit / `dustDeposits` insertion path
- *        - keeps `max(invoice, convertedValue)` overpayment fix
+ *        - keeps the overpayment fix (credit actual when MORE than invoiced) — now via
+ *          crypto-credit.js computeDepositCreditUsd(), which also closed the
+ *          symmetric major-underpayment over-credit (2026-07-19)
  *
  * Strategy: source-level assertions on the live _index.js so any future
  * revival of the open-ended UX is caught by the suite.
@@ -140,12 +142,30 @@ describe('Wallet deposit reverted to amount-first flow (post-2026-06-24)', () =>
       expect(callsMin.length).toBe(0)
     })
 
-    test('OVERPAYMENT fix preserved — max(invoice, convertedValue) guard intact', () => {
-      // The Versace438 fix MUST stay: when feePayer==='company' and
-      // baseAmount is present, credit Math.max(invoice, convertedValue).
-      expect(SRC).toMatch(/usdIn\s*=\s*Math\.max\(\s*invoice,\s*convertedValue\s*\)/)
-      // And the log line that audits it
-      expect(SRC).toMatch(/OVERPAYMENT detected/)
+    test('OVERPAYMENT fix preserved — credit decision goes through computeDepositCreditUsd (crypto-credit.js)', () => {
+      // History: the Versace438 fix was `usdIn = Math.max(invoice, convertedValue)`. On
+      // 2026-07-19 that line was REPLACED by computeDepositCreditUsd() because max() also
+      // credited the FULL invoice on massive underpayments (@Spirits_Of_The_Ancesters sent
+      // $5.85 of TRX against a $100 invoice → credited $100). The helper keeps the
+      // overpayment behaviour and closes the underpayment hole — assert BOTH.
+      expect(SRC).not.toMatch(/usdIn\s*=\s*Math\.max\(\s*invoice,\s*convertedValue\s*\)/)
+      expect(SRC).toMatch(/const _decided = computeDepositCreditUsd\(\{[\s\S]{0,200}?invoiceUsd:[\s\S]{0,200}?convertedValue,[\s\S]{0,100}?feePayer,/)
+      // And the log line that audits overpayments
+      expect(SRC).toMatch(/\[Wallet\] OVERPAYMENT/)
+
+      const { computeDepositCreditUsd } = require('../js/crypto-credit')
+      // Versace438: sent MORE than invoiced → credit the actual market value
+      expect(computeDepositCreditUsd({ invoiceUsd: 100, convertedValue: 112.4, feePayer: 'company' }))
+        .toMatchObject({ creditUsd: 112.4, mode: 'overpayment' })
+      // fee-shave within tolerance → goodwill: credit the invoice
+      expect(computeDepositCreditUsd({ invoiceUsd: 100, convertedValue: 96, feePayer: 'company' }))
+        .toMatchObject({ creditUsd: 100, mode: 'minor-underpayment' })
+      // Spirits_Of_The_Ancesters: $5.85 against $100 → credit ONLY what arrived (the 07-19 fix)
+      expect(computeDepositCreditUsd({ invoiceUsd: 100, convertedValue: 5.85, feePayer: 'company' }))
+        .toMatchObject({ creditUsd: 5.85, mode: 'major-underpayment' })
+      // ciroovblzz: conversion API returned garbage → safe fallback to the invoice, never NaN
+      expect(computeDepositCreditUsd({ invoiceUsd: 50, convertedValue: null, feePayer: 'company' }))
+        .toMatchObject({ creditUsd: 50, mode: 'invoice-fallback-noconvert' })
     })
   })
 })

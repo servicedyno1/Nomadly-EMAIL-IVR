@@ -20,7 +20,7 @@
  */
 
 const path = require('path')
-const reconciler = require(path.join('/app/js/call-billing-reconciler.js'))
+const reconciler = require(path.join(__dirname, '..', '..', 'js', 'call-billing-reconciler.js'))
 
 let failures = 0
 function assert(cond, msg) {

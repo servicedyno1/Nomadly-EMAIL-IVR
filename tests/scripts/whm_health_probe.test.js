@@ -28,8 +28,8 @@ function assert(cond, msg) {
 }
 
 async function main() {
-  const whmService = require(path.join('/app/js/whm-service.js'))
-  const { probeWhmHealth } = require(path.join('/app/js/whm-disk-monitor.js'))
+  const whmService = require(path.join(__dirname, '..', '..', 'js', 'whm-service.js'))
+  const { probeWhmHealth } = require(path.join(__dirname, '..', '..', 'js', 'whm-disk-monitor.js'))
 
   assert(whmService && whmService._whmApi, 'whmService._whmApi is available')
 

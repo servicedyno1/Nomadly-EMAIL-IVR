@@ -133,13 +133,13 @@ describe('DigitalOcean — instance ID storage convention (do- prefix preservati
 
 describe('DigitalOcean — destructive-cancel guard (Vultr parity)', () => {
   // These tests verify the OPERATING-PRINCIPLE expressed in the
-  // vm-instance-setup.js cancel-on-create and toggle-autorenew branches:
-  // when the detected provider is 'vultr' or 'digitalocean', the bot
-  // MUST NOT call cancelInstance() because it would immediately destroy
-  // the just-created VPS.
+  // vm-instance-setup.js cancel-on-create, toggle-autorenew and delete
+  // branches: when the detected provider has no scheduled cancel (Vultr,
+  // DigitalOcean, Azure…) the bot MUST NOT call cancelInstance() because it
+  // would immediately destroy the just-created VPS.
   //
-  // We can't easily run the full flow without DB, so we verify the
-  // detectProviderByInstanceId result that gates the branch.
+  // The provider list lives in ONE place — vps-provider.isDestructiveCancelProvider —
+  // and vm-instance-setup.js gates every destructive branch through it.
 
   beforeEach(() => {
     delete require.cache[require.resolve(path.join(__dirname, '..', 'js', 'vps-provider'))]
@@ -150,29 +150,29 @@ describe('DigitalOcean — destructive-cancel guard (Vultr parity)', () => {
     expect(vp.detectProviderByInstanceId('do-487393245')).toBe('digitalocean')
   })
 
-  test('Source check: vm-instance-setup.js cancel-on-create branch lists digitalocean', () => {
-    const fs = require('fs')
-    const src = fs.readFileSync(path.join(__dirname, '..', 'js', 'vm-instance-setup.js'), 'utf-8')
-    // The cancel-on-create guard MUST include 'digitalocean' so DO purchases
-    // don't self-destruct seconds after creation. (Azure was later added to
-    // the same guard list — we accept any ordering / extra providers.)
-    expect(src).toMatch(/\[\s*('[a-z]+'\s*,\s*)*'digitalocean'(\s*,\s*'[a-z]+')*\s*\]\.includes\(\s*vpsProvider\.detectProviderByInstanceId/)
+  test('isDestructiveCancelProvider: digitalocean + vultr are destructive, contabo/ovh are not', () => {
+    const vp = require(path.join(__dirname, '..', 'js', 'vps-provider'))
+    expect(vp.isDestructiveCancelProvider('digitalocean')).toBe(true)
+    expect(vp.isDestructiveCancelProvider('DigitalOcean')).toBe(true) // case-insensitive
+    expect(vp.isDestructiveCancelProvider('vultr')).toBe(true)
+    expect(vp.isDestructiveCancelProvider(vp.detectProviderByInstanceId('do-487393245'))).toBe(true)
+    expect(vp.isDestructiveCancelProvider('contabo')).toBe(false)
+    expect(vp.isDestructiveCancelProvider('ovh')).toBe(false)
+    expect(vp.isDestructiveCancelProvider(null)).toBe(false)
   })
 
-  test('Source check: changeVpsAutoRenewal branch guards both vultr and digitalocean', () => {
-    const fs = require('fs')
-    const src = fs.readFileSync(path.join(__dirname, '..', 'js', 'vm-instance-setup.js'), 'utf-8')
-    // The "auto-renew OFF" branch must short-circuit for both
-    // vultr and digitalocean (destructive cancel guard).
-    expect(src).toMatch(/_provName === 'vultr' \|\| _provName === 'digitalocean'/)
+  const vmSrc = () => require('fs').readFileSync(path.join(__dirname, '..', 'js', 'vm-instance-setup.js'), 'utf-8')
+
+  test('Source check: cancel-on-create branch is gated by isDestructiveCancelProvider(detectProviderByInstanceId(...))', () => {
+    expect(vmSrc()).toMatch(/isDestructiveCancelProvider\(\s*vpsProvider\.detectProviderByInstanceId\(instance\.instanceId\)\s*\)/)
   })
 
-  test('Source check: deleteVPSinstance short-circuits the cancelDate poll for DO', () => {
-    const fs = require('fs')
-    const src = fs.readFileSync(path.join(__dirname, '..', 'js', 'vm-instance-setup.js'), 'utf-8')
-    // The verify-cancelDate poll is wasted on DO (immediate delete) — must
-    // short-circuit just like OVH.
-    expect(src).toMatch(/_providerName === 'vultr' \|\| _providerName === 'digitalocean'/)
+  test('Source check: changeVpsAutoRenewal (auto-renew OFF) short-circuits via isDestructiveCancelProvider', () => {
+    expect(vmSrc()).toMatch(/const _provName = vpsProvider\.detectProviderByInstanceId\(contaboInstanceId\)[\s\S]{0,400}?isDestructiveCancelProvider\(_provName\)/)
+  })
+
+  test('Source check: deleteVPSinstance short-circuits the cancelDate poll for destructive providers', () => {
+    expect(vmSrc()).toMatch(/isDestructiveCancelProvider\(_providerName\)[\s\S]{0,600}?immediate-delete/)
   })
 })
 

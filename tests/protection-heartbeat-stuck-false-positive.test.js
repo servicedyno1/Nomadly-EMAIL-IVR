@@ -134,11 +134,19 @@ describe('protection-heartbeat — 2026-06-24-v2 false-positive STUCK fix', () =
   describe('Dev-safety guard via SKIP_WEBHOOK_SYNC', () => {
     it('runHeartbeat returns {skipped:true,reason:"dev_sandbox"} when SKIP_WEBHOOK_SYNC=true', async () => {
       process.env.SKIP_WEBHOOK_SYNC = 'true'
-      delete require.cache[require.resolve('../js/protection-heartbeat.js')]
-      const hb = require('../js/protection-heartbeat.js')
+      // whmApi is built at module load from env; without WHM creds the "WHM not configured"
+      // early-return fires BEFORE the dev guard. Provide dummy creds so the guard is what's tested.
+      const prevHost = process.env.WHM_HOST, prevTok = process.env.WHM_TOKEN
+      process.env.WHM_HOST = process.env.WHM_HOST || 'whm.test.invalid'
+      process.env.WHM_TOKEN = process.env.WHM_TOKEN || 'test-token'
+      // require.cache deletion is a no-op under Jest — isolate to force a fresh module load.
+      let hb
+      jest.isolateModules(() => { hb = require('../js/protection-heartbeat.js') })
       // Inject a fake db so the !db early-return doesn't fire first
       hb.init({ collection: () => ({ find: () => ({ toArray: async () => [] }) }) })
       const result = await hb.runHeartbeat()
+      if (prevHost === undefined) delete process.env.WHM_HOST; else process.env.WHM_HOST = prevHost
+      if (prevTok === undefined) delete process.env.WHM_TOKEN; else process.env.WHM_TOKEN = prevTok
       expect(result).toEqual({ skipped: true, reason: 'dev_sandbox' })
     })
 

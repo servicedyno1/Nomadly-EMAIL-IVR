@@ -168,8 +168,11 @@ describe('OS-aware routing — vm-instance-setup.js wiring', () => {
 
   test('createVPSInstance calls createInstance via OS-aware newProvider, not the smart proxy', () => {
     expect(src).toMatch(/const newProvider\s*=\s*vpsProvider\.pickProviderForOs\(isRDP\)/)
-    expect(src).toMatch(/const instance = await newProvider\.createInstance\(createOpts\)/)
-    expect(src).not.toMatch(/const instance = await contabo\.createInstance\(createOpts\)/)
+    // Creation goes through newProvider — either the capacity-aware
+    // createInstanceWithFallback (when the provider offers it) or plain createInstance.
+    expect(src).toMatch(/await newProvider\.createInstanceWithFallback\(createOpts\)/)
+    expect(src).toMatch(/:\s*await newProvider\.createInstance\(createOpts\)/)
+    expect(src).not.toMatch(/await contabo\.createInstance\(createOpts\)/)
   })
 
   test('fetchVpsUpgradeOptions uses upgradeProvider (not contabo) for catalog lookups', () => {

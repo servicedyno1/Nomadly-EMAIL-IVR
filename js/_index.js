@@ -49352,7 +49352,9 @@ app.post('/twilio/sip-voice', async (req, res) => {
       const bridge = pendingBridges[bridgeId]
 
       if (!bridge) {
-        log(`[Twilio] Bridge ${bridgeId} not found or expired`)
+        // pendingBridges is per-process: a miss here almost always means the Twilio SIP domain's
+        // Voice URL points at a DIFFERENT bot/host than the one that placed the bridge.
+        log(`[Twilio] Bridge ${bridgeId} not found or expired — served by ${SELF_URL} (sipDomain=${twilioResources?.sipDomainName || 'n/a'}, pending=${Object.keys(pendingBridges).length}). If another brand shares this Twilio account, check TWILIO_SIP_DOMAIN_PREFIX.`)
         response.say('Call routing session expired. Please try again.')
         response.hangup()
         return res.type('text/xml').send(response.toString())

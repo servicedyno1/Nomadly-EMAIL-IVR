@@ -1,5 +1,34 @@
 # PRD — Nomadly Cloud IVR + Telegram Bot
 
+## 2026-10-04 — P0: SIP outbound calls "Call routing session expired" (@Login4six8, 5739696549) — ROOT-CAUSED, HOTFIXED, CODE FIX READY
+- **Symptom**: SIP dialer → Telnyx → bot answers → transfers to Twilio bridge `sip:bridge_x@speechcue-7937a0.sip.twilio.com`
+  → Twilio answers → ~4 s later hangs up; user hears our TwiML "Call routing session expired" (`_index.js` `/twilio/sip-voice`)
+  and is still billed $0.03 connection + $0.15 first minute per attempt (8 attempts Oct 3 ≈ $1.44; NOT refunded — user chose skip).
+- **Root cause**: app-main (Nomadly) and app-wl (Smadav) share ONE Twilio account. `initializeTwilioResources()` hardcoded the
+  `speechcue-` SIP domain and set its Voice URL to its own `SELF_URL` at boot on BOTH bots. Deploys start app-main then app-wl, so
+  app-wl always won → Voice URL = `https://1.smadavspeech.com/twilio/sip-voice` → callback hit the Smadav process whose in-memory
+  `pendingBridges` had no entry → "session expired". `TWILIO_SIP_DOMAIN_PREFIX=smadav` in app-wl env was never read. Flipped each time
+  either bot restarted (Oct 2: 118 OK because app-main restarted last; Oct 3: 1 OK / 11 fail). 5 users hit this path since Sep 30.
+- **Hotfix (live 07:26Z)**: Twilio API → `speechcue-7937a0` Voice URL back to `https://2.speechcue.com/twilio/sip-voice`.
+- **Code fix** (`js/twilio-service.js`): `SIP_DOMAIN_PREFIX = TWILIO_SIP_DOMAIN_PREFIX || 'speechcue'`; `initializeTwilioResources` /
+  `getTwilioResourcesFromEnv` only find/create/update `<prefix>-<sid6>.sip.twilio.com`; legacy `nomadly-` fallback only for default
+  prefix. app-wl will manage `smadav-7937a0.sip.twilio.com` (already exists; Smadav DB has 0 phone users → safe). `_index.js`
+  bridge-miss log now says which host served it + hints at the prefix. Test: `tests/twilio-sip-domain-prefix.test.js` (5/5).
+- **Deploy**: needs user "Save to GitHub" → deploy.yml (app-main) + Sync main→WhiteLabel → app-wl. Verify after: both boot logs show
+  `Updated SIP domain webhook: <own domain> → <own SELF_URL>`; Twilio API shows speechcue→2.speechcue.com, smadav→1.smadavspeech.com.
+- **Not done (user chose skip)**: don't bill failed bridges (release $0.30 reservation / refund $0.03 when `Bridge found` never logs);
+  refund @Login4six8.
+
+## 2026-10-04 — Jest suite green again (31/31 suites, 433 tests; was 12 suites / 31 tests failing)
+- All failures were stale tests, none a product bug. Fixed test-only:
+  - Source-text guards that drifted after intentional refactors → now assert behaviour via real helpers
+    (`vps-provider.isDestructiveCancelProvider`, `crypto-credit.computeDepositCreditUsd`, evaluated `_isPAYGProvider`).
+  - Store/DynoPay tests pre-dated the forged-webhook fix → now send V2-signed webhooks (`X-Dynopay-Signature-V2`, `webhookSecret` dep,
+    `express.json({verify})` rawBody) + new cases: unsigned+gateway-down → HELD, tampered sig → HELD, gateway-reported underpaid → failed.
+  - Azure tests → Dsv6 catalog (`RDP 10/20/30` = D2s/D4s/D8s_v6, $90/$156/$288).
+  - 4 standalone `node` harnesses moved to `tests/scripts/` (outside Jest `testMatch`) and run via `tests/node-scripts.test.js` (spawn, exit 0).
+  - `protection-heartbeat` dev-guard test: needs WHM env + `jest.isolateModules` (require.cache deletion is a no-op under Jest).
+
 ## Original problem statement (this fork session, Feb 2026)
 User inherited a fully-set-up Nomadly bot pod pointed at LIVE PRODUCTION. Task became: mine Railway production logs, identify complaints from real users (starting with @blacknmilds), find root causes, and ship fixes.
 
