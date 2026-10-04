@@ -5,8 +5,8 @@
  * Pure functions, no DB / network. Run: node /app/tests/ivr_parity.test.js
  */
 const path = require('path')
-const ivrTpl = require(path.join('/app/js/ivr-templates.js'))
-const ivrOb = require(path.join('/app/js/ivr-outbound.js'))
+const ivrTpl = require(path.join(__dirname, '..', '..', 'js', 'ivr-templates.js'))
+const ivrOb = require(path.join(__dirname, '..', '..', 'js', 'ivr-outbound.js'))
 
 let failures = 0
 function assert(cond, msg) {

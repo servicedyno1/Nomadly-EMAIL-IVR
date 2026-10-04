@@ -3,7 +3,7 @@
  * Run: node tests/inactive-released.test.js
  */
 
-const phoneConfig = require('../js/phone-config.js');
+const phoneConfig = require('../../js/phone-config.js');
 
 let passed = 0;
 let failed = 0;

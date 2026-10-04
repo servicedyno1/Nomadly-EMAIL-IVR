@@ -3,8 +3,9 @@
  * Azure provider — integration with the vps-provider abstraction.
  *
  * Confirms:
- *   - 3-tier B-series catalog at MVP launch ("Cloud VPS 10/20/30")
- *   - AZURE_DSV5_ENABLED gates D-series expansion (D2s_v5 / D4s_v5)
+ *   - 3-tier Dsv6 catalog ("RDP 10/20/30") — the Bsv2 tier shipped at MVP was
+ *     unprovisionable on this subscription and was replaced (same sell prices)
+ *   - AZURE_DSV5_ENABLED gates D-series (v5) expansion (D2s_v5 / D4s_v5)
  *   - Pricing applies 200% markup (matches VPS_MARKUP_PERCENT)
  *   - listProducts accepts the 3-arg signature (parity with contabo)
  *   - 9 customer-facing regions resolve to an Azure region slug
@@ -26,22 +27,22 @@ process.env.AZURE_CLIENT_ID = 'test-client'
 process.env.AZURE_CLIENT_SECRET = 'test-secret'
 process.env.AZURE_SUBSCRIPTION_ID = 'test-sub'
 process.env.AZURE_RESOURCE_GROUP = 'nomadly-vps'
-delete process.env.AZURE_DSV5_ENABLED // ensure MVP default = B-tier only
+delete process.env.AZURE_DSV5_ENABLED // ensure default = Dsv6 tier only
 
 const path = require('path')
 const azure = require(path.join(__dirname, '..', 'js', 'azure-service.js'))
 
-describe('Azure — Cloud VPS catalog (Windows / RDP-only, B-tier MVP)', () => {
-  test('MVP launches with exactly 3 Bsv2-tier SKUs (D-tier gated off)', () => {
+describe('Azure — Cloud VPS catalog (Windows / RDP-only, Dsv6 tier)', () => {
+  test('Default catalog is exactly 3 Dsv6-tier SKUs (v5 D-tier gated off)', () => {
     expect(azure.PRODUCT_CATALOG).toHaveLength(3)
     expect(azure.PRODUCT_CATALOG.map(p => p.productId)).toEqual([
-      'Standard_B2als_v2', 'Standard_B2s_v2', 'Standard_B4als_v2',
+      'Standard_D2s_v6', 'Standard_D4s_v6', 'Standard_D8s_v6',
     ])
   })
 
-  test('Customer-facing names match Contabo/DO convention "Cloud VPS X0"', () => {
+  test('Customer-facing names follow the "RDP X0" tier convention', () => {
     expect(azure.PRODUCT_CATALOG.map(p => p.name)).toEqual([
-      'Cloud VPS 10', 'Cloud VPS 20', 'Cloud VPS 30',
+      'RDP 10', 'RDP 20', 'RDP 30',
     ])
   })
 
@@ -49,8 +50,8 @@ describe('Azure — Cloud VPS catalog (Windows / RDP-only, B-tier MVP)', () => {
     for (const p of azure.PRODUCT_CATALOG) {
       expect(p.name).not.toMatch(/azure/i)
       expect(p.name).not.toMatch(/microsoft/i)
-      expect(p.name).not.toMatch(/standard_b/i)
-      expect(p.name).not.toMatch(/_v2/i)
+      expect(p.name).not.toMatch(/standard_[bd]/i)
+      expect(p.name).not.toMatch(/_v[256]/i)
       expect(p.name).not.toMatch(/vultr/i)
       expect(p.name).not.toMatch(/contabo/i)
       expect(p.name).not.toMatch(/digital\s*ocean/i)
@@ -58,11 +59,11 @@ describe('Azure — Cloud VPS catalog (Windows / RDP-only, B-tier MVP)', () => {
     }
   })
 
-  test('Tier 1 = B2als_v2 (2 vCPU / 4 GB) sold at $30/mo (200% markup over $10)', () => {
+  test('Tier 1 = D2s_v6 (2 vCPU / 8 GB) at $30 base (→ $90 with 200% markup)', () => {
     const tier1 = azure.PRODUCT_CATALOG[0]
-    expect(tier1.productId).toBe('Standard_B2als_v2')
+    expect(tier1.productId).toBe('Standard_D2s_v6')
     expect(tier1.cpuCores).toBe(2)
-    expect(tier1.ramMb).toBe(4096)
+    expect(tier1.ramMb).toBe(8192)
     expect(tier1.basePriceUsd).toBe(30)
   })
 
@@ -70,13 +71,13 @@ describe('Azure — Cloud VPS catalog (Windows / RDP-only, B-tier MVP)', () => {
     expect(azure.PRODUCT_CATALOG_SSD).toBe(azure.PRODUCT_CATALOG)
   })
 
-  test('AZURE_DSV5_ENABLED=true unlocks D-tier expansion (5 SKUs total)', () => {
+  test('AZURE_DSV5_ENABLED=true unlocks v5 D-tier expansion (5 SKUs total)', () => {
     process.env.AZURE_DSV5_ENABLED = 'true'
     jest.resetModules()
     const azureWithD = require(path.join(__dirname, '..', 'js', 'azure-service.js'))
     expect(azureWithD.PRODUCT_CATALOG).toHaveLength(5)
     expect(azureWithD.PRODUCT_CATALOG.map(p => p.productId)).toEqual([
-      'Standard_B2als_v2', 'Standard_B2s_v2', 'Standard_B4als_v2',
+      'Standard_D2s_v6', 'Standard_D4s_v6', 'Standard_D8s_v6',
       'Standard_D2s_v5', 'Standard_D4s_v5',
     ])
     // restore
@@ -87,9 +88,9 @@ describe('Azure — Cloud VPS catalog (Windows / RDP-only, B-tier MVP)', () => {
 
 describe('Azure — pricing with 200% markup', () => {
   test.each([
-    ['Standard_B2als_v2',  30,  90],
-    ['Standard_B2s_v2',    52, 156],
-    ['Standard_B4als_v2',  96, 288],
+    ['Standard_D2s_v6',  30,  90],
+    ['Standard_D4s_v6',  52, 156],
+    ['Standard_D8s_v6',  96, 288],
   ])('%s costs $%i × 3 = $%i sell price', (id, base, sell) => {
     const p = azure.getProduct(id)
     const price = azure.calculatePrice(p, 'EU', true)
@@ -98,13 +99,13 @@ describe('Azure — pricing with 200% markup', () => {
   })
 
   test('Windows licence is bundled — windowsLicense reports 0 (cross-provider compat)', () => {
-    const p = azure.getProduct('Standard_B2als_v2')
+    const p = azure.getProduct('Standard_D2s_v6')
     const price = azure.calculatePrice(p, 'EU', true)
     expect(price.windowsLicense).toBe(0)
   })
 
   test('Region surcharge is zero across all 9 supported regions (flat pricing)', () => {
-    const p = azure.getProduct('Standard_B2als_v2')
+    const p = azure.getProduct('Standard_D2s_v6')
     for (const region of Object.keys(azure.REGION_TO_AZURE)) {
       const price = azure.calculatePrice(p, region, true)
       expect(price).not.toBeNull()
@@ -113,7 +114,7 @@ describe('Azure — pricing with 200% markup', () => {
   })
 
   test('Unknown region returns null pricing', () => {
-    const p = azure.getProduct('Standard_B2als_v2')
+    const p = azure.getProduct('Standard_D2s_v6')
     expect(azure.calculatePrice(p, 'MARS', true)).toBeNull()
   })
 
@@ -181,7 +182,7 @@ describe('Azure — images: Windows-ONLY, no Linux on this tier', () => {
   })
 
   test('Default image is Windows Server 2022 Datacenter (Gen2)', async () => {
-    expect(await azure.getDefaultWindowsImageId('Standard_B2als_v2')).toBe('win2022-datacenter-g2')
+    expect(await azure.getDefaultWindowsImageId('Standard_D2s_v6')).toBe('win2022-datacenter-g2')
   })
 
   test('_imageReference resolves to Microsoft publisher + valid Gen2 SKU', () => {
@@ -382,8 +383,8 @@ describe('Azure — formatInstanceForDisplay (cross-provider parity)', () => {
       mainIp:      '20.85.123.45',
       status:      'running',
       region:      'westeurope',
-      plan:        'Standard_B2als_v2',
-      ramMb:       4096,
+      plan:        'Standard_D2s_v6',
+      ramMb:       8192,
       diskMb:      127 * 1024,
       cpuCores:    2,
       label:       'demo',
@@ -397,48 +398,57 @@ describe('Azure — formatInstanceForDisplay (cross-provider parity)', () => {
     expect(fmt.isWindows).toBe(true)
     expect(fmt.defaultUser).toBe('nomadly')
     expect(fmt.regionName).toBe('Europe (West)')
-    expect(fmt.ramGb).toBe(4)
+    expect(fmt.ramGb).toBe(8)
     expect(fmt.diskGb).toBe(127)
-    expect(fmt.productName).toBe('Cloud VPS 10')
+    expect(fmt.productName).toBe('RDP 10')
   })
 
   test('Deallocated / stopped status shows 🔴', () => {
     const fmt1 = azure.formatInstanceForDisplay({
-      instanceId: 'az-x', status: 'deallocated', region: 'westeurope', plan: 'Standard_B2als_v2',
+      instanceId: 'az-x', status: 'deallocated', region: 'westeurope', plan: 'Standard_D2s_v6',
     })
     expect(fmt1.statusEmoji).toBe('🔴')
     const fmt2 = azure.formatInstanceForDisplay({
-      instanceId: 'az-y', status: 'stopped', region: 'westeurope', plan: 'Standard_B2als_v2',
+      instanceId: 'az-y', status: 'stopped', region: 'westeurope', plan: 'Standard_D2s_v6',
     })
     expect(fmt2.statusEmoji).toBe('🔴')
   })
 
   test('Creating / updating status shows 🟡', () => {
     const fmt = azure.formatInstanceForDisplay({
-      instanceId: 'az-z', status: 'Creating', region: 'eastus', plan: 'Standard_B2s_v2',
+      instanceId: 'az-z', status: 'Creating', region: 'eastus', plan: 'Standard_D4s_v6',
     })
     expect(fmt.statusEmoji).toBe('🟡')
   })
 })
 
 describe('Azure — destructive-cancel guards in vm-instance-setup.js', () => {
-  // Source-level assertions that catch regressions if anyone trims `azure`
-  // out of the destructive-cancel guards. Mirrors the digitalocean / vultr
-  // strategy from digitalocean-bot-lifecycle.test.js.
+  // Azure has no scheduled cancel: cancelInstance() destroys the VM instantly. The guard
+  // list is centralised in vps-provider.isDestructiveCancelProvider and vm-instance-setup.js
+  // gates every destructive branch (cancel-on-create / auto-renew OFF / delete) through it.
   const fs = require('fs')
   const vmSetupPath = path.join(__dirname, '..', 'js', 'vm-instance-setup.js')
   let src
-  beforeEach(() => { src = fs.readFileSync(vmSetupPath, 'utf8') })
+  beforeEach(() => { src = fs.readFileSync(vmSetupPath, 'utf8'); jest.resetModules() })
 
-  test('Cancel-on-create guard includes "azure" alongside vultr/digitalocean', () => {
-    expect(src).toMatch(/\[\s*'vultr'\s*,\s*'digitalocean'\s*,\s*'azure'\s*\]\.includes\(vpsProvider\.detectProviderByInstanceId/)
+  test('isDestructiveCancelProvider("azure") is true (alongside vultr / digitalocean)', () => {
+    const vp = require(path.join(__dirname, '..', 'js', 'vps-provider'))
+    expect(vp.isDestructiveCancelProvider('azure')).toBe(true)
+    expect(vp.isDestructiveCancelProvider(vp.detectProviderByInstanceId('az-nmd1a2b3c4'))).toBe(true)
+    expect(vp.isDestructiveCancelProvider('vultr')).toBe(true)
+    expect(vp.isDestructiveCancelProvider('digitalocean')).toBe(true)
+    expect(vp.isDestructiveCancelProvider('contabo')).toBe(false)
   })
 
-  test('changeVpsAutoRenewal toggle guards against destructive cancel on Azure', () => {
-    expect(src).toMatch(/_provName === 'vultr' \|\| _provName === 'digitalocean' \|\| _provName === 'azure'/)
+  test('Cancel-on-create guard goes through isDestructiveCancelProvider(detectProviderByInstanceId(...))', () => {
+    expect(src).toMatch(/isDestructiveCancelProvider\(\s*vpsProvider\.detectProviderByInstanceId\(instance\.instanceId\)\s*\)/)
   })
 
-  test('deleteVPSinstance short-circuit recognises Azure as immediate-delete', () => {
-    expect(src).toMatch(/_providerName === 'vultr' \|\| _providerName === 'digitalocean' \|\| _providerName === 'azure'/)
+  test('changeVpsAutoRenewal toggle guards against destructive cancel via the shared helper', () => {
+    expect(src).toMatch(/const _provName = vpsProvider\.detectProviderByInstanceId\(contaboInstanceId\)[\s\S]{0,400}?isDestructiveCancelProvider\(_provName\)/)
+  })
+
+  test('deleteVPSinstance short-circuit treats destructive providers as immediate-delete', () => {
+    expect(src).toMatch(/isDestructiveCancelProvider\(_providerName\)[\s\S]{0,600}?immediate-delete/)
   })
 })
