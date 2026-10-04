@@ -471,10 +471,17 @@ earlyApp.get('/', (req, res) => {
 earlyApp.get('/health', (req, res) => {
   // Always HTTP 200; the body reports real readiness (deploy.sh waits for "healthy").
   const ready = appReady && !!db && isDbHealthy()
+  // Live phone-call counts + which blue/green slot this is: deploy.sh holds the nginx flip
+  // (drains the old slot) while calls.total > 0 so a redeploy never cuts off an active call.
+  let calls, slot
+  try { calls = require('./voice-service.js').getLiveCallCounts?.() } catch (_) {}
+  try { slot = require('./active-slot').describe() } catch (_) {}
   res.status(200).json({
     status: ready ? 'healthy' : 'starting',
     database: ready ? 'connected' : 'connecting',
-    uptime: ((new Date() - serverStartTime) / (1000 * 60 * 60)).toFixed(2) + ' hours'
+    uptime: ((new Date() - serverStartTime) / (1000 * 60 * 60)).toFixed(2) + ' hours',
+    calls,
+    slot,
   })
 })
 
@@ -643,6 +650,8 @@ const { validatePhoneBulkFile } = require('./validatePhoneBulkFile.js')
 // createCustomShortUrlCuttly removed — the underlying RapidAPI url-shortener57 doesn't
 // support custom aliases. Custom alias path now uses our own SELF_URL/{alias} directly.
 const schedule = require('node-schedule')
+const activeSlot = require('./active-slot'); activeSlot.patchNodeSchedule(schedule) // crons run on the nginx-active slot only
+const { singletonInterval } = activeSlot
 const loyalty = require('./loyalty-service.js')
 const hcx = require('./hosting-checkout-ux.js')
 const { registerDomainAndCreateCpanel } = require('./cr-register-domain-&-create-cpanel.js')
@@ -3148,7 +3157,7 @@ async function escalationReminderTick() {
 }
 
 // Schedule reminder tick every 5 min once bot is up.
-setInterval(() => { escalationReminderTick().catch(() => {}) }, 5 * 60 * 1000)
+singletonInterval('escalation-reminder', () => { escalationReminderTick().catch(() => {}) }, 5 * 60 * 1000)
 
 // Send admin-only notification (private, not to groups)
 const notifyAdmin = (message) => {
@@ -4393,7 +4402,7 @@ const loadData = async () => {
   })
 
   // Schedule stale marketplace conversation cleanup every 6 hours
-  setInterval(async () => {
+  singletonInterval('marketplace-stale-conversations', async () => {
     try {
       const stale = await marketplaceService.closeStaleConversations()
       if (stale.length > 0) {
@@ -4541,7 +4550,7 @@ const loadData = async () => {
   
   // Run first check after 10 minutes, then every 30 minutes
   setTimeout(() => cleanupStuckPayments(), 10 * 60 * 1000)
-  setInterval(cleanupStuckPayments, PAYMENT_CHECK_INTERVAL_MS)
+  singletonInterval('cleanup-stuck-payments', cleanupStuckPayments, PAYMENT_CHECK_INTERVAL_MS)
   log(`[PaymentTimeout] Scheduled every ${PAYMENT_CHECK_INTERVAL_MS / 60000}min (timeout: ${PAYMENT_TIMEOUT_MS / 3600000}h)`)
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -4577,7 +4586,7 @@ const loadData = async () => {
     }
   }
   setTimeout(() => cleanupStalePendingOrders(), 15 * 60 * 1000)
-  setInterval(cleanupStalePendingOrders, STALE_ORDER_CHECK_INTERVAL_MS)
+  singletonInterval('cleanup-stale-pending-orders', cleanupStalePendingOrders, STALE_ORDER_CHECK_INTERVAL_MS)
   log(`[StaleOrderCleanup] Scheduled every ${STALE_ORDER_CHECK_INTERVAL_MS / 60000}min (timeout: ${STALE_ORDER_TIMEOUT_MS / 3600000}h)`)
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -4618,7 +4627,7 @@ const loadData = async () => {
     }
   }
   setTimeout(() => cleanupStalePaymentIntents(), 5 * 60 * 1000)
-  setInterval(cleanupStalePaymentIntents, PI_EXPIRE_CHECK_INTERVAL_MS)
+  singletonInterval('cleanup-stale-payment-intents', cleanupStalePaymentIntents, PI_EXPIRE_CHECK_INTERVAL_MS)
   log(`[PaymentIntentCleanup] Scheduled every ${PI_EXPIRE_CHECK_INTERVAL_MS / 3600000}h (timeout: ${PI_EXPIRE_TIMEOUT_MS / 3600000}h)`)
 
 
@@ -4641,7 +4650,7 @@ const loadData = async () => {
     }
   }
   setTimeout(_orphanBundleSweep, 20 * 60 * 1000) // first run 20min after boot
-  setInterval(_orphanBundleSweep, ORPHAN_BUNDLE_INTERVAL_MS)
+  singletonInterval('orphan-bundle-sweep', _orphanBundleSweep, ORPHAN_BUNDLE_INTERVAL_MS)
   log(`[OrphanBundles] Scheduled every ${ORPHAN_BUNDLE_INTERVAL_MS / 60000}min (age threshold: ${ORPHAN_BUNDLE_AGE_MS / 3600000}h)`)
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -4702,12 +4711,12 @@ const loadData = async () => {
   
   // Run first check after 15 minutes, then every 30 minutes
   setTimeout(() => checkAbandonedCarts(), 15 * 60 * 1000)
-  setInterval(checkAbandonedCarts, ABANDONED_CART_CHECK_INTERVAL_MS)
+  singletonInterval('abandoned-cart-check', checkAbandonedCarts, ABANDONED_CART_CHECK_INTERVAL_MS)
   log(`[AbandonedCart] Scheduled every ${ABANDONED_CART_CHECK_INTERVAL_MS / 60000}min (reminder delay: ${ABANDONED_CART_DELAY_MS / 3600000}h)`)
 
   // ── Regulatory Bundle status checker (auto-purchase on approval, refund on rejection) ──
   setTimeout(() => checkPendingBundles(), 60000) // first check 1 min after startup
-  setInterval(checkPendingBundles, BUNDLE_CHECK_INTERVAL_MS)
+  singletonInterval('pending-bundle-check', checkPendingBundles, BUNDLE_CHECK_INTERVAL_MS)
   log(`[BundleChecker] Scheduled every ${BUNDLE_CHECK_INTERVAL_MS / 60000}min`)
 
   // ── Fincra Payment Reconciliation (recover missed webhooks) ──
@@ -4887,7 +4896,7 @@ const loadData = async () => {
     }
   }
   setTimeout(() => reconcileFincraPayments(), 60000) // first check 1 min after startup
-  setInterval(reconcileFincraPayments, FINCRA_RECONCILE_INTERVAL)
+  singletonInterval('fincra-reconcile', reconcileFincraPayments, FINCRA_RECONCILE_INTERVAL)
   log(`[FincraReconcile] Payment recovery scheduled every ${FINCRA_RECONCILE_INTERVAL / 60000}min`)
 
 }
@@ -45637,7 +45646,10 @@ app.get('/health', async (req, res) => {
   res.status(200).json({
     status: dbHealthy ? 'healthy' : 'starting',
     database: dbHealthy ? 'connected' : 'connecting',
-    uptime: ((new Date() - serverStartTime) / (1000 * 60 * 60)).toFixed(2) + ' hours'
+    uptime: ((new Date() - serverStartTime) / (1000 * 60 * 60)).toFixed(2) + ' hours',
+    // Live phone-call sessions are process-local: deploy.sh holds the nginx flip while live > 0.
+    calls: voiceService?.getLiveCallCounts ? voiceService.getLiveCallCounts() : undefined,
+    slot: activeSlot.describe(),
   })
 })
 app.get('/json1444', async (req, res) => {
@@ -50288,7 +50300,7 @@ const startServer = async () => {
   await setupTelegramWebhook()
 
   // ── Call Scheduler (#10): Check for due scheduled calls every 30s ──
-  setInterval(async () => {
+  singletonInterval('scheduled-call-executor', async () => {
     try {
       const now = new Date()
       const dueCalls = await db.collection('scheduledCalls').find({
@@ -50339,7 +50351,7 @@ const startServer = async () => {
   }, 30000)
 
   // ── SMS Campaign Scheduler (#11): Check for due scheduled campaigns every 30s ──
-  setInterval(async () => {
+  singletonInterval('sms-campaign-scheduler', async () => {
     try {
       const now = new Date()
       const dueCampaigns = await db.collection('smsCampaigns').find({
