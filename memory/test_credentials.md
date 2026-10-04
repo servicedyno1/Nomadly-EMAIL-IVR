@@ -24,6 +24,6 @@
 - Base URL: {REACT_APP_BACKEND_URL}/api/reseller/v1  (internal: http://127.0.0.1:5000/reseller/v1)
 - Auth: `Authorization: Bearer <key>`  OR  `X-API-Key: <key>`
 - Owner chatId: 999000111  (wallet funded usdIn=100000 in Mongo `walletOf`)
-- API KEY: rsk_live_6fc131dd06c97b3dd6fe3a4cbbd69d0c6eac28871fbf0f7c
+- API KEY: rsk_live_566a19727b74061600ef1d0b671132070b47892ab7b1d900
 - Mode: dry_run (RESELLER_API_LIVE not set) — no WHM/Cloudflare/registrar calls.
 - Re-seed/rotate: `node /app/scripts/seed_reseller_test_owner.js`

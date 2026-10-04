@@ -5,7 +5,7 @@ import requests
 
 BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "").rstrip("/")
 if not BASE_URL:
-    BASE_URL = "https://vault-setup-fix.preview.emergentagent.com"
+    BASE_URL = "https://gracious-hopper-10.preview.emergentagent.com"
 
 TIMEOUT = 90
 

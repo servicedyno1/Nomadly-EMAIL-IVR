@@ -13,7 +13,7 @@ import time
 import sys
 
 # Base URL from frontend/.env
-BASE_URL = "https://vault-setup-fix.preview.emergentagent.com"
+BASE_URL = "https://gracious-hopper-10.preview.emergentagent.com"
 
 # Test credentials
 USERNAME = "nbayftest"
