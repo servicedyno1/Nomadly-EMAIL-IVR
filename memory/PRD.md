@@ -14,8 +14,11 @@
   `getTwilioResourcesFromEnv` only find/create/update `<prefix>-<sid6>.sip.twilio.com`; legacy `nomadly-` fallback only for default
   prefix. app-wl will manage `smadav-7937a0.sip.twilio.com` (already exists; Smadav DB has 0 phone users → safe). `_index.js`
   bridge-miss log now says which host served it + hints at the prefix. Test: `tests/twilio-sip-domain-prefix.test.js` (5/5).
-- **Deploy**: needs user "Save to GitHub" → deploy.yml (app-main) + Sync main→WhiteLabel → app-wl. Verify after: both boot logs show
-  `Updated SIP domain webhook: <own domain> → <own SELF_URL>`; Twilio API shows speechcue→2.speechcue.com, smadav→1.smadavspeech.com.
+- **Deploy — DONE & VERIFIED 2026-10-04 08:00Z**: user saved `c9cccb2c` → deploy.yml app-main-a (:5000, release 20261004T075810Z-c9cccb2)
+  + Sync main→WhiteLabel `da00248` → app-wl-a (:5001). Boot logs: app-main `SIP domain prefix 'speechcue-'` → updated speechcue-7937a0
+  → 2.speechcue.com; app-wl `prefix 'smadav-'` → updated smadav-7937a0 → 1.smadavspeech.com. Twilio API confirms both domains point at
+  their own bot (speechcue updated 07:59:30 by main, smadav 07:59:57 by wl — main's URL untouched by wl boot). /health 200 both, 0 boot errors.
+  First real SIP bridge call after deploy not yet observed in logs — watch for `[Twilio] Bridge found:` on app-main.
 - **Not done (user chose skip)**: don't bill failed bridges (release $0.30 reservation / refund $0.03 when `Bridge found` never logs);
   refund @Login4six8.
 
