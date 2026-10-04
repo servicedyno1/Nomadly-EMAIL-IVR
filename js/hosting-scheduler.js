@@ -14,6 +14,7 @@
 require('dotenv').config()
 const { log } = require('console')
 const activeSlot = require('./active-slot')
+const resellerWebhooks = require('./reseller-webhooks')
 
 const PREMIUM_ANTIRED_WEEKLY_PRICE = parseFloat(process.env.PREMIUM_ANTIRED_WEEKLY_PRICE) || 50
 const PREMIUM_ANTIRED_CPANEL_PRICE = parseFloat(process.env.PREMIUM_ANTIRED_CPANEL_PRICE) || 75
@@ -134,6 +135,26 @@ function initScheduler(deps) {
     const adminId = process.env.TELEGRAM_ADMIN_CHAT_ID
     if (!adminId) return
     bot.sendMessage(adminId, message, { parse_mode: 'HTML', disable_web_page_preview: true }).catch(() => { /* noop */ })
+  }
+
+  /**
+   * Push a lifecycle event to the hosting account owner's reseller webhook (if they
+   * registered one). Best-effort + no-op for ordinary bot users who have no API key.
+   * `dedupKey` lets per-cycle events (grace_start / auto_renew_failed) re-fire next cycle
+   * while hosting.deleted stays once-per-account.
+   */
+  function notifyReseller(account, event, payload = {}, dedupKey = null) {
+    if (!account || !account.chatId) return
+    try {
+      resellerWebhooks.emit(db, {
+        chatId: account.chatId,
+        event,
+        instanceId: account._id || account.cpUser,
+        dedupKey: dedupKey || undefined,
+        payload: { domain: account.domain || null, plan: account.plan || null, ...payload },
+        log,
+      }).catch(() => {})
+    } catch (_) { /* best-effort */ }
   }
 
   /**
@@ -285,6 +306,7 @@ function initScheduler(deps) {
                     // GAP-4 (2026-09): clear any prior auto-renew failure state on success.
                     autoRenewLastError: null,
                     autoRenewLastAttemptAt: now,
+                    autoRenewNextAttemptAt: null,
                     suspendedReason: null,
                   },
                 },
@@ -327,12 +349,23 @@ function initScheduler(deps) {
               // GAP-4 (2026-09): record WHY auto-renew didn't run so the reseller API can surface it
               // (GET /hosting/:user → auto_renew_last_error). Recorded even if already suspended; the
               // next attempt is the next hourly sweep. Cleared on a successful renew (above).
+              const nextAttempt = new Date(now.getTime() + CHECK_INTERVAL_MS)
               try {
                 await cpanelAccounts.updateOne(
                   { _id: account._id },
-                  { $set: { autoRenewLastError: 'insufficient_funds', autoRenewLastAttemptAt: now } }
+                  { $set: { autoRenewLastError: 'insufficient_funds', autoRenewLastAttemptAt: now, autoRenewNextAttemptAt: nextAttempt } }
                 )
               } catch (_) { /* best-effort */ }
+              // Reseller webhook: the auto-renew attempt failed on insufficient wallet funds. The plan
+              // now falls into the grace window (suspended just below) rather than terminating, so the
+              // customer still has a renewal window. Re-fires each billing cycle (dedupKey = expiry day).
+              const _cycle = account.expiryDate ? new Date(account.expiryDate).toISOString().slice(0, 10) : 'na'
+              notifyReseller(account, 'hosting.auto_renew_failed', {
+                reason: 'insufficient_funds',
+                price_usd: price,
+                wallet_balance_usd: Number((result.usdBal || 0).toFixed(2)),
+                next_attempt_at: nextAttempt.toISOString(),
+              }, `${account._id}:arf:${_cycle}`)
               if (!account.suspended) {
                 const { usdBal } = result
                 const langB = await getUserLang(chatId)
@@ -364,6 +397,15 @@ function initScheduler(deps) {
 
             suspended++
             log(`[HostingScheduler] SUSPENDED ${domain} (${plan}) for ${chatId} — plan expired, immediate suspension`)
+
+            // Reseller webhook: plan expired → suspended and the 48h grace countdown begins.
+            const _deleteAt = new Date(expiry.getTime() + GRACE_PERIOD_HOURS * 3600000)
+            notifyReseller(account, 'hosting.grace_start', {
+              reason: suspendReason,
+              expired_at: expiry.toISOString(),
+              delete_at: _deleteAt.toISOString(),
+              grace_hours: GRACE_PERIOD_HOURS,
+            }, `${account._id}:grace:${expiry.toISOString().slice(0, 10)}`)
           }
 
           // ── Grace period check — delete after 48h if still not renewed ──
@@ -399,6 +441,9 @@ function initScheduler(deps) {
             )
             deleted++
             log(`[HostingScheduler] DELETED cPanel for ${domain} (${plan}), user ${chatId} — WHM terminate: ${terminated}${terminated ? '' : ' (flagged whmTerminatePending for retry)'}`)
+
+            // Reseller webhook: account permanently removed after the grace window elapsed.
+            notifyReseller(account, 'hosting.deleted', { reason: 'expired_grace', terminated_on_whm: !!terminated })
           }
         }
       }
@@ -518,6 +563,15 @@ function initScheduler(deps) {
 
           enforcedSuspend++
           log(`[HostingScheduler] STARTUP ENFORCE: Suspended ${domain} (${plan}) for ${chatId} — expired ${hoursExpired}h ago, was NOT suspended`)
+
+          // Reseller webhook: catch-up suspension → grace countdown begins.
+          const _deleteAtS = new Date(expiry.getTime() + GRACE_PERIOD_HOURS * 3600000)
+          notifyReseller(account, 'hosting.grace_start', {
+            reason: 'plan_expired',
+            expired_at: expiry.toISOString(),
+            delete_at: _deleteAtS.toISOString(),
+            grace_hours: GRACE_PERIOD_HOURS,
+          }, `${account._id}:grace:${expiry.toISOString().slice(0, 10)}`)
         }
 
         // ── Step 2: Delete if past grace period and suspended ──
@@ -556,6 +610,9 @@ function initScheduler(deps) {
 
           enforcedDelete++
           log(`[HostingScheduler] STARTUP ENFORCE: Deleted ${domain} (${plan}) for ${chatId} — expired ${hoursExpired}h ago, past ${GRACE_PERIOD_HOURS}h grace`)
+
+          // Reseller webhook: account permanently removed after grace (catch-up path).
+          notifyReseller(account, 'hosting.deleted', { reason: 'expired_grace', terminated_on_whm: !!terminated })
         }
       }
 

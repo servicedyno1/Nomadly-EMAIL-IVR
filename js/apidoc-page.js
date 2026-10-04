@@ -48,18 +48,19 @@ function endpointGroups(base) {
         },
         {
           method: 'GET', path: '/account/webhook', auth: true, billed: false,
-          desc: 'Get the push-webhook URL currently registered on your API key and the RDP lifecycle events it receives. Registering a webhook lets you react to expiry/deletion instantly instead of polling GET /renewals.',
+          desc: 'Get the push-webhook URL + signing secret registered on your API key and the full list of lifecycle events it receives. Registering a webhook lets you react to expiry/grace/deletion instantly instead of polling GET /renewals.',
           curl: `curl -s ${base}/account/webhook \\
   -H "Authorization: Bearer YOUR_API_KEY"`,
           resp: `{
   "webhook_url": "https://your-app.com/hooks/nomadly",
-  "events": ["rdp.grace_start", "rdp.deleted"],
-  "delivery": "POST (no signature), auto-retry with backoff"
+  "webhook_secret": "whsec_…",
+  "events": ["hosting.grace_start","hosting.suspended","hosting.deleted","hosting.auto_renew_failed","vps.grace_start","vps.deleted","rdp.grace_start","rdp.deleted"],
+  "delivery": "POST signed with HMAC-SHA256 (X-Nomadly-Signature: sha256=<hex>), auto-retry with backoff, de-duplicated per server+event"
 }`,
         },
         {
           method: 'PUT', path: '/account/webhook', auth: true, billed: false,
-          desc: 'Register (or clear) the push-webhook URL for your account. Send {"webhook_url":"https://…"} to set it, or {"webhook_url":null} to clear it. Nomadly then POSTs a JSON body { event, occurred_at, data:{ id, plan, region, … } } to your URL for each RDP lifecycle event: rdp.grace_start (subscription expired → server powered off and a 3-day grace period begins; data also carries expired_at + delete_at) and rdp.deleted (droplet permanently deleted after grace ended unrenewed; data also carries reason:"expired_grace"). Delivery is a plain POST with no signature, retried with backoff, and de-duplicated per server+event so you never get the same event twice. Reply 2xx to acknowledge.',
+          desc: 'Register (or clear) the push-webhook URL for your account. Send {"webhook_url":"https://…"} to set it (the first time this also mints a webhook_secret you must store), or {"webhook_url":null} to clear it (the secret is kept for re-enabling). Nomadly then POSTs a JSON body { event, product, occurred_at, data:{ id, product, domain, reason, … } } to your URL for each lifecycle event across all three products: hosting.grace_start / vps.grace_start / rdp.grace_start (subscription expired → service suspended/powered off and a grace period begins; data carries expired_at + delete_at + grace_hours — hosting grace is 48h, VPS/RDP is 72h/3-day), hosting.auto_renew_failed (a wallet auto-renew attempt failed on insufficient funds; data carries price_usd, wallet_balance_usd, next_attempt_at — the plan then falls into grace, it is NOT terminated), and hosting.deleted / vps.deleted / rdp.deleted (the resource was permanently removed after grace; data carries reason). SECURITY: every delivery is signed — header "X-Nomadly-Signature: sha256=<hex>" is HMAC-SHA256 of the exact raw request body keyed by your webhook_secret. Recompute it and constant-time compare BEFORE acting on any *.deleted. Delivery is retried with backoff and de-duplicated per server+event (grace/auto_renew_failed re-fire each billing cycle; *.deleted fires once). Reply 2xx to acknowledge.',
           params: [['webhook_url', true, 'Your http(s) endpoint URL, or null to clear']],
           curl: `curl -s -X PUT ${base}/account/webhook \\
   -H "Authorization: Bearer YOUR_API_KEY" \\
@@ -67,14 +68,18 @@ function endpointGroups(base) {
   -d '{"webhook_url":"https://your-app.com/hooks/nomadly"}'`,
           resp: `{
   "webhook_url": "https://your-app.com/hooks/nomadly",
-  "events": ["rdp.grace_start", "rdp.deleted"],
-  "delivery": "POST (no signature), auto-retry with backoff"
+  "webhook_secret": "whsec_… (store this — it signs every delivery)",
+  "events": ["hosting.grace_start","hosting.suspended","hosting.deleted","hosting.auto_renew_failed","vps.grace_start","vps.deleted","rdp.grace_start","rdp.deleted"],
+  "delivery": "POST signed with HMAC-SHA256 (X-Nomadly-Signature: sha256=<hex>), auto-retry with backoff, de-duplicated per server+event"
 }
 
-// Example event Nomadly POSTs to your URL:
-// { "event": "rdp.grace_start", "occurred_at": "2026-09-24T15:00:00.000Z",
-//   "data": { "id": "6631...", "plan": "Standard — Windows RDP (1 month)", "region": "EU",
-//             "expired_at": "2026-09-24T15:00:00.000Z", "delete_at": "2026-09-27T15:00:00.000Z" } }`,
+// Example event Nomadly POSTs to your URL (verify X-Nomadly-Signature first):
+// { "event": "hosting.grace_start", "product": "hosting",
+//   "occurred_at": "2026-09-24T15:00:00.000Z",
+//   "data": { "id": "mysite01", "product": "hosting", "domain": "mysite.com",
+//             "plan": "Golden Anti-Red HostPanel (1-Month)", "reason": "plan_expired",
+//             "expired_at": "2026-09-24T15:00:00.000Z", "delete_at": "2026-09-26T15:00:00.000Z",
+//             "grace_hours": 48 } }`,
         },
         {
           method: 'GET', path: '/pricing', auth: true, billed: false,
@@ -423,13 +428,17 @@ function endpointGroups(base) {
         },
         {
           method: 'POST', path: '/vps/:id/renew', auth: true, billed: true,
-          desc: 'Renew (extend) a VPS subscription and, if it had expired, bring it out of its grace period — the server is powered back on and its scheduled deletion is cancelled. Charged from your wallet at the bundle-discounted rate for the chosen term. Returns 409 if the VPS was already permanently deleted after grace (order a new one instead). months defaults to 1 and is clamped to 1–12.',
-          params: [['months', false, 'Renewal term in months (default 1, max 12). Price uses the plan\u2019s bundle rate for that term.']],
+          desc: 'Renew (extend) a VPS subscription and, if it had expired, bring it out of its grace period — the server is powered back on and its scheduled deletion is cancelled. Charged from your wallet at the bundle-discounted rate for the chosen term. PRE-FLIGHT: send { dry_run: true } to get the price + renewability WITHOUT any charge or state change (works on a LIVE key). Blocked items 409/400 BEFORE any charge: 409 already_destroyed (renew_blocked_reason "already_destroyed") if it was permanently deleted after grace, 400 pricing_failed ("pricing_unavailable") if no price resolves. months defaults to 1 and is clamped to 1–12.',
+          params: [['months', false, 'Renewal term in months (default 1, max 12). Price uses the plan\u2019s bundle rate for that term.'], ['dry_run', false, 'If true, return price + renewability only — no charge, no state change (safe on a live key).']],
           curl: `curl -s -X POST ${base}/vps/b2f1c0a4-…/renew \\
   -H "Authorization: Bearer YOUR_API_KEY" -H "Content-Type: application/json" \\
   -d '{"months":1}'`,
           resp: `{ "mode": "live", "product": "vps", "action": "renew", "charged_usd": 12.00, "wallet_balance_usd": 88.00,
-  "result": { "success": true, "id": "b2f1c0a4-…", "months": 1, "plan": "VPS 2vCPU / 4GB", "expires_at": "2026-07-20T10:00:00.000Z" } }`,
+  "result": { "success": true, "id": "b2f1c0a4-…", "months": 1, "plan": "VPS 2vCPU / 4GB", "expires_at": "2026-07-20T10:00:00.000Z" } }
+
+// Pre-flight — POST {"dry_run":true} (no charge): { "dry_run": true, "product": "vps", "action": "renew",
+//   "id": "b2f1c0a4-…", "renewable": true, "renew_blocked_reason": null, "months": 1, "plan": "VPS 2vCPU / 4GB",
+//   "price_usd": 12.00, "wallet_balance_usd": 88.00, "sufficient_balance": true }`,
         },
       ],
     },
@@ -484,7 +493,7 @@ function endpointGroups(base) {
   -H "Authorization: Bearer YOUR_API_KEY" \\
   -H "Content-Type: application/json" \\
   -d '{"os":"ws2019"}'`, resp: `{ "mode": "live", "id": "…", "os": "ws2019", "os_name": "Windows Server 2019", "ip": "203.0.113.80", "eta_minutes": 3, "password": "N3w-Pass-…" }` },
-        { method: 'POST', path: '/rdp/:id/renew', auth: true, billed: true, desc: 'Renew (extend) a Windows RDP subscription and, if it had expired, bring it out of the 3-day grace period — the server is powered back on and its scheduled deletion is cancelled. Charged from your wallet at the bundle-discounted rate for the chosen term (1 month = full price, 2 months −10%, 3 months −15%). Returns 409 if the RDP was already permanently deleted after grace (order a new one instead). months defaults to 1 and is clamped to 1–3.', params: [['months', false, 'Renewal term in months: 1 | 2 | 3 — defaults to 1']], curl: `curl -s -X POST ${base}/rdp/ID/renew \\
+        { method: 'POST', path: '/rdp/:id/renew', auth: true, billed: true, desc: 'Renew (extend) a Windows RDP subscription and, if it had expired, bring it out of the 3-day grace period — the server is powered back on and its scheduled deletion is cancelled. Charged from your wallet at the bundle-discounted rate for the chosen term (1 month = full price, 2 months −10%, 3 months −15%). PRE-FLIGHT: send { dry_run: true } for price + renewability with no charge or state change (works on a LIVE key). Blocked items 409/400/501 BEFORE any charge: 409 already_destroyed if deleted after grace, 501 not_supported ("not_supported") if this box has no provider renew op, 400 pricing_failed ("pricing_unavailable"). months defaults to 1 and is clamped to 1–3.', params: [['months', false, 'Renewal term in months: 1 | 2 | 3 — defaults to 1'], ['dry_run', false, 'If true, return price + renewability only — no charge (safe on a live key).']], curl: `curl -s -X POST ${base}/rdp/ID/renew \\
   -H "Authorization: Bearer YOUR_API_KEY" \\
   -H "Content-Type: application/json" \\
   -d '{"months":1}'`, resp: `{ "mode": "live", "product": "rdp", "action": "renew", "charged_usd": 56.00,
@@ -495,7 +504,7 @@ function endpointGroups(base) {
     },
     {
       id: 'hosting', title: 'cPanel Hosting',
-      blurb: 'Sell Anti-Red cPanel hosting plans. Creation is wallet-billed (plan price + domain price when domain_mode=buy). The account "id" is its cPanel username — it is returned as both id and username, and is the value you pass as the :user path segment (so hosting reads consistently with /vps/:id and /rdp/:id).',
+      blurb: 'Sell Anti-Red cPanel hosting plans. Creation is wallet-billed (plan price + domain price when domain_mode=buy). The account "id" is its cPanel username — it is returned as both id and username, and is the value you pass as the :user path segment (so hosting reads consistently with /vps/:id and /rdp/:id). LIFECYCLE & AUTO-RENEW: a guaranteed hourly worker runs on the production bot. At (and after) expiry it first ATTEMPTS a wallet auto-renew (when auto_renew is on); on insufficient funds it records auto_renew_last_error + auto_renew_next_attempt_at, emits the hosting.auto_renew_failed webhook, suspends the site and starts a 48h grace window (state "grace", delete_at = expiry + 48h) — it does NOT terminate immediately, so the customer keeps a renewal window. If still unrenewed 48h later the account is terminated (hosting.deleted). Every read (GET /hosting, GET /hosting/:user, GET /renewals) exposes state + renewable so you never have to infer it.',
       endpoints: [
         {
           method: 'GET', path: '/hosting/plans', auth: true, billed: false,
@@ -597,7 +606,7 @@ function endpointGroups(base) {
         },
         {
           method: 'GET', path: '/hosting/:user', auth: true, billed: false,
-          desc: 'Full account details for one hosting account — plan, price, expiry, addon quota/list, the customer deliverables block (panel URL, cPanel username, server IP, nameservers, credentials_url), and LIVE disk/bandwidth usage read from WHM.',
+          desc: 'Full lifecycle + details for one hosting account. "state" is one of online | suspended | grace | terminated. When state is "grace" the plan has expired and is suspended but still recoverable — the "grace" block gives expired_at, delete_at (= expiry + 48h; hosting grace is 48 hours, shorter than the 72h VPS/RDP grace), grace_hours and days/hours_remaining so you can message the customer. "renewable" + "renew_blocked_reason" tell you whether POST /hosting/:user/renew will succeed (reason: account_terminated | pricing_unavailable). "auto_renew_last_error"/"_last_attempt_at"/"_next_attempt_at" expose the hourly auto-renew worker. A TERMINATED account returns state:"terminated", terminated:true, renewable:false, suspended:false (the legacy boolean is forced false), deliverables + credentials nulled, but keeps its identifying metadata (domain, plan, expires_at, terminated_at) so you can reconcile your catalog. Non-terminated responses also carry live disk/bandwidth usage read from WHM.',
           curl: `curl -s ${base}/hosting/mysite01 \\
   -H "Authorization: Bearer YOUR_API_KEY"`,
           resp: `{
@@ -607,8 +616,20 @@ function endpointGroups(base) {
   "plan": "Golden Anti-Red HostPanel (1-Month)",
   "price_usd": 100,
   "duration_days": 30,
+  "state": "online",
+  "terminated": false,
   "suspended": false,
+  "grace": null,
+  "renewable": true,
+  "renew_blocked_reason": null,
+  "suspended_reason": null,
+  "auto_renew": true,
+  "auto_renew_last_error": null,
+  "auto_renew_last_attempt_at": null,
+  "auto_renew_next_attempt_at": null,
   "expires_at": "2026-10-08T11:00:00.000Z",
+  "panel_url": "https://panel.1.hostbay.io",
+  "server_ip": "68.183.77.106",
   "deliverables": {
     "cpanel_username": "mysite01",
     "panel_url": "https://panel.1.hostbay.io",
@@ -625,7 +646,15 @@ function endpointGroups(base) {
     "inodes_used": 10432, "inodes_limit": "unlimited"
   },
   "mode": "dry_run"
-}`,
+}
+
+// A TERMINATED account (state:"terminated") — deliverables/credentials nulled, metadata kept:
+// { "id": "old01", "username": "old01", "domain": "old.com", "plan": "Premium Anti-Red HostPanel (1-Month)",
+//   "state": "terminated", "terminated": true, "terminated_at": "2026-06-01T00:00:00.000Z",
+//   "termination_reason": "expired_grace", "suspended": false, "grace": null,
+//   "renewable": false, "renew_blocked_reason": "account_terminated",
+//   "expires_at": "2026-05-30T00:00:00.000Z", "deliverables": null, "credentials_url": null,
+//   "panel_url": null, "server_ip": null, "usage": null }`,
         },
         {
           method: 'GET', path: '/hosting/:user/credentials', auth: true, billed: false,
@@ -648,17 +677,23 @@ function endpointGroups(base) {
         },
         {
           method: 'POST', path: '/hosting/:user/renew', auth: true, billed: true,
-          desc: 'Renew a hosting account for another term at the exact bot price for its plan. Extends the expiry (from the later of today or the current expiry), unsuspends the account if it was suspended, and re-deploys anti-red protection. Verifies the account still exists on the server first (returns provisioning_failed + full refund, and marks it terminated, if it was already removed). Optional body { periods: 1..12 } renews several billing cycles at once (price × periods). Returns 409 account_terminated if the plan was already cancelled.',
-          params: [['periods', false, 'Number of billing cycles to renew at once (default 1, max 12).']],
+          desc: 'Renew a hosting account for another term at the exact bot price for its plan. Extends the expiry (from the later of today or the current expiry), unsuspends the account if it was suspended, and re-deploys anti-red protection. Verifies the account still exists on the server first (returns provisioning_failed + full refund, and marks it terminated, if it was already removed). Optional body { periods: 1..12 } renews several billing cycles at once (price × periods). PRE-FLIGHT: send { dry_run: true } to get the price, renewability and would_expire_at WITHOUT any charge or state change — this works on a LIVE key too, so a wallet-billed storefront never has to charge→409→refund to discover a dead item. Blocked items always 409/400 BEFORE any charge: 409 account_terminated (renew_blocked_reason "account_terminated") if the plan was cancelled, 400 pricing_failed ("pricing_unavailable") if no price/duration resolves.',
+          params: [['periods', false, 'Number of billing cycles to renew at once (default 1, max 12).'], ['dry_run', false, 'If true, return price + renewability only — no charge, no state change (safe on a live key).']],
           curl: `curl -s -X POST ${base}/hosting/mysite01/renew \\
   -H "Authorization: Bearer YOUR_API_KEY" -H "Content-Type: application/json" \\
   -d '{"periods":1}'`,
           resp: `{
   "mode": "live", "product": "hosting", "action": "renew", "charged_usd": 100, "wallet_balance_usd": 42.51,
-  "result": { "success": true, "username": "mysite01", "domain": "mysite.com",
+  "result": { "success": true, "id": "mysite01", "username": "mysite01", "domain": "mysite.com",
     "plan": "Golden Anti-Red HostPanel (1-Month)", "periods": 1, "duration_days": 30,
     "expires_at": "2026-11-08T11:00:00.000Z" }
-}`,
+}
+
+// Pre-flight — POST {"dry_run":true} (no charge, works on a live key):
+// { "dry_run": true, "product": "hosting", "action": "renew", "id": "mysite01", "username": "mysite01",
+//   "domain": "mysite.com", "plan": "Golden Anti-Red HostPanel (1-Month)", "renewable": true,
+//   "renew_blocked_reason": null, "periods": 1, "duration_days": 30, "price_usd": 100,
+//   "wallet_balance_usd": 142.51, "sufficient_balance": true, "would_expire_at": "2026-11-08T11:00:00.000Z" }`,
         },
         {
           method: 'POST', path: '/hosting/:user/upgrade', auth: true, billed: true,
@@ -719,29 +754,33 @@ function endpointGroups(base) {
     },
     {
       id: 'renewals', title: 'Renewal Alerts',
-      blurb: 'One call returns every product you own that is expiring soon — hosting, domains, VPS and RDP — with days remaining and a status bucket. Poll it to drive renewal reminders / auto-renew.',
+      blurb: 'One call returns every product you own that is expiring soon — hosting, domains, VPS and RDP — with days remaining, a status bucket and a per-item renewable flag. Poll it to drive renewal reminders / auto-renew. For instant reconciliation, prefer the push webhooks (grace_start / *.deleted).',
       endpoints: [
         {
           method: 'GET', path: '/renewals', auth: true, billed: false,
-          desc: 'Unified upcoming-expiry list across hosting + domains + VPS + RDP. Use ?days=N to filter to items expiring within N days (default 30); already-expired items are always included.',
-          params: [['days', false, 'Only return items expiring within this many days (default 30)']],
+          desc: 'Unified upcoming-expiry list across hosting + domains + VPS + RDP. Use ?days=N to filter to items expiring within N days (default 30); already-expired/grace items are always included. Each hosting/VPS/RDP item carries "renewable" + "renew_blocked_reason" and (for an item in its grace window) in_grace/delete_at/days_until_deletion, so you can drive a "Renew" button without a charge→409 round-trip. Terminated items are OMITTED by default (this list is for things you can act on); pass ?include_terminated=true to also get items terminated in the last 90 days with status "terminated", terminated_at and renewable:false.',
+          params: [['days', false, 'Only return items expiring within this many days (default 30)'], ['include_terminated', false, 'If true, also include items terminated in the last 90 days (status "terminated").']],
           curl: `curl -s "${base}/renewals?days=30" \\
   -H "Authorization: Bearer YOUR_API_KEY"`,
           resp: `{
   "within_days": 30,
-  "count": 2,
-  "summary": { "expired": 0, "expiring_soon": 1, "upcoming": 1, "in_grace": 1 },
+  "include_terminated": false,
+  "count": 3,
+  "summary": { "expired": 0, "expiring_soon": 1, "upcoming": 1, "in_grace": 1, "terminated": 0 },
   "renewals": [
     { "product": "hosting", "id": "mysite01", "domain": "mysite.com",
       "plan": "Golden Anti-Red HostPanel (1-Month)",
       "expires_at": "2026-09-11T11:00:00.000Z", "days_until_expiry": 3,
-      "status": "expiring_soon", "suspended": false, "auto_renew": true },
+      "status": "expiring_soon", "state": "online", "suspended": false, "auto_renew": true,
+      "renewable": true, "renew_blocked_reason": null },
     { "product": "rdp", "id": "a1b2c3d4-…", "plan": "Standard — Windows RDP (1 month)", "region": "US",
       "expires_at": "2026-06-14T11:00:00.000Z", "days_until_expiry": -1,
       "status": "grace", "in_grace": true, "expired_at": "2026-06-14T11:00:00.000Z",
-      "delete_at": "2026-06-17T11:00:00.000Z", "days_until_deletion": 2 },
+      "delete_at": "2026-06-17T11:00:00.000Z", "days_until_deletion": 2,
+      "renewable": true, "renew_blocked_reason": null },
     { "product": "vps", "id": "b2f1c0a4-…", "plan": "s-1vcpu-1gb", "region": "EU",
-      "expires_at": "2026-10-01T11:00:00.000Z", "days_until_expiry": 23, "status": "upcoming" }
+      "expires_at": "2026-10-01T11:00:00.000Z", "days_until_expiry": 23, "status": "upcoming",
+      "renewable": true, "renew_blocked_reason": null }
   ]
 }`,
         },

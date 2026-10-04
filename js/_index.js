@@ -36948,6 +36948,17 @@ async function checkVPSPlansExpiryandPayment() {
   const rdpGrace = require('./rdp-grace-lifecycle')
   const resellerWebhooks = require('./reseller-webhooks')
   const _isDoRdp = (vpsPlan) => rdpGrace.isDigitalOceanRdp(vpsPlan)
+  // Push a VPS lifecycle event to the owner's reseller webhook (no-op for ordinary bot users).
+  const _notifyResellerVps = (vpsPlan, event, reason) => {
+    try {
+      resellerWebhooks.emit(db, {
+        chatId: vpsPlan.chatId, event,
+        instanceId: vpsPlan.vpsId || vpsPlan._id,
+        payload: { plan: vpsPlan.plan || null, region: vpsPlan.region || null, reason: reason || null },
+        log,
+      }).catch(() => {})
+    } catch (_) { /* best-effort */ }
+  }
   // Renewal length = the prepaid period the customer bought (DO RDP: 1/2/3 months; everything else monthly).
   // Providers that enforce their own expiry (DO-RDP sweep on doRdpServers.expires_at) must be told about
   // the renewal too, otherwise they power the server off even though the bot record was extended.
@@ -36987,6 +36998,9 @@ async function checkVPSPlansExpiryandPayment() {
         await vpsPlansOf.updateOne({ _id }, { $set: { status: 'PENDING_CANCELLATION', _autoRenewAttempted: true } })
         try { send(chatId, translation('t.util_1', lang, displayName, expiryDate)) } catch (notifErr) { log(`[VPS Scheduler] notify failed: ${notifErr.message}`) }
         log(`[VPS Scheduler] ${displayName} marked PENDING_CANCELLATION for ${chatId} — auto-renew disabled`)
+        // Reseller webhook: PAYG box keeps running until end_time, so this is the grace window
+        // (deletion happens in Phase 2 at end_time). Non-PAYG is cancelled immediately below.
+        if (_isPAYGProvider(vpsPlan)) _notifyResellerVps(vpsPlan, 'vps.grace_start', 'auto_renew_disabled')
         // ── BUG-B FIX: cancel on Contabo IMMEDIATELY (24h before expiry) ──
         // Contabo bills monthly contracts in advance; waiting until the 5h
         // pre-emptive cancel (Phase 1.5) was too late and caused €30+ leak
@@ -37041,6 +37055,9 @@ async function checkVPSPlansExpiryandPayment() {
         try { send(chatId, translation('t.util_3', lang, displayName, (usdBal || 0).toFixed(2), planPrice, expiryDate)) } catch (notifErr) { log(`[VPS Scheduler] notify failed: ${notifErr.message}`) }
         send(TELEGRAM_ADMIN_CHAT_ID, `⚠️ <b>VPS Renewal Failed</b>\nUser: ${adminUserTag(await get(nameOf, chatId), chatId)}\nVPS: ${displayName}\nPrice: $${planPrice}\nBalance: $${(usdBal || 0).toFixed(2)}`, adminMsgOpts({ chatId }))
         log(`[VPS Scheduler] ${displayName} PENDING_CANCELLATION for ${chatId} — balance insufficient ($${usdBal || 0} < $${planPrice})`)
+        // Reseller webhook: PAYG box keeps running until end_time → grace window begins (Phase 2
+        // destroys at end_time). Gives the storefront a window to renew via POST /vps/:id/renew.
+        if (_isPAYGProvider(vpsPlan)) _notifyResellerVps(vpsPlan, 'vps.grace_start', 'insufficient_funds')
         // ── BUG-B FIX (extended): cancel on Contabo IMMEDIATELY at wallet-fail.
         // Contabo pre-bills the next period ~4 days BEFORE end_time, which is
         // earlier than the old Phase 1.5 trigger (T-5h) — so without this we
@@ -37220,6 +37237,8 @@ async function checkVPSPlansExpiryandPayment() {
         const deleteResult = await deleteVPSinstance(chatId, vpsId)
         if (deleteResult.success) {
           await vpsPlansOf.updateOne({ _id }, { $set: { status: 'CANCELLED', cancelledAt: new Date(), cancelReason: deleteResult.alreadyGone ? 'auto_renewal_failed_already_gone' : 'auto_renewal_failed' } })
+          // Reseller webhook: the box was permanently deleted at end_time after an unrenewed grace.
+          _notifyResellerVps(vpsPlan, 'vps.deleted', deleteResult.alreadyGone ? 'already_gone' : 'auto_renewal_failed')
           try { send(chatId, translation('t.util_5', lang, displayName)) } catch (notifErr) { log(`[VPS Scheduler] notify failed: ${notifErr.message}`) }
           // Only alert admin on ACTIVE deletions (skip idempotent no-ops:
           // the instance was already gone on the provider — nothing new).

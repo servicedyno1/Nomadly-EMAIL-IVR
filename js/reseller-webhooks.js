@@ -15,10 +15,21 @@
 // RDP-service safety-net sweep never double-send the same event.
 // ============================================================
 
+const crypto = require('crypto')
+
 const RETRIES = Math.max(0, Number(process.env.RESELLER_WEBHOOK_RETRIES || 3))
 const TIMEOUT_MS = Math.max(1000, Number(process.env.RESELLER_WEBHOOK_TIMEOUT_MS || 10000))
 // Backoff before each retry (ms); index clamps to the last entry.
 const BACKOFF_MS = [2000, 6000, 12000]
+
+// Every lifecycle event we can push. `.deleted` is consistent across products so
+// a receiver can mark a customer's service dead on hosting.deleted / vps.deleted /
+// rdp.deleted with the same handler. Surfaced on GET /account/webhook.
+const EVENTS = [
+  'hosting.grace_start', 'hosting.suspended', 'hosting.deleted', 'hosting.auto_renew_failed',
+  'vps.grace_start', 'vps.deleted',
+  'rdp.grace_start', 'rdp.deleted',
+]
 
 const sleep = (ms) => new Promise(r => setTimeout(r, ms))
 function isHttpUrl(u) {
@@ -26,24 +37,36 @@ function isHttpUrl(u) {
   catch (_) { return false }
 }
 
+// Per-key signing secret handed to the reseller so they can verify deliveries.
+function newWebhookSecret() { return 'whsec_' + crypto.randomBytes(24).toString('hex') }
+function _signature(secret, raw) {
+  return 'sha256=' + crypto.createHmac('sha256', String(secret)).update(raw, 'utf8').digest('hex')
+}
+
 // POST once. Never throws — returns the axios response (validateStatus off).
 // axios is resolved lazily so tests that stub the axios module still reach it.
-function _post(url, body) {
+function _post(url, raw, extraHeaders) {
   return require('axios')({
-    method: 'POST', url, data: body, timeout: TIMEOUT_MS,
-    headers: { 'Content-Type': 'application/json', 'User-Agent': 'Nomadly-Reseller-Webhook/1' },
+    method: 'POST', url, data: raw, timeout: TIMEOUT_MS,
+    headers: { 'Content-Type': 'application/json', 'User-Agent': 'Nomadly-Reseller-Webhook/1', ...(extraHeaders || {}) },
     validateStatus: () => true,
   })
 }
 
-// Deliver with retry/backoff. Any 2xx = success.
-async function deliver(url, body) {
+// Deliver with retry/backoff. Any 2xx = success. When `secret` is set we sign the
+// EXACT raw JSON body with HMAC-SHA256 and send it in X-Nomadly-Signature (format
+// "sha256=<hex>") so the receiver can verify the event came from us — this defends
+// against a spoofed *.deleted that would otherwise kill a real customer's service.
+async function deliver(url, body, secret) {
+  const raw = typeof body === 'string' ? body : JSON.stringify(body)
+  const headers = {}
+  if (secret) { headers['X-Nomadly-Signature'] = _signature(secret, raw); headers['X-Nomadly-Signature-Version'] = 'v1' }
   let lastErr = null
   const attempts = RETRIES + 1
   for (let i = 0; i < attempts; i++) {
     if (i > 0) await sleep(BACKOFF_MS[Math.min(i - 1, BACKOFF_MS.length - 1)])
     try {
-      const res = await _post(url, body)
+      const res = await _post(url, raw, headers)
       if (res.status >= 200 && res.status < 300) return { ok: true, status: res.status, attempts: i + 1 }
       lastErr = `HTTP ${res.status}`
     } catch (e) { lastErr = e.message }
@@ -52,8 +75,11 @@ async function deliver(url, body) {
 }
 
 // Emit an event to every enabled reseller key owned by chatId that has a webhookUrl.
+// `dedupKey` (optional) overrides the idempotency discriminator while `instanceId` stays the
+// payload id — used so a per-cycle event (hosting.grace_start / hosting.auto_renew_failed) can
+// re-fire on the NEXT billing cycle, while a terminal event (*.deleted) stays once-per-resource.
 // Best-effort: never throws. Returns { delivered, skipped }.
-async function emit(db, { chatId, event, instanceId, payload = {}, log = () => {} } = {}) {
+async function emit(db, { chatId, event, instanceId, dedupKey, payload = {}, log = () => {} } = {}) {
   if (!db || typeof db.collection !== 'function' || !chatId || !event) return { delivered: 0, skipped: 0 }
   let keys = []
   try {
@@ -62,12 +88,15 @@ async function emit(db, { chatId, event, instanceId, payload = {}, log = () => {
   if (!keys.length) return { delivered: 0, skipped: 0 }
 
   const deliveries = db.collection('resellerWebhookDeliveries')
-  const body = { event, occurred_at: new Date().toISOString(), data: { id: instanceId || null, ...payload } }
+  // Top-level `product` (hosting|vps|rdp) + occurred_at; `data` carries id, product,
+  // domain, reason plus any event-specific fields passed in `payload`.
+  const product = String(event).split('.')[0]
+  const body = { event, product, occurred_at: new Date().toISOString(), data: { id: instanceId || null, product, ...payload } }
   let delivered = 0, skipped = 0
 
   for (const k of keys) {
     if (!isHttpUrl(k.webhookUrl)) { skipped++; continue }
-    const dedupId = `${k._id}:${event}:${instanceId || ''}`
+    const dedupId = `${k._id}:${event}:${dedupKey || instanceId || ''}`
     // Claim the delivery first so the scheduler + safety-net sweep can't both send it.
     try {
       await deliveries.insertOne({ _id: dedupId, keyId: k._id, ownerChatId: String(chatId), event, instanceId: instanceId || null, url: k.webhookUrl, createdAt: new Date(), status: 'sending' })
@@ -75,7 +104,7 @@ async function emit(db, { chatId, event, instanceId, payload = {}, log = () => {
       if (e && e.code === 11000) { skipped++; continue } // already claimed/sent by another engine
       log(`[ResellerWebhook] dedup insert failed: ${e.message}`); continue
     }
-    const r = await deliver(k.webhookUrl, body)
+    const r = await deliver(k.webhookUrl, body, k.webhookSecret)
     try {
       await deliveries.updateOne({ _id: dedupId }, { $set: r.ok
         ? { status: 'delivered', attempts: r.attempts, httpStatus: r.status, deliveredAt: new Date() }
@@ -87,4 +116,4 @@ async function emit(db, { chatId, event, instanceId, payload = {}, log = () => {
   return { delivered, skipped }
 }
 
-module.exports = { emit, deliver, isHttpUrl, RETRIES, TIMEOUT_MS }
+module.exports = { emit, deliver, isHttpUrl, newWebhookSecret, EVENTS, RETRIES, TIMEOUT_MS }
