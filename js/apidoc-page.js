@@ -252,6 +252,81 @@ function endpointGroups(base) {
       ],
     },
     {
+      id: 'shortener', title: 'URL Shortener',
+      blurb: 'Turn any domain into a branded link shortener. Activate a domain three ways — BUY it (wallet-billed at the domain price, then auto-configured), connect an EXISTING on-account domain (free, DNS auto-set via Cloudflare), or connect an EXTERNAL domain you host elsewhere (free — we return the exact CNAME + TXT records to add, then call /verify). Links resolve on your domain (https://yourdomain/slug → 301) and every click is counted. Creating / managing links is FREE. Links only work on domains you have activated. On a sandbox pod, domain activation returns a dry-run envelope (no DNS change); link CRUD runs live against the database.',
+      endpoints: [
+        {
+          method: 'POST', path: '/shortener/domains', auth: true, billed: true,
+          desc: 'Activate a domain as a URL shortener. Body { domain, source } where source is "buy" (register the domain — wallet-billed at the domain price — then auto-activate), "existing" (a domain already on your account — free, DNS set automatically via Cloudflare) or "external" (a domain you host elsewhere — free; the response lists the CNAME + TXT records to add at your DNS host, then confirm with POST /shortener/domains/:domain/verify).',
+          params: [['domain', true, 'Domain to use for short links, e.g. go.mysite.com'], ['source', true, '"buy" | "existing" | "external"']],
+          curl: `curl -s -X POST ${base}/shortener/domains \\
+  -H "Authorization: Bearer YOUR_API_KEY" -H "Content-Type: application/json" \\
+  -d '{"domain":"go.mysite.com","source":"external"}'`,
+          resp: `{ "mode": "live", "domain": "go.mysite.com", "source": "external", "status": "pending_dns", "dns_records": [ { "type": "CNAME", "host": "go.mysite.com", "value": "nomadly.up.railway.app" }, { "type": "TXT", "host": "_acme.go.mysite.com", "value": "verify-abc123" } ] }`,
+        },
+        {
+          method: 'GET', path: '/shortener/domains', auth: true, billed: false,
+          desc: 'List every domain you have activated (or are activating) as a shortener, with its status (pending/railway_linked/dns_added/completed/failed/deactivated) and the DNS target.',
+          curl: `curl -s ${base}/shortener/domains \\
+  -H "Authorization: Bearer YOUR_API_KEY"`,
+          resp: `{ "domains": [ { "domain": "go.mysite.com", "status": "completed", "cname_target": "nomadly.up.railway.app", "record_type": "CNAME", "activated_at": "2026-06-20T10:00:00.000Z" } ] }`,
+        },
+        {
+          method: 'POST', path: '/shortener/domains/:domain/verify', auth: true, billed: false,
+          desc: 'Re-check DNS for an EXTERNAL domain and finalise activation once your CNAME has propagated. Returns verified:true and status:"completed" when the domain resolves to the given target.',
+          curl: `curl -s -X POST ${base}/shortener/domains/go.mysite.com/verify \\
+  -H "Authorization: Bearer YOUR_API_KEY"`,
+          resp: `{ "domain": "go.mysite.com", "verified": true, "status": "completed", "message": "go.mysite.com is now active as a URL shortener." }`,
+        },
+        {
+          method: 'DELETE', path: '/shortener/domains/:domain', auth: true, billed: false,
+          desc: 'Deactivate a shortener domain. Removes the shortener DNS record (when we manage the domain\u2019s DNS). Existing links are kept but stop resolving until you re-activate.',
+          curl: `curl -s -X DELETE ${base}/shortener/domains/go.mysite.com \\
+  -H "Authorization: Bearer YOUR_API_KEY"`,
+          resp: `{ "domain": "go.mysite.com", "deactivated": true }`,
+        },
+        {
+          method: 'POST', path: '/shortener/links', auth: true, billed: false,
+          desc: 'Create a short link on one of your activated domains. Provide a custom alias or let one be auto-generated. Optionally set an expiry.',
+          params: [['domain', true, 'An activated shortener domain of yours'], ['url', true, 'The long URL to redirect to (http/https)'], ['alias', false, 'Custom short code (a–z, 0–9, -, _). Omitted → random 7-char code'], ['expires_in_days', false, 'Auto-expire the link after N days']],
+          curl: `curl -s -X POST ${base}/shortener/links \\
+  -H "Authorization: Bearer YOUR_API_KEY" -H "Content-Type: application/json" \\
+  -d '{"domain":"go.mysite.com","url":"https://example.com/a/very/long/path","alias":"promo"}'`,
+          resp: `{ "created": true, "short_url": "https://go.mysite.com/promo", "domain": "go.mysite.com", "slug": "promo", "url": "https://example.com/a/very/long/path", "clicks": 0, "status": "active", "expires_at": null }`,
+        },
+        {
+          method: 'GET', path: '/shortener/links', auth: true, billed: false,
+          desc: 'List your short links with live click counts. Filter with ?domain=go.mysite.com and paginate with ?limit=.',
+          curl: `curl -s "${base}/shortener/links?domain=go.mysite.com" \\
+  -H "Authorization: Bearer YOUR_API_KEY"`,
+          resp: `{ "links": [ { "short_url": "https://go.mysite.com/promo", "domain": "go.mysite.com", "slug": "promo", "url": "https://example.com/a/very/long/path", "clicks": 42, "status": "active", "expires_at": null } ], "count": 1 }`,
+        },
+        {
+          method: 'GET', path: '/shortener/links/:slug', auth: true, billed: false,
+          desc: 'Inspect a single link with its click analytics. Pass ?domain= so the code resolves to the right domain.',
+          curl: `curl -s "${base}/shortener/links/promo?domain=go.mysite.com" \\
+  -H "Authorization: Bearer YOUR_API_KEY"`,
+          resp: `{ "short_url": "https://go.mysite.com/promo", "domain": "go.mysite.com", "slug": "promo", "url": "https://example.com/a/very/long/path", "clicks": 42, "status": "active", "expires_at": null, "created_at": "2026-06-20T10:05:00.000Z" }`,
+        },
+        {
+          method: 'PATCH', path: '/shortener/links/:slug', auth: true, billed: false,
+          desc: 'Update a link: enable/disable it, and/or set or clear its expiry. Disabling makes it return 404 to visitors without deleting it; set expires_in_days:null to remove an expiry.',
+          params: [['domain', true, 'The link\u2019s domain'], ['disabled', false, 'true to disable, false to re-enable'], ['expires_in_days', false, 'Number of days from now, or null to clear the expiry']],
+          curl: `curl -s -X PATCH ${base}/shortener/links/promo \\
+  -H "Authorization: Bearer YOUR_API_KEY" -H "Content-Type: application/json" \\
+  -d '{"domain":"go.mysite.com","disabled":true}'`,
+          resp: `{ "updated": true, "short_url": "https://go.mysite.com/promo", "domain": "go.mysite.com", "slug": "promo", "status": "disabled", "clicks": 42, "expires_at": null }`,
+        },
+        {
+          method: 'DELETE', path: '/shortener/links/:slug', auth: true, billed: false,
+          desc: 'Permanently delete a short link (and its click stats). Pass ?domain=.',
+          curl: `curl -s -X DELETE "${base}/shortener/links/promo?domain=go.mysite.com" \\
+  -H "Authorization: Bearer YOUR_API_KEY"`,
+          resp: `{ "deleted": true, "domain": "go.mysite.com", "slug": "promo" }`,
+        },
+      ],
+    },
+    {
       id: 'vps', title: 'VPS (Linux)',
       blurb: 'Provision and control Linux virtual servers. Creation is wallet-billed at the plan price (includes markup).',
       endpoints: [
@@ -1064,7 +1139,7 @@ function renderApiDocPage(baseUrl) {
   :root{
     --bg:#0a0b0d; --panel:#111318; --panel2:#16181f; --border:#242833;
     --text:#e6e8ee; --muted:#98a0ad; --accent:#10b981; --accent2:#34d399;
-    --get:#34d399; --post:#60a5fa; --put:#fbbf24; --delete:#f87171;
+    --get:#34d399; --post:#60a5fa; --put:#fbbf24; --delete:#f87171; --patch:#c084fc;
     --code-bg:#0d0f14;
   }
   *{box-sizing:border-box}
@@ -1084,7 +1159,7 @@ function renderApiDocPage(baseUrl) {
   .nav-ep{display:flex;align-items:center;gap:8px;padding:5px 8px;font-size:12.5px;color:var(--muted);border-radius:6px;font-family:ui-monospace,monospace}
   .nav-ep:hover{background:var(--panel2);color:var(--text)}
   .nm{font-size:9.5px;font-weight:800;letter-spacing:.4px;min-width:38px}
-  .nm-get{color:var(--get)}.nm-post{color:var(--post)}.nm-put{color:var(--put)}.nm-delete{color:var(--delete)}
+  .nm-get{color:var(--get)}.nm-post{color:var(--post)}.nm-put{color:var(--put)}.nm-delete{color:var(--delete)}.nm-patch{color:var(--patch)}
   /* Main */
   main{flex:1;min-width:0;width:100%;max-width:1000px;padding:40px 46px 90px}
   .hero h1{font-size:34px;margin:0 0 6px;letter-spacing:-.5px}
@@ -1102,7 +1177,7 @@ function renderApiDocPage(baseUrl) {
   .ep{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:18px 20px;margin:16px 0}
   .ep-head{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
   .m{font-size:11px;font-weight:800;letter-spacing:.5px;padding:4px 9px;border-radius:7px;color:#04121a}
-  .m-get{background:var(--get)}.m-post{background:var(--post)}.m-put{background:var(--put)}.m-delete{background:var(--delete)}
+  .m-get{background:var(--get)}.m-post{background:var(--post)}.m-put{background:var(--put)}.m-delete{background:var(--delete)}.m-patch{background:var(--patch)}
   .ep-path{font-size:15px;font-weight:600}
   .ep-badges{margin-left:auto;display:flex;gap:6px;flex-wrap:wrap}
   .tag{font-size:11px;padding:3px 9px;border-radius:999px;border:1px solid var(--border);color:var(--muted)}
