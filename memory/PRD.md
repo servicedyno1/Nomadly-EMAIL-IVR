@@ -1,6 +1,14 @@
 # PRD — Nomadly Cloud IVR + Telegram Bot
 
-## 2026-06 — Plan-tier gating audit of reseller API (honeypot + all plan-gated features) — VERIFIED correct + status parity added
+## 2026-06 — Reseller API: manual renew for hosting / VPS / RDP — DONE & tested (21/21)
+- Gap: only RDP had a manual renew; **hosting** (doc promised `POST /hosting/:user/renew` but it was never implemented) and **VPS** had none. Added both; generalized the RDP handler into a shared `vpsRenewHandler(isRDP)`.
+- **`POST /hosting/:user/renew`** `{periods?:1..12}` — charges plan price × periods (`getPlanPrice`×`getPlanDuration`), verifies the WHM account still exists (else refund + mark terminated), extends `expiryDate` from max(now, current), unsuspends, re-deploys anti-red. Mirrors the bot's `confirmRenewNow`.
+- **`POST /vps/:id/renew`** `{months?:1..12}` — price = `record.planPrice × months`; provider `renewInstance` is OPTIONAL (PAYG DO/Vultr/Azure keep running → wallet+expiry only; mirrors the bot's `_syncProviderRenewal`).
+- **`POST /rdp/:id/renew`** `{months?:1..3}` — unchanged behavior: month-bundled provider pricing (term discounts), powers box back on + clears grace.
+- All wallet-billed via `billedProvision` (dry_run on sandbox). Files: `js/reseller-api.js`, `js/apidoc-page.js` (added VPS-renew doc + fixed the hosting-renew doc to the real `result.expires_at`/`periods` shape). Seeds: `scripts/seed_reseller_test_vps_rdp.js`, `scripts/seed_reseller_test_hosting.js`.
+- Testing: backend agent **21/21 pass, 0 issues** (`backend/tests/test_reseller_renew.py`, report iteration_64) — happy paths, clamping, 404s, 401s, apidoc render, /renewals regression.
+- ⚠️ Needs "Save to GitHub" to deploy.
+ (honeypot + all plan-gated features) — VERIFIED correct + status parity added
 - **Question**: is honeypot management plan-based, and does it (and other plan-gated features) enforce correctly on the API endpoints? **Audit result: enforcement was already correct everywhere — no gate bug.** The API exactly mirrors the canonical HostPanel gates (`js/cpanel-routes.js` `requireGold`/`requireMysqlEligible`/inline `cpIsGold`/`isWeeklyPlan`).
 - Plan-gated features (API ↔ panel, all match): **Honeypot** = Monthly only (`isWeeklyPlan` → GET reports is_monthly/eligible/note, POST 403 `monthly_plan_required`); **MySQL** (all `/mysql/*`) = Monthly, rejects 1-week trial (403 `mysql_requires_monthly`); **Visitor Captcha / Geo / JS-Challenge** = Golden only (403 `gold_only`). Ungated features (email, subdomains, SSL/AutoSSL, anti-bot, anti-red deploy, safe-browsing, blacklist) correctly remain ungated on the API too.
 - Verified live via curl across 3 tiers (Golden `apifix01`, Premium-Monthly `apifix02`, Weekly-Trial): all 403s and dry-run passes land exactly as the plan dictates. `resolveDomainCfState` confirmed to return `honeypotOff` so the honeypot state is accurate.
