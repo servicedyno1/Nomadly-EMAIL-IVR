@@ -913,12 +913,14 @@ function endpointGroups(base) {
       endpoints: [
         {
           method: 'GET', path: '/hosting/:user/security/status', auth: true, billed: false,
-          desc: 'Aggregated security posture: Cloudflare anti-bot settings, Safe-Browsing + blacklist results, JS-challenge state and scanner-signature counts.',
+          desc: 'Aggregated security posture: Cloudflare anti-bot settings, Safe-Browsing + blacklist results, JS-challenge state and scanner-signature counts. Also reports plan-tier flags (is_gold, is_monthly) and an "eligibility" map telling you which plan-gated features this account may toggle — Visitor Captcha / Geo / JS-Challenge are Golden-only, MySQL needs a Monthly plan (not the 1-week trial), and Honeypot Traps need any Monthly plan.',
           curl: `curl -s ${base}/hosting/mysite01/security/status \\
   -H "Authorization: Bearer YOUR_API_KEY"`,
-          resp: `{ "username": "mysite01", "domain": "mysite.com", "is_gold": true,
+          resp: `{ "username": "mysite01", "domain": "mysite.com", "plan": "Golden Anti-Red HostPanel (1-Month)",
+  "is_gold": true, "is_monthly": true, "captcha_gold_only": true, "honeypot_monthly_only": true,
+  "eligibility": { "visitor_captcha": true, "geo_blocking": true, "js_challenge": true, "mysql": true, "honeypot": true },
   "antiRed": { "safeBrowsing": { "safe": true }, "blacklist": { "listed": false } },
-  "protectionLayers": { "jsChallenge": true, "cloudflareZone": true } }`,
+  "protectionLayers": { "jsChallenge": true, "honeypot": true, "cloudflareZone": true } }`,
         },
         {
           method: 'POST', path: '/hosting/:user/security/anti-red/deploy', auth: true, billed: false,

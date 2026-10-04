@@ -944,12 +944,17 @@ function registerHostingMgmtRoutes(deps) {
     const acct = await loadOwned(req, res); if (!acct) return
     const ctx = ctxFromAccount(acct)
     const domain = ctx.cpDomain
-    const [zone, jsEnabled, sbResult, blResult] = await Promise.all([
+    const [zone, jsEnabled, sbResult, blResult, cfState] = await Promise.all([
       cfService.getZoneByName(domain).catch(() => null),
       antiRed.isJSChallengeEnabled(ctx.cpUser).catch(() => false),
       safeBrowsing.checkDomain(domain).catch(() => ({ error: 'check failed' })),
       safeBrowsing.checkBlacklists(domain).catch(() => ({ error: 'check failed' })),
+      antiRed.resolveDomainCfState(domain, getDb()).catch(() => ({})),
     ])
+    const { isWeeklyPlan } = require('./hosting-scheduler')
+    const isMonthly = !isWeeklyPlan(ctx.cpPlan || '')
+    const planLc = (ctx.cpPlan || '').toLowerCase()
+    const isWeeklyTrial = /1-week|\bweek\b|\(7 days\)/.test(planLc) && !/month/.test(planLc)
     let antiBot = null
     if (zone) { try { antiBot = await cfService.getSecuritySettings(zone.id); antiBot.zoneId = zone.id } catch (_) {} }
     res.json({
@@ -957,11 +962,23 @@ function registerHostingMgmtRoutes(deps) {
       domain,
       plan: ctx.cpPlan,
       is_gold: ctx.cpIsGold,
+      is_monthly: isMonthly,
+      captcha_gold_only: true,
+      honeypot_monthly_only: true,
+      // Which plan-gated features this account may toggle (mirrors the HostPanel plan gates).
+      eligibility: {
+        visitor_captcha: ctx.cpIsGold,
+        geo_blocking: ctx.cpIsGold,
+        js_challenge: ctx.cpIsGold,
+        mysql: !isWeeklyTrial,
+        honeypot: isMonthly,
+      },
       antiBot,
       antiRed: { safeBrowsing: sbResult, blacklist: blResult },
       configured: { safeBrowsing: safeBrowsing.isConfigured() },
       protectionLayers: {
         jsChallenge: jsEnabled,
+        honeypot: isMonthly ? !cfState.honeypotOff : false,
         cloudflareZone: !!zone,
       },
       stats: {
