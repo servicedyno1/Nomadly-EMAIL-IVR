@@ -6,6 +6,7 @@ const { get, set, setFields, atomicIncrement } = require('./db.js')
 const { formatPhone, formatDuration, canAccessFeature, plans, OVERAGE_RATE_MIN, OVERAGE_RATE_SMS, CALL_FORWARDING_RATE_MIN, CALL_CONNECTION_FEE, escapeHtml } = require('./phone-config.js')
 const { getBalance, smartWalletDeduct, smartWalletCheck, forceWalletDebit } = require('./utils.js')
 const dialGuard = require('./dial-rate-guard.js')
+const callSessionStore = require('./call-session-store.js')
 
 let _bot = null
 let _db = null
@@ -45,16 +46,45 @@ let _loyalty = null
 let _testOutboundSipMatch = null
 let _notifyAdmin = null
 
-// In-memory store for active call sessions (callControlId → session data)
-const activeCalls = {}
+// In-memory stores for in-flight call sessions. Each is wrapped in a write-through Proxy
+// (js/call-session-store.js) so every create/delete is mirrored to the Mongo `callSessions`
+// collection (TTL-indexed). A blue/green cutover (or a crash) therefore never drops a live call:
+// the new slot warm-loads these on boot and read-through fills any gap, so Twilio/Telnyx webhooks
+// for an ongoing call still find their session instead of a "session expired" dead-end.
+const _activeCallsRaw = {}       // callControlId → session data
+const _pendingBridgesRaw = {}    // bridgeId → { twilioNumber, destination, chatId, num, callControlId }
+const _outboundIvrCallsRaw = {}  // callControlId → outbound IVR session data
+const _twilioIvrSessionsRaw = {} // sessionId → { chatId, callerId, targetNumber, ... } (Twilio IVR)
+function _persistentStore(kind, raw) {
+  return new Proxy(raw, {
+    set(o, p, v) { o[p] = v; if (typeof p === 'string') callSessionStore.persist(kind, p, v); return true },
+    deleteProperty(o, p) { delete o[p]; if (typeof p === 'string') callSessionStore.remove(kind, p); return true },
+  })
+}
+const activeCalls = _persistentStore('activeCalls', _activeCallsRaw)
+const pendingBridges = _persistentStore('pendingBridges', _pendingBridgesRaw)
+const outboundIvrCalls = _persistentStore('outboundIvrCalls', _outboundIvrCallsRaw)
+const twilioIvrSessions = _persistentStore('twilioIvrSessions', _twilioIvrSessionsRaw)
+// Raw (un-proxied) refs — warm-load / read-through / snapshot write here so restoring a session
+// from Mongo does NOT trigger a redundant write-back, and for fast key counts in /health.
+const _callSessionStores = {
+  activeCalls: _activeCallsRaw,
+  pendingBridges: _pendingBridgesRaw,
+  outboundIvrCalls: _outboundIvrCallsRaw,
+  twilioIvrSessions: _twilioIvrSessionsRaw,
+}
+const CALL_SESSION_SNAPSHOT_MS = parseInt(process.env.CALL_SESSION_SNAPSHOT_MS || '15000', 10)
+let _callSessionSnapshotTimer = null
 
-// Pending bridge store: bridgeId → { twilioNumber, destination, chatId, num, callControlId }
-// Used to bridge outbound SIP calls from Twilio numbers through Twilio PSTN
-const pendingBridges = {}
-
-// Outbound IVR sessions: callControlId → outbound IVR session data
-const outboundIvrCalls = {}
-const twilioIvrSessions = {} // sessionId → { chatId, callerId, targetNumber, ... } for Twilio IVR calls
+// Live phone-call session counts — consumed by /health so deploy.sh can hold the blue/green
+// nginx flip (drain the old slot) while total > 0, so a redeploy never cuts off an active call.
+function getLiveCallCounts() {
+  const ac = Object.keys(_activeCallsRaw).length
+  const pb = Object.keys(_pendingBridgesRaw).length
+  const oic = Object.keys(_outboundIvrCallsRaw).length
+  const tis = Object.keys(_twilioIvrSessionsRaw).length
+  return { activeCalls: ac, pendingBridges: pb, outboundIvrCalls: oic, twilioIvrSessions: tis, total: ac + pb + oic + tis }
+}
 const lastIvrCallParams = new Map() // chatId → last IVR call params for Redial feature
 
 // ── Ended Calls Tracker ──
@@ -1254,6 +1284,17 @@ function initVoiceService(deps) {
   if (deps.db) {
     _db = deps.db
     _loadBalanceNotifyHistory(deps.db).catch(e => log(`[VoiceService] Failed to load balance history: ${e.message}`))
+    // Call-session persistence — survive blue/green cutovers & crashes (see call-session-store.js).
+    callSessionStore.init(deps.db).then(ok => {
+      if (!ok) return
+      callSessionStore.loadAll(_callSessionStores).catch(e => log(`[VoiceService] call-session warm-load failed: ${e.message}`))
+      if (!_callSessionSnapshotTimer) {
+        _callSessionSnapshotTimer = setInterval(() => {
+          try { callSessionStore.snapshot(_callSessionStores) } catch (_) {}
+        }, CALL_SESSION_SNAPSHOT_MS)
+        if (_callSessionSnapshotTimer.unref) _callSessionSnapshotTimer.unref()
+      }
+    }).catch(e => log(`[VoiceService] call-session-store init failed: ${e.message}`))
   }
 
   // PRE-DIAL: Load blocklist from DB + run initial scan after a delay
@@ -1961,6 +2002,14 @@ async function handleVoiceWebhook(req, res) {
     }
 
     const callControlId = payload?.call_control_id
+
+    // Read-through: if this call's session isn't in local memory (e.g. it began on the OLD slot
+    // during a blue/green drain that exceeded the 30-min cap), restore it from Mongo so the
+    // webhook is handled here instead of hitting a "session expired" dead-end. Gated on a
+    // memory-miss, so the common (in-memory hit) path makes no DB call.
+    if (callControlId && !_activeCallsRaw[callControlId] && !_outboundIvrCallsRaw[callControlId] && !_pendingBridgesRaw[callControlId]) {
+      await callSessionStore.rehydrate(callControlId, _callSessionStores)
+    }
 
     switch (eventType) {
       case 'call.initiated': {
@@ -5334,6 +5383,7 @@ async function handleIvrTransferLegHangup(payload) {
 module.exports = {
   handleVoiceWebhook,
   initVoiceService,
+  getLiveCallCounts,
   // Concurrency Guard (outbound fund reservation) — exported for dev tests
   _reserveOutbound,
   _releaseOutbound,

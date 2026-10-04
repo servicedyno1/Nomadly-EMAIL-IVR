@@ -13,6 +13,7 @@
 
 require('dotenv').config()
 const { log } = require('console')
+const activeSlot = require('./active-slot')
 
 const PREMIUM_ANTIRED_WEEKLY_PRICE = parseFloat(process.env.PREMIUM_ANTIRED_WEEKLY_PRICE) || 50
 const PREMIUM_ANTIRED_CPANEL_PRICE = parseFloat(process.env.PREMIUM_ANTIRED_CPANEL_PRICE) || 75
@@ -578,10 +579,10 @@ function initScheduler(deps) {
     log('[HostingScheduler] DEV SANDBOX (SKIP_WEBHOOK_SYNC=true) — startup enforcement + hourly expiry sweep SKIPPED (must not charge/suspend/delete real users from a dev pod)')
   } else {
     // Run startup enforcement first (10s), then regular hourly checks (30s+)
-    setTimeout(startupEnforcement, 10000)
+    setTimeout(activeSlot.singleton('hosting-startup-enforcement', startupEnforcement), 10000)
     // Run immediately on startup, then every hour
-    setTimeout(runCheck, 30000) // 30s after startup
-    interval = setInterval(runCheck, CHECK_INTERVAL_MS)
+    setTimeout(activeSlot.singleton('hosting-runcheck-initial', runCheck), 30000) // 30s after startup
+    interval = activeSlot.singletonInterval('hosting-runcheck', runCheck, CHECK_INTERVAL_MS)
   }
 
   // WHM userdata self-heal — retries /removeacct on rows still flagged
@@ -606,8 +607,8 @@ function initScheduler(deps) {
   }
   let healInterval = null
   if (_healEnabled) {
-    setTimeout(safeRunSelfHeal, 45000)
-    healInterval = setInterval(safeRunSelfHeal, CHECK_INTERVAL_MS)
+    setTimeout(activeSlot.singleton('hosting-selfheal-initial', safeRunSelfHeal), 45000)
+    healInterval = activeSlot.singletonInterval('hosting-selfheal', safeRunSelfHeal, CHECK_INTERVAL_MS)
     log(`[HostingScheduler] Scheduled: expiry check (every ${CHECK_INTERVAL_MS / 60000} min), whm-userdata-heal sweep (every ${CHECK_INTERVAL_MS / 60000} min)`)
   } else {
     log(`[HostingScheduler] Scheduled: expiry check (every ${CHECK_INTERVAL_MS / 60000} min); whm-userdata-heal sweep SKIPPED (BOT_ENVIRONMENT!=production — dev pod must not mutate prod WHM)`)

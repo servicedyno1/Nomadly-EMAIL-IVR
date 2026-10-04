@@ -19,6 +19,9 @@
 const _intervals = new Map()    // label -> { id, running, lastTickAt, errCount, fn, ms }
 const _timeouts = new Map()
 let _stopped = false
+// Blue/green single-writer: during a deploy both PM2 slots are alive; only the slot nginx
+// routes to may run recurring crons (prevents double-billing). Fails OPEN off the droplet.
+const _activeSlot = (() => { try { return require('./active-slot') } catch (_) { return null } })()
 
 function _log(level, label, msg, extra) {
   const ts = new Date().toISOString()
@@ -42,6 +45,7 @@ function every(label, ms, fn) {
       _log('warn', label, 'previous tick still running, skipping this one')
       return
     }
+    if (_activeSlot && !_activeSlot.isActiveSlot()) return // standby blue/green slot — skip
     entry.running = true
     const t0 = Date.now()
     try {

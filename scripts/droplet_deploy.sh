@@ -99,6 +99,32 @@ wait_healthy() {
   done
   echo "$P health: TIMEOUT after ${HEALTH_TIMEOUT}s on :$1 — pm2 status=$st, /health: ${body:0:120}"; return 1
 }
+# drain_calls <old-port>: before flipping nginx, let the CURRENTLY-ACTIVE (old) slot finish its
+# in-flight phone calls. nginx still points at it, so its /health "calls.total" drops to 0 as calls
+# end. Capped at DRAIN_MAX_SECONDS (default 30 min); after that we flip anyway — persisted
+# callSessions (Mongo, TTL-indexed) let the NEW slot keep serving any still-live call's webhooks.
+DRAIN_MAX_SECONDS="${DRAIN_MAX_SECONDS:-1800}"
+DRAIN_POLL_SECONDS="${DRAIN_POLL_SECONDS:-10}"
+drain_calls() {
+  local port="$1" deadline=$((SECONDS + DRAIN_MAX_SECONDS)) live
+  [ -n "$port" ] || return 0
+  echo "$P drain: waiting for old slot :$port to reach 0 live calls (cap $((DRAIN_MAX_SECONDS/60))m)…"
+  while [ "$SECONDS" -lt "$deadline" ]; do
+    live="$(curl -s -m 5 "http://127.0.0.1:$port/health" 2>/dev/null | python3 -c '
+import sys, json
+try:
+    d = json.load(sys.stdin); c = d.get("calls")
+    print(int(c.get("total", 0)) if isinstance(c, dict) else 0)
+except Exception:
+    print(0)' 2>/dev/null || echo 0)"
+    case "$live" in ''|*[!0-9]*) live=0 ;; esac
+    if [ "$live" -le 0 ]; then echo "$P drain: 0 live calls on :$port — flipping now"; return 0; fi
+    echo "$P drain: :$port still has $live live call(s) — waiting ${DRAIN_POLL_SECONDS}s…"
+    sleep "$DRAIN_POLL_SECONDS"
+  done
+  echo "$P drain: ${DRAIN_MAX_SECONDS}s cap reached on :$port with calls still live — flipping anyway (persisted callSessions cover the new slot)"
+  return 0
+}
 # set_upstream <port>: rewrite this app's upstream line, validate, graceful reload (restores on failure)
 set_upstream() {
   local tmp out; tmp="$(mktemp)"
@@ -189,6 +215,10 @@ activate_release() {
     pm2 delete "$new_name" >/dev/null 2>&1 || true
     echo "$P active release untouched (still serving on :${active:-?})"; return 1
   fi
+  # Call-aware drain: hold the nginx flip until the old slot's in-flight calls finish (30-min cap).
+  if [ "${2:-}" = "drain" ] && [ -n "$active" ] && [ "$active" != "$new_port" ]; then
+    drain_calls "$active"
+  fi
   if ! set_upstream "$new_port"; then
     pm2 delete "$new_name" >/dev/null 2>&1 || true
     echo "$P ERROR: nginx switch failed — active release untouched (still serving on :${active:-?})"; return 1
@@ -242,7 +272,7 @@ if ! build_release "$SHA"; then
   fail "release build failed for ${SHA:0:8} — active release untouched"
 fi
 self_update "$REL"
-if ! activate_release "$REL"; then
+if ! activate_release "$REL" drain; then
   rm -rf "$REL"
   fail "${SHA:0:8} failed to start healthy — active release untouched, still serving $(rel_field "${CUR:-/nonexistent}" sha | cut -c1-8)"
 fi
