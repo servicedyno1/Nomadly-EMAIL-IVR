@@ -1,5 +1,9 @@
 # PRD — Nomadly Cloud IVR + Telegram Bot
 
+## 2026-06 — `/apidoc` page audit: brought reseller API docs to full parity
+- Audited `js/apidoc-page.js` vs. implemented routes (`reseller-api.js` + `reseller-hosting-mgmt.js`, 120 routes). Result: 0 stale entries; doc already covered endpoint families via inline sibling mentions. Only 2 truly-undocumented reseller-facing endpoints were missing → added: `GET`/`POST /hosting/honeypot/:domain` (honeypot-traps toggle, Monthly-gated) under *Hosting · Security*, and `POST /hosting/:user/change-primary` (promote any owned domain) under *Hosting · Advanced*. Blurbs updated. Verified: `/apidoc` HTTP 200, 82→84 endpoints, 0 render errors.
+- Side-check: RapidAPI URL-shortener key in `backend/.env` (`srtn-me-url-shortener.p.rapidapi.com`) is **working** (live 200); the key in the user's screenshot is the **same integration** (same host/endpoint) and also works — `.env` left unchanged per the "only if broken" condition.
+
 ## 2026-06 — Redeploy-safe runtime state: call-aware deploy drain + callSessions persistence + scheduler single-writer (CODE DONE, tested; droplet ops PENDING)
 - **Goal**: blue/green nginx flips must not drop live calls or double-run money crons (follow-up to the @Login4six8 SIP fix).
 - **Issue 1 — call-aware deploy drain** (`scripts/droplet_deploy.sh`): new `drain_calls()` holds the nginx flip until the OLD slot's `/health` `calls.total` hits 0, capped at `DRAIN_MAX_SECONDS` (default 1800 = 30 min), then flips anyway. Wired via `activate_release "$REL" drain` (deploy path only; rollback stays instant). Gracefully reads 0 if the old slot predates the feature.

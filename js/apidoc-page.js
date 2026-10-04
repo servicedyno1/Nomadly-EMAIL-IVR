@@ -834,7 +834,7 @@ function endpointGroups(base) {
     },
     {
       id: 'hosting-security', title: 'Hosting · Security, Geo & Analytics',
-      blurb: 'The premium Anti-Red / Cloudflare protection layer the HostPanel exposes: protection status, Anti-Red deploy, Cloudflare anti-bot profile, Safe-Browsing / blacklist checks, Visitor Captcha and Geo rules (both Golden-plan only), plus zone analytics. FREE.',
+      blurb: 'The premium Anti-Red / Cloudflare protection layer the HostPanel exposes: protection status, Anti-Red deploy, Cloudflare anti-bot profile, Safe-Browsing / blacklist checks, Visitor Captcha and Geo rules (both Golden-plan only), Honeypot Traps (Monthly plans), plus zone analytics. FREE.',
       endpoints: [
         {
           method: 'GET', path: '/hosting/:user/security/status', auth: true, billed: false,
@@ -884,11 +884,18 @@ function endpointGroups(base) {
   -H "Authorization: Bearer YOUR_API_KEY"`,
           resp: `{ "success": true, "totals": { "requests": 12045, "threats": 132, "bandwidth_bytes": 894000 } }`,
         },
+        {
+          method: 'GET', path: '/hosting/honeypot/:domain', auth: true, billed: false,
+          desc: 'Read the Honeypot-Traps state for a domain — hidden scanner-trap links injected into the protected site to catch bots/crawlers. Monthly plans only (Premium/Golden); on the 7-day trial eligible is false. Toggle with POST /hosting/honeypot/:domain {enabled:bool} (403 monthly_plan_required on weekly plans; 409 no_cloudflare if the domain is not on Cloudflare).',
+          curl: `curl -s ${base}/hosting/honeypot/mysite.com \\
+  -H "Authorization: Bearer YOUR_API_KEY"`,
+          resp: `{ "domain": "mysite.com", "cpanel_username": "mysite01", "plan": "Golden Anti-Red HostPanel (1-Month)", "is_monthly": true, "eligible": true, "has_cloudflare": true, "honeypot_enabled": true }`,
+        },
       ],
     },
     {
       id: 'hosting-advanced', title: 'Hosting · Advanced Management (full panel parity)',
-      blurb: 'The remaining HostPanel operations, exposed for building a full cPanel-like UI: send test email, phpMyAdmin SSO, bulk subdomain import, addon docroot mirror/own, replace primary domain, nameserver status, take a site offline/online, JS-challenge toggle and large-file chunked upload. All FREE; writes are dry-run on a sandbox pod.',
+      blurb: 'The remaining HostPanel operations, exposed for building a full cPanel-like UI: send test email, phpMyAdmin SSO, bulk subdomain import, addon docroot mirror/own, replace primary domain (an addon via set-primary, or any domain via change-primary), nameserver status, take a site offline/online, JS-challenge toggle and large-file chunked upload. All FREE; writes are dry-run on a sandbox pod.',
       endpoints: [
         { method: 'POST', path: '/hosting/:user/email/test', auth: true, billed: false, desc: 'Send a test email from a mailbox to verify SMTP.', params: [['from', true, 'Local part (sender mailbox)'], ['to', true, 'Recipient address']], curl: `curl -s -X POST ${base}/hosting/mysite01/email/test \\
   -H "Authorization: Bearer YOUR_API_KEY" -H "Content-Type: application/json" -d '{"from":"info","to":"you@example.com"}'`, resp: `{ "success": true, "messageId": "…", "message": "Test email sent to you@example.com" }` },
@@ -900,6 +907,8 @@ function endpointGroups(base) {
   -H "Authorization: Bearer YOUR_API_KEY"`, resp: `{ "modes": { "blog.com": "own" }, "primary": "mysite.com" }` },
         { method: 'POST', path: '/hosting/:user/domains/set-primary', auth: true, billed: false, desc: 'Promote an existing addon domain to be the account primary (WHM modifyacct + Cloudflare/anti-red redeploy for the new primary, cleanup of the old). Returns 400 needs_attach if the domain is not yet an addon.', params: [['domain', true, 'The addon domain to promote']], curl: `curl -s -X POST ${base}/hosting/mysite01/domains/set-primary \\
   -H "Authorization: Bearer YOUR_API_KEY" -H "Content-Type: application/json" -d '{"domain":"blog.com"}'`, resp: `{ "success": true, "oldDomain": "mysite.com", "newDomain": "blog.com" }` },
+        { method: 'POST', path: '/hosting/:user/change-primary', auth: true, billed: false, desc: 'Replace a plan\u2019s primary domain with ANY domain you own, at the WHM level (modifyacct domain=) — no cPanel session and no terminate+recreate. Unlike /domains/set-primary (which needs the target to already be an addon), change-primary accepts a brand-new domain. Refuses with 409 domain_on_other_plan if the domain is attached to another plan, 403 blocked_domain if it is blocklisted, or 400 already_primary. Cloudflare + anti-red re-point runs in the background (~30-60s).', params: [['domain', true, 'The domain to promote to primary']], curl: `curl -s -X POST ${base}/hosting/mysite01/change-primary \\
+  -H "Authorization: Bearer YOUR_API_KEY" -H "Content-Type: application/json" -d '{"domain":"newsite.com"}'`, resp: `{ "success": true, "username": "mysite01", "oldDomain": "mysite.com", "newDomain": "newsite.com", "domain": "newsite.com", "note": "Primary domain changed at WHM. Cloudflare + anti-red re-point runs in the background (~30-60s)." }` },
         { method: 'GET', path: '/hosting/:user/domains/ns-status', auth: true, billed: false, desc: 'Cloudflare nameserver / zone activation status for a domain.', params: [['domain', true, 'Domain to check']], curl: `curl -s "${base}/hosting/mysite01/domains/ns-status?domain=mysite.com" \\
   -H "Authorization: Bearer YOUR_API_KEY"`, resp: `{ "status": "active", "nameservers": ["ada.ns.cloudflare.com","rob.ns.cloudflare.com"], "zoneId": "…" }` },
         { method: 'GET', path: '/hosting/:user/site-status', auth: true, billed: false, desc: 'Whether the site is online, in maintenance, or suspended. Change with POST /hosting/:user/site-status {action:"take_offline"|"bring_online", mode:"maintenance"|"suspended"}. Also available at the legacy alias /hosting/:user/account/site-status.', curl: `curl -s ${base}/hosting/mysite01/site-status \\
