@@ -24,9 +24,16 @@
 - Base URL: {REACT_APP_BACKEND_URL}/api/reseller/v1  (internal: http://127.0.0.1:5000/reseller/v1)
 - Auth: `Authorization: Bearer <key>`  OR  `X-API-Key: <key>`
 - Owner chatId: 999000111  (wallet funded usdIn=100000 in Mongo `walletOf`)
-- API KEY: rsk_live_566a19727b74061600ef1d0b671132070b47892ab7b1d900
+- API KEY (rotates on every owner re-seed): rsk_live_072b98398b0395084da80bc5269a26f25af8b7a7c8f2d4fa
 - Mode: dry_run (RESELLER_API_LIVE not set) — no WHM/Cloudflare/registrar calls.
-- Re-seed/rotate: `node /app/scripts/seed_reseller_test_owner.js`
+- Re-seed/rotate (PRINTS the new key as TEST_RESELLER_API_KEY=…): `node /app/scripts/seed_reseller_test_owner.js`
+
+### Lifecycle fixtures — added 2026-06 (hosting/vps/rdp state + grace + renewable + /renewals)
+- Seed: `node /app/scripts/seed_reseller_lifecycle_fixtures.js` (owner 999000111):
+  - hosting `apigrace01` = GRACE (expired 10h, suspended, delete_at = expiry+48h), `apisusp01` = suspended past-grace,
+    `apiterm01` = TERMINATED (deleted). (`apifix01` Golden / `apifix02` Premium = online, from seed_reseller_test_hosting.js)
+  - vps `vps-term-1` = CANCELLED (terminated), rdp `rdp-grace-1` = RDP in grace. (`vps-test-1`/`rdp-test-1` running, from seed_reseller_test_vps_rdp.js)
+- Pytest: `backend/tests/test_reseller_lifecycle.py` (21 cases, all green — re-seeds owner at import & captures the rotated key).
 
 ### URL Shortener test fixture — added 2026-06
 - Seed: `node /app/scripts/seed_reseller_test_shortener.js` → gives owner 999000111 an OWNED + COMPLETED shortener domain `golink-test.com` (cname target `nomadly.up.railway.app`).

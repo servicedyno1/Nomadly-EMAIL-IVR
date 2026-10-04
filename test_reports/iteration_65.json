@@ -1,0 +1,23 @@
+{
+  "summary": "Independently re-verified reseller API gap-closure via a durable pytest suite (backend/tests/test_reseller_lifecycle.py). 21/21 tests pass against http://127.0.0.1:5000/reseller/v1. Covered: auth 401, hosting detail (online/grace/terminated shape incl. state/renewable/renew_blocked_reason/grace block/panel_url/server_ip/legacy suspended=false on terminated/kept domain+plan+expires_at+terminated_at/HTTP 200 not 410), hosting list excludes terminated and carries state/renewable/renew_blocked_reason/suspended, hosting renew dry_run (price=plan*periods, no expiry change on re-GET, sufficient_balance/duration_days/would_expire_at), hosting renew 409 account_terminated for both dry_run and live BEFORE charge, VPS/RDP detail renewable+renew_blocked_reason, RDP grace block, VPS/RDP dry_run renew returns dry_run+price+renewable, VPS cancelled → 409 already_destroyed, /renewals default excludes terminated (summary.terminated=0), grace hosting item carries state:'grace'+delete_at+days_until_deletion, include_terminated=true surfaces terminated items with renewable:false + terminated_at, GET /account/webhook returns all 8 events, PUT mints whsec_ secret and GET persists, invalid URL → 400, {webhook_url:null} clears URL but keeps secret. Webhook emit paths were intentionally NOT exercised (SKIP_WEBHOOK_SYNC=true in sandbox) per the request.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": { "ui_bugs": [], "integration_issues": [], "design_issues": [] },
+  "test_report_links": [
+    "/app/backend/tests/test_reseller_lifecycle.py",
+    "/app/test_reports/pytest/lifecycle.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Terminated hosting detail returns HTTP 200 with suspended forced to false and preserves domain/plan/expires_at/terminated_at — matches spec.",
+    "Dry-run renew pre-flight correctly does not mutate expiry (verified via before/after GET).",
+    "Blocked-reason 409 fires for both dry_run and live calls on terminated hosting / cancelled VPS before any charge path."
+  ],
+  "updated_files": ["/app/backend/tests/test_reseller_lifecycle.py"],
+  "success_rate": { "backend": "100%", "frontend": "n/a" },
+  "test_credentials": "API key rotated each run; test file re-seeds owner at module load and captures TEST_RESELLER_API_KEY from stdout. Owner chatId 999000111.",
+  "seed_data_creation": "Test module auto-runs seed_reseller_test_owner.js + seed_reseller_test_hosting.js + seed_reseller_test_vps_rdp.js + seed_reseller_lifecycle_fixtures.js once at import time. Fixtures: apifix01/apifix02 online, apigrace01 grace, apisusp01 suspended-past-grace, apiterm01 terminated, vps-test-1/rdp-test-1 running, vps-term-1 CANCELLED, rdp-grace-1 RDP grace.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Durable pytest at /app/backend/tests/test_reseller_lifecycle.py re-seeds owner (key rotates) at module import — run with `pytest backend/tests/test_reseller_lifecycle.py -v`. Hits Node reseller API directly on 127.0.0.1:5000. Webhook send paths are gated OFF by SKIP_WEBHOOK_SYNC=true — tests only cover HTTP registration surface (GET/PUT /account/webhook).",
+  "rca of the issue": "No bugs found; initial 3 failures were test-side shape mismatches (list response uses `accounts`, renewals response uses `renewals` as the flat items key) — fixed in the test file. Final run: 21/21 passing in 3.13s."
+}
