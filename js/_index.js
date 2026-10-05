@@ -38093,8 +38093,30 @@ app.use('/store', createStoreRoutes({
 // LIVE when RESELLER_API_LIVE=true AND SKIP_WEBHOOK_SYNC!=='true' (dev pod = dry-run).
 // External URL: /api/reseller/v1/*  (FastAPI strips /api → node /reseller/v1)
 const { createResellerApi } = require('./reseller-api')
+// ── Reseller API DB: dedicated LIVE (production) connection ──
+// This preview pod's main `db` is the LOCAL sandbox Mongo (SANDBOX ISOLATION), so the
+// Telegram bot + every background scheduler (PaymentTimeout, StaleOrderCleanup,
+// AbandonedCart, FincraReconcile, …) only ever touch the local DB and can never
+// double-process production data. The reseller REST API, however, must read/write the
+// LIVE production data (resellerApiKeys, walletOf, orders, provisioning), so it gets its
+// OWN dedicated connection to RESELLER_DB_URL. Provisioning jobs are claimed atomically
+// (findOneAndUpdate status:pending→processing), so sharing the live resellerProvisionJobs
+// collection with the production instance never double-builds the same job.
+let resellerDb = db
+if (process.env.RESELLER_DB_URL) {
+  try {
+    const { MongoClient: ResellerMongoClient } = require('mongodb')
+    const resellerClient = new ResellerMongoClient(process.env.RESELLER_DB_URL)
+    resellerDb = resellerClient.db(process.env.RESELLER_DB_NAME || process.env.DB_NAME)
+    resellerClient.connect()
+      .then(() => log('[ResellerAPI] Connected to dedicated LIVE reseller DB (production)'))
+      .catch(e => log(`[ResellerAPI] dedicated DB connect error: ${e.message}`))
+  } catch (e) {
+    log(`[ResellerAPI] dedicated DB init failed, using local db: ${e.message}`)
+  }
+}
 app.use('/reseller/v1', createResellerApi({
-  getDb: () => db,
+  getDb: () => resellerDb,
   log,
   notifyAdmin,
 }))
