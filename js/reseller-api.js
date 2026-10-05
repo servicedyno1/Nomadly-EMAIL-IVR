@@ -1290,6 +1290,50 @@ function createResellerApi(deps = {}) {
     }
   }
 
+  // POST /vps/:id/reinstall { os?, confirm } → DESTRUCTIVE OS reinstall (DO rebuild from a
+  // chosen image: disk wiped, IP kept, ~3 min). DO's rebuild re-runs the droplet's ORIGINAL
+  // create-time cloud-init, so a VPS created via POST /vps (which set a stored root password at
+  // create) comes back with that SAME password — we keep rootPasswordSecretId and return it.
+  // Legacy boxes with no stored secret come back with an unknown password (call password-reset).
+  async function vpsReinstallHandler(req, res) {
+    const rec = await loadOwnedVps(req, req.params.id, false)
+    if (!rec) return res.status(404).json({ error: 'not_found' })
+    const prov = vpsProvider.getProviderForRecord(rec)
+    const osId = String(req.body?.os || rec.osId || 'ubuntu-24-04-x64').toLowerCase()
+    let images = []
+    try { if (prov && typeof prov.listImages === 'function') images = await prov.listImages('linux') } catch (_) {}
+    if (images.length && !images.some(i => String(i.imageId || i.id).toLowerCase() === osId)) {
+      return res.status(400).json({ error: 'invalid_os', message: `Unknown os "${req.body?.os}". Valid values: ${images.map(i => i.imageId || i.id).join(', ')}.`, valid_os: images.map(i => ({ id: i.imageId || i.id, name: i.name })) })
+    }
+    // Destructive — require explicit confirmation so a reinstall is never accidental.
+    if (req.body?.confirm !== true) {
+      return res.status(400).json({ error: 'confirmation_required', id: rec.vpsId || rec._id, os: osId, message: 'Reinstall WIPES the disk — all data is destroyed (the IP is kept). Re-send with {"confirm": true} to proceed.' })
+    }
+    if (!isLive()) return res.json({ mode: 'dry_run', id: rec.vpsId || rec._id, os: osId, note: 'Dry-run: no reinstall sent to provider.' })
+    if (!rec.instanceId || !prov || typeof prov.reinstallInstance !== 'function') return res.status(501).json({ error: 'not_supported' })
+    try {
+      // Pass the EXISTING password secret so the re-run of the create-time cloud-init keeps a known
+      // root password (DO rebuild ignores freshly-sent user_data but re-applies the original).
+      const r = await prov.reinstallInstance(rec.instanceId, { osId, rootPassword: rec.rootPasswordSecretId || undefined })
+      const set = { osId, osType: 'linux', status: 'reinstalling', provisionState: 'active' }
+      if (r && r.secretId && r.secretId !== rec.rootPasswordSecretId) set.rootPasswordSecretId = r.secretId
+      await col('vpsPlansOf').updateOne({ _id: rec._id }, { $set: set })
+      // Resolve the password we can show (the stored secret the cloud-init re-applies).
+      let password = null
+      const sid = (r && r.secretId) || rec.rootPasswordSecretId || null
+      if (sid && typeof prov.getSecretPassword === 'function') { try { password = await prov.getSecretPassword(sid) } catch (_) {} }
+      return res.json({
+        mode: 'live', id: rec.vpsId || rec._id, os: osId, ip: (r && r.ip) || rec.host || null,
+        eta_minutes: (r && r.etaMinutes) || 3, username: 'root', password: password || null, data_preserved: false,
+        note: password
+          ? 'Reinstall started (disk wiped, IP kept). Your original root password is re-applied by cloud-init once the server finishes booting (~3 min).'
+          : 'Reinstall started (disk wiped, IP kept). This box has no stored password — once it is back online, call POST /vps/:id/password-reset (or use your SSH key).',
+      })
+    } catch (e) {
+      res.status(409).json({ error: 'reinstall_failed', message: e.message })
+    }
+  }
+
   // VPS routes
   router.get('/vps/plans', apiKeyAuth, h((req, res) => vpsPlansHandler(req, res, false)))
   router.post('/vps', apiKeyAuth, h((req, res) => vpsCreateHandler(req, res, false)))
@@ -1302,6 +1346,7 @@ function createResellerApi(deps = {}) {
   router.post('/vps/:id/password-reset', apiKeyAuth, h((req, res) => vpsPasswordResetHandler(req, res)))
   router.post('/vps/:id/ssh-key', apiKeyAuth, h((req, res) => vpsSetSshKeyHandler(req, res)))
   router.get('/vps/:id/ssh-keys', apiKeyAuth, h((req, res) => vpsSshKeysListHandler(req, res)))
+  router.post('/vps/:id/reinstall', apiKeyAuth, h((req, res) => vpsReinstallHandler(req, res)))
 
   // RDP routes (Windows)
   router.get('/rdp/plans', apiKeyAuth, h((req, res) => vpsPlansHandler(req, res, true)))
