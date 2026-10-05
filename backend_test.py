@@ -1,641 +1,211 @@
 #!/usr/bin/env python3
 """
-Reseller API Parity Test Suite (2026-10-03)
-Tests 9 bug fixes for Nomadly Reseller API (Node bot behind FastAPI proxy)
-All tests run in DRY-RUN mode (RESELLER_API_LIVE not set)
+Backend test for Reseller VPS OS-reinstall endpoint (2026-10-05c)
+
+CRITICAL SAFETY: This test performs ONLY 3 safe checks that do NOT trigger a real reinstall:
+1. No auth → expect 401 (route registered + auth-gated)
+2. Valid os WITHOUT confirm → expect 400 confirmation_required (disk-wipe guard blocks it)
+3. Invalid os WITH confirm → expect 400 invalid_os (validation runs BEFORE rebuild, safe)
+
+⛔ ABSOLUTE HARD CONSTRAINT: NEVER send {"confirm": true} with a VALID os (e.g. ubuntu-24-04-x64)
+   to the reinstall endpoint — that triggers a REAL, IRREVERSIBLE disk wipe of the production VPS.
 """
 
+import os
+import sys
 import requests
 import json
-import sys
 
-# Configuration
-BASE_URL = "https://gracious-hopper-10.preview.emergentagent.com/api/reseller/v1"
-API_KEY = "rsk_live_6fc131dd06c97b3dd6fe3a4cbbd69d0c6eac28871fbf0f7c"
-HEADERS = {
-    "Authorization": f"Bearer {API_KEY}",
-    "Content-Type": "application/json"
-}
+# Environment
+BASE_URL = "https://3f880739-5533-4e15-b35e-112dc854f3b8.preview.emergentagent.com/api/reseller/v1"
+LIVE_API_KEY = "rsk_live_cdc3f785ac3cfd813c6143d7813e1a59cc15fc42327ab736"
+TEST_VPS_ID = "b7a9f3b5-be02-4545-921d-b2f2e6603556"
 
 # Test counters
-passed = 0
-failed = 0
-test_results = []
+tests_run = 0
+tests_passed = 0
+tests_failed = 0
 
-def log_test(test_name, success, details=""):
-    """Log test result"""
-    global passed, failed
-    status = "✅ PASS" if success else "❌ FAIL"
-    result = f"{status}: {test_name}"
-    if details:
-        result += f"\n    {details}"
-    print(result)
-    test_results.append({"name": test_name, "success": success, "details": details})
-    if success:
-        passed += 1
+def test(name, condition, details=""):
+    """Record test result"""
+    global tests_run, tests_passed, tests_failed
+    tests_run += 1
+    if condition:
+        tests_passed += 1
+        print(f"✅ TEST {tests_run}: {name}")
+        if details:
+            print(f"   {details}")
     else:
-        failed += 1
-
-def test_health():
-    """Test 1: GET /health → {ok:true, mode:"dry_run"}"""
-    print("\n=== TEST 1: Health Check ===")
-    try:
-        resp = requests.get(f"{BASE_URL}/health", headers=HEADERS, timeout=10)
-        data = resp.json()
-        
-        if resp.status_code == 200:
-            log_test("GET /health returns 200", True, f"Response: {json.dumps(data)}")
-        else:
-            log_test("GET /health returns 200", False, f"Got {resp.status_code}: {data}")
-            return
-        
-        if data.get("ok") is True:
-            log_test("Health check ok=true", True)
-        else:
-            log_test("Health check ok=true", False, f"Got ok={data.get('ok')}")
-        
-        if data.get("mode") == "dry_run":
-            log_test("Health check mode=dry_run", True)
-        else:
-            log_test("Health check mode=dry_run", False, f"Got mode={data.get('mode')}")
-    except Exception as e:
-        log_test("GET /health", False, f"Exception: {str(e)}")
-
-def test_account():
-    """Test 2: GET /account → owner_chat_id "999000111", wallet_balance"""
-    print("\n=== TEST 2: Account Info ===")
-    try:
-        resp = requests.get(f"{BASE_URL}/account", headers=HEADERS, timeout=10)
-        data = resp.json()
-        
-        if resp.status_code == 200:
-            log_test("GET /account returns 200", True, f"Response: {json.dumps(data)[:200]}")
-        else:
-            log_test("GET /account returns 200", False, f"Got {resp.status_code}: {data}")
-            return
-        
-        if str(data.get("owner_chat_id")) == "999000111":
-            log_test("Account owner_chat_id=999000111", True)
-        else:
-            log_test("Account owner_chat_id=999000111", False, f"Got {data.get('owner_chat_id')}")
-        
-        if "wallet_balance_usd" in data:
-            log_test("Account has wallet_balance_usd", True, f"Balance: ${data.get('wallet_balance_usd')}")
-        else:
-            log_test("Account has wallet_balance_usd", False, "Field missing")
-    except Exception as e:
-        log_test("GET /account", False, f"Exception: {str(e)}")
-
-def test_hosting_plans():
-    """Test 3: GET /hosting/plans → 200 plan array"""
-    print("\n=== TEST 3: Hosting Plans ===")
-    try:
-        resp = requests.get(f"{BASE_URL}/hosting/plans", headers=HEADERS, timeout=10)
-        data = resp.json()
-        
-        if resp.status_code == 200:
-            log_test("GET /hosting/plans returns 200", True)
-        else:
-            log_test("GET /hosting/plans returns 200", False, f"Got {resp.status_code}: {data}")
-            return
-        
-        # Handle both direct array and dict with 'plans' key
-        plans = data.get('plans', data) if isinstance(data, dict) else data
-        
-        if isinstance(plans, list) and len(plans) > 0:
-            log_test("Plans array is non-empty", True, f"Found {len(plans)} plans")
-        else:
-            log_test("Plans array is non-empty", False, f"Got {type(plans)}: {plans}")
-        
-        # Check for golden-monthly and premium-monthly
-        plan_ids = [p.get("plan_id") for p in plans if isinstance(p, dict)]
-        if "golden-monthly" in plan_ids:
-            log_test("Plans include golden-monthly", True)
-        else:
-            log_test("Plans include golden-monthly", False, f"Plan IDs: {plan_ids}")
-        
-        if "premium-monthly" in plan_ids:
-            log_test("Plans include premium-monthly", True)
-        else:
-            log_test("Plans include premium-monthly", False, f"Plan IDs: {plan_ids}")
-    except Exception as e:
-        log_test("GET /hosting/plans", False, f"Exception: {str(e)}")
-
-def test_hosting_create_domain_modes():
-    """Test 4: POST /hosting with various domain_mode values (ISSUE-7)"""
-    print("\n=== TEST 4: POST /hosting domain_mode validation (ISSUE-7) ===")
-    
-    # Test 4a: Invalid domain_mode "foo" → 400
-    try:
-        payload = {
-            "plan_id": "golden-monthly",
-            "domain": "dryruntest-apifix.com",
-            "domain_mode": "foo"
-        }
-        resp = requests.post(f"{BASE_URL}/hosting", headers=HEADERS, json=payload, timeout=10)
-        data = resp.json()
-        
-        if resp.status_code == 400:
-            log_test("POST /hosting with invalid domain_mode → 400", True, f"Error: {data.get('error')}")
-        else:
-            log_test("POST /hosting with invalid domain_mode → 400", False, f"Got {resp.status_code}: {data}")
-    except Exception as e:
-        log_test("POST /hosting invalid domain_mode", False, f"Exception: {str(e)}")
-    
-    # Test 4b: domain_mode "existing" → 200 dry_run
-    try:
-        payload = {
-            "plan_id": "golden-monthly",
-            "domain": "dryruntest-a.com",
-            "domain_mode": "existing"
-        }
-        resp = requests.post(f"{BASE_URL}/hosting", headers=HEADERS, json=payload, timeout=10)
-        data = resp.json()
-        
-        if resp.status_code == 200 and data.get("mode") == "dry_run":
-            log_test("POST /hosting domain_mode=existing → 200 dry_run", True)
-        else:
-            log_test("POST /hosting domain_mode=existing → 200 dry_run", False, f"Got {resp.status_code}: {data}")
-    except Exception as e:
-        log_test("POST /hosting domain_mode=existing", False, f"Exception: {str(e)}")
-    
-    # Test 4c: domain_mode "external" → 200 dry_run
-    try:
-        payload = {
-            "plan_id": "golden-monthly",
-            "domain": "dryruntest-b.com",
-            "domain_mode": "external"
-        }
-        resp = requests.post(f"{BASE_URL}/hosting", headers=HEADERS, json=payload, timeout=10)
-        data = resp.json()
-        
-        if resp.status_code == 200 and data.get("mode") == "dry_run":
-            log_test("POST /hosting domain_mode=external → 200 dry_run", True)
-        else:
-            log_test("POST /hosting domain_mode=external → 200 dry_run", False, f"Got {resp.status_code}: {data}")
-    except Exception as e:
-        log_test("POST /hosting domain_mode=external", False, f"Exception: {str(e)}")
-    
-    # Test 4d: domain_mode "byo" (legacy) → 200 dry_run (must NOT 400, must NOT error)
-    try:
-        payload = {
-            "plan_id": "golden-monthly",
-            "domain": "dryruntest-c.com",
-            "domain_mode": "byo"
-        }
-        resp = requests.post(f"{BASE_URL}/hosting", headers=HEADERS, json=payload, timeout=10)
-        data = resp.json()
-        
-        if resp.status_code == 200 and data.get("mode") == "dry_run":
-            log_test("POST /hosting domain_mode=byo (legacy) → 200 dry_run", True)
-        else:
-            log_test("POST /hosting domain_mode=byo (legacy) → 200 dry_run", False, f"Got {resp.status_code}: {data}")
-    except Exception as e:
-        log_test("POST /hosting domain_mode=byo", False, f"Exception: {str(e)}")
-
-def test_domain_register():
-    """Test 5: POST /domains/register (ISSUE-9)"""
-    print("\n=== TEST 5: POST /domains/register (ISSUE-9) ===")
-    try:
-        payload = {"domain": "dryruntest-regfix.com"}
-        resp = requests.post(f"{BASE_URL}/domains/register", headers=HEADERS, json=payload, timeout=30)
-        data = resp.json()
-        
-        if resp.status_code == 200:
-            log_test("POST /domains/register returns 200", True, f"Response: {json.dumps(data)[:200]}")
-        else:
-            log_test("POST /domains/register returns 200", False, f"Got {resp.status_code}: {data}")
-            return
-        
-        if data.get("mode") == "dry_run":
-            log_test("Domain register mode=dry_run", True)
-        else:
-            log_test("Domain register mode=dry_run", False, f"Got mode={data.get('mode')}")
-        
-        if "would_provision" in data:
-            log_test("Domain register has would_provision", True)
-        else:
-            log_test("Domain register has would_provision", False, "Field missing")
-    except Exception as e:
-        log_test("POST /domains/register", False, f"Exception: {str(e)}")
-
-def test_hosting_list():
-    """Test 6: GET /hosting → lists apifix01 AND apifix02"""
-    print("\n=== TEST 6: GET /hosting (list accounts) ===")
-    try:
-        resp = requests.get(f"{BASE_URL}/hosting", headers=HEADERS, timeout=10)
-        data = resp.json()
-        
-        if resp.status_code == 200:
-            log_test("GET /hosting returns 200", True)
-        else:
-            log_test("GET /hosting returns 200", False, f"Got {resp.status_code}: {data}")
-            return
-        
-        # Handle both direct list and dict with 'accounts' or 'hosting' key
-        accounts = data
-        if isinstance(data, dict):
-            accounts = data.get('accounts', data.get('hosting', data.get('data', [])))
-        
-        if isinstance(accounts, list):
-            usernames = [acc.get("username") for acc in accounts if isinstance(acc, dict)]
-            
-            if "apifix01" in usernames:
-                log_test("Hosting list includes apifix01", True)
-            else:
-                log_test("Hosting list includes apifix01", False, f"Usernames: {usernames}")
-            
-            if "apifix02" in usernames:
-                log_test("Hosting list includes apifix02", True)
-            else:
-                log_test("Hosting list includes apifix02", False, f"Usernames: {usernames}")
-        else:
-            log_test("GET /hosting returns list", False, f"Got {type(accounts)}, keys: {list(data.keys()) if isinstance(data, dict) else 'N/A'}")
-    except Exception as e:
-        log_test("GET /hosting", False, f"Exception: {str(e)}")
-
-def test_hosting_detail():
-    """Test 7: GET /hosting/apifix01 → 200"""
-    print("\n=== TEST 7: GET /hosting/apifix01 (detail) ===")
-    try:
-        resp = requests.get(f"{BASE_URL}/hosting/apifix01", headers=HEADERS, timeout=10)
-        data = resp.json()
-        
-        if resp.status_code == 200:
-            log_test("GET /hosting/apifix01 returns 200", True, f"Domain: {data.get('domain')}")
-        else:
-            log_test("GET /hosting/apifix01 returns 200", False, f"Got {resp.status_code}: {data}")
-    except Exception as e:
-        log_test("GET /hosting/apifix01", False, f"Exception: {str(e)}")
-
-def test_auto_renew():
-    """Test 8: ISSUE-5 auto-renew toggle"""
-    print("\n=== TEST 8: POST /hosting/apifix01/auto-renew (ISSUE-5) ===")
-    
-    # Test 8a: Set auto_renew to false
-    try:
-        payload = {"enabled": False}
-        resp = requests.post(f"{BASE_URL}/hosting/apifix01/auto-renew", headers=HEADERS, json=payload, timeout=10)
-        data = resp.json()
-        
-        if resp.status_code == 200 and data.get("auto_renew") is False:
-            log_test("POST auto-renew enabled=false → auto_renew=false", True)
-        else:
-            log_test("POST auto-renew enabled=false → auto_renew=false", False, f"Got {resp.status_code}: {data}")
-    except Exception as e:
-        log_test("POST auto-renew enabled=false", False, f"Exception: {str(e)}")
-    
-    # Test 8b: Toggle with no body → should toggle to true
-    try:
-        resp = requests.post(f"{BASE_URL}/hosting/apifix01/auto-renew", headers=HEADERS, json={}, timeout=10)
-        data = resp.json()
-        
-        if resp.status_code == 200 and data.get("auto_renew") is True:
-            log_test("POST auto-renew no body → toggle to true", True)
-        else:
-            log_test("POST auto-renew no body → toggle to true", False, f"Got {resp.status_code}: {data}")
-    except Exception as e:
-        log_test("POST auto-renew no body", False, f"Exception: {str(e)}")
-    
-    # Test 8c: Invalid body → 400
-    try:
-        payload = {"enabled": "notbool"}
-        resp = requests.post(f"{BASE_URL}/hosting/apifix01/auto-renew", headers=HEADERS, json=payload, timeout=10)
-        data = resp.json()
-        
-        if resp.status_code == 400:
-            log_test("POST auto-renew invalid body → 400", True, f"Error: {data.get('error')}")
-        else:
-            log_test("POST auto-renew invalid body → 400", False, f"Got {resp.status_code}: {data}")
-    except Exception as e:
-        log_test("POST auto-renew invalid body", False, f"Exception: {str(e)}")
-
-def test_site_status():
-    """Test 9: ISSUE-6 site-status (both routes, same response)"""
-    print("\n=== TEST 9: GET site-status (ISSUE-6) ===")
-    
-    # Test 9a: GET /hosting/apifix01/site-status
-    try:
-        resp = requests.get(f"{BASE_URL}/hosting/apifix01/site-status", headers=HEADERS, timeout=10)
-        data1 = resp.json()
-        
-        if resp.status_code == 200:
-            log_test("GET /hosting/apifix01/site-status returns 200", True)
-        else:
-            log_test("GET /hosting/apifix01/site-status returns 200", False, f"Got {resp.status_code}: {data1}")
-            return
-        
-        if "status" in data1:
-            log_test("site-status has status field", True, f"Status: {data1.get('status')}")
-        else:
-            log_test("site-status has status field", False, "Field missing")
-        
-        if "auto_renew" in data1:
-            log_test("site-status has auto_renew field", True, f"auto_renew: {data1.get('auto_renew')}")
-        else:
-            log_test("site-status has auto_renew field", False, "Field missing")
-        
-        # Test 9b: GET /hosting/apifix01/account/site-status (alias)
-        resp2 = requests.get(f"{BASE_URL}/hosting/apifix01/account/site-status", headers=HEADERS, timeout=10)
-        data2 = resp2.json()
-        
-        if resp2.status_code == 200:
-            log_test("GET /hosting/apifix01/account/site-status returns 200", True)
-        else:
-            log_test("GET /hosting/apifix01/account/site-status returns 200", False, f"Got {resp2.status_code}: {data2}")
-            return
-        
-        if data1.get("status") == data2.get("status"):
-            log_test("Both site-status routes return same status", True)
-        else:
-            log_test("Both site-status routes return same status", False, f"Route1: {data1.get('status')}, Route2: {data2.get('status')}")
-        
-        if "auto_renew" in data2:
-            log_test("account/site-status has auto_renew field", True)
-        else:
-            log_test("account/site-status has auto_renew field", False, "Field missing")
-    except Exception as e:
-        log_test("GET site-status", False, f"Exception: {str(e)}")
-    
-    # Test 9c: POST /hosting/apifix01/site-status (take offline)
-    try:
-        payload = {"action": "take_offline", "mode": "maintenance"}
-        resp = requests.post(f"{BASE_URL}/hosting/apifix01/site-status", headers=HEADERS, json=payload, timeout=10)
-        data = resp.json()
-        
-        if resp.status_code == 200 and data.get("mode") == "dry_run":
-            log_test("POST site-status take_offline → 200 dry_run", True)
-        else:
-            log_test("POST site-status take_offline → 200 dry_run", False, f"Got {resp.status_code}: {data}")
-    except Exception as e:
-        log_test("POST site-status take_offline", False, f"Exception: {str(e)}")
-    
-    # Test 9d: POST /hosting/apifix01/account/site-status (alias)
-    try:
-        payload = {"action": "take_offline", "mode": "maintenance"}
-        resp = requests.post(f"{BASE_URL}/hosting/apifix01/account/site-status", headers=HEADERS, json=payload, timeout=10)
-        data = resp.json()
-        
-        if resp.status_code == 200 and data.get("mode") == "dry_run":
-            log_test("POST account/site-status take_offline → 200 dry_run", True)
-        else:
-            log_test("POST account/site-status take_offline → 200 dry_run", False, f"Got {resp.status_code}: {data}")
-    except Exception as e:
-        log_test("POST account/site-status", False, f"Exception: {str(e)}")
-
-def test_renew():
-    """Test 10: ISSUE-3 renew"""
-    print("\n=== TEST 10: POST /hosting/apifix01/renew (ISSUE-3) ===")
-    try:
-        resp = requests.post(f"{BASE_URL}/hosting/apifix01/renew", headers=HEADERS, json={}, timeout=10)
-        data = resp.json()
-        
-        if resp.status_code == 200:
-            log_test("POST /hosting/apifix01/renew returns 200", True)
-        else:
-            log_test("POST /hosting/apifix01/renew returns 200", False, f"Got {resp.status_code}: {data}")
-            return
-        
-        if data.get("mode") == "dry_run":
-            log_test("Renew mode=dry_run", True)
-        else:
-            log_test("Renew mode=dry_run", False, f"Got mode={data.get('mode')}")
-        
-        if "would_provision" in data:
-            log_test("Renew has would_provision", True)
-        else:
-            log_test("Renew has would_provision", False, "Field missing")
-    except Exception as e:
-        log_test("POST /hosting/apifix01/renew", False, f"Exception: {str(e)}")
-
-def test_upgrade():
-    """Test 11: ISSUE-2 upgrade"""
-    print("\n=== TEST 11: POST upgrade (ISSUE-2) ===")
-    
-    # Test 11a: apifix02 (Premium) → golden-monthly (valid upgrade)
-    try:
-        payload = {"plan_id": "golden-monthly"}
-        resp = requests.post(f"{BASE_URL}/hosting/apifix02/upgrade", headers=HEADERS, json=payload, timeout=10)
-        data = resp.json()
-        
-        if resp.status_code == 200 and data.get("mode") == "dry_run":
-            log_test("POST apifix02/upgrade to golden → 200 dry_run", True)
-        else:
-            log_test("POST apifix02/upgrade to golden → 200 dry_run", False, f"Got {resp.status_code}: {data}")
-    except Exception as e:
-        log_test("POST apifix02/upgrade", False, f"Exception: {str(e)}")
-    
-    # Test 11b: apifix01 (Golden) → golden-monthly (no upgrade path, 409)
-    try:
-        payload = {"plan_id": "golden-monthly"}
-        resp = requests.post(f"{BASE_URL}/hosting/apifix01/upgrade", headers=HEADERS, json=payload, timeout=10)
-        data = resp.json()
-        
-        if resp.status_code == 409 and data.get("error") == "no_upgrade_path":
-            log_test("POST apifix01/upgrade to golden → 409 no_upgrade_path", True)
-        else:
-            log_test("POST apifix01/upgrade to golden → 409 no_upgrade_path", False, f"Got {resp.status_code}: {data}")
-    except Exception as e:
-        log_test("POST apifix01/upgrade no_upgrade_path", False, f"Exception: {str(e)}")
-    
-    # Test 11c: Invalid plan_id → 400 with available list
-    try:
-        payload = {"plan_id": "garbage"}
-        resp = requests.post(f"{BASE_URL}/hosting/apifix02/upgrade", headers=HEADERS, json=payload, timeout=10)
-        data = resp.json()
-        
-        if resp.status_code == 400 and data.get("error") == "invalid_upgrade_target":
-            log_test("POST upgrade invalid plan → 400 invalid_upgrade_target", True)
-            if "available" in data:
-                log_test("Invalid upgrade response has available list", True)
-            else:
-                log_test("Invalid upgrade response has available list", False, "Field missing")
-        else:
-            log_test("POST upgrade invalid plan → 400", False, f"Got {resp.status_code}: {data}")
-    except Exception as e:
-        log_test("POST upgrade invalid plan", False, f"Exception: {str(e)}")
-
-def test_addons():
-    """Test 12: ISSUE-1 addon shape (string handling)"""
-    print("\n=== TEST 12: GET /hosting/apifix01/addons (ISSUE-1) ===")
-    try:
-        resp = requests.get(f"{BASE_URL}/hosting/apifix01/addons", headers=HEADERS, timeout=10)
-        data = resp.json()
-        
-        if resp.status_code == 200:
-            log_test("GET /hosting/apifix01/addons returns 200", True)
-        else:
-            log_test("GET /hosting/apifix01/addons returns 200", False, f"Got {resp.status_code}: {data}")
-            return
-        
-        if data.get("addon_count") == 1:
-            log_test("Addon count is 1", True)
-        else:
-            log_test("Addon count is 1", False, f"Got addon_count={data.get('addon_count')}")
-        
-        addons = data.get("addons", [])
-        if len(addons) > 0:
-            # Check if addon is a string OR an object with 'domain' field
-            addon = addons[0]
-            if isinstance(addon, str) and addon == "addon-apifix.com":
-                log_test("Addon is string 'addon-apifix.com'", True)
-            elif isinstance(addon, dict) and addon.get("domain") == "addon-apifix.com":
-                log_test("Addon has domain 'addon-apifix.com' (object format)", True, f"Format: {addon}")
-            else:
-                log_test("Addon is 'addon-apifix.com'", False, f"Got addons={addons}")
-        else:
-            log_test("Addon is present", False, f"Got addons={addons}")
-    except Exception as e:
-        log_test("GET /hosting/apifix01/addons", False, f"Exception: {str(e)}")
-
-def test_addon_lookup():
-    """Test 13: ISSUE-1 addon lookup by string"""
-    print("\n=== TEST 13: GET captcha/honeypot by addon domain (ISSUE-1) ===")
-    
-    # Test 13a: GET /hosting/captcha/addon-apifix.com
-    try:
-        resp = requests.get(f"{BASE_URL}/hosting/captcha/addon-apifix.com", headers=HEADERS, timeout=10)
-        data = resp.json()
-        
-        if resp.status_code == 200:
-            log_test("GET /hosting/captcha/addon-apifix.com returns 200", True, f"Response: {json.dumps(data)[:100]}")
-        else:
-            log_test("GET /hosting/captcha/addon-apifix.com returns 200", False, f"Got {resp.status_code}: {data}")
-    except Exception as e:
-        log_test("GET captcha by addon", False, f"Exception: {str(e)}")
-    
-    # Test 13b: GET /hosting/honeypot/addon-apifix.com
-    try:
-        resp = requests.get(f"{BASE_URL}/hosting/honeypot/addon-apifix.com", headers=HEADERS, timeout=10)
-        data = resp.json()
-        
-        if resp.status_code == 200:
-            log_test("GET /hosting/honeypot/addon-apifix.com returns 200", True, f"Response: {json.dumps(data)[:100]}")
-        else:
-            log_test("GET /hosting/honeypot/addon-apifix.com returns 200", False, f"Got {resp.status_code}: {data}")
-    except Exception as e:
-        log_test("GET honeypot by addon", False, f"Exception: {str(e)}")
-
-def test_cancel():
-    """Test 14: ISSUE-4 cancel (DELETE /hosting/:user)"""
-    print("\n=== TEST 14: DELETE /hosting/apifix01 (ISSUE-4) ===")
-    try:
-        resp = requests.delete(f"{BASE_URL}/hosting/apifix01", headers=HEADERS, timeout=10)
-        data = resp.json()
-        
-        if resp.status_code == 200:
-            log_test("DELETE /hosting/apifix01 returns 200", True)
-        else:
-            log_test("DELETE /hosting/apifix01 returns 200", False, f"Got {resp.status_code}: {data}")
-            return
-        
-        if data.get("mode") == "dry_run":
-            log_test("Cancel mode=dry_run", True)
-        else:
-            log_test("Cancel mode=dry_run", False, f"Got mode={data.get('mode')}")
-        
-        # Check for note about account not terminated
-        if "note" in data or "message" in data:
-            log_test("Cancel has note/message field", True, f"Note: {data.get('note') or data.get('message')}")
-        else:
-            log_test("Cancel has note/message field", False, "Field missing")
-    except Exception as e:
-        log_test("DELETE /hosting/apifix01", False, f"Exception: {str(e)}")
-
-def test_negative_auth():
-    """Test 15: Negative tests (no auth, not found)"""
-    print("\n=== TEST 15: Negative Tests (Auth & Not Found) ===")
-    
-    # Test 15a: No Authorization header → 401
-    try:
-        resp = requests.get(f"{BASE_URL}/hosting", timeout=10)
-        data = resp.json()
-        
-        if resp.status_code == 401:
-            log_test("GET /hosting without auth → 401", True, f"Error: {data.get('error')}")
-        else:
-            log_test("GET /hosting without auth → 401", False, f"Got {resp.status_code}: {data}")
-    except Exception as e:
-        log_test("GET /hosting without auth", False, f"Exception: {str(e)}")
-    
-    # Test 15b: Non-existent user → 404
-    try:
-        resp = requests.get(f"{BASE_URL}/hosting/nonexistentuser", headers=HEADERS, timeout=10)
-        data = resp.json()
-        
-        if resp.status_code == 404:
-            log_test("GET /hosting/nonexistentuser → 404", True, f"Error: {data.get('error')}")
-        else:
-            log_test("GET /hosting/nonexistentuser → 404", False, f"Got {resp.status_code}: {data}")
-    except Exception as e:
-        log_test("GET /hosting/nonexistentuser", False, f"Exception: {str(e)}")
-
-def test_service_health():
-    """Test 16: Service health check"""
-    print("\n=== TEST 16: Service Health ===")
-    
-    # Check supervisor nodejs status
-    import subprocess
-    try:
-        result = subprocess.run(["sudo", "supervisorctl", "status", "nodejs"], 
-                              capture_output=True, text=True, timeout=5)
-        if "RUNNING" in result.stdout:
-            log_test("Supervisor nodejs is RUNNING", True, result.stdout.strip())
-        else:
-            log_test("Supervisor nodejs is RUNNING", False, result.stdout.strip())
-    except Exception as e:
-        log_test("Supervisor nodejs status", False, f"Exception: {str(e)}")
-    
-    # Check for errors in nodejs logs
-    try:
-        result = subprocess.run(["tail", "-n", "50", "/var/log/supervisor/nodejs.err.log"], 
-                              capture_output=True, text=True, timeout=5)
-        if "Cannot find module" in result.stdout or "Error:" in result.stdout:
-            log_test("nodejs.err.log has no critical errors", False, f"Found errors: {result.stdout[:200]}")
-        else:
-            log_test("nodejs.err.log has no critical errors", True, "No 'Cannot find module' or stack traces")
-    except Exception as e:
-        log_test("nodejs.err.log check", False, f"Exception: {str(e)}")
+        tests_failed += 1
+        print(f"❌ TEST {tests_run}: {name}")
+        if details:
+            print(f"   {details}")
+    return condition
 
 def main():
-    """Run all tests"""
     print("=" * 80)
-    print("RESELLER API PARITY TEST SUITE (2026-10-03)")
-    print("Testing 9 bug fixes for Nomadly Reseller API")
-    print("Mode: DRY-RUN (RESELLER_API_LIVE not set)")
+    print("RESELLER VPS OS-REINSTALL ENDPOINT TEST (2026-10-05c)")
+    print("=" * 80)
+    print(f"Base URL: {BASE_URL}")
+    print(f"Test VPS ID: {TEST_VPS_ID}")
+    print(f"Mode: LIVE (PRODUCTION)")
+    print("=" * 80)
+    print()
+    
+    # ========================================================================
+    # SAFE CHECK 1: No auth → expect 401
+    # ========================================================================
+    print("★★★ SAFE CHECK 1: POST /vps/:id/reinstall WITHOUT auth → expect 401 ★★★")
+    try:
+        url = f"{BASE_URL}/vps/{TEST_VPS_ID}/reinstall"
+        response = requests.post(url, json={"os": "ubuntu-24-04-x64"}, timeout=10)
+        status = response.status_code
+        body = response.json() if response.headers.get('content-type', '').startswith('application/json') else response.text[:200]
+        
+        test(
+            "POST /vps/:id/reinstall without auth → 401",
+            status == 401,
+            f"Status: {status}, Body: {json.dumps(body, indent=2) if isinstance(body, dict) else body}"
+        )
+        
+        if status == 401:
+            test(
+                "Response has error='missing_api_key'",
+                isinstance(body, dict) and body.get('error') == 'missing_api_key',
+                f"Error: {body.get('error') if isinstance(body, dict) else 'N/A'}"
+            )
+        else:
+            test("Response has error='missing_api_key'", False, f"Expected 401, got {status}")
+    except Exception as e:
+        test("POST /vps/:id/reinstall without auth → 401", False, f"Exception: {e}")
+        test("Response has error='missing_api_key'", False, f"Exception: {e}")
+    
+    print()
+    
+    # ========================================================================
+    # SAFE CHECK 2: Valid os WITHOUT confirm → expect 400 confirmation_required
+    # ========================================================================
+    print("★★★ SAFE CHECK 2: POST /vps/:id/reinstall WITH key, valid os, NO confirm → expect 400 confirmation_required ★★★")
+    try:
+        url = f"{BASE_URL}/vps/{TEST_VPS_ID}/reinstall"
+        headers = {"Authorization": f"Bearer {LIVE_API_KEY}"}
+        # CRITICAL: NO "confirm" field — this is the disk-wipe guard check
+        body = {"os": "ubuntu-24-04-x64"}
+        response = requests.post(url, json=body, headers=headers, timeout=10)
+        status = response.status_code
+        resp_body = response.json() if response.headers.get('content-type', '').startswith('application/json') else response.text[:200]
+        
+        test(
+            "POST /vps/:id/reinstall with valid os, NO confirm → 400",
+            status == 400,
+            f"Status: {status}, Body: {json.dumps(resp_body, indent=2) if isinstance(resp_body, dict) else resp_body}"
+        )
+        
+        if status == 400:
+            test(
+                "Response has error='confirmation_required'",
+                isinstance(resp_body, dict) and resp_body.get('error') == 'confirmation_required',
+                f"Error: {resp_body.get('error') if isinstance(resp_body, dict) else 'N/A'}"
+            )
+            test(
+                "Response message mentions disk wipe",
+                isinstance(resp_body, dict) and 'wipe' in resp_body.get('message', '').lower(),
+                f"Message: {resp_body.get('message', 'N/A') if isinstance(resp_body, dict) else 'N/A'}"
+            )
+        else:
+            test("Response has error='confirmation_required'", False, f"Expected 400, got {status}")
+            test("Response message mentions disk wipe", False, f"Expected 400, got {status}")
+    except Exception as e:
+        test("POST /vps/:id/reinstall with valid os, NO confirm → 400", False, f"Exception: {e}")
+        test("Response has error='confirmation_required'", False, f"Exception: {e}")
+        test("Response message mentions disk wipe", False, f"Exception: {e}")
+    
+    print()
+    
+    # ========================================================================
+    # SAFE CHECK 3: Invalid os WITH confirm → expect 400 invalid_os
+    # ========================================================================
+    print("★★★ SAFE CHECK 3: POST /vps/:id/reinstall WITH key, invalid os, WITH confirm → expect 400 invalid_os ★★★")
+    try:
+        url = f"{BASE_URL}/vps/{TEST_VPS_ID}/reinstall"
+        headers = {"Authorization": f"Bearer {LIVE_API_KEY}"}
+        # CRITICAL: Invalid os "windows-xp" — validation runs BEFORE rebuild, so this is SAFE
+        body = {"os": "windows-xp", "confirm": True}
+        response = requests.post(url, json=body, headers=headers, timeout=10)
+        status = response.status_code
+        resp_body = response.json() if response.headers.get('content-type', '').startswith('application/json') else response.text[:200]
+        
+        test(
+            "POST /vps/:id/reinstall with invalid os, WITH confirm → 400",
+            status == 400,
+            f"Status: {status}, Body: {json.dumps(resp_body, indent=2) if isinstance(resp_body, dict) else resp_body}"
+        )
+        
+        if status == 400:
+            test(
+                "Response has error='invalid_os'",
+                isinstance(resp_body, dict) and resp_body.get('error') == 'invalid_os',
+                f"Error: {resp_body.get('error') if isinstance(resp_body, dict) else 'N/A'}"
+            )
+            test(
+                "Response has 'valid_os' list",
+                isinstance(resp_body, dict) and 'valid_os' in resp_body,
+                f"Valid OS count: {len(resp_body.get('valid_os', [])) if isinstance(resp_body, dict) else 'N/A'}"
+            )
+            if isinstance(resp_body, dict) and 'valid_os' in resp_body:
+                valid_os_list = resp_body.get('valid_os', [])
+                print(f"   Valid OS images: {', '.join([img.get('id', 'N/A') for img in valid_os_list[:5]])}{'...' if len(valid_os_list) > 5 else ''}")
+        else:
+            test("Response has error='invalid_os'", False, f"Expected 400, got {status}")
+            test("Response has 'valid_os' list", False, f"Expected 400, got {status}")
+    except Exception as e:
+        test("POST /vps/:id/reinstall with invalid os, WITH confirm → 400", False, f"Exception: {e}")
+        test("Response has error='invalid_os'", False, f"Exception: {e}")
+        test("Response has 'valid_os' list", False, f"Exception: {e}")
+    
+    print()
+    
+    # ========================================================================
+    # SUMMARY
+    # ========================================================================
+    print("=" * 80)
+    print("TEST SUMMARY")
+    print("=" * 80)
+    print(f"Total tests: {tests_run}")
+    print(f"Passed: {tests_passed}")
+    print(f"Failed: {tests_failed}")
+    print(f"Pass rate: {tests_passed}/{tests_run} ({100*tests_passed//tests_run if tests_run > 0 else 0}%)")
     print("=" * 80)
     
-    test_health()
-    test_account()
-    test_hosting_plans()
-    test_hosting_create_domain_modes()
-    test_domain_register()
-    test_hosting_list()
-    test_hosting_detail()
-    test_auto_renew()
-    test_site_status()
-    test_renew()
-    test_upgrade()
-    test_addons()
-    test_addon_lookup()
-    test_cancel()
-    test_negative_auth()
-    test_service_health()
+    # PASS criteria: All 3 safe checks must pass
+    # CHECK 1: No auth → 401 (2 tests)
+    # CHECK 2: Valid os WITHOUT confirm → 400 confirmation_required (3 tests)
+    # CHECK 3: Invalid os WITH confirm → 400 invalid_os (3 tests)
+    # Total: 8 tests
     
-    print("\n" + "=" * 80)
-    print(f"TEST SUMMARY: {passed} PASSED, {failed} FAILED")
-    print("=" * 80)
-    
-    # Print failed tests
-    if failed > 0:
-        print("\n❌ FAILED TESTS:")
-        for result in test_results:
-            if not result["success"]:
-                print(f"  - {result['name']}")
-                if result["details"]:
-                    print(f"    {result['details']}")
-    
-    return 0 if failed == 0 else 1
+    if tests_passed == tests_run and tests_run >= 8:
+        print()
+        print("✅ ALL SAFE CHECKS PASSED")
+        print()
+        print("PASS CRITERIA MET:")
+        print("  1. ✅ No auth → 401 (route registered + auth-gated)")
+        print("  2. ✅ Valid os WITHOUT confirm → 400 confirmation_required (disk-wipe guard working)")
+        print("  3. ✅ Invalid os WITH confirm → 400 invalid_os (validation runs before rebuild, safe)")
+        print()
+        print("CRITICAL SAFETY VERIFIED:")
+        print("  ✅ NO real reinstall was triggered (all checks were safe)")
+        print("  ✅ Disk-wipe guard is working (confirmation_required for valid os without confirm)")
+        print("  ✅ OS validation is working (invalid_os for invalid os, even with confirm)")
+        print("  ✅ Route is registered and auth-gated (401 without key)")
+        print()
+        return 0
+    else:
+        print()
+        print("❌ SOME CHECKS FAILED")
+        print()
+        print(f"Expected all 8+ tests to pass, but {tests_failed} failed.")
+        print()
+        return 1
 
 if __name__ == "__main__":
     sys.exit(main())

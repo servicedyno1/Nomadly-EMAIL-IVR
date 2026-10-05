@@ -130,10 +130,15 @@ function createResellerApi(deps = {}) {
   }
 
   // ── Mode: are we allowed to actually provision + charge? ──
-  // Hard safety: a dev/sandbox pod (SKIP_WEBHOOK_SYNC=true) shares production
-  // provider accounts + Mongo, so it must NEVER create real resources.
+  // Live provisioning is gated SOLELY on RESELLER_API_LIVE=true. This lets the
+  // reseller API run live on a dev pod while SKIP_WEBHOOK_SYNC=true continues to
+  // keep the phone health monitor, Telnyx/Twilio webhook sync, AntiRed worker
+  // upgrade and Cloudflare Discovery Worker sync safely DISABLED.
+  // NOTE: this pod shares the production provider accounts + Mongo, so with
+  // RESELLER_API_LIVE=true reseller calls WILL create real resources and debit
+  // the real wallet. Keep RESELLER_API_LIVE unset on any pod that must stay dry-run.
   function isLive() {
-    return process.env.RESELLER_API_LIVE === 'true' && process.env.SKIP_WEBHOOK_SYNC !== 'true'
+    return process.env.RESELLER_API_LIVE === 'true'
   }
   const mode = () => (isLive() ? 'live' : 'dry_run')
 
@@ -466,10 +471,30 @@ function createResellerApi(deps = {}) {
     }
     const finalUser = String(result.username || job.username).toLowerCase()
     const expiry = new Date(Date.now() + durationDays * 86400000)
+    // Persist the generated cPanel password (encrypted) into the reseller DB so every
+    // /hosting/:user/* management endpoint (files, subdomains, ssl, stats, addon, mysql…)
+    // can authenticate to cPanel. The provisioning helper stores creds via its own
+    // process.env.MONGO_URL client; when the reseller API runs on a dedicated DB
+    // connection that differs from MONGO_URL, those creds never reach the DB the API
+    // reads from → HTTP 501 no_credentials. Idempotent on production (same DB).
+    const credSet = {}
+    try {
+      if (result.password) {
+        const enc = cpanelAuth.encrypt(result.password)
+        credSet.cpUser = result.username || finalUser
+        credSet.cpPass_encrypted = enc.encrypted
+        credSet.cpPass_iv = enc.iv
+        credSet.cpPass_tag = enc.tag
+        credSet.whmHost = result.whmHost || process.env.WHM_HOST || null
+      } else {
+        log(`[ResellerAPI] WARN: no cPanel password returned for ${finalUser}; management endpoints may 501`)
+      }
+    } catch (e) { log(`[ResellerAPI] credential persist failed for ${finalUser}: ${e.message}`) }
     await col('cpanelAccounts').updateOne({ _id: finalUser }, { $set: {
       chatId: owner, source: 'reseller_api', ownerEmail: r.email || null, domain: r.domain, plan: r.plan,
       provisionState: 'active', provisionJobId: job._id, clientRef: job.clientRef || null,
       expiryDate: expiry, renewalPriceUsd: r.hostingPrice, autoRenew: durationDays >= 30,
+      ...credSet,
     } }, { upsert: true })
     if (finalUser !== job.username) {
       await col('cpanelAccounts').updateOne({ _id: job.username }, { $set: { supersededBy: finalUser, deleted: true, deletedAt: new Date(), deletedBy: 'superseded_final_username' } })
@@ -492,10 +517,27 @@ function createResellerApi(deps = {}) {
       return
     }
     const prov = providerFor(isRDP)
+    // Linux VPS: pre-generate a strong root password + durable secret so it is set at
+    // first boot (cloud-init) and retrievable later via GET /vps/:id/credentials. Launch
+    // with any reseller-supplied SSH keys so the box is reachable immediately. (RDP keeps
+    // its own agent-driven password handling inside the provider's create.)
+    let vpsPasswordSecretId = null
+    const createOpts = { productId: r.plan_id, regionSlug: r.region, isWindows: isRDP, osId: r.osId || undefined, label: r.hostname || undefined }
+    if (!isRDP) {
+      try {
+        if (typeof prov.createSecret === 'function') {
+          const pw = crypto.randomBytes(24).toString('base64').replace(/[^a-zA-Z0-9]/g, '').slice(0, 20)
+          const sec = await prov.createSecret(`vps-${String(job.vpsId).slice(0, 8)}`, pw, 'password')
+          vpsPasswordSecretId = (sec && (sec.secretId || sec.id)) || null
+          if (vpsPasswordSecretId) createOpts.rootPassword = vpsPasswordSecretId
+        }
+      } catch (e) { log(`[ResellerAPI] vps password secret create failed for ${job.vpsId}: ${e.message}`) }
+      if (Array.isArray(r.ssh_key_ids) && r.ssh_key_ids.length) createOpts.sshKeys = r.ssh_key_ids
+    }
     let inst
     try {
       const createFn = (isRDP && prov.createInstanceWithFallback) ? prov.createInstanceWithFallback.bind(prov) : prov.createInstance.bind(prov)
-      inst = await createFn({ productId: r.plan_id, regionSlug: r.region, isWindows: isRDP, osId: r.osId || undefined, label: r.hostname || undefined })
+      inst = await createFn(createOpts)
     } catch (e) { inst = { success: false, error: e.message } }
     if (!inst || inst.success === false) {
       if (job.charged) await refundWallet(owner, job.priceUsd)
@@ -506,7 +548,7 @@ function createResellerApi(deps = {}) {
     }
     await col('vpsPlansOf').updateOne({ _id: job.vpsId }, { $set: {
       instanceId: inst.instanceId || null, host: inst.mainIp || null, status: inst.status || 'RUNNING',
-      provisionState: 'active', rootPasswordSecretId: inst.passwordSecretId || null,
+      provisionState: 'active', rootPasswordSecretId: inst.passwordSecretId || vpsPasswordSecretId || null,
       end_time: new Date(Date.now() + 30 * 86400000),
     } })
     await provisionJobs().updateOne({ _id: job._id }, { $set: { status: 'done', finishedAt: new Date(), result: { id: job.vpsId, instance_id: inst.instanceId || null, ip: inst.mainIp || null } } })
@@ -892,6 +934,23 @@ function createResellerApi(deps = {}) {
     const planName = product.name || planId
     const request = { plan_id: planId, plan: planName, region, hostname, isRDP: !!isRDP, osId: osId || null, os: isRDP ? (osId || 'windows') : (req.body?.os || 'ubuntu') }
 
+    // Optional: launch a Linux VPS with reseller-supplied SSH public key(s) pre-installed
+    // (uploaded to the provider account; referenced as ssh_keys at droplet create).
+    if (!isRDP) {
+      const rawKeys = req.body?.ssh_keys || req.body?.ssh_key || null
+      const keyList = (Array.isArray(rawKeys) ? rawKeys : (rawKeys ? [rawKeys] : [])).map(k => String(k).trim()).filter(Boolean)
+      if (keyList.length) {
+        if (typeof prov.createSecret !== 'function') return res.status(400).json({ error: 'ssh_keys_unsupported', message: 'This provider cannot register SSH keys.' })
+        const ids = []
+        for (const pub of keyList) {
+          if (!/^(ssh-(rsa|ed25519|dss)|ecdsa-sha2-)/.test(pub)) return res.status(400).json({ error: 'invalid_ssh_key', message: 'Each ssh_keys entry must be an OpenSSH public key (e.g. "ssh-ed25519 AAAA...").' })
+          try { const s = await prov.createSecret(`reseller-${owner}-${Date.now().toString(36)}`, pub, 'ssh'); if (s && (s.secretId || s.id)) ids.push(s.secretId || s.id) }
+          catch (e) { return res.status(400).json({ error: 'invalid_ssh_key', message: `Could not register SSH key: ${e.message}` }) }
+        }
+        if (ids.length) request.ssh_key_ids = ids
+      }
+    }
+
     const charge = await chargeForAsync(req, res, { product: isRDP ? 'rdp' : 'vps', action: 'create', priceUsd: pricing.totalWithMarkup, request })
     if (!charge.ok) return // chargeForAsync already sent the 402/400
 
@@ -1023,6 +1082,16 @@ function createResellerApi(deps = {}) {
     // RDP orders are created with ip=null; resolve the live IP once provisioning assigned one.
     let ip = rec.host || null
     if (!ip && rec.instanceId) { try { ip = (await providerFor(isRDP).getInstance(rec.instanceId))?.mainIp || null; if (ip) await col('vpsPlansOf').updateOne({ _id: rec._id }, { $set: { host: ip } }) } catch (_) {} }
+    // VPS fallback: if no stored secret resolved, run the full reveal chain
+    // (durable store -> provider cache -> cloud-init-over-SSH) so legacy VPS still
+    // surface a password. (RDP uses its own agent-backed secret, already handled above.)
+    if (!password && !isRDP && isLive() && ip) {
+      try {
+        const { revealVpsPassword } = require('./vps-password-reveal')
+        const rev = await revealVpsPassword({ provider: rec.provider || 'digitalocean', vpsId: rec.instanceId || rec.vpsId, host: ip, defaultUser: 'root', osType: rec.osType, rootPasswordSecretId: rec.rootPasswordSecretId || null }, { verify: false })
+        if (rev && rev.status === 'ok' && rev.password) password = rev.password
+      } catch (e) { log(`[ResellerAPI] vps reveal warn: ${e.message}`) }
+    }
     const out = { id: rec.vpsId || rec._id, ip, username: isRDP ? 'Administrator' : 'root', password: password || (isLive() ? null : '••• (revealed only in live mode)'), mode: mode() }
     // Speed lever 4: ship a ready-tuned .rdp connection file (LAN preset, bitmap cache on,
     // wallpaper/animations off) so the customer connects fast without touching client settings.
@@ -1154,6 +1223,117 @@ function createResellerApi(deps = {}) {
     })
   }
 
+  // ── VPS-only lifecycle: in-place password reset + SSH key management ──
+  // Mirrors the RDP handlers but for Linux VPS. The provider's resetPassword /
+  // applyBackfillOverSSH log in to the RUNNING droplet over SSH (no wipe) and
+  // require the box reachable with a known credential (stored key / recoverable
+  // password). A box created without any credential returns a clear 409.
+
+  // POST /vps/:id/password-reset → in-place root password change over SSH.
+  async function vpsPasswordResetHandler(req, res) {
+    const rec = await loadOwnedVps(req, req.params.id, false)
+    if (!rec) return res.status(404).json({ error: 'not_found' })
+    if (!isLive()) return res.json({ mode: 'dry_run', id: rec.vpsId || rec._id, username: 'root', method: 'ssh', note: 'Dry-run: no password reset sent to provider.' })
+    const prov = vpsProvider.getProviderForRecord(rec)
+    if (!rec.instanceId || !prov || typeof prov.resetPassword !== 'function') return res.status(501).json({ error: 'not_supported' })
+    try {
+      const r = await prov.resetPassword(rec.instanceId, { host: rec.host || null, currentSecretId: rec.rootPasswordSecretId || null, defaultUser: 'root', osType: rec.osType })
+      if (r && r.secretId && r.secretId !== rec.rootPasswordSecretId) {
+        await col('vpsPlansOf').updateOne({ _id: rec._id }, { $set: { rootPasswordSecretId: r.secretId } })
+      }
+      if (r && r.password) return res.json({ mode: 'live', id: rec.vpsId || rec._id, username: 'root', password: r.password, verified: !!r.verified, data_preserved: true, note: r.note || null })
+      // Could not set it in place (locked out / ssh-blocked / provider-emailed) — surface guidance.
+      return res.status(409).json({ error: 'password_not_set_in_place', id: rec.vpsId || rec._id, username: 'root', password: null, note: (r && r.note) || 'Could not set the password in place; the server may be unreachable or was created without a credential.' })
+    } catch (e) {
+      res.status(409).json({ error: 'password_reset_failed', message: e.message })
+    }
+  }
+
+  // POST /vps/:id/ssh-key { public_key } → append an OpenSSH public key to the
+  // running droplet's root authorized_keys (idempotent, in place, no wipe).
+  async function vpsSetSshKeyHandler(req, res) {
+    const rec = await loadOwnedVps(req, req.params.id, false)
+    if (!rec) return res.status(404).json({ error: 'not_found' })
+    const publicKey = String(req.body?.public_key || req.body?.ssh_key || '').trim()
+    if (!publicKey || !/^(ssh-(rsa|ed25519|dss)|ecdsa-sha2-)/.test(publicKey)) {
+      return res.status(400).json({ error: 'invalid_public_key', message: 'Provide an OpenSSH public key string in { public_key } (e.g. "ssh-ed25519 AAAA... user@host").' })
+    }
+    if (!isLive()) return res.json({ mode: 'dry_run', id: rec.vpsId || rec._id, installed: false, note: 'Dry-run: no SSH key injected.' })
+    if (!rec.host) return res.status(409).json({ error: 'no_host', message: 'VPS has no IP yet — try again once provisioning completes.' })
+    let currentPassword = null
+    if (rec.rootPasswordSecretId) { try { const prov = vpsProvider.getProviderForRecord(rec); if (prov && typeof prov.getSecretPassword === 'function') currentPassword = await prov.getSecretPassword(rec.rootPasswordSecretId) } catch (_) {} }
+    try {
+      const { applyBackfillOverSSH } = require('./vps-ssh-password')
+      const r = await applyBackfillOverSSH({ host: rec.host, username: 'root', publicKey, privateKeys: [], currentPassword })
+      if (!r || !r.ok) return res.status(409).json({ error: 'ssh_key_apply_failed', message: (r && r.error) || 'could not reach the server with a known credential', attempts: (r && r.attempts) || [] })
+      return res.json({ mode: 'live', id: rec.vpsId || rec._id, username: 'root', installed: true, method: r.method, note: 'Public key appended to root authorized_keys (idempotent); SSH access ensured.' })
+    } catch (e) {
+      res.status(409).json({ error: 'ssh_key_apply_failed', message: e.message })
+    }
+  }
+
+  // GET /vps/:id/ssh-keys → best-effort read of the droplet's root authorized_keys.
+  async function vpsSshKeysListHandler(req, res) {
+    const rec = await loadOwnedVps(req, req.params.id, false)
+    if (!rec) return res.status(404).json({ error: 'not_found' })
+    if (!isLive()) return res.json({ mode: 'dry_run', id: rec.vpsId || rec._id, keys: [], note: 'Dry-run: not read from the server.' })
+    if (!rec.host) return res.status(409).json({ error: 'no_host', message: 'VPS has no IP yet.' })
+    let currentPassword = null
+    if (rec.rootPasswordSecretId) { try { const prov = vpsProvider.getProviderForRecord(rec); if (prov && typeof prov.getSecretPassword === 'function') currentPassword = await prov.getSecretPassword(rec.rootPasswordSecretId) } catch (_) {} }
+    try {
+      const { execOverSSH } = require('./vps-ssh-password')
+      const r = await execOverSSH({ host: rec.host, port: 22, username: 'root', script: 'cat /root/.ssh/authorized_keys 2>/dev/null || true', password: currentPassword || null })
+      const keys = String(r.stdout || '').split('\n').map(s => s.trim()).filter(l => /^(ssh-|ecdsa-)/.test(l))
+      return res.json({ mode: 'live', id: rec.vpsId || rec._id, username: 'root', keys, count: keys.length })
+    } catch (e) {
+      return res.status(409).json({ error: 'ssh_keys_read_failed', message: e.message, note: 'Could not read authorized_keys — the server may be unreachable or has no known credential.' })
+    }
+  }
+
+  // POST /vps/:id/reinstall { os?, confirm } → DESTRUCTIVE OS reinstall (DO rebuild from a
+  // chosen image: disk wiped, IP kept, ~3 min). DO's rebuild re-runs the droplet's ORIGINAL
+  // create-time cloud-init, so a VPS created via POST /vps (which set a stored root password at
+  // create) comes back with that SAME password — we keep rootPasswordSecretId and return it.
+  // Legacy boxes with no stored secret come back with an unknown password (call password-reset).
+  async function vpsReinstallHandler(req, res) {
+    const rec = await loadOwnedVps(req, req.params.id, false)
+    if (!rec) return res.status(404).json({ error: 'not_found' })
+    const prov = vpsProvider.getProviderForRecord(rec)
+    const osId = String(req.body?.os || rec.osId || 'ubuntu-24-04-x64').toLowerCase()
+    let images = []
+    try { if (prov && typeof prov.listImages === 'function') images = await prov.listImages('linux') } catch (_) {}
+    if (images.length && !images.some(i => String(i.imageId || i.id).toLowerCase() === osId)) {
+      return res.status(400).json({ error: 'invalid_os', message: `Unknown os "${req.body?.os}". Valid values: ${images.map(i => i.imageId || i.id).join(', ')}.`, valid_os: images.map(i => ({ id: i.imageId || i.id, name: i.name })) })
+    }
+    // Destructive — require explicit confirmation so a reinstall is never accidental.
+    if (req.body?.confirm !== true) {
+      return res.status(400).json({ error: 'confirmation_required', id: rec.vpsId || rec._id, os: osId, message: 'Reinstall WIPES the disk — all data is destroyed (the IP is kept). Re-send with {"confirm": true} to proceed.' })
+    }
+    if (!isLive()) return res.json({ mode: 'dry_run', id: rec.vpsId || rec._id, os: osId, note: 'Dry-run: no reinstall sent to provider.' })
+    if (!rec.instanceId || !prov || typeof prov.reinstallInstance !== 'function') return res.status(501).json({ error: 'not_supported' })
+    try {
+      // Pass the EXISTING password secret so the re-run of the create-time cloud-init keeps a known
+      // root password (DO rebuild ignores freshly-sent user_data but re-applies the original).
+      const r = await prov.reinstallInstance(rec.instanceId, { osId, rootPassword: rec.rootPasswordSecretId || undefined })
+      const set = { osId, osType: 'linux', status: 'reinstalling', provisionState: 'active' }
+      if (r && r.secretId && r.secretId !== rec.rootPasswordSecretId) set.rootPasswordSecretId = r.secretId
+      await col('vpsPlansOf').updateOne({ _id: rec._id }, { $set: set })
+      // Resolve the password we can show (the stored secret the cloud-init re-applies).
+      let password = null
+      const sid = (r && r.secretId) || rec.rootPasswordSecretId || null
+      if (sid && typeof prov.getSecretPassword === 'function') { try { password = await prov.getSecretPassword(sid) } catch (_) {} }
+      return res.json({
+        mode: 'live', id: rec.vpsId || rec._id, os: osId, ip: (r && r.ip) || rec.host || null,
+        eta_minutes: (r && r.etaMinutes) || 3, username: 'root', password: password || null, data_preserved: false,
+        note: password
+          ? 'Reinstall started (disk wiped, IP kept). Your original root password is re-applied by cloud-init once the server finishes booting (~3 min).'
+          : 'Reinstall started (disk wiped, IP kept). This box has no stored password — once it is back online, call POST /vps/:id/password-reset (or use your SSH key).',
+      })
+    } catch (e) {
+      res.status(409).json({ error: 'reinstall_failed', message: e.message })
+    }
+  }
+
   // VPS routes
   router.get('/vps/plans', apiKeyAuth, h((req, res) => vpsPlansHandler(req, res, false)))
   router.post('/vps', apiKeyAuth, h((req, res) => vpsCreateHandler(req, res, false)))
@@ -1163,6 +1343,10 @@ function createResellerApi(deps = {}) {
   router.delete('/vps/:id', apiKeyAuth, h((req, res) => vpsDestroyHandler(req, res, false)))
   router.get('/vps/:id/credentials', apiKeyAuth, h((req, res) => vpsCredsHandler(req, res, false)))
   router.post('/vps/:id/renew', apiKeyAuth, h((req, res) => vpsRenewHandler(req, res, false)))
+  router.post('/vps/:id/password-reset', apiKeyAuth, h((req, res) => vpsPasswordResetHandler(req, res)))
+  router.post('/vps/:id/ssh-key', apiKeyAuth, h((req, res) => vpsSetSshKeyHandler(req, res)))
+  router.get('/vps/:id/ssh-keys', apiKeyAuth, h((req, res) => vpsSshKeysListHandler(req, res)))
+  router.post('/vps/:id/reinstall', apiKeyAuth, h((req, res) => vpsReinstallHandler(req, res)))
 
   // RDP routes (Windows)
   router.get('/rdp/plans', apiKeyAuth, h((req, res) => vpsPlansHandler(req, res, true)))
