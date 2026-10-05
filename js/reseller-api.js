@@ -359,31 +359,64 @@ function createResellerApi(deps = {}) {
     return provisionJobs().findOne({ ownerChatId: String(ownerChatId), clientRef: String(clientRef) })
   }
 
-  // Map a provision job → the 202 handle shape (used both by a fresh create and by an idempotent
-  // client_ref re-hit). status ∈ provisioning | provisioned | failed.
+  // Coarse, product-aware ETA (seconds) for an async build — powers the storefront "setting up…"
+  // countdown. Hosting ≈ WHM createacct + DNS; VPS ≈ droplet boot; RDP depends on the Windows
+  // edition (fast_deploy golden image ≈ 3-5 min, full unattended install ≈ 45 min).
+  function estimateEtaSeconds(product, request) {
+    if (product === 'hosting') return 120
+    if (product === 'vps') return 180
+    const os = String((request && request.osId) || '').toLowerCase()
+    if (os === 'ws2025') return 300
+    if (os === 'ws2019' || os === 'ws2022') return 180
+    return 2700 // full unattended Windows install
+  }
+
+  // Live progress snapshot for a job: status + a 0-100 progress bar + an ETA countdown, all derived
+  // from product + elapsed time (the build itself is opaque). done→100, failed→0.
+  function jobProgress(job) {
+    const status = jobStatusLabel(job)
+    const createdMs = job.createdAt ? new Date(job.createdAt).getTime() : Date.now()
+    const elapsed = Math.max(0, Math.round((Date.now() - createdMs) / 1000))
+    const eta = Number(job.etaSeconds) || estimateEtaSeconds(job.product, job.request)
+    if (status === 'provisioned') return { status, progress: 100, stage: 'ready', stage_label: 'Ready', eta_seconds: 0, eta_at: null, elapsed_seconds: elapsed }
+    if (status === 'failed') return { status, progress: 0, stage: 'failed', stage_label: 'Provisioning failed', eta_seconds: 0, eta_at: null, elapsed_seconds: elapsed }
+    const remaining = Math.max(0, eta - elapsed)
+    const frac = eta > 0 ? Math.min(0.95, elapsed / eta) : 0.5
+    const progress = Math.max(5, Math.min(95, Math.round(10 + frac * 85)))
+    const label = job.product === 'hosting' ? 'Registering domain & creating your cPanel account'
+      : (job.request && job.request.isRDP) ? 'Deploying your Windows server'
+        : 'Creating your server'
+    return { status, progress, stage: 'provisioning', stage_label: label, eta_seconds: remaining, eta_at: new Date(Date.now() + remaining * 1000).toISOString(), elapsed_seconds: elapsed }
+  }
+
+  // Map a provision job → the canonical status/handle shape (used by the 202 create, an idempotent
+  // client_ref re-hit, and GET /jobs/:job_id). Carries the live progress + ETA. status ∈
+  // provisioning | provisioned | failed.
   function jobStatusLabel(job) {
     return job.status === 'done' ? 'provisioned' : (job.status === 'failed' ? 'failed' : 'provisioning')
   }
   function jobHandle(job) {
     const r = job.request || {}
+    const base = {
+      ...jobProgress(job), mode: job.mode, job_id: job._id, price_usd: job.priceUsd,
+      created_at: job.createdAt ? new Date(job.createdAt).toISOString() : null,
+      finished_at: job.finishedAt ? new Date(job.finishedAt).toISOString() : null,
+    }
     if (job.product === 'hosting') {
       return {
-        status: jobStatusLabel(job), mode: job.mode, product: 'hosting', job_id: job._id,
+        ...base, product: 'hosting',
         username: job.username, id: job.username, domain: r.domain || null, plan: r.plan || null,
-        price_usd: job.priceUsd,
         poll_url: `/hosting/${job.username}`, credentials_url: `/hosting/${job.username}/credentials`,
-        ...(job.status === 'failed' ? { error: job.error || 'provision_failed', refunded: !!job.refunded } : {}),
-        idempotent: true,
+        ...(job.status === 'failed' ? { error: job.error || 'provision_failed', provision_failed_reason: job.error || 'provision_failed', refunded: !!job.refunded } : {}),
       }
     }
     const isRDP = !!r.isRDP
     return {
-      status: jobStatusLabel(job), mode: job.mode, product: isRDP ? 'rdp' : 'vps', job_id: job._id,
-      id: job.vpsId, plan: r.plan || r.plan_id || null, region: r.region || null, price_usd: job.priceUsd,
+      ...base, product: isRDP ? 'rdp' : 'vps',
+      id: job.vpsId, plan: r.plan || r.plan_id || null, region: r.region || null,
       poll_url: `/${isRDP ? 'rdp' : 'vps'}/${job.vpsId}`, credentials_url: `/${isRDP ? 'rdp' : 'vps'}/${job.vpsId}/credentials`,
       ...(r.osId ? { os: r.osId } : {}),
-      ...(job.status === 'failed' ? { error: job.error || 'provision_failed', refunded: !!job.refunded } : {}),
-      idempotent: true,
+      ...(job.status === 'failed' ? { error: job.error || 'provision_failed', provision_failed_reason: job.error || 'provision_failed', refunded: !!job.refunded } : {}),
     }
   }
 
@@ -554,6 +587,17 @@ function createResellerApi(deps = {}) {
   router.get('/account', apiKeyAuth, h(async (req, res) => {
     const balance = await walletBalance(req.reseller.ownerChatId)
     res.json({ owner_chat_id: req.reseller.ownerChatId, label: req.reseller.label, wallet_balance_usd: balance, currency: 'usd', webhook_url: req.reseller.webhookUrl || null, mode: mode() })
+  }))
+
+  // ── Provisioning job status ──
+  // Poll an async create (POST /hosting | /vps | /rdp returns a job_id) for live progress + ETA,
+  // so a storefront can render a "setting up your service…" bar without hammering the resource read.
+  // Owner-scoped. status ∈ provisioning (progress ramps, eta_seconds counts down) | provisioned
+  // (progress 100 — read the resource at poll_url) | failed (wallet auto-refunded, refunded:true).
+  router.get('/jobs/:job_id', apiKeyAuth, h(async (req, res) => {
+    const job = await provisionJobs().findOne({ _id: String(req.params.job_id), ownerChatId: String(req.reseller.ownerChatId) })
+    if (!job) return res.status(404).json({ error: 'not_found', message: 'No provisioning job with that job_id for this account.' })
+    res.json({ ...jobHandle(job), mode: mode() })
   }))
 
   // ── Push webhooks (optional): register a URL to receive RDP lifecycle events
@@ -843,7 +887,7 @@ function createResellerApi(deps = {}) {
     const clientRef = req.body?.client_ref ? String(req.body.client_ref).slice(0, 128) : null
     if (clientRef) {
       const prior = await findJobByClientRef(owner, clientRef)
-      if (prior && (prior.product === 'vps' || prior.product === 'rdp')) return res.status(202).json(jobHandle(prior))
+      if (prior && (prior.product === 'vps' || prior.product === 'rdp')) return res.status(202).json({ ...jobHandle(prior), idempotent: true })
     }
     const planName = product.name || planId
     const request = { plan_id: planId, plan: planName, region, hostname, isRDP: !!isRDP, osId: osId || null, os: isRDP ? (osId || 'windows') : (req.body?.os || 'ubuntu') }
@@ -853,11 +897,12 @@ function createResellerApi(deps = {}) {
 
     const vpsId = crypto.randomUUID()
     const jobId = crypto.randomUUID()
-    await provisionJobs().insertOne({
+    const jobDoc = {
       _id: jobId, product: isRDP ? 'rdp' : 'vps', ownerChatId: owner, clientRef,
       vpsId, priceUsd: charge.price, charged: charge.charged, mode: mode(),
-      status: 'pending', attempts: 0, createdAt: new Date(), request,
-    })
+      status: 'pending', attempts: 0, createdAt: new Date(), etaSeconds: estimateEtaSeconds(isRDP ? 'rdp' : 'vps', request), request,
+    }
+    await provisionJobs().insertOne(jobDoc)
     // Placeholder record so GET /vps|/rdp + GET /:id report status:'provisioning' immediately.
     await col('vpsPlansOf').insertOne({
       _id: vpsId, chatId: owner, vpsId,
@@ -872,14 +917,9 @@ function createResellerApi(deps = {}) {
     processJob(jobId).catch(() => {}) // kick the build now; worker tick is the straggler safety-net
 
     return res.status(202).json({
-      status: 'provisioning', mode: mode(), product: isRDP ? 'rdp' : 'vps',
-      job_id: jobId, id: vpsId, plan: planName, region,
-      price_usd: charge.price,
+      ...jobHandle(jobDoc),
       wallet_balance_usd: Math.round((charge.balance - (charge.charged ? charge.price : 0)) * 100) / 100,
-      poll_url: `/${isRDP ? 'rdp' : 'vps'}/${vpsId}`,
-      credentials_url: `/${isRDP ? 'rdp' : 'vps'}/${vpsId}/credentials`,
-      ...(osId ? { os: osId } : {}),
-      note: `Provisioning started. Poll GET /${isRDP ? 'rdp' : 'vps'}/{id} until status="RUNNING", or subscribe to the ${isRDP ? 'rdp' : 'vps'}.provisioned / ${isRDP ? 'rdp' : 'vps'}.provision_failed webhooks. Reuse client_ref to make retries idempotent.`,
+      note: `Provisioning started. Poll GET /jobs/${jobId} for live progress + ETA, or GET /${isRDP ? 'rdp' : 'vps'}/{id} until status="RUNNING", or subscribe to the ${isRDP ? 'rdp' : 'vps'}.provisioned / ${isRDP ? 'rdp' : 'vps'}.provision_failed webhooks. Reuse client_ref to make retries idempotent.`,
     })
   }
 
@@ -911,6 +951,19 @@ function createResellerApi(deps = {}) {
     const out = { id: rec.vpsId || rec._id, instance_id: rec.instanceId || null, plan: rec.plan, region: rec.region, os: rec.osType, os_id: rec.osId || null, ...hwFromRecord(isRDP ? rdpProviderForRecord(rec) : providerFor(false), rec), status: live?.status || rec.status, ip: live?.mainIp || rec.host || null, live }
     out.provision_state = rec.provisionState || null
     if (rec.provisionState === 'failed') out.provision_failed_reason = rec.provisionFailedReason || 'provision_failed'
+    // While our async job is still building (no provider block yet), surface the job ETA/progress so a
+    // storefront can show a countdown. Once the provider reports its own `provisioning` block (RDP), that
+    // richer, stage-accurate data below takes precedence.
+    if (rec.provisionState === 'provisioning' && rec.provisionJobId) {
+      const job = await provisionJobs().findOne({ _id: rec.provisionJobId })
+      if (job) {
+        const prog = jobProgress(job)
+        out.job_id = rec.provisionJobId
+        out.job_status_url = `/jobs/${rec.provisionJobId}`
+        out.progress = prog.progress; out.stage = prog.stage; out.stage_label = prog.stage_label
+        out.eta_seconds = prog.eta_seconds; out.eta_at = prog.eta_at; out.elapsed_seconds = prog.elapsed_seconds
+      }
+    }
     // RDP only: whether the in-guest management agent (used by password-reset) has checked in recently.
     if (isRDP) out.agent_online = live ? !!live.agentOnline : null
     // RDP 3-day grace: surface pending-deletion so a polling reseller sees the box is expired-but-not-yet-deleted.
@@ -1171,7 +1224,7 @@ function createResellerApi(deps = {}) {
     // never a second charge, never a second account.
     if (clientRef) {
       const prior = await findJobByClientRef(owner, clientRef)
-      if (prior && prior.product === 'hosting') return res.status(202).json(jobHandle(prior))
+      if (prior && prior.product === 'hosting') return res.status(202).json({ ...jobHandle(prior), idempotent: true })
     }
 
     // duplicate guard (mirrors store provisioning). A prior FAILED provision (wallet already
@@ -1197,11 +1250,12 @@ function createResellerApi(deps = {}) {
     // slow WHM build). createAccount receives it as customUsername so the account lands on this name.
     const username = whmService.generateUsername(domain)
     const jobId = crypto.randomUUID()
-    await provisionJobs().insertOne({
+    const jobDoc = {
       _id: jobId, product: 'hosting', ownerChatId: owner, clientRef,
       username, priceUsd: charge.price, charged: charge.charged, mode: mode(),
-      status: 'pending', attempts: 0, createdAt: new Date(), request,
-    })
+      status: 'pending', attempts: 0, createdAt: new Date(), etaSeconds: estimateEtaSeconds('hosting', request), request,
+    }
+    await provisionJobs().insertOne(jobDoc)
     // Placeholder account so GET /hosting/{username} reports state:'provisioning' immediately and the
     // domain is reserved against concurrent creates.
     await col('cpanelAccounts').updateOne({ _id: username }, { $set: {
@@ -1213,13 +1267,9 @@ function createResellerApi(deps = {}) {
     processJob(jobId).catch(() => {}) // kick the build now; worker tick is the straggler safety-net
 
     return res.status(202).json({
-      status: 'provisioning', mode: mode(), product: 'hosting',
-      job_id: jobId, username, id: username, domain, plan: plan.name,
-      price_usd: charge.price,
+      ...jobHandle(jobDoc),
       wallet_balance_usd: Math.round((charge.balance - (charge.charged ? charge.price : 0)) * 100) / 100,
-      poll_url: `/hosting/${username}`,
-      credentials_url: `/hosting/${username}/credentials`,
-      note: 'Provisioning started. Poll GET /hosting/{username} until state="online", or subscribe to the hosting.provisioned / hosting.provision_failed webhooks. Reuse client_ref to make retries idempotent.',
+      note: `Provisioning started. Poll GET /jobs/${jobId} for live progress + ETA, or GET /hosting/{username} until state="online", or subscribe to the hosting.provisioned / hosting.provision_failed webhooks. Reuse client_ref to make retries idempotent.`,
     })
   }))
 
@@ -2010,6 +2060,8 @@ function createResellerApi(deps = {}) {
     // job state instead of hammering WHM with a 404.
     if (acct.provisionState === 'provisioning' || acct.provisionState === 'failed') {
       const failed = acct.provisionState === 'failed'
+      const job = acct.provisionJobId ? await provisionJobs().findOne({ _id: acct.provisionJobId }) : null
+      const prog = job ? jobProgress(job) : null
       return res.json({
         id: acct._id, username: acct._id, domain: acct.domain || null, plan: acct.plan || null,
         price_usd: hostingScheduler.getPlanPrice(acct), duration_days: hostingScheduler.getPlanDuration(acct.plan),
@@ -2018,6 +2070,13 @@ function createResellerApi(deps = {}) {
         provision_state: acct.provisionState,
         provision_failed_reason: failed ? (acct.provisionFailedReason || 'provision_failed') : null,
         job_id: acct.provisionJobId || null,
+        job_status_url: acct.provisionJobId ? `/jobs/${acct.provisionJobId}` : null,
+        progress: prog ? prog.progress : (failed ? 0 : null),
+        stage: prog ? prog.stage : null,
+        stage_label: prog ? prog.stage_label : null,
+        eta_seconds: prog ? prog.eta_seconds : null,
+        eta_at: prog ? prog.eta_at : null,
+        elapsed_seconds: prog ? prog.elapsed_seconds : null,
         suspended: false, grace: null,
         renewable: false, renew_blocked_reason: failed ? 'provision_failed' : 'provisioning',
         auto_renew: false,
@@ -2030,7 +2089,7 @@ function createResellerApi(deps = {}) {
         usage: null,
         note: failed
           ? 'Provisioning failed — the wallet was auto-refunded. Retry the create (optionally with a fresh client_ref).'
-          : 'Provisioning in progress. Poll until state="online", or subscribe to the hosting.provisioned webhook.',
+          : 'Provisioning in progress. Poll GET /jobs/{job_id} for live progress + ETA, or this endpoint until state="online", or subscribe to the hosting.provisioned webhook.',
         mode: mode(),
       })
     }

@@ -47,6 +47,32 @@ function endpointGroups(base) {
 }`,
         },
         {
+          method: 'GET', path: '/jobs/:job_id', auth: true, billed: false,
+          desc: 'Poll an async create for live progress. POST /hosting, /vps and /rdp return a job_id; GET /jobs/:job_id reports status (provisioning → provisioned → or failed) plus a storefront-ready progress bar and ETA countdown so you can render a "setting up your service…" screen without hammering the resource read. While provisioning: progress ramps 10→95, stage_label is a human string, eta_seconds counts down and eta_at is the estimated completion timestamp (hosting ≈ 2 min, Linux VPS ≈ 3 min, Windows RDP ≈ 3-5 min for fast_deploy editions / up to ~45 min for a full install). On provisioned: progress 100 — read the live resource at poll_url (and credentials at credentials_url). On failed: the wallet was auto-refunded (refunded:true) and error/provision_failed_reason explain why — safe to retry the create. Owner-scoped: a job_id you do not own returns 404.',
+          curl: `curl -s ${base}/jobs/JOB_ID -H "Authorization: Bearer YOUR_API_KEY"`,
+          resp: `{
+  "status": "provisioning",
+  "progress": 45,
+  "stage": "provisioning",
+  "stage_label": "Registering domain & creating your cPanel account",
+  "eta_seconds": 66,
+  "eta_at": "2026-09-24T15:01:06.000Z",
+  "elapsed_seconds": 54,
+  "mode": "live",
+  "job_id": "0ae7cc0a-…",
+  "price_usd": 100,
+  "created_at": "2026-09-24T15:00:00.000Z",
+  "finished_at": null,
+  "product": "hosting",
+  "username": "mysite01",
+  "id": "mysite01",
+  "domain": "mysite.com",
+  "plan": "Golden Anti-Red HostPanel (1-Month)",
+  "poll_url": "/hosting/mysite01",
+  "credentials_url": "/hosting/mysite01/credentials"
+}`,
+        },
+        {
           method: 'GET', path: '/account/webhook', auth: true, billed: false,
           desc: 'Get the push-webhook URL + signing secret registered on your API key and the full list of lifecycle events it receives. Registering a webhook lets you react to expiry/grace/deletion instantly instead of polling GET /renewals.',
           curl: `curl -s ${base}/account/webhook \\
@@ -54,7 +80,7 @@ function endpointGroups(base) {
           resp: `{
   "webhook_url": "https://your-app.com/hooks/nomadly",
   "webhook_secret": "whsec_…",
-  "events": ["hosting.grace_start","hosting.suspended","hosting.deleted","hosting.auto_renew_failed","vps.grace_start","vps.deleted","rdp.grace_start","rdp.deleted"],
+  "events": ["hosting.provisioned","hosting.provision_failed","hosting.grace_start","hosting.suspended","hosting.deleted","hosting.auto_renew_failed","vps.provisioned","vps.provision_failed","vps.grace_start","vps.deleted","rdp.provisioned","rdp.provision_failed","rdp.grace_start","rdp.deleted"],
   "delivery": "POST signed with HMAC-SHA256 (X-Nomadly-Signature: sha256=<hex>), auto-retry with backoff, de-duplicated per server+event"
 }`,
         },
@@ -69,7 +95,7 @@ function endpointGroups(base) {
           resp: `{
   "webhook_url": "https://your-app.com/hooks/nomadly",
   "webhook_secret": "whsec_… (store this — it signs every delivery)",
-  "events": ["hosting.grace_start","hosting.suspended","hosting.deleted","hosting.auto_renew_failed","vps.grace_start","vps.deleted","rdp.grace_start","rdp.deleted"],
+  "events": ["hosting.provisioned","hosting.provision_failed","hosting.grace_start","hosting.suspended","hosting.deleted","hosting.auto_renew_failed","vps.provisioned","vps.provision_failed","vps.grace_start","vps.deleted","rdp.provisioned","rdp.provision_failed","rdp.grace_start","rdp.deleted"],
   "delivery": "POST signed with HMAC-SHA256 (X-Nomadly-Signature: sha256=<hex>), auto-retry with backoff, de-duplicated per server+event"
 }
 
