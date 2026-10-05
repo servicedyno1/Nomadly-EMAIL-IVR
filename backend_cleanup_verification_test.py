@@ -14,7 +14,7 @@ import json
 import sys
 
 # Backend URL from frontend/.env
-BACKEND_URL = "https://gracious-hopper-10.preview.emergentagent.com"
+BACKEND_URL = "https://secure-passphrase-14.preview.emergentagent.com"
 
 def print_section(title):
     """Print a formatted section header"""

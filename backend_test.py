@@ -10,7 +10,7 @@ import json
 import sys
 
 # Configuration
-BASE_URL = "https://gracious-hopper-10.preview.emergentagent.com/api/reseller/v1"
+BASE_URL = "https://secure-passphrase-14.preview.emergentagent.com/api/reseller/v1"
 API_KEY = "rsk_live_6fc131dd06c97b3dd6fe3a4cbbd69d0c6eac28871fbf0f7c"
 HEADERS = {
     "Authorization": f"Bearer {API_KEY}",
