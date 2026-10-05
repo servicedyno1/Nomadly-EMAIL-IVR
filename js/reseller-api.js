@@ -1069,9 +1069,15 @@ function createResellerApi(deps = {}) {
     if (!rec) return res.status(404).json({ error: 'not_found' })
     if (!isLive()) return res.json({ mode: 'dry_run', id: rec.vpsId || rec._id, note: 'Dry-run: instance not destroyed.' })
     const prov = providerFor(isRDP)
-    if (rec.instanceId && typeof prov.cancelInstance === 'function') { try { await prov.cancelInstance(rec.instanceId) } catch (e) { log(`[ResellerAPI] cancelInstance warn: ${e.message}`) } }
-    await col('vpsPlansOf').updateOne({ _id: rec._id }, { $set: { status: 'destroyed', end_time: new Date() } })
-    res.json({ mode: 'live', id: rec.vpsId || rec._id, destroyed: true })
+    let providerRemoved = true
+    if (rec.instanceId && typeof prov.cancelInstance === 'function') { try { await prov.cancelInstance(rec.instanceId) } catch (e) { providerRemoved = false; log(`[ResellerAPI] cancelInstance warn for ${rec._id}: ${e.message}`) } }
+    // Mark a TERMINAL state the lifecycle scheduler will never re-touch: 'destroyed' is excluded
+    // by the RDP-grace query and is neither RUNNING (Phase 1) nor PENDING_CANCELLATION (Phase 2),
+    // so no phase matches it. Crucially, do NOT rewrite end_time to now — an "expired" end_time on
+    // the shared prod DB let the production auto-renew scheduler flip a just-deleted box back to
+    // PENDING_CANCELLATION. Keep the original end_time and flag the record deleted.
+    await col('vpsPlansOf').updateOne({ _id: rec._id }, { $set: { status: 'destroyed', deleted: true, _autoRenewAttempted: true, autoRenew: false, cancelledAt: new Date() } })
+    res.json({ mode: 'live', id: rec.vpsId || rec._id, destroyed: true, provider_removed: providerRemoved })
   }
 
   async function vpsCredsHandler(req, res, isRDP) {
