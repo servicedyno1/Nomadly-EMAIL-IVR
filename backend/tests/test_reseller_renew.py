@@ -1,11 +1,32 @@
 """Tests for reseller API manual renew endpoints (hosting, vps, rdp).
 Served by Node bot at http://127.0.0.1:5000/reseller/v1. Sandbox returns dry_run."""
+import re
+import subprocess
 import pytest
 import requests
 
 BASE_URL = "http://127.0.0.1:5000/reseller/v1"
 APIDOC_URL = "http://127.0.0.1:5000/apidoc"
-API_KEY = "rsk_live_566a19727b74061600ef1d0b671132070b47892ab7b1d900"
+
+
+def _seed_once():
+    out = subprocess.run(
+        ["node", "scripts/seed_reseller_test_owner.js"],
+        cwd="/app", capture_output=True, text=True, timeout=60,
+    )
+    m = re.search(r"TEST_RESELLER_API_KEY=(\S+)", out.stdout)
+    if not m:
+        pytest.fail(f"Could not seed owner / parse key: {out.stdout}\n{out.stderr}")
+    for script in (
+        "scripts/seed_reseller_test_hosting.js",
+        "scripts/seed_reseller_test_vps_rdp.js",
+    ):
+        subprocess.run(["node", script], cwd="/app",
+                       capture_output=True, text=True, timeout=60)
+    return m.group(1)
+
+
+API_KEY = _seed_once()
 HEADERS = {"Authorization": f"Bearer {API_KEY}", "Content-Type": "application/json"}
 
 

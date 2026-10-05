@@ -60,7 +60,7 @@ function endpointGroups(base) {
         },
         {
           method: 'PUT', path: '/account/webhook', auth: true, billed: false,
-          desc: 'Register (or clear) the push-webhook URL for your account. Send {"webhook_url":"https://…"} to set it (the first time this also mints a webhook_secret you must store), or {"webhook_url":null} to clear it (the secret is kept for re-enabling). Nomadly then POSTs a JSON body { event, product, occurred_at, data:{ id, product, domain, reason, … } } to your URL for each lifecycle event across all three products: hosting.grace_start / vps.grace_start / rdp.grace_start (subscription expired → service suspended/powered off and a grace period begins; data carries expired_at + delete_at + grace_hours — hosting grace is 48h, VPS/RDP is 72h/3-day), hosting.auto_renew_failed (a wallet auto-renew attempt failed on insufficient funds; data carries price_usd, wallet_balance_usd, next_attempt_at — the plan then falls into grace, it is NOT terminated), and hosting.deleted / vps.deleted / rdp.deleted (the resource was permanently removed after grace; data carries reason). SECURITY: every delivery is signed — header "X-Nomadly-Signature: sha256=<hex>" is HMAC-SHA256 of the exact raw request body keyed by your webhook_secret. Recompute it and constant-time compare BEFORE acting on any *.deleted. Delivery is retried with backoff and de-duplicated per server+event (grace/auto_renew_failed re-fire each billing cycle; *.deleted fires once). Reply 2xx to acknowledge.',
+          desc: 'Register (or clear) the push-webhook URL for your account. Send {"webhook_url":"https://…"} to set it (the first time this also mints a webhook_secret you must store), or {"webhook_url":null} to clear it (the secret is kept for re-enabling). Nomadly then POSTs a JSON body { event, product, occurred_at, data:{ id, product, domain, reason, … } } to your URL for each lifecycle event across all three products: hosting.provisioned / vps.provisioned / rdp.provisioned (an async create finished — data carries the id/username, domain, plan and ip/nameservers), hosting.provision_failed / vps.provision_failed / rdp.provision_failed (an async create ultimately failed — the wallet was auto-refunded; data carries reason and refunded:true), hosting.grace_start / vps.grace_start / rdp.grace_start (subscription expired → service suspended/powered off and a grace period begins; data carries expired_at + delete_at + grace_hours — hosting grace is 48h, VPS/RDP is 72h/3-day), hosting.auto_renew_failed (a wallet auto-renew attempt failed on insufficient funds; data carries price_usd, wallet_balance_usd, next_attempt_at — the plan then falls into grace, it is NOT terminated), and hosting.deleted / vps.deleted / rdp.deleted (the resource was permanently removed after grace; data carries reason). SECURITY: every delivery is signed — header "X-Nomadly-Signature: sha256=<hex>" is HMAC-SHA256 of the exact raw request body keyed by your webhook_secret. Recompute it and constant-time compare BEFORE acting on any *.deleted. Delivery is retried with backoff and de-duplicated per server+event (grace/auto_renew_failed re-fire each billing cycle; *.deleted fires once). Reply 2xx to acknowledge.',
           params: [['webhook_url', true, 'Your http(s) endpoint URL, or null to clear']],
           curl: `curl -s -X PUT ${base}/account/webhook \\
   -H "Authorization: Bearer YOUR_API_KEY" \\
@@ -352,31 +352,32 @@ function endpointGroups(base) {
         },
         {
           method: 'POST', path: '/vps', auth: true, billed: true,
-          desc: 'Create a Linux VPS. Returns the instance id, IP and initial root password once provisioned.',
+          desc: 'Create a Linux VPS. ASYNC: returns 202 immediately with status "provisioning" and a stable id (the build runs in the background so the request never times out). The wallet is charged up-front; if the build ultimately fails the charge is auto-refunded and a vps.provision_failed webhook fires. Poll GET /vps/:id until status "RUNNING" (then read /vps/:id/credentials), or subscribe to the vps.provisioned / vps.provision_failed webhooks. Pass an optional idempotent client_ref — a retry with the same client_ref echoes the SAME 202 handle and never double-charges.',
           params: [
             ['plan_id', true, 'A plan_id from GET /vps/plans'],
             ['region', false, 'Region code — defaults to EU'],
             ['hostname', false, 'Optional label/hostname'],
             ['os', false, 'OS image — defaults to ubuntu'],
+            ['client_ref', false, 'Your own idempotency key — a retry with the same value returns the same provisioning job (no double-charge)'],
           ],
           curl: `curl -s -X POST ${base}/vps \\
   -H "Authorization: Bearer YOUR_API_KEY" \\
   -H "Content-Type: application/json" \\
-  -d '{"plan_id":"s-1vcpu-1gb","region":"EU","hostname":"web-01"}'`,
-          resp: `{
+  -d '{"plan_id":"s-1vcpu-1gb","region":"EU","hostname":"web-01","client_ref":"order-9A1"}'`,
+          resp: `HTTP 202 Accepted
+{
+  "status": "provisioning",
   "mode": "live",
   "product": "vps",
-  "action": "create",
-  "charged_usd": 18.00,
+  "job_id": "9c9d6b66-…",
+  "id": "4e2a6b47-…",
+  "plan": "Cloud VPS 10",
+  "region": "EU",
+  "price_usd": 18,
   "wallet_balance_usd": 111.51,
-  "result": {
-    "success": true,
-    "id": "b2f1c0a4-…",
-    "instance_id": "419287654",
-    "ip": "203.0.113.55",
-    "status": "provisioning",
-    "default_password": "Xy8!kP2q…"
-  }
+  "poll_url": "/vps/4e2a6b47-…",
+  "credentials_url": "/vps/4e2a6b47-…/credentials",
+  "note": "Provisioning started. Poll GET /vps/{id} until status=\\"RUNNING\\", or subscribe to the vps.provisioned / vps.provision_failed webhooks. Reuse client_ref to make retries idempotent."
 }`,
         },
         {
@@ -461,19 +462,23 @@ function endpointGroups(base) {
         },
         {
           method: 'POST', path: '/rdp', auth: true, billed: true,
-          desc: 'Create a Windows RDP server. Same body as POST /vps plus an optional "os" edition. The response includes fast_deploy + eta_minutes so you know whether to expect ~3 or ~45 minutes.',
+          desc: 'Create a Windows RDP server. Same body as POST /vps plus an optional "os" edition. ASYNC: returns 202 immediately with status "provisioning" and a stable id; the wallet is charged up-front and auto-refunded (with an rdp.provision_failed webhook) if the build fails. Poll GET /rdp/:id until status "RUNNING"/credentials_ready, or subscribe to rdp.provisioned / rdp.provision_failed. Pass an optional idempotent client_ref — a retry with the same client_ref echoes the SAME 202 handle and never double-charges.',
           params: [
             ['plan_id', true, 'A plan_id from GET /rdp/plans (e.g. standard-1m)'],
             ['region', false, 'Region code — defaults to EU'],
             ['os', false, 'Windows edition: ws2019 | ws2022 | ws2025 — defaults to ws2022'],
             ['hostname', false, 'Optional label/hostname'],
+            ['client_ref', false, 'Your own idempotency key — a retry with the same value returns the same provisioning job (no double-charge)'],
           ],
           curl: `curl -s -X POST ${base}/rdp \\
   -H "Authorization: Bearer YOUR_API_KEY" \\
   -H "Content-Type: application/json" \\
-  -d '{"plan_id":"standard-1m","region":"EU","os":"ws2022"}'`,
-          resp: `{ "mode": "live", "product": "rdp", "action": "create", "charged_usd": 48.00,
-  "result": { "success": true, "id": "…", "ip": null, "status": "provisioning", "os": "ws2022", "fast_deploy": true, "eta_minutes": 3 } }`,
+  -d '{"plan_id":"standard-1m","region":"EU","os":"ws2022","client_ref":"rdp-77"}'`,
+          resp: `HTTP 202 Accepted
+{ "status": "provisioning", "mode": "live", "product": "rdp", "job_id": "f050afee-…", "id": "dc012468-…",
+  "plan": "Standard — Windows RDP (1 month)", "region": "EU", "price_usd": 56, "os": "ws2022",
+  "poll_url": "/rdp/dc012468-…", "credentials_url": "/rdp/dc012468-…/credentials",
+  "note": "Provisioning started. Poll GET /rdp/{id} until status=\\"RUNNING\\", or subscribe to the rdp.provisioned / rdp.provision_failed webhooks." }`,
         },
         { method: 'GET', path: '/rdp', auth: true, billed: false, desc: 'List all Windows RDP instances you own.', curl: `curl -s ${base}/rdp -H "Authorization: Bearer YOUR_API_KEY"`, resp: `{ "rdp": [ { "id": "…", "os": "windows", "os_id": "ws2022", "status": "active", "ip": "203.0.113.80" }, … ] }` },
         { method: 'GET', path: '/rdp/:id', auth: true, billed: false, desc: 'Get one RDP instance with a live "provisioning" status block built for order/status pages: stage + human label, progress %, eta_seconds countdown (eta_at), elapsed_seconds, a 4-step timeline (steps[].done/current), credentials_ready and password_confirmed flags, and the last 10 log lines. Also returns agent_online — true when the in-guest management agent has checked in recently (required before POST /rdp/:id/password-reset). Poll every 10-15 s until credentials_ready is true, then call credentials_url. Status goes queued → creating → booting → installing (fast path) or converting (full install) → active; "failed" is terminal. If the subscription has expired and entered the 3-day grace period, the response also carries a "grace" block: { in_grace: true, expired_at, delete_at, days_remaining }; once the box is deleted after grace, status becomes "destroyed" with destroy_reason "expired_grace". Renew with POST /rdp/:id/renew to clear grace.', curl: `curl -s ${base}/rdp/ID -H "Authorization: Bearer YOUR_API_KEY"`, resp: `{ "id": "…", "os": "windows", "os_id": "ws2022", "status": "installing", "ip": "203.0.113.80", "agent_online": false, "credentials_ready": false, "credentials_url": null,
@@ -504,7 +509,7 @@ function endpointGroups(base) {
     },
     {
       id: 'hosting', title: 'cPanel Hosting',
-      blurb: 'Sell Anti-Red cPanel hosting plans. Creation is wallet-billed (plan price + domain price when domain_mode=buy). The account "id" is its cPanel username — it is returned as both id and username, and is the value you pass as the :user path segment (so hosting reads consistently with /vps/:id and /rdp/:id). LIFECYCLE & AUTO-RENEW: a guaranteed hourly worker runs on the production bot. At (and after) expiry it first ATTEMPTS a wallet auto-renew (when auto_renew is on); on insufficient funds it records auto_renew_last_error + auto_renew_next_attempt_at, emits the hosting.auto_renew_failed webhook, suspends the site and starts a 48h grace window (state "grace", delete_at = expiry + 48h) — it does NOT terminate immediately, so the customer keeps a renewal window. If still unrenewed 48h later the account is terminated (hosting.deleted). Every read (GET /hosting, GET /hosting/:user, GET /renewals) exposes state + renewable so you never have to infer it.',
+      blurb: 'Sell Anti-Red cPanel hosting plans. Creation is ASYNC + wallet-billed (plan price + domain price when domain_mode=buy): POST /hosting returns 202 with status "provisioning" and the cPanel username straight away, then the slow WHM build runs in the background and emits hosting.provisioned (or, on failure, auto-refunds the wallet and emits hosting.provision_failed) — so a client can never time out and orphan an account. Reuse client_ref to make a retry idempotent. The account "id" is its cPanel username — it is returned as both id and username, and is the value you pass as the :user path segment (so hosting reads consistently with /vps/:id and /rdp/:id). LIFECYCLE & AUTO-RENEW: a guaranteed hourly worker runs on the production bot. At (and after) expiry it first ATTEMPTS a wallet auto-renew (when auto_renew is on); on insufficient funds it records auto_renew_last_error + auto_renew_next_attempt_at, emits the hosting.auto_renew_failed webhook, suspends the site and starts a 48h grace window (state "grace", delete_at = expiry + 48h) — it does NOT terminate immediately, so the customer keeps a renewal window. If still unrenewed 48h later the account is terminated (hosting.deleted). Every read (GET /hosting, GET /hosting/:user, GET /renewals) exposes state (provisioning | online | suspended | grace | failed | terminated) + renewable so you never have to infer it.',
       endpoints: [
         {
           method: 'GET', path: '/hosting/plans', auth: true, billed: false,
@@ -523,35 +528,33 @@ function endpointGroups(base) {
         },
         {
           method: 'POST', path: '/hosting', auth: true, billed: true,
-          desc: 'Create a cPanel hosting account. domain_mode "buy" registers a new domain in the same call (domain price is added to the charge); "existing" links a domain you already registered on this platform (already on Cloudflare); "external" connects a domain held at an outside registrar (you then point its nameservers at Cloudflare). Legacy "byo" is treated as "external".',
+          desc: 'Create a cPanel hosting account. ASYNC: returns 202 immediately with status "provisioning", the cPanel username (generated up-front) and a job_id — the slow WHM build runs in the background so the request never times out (no more orphaned accounts from a 30s client timeout). The wallet is charged up-front (plan price + domain price when domain_mode=buy); if the build ultimately fails the charge is auto-refunded and a hosting.provision_failed webhook fires. Poll GET /hosting/:user until state "online", or subscribe to the hosting.provisioned / hosting.provision_failed webhooks. domain_mode "buy" registers a new domain in the same call; "existing" links a domain already on this platform (Cloudflare); "external" connects a domain at an outside registrar (point its nameservers at Cloudflare). Legacy "byo" = "external". Pass an optional idempotent client_ref — a retry with the same client_ref echoes the SAME 202 handle and never double-charges.',
           params: [
             ['plan_id', true, 'A plan_id from GET /hosting/plans'],
             ['domain', true, 'The primary domain for the account'],
             ['domain_mode', false, '"buy" | "existing" | "external" (legacy "byo" = external, default)'],
             ['email', false, 'Contact email for the account'],
+            ['client_ref', false, 'Your own idempotency key — a retry with the same value returns the same provisioning job (no double-charge)'],
           ],
           curl: `curl -s -X POST ${base}/hosting \\
   -H "Authorization: Bearer YOUR_API_KEY" \\
   -H "Content-Type: application/json" \\
-  -d '{"plan_id":"golden-monthly","domain":"mysite.com","domain_mode":"external","email":"client@mysite.com"}'`,
-          resp: `{
+  -d '{"plan_id":"golden-monthly","domain":"mysite.com","domain_mode":"external","email":"client@mysite.com","client_ref":"order-42"}'`,
+          resp: `HTTP 202 Accepted
+{
+  "status": "provisioning",
   "mode": "live",
   "product": "hosting",
-  "action": "create",
-  "charged_usd": 100,
+  "job_id": "0ae7cc0a-…",
+  "username": "mysite01",
+  "id": "mysite01",
+  "domain": "mysite.com",
+  "plan": "Golden Anti-Red HostPanel (1-Month)",
+  "price_usd": 100,
   "wallet_balance_usd": 42.51,
-  "result": {
-    "success": true,
-    "domain": "mysite.com",
-    "plan": "Golden Anti-Red HostPanel (1-Month)",
-    "cpanel_username": "mysite01",
-    "panel_url": "https://panel.1.hostbay.io",
-    "server_ip": "68.183.77.106",
-    "nameservers": ["ada.ns.cloudflare.com", "rob.ns.cloudflare.com"],
-    "queued": false,
-    "credentials_url": "/hosting/mysite01/credentials",
-    "note": "Call GET /hosting/{username}/credentials to reveal the panel PIN (live mode only)."
-  }
+  "poll_url": "/hosting/mysite01",
+  "credentials_url": "/hosting/mysite01/credentials",
+  "note": "Provisioning started. Poll GET /hosting/{username} until state=\\"online\\", or subscribe to the hosting.provisioned / hosting.provision_failed webhooks. Reuse client_ref to make retries idempotent."
 }`,
         },
         {
