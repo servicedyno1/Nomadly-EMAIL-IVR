@@ -42,7 +42,7 @@
 
 ### Async provisioning test fixture — added 2026-06
 - Seed/rotate key (PRINTS `TEST_RESELLER_API_KEY=…`): `node /app/scripts/seed_reseller_test_owner.js` (owner 999000111, wallet usdIn=100000, mode dry_run on sandbox).
-- Current key (rotates on every re-seed): rsk_live_821e297e6de5bb53cc177301147cc0f377b7066e9db9b41f
-- Pytest: `backend/tests/test_reseller_async_provision.py` (17 cases) — POST /hosting|/vps|/rdp return 202 {status:provisioning, job_id, username|id, …}; client_ref idempotency (same job_id, wallet unchanged); validation-before-charge; duplicate-domain 409; state surfacing; no-auth 401.
+- `backend/tests/test_reseller_async_provision.py` now SELF-SEEDS the owner at import (or honors a `TEST_RESELLER_API_KEY` env var) — it never fails on a rotated key. 17 cases.
+- Endpoints: POST /hosting|/vps|/rdp return 202 {status:provisioning, job_id, username|id, progress, stage_label, eta_seconds, eta_at, poll_url, credentials_url}; client_ref idempotency (same job_id, idempotent:true, wallet unchanged); `GET /jobs/:job_id` (owner-scoped progress + ETA poll; 404 if not owned); validation-before-charge; duplicate-domain 409; state surfacing on reads; no-auth 401.
 - Run the reseller pytest suites INDEPENDENTLY (each re-seeds owner at import → running together rotates the key mid-run and 401s the other): `test_reseller_async_provision.py`, `test_reseller_lifecycle.py`, `test_reseller_renew.py`.
 - LIVE-only paths (real build failure → auto-refund + `*.provision_failed` webhook) are NOT exercisable on sandbox (dry_run). Verify on a prod/staging pod with RESELLER_API_LIVE=true and SKIP_WEBHOOK_SYNC unset.

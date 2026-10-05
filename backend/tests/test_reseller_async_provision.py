@@ -1,5 +1,7 @@
 """Test async provisioning (202) refactor for reseller hosting/vps/rdp create endpoints."""
 import os
+import re
+import subprocess
 import time
 import uuid
 import pytest
@@ -7,7 +9,24 @@ import requests
 
 BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "https://gracious-hopper-10.preview.emergentagent.com").rstrip("/")
 API = f"{BASE_URL}/api/reseller/v1"
-API_KEY = os.environ.get("TEST_RESELLER_API_KEY", "rsk_live_821e297e6de5bb53cc177301147cc0f377b7066e9db9b41f")
+
+
+def _seed_once():
+    """Re-seed the test owner and capture the freshly-rotated API key (avoids stale hardcoded keys)."""
+    env_key = os.environ.get("TEST_RESELLER_API_KEY")
+    if env_key:
+        return env_key
+    out = subprocess.run(
+        ["node", "scripts/seed_reseller_test_owner.js"],
+        cwd="/app", capture_output=True, text=True, timeout=60,
+    )
+    m = re.search(r"TEST_RESELLER_API_KEY=(\S+)", out.stdout)
+    if not m:
+        pytest.fail(f"Could not seed owner / parse key: {out.stdout}\n{out.stderr}")
+    return m.group(1)
+
+
+API_KEY = _seed_once()
 
 HEADERS = {"Authorization": f"Bearer {API_KEY}", "Content-Type": "application/json"}
 
