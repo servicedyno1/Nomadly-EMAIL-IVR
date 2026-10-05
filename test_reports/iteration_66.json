@@ -1,0 +1,37 @@
+{
+  "summary": "Validated async-provisioning refactor for POST /hosting, /vps, /rdp. All 17 new contract tests pass: 202 shape (status/job_id/username|id/domain|plan|region/price_usd/poll_url/credentials_url), client_ref idempotency with identical job_id+username|id+idempotent:true and wallet unchanged, validation ordering (invalid_plan / invalid_domain / invalid_domain_mode / invalid_os listing ws2019|ws2022|ws2025) returning 400 BEFORE any job/charge, duplicate-domain 409 domain_in_use after a successful create with different client_ref, state surfacing via GET /hosting/{user} and GET /vps/{id} (dry_run completes to online/active fast, lists include the new record), and no-auth 401. Regression: test_reseller_lifecycle.py 21/21 pass and test_reseller_renew.py 21/21 pass when run independently.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "backend/tests/test_reseller_renew.py", "issue": "Had a hardcoded stale API key (rsk_live_566a19...) that broke on key rotation. Fixed in-place by re-seeding at module import, matching test_reseller_lifecycle.py pattern."},
+      {"endpoint": "pytest collection", "issue": "test_reseller_lifecycle.py and test_reseller_renew.py both call seed_reseller_test_owner.js at module import; running them in a single pytest invocation causes the second import to rotate the API key and invalidate the first module's captured key, producing invalid_api_key 401s. They pass cleanly when invoked as separate pytest processes. Recommend consolidating seeding into a session-scoped conftest fixture."}
+    ]
+  },
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_reseller_async_provision.py",
+    "/app/test_reports/pytest/async_provision.xml",
+    "/app/test_reports/pytest/regression.xml"
+  ],
+  "action_items": [
+    "Optional: move reseller seeding to a session-scoped conftest fixture so test_reseller_lifecycle.py and test_reseller_renew.py can be executed together without API-key rotation collisions."
+  ],
+  "critical_code_review_comments": [
+    "Async 202 contract on POST /hosting, /vps, /rdp verified end-to-end and matches docs. Up-front username/id minted (cPanel username == id), poll_url + credentials_url correct.",
+    "Idempotency: client_ref correctly echoes original job_id/id with idempotent:true flag; wallet balance identical before/after retries in dry_run.",
+    "Validation ordering is correct — invalid_plan/invalid_domain/invalid_domain_mode/invalid_os all return 400 BEFORE any job queue entry (verified by follow-up list GETs showing no orphan records and wallet unchanged).",
+    "Duplicate-domain guard (409 domain_in_use) correctly rejects a second create with different client_ref targeting the same domain X.",
+    "LIVE-only failure/refund + *.provision_failed webhook paths were NOT exercised (sandbox is dry_run only, RESELLER_API_LIVE unset, SKIP_WEBHOOK_SYNC=true) — call out explicitly for staging verification."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_reseller_async_provision.py (new, 17 cases)",
+    "/app/backend/tests/test_reseller_renew.py (replaced hardcoded API key with seed_once() pattern)"
+  ],
+  "success_rate": {"backend": "100% (17/17 new + 42/42 regression)", "frontend": "n/a"},
+  "test_credentials": "Seed via `node /app/scripts/seed_reseller_test_owner.js` -> env TEST_RESELLER_API_KEY. Current: rsk_live_821e297e6de5bb53cc177301147cc0f377b7066e9db9b41f (will rotate on re-seed).",
+  "seed_data_creation": "Owner chatId 999000111 re-seeded with usdIn=100000 via scripts/seed_reseller_test_owner.js. Hosting/VPS/RDP fixtures via scripts/seed_reseller_test_hosting.js and scripts/seed_reseller_test_vps_rdp.js. Each test run adds a unique external hosting domain (test-<uuid>.example.com) plus one new VPS and one new RDP under the test owner.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Run the three suites INDEPENDENTLY to avoid seed/key rotation collisions: `pytest backend/tests/test_reseller_async_provision.py`, `pytest backend/tests/test_reseller_lifecycle.py`, `pytest backend/tests/test_reseller_renew.py`. LIVE failure/refund + hosting.provision_failed/vps.provision_failed/rdp.provision_failed webhooks cannot be exercised in this sandbox (dry_run); require a staging run with RESELLER_API_LIVE set and SKIP_WEBHOOK_SYNC unset.",
+  "rca of the issue": "n/a — all async-provision contract requirements verified green."
+}

@@ -28,8 +28,7 @@
 - Mode: dry_run (RESELLER_API_LIVE not set) — no WHM/Cloudflare/registrar calls.
 - Re-seed/rotate (PRINTS the new key as TEST_RESELLER_API_KEY=…): `node /app/scripts/seed_reseller_test_owner.js`
 
-### Lifecycle fixtures — added 2026-06 (hosting/vps/rdp state + grace + renewable + /renewals)
-- Seed: `node /app/scripts/seed_reseller_lifecycle_fixtures.js` (owner 999000111):
+### Lifecycle fixtures — added 2026-06 (hosting/vps/rdp state + grace + renewable + /renewals)- Seed: `node /app/scripts/seed_reseller_lifecycle_fixtures.js` (owner 999000111):
   - hosting `apigrace01` = GRACE (expired 10h, suspended, delete_at = expiry+48h), `apisusp01` = suspended past-grace,
     `apiterm01` = TERMINATED (deleted). (`apifix01` Golden / `apifix02` Premium = online, from seed_reseller_test_hosting.js)
   - vps `vps-term-1` = CANCELLED (terminated), rdp `rdp-grace-1` = RDP in grace. (`vps-test-1`/`rdp-test-1` running, from seed_reseller_test_vps_rdp.js)
@@ -40,3 +39,10 @@
 - Endpoints: `/reseller/v1/shortener/domains` (POST buy|existing|external, GET list, POST :domain/verify, DELETE :domain) and `/reseller/v1/shortener/links` (POST, GET, GET :slug?domain=, PATCH :slug, DELETE :slug?domain=).
 - On sandbox (non-live) domain activation returns a `dry_run` envelope; link CRUD writes real Mongo (`fullUrlOf`/`linksOf`/`clicksOn`/`expiryOf`, key = `domain/slug` with dots→@).
 - Pytest: `backend/tests/test_reseller_shortener.py` (29 cases, all green).
+
+### Async provisioning test fixture — added 2026-06
+- Seed/rotate key (PRINTS `TEST_RESELLER_API_KEY=…`): `node /app/scripts/seed_reseller_test_owner.js` (owner 999000111, wallet usdIn=100000, mode dry_run on sandbox).
+- Current key (rotates on every re-seed): rsk_live_821e297e6de5bb53cc177301147cc0f377b7066e9db9b41f
+- Pytest: `backend/tests/test_reseller_async_provision.py` (17 cases) — POST /hosting|/vps|/rdp return 202 {status:provisioning, job_id, username|id, …}; client_ref idempotency (same job_id, wallet unchanged); validation-before-charge; duplicate-domain 409; state surfacing; no-auth 401.
+- Run the reseller pytest suites INDEPENDENTLY (each re-seeds owner at import → running together rotates the key mid-run and 401s the other): `test_reseller_async_provision.py`, `test_reseller_lifecycle.py`, `test_reseller_renew.py`.
+- LIVE-only paths (real build failure → auto-refund + `*.provision_failed` webhook) are NOT exercisable on sandbox (dry_run). Verify on a prod/staging pod with RESELLER_API_LIVE=true and SKIP_WEBHOOK_SYNC unset.
