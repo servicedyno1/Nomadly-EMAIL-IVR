@@ -923,7 +923,7 @@ Login: ${panelUrl}
       'planName',
       'duration',
     ])
-    return { success: true, username: result.username, pin, url: result.url, nameservers: Array.isArray(cfNameservers) ? cfNameservers : [], domainRegistered: true }
+    return { success: true, username: result.username, password: result.password, whmHost: process.env.WHM_HOST || null, pin, url: result.url, nameservers: Array.isArray(cfNameservers) ? cfNameservers : [], domainRegistered: true }
   } catch (err) {
     log('err registerDomain&CreateCPanel via WHM', err.message)
     send(chatId, `❌ Setup failed. Tap 💬 Get Support for help.\n\nError: ${err.message}`, keyboardButtons)

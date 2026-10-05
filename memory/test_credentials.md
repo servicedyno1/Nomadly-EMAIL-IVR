@@ -46,3 +46,13 @@
 - Endpoints: POST /hosting|/vps|/rdp return 202 {status:provisioning, job_id, username|id, progress, stage_label, eta_seconds, eta_at, poll_url, credentials_url}; client_ref idempotency (same job_id, idempotent:true, wallet unchanged); `GET /jobs/:job_id` (owner-scoped progress + ETA poll; 404 if not owned); validation-before-charge; duplicate-domain 409; state surfacing on reads; no-auth 401.
 - Run the reseller pytest suites INDEPENDENTLY (each re-seeds owner at import → running together rotates the key mid-run and 401s the other): `test_reseller_async_provision.py`, `test_reseller_lifecycle.py`, `test_reseller_renew.py`.
 - LIVE-only paths (real build failure → auto-refund + `*.provision_failed` webhook) are NOT exercisable on sandbox (dry_run). Verify on a prod/staging pod with RESELLER_API_LIVE=true and SKIP_WEBHOOK_SYNC unset.
+
+## Reseller API (LIVE mode) — bug fix verification 2026-10-05 (cPanel credentials 501)
+- Base URL: {REACT_APP_BACKEND_URL}/api/reseller/v1
+- Auth: `Authorization: Bearer <key>`  OR  `X-API-Key: <key>`
+- LIVE API KEY (owner chatId 5590563715, @onarrival1): rsk_live_cdc3f785ac3cfd813c6143d7813e1a59cc15fc42327ab736
+- Mode: LIVE (RESELLER_API_LIVE=true; reseller API uses dedicated PROD Railway DB via RESELLER_DB_URL).
+- Target accounts for the 501-no_credentials fix:
+  - `name65fb`  = API-provisioned (was 501, now backfilled with creds) — EXPECT 200 on /files,/subdomains,/ssl,/stats.
+  - `nbayftest` = manually-provisioned control — EXPECT 200 on the same endpoints.
+- ⛔ LIVE: test ONLY read-only GET endpoints. NEVER POST /hosting or any mutating route (real charges/provisioning).

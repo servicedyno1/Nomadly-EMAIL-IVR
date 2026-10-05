@@ -471,10 +471,30 @@ function createResellerApi(deps = {}) {
     }
     const finalUser = String(result.username || job.username).toLowerCase()
     const expiry = new Date(Date.now() + durationDays * 86400000)
+    // Persist the generated cPanel password (encrypted) into the reseller DB so every
+    // /hosting/:user/* management endpoint (files, subdomains, ssl, stats, addon, mysql…)
+    // can authenticate to cPanel. The provisioning helper stores creds via its own
+    // process.env.MONGO_URL client; when the reseller API runs on a dedicated DB
+    // connection that differs from MONGO_URL, those creds never reach the DB the API
+    // reads from → HTTP 501 no_credentials. Idempotent on production (same DB).
+    const credSet = {}
+    try {
+      if (result.password) {
+        const enc = cpanelAuth.encrypt(result.password)
+        credSet.cpUser = result.username || finalUser
+        credSet.cpPass_encrypted = enc.encrypted
+        credSet.cpPass_iv = enc.iv
+        credSet.cpPass_tag = enc.tag
+        credSet.whmHost = result.whmHost || process.env.WHM_HOST || null
+      } else {
+        log(`[ResellerAPI] WARN: no cPanel password returned for ${finalUser}; management endpoints may 501`)
+      }
+    } catch (e) { log(`[ResellerAPI] credential persist failed for ${finalUser}: ${e.message}`) }
     await col('cpanelAccounts').updateOne({ _id: finalUser }, { $set: {
       chatId: owner, source: 'reseller_api', ownerEmail: r.email || null, domain: r.domain, plan: r.plan,
       provisionState: 'active', provisionJobId: job._id, clientRef: job.clientRef || null,
       expiryDate: expiry, renewalPriceUsd: r.hostingPrice, autoRenew: durationDays >= 30,
+      ...credSet,
     } }, { upsert: true })
     if (finalUser !== job.username) {
       await col('cpanelAccounts').updateOne({ _id: job.username }, { $set: { supersededBy: finalUser, deleted: true, deletedAt: new Date(), deletedBy: 'superseded_final_username' } })
