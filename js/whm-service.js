@@ -838,6 +838,7 @@ async function changePrimaryDomain(username, newDomain) {
 
 module.exports = {
   createAccount,
+  generateUsername,
   domainExists,
   listAccounts,
   suspendAccount,

@@ -26,9 +26,10 @@ const BACKOFF_MS = [2000, 6000, 12000]
 // a receiver can mark a customer's service dead on hosting.deleted / vps.deleted /
 // rdp.deleted with the same handler. Surfaced on GET /account/webhook.
 const EVENTS = [
+  'hosting.provisioned', 'hosting.provision_failed',
   'hosting.grace_start', 'hosting.suspended', 'hosting.deleted', 'hosting.auto_renew_failed',
-  'vps.grace_start', 'vps.deleted',
-  'rdp.grace_start', 'rdp.deleted',
+  'vps.provisioned', 'vps.provision_failed', 'vps.grace_start', 'vps.deleted',
+  'rdp.provisioned', 'rdp.provision_failed', 'rdp.grace_start', 'rdp.deleted',
 ]
 
 const sleep = (ms) => new Promise(r => setTimeout(r, ms))

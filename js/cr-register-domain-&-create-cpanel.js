@@ -423,7 +423,7 @@ async function registerDomainAndCreateCpanel(send, info, keyboardButtons, state,
       domain,
       info.plan,
       info.email || process.env.NOMADLY_SERVICE_EMAIL,
-      undefined,
+      info.customUsername || undefined,
       { useCloudflareNS: isCloudflareNS },
     )
 

@@ -30,6 +30,7 @@ const crypto = require('crypto')
 
 const { atomicIncrement } = require('./db')
 const { getBalance } = require('./utils')
+const activeSlot = require('./active-slot')
 
 const domainService = require('./domain-service')
 const whmService = require('./whm-service')
@@ -305,13 +306,241 @@ function createResellerApi(deps = {}) {
 
   const VPS_TERMINAL = ['CANCELLED', 'DESTROYED', 'destroyed', 'DELETED']
   function vpsRenewability(rec, isRDP, prov) {
+    const st = String(rec.status || '')
+    if (st === 'provisioning' || st === 'PROVISIONING') return { renewable: false, renew_blocked_reason: 'provisioning' }
+    if (st === 'failed' || st === 'FAILED' || rec.provisionState === 'failed') return { renewable: false, renew_blocked_reason: 'provision_failed' }
     const destroyedByGrace = rec.cancelReason === 'expired_grace' || rec.destroy_reason === 'expired_grace'
-    if (destroyedByGrace || VPS_TERMINAL.includes(String(rec.status))) return { renewable: false, renew_blocked_reason: 'already_destroyed' }
+    if (destroyedByGrace || VPS_TERMINAL.includes(st)) return { renewable: false, renew_blocked_reason: 'already_destroyed' }
     if (isRDP) {
       const canProviderRenew = !!rec.instanceId && prov && typeof prov.renewInstance === 'function'
       if (!canProviderRenew) return { renewable: false, renew_blocked_reason: 'not_supported' }
     }
     return { renewable: true, renew_blocked_reason: null }
+  }
+
+  // ════════════════════════════════════════════════════════
+  // ASYNC CREATE — jobs persisted in `resellerProvisionJobs` so a slow (or
+  // deploy-interrupted) build can't make the reseller time out and orphan an
+  // account. POST create returns a fast 202 handle; a singleton worker runs the
+  // real provisioning, charges-up-front / refunds-on-failure, and emits the
+  // *.provisioned / *.provision_failed webhooks. Reads report state
+  // provisioning|active|failed meanwhile. client_ref makes retries idempotent.
+  // ════════════════════════════════════════════════════════
+  const PROVISION_STUCK_MS = Math.max(300000, Number(process.env.RESELLER_PROVISION_STUCK_MS) || 30 * 60000)
+  const provisionJobs = () => col('resellerProvisionJobs')
+
+  function emitEvent(ownerChatId, event, instanceId, payload) {
+    try { require('./reseller-webhooks').emit(getDb(), { chatId: ownerChatId, event, instanceId, payload, log }).catch(() => {}) } catch (_) { /* best-effort */ }
+  }
+
+  // Up-front wallet guard + charge for an async create. On insufficient funds sends 402 and
+  // returns {ok:false}. In dry_run it validates the balance but never charges.
+  async function chargeForAsync(req, res, { product, action, priceUsd, request }) {
+    const chatId = req.reseller.ownerChatId
+    const price = Math.round(Number(priceUsd) * 100) / 100
+    if (!Number.isFinite(price) || price < 0) { res.status(400).json({ error: 'pricing_failed', message: 'Could not determine a valid price for this order.' }); return { ok: false } }
+    const balance = await walletBalance(chatId)
+    if (balance < price) {
+      await recordOrder({ keyId: req.reseller.keyId, ownerChatId: chatId, product, action, request, priceUsd: price, mode: mode(), status: 'rejected_insufficient_balance' })
+      res.status(402).json({ error: 'insufficient_wallet_balance', message: `Wallet balance $${balance.toFixed(2)} is below the order price $${price.toFixed(2)}. Top up your wallet and retry.`, product, action, price_usd: price, wallet_balance_usd: balance, shortfall_usd: Math.round((price - balance) * 100) / 100, mode: mode() })
+      return { ok: false }
+    }
+    let charged = false
+    if (isLive()) {
+      charged = await chargeWallet(chatId, price)
+      if (!charged) { res.status(402).json({ error: 'insufficient_wallet_balance', message: 'Wallet debit was declined (insufficient funds / concurrent spend).', price_usd: price, wallet_balance_usd: balance }); return { ok: false } }
+    }
+    return { ok: true, balance, charged, price }
+  }
+
+  // Idempotency: a retry with the same (owner, client_ref) returns the SAME job.
+  async function findJobByClientRef(ownerChatId, clientRef) {
+    if (!clientRef) return null
+    return provisionJobs().findOne({ ownerChatId: String(ownerChatId), clientRef: String(clientRef) })
+  }
+
+  // Map a provision job → the 202 handle shape (used both by a fresh create and by an idempotent
+  // client_ref re-hit). status ∈ provisioning | provisioned | failed.
+  function jobStatusLabel(job) {
+    return job.status === 'done' ? 'provisioned' : (job.status === 'failed' ? 'failed' : 'provisioning')
+  }
+  function jobHandle(job) {
+    const r = job.request || {}
+    if (job.product === 'hosting') {
+      return {
+        status: jobStatusLabel(job), mode: job.mode, product: 'hosting', job_id: job._id,
+        username: job.username, id: job.username, domain: r.domain || null, plan: r.plan || null,
+        price_usd: job.priceUsd,
+        poll_url: `/hosting/${job.username}`, credentials_url: `/hosting/${job.username}/credentials`,
+        ...(job.status === 'failed' ? { error: job.error || 'provision_failed', refunded: !!job.refunded } : {}),
+        idempotent: true,
+      }
+    }
+    const isRDP = !!r.isRDP
+    return {
+      status: jobStatusLabel(job), mode: job.mode, product: isRDP ? 'rdp' : 'vps', job_id: job._id,
+      id: job.vpsId, plan: r.plan || r.plan_id || null, region: r.region || null, price_usd: job.priceUsd,
+      poll_url: `/${isRDP ? 'rdp' : 'vps'}/${job.vpsId}`, credentials_url: `/${isRDP ? 'rdp' : 'vps'}/${job.vpsId}/credentials`,
+      ...(r.osId ? { os: r.osId } : {}),
+      ...(job.status === 'failed' ? { error: job.error || 'provision_failed', refunded: !!job.refunded } : {}),
+      idempotent: true,
+    }
+  }
+
+  // ── Hosting job runner ──
+  async function runHostingJob(job) {
+    const owner = String(job.ownerChatId)
+    const r = job.request
+    const durationDays = Number(hostingScheduler.getPlanDuration(r.plan)) || 30
+    if (job.mode === 'dry_run') {
+      const expiry = new Date(Date.now() + durationDays * 86400000)
+      await col('cpanelAccounts').updateOne({ _id: job.username }, { $set: { provisionState: 'active', expiryDate: expiry, autoRenew: durationDays >= 30 }, $unset: { provisionFailedReason: '' } })
+      await provisionJobs().updateOne({ _id: job._id }, { $set: { status: 'done', finishedAt: new Date(), simulated: true, result: { username: job.username } } })
+      emitEvent(owner, 'hosting.provisioned', job.username, { domain: r.domain, plan: r.plan, cpanel_username: job.username, username: job.username, expires_at: expiry.toISOString(), simulated: true })
+      return
+    }
+    const { registerDomainAndCreateCpanel } = require('./cr-register-domain-&-create-cpanel.js')
+    const info = {
+      _id: `reseller_${crypto.randomUUID()}`, website_name: r.domain, plan: r.plan, email: r.email || null,
+      userLanguage: 'en', price: job.priceUsd, hostingPrice: r.hostingPrice, registrar: r.registrar || null,
+      source: 'reseller_api', ownerChatId: owner, customUsername: job.username,
+      nameserver: 'cloudflare', nsChoice: 'cloudflare',
+    }
+    if (r.domain_mode === 'existing') info.existingDomain = true
+    else if (r.domain_mode === 'external') info.connectExternalDomain = true
+    let result
+    try { result = await registerDomainAndCreateCpanel(() => {}, info, [], col('state'), null) }
+    catch (e) { result = { success: false, error: e.message } }
+
+    // WHM temporarily down → defer: keep the job pending for the worker to retry (do NOT refund yet).
+    if (result && result.deferred) {
+      if ((job.attempts || 0) >= 5) {
+        if (job.charged) await refundWallet(owner, job.priceUsd)
+        await col('cpanelAccounts').updateOne({ _id: job.username }, { $set: { provisionState: 'failed', provisionFailedReason: 'provider_unavailable' } })
+        await provisionJobs().updateOne({ _id: job._id }, { $set: { status: 'failed', finishedAt: new Date(), error: 'provider_unavailable', refunded: !!job.charged } })
+        emitEvent(owner, 'hosting.provision_failed', job.username, { domain: r.domain, plan: r.plan, username: job.username, reason: 'provider_unavailable', refunded: !!job.charged })
+        return
+      }
+      await provisionJobs().updateOne({ _id: job._id }, { $set: { status: 'pending', leaseAt: null, deferredAt: new Date() } })
+      return
+    }
+    if (!result || result.success === false) {
+      if (job.charged) await refundWallet(owner, job.priceUsd)
+      await col('cpanelAccounts').updateOne({ _id: job.username }, { $set: { provisionState: 'failed', provisionFailedReason: (result && result.error) || 'provision_failed' } })
+      await provisionJobs().updateOne({ _id: job._id }, { $set: { status: 'failed', finishedAt: new Date(), error: (result && result.error) || 'provision_failed', refunded: !!job.charged } })
+      emitEvent(owner, 'hosting.provision_failed', job.username, { domain: r.domain, plan: r.plan, username: job.username, reason: (result && result.error) || 'provision_failed', refunded: !!job.charged })
+      return
+    }
+    const finalUser = String(result.username || job.username).toLowerCase()
+    const expiry = new Date(Date.now() + durationDays * 86400000)
+    await col('cpanelAccounts').updateOne({ _id: finalUser }, { $set: {
+      chatId: owner, source: 'reseller_api', ownerEmail: r.email || null, domain: r.domain, plan: r.plan,
+      provisionState: 'active', provisionJobId: job._id, clientRef: job.clientRef || null,
+      expiryDate: expiry, renewalPriceUsd: r.hostingPrice, autoRenew: durationDays >= 30,
+    } }, { upsert: true })
+    if (finalUser !== job.username) {
+      await col('cpanelAccounts').updateOne({ _id: job.username }, { $set: { supersededBy: finalUser, deleted: true, deletedAt: new Date(), deletedBy: 'superseded_final_username' } })
+    }
+    await provisionJobs().updateOne({ _id: job._id }, { $set: { status: 'done', finishedAt: new Date(), username: finalUser, result: { username: finalUser, nameservers: result.nameservers || [] } } })
+    emitEvent(owner, 'hosting.provisioned', finalUser, { domain: r.domain, plan: r.plan, cpanel_username: finalUser, username: finalUser, expires_at: expiry.toISOString(), nameservers: result.nameservers || [], panel_url: panelUrl(), server_ip: serverIp() })
+  }
+
+  // ── VPS / RDP job runner ──
+  async function runVpsJob(job) {
+    const owner = String(job.ownerChatId)
+    const r = job.request
+    const isRDP = !!r.isRDP
+    const okEvent = isRDP ? 'rdp.provisioned' : 'vps.provisioned'
+    const failEvent = isRDP ? 'rdp.provision_failed' : 'vps.provision_failed'
+    if (job.mode === 'dry_run') {
+      await col('vpsPlansOf').updateOne({ _id: job.vpsId }, { $set: { status: 'RUNNING', provisionState: 'active', host: '203.0.113.10', end_time: new Date(Date.now() + 30 * 86400000) } })
+      await provisionJobs().updateOne({ _id: job._id }, { $set: { status: 'done', finishedAt: new Date(), simulated: true } })
+      emitEvent(owner, okEvent, job.vpsId, { plan: r.plan, region: r.region, id: job.vpsId, simulated: true })
+      return
+    }
+    const prov = providerFor(isRDP)
+    let inst
+    try {
+      const createFn = (isRDP && prov.createInstanceWithFallback) ? prov.createInstanceWithFallback.bind(prov) : prov.createInstance.bind(prov)
+      inst = await createFn({ productId: r.plan_id, regionSlug: r.region, isWindows: isRDP, osId: r.osId || undefined, label: r.hostname || undefined })
+    } catch (e) { inst = { success: false, error: e.message } }
+    if (!inst || inst.success === false) {
+      if (job.charged) await refundWallet(owner, job.priceUsd)
+      await col('vpsPlansOf').updateOne({ _id: job.vpsId }, { $set: { status: 'failed', provisionState: 'failed', provisionFailedReason: (inst && inst.error) || 'provision_failed' } })
+      await provisionJobs().updateOne({ _id: job._id }, { $set: { status: 'failed', finishedAt: new Date(), error: (inst && inst.error) || 'provision_failed', refunded: !!job.charged } })
+      emitEvent(owner, failEvent, job.vpsId, { plan: r.plan, region: r.region, id: job.vpsId, reason: (inst && inst.error) || 'provision_failed', refunded: !!job.charged })
+      return
+    }
+    await col('vpsPlansOf').updateOne({ _id: job.vpsId }, { $set: {
+      instanceId: inst.instanceId || null, host: inst.mainIp || null, status: inst.status || 'RUNNING',
+      provisionState: 'active', rootPasswordSecretId: inst.passwordSecretId || null,
+      end_time: new Date(Date.now() + 30 * 86400000),
+    } })
+    await provisionJobs().updateOne({ _id: job._id }, { $set: { status: 'done', finishedAt: new Date(), result: { id: job.vpsId, instance_id: inst.instanceId || null, ip: inst.mainIp || null } } })
+    emitEvent(owner, okEvent, job.vpsId, { plan: r.plan, region: r.region, id: job.vpsId, ip: inst.mainIp || null, instance_id: inst.instanceId || null })
+  }
+
+  // Atomically claim + run one job. Safe against double-processing (worker + request path).
+  async function processJob(jobId) {
+    let job
+    try {
+      job = await provisionJobs().findOneAndUpdate(
+        { _id: jobId, status: 'pending' },
+        { $set: { status: 'processing', leaseAt: new Date() }, $inc: { attempts: 1 } },
+        { returnDocument: 'after', includeResultMetadata: false },
+      )
+    } catch (e) { log(`[ResellerAPI] processJob claim error: ${e.message}`); return }
+    if (!job) return
+    try {
+      if (job.product === 'hosting') await runHostingJob(job)
+      else await runVpsJob(job)
+    } catch (e) {
+      log(`[ResellerAPI] processJob ${jobId} crashed: ${e.message}`)
+      try {
+        if (job.charged) await refundWallet(String(job.ownerChatId), job.priceUsd)
+        const isHosting = job.product === 'hosting'
+        const key = isHosting ? job.username : job.vpsId
+        await col(isHosting ? 'cpanelAccounts' : 'vpsPlansOf').updateOne({ _id: key }, { $set: { provisionState: 'failed', status: 'failed', provisionFailedReason: e.message } })
+        await provisionJobs().updateOne({ _id: jobId }, { $set: { status: 'failed', finishedAt: new Date(), error: e.message, refunded: !!job.charged } })
+        emitEvent(String(job.ownerChatId), isHosting ? 'hosting.provision_failed' : (job.request.isRDP ? 'rdp.provision_failed' : 'vps.provision_failed'), key, { reason: e.message, refunded: !!job.charged })
+      } catch (_) { /* best-effort */ }
+    }
+  }
+
+  // Worker: process stragglers + reconcile stale 'processing' jobs (the slot that owned the
+  // job died mid-build — e.g. a deploy flip). Never blindly re-runs a half-done build.
+  async function provisionWorkerTick() {
+    try {
+      const pend = await provisionJobs().find({ status: 'pending' }).limit(10).toArray()
+      for (const j of pend) await processJob(j._id)
+      if (!isLive()) return
+      const cutoff = new Date(Date.now() - PROVISION_STUCK_MS)
+      const stale = await provisionJobs().find({ status: 'processing', leaseAt: { $lt: cutoff } }).limit(10).toArray()
+      for (const job of stale) {
+        const owner = String(job.ownerChatId)
+        if (job.product === 'hosting') {
+          let exists = false
+          try { const i = await whmService.getAccountInfo(job.username); exists = !!(i && i.success) } catch (_) {}
+          if (exists) {
+            const durationDays = Number(hostingScheduler.getPlanDuration(job.request.plan)) || 30
+            const expiry = new Date(Date.now() + durationDays * 86400000)
+            await col('cpanelAccounts').updateOne({ _id: job.username }, { $set: { chatId: owner, source: 'reseller_api', domain: job.request.domain, plan: job.request.plan, provisionState: 'active', expiryDate: expiry, renewalPriceUsd: job.request.hostingPrice, autoRenew: durationDays >= 30 } })
+            await provisionJobs().updateOne({ _id: job._id }, { $set: { status: 'done', finishedAt: new Date(), reconciled: true } })
+            emitEvent(owner, 'hosting.provisioned', job.username, { domain: job.request.domain, plan: job.request.plan, cpanel_username: job.username, username: job.username, expires_at: expiry.toISOString(), reconciled: true })
+          } else {
+            if (job.charged) await refundWallet(owner, job.priceUsd)
+            await col('cpanelAccounts').updateOne({ _id: job.username }, { $set: { provisionState: 'failed', provisionFailedReason: 'provisioning_interrupted' } })
+            await provisionJobs().updateOne({ _id: job._id }, { $set: { status: 'failed', finishedAt: new Date(), error: 'provisioning_interrupted', refunded: !!job.charged, reconciled: true } })
+            emitEvent(owner, 'hosting.provision_failed', job.username, { domain: job.request.domain, plan: job.request.plan, username: job.username, reason: 'provisioning_interrupted', refunded: !!job.charged })
+          }
+        } else {
+          if (job.charged) await refundWallet(owner, job.priceUsd)
+          await col('vpsPlansOf').updateOne({ _id: job.vpsId }, { $set: { status: 'failed', provisionState: 'failed', provisionFailedReason: 'provisioning_interrupted' } })
+          await provisionJobs().updateOne({ _id: job._id }, { $set: { status: 'failed', finishedAt: new Date(), error: 'provisioning_interrupted', refunded: !!job.charged, reconciled: true } })
+          emitEvent(owner, job.request.isRDP ? 'rdp.provision_failed' : 'vps.provision_failed', job.vpsId, { plan: job.request.plan, id: job.vpsId, reason: 'provisioning_interrupted', refunded: !!job.charged })
+        }
+      }
+    } catch (e) { log(`[ResellerAPI] provisionWorkerTick error: ${e.message}`) }
   }
 
   // ════════════════════════════════════════════════════════
@@ -608,28 +837,49 @@ function createResellerApi(deps = {}) {
       if (!prov.OS_OPTIONS[osId]) return res.status(400).json({ error: 'invalid_os', message: `Unknown os "${req.body?.os}". Valid values: ${Object.keys(prov.OS_OPTIONS).join(', ')} (see os_options in GET /rdp/plans).` })
     }
 
-    return billedProvision(req, res, {
-      product: isRDP ? 'rdp' : 'vps', action: 'create', priceUsd: pricing.totalWithMarkup,
-      request: { plan_id: planId, region, hostname, os: isRDP ? (osId || 'windows') : (req.body?.os || 'ubuntu') },
-      provision: async () => {
-        const createFn = (isRDP && prov.createInstanceWithFallback) ? prov.createInstanceWithFallback.bind(prov) : prov.createInstance.bind(prov)
-        const inst = await createFn({ productId: planId, regionSlug: region, isWindows: isRDP, osId: osId || undefined, label: hostname || undefined })
-        // Persist a record so GET /vps|/rdp lists it for this owner
-        const vpsId = crypto.randomUUID()
-        try {
-          await col('vpsPlansOf').insertOne({
-            _id: vpsId, chatId: String(req.reseller.ownerChatId), vpsId,
-            provider: prov.PROVIDER, instanceId: inst.instanceId || null, host: inst.mainIp || null,
-            region, productId: planId, plan: product.name || planId, planPrice: pricing.totalWithMarkup,
-            osType: isRDP ? 'windows' : 'linux', osId: osId || null, isRDP: !!isRDP, status: inst.status || 'provisioning',
-            rootPasswordSecretId: inst.passwordSecretId || null, source: 'reseller_api',
-            start_time: new Date(), timestamp: new Date(),
-          })
-        } catch (e) { log(`[ResellerAPI] vpsPlansOf insert warn: ${e.message}`) }
-        const out = { success: true, id: vpsId, instance_id: inst.instanceId || null, ip: inst.mainIp || null, status: inst.status || 'provisioning', default_password: inst.defaultPassword || null }
-        if (osId) { out.os = osId; out.fast_deploy = !!inst.fastDeploy; out.eta_minutes = inst.etaMinutes || null }
-        return out
-      },
+    // ── Async create: return a fast 202 with a stable id; the real provider build runs in the
+    // background (runVpsJob), auto-refunds + emits *.provision_failed on failure. client_ref dedupes.
+    const owner = String(req.reseller.ownerChatId)
+    const clientRef = req.body?.client_ref ? String(req.body.client_ref).slice(0, 128) : null
+    if (clientRef) {
+      const prior = await findJobByClientRef(owner, clientRef)
+      if (prior && (prior.product === 'vps' || prior.product === 'rdp')) return res.status(202).json(jobHandle(prior))
+    }
+    const planName = product.name || planId
+    const request = { plan_id: planId, plan: planName, region, hostname, isRDP: !!isRDP, osId: osId || null, os: isRDP ? (osId || 'windows') : (req.body?.os || 'ubuntu') }
+
+    const charge = await chargeForAsync(req, res, { product: isRDP ? 'rdp' : 'vps', action: 'create', priceUsd: pricing.totalWithMarkup, request })
+    if (!charge.ok) return // chargeForAsync already sent the 402/400
+
+    const vpsId = crypto.randomUUID()
+    const jobId = crypto.randomUUID()
+    await provisionJobs().insertOne({
+      _id: jobId, product: isRDP ? 'rdp' : 'vps', ownerChatId: owner, clientRef,
+      vpsId, priceUsd: charge.price, charged: charge.charged, mode: mode(),
+      status: 'pending', attempts: 0, createdAt: new Date(), request,
+    })
+    // Placeholder record so GET /vps|/rdp + GET /:id report status:'provisioning' immediately.
+    await col('vpsPlansOf').insertOne({
+      _id: vpsId, chatId: owner, vpsId,
+      provider: prov.PROVIDER, instanceId: null, host: null,
+      region, productId: planId, plan: planName, planPrice: pricing.totalWithMarkup,
+      osType: isRDP ? 'windows' : 'linux', osId: osId || null, isRDP: !!isRDP,
+      status: 'provisioning', provisionState: 'provisioning', provisionJobId: jobId, clientRef,
+      source: 'reseller_api', start_time: new Date(), timestamp: new Date(),
+    })
+    await recordOrder({ keyId: req.reseller.keyId, ownerChatId: owner, product: isRDP ? 'rdp' : 'vps', action: 'create', request, priceUsd: charge.price, mode: mode(), status: 'provisioning', jobId })
+
+    processJob(jobId).catch(() => {}) // kick the build now; worker tick is the straggler safety-net
+
+    return res.status(202).json({
+      status: 'provisioning', mode: mode(), product: isRDP ? 'rdp' : 'vps',
+      job_id: jobId, id: vpsId, plan: planName, region,
+      price_usd: charge.price,
+      wallet_balance_usd: Math.round((charge.balance - (charge.charged ? charge.price : 0)) * 100) / 100,
+      poll_url: `/${isRDP ? 'rdp' : 'vps'}/${vpsId}`,
+      credentials_url: `/${isRDP ? 'rdp' : 'vps'}/${vpsId}/credentials`,
+      ...(osId ? { os: osId } : {}),
+      note: `Provisioning started. Poll GET /${isRDP ? 'rdp' : 'vps'}/{id} until status="RUNNING", or subscribe to the ${isRDP ? 'rdp' : 'vps'}.provisioned / ${isRDP ? 'rdp' : 'vps'}.provision_failed webhooks. Reuse client_ref to make retries idempotent.`,
     })
   }
 
@@ -638,6 +888,8 @@ function createResellerApi(deps = {}) {
     res.json({ [isRDP ? 'rdp' : 'vps']: docs.map(d => ({
       id: d.vpsId || d._id, instance_id: d.instanceId || d.contaboInstanceId || null, ip: d.host || null,
       plan: d.plan || null, region: d.region || null, os: d.osType || null, os_id: d.osId || null, status: d.status || null,
+      provision_state: d.provisionState || null,
+      ...(d.provisionState === 'failed' ? { provision_failed_reason: d.provisionFailedReason || 'provision_failed' } : {}),
       ...hwFromRecord(isRDP ? rdpProviderForRecord(d) : providerFor(false), d),
       ...vpsRenewability(d, isRDP, isRDP ? rdpProviderForRecord(d) : null),
       created_at: d.start_time || d.timestamp || null,
@@ -657,6 +909,8 @@ function createResellerApi(deps = {}) {
       col('vpsPlansOf').updateOne({ _id: rec._id }, { $set: { ...(live.mainIp ? { host: live.mainIp } : {}), ...(live.status ? { status: live.status } : {}) } }).catch(() => {})
     }
     const out = { id: rec.vpsId || rec._id, instance_id: rec.instanceId || null, plan: rec.plan, region: rec.region, os: rec.osType, os_id: rec.osId || null, ...hwFromRecord(isRDP ? rdpProviderForRecord(rec) : providerFor(false), rec), status: live?.status || rec.status, ip: live?.mainIp || rec.host || null, live }
+    out.provision_state = rec.provisionState || null
+    if (rec.provisionState === 'failed') out.provision_failed_reason = rec.provisionFailedReason || 'provision_failed'
     // RDP only: whether the in-guest management agent (used by password-reset) has checked in recently.
     if (isRDP) out.agent_online = live ? !!live.agentOnline : null
     // RDP 3-day grace: surface pending-deletion so a polling reseller sees the box is expired-but-not-yet-deleted.
@@ -910,9 +1164,19 @@ function createResellerApi(deps = {}) {
     else if (dmRaw === 'external' || dmRaw === 'byo') domainMode = 'external'
     else return res.status(400).json({ error: 'invalid_domain_mode', message: 'domain_mode must be one of: buy, existing, external (legacy "byo" = external).' })
     const email = req.body?.email || null
+    const owner = String(req.reseller.ownerChatId)
+    const clientRef = req.body?.client_ref ? String(req.body.client_ref).slice(0, 128) : null
 
-    // duplicate guard (mirrors store provisioning)
-    const dup = await col('cpanelAccounts').findOne({ domain, deleted: { $ne: true } })
+    // Idempotency: a retry with the same (owner, client_ref) echoes the SAME provisioning handle —
+    // never a second charge, never a second account.
+    if (clientRef) {
+      const prior = await findJobByClientRef(owner, clientRef)
+      if (prior && prior.product === 'hosting') return res.status(202).json(jobHandle(prior))
+    }
+
+    // duplicate guard (mirrors store provisioning). A prior FAILED provision (wallet already
+    // refunded) frees the domain so the reseller can immediately retry.
+    const dup = await col('cpanelAccounts').findOne({ domain, deleted: { $ne: true }, provisionState: { $ne: 'failed' } })
     if (dup) return res.status(409).json({ error: 'domain_in_use', message: 'That domain already has an active hosting plan.' })
 
     let domainPrice = 0, registrar = null
@@ -923,42 +1187,39 @@ function createResellerApi(deps = {}) {
       registrar = dp.registrar || 'ConnectReseller'
     }
     const total = Math.round((plan.priceUsd + domainPrice) * 100) / 100
+    const request = { plan_id: plan.id, plan: plan.name, domain, domain_mode: domainMode, email, hostingPrice: plan.priceUsd, hosting_usd: plan.priceUsd, domain_usd: domainPrice, registrar }
 
-    return billedProvision(req, res, {
-      product: 'hosting', action: 'create', priceUsd: total,
-      request: { plan_id: plan.id, plan: plan.name, domain, domain_mode: domainMode, hosting_usd: plan.priceUsd, domain_usd: domainPrice },
-      provision: async () => {
-        const { registerDomainAndCreateCpanel } = require('./cr-register-domain-&-create-cpanel.js')
-        const info = {
-          _id: `reseller_${crypto.randomUUID()}`, website_name: domain, plan: plan.name, email,
-          userLanguage: 'en', price: total, hostingPrice: plan.priceUsd, registrar, source: 'reseller_api',
-          ownerChatId: String(req.reseller.ownerChatId),
-          // GAP-1 FIX (2026-09): bulletproof/anti-red hosting is ALWAYS Cloudflare-fronted.
-          // The Telegram-bot flow persists `nameserver:'cloudflare'` in session state, which is
-          // what makes registerDomainAndCreateCpanel run createHostingDNSRecords (root+www CNAME →
-          // Cloudflare Tunnel, origin IP hidden). The API/web-store paths omitted it, so
-          // `isCloudflareNS` was false and the CF zone was left with ONLY NS records → site never
-          // resolved. Passing it here makes the API provision DNS identically to the bot.
-          nameserver: 'cloudflare', nsChoice: 'cloudflare',
-        }
-        if (domainMode === 'existing') { info.existingDomain = true }
-        else if (domainMode === 'external') { info.connectExternalDomain = true }
-        // domainMode === 'buy' → neither flag; registerDomainAndCreateCpanel registers a new domain.
-        const r = await registerDomainAndCreateCpanel(() => {}, info, [], col('state'), null)
-        if (!r || r.success === false) return { success: false, error: r?.error || 'Provisioning failed' }
-        // tag the account with the reseller owner for listing
-        if (r.username) { try { await col('cpanelAccounts').updateOne({ _id: String(r.username).toLowerCase() }, { $set: { chatId: String(req.reseller.ownerChatId), source: 'reseller_api', ownerEmail: email } }) } catch (_) { /* tag best-effort */ } }
-        return {
-          success: true, domain, plan: plan.name,
-          cpanel_username: r.username || null,
-          panel_url: panelUrl(),
-          server_ip: serverIp(),
-          nameservers: r.nameservers || [],
-          queued: !!r.queued,
-          credentials_url: r.username ? `/hosting/${String(r.username).toLowerCase()}/credentials` : null,
-          note: 'Call GET /hosting/{username}/credentials to reveal the panel PIN (live mode only).',
-        }
-      },
+    // Up-front wallet guard + charge (handles 402 + dry_run balance-only check; response already sent on failure).
+    const charge = await chargeForAsync(req, res, { product: 'hosting', action: 'create', priceUsd: total, request })
+    if (!charge.ok) return
+
+    // cPanel username is generated NOW so the reseller gets a stable handle in the 202 (before the
+    // slow WHM build). createAccount receives it as customUsername so the account lands on this name.
+    const username = whmService.generateUsername(domain)
+    const jobId = crypto.randomUUID()
+    await provisionJobs().insertOne({
+      _id: jobId, product: 'hosting', ownerChatId: owner, clientRef,
+      username, priceUsd: charge.price, charged: charge.charged, mode: mode(),
+      status: 'pending', attempts: 0, createdAt: new Date(), request,
+    })
+    // Placeholder account so GET /hosting/{username} reports state:'provisioning' immediately and the
+    // domain is reserved against concurrent creates.
+    await col('cpanelAccounts').updateOne({ _id: username }, { $set: {
+      _id: username, chatId: owner, source: 'reseller_api', ownerEmail: email,
+      domain, plan: plan.name, provisionState: 'provisioning', provisionJobId: jobId, clientRef, createdAt: new Date(),
+    } }, { upsert: true })
+    await recordOrder({ keyId: req.reseller.keyId, ownerChatId: owner, product: 'hosting', action: 'create', request, priceUsd: charge.price, mode: mode(), status: 'provisioning', jobId })
+
+    processJob(jobId).catch(() => {}) // kick the build now; worker tick is the straggler safety-net
+
+    return res.status(202).json({
+      status: 'provisioning', mode: mode(), product: 'hosting',
+      job_id: jobId, username, id: username, domain, plan: plan.name,
+      price_usd: charge.price,
+      wallet_balance_usd: Math.round((charge.balance - (charge.charged ? charge.price : 0)) * 100) / 100,
+      poll_url: `/hosting/${username}`,
+      credentials_url: `/hosting/${username}/credentials`,
+      note: 'Provisioning started. Poll GET /hosting/{username} until state="online", or subscribe to the hosting.provisioned / hosting.provision_failed webhooks. Reuse client_ref to make retries idempotent.',
     })
   }))
 
@@ -995,17 +1256,21 @@ function createResellerApi(deps = {}) {
       accounts: docs.map(d => {
         const u = d._id || d.username
         const liveSusp = Object.prototype.hasOwnProperty.call(liveSuspendedByUser, d._id) ? liveSuspendedByUser[d._id] : null
+        const provisioning = d.provisionState === 'provisioning'
+        const provFailed = d.provisionState === 'failed'
         const lc = hostingLifecycle(d, { price: hostingScheduler.getPlanPrice(d), duration: hostingScheduler.getPlanDuration(d.plan), liveSuspended: liveSusp })
         return {
           id: u,
           username: u,
           domain: d.domain,
           plan: d.plan || null,
-          suspended: lc.suspended,
-          state: lc.state,
-          grace: lc.grace,
-          renewable: lc.renewable,
-          renew_blocked_reason: lc.renew_blocked_reason,
+          suspended: (provisioning || provFailed) ? false : lc.suspended,
+          state: provisioning ? 'provisioning' : (provFailed ? 'failed' : lc.state),
+          grace: (provisioning || provFailed) ? null : lc.grace,
+          renewable: (provisioning || provFailed) ? false : lc.renewable,
+          renew_blocked_reason: provisioning ? 'provisioning' : (provFailed ? 'provision_failed' : lc.renew_blocked_reason),
+          ...(provisioning || provFailed ? { provision_state: d.provisionState } : {}),
+          ...(provFailed ? { provision_failed_reason: d.provisionFailedReason || 'provision_failed' } : {}),
           created_at: d.createdAt || null,
           expires_at: d.expiryDate ? new Date(d.expiryDate).toISOString() : null,
           credentials_url: `/hosting/${u}/credentials`,
@@ -1740,6 +2005,35 @@ function createResellerApi(deps = {}) {
         mode: mode(),
       })
     }
+    // Provisioning / failed short-circuit: the async create returned a 202 and the real WHM build
+    // runs in the background. Until it finishes there is no account on WHM to read, so report the
+    // job state instead of hammering WHM with a 404.
+    if (acct.provisionState === 'provisioning' || acct.provisionState === 'failed') {
+      const failed = acct.provisionState === 'failed'
+      return res.json({
+        id: acct._id, username: acct._id, domain: acct.domain || null, plan: acct.plan || null,
+        price_usd: hostingScheduler.getPlanPrice(acct), duration_days: hostingScheduler.getPlanDuration(acct.plan),
+        state: failed ? 'failed' : 'provisioning',
+        terminated: false,
+        provision_state: acct.provisionState,
+        provision_failed_reason: failed ? (acct.provisionFailedReason || 'provision_failed') : null,
+        job_id: acct.provisionJobId || null,
+        suspended: false, grace: null,
+        renewable: false, renew_blocked_reason: failed ? 'provision_failed' : 'provisioning',
+        auto_renew: false,
+        created_at: acct.createdAt || null,
+        expires_at: acct.expiryDate ? new Date(acct.expiryDate).toISOString() : null,
+        panel_url: failed ? null : panelUrl(),
+        server_ip: failed ? null : serverIp(),
+        deliverables: null,
+        credentials_url: failed ? null : `/hosting/${acct._id}/credentials`,
+        usage: null,
+        note: failed
+          ? 'Provisioning failed — the wallet was auto-refunded. Retry the create (optionally with a fresh client_ref).'
+          : 'Provisioning in progress. Poll until state="online", or subscribe to the hosting.provisioned webhook.',
+        mode: mode(),
+      })
+    }
     // Live disk/bandwidth usage from WHM (/accountsummary — a READ, safe on any
     // pod). Best-effort: null if WHM is unreachable or the account is unknown.
     let usage = null
@@ -1816,6 +2110,15 @@ function createResellerApi(deps = {}) {
     })
   }))
 
+
+  // Background provisioning worker: picks up stragglers (a pending job whose inline processJob never
+  // ran — e.g. a crash right after the 202) and reconciles 'processing' jobs orphaned by a deploy
+  // flip (checks WHM for the account → provisioned, else refund + provision_failed). Active-slot only
+  // so the standby slot can't double-provision/double-refund.
+  const PROVISION_WORKER_MS = Math.max(15000, Number(process.env.RESELLER_PROVISION_WORKER_MS) || 30000)
+  try {
+    activeSlot.singletonInterval('reseller-provision-worker', () => { provisionWorkerTick().catch((e) => log(`[ResellerAPI] worker tick: ${e.message}`)) }, PROVISION_WORKER_MS)
+  } catch (e) { log(`[ResellerAPI] provision worker init warn: ${e.message}`) }
 
   log(`[ResellerAPI] mounted at /reseller/v1 (mode=${mode()})`)
   return router
