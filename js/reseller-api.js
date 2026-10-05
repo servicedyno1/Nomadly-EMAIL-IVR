@@ -130,10 +130,15 @@ function createResellerApi(deps = {}) {
   }
 
   // ── Mode: are we allowed to actually provision + charge? ──
-  // Hard safety: a dev/sandbox pod (SKIP_WEBHOOK_SYNC=true) shares production
-  // provider accounts + Mongo, so it must NEVER create real resources.
+  // Live provisioning is gated SOLELY on RESELLER_API_LIVE=true. This lets the
+  // reseller API run live on a dev pod while SKIP_WEBHOOK_SYNC=true continues to
+  // keep the phone health monitor, Telnyx/Twilio webhook sync, AntiRed worker
+  // upgrade and Cloudflare Discovery Worker sync safely DISABLED.
+  // NOTE: this pod shares the production provider accounts + Mongo, so with
+  // RESELLER_API_LIVE=true reseller calls WILL create real resources and debit
+  // the real wallet. Keep RESELLER_API_LIVE unset on any pod that must stay dry-run.
   function isLive() {
-    return process.env.RESELLER_API_LIVE === 'true' && process.env.SKIP_WEBHOOK_SYNC !== 'true'
+    return process.env.RESELLER_API_LIVE === 'true'
   }
   const mode = () => (isLive() ? 'live' : 'dry_run')
 
