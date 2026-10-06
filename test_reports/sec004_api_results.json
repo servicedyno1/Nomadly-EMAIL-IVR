@@ -29,7 +29,7 @@
       },
       "step1_root_submenu": {
         "ok": true,
-        "xmlSnippet": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><Response><Gather action=\"https://secure-passphrase-14.preview.emergentagent.com/api/twilio/inbound-ivr-gather?chatId=DEVML-1785678264360-7x6r6&amp;from=%2B19995551234&amp;to=%2B12289236918&amp;path=1\" method=\"POST\" numDigits=\"1\" timeout=\"10\" finishOnKey=\"\"><Say>For pricing press 1, to leave a message press 2.</Say></Gather><Gather action=\"http"
+        "xmlSnippet": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><Response><Gather action=\"https://key-management-26.preview.emergentagent.com/api/twilio/inbound-ivr-gather?chatId=DEVML-1785678264360-7x6r6&amp;from=%2B19995551234&amp;to=%2B12289236918&amp;path=1\" method=\"POST\" numDigits=\"1\" timeout=\"10\" finishOnKey=\"\"><Say>For pricing press 1, to leave a message press 2.</Say></Gather><Gather action=\"http"
       },
       "step2_submenu_forward": {
         "ok": true,
@@ -50,7 +50,7 @@
       },
       "step6_root_voicemail_regression": {
         "ok": true,
-        "xmlSnippet": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><Response><Say>Please leave a message after the beep.</Say><Record action=\"https://secure-passphrase-14.preview.emergentagent.com/api/twilio/voicemail-complete?chatId=DEVML-1785678264360-7x6r6&amp;from=%2B19995551234&amp;to=%2B12289236918\" maxLen"
+        "xmlSnippet": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><Response><Say>Please leave a message after the beep.</Say><Record action=\"https://key-management-26.preview.emergentagent.com/api/twilio/voicemail-complete?chatId=DEVML-1785678264360-7x6r6&amp;from=%2B19995551234&amp;to=%2B12289236918\" maxLen"
       },
       "step7_schema": {
         "ok": true,
@@ -61,7 +61,7 @@
       },
       "step8_submenu_audio_greeting": {
         "ok": true,
-        "xmlSnippet": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><Response><Gather action=\"https://secure-passphrase-14.preview.emergentagent.com/api/twilio/inbound-ivr-gather?chatId=DEVML-1785678264360-7x6r6&amp;from=%2B19995551234&amp;to=%2B12289236918&amp;path=1\" method=\"POST\" numDigits=\"1\" timeout=\"10\" finishOnKey=\"\"><Play>https://example.com/api/assets/user-audio/dev_submenu_greeting.mp3</Play></Gather>"
+        "xmlSnippet": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><Response><Gather action=\"https://key-management-26.preview.emergentagent.com/api/twilio/inbound-ivr-gather?chatId=DEVML-1785678264360-7x6r6&amp;from=%2B19995551234&amp;to=%2B12289236918&amp;path=1\" method=\"POST\" numDigits=\"1\" timeout=\"10\" finishOnKey=\"\"><Play>https://example.com/api/assets/user-audio/dev_submenu_greeting.mp3</Play></Gather>"
       },
       "step9_edit_jump_visibility": {
         "ok": true,

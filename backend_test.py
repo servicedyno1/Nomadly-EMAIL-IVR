@@ -17,7 +17,7 @@ import requests
 import json
 
 # Environment
-BASE_URL = "https://3f880739-5533-4e15-b35e-112dc854f3b8.preview.emergentagent.com/api/reseller/v1"
+BASE_URL = "https://key-management-26.preview.emergentagent.com/api/reseller/v1"
 LIVE_API_KEY = "rsk_live_cdc3f785ac3cfd813c6143d7813e1a59cc15fc42327ab736"
 TEST_VPS_ID = "b7a9f3b5-be02-4545-921d-b2f2e6603556"
 

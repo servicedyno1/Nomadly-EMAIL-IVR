@@ -628,7 +628,7 @@ backend:
           
           ENVIRONMENT:
           • Mode: LIVE (RESELLER_API_LIVE=true, dedicated PROD Railway DB via RESELLER_DB_URL)
-          • Base URL: https://3f880739-5533-4e15-b35e-112dc854f3b8.preview.emergentagent.com/api/reseller/v1
+          • Base URL: https://key-management-26.preview.emergentagent.com/api/reseller/v1
           • Auth: Authorization: Bearer rsk_live_cdc3f785ac3cfd813c6143d7813e1a59cc15fc42327ab736
           • Owner: chatId 5590563715 (@onarrail1)
           • Test VPS: b7a9f3b5-be02-4545-921d-b2f2e6603556 (LIVE PRODUCTION droplet)
@@ -714,7 +714,7 @@ backend:
           Test output: /tmp/vps_reinstall_test_output.txt (full test run log)
           Test run: 2026-10-05c (all 8 tests passed, 0 failures, 0 warnings)
           Environment: LIVE MODE (RESELLER_API_LIVE=true, dedicated PROD Railway DB via RESELLER_DB_URL)
-          Base URL: https://3f880739-5533-4e15-b35e-112dc854f3b8.preview.emergentagent.com/api/reseller/v1
+          Base URL: https://key-management-26.preview.emergentagent.com/api/reseller/v1
           Auth: Authorization: Bearer rsk_live_cdc3f785ac3cfd813c6143d7813e1a59cc15fc42327ab736
 
   - task: "Reseller VPS password/SSH management endpoints (2026-10-05b) — Verified newly-added reseller VPS password/SSH endpoints on the Nomadly reseller API. NEW ENDPOINTS: (a) POST /vps/:id/password-reset (in-place SSH root password reset, no wipe), (b) POST /vps/:id/ssh-key (append SSH key to root authorized_keys, idempotent), (c) GET /vps/:id/ssh-keys (list installed keys), (d) GET /vps/:id/credentials (enhanced with fallback to revealVpsPassword). Files: js/reseller-api.js (reusing js/digitalocean-service.js + js/vps-ssh-password.js + js/vps-password-reveal.js). Environment: LIVE MODE (RESELLER_API_LIVE=true, dedicated PROD Railway DB via RESELLER_DB_URL). Base URL: {REACT_APP_BACKEND_URL}/api/reseller/v1. Auth: Authorization: Bearer rsk_live_cdc3f785ac3cfd813c6143d7813e1a59cc15fc42327ab736 (owner chatId 5590563715, @onarrival1). Test VPS id: b7a9f3b5-be02-4545-921d-b2f2e6603556 (legacy box, no stored credential). CRITICAL SAFETY: Testing was READ-ONLY + VALIDATION ONLY (no live password resets, no live SSH key injections, no VPS creation, no mutations)."
@@ -736,7 +736,7 @@ backend:
           
           ENVIRONMENT:
           • Mode: LIVE (RESELLER_API_LIVE=true, dedicated PROD Railway DB via RESELLER_DB_URL)
-          • Base URL: https://3f880739-5533-4e15-b35e-112dc854f3b8.preview.emergentagent.com/api/reseller/v1
+          • Base URL: https://key-management-26.preview.emergentagent.com/api/reseller/v1
           • Auth: Authorization: Bearer rsk_live_cdc3f785ac3cfd813c6143d7813e1a59cc15fc42327ab736
           • Owner: chatId 5590563715 (@onarrival1), wallet balance $612
           • Test VPS: b7a9f3b5-be02-4545-921d-b2f2e6603556 (legacy box, no stored credential)
@@ -831,7 +831,7 @@ backend:
           Test output: /tmp/vps_password_ssh_test_output.txt (full test run log)
           Test run: 2026-10-05b (all 9 tests passed, 0 failures, 0 warnings)
           Environment: LIVE MODE (RESELLER_API_LIVE=true, dedicated PROD Railway DB via RESELLER_DB_URL)
-          Base URL: https://3f880739-5533-4e15-b35e-112dc854f3b8.preview.emergentagent.com/api/reseller/v1
+          Base URL: https://key-management-26.preview.emergentagent.com/api/reseller/v1
           Auth: Authorization: Bearer rsk_live_cdc3f785ac3cfd813c6143d7813e1a59cc15fc42327ab736
 
   - task: "Reseller API ↔ bot parity: 9 hosting/domain API bug fixes (2026-10-03) — Fixed 9 reseller-API bugs so the API matches the Telegram bot's canonical behaviour. ISSUE-1: addonDomains canonically array of lowercase STRINGS (findOwnedAccountByDomain matches both string + legacy object shapes for captcha/honeypot lookups). ISSUE-2: POST /hosting/:user/upgrade honours changePackage {success:false}, starts fresh 30-day cycle, unsuspends, sets autoRenew, clears deleted flags, redeploys Anti-Red. ISSUE-3: POST /hosting/:user/renew checks WHM account exists before keeping charge, resets expiryNotified + renewalCount, redeploys Anti-Red. ISSUE-4: DELETE /hosting/:user does Cloudflare cleanup (worker routes + hosting DNS for primary & addons) and whmTerminatePending soft-delete self-heal. ISSUE-5: NEW POST /hosting/:user/auto-renew {enabled?} toggle endpoint. ISSUE-6: site-status single implementation served at BOTH /hosting/:user/site-status and legacy alias /hosting/:user/account/site-status. ISSUE-7: POST /hosting domain_mode distinguishes buy|existing|external (legacy byo→external), no longer sets BOTH flags. ISSUE-8: POST /hosting (domain_mode=buy) + cr-register record domain ownership under REAL API-key owner chatId (info.ownerChatId), not synthetic reseller_<uuid>. ISSUE-9: POST /domains/register writes bot's domainsOf ownership map so API-registered domains show in bot's 'My Domain Names'. Files: js/reseller-api.js, js/reseller-hosting-mgmt.js, js/cr-register-domain-&-create-cpanel.js. Environment: DEV SANDBOX (local Mongo test, BOT_ENVIRONMENT=development, SKIP_WEBHOOK_SYNC=true, RESELLER_API_LIVE NOT set → dry-run mode, no WHM/Cloudflare/registrar calls, no real wallet debits). Node bot runs under supervisor program nodejs on 127.0.0.1:5000, proxied by FastAPI at /api → external {REACT_APP_BACKEND_URL}/api/reseller/v1/*. Auth: Authorization: Bearer rsk_live_6fc131dd06c97b3dd6fe3a4cbbd69d0c6eac28871fbf0f7c (or X-API-Key). Owner chatId 999000111, wallet funded $100000. Pre-seeded fixtures: cpUser apifix01 (domain apifixhost.com, plan Golden Anti-Red HostPanel (1-Month), addonDomains:['addon-apifix.com'] STRING shape, autoRenew true), cpUser apifix02 (domain apifixpremium.com, plan Premium Anti-Red HostPanel (1-Month))."
@@ -1033,7 +1033,7 @@ backend:
           Test run: 2026-10-03 (all 51 tests passed, 0 failures, 0 warnings)
           Environment: DEV SANDBOX pod (local Mongo test, BOT_ENVIRONMENT=development, SKIP_WEBHOOK_SYNC=true)
           Node bot: supervisor program nodejs on 127.0.0.1:5000 (RUNNING, uptime 0:05:08)
-          Base URL: https://secure-passphrase-14.preview.emergentagent.com/api/reseller/v1
+          Base URL: https://key-management-26.preview.emergentagent.com/api/reseller/v1
           Auth: Authorization: Bearer rsk_live_6fc131dd06c97b3dd6fe3a4cbbd69d0c6eac28871fbf0f7c
 
 
@@ -1082,7 +1082,7 @@ backend:
           TEST RESULTS (6/6 CRITICAL ITEMS PASSED):
           
           ✅ ITEM 1: Backend Health Check (PASS)
-             • GET https://secure-passphrase-14.preview.emergentagent.com/api/health
+             • GET https://key-management-26.preview.emergentagent.com/api/health
              • Response: {"status":"healthy","database":"connected","uptime":"0.03 hours"}
              • Also verified via localhost: curl http://127.0.0.1:8001/api/health → same response
              • Backend is HEALTHY and database is CONNECTED
@@ -1545,7 +1545,7 @@ backend:
         comment: |
           ✅ RE-VERIFICATION COMPLETE - RDP Reseller API D1/D2/D3 CONFIRMED WORKING (33/33 tests, 100% pass rate)
           
-          Re-verified all RDP Reseller API endpoints on the current pod (https://secure-passphrase-14.preview.emergentagent.com).
+          Re-verified all RDP Reseller API endpoints on the current pod (https://key-management-26.preview.emergentagent.com).
           All 33 tests passed with identical results to the previous test run. The API continues to work correctly.
           
           TEST RESULTS (33/33 PASSED):
@@ -4268,7 +4268,7 @@ backend:
               
               ✅ ok === true
               ✅ audio.audioUrl present and ending in .mp3
-                URL: https://secure-passphrase-14.preview.emergentagent.com/api/assets/user-audio/tts_1786329027952_rachel.mp3
+                URL: https://key-management-26.preview.emergentagent.com/api/assets/user-audio/tts_1786329027952_rachel.mp3
               ✅ NO audio.error field
               ✅ audio.voice === "Rachel"
               ✅ audio.fallbackUsed === false
@@ -7440,7 +7440,7 @@ backend:
             
             ✅ Step 2: permanent_mp3_url (CORE FIX)
                 • pass: true ✅
-                • audioUrl: "https://secure-passphrase-14.preview.emergentagent.com/api/assets/user-audio/DEVTEST-VM_01e0ce71-bbb.mp3" ✅
+                • audioUrl: "https://key-management-26.preview.emergentagent.com/api/assets/user-audio/DEVTEST-VM_01e0ce71-bbb.mp3" ✅
                 ★ CORE FIX VERIFIED: The saved audioUrl is a PERMANENT /assets/user-audio/*.mp3 URL
                 ★ NOT an api.telegram.org link (which would expire in ~1h)
                 ★ The OGG voice note was transcoded to MP3 format
@@ -12160,7 +12160,7 @@ backend:
             • test_phone_scheduler_no_leak.js: 12 passed, 0 failed ✓
           
           TEST 10 - Admin endpoint smoke test: ✅ PASSED
-            • GET https://secure-passphrase-14.preview.emergentagent.com/api/admin/dns-heal-status?key=o/Qb8ArGahlquhCQ
+            • GET https://key-management-26.preview.emergentagent.com/api/admin/dns-heal-status?key=o/Qb8ArGahlquhCQ
             • HTTP 200, ok=true ✓
           
           CONCLUSION:
@@ -13498,7 +13498,7 @@ frontend:
           mocked panel data endpoints (no live cPanel/WHM/Cloudflare impact).
           
           Test method: Playwright browser automation with page.route() mocking
-          Base URL: https://secure-passphrase-14.preview.emergentagent.com/panel
+          Base URL: https://key-management-26.preview.emergentagent.com/panel
           Test run: 2026-09-28 (all tests passed, 0 failures, 0 warnings)
 
   - task: "HostBay Panel End-to-End UI Test (2026-08-31) - Full verification of domains, subdomains, addon domains, File Manager, and MySQL with WHM-root fallback"
@@ -13515,7 +13515,7 @@ frontend:
           ✅ HOSTBAY PANEL END-TO-END TEST PASSED (2026-08-31) - All core functionality working with WHM-root fallback:
           
           TEST ENVIRONMENT:
-          • URL: https://secure-passphrase-14.preview.emergentagent.com/panel
+          • URL: https://key-management-26.preview.emergentagent.com/panel
           • Test account: nbayftest / PIN: 241743
           • Domain: testingbays.sbs
           • Context: Account has DEAD user-level cPanel auth (by design) - all operations use WHM-root fallback
@@ -13607,7 +13607,7 @@ frontend:
           ❌ CRITICAL ISSUES FOUND - Subdomain quick-nav and bulk import features tested (2026-08-30):
           
           TEST ENVIRONMENT:
-          • URL: https://secure-passphrase-14.preview.emergentagent.com/panel
+          • URL: https://key-management-26.preview.emergentagent.com/panel
           • Test account: nbayftest / PIN: 241743
           • Domain: testingbays.sbs
           
@@ -13676,7 +13676,7 @@ frontend:
         comment: |
           ✅ READ-ONLY UI VERIFICATION COMPLETE - ALL TESTS PASSED (100% pass rate)
           
-          SCOPE: Verified the Nomadly admin panel UI at https://secure-passphrase-14.preview.emergentagent.com
+          SCOPE: Verified the Nomadly admin panel UI at https://key-management-26.preview.emergentagent.com
           in READ-ONLY mode. This is a LIVE PRODUCTION environment with real MongoDB and payment/domain/telephony APIs.
           NO data-modifying actions were taken (no clicks on Buy, Register, Purchase, Create, Delete, Send, Connect, 
           Verify, Submit, Save buttons). Only page navigation, reading text, and capturing console/network errors.
@@ -14155,7 +14155,7 @@ agent_communication:
       
       Test file: /app/backend_test.py (51 comprehensive tests covering all 9 issues)
       Test run: 2026-10-03 (all 51 tests passed, 0 failures, 0 warnings)
-      Base URL: https://secure-passphrase-14.preview.emergentagent.com/api/reseller/v1
+      Base URL: https://key-management-26.preview.emergentagent.com/api/reseller/v1
 
 
   - agent: "testing"
@@ -15121,7 +15121,7 @@ agent_communication:
         
         ✅ ok === true
         ✅ audio.audioUrl present and ending in .mp3
-          URL: https://secure-passphrase-14.preview.emergentagent.com/api/assets/user-audio/tts_1786329027952_rachel.mp3
+          URL: https://key-management-26.preview.emergentagent.com/api/assets/user-audio/tts_1786329027952_rachel.mp3
         ✅ NO audio.error field
         ✅ audio.voice === "Rachel"
         ✅ audio.fallbackUsed === false
@@ -20874,7 +20874,7 @@ frontend_ui_test_scope_2026-08-31: |
       TEST SCOPE:
       • Account: nbayftest / PIN: 241743 / domain: testingbays.sbs
       • User-level cPanel auth is BROKEN on purpose (must use WHM session fallback)
-      • Backend URL: https://secure-passphrase-14.preview.emergentagent.com
+      • Backend URL: https://key-management-26.preview.emergentagent.com
       • Test file: qa-content-test.txt in /public_html
       • Test content: "hello-fallback-2026-verify-XYZ"
       
@@ -20956,7 +20956,7 @@ frontend_ui_test_scope_2026-08-31: |
       ✅ VERIFICATION PASSED - HostBay Panel subdomain delete fix WORKING (2/2 tests passed):
       
       SCOPE: Re-verified the subdomain delete fix in the HostBay hosting panel (React app at 
-      https://secure-passphrase-14.preview.emergentagent.com/panel). This is a 
+      https://key-management-26.preview.emergentagent.com/panel). This is a 
       PRODUCTION-connected environment. Account: nbayftest / PIN: 241743 / domain: testingbays.sbs.
       
       [TEST 1] PRIMARY - Subdomain delete must not "reappear": ✅ PASSED
@@ -21069,7 +21069,7 @@ frontend_ui_test_scope_2026-08-31: |
       ❌ VERIFICATION FAILED - HostBay Panel subdomain delete & console warnings (3/3 CRITICAL FAILURES):
       
       SCOPE: Verified two specific fixes in the HostBay hosting panel (React app at 
-      https://secure-passphrase-14.preview.emergentagent.com/panel). This is a 
+      https://key-management-26.preview.emergentagent.com/panel). This is a 
       PRODUCTION-connected environment. Account: nbayftest / PIN: 241743 / domain: testingbays.sbs.
       
       [TEST 1] FIX #1 - Subdomain delete must not "reappear": ❌ CRITICAL FAILURE
@@ -21458,7 +21458,7 @@ frontend_ui_test_scope_2026-08-31: |
       The API is working correctly and ready for production use when RESELLER_API_LIVE=true is set.
       
       VERIFICATION SCOPE:
-      • Base URL: https://secure-passphrase-14.preview.emergentagent.com/api/reseller/v1
+      • Base URL: https://key-management-26.preview.emergentagent.com/api/reseller/v1
       • Auth: X-API-Key: nmdly_e2e_51573577f5db956c5c0cb039 (or Authorization: Bearer)
       • Test RDP: e2e-rdp-1 (provider digitalocean-rdp, os_id ws2022)
       • Environment: DEV SANDBOX (SKIP_WEBHOOK_SYNC=true, dry_run mode)
@@ -21554,7 +21554,7 @@ backend:
           the reseller API reads from, and backfilled the existing account name65fb.
           
           ENVIRONMENT: LIVE mode (RESELLER_API_LIVE=true, uses PROD Railway DB via RESELLER_DB_URL)
-          Base URL: https://3f880739-5533-4e15-b35e-112dc854f3b8.preview.emergentagent.com/api/reseller/v1
+          Base URL: https://key-management-26.preview.emergentagent.com/api/reseller/v1
           API Key: rsk_live_cdc3f785ac3cfd813c6143d7813e1a59cc15fc42327ab736
           Owner: chatId 5590563715 (@onarrival1), wallet balance $686
           ⛔ CRITICAL SAFETY: ALL tests are READ-ONLY GET requests. NO mutations performed.
@@ -21664,7 +21664,7 @@ backend:
           Test output: /tmp/reseller_cpanel_credentials_test_output.txt (full test run log)
           Test run: 2026-10-05 (all 22 tests passed, 0 failures, 0 warnings)
           Environment: LIVE mode (RESELLER_API_LIVE=true, PROD Railway DB via RESELLER_DB_URL)
-          Base URL: https://3f880739-5533-4e15-b35e-112dc854f3b8.preview.emergentagent.com/api/reseller/v1
+          Base URL: https://key-management-26.preview.emergentagent.com/api/reseller/v1
           API Key: rsk_live_cdc3f785ac3cfd813c6143d7813e1a59cc15fc42327ab736
           Owner: chatId 5590563715 (@onarrival1), wallet balance $686
 
