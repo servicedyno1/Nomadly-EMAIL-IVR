@@ -384,12 +384,13 @@ function endpointGroups(base) {
             ['region', false, 'Region code — defaults to EU'],
             ['hostname', false, 'Optional label/hostname'],
             ['os', false, 'OS image — defaults to ubuntu'],
+            ['ssh_keys', false, 'Optional OpenSSH public key(s) to pre-install for root at first boot — a single string or an array (e.g. "ssh-ed25519 AAAA… user@host"). Keys are registered on the provider and baked into the droplet, so you can SSH in immediately. (Linux VPS only; ignored for RDP.)'],
             ['client_ref', false, 'Your own idempotency key — a retry with the same value returns the same provisioning job (no double-charge)'],
           ],
           curl: `curl -s -X POST ${base}/vps \\
   -H "Authorization: Bearer YOUR_API_KEY" \\
   -H "Content-Type: application/json" \\
-  -d '{"plan_id":"s-1vcpu-1gb","region":"EU","hostname":"web-01","client_ref":"order-9A1"}'`,
+  -d '{"plan_id":"s-1vcpu-1gb","region":"EU","hostname":"web-01","ssh_keys":["ssh-ed25519 AAAA… user@host"],"client_ref":"order-9A1"}'`,
           resp: `HTTP 202 Accepted
 {
   "status": "provisioning",
@@ -466,6 +467,45 @@ function endpointGroups(base) {
 // Pre-flight — POST {"dry_run":true} (no charge): { "dry_run": true, "product": "vps", "action": "renew",
 //   "id": "b2f1c0a4-…", "renewable": true, "renew_blocked_reason": null, "months": 1, "plan": "VPS 2vCPU / 4GB",
 //   "price_usd": 12.00, "wallet_balance_usd": 88.00, "sufficient_balance": true }`,
+        },
+        {
+          method: 'POST', path: '/vps/:id/password-reset', auth: true, billed: false,
+          desc: 'Reset the root password IN PLACE — the data is preserved (no reinstall). Returns a freshly generated password and updates GET /vps/:id/credentials to match. The server must be reachable with a known credential (the stored root-password secret or an installed SSH key); if it cannot be set in place this returns 409 password_not_set_in_place (password: null) with guidance, and 501 not_supported if the provider/record has no reset op.',
+          curl: `curl -s -X POST ${base}/vps/b2f1c0a4-…/password-reset \\
+  -H "Authorization: Bearer YOUR_API_KEY"`,
+          resp: `{ "mode": "live", "id": "b2f1c0a4-…", "username": "root", "password": "N3w-Pass-…", "verified": true, "data_preserved": true }`,
+        },
+        {
+          method: 'POST', path: '/vps/:id/ssh-key', auth: true, billed: false,
+          desc: 'Install an OpenSSH public key onto the ALREADY-RUNNING VPS — appended to root\u2019s authorized_keys in place (idempotent, nothing is wiped, data preserved). Logs in using the stored root password or an existing key. The plural path POST /vps/:id/ssh-keys is an alias for this same action. Requires the box to have an IP already (else 409 no_host); on an unreachable server returns 409 ssh_key_apply_failed. (Linux VPS only.)',
+          params: [['public_key', true, 'An OpenSSH public key string (e.g. "ssh-ed25519 AAAA… user@host"). Alias field: ssh_key.']],
+          curl: `curl -s -X POST ${base}/vps/b2f1c0a4-…/ssh-key \\
+  -H "Authorization: Bearer YOUR_API_KEY" \\
+  -H "Content-Type: application/json" \\
+  -d '{"public_key":"ssh-ed25519 AAAA… user@host"}'`,
+          resp: `{ "mode": "live", "id": "b2f1c0a4-…", "username": "root", "installed": true, "method": "password", "note": "Public key appended to root authorized_keys (idempotent); SSH access ensured." }`,
+        },
+        {
+          method: 'GET', path: '/vps/:id/ssh-keys', auth: true, billed: false,
+          desc: 'List the public keys currently in the running VPS\u2019s root authorized_keys (best-effort read over SSH). Requires the box to have an IP (else 409 no_host); if it cannot be reached with a known credential returns 409 ssh_keys_read_failed. (Linux VPS only.)',
+          curl: `curl -s ${base}/vps/b2f1c0a4-…/ssh-keys \\
+  -H "Authorization: Bearer YOUR_API_KEY"`,
+          resp: `{ "mode": "live", "id": "b2f1c0a4-…", "username": "root", "keys": ["ssh-ed25519 AAAA… user@host"], "count": 1 }`,
+        },
+        {
+          method: 'POST', path: '/vps/:id/reinstall', auth: true, billed: false,
+          desc: 'DESTRUCTIVE OS reinstall — rebuild the SAME droplet from a chosen image. The disk is WIPED (all data lost) but the public IP is kept, and the box is back in ~3 min. CONFIRMATION REQUIRED: the first call without {"confirm": true} returns 400 confirmation_required; re-send with confirm:true to proceed. Optionally switch distro with "os" (an image id from the provider; defaults to the current OS). Your original root password is re-applied by the re-run cloud-init; if the box had no stored password, call POST /vps/:id/password-reset (or use your SSH key) once it is back online. Returns 400 invalid_os for an unknown image and 501 not_supported if the provider/record has no reinstall op.',
+          params: [
+            ['confirm', true, 'Must be true — reinstall wipes the disk, so it is never performed accidentally.'],
+            ['os', false, 'Image id to reinstall (e.g. ubuntu-24-04-x64) — defaults to the current OS. Invalid values return 400 invalid_os with the valid list.'],
+          ],
+          curl: `curl -s -X POST ${base}/vps/b2f1c0a4-…/reinstall \\
+  -H "Authorization: Bearer YOUR_API_KEY" \\
+  -H "Content-Type: application/json" \\
+  -d '{"confirm":true,"os":"ubuntu-24-04-x64"}'`,
+          resp: `{ "mode": "live", "id": "b2f1c0a4-…", "os": "ubuntu-24-04-x64", "ip": "203.0.113.55", "eta_minutes": 3,
+  "username": "root", "password": "Xy8!kP2q…", "data_preserved": false,
+  "note": "Reinstall started (disk wiped, IP kept). Your original root password is re-applied by cloud-init once the server finishes booting (~3 min)." }`,
         },
       ],
     },
