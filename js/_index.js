@@ -38102,7 +38102,16 @@ const { createResellerApi } = require('./reseller-api')
 // OWN dedicated connection to RESELLER_DB_URL. Provisioning jobs are claimed atomically
 // (findOneAndUpdate status:pending→processing), so sharing the live resellerProvisionJobs
 // collection with the production instance never double-builds the same job.
-let resellerDb = db
+// `resellerDb` is ONLY the optional dedicated LIVE override (used on a dev pod
+// whose main `db` is a local sandbox). It starts null and `getDb` falls back to
+// the live top-level `db`. CRITICAL: do NOT initialise it to `db` here — this
+// line runs at module-load time, BEFORE connectWithRetry()/loadData() assigns
+// `db`, so it would capture `undefined` permanently. On production (no
+// RESELLER_DB_URL) that left getDb()===undefined forever → every reseller API
+// call + provisionWorkerTick threw "Database not ready" even though the main
+// bot DB was connected. The `|| db` fallback below reads the live `db` at
+// call-time, so it works once loadData() has run.
+let resellerDb = null
 if (process.env.RESELLER_DB_URL) {
   try {
     const { MongoClient: ResellerMongoClient } = require('mongodb')
@@ -38116,7 +38125,7 @@ if (process.env.RESELLER_DB_URL) {
   }
 }
 app.use('/reseller/v1', createResellerApi({
-  getDb: () => resellerDb,
+  getDb: () => resellerDb || db,
   log,
   notifyAdmin,
 }))

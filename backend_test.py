@@ -1,210 +1,248 @@
 #!/usr/bin/env python3
 """
-Backend test for Reseller VPS OS-reinstall endpoint (2026-10-05c)
+Backend Test Suite for Reseller API "Database not ready" Bugfix
+================================================================
 
-CRITICAL SAFETY: This test performs ONLY 3 safe checks that do NOT trigger a real reinstall:
-1. No auth → expect 401 (route registered + auth-gated)
-2. Valid os WITHOUT confirm → expect 400 confirmation_required (disk-wipe guard blocks it)
-3. Invalid os WITH confirm → expect 400 invalid_os (validation runs BEFORE rebuild, safe)
+CONTEXT:
+The reseller REST API was returning HTTP 500 { "error":"auth_error", "message":"Database not ready" }
+on every call (reported on GET /vps/plans). Root cause was a stale/undefined DB handle in js/_index.js.
 
-⛔ ABSOLUTE HARD CONSTRAINT: NEVER send {"confirm": true} with a VALID os (e.g. ubuntu-24-04-x64)
-   to the reinstall endpoint — that triggers a REAL, IRREVERSIBLE disk wipe of the production VPS.
+FIX:
+Changed `let resellerDb = db` to `let resellerDb = null` and `getDb: () => resellerDb || db` to fall
+back to the live DB at call-time (after loadData() has run).
+
+TEST ENVIRONMENT:
+The dev pod has been configured to REPRODUCE the production condition (dedicated RESELLER_DB_URL disabled,
+so the fallback DB path is exercised), and a valid reseller API key was seeded into the local DB.
+
+TESTS:
+1. GET /api/reseller/v1/vps/plans with valid key → expect 200 with plans array (NOT 500 "Database not ready")
+2. GET /api/reseller/v1/vps/plans with invalid key → expect 401 invalid_api_key (NOT 500 "Database not ready")
+3. GET /api/reseller/v1/vps/plans with no auth → expect 401 missing_api_key
+
+PASS CRITERIA:
+Test 1 returns 200 with a plans array, Test 2 returns 401 invalid_api_key, Test 3 returns 401 missing_api_key,
+and NONE of them return 500 "Database not ready".
 """
 
 import os
 import sys
 import requests
 import json
+from typing import Dict, Any, Optional
 
-# Environment
-BASE_URL = "https://key-management-26.preview.emergentagent.com/api/reseller/v1"
-LIVE_API_KEY = "rsk_live_cdc3f785ac3cfd813c6143d7813e1a59cc15fc42327ab736"
-TEST_VPS_ID = "b7a9f3b5-be02-4545-921d-b2f2e6603556"
+# Read REACT_APP_BACKEND_URL from frontend/.env
+def get_backend_url() -> str:
+    env_path = '/app/frontend/.env'
+    with open(env_path, 'r') as f:
+        for line in f:
+            if line.startswith('REACT_APP_BACKEND_URL='):
+                return line.split('=', 1)[1].strip()
+    raise ValueError("REACT_APP_BACKEND_URL not found in /app/frontend/.env")
 
-# Test counters
-tests_run = 0
-tests_passed = 0
-tests_failed = 0
+BASE_URL = get_backend_url()
+RESELLER_API_BASE = f"{BASE_URL}/api/reseller/v1"
 
-def test(name, condition, details=""):
-    """Record test result"""
-    global tests_run, tests_passed, tests_failed
-    tests_run += 1
-    if condition:
-        tests_passed += 1
-        print(f"✅ TEST {tests_run}: {name}")
-        if details:
-            print(f"   {details}")
+# Valid API key (seeded into local DB)
+VALID_API_KEY = "rsk_live_6af6daabd545fccb80c2c5265a8caaae52af8ae6dd49f848"
+INVALID_API_KEY = "rsk_live_bogus_invalid_key_123"
+
+# Test results
+test_results = []
+passed = 0
+failed = 0
+
+def log_test(name: str, passed_flag: bool, details: str):
+    """Log test result"""
+    global passed, failed
+    status = "✅ PASS" if passed_flag else "❌ FAIL"
+    test_results.append(f"{status}: {name}\n{details}\n")
+    if passed_flag:
+        passed += 1
     else:
-        tests_failed += 1
-        print(f"❌ TEST {tests_run}: {name}")
-        if details:
-            print(f"   {details}")
-    return condition
+        failed += 1
+    print(f"{status}: {name}")
+    print(details)
+    print()
+
+def make_request(endpoint: str, headers: Optional[Dict[str, str]] = None) -> tuple[int, Dict[str, Any], str]:
+    """Make HTTP request and return status, json body, and raw text"""
+    url = f"{RESELLER_API_BASE}{endpoint}"
+    try:
+        response = requests.get(url, headers=headers or {}, timeout=10)
+        status = response.status_code
+        try:
+            body = response.json()
+        except:
+            body = {}
+        text = response.text
+        return status, body, text
+    except Exception as e:
+        return 0, {"error": str(e)}, str(e)
+
+def test_1_valid_key():
+    """TEST 1: GET /vps/plans with valid key → expect 200 with plans array"""
+    print("=" * 80)
+    print("TEST 1: GET /vps/plans with valid Authorization header (valid key)")
+    print("=" * 80)
+    
+    headers = {"Authorization": f"Bearer {VALID_API_KEY}"}
+    status, body, text = make_request("/vps/plans", headers)
+    
+    details = f"URL: {RESELLER_API_BASE}/vps/plans\n"
+    details += f"Headers: Authorization: Bearer {VALID_API_KEY}\n"
+    details += f"Status: {status}\n"
+    details += f"Body: {json.dumps(body, indent=2)}\n"
+    
+    # Check 1: Status must be 200
+    if status != 200:
+        log_test("TEST 1: Valid key returns 200", False, 
+                 details + f"\n❌ CRITICAL: Expected status 200, got {status}")
+        return
+    
+    # Check 2: Must NOT be 500 "Database not ready"
+    if status == 500 and body.get("message") == "Database not ready":
+        log_test("TEST 1: Valid key returns 200", False,
+                 details + "\n❌ CRITICAL: Got 500 'Database not ready' - THE BUG IS NOT FIXED!")
+        return
+    
+    # Check 3: Must have plans array
+    if "plans" not in body:
+        log_test("TEST 1: Valid key returns 200", False,
+                 details + "\n❌ CRITICAL: Response does not contain 'plans' array")
+        return
+    
+    # Check 4: Plans must be an array
+    if not isinstance(body.get("plans"), list):
+        log_test("TEST 1: Valid key returns 200", False,
+                 details + f"\n❌ CRITICAL: 'plans' is not an array, got {type(body.get('plans'))}")
+        return
+    
+    # Check 5: Plans array should have items
+    plans_count = len(body.get("plans", []))
+    details += f"\n✅ Plans count: {plans_count}"
+    details += f"\n✅ Response structure: product={body.get('product')}, provider={body.get('provider')}, region={body.get('region')}"
+    
+    log_test("TEST 1: Valid key returns 200 with plans array", True, details)
+
+def test_2_invalid_key():
+    """TEST 2: GET /vps/plans with invalid key → expect 401 invalid_api_key"""
+    print("=" * 80)
+    print("TEST 2: GET /vps/plans with invalid Authorization header")
+    print("=" * 80)
+    
+    headers = {"Authorization": f"Bearer {INVALID_API_KEY}"}
+    status, body, text = make_request("/vps/plans", headers)
+    
+    details = f"URL: {RESELLER_API_BASE}/vps/plans\n"
+    details += f"Headers: Authorization: Bearer {INVALID_API_KEY}\n"
+    details += f"Status: {status}\n"
+    details += f"Body: {json.dumps(body, indent=2)}\n"
+    
+    # Check 1: Status must be 401
+    if status != 401:
+        log_test("TEST 2: Invalid key returns 401", False,
+                 details + f"\n❌ CRITICAL: Expected status 401, got {status}")
+        return
+    
+    # Check 2: Must NOT be 500 "Database not ready"
+    if status == 500 and body.get("message") == "Database not ready":
+        log_test("TEST 2: Invalid key returns 401", False,
+                 details + "\n❌ CRITICAL: Got 500 'Database not ready' - THE BUG IS NOT FIXED!")
+        return
+    
+    # Check 3: Error must be "invalid_api_key"
+    if body.get("error") != "invalid_api_key":
+        log_test("TEST 2: Invalid key returns 401 invalid_api_key", False,
+                 details + f"\n❌ Expected error='invalid_api_key', got error='{body.get('error')}'")
+        return
+    
+    details += "\n✅ Correct error: invalid_api_key"
+    details += "\n✅ This proves the DB lookup actually executed successfully (not 500 'Database not ready')"
+    
+    log_test("TEST 2: Invalid key returns 401 invalid_api_key", True, details)
+
+def test_3_no_auth():
+    """TEST 3: GET /vps/plans with no auth → expect 401 missing_api_key"""
+    print("=" * 80)
+    print("TEST 3: GET /vps/plans with NO Authorization header")
+    print("=" * 80)
+    
+    status, body, text = make_request("/vps/plans")
+    
+    details = f"URL: {RESELLER_API_BASE}/vps/plans\n"
+    details += f"Headers: (none)\n"
+    details += f"Status: {status}\n"
+    details += f"Body: {json.dumps(body, indent=2)}\n"
+    
+    # Check 1: Status must be 401
+    if status != 401:
+        log_test("TEST 3: No auth returns 401", False,
+                 details + f"\n❌ CRITICAL: Expected status 401, got {status}")
+        return
+    
+    # Check 2: Must NOT be 500 "Database not ready"
+    if status == 500 and body.get("message") == "Database not ready":
+        log_test("TEST 3: No auth returns 401", False,
+                 details + "\n❌ CRITICAL: Got 500 'Database not ready' - THE BUG IS NOT FIXED!")
+        return
+    
+    # Check 3: Error must be "missing_api_key"
+    if body.get("error") != "missing_api_key":
+        log_test("TEST 3: No auth returns 401 missing_api_key", False,
+                 details + f"\n❌ Expected error='missing_api_key', got error='{body.get('error')}'")
+        return
+    
+    details += "\n✅ Correct error: missing_api_key"
+    
+    log_test("TEST 3: No auth returns 401 missing_api_key", True, details)
 
 def main():
-    print("=" * 80)
-    print("RESELLER VPS OS-REINSTALL ENDPOINT TEST (2026-10-05c)")
-    print("=" * 80)
+    print("\n" + "=" * 80)
+    print("RESELLER API BUGFIX VERIFICATION TEST SUITE")
+    print("Bug: 'Database not ready' error on every reseller API call")
+    print("Fix: Changed getDb to fall back to live DB at call-time")
+    print("=" * 80 + "\n")
+    
     print(f"Base URL: {BASE_URL}")
-    print(f"Test VPS ID: {TEST_VPS_ID}")
-    print(f"Mode: LIVE (PRODUCTION)")
-    print("=" * 80)
+    print(f"Reseller API Base: {RESELLER_API_BASE}")
+    print(f"Valid API Key: {VALID_API_KEY}")
     print()
     
-    # ========================================================================
-    # SAFE CHECK 1: No auth → expect 401
-    # ========================================================================
-    print("★★★ SAFE CHECK 1: POST /vps/:id/reinstall WITHOUT auth → expect 401 ★★★")
-    try:
-        url = f"{BASE_URL}/vps/{TEST_VPS_ID}/reinstall"
-        response = requests.post(url, json={"os": "ubuntu-24-04-x64"}, timeout=10)
-        status = response.status_code
-        body = response.json() if response.headers.get('content-type', '').startswith('application/json') else response.text[:200]
-        
-        test(
-            "POST /vps/:id/reinstall without auth → 401",
-            status == 401,
-            f"Status: {status}, Body: {json.dumps(body, indent=2) if isinstance(body, dict) else body}"
-        )
-        
-        if status == 401:
-            test(
-                "Response has error='missing_api_key'",
-                isinstance(body, dict) and body.get('error') == 'missing_api_key',
-                f"Error: {body.get('error') if isinstance(body, dict) else 'N/A'}"
-            )
-        else:
-            test("Response has error='missing_api_key'", False, f"Expected 401, got {status}")
-    except Exception as e:
-        test("POST /vps/:id/reinstall without auth → 401", False, f"Exception: {e}")
-        test("Response has error='missing_api_key'", False, f"Exception: {e}")
+    # Run all tests
+    test_1_valid_key()
+    test_2_invalid_key()
+    test_3_no_auth()
     
-    print()
-    
-    # ========================================================================
-    # SAFE CHECK 2: Valid os WITHOUT confirm → expect 400 confirmation_required
-    # ========================================================================
-    print("★★★ SAFE CHECK 2: POST /vps/:id/reinstall WITH key, valid os, NO confirm → expect 400 confirmation_required ★★★")
-    try:
-        url = f"{BASE_URL}/vps/{TEST_VPS_ID}/reinstall"
-        headers = {"Authorization": f"Bearer {LIVE_API_KEY}"}
-        # CRITICAL: NO "confirm" field — this is the disk-wipe guard check
-        body = {"os": "ubuntu-24-04-x64"}
-        response = requests.post(url, json=body, headers=headers, timeout=10)
-        status = response.status_code
-        resp_body = response.json() if response.headers.get('content-type', '').startswith('application/json') else response.text[:200]
-        
-        test(
-            "POST /vps/:id/reinstall with valid os, NO confirm → 400",
-            status == 400,
-            f"Status: {status}, Body: {json.dumps(resp_body, indent=2) if isinstance(resp_body, dict) else resp_body}"
-        )
-        
-        if status == 400:
-            test(
-                "Response has error='confirmation_required'",
-                isinstance(resp_body, dict) and resp_body.get('error') == 'confirmation_required',
-                f"Error: {resp_body.get('error') if isinstance(resp_body, dict) else 'N/A'}"
-            )
-            test(
-                "Response message mentions disk wipe",
-                isinstance(resp_body, dict) and 'wipe' in resp_body.get('message', '').lower(),
-                f"Message: {resp_body.get('message', 'N/A') if isinstance(resp_body, dict) else 'N/A'}"
-            )
-        else:
-            test("Response has error='confirmation_required'", False, f"Expected 400, got {status}")
-            test("Response message mentions disk wipe", False, f"Expected 400, got {status}")
-    except Exception as e:
-        test("POST /vps/:id/reinstall with valid os, NO confirm → 400", False, f"Exception: {e}")
-        test("Response has error='confirmation_required'", False, f"Exception: {e}")
-        test("Response message mentions disk wipe", False, f"Exception: {e}")
-    
-    print()
-    
-    # ========================================================================
-    # SAFE CHECK 3: Invalid os WITH confirm → expect 400 invalid_os
-    # ========================================================================
-    print("★★★ SAFE CHECK 3: POST /vps/:id/reinstall WITH key, invalid os, WITH confirm → expect 400 invalid_os ★★★")
-    try:
-        url = f"{BASE_URL}/vps/{TEST_VPS_ID}/reinstall"
-        headers = {"Authorization": f"Bearer {LIVE_API_KEY}"}
-        # CRITICAL: Invalid os "windows-xp" — validation runs BEFORE rebuild, so this is SAFE
-        body = {"os": "windows-xp", "confirm": True}
-        response = requests.post(url, json=body, headers=headers, timeout=10)
-        status = response.status_code
-        resp_body = response.json() if response.headers.get('content-type', '').startswith('application/json') else response.text[:200]
-        
-        test(
-            "POST /vps/:id/reinstall with invalid os, WITH confirm → 400",
-            status == 400,
-            f"Status: {status}, Body: {json.dumps(resp_body, indent=2) if isinstance(resp_body, dict) else resp_body}"
-        )
-        
-        if status == 400:
-            test(
-                "Response has error='invalid_os'",
-                isinstance(resp_body, dict) and resp_body.get('error') == 'invalid_os',
-                f"Error: {resp_body.get('error') if isinstance(resp_body, dict) else 'N/A'}"
-            )
-            test(
-                "Response has 'valid_os' list",
-                isinstance(resp_body, dict) and 'valid_os' in resp_body,
-                f"Valid OS count: {len(resp_body.get('valid_os', [])) if isinstance(resp_body, dict) else 'N/A'}"
-            )
-            if isinstance(resp_body, dict) and 'valid_os' in resp_body:
-                valid_os_list = resp_body.get('valid_os', [])
-                print(f"   Valid OS images: {', '.join([img.get('id', 'N/A') for img in valid_os_list[:5]])}{'...' if len(valid_os_list) > 5 else ''}")
-        else:
-            test("Response has error='invalid_os'", False, f"Expected 400, got {status}")
-            test("Response has 'valid_os' list", False, f"Expected 400, got {status}")
-    except Exception as e:
-        test("POST /vps/:id/reinstall with invalid os, WITH confirm → 400", False, f"Exception: {e}")
-        test("Response has error='invalid_os'", False, f"Exception: {e}")
-        test("Response has 'valid_os' list", False, f"Exception: {e}")
-    
-    print()
-    
-    # ========================================================================
-    # SUMMARY
-    # ========================================================================
-    print("=" * 80)
+    # Summary
+    print("\n" + "=" * 80)
     print("TEST SUMMARY")
     print("=" * 80)
-    print(f"Total tests: {tests_run}")
-    print(f"Passed: {tests_passed}")
-    print(f"Failed: {tests_failed}")
-    print(f"Pass rate: {tests_passed}/{tests_run} ({100*tests_passed//tests_run if tests_run > 0 else 0}%)")
-    print("=" * 80)
+    print(f"Total tests: {passed + failed}")
+    print(f"Passed: {passed}")
+    print(f"Failed: {failed}")
+    print()
     
-    # PASS criteria: All 3 safe checks must pass
-    # CHECK 1: No auth → 401 (2 tests)
-    # CHECK 2: Valid os WITHOUT confirm → 400 confirmation_required (3 tests)
-    # CHECK 3: Invalid os WITH confirm → 400 invalid_os (3 tests)
-    # Total: 8 tests
-    
-    if tests_passed == tests_run and tests_run >= 8:
-        print()
-        print("✅ ALL SAFE CHECKS PASSED")
+    if failed == 0:
+        print("✅ ALL TESTS PASSED - BUGFIX VERIFIED!")
         print()
         print("PASS CRITERIA MET:")
-        print("  1. ✅ No auth → 401 (route registered + auth-gated)")
-        print("  2. ✅ Valid os WITHOUT confirm → 400 confirmation_required (disk-wipe guard working)")
-        print("  3. ✅ Invalid os WITH confirm → 400 invalid_os (validation runs before rebuild, safe)")
+        print("• Test 1 returns 200 with a plans array ✅")
+        print("• Test 2 returns 401 invalid_api_key ✅")
+        print("• Test 3 returns 401 missing_api_key ✅")
+        print("• NONE of them return 500 'Database not ready' ✅")
         print()
-        print("CRITICAL SAFETY VERIFIED:")
-        print("  ✅ NO real reinstall was triggered (all checks were safe)")
-        print("  ✅ Disk-wipe guard is working (confirmation_required for valid os without confirm)")
-        print("  ✅ OS validation is working (invalid_os for invalid os, even with confirm)")
-        print("  ✅ Route is registered and auth-gated (401 without key)")
-        print()
+        print("CONCLUSION:")
+        print("The reseller API 'Database not ready' bug is FIXED. The getDb fallback to the")
+        print("live DB is working correctly. All three test scenarios passed.")
         return 0
     else:
+        print("❌ SOME TESTS FAILED - BUGFIX NOT VERIFIED")
         print()
-        print("❌ SOME CHECKS FAILED")
-        print()
-        print(f"Expected all 8+ tests to pass, but {tests_failed} failed.")
-        print()
+        print("FAILED TESTS:")
+        for result in test_results:
+            if "❌ FAIL" in result:
+                print(result)
         return 1
 
 if __name__ == "__main__":

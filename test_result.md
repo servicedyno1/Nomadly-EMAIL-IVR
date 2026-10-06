@@ -9,6 +9,37 @@
 #====================================================================================================
 
 #====================================================================================================
+# CURRENT TASK (2026-10-06) — BUGFIX: reseller API "Database not ready" (getDb undefined) [test THIS]
+#====================================================================================================
+current_task_2026_10_06_reseller_db_not_ready: |
+  BUG (production droplet): every reseller API call + the provisionWorkerTick returned HTTP 500
+  { "error":"auth_error", "message":"Database not ready" } even though the main bot DB was connected
+  ("DB Connected lala" present in logs). Reported via upstream probing of GET /vps/plans.
+
+  ROOT CAUSE (js/_index.js ~line 38105): `let resellerDb = db` executed at MODULE-LOAD time, BEFORE
+  the async connectWithRetry()->loadData() assigned the top-level `db`, so it captured `undefined`.
+  On production RESELLER_DB_URL is NOT set, so the reassignment block was skipped and the closure
+  getDb:()=>resellerDb returned `undefined` forever -> col() threw "Database not ready".
+
+  FIX: `let resellerDb = null` + `getDb: () => resellerDb || db` — reads the live top-level `db` at
+  call-time (populated after loadData), while still preferring a dedicated RESELLER_DB_URL connection
+  when one is configured. Fixes both the HTTP API and the provisionWorkerTick.
+
+  TEST ENVIRONMENT (dev pod, reproducing production): RESELLER_DB_URL is TEMPORARILY DISABLED on this
+  pod so getDb must use the `|| db` fallback to the LOCAL Mongo. A valid reseller API key was seeded
+  into the LOCAL db (owner 5590563715). Base URL {REACT_APP_BACKEND_URL}/api/reseller/v1
+    Valid key: rsk_live_6af6daabd545fccb80c2c5265a8caaae52af8ae6dd49f848
+
+  WHAT TO VERIFY — SAFE, READ-ONLY CHECKS ONLY (GET /vps/plans is a catalog: no provisioning, no charge):
+    1. GET /vps/plans with header "Authorization: Bearer <valid key above>" -> HTTP 200 JSON
+       { product:"vps", provider, region, plans:[...] }. MUST NOT be 500 "Database not ready".
+    2. GET /vps/plans with header "Authorization: Bearer rsk_live_bogus_invalid_key_123" -> HTTP 401
+       { error:"invalid_api_key" } (proves the DB lookup actually ran; NOT a 500 "Database not ready").
+    3. GET /vps/plans with NO auth header -> HTTP 401 { error:"missing_api_key" }.
+  HARD CONSTRAINT: Only GET /vps/plans. Do NOT call POST /vps or any mutating/provisioning endpoint.
+
+
+#====================================================================================================
 # CURRENT TASK (2026-10-05c) — FEATURE: reseller VPS OS reinstall endpoint [test THIS]
 #====================================================================================================
 current_task_2026_10_05c_reseller_vps_reinstall: |
@@ -609,6 +640,98 @@ user_problem_statement: |
 
 
 backend:
+  - task: "Reseller API 'Database not ready' bugfix (2026-10-06) — Fixed critical production bug where every reseller API call returned HTTP 500 { error:'auth_error', message:'Database not ready' } even though the main bot DB was connected. ROOT CAUSE: js/_index.js line 38105 had `let resellerDb = db` executed at MODULE-LOAD time, BEFORE the async connectWithRetry()->loadData() assigned the top-level `db`, so it captured `undefined`. On production RESELLER_DB_URL is NOT set, so the reassignment block was skipped and getDb:()=>resellerDb returned `undefined` forever → col() threw 'Database not ready'. FIX: Changed to `let resellerDb = null` + `getDb: () => resellerDb || db` — reads the live top-level `db` at call-time (populated after loadData), while still preferring a dedicated RESELLER_DB_URL connection when configured. Fixes both the HTTP API and the provisionWorkerTick. TEST ENVIRONMENT: Dev pod configured to REPRODUCE production condition (RESELLER_DB_URL TEMPORARILY DISABLED so getDb must use the `|| db` fallback to LOCAL Mongo). Valid reseller API key seeded into local DB (owner 5590563715). Base URL: {REACT_APP_BACKEND_URL}/api/reseller/v1. Valid key: rsk_live_6af6daabd545fccb80c2c5265a8caaae52af8ae6dd49f848. Files: js/_index.js (line 38114, 38128). VERIFIED: All 3 safe read-only tests PASSED (GET /vps/plans with valid key → 200 with 6 plans; invalid key → 401 invalid_api_key; no auth → 401 missing_api_key). NONE returned 500 'Database not ready'. Bugfix is WORKING CORRECTLY."
+    implemented: true
+    working: true
+    file: "/app/js/_index.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: |
+          ✅ COMPREHENSIVE BACKEND TEST COMPLETE - Reseller API "Database not ready" Bugfix VERIFIED (3/3 tests, 100% pass rate)
+          
+          SCOPE: Independent verification of the critical production bugfix for the reseller API "Database not ready" error.
+          Every reseller API call was returning HTTP 500 { "error":"auth_error", "message":"Database not ready" } even 
+          though the main bot DB was connected. Testing was performed in a dev pod configured to REPRODUCE the production 
+          condition (RESELLER_DB_URL disabled, so getDb must use the fallback to the live DB).
+          
+          ROOT CAUSE:
+          • js/_index.js line 38105 had `let resellerDb = db` executed at MODULE-LOAD time
+          • This was BEFORE the async connectWithRetry()->loadData() assigned the top-level `db`
+          • So it captured `undefined` permanently
+          • On production RESELLER_DB_URL is NOT set, so the reassignment block was skipped
+          • getDb:()=>resellerDb returned `undefined` forever → col() threw "Database not ready"
+          
+          FIX APPLIED:
+          • Line 38114: Changed to `let resellerDb = null` (not `db`)
+          • Line 38128: Changed to `getDb: () => resellerDb || db` (falls back to live `db` at call-time)
+          • This reads the live top-level `db` after loadData() has run
+          • Still prefers a dedicated RESELLER_DB_URL connection when configured
+          
+          ENVIRONMENT:
+          • Mode: DEV POD (reproducing production condition)
+          • RESELLER_DB_URL: TEMPORARILY DISABLED (to test the fallback path)
+          • Base URL: https://2f9dd030-6d0a-4006-bcdf-21829f4aed0f.preview.emergentagent.com/api/reseller/v1
+          • Valid API Key: rsk_live_6af6daabd545fccb80c2c5265a8caaae52af8ae6dd49f848
+          • Owner: chatId 5590563715
+          
+          TEST RESULTS (3/3 PASSED):
+          
+          ✅ TEST 1: GET /vps/plans with valid Authorization header (valid key)
+             • Status: 200 ✅
+             • Body: {"product":"vps","provider":"digitalocean","region":"EU","plans":[...6 plans...]}
+             • Plans count: 6 (s-1vcpu-1gb, s-1vcpu-2gb, s-2vcpu-2gb, s-2vcpu-4gb, s-4vcpu-8gb, s-8vcpu-16gb)
+             • Response structure: product=vps, provider=digitalocean, region=EU
+             • PASS: Returns 200 with plans array (NOT 500 "Database not ready")
+          
+          ✅ TEST 2: GET /vps/plans with invalid Authorization header
+             • Status: 401 ✅
+             • Body: {"error":"invalid_api_key","message":"API key not recognised or disabled."}
+             • PASS: Returns 401 invalid_api_key (NOT 500 "Database not ready")
+             • This proves the DB lookup actually executed successfully
+          
+          ✅ TEST 3: GET /vps/plans with NO Authorization header
+             • Status: 401 ✅
+             • Body: {"error":"missing_api_key","message":"Provide your key via \"Authorization: Bearer <key>\" or \"X-API-Key: <key>\"."}
+             • PASS: Returns 401 missing_api_key (NOT 500 "Database not ready")
+          
+          PASS CRITERIA MET (ALL):
+          • ✅ Test 1 returns 200 with a plans array (6 VPS plans)
+          • ✅ Test 2 returns 401 invalid_api_key (proves DB lookup worked)
+          • ✅ Test 3 returns 401 missing_api_key
+          • ✅ NONE of them return 500 "Database not ready"
+          
+          CRITICAL OBSERVATIONS:
+          • ✅ The getDb fallback to the live DB is working correctly
+          • ✅ Valid API key authentication works (200 with plans)
+          • ✅ Invalid API key detection works (401 invalid_api_key, proves DB lookup executed)
+          • ✅ Missing API key detection works (401 missing_api_key)
+          • ✅ NO "Database not ready" errors in any scenario
+          • ✅ The fix resolves the production bug (undefined DB handle)
+          
+          CONCLUSION:
+          The reseller API "Database not ready" bug is FIXED and WORKING CORRECTLY. All 3 comprehensive tests passed 
+          (100% pass rate). The getDb fallback to the live DB at call-time is working as expected. The fix ensures that:
+          
+          1. ✅ When RESELLER_DB_URL is not set (production scenario), getDb falls back to the main bot DB
+          2. ✅ The fallback happens at call-time (after loadData() has run), not at module-load time
+          3. ✅ All reseller API endpoints can access the database correctly
+          4. ✅ Authentication and authorization work correctly (401 for invalid/missing keys, 200 for valid keys)
+          
+          The bugfix is ready for production deployment. The root cause (capturing `undefined` at module-load time) 
+          has been eliminated by changing to `let resellerDb = null` and using `() => resellerDb || db` for the 
+          call-time fallback.
+          
+          Test file: /app/backend_test.py (3 comprehensive tests covering all pass criteria)
+          Test output: /tmp/reseller_api_bugfix_test_output.txt (full test run log)
+          Test run: 2026-10-06 (all 3 tests passed, 0 failures, 0 warnings)
+          Environment: DEV POD (RESELLER_DB_URL disabled to reproduce production condition)
+          Base URL: https://2f9dd030-6d0a-4006-bcdf-21829f4aed0f.preview.emergentagent.com/api/reseller/v1
+          Valid API Key: rsk_live_6af6daabd545fccb80c2c5265a8caaae52af8ae6dd49f848
+
   - task: "Reseller VPS OS-reinstall endpoint (2026-10-05c) — Verified NEW reseller VPS OS-reinstall endpoint on the Nomadly reseller API. NEW ENDPOINT: POST /vps/:id/reinstall { os?, confirm } → DESTRUCTIVE OS reinstall (DigitalOcean rebuild from chosen image: disk wiped, IP kept, ~3 min). Validates os against provider's Linux image list (DO: ubuntu-24-04-x64, ubuntu-22-04-x64, debian-13/12, almalinux-9/8, rockylinux-9/10, centos-stream-9/10, fedora-42). Invalid os → 400 invalid_os with valid_os list. Requires {confirm: true} (disk-wipe guard). Missing/false → 400 confirmation_required (NO action). On confirm: DO rebuild (disk wiped, IP kept); keeps stored rootPasswordSecretId (create-time cloud-init re-applies same root password) and returns it; legacy boxes return password null + note. Files: js/reseller-api.js (vpsReinstallHandler, line 1298-1335). Environment: LIVE MODE (RESELLER_API_LIVE=true, dedicated PROD Railway DB via RESELLER_DB_URL). Base URL: {REACT_APP_BACKEND_URL}/api/reseller/v1. Auth: Authorization: Bearer rsk_live_cdc3f785ac3cfd813c6143d7813e1a59cc15fc42327ab736 (owner chatId 5590563715, @onarrival1). Test VPS id: b7a9f3b5-be02-4545-921d-b2f2e6603556 (legacy box, no stored credential). CRITICAL SAFETY: Testing was SAFE CHECKS ONLY (3 safe checks: no-auth 401, valid-os-no-confirm 400, invalid-os-with-confirm 400). NO real reinstall triggered, NO disk wipe, NO mutations."
     implemented: true
     working: true
@@ -21611,6 +21734,50 @@ backend:
           • ✅ name65fb (API-provisioned): ALL password-dependent endpoints now return 200 (NOT 501)
             - GET /hosting/name65fb/files?path=/public_html → 200 ✅ (was 501 before fix)
             - GET /hosting/name65fb/subdomains → 200 ✅ (was 501 before fix)
+
+  - agent: "testing"
+    message: |
+      ✅ RESELLER API "DATABASE NOT READY" BUGFIX VERIFICATION COMPLETE (2026-10-06)
+      
+      Testing agent has successfully verified the critical production bugfix for the reseller API 
+      "Database not ready" error. All 3 comprehensive tests PASSED (100% pass rate).
+      
+      BUG DESCRIPTION:
+      Every reseller API call was returning HTTP 500 { "error":"auth_error", "message":"Database not ready" }
+      even though the main bot DB was connected. Reported on GET /vps/plans.
+      
+      ROOT CAUSE:
+      • js/_index.js line 38105 had `let resellerDb = db` executed at MODULE-LOAD time
+      • This was BEFORE the async connectWithRetry()->loadData() assigned the top-level `db`
+      • So it captured `undefined` permanently
+      • On production RESELLER_DB_URL is NOT set, so getDb:()=>resellerDb returned `undefined` forever
+      
+      FIX APPLIED:
+      • Line 38114: Changed to `let resellerDb = null` (not `db`)
+      • Line 38128: Changed to `getDb: () => resellerDb || db` (falls back to live `db` at call-time)
+      
+      TEST RESULTS:
+      ✅ TEST 1: GET /vps/plans with valid key → 200 with 6 VPS plans (NOT 500 "Database not ready")
+      ✅ TEST 2: GET /vps/plans with invalid key → 401 invalid_api_key (proves DB lookup worked)
+      ✅ TEST 3: GET /vps/plans with no auth → 401 missing_api_key
+      
+      ALL PASS CRITERIA MET:
+      ✅ Test 1 returns 200 with a plans array
+      ✅ Test 2 returns 401 invalid_api_key (proves DB lookup executed successfully)
+      ✅ Test 3 returns 401 missing_api_key
+      ✅ NONE of them return 500 "Database not ready"
+      
+      CONCLUSION:
+      The reseller API "Database not ready" bug is FIXED and WORKING CORRECTLY. The getDb fallback 
+      to the live DB at call-time is working as expected. The fix ensures that when RESELLER_DB_URL 
+      is not set (production scenario), getDb falls back to the main bot DB correctly.
+      
+      The bugfix is READY FOR PRODUCTION DEPLOYMENT.
+      
+      Test file: /app/backend_test.py
+      Test output: /tmp/reseller_api_bugfix_test_output.txt
+      Test run: 2026-10-06 (3/3 tests passed, 0 failures)
+
             - GET /hosting/name65fb/ssl → 200 ✅ (was 501 before fix)
             - GET /hosting/name65fb/stats → 200 ✅ (was 501 before fix)
             - GET /hosting/name65fb/credentials → 200 with panel_pin "551472" and SSO URL ✅
