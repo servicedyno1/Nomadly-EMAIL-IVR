@@ -50518,6 +50518,24 @@ if (fs.existsSync(frontendBuildPath)) {
 // Catches unhandled errors from route handlers, preventing stack trace leakage
 // and Express default HTML error pages from being sent to clients.
 app.use((err, req, res, _next) => {
+  // Body-parser / client errors carry a 4xx status. Malformed JSON throws a
+  // SyntaxError with status 400 (type 'entity.parse.failed'); oversized bodies
+  // throw 413; unsupported content-type throws 415. Vulnerability scanners
+  // routinely POST junk payloads at webhook/IPN endpoints — surface these as
+  // the correct 4xx instead of a false-alarm 500 (and don't log them as
+  // "unhandled" since they're expected client-side garbage).
+  const status = err.status || err.statusCode
+  const isBodyParseError = err.type === 'entity.parse.failed' ||
+    (err instanceof SyntaxError && status === 400 && 'body' in err)
+
+  if (isBodyParseError || (status && status >= 400 && status < 500)) {
+    log(`[Express] Client error ${status || 400}: ${err.message} (${req.method} ${req.originalUrl})`)
+    if (!res.headersSent) {
+      res.status(status || 400).json({ error: isBodyParseError ? 'Invalid request body' : (err.message || 'Bad request') })
+    }
+    return
+  }
+
   log(`[Express] Unhandled route error: ${err.message} (${req.method} ${req.originalUrl})`)
   if (process.env.NODE_ENV !== 'production') {
     log(`[Express] Stack: ${err.stack}`)
