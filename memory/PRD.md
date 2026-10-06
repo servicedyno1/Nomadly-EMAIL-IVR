@@ -316,6 +316,16 @@ User inherited a fully-set-up Nomadly bot pod pointed at LIVE PRODUCTION. Task b
 - RESULTS: crawler depth 3 EN 273 / FR 274 / HI 313 / ZH 313 screens = 0 issues; scenarios EN 8/8, FR 8/8.
 - DEPLOYED 2026-10-01 08:40Z: main 092363f0 → app-main-a, WhiteLabel fc9b943c → app-wl-b (blue/green, /health 200, no boot errors).
 
+## Resolved — 2026-10-06 (prod log-anomaly follow-up; see PROD_ANOMALY_FIXES_2026-10-06.md)
+- **Crypto IPN / global handler 500 on malformed JSON → now 400 (CODE FIX, verified)**:
+  global Express error handler in `js/_index.js` now respects body-parser 4xx errors
+  (malformed JSON → 400 "Invalid request body") instead of always 500. Stops
+  vulnerability-scanner junk from logging as false-alarm 500s.
+- **BifurcationHealCron path — already fixed in repo**: code uses portable relative
+  `require('../scripts/heal_bifurcated_domains')`; loads + schedules cleanly in-pod.
+  Prod error is from an old release → resolve by redeploying current code (ensure
+  `scripts/` is bundled).
+
 ## Pending Issues (carried forward)
 
 ### P1
