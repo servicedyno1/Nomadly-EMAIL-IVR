@@ -316,6 +316,18 @@ User inherited a fully-set-up Nomadly bot pod pointed at LIVE PRODUCTION. Task b
 - RESULTS: crawler depth 3 EN 273 / FR 274 / HI 313 / ZH 313 screens = 0 issues; scenarios EN 8/8, FR 8/8.
 - DEPLOYED 2026-10-01 08:40Z: main 092363f0 → app-main-a, WhiteLabel fc9b943c → app-wl-b (blue/green, /health 200, no boot errors).
 
+## Resolved — 2026-10-06 (reseller API doc — VPS management endpoints + ssh-key alias)
+- **4 VPS management endpoints were registered but undocumented** in `/apidoc`
+  (`js/apidoc-page.js`): `POST /vps/:id/password-reset`, `POST /vps/:id/ssh-key`,
+  `GET /vps/:id/ssh-keys`, `POST /vps/:id/reinstall`. All now documented (the VPS
+  section previously stopped at `/vps/:id/renew`; RDP was already complete). Also
+  added the create-time `ssh_keys` param to the `POST /vps` doc entry.
+- **Plural POST alias added**: `POST /vps/:id/ssh-keys` now routes to the same
+  handler as the singular `POST /vps/:id/ssh-key` (`js/reseller-api.js`) — kills the
+  `404 Cannot POST` footgun from the singular-write / plural-read naming mismatch.
+  Running-server key injection (SSH append to root authorized_keys) was always
+  supported; the "provider has no API for this" claim was incorrect.
+
 ## Resolved — 2026-10-06 (prod log-anomaly follow-up; see PROD_ANOMALY_FIXES_2026-10-06.md)
 - **Crypto IPN / global handler 500 on malformed JSON → now 400 (CODE FIX, verified)**:
   global Express error handler in `js/_index.js` now respects body-parser 4xx errors

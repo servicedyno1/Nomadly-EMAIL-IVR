@@ -1351,6 +1351,8 @@ function createResellerApi(deps = {}) {
   router.post('/vps/:id/renew', apiKeyAuth, h((req, res) => vpsRenewHandler(req, res, false)))
   router.post('/vps/:id/password-reset', apiKeyAuth, h((req, res) => vpsPasswordResetHandler(req, res)))
   router.post('/vps/:id/ssh-key', apiKeyAuth, h((req, res) => vpsSetSshKeyHandler(req, res)))
+  // Plural alias so POST /vps/:id/ssh-keys works too (GET on the same path lists keys).
+  router.post('/vps/:id/ssh-keys', apiKeyAuth, h((req, res) => vpsSetSshKeyHandler(req, res)))
   router.get('/vps/:id/ssh-keys', apiKeyAuth, h((req, res) => vpsSshKeysListHandler(req, res)))
   router.post('/vps/:id/reinstall', apiKeyAuth, h((req, res) => vpsReinstallHandler(req, res)))
 
