@@ -546,7 +546,14 @@ async function tick({ source = 'manual' } = {}) {
     return { ok: true, phase: st.phase, steps, verdict: v, delegation: check.delegation.nameservers || [], zoneStatus: patch.lastCheck.zoneStatus }
   } catch (e) {
     log(`tick error: ${e.message}`)
-    try { await addEvent('error', `Tick error: ${e.message}`) } catch (_) { /* noop */ }
+    try {
+      // Surface tick failures to admin, throttled to one alert per 6h per distinct message.
+      const st = await loadState().catch(() => null)
+      const lastAt = st?.lastErrorNotifyAt ? new Date(st.lastErrorNotifyAt).getTime() : 0
+      const notify = st?.lastErrorNotifyMsg !== e.message || Date.now() - lastAt > 6 * 3600 * 1000
+      await addEvent('error', `⚠️ Tick error: ${e.message}`, { notify })
+      if (notify) await saveState({ lastErrorNotifyAt: now(), lastErrorNotifyMsg: e.message })
+    } catch (_) { /* noop */ }
     return { ok: false, error: e.message }
   } finally {
     _running = false
@@ -584,11 +591,12 @@ function registerRoutes(app) {
     try { res.json(await fn(req)) } catch (e) { res.status(500).json({ ok: false, error: e.message }) }
   }
   app.get('/admin/ns-pilot/status', guard((req) => status({ checks: req.query.checks })))
-  app.all('/admin/ns-pilot/start', guard(async () => { await start(); return tick({ source: 'start' }) }))
-  app.all('/admin/ns-pilot/tick', guard(() => tick({ source: 'manual' })))
-  app.all('/admin/ns-pilot/revert', guard(async (req) => revertToCloudflare(String(req.query.reason || 'manual revert'), { manual: true })))
-  app.all('/admin/ns-pilot/switch', guard(async () => switchToVanity({ manual: true })))
-  app.all('/admin/ns-pilot/stop', guard(() => stop()))
+  // Mutations are POST-only (never triggerable by a prefetch/crawler GET).
+  app.post('/admin/ns-pilot/start', guard(async () => { await start(); return tick({ source: 'start' }) }))
+  app.post('/admin/ns-pilot/tick', guard(() => tick({ source: 'manual' })))
+  app.post('/admin/ns-pilot/revert', guard(async (req) => revertToCloudflare(String(req.query.reason || req.body?.reason || 'manual revert'), { manual: true })))
+  app.post('/admin/ns-pilot/switch', guard(async () => switchToVanity({ manual: true })))
+  app.post('/admin/ns-pilot/stop', guard(() => stop()))
 
   // Platform cron (.emergent/crons.yml → POST {{BASE_URL}}/api/cron/ns-pilot-tick)
   app.post('/cron/ns-pilot-tick', async (req, res) => {
@@ -597,7 +605,7 @@ function registerRoutes(app) {
     if (req.body !== undefined && req.body !== null && typeof req.body !== 'object') {
       return res.status(400).json({ error: 'invalid body' })
     }
-    const runId = String(req.headers['x-webhook-id'] || req.body?.run_id || '') || `anon-${Date.now()}`
+    const runId = String(req.headers['x-webhook-id'] || req.body?.run_id || '') || `anon-${crypto.randomUUID()}`
     try {
       await db().collection(CRON_RUNS_COL).insertOne({ _id: runId, at: now() })
     } catch (e) {

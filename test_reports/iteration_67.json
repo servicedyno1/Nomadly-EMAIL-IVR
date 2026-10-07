@@ -1,0 +1,23 @@
+{
+  "summary": "NS-Pilot backend testing complete. All 9 pytest HTTP cases pass (status auth guard, status payload with config/state/recentChecks, admin /tick returning verdict.protected=true + zoneStatus=active, cron auth negative cases, cron 202 + duplicate 200, /api/health, reseller /vps/plans still returns 401 not 404). Pure-function node checks (isCloudflareIp true/false, sameSet case/trailing-dot insensitive, domainParts hosta.sh and foo.co.uk) all pass. Namecheap read-only confirmed: hosta.sh delegated to ns1.hosta.sh/ns2.hosta.sh and glue ns1.hosta.sh->172.64.35.177. No NAMECHEAP_API_KEY leakage found in /var/log/supervisor/*. Pilot is in phase=monitoring, zoneId 0f8c3ca124ab1a5c2ccdaae8d5391143, cfAssignedNs=[anderson,leanna].ns.cloudflare.com. No mutation endpoints were called.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": { "ui_bugs": [], "integration_issues": [], "design_issues": [] },
+  "test_report_links": [
+    "/app/backend/tests/test_ns_pilot.py",
+    "/app/test_reports/pytest/ns_pilot_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "ns-pilot.js:600 — runId falls back to `anon-${Date.now()}` when no X-Webhook-Id and no body.run_id is sent; two legitimately-anonymous cron POSTs in the same millisecond would collide (11000 -> duplicate). Low risk in practice but worth noting.",
+    "ns-pilot.js:608 — tick is scheduled via setImmediate after 202 ack but errors are only logged; consider surfacing failures to notifyAdmin so silent cron tick failures are visible.",
+    "ns-pilot.js registerRoutes uses app.all for mutation endpoints (start/revert/switch/stop) which accepts GET; GET-triggered state changes are risky if a URL ever gets prefetched/crawled. Prefer app.post only."
+  ],
+  "updated_files": [],
+  "success_rate": { "backend": "100%", "frontend": "N/A (not requested)" },
+  "test_credentials": "ADMIN_KEY = first 16 chars of SESSION_SECRET; WEBHOOK_CRON_SECRET read from /app/backend/.env",
+  "seed_data_creation": "Each cron idempotency test inserts one doc into nsPilotCronRuns with a random UUID _id; auto-cleaned by existing TTL-ish deleteMany (>7d) in route handler.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Pilot is LIVE. Only safe endpoints: GET /api/admin/ns-pilot/status, POST /api/admin/ns-pilot/tick (idempotent), POST /api/cron/ns-pilot-tick. NEVER call start/revert/switch/stop or any Namecheap mutation. Test file at /app/backend/tests/test_ns_pilot.py is the regression suite.",
+  "rca of the issue": "N/A — no issues found."
+}
