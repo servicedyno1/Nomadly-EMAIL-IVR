@@ -1,5 +1,16 @@
 # PRD — Nomadly Cloud IVR + Telegram Bot
 
+## 2026-10-07 — Branded NS LIVE end-to-end check — PASSED
+- Real domain `hostanscktmjd3n.click` registered via `POST /api/reseller/v1/domains/register` (default ns_choice=branded, OpenProvider id 30368620, real cost ~$1.99). Owner = TEMP test owner `999100990` in the PRODUCTION reseller DB (`RESELLER_DB_URL`), wallet credited $30 → charged $30 (net 0); temp API key DISABLED afterwards.
+- Timeline (UTC): 11:59 registered on anderson/leanna + CF zone `c143a83402b4d3756dbb102cf33381d3` (pending) → 12:02 CF active → 12:04 BrandedNS worker switched registrar → 12:06 .click registry delegates to ns1/ns2.hosta.sh. Cold trace: registry → .sh glue (172.64.35.177 / 108.162.194.151) → aa answer = CF edge IPs; HTTP/HTTPS served by Cloudflare (cf-ray), no origin leak. API `GET /dns/:domain/nameservers` → `nameserver_status: branded`.
+- While the zone is still PENDING, Cloudflare returns the origin IP (DNS-only), so the worker only switches after activation and a leak check.
+- Glue IPs answer authoritatively for zones on BOTH account NS pairs (anderson/leanna 269 zones, jose/joselyn 4 zones) — 12/12 pass.
+- Known limitation: an apex `dig NS` (child side) still returns anderson/leanna; registry/WHOIS show hosta.sh.
+- Still open: whether CF's periodic NS re-check marks zones `moved` (hosta.sh pilot runs 14 days; BrandedNS worker reverts automatically if the zone stops being active).
+- Scripts: `scripts/branded_ns_livecheck.js` (glue vs all CF NS pairs), `scripts/branded_ns_domain_check.js <domain> [--tick]`, `scripts/branded_ns_trace.js <domain>` (cold iterative resolution).
+- Side finding: ConnectReseller still returns 401 on pricing (P1, blocked on user); OpenProvider works.
+
+
 ## 2026-10 — Vanity nameservers ns1/ns2.hosta.sh (Free CF plan) — PILOT RUNNING (14 days)
 Goal: reseller API domains/hosting delegated to `ns1.hosta.sh`/`ns2.hosta.sh` instead of `*.ns.cloudflare.com` while keeping CF protection.
 - Facts verified: CF Account Custom NS = Business(+support)/Enterprise only (our account → "feature not enabled"). Free zones activate ONLY when the registry lists the exact CF-assigned names. **Pending zones serve proxied records as DNS-only = ORIGIN IP LEAK** (verified live on hosta.sh: pending → `pilot.hosta.sh A 192.64.119.228`). Any CF NS IP answers for any zone in the account (verified). Apex `NS` lookups still show anderson/leanna (CF serves its own names).

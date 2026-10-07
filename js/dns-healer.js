@@ -76,7 +76,13 @@ const PRE_DELEGATION_TLDS = new Set([
 
 // Cloudflare authoritative-NS suffix — all CF customer NS look like
 // `<word>.ns.cloudflare.com`. Two NS are assigned per zone.
-const isCfNs = (host) => /\.ns\.cloudflare\.com\.?$/i.test(String(host || ''))
+// Reseller BRANDED nameservers (ns1/ns2.hosta.sh, glue = CF NS IPs) are served by
+// the same Cloudflare zone, so they count as Cloudflare delegation too — the healer
+// must never "heal" a branded domain back to the CF-assigned names.
+const isCfNs = (host) => {
+  if (/\.ns\.cloudflare\.com\.?$/i.test(String(host || ''))) return true
+  try { return require('./branded-ns').isBrandedNs(host) } catch (_) { return false }
+}
 
 // Known registry parking IP ranges — appearing here proves the registry has
 // not delegated to our NS yet. We currently know DENIC's `nx.denic.de`

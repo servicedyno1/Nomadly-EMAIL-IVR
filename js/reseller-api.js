@@ -42,6 +42,7 @@ const addonFlow = require('./addon-domain-flow')              // attachAddonDoma
 const cpanelAuth = require('./cpanel-auth')                   // resetPin (reveal = reset, prod mutation)
 const { registerHostingMgmtRoutes } = require('./reseller-hosting-mgmt') // in-account cPanel mgmt (reuses cpanel-proxy + services, no duplication)
 const { registerShortenerRoutes } = require('./reseller-shortener')      // URL shortener: buy/connect domain + link CRUD (reuses fullUrlOf/linksOf/clicksOn)
+const brandedNs = require('./branded-ns')                     // branded nameservers (ns1/ns2.hosta.sh) — reseller API default
 
 // Customer-facing HostPanel URL (same one the Telegram bot shows).
 function panelUrl() {
@@ -499,8 +500,20 @@ function createResellerApi(deps = {}) {
     if (finalUser !== job.username) {
       await col('cpanelAccounts').updateOne({ _id: job.username }, { $set: { supersededBy: finalUser, deleted: true, deletedAt: new Date(), deletedBy: 'superseded_final_username' } })
     }
-    await provisionJobs().updateOne({ _id: job._id }, { $set: { status: 'done', finishedAt: new Date(), username: finalUser, result: { username: finalUser, nameservers: result.nameservers || [] } } })
-    emitEvent(owner, 'hosting.provisioned', finalUser, { domain: r.domain, plan: r.plan, cpanel_username: finalUser, username: finalUser, expires_at: expiry.toISOString(), nameservers: result.nameservers || [], panel_url: panelUrl(), server_ip: serverIp() })
+    // Branded nameservers for a newly bought domain: it was registered on the CF-assigned names
+    // (needed for Cloudflare activation); queue the automatic switch to ns1/ns2.hosta.sh.
+    let nsView = { nameservers: result.nameservers || [] }
+    if (r.domain_mode === 'buy' && r.ns_choice === 'branded') {
+      try {
+        await brandedNs.enqueue(getDb(), { domain: r.domain, ownerChatId: owner, source: 'hosting', registrar: r.registrar || null, cfNameservers: result.nameservers || [], username: finalUser })
+        nsView = brandedNs.displayFromDoc({ status: 'activating', brandedNs: brandedNs.brandedNameservers(), cfNameservers: result.nameservers || [] })
+      } catch (e) {
+        log(`[ResellerAPI] branded-ns enqueue failed for ${r.domain}: ${e.message}`)
+        try { await notifyAdmin(`⚠️ <b>Branded NS</b> enqueue failed for <code>${r.domain}</code> (stays on Cloudflare names): ${e.message}`) } catch (_) { /* best-effort */ }
+      }
+    }
+    await provisionJobs().updateOne({ _id: job._id }, { $set: { status: 'done', finishedAt: new Date(), username: finalUser, result: { username: finalUser, nameservers: nsView.nameservers || [], ...(nsView.nameserver_mode ? { nameserver_mode: nsView.nameserver_mode, nameserver_status: nsView.nameserver_status, current_nameservers: nsView.current_nameservers } : {}) } } })
+    emitEvent(owner, 'hosting.provisioned', finalUser, { domain: r.domain, plan: r.plan, cpanel_username: finalUser, username: finalUser, expires_at: expiry.toISOString(), nameservers: nsView.nameservers || [], ...(nsView.nameserver_mode ? { nameserver_mode: nsView.nameserver_mode, nameserver_status: nsView.nameserver_status, current_nameservers: nsView.current_nameservers } : {}), panel_url: panelUrl(), server_ip: serverIp() })
   }
 
   // ── VPS / RDP job runner ──
@@ -712,8 +725,13 @@ function createResellerApi(deps = {}) {
   router.post('/domains/register', apiKeyAuth, h(async (req, res) => {
     const domain = String(req.body?.domain || '').trim().toLowerCase()
     if (!domainOk(domain)) return res.status(400).json({ error: 'invalid_domain', message: 'Provide a valid domain in body: { "domain": "mysite.com" }' })
-    const customNS = Array.isArray(req.body?.nameservers) ? req.body.nameservers : null
-    const nsChoice = customNS ? 'custom' : (req.body?.ns_choice || 'cloudflare')
+    // Nameserver selection (validated BEFORE any price lookup / charge):
+    //   default "branded" → ns1/ns2.hosta.sh (registered on CF names, auto-switched after activation)
+    //   "cloudflare" → CF-assigned names | "registrar" → registrar default | nameservers[] → custom
+    const nsSel = brandedNs.resolveNsChoice({ ns_choice: req.body?.ns_choice, nameservers: req.body?.nameservers })
+    if (!nsSel.ok) return res.status(400).json({ error: nsSel.code || 'invalid_nameservers', message: nsSel.error })
+    const customNS = nsSel.customNS
+    const nsChoice = nsSel.registerChoice
 
     const priceInfo = await domainService.checkDomainPrice(domain, getDb())
     if (!priceInfo.available) return res.status(409).json({ error: 'domain_unavailable', message: priceInfo.message || 'That domain is not available.' })
@@ -721,10 +739,11 @@ function createResellerApi(deps = {}) {
 
     return billedProvision(req, res, {
       product: 'domain', action: 'register', priceUsd: Number(priceInfo.price),
-      request: { domain, registrar, ns_choice: nsChoice, nameservers: customNS },
+      request: { domain, registrar, ns_choice: nsSel.mode, nameservers: customNS || (nsSel.mode === 'branded' ? brandedNs.brandedNameservers() : null) },
       provision: async () => {
         const r = await domainService.registerDomain(domain, registrar, nsChoice, getDb(), req.reseller.ownerChatId, customNS)
         if (r && r.success === false) return { success: false, error: r.error || r.message }
+        if (r && r.error && !r.success) return { success: false, error: r.error }
         // ISSUE-9 FIX (2026-10): also write the BOT's ownership map so the domain
         // shows up in Telegram "📂 My Domain Names" for the key owner. The bot reads
         // domainsOf as a per-chatId doc keyed by _id=chatId with each owned domain as a
@@ -736,7 +755,19 @@ function createResellerApi(deps = {}) {
           const domainKey = domain.replace(/\./g, '@')
           await col('domainsOf').updateOne({ _id: owner }, { $set: { [domainKey]: true } }, { upsert: true })
         } catch (e) { log(`[ResellerAPI] domains/register ownership-map warn: ${e.message}`) }
-        return { success: true, domain, registrar, nameservers: r?.nameservers || customNS || [], detail: r || null }
+        // Branded nameservers: domain was registered on the CF-assigned names (required for
+        // Cloudflare activation); queue the automatic switch to ns1/ns2.hosta.sh.
+        if (nsSel.mode === 'branded') {
+          try {
+            await brandedNs.enqueue(getDb(), { domain, ownerChatId: req.reseller.ownerChatId, source: 'domains/register', registrar: r?.registrar || registrar, cfZoneId: r?.cfZoneId || null, cfNameservers: r?.nameservers || [] })
+          } catch (e) {
+            log(`[ResellerAPI] branded-ns enqueue failed for ${domain}: ${e.message}`)
+            try { await notifyAdmin(`⚠️ <b>Branded NS</b> enqueue failed for <code>${domain}</code> (stays on Cloudflare names): ${e.message}`) } catch (_) { /* best-effort */ }
+          }
+          const view = brandedNs.displayFromDoc({ status: 'activating', brandedNs: brandedNs.brandedNameservers(), cfNameservers: r?.nameservers || [] })
+          return { success: true, domain, registrar: r?.registrar || registrar, ...view, detail: r || null }
+        }
+        return { success: true, domain, registrar: r?.registrar || registrar, nameserver_mode: nsSel.mode, nameservers: r?.nameservers || customNS || [], detail: r || null }
       },
     })
   }))
@@ -758,16 +789,19 @@ function createResellerApi(deps = {}) {
         }
       } catch (_) { /* best-effort enrichment */ }
     }
+    const brandedView = await brandedNs.displayMap(getDb(), names)
     res.json({ domains: docs.map(d => {
       const rawExp = d.expiresAt || d.expiryDate || d.renewalDate || d.expiry || (d.val && (d.val.expiresAt || d.val.expiryDate)) || null
       const exp = rawExp ? new Date(rawExp) : null
       const localNs = d.nameservers || (d.val && (d.val.cfNameservers || d.val.nameservers)) || []
       const nameservers = (Array.isArray(localNs) && localNs.length) ? localNs : (nsMap[String(d.domainName || '').toLowerCase()] || [])
+      const bv = brandedView[String(d.domainName || '').toLowerCase()] || null
       return {
         domain: d.domainName,
         registrar: d.registrar || null,
         nameserver_type: d.nameserverType || null,
-        nameservers,
+        nameservers: bv ? bv.nameservers : nameservers,
+        ...(bv ? { nameserver_mode: bv.nameserver_mode, nameserver_status: bv.nameserver_status, current_nameservers: bv.current_nameservers } : {}),
         registered_at: d.registeredAt || null,
         expires_at: (exp && !isNaN(exp)) ? exp.toISOString() : null,
         dns_records_url: `/dns/${d.domainName}/records`,
@@ -816,13 +850,65 @@ function createResellerApi(deps = {}) {
     res.json({ domain, deleted: true, detail: r || null })
   }))
 
+  // Current delegation for a domain on this account (incl. branded-nameserver status).
+  router.get('/dns/:domain/nameservers', apiKeyAuth, h(async (req, res) => {
+    const domain = String(req.params.domain || '').trim().toLowerCase()
+    if (!domainOk(domain)) return res.status(400).json({ error: 'invalid_domain' })
+    const owner = String(req.reseller.ownerChatId)
+    const [own, acct, bdoc] = await Promise.all([
+      col('domainsOf').findOne({ domainName: domain, chatId: owner }),
+      col('cpanelAccounts').findOne({ domain, chatId: owner, deleted: { $ne: true } }),
+      brandedNs.getDoc(getDb(), domain),
+    ])
+    if (!own && !acct && !(bdoc && String(bdoc.ownerChatId) === owner)) {
+      return res.status(404).json({ error: 'domain_not_found', message: 'That domain is not on this account.' })
+    }
+    const rd = await col('registeredDomains').findOne({ _id: domain })
+    const v = rd?.val || {}
+    const stored = (own?.nameservers && own.nameservers.length) ? own.nameservers : (v.nameservers || v.cfNameservers || [])
+    const nsType = own?.nameserverType || v.nameserverType || null
+    const bv = brandedNs.displayFromDoc(bdoc)
+    if (bv) return res.json({ domain, nameserver_type: nsType, ...bv })
+    const mode = brandedNs.isBrandedSet(stored) ? 'branded'
+      : nsType === 'cloudflare' ? 'cloudflare'
+        : nsType === 'custom' ? 'custom'
+          : (nsType === 'provider_default' || nsType === 'registrar') ? 'registrar' : (nsType || null)
+    res.json({ domain, nameserver_type: nsType, nameserver_mode: mode, nameservers: stored, current_nameservers: stored })
+  }))
+
   router.put('/dns/:domain/nameservers', apiKeyAuth, h(async (req, res) => {
     const domain = String(req.params.domain || '').trim().toLowerCase()
     if (!domainOk(domain)) return res.status(400).json({ error: 'invalid_domain' })
-    const ns = req.body?.nameservers
-    if (!Array.isArray(ns) || ns.length < 2) return res.status(400).json({ error: 'invalid_nameservers', message: 'Provide at least 2 nameservers: { "nameservers": ["ns1...","ns2..."] }' })
+    const v = brandedNs.validateNameservers(req.body?.nameservers)
+    if (!v.ok) return res.status(400).json({ error: 'invalid_nameservers', message: `${v.error} Body: { "nameservers": ["ns1...","ns2..."] }` })
+    const ns = v.nameservers
+    const owner = String(req.reseller.ownerChatId)
+
+    // Branded set (ns1/ns2.hosta.sh): only valid while the domain's DNS is on our Cloudflare
+    // account. If the zone is not ACTIVE yet, keep the registrar on the CF-assigned names and
+    // queue the automatic switch (a pending zone would expose the origin IP).
+    if (brandedNs.isBrandedSet(ns)) {
+      const cfSvc = require('./cf-service')
+      const zone = await cfSvc.getZoneByName(domain)
+      if (!zone) return res.status(409).json({ error: 'branded_requires_cloudflare', message: 'Branded nameservers need the domain\'s DNS on Cloudflare. Set the Cloudflare nameservers first (or register with ns_choice "branded").' })
+      const cfNs = zone.name_servers || []
+      if (zone.status !== 'active') {
+        const r0 = await domainService.updateAllNameservers(domain, cfNs, getDb())
+        if (r0 && (r0.success === false || r0.error)) return res.status(502).json({ error: 'ns_update_failed', message: r0.error || r0.message })
+        await brandedNs.enqueue(getDb(), { domain, ownerChatId: owner, source: 'dns/nameservers', cfZoneId: zone.id, cfNameservers: cfNs })
+        return res.json({ domain, updated: true, ...brandedNs.displayFromDoc({ status: 'activating', brandedNs: ns, cfNameservers: cfNs }) })
+      }
+      const r = await domainService.updateAllNameservers(domain, ns, getDb())
+      if (r && (r.success === false || r.error)) return res.status(502).json({ error: 'ns_update_failed', message: r.error || r.message })
+      // Start per-domain protection monitoring (worker sees the branded set and moves to 'branded').
+      await brandedNs.enqueue(getDb(), { domain, ownerChatId: owner, source: 'dns/nameservers', cfZoneId: zone.id, cfNameservers: cfNs })
+      return res.json({ domain, updated: true, nameserver_mode: 'branded', nameserver_status: 'branded', nameservers: ns, current_nameservers: ns, detail: r || null })
+    }
+
     const r = await domainService.updateAllNameservers(domain, ns, getDb())
-    if (r && r.success === false) return res.status(502).json({ error: 'ns_update_failed', message: r.error || r.message })
+    if (r && (r.success === false || r.error)) return res.status(502).json({ error: 'ns_update_failed', message: r.error || r.message })
+    // Owner chose other nameservers → stop branded management (never fight the owner).
+    await brandedNs.cancel(getDb(), domain, 'owner_set_nameservers').catch(() => {})
     res.json({ domain, nameservers: ns, updated: true, detail: r || null })
   }))
 
@@ -1408,6 +1494,15 @@ function createResellerApi(deps = {}) {
     else if (dmRaw === 'existing') domainMode = 'existing'
     else if (dmRaw === 'external' || dmRaw === 'byo') domainMode = 'external'
     else return res.status(400).json({ error: 'invalid_domain_mode', message: 'domain_mode must be one of: buy, existing, external (legacy "byo" = external).' })
+    // Nameservers for a NEW domain (domain_mode=buy): "branded" (default, ns1/ns2.hosta.sh — switched
+    // automatically after Cloudflare activates the zone) or "cloudflare" (CF-assigned names).
+    // existing/external modes keep their current delegation behaviour.
+    let nsMode = null
+    if (domainMode === 'buy') {
+      const sel = brandedNs.resolveNsChoice({ ns_choice: req.body?.ns_choice, nameservers: req.body?.nameservers, forHosting: true })
+      if (!sel.ok) return res.status(400).json({ error: sel.code || 'invalid_ns_choice', message: sel.error })
+      nsMode = sel.mode
+    }
     const email = req.body?.email || null
     const owner = String(req.reseller.ownerChatId)
     const clientRef = req.body?.client_ref ? String(req.body.client_ref).slice(0, 128) : null
@@ -1432,7 +1527,7 @@ function createResellerApi(deps = {}) {
       registrar = dp.registrar || 'ConnectReseller'
     }
     const total = Math.round((plan.priceUsd + domainPrice) * 100) / 100
-    const request = { plan_id: plan.id, plan: plan.name, domain, domain_mode: domainMode, email, hostingPrice: plan.priceUsd, hosting_usd: plan.priceUsd, domain_usd: domainPrice, registrar }
+    const request = { plan_id: plan.id, plan: plan.name, domain, domain_mode: domainMode, email, hostingPrice: plan.priceUsd, hosting_usd: plan.priceUsd, domain_usd: domainPrice, registrar, ...(nsMode ? { ns_choice: nsMode } : {}) }
 
     // Up-front wallet guard + charge (handles 402 + dry_run balance-only check; response already sent on failure).
     const charge = await chargeForAsync(req, res, { product: 'hosting', action: 'create', priceUsd: total, request })
@@ -1460,6 +1555,7 @@ function createResellerApi(deps = {}) {
 
     return res.status(202).json({
       ...jobHandle(jobDoc),
+      ...(nsMode ? { nameserver_mode: nsMode, ...(nsMode === 'branded' ? { nameservers: brandedNs.brandedNameservers() } : {}) } : {}),
       wallet_balance_usd: Math.round((charge.balance - (charge.charged ? charge.price : 0)) * 100) / 100,
       note: `Provisioning started. Poll GET /jobs/${jobId} for live progress + ETA, or GET /hosting/{username} until state="online", or subscribe to the hosting.provisioned / hosting.provision_failed webhooks. Reuse client_ref to make retries idempotent.`,
     })
@@ -1803,7 +1899,13 @@ function createResellerApi(deps = {}) {
 
   // Resolve the customer-facing nameservers for a hosting account's domain
   // (Cloudflare NS the customer must point their domain at).
+  async function brandedViewFor(acct) {
+    try { return acct?.domain ? brandedNs.displayFromDoc(await brandedNs.getDoc(getDb(), String(acct.domain).toLowerCase())) : null } catch (_) { return null }
+  }
+
   async function resolveNameservers(acct) {
+    const bv = await brandedViewFor(acct)
+    if (bv && Array.isArray(bv.nameservers) && bv.nameservers.length) return bv.nameservers
     if (Array.isArray(acct?.nameservers) && acct.nameservers.length) return acct.nameservers
     try {
       const rd = await col('registeredDomains').findOne({ _id: String(acct?.domain || '').toLowerCase() })
@@ -1814,12 +1916,13 @@ function createResellerApi(deps = {}) {
 
   // Non-secret hosting deliverables (safe in any mode). The PIN is revealed
   // ONLY by GET /hosting/:user/credentials (reveal = PIN reset = prod write).
-  function hostingDeliverables(acct, nameservers) {
+  function hostingDeliverables(acct, nameservers, nsView = null) {
     return {
       cpanel_username: acct.cpUser || acct._id || null,
       panel_url: panelUrl(),
       server_ip: serverIp(),
       nameservers: nameservers || [],
+      ...(nsView ? { nameserver_mode: nsView.nameserver_mode, nameserver_status: nsView.nameserver_status, current_nameservers: nsView.current_nameservers } : {}),
       credentials_url: `/hosting/${acct.cpUser || acct._id}/credentials`,
     }
   }
@@ -2207,6 +2310,7 @@ function createResellerApi(deps = {}) {
     if (!acct) return res.status(404).json({ error: 'not_found' })
     const addons = Array.isArray(acct.addonDomains) ? acct.addonDomains : []
     const nameservers = await resolveNameservers(acct)
+    const nsView = await brandedViewFor(acct)
     // Terminated short-circuit: a cancelled/removed account has nothing on the server, so skip the
     // WHM read and null out credentials/deliverables. Keep identifying metadata (domain/plan/
     // expires_at/terminated_at) so a storefront can reconcile its catalog and render
@@ -2352,7 +2456,7 @@ function createResellerApi(deps = {}) {
       expires_at: acct.expiryDate ? new Date(acct.expiryDate).toISOString() : null,
       panel_url: panelUrl(),
       server_ip: serverIp(),
-      deliverables: hostingDeliverables(acct, nameservers),
+      deliverables: hostingDeliverables(acct, nameservers, nsView),
       addon_quota: addonQuota(acct.plan),
       addon_domain_count: addons.length,
       addon_domains: addons.map(a => a.domain || a),

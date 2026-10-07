@@ -668,6 +668,8 @@ module.exports = {
   runChecks,
   revertToCloudflare,
   switchToVanity,
+  // Shared DNS/CF probe helpers (re-used by branded-ns.js for per-domain monitoring)
+  probes: { rawQuery, isCloudflareIp, resolveFirstIpv4, cfGetZone, cfTriggerActivationCheck, normName, sameSet, doh, registryDelegation },
   // exported for tests
   _internals: { isCloudflareIp, inCidr, sameSet, rawQuery, registryDelegation, config },
 }

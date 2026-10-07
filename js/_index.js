@@ -38140,6 +38140,19 @@ try {
   log(`[NsPilot] init failed: ${e.message}`)
 }
 
+// ── Branded nameservers for RESELLER API domains (ns1/ns2.hosta.sh) ──
+// The bot keeps Cloudflare-assigned NS. Reseller-registered domains (POST /domains/register,
+// POST /hosting domain_mode=buy) are registered on CF names, then this worker switches the
+// registrar to the branded names once the zone is ACTIVE + proxied, and monitors hourly
+// (auto-revert to CF names if the zone stops being active / origin IP leaks).
+// Uses the reseller DB (same one the reseller API writes). Active-slot only.
+// Admin: /api/admin/branded-ns/{status,tick,switch,revert}?key=<SESSION_SECRET[0..15]>
+try {
+  require('./branded-ns').init({ app, getDb: () => resellerDb || db, notifyAdmin, log })
+} catch (e) {
+  log(`[BrandedNS] init failed: ${e.message}`)
+}
+
 
 // ── DigitalOcean RDP provisioning callbacks (on-droplet Windows conversion) ──
 // External URL: /api/provision/*  (FastAPI strips /api → node /provision).
