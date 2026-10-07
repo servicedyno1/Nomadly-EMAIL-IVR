@@ -16,9 +16,12 @@ const SUPPORT_HANDLE = process.env.SUPPORT_HANDLE || process.env.SUPPORT_USERNAM
 // Each group → { id, title, blurb, endpoints:[ { method, path, auth, billed, desc, params:[[name,req,desc]], curl, resp } ] }
 function endpointGroups(base) {
   let BNS = ['ns1.hosta.sh', 'ns2.hosta.sh']
-  try { BNS = require('./branded-ns').brandedNameservers() } catch (_) { /* default */ }
+  let BR = false
+  try { const b = require('./branded-ns'); BNS = b.brandedNameservers(); BR = b.isEnabled() } catch (_) { /* default */ }
   const BNS_JSON = JSON.stringify(BNS)
   const BNS_TXT = BNS.join(' / ')
+  const CF_JSON = '["ada.ns.cloudflare.com", "rob.ns.cloudflare.com"]'
+  const NS_EVENTS = BR ? ',"domain.nameservers_branded","domain.nameservers_reverted","domain.nameservers_branding_failed"' : ''
   return [
     {
       id: 'meta', title: 'Meta',
@@ -84,13 +87,13 @@ function endpointGroups(base) {
           resp: `{
   "webhook_url": "https://your-app.com/hooks/nomadly",
   "webhook_secret": "whsec_…",
-  "events": ["hosting.provisioned","hosting.provision_failed","hosting.grace_start","hosting.suspended","hosting.deleted","hosting.auto_renew_failed","vps.provisioned","vps.provision_failed","vps.grace_start","vps.deleted","rdp.provisioned","rdp.provision_failed","rdp.grace_start","rdp.deleted","domain.nameservers_branded","domain.nameservers_reverted","domain.nameservers_branding_failed"],
+  "events": ["hosting.provisioned","hosting.provision_failed","hosting.grace_start","hosting.suspended","hosting.deleted","hosting.auto_renew_failed","vps.provisioned","vps.provision_failed","vps.grace_start","vps.deleted","rdp.provisioned","rdp.provision_failed","rdp.grace_start","rdp.deleted"${NS_EVENTS}],
   "delivery": "POST signed with HMAC-SHA256 (X-Nomadly-Signature: sha256=<hex>), auto-retry with backoff, de-duplicated per server+event"
 }`,
         },
         {
           method: 'PUT', path: '/account/webhook', auth: true, billed: false,
-          desc: 'Register (or clear) the push-webhook URL for your account. Send {"webhook_url":"https://…"} to set it (the first time this also mints a webhook_secret you must store), or {"webhook_url":null} to clear it (the secret is kept for re-enabling). Nomadly then POSTs a JSON body { event, product, occurred_at, data:{ id, product, domain, reason, … } } to your URL for each lifecycle event across all three products: hosting.provisioned / vps.provisioned / rdp.provisioned (an async create finished — data carries the id/username, domain, plan and ip/nameservers), hosting.provision_failed / vps.provision_failed / rdp.provision_failed (an async create ultimately failed — the wallet was auto-refunded; data carries reason and refunded:true), hosting.grace_start / vps.grace_start / rdp.grace_start (subscription expired → service suspended/powered off and a grace period begins; data carries expired_at + delete_at + grace_hours — hosting grace is 48h, VPS/RDP is 72h/3-day), hosting.auto_renew_failed (a wallet auto-renew attempt failed on insufficient funds; data carries price_usd, wallet_balance_usd, next_attempt_at — the plan then falls into grace, it is NOT terminated), hosting.deleted / vps.deleted / rdp.deleted (the resource was permanently removed after grace; data carries reason), and the branded-nameserver events domain.nameservers_branded (registrar switched to the branded nameservers; data carries domain + nameservers + previous_nameservers), domain.nameservers_reverted (rolled back to the Cloudflare-assigned names to keep the domain protected; data carries reason + nameservers) and domain.nameservers_branding_failed (the domain stays on the Cloudflare names; data carries reason). SECURITY: every delivery is signed — header "X-Nomadly-Signature: sha256=<hex>" is HMAC-SHA256 of the exact raw request body keyed by your webhook_secret. Recompute it and constant-time compare BEFORE acting on any *.deleted. Delivery is retried with backoff and de-duplicated per server+event (grace/auto_renew_failed re-fire each billing cycle; *.deleted fires once). Reply 2xx to acknowledge.',
+          desc: 'Register (or clear) the push-webhook URL for your account. Send {"webhook_url":"https://…"} to set it (the first time this also mints a webhook_secret you must store), or {"webhook_url":null} to clear it (the secret is kept for re-enabling). Nomadly then POSTs a JSON body { event, product, occurred_at, data:{ id, product, domain, reason, … } } to your URL for each lifecycle event across all three products: hosting.provisioned / vps.provisioned / rdp.provisioned (an async create finished — data carries the id/username, domain, plan and ip/nameservers), hosting.provision_failed / vps.provision_failed / rdp.provision_failed (an async create ultimately failed — the wallet was auto-refunded; data carries reason and refunded:true), hosting.grace_start / vps.grace_start / rdp.grace_start (subscription expired → service suspended/powered off and a grace period begins; data carries expired_at + delete_at + grace_hours — hosting grace is 48h, VPS/RDP is 72h/3-day), hosting.auto_renew_failed (a wallet auto-renew attempt failed on insufficient funds; data carries price_usd, wallet_balance_usd, next_attempt_at — the plan then falls into grace, it is NOT terminated), hosting.deleted / vps.deleted / rdp.deleted (the resource was permanently removed after grace; data carries reason)' + (BR ? ', and the branded-nameserver events domain.nameservers_branded (registrar switched to the branded nameservers; data carries domain + nameservers + previous_nameservers), domain.nameservers_reverted (rolled back to the Cloudflare-assigned names to keep the domain protected; data carries reason + nameservers) and domain.nameservers_branding_failed (the domain stays on the Cloudflare names; data carries reason)' : '') + '. SECURITY: every delivery is signed — header "X-Nomadly-Signature: sha256=<hex>" is HMAC-SHA256 of the exact raw request body keyed by your webhook_secret. Recompute it and constant-time compare BEFORE acting on any *.deleted. Delivery is retried with backoff and de-duplicated per server+event (grace/auto_renew_failed re-fire each billing cycle; *.deleted fires once). Reply 2xx to acknowledge.',
           params: [['webhook_url', true, 'Your http(s) endpoint URL, or null to clear']],
           curl: `curl -s -X PUT ${base}/account/webhook \\
   -H "Authorization: Bearer YOUR_API_KEY" \\
@@ -99,7 +102,7 @@ function endpointGroups(base) {
           resp: `{
   "webhook_url": "https://your-app.com/hooks/nomadly",
   "webhook_secret": "whsec_… (store this — it signs every delivery)",
-  "events": ["hosting.provisioned","hosting.provision_failed","hosting.grace_start","hosting.suspended","hosting.deleted","hosting.auto_renew_failed","vps.provisioned","vps.provision_failed","vps.grace_start","vps.deleted","rdp.provisioned","rdp.provision_failed","rdp.grace_start","rdp.deleted","domain.nameservers_branded","domain.nameservers_reverted","domain.nameservers_branding_failed"],
+  "events": ["hosting.provisioned","hosting.provision_failed","hosting.grace_start","hosting.suspended","hosting.deleted","hosting.auto_renew_failed","vps.provisioned","vps.provision_failed","vps.grace_start","vps.deleted","rdp.provisioned","rdp.provision_failed","rdp.grace_start","rdp.deleted"${NS_EVENTS}],
   "delivery": "POST signed with HMAC-SHA256 (X-Nomadly-Signature: sha256=<hex>), auto-retry with backoff, de-duplicated per server+event"
 }
 
@@ -159,11 +162,13 @@ function endpointGroups(base) {
         },
         {
           method: 'POST', path: '/domains/register', auth: true, billed: true,
-          desc: `Register a domain. Charged to your wallet at the price returned by /domains/search. NAMESERVERS: by default (ns_choice "branded") the domain is delegated to the branded nameservers ${BNS_TXT} while DNS stays on our protected Cloudflare edge (proxy, WAF, anti-red). Cloudflare only activates a zone on its own assigned names, so the domain is first registered on the Cloudflare-assigned nameservers and our worker switches the registrar to ${BNS_TXT} automatically as soon as the zone is ACTIVE and proxied (usually minutes, up to a few hours) — no action needed; the response carries nameserver_status "activating" and current_nameservers until then, and the domain.nameservers_branded webhook fires when done. Every branded domain is then monitored hourly: if Cloudflare ever stops treating it as active, it is switched back to the Cloudflare names automatically (domain.nameservers_reverted webhook) so the site stays protected. Opt out with ns_choice "cloudflare" (Cloudflare-assigned names) or "registrar" (registrar default DNS), or pass your own "nameservers" array (2–4 hostnames) to use custom nameservers — custom DNS is NOT protected by our edge.`,
+          desc: !BR
+            ? 'Register a domain. Charged to your wallet at the price returned by /domains/search. NAMESERVERS: by default (ns_choice "cloudflare") the domain is delegated to its Cloudflare-assigned nameservers, so DNS sits on our protected Cloudflare edge (proxy, WAF, anti-red). Use ns_choice "registrar" for the registrar default DNS, or pass your own "nameservers" array (2–4 hostnames) to use custom nameservers — custom DNS is NOT protected by our edge.'
+            : `Register a domain. Charged to your wallet at the price returned by /domains/search. NAMESERVERS: by default (ns_choice "branded") the domain is delegated to the branded nameservers ${BNS_TXT} while DNS stays on our protected Cloudflare edge (proxy, WAF, anti-red). Cloudflare only activates a zone on its own assigned names, so the domain is first registered on the Cloudflare-assigned nameservers and our worker switches the registrar to ${BNS_TXT} automatically as soon as the zone is ACTIVE and proxied (usually minutes, up to a few hours) — no action needed; the response carries nameserver_status "activating" and current_nameservers until then, and the domain.nameservers_branded webhook fires when done. Every branded domain is then monitored hourly: if Cloudflare ever stops treating it as active, it is switched back to the Cloudflare names automatically (domain.nameservers_reverted webhook) so the site stays protected. Opt out with ns_choice "cloudflare" (Cloudflare-assigned names) or "registrar" (registrar default DNS), or pass your own "nameservers" array (2–4 hostnames) to use custom nameservers — custom DNS is NOT protected by our edge.`,
           params: [
             ['domain', true, 'Domain to register, e.g. mysite.com'],
-            ['ns_choice', false, `"branded" (default — ${BNS_TXT}) | "cloudflare" | "registrar"`],
-            ['nameservers', false, 'Array of 2–4 custom nameserver hostnames — overrides ns_choice (passing exactly the branded pair = "branded")'],
+            ['ns_choice', false, BR ? `"branded" (default — ${BNS_TXT}) | "cloudflare" | "registrar"` : '"cloudflare" (default) | "registrar"'],
+            ['nameservers', false, BR ? 'Array of 2–4 custom nameserver hostnames — overrides ns_choice (passing exactly the branded pair = "branded")' : 'Array of 2–4 custom nameserver hostnames — overrides ns_choice'],
           ],
           curl: `curl -s -X POST ${base}/domains/register \\
   -H "Authorization: Bearer YOUR_API_KEY" \\
@@ -178,18 +183,22 @@ function endpointGroups(base) {
   "result": {
     "success": true,
     "domain": "mysite.com",
-    "registrar": "ConnectReseller",
+    "registrar": "ConnectReseller",${BR ? `
     "nameserver_mode": "branded",
     "nameserver_status": "activating",
     "nameservers": ${BNS_JSON},
-    "current_nameservers": ["ada.ns.cloudflare.com", "rob.ns.cloudflare.com"],
-    "note": "Cloudflare is activating the zone on its assigned nameservers; the registrar is switched to the branded nameservers automatically (usually within minutes to a few hours). No action needed."
+    "current_nameservers": ${CF_JSON},
+    "note": "Cloudflare is activating the zone on its assigned nameservers; the registrar is switched to the branded nameservers automatically (usually within minutes to a few hours). No action needed."` : `
+    "nameserver_mode": "cloudflare",
+    "nameservers": ${CF_JSON}`}
   }
 }`,
         },
         {
           method: 'GET', path: '/domains', auth: true, billed: false,
-          desc: 'List all domains owned by your account (max 500). Branded domains also carry nameserver_mode, nameserver_status (activating | branded | reverted | branding_failed) and current_nameservers (what the registry delegates to right now).',
+          desc: BR
+            ? 'List all domains owned by your account (max 500). Branded domains also carry nameserver_mode, nameserver_status (activating | branded | reverted | branding_failed) and current_nameservers (what the registry delegates to right now).'
+            : 'List all domains owned by your account (max 500).',
           curl: `curl -s ${base}/domains \\
   -H "Authorization: Bearer YOUR_API_KEY"`,
           resp: `{
@@ -197,11 +206,12 @@ function endpointGroups(base) {
     {
       "domain": "mysite.com",
       "registrar": "ConnectReseller",
-      "nameserver_type": "cloudflare",
+      "nameserver_type": "cloudflare",${BR ? `
       "nameservers": ${BNS_JSON},
       "nameserver_mode": "branded",
       "nameserver_status": "branded",
-      "current_nameservers": ${BNS_JSON},
+      "current_nameservers": ${BNS_JSON},` : `
+      "nameservers": ${CF_JSON},`}
       "registered_at": "2026-09-08T10:22:00.000Z",
       "expires_at": "2027-09-08T10:22:00.000Z",
       "dns_records_url": "/dns/mysite.com/records",
@@ -279,10 +289,12 @@ function endpointGroups(base) {
         },
         {
           method: 'GET', path: '/dns/:domain/nameservers', auth: true, billed: false,
-          desc: 'Current nameserver delegation for a domain on your account, including the branded-nameserver status (activating → branded, or reverted / branding_failed).',
+          desc: BR
+            ? 'Current nameserver delegation for a domain on your account, including the branded-nameserver status (activating → branded, or reverted / branding_failed).'
+            : 'Current nameserver delegation for a domain on your account (nameserver_mode: cloudflare | registrar | custom).',
           curl: `curl -s ${base}/dns/mysite.com/nameservers \\
   -H "Authorization: Bearer YOUR_API_KEY"`,
-          resp: `{
+          resp: BR ? `{
   "domain": "mysite.com",
   "nameserver_type": "cloudflare",
   "nameserver_mode": "branded",
@@ -290,11 +302,19 @@ function endpointGroups(base) {
   "nameservers": ${BNS_JSON},
   "current_nameservers": ${BNS_JSON},
   "branded_at": "2026-10-07T11:05:00.000Z"
+}` : `{
+  "domain": "mysite.com",
+  "nameserver_type": "cloudflare",
+  "nameserver_mode": "cloudflare",
+  "nameservers": ${CF_JSON},
+  "current_nameservers": ${CF_JSON}
 }`,
         },
         {
           method: 'PUT', path: '/dns/:domain/nameservers', auth: true, billed: false,
-          desc: `Replace the domain nameservers (2–4 hostnames). Sending exactly ${BNS_TXT} switches the domain to the protected branded nameservers (its DNS must already be on our Cloudflare; if the zone is not active yet the registrar is kept on the Cloudflare names and the switch happens automatically after activation). Any other set = custom nameservers: branded monitoring stops and the change is applied as-is.`,
+          desc: !BR
+            ? 'Replace the domain nameservers (2–4 hostnames). The change is applied at the registrar as-is; custom nameservers are NOT protected by our Cloudflare edge.'
+            : `Replace the domain nameservers (2–4 hostnames). Sending exactly ${BNS_TXT} switches the domain to the protected branded nameservers (its DNS must already be on our Cloudflare; if the zone is not active yet the registrar is kept on the Cloudflare names and the switch happens automatically after activation). Any other set = custom nameservers: branded monitoring stops and the change is applied as-is.`,
           params: [['nameservers', true, 'Array of 2–4 nameserver hostnames']],
           curl: `curl -s -X PUT ${base}/dns/mysite.com/nameservers \\
   -H "Authorization: Bearer YOUR_API_KEY" \\
@@ -625,7 +645,9 @@ function endpointGroups(base) {
             ['plan_id', true, 'A plan_id from GET /hosting/plans'],
             ['domain', true, 'The primary domain for the account'],
             ['domain_mode', false, '"buy" | "existing" | "external" (legacy "byo" = external, default)'],
-            ['ns_choice', false, `domain_mode=buy only: "branded" (default — ${BNS_TXT}, switched automatically after Cloudflare activation) | "cloudflare". Custom nameservers are not accepted for hosting.`],
+            ['ns_choice', false, BR
+              ? `domain_mode=buy only: "branded" (default — ${BNS_TXT}, switched automatically after Cloudflare activation) | "cloudflare". Custom nameservers are not accepted for hosting.`
+              : 'domain_mode=buy only: "cloudflare" (default — Cloudflare-assigned nameservers). Custom nameservers are not accepted for hosting.'],
             ['email', false, 'Contact email for the account'],
             ['client_ref', false, 'Your own idempotency key — a retry with the same value returns the same provisioning job (no double-charge)'],
           ],

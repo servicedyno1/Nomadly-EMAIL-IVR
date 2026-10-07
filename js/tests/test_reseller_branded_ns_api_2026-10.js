@@ -12,7 +12,7 @@ require('dotenv').config({ path: path.resolve(__dirname, '../../backend/.env') }
 
 process.env.RESELLER_API_LIVE = 'true'          // exercise the LIVE code path (against mocks)
 process.env.RESELLER_BRANDED_NS = 'ns1.hosta.sh,ns2.hosta.sh'
-delete process.env.RESELLER_BRANDED_NS_ENABLED
+process.env.RESELLER_BRANDED_NS_ENABLED = 'true' // most cases exercise the opt-in path; the "flag off" section unsets it
 process.env.RESELLER_PROVISION_WORKER_MS = '3600000'
 
 const CF_NS = ['anderson.ns.cloudflare.com', 'leanna.ns.cloudflare.com']
@@ -269,6 +269,63 @@ async function t(name, fn) {
     const r = await api('get', '/account/webhook')
     assert.strictEqual(r.status, 200)
     for (const ev of ['domain.nameservers_branded', 'domain.nameservers_reverted', 'domain.nameservers_branding_failed']) assert.ok(r.data.events.includes(ev), ev)
+  })
+
+  console.log('flag off (default) → Cloudflare nameservers everywhere')
+  delete process.env.RESELLER_BRANDED_NS_ENABLED
+  await t('register default → cloudflare, not queued, no hosta.sh in response', async () => {
+    const r = await api('post', '/domains/register', { domain: 'off-default.com' })
+    assert.strictEqual(r.status, 200, JSON.stringify(r.data))
+    assert.strictEqual(r.data.result.nameserver_mode, 'cloudflare')
+    assert.deepStrictEqual(r.data.result.nameservers, CF_NS)
+    assert.strictEqual(calls.registerDomain.pop().nsChoice, 'cloudflare')
+    assert.strictEqual(await bdoc('off-default.com'), null)
+    assert.doesNotMatch(JSON.stringify(r.data), /hosta\.sh/)
+  })
+  await t('register ns_choice branded / branded pair → quietly cloudflare', async () => {
+    let r = await api('post', '/domains/register', { domain: 'off-branded.com', ns_choice: 'branded' })
+    assert.deepStrictEqual([r.status, r.data.result.nameserver_mode], [200, 'cloudflare'])
+    assert.strictEqual(calls.registerDomain.pop().nsChoice, 'cloudflare')
+    r = await api('post', '/domains/register', { domain: 'off-pair.com', nameservers: ['ns1.hosta.sh', 'ns2.hosta.sh'] })
+    assert.deepStrictEqual([r.status, r.data.result.nameserver_mode], [200, 'cloudflare'])
+    const c = calls.registerDomain.pop()
+    assert.deepStrictEqual([c.nsChoice, c.customNS], ['cloudflare', null])
+    assert.strictEqual(await bdoc('off-branded.com'), null)
+    assert.strictEqual(await bdoc('off-pair.com'), null)
+  })
+  await t('PUT branded pair → Cloudflare-assigned names set, no queue', async () => {
+    zones['reg-one.com'] = 'active'
+    const r = await api('put', '/dns/reg-one.com/nameservers', { nameservers: ['ns1.hosta.sh', 'ns2.hosta.sh'] })
+    assert.strictEqual(r.status, 200, JSON.stringify(r.data))
+    assert.deepStrictEqual(calls.updateAllNameservers.pop(), { domain: 'reg-one.com', ns: CF_NS })
+    assert.deepStrictEqual([r.data.nameserver_mode, r.data.nameservers], ['cloudflare', CF_NS])
+    assert.strictEqual(await bdoc('reg-one.com'), null)
+  })
+  await t('hosting buy default → cloudflare, not queued', async () => {
+    const r = await api('post', '/hosting', { plan_id: 'premium-weekly', domain: 'host-off.com', domain_mode: 'buy' })
+    assert.strictEqual(r.status, 202, JSON.stringify(r.data))
+    assert.strictEqual(r.data.nameserver_mode, 'cloudflare')
+    assert.strictEqual(r.data.nameservers, undefined)
+    for (let i = 0; i < 40; i++) {
+      const job = await DB.collection('resellerProvisionJobs').findOne({ _id: r.data.job_id })
+      if (job && job.status === 'done') break
+      await new Promise((ok) => setTimeout(ok, 150))
+    }
+    assert.strictEqual(calls.hostingBuild.pop().nsChoice, 'cloudflare')
+    assert.strictEqual(await bdoc('host-off.com'), null)
+  })
+  await t('webhook event list hides branded events', async () => {
+    const r = await api('get', '/account/webhook')
+    assert.strictEqual(r.status, 200)
+    assert.ok(!r.data.events.some((e) => e.startsWith('domain.nameservers_')))
+    assert.ok(r.data.events.includes('hosting.provisioned'))
+  })
+  await t('/apidoc never mentions hosta.sh or "branded" ns_choice', async () => {
+    const { renderApiDocPage } = require('../apidoc-page')
+    const html = renderApiDocPage('https://x/api/reseller/v1')
+    assert.ok(html.length > 1000, 'apidoc rendered')
+    assert.doesNotMatch(html, /hosta\.sh/)
+    assert.doesNotMatch(html, /nameservers_branded/)
   })
 
   server.close()
