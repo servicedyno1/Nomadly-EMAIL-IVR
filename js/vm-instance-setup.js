@@ -210,10 +210,12 @@ async function fetchAvailableDiskTpes(zone, isRDP = false) {
       ]
     }
     if (active.PROVIDER === 'digitalocean') {
-      // DigitalOcean Linux droplets are SSD-only — a single entry makes the bot skip the disk step.
-      return [
-        { id: 'ssd', _id: 'ssd', name: 'SSD', value: 'ssd', label: '💾 SSD', type: 'ssd', description: '💾 <b>SSD</b>\n   └ Enterprise SSD storage' },
-      ]
+      // SSD = Regular droplets; NVMe = Premium AMD/Intel. Only offer a class that has stock in the region.
+      const has = (pref) => (active.listProducts(zone, false, pref) || []).length > 0
+      const out = []
+      if (has('nvme')) out.push({ id: 'nvme', _id: 'nvme', name: 'NVMe', value: 'nvme', label: '⚡ NVMe SSD — Premium', type: 'nvme', pricier: true, description: '⚡ <b>NVMe SSD — Premium</b>\n   └ Latest AMD EPYC / Intel Xeon CPUs\n   └ Much faster disk & memory — best for databases & busy apps' })
+      if (has('ssd')) out.push({ id: 'ssd', _id: 'ssd', name: 'SSD', value: 'ssd', label: '💾 SSD — Standard', type: 'ssd', description: '💾 <b>SSD — Standard</b>\n   └ Lower price, same RAM & disk sizes\n   └ Great for websites, bots & light workloads' })
+      return out
     }
     return [
       { id: 'nvme', _id: 'nvme', name: 'NVMe', value: 'nvme', label: '⚡ NVMe — Faster Speed', type: 'nvme', description: '⚡ <b>NVMe — Faster Speed</b>\n   └ Best for databases, apps & heavy I/O\n   └ Up to 10× faster read/write vs SSD' },
@@ -1615,7 +1617,7 @@ async function fetchVpsUpgradeOptions(telegramId, vpsId, upgradeType = 'vps') {
     if (upgradeType === 'vps' || upgradeType === 'plan') {
       // Return higher-tier products of the same disk type
       const allProducts = upgradeProvider.listProducts(region, isRDP, currentProduct.diskType)
-      const upgrades = allProducts.filter(p => p.tier > currentProduct.tier)
+      const upgrades = allProducts.filter(p => p.tier > currentProduct.tier && (p.diskMb || 0) >= (currentProduct.diskMb || 0))
 
       return upgrades.map(p => ({
         _id: p.productId,
@@ -1636,8 +1638,9 @@ async function fetchVpsUpgradeOptions(telegramId, vpsId, upgradeType = 'vps') {
     } else if (upgradeType === 'disk') {
       // Switch disk type: NVMe ↔ SSD
       const otherDiskType = currentProduct.diskType === 'nvme' ? 'ssd' : 'nvme'
-      const sametierProduct = (otherDiskType === 'ssd' ? upgradeProvider.PRODUCT_CATALOG_SSD : upgradeProvider.PRODUCT_CATALOG)
-        .find(p => p.tier === currentProduct.tier)
+      const sametierProduct = typeof upgradeProvider.diskSwitchTarget === 'function'
+        ? upgradeProvider.diskSwitchTarget(currentProduct, region)
+        : (otherDiskType === 'ssd' ? upgradeProvider.PRODUCT_CATALOG_SSD : upgradeProvider.PRODUCT_CATALOG).find(p => p.tier === currentProduct.tier)
 
       if (!sametierProduct) return []
 

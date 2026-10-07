@@ -3132,7 +3132,7 @@ const vp = {
  // disk type
  askVpsDiskType: list => `💾 <b>Choose Storage Type</b>
 
-Both options cost the same — pick what matters more to you:
+${list?.some(item => item.pricier) ? 'NVMe costs more but runs on newer CPUs with a much faster disk — SSD is the budget pick:' : 'Both options cost the same — pick what matters more to you:'}
 
 ${list?.map(item => `${item.description}`).join('\n\n')}
 

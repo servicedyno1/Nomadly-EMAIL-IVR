@@ -45722,7 +45722,7 @@ app.get('/health', async (req, res) => {
     database: dbHealthy ? 'connected' : 'connecting',
     uptime: ((new Date() - serverStartTime) / (1000 * 60 * 60)).toFixed(2) + ' hours',
     // Live phone-call sessions are process-local: deploy.sh holds the nginx flip while live > 0.
-    calls: voiceService?.getLiveCallCounts ? voiceService.getLiveCallCounts() : undefined,
+    calls: (() => { try { return require('./voice-service.js').getLiveCallCounts?.() } catch (_) { return undefined } })(),
     slot: activeSlot.describe(),
   })
 })

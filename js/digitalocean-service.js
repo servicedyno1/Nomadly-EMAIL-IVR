@@ -191,6 +191,37 @@ const PRODUCT_CATALOG = [
   },
 ]
 
+// Premium NVMe droplets (DO "Basic AMD" / "Basic Intel": newer EPYC / Xeon CPUs + NVMe SSD).
+// [slug, vCPU, RAM GB, disk GB, transfer TB, DO $/mo]. Tier = position (price order) within NVMe.
+const NVME_SIZES = [
+  ['s-1vcpu-1gb-amd', 1, 1, 25, 1, 7], ['s-1vcpu-1gb-intel', 1, 1, 25, 1, 7],
+  ['s-1vcpu-1gb-35gb-intel', 1, 1, 35, 1, 8],
+  ['s-1vcpu-2gb-amd', 1, 2, 50, 2, 14], ['s-1vcpu-2gb-intel', 1, 2, 50, 2, 14],
+  ['s-1vcpu-2gb-70gb-intel', 1, 2, 70, 2, 16],
+  ['s-2vcpu-2gb-amd', 2, 2, 60, 3, 21], ['s-2vcpu-2gb-intel', 2, 2, 60, 3, 21],
+  ['s-2vcpu-2gb-90gb-intel', 2, 2, 90, 3, 24],
+  ['s-2vcpu-4gb-amd', 2, 4, 80, 4, 28], ['s-2vcpu-4gb-intel', 2, 4, 80, 4, 28],
+  ['s-2vcpu-4gb-120gb-intel', 2, 4, 120, 4, 32],
+  ['s-2vcpu-8gb-amd', 2, 8, 100, 5, 42], ['s-2vcpu-8gb-160gb-intel', 2, 8, 160, 5, 48],
+  ['s-4vcpu-8gb-amd', 4, 8, 160, 5, 56], ['s-4vcpu-8gb-intel', 4, 8, 160, 5, 56],
+  ['s-4vcpu-8gb-240gb-intel', 4, 8, 240, 6, 64],
+  ['s-4vcpu-16gb-amd', 4, 16, 200, 8, 84], ['s-4vcpu-16gb-320gb-intel', 4, 16, 320, 8, 96],
+  ['s-8vcpu-16gb-amd', 8, 16, 320, 6, 112], ['s-8vcpu-16gb-intel', 8, 16, 320, 6, 112],
+  ['s-8vcpu-16gb-480gb-intel', 8, 16, 480, 9, 128],
+  ['s-8vcpu-32gb-amd', 8, 32, 400, 10, 168], ['s-8vcpu-32gb-640gb-intel', 8, 32, 640, 10, 192],
+]
+const PRODUCT_CATALOG_NVME = NVME_SIZES.map(([slug, cpu, ram, disk, tb, price], i) => {
+  const vendor = slug.endsWith('-amd') ? 'AMD' : 'Intel'
+  return {
+    productId: slug, do_size_slug: slug, cpuVendor: vendor,
+    name: `NVMe ${vendor} ${cpu}vCPU/${ram}GB/${disk}GB`,
+    cpuCores: cpu, ramMb: ram * 1024, diskMb: disk * 1024,
+    diskType: 'nvme', bandwidthTb: tb,
+    portSpeedMbps: 1000, basePriceUsd: price, tier: i + 1,
+  }
+})
+const ALL_PRODUCTS = [...PRODUCT_CATALOG, ...PRODUCT_CATALOG_NVME]
+
 // DO is flat-priced across all regions — surcharge is 0 for every tier.
 const REGION_SURCHARGE = {
   'EU':         [0, 0, 0, 0, 0, 0],
@@ -228,6 +259,15 @@ const REGION_TO_DO_SLUG = {
 }
 
 // ─── Pricing ─────────────────────────────────────────────────────────────
+// Live instance records carry the DO slug (fra1); catalog calls use the customer code (EU).
+// Case-insensitive: the reseller API upper-cases region codes (US-EAST → US-east).
+function _customerRegion(regionSlug) {
+  if (REGION_TO_DO_SLUG[regionSlug]) return regionSlug
+  const r = String(regionSlug || '').toLowerCase()
+  const hit = Object.entries(REGION_TO_DO_SLUG).find(([cust, doSlug]) => cust.toLowerCase() === r || doSlug === r)
+  return hit ? hit[0] : regionSlug
+}
+
 function applyMarkup(basePrice) {
   return Math.round(basePrice * (1 + MARKUP_PERCENT / 100) * 100) / 100
 }
@@ -236,7 +276,7 @@ function calculatePrice(product, regionSlug, isWindows = false) {
   // DO does not support Windows at all — calling code shouldn't request it,
   // but if it does, return null so the bot's "unavailable" path triggers.
   if (isWindows) return null
-  const surchargeArr = REGION_SURCHARGE[regionSlug]
+  const surchargeArr = REGION_SURCHARGE[_customerRegion(regionSlug)]
   if (!surchargeArr) return null // e.g. 'JP' on DO → not available
   const base       = product.basePriceUsd
   const tier       = product.tier || 1
@@ -254,14 +294,67 @@ function calculatePrice(product, regionSlug, isWindows = false) {
   }
 }
 
+// ─── Live size availability (refreshed hourly) ───────────────────────────
+// DO stocks each size per region and changes that over time; only list/accept what can be created now.
+const AVAILABILITY_REFRESH_MS = 60 * 60 * 1000
+let _sizeRegions = null // slug → Set(DO region slugs); null until the first fetch = assume available
+let _sizeRegionsAt = null
+let _refreshing = null
+
+function _applySizes(sizes) {
+  const map = new Map()
+  for (const s of sizes || []) if (s.available) map.set(s.slug, { regions: new Set(s.regions || []), price: Number(s.price_monthly) })
+  _sizeRegions = map
+  _sizeRegionsAt = new Date()
+  for (const p of ALL_PRODUCTS) {
+    const live = map.get(p.productId)
+    if (live && live.price !== p.basePriceUsd) log(`Price drift ${p.productId}: catalog $${p.basePriceUsd} vs DO $${live.price}`)
+  }
+}
+
+function refreshSizeAvailability() {
+  if (_refreshing) return _refreshing
+  _refreshing = (async () => {
+    try {
+      const data = await apiRequest('GET', '/sizes', null, { per_page: 200 })
+      _applySizes(data.sizes)
+      return true
+    } catch (e) {
+      log(`Size availability refresh failed (keeping last known): ${e.message}`)
+      return false
+    } finally { _refreshing = null }
+  })()
+  return _refreshing
+}
+
+function isProductAvailable(productId, regionSlug) {
+  const doRegion = REGION_TO_DO_SLUG[_customerRegion(regionSlug)]
+  if (!doRegion) return false
+  if (!_sizeRegions) return true
+  const live = _sizeRegions.get(productId)
+  return !!live && live.regions.has(doRegion)
+}
+
+function getAvailabilityState() {
+  return { fetchedAt: _sizeRegionsAt, sizes: _sizeRegions ? _sizeRegions.size : 0 }
+}
+
+if (API_TOKEN && process.env.NODE_ENV !== 'test') {
+  refreshSizeAvailability()
+  setInterval(refreshSizeAvailability, AVAILABILITY_REFRESH_MS).unref()
+}
+
 // ─── Products / catalog ──────────────────────────────────────────────────
-// DO has no SSD-vs-NVMe choice (all standard droplets are SSD), so the
-// catalog is exposed BOTH as PRODUCT_CATALOG and PRODUCT_CATALOG_SSD (alias).
+// Two storage classes: Regular "Basic" droplets (SSD) and Premium AMD/Intel (NVMe).
 const PRODUCT_CATALOG_SSD = PRODUCT_CATALOG
 
-function listProducts(regionSlug = 'EU', isWindows = false, _diskPreference = 'ssd') {
+// diskPreference: 'ssd' | 'nvme' | anything else (e.g. undefined) = both classes.
+function listProducts(regionSlug = 'EU', isWindows = false, diskPreference) {
   if (isWindows) return [] // DO has no Windows
-  return PRODUCT_CATALOG
+  const pref = String(diskPreference || '').toLowerCase()
+  const source = pref === 'ssd' ? PRODUCT_CATALOG : pref === 'nvme' ? PRODUCT_CATALOG_NVME : ALL_PRODUCTS
+  return source
+    .filter(p => isProductAvailable(p.productId, regionSlug))
     .map(p => {
       const pricing = calculatePrice(p, regionSlug, false)
       if (!pricing) return null
@@ -276,7 +369,17 @@ function listProducts(regionSlug = 'EU', isWindows = false, _diskPreference = 's
 }
 
 function getProduct(productId) {
-  return PRODUCT_CATALOG.find(p => p.productId === productId) || null
+  return ALL_PRODUCTS.find(p => p.productId === productId) || null
+}
+
+// Same-size product on the other storage class (SSD ↔ NVMe) that is in stock in the region.
+function diskSwitchTarget(product, regionSlug) {
+  if (!product) return null
+  const candidates = product.diskType === 'nvme'
+    ? [product.productId.replace(/-(amd|intel)$/, '')]
+    : [`${product.productId}-amd`, `${product.productId}-intel`]
+  const pool = product.diskType === 'nvme' ? PRODUCT_CATALOG : PRODUCT_CATALOG_NVME
+  return candidates.map(id => pool.find(p => p.productId === id)).find(p => p && isProductAvailable(p.productId, regionSlug)) || null
 }
 
 async function listRegions() {
@@ -473,7 +576,7 @@ async function createInstance(opts) {
   if (!productId || !regionSlug) {
     throw new Error(`createInstance requires { productId, regionSlug } — got productId=${productId} regionSlug=${regionSlug}`)
   }
-  const region = REGION_TO_DO_SLUG[regionSlug]
+  const region = REGION_TO_DO_SLUG[_customerRegion(regionSlug)]
   if (!region) throw new Error(`DO has no datacenter for region slug: ${regionSlug}`)
 
   // user_data on DO is sent as plain text (NOT base64). Build a cloud-init
@@ -977,8 +1080,8 @@ async function deleteSecret(secretId) {
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────
-function isNVMeProduct(_productId) { return false } // DO standard droplets are SSD, not NVMe
-function isSSDProduct(_productId)  { return true  }
+function isNVMeProduct(productId) { return getProduct(productId)?.diskType === 'nvme' }
+function isSSDProduct(productId)  { return !isNVMeProduct(productId) }
 
 function formatSpecs(product) {
   const ramGb  = product.ramGb  || Math.round((product.ramMb  || 0) / 1024)
@@ -1051,8 +1154,14 @@ module.exports = {
   // Products
   PRODUCT_CATALOG,
   PRODUCT_CATALOG_SSD,
+  PRODUCT_CATALOG_NVME,
   listProducts,
   getProduct,
+  diskSwitchTarget,
+  isProductAvailable,
+  refreshSizeAvailability,
+  getAvailabilityState,
+  _applySizes,
   isNVMeProduct,
   isSSDProduct,
   // Regions

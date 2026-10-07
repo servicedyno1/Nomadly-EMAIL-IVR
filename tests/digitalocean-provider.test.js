@@ -91,12 +91,14 @@ describe('DigitalOcean — pricing with 200% markup', () => {
     }
   })
 
-  test('listProducts accepts (region, isWindows, diskPreference) — Contabo signature parity', () => {
+  test('listProducts accepts (region, isWindows, diskPreference) — SSD = Regular, NVMe = Premium AMD/Intel', () => {
     const ssd = digitalocean.listProducts('EU', false, 'ssd')
     const nvme = digitalocean.listProducts('EU', false, 'nvme')
     expect(ssd).toHaveLength(6)
-    expect(nvme).toHaveLength(6) // DO has no SSD/NVMe split — same catalog
-    expect(ssd.map(p => p.productId)).toEqual(nvme.map(p => p.productId))
+    expect(ssd.every(p => p.diskType === 'ssd')).toBe(true)
+    expect(nvme).toHaveLength(24)
+    expect(nvme.every(p => p.diskType === 'nvme' && /-(amd|intel)$/.test(p.productId))).toBe(true)
+    expect(digitalocean.listProducts('EU', false)).toHaveLength(30)
   })
 
   test('listProducts with isWindows=true returns empty (Linux-only)', () => {

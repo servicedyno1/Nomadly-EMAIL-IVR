@@ -133,7 +133,8 @@ function endpointGroups(base) {
     { "plan_id": "premium-weekly", "name": "Premium Anti-Red (1-Week)", "tier": "premium", "price_usd": 30, "duration_days": 7, "addon_domains": 1 }
   ],
   "vps": { "provider": "digitalocean", "region": "EU", "plans": [
-    { "plan_id": "s-1vcpu-1gb", "name": "1 vCPU / 1 GB", "ram_gb": 1, "disk_gb": 25, "cpu": "Standard", "storage_type": "SSD", "price_usd": 18.00 }
+    { "plan_id": "s-1vcpu-1gb", "name": "Cloud VPS 10", "vcpus": 1, "ram_gb": 1, "disk_gb": 25, "cpu": "Standard", "storage_type": "SSD", "price_usd": 18.00 },
+    { "plan_id": "s-1vcpu-1gb-amd", "name": "NVMe AMD 1vCPU/1GB/25GB", "vcpus": 1, "ram_gb": 1, "disk_gb": 25, "cpu": "AMD", "storage_type": "NVMe SSD", "price_usd": 21.00 }
   ] },
   "rdp": { "provider": "digitalocean", "region": "EU", "plans": [
     { "plan_id": "standard-1m", "name": "Standard — Windows RDP (1 month)", "ram_gb": 4, "disk_gb": 80, "cpu": "AMD", "storage_type": "NVMe SSD", "price_usd": 56 }
@@ -409,8 +410,8 @@ function endpointGroups(base) {
       endpoints: [
         {
           method: 'GET', path: '/vps/plans', auth: true, billed: false,
-          desc: 'List available Linux VPS plans and prices for a region.',
-          params: [['region', false, 'Region code — defaults to EU']],
+          desc: 'List the Linux VPS plans that can be ordered RIGHT NOW in a region (stock is re-checked hourly; out-of-stock plans are hidden). Two storage classes: Standard plans (storage_type "SSD", cpu "Standard") and Premium NVMe plans (storage_type "NVMe SSD", cpu "AMD" or "Intel" — newer EPYC / Xeon CPUs with a much faster disk). Use ?storage=nvme or ?storage=ssd to filter.',
+          params: [['region', false, 'Region code — defaults to EU'], ['storage', false, '"nvme" | "ssd" — omit for both']],
           curl: `curl -s "${base}/vps/plans?region=EU" \\
   -H "Authorization: Bearer YOUR_API_KEY"`,
           resp: `{
@@ -418,7 +419,9 @@ function endpointGroups(base) {
   "provider": "digitalocean",
   "region": "EU",
   "plans": [
-    { "plan_id": "s-1vcpu-1gb", "name": "1 vCPU / 1 GB", "vcpus": 1, "ram_gb": 1, "disk_gb": 25, "cpu": "Standard", "storage_type": "SSD", "price_usd": 18.00 }
+    { "plan_id": "s-1vcpu-1gb", "name": "Cloud VPS 10", "vcpus": 1, "ram_gb": 1, "disk_gb": 25, "cpu": "Standard", "storage_type": "SSD", "price_usd": 18.00 },
+    { "plan_id": "s-2vcpu-4gb-amd", "name": "NVMe AMD 2vCPU/4GB/80GB", "vcpus": 2, "ram_gb": 4, "disk_gb": 80, "cpu": "AMD", "storage_type": "NVMe SSD", "price_usd": 84.00 },
+    { "plan_id": "s-2vcpu-4gb-120gb-intel", "name": "NVMe Intel 2vCPU/4GB/120GB", "vcpus": 2, "ram_gb": 4, "disk_gb": 120, "cpu": "Intel", "storage_type": "NVMe SSD", "price_usd": 96.00 }
   ]
 }`,
         },
@@ -426,7 +429,7 @@ function endpointGroups(base) {
           method: 'POST', path: '/vps', auth: true, billed: true,
           desc: 'Create a Linux VPS. ASYNC: returns 202 immediately with status "provisioning" and a stable id (the build runs in the background so the request never times out). The wallet is charged up-front; if the build ultimately fails the charge is auto-refunded and a vps.provision_failed webhook fires. Poll GET /vps/:id until status "RUNNING" (then read /vps/:id/credentials), or subscribe to the vps.provisioned / vps.provision_failed webhooks. Pass an optional idempotent client_ref — a retry with the same client_ref echoes the SAME 202 handle and never double-charges.',
           params: [
-            ['plan_id', true, 'A plan_id from GET /vps/plans'],
+            ['plan_id', true, 'A plan_id from GET /vps/plans (SSD or NVMe). An out-of-stock plan returns 409 out_of_stock — pick another plan or region'],
             ['region', false, 'Region code — defaults to EU'],
             ['hostname', false, 'Optional label/hostname'],
             ['os', false, 'OS image — defaults to ubuntu'],

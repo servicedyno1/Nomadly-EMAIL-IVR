@@ -689,7 +689,7 @@ function createResellerApi(deps = {}) {
 
     const mapPlans = (prov, isRDP) => (prov.listProducts(region, isRDP) || []).map(p => ({
       plan_id: p.productId, name: p.name || p.productId,
-      vcpus: p.vcpus || p.vCpus || null, ram_gb: p.ramGb || null, disk_gb: p.diskGb || null,
+      vcpus: p.vcpus || p.vCpus || p.cpuCores || null, ram_gb: p.ramGb || null, disk_gb: p.diskGb || null,
       ...hwFromProduct(p),
       duration_months: p.durationMonths || 1, discount_pct: (p.pricing && p.pricing.discountPct) || 0,
       price_usd: p.pricing ? p.pricing.totalWithMarkup : null,
@@ -984,19 +984,22 @@ function createResellerApi(deps = {}) {
 
   async function vpsPlansHandler(req, res, isRDP) {
     const region = String(req.query.region || 'EU').toUpperCase()
+    const storage = String(req.query.storage || '').toLowerCase()
+    if (storage && !['nvme', 'ssd'].includes(storage)) return res.status(400).json({ error: 'invalid_storage', message: 'storage must be "nvme" or "ssd" (omit for both).' })
     const prov = providerFor(isRDP)
     const products = prov.listProducts(region, isRDP) || []
+    const plans = products.map(p => ({
+      plan_id: p.productId, name: p.name || p.productId,
+      vcpus: p.vcpus || p.vCpus || p.cpuCores || null, ram_gb: p.ramGb || null, disk_gb: p.diskGb || null,
+      ...hwFromProduct(p),
+      duration_months: p.durationMonths || 1, discount_pct: (p.pricing && p.pricing.discountPct) || 0,
+      price_usd: p.pricing ? p.pricing.totalWithMarkup : null,
+    }))
     const out = {
       product: isRDP ? 'rdp' : 'vps',
       provider: prov.PROVIDER || (isRDP ? process.env.VPS_RDP_PROVIDER : process.env.VPS_DEFAULT_PROVIDER),
       region,
-      plans: products.map(p => ({
-        plan_id: p.productId, name: p.name || p.productId,
-        vcpus: p.vcpus || p.vCpus || null, ram_gb: p.ramGb || null, disk_gb: p.diskGb || null,
-        ...hwFromProduct(p),
-        duration_months: p.durationMonths || 1, discount_pct: (p.pricing && p.pricing.discountPct) || 0,
-        price_usd: p.pricing ? p.pricing.totalWithMarkup : null,
-      })),
+      plans: storage ? plans.filter(p => (p.storage_type === 'NVMe SSD') === (storage === 'nvme')) : plans,
     }
     // Windows editions + fast-deploy (golden image) readiness per region code.
     if (isRDP && typeof prov.listOsOptions === 'function') {
@@ -1015,6 +1018,9 @@ function createResellerApi(deps = {}) {
     if (!product) return res.status(400).json({ error: 'invalid_plan', message: 'Unknown plan_id. Call GET plans first.' })
     const pricing = prov.calculatePrice(product, region, isRDP)
     if (!pricing) return res.status(400).json({ error: 'unavailable', message: `Plan not available in region ${region}.` })
+    if (typeof prov.isProductAvailable === 'function' && !prov.isProductAvailable(planId, region)) {
+      return res.status(409).json({ error: 'out_of_stock', message: `Plan ${planId} is temporarily out of stock in region ${region}. Call GET plans for what can be ordered right now.` })
+    }
     // RDP: optional Windows edition (ws2019 | ws2022 | ws2025) when the provider exposes OS options.
     let osId = null
     if (isRDP && prov.OS_OPTIONS) {
