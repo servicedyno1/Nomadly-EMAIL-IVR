@@ -30,6 +30,8 @@ const EVENTS = [
   'hosting.grace_start', 'hosting.suspended', 'hosting.deleted', 'hosting.auto_renew_failed',
   'vps.provisioned', 'vps.provision_failed', 'vps.grace_start', 'vps.deleted',
   'rdp.provisioned', 'rdp.provision_failed', 'rdp.grace_start', 'rdp.deleted',
+  // Branded nameservers (ns1/ns2.hosta.sh) lifecycle for reseller-registered domains
+  'domain.nameservers_branded', 'domain.nameservers_reverted', 'domain.nameservers_branding_failed',
 ]
 
 const sleep = (ms) => new Promise(r => setTimeout(r, ms))

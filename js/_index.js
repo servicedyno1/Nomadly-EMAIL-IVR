@@ -38144,6 +38144,30 @@ app.use('/reseller/v1', createResellerApi({
   notifyAdmin,
 }))
 
+// ── Vanity-nameserver pilot (ns1/ns2.hosta.sh → Cloudflare NS IPs) ──
+// Admin: /api/admin/ns-pilot/{status,start,tick,revert,switch,stop}?key=<SESSION_SECRET[0..15]>
+// Cron:  POST /api/cron/ns-pilot-tick (Bearer WEBHOOK_CRON_SECRET) — hourly via .emergent/crons.yml
+// State lives in the pod's main `db` (nsPilot / nsPilotChecks). Inert unless /start was called.
+try {
+  require('./ns-pilot').init({ app, getDb: () => db, notifyAdmin, log })
+} catch (e) {
+  log(`[NsPilot] init failed: ${e.message}`)
+}
+
+// ── Branded nameservers for RESELLER API domains (ns1/ns2.hosta.sh) ──
+// The bot keeps Cloudflare-assigned NS. Reseller-registered domains (POST /domains/register,
+// POST /hosting domain_mode=buy) are registered on CF names, then this worker switches the
+// registrar to the branded names once the zone is ACTIVE + proxied, and monitors hourly
+// (auto-revert to CF names if the zone stops being active / origin IP leaks).
+// Uses the reseller DB (same one the reseller API writes). Active-slot only.
+// Admin: /api/admin/branded-ns/{status,tick,switch,revert}?key=<SESSION_SECRET[0..15]>
+try {
+  require('./branded-ns').init({ app, getDb: () => resellerDb || db, notifyAdmin, log })
+} catch (e) {
+  log(`[BrandedNS] init failed: ${e.message}`)
+}
+
+
 // ── DigitalOcean RDP provisioning callbacks (on-droplet Windows conversion) ──
 // External URL: /api/provision/*  (FastAPI strips /api → node /provision).
 // The convert_to_windows.sh / apply.ps1 scripts POST progress to /provision/callback

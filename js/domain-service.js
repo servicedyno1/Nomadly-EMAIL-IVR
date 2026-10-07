@@ -928,7 +928,12 @@ const updateAllNameservers = async (domainName, newNameservers, db) => {
   }
 
   // Determine new nameserverType based on NS values
-  const isCloudflare = newNameservers.some(ns => ns.toLowerCase().includes('cloudflare'))
+  // Branded reseller nameservers (ns1/ns2.hosta.sh → glue = Cloudflare NS IPs) are
+  // served by the SAME Cloudflare zone, so they must keep the cfZoneId linkage
+  // (DNS CRUD, anti-red, SSL) exactly like the CF-assigned names.
+  let isBrandedNsSet = false
+  try { isBrandedNsSet = require('./branded-ns').isBrandedSet(newNameservers) } catch (_) { isBrandedNsSet = false }
+  const isCloudflare = isBrandedNsSet || newNameservers.some(ns => ns.toLowerCase().includes('cloudflare'))
   const isCRDefault = newNameservers.some(ns => ns.toLowerCase().includes('managedns.org'))
   const isOPDefault = newNameservers.some(ns => ns.toLowerCase().includes('openprovider'))
   let newNsType = 'custom'
