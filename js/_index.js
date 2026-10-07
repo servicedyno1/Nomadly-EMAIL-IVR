@@ -722,6 +722,7 @@ const {
   renewVPSPlan,
   renewVPSCPanel
 } = require('./vm-instance-setup.js')
+const doPlanChange = require('./do-plan-change') // DigitalOcean VPS/RDP in-place upgrade/downgrade
 // const { console } = require('inspector') // removed — shadows global console
 const BROADCAST_CONFIG = require('./broadcast-config.js')
 const monetization = require('./monetization-engine.js')
@@ -9510,6 +9511,9 @@ bot?.on('message', msg => {
     upgradeVpsInstance: 'upgradeVpsInstance',
     upgradeVpsPlan: 'upgradeVpsPlan',
     askVpsUpgradePayment: 'askVpsUpgradePayment',
+    doPlanSelect: 'doPlanSelect',
+    doPlanDisk: 'doPlanDisk',
+    doPlanConfirm: 'doPlanConfirm',
     vpsSubscription: 'vpsSubscription',
     manageVpsSub: 'manageVpsSub',
     manageVpsPanel: 'manageVpsPanel',
@@ -12493,8 +12497,41 @@ Enter new value:`), bc)
     },
 
     upgradeVpsInstance: async () => {
+      const rec = await vpsPlansOf.findOne({ chatId: String(chatId), vpsId: String(info.vpsDetails?._id) }).catch(() => null)
+      if (doPlanChange.isDoRecord(rec)) return goto.doPlanOptions(rec)
       await set(state, chatId, 'action', a.upgradeVpsInstance)
       return send(chatId, vp.upgradeVPS, vp.of([ vp.upgradeVpsPlanBtn, vp.upgradeVpsDiskBtn ])) 
+    },
+
+    // DigitalOcean VPS/RDP: one list of upgrades (pro-rata) + downgrades (free, no refund), resized in place.
+    doPlanOptions: async (rec) => {
+      rec = rec || await vpsPlansOf.findOne({ chatId: String(chatId), vpsId: String(info.vpsDetails?._id) })
+      send(chatId, vp.vpsWaitingTime)
+      let po
+      try { po = await doPlanChange.planOptions(rec) } catch (e) {
+        log(`[DoPlanChange] options for ${chatId}/${rec?.vpsId}: ${e.message}`)
+        send(chatId, vp.doPlanUnavailable(e.code))
+        return goto.getVPSDetails()
+      }
+      const opts = po.options.filter(o => o.allowed)
+      if (!opts.length) { send(chatId, vp.doPlanNoOptions); return goto.getVPSDetails() }
+      await saveInfo('doPlanOptions', opts)
+      await saveInfo('doPlanCurrent', po.current)
+      await set(state, chatId, 'action', a.doPlanSelect)
+      return send(chatId, vp.doPlanOptionsMsg(po.current, opts, po.remaining_days, po.options.length - opts.length), vp.of(opts.map(o => vp.doPlanOptionBtn(o))))
+    },
+
+    doPlanDisk: async () => {
+      await set(state, chatId, 'action', a.doPlanDisk)
+      const sel = info.doPlanSelected
+      return send(chatId, vp.doPlanDiskAsk(sel, info.doPlanCurrent), vp.of([vp.doPlanKeepDiskBtn, vp.doPlanGrowDiskBtn(sel.disk_gb)]))
+    },
+
+    doPlanConfirm: async () => {
+      await set(state, chatId, 'action', a.doPlanConfirm)
+      const { usdBal } = await getBalance(walletOf, chatId)
+      const name = info.userVPSDetails?.name || info.vpsDetails?.name
+      return send(chatId, vp.doPlanSummary(name, info.doPlanCurrent, info.doPlanSelected, !!info.doPlanResizeDisk, usdBal), vp.of([vp.confirmChangeBtn]))
     },
 
     upgradeVpsPlan: async () => {
@@ -21018,6 +21055,71 @@ ${message.replace(/\n/g, '<br>')}
     }
     if (message === vp.yes) return goto['vps-upgrade-plan-pay']()
     send(chatId, t.selectValidOption)
+  }
+
+  if (action === a.doPlanSelect) {
+    if (isBackPress(message) || message === vp.cancel) return goto.getVPSDetails()
+    const opts = info.doPlanOptions || []
+    const sel = opts.find(o => vp.doPlanOptionBtn(o) === message)
+    if (!sel) return send(chatId, vp.selectCorrectOption, vp.of(opts.map(o => vp.doPlanOptionBtn(o))))
+    await saveInfo('doPlanSelected', sel)
+    await saveInfo('doPlanResizeDisk', false)
+    return sel.can_resize_disk ? goto.doPlanDisk() : goto.doPlanConfirm()
+  }
+
+  if (action === a.doPlanDisk) {
+    if (isBackPress(message)) return goto.doPlanOptions()
+    if (message === vp.cancel) return goto.getVPSDetails()
+    const sel = info.doPlanSelected
+    if (message !== vp.doPlanKeepDiskBtn && message !== vp.doPlanGrowDiskBtn(sel.disk_gb)) {
+      return send(chatId, vp.selectCorrectOption, vp.of([vp.doPlanKeepDiskBtn, vp.doPlanGrowDiskBtn(sel.disk_gb)]))
+    }
+    await saveInfo('doPlanResizeDisk', message !== vp.doPlanKeepDiskBtn)
+    return goto.doPlanConfirm()
+  }
+
+  if (action === a.doPlanConfirm) {
+    if (isBackPress(message)) return info.doPlanSelected?.can_resize_disk ? goto.doPlanDisk() : goto.doPlanOptions()
+    if (message === vp.cancel) return goto.getVPSDetails()
+    if (message !== vp.confirmChangeBtn) return send(chatId, vp.selectCorrectOption, vp.of([vp.confirmChangeBtn]))
+    const sel = info.doPlanSelected
+    const lang = info?.userLanguage ?? 'en'
+    const vpsName = info.userVPSDetails?.name || info.vpsDetails?.name
+    const { usdBal } = await getBalance(walletOf, chatId)
+    if (usdBal < sel.charge_now_usd) {
+      await set(state, chatId, 'action', 'none')
+      return send(chatId, vp.doPlanLowBalance(usdBal, sel.charge_now_usd), k.of([[u.deposit]]))
+    }
+    const rec = await vpsPlansOf.findOne({ chatId: String(chatId), vpsId: String(info.vpsDetails?._id) })
+    let started
+    try {
+      started = await doPlanChange.start({
+        vpsPlansOf, walletOf, rec, planId: sel.plan_id, resizeDisk: !!info.doPlanResizeDisk, via: 'bot', log,
+        onDone: async (r) => {
+          const c = r.change
+          if (r.success) {
+            send(chatId, translation('vp.doPlanDone', lang, vpsName, c, r.result), translation('o', lang))
+            const uname = await get(nameOf, chatId)
+            notifyGroup(
+              `${c.direction === 'downgrade' ? '⬇️' : '⬆️'} <b>${rec.isRDP ? 'RDP' : 'VPS'} plan changed!</b>\nUser ${maskName(uname)} just ${c.direction === 'downgrade' ? 'downgraded' : 'upgraded'} their server in place.\nManage yours — /start`,
+              `${c.direction === 'downgrade' ? '⬇️' : '⬆️'} <b>${rec.isRDP ? 'RDP' : 'VPS'} plan ${c.direction}</b>\n👤 ${adminUserTag(uname, chatId)}\n📦 ${vpsName || rec.vpsId}: ${c.from.plan_id} → ${c.to.plan_id}${c.resize_disk ? ' (+disk)' : ''}\n💰 $${c.charged_usd}`,
+            )
+          } else {
+            send(chatId, translation('vp.doPlanFailed', lang, vpsName, r.refunded ? r.refund_usd : 0), translation('o', lang))
+            send(TELEGRAM_DEV_CHAT_ID, `❌ DO plan change failed ${chatId} ${rec.vpsId}: ${c.from.plan_id} → ${c.to.plan_id}: ${r.error} (refunded $${r.refund_usd || 0})`)
+          }
+        },
+      })
+    } catch (e) {
+      log(`[DoPlanChange] start for ${chatId}/${rec?.vpsId}: ${e.message}`)
+      await set(state, chatId, 'action', 'none')
+      if (e.code === 'insufficient_wallet_balance') return send(chatId, vp.doPlanLowBalance(usdBal, sel.charge_now_usd), k.of([[u.deposit]]))
+      send(chatId, vp.doPlanUnavailable(e.code))
+      return goto.getVPSDetails()
+    }
+    if (started.change.charged_usd > 0) set(payments, nanoid(), `Wallet,VPSPlanChange,${sel.plan_id},$${started.change.charged_usd},${chatId},${await get(nameOf, chatId)},${new Date()}`)
+    await set(state, chatId, 'action', 'none')
+    return send(chatId, vp.doPlanStarted(vpsName, started.option, started.change.charged_usd), trans('o'))
   }
 
   if (action === a.vpsSubscription) {

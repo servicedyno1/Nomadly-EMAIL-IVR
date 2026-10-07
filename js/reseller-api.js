@@ -36,7 +36,8 @@ const domainService = require('./domain-service')
 const whmService = require('./whm-service')
 const vpsProvider = require('./vps-provider')
 const hostingScheduler = require('./hosting-scheduler')       // getPlanPrice / getPlanDuration (bot-accurate)
-const upgradeCredit = require('./hosting-upgrade-credit')     // getUpgradeTargets / computeUpgradeQuote (loyalty credit)
+const hostingPlanChange = require('./hosting-plan-change')   // hosting upgrade/downgrade pro-rata quote
+const doPlanChange = require('./do-plan-change')             // DigitalOcean VPS/RDP in-place resize engine
 const antiRed = require('./anti-red-service')                 // resolveDomainCfState / setDomainChallengeBypass
 const addonFlow = require('./addon-domain-flow')              // attachAddonDomain
 const cpanelAuth = require('./cpanel-auth')                   // resetPin (reveal = reset, prod mutation)
@@ -89,8 +90,6 @@ function addonQuota(plan) {
   if (n.includes('week')) return 1
   return 0
 }
-// hostingPlans() plan_id → hosting-upgrade-credit target.key
-const UPGRADE_ID_TO_KEY = { 'premium-monthly': 'premiumCpanel', 'golden-monthly': 'goldenCpanel' }
 
 // ── Hosting plan catalog (prices from prod .env, mirrors store-routes) ──
 function num(v, d) { const n = Number(v); return Number.isFinite(n) ? n : d }
@@ -335,8 +334,8 @@ function createResellerApi(deps = {}) {
   const PROVISION_STUCK_MS = Math.max(300000, Number(process.env.RESELLER_PROVISION_STUCK_MS) || 30 * 60000)
   const provisionJobs = () => col('resellerProvisionJobs')
 
-  function emitEvent(ownerChatId, event, instanceId, payload) {
-    try { require('./reseller-webhooks').emit(getDb(), { chatId: ownerChatId, event, instanceId, payload, log }).catch(() => {}) } catch (_) { /* best-effort */ }
+  function emitEvent(ownerChatId, event, instanceId, payload, dedupKey) {
+    try { require('./reseller-webhooks').emit(getDb(), { chatId: ownerChatId, event, instanceId, dedupKey, payload, log }).catch(() => {}) } catch (_) { /* best-effort */ }
   }
 
   // Up-front wallet guard + charge for an async create. On insufficient funds sends 402 and
@@ -602,6 +601,10 @@ function createResellerApi(deps = {}) {
       const pend = await provisionJobs().find({ status: 'pending' }).limit(10).toArray()
       for (const j of pend) await processJob(j._id)
       if (!isLive()) return
+      await doPlanChange.reconcileStale({
+        vpsPlansOf: col('vpsPlansOf'), walletOf: col('walletOf'), log,
+        onDone: (r) => { if (r.change.via === 'api') emitPlanChange(r.change.kind === 'rdp', r.rec, r) },
+      }).catch((e) => log(`[ResellerAPI] plan-change reconcile error: ${e.message}`))
       const cutoff = new Date(Date.now() - PROVISION_STUCK_MS)
       const stale = await provisionJobs().find({ status: 'processing', leaseAt: { $lt: cutoff } }).limit(10).toArray()
       for (const job of stale) {
@@ -1152,6 +1155,7 @@ function createResellerApi(deps = {}) {
     const rn = vpsRenewability({ ...rec, status: out.status }, isRDP, _prov)
     out.renewable = rn.renewable
     out.renew_blocked_reason = rn.renew_blocked_reason
+    out.plan_change = doPlanChange.publicView(rec.planChange)
     res.json(out)
   }
 
@@ -1445,6 +1449,88 @@ function createResellerApi(deps = {}) {
     }
   }
 
+  // ── VPS/RDP plan change (DigitalOcean only): in-place resize, pro-rata upgrades, no-refund downgrades.
+  // POST returns 202 while the resize runs in the background; GET /vps|rdp/:id → plan_change tracks it.
+  const PLAN_CHANGE_POLICY = {
+    upgrade: 'Applies immediately. Charged now: (new monthly price - current monthly price) x days left in the term / 30.',
+    downgrade: 'Applies immediately. No refund or credit for the current term.',
+    renewal: 'The new plan price applies from the next renewal. The term end date does not change.',
+    disk: 'By default only CPU/RAM change (reversible). resize_disk:true also grows the disk to the plan size; this is permanent and blocks any later move to a plan with a smaller disk.',
+    downtime: 'The server is powered off during the resize (usually 2-5 minutes, longer for large disks).',
+  }
+  const noSlug = ({ size_slug, ...rest }) => rest
+  function planChangeError(res, e, rec) {
+    if (!(e instanceof doPlanChange.PlanChangeError)) throw e
+    return res.status(e.status).json({ error: e.code, message: e.message, ...(e.code === 'plan_change_in_progress' ? { plan_change: doPlanChange.publicView(rec && rec.planChange) } : {}) })
+  }
+  function emitPlanChange(isRDP, rec, r) {
+    const c = r.change
+    emitEvent(c.chat_id, `${isRDP ? 'rdp' : 'vps'}.${r.success ? 'plan_changed' : 'plan_change_failed'}`, rec.vpsId || rec._id, {
+      change_id: c.id, direction: c.direction, from_plan: c.from.plan_id, to_plan: c.to.plan_id, to_plan_name: c.to.name,
+      charged_usd: c.charged_usd, resize_disk: c.resize_disk,
+      ...(r.success ? { disk_gb: (r.result && r.result.disk_gb) || null } : { reason: r.error || 'plan_change_failed', refunded: !!r.refunded, refund_usd: r.refund_usd || 0 }),
+    }, c.id)
+  }
+
+  async function vpsPlanOptionsHandler(req, res, isRDP) {
+    const rec = await loadOwnedVps(req, req.params.id, isRDP)
+    if (!rec) return res.status(404).json({ error: 'not_found' })
+    let po
+    try { po = await doPlanChange.planOptions(rec) } catch (e) { return planChangeError(res, e, rec) }
+    res.json({
+      id: rec.vpsId || rec._id, product: isRDP ? 'rdp' : 'vps', current: noSlug(po.current),
+      term_ends_at: po.term_ends_at, remaining_days: po.remaining_days, policy: PLAN_CHANGE_POLICY,
+      last_plan_change: doPlanChange.publicView(rec.planChange), options: po.options.map(noSlug),
+    })
+  }
+
+  async function vpsPlanChangeHandler(req, res, isRDP) {
+    const product = isRDP ? 'rdp' : 'vps'
+    const rec = await loadOwnedVps(req, req.params.id, isRDP)
+    if (!rec) return res.status(404).json({ error: 'not_found' })
+    const id = rec.vpsId || rec._id
+    const planId = String(req.body?.plan_id || '').trim()
+    if (!planId) return res.status(400).json({ error: 'missing_plan_id', message: `Provide plan_id (see GET /${product}/${id}/plan-options).` })
+    const rd = req.body?.resize_disk
+    if (rd !== undefined && typeof rd !== 'boolean') return res.status(400).json({ error: 'invalid_resize_disk', message: 'resize_disk must be true or false.' })
+    let q
+    try { q = await doPlanChange.quote(rec, planId, { resizeDisk: rd === true }) } catch (e) { return planChangeError(res, e, rec) }
+    const owner = req.reseller.ownerChatId
+    const charge = q.option.charge_now_usd
+    const balance = await walletBalance(owner)
+    const quoteView = { ...noSlug(q.option), from: noSlug(q.ctx.current), remaining_days: Math.round(q.ctx.remainingDays * 100) / 100, term_ends_at: q.ctx.end.toISOString() }
+    const request = { id, from_plan: q.ctx.current.plan_id, to_plan: planId, direction: q.option.direction, resize_disk: q.option.resize_disk, charge_usd: charge }
+    if (req.body?.dry_run === true) {
+      return res.json({ dry_run: true, product, action: 'plan_change', id, quote: quoteView, wallet_balance_usd: balance, sufficient_balance: balance >= charge, note: 'Pre-flight only: nothing was charged and the server was not touched. Re-send without dry_run to change the plan.' })
+    }
+    if (balance < charge) {
+      await recordOrder({ keyId: req.reseller.keyId, ownerChatId: owner, product, action: 'plan_change', request, priceUsd: charge, mode: mode(), status: 'rejected_insufficient_balance' })
+      return res.status(402).json({ error: 'insufficient_wallet_balance', message: `Wallet balance $${balance.toFixed(2)} is below the pro-rata charge $${charge.toFixed(2)}. Top up your wallet and retry.`, price_usd: charge, wallet_balance_usd: balance, shortfall_usd: Math.round((charge - balance) * 100) / 100, mode: mode() })
+    }
+    if (!isLive()) {
+      await recordOrder({ keyId: req.reseller.keyId, ownerChatId: owner, product, action: 'plan_change', request, priceUsd: charge, mode: 'dry_run', status: 'simulated' })
+      return res.json({ mode: 'dry_run', product, action: 'plan_change', id, quote: quoteView, wallet_balance_usd: balance, note: 'Dry-run: balance is sufficient; the server was not resized and no funds were charged.' })
+    }
+    let started
+    try {
+      started = await doPlanChange.start({
+        vpsPlansOf: col('vpsPlansOf'), walletOf: col('walletOf'), rec, planId, resizeDisk: rd === true, via: 'api', log,
+        onDone: async (r) => {
+          emitPlanChange(isRDP, rec, r)
+          await recordOrder({ keyId: req.reseller.keyId, ownerChatId: owner, product, action: 'plan_change', request: { ...request, change_id: r.change.id }, priceUsd: r.change.charged_usd, mode: 'live', status: r.success ? 'plan_changed' : 'failed', ...(r.success ? {} : { error: r.error, refunded: !!r.refunded }) })
+          if (!r.success) await notifyAdmin(`❌ <b>Reseller API ${product} plan change FAILED</b>\nKey: ${req.reseller.label || req.reseller.keyId}\n${id}: ${r.change.from.plan_id} → ${r.change.to.plan_id}\n${r.refunded ? `Refunded $${r.refund_usd.toFixed(2)}` : 'No charge'}\nError: ${r.error}`).catch(() => {})
+        },
+      })
+    } catch (e) { return planChangeError(res, e, rec) }
+    await recordOrder({ keyId: req.reseller.keyId, ownerChatId: owner, product, action: 'plan_change', request: { ...request, change_id: started.change.id }, priceUsd: started.change.charged_usd, mode: 'live', status: 'running' })
+    return res.status(202).json({
+      mode: 'live', product, action: 'plan_change', id, status: 'running',
+      plan_change: doPlanChange.publicView(started.change), quote: quoteView,
+      charged_usd: started.change.charged_usd, wallet_balance_usd: await walletBalance(owner), poll_url: `/${product}/${id}`,
+      note: `Resize started. Poll GET /${product}/${id} until plan_change.status is "completed" or "failed" (a failed change is refunded automatically), or subscribe to the ${product}.plan_changed / ${product}.plan_change_failed webhooks.`,
+    })
+  }
+
   // VPS routes
   router.get('/vps/plans', apiKeyAuth, h((req, res) => vpsPlansHandler(req, res, false)))
   router.post('/vps', apiKeyAuth, h((req, res) => vpsCreateHandler(req, res, false)))
@@ -1460,6 +1546,9 @@ function createResellerApi(deps = {}) {
   router.post('/vps/:id/ssh-keys', apiKeyAuth, h((req, res) => vpsSetSshKeyHandler(req, res)))
   router.get('/vps/:id/ssh-keys', apiKeyAuth, h((req, res) => vpsSshKeysListHandler(req, res)))
   router.post('/vps/:id/reinstall', apiKeyAuth, h((req, res) => vpsReinstallHandler(req, res)))
+  router.get('/vps/:id/plan-options', apiKeyAuth, h((req, res) => vpsPlanOptionsHandler(req, res, false)))
+  router.post('/vps/:id/upgrade', apiKeyAuth, h((req, res) => vpsPlanChangeHandler(req, res, false)))
+  router.post('/vps/:id/change-plan', apiKeyAuth, h((req, res) => vpsPlanChangeHandler(req, res, false)))
 
   // RDP routes (Windows)
   router.get('/rdp/plans', apiKeyAuth, h((req, res) => vpsPlansHandler(req, res, true)))
@@ -1472,6 +1561,9 @@ function createResellerApi(deps = {}) {
   router.post('/rdp/:id/renew', apiKeyAuth, h((req, res) => vpsRenewHandler(req, res, true)))
   router.delete('/rdp/:id', apiKeyAuth, h((req, res) => vpsDestroyHandler(req, res, true)))
   router.get('/rdp/:id/credentials', apiKeyAuth, h((req, res) => vpsCredsHandler(req, res, true)))
+  router.get('/rdp/:id/plan-options', apiKeyAuth, h((req, res) => vpsPlanOptionsHandler(req, res, true)))
+  router.post('/rdp/:id/upgrade', apiKeyAuth, h((req, res) => vpsPlanChangeHandler(req, res, true)))
+  router.post('/rdp/:id/change-plan', apiKeyAuth, h((req, res) => vpsPlanChangeHandler(req, res, true)))
 
   // ════════════════════════════════════════════════════════
   // cPanel HOSTING
@@ -2190,58 +2282,71 @@ function createResellerApi(deps = {}) {
   // (manual renew lives above at POST /hosting/:user/renew — the periods-aware,
   //  dry-run-capable handler; the earlier duplicate here was dead code and removed.)
   // ════════════════════════════════════════════════════════
-  router.post('/hosting/:user/upgrade', apiKeyAuth, h(async (req, res) => {
+  // Plan change (upgrade/downgrade) — upgrades charge the pro-rata difference for the days left,
+  // downgrades apply immediately with no refund; the expiry date never moves and the new price
+  // applies from the next renewal. Expired accounts must renew first.
+  const HOSTING_PLAN_CHANGE_POLICY = {
+    upgrade: 'Applies immediately. Charged now: (new price per day - current price per day) x days left in the term (= monthly difference x days left / 30 between monthly plans).',
+    downgrade: 'Applies immediately. No refund or credit for the current term.',
+    renewal: 'The new plan price and cycle length apply from the next renewal. The expiry date does not change.',
+  }
+  function hostingPlanChangeError(res, e) {
+    if (!(e instanceof hostingPlanChange.HostingPlanChangeError)) throw e
+    return res.status(e.status).json({ error: e.code, message: e.message })
+  }
+
+  router.get('/hosting/:user/plan-options', apiKeyAuth, h(async (req, res) => {
     const acct = await loadOwnedCpanel(req, req.params.user)
     if (!acct) return res.status(404).json({ error: 'not_found' })
-    const targets = upgradeCredit.getUpgradeTargets(acct.plan)
-    if (!targets.length) return res.status(409).json({ error: 'no_upgrade_path', message: 'This plan has no higher tier to upgrade to.' })
-    const wantKey = UPGRADE_ID_TO_KEY[req.body?.plan_id] || req.body?.plan_id
-    const target = targets.find(t => t.key === wantKey || t.name === req.body?.plan_id)
-    if (!target) {
-      const idFor = (key) => Object.keys(UPGRADE_ID_TO_KEY).find(k => UPGRADE_ID_TO_KEY[k] === key) || key
-      return res.status(400).json({ error: 'invalid_upgrade_target', message: 'plan_id must be one of the available upgrade targets.', available: targets.map(t => ({ plan_id: idFor(t.key), name: t.name, price_usd: t.price })) })
-    }
-    const oldPrice = hostingScheduler.getPlanPrice(acct)
-    const quote = upgradeCredit.computeUpgradeQuote({ planDoc: acct, oldPrice, newPrice: target.price })
-    return billedProvision(req, res, {
-      product: 'hosting', action: 'upgrade', priceUsd: quote.chargeAmount,
-      request: { username: acct._id, domain: acct.domain, from_plan: acct.plan, to_plan: target.name, sticker_price_usd: target.price, loyalty_credit_usd: quote.creditApplied, charge_usd: quote.chargeAmount },
-      provision: async () => {
-        // ISSUE-2 FIX (2026-10): mirror the bot's upgrade exactly so the API can't
-        // charge + flip the plan when WHM refuses, and so the new tier is fully active.
-        // 1) Verify the WHM account still exists.
-        try {
-          const info = await whmService.getAccountInfo(acct._id)
-          if (!info || !info.success) return { success: false, error: 'WHM account not found — cannot upgrade a terminated/missing account.' }
-        } catch (e) { return { success: false, error: `WHM account check failed: ${e.message}` } }
-        // 2) Auto-unsuspend first (WHM refuses changepackage / expired accounts are suspended).
-        if (acct.suspended) {
-          try { const un = await whmService.unsuspendAccount(acct._id); if (!un) return { success: false, error: 'Could not unsuspend the account before upgrade.' } }
-          catch (e) { return { success: false, error: `WHM unsuspend failed: ${e.message}` } }
-        }
-        // 3) Change package — HONOUR the {success:false} WHM refusal (billedProvision refunds).
-        let cr
-        try { cr = await whmService.changePackage(acct._id, target.name) }
-        catch (e) { return { success: false, error: `WHM changePackage failed: ${e.message}` } }
-        if (!cr || cr.success === false) return { success: false, error: `WHM refused the plan change: ${cr?.error || 'unknown error'}` }
-        // 4) Fresh 30-day cycle + autoRenew + clear suspended/deleted flags (matches bot).
-        const newExpiry = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
-        await col('cpanelAccounts').updateOne({ _id: acct._id }, {
-          $set: {
-            plan: target.name, renewalPriceUsd: target.price, expiryDate: newExpiry,
-            autoRenew: true, suspended: false, upgradedAt: new Date(), upgradedFrom: acct.plan,
-          },
-          $unset: { suspendedAt: '', deleted: '', deletedAt: '', cancelledByUser: '', deletedBy: '', expiryNotified: '', expiryUserNotified: '' },
-        })
-        // 5) Redeploy Anti-Red for the new tier (non-blocking, like the bot).
-        try {
-          require('./anti-red-service').deployFullProtection(acct._id, acct.domain, target.name)
-            .catch(e => log(`[ResellerAPI] upgrade anti-red redeploy warn for ${acct.domain}: ${e.message}`))
-        } catch (_) { /* best-effort */ }
-        return { success: true, username: acct._id, domain: acct.domain, plan: target.name, new_expiry: newExpiry.toISOString() }
-      },
-    })
+    let po
+    try { po = hostingPlanChange.hostingPlanOptions(acct, hostingPlans()) } catch (e) { return hostingPlanChangeError(res, e) }
+    res.json({ username: acct._id, domain: acct.domain, product: 'hosting', ...po, policy: HOSTING_PLAN_CHANGE_POLICY })
   }))
+
+  async function hostingPlanChangeHandler(req, res) {
+    const acct = await loadOwnedCpanel(req, req.params.user)
+    if (!acct) return res.status(404).json({ error: 'not_found' })
+    let q
+    try { q = hostingPlanChange.hostingQuote(acct, hostingPlans(), req.body?.plan_id) } catch (e) { return hostingPlanChangeError(res, e) }
+    if (acct.suspended) return res.status(409).json({ error: 'account_suspended', message: 'Unsuspend the account first (POST /hosting/:user/unsuspend), then change the plan.' })
+    const opt = q.option
+    const target = hostingPlanById(opt.plan_id)
+    const request = { username: acct._id, domain: acct.domain, from_plan: acct.plan, to_plan: target.name, direction: opt.direction, charge_usd: opt.charge_now_usd, remaining_days: q.remaining_days }
+    if (req.body?.dry_run === true) {
+      const balance = await walletBalance(req.reseller.ownerChatId)
+      return res.json({ dry_run: true, product: 'hosting', action: opt.direction, username: acct._id, current: q.current, quote: opt, wallet_balance_usd: balance, sufficient_balance: balance >= opt.charge_now_usd, note: 'Pre-flight only: nothing was charged and the account was not changed.' })
+    }
+    const provision = async () => {
+      try {
+        const info = await whmService.getAccountInfo(acct._id)
+        if (!info || !info.success) return { success: false, error: 'WHM account not found — cannot change the plan of a terminated/missing account.' }
+      } catch (e) { return { success: false, error: `WHM account check failed: ${e.message}` } }
+      let cr
+      try { cr = await whmService.changePackage(acct._id, target.name) }
+      catch (e) { return { success: false, error: `WHM changePackage failed: ${e.message}` } }
+      if (!cr || cr.success === false) return { success: false, error: `WHM refused the plan change: ${cr?.error || 'unknown error'}` }
+      const at = new Date()
+      await col('cpanelAccounts').updateOne({ _id: acct._id }, {
+        $set: { plan: target.name, renewalPriceUsd: target.priceUsd, planChangedAt: at, ...(opt.direction === 'upgrade' ? { upgradedAt: at, upgradedFrom: acct.plan } : { downgradedAt: at, downgradedFrom: acct.plan }) },
+        $push: { planChangeHistory: { at, from: acct.plan, to: target.name, direction: opt.direction, charged_usd: opt.charge_now_usd, via: 'api' } },
+      })
+      try {
+        require('./anti-red-service').deployFullProtection(acct._id, acct.domain, target.name)
+          .catch(e => log(`[ResellerAPI] plan-change anti-red redeploy warn for ${acct.domain}: ${e.message}`))
+      } catch (_) { /* best-effort */ }
+      return { success: true, username: acct._id, domain: acct.domain, plan: target.name, plan_id: target.id, direction: opt.direction, expires_at: q.term_ends_at, renewal_price_usd: target.priceUsd, refund_usd: 0 }
+    }
+    if (opt.charge_now_usd > 0) return billedProvision(req, res, { product: 'hosting', action: opt.direction, priceUsd: opt.charge_now_usd, request, provision })
+    // Nothing to charge (downgrade / cheaper switch): no wallet movement, no refund.
+    const balance = await walletBalance(req.reseller.ownerChatId)
+    if (!isLive()) return res.json({ mode: 'dry_run', product: 'hosting', action: opt.direction, price_usd: 0, wallet_balance_usd: balance, would_provision: request, note: 'Dry-run: the plan was not changed.' })
+    const r = await provision().catch(e => ({ success: false, error: e.message }))
+    await recordOrder({ keyId: req.reseller.keyId, ownerChatId: req.reseller.ownerChatId, product: 'hosting', action: opt.direction, request, priceUsd: 0, mode: 'live', status: r.success ? 'provisioned' : 'failed', ...(r.success ? { result: r } : { error: r.error }) })
+    if (!r.success) return res.status(502).json({ error: 'plan_change_failed', message: r.error })
+    return res.json({ mode: 'live', product: 'hosting', action: opt.direction, charged_usd: 0, wallet_balance_usd: balance, result: r })
+  }
+  router.post('/hosting/:user/upgrade', apiKeyAuth, h(hostingPlanChangeHandler))
+  router.post('/hosting/:user/change-plan', apiKeyAuth, h(hostingPlanChangeHandler))
 
   router.get('/hosting/:user/addons', apiKeyAuth, h(async (req, res) => {
     const acct = await loadOwnedCpanel(req, req.params.user)

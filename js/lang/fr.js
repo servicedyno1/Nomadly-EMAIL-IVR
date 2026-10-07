@@ -3518,6 +3518,49 @@ Voulez-vous continuer ?`,
 Veuillez réessayer après un certain temps.`,
 
  upgradeVpsBtn: '⬆️ Mettre à niveau',
+ doPlanOptionBtn: o => `${o.direction === 'upgrade' ? '⬆️' : o.direction === 'downgrade' ? '⬇️' : '🔄'} ${o.name} · $${o.monthly_price_usd}/mois`,
+ doPlanOptionsMsg: (cur, opts, days, hidden) => `🔄 <b>Changer de forfait</b> — appliqué sur place : vos données, IP et réglages sont conservés.
+
+<b>Actuel :</b> ${cur.name} (${cur.vcpus || '?'} vCPU · ${cur.ram_gb || '?'} Go RAM · ${cur.disk_gb} Go ${cur.storage_type}) — $${cur.monthly_price_usd}/mois
+<b>Jours restants sur cette période :</b> ${Math.floor(days)}
+
+${opts.map(o => `${o.direction === 'upgrade' ? '⬆️' : o.direction === 'downgrade' ? '⬇️' : '🔄'} <b>${o.name}</b> (${o.vcpus} vCPU/${o.ram_gb} Go/${o.disk_gb} Go ${o.storage_type}) $${o.monthly_price_usd}/mois${o.charge_now_usd > 0 ? ` · à payer maintenant $${o.charge_now_usd.toFixed(2)}` : ''}`).join('\n')}
+
+💡 Mise à niveau : vous payez seulement la différence pour les jours restants. Rétrogradation : gratuite et immédiate, sans remboursement pour cette période. Le nouveau prix s'applique au prochain renouvellement.${hidden ? `\n⚠️ ${hidden} forfait(s) plus petit(s) masqué(s) : un disque ne peut jamais être réduit.` : ''}`,
+ doPlanNoOptions: '⚠️ Aucun autre forfait ne peut être appliqué à ce serveur pour le moment (un disque ne peut jamais être réduit et certains forfaits peuvent être en rupture dans cette région).',
+ doPlanUnavailable: code => ({
+ expired: '⚠️ La période de ce serveur est terminée. Renouvelez-le d\'abord, puis changez de forfait.',
+ not_active: '⚠️ Ce serveur n\'est pas actif, son forfait ne peut pas être changé pour le moment.',
+ plan_change_in_progress: '⏳ Un changement de forfait est déjà en cours pour ce serveur. Vous recevrez un message une fois terminé.',
+ not_supported: '⚠️ Le changement de forfait n\'est pas disponible pour ce serveur.',
+ }[code] || '⚠️ Le changement de forfait n\'est pas disponible pour ce serveur pour le moment. Réessayez plus tard ou contactez le support.'),
+ doPlanKeepDiskBtn: '💾 Garder le disque actuel (réversible)',
+ doPlanGrowDiskBtn: gb => `📀 Agrandir le disque à ${gb} Go (définitif)`,
+ doPlanDiskAsk: (o, cur) => `💾 <b>Taille du disque</b>
+
+${o.name} inclut un disque de ${o.disk_gb} Go. Votre serveur a ${cur.disk_gb} Go.
+
+• <b>Garder le disque actuel</b> : seuls le CPU et la RAM changent. Vous pourrez revenir à un forfait plus petit plus tard.
+• <b>Agrandir le disque à ${o.disk_gb} Go</b> : plus de stockage, mais <b>définitif</b>. Le serveur ne pourra plus jamais passer à un forfait avec un disque plus petit.`,
+ doPlanSummary: (name, cur, o, grow, bal) => `<strong>📜 Récapitulatif du changement de forfait</strong>
+
+<strong>• Serveur :</strong> ${name}
+<strong>• De :</strong> ${cur.name} ($${cur.monthly_price_usd}/mois)
+<strong>• Vers :</strong> ${o.name} ($${o.monthly_price_usd}/mois)
+<strong>• Disque :</strong> ${grow ? `${o.disk_gb} Go (définitif)` : `${cur.disk_gb} Go (inchangé)`}
+<strong>• À payer maintenant :</strong> $${o.charge_now_usd.toFixed(2)}${o.direction === 'upgrade' ? ' (différence pour les jours restants)' : ' (pas de remboursement pour la période en cours)'}
+<strong>• Prochain renouvellement :</strong> $${o.renewal_price_usd}
+<strong>• Solde du portefeuille :</strong> $${Number(bal).toFixed(2)}
+
+⏱ Le serveur redémarre et reste hors ligne environ ${grow ? '5 à 30' : '2 à 5'} minutes. Données, IP et réglages sont conservés.`,
+ doPlanLowBalance: (bal, price) => `⚠️ Le solde de votre portefeuille ($${Number(bal).toFixed(2)}) est inférieur aux $${Number(price).toFixed(2)} nécessaires pour cette mise à niveau. Rechargez puis réessayez.`,
+ doPlanStarted: (name, o, charged) => `⏳ <b>Passage de ${name} à ${o.name}…</b>${charged > 0 ? `\n💳 $${Number(charged).toFixed(2)} débités de votre portefeuille.` : ''}
+
+Le serveur redémarre et sera hors ligne quelques minutes. Nous vous préviendrons une fois terminé.`,
+ doPlanDone: (name, c, r) => `✅ <b>${name} est maintenant sur ${c.to.name}</b>
+
+Disque : ${r && r.disk_gb ? r.disk_gb : '?'} Go · Prochain renouvellement : $${c.to.renewal_price_usd}. Le serveur est de nouveau en ligne.`,
+ doPlanFailed: (name, refund) => `❌ <b>Le changement de forfait de ${name} n'a pas abouti.</b> Votre serveur reste sur son forfait actuel${refund > 0 ? ` et $${Number(refund).toFixed(2)} ont été remboursés sur votre portefeuille` : ''}. Réessayez plus tard ou contactez le support.`,
  upgradeVpsPlanBtn: '⬆️ Plan VPS',
  upgradeVpsDiskBtn: '📀 Type de disque',
  upgradeVpsDiskTypeBtn: '💾 Mettre à niveau le type de disque',

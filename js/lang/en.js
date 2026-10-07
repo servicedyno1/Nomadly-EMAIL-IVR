@@ -3717,6 +3717,49 @@ Do you want to continue?`,
 
 Please Try again after sometime.`,
  upgradeVpsBtn: '⬆️ Upgrade',
+ doPlanOptionBtn: o => `${o.direction === 'upgrade' ? '⬆️' : o.direction === 'downgrade' ? '⬇️' : '🔄'} ${o.name} · $${o.monthly_price_usd}/mo`,
+ doPlanOptionsMsg: (cur, opts, days, hidden) => `🔄 <b>Change plan</b> — applied in place: your data, IP and settings stay.
+
+<b>Current:</b> ${cur.name} (${cur.vcpus || '?'} vCPU · ${cur.ram_gb || '?'} GB RAM · ${cur.disk_gb} GB ${cur.storage_type}) — $${cur.monthly_price_usd}/mo
+<b>Days left in this term:</b> ${Math.floor(days)}
+
+${opts.map(o => `${o.direction === 'upgrade' ? '⬆️' : o.direction === 'downgrade' ? '⬇️' : '🔄'} <b>${o.name}</b> (${o.vcpus} vCPU/${o.ram_gb} GB/${o.disk_gb} GB ${o.storage_type}) $${o.monthly_price_usd}/mo${o.charge_now_usd > 0 ? ` · pay now $${o.charge_now_usd.toFixed(2)}` : ''}`).join('\n')}
+
+💡 Upgrade: you pay only the price difference for the days left. Downgrade: free and immediate, no refund for this term. The new price starts at your next renewal.${hidden ? `\n⚠️ ${hidden} smaller plan(s) are hidden: a disk can never shrink.` : ''}`,
+ doPlanNoOptions: '⚠️ No other plan can be applied to this server right now (a disk can never shrink, and some plans may be out of stock in this region).',
+ doPlanUnavailable: code => ({
+ expired: '⚠️ This server\'s term has ended. Renew it first, then change the plan.',
+ not_active: '⚠️ This server is not active, so its plan cannot be changed right now.',
+ plan_change_in_progress: '⏳ A plan change is already running for this server. You will get a message when it finishes.',
+ not_supported: '⚠️ Plan changes are not available for this server.',
+ }[code] || '⚠️ Plan changes are not available for this server right now. Please try again later or contact support.'),
+ doPlanKeepDiskBtn: '💾 Keep current disk (reversible)',
+ doPlanGrowDiskBtn: gb => `📀 Grow disk to ${gb} GB (permanent)`,
+ doPlanDiskAsk: (o, cur) => `💾 <b>Disk size</b>
+
+${o.name} includes a ${o.disk_gb} GB disk. Your server has ${cur.disk_gb} GB.
+
+• <b>Keep current disk</b>: only CPU and RAM change. You can move back to a smaller plan later.
+• <b>Grow disk to ${o.disk_gb} GB</b>: more storage, but <b>permanent</b>. The server can never move to a plan with a smaller disk again.`,
+ doPlanSummary: (name, cur, o, grow, bal) => `<strong>📜 Plan change summary</strong>
+
+<strong>• Server:</strong> ${name}
+<strong>• From:</strong> ${cur.name} ($${cur.monthly_price_usd}/mo)
+<strong>• To:</strong> ${o.name} ($${o.monthly_price_usd}/mo)
+<strong>• Disk:</strong> ${grow ? `${o.disk_gb} GB (permanent)` : `${cur.disk_gb} GB (unchanged)`}
+<strong>• Pay now:</strong> $${o.charge_now_usd.toFixed(2)}${o.direction === 'upgrade' ? ' (difference for the days left)' : ' (no refund for the current term)'}
+<strong>• Next renewal:</strong> $${o.renewal_price_usd}
+<strong>• Wallet balance:</strong> $${Number(bal).toFixed(2)}
+
+⏱ The server restarts and is offline for about ${grow ? '5-30' : '2-5'} minutes. Data, IP and settings are kept.`,
+ doPlanLowBalance: (bal, price) => `⚠️ Your wallet balance ($${Number(bal).toFixed(2)}) is below the $${Number(price).toFixed(2)} needed for this upgrade. Please top up and try again.`,
+ doPlanStarted: (name, o, charged) => `⏳ <b>Changing ${name} to ${o.name}…</b>${charged > 0 ? `\n💳 $${Number(charged).toFixed(2)} was charged from your wallet.` : ''}
+
+The server is restarting now and will be offline for a few minutes. We will message you when it is done.`,
+ doPlanDone: (name, c, r) => `✅ <b>${name} is now on ${c.to.name}</b>
+
+Disk: ${r && r.disk_gb ? r.disk_gb : '?'} GB · Next renewal: $${c.to.renewal_price_usd}. The server is back online.`,
+ doPlanFailed: (name, refund) => `❌ <b>The plan change for ${name} did not complete.</b> Your server stays on its current plan${refund > 0 ? ` and $${Number(refund).toFixed(2)} was refunded to your wallet` : ''}. Please try again later or contact support.`,
  upgradeVpsPlanBtn: '⬆️ VPS Plan',
  upgradeVpsDiskBtn: '📀 Disk Type',
  upgradeVpsDiskTypeBtn: '💾 Upgrade Disk Type',

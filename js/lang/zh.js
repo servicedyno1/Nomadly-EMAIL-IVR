@@ -3484,6 +3484,49 @@ ${options.map(o => `• <b>${o.name}</b> — ${o.fast_deploy ? `⚡ 约 ${o.eta_
 请稍后再试。`,
 
  upgradeVpsBtn: '⬆️ 升级',
+ doPlanOptionBtn: o => `${o.direction === 'upgrade' ? '⬆️' : o.direction === 'downgrade' ? '⬇️' : '🔄'} ${o.name} · $${o.monthly_price_usd}/月`,
+ doPlanOptionsMsg: (cur, opts, days, hidden) => `🔄 <b>更改套餐</b> — 原地调整：您的数据、IP 和设置都会保留。
+
+<b>当前：</b> ${cur.name} (${cur.vcpus || '?'} vCPU · ${cur.ram_gb || '?'} GB 内存 · ${cur.disk_gb} GB ${cur.storage_type}) — $${cur.monthly_price_usd}/月
+<b>本期剩余天数：</b> ${Math.floor(days)}
+
+${opts.map(o => `${o.direction === 'upgrade' ? '⬆️' : o.direction === 'downgrade' ? '⬇️' : '🔄'} <b>${o.name}</b> (${o.vcpus} vCPU/${o.ram_gb} GB/${o.disk_gb} GB ${o.storage_type}) $${o.monthly_price_usd}/月${o.charge_now_usd > 0 ? ` · 现在支付 $${o.charge_now_usd.toFixed(2)}` : ''}`).join('\n')}
+
+💡 升级：只需支付剩余天数的差价。降级：免费并立即生效，本期不退款。新价格从下次续费开始。${hidden ? `\n⚠️ 已隐藏 ${hidden} 个更小的套餐：磁盘永远无法缩小。` : ''}`,
+ doPlanNoOptions: '⚠️ 目前没有其他套餐可应用于此服务器（磁盘无法缩小，且部分套餐在该地区可能缺货）。',
+ doPlanUnavailable: code => ({
+ expired: '⚠️ 此服务器的本期已结束。请先续费，然后再更改套餐。',
+ not_active: '⚠️ 此服务器未处于活动状态，暂时无法更改套餐。',
+ plan_change_in_progress: '⏳ 此服务器已有套餐更改正在进行。完成后您会收到消息。',
+ not_supported: '⚠️ 此服务器不支持更改套餐。',
+ }[code] || '⚠️ 此服务器暂时无法更改套餐。请稍后重试或联系客服。'),
+ doPlanKeepDiskBtn: '💾 保留当前磁盘（可逆）',
+ doPlanGrowDiskBtn: gb => `📀 将磁盘扩大到 ${gb} GB（永久）`,
+ doPlanDiskAsk: (o, cur) => `💾 <b>磁盘大小</b>
+
+${o.name} 包含 ${o.disk_gb} GB 磁盘。您的服务器当前为 ${cur.disk_gb} GB。
+
+• <b>保留当前磁盘</b>：只更改 CPU 和内存。以后可以换回更小的套餐。
+• <b>将磁盘扩大到 ${o.disk_gb} GB</b>：存储更多，但<b>永久</b>生效。服务器将永远无法再换到磁盘更小的套餐。`,
+ doPlanSummary: (name, cur, o, grow, bal) => `<strong>📜 套餐更改摘要</strong>
+
+<strong>• 服务器：</strong> ${name}
+<strong>• 从：</strong> ${cur.name} ($${cur.monthly_price_usd}/月)
+<strong>• 到：</strong> ${o.name} ($${o.monthly_price_usd}/月)
+<strong>• 磁盘：</strong> ${grow ? `${o.disk_gb} GB（永久）` : `${cur.disk_gb} GB（不变）`}
+<strong>• 现在支付：</strong> $${o.charge_now_usd.toFixed(2)}${o.direction === 'upgrade' ? '（剩余天数的差价）' : '（本期不退款）'}
+<strong>• 下次续费：</strong> $${o.renewal_price_usd}
+<strong>• 钱包余额：</strong> $${Number(bal).toFixed(2)}
+
+⏱ 服务器将重启，离线约 ${grow ? '5-30' : '2-5'} 分钟。数据、IP 和设置都会保留。`,
+ doPlanLowBalance: (bal, price) => `⚠️ 您的钱包余额（$${Number(bal).toFixed(2)}）低于此次升级所需的 $${Number(price).toFixed(2)}。请充值后重试。`,
+ doPlanStarted: (name, o, charged) => `⏳ <b>正在将 ${name} 更改为 ${o.name}…</b>${charged > 0 ? `\n💳 已从您的钱包扣除 $${Number(charged).toFixed(2)}。` : ''}
+
+服务器正在重启，将离线几分钟。完成后我们会通知您。`,
+ doPlanDone: (name, c, r) => `✅ <b>${name} 现已使用 ${c.to.name}</b>
+
+磁盘：${r && r.disk_gb ? r.disk_gb : '?'} GB · 下次续费：$${c.to.renewal_price_usd}。服务器已恢复在线。`,
+ doPlanFailed: (name, refund) => `❌ <b>${name} 的套餐更改未完成。</b>您的服务器保持当前套餐${refund > 0 ? `，$${Number(refund).toFixed(2)} 已退回您的钱包` : ''}。请稍后重试或联系客服。`,
  upgradeVpsPlanBtn: '⬆️ VPS 计划',
  upgradeVpsDiskBtn: '📀 磁盘类型',
  upgradeVpsDiskTypeBtn: '💾 升级磁盘类型',

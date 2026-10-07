@@ -327,8 +327,9 @@ function refreshSizeAvailability() {
   return _refreshing
 }
 
+// regionSlug: customer code (EU) or a raw DO region slug (ams3 — RDP regions outside the VPS list).
 function isProductAvailable(productId, regionSlug) {
-  const doRegion = REGION_TO_DO_SLUG[_customerRegion(regionSlug)]
+  const doRegion = REGION_TO_DO_SLUG[_customerRegion(regionSlug)] || (/^[a-z]{3}\d$/.test(String(regionSlug)) ? regionSlug : null)
   if (!doRegion) return false
   if (!_sizeRegions) return true
   const live = _sizeRegions.get(productId)
