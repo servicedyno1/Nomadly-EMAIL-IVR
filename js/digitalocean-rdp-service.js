@@ -1515,6 +1515,7 @@ module.exports = {
   startGoldenBuild, cancelBuild, resumeBuilds, syncGoldenFromDO, transferGolden, goldenStatus, listOsOptions, listOsOptionsForRegion,
   // exported for tests / internal use
   _buildUserData: buildUserData, _buildMetadataUserData: buildMetadataUserData,
+  serversCollection: () => _servers,
   _products: () => PRODUCTS, regionToSlug, _genPassword: genPassword, getOsOption, _timing: T, _runBuild: runBuild, _provisionServer: provisionServer, _watchFastTarget: watchFastTarget, normId, extId,
   DURATIONS, TIERS, OS_OPTIONS, DEFAULT_OS_ID, BUILD_SIZE, BUILD_REGION, GOLDEN_ALL_REGIONS,
 }

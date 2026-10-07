@@ -87,13 +87,13 @@ function endpointGroups(base) {
           resp: `{
   "webhook_url": "https://your-app.com/hooks/nomadly",
   "webhook_secret": "whsec_…",
-  "events": ["hosting.provisioned","hosting.provision_failed","hosting.grace_start","hosting.suspended","hosting.deleted","hosting.auto_renew_failed","vps.provisioned","vps.provision_failed","vps.grace_start","vps.deleted","rdp.provisioned","rdp.provision_failed","rdp.grace_start","rdp.deleted"${NS_EVENTS}],
+  "events": ["hosting.provisioned","hosting.provision_failed","hosting.grace_start","hosting.suspended","hosting.deleted","hosting.auto_renew_failed","vps.provisioned","vps.provision_failed","vps.grace_start","vps.deleted","vps.plan_changed","vps.plan_change_failed","rdp.provisioned","rdp.provision_failed","rdp.grace_start","rdp.deleted","rdp.plan_changed","rdp.plan_change_failed"${NS_EVENTS}],
   "delivery": "POST signed with HMAC-SHA256 (X-Nomadly-Signature: sha256=<hex>), auto-retry with backoff, de-duplicated per server+event"
 }`,
         },
         {
           method: 'PUT', path: '/account/webhook', auth: true, billed: false,
-          desc: 'Register (or clear) the push-webhook URL for your account. Send {"webhook_url":"https://…"} to set it (the first time this also mints a webhook_secret you must store), or {"webhook_url":null} to clear it (the secret is kept for re-enabling). Nomadly then POSTs a JSON body { event, product, occurred_at, data:{ id, product, domain, reason, … } } to your URL for each lifecycle event across all three products: hosting.provisioned / vps.provisioned / rdp.provisioned (an async create finished — data carries the id/username, domain, plan and ip/nameservers), hosting.provision_failed / vps.provision_failed / rdp.provision_failed (an async create ultimately failed — the wallet was auto-refunded; data carries reason and refunded:true), hosting.grace_start / vps.grace_start / rdp.grace_start (subscription expired → service suspended/powered off and a grace period begins; data carries expired_at + delete_at + grace_hours — hosting grace is 48h, VPS/RDP is 72h/3-day), hosting.auto_renew_failed (a wallet auto-renew attempt failed on insufficient funds; data carries price_usd, wallet_balance_usd, next_attempt_at — the plan then falls into grace, it is NOT terminated), hosting.deleted / vps.deleted / rdp.deleted (the resource was permanently removed after grace; data carries reason)' + (BR ? ', and the branded-nameserver events domain.nameservers_branded (registrar switched to the branded nameservers; data carries domain + nameservers + previous_nameservers), domain.nameservers_reverted (rolled back to the Cloudflare-assigned names to keep the domain protected; data carries reason + nameservers) and domain.nameservers_branding_failed (the domain stays on the Cloudflare names; data carries reason)' : '') + '. SECURITY: every delivery is signed — header "X-Nomadly-Signature: sha256=<hex>" is HMAC-SHA256 of the exact raw request body keyed by your webhook_secret. Recompute it and constant-time compare BEFORE acting on any *.deleted. Delivery is retried with backoff and de-duplicated per server+event (grace/auto_renew_failed re-fire each billing cycle; *.deleted fires once). Reply 2xx to acknowledge.',
+          desc: 'Register (or clear) the push-webhook URL for your account. Send {"webhook_url":"https://…"} to set it (the first time this also mints a webhook_secret you must store), or {"webhook_url":null} to clear it (the secret is kept for re-enabling). Nomadly then POSTs a JSON body { event, product, occurred_at, data:{ id, product, domain, reason, … } } to your URL for each lifecycle event across all three products: hosting.provisioned / vps.provisioned / rdp.provisioned (an async create finished — data carries the id/username, domain, plan and ip/nameservers), hosting.provision_failed / vps.provision_failed / rdp.provision_failed (an async create ultimately failed — the wallet was auto-refunded; data carries reason and refunded:true), hosting.grace_start / vps.grace_start / rdp.grace_start (subscription expired → service suspended/powered off and a grace period begins; data carries expired_at + delete_at + grace_hours — hosting grace is 48h, VPS/RDP is 72h/3-day), hosting.auto_renew_failed (a wallet auto-renew attempt failed on insufficient funds; data carries price_usd, wallet_balance_usd, next_attempt_at — the plan then falls into grace, it is NOT terminated), hosting.deleted / vps.deleted / rdp.deleted (the resource was permanently removed after grace; data carries reason), vps.plan_changed / rdp.plan_changed (an in-place plan change finished; data carries change_id, direction, from_plan, to_plan, charged_usd, resize_disk, disk_gb) and vps.plan_change_failed / rdp.plan_change_failed (the resize did not complete, the server stays on its old plan and any charge was refunded; data carries reason, refunded, refund_usd)' + (BR ? ', and the branded-nameserver events domain.nameservers_branded (registrar switched to the branded nameservers; data carries domain + nameservers + previous_nameservers), domain.nameservers_reverted (rolled back to the Cloudflare-assigned names to keep the domain protected; data carries reason + nameservers) and domain.nameservers_branding_failed (the domain stays on the Cloudflare names; data carries reason)' : '') + '. SECURITY: every delivery is signed — header "X-Nomadly-Signature: sha256=<hex>" is HMAC-SHA256 of the exact raw request body keyed by your webhook_secret. Recompute it and constant-time compare BEFORE acting on any *.deleted. Delivery is retried with backoff and de-duplicated per server+event (grace/auto_renew_failed re-fire each billing cycle; *.deleted fires once). Reply 2xx to acknowledge.',
           params: [['webhook_url', true, 'Your http(s) endpoint URL, or null to clear']],
           curl: `curl -s -X PUT ${base}/account/webhook \\
   -H "Authorization: Bearer YOUR_API_KEY" \\
@@ -102,7 +102,7 @@ function endpointGroups(base) {
           resp: `{
   "webhook_url": "https://your-app.com/hooks/nomadly",
   "webhook_secret": "whsec_… (store this — it signs every delivery)",
-  "events": ["hosting.provisioned","hosting.provision_failed","hosting.grace_start","hosting.suspended","hosting.deleted","hosting.auto_renew_failed","vps.provisioned","vps.provision_failed","vps.grace_start","vps.deleted","rdp.provisioned","rdp.provision_failed","rdp.grace_start","rdp.deleted"${NS_EVENTS}],
+  "events": ["hosting.provisioned","hosting.provision_failed","hosting.grace_start","hosting.suspended","hosting.deleted","hosting.auto_renew_failed","vps.provisioned","vps.provision_failed","vps.grace_start","vps.deleted","vps.plan_changed","vps.plan_change_failed","rdp.provisioned","rdp.provision_failed","rdp.grace_start","rdp.deleted","rdp.plan_changed","rdp.plan_change_failed"${NS_EVENTS}],
   "delivery": "POST signed with HMAC-SHA256 (X-Nomadly-Signature: sha256=<hex>), auto-retry with backoff, de-duplicated per server+event"
 }
 
@@ -556,6 +556,34 @@ function endpointGroups(base) {
   "username": "root", "password": "Xy8!kP2q…", "data_preserved": false,
   "note": "Reinstall started (disk wiped, IP kept). Your original root password is re-applied by cloud-init once the server finishes booting (~3 min)." }`,
         },
+        {
+          method: 'GET', path: '/vps/:id/plan-options', auth: true, billed: false,
+          desc: 'List every plan this VPS can be moved to IN PLACE (DigitalOcean servers only — same server, data, IP and credentials). Each option carries direction (upgrade | downgrade | switch), monthly_price_usd, renewal_price_usd, charge_now_usd (the pro-rata amount POST /vps/:id/upgrade would charge right now), disk_gb vs disk_after_gb, can_resize_disk and allowed. POLICY: upgrades are charged now as (new monthly price − current monthly price) × days left in the term / 30; downgrades apply immediately with NO refund; the new price applies from the next renewal and the term end date never moves. A disk can never shrink, so plans whose disk is smaller than the server\u2019s current disk are returned with allowed:false + blocked_reason "disk_too_small". Only plans in stock in the server\u2019s region are listed. Errors: 409 expired (renew first), 409 not_active, 409 plan_change_in_progress, 501 not_supported (non-DigitalOcean server).',
+          curl: `curl -s ${base}/vps/b2f1c0a4-…/plan-options -H "Authorization: Bearer YOUR_API_KEY"`,
+          resp: `{ "id": "b2f1c0a4-…", "product": "vps", "term_ends_at": "2026-11-02T20:57:57.549Z", "remaining_days": 18.4,
+  "current": { "plan_id": "s-2vcpu-4gb-amd", "vcpus": 2, "ram_gb": 4, "disk_gb": 80, "storage_type": "NVMe SSD", "cpu": "AMD", "monthly_price_usd": 56 },
+  "policy": { "upgrade": "Applies immediately. Charged now: (new monthly price - current monthly price) x days left in the term / 30.", "downgrade": "Applies immediately. No refund or credit for the current term.", "…": "…" },
+  "last_plan_change": null,
+  "options": [ { "plan_id": "s-4vcpu-8gb-amd", "name": "NVMe AMD 4vCPU/8GB/160GB", "vcpus": 4, "ram_gb": 8, "disk_gb": 160, "storage_type": "NVMe SSD", "cpu": "AMD",
+    "direction": "upgrade", "monthly_price_usd": 112, "monthly_difference_usd": 56, "renewal_price_usd": 112, "charge_now_usd": 34.35, "refund_usd": 0,
+    "disk_after_gb": 80, "can_resize_disk": true, "allowed": true, "blocked_reason": null, "downtime_minutes": "2-5" } ] }`,
+        },
+        {
+          method: 'POST', path: '/vps/:id/upgrade', auth: true, billed: true,
+          desc: 'Change the plan IN PLACE — works for upgrades AND downgrades (alias: POST /vps/:id/change-plan). DigitalOcean servers only. The server is powered off, resized and powered back on (usually 2-5 min of downtime, longer for large disks); data, IP and credentials are kept. BILLING: an upgrade charges the pro-rata difference now ((new monthly − current monthly) × days left / 30); a downgrade is free and immediate with NO refund; the new price applies from the next renewal and the term end date does not change. DISK: by default only CPU/RAM change, which keeps later downgrades possible. Send resize_disk:true to also grow the disk to the plan size — this is PERMANENT (the server can then never move to a plan with a smaller disk). ASYNC: returns 202 with plan_change.status "running"; poll GET /vps/:id until plan_change.status is "completed" or "failed" (a failed change is refunded automatically), or subscribe to the vps.plan_changed / vps.plan_change_failed webhooks. PRE-FLIGHT: {"dry_run": true} returns the exact quote + wallet check with no charge and no server action. Errors before any charge: 400 missing_plan_id / invalid_plan / same_plan / invalid_resize_disk, 402 insufficient_wallet_balance (with shortfall_usd), 409 disk_too_small / expired / not_active / plan_change_in_progress, 501 not_supported.',
+          params: [['plan_id', true, 'Target plan_id from GET /vps/:id/plan-options.'], ['resize_disk', false, 'true = also grow the disk to the plan size (PERMANENT, blocks later downgrades to smaller disks). Default false = CPU/RAM only.'], ['dry_run', false, 'If true, return the quote + wallet check only — no charge, server untouched (safe on a live key).']],
+          curl: `curl -s -X POST ${base}/vps/b2f1c0a4-…/upgrade \\
+  -H "Authorization: Bearer YOUR_API_KEY" \\
+  -H "Content-Type: application/json" \\
+  -d '{"plan_id":"s-4vcpu-8gb-amd","resize_disk":false}'`,
+          resp: `{ "mode": "live", "product": "vps", "action": "plan_change", "id": "b2f1c0a4-…", "status": "running",
+  "plan_change": { "id": "9d1e…", "status": "running", "phase": "queued", "direction": "upgrade", "from_plan": "s-2vcpu-4gb-amd", "to_plan": "s-4vcpu-8gb-amd",
+    "resize_disk": false, "charged_usd": 34.35, "refunded": false, "started_at": "2026-10-15T10:12:00.000Z", "finished_at": null },
+  "quote": { "plan_id": "s-4vcpu-8gb-amd", "direction": "upgrade", "charge_now_usd": 34.35, "renewal_price_usd": 112, "disk_after_gb": 80, "…": "…" },
+  "charged_usd": 34.35, "wallet_balance_usd": 65.65, "poll_url": "/vps/b2f1c0a4-…" }
+// Then GET /vps/b2f1c0a4-… → "plan_change": { "status": "completed", "phase": null, "disk_after_gb": 80, "finished_at": "…", … }
+// Downgrade → "direction": "downgrade", "charged_usd": 0 (no refund). Pre-flight {"dry_run":true} → { "dry_run": true, "quote": {…}, "sufficient_balance": true }`,
+        },
       ],
     },
     {
@@ -620,6 +648,34 @@ function endpointGroups(base) {
   "result": { "success": true, "id": "…", "months": 1, "plan": "Standard — Windows RDP (1 month)", "expires_at": "2026-08-01T11:00:00.000Z" } }` },
         { method: 'DELETE', path: '/rdp/:id', auth: true, billed: false, desc: 'Destroy the RDP instance (irreversible).', curl: `curl -s -X DELETE ${base}/rdp/ID -H "Authorization: Bearer YOUR_API_KEY"`, resp: `{ "mode": "live", "id": "…", "destroyed": true }` },
         { method: 'GET', path: '/rdp/:id/credentials', auth: true, billed: false, desc: 'Reveal Administrator credentials (live mode only).', curl: `curl -s ${base}/rdp/ID/credentials -H "Authorization: Bearer YOUR_API_KEY"`, resp: `{ "id": "…", "ip": "203.0.113.80", "username": "Administrator", "password": "…", "mode": "live" }` },
+        {
+          method: 'GET', path: '/rdp/:id/plan-options', auth: true, billed: false,
+          desc: 'List every plan this RDP can be moved to IN PLACE (DigitalOcean servers only — same server, data, IP and credentials). Each option carries direction (upgrade | downgrade | switch), monthly_price_usd, renewal_price_usd, charge_now_usd (the pro-rata amount POST /rdp/:id/upgrade would charge right now), disk_gb vs disk_after_gb, can_resize_disk and allowed. POLICY: upgrades are charged now as (new monthly price − current monthly price) × days left in the term / 30; downgrades apply immediately with NO refund; the new price applies from the next renewal and the term end date never moves. A disk can never shrink, so plans whose disk is smaller than the server\u2019s current disk are returned with allowed:false + blocked_reason "disk_too_small". Only plans in stock in the server\u2019s region are listed. Errors: 409 expired (renew first), 409 not_active, 409 plan_change_in_progress, 501 not_supported (non-DigitalOcean server).',
+          curl: `curl -s ${base}/rdp/ID/plan-options -H "Authorization: Bearer YOUR_API_KEY"`,
+          resp: `{ "id": "ID", "product": "rdp", "term_ends_at": "2026-11-02T20:57:57.549Z", "remaining_days": 18.4,
+  "current": { "plan_id": "standard", "vcpus": 2, "ram_gb": 4, "disk_gb": 80, "storage_type": "NVMe SSD", "cpu": "AMD", "monthly_price_usd": 56 },
+  "policy": { "upgrade": "Applies immediately. Charged now: (new monthly price - current monthly price) x days left in the term / 30.", "downgrade": "Applies immediately. No refund or credit for the current term.", "…": "…" },
+  "last_plan_change": null,
+  "options": [ { "plan_id": "pro", "name": "Pro", "vcpus": 4, "ram_gb": 8, "disk_gb": 160, "storage_type": "NVMe SSD", "cpu": "AMD",
+    "direction": "upgrade", "monthly_price_usd": 112, "monthly_difference_usd": 56, "renewal_price_usd": 112, "charge_now_usd": 34.35, "refund_usd": 0,
+    "disk_after_gb": 80, "can_resize_disk": true, "allowed": true, "blocked_reason": null, "downtime_minutes": "2-5" } ] }`,
+        },
+        {
+          method: 'POST', path: '/rdp/:id/upgrade', auth: true, billed: true,
+          desc: 'Change the plan IN PLACE — works for upgrades AND downgrades (alias: POST /rdp/:id/change-plan). DigitalOcean servers only. The server is powered off, resized and powered back on (usually 2-5 min of downtime, longer for large disks); data, IP and credentials are kept. BILLING: an upgrade charges the pro-rata difference now ((new monthly − current monthly) × days left / 30); a downgrade is free and immediate with NO refund; the new price applies from the next renewal and the term end date does not change. DISK: by default only CPU/RAM change, which keeps later downgrades possible. Send resize_disk:true to also grow the disk to the plan size — this is PERMANENT (the server can then never move to a plan with a smaller disk). ASYNC: returns 202 with plan_change.status "running"; poll GET /rdp/:id until plan_change.status is "completed" or "failed" (a failed change is refunded automatically), or subscribe to the rdp.plan_changed / rdp.plan_change_failed webhooks. PRE-FLIGHT: {"dry_run": true} returns the exact quote + wallet check with no charge and no server action. Errors before any charge: 400 missing_plan_id / invalid_plan / same_plan / invalid_resize_disk, 402 insufficient_wallet_balance (with shortfall_usd), 409 disk_too_small / expired / not_active / plan_change_in_progress, 501 not_supported.',
+          params: [['plan_id', true, 'Target plan_id from GET /rdp/:id/plan-options.'], ['resize_disk', false, 'true = also grow the disk to the plan size (PERMANENT, blocks later downgrades to smaller disks). Default false = CPU/RAM only.'], ['dry_run', false, 'If true, return the quote + wallet check only — no charge, server untouched (safe on a live key).']],
+          curl: `curl -s -X POST ${base}/rdp/ID/upgrade \\
+  -H "Authorization: Bearer YOUR_API_KEY" \\
+  -H "Content-Type: application/json" \\
+  -d '{"plan_id":"pro","resize_disk":false}'`,
+          resp: `{ "mode": "live", "product": "rdp", "action": "plan_change", "id": "ID", "status": "running",
+  "plan_change": { "id": "9d1e…", "status": "running", "phase": "queued", "direction": "upgrade", "from_plan": "standard", "to_plan": "pro",
+    "resize_disk": false, "charged_usd": 34.35, "refunded": false, "started_at": "2026-10-15T10:12:00.000Z", "finished_at": null },
+  "quote": { "plan_id": "pro", "direction": "upgrade", "charge_now_usd": 34.35, "renewal_price_usd": 112, "disk_after_gb": 80, "…": "…" },
+  "charged_usd": 34.35, "wallet_balance_usd": 65.65, "poll_url": "/rdp/ID" }
+// Then GET /rdp/ID → "plan_change": { "status": "completed", "phase": null, "disk_after_gb": 80, "finished_at": "…", … }
+// Downgrade → "direction": "downgrade", "charged_usd": 0 (no refund). Pre-flight {"dry_run":true} → { "dry_run": true, "quote": {…}, "sufficient_balance": true }`,
+        },
       ],
     },
     {
@@ -817,18 +873,31 @@ function endpointGroups(base) {
 //   "wallet_balance_usd": 142.51, "sufficient_balance": true, "would_expire_at": "2026-11-08T11:00:00.000Z" }`,
         },
         {
+          method: 'GET', path: '/hosting/:user/plan-options', auth: true, billed: false,
+          desc: 'List the plans this hosting account can move to, with the exact charge for each. POLICY: an upgrade is charged now as (new price per day − current price per day) × days left in the term — between monthly plans that is (new monthly − current monthly) × days left / 30; moving off the weekly plan costs $0 now because the weekly daily rate is higher. A downgrade applies immediately with NO refund. The expiry date never moves; the new plan price (and cycle length) applies from the next renewal. A downgrade is blocked (allowed:false, blocked_reason "too_many_addon_domains") while the account has more addon domains than the target plan allows. Errors: 409 expired (renew first), 409 account_terminated, 409 unknown_plan.',
+          curl: `curl -s ${base}/hosting/mysite01/plan-options -H "Authorization: Bearer YOUR_API_KEY"`,
+          resp: `{ "username": "mysite01", "domain": "mysite.com", "product": "hosting", "remaining_days": 12.5, "term_ends_at": "2026-10-28T09:00:00.000Z",
+  "current": { "plan_id": "premium-monthly", "name": "Premium Anti-Red HostPanel (30 Days)", "price_usd": 75, "duration_days": 30, "addon_domains": 2 },
+  "options": [
+    { "plan_id": "premium-weekly", "direction": "downgrade", "charge_now_usd": 0, "refund_usd": 0, "renewal_price_usd": 30, "renewal_days": 7, "allowed": false, "blocked_reason": "too_many_addon_domains", "…": "…" },
+    { "plan_id": "golden-monthly", "direction": "upgrade", "charge_now_usd": 10.42, "refund_usd": 0, "renewal_price_usd": 100, "renewal_days": 30, "allowed": true, "…": "…" } ],
+  "policy": { "upgrade": "…", "downgrade": "Applies immediately. No refund or credit for the current term.", "renewal": "…" } }`,
+        },
+        {
           method: 'POST', path: '/hosting/:user/upgrade', auth: true, billed: true,
-          desc: 'Upgrade a hosting account to a higher tier. The charge uses the exact bot upgrade quote, applying any loyalty credit for the unused portion of the current cycle.',
-          params: [['plan_id', true, 'Target plan_id (e.g. "golden-monthly"). GET the current plan first; a 400 lists the available upgrade targets.']],
+          desc: 'Change the hosting plan — upgrades AND downgrades (alias: POST /hosting/:user/change-plan). Applies immediately on the server (package change + anti-red redeploy for the new tier). An upgrade charges the pro-rata amount from GET /hosting/:user/plan-options; a downgrade is free with NO refund. The expiry date does not change; renewal_price_usd becomes the new plan price from the next renewal. PRE-FLIGHT: {"dry_run": true} returns the quote + wallet check with no charge and no change. Errors before any charge: 400 invalid_plan / same_plan, 402 insufficient_wallet_balance, 409 expired (renew first — an expired plan is no longer upgraded into a fresh cycle), 409 account_suspended (unsuspend first), 409 too_many_addon_domains. A WHM refusal returns 502 and any charge is refunded.',
+          params: [['plan_id', true, 'Target plan_id from GET /hosting/:user/plan-options (premium-weekly | premium-monthly | golden-monthly).'], ['dry_run', false, 'If true, return the quote + wallet check only — no charge, no change (safe on a live key).']],
           curl: `curl -s -X POST ${base}/hosting/mysite01/upgrade \\
   -H "Authorization: Bearer YOUR_API_KEY" \\
   -H "Content-Type: application/json" \\
   -d '{"plan_id":"golden-monthly"}'`,
           resp: `{
-  "mode": "live", "product": "hosting", "action": "upgrade", "charged_usd": 44.29,
-  "wallet_balance_usd": 5.71,
-  "result": { "success": true, "username": "mysite01", "plan": "Golden Anti-Red HostPanel (30 Days)" }
-}`,
+  "mode": "live", "product": "hosting", "action": "upgrade", "charged_usd": 10.42,
+  "wallet_balance_usd": 89.58,
+  "result": { "success": true, "username": "mysite01", "plan": "Golden Anti-Red HostPanel (1-Month)", "plan_id": "golden-monthly", "direction": "upgrade",
+    "expires_at": "2026-10-28T09:00:00.000Z", "renewal_price_usd": 100, "refund_usd": 0 }
+}
+// Downgrade → { "mode": "live", "product": "hosting", "action": "downgrade", "charged_usd": 0, "result": { …, "refund_usd": 0 } }`,
         },
         {
           method: 'GET', path: '/hosting/:user/addons', auth: true, billed: false,

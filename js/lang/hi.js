@@ -3505,6 +3505,49 @@ ${options.map(o => `• <b>${o.name}</b> — ${o.fast_deploy ? `⚡ लगभग
 कृपया कुछ समय बाद पुनः प्रयास करें।`,
 
  upgradeVpsBtn: '⬆️ उन्नत करें',
+ doPlanOptionBtn: o => `${o.direction === 'upgrade' ? '⬆️' : o.direction === 'downgrade' ? '⬇️' : '🔄'} ${o.name} · $${o.monthly_price_usd}/माह`,
+ doPlanOptionsMsg: (cur, opts, days, hidden) => `🔄 <b>प्लान बदलें</b> — उसी सर्वर पर लागू: आपका डेटा, IP और सेटिंग्स बनी रहती हैं।
+
+<b>वर्तमान:</b> ${cur.name} (${cur.vcpus || '?'} vCPU · ${cur.ram_gb || '?'} GB RAM · ${cur.disk_gb} GB ${cur.storage_type}) — $${cur.monthly_price_usd}/माह
+<b>इस अवधि में बचे दिन:</b> ${Math.floor(days)}
+
+${opts.map(o => `${o.direction === 'upgrade' ? '⬆️' : o.direction === 'downgrade' ? '⬇️' : '🔄'} <b>${o.name}</b> (${o.vcpus} vCPU/${o.ram_gb} GB/${o.disk_gb} GB ${o.storage_type}) $${o.monthly_price_usd}/माह${o.charge_now_usd > 0 ? ` · अभी भुगतान $${o.charge_now_usd.toFixed(2)}` : ''}`).join('\n')}
+
+💡 अपग्रेड: आप केवल बचे दिनों का मूल्य अंतर चुकाते हैं। डाउनग्रेड: मुफ़्त और तुरंत, इस अवधि का कोई रिफंड नहीं। नई कीमत अगले रिन्यूअल से लागू होती है।${hidden ? `\n⚠️ ${hidden} छोटे प्लान छिपाए गए हैं: डिस्क कभी छोटी नहीं की जा सकती।` : ''}`,
+ doPlanNoOptions: '⚠️ अभी इस सर्वर पर कोई और प्लान लागू नहीं किया जा सकता (डिस्क कभी छोटी नहीं होती, और कुछ प्लान इस क्षेत्र में स्टॉक में नहीं हो सकते)।',
+ doPlanUnavailable: code => ({
+ expired: '⚠️ इस सर्वर की अवधि समाप्त हो गई है। पहले रिन्यू करें, फिर प्लान बदलें।',
+ not_active: '⚠️ यह सर्वर सक्रिय नहीं है, इसलिए अभी इसका प्लान नहीं बदला जा सकता।',
+ plan_change_in_progress: '⏳ इस सर्वर के लिए प्लान बदलाव पहले से चल रहा है। पूरा होने पर आपको संदेश मिलेगा।',
+ not_supported: '⚠️ इस सर्वर के लिए प्लान बदलना उपलब्ध नहीं है।',
+ }[code] || '⚠️ अभी इस सर्वर के लिए प्लान बदलना उपलब्ध नहीं है। कृपया बाद में पुनः प्रयास करें या सहायता से संपर्क करें।'),
+ doPlanKeepDiskBtn: '💾 वर्तमान डिस्क रखें (वापस बदल सकते हैं)',
+ doPlanGrowDiskBtn: gb => `📀 डिस्क ${gb} GB तक बढ़ाएँ (स्थायी)`,
+ doPlanDiskAsk: (o, cur) => `💾 <b>डिस्क आकार</b>
+
+${o.name} में ${o.disk_gb} GB डिस्क है। आपके सर्वर में ${cur.disk_gb} GB है।
+
+• <b>वर्तमान डिस्क रखें</b>: केवल CPU और RAM बदलते हैं। आप बाद में छोटे प्लान पर लौट सकते हैं।
+• <b>डिस्क ${o.disk_gb} GB तक बढ़ाएँ</b>: ज़्यादा स्टोरेज, लेकिन <b>स्थायी</b>। सर्वर फिर कभी छोटी डिस्क वाले प्लान पर नहीं जा सकेगा।`,
+ doPlanSummary: (name, cur, o, grow, bal) => `<strong>📜 प्लान बदलाव सारांश</strong>
+
+<strong>• सर्वर:</strong> ${name}
+<strong>• से:</strong> ${cur.name} ($${cur.monthly_price_usd}/माह)
+<strong>• में:</strong> ${o.name} ($${o.monthly_price_usd}/माह)
+<strong>• डिस्क:</strong> ${grow ? `${o.disk_gb} GB (स्थायी)` : `${cur.disk_gb} GB (अपरिवर्तित)`}
+<strong>• अभी भुगतान:</strong> $${o.charge_now_usd.toFixed(2)}${o.direction === 'upgrade' ? ' (बचे दिनों का अंतर)' : ' (वर्तमान अवधि का कोई रिफंड नहीं)'}
+<strong>• अगला रिन्यूअल:</strong> $${o.renewal_price_usd}
+<strong>• वॉलेट बैलेंस:</strong> $${Number(bal).toFixed(2)}
+
+⏱ सर्वर रीस्टार्ट होगा और लगभग ${grow ? '5-30' : '2-5'} मिनट ऑफ़लाइन रहेगा। डेटा, IP और सेटिंग्स बनी रहेंगी।`,
+ doPlanLowBalance: (bal, price) => `⚠️ आपका वॉलेट बैलेंस ($${Number(bal).toFixed(2)}) इस अपग्रेड के लिए आवश्यक $${Number(price).toFixed(2)} से कम है। कृपया टॉप अप करें और पुनः प्रयास करें।`,
+ doPlanStarted: (name, o, charged) => `⏳ <b>${name} को ${o.name} में बदला जा रहा है…</b>${charged > 0 ? `\n💳 आपके वॉलेट से $${Number(charged).toFixed(2)} काटे गए।` : ''}
+
+सर्वर अभी रीस्टार्ट हो रहा है और कुछ मिनट ऑफ़लाइन रहेगा। पूरा होने पर हम आपको संदेश भेजेंगे।`,
+ doPlanDone: (name, c, r) => `✅ <b>${name} अब ${c.to.name} पर है</b>
+
+डिस्क: ${r && r.disk_gb ? r.disk_gb : '?'} GB · अगला रिन्यूअल: $${c.to.renewal_price_usd}। सर्वर फिर से ऑनलाइन है।`,
+ doPlanFailed: (name, refund) => `❌ <b>${name} का प्लान बदलाव पूरा नहीं हुआ।</b> आपका सर्वर वर्तमान प्लान पर ही रहेगा${refund > 0 ? ` और $${Number(refund).toFixed(2)} आपके वॉलेट में वापस कर दिए गए` : ''}। कृपया बाद में पुनः प्रयास करें या सहायता से संपर्क करें।`,
  upgradeVpsPlanBtn: '⬆️ VPS योजना',
  upgradeVpsDiskBtn: '📀 डिस्क प्रकार',
  upgradeVpsDiskTypeBtn: '💾 डिस्क प्रकार उन्नत करें',
