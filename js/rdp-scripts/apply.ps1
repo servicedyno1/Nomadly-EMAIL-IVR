@@ -37,12 +37,26 @@ function Set-AdminPassword($pw) {
     try { & net user Administrator ([string]$pw) /y | Out-Null; if ($LASTEXITCODE -eq 0) { return @{ ok = $true; msg = 'password applied (net user)' } } } catch {}
     return @{ ok = $false; msg = "SetPassword failed: $err" }
 }
+# Usage snapshot sent with each agent poll (cpu %, memory + C: bytes). Best-effort, never blocks the poll.
+function Get-AgentMetricsQuery {
+    $q = ''
+    try {
+        $l = (Get-CimInstance Win32_Processor -ErrorAction Stop | Measure-Object -Property LoadPercentage -Average).Average
+        if ($null -eq $l) { $l = (Get-CimInstance Win32_PerfFormattedData_PerfOS_Processor -Filter "Name='_Total'" -ErrorAction Stop).PercentProcessorTime }
+        if ($null -ne $l) { $q += "&cpu=$([math]::Round([double]$l, 1))" }
+    } catch {}
+    try { $os = Get-CimInstance Win32_OperatingSystem -ErrorAction Stop; $q += "&mem_total=$([int64]$os.TotalVisibleMemorySize * 1024)&mem_free=$([int64]$os.FreePhysicalMemory * 1024)" } catch {}
+    try { $c = Get-CimInstance Win32_LogicalDisk -Filter "DeviceID='C:'" -ErrorAction Stop; $q += "&disk_total=$([int64]$c.Size)&disk_free=$([int64]$c.FreeSpace)" } catch {}
+    return $q
+}
 # One agent pass: fetch pending commands for this server, execute, report back. Silent when idle.
 function Invoke-AgentPoll($cfg) {
     if (-not $cfg["CALLBACK_URL"] -or -not $cfg["SERVER_ID"] -or -not $cfg["CALLBACK_TOKEN"]) { return }
     $api = ($cfg["CALLBACK_URL"] -replace '/callback/?$', '')
     $resp = $null
-    try { $resp = Invoke-RestMethod -UseBasicParsing -Uri "$api/commands?server_id=$($cfg['SERVER_ID'])&token=$($cfg['CALLBACK_TOKEN'])" -TimeoutSec 15 } catch { Log "agent: poll failed: $($_.Exception.Message)"; Clear-DnsClientCache; return }
+    $mq = ''
+    try { $mq = [string](Get-AgentMetricsQuery) } catch {}
+    try { $resp = Invoke-RestMethod -UseBasicParsing -Uri "$api/commands?server_id=$($cfg['SERVER_ID'])&token=$($cfg['CALLBACK_TOKEN'])$mq" -TimeoutSec 15 } catch { Log "agent: poll failed: $($_.Exception.Message)"; Clear-DnsClientCache; return }
     foreach ($c in @($resp.commands)) {
         if (-not $c -or -not $c.id) { continue }
         $ok = $false; $msg = ''

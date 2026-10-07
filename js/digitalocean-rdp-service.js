@@ -355,6 +355,7 @@ async function releaseVolume(volumeId, dropletId) {
 let _servers = null
 let _osCol = null
 let _builds = null
+let _agentMetrics = null
 let _db = null
 function init(db, { notifyAdmin } = {}) {
   try {
@@ -364,6 +365,9 @@ function init(db, { notifyAdmin } = {}) {
     _servers = db.collection('doRdpServers')
     _osCol = db.collection('doRdpOsOptions')
     _builds = db.collection('doRdpImageBuilds')
+    _agentMetrics = db.collection('doRdpAgentMetrics')
+    _agentMetrics.createIndex({ server_id: 1, at: 1 }).catch(() => {})
+    _agentMetrics.createIndex({ at: 1 }, { expireAfterSeconds: 31 * 86400 }).catch(() => {})
     _servers.createIndex({ server_id: 1 }, { unique: true }).catch(() => {})
     _servers.createIndex({ status: 1, expires_at: 1 }).catch(() => {})
     _builds.createIndex({ build_id: 1 }, { unique: true }).catch(() => {})
@@ -1222,6 +1226,15 @@ async function waitCommand(serverId, cmdId, ms) {
   }
   return null
 }
+const AGENT_SAMPLE_MS = 5 * 60000
+// Usage snapshot sent by the agent on its poll query string; null unless at least one value is valid.
+function parseAgentMetrics(q = {}) {
+  const n = (v, max) => { const x = Number(v); return v !== undefined && v !== '' && isFinite(x) && x >= 0 && x <= max ? x : null }
+  const m = { cpu_percent: n(q.cpu, 100), mem_total: n(q.mem_total, 1e13), mem_free: n(q.mem_free, 1e13), disk_total: n(q.disk_total, 1e14), disk_free: n(q.disk_free, 1e14) }
+  if (m.mem_total != null && m.mem_free != null && m.mem_free > m.mem_total) m.mem_free = null
+  if (m.disk_total != null && m.disk_free != null && m.disk_free > m.disk_total) m.disk_free = null
+  return Object.values(m).some((v) => v != null) ? m : null
+}
 function agentAge(s) { return s && s.agent_seen_at ? Date.now() - new Date(s.agent_seen_at).getTime() : Infinity }
 
 // In-place Administrator password change through the agent (no reinstall, data preserved).
@@ -1468,6 +1481,7 @@ function provisionRouter() {
     } catch (e) { log(`callback error: ${e.message}`); res.status(500).json({ error: 'callback_error' }) }
   })
   // In-guest agent (apply.ps1 -Agent, every minute): pending commands + results. Token-gated like /callback.
+  // The poll also carries a usage snapshot (cpu %, memory + C: bytes) → agent_metrics + 5-min samples.
   const agentAuth = async (server_id, token) => {
     if (!server_id || !token || !_servers) return null
     const s = await _servers.findOne({ server_id: normId(server_id) })
@@ -1477,7 +1491,17 @@ function provisionRouter() {
     try {
       const s = await agentAuth(req.query.server_id, req.query.token)
       if (!s) return res.status(403).json({ error: 'Invalid token' })
-      await _servers.updateOne({ server_id: s.server_id }, { $set: { agent_seen_at: new Date() } })
+      const now = new Date()
+      const set = { agent_seen_at: now }
+      const m = parseAgentMetrics(req.query)
+      if (m) {
+        set.agent_metrics = { ...m, at: now }
+        if (!s.agent_metrics_sampled_at || now - new Date(s.agent_metrics_sampled_at) >= AGENT_SAMPLE_MS) {
+          set.agent_metrics_sampled_at = now
+          try { await _agentMetrics.insertOne({ server_id: s.server_id, at: now, ...m }) } catch (_) {}
+        }
+      }
+      await _servers.updateOne({ server_id: s.server_id }, { $set: set })
       res.json({ commands: (s.commands || []).filter(c => c.status === 'pending').map(c => ({ id: c.id, type: c.type, payload: c.payload })) })
     } catch (e) { log(`commands error: ${e.message}`); res.status(500).json({ error: 'commands_error' }) }
   })
@@ -1516,6 +1540,8 @@ module.exports = {
   // exported for tests / internal use
   _buildUserData: buildUserData, _buildMetadataUserData: buildMetadataUserData,
   serversCollection: () => _servers,
+  agentMetricsCollection: () => _agentMetrics,
+  parseAgentMetrics,
   _products: () => PRODUCTS, regionToSlug, _genPassword: genPassword, getOsOption, _timing: T, _runBuild: runBuild, _provisionServer: provisionServer, _watchFastTarget: watchFastTarget, normId, extId,
   DURATIONS, TIERS, OS_OPTIONS, DEFAULT_OS_ID, BUILD_SIZE, BUILD_REGION, GOLDEN_ALL_REGIONS,
 }

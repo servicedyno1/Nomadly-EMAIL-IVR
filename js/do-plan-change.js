@@ -343,4 +343,4 @@ function publicView(pc) {
   }
 }
 
-module.exports = { isDoRecord, loadContext, planOptions, quote, start, reconcileStale, resizeDroplet, applyRecord, publicView, PlanChangeError, _timing: T }
+module.exports = { isDoRecord, instanceIdOf, rdpServerOf: _rdpServer, loadContext, planOptions, quote, start, reconcileStale, resizeDroplet, applyRecord, publicView, PlanChangeError, _timing: T }
