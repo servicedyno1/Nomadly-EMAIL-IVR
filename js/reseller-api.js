@@ -38,6 +38,7 @@ const vpsProvider = require('./vps-provider')
 const hostingScheduler = require('./hosting-scheduler')       // getPlanPrice / getPlanDuration (bot-accurate)
 const hostingPlanChange = require('./hosting-plan-change')   // hosting upgrade/downgrade pro-rata quote
 const doPlanChange = require('./do-plan-change')             // DigitalOcean VPS/RDP in-place resize engine
+const doUsage = require('./do-usage')                         // DigitalOcean VPS/RDP usage metrics
 const antiRed = require('./anti-red-service')                 // resolveDomainCfState / setDomainChallengeBypass
 const addonFlow = require('./addon-domain-flow')              // attachAddonDomain
 const cpanelAuth = require('./cpanel-auth')                   // resetPin (reveal = reset, prod mutation)
@@ -1531,6 +1532,22 @@ function createResellerApi(deps = {}) {
     })
   }
 
+  // ── VPS/RDP usage (DigitalOcean only): CPU, memory, disk, load, bandwidth for a period. Read-only.
+  async function vpsUsageHandler(req, res, isRDP) {
+    const rec = await loadOwnedVps(req, req.params.id, isRDP)
+    if (!rec) return res.status(404).json({ error: 'not_found' })
+    const period = String(req.query.period || '24h').toLowerCase()
+    if (!doUsage.PERIODS[period]) return res.status(400).json({ error: 'invalid_period', message: `period must be one of: ${Object.keys(doUsage.PERIODS).join(', ')}.` })
+    if (!doPlanChange.isDoRecord(rec)) return res.status(501).json({ error: 'not_supported', message: 'Usage metrics are available for DigitalOcean servers only.' })
+    const st = String(rec.status || '').toUpperCase()
+    if (rec.deleted || rec.provisionState === 'provisioning' || ['PROVISIONING', 'FAILED', 'DELETED', 'DESTROYED'].includes(st)) {
+      return res.status(409).json({ error: 'not_active', message: `This server is ${String(rec.status || 'not active').toLowerCase()}; usage is available once it is running.` })
+    }
+    let u
+    try { u = await (isRDP ? doUsage.rdpUsage(rec, period) : doUsage.vpsUsage(rec, period)) } catch (e) { return planChangeError(res, e, rec) }
+    res.json({ id: rec.vpsId || rec._id, product: isRDP ? 'rdp' : 'vps', ...u })
+  }
+
   // VPS routes
   router.get('/vps/plans', apiKeyAuth, h((req, res) => vpsPlansHandler(req, res, false)))
   router.post('/vps', apiKeyAuth, h((req, res) => vpsCreateHandler(req, res, false)))
@@ -1546,6 +1563,7 @@ function createResellerApi(deps = {}) {
   router.post('/vps/:id/ssh-keys', apiKeyAuth, h((req, res) => vpsSetSshKeyHandler(req, res)))
   router.get('/vps/:id/ssh-keys', apiKeyAuth, h((req, res) => vpsSshKeysListHandler(req, res)))
   router.post('/vps/:id/reinstall', apiKeyAuth, h((req, res) => vpsReinstallHandler(req, res)))
+  router.get('/vps/:id/usage', apiKeyAuth, h((req, res) => vpsUsageHandler(req, res, false)))
   router.get('/vps/:id/plan-options', apiKeyAuth, h((req, res) => vpsPlanOptionsHandler(req, res, false)))
   router.post('/vps/:id/upgrade', apiKeyAuth, h((req, res) => vpsPlanChangeHandler(req, res, false)))
   router.post('/vps/:id/change-plan', apiKeyAuth, h((req, res) => vpsPlanChangeHandler(req, res, false)))
@@ -1561,6 +1579,7 @@ function createResellerApi(deps = {}) {
   router.post('/rdp/:id/renew', apiKeyAuth, h((req, res) => vpsRenewHandler(req, res, true)))
   router.delete('/rdp/:id', apiKeyAuth, h((req, res) => vpsDestroyHandler(req, res, true)))
   router.get('/rdp/:id/credentials', apiKeyAuth, h((req, res) => vpsCredsHandler(req, res, true)))
+  router.get('/rdp/:id/usage', apiKeyAuth, h((req, res) => vpsUsageHandler(req, res, true)))
   router.get('/rdp/:id/plan-options', apiKeyAuth, h((req, res) => vpsPlanOptionsHandler(req, res, true)))
   router.post('/rdp/:id/upgrade', apiKeyAuth, h((req, res) => vpsPlanChangeHandler(req, res, true)))
   router.post('/rdp/:id/change-plan', apiKeyAuth, h((req, res) => vpsPlanChangeHandler(req, res, true)))
