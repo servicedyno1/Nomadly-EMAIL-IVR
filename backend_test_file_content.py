@@ -13,7 +13,7 @@ import time
 import sys
 
 # Base URL from frontend/.env
-BASE_URL = "https://key-management-26.preview.emergentagent.com"
+BASE_URL = "https://vault-key-manager.preview.emergentagent.com"
 
 # Test credentials
 USERNAME = "nbayftest"

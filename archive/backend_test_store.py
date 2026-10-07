@@ -2,7 +2,7 @@
 """
 Web Storefront Phase-1 Backend Testing
 Testing: account auth + wallet + crypto top-up
-Base URL: https://key-management-26.preview.emergentagent.com/api/store
+Base URL: https://vault-key-manager.preview.emergentagent.com/api/store
 
 Test fixture (seeded):
 - User: storetest@example.com / password1234 (wallet $0)
@@ -16,7 +16,7 @@ import random
 import string
 from datetime import datetime
 
-BASE_URL = "https://key-management-26.preview.emergentagent.com/api/store"
+BASE_URL = "https://vault-key-manager.preview.emergentagent.com/api/store"
 
 class StoreBackendTester:
     def __init__(self):
