@@ -1,5 +1,15 @@
 # PRD — Nomadly Cloud IVR + Telegram Bot
 
+## 2026-10-07 — Reseller API switched BACK to Cloudflare nameservers (branded NS paused) — DONE
+- User decision: Reseller API defaults to the Cloudflare-assigned names again; leave the hosta.sh vanity NS for now. Telegram bot unchanged (always Cloudflare).
+- Code: `branded-ns.js` `isEnabled()` is now OPT-IN (`RESELLER_BRANDED_NS_ENABLED=true` to re-enable; unset = off). When off: `ns_choice "branded"` AND `nameservers:[ns1/ns2.hosta.sh]` quietly fall back to `cloudflare`; error texts never offer "branded"; the worker reverts any `branded` doc and cancels any `activating` doc. `reseller-api.js`: PUT `/dns/:domain/nameservers` with the branded pair → sets the Cloudflare-assigned names (creates the zone via switchToCloudflare if missing); `/account/webhook` hides `domain.nameservers_*` events. `apidoc-page.js`: all branded text is conditional on `isEnabled()` → 0 hosta.sh mentions when off.
+- Tests: `js/tests/test_branded_ns_2026-10.js` 30/30, `js/tests/test_reseller_branded_ns_api_2026-10.js` 26/26 (includes the new "flag off" sections), jest 33/33 suites (449 tests).
+- Ops: test domain `hostanscktmjd3n.click` reverted to anderson/leanna (OpenProvider + .click registry verified) and its brandedNsDomains doc cancelled. hosta.sh pilot reverted (Namecheap + .sh registry → anderson/leanna) and STOPPED (`enabled:false`, ticks/cron return `not-enabled`). Glue records ns1/ns2.hosta.sh (172.64.35.177 / 108.162.194.151) KEPT at Namecheap so this can be re-enabled.
+- Production (droplet app-main): appended `RESELLER_BRANDED_NS_ENABLED=false` to `/opt/nomadly/shared/app-main/backend.env` (backup `backend.env.bak.20261007T125643Z`), zero-downtime re-activation of the SAME release `20261007T121731Z-75238bd` → now `app-main-b :5100`, log `[BrandedNS] init — enabled=false`. app-wl untouched.
+- PENDING (user): "Save to GitHub" + redeploy app-main so prod also gets the new code. Until then, prod's old code still shows hosta.sh on `/apidoc`, and prod's old code still accepts an explicit `nameservers:[ns1/ns2.hosta.sh]` as branded. The default is already Cloudflare.
+- To re-enable later: set `RESELLER_BRANDED_NS_ENABLED=true`, then `POST /api/admin/ns-pilot/start` + switch for hosta.sh.
+
+
 ## 2026-10-07 — Branded NS LIVE end-to-end check — PASSED
 - Real domain `hostanscktmjd3n.click` registered via `POST /api/reseller/v1/domains/register` (default ns_choice=branded, OpenProvider id 30368620, real cost ~$1.99). Owner = TEMP test owner `999100990` in the PRODUCTION reseller DB (`RESELLER_DB_URL`), wallet credited $30 → charged $30 (net 0); temp API key DISABLED afterwards.
 - Timeline (UTC): 11:59 registered on anderson/leanna + CF zone `c143a83402b4d3756dbb102cf33381d3` (pending) → 12:02 CF active → 12:04 BrandedNS worker switched registrar → 12:06 .click registry delegates to ns1/ns2.hosta.sh. Cold trace: registry → .sh glue (172.64.35.177 / 108.162.194.151) → aa answer = CF edge IPs; HTTP/HTTPS served by Cloudflare (cf-ray), no origin leak. API `GET /dns/:domain/nameservers` → `nameserver_status: branded`.

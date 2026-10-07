@@ -659,9 +659,10 @@ function createResellerApi(deps = {}) {
   // (rdp.grace_start, rdp.deleted) instead of polling /renewals. Plain POST, no signature.
   const resellerWebhooks = require('./reseller-webhooks')
   const WEBHOOK_DELIVERY_NOTE = 'POST signed with HMAC-SHA256. Header X-Nomadly-Signature: "sha256=<hex of HMAC(webhook_secret, raw_request_body)>" (verify it before acting on any *.deleted). Auto-retried with backoff and de-duplicated per server+event.'
+  const listedEvents = () => (brandedNs.isEnabled() ? resellerWebhooks.EVENTS : resellerWebhooks.EVENTS.filter((e) => !e.startsWith('domain.nameservers_')))
   router.get('/account/webhook', apiKeyAuth, h(async (req, res) => {
     const keyDoc = await col('resellerApiKeys').findOne({ _id: req.reseller.keyId }, { projection: { webhookUrl: 1, webhookSecret: 1 } })
-    res.json({ webhook_url: (keyDoc && keyDoc.webhookUrl) || null, webhook_secret: (keyDoc && keyDoc.webhookSecret) || null, events: resellerWebhooks.EVENTS, delivery: WEBHOOK_DELIVERY_NOTE })
+    res.json({ webhook_url: (keyDoc && keyDoc.webhookUrl) || null, webhook_secret: (keyDoc && keyDoc.webhookSecret) || null, events: listedEvents(), delivery: WEBHOOK_DELIVERY_NOTE })
   }))
   router.put('/account/webhook', apiKeyAuth, h(async (req, res) => {
     const raw = req.body?.webhook_url
@@ -676,7 +677,7 @@ function createResellerApi(deps = {}) {
     const keyDoc = await col('resellerApiKeys').findOne({ _id: req.reseller.keyId }, { projection: { webhookSecret: 1 } })
     const secret = (keyDoc && keyDoc.webhookSecret) || resellerWebhooks.newWebhookSecret()
     await col('resellerApiKeys').updateOne({ _id: req.reseller.keyId }, { $set: { webhookUrl: url, webhookSecret: secret } })
-    res.json({ webhook_url: url, webhook_secret: secret, events: resellerWebhooks.EVENTS, delivery: WEBHOOK_DELIVERY_NOTE })
+    res.json({ webhook_url: url, webhook_secret: secret, events: listedEvents(), delivery: WEBHOOK_DELIVERY_NOTE })
   }))
 
   // ── Bot pricing catalog (the same prices the Telegram bot charges) ──
@@ -883,6 +884,18 @@ function createResellerApi(deps = {}) {
     if (!v.ok) return res.status(400).json({ error: 'invalid_nameservers', message: `${v.error} Body: { "nameservers": ["ns1...","ns2..."] }` })
     const ns = v.nameservers
     const owner = String(req.reseller.ownerChatId)
+
+    if (brandedNs.isBrandedSet(ns) && !brandedNs.isEnabled()) {
+      // Branded nameservers are switched off → fall back to the Cloudflare-assigned names.
+      const zone = await require('./cf-service').getZoneByName(domain)
+      const r = zone?.name_servers?.length
+        ? await domainService.updateAllNameservers(domain, zone.name_servers, getDb())
+        : await domainService.switchToCloudflare(domain, getDb())
+      if (r && (r.success === false || r.error)) return res.status(502).json({ error: 'ns_update_failed', message: r.error || r.message })
+      await brandedNs.cancel(getDb(), domain, 'branded_ns_disabled').catch(() => {})
+      const cfNs = zone?.name_servers?.length ? zone.name_servers : (r?.nameservers || [])
+      return res.json({ domain, updated: true, nameserver_mode: 'cloudflare', nameservers: cfNs, current_nameservers: cfNs, detail: r || null })
+    }
 
     // Branded set (ns1/ns2.hosta.sh): only valid while the domain's DNS is on our Cloudflare
     // account. If the zone is not ACTIVE yet, keep the registrar on the CF-assigned names and

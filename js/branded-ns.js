@@ -73,8 +73,9 @@ function brandedNameservers() {
   return [...new Set(String(process.env.RESELLER_BRANDED_NS || 'ns1.hosta.sh,ns2.hosta.sh')
     .split(',').map(normName).filter(Boolean))]
 }
+// Opt-in: OFF unless RESELLER_BRANDED_NS_ENABLED=true (reseller API defaults to Cloudflare names).
 function isEnabled() {
-  return String(process.env.RESELLER_BRANDED_NS_ENABLED || 'true').toLowerCase() !== 'false' && brandedNameservers().length >= 2
+  return String(process.env.RESELLER_BRANDED_NS_ENABLED || '').toLowerCase() === 'true' && brandedNameservers().length >= 2
 }
 function isBrandedNs(host) { return brandedNameservers().includes(normName(host)) }
 /** Exact branded set (order-insensitive). Recognised even when the feature flag is off,
@@ -102,26 +103,30 @@ function validateNameservers(list) {
  * Returns { ok, mode, registerChoice, customNS, error, code }.
  */
 function resolveNsChoice({ ns_choice: rawChoice, nameservers, forHosting = false } = {}) {
+  const on = isEnabled()
+  const CF = { ok: true, mode: 'cloudflare', registerChoice: 'cloudflare', customNS: null }
+  const hostingChoices = on ? '"branded" (default) or "cloudflare"' : '"cloudflare" (default)'
+  const domainChoices = on ? '"branded" (default), "cloudflare", "registrar"' : '"cloudflare" (default), "registrar"'
   const hasNs = Array.isArray(nameservers) ? nameservers.length > 0 : (nameservers != null && nameservers !== '')
   if (hasNs) {
     if (forHosting) {
-      return { ok: false, code: 'nameservers_not_supported', error: 'Hosting with a new domain always uses protected DNS. Omit "nameservers" and use ns_choice "branded" (default) or "cloudflare".' }
+      return { ok: false, code: 'nameservers_not_supported', error: `Hosting with a new domain always uses protected DNS. Omit "nameservers" and use ns_choice ${hostingChoices}.` }
     }
     const v = validateNameservers(nameservers)
     if (!v.ok) return { ok: false, code: 'invalid_nameservers', error: v.error }
     if (isBrandedSet(v.nameservers)) {
-      return { ok: true, mode: 'branded', registerChoice: 'cloudflare', customNS: null }
+      return on ? { ok: true, mode: 'branded', registerChoice: 'cloudflare', customNS: null } : { ...CF, downgraded: true }
     }
     return { ok: true, mode: 'custom', registerChoice: 'custom', customNS: v.nameservers }
   }
-  const choice = String(rawChoice || '').trim().toLowerCase() || (isEnabled() ? 'branded' : 'cloudflare')
+  const choice = String(rawChoice || '').trim().toLowerCase() || (on ? 'branded' : 'cloudflare')
   if (choice === 'branded') {
-    if (!isEnabled()) return { ok: true, mode: 'cloudflare', registerChoice: 'cloudflare', customNS: null, downgraded: true }
+    if (!on) return { ...CF, downgraded: true }
     return { ok: true, mode: 'branded', registerChoice: 'cloudflare', customNS: null }
   }
-  if (choice === 'cloudflare') return { ok: true, mode: 'cloudflare', registerChoice: 'cloudflare', customNS: null }
+  if (choice === 'cloudflare') return CF
   if (choice === 'registrar' || choice === 'provider_default') {
-    if (forHosting) return { ok: false, code: 'invalid_ns_choice', error: 'Hosting requires protected DNS: ns_choice must be "branded" (default) or "cloudflare".' }
+    if (forHosting) return { ok: false, code: 'invalid_ns_choice', error: `Hosting requires protected DNS: ns_choice must be ${hostingChoices}.` }
     return { ok: true, mode: 'registrar', registerChoice: 'provider_default', customNS: null }
   }
   if (choice === 'custom') return { ok: false, code: 'invalid_nameservers', error: 'ns_choice "custom" requires a "nameservers" array (2–4 hostnames).' }
@@ -129,8 +134,8 @@ function resolveNsChoice({ ns_choice: rawChoice, nameservers, forHosting = false
     ok: false,
     code: 'invalid_ns_choice',
     error: forHosting
-      ? 'ns_choice must be "branded" (default) or "cloudflare".'
-      : 'ns_choice must be one of: "branded" (default), "cloudflare", "registrar" — or pass a "nameservers" array.',
+      ? `ns_choice must be ${hostingChoices}.`
+      : `ns_choice must be one of: ${domainChoices} — or pass a "nameservers" array.`,
   }
 }
 
@@ -421,6 +426,14 @@ async function _processBranded(db, doc) {
 }
 
 async function processDoc(db, doc) {
+  if (!isEnabled()) {
+    // Feature switched off: keep/return every domain on its Cloudflare-assigned names.
+    if (doc.status === 'branded') return revert(db, doc, 'branded nameservers disabled')
+    if (doc.status === 'activating') {
+      await cancel(db, doc._id, 'branded_ns_disabled')
+      return { domain: doc._id, action: 'cancelled' }
+    }
+  }
   if (doc.status === 'activating') return _processActivating(db, doc)
   if (doc.status === 'branded') return _processBranded(db, doc)
   await _release(db, doc, {}, 60)

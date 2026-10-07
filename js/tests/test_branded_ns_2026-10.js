@@ -8,6 +8,12 @@ const { MongoClient } = require('mongodb')
 process.env.RESELLER_BRANDED_NS = 'ns1.hosta.sh,ns2.hosta.sh'
 delete process.env.RESELLER_BRANDED_NS_ENABLED
 const bn = require('../branded-ns')
+const assertDefaultOff = () => {
+  const r = bn.resolveNsChoice({})
+  assert.deepStrictEqual([bn.isEnabled(), r.mode, r.registerChoice], [false, 'cloudflare', 'cloudflare'])
+}
+assertDefaultOff()
+process.env.RESELLER_BRANDED_NS_ENABLED = 'true' // the lifecycle tests below exercise the opt-in path
 
 let passed = 0
 let failed = 0
@@ -85,7 +91,19 @@ const dsMock = {
       assert.strictEqual(bn.resolveNsChoice({}).mode, 'cloudflare')
       assert.strictEqual(bn.resolveNsChoice({ ns_choice: 'branded' }).mode, 'cloudflare')
       assert.strictEqual(bn.isBrandedSet(['ns1.hosta.sh', 'ns2.hosta.sh']), true) // still recognised
-    } finally { delete process.env.RESELLER_BRANDED_NS_ENABLED }
+    } finally { process.env.RESELLER_BRANDED_NS_ENABLED = 'true' }
+  })
+  await t('flag unset (default) → off: branded pair passed as nameservers → cloudflare, docs/errors never offer "branded"', () => {
+    delete process.env.RESELLER_BRANDED_NS_ENABLED
+    try {
+      assertDefaultOff()
+      const r = bn.resolveNsChoice({ nameservers: ['ns1.hosta.sh', 'ns2.hosta.sh'] })
+      assert.deepStrictEqual([r.ok, r.mode, r.registerChoice, r.customNS, r.downgraded], [true, 'cloudflare', 'cloudflare', null, true])
+      assert.strictEqual(bn.resolveNsChoice({ forHosting: true }).mode, 'cloudflare')
+      assert.doesNotMatch(bn.resolveNsChoice({ ns_choice: 'banana' }).error, /branded/)
+      assert.doesNotMatch(bn.resolveNsChoice({ ns_choice: 'registrar', forHosting: true }).error, /branded/)
+      assert.strictEqual(bn.resolveNsChoice({ nameservers: ['ns1.example.com', 'ns2.example.com'] }).mode, 'custom')
+    } finally { process.env.RESELLER_BRANDED_NS_ENABLED = 'true' }
   })
 
   console.log('lifecycle')
@@ -225,6 +243,34 @@ const dsMock = {
     await bn.enqueue(db, { domain: 'c.com', ownerChatId: '1', cfNameservers: CF_NS })
     await bn.cancel(db, 'c.com', 'owner_set_nameservers')
     assert.strictEqual((await doc('c.com')).status, 'cancelled')
+  })
+
+  await t('flag off → worker reverts branded domains and cancels activating ones', async () => {
+    state.zoneStatus = 'active'
+    state.zoneFound = true
+    state.records = []
+    const B = 'still-branded.com'
+    const A = 'still-activating.com'
+    await bn.enqueue(db, { domain: B, ownerChatId: '42', source: 'domains/register', cfNameservers: CF_NS })
+    state.registrarNs[B] = CF_NS
+    await due(B); await bn.tick()
+    assert.strictEqual((await doc(B)).status, 'branded')
+    state.zoneStatus = 'pending'
+    await bn.enqueue(db, { domain: A, ownerChatId: '42', source: 'hosting', cfNameservers: CF_NS })
+    state.registrarNs[A] = CF_NS
+    state.zoneStatus = 'active'
+    delete process.env.RESELLER_BRANDED_NS_ENABLED
+    try {
+      await due(B); await due(A)
+      const calls = state.updateCalls.length
+      const r = await bn.tick()
+      const byDomain = Object.fromEntries(r.results.map((x) => [x.domain, x.action]))
+      assert.deepStrictEqual([byDomain[B], byDomain[A]], ['reverted', 'cancelled'])
+      assert.deepStrictEqual(state.updateCalls.slice(calls), [{ d: B, ns: CF_NS }]) // activating domain untouched (already on CF names)
+      assert.strictEqual((await doc(B)).status, 'reverted')
+      assert.strictEqual((await doc(A)).status, 'cancelled')
+      assert.strictEqual(state.webhooks.pop().event, 'domain.nameservers_reverted')
+    } finally { process.env.RESELLER_BRANDED_NS_ENABLED = 'true' }
   })
 
   await db.dropDatabase()
