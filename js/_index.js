@@ -38130,6 +38130,17 @@ app.use('/reseller/v1', createResellerApi({
   notifyAdmin,
 }))
 
+// ── Vanity-nameserver pilot (ns1/ns2.hosta.sh → Cloudflare NS IPs) ──
+// Admin: /api/admin/ns-pilot/{status,start,tick,revert,switch,stop}?key=<SESSION_SECRET[0..15]>
+// Cron:  POST /api/cron/ns-pilot-tick (Bearer WEBHOOK_CRON_SECRET) — hourly via .emergent/crons.yml
+// State lives in the pod's main `db` (nsPilot / nsPilotChecks). Inert unless /start was called.
+try {
+  require('./ns-pilot').init({ app, getDb: () => db, notifyAdmin, log })
+} catch (e) {
+  log(`[NsPilot] init failed: ${e.message}`)
+}
+
+
 // ── DigitalOcean RDP provisioning callbacks (on-droplet Windows conversion) ──
 // External URL: /api/provision/*  (FastAPI strips /api → node /provision).
 // The convert_to_windows.sh / apply.ps1 scripts POST progress to /provision/callback

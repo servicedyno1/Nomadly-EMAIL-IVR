@@ -9,6 +9,20 @@
 #====================================================================================================
 
 #====================================================================================================
+# CURRENT TASK (2026-10-07) — FEATURE: vanity-nameserver pilot ns1/ns2.hosta.sh (Namecheap + CF) [test THIS]
+#====================================================================================================
+current_task_2026_10_07_ns_pilot: |
+  New files: js/namecheap-service.js (Namecheap XML API client), js/ns-pilot.js (pilot state machine +
+  monitor + routes), mounted in js/_index.js right after the reseller API mount (~line 38133).
+  .emergent/crons.yml → hourly POST {{BASE_URL}}/api/cron/ns-pilot-tick (+ in-app fallback watchdog).
+  LIVE pilot is RUNNING on hosta.sh (phase=monitoring). DO NOT call /start, /revert, /switch, /stop —
+  they mutate the real registrar/Cloudflare state. Safe: GET /status, POST /tick (idempotent), auth checks,
+  cron endpoint auth + idempotency, pure-function unit tests of _internals / domainParts / XML parsing.
+  Admin key = first 16 chars of SESSION_SECRET in /app/backend/.env (query ?key=...).
+  Cron auth = "Authorization: Bearer <WEBHOOK_CRON_SECRET from /app/backend/.env>".
+
+
+#====================================================================================================
 # CURRENT TASK (2026-10-06) — BUGFIX: reseller API "Database not ready" (getDb undefined) [test THIS]
 #====================================================================================================
 current_task_2026_10_06_reseller_db_not_ready: |

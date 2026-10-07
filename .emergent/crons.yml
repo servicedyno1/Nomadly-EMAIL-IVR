@@ -1,0 +1,8 @@
+crons:
+  - name: ns-pilot-tick
+    description: "Hourly vanity-nameserver pilot monitor for hosta.sh (CF zone status, proxy, auto-revert)"
+    cron: "0 * * * *"
+    # Cron endpoints must ack 2xx immediately; enqueue/background the actual work.
+    endpoint: "{{BASE_URL}}/api/cron/ns-pilot-tick"
+    method: POST
+    enabled: true
