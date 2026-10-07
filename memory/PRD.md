@@ -383,6 +383,32 @@ User inherited a fully-set-up Nomadly bot pod pointed at LIVE PRODUCTION. Task b
   Prod error is from an old release → resolve by redeploying current code (ensure
   `scripts/` is bundled).
 
+## Resolved — 2026-10-08 (in-place plan change: VPS / RDP on DigitalOcean + Hosting)
+- **Engine** `js/do-plan-change.js` (DigitalOcean only): plan options + pro-rata quote, lock → wallet charge →
+  background resize (graceful shutdown → hard power_off fallback → resize CPU/RAM only by default → restore
+  previous power state) → persist (productId, planPrice, do_size_slug, diskGb, planChange, planChangeHistory;
+  RDP also doRdpServers.tier_slug/product_id). Failure = auto-refund. `reconcileStale` (in reseller
+  provisionWorkerTick, live only) finishes/refunds changes orphaned >90 min by a restart.
+- **Policy (user-approved)**: upgrade charged now = (new monthly − current monthly) × days left / 30; downgrade
+  immediate, NO refund; new price from next renewal; term end never moves; disk growth opt-in only
+  (`resize_disk:true` / bot "Grow disk (permanent)"); targets with a disk smaller than the droplet's current
+  disk are blocked (`disk_too_small`); only in-stock sizes listed.
+- **Reseller API**: `GET /vps|rdp/:id/plan-options`, `POST /vps|rdp/:id/upgrade` (+ `/change-plan` alias) →
+  202 running, `{dry_run:true}` pre-flight, 402 shortfall, 409 in-progress; `GET /vps|rdp/:id` → `plan_change`;
+  webhooks `vps|rdp.plan_changed` / `vps|rdp.plan_change_failed`. Hosting: `GET /hosting/:user/plan-options`,
+  `POST /hosting/:user/upgrade` (+ `/change-plan`) rewritten (js/hosting-plan-change.js): daily-rate pro-rata,
+  downgrades free/no refund, expiry unchanged, 409 expired / account_suspended / too_many_addon_domains.
+  Old loyalty-credit logic removed from the API (bot hosting upgrade still uses loyalty credit).
+- **Bot**: "⬆️ Upgrade" on a DigitalOcean VPS/RDP now opens one list of upgrades/downgrades with pay-now amounts
+  → disk keep/grow screen (only when the target disk is larger) → summary → Confirm (wallet only) → completion
+  message (en/fr/zh/hi). Non-DO servers keep the legacy flow.
+- `digitalocean-service.isProductAvailable` accepts raw DO region slugs (RDP ams3/tor1/nyc2…);
+  `digitalocean-rdp-service` exports `serversCollection`. Docs in `js/apidoc-page.js`.
+- **Tests**: `js/tests/test_do_plan_change_2026-10.js` 28/28 (fake DO/WHM); jest 33 suites green; LIVE test
+  (iteration_69) on a throwaway droplet: bot upgrade s-1vcpu-1gb→s-1vcpu-2gb ($11.99 pro-rata, ~90 s) and
+  downgrade back ($0, ~100 s) both real; droplet destroyed after. Re-run script: `tests/test_bot_plan_change_live.js`.
+- **Not live in production until "Save to GitHub" + redeploy.**
+
 ## Pending Issues (carried forward)
 
 ### P1
@@ -398,6 +424,8 @@ User inherited a fully-set-up Nomadly bot pod pointed at LIVE PRODUCTION. Task b
 - Panel test-email / EmailBlast transports use ports 25/465/587 → blocked from the droplet by DO policy (only matters if those features are used from the droplet)
 
 ### P2 (Future)
+- Bot hosting upgrade still uses the old loyalty-credit quote (API now pro-rata + no-refund downgrades) — align if wanted
+- Bot plan change is wallet-only (no crypto/bank checkout for the pro-rata amount)
 - Boot-time Telegram ping for DO power-cycles
 - WHM `whm2-fra1` stability: rebooted twice on 09-28; cpsrvd stopped serving per-user API reads for 32h afterwards until its nightly restart (now detected + paged by the heartbeat breaker)
 - Stale-zone sweep: 96 registeredDomains carry cfZoneIds not in our CF account (now self-healed lazily on next DNS action; a one-off sweep could clear them proactively)
