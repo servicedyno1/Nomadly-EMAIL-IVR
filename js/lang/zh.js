@@ -2943,7 +2943,7 @@ const vp = {
 
  askVpsDiskType: list => `💾 <b>选择存储类型</b>
 
-两种选项价格相同 — 选择对您更重要的：
+${list?.some(item => item.pricier) ? 'NVMe 价格更高，但采用更新的 CPU 和快得多的磁盘 — SSD 是经济之选：' : '两种选项价格相同 — 选择对您更重要的：'}
 
 ${list?.map(item => `${item.description}`).join('\n\n')}
 

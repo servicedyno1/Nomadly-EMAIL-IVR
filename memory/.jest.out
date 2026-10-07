@@ -1,0 +1,139 @@
+PASS tests/vultr-parity.test.js
+FAIL tests/digitalocean-provider.test.js
+  ● DigitalOcean — pricing with 200% markup › listProducts accepts (region, isWindows, diskPreference) — Contabo signature parity
+
+    expect(received).toHaveLength(expected)
+
+    Expected length: 6
+    Received length: 24
+    Received array:  [{"bandwidthTb": 1, "basePriceUsd": 7, "cpuCores": 1, "cpuVendor": "AMD", "diskGb": 25, "diskMb": 25600, "diskType": "nvme", "do_size_slug": "s-1vcpu-1gb-amd", "name": "NVMe AMD 1vCPU/1GB/25GB", "portSpeedMbps": 1000, "pricing": {"basePriceUsd": 7, "markupPercent": 200, "regionSurcharge": 0, "totalBeforeMarkup": 7, "totalWithMarkup": 21, "windowsLicense": 0}, "productId": "s-1vcpu-1gb-amd", "ramGb": 1, "ramMb": 1024, "tier": 1}, {"bandwidthTb": 1, "basePriceUsd": 7, "cpuCores": 1, "cpuVendor": "Intel", "diskGb": 25, "diskMb": 25600, "diskType": "nvme", "do_size_slug": "s-1vcpu-1gb-intel", "name": "NVMe Intel 1vCPU/1GB/25GB", "portSpeedMbps": 1000, "pricing": {"basePriceUsd": 7, "markupPercent": 200, "regionSurcharge": 0, "totalBeforeMarkup": 7, "totalWithMarkup": 21, "windowsLicense": 0}, "productId": "s-1vcpu-1gb-intel", "ramGb": 1, "ramMb": 1024, "tier": 2}, {"bandwidthTb": 1, "basePriceUsd": 8, "cpuCores": 1, "cpuVendor": "Intel", "diskGb": 35, "diskMb": 35840, "diskType": "nvme", "do_size_slug": "s-1vcpu-1gb-35gb-intel", "name": "NVMe Intel 1vCPU/1GB/35GB", "portSpeedMbps": 1000, "pricing": {"basePriceUsd": 8, "markupPercent": 200, "regionSurcharge": 0, "totalBeforeMarkup": 8, "totalWithMarkup": 24, "windowsLicense": 0}, "productId": "s-1vcpu-1gb-35gb-intel", "ramGb": 1, "ramMb": 1024, "tier": 3}, {"bandwidthTb": 2, "basePriceUsd": 14, "cpuCores": 1, "cpuVendor": "AMD", "diskGb": 50, "diskMb": 51200, "diskType": "nvme", "do_size_slug": "s-1vcpu-2gb-amd", "name": "NVMe AMD 1vCPU/2GB/50GB", "portSpeedMbps": 1000, "pricing": {"basePriceUsd": 14, "markupPercent": 200, "regionSurcharge": 0, "totalBeforeMarkup": 14, "totalWithMarkup": 42, "windowsLicense": 0}, "productId": "s-1vcpu-2gb-amd", "ramGb": 2, "ramMb": 2048, "tier": 4}, {"bandwidthTb": 2, "basePriceUsd": 14, "cpuCores": 1, "cpuVendor": "Intel", "diskGb": 50, "diskMb": 51200, "diskType": "nvme", "do_size_slug": "s-1vcpu-2gb-intel", "name": "NVMe Intel 1vCPU/2GB/50GB", "portSpeedMbps": 1000, "pricing": {"basePriceUsd": 14, "markupPercent": 200, "regionSurcharge": 0, "totalBeforeMarkup": 14, "totalWithMarkup": 42, "windowsLicense": 0}, "productId": "s-1vcpu-2gb-intel", "ramGb": 2, "ramMb": 2048, "tier": 5}, {"bandwidthTb": 2, "basePriceUsd": 16, "cpuCores": 1, "cpuVendor": "Intel", "diskGb": 70, "diskMb": 71680, "diskType": "nvme", "do_size_slug": "s-1vcpu-2gb-70gb-intel", "name": "NVMe Intel 1vCPU/2GB/70GB", "portSpeedMbps": 1000, "pricing": {"basePriceUsd": 16, "markupPercent": 200, "regionSurcharge": 0, "totalBeforeMarkup": 16, "totalWithMarkup": 48, "windowsLicense": 0}, "productId": "s-1vcpu-2gb-70gb-intel", "ramGb": 2, "ramMb": 2048, "tier": 6}, {"bandwidthTb": 3, "basePriceUsd": 21, "cpuCores": 2, "cpuVendor": "AMD", "diskGb": 60, "diskMb": 61440, "diskType": "nvme", "do_size_slug": "s-2vcpu-2gb-amd", "name": "NVMe AMD 2vCPU/2GB/60GB", "portSpeedMbps": 1000, "pricing": {"basePriceUsd": 21, "markupPercent": 200, "regionSurcharge": 0, "totalBeforeMarkup": 21, "totalWithMarkup": 63, "windowsLicense": 0}, "productId": "s-2vcpu-2gb-amd", "ramGb": 2, "ramMb": 2048, "tier": 7}, {"bandwidthTb": 3, "basePriceUsd": 21, "cpuCores": 2, "cpuVendor": "Intel", "diskGb": 60, "diskMb": 61440, "diskType": "nvme", "do_size_slug": "s-2vcpu-2gb-intel", "name": "NVMe Intel 2vCPU/2GB/60GB", "portSpeedMbps": 1000, "pricing": {"basePriceUsd": 21, "markupPercent": 200, "regionSurcharge": 0, "totalBeforeMarkup": 21, "totalWithMarkup": 63, "windowsLicense": 0}, "productId": "s-2vcpu-2gb-intel", "ramGb": 2, "ramMb": 2048, "tier": 8}, {"bandwidthTb": 3, "basePriceUsd": 24, "cpuCores": 2, "cpuVendor": "Intel", "diskGb": 90, "diskMb": 92160, "diskType": "nvme", "do_size_slug": "s-2vcpu-2gb-90gb-intel", "name": "NVMe Intel 2vCPU/2GB/90GB", "portSpeedMbps": 1000, "pricing": {"basePriceUsd": 24, "markupPercent": 200, "regionSurcharge": 0, "totalBeforeMarkup": 24, "totalWithMarkup": 72, "windowsLicense": 0}, "productId": "s-2vcpu-2gb-90gb-intel", "ramGb": 2, "ramMb": 2048, "tier": 9}, {"bandwidthTb": 4, "basePriceUsd": 28, "cpuCores": 2, "cpuVendor": "AMD", "diskGb": 80, "diskMb": 81920, "diskType": "nvme", "do_size_slug": "s-2vcpu-4gb-amd", "name": "NVMe AMD 2vCPU/4GB/80GB", "portSpeedMbps": 1000, "pricing": {"basePriceUsd": 28, "markupPercent": 200, "regionSurcharge": 0, "totalBeforeMarkup": 28, "totalWithMarkup": 84, "windowsLicense": 0}, "productId": "s-2vcpu-4gb-amd", "ramGb": 4, "ramMb": 4096, "tier": 10}, …]
+
+       96 |     const nvme = digitalocean.listProducts('EU', false, 'nvme')
+       97 |     expect(ssd).toHaveLength(6)
+    >  98 |     expect(nvme).toHaveLength(6) // DO has no SSD/NVMe split — same catalog
+          |                  ^
+       99 |     expect(ssd.map(p => p.productId)).toEqual(nvme.map(p => p.productId))
+      100 |   })
+      101 |
+
+      at Object.toHaveLength (tests/digitalocean-provider.test.js:98:18)
+
+PASS tests/digitalocean-bot-lifecycle.test.js
+PASS tests/azure-provider.test.js
+PASS tests/wallet-deposit-reverted-to-amount-first.test.js
+PASS tests/protection-heartbeat-stuck-false-positive.test.js
+[Store] webhook ord-confirmed: decision=unverified-fulfill (webhook-paid:confirmed(gateway-unreachable,signed)) sig=valid
+[Store] hosting order ord-confirmed PROVISIONED → testcpuser@e2e-ord-confirmed.com (guest=true)
+[ProtectionHeartbeat] Initialized
+[ProtectionHeartbeat] SKIP_WEBHOOK_SYNC=true — heartbeat DISABLED (dev sandbox: must not mutate prod cpanelAccounts or alert admin)
+[ProtectionHeartbeat] SKIP_WEBHOOK_SYNC=true — Scheduler DISABLED (dev sandbox)
+[Store] webhook ord-forged: decision=hold (gateway-unreachable:confirmed(unsigned)) sig=unsigned
+[Store][SIGDEBUG] {"hasV2":true,"hasV1Legacy":false,"tsHeader":null,"v1TokenCount":1,"t":"1791395230","tsUnit":"s","tsDeltaSec":1,"rawLen":127,"rawSha16":"fa9ee5066077e5a4","providedV1":["55a81ec41dbb13…6202"],"matchedScheme":null,"candidates":{"A_full_t_raw_hex":"99acdd57920d5d…b55b","B_full_raw_hex":"83b351b54a2c74…8e75","C_noprefix_t_raw_hex":"f8016ab0858511…1c3e","D_b64key_t_raw_hex":"4066a3f5c1d2a9…06d7","E_b64key_t_raw_b64":"QGaj9cHSqVUZgd…Btc=","F_full_t_raw_b64":"mazdV5INXcB/bR…tVs=","G_b64key_raw_b64":"CL6qifPZd5p6RY…l90="}}
+[Store] crypto-webhook INVALID signature (ref=ord-badsig, pid=pid-test) enforce=false
+[Store] webhook ord-badsig: decision=hold (gateway-unreachable:confirmed(unsigned)) sig=invalid
+[Store] webhook ord-underpaid: decision=fulfill (gateway-confirmed:confirmed) sig=valid
+[Store] hosting order ord-underpaid UNDERPAID ($10 < $69 × tol 0.9)
+[Store] webhook ord-gw-ok: decision=fulfill (gateway-confirmed:confirmed) sig=unsigned
+[Store] hosting order ord-gw-ok PROVISIONED → testcpuser@e2e-ord-gw-ok.com (guest=true)
+PASS tests/store-webhook-e2e.test.js
+[Store] webhook ord-dup: decision=unverified-fulfill (webhook-paid:confirmed(gateway-unreachable,signed)) sig=valid
+[Store] hosting order ord-dup PROVISIONED → testcpuser@e2e-ord-dup.com (guest=true)
+[Store] webhook dup for ord-dup
+PASS tests/os-aware-provider-routing.test.js
+[cPanel Proxy] Fileman::get_file_content got HTTP 200 with login-page HTML — treating as auth failure
+[cPanel Proxy API2] Email::listpopswithdisk got HTTP 200 with login-page HTML — treating as auth failure
+[cPanel Proxy] SubDomain::addsubdomain got HTTP 200 with login-page HTML — falling back via WHM-root
+[cPanel Proxy] SubDomain::addsubdomain succeeded via WHM-root fallback (user: brokenuser)
+[cPanel Proxy] SubDomain::delsubdomain got HTTP 200 with login-page HTML — falling back via WHM-root
+[cPanel Proxy] SubDomain::delsubdomain succeeded via WHM-root fallback (user: brokenuser)
+PASS tests/cpanel-auth-broken-fallback.test.js
+PASS tests/protection-heartbeat-transient-empty-read.test.js
+[cPanel Proxy] AddonDomain::addaddondomain succeeded via WHM-root fallback (user: brokenuser)
+[cPanel Proxy] AddonDomain::deladdondomain succeeded via WHM-root fallback (user: brokenuser)
+PASS tests/store-payment-verify.test.js
+PASS tests/vultr-provider.test.js
+PASS tests/active-slot.test.js
+PASS tests/viewplan-add-number-discoverability.test.js
+PASS tests/twilio-sip-domain-prefix.test.js
+━━━ Initializing Twilio Resources ━━━
+[Twilio] Connected: Speechcue (active)
+[Twilio] SIP domain prefix: 'speechcue-' (TWILIO_SIP_DOMAIN_PREFIX=<unset>)
+[Twilio] Updated SIP domain webhook: speechcue-7937a0.sip.twilio.com → https://2.speechcue.com/twilio/sip-voice
+[Twilio] Mapped credential list to SIP domain
+[Twilio] ✅ Mapped Telnyx IP ACL to SIP domain for incoming calls
+━━━ Initializing Twilio Resources ━━━
+[Twilio] Connected: Speechcue (active)
+[Twilio] SIP domain prefix: 'smadav-' (TWILIO_SIP_DOMAIN_PREFIX=smadav)
+[Twilio] Updated SIP domain webhook: smadav-7937a0.sip.twilio.com → https://1.smadavspeech.com/twilio/sip-voice
+[Twilio] Mapped credential list to SIP domain
+[Twilio] ✅ Mapped Telnyx IP ACL to SIP domain for incoming calls
+━━━ Initializing Twilio Resources ━━━
+[Twilio] Connected: Speechcue (active)
+[Twilio] SIP domain prefix: 'acmebrand-' (TWILIO_SIP_DOMAIN_PREFIX=Acme Brand)
+[Twilio] Created SIP domain: acmebrand-0937a0.sip.twilio.com
+[Twilio] Mapped credential list to SIP domain
+[Twilio] ✅ Mapped Telnyx IP ACL to SIP domain for incoming calls
+━━━ Reading Twilio Resources (READ-ONLY — no webhook updates) ━━━
+[Twilio] READ-ONLY: Found SIP domain: nomadly-7937a0.sip.twilio.com (voiceUrl: https://old)
+━━━ Reading Twilio Resources (READ-ONLY — no webhook updates) ━━━
+[Twilio] READ-ONLY: No SIP domain with prefix 'smadav-' found — cannot proceed without full init
+━━━ Reading Twilio Resources (READ-ONLY — no webhook updates) ━━━
+[Twilio] READ-ONLY: Found SIP domain: smadav-7937a0.sip.twilio.com (voiceUrl: https://old)
+PASS tests/anti-red-restore-endpoint.test.js
+PASS tests/kb-i18n.test.js
+PASS tests/phone-scheduler-grace-period.test.js
+PASS tests/scanner-block-middleware.test.js
+PASS tests/call-session-store.test.js
+[CallSessionStore] Initialized (collection=callSessions, ttl=7200s)
+[CallSessionStore] Initialized (collection=callSessions, ttl=7200s)
+[CallSessionStore] Warm-loaded 1 call session(s) from Mongo on boot
+[CallSessionStore] Initialized (collection=callSessions, ttl=7200s)
+[CallSessionStore] Read-through rehydrated 1 session(s) for ccA
+[CallSessionStore] Read-through rehydrated 1 session(s) for ccB
+[CallSessionStore] Initialized (collection=callSessions, ttl=7200s)
+PASS tests/vps-scheduler-payg-skip.test.js
+PASS tests/deployCFIPFix-force-option.test.js
+[AntiRed] CF IP Fix deployed for testuser (replaces JS challenge, Worker handles bot detection)
+[AntiRed] CF IP Fix deployed for testuser (replaces JS challenge, Worker handles bot detection)
+[AntiRed] CF IP Fix deployed for testuser (replaces JS challenge, Worker handles bot detection)
+[AntiRed] CF IP Fix deployed for testuser (replaces JS challenge, Worker handles bot detection)
+[AntiRed] CF IP Fix deployed for testuser (replaces JS challenge, Worker handles bot detection)
+[AntiRed] CF IP Fix deployed for testuser (replaces JS challenge, Worker handles bot detection)
+PASS tests/vps-provider-contract.test.js
+PASS tests/logger.test.js
+PASS tests/hosting-renewal-price-lock.test.js
+PASS tests/tg-reply-markup-mutation.test.js
+PASS tests/locale-templates-render.test.js
+PASS tests/check-secrets.test.js
+PASS tests/i18n.test.js
+PASS tests/scheduler-registry.test.js
+PASS tests/node-scripts.test.js
+PASS tests/phone-plan-buttons-i18n.test.js
+PASS tests/panel-403-e2e.test.js (7.189 s)
+
+Summary of all failing tests
+FAIL tests/digitalocean-provider.test.js
+  ● DigitalOcean — pricing with 200% markup › listProducts accepts (region, isWindows, diskPreference) — Contabo signature parity
+
+    expect(received).toHaveLength(expected)
+
+    Expected length: 6
+    Received length: 24
+    Received array:  [{"bandwidthTb": 1, "basePriceUsd": 7, "cpuCores": 1, "cpuVendor": "AMD", "diskGb": 25, "diskMb": 25600, "diskType": "nvme", "do_size_slug": "s-1vcpu-1gb-amd", "name": "NVMe AMD 1vCPU/1GB/25GB", "portSpeedMbps": 1000, "pricing": {"basePriceUsd": 7, "markupPercent": 200, "regionSurcharge": 0, "totalBeforeMarkup": 7, "totalWithMarkup": 21, "windowsLicense": 0}, "productId": "s-1vcpu-1gb-amd", "ramGb": 1, "ramMb": 1024, "tier": 1}, {"bandwidthTb": 1, "basePriceUsd": 7, "cpuCores": 1, "cpuVendor": "Intel", "diskGb": 25, "diskMb": 25600, "diskType": "nvme", "do_size_slug": "s-1vcpu-1gb-intel", "name": "NVMe Intel 1vCPU/1GB/25GB", "portSpeedMbps": 1000, "pricing": {"basePriceUsd": 7, "markupPercent": 200, "regionSurcharge": 0, "totalBeforeMarkup": 7, "totalWithMarkup": 21, "windowsLicense": 0}, "productId": "s-1vcpu-1gb-intel", "ramGb": 1, "ramMb": 1024, "tier": 2}, {"bandwidthTb": 1, "basePriceUsd": 8, "cpuCores": 1, "cpuVendor": "Intel", "diskGb": 35, "diskMb": 35840, "diskType": "nvme", "do_size_slug": "s-1vcpu-1gb-35gb-intel", "name": "NVMe Intel 1vCPU/1GB/35GB", "portSpeedMbps": 1000, "pricing": {"basePriceUsd": 8, "markupPercent": 200, "regionSurcharge": 0, "totalBeforeMarkup": 8, "totalWithMarkup": 24, "windowsLicense": 0}, "productId": "s-1vcpu-1gb-35gb-intel", "ramGb": 1, "ramMb": 1024, "tier": 3}, {"bandwidthTb": 2, "basePriceUsd": 14, "cpuCores": 1, "cpuVendor": "AMD", "diskGb": 50, "diskMb": 51200, "diskType": "nvme", "do_size_slug": "s-1vcpu-2gb-amd", "name": "NVMe AMD 1vCPU/2GB/50GB", "portSpeedMbps": 1000, "pricing": {"basePriceUsd": 14, "markupPercent": 200, "regionSurcharge": 0, "totalBeforeMarkup": 14, "totalWithMarkup": 42, "windowsLicense": 0}, "productId": "s-1vcpu-2gb-amd", "ramGb": 2, "ramMb": 2048, "tier": 4}, {"bandwidthTb": 2, "basePriceUsd": 14, "cpuCores": 1, "cpuVendor": "Intel", "diskGb": 50, "diskMb": 51200, "diskType": "nvme", "do_size_slug": "s-1vcpu-2gb-intel", "name": "NVMe Intel 1vCPU/2GB/50GB", "portSpeedMbps": 1000, "pricing": {"basePriceUsd": 14, "markupPercent": 200, "regionSurcharge": 0, "totalBeforeMarkup": 14, "totalWithMarkup": 42, "windowsLicense": 0}, "productId": "s-1vcpu-2gb-intel", "ramGb": 2, "ramMb": 2048, "tier": 5}, {"bandwidthTb": 2, "basePriceUsd": 16, "cpuCores": 1, "cpuVendor": "Intel", "diskGb": 70, "diskMb": 71680, "diskType": "nvme", "do_size_slug": "s-1vcpu-2gb-70gb-intel", "name": "NVMe Intel 1vCPU/2GB/70GB", "portSpeedMbps": 1000, "pricing": {"basePriceUsd": 16, "markupPercent": 200, "regionSurcharge": 0, "totalBeforeMarkup": 16, "totalWithMarkup": 48, "windowsLicense": 0}, "productId": "s-1vcpu-2gb-70gb-intel", "ramGb": 2, "ramMb": 2048, "tier": 6}, {"bandwidthTb": 3, "basePriceUsd": 21, "cpuCores": 2, "cpuVendor": "AMD", "diskGb": 60, "diskMb": 61440, "diskType": "nvme", "do_size_slug": "s-2vcpu-2gb-amd", "name": "NVMe AMD 2vCPU/2GB/60GB", "portSpeedMbps": 1000, "pricing": {"basePriceUsd": 21, "markupPercent": 200, "regionSurcharge": 0, "totalBeforeMarkup": 21, "totalWithMarkup": 63, "windowsLicense": 0}, "productId": "s-2vcpu-2gb-amd", "ramGb": 2, "ramMb": 2048, "tier": 7}, {"bandwidthTb": 3, "basePriceUsd": 21, "cpuCores": 2, "cpuVendor": "Intel", "diskGb": 60, "diskMb": 61440, "diskType": "nvme", "do_size_slug": "s-2vcpu-2gb-intel", "name": "NVMe Intel 2vCPU/2GB/60GB", "portSpeedMbps": 1000, "pricing": {"basePriceUsd": 21, "markupPercent": 200, "regionSurcharge": 0, "totalBeforeMarkup": 21, "totalWithMarkup": 63, "windowsLicense": 0}, "productId": "s-2vcpu-2gb-intel", "ramGb": 2, "ramMb": 2048, "tier": 8}, {"bandwidthTb": 3, "basePriceUsd": 24, "cpuCores": 2, "cpuVendor": "Intel", "diskGb": 90, "diskMb": 92160, "diskType": "nvme", "do_size_slug": "s-2vcpu-2gb-90gb-intel", "name": "NVMe Intel 2vCPU/2GB/90GB", "portSpeedMbps": 1000, "pricing": {"basePriceUsd": 24, "markupPercent": 200, "regionSurcharge": 0, "totalBeforeMarkup": 24, "totalWithMarkup": 72, "windowsLicense": 0}, "productId": "s-2vcpu-2gb-90gb-intel", "ramGb": 2, "ramMb": 2048, "tier": 9}, {"bandwidthTb": 4, "basePriceUsd": 28, "cpuCores": 2, "cpuVendor": "AMD", "diskGb": 80, "diskMb": 81920, "diskType": "nvme", "do_size_slug": "s-2vcpu-4gb-amd", "name": "NVMe AMD 2vCPU/4GB/80GB", "portSpeedMbps": 1000, "pricing": {"basePriceUsd": 28, "markupPercent": 200, "regionSurcharge": 0, "totalBeforeMarkup": 28, "totalWithMarkup": 84, "windowsLicense": 0}, "productId": "s-2vcpu-4gb-amd", "ramGb": 4, "ramMb": 4096, "tier": 10}, …]
+
+       96 |     const nvme = digitalocean.listProducts('EU', false, 'nvme')
+       97 |     expect(ssd).toHaveLength(6)
+    >  98 |     expect(nvme).toHaveLength(6) // DO has no SSD/NVMe split — same catalog
+          |                  ^
+       99 |     expect(ssd.map(p => p.productId)).toEqual(nvme.map(p => p.productId))
+      100 |   })
+      101 |
+
+      at Object.toHaveLength (tests/digitalocean-provider.test.js:98:18)
+
+
+Test Suites: 1 failed, 32 passed, 33 total
+Tests:       1 failed, 1 skipped, 448 passed, 450 total
+Snapshots:   0 total
+Time:        12.475 s
+exit=1
