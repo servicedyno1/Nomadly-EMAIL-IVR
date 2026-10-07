@@ -1,0 +1,37 @@
+{
+  "summary": "DigitalOcean NVMe (Premium AMD + Intel) rollout tested backend-only. In-process suite `node js/tests/test_do_nvme_plans_2026-10.js` → 16/16 passed (catalog has 24 NVMe plans split 9 AMD + 15 Intel at DOx3 markup; stock-filtered listProducts: EU 6 SSD + 24 NVMe, US-east/US-central 9 AMD-only NVMe, US-west 24 NVMe; diskSwitchTarget respects same-size + in-stock; bot helpers fetchAvailableDiskTpes returns [nvme (pricier), ssd] in EU and [nvme] in US-east; reseller /vps/plans + ?storage=nvme|ssd filter, 400 on bad value, 409 out_of_stock for sold-out, dry-run accepts in-stock NVMe, /pricing includes NVMe, /apidoc documents it). Regression `npx jest --silent` → 33/33 suites, 449 passed + 1 skipped. `node js/tests/test_reseller_branded_ns_api_2026-10.js` → 26/26. `node js/tests/test_branded_ns_2026-10.js` → 30/30. BOT E2E via mock_telegram_api (recreated at /app/js/tests/mock_telegram_api.js, pointed via TELEGRAM_API_BASE_URL=http://127.0.0.1:5099 then removed): 19/19 passed — /start → VPS/RDP → Create Linux VPS → 🇪🇺 Europe (EU) → storage screen with intro 'NVMe costs more but runs on newer CPUs with a much faster disk — SSD is the budget pick:' (does NOT say 'cost the same'), two buttons ⚡ NVMe SSD — Premium / 💾 SSD — Standard; SSD path → 6 'Cloud VPS 10..60' plans ($18..$288); 🔙 Back returns to storage step; NVMe path → 24 plans (9 'NVMe AMD …' + 15 'NVMe Intel …'), cheapest '🌟 NVMe AMD 1vCPU/1GB/25GB — $21/mo' and most expensive 'NVMe Intel 8vCPU/32GB/640GB — $576/mo'; picking a plan reaches coupon step then Ubuntu/Debian OS list; '❌ Cancel Order' used BEFORE payment. 🇺🇸 US East flow → storage step auto-skipped, plan list shows only 9 AMD NVMe plans ($21..$504), zero Intel, zero 'Cloud VPS' legacy SSD. Wallet 777000123 usdOut delta = $0 (no debit). After testing: TELEGRAM_API_BASE_URL removed from /app/backend/.env, nodejs restarted, mock process stopped.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/health", "issue": "Returns 500 Internal server error after nodejs restart due to ReferenceError: voiceService is not defined at /app/js/_index.js:45711. Pre-existing, unrelated to NVMe rollout, but noisy in logs."}
+    ]
+  },
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/js/tests/test_do_nvme_plans_2026-10.js",
+    "/app/tests/test_bot_nvme_storage.py",
+    "/app/js/tests/mock_telegram_api.js",
+    "/tmp/nvme_e2e_results.json"
+  ],
+  "action_items": [
+    "(optional) Fix the unrelated GET /api/health crash (voiceService undefined at js/_index.js:45711); not blocking NVMe rollout."
+  ],
+  "critical_code_review_comments": [
+    "digitalocean-service.js: PRODUCT_CATALOG_NVME is correctly sorted + tier-indexed, NVMe slugs end in -amd/-intel which prevents collision with regular SSD slugs. Good.",
+    "listProducts(region, isWindows, diskPreference) correctly returns [] for Windows+DO (Windows is RDP only) — matches test expectation.",
+    "Storage step is auto-skipped at vm-instance-setup.js when only one storage class has stock (verified US-east branch) — confirmed from bot E2E.",
+    "reseller-api.js vpsPlansHandler: NVMe plans surface storage_type='NVMe SSD' and cpu='AMD'|'Intel' while SSD plans surface cpu='Standard', storage_type='SSD'; vcpus derived from cpuCores — all asserted.",
+    "409 out_of_stock is returned BEFORE any wallet touch — verified wallet.usdOut unchanged after two 409 responses.",
+    "Minor: `_applySizes` fixture-driven tests show the hourly refresh is correctly bypassed under NODE_ENV=test; recommend documenting this env guard in a comment near the setInterval."
+  ],
+  "updated_files": [
+    "/app/tests/test_bot_nvme_storage.py (new, authored by testing agent)"
+  ],
+  "success_rate": {"backend": "100% (16+33+26+30 in-process + 19/19 bot E2E)", "frontend": "N/A (not requested)"},
+  "test_credentials": "Bot test chat 777000123, local DB 'test'. No admin or other credentials used. Admin key for /admin/vps-catalog-check not exercised (read-only, not required by request).",
+  "seed_data_creation": "test_do_nvme_plans_2026-10.js creates a throw-away local DB `test_do_nvme_<ts>` with one reseller key and one wallet doc then dropDatabase at the end. Bot E2E did NOT seed; it reads chat 777000123's existing walletOf doc and asserts usdOut delta == 0.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Mock Telegram API file is at /app/js/tests/mock_telegram_api.js. To re-run bot E2E: (1) start `node js/tests/mock_telegram_api.js &`, (2) append `TELEGRAM_API_BASE_URL=\"http://127.0.0.1:5099\"` to /app/backend/.env, (3) `sudo supervisorctl restart nodejs`, (4) `python3 /app/tests/test_bot_nvme_storage.py`. AFTER: remove the env line and restart nodejs, kill the mock. NEVER run /app/js/tests/test_reseller_api_grace_2026-06.js — pre-existing failure (needs dry_run server + seeded key). The running reseller API is wired to PRODUCTION DB; never POST /reseller/v1/vps against the live server. Use only the in-process test file for reseller API behaviour.",
+  "rca of the issue": "N/A — no issues found in the NVMe/SSD rollout under test. All catalog, live-stock filtering, bot flow (EU storage step + US auto-skip), reseller API ?storage filter, 409 out_of_stock, and /apidoc behave exactly per the spec."
+}

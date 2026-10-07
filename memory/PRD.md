@@ -1,5 +1,18 @@
 # PRD — Nomadly Cloud IVR + Telegram Bot
 
+## 2026-10-07 — DigitalOcean NVMe VPS plans (Premium AMD + Intel) + live stock filter — DONE
+- User asked if reseller VPS on DO is SSD-only (yes, it was). User choices: add BOTH Premium AMD + Intel, ALL available sizes, same 200% markup (×3); Telegram bot ALSO gets an NVMe/SSD choice; out-of-stock plans HIDDEN using DO live availability refreshed hourly.
+- `digitalocean-service.js`: `PRODUCT_CATALOG_NVME` = 24 plans (9 `s-*-amd` + 15 `s-*-intel`, incl. Intel extra-disk sizes), name `NVMe <AMD|Intel> <c>vCPU/<r>GB/<d>GB`, diskType `nvme`, `do_size_slug`, tier = price order. Regular 6 `s-*` SSD plans unchanged. Prices EU: $21 … $576/mo.
+- Live stock: `refreshSizeAvailability()` (GET /v2/sizes, on load + every 1h, skipped when NODE_ENV=test; logs price drift), `isProductAvailable()`, `listProducts(region, isWin, 'ssd'|'nvme'|undefined=both)` hides out-of-stock sizes; before the first fetch everything is listed. Snapshot 2026-10-07: regular SSD NOT in nyc1/nyc3/sfo3 (US-east/US-central/US-west), Intel NOT in nyc1/nyc3 → EU 6+24, US-east/central 9 AMD, US-west 24 NVMe.
+- Region fixes (pre-existing bugs): `_customerRegion()` accepts case-insensitive codes (reseller API sends `US-EAST`, which never matched before) and DO slugs (`fra1` from live records, so bot upgrade menus can be priced); `createInstance` uses it too.
+- Reseller API: `GET /vps/plans?storage=nvme|ssd` (400 `invalid_storage`), `vcpus` now filled for DO plans, NVMe plans return `cpu` AMD/Intel + `storage_type` "NVMe SSD"; `POST /vps` with an out-of-stock plan → 409 `out_of_stock` before billing; `/pricing` includes NVMe; apidoc updated.
+- Bot: `fetchAvailableDiskTpes` (DO) shows `⚡ NVMe SSD — Premium` / `💾 SSD — Standard` only for classes with stock (one class → step auto-skipped); `askVpsDiskType` intro in en/fr/hi/zh says NVMe costs more; upgrades: `diskSwitchTarget()` for the SSD↔NVMe swap (same size, in stock), plan upgrades never offer a smaller disk.
+- Also fixed: `/health` handler at `_index.js` ~45711 referenced an undeclared `voiceService` (ReferenceError → 500).
+- Tests: `js/tests/test_do_nvme_plans_2026-10.js` 16/16; jest 33/33 (updated `tests/digitalocean-provider.test.js`); testing agent iteration_68: 100% incl. bot E2E 19/19 (`tests/test_bot_nvme_storage.py`, mock Telegram).
+- PENDING (user): "Save to GitHub" + redeploy app-main so production gets this AND the branded-NS-off code.
+- Side request (read-only): `schwabcustomersupport.com` at OpenProvider = status DEL / softQuarantine, restore quote $45.00 (renew $16.98, create $11.98), restorable until 2026-10-30 17:06 UTC. NOT purchased.
+
+
 ## 2026-10-07 — Reseller API switched BACK to Cloudflare nameservers (branded NS paused) — DONE
 - User decision: Reseller API defaults to the Cloudflare-assigned names again; leave the hosta.sh vanity NS for now. Telegram bot unchanged (always Cloudflare).
 - Code: `branded-ns.js` `isEnabled()` is now OPT-IN (`RESELLER_BRANDED_NS_ENABLED=true` to re-enable; unset = off). When off: `ns_choice "branded"` AND `nameservers:[ns1/ns2.hosta.sh]` quietly fall back to `cloudflare`; error texts never offer "branded"; the worker reverts any `branded` doc and cancels any `activating` doc. `reseller-api.js`: PUT `/dns/:domain/nameservers` with the branded pair → sets the Cloudflare-assigned names (creates the zone via switchToCloudflare if missing); `/account/webhook` hides `domain.nameservers_*` events. `apidoc-page.js`: all branded text is conditional on `isEnabled()` → 0 hosta.sh mentions when off.
