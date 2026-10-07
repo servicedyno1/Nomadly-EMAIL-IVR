@@ -1,0 +1,39 @@
+{
+  "summary": "Verified new VPS/RDP usage metrics feature (DigitalOcean) end-to-end: mocked suite 11/11, 3 regression suites (plan-change 28, rdp-grace 73, rdp-golden 91), legacy jest 33 suites / 449 tests all green; PowerShell apply.ps1 parses with 0 errors on pwsh 7.4.6-arm64, Get-AgentMetricsQuery returns '' on Linux without throwing, numbers formatted invariantly ('12.3') even under fr-FR culture, git diff vs HEAD~1 touches ONLY the new function + 2 lines in Invoke-AgentPoll; routes return 401 missing_api_key as expected, /api/apidoc renders (200, 301KB, 'id/usage' x3, 'sample_interval_seconds' x3), /provision/bootscript contains 'Get-AgentMetricsQuery' (x2); live READ-ONLY DO probe on droplets 599433401 (Ubuntu+agent), 578369745 (AlmaLinux+agent), 604137195 (Windows RDP, no DO agent) returned plausible numbers — ram≈3.82 GB, disk≈76/118/80 GB, CPU 2–7% / peaks 24–35%, bandwidth GB closely matches avg_mbps × seconds / 8 / 1000, RDP has bandwidth + cpu/memory/disk null + restart note. Found + fixed one flaky race (1/5 runs failing) in the agent-ingestion handler.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {
+        "endpoint": "GET /provision/commands (digitalocean-rdp-service.js)",
+        "issue": "doRdpAgentMetrics.insertOne was fire-and-forget (`.catch(()=>{})` not awaited), so the 5-minute sample sometimes landed in Mongo AFTER the HTTP response. Caused the mocked suite to be flaky (~20% failure rate: 2/11 tests failing because countDocuments returned 0 right after poll). Fixed by awaiting the insert (still inside try/catch so a Mongo blip never breaks the agent poll)."
+      },
+      {
+        "endpoint": "GET /reseller/v1/rdp/:id/usage response shape",
+        "issue": "VPS response has `metrics_agent: boolean`; RDP response omits that field (has `agent_reporting`/`agent_metrics_at` instead). Minor shape inconsistency — reseller consumers that key off `metrics_agent` get `undefined` for RDP. Not a blocker; worth documenting or mirroring the field for consistency."
+      }
+    ]
+  },
+  "frontend_issues": { "ui_bugs": [], "integration_issues": [], "design_issues": [] },
+  "test_report_links": [
+    "/app/js/tests/test_do_usage_2026-10.js",
+    "/app/js/tests/test_do_plan_change_2026-10.js",
+    "/app/js/tests/test_rdp_grace_destroy_2026-06.js",
+    "/app/js/tests/test_do_rdp_golden_2026-06.js"
+  ],
+  "action_items": [
+    "Optional: expose `metrics_agent` field on RDP usage response too for shape parity with VPS."
+  ],
+  "critical_code_review_comments": [
+    "Agent-metrics sample write was fire-and-forget — fixed. Pattern worth auditing for other hot paths that read-after-write in the same request.",
+    "parseAgentMetrics upper bounds (mem 1e13, disk 1e14) and `cpu<=100` correctly reject the spec'd invalid inputs; mem_free>mem_total and disk_free>disk_total handled.",
+    "do-usage.js cpuStats correctly skips cumulative-counter resets (Δtotal<=0 ignored); rateStats GB uses avg_mbps × period_seconds / 8 / 1000 — matches live DO data to 3 decimals.",
+    "GIB conversion is 1024^3 (correct for Linux `free` / Windows WMI byte fields reported by DO monitoring + apply.ps1 agent)."
+  ],
+  "updated_files": ["/app/js/digitalocean-rdp-service.js"],
+  "success_rate": { "backend": "100%", "frontend": "n/a (backend-only task)" },
+  "seed_data_creation": "None persisted. All test DBs are throw-away local Mongo DBs (test_do_usage_*, live_probe_*). Live DO calls were GET-only against droplets 599433401, 578369745, 604137195.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Feature is production-ready. Only outstanding nit is adding `metrics_agent` to the RDP envelope for shape parity. apply.ps1 was NOT modified (git diff vs HEAD~1 is clean: Get-AgentMetricsQuery + 2 lines in Invoke-AgentPoll only). Live DO droplet 604137195 does not yet report via the in-guest agent (expected — needs one restart to pick up the new apply.ps1 via /provision/bootscript self-update).",
+  "rca of the issue": "Race in router.get('/commands'): `_agentMetrics.insertOne({...}).catch(()=>{})` kicked off the write but did not await it before `res.json(...)`. Tests reading `countDocuments` immediately after the awaited HTTP response could win the race against Mongo. Repro: `for i in $(seq 1 10); do node js/tests/test_do_usage_2026-10.js | tail -1; done` → ~2/10 fail with '0 !== 1'. Fix: swap to `try { await _agentMetrics.insertOne(...) } catch(_) {}` — write completes before response, failures Mongo blips still don't break the agent poll. After fix: 8/8 clean runs."
+}

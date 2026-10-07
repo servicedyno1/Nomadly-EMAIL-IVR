@@ -171,7 +171,7 @@ const addDroplet = (id, features = ['monitoring']) => droplets.set(String(id), {
     const r = await api(`/rdp/${rdpRec.vpsId}/usage?period=1h`)
     assert.strictEqual(r.status, 200, JSON.stringify(r.data))
     const u = r.data
-    assert.strictEqual(u.product, 'rdp'); assert.strictEqual(u.agent_reporting, true)
+    assert.strictEqual(u.product, 'rdp'); assert.strictEqual(u.agent_reporting, true); assert.strictEqual(u.metrics_agent, true)
     assert.strictEqual(u.cpu.percent_now, 40); near(u.cpu.percent_avg, 40); assert.strictEqual(u.cpu.percent_peak, 90)
     near(u.memory.percent_now, 75); near(u.memory.percent_peak, 75); near(u.memory.total_gb, 3.73, 0.01)
     assert.strictEqual(u.disk.drive, 'C:'); near(u.disk.percent, 75)
@@ -183,7 +183,7 @@ const addDroplet = (id, features = ['monitoring']) => droplets.set(String(id), {
     await servers.updateOne({ server_id: sid }, { $unset: { agent_metrics: '' } })
     await samples.deleteMany({ server_id: sid })
     let r = await api(`/rdp/${rdpRec.vpsId}/usage`)
-    assert.strictEqual(r.status, 200); assert.strictEqual(r.data.cpu, null); assert.strictEqual(r.data.agent_reporting, false); assert.ok(/restarts once/.test(r.data.notes[0]))
+    assert.strictEqual(r.status, 200); assert.strictEqual(r.data.cpu, null); assert.strictEqual(r.data.agent_reporting, false); assert.strictEqual(r.data.metrics_agent, false); assert.ok(/restarts once/.test(r.data.notes[0]))
     assert.ok(r.data.bandwidth.inbound)
     usage._cache.clear()
     await servers.updateOne({ server_id: sid }, { $set: { agent_metrics: { cpu_percent: 5, mem_total: 4e9, mem_free: 2e9, disk_total: 80e9, disk_free: 40e9, at: new Date(Date.now() - 3600000) } } })

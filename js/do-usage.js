@@ -170,7 +170,7 @@ async function rdpUsage(rec, period) {
     const memS = stats(series(memPct), curMem)
     const out = {
       period, from: iso(start), to: iso(end), sample_interval_seconds: step, status: d.status, specs: _specs(d),
-      agent_reporting: fresh, agent_metrics_at: now && now.at ? new Date(now.at).toISOString() : null,
+      metrics_agent: !!now, agent_reporting: fresh, agent_metrics_at: now && now.at ? new Date(now.at).toISOString() : null,
       cpu, memory: memS && now && num(now.mem_total) > 0 ? {
         total_gb: round(num(now.mem_total) / GIB, 2), used_gb: round((num(now.mem_total) - num(now.mem_free)) / GIB, 2), available_gb: round(num(now.mem_free) / GIB, 2), ...memS,
       } : memS,

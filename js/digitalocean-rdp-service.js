@@ -1498,7 +1498,7 @@ function provisionRouter() {
         set.agent_metrics = { ...m, at: now }
         if (!s.agent_metrics_sampled_at || now - new Date(s.agent_metrics_sampled_at) >= AGENT_SAMPLE_MS) {
           set.agent_metrics_sampled_at = now
-          _agentMetrics.insertOne({ server_id: s.server_id, at: now, ...m }).catch(() => {})
+          try { await _agentMetrics.insertOne({ server_id: s.server_id, at: now, ...m }) } catch (_) {}
         }
       }
       await _servers.updateOne({ server_id: s.server_id }, { $set: set })

@@ -409,6 +409,18 @@ User inherited a fully-set-up Nomadly bot pod pointed at LIVE PRODUCTION. Task b
   downgrade back ($0, ~100 s) both real; droplet destroyed after. Re-run script: `tests/test_bot_plan_change_live.js`.
 - **Not live in production until "Save to GitHub" + redeploy.**
 
+## Resolved — 2026-10-08 (VPS / RDP usage endpoints, API only)
+- `GET /reseller/v1/vps/:id/usage` and `GET /reseller/v1/rdp/:id/usage` (`?period=1h|24h|7d|30d`, default 24h),
+  DigitalOcean servers only (`js/do-usage.js`). Returns specs (incl. monthly_transfer_gb), CPU % now/avg/peak,
+  memory used/total + now/avg/peak, disk used/total, load (VPS), public bandwidth now/avg/peak Mbps + GB in/out
+  (estimated from DO's sampled rate), sample_interval_seconds, notes. Cache 1 min (1h) → 30 min (30d).
+- VPS: DO Monitoring API (agent installed at creation via monitoring:true; without it memory/disk/load null).
+- RDP: bandwidth from DO; CPU/RAM/C: from our in-guest agent — `apply.ps1` Get-AgentMetricsQuery appends
+  cpu/mem/disk to the every-minute `/provision/commands` poll → `doRdpServers.agent_metrics` + 5-min samples in
+  `doRdpAgentMetrics` (TTL 31 d). Existing RDPs start reporting after their next restart (bootscript self-update).
+  apply.ps1 parse-checked with pwsh 7.4.6 (0 errors, invariant number formatting).
+- Tests: `js/tests/test_do_usage_2026-10.js` 11/11; iteration_70 green (live read-only DO probe plausible).
+
 ## Pending Issues (carried forward)
 
 ### P1
