@@ -6,7 +6,11 @@ const { log } = require('console')
 const OP_BASE_URL = 'https://api.openprovider.eu'
 const OP_USERNAME = process.env.OPENPROVIDER_USERNAME
 const OP_PASSWORD = process.env.OPENPROVIDER_PASSWORD
-const SERVICE_EMAIL = process.env.NOMADLY_SERVICE_EMAIL || 'cloakhost@tutamail.com'
+// Registrant/contact email used for OpenProvider contact handles. Must be a
+// MONITORED inbox — several TLDs (.it, and OP's own registrant/contact
+// validation flow) email a confirmation link that must be actioned, or the
+// registration is suspended/removed by the registry. Overridable via env.
+const SERVICE_EMAIL = process.env.NOMADLY_SERVICE_EMAIL || 'gidineter@gmail.com'
 const PERCENT_INCREASE_DOMAIN = 1 + Number(process.env.PERCENT_INCREASE_DOMAIN || 0)
 const MIN_DOMAIN_PRICE = Number(process.env.MIN_DOMAIN_PRICE || 30)
 
@@ -1360,6 +1364,7 @@ const getActivationState = async (domainName, ageHours = 0) => {
 }
 
 module.exports = {
+  SERVICE_EMAIL,
   authenticate,
   checkDomainAvailability,
   registerDomain,
