@@ -15,7 +15,7 @@ const { translation } = require('./translation.js')
 // ━━━ Bulk Call Pricing & Limits ━━━
 const BULK_CALL_RATE       = parseFloat(process.env.BULK_CALL_RATE_PER_MIN || '0.15')   // $/min — charged whether answered or not
 const MAX_BULK_LEADS       = parseInt(process.env.BULK_CALL_MAX_LEADS || '500', 10)      // max leads per campaign
-const BULK_CALL_MIN_WALLET = parseFloat(process.env.BULK_CALL_MIN_WALLET || '50')        // minimum wallet balance to launch
+const BULK_CALL_MIN_WALLET = parseFloat(process.env.BULK_CALL_MIN_WALLET || '20')        // minimum wallet balance to launch
 
 let _db = null
 let _collection = null
