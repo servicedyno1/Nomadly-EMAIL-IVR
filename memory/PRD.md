@@ -1,5 +1,12 @@
 # PRD — Nomadly Cloud IVR + Telegram Bot
 
+
+## 2026-10-08 — OPS: OpenProvider registrant / service email cloakhost@tutamail.com → gidineter@gmail.com (PROD, both bots) — DONE & verified
+- Why: @ricodeljalisco's ccTLD domain (nationalbcverifservicesonetimelink.ch) was orphaned at OpenProvider (code 320, not in account) because the registrant/service email cloakhost@tutamail.com was unmonitored, so registry contact-validation never completed. Monitored gidineter@gmail.com now used so future .ch/.it/… validations pass.
+- Code (sandbox, awaiting Save-to-GitHub + redeploy): `js/op-service.js` SERVICE_EMAIL default → gidineter@gmail.com (no cloakhost literal, SERVICE_EMAIL exported); test `js/tests/test_op_service_email.js` 3/3.
+- Env (source of truth): sandbox `backend/.env` NOMADLY_SERVICE_EMAIL + SINGAPORE_ADMIN_EMAIL = gidineter; vault `memory/nomadly.vault.enc` re-locked (0 cloakhost).
+- Production (DO droplet 146.190.238.190): replaced both vars in `/opt/nomadly/shared/{app-main,app-wl}/backend.env` (backups `.bak.cloakhost.20261008T200337Z`), zero-downtime blue/green reactivation of the current release per app (app-main-a:5000, app-wl-b:5101), both /health 200, dotenv confirms gidineter on both apps. The hardcoded `|| 'cloakhost...'` fallback still exists in the deployed op-service.js but is now dead (env overrides); removed on next redeploy.
+
 ## 2026-10-07 — DigitalOcean NVMe VPS plans (Premium AMD + Intel) + live stock filter — DONE
 - User asked if reseller VPS on DO is SSD-only (yes, it was). User choices: add BOTH Premium AMD + Intel, ALL available sizes, same 200% markup (×3); Telegram bot ALSO gets an NVMe/SSD choice; out-of-stock plans HIDDEN using DO live availability refreshed hourly.
 - `digitalocean-service.js`: `PRODUCT_CATALOG_NVME` = 24 plans (9 `s-*-amd` + 15 `s-*-intel`, incl. Intel extra-disk sizes), name `NVMe <AMD|Intel> <c>vCPU/<r>GB/<d>GB`, diskType `nvme`, `do_size_slug`, tier = price order. Regular 6 `s-*` SSD plans unchanged. Prices EU: $21 … $576/mo.

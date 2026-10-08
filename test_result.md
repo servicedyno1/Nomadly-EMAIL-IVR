@@ -9,6 +9,40 @@
 #====================================================================================================
 
 #====================================================================================================
+# CURRENT TASK (2026-10-08e) — OPS: replace cloakhost@tutamail.com → gidineter@gmail.com on PROD [done, verified]
+#====================================================================================================
+current_task_2026_10_08e_registrant_email_prod: |
+  User request: update EVERYWHERE we had cloakhost@tutamail.com → gidineter@gmail.com on BOTH the
+  Nomadly (app-main) and Smadav (app-wl) production bots. Context: @ricodeljalisco's ccTLD domain
+  failed registry validation because the OpenProvider registrant/service email (cloakhost@tutamail.com)
+  was unmonitored; the monitored gidineter@gmail.com must be used so future ccTLD (.ch/.it/…) contact
+  validation passes.
+
+  WHAT WAS CHANGED:
+   - Sandbox (already from prior session): js/op-service.js SERVICE_EMAIL default → gidineter@gmail.com
+     (no cloakhost literal); backend/.env NOMADLY_SERVICE_EMAIL=gidineter@gmail.com. THIS session also
+     set backend/.env SINGAPORE_ADMIN_EMAIL=gidineter@gmail.com and RE-LOCKED the vault
+     (memory/nomadly.vault.enc) so the credential source of truth has 0 cloakhost refs.
+   - PRODUCTION (DO droplet 146.190.238.190): sed-replaced cloakhost→gidineter in BOTH env vars
+     (NOMADLY_SERVICE_EMAIL + SINGAPORE_ADMIN_EMAIL) in /opt/nomadly/shared/{app-main,app-wl}/backend.env
+     (backups: backend.env.bak.cloakhost.20261008T200337Z). Zero-downtime blue/green reactivation of the
+     SAME current release for each app (deploy.sh <app> rollback <current-release-dir>) so the running
+     process re-read the env: app-main → app-main-a :5000, app-wl → app-wl-b :5101. Both /health 200.
+
+  VERIFIED (no testing agent needed — config-only change, user opted to skip):
+   - js/tests/test_op_service_email.js → ALL 3 assertions passed (exit 0).
+   - On the droplet, dotenv load of each shared backend.env resolves NOMADLY_SERVICE_EMAIL AND
+     SINGAPORE_ADMIN_EMAIL = gidineter@gmail.com on BOTH apps; 0 cloakhost remaining in either env file.
+   - Both bots healthy after reactivation (HTTP 200 on local health).
+
+  STILL PENDING (user action): the hardcoded `|| 'cloakhost@tutamail.com'` FALLBACK in the DEPLOYED
+  op-service.js (current releases fd483f5 / 94925f3) is now DEAD (env var overrides it), but to remove
+  the literal from the code the user must "Save to GitHub" + redeploy both apps (ships the sandbox
+  op-service.js that defaults to gidineter). Not required for correct runtime behavior.
+
+
+
+#====================================================================================================
 # CURRENT TASK (2026-10-08d) — Slug rename endpoint + Railway→host naming cleanup [test THIS]
 #====================================================================================================
 current_task_2026_10_08d_rename_and_naming: |
