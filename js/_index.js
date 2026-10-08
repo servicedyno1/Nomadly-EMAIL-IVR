@@ -2231,7 +2231,7 @@ const ivrWalletHintPrefix = async (chatId, lang = 'en', ivrObData = null) => {
     // Batch (>1 targets) is effectively a bulk run → keep the bulk minimum ($50).
     const _isBatch = Array.isArray(ivrObData?.batchTargets) && ivrObData.batchTargets.length > 1
     const IVR_MIN_WALLET = _isBatch
-      ? parseFloat(process.env.BULK_CALL_MIN_WALLET || '50')
+      ? parseFloat(process.env.BULK_CALL_MIN_WALLET || '20')
       : parseFloat(process.env.QUICK_IVR_MIN_WALLET || '1')
     const IVR_RATE = voiceService.IVR_CALL_RATE || 0.15
     const wc = await smartWalletCheck(walletOf, chatId, IVR_MIN_WALLET)
@@ -25010,7 +25010,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       // user has filled 6 form steps.
       try {
         const { usdBal: _bulkBal } = await getBalance(walletOf, chatId)
-        const _bulkFloor = parseFloat(process.env.BULK_CALL_MIN_WALLET || '50')
+        const _bulkFloor = parseFloat(process.env.BULK_CALL_MIN_WALLET || '20')
         if (_bulkBal < _bulkFloor) return _showEntryFloorWall(_bulkBal, _bulkFloor, 'Bulk IVR')
       } catch (_) { /* floor check best-effort — never block on a balance read error */ }
       await set(state, chatId, 'action', a.bulkSelectCaller)
@@ -26573,7 +26573,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       if (!ivrObData.isTrial) {
         const _isBatch = Array.isArray(ivrObData.batchTargets) && ivrObData.batchTargets.length > 1
         const IVR_MIN_WALLET = _isBatch
-          ? parseFloat(process.env.BULK_CALL_MIN_WALLET || '50')
+          ? parseFloat(process.env.BULK_CALL_MIN_WALLET || '20')
           : parseFloat(process.env.QUICK_IVR_MIN_WALLET || '1')
         const walletCheck = await smartWalletCheck(walletOf, chatId, IVR_MIN_WALLET)
         if (!walletCheck.sufficient) {
@@ -38373,13 +38373,14 @@ const addFundsTo = async (walletOf, chatId, coin, valueIn, lang) => {
     sendMessage(chatId, translation('t.showWallet', lang, usdBal))
   }
 
-  // ── PRE-DIAL: Remove SIP block if balance is now above resume threshold ──
-  if (usdBal >= 50) { // LOW_BALANCE_RESUME = 50
-    try {
-      const { removeSipPreDialBlockByChatId } = require('./voice-service.js')
-      removeSipPreDialBlockByChatId(chatId)
-    } catch (e) { /* voice-service not loaded yet — non-critical */ }
-  }
+  // ── PRE-DIAL: Remove SIP block once balance is back at/above the single-call resume gate ──
+  try {
+    const vs = require('./voice-service.js')
+    const resume = (typeof vs.LOW_BALANCE_RESUME === 'number') ? vs.LOW_BALANCE_RESUME : 20
+    if (usdBal >= resume) {
+      vs.removeSipPreDialBlockByChatId(chatId)
+    }
+  } catch (e) { /* voice-service not loaded yet — non-critical */ }
 }
 //
 // ━━━ Loyalty Tier: Webhook helper ━━━

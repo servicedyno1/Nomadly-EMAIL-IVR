@@ -9,6 +9,49 @@
 #====================================================================================================
 
 #====================================================================================================
+# CURRENT TASK (2026-10-08b) — BUGFIX: SIP/call low-balance gate too high + silent block [test THIS]
+#====================================================================================================
+current_task_2026_10_08b_call_billing_gate: |
+  BUG (prod bot user @piki0000 / chatId 986605509, Pro plan): a SINGLE outbound SIP call ("Test
+  Outbound SIP") kept failing. Production logs showed repeated "[Voice] PRE-DIAL BLOCK ... reason:
+  low_balance". He deposited $20 (balance → $20.05) and it STILL failed, and he got NO Telegram
+  explanation (went to support confused).
+
+  ROOT CAUSES:
+   1. LOW_BALANCE_RESUME was $50 — a single call was gated at $50. $50 was meant for BULK. So after a
+      $20 top-up the user stayed in the dead zone ($1 trigger … $50 resume) and remained locked.
+   2. The pre-dial INSTANT-block path (in-memory blocklist) rejected calls SILENTLY — so an
+      already-locked user (esp. SIP-originated calls) got no notification. The notice only fired on the
+      first live-balance rejection / bot-initiated calls.
+   3. removeSipPreDialBlockByChatId compared chatId with === (string vs number mismatch) so the
+      deposit-triggered unblock could fail to match.
+
+  FIX (per owner decision: single-call resume = $20, bulk = $20):
+   - js/voice-service.js: LOW_BALANCE_RESUME 50 → 20 (env CALL_LOW_BALANCE_RESUME, default 20);
+     LOW_BALANCE_TRIGGER stays $1 (env CALL_LOW_BALANCE_TRIGGER). New notifyPreDialLowBalance() sends a
+     throttled Telegram notice (balance + $20 minimum + "Top Up" button) from the instant-block path.
+     removeSipPreDialBlockByChatId now compares String(chatId). Exports LOW_BALANCE_*,
+     addSipPreDialBlock, notifyPreDialLowBalance.
+   - js/bulk-call-service.js + js/_index.js: BULK_CALL_MIN_WALLET default 50 → 20 (bot + SIP bulk).
+   - js/_index.js deposit hook now unblocks once balance >= vs.LOW_BALANCE_RESUME (was hardcoded 50).
+   - backend/.env: BULK_CALL_MIN_WALLET 50 → 20. (Prod droplet /app/.env does NOT set it, so the code
+     default governs there.)
+
+  WHAT TO VERIFY — run the deterministic regression unit test from /app and report its output:
+     node js/tests/test_call_billing_thresholds.js
+   EXPECT: exit code 0 and "ALL 6 assertions passed", covering:
+     • LOW_BALANCE_RESUME === 20 and LOW_BALANCE_TRIGGER === 1
+     • BULK_CALL_MIN_WALLET === 20
+     • pre-dial instant-block notifies once with "$20" + a Top Up button (SIP no longer silent)
+     • repeat blocks are throttled (no spam); non-low_balance blocks do NOT notify
+     • removeSipPreDialBlockByChatId matches across string/number chatId (deposit unblock works)
+   ALSO: GET /api/health -> 200 healthy; confirm nodejs supervisor process is RUNNING (no boot crash).
+   NOTE: the live SIP-call path is Telnyx-webhook driven and cannot be curl-simulated safely; the unit
+   test exercises the exact changed logic. Do NOT place real phone calls or mutate wallets.
+
+
+
+#====================================================================================================
 # CURRENT TASK (2026-10-08) — BUGFIX: shortener domain verify fails for Cloudflare-PROXIED records [test THIS]
 #====================================================================================================
 current_task_2026_10_08_shortener_proxied_verify: |
@@ -704,6 +747,140 @@ user_problem_statement: |
 
 
 backend:
+  - task: "SIP/call low-balance gate bugfix (2026-10-08b) — Fixed critical production bug where single outbound SIP calls were gated at $50 (should be $20) and pre-dial instant-block rejected calls SILENTLY (no Telegram notification). BUG REPORTED: Prod bot user @piki0000 (chatId 986605509, Pro plan) made a single outbound SIP call ('Test Outbound SIP') that kept failing with '[Voice] PRE-DIAL BLOCK ... reason: low_balance'. He deposited $20 (balance → $20.05) and it STILL failed, with NO Telegram notification. ROOT CAUSES: (1) LOW_BALANCE_RESUME was $50 — a single call was gated at $50 (should be $20 for single calls, $50 was meant for BULK). So after a $20 top-up the user stayed in the dead zone ($1 trigger … $50 resume) and remained locked. (2) The pre-dial INSTANT-block path (in-memory blocklist) rejected calls SILENTLY — so an already-locked user (esp. SIP-originated calls) got no notification. The notice only fired on the first live-balance rejection / bot-initiated calls. (3) removeSipPreDialBlockByChatId compared chatId with === (string vs number mismatch) so the deposit-triggered unblock could fail to match. FIX (per owner decision: single-call resume = $20, bulk = $20): js/voice-service.js: LOW_BALANCE_RESUME 50 → 20 (env CALL_LOW_BALANCE_RESUME, default 20); LOW_BALANCE_TRIGGER stays $1 (env CALL_LOW_BALANCE_TRIGGER). New notifyPreDialLowBalance() sends a throttled Telegram notice (balance + $20 minimum + 'Top Up' button) from the instant-block path. removeSipPreDialBlockByChatId now compares String(chatId). Exports LOW_BALANCE_*, addSipPreDialBlock, notifyPreDialLowBalance. js/bulk-call-service.js + js/_index.js: BULK_CALL_MIN_WALLET default 50 → 20 (bot + SIP bulk). js/_index.js deposit hook now unblocks once balance >= vs.LOW_BALANCE_RESUME (was hardcoded 50). backend/.env: BULK_CALL_MIN_WALLET 50 → 20. Files: js/voice-service.js, js/bulk-call-service.js, js/_index.js, backend/.env, js/tests/test_call_billing_thresholds.js (NEW, 6 assertions). VERIFIED: All 2 comprehensive checks PASSED (100% pass rate). CHECK 1: Regression unit test (6/6 assertions passed). CHECK 2: Sanity (GET /api/health → 200 healthy, nodejs supervisor RUNNING). Bugfix is WORKING CORRECTLY."
+    implemented: true
+    working: true
+    file: "/app/js/voice-service.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: |
+          ✅ COMPREHENSIVE BACKEND TEST COMPLETE - SIP/Call Low-Balance Gate Bugfix VERIFIED (2/2 checks, 100% pass rate)
+          
+          SCOPE: Independent verification of the critical production bugfix for the Nomadly voice/SIP calling feature.
+          The bug caused single outbound SIP calls to be gated at $50 (should be $20) and pre-dial instant-block
+          rejected calls SILENTLY (no Telegram notification), leaving users confused after depositing funds.
+          
+          BUG REPORTED:
+          • User: @piki0000 (chatId 986605509, Pro plan)
+          • Issue: Single outbound SIP call ("Test Outbound SIP") kept failing
+          • Error: "[Voice] PRE-DIAL BLOCK ... reason: low_balance"
+          • Deposit: $20 (balance → $20.05)
+          • Result: Call STILL failed, NO Telegram notification (user went to support confused)
+          
+          ROOT CAUSES:
+          1. LOW_BALANCE_RESUME was $50 — a single call was gated at $50 (should be $20 for single calls)
+             • $50 was meant for BULK calls only
+             • After a $20 top-up, user stayed in the dead zone ($1 trigger … $50 resume) and remained locked
+          2. Pre-dial INSTANT-block path (in-memory blocklist) rejected calls SILENTLY
+             • Already-locked users (esp. SIP-originated calls) got NO notification
+             • The notice only fired on the first live-balance rejection / bot-initiated calls
+          3. removeSipPreDialBlockByChatId compared chatId with === (string vs number mismatch)
+             • Deposit-triggered unblock could fail to match due to type mismatch
+          
+          FIX APPLIED (per owner decision: single-call resume = $20, bulk = $20):
+          • js/voice-service.js:
+            - LOW_BALANCE_RESUME: 50 → 20 (env CALL_LOW_BALANCE_RESUME, default 20)
+            - LOW_BALANCE_TRIGGER: stays $1 (env CALL_LOW_BALANCE_TRIGGER)
+            - NEW notifyPreDialLowBalance(): sends throttled Telegram notice (balance + $20 minimum + "Top Up" button)
+            - removeSipPreDialBlockByChatId: now compares String(chatId) (fixes string/number mismatch)
+            - Exports: LOW_BALANCE_*, addSipPreDialBlock, notifyPreDialLowBalance
+          • js/bulk-call-service.js + js/_index.js:
+            - BULK_CALL_MIN_WALLET: default 50 → 20 (bot + SIP bulk)
+          • js/_index.js deposit hook:
+            - Now unblocks once balance >= vs.LOW_BALANCE_RESUME (was hardcoded 50)
+          • backend/.env:
+            - BULK_CALL_MIN_WALLET: 50 → 20
+          • NEW js/tests/test_call_billing_thresholds.js (6 assertions)
+          
+          TEST RESULTS (2/2 CHECKS PASSED):
+          
+          ✅ CHECK 1: REGRESSION UNIT TEST (6/6 assertions passed)
+             • Command: node js/tests/test_call_billing_thresholds.js
+             • Exit code: 0 ✅
+             • Output: "ALL 6 assertions passed"
+             • Assertions:
+               1. ✅ single-call resume gate is $20 (lock trigger still $1) — a $20 top-up now unlocks calling
+               2. ✅ bulk-call minimum is $20 (bot + SIP bulk)
+               3. ✅ pre-dial instant-block notifies the user with the $20 minimum + Top Up button (SIP no longer silent)
+               4. ✅ repeat blocks are throttled (no notification spam)
+               5. ✅ only low_balance blocks trigger the low-balance notice
+               6. ✅ deposit-triggered unblock matches regardless of chatId type (the $20 top-up now clears the block)
+             • PASS: All 6 assertions passed (100% pass rate)
+             • CRITICAL: The test confirms:
+               - LOW_BALANCE_RESUME === 20 (was 50)
+               - LOW_BALANCE_TRIGGER === 1 (unchanged)
+               - BULK_CALL_MIN_WALLET === 20 (was 50)
+               - Pre-dial instant-block now notifies the user (was silent)
+               - Notification includes balance, $20 minimum, and "Top Up" button
+               - Repeat blocks are throttled (no spam)
+               - Non-low_balance blocks do NOT notify (correct behavior)
+               - removeSipPreDialBlockByChatId matches across string/number chatId (deposit unblock works)
+          
+          ✅ CHECK 2: SANITY (service health)
+             • Test 2a: GET /api/health (external URL)
+               - URL: https://b2ca4cb5-c43d-49df-b365-788a1d7196dc.preview.emergentagent.com/api/health
+               - Response: HTTP 200 ✅
+               - Body: {"status":"healthy","database":"connected","uptime":"0.06 hours","calls":{"activeCalls":0,"pendingBridges":0,"outboundIvrCalls":0,"twilioIvrSessions":0,"total":0},"slot":{"name":null,"upstream":null,"port":null,"active":true}}
+               - PASS: Backend is healthy and database is connected
+             • Test 2b: GET /api/health (internal URL)
+               - URL: http://127.0.0.1:8001/api/health
+               - Response: HTTP 200 ✅
+               - Body: {"status":"healthy","database":"connected","uptime":"0.06 hours","calls":{"activeCalls":0,"pendingBridges":0,"outboundIvrCalls":0,"twilioIvrSessions":0,"total":0},"slot":{"name":null,"upstream":null,"port":null,"active":true}}
+               - PASS: Internal backend is healthy and database is connected
+             • Test 2c: sudo supervisorctl status nodejs
+               - Status: RUNNING ✅
+               - PID: 5366, uptime: 0:03:53
+               - PASS: Node.js bot supervisor process is running (no boot crash from code changes)
+          
+          PASS CRITERIA MET (ALL 2 CHECKS):
+          • ✅ CHECK 1: Regression unit test (6/6 assertions passed, exit code 0, "ALL 6 assertions passed")
+          • ✅ CHECK 2: Sanity (GET /api/health → 200 healthy on both external and internal URLs, nodejs supervisor RUNNING)
+          
+          CRITICAL OBSERVATIONS:
+          • ✅ The regression unit test passes all 6 assertions (100% pass rate)
+          • ✅ LOW_BALANCE_RESUME is now $20 (was $50) — single calls are no longer gated at $50
+          • ✅ LOW_BALANCE_TRIGGER is still $1 (unchanged) — correct behavior
+          • ✅ BULK_CALL_MIN_WALLET is now $20 (was $50) — bulk calls are also gated at $20
+          • ✅ Pre-dial instant-block now notifies the user (was silent) — SIP-originated blocks no longer silent
+          • ✅ Notification includes balance, $20 minimum, and "Top Up" button — user gets clear guidance
+          • ✅ Repeat blocks are throttled (no spam) — user is not bombarded with notifications
+          • ✅ Non-low_balance blocks do NOT notify — correct behavior (only low_balance blocks notify)
+          • ✅ removeSipPreDialBlockByChatId matches across string/number chatId — deposit unblock works
+          • ✅ The fix addresses all 3 root causes:
+            1. Single-call gate lowered from $50 to $20 (user can now unlock with $20 deposit)
+            2. Pre-dial instant-block now notifies (user gets Telegram message with guidance)
+            3. Deposit-triggered unblock now works (chatId string/number mismatch fixed)
+          • ✅ Backend health and nodejs supervisor are running correctly (no boot crash)
+          • ✅ The test is deterministic and safe (no real calls, no wallet mutations, no Telnyx webhooks)
+          
+          CONCLUSION:
+          The SIP/call low-balance gate bugfix is FIXED and WORKING CORRECTLY. All 2 comprehensive checks passed
+          (100% pass rate). The fix ensures that:
+          
+          1. ✅ Single calls are now gated at $20 (was $50) — a $20 top-up unlocks calling
+          2. ✅ Bulk calls are now gated at $20 (was $50) — consistent with single calls
+          3. ✅ Pre-dial instant-block now notifies the user (was silent) — SIP-originated blocks no longer silent
+          4. ✅ Notification includes balance, $20 minimum, and "Top Up" button — clear user guidance
+          5. ✅ Repeat blocks are throttled (no spam) — user is not bombarded with notifications
+          6. ✅ Non-low_balance blocks do NOT notify — correct behavior (only low_balance blocks notify)
+          7. ✅ Deposit-triggered unblock now works (chatId string/number mismatch fixed)
+          8. ✅ The fix addresses all 3 root causes reported in the production bug
+          
+          The bugfix is ready for production deployment. The root causes (high gate, silent block, chatId mismatch)
+          have been eliminated. The fix is backward-compatible and handles the production case (user deposits $20
+          and can now make calls). The test is deterministic and safe (no real calls, no wallet mutations).
+          
+          Test file: /app/js/tests/test_call_billing_thresholds.js (6 assertions)
+          Test run: 2026-10-08b (all 2 checks passed, 0 failures, 0 warnings)
+          Environment: DEV SANDBOX (safe, no real calls, no wallet mutations, no Telnyx webhooks)
+          Base URL: https://b2ca4cb5-c43d-49df-b365-788a1d7196dc.preview.emergentagent.com/api/health
+          Supervisor: nodejs RUNNING (PID 5366, uptime 0:03:53)
+
+
   - task: "Shortener domain verify bugfix for Cloudflare-PROXIED records (2026-10-08) — Fixed critical production bug where POST /shortener/domains/:domain/verify returned HTTP 409 forever for Cloudflare-PROXIED (orange-cloud) DNS records. BUG REPORTED: Reseller @onarrival1 (chatId 5590563715) domain go.namewords.sbs stuck at status 'railway_linked'. The A record go.namewords.sbs -> 146.190.238.190 is Cloudflare-PROXIED (orange cloud), so public DNS resolves to Cloudflare anycast IPs (104.21.x / 172.67.x), never the origin IP. The droplet origin REQUIRES the proxy (it serves TLS with a Cloudflare Origin-CA cert), so the record is correct and the host serves fine (HTTPS 200 with a valid cert) — only verification was wrong. ROOT CAUSE: js/reseller-shortener.js dnsPointsTo() did ONLY a live public-DNS lookup (dns.resolve4), which can never see the origin behind a proxied record. FIX: New js/shortener-verify.js module with dnsPointsTo() that now falls back to an AUTHORITATIVE Cloudflare-zone check (cfZoneRecordMatches) — if the zone WE manage has an A/AAAA record at the host whose content == origin IP (or a CNAME == target), it verifies, proxied or not. DNS-only records still verify via the public-DNS path (unchanged). Files: js/shortener-verify.js (NEW, 111 lines), js/reseller-shortener.js (line 31, imports dnsPointsTo from shortener-verify), js/tests/test_shortener_proxied_verify.js (NEW, 119 lines, 7 assertions + live CF check). Environment: LIVE MODE. Base URL: https://b2ca4cb5-c43d-49df-b365-788a1d7196dc.preview.emergentagent.com/api/reseller/v1. Valid LIVE key: rsk_live_cdc3f785ac3cfd813c6143d7813e1a59cc15fc42327ab736 (owner 5590563715, @onarrival1). VERIFIED: All 4 comprehensive checks PASSED (100% pass rate). CHECK 1: Regression unit test (7/7 assertions passed including LIVE CF zone check). CHECK 2: END-TO-END API (POST /shortener/domains/go.namewords.sbs/verify → 200 with verified:true, status:completed). CHECK 3: Auth guards (no auth → 401 missing_api_key, invalid auth → 401 invalid_api_key). CHECK 4: Sanity (GET /api/health → 200 healthy, nodejs supervisor RUNNING). The reported domain go.namewords.sbs is NOW ACTIVE as a URL shortener (status changed from railway_linked to completed). Bugfix is WORKING CORRECTLY."
     implemented: true
     working: true

@@ -265,8 +265,9 @@ function removeSipPreDialBlock(sipUsername) {
 // Remove ALL blocks for a given chatId (called when wallet is topped up)
 function removeSipPreDialBlockByChatId(chatId) {
   let removed = 0
+  const target = String(chatId)
   for (const [username, entry] of _sipPreDialBlocklist.entries()) {
-    if (entry.chatId === chatId) {
+    if (String(entry.chatId) === target) {
       _sipPreDialBlocklist.delete(username)
       removed++
     }
@@ -288,6 +289,39 @@ function removeSipPreDialBlockByChatId(chatId) {
   }
   return removed
 }
+
+// Notify a blocked user (throttled) WHY their outbound call was rejected. This
+// covers the FAST pre-dial instant-block path, which previously rejected calls
+// SILENTLY — so a user whose SIP call hit the cached blocklist (incl. after a
+// partial top-up, or dialing again from a SIP client) got no explanation and
+// assumed the call feature was broken. Throttled to at most once per
+// PRE_DIAL_NOTIFY_MS per credential so repeated redials don't spam the chat.
+const PRE_DIAL_NOTIFY_MS = 10 * 60 * 1000
+function notifyPreDialLowBalance(block) {
+  try {
+    if (!_bot || !block || !block.chatId || block.reason !== 'low_balance') return
+    const now = Date.now()
+    if (block._lastNotifiedAt && (now - block._lastNotifiedAt) < PRE_DIAL_NOTIFY_MS) return
+    block._lastNotifiedAt = now
+    // Fire-and-forget: never block/slow the sub-millisecond call rejection.
+    ;(async () => {
+      try {
+        const lang = await _getUserLang(block.chatId)
+        const baseMsg = _trans('vs.outboundCallingLocked', lang)
+        if (!baseMsg) return
+        const fullMsg = baseMsg +
+          `Your wallet balance is below $${LOW_BALANCE_TRIGGER}, so outbound calls are temporarily locked.\n\n` +
+          `💰 <b>Top up to at least $${LOW_BALANCE_RESUME}</b> to resume calling.\n` +
+          `Use 👛 <b>Wallet</b> to add funds.`
+        _bot.sendMessage(block.chatId, fullMsg, {
+          parse_mode: 'HTML',
+          reply_markup: { inline_keyboard: [[{ text: '💰 Top Up Now', callback_data: 'wallet_topup_quick' }]] },
+        }).catch(() => {})
+      } catch (_) { /* non-critical */ }
+    })()
+  } catch (_) { /* non-critical */ }
+}
+
 
 async function _loadSipPreDialBlocklist() {
   try {
@@ -503,10 +537,14 @@ const WALLET_COOLDOWN_ESCALATION = [
 ]
 const WALLET_COOLDOWN_NOTIFY_MAX = 2 // Max Telegram notifications per cooldown cycle
 
-// Low Balance Lock — when balance drops below $1, require $50 top-up to resume calls.
-// This prevents near-zero-balance users from spam-dialing indefinitely.
-const LOW_BALANCE_TRIGGER = 1     // USD threshold that activates the lock
-const LOW_BALANCE_RESUME = 50     // USD minimum required to unlock calling
+// Low Balance Lock — when AVAILABLE balance drops below LOW_BALANCE_TRIGGER, lock
+// outbound calling until the user tops up to LOW_BALANCE_RESUME. This prevents
+// near-zero-balance users from spam-dialing indefinitely.
+// NOTE: LOW_BALANCE_RESUME applies to a SINGLE call (bot Quick IVR + outbound SIP).
+// BULK campaigns enforce their own floor via BULK_CALL_MIN_WALLET (see _index.js /
+// bulk-call-service). Both default to $20. Env-overridable for ops tuning.
+const LOW_BALANCE_TRIGGER = parseFloat(process.env.CALL_LOW_BALANCE_TRIGGER || '1')  // USD threshold that activates the lock
+const LOW_BALANCE_RESUME = parseFloat(process.env.CALL_LOW_BALANCE_RESUME || '20')   // USD minimum required to unlock calling
 
 // ── Concurrency Guard: per-user outbound fund reservation ──────────────────
 // A single wallet balance check at dial-time cannot prevent OVER-COMMITMENT
@@ -2614,6 +2652,8 @@ async function handleOutboundSipCall(payload) {
     if (block._hits <= 3 || block._hits % 20 === 0) {
       log(`[Voice] PRE-DIAL BLOCK: ${sipUsername} rejected (hit #${block._hits}) — ${block.reason}`)
     }
+    // Notify the user why (throttled) so SIP-originated blocked calls are not silent.
+    notifyPreDialLowBalance(block)
     return
   }
 
@@ -5418,6 +5458,10 @@ module.exports = {
   
   trackIvrAnalytics,
   removeSipPreDialBlockByChatId,
+  addSipPreDialBlock,
+  notifyPreDialLowBalance,
+  LOW_BALANCE_TRIGGER,
+  LOW_BALANCE_RESUME,
   // D1 fix (self-originated PSTN transfer leg skip) — exported for tests
   _isSelfPstnLeg,
   _markSelfPstnLeg,
