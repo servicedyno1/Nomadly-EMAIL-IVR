@@ -21,12 +21,14 @@
 // ============================================================
 'use strict'
 
-const dns = require('dns').promises
 const { get, set, del } = require('./db')
 const { customAlphabet } = require('nanoid')
 const shortenerPersist = require('./shortener-activation-persistence')
 const rlSaveDomain = require('./rl-save-domain-in-server')
 const domainService = require('./domain-service')
+// Verification helper: accepts BOTH a DNS-only (grey-cloud) record AND a
+// Cloudflare-proxied (orange-cloud) record. See js/shortener-verify.js.
+const { dnsPointsTo } = require('./shortener-verify')
 
 const slugGen = customAlphabet('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789', 7)
 
@@ -103,24 +105,6 @@ function registerShortenerRoutes({ router, apiKeyAuth, h, col, getDb, isLive, mo
         ...(saved.txtHost ? [{ type: 'TXT', host: saved.txtHost, value: saved.txtValue }] : []),
       ],
     }
-  }
-
-  // Does `domain` resolve to `target` (CNAME match, or shared A-record IP)?
-  async function dnsPointsTo(domain, target) {
-    if (!target) return false
-    const t = String(target).toLowerCase().replace(/\.$/, '')
-    try {
-      const cn = (await dns.resolveCname(domain).catch(() => [])).map(x => x.toLowerCase().replace(/\.$/, ''))
-      if (cn.includes(t)) return true
-    } catch (_) { /* fallthrough */ }
-    try {
-      const [dIps, tIps] = await Promise.all([
-        dns.resolve4(domain).catch(() => []),
-        dns.resolve4(t).catch(() => []),
-      ])
-      if (dIps.length && tIps.length && dIps.some(ip => tIps.includes(ip))) return true
-    } catch (_) { /* no match */ }
-    return false
   }
 
   // Shape a single link for API responses.
@@ -233,10 +217,11 @@ function registerShortenerRoutes({ router, apiKeyAuth, h, col, getDb, isLive, mo
     }
     const ok = await dnsPointsTo(domain, act.server)
     if (!ok) {
+      const isIp = /^\d{1,3}(\.\d{1,3}){3}$/.test(String(act.server || ''))
       return res.status(409).json({
         domain, verified: false, status: act.status,
-        message: `DNS for ${domain} does not resolve to ${act.server} yet. Add the record and retry (propagation can take up to 24h).`,
-        expected: { type: act.recordType || 'CNAME', host: domain, value: act.server },
+        message: `DNS for ${domain} is not pointing at ${act.server} yet. Create ${isIp ? 'an A' : 'a CNAME'} record ${isIp ? `(${domain} → ${act.server})` : `(${domain} → ${act.server})`} and retry. If the record is on our Cloudflare nameservers it verifies whether it is DNS-only or proxied (orange-cloud); DNS propagation can take up to 24h.`,
+        expected: { type: act.recordType || (isIp ? 'A' : 'CNAME'), host: domain, value: act.server, proxied_ok: true },
       })
     }
     await shortenerPersist.markDnsAdded(domain)

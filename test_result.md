@@ -9,6 +9,56 @@
 #====================================================================================================
 
 #====================================================================================================
+# CURRENT TASK (2026-10-08) — BUGFIX: shortener domain verify fails for Cloudflare-PROXIED records [test THIS]
+#====================================================================================================
+current_task_2026_10_08_shortener_proxied_verify: |
+  BUG (reported by reseller @onarrival1 / chatId 5590563715, domain go.namewords.sbs):
+  POST /shortener/domains/:domain/verify returns HTTP 409 forever and the activation is stuck at
+  status "railway_linked". The A record go.namewords.sbs -> 146.190.238.190 is Cloudflare-PROXIED
+  (orange cloud), so public DNS resolves to Cloudflare anycast IPs (104.21.x / 172.67.x), never the
+  origin IP. The droplet origin REQUIRES the proxy (it serves TLS with a Cloudflare Origin-CA cert),
+  so the record is correct and the host serves fine (HTTPS 200 with a valid cert) — only verification
+  was wrong.
+
+  ROOT CAUSE: js/reseller-shortener.js dnsPointsTo() did ONLY a live public-DNS lookup (dns.resolve4),
+  which can never see the origin behind a proxied record.
+
+  FIX:
+   - New js/shortener-verify.js: dnsPointsTo() now falls back to an AUTHORITATIVE Cloudflare-zone
+     check (cfZoneRecordMatches) — if the zone WE manage has an A/AAAA record at the host whose
+     content == origin IP (or a CNAME == target), it verifies, proxied or not. DNS-only records still
+     verify via the public-DNS path (unchanged).
+   - js/reseller-api.js POST /dns/:domain/records now forwards the `proxied` flag into addDNSRecord's
+     `opts` (8th arg) — previously it was silently dropped (ttl was passed in the wrong slot), so
+     resellers could not create DNS-only records.
+
+  WHAT TO VERIFY — SAFE CHECKS ONLY (verify is NON-charging, NON-provisioning: it only probes DNS and
+  flips status to completed; completing go.namewords.sbs is the DESIRED outcome for the owner):
+   Base URL: {REACT_APP_BACKEND_URL}/api/reseller/v1
+   Valid LIVE key (owner 5590563715, @onarrival1):  rsk_live_cdc3f785ac3cfd813c6143d7813e1a59cc15fc42327ab736
+
+   1. REGRESSION UNIT TEST (deterministic + live read-only CF), run from /app:
+        node -e "require('dotenv').config({path:'/app/backend/.env'}); require('./js/tests/test_shortener_proxied_verify.js')"
+      EXPECT: exit code 0 and "ALL 7 assertions passed", including the line
+        "LIVE: real CF zone confirms go.namewords.sbs -> 146.190.238.190 (proxied)".
+
+   2. END-TO-END API (THE reported case): POST /shortener/domains/go.namewords.sbs/verify
+        with header  Authorization: Bearer <valid key above>
+      EXPECT NOW: HTTP 200  { "domain":"go.namewords.sbs", "verified": true, "status":"completed", ... }
+      (Before the fix this returned HTTP 409 "...does not resolve to 146.190.238.190 yet".)
+      You may first GET /shortener/domains (read-only) to see current status.
+      NOTE: on a re-run after it is completed, verify returns 200 { verified:true, status:"completed",
+      message:"Already active." } — that is also a PASS.
+
+   3. AUTH GUARDS (no regression): POST /shortener/domains/go.namewords.sbs/verify with NO key -> 401
+      missing_api_key; with a bogus key -> 401 invalid_api_key.
+
+  HARD CONSTRAINTS: Do NOT call any billed/provisioning endpoint (POST /vps, POST /shortener/domains
+  with source:"buy", POST /hosting, etc.). Only the verify + read-only GET calls + the node unit test.
+
+
+
+#====================================================================================================
 # CURRENT TASK (2026-10-07) — FEATURE: vanity-nameserver pilot ns1/ns2.hosta.sh (Namecheap + CF) [test THIS]
 #====================================================================================================
 current_task_2026_10_07_ns_pilot: |
@@ -654,6 +704,145 @@ user_problem_statement: |
 
 
 backend:
+  - task: "Shortener domain verify bugfix for Cloudflare-PROXIED records (2026-10-08) — Fixed critical production bug where POST /shortener/domains/:domain/verify returned HTTP 409 forever for Cloudflare-PROXIED (orange-cloud) DNS records. BUG REPORTED: Reseller @onarrival1 (chatId 5590563715) domain go.namewords.sbs stuck at status 'railway_linked'. The A record go.namewords.sbs -> 146.190.238.190 is Cloudflare-PROXIED (orange cloud), so public DNS resolves to Cloudflare anycast IPs (104.21.x / 172.67.x), never the origin IP. The droplet origin REQUIRES the proxy (it serves TLS with a Cloudflare Origin-CA cert), so the record is correct and the host serves fine (HTTPS 200 with a valid cert) — only verification was wrong. ROOT CAUSE: js/reseller-shortener.js dnsPointsTo() did ONLY a live public-DNS lookup (dns.resolve4), which can never see the origin behind a proxied record. FIX: New js/shortener-verify.js module with dnsPointsTo() that now falls back to an AUTHORITATIVE Cloudflare-zone check (cfZoneRecordMatches) — if the zone WE manage has an A/AAAA record at the host whose content == origin IP (or a CNAME == target), it verifies, proxied or not. DNS-only records still verify via the public-DNS path (unchanged). Files: js/shortener-verify.js (NEW, 111 lines), js/reseller-shortener.js (line 31, imports dnsPointsTo from shortener-verify), js/tests/test_shortener_proxied_verify.js (NEW, 119 lines, 7 assertions + live CF check). Environment: LIVE MODE. Base URL: https://b2ca4cb5-c43d-49df-b365-788a1d7196dc.preview.emergentagent.com/api/reseller/v1. Valid LIVE key: rsk_live_cdc3f785ac3cfd813c6143d7813e1a59cc15fc42327ab736 (owner 5590563715, @onarrival1). VERIFIED: All 4 comprehensive checks PASSED (100% pass rate). CHECK 1: Regression unit test (7/7 assertions passed including LIVE CF zone check). CHECK 2: END-TO-END API (POST /shortener/domains/go.namewords.sbs/verify → 200 with verified:true, status:completed). CHECK 3: Auth guards (no auth → 401 missing_api_key, invalid auth → 401 invalid_api_key). CHECK 4: Sanity (GET /api/health → 200 healthy, nodejs supervisor RUNNING). The reported domain go.namewords.sbs is NOW ACTIVE as a URL shortener (status changed from railway_linked to completed). Bugfix is WORKING CORRECTLY."
+    implemented: true
+    working: true
+    file: "/app/js/shortener-verify.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: |
+          ✅ COMPREHENSIVE BACKEND TEST COMPLETE - Shortener Domain Verify Bugfix for Cloudflare-PROXIED Records VERIFIED (4/4 checks, 100% pass rate)
+          
+          SCOPE: Independent verification of the critical production bugfix for the reseller URL-shortener domain verification.
+          The bug caused POST /shortener/domains/:domain/verify to return HTTP 409 forever for Cloudflare-PROXIED (orange-cloud)
+          DNS records, blocking shortener activation. Testing was performed in LIVE MODE with SAFE CHECKS ONLY (verify is
+          NON-charging, NON-provisioning: it only probes DNS and flips status to completed).
+          
+          BUG REPORTED:
+          • Reseller: @onarrival1 (chatId 5590563715)
+          • Domain: go.namewords.sbs
+          • A record: go.namewords.sbs -> 146.190.238.190 (Cloudflare-PROXIED, orange cloud)
+          • Status: Stuck at 'railway_linked' (could not complete activation)
+          • Public DNS: Resolves to Cloudflare anycast IPs (104.21.x / 172.67.x), NOT the origin IP
+          • Host: Serves fine (HTTPS 200 with valid cert) — only verification was wrong
+          
+          ROOT CAUSE:
+          • js/reseller-shortener.js dnsPointsTo() did ONLY a live public-DNS lookup (dns.resolve4)
+          • For a Cloudflare-PROXIED record, public DNS returns Cloudflare edge IPs, NOT the origin
+          • The verification could NEVER match the origin IP (146.190.238.190)
+          • The droplet origin REQUIRES the proxy (it serves TLS with a Cloudflare Origin-CA cert)
+          • So the record is correct, but the old verification logic was wrong
+          
+          FIX APPLIED:
+          • NEW js/shortener-verify.js module (111 lines)
+          • dnsPointsTo() now has TWO verification paths:
+            1. Public DNS (dns.resolve4/resolveCname) — covers DNS-only (grey-cloud) records (unchanged)
+            2. Authoritative Cloudflare-zone check (cfZoneRecordMatches) — NEW fallback for proxied records
+          • cfZoneRecordMatches() checks if the zone WE manage has an A/AAAA record at the host whose
+            content == origin IP (or a CNAME == target), regardless of the proxied flag
+          • zoneCandidates() helper derives apex-zone candidates for a hostname (handles subdomains + multi-label TLDs)
+          • js/reseller-shortener.js line 31 now imports dnsPointsTo from shortener-verify
+          • NEW js/tests/test_shortener_proxied_verify.js (119 lines, 7 assertions + live CF check)
+          
+          ENVIRONMENT:
+          • Mode: LIVE (production-like, real Cloudflare API calls)
+          • Base URL: https://b2ca4cb5-c43d-49df-b365-788a1d7196dc.preview.emergentagent.com/api/reseller/v1
+          • Valid LIVE key: rsk_live_cdc3f785ac3cfd813c6143d7813e1a59cc15fc42327ab736
+          • Owner: chatId 5590563715 (@onarrival1)
+          • Test domain: go.namewords.sbs (LIVE production domain, Cloudflare-PROXIED)
+          
+          TEST RESULTS (4/4 CHECKS PASSED):
+          
+          ✅ CHECK 1: REGRESSION UNIT TEST (7/7 assertions passed)
+             • Command: node -e "require('dotenv').config({path:'/app/backend/.env'}); require('./js/tests/test_shortener_proxied_verify.js')"
+             • Exit code: 0 ✅
+             • Output: "ALL 7 assertions passed"
+             • Assertions:
+               1. ✅ zoneCandidates derives apex suffixes for a subdomain
+               2. ✅ cfZoneRecordMatches detects a proxied A record (authoritative zone)
+               3. ✅ dnsPointsTo verifies a Cloudflare-proxied shortener (regression)
+               4. ✅ verification rejects a record that points at the wrong origin
+               5. ✅ dnsPointsTo still verifies a DNS-only direct A record
+               6. ✅ dnsPointsTo still verifies a DNS-only CNAME record
+               7. ✅ LIVE: real CF zone confirms go.namewords.sbs -> 146.190.238.190 (proxied)
+             • PASS: All 7 assertions passed including the LIVE Cloudflare zone check
+          
+          ✅ CHECK 2: END-TO-END API (THE reported case)
+             • Initial status: GET /shortener/domains → go.namewords.sbs status "railway_linked" (stuck)
+             • Request: POST /shortener/domains/go.namewords.sbs/verify
+             • Auth: Authorization: Bearer rsk_live_cdc3f785ac3cfd813c6143d7813e1a59cc15fc42327ab736
+             • Response: HTTP 200 ✅
+             • Body: {"domain":"go.namewords.sbs","verified":true,"status":"completed","message":"go.namewords.sbs is now active as a URL shortener."}
+             • PASS: HTTP 200 with verified:true and status:"completed" (NOT HTTP 409)
+             • Re-run: HTTP 200 with verified:true and status:"completed" (idempotent, as expected)
+             • CRITICAL: The reported domain go.namewords.sbs is NOW ACTIVE as a URL shortener
+          
+          ✅ CHECK 3: AUTH GUARDS (no regression)
+             • Test 3a: POST /shortener/domains/go.namewords.sbs/verify with NO auth header
+               - Response: HTTP 401 ✅
+               - Body: {"error":"missing_api_key","message":"Provide your key via \"Authorization: Bearer <key>\" or \"X-API-Key: <key>\"."}
+               - PASS: Returns 401 missing_api_key (route is auth-gated)
+             • Test 3b: POST /shortener/domains/go.namewords.sbs/verify with invalid auth header
+               - Auth: Authorization: Bearer rsk_live_bogus_invalid_000
+               - Response: HTTP 401 ✅
+               - Body: {"error":"invalid_api_key","message":"API key not recognised or disabled."}
+               - PASS: Returns 401 invalid_api_key (auth validation working)
+          
+          ✅ CHECK 4: SANITY (service health)
+             • Test 4a: GET /api/health
+               - Response: HTTP 200 ✅
+               - Body: {"status":"healthy","database":"connected","uptime":"0.08 hours",...}
+               - PASS: Backend is healthy and database is connected
+             • Test 4b: sudo supervisorctl status nodejs
+               - Status: RUNNING ✅
+               - PID: 2948, uptime: 0:04:45
+               - PASS: Node.js bot supervisor process is running
+          
+          PASS CRITERIA MET (ALL 4 CHECKS):
+          • ✅ CHECK 1: Regression unit test (7/7 assertions passed, including LIVE CF zone check)
+          • ✅ CHECK 2: END-TO-END API (POST verify → 200 with verified:true, status:completed)
+          • ✅ CHECK 3: Auth guards (no auth → 401 missing_api_key, invalid auth → 401 invalid_api_key)
+          • ✅ CHECK 4: Sanity (GET /api/health → 200 healthy, nodejs supervisor RUNNING)
+          
+          CRITICAL OBSERVATIONS:
+          • ✅ The regression unit test passes all 7 assertions (100% pass rate)
+          • ✅ The LIVE Cloudflare zone check confirms go.namewords.sbs -> 146.190.238.190 (proxied)
+          • ✅ The END-TO-END API test verifies the reported domain go.namewords.sbs successfully
+          • ✅ The domain status changed from "railway_linked" (stuck) to "completed" (active)
+          • ✅ The verify endpoint is now idempotent (re-run returns 200 with verified:true)
+          • ✅ Auth guards are working correctly (401 for missing/invalid keys)
+          • ✅ The fix handles BOTH DNS-only (grey-cloud) AND Cloudflare-proxied (orange-cloud) records
+          • ✅ The fix does NOT break existing DNS-only verification (assertions 5 & 6 pass)
+          • ✅ The fix correctly rejects records pointing at the wrong origin (assertion 4 passes)
+          • ✅ Backend health and nodejs supervisor are running correctly
+          
+          CONCLUSION:
+          The shortener domain verify bugfix for Cloudflare-PROXIED records is FIXED and WORKING CORRECTLY. All 4 comprehensive
+          checks passed (100% pass rate). The fix ensures that:
+          
+          1. ✅ Cloudflare-PROXIED (orange-cloud) records now verify correctly via the authoritative CF zone check
+          2. ✅ DNS-only (grey-cloud) records still verify correctly via the public DNS path (no regression)
+          3. ✅ The reported domain go.namewords.sbs is NOW ACTIVE as a URL shortener (status: completed)
+          4. ✅ The verification is idempotent (re-run returns 200 with verified:true)
+          5. ✅ Auth guards are working correctly (401 for missing/invalid keys)
+          6. ✅ The fix handles both A/AAAA records and CNAME records
+          7. ✅ The fix correctly rejects records pointing at the wrong origin
+          
+          The bugfix is ready for production deployment. The root cause (public DNS lookup only) has been eliminated by
+          adding an authoritative Cloudflare-zone fallback check. The fix is backward-compatible (DNS-only records still
+          verify via the public DNS path) and handles the production case (Cloudflare-PROXIED records with Origin-CA certs).
+          
+          Test file: /app/js/tests/test_shortener_proxied_verify.js (7 assertions + live CF check)
+          Test run: 2026-10-08 (all 4 checks passed, 0 failures, 0 warnings)
+          Environment: LIVE MODE (real Cloudflare API calls)
+          Base URL: https://b2ca4cb5-c43d-49df-b365-788a1d7196dc.preview.emergentagent.com/api/reseller/v1
+          Valid LIVE key: rsk_live_cdc3f785ac3cfd813c6143d7813e1a59cc15fc42327ab736
+          Test domain: go.namewords.sbs (LIVE production domain, Cloudflare-PROXIED, NOW ACTIVE)
+
   - task: "Reseller API 'Database not ready' bugfix (2026-10-06) — Fixed critical production bug where every reseller API call returned HTTP 500 { error:'auth_error', message:'Database not ready' } even though the main bot DB was connected. ROOT CAUSE: js/_index.js line 38105 had `let resellerDb = db` executed at MODULE-LOAD time, BEFORE the async connectWithRetry()->loadData() assigned the top-level `db`, so it captured `undefined`. On production RESELLER_DB_URL is NOT set, so the reassignment block was skipped and getDb:()=>resellerDb returned `undefined` forever → col() threw 'Database not ready'. FIX: Changed to `let resellerDb = null` + `getDb: () => resellerDb || db` — reads the live top-level `db` at call-time (populated after loadData), while still preferring a dedicated RESELLER_DB_URL connection when configured. Fixes both the HTTP API and the provisionWorkerTick. TEST ENVIRONMENT: Dev pod configured to REPRODUCE production condition (RESELLER_DB_URL TEMPORARILY DISABLED so getDb must use the `|| db` fallback to LOCAL Mongo). Valid reseller API key seeded into local DB (owner 5590563715). Base URL: {REACT_APP_BACKEND_URL}/api/reseller/v1. Valid key: rsk_live_6af6daabd545fccb80c2c5265a8caaae52af8ae6dd49f848. Files: js/_index.js (line 38114, 38128). VERIFIED: All 3 safe read-only tests PASSED (GET /vps/plans with valid key → 200 with 6 plans; invalid key → 401 invalid_api_key; no auth → 401 missing_api_key). NONE returned 500 'Database not ready'. Bugfix is WORKING CORRECTLY."
     implemented: true
     working: true
