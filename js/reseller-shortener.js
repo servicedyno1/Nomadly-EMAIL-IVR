@@ -42,7 +42,9 @@ const urlOk = (u) => /^https?:\/\/[^\s]+\.[^\s]+/i.test(String(u || '')) && Stri
 // Slugs that would be shadowed by the SPA / system routes in app.get('/:id').
 const RESERVED = new Set(['call', 'panel', 'phone', 'login', 'signup', 'dashboard', 'settings', 'sales', 'api', 'apidoc', 'health', 'reseller', 'telnyx', 'twilio', 'dynopay', 'crypto-wallet', 'webhook', 'favicon.ico', 'robots.txt'])
 
-const ACTIVE_STATUSES = ['railway_linked', 'dns_added', 'completed']
+// Statuses at which a domain accepts short links. 'host_linked' is the current
+// value; 'railway_linked' is kept for legacy records (same meaning).
+const ACTIVE_STATUSES = ['host_linked', 'railway_linked', 'dns_added', 'completed']
 
 function registerShortenerRoutes({ router, apiKeyAuth, h, col, getDb, isLive, mode, log, billedProvision }) {
   const owner = (req) => String(req.reseller.ownerChatId)
@@ -76,12 +78,12 @@ function registerShortenerRoutes({ router, apiKeyAuth, h, col, getDb, isLive, mo
     try { await domainService.ensureCloudflare(domain, getDb()) } catch (e) { log(`[Shortener] ensureCloudflare warn ${domain}: ${e.message}`) }
     const saved = process.env.HOSTED_ON === 'render'
       ? await rlSaveDomain.saveDomainInServerRender(domain)
-      : await rlSaveDomain.saveDomainInServerRailway(domain)
+      : await rlSaveDomain.saveShortenerHost(domain)
     if (!saved || saved.error) {
       await shortenerPersist.markFailed(domain, saved?.error || 'host_link_failed')
       return { success: false, error: saved?.error || 'Could not link the domain to the shortener host.' }
     }
-    await shortenerPersist.markRailwayLinked(domain, saved.server, saved.recordType)
+    await shortenerPersist.markHostLinked(domain, saved.server, saved.recordType)
     const addRes = await domainService.addShortenerCNAME(domain, saved.server, getDb(), saved.txtHost, saved.txtValue)
     if (!addRes || addRes.error || !addRes.success) {
       await shortenerPersist.markFailed(domain, addRes?.error || 'dns_add_failed')
@@ -98,12 +100,12 @@ function registerShortenerRoutes({ router, apiKeyAuth, h, col, getDb, isLive, mo
     await shortenerPersist.createActivationTask(ownerId, domain, 'en')
     const saved = process.env.HOSTED_ON === 'render'
       ? await rlSaveDomain.saveDomainInServerRender(domain)
-      : await rlSaveDomain.saveDomainInServerRailway(domain)
+      : await rlSaveDomain.saveShortenerHost(domain)
     if (!saved || saved.error) {
       await shortenerPersist.markFailed(domain, saved?.error || 'host_link_failed')
       return { success: false, error: saved?.error || 'Could not prepare the shortener host for this domain.' }
     }
-    await shortenerPersist.markRailwayLinked(domain, saved.server, saved.recordType)
+    await shortenerPersist.markHostLinked(domain, saved.server, saved.recordType)
     return {
       success: true, status: 'pending_dns',
       dns_records: [
@@ -193,8 +195,8 @@ function registerShortenerRoutes({ router, apiKeyAuth, h, col, getDb, isLive, mo
   }))
 
   // List the owner's shortener domains + status.
-  // `active: true` (status is railway_linked | dns_added | completed) means the
-  // domain accepts POST /shortener/links. `completed` is the fully-verified state.
+  // `active: true` (status is host_linked | dns_added | completed; legacy railway_linked also
+  // counts) means the domain accepts POST /shortener/links. `completed` is the fully-verified state.
   router.get('/shortener/domains', apiKeyAuth, h(async (req, res) => {
     const docs = await col('shortenerActivations').find({ chatId: owner(req) }).limit(500).toArray()
     res.json({
@@ -343,8 +345,8 @@ function registerShortenerRoutes({ router, apiKeyAuth, h, col, getDb, isLive, mo
 
   // Update a link: change destination url, enable/disable, and/or set-or-clear expiry.
   // Editable fields: url (new destination), disabled (bool), expires_in_days (number, or null to
-  // clear back to "never"). Slug rename is NOT supported in place (the slug is the link's key) —
-  // delete the link and create a new one to change the slug.
+  // clear back to "never"). To change the slug itself, use POST /shortener/links/:slug/rename
+  // (it migrates clicks + settings to the new slug).
   router.patch('/shortener/links/:slug', apiKeyAuth, h(async (req, res) => {
     const domain = String(req.body?.domain || req.query.domain || '').trim().toLowerCase()
     const slug = String(req.params.slug || '').trim()
@@ -376,7 +378,7 @@ function registerShortenerRoutes({ router, apiKeyAuth, h, col, getDb, isLive, mo
         patch.expiresAt = Date.now() + Math.round(n * 86400000)
       }
     }
-    if (Object.keys(patch).length === 0 && finalUrl === url) return res.status(400).json({ error: 'nothing_to_update', message: 'Provide "url" (new destination), "disabled" (bool) and/or "expires_in_days" (number|null to clear). Slug rename is not supported — delete and re-create to change the slug.' })
+    if (Object.keys(patch).length === 0 && finalUrl === url) return res.status(400).json({ error: 'nothing_to_update', message: 'Provide "url" (new destination), "disabled" (bool) and/or "expires_in_days" (number|null to clear). To change the slug, use POST /shortener/links/:slug/rename.' })
 
     // Persist a destination change across every store the redirector reads.
     if (finalUrl !== url) {
@@ -387,6 +389,63 @@ function registerShortenerRoutes({ router, apiKeyAuth, h, col, getDb, isLive, mo
     await applyValidity(key, next)
     await col('shortenerLinks').updateOne({ _id: key }, { $set: { ownerChatId: owner(req), domain, slug, longUrl: finalUrl, disabled: next.disabled, expiresAt: next.expiresAtMs, updatedAt: new Date() } }, { upsert: true })
     res.json({ updated: true, ...(await linkView(owner(req), key, finalUrl)) })
+  }))
+
+  // Rename a link's slug — moves the link and MIGRATES its clicks + settings
+  // (destination, expiry, disabled state) to the new slug. Body: { domain, new_slug }
+  // ("alias" accepted as a synonym). The slug IS the link's key, so the OLD slug stops
+  // resolving (becomes a 404) and the SAME link lives at the new slug.
+  router.post('/shortener/links/:slug/rename', apiKeyAuth, h(async (req, res) => {
+    const domain = String(req.body?.domain || req.query.domain || '').trim().toLowerCase()
+    const oldSlug = String(req.params.slug || '').trim()
+    const newSlug = String(req.body?.new_slug ?? req.body?.alias ?? '').trim()
+    if (!domainOk(domain)) return res.status(400).json({ error: 'invalid_domain', message: 'Provide { "domain": "go.mysite.com" }.' })
+    if (!newSlug) return res.status(400).json({ error: 'missing_new_slug', message: 'Provide the new slug in { "new_slug": "my-new-code" }.' })
+    if (!aliasOk(newSlug)) return res.status(400).json({ error: 'invalid_alias', message: 'new_slug may contain only letters, numbers, hyphen and underscore (max 64 chars).' })
+    if (RESERVED.has(newSlug.toLowerCase())) return res.status(409).json({ error: 'reserved_alias', message: `"${newSlug}" is a reserved word and cannot be used as a short code.` })
+
+    const oldKey = keyOf(domain, oldSlug)
+    const newKey = keyOf(domain, newSlug)
+
+    // Source link must exist and belong to the caller.
+    const url = await get(col('fullUrlOf'), oldKey)
+    const inList = (await get(col('linksOf'), owner(req)))?.[oldKey]
+    if (!url || !inList) return res.status(404).json({ error: 'not_found', message: 'No such short link under your account.' })
+
+    if (newKey === oldKey) return res.status(400).json({ error: 'same_slug', message: 'The new slug is the same as the current one.' })
+    if (await get(col('fullUrlOf'), newKey)) return res.status(409).json({ error: 'alias_taken', message: `${domain}/${newSlug} already exists. Choose a different slug.` })
+
+    // Snapshot everything stored under the old key.
+    const clicks = await get(col('clicksOn'), oldKey)
+    const expiryMs = await get(col('expiryOf'), oldKey)
+    const meta = await col('shortenerLinks').findOne({ _id: oldKey }).catch(() => null)
+    const disabled = !!(meta && meta.disabled) || expiryMs === 1
+
+    // Write the new key: destination, ownership listing, migrated clicks, validity, metadata.
+    await set(col('fullUrlOf'), newKey, url)
+    await set(col('linksOf'), owner(req), newKey, url)
+    if (typeof clicks === 'number' && clicks > 0) await set(col('clicksOn'), newKey, clicks)
+    if (typeof expiryMs === 'number') await set(col('expiryOf'), newKey, expiryMs)
+    await col('shortenerLinks').updateOne(
+      { _id: newKey },
+      { $set: {
+        ownerChatId: owner(req), domain, slug: newSlug, longUrl: url, alias: newSlug,
+        disabled,
+        expiresAt: (meta && typeof meta.expiresAt === 'number') ? meta.expiresAt : null,
+        createdAt: meta?.createdAt || new Date(),
+        updatedAt: new Date(),
+      } },
+      { upsert: true },
+    )
+
+    // Remove the old key everywhere — the old slug now 404s.
+    await del(col('fullUrlOf'), oldKey)
+    await col('linksOf').updateOne({ _id: owner(req) }, { $unset: { [oldKey]: '' } })
+    await del(col('clicksOn'), oldKey)
+    await del(col('expiryOf'), oldKey)
+    await col('shortenerLinks').deleteOne({ _id: oldKey }).catch(() => {})
+
+    res.json({ renamed: true, old_slug: oldSlug, old_short_url: `https://${domain}/${oldSlug}`, ...(await linkView(owner(req), newKey, url)) })
   }))
 
   // Delete a short link.
@@ -406,7 +465,7 @@ function registerShortenerRoutes({ router, apiKeyAuth, h, col, getDb, isLive, mo
     res.json({ deleted: true, domain, slug })
   }))
 
-  log('[ResellerAPI] URL-shortener routes registered (domains: buy/existing/external + verify + deactivate; links: create/list/get/patch/delete)')
+  log('[ResellerAPI] URL-shortener routes registered (domains: buy/existing/external + verify + deactivate; links: create/list/get/patch/rename/delete)')
 }
 
 module.exports = { registerShortenerRoutes }

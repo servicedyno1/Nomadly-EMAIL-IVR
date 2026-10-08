@@ -296,11 +296,26 @@ async function removeDomainFromRailway(domain) {
 const droplet = require('./droplet-domain-server.js')
 const pick = (dropletFn, railwayFn) => (...args) => (droplet.isDroplet() ? dropletFn(...args) : railwayFn(...args))
 
+// Shortener-origin host operations. On this platform HOSTED_ON=droplet, so these
+// route to the DigitalOcean droplet server; the Railway implementations remain
+// only as a fallback for isDroplet()===false. The `*Host`/`*Server` names are the
+// current terminology; the `*Railway` keys are kept as deprecated aliases.
+const saveShortenerHost = pick(droplet.saveDomainInServer, saveDomainInServerRailway)
+const removeShortenerHost = pick(droplet.removeDomainFromServer, removeDomainFromRailway)
+const getExistingHostDNS = pick(droplet.getExistingServerDNS, getExistingRailwayDNS)
+const listShortenerHostDomains = pick(droplet.listServerDomains, listRailwayCustomDomains)
+
 module.exports = {
-  saveDomainInServerRailway: pick(droplet.saveDomainInServer, saveDomainInServerRailway),
-  removeDomainFromRailway: pick(droplet.removeDomainFromServer, removeDomainFromRailway),
-  getExistingRailwayDNS: pick(droplet.getExistingServerDNS, getExistingRailwayDNS),
-  listRailwayCustomDomains: pick(droplet.listServerDomains, listRailwayCustomDomains),
+  // Current (host/droplet) terminology:
+  saveShortenerHost,
+  removeShortenerHost,
+  getExistingHostDNS,
+  listShortenerHostDomains,
+  // Deprecated aliases (kept so older callers / ops scripts keep working):
+  saveDomainInServerRailway: saveShortenerHost,
+  removeDomainFromRailway: removeShortenerHost,
+  getExistingRailwayDNS: getExistingHostDNS,
+  listRailwayCustomDomains: listShortenerHostDomains,
   isRailwayAPIWorking,
   saveDomainInServerRender,
   isShortenerDnsRecord: droplet.isShortenerDnsRecord,

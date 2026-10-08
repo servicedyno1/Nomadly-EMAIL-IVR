@@ -4,7 +4,8 @@
  * Tracks the multi-step shortener activation process so it can
  * resume from the last completed step after a deployment restart.
  *
- * Steps: pending → railway_linked → dns_added → completed
+ * Steps: pending → host_linked → dns_added → completed
+ *   (legacy records may still carry status 'railway_linked' — treated as host_linked)
  */
 const { log } = require('console')
 
@@ -42,16 +43,19 @@ async function createActivationTask(chatId, domain, lang) {
 }
 
 /**
- * Mark Railway linking complete (step 2 — CNAME obtained)
+ * Mark host (shortener origin) linking complete (step 2 — DNS target obtained).
+ * Formerly markRailwayLinked; now writes status 'host_linked'. An alias is kept.
  */
-async function markRailwayLinked(domain, server, recordType) {
+async function markHostLinked(domain, server, recordType) {
   if (!_db) return
   await _db.collection(COLLECTION).updateOne(
     { _id: domain },
-    { $set: { status: 'railway_linked', server, recordType, updatedAt: new Date() } }
+    { $set: { status: 'host_linked', server, recordType, updatedAt: new Date() } }
   )
-  log(`[ShortenerPersistence] ${domain} → railway_linked (${recordType} → ${server})`)
+  log(`[ShortenerPersistence] ${domain} → host_linked (${recordType} → ${server})`)
 }
+// Back-compat alias for any older/external callers.
+const markRailwayLinked = markHostLinked
 
 /**
  * Mark DNS record added (step 3)
@@ -105,12 +109,12 @@ async function markSkipped(domain, reason) {
 
 /**
  * Find all incomplete activation tasks
- * Returns tasks that are pending, railway_linked, or dns_added
+ * Returns tasks that are pending, host_linked (or legacy railway_linked), or dns_added
  */
 async function findIncompleteTasks() {
   if (!_db) return []
   return _db.collection(COLLECTION).find({
-    status: { $in: ['pending', 'railway_linked', 'dns_added'] }
+    status: { $in: ['pending', 'host_linked', 'railway_linked', 'dns_added'] }
   }).toArray()
 }
 
@@ -181,7 +185,8 @@ async function findPendingDeactivations() {
 module.exports = {
   initShortenerPersistence,
   createActivationTask,
-  markRailwayLinked,
+  markHostLinked,
+  markRailwayLinked, // deprecated alias → markHostLinked
   markDnsAdded,
   markCompleted,
   markFailed,

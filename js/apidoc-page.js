@@ -344,7 +344,7 @@ function endpointGroups(base) {
         },
         {
           method: 'GET', path: '/shortener/domains', auth: true, billed: false,
-          desc: 'List every domain you have activated (or are activating) as a shortener, with its status (pending/railway_linked/dns_added/completed/failed/deactivated) and the DNS target.',
+          desc: 'List every domain you have activated (or are activating) as a shortener, with its status (pending/host_linked/dns_added/completed/failed/deactivated), an `active` boolean (true when it accepts links), and the DNS target.',
           curl: `curl -s ${base}/shortener/domains \\
   -H "Authorization: Bearer YOUR_API_KEY"`,
           resp: `{ "domains": [ { "domain": "go.mysite.com", "status": "completed", "cname_target": "nomadly.up.railway.app", "record_type": "CNAME", "activated_at": "2026-06-20T10:00:00.000Z" } ] }`,
