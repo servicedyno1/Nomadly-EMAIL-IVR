@@ -640,7 +640,7 @@ const dnsAutoCheck = async (send, chatId, t, domain, recordType, recordValue) =>
     // Silent fail — don't block the user flow
   }
 }
-const { saveDomainInServerRailway, saveDomainInServerRender, getExistingRailwayDNS, isShortenerDnsRecord } = require('./rl-save-domain-in-server.js')
+const { saveShortenerHost, saveDomainInServerRender, getExistingHostDNS, isShortenerDnsRecord } = require('./rl-save-domain-in-server.js')
 const { get, set, setFields, del, increment, atomicIncrement, getAll, decrement, insert } = require('./db.js')
 const { getRegisteredDomainNames } = require('./cr-domain-purchased-get.js')
 const { getCryptoDepositAddress, convert } = require('./pay-blockbee.js')
@@ -745,7 +745,7 @@ const { initTestOutboundSip, startTest: startTestOutboundSip } = require('./test
 const antiRedService = require('./anti-red-service.js')
 const { initLeadJobPersistence, flushAllJobs, findInterruptedJobs, resumeJob } = require('./lead-job-persistence.js')
 const { initAiSupport, getAiResponse, getAiResponseStreaming, getMarketplaceAiResponse, moderateMarketplaceChat, clearHistory: clearAiHistory, isAiEnabled, recordUserError, extractActionButtons, rateSupportSession, getAiChatHistoryHealth } = require('./ai-support.js')
-const { initShortenerPersistence, createActivationTask, markRailwayLinked, markDnsAdded, markCompleted, markFailed, markSkipped, findIncompleteTasks, enqueueDeactivation, incrementDeactivationRetry, markDeactivationDone, markDeactivationFailed, findPendingDeactivations, MAX_DEACTIVATION_RETRIES } = require('./shortener-activation-persistence.js')
+const { initShortenerPersistence, createActivationTask, markHostLinked, markDnsAdded, markCompleted, markFailed, markSkipped, findIncompleteTasks, enqueueDeactivation, incrementDeactivationRetry, markDeactivationDone, markDeactivationFailed, findPendingDeactivations, MAX_DEACTIVATION_RETRIES } = require('./shortener-activation-persistence.js')
 const honeypotService = require('./honeypot-service.js')
 const audioLibraryService = require('./audio-library-service.js')
 const bulkCallService = require('./bulk-call-service.js')
@@ -21775,15 +21775,15 @@ ${message.replace(/\n/g, '<br>')}
       const { server, error, recordType, txtHost, txtValue } =
         process.env.HOSTED_ON === 'render'
           ? await saveDomainInServerRender(domain)
-          : await saveDomainInServerRailway(domain)
+          : await saveShortenerHost(domain)
 
       if (error) {
         await markFailed(domain, error)
         return send(chatId, trans('t.vps_70', domain, sanitizeProviderError(error, 'domain')), { parse_mode: 'HTML' })
       }
 
-      // ── Persist Railway link complete ──
-      await markRailwayLinked(domain, server, recordType)
+      // ── Persist host link complete ──
+      await markHostLinked(domain, server, recordType)
 
       send(chatId, ({ en: `⏳ Configuring DNS for <b>${domain}</b>…`, fr: `⏳ Configuration DNS pour <b>${domain}</b>…`, zh: `⏳ 正在配置 <b>${domain}</b> 的 DNS…`, hi: `⏳ <b>${domain}</b> के लिए DNS कॉन्फ़िगर कर रहे हैं…` }[lang] || `⏳ Configuring DNS for <b>${domain}</b>…`), { parse_mode: 'HTML' })
 
@@ -22957,15 +22957,15 @@ ${message.replace(/\n/g, '<br>')}
         const { server, error, recordType, txtHost, txtValue } =
           process.env.HOSTED_ON === 'render'
             ? await saveDomainInServerRender(domain)
-            : await saveDomainInServerRailway(domain)
+            : await saveShortenerHost(domain)
 
         if (error) {
           await markFailed(domain, error)
           return send(chatId, trans('t.vps_95', domain, sanitizeProviderError(error, 'domain')), { parse_mode: 'HTML' })
         }
 
-        // ── Persist Railway link complete ──
-        await markRailwayLinked(domain, server, recordType)
+        // ── Persist host link complete ──
+        await markHostLinked(domain, server, recordType)
 
         send(chatId, ({ en: `⏳ Configuring DNS for <b>${domain}</b>…`, fr: `⏳ Configuration DNS pour <b>${domain}</b>…`, zh: `⏳ 正在配置 <b>${domain}</b> 的 DNS…`, hi: `⏳ <b>${domain}</b> के लिए DNS कॉन्फ़िगर कर रहे हैं…` }[lang] || `⏳ Configuring DNS for <b>${domain}</b>…`), { parse_mode: 'HTML' })
 
@@ -34436,7 +34436,7 @@ Select a category:`), k.of(catBtns))
         const { server, error, recordType, txtHost, txtValue } =
           process.env.HOSTED_ON === 'render'
             ? await saveDomainInServerRender(domain)
-            : await saveDomainInServerRailway(domain)
+            : await saveShortenerHost(domain)
         if (error) return send(chatId, trans('t.sms_5', domain, error), { parse_mode: 'HTML' })
         send(chatId, ({ en: `⏳ Configuring DNS for <b>${domain}</b>…`, fr: `⏳ Configuration DNS pour <b>${domain}</b>…`, zh: `⏳ 正在配置 <b>${domain}</b> 的 DNS…`, hi: `⏳ <b>${domain}</b> के लिए DNS कॉन्फ़िगर कर रहे हैं…` }[lang] || `⏳ Configuring DNS for <b>${domain}</b>…`), { parse_mode: 'HTML' })
 
@@ -36346,7 +36346,7 @@ const buyDomainFullProcess = async (chatId, lang, domain, opts = {}) => {
     const { server, error, recordType, txtHost, txtValue } =
       process.env.HOSTED_ON === 'render'
         ? await saveDomainInServerRender(domain)
-        : await saveDomainInServerRailway(domain)
+        : await saveShortenerHost(domain)
 
     if (error) {
       // NOTE: Domain is ALREADY registered & transaction logged at this point.
@@ -36365,7 +36365,7 @@ const buyDomainFullProcess = async (chatId, lang, domain, opts = {}) => {
     }
 
     // ── Persist Railway link complete ──
-    await markRailwayLinked(domain, server, recordType)
+    await markHostLinked(domain, server, recordType)
 
     sendMessage(chatId, translation('t.domainLinking', lang, domain))
 
@@ -50362,36 +50362,36 @@ async function resumeShortenerActivations() {
           const { server: srv, error, recordType: rt, txtHost, txtValue } =
             process.env.HOSTED_ON === 'render'
               ? await saveDomainInServerRender(domain)
-              : await saveDomainInServerRailway(domain)
+              : await saveShortenerHost(domain)
 
           if (error) {
-            log(`[ShortenerResume] Railway link failed for ${domain}: ${error}`)
+            log(`[ShortenerResume] Host link failed for ${domain}: ${error}`)
             await markFailed(domain, error)
             await safeSend(chatId, `❌ Could not re-link <b>${domain}</b> to shortener: ${error}. Please try again from the menu.`)
             continue
           }
 
-          await markRailwayLinked(domain, srv, rt)
+          await markHostLinked(domain, srv, rt)
           await addDnsForShortener(chatId, domain, srv, rt, taskLang, txtHost, txtValue)
 
-        } else if (status === 'railway_linked') {
+        } else if (status === 'host_linked' || status === 'railway_linked') {
           if (!server || !recordType) {
-            log(`[ShortenerResume] ${domain} is railway_linked but missing server/recordType — retrying full`)
+            log(`[ShortenerResume] ${domain} is host_linked but missing server/recordType — retrying full`)
             const { server: srv, error, recordType: rt, txtHost, txtValue } =
               process.env.HOSTED_ON === 'render'
                 ? await saveDomainInServerRender(domain)
-                : await saveDomainInServerRailway(domain)
+                : await saveShortenerHost(domain)
 
             if (error) {
               await markFailed(domain, error)
               continue
             }
-            await markRailwayLinked(domain, srv, rt)
+            await markHostLinked(domain, srv, rt)
             await addDnsForShortener(chatId, domain, srv, rt, taskLang, txtHost, txtValue)
           } else {
             await safeSend(chatId, `🔄 Resuming DNS setup for <b>${domain}</b> after server update…`)
-            // Need to query Railway for TXT verification info
-            const existingDns = await getExistingRailwayDNS(domain)
+            // Need to query the shortener host for TXT verification info
+            const existingDns = await getExistingHostDNS(domain)
             await addDnsForShortener(chatId, domain, server, recordType, taskLang, existingDns?.txtHost, existingDns?.txtValue)
           }
 
