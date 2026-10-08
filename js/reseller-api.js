@@ -828,11 +828,19 @@ function createResellerApi(deps = {}) {
   router.post('/dns/:domain/records', apiKeyAuth, h(async (req, res) => {
     const domain = String(req.params.domain || '').trim().toLowerCase()
     if (!domainOk(domain)) return res.status(400).json({ error: 'invalid_domain' })
-    const { type, name, value, priority, ttl } = req.body || {}
+    const { type, name, value, priority, ttl, proxied } = req.body || {}
     if (!type || value == null) return res.status(400).json({ error: 'invalid_record', message: 'Body must include { type, name, value }.' })
-    const r = await domainService.addDNSRecord(domain, String(type).toUpperCase(), value, name || '@', getDb(), priority, ttl ? { ttl } : undefined)
+    // Honor an explicit proxied flag (default stays proxied for A/AAAA/CNAME on
+    // Cloudflare zones). Pass it through `opts` (8th arg) — NOT extraData — so
+    // addDNSRecord's `opts.proxied !== false` check sees it. A shortener/origin
+    // A-record that must resolve directly to the origin IP should be created
+    // with proxied:false; a Cloudflare-fronted host should stay proxied:true.
+    const opts = {}
+    if (proxied !== undefined) opts.proxied = (proxied === true || proxied === 'true')
+    const extraData = (ttl !== undefined && ttl !== null) ? { ttl } : undefined
+    const r = await domainService.addDNSRecord(domain, String(type).toUpperCase(), value, name || '@', getDb(), priority, extraData, Object.keys(opts).length ? opts : undefined)
     if (r && r.success === false) return res.status(502).json({ error: 'dns_add_failed', message: r.error || r.message })
-    res.json({ domain, added: { type, name: name || '@', value, priority: priority || null, ttl: ttl || null }, detail: r || null })
+    res.json({ domain, added: { type, name: name || '@', value, priority: priority || null, ttl: ttl || null, proxied: (proxied !== undefined ? opts.proxied : null) }, detail: r || null })
   }))
 
   router.put('/dns/:domain/records', apiKeyAuth, h(async (req, res) => {
