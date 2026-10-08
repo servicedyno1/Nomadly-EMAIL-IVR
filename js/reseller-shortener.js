@@ -28,7 +28,8 @@ const rlSaveDomain = require('./rl-save-domain-in-server')
 const domainService = require('./domain-service')
 // Verification helper: accepts BOTH a DNS-only (grey-cloud) record AND a
 // Cloudflare-proxied (orange-cloud) record. See js/shortener-verify.js.
-const { dnsPointsTo } = require('./shortener-verify')
+// zoneCandidates yields [host, parent, …] (never the bare TLD) for subdomain support.
+const { dnsPointsTo, zoneCandidates } = require('./shortener-verify')
 
 const slugGen = customAlphabet('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789', 7)
 
@@ -46,13 +47,18 @@ const ACTIVE_STATUSES = ['railway_linked', 'dns_added', 'completed']
 function registerShortenerRoutes({ router, apiKeyAuth, h, col, getDb, isLive, mode, log, billedProvision }) {
   const owner = (req) => String(req.reseller.ownerChatId)
 
-  // Does the owner own this domain in the bot's ownership map (either shape)?
+  // Does the owner own this domain (or its parent registrable domain) in the
+  // bot's ownership map? A subdomain (go.namewords.sbs) counts as owned when the
+  // owner holds the parent zone (namewords.sbs) already on our platform.
   async function ownsDomain(ownerId, domain) {
     const d = String(domain).toLowerCase()
     const byMap = await col('domainsOf').findOne({ _id: String(ownerId) })
-    if (byMap && byMap[sanitize(d)] === true) return true
-    const byDoc = await col('domainsOf').findOne({ chatId: String(ownerId), domainName: d })
-    return !!byDoc
+    for (const cand of zoneCandidates(d)) {
+      if (byMap && byMap[sanitize(cand)] === true) return true
+      const byDoc = await col('domainsOf').findOne({ chatId: String(ownerId), domainName: cand })
+      if (byDoc) return true
+    }
+    return false
   }
 
   // Fetch (and owner-scope) a domain's activation record.
@@ -187,18 +193,22 @@ function registerShortenerRoutes({ router, apiKeyAuth, h, col, getDb, isLive, mo
   }))
 
   // List the owner's shortener domains + status.
+  // `active: true` (status is railway_linked | dns_added | completed) means the
+  // domain accepts POST /shortener/links. `completed` is the fully-verified state.
   router.get('/shortener/domains', apiKeyAuth, h(async (req, res) => {
     const docs = await col('shortenerActivations').find({ chatId: owner(req) }).limit(500).toArray()
     res.json({
       domains: docs.map(d => ({
         domain: d.domain || d._id,
         status: d.status || 'unknown',
+        active: ACTIVE_STATUSES.includes(d.status),
         cname_target: d.server || null,
         record_type: d.recordType || null,
         activated_at: d.completedAt ? new Date(d.completedAt).toISOString() : null,
         updated_at: d.updatedAt ? new Date(d.updatedAt).toISOString() : null,
         error: d.error || null,
       })),
+      active_statuses: ACTIVE_STATUSES,
       mode: mode(),
     })
   }))
@@ -331,7 +341,10 @@ function registerShortenerRoutes({ router, apiKeyAuth, h, col, getDb, isLive, mo
     res.json(await linkView(owner(req), key, url))
   }))
 
-  // Update a link: enable/disable and/or set-or-clear expiry.
+  // Update a link: change destination url, enable/disable, and/or set-or-clear expiry.
+  // Editable fields: url (new destination), disabled (bool), expires_in_days (number, or null to
+  // clear back to "never"). Slug rename is NOT supported in place (the slug is the link's key) —
+  // delete the link and create a new one to change the slug.
   router.patch('/shortener/links/:slug', apiKeyAuth, h(async (req, res) => {
     const domain = String(req.body?.domain || req.query.domain || '').trim().toLowerCase()
     const slug = String(req.params.slug || '').trim()
@@ -343,6 +356,13 @@ function registerShortenerRoutes({ router, apiKeyAuth, h, col, getDb, isLive, mo
 
     const meta = (await col('shortenerLinks').findOne({ _id: key }).catch(() => null)) || { ownerChatId: owner(req), domain, slug, longUrl: url, disabled: false, expiresAt: null }
     const patch = {}
+    // Destination URL edit (optional).
+    let finalUrl = url
+    if (req.body?.url !== undefined) {
+      const newUrl = String(req.body.url || '').trim()
+      if (!urlOk(newUrl)) return res.status(400).json({ error: 'invalid_url', message: 'Provide a valid http(s) target URL in { "url": "https://…" }.' })
+      finalUrl = newUrl
+    }
     if (req.body?.disabled != null) {
       if (typeof req.body.disabled !== 'boolean') return res.status(400).json({ error: 'invalid_body', message: '"disabled" must be a boolean.' })
       patch.disabled = req.body.disabled
@@ -356,12 +376,17 @@ function registerShortenerRoutes({ router, apiKeyAuth, h, col, getDb, isLive, mo
         patch.expiresAt = Date.now() + Math.round(n * 86400000)
       }
     }
-    if (Object.keys(patch).length === 0) return res.status(400).json({ error: 'nothing_to_update', message: 'Provide "disabled" (bool) and/or "expires_in_days" (number|null).' })
+    if (Object.keys(patch).length === 0 && finalUrl === url) return res.status(400).json({ error: 'nothing_to_update', message: 'Provide "url" (new destination), "disabled" (bool) and/or "expires_in_days" (number|null to clear). Slug rename is not supported — delete and re-create to change the slug.' })
 
+    // Persist a destination change across every store the redirector reads.
+    if (finalUrl !== url) {
+      await set(col('fullUrlOf'), key, finalUrl)
+      await set(col('linksOf'), owner(req), key, finalUrl)
+    }
     const next = { disabled: patch.disabled != null ? patch.disabled : !!meta.disabled, expiresAtMs: patch.expiresAt !== undefined ? patch.expiresAt : (typeof meta.expiresAt === 'number' ? meta.expiresAt : null) }
     await applyValidity(key, next)
-    await col('shortenerLinks').updateOne({ _id: key }, { $set: { ownerChatId: owner(req), domain, slug, longUrl: url, disabled: next.disabled, expiresAt: next.expiresAtMs, updatedAt: new Date() } }, { upsert: true })
-    res.json({ updated: true, ...(await linkView(owner(req), key, url)) })
+    await col('shortenerLinks').updateOne({ _id: key }, { $set: { ownerChatId: owner(req), domain, slug, longUrl: finalUrl, disabled: next.disabled, expiresAt: next.expiresAtMs, updatedAt: new Date() } }, { upsert: true })
+    res.json({ updated: true, ...(await linkView(owner(req), key, finalUrl)) })
   }))
 
   // Delete a short link.

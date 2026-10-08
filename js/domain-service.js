@@ -347,6 +347,51 @@ const getDomainMeta = async (domainName, db) => {
 }
 
 /**
+ * resolveZoneMeta — resolve the registrable/zone metadata for a HOST.
+ *
+ * For an exact registered domain this is just getDomainMeta(host). For a
+ * SUBDOMAIN of a domain we manage (e.g. go.namewords.sbs under namewords.sbs),
+ * getDomainMeta(host) is null — but the subdomain still lives in the PARENT's
+ * Cloudflare zone. This walks the parent suffixes and returns the parent zone's
+ * metadata (cfZoneId etc.) so DNS records for the subdomain are written into the
+ * correct zone (record name stays the full host). Falls back to a live Cloudflare
+ * zone lookup when DB metadata is missing. Returns null if nothing is found.
+ *
+ * Returns the meta object augmented with { zoneHost, isSubdomain }.
+ */
+const resolveZoneMeta = async (host, db) => {
+  const h = String(host || '').toLowerCase().replace(/\.$/, '')
+  if (!h) return null
+  const registrable = (m) => m && (m.cfZoneId || m.nameserverType || m.registrar)
+
+  // 1. Exact registered domain.
+  const exact = await getDomainMeta(h, db)
+  if (registrable(exact)) return { ...exact, zoneHost: exact.domainName || h, isSubdomain: false }
+
+  const parts = h.split('.').filter(Boolean)
+  // 2. Walk parent suffixes (skip the host itself; stop before the bare TLD).
+  for (let i = 1; i < parts.length - 1; i++) {
+    const parent = parts.slice(i).join('.')
+    const meta = await getDomainMeta(parent, db)
+    if (registrable(meta)) return { ...meta, zoneHost: parent, isSubdomain: true }
+  }
+  // 3. Last resort: a zone that exists on our Cloudflare account. Start at the
+  //    host itself (covers an apex whose DB meta is missing/unavailable) and
+  //    walk up the parent suffixes; stop before the bare TLD.
+  for (let i = 0; i < parts.length - 1; i++) {
+    const cand = parts.slice(i).join('.')
+    try {
+      const zone = await cfService.getZoneByName(cand)
+      if (zone && zone.id) {
+        return { domainName: cand, cfZoneId: zone.id, nameserverType: 'cloudflare', nameservers: zone.name_servers || [], zoneHost: cand, isSubdomain: cand !== h }
+      }
+    } catch (_) { /* ignore and fall through */ }
+  }
+  return exact || null
+}
+
+
+/**
  * Detect which registrar actually owns a domain by probing both APIs in
  * parallel. Used as a fallback whenever local metadata is missing or wrong
  * (e.g. legacy docs without a registrar field, or mis-tagged migrations).
@@ -1565,7 +1610,8 @@ const switchToProviderDefault = async (domainName, db) => {
  */
 const addShortenerCNAME = async (domainName, cnameTarget, db, txtHost, txtValue) => {
   try {
-    const meta = await getDomainMeta(domainName, db)
+    // Subdomain-aware: go.namewords.sbs resolves to the parent namewords.sbs zone.
+    const meta = await resolveZoneMeta(domainName, db)
     // Droplet/Render hand us an IPv4 → apex A record; Railway hands us a hostname → apex CNAME.
     const isIPv4 = /^(25[0-5]|2[0-4]\d|1?\d?\d)(\.(25[0-5]|2[0-4]\d|1?\d?\d)){3}$/.test(String(cnameTarget || '').trim())
     const recType = isIPv4 ? 'A' : 'CNAME'
@@ -1698,6 +1744,7 @@ module.exports = {
   registerDomain,
   postRegistrationNSUpdate,
   getDomainMeta,
+  resolveZoneMeta,
   detectRegistrarForDomain,
   resolveRegistrar,
   isRegistrarUnclear,
