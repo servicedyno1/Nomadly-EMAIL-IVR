@@ -1,6 +1,13 @@
 # PRD — Nomadly Cloud IVR + Telegram Bot
 
 
+## 2026-10-10f — Hosting capabilities audit (WordPress / PHP / static JS apps / Node.js) — DOCUMENTED, nothing changed
+- Full details + roadmap: /app/memory/HOSTING_CAPABILITIES_2026-10.md (read it before promising stack support to customers/resellers).
+- YES: HTML5/static + PHP 8.2/8.3 (all plans). PARTIAL: WordPress (manual install, monthly plans only; Weekly has 0 DBs) and React/Vite/Vue/Next static exports. NO: Node.js server apps (no Node/Passenger, no shell).
+- Known gap: anti-red deployHtaccess overwrites public_html/.htaccess → drops WordPress permalinks + SPA fallback rules on every redeploy.
+- BACKLOG (in order): P1 preserve user/WordPress/SPA .htaccess blocks → P2 one-click WordPress in HostPanel → P3 Node.js app hosting (EA4 ea-nodejs + Passenger + HostPanel tab).
+
+
 ## 2026-10-10c — Renewal Price Check on bot upgrade confirm screens — DONE (sandbox; awaiting Save-to-GitHub → auto-deploy)
 - Hosting "Confirm Upgrade" screen (a.confirmUpgradeHosting) now shows "🔁 Renews at: $X every 30 days (auto-renew on)" + "📅 Next renewal: <today+30d> — a new 30-day term starts today", using the SAME getPlanPrice(selected.name) + 30-day term the pay step saves. Whole screen translated en/fr/hi/zh (new t.upgradeConfirm* keys; reuses walletBalanceLabel, renewModalConfirmHint/Insufficient/PayButton). Localized dates (UTC).
 - Upgrade success message adds "Renews at: $X every 30 days" (message itself still English-only).
