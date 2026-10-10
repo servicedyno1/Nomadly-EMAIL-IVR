@@ -1,27 +1,22 @@
 /* eslint-env node */
 /**
- * One-shot startup migration: raise MAXSQL=5 on the Premium-Anti-Red-HostPanel-1-Month
- * WHM package + on every existing Premium Monthly cpanelAccount.
+ * One-shot startup migrations that raise the WHM MySQL quota (MAXSQL) on a package
+ * + on every existing account of that plan, so the per-plan database limits in
+ * whm-service.js PLAN_MYSQL_LIMITS also apply to accounts created before them.
+ *   v1 (2026-06): Premium Monthly → 5 databases (storefront promised MySQL, package had 0).
+ *   weekly v1 (2026-10): Premium Weekly → 2 databases (MySQL opened to the weekly plan).
  *
- * Background: the storefront's Premium Monthly card advertises "MySQL databases",
- * and 2026-06-19 we widened the /mysql/* gate from Gold-only to (Premium Monthly +
- * Gold). But the underlying WHM package was provisioned with MAXSQL=0, so existing
- * Premium Monthly customers still cannot create databases at the cPanel layer. This
- * migration brings their accounts up to spec.
- *
- * Idempotent — completion is recorded in a `migrations` collection so it only runs
- * once. Safe to re-deploy or restart the service multiple times. Sandbox/dev pods
- * that cannot reach WHM (CF Access 403) simply log warnings and don't poison the
- * marker — the migration will retry on the next startup once WHM is reachable.
- *
- * Used from js/_index.js a few seconds after startup, similar to runCpanelMigration.
+ * Idempotent — completion is recorded per migration in the `migrations` collection.
+ * Pods that cannot reach WHM (CF Access 403) log warnings and don't set the marker,
+ * so the migration retries on the next startup once WHM is reachable.
  */
 const axios = require('axios')
 
-const MIGRATION_ID = 'raise_maxsql_premium_monthly_v1'
-const PKG_NAME = 'Premium-Anti-Red-HostPanel-1-Month'
-const NEW_MAXSQL = 5
-const PLAN_REGEX = /^Premium Anti-Red HostPanel \(1-Month\)$/i
+const MIGRATIONS = [
+  { id: 'raise_maxsql_premium_monthly_v1', pkg: 'Premium-Anti-Red-HostPanel-1-Month', maxsql: 5, plan: /^Premium Anti-Red HostPanel \(1-Month\)$/i },
+  { id: 'raise_maxsql_premium_weekly_v1', pkg: 'Premium-Anti-Red-1-Week', maxsql: 2, plan: /^Premium Anti-Red \(1-Week\)$/i },
+]
+const MIGRATION_ID = MIGRATIONS[0].id
 
 function buildWhmClient() {
   const WHM_BASE = process.env.WHM_API_URL
@@ -39,65 +34,46 @@ function buildWhmClient() {
   })
 }
 
-async function runMaxsqlMigration(getDb) {
-  const log = (...args) => console.log('[MaxsqlMigration]', ...args)
-  const warn = (...args) => console.warn('[MaxsqlMigration]', ...args)
-  const db = getDb && getDb()
-  if (!db) { warn('skip — getDb() returned null'); return }
-
+async function runOne(db, whm, m, log, warn) {
   const migrations = db.collection('migrations')
-  const existing = await migrations.findOne({ _id: MIGRATION_ID }).catch(() => null)
+  const existing = await migrations.findOne({ _id: m.id }).catch(() => null)
   if (existing?.completedAt) {
-    log(`already complete (${new Date(existing.completedAt).toISOString()}) — skipping`)
+    log(`${m.id} already complete (${new Date(existing.completedAt).toISOString()}) — skipping`)
     return
   }
 
-  const whm = buildWhmClient()
-  if (!whm) { warn('skip — WHM_API_URL or WHM_TOKEN missing'); return }
-
   // 1) modifypkg — raise the package default so future accounts auto-inherit.
   let pkgOk = false
-  let pkgUnreachable = false
   try {
-    const r = await whm.get('/modifypkg', { params: { 'api.version': 1, name: PKG_NAME, MAXSQL: NEW_MAXSQL } })
-    if (r.status === 403) {
-      pkgUnreachable = true
-      warn(`modifypkg 403 (CF Access blocked); will retry on next startup`)
-    } else if (r.data?.metadata?.result === 1) {
+    const r = await whm.get('/modifypkg', { params: { 'api.version': 1, name: m.pkg, MAXSQL: m.maxsql } })
+    if (r.status === 403) { warn(`${m.id}: modifypkg 403 (CF Access blocked); will retry on next startup`); return }
+    if (r.data?.metadata?.result === 1) {
       pkgOk = true
-      log(`modifypkg ${PKG_NAME} MAXSQL=${NEW_MAXSQL} → OK`)
+      log(`modifypkg ${m.pkg} MAXSQL=${m.maxsql} → OK`)
     } else {
-      warn(`modifypkg rejected: ${r.data?.metadata?.reason || JSON.stringify(r.data).slice(0, 200)}`)
+      warn(`modifypkg ${m.pkg} rejected: ${r.data?.metadata?.reason || JSON.stringify(r.data).slice(0, 200)}`)
     }
   } catch (e) {
-    warn(`modifypkg threw: ${e.message}`)
-    if (e.response?.status === 403) pkgUnreachable = true
+    warn(`modifypkg ${m.pkg} threw: ${e.message}`)
+    if (e.response?.status === 403) return
   }
-  if (pkgUnreachable) return // Don't mark complete — let next startup retry
 
-  // 2) modifyacct for every existing Premium Monthly account.
+  // 2) modifyacct for every existing account on that plan.
   const accounts = await db.collection('cpanelAccounts').find({
-    plan: PLAN_REGEX,
+    plan: m.plan,
     deleted: { $ne: true },
     __seedTestAccount: { $ne: true },
   }).project({ _id: 1, cpUser: 1, domain: 1 }).toArray()
-  log(`found ${accounts.length} Premium Monthly account(s) to update`)
+  log(`${m.id}: found ${accounts.length} account(s) to update`)
 
   const stats = { ok: 0, fail: 0, accounts: accounts.length, pkgOk }
   for (const a of accounts) {
     const user = a.cpUser || a._id
     try {
-      const r = await whm.get('/modifyacct', { params: { 'api.version': 1, user, MAXSQL: NEW_MAXSQL } })
-      if (r.status === 403) {
-        warn(`modifyacct ${user} → 403 (CF Access); aborting & deferring`)
-        return // Don't mark complete — let next startup retry
-      }
-      if (r.data?.metadata?.result === 1) {
-        stats.ok++
-      } else {
-        stats.fail++
-        warn(`modifyacct ${user} rejected: ${r.data?.metadata?.reason || ''}`)
-      }
+      const r = await whm.get('/modifyacct', { params: { 'api.version': 1, user, MAXSQL: m.maxsql } })
+      if (r.status === 403) { warn(`modifyacct ${user} → 403 (CF Access); aborting & deferring`); return }
+      if (r.data?.metadata?.result === 1) stats.ok++
+      else { stats.fail++; warn(`modifyacct ${user} rejected: ${r.data?.metadata?.reason || ''}`) }
     } catch (e) {
       stats.fail++
       warn(`modifyacct ${user} threw: ${e.message}`)
@@ -105,17 +81,21 @@ async function runMaxsqlMigration(getDb) {
   }
 
   await migrations.updateOne(
-    { _id: MIGRATION_ID },
-    {
-      $set: {
-        completedAt: new Date(),
-        stats,
-        notes: `raised MAXSQL to ${NEW_MAXSQL} on package ${PKG_NAME} + ${stats.ok} cpanel account(s)`,
-      },
-    },
-    { upsert: true }
+    { _id: m.id },
+    { $set: { completedAt: new Date(), stats, notes: `raised MAXSQL to ${m.maxsql} on package ${m.pkg} + ${stats.ok} cpanel account(s)` } },
+    { upsert: true },
   )
-  log(`✅ migration ${MIGRATION_ID} complete: ${stats.ok} ok, ${stats.fail} failed, ${accounts.length} total`)
+  log(`✅ migration ${m.id} complete: ${stats.ok} ok, ${stats.fail} failed, ${accounts.length} total`)
 }
 
-module.exports = { runMaxsqlMigration, MIGRATION_ID }
+async function runMaxsqlMigration(getDb) {
+  const log = (...args) => console.log('[MaxsqlMigration]', ...args)
+  const warn = (...args) => console.warn('[MaxsqlMigration]', ...args)
+  const db = getDb && getDb()
+  if (!db) { warn('skip — getDb() returned null'); return }
+  const whm = buildWhmClient()
+  if (!whm) { warn('skip — WHM_API_URL or WHM_TOKEN missing'); return }
+  for (const m of MIGRATIONS) await runOne(db, whm, m, log, warn)
+}
+
+module.exports = { runMaxsqlMigration, MIGRATION_ID, MIGRATIONS }

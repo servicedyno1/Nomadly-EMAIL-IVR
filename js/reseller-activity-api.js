@@ -29,6 +29,8 @@ const ROUTES = {
   'POST /hosting/:user/addons': hosting('addon.add'),
   'DELETE /hosting/:user/domains/addon': hosting('addon.remove'),
   'POST /hosting/:user/change-primary': hosting('primary_domain.change'),
+  'POST /hosting/:user/apps': hosting((req, b) => `app.install.${(b && b.app) || (req.body && req.body.app) || 'wordpress'}`),
+  'POST /hosting/:user/apps/:appId/admin-password': hosting('app.admin_password_reset'),
   'POST /hosting/:user/domains/set-primary': hosting('primary_domain.change'),
   'POST /hosting/:user/security/anti-red/deploy': hosting('anti_red.deploy'),
   'POST /hosting/:user/security/anti-bot': hosting('security.anti_bot'),

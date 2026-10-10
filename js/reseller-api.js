@@ -110,7 +110,7 @@ function hostingPlans() {
     {
       id: 'premium-weekly', name: 'Premium Anti-Red (1-Week)', tier: 'premium',
       priceUsd: num(process.env.PREMIUM_ANTIRED_WEEKLY_PRICE, 30), durationDays: 7, addons: 1,
-      features: ['Anti-Red protection', '1 addon domain', 'HostPanel + File Manager', '7 days'],
+      features: ['Anti-Red protection', '1 addon domain', '2 MySQL databases', 'HostPanel + File Manager', '7 days'],
     },
     {
       id: 'premium-monthly', name: 'Premium Anti-Red HostPanel (1-Month)', tier: 'premium',
@@ -2742,6 +2742,43 @@ function createResellerApi(deps = {}) {
     try { const s = await whmService.createUserSession(acct._id); loginUrl = s?.url || s || null }
     catch (e) { log(`[ResellerAPI] credentials createUserSession warn: ${e.message}`) }
     res.json({ ...base, panel_pin: pin, direct_cpanel_login_url: loginUrl, note: 'This PIN was freshly generated — the previous PIN is now invalid.' })
+  }))
+
+  // ════════════════════════════════════════════════════════
+  // ONE-CLICK APPS (WordPress) — async install; poll GET …/apps/:id (shared with the HostPanel Apps tab).
+  // ════════════════════════════════════════════════════════
+  const hostingApps = require('./hosting-apps').createHostingApps({ getDb, cp: require('./cpanel-proxy'), antiRed, log })
+  const appsRoute = (fn) => h(async (req, res) => {
+    const acct = await loadOwnedCpanel(req, req.params.user)
+    if (!acct) return res.status(404).json({ error: 'not_found' })
+    try { await fn(req, res, acct) }
+    catch (e) {
+      if (e && e.status && e.code) return res.status(e.status).json({ error: e.code, message: e.message, ...(e.extra || {}) })
+      throw e
+    }
+  })
+
+  router.get('/hosting/:user/apps', apiKeyAuth, appsRoute(async (req, res, acct) => {
+    res.json({ username: acct._id, domain: acct.domain || null, catalog: hostingApps.CATALOG, apps: await hostingApps.list(acct) })
+  }))
+
+  router.post('/hosting/:user/apps', apiKeyAuth, appsRoute(async (req, res, acct) => {
+    const app = await hostingApps.start(acct, req.body || {}, { actor: 'api', live: isLive() })
+    if (!isLive()) return res.status(202).json({ mode: 'dry_run', ...app, note: 'Dry-run: validated only — no database, files or install ran. Set RESELLER_API_LIVE=true on a production pod to install.' })
+    res.status(202).json({
+      mode: 'live', ...app, poll_url: `/hosting/${acct._id}/apps/${app.id}`,
+      note: 'WordPress install started (usually 1-3 minutes). Poll this app (state: installing → ready | failed) or subscribe to hosting.app_installed / hosting.app_install_failed. The admin password is returned on the ready app detail.',
+    })
+  }))
+
+  router.get('/hosting/:user/apps/:appId', apiKeyAuth, appsRoute(async (req, res, acct) => {
+    res.json(await hostingApps.get(acct, req.params.appId))
+  }))
+
+  router.post('/hosting/:user/apps/:appId/admin-password', apiKeyAuth, appsRoute(async (req, res, acct) => {
+    const r = await hostingApps.resetPassword(acct, req.params.appId, { actor: 'api', live: isLive() })
+    if (r.dry_run) return res.json({ mode: 'dry_run', id: r.app.id, note: 'Dry-run: admin password not reset.' })
+    res.json({ mode: 'live', ...r.app, admin_user: r.admin_user, admin_password: r.admin_password, note: 'This password was freshly generated — the previous one no longer works.' })
   }))
 
   // ════════════════════════════════════════════════════════

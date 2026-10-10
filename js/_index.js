@@ -1325,6 +1325,7 @@ const RATE_LEAD_VALIDATOR = Number(process.env.RATE_LEAD_VALIDATOR)
 const RATE_CNAM_VALIDATOR = Number(process.env.RATE_CNAM_VALIDATOR)
 const FREE_LINKS = Number(process.env.FREE_LINKS)
 const HOSTED_ON = process.env.HOSTED_ON
+const shortenerAnalytics = require('./reseller-shortener-analytics') // reseller short-link routing + click analytics
 // Shortit feature flag — disabled only when explicitly set to 'false' (production kill-switch)
 const SHORTIT_ENABLED = process.env.SHORTIT_ENABLED !== 'false'
 
@@ -38220,7 +38221,7 @@ app.get('/branding', (_req, res) => {
 
 // ── cPanel Panel Routes ──
 const { createCpanelRoutes } = require('./cpanel-routes')
-app.use('/panel', createCpanelRoutes(() => cpanelAccounts, { notifyAdmin }))
+app.use('/panel', createCpanelRoutes(() => cpanelAccounts, { notifyAdmin, getDb: () => db }))
 
 // ── Public Web Storefront Routes (account + wallet + crypto top-up) ──
 const { createStoreRoutes, mintBotLoginToken } = require('./store-routes')
@@ -47459,7 +47460,21 @@ app.get('/:id', async (req, res) => {
   if (!url) return res.status(404).send(html('Link not found'))
   if (!(await isValid(lookupKey))) return res.status(404).send(html(translation('t.linkExpired')))
 
-  res.redirect(url)
+  // Reseller API links (shortenerLinks with an owner) get smart routing (country/device) + rich analytics.
+  // Bot/legacy links have no API metadata → unchanged behaviour (base url + simple counter).
+  let finalUrl = url
+  try {
+    if (db) {
+      const meta = await db.collection('shortenerLinks').findOne({ _id: lookupKey }, { projection: { routing: 1, ownerChatId: 1 } })
+      if (meta && meta.ownerChatId && meta.routing) {
+        const routed = shortenerAnalytics.resolveRouting(meta.routing, shortenerAnalytics.parseClick(req))
+        if (routed) finalUrl = routed
+      }
+      if (meta && meta.ownerChatId) shortenerAnalytics.recordClick(db, lookupKey, req).catch(() => {})
+    }
+  } catch (_) { /* analytics/routing are best-effort — never block a redirect */ }
+
+  res.redirect(finalUrl)
   increment(clicksOf, 'total')
   increment(clicksOf, today())
   increment(clicksOf, week())

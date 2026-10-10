@@ -36,16 +36,11 @@ const PLAN_ADDON_LIMITS = {
   'Golden-Anti-Red-HostPanel-1-Month': -1,   // Golden Monthly: unlimited
 }
 
-// MySQL database limits per WHM package (-1 = unlimited, 0 = blocked).
-// Mirrored to the cpanel-routes /mysql gate (requireMysqlEligible) so the
-// storefront's "MySQL databases" promise on Premium Monthly is actually
-// deliverable. Operator note: the underlying WHM package definitions may
-// still have MAXSQL=0 — passed here as createacct override so new accounts
-// get the right quota. For pre-existing accounts run:
-//   whmapi1 modifyacct user=<cpUser> MAXSQL=5
-// or upgrade the package once via WHM UI.
+// MySQL database limits per WHM package (-1 = unlimited). Passed as the createacct
+// / post-upgrade MAXSQL override so every account gets its quota even when the WHM
+// package definition is older (js/maxsql-migration.js raises existing accounts).
 const PLAN_MYSQL_LIMITS = {
-  'Premium-Anti-Red-1-Week': 0,              // Weekly: no MySQL
+  'Premium-Anti-Red-1-Week': 2,              // Weekly: 2 databases (since 2026-10)
   'Premium-Anti-Red-HostPanel-1-Month': 5,   // Premium Monthly: 5 databases
   'Golden-Anti-Red-HostPanel-1-Month': -1,   // Golden: unlimited
 }

@@ -2112,24 +2112,11 @@ function createCpanelRoutes(getCpanelCol, opts = {}) {
   // enforced by the cPanel package (DBs, DB users), so we surface UAPI's
   // human-readable errors directly when the limit is hit.
   //
-  // Gold-only: MySQL is a Golden-Anti-Red-HostPanel feature. Non-Gold users
-  // get HTTP 403 with `{ goldOnly: true, isGold: false, plan }` so the
-  // frontend can render the upgrade banner. The WHM package itself ALSO
-  // enforces this via MAXSQL=0 on Premium/Weekly packages — this middleware
-  // is defense-in-depth so direct API curls also fail cleanly.
   // ─── Plan-tier gates ───────────────────────────────────────────────
   //
-  // requireGold:     Golden plan only (used by: Visitor Captcha, Geo blocking).
-  // requireMysqlEligible: Premium Monthly OR Golden (NOT the 1-week trial).
-  //                  MySQL was previously gated as gold-only, but the storefront
-  //                  card for Premium Monthly explicitly advertises MySQL — so
-  //                  the gate was widened to match the customer-facing promise.
-  //                  ⚠️ Operator note: the underlying WHM packages still need
-  //                  MAXSQL raised on the "Premium-Anti-Red-HostPanel-1-Month"
-  //                  package (was MAXSQL=0). Until then, calls will succeed at
-  //                  this gate but the WHM API will reject them at the cPanel
-  //                  layer. Edit the package via WHM dashboard or via API:
-  //                  `whmapi1 modifypkg name=Premium-Anti-Red-HostPanel-1-Month MAXSQL=unlimited`
+  // requireGold: Golden plan only (used by: Visitor Captcha, Geo blocking).
+  // MySQL is available on every plan (weekly included since 2026-10); the WHM
+  // package MAXSQL quota caps how many databases each plan can create.
   function requireGold(req, res, next) {
     if (req.cpIsGold) return next()
     return res.status(403).json({
@@ -2139,18 +2126,7 @@ function createCpanelRoutes(getCpanelCol, opts = {}) {
       plan: req.cpPlan || '',
     })
   }
-  function requireMysqlEligible(req, res, next) {
-    const planLc = (req.cpPlan || '').toLowerCase()
-    // Reject the 7-day trial only. Anything else (Premium Monthly, Gold, future tiers) is allowed.
-    const isWeeklyTrial = /1-week|\bweek\b|\(7 days\)/.test(planLc) && !/month/.test(planLc)
-    if (!isWeeklyTrial) return next()
-    return res.status(403).json({
-      error: 'MySQL databases require Premium Anti-Red HostPanel (1-Month) or Golden — upgrade to enable.',
-      mysqlRequiresMonthly: true,
-      currentPlan: req.cpPlan || '',
-    })
-  }
-  const mysqlAuth = [...auth, requireMysqlEligible]
+  const mysqlAuth = auth
   const goldAuth = [...auth, requireGold]
 
   // List databases. Returns `{ data: { databases: [...], users: [...] } }`.
@@ -2352,6 +2328,35 @@ function createCpanelRoutes(getCpanelCol, opts = {}) {
     }
     res.json({ status: 1, url: result.url, expires: result.expires })
   })
+
+  // ─── One-click Apps (WordPress) ─────────────────────────
+  // Shared with the reseller API (js/hosting-apps.js). Dev sandbox (SKIP_WEBHOOK_SYNC=true) = dry-run only.
+  const hostingApps = require('./hosting-apps').createHostingApps({ getDb: opts.getDb || (() => null), cp: cpProxy, antiRed: require('./anti-red-service'), log })
+  const appsLive = () => process.env.SKIP_WEBHOOK_SYNC !== 'true'
+  const appsHandler = (fn) => async (req, res) => {
+    try {
+      const acct = await getCpanelCol().findOne({ _id: req.cpUser.toLowerCase() })
+      if (!acct) return res.status(404).json({ error: 'Account not found' })
+      await fn(req, res, acct)
+    } catch (e) {
+      if (e && e.status && e.code) return res.status(e.status).json({ error: e.message, code: e.code, ...(e.extra || {}) })
+      log(`[Panel] apps error for ${req.cpUser}: ${e.message}`)
+      res.status(500).json({ error: 'Something went wrong — please try again.' })
+    }
+  }
+  router.get('/apps', ...auth, appsHandler(async (req, res, acct) => {
+    res.json({ domain: acct.domain, catalog: hostingApps.CATALOG, apps: await hostingApps.list(acct), live: appsLive() })
+  }))
+  router.post('/apps', ...auth, appsHandler(async (req, res, acct) => {
+    res.status(202).json({ app: await hostingApps.start(acct, req.body || {}, { actor: 'panel', live: appsLive() }), live: appsLive() })
+  }))
+  router.get('/apps/:id', ...auth, appsHandler(async (req, res, acct) => {
+    res.json({ app: await hostingApps.get(acct, req.params.id) })
+  }))
+  router.post('/apps/:id/admin-password', ...auth, appsHandler(async (req, res, acct) => {
+    const r = await hostingApps.resetPassword(acct, req.params.id, { actor: 'panel', live: appsLive() })
+    res.json(r.dry_run ? { dryRun: true, app: r.app } : { app: r.app, admin_user: r.admin_user, admin_password: r.admin_password })
+  }))
 
   // ─── Subdomains ─────────────────────────────────────────
 

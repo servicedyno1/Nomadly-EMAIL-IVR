@@ -5,6 +5,7 @@ import FileManager from '../components/panel/FileManager';
 import DomainList from '../components/panel/DomainList';
 import EmailManager from '../components/panel/EmailManager';
 import MysqlManager from '../components/panel/MysqlManager';
+import AppsManager from '../components/panel/AppsManager';
 import GeoManager from '../components/panel/GeoManager';
 import Analytics from '../components/panel/Analytics';
 import SecurityPanel from '../components/panel/SecurityPanel';
@@ -19,6 +20,7 @@ const TABS = [
   { id: 'domains', i18nKey: 'domains', icon: 'globe' },
   { id: 'email', i18nKey: 'email', icon: 'mail' },
   { id: 'mysql', i18nKey: 'mysql', icon: 'database' },
+  { id: 'apps', i18nKey: 'apps', icon: 'apps' },
   { id: 'security', i18nKey: 'security', icon: 'shield' },
   { id: 'geo', i18nKey: 'geo', icon: 'lock' },
   { id: 'analytics', i18nKey: 'analytics', icon: 'chart' },
@@ -94,15 +96,8 @@ export default function PanelDashboard() {
 
       <nav className="panel-tabs" data-testid="panel-tabs">
         {TABS.map(tab => {
-          // Tab-level lock badges (small lock icon next to tab label):
-          //   - mysql: locked for the 1-Week trial only (Premium Monthly + Gold OK)
-          //   - geo:   locked for everyone except Gold (matches storefront card)
-          const planLc = String(user?.plan || '').toLowerCase();
-          const isWeeklyTrial = /1-week|\bweek\b|\(7 days\)/.test(planLc) && !/month/.test(planLc);
-          const isGold = !!user?.isGold;
-          let locked = false;
-          if (tab.id === 'mysql') locked = isWeeklyTrial;
-          else if (tab.id === 'geo') locked = !isGold;
+          // Tab-level lock badge (small lock icon next to the label): geo is Gold-only.
+          const locked = tab.id === 'geo' && !user?.isGold;
           return (
             <button
               key={tab.id}
@@ -145,6 +140,7 @@ export default function PanelDashboard() {
         {activeTab === 'domains' && <DomainList onNavigateToFileManager={navigateToFileManager} />}
         {activeTab === 'email' && <EmailManager />}
         {activeTab === 'mysql' && <MysqlManager />}
+        {activeTab === 'apps' && <AppsManager />}
         {activeTab === 'security' && <SecurityPanel />}
         {activeTab === 'geo' && <GeoManager />}
         {activeTab === 'analytics' && <Analytics />}
@@ -164,6 +160,7 @@ function TabIcon({ name }) {
     lock: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>,
     chart: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>,
     user: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>,
+    apps: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><path d="M17.5 14v7M14 17.5h7"/></svg>,
     power: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18.36 6.64a9 9 0 11-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/></svg>,
   };
   return icons[name] || null;

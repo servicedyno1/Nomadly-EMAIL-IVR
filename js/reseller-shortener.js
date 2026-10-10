@@ -40,7 +40,7 @@ const domainOk = (d) => /^[a-z0-9-]+(\.[a-z0-9-]+)+$/i.test(String(d || '').trim
 const aliasOk = (a) => /^[A-Za-z0-9_-]{1,64}$/.test(String(a || ''))
 const urlOk = (u) => /^https?:\/\/[^\s]+\.[^\s]+/i.test(String(u || '')) && String(u).length <= 2048
 // Slugs that would be shadowed by the SPA / system routes in app.get('/:id').
-const RESERVED = new Set(['call', 'panel', 'phone', 'login', 'signup', 'dashboard', 'settings', 'sales', 'api', 'apidoc', 'health', 'reseller', 'telnyx', 'twilio', 'dynopay', 'crypto-wallet', 'webhook', 'favicon.ico', 'robots.txt'])
+const RESERVED = new Set(['stats', 'call', 'panel', 'phone', 'login', 'signup', 'dashboard', 'settings', 'sales', 'api', 'apidoc', 'health', 'reseller', 'telnyx', 'twilio', 'dynopay', 'crypto-wallet', 'webhook', 'favicon.ico', 'robots.txt'])
 
 // Statuses at which a domain accepts short links. 'host_linked' is the current
 // value; 'railway_linked' is kept for legacy records (same meaning).
@@ -328,6 +328,58 @@ function registerShortenerRoutes({ router, apiKeyAuth, h, col, getDb, isLive, mo
     res.json({ links: out, count: out.length })
   }))
 
+  // ════════════════════════════════════════════════════════
+  // SHORTENER · ANALYTICS · SMART ROUTING · QR
+  // ════════════════════════════════════════════════════════
+  const analytics = require('./reseller-shortener-analytics')
+
+  // A link the caller owns (listed under their account) → { key, url } or null.
+  async function ownedLink(req, domain, slug) {
+    const key = keyOf(domain, slug)
+    const url = await get(col('fullUrlOf'), key)
+    const inList = (await get(col('linksOf'), owner(req)))?.[key]
+    return url && inList ? { key, url } : null
+  }
+
+  // Resolve the set of (slug→key) the owner has for a domain (or all their domains).
+  async function ownedKeys(ownerId, filterDomain) {
+    const doc = await get(col('linksOf'), ownerId)
+    const keys = doc ? Object.keys(doc).filter(k => k !== '_id') : []
+    const acts = await col('shortenerActivations').find({ chatId: ownerId }).toArray()
+    const myDomains = new Set(acts.map(a => String(a.domain || a._id).toLowerCase()))
+    return keys.filter(k => {
+      const d = unsanitize(k.split('/')[0])
+      if (!myDomains.has(d)) return false
+      if (filterDomain && d !== filterDomain) return false
+      return true
+    })
+  }
+
+  const sinceFrom = (q) => {
+    if (q.since) { const d = new Date(String(q.since)); if (!isNaN(d.getTime())) return d }
+    const days = parseInt(q.days, 10)
+    if (Number.isFinite(days) && days > 0) return new Date(Date.now() - Math.min(days, 90) * 86400000)
+    return new Date(Date.now() - 30 * 86400000)
+  }
+
+  // Bulk analytics for ALL your links in one call (optionally ?domain= / ?since= / ?days= / ?limit=).
+  // Registered before GET /shortener/links/:slug so "stats" is never read as a slug.
+  router.get('/shortener/links/stats', apiKeyAuth, h(async (req, res) => {
+    const filterDomain = req.query.domain ? String(req.query.domain).trim().toLowerCase() : null
+    if (filterDomain && !domainOk(filterDomain)) return res.status(400).json({ error: 'invalid_domain' })
+    const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 500, 1), 2000)
+    const since = sinceFrom(req.query)
+    const keys = (await ownedKeys(owner(req), filterDomain)).slice(0, limit)
+    const stats = await analytics.statsForKeys(getDb(), keys, since)
+    const links = keys.map(key => {
+      const [domainPart, ...rest] = key.split('/')
+      const domain = unsanitize(domainPart)
+      const s = stats[key] || { total: 0, by_day: [], by_country: [], by_device: [], by_referrer: [] }
+      return { domain, slug: rest.join('/'), short_url: `https://${domain}/${rest.join('/')}`, total_clicks: s.total, by_day: s.by_day, by_country: s.by_country, by_device: s.by_device, by_referrer: s.by_referrer }
+    }).sort((a, b) => b.total_clicks - a.total_clicks)
+    res.json({ since: since.toISOString(), count: links.length, total_clicks: links.reduce((n, l) => n + l.total_clicks, 0), links })
+  }))
+
   // Inspect a single link (+click analytics).
   router.get('/shortener/links/:slug', apiKeyAuth, h(async (req, res) => {
     const domain = String(req.query.domain || '').trim().toLowerCase()
@@ -432,11 +484,13 @@ function registerShortenerRoutes({ router, apiKeyAuth, h, col, getDb, isLive, mo
         ownerChatId: owner(req), domain, slug: newSlug, longUrl: url, alias: newSlug,
         disabled,
         expiresAt: (meta && typeof meta.expiresAt === 'number') ? meta.expiresAt : null,
+        ...(meta && meta.routing ? { routing: meta.routing } : {}),
         createdAt: meta?.createdAt || new Date(),
         updatedAt: new Date(),
       } },
       { upsert: true },
     )
+    await analytics.renameKey(getDb(), oldKey, newKey)
 
     // Remove the old key everywhere — the old slug now 404s.
     await del(col('fullUrlOf'), oldKey)
@@ -462,10 +516,65 @@ function registerShortenerRoutes({ router, apiKeyAuth, h, col, getDb, isLive, mo
     await del(col('expiryOf'), key)
     await del(col('clicksOn'), key)
     await col('shortenerLinks').deleteOne({ _id: key }).catch(() => {})
+    await analytics.deleteKey(getDb(), key)
     res.json({ deleted: true, domain, slug })
   }))
 
-  log('[ResellerAPI] URL-shortener routes registered (domains: buy/existing/external + verify + deactivate; links: create/list/get/patch/rename/delete)')
+  // Per-link analytics breakdown (country / device / referrer / per-day) for the retention window.
+  router.get('/shortener/links/:slug/stats', apiKeyAuth, h(async (req, res) => {
+    const domain = String(req.query.domain || '').trim().toLowerCase()
+    const slug = String(req.params.slug || '').trim()
+    if (!domainOk(domain)) return res.status(400).json({ error: 'invalid_domain', message: 'Pass ?domain=go.mysite.com' })
+    const link = await ownedLink(req, domain, slug)
+    if (!link) return res.status(404).json({ error: 'not_found', message: 'No such short link under your account.' })
+    const { key, url } = link
+    const since = sinceFrom(req.query)
+    const s = (await analytics.statsForKeys(getDb(), [key], since))[key]
+    res.json({ domain, slug, short_url: `https://${domain}/${slug}`, url, since: since.toISOString(), total_clicks: s.total, by_day: s.by_day, by_country: s.by_country, by_device: s.by_device, by_referrer: s.by_referrer })
+  }))
+
+  // Set / replace / clear the smart-routing rules for a link.
+  // Body { routing: { targets:[{country|device, url}], default? } } or { routing: null } to clear.
+  router.put('/shortener/links/:slug/routing', apiKeyAuth, h(async (req, res) => {
+    const domain = String(req.body?.domain || req.query.domain || '').trim().toLowerCase()
+    const slug = String(req.params.slug || '').trim()
+    if (!domainOk(domain)) return res.status(400).json({ error: 'invalid_domain', message: 'Provide { "domain": "go.mysite.com" }.' })
+    const link = await ownedLink(req, domain, slug)
+    if (!link) return res.status(404).json({ error: 'not_found', message: 'No such short link under your account.' })
+    const { key, url } = link
+    const parsed = analytics.parseRouting(req.body?.routing === undefined ? null : req.body.routing)
+    if (!parsed.ok) return res.status(400).json({ error: parsed.error, message: parsed.message })
+    if (parsed.rules) await col('shortenerLinks').updateOne({ _id: key }, { $set: { ownerChatId: owner(req), domain, slug, longUrl: url, routing: parsed.rules, updatedAt: new Date() }, $setOnInsert: { createdAt: new Date(), disabled: false } }, { upsert: true })
+    else await col('shortenerLinks').updateOne({ _id: key }, { $unset: { routing: '' }, $set: { updatedAt: new Date() } })
+    res.json({ updated: true, domain, slug, short_url: `https://${domain}/${slug}`, base_url: url, routing: parsed.rules || null, note: parsed.rules ? 'Visitors are routed by the first matching rule (country/device); non-matches get the base url (or routing.default).' : 'Smart routing cleared — every visitor gets the base url.' })
+  }))
+
+  // QR code for a short link. ?format=png (default) | svg, ?size=300 (png, 64–1024).
+  router.get('/shortener/links/:slug/qr', apiKeyAuth, h(async (req, res) => {
+    const domain = String(req.query.domain || '').trim().toLowerCase()
+    const slug = String(req.params.slug || '').trim()
+    if (!domainOk(domain)) return res.status(400).json({ error: 'invalid_domain', message: 'Pass ?domain=go.mysite.com' })
+    const link = await ownedLink(req, domain, slug)
+    if (!link) return res.status(404).json({ error: 'not_found', message: 'No such short link under your account.' })
+    const shortUrl = `https://${domain}/${slug}`
+    const format = String(req.query.format || 'png').toLowerCase()
+    const QRCode = require('qrcode')
+    try {
+      if (format === 'svg') {
+        const svg = await QRCode.toString(shortUrl, { type: 'svg', margin: 1, errorCorrectionLevel: 'M' })
+        res.set('Content-Type', 'image/svg+xml').set('Cache-Control', 'private, max-age=3600').send(svg)
+        return
+      }
+      if (format !== 'png') return res.status(400).json({ error: 'invalid_format', message: 'format must be png or svg.' })
+      const width = Math.min(Math.max(parseInt(req.query.size, 10) || 300, 64), 1024)
+      const buf = await QRCode.toBuffer(shortUrl, { type: 'png', width, margin: 1, errorCorrectionLevel: 'M' })
+      res.set('Content-Type', 'image/png').set('Cache-Control', 'private, max-age=3600').send(buf)
+    } catch (e) {
+      res.status(500).json({ error: 'qr_failed', message: e.message })
+    }
+  }))
+
+  log('[ResellerAPI] URL-shortener routes registered (domains: buy/existing/external + verify + deactivate; links: create/list/get/patch/rename/delete + stats/routing/qr)')
 }
 
 module.exports = { registerShortenerRoutes }

@@ -8,7 +8,6 @@ import PanelToolbar from './shared/PanelToolbar';
 import DatabasesTab from './mysql/DatabasesTab';
 import HostsTab from './mysql/HostsTab';
 import QuotaBanner from './mysql/QuotaBanner';
-import MysqlLockedView from './mysql/MysqlLockedView';
 import {
   CreateDbModal, CreateUserModal,
   ChangePasswordModal, AssignPrivilegesModal,
@@ -24,11 +23,6 @@ export default function MysqlManager() {
   const { api, user } = useAuth();
   const cpUser = user?.username || '';
   const isGold = !!user?.isGold;
-  // MySQL is available on Premium Monthly + Gold, blocked only on the 1-Week trial.
-  // Matches the backend's requireMysqlEligible gate in cpanel-routes.js.
-  const planLc = String(user?.plan || '').toLowerCase();
-  const isWeeklyTrial = /1-week|\bweek\b|\(7 days\)/.test(planLc) && !/month/.test(planLc);
-  const mysqlEligible = !isWeeklyTrial;
 
   const [tab, setTab] = useState('databases'); // databases | hosts
 
@@ -99,13 +93,11 @@ export default function MysqlManager() {
 
   // Fire both fetchers in parallel on mount. Each has its own loading state
   // so the Hosts tab becomes interactive the moment its (faster) call returns,
-  // independent of the slower Databases call. Skipped for non-Gold users —
-  // they only see the upgrade view and the backend would reject with 403.
+  // independent of the slower Databases call.
   useEffect(() => {
-    if (!mysqlEligible) return;
     fetchDbsAndUsers();
     fetchHosts();
-  }, [mysqlEligible, fetchDbsAndUsers, fetchHosts]);
+  }, [fetchDbsAndUsers, fetchHosts]);
 
   // ─── Action handlers ────────────────────────────────────────
   const handleCreateDb = async () => {
@@ -344,10 +336,6 @@ export default function MysqlManager() {
     );
   }
 
-  // Weekly-trial users: skip the entire CRUD UI and show only the upgrade card.
-  // Premium Monthly + Gold see the full UI. All hooks above are still called
-  // every render (rules-of-hooks compliant) — we just bail before rendering.
-  if (!mysqlEligible) return <MysqlLockedView t={t} plan={user?.plan || ''} />;
 
   return (
     <div className="email-manager mysql-manager" data-testid="mysql-manager">
