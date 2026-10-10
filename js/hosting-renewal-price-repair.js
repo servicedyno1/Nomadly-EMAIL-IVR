@@ -11,7 +11,7 @@ const { getPlanPrice } = require('./hosting-scheduler')
 
 const ms = (d) => { const t = d ? new Date(d).getTime() : NaN; return isNaN(t) ? null : t }
 const r2 = (n) => Math.round((Number(n) + Number.EPSILON) * 100) / 100
-const PROJECTION = { _id: 1, domain: 1, chatId: 1, plan: 1, upgradedFrom: 1, upgradedAt: 1, planChangedAt: 1, renewalPriceUsd: 1, renewalPriceRepairedAt: 1, expiryDate: 1, autoRenew: 1, suspended: 1 }
+const PROJECTION = { _id: 1, domain: 1, chatId: 1, source: 1, plan: 1, upgradedFrom: 1, upgradedAt: 1, planChangedAt: 1, renewalPriceUsd: 1, renewalPriceRepairedAt: 1, expiryDate: 1, autoRenew: 1, suspended: 1 }
 
 function assess(acct) {
   const up = ms(acct.upgradedAt)
@@ -25,7 +25,7 @@ function assess(acct) {
   if (!(correct > 0)) return null
   if (Math.abs(acct.renewalPriceUsd - correct) < 0.005) return null
   return {
-    username: acct._id, domain: acct.domain || null, chat_id: acct.chatId != null ? String(acct.chatId) : null,
+    username: acct._id, domain: acct.domain || null, chat_id: acct.chatId != null ? String(acct.chatId) : null, source: acct.source || 'bot',
     plan: acct.plan, upgraded_from: acct.upgradedFrom || null, upgraded_at: new Date(up).toISOString(),
     current_renewal_price_usd: acct.renewalPriceUsd, correct_renewal_price_usd: r2(correct),
     difference_per_renewal_usd: r2(correct - acct.renewalPriceUsd),

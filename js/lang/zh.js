@@ -1871,6 +1871,9 @@ upgradeSuccessFooter: planKey => `${planKey === 'goldenCpanel' ? '无限域名' 
 upgradeFailTerminated: (refund, hostingBtn) => `❌ 此托管账户因未在宽限期内续费，已被<b>终止</b>。\n\n已向您的钱包退款 <b>$${refund}</b>。\n\n🛒 如需让网站重新上线，请在 <b>${hostingBtn}</b> 中购买<b>新的托管套餐</b>。`,
 upgradeFailReactivate: (refund, supportBtn) => `❌ <b>升级未完成</b>\n\n我们无法在服务器上重新激活您的托管账户。已向您的钱包退款 <b>$${refund}</b>。\n\n已通知管理员 — 请点击 ${supportBtn} 跟进。`,
 upgradeFailServer: (reason, refund, supportBtn) => `❌ <b>升级未完成</b>\n\n我们的托管服务器未接受此次套餐更改（<i>${reason}</i>）。已向您的钱包退款 <b>$${refund}</b>。\n\n已通知管理员 — 请点击 ${supportBtn} 跟进。`,
+fmtDate: d => new Date(d).toLocaleDateString('zh-CN', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' }),
+renewTerminated: hostingBtn => `❌ 此托管账户因未在宽限期内续费，已被<b>终止</b>。\n\n🛒 如需让网站重新上线，请在 <b>${hostingBtn}</b> 中购买<b>新的托管套餐</b>。`,
+renewalPriceChangedNotice: (domain, plan, oldPrice, newPrice, nextDate, autoRenew) => `ℹ️ <b>续费价格已更新</b>\n\n您的托管 <b>${domain}</b> 使用的是 <b>${plan}</b>。为与当前套餐一致，其续费价格现为 <b>$${newPrice}</b>（原为 $${oldPrice}）。${nextDate ? `\n\n📅 下次续费：<b>${new Date(nextDate).toLocaleDateString('zh-CN', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })}</b>${autoRenew ? ' — 已开启自动续费，请保持钱包余额充足。' : ''}` : ''}\n\n现在不会扣费，过去的续费也不受影响。`,
 // Per-domain billing buttons
 billingRenewBtn: domain => `🔄 立即续费 — ${domain}`,
 billingToggleAutoRenewBtn: domain => `🔁 切换自动续费 — ${domain}`,

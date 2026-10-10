@@ -1,5 +1,33 @@
 # ROADMAP: single prioritized backlog (updated 2026-10-10)
 
+## OWNER DECISIONS 2026-10-10 (execution order: Phase 1 → 2 → 3 → 4, each tested before the next)
+- **Phase 1 (IN PROGRESS):**
+  - blacklist fix (#1)
+  - keep WordPress/SPA/custom .htaccess rules (#2)
+  - Safe Browsing wiring (#3; key comes later from the owner)
+  - translate renewal "terminated" msg + plan-detail dates
+  - customer notice on renewal-price change
+  - weekly admin billing audit
+- **Phase 2:**
+  - expiry/renewal/unsuspended/low-balance webhooks + PUT /account/alerts (#4)
+  - origin health + site_down/recovered + auto dns/repair (#5)
+  - usage threshold events (#8)
+  - per-service activity log (#9)
+- **Phase 3:**
+  - 3/6/12-month hosting terms at 10%/15%/25% off, **API ONLY** (not the bot); **NO loyalty credit in the API** (#6)
+  - per-domain auto-renew: OpenProvider autorenew stays OFF; our scheduler charges the owner's wallet and renews that one domain via OP (#13b)
+- **Phase 4:**
+  - one-click WordPress (#10)
+  - shortener bulk analytics + smart routing + QR (#18)
+- **SKIPPED for now:**
+  - domain transfer-in (#13a)
+  - backups/restore + VPS/RDP snapshots (#7)
+
+    Decisions for when #7 is picked up: storage = DigitalOcean Spaces (owner provides the key later); daily hosting backups FREE on monthly plans, 7 days kept; VPS/RDP snapshots $0.10/GB-month; restore after cancellation = 1 month of the plan price.
+- **LEAVE AS IS:** panel test-email / EmailBlast SMTP ports blocked by DO.
+- **Not requested this round:** fail2ban, secret rotation, items blocked on owner credentials.
+- **SIP fix VERIFIED 2026-10-10:** 486 `[Twilio] Bridge found:` lines in prod logs since the 10-04 fix; the only "session expired" line is a customer message from 10-03 (pre-fix). CLOSED.
+
 Sources: `HOSTING_CAPABILITIES_2026-10.md` (H#) and `RESELLER_FEATURE_REQUESTS_2026-10-10.md` (R#). Effort: S < 1 day, M 1–3 days, L > 3 days or infra.
 
 ## P0-a: Broken today (fix first, small)

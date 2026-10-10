@@ -5557,6 +5557,15 @@ async function sendDay12UpgradeCreditNudges() {
 // existing schedulers (node-schedule + cron string).
 schedule.scheduleJob('0 14 * * *', sendDay12UpgradeCreditNudges)
 
+// Weekly hosting billing audit → admin Telegram summary (Mondays 09:00 UTC; report only).
+schedule.scheduleJob('0 9 * * 1', async function () {
+  try {
+    if (!cpanelAccounts) return
+    const audit = require('./hosting-billing-audit')
+    notifyAdmin(audit.formatAdminSummary(await audit.runAudit(cpanelAccounts)))
+  } catch (e) { log(`[BillingAudit] weekly run failed: ${e.message}`) }
+})
+
 // ─── Referral payout applicator (UX P-Funnel #4, 2026-06-21) ─────────
 // Idempotent helper.  Call after every wallet credit (deposit confirmed).
 // Pays the REFERRER (not the referee):
@@ -11883,7 +11892,7 @@ Enter new value:`), bc)
       const planButtons = []
       const creditCtas = [] // dedicated 🎁 deep-link buttons for plans with an active credit window
       for (const p of plans) {
-        const expiry = p.expiryDate ? new Date(p.expiryDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'
+        const expiry = p.expiryDate ? trans('t.fmtDate', p.expiryDate) : '—'
         const isExpired = p.expiryDate && new Date(p.expiryDate) < new Date()
         const status = p.suspended ? trans('t.statusSuspended') : isExpired ? trans('t.statusExpired') : trans('t.statusActive')
         const autoRenew = (p.autoRenew !== false) ? '🔁' : ''
@@ -11929,7 +11938,7 @@ Enter new value:`), bc)
       let text = trans('t.billingMenuHeader') + '\n\n' + trans('t.billingMenuIntro') + '\n\n'
       const billingButtons = []
       for (const p of plans) {
-        const expiry = p.expiryDate ? new Date(p.expiryDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'
+        const expiry = p.expiryDate ? trans('t.fmtDate', p.expiryDate) : '—'
         const isExpired = p.expiryDate && new Date(p.expiryDate) < new Date()
         const autoRenewLabel = p.autoRenew !== false ? trans('t.autoRenewOn') : trans('t.autoRenewOff')
         const status = p.suspended ? trans('t.statusSuspended') : isExpired ? trans('t.statusExpired') : trans('t.statusActive')
@@ -11949,8 +11958,8 @@ Enter new value:`), bc)
       const plan = await cpanelAccounts.findOne({ chatId: String(chatId), domain: domain, deleted: { $ne: true } })
       if (!plan) return send(chatId, trans('t.planNotFound'), k.of([[user.backToMyHostingPlans]]))
 
-      const expiry = plan.expiryDate ? new Date(plan.expiryDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'
-      const created = plan.createdAt ? new Date(plan.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'
+      const expiry = plan.expiryDate ? trans('t.fmtDate', plan.expiryDate) : '—'
+      const created = plan.createdAt ? trans('t.fmtDate', plan.createdAt) : '—'
       const isExpired = plan.expiryDate && new Date(plan.expiryDate) < new Date()
       const siteStatus = plan.suspended ? 'suspended' : (plan.maintenanceMode ? 'maintenance' : 'online')
       const status = plan.suspended
@@ -17038,12 +17047,7 @@ All verified numbers generated during sourcing.`))
             { _id: plan._id },
             { $set: { terminatedOnWhm: true, terminatedAt: new Date(), terminationNote: 'WHM account not found during renew attempt' } }
           )
-          return send(chatId,
-            '❌ This hosting account has been <b>terminated</b> because it was not renewed within the grace period.\n\n'
-            + '🛒 To get your site back online, please purchase a <b>new hosting plan</b> from:\n'
-            + '<b>☁️ Hosting & Domains → Choose a plan</b>',
-            k.of([[user.backToMyHostingPlans]])
-          )
+          return send(chatId, trans('t.renewTerminated', user.hostingDomainsRedirect), k.of([[user.backToMyHostingPlans]]))
         }
 
         // Overdraft-safe debit — a concurrent spend can make it fail even after the balance check above.
@@ -46459,7 +46463,33 @@ app.post('/admin/hosting-renewal-price-repair', async (req, res) => {
     try {
       notifyAdmin(`🛠 <b>Hosting renewal-price repair applied</b>\nAccounts fixed: <b>${out.applied_count}</b> (skipped: ${out.skipped.length})\nRevenue recovered per renewal cycle: <b>$${out.total_difference_per_renewal_usd}</b>`)
     } catch (_) { /* best-effort */ }
-    return res.json({ ok: true, mode: 'applied', ...out })
+    // Tell each bot customer their renewal price changed (reseller customers get webhooks instead).
+    let customersNotified = 0
+    if (String(req.query.notify_customers) !== 'false') {
+      for (const r of out.applied) {
+        if (!r.chat_id || r.source === 'reseller_api') continue
+        try {
+          const lang = (await get(state, r.chat_id))?.userLanguage || 'en'
+          await send(r.chat_id, translation('t.renewalPriceChangedNotice', lang, r.domain, r.plan, r.current_renewal_price_usd.toFixed(2), r.correct_renewal_price_usd.toFixed(2), r.expires_at, r.auto_renew))
+          customersNotified++
+        } catch (e) { log(`[HostingPriceRepair] notify ${r.username} failed: ${e.message}`) }
+      }
+    }
+    return res.json({ ok: true, mode: 'applied', customers_notified: customersNotified, ...out })
+  } catch (e) {
+    return res.status(500).json({ error: e.message })
+  }
+})
+
+app.get('/admin/hosting-billing-audit', async (req, res) => {
+  if (!process.env.SESSION_SECRET || req?.query?.key !== process.env.SESSION_SECRET.slice(0, 16)) {
+    return res.status(403).json({ error: 'Unauthorized' })
+  }
+  try {
+    const audit = require('./hosting-billing-audit')
+    const result = await audit.runAudit(cpanelAccounts)
+    if (String(req.query.notify) === 'true') notifyAdmin(audit.formatAdminSummary(result))
+    return res.json({ ok: true, ...result })
   } catch (e) {
     return res.status(500).json({ error: e.message })
   }
