@@ -2098,3 +2098,6 @@ User-approved order: #4 → #7 → #2 → #3 → #5 → #6. Sandbox-verified; pr
 - Reseller short-link analytics (bulk/per-link), country/device routing, QR (png/svg) — API only.
 - Fix: install form error clears when a field is edited.
 - Tests: test_phase4_bigbuilds_2026-10.js 40/40, iteration_78 green.
+
+## 2026-10-10 — API doc "What's new"
+- /apidoc: "What's new" section (8 October-2026 updates, each linking to its endpoint docs), sidebar link, hero badge; per-endpoint anchors.

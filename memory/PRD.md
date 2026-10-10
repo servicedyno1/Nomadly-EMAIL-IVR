@@ -510,6 +510,11 @@ User inherited a fully-set-up Nomadly bot pod pointed at LIVE PRODUCTION. Task b
 - Safety: preview pod's reseller API uses the LIVE prod reseller DB (RESELLER_DB_URL) + RESELLER_API_LIVE=true — test the API only via harnesses.
 - Not live in production until "Save to GitHub" + redeploy.
 
+## Resolved — 2026-10-10 (API doc "What's new")
+- `/apidoc` (js/apidoc-page.js): dated "What's new" section after Introduction (+ sidebar link + hero badge), driven by the
+  `WHATS_NEW` array (newest first) — add new entries there. Each item links to endpoint anchors (`ep-<method>-<path>`, now an
+  id on every endpoint card; `:target` highlight). Rendering throws if an entry links an undocumented endpoint.
+
 ## Pending Issues (carried forward)
 
 ### P1

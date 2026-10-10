@@ -1864,6 +1864,75 @@ function renderSnippets(ep) {
     <pre class="code snippet s-python"><code>${esc(toPython(p))}</code></pre>`
 }
 
+const epAnchor = (method, path) => `ep-${method}-${path}`.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/-+$/, '')
+
+// "What's new" changelog, newest first. Each link is [METHOD, path] of a documented endpoint or ['#', anchor, label].
+const WHATS_NEW = [
+  {
+    date: '2026-10-10', title: 'One-click WordPress',
+    text: 'Install WordPress on a hosting account in one call. The install runs in the background (state installing → ready | failed, usually 1–3 minutes) and creates its own MySQL database and admin login. The ready app returns the admin password; reset it any time. New webhooks: hosting.app_installed and hosting.app_install_failed. Your customers get the same installer in the new "Apps" tab of the HostPanel.',
+    links: [['GET', '/hosting/:user/apps'], ['POST', '/hosting/:user/apps'], ['GET', '/hosting/:user/apps/:app_id'], ['POST', '/hosting/:user/apps/:app_id/admin-password']],
+  },
+  {
+    date: '2026-10-10', title: 'Short-link analytics, smart routing and QR codes',
+    text: 'Click stats for all your links in one call, or for one link, broken down by day, country, device and referrer (kept 90 days). Route visitors to different URLs by country or device. Get a QR code for any link as PNG or SVG. Detailed stats are recorded only for links created through this API.',
+    links: [['GET', '/shortener/links/stats'], ['GET', '/shortener/links/:slug/stats'], ['PUT', '/shortener/links/:slug/routing'], ['GET', '/shortener/links/:slug/qr']],
+  },
+  {
+    date: '2026-10-10', title: 'MySQL on the weekly plan',
+    text: 'The weekly plan now includes 2 MySQL databases (Premium monthly 5, Golden unlimited), so WordPress runs on it too. The 403 mysql_requires_monthly error no longer happens.',
+    links: [['GET', '/hosting/plans'], ['GET', '/hosting/:user/mysql/databases'], ['POST', '/hosting/:user/mysql/databases']],
+  },
+  {
+    date: '2026-10-10', title: 'Prepaid 3, 6 and 12-month hosting terms',
+    text: 'Pass months (1, 3, 6 or 12) when you create or renew a monthly hosting plan for 10%, 15% or 25% off. GET /hosting/plans lists every term price. Auto-renew repeats the same term at the same discount. The weekly plan is still one week at a time.',
+    links: [['GET', '/hosting/plans'], ['POST', '/hosting'], ['POST', '/hosting/:user/renew']],
+  },
+  {
+    date: '2026-10-10', title: 'Per-domain auto-renew',
+    text: 'Turn on wallet auto-renew for a single OpenProvider domain (off by default). From 7 days before expiry it renews for 1 year and charges your wallet, retrying daily until expiry. GET /domains shows the auto-renew status and next charge. New webhook: domain.auto_renew_failed.',
+    links: [['POST', '/domains/:domain/auto-renew'], ['GET', '/domains']],
+  },
+  {
+    date: '2026-10-10', title: 'Alert webhooks and activity log',
+    text: 'Push alerts so nothing expires by surprise: expiry reminders 7, 3 and 1 day before, renewed, unsuspended, site down / recovered, usage thresholds and low wallet balance. Live origin health for each hosting account, and a 90-day change log of everything you own (who did what: API, bot, panel or system).',
+    links: [['GET', '/account/alerts'], ['PUT', '/account/alerts'], ['GET', '/hosting/:user/health'], ['GET', '/activity'], ['PUT', '/account/webhook']],
+  },
+  {
+    date: '2026-10-08', title: 'In-place plan changes',
+    text: 'Upgrade or downgrade a VPS, RDP or hosting plan in place: same server, data, IP and logins. Upgrades are charged pro-rata for the days left; downgrades apply immediately with no refund; the term end date never moves. Past changes are listed per account.',
+    links: [['#', 'plan-changes', 'Plan changes guide'], ['GET', '/vps/:id/plan-options'], ['POST', '/vps/:id/upgrade'], ['GET', '/rdp/:id/plan-options'], ['POST', '/rdp/:id/upgrade'], ['GET', '/hosting/:user/plan-options'], ['POST', '/hosting/:user/upgrade'], ['GET', '/hosting/:user/plan-changes']],
+  },
+  {
+    date: '2026-10-08', title: 'VPS and RDP usage',
+    text: 'CPU, memory, disk and bandwidth for a DigitalOcean VPS or RDP over the last 1h, 24h, 7d or 30d: current value, average and peak.',
+    links: [['GET', '/vps/:id/usage'], ['GET', '/rdp/:id/usage']],
+  },
+]
+
+function whatsNewSection(groups) {
+  const known = new Set(groups.flatMap(g => g.endpoints.map(ep => epAnchor(ep.method, ep.path))))
+  const link = ([m, p, label]) => {
+    if (m === '#') return `<a class="wn-link wn-guide" href="#${p}">${esc(label)}</a>`
+    const id = epAnchor(m, p)
+    if (!known.has(id)) throw new Error(`apidoc WHATS_NEW links an undocumented endpoint: ${m} ${p}`)
+    return `<a class="wn-link" href="#${id}"><span class="nm nm-${m.toLowerCase()}">${m}</span>${esc(p)}</a>`
+  }
+  const items = WHATS_NEW.map((w, i) => `
+        <li class="wn-item" data-testid="whats-new-item-${i}">
+          <div class="wn-head"><span class="wn-date">${esc(w.date)}</span><h3>${esc(w.title)}</h3></div>
+          <p class="muted">${esc(w.text)}</p>
+          <div class="wn-links">${w.links.map(link).join('')}</div>
+        </li>`).join('')
+  return `
+    <section id="whats-new" class="grp" data-testid="whats-new-section">
+      <h2>What's new</h2>
+      <p class="grp-blurb">Recent additions to the API, newest first. Every change is backward-compatible: existing calls keep working as before. Click an endpoint to jump to its full docs.</p>
+      <div class="card wn-card"><ol class="wn-list">${items}
+      </ol></div>
+    </section>`
+}
+
 function renderEndpoint(base, ep) {
   const badges = []
   badges.push(ep.auth ? '<span class="tag tag-auth">API key</span>' : '<span class="tag tag-open">No auth</span>')
@@ -1874,7 +1943,7 @@ function renderEndpoint(base, ep) {
        <tbody>${ep.params.map(([n, r, d]) => `<tr><td><code>${esc(n)}</code></td><td>${r ? '<span class="req">required</span>' : '<span class="opt">optional</span>'}</td><td>${esc(d)}</td></tr>`).join('')}</tbody></table>`
     : ''
   return `
-  <div class="ep">
+  <div class="ep" id="${epAnchor(ep.method, ep.path)}">
     <div class="ep-head">
       ${methodBadge(ep.method)}
       <code class="ep-path">${esc(ep.path)}</code>
@@ -2002,6 +2071,23 @@ function renderApiDocPage(baseUrl) {
   #plan-changes .card pre code{background:none;padding:0;color:inherit}
   #plan-changes .etable code{color:var(--delete)}
   .ptable td,.etable td{word-break:break-word}
+  .ep{scroll-margin-top:20px;transition:border-color .3s,box-shadow .3s}
+  .ep:target{border-color:var(--accent);box-shadow:0 0 0 3px rgba(16,185,129,.18)}
+  .pill-new{color:var(--accent2);border-color:rgba(16,185,129,.45);transition:background-color .2s}
+  .pill-new:hover{background:rgba(16,185,129,.12)}
+  .wn-card{padding:6px 22px}
+  .wn-list{list-style:none;margin:0;padding:0}
+  .wn-item{padding:18px 0;border-bottom:1px solid var(--border)}
+  .wn-item:last-child{border-bottom:0}
+  .wn-head{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+  .wn-head h3{margin:0;font-size:16px}
+  .wn-date{font-family:ui-monospace,monospace;font-size:12px;color:var(--accent2);background:var(--code-bg);border:1px solid var(--border);border-radius:6px;padding:1px 8px}
+  .wn-item p{margin:8px 0 10px;font-size:14px}
+  .wn-links{display:flex;flex-wrap:wrap;gap:6px}
+  .wn-link{display:inline-flex;align-items:center;gap:7px;font-family:ui-monospace,monospace;font-size:12px;color:var(--muted);background:var(--panel2);border:1px solid var(--border);border-radius:7px;padding:4px 9px;transition:color .15s,border-color .15s}
+  .wn-link:hover{color:var(--text);border-color:var(--accent)}
+  .wn-link .nm{min-width:0}
+  .wn-guide{color:var(--accent2);font-family:inherit}
   @media(max-width:920px){
     .ep,.card{overflow-x:auto}
     aside{position:fixed;left:0;top:0;z-index:40;transform:translateX(-100%);transition:transform .2s}
@@ -2022,6 +2108,7 @@ function renderApiDocPage(baseUrl) {
       <div><b>${esc(BRAND)} Reseller API</b><span>Developer Guide · v1</span></div>
     </div>
     <a class="nav-group" href="#intro">Introduction</a>
+    <a class="nav-group" href="#whats-new" data-testid="nav-whats-new">What's new</a>
     <a class="nav-group" href="#auth">Authentication</a>
     <a class="nav-group" href="#billing">Billing &amp; Modes</a>
     <a class="nav-group" href="#plan-changes">Plan changes</a>
@@ -2037,6 +2124,7 @@ function renderApiDocPage(baseUrl) {
         <span class="pill"><span class="dot"></span> Base URL: <b>&nbsp;${esc(base)}</b></span>
         <span class="pill">Version v1</span>
         <span class="pill">JSON over HTTPS</span>
+        <a class="pill pill-new" href="#whats-new" data-testid="whats-new-badge"><span class="dot"></span> What's new · updated ${esc(WHATS_NEW[0].date)}</a>
       </div>
     </div>
 
@@ -2063,6 +2151,8 @@ curl -s "${esc(base)}/pricing?region=EU" -H "Authorization: Bearer YOUR_API_KEY"
 curl -s "${esc(base)}/domains/search?domain=mysite.com" -H "Authorization: Bearer YOUR_API_KEY"</code></pre>
       </div>
     </section>
+
+    ${whatsNewSection(groups)}
 
     <section id="auth" class="grp">
       <h2>Authentication</h2>
