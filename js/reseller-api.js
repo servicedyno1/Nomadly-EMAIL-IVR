@@ -44,6 +44,8 @@ const antiRed = require('./anti-red-service')                 // resolveDomainCf
 const addonFlow = require('./addon-domain-flow')              // attachAddonDomain
 const cpanelAuth = require('./cpanel-auth')                   // resetPin (reveal = reset, prod mutation)
 const { registerHostingMgmtRoutes } = require('./reseller-hosting-mgmt') // in-account cPanel mgmt (reuses cpanel-proxy + services, no duplication)
+const { teardownHostingDomain } = require('./hosting-dns-teardown') // ownership-safe DNS/worker-route teardown
+const hostingDnsRepair = require('./hosting-dns-repair')          // POST /hosting/:user/dns/repair
 const { registerShortenerRoutes } = require('./reseller-shortener')      // URL shortener: buy/connect domain + link CRUD (reuses fullUrlOf/linksOf/clicksOn)
 const brandedNs = require('./branded-ns')                     // branded nameservers (ns1/ns2.hosta.sh) — reseller API default
 
@@ -1817,7 +1819,7 @@ function createResellerApi(deps = {}) {
     if (!acct) return res.status(404).json({ error: 'not_found' })
     if (!isLive()) return res.json({ mode: 'dry_run', username: acct._id, note: 'Dry-run: account not suspended.' })
     const r = await whmService.suspendAccount(acct._id, req.body?.reason || 'Suspended via reseller API')
-    await col('cpanelAccounts').updateOne({ _id: acct._id }, { $set: { suspended: true } })
+    await col('cpanelAccounts').updateOne({ _id: acct._id }, { $set: { suspended: true, suspendedAt: new Date(), suspendedBy: 'reseller_api', suspendedReason: req.body?.reason || 'reseller_api_manual' } })
     res.json({ mode: 'live', username: acct._id, suspended: true, detail: r || null })
   }))
 
@@ -1826,7 +1828,7 @@ function createResellerApi(deps = {}) {
     if (!acct) return res.status(404).json({ error: 'not_found' })
     if (!isLive()) return res.json({ mode: 'dry_run', username: acct._id, note: 'Dry-run: account not unsuspended.' })
     const r = await whmService.unsuspendAccount(acct._id)
-    await col('cpanelAccounts').updateOne({ _id: acct._id }, { $set: { suspended: false, suspendedReason: null } })
+    await col('cpanelAccounts').updateOne({ _id: acct._id }, { $set: { suspended: false, suspendedReason: null, suspendedAt: null } })
     res.json({ mode: 'live', username: acct._id, suspended: false, detail: r || null })
   }))
 
@@ -2010,8 +2012,6 @@ function createResellerApi(deps = {}) {
     //     self-heal queue finishes it — never strand the user (21-day RCA: docxsndr.com).
     //  3) Cloudflare cleanup (worker routes + hosting DNS) for the PRIMARY and EVERY addon domain.
     //  4) Mark the row deleted/cancelled, autoRenew off.
-    const cfService = require('./cf-service')
-    const antiRedService = require('./anti-red-service')
     let terminated = false
     let softDeleteFallback = false
     let alreadyGone = false
@@ -2043,21 +2043,22 @@ function createResellerApi(deps = {}) {
 
     // Cloudflare cleanup for primary + every addon domain (addonDomains = strings;
     // tolerate any legacy {domain} objects too). CF doesn't depend on WHM uptime.
+    // Skipped per domain when another live account still uses it (2026-10 namewords.sbs RCA:
+    // deleting a FAILED duplicate record wiped the live account's tunnel CNAMEs).
     const addonList = (acct.addonDomains || []).map(a => (typeof a === 'string' ? a : (a && a.domain) || '')).filter(Boolean)
     const allDomains = [acct.domain, ...addonList].filter(Boolean)
     const seen = new Set()
+    const cfCleanup = []
     for (const d of allDomains) {
       const key = (d || '').toLowerCase()
       if (!key || seen.has(key)) continue
       seen.add(key)
       try {
-        const zone = await cfService.getZoneByName(d)
-        if (zone) {
-          await antiRedService.removeWorkerRoutes(d, zone.id).catch(() => {})
-          await cfService.cleanupAllHostingRecords(zone.id, d).catch(() => {})
-        }
+        const r = await teardownHostingDomain({ col: col('cpanelAccounts'), domain: d, excludeId: acct._id, tag: 'ResellerAPI' })
+        cfCleanup.push({ domain: r.domain, result: r.removed ? 'removed' : (r.skipped === 'in_use' ? 'kept_in_use_by_another_account' : r.skipped) })
       } catch (cfErr) {
         log(`[ResellerAPI] cancel: CF cleanup warning for ${d}: ${cfErr.message}`)
+        cfCleanup.push({ domain: key, result: 'error' })
       }
     }
 
@@ -2068,10 +2069,24 @@ function createResellerApi(deps = {}) {
     res.json({
       mode: 'live', username: acct._id, terminated: true,
       whm_terminate_pending: softDeleteFallback,
+      cloudflare_cleanup: cfCleanup,
       note: softDeleteFallback
         ? 'WHM refused removal right now — the account is cancelled in our records and queued for server-side termination + verification.'
         : (alreadyGone ? 'Account was already gone on the server; cleaned up records + Cloudflare.' : 'Account terminated and Cloudflare cleaned up.'),
     })
+  }))
+
+  // Self-heal: re-create missing apex/www web DNS (proxied CNAME → Cloudflare Tunnel) for the
+  // account's primary + addon domains. Existing records are never touched. Body {dry_run:true} = report only.
+  router.post('/hosting/:user/dns/repair', apiKeyAuth, h(async (req, res) => {
+    const acct = await loadOwnedCpanel(req, req.params.user)
+    if (!acct) return res.status(404).json({ error: 'not_found' })
+    if (!hostingDnsRepair.isLiveAccount(acct)) {
+      return res.status(409).json({ error: 'account_not_live', message: 'Only provisioned, non-terminated accounts can be repaired.' })
+    }
+    const apply = isLive() && req.body?.dry_run !== true
+    const r = await hostingDnsRepair.repairAccount(acct, { apply })
+    res.json({ mode: apply ? 'live' : 'dry_run', username: r.username, domains: r.domains.map(({ zone_id, ...d }) => d) })
   }))
 
   router.get('/hosting/:user/login', apiKeyAuth, h(async (req, res) => {
@@ -2083,16 +2098,18 @@ function createResellerApi(deps = {}) {
   }))
 
   // Resolve a reseller-owned cPanel account by domain (main OR addon domain).
+  // Failed provisioning records (e.g. duplicate_provisioning_prevented) never match, so a
+  // domain always resolves to the live account (namewords.sbs → name65fb, not failed nameb594).
   async function findOwnedAccountByDomain(req, domain) {
     const chatId = String(req.reseller.ownerChatId)
     const rx = new RegExp('^' + String(domain).replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '$', 'i')
-    let acct = await col('cpanelAccounts').findOne({ chatId, deleted: { $ne: true }, domain: { $regex: rx } })
+    let acct = await col('cpanelAccounts').findOne({ chatId, deleted: { $ne: true }, provisionState: { $ne: 'failed' }, domain: { $regex: rx } })
     // ISSUE-1 FIX (2026-10): addonDomains is canonically an array of lowercase STRINGS
     // (bot/panel/scheduler/addon-flow). Older reseller-API writes left some as
     // {domain,createdAt} objects. Match BOTH shapes so captcha/honeypot lookups by an
     // addon domain never miss a bot-attached addon.
     if (!acct) acct = await col('cpanelAccounts').findOne({
-      chatId, deleted: { $ne: true },
+      chatId, deleted: { $ne: true }, provisionState: { $ne: 'failed' },
       $or: [
         { addonDomains: { $regex: rx } },                                // string element
         { addonDomains: { $elemMatch: { domain: { $regex: rx } } } },    // legacy {domain} object

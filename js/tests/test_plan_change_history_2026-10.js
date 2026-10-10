@@ -144,10 +144,10 @@ antiRed.deployFullProtection = async () => ({ success: true })
   })
   await t('hosting legacy: not duplicated when a history entry exists for the same moment; "to" = next change\'s "from"', () => {
     const at = new Date('2026-09-10T00:00:00Z')
-    const dup = hist.hostingEntries({ _id: 'h3', plan: GOLDEN, upgradedAt: at, upgradedFrom: PREMIUM, planChangeHistory: [{ at, from: PREMIUM, to: GOLDEN, direction: 'upgrade', charged_usd: 10, via: 'api' }] })
+    const dup = hist.hostingEntries({ _id: 'h3', plan: GOLDEN, upgradedAt: at, upgradedFrom: PREMIUM, planChangeHistory: [{ at, from: PREMIUM, to: GOLDEN, direction: 'upgrade', billing: 'pro_rata', charged_usd: 10, via: 'api' }] })
     assert.strictEqual(dup.length, 1); assert.strictEqual(dup[0].legacy, false)
     const chain = hist.hostingEntries({ _id: 'h4', plan: PREMIUM, downgradedAt: new Date('2026-08-01T00:00:00Z'), downgradedFrom: GOLDEN,
-      planChangeHistory: [{ at: new Date('2026-09-01T00:00:00Z'), from: 'Golden Anti-Red HostPanel (1-Month)', to: PREMIUM, direction: 'downgrade', charged_usd: 0, via: 'api' }] })
+      planChangeHistory: [{ at: new Date('2026-09-01T00:00:00Z'), from: 'Golden Anti-Red HostPanel (1-Month)', to: PREMIUM, direction: 'downgrade', billing: 'pro_rata', charged_usd: 0, via: 'api' }] })
     const leg = chain.find((x) => x.legacy)
     assert.ok(leg); assert.strictEqual(leg.direction, 'downgrade'); assert.strictEqual(leg.via, null)
     assert.strictEqual(leg.to_plan_name, 'Golden Anti-Red HostPanel (1-Month)')

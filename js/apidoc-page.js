@@ -806,7 +806,7 @@ function endpointGroups(base) {
         },
         {
           method: 'POST', path: '/hosting/:user/suspend', auth: true, billed: false,
-          desc: 'Suspend a hosting account.',
+          desc: 'Suspend a hosting account. Sets suspended_at (and suspended_reason = your reason) on GET /hosting/:user; unsuspend clears both.',
           params: [['reason', false, 'Optional suspend reason']],
           curl: `curl -s -X POST ${base}/hosting/mysite01/suspend \\
   -H "Authorization: Bearer YOUR_API_KEY" \\
@@ -823,10 +823,22 @@ function endpointGroups(base) {
         },
         {
           method: 'DELETE', path: '/hosting/:user', auth: true, billed: false,
-          desc: 'Terminate a hosting account (irreversible).',
+          desc: 'Terminate a hosting account (irreversible). Cloudflare cleanup (worker routes + website DNS) runs per domain and is SKIPPED for any domain another live account still uses — e.g. deleting a failed duplicate provisioning record never touches the live site on the same domain. "cloudflare_cleanup" reports each domain: removed | kept_in_use_by_another_account | no_zone | error.',
           curl: `curl -s -X DELETE ${base}/hosting/mysite01 \\
   -H "Authorization: Bearer YOUR_API_KEY"`,
-          resp: `{ "mode": "live", "username": "mysite01", "terminated": true }`,
+          resp: `{ "mode": "live", "username": "mysite01", "terminated": true, "whm_terminate_pending": false,
+  "cloudflare_cleanup": [ { "domain": "mysite.com", "result": "removed" } ] }`,
+        },
+        {
+          method: 'POST', path: '/hosting/:user/dns/repair', auth: true, billed: false,
+          desc: 'Self-heal website DNS. For the primary and every addon domain in our Cloudflare, re-creates a missing apex and/or www record as a proxied CNAME to the hosting tunnel. Existing records are never changed; domains on external DNS report "no_zone". Pass {"dry_run":true} to only report. Status per domain: ok | missing (dry run) | repaired | repair_failed | no_zone | error. 409 account_not_live for failed/terminated records. POST /security/anti-red/deploy runs the same check automatically.',
+          params: [['dry_run', false, 'true = report missing records without creating them']],
+          curl: `curl -s -X POST ${base}/hosting/mysite01/dns/repair \\
+  -H "Authorization: Bearer YOUR_API_KEY"`,
+          resp: `{ "mode": "live", "username": "mysite01", "domains": [
+  { "domain": "mysite.com", "status": "repaired", "missing": ["mysite.com", "www.mysite.com"],
+    "created": [ { "name": "mysite.com", "type": "CNAME", "content": "<tunnel>.cfargotunnel.com", "proxied": true, "success": true },
+                 { "name": "www.mysite.com", "type": "CNAME", "content": "<tunnel>.cfargotunnel.com", "proxied": true, "success": true } ] } ] }`,
         },
         {
           method: 'GET', path: '/hosting/:user/login', auth: true, billed: false,
@@ -976,7 +988,7 @@ function endpointGroups(base) {
         },
         {
           method: 'GET', path: '/hosting/:user/plan-changes', auth: true, billed: false,
-          desc: 'Plan-change history of one hosting account, newest first — changes made through the API AND upgrades your customers made in the Telegram bot (via "api" | "bot"). Each entry: id, at, status ("completed"), direction, from_plan/to_plan (premium-weekly | premium-monthly | golden-monthly) + their names, billing ("pro_rata" = Premium <-> Golden, expiry unchanged | "new_term" = a fresh 30-day term: API weekly -> monthly, and every bot upgrade), charged_usd, unused_credit_usd (API weekly -> monthly), loyalty_credit_usd (bot upgrade discount), previous_expires_at, expires_at, renewal_price_usd, legacy. legacy:true entries are best-effort reconstructions of a change made before full history existed: only at, direction, from/to plan and (for bot upgrades) charged_usd + loyalty_credit_usd are known — billing, expiries and renewal price are null, and via is null when the channel is unknown. Same filters + paging as GET /plan-changes. Works for terminated accounts too. 404 if the account is not yours.',
+          desc: 'Plan-change history of one hosting account, newest first — changes made through the API AND upgrades your customers made in the Telegram bot (via "api" | "bot"). Each entry: id, at, status ("completed"), direction, from_plan/to_plan (premium-weekly | premium-monthly | golden-monthly) + their names, billing ("pro_rata" = Premium <-> Golden, expiry unchanged | "new_term" = a fresh 30-day term: API weekly -> monthly, and every bot upgrade), charged_usd, unused_credit_usd (API weekly -> monthly), loyalty_credit_usd (bot upgrade discount), previous_expires_at, expires_at, renewal_price_usd, legacy. legacy:true entries are either best-effort reconstructions of a change made before full history existed (only at, direction, from/to plan and, for bot upgrades, charged_usd + loyalty_credit_usd are known) or changes recorded before billing details were stored (pre 2026-10-10) — for both, billing, expiries and renewal price are null, and via is null when the channel is unknown. Same filters + paging as GET /plan-changes. Works for terminated accounts too. 404 if the account is not yours.',
           params: [['via', false, 'api | bot'], ['since / until', false, 'ISO-8601 date/time bounds on "at"'], ['limit', false, '1-200 (default 50)'], ['cursor', false, 'next_cursor from the previous page']],
           curl: `curl -s ${base}/hosting/mysite01/plan-changes -H "Authorization: Bearer YOUR_API_KEY"`,
           resp: `{ "product": "hosting", "username": "mysite01", "domain": "mysite.com", "plan": "Golden Anti-Red HostPanel (1-Month)",
@@ -1285,10 +1297,11 @@ function endpointGroups(base) {
         },
         {
           method: 'POST', path: '/hosting/:user/security/anti-red/deploy', auth: true, billed: false,
-          desc: 'Deploy the full Anti-Red protection stack (.htaccess cloaking, JS challenge, JA3 fingerprinting, CF worker) for the primary domain. Read status: GET /security/anti-red/status.',
+          desc: 'Deploy the full Anti-Red protection stack (.htaccess cloaking, JS challenge, JA3 fingerprinting, CF worker) for the primary domain. It also checks website DNS first and re-creates any missing apex/www tunnel CNAME (same as POST /dns/repair); see "dns" in the response. Read status: GET /security/anti-red/status.',
           curl: `curl -s -X POST ${base}/hosting/mysite01/security/anti-red/deploy \\
   -H "Authorization: Bearer YOUR_API_KEY"`,
-          resp: `{ "success": true, "htaccess": true, "jsChallenge": true, "hardenedWorker": { "success": true } }`,
+          resp: `{ "success": true, "htaccess": true, "jsChallenge": true, "hardenedWorker": { "success": true },
+  "dns": [ { "domain": "mysite.com", "status": "ok", "missing": [] } ] }`,
         },
         {
           method: 'POST', path: '/hosting/:user/security/anti-bot', auth: true, billed: false,
