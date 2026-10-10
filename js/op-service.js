@@ -637,6 +637,45 @@ const getDomainInfo = async (domainName) => {
   }
 }
 
+// ─── Domain renewal ─────────────────────────────────────
+
+// 1-year renewal price with the same markup + floor as registration.
+const getRenewPrice = async (domainName) => {
+  try {
+    const headers = await authHeaders()
+    const { name, extension } = parseDomain(domainName)
+    const res = await axios.get(`${OP_BASE_URL}/v1beta/domains/prices`, {
+      headers, params: { 'domain.name': name, 'domain.extension': extension, operation: 'renew', period: 1 }, timeout: 15000,
+    })
+    const p = res.data?.data?.price || {}
+    const cost = parseFloat(p.product?.price ?? p.reseller?.price)
+    if (res.data?.code !== 0 || !(cost > 0)) return { error: res.data?.desc || 'No renewal price from OpenProvider' }
+    return { price: Math.max(Math.ceil(cost * PERCENT_INCREASE_DOMAIN), MIN_DOMAIN_PRICE), originalPrice: cost, registrar: 'OpenProvider' }
+  } catch (err) {
+    log('OP getRenewPrice error:', err.message)
+    return { error: err.response?.data?.desc || err.message }
+  }
+}
+
+const renewDomain = async (domainName, period = 1) => {
+  try {
+    const info = await getDomainInfo(domainName)
+    if (!info || !info.domainId) return { error: 'Domain not found at OpenProvider' }
+    const headers = await authHeaders()
+    const { name, extension } = parseDomain(domainName)
+    const res = await axios.post(`${OP_BASE_URL}/v1beta/domains/${info.domainId}/renew`, {
+      domain: { name, extension }, period,
+    }, { headers, timeout: 30000 })
+    if (res.data?.code !== 0) return { error: res.data?.desc || 'OpenProvider renewal failed' }
+    const after = await getDomainInfo(domainName)
+    log(`[OP] Renewed ${domainName} for ${period} year(s) — renewal_date ${after?.expiresAt || 'unknown'}`)
+    return { success: true, domainId: info.domainId, previousExpiresAt: info.expiresAt || null, expiresAt: after?.expiresAt || null }
+  } catch (err) {
+    log('OP renewDomain error:', err.message)
+    return { error: err.response?.data?.desc || err.message }
+  }
+}
+
 // ─── DNSSEC management ──────────────────────────────────
 
 /**
@@ -1369,6 +1408,8 @@ module.exports = {
   checkDomainAvailability,
   registerDomain,
   getDomainInfo,
+  getRenewPrice,
+  renewDomain,
   updateNameservers,
   disableDnssec,
   syncDomain,

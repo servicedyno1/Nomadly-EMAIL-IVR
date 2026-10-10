@@ -22,6 +22,7 @@ function endpointGroups(base) {
   const BNS_TXT = BNS.join(' / ')
   const CF_JSON = '["ada.ns.cloudflare.com", "rob.ns.cloudflare.com"]'
   const NS_EVENTS = BR ? ',"domain.nameservers_branded","domain.nameservers_reverted","domain.nameservers_branding_failed"' : ''
+  const ALERT_EVENTS = ',"hosting.expiring","hosting.renewed","hosting.unsuspended","vps.expiring","vps.renewed","rdp.expiring","rdp.renewed","domain.expiring","domain.expired","domain.renewed","domain.auto_renew_failed","hosting.site_down","hosting.site_recovered","hosting.usage_threshold","vps.usage_threshold","rdp.usage_threshold","account.low_balance"'
   return [
     {
       id: 'meta', title: 'Meta',
@@ -87,13 +88,13 @@ function endpointGroups(base) {
           resp: `{
   "webhook_url": "https://your-app.com/hooks/nomadly",
   "webhook_secret": "whsec_…",
-  "events": ["hosting.provisioned","hosting.provision_failed","hosting.grace_start","hosting.suspended","hosting.deleted","hosting.auto_renew_failed","hosting.plan_changed","vps.provisioned","vps.provision_failed","vps.grace_start","vps.deleted","vps.plan_changed","vps.plan_change_failed","rdp.provisioned","rdp.provision_failed","rdp.grace_start","rdp.deleted","rdp.plan_changed","rdp.plan_change_failed"${NS_EVENTS}],
+  "events": ["hosting.provisioned","hosting.provision_failed","hosting.grace_start","hosting.suspended","hosting.deleted","hosting.auto_renew_failed","hosting.plan_changed","vps.provisioned","vps.provision_failed","vps.grace_start","vps.deleted","vps.plan_changed","vps.plan_change_failed","rdp.provisioned","rdp.provision_failed","rdp.grace_start","rdp.deleted","rdp.plan_changed","rdp.plan_change_failed"${NS_EVENTS}${ALERT_EVENTS}],
   "delivery": "POST signed with HMAC-SHA256 (X-Nomadly-Signature: sha256=<hex>), auto-retry with backoff, de-duplicated per server+event"
 }`,
         },
         {
           method: 'PUT', path: '/account/webhook', auth: true, billed: false,
-          desc: 'Register (or clear) the push-webhook URL for your account. Send {"webhook_url":"https://…"} to set it (the first time this also mints a webhook_secret you must store), or {"webhook_url":null} to clear it (the secret is kept for re-enabling). Nomadly then POSTs a JSON body { event, product, occurred_at, data:{ id, product, domain, reason, … } } to your URL for each lifecycle event across all three products: hosting.provisioned / vps.provisioned / rdp.provisioned (an async create finished — data carries the id/username, domain, plan and ip/nameservers), hosting.provision_failed / vps.provision_failed / rdp.provision_failed (an async create ultimately failed — the wallet was auto-refunded; data carries reason and refunded:true), hosting.grace_start / vps.grace_start / rdp.grace_start (subscription expired → service suspended/powered off and a grace period begins; data carries expired_at + delete_at + grace_hours — hosting grace is 48h, VPS/RDP is 72h/3-day), hosting.auto_renew_failed (a wallet auto-renew attempt failed on insufficient funds; data carries price_usd, wallet_balance_usd, next_attempt_at — the plan then falls into grace, it is NOT terminated), hosting.deleted / vps.deleted / rdp.deleted (the resource was permanently removed after grace; data carries reason), hosting.plan_changed (a hosting plan change made through the API was applied; data carries username, domain, direction, billing ("pro_rata" = Premium <-> Golden, expiry unchanged | "new_term" = weekly -> monthly, fresh 30-day term), from_plan, to_plan, to_plan_name, charged_usd, unused_credit_usd, previous_expires_at, expires_at, renewal_price_usd), vps.plan_changed / rdp.plan_changed (an in-place plan change finished; data carries change_id, direction, from_plan, to_plan, charged_usd, resize_disk, disk_gb) and vps.plan_change_failed / rdp.plan_change_failed (the resize did not complete, the server stays on its old plan and any charge was refunded; data carries reason, refunded, refund_usd)' + (BR ? ', and the branded-nameserver events domain.nameservers_branded (registrar switched to the branded nameservers; data carries domain + nameservers + previous_nameservers), domain.nameservers_reverted (rolled back to the Cloudflare-assigned names to keep the domain protected; data carries reason + nameservers) and domain.nameservers_branding_failed (the domain stays on the Cloudflare names; data carries reason)' : '') + '. SECURITY: every delivery is signed — header "X-Nomadly-Signature: sha256=<hex>" is HMAC-SHA256 of the exact raw request body keyed by your webhook_secret. Recompute it and constant-time compare BEFORE acting on any *.deleted. Delivery is retried with backoff and de-duplicated per server+event (grace/auto_renew_failed re-fire each billing cycle; *.deleted fires once). Reply 2xx to acknowledge.',
+          desc: 'Register (or clear) the push-webhook URL for your account. Send {"webhook_url":"https://…"} to set it (the first time this also mints a webhook_secret you must store), or {"webhook_url":null} to clear it (the secret is kept for re-enabling). Nomadly then POSTs a JSON body { event, product, occurred_at, data:{ id, product, domain, reason, … } } to your URL for each lifecycle event across all three products: hosting.provisioned / vps.provisioned / rdp.provisioned (an async create finished — data carries the id/username, domain, plan and ip/nameservers), hosting.provision_failed / vps.provision_failed / rdp.provision_failed (an async create ultimately failed — the wallet was auto-refunded; data carries reason and refunded:true), hosting.grace_start / vps.grace_start / rdp.grace_start (subscription expired → service suspended/powered off and a grace period begins; data carries expired_at + delete_at + grace_hours — hosting grace is 48h, VPS/RDP is 72h/3-day), hosting.auto_renew_failed (a wallet auto-renew attempt failed on insufficient funds; data carries price_usd, wallet_balance_usd, next_attempt_at — the plan then falls into grace, it is NOT terminated), hosting.deleted / vps.deleted / rdp.deleted (the resource was permanently removed after grace; data carries reason), hosting.plan_changed (a hosting plan change made through the API was applied; data carries username, domain, direction, billing ("pro_rata" = Premium <-> Golden, expiry unchanged | "new_term" = weekly -> monthly, fresh 30-day term), from_plan, to_plan, to_plan_name, charged_usd, unused_credit_usd, previous_expires_at, expires_at, renewal_price_usd), vps.plan_changed / rdp.plan_changed (an in-place plan change finished; data carries change_id, direction, from_plan, to_plan, charged_usd, resize_disk, disk_gb) and vps.plan_change_failed / rdp.plan_change_failed (the resize did not complete, the server stays on its old plan and any charge was refunded; data carries reason, refunded, refund_usd)' + (BR ? ', and the branded-nameserver events domain.nameservers_branded (registrar switched to the branded nameservers; data carries domain + nameservers + previous_nameservers), domain.nameservers_reverted (rolled back to the Cloudflare-assigned names to keep the domain protected; data carries reason + nameservers) and domain.nameservers_branding_failed (the domain stays on the Cloudflare names; data carries reason)' : '') + '. ALERTS (see "Alerts, Monitoring & Activity"): hosting.expiring / vps.expiring / rdp.expiring / domain.expiring (7, 3 and 1 day before expiry), *.renewed, hosting.unsuspended, domain.expired, hosting.site_down / hosting.site_recovered (uptime monitor), *.usage_threshold and account.low_balance. SECURITY: every delivery is signed — header "X-Nomadly-Signature: sha256=<hex>" is HMAC-SHA256 of the exact raw request body keyed by your webhook_secret. Recompute it and constant-time compare BEFORE acting on any *.deleted. Delivery is retried with backoff and de-duplicated per server+event (grace/auto_renew_failed re-fire each billing cycle; *.deleted fires once). Reply 2xx to acknowledge.',
           params: [['webhook_url', true, 'Your http(s) endpoint URL, or null to clear']],
           curl: `curl -s -X PUT ${base}/account/webhook \\
   -H "Authorization: Bearer YOUR_API_KEY" \\
@@ -102,7 +103,7 @@ function endpointGroups(base) {
           resp: `{
   "webhook_url": "https://your-app.com/hooks/nomadly",
   "webhook_secret": "whsec_… (store this — it signs every delivery)",
-  "events": ["hosting.provisioned","hosting.provision_failed","hosting.grace_start","hosting.suspended","hosting.deleted","hosting.auto_renew_failed","hosting.plan_changed","vps.provisioned","vps.provision_failed","vps.grace_start","vps.deleted","vps.plan_changed","vps.plan_change_failed","rdp.provisioned","rdp.provision_failed","rdp.grace_start","rdp.deleted","rdp.plan_changed","rdp.plan_change_failed"${NS_EVENTS}],
+  "events": ["hosting.provisioned","hosting.provision_failed","hosting.grace_start","hosting.suspended","hosting.deleted","hosting.auto_renew_failed","hosting.plan_changed","vps.provisioned","vps.provision_failed","vps.grace_start","vps.deleted","vps.plan_changed","vps.plan_change_failed","rdp.provisioned","rdp.provision_failed","rdp.grace_start","rdp.deleted","rdp.plan_changed","rdp.plan_change_failed"${NS_EVENTS}${ALERT_EVENTS}],
   "delivery": "POST signed with HMAC-SHA256 (X-Nomadly-Signature: sha256=<hex>), auto-retry with backoff, de-duplicated per server+event"
 }
 
@@ -215,10 +216,33 @@ function endpointGroups(base) {
       "nameservers": ${CF_JSON},`}
       "registered_at": "2026-09-08T10:22:00.000Z",
       "expires_at": "2027-09-08T10:22:00.000Z",
+      "auto_renew": false,
+      "auto_renew_supported": false,
+      "renewal_price_usd": null,
+      "next_charge_at": null,
+      "auto_renew_last_error": null,
+      "auto_renew_next_attempt_at": null,
       "dns_records_url": "/dns/mysite.com/records",
       "nameservers_url": "/dns/mysite.com/nameservers"
     }
   ]
+}`,
+        },
+        {
+          method: 'POST', path: '/domains/:domain/auto-renew', auth: true, billed: false,
+          desc: 'Turn wallet auto-renew on or off for one domain. Off by default; OpenProvider-registered domains only for now (enabling any other domain returns 501 auto_renew_not_supported — disabling always works). Send {enabled:true|false}, or omit the body to toggle. Enabling reads the real expiry date and the 1-year renewal price from the registrar (renewal_price_usd, next_charge_at). From 7 days before expires_at an hourly worker charges renewal_price_usd to your wallet and renews the domain for 1 year (domain.renewed webhook, via:"auto_renew"). If the wallet is short or the registrar refuses, the charge is not taken (or is refunded), auto_renew_last_error is set (insufficient_funds | pricing_unavailable | registrar_error), domain.auto_renew_failed fires and the worker retries once a day until the expiry date. After a top-up, send {enabled:true} again to retry on the next run instead of waiting a day. The registrar-side auto-renew stays off, so a domain is never renewed twice. Free — no wallet charge for the toggle itself.',
+          params: [['enabled', false, 'boolean — omit to toggle']],
+          curl: `curl -s -X POST ${base}/domains/mysite.com/auto-renew \\
+  -H "Authorization: Bearer YOUR_API_KEY" \\
+  -H "Content-Type: application/json" \\
+  -d '{"enabled":true}'`,
+          resp: `{
+  "domain": "mysite.com", "registrar": "OpenProvider",
+  "auto_renew": true, "auto_renew_supported": true,
+  "renewal_period_years": 1, "renewal_price_usd": 30,
+  "expires_at": "2027-09-08T10:22:00.000Z", "next_charge_at": "2027-09-01T10:22:00.000Z",
+  "auto_renew_last_error": null, "auto_renew_last_attempt_at": null, "auto_renew_next_attempt_at": null,
+  "wallet_balance_usd": 42.51, "sufficient_balance": true, "mode": "live"
 }`,
         },
         {
@@ -738,7 +762,7 @@ function endpointGroups(base) {
       endpoints: [
         {
           method: 'GET', path: '/hosting/plans', auth: true, billed: false,
-          desc: 'List the available hosting plans, prices and features.',
+          desc: 'List the available hosting plans, prices and features. Monthly plans also list "terms": prepay 1, 3, 6 or 12 months (30 days per month) at 0% / 10% / 15% / 25% off — pass months on POST /hosting or POST /hosting/:user/renew. Auto-renew repeats the same term at the same discount. The weekly plan has no terms (1 week at a time).',
           curl: `curl -s ${base}/hosting/plans \\
   -H "Authorization: Bearer YOUR_API_KEY"`,
           resp: `{
@@ -747,8 +771,15 @@ function endpointGroups(base) {
     { "plan_id": "golden-monthly", "name": "Golden Anti-Red HostPanel (1-Month)",
       "tier": "gold", "price_usd": 100, "duration_days": 30,
       "addon_domains": "unlimited", "visitor_captcha_available": true,
-      "features": ["Anti-Red protection", "Unlimited addon domains", "Visitor Captcha + Geo", "30 days"] }
-  ]
+      "features": ["Anti-Red protection", "Unlimited addon domains", "Visitor Captcha + Geo", "30 days"],
+      "terms": [
+        { "months": 1, "duration_days": 30, "discount_pct": 0, "price_usd": 100, "monthly_equivalent_usd": 100, "savings_usd": 0 },
+        { "months": 3, "duration_days": 90, "discount_pct": 10, "price_usd": 270, "monthly_equivalent_usd": 90, "savings_usd": 30 },
+        { "months": 6, "duration_days": 180, "discount_pct": 15, "price_usd": 510, "monthly_equivalent_usd": 85, "savings_usd": 90 },
+        { "months": 12, "duration_days": 360, "discount_pct": 25, "price_usd": 900, "monthly_equivalent_usd": 75, "savings_usd": 300 }
+      ] }
+  ],
+  "term_discounts_pct": { "1": 0, "3": 10, "6": 15, "12": 25 }
 }`,
         },
         {
@@ -756,6 +787,7 @@ function endpointGroups(base) {
           desc: 'Create a cPanel hosting account. ASYNC: returns 202 immediately with status "provisioning", the cPanel username (generated up-front) and a job_id — the slow WHM build runs in the background so the request never times out (no more orphaned accounts from a 30s client timeout). The wallet is charged up-front (plan price + domain price when domain_mode=buy); if the build ultimately fails the charge is auto-refunded and a hosting.provision_failed webhook fires. Poll GET /hosting/:user until state "online", or subscribe to the hosting.provisioned / hosting.provision_failed webhooks. domain_mode "buy" registers a new domain in the same call; "existing" links a domain already on this platform (Cloudflare); "external" connects a domain at an outside registrar (point its nameservers at Cloudflare). Legacy "byo" = "external". Pass an optional idempotent client_ref — a retry with the same client_ref echoes the SAME 202 handle and never double-charges.',
           params: [
             ['plan_id', true, 'A plan_id from GET /hosting/plans'],
+            ['months', false, 'Prepaid term for monthly plans: 1 (default), 3, 6 or 12 — charged at the term price from GET /hosting/plans (10% / 15% / 25% off). Auto-renew repeats this term. Weekly plan: omit (else 400 term_not_available).'],
             ['domain', true, 'The primary domain for the account'],
             ['domain_mode', false, '"buy" | "existing" | "external" (legacy "byo" = external, default)'],
             ['ns_choice', false, BR
@@ -767,7 +799,7 @@ function endpointGroups(base) {
           curl: `curl -s -X POST ${base}/hosting \\
   -H "Authorization: Bearer YOUR_API_KEY" \\
   -H "Content-Type: application/json" \\
-  -d '{"plan_id":"golden-monthly","domain":"mysite.com","domain_mode":"external","email":"client@mysite.com","client_ref":"order-42"}'`,
+  -d '{"plan_id":"golden-monthly","months":6,"domain":"mysite.com","domain_mode":"external","email":"client@mysite.com","client_ref":"order-42"}'`,
           resp: `HTTP 202 Accepted
 {
   "status": "provisioning",
@@ -778,7 +810,8 @@ function endpointGroups(base) {
   "id": "mysite01",
   "domain": "mysite.com",
   "plan": "Golden Anti-Red HostPanel (1-Month)",
-  "price_usd": 100,
+  "price_usd": 510,
+  "term_months": 6, "term_discount_pct": 15, "hosting_usd": 510, "domain_usd": 0,
   "wallet_balance_usd": 42.51,
   "poll_url": "/hosting/mysite01",
   "credentials_url": "/hosting/mysite01/credentials",
@@ -921,22 +954,23 @@ function endpointGroups(base) {
         },
         {
           method: 'POST', path: '/hosting/:user/renew', auth: true, billed: true,
-          desc: 'Renew a hosting account for another term at the exact bot price for its plan. Extends the expiry (from the later of today or the current expiry), unsuspends the account if it was suspended, and re-deploys anti-red protection. Verifies the account still exists on the server first (returns provisioning_failed + full refund, and marks it terminated, if it was already removed). Optional body { periods: 1..12 } renews several billing cycles at once (price × periods) — MONTHLY plans only. WEEKLY plans renew ONE week at a time (periods must be 1, else 400 weekly_single_period_only) and only once 7 days or fewer are left in the term (else 409 weekly_renew_too_early with renew_available_at), so a weekly account never holds more than ~14 days; to give a weekly customer longer, switch them to a monthly plan (POST /hosting/:user/change-plan — see "Plan changes"). RACE-SAFE: if two renewals (or a renewal and a plan change) for the same account land at the same moment, only one is applied and the other is refunded automatically (502 provisioning_failed, refunded:true) — never "charged twice, extended once". PRE-FLIGHT: send { dry_run: true } to get the price, renewability and would_expire_at WITHOUT any charge or state change — this works on a LIVE key too, so a wallet-billed storefront never has to charge→409→refund to discover a dead item. Blocked items always 409/400 BEFORE any charge: 409 account_terminated (renew_blocked_reason "account_terminated") if the plan was cancelled, 400 pricing_failed ("pricing_unavailable") if no price/duration resolves, 400 weekly_single_period_only / 409 weekly_renew_too_early for weekly plans.',
-          params: [['periods', false, 'Number of billing cycles to renew at once (default 1, max 12). Weekly plans: must be 1.'], ['dry_run', false, 'If true, return price + renewability only — no charge, no state change (safe on a live key).']],
+          desc: 'Renew a hosting account for another term at the exact bot price for its plan. Extends the expiry (from the later of today or the current expiry), unsuspends the account if it was suspended, and re-deploys anti-red protection. Verifies the account still exists on the server first (returns provisioning_failed + full refund, and marks it terminated, if it was already removed). Optional body { periods: 1..12 } renews several billing cycles at once (price × periods) — MONTHLY plans only. PREPAID TERMS: send { months: 1 | 3 | 6 | 12 } instead to renew a monthly plan for that many months at the term discount (10% / 15% / 25% off — see GET /hosting/plans); the chosen term becomes the account\'s auto-renew term (term_months). Without months the account\'s current term is renewed (periods × term, at most 12 months in one call). Sending months together with periods > 1 → 400 invalid_body; months on a weekly plan → 400 term_not_available. WEEKLY plans renew ONE week at a time (periods must be 1, else 400 weekly_single_period_only) and only once 7 days or fewer are left in the term (else 409 weekly_renew_too_early with renew_available_at), so a weekly account never holds more than ~14 days; to give a weekly customer longer, switch them to a monthly plan (POST /hosting/:user/change-plan — see "Plan changes"). RACE-SAFE: if two renewals (or a renewal and a plan change) for the same account land at the same moment, only one is applied and the other is refunded automatically (502 provisioning_failed, refunded:true) — never "charged twice, extended once". PRE-FLIGHT: send { dry_run: true } to get the price, renewability and would_expire_at WITHOUT any charge or state change — this works on a LIVE key too, so a wallet-billed storefront never has to charge→409→refund to discover a dead item. Blocked items always 409/400 BEFORE any charge: 409 account_terminated (renew_blocked_reason "account_terminated") if the plan was cancelled, 400 pricing_failed ("pricing_unavailable") if no price/duration resolves, 400 weekly_single_period_only / 409 weekly_renew_too_early for weekly plans.',
+          params: [['months', false, 'Monthly plans: 1, 3, 6 or 12 — renew one prepaid term at its discount; it becomes the auto-renew term. Omit to renew the current term.'], ['periods', false, 'Number of billing cycles of the current term to renew at once (default 1, max 12 months in total). Weekly plans: must be 1.'], ['dry_run', false, 'If true, return price + renewability only — no charge, no state change (safe on a live key).']],
           curl: `curl -s -X POST ${base}/hosting/mysite01/renew \\
   -H "Authorization: Bearer YOUR_API_KEY" -H "Content-Type: application/json" \\
-  -d '{"periods":1}'`,
+  -d '{"months":3}'`,
           resp: `{
-  "mode": "live", "product": "hosting", "action": "renew", "charged_usd": 100, "wallet_balance_usd": 42.51,
+  "mode": "live", "product": "hosting", "action": "renew", "charged_usd": 270, "wallet_balance_usd": 42.51,
   "result": { "success": true, "id": "mysite01", "username": "mysite01", "domain": "mysite.com",
-    "plan": "Golden Anti-Red HostPanel (1-Month)", "periods": 1, "duration_days": 30,
-    "expires_at": "2026-11-08T11:00:00.000Z" }
+    "plan": "Golden Anti-Red HostPanel (1-Month)", "periods": 1, "term_months": 3, "term_discount_pct": 10,
+    "monthly_price_usd": 100, "duration_days": 90, "expires_at": "2027-01-06T11:00:00.000Z" }
 }
 
 // Pre-flight — POST {"dry_run":true} (no charge, works on a live key):
 // { "dry_run": true, "product": "hosting", "action": "renew", "id": "mysite01", "username": "mysite01",
 //   "domain": "mysite.com", "plan": "Golden Anti-Red HostPanel (1-Month)", "renewable": true,
-//   "renew_blocked_reason": null, "periods": 1, "duration_days": 30, "price_usd": 100,
+//   "renew_blocked_reason": null, "periods": 1, "term_months": 1, "term_discount_pct": 0, "monthly_price_usd": 100,
+//   "duration_days": 30, "price_usd": 100,
 //   "wallet_balance_usd": 142.51, "sufficient_balance": true, "would_expire_at": "2026-11-08T11:00:00.000Z" }
 
 // Weekly plan with more than 7 days left → 409 (nothing charged):
@@ -947,7 +981,7 @@ function endpointGroups(base) {
         },
         {
           method: 'GET', path: '/hosting/:user/plan-options', auth: true, billed: false,
-          desc: 'List the plans this hosting account can move to, with the exact charge and the expiry AFTER the change for each (see the "Plan changes" guide). RULES: Premium Monthly <-> Golden Monthly changes only the package — an upgrade is charged now as (new monthly − current monthly) × days left / 30, a downgrade is free with NO refund, and the expiry date never moves (billing "pro_rata"). Weekly -> Premium/Golden Monthly credits the unused weekly days (weekly price × days left / 7), charges the rest of the monthly price now and starts a FRESH 30-day term today (billing "new_term", expiry_changes:true). Monthly -> Weekly is NEVER offered (a monthly account simply has no weekly option; requesting it returns 409 weekly_downgrade_not_allowed). Each option carries billing, charge_now_usd, unused_credit_usd, refund_usd (always 0), expiry_changes, expires_at (the expiry after the change), new_term_days, renewal_price_usd, renewal_days and allowed/blocked_reason. A downgrade is blocked (allowed:false, blocked_reason "too_many_addon_domains") while the account has more addon domains than the target plan allows. Errors: 409 expired (renew first), 409 account_terminated, 409 unknown_plan.',
+          desc: 'List the plans this hosting account can move to, with the exact charge and the expiry AFTER the change for each (see the "Plan changes" guide). RULES: Premium Monthly <-> Golden Monthly changes only the package — an upgrade is charged now as (new monthly − current monthly) × days left / 30 (on a prepaid 3/6/12-month term both monthly prices are taken at that term\'s 10% / 15% / 25% discount, and the new plan renews on the same term — see term_months / renewal_price_usd on each option), a downgrade is free with NO refund, and the expiry date never moves (billing "pro_rata"). Weekly -> Premium/Golden Monthly credits the unused weekly days (weekly price × days left / 7), charges the rest of the monthly price now and starts a FRESH 30-day term today (billing "new_term", expiry_changes:true). Monthly -> Weekly is NEVER offered (a monthly account simply has no weekly option; requesting it returns 409 weekly_downgrade_not_allowed). Each option carries billing, charge_now_usd, unused_credit_usd, refund_usd (always 0), expiry_changes, expires_at (the expiry after the change), new_term_days, renewal_price_usd, renewal_days and allowed/blocked_reason. A downgrade is blocked (allowed:false, blocked_reason "too_many_addon_domains") while the account has more addon domains than the target plan allows. Errors: 409 expired (renew first), 409 account_terminated, 409 unknown_plan.',
           curl: `curl -s ${base}/hosting/mysite01/plan-options -H "Authorization: Bearer YOUR_API_KEY"`,
           resp: `// Weekly account, 5 days left → both monthly plans start a fresh 30-day term
 { "username": "mysite01", "domain": "mysite.com", "product": "hosting", "remaining_days": 5, "term_ends_at": "2026-10-15T09:00:00.000Z",
@@ -1104,6 +1138,79 @@ function endpointGroups(base) {
 }
 // Next page: GET /plan-changes?product=vps,rdp&since=2026-10-01&limit=50&cursor=<next_cursor>
 // Bad filter → 400 { "error": "invalid_status", "message": "status must be completed, failed or running." }`,
+        },
+      ],
+    },
+    {
+      id: 'alerts', title: 'Alerts, Monitoring & Activity',
+      blurb: 'Proactive push alerts so a customer never loses a site by surprise, an origin health check that sees past the protection layer, and a per-service change log. All alerts are webhook events (register a URL with PUT /account/webhook) and are de-duplicated: each reminder, transition and threshold fires once. EXPIRY: hosting.expiring / vps.expiring / rdp.expiring / domain.expiring fire 7, 3 and 1 day before expires_at (only the stages shorter than the plan term — a weekly hosting plan gets the 3- and 1-day reminders); data carries expires_at, days_left (7 | 3 | 1), hours_left, renewal_price_usd, auto_renew, wallet_balance_usd and sufficient_balance. DOMAIN AUTO-RENEW: domain.auto_renew_failed fires (at most once a day) when a per-domain wallet auto-renew (POST /domains/:domain/auto-renew) could not renew — data carries reason (insufficient_funds | pricing_unavailable | registrar_error), price_usd, wallet_balance_usd, expires_at and next_attempt_at (null on the last day). RENEWALS: hosting.renewed / vps.renewed / rdp.renewed / domain.renewed fire whenever the expiry moves forward — through the API, the Telegram bot or a wallet auto-renew (data: previous_expires_at, expires_at; auto-renewals add via:"auto_renew", charged_usd, wallet_balance_usd). hosting.unsuspended fires when a suspended account is back online (data: suspended_since). domain.expired fires when a domain passes its expiry date. LOW BALANCE: account.low_balance fires once when your wallet drops below the threshold you set with PUT /account/alerts (data: wallet_balance_usd, threshold_usd) and re-arms when the balance is back above it. UPTIME: every 5 minutes each of your live hosting accounts is probed through the Cloudflare Tunnel (DNS, tunnel, real origin response — not the decoy page datacenter traffic receives). After 3 failed checks in a row hosting.site_down fires (data: down_since, consecutive_failures, checks); the next good check fires hosting.site_recovered (data: down_since, recovered_at, downtime_minutes). When the DNS check fails, missing apex/www records are re-created automatically (recorded in the activity log as dns.repair). USAGE: hosting.usage_threshold (hourly: disk, bandwidth and inodes at 80% and 95%) and vps.usage_threshold / rdp.usage_threshold (every 15 min: CPU above 90% averaged over 15 minutes, RAM above 90%, disk above 85%); data carries metric, percent, threshold_pct plus used/limit figures. Each level fires once and re-arms after the metric drops 5 points below its lowest level.',
+      endpoints: [
+        {
+          method: 'GET', path: '/account/alerts', auth: true, billed: false,
+          desc: 'Your alert settings: the low-balance threshold on this API key (null = off), the current wallet balance and whether it is below the threshold, plus the fixed reminder days, uptime-monitor settings, usage thresholds and the list of alert events.',
+          curl: `curl -s ${base}/account/alerts -H "Authorization: Bearer YOUR_API_KEY"`,
+          resp: `{
+  "low_balance_usd": 50,
+  "wallet_balance_usd": 142.5,
+  "below_threshold": false,
+  "low_balance_alerted_at": null,
+  "webhook_configured": true,
+  "expiry_reminder_days": [7, 3, 1],
+  "health_check": { "interval_minutes": 5, "failures_before_site_down": 3, "auto_dns_repair": true },
+  "usage_thresholds": {
+    "hosting": { "disk_pct": [80, 95], "bandwidth_pct": [80, 95], "inodes_pct": [80, 95], "check_interval_minutes": 60 },
+    "vps_rdp": { "cpu_pct": 90, "cpu_window_minutes": 15, "memory_pct": 90, "disk_pct": 85, "check_interval_minutes": 15 }
+  },
+  "events": ["hosting.expiring", "…", "account.low_balance"]
+}`,
+        },
+        {
+          method: 'PUT', path: '/account/alerts', auth: true, billed: false,
+          desc: 'Set the low-balance alert threshold for this API key. account.low_balance is pushed once when the wallet drops below it (checked right after every API charge and every 10 minutes) and again only after the balance has gone back above it. Send null or 0 to turn it off. The alert is off until you set it. Errors: 400 nothing_to_update | invalid_low_balance_usd.',
+          params: [['low_balance_usd', true, 'Threshold in USD (0-1000000), or null / 0 to turn the alert off']],
+          curl: `curl -s -X PUT ${base}/account/alerts \\
+  -H "Authorization: Bearer YOUR_API_KEY" \\
+  -H "Content-Type: application/json" \\
+  -d '{"low_balance_usd":50}'`,
+          resp: `{ "low_balance_usd": 50, "wallet_balance_usd": 42.1, "below_threshold": true, "…": "…" }
+
+// Webhook pushed to your URL:
+// { "event": "account.low_balance", "product": "account", "occurred_at": "…",
+//   "data": { "id": null, "product": "account", "wallet_balance_usd": 42.1, "threshold_usd": 50, "currency": "usd" } }`,
+        },
+        {
+          method: 'GET', path: '/hosting/:user/health', auth: true, billed: false,
+          desc: 'Live health of a hosting account, probed from our network through the Cloudflare Tunnel so you see the REAL origin, not the decoy page the protection layer serves to datacenter traffic. dns: apex/www resolve publicly (null = resolver unavailable); when a lookup fails, dns.cloudflare shows whether the records exist on Cloudflare and dns.repair_url points to POST /hosting/:user/dns/repair. tunnel: connected + status. origin: ok, http_status, ttfb_ms, checked_at (a 5xx / 52x / 530 or a network error = down). ssl: valid, valid_until, days_left, issuer (the certificate visitors see). php_errors_last_24h: PHP errors written to public_html/error_log in the last 24 hours (null + php_errors_note when it cannot be read). status: up | degraded (works, but www/tunnel/SSL has a problem) | down | unknown. monitor: the 5-minute uptime monitor state (status, consecutive_failures, down_since, last_ok_at, last_checked_at, last_dns_repair_at). Read-only. 409 account_not_live (provisioning / failed / terminated), 409 account_suspended or maintenance_mode.',
+          curl: `curl -s ${base}/hosting/mysite01/health -H "Authorization: Bearer YOUR_API_KEY"`,
+          resp: `{
+  "username": "mysite01",
+  "domain": "mysite.com",
+  "status": "up",
+  "checked_at": "2026-10-12T09:00:00.000Z",
+  "dns": { "apex": true, "www": true, "ok": true },
+  "tunnel": { "connected": true, "status": "healthy", "connections": 4 },
+  "origin": { "ok": true, "http_status": 200, "ttfb_ms": 182, "checked_at": "2026-10-12T09:00:00.000Z" },
+  "ssl": { "valid": true, "valid_until": "2027-01-05T23:59:59.000Z", "days_left": 85, "issuer": "Google Trust Services" },
+  "php_errors_last_24h": 0,
+  "monitor": { "enabled": true, "interval_minutes": 5, "failures_before_site_down": 3, "status": "up", "consecutive_failures": 0,
+               "down_since": null, "last_ok_at": "2026-10-12T08:55:00.000Z", "last_checked_at": "2026-10-12T08:55:00.000Z", "last_dns_repair_at": null }
+}`,
+        },
+        {
+          method: 'GET', path: '/activity', auth: true, billed: false,
+          desc: 'Change-activity log for everything you own, newest first, kept 90 days. Each entry: id, at, resource_type (hosting | vps | rdp | domain | account), resource_id (cPanel username, server id or domain), action, actor (api = your API calls · bot = your customers in the Telegram bot · system = our schedulers and monitors) and details. Actions include create, renew, delete, suspend, unsuspend, site.take_offline / site.bring_online, auto_renew.enabled / disabled / charged / failed, plan_change, dns.repair, anti_red.deploy, addon.add / remove, primary_domain.change, security.*, geo.*, ssl.autossl, credentials.reveal, power.* (VPS/RDP), password_reset, reinstall, nameservers.update, dns_record.*, site.down / site.recovered, webhook.update and alerts.update. Dry-runs and failed calls are not recorded. Errors: 400 invalid_resource | invalid_resource_type | invalid_actor | invalid_date | invalid_limit | invalid_cursor.',
+          params: [['resource', false, '"<type>:<id>", e.g. hosting:mysite01 or vps:b2f1c0a4-…, or a bare id'], ['resource_type', false, 'hosting | vps | rdp | domain | account'], ['actor', false, 'api | bot | system'], ['action', false, 'Exact action or a prefix: "auto_renew" matches auto_renew.charged, auto_renew.failed …'], ['since', false, 'ISO-8601 date/time'], ['until', false, 'ISO-8601 date/time'], ['limit', false, '1-200 (default 50)'], ['cursor', false, 'next_cursor from the previous page (same filters)']],
+          curl: `curl -s "${base}/activity?resource=hosting:mysite01&limit=20" -H "Authorization: Bearer YOUR_API_KEY"`,
+          resp: `{
+  "filters": { "resource_type": "hosting", "resource_id": "mysite01", "actor": null, "action": null, "since": null, "until": null, "limit": 20 },
+  "retention_days": 90,
+  "count": 3, "has_more": false, "next_cursor": null,
+  "activity": [
+    { "id": "8c1e…", "at": "2026-10-12T09:05:00.000Z", "resource_type": "hosting", "resource_id": "mysite01", "action": "dns.repair", "actor": "system", "details": { "trigger": "health_check", "created": ["www.mysite.com"] } },
+    { "id": "51aa…", "at": "2026-10-11T18:00:00.000Z", "resource_type": "hosting", "resource_id": "mysite01", "action": "auto_renew.charged", "actor": "system", "details": { "charged_usd": 100, "expires_at": "2026-11-10T18:00:00.000Z" } },
+    { "id": "0f3b…", "at": "2026-10-10T12:00:00.000Z", "resource_type": "hosting", "resource_id": "mysite01", "action": "auto_renew.enabled", "actor": "bot", "details": {} }
+  ]
+}`,
         },
       ],
     },
@@ -1398,6 +1505,9 @@ const ERRORS = [
   ['409', 'expired / term_ending_soon', 'Plan change blocked: the term has ended, or (VPS/RDP) less than 1 hour is left in it. Renew first.'],
   ['409', 'weekly_renew_too_early', 'Weekly hosting can only be renewed once 7 days or fewer are left. The response includes renew_available_at.'],
   ['400', 'weekly_single_period_only', 'Weekly hosting renews one week at a time — send periods: 1 (or omit it).'],
+  ['400', 'invalid_months', 'months must be one of 1, 3, 6 or 12 (POST /hosting, POST /hosting/:user/renew).'],
+  ['400', 'term_not_available', 'Prepaid 3/6/12-month terms are for monthly plans only — the weekly plan is 1 week at a time.'],
+  ['501', 'auto_renew_not_supported', 'Domain auto-renew is available for OpenProvider-registered domains only for now.'],
   ['501', 'not_supported / not_implemented / no_credentials', 'The action is not available in this mode (e.g. live domain renewal is not yet wired; cPanel password not on file for an API addon).'],
   ['502', 'provisioning_failed', 'The provider failed to fulfil the request. Any charge is auto-refunded.'],
   ['500', 'internal_error / auth_error', 'Unexpected server error — safe to retry; contact support if persistent.'],

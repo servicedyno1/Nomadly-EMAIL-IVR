@@ -486,17 +486,21 @@ async function getAccountInfo(username) {
 // accountsummary does NOT carry bandwidth, so this is the source for it.
 // Returns { success, data:{ user, maindomain, totalbytes, limit, bwlimited } }.
 async function getAccountBandwidth(username) {
+  const all = await listAccountBandwidth()
+  if (!all.success) return all
+  const acct = all.data.find(a => String(a.user).toLowerCase() === String(username).toLowerCase())
+  if (acct) return { success: true, data: acct }
+  return { success: false, error: 'account_not_in_bandwidth_report' }
+}
+
+// Every account's current-month bandwidth in ONE /showbw call (used by the hourly usage alerts).
+async function listAccountBandwidth() {
   try {
     const now = new Date()
     const res = await whmApi.get('/showbw', {
       params: { 'api.version': 1, month: now.getMonth() + 1, year: now.getFullYear() },
     })
-    if (res.data?.metadata?.result === 1) {
-      const list = res.data.data?.acct || []
-      const acct = list.find(a => String(a.user).toLowerCase() === String(username).toLowerCase())
-      if (acct) return { success: true, data: acct }
-      return { success: false, error: 'account_not_in_bandwidth_report' }
-    }
+    if (res.data?.metadata?.result === 1) return { success: true, data: res.data.data?.acct || [] }
     return { success: false, error: res.data?.metadata?.reason || 'showbw_failed' }
   } catch (err) {
     return { success: false, error: err.message }
@@ -849,6 +853,7 @@ module.exports = {
   changePrimaryDomain,
   getAccountInfo,
   getAccountBandwidth,
+  listAccountBandwidth,
   createUserSession,
   generatePassword,
   ensureCloudflareTweaks,

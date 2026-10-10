@@ -37,6 +37,9 @@ const whmService = require('./whm-service')
 const vpsProvider = require('./vps-provider')
 const hostingScheduler = require('./hosting-scheduler')       // getPlanPrice / getPlanDuration (bot-accurate)
 const hostingPlanChange = require('./hosting-plan-change')   // hosting upgrade/downgrade pro-rata quote
+const hostingTerms = require('./hosting-terms')               // prepaid 1/3/6/12-month hosting terms + discounts
+const domainAutoRenew = require('./domain-auto-renew')        // per-domain wallet auto-renew (OpenProvider)
+const opService = require('./op-service')                     // OpenProvider reads (expiry, renewal price)
 const doPlanChange = require('./do-plan-change')             // DigitalOcean VPS/RDP in-place resize engine
 const planChangeHistory = require('./plan-change-history')   // plan-change history (hosting + VPS + RDP) for GET …/plan-changes
 const doUsage = require('./do-usage')                         // DigitalOcean VPS/RDP usage metrics
@@ -48,6 +51,11 @@ const { teardownHostingDomain } = require('./hosting-dns-teardown') // ownership
 const hostingDnsRepair = require('./hosting-dns-repair')          // POST /hosting/:user/dns/repair
 const { registerShortenerRoutes } = require('./reseller-shortener')      // URL shortener: buy/connect domain + link CRUD (reuses fullUrlOf/linksOf/clicksOn)
 const brandedNs = require('./branded-ns')                     // branded nameservers (ns1/ns2.hosta.sh) — reseller API default
+const activity = require('./reseller-activity')               // GET /activity (per-service change log)
+const { apiRecorder } = require('./reseller-activity-api')    // records successful API mutations (actor "api")
+const alerts = require('./reseller-alerts')                   // expiry / renewal / low-balance webhooks + sweeps
+const siteHealth = require('./reseller-site-health')          // GET /hosting/:user/health + uptime monitor
+const usageAlerts = require('./reseller-usage-alerts')        // usage-threshold levels (documented on GET /account/alerts)
 
 // Customer-facing HostPanel URL (same one the Telegram bot shows).
 function panelUrl() {
@@ -126,6 +134,7 @@ function createResellerApi(deps = {}) {
   const log = deps.log || console.log
   const notifyAdmin = deps.notifyAdmin || (async () => {})
   const router = express.Router()
+  router.use(apiRecorder(getDb))
 
   const col = (name) => {
     const db = getDb()
@@ -159,6 +168,11 @@ function createResellerApi(deps = {}) {
   }
   async function refundWallet(chatId, amountUsd) {
     return await atomicIncrement(col('walletOf'), String(chatId), 'usdIn', Math.round(amountUsd * 100) / 100)
+  }
+
+  // account.low_balance right after a debit (the 10-minute sweep is the safety net). Best-effort.
+  function lowBalanceCheck(chatId) {
+    try { alerts.checkLowBalance(getDb(), chatId, { log }).catch((e) => log(`[ResellerAPI] low-balance check: ${e.message}`)) } catch (_) { /* best-effort */ }
   }
 
   async function recordOrder(doc) {
@@ -236,6 +250,7 @@ function createResellerApi(deps = {}) {
     if (!charged) {
       return res.status(402).json({ error: 'insufficient_wallet_balance', message: 'Wallet debit was declined (insufficient funds / concurrent spend).', price_usd: price, wallet_balance_usd: balance })
     }
+    lowBalanceCheck(chatId)
 
     let result
     try {
@@ -363,6 +378,7 @@ function createResellerApi(deps = {}) {
     if (isLive()) {
       charged = await chargeWallet(chatId, price)
       if (!charged) { res.status(402).json({ error: 'insufficient_wallet_balance', message: 'Wallet debit was declined (insufficient funds / concurrent spend).', price_usd: price, wallet_balance_usd: balance }); return { ok: false } }
+      lowBalanceCheck(chatId)
     }
     return { ok: true, balance, charged, price }
   }
@@ -438,12 +454,13 @@ function createResellerApi(deps = {}) {
   async function runHostingJob(job) {
     const owner = String(job.ownerChatId)
     const r = job.request
-    const durationDays = Number(hostingScheduler.getPlanDuration(r.plan)) || 30
+    const termMonths = hostingTerms.isTerm(r.term_months) ? Number(r.term_months) : 1
+    const durationDays = (Number(hostingScheduler.getPlanDuration(r.plan)) || 30) * termMonths
     if (job.mode === 'dry_run') {
       const expiry = new Date(Date.now() + durationDays * 86400000)
-      await col('cpanelAccounts').updateOne({ _id: job.username }, { $set: { provisionState: 'active', expiryDate: expiry, autoRenew: durationDays >= 30 }, $unset: { provisionFailedReason: '' } })
+      await col('cpanelAccounts').updateOne({ _id: job.username }, { $set: { provisionState: 'active', expiryDate: expiry, termMonths, autoRenew: durationDays >= 30 }, $unset: { provisionFailedReason: '' } })
       await provisionJobs().updateOne({ _id: job._id }, { $set: { status: 'done', finishedAt: new Date(), simulated: true, result: { username: job.username } } })
-      emitEvent(owner, 'hosting.provisioned', job.username, { domain: r.domain, plan: r.plan, cpanel_username: job.username, username: job.username, expires_at: expiry.toISOString(), simulated: true })
+      emitEvent(owner, 'hosting.provisioned', job.username, { domain: r.domain, plan: r.plan, cpanel_username: job.username, username: job.username, term_months: termMonths, expires_at: expiry.toISOString(), simulated: true })
       return
     }
     const { registerDomainAndCreateCpanel } = require('./cr-register-domain-&-create-cpanel.js')
@@ -502,7 +519,7 @@ function createResellerApi(deps = {}) {
     await col('cpanelAccounts').updateOne({ _id: finalUser }, { $set: {
       chatId: owner, source: 'reseller_api', ownerEmail: r.email || null, domain: r.domain, plan: r.plan,
       provisionState: 'active', provisionJobId: job._id, clientRef: job.clientRef || null,
-      expiryDate: expiry, renewalPriceUsd: r.hostingPrice, autoRenew: durationDays >= 30,
+      expiryDate: expiry, renewalPriceUsd: r.hostingPrice, termMonths, autoRenew: durationDays >= 30,
       ...credSet,
     } }, { upsert: true })
     if (finalUser !== job.username) {
@@ -521,7 +538,7 @@ function createResellerApi(deps = {}) {
       }
     }
     await provisionJobs().updateOne({ _id: job._id }, { $set: { status: 'done', finishedAt: new Date(), username: finalUser, result: { username: finalUser, nameservers: nsView.nameservers || [], ...(nsView.nameserver_mode ? { nameserver_mode: nsView.nameserver_mode, nameserver_status: nsView.nameserver_status, current_nameservers: nsView.current_nameservers } : {}) } } })
-    emitEvent(owner, 'hosting.provisioned', finalUser, { domain: r.domain, plan: r.plan, cpanel_username: finalUser, username: finalUser, expires_at: expiry.toISOString(), nameservers: nsView.nameservers || [], ...(nsView.nameserver_mode ? { nameserver_mode: nsView.nameserver_mode, nameserver_status: nsView.nameserver_status, current_nameservers: nsView.current_nameservers } : {}), panel_url: panelUrl(), server_ip: serverIp() })
+    emitEvent(owner, 'hosting.provisioned', finalUser, { domain: r.domain, plan: r.plan, cpanel_username: finalUser, username: finalUser, term_months: termMonths, expires_at: expiry.toISOString(), nameservers: nsView.nameservers || [], ...(nsView.nameserver_mode ? { nameserver_mode: nsView.nameserver_mode, nameserver_status: nsView.nameserver_status, current_nameservers: nsView.current_nameservers } : {}), panel_url: panelUrl(), server_ip: serverIp() })
   }
 
   // ── VPS / RDP job runner ──
@@ -622,11 +639,12 @@ function createResellerApi(deps = {}) {
           let exists = false
           try { const i = await whmService.getAccountInfo(job.username); exists = !!(i && i.success) } catch (_) {}
           if (exists) {
-            const durationDays = Number(hostingScheduler.getPlanDuration(job.request.plan)) || 30
+            const termMonths = hostingTerms.isTerm(job.request.term_months) ? Number(job.request.term_months) : 1
+            const durationDays = (Number(hostingScheduler.getPlanDuration(job.request.plan)) || 30) * termMonths
             const expiry = new Date(Date.now() + durationDays * 86400000)
-            await col('cpanelAccounts').updateOne({ _id: job.username }, { $set: { chatId: owner, source: 'reseller_api', domain: job.request.domain, plan: job.request.plan, provisionState: 'active', expiryDate: expiry, renewalPriceUsd: job.request.hostingPrice, autoRenew: durationDays >= 30 } })
+            await col('cpanelAccounts').updateOne({ _id: job.username }, { $set: { chatId: owner, source: 'reseller_api', domain: job.request.domain, plan: job.request.plan, provisionState: 'active', expiryDate: expiry, renewalPriceUsd: job.request.hostingPrice, termMonths, autoRenew: durationDays >= 30 } })
             await provisionJobs().updateOne({ _id: job._id }, { $set: { status: 'done', finishedAt: new Date(), reconciled: true } })
-            emitEvent(owner, 'hosting.provisioned', job.username, { domain: job.request.domain, plan: job.request.plan, cpanel_username: job.username, username: job.username, expires_at: expiry.toISOString(), reconciled: true })
+            emitEvent(owner, 'hosting.provisioned', job.username, { domain: job.request.domain, plan: job.request.plan, cpanel_username: job.username, username: job.username, term_months: termMonths, expires_at: expiry.toISOString(), reconciled: true })
           } else {
             if (job.charged) await refundWallet(owner, job.priceUsd)
             await col('cpanelAccounts').updateOne({ _id: job.username }, { $set: { provisionState: 'failed', provisionFailedReason: 'provisioning_interrupted' } })
@@ -690,6 +708,61 @@ function createResellerApi(deps = {}) {
     const secret = (keyDoc && keyDoc.webhookSecret) || resellerWebhooks.newWebhookSecret()
     await col('resellerApiKeys').updateOne({ _id: req.reseller.keyId }, { $set: { webhookUrl: url, webhookSecret: secret } })
     res.json({ webhook_url: url, webhook_secret: secret, events: listedEvents(), delivery: WEBHOOK_DELIVERY_NOTE })
+  }))
+
+  // ── Alerts: low-balance threshold (per key) + the fixed reminder / monitor / usage settings ──
+  const ALERT_EVENTS = ['hosting.expiring', 'vps.expiring', 'rdp.expiring', 'domain.expiring', 'domain.expired', 'hosting.renewed', 'vps.renewed', 'rdp.renewed', 'domain.renewed', 'hosting.unsuspended', 'hosting.site_down', 'hosting.site_recovered', 'hosting.usage_threshold', 'vps.usage_threshold', 'rdp.usage_threshold', 'account.low_balance']
+  async function alertsView(req) {
+    const k = await col('resellerApiKeys').findOne({ _id: req.reseller.keyId }, { projection: { alerts: 1, webhookUrl: 1 } })
+    const a = (k && k.alerts) || {}
+    const threshold = Number(a.lowBalanceUsd) > 0 ? Number(a.lowBalanceUsd) : null
+    const balance = await walletBalance(req.reseller.ownerChatId)
+    return {
+      low_balance_usd: threshold,
+      wallet_balance_usd: balance,
+      below_threshold: threshold != null && balance < threshold,
+      low_balance_alerted_at: a.lowBalanceAlertedAt ? new Date(a.lowBalanceAlertedAt).toISOString() : null,
+      webhook_configured: !!(k && k.webhookUrl),
+      expiry_reminder_days: alerts.STAGES,
+      health_check: { interval_minutes: 5, failures_before_site_down: siteHealth.FAIL_THRESHOLD, auto_dns_repair: true },
+      usage_thresholds: {
+        hosting: { disk_pct: usageAlerts.HOSTING_LEVELS.disk, bandwidth_pct: usageAlerts.HOSTING_LEVELS.bandwidth, inodes_pct: usageAlerts.HOSTING_LEVELS.inodes, check_interval_minutes: 60 },
+        vps_rdp: { cpu_pct: usageAlerts.SERVER_LEVELS.cpu[0], cpu_window_minutes: 15, memory_pct: usageAlerts.SERVER_LEVELS.memory[0], disk_pct: usageAlerts.SERVER_LEVELS.disk[0], check_interval_minutes: 15 },
+      },
+      events: ALERT_EVENTS,
+    }
+  }
+  router.get('/account/alerts', apiKeyAuth, h(async (req, res) => res.json(await alertsView(req))))
+  router.put('/account/alerts', apiKeyAuth, h(async (req, res) => {
+    if (!req.body || !Object.prototype.hasOwnProperty.call(req.body, 'low_balance_usd')) {
+      return res.status(400).json({ error: 'nothing_to_update', message: 'Body: { "low_balance_usd": <number> } — or null / 0 to turn the low-balance alert off.' })
+    }
+    const raw = req.body.low_balance_usd
+    if (raw === null || raw === 0 || raw === '0') {
+      await col('resellerApiKeys').updateOne({ _id: req.reseller.keyId }, { $unset: { 'alerts.lowBalanceUsd': '', 'alerts.lowBalanceAlertedAt': '' } })
+      return res.json(await alertsView(req))
+    }
+    const n = typeof raw === 'number' ? raw : (typeof raw === 'string' && raw.trim() !== '' ? Number(raw) : NaN)
+    if (!Number.isFinite(n) || n < 0 || n > 1000000) return res.status(400).json({ error: 'invalid_low_balance_usd', message: 'low_balance_usd must be a number between 0 and 1000000 (USD), or null to turn the alert off.' })
+    await col('resellerApiKeys').updateOne({ _id: req.reseller.keyId }, { $set: { 'alerts.lowBalanceUsd': Math.round(n * 100) / 100 }, $unset: { 'alerts.lowBalanceAlertedAt': '' } })
+    lowBalanceCheck(req.reseller.ownerChatId)
+    res.json(await alertsView(req))
+  }))
+
+  // ── Per-service change-activity log (api | bot | system), newest first, kept 90 days ──
+  router.get('/activity', apiKeyAuth, h(async (req, res) => {
+    let f
+    try { f = activity.parseFilters(req.query) } catch (e) {
+      if (!(e instanceof activity.ActivityQueryError)) throw e
+      return res.status(e.status).json({ error: e.code, message: e.message })
+    }
+    const pg = await activity.list(getDb(), req.reseller.ownerChatId, f)
+    res.json({
+      filters: { resource_type: f.resourceType || null, resource_id: f.resourceId || null, actor: f.actor || null, action: f.action || null, since: f.since ? f.since.toISOString() : null, until: f.until ? f.until.toISOString() : null, limit: f.limit },
+      retention_days: activity.RETENTION_DAYS,
+      count: pg.items.length, has_more: pg.has_more, next_cursor: pg.next_cursor,
+      activity: pg.items,
+    })
   }))
 
   // ── Bot pricing catalog (the same prices the Telegram bot charges) ──
@@ -792,6 +865,7 @@ function createResellerApi(deps = {}) {
     // registeredDomains for these domains and fill NS from there when the domainsOf doc lacks them.
     const names = docs.map(d => String(d.domainName || '').toLowerCase()).filter(Boolean)
     const nsMap = {}
+    const regMap = {}
     if (names.length) {
       try {
         const regs = await col('registeredDomains').find({ _id: { $in: names } }).toArray()
@@ -799,6 +873,7 @@ function createResellerApi(deps = {}) {
           const v = rd.val || {}
           const ns = v.cfNameservers || v.nameservers || rd.nameservers || []
           if (Array.isArray(ns) && ns.length) nsMap[String(rd._id).toLowerCase()] = ns
+          if (v.registrar || v.provider) regMap[String(rd._id).toLowerCase()] = v.registrar || v.provider
         }
       } catch (_) { /* best-effort enrichment */ }
     }
@@ -809,14 +884,21 @@ function createResellerApi(deps = {}) {
       const localNs = d.nameservers || (d.val && (d.val.cfNameservers || d.val.nameservers)) || []
       const nameservers = (Array.isArray(localNs) && localNs.length) ? localNs : (nsMap[String(d.domainName || '').toLowerCase()] || [])
       const bv = brandedView[String(d.domainName || '').toLowerCase()] || null
+      const ar = domainAutoRenew.view(d, d.registrar || regMap[String(d.domainName || '').toLowerCase()] || null)
       return {
         domain: d.domainName,
-        registrar: d.registrar || null,
+        registrar: ar.registrar,
         nameserver_type: d.nameserverType || null,
         nameservers: bv ? bv.nameservers : nameservers,
         ...(bv ? { nameserver_mode: bv.nameserver_mode, nameserver_status: bv.nameserver_status, current_nameservers: bv.current_nameservers } : {}),
         registered_at: d.registeredAt || null,
         expires_at: (exp && !isNaN(exp)) ? exp.toISOString() : null,
+        auto_renew: ar.auto_renew,
+        auto_renew_supported: ar.auto_renew_supported,
+        renewal_price_usd: ar.renewal_price_usd,
+        next_charge_at: ar.next_charge_at,
+        auto_renew_last_error: ar.auto_renew_last_error,
+        auto_renew_next_attempt_at: ar.auto_renew_next_attempt_at,
         dns_records_url: `/dns/${d.domainName}/records`,
         nameservers_url: `/dns/${d.domainName}/nameservers`,
       }
@@ -1660,13 +1742,21 @@ function createResellerApi(deps = {}) {
         duration_days: p.durationDays, addon_domains: p.addons,
         visitor_captcha_available: p.tier === 'gold',
         features: p.features,
+        // Prepaid terms (pass `months` on POST /hosting or POST /hosting/:user/renew). Weekly: none.
+        terms: p.durationDays === hostingTerms.MONTH_DAYS ? hostingTerms.TERM_MONTHS.map(m => hostingTerms.termQuote(p.priceUsd, m)) : [],
       })),
+      term_discounts_pct: Object.fromEntries(hostingTerms.TERM_MONTHS.map(m => [String(m), hostingTerms.discountPct(m)])),
+      terms_note: 'Monthly plans can be prepaid for 1, 3, 6 or 12 months (30 days per month) at the discount shown. Pass months on POST /hosting or POST /hosting/:user/renew. Auto-renew repeats the same term at the same discount. The weekly plan is 1 week at a time.',
     })
   }))
 
   router.post('/hosting', apiKeyAuth, h(async (req, res) => {
     const plan = hostingPlanById(req.body?.plan_id)
     if (!plan) return res.status(400).json({ error: 'invalid_plan', message: 'Unknown plan_id. Call GET /hosting/plans.' })
+    const pm = hostingTerms.parseMonths(req.body?.months, plan.durationDays)
+    if (pm.error) return res.status(400).json({ error: pm.error, message: pm.message })
+    const termMonths = pm.months || 1
+    const hostingUsd = hostingTerms.termPrice(plan.priceUsd, termMonths)
     const domain = String(req.body?.domain || '').trim().toLowerCase()
     if (!domainOk(domain)) return res.status(400).json({ error: 'invalid_domain', message: 'Provide a valid domain.' })
     // ISSUE-7 FIX (2026-10): domain_mode no longer conflates the bot's two distinct
@@ -1717,8 +1807,8 @@ function createResellerApi(deps = {}) {
       domainPrice = Number(dp.price) || 0
       registrar = dp.registrar || 'ConnectReseller'
     }
-    const total = Math.round((plan.priceUsd + domainPrice) * 100) / 100
-    const request = { plan_id: plan.id, plan: plan.name, domain, domain_mode: domainMode, email, hostingPrice: plan.priceUsd, hosting_usd: plan.priceUsd, domain_usd: domainPrice, registrar, ...(nsMode ? { ns_choice: nsMode } : {}) }
+    const total = Math.round((hostingUsd + domainPrice) * 100) / 100
+    const request = { plan_id: plan.id, plan: plan.name, domain, domain_mode: domainMode, email, hostingPrice: plan.priceUsd, hosting_usd: hostingUsd, term_months: termMonths, term_discount_pct: hostingTerms.discountPct(termMonths), duration_days: plan.durationDays * termMonths, domain_usd: domainPrice, registrar, ...(nsMode ? { ns_choice: nsMode } : {}) }
 
     // Up-front wallet guard + charge (handles 402 + dry_run balance-only check; response already sent on failure).
     const charge = await chargeForAsync(req, res, { product: 'hosting', action: 'create', priceUsd: total, request })
@@ -1746,6 +1836,7 @@ function createResellerApi(deps = {}) {
 
     return res.status(202).json({
       ...jobHandle(jobDoc),
+      term_months: termMonths, term_discount_pct: hostingTerms.discountPct(termMonths), hosting_usd: hostingUsd, domain_usd: domainPrice,
       ...(nsMode ? { nameserver_mode: nsMode, ...(nsMode === 'branded' ? { nameservers: brandedNs.brandedNameservers() } : {}) } : {}),
       wallet_balance_usd: Math.round((charge.balance - (charge.charged ? charge.price : 0)) * 100) / 100,
       note: `Provisioning started. Poll GET /jobs/${jobId} for live progress + ETA, or GET /hosting/{username} until state="online", or subscribe to the hosting.provisioned / hosting.provision_failed webhooks. Reuse client_ref to make retries idempotent.`,
@@ -1788,11 +1879,14 @@ function createResellerApi(deps = {}) {
         const provisioning = d.provisionState === 'provisioning'
         const provFailed = d.provisionState === 'failed'
         const lc = hostingLifecycle(d, { price: hostingScheduler.getPlanPrice(d), duration: hostingScheduler.getPlanDuration(d.plan), liveSuspended: liveSusp })
+        const rc = hostingScheduler.getRenewalCharge(d)
         return {
           id: u,
           username: u,
           domain: d.domain,
           plan: d.plan || null,
+          term_months: rc.months,
+          renewal_price_usd: rc.priceUsd,
           suspended: (provisioning || provFailed) ? false : lc.suspended,
           state: provisioning ? 'provisioning' : (provFailed ? 'failed' : lc.state),
           grace: (provisioning || provFailed) ? null : lc.grace,
@@ -1925,7 +2019,8 @@ function createResellerApi(deps = {}) {
     else if (raw === undefined || raw === null) newAutoRenew = acct.autoRenew === false ? true : false
     else return res.status(400).json({ error: 'invalid_body', message: 'Optional body { "enabled": true|false }; omit to toggle.' })
     await col('cpanelAccounts').updateOne({ _id: acct._id }, { $set: { autoRenew: newAutoRenew } })
-    res.json({ username: acct._id, domain: acct.domain, auto_renew: newAutoRenew })
+    const rc = hostingScheduler.getRenewalCharge(acct)
+    res.json({ username: acct._id, domain: acct.domain, auto_renew: newAutoRenew, term_months: rc.months, renewal_price_usd: rc.priceUsd, renewal_days: rc.days })
   }))
 
   // ── Manual hosting renew ──
@@ -1938,19 +2033,28 @@ function createResellerApi(deps = {}) {
     if (!acct) return res.status(404).json({ error: 'not_found' })
     if (acct.deleted || acct.terminatedOnWhm) return res.status(409).json({ error: 'account_terminated', renew_blocked_reason: 'account_terminated', message: 'This hosting account was terminated and cannot be renewed. Order a new plan.' })
     const { getPlanPrice, getPlanDuration } = require('./hosting-scheduler')
-    const periods = Math.min(12, Math.max(1, parseInt(req.body?.periods, 10) || 1))
-    const unitPrice = Number(getPlanPrice(acct))
-    const duration = Number(getPlanDuration(acct.plan))
-    if (!unitPrice || !duration) return res.status(400).json({ error: 'pricing_failed', renew_blocked_reason: 'pricing_unavailable', message: 'Could not determine a renewal price/duration for this plan. Contact support.' })
+    const monthlyPrice = Number(getPlanPrice(acct))
+    const cycleDays = Number(getPlanDuration(acct.plan))
+    if (!monthlyPrice || !cycleDays) return res.status(400).json({ error: 'pricing_failed', renew_blocked_reason: 'pricing_unavailable', message: 'Could not determine a renewal price/duration for this plan. Contact support.' })
+    // `months` (1 | 3 | 6 | 12, monthly plans only) renews one prepaid term at its discount and becomes
+    // the account's auto-renew term. Without it the account's current term is renewed `periods` times.
+    const pm = hostingTerms.parseMonths(req.body?.months, cycleDays)
+    if (pm.error) return res.status(400).json({ error: pm.error, message: pm.message })
+    const rawPeriods = parseInt(req.body?.periods, 10)
+    if (pm.months && Number.isFinite(rawPeriods) && rawPeriods > 1) return res.status(400).json({ error: 'invalid_body', message: 'Send months (1, 3, 6 or 12) OR periods, not both.' })
+    const termMonths = pm.months ? (cycleDays === hostingTerms.MONTH_DAYS ? pm.months : 1) : hostingTerms.termMonthsOf(acct, cycleDays)
+    const unitPrice = hostingTerms.termPrice(monthlyPrice, termMonths)
+    const duration = cycleDays * termMonths
+    const periods = pm.months ? 1 : Math.min(Math.max(1, Math.floor(12 / termMonths)), Math.max(1, rawPeriods || 1))
     // Weekly plans: one week at a time, only once 7 days or fewer are left (blocked BEFORE any charge,
     // dry_run included) — a weekly account therefore never holds more than ~14 days.
-    const rawPeriods = parseInt(req.body?.periods, 10)
-    const weeklyBlock = hostingPlanChange.weeklyRenewBlock(acct, { durationDays: duration, periods: Number.isFinite(rawPeriods) ? rawPeriods : 1 })
+    const weeklyBlock = hostingPlanChange.weeklyRenewBlock(acct, { durationDays: cycleDays, periods: Number.isFinite(rawPeriods) ? rawPeriods : 1 })
     if (weeklyBlock) {
       const { status, ...body } = weeklyBlock
       return res.status(status).json({ ...body, id: acct._id, username: acct._id, plan: acct.plan, expires_at: acct.expiryDate ? new Date(acct.expiryDate).toISOString() : null })
     }
     const priceUsd = +(unitPrice * periods).toFixed(2)
+    const termInfo = { term_months: termMonths, term_discount_pct: hostingTerms.discountPct(termMonths), monthly_price_usd: cycleDays === hostingTerms.MONTH_DAYS ? monthlyPrice : null }
 
     // No-charge pre-flight (works on a LIVE key too): report price + renewability, change nothing.
     if (req.body?.dry_run === true) {
@@ -1962,7 +2066,7 @@ function createResellerApi(deps = {}) {
         dry_run: true, product: 'hosting', action: 'renew',
         id: acct._id, username: acct._id, domain: acct.domain, plan: acct.plan,
         renewable: true, renew_blocked_reason: null,
-        periods, duration_days: duration * periods, price_usd: priceUsd,
+        periods, ...termInfo, duration_days: duration * periods, price_usd: priceUsd,
         wallet_balance_usd: balance, sufficient_balance: balance >= priceUsd,
         would_expire_at: wouldExpireAt.toISOString(),
         note: 'Pre-flight only: nothing was charged and no state changed. Re-send without dry_run to renew.',
@@ -1971,7 +2075,7 @@ function createResellerApi(deps = {}) {
 
     return billedProvision(req, res, {
       product: 'hosting', action: 'renew', priceUsd,
-      request: { id: acct._id, username: acct._id, domain: acct.domain, plan: acct.plan, periods },
+      request: { id: acct._id, username: acct._id, domain: acct.domain, plan: acct.plan, periods, months: termMonths },
       provision: async () => {
         // Make sure the underlying WHM account still exists before extending (else it was terminated).
         const whm = require('./whm-service')
@@ -1988,7 +2092,7 @@ function createResellerApi(deps = {}) {
         // renewal / plan change that landed first makes this a no-op → {success:false} → auto-refund
         // (prevents "charged twice, extended once" and renewing a just-changed plan at the old price).
         const upd = await col('cpanelAccounts').updateOne({ _id: acct._id, expiryDate: acct.expiryDate, plan: acct.plan }, {
-          $set: { expiryDate: newExpiry, expiryNotified: false, lastRenewedAt: now, suspended: false, renewalCount: (acct.renewalCount || 0) + periods },
+          $set: { expiryDate: newExpiry, expiryNotified: false, lastRenewedAt: now, suspended: false, termMonths, renewalCount: (acct.renewalCount || 0) + periods },
           $unset: { suspendedAt: '', deleted: '', deletedAt: '', cancelledByUser: '', deletedBy: '', expiryUserNotified: '' },
         })
         if (!upd || upd.matchedCount === 0) {
@@ -1996,7 +2100,7 @@ function createResellerApi(deps = {}) {
         }
         if (acct.suspended) { try { await whm.unsuspendAccount(acct.cpUser) } catch (_) {} }
         try { require('./anti-red-service').deployFullProtection(acct.cpUser, acct.domain, acct.plan).catch(() => {}) } catch (_) {}
-        return { success: true, id: acct._id, username: acct._id, domain: acct.domain, plan: acct.plan, periods, duration_days: duration * periods, expires_at: newExpiry.toISOString() }
+        return { success: true, id: acct._id, username: acct._id, domain: acct.domain, plan: acct.plan, periods, ...termInfo, duration_days: duration * periods, expires_at: newExpiry.toISOString() }
       },
     })
   }))
@@ -2087,6 +2191,23 @@ function createResellerApi(deps = {}) {
     const apply = isLive() && req.body?.dry_run !== true
     const r = await hostingDnsRepair.repairAccount(acct, { apply })
     res.json({ mode: apply ? 'live' : 'dry_run', username: r.username, domains: r.domains.map(({ zone_id, ...d }) => d) })
+  }))
+
+  // Live origin health (probed through the tunnel, not the decoy) + the uptime monitor's state. Read-only:
+  // the background monitor (every 5 min) is what auto-repairs DNS and fires site_down / site_recovered.
+  router.get('/hosting/:user/health', apiKeyAuth, h(async (req, res) => {
+    const acct = await loadOwnedCpanel(req, req.params.user)
+    if (!acct) return res.status(404).json({ error: 'not_found' })
+    const lc = hostingLifecycle(acct)
+    const notLive = acct.provisionState === 'provisioning' || acct.provisionState === 'failed' || lc.state === 'terminated'
+    if (notLive) return res.status(409).json({ error: 'account_not_live', state: acct.provisionState === 'provisioning' || acct.provisionState === 'failed' ? acct.provisionState : lc.state, message: 'Health is available for provisioned, non-terminated accounts.' })
+    if (lc.suspended || acct.maintenanceMode) return res.status(409).json({ error: lc.suspended ? 'account_suspended' : 'maintenance_mode', state: lc.suspended ? lc.state : 'maintenance', message: 'The site is intentionally offline; bring it online first.' })
+    const [hc, mon] = await Promise.all([siteHealth.checkHealth(acct, { deep: true }), col(siteHealth.MONITOR).findOne({ _id: acct._id })])
+    if (hc.dns.apex === false || hc.dns.www === false) {
+      try { const r = await siteHealth.probes.inspectDomain(hc.domain); hc.dns.cloudflare = { status: r.status, missing: r.missing || [] } } catch (e) { hc.dns.cloudflare = { status: 'error', error: e.message } }
+      hc.dns.repair_url = `/hosting/${acct._id}/dns/repair`
+    }
+    res.json({ username: acct._id, ...hc, monitor: { enabled: true, interval_minutes: 5, failures_before_site_down: siteHealth.FAIL_THRESHOLD, ...(siteHealth.monitorView(mon) || { status: 'unknown', consecutive_failures: 0, down_since: null, last_ok_at: null, last_checked_at: null, last_dns_repair_at: null }) } })
   }))
 
   router.get('/hosting/:user/login', apiKeyAuth, h(async (req, res) => {
@@ -2194,11 +2315,13 @@ function createResellerApi(deps = {}) {
         const exp = new Date(hp.expiryDate); if (isNaN(exp)) continue
         const days = Math.ceil((exp.getTime() - nowMs) / DAY)
         const lc = hostingLifecycle(hp, { price: hostingScheduler.getPlanPrice(hp), duration: hostingScheduler.getPlanDuration(hp.plan) })
+        const rc = hostingScheduler.getRenewalCharge(hp)
         const item = {
           product: 'hosting', id: hp._id || hp.username, domain: hp.domain || null, plan: hp.plan || null,
           expires_at: exp.toISOString(), days_until_expiry: days,
           status: lc.state === 'grace' ? 'grace' : bucket(days),
           state: lc.state, suspended: lc.suspended, auto_renew: hp.autoRenew !== false,
+          term_months: rc.months, renewal_price_usd: rc.priceUsd,
           renewable: lc.renewable, renew_blocked_reason: lc.renew_blocked_reason, renew_available_at: lc.renew_available_at,
         }
         if (lc.grace) { item.in_grace = true; item.expired_at = lc.grace.expired_at; item.delete_at = lc.grace.delete_at; item.days_until_deletion = lc.grace.days_remaining }
@@ -2214,7 +2337,7 @@ function createResellerApi(deps = {}) {
         if (!raw) continue
         const exp = new Date(raw); if (isNaN(exp)) continue
         const days = Math.ceil((exp.getTime() - nowMs) / DAY)
-        items.push({ product: 'domain', id: d.domainName || d._id, domain: d.domainName || null, registrar: d.registrar || null, expires_at: exp.toISOString(), days_until_expiry: days, status: bucket(days) })
+        items.push({ product: 'domain', id: d.domainName || d._id, domain: d.domainName || null, registrar: d.registrar || null, expires_at: exp.toISOString(), days_until_expiry: days, status: bucket(days), auto_renew: d.autoRenew === true, renewal_price_usd: typeof d.autoRenewPriceUsd === 'number' ? d.autoRenewPriceUsd : null })
       }
     } catch (e) { log(`[ResellerAPI] renewals domains warn: ${e.message}`) }
 
@@ -2387,6 +2510,39 @@ function createResellerApi(deps = {}) {
     return billedProvision(req, res, { product: 'domain', action: 'renew', priceUsd: price, request: { domain, renew_usd: price }, provision: async () => ({ success: true, domain }) })
   }))
 
+  // ── Per-domain auto-renew (OpenProvider domains only) ──
+  // Off by default. When on, the hourly sweep (domain-auto-renew.js) charges the wallet and renews
+  // 1 year from 7 days before expiry, retrying daily until the expiry date. Body { enabled } sets it;
+  // omit to toggle. Free, any mode. Re-enabling clears a failed attempt so the next sweep retries.
+  router.post('/domains/:domain/auto-renew', apiKeyAuth, h(async (req, res) => {
+    const domain = String(req.params.domain || '').trim().toLowerCase()
+    if (!domainOk(domain)) return res.status(400).json({ error: 'invalid_domain' })
+    const owned = await col('domainsOf').findOne({ chatId: String(req.reseller.ownerChatId), domainName: domain })
+    if (!owned) return res.status(404).json({ error: 'not_found', message: 'That domain is not registered under your account.' })
+    const raw = req.body?.enabled
+    let enabled
+    if (typeof raw === 'boolean') enabled = raw
+    else if (raw === undefined || raw === null) enabled = owned.autoRenew !== true
+    else return res.status(400).json({ error: 'invalid_body', message: 'Optional body { "enabled": true|false }; omit to toggle.' })
+    const registrar = await domainAutoRenew.registrarOf(getDb(), owned)
+    if (enabled && !domainAutoRenew.isOpenProvider(registrar)) {
+      return res.status(501).json({ error: 'auto_renew_not_supported', domain, registrar: registrar || null, auto_renew: false, message: `Auto-renew is available for OpenProvider-registered domains only for now${registrar ? ` (this domain is registered with ${registrar})` : ''}. Renew it at the registrar or via the Telegram bot.` })
+    }
+    const set = { autoRenew: enabled, autoRenewUpdatedAt: new Date() }
+    if (enabled) {
+      // Registrar READS only (safe on any pod): pin the real expiry + quote the 1-year renewal price.
+      const [info, quote] = await Promise.all([opService.getDomainInfo(domain).catch(() => null), opService.getRenewPrice(domain).catch(() => null)])
+      const exp = info && info.expiresAt ? new Date(info.expiresAt) : null
+      if (exp && !isNaN(exp.getTime())) set.expiresAt = exp
+      if (quote && quote.price > 0) set.autoRenewPriceUsd = Math.round(quote.price * 100) / 100
+      Object.assign(set, { autoRenewLastError: null, autoRenewNextAttemptAt: null })
+    }
+    await col('domainsOf').updateOne({ _id: owned._id }, { $set: set })
+    const balance = await walletBalance(req.reseller.ownerChatId)
+    const v = domainAutoRenew.view({ ...owned, ...set }, registrar)
+    res.json({ ...v, wallet_balance_usd: balance, sufficient_balance: v.renewal_price_usd != null ? balance >= v.renewal_price_usd : null, mode: mode() })
+  }))
+
   // ════════════════════════════════════════════════════════
   // HOSTING — details, upgrade, addon domains
   // (manual renew lives above at POST /hosting/:user/renew — the periods-aware,
@@ -2400,11 +2556,11 @@ function createResellerApi(deps = {}) {
   //   • Monthly -> Weekly: never allowed (hidden from plan-options, 409 weekly_downgrade_not_allowed).
   // Expired accounts must renew first; suspended accounts must be unsuspended first.
   const HOSTING_PLAN_CHANGE_POLICY = {
-    upgrade: 'Premium Monthly -> Golden Monthly. Applies immediately. Charged now: (new monthly price - current monthly price) x days left / 30. The expiry date does not change.',
+    upgrade: 'Premium Monthly -> Golden Monthly. Applies immediately. Charged now: (new monthly price - current monthly price) x days left / 30. On a prepaid 3/6/12-month term both monthly prices are taken at that term\'s discount (10% / 15% / 25%). The expiry date does not change.',
     downgrade: 'Golden Monthly -> Premium Monthly. Applies immediately. No refund or credit for the current term. The expiry date does not change. Blocked while the account has more addon domains than the target plan allows.',
     weekly_to_monthly: 'Weekly -> Premium Monthly or Golden Monthly. Applies immediately. The unused weekly days are credited (weekly price x days left / 7), the rest of the monthly price is charged now (monthly price - credit) and a fresh 30-day term starts today.',
     monthly_to_weekly: 'Never allowed. A monthly plan cannot be switched to the weekly plan (409 weekly_downgrade_not_allowed).',
-    renewal: 'Renewals always use the plan the account is on at renewal time: monthly plans renew for 30 days at renewal_price_usd. Weekly plans renew one week at a time, once 7 days or fewer are left.',
+    renewal: 'Renewals always use the plan the account is on at renewal time: monthly plans renew for the account\'s term (1, 3, 6 or 12 months; term_months) at renewal_price_usd = the term price after its discount. Weekly plans renew one week at a time, once 7 days or fewer are left.',
   }
   const HOSTING_PLAN_LOCK_MS = 10 * 60000
   function hostingPlanChangeError(res, e) {
@@ -2467,11 +2623,11 @@ function createResellerApi(deps = {}) {
         const at = new Date()
         const set = { plan: target.name, renewalPriceUsd: target.priceUsd, planChangedAt: at, ...(opt.direction === 'upgrade' ? { upgradedAt: at, upgradedFrom: cur.plan } : { downgradedAt: at, downgradedFrom: cur.plan }) }
         // Weekly → monthly starts a fresh term: new expiry + reset the expiry-reminder flags for it.
-        if (opt.expiry_changes) Object.assign(set, { expiryDate: new Date(opt.expires_at), expiryNotified: false })
+        if (opt.expiry_changes) Object.assign(set, { expiryDate: new Date(opt.expires_at), expiryNotified: false, termMonths: opt.term_months })
         await col('cpanelAccounts').updateOne({ _id: cur._id }, {
           $set: set,
           ...(opt.expiry_changes ? { $unset: { expiryUserNotified: '' } } : {}),
-          $push: { planChangeHistory: { id: crypto.randomUUID(), at, status: 'completed', from: cur.plan, to: target.name, direction: opt.direction, billing: opt.billing, charged_usd: opt.charge_now_usd, unused_credit_usd: opt.unused_credit_usd, previous_expires_at: prevExpiry, expires_at: opt.expires_at, renewal_price_usd: target.priceUsd, via: 'api' } },
+          $push: { planChangeHistory: { id: crypto.randomUUID(), at, status: 'completed', from: cur.plan, to: target.name, direction: opt.direction, billing: opt.billing, charged_usd: opt.charge_now_usd, unused_credit_usd: opt.unused_credit_usd, previous_expires_at: prevExpiry, expires_at: opt.expires_at, renewal_price_usd: opt.renewal_price_usd, term_months: opt.term_months, via: 'api' } },
         })
         try {
           require('./anti-red-service').deployFullProtection(cur._id, cur.domain, target.name)
@@ -2481,14 +2637,14 @@ function createResellerApi(deps = {}) {
           success: true, username: cur._id, domain: cur.domain, plan: target.name, plan_id: target.id, previous_plan: cur.plan, previous_plan_id: q.current.plan_id,
           direction: opt.direction, billing: opt.billing, unused_credit_usd: opt.unused_credit_usd,
           expires_at: opt.expires_at, previous_expires_at: prevExpiry, expiry_changed: !!opt.expiry_changes,
-          renewal_price_usd: target.priceUsd, renewal_days: target.durationDays, refund_usd: 0,
+          renewal_price_usd: opt.renewal_price_usd, renewal_days: opt.renewal_days, term_months: opt.term_months, term_discount_pct: opt.term_discount_pct, refund_usd: 0,
         }
       }
       const emitChanged = (r, chargedUsd) => emitEvent(req.reseller.ownerChatId, 'hosting.plan_changed', cur._id, {
         username: cur._id, domain: cur.domain, direction: opt.direction, billing: opt.billing,
         from_plan: q.current.plan_id, from_plan_name: cur.plan, to_plan: target.id, to_plan_name: target.name,
         charged_usd: chargedUsd, unused_credit_usd: opt.unused_credit_usd, refund_usd: 0,
-        previous_expires_at: prevExpiry, expires_at: r.expires_at, renewal_price_usd: target.priceUsd, via: 'api',
+        previous_expires_at: prevExpiry, expires_at: r.expires_at, renewal_price_usd: opt.renewal_price_usd, term_months: opt.term_months, via: 'api',
       }, `${cur._id}:${Date.now()}`)
 
       if (opt.charge_now_usd > 0) {
@@ -2722,16 +2878,21 @@ function createResellerApi(deps = {}) {
     if (liveSuspended !== null && liveSuspended !== !!acct.suspended) {
       col('cpanelAccounts').updateOne({ _id: acct._id }, { $set: { suspended: liveSuspended, suspendedSyncedAt: new Date() } }).catch(() => {})
     }
-    const price = hostingScheduler.getPlanPrice(acct)
-    const duration = hostingScheduler.getPlanDuration(acct.plan)
+    const rc = hostingScheduler.getRenewalCharge(acct)
+    const price = rc.priceUsd
+    const duration = rc.days
     const lc = hostingLifecycle(acct, { price, duration, liveSuspended })
     res.json({
       id: acct._id || acct.username,
       username: acct._id || acct.username,
       domain: acct.domain || null,
       plan: acct.plan || null,
+      // price_usd / duration_days = one renewal of the account's prepaid term (term_months 1 | 3 | 6 | 12).
       price_usd: price,
       duration_days: duration,
+      term_months: rc.months,
+      term_discount_pct: rc.discountPct,
+      monthly_price_usd: rc.days === rc.months * hostingTerms.MONTH_DAYS ? rc.monthlyUsd : null,
       // Full lifecycle so a storefront never has to infer state from suspended+expiry:
       //   online | suspended | grace | terminated.  `grace` (when state==='grace') carries
       //   delete_at (= expiry + 48h) + days/hours_remaining so you can message the customer.
@@ -2773,9 +2934,13 @@ function createResellerApi(deps = {}) {
   try {
     activeSlot.singletonInterval('reseller-provision-worker', () => { provisionWorkerTick().catch((e) => log(`[ResellerAPI] worker tick: ${e.message}`)) }, PROVISION_WORKER_MS)
   } catch (e) { log(`[ResellerAPI] provision worker init warn: ${e.message}`) }
+  // Expiry / renewal / low-balance, uptime and usage alert sweeps (production + active slot only).
+  try { alerts.start({ getDb, log }) } catch (e) { log(`[ResellerAPI] alert sweeps init warn: ${e.message}`) }
+  // Per-domain wallet auto-renew (OpenProvider) — production + active slot only.
+  try { domainAutoRenew.start({ getDb, log }) } catch (e) { log(`[ResellerAPI] domain auto-renew init warn: ${e.message}`) }
 
   log(`[ResellerAPI] mounted at /reseller/v1 (mode=${mode()})`)
   return router
 }
 
-module.exports = { createResellerApi, hostingPlans }
+module.exports = { createResellerApi, hostingPlans, parseHostingUsage }

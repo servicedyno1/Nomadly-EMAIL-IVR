@@ -36,7 +36,20 @@ const EVENTS = [
   'vps.plan_changed', 'vps.plan_change_failed', 'rdp.plan_changed', 'rdp.plan_change_failed',
   // Branded nameservers (ns1/ns2.hosta.sh) lifecycle for reseller-registered domains
   'domain.nameservers_branded', 'domain.nameservers_reverted', 'domain.nameservers_branding_failed',
+  // Expiry reminders (T-7d / T-3d / T-1d), renewals from any channel, unsuspension, domain expiry
+  'hosting.expiring', 'hosting.renewed', 'hosting.unsuspended',
+  'vps.expiring', 'vps.renewed', 'rdp.expiring', 'rdp.renewed',
+  'domain.expiring', 'domain.expired', 'domain.renewed',
+  // Per-domain wallet auto-renew (OpenProvider domains) could not renew — retried daily until expiry
+  'domain.auto_renew_failed',
+  // Origin uptime monitor (3 failed checks in a row) + usage thresholds + wallet
+  'hosting.site_down', 'hosting.site_recovered',
+  'hosting.usage_threshold', 'vps.usage_threshold', 'rdp.usage_threshold',
+  'account.low_balance',
 ]
+
+// Shared by the hosting scheduler (auto-renew) and the alert sweep so a renewal is pushed once.
+const renewedDedupKey = (id, expiresAt) => `${id}:renewed:${new Date(expiresAt).toISOString().slice(0, 10)}`
 
 const sleep = (ms) => new Promise(r => setTimeout(r, ms))
 function isHttpUrl(u) {
@@ -86,11 +99,14 @@ async function deliver(url, body, secret) {
 // payload id — used so a per-cycle event (hosting.grace_start / hosting.auto_renew_failed) can
 // re-fire on the NEXT billing cycle, while a terminal event (*.deleted) stays once-per-resource.
 // Best-effort: never throws. Returns { delivered, skipped }.
-async function emit(db, { chatId, event, instanceId, dedupKey, payload = {}, log = () => {} } = {}) {
+// `keyIds` (optional) limits delivery to those keys (per-key settings such as the low-balance threshold).
+async function emit(db, { chatId, event, instanceId, dedupKey, keyIds, payload = {}, log = () => {} } = {}) {
   if (!db || typeof db.collection !== 'function' || !chatId || !event) return { delivered: 0, skipped: 0 }
   let keys = []
   try {
-    keys = await db.collection('resellerApiKeys').find({ ownerChatId: String(chatId), enabled: true, webhookUrl: { $exists: true, $ne: null } }).toArray()
+    const q = { ownerChatId: String(chatId), enabled: true, webhookUrl: { $exists: true, $ne: null } }
+    if (Array.isArray(keyIds)) q._id = { $in: keyIds }
+    keys = await db.collection('resellerApiKeys').find(q).toArray()
   } catch (e) { log(`[ResellerWebhook] key lookup failed: ${e.message}`); return { delivered: 0, skipped: 0 } }
   if (!keys.length) return { delivered: 0, skipped: 0 }
 
@@ -123,4 +139,4 @@ async function emit(db, { chatId, event, instanceId, dedupKey, payload = {}, log
   return { delivered, skipped }
 }
 
-module.exports = { emit, deliver, isHttpUrl, newWebhookSecret, EVENTS, RETRIES, TIMEOUT_MS }
+module.exports = { emit, deliver, isHttpUrl, newWebhookSecret, renewedDedupKey, EVENTS, RETRIES, TIMEOUT_MS }

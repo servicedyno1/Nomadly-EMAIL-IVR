@@ -947,7 +947,7 @@ function registerHostingMgmtRoutes(deps) {
       cfService.getZoneByName(domain).catch(() => null),
       antiRed.isJSChallengeEnabled(ctx.cpUser).catch(() => false),
       safeBrowsing.checkDomain(domain).catch(() => ({ error: 'check failed' })),
-      safeBrowsing.checkBlacklists(domain).catch(() => ({ error: 'check failed' })),
+      safeBrowsing.checkBlacklists(domain, { ip: acct.whmHost || process.env.WHM_HOST }).catch(() => ({ error: 'check failed' })),
       antiRed.resolveDomainCfState(domain, getDb()).catch(() => ({})),
     ])
     const { isWeeklyPlan } = require('./hosting-scheduler')
@@ -1045,7 +1045,7 @@ function registerHostingMgmtRoutes(deps) {
   router.get('/hosting/:user/security/blacklist', apiKeyAuth, h(async (req, res) => {
     const acct = await loadOwned(req, res); if (!acct) return
     const ctx = ctxFromAccount(acct)
-    res.json(await safeBrowsing.checkBlacklists(ctx.cpDomain))
+    res.json(await safeBrowsing.checkBlacklists(ctx.cpDomain, { ip: acct.whmHost || process.env.WHM_HOST }))
   }))
 
   // Visitor Captcha (Golden plan) — enable/disable the human challenge page for

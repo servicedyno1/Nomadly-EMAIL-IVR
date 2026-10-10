@@ -359,8 +359,69 @@ function generateHtaccessRules(cpUsername, options = {}) {
 /**
  * Deploy .htaccess rules to a cPanel account's public_html.
  * Detects whether the site is behind Cloudflare and whether it serves static files.
- * Preserves cPanel-generated PHP handler.
+ * Preserves the cPanel PHP handler, app/plugin "# BEGIN x … # END x" blocks (WordPress permalinks,
+ * cache plugins) and FallbackResource lines; adds an SPA fallback for React/Vue/Vite builds.
  */
+const SPA_BLOCK = `# BEGIN SPA Fallback (auto)
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{REQUEST_FILENAME} !-d
+  RewriteCond %{REQUEST_URI} !^/\\.well-known/
+  RewriteRule ^ /index.html [L]
+</IfModule>
+# END SPA Fallback (auto)`
+
+// Client-side-routed app shell: React/Vue/Vite/CRA mount point + bundled script.
+function isSpaIndex(html) {
+  return /<div[^>]+id=["'](root|app)["']/i.test(html || '')
+    && /<script[^>]+(type=["']module["']|src=["'][^"']*\/(assets|static\/js|js)\/)/i.test(html || '')
+}
+
+function extractPreservedBlocks(content) {
+  const blocks = []
+  const re = /^# BEGIN ([^\n]+)\n[\s\S]*?^# END \1[^\n]*$/gm
+  let m
+  while ((m = re.exec(content || ''))) {
+    if (!/^SPA Fallback/i.test(m[1].trim())) blocks.push(m[0])
+  }
+  return blocks
+}
+
+// Pure: rebuild public_html/.htaccess = [cPanel handler] + anti-red rules + preserved customer rules.
+function composeHtaccess(existingContent, rules, { spa = false } = {}) {
+  const existing = existingContent || ''
+  const handler = (existing.match(/# php -- BEGIN cPanel-generated handler[^\n]*\n[\s\S]*?# php -- END cPanel-generated handler[^\n]*/) || [''])[0]
+  const cors = (existing.match(/# --- CORS headers[\s\S]*?<\/IfModule>\s*$/m) || [''])[0]
+  const blocks = extractPreservedBlocks(existing)
+  const fallbackLines = (existing.match(/^[ \t]*FallbackResource[ \t]+\S+.*$/gm) || []).filter(l => !blocks.some(b => b.includes(l)))
+  let out = handler ? handler + '\n\n' : ''
+  out += rules
+  for (const b of blocks) out += '\n' + b + '\n'
+  if (fallbackLines.length) out += '\n' + fallbackLines.map(l => l.trim()).join('\n') + '\n'
+  const hasWordPress = blocks.some(b => /^# BEGIN WordPress/m.test(b))
+  if (spa && !hasWordPress && !fallbackLines.length) out += '\n' + SPA_BLOCK + '\n'
+  if (cors && !out.includes('cross-origin')) out += '\n' + cors
+  return out
+}
+
+async function readPublicHtmlFile(cpUsername, file) {
+  try {
+    const r = await whmApi.get('/cpanel', {
+      params: { 'api.version': 1, cpanel_jsonapi_user: cpUsername, cpanel_jsonapi_apiversion: 3, cpanel_jsonapi_module: 'Fileman', cpanel_jsonapi_func: 'get_file_content', dir: '/public_html', file },
+    })
+    const res = r.data?.result
+    return res && res.status === 1 ? (res.data?.content || '') : null
+  } catch (_) { return null }
+}
+
+async function detectSpaRoot(cpUsername, existingContent) {
+  if (/^# BEGIN WordPress/m.test(existingContent || '')) return false
+  if ((await readPublicHtmlFile(cpUsername, 'index.php')) !== null) return false
+  const html = await readPublicHtmlFile(cpUsername, 'index.html')
+  return !!html && isSpaIndex(html)
+}
+
 async function deployHtaccess(cpUsername, domain) {
   if (!whmApi) {
     log('[AntiRed] WHM not configured, skipping .htaccess deployment')
@@ -393,33 +454,20 @@ async function deployHtaccess(cpUsername, domain) {
       existingContent = readRes.data?.result?.data?.content || ''
     } catch (_) {}
 
-    // Extract static site build path from existing rewrite rules
+    // Extract static site build path from existing rewrite rules (CRA build/ or Vite dist/)
     let staticSiteBuildPath = ''
-    const buildPathMatch = existingContent.match(/RewriteRule\s+\^\(.*\)\$\s+(\S+\/build)\//)
+    const buildPathMatch = existingContent.match(/RewriteRule\s+\^\(.*\)\$\s+(\S+\/(?:build|dist))\//)
     if (buildPathMatch) {
       staticSiteBuildPath = buildPathMatch[1]
     }
 
-    // Extract cPanel PHP handler (must be preserved)
-    const cpanelHandlerMatch = existingContent.match(/# php -- BEGIN cPanel-generated handler[^\n]*\n[\s\S]*?# php -- END cPanel-generated handler[^\n]*/)
-    const cpanelHandler = cpanelHandlerMatch ? cpanelHandlerMatch[0] : ''
-
-    // Extract any CORS headers section
-    const corsMatch = existingContent.match(/# --- CORS headers[\s\S]*?<\/IfModule>\s*$/m)
-    const corsSection = corsMatch ? corsMatch[0] : ''
+    const spa = !staticSiteBuildPath && await detectSpaRoot(cpUsername, existingContent)
 
     // Generate new rules
     const rules = generateHtaccessRules(cpUsername, { behindCloudflare, staticSiteBuildPath })
 
-    // Build final content
-    let finalContent = ''
-    if (cpanelHandler) {
-      finalContent = cpanelHandler + '\n\n'
-    }
-    finalContent += rules
-    if (corsSection && !finalContent.includes('cross-origin')) {
-      finalContent += '\n' + corsSection
-    }
+    // Build final content (keeps cPanel handler, CORS, WordPress/plugin blocks, FallbackResource)
+    const finalContent = composeHtaccess(existingContent, rules, { spa })
 
     const writeRes = await whmApi.post('/cpanel', new URLSearchParams({
       'api.version': '1',
@@ -2613,6 +2661,9 @@ async function setDomainHoneypot(domain, off = true) {
 module.exports = {
   generateHtaccessRules,
   deployHtaccess,
+  composeHtaccess,
+  isSpaIndex,
+  extractPreservedBlocks,
   generateJSChallenge,
   generateChallengePhp,
   generateIPFixPhp,

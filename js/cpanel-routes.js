@@ -3312,7 +3312,7 @@ function createCpanelRoutes(getCpanelCol, opts = {}) {
         cfService.getZoneByName(domain).catch(() => null),
         antiRedService.isJSChallengeEnabled(req.cpUser).catch(() => false),
         safeBrowsing.checkDomain(domain).catch(() => ({ error: 'check failed' })),
-        safeBrowsing.checkBlacklists(domain).catch(() => ({ error: 'check failed' })),
+        safeBrowsing.checkBlacklists(domain, { ip: req.whmHost || process.env.WHM_HOST }).catch(() => ({ error: 'check failed' })),
       ])
 
       // Check CF Worker route exists
@@ -3452,7 +3452,7 @@ function createCpanelRoutes(getCpanelCol, opts = {}) {
    */
   router.get('/security/blacklist', ...auth, async (req, res) => {
     try {
-      const result = await safeBrowsing.checkBlacklists(req.cpDomain)
+      const result = await safeBrowsing.checkBlacklists(req.cpDomain, { ip: req.whmHost || process.env.WHM_HOST })
       res.json(result)
     } catch (err) {
       log(`[Panel] Blacklist check error: ${err.message}`)
