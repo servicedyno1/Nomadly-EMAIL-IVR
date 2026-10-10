@@ -3,7 +3,7 @@
 // (actor "api"). Dry-runs, errors and unmapped routes (file manager, reads …) are not recorded.
 const activity = require('./reseller-activity')
 
-const SAFE_FIELDS = ['action', 'mode', 'periods', 'months', 'plan_id', 'plan', 'to_plan', 'from_plan', 'direction', 'reason', 'enabled', 'auto_renew',
+const SAFE_FIELDS = ['action', 'mode', 'periods', 'months', 'term_months', 'plan_id', 'plan', 'to_plan', 'from_plan', 'direction', 'reason', 'enabled', 'auto_renew',
   'charged_usd', 'expires_at', 'status', 'domain', 'addon_domain', 'new_domain', 'os', 'type', 'name', 'countries', 'low_balance_usd', 'webhook_url']
 
 const byParam = (p) => (req) => req.params[p]
@@ -41,6 +41,7 @@ const ROUTES = {
   'POST /hosting/captcha/:domain': domain('security.visitor_captcha'),
   'POST /hosting/honeypot/:domain': domain('security.honeypot'),
   'POST /domains/register': spec('domain', 'register', (req) => req.body && req.body.domain),
+  'POST /domains/:domain/auto-renew': domain((req, b) => (b && b.auto_renew ? 'auto_renew.enabled' : 'auto_renew.disabled')),
   'PUT /dns/:domain/nameservers': domain('nameservers.update'),
   'POST /dns/:domain/records': domain('dns_record.add'),
   'PUT /dns/:domain/records': domain('dns_record.update'),

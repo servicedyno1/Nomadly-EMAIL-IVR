@@ -16,6 +16,7 @@ const { log } = require('console')
 const activeSlot = require('./active-slot')
 const resellerWebhooks = require('./reseller-webhooks')
 const activity = require('./reseller-activity')
+const hostingTerms = require('./hosting-terms')
 
 // Scheduler events that are also written to the per-service activity log (actor "system").
 const ACTIVITY_OF_EVENT = {
@@ -78,6 +79,17 @@ function getPlanDuration(planName) {
   const name = (planName || '').toLowerCase()
   if (name.includes('week') || name.includes('1-week')) return 7
   return 30
+}
+
+/**
+ * What one renewal of this account costs and adds: the plan's (locked) price over the account's
+ * prepaid term (1 / 3 / 6 / 12 months, reseller API) at that term's discount.
+ */
+function getRenewalCharge(account) {
+  const monthlyUsd = getPlanPrice(account)
+  const cycleDays = getPlanDuration(account && account.plan)
+  const months = hostingTerms.termMonthsOf(account, cycleDays)
+  return { months, monthlyUsd, priceUsd: hostingTerms.termPrice(monthlyUsd, months), days: cycleDays * months, discountPct: hostingTerms.discountPct(months) }
 }
 
 /**
@@ -250,7 +262,7 @@ function initScheduler(deps) {
 
         // ── Case 1: Expiring within 24h — send advance notification ──
         if (expiry > now && expiry <= in24h && !account.expiryNotified) {
-          const price = getPlanPrice(account)
+          const price = getRenewalCharge(account).priceUsd
           const lang = await getUserLang(chatId)
           const tt = (key, ...args) => translation(`t.${key}`, lang, ...args)
 
@@ -279,8 +291,9 @@ function initScheduler(deps) {
 
         // ── Case 2: Expired — attempt auto-renew (monthly only) or grace period ──
         if (expiry <= now && !account.deleted) {
-          const price = getPlanPrice(account)
-          const duration = getPlanDuration(plan)
+          const charge = getRenewalCharge(account)
+          const price = charge.priceUsd
+          const duration = charge.days
 
           // Only attempt auto-renew for monthly plans with auto-renew enabled
           if (isAutoRenew && price > 0) {
@@ -297,7 +310,7 @@ function initScheduler(deps) {
               log(`[HostingScheduler] Skipped ${domain} — plan change in progress; will renew on the next run`)
               continue
             }
-            if (freshAccount && (freshAccount.plan !== account.plan || freshAccount.renewalPriceUsd !== account.renewalPriceUsd)) {
+            if (freshAccount && (freshAccount.plan !== account.plan || freshAccount.renewalPriceUsd !== account.renewalPriceUsd || freshAccount.termMonths !== account.termMonths)) {
               log(`[HostingScheduler] Skipped ${domain} — plan changed during this sweep; will renew at the new price on the next run`)
               continue
             }
@@ -367,7 +380,7 @@ function initScheduler(deps) {
               )
               renewed++
               log(`[HostingScheduler] Auto-renewed ${domain} (${plan}) for ${chatId} — charged $${price}`)
-              notifyReseller(account, 'hosting.renewed', { via: 'auto_renew', charged_usd: price, previous_expires_at: expiry.toISOString(), expires_at: newExpiry.toISOString(), wallet_balance_usd: Number((remUsd || 0).toFixed(2)) }, resellerWebhooks.renewedDedupKey(account._id || account.cpUser, newExpiry))
+              notifyReseller(account, 'hosting.renewed', { via: 'auto_renew', charged_usd: price, term_months: charge.months, previous_expires_at: expiry.toISOString(), expires_at: newExpiry.toISOString(), wallet_balance_usd: Number((remUsd || 0).toFixed(2)) }, resellerWebhooks.renewedDedupKey(account._id || account.cpUser, newExpiry))
               continue
             } else {
               // GAP-4 (2026-09): record WHY auto-renew didn't run so the reseller API can surface it
@@ -387,6 +400,7 @@ function initScheduler(deps) {
               notifyReseller(account, 'hosting.auto_renew_failed', {
                 reason: 'insufficient_funds',
                 price_usd: price,
+                term_months: charge.months,
                 wallet_balance_usd: Number((result.usdBal || 0).toFixed(2)),
                 next_attempt_at: nextAttempt.toISOString(),
               }, `${account._id}:arf:${_cycle}`)
@@ -514,8 +528,9 @@ function initScheduler(deps) {
 
         // ── Step 0: Try auto-renew if enabled and user has funds ──
         const isAutoRenew = account.autoRenew !== false
-        const price = getPlanPrice(account)
-        const duration = getPlanDuration(plan)
+        const charge = getRenewalCharge(account)
+        const price = charge.priceUsd
+        const duration = charge.days
 
         if (isAutoRenew && price > 0) {
           const result = await smartWalletDeduct(walletOf, chatId, price)
@@ -565,7 +580,7 @@ function initScheduler(deps) {
             )
             enforcedRenew++
             log(`[HostingScheduler] STARTUP ENFORCE: Auto-renewed ${domain} (${plan}) for ${chatId} — charged $${price}`)
-            notifyReseller(account, 'hosting.renewed', { via: 'auto_renew', charged_usd: price, previous_expires_at: expiry.toISOString(), expires_at: newExpiry.toISOString(), wallet_balance_usd: Number((remUsd || 0).toFixed(2)) }, resellerWebhooks.renewedDedupKey(account._id || account.cpUser, newExpiry))
+            notifyReseller(account, 'hosting.renewed', { via: 'auto_renew', charged_usd: price, term_months: charge.months, previous_expires_at: expiry.toISOString(), expires_at: newExpiry.toISOString(), wallet_balance_usd: Number((remUsd || 0).toFixed(2)) }, resellerWebhooks.renewedDedupKey(account._id || account.cpUser, newExpiry))
             continue // Successfully renewed — skip suspend/delete
           }
         }
@@ -702,8 +717,9 @@ function initScheduler(deps) {
     stop: () => { clearInterval(interval); if (healInterval) clearInterval(healInterval) },
     getPlanPrice,
     getPlanDuration,
+    getRenewalCharge,
     isWeeklyPlan,
   }
 }
 
-module.exports = { initScheduler, getPlanPrice, getPlanDuration, isWeeklyPlan }
+module.exports = { initScheduler, getPlanPrice, getPlanDuration, getRenewalCharge, isWeeklyPlan }

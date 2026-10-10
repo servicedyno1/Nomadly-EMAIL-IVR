@@ -40,6 +40,8 @@ const EVENTS = [
   'hosting.expiring', 'hosting.renewed', 'hosting.unsuspended',
   'vps.expiring', 'vps.renewed', 'rdp.expiring', 'rdp.renewed',
   'domain.expiring', 'domain.expired', 'domain.renewed',
+  // Per-domain wallet auto-renew (OpenProvider domains) could not renew — retried daily until expiry
+  'domain.auto_renew_failed',
   // Origin uptime monitor (3 failed checks in a row) + usage thresholds + wallet
   'hosting.site_down', 'hosting.site_recovered',
   'hosting.usage_threshold', 'vps.usage_threshold', 'rdp.usage_threshold',

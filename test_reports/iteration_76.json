@@ -1,0 +1,29 @@
+{
+  "summary": "Phase 2 (Alerts/Monitoring/Activity) backend verification. Ran the new suite test_phase2_alerts_2026-10.js → 48/48 passed, covering: EVENTS list + emit({keyIds}) filter, expiryStage (7/3/1, weekly skips 7d), lifecycle sweep (expiring de-dup per owner/stage/day, cross-channel renewed detection, planChangedAt suppression, hosting.unsuspended, observed domain.expired, no-webhook owners skipped), hosting-scheduler auto-renew emitting hosting.renewed with sweep-matching dedupKey + system activity, PUT/GET /account/alerts validation + per-key account.low_balance + re-arm, API recorder (actor api, SAFE_FIELDS, skips dry-run/4xx), GET /activity filters + pagination + 400 errors + 90d TTL, site-health (overallStatus, PHP 24h, 3-strike site_down, site_recovered w/ downtime, DNS auto-repair + 30-min cooldown + activity, GET /hosting/:user/health read-only shape incl. 409/404), usage-threshold hysteresis (hosting disk 80/95 re-arm after -5pts, VPS CPU 15-min avg, RDP disk), and safety (sweeps OFF on dev pod + apidoc group/events). Regression: 9 suites all green (phase1 20, branded-ns 26, dns-teardown 19, upgrade-renewal 54, do-usage 11, do-plan-change 28, plan-change-history 17, hosting-plan-rules 23, whm-retry-antired 18) — whm getAccountBandwidth refactor over listAccountBandwidth is behaviour-preserving. Live smoke on preview: /api/reseller/v1/health 200; /account/alerts, /activity, /hosting/x/health all return 401 missing_api_key without a key; /api/apidoc contains the 'Alerts, Monitoring & Activity' group with /account/alerts, /hosting/:user/health, /activity and the new event names. Supervisor log confirms '[ResellerAlerts] background sweeps OFF (BOT_ENVIRONMENT!=production...)' on this pod — no mutations to prod. No live reseller keys or RESELLER_ALERTS_ENABLED were set.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/js/tests/test_phase2_alerts_2026-10.js",
+    "/app/js/tests/test_phase1_fixes_2026-10.js",
+    "/app/js/tests/test_reseller_branded_ns_api_2026-10.js",
+    "/app/js/tests/test_hosting_dns_teardown_2026-10.js",
+    "/app/js/tests/test_upgrade_renewal_preview_2026-10.js",
+    "/app/js/tests/test_do_usage_2026-10.js",
+    "/app/js/tests/test_do_plan_change_2026-10.js",
+    "/app/js/tests/test_plan_change_history_2026-10.js",
+    "/app/js/tests/test_hosting_plan_rules_2026-10.js",
+    "/app/js/tests/test_whm_retry_and_antired_tunnel.js"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Phase 2 code paths look correct: renewedDedupKey shared between sweep + scheduler avoids double emit; expiryStage returns only the smallest due stage; weekly plans correctly suppress the 7d reminder (would fire at purchase); domain.expired only on observed transition prevents retro flood; account.low_balance uses emit({keyIds}) + per-key episode counter so recovery > threshold re-arms; API recorder honors status<400 + non-dry-run + SAFE_FIELDS whitelist (no secret leakage verified by tests); activity TTL 90d is index-enforced; site-health DNS repair gated by 30-min cooldown; GET /hosting/:user/health is read-only (never calls repairAccount) and returns 409/404 for suspended/provisioning/other-owner.",
+    "Safety verified: alerts.start no-ops on dev pod; log explicitly says 'background sweeps OFF'. No real webhooks fired."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100%", "frontend": "N/A (skipped per request)"},
+  "test_credentials": "Not required — suite spins up its own throw-away keys against a local test DB.",
+  "seed_data_creation": "None in prod/preview DB; the test suite creates and tears down its own fixtures.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Phase 2 Alerts/Monitoring/Activity is fully green (48/48) and all 9 listed regression suites pass. Dev pod has background sweeps disabled — do NOT set RESELLER_ALERTS_ENABLED=true here (wired to live RESELLER_DB_URL). Pre-existing unrelated failures explicitly out of scope: test_reseller_api_grace_2026-06, test_vps_scheduler_fix, test_cancellation_flows, test_reseller_site_status_2026-06 'dry-run mode' case, and test_whm_userdata_heal 'healInterval=setInterval' regex (scheduler now uses activeSlot.singletonInterval)."
+}

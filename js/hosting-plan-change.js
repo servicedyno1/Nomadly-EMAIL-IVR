@@ -13,6 +13,9 @@
 //    rejected with 409 weekly_downgrade_not_allowed.
 //  • Weekly renewals: one week at a time, only once 7 days or fewer are left (weeklyRenewBlock),
 //    so a weekly account never holds more than ~14 days.
+//  • Prepaid 3/6/12-month terms (hosting-terms.js): the pro-rata upgrade uses both monthly prices at
+//    the account's term discount, and the new plan renews on the same term.
+const terms = require('./hosting-terms')
 const DAY_MS = 86400000
 const round2 = (n) => Math.round((Number(n) + Number.EPSILON) * 100) / 100
 const RANK = { 'premium-weekly': 0, 'premium-monthly': 1, 'golden-monthly': 2 }
@@ -44,11 +47,14 @@ function hostingPlanOptions(acct, plans, now = new Date()) {
   // Credit basis for a cycle-length change = what THIS account pays per cycle (its price-locked
   // renewal price, e.g. a promo weekly price), falling back to the list price.
   const paidPrice = (typeof acct.renewalPriceUsd === 'number' && acct.renewalPriceUsd > 0) ? acct.renewalPriceUsd : cur.priceUsd
+  const months = terms.termMonthsOf(acct, cur.durationDays)
+  const keep = 1 - terms.discountOf(months)
   // Moving to a SHORTER cycle (monthly → weekly) is never offered.
   const options = plans.filter((p) => p.id !== cur.id && p.durationDays >= cur.durationDays).map((p) => {
     const direction = RANK[p.id] > RANK[cur.id] ? 'upgrade' : 'downgrade'
     const fits = addons <= addonLimit(p)
     const newTerm = p.durationDays > cur.durationDays // weekly → monthly
+    const nextMonths = newTerm ? 1 : months
     let charge = 0
     let credit = 0
     let expiresAt = exp
@@ -61,10 +67,12 @@ function hostingPlanOptions(acct, plans, now = new Date()) {
       termDays = round2(days)
       expiresAt = new Date(now.getTime() + days * DAY_MS)
     } else if (direction === 'upgrade') {
-      charge = Math.max(0, round2((p.priceUsd / p.durationDays - cur.priceUsd / cur.durationDays) * remainingDays))
+      charge = Math.max(0, round2((p.priceUsd * keep / p.durationDays - cur.priceUsd * keep / cur.durationDays) * remainingDays))
     }
     return {
-      plan_id: p.id, name: p.name, direction, monthly_price_usd: p.priceUsd, renewal_price_usd: p.priceUsd, renewal_days: p.durationDays,
+      plan_id: p.id, name: p.name, direction, monthly_price_usd: p.priceUsd,
+      renewal_price_usd: terms.termPrice(p.priceUsd, nextMonths), renewal_days: p.durationDays * nextMonths,
+      term_months: nextMonths, term_discount_pct: terms.discountPct(nextMonths),
       billing: newTerm ? 'new_term' : 'pro_rata',
       charge_now_usd: charge, unused_credit_usd: credit, refund_usd: 0,
       effective: 'immediately', new_price_from: newTerm ? 'now' : 'next_renewal',
@@ -75,7 +83,7 @@ function hostingPlanOptions(acct, plans, now = new Date()) {
     }
   })
   return {
-    current: { plan_id: cur.id, name: acct.plan, price_usd: cur.priceUsd, renewal_price_usd: paidPrice, duration_days: cur.durationDays, addon_domains: addons },
+    current: { plan_id: cur.id, name: acct.plan, price_usd: cur.priceUsd, renewal_price_usd: terms.termPrice(paidPrice, months), duration_days: cur.durationDays, term_months: months, term_discount_pct: terms.discountPct(months), addon_domains: addons },
     remaining_days: round2(remainingDays), term_ends_at: exp.toISOString(), options,
   }
 }

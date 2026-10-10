@@ -40,10 +40,11 @@ async function ownedResources(db, owner) {
     provisionState: { $nin: ['provisioning', 'failed'] }, expiryDate: { $exists: true, $ne: null },
   }).toArray()
   for (const a of hosting) {
+    const rc = hostingScheduler.getRenewalCharge(a)
     out.push({
       product: 'hosting', id: String(a._id), expiresAt: a.expiryDate, suspended: !!a.suspended, planChangedAt: a.planChangedAt || null,
-      termDays: hostingScheduler.getPlanDuration(a.plan),
-      payload: { username: String(a._id), domain: a.domain || null, plan: a.plan || null, renewal_price_usd: hostingScheduler.getPlanPrice(a) || null, auto_renew: a.autoRenew !== false },
+      termDays: rc.days,
+      payload: { username: String(a._id), domain: a.domain || null, plan: a.plan || null, term_months: rc.months, renewal_price_usd: rc.priceUsd || null, auto_renew: a.autoRenew !== false },
     })
   }
   const servers = await db.collection('vpsPlansOf').find({ chatId: owner, deleted: { $ne: true }, provisionState: { $nin: ['provisioning', 'failed'] } }).toArray()
@@ -61,7 +62,7 @@ async function ownedResources(db, owner) {
     const exp = domainExpiry(d)
     if (!exp) continue
     const name = String(d.domainName).toLowerCase()
-    out.push({ product: 'domain', id: name, expiresAt: exp, termDays: 365, payload: { domain: name, registrar: d.registrar || null, renewal_price_usd: null, auto_renew: d.autoRenew === true } })
+    out.push({ product: 'domain', id: name, expiresAt: exp, termDays: 365, payload: { domain: name, registrar: d.registrar || null, renewal_price_usd: typeof d.autoRenewPriceUsd === 'number' ? d.autoRenewPriceUsd : null, auto_renew: d.autoRenew === true } })
   }
   return out.filter((r) => !isNaN(new Date(r.expiresAt).getTime()))
 }
@@ -191,4 +192,4 @@ function start({ getDb, log = console.log } = {}) {
   ]
 }
 
-module.exports = { expiryStage, ownedResources, sweepOwner, runLifecycleSweep, checkLowBalance, webhookOwners, enabled, start, STAGES, STATE }
+module.exports = { expiryStage, ownedResources, sweepOwner, runLifecycleSweep, checkLowBalance, webhookOwners, enabled, start, domainExpiry, STAGES, STATE }
