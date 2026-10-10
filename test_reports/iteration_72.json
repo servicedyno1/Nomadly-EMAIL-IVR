@@ -1,0 +1,22 @@
+{
+  "summary": "Plan Change History feature (2026-10) + bot hosting-upgrade renewal-price fix + admin repair endpoint fully verified. New suite test_plan_change_history_2026-10.js: 17/17 passed. Regressions test_hosting_plan_rules_2026-10.js (23/23), test_do_plan_change_2026-10.js (28/28), test_i18n_coverage.js all pass. Admin repair endpoint on the running server: wrong key -> 403, correct key GET -> 200 preview, POST without apply=true -> 400 confirm_required. End-to-end fixture test on local sandbox DB: inserted {_id:'zz_fixture', plan:'Golden Anti-Red HostPanel (30 Days)', renewalPriceUsd:30, upgradedAt:2025-01-01, upgradedFrom:'Premium Anti-Red (1-Week)'} — preview listed it (current=30 correct=100 diff=70), POST ?apply=true with usernames:['zz_fixture'] updated renewalPriceUsd to 100, fixture cleaned up. Code review of plan-change-history.js, reseller-api.js new routes, do-plan-change.js applyRecord/_fail, _index.js bot hosting-upgrade pay handler, hosting-renewal-price-repair.js assess criteria, and admin routes shows: owner scoping via chatId = reseller.ownerChatId is applied in every per-item + account-wide route; isRDP branching correct; hostingEntries normalises plan ids from names and infers 'to' from next change for legacy; cursor pagination is deterministic across identical timestamps (test case covers this); filter validation returns 400 HistoryQueryError for bad product/date/status/via/limit/cursor; _fail now $pushes {status:'failed', reason, refund_usd}; applyRecord sets status:'completed' + from/to plan names + renewal_price_usd; bot pay handler now does overdraft-safe debit, sets renewalPriceUsd=getPlanPrice(selected.name), planChangedAt, planChangeHistory entry via='bot' billing='new_term'; repair.assess skips promo (renewalPriceUsd 0 or planPrice mismatch after promo markers), API-changed accounts (presence of planChangeHistory via='api' entries after upgrade), deleted/terminated/suspended-forever accounts, already-correct ones, and uses compare-and-set on current renewalPriceUsd. Apidoc UI: /api/apidoc loads cleanly, 2 sidebar links to #plan-history, #plan-history and #plan-changes anchors present, mentions of GET /plan-changes, GET /hosting/:user/plan-changes, GET /vps/:id/plan-changes, GET /rdp/:id/plan-changes, 'Plan Change History' group, 'Plan-change history' card inside #plan-changes guide. No layout breakage, no .error elements on page.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/js/tests/test_plan_change_history_2026-10.js",
+    "/app/js/tests/test_hosting_plan_rules_2026-10.js",
+    "/app/js/tests/test_do_plan_change_2026-10.js",
+    "/app/js/tests/test_i18n_coverage.js"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "No ownership leak, pagination flaw, or legitimate-account-mis-repair case found. The repair criteria correctly require upgradedAt + upgradedFrom + current renewalPriceUsd == old plan's list price AND != new plan's list price, and skip any account whose planChangeHistory contains an 'api' entry after upgradedAt or that is deleted/terminated/suspended-forever/promo (renewalPriceUsd==0 or price flagged non-standard). Compare-and-set via updateOne({_id, renewalPriceUsd:current}) makes re-apply a no-op and avoids races with concurrent admin edits."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "test_credentials": "Admin repair key = first 16 chars of SESSION_SECRET in /app/backend/.env (unquoted value). Not printed.",
+  "seed_data_creation": "Temporary cpanelAccounts fixture _id='zz_fixture' inserted into sandbox DB, verified via preview+apply, then deleted. No residual data.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Plan Change History (2026-10) + bot hosting renewal-price fix + admin repair endpoint all green. Known unrelated failing suites user said NOT to fix: test_reseller_api_grace_2026-06.js, test_cancellation_flows.js, test_reseller_site_status_2026-06.js. Admin repair endpoint lives at /api/admin/hosting-renewal-price-repair (key = SESSION_SECRET[0:16], unquoted). Reseller API is in LIVE mode in sandbox — do NOT call mutating reseller endpoints on the running server; verify via in-process test suites only."
+}
