@@ -4,3 +4,6 @@
 
 ## 2026-10-07 — Reseller API region case
 - reseller-api upper-cases `region` (US-EAST); DO customer codes are mixed-case (US-east). digitalocean-service `_customerRegion()` normalises case + DO slugs (fra1) — use it for any new region lookup.
+
+## 2026-10-10 — Tooling lesson
+- Parallel search_replace calls on the SAME file corrupt it (js/_index.js was truncated to 73 lines). Batch edits across DIFFERENT files only; same-file edits must be sequential.

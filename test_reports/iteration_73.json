@@ -1,0 +1,33 @@
+{
+  "summary": "Backend-only review of the Renewal Price Check feature (hosting upgrade confirm screen + VPS/RDP plan-change summary + hi/zh renew-pay recognition fix). Ran the dedicated unit/static suite plus 3 adjacent regression suites and verified wiring inside /app/js/_index.js. All targeted tests pass; nodejs service healthy; no related errors in supervisor logs. End-to-end driving of the hosting upgrade pay step was intentionally NOT exercised against WHM (per request); static + translation-level coverage is in place and sufficient.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/js/tests/test_upgrade_renewal_preview_2026-10.js",
+    "/app/js/tests/test_hosting_plan_rules_2026-10.js",
+    "/app/js/tests/test_plan_change_history_2026-10.js",
+    "/app/js/tests/test_i18n_coverage.js",
+    "/app/js/tests/test_do_plan_change_2026-10.js"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Hosting upgrade pay (line 17245) and renew pay (line 17028) both now use message.startsWith('💵'), which correctly accepts all 4 translated pay buttons (en/fr/hi/zh) while still rejecting '💵 Deposit' / '➕💵 Deposit' because those start with different text that does NOT begin with 💵 followed by Pay/Payer/支付/भुगतान context — safe because the deposit buttons use '➕💵' (starts with ➕) or '💵 Deposit' handled by a separate guard at line 33775. Confirm the deposit prefix stays '➕💵' or starts with '💵 Deposit' only, never a bare '💵 Pay...' lookalike, or a user could mis-tap into the pay branch.",
+    "a.confirmUpgradeHosting (line 17211-17220) correctly reuses hosting-scheduler.getPlanPrice(selected.name) for renewalPrice, matching the renew/auto-renew pricing source — no drift risk.",
+    "goto.doPlanOptions saves info.doPlanTermEndsAt (line 12520) and goto.doPlanConfirm passes it to vp.doPlanSummary (line 12535). vp.doPlanSummary in all 4 lang files guards undefined date (no 'Invalid Date'/'undefined' leaks) — verified by the unit suite."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100%", "frontend": "N/A (skipped per request)"},
+  "test_credentials": "N/A — no external creds; sandbox local Mongo only, no WHM/DO calls exercised",
+  "seed_data_creation": "None. Did not need throwaway chatIds because WHM-driven e2e was explicitly out of scope; translation + static-wiring coverage is already comprehensive.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Feature is covered by /app/js/tests/test_upgrade_renewal_preview_2026-10.js (33/33) which exercises: (a) all 4 languages for t.upgradeConfirmTitle/To/ListPrice/Credit/YouPay/RenewsAt/NextRenewal with localized dates; (b) vp.doPlanSummary with and without doPlanTermEndsAt; (c) static grep in _index.js for renewalPrice reuse, startsWith('💵') on both upgrade-pay and renew-pay handlers, success-message 'Renews at' line, and goto.doPlanOptions saving term_ends_at. Regression suites test_hosting_plan_rules_2026-10 (23/23), test_plan_change_history_2026-10 (17/17), test_do_plan_change_2026-10 (28/28), test_i18n_coverage all pass. 3 legacy suites (test_reseller_api_grace_2026-06 etc.) remain failing — known, out of scope. If a future test wants real e2e through the mock_telegram_api.js, remember to REMOVE TELEGRAM_API_BASE_URL from backend/.env and restart nodejs afterwards.",
+  "rca of the issue": "N/A — this iteration is validation of a shipped feature, not a bug RCA. Previous hi/zh renew-pay button-not-recognised bug was fixed by replacing startsWith('💵 Pay') with startsWith('💵') on both pay handlers; verified by the static-wiring assertions in the new suite."
+}

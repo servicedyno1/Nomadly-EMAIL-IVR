@@ -1,6 +1,15 @@
 # PRD — Nomadly Cloud IVR + Telegram Bot
 
 
+## 2026-10-10c — Renewal Price Check on bot upgrade confirm screens — DONE (sandbox; awaiting Save-to-GitHub → auto-deploy)
+- Hosting "Confirm Upgrade" screen (a.confirmUpgradeHosting) now shows "🔁 Renews at: $X every 30 days (auto-renew on)" + "📅 Next renewal: <today+30d> — a new 30-day term starts today", using the SAME getPlanPrice(selected.name) + 30-day term the pay step saves. Whole screen translated en/fr/hi/zh (new t.upgradeConfirm* keys; reuses walletBalanceLabel, renewModalConfirmHint/Insufficient/PayButton). Localized dates (UTC).
+- Upgrade success message adds "Renews at: $X every 30 days" (message itself still English-only).
+- VPS/RDP vp.doPlanSummary(…, end) shows "Next renewal: $X on <term end>" in all 4 langs (info.doPlanTermEndsAt saved from planOptions().term_ends_at; no date → price only).
+- BUG FIX found on the way: hosting RENEW + UPGRADE pay handlers matched startsWith('💵 Pay') → hi ('💵 $X USD भुगतान करें') / zh ('💵 支付 $X USD') pay taps were ignored. Now startsWith('💵') (Deposit is '➕💵…', not matched).
+- Tests: js/tests/test_upgrade_renewal_preview_2026-10.js 33/33; regressions 23/23, 17/17, 28/28, i18n pass; testing agent iteration_73 100%; E2E via mock Telegram (en/hi/zh confirm screens, hi/zh pay taps recognised, Deposit not treated as Pay).
+- LESSON: never run parallel search_replace edits on the SAME file — it truncated _index.js to 73 lines (restored via git checkout).
+
+
 ## 2026-10-10b — Plan Change History API + bot hosting-upgrade renewal-price fix + admin repair — DONE (sandbox; awaiting Save-to-GitHub + redeploy)
 - Reseller API: GET /plan-changes (account-wide; filters product=hosting|vps|rdp (comma list), since, until, status=completed|failed|running, via=api|bot; limit 1-200 + opaque cursor; total/has_more/next_cursor) + per-item GET /hosting/:user/plan-changes, /vps/:id/plan-changes, /rdp/:id/plan-changes. Owner-scoped (chatId), deleted/terminated resources included. Builder: js/plan-change-history.js.
 - Recording: VPS/RDP engine now pushes FAILED (refunded) attempts to planChangeHistory too (status, reason, refund_usd) and richer completed entries (names, renewal price, started_at). Hosting API entries get id/status/renewal_price_usd. Bot hosting upgrades now push a full entry (via 'bot', billing 'new_term', loyalty_credit_usd). Legacy data (hosting upgradedAt/downgradedAt, VPS last failed planChange) → legacy:true best-effort entries.
