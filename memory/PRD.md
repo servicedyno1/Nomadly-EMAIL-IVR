@@ -16,6 +16,12 @@
 - Verified E2E (mock Telegram + local stub WHM, throwaway chats, cleaned up): fr weekly→Golden $100 charged once, renewalPriceUsd 100, expiry +30d; hi Premium→Golden $62.50 w/ credit; zh terminated → refunded; en unsuspend fail → refunded; fr server rejected → refunded. Suite now 54/54; i18n coverage pass.
 - Still English: the RENEW flow's "terminated" message (_index.js ~17064) and the plan-details view dates (en-US).
 
+## 2026-10-10e — P0 RCA: hosting teardown deleted a LIVE account's DNS (namewords.sbs / name65fb) — FIXED in code; prod restored
+- See /app/memory/RCA_namewords_dns_teardown_2026-10-10.md. Root cause: all 12 teardown sites deleted worker routes + web DNS by domain name. Reseller DELETE of a failed duplicate (nameb594) wiped name65fb's tunnel CNAMEs on 2026-10-08 12:29:50.
+- PROD: CNAMEs restored + verified; audit of all live accounts (Nomadly 14, WL 12) found 0 others affected.
+- Code: js/hosting-dns-teardown.js teardownHostingDomain (skip when another live account (not deleted / not failed / not terminatedOnWhm) uses the domain as primary or addon; excludeId only for whole-account teardowns); js/hosting-dns-repair.js; POST /hosting/:user/dns/repair (dry_run supported); anti-red/deploy returns `dns`; DELETE returns `cloudflare_cleanup[]`; addon unlink returns cloudflare_skipped; findOwnedAccountByDomain skips failed records; suspend sets suspendedAt/By/Reason; plan-change history legacy = !billing; API docs updated.
+- PENDING after deploy: delete failed name1d6a + name303c on prod through the guarded path, then re-verify namewords.sbs DNS.
+
 
 ## 2026-10-10b — Plan Change History API + bot hosting-upgrade renewal-price fix + admin repair — DONE (sandbox; awaiting Save-to-GitHub + redeploy)
 - Reseller API: GET /plan-changes (account-wide; filters product=hosting|vps|rdp (comma list), since, until, status=completed|failed|running, via=api|bot; limit 1-200 + opaque cursor; total/has_more/next_cursor) + per-item GET /hosting/:user/plan-changes, /vps/:id/plan-changes, /rdp/:id/plan-changes. Owner-scoped (chatId), deleted/terminated resources included. Builder: js/plan-change-history.js.

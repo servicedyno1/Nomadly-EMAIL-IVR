@@ -1,0 +1,33 @@
+{
+  "summary": "Backend-only review of the namewords.sbs RCA fix (hosting DNS teardown guard + self-heal). Ran the new regression suite plus 4 adjacent suites, verified the docs page, and spot-checked the reseller API wiring. Everything green.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": { "ui_bugs": [], "integration_issues": [], "design_issues": [] },
+  "test_report_links": [
+    "/app/js/tests/test_hosting_dns_teardown_2026-10.js",
+    "/app/js/tests/test_plan_change_history_2026-10.js",
+    "/app/js/tests/test_hosting_plan_rules_2026-10.js",
+    "/app/js/tests/test_upgrade_renewal_preview_2026-10.js",
+    "/app/js/tests/test_i18n_coverage.js"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "hosting-dns-teardown.js liveOwnerQuery is correct: regex-escaped, case-insensitive (^$ anchors prevent axb.com matching a.b.com), supports addonDomains as string OR legacy {domain} object, and legacy docs without provisionState are treated as live (provisionState:{$ne:'failed'} matches missing field).",
+    "RCA scenario reproduced in test: seeding {name65fb active, nameb594 failed} on namewords.sbs with excludeId=nameb594 returns skipped:'in_use' and makes ZERO cf calls — exact prod incident.",
+    "reseller-api.js DELETE /hosting/:user builds cloudflare_cleanup[] with result in {removed, kept_in_use_by_another_account, no_zone, error}; no username is included so the other account is not leaked.",
+    "POST /hosting/:user/dns/repair correctly: 404 if loadOwnedCpanel null, 409 account_not_live for failed/terminated via isLiveAccount, forces dry_run when !isLive() OR body.dry_run===true, and strips zone_id from each domain in the response.",
+    "reseller-hosting-mgmt.js anti-red/deploy runs hostingDnsRepair.repairAccount({apply:true}) only for live accts, strips zone_id, and surfaces errors as {error}.",
+    "findOwnedAccountByDomain adds provisionState:{$ne:'failed'} to BOTH primary and addon queries (2 occurrences confirmed) so honeypot/captcha lookups ignore failed duplicates.",
+    "Static wiring assertions in the suite confirm: 2 excludeId:plan._id teardowns in _index.js, 3 detach-path teardowns in _index.js (unlink x2 + change-primary), 2 detach teardowns in cpanel-routes.js, 3 in reseller-hosting-mgmt.js, 1 whole-account teardown each in cpanel-routes.js (account._id) and reseller-api.js (acct._id). No other file calls cleanupAllHostingRecords( or removeWorkerRoutes( directly.",
+    "hosting-dns-repair.js: webRecordsFor throws on CF list failure so a 403 can never masquerade as 'missing' (test covered); dry-run never calls createDNSRecord; apply is idempotent (second pass is a no-op); CNAME is proxied=true to CF_TUNNEL_CNAME.",
+    "plan-change-history.hostingEntries sets legacy=!h.billing — pre-2026-10-10 entries flagged legacy:true, new billing entries legacy:false.",
+    "Suspend/unsuspend handlers set/clear suspendedAt + suspendedReason as spec'd.",
+    "/apidoc served by node on :5000 renders (340KB) and contains the new markers: dns/repair, cloudflare_cleanup, suspended_at, legacy."
+  ],
+  "updated_files": [],
+  "success_rate": { "backend": "100%", "frontend": "n/a (skipped per request)" },
+  "seed_data_creation": "None (test suite uses an ephemeral 'tdtest_cpanelAccounts' collection in db 'test' which is deleteMany'd then drop'd).",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Full namewords.sbs RCA fix is verified. Suites: test_hosting_dns_teardown_2026-10 19/19, test_plan_change_history_2026-10 17/17, test_hosting_plan_rules_2026-10 23/23, test_upgrade_renewal_preview_2026-10 54/54, test_i18n_coverage all green. curl :5000/health healthy. /apidoc renders with new sections. Pre-existing legacy failing suites (test_reseller_api_grace_2026-06, test_vps_scheduler_fix, test_cancellation_flows) were not re-run per scope note.",
+  "rca of the issue": "Prod DELETE /hosting/nameb594 (failed duplicate) ran domain-keyed cf-service.cleanupAllHostingRecords + anti-red removeWorkerRoutes for namewords.sbs, nuking the live account name65fb's apex+www tunnel CNAMEs. Fix: single teardownHostingDomain helper gates CF work on 'no other live account uses this domain' (deleted!=true, provisionState!='failed', terminatedOnWhm!=true), case-insensitive and regex-safe; all 12 call sites refactored; added /hosting/:user/dns/repair + anti-red/deploy self-heal to recreate missing apex/www CNAMEs; domain-keyed lookups now ignore failed records."
+}
