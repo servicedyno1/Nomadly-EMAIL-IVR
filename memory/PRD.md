@@ -6,6 +6,7 @@
 - YES: HTML5/static + PHP 8.2/8.3 (all plans). PARTIAL: WordPress (manual install, monthly plans only; Weekly has 0 DBs) and React/Vite/Vue/Next static exports. NO: Node.js server apps (no Node/Passenger, no shell).
 - Known gap: anti-red deployHtaccess overwrites public_html/.htaccess → drops WordPress permalinks + SPA fallback rules on every redeploy.
 - BACKLOG (in order): P1 preserve user/WordPress/SPA .htaccess blocks → P2 one-click WordPress in HostPanel → P3 Node.js app hosting (EA4 ea-nodejs + Passenger + HostPanel tab).
+- 2026-10-10: reseller (hosta.sh) feature requests documented in /app/memory/RESELLER_FEATURE_REQUESTS_2026-10-10.md. ONE merged priority list = /app/memory/ROADMAP.md (source of truth for "what next").
 
 
 ## 2026-10-10c — Renewal Price Check on bot upgrade confirm screens — DONE (sandbox; awaiting Save-to-GitHub → auto-deploy)
@@ -27,7 +28,7 @@
 - See /app/memory/RCA_namewords_dns_teardown_2026-10-10.md. Root cause: all 12 teardown sites deleted worker routes + web DNS by domain name. Reseller DELETE of a failed duplicate (nameb594) wiped name65fb's tunnel CNAMEs on 2026-10-08 12:29:50.
 - PROD: CNAMEs restored + verified; audit of all live accounts (Nomadly 14, WL 12) found 0 others affected.
 - Code: js/hosting-dns-teardown.js teardownHostingDomain (skip when another live account (not deleted / not failed / not terminatedOnWhm) uses the domain as primary or addon; excludeId only for whole-account teardowns); js/hosting-dns-repair.js; POST /hosting/:user/dns/repair (dry_run supported); anti-red/deploy returns `dns`; DELETE returns `cloudflare_cleanup[]`; addon unlink returns cloudflare_skipped; findOwnedAccountByDomain skips failed records; suspend sets suspendedAt/By/Reason; plan-change history legacy = !billing; API docs updated.
-- PENDING after deploy: delete failed name1d6a + name303c on prod through the guarded path, then re-verify namewords.sbs DNS.
+- PENDING after deploy: delete failed name1d6a + name303c on prod through the guarded path, then re-verify namewords.sbs DNS. → CLOSED 2026-10-10: deployed; the reseller deleted both (cloudflare_cleanup = kept_in_use_by_another_account); apex + www still resolve.
 
 
 ## 2026-10-10b — Plan Change History API + bot hosting-upgrade renewal-price fix + admin repair — DONE (sandbox; awaiting Save-to-GitHub + redeploy)
