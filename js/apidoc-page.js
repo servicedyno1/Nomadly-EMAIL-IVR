@@ -598,6 +598,21 @@ function endpointGroups(base) {
 // Then GET /vps/b2f1c0a4-… → "plan_change": { "status": "completed", "phase": null, "disk_after_gb": 80, "finished_at": "…", … }
 // Downgrade → "direction": "downgrade", "charged_usd": 0 (no refund). Pre-flight {"dry_run":true} → { "dry_run": true, "quote": {…}, "sufficient_balance": true }`,
         },
+        {
+          method: 'GET', path: '/vps/:id/plan-changes', auth: true, billed: false,
+          desc: 'Plan-change history of one VPS, newest first: every in-place resize with status completed | failed | running, from_plan → to_plan, charged_usd, refund_usd/refunded (failed changes are refunded automatically), reason (failed), resize_disk, size_slug + disk_gb after the change, renewal_price_usd, started_at, via ("api" | "bot" — changes your customers make in the Telegram bot are included) and legacy (true = reconstructed from the server\u2019s last recorded attempt before full history existed; fewer fields). The term end date never changes on a VPS plan change, so entries carry no expiry. Same filters + paging as GET /plan-changes (status, via, since, until, limit, cursor). 404 if the server is not yours.',
+          params: [['status', false, 'completed | failed | running'], ['via', false, 'api | bot'], ['since / until', false, 'ISO-8601 date/time bounds on "at"'], ['limit', false, '1-200 (default 50)'], ['cursor', false, 'next_cursor from the previous page']],
+          curl: `curl -s ${base}/vps/b2f1c0a4-…/plan-changes -H "Authorization: Bearer YOUR_API_KEY"`,
+          resp: `{ "product": "vps", "id": "b2f1c0a4-…", "plan": "s-4vcpu-8gb-amd", "count": 2, "total": 2, "has_more": false, "next_cursor": null,
+  "plan_changes": [
+    { "id": "9d1e…", "product": "vps", "resource_id": "b2f1c0a4-…", "at": "2026-10-15T10:16:40.000Z", "status": "completed",
+      "direction": "upgrade", "from_plan": "s-2vcpu-4gb-amd", "from_plan_name": "Premium AMD 2 vCPU / 4 GB", "to_plan": "s-4vcpu-8gb-amd", "to_plan_name": "Premium AMD 4 vCPU / 8 GB",
+      "charged_usd": 34.35, "refund_usd": 0, "refunded": false, "reason": null, "resize_disk": false, "size_slug": "s-4vcpu-8gb-amd", "disk_gb": 80,
+      "renewal_price_usd": 112, "started_at": "2026-10-15T10:12:00.000Z", "via": "api", "legacy": false },
+    { "id": "77ab…", "product": "vps", "resource_id": "b2f1c0a4-…", "at": "2026-10-02T08:03:10.000Z", "status": "failed",
+      "direction": "upgrade", "from_plan": "s-2vcpu-4gb-amd", "to_plan": "s-4vcpu-8gb-amd", "charged_usd": 40.1, "refund_usd": 40.1, "refunded": true,
+      "reason": "Resize errored.", "via": "bot", "legacy": false, "…": "…" } ] }`,
+        },
       ],
     },
     {
@@ -702,6 +717,18 @@ function endpointGroups(base) {
   "charged_usd": 34.35, "wallet_balance_usd": 65.65, "poll_url": "/rdp/ID" }
 // Then GET /rdp/ID → "plan_change": { "status": "completed", "phase": null, "disk_after_gb": 80, "finished_at": "…", … }
 // Downgrade → "direction": "downgrade", "charged_usd": 0 (no refund). Pre-flight {"dry_run":true} → { "dry_run": true, "quote": {…}, "sufficient_balance": true }`,
+        },
+        {
+          method: 'GET', path: '/rdp/:id/plan-changes', auth: true, billed: false,
+          desc: 'Plan-change history of one RDP server, newest first — same entry shape as GET /vps/:id/plan-changes (status completed | failed | running, from_plan/to_plan tier slugs standard | pro | power, charged_usd, refund_usd/refunded, reason, resize_disk, disk_gb, renewal_price_usd = the new tier\u2019s price for the server\u2019s own 1/2/3-month term, via api | bot, legacy). Same filters + paging as GET /plan-changes. 404 if the server is not yours.',
+          params: [['status', false, 'completed | failed | running'], ['via', false, 'api | bot'], ['since / until', false, 'ISO-8601 date/time bounds on "at"'], ['limit', false, '1-200 (default 50)'], ['cursor', false, 'next_cursor from the previous page']],
+          curl: `curl -s ${base}/rdp/ID/plan-changes -H "Authorization: Bearer YOUR_API_KEY"`,
+          resp: `{ "product": "rdp", "id": "ID", "plan": "Pro — Windows RDP (3 months)", "count": 1, "total": 1, "has_more": false, "next_cursor": null,
+  "plan_changes": [
+    { "id": "5c0f…", "product": "rdp", "resource_id": "ID", "at": "2026-10-15T10:16:40.000Z", "status": "completed", "direction": "upgrade",
+      "from_plan": "standard", "from_plan_name": "Standard", "to_plan": "pro", "to_plan_name": "Pro", "charged_usd": 112, "refund_usd": 0, "refunded": false,
+      "reason": null, "resize_disk": false, "size_slug": "s-4vcpu-8gb-amd", "disk_gb": 80, "renewal_price_usd": 285.6,
+      "started_at": "2026-10-15T10:12:00.000Z", "via": "api", "legacy": false } ] }`,
         },
       ],
     },
@@ -948,6 +975,23 @@ function endpointGroups(base) {
 // Premium/Golden → premium-weekly: 409 { "error": "weekly_downgrade_not_allowed", "message": "A monthly plan can never be switched to the weekly plan. …" }`,
         },
         {
+          method: 'GET', path: '/hosting/:user/plan-changes', auth: true, billed: false,
+          desc: 'Plan-change history of one hosting account, newest first — changes made through the API AND upgrades your customers made in the Telegram bot (via "api" | "bot"). Each entry: id, at, status ("completed"), direction, from_plan/to_plan (premium-weekly | premium-monthly | golden-monthly) + their names, billing ("pro_rata" = Premium <-> Golden, expiry unchanged | "new_term" = a fresh 30-day term: API weekly -> monthly, and every bot upgrade), charged_usd, unused_credit_usd (API weekly -> monthly), loyalty_credit_usd (bot upgrade discount), previous_expires_at, expires_at, renewal_price_usd, legacy. legacy:true entries are best-effort reconstructions of a change made before full history existed: only at, direction, from/to plan and (for bot upgrades) charged_usd + loyalty_credit_usd are known — billing, expiries and renewal price are null, and via is null when the channel is unknown. Same filters + paging as GET /plan-changes. Works for terminated accounts too. 404 if the account is not yours.',
+          params: [['via', false, 'api | bot'], ['since / until', false, 'ISO-8601 date/time bounds on "at"'], ['limit', false, '1-200 (default 50)'], ['cursor', false, 'next_cursor from the previous page']],
+          curl: `curl -s ${base}/hosting/mysite01/plan-changes -H "Authorization: Bearer YOUR_API_KEY"`,
+          resp: `{ "product": "hosting", "username": "mysite01", "domain": "mysite.com", "plan": "Golden Anti-Red HostPanel (1-Month)",
+  "count": 2, "total": 2, "has_more": false, "next_cursor": null,
+  "plan_changes": [
+    { "id": "3f6a…", "product": "hosting", "resource_id": "mysite01", "domain": "mysite.com", "at": "2026-10-10T09:00:00.000Z", "status": "completed",
+      "direction": "upgrade", "from_plan": "premium-monthly", "from_plan_name": "Premium Anti-Red HostPanel (30 Days)", "to_plan": "golden-monthly", "to_plan_name": "Golden Anti-Red HostPanel (1-Month)",
+      "billing": "pro_rata", "charged_usd": 10.42, "unused_credit_usd": 0, "loyalty_credit_usd": null, "refund_usd": 0, "refunded": false, "reason": null,
+      "previous_expires_at": "2026-10-28T09:00:00.000Z", "expires_at": "2026-10-28T09:00:00.000Z", "renewal_price_usd": 100, "via": "api", "legacy": false },
+    { "id": "hpc_legacy_mysite01_1756684800000", "product": "hosting", "resource_id": "mysite01", "at": "2026-09-01T00:00:00.000Z", "status": "completed",
+      "direction": "upgrade", "from_plan": "premium-weekly", "from_plan_name": "Premium Anti-Red (1-Week)", "to_plan": "premium-monthly", "to_plan_name": "Premium Anti-Red HostPanel (30 Days)",
+      "billing": null, "charged_usd": 37.5, "loyalty_credit_usd": 37.5, "previous_expires_at": null, "expires_at": null, "renewal_price_usd": null,
+      "via": "bot", "legacy": true, "…": "…" } ] }`,
+        },
+        {
           method: 'GET', path: '/hosting/:user/addons', auth: true, billed: false,
           desc: 'List the addon domains on a hosting account, with the plan addon quota.',
           curl: `curl -s ${base}/hosting/mysite01/addons \\
@@ -1021,6 +1065,33 @@ function endpointGroups(base) {
       "renewable": true, "renew_blocked_reason": null }
   ]
 }`,
+        },
+      ],
+    },
+    {
+      id: 'plan-history', title: 'Plan Change History',
+      blurb: 'Every plan change on your hosting accounts, VPS and RDP servers in one feed — upgrades, downgrades, failed (auto-refunded) VPS/RDP resizes and changes still running — whether made through this API or by your customers in the Telegram bot. Use it for audit trails, billing reconciliation and customer-facing "plan history" screens. Per-item lists: GET /hosting/:user/plan-changes, GET /vps/:id/plan-changes, GET /rdp/:id/plan-changes. For real-time updates subscribe to the hosting.plan_changed / vps.plan_changed / rdp.plan_changed / *.plan_change_failed webhooks and use this feed to reconcile.',
+      endpoints: [
+        {
+          method: 'GET', path: '/plan-changes', auth: true, billed: false,
+          desc: 'Account-wide plan-change history across hosting + VPS + RDP, newest first ("at" descending), only for resources you own (deleted/terminated resources included). ENTRY (common fields): id, product (hosting | vps | rdp), resource_id (cPanel username or server id), at, status (completed | failed | running), direction (upgrade | downgrade | switch), from_plan / from_plan_name, to_plan / to_plan_name, charged_usd, refund_usd, refunded, reason (why a change failed), via (api | bot | null), legacy. HOSTING adds domain, billing (pro_rata | new_term), unused_credit_usd, loyalty_credit_usd, previous_expires_at, expires_at, renewal_price_usd. VPS/RDP add resize_disk, size_slug, disk_gb, renewal_price_usd, started_at. LEGACY: legacy:true marks a best-effort entry rebuilt from data stored before full history existed (fewer fields, unknown values are null) — hosting: the account\u2019s last upgrade/downgrade made before full history recording was released (mostly older Telegram-bot upgrades); VPS/RDP: the server\u2019s last failed attempt from before failed attempts were recorded. PAGINATION: pass limit (1-200, default 50); when has_more is true, call again with cursor=next_cursor (opaque — pass it back unchanged with the SAME filters). total = entries matching the filters. Errors: 400 invalid_product | invalid_date | invalid_status | invalid_via | invalid_limit | invalid_cursor.',
+          params: [['product', false, 'hosting | vps | rdp — comma-separated for several (e.g. vps,rdp). Default: all.'], ['since', false, 'ISO-8601 date/time — only changes at or after this moment.'], ['until', false, 'ISO-8601 date/time — only changes at or before this moment.'], ['status', false, 'completed | failed | running'], ['via', false, 'api | bot'], ['limit', false, 'Page size 1-200 (default 50; larger values are capped at 200).'], ['cursor', false, 'next_cursor from the previous page.']],
+          curl: `curl -s "${base}/plan-changes?product=vps,rdp&since=2026-10-01&limit=50" \\
+  -H "Authorization: Bearer YOUR_API_KEY"`,
+          resp: `{
+  "filters": { "product": ["vps", "rdp"], "since": "2026-10-01T00:00:00.000Z", "until": null, "status": null, "via": null, "limit": 50 },
+  "count": 2, "total": 2, "has_more": false, "next_cursor": null,
+  "plan_changes": [
+    { "id": "5c0f…", "product": "rdp", "resource_id": "a1b2c3d4-…", "at": "2026-10-15T10:16:40.000Z", "status": "completed",
+      "direction": "upgrade", "from_plan": "standard", "to_plan": "pro", "charged_usd": 112, "refund_usd": 0, "refunded": false,
+      "resize_disk": false, "disk_gb": 80, "renewal_price_usd": 285.6, "via": "api", "legacy": false, "…": "…" },
+    { "id": "77ab…", "product": "vps", "resource_id": "b2f1c0a4-…", "at": "2026-10-02T08:03:10.000Z", "status": "failed",
+      "direction": "upgrade", "from_plan": "s-2vcpu-4gb-amd", "to_plan": "s-4vcpu-8gb-amd", "charged_usd": 40.1, "refund_usd": 40.1, "refunded": true,
+      "reason": "Resize errored.", "via": "bot", "legacy": false, "…": "…" }
+  ]
+}
+// Next page: GET /plan-changes?product=vps,rdp&since=2026-10-01&limit=50&cursor=<next_cursor>
+// Bad filter → 400 { "error": "invalid_status", "message": "status must be completed, failed or running." }`,
         },
       ],
     },
@@ -1520,6 +1591,16 @@ curl -s -X POST ${base}/hosting/mysite01/change-plan \\
           <tbody>${errRows}</tbody>
         </table>
         <p class="muted" style="margin:10px 0 0">Every error is returned <b>before</b> any money moves. Renewal-only errors: <code>400 weekly_single_period_only</code>, <code>409 weekly_renew_too_early</code>.</p>
+      </div>
+
+      <div class="card">
+        <h3>Plan-change history</h3>
+        <ul class="muted">
+          <li>Every change is kept: <code>GET /plan-changes</code> (whole account; filter by <code>product</code>, <code>since</code>, <code>until</code>, <code>status</code>, <code>via</code>, paginated) or per item: <code>GET /hosting/:user/plan-changes</code>, <code>GET /vps/:id/plan-changes</code>, <code>GET /rdp/:id/plan-changes</code>.</li>
+          <li>It includes changes your customers make in the Telegram bot (<code>via: "bot"</code>), failed VPS/RDP resizes with their refund (<code>status: "failed"</code>, <code>reason</code>, <code>refund_usd</code>) and resizes still running (<code>status: "running"</code>).</li>
+          <li>Older changes made before full history recording existed appear as best-effort entries with <code>legacy: true</code> (fewer fields; unknown values are <code>null</code>).</li>
+          <li>Use it to reconcile webhooks you may have missed, and for audit and billing reports.</li>
+        </ul>
       </div>
 
       <div class="card">
