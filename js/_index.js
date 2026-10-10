@@ -12517,6 +12517,7 @@ Enter new value:`), bc)
       if (!opts.length) { send(chatId, vp.doPlanNoOptions); return goto.getVPSDetails() }
       await saveInfo('doPlanOptions', opts)
       await saveInfo('doPlanCurrent', po.current)
+      await saveInfo('doPlanTermEndsAt', po.term_ends_at)
       await set(state, chatId, 'action', a.doPlanSelect)
       return send(chatId, vp.doPlanOptionsMsg(po.current, opts, po.remaining_days, po.options.length - opts.length), vp.of(opts.map(o => vp.doPlanOptionBtn(o))))
     },
@@ -12531,7 +12532,7 @@ Enter new value:`), bc)
       await set(state, chatId, 'action', a.doPlanConfirm)
       const { usdBal } = await getBalance(walletOf, chatId)
       const name = info.userVPSDetails?.name || info.vpsDetails?.name
-      return send(chatId, vp.doPlanSummary(name, info.doPlanCurrent, info.doPlanSelected, !!info.doPlanResizeDisk, usdBal), vp.of([vp.confirmChangeBtn]))
+      return send(chatId, vp.doPlanSummary(name, info.doPlanCurrent, info.doPlanSelected, !!info.doPlanResizeDisk, usdBal, info.doPlanTermEndsAt), vp.of([vp.confirmChangeBtn]))
     },
 
     upgradeVpsPlan: async () => {
@@ -17023,7 +17024,8 @@ All verified numbers generated during sourcing.`))
       return goto.viewHostingPlanDetails(info?.selectedHostingDomain)
     }
 
-    const isPayUsd = message.startsWith('💵 Pay')
+    // Translated pay button (fr/hi/zh) always starts with 💵; Deposit starts with ➕.
+    const isPayUsd = message.startsWith('💵')
     const isLegacyConfirm = message === user.confirmRenewNow
 
     if (isPayUsd || isLegacyConfirm) {
@@ -17202,26 +17204,26 @@ All verified numbers generated during sourcing.`))
       const { usdBal } = await getBalance(walletOf, chatId)
 
       const canPay = usdBal >= upgradePrice
+      // Same renewal price + fresh 30-day term the payment step saves.
+      const renewalPrice = require('./hosting-scheduler').getPlanPrice(selected.name)
+      const nextRenewal = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
 
-      let text = `<b>⬆️ Confirm Upgrade</b>\n\n`
-        + `<b>Upgrade to:</b> ${selected.name}\n`
-        + `<b>List Price:</b> $${originalPrice.toFixed(2)}\n`
+      let text = trans('t.upgradeConfirmTitle') + '\n\n'
+        + trans('t.upgradeConfirmTo', selected.name) + '\n'
+        + trans('t.upgradeConfirmListPrice', originalPrice.toFixed(2)) + '\n'
       if (creditApplied > 0) {
-        text += `<b>🎁 Loyalty Credit:</b> -$${creditApplied.toFixed(2)}\n`
+        text += trans('t.upgradeConfirmCredit', creditApplied.toFixed(2)) + '\n'
       }
-      text += `<b>You Pay:</b> $${upgradePrice.toFixed(2)}\n`
-        + `<b>Wallet Balance:</b> $${usdBal.toFixed(2)}\n\n`
-
-      if (canPay) {
-        text += `Confirm payment below:`
-      } else {
-        text += `⚠️ Insufficient funds. Please deposit first.`
-      }
+      text += trans('t.upgradeConfirmYouPay', upgradePrice.toFixed(2)) + '\n'
+        + `<b>${trans('t.walletBalanceLabel')}</b> $${usdBal.toFixed(2)}\n\n`
+      if (renewalPrice > 0) text += trans('t.upgradeConfirmRenewsAt', renewalPrice.toFixed(2), 30) + '\n'
+      text += trans('t.upgradeConfirmNextRenewal', nextRenewal, 30) + '\n\n'
+      text += canPay ? trans('t.renewModalConfirmHint') : trans('t.renewModalInsufficient')
 
       saveInfo('selectedUpgrade', selected)
       await set(state, chatId, 'action', a.confirmUpgradeHostingPay)
       const buttons = []
-      if (canPay) buttons.push([`💵 Pay $${upgradePrice.toFixed(2)} USD`])
+      if (canPay) buttons.push([trans('t.renewModalPayButton', upgradePrice.toFixed(2))])
       if (!canPay) buttons.push([trans('u.deposit')])
       buttons.push([user.backToMyHostingPlans])
       return send(chatId, text, k.of(buttons))
@@ -17240,7 +17242,7 @@ All verified numbers generated during sourcing.`))
   if (action === a.confirmUpgradeHostingPay) {
     if (message === user.backToMyHostingPlans) return goto.myHostingPlans()
 
-    const isPayUsd = message.startsWith('💵 Pay')
+    const isPayUsd = message.startsWith('💵')
 
     if (isPayUsd) {
       const domain = info?.selectedHostingDomain
@@ -17275,12 +17277,7 @@ All verified numbers generated during sourcing.`))
             { _id: plan._id },
             { $set: { terminatedOnWhm: true, terminatedAt: new Date(), terminationNote: 'WHM account not found during upgrade attempt' } }
           )
-          return send(chatId,
-            '❌ This hosting account has been <b>terminated</b> because it was not renewed within the grace period.\n\n'
-            + '🛒 To get your site back online, please purchase a <b>new hosting plan</b> from:\n'
-            + '<b>☁️ Hosting & Domains → Choose a plan</b>',
-            k.of([[user.backToMyHostingPlans]])
-          )
+          return send(chatId, trans('t.upgradeFailTerminated', upgradePrice.toFixed(2), user.hostingDomainsRedirect), k.of([[user.backToMyHostingPlans]]))
         }
 
         // Auto-unsuspend if the account is suspended (expired plans get suspended on WHM)
@@ -17295,10 +17292,7 @@ All verified numbers generated during sourcing.`))
                 notifyAdmin(`⚠️ <b>Hosting upgrade blocked — unsuspend failed</b>\nUser: ${chatId}\nDomain: <b>${domain}</b>\ncPanel: <code>${plan.cpUser}</code>\nRefunded: $${upgradePrice.toFixed(2)}\n\nWHM returned false on /unsuspendacct — please verify the account state on the WHM control panel.`)
               }
             } catch { /* noop */ }
-            return send(chatId,
-              `❌ <b>Upgrade not completed</b>\n\nWe couldn't reactivate your hosting account on the server. Your wallet has been refunded <b>$${upgradePrice.toFixed(2)}</b>.\n\nOur admin has been notified — please tap 💬 Get Support to follow up.`,
-              k.of([[user.backToMyHostingPlans]])
-            )
+            return send(chatId, trans('t.upgradeFailReactivate', upgradePrice.toFixed(2), user.getSupport), k.of([[user.backToMyHostingPlans]]))
           }
           log(`[Hosting] Successfully unsuspended ${plan.cpUser} for ${chatId}`)
         }
@@ -17313,10 +17307,7 @@ All verified numbers generated during sourcing.`))
               notifyAdmin(`⚠️ <b>Hosting upgrade blocked — changePackage failed</b>\nUser: ${chatId}\nDomain: <b>${domain}</b>\ncPanel: <code>${plan.cpUser}</code>\nTarget plan: <code>${selected.name}</code>\nWHM error: <code>${whmErrText}</code>\nRefunded: $${upgradePrice.toFixed(2)}`)
             }
           } catch { /* noop */ }
-          return send(chatId,
-            `❌ <b>Upgrade not completed</b>\n\nOur hosting server didn't accept the plan change (<i>${whmErrText}</i>). Your wallet has been refunded <b>$${upgradePrice.toFixed(2)}</b>.\n\nOur admin has been notified — please tap 💬 Get Support to follow up.`,
-            k.of([[user.backToMyHostingPlans]])
-          )
+          return send(chatId, trans('t.upgradeFailServer', whmErrText, upgradePrice.toFixed(2), user.getSupport), k.of([[user.backToMyHostingPlans]]))
         }
 
         // 3. Update cpanelAccounts with new plan + new 30-day expiry
@@ -17364,7 +17355,6 @@ All verified numbers generated during sourcing.`))
         )
 
         const { usdBal: newUsdBal } = await getBalance(walletOf, chatId)
-        const newExpiryStr = newExpiry.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 
         const creditNote = creditApplied > 0 ? ` (list $${originalPrice.toFixed(2)} − credit $${creditApplied.toFixed(2)})` : ''
         log(`[Hosting] Plan upgraded for ${chatId}: ${plan.plan} → ${selected.name} ($${upgradePrice.toFixed(2)})${creditNote}`)
@@ -17388,18 +17378,19 @@ All verified numbers generated during sourcing.`))
 
         set(payments, nanoid(), `Wallet,HostingUpgrade,${domain},$${upgradePrice.toFixed(2)},${chatId},${new Date()}`)
 
-        let summary = `✅ <b>Plan Upgraded Successfully!</b>\n\n`
-          + `<b>Old Plan:</b> ${plan.plan}\n`
-          + `<b>New Plan:</b> ${selected.name}\n`
-          + `<b>Domain:</b> ${domain}\n`
-          + `<b>List Price:</b> $${originalPrice.toFixed(2)}\n`
+        let summary = trans('t.upgradeSuccessTitle') + '\n\n'
+          + trans('t.upgradeSuccessOldPlan', plan.plan) + '\n'
+          + trans('t.upgradeSuccessNewPlan', selected.name) + '\n'
+          + `<b>${trans('t.domainLabel')}</b> ${domain}\n`
+          + trans('t.upgradeConfirmListPrice', originalPrice.toFixed(2)) + '\n'
         if (creditApplied > 0) {
-          summary += `<b>🎁 Loyalty Credit:</b> -$${creditApplied.toFixed(2)}\n`
+          summary += trans('t.upgradeConfirmCredit', creditApplied.toFixed(2)) + '\n'
         }
-        summary += `<b>Charged:</b> $${upgradePrice.toFixed(2)}\n`
-          + `<b>New Expiry:</b> ${newExpiryStr}\n`
-          + `<b>Remaining Balance:</b> $${newUsdBal.toFixed(2)}\n\n`
-          + `${selected.domains} now available. Anti-Red protection refreshed.`
+        summary += `<b>${trans('t.chargedLabel')}</b> $${upgradePrice.toFixed(2)}\n`
+          + trans('t.upgradeSuccessNewExpiry', newExpiry) + '\n'
+          + (newRenewalPrice > 0 ? trans('t.upgradeConfirmRenewsAt', newRenewalPrice.toFixed(2), 30) + '\n' : '')
+          + `<b>${trans('t.remainingBalanceLabel')}</b> $${newUsdBal.toFixed(2)}\n\n`
+          + trans('t.upgradeSuccessFooter', selected.key)
         await send(chatId, summary)
         return goto.viewHostingPlanDetails(domain)
       } catch (upgradeErr) {

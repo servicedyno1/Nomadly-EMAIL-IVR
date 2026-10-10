@@ -1871,6 +1871,23 @@ renewFailureFallback: '❌ Le renouvellement a échoué. Votre portefeuille a é
 // Upgrade modal
 upgradeModalHeader: '<b>⬆️ Mise à niveau du plan</b>',
 upgradeModalChooseHint: 'Choisissez votre nouveau plan :',
+// Upgrade confirm screen
+upgradeConfirmTitle: '<b>⬆️ Confirmer la mise à niveau</b>',
+upgradeConfirmTo: name => `<b>Mise à niveau vers :</b> ${name}`,
+upgradeConfirmListPrice: price => `<b>Prix catalogue :</b> $${price}`,
+upgradeConfirmCredit: amount => `<b>🎁 Crédit fidélité :</b> -$${amount}`,
+upgradeConfirmYouPay: amount => `<b>Vous payez :</b> $${amount}`,
+upgradeConfirmRenewsAt: (price, days) => `<b>🔁 Renouvellement :</b> $${price} tous les ${days} jours (renouvellement auto activé)`,
+upgradeConfirmNextRenewal: (date, days) => `<b>📅 Prochain renouvellement :</b> ${new Date(date).toLocaleDateString('fr-FR', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })} — une nouvelle période de ${days} jours commence aujourd'hui`,
+// Upgrade receipt + upgrade failures (wallet already refunded)
+upgradeSuccessTitle: '✅ <b>Plan mis à niveau avec succès !</b>',
+upgradeSuccessOldPlan: name => `<b>Ancien plan :</b> ${name}`,
+upgradeSuccessNewPlan: name => `<b>Nouveau plan :</b> ${name}`,
+upgradeSuccessNewExpiry: date => `<b>Nouvelle expiration :</b> ${new Date(date).toLocaleDateString('fr-FR', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })}`,
+upgradeSuccessFooter: planKey => `${planKey === 'goldenCpanel' ? 'Domaines illimités désormais disponibles' : 'Jusqu\'à 5 domaines supplémentaires désormais disponibles'}. Protection Anti-Red actualisée.`,
+upgradeFailTerminated: (refund, hostingBtn) => `❌ Ce compte d'hébergement a été <b>résilié</b> car il n'a pas été renouvelé pendant la période de grâce.\n\nVotre portefeuille a été remboursé de <b>$${refund}</b>.\n\n🛒 Pour remettre votre site en ligne, achetez un <b>nouveau plan d'hébergement</b> depuis <b>${hostingBtn}</b>.`,
+upgradeFailReactivate: (refund, supportBtn) => `❌ <b>Mise à niveau non effectuée</b>\n\nNous n'avons pas pu réactiver votre compte d'hébergement sur le serveur. Votre portefeuille a été remboursé de <b>$${refund}</b>.\n\nNotre administrateur a été prévenu — appuyez sur ${supportBtn} pour le suivi.`,
+upgradeFailServer: (reason, refund, supportBtn) => `❌ <b>Mise à niveau non effectuée</b>\n\nNotre serveur d'hébergement n'a pas accepté le changement de plan (<i>${reason}</i>). Votre portefeuille a été remboursé de <b>$${refund}</b>.\n\nNotre administrateur a été prévenu — appuyez sur ${supportBtn} pour le suivi.`,
 // Per-domain billing buttons
 billingRenewBtn: domain => `🔄 Renouveler — ${domain}`,
 billingToggleAutoRenewBtn: domain => `🔁 Activer/Désactiver Renouv. Auto — ${domain}`,
@@ -3546,14 +3563,14 @@ ${o.name} inclut un disque de ${o.disk_gb} Go. Votre serveur a ${cur.disk_gb} Go
 
 • <b>Garder le disque actuel</b> : seuls le CPU et la RAM changent. Vous pourrez revenir à un forfait plus petit plus tard.
 • <b>Agrandir le disque à ${o.disk_gb} Go</b> : plus de stockage, mais <b>définitif</b>. Le serveur ne pourra plus jamais passer à un forfait avec un disque plus petit.`,
- doPlanSummary: (name, cur, o, grow, bal) => `<strong>📜 Récapitulatif du changement de forfait</strong>
+ doPlanSummary: (name, cur, o, grow, bal, end) => `<strong>📜 Récapitulatif du changement de forfait</strong>
 
 <strong>• Serveur :</strong> ${name}
 <strong>• De :</strong> ${cur.name} ($${cur.monthly_price_usd}/mois)
 <strong>• Vers :</strong> ${o.name} ($${o.monthly_price_usd}/mois)
 <strong>• Disque :</strong> ${grow ? `${o.disk_gb} Go (définitif)` : `${cur.disk_gb} Go (inchangé)`}
 <strong>• À payer maintenant :</strong> $${o.charge_now_usd.toFixed(2)}${o.direction === 'upgrade' ? ' (différence pour les jours restants)' : ' (pas de remboursement pour la période en cours)'}
-<strong>• Prochain renouvellement :</strong> $${o.renewal_price_usd}
+<strong>• Prochain renouvellement :</strong> $${o.renewal_price_usd}${end ? ` le ${new Date(end).toLocaleDateString('fr-FR', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })}` : ''}
 <strong>• Solde du portefeuille :</strong> $${Number(bal).toFixed(2)}
 
 ⏱ Le serveur redémarre et reste hors ligne environ ${grow ? '5 à 30' : '2 à 5'} minutes. Données, IP et réglages sont conservés.`,

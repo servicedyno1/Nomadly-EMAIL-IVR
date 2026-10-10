@@ -1854,6 +1854,23 @@ renewFailureFallback: '❌ 续费失败。您的钱包已退款。请重试或�
 // Upgrade modal
 upgradeModalHeader: '<b>⬆️ 升级计划</b>',
 upgradeModalChooseHint: '选择您的新计划：',
+// Upgrade confirm screen
+upgradeConfirmTitle: '<b>⬆️ 确认升级</b>',
+upgradeConfirmTo: name => `<b>升级到：</b> ${name}`,
+upgradeConfirmListPrice: price => `<b>标价：</b> $${price}`,
+upgradeConfirmCredit: amount => `<b>🎁 忠诚度抵扣：</b> -$${amount}`,
+upgradeConfirmYouPay: amount => `<b>您需支付：</b> $${amount}`,
+upgradeConfirmRenewsAt: (price, days) => `<b>🔁 续费价格：</b> 每 ${days} 天 $${price}（已开启自动续费）`,
+upgradeConfirmNextRenewal: (date, days) => `<b>📅 下次续费：</b> ${new Date(date).toLocaleDateString('zh-CN', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })} — 今天开始新的 ${days} 天周期`,
+// Upgrade receipt + upgrade failures (wallet already refunded)
+upgradeSuccessTitle: '✅ <b>套餐升级成功！</b>',
+upgradeSuccessOldPlan: name => `<b>原套餐：</b> ${name}`,
+upgradeSuccessNewPlan: name => `<b>新套餐：</b> ${name}`,
+upgradeSuccessNewExpiry: date => `<b>新到期日：</b> ${new Date(date).toLocaleDateString('zh-CN', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })}`,
+upgradeSuccessFooter: planKey => `${planKey === 'goldenCpanel' ? '无限域名' : '最多 5 个附加域名'}现已可用。Anti-Red 防护已刷新。`,
+upgradeFailTerminated: (refund, hostingBtn) => `❌ 此托管账户因未在宽限期内续费，已被<b>终止</b>。\n\n已向您的钱包退款 <b>$${refund}</b>。\n\n🛒 如需让网站重新上线，请在 <b>${hostingBtn}</b> 中购买<b>新的托管套餐</b>。`,
+upgradeFailReactivate: (refund, supportBtn) => `❌ <b>升级未完成</b>\n\n我们无法在服务器上重新激活您的托管账户。已向您的钱包退款 <b>$${refund}</b>。\n\n已通知管理员 — 请点击 ${supportBtn} 跟进。`,
+upgradeFailServer: (reason, refund, supportBtn) => `❌ <b>升级未完成</b>\n\n我们的托管服务器未接受此次套餐更改（<i>${reason}</i>）。已向您的钱包退款 <b>$${refund}</b>。\n\n已通知管理员 — 请点击 ${supportBtn} 跟进。`,
 // Per-domain billing buttons
 billingRenewBtn: domain => `🔄 立即续费 — ${domain}`,
 billingToggleAutoRenewBtn: domain => `🔁 切换自动续费 — ${domain}`,
@@ -3512,14 +3529,14 @@ ${o.name} 包含 ${o.disk_gb} GB 磁盘。您的服务器当前为 ${cur.disk_gb
 
 • <b>保留当前磁盘</b>：只更改 CPU 和内存。以后可以换回更小的套餐。
 • <b>将磁盘扩大到 ${o.disk_gb} GB</b>：存储更多，但<b>永久</b>生效。服务器将永远无法再换到磁盘更小的套餐。`,
- doPlanSummary: (name, cur, o, grow, bal) => `<strong>📜 套餐更改摘要</strong>
+ doPlanSummary: (name, cur, o, grow, bal, end) => `<strong>📜 套餐更改摘要</strong>
 
 <strong>• 服务器：</strong> ${name}
 <strong>• 从：</strong> ${cur.name} ($${cur.monthly_price_usd}/月)
 <strong>• 到：</strong> ${o.name} ($${o.monthly_price_usd}/月)
 <strong>• 磁盘：</strong> ${grow ? `${o.disk_gb} GB（永久）` : `${cur.disk_gb} GB（不变）`}
 <strong>• 现在支付：</strong> $${o.charge_now_usd.toFixed(2)}${o.direction === 'upgrade' ? '（剩余天数的差价）' : '（本期不退款）'}
-<strong>• 下次续费：</strong> $${o.renewal_price_usd}
+<strong>• 下次续费：</strong> $${o.renewal_price_usd}${end ? `（${new Date(end).toLocaleDateString('zh-CN', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })}）` : ''}
 <strong>• 钱包余额：</strong> $${Number(bal).toFixed(2)}
 
 ⏱ 服务器将重启，离线约 ${grow ? '5-30' : '2-5'} 分钟。数据、IP 和设置都会保留。`,
