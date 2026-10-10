@@ -13,10 +13,14 @@
   - origin health + site_down/recovered + auto dns/repair (#5)
   - usage threshold events (#8)
   - per-service activity log (#9)
-- **Phase 3:**
+- **Phase 3 (DONE 2026-10, iteration_77 green):**
   - 3/6/12-month hosting terms at 10%/15%/25% off, **API ONLY** (not the bot); **NO loyalty credit in the API** (#6)
+    → `months` on POST /hosting + POST /hosting/:user/renew, `terms[]` on GET /hosting/plans; auto-renew repeats the same
+      term at the same discount; mid-term upgrade = pro-rata at the term-discounted monthly rates.
   - per-domain auto-renew: OpenProvider autorenew stays OFF; our scheduler charges the owner's wallet and renews that one domain via OP (#13b)
-- **Phase 4:**
+    → POST /domains/:domain/auto-renew (off by default, OpenProvider only — others 501); hourly sweep renews 1y from T-7d,
+      retries daily until expiry; domain.renewed / domain.auto_renew_failed. Manual POST /domains/:domain/renew still 501.
+- **Phase 4 (NEXT):**
   - one-click WordPress (#10)
   - shortener bulk analytics + smart routing + QR (#18)
 - **SKIPPED for now:**

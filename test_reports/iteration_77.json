@@ -1,0 +1,27 @@
+{
+  "summary": "Phase 3 (Billing & Domains) backend testing complete. Ran the authoritative in-process harness js/tests/test_phase3_billing_2026-10.js — 42/42 PASS covering hosting-terms module, GET /hosting/plans terms[], POST /hosting with months (incl. 400 invalid_months, term_not_available, nothing-charged guarantee), GET /hosting/:user+list+/renewals term fields, POST /hosting/:user/renew with months and periods (dry_run, cap at 12 months, weekly rules, legacy 1-month unchanged), plan-change pro-rata at the term discount (6m premium→golden = $42.50 for 60 days left vs $50 on 1-month, termMonths preserved), scheduler auto-renew repeats same term (hosting.renewed/auto_renew_failed carry term_months), POST /domains/:domain/auto-renew toggle (OpenProvider only, 501 for CR, 400/404 guards, re-enable clears retry gate, activity logged), domain auto-renew sweep (T-7d window, atomic wallet charge, +1y, dedup with lifecycle sweep, insufficient funds→failed webhook+24h retry gate, last-day next_attempt_at=null, concurrency lock, registrar_error refund, already-renewed sync, pricing-unavailable, sweep gated by BOT_ENVIRONMENT/RESELLER_DOMAIN_AUTORENEW_ENABLED), EVENTS lists domain.auto_renew_failed, API doc updated. All five mandated regression suites also GREEN: test_phase2_alerts_2026-10.js (48/48), test_hosting_plan_rules_2026-10.js (23/23), test_plan_change_history_2026-10.js (17/17), test_upgrade_renewal_preview_2026-10.js (54/54), test_reseller_branded_ns_api_2026-10.js (26/26). No code changes made. Did NOT touch production MongoDB / preview server / real OpenProvider — all tests run on local mongodb://127.0.0.1:27017 throw-away DBs with mocked providers per safety note.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": { "ui_bugs": [], "integration_issues": [], "design_issues": [] },
+  "test_report_links": [
+    "/app/js/tests/test_phase3_billing_2026-10.js",
+    "/app/js/tests/test_phase2_alerts_2026-10.js",
+    "/app/js/tests/test_hosting_plan_rules_2026-10.js",
+    "/app/js/tests/test_plan_change_history_2026-10.js",
+    "/app/js/tests/test_upgrade_renewal_preview_2026-10.js",
+    "/app/js/tests/test_reseller_branded_ns_api_2026-10.js"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Pricing math matches spec exactly: premium 3m=$202.50, 6m=$382.50, 12m=$675; golden 3m=$270, 6m=$510, 12m=$900; 6m upgrade pro-rata = $42.50 for 60 days left — all verified.",
+    "Domain auto-renew sweep correctly disabled by default on dev pod (needs BOT_ENVIRONMENT=production or RESELLER_DOMAIN_AUTORENEW_ENABLED=true); per-domain lock prevents concurrent double-charge; one webhook per day on failure.",
+    "ConnectReseller domains correctly return 501 auto_renew_not_supported on enable; disable is always allowed as required.",
+    "Manual POST /domains/:domain/renew remains 501 (intentionally unchanged) — confirmed."
+  ],
+  "updated_files": [],
+  "success_rate": { "backend": "100%", "frontend": "N/A" },
+  "test_credentials": "None required — in-process harness with mocked providers.",
+  "seed_data_creation": "Throw-away DB test_phase3_billing_<timestamp> on local mongod; auto-dropped by harness.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Phase 3 billing/domains fully validated by its own 42-test harness plus 5 regression suites (168 tests total, all green). The harness is the source of truth — safe to re-run with `cd /app && node js/tests/test_phase3_billing_2026-10.js`. Known pre-existing failures to ignore: test_reseller_api_grace_2026-06.js, test_reseller_site_status_2026-06.js, test_whm_userdata_heal.js (per user instructions, not touched)."
+}

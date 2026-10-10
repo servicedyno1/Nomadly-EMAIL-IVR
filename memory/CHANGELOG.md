@@ -2085,3 +2085,9 @@ User-approved order: #4 → #7 → #2 → #3 → #5 → #6. Sandbox-verified; pr
 - ✅ **#6 Web checkout recovery** (`Storefront.js`) — unfinished crypto orders persist to `localStorage` (`nomadly_pending_order`, 24h self-expiry) on creation (guest modal + logged-in BuyTab); a top "Resume payment" banner + resume modal (reuses `CryptoPayBox`) lets a shopper who closed the tab finish paying. Cleared on provisioned/failed/dismiss. Frontend-only, no backend change. ⚠️ Banner render NOT yet confirmed in sandbox screenshot (localStorage-seed test was inconclusive) — needs a live buy or testing_agent pass.
 - ✅ **#5 Lifecycle engagement** (`Storefront.js` My Plans) — each plan now shows an expiry lifecycle chip (`Nd left` green / `Expires in Nd`/`today` amber / `Expired` red, from the existing `my-plans.expiryDate`) plus a renewal hint when expiring/expired. Frontend-only.
 - Verified: `node -c` on _index.js + 4 lang files OK; `npm run lint:lang` + `check_panel_lang_parity.js` green (bot 727 / panel 731 keys in parity); web locale JSON valid; frontend compiles (eslint warnings only); storefront screenshots confirm #2 (3 solid cards + green checks + trust band). Points #4 bot copy, #3 greeting line, #5/#6 render paths NOT yet run through testing_agent.
+
+
+## 2026-10 — Phase 3 (Billing & Domains)
+- Prepaid 3/6/12-month hosting terms (API only, 10/15/25% off): js/hosting-terms.js, months on POST /hosting + /hosting/:user/renew, terms[] on GET /hosting/plans, getRenewalCharge() for auto-renew, term-aware plan-change pro-rata.
+- Per-domain wallet auto-renew for OpenProvider domains: POST /domains/:domain/auto-renew, js/domain-auto-renew.js hourly sweep (T-7d, daily retry, refund on registrar error), op-service getRenewPrice/renewDomain, domain.auto_renew_failed webhook.
+- Tests: js/tests/test_phase3_billing_2026-10.js 42/42, iteration_77 green.

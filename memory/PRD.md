@@ -480,6 +480,21 @@ User inherited a fully-set-up Nomadly bot pod pointed at LIVE PRODUCTION. Task b
   apply.ps1 parse-checked with pwsh 7.4.6 (0 errors, invariant number formatting).
 - Tests: `js/tests/test_do_usage_2026-10.js` 11/11; iteration_70 green (live read-only DO probe plausible).
 
+## Resolved — 2026-10 (Phase 3: Billing & Domains, reseller API only)
+- Prepaid hosting terms (`js/hosting-terms.js`): monthly plans 1/3/6/12 months (30 days/month) at 0/10/15/25% off.
+  `GET /hosting/plans` → `terms[]` + `term_discounts_pct`; `POST /hosting {months}` charges the term price
+  (400 invalid_months / term_not_available on weekly); account stores `termMonths`, `renewalPriceUsd` stays monthly.
+  `POST /hosting/:user/renew {months}` renews one term and makes it the auto-renew term (without months: current term ×
+  periods, max 12 months). `getRenewalCharge()` in hosting-scheduler drives auto-renew (same term, same discount),
+  detail/list/renewals/alerts prices. Mid-term upgrade pro-rata uses the term-discounted monthly prices; term kept.
+- Per-domain auto-renew (`js/domain-auto-renew.js`, OpenProvider only): `POST /domains/:domain/auto-renew {enabled?}`
+  (toggle; 501 auto_renew_not_supported for other registrars; reads OP expiry + renewal price). Hourly sweep (production
+  + active slot only; `RESELLER_DOMAIN_AUTORENEW_ENABLED` override) charges the wallet and renews 1 year from T-7d via
+  `opService.renewDomain` (new: `getRenewPrice`, `renewDomain`), retries daily until expiry, refunds on registrar
+  error, per-domain lock. Webhooks `domain.renewed` (via auto_renew) / `domain.auto_renew_failed` (new event).
+  `GET /domains` shows auto_renew, renewal_price_usd, next_charge_at, last error.
+- Tests: `js/tests/test_phase3_billing_2026-10.js` 42/42; iteration_77 green (+5 regression suites).
+
 ## Pending Issues (carried forward)
 
 ### P1
