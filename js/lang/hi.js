@@ -1855,6 +1855,14 @@ renewFailureFallback: '❌ नवीनीकरण विफल। आपका
 // Upgrade modal
 upgradeModalHeader: '<b>⬆️ प्लान अपग्रेड</b>',
 upgradeModalChooseHint: 'अपना नया प्लान चुनें:',
+// Upgrade confirm screen
+upgradeConfirmTitle: '<b>⬆️ अपग्रेड की पुष्टि करें</b>',
+upgradeConfirmTo: name => `<b>अपग्रेड करें:</b> ${name}`,
+upgradeConfirmListPrice: price => `<b>सूची मूल्य:</b> $${price}`,
+upgradeConfirmCredit: amount => `<b>🎁 लॉयल्टी क्रेडिट:</b> -$${amount}`,
+upgradeConfirmYouPay: amount => `<b>आप भुगतान करेंगे:</b> $${amount}`,
+upgradeConfirmRenewsAt: (price, days) => `<b>🔁 रिन्यूअल मूल्य:</b> हर ${days} दिन में $${price} (ऑटो-रिन्यू चालू)`,
+upgradeConfirmNextRenewal: (date, days) => `<b>📅 अगला रिन्यूअल:</b> ${new Date(date).toLocaleDateString('hi-IN', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })} — आज से नई ${days}-दिन की अवधि शुरू होती है`,
 // Per-domain billing buttons
 billingRenewBtn: domain => `🔄 अभी नवीनीकरण — ${domain}`,
 billingToggleAutoRenewBtn: domain => `🔁 ऑटो-रिन्यू टॉगल — ${domain}`,
@@ -3533,14 +3541,14 @@ ${o.name} में ${o.disk_gb} GB डिस्क है। आपके स�
 
 • <b>वर्तमान डिस्क रखें</b>: केवल CPU और RAM बदलते हैं। आप बाद में छोटे प्लान पर लौट सकते हैं।
 • <b>डिस्क ${o.disk_gb} GB तक बढ़ाएँ</b>: ज़्यादा स्टोरेज, लेकिन <b>स्थायी</b>। सर्वर फिर कभी छोटी डिस्क वाले प्लान पर नहीं जा सकेगा।`,
- doPlanSummary: (name, cur, o, grow, bal) => `<strong>📜 प्लान बदलाव सारांश</strong>
+ doPlanSummary: (name, cur, o, grow, bal, end) => `<strong>📜 प्लान बदलाव सारांश</strong>
 
 <strong>• सर्वर:</strong> ${name}
 <strong>• से:</strong> ${cur.name} ($${cur.monthly_price_usd}/माह)
 <strong>• में:</strong> ${o.name} ($${o.monthly_price_usd}/माह)
 <strong>• डिस्क:</strong> ${grow ? `${o.disk_gb} GB (स्थायी)` : `${cur.disk_gb} GB (अपरिवर्तित)`}
 <strong>• अभी भुगतान:</strong> $${o.charge_now_usd.toFixed(2)}${o.direction === 'upgrade' ? ' (बचे दिनों का अंतर)' : ' (वर्तमान अवधि का कोई रिफंड नहीं)'}
-<strong>• अगला रिन्यूअल:</strong> $${o.renewal_price_usd}
+<strong>• अगला रिन्यूअल:</strong> $${o.renewal_price_usd}${end ? `, ${new Date(end).toLocaleDateString('hi-IN', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })} को` : ''}
 <strong>• वॉलेट बैलेंस:</strong> $${Number(bal).toFixed(2)}
 
 ⏱ सर्वर रीस्टार्ट होगा और लगभग ${grow ? '5-30' : '2-5'} मिनट ऑफ़लाइन रहेगा। डेटा, IP और सेटिंग्स बनी रहेंगी।`,

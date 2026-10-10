@@ -2025,6 +2025,14 @@ renewFailureFallback: '❌ Renewal failed. Your wallet has been refunded. Please
 // Upgrade modal
 upgradeModalHeader: '<b>⬆️ Upgrade Hosting</b>',
 upgradeModalChooseHint: 'Choose your new plan:',
+// Upgrade confirm screen
+upgradeConfirmTitle: '<b>⬆️ Confirm Upgrade</b>',
+upgradeConfirmTo: name => `<b>Upgrade to:</b> ${name}`,
+upgradeConfirmListPrice: price => `<b>List Price:</b> $${price}`,
+upgradeConfirmCredit: amount => `<b>🎁 Loyalty Credit:</b> -$${amount}`,
+upgradeConfirmYouPay: amount => `<b>You Pay:</b> $${amount}`,
+upgradeConfirmRenewsAt: (price, days) => `<b>🔁 Renews at:</b> $${price} every ${days} days (auto-renew on)`,
+upgradeConfirmNextRenewal: (date, days) => `<b>📅 Next renewal:</b> ${new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })} — a new ${days}-day term starts today`,
 // Per-domain billing buttons
 billingRenewBtn: domain => `🔄 Renew Now — ${domain}`,
 billingToggleAutoRenewBtn: domain => `🔁 Toggle Auto-Renew — ${domain}`,
@@ -3745,14 +3753,14 @@ ${o.name} includes a ${o.disk_gb} GB disk. Your server has ${cur.disk_gb} GB.
 
 • <b>Keep current disk</b>: only CPU and RAM change. You can move back to a smaller plan later.
 • <b>Grow disk to ${o.disk_gb} GB</b>: more storage, but <b>permanent</b>. The server can never move to a plan with a smaller disk again.`,
- doPlanSummary: (name, cur, o, grow, bal) => `<strong>📜 Plan change summary</strong>
+ doPlanSummary: (name, cur, o, grow, bal, end) => `<strong>📜 Plan change summary</strong>
 
 <strong>• Server:</strong> ${name}
 <strong>• From:</strong> ${cur.name} ($${cur.monthly_price_usd}/mo)
 <strong>• To:</strong> ${o.name} ($${o.monthly_price_usd}/mo)
 <strong>• Disk:</strong> ${grow ? `${o.disk_gb} GB (permanent)` : `${cur.disk_gb} GB (unchanged)`}
 <strong>• Pay now:</strong> $${o.charge_now_usd.toFixed(2)}${o.direction === 'upgrade' ? ' (difference for the days left)' : ' (no refund for the current term)'}
-<strong>• Next renewal:</strong> $${o.renewal_price_usd}
+<strong>• Next renewal:</strong> $${o.renewal_price_usd}${end ? ` on ${new Date(end).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })}` : ''}
 <strong>• Wallet balance:</strong> $${Number(bal).toFixed(2)}
 
 ⏱ The server restarts and is offline for about ${grow ? '5-30' : '2-5'} minutes. Data, IP and settings are kept.`,

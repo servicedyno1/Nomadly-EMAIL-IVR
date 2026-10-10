@@ -12517,6 +12517,7 @@ Enter new value:`), bc)
       if (!opts.length) { send(chatId, vp.doPlanNoOptions); return goto.getVPSDetails() }
       await saveInfo('doPlanOptions', opts)
       await saveInfo('doPlanCurrent', po.current)
+      await saveInfo('doPlanTermEndsAt', po.term_ends_at)
       await set(state, chatId, 'action', a.doPlanSelect)
       return send(chatId, vp.doPlanOptionsMsg(po.current, opts, po.remaining_days, po.options.length - opts.length), vp.of(opts.map(o => vp.doPlanOptionBtn(o))))
     },
@@ -12531,7 +12532,7 @@ Enter new value:`), bc)
       await set(state, chatId, 'action', a.doPlanConfirm)
       const { usdBal } = await getBalance(walletOf, chatId)
       const name = info.userVPSDetails?.name || info.vpsDetails?.name
-      return send(chatId, vp.doPlanSummary(name, info.doPlanCurrent, info.doPlanSelected, !!info.doPlanResizeDisk, usdBal), vp.of([vp.confirmChangeBtn]))
+      return send(chatId, vp.doPlanSummary(name, info.doPlanCurrent, info.doPlanSelected, !!info.doPlanResizeDisk, usdBal, info.doPlanTermEndsAt), vp.of([vp.confirmChangeBtn]))
     },
 
     upgradeVpsPlan: async () => {
@@ -17023,7 +17024,8 @@ All verified numbers generated during sourcing.`))
       return goto.viewHostingPlanDetails(info?.selectedHostingDomain)
     }
 
-    const isPayUsd = message.startsWith('💵 Pay')
+    // Translated pay button (fr/hi/zh) always starts with 💵; Deposit starts with ➕.
+    const isPayUsd = message.startsWith('💵')
     const isLegacyConfirm = message === user.confirmRenewNow
 
     if (isPayUsd || isLegacyConfirm) {
@@ -17202,26 +17204,26 @@ All verified numbers generated during sourcing.`))
       const { usdBal } = await getBalance(walletOf, chatId)
 
       const canPay = usdBal >= upgradePrice
+      // Same renewal price + fresh 30-day term the payment step saves.
+      const renewalPrice = require('./hosting-scheduler').getPlanPrice(selected.name)
+      const nextRenewal = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
 
-      let text = `<b>⬆️ Confirm Upgrade</b>\n\n`
-        + `<b>Upgrade to:</b> ${selected.name}\n`
-        + `<b>List Price:</b> $${originalPrice.toFixed(2)}\n`
+      let text = trans('t.upgradeConfirmTitle') + '\n\n'
+        + trans('t.upgradeConfirmTo', selected.name) + '\n'
+        + trans('t.upgradeConfirmListPrice', originalPrice.toFixed(2)) + '\n'
       if (creditApplied > 0) {
-        text += `<b>🎁 Loyalty Credit:</b> -$${creditApplied.toFixed(2)}\n`
+        text += trans('t.upgradeConfirmCredit', creditApplied.toFixed(2)) + '\n'
       }
-      text += `<b>You Pay:</b> $${upgradePrice.toFixed(2)}\n`
-        + `<b>Wallet Balance:</b> $${usdBal.toFixed(2)}\n\n`
-
-      if (canPay) {
-        text += `Confirm payment below:`
-      } else {
-        text += `⚠️ Insufficient funds. Please deposit first.`
-      }
+      text += trans('t.upgradeConfirmYouPay', upgradePrice.toFixed(2)) + '\n'
+        + `<b>${trans('t.walletBalanceLabel')}</b> $${usdBal.toFixed(2)}\n\n`
+      if (renewalPrice > 0) text += trans('t.upgradeConfirmRenewsAt', renewalPrice.toFixed(2), 30) + '\n'
+      text += trans('t.upgradeConfirmNextRenewal', nextRenewal, 30) + '\n\n'
+      text += canPay ? trans('t.renewModalConfirmHint') : trans('t.renewModalInsufficient')
 
       saveInfo('selectedUpgrade', selected)
       await set(state, chatId, 'action', a.confirmUpgradeHostingPay)
       const buttons = []
-      if (canPay) buttons.push([`💵 Pay $${upgradePrice.toFixed(2)} USD`])
+      if (canPay) buttons.push([trans('t.renewModalPayButton', upgradePrice.toFixed(2))])
       if (!canPay) buttons.push([trans('u.deposit')])
       buttons.push([user.backToMyHostingPlans])
       return send(chatId, text, k.of(buttons))
@@ -17240,7 +17242,7 @@ All verified numbers generated during sourcing.`))
   if (action === a.confirmUpgradeHostingPay) {
     if (message === user.backToMyHostingPlans) return goto.myHostingPlans()
 
-    const isPayUsd = message.startsWith('💵 Pay')
+    const isPayUsd = message.startsWith('💵')
 
     if (isPayUsd) {
       const domain = info?.selectedHostingDomain
@@ -17398,6 +17400,7 @@ All verified numbers generated during sourcing.`))
         }
         summary += `<b>Charged:</b> $${upgradePrice.toFixed(2)}\n`
           + `<b>New Expiry:</b> ${newExpiryStr}\n`
+          + (newRenewalPrice > 0 ? `<b>Renews at:</b> $${newRenewalPrice.toFixed(2)} every 30 days\n` : '')
           + `<b>Remaining Balance:</b> $${newUsdBal.toFixed(2)}\n\n`
           + `${selected.domains} now available. Anti-Red protection refreshed.`
         await send(chatId, summary)
