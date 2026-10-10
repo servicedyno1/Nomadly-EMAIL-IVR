@@ -1,0 +1,35 @@
+{
+  "summary": "Phase 4 (Big Builds) end-to-end testing. Backend: ran js/tests/test_phase4_bigbuilds_2026-10.js = 40/40 passed. All 6 requested regression harnesses green: test_phase3_billing (42), test_phase2_alerts (48), test_hosting_plan_rules (23), test_plan_change_history (17), test_upgrade_renewal_preview (54), test_reseller_branded_ns_api (26). Weekly-plan MySQL change confirmed in hosting_plan_rules suite (no obsolete 403 expectations). Frontend: HostPanel /panel login with wpapps01/246810 works. Apps tab renders apps-section with apps-subtitle, apps-sandbox-note (Preview mode), wp-install-card and apps-list. Seeded READY card app-card-wp_seedready01 (Demo Site) with site/admin links and state badge; app-show-login-wp_seedready01 reveals admin_demo / Demo-Admin-Pass-2026!. Seeded FAILED card app-card-wp_seedfail01 (/shop) shows readable 'maximum allowed number of databases' error. Install form: new path 'blog' creates a dry-run card without reload (app-dryrun-*); empty path shows readable 'WordPress is already ready at /' conflict; invalid '../x' shows readable path validation (400); duplicate on dry-run pod is allowed by design (harness: 'dry-run pod → path not blocked'). Reset admin password confirm/cancel/go flow works end-to-end; dry-run note shown and card not broken. MySQL tab (panel-tab-mysql) for weekly account now shows mysql-manager — locked/upgrade view is gone. Language switcher and theme toggle present and functional; desktop 1920 + mobile 390 layouts render without overflow in both themes.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "WordPressInstallCard", "issue": "When submitting with an invalid email while path was previously flagged, the wp-install-error still shows the previous path-error text (stale message not cleared before HTML5 email validation blocks submit). Minor UX polish — email-specific error should be surfaced.", "selector": "[data-testid='wp-install-error']", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/js/tests/test_phase4_bigbuilds_2026-10.js",
+    "/app/js/tests/test_phase3_billing_2026-10.js",
+    "/app/js/tests/test_phase2_alerts_2026-10.js",
+    "/app/js/tests/test_hosting_plan_rules_2026-10.js",
+    "/app/js/tests/test_plan_change_history_2026-10.js",
+    "/app/js/tests/test_upgrade_renewal_preview_2026-10.js",
+    "/app/js/tests/test_reseller_branded_ns_api_2026-10.js"
+  ],
+  "action_items": [
+    "(Optional, LOW) Clear or namespace wp-install-error between submissions so an email-only failure doesn't display a stale path error."
+  ],
+  "critical_code_review_comments": [
+    "Backend coverage in test_phase4_bigbuilds_2026-10.js is excellent: catalog, suspended/terminated 409, invalid path (including '..' etc.), invalid app, invalid email, dry-run mode, duplicate 409, DB quota, weekly MySQL unlock, stale 'installing' >30min retry, admin-password reset, dry-run reset, panel 401, reserved alias 'stats', routing validation (>50 targets 400, invalid country/device), QR size clamp. All edge cases from the review request are already covered — no gaps requiring harness extension.",
+    "mysqlAuth no longer blocks weekly plans (reseller-hosting-mgmt.js, cpanel-routes.js); mysql-manager now rendered for weekly accounts — confirmed in UI.",
+    "Redirect handler in js/_index.js correctly gates detailed stats on shortenerLinks.ownerChatId (API-created only), legacy/bot links keep plain counter — covered in E2E harness test."
+  ],
+  "updated_files": [],
+  "success_rate": { "backend": "100%", "frontend": "~98% (1 minor UX polish)" },
+  "test_credentials": "HostPanel: wpapps01 / PIN 246810 (weekly plan, local sandbox, dry-run). Re-seed with `node scripts/seed_panel_apps_test.js`.",
+  "seed_data_creation": "Ran scripts/seed_panel_apps_test.js to (re)seed wpapps01 + ready (Demo Site, /) + failed (shop /shop) apps.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "All Phase 4 backend harnesses are green (40 + 210 regression). Frontend HostPanel Apps tab fully functional end-to-end on preview (dry-run). Only cosmetic item: wp-install-error can show a stale path error when the next submit fails HTML5 email validation. Do NOT call /api/reseller/v1/* on preview (prod DB wired)."
+}

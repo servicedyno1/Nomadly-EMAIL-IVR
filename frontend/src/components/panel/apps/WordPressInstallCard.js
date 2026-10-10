@@ -18,6 +18,7 @@ export default function WordPressInstallCard({ domain, onInstall, disabled }) {
   const [error, setError] = useState('');
 
   const cleanPath = path.trim().replace(/^\/+|\/+$/g, '');
+  const edit = (setter) => (e) => { setter(e.target.value); setError(''); };
 
   const submit = async (e) => {
     e.preventDefault();
@@ -48,17 +49,17 @@ export default function WordPressInstallCard({ domain, onInstall, disabled }) {
           <span className="apps-field-label">{t('apps.folderLabel')}</span>
           <div className="apps-path-input">
             <span className="apps-path-prefix" data-testid="wp-install-path-prefix">https://{domain}/</span>
-            <input value={path} onChange={(e) => setPath(e.target.value)} placeholder={t('apps.folderPlaceholder')} maxLength={64} disabled={busy} data-testid="wp-install-path-input" />
+            <input value={path} onChange={edit(setPath)} placeholder={t('apps.folderPlaceholder')} maxLength={64} disabled={busy} data-testid="wp-install-path-input" />
           </div>
           <span className="apps-field-hint">{t('apps.folderHint')}</span>
         </label>
         <label className="apps-field">
           <span className="apps-field-label">{t('apps.titleLabel')}</span>
-          <input className="apps-input" value={title} onChange={(e) => setTitle(e.target.value)} placeholder={domain || t('apps.titlePlaceholder')} maxLength={120} disabled={busy} data-testid="wp-install-title-input" />
+          <input className="apps-input" value={title} onChange={edit(setTitle)} placeholder={domain || t('apps.titlePlaceholder')} maxLength={120} disabled={busy} data-testid="wp-install-title-input" />
         </label>
         <label className="apps-field">
           <span className="apps-field-label">{t('apps.emailLabel')}</span>
-          <input className="apps-input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder={domain ? `admin@${domain}` : t('apps.emailPlaceholder')} maxLength={120} disabled={busy} data-testid="wp-install-email-input" />
+          <input className="apps-input" type="email" value={email} onChange={edit(setEmail)} placeholder={domain ? `admin@${domain}` : t('apps.emailPlaceholder')} maxLength={120} disabled={busy} data-testid="wp-install-email-input" />
         </label>
       </div>
 

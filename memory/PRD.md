@@ -495,6 +495,21 @@ User inherited a fully-set-up Nomadly bot pod pointed at LIVE PRODUCTION. Task b
   `GET /domains` shows auto_renew, renewal_price_usd, next_charge_at, last error.
 - Tests: `js/tests/test_phase3_billing_2026-10.js` 42/42; iteration_77 green (+5 regression suites).
 
+## Resolved — 2026-10 (Phase 4: Big Builds)
+- One-click WordPress (`js/wordpress-installer.js` + shared `js/hosting-apps.js`, collection `hostingApps`, one live app per account+path):
+  reseller API `GET/POST /hosting/:user/apps`, `GET /hosting/:user/apps/:appId` (admin password on ready app),
+  `POST /hosting/:user/apps/:appId/admin-password`; webhooks `hosting.app_installed` / `hosting.app_install_failed`.
+  HostPanel "Apps" tab (`AppsManager.js`, `apps/*`) on `/panel/apps*` — dry-run on dev sandbox (SKIP_WEBHOOK_SYNC=true). en/fr/hi/zh.
+- Weekly plan MySQL: PLAN_MYSQL_LIMITS weekly 2 (monthly 5, golden unlimited); weekly 403 gates + panel locked view removed;
+  `maxsql-migration.js` raise_maxsql_premium_weekly_v1 raises the WHM package + existing weekly accounts.
+- Short links (reseller API ONLY — owner declined bot screens): `GET /shortener/links/stats` (bulk), `GET /shortener/links/:slug/stats`,
+  `PUT /shortener/links/:slug/routing` (country/device, first match wins), `GET /shortener/links/:slug/qr` (png/svg).
+  `js/reseller-shortener-analytics.js`, `shortenerClickStats` (90-day TTL). Redirect handler records detailed stats / routes only for
+  API links (shortenerLinks.ownerChatId); bot links unchanged.
+- Tests: `js/tests/test_phase4_bigbuilds_2026-10.js` 40/40 + 6 regression suites; iteration_78 green (HostPanel Apps tab E2E).
+- Safety: preview pod's reseller API uses the LIVE prod reseller DB (RESELLER_DB_URL) + RESELLER_API_LIVE=true — test the API only via harnesses.
+- Not live in production until "Save to GitHub" + redeploy.
+
 ## Pending Issues (carried forward)
 
 ### P1

@@ -2091,3 +2091,10 @@ User-approved order: #4 → #7 → #2 → #3 → #5 → #6. Sandbox-verified; pr
 - Prepaid 3/6/12-month hosting terms (API only, 10/15/25% off): js/hosting-terms.js, months on POST /hosting + /hosting/:user/renew, terms[] on GET /hosting/plans, getRenewalCharge() for auto-renew, term-aware plan-change pro-rata.
 - Per-domain wallet auto-renew for OpenProvider domains: POST /domains/:domain/auto-renew, js/domain-auto-renew.js hourly sweep (T-7d, daily retry, refund on registrar error), op-service getRenewPrice/renewDomain, domain.auto_renew_failed webhook.
 - Tests: js/tests/test_phase3_billing_2026-10.js 42/42, iteration_77 green.
+
+## 2026-10 — Phase 4 (Big Builds)
+- One-click WordPress via reseller API + HostPanel Apps tab (js/hosting-apps.js, js/wordpress-installer.js, AppsManager + apps/*).
+- Weekly plan MySQL opened (2 DBs) + MAXSQL migration; MySQL gates removed.
+- Reseller short-link analytics (bulk/per-link), country/device routing, QR (png/svg) — API only.
+- Fix: install form error clears when a field is edited.
+- Tests: test_phase4_bigbuilds_2026-10.js 40/40, iteration_78 green.

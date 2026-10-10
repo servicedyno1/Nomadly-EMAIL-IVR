@@ -20,9 +20,10 @@
   - per-domain auto-renew: OpenProvider autorenew stays OFF; our scheduler charges the owner's wallet and renews that one domain via OP (#13b)
     → POST /domains/:domain/auto-renew (off by default, OpenProvider only — others 501); hourly sweep renews 1y from T-7d,
       retries daily until expiry; domain.renewed / domain.auto_renew_failed. Manual POST /domains/:domain/renew still 501.
-- **Phase 4 (NEXT):**
-  - one-click WordPress (#10)
-  - shortener bulk analytics + smart routing + QR (#18)
+- **Phase 4 (DONE 2026-10, iteration_78 green):**
+  - one-click WordPress (#10) → reseller API `/hosting/:user/apps` + HostPanel "Apps" tab (shared js/hosting-apps.js)
+  - shortener bulk analytics + smart routing + QR (#18), **API ONLY (owner chose no bot screens)**; detailed stats only for API-created links
+  - weekly plan gets MySQL (2 databases) so WordPress runs on it
 - **SKIPPED for now:**
   - domain transfer-in (#13a)
   - backups/restore + VPS/RDP snapshots (#7)
