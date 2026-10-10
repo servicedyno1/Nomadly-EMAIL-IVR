@@ -1683,15 +1683,8 @@ function createCpanelRoutes(getCpanelCol, opts = {}) {
 
     // 3. Clean up Cloudflare: remove DNS records and Worker routes for the removed domain
     try {
-      const zone = await cfService.getZoneByName(domain)
-      if (zone) {
-        // Remove Worker routes
-        const antiRedService = require('./anti-red-service')
-        await antiRedService.removeWorkerRoutes(domain, zone.id).catch(() => {})
-        // Remove ALL hosting DNS records (root, www, mail, cpanel, webmail, webdisk, MX)
-        await cfService.cleanupAllHostingRecords(zone.id, domain).catch(() => {})
-        log(`[Panel] Cleaned up CF resources for removed domain: ${domain}`)
-      }
+      const td = await require('./hosting-dns-teardown').teardownHostingDomain({ col: getCpanelCol(), domain, tag: 'Panel' })
+      if (td.removed) log(`[Panel] Cleaned up CF resources for removed domain: ${domain}`)
     } catch (cfErr) {
       log(`[Panel] CF cleanup warning for removed domain ${domain}: ${cfErr.message}`)
     }
@@ -1902,13 +1895,8 @@ function createCpanelRoutes(getCpanelCol, opts = {}) {
       }
       // Old primary cleanup (best-effort)
       try {
-        const antiRedService = require('./anti-red-service')
-        const zone = await cfService.getZoneByName(oldDomain)
-        if (zone) {
-          await antiRedService.removeWorkerRoutes(oldDomain, zone.id).catch(() => {})
-          await cfService.cleanupAllHostingRecords(zone.id, oldDomain).catch(() => {})
-          log(`[Panel] set-primary: cleaned up CF resources for old primary ${oldDomain}`)
-        }
+        const td = await require('./hosting-dns-teardown').teardownHostingDomain({ col: getCpanelCol(), domain: oldDomain, tag: 'Panel' })
+        if (td.removed) log(`[Panel] set-primary: cleaned up CF resources for old primary ${oldDomain}`)
       } catch (e) {
         log(`[Panel] set-primary: old-primary CF cleanup warning: ${e.message}`)
       }
@@ -1960,11 +1948,7 @@ function createCpanelRoutes(getCpanelCol, opts = {}) {
         if (!key || seen.has(key)) continue
         seen.add(key)
         try {
-          const zone = await cfService.getZoneByName(d)
-          if (zone) {
-            await antiRedService.removeWorkerRoutes(d, zone.id).catch(() => {})
-            await cfService.cleanupAllHostingRecords(zone.id, d).catch(() => {})
-          }
+          await require('./hosting-dns-teardown').teardownHostingDomain({ col, domain: d, excludeId: account._id, tag: 'Panel' })
         } catch (cfErr) {
           log(`[Panel] Cancel: CF cleanup warning for ${d}: ${cfErr.message}`)
         }

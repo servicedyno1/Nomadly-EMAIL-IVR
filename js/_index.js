@@ -16390,11 +16390,7 @@ All verified numbers generated during sourcing.`))
         )
         const cfService = require('./cf-service')
         const antiRedService = require('./anti-red-service')
-        const zone = await cfService.getZoneByName(addonDomain)
-        if (zone) {
-          await antiRedService.removeWorkerRoutes(addonDomain, zone.id).catch(() => {})
-          await cfService.cleanupAllHostingRecords(zone.id, addonDomain).catch(() => {})
-        }
+        await require('./hosting-dns-teardown').teardownHostingDomain({ col: cpanelAccounts, domain: addonDomain, tag: 'Hosting' })
       } catch (cfErr) {
         log(`[Hosting] unlink (queued): CF cleanup warning for ${addonDomain}: ${cfErr.message}`)
       }
@@ -16436,11 +16432,7 @@ All verified numbers generated during sourcing.`))
       )
 
       try {
-        const zone = await cfService.getZoneByName(addonDomain)
-        if (zone) {
-          await antiRedService.removeWorkerRoutes(addonDomain, zone.id).catch(() => {})
-          await cfService.cleanupAllHostingRecords(zone.id, addonDomain).catch(() => {})
-        }
+        await require('./hosting-dns-teardown').teardownHostingDomain({ col: cpanelAccounts, domain: addonDomain, tag: 'Hosting' })
       } catch (cfErr) {
         log(`[Hosting] unlink: CF cleanup warning for ${addonDomain}: ${cfErr.message}`)
       }
@@ -16746,13 +16738,7 @@ All verified numbers generated during sourcing.`))
     // stays registered to the user; only the hosting link is removed. (fire-and-forget)
     ;(async () => {
       try {
-        const cfService = require('./cf-service')
-        const antiRedService = require('./anti-red-service')
-        const zone = await cfService.getZoneByName(oldDomain)
-        if (zone) {
-          await antiRedService.removeWorkerRoutes(oldDomain, zone.id).catch(() => {})
-          await cfService.cleanupAllHostingRecords(zone.id, oldDomain).catch(() => {})
-        }
+        await require('./hosting-dns-teardown').teardownHostingDomain({ col: cpanelAccounts, domain: oldDomain, tag: 'ChangePrimary' })
       } catch (e) {
         log(`[ChangePrimary] old-domain CF cleanup warning for ${oldDomain}: ${e.message}`)
       }
@@ -16928,11 +16914,7 @@ All verified numbers generated during sourcing.`))
           if (!key || seen.has(key)) continue
           seen.add(key)
           try {
-            const zone = await cfService.getZoneByName(d)
-            if (zone) {
-              await antiRedService.removeWorkerRoutes(d, zone.id).catch(() => {})
-              await cfService.cleanupAllHostingRecords(zone.id, d).catch(() => {})
-            }
+            await require('./hosting-dns-teardown').teardownHostingDomain({ col: cpanelAccounts, domain: d, excludeId: plan._id, tag: 'Hosting' })
           } catch (cfErr) {
             log(`[Hosting] cancelPlan (queued): CF cleanup warning for ${d}: ${cfErr.message}`)
           }
@@ -16980,11 +16962,7 @@ All verified numbers generated during sourcing.`))
         if (!key || seen.has(key)) continue
         seen.add(key)
         try {
-          const zone = await cfService.getZoneByName(d)
-          if (zone) {
-            await antiRedService.removeWorkerRoutes(d, zone.id).catch(() => {})
-            await cfService.cleanupAllHostingRecords(zone.id, d).catch(() => {})
-          }
+          await require('./hosting-dns-teardown').teardownHostingDomain({ col: cpanelAccounts, domain: d, excludeId: plan._id, tag: 'Hosting' })
         } catch (cfErr) {
           log(`[Hosting] cancelPlan: CF cleanup warning for ${d}: ${cfErr.message}`)
         }

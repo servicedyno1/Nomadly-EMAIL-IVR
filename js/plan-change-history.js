@@ -47,7 +47,8 @@ function hostingEntries(acct) {
     previous_expires_at: iso(h.previous_expires_at), expires_at: iso(h.expires_at),
     renewal_price_usd: num(h.renewal_price_usd),
     via: VIAS.includes(h.via) ? h.via : null,
-    legacy: false,
+    // Entries written before billing details were recorded (pre 2026-10-10) carry no billing/expiry data.
+    legacy: !h.billing,
   }))
   // Legacy markers only describe the MOST RECENT upgrade / downgrade. Add one only when no
   // history entry was recorded at that moment (±5 s).

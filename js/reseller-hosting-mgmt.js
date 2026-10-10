@@ -33,6 +33,8 @@ const safeBrowsing = require('./safe-browsing-service')
 const antiRed = require('./anti-red-service')
 const siteStatusService = require('./site-status-service')       // site online/maintenance/suspended
 const addonFlow = require('./addon-domain-flow')                 // runDnsAndProtection (set-primary background)
+const { teardownHostingDomain } = require('./hosting-dns-teardown') // ownership-safe DNS/worker-route teardown
+const hostingDnsRepair = require('./hosting-dns-repair')            // anti-red/deploy also verifies apex/www DNS
 let nodemailer = null
 try { nodemailer = require('nodemailer') } catch (_) { /* email/test unavailable if the dep is missing */ }
 
@@ -501,15 +503,12 @@ function registerHostingMgmtRoutes(deps) {
         await col('cpanelAccounts').updateOne({ _id: acct._id }, { $pull: { addonDomains: { domain } } })
       } catch (e) { log && log(`[Reseller] addon unlink DB-mirror warning for ${domain}: ${e.message}`) }
     }
-    // CF cleanup is best-effort and independent of cPanel uptime.
+    // CF cleanup is best-effort and independent of cPanel uptime; skipped if another live account still uses the domain.
+    let cfCleanup = null
     try {
-      const zone = await cfService.getZoneByName(domain)
-      if (zone) {
-        await antiRed.removeWorkerRoutes(domain, zone.id).catch(() => {})
-        await cfService.cleanupAllHostingRecords(zone.id, domain).catch(() => {})
-      }
+      cfCleanup = await teardownHostingDomain({ col: col('cpanelAccounts'), domain, tag: 'Reseller' })
     } catch (cfErr) { log && log(`[Reseller] addon unlink CF cleanup warning for ${domain}: ${cfErr.message}`) }
-    res.json({ ...(r || {}), username: acct._id, addon_domain: domain, cpanel_removed: cpUnlinked, cloudflare_cleaned: true })
+    res.json({ ...(r || {}), username: acct._id, addon_domain: domain, cpanel_removed: cpUnlinked, cloudflare_cleaned: !!(cfCleanup && (cfCleanup.removed || cfCleanup.skipped === 'no_zone')), ...(cfCleanup && cfCleanup.skipped === 'in_use' ? { cloudflare_skipped: 'domain_still_in_use' } : {}) })
   }))
 
   // ════════════════════════════════════════════════════════
@@ -1007,8 +1006,13 @@ function registerHostingMgmtRoutes(deps) {
     const acct = await loadOwned(req, res); if (!acct) return
     const ctx = ctxFromAccount(acct)
     if (!isLive()) return dryRun(res, acct, 'security.anti-red.deploy', { domain: ctx.cpDomain })
+    // Worker routes alone don't make a site reachable — verify (and re-create missing) apex/www DNS too.
+    let dns = null
+    if (hostingDnsRepair.isLiveAccount(acct)) {
+      try { dns = (await hostingDnsRepair.repairAccount(acct, { apply: true })).domains.map(({ zone_id, ...d }) => d) } catch (e) { dns = { error: e.message } }
+    }
     const result = await antiRed.deployFullProtection(ctx.cpUser, ctx.cpDomain, ctx.cpPlan || '')
-    res.json(result)
+    res.json({ ...result, dns })
   }))
 
   router.post('/hosting/:user/security/anti-bot', apiKeyAuth, h(async (req, res) => {
@@ -1280,7 +1284,7 @@ function registerHostingMgmtRoutes(deps) {
         const fresh = (await col('cpanelAccounts').findOne({ _id: acct._id })) || acct
         await addonFlow.runDnsAndProtection({ domain: newDomain, cpUser: creds.cpUser, whmHost: creds.whmHost, account: fresh, db, bot: null, lang: 'en' })
       } catch (_) {}
-      try { const zone = await cfService.getZoneByName(oldDomain); if (zone) { await antiRed.removeWorkerRoutes(oldDomain, zone.id).catch(() => {}); await cfService.cleanupAllHostingRecords(zone.id, oldDomain).catch(() => {}) } } catch (_) {}
+      try { await teardownHostingDomain({ col: col('cpanelAccounts'), domain: oldDomain, tag: 'Reseller' }) } catch (_) {}
     })()
     res.json({ success: true, oldDomain, newDomain, domain: newDomain })
   }))
@@ -1369,11 +1373,7 @@ function registerHostingMgmtRoutes(deps) {
         await addonFlow.runDnsAndProtection({ domain: newDomain, cpUser, whmHost, account: fresh, db, bot: null, lang: 'en' })
       } catch (e) { log && log(`[Reseller] change-primary DNS/protection warning: ${e.message}`) }
       try {
-        const zone = await cfService.getZoneByName(oldDomain)
-        if (zone) {
-          await antiRed.removeWorkerRoutes(oldDomain, zone.id).catch(() => {})
-          await cfService.cleanupAllHostingRecords(zone.id, oldDomain).catch(() => {})
-        }
+        await teardownHostingDomain({ col: col('cpanelAccounts'), domain: oldDomain, tag: 'Reseller' })
       } catch (e) { log && log(`[Reseller] change-primary old-domain cleanup warning: ${e.message}`) }
     })()
 
