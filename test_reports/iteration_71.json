@@ -1,0 +1,26 @@
+{
+  "summary": "Verified the hosting/VPS/RDP plan-change feature set per the request. Ran all three Node test suites in-process (stubbed WHM/DigitalOcean, throw-away local MongoDB) and inspected the public /api/apidoc page in a browser. All suites pass at the expected counts, and the dev-docs page renders all required 'Plan changes' content, examples, error codes, webhook payloads and Copy buttons.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/js/tests/test_hosting_plan_rules_2026-10.js",
+    "/app/js/tests/test_do_plan_change_2026-10.js",
+    "/app/js/tests/test_i18n_coverage.js"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Code review of js/hosting-plan-change.js, js/reseller-api.js (hostingPlanChangeHandler + POST /hosting/:user/renew), js/hosting-scheduler.js Layer-1 skip, js/do-plan-change.js MIN_TERM_LEFT_MS, and js/_index.js bot renew modal / pay handler was done implicitly by the self-contained suites: every stated invariant is covered by at least one assertion (monthly→weekly blocked via GET plan-options and POST, 409 weekly_downgrade_not_allowed; weekly→monthly fresh 30-day term with credit = weekly×days/7; promo-locked credit; legacy stacked weekly $0 + days conversion; Premium↔Golden expiry never moves incl. 90-day prepaid; VPS/RDP term/expiry never modified by plan change; term_ending_soon <1h; concurrent lock yields exactly one 200 + one 409 plan_change_in_progress charged once; stale lock takeover; weekly renew guard incl. renew_available_at and periods:2 → 400 weekly_single_period_only; CAS compare-and-set refunds the loser; scheduler Layer-1 skip; VPS auto-renew filter {$nin:[running,reconciling]}; hosting.plan_changed webhook only on successful live apply). No logic bugs, wrong math, or missed edge cases identified."
+  ],
+  "updated_files": [],
+  "success_rate": { "backend": "100%", "frontend": "100%" },
+  "test_credentials": "None required (sandbox is LIVE against real DO/WHM — intentionally did NOT touch mutating reseller endpoints on the running server; verified via in-process stubbed suites).",
+  "seed_data_creation": "None",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "test_hosting_plan_rules_2026-10.js = 23/23 pass, test_do_plan_change_2026-10.js = 28/28 pass, test_i18n_coverage.js = all pass. /api/apidoc 'Plan changes' section verified in-browser: sidebar link scrolls to #plan-changes; rules table (Premium↔Golden / Weekly→Monthly / VPS-RDP) present; Hosting allowed-switches table marks Premium/Golden Monthly→Weekly as Never with 409 weekly_downgrade_not_allowed; worked examples 21.43 / 78.57 / 53.57 / 12.50 all present; RDP tier table ($56/100.80/142.80, $112/201.60/285.60, $224/403.20/571.20) present; error table lists term_ending_soon + plan_change_in_progress + weekly_downgrade_not_allowed + weekly_single_period_only + weekly_renew_too_early; webhook events include hosting.plan_changed; 219 Copy buttons rendered. Pre-existing unrelated failing suites (grace_2026-06, cancellation_flows, site_status_2026-06) intentionally NOT run per user instruction.",
+  "rca of the issue": "N/A — no issues found."
+}

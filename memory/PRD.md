@@ -1,6 +1,17 @@
 # PRD — Nomadly Cloud IVR + Telegram Bot
 
 
+## 2026-10-10 — Plan-change rules (hosting / VPS / RDP) + weekly renew cap + race fixes + API docs — DONE (sandbox; awaiting Save-to-GitHub + redeploy)
+- Hosting (reseller API): Premium Monthly ↔ Golden Monthly = resources only (upgrade pro-rata (new−old)×days/30, downgrade $0 no refund, expiry NEVER moves). Weekly → Premium/Golden Monthly = monthly price − unused weekly credit (account's locked weekly price × days left / 7) + FRESH 30-day term (billing "new_term"; legacy stacked-weekly safety net: credit > monthly → $0 + credit converted to days ≥ 30). Monthly → Weekly NEVER (hidden from plan-options; POST → 409 weekly_downgrade_not_allowed). Bot hosting upgrade left as-is (upgrade-only, no Golden→Premium) per user.
+- Weekly renewals (API + Telegram bot): ONE week at a time (periods>1 → 400 weekly_single_period_only) and only once ≤ 7 days left (→ 409 weekly_renew_too_early + renew_available_at). GET /hosting/:user, GET /hosting, GET /renewals expose renewable:false + renew_available_at. Monthly plans can still prepay up to 12 periods.
+- VPS/RDP: in-place DigitalOcean resize on the SAME droplet (id/IP/data kept) — expiry AND term length never change; renewal price = new plan's price for the same term (RDP 1/2/3-month bundle, discount kept); upgrade charge uses 1-month list prices × days/30 (user confirmed). NEW: needs ≥ 1 h left in term (409 term_ending_soon).
+- Race fixes: hosting plan-change atomic lock (cpanelAccounts.planChangeLock, 10-min stale takeover, re-quote on locked doc); API + bot hosting renew compare-and-set on {expiryDate, plan} (loser refunded / debit reversed); bot renew now checks the overdraft-safe debit result; hosting scheduler skips locked/changed accounts; VPS auto-renew query skips planChange running/reconciling.
+- New webhook: hosting.plan_changed (API path). /apidoc: new "Plan changes" guide (#plan-changes, live prices, worked examples, error table, integration flow, webhook payloads) + updated endpoint docs/error table.
+- Files: js/hosting-plan-change.js, js/reseller-api.js, js/reseller-webhooks.js, js/hosting-scheduler.js, js/do-plan-change.js, js/_index.js, js/lang/{en,fr,hi,zh}.js, js/apidoc-page.js. Tests: js/tests/test_hosting_plan_rules_2026-10.js (23/23), js/tests/test_do_plan_change_2026-10.js (28/28), i18n coverage pass; testing agent iteration_71: 100%.
+- Known pre-existing failing suites (user: do NOT fix): test_reseller_api_grace_2026-06 (live smoke w/ hardcoded key + old-pod fixtures), test_cancellation_flows (provider default → OVH + shared fake collection), test_reseller_site_status_2026-06 (assumes SKIP_WEBHOOK_SYNC toggles dry-run).
+- ⚠️ Sandbox note: vault sets RESELLER_API_LIVE=true → this pod's reseller API is LIVE against real DO/WHM (harmless while local DB has no API keys).
+
+
 ## 2026-10-08 — OPS: OpenProvider registrant / service email cloakhost@tutamail.com → gidineter@gmail.com (PROD, both bots) — DONE & verified
 - Why: @ricodeljalisco's ccTLD domain (nationalbcverifservicesonetimelink.ch) was orphaned at OpenProvider (code 320, not in account) because the registrant/service email cloakhost@tutamail.com was unmonitored, so registry contact-validation never completed. Monitored gidineter@gmail.com now used so future .ch/.it/… validations pass.
 - Code (sandbox, awaiting Save-to-GitHub + redeploy): `js/op-service.js` SERVICE_EMAIL default → gidineter@gmail.com (no cloakhost literal, SERVICE_EMAIL exported); test `js/tests/test_op_service_email.js` 3/3.
