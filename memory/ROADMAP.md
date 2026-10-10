@@ -86,11 +86,11 @@ Sources: `HOSTING_CAPABILITIES_2026-10.md` (H#) and `RESELLER_FEATURE_REQUESTS_2
 ## Future / low priority
 - Bot hosting upgrade still uses the old loyalty-credit quote while the API uses pro-rata (fold into item 6).
 - Bot plan change is wallet-only: add a crypto/bank checkout for the pro-rata amount.
-- Stale-zone sweep: 96 registeredDomains carry cfZoneIds not in our CF account (self-heals lazily today).
 - Panel test-email / EmailBlast use ports 25/465/587, which DO blocks from the droplet (only matters if those features are used there).
 - WhiteLabel sync commits as 2-parent merges (cosmetic; test the GITHUB_TOKEN workflow restriction first).
 
 ## Closed
+- 2026-10-10: **Stale CF zone-ID sweep** — `scripts/stale_cf_zone_sweep.js` (report-only by default, `--apply` to write; repoint to a same-name zone if present, else clear). Ran against prod on the droplet: 540 stored zone-ID refs, 182 stale across 134 domains, all confirmed gone from Cloudflare (0 unverified), 0 repointable → all cleared (182 writes). Re-scan = 0 stale. Reports in memory/STALE_CF_ZONES_*_2026-10.md. (Protection layer reads registeredDomains.val.cfZoneId and self-heals via getZoneByName; the 2 active-hosting domains only had the stale id in domainsOf.)
 - 2026-10-10: droplet ops done (pm2-logrotate installed, legacy /opt/nomadly/app-main|app-wl removed, /opt/nomadly/deploy.sh = scripts/droplet_deploy.sh).
 - Declined by the owner: don't bill failed SIP bridges / refund @Login4six8.
 - 2026-10-10: namewords.sbs DNS teardown RCA. Fixed, deployed, restored. The reseller deleted name1d6a/name303c through the guarded path; the DNS was kept (re-verified).

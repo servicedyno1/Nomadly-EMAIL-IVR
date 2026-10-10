@@ -195,19 +195,6 @@ function registerHostingMgmtRoutes(deps) {
   // pod isLive() is already true so it is a no-op there.
   const fileOpsLive = () => isLive() || process.env.RESELLER_FILEOPS_LIVE === 'true'
 
-  // ── MySQL plan gate (mirror requireMysqlEligible: reject 7-day trial only) ──
-  function mysqlBlocked(res, ctx) {
-    const planLc = (ctx.cpPlan || '').toLowerCase()
-    const isWeeklyTrial = /1-week|\bweek\b|\(7 days\)/.test(planLc) && !/month/.test(planLc)
-    if (!isWeeklyTrial) return false
-    res.status(403).json({
-      error: 'mysql_requires_monthly',
-      message: 'MySQL databases require Premium Anti-Red HostPanel (1-Month) or Golden.',
-      current_plan: ctx.cpPlan || '',
-    })
-    return true
-  }
-
   // ── Gold gate (mirror requireGold: Geo + Visitor Captcha) ──
   function goldBlocked(res, ctx) {
     if (ctx.cpIsGold) return false
@@ -517,7 +504,6 @@ function registerHostingMgmtRoutes(deps) {
   router.get('/hosting/:user/mysql/databases', apiKeyAuth, h(async (req, res) => {
     const acct = await loadOwned(req, res); if (!acct) return
     const ctx = withCreds(res, acct); if (!ctx) return
-    if (mysqlBlocked(res, ctx)) return
     res.json(await cpProxy.listDatabases(ctx.cpUser, ctx.cpPass, ctx.whmHost))
   }))
 
@@ -525,7 +511,6 @@ function registerHostingMgmtRoutes(deps) {
     const acct = await loadOwned(req, res); if (!acct) return
     const name = req.body && req.body.name
     if (missing(res, ['name', name])) return
-    const ctx0 = ctxFromAccount(acct); if (mysqlBlocked(res, ctx0)) return
     if (!isLive()) return dryRun(res, acct, 'mysql.database.create', { name })
     const ctx = withCreds(res, acct); if (!ctx) return
     res.json(await cpProxy.createDatabase(ctx.cpUser, ctx.cpPass, name, ctx.whmHost))
@@ -535,7 +520,6 @@ function registerHostingMgmtRoutes(deps) {
     const acct = await loadOwned(req, res); if (!acct) return
     const name = bq(req, 'name')
     if (missing(res, ['name', name])) return
-    const ctx0 = ctxFromAccount(acct); if (mysqlBlocked(res, ctx0)) return
     if (!isLive()) return dryRun(res, acct, 'mysql.database.delete', { name })
     const ctx = withCreds(res, acct); if (!ctx) return
     res.json(await cpProxy.deleteDatabase(ctx.cpUser, ctx.cpPass, name, ctx.whmHost))
@@ -545,7 +529,6 @@ function registerHostingMgmtRoutes(deps) {
     const acct = await loadOwned(req, res); if (!acct) return
     const { oldname, newname } = req.body || {}
     if (missing(res, ['oldname', oldname], ['newname', newname])) return
-    const ctx0 = ctxFromAccount(acct); if (mysqlBlocked(res, ctx0)) return
     if (!isLive()) return dryRun(res, acct, 'mysql.database.rename', { oldname, newname })
     const ctx = withCreds(res, acct); if (!ctx) return
     res.json(await cpProxy.renameDatabase(ctx.cpUser, ctx.cpPass, oldname, newname, ctx.whmHost))
@@ -555,7 +538,6 @@ function registerHostingMgmtRoutes(deps) {
     const acct = await loadOwned(req, res); if (!acct) return
     const name = req.body && req.body.name
     if (missing(res, ['name', name])) return
-    const ctx0 = ctxFromAccount(acct); if (mysqlBlocked(res, ctx0)) return
     if (!isLive()) return dryRun(res, acct, 'mysql.database.repair', { name })
     const ctx = withCreds(res, acct); if (!ctx) return
     res.json(await cpProxy.repairDatabase(ctx.cpUser, ctx.cpPass, name, ctx.whmHost))
@@ -565,7 +547,6 @@ function registerHostingMgmtRoutes(deps) {
     const acct = await loadOwned(req, res); if (!acct) return
     const name = req.body && req.body.name
     if (missing(res, ['name', name])) return
-    const ctx0 = ctxFromAccount(acct); if (mysqlBlocked(res, ctx0)) return
     if (!isLive()) return dryRun(res, acct, 'mysql.database.check', { name })
     const ctx = withCreds(res, acct); if (!ctx) return
     res.json(await cpProxy.checkDatabase(ctx.cpUser, ctx.cpPass, name, ctx.whmHost))
@@ -574,7 +555,6 @@ function registerHostingMgmtRoutes(deps) {
   router.get('/hosting/:user/mysql/users', apiKeyAuth, h(async (req, res) => {
     const acct = await loadOwned(req, res); if (!acct) return
     const ctx = withCreds(res, acct); if (!ctx) return
-    if (mysqlBlocked(res, ctx)) return
     res.json(await cpProxy.listDatabaseUsers(ctx.cpUser, ctx.cpPass, ctx.whmHost))
   }))
 
@@ -582,7 +562,6 @@ function registerHostingMgmtRoutes(deps) {
     const acct = await loadOwned(req, res); if (!acct) return
     const { name, password } = req.body || {}
     if (missing(res, ['name', name], ['password', password])) return
-    const ctx0 = ctxFromAccount(acct); if (mysqlBlocked(res, ctx0)) return
     if (!isLive()) return dryRun(res, acct, 'mysql.user.create', { name })
     const ctx = withCreds(res, acct); if (!ctx) return
     res.json(await cpProxy.createDatabaseUser(ctx.cpUser, ctx.cpPass, name, password, ctx.whmHost))
@@ -592,7 +571,6 @@ function registerHostingMgmtRoutes(deps) {
     const acct = await loadOwned(req, res); if (!acct) return
     const name = bq(req, 'name')
     if (missing(res, ['name', name])) return
-    const ctx0 = ctxFromAccount(acct); if (mysqlBlocked(res, ctx0)) return
     if (!isLive()) return dryRun(res, acct, 'mysql.user.delete', { name })
     const ctx = withCreds(res, acct); if (!ctx) return
     res.json(await cpProxy.deleteDatabaseUser(ctx.cpUser, ctx.cpPass, name, ctx.whmHost))
@@ -602,7 +580,6 @@ function registerHostingMgmtRoutes(deps) {
     const acct = await loadOwned(req, res); if (!acct) return
     const { user, password } = req.body || {}
     if (missing(res, ['user', user], ['password', password])) return
-    const ctx0 = ctxFromAccount(acct); if (mysqlBlocked(res, ctx0)) return
     if (!isLive()) return dryRun(res, acct, 'mysql.user.password', { user })
     const ctx = withCreds(res, acct); if (!ctx) return
     res.json(await cpProxy.setDatabaseUserPassword(ctx.cpUser, ctx.cpPass, user, password, ctx.whmHost))
@@ -612,7 +589,6 @@ function registerHostingMgmtRoutes(deps) {
     const acct = await loadOwned(req, res); if (!acct) return
     const { oldname, newname } = req.body || {}
     if (missing(res, ['oldname', oldname], ['newname', newname])) return
-    const ctx0 = ctxFromAccount(acct); if (mysqlBlocked(res, ctx0)) return
     if (!isLive()) return dryRun(res, acct, 'mysql.user.rename', { oldname, newname })
     const ctx = withCreds(res, acct); if (!ctx) return
     res.json(await cpProxy.renameDatabaseUser(ctx.cpUser, ctx.cpPass, oldname, newname, ctx.whmHost))
@@ -622,7 +598,6 @@ function registerHostingMgmtRoutes(deps) {
     const acct = await loadOwned(req, res); if (!acct) return
     const { user, database, privileges } = req.body || {}
     if (missing(res, ['user', user], ['database', database], ['privileges', privileges])) return
-    const ctx0 = ctxFromAccount(acct); if (mysqlBlocked(res, ctx0)) return
     if (!isLive()) return dryRun(res, acct, 'mysql.privileges.grant', { user, database })
     const ctx = withCreds(res, acct); if (!ctx) return
     res.json(await cpProxy.setUserPrivilegesOnDatabase(ctx.cpUser, ctx.cpPass, user, database, privileges, ctx.whmHost))
@@ -632,7 +607,6 @@ function registerHostingMgmtRoutes(deps) {
     const acct = await loadOwned(req, res); if (!acct) return
     const { user, database } = req.body || {}
     if (missing(res, ['user', user], ['database', database])) return
-    const ctx0 = ctxFromAccount(acct); if (mysqlBlocked(res, ctx0)) return
     if (!isLive()) return dryRun(res, acct, 'mysql.privileges.revoke', { user, database })
     const ctx = withCreds(res, acct); if (!ctx) return
     res.json(await cpProxy.revokeUserPrivilegesOnDatabase(ctx.cpUser, ctx.cpPass, user, database, ctx.whmHost))
@@ -641,7 +615,6 @@ function registerHostingMgmtRoutes(deps) {
   router.get('/hosting/:user/mysql/remote-hosts', apiKeyAuth, h(async (req, res) => {
     const acct = await loadOwned(req, res); if (!acct) return
     const ctx = withCreds(res, acct); if (!ctx) return
-    if (mysqlBlocked(res, ctx)) return
     res.json(await cpProxy.listMysqlRemoteHosts(ctx.cpUser, ctx.cpPass, ctx.whmHost))
   }))
 
@@ -649,7 +622,6 @@ function registerHostingMgmtRoutes(deps) {
     const acct = await loadOwned(req, res); if (!acct) return
     const remoteHost = req.body && req.body.host
     if (missing(res, ['host', remoteHost])) return
-    const ctx0 = ctxFromAccount(acct); if (mysqlBlocked(res, ctx0)) return
     if (!isLive()) return dryRun(res, acct, 'mysql.remote-host.add', { host: remoteHost })
     const ctx = withCreds(res, acct); if (!ctx) return
     res.json(await cpProxy.addMysqlRemoteHost(ctx.cpUser, ctx.cpPass, remoteHost, ctx.whmHost))
@@ -659,7 +631,6 @@ function registerHostingMgmtRoutes(deps) {
     const acct = await loadOwned(req, res); if (!acct) return
     const remoteHost = bq(req, 'host')
     if (missing(res, ['host', remoteHost])) return
-    const ctx0 = ctxFromAccount(acct); if (mysqlBlocked(res, ctx0)) return
     if (!isLive()) return dryRun(res, acct, 'mysql.remote-host.delete', { host: remoteHost })
     const ctx = withCreds(res, acct); if (!ctx) return
     res.json(await cpProxy.deleteMysqlRemoteHost(ctx.cpUser, ctx.cpPass, remoteHost, ctx.whmHost))
@@ -952,8 +923,6 @@ function registerHostingMgmtRoutes(deps) {
     ])
     const { isWeeklyPlan } = require('./hosting-scheduler')
     const isMonthly = !isWeeklyPlan(ctx.cpPlan || '')
-    const planLc = (ctx.cpPlan || '').toLowerCase()
-    const isWeeklyTrial = /1-week|\bweek\b|\(7 days\)/.test(planLc) && !/month/.test(planLc)
     let antiBot = null
     if (zone) { try { antiBot = await cfService.getSecuritySettings(zone.id); antiBot.zoneId = zone.id } catch (_) {} }
     res.json({
@@ -969,7 +938,7 @@ function registerHostingMgmtRoutes(deps) {
         visitor_captcha: ctx.cpIsGold,
         geo_blocking: ctx.cpIsGold,
         js_challenge: ctx.cpIsGold,
-        mysql: !isWeeklyTrial,
+        mysql: true,
         honeypot: isMonthly,
       },
       antiBot,
@@ -1182,9 +1151,8 @@ function registerHostingMgmtRoutes(deps) {
   // ════════════════════════════════════════════════════════
   router.get('/hosting/:user/mysql/phpmyadmin', apiKeyAuth, h(async (req, res) => {
     const acct = await loadOwned(req, res); if (!acct) return
-    const ctx0 = ctxFromAccount(acct); if (mysqlBlocked(res, ctx0)) return
     if (!isLive()) return dryRun(res, acct, 'mysql.phpmyadmin', { note_extra: 'SSO URL minted only in live mode.' })
-    const r = await whmService.createUserSession(ctx0.cpUser, 'phpMyAdmin', 'cpaneld')
+    const r = await whmService.createUserSession(ctxFromAccount(acct).cpUser, 'phpMyAdmin', 'cpaneld')
     if (!r || !r.success) return res.status(502).json({ status: 0, errors: [(r && r.error) || 'Could not open phpMyAdmin.'] })
     res.json({ status: 1, url: r.url, expires: r.expires })
   }))

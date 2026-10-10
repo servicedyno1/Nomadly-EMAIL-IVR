@@ -36,6 +36,8 @@ const EVENTS = [
   'vps.plan_changed', 'vps.plan_change_failed', 'rdp.plan_changed', 'rdp.plan_change_failed',
   // Branded nameservers (ns1/ns2.hosta.sh) lifecycle for reseller-registered domains
   'domain.nameservers_branded', 'domain.nameservers_reverted', 'domain.nameservers_branding_failed',
+  // One-click apps (WordPress) install lifecycle
+  'hosting.app_installed', 'hosting.app_install_failed',
   // Expiry reminders (T-7d / T-3d / T-1d), renewals from any channel, unsuspension, domain expiry
   'hosting.expiring', 'hosting.renewed', 'hosting.unsuspended',
   'vps.expiring', 'vps.renewed', 'rdp.expiring', 'rdp.renewed',

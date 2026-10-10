@@ -88,13 +88,13 @@ function endpointGroups(base) {
           resp: `{
   "webhook_url": "https://your-app.com/hooks/nomadly",
   "webhook_secret": "whsec_…",
-  "events": ["hosting.provisioned","hosting.provision_failed","hosting.grace_start","hosting.suspended","hosting.deleted","hosting.auto_renew_failed","hosting.plan_changed","vps.provisioned","vps.provision_failed","vps.grace_start","vps.deleted","vps.plan_changed","vps.plan_change_failed","rdp.provisioned","rdp.provision_failed","rdp.grace_start","rdp.deleted","rdp.plan_changed","rdp.plan_change_failed"${NS_EVENTS}${ALERT_EVENTS}],
+  "events": ["hosting.provisioned","hosting.provision_failed","hosting.grace_start","hosting.suspended","hosting.deleted","hosting.auto_renew_failed","hosting.plan_changed","hosting.app_installed","hosting.app_install_failed","vps.provisioned","vps.provision_failed","vps.grace_start","vps.deleted","vps.plan_changed","vps.plan_change_failed","rdp.provisioned","rdp.provision_failed","rdp.grace_start","rdp.deleted","rdp.plan_changed","rdp.plan_change_failed"${NS_EVENTS}${ALERT_EVENTS}],
   "delivery": "POST signed with HMAC-SHA256 (X-Nomadly-Signature: sha256=<hex>), auto-retry with backoff, de-duplicated per server+event"
 }`,
         },
         {
           method: 'PUT', path: '/account/webhook', auth: true, billed: false,
-          desc: 'Register (or clear) the push-webhook URL for your account. Send {"webhook_url":"https://…"} to set it (the first time this also mints a webhook_secret you must store), or {"webhook_url":null} to clear it (the secret is kept for re-enabling). Nomadly then POSTs a JSON body { event, product, occurred_at, data:{ id, product, domain, reason, … } } to your URL for each lifecycle event across all three products: hosting.provisioned / vps.provisioned / rdp.provisioned (an async create finished — data carries the id/username, domain, plan and ip/nameservers), hosting.provision_failed / vps.provision_failed / rdp.provision_failed (an async create ultimately failed — the wallet was auto-refunded; data carries reason and refunded:true), hosting.grace_start / vps.grace_start / rdp.grace_start (subscription expired → service suspended/powered off and a grace period begins; data carries expired_at + delete_at + grace_hours — hosting grace is 48h, VPS/RDP is 72h/3-day), hosting.auto_renew_failed (a wallet auto-renew attempt failed on insufficient funds; data carries price_usd, wallet_balance_usd, next_attempt_at — the plan then falls into grace, it is NOT terminated), hosting.deleted / vps.deleted / rdp.deleted (the resource was permanently removed after grace; data carries reason), hosting.plan_changed (a hosting plan change made through the API was applied; data carries username, domain, direction, billing ("pro_rata" = Premium <-> Golden, expiry unchanged | "new_term" = weekly -> monthly, fresh 30-day term), from_plan, to_plan, to_plan_name, charged_usd, unused_credit_usd, previous_expires_at, expires_at, renewal_price_usd), vps.plan_changed / rdp.plan_changed (an in-place plan change finished; data carries change_id, direction, from_plan, to_plan, charged_usd, resize_disk, disk_gb) and vps.plan_change_failed / rdp.plan_change_failed (the resize did not complete, the server stays on its old plan and any charge was refunded; data carries reason, refunded, refund_usd)' + (BR ? ', and the branded-nameserver events domain.nameservers_branded (registrar switched to the branded nameservers; data carries domain + nameservers + previous_nameservers), domain.nameservers_reverted (rolled back to the Cloudflare-assigned names to keep the domain protected; data carries reason + nameservers) and domain.nameservers_branding_failed (the domain stays on the Cloudflare names; data carries reason)' : '') + '. ALERTS (see "Alerts, Monitoring & Activity"): hosting.expiring / vps.expiring / rdp.expiring / domain.expiring (7, 3 and 1 day before expiry), *.renewed, hosting.unsuspended, domain.expired, hosting.site_down / hosting.site_recovered (uptime monitor), *.usage_threshold and account.low_balance. SECURITY: every delivery is signed — header "X-Nomadly-Signature: sha256=<hex>" is HMAC-SHA256 of the exact raw request body keyed by your webhook_secret. Recompute it and constant-time compare BEFORE acting on any *.deleted. Delivery is retried with backoff and de-duplicated per server+event (grace/auto_renew_failed re-fire each billing cycle; *.deleted fires once). Reply 2xx to acknowledge.',
+          desc: 'Register (or clear) the push-webhook URL for your account. Send {"webhook_url":"https://…"} to set it (the first time this also mints a webhook_secret you must store), or {"webhook_url":null} to clear it (the secret is kept for re-enabling). Nomadly then POSTs a JSON body { event, product, occurred_at, data:{ id, product, domain, reason, … } } to your URL for each lifecycle event across all three products: hosting.provisioned / vps.provisioned / rdp.provisioned (an async create finished — data carries the id/username, domain, plan and ip/nameservers), hosting.provision_failed / vps.provision_failed / rdp.provision_failed (an async create ultimately failed — the wallet was auto-refunded; data carries reason and refunded:true), hosting.grace_start / vps.grace_start / rdp.grace_start (subscription expired → service suspended/powered off and a grace period begins; data carries expired_at + delete_at + grace_hours — hosting grace is 48h, VPS/RDP is 72h/3-day), hosting.auto_renew_failed (a wallet auto-renew attempt failed on insufficient funds; data carries price_usd, wallet_balance_usd, next_attempt_at — the plan then falls into grace, it is NOT terminated), hosting.deleted / vps.deleted / rdp.deleted (the resource was permanently removed after grace; data carries reason), hosting.plan_changed (a hosting plan change made through the API was applied; data carries username, domain, direction, billing ("pro_rata" = Premium <-> Golden, expiry unchanged | "new_term" = weekly -> monthly, fresh 30-day term), from_plan, to_plan, to_plan_name, charged_usd, unused_credit_usd, previous_expires_at, expires_at, renewal_price_usd), hosting.app_installed / hosting.app_install_failed (a one-click WordPress install finished or failed — data carries username, domain, app, app_id, path and site_url/admin_url/admin_user/version, or reason + message), vps.plan_changed / rdp.plan_changed (an in-place plan change finished; data carries change_id, direction, from_plan, to_plan, charged_usd, resize_disk, disk_gb) and vps.plan_change_failed / rdp.plan_change_failed (the resize did not complete, the server stays on its old plan and any charge was refunded; data carries reason, refunded, refund_usd)' + (BR ? ', and the branded-nameserver events domain.nameservers_branded (registrar switched to the branded nameservers; data carries domain + nameservers + previous_nameservers), domain.nameservers_reverted (rolled back to the Cloudflare-assigned names to keep the domain protected; data carries reason + nameservers) and domain.nameservers_branding_failed (the domain stays on the Cloudflare names; data carries reason)' : '') + '. ALERTS (see "Alerts, Monitoring & Activity"): hosting.expiring / vps.expiring / rdp.expiring / domain.expiring (7, 3 and 1 day before expiry), *.renewed, hosting.unsuspended, domain.expired, hosting.site_down / hosting.site_recovered (uptime monitor), *.usage_threshold and account.low_balance. SECURITY: every delivery is signed — header "X-Nomadly-Signature: sha256=<hex>" is HMAC-SHA256 of the exact raw request body keyed by your webhook_secret. Recompute it and constant-time compare BEFORE acting on any *.deleted. Delivery is retried with backoff and de-duplicated per server+event (grace/auto_renew_failed re-fire each billing cycle; *.deleted fires once). Reply 2xx to acknowledge.',
           params: [['webhook_url', true, 'Your http(s) endpoint URL, or null to clear']],
           curl: `curl -s -X PUT ${base}/account/webhook \\
   -H "Authorization: Bearer YOUR_API_KEY" \\
@@ -103,7 +103,7 @@ function endpointGroups(base) {
           resp: `{
   "webhook_url": "https://your-app.com/hooks/nomadly",
   "webhook_secret": "whsec_… (store this — it signs every delivery)",
-  "events": ["hosting.provisioned","hosting.provision_failed","hosting.grace_start","hosting.suspended","hosting.deleted","hosting.auto_renew_failed","hosting.plan_changed","vps.provisioned","vps.provision_failed","vps.grace_start","vps.deleted","vps.plan_changed","vps.plan_change_failed","rdp.provisioned","rdp.provision_failed","rdp.grace_start","rdp.deleted","rdp.plan_changed","rdp.plan_change_failed"${NS_EVENTS}${ALERT_EVENTS}],
+  "events": ["hosting.provisioned","hosting.provision_failed","hosting.grace_start","hosting.suspended","hosting.deleted","hosting.auto_renew_failed","hosting.plan_changed","hosting.app_installed","hosting.app_install_failed","vps.provisioned","vps.provision_failed","vps.grace_start","vps.deleted","vps.plan_changed","vps.plan_change_failed","rdp.provisioned","rdp.provision_failed","rdp.grace_start","rdp.deleted","rdp.plan_changed","rdp.plan_change_failed"${NS_EVENTS}${ALERT_EVENTS}],
   "delivery": "POST signed with HMAC-SHA256 (X-Nomadly-Signature: sha256=<hex>), auto-retry with backoff, de-duplicated per server+event"
 }
 
@@ -355,7 +355,7 @@ function endpointGroups(base) {
     },
     {
       id: 'shortener', title: 'URL Shortener',
-      blurb: 'Turn any domain into a branded link shortener. Activate a domain three ways — BUY it (wallet-billed at the domain price, then auto-configured), connect an EXISTING on-account domain (free, DNS auto-set via Cloudflare), or connect an EXTERNAL domain you host elsewhere (free — we return the exact CNAME + TXT records to add, then call /verify). Links resolve on your domain (https://yourdomain/slug → 301) and every click is counted. Creating / managing links is FREE. Links only work on domains you have activated. On a sandbox pod, domain activation returns a dry-run envelope (no DNS change); link CRUD runs live against the database.',
+      blurb: 'Turn any domain into a branded link shortener. Activate a domain three ways — BUY it (wallet-billed at the domain price, then auto-configured), connect an EXISTING on-account domain (free, DNS auto-set via Cloudflare), or connect an EXTERNAL domain you host elsewhere (free — we return the exact CNAME + TXT records to add, then call /verify). Links resolve on your domain (https://yourdomain/slug → 301) and every click is counted, with per-day / country / device / referrer analytics (90 days), optional smart routing by visitor country or device, and a QR code per link. Creating / managing links is FREE. Links only work on domains you have activated. On a sandbox pod, domain activation returns a dry-run envelope (no DNS change); link CRUD runs live against the database.',
       endpoints: [
         {
           method: 'POST', path: '/shortener/domains', auth: true, billed: true,
@@ -404,6 +404,14 @@ function endpointGroups(base) {
           resp: `{ "links": [ { "short_url": "https://go.mysite.com/promo", "domain": "go.mysite.com", "slug": "promo", "url": "https://example.com/a/very/long/path", "clicks": 42, "status": "active", "expires_at": null } ], "count": 1 }`,
         },
         {
+          method: 'GET', path: '/shortener/links/stats', auth: true, billed: false,
+          desc: 'Bulk analytics for ALL your links in one call, most-clicked first: total clicks plus by_day, by_country (ISO-2, "XX" = unknown), by_device (mobile | tablet | desktop | bot | unknown) and by_referrer (host, "direct" = none). Window: ?days=1..90 (default 30) or ?since=ISO date. Filter with ?domain= and cap with ?limit= (max 2000). Detailed analytics are recorded for links created through the API from the moment this feature went live.',
+          params: [['domain', false, 'Only links on this shortener domain'], ['days', false, '1–90, default 30'], ['since', false, 'ISO date (overrides days)'], ['limit', false, 'Max links (default 500, max 2000)']],
+          curl: `curl -s "${base}/shortener/links/stats?days=7" \\
+  -H "Authorization: Bearer YOUR_API_KEY"`,
+          resp: `{ "since": "2026-10-03T00:00:00.000Z", "count": 1, "total_clicks": 42, "links": [ { "domain": "go.mysite.com", "slug": "promo", "short_url": "https://go.mysite.com/promo", "total_clicks": 42, "by_day": [ { "day": "2026-10-09", "clicks": 30 }, { "day": "2026-10-10", "clicks": 12 } ], "by_country": [ { "name": "US", "clicks": 25 }, { "name": "DE", "clicks": 17 } ], "by_device": [ { "name": "mobile", "clicks": 31 }, { "name": "desktop", "clicks": 11 } ], "by_referrer": [ { "name": "direct", "clicks": 20 }, { "name": "t.co", "clicks": 22 } ] } ] }`,
+        },
+        {
           method: 'GET', path: '/shortener/links/:slug', auth: true, billed: false,
           desc: 'Inspect a single link with its click analytics. Pass ?domain= so the code resolves to the right domain.',
           curl: `curl -s "${base}/shortener/links/promo?domain=go.mysite.com" \\
@@ -418,6 +426,31 @@ function endpointGroups(base) {
   -H "Authorization: Bearer YOUR_API_KEY" -H "Content-Type: application/json" \\
   -d '{"domain":"go.mysite.com","disabled":true}'`,
           resp: `{ "updated": true, "short_url": "https://go.mysite.com/promo", "domain": "go.mysite.com", "slug": "promo", "status": "disabled", "clicks": 42, "expires_at": null }`,
+        },
+        {
+          method: 'GET', path: '/shortener/links/:slug/stats', auth: true, billed: false,
+          desc: 'Analytics for one link: total clicks and the by_day / by_country / by_device / by_referrer breakdown for the window (?days=1..90, default 30, or ?since=). Pass ?domain=.',
+          params: [['domain', true, 'The link\u2019s domain'], ['days', false, '1–90, default 30'], ['since', false, 'ISO date (overrides days)']],
+          curl: `curl -s "${base}/shortener/links/promo/stats?domain=go.mysite.com&days=30" \\
+  -H "Authorization: Bearer YOUR_API_KEY"`,
+          resp: `{ "domain": "go.mysite.com", "slug": "promo", "short_url": "https://go.mysite.com/promo", "url": "https://example.com/a/very/long/path", "since": "2026-09-10T00:00:00.000Z", "total_clicks": 42, "by_day": [ { "day": "2026-10-10", "clicks": 42 } ], "by_country": [ { "name": "US", "clicks": 42 } ], "by_device": [ { "name": "mobile", "clicks": 42 } ], "by_referrer": [ { "name": "direct", "clicks": 42 } ] }`,
+        },
+        {
+          method: 'PUT', path: '/shortener/links/:slug/routing', auth: true, billed: false,
+          desc: 'Smart routing: send visitors to different destinations by country (ISO-2) and/or device (mobile | tablet | desktop | bot). Rules are checked top to bottom and the first match wins; everyone else gets routing.default, or the link\u2019s own url when there is no default. Up to 50 targets. Send {"routing": null} to clear. Country comes from the Cloudflare edge.',
+          params: [['domain', true, 'The link\u2019s domain'], ['routing', true, '{ "targets": [ { "country"?, "device"?, "url" } ], "default"? } or null to clear']],
+          curl: `curl -s -X PUT ${base}/shortener/links/promo/routing \\
+  -H "Authorization: Bearer YOUR_API_KEY" -H "Content-Type: application/json" \\
+  -d '{"domain":"go.mysite.com","routing":{"targets":[{"country":"DE","url":"https://example.de/promo"},{"device":"mobile","url":"https://m.example.com/promo"}]}}'`,
+          resp: `{ "updated": true, "domain": "go.mysite.com", "slug": "promo", "short_url": "https://go.mysite.com/promo", "base_url": "https://example.com/a/very/long/path", "routing": { "targets": [ { "country": "DE", "url": "https://example.de/promo" }, { "device": "mobile", "url": "https://m.example.com/promo" } ] } }`,
+        },
+        {
+          method: 'GET', path: '/shortener/links/:slug/qr', auth: true, billed: false,
+          desc: 'QR code that opens the short link. Returns the image itself: ?format=png (default, ?size=64–1024 px, default 300) or ?format=svg. Pass ?domain=.',
+          params: [['domain', true, 'The link\u2019s domain'], ['format', false, 'png | svg'], ['size', false, 'PNG width in px (64–1024)']],
+          curl: `curl -s "${base}/shortener/links/promo/qr?domain=go.mysite.com&size=512" \\
+  -H "Authorization: Bearer YOUR_API_KEY" -o promo-qr.png`,
+          resp: `(binary image/png — or image/svg+xml with format=svg)`,
         },
         {
           method: 'DELETE', path: '/shortener/links/:slug', auth: true, billed: false,
@@ -1198,8 +1231,8 @@ function endpointGroups(base) {
         },
         {
           method: 'GET', path: '/activity', auth: true, billed: false,
-          desc: 'Change-activity log for everything you own, newest first, kept 90 days. Each entry: id, at, resource_type (hosting | vps | rdp | domain | account), resource_id (cPanel username, server id or domain), action, actor (api = your API calls · bot = your customers in the Telegram bot · system = our schedulers and monitors) and details. Actions include create, renew, delete, suspend, unsuspend, site.take_offline / site.bring_online, auto_renew.enabled / disabled / charged / failed, plan_change, dns.repair, anti_red.deploy, addon.add / remove, primary_domain.change, security.*, geo.*, ssl.autossl, credentials.reveal, power.* (VPS/RDP), password_reset, reinstall, nameservers.update, dns_record.*, site.down / site.recovered, webhook.update and alerts.update. Dry-runs and failed calls are not recorded. Errors: 400 invalid_resource | invalid_resource_type | invalid_actor | invalid_date | invalid_limit | invalid_cursor.',
-          params: [['resource', false, '"<type>:<id>", e.g. hosting:mysite01 or vps:b2f1c0a4-…, or a bare id'], ['resource_type', false, 'hosting | vps | rdp | domain | account'], ['actor', false, 'api | bot | system'], ['action', false, 'Exact action or a prefix: "auto_renew" matches auto_renew.charged, auto_renew.failed …'], ['since', false, 'ISO-8601 date/time'], ['until', false, 'ISO-8601 date/time'], ['limit', false, '1-200 (default 50)'], ['cursor', false, 'next_cursor from the previous page (same filters)']],
+          desc: 'Change-activity log for everything you own, newest first, kept 90 days. Each entry: id, at, resource_type (hosting | vps | rdp | domain | account), resource_id (cPanel username, server id or domain), action, actor (api = your API calls · bot = your customers in the Telegram bot · panel = your customers in the HostPanel · system = our schedulers and monitors) and details. Actions include create, renew, delete, suspend, unsuspend, site.take_offline / site.bring_online, auto_renew.enabled / disabled / charged / failed, plan_change, dns.repair, anti_red.deploy, addon.add / remove, primary_domain.change, security.*, geo.*, ssl.autossl, credentials.reveal, power.* (VPS/RDP), password_reset, reinstall, nameservers.update, dns_record.*, site.down / site.recovered, webhook.update and alerts.update. Dry-runs and failed calls are not recorded. Errors: 400 invalid_resource | invalid_resource_type | invalid_actor | invalid_date | invalid_limit | invalid_cursor.',
+          params: [['resource', false, '"<type>:<id>", e.g. hosting:mysite01 or vps:b2f1c0a4-…, or a bare id'], ['resource_type', false, 'hosting | vps | rdp | domain | account'], ['actor', false, 'api | bot | panel | system'], ['action', false, 'Exact action or a prefix: "auto_renew" matches auto_renew.charged, auto_renew.failed …'], ['since', false, 'ISO-8601 date/time'], ['until', false, 'ISO-8601 date/time'], ['limit', false, '1-200 (default 50)'], ['cursor', false, 'next_cursor from the previous page (same filters)']],
           curl: `curl -s "${base}/activity?resource=hosting:mysite01&limit=20" -H "Authorization: Bearer YOUR_API_KEY"`,
           resp: `{
   "filters": { "resource_type": "hosting", "resource_id": "mysite01", "actor": null, "action": null, "since": null, "until": null, "limit": 20 },
@@ -1211,6 +1244,42 @@ function endpointGroups(base) {
     { "id": "0f3b…", "at": "2026-10-10T12:00:00.000Z", "resource_type": "hosting", "resource_id": "mysite01", "action": "auto_renew.enabled", "actor": "bot", "details": {} }
   ]
 }`,
+        },
+      ],
+    },
+    {
+      id: 'hosting-apps', title: 'Hosting · One-click Apps (WordPress)',
+      blurb: 'Install WordPress on a hosting account in one call — no WP Toolkit, no shell. We create a MySQL database + user, place the latest WordPress in the site root (or a sub-folder via path), write wp-config.php with fresh security keys, add the permalink rules and run the WordPress setup with a generated admin login (24-character password). Available on every plan (it uses one of the plan\u2019s MySQL databases). The install folder must not already contain WordPress / index.php; a static index.html is kept as index.html.pre-wordpress. If anything fails, everything the installer created is removed again. ASYNC: POST returns 202 with state "installing" — poll GET …/apps/:app_id (stage: preflight → database → download → files → config → install) until state is "ready" (admin_password included) or "failed" (error), or subscribe to hosting.app_installed / hosting.app_install_failed. Same feature as the HostPanel "Apps" tab. FREE. On a sandbox pod the install is validated and recorded as state "dry_run" only.',
+      endpoints: [
+        {
+          method: 'GET', path: '/hosting/:user/apps', auth: true, billed: false,
+          desc: 'List the apps installed (or installing / failed) on the account plus the catalog of installable apps.',
+          curl: `curl -s ${base}/hosting/mysite01/apps \\
+  -H "Authorization: Bearer YOUR_API_KEY"`,
+          resp: `{ "username": "mysite01", "domain": "mysite.com", "catalog": [ { "app": "wordpress", "name": "WordPress", "requires": "mysql" } ], "apps": [ { "id": "wp_3f9a1c0b2d", "app": "wordpress", "state": "ready", "stage": "ready", "path": "", "site_url": "https://mysite.com", "admin_url": "https://mysite.com/wp-admin/", "admin_user": "admin_7c2e", "version": "6.8.3", "installed_at": "2026-10-12T09:03:10.000Z" } ] }`,
+        },
+        {
+          method: 'POST', path: '/hosting/:user/apps', auth: true, billed: false,
+          desc: 'Start a one-click install. Errors before anything runs: 400 invalid_app / invalid_path / invalid_email, 404 not_found, 409 app_exists (already installing/installed at that path) / account_suspended / account_terminated / not_ready. Install-time failures (e.g. docroot_not_empty, db_create_failed when the plan\u2019s database limit is reached, wp_install_failed) are reported on the app as state "failed" with an error code.',
+          params: [['app', false, '"wordpress" (default)'], ['path', false, 'Sub-folder under the site root, e.g. "blog" → https://mysite.com/blog. Omit for the site root'], ['title', false, 'Site title (default: the domain)'], ['admin_email', false, 'WordPress admin email (default: admin@<domain>)']],
+          curl: `curl -s -X POST ${base}/hosting/mysite01/apps \\
+  -H "Authorization: Bearer YOUR_API_KEY" -H "Content-Type: application/json" \\
+  -d '{"app":"wordpress","title":"My Site","admin_email":"me@example.com"}'`,
+          resp: `{ "mode": "live", "id": "wp_3f9a1c0b2d", "app": "wordpress", "state": "installing", "stage": "queued", "username": "mysite01", "domain": "mysite.com", "path": "", "site_url": "https://mysite.com", "admin_url": "https://mysite.com/wp-admin/", "poll_url": "/hosting/mysite01/apps/wp_3f9a1c0b2d" }`,
+        },
+        {
+          method: 'GET', path: '/hosting/:user/apps/:app_id', auth: true, billed: false,
+          desc: 'Poll one app. Once state is "ready" the response includes admin_password (the WordPress admin login) — store it securely.',
+          curl: `curl -s ${base}/hosting/mysite01/apps/wp_3f9a1c0b2d \\
+  -H "Authorization: Bearer YOUR_API_KEY"`,
+          resp: `{ "id": "wp_3f9a1c0b2d", "app": "wordpress", "state": "ready", "stage": "ready", "site_url": "https://mysite.com", "admin_url": "https://mysite.com/wp-admin/", "admin_user": "admin_7c2e", "admin_password": "q7#Rk2…", "admin_email": "me@example.com", "version": "6.8.3", "db_name": "mysite01_wp1a2b", "db_user": "mysite01_wp1a2b", "error": null }`,
+        },
+        {
+          method: 'POST', path: '/hosting/:user/apps/:app_id/admin-password', auth: true, billed: false,
+          desc: 'Generate a new WordPress admin password (the old one stops working). 409 app_not_ready if the install has not finished.',
+          curl: `curl -s -X POST ${base}/hosting/mysite01/apps/wp_3f9a1c0b2d/admin-password \\
+  -H "Authorization: Bearer YOUR_API_KEY"`,
+          resp: `{ "mode": "live", "id": "wp_3f9a1c0b2d", "admin_url": "https://mysite.com/wp-admin/", "admin_user": "admin_7c2e", "admin_password": "Zx9!m…", "note": "This password was freshly generated — the previous one no longer works." }`,
         },
       ],
     },
@@ -1255,7 +1324,7 @@ function endpointGroups(base) {
     },
     {
       id: 'hosting-mysql', title: 'Hosting · MySQL Databases',
-      blurb: 'Full MySQL management: databases, database users, per-database privileges and remote-access hosts. Requires the Premium (1-Month) or Golden plan (the 7-day trial is blocked with 403 mysql_requires_monthly). FREE.',
+      blurb: 'Full MySQL management: databases, database users, per-database privileges and remote-access hosts. Available on every plan — the plan sets how many databases you can create: Premium (1-Week) 2, Premium (1-Month) 5, Golden unlimited (over the limit cPanel returns its own "maximum reached" error). FREE.',
       endpoints: [
         {
           method: 'GET', path: '/hosting/:user/mysql/databases', auth: true, billed: false,
@@ -1393,7 +1462,7 @@ function endpointGroups(base) {
       endpoints: [
         {
           method: 'GET', path: '/hosting/:user/security/status', auth: true, billed: false,
-          desc: 'Aggregated security posture: Cloudflare anti-bot settings, Safe-Browsing + blacklist results, JS-challenge state and scanner-signature counts. Also reports plan-tier flags (is_gold, is_monthly) and an "eligibility" map telling you which plan-gated features this account may toggle — Visitor Captcha / Geo / JS-Challenge are Golden-only, MySQL needs a Monthly plan (not the 1-week trial), and Honeypot Traps need any Monthly plan.',
+          desc: 'Aggregated security posture: Cloudflare anti-bot settings, Safe-Browsing + blacklist results, JS-challenge state and scanner-signature counts. Also reports plan-tier flags (is_gold, is_monthly) and an "eligibility" map telling you which plan-gated features this account may toggle — Visitor Captcha / Geo / JS-Challenge are Golden-only, MySQL is available on every plan, and Honeypot Traps need any Monthly plan.',
           curl: `curl -s ${base}/hosting/mysite01/security/status \\
   -H "Authorization: Bearer YOUR_API_KEY"`,
           resp: `{ "username": "mysite01", "domain": "mysite.com", "plan": "Golden Anti-Red HostPanel (1-Month)",
@@ -1457,7 +1526,7 @@ function endpointGroups(base) {
       endpoints: [
         { method: 'POST', path: '/hosting/:user/email/test', auth: true, billed: false, desc: 'Send a test email from a mailbox to verify SMTP.', params: [['from', true, 'Local part (sender mailbox)'], ['to', true, 'Recipient address']], curl: `curl -s -X POST ${base}/hosting/mysite01/email/test \\
   -H "Authorization: Bearer YOUR_API_KEY" -H "Content-Type: application/json" -d '{"from":"info","to":"you@example.com"}'`, resp: `{ "success": true, "messageId": "…", "message": "Test email sent to you@example.com" }` },
-        { method: 'GET', path: '/hosting/:user/mysql/phpmyadmin', auth: true, billed: false, desc: 'Mint a one-click phpMyAdmin SSO URL (live mode only; Premium/Gold plans).', curl: `curl -s ${base}/hosting/mysite01/mysql/phpmyadmin \\
+        { method: 'GET', path: '/hosting/:user/mysql/phpmyadmin', auth: true, billed: false, desc: 'Mint a one-click phpMyAdmin SSO URL (live mode only; all plans).', curl: `curl -s ${base}/hosting/mysite01/mysql/phpmyadmin \\
   -H "Authorization: Bearer YOUR_API_KEY"`, resp: `{ "status": 1, "url": "https://server:2083/cpsess…/3rdparty/phpMyAdmin/", "expires": 1767225600 }` },
         { method: 'POST', path: '/hosting/:user/subdomains/bulk-create', auth: true, billed: false, desc: 'Create up to 50 subdomains in one call (also creates Cloudflare tunnel CNAMEs).', params: [['subdomains', true, 'Array or comma/newline-separated string'], ['rootdomain', false, 'Defaults to the primary domain']], curl: `curl -s -X POST ${base}/hosting/mysite01/subdomains/bulk-create \\
   -H "Authorization: Bearer YOUR_API_KEY" -H "Content-Type: application/json" -d '{"subdomains":"shop,blog,api"}'`, resp: `{ "results": [ { "subdomain": "shop", "fqdn": "shop.mysite.com", "success": true } ], "summary": { "total": 3, "succeeded": 3, "failed": 0 } }` },
@@ -1494,7 +1563,10 @@ const ERRORS = [
   ['404', 'not_found', 'The resource does not exist or is not owned by your account.'],
   ['400', 'invalid_body / invalid_upgrade_target', 'Request body missing/invalid (e.g. captcha needs {enabled:bool}); or plan_id is not a valid upgrade target (response lists the available targets).'],
   ['403', 'gold_plan_required / gold_only', 'Visitor Captcha & Geo are exclusive to the Golden Anti-Red HostPanel — the account is not on a Gold plan.'],
-  ['403', 'mysql_requires_monthly', 'MySQL management requires the Premium (1-Month) or Golden plan — the 7-day trial is not eligible.'],
+  ['409', 'app_exists', 'A one-click app is already installing or installed at that path on the hosting account (the response includes it as "app").'],
+  ['400', 'invalid_app / invalid_path / invalid_email', 'One-click app request is invalid: only "wordpress" is available; path may contain letters, numbers, -, _ and /; admin_email must be a valid address.'],
+  ['409', 'app_not_ready', 'The one-click app has not finished installing (state must be "ready").'],
+  ['404', 'app_not_found', 'No such one-click app on that hosting account.'],
   ['403', 'protected_file', 'An Anti-Red protected file (.htaccess / .user.ini / .antired-challenge.php in public_html) cannot be modified or deleted via the API.'],
   ['409', 'no_cloudflare', 'The domain is not on Cloudflare, so Visitor Captcha cannot be toggled.'],
   ['409', 'no_upgrade_path', 'The account is already on the top tier — no higher plan to upgrade to.'],

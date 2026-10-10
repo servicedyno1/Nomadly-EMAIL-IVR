@@ -1,11 +1,11 @@
 'use strict'
-// Per-service change-activity log behind GET /activity (actor api | bot | system).
+// Per-service change-activity log behind GET /activity (actor api | bot | panel | system).
 // Entries expire after RETENTION_DAYS via a TTL index. Writes are best-effort and never throw.
 const crypto = require('crypto')
 
 const COLLECTION = 'resellerActivity'
 const RETENTION_DAYS = 90
-const ACTORS = ['api', 'bot', 'system']
+const ACTORS = ['api', 'bot', 'panel', 'system']
 const TYPES = ['hosting', 'vps', 'rdp', 'domain', 'account']
 const CASE_INSENSITIVE = ['hosting', 'domain']
 const _indexed = new WeakSet()
@@ -58,7 +58,7 @@ function parseFilters(q = {}) {
   }
   if (q.actor) {
     f.actor = String(q.actor).toLowerCase()
-    if (!ACTORS.includes(f.actor)) throw new ActivityQueryError('invalid_actor', 'actor must be api, bot or system.')
+    if (!ACTORS.includes(f.actor)) throw new ActivityQueryError('invalid_actor', 'actor must be api, bot, panel or system.')
   }
   if (q.action) f.action = String(q.action).trim().slice(0, 64)
   for (const k of ['since', 'until']) {
