@@ -28,6 +28,8 @@ const BACKOFF_MS = [2000, 6000, 12000]
 const EVENTS = [
   'hosting.provisioned', 'hosting.provision_failed',
   'hosting.grace_start', 'hosting.suspended', 'hosting.deleted', 'hosting.auto_renew_failed',
+  // Hosting plan change applied (Premium <-> Golden, or weekly -> monthly with a fresh 30-day term)
+  'hosting.plan_changed',
   'vps.provisioned', 'vps.provision_failed', 'vps.grace_start', 'vps.deleted',
   'rdp.provisioned', 'rdp.provision_failed', 'rdp.grace_start', 'rdp.deleted',
   // In-place plan change (resize) finished / failed (failed changes are auto-refunded)

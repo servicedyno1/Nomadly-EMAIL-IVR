@@ -304,10 +304,15 @@ function createResellerApi(deps = {}) {
       state = 'suspended'
     }
 
-    let renewable = true, reason = null
+    let renewable = true, reason = null, renewAvailableAt = null
     if (terminated) { renewable = false; reason = 'account_terminated' }
     else if (price != null && duration != null && (!(price > 0) || !(duration > 0))) { renewable = false; reason = 'pricing_unavailable' }
-    return { state, terminated, suspended, grace, renewable, renew_blocked_reason: reason }
+    else if (duration != null) {
+      // Weekly plans renew one week at a time, only once 7 days or fewer are left.
+      const wb = hostingPlanChange.weeklyRenewBlock(acct, { durationDays: duration })
+      if (wb) { renewable = false; reason = wb.renew_blocked_reason; renewAvailableAt = wb.renew_available_at || null }
+    }
+    return { state, terminated, suspended, grace, renewable, renew_blocked_reason: reason, renew_available_at: renewAvailableAt }
   }
 
   const VPS_TERMINAL = ['CANCELLED', 'DESTROYED', 'destroyed', 'DELETED']
@@ -1745,6 +1750,7 @@ function createResellerApi(deps = {}) {
           grace: (provisioning || provFailed) ? null : lc.grace,
           renewable: (provisioning || provFailed) ? false : lc.renewable,
           renew_blocked_reason: provisioning ? 'provisioning' : (provFailed ? 'provision_failed' : lc.renew_blocked_reason),
+          renew_available_at: (provisioning || provFailed) ? null : lc.renew_available_at,
           ...(provisioning || provFailed ? { provision_state: d.provisionState } : {}),
           ...(provFailed ? { provision_failed_reason: d.provisionFailedReason || 'provision_failed' } : {}),
           created_at: d.createdAt || null,
@@ -1888,6 +1894,14 @@ function createResellerApi(deps = {}) {
     const unitPrice = Number(getPlanPrice(acct))
     const duration = Number(getPlanDuration(acct.plan))
     if (!unitPrice || !duration) return res.status(400).json({ error: 'pricing_failed', renew_blocked_reason: 'pricing_unavailable', message: 'Could not determine a renewal price/duration for this plan. Contact support.' })
+    // Weekly plans: one week at a time, only once 7 days or fewer are left (blocked BEFORE any charge,
+    // dry_run included) — a weekly account therefore never holds more than ~14 days.
+    const rawPeriods = parseInt(req.body?.periods, 10)
+    const weeklyBlock = hostingPlanChange.weeklyRenewBlock(acct, { durationDays: duration, periods: Number.isFinite(rawPeriods) ? rawPeriods : 1 })
+    if (weeklyBlock) {
+      const { status, ...body } = weeklyBlock
+      return res.status(status).json({ ...body, id: acct._id, username: acct._id, plan: acct.plan, expires_at: acct.expiryDate ? new Date(acct.expiryDate).toISOString() : null })
+    }
     const priceUsd = +(unitPrice * periods).toFixed(2)
 
     // No-charge pre-flight (works on a LIVE key too): report price + renewability, change nothing.
@@ -1922,10 +1936,16 @@ function createResellerApi(deps = {}) {
         const currentExpiry = acct.expiryDate ? new Date(acct.expiryDate) : now
         const base = currentExpiry > now ? currentExpiry : now
         const newExpiry = new Date(base.getTime() + duration * periods * 86400000)
-        await col('cpanelAccounts').updateOne({ _id: acct._id }, {
+        // Compare-and-set: only extend if the expiry AND plan are still what we priced. A concurrent
+        // renewal / plan change that landed first makes this a no-op → {success:false} → auto-refund
+        // (prevents "charged twice, extended once" and renewing a just-changed plan at the old price).
+        const upd = await col('cpanelAccounts').updateOne({ _id: acct._id, expiryDate: acct.expiryDate, plan: acct.plan }, {
           $set: { expiryDate: newExpiry, expiryNotified: false, lastRenewedAt: now, suspended: false, renewalCount: (acct.renewalCount || 0) + periods },
           $unset: { suspendedAt: '', deleted: '', deletedAt: '', cancelledByUser: '', deletedBy: '', expiryUserNotified: '' },
         })
+        if (!upd || upd.matchedCount === 0) {
+          return { success: false, error: 'This account was just renewed or changed by another request, so this renewal was not applied (refunded). Re-read GET /hosting/:user and retry if still needed.' }
+        }
         if (acct.suspended) { try { await whm.unsuspendAccount(acct.cpUser) } catch (_) {} }
         try { require('./anti-red-service').deployFullProtection(acct.cpUser, acct.domain, acct.plan).catch(() => {}) } catch (_) {}
         return { success: true, id: acct._id, username: acct._id, domain: acct.domain, plan: acct.plan, periods, duration_days: duration * periods, expires_at: newExpiry.toISOString() }
@@ -2116,7 +2136,7 @@ function createResellerApi(deps = {}) {
           expires_at: exp.toISOString(), days_until_expiry: days,
           status: lc.state === 'grace' ? 'grace' : bucket(days),
           state: lc.state, suspended: lc.suspended, auto_renew: hp.autoRenew !== false,
-          renewable: lc.renewable, renew_blocked_reason: lc.renew_blocked_reason,
+          renewable: lc.renewable, renew_blocked_reason: lc.renew_blocked_reason, renew_available_at: lc.renew_available_at,
         }
         if (lc.grace) { item.in_grace = true; item.expired_at = lc.grace.expired_at; item.delete_at = lc.grace.delete_at; item.days_until_deletion = lc.grace.days_remaining }
         items.push(item)
@@ -2309,18 +2329,38 @@ function createResellerApi(deps = {}) {
   // (manual renew lives above at POST /hosting/:user/renew — the periods-aware,
   //  dry-run-capable handler; the earlier duplicate here was dead code and removed.)
   // ════════════════════════════════════════════════════════
-  // Plan change (upgrade/downgrade) — upgrades charge the pro-rata difference for the days left,
-  // downgrades apply immediately with no refund; the expiry date never moves and the new price
-  // applies from the next renewal. Expired accounts must renew first.
+  // Plan change rules (see hosting-plan-change.js):
+  //   • Premium Monthly <-> Golden Monthly: upgrade charges the pro-rata difference for the days left,
+  //     downgrade is free with no refund; the expiry date never moves; new price from next renewal.
+  //   • Weekly -> Monthly: unused weekly days are credited, the rest of the monthly price is charged
+  //     now and a fresh 30-day term starts today.
+  //   • Monthly -> Weekly: never allowed (hidden from plan-options, 409 weekly_downgrade_not_allowed).
+  // Expired accounts must renew first; suspended accounts must be unsuspended first.
   const HOSTING_PLAN_CHANGE_POLICY = {
-    upgrade: 'Applies immediately. Charged now: (new price per day - current price per day) x days left in the term (= monthly difference x days left / 30 between monthly plans).',
-    downgrade: 'Applies immediately. No refund or credit for the current term.',
-    renewal: 'The new plan price and cycle length apply from the next renewal. The expiry date does not change.',
+    upgrade: 'Premium Monthly -> Golden Monthly. Applies immediately. Charged now: (new monthly price - current monthly price) x days left / 30. The expiry date does not change.',
+    downgrade: 'Golden Monthly -> Premium Monthly. Applies immediately. No refund or credit for the current term. The expiry date does not change. Blocked while the account has more addon domains than the target plan allows.',
+    weekly_to_monthly: 'Weekly -> Premium Monthly or Golden Monthly. Applies immediately. The unused weekly days are credited (weekly price x days left / 7), the rest of the monthly price is charged now (monthly price - credit) and a fresh 30-day term starts today.',
+    monthly_to_weekly: 'Never allowed. A monthly plan cannot be switched to the weekly plan (409 weekly_downgrade_not_allowed).',
+    renewal: 'Renewals always use the plan the account is on at renewal time: monthly plans renew for 30 days at renewal_price_usd. Weekly plans renew one week at a time, once 7 days or fewer are left.',
   }
+  const HOSTING_PLAN_LOCK_MS = 10 * 60000
   function hostingPlanChangeError(res, e) {
     if (!(e instanceof hostingPlanChange.HostingPlanChangeError)) throw e
     return res.status(e.status).json({ error: e.code, message: e.message })
   }
+  // Atomic per-account lock so two concurrent change requests can never both charge. A lock older
+  // than HOSTING_PLAN_LOCK_MS (crashed request) is considered stale and can be taken over.
+  async function lockHostingPlanChange(id) {
+    const now = new Date()
+    const lockId = crypto.randomUUID()
+    const doc = await col('cpanelAccounts').findOneAndUpdate(
+      { _id: id, $or: [{ planChangeLock: { $exists: false } }, { planChangeLock: null }, { 'planChangeLock.at': { $lt: new Date(now.getTime() - HOSTING_PLAN_LOCK_MS) } }] },
+      { $set: { planChangeLock: { id: lockId, at: now } } },
+      { returnDocument: 'after', includeResultMetadata: false },
+    )
+    return doc ? { doc, lockId } : null
+  }
+  const unlockHostingPlanChange = (id, lockId) => col('cpanelAccounts').updateOne({ _id: id, 'planChangeLock.id': lockId }, { $unset: { planChangeLock: '' } }).catch(() => {})
 
   router.get('/hosting/:user/plan-options', apiKeyAuth, h(async (req, res) => {
     const acct = await loadOwnedCpanel(req, req.params.user)
@@ -2336,41 +2376,76 @@ function createResellerApi(deps = {}) {
     let q
     try { q = hostingPlanChange.hostingQuote(acct, hostingPlans(), req.body?.plan_id) } catch (e) { return hostingPlanChangeError(res, e) }
     if (acct.suspended) return res.status(409).json({ error: 'account_suspended', message: 'Unsuspend the account first (POST /hosting/:user/unsuspend), then change the plan.' })
-    const opt = q.option
-    const target = hostingPlanById(opt.plan_id)
-    const request = { username: acct._id, domain: acct.domain, from_plan: acct.plan, to_plan: target.name, direction: opt.direction, charge_usd: opt.charge_now_usd, remaining_days: q.remaining_days }
     if (req.body?.dry_run === true) {
       const balance = await walletBalance(req.reseller.ownerChatId)
-      return res.json({ dry_run: true, product: 'hosting', action: opt.direction, username: acct._id, current: q.current, quote: opt, wallet_balance_usd: balance, sufficient_balance: balance >= opt.charge_now_usd, note: 'Pre-flight only: nothing was charged and the account was not changed.' })
+      return res.json({ dry_run: true, product: 'hosting', action: q.option.direction, username: acct._id, current: q.current, remaining_days: q.remaining_days, term_ends_at: q.term_ends_at, quote: q.option, wallet_balance_usd: balance, sufficient_balance: balance >= q.option.charge_now_usd, note: 'Pre-flight only: nothing was charged and the account was not changed.' })
     }
-    const provision = async () => {
-      try {
-        const info = await whmService.getAccountInfo(acct._id)
-        if (!info || !info.success) return { success: false, error: 'WHM account not found — cannot change the plan of a terminated/missing account.' }
-      } catch (e) { return { success: false, error: `WHM account check failed: ${e.message}` } }
-      let cr
-      try { cr = await whmService.changePackage(acct._id, target.name) }
-      catch (e) { return { success: false, error: `WHM changePackage failed: ${e.message}` } }
-      if (!cr || cr.success === false) return { success: false, error: `WHM refused the plan change: ${cr?.error || 'unknown error'}` }
-      const at = new Date()
-      await col('cpanelAccounts').updateOne({ _id: acct._id }, {
-        $set: { plan: target.name, renewalPriceUsd: target.priceUsd, planChangedAt: at, ...(opt.direction === 'upgrade' ? { upgradedAt: at, upgradedFrom: acct.plan } : { downgradedAt: at, downgradedFrom: acct.plan }) },
-        $push: { planChangeHistory: { at, from: acct.plan, to: target.name, direction: opt.direction, charged_usd: opt.charge_now_usd, via: 'api' } },
-      })
-      try {
-        require('./anti-red-service').deployFullProtection(acct._id, acct.domain, target.name)
-          .catch(e => log(`[ResellerAPI] plan-change anti-red redeploy warn for ${acct.domain}: ${e.message}`))
-      } catch (_) { /* best-effort */ }
-      return { success: true, username: acct._id, domain: acct.domain, plan: target.name, plan_id: target.id, direction: opt.direction, expires_at: q.term_ends_at, renewal_price_usd: target.priceUsd, refund_usd: 0 }
+
+    // ── Lock, then re-quote on the freshly-locked record (no stale price/expiry) ──
+    const lock = await lockHostingPlanChange(acct._id)
+    if (!lock) return res.status(409).json({ error: 'plan_change_in_progress', message: 'Another plan change for this account is already running. Wait a few seconds and re-read GET /hosting/:user/plan-options.' })
+    try {
+      const cur = lock.doc
+      try { q = hostingPlanChange.hostingQuote(cur, hostingPlans(), req.body?.plan_id) } catch (e) { return hostingPlanChangeError(res, e) }
+      if (cur.suspended) return res.status(409).json({ error: 'account_suspended', message: 'Unsuspend the account first (POST /hosting/:user/unsuspend), then change the plan.' })
+      const opt = q.option
+      const target = hostingPlanById(opt.plan_id)
+      const prevExpiry = q.term_ends_at
+      const request = { username: cur._id, domain: cur.domain, from_plan: cur.plan, to_plan: target.name, direction: opt.direction, billing: opt.billing, charge_usd: opt.charge_now_usd, unused_credit_usd: opt.unused_credit_usd, remaining_days: q.remaining_days, previous_expires_at: prevExpiry, expires_at: opt.expires_at }
+      const provision = async () => {
+        try {
+          const info = await whmService.getAccountInfo(cur._id)
+          if (!info || !info.success) return { success: false, error: 'WHM account not found — cannot change the plan of a terminated/missing account.' }
+        } catch (e) { return { success: false, error: `WHM account check failed: ${e.message}` } }
+        let cr
+        try { cr = await whmService.changePackage(cur._id, target.name) }
+        catch (e) { return { success: false, error: `WHM changePackage failed: ${e.message}` } }
+        if (!cr || cr.success === false) return { success: false, error: `WHM refused the plan change: ${cr?.error || 'unknown error'}` }
+        const at = new Date()
+        const set = { plan: target.name, renewalPriceUsd: target.priceUsd, planChangedAt: at, ...(opt.direction === 'upgrade' ? { upgradedAt: at, upgradedFrom: cur.plan } : { downgradedAt: at, downgradedFrom: cur.plan }) }
+        // Weekly → monthly starts a fresh term: new expiry + reset the expiry-reminder flags for it.
+        if (opt.expiry_changes) Object.assign(set, { expiryDate: new Date(opt.expires_at), expiryNotified: false })
+        await col('cpanelAccounts').updateOne({ _id: cur._id }, {
+          $set: set,
+          ...(opt.expiry_changes ? { $unset: { expiryUserNotified: '' } } : {}),
+          $push: { planChangeHistory: { at, from: cur.plan, to: target.name, direction: opt.direction, billing: opt.billing, charged_usd: opt.charge_now_usd, unused_credit_usd: opt.unused_credit_usd, previous_expires_at: prevExpiry, expires_at: opt.expires_at, via: 'api' } },
+        })
+        try {
+          require('./anti-red-service').deployFullProtection(cur._id, cur.domain, target.name)
+            .catch(e => log(`[ResellerAPI] plan-change anti-red redeploy warn for ${cur.domain}: ${e.message}`))
+        } catch (_) { /* best-effort */ }
+        return {
+          success: true, username: cur._id, domain: cur.domain, plan: target.name, plan_id: target.id, previous_plan: cur.plan, previous_plan_id: q.current.plan_id,
+          direction: opt.direction, billing: opt.billing, unused_credit_usd: opt.unused_credit_usd,
+          expires_at: opt.expires_at, previous_expires_at: prevExpiry, expiry_changed: !!opt.expiry_changes,
+          renewal_price_usd: target.priceUsd, renewal_days: target.durationDays, refund_usd: 0,
+        }
+      }
+      const emitChanged = (r, chargedUsd) => emitEvent(req.reseller.ownerChatId, 'hosting.plan_changed', cur._id, {
+        username: cur._id, domain: cur.domain, direction: opt.direction, billing: opt.billing,
+        from_plan: q.current.plan_id, from_plan_name: cur.plan, to_plan: target.id, to_plan_name: target.name,
+        charged_usd: chargedUsd, unused_credit_usd: opt.unused_credit_usd, refund_usd: 0,
+        previous_expires_at: prevExpiry, expires_at: r.expires_at, renewal_price_usd: target.priceUsd, via: 'api',
+      }, `${cur._id}:${Date.now()}`)
+
+      if (opt.charge_now_usd > 0) {
+        // billedProvision: wallet check → atomic debit → provision → auto-refund on failure.
+        let provisioned = null
+        const out = await billedProvision(req, res, { product: 'hosting', action: opt.direction, priceUsd: opt.charge_now_usd, request, provision: async () => { const r = await provision(); if (r && r.success) provisioned = r; return r } })
+        if (provisioned && isLive()) emitChanged(provisioned, opt.charge_now_usd)
+        return out
+      }
+      // Nothing to charge (downgrade / credit covers the new term): no wallet movement, no refund.
+      const balance = await walletBalance(req.reseller.ownerChatId)
+      if (!isLive()) return res.json({ mode: 'dry_run', product: 'hosting', action: opt.direction, price_usd: 0, wallet_balance_usd: balance, would_provision: request, note: 'Dry-run: the plan was not changed.' })
+      const r = await provision().catch(e => ({ success: false, error: e.message }))
+      await recordOrder({ keyId: req.reseller.keyId, ownerChatId: req.reseller.ownerChatId, product: 'hosting', action: opt.direction, request, priceUsd: 0, mode: 'live', status: r.success ? 'provisioned' : 'failed', ...(r.success ? { result: r } : { error: r.error }) })
+      if (!r.success) return res.status(502).json({ error: 'plan_change_failed', message: r.error })
+      emitChanged(r, 0)
+      return res.json({ mode: 'live', product: 'hosting', action: opt.direction, charged_usd: 0, wallet_balance_usd: balance, result: r })
+    } finally {
+      await unlockHostingPlanChange(acct._id, lock.lockId)
     }
-    if (opt.charge_now_usd > 0) return billedProvision(req, res, { product: 'hosting', action: opt.direction, priceUsd: opt.charge_now_usd, request, provision })
-    // Nothing to charge (downgrade / cheaper switch): no wallet movement, no refund.
-    const balance = await walletBalance(req.reseller.ownerChatId)
-    if (!isLive()) return res.json({ mode: 'dry_run', product: 'hosting', action: opt.direction, price_usd: 0, wallet_balance_usd: balance, would_provision: request, note: 'Dry-run: the plan was not changed.' })
-    const r = await provision().catch(e => ({ success: false, error: e.message }))
-    await recordOrder({ keyId: req.reseller.keyId, ownerChatId: req.reseller.ownerChatId, product: 'hosting', action: opt.direction, request, priceUsd: 0, mode: 'live', status: r.success ? 'provisioned' : 'failed', ...(r.success ? { result: r } : { error: r.error }) })
-    if (!r.success) return res.status(502).json({ error: 'plan_change_failed', message: r.error })
-    return res.json({ mode: 'live', product: 'hosting', action: opt.direction, charged_usd: 0, wallet_balance_usd: balance, result: r })
   }
   router.post('/hosting/:user/upgrade', apiKeyAuth, h(hostingPlanChangeHandler))
   router.post('/hosting/:user/change-plan', apiKeyAuth, h(hostingPlanChangeHandler))
@@ -2594,6 +2669,7 @@ function createResellerApi(deps = {}) {
       grace: lc.grace,
       renewable: lc.renewable,
       renew_blocked_reason: lc.renew_blocked_reason,
+      renew_available_at: lc.renew_available_at,
       // GAP-4 FIX (2026-09): surface WHY the account is suspended / why auto-renew didn't run, so an
       // integrator can act (e.g. auto_renew_last_error 'insufficient_funds' → top up wallet, then
       // POST /hosting/:user/renew). Populated by the hosting scheduler's expiry/auto-renew sweep.

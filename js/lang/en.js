@@ -2011,6 +2011,9 @@ planViewMultiHostUpsell: '💡 <b>Want to host more sites?</b> Upgrade to a mont
 // Renew modal
 renewModalHeader: planName => `<b>Renew Plan — ${planName}</b>`,
 renewModalCurrentExpiry: (date, isExpired) => `<b>Current Expiry:</b> ${date}${isExpired ? ' (EXPIRED)' : ''}`,
+weeklyRenewTooEarly: (domain, expiry, opensAt) => `⏳ <b>Renewal not open yet</b>\n\n<b>${domain}</b> is on the weekly plan, which renews one week at a time once 7 days or fewer are left.\n\n<b>Current expiry:</b> ${expiry}\n<b>Renewal opens:</b> ${opensAt}\n\nWant longer? Tap <b>⬆️ Upgrade Hosting</b> to move to a monthly plan.`,
+renewAlreadyApplied: domain => `ℹ️ <b>${domain}</b> was just renewed or changed by another request, so this payment was not taken. Open the plan again to see the latest expiry.`,
+
 renewModalDuration: days => `<b>Duration:</b> ${days} days`,
 renewModalConfirmHint: '✅ Confirm payment below:',
 renewModalInsufficient: '⚠️ Insufficient funds. Please deposit first.',
@@ -3729,6 +3732,7 @@ ${opts.map(o => `${o.direction === 'upgrade' ? '⬆️' : o.direction === 'downg
  doPlanNoOptions: '⚠️ No other plan can be applied to this server right now (a disk can never shrink, and some plans may be out of stock in this region).',
  doPlanUnavailable: code => ({
  expired: '⚠️ This server\'s term has ended. Renew it first, then change the plan.',
+ term_ending_soon: '⚠️ Less than 1 hour is left in this server\'s term. Renew it first, then change the plan.',
  not_active: '⚠️ This server is not active, so its plan cannot be changed right now.',
  plan_change_in_progress: '⏳ A plan change is already running for this server. You will get a message when it finishes.',
  not_supported: '⚠️ Plan changes are not available for this server.',

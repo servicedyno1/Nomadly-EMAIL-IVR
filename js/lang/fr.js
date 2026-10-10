@@ -1857,6 +1857,9 @@ planViewMultiHostUpsell: '💡 <b>Vous voulez héberger plus de sites ?</b> Pass
 // Renew modal
 renewModalHeader: planName => `<b>Renouveler le plan — ${planName}</b>`,
 renewModalCurrentExpiry: (date, isExpired) => `<b>Expiration actuelle :</b> ${date}${isExpired ? ' (EXPIRÉ)' : ''}`,
+weeklyRenewTooEarly: (domain, expiry, opensAt) => `⏳ <b>Renouvellement pas encore ouvert</b>\n\n<b>${domain}</b> est sur le forfait hebdomadaire, qui se renouvelle une semaine à la fois lorsqu'il reste 7 jours ou moins.\n\n<b>Expiration actuelle :</b> ${expiry}\n<b>Ouverture du renouvellement :</b> ${opensAt}\n\nBesoin de plus long ? Appuyez sur <b>⬆️ Mise à niveau</b> pour passer à un forfait mensuel.`,
+renewAlreadyApplied: domain => `ℹ️ <b>${domain}</b> vient d'être renouvelé ou modifié par une autre demande, ce paiement n'a donc pas été prélevé. Rouvrez le forfait pour voir la date d'expiration à jour.`,
+
 renewModalDuration: days => `<b>Durée :</b> ${days} jours`,
 renewModalConfirmHint: '✅ Confirmez le paiement ci-dessous :',
 renewModalInsufficient: '⚠️ Solde insuffisant. Veuillez d\'abord déposer.',
@@ -3530,6 +3533,7 @@ ${opts.map(o => `${o.direction === 'upgrade' ? '⬆️' : o.direction === 'downg
  doPlanNoOptions: '⚠️ Aucun autre forfait ne peut être appliqué à ce serveur pour le moment (un disque ne peut jamais être réduit et certains forfaits peuvent être en rupture dans cette région).',
  doPlanUnavailable: code => ({
  expired: '⚠️ La période de ce serveur est terminée. Renouvelez-le d\'abord, puis changez de forfait.',
+ term_ending_soon: '⚠️ Il reste moins d\'1 heure sur la période de ce serveur. Renouvelez-le d\'abord, puis changez de forfait.',
  not_active: '⚠️ Ce serveur n\'est pas actif, son forfait ne peut pas être changé pour le moment.',
  plan_change_in_progress: '⏳ Un changement de forfait est déjà en cours pour ce serveur. Vous recevrez un message une fois terminé.',
  not_supported: '⚠️ Le changement de forfait n\'est pas disponible pour ce serveur.',
