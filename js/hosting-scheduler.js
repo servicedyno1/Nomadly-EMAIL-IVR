@@ -15,6 +15,15 @@ require('dotenv').config()
 const { log } = require('console')
 const activeSlot = require('./active-slot')
 const resellerWebhooks = require('./reseller-webhooks')
+const activity = require('./reseller-activity')
+
+// Scheduler events that are also written to the per-service activity log (actor "system").
+const ACTIVITY_OF_EVENT = {
+  'hosting.renewed': 'auto_renew.charged',
+  'hosting.auto_renew_failed': 'auto_renew.failed',
+  'hosting.grace_start': 'suspend',
+  'hosting.deleted': 'delete',
+}
 
 const PREMIUM_ANTIRED_WEEKLY_PRICE = parseFloat(process.env.PREMIUM_ANTIRED_WEEKLY_PRICE) || 50
 const PREMIUM_ANTIRED_CPANEL_PRICE = parseFloat(process.env.PREMIUM_ANTIRED_CPANEL_PRICE) || 75
@@ -145,6 +154,9 @@ function initScheduler(deps) {
    */
   function notifyReseller(account, event, payload = {}, dedupKey = null) {
     if (!account || !account.chatId) return
+    if (ACTIVITY_OF_EVENT[event]) {
+      activity.record(db, { ownerChatId: account.chatId, resourceType: 'hosting', resourceId: account._id || account.cpUser, action: ACTIVITY_OF_EVENT[event], actor: 'system', details: payload })
+    }
     try {
       resellerWebhooks.emit(db, {
         chatId: account.chatId,
@@ -355,6 +367,7 @@ function initScheduler(deps) {
               )
               renewed++
               log(`[HostingScheduler] Auto-renewed ${domain} (${plan}) for ${chatId} — charged $${price}`)
+              notifyReseller(account, 'hosting.renewed', { via: 'auto_renew', charged_usd: price, previous_expires_at: expiry.toISOString(), expires_at: newExpiry.toISOString(), wallet_balance_usd: Number((remUsd || 0).toFixed(2)) }, resellerWebhooks.renewedDedupKey(account._id || account.cpUser, newExpiry))
               continue
             } else {
               // GAP-4 (2026-09): record WHY auto-renew didn't run so the reseller API can surface it
@@ -552,6 +565,7 @@ function initScheduler(deps) {
             )
             enforcedRenew++
             log(`[HostingScheduler] STARTUP ENFORCE: Auto-renewed ${domain} (${plan}) for ${chatId} — charged $${price}`)
+            notifyReseller(account, 'hosting.renewed', { via: 'auto_renew', charged_usd: price, previous_expires_at: expiry.toISOString(), expires_at: newExpiry.toISOString(), wallet_balance_usd: Number((remUsd || 0).toFixed(2)) }, resellerWebhooks.renewedDedupKey(account._id || account.cpUser, newExpiry))
             continue // Successfully renewed — skip suspend/delete
           }
         }

@@ -48,6 +48,11 @@ const { teardownHostingDomain } = require('./hosting-dns-teardown') // ownership
 const hostingDnsRepair = require('./hosting-dns-repair')          // POST /hosting/:user/dns/repair
 const { registerShortenerRoutes } = require('./reseller-shortener')      // URL shortener: buy/connect domain + link CRUD (reuses fullUrlOf/linksOf/clicksOn)
 const brandedNs = require('./branded-ns')                     // branded nameservers (ns1/ns2.hosta.sh) — reseller API default
+const activity = require('./reseller-activity')               // GET /activity (per-service change log)
+const { apiRecorder } = require('./reseller-activity-api')    // records successful API mutations (actor "api")
+const alerts = require('./reseller-alerts')                   // expiry / renewal / low-balance webhooks + sweeps
+const siteHealth = require('./reseller-site-health')          // GET /hosting/:user/health + uptime monitor
+const usageAlerts = require('./reseller-usage-alerts')        // usage-threshold levels (documented on GET /account/alerts)
 
 // Customer-facing HostPanel URL (same one the Telegram bot shows).
 function panelUrl() {
@@ -126,6 +131,7 @@ function createResellerApi(deps = {}) {
   const log = deps.log || console.log
   const notifyAdmin = deps.notifyAdmin || (async () => {})
   const router = express.Router()
+  router.use(apiRecorder(getDb))
 
   const col = (name) => {
     const db = getDb()
@@ -159,6 +165,11 @@ function createResellerApi(deps = {}) {
   }
   async function refundWallet(chatId, amountUsd) {
     return await atomicIncrement(col('walletOf'), String(chatId), 'usdIn', Math.round(amountUsd * 100) / 100)
+  }
+
+  // account.low_balance right after a debit (the 10-minute sweep is the safety net). Best-effort.
+  function lowBalanceCheck(chatId) {
+    try { alerts.checkLowBalance(getDb(), chatId, { log }).catch((e) => log(`[ResellerAPI] low-balance check: ${e.message}`)) } catch (_) { /* best-effort */ }
   }
 
   async function recordOrder(doc) {
@@ -236,6 +247,7 @@ function createResellerApi(deps = {}) {
     if (!charged) {
       return res.status(402).json({ error: 'insufficient_wallet_balance', message: 'Wallet debit was declined (insufficient funds / concurrent spend).', price_usd: price, wallet_balance_usd: balance })
     }
+    lowBalanceCheck(chatId)
 
     let result
     try {
@@ -363,6 +375,7 @@ function createResellerApi(deps = {}) {
     if (isLive()) {
       charged = await chargeWallet(chatId, price)
       if (!charged) { res.status(402).json({ error: 'insufficient_wallet_balance', message: 'Wallet debit was declined (insufficient funds / concurrent spend).', price_usd: price, wallet_balance_usd: balance }); return { ok: false } }
+      lowBalanceCheck(chatId)
     }
     return { ok: true, balance, charged, price }
   }
@@ -690,6 +703,61 @@ function createResellerApi(deps = {}) {
     const secret = (keyDoc && keyDoc.webhookSecret) || resellerWebhooks.newWebhookSecret()
     await col('resellerApiKeys').updateOne({ _id: req.reseller.keyId }, { $set: { webhookUrl: url, webhookSecret: secret } })
     res.json({ webhook_url: url, webhook_secret: secret, events: listedEvents(), delivery: WEBHOOK_DELIVERY_NOTE })
+  }))
+
+  // ── Alerts: low-balance threshold (per key) + the fixed reminder / monitor / usage settings ──
+  const ALERT_EVENTS = ['hosting.expiring', 'vps.expiring', 'rdp.expiring', 'domain.expiring', 'domain.expired', 'hosting.renewed', 'vps.renewed', 'rdp.renewed', 'domain.renewed', 'hosting.unsuspended', 'hosting.site_down', 'hosting.site_recovered', 'hosting.usage_threshold', 'vps.usage_threshold', 'rdp.usage_threshold', 'account.low_balance']
+  async function alertsView(req) {
+    const k = await col('resellerApiKeys').findOne({ _id: req.reseller.keyId }, { projection: { alerts: 1, webhookUrl: 1 } })
+    const a = (k && k.alerts) || {}
+    const threshold = Number(a.lowBalanceUsd) > 0 ? Number(a.lowBalanceUsd) : null
+    const balance = await walletBalance(req.reseller.ownerChatId)
+    return {
+      low_balance_usd: threshold,
+      wallet_balance_usd: balance,
+      below_threshold: threshold != null && balance < threshold,
+      low_balance_alerted_at: a.lowBalanceAlertedAt ? new Date(a.lowBalanceAlertedAt).toISOString() : null,
+      webhook_configured: !!(k && k.webhookUrl),
+      expiry_reminder_days: alerts.STAGES,
+      health_check: { interval_minutes: 5, failures_before_site_down: siteHealth.FAIL_THRESHOLD, auto_dns_repair: true },
+      usage_thresholds: {
+        hosting: { disk_pct: usageAlerts.HOSTING_LEVELS.disk, bandwidth_pct: usageAlerts.HOSTING_LEVELS.bandwidth, inodes_pct: usageAlerts.HOSTING_LEVELS.inodes, check_interval_minutes: 60 },
+        vps_rdp: { cpu_pct: usageAlerts.SERVER_LEVELS.cpu[0], cpu_window_minutes: 15, memory_pct: usageAlerts.SERVER_LEVELS.memory[0], disk_pct: usageAlerts.SERVER_LEVELS.disk[0], check_interval_minutes: 15 },
+      },
+      events: ALERT_EVENTS,
+    }
+  }
+  router.get('/account/alerts', apiKeyAuth, h(async (req, res) => res.json(await alertsView(req))))
+  router.put('/account/alerts', apiKeyAuth, h(async (req, res) => {
+    if (!req.body || !Object.prototype.hasOwnProperty.call(req.body, 'low_balance_usd')) {
+      return res.status(400).json({ error: 'nothing_to_update', message: 'Body: { "low_balance_usd": <number> } — or null / 0 to turn the low-balance alert off.' })
+    }
+    const raw = req.body.low_balance_usd
+    if (raw === null || raw === 0 || raw === '0') {
+      await col('resellerApiKeys').updateOne({ _id: req.reseller.keyId }, { $unset: { 'alerts.lowBalanceUsd': '', 'alerts.lowBalanceAlertedAt': '' } })
+      return res.json(await alertsView(req))
+    }
+    const n = typeof raw === 'number' ? raw : (typeof raw === 'string' && raw.trim() !== '' ? Number(raw) : NaN)
+    if (!Number.isFinite(n) || n < 0 || n > 1000000) return res.status(400).json({ error: 'invalid_low_balance_usd', message: 'low_balance_usd must be a number between 0 and 1000000 (USD), or null to turn the alert off.' })
+    await col('resellerApiKeys').updateOne({ _id: req.reseller.keyId }, { $set: { 'alerts.lowBalanceUsd': Math.round(n * 100) / 100 }, $unset: { 'alerts.lowBalanceAlertedAt': '' } })
+    lowBalanceCheck(req.reseller.ownerChatId)
+    res.json(await alertsView(req))
+  }))
+
+  // ── Per-service change-activity log (api | bot | system), newest first, kept 90 days ──
+  router.get('/activity', apiKeyAuth, h(async (req, res) => {
+    let f
+    try { f = activity.parseFilters(req.query) } catch (e) {
+      if (!(e instanceof activity.ActivityQueryError)) throw e
+      return res.status(e.status).json({ error: e.code, message: e.message })
+    }
+    const pg = await activity.list(getDb(), req.reseller.ownerChatId, f)
+    res.json({
+      filters: { resource_type: f.resourceType || null, resource_id: f.resourceId || null, actor: f.actor || null, action: f.action || null, since: f.since ? f.since.toISOString() : null, until: f.until ? f.until.toISOString() : null, limit: f.limit },
+      retention_days: activity.RETENTION_DAYS,
+      count: pg.items.length, has_more: pg.has_more, next_cursor: pg.next_cursor,
+      activity: pg.items,
+    })
   }))
 
   // ── Bot pricing catalog (the same prices the Telegram bot charges) ──
@@ -2089,6 +2157,23 @@ function createResellerApi(deps = {}) {
     res.json({ mode: apply ? 'live' : 'dry_run', username: r.username, domains: r.domains.map(({ zone_id, ...d }) => d) })
   }))
 
+  // Live origin health (probed through the tunnel, not the decoy) + the uptime monitor's state. Read-only:
+  // the background monitor (every 5 min) is what auto-repairs DNS and fires site_down / site_recovered.
+  router.get('/hosting/:user/health', apiKeyAuth, h(async (req, res) => {
+    const acct = await loadOwnedCpanel(req, req.params.user)
+    if (!acct) return res.status(404).json({ error: 'not_found' })
+    const lc = hostingLifecycle(acct)
+    const notLive = acct.provisionState === 'provisioning' || acct.provisionState === 'failed' || lc.state === 'terminated'
+    if (notLive) return res.status(409).json({ error: 'account_not_live', state: acct.provisionState === 'provisioning' || acct.provisionState === 'failed' ? acct.provisionState : lc.state, message: 'Health is available for provisioned, non-terminated accounts.' })
+    if (lc.suspended || acct.maintenanceMode) return res.status(409).json({ error: lc.suspended ? 'account_suspended' : 'maintenance_mode', state: lc.suspended ? lc.state : 'maintenance', message: 'The site is intentionally offline; bring it online first.' })
+    const [hc, mon] = await Promise.all([siteHealth.checkHealth(acct, { deep: true }), col(siteHealth.MONITOR).findOne({ _id: acct._id })])
+    if (hc.dns.apex === false || hc.dns.www === false) {
+      try { const r = await siteHealth.probes.inspectDomain(hc.domain); hc.dns.cloudflare = { status: r.status, missing: r.missing || [] } } catch (e) { hc.dns.cloudflare = { status: 'error', error: e.message } }
+      hc.dns.repair_url = `/hosting/${acct._id}/dns/repair`
+    }
+    res.json({ username: acct._id, ...hc, monitor: { enabled: true, interval_minutes: 5, failures_before_site_down: siteHealth.FAIL_THRESHOLD, ...(siteHealth.monitorView(mon) || { status: 'unknown', consecutive_failures: 0, down_since: null, last_ok_at: null, last_checked_at: null, last_dns_repair_at: null }) } })
+  }))
+
   router.get('/hosting/:user/login', apiKeyAuth, h(async (req, res) => {
     const acct = await loadOwnedCpanel(req, req.params.user)
     if (!acct) return res.status(404).json({ error: 'not_found' })
@@ -2773,9 +2858,11 @@ function createResellerApi(deps = {}) {
   try {
     activeSlot.singletonInterval('reseller-provision-worker', () => { provisionWorkerTick().catch((e) => log(`[ResellerAPI] worker tick: ${e.message}`)) }, PROVISION_WORKER_MS)
   } catch (e) { log(`[ResellerAPI] provision worker init warn: ${e.message}`) }
+  // Expiry / renewal / low-balance, uptime and usage alert sweeps (production + active slot only).
+  try { alerts.start({ getDb, log }) } catch (e) { log(`[ResellerAPI] alert sweeps init warn: ${e.message}`) }
 
   log(`[ResellerAPI] mounted at /reseller/v1 (mode=${mode()})`)
   return router
 }
 
-module.exports = { createResellerApi, hostingPlans }
+module.exports = { createResellerApi, hostingPlans, parseHostingUsage }

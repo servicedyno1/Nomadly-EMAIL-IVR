@@ -1,0 +1,34 @@
+{
+  "summary": "Backend-only verification of Phase 1 Nomadly fixes: Spamhaus/blacklist IP-source fix, anti-red .htaccess composeHtaccess preservation + SPA fallback, en/fr/hi/zh translations for renew flow + dates, admin price-repair customer notifications, and the new weekly hosting-billing-audit (report-only + GET /admin/hosting-billing-audit endpoint). All targeted and regression suites pass; endpoint auth and JSON shape verified against the running node sandbox.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": { "ui_bugs": [], "integration_issues": [], "design_issues": [] },
+  "test_report_links": [
+    "/app/js/tests/test_phase1_fixes_2026-10.js",
+    "/app/js/tests/test_hosting_dns_teardown_2026-10.js",
+    "/app/js/tests/test_upgrade_renewal_preview_2026-10.js",
+    "/app/js/tests/test_i18n_coverage.js",
+    "/app/js/tests/test_anti_red_scanner_redirect.js",
+    "/app/js/tests/test_anti_red_stealth_mode.js",
+    "/app/js/tests/test_antired_cron_case_sensitivity.js",
+    "/app/js/tests/test_whm_retry_and_antired_tunnel.js"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "safe-browsing-service.checkBlacklists correctly disambiguates listed vs unavailable: only 127.0.0.2-127.0.0.255 count as listed; 127.255.255.x and ESERVFAIL/EREFUSED/ETIMEOUT go to unavailable; ENOTFOUND/ENODATA = clean. Origin-ip precedence (origin > hostname-resolve > domain-resolve) is honored and ip_source is reported accurately.",
+    "anti-red-service.composeHtaccess is idempotent: compose(compose(x))===compose(x) verified. Preserves WordPress / LSCACHE / W3TC / 'Custom Rules' / CORS blocks and FallbackResource directives; strips old 'SPA Fallback (auto)' before re-emitting; cPanel PHP handler stays first, anti-red rules second, SPA/preserved blocks after so scanner cloaking runs first. SPA auto-block only added when spa=true, no WordPress block, no FallbackResource, and detectSpaRoot() identifies CRA/Vite/Vue/Angular shell (not Next.js export / plain HTML).",
+    "deployHtaccess detects both build/ (CRA) and dist/ (Vite) static roots; readPublicHtmlFile is used consistently; downstream readers (deployJSChallenge build regex, cpanel-routes prepend-directive append, hosting-health-check syntax fixers) are not affected by the new preserved-block emission because the block boundaries are standard '# BEGIN X … # END X' markers that those readers already tolerate.",
+    "lang/{en,fr,hi,zh}.js all define fmtDate (UTC-formatted, no 'Invalid Date' when d is null/invalid — returns '—'), renewTerminated(hostingBtn), renewalPriceChangedNotice(domain,plan,oldPrice,newPrice,nextDate|null,autoRenew). Null nextDate renders a localized placeholder (not 'undefined'). _index.js renew terminated path uses trans('t.renewTerminated', …); myHostingPlans, billingMenu, viewHostingPlanDetails all route dates through trans('t.fmtDate', …).",
+    "POST /admin/hosting-renewal-price-repair?apply=true: per-customer notifier skips rows where source==='reseller_api' or chat_id is missing, resolves state.userLanguage per user, sends t.renewalPriceChangedNotice, and `customers_notified` count is returned. &notify_customers=false short-circuits the loop. hosting-renewal-price-repair.js row objects now include `source` so the notifier can discriminate.",
+    "hosting-billing-audit.runAudit is report-only (no writes verified by seeding a doc, running audit, and asserting no mutations). Live filter: not deleted, provisionState!=='failed', terminatedOnWhm!==true. Six categories computed; needs_action sums the first four. formatAdminSummary returns Telegram HTML. schedule.scheduleJob('0 9 * * 1') is wired in _index.js (~L5564) alongside the day-12 upgrade credit nudge schedule.",
+    "GET /admin/hosting-billing-audit (_index.js L46484-46496): returns 403 without key, JSON with key; placed before /admin/contabo-recon-preview as spec'd. Verified live on localhost:5000 with first-16-chars-of-SESSION_SECRET key → {ok:true, counts:{...}, needs_action:0, ...}. &notify=true path calls notifyAdmin(formatAdminSummary(result)).",
+    "Suite results: test_phase1_fixes_2026-10 20/20, test_hosting_dns_teardown_2026-10 19/19, test_upgrade_renewal_preview_2026-10 54/54, test_i18n_coverage all green, test_anti_red_scanner_redirect PASS, test_anti_red_stealth_mode PASS, test_antired_cron_case_sensitivity 4/4, test_whm_retry_and_antired_tunnel 18/18. Jest tests/legacy: 33 suites / 449 passed / 1 skipped / 0 failed. curl :5000/health healthy."
+  ],
+  "updated_files": [],
+  "success_rate": { "backend": "100%", "frontend": "n/a (skipped per request)" },
+  "test_credentials": "sandbox admin key = first 16 chars of SESSION_SECRET from /app/backend/.env (per spec)",
+  "seed_data_creation": "None (test suites manage ephemeral collections; existing 'premtest' bot doc in db 'test' surfaced as expected under 'no_price_lock' info bucket).",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Phase 1 fixes verified. One operational note: the running node service required a `supervisorctl restart nodejs` to pick up the new GET /admin/hosting-billing-audit route because the process predated the file edits (files mtime 12:12 vs node uptime 2h46m). After restart, endpoint returned 403 without key and the expected JSON (ok,at,checked,counts{...},needs_action,arrays) with key. Pre-existing legacy failing suites (test_reseller_api_grace_2026-06, test_vps_scheduler_fix, test_cancellation_flows) are out of scope and were not re-run.",
+  "rca of the issue": "N/A — this iteration is feature verification, not an incident."
+}

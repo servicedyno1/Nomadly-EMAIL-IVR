@@ -186,4 +186,32 @@ async function rdpUsage(rec, period) {
   })
 }
 
-module.exports = { PERIODS, vpsUsage, rdpUsage, cpuStats, rateStats, memoryStats, diskStats, _cache }
+// Lean 15-minute snapshot for usage alerts → { cpu, memory, disk } percentages (null = no data).
+// VPS: 5 DigitalOcean metric reads, no droplet/bandwidth calls. RDP: our agent's samples only (no DO calls).
+async function alertSnapshot(rec, windowSec = 900) {
+  const end = Math.floor(Date.now() / 1000)
+  const start = end - windowSec
+  const avg = (vals) => (vals.length ? round(clampPct(vals.reduce((a, b) => a + b, 0) / vals.length)) : null)
+  if (rec.isRDP) {
+    const server = await rdpServerOf(rec)
+    const col = doRdp.agentMetricsCollection()
+    const hist = col ? await col.find({ server_id: server.server_id, at: { $gte: new Date(start * 1000) } }).limit(1000).toArray() : []
+    const memPct = (m) => (num(m.mem_total) > 0 && num(m.mem_free) != null ? 100 * (1 - num(m.mem_free) / num(m.mem_total)) : null)
+    const cpus = hist.map((h) => num(h.cpu_percent)).filter((v) => v != null)
+    const now = server.agent_metrics || null
+    const fresh = !!(now && now.at && Date.now() - new Date(now.at).getTime() < AGENT_FRESH_MS)
+    return {
+      cpu: cpus.length >= 2 ? avg(cpus) : null,
+      memory: avg(hist.map(memPct).filter((v) => v != null)),
+      disk: fresh && num(now.disk_total) > 0 ? round(clampPct(100 * (1 - num(now.disk_free) / num(now.disk_total)))) : null,
+    }
+  }
+  const id = instanceIdOf(rec).replace(/^do-/i, '')
+  const [cpu, mt, ma, fs, ff] = await Promise.all(['cpu', 'memory_total', 'memory_available', 'filesystem_size', 'filesystem_free'].map((n) => _metric(n, id, start, end).catch(() => [])))
+  const c = cpuStats(cpu)
+  const m = memoryStats(mt, ma)
+  const d = diskStats(fs, ff)
+  return { cpu: c ? c.percent_avg : null, memory: m ? m.percent_avg : null, disk: d ? d.percent : null }
+}
+
+module.exports = { PERIODS, vpsUsage, rdpUsage, alertSnapshot, cpuStats, rateStats, memoryStats, diskStats, _cache }
