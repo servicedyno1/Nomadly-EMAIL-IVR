@@ -266,14 +266,17 @@ antiRed.deployFullProtection = async () => ({ success: true })
   console.log('hosting quote')
   const hp = require('../reseller-api').hostingPlans()
   const acct = (over = {}) => ({ _id: 'h1', plan: 'Premium Anti-Red HostPanel (30 Days)', expiryDate: new Date(Date.now() + 15 * DAY), addonDomains: [], ...over })
-  await t('premium → golden = (100-75) × 15/30; golden → premium free; weekly → monthly $0 now', () => {
+  await t('premium → golden = (100-75) × 15/30; golden → premium free; weekly → monthly = monthly − unused weekly credit, fresh 30 days', () => {
     const now = new Date()
     const up = hpc.hostingQuote(acct(), hp, 'golden-monthly', now).option
     assert.strictEqual(up.direction, 'upgrade'); assert.ok(Math.abs(up.charge_now_usd - 12.5) < 0.02, up.charge_now_usd)
+    assert.strictEqual(up.billing, 'pro_rata'); assert.strictEqual(up.expiry_changes, false)
     const down = hpc.hostingQuote(acct({ plan: 'Golden Anti-Red HostPanel (30 Days)' }), hp, 'premium-monthly', now).option
     assert.strictEqual(down.direction, 'downgrade'); assert.strictEqual(down.charge_now_usd, 0); assert.strictEqual(down.refund_usd, 0)
-    const wk = hpc.hostingQuote(acct({ plan: 'Premium Anti-Red (1-Week)', expiryDate: new Date(Date.now() + 5 * DAY) }), hp, 'golden-monthly', now).option
-    assert.strictEqual(wk.direction, 'upgrade'); assert.strictEqual(wk.charge_now_usd, 0)
+    const wk = hpc.hostingQuote(acct({ plan: 'Premium Anti-Red (1-Week)', expiryDate: new Date(now.getTime() + 5 * DAY) }), hp, 'golden-monthly', now).option
+    assert.strictEqual(wk.direction, 'upgrade'); assert.strictEqual(wk.billing, 'new_term')
+    assert.strictEqual(wk.unused_credit_usd, 21.43); assert.strictEqual(wk.charge_now_usd, 78.57) // 100 − 30 × 5/7
+    assert.strictEqual(new Date(wk.expires_at).getTime(), now.getTime() + 30 * DAY)
   })
   await t('hosting guards: expired, too many addons, same plan', () => {
     const code = (fn) => { try { fn(); return 'ok' } catch (e) { return e.code } }

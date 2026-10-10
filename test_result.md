@@ -9,6 +9,45 @@
 #====================================================================================================
 
 #====================================================================================================
+# CURRENT TASK (2026-10-10) — Plan-change rules (hosting/VPS/RDP) + weekly renew cap + race fixes + API docs
+#====================================================================================================
+current_task_2026_10_10_plan_change_rules: |
+  User request: (1) reseller API hosting plan switching: weekly → Premium Monthly or Golden Monthly allowed,
+  Premium ↔ Golden allowed, NEVER downgrade to weekly from any plan. (2) explain/ensure VPS + RDP plan changes
+  reuse the SAME DigitalOcean droplet (in-place resize) for upgrade + downgrade, incl. 1/2/3-month RDP terms.
+  User decisions: monthly→weekly hidden from plan-options + 409 weekly_downgrade_not_allowed; weekly→monthly =
+  monthly price − unused weekly credit (weekly price × days left / 7) with a FRESH 30-day term; Premium↔Golden
+  unchanged (pro-rata, expiry never moves); RDP upgrade pricing unchanged (1-month list diff × days/30);
+  bot Golden→Premium NOT added; weekly renews 1 week at a time and only once ≤ 7 days left (API AND bot);
+  add hosting.plan_changed webhook; make /apidoc helpful for developers.
+  Implemented:
+    - js/hosting-plan-change.js: shorter-cycle targets hidden; weekly→monthly "new_term" billing (+legacy
+      safety net: credit > monthly price → $0 and credit converted into days ≥ 30); weeklyRenewBlock().
+    - js/reseller-api.js: hosting plan change atomic lock (cpanelAccounts.planChangeLock, 10-min stale takeover)
+      + re-quote on locked doc + new expiry/reminder reset + history + hosting.plan_changed webhook; renew
+      weekly guard (400 weekly_single_period_only / 409 weekly_renew_too_early + renew_available_at) and
+      compare-and-set (concurrent renew → one applied, loser refunded); hostingLifecycle exposes
+      renew_available_at on GET /hosting/:user, GET /hosting list, GET /renewals.
+    - js/reseller-webhooks.js: EVENTS += hosting.plan_changed.
+    - js/hosting-scheduler.js: auto-renew skips accounts with a fresh planChangeLock or plan/price changed mid-sweep.
+    - js/do-plan-change.js: VPS/RDP plan change requires ≥ 1 h left in term (409 term_ending_soon).
+    - js/_index.js: VPS auto-renew query skips planChange running/reconciling; bot hosting "Renew Now" weekly
+      guard (modal + pay step), overdraft-safe debit check, compare-and-set with debit reversal.
+    - js/lang/{en,fr,hi,zh}.js: weeklyRenewTooEarly, renewAlreadyApplied, doPlanUnavailable.term_ending_soon.
+    - js/apidoc-page.js: new "Plan changes" guide section (#plan-changes, live prices) + updated endpoint docs,
+      webhook event lists, error table.
+  Self-contained tests (stubbed WHM/DO, throw-away local DB, in-process API in LIVE mode):
+    node js/tests/test_hosting_plan_rules_2026-10.js   → 23 passed
+    node js/tests/test_do_plan_change_2026-10.js       → 28 passed
+    node js/tests/test_i18n_coverage.js                → passed
+  Pre-existing unrelated failures (user said do NOT fix): test_reseller_api_grace_2026-06 (live smoke test w/
+  hardcoded key + fixtures from an old pod), test_cancellation_flows (provider default changed to OVH + shared
+  fake collection), test_reseller_site_status_2026-06 (assumes SKIP_WEBHOOK_SYNC toggles dry-run).
+  ⚠️ This sandbox runs the reseller API in LIVE mode (RESELLER_API_LIVE=true from the vault) against REAL
+  DigitalOcean/WHM accounts — testers must NOT create API keys and call mutating endpoints on the running server.
+
+
+#====================================================================================================
 # CURRENT TASK (2026-10-08e) — OPS: replace cloakhost@tutamail.com → gidineter@gmail.com on PROD [done, verified]
 #====================================================================================================
 current_task_2026_10_08e_registrant_email_prod: |

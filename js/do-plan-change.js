@@ -10,6 +10,8 @@ const doVps = require('./digitalocean-service')
 const doRdp = require('./digitalocean-rdp-service')
 
 const DAY_MS = 86400000
+// Plan changes need at least this much term left (a resize must finish well before end_time).
+const MIN_TERM_LEFT_MS = 60 * 60 * 1000
 const T = {
   poll: Number(process.env.DO_RESIZE_POLL_MS) || 5000,
   shutdownMs: 120000,
@@ -69,6 +71,8 @@ function _checkRecord(rec, now) {
   if (rec.planChange && ['running', 'reconciling'].includes(rec.planChange.status)) throw new PlanChangeError('plan_change_in_progress', 'A plan change is already running for this server.')
   const end = rec.end_time ? new Date(rec.end_time) : null
   if (!end || isNaN(end.getTime()) || end <= now) throw new PlanChangeError('expired', 'The current term has ended — renew first, then change the plan.')
+  // A resize takes 2-30 min; never let it overlap the expiry/auto-renew/grace sweeps at end_time.
+  if (end.getTime() - now.getTime() < MIN_TERM_LEFT_MS) throw new PlanChangeError('term_ending_soon', 'Less than 1 hour is left in the current term — renew first, then change the plan.')
   return end
 }
 

@@ -15859,6 +15859,13 @@ All verified numbers generated during sourcing.`))
       const expiry = plan.expiryDate ? new Date(plan.expiryDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'
       const isExpired = plan.expiryDate && new Date(plan.expiryDate) < new Date()
 
+      // Weekly plans renew one week at a time, only once 7 days or fewer are left.
+      const weeklyBlock = require('./hosting-plan-change').weeklyRenewBlock(plan, { durationDays: duration })
+      if (weeklyBlock) {
+        const opensAt = new Date(weeklyBlock.renew_available_at).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'UTC' }) + ' UTC'
+        return send(chatId, trans('t.weeklyRenewTooEarly', domain, expiry, opensAt), k.of([[user.upgradeHostingPlan], [user.backToMyHostingPlans]]), { parse_mode: 'HTML' })
+      }
+
       const canPay = usdBal >= price
 
       let text = trans('t.renewModalHeader', plan.plan) + '\n\n'
@@ -17030,6 +17037,15 @@ All verified numbers generated during sourcing.`))
       const duration = getPlanDuration(plan.plan)
       const { usdBal } = await getBalance(walletOf, chatId)
 
+      // Weekly plans renew one week at a time, only once 7 days or fewer are left (re-checked at pay time).
+      const weeklyBlock = require('./hosting-plan-change').weeklyRenewBlock(plan, { durationDays: duration })
+      if (weeklyBlock) {
+        await set(state, chatId, 'action', 'none')
+        const expiryTxt = plan.expiryDate ? new Date(plan.expiryDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'
+        const opensAt = new Date(weeklyBlock.renew_available_at).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'UTC' }) + ' UTC'
+        return send(chatId, trans('t.weeklyRenewTooEarly', domain, expiryTxt, opensAt), k.of([[user.upgradeHostingPlan], [user.backToMyHostingPlans]]), { parse_mode: 'HTML' })
+      }
+
       if (usdBal < price) return send(chatId, trans('t.host_26', usdBal.toFixed(2), price), k.of([[trans('u.deposit')], [user.cancelRenewNow]]))
 
       try {
@@ -17050,15 +17066,19 @@ All verified numbers generated during sourcing.`))
           )
         }
 
-        await atomicIncrement(walletOf, chatId, 'usdOut', price)
+        // Overdraft-safe debit — a concurrent spend can make it fail even after the balance check above.
+        const debited = await atomicIncrement(walletOf, chatId, 'usdOut', price)
+        if (!debited) return send(chatId, trans('t.host_26', usdBal.toFixed(2), price), k.of([[trans('u.deposit')], [user.cancelRenewNow]]))
 
         const now = new Date()
         const currentExpiry = plan.expiryDate ? new Date(plan.expiryDate) : now
         const baseDate = currentExpiry > now ? currentExpiry : now
         const newExpiry = new Date(baseDate.getTime() + duration * 24 * 60 * 60 * 1000)
 
-        await cpanelAccounts.updateOne(
-          { _id: plan._id },
+        // Compare-and-set on the expiry we priced: a double-tap / concurrent renewal that landed first
+        // makes this a no-op → reverse the debit instead of "charged twice, extended once".
+        const renewUpd = await cpanelAccounts.updateOne(
+          { _id: plan._id, expiryDate: plan.expiryDate, plan: plan.plan },
           {
             $set: {
               expiryDate: newExpiry,
@@ -17077,6 +17097,12 @@ All verified numbers generated during sourcing.`))
             },
           }
         )
+        if (!renewUpd || renewUpd.matchedCount === 0) {
+          await atomicIncrement(walletOf, chatId, 'usdOut', -price)
+          await set(state, chatId, 'action', 'none')
+          log(`[Hosting] Renew for ${domain} (${chatId}) skipped — account changed concurrently; debit of $${price} reversed`)
+          return send(chatId, trans('t.renewAlreadyApplied', domain), k.of([[user.backToMyHostingPlans]]))
+        }
 
         // Unsuspend if was suspended.
         // If WHM is down, queue silently — the user already paid for renewal,
@@ -37085,7 +37111,9 @@ async function checkVPSPlansExpiryandPayment() {
     const dueForRenewal = await vpsPlansOf.find({
       'end_time': { $lte: oneDayFromNow, $gt: now },
       'status': { $in: ['RUNNING', 'running'] },
-      '_autoRenewAttempted': { $ne: true }
+      '_autoRenewAttempted': { $ne: true },
+      // In-place plan change (resize) running → renew on the next hourly run, at the NEW plan price.
+      'planChange.status': { $nin: ['running', 'reconciling'] },
     }).toArray()
 
     for (const vpsPlan of dueForRenewal) {

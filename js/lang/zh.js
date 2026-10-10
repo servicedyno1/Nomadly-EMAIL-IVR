@@ -1840,6 +1840,9 @@ planViewMultiHostUpsell: '💡 <b>想托管更多网站？</b> 升级到月度�
 // Renew modal
 renewModalHeader: planName => `<b>续费计划 — ${planName}</b>`,
 renewModalCurrentExpiry: (date, isExpired) => `<b>当前到期日：</b> ${date}${isExpired ? '（已过期）' : ''}`,
+weeklyRenewTooEarly: (domain, expiry, opensAt) => `⏳ <b>暂未开放续费</b>\n\n<b>${domain}</b> 使用的是周付套餐，仅在剩余 7 天或更少时才能续费，每次续费一周。\n\n<b>当前到期日：</b> ${expiry}\n<b>续费开放时间：</b> ${opensAt}\n\n想要更长时间？点击 <b>⬆️ 升级计划</b> 升级到月付套餐。`,
+renewAlreadyApplied: domain => `ℹ️ <b>${domain}</b> 刚刚已被其他请求续费或更改，因此本次未扣款。请重新打开该套餐查看最新到期日。`,
+
 renewModalDuration: days => `<b>时长：</b> ${days} 天`,
 renewModalConfirmHint: '✅ 在下方确认付款：',
 renewModalInsufficient: '⚠️ 资金不足。请先充值。',
@@ -3496,6 +3499,7 @@ ${opts.map(o => `${o.direction === 'upgrade' ? '⬆️' : o.direction === 'downg
  doPlanNoOptions: '⚠️ 目前没有其他套餐可应用于此服务器（磁盘无法缩小，且部分套餐在该地区可能缺货）。',
  doPlanUnavailable: code => ({
  expired: '⚠️ 此服务器的本期已结束。请先续费，然后再更改套餐。',
+ term_ending_soon: '⚠️ 此服务器本期剩余不足 1 小时。请先续费，然后再更改套餐。',
  not_active: '⚠️ 此服务器未处于活动状态，暂时无法更改套餐。',
  plan_change_in_progress: '⏳ 此服务器已有套餐更改正在进行。完成后您会收到消息。',
  not_supported: '⚠️ 此服务器不支持更改套餐。',

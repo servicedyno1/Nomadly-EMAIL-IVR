@@ -278,6 +278,17 @@ function initScheduler(deps) {
               log(`[HostingScheduler] Skipped ${domain} — already renewed by another process (expires ${freshAccount.expiryDate})`)
               continue
             }
+            // Plan change in flight (reseller API lock, < 10 min old) or the plan/price changed since this
+            // sweep loaded the account → skip this tick; the next hourly run renews at the CURRENT plan price.
+            const pcl = freshAccount && freshAccount.planChangeLock
+            if (pcl && pcl.at && (now.getTime() - new Date(pcl.at).getTime()) < 10 * 60 * 1000) {
+              log(`[HostingScheduler] Skipped ${domain} — plan change in progress; will renew on the next run`)
+              continue
+            }
+            if (freshAccount && (freshAccount.plan !== account.plan || freshAccount.renewalPriceUsd !== account.renewalPriceUsd)) {
+              log(`[HostingScheduler] Skipped ${domain} — plan changed during this sweep; will renew at the new price on the next run`)
+              continue
+            }
 
             const result = await smartWalletDeduct(walletOf, chatId, price)
 
