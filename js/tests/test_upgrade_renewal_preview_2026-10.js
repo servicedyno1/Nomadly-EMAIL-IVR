@@ -46,6 +46,41 @@ for (const lang of LANGS) {
   })
 }
 
+console.log('\n=== Hosting upgrade receipt + failure messages — translations ===')
+const RECEIPT_KEYS = ['upgradeSuccessTitle', 'upgradeSuccessOldPlan', 'upgradeSuccessNewPlan', 'upgradeSuccessNewExpiry', 'upgradeSuccessFooter', 'upgradeFailTerminated', 'upgradeFailReactivate', 'upgradeFailServer', 'domainLabel', 'chargedLabel', 'remainingBalanceLabel']
+const enT = require('../lang/en.js').en.t
+for (const lang of LANGS) {
+  const raw = require(`../lang/${lang}.js`)[lang]
+  t(`[${lang}] receipt + failure keys exist natively`, () => {
+    for (const k of RECEIPT_KEYS) assert.ok(raw.t[k] !== undefined, `missing t.${k}`)
+  })
+  t(`[${lang}] receipt texts are translated (differ from English)`, () => {
+    if (lang === 'en') return
+    for (const k of ['upgradeSuccessTitle', 'upgradeSuccessOldPlan', 'upgradeSuccessNewPlan', 'upgradeSuccessFooter', 'upgradeFailTerminated', 'upgradeFailReactivate', 'upgradeFailServer']) {
+      const a = translation(`t.${k}`, lang, 'x', 'y', 'z')
+      const b = typeof enT[k] === 'function' ? enT[k]('x', 'y', 'z') : enT[k]
+      assert.notStrictEqual(a, b, `t.${k} is still English in ${lang}`)
+    }
+  })
+  t(`[${lang}] new expiry shows localized date`, () => {
+    const s = translation('t.upgradeSuccessNewExpiry', lang, DATE)
+    assert.ok(s.includes(EXPECTED_DATE[lang]) && !/Invalid Date|undefined/.test(s), s)
+  })
+  t(`[${lang}] footer differs for Golden vs Premium`, () => {
+    assert.notStrictEqual(translation('t.upgradeSuccessFooter', lang, 'goldenCpanel'), translation('t.upgradeSuccessFooter', lang, 'premiumCpanel'))
+  })
+  t(`[${lang}] failure messages carry refund, reason and the localized button label`, () => {
+    const btn = translation('user.getSupport', lang)
+    const host = translation('user.hostingDomainsRedirect', lang)
+    const term = translation('t.upgradeFailTerminated', lang, '62.50', host)
+    assert.ok(term.includes('$62.50') && term.includes(host), term)
+    const re = translation('t.upgradeFailReactivate', lang, '62.50', btn)
+    assert.ok(re.includes('$62.50') && re.includes(btn), re)
+    const sv = translation('t.upgradeFailServer', lang, 'package not found', '62.50', btn)
+    assert.ok(sv.includes('$62.50') && sv.includes(btn) && sv.includes('package not found'), sv)
+  })
+}
+
 console.log('\n=== VPS/RDP plan change summary — renewal date ===')
 const cur = { name: 'Basic 1 GB', monthly_price_usd: 12, disk_gb: 25 }
 const opt = { name: 'Basic 2 GB', monthly_price_usd: 24, disk_gb: 50, charge_now_usd: 6, direction: 'upgrade', renewal_price_usd: 24 }
@@ -79,8 +114,22 @@ t('hosting renew pay handler accepts translated 💵 buttons (hi/zh fix)', () =>
   const body = src.slice(i, i + 900)
   assert.ok(body.includes("message.startsWith('💵')") && !body.includes("startsWith('💵 Pay')"))
 })
-t('upgrade success message shows the renewal price', () => {
-  assert.ok(src.includes('`<b>Renews at:</b> $${newRenewalPrice.toFixed(2)} every 30 days\\n`'))
+t('upgrade success message is fully translated and shows the renewal price', () => {
+  const i = src.indexOf("let summary = trans('t.upgradeSuccessTitle')")
+  assert.ok(i > 0, 'receipt not built from t.upgradeSuccessTitle')
+  const body = src.slice(i, i + 1200)
+  for (const k of ['upgradeSuccessOldPlan', 'upgradeSuccessNewPlan', 'domainLabel', 'upgradeConfirmListPrice', 'upgradeConfirmCredit', 'chargedLabel', 'upgradeSuccessNewExpiry', 'upgradeConfirmRenewsAt', 'remainingBalanceLabel', 'upgradeSuccessFooter']) {
+    assert.ok(body.includes(`trans('t.${k}'`), `receipt missing t.${k}`)
+  }
+  assert.ok(!/Plan Upgraded Successfully|<b>Old Plan:|now available\. Anti-Red/.test(body), 'hard-coded English left in receipt')
+})
+t('upgrade failure messages (terminated / reactivate / server rejected) are translated', () => {
+  const i = src.indexOf('if (action === a.confirmUpgradeHostingPay) {')
+  const body = src.slice(i, i + 9000)
+  assert.ok(body.includes("trans('t.upgradeFailTerminated', upgradePrice.toFixed(2), user.hostingDomainsRedirect)"))
+  assert.ok(body.includes("trans('t.upgradeFailReactivate', upgradePrice.toFixed(2), user.getSupport)"))
+  assert.ok(body.includes("trans('t.upgradeFailServer', whmErrText, upgradePrice.toFixed(2), user.getSupport)"))
+  assert.ok(!/Upgrade not completed|has been <b>terminated<\/b>/.test(body), 'hard-coded English failure text left')
 })
 t('VPS/RDP options save term_ends_at and the summary receives it', () => {
   assert.ok(src.includes("await saveInfo('doPlanTermEndsAt', po.term_ends_at)"))

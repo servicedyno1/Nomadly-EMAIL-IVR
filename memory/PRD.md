@@ -9,6 +9,13 @@
 - Tests: js/tests/test_upgrade_renewal_preview_2026-10.js 33/33; regressions 23/23, 17/17, 28/28, i18n pass; testing agent iteration_73 100%; E2E via mock Telegram (en/hi/zh confirm screens, hi/zh pay taps recognised, Deposit not treated as Pay).
 - LESSON: never run parallel search_replace edits on the SAME file — it truncated _index.js to 73 lines (restored via git checkout).
 
+## 2026-10-10d — Translated hosting upgrade receipt + upgrade failure messages — DONE (sandbox; awaiting Save-to-GitHub → auto-deploy)
+- "Plan Upgraded Successfully" receipt fully translated en/fr/hi/zh (new t.upgradeSuccessTitle/OldPlan/NewPlan/NewExpiry/Footer; reuses domainLabel, chargedLabel, remainingBalanceLabel, upgradeConfirmListPrice/Credit/RenewsAt). Localized expiry date (UTC); footer per plan key (Golden = unlimited domains, Premium = up to 5 addon domains).
+- Upgrade failures translated: t.upgradeFailTerminated (now also states the refund + points to the real localized hosting menu button), t.upgradeFailReactivate, t.upgradeFailServer (raw WHM reason kept in italics). They name the real localized Support button (user.getSupport) instead of the non-existent "💬 Get Support".
+- hi remainingBalanceLabel fixed: 'शेष शेष राशि:' → 'शेष बैलेंस:' (also used by the renew receipt).
+- Verified E2E (mock Telegram + local stub WHM, throwaway chats, cleaned up): fr weekly→Golden $100 charged once, renewalPriceUsd 100, expiry +30d; hi Premium→Golden $62.50 w/ credit; zh terminated → refunded; en unsuspend fail → refunded; fr server rejected → refunded. Suite now 54/54; i18n coverage pass.
+- Still English: the RENEW flow's "terminated" message (_index.js ~17064) and the plan-details view dates (en-US).
+
 
 ## 2026-10-10b — Plan Change History API + bot hosting-upgrade renewal-price fix + admin repair — DONE (sandbox; awaiting Save-to-GitHub + redeploy)
 - Reseller API: GET /plan-changes (account-wide; filters product=hosting|vps|rdp (comma list), since, until, status=completed|failed|running, via=api|bot; limit 1-200 + opaque cursor; total/has_more/next_cursor) + per-item GET /hosting/:user/plan-changes, /vps/:id/plan-changes, /rdp/:id/plan-changes. Owner-scoped (chatId), deleted/terminated resources included. Builder: js/plan-change-history.js.
