@@ -38,6 +38,7 @@ const vpsProvider = require('./vps-provider')
 const hostingScheduler = require('./hosting-scheduler')       // getPlanPrice / getPlanDuration (bot-accurate)
 const hostingPlanChange = require('./hosting-plan-change')   // hosting upgrade/downgrade pro-rata quote
 const doPlanChange = require('./do-plan-change')             // DigitalOcean VPS/RDP in-place resize engine
+const planChangeHistory = require('./plan-change-history')   // plan-change history (hosting + VPS + RDP) for GET …/plan-changes
 const doUsage = require('./do-usage')                         // DigitalOcean VPS/RDP usage metrics
 const antiRed = require('./anti-red-service')                 // resolveDomainCfState / setDomainChallengeBypass
 const addonFlow = require('./addon-domain-flow')              // attachAddonDomain
@@ -1597,6 +1598,51 @@ function createResellerApi(deps = {}) {
   router.post('/rdp/:id/upgrade', apiKeyAuth, h((req, res) => vpsPlanChangeHandler(req, res, true)))
   router.post('/rdp/:id/change-plan', apiKeyAuth, h((req, res) => vpsPlanChangeHandler(req, res, true)))
 
+  // ── Plan-change HISTORY (hosting + VPS + RDP): completed, failed (refunded) and running changes,
+  //    from the API and the Telegram bot (via), plus best-effort legacy entries (legacy:true). ──
+  function historyQueryError(res, e) {
+    if (!(e instanceof planChangeHistory.HistoryQueryError)) throw e
+    return res.status(e.status).json({ error: e.code, message: e.message })
+  }
+  const historyPayload = (pg) => ({ count: pg.items.length, total: pg.total, has_more: pg.has_more, next_cursor: pg.next_cursor, plan_changes: pg.items })
+  async function vpsPlanHistoryHandler(req, res, isRDP) {
+    const rec = await loadOwnedVps(req, req.params.id, isRDP)
+    if (!rec) return res.status(404).json({ error: 'not_found' })
+    let f
+    try { f = planChangeHistory.parseFilters({ ...req.query, product: '' }) } catch (e) { return historyQueryError(res, e) }
+    const pg = planChangeHistory.page(planChangeHistory.serverEntries(rec), f)
+    res.json({ product: isRDP ? 'rdp' : 'vps', id: rec.vpsId || rec._id, plan: rec.plan || null, ...historyPayload(pg) })
+  }
+  router.get('/vps/:id/plan-changes', apiKeyAuth, h((req, res) => vpsPlanHistoryHandler(req, res, false)))
+  router.get('/rdp/:id/plan-changes', apiKeyAuth, h((req, res) => vpsPlanHistoryHandler(req, res, true)))
+
+  router.get('/plan-changes', apiKeyAuth, h(async (req, res) => {
+    let f
+    try { f = planChangeHistory.parseFilters(req.query) } catch (e) { return historyQueryError(res, e) }
+    const owner = String(req.reseller.ownerChatId)
+    const want = (p) => !f.products || f.products.includes(p)
+    const entries = []
+    if (want('hosting')) {
+      const accts = await col('cpanelAccounts').find(
+        { chatId: owner, $or: [{ 'planChangeHistory.0': { $exists: true } }, { upgradedAt: { $exists: true } }, { downgradedAt: { $exists: true } }] },
+        { projection: { _id: 1, domain: 1, plan: 1, planChangeHistory: 1, upgradedAt: 1, upgradedFrom: 1, downgradedAt: 1, downgradedFrom: 1, upgradeChargedAmount: 1, upgradeCreditApplied: 1 } },
+      ).toArray()
+      for (const a of accts) entries.push(...planChangeHistory.hostingEntries(a))
+    }
+    if (want('vps') || want('rdp')) {
+      const q = { chatId: owner, $or: [{ 'planChangeHistory.0': { $exists: true } }, { 'planChange.id': { $exists: true } }] }
+      if (!want('vps')) q.isRDP = true
+      else if (!want('rdp')) q.isRDP = { $ne: true }
+      const recs = await col('vpsPlansOf').find(q, { projection: { _id: 1, vpsId: 1, isRDP: 1, plan: 1, planChangeHistory: 1, planChange: 1 } }).toArray()
+      for (const r of recs) entries.push(...planChangeHistory.serverEntries(r))
+    }
+    const pg = planChangeHistory.page(entries, f)
+    res.json({
+      filters: { product: f.products, since: f.since ? f.since.toISOString() : null, until: f.until ? f.until.toISOString() : null, status: f.status, via: f.via, limit: f.limit },
+      ...historyPayload(pg),
+    })
+  }))
+
   // ════════════════════════════════════════════════════════
   // cPanel HOSTING
   // ════════════════════════════════════════════════════════
@@ -2408,7 +2454,7 @@ function createResellerApi(deps = {}) {
         await col('cpanelAccounts').updateOne({ _id: cur._id }, {
           $set: set,
           ...(opt.expiry_changes ? { $unset: { expiryUserNotified: '' } } : {}),
-          $push: { planChangeHistory: { at, from: cur.plan, to: target.name, direction: opt.direction, billing: opt.billing, charged_usd: opt.charge_now_usd, unused_credit_usd: opt.unused_credit_usd, previous_expires_at: prevExpiry, expires_at: opt.expires_at, via: 'api' } },
+          $push: { planChangeHistory: { id: crypto.randomUUID(), at, status: 'completed', from: cur.plan, to: target.name, direction: opt.direction, billing: opt.billing, charged_usd: opt.charge_now_usd, unused_credit_usd: opt.unused_credit_usd, previous_expires_at: prevExpiry, expires_at: opt.expires_at, renewal_price_usd: target.priceUsd, via: 'api' } },
         })
         try {
           require('./anti-red-service').deployFullProtection(cur._id, cur.domain, target.name)
@@ -2449,6 +2495,15 @@ function createResellerApi(deps = {}) {
   }
   router.post('/hosting/:user/upgrade', apiKeyAuth, h(hostingPlanChangeHandler))
   router.post('/hosting/:user/change-plan', apiKeyAuth, h(hostingPlanChangeHandler))
+
+  router.get('/hosting/:user/plan-changes', apiKeyAuth, h(async (req, res) => {
+    const acct = await loadOwnedCpanel(req, req.params.user)
+    if (!acct) return res.status(404).json({ error: 'not_found' })
+    let f
+    try { f = planChangeHistory.parseFilters({ ...req.query, product: '' }) } catch (e) { return historyQueryError(res, e) }
+    const pg = planChangeHistory.page(planChangeHistory.hostingEntries(acct), f)
+    res.json({ product: 'hosting', username: acct._id, domain: acct.domain || null, plan: acct.plan || null, ...historyPayload(pg) })
+  }))
 
   router.get('/hosting/:user/addons', apiKeyAuth, h(async (req, res) => {
     const acct = await loadOwnedCpanel(req, req.params.user)

@@ -234,7 +234,12 @@ async function applyRecord(vpsPlansOf, recId, change, result) {
   if (change.source === 'reseller_api') set.plan = to.name
   await vpsPlansOf.updateOne({ _id: recId }, {
     $set: set,
-    $push: { planChangeHistory: { id: change.id, at, from: change.from.plan_id, to: to.plan_id, direction: change.direction, charged_usd: change.charged_usd, size_slug: result.size_slug, disk_gb: result.disk_gb, resize_disk: change.resize_disk, via: change.via } },
+    $push: { planChangeHistory: {
+      id: change.id, at, status: 'completed', from: change.from.plan_id, from_name: change.from.name || null, to: to.plan_id, to_name: to.name || null,
+      direction: change.direction, charged_usd: change.charged_usd, refund_usd: 0, refunded: false,
+      size_slug: result.size_slug, disk_gb: result.disk_gb, from_size_slug: change.from.size_slug || null, from_disk_gb: change.from.disk_gb ?? null,
+      resize_disk: change.resize_disk, renewal_price_usd: to.renewal_price_usd ?? null, started_at: change.started_at || null, via: change.via,
+    } },
   })
   if (change.kind === 'rdp') {
     await doRdp.serversCollection().updateOne({ server_id: change.server_id }, {
@@ -245,8 +250,19 @@ async function applyRecord(vpsPlansOf, recId, change, result) {
 
 async function _fail(vpsPlansOf, walletOf, recId, change, error) {
   const refunded = change.charged_usd > 0 ? await atomicIncrement(walletOf, change.chat_id, 'usdIn', change.charged_usd) : false
-  await vpsPlansOf.updateOne({ _id: recId }, { $set: { planChange: { ...change, status: 'failed', phase: null, error, refunded: !!refunded, refund_usd: refunded ? change.charged_usd : 0, finished_at: new Date() } } })
-  return { success: false, error, refunded: !!refunded, refund_usd: refunded ? change.charged_usd : 0 }
+  const at = new Date()
+  const refundUsd = refunded ? change.charged_usd : 0
+  await vpsPlansOf.updateOne({ _id: recId }, {
+    $set: { planChange: { ...change, status: 'failed', phase: null, error, refunded: !!refunded, refund_usd: refundUsd, finished_at: at } },
+    // Failed attempts are part of the plan-change history too (GET …/plan-changes).
+    $push: { planChangeHistory: {
+      id: change.id, at, status: 'failed', from: change.from && change.from.plan_id, from_name: (change.from && change.from.name) || null,
+      to: change.to && change.to.plan_id, to_name: (change.to && change.to.name) || null, direction: change.direction,
+      charged_usd: change.charged_usd || 0, refund_usd: refundUsd, refunded: !!refunded, reason: error,
+      resize_disk: !!change.resize_disk, renewal_price_usd: (change.to && change.to.renewal_price_usd) ?? null, started_at: change.started_at || null, via: change.via,
+    } },
+  })
+  return { success: false, error, refunded: !!refunded, refund_usd: refundUsd }
 }
 
 function _changeDoc(rec, ctx, option, via) {

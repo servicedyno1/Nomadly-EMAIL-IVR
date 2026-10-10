@@ -9,6 +9,32 @@
 #====================================================================================================
 
 #====================================================================================================
+# CURRENT TASK (2026-10-10b) — Plan Change History API + bot hosting-upgrade renewal-price fix + admin repair
+#====================================================================================================
+current_task_2026_10_10b_plan_change_history: |
+  User request: "Plan Change History: Provide resellers access to past changes via API."
+  User decisions: hosting + VPS + RDP; per-item (GET /hosting/:user/plan-changes, /vps/:id/plan-changes,
+  /rdp/:id/plan-changes) AND account-wide GET /plan-changes (filters product, since, until, status, via;
+  limit + cursor pagination); include Telegram-bot changes (via api|bot; bot hosting upgrades now recorded,
+  bot behaviour unchanged); include failed (refunded) VPS/RDP resizes (status failed, reason, refund);
+  include pre-existing partial data as legacy:true entries.
+  ALSO (user-approved): BUG — bot hosting upgrade never updated the price-locked renewalPriceUsd → upgraded
+  accounts kept renewing at the OLD plan price (weekly $30 → Golden renewed at $30). Fix: bot upgrade now
+  sets renewalPriceUsd = getPlanPrice(new plan name) (+ planChangedAt, history entry, overdraft-safe debit
+  check). Plus admin-only one-off repair: GET /api/admin/hosting-renewal-price-repair?key=<SESSION_SECRET[0:16]>
+  (preview) and POST …&apply=true (optional body {"usernames":[…]}) — compare-and-set, idempotent.
+  Files: js/plan-change-history.js (new), js/hosting-renewal-price-repair.js (new), js/do-plan-change.js
+  (applyRecord richer history entry; _fail now pushes a failed entry), js/reseller-api.js (4 endpoints +
+  hosting history entry id/status/renewal_price_usd), js/_index.js (bot upgrade fix + admin endpoints),
+  js/apidoc-page.js (new "Plan Change History" group #plan-history, per-item endpoint docs, guide card).
+  Tests: node js/tests/test_plan_change_history_2026-10.js → 17 passed; regression:
+  test_hosting_plan_rules_2026-10.js 23/23, test_do_plan_change_2026-10.js 28/28, test_i18n_coverage pass.
+  Admin endpoint verified via curl on this pod with a temporary fixture (removed afterwards).
+  ⚠️ Sandbox reseller API is LIVE against real DO/WHM — do NOT create keys / call mutating endpoints on the
+  running server; the admin repair endpoint only touches the LOCAL sandbox DB here.
+
+
+#====================================================================================================
 # CURRENT TASK (2026-10-10) — Plan-change rules (hosting/VPS/RDP) + weekly renew cap + race fixes + API docs
 #====================================================================================================
 current_task_2026_10_10_plan_change_rules: |

@@ -17259,7 +17259,9 @@ All verified numbers generated during sourcing.`))
       if (usdBal < upgradePrice) return send(chatId, trans('t.host_28', usdBal.toFixed(2), upgradePrice.toFixed(2)), k.of([[trans('u.deposit')], [user.backToMyHostingPlans]]))
 
       try {
-        await atomicIncrement(walletOf, chatId, 'usdOut', upgradePrice)
+        // Overdraft-safe debit — a concurrent spend can make it fail even after the balance check above.
+        const upgradeDebited = await atomicIncrement(walletOf, chatId, 'usdOut', upgradePrice)
+        if (!upgradeDebited) return send(chatId, trans('t.host_28', usdBal.toFixed(2), upgradePrice.toFixed(2)), k.of([[trans('u.deposit')], [user.backToMyHostingPlans]]))
 
         const whm = require('./whm-service')
 
@@ -17318,8 +17320,12 @@ All verified numbers generated during sourcing.`))
         }
 
         // 3. Update cpanelAccounts with new plan + new 30-day expiry
-        //    Also clear suspended/deleted flags so the account is fully active
-        const newExpiry = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+        //    Also clear suspended/deleted flags so the account is fully active.
+        //    BILLING FIX (2026-10): renewals use the price-locked renewalPriceUsd, so it MUST move to the
+        //    new plan's current price — before, a bot upgrade kept renewing at the OLD plan's price.
+        const upgradedAt = new Date()
+        const newExpiry = new Date(upgradedAt.getTime() + 30 * 24 * 60 * 60 * 1000)
+        const newRenewalPrice = require('./hosting-scheduler').getPlanPrice(selected.name)
         await cpanelAccounts.updateOne(
           { _id: plan._id },
           {
@@ -17328,11 +17334,13 @@ All verified numbers generated during sourcing.`))
               expiryDate: newExpiry,
               autoRenew: true,
               suspended: false,
-              upgradedAt: new Date(),
+              upgradedAt,
               upgradedFrom: plan.plan,
               upgradeOriginalPrice: originalPrice,
               upgradeCreditApplied: creditApplied,
               upgradeChargedAmount: upgradePrice,
+              planChangedAt: upgradedAt,
+              ...(newRenewalPrice > 0 ? { renewalPriceUsd: newRenewalPrice } : {}),
             },
             $unset: {
               suspendedAt: '',
@@ -17342,6 +17350,15 @@ All verified numbers generated during sourcing.`))
               deletedBy: '',
               expiryNotified: '',
               expiryUserNotified: '',
+            },
+            // Plan-change history (reseller API GET …/plan-changes): bot upgrades start a fresh 30-day term.
+            $push: {
+              planChangeHistory: {
+                id: require('crypto').randomUUID(), at: upgradedAt, status: 'completed', from: plan.plan, to: selected.name,
+                direction: 'upgrade', billing: 'new_term', charged_usd: upgradePrice, loyalty_credit_usd: creditApplied,
+                list_price_usd: originalPrice, previous_expires_at: plan.expiryDate || null, expires_at: newExpiry,
+                renewal_price_usd: newRenewalPrice > 0 ? newRenewalPrice : null, via: 'bot',
+              },
             },
           }
         )
@@ -46441,6 +46458,44 @@ app.get('/admin/vps-flow-check', (req, res) => {
 // instances — Azure (az-*), DigitalOcean (do-*), Vultr (uuid), OVH (vps-*) —
 // from the Contabo-only reconcile/self-heal/drift paths, and that the cleared
 // stale instances (203250431 / 203283942) are gone. READ-ONLY.
+// ── Hosting renewal-price repair (2026-10): bot upgrades made before the billing fix kept the OLD
+//    plan's price-locked renewalPriceUsd. GET = preview only; POST ?apply=true = apply (optionally
+//    {"usernames":[…]} to repair only some). Compare-and-set per account, idempotent. ──
+app.get('/admin/hosting-renewal-price-repair', async (req, res) => {
+  if (!process.env.SESSION_SECRET || req?.query?.key !== process.env.SESSION_SECRET.slice(0, 16)) {
+    return res.status(403).json({ error: 'Unauthorized' })
+  }
+  try {
+    const repair = require('./hosting-renewal-price-repair')
+    const rows = await repair.findAffected(cpanelAccounts)
+    return res.json({
+      ok: true, mode: 'preview', ...repair.summarize(rows), accounts: rows,
+      how_to_apply: 'POST /api/admin/hosting-renewal-price-repair?key=…&apply=true (optional JSON body {"usernames":["user1","user2"]} to repair only those). Nothing has been changed yet.',
+    })
+  } catch (e) {
+    return res.status(500).json({ error: e.message })
+  }
+})
+app.post('/admin/hosting-renewal-price-repair', async (req, res) => {
+  if (!process.env.SESSION_SECRET || req?.query?.key !== process.env.SESSION_SECRET.slice(0, 16)) {
+    return res.status(403).json({ error: 'Unauthorized' })
+  }
+  if (String(req.query.apply) !== 'true' && req.body?.apply !== true) {
+    return res.status(400).json({ error: 'confirm_required', message: 'Preview first with GET, then POST with ?apply=true to apply.' })
+  }
+  try {
+    const repair = require('./hosting-renewal-price-repair')
+    const out = await repair.applyRepair(cpanelAccounts, { usernames: Array.isArray(req.body?.usernames) ? req.body.usernames : null })
+    log(`[HostingPriceRepair] applied=${out.applied_count} skipped=${out.skipped.length} diff/renewal=$${out.total_difference_per_renewal_usd}`)
+    try {
+      notifyAdmin(`🛠 <b>Hosting renewal-price repair applied</b>\nAccounts fixed: <b>${out.applied_count}</b> (skipped: ${out.skipped.length})\nRevenue recovered per renewal cycle: <b>$${out.total_difference_per_renewal_usd}</b>`)
+    } catch (_) { /* best-effort */ }
+    return res.json({ ok: true, mode: 'applied', ...out })
+  } catch (e) {
+    return res.status(500).json({ error: e.message })
+  }
+})
+
 app.get('/admin/contabo-recon-preview', async (req, res) => {
   if (req?.query?.key !== process.env.SESSION_SECRET?.slice(0, 16)) {
     return res.status(403).json({ error: 'Unauthorized' })
