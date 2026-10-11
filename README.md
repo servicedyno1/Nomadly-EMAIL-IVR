@@ -99,7 +99,7 @@ The production bot token (`TELEGRAM_BOT_TOKEN_PROD`) is stored in the .env for r
 ### Webhook Configuration
 - `SELF_URL` and `SELF_URL_DEV` in `backend/.env` **MUST** use the current pod URL with `/api` suffix
 - The setup script auto-detects this from `REACT_APP_BACKEND_URL`
-- Example: `https://secure-app-launch-2.preview.emergentagent.com/api`
+- Example: `https://vault-app-setup.preview.emergentagent.com/api`
 - `SELF_URL_PROD` points to the Railway production URL and is **NOT used in development**
 
 ### Key API Credentials (in backend/.env)
@@ -200,7 +200,7 @@ bash /app/scripts/setup-nodejs.sh
 
 ### Webhooks not working
 1. Check SELF_URL matches current pod: `grep SELF_URL /app/backend/.env`
-2. Must end with `/api` — e.g., `https://secure-app-launch-2.preview.emergentagent.com/api`
+2. Must end with `/api` — e.g., `https://vault-app-setup.preview.emergentagent.com/api`
 3. Re-run setup script to auto-fix: `bash /app/scripts/setup-nodejs.sh`
 
 ### 502 errors on /api/* routes
