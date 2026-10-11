@@ -1,6 +1,14 @@
 # PRD — Nomadly Cloud IVR + Telegram Bot
 
 
+## 2026-06-?? — Reseller weekly→monthly upgrade audit + MAXADDON drift fix (changePackage) — CODE DONE (sandbox), 1 live account repaired
+- AUDIT (user ask: "did a recent weekly hosting upgrade apply at WHM + reseller DB?"): the one recent weekly→monthly API upgrade = `nameaf15` (namewords.sbs, chatId 5590563715), 2026-10-11 12:02, Premium Anti-Red (1-Week)→Premium HostPanel (1-Month), charged $45.12, credit $29.88. Reseller DB (cpanelAccounts) correct: plan, renewalPriceUsd 75, termMonths 1, fresh 30d expiry 2026-11-10, planChangeHistory `completed` via:api, order `provisioned`. WHM correct: package=Premium-Anti-Red-HostPanel-1-Month, MAXSQL=5. ⇒ DB↔WHM match ✅.
+- BUG found: `nameaf15` had WHM `maxaddons=unlimited` (should be 5). Root cause: all 3 WHM packages are defined MAXADDON=unlimited; the system enforces caps via PER-ACCOUNT overrides set in `createAccount` (14/15 Premium-Monthly accts correctly =5). `whm-service.changePackage` only re-applied MAXSQL after `/changepackage`, NOT MAXADDON — so WHM's package-template reset left the upgraded account unlimited. Only `nameaf15` (the sole upgraded-via-changePackage acct) drifted.
+- FIX (`js/whm-service.js changePackage`): after `/changepackage`, one `/modifyacct` now re-applies BOTH MAXSQL and MAXADDON from PLAN_MYSQL_LIMITS/PLAN_ADDON_LIMITS (Weekly 2/1, Premium 5/5, Golden unlimited/unlimited), mirroring createAccount. Test `js/tests/test_whm_changepackage_maxaddon_2026-06.js` 7/7 (stubbed axios, per-tier).
+- LIVE REPAIR (prod WHM, done now): `js/ops/whm_repair_nameaf15_maxaddon_2026-06.js` → modifyacct MAXADDON=5 on nameaf15, verified maxaddons=5. Ops read-only scripts: `verify_weekly_upgrade_2026-06.js`, `whm_pkg_addon_inspect_2026-06.js`.
+- ⚠️ Code change is SANDBOX-ONLY — needs "Save to GitHub" + redeploy (app-main/app-wl) so future upgrades enforce MAXADDON. The nameaf15 account repair is already live on prod WHM.
+
+
 ## 2026-10-10f — Hosting capabilities audit (WordPress / PHP / static JS apps / Node.js) — DOCUMENTED, nothing changed
 - Full details + roadmap: /app/memory/HOSTING_CAPABILITIES_2026-10.md (read it before promising stack support to customers/resellers).
 - YES: HTML5/static + PHP 8.2/8.3 (all plans). PARTIAL: WordPress (manual install, monthly plans only; Weekly has 0 DBs) and React/Vite/Vue/Next static exports. NO: Node.js server apps (no Node/Passenger, no shell).

@@ -439,18 +439,23 @@ async function changePackage(username, newPlan) {
       log(`[WHM] changePackage failed for ${username} → ${pkg}: ${reason || 'no reason returned'}`)
       return { success, package: pkg, error: reason || 'Unknown WHM error' }
     }
-    // Ensure the per-account MAXSQL quota matches the new plan tier even when
-    // the WHM package definition still has MAXSQL=0 (legacy). Best-effort —
-    // no-op on failure (the changepackage itself already succeeded).
+    // Re-apply the per-account quotas the new tier should have. WHM's /changepackage
+    // resets the account to the package TEMPLATE (our packages are all MAXSQL/MAXADDON
+    // = unlimited), so without this a Weekly → Premium upgrade would leave MAXADDON
+    // unlimited instead of the plan's 5 (and MAXSQL would drift too). Mirrors the
+    // per-account overrides createAccount already applies. Best-effort — no-op on
+    // failure (the changepackage itself already succeeded).
     const sqlLimit = PLAN_MYSQL_LIMITS[pkg]
-    if (sqlLimit !== undefined) {
+    const addonLimit = PLAN_ADDON_LIMITS[pkg]
+    const quotaParams = { 'api.version': 1, user: username }
+    if (sqlLimit !== undefined) quotaParams.MAXSQL = sqlLimit === -1 ? 'unlimited' : sqlLimit
+    if (addonLimit !== undefined) quotaParams.MAXADDON = addonLimit === -1 ? 'unlimited' : addonLimit
+    if (quotaParams.MAXSQL !== undefined || quotaParams.MAXADDON !== undefined) {
       try {
-        await whmApi.get('/modifyacct', {
-          params: { 'api.version': 1, user: username, MAXSQL: sqlLimit === -1 ? 'unlimited' : sqlLimit },
-        })
-        log(`[WHM] post-upgrade MAXSQL set for ${username} → ${sqlLimit === -1 ? 'unlimited' : sqlLimit}`)
+        await whmApi.get('/modifyacct', { params: quotaParams })
+        log(`[WHM] post-change quotas for ${username} → MAXSQL=${quotaParams.MAXSQL} MAXADDON=${quotaParams.MAXADDON}`)
       } catch (e) {
-        log(`[WHM] post-upgrade MAXSQL override warning for ${username}: ${e.message}`)
+        log(`[WHM] post-change quota override warning for ${username}: ${e.message}`)
       }
     }
     return { success, package: pkg }
