@@ -113,7 +113,8 @@ const user = {
  cloudPhone: '📞 Cloud IVR + SIP',
  testSip: '🧪 SIP मुफ्त टेस्ट',
  vpsPlans: '🖥️ VPS / RDP',
- buyPlan: '⚡ प्लान अपग्रेड करें',
+ buyPlan: '⭐ सदस्यता',
+ more: '➕ और',
  freeTrialAvailable: '🆓 BulkSMS फ्री ट्रायल',
  smsAppMain: '📱 BulkSMS',
  smsCreateCampaign: '📱 अभियान बनाएं',
@@ -947,7 +948,7 @@ ${CHAT_BOT_NAME}`,
  subscriptionExpire: (subscribedPlan, timeEnd) => `आपका ${subscribedPlan} योजना समाप्त हो गया है ${timeEnd}`,
  plansSubscripedtill: (subscribedPlan, timeEnd) =>
  `आप ${subscribedPlan} योजना में सदस्यता ले चुके हैं। आपका प्लान ${timeEnd} तक वैध है`,
- planNotSubscriped: `आप वर्तमान में किसी भी योजना के सदस्य नहीं हैं।`,
+ planNotSubscriped: `आपके पास अभी कोई सक्रिय उत्पाद या सदस्यता नहीं है।\n\nखरीदने के बाद आपकी होस्टिंग, Cloud IVR नंबर, VPS और सदस्यता यहाँ दिखाई देंगे। शुरू करने के लिए मुख्य मेनू में किसी उत्पाद पर टैप करें!`,
  noShortenedUrlLink: `आपके पास अभी कोई संक्लिष्ट लिंक नहीं है।`,
  shortenedLinkText: linksText => `यहां आपके संक्लिष्ट लिंक हैं:\n${linksText}`,
  analyticsNotAvailable: provider => `📊 एनालिटिक्स उपलब्ध नहीं (${provider})`,
@@ -2449,22 +2450,18 @@ const adminKeyboard = {
 const userKeyboard = {
  reply_markup: {
  keyboard: [
+ // ── Main menu (2026-06 simplify): grouped into clear sections; secondary
+ // services (Email Validation, Refer, Reseller, Join Channel, Email Blast)
+ // moved under "➕ More" to cut top-level clutter. Handlers match by label,
+ // so grouping/order changes carry no routing risk.
  [user.cloudPhone, user.hostingDomainsRedirect],
- [user.domainNames, user.digitalProducts],
- [user.marketplace, user.referEarn],
- ...(VPS_ENABLED === 'true'
- ? (HIDE_SMS_APP !== 'true' ? [[user.vpsPlans, user.smsAppMain]] : [[user.vpsPlans]])
- : (HIDE_SMS_APP !== 'true' ? [[user.smsAppMain]] : [])),
- [user.emailValidation, user.virtualCard],
- [user.wallet, user.leadsValidation],
- [user.urlShortenerMain, user.buyPlan],
- ...(EMAIL_BLAST_ON === 'true' ? [[user.emailBlast]] : []),
- // Service Bundles removed from the main menu to save space (still reachable
- // via contextual upsell prompts). Join Channel remains on its own row.
- [user.joinChannel],
- HIDE_BECOME_RESELLER === 'true'
- ? [user.changeSetting, user.getSupport]
- : [user.becomeReseller, user.changeSetting, user.getSupport],
+ ...(VPS_ENABLED === 'true' ? [[user.domainNames, user.vpsPlans]] : [[user.domainNames]]),
+ ...(HIDE_SMS_APP !== 'true' ? [[user.smsAppMain, user.leadsValidation]] : [[user.leadsValidation]]),
+ [user.digitalProducts, user.marketplace],
+ [user.urlShortenerMain, user.virtualCard],
+ [user.wallet, user.buyPlan],
+ [user.changeSetting, user.getSupport],
+ [user.more],
  ],
  resize_keyboard: true,
  },

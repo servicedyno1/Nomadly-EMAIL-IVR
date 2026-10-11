@@ -107,7 +107,8 @@ const user = {
  wallet: '👛 Wallet',
  urlShortenerMain: '🔗 URL Shortener',
  vpsPlans: '🖥️ VPS / RDP',
- buyPlan: '⚡ Upgrade Plan',
+ buyPlan: '⭐ Membership',
+ more: '➕ More',
  domainNames: '🌐 Bulletproof Domains',
  viewPlan: '📋 My Plans',
  becomeReseller: '💼 Reseller',
@@ -354,21 +355,21 @@ ${CHAT_BOT_NAME}`,
 
  lowPrice: `Sent price less than needed`,
 
- freeTrialAvailable: (chatId) => `📱 <b>BulkSMS Free Trial — 100 Free SMS</b>\n\nYour activation code:\n<code>${chatId}</code>\n\n📲 <b>Download the app:</b> ${SMS_APP_LINK}\n\nOpen the app → Enter your code → Start sending!\n\n⚡ <b>Trial:</b> 1 device only.\n\n💡 After trial, tap <b>⚡ Upgrade Plan</b> on the main menu to unlock unlimited BulkSMS + URL shortening + validations & more!\n\nNeed eSIM cards? Tap 💬 Support`,
+ freeTrialAvailable: (chatId) => `📱 <b>BulkSMS Free Trial — 100 Free SMS</b>\n\nYour activation code:\n<code>${chatId}</code>\n\n📲 <b>Download the app:</b> ${SMS_APP_LINK}\n\nOpen the app → Enter your code → Start sending!\n\n⚡ <b>Trial:</b> 1 device only.\n\n💡 After trial, tap <b>⭐ Membership</b> on the main menu to unlock unlimited BulkSMS + URL shortening + validations & more!\n\nNeed eSIM cards? Tap 💬 Support`,
  
  smsAppActivationCode: (chatId, plan, isSubscribed) => {
    if (!isSubscribed) {
-     return `📱 <b>BulkSMS Free Trial — 100 Free SMS</b>\n\n📲 <b>Android devices only</b> — iOS/iPhone is not supported (Apple restricts apps from sending SMS).\n\nYour activation code:\n<code>${chatId}</code>\n\n📲 <b>Download the app:</b> ${SMS_APP_LINK}\n\nOpen the app → Enter your code → Start sending!\n\n⚡ <b>Trial:</b> 1 device only.\n\n💡 Tap <b>⚡ Upgrade Plan</b> on the main menu to unlock unlimited devices + BulkSMS + URL shortening + validations & more!\n\nNeed eSIM cards? Tap 💬 Support`
+     return `📱 <b>BulkSMS Free Trial — 100 Free SMS</b>\n\n📲 <b>Android devices only</b> — iOS/iPhone is not supported (Apple restricts apps from sending SMS).\n\nYour activation code:\n<code>${chatId}</code>\n\n📲 <b>Download the app:</b> ${SMS_APP_LINK}\n\nOpen the app → Enter your code → Start sending!\n\n⚡ <b>Trial:</b> 1 device only.\n\n💡 Tap <b>⭐ Membership</b> on the main menu to unlock unlimited devices + BulkSMS + URL shortening + validations & more!\n\nNeed eSIM cards? Tap 💬 Support`
    }
    const deviceLimit = plan === 'Monthly' ? 'unlimited' : (plan === 'Weekly' ? '10' : (plan === 'Daily' ? '3' : '1'))
    return `📱 <b>BulkSMS — ${plan} Plan Active ✅</b>\n\n📲 <b>Android devices only</b> — iOS/iPhone is not supported (Apple restricts apps from sending SMS).\n\nYour activation code:\n<code>${chatId}</code>\n\n📲 <b>Download the app:</b> ${SMS_APP_LINK}\n\nOpen the app → Enter your code → Start sending!\n\n⚡ <b>Devices:</b> ${deviceLimit} ${deviceLimit === 'unlimited' ? 'devices' : `device${deviceLimit === '1' ? '' : 's'}`}\n\nCreate campaigns in the app or on the bot.\n\nNeed eSIM cards? Tap 💬 Support`
  },
 
- freeTrialNotAvailable: 'You have already used the free trial.\n\nTap <b>⚡ Upgrade Plan</b> to subscribe — includes unlimited BulkSMS, URL shortening, validations, free domains & more!',
+ freeTrialNotAvailable: 'You have already used the free trial.\n\nTap <b>⭐ Membership</b> to subscribe — includes unlimited BulkSMS, URL shortening, validations, free domains & more!',
 
  smsAppMenuSubscribed: (chatId) => `📧 <b>BulkSMS — Active ✅</b>\n\n📱 <i>Works on Android devices only (iOS not supported).</i>\n\nSends SMS from your phone's SIM — high deliverability, real sender ID.\n\n📲 <b>App:</b> ${SMS_APP_LINK}\n🔑 <b>Code:</b> <code>${chatId}</code>\n\nCreate campaigns below or in the app.\nNew here? Tap <b>❓ How It Works</b>`,
  smsAppMenuTrial: (chatId, remaining) => `📧 <b>BulkSMS — Free Trial</b> (${remaining} SMS left)\n\n📱 <i>Works on Android devices only (iOS not supported).</i>\n\nSends SMS from your phone's SIM — high deliverability, real sender ID.\n\n📲 <b>App:</b> ${SMS_APP_LINK}\n🔑 <b>Code:</b> <code>${chatId}</code>\n\nNew here? Tap <b>❓ How It Works</b>`,
- smsAppMenuExpired: `📧 <b>BulkSMS</b>\n\n📱 <i>Works on Android devices only (iOS not supported).</i>\n\nYour trial has ended. Tap <b>⚡ Upgrade Plan</b> to continue sending.\n\nNew here? Tap <b>❓ How It Works</b> to learn how BulkSMS works.`,
+ smsAppMenuExpired: `📧 <b>BulkSMS</b>\n\n📱 <i>Works on Android devices only (iOS not supported).</i>\n\nYour trial has ended. Tap <b>⭐ Membership</b> to continue sending.\n\nNew here? Tap <b>❓ How It Works</b> to learn how BulkSMS works.`,
 
  smsHowItWorks: (chatId) => `📧 <b>BulkSMS — How It Works</b>\n\nBulkSMS sends real SMS <b>from your phone's SIM card</b> — not a server. This gives you high deliverability and a real sender ID.\n\n<b>⚙️ One-time setup:</b>\n1. Download the app → ${SMS_APP_LINK}\n2. Open it → enter code: <code>${chatId}</code>\n3. Grant SMS permission when prompted\n\n<b>📤 Sending a campaign:</b>\n• Tap <b>📱 Create Campaign</b> here or create in the app\n• Add your message + contacts (paste or upload file)\n• Campaign syncs to the app → tap Send on your phone\n\n<b>💡 Tips:</b>\n• Use an <b>eSIM</b> for a dedicated sending line\n• Separate messages with <code>---</code> on its own line for rotation\n• <code>[name]</code> in your message = auto-personalization\n• Schedule campaigns for later or send immediately\n\n<b>📋 My Campaigns</b> shows all your campaigns + status.\n<b>🔓 Reset Login</b> lets you switch to a new device.\n\nNeed eSIM? Tap 💬 Support`,
 
@@ -1060,7 +1061,7 @@ Service delivered.`,
  redIssueUrlBitly: `Link shortening failed. Your wallet was not charged. Please try again or tap 💬 Support.`,
  redIssueSlugCuttly: `The preferred link name is already taken, try another.`,
  redIssueUrlCuttly: `Link shortening failed. Please try again or tap 💬 Support.`,
- freeLinksExhausted: `Your ${FREE_LINKS} trial links are used up!\n\nSubscribe for <b>unlimited links</b> + free domains + ${DAILY_PLAN_FREE_VALIDATIONS.toLocaleString()}+ validations.\n\nPlans from <b>$${PRICE_DAILY}/day</b>. Tap ⚡ Upgrade Plan below to get started.`,
+ freeLinksExhausted: `Your ${FREE_LINKS} trial links are used up!\n\nSubscribe for <b>unlimited links</b> + free domains + ${DAILY_PLAN_FREE_VALIDATIONS.toLocaleString()}+ validations.\n\nPlans from <b>$${PRICE_DAILY}/day</b>. Tap ⭐ Membership below to get started.`,
  subscriptionLeadsHint: `💡 Subscribers get ${DAILY_PLAN_FREE_VALIDATIONS.toLocaleString()}+ free validations with phone owner names per plan. Plans from $${PRICE_DAILY}/day.`,
  linksRemaining: (count, total) => {
  const base = `You have ${count} of ${total || FREE_LINKS} trial Shortit link${count !== 1 ? 's' : ''} remaining.`
@@ -1116,7 +1117,7 @@ Service delivered.`,
  subscriptionExpire: (subscribedPlan, timeEnd) => `Your ${subscribedPlan} subscription is expired on ${timeEnd}`,
  plansSubscripedtill: (subscribedPlan, timeEnd) =>
  `You are currently subscribed to the ${subscribedPlan} plan. Your plan is valid till ${timeEnd}`,
- planNotSubscriped: 'You are not currently subscribed to any plan.',
+ planNotSubscriped: `You don't have any active products or subscriptions yet.\n\nHosting, Cloud IVR numbers, VPS and Membership all show up here once you buy them. Tap a product on the main menu to get started!`,
  noShortenedUrlLink: 'You have no shortened links yet.',
  shortenedLinkText: linksText => `Here are your shortened links:\n${linksText}`,
  analyticsNotAvailable: provider => `📊 analytics not available (${provider})`,
@@ -2619,22 +2620,18 @@ const adminKeyboard = {
 const userKeyboard = {
  reply_markup: {
  keyboard: [
+ // ── Main menu (2026-06 simplify): grouped into clear sections; secondary
+ // services (Email Validation, Refer, Reseller, Join Channel, Email Blast)
+ // moved under "➕ More" to cut top-level clutter. Handlers match by label,
+ // so grouping/order changes carry no routing risk.
  [user.cloudPhone, user.hostingDomainsRedirect],
- [user.domainNames, user.digitalProducts],
- [user.marketplace, user.referEarn],
- ...(VPS_ENABLED === 'true'
- ? (HIDE_SMS_APP !== 'true' ? [[user.vpsPlans, user.smsAppMain]] : [[user.vpsPlans]])
- : (HIDE_SMS_APP !== 'true' ? [[user.smsAppMain]] : [])),
- [user.emailValidation, user.virtualCard],
- [user.wallet, user.leadsValidation],
- [user.urlShortenerMain, user.buyPlan],
- ...(EMAIL_BLAST_ON === 'true' ? [[user.emailBlast]] : []),
- // Service Bundles removed from the main menu to save space (still reachable
- // via contextual upsell prompts). Join Channel remains on its own row.
- [user.joinChannel],
- HIDE_BECOME_RESELLER === 'true'
- ? [user.changeSetting, user.getSupport]
- : [user.becomeReseller, user.changeSetting, user.getSupport],
+ ...(VPS_ENABLED === 'true' ? [[user.domainNames, user.vpsPlans]] : [[user.domainNames]]),
+ ...(HIDE_SMS_APP !== 'true' ? [[user.smsAppMain, user.leadsValidation]] : [[user.leadsValidation]]),
+ [user.digitalProducts, user.marketplace],
+ [user.urlShortenerMain, user.virtualCard],
+ [user.wallet, user.buyPlan],
+ [user.changeSetting, user.getSupport],
+ [user.more],
  ],
  resize_keyboard: true,
  },
