@@ -2079,7 +2079,7 @@ async function streamAiReply(chatId, message, lang = 'en') {
   try {
     placeholder = await bot.sendMessage(chatId, _aiStreamIndicator[L], {
       parse_mode: 'HTML',
-      reply_markup: { keyboard: [['/done']], resize_keyboard: true },
+      reply_markup: { keyboard: [['/done', '🏠 Main Menu']], resize_keyboard: true },
     })
   } catch (e) {
     log(`[Support] stream placeholder send failed: ${e.message}`)
@@ -2166,7 +2166,7 @@ async function streamAiReply(chatId, message, lang = 'en') {
     const suggestedButtons = extractActionButtons(aiResponse, L)
     if (suggestedButtons.length > 0) {
       const keyboardRows = suggestedButtons.map(b => [b])
-      keyboardRows.push(['/done'])
+      keyboardRows.push(['/done', '🏠 Main Menu'])
       send(chatId, _aiQuickActionsLabel[L], {
         parse_mode: 'HTML',
         reply_markup: { keyboard: keyboardRows, resize_keyboard: true },
@@ -14613,7 +14613,7 @@ All verified numbers generated during sourcing.`))
     }
     for (const aiLabel of Object.keys(AI_BUTTON_TO_USER_KEY)) menuEscapeLabels.add(aiLabel)
 
-    const isEscapeTap = menuEscapeLabels.has(message) || /^\/(start|menu|home)\b/.test(message)
+    const isEscapeTap = menuEscapeLabels.has(message) || message === '🏠 Main Menu' || /^\/(start|menu|home|help|orderhistory|orders)\b/.test(message)
     if (isEscapeTap) {
       // ── Fix Railway-log issue #6: distinguish "user navigated away" from
       //    "user tapped an AI-suggested action button". For AI-suggested
@@ -15297,7 +15297,7 @@ All verified numbers generated during sourcing.`))
     await saveInfo('action', a.supportChat)
     // Clear admin takeover flag — fresh session starts with AI enabled
     await set(state, chatId, 'adminTakeover', false)
-    send(chatId, ({ en: `💬 <b>Support</b>\n\n🤖 Our AI assistant will try to help you right away! If it can't resolve your issue, a <b>human agent</b> will step in.\n\nDescribe your question or issue below.\n\nWhen done, send /done to close the chat.`, fr: `💬 <b>Support</b>\n\n🤖 Notre assistant IA va essayer de vous aider immédiatement ! S'il ne peut pas résoudre votre problème, un <b>agent humain</b> prendra le relais.\n\nDécrivez votre question ou problème ci-dessous.\n\nQuand terminé, envoyez /done pour fermer le chat.`, zh: `💬 <b>客服支持</b>\n\n🤖 我们的 AI 助手会立即尝试帮助您！如果无法解决您的问题，<b>人工客服</b>会介入。\n\n请在下方描述您的问题。\n\n完成后，发送 /done 结束对话。`, hi: `💬 <b>सहायता</b>\n\n🤖 हमारा AI असिस्टेंट तुरंत आपकी मदद करने की कोशिश करेगा! अगर यह आपकी समस्या हल नहीं कर सकता, तो एक <b>मानव एजेंट</b> आएगा।\n\nनीचे अपना सवाल या समस्या बताएं।\n\nसमस्या हल होने पर, /done भेजकर चैट बंद करें।` }[lang] || `💬 <b>Support</b>\n\n🤖 Our AI assistant will try to help you right away! If it can't resolve your issue, a <b>human agent</b> will step in.\n\nDescribe your question or issue below.\n\nWhen done, send /done to close the chat.`), { parse_mode: 'HTML', reply_markup: { keyboard: [['/done']], resize_keyboard: true } })
+    send(chatId, ({ en: `💬 <b>Support</b>\n\n🤖 Our AI assistant will try to help you right away! If it can't resolve your issue, a <b>human agent</b> will step in.\n\nDescribe your question or issue below.\n\nWhen done, send /done to close the chat.`, fr: `💬 <b>Support</b>\n\n🤖 Notre assistant IA va essayer de vous aider immédiatement ! S'il ne peut pas résoudre votre problème, un <b>agent humain</b> prendra le relais.\n\nDécrivez votre question ou problème ci-dessous.\n\nQuand terminé, envoyez /done pour fermer le chat.`, zh: `💬 <b>客服支持</b>\n\n🤖 我们的 AI 助手会立即尝试帮助您！如果无法解决您的问题，<b>人工客服</b>会介入。\n\n请在下方描述您的问题。\n\n完成后，发送 /done 结束对话。`, hi: `💬 <b>सहायता</b>\n\n🤖 हमारा AI असिस्टेंट तुरंत आपकी मदद करने की कोशिश करेगा! अगर यह आपकी समस्या हल नहीं कर सकता, तो एक <b>मानव एजेंट</b> आएगा।\n\nनीचे अपना सवाल या समस्या बताएं।\n\nसमस्या हल होने पर, /done भेजकर चैट बंद करें।` }[lang] || `💬 <b>Support</b>\n\n🤖 Our AI assistant will try to help you right away! If it can't resolve your issue, a <b>human agent</b> will step in.\n\nDescribe your question or issue below.\n\nWhen done, send /done to close the chat.`), { parse_mode: 'HTML', reply_markup: { keyboard: [['/done', '🏠 Main Menu']], resize_keyboard: true } })
     // Notify admin — private message only, not to groups
     const name = await get(nameOf, chatId)
     const userTag = name ? `@${name}` : (msg?.from?.username ? `@${msg.from.username}` : 'unknown')
@@ -35988,6 +35988,38 @@ Tap a button below to change. Changes sync to your phone on next app open.`
       zh: `❓ <b>需要帮助？</b>\n\n您可以：\n\n📞 <b>Cloud IVR + SIP</b> — 获取您自己的电话号码\n🔗 <b>URL 缩短</b> — 缩短链接\n📧 <b>批量短信</b> — 发送群发消息\n🛡️ <b>Anti-Red 托管</b> — 托管网站\n\n💡 使用下方按钮导航，或输入 /start 查看完整菜单。`
     }
     return send(chatId, helpMsg[lang] || helpMsg.en, isAdmin(chatId) ? aO : trans('o'))
+  }
+
+  // ── Natural-language intent routing (base state only) ──
+  // A conversational bot should understand typed intent, not just button taps.
+  // When the user is NOT mid-flow and types e.g. "i want to buy a domain",
+  // point them straight at the right button instead of a generic "use the
+  // buttons below". Mid-action text falls through to the gentle hint below so
+  // we never hijack a legitimate in-flow input (domain name, amount, etc.).
+  if (!isMidAction) {
+    const nlIntents = [
+      { btn: user.domainNames,            kw: ['domain'] },
+      { btn: user.hostingDomainsRedirect, kw: ['hosting', 'cpanel', 'anti-red', 'antired', 'web host', 'host a website', 'host my website', 'host a site'] },
+      { btn: user.vpsPlans,               kw: ['vps', 'rdp', 'remote desktop', 'windows server', 'linux server'] },
+      { btn: user.cloudPhone,             kw: ['phone number', 'virtual number', 'ivr', 'voip', 'auto attendant', 'voicemail', 'caller id', 'toll free', 'toll-free'] },
+      { btn: user.urlShortenerMain,       kw: ['shorten', 'short link', 'shortlink', 'url shortener', 'short url', 'bitly', 'bit.ly'] },
+      { btn: user.leadsValidation,        kw: ['leads', 'phone lead', 'validate number', 'number validation'] },
+      { btn: user.smsAppMain,             kw: ['bulk sms', 'bulksms', 'send sms', 'mass sms', 'text blast', 'sms campaign'] },
+      { btn: user.virtualCard,            kw: ['virtual card', 'debit card', 'prepaid card'] },
+      { btn: user.marketplace,            kw: ['marketplace', 'escrow'] },
+      { btn: user.digitalProducts,        kw: ['twilio', 'telnyx', 'workspace', 'zoho', 'esim', 'e-sim', 'digital product'] },
+      { btn: user.wallet,                 kw: ['deposit', 'top up', 'topup', 'add funds', 'add money', 'fund my wallet', 'wallet balance', 'recharge'] },
+    ]
+    const nlHit = nlIntents.find(it => it.btn && it.kw.some(k => messageLower.includes(k)))
+    if (nlHit) {
+      const guide = {
+        en: `👇 Tap <b>${nlHit.btn}</b> below to continue.`,
+        fr: `👇 Appuyez sur <b>${nlHit.btn}</b> ci-dessous pour continuer.`,
+        zh: `👇 点击下方的 <b>${nlHit.btn}</b> 继续。`,
+        hi: `👇 जारी रखने के लिए नीचे <b>${nlHit.btn}</b> पर टैप करें।`,
+      }
+      return send(chatId, guide[lang2] || guide.en, { ...(isAdmin(chatId) ? aO : trans('o')), parse_mode: 'HTML' })
+    }
   }
 
   // Enhanced fallback for new users — guide them to use buttons instead of typing

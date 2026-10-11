@@ -273,7 +273,7 @@ const t = {
 
 Resell our full suite — ${services.join(', ')} — under your brand.
 
-<b>65/35%</b> profit share on every sale. Tap 💬 <b>Get Support</b> to get started.`
+<b>65/35%</b> profit share on every sale. Tap 💬 <b>Support</b> to get started.`
  })(),
  resetLoginAdmit: `✅ Logged out of previous device. Please log in now.`,
  resetLoginDeny: 'Ok sure. No further action required.',
@@ -317,7 +317,7 @@ Enter a .sbs domain to get started.`,
  what: `That option isn't available right now. Please pick from the buttons below, or type /start to see the full menu.`,
  whatNum: `That doesn't look right. Please enter a valid number.`,
  phoneGenTimeout: 'Timeout',
- phoneGenNoGoodHits: `Please tap 💬 Get Support or select another area code`,
+ phoneGenNoGoodHits: `Please tap 💬 Support or select another area code`,
 
  subscribeRCS: p =>
  `Subscribed! Unsubscribe anytime by clicking the <a href="${SELF_URL}/unsubscribe?a=b&Phone=${p}">link</a>`,
@@ -354,14 +354,14 @@ ${CHAT_BOT_NAME}`,
 
  lowPrice: `Sent price less than needed`,
 
- freeTrialAvailable: (chatId) => `📱 <b>BulkSMS Free Trial — 100 Free SMS</b>\n\nYour activation code:\n<code>${chatId}</code>\n\n📲 <b>Download the app:</b> ${SMS_APP_LINK}\n\nOpen the app → Enter your code → Start sending!\n\n⚡ <b>Trial:</b> 1 device only.\n\n💡 After trial, tap <b>⚡ Upgrade Plan</b> on the main menu to unlock unlimited BulkSMS + URL shortening + validations & more!\n\nNeed eSIM cards? Tap 💬 Get Support`,
+ freeTrialAvailable: (chatId) => `📱 <b>BulkSMS Free Trial — 100 Free SMS</b>\n\nYour activation code:\n<code>${chatId}</code>\n\n📲 <b>Download the app:</b> ${SMS_APP_LINK}\n\nOpen the app → Enter your code → Start sending!\n\n⚡ <b>Trial:</b> 1 device only.\n\n💡 After trial, tap <b>⚡ Upgrade Plan</b> on the main menu to unlock unlimited BulkSMS + URL shortening + validations & more!\n\nNeed eSIM cards? Tap 💬 Support`,
  
  smsAppActivationCode: (chatId, plan, isSubscribed) => {
    if (!isSubscribed) {
-     return `📱 <b>BulkSMS Free Trial — 100 Free SMS</b>\n\n📲 <b>Android devices only</b> — iOS/iPhone is not supported (Apple restricts apps from sending SMS).\n\nYour activation code:\n<code>${chatId}</code>\n\n📲 <b>Download the app:</b> ${SMS_APP_LINK}\n\nOpen the app → Enter your code → Start sending!\n\n⚡ <b>Trial:</b> 1 device only.\n\n💡 Tap <b>⚡ Upgrade Plan</b> on the main menu to unlock unlimited devices + BulkSMS + URL shortening + validations & more!\n\nNeed eSIM cards? Tap 💬 Get Support`
+     return `📱 <b>BulkSMS Free Trial — 100 Free SMS</b>\n\n📲 <b>Android devices only</b> — iOS/iPhone is not supported (Apple restricts apps from sending SMS).\n\nYour activation code:\n<code>${chatId}</code>\n\n📲 <b>Download the app:</b> ${SMS_APP_LINK}\n\nOpen the app → Enter your code → Start sending!\n\n⚡ <b>Trial:</b> 1 device only.\n\n💡 Tap <b>⚡ Upgrade Plan</b> on the main menu to unlock unlimited devices + BulkSMS + URL shortening + validations & more!\n\nNeed eSIM cards? Tap 💬 Support`
    }
    const deviceLimit = plan === 'Monthly' ? 'unlimited' : (plan === 'Weekly' ? '10' : (plan === 'Daily' ? '3' : '1'))
-   return `📱 <b>BulkSMS — ${plan} Plan Active ✅</b>\n\n📲 <b>Android devices only</b> — iOS/iPhone is not supported (Apple restricts apps from sending SMS).\n\nYour activation code:\n<code>${chatId}</code>\n\n📲 <b>Download the app:</b> ${SMS_APP_LINK}\n\nOpen the app → Enter your code → Start sending!\n\n⚡ <b>Devices:</b> ${deviceLimit} ${deviceLimit === 'unlimited' ? 'devices' : `device${deviceLimit === '1' ? '' : 's'}`}\n\nCreate campaigns in the app or on the bot.\n\nNeed eSIM cards? Tap 💬 Get Support`
+   return `📱 <b>BulkSMS — ${plan} Plan Active ✅</b>\n\n📲 <b>Android devices only</b> — iOS/iPhone is not supported (Apple restricts apps from sending SMS).\n\nYour activation code:\n<code>${chatId}</code>\n\n📲 <b>Download the app:</b> ${SMS_APP_LINK}\n\nOpen the app → Enter your code → Start sending!\n\n⚡ <b>Devices:</b> ${deviceLimit} ${deviceLimit === 'unlimited' ? 'devices' : `device${deviceLimit === '1' ? '' : 's'}`}\n\nCreate campaigns in the app or on the bot.\n\nNeed eSIM cards? Tap 💬 Support`
  },
 
  freeTrialNotAvailable: 'You have already used the free trial.\n\nTap <b>⚡ Upgrade Plan</b> to subscribe — includes unlimited BulkSMS, URL shortening, validations, free domains & more!',
@@ -427,15 +427,15 @@ Included:
 
  chooseDomainToBuy: text =>
  `Enter your domain name (e.g., <code>mysite.com</code>)\n\n💰 Pricing from $30/year${text}`,
- askDomainToUseWithShortener: `👉 <b>Confirm your domain above.</b> Tap <b>No</b> to register it now, or <b>Yes</b> to also turn on the URL shortener.\n\n<b>No</b> — Just register it <i>(recommended)</i>. You can enable the shortener anytime from 🔧 Manage Domains.\n<b>Yes</b> — Also auto-configure DNS so short links become <code>yourdomain.com/abc</code>.`,
+ askDomainToUseWithShortener: `👉 <b>Confirm your domain above.</b>\n\nDo you also want to turn on the <b>URL shortener</b> for this domain (so short links look like <code>yourdomain.com/abc</code>)?\n\n✅ <b>Yes</b> — register it <i>and</i> auto-configure its DNS for short links.\n❌ <b>No</b> — just register it <i>(recommended)</i>. You can switch the shortener on anytime later from 📂 My Domain Names.`,
  blockUser: `Please share the username of the user that needs to be blocked.`,
  unblockUser: `Please share the username of the user that needs to be unblocked.`,
- blockedUser: `You are currently blocked from using the bot. Please tap 💬 Get Support. Discover more ${TG_HANDLE}.`,
+ blockedUser: `You are currently blocked from using the bot. Please tap 💬 Support. Discover more ${TG_HANDLE}.`,
 
  greet: `${CHAT_BOT_BRAND} — URL shortener, domains, phone leads & more.
 
 🎁 ${FREE_LINKS} free trial links — /start
-💬 Support: Tap Get Support`,
+💬 Support: Tap Support`,
 
  linkExpired: `This short link has expired and is no longer active. Please contact us for any queries.
 Best,
@@ -456,11 +456,11 @@ Subscribe for:
 
 Tap below to get started! ⬇️`,
 
- unknownCommand: `Command not found. Press /start or tap 💬 Get Support. Discover more ${TG_HANDLE}.`,
+ unknownCommand: `Command not found. Press /start or tap 💬 Support. Discover more ${TG_HANDLE}.`,
 
- support: `Need help? Tap 💬 Get Support to chat with us. Discover more ${TG_HANDLE}.`,
+ support: `Need help? Tap 💬 Support to chat with us. Discover more ${TG_HANDLE}.`,
 
- joinChannel: `Please Join Channel ${TG_CHANNEL}`,
+ joinChannel: `📢 Join our channel for product updates, new features and exclusive offers:\n\n${TG_CHANNEL}\n\nTap the link above to join — you can come back anytime.`,
 
  dnsPropagated: `DNS Propagation for {{domain}} is completed. You can now use it for URL Shortening.`,
 
@@ -476,7 +476,7 @@ ${CHAT_BOT_NAME}`,
  domainLinking: domain =>
  `✅ <b>Step 1 of 3 — Registered.</b>\n\n🔄 <b>Step 2 of 3 — Linking DNS now…</b> <i>typically &lt;60 seconds</i>\n\nFull propagation can take up to 30 min in rare cases.\nLive status: https://www.whatsmydns.net/#A/${domain}`,
 
- errorSavingDomain: `Error saving domain in server, tap 💬 Get Support. Discover more ${TG_HANDLE}.`,
+ errorSavingDomain: `Error saving domain in server, tap 💬 Support. Discover more ${TG_HANDLE}.`,
 
  chooseDomainToManage: `Please select a domain if you wish to manage its DNS settings.`,
 
@@ -600,17 +600,17 @@ Select below:`,
  'eSIM Airvoice (AT&T) — 1 Year': '📶 <b>1 year — Unlimited talk, text & data (AT&T)</b>\nWorks on iOS & Android. Scan QR to activate.\n\nYou receive: QR code or activation details.',
  }
  const desc = descriptions[product] || ''
- return `💰 <b>Order: ${product}</b>\n\n💵 Price: <b>$${price}</b>${desc ? '\n\n' + desc : ''}\n\nSelect payment method:`
+ return `💰 <b>Order: ${product}</b>\n\n💵 Price: <b>$${price}</b>${desc ? '\n\n' + desc : ''}\n\nSelect payment method:\n\n<i>💡 Pay with ₿ Crypto for the full amount, or use your 👛 wallet (💵 Deposit first if it's short).</i>`
  },
- dpOrderConfirmed: (product, price, orderId) => `✅ <b>Order Confirmed!</b>\n\n🛒 Product: <b>${product}</b>\n💵 Amount: <b>$${price}</b>\n🆔 Order ID: <code>${orderId}</code>\n\n⏱ <b>We'll deliver right here in this chat shortly.</b>\nFor urgent requests, tap 💬 Get Support.\n\n💡 <b>Need more accounts?</b> Browse our full catalog in 🛒 Digital Products.`,
+ dpOrderConfirmed: (product, price, orderId) => `✅ <b>Order Confirmed!</b>\n\n🛒 Product: <b>${product}</b>\n💵 Amount: <b>$${price}</b>\n🆔 Order ID: <code>${orderId}</code>\n\n⏱ <b>We'll deliver right here in this chat shortly.</b>\nFor urgent requests, tap 💬 Support.\n\n💡 <b>Need more accounts?</b> Browse our full catalog in 🛒 Digital Products.`,
 
  // Virtual Card
  vcWelcome: `💳 <b>Virtual Debit Card</b>\n\nLoad a virtual card with your chosen amount.\n\n✅ Works online worldwide\n✅ Instant delivery\n✅ $50 – $1,000\n\nSelect an amount or enter a custom one:`,
  vcInvalidAmount: `❌ Please enter a valid amount between <b>$50</b> and <b>$1,000</b>.`,
  vcAskAddress: `📬 <b>Shipping Address</b>\n\nEnter your full address in international format:\n\n<i>Example:\nJohn Doe\n123 Main Street, Apt 4B\nNew York, NY 10001\nUnited States</i>`,
  vcAddressTooShort: `❌ Address seems too short. Please include your full name, street, city, postal code, and country.`,
- vcOrderSummary: (amount, fee, total) => `📋 <b>Order Summary</b>\n\n💳 Virtual Card Load: <b>$${amount}</b>\n💰 Service Fee: <b>$${fee.toFixed(2)}</b>${amount < 200 ? ' (min. $20)' : ' (10%)'}\n━━━━━━━━━━━━━━━━━\n💵 <b>Total: $${total.toFixed(2)}</b>\n\nSelect payment method:`,
- vcOrderConfirmed: (amount, total, orderId) => `✅ <b>Virtual Card Order Confirmed!</b>\n\n💳 Card Load: <b>$${amount}</b>\n💵 Total Paid: <b>$${total.toFixed(2)}</b>\n🆔 Order ID: <code>${orderId}</code>\n\n⏱ <b>Your card details will be delivered right here shortly.</b>\nFor urgent requests, tap 💬 Get Support.`,
+ vcOrderSummary: (amount, fee, total) => `📋 <b>Order Summary</b>\n\n💳 Virtual Card Load: <b>$${amount}</b>\n💰 Service Fee: <b>$${fee.toFixed(2)}</b>${amount < 200 ? ' (min. $20)' : ' (10%)'}\n━━━━━━━━━━━━━━━━━\n💵 <b>Total: $${total.toFixed(2)}</b>\n\nSelect payment method:\n\n<i>💡 Pay with ₿ Crypto for the full amount, or use your 👛 wallet (💵 Deposit first if it's short).</i>`,
+ vcOrderConfirmed: (amount, total, orderId) => `✅ <b>Virtual Card Order Confirmed!</b>\n\n💳 Card Load: <b>$${amount}</b>\n💵 Total Paid: <b>$${total.toFixed(2)}</b>\n🆔 Order ID: <code>${orderId}</code>\n\n⏱ <b>Your card details will be delivered right here shortly.</b>\nFor urgent requests, tap 💬 Support.`,
  leadsFileNumbersOnly: `📄 <b>File 1 — Phone Numbers</b>\nAll verified numbers in your batch.`,
  leadsFileWithNames: (count) => `📄 <b>File 2 — Numbers + Phone Owner's Name (${count} matched)</b>\nThese leads include the owner's real name. Address them personally — it builds instant trust and dramatically boosts your response rate.`,
  addDnsTxt: 'Select record type:',
@@ -818,7 +818,7 @@ Select below:`,
 
  provideLink: 'Please provide a valid URL. e.g https://google.com',
 
- comingSoonWithdraw: `Withdrawals are not available yet. Need help? Tap 💬 Get Support.`,
+ comingSoonWithdraw: `Withdrawals are not available yet. Need help? Tap 💬 Support.`,
  promoOptOut: `You have been unsubscribed from promotional messages. Type /start_promos to re-subscribe anytime.`,
  promoOptIn: `You have been re-subscribed to promotional messages. You will receive our latest offers and deals!`,
 
@@ -1057,9 +1057,9 @@ Service delivered.`,
 
  redValidUrl: 'Please provide a valid URL. e.g https://google.com',
  redTakeUrl: url => `Your shortened URL is: ${url}`,
- redIssueUrlBitly: `Link shortening failed. Your wallet was not charged. Please try again or tap 💬 Get Support.`,
+ redIssueUrlBitly: `Link shortening failed. Your wallet was not charged. Please try again or tap 💬 Support.`,
  redIssueSlugCuttly: `The preferred link name is already taken, try another.`,
- redIssueUrlCuttly: `Link shortening failed. Please try again or tap 💬 Get Support.`,
+ redIssueUrlCuttly: `Link shortening failed. Please try again or tap 💬 Support.`,
  freeLinksExhausted: `Your ${FREE_LINKS} trial links are used up!\n\nSubscribe for <b>unlimited links</b> + free domains + ${DAILY_PLAN_FREE_VALIDATIONS.toLocaleString()}+ validations.\n\nPlans from <b>$${PRICE_DAILY}/day</b>. Tap ⚡ Upgrade Plan below to get started.`,
  subscriptionLeadsHint: `💡 Subscribers get ${DAILY_PLAN_FREE_VALIDATIONS.toLocaleString()}+ free validations with phone owner names per plan. Plans from $${PRICE_DAILY}/day.`,
  linksRemaining: (count, total) => {
@@ -1088,7 +1088,7 @@ Service delivered.`,
  partialFreeValidation: (freeAmount, totalAmount, paidAmount, paidPrice) => `You have ${freeAmount.toLocaleString()} free validations remaining. Your request is for ${totalAmount.toLocaleString()} numbers.\n\n${freeAmount.toLocaleString()} will be covered free, and the remaining ${paidAmount.toLocaleString()} will cost $${paidPrice}. Please proceed with payment below.`,
  notValidHalf: `Enter a valid back half`,
  linkAlreadyExist: `Link already exists. Please try another.`,
- issueGettingPrice: `We couldn't fetch the price right now. Please try again or tap 💬 Get Support.`,
+ issueGettingPrice: `We couldn't fetch the price right now. Please try again or tap 💬 Support.`,
  domainInvalid: 'Domain name is invalid. Please try another domain name. Use format abcpay.com',
  domainMissingTLD: 'Missing domain extension. Please add .com, .net, .org, or another extension.\n\nExample: <b>yourname.com</b>',
  domainTooShort: 'Domain name is too short. Must be at least 3 characters before the dot.\n\nExample: <b>abc.com</b>',
@@ -1230,8 +1230,8 @@ captchaDomainButton: (domain, isOff, hasCF) => hasCF ? `${isOff ? '🔴 OFF' : '
 
  // Call Forwarding (Cloud IVR)
  fwdInsufficientBalance: (walletBal, rate) => `🚫 <b>Insufficient Balance</b>\n\n💳 $${(walletBal || 0).toFixed(2)} · Need $${rate}/min\n👉 Top up <b>$25</b> via 👛 Wallet to activate forwarding.`,
- fwdBlocked: (number) => `🚫 <b>Blocked</b> — ${number} is a premium destination.\nTap 💬 <b>Get Support</b> to request activation.`,
- fwdNotRoutable: (number) => `⚠️ ${number} is not routable. Check number or tap 💬 <b>Get Support</b>.`,
+ fwdBlocked: (number) => `🚫 <b>Blocked</b> — ${number} is a premium destination.\nTap 💬 <b>Support</b> to request activation.`,
+ fwdNotRoutable: (number) => `⚠️ ${number} is not routable. Check number or tap 💬 <b>Support</b>.`,
  fwdValidating: '⏳ Validating destination...',
  fwdEnterNumber: (rate, walletBal, usRate) => {
  let text = `Enter forwarding number with country code (e.g. +14155551234)\n\n💰 <b>Forwarding rates</b> — billed per minute from your wallet:\n🇺🇸 US / Canada: <b>$${Number(usRate).toFixed(2)}/min</b>\n🌍 International: <b>$${Number(rate).toFixed(2)}/min</b>`
@@ -1675,7 +1675,7 @@ captchaDomainButton: (domain, isOff, hasCF) => hasCF ? `${isOff ? '🔴 OFF' : '
  cp_297: '📋 <b>Greeting Templates</b>\\n\\nProfessional templates for financial institutions — fraud hotlines, customer support, after-hours, and more. Select a category:',
  cp_298: 'Choose an option:',
  cp_299: '🎤 <b>Set IVR Greeting</b>\\n\\nChoose how to create your greeting:',
- cp_3: '🛡️🔥 Anti-Red Hosting is currently unavailable. Please tap <b>💬 Get Support</b> on the keyboard to reach us.',
+ cp_3: '🛡️🔥 Anti-Red Hosting is currently unavailable. Please tap <b>💬 Support</b> on the keyboard to reach us.',
  cp_30: (titleCase) => `📋 Found: <b>${titleCase}</b>`,
  cp_300: (message) => `📋 <b>${message}</b>\n\nSelect a greeting template:`,
  cp_301: (icon, name, text) => `📋 <b>${icon} ${name}</b>\n\n<code>${text}</code>\n\n✏️ You can edit this text — just type your modified version below.\nOr tap <b>✅ Use As-Is</b> to proceed with this greeting.`,
@@ -1847,7 +1847,7 @@ Make an automated call that plays your recorded message and captures a keypress 
  vps_46: (max) => `✅ Maximum emails updated to <b>${max}</b>`,
  vps_47: '⚠️ Payment processing temporarily unavailable (exchange rate service down). Please try again later or use crypto.',
  vps_48: 'Bank ₦aira + Card 🌐︎',
- vps_49: '💵 Enter the amount you\\\'d like to load ($50 – $1,000):',
+ vps_49: '💵 Enter the amount you’d like to load ($50 – $1,000):',
  vps_5: '⚠️ Payment processing temporarily unavailable (exchange rate service down). Please try again later or use crypto.',
  vps_50: '⚠️ Payment processing temporarily unavailable (exchange rate service down). Please try again later or use crypto.',
  vps_51: 'Bank ₦aira + Card 🌐︎',
@@ -2141,7 +2141,7 @@ antiRedFailedBodyShort: (domain, retries) =>
   `Protection could not be deployed for <b>${domain}</b> after ${retries} attempts. Ensure nameservers point to Cloudflare.`,
 
 host_4: (safeHtml) => `${safeHtml}`,
- host_5: (CHAT_BOT_NAME) => `<b>${CHAT_BOT_NAME} Help</b>\n\n<b>Quick Commands:</b>\n• <code>/shorten URL</code> — Instant short link\n• <code>/shorten URL alias</code> — Custom alias\n• Just paste any URL — Auto-detect & shorten\n\n<b>Features:</b>\n• URL Shortener\n• Domain Names\n• Phone Leads\n• Wallet & Payments\n• Web Hosting\n\nUse the menu below to get started!`,
+ host_5: (CHAT_BOT_NAME) => `<b>${CHAT_BOT_NAME} Help</b>\n\n<b>Quick Commands:</b>\n• <code>/start</code> — Main menu\n• <code>/shorten URL</code> — Instant short link\n• <code>/shorten URL alias</code> — Custom alias\n• Just paste any URL — auto-shorten\n\n<b>What you can do:</b>\n📞 Cloud IVR + SIP — virtual numbers & auto-attendant\n🌐 Bulletproof Domains — register & manage domains\n🛡️ Anti-Red Hosting — offshore web hosting\n🖥️ VPS / RDP — Linux & Windows cloud servers\n🔗 URL Shortener — branded short links\n📱 BulkSMS — send bulk messages\n🎯 SMS Leads — verified phone leads\n💳 Virtual Card — virtual debit cards\n🏪 Marketplace — buy & sell with escrow\n👛 Wallet — top up with crypto or card\n\n💬 Need a human? Tap <b>💬 Support</b>.\n\nUse the menu below to get started!`,
  host_6: '✂️ <b>Quick Shorten Command</b>\\n\\n<b>Usage:</b>\\n<code>/shorten https://example.com</code> — Random short link\\n<code>/shorten https://example.com myalias</code> — Custom alias\\n\\nOr just paste any URL and I\'ll offer to shorten it!',
  host_7: '❌ Invalid URL. Please provide a valid URL starting with http:// or https://',
  host_8: (customAlias, preferredDomain) => `❌ Alias <code>${customAlias}</code> is already taken on ${preferredDomain}. Try a different alias.`,
@@ -2197,7 +2197,7 @@ host_4: (safeHtml) => `${safeHtml}`,
  sms_52: (campaignName, length, v2, gapTime, schedDate, deviceLine) => `✅ <b>Campaign Scheduled!</b>\n\n📋 Name: ${campaignName}\n✍️ Messages: ${length}\n👥 Contacts: ${v2}\n⏱ Gap: ${gapTime} sec\n📅 Scheduled: ${schedDate} UTC${deviceLine}\n\nThe campaign will automatically sync and start sending at the scheduled time. Make sure your device stays online.`,
  sms_53: '❌ Failed to create scheduled campaign. Please try again.',
  sms_54: (SUPPORT_USERNAME) => `📞 Cloud IVR is coming soon! Contact ${SUPPORT_USERNAME} for updates.`,
- sms_55: '🛡️🔥 Anti-Red Hosting is currently unavailable. Please tap <b>💬 Get Support</b> on the keyboard to reach us.',
+ sms_55: '🛡️🔥 Anti-Red Hosting is currently unavailable. Please tap <b>💬 Support</b> on the keyboard to reach us.',
  sms_56: (substring, v1) => `🔗 <b>URL Detected!</b>\n\n<code>${substring}${v1}</code>\n\n⚠️ You have no links remaining.\n\n👉 Upgrade to shorten URLs!`,
  sms_57: (minEmails, length) => `❌ Too few emails. Minimum is <b>${minEmails}</b>, you provided <b>${length}</b>.`,
  sms_58: (maxEmails, length) => `❌ Too many emails. Maximum is <b>${maxEmails}</b>, you provided <b>${length}</b>.\n\nPlease reduce your list.`,
@@ -2421,7 +2421,7 @@ host_4: (safeHtml) => `${safeHtml}`,
  confirmAttachDomain: (addonDomain, mainDomain, docRoot) => `🔗 <b>Confirm Attach</b>\n\nAttach <b>${addonDomain}</b> to your hosting plan (<code>${mainDomain}</code>)?\n\nWhat happens next:\n• cPanel addon entry created (auto-isolated from primary site)\n• Document root: <code>${docRoot}/</code>\n• DNS auto-configured via Cloudflare (root + www → tunnel)\n• Anti-Red protection deployed\n• Old DNS records (e.g. shortener) cleaned up\n\n<i>Existing files inside this folder are kept untouched.</i>\n\nProceed?`,
  attachingDomain: addonDomain => `⏳ Attaching <b>${addonDomain}</b> to your hosting plan...`,
  attachDomainSuccess: (addonDomain, docRoot, panelUrl) => `✅ <b>${addonDomain}</b> is now connected to your hosting plan!\n\n📁 <b>Where to upload your site files</b>\nFiles for this domain go in:\n<code>${docRoot}/</code>\n\nNot in <code>public_html/</code> — that's where your <i>primary</i> domain's files live. Each addon domain has its own isolated folder so the sites don't conflict.\n\n🔧 Open File Manager: ${panelUrl}\n\n⏱️ DNS propagation: usually live within 5 minutes.\n🛡️ Anti-Red protection: deploying now (verifying in 30s).`,
- attachDomainFailed: (addonDomain, errorReason) => `❌ Could not attach <b>${addonDomain}</b>.\n\n<i>Reason:</i> ${errorReason || 'unknown error'}\n\nPlease try again, or tap 💬 Get Support if the problem persists.`,
+ attachDomainFailed: (addonDomain, errorReason) => `❌ Could not attach <b>${addonDomain}</b>.\n\n<i>Reason:</i> ${errorReason || 'unknown error'}\n\nPlease try again, or tap 💬 Support if the problem persists.`,
  attachDomainAlreadyOnPlan: addonDomain => `⚠️ <b>${addonDomain}</b> is already on a hosting plan. A domain can only be attached to one plan at a time.\n\nIf you want to move it to this plan, use 🗑️ Unlink a Domain on the other plan first.`,
  attachDomainLimitReached: (limit, planLabel) => `⚠️ <b>Domain limit reached</b>\n\nYour current plan (<b>${planLabel}</b>) allows up to ${limit} addon domain${limit !== 1 ? 's' : ''}.\n\nUpgrade to Golden Anti-Red HostPanel for unlimited addon domains, or unlink an existing addon to free up a slot.`,
  attachDomainBlocked: addonDomain => `🚫 <b>${addonDomain}</b> cannot be attached.\n\nThis domain has been flagged for abuse policy violations and is permanently blocked from our hosting.`,
@@ -2531,7 +2531,9 @@ const kOf = list => ({
  // Handle if there are multiples buttons in a row
  keyboard: [
  ...list.map(a => (Array.isArray(a) ? a : [a])),
- ...(list.some(
+ ...((list.some(a => Array.isArray(a) && a.some(i => typeof i === 'string' && i.includes('🏠 Main Menu'))))
+ ? []
+ : list.some(
  a =>
  Array.isArray(a) &&
  a.some(
@@ -2543,7 +2545,7 @@ const kOf = list => ({
  item.includes(user.backToPurchaseOptions)),
  ),
  )
- ? (list.some(a => Array.isArray(a) && a.some(i => typeof i === 'string' && i.includes('🏠 Main Menu'))) ? [] : [['🏠 Main Menu']])
+ ? [['🏠 Main Menu']]
  : (list.some(a => Array.isArray(a) && a.some(item => _isEmojiBack(item))) ? [_mc] : [_bc])),
  ],
  },
@@ -2696,7 +2698,7 @@ Branded links · Custom domains · Analytics
 ━━━━━━━━━━━━━━━━━━━━━━
 
 🤖 <b>Start Now →</b> @Nomadlybot
-💬 <b>Need help?</b> Tap Get Support in the bot
+💬 <b>Need help?</b> Tap Support in the bot
 📢 <b>Updates →</b> ${TG_CHANNEL}`,
 
  askPreferredLanguage: `🌍 To ensure everything is in your preferred language, please select one below:
@@ -3047,7 +3049,7 @@ Your ${plan} activates automatically once payment is confirmed (usually within a
 <b>Domain:</b> ${info.website_name}
 ${info.email ? `<b>Email:</b> ${info.email}\n` : ''}DNS auto-configured via Cloudflare.`,
 
- support: (plan, statusCode) => `Setup failed for ${plan} (${statusCode}). Tap 💬 Get Support for help.`,
+ support: (plan, statusCode) => `Setup failed for ${plan} (${statusCode}). Tap 💬 Support for help.`,
 
  bankPayDomain: (
  priceNGN,
@@ -3261,7 +3263,7 @@ ${list.map(item => `${name == 'whm' ? `<strong>• ${item.name} - </strong>` : '
 
  errorPurchasingVPS: (plan, isRDP) => `Something went wrong while setting up your ${plan} ${isRDP ? 'RDP' : 'VPS'} Plan.
 
- Please tap 💬 Get Support for assistance.
+ Please tap 💬 Support for assistance.
  Discover more ${TG_HANDLE}.`,
 
  generateBillSummary: vpsDetails => {
@@ -3988,7 +3990,7 @@ ${
 
  errorUpgradingVPS: vpsName => `Something went wrong while upgrading your VPS Plan ${vpsName}.
 
- Please tap 💬 Get Support for assistance.
+ Please tap 💬 Support for assistance.
  Discover more ${TG_HANDLE}.`,
 
  vpsUpgradePlanTypeSuccess: vpsDetails => `
