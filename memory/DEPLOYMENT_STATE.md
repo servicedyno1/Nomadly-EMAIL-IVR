@@ -143,3 +143,10 @@ The new layout differs from the old in-place `/opt/nomadly/app-main` checkout. O
 - **FIX B (pending kernel):** ran `pm2 save`, then rebooted the droplet. Now on kernel **`6.8.0-142-generic`** (was `-124`), `libc6`/`linux-base` applied, `/var/run/reboot-required` CLEARED. All 3 bots auto-resurrected online (0 restarts); `/health` app-main=healthy+DB connected, app-wl & app-hb = 200.
 - **Note:** UFW IS active on this droplet now (many `[UFW BLOCK]` entries) — the earlier "no firewall" note is stale; brute-force noise is being dropped. Still-open pre-existing issues (unchanged this session): Contabo `invalid_client` hourly (creds stale — needs new keys from user); one app-wl `checkDomainPriceOnline` 401 at 03:16.
 - **Recurrence guard:** unattended-upgrades will keep patching but will NOT bounce the bots again. Hypervisor reboots (#1) are outside our control, but PM2 resurrect-on-boot works so bots always come back.
+
+## 2026-10-11 — BulkSMS turned OFF on both production bots (user request)
+- Lever: `HIDE_SMS_APP=true` (hides the BulkSMS menu button + all BulkSMS mentions across menu, services list, free-trial row, AI-support, plan copy).
+- **app-wl** (Smadav, `/opt/nomadly/shared/app-wl/backend.env`): already `HIDE_SMS_APP=true` — no change.
+- **app-main** (Nomadly, `/opt/nomadly/shared/app-main/backend.env`): was `HIDE_SMS_APP="false"` → set to `true`. Backup: `backend.env.bak-20261011T160548Z`. Applied with `pm2 reload app-main-b --update-env`.
+- Verified live: both bots `/health` healthy + DB connected; booting config shows `HIDE_SMS_APP="true"` and the rendered main-menu keyboard no longer contains the `📱 BulkSMS` button (app-main shows `📱 SMS Leads` alone on that row).
+- Durability: the env lives in `/opt/nomadly/shared/<app>/backend.env` (symlinked into each release); GitHub-Actions auto-deploy never rewrites it, so the change survives future code deploys. To re-enable later: set `HIDE_SMS_APP=false` in app-main's shared env + `pm2 reload app-main-b --update-env`.
