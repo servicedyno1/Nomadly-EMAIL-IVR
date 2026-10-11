@@ -21,7 +21,6 @@ const LABELS = {
     perkLinks: '🔗 Unlimited links',
     perkValidations: '📱 Validations w/ owner names',
     perkBulkSms: '📱 BulkSMS',
-    perkIvr: '📞 Cloud IVR',
     daily: 'Daily',
     weekly: 'Weekly',
     monthly: 'Monthly',
@@ -37,7 +36,6 @@ const LABELS = {
     perkLinks: '🔗 Liens illimités',
     perkValidations: '📱 Validations avec noms',
     perkBulkSms: '📱 BulkSMS',
-    perkIvr: '📞 Cloud IVR',
     daily: 'Quotidien',
     weekly: 'Hebdomadaire',
     monthly: 'Mensuel',
@@ -52,7 +50,6 @@ const LABELS = {
     perkLinks: '🔗 असीमित लिंक',
     perkValidations: '📱 मालिक के नाम सहित वैलिडेशन',
     perkBulkSms: '📱 BulkSMS',
-    perkIvr: '📞 Cloud IVR',
     daily: 'दैनिक',
     weekly: 'साप्ताहिक',
     monthly: 'मासिक',
@@ -67,7 +64,6 @@ const LABELS = {
     perkLinks: '🔗 无限链接',
     perkValidations: '📱 含机主姓名验证',
     perkBulkSms: '📱 BulkSMS',
-    perkIvr: '📞 Cloud IVR',
     daily: '每日',
     weekly: '每周',
     monthly: '每月',
@@ -100,7 +96,6 @@ function buildChooseSubscription(lang = 'en') {
 
   const perks = [L.perkLinks, L.perkValidations]
   if (!hideSms) perks.push(L.perkBulkSms)
-  perks.push(L.perkIvr)
 
   const deviceSuffix = count => (hideSms ? '' : ` · ${L.smsDevices(count)}`)
 

@@ -563,3 +563,6 @@ User inherited a fully-set-up Nomadly bot pod pointed at LIVE PRODUCTION. Task b
 - Bot plan change is wallet-only (no crypto/bank checkout for the pro-rata amount)
 - Boot-time Telegram ping for DO power-cycles
 - WHM `whm2-fra1` stability: rebooted twice on 09-28; cpsrvd stopped serving per-user API reads for 32h afterwards until its nightly restart (now detected + paged by the heartbeat breaker)
+
+## 2026-06 — Membership copy fix
+- Removed `📞 Cloud IVR` from the Membership / "Choose Your Plan" perks list (js/lang/plan-copy.js) across en/fr/hi/zh. Cloud IVR is a separate product, not a membership perk. Verified by rendering all 4 locales. Live in preview; pending production deploy.
