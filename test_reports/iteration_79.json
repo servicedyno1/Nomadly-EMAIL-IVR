@@ -1,0 +1,22 @@
+{
+  "summary": "Ran the two requested Node test files against the local sandbox Mongo. Both passed with no modifications. No reseller API endpoints were touched — only static source assertions + local throwaway-domain functional checks. Confirms (1) inner idempotency guard in cr-register-domain-&-create-cpanel.js now excludes own stub + failed ghosts while still catching true duplicates, (2) reseller-api outer dup check unchanged and still ignores failed, (3) anti-red challengePage() dead-end removed and all visitors get the proof-of-interaction button (high-score sc>=35 just delayed 1200ms).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/js/tests/test_reseller_dup_guard_2026-10.js",
+    "/app/js/tests/test_hosting_domain_registered_gate.js"
+  ],
+  "test_results": {
+    "test_reseller_dup_guard_2026-10.js": "10 passed, 0 failed (G1,G2,G3,A1,A2,A3 static + F1,F2,F3,F4 functional on local sandbox Mongo)",
+    "test_hosting_domain_registered_gate.js": "12 passed, 0 failed (regression — no breakage from cr-register change)"
+  },
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [],
+  "success_rate": {"backend": "100%", "frontend": "N/A (skipped per request)"},
+  "seed_data_creation": "Functional test seeds a throwaway domain 'dupguardtest-<ts>.example' in local sandbox Mongo (DB_NAME=test) and self-cleans at end.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Reseller API is LIVE production — never curl mutating endpoints. Verification path is `node /app/js/tests/test_reseller_dup_guard_2026-10.js` which exercises both static source assertions and local-Mongo functional guard behavior.",
+  "rca of the issue": "Prior inner guard in cr-register-domain-&-create-cpanel.js matched the order's own placeholder stub and any prior failed/refunded ghost, raising spurious 'duplicate protection' errors and auto-refunding real paying users. Fix narrows the query to findOne({domain, deleted:{$ne:true}, provisionState:{$ne:'failed'}, _id:{$ne: info.customUsername||'__no_self__'}}). Anti-red challenge previously hard-failed (sc>=35 → up(100,'Verification failed') + early return) dead-ending humans; fix removes the kill branch and routes every visitor to the 'Continue to site' button, applying only a 1200ms delay for high-risk scores."
+}
