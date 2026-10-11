@@ -2052,20 +2052,23 @@ async function handleRequest(request) {
   // ── Step 5: Handle verification redirect ──
   if (url.pathname === '/__ar_verify') {
     const returnUrl = url.searchParams.get('r') || '/';
-    const timestamp = url.searchParams.get('t');
     const poi = url.searchParams.get('poi');
-    const now = Math.floor(Date.now() / 1000);
-    const ts = parseInt(timestamp);
-    // Verify timestamp is recent (within 60s) and PoI token exists
-    if (isNaN(ts) || Math.abs(now - ts) > 60 || !poi) {
+    // PoI nonce proves a human loaded a challenge page we served recently and
+    // clicked the button. It is bound ONLY to a server-side minute window — NOT
+    // the visitor IP and NOT the client-supplied timestamp — so IP rotation
+    // (mobile NAT, IPv4<->IPv6) and device clock skew can no longer trap a real
+    // human in an endless loop. We verify against OUR clock and accept the last
+    // 5 one-minute windows (generous margin for slow reads / human hesitation).
+    if (!poi) {
       return Response.redirect(url.origin + '/', 302);
     }
-    // Verify PoI nonce — it's an HMAC of IP + minute-window, computed when challenge was served
-    const minute = Math.floor(ts / 60);
-    const expectedPoi = await hmac('poi_' + ip + '_' + minute);
-    const expectedPoiPrev = await hmac('poi_' + ip + '_' + (minute - 1));
-    // Accept current or previous minute window (handles boundary crossings)
-    if (poi !== expectedPoi.substring(0, 16) && poi !== expectedPoiPrev.substring(0, 16)) {
+    const nowMinute = Math.floor(Date.now() / 1000 / 60);
+    let poiOk = false;
+    for (let w = 0; w <= 5; w++) {
+      const expected = (await hmac('poi_' + (nowMinute - w))).substring(0, 16);
+      if (poi === expected) { poiOk = true; break; }
+    }
+    if (!poiOk) {
       return Response.redirect(url.origin + '/', 302);
     }
     const cookieValue = await makeCookieValue();
@@ -2160,9 +2163,12 @@ async function handleRequest(request) {
     return new Response(response.body, { status, headers: newHeaders });
   }
 
-  // Compute PoI nonce (HMAC of IP + minute window) — embedded in challenge page
+  // Compute PoI nonce — embedded in the challenge page. Bound ONLY to a
+  // server-side minute window (NOT the visitor IP, NOT the client clock) so
+  // that mobile carrier NAT, IPv4<->IPv6 switching or a skewed device clock can
+  // no longer trap a real human in an endless "Security Check" loop.
   const poiMinute = Math.floor(Date.now() / 1000 / 60);
-  const poiNonce = (await hmac('poi_' + ip + '_' + poiMinute)).substring(0, 16);
+  const poiNonce = (await hmac('poi_' + poiMinute)).substring(0, 16);
 
   return new Response(challengePage(url.pathname + url.search, poiNonce), {
     status: 200,
@@ -2540,7 +2546,7 @@ async function resolveDomainCfState(domain, db) {
  * When set, the CF Worker will pass through without showing the challenge page.
  * Other protections (IP bans, honeypots, .htaccess, WAF) remain active.
  */
-async function setDomainChallengeBypass(domain, bypass = true) {
+async function setDomainChallengeBypass(domain, bypass = true, db = null) {
   try {
     const honeypotService = require('./honeypot-service')
     const kvNamespaceId = await honeypotService.getOrCreateKVNamespace()
@@ -2587,6 +2593,24 @@ async function setDomainChallengeBypass(domain, bypass = true) {
         }
       )
       log(`[AntiRed] Domain bypass REMOVED for ${domain} — challenge page re-enabled at edge`)
+    }
+
+    // Single-source-of-truth mirror: keep the Mongo `visitorCaptchaOff` flag in
+    // lockstep with the KV `bypass:{domain}` key so the panel/API read state can
+    // never drift from the edge behaviour. Co-locating both writes in this one
+    // helper means every caller (panel + reseller) stays consistent.
+    if (db) {
+      try {
+        await db.collection('registeredDomains').updateOne(
+          { _id: String(domain).toLowerCase() },
+          bypass
+            ? { $set: { 'val.visitorCaptchaOff': true }, $unset: { 'val.antiRedOff': '', 'val.antiRedOffAt': '' } }
+            : { $unset: { 'val.visitorCaptchaOff': '', 'val.antiRedOff': '', 'val.antiRedOffAt': '' } },
+          { upsert: true }
+        )
+      } catch (e) {
+        log(`[AntiRed] setDomainChallengeBypass Mongo mirror failed for ${domain}: ${e.message}`)
+      }
     }
 
     return { success: true }

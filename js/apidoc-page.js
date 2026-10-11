@@ -1498,7 +1498,7 @@ function endpointGroups(base) {
         },
         {
           method: 'GET', path: '/hosting/:user/geo', auth: true, billed: false,
-          desc: 'List Cloudflare geo firewall rules (Golden only). Create: POST /geo {countries:[],mode:"block"|"allow",description?}. Delete: DELETE /geo {ruleId}.',
+          desc: 'List Cloudflare geo firewall rules. GOLDEN PLAN ONLY — list, create and delete all require the Golden Anti-Red HostPanel and return 403 gold_only on any other plan. Create: POST /geo {countries:[],mode:"block"|"allow",description?}. Delete: DELETE /geo {ruleId}. Block rules use the form ip.geoip.country in {"US" "GB"}; allow (whitelist) rules are the negated form not (ip.geoip.country in {…}).',
           curl: `curl -s ${base}/hosting/mysite01/geo \\
   -H "Authorization: Bearer YOUR_API_KEY"`,
           resp: `{ "rules": [ { "id": "…", "action": "block", "expression": "ip.geoip.country in {\\"CN\\"}" } ], "zoneId": "…" }`,

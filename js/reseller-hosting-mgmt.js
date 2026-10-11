@@ -1048,13 +1048,9 @@ function registerHostingMgmtRoutes(deps) {
     const workerResult = await antiRed.deploySharedWorkerRoute(domain, cf.zoneId)
     if (!workerResult || !workerResult.success) return res.status(502).json({ error: 'worker_deploy_failed', message: (workerResult && workerResult.error) || 'Failed to update Visitor Captcha.' })
     try {
-      if (enabled) {
-        await db.collection('registeredDomains').updateOne({ _id: domain }, { $unset: { 'val.antiRedOff': '', 'val.antiRedOffAt': '', 'val.visitorCaptchaOff': '' } })
-        await antiRed.setDomainChallengeBypass(domain, false)
-      } else {
-        await db.collection('registeredDomains').updateOne({ _id: domain }, { $set: { 'val.visitorCaptchaOff': true }, $unset: { 'val.antiRedOff': '', 'val.antiRedOffAt': '' } })
-        await antiRed.setDomainChallengeBypass(domain, true)
-      }
+      // KV bypass + Mongo visitorCaptchaOff written together (single source of
+      // truth) inside setDomainChallengeBypass so edge + DB cannot drift.
+      await antiRed.setDomainChallengeBypass(domain, !enabled, db)
     } catch (_) { /* best-effort persistence */ }
     res.json({ success: true, username: acct._id, domain, enabled, hasCloudflare: true })
   }))

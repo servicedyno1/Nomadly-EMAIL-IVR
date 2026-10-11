@@ -54,17 +54,38 @@ export default function SecurityPanel() {
     setError('');
     setSuccess('');
     try {
-      const res = await api('/security/js-challenge/toggle', {
-        method: 'POST',
-        body: JSON.stringify({ enabled: !current }),
-      });
-      if (res.jsChallengeEnabled !== undefined) {
-        setSuccess(res.jsChallengeEnabled ? t('sec.captchaStatusEnabled') : t('sec.captchaStatusDisabled'));
-        fetchStatus();
-      } else if (res.captchaGoldOnly) {
-        setError(res.error || t('sec.captchaDefaultGoldError'));
+      // On Cloudflare domains the visitor challenge is served by the CF Worker,
+      // so drive the SAME worker-captcha path as the Domains tab
+      // (/security/captcha/toggle). Only origin-protected (non-CF) domains use
+      // the .antired-challenge.php toggle. This stops the Security tab from
+      // writing the PHP challenge on CF domains (which fought the protection
+      // heartbeat and silently reverted the toggle).
+      if (status?.hasCloudflare && status?.domain) {
+        const res = await api('/security/captcha/toggle', {
+          method: 'POST',
+          body: JSON.stringify({ domain: status.domain, enabled: !current }),
+        });
+        if (res.success) {
+          setSuccess(!current ? t('sec.captchaStatusEnabled') : t('sec.captchaStatusDisabled'));
+          fetchStatus();
+        } else if (res.captchaGoldOnly) {
+          setError(res.error || t('sec.captchaDefaultGoldError'));
+        } else {
+          setError(res.error || t('sec.failedToggle'));
+        }
       } else {
-        setError(res.error || t('sec.failedToggle'));
+        const res = await api('/security/js-challenge/toggle', {
+          method: 'POST',
+          body: JSON.stringify({ enabled: !current }),
+        });
+        if (res.jsChallengeEnabled !== undefined) {
+          setSuccess(res.jsChallengeEnabled ? t('sec.captchaStatusEnabled') : t('sec.captchaStatusDisabled'));
+          fetchStatus();
+        } else if (res.captchaGoldOnly) {
+          setError(res.error || t('sec.captchaDefaultGoldError'));
+        } else {
+          setError(res.error || t('sec.failedToggle'));
+        }
       }
     } catch (err) {
       setError(err.message);

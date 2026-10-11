@@ -3357,20 +3357,36 @@ function createCpanelRoutes(getCpanelCol, opts = {}) {
         } catch (_) {}
       }
 
-      // Honeypot-off preference (Monthly-plan self-service toggle)
+      // Honeypot-off + captcha-off preferences (self-service toggles)
       let honeypotOff = false
+      let visitorCaptchaOff = false
       try {
         const dbh = getCpanelCol()?.s?.db
         if (dbh) {
           const hpDoc = await dbh.collection('registeredDomains').findOne({ _id: domain })
           honeypotOff = hpDoc?.val?.honeypotOff === true
+          visitorCaptchaOff = hpDoc?.val?.visitorCaptchaOff === true || hpDoc?.val?.antiRedOff === true
         }
       } catch (_) {}
+
+      // On Cloudflare domains the visitor "verify your browser" challenge is
+      // served by the CF Worker, and its on/off preference lives in
+      // `val.visitorCaptchaOff` — NOT the origin `.antired-challenge.php` file
+      // (which, on CF domains, only holds the IP-fix). Reading the PHP file would
+      // wrongly show "Inactive" while the Worker captcha is live, so derive the
+      // layer from the worker state for CF domains and from the PHP file only for
+      // non-CF (origin-protected) domains.
+      const hasCloudflare = !!zone
+      const visitorChallengeActive = hasCloudflare
+        ? (cfWorkerActive && !visitorCaptchaOff)
+        : jsEnabled
 
       const result = {
         antiBot,
         antiRed: { safeBrowsing: sbResult, blacklist: blResult },
         configured: { safeBrowsing: safeBrowsing.isConfigured() },
+        domain,
+        hasCloudflare,
         plan: req.cpPlan,
         isGold: req.cpIsGold,
         captchaGoldOnly: true,
@@ -3381,7 +3397,7 @@ function createCpanelRoutes(getCpanelCol, opts = {}) {
         protectionLayers: {
           htaccessCloaking: true,
           scannerUaBlocking: true,
-          jsChallenge: jsEnabled,
+          jsChallenge: visitorChallengeActive,
           cfWafRules: cfWafRulesActive,
           cfWorker: cfWorkerActive,
           honeypot: !honeypotOff,
@@ -3625,27 +3641,13 @@ function createCpanelRoutes(getCpanelCol, opts = {}) {
             workerResult = await antiRedService.deploySharedWorkerRoute(req.cpDomain, zone.id)
           }
         } catch (_) {}
-        // Persist user preference: clear captcha-off flags so the visitor
-        // challenge re-shows. We clear BOTH the legacy `antiRedOff` and the
-        // current `visitorCaptchaOff` to make this idempotent regardless of
-        // when the doc was first written.
-        try {
-          const db = getCpanelCol()?.s?.db
-          if (db) {
-            await db.collection('registeredDomains').updateOne(
-              { _id: req.cpDomain },
-              { $unset: {
-                'val.antiRedOff': '',
-                'val.antiRedOffAt': '',
-                'val.visitorCaptchaOff': '',
-              } }
-            )
-          }
-        } catch (_) {}
-        // Remove domain bypass from CF Worker KV (re-enable challenge at edge)
+        // Re-enable the visitor challenge at the edge AND clear the captcha-off
+        // flags in Mongo. Both writes are co-located inside
+        // setDomainChallengeBypass (single source of truth) so the KV bypass key
+        // and the Mongo `visitorCaptchaOff` flag can never drift.
         try {
           const antiRedService = require('./anti-red-service')
-          await antiRedService.setDomainChallengeBypass(req.cpDomain, false)
+          await antiRedService.setDomainChallengeBypass(req.cpDomain, false, getCpanelCol()?.s?.db)
         } catch (_) {}
       } else {
         result = await antiRedService.removeJSChallenge(req.cpUser)
@@ -3655,25 +3657,13 @@ function createCpanelRoutes(getCpanelCol, opts = {}) {
         // facing "Verifying your browser" page is hidden (via the KV bypass
         // flag below). Previously this called removeWorkerRoutes() which
         // killed all anti-red layers — see verify-navy.com incident.
-        // Persist user preference: mark only the captcha page as OFF
-        try {
-          const db = getCpanelCol()?.s?.db
-          if (db) {
-            await db.collection('registeredDomains').updateOne(
-              { _id: req.cpDomain },
-              {
-                $set: { 'val.visitorCaptchaOff': true },
-                $unset: { 'val.antiRedOff': '', 'val.antiRedOffAt': '' },
-              }
-            )
-          }
-        } catch (_) {}
-        // Set domain bypass in CF Worker KV (disable the challenge PAGE at the
-        // edge — Step 7 of the worker — but Steps 1-6 including scanner cloaking
-        // still run for everyone).
+        // Disable only the challenge PAGE at the edge (Step 7 of the worker —
+        // Steps 1-6 incl. scanner cloaking still run) AND mark visitorCaptchaOff
+        // in Mongo. Both writes are co-located inside setDomainChallengeBypass
+        // (single source of truth) so KV and Mongo stay in lockstep.
         try {
           const antiRedService = require('./anti-red-service')
-          await antiRedService.setDomainChallengeBypass(req.cpDomain, true)
+          await antiRedService.setDomainChallengeBypass(req.cpDomain, true, getCpanelCol()?.s?.db)
         } catch (_) {}
       }
 
@@ -3853,15 +3843,9 @@ function createCpanelRoutes(getCpanelCol, opts = {}) {
         // Re-deploy worker (idempotent — also serves as self-heal if route was missing)
         workerResult = await antiRedService.deploySharedWorkerRoute(target, zoneId)
         if (workerResult?.success) {
-          await db.collection('registeredDomains').updateOne(
-            { _id: target },
-            { $unset: {
-              'val.antiRedOff': '',
-              'val.antiRedOffAt': '',
-              'val.visitorCaptchaOff': '',
-            } }
-          )
-          try { await antiRedService.setDomainChallengeBypass(target, false) } catch (_) {}
+          // KV bypass + Mongo visitorCaptchaOff written together (single source
+          // of truth) inside setDomainChallengeBypass.
+          try { await antiRedService.setDomainChallengeBypass(target, false, db) } catch (_) {}
         }
       } else {
         // NOTE (2026-02): we no longer remove the CF Worker route on captcha
@@ -3872,14 +3856,9 @@ function createCpanelRoutes(getCpanelCol, opts = {}) {
         // a prior version of the code removed it, restore it now.
         workerResult = await antiRedService.deploySharedWorkerRoute(target, zoneId)
         if (workerResult?.success) {
-          await db.collection('registeredDomains').updateOne(
-            { _id: target },
-            {
-              $set: { 'val.visitorCaptchaOff': true },
-              $unset: { 'val.antiRedOff': '', 'val.antiRedOffAt': '' },
-            }
-          )
-          try { await antiRedService.setDomainChallengeBypass(target, true) } catch (_) {}
+          // KV bypass + Mongo visitorCaptchaOff written together (single source
+          // of truth) inside setDomainChallengeBypass.
+          try { await antiRedService.setDomainChallengeBypass(target, true, db) } catch (_) {}
         }
       }
 
