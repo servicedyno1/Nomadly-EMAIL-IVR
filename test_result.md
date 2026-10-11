@@ -57,6 +57,21 @@ current_task_2026_10_11_three_fixes: |
     New reseller endpoints verified mounted (401 missing_api_key without a key) — NOT exercised with a real key
     (would hit the LIVE prod reseller DB).
 
+  FOLLOW-UP (2026-10-11b):
+    • Production = DigitalOcean droplet 146.190.238.190 (NOT Railway). app-main runs from /opt/nomadly/current/app-main
+      via PM2 (blue/green slots app-main-a/-b); env is /opt/nomadly/shared/app-main/backend.env (symlinked into each
+      release as backend/.env, persists across git-reset deploys). Added GOOGLE_SAFE_BROWSING_KEY to that prod env
+      (timestamped .bak created; value verified exact match; BOT_ENVIRONMENT=production). Did NOT restart prod — it
+      activates on the next deploy (Save to Github → GitHub Actions → pm2 reload), which also ships the new monitor +
+      endpoint code. SSH via /root/.ssh/nomadly_droplet (restore_infra_keys.sh from vault). (Claude creds: SKIPPED per user.)
+    • NEW realtime endpoint: GET /reseller/v1/hosting/:user/safe-browsing[?domain=] — LIVE Google Safe Browsing check
+      (bypasses the 30-min cache via safe-browsing-service.checkDomain(domain,{fresh:true})) for a hosting plan's
+      domains. ?domain= checks one ASSOCIATED domain (main or addon; else 404 domain_not_associated); omit = all plan
+      domains. Read-only (reports safe/flagged/threats + monitor_status; does NOT unlink/notify — the sweep enforces).
+      js/safe-browsing-service.js (fresh opt), js/reseller-hosting-mgmt.js (route).
+      Test: node js/tests/test_hosting_safe_browsing_realtime.js → ALL PASS (mounts the router on LOCAL db w/ mock auth:
+      all/single/association-404/unknown-user-404 + response shape). Route mounted check 401. fresh cache-bypass verified.
+
 
 
 #====================================================================================================

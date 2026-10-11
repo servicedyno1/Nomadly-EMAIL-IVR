@@ -959,6 +959,58 @@ function registerHostingMgmtRoutes(deps) {
     })
   }))
 
+  // Realtime Google Safe Browsing status for a hosting plan's domain(s).
+  // LIVE check (bypasses the 30-min cache) — read-only: it reports status only
+  // and does NOT unlink/notify (the background safe-browsing monitor handles
+  // enforcement). Pass ?domain= to check one domain ASSOCIATED with this plan
+  // (its main domain or an addon domain); omit it to check every plan domain.
+  router.get('/hosting/:user/safe-browsing', apiKeyAuth, h(async (req, res) => {
+    const acct = await loadOwned(req, res); if (!acct) return
+    const ctx = ctxFromAccount(acct)
+    const main = String(ctx.cpDomain || '').toLowerCase()
+    const addons = (ctx.cpAddonDomains || []).map(d => String(d).toLowerCase()).filter(Boolean)
+    const planDomains = [...new Set([main, ...addons].filter(Boolean))]
+
+    if (!safeBrowsing.isConfigured()) {
+      return res.status(503).json({ error: 'safe_browsing_unconfigured', message: 'Google Safe Browsing is not configured on this server.' })
+    }
+
+    let targets = planDomains
+    const qd = req.query.domain ? String(req.query.domain).trim().toLowerCase() : null
+    if (qd) {
+      if (!planDomains.includes(qd)) {
+        return res.status(404).json({ error: 'domain_not_associated', message: `${qd} is not the main domain or an addon domain of hosting plan ${acct._id}.`, plan_domains: planDomains })
+      }
+      targets = [qd]
+    }
+
+    const checkedAt = new Date().toISOString()
+    const results = await Promise.all(targets.slice(0, 100).map(async (d) => {
+      const r = await safeBrowsing.checkDomain(d, { fresh: true }).catch(() => ({ safe: null, threats: [], error: 'check_failed' }))
+      const flagState = await safeBrowsingMonitor.getFlag(getDb(), d).catch(() => null)
+      return {
+        domain: d,
+        is_main: d === main,
+        safe: r.safe,                                 // true | false | null (null = could not determine)
+        flagged: r.safe === false,
+        threats: (r.threats || []).map(t => t.type || t),
+        error: r.error || null,
+        monitor_status: flagState ? (flagState.status || (flagState.flagged ? 'flagged' : 'clear')) : 'clear',
+      }
+    }))
+
+    res.json({
+      username: acct._id,
+      plan: ctx.cpPlan || null,
+      domain: qd || null,
+      checked_at: checkedAt,
+      realtime: true,
+      configured: true,
+      flagged_count: results.filter(r => r.flagged).length,
+      results,
+    })
+  }))
+
   router.get('/hosting/:user/security/anti-red/status', apiKeyAuth, h(async (req, res) => {
     const acct = await loadOwned(req, res); if (!acct) return
     const ctx = ctxFromAccount(acct)
