@@ -26,6 +26,8 @@ const { customAlphabet } = require('nanoid')
 const shortenerPersist = require('./shortener-activation-persistence')
 const rlSaveDomain = require('./rl-save-domain-in-server')
 const domainService = require('./domain-service')
+const safeBrowsing = require('./safe-browsing-service')          // realtime on-demand Google Safe Browsing check
+const sbMonitor = require('./safe-browsing-monitor')             // shared liveCheck + stored flag state
 // Verification helper: accepts BOTH a DNS-only (grey-cloud) record AND a
 // Cloudflare-proxied (orange-cloud) record. See js/shortener-verify.js.
 // zoneCandidates yields [host, parent, …] (never the bare TLD) for subdomain support.
@@ -213,6 +215,29 @@ function registerShortenerRoutes({ router, apiKeyAuth, h, col, getDb, isLive, mo
       active_statuses: ACTIVE_STATUSES,
       mode: mode(),
     })
+  }))
+
+  // ── Realtime Google Safe Browsing (shortener domains) ───────────────────────
+  // LIVE check (bypasses the 30-min cache) for the reseller's shortener domains.
+  // Read-only: reports status only; the background monitor handles enforcement.
+  // GET /shortener/safe-browsing            → all of your activated shortener domains
+  router.get('/shortener/safe-browsing', apiKeyAuth, h(async (req, res) => {
+    if (!safeBrowsing.isConfigured()) return res.status(503).json({ error: 'safe_browsing_unconfigured', message: 'Google Safe Browsing is not configured on this server.' })
+    const docs = await col('shortenerActivations').find({ chatId: owner(req) }).limit(500).toArray()
+    const domains = docs.filter(d => ACTIVE_STATUSES.includes(d.status)).map(d => d.domain || d._id)
+    const results = await sbMonitor.liveCheck(getDb(), domains)
+    res.json({ product: 'shortener', count: results.length, checked_at: new Date().toISOString(), realtime: true, configured: true, flagged_count: results.filter(r => r.flagged).length, results })
+  }))
+
+  // GET /shortener/domains/:domain/safe-browsing → one activated shortener domain
+  router.get('/shortener/domains/:domain/safe-browsing', apiKeyAuth, h(async (req, res) => {
+    const domain = String(req.params.domain || '').trim().toLowerCase()
+    if (!domainOk(domain)) return res.status(400).json({ error: 'invalid_domain' })
+    const act = await col('shortenerActivations').findOne({ _id: domain, chatId: owner(req) })
+    if (!act) return res.status(404).json({ error: 'not_found', message: `${domain} is not an activated shortener domain on your account.` })
+    if (!safeBrowsing.isConfigured()) return res.status(503).json({ error: 'safe_browsing_unconfigured', message: 'Google Safe Browsing is not configured on this server.' })
+    const results = await sbMonitor.liveCheck(getDb(), [domain])
+    res.json({ product: 'shortener', domain, status: act.status || 'unknown', active: ACTIVE_STATUSES.includes(act.status), checked_at: new Date().toISOString(), realtime: true, configured: true, flagged_count: results.filter(r => r.flagged).length, results })
   }))
 
   // Re-check DNS for an external domain and finalise activation.

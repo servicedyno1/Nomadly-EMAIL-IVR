@@ -388,6 +388,22 @@ function endpointGroups(base) {
           resp: `{ "domain": "go.mysite.com", "deactivated": true }`,
         },
         {
+          method: 'GET', path: '/shortener/safe-browsing', auth: true, billed: false,
+          desc: 'REALTIME Google Safe Browsing status for ALL your activated shortener domains (live check, bypasses the 30-min cache). Read-only: reports safe/flagged/threats + stored monitor_status; it never deactivates — the background monitor handles enforcement (and auto-deactivates a flagged shortener domain so its slugs stop resolving).',
+          curl: `curl -s ${base}/shortener/safe-browsing \\
+  -H "Authorization: Bearer YOUR_API_KEY"`,
+          resp: `{ "product": "shortener", "count": 1, "checked_at": "…", "realtime": true, "configured": true, "flagged_count": 0,
+  "results": [ { "domain": "go.mysite.com", "safe": true, "flagged": false, "threats": [], "error": null, "monitor_status": "clear" } ] }`,
+        },
+        {
+          method: 'GET', path: '/shortener/domains/:domain/safe-browsing', auth: true, billed: false,
+          desc: 'REALTIME Google Safe Browsing status for ONE of your activated shortener domains (live check, bypasses cache). 404 if the domain is not an activated shortener domain on your account.',
+          curl: `curl -s ${base}/shortener/domains/go.mysite.com/safe-browsing \\
+  -H "Authorization: Bearer YOUR_API_KEY"`,
+          resp: `{ "product": "shortener", "domain": "go.mysite.com", "status": "completed", "active": true, "checked_at": "…",
+  "realtime": true, "configured": true, "flagged_count": 0, "results": [ { "domain": "go.mysite.com", "safe": true, "flagged": false, "threats": [], "monitor_status": "clear" } ] }`,
+        },
+        {
           method: 'POST', path: '/shortener/links', auth: true, billed: false,
           desc: 'Create a short link on one of your activated domains. Provide a custom alias or let one be auto-generated. Optionally set an expiry.',
           params: [['domain', true, 'An activated shortener domain of yours'], ['url', true, 'The long URL to redirect to (http/https)'], ['alias', false, 'Custom short code (a–z, 0–9, -, _). Omitted → random 7-char code'], ['expires_in_days', false, 'Auto-expire the link after N days']],
@@ -535,6 +551,16 @@ function endpointGroups(base) {
   "plan": "1 vCPU / 1 GB", "region": "EU", "os": "linux",
   "status": "active", "ip": "203.0.113.55", "live": { "status": "active" }
 }`,
+        },
+        {
+          method: 'GET', path: '/vps/:id/safe-browsing', auth: true, billed: false,
+          desc: 'REALTIME Google Safe Browsing status for the domain(s) linked to this VPS (a domain whose DNS A-record points at the box IP). Live check, bypasses the 30-min cache. Pass ?domain=<d> to check one such domain (404 domain_not_associated if it does not resolve to this box); omit it to auto-discover your domains pointing at the box and check them all (best-effort DNS). Read-only — the background monitor handles enforcement (flagged → A-record removed from the box + vps.flagged webhook).',
+          params: [['domain', false, 'A domain pointed at this VPS to check (defaults to auto-discovered linked domains)']],
+          curl: `curl -s "${base}/vps/b2f1c0a4-…/safe-browsing?domain=app.mysite.com" \\
+  -H "Authorization: Bearer YOUR_API_KEY"`,
+          resp: `{ "id": "b2f1c0a4-…", "product": "vps", "ip": "203.0.113.55", "domain": "app.mysite.com", "checked_at": "…",
+  "realtime": true, "configured": true, "flagged_count": 0,
+  "results": [ { "domain": "app.mysite.com", "safe": true, "flagged": false, "threats": [], "error": null, "monitor_status": "clear" } ] }`,
         },
         {
           method: 'POST', path: '/vps/:id/action', auth: true, billed: false,
@@ -717,6 +743,7 @@ function endpointGroups(base) {
     "steps": [ { "key": "creating", "label": "Creating the server", "done": true, "current": false }, { "key": "booting", "label": "Server booting", "done": true }, { "key": "installing", "label": "Windows starting - applying network + password", "done": true }, { "key": "rdp_ready", "label": "Windows is ready", "done": false, "current": true } ],
     "logs": [ { "ts": "…", "stage": "booting", "message": "Droplet 6028… created from image. Booting..." }, … ] },
   "live": { "status": "installing", "progress": 90, "logs": [ … ], "provisioning": { … } } }` },
+        { method: 'GET', path: '/rdp/:id/safe-browsing', auth: true, billed: false, desc: 'REALTIME Google Safe Browsing status for the domain(s) linked to this RDP box (a domain whose DNS A-record points at the box IP). Live check, bypasses the cache. ?domain=<d> checks one such domain (404 domain_not_associated if it does not resolve to this box); omit it to auto-discover + check all your domains pointing at the box. Read-only — the background monitor handles enforcement (flagged → A-record removed + rdp.flagged webhook).', params: [['domain', false, 'A domain pointed at this RDP box to check (defaults to auto-discovered)']], curl: `curl -s "${base}/rdp/ID/safe-browsing?domain=rd.mysite.com" -H "Authorization: Bearer YOUR_API_KEY"`, resp: `{ "id": "…", "product": "rdp", "ip": "203.0.113.80", "domain": "rd.mysite.com", "checked_at": "…", "realtime": true, "configured": true, "flagged_count": 0, "results": [ { "domain": "rd.mysite.com", "safe": true, "flagged": false, "threats": [], "monitor_status": "clear" } ] }` },
         { method: 'POST', path: '/rdp/:id/action', auth: true, billed: false, desc: 'Power action (start, stop, reboot, shutdown).', params: [['action', true, 'start | stop | reboot | shutdown']], curl: `curl -s -X POST ${base}/rdp/ID/action \\
   -H "Authorization: Bearer YOUR_API_KEY" \\
   -H "Content-Type: application/json" \\
