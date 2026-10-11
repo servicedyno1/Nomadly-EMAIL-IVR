@@ -91,11 +91,14 @@ assert(!/if \(message !== 'DISABLE'\)/.test(idx),
 assert(/antiRedConfirmDisable/.test(idx),
   'B.6 _index.js uses `antiRedConfirmDisable` button label')
 
-// Status reads must accept both legacy and new field
+// Status reads must accept both legacy and new field. The bot now derives the
+// captcha on/off state via antiRedService.resolveDomainCfState(...).isOff (the
+// SINGLE SOURCE OF TRUTH), and that helper OR-checks BOTH flags.
 {
-  const m = idx.match(/const isOff = val\.visitorCaptchaOff === true \|\| val\.antiRedOff === true/g)
-  assert((m || []).length >= 2,
-    'B.7 isOff reads BOTH `visitorCaptchaOff` (current) and `antiRedOff` (legacy)')
+  assert(/resolveDomainCfState\([^)]*\)/.test(idx) && /\.isOff/.test(idx),
+    'B.7a _index.js reads captcha state via resolveDomainCfState(...).isOff')
+  assert(/result\.isOff = v\.visitorCaptchaOff === true \|\| v\.antiRedOff === true/.test(antiRedSrc),
+    'B.7b resolveDomainCfState isOff reads BOTH `visitorCaptchaOff` (current) and `antiRedOff` (legacy)')
 }
 // AntiRed-Cron loop must NOT skip on antiRedOff
 {
@@ -112,10 +115,14 @@ const routes = fs.readFileSync(path.join(__dirname, '..', 'js', 'cpanel-routes.j
 
 // Find the captcha-toggle endpoint and check disable branch
 {
-  // disable branch should set visitorCaptchaOff and NOT call removeWorkerRoutes
+  // Disable branch should persist the captcha-off preference and NOT call
+  // removeWorkerRoutes. Persistence of `val.visitorCaptchaOff` is now
+  // centralised in anti-red-service.setDomainChallengeBypass (single source of
+  // truth: the KV bypass key + the Mongo flag are written together), so the
+  // route delegates to it with (domain, true, db) instead of writing inline.
   const captchaBlock = routes.match(/\/\/ NOTE \(2026-02\): we no longer remove the CF Worker route[\s\S]{0,2500}?(?=router\.|app\.|module\.exports|$)/)
-  assert(captchaBlock && /'val\.visitorCaptchaOff': true/.test(captchaBlock[0]),
-    'C.1 cpanel-routes disable path sets `val.visitorCaptchaOff=true`')
+  assert(captchaBlock && /setDomainChallengeBypass\([^,]+,\s*true,\s*[^)]+\)/.test(captchaBlock[0]),
+    'C.1 cpanel-routes disable path persists captcha-off via setDomainChallengeBypass(domain, true, db)')
   if (captchaBlock) {
     // Strip comments before checking — the comment legitimately mentions
     // "Previously this called removeWorkerRoutes()" but the code does not.
@@ -126,9 +133,12 @@ const routes = fs.readFileSync(path.join(__dirname, '..', 'js', 'cpanel-routes.j
     assert(false, 'C.2 disable block not located')
   }
 }
-// Enable path must clear both old + new field
-assert(/'val\.visitorCaptchaOff':\s*''/.test(routes),
-  'C.3 cpanel-routes enable path clears `visitorCaptchaOff` field')
+// Single source of truth: setDomainChallengeBypass sets the flag when bypassing
+// and clears it (plus the legacy antiRedOff) when re-enabling the challenge.
+assert(/'val\.visitorCaptchaOff': true/.test(antiRedSrc),
+  'C.3a setDomainChallengeBypass sets `val.visitorCaptchaOff=true` when disabling the challenge')
+assert(/\$unset:\s*{\s*'val\.visitorCaptchaOff': ''/.test(antiRedSrc),
+  'C.3b setDomainChallengeBypass clears `val.visitorCaptchaOff` when re-enabling the challenge')
 
 // ── Fix #4: legacy migration in protection-enforcer ─────────────────────
 console.log('\nTest D: protection-enforcer exports runLegacyAntiRedOffMigration')

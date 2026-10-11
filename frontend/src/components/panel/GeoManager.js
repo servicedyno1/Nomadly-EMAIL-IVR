@@ -144,8 +144,14 @@ export default function GeoManager() {
   };
 
   const parseExpression = (expr) => {
-    const isAllow = expr.startsWith('not ');
-    const codes = [...expr.matchAll(/ip\.geoip\.country eq "([A-Z]{2})"/g)].map(m => m[1]);
+    const e = expr || '';
+    // Allow-list (whitelist) rules are negated, e.g. `not (ip.geoip.country in {…})`
+    // or the legacy `not (ip.geoip.country eq "US")`.
+    const isAllow = /\bnot\b/.test(e);
+    // Supports BOTH the current set form `ip.geoip.country in {"US" "GB"}` and the
+    // legacy `ip.geoip.country eq "US"`. Country codes are always 2-letter and
+    // double-quoted in the geo clause, so extract every quoted alpha-2 token.
+    const codes = [...e.matchAll(/"([A-Z]{2})"/g)].map(m => m[1]);
     return { isAllow, codes };
   };
 
