@@ -585,3 +585,8 @@ User inherited a fully-set-up Nomadly bot pod pointed at LIVE PRODUCTION. Task b
 - Reseller GET /hosting/:user/visitors: added top_countries / top_devices / top_pages (CF getDetailedZoneAnalytics; devices via new clientDeviceType query). ?breakdown=false opts out. Documented in /apidoc.
 - New panel GET /panel/visitors (customer session) → "visitors since linked"; shown as a banner + By Device section on the HostPanel Analytics tab.
 - Tests green: test_visitor_breakdown.js (11/11), test_panel_visitors.js (4/4). UI verified desktop + mobile.
+
+## 2026-06-11 — Per-addon-domain visitors + prod GSB key verified (DONE)
+- GET /panel/visitors?domain=<planDomain> → per-domain lifetime visitors; HostPanel Analytics tab has a domain selector so multi-site customers view each addon domain individually.
+- Production GSB key confirmed present & loaded on the nomadlybot (app-main) droplet env; value matches dev. (app-wl white-label lacks it — flagged, not changed.)
+- Tests: test_panel_visitors.js 6/6.

@@ -38,6 +38,8 @@ export default function Analytics() {
   const { api } = useAuth();
   const [data, setData] = useState(null);
   const [lifetime, setLifetime] = useState(null);
+  const [planDomains, setPlanDomains] = useState([]);
+  const [selectedDomain, setSelectedDomain] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [days, setDays] = useState(7);
@@ -61,17 +63,18 @@ export default function Analytics() {
 
   useEffect(() => { fetchAnalytics(); }, [fetchAnalytics]);
 
-  // Lifetime "visitors since linked" — independent of the day-range toggle.
-  useEffect(() => {
-    let active = true;
-    (async () => {
-      try {
-        const res = await api('/visitors');
-        if (active && res && res.success) setLifetime(res);
-      } catch (_) { /* non-fatal: panel still shows the period analytics */ }
-    })();
-    return () => { active = false; };
+  // Lifetime "visitors since linked" — per plan domain, independent of the day-range toggle.
+  const fetchVisitors = useCallback(async (domain) => {
+    try {
+      const res = await api(domain ? `/visitors?domain=${encodeURIComponent(domain)}` : '/visitors');
+      if (res) {
+        if (Array.isArray(res.plan_domains)) setPlanDomains(res.plan_domains);
+        setLifetime(res);
+      }
+    } catch (_) { /* non-fatal: panel still shows the period analytics */ }
   }, [api]);
+
+  useEffect(() => { fetchVisitors(selectedDomain); }, [fetchVisitors, selectedDomain]);
 
   const totals = data?.totals;
   const timeseries = data?.timeseries || [];
@@ -112,6 +115,25 @@ export default function Analytics() {
 
       {error && <div className="fm-error" data-testid="an-error">{error}</div>}
 
+      {planDomains.length > 1 && (
+        <div className="an-domain-select" data-testid="an-domain-select">
+          {planDomains.map((d) => {
+            const active = (selectedDomain || planDomains[0]) === d;
+            return (
+              <button
+                key={d}
+                type="button"
+                className={`an-domain-pill ${active ? 'an-domain-pill--active' : ''}`}
+                onClick={() => setSelectedDomain(d)}
+                data-testid={`an-domain-pill-${d}`}
+              >
+                {d}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
       {lifetime && lifetime.success && lifetime.total_visitors != null && (
         <div className="an-lifetime" data-testid="an-lifetime">
           <div className="an-lifetime-icon" aria-hidden="true">
@@ -119,8 +141,18 @@ export default function Analytics() {
           </div>
           <div className="an-lifetime-body">
             <span className="an-lifetime-value" data-testid="an-lifetime-value">{formatNum(lifetime.total_visitors)}</span>
-            <span className="an-lifetime-label">{t('an.totalVisitorsSince', { date: formatSince(lifetime.since) })}</span>
+            <span className="an-lifetime-label">
+              {planDomains.length > 1
+                ? t('an.totalVisitorsForSince', { domain: lifetime.domain, date: formatSince(lifetime.since) })
+                : t('an.totalVisitorsSince', { date: formatSince(lifetime.since) })}
+            </span>
           </div>
+        </div>
+      )}
+
+      {lifetime && !lifetime.success && planDomains.length > 1 && (
+        <div className="an-lifetime-note" data-testid="an-lifetime-note">
+          {t('an.noVisitorsForDomain', { domain: lifetime.domain || (selectedDomain || planDomains[0]) })}
         </div>
       )}
 

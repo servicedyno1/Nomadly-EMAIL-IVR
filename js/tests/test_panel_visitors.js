@@ -1,6 +1,8 @@
 /* global process */
 // Route-level test for the customer HostPanel "visitors since linked" endpoint
-//   GET /panel/visitors  (cpanel-routes.js)
+//   GET /panel/visitors[?domain=<planDomain>]  (cpanel-routes.js)
+// Covers: main domain total, per-ADDON-domain total (multi-site), plan_domains list,
+// domain_not_associated 404, and no-auth 401.
 // Auth mocked via a real JWT (cpanel-auth); cf-service patched (no real Cloudflare);
 // hostingVisits history stored in LOCAL Mongo (never the production reseller DB).
 require('dotenv').config({ path: '/app/backend/.env' })
@@ -21,14 +23,16 @@ const MONGO_URL = process.env.MONGO_URL || 'mongodb://localhost:27017'
 const DB_NAME = process.env.DB_NAME || 'test'
 const USER = 'pvuser'
 const DOMAIN = 'pv-site.com'
-const ZONE = 'zone-pv-test'
+const ADDON = 'pv-addon.com'
+const ZONE = 'zone-pv-main'
+const ZONE_ADDON = 'zone-pv-addon'
 
 const enc = cpAuth.encrypt('pw-hash')
 const linkedAt = new Date('2026-09-10T00:00:00Z')
 const account = {
   _id: USER, cpUser: USER, domain: DOMAIN, chatId: '98765', plan: 'Golden Anti-Red HostPanel (1-Month)',
   whmHost: null, cpPass_encrypted: enc.encrypted, cpPass_iv: enc.iv, cpPass_tag: enc.tag,
-  createdAt: linkedAt,
+  createdAt: linkedAt, addonDomains: [ADDON],
 }
 const fakeCol = { findOne: async () => ({ ...account }) }
 
@@ -49,40 +53,61 @@ async function t(name, fn) { try { await fn(); pass++; console.log(`  PASS — $
 ;(async () => {
   const client = new MongoClient(MONGO_URL); await client.connect()
   const db = client.db(DB_NAME)
-  await db.collection(hv.COLLECTION).deleteMany({ zoneId: ZONE })
-  // lifetime history older than CF retention
+  await db.collection(hv.COLLECTION).deleteMany({ zoneId: { $in: [ZONE, ZONE_ADDON] } })
+  // lifetime history (older than CF retention) for each zone
   await hv.storeDays(db, { zoneId: ZONE, domain: DOMAIN, chatId: '98765' }, [
     { date: '2026-09-10', uniques: 200, pageViews: 90, requests: 800 },
     { date: '2026-09-11', uniques: 150, pageViews: 70, requests: 600 },
   ])
+  await hv.storeDays(db, { zoneId: ZONE_ADDON, domain: ADDON, chatId: '98765' }, [
+    { date: '2026-09-10', uniques: 11, pageViews: 5, requests: 40 },
+    { date: '2026-09-11', uniques: 9, pageViews: 3, requests: 30 },
+  ])
 
   const origByName = cf.getZoneByName
   const origRange = cf.getZoneVisitsRange
-  cf.getZoneByName = async () => ({ id: ZONE, name: DOMAIN })
-  cf.getZoneVisitsRange = async () => ({ success: true, days: [{ date: hv.dayStr(Date.now()), uniques: 50, pageViews: 20, requests: 150 }] })
+  cf.getZoneByName = async (name) => (String(name).toLowerCase() === ADDON ? { id: ZONE_ADDON, name: ADDON } : { id: ZONE, name: DOMAIN })
+  cf.getZoneVisitsRange = async (zoneId) => ({ success: true, days: [{ date: hv.dayStr(Date.now()),
+    uniques: zoneId === ZONE_ADDON ? 5 : 50, pageViews: 2, requests: 15 }] })
 
   const app = express(); app.use(express.json())
   app.use('/panel', createCpanelRoutes(() => fakeCol, { notifyAdmin: () => {}, getDb: () => db }))
   const server = app.listen(0); const port = server.address().port
   const token = cpAuth.createToken({ cpUser: USER, domain: DOMAIN, chatId: '98765' })
 
-  await t('GET /panel/visitors → 200 success', async () => {
+  await t('GET /panel/visitors (main) → 200, total 200+150+50=400', async () => {
     const r = await req(port, token, '/panel/visitors')
     assert.strictEqual(r.status, 200)
     assert.strictEqual(r.body.success, true)
-  })
-
-  await t('total_visitors = 200+150+50 = 400 (history + live top-up)', async () => {
-    const r = await req(port, token, '/panel/visitors')
+    assert.strictEqual(r.body.domain, DOMAIN)
+    assert.strictEqual(r.body.is_main, true)
     assert.strictEqual(r.body.total_visitors, 400)
   })
 
-  await t('domain + since reflect the linked date', async () => {
+  await t('plan_domains lists main + addon', async () => {
     const r = await req(port, token, '/panel/visitors')
-    assert.strictEqual(r.body.domain, DOMAIN)
-    assert.strictEqual(r.body.since, '2026-09-10')
-    assert.ok(String(r.body.linked_at).startsWith('2026-09-10'))
-    assert.strictEqual(r.body.coverage_complete, true)
+    assert.deepStrictEqual(r.body.plan_domains, [DOMAIN, ADDON])
+  })
+
+  await t('GET ?domain=addon → 200, is_main false, total 11+9+5=25', async () => {
+    const r = await req(port, token, `/panel/visitors?domain=${ADDON}`)
+    assert.strictEqual(r.status, 200)
+    assert.strictEqual(r.body.domain, ADDON)
+    assert.strictEqual(r.body.is_main, false)
+    assert.strictEqual(r.body.total_visitors, 25)
+  })
+
+  await t('main + addon totals are independent (different numbers)', async () => {
+    const m = await req(port, token, '/panel/visitors')
+    const a = await req(port, token, `/panel/visitors?domain=${ADDON}`)
+    assert.ok(m.body.total_visitors !== a.body.total_visitors)
+  })
+
+  await t('unknown domain → 404 domain_not_associated (+ plan_domains)', async () => {
+    const r = await req(port, token, '/panel/visitors?domain=not-mine.com')
+    assert.strictEqual(r.status, 404)
+    assert.strictEqual(r.body.error, 'domain_not_associated')
+    assert.deepStrictEqual(r.body.plan_domains, [DOMAIN, ADDON])
   })
 
   await t('no token → 401', async () => {
@@ -93,7 +118,7 @@ async function t(name, fn) { try { await fn(); pass++; console.log(`  PASS — $
   server.close()
   cf.getZoneByName = origByName
   cf.getZoneVisitsRange = origRange
-  await db.collection(hv.COLLECTION).deleteMany({ zoneId: ZONE })
+  await db.collection(hv.COLLECTION).deleteMany({ zoneId: { $in: [ZONE, ZONE_ADDON] } })
   await client.close()
 
   console.log(`\nRESULT: ${pass} passed, ${fail} failed`)

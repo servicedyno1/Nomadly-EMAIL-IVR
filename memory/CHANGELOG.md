@@ -2107,3 +2107,8 @@ User-approved order: #4 → #7 → #2 → #3 → #5 → #6. Sandbox-verified; pr
 - cf-service.getDetailedZoneAnalytics gained a clientDeviceType query → byDevice (desktop/mobile/tablet). (js/cf-service.js)
 - New customer panel endpoint GET /panel/visitors (logged-in session) returns "visitors since linked". HostPanel Analytics tab now shows a prominent "Total visitors since <date>" banner + a By Device breakdown. (js/cpanel-routes.js, frontend Analytics.js, en.json, App.css)
 - Tests: js/tests/test_visitor_breakdown.js (11/11), js/tests/test_panel_visitors.js (4/4). Frontend verified (desktop + 390px mobile, no overflow).
+
+## 2026-06-11 — Per-addon-domain visitors + prod GSB key verified
+- GET /panel/visitors now accepts ?domain=<planDomain> and returns plan_domains[] + is_main, so multi-site customers see each addon domain's lifetime visitors individually. HostPanel Analytics tab shows a domain selector (pills) that switches the "Total visitors to <domain> since <date>" banner; graceful note when a domain has no Cloudflare data yet. (js/cpanel-routes.js, frontend Analytics.js, en.json, App.css)
+- Verified production droplet (146.190.238.190, pm2 app-main = @NomadlyBot / reseller API): GOOGLE_SAFE_BROWSING_KEY present in /opt/nomadly/shared/app-main/backend.env, SHA-256 matches dev key (39 chars), loaded at runtime by js/config-setup.js (../backend/.env symlink). NOTE: white-label bot (app-wl) does NOT have the key (out of scope).
+- Tests: js/tests/test_panel_visitors.js extended to 6/6 (main + addon totals, plan_domains, 404 not-associated, 401). UI verified desktop (selector switch main 48.2K ↔ addon 1.2K).

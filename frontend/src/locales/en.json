@@ -540,6 +540,8 @@
     "topUserAgents": "Top User Agents",
     "byDevice": "By Device",
     "totalVisitorsSince": "Total visitors since {{date}}",
+    "totalVisitorsForSince": "Total visitors to {{domain}} since {{date}}",
+    "noVisitorsForDomain": "No Cloudflare visitor data for {{domain}} yet.",
     "lifetimeReach": "Lifetime reach",
     "pageViews": "Page Views:",
     "countryThreats": "{{count}} threats",

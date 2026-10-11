@@ -3309,21 +3309,41 @@ function createCpanelRoutes(getCpanelCol, opts = {}) {
    */
   router.get('/visitors', ...auth, async (req, res) => {
     try {
-      const zone = await cfService.getZoneByName(req.cpDomain).catch(() => null)
-      if (!zone) return res.json({ success: false, error: 'Domain not in Cloudflare' })
       const col = getCpanelCol()
       const account = col ? await col.findOne({ _id: req.cpUser.toLowerCase() }) : null
+      const main = String(req.cpDomain || '').toLowerCase()
+      const addons = (req.cpAddonDomains || []).map(d => String(d).toLowerCase()).filter(Boolean)
+      const planDomains = [...new Set([main, ...addons].filter(Boolean))]
+      // ?domain= selects a plan domain (its main or an addon domain; default = main) so
+      // multi-site customers can see each domain's lifetime visitors individually.
+      const qd = req.query.domain ? String(req.query.domain).trim().toLowerCase() : main
+      if (!planDomains.includes(qd)) {
+        return res.status(404).json({ success: false, error: 'domain_not_associated', plan_domains: planDomains })
+      }
+
+      const zone = await cfService.getZoneByName(qd).catch(() => null)
+      if (!zone) return res.json({ success: false, error: 'Domain not in Cloudflare', domain: qd, is_main: qd === main, plan_domains: planDomains })
+
+      // Linked date: account.createdAt for the main domain; an addon stored as an object
+      // uses its own addedAt/createdAt, otherwise it inherits the account link date.
       let linkedAt = account?.createdAt ? new Date(account.createdAt) : null
+      if (qd !== main) {
+        const entry = (account?.addonDomains || []).find(a => (typeof a === 'string' ? a : a && a.domain) === qd)
+        if (entry && typeof entry === 'object' && (entry.addedAt || entry.createdAt)) linkedAt = new Date(entry.addedAt || entry.createdAt)
+      }
       if (!linkedAt || isNaN(linkedAt.getTime())) linkedAt = new Date(Date.now() - 30 * 86400000)
+
       const hostingVisits = require('./hosting-visits')
       const getDb = opts.getDb || (() => null)
       const r = await hostingVisits.totalVisitors(getDb(), {
-        zoneId: zone.id, domain: req.cpDomain, chatId: account?.chatId, since: linkedAt, until: new Date(),
+        zoneId: zone.id, domain: qd, chatId: account?.chatId, since: linkedAt, until: new Date(),
       })
       const sinceStr = hostingVisits.dayStr(linkedAt)
       res.json({
         success: true,
-        domain: req.cpDomain,
+        domain: qd,
+        is_main: qd === main,
+        plan_domains: planDomains,
         linked_at: linkedAt.toISOString(),
         since: sinceStr,
         until: hostingVisits.dayStr(Date.now()),
