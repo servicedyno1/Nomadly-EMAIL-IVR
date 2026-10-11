@@ -35,7 +35,7 @@ import sys
 import time
 
 # Configuration
-BASE_URL = "https://secure-app-launch-2.preview.emergentagent.com"
+BASE_URL = "https://vault-app-setup.preview.emergentagent.com"
 API_KEY = "rsk_live_cdc3f785ac3cfd813c6143d7813e1a59cc15fc42327ab736"
 DOMAIN = "go.namewords.sbs"
 

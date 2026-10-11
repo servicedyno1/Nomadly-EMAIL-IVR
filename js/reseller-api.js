@@ -490,6 +490,11 @@ function createResellerApi(deps = {}) {
     }
     if (!result || result.success === false) {
       if (job.charged) await refundWallet(owner, job.priceUsd)
+      // NOTE (2026-10-11): the stub stays provisionState:'failed' (NOT soft-deleted) so the
+      // /hosting/:user poll still reports a clean 'failed' + provision_failed_reason to the
+      // reseller. The permanent-block bug is fixed at the source: the inner idempotency guard
+      // (cr-register) and the reseller outer dup check both now ignore provisionState:'failed',
+      // so a refunded attempt frees the domain for an immediate retry.
       await col('cpanelAccounts').updateOne({ _id: job.username }, { $set: { provisionState: 'failed', provisionFailedReason: (result && result.error) || 'provision_failed' } })
       await provisionJobs().updateOne({ _id: job._id }, { $set: { status: 'failed', finishedAt: new Date(), error: (result && result.error) || 'provision_failed', refunded: !!job.charged } })
       emitEvent(owner, 'hosting.provision_failed', job.username, { domain: r.domain, plan: r.plan, username: job.username, reason: (result && result.error) || 'provision_failed', refunded: !!job.charged })

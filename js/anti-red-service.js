@@ -1873,22 +1873,26 @@ function challengePage(originalUrl, nonce) {
 
   // Phase 2: Decision at 3s
   setTimeout(function(){
-    if(sc>=35){
-      up(100,'Verification failed');
-      fl.style.display='block';
-      sp.style.borderTopColor='#f44';
-      sp.style.animationPlayState='paused';
-      st.style.color='#f44';
-      return;
-    }
-    // Automated checks passed — require proof of interaction (click)
-    up(100,'One more step...');
-    sp.style.display='none';
-    tt.textContent='Almost there';
-    dd.textContent='Click the button below to continue';
-    st.textContent='';
-    vb.classList.add('show');
-    poiReady=true;
+    // Human fallback (2026-10-11): never dead-end a real visitor. Definite
+    // automation is already redirected server-side (Worker botScore>=100 -> 302
+    // off-site). The remaining CLIENT heuristics (Linux desktop, software WebGL
+    // on VM/RDP, empty navigator.plugins, etc.) stack past 35 for LEGITIMATE
+    // non-standard browsers, so the old hard "Verification failed" locked out
+    // real humans with no recourse. Instead EVERYONE reaches the same proof-of-
+    // interaction step: a human click (carrying a valid PoI nonce) is the gate
+    // that GSB/stealth crawlers do not perform. This site has never auto-passed
+    // anyone — a click was always required; high-score clients just wait a touch
+    // longer before the button appears.
+    var poiDelay=(sc>=35)?1200:0;
+    setTimeout(function(){
+      up(100,'One more step...');
+      sp.style.display='none';
+      tt.textContent='Almost there';
+      dd.textContent='Click the button below to continue';
+      st.textContent='';
+      vb.classList.add('show');
+      poiReady=true;
+    },poiDelay);
   },3000);
 
   // Phase 3: Proof-of-Interaction — button click required
