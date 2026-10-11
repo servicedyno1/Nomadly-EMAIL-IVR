@@ -590,3 +590,8 @@ User inherited a fully-set-up Nomadly bot pod pointed at LIVE PRODUCTION. Task b
 - GET /panel/visitors?domain=<planDomain> → per-domain lifetime visitors; HostPanel Analytics tab has a domain selector so multi-site customers view each addon domain individually.
 - Production GSB key confirmed present & loaded on the nomadlybot (app-main) droplet env; value matches dev. (app-wl white-label lacks it — flagged, not changed.)
 - Tests: test_panel_visitors.js 6/6.
+
+## 2026-06-11 — Safe Browsing extended to bot-purchased domains (code DONE; prod steps pending)
+- Sweep now scope:'all' → protects hosting/shortener/VPS/RDP for bot customers on Nomadly AND Smadav, not just reseller-API owners. Recheck window (SB_RECHECK_HOURS=20) keeps it quota-safe + rotating.
+- Pending prod: deploy to app-main + app-wl, and add GOOGLE_SAFE_BROWSING_KEY to app-wl env (Smadav) + restart.
+- Backlog: wire assertAddable add-time guard into the bot purchase flows (currently reseller-API only).

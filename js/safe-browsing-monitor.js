@@ -3,9 +3,10 @@
 // ============================================================
 // Safe Browsing Monitor  (js/safe-browsing-monitor.js)
 // ------------------------------------------------------------
-// Periodically checks every domain LINKED TO OUR SERVER by a reseller —
-// hosting plans (cPanel main + addon domains), VPS, RDP, and the URL shortener —
-// against Google Safe Browsing (js/safe-browsing-service.js). When a domain is
+// Periodically checks every domain LINKED TO OUR SERVER — hosting plans (cPanel
+// main + addon domains), VPS, RDP, and the URL shortener — for BOTH reseller-API
+// and bot-purchased (Nomadly + white-label e.g. Smadav) customers, against Google
+// Safe Browsing (js/safe-browsing-service.js). When a domain is
 // flagged (malware / social-engineering / unwanted software) we:
 //   1. Record a flag in `safeBrowsingFlags` + stamp the resource doc (sbFlagged)
 //      so the reseller API can REPORT the status on demand.
@@ -60,7 +61,7 @@ async function resellerOwners(db) {
 // Enumerate every domain linked to our server for the given resellers.
 // Returns [{ domain, product, resourceId, chatId, ip?, account? }]
 // resolve4 is injected for testability (VPS/RDP domain→IP matching).
-async function enumerateLinkedDomains(db, { owners = null, resolve4 = (h) => dns.resolve4(h), log = clog } = {}) {
+async function enumerateLinkedDomains(db, { owners = null, scope = 'reseller', resolve4 = (h) => dns.resolve4(h), log = clog } = {}) {
   const items = []
   const seen = new Set()
   const add = (domain, product, resourceId, chatId, extra = {}) => {
@@ -72,13 +73,23 @@ async function enumerateLinkedDomains(db, { owners = null, resolve4 = (h) => dns
     items.push({ domain: d, product, resourceId: String(resourceId), chatId: String(chatId), ...extra })
   }
 
-  const ownerIds = owners || await resellerOwners(db)
-  if (!ownerIds.length) return items
-  const inOwners = { $in: ownerIds }
+  // Owner filter. Explicit `owners` → just those chatIds. scope 'all' → EVERY linked
+  // domain regardless of owner, i.e. bot-purchased (Nomadly / white-label) customers
+  // AND resellers. Default 'reseller' → only chatIds with an enabled reseller API key.
+  let ownerFilter
+  if (owners && owners.length) {
+    ownerFilter = { chatId: { $in: owners } }
+  } else if (scope === 'all') {
+    ownerFilter = {}
+  } else {
+    const ownerIds = await resellerOwners(db)
+    if (!ownerIds.length) return items
+    ownerFilter = { chatId: { $in: ownerIds } }
+  }
 
   // ── Hosting: cPanel main + addon domains ──────────────────────────────────
   const hosting = await db.collection('cpanelAccounts').find({
-    chatId: inOwners, deleted: { $ne: true }, terminatedOnWhm: { $ne: true }, archived: { $ne: true },
+    ...ownerFilter, deleted: { $ne: true }, terminatedOnWhm: { $ne: true }, archived: { $ne: true },
     provisionState: { $nin: ['provisioning', 'failed'] },
   }).limit(5000).toArray().catch(() => [])
   for (const a of hosting) {
@@ -91,13 +102,13 @@ async function enumerateLinkedDomains(db, { owners = null, resolve4 = (h) => dns
 
   // ── Shortener: activated custom domains ───────────────────────────────────
   const shorteners = await db.collection('shortenerActivations').find({
-    chatId: inOwners, status: { $in: SHORTENER_ACTIVE },
+    ...ownerFilter, status: { $in: SHORTENER_ACTIVE },
   }).limit(5000).toArray().catch(() => [])
   for (const s of shorteners) add(s.domain || s._id, 'shortener', s.domain || s._id, s.chatId, { activation: s })
 
   // ── VPS / RDP: reseller domains whose A-record points at a reseller box ───
   const servers = await db.collection('vpsPlansOf').find({
-    chatId: inOwners, deleted: { $ne: true }, provisionState: { $nin: ['provisioning', 'failed'] },
+    ...ownerFilter, deleted: { $ne: true }, provisionState: { $nin: ['provisioning', 'failed'] },
   }).limit(5000).toArray().catch(() => [])
   // Map ip -> { product, resourceId, chatId } for quick matching.
   const ipMap = new Map()
@@ -109,7 +120,8 @@ async function enumerateLinkedDomains(db, { owners = null, resolve4 = (h) => dns
   }
   if (ipMap.size) {
     // Candidate domains = reseller domains not already matched to hosting/shortener.
-    const domains = await db.collection('domainsOf').find({ chatId: inOwners, domainName: { $exists: true } }).limit(5000).toArray().catch(() => [])
+    const vpsDnsCap = Math.max(50, Number(process.env.SB_VPS_DNS_CAP) || 800)
+    const domains = (await db.collection('domainsOf').find({ ...ownerFilter, domainName: { $exists: true } }).limit(5000).toArray().catch(() => [])).slice(0, vpsDnsCap)
     for (const d of domains) {
       const name = norm(d.domainName)
       if (!name || seen.has(`${name}|hosting`) || seen.has(`${name}|shortener`)) continue
@@ -233,13 +245,30 @@ async function handleFlagged(db, item, { enforce = false, threats = [], emit = w
 }
 
 // Full sweep: enumerate → check each → handle flags. Returns a summary.
-async function runSweep(db, { enforce = false, sb = sbService, emit = webhooks.emit, actions = defaultActions, resolve4, limit = DEFAULT_BATCH, owners = null, log = clog } = {}) {
+async function runSweep(db, { enforce = false, sb = sbService, emit = webhooks.emit, actions = defaultActions, resolve4, limit = DEFAULT_BATCH, owners = null, scope = 'reseller', recheckHours = null, log = clog } = {}) {
   if (!db) return { checked: 0, flagged: 0, error: 'no_db' }
   if (!sb.isConfigured || !sb.isConfigured()) { log('[SafeBrowsingMonitor] GOOGLE_SAFE_BROWSING_KEY not configured — sweep skipped'); return { checked: 0, flagged: 0, skipped: 'not_configured' } }
   await ensureIndexes(db)
 
-  const all = await enumerateLinkedDomains(db, { owners, ...(resolve4 ? { resolve4 } : {}), log })
-  const items = all.slice(0, limit)
+  const all = await enumerateLinkedDomains(db, { owners, scope, ...(resolve4 ? { resolve4 } : {}), log })
+
+  // Pre-load stored flag/check state so we can (a) SKIP clean domains re-checked
+  // within the recheck window — this spreads Google API calls out (quota-safe) and
+  // naturally rotates coverage across runs so every domain is re-checked in turn —
+  // and (b) NEVER flip an already-flagged/unlinked domain back to "clear" on its own.
+  const existing = all.length
+    ? await db.collection(COLLECTION).find({ _id: { $in: all.map(i => i.domain) } }).toArray().catch(() => [])
+    : []
+  const existingMap = new Map(existing.map(r => [r._id, r]))
+  const recheckMs = Math.max(0, (recheckHours != null ? recheckHours : (Number(process.env.SB_RECHECK_HOURS) || 20))) * 3600000
+  const isRecentClean = (d) => {
+    if (!recheckMs) return false
+    const r = existingMap.get(d)
+    return !!(r && r.flagged !== true && r.lastCheckedAt && (Date.now() - new Date(r.lastCheckedAt).getTime()) < recheckMs)
+  }
+  const due = all.filter(i => !isRecentClean(i.domain))
+  const items = due.slice(0, limit)
+
   let checked = 0, flagged = 0
   const flaggedList = []
   for (const item of items) {
@@ -251,13 +280,20 @@ async function runSweep(db, { enforce = false, sb = sbService, emit = webhooks.e
       flaggedList.push(item.domain)
       await handleFlagged(db, item, { enforce, threats: res.threats, emit, actions, log })
     } else if (res && res.safe === true) {
-      // Clean: just refresh lastCheckedAt on any existing record (no auto-relink —
-      // reactivation is a deliberate reseller action, per product requirement).
-      await db.collection(COLLECTION).updateOne({ _id: item.domain, flagged: { $ne: true } }, { $set: { lastCheckedAt: new Date() } }).catch(() => {})
+      // Clean: record lastCheckedAt (drives the recheck rotation above). Never touch a
+      // flagged record — reactivation after a flag is a deliberate action, not automatic.
+      const ex = existingMap.get(item.domain)
+      if (!ex || ex.flagged !== true) {
+        await db.collection(COLLECTION).updateOne(
+          { _id: item.domain },
+          { $set: { domain: item.domain, product: item.product, resourceId: item.resourceId, chatId: item.chatId, flagged: false, status: 'clear', lastCheckedAt: new Date() } },
+          { upsert: true }
+        ).catch(() => {})
+      }
     }
   }
-  log(`[SafeBrowsingMonitor] sweep done: checked=${checked}/${all.length} flagged=${flagged}${flaggedList.length ? ' [' + flaggedList.join(', ') + ']' : ''} enforce=${enforce}`)
-  return { checked, total: all.length, flagged, flaggedList, enforce }
+  log(`[SafeBrowsingMonitor] sweep done: scope=${scope} checked=${checked}/${all.length} (due=${due.length}) flagged=${flagged}${flaggedList.length ? ' [' + flaggedList.join(', ') + ']' : ''} enforce=${enforce}`)
+  return { checked, total: all.length, due: due.length, flagged, flaggedList, enforce, scope }
 }
 
 // ── Status queries (reseller API "available if called for status") ──────────
@@ -371,17 +407,19 @@ function start({ getDb, log = clog } = {}) {
   if (!sbService.isConfigured()) { log('[SafeBrowsingMonitor] GOOGLE_SAFE_BROWSING_KEY not configured — sweep NOT scheduled'); return null }
   const activeSlot = require('./active-slot')
   const ms = Math.max(5, Number(process.env.SAFE_BROWSING_SWEEP_MIN) || DEFAULT_SWEEP_MIN) * 60000
+  const batch = Math.max(50, Number(process.env.SB_SWEEP_BATCH) || 500)
   let running = false
   const t = activeSlot.singletonInterval('safe-browsing-monitor', async () => {
     const db = getDb()
     if (running || !db) return
     running = true
-    try { await runSweep(db, { enforce: true, log }) }
+    // scope:'all' → protect EVERY linked domain (reseller API + bot-purchased, Nomadly & white-label).
+    try { await runSweep(db, { enforce: true, scope: 'all', limit: batch, log }) }
     catch (e) { log(`[SafeBrowsingMonitor] sweep error: ${e.message}`) }
     finally { running = false }
   }, ms)
   if (t && typeof t.unref === 'function') t.unref()
-  log(`[SafeBrowsingMonitor] scheduled: every ${ms / 60000} min (enforce ON)`)
+  log(`[SafeBrowsingMonitor] scheduled: every ${ms / 60000} min (enforce ON, scope=all, batch=${batch})`)
   return t
 }
 
