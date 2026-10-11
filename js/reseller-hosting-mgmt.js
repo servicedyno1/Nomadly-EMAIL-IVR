@@ -31,6 +31,7 @@ const whmService = require('./whm-service')
 const cfService = require('./cf-service')
 const safeBrowsing = require('./safe-browsing-service')
 const safeBrowsingMonitor = require('./safe-browsing-monitor') // persisted Safe-Browsing flag state
+const hostingVisits = require('./hosting-visits')              // accurate visitor totals (Cloudflare analytics)
 const antiRed = require('./anti-red-service')
 const siteStatusService = require('./site-status-service')       // site online/maintenance/suspended
 const addonFlow = require('./addon-domain-flow')                 // runDnsAndProtection (set-primary background)
@@ -996,6 +997,64 @@ function registerHostingMgmtRoutes(deps) {
       configured: true,
       flagged_count: results.filter(r => r.flagged).length,
       results,
+    })
+  }))
+
+  // Total number of VISITORS to a hosting-plan domain SINCE it was linked, from Cloudflare
+  // analytics (accurate daily uniques, not sampled). ?domain= selects a plan domain (its main
+  // or an addon domain; default = main). ?since=YYYY-MM-DD overrides the linked date. Lifetime
+  // totals are accumulated daily (js/hosting-visits.js) so they survive Cloudflare's retention
+  // window; a live top-up keeps the most-recent days current.
+  router.get('/hosting/:user/visitors', apiKeyAuth, h(async (req, res) => {
+    const acct = await loadOwned(req, res); if (!acct) return
+    const ctx = ctxFromAccount(acct)
+    const main = String(ctx.cpDomain || '').toLowerCase()
+    const addons = (ctx.cpAddonDomains || []).map(d => String(d).toLowerCase()).filter(Boolean)
+    const planDomains = [...new Set([main, ...addons].filter(Boolean))]
+    const qd = req.query.domain ? String(req.query.domain).trim().toLowerCase() : main
+    if (!planDomains.includes(qd)) {
+      return res.status(404).json({ error: 'domain_not_associated', message: `${qd} is not the main domain or an addon domain of hosting plan ${acct._id}.`, plan_domains: planDomains })
+    }
+
+    // Linked date: account creation for the main domain (addon domains are stored as plain
+    // strings without a per-addon date, so they inherit the account link date).
+    let linkedAt = acct.createdAt ? new Date(acct.createdAt) : null
+    if (qd !== main) {
+      const entry = (acct.addonDomains || []).find(a => (typeof a === 'string' ? a : a && a.domain) === qd)
+      if (entry && typeof entry === 'object' && (entry.addedAt || entry.createdAt)) linkedAt = new Date(entry.addedAt || entry.createdAt)
+    }
+    if (!linkedAt || isNaN(linkedAt.getTime())) linkedAt = new Date(Date.now() - 30 * 86400000)
+    let since = linkedAt
+    if (req.query.since) { const s = new Date(req.query.since); if (!isNaN(s.getTime())) since = s }
+
+    // Resolve the Cloudflare zone for the requested domain (each domain is its own CF zone).
+    let zoneId = (qd === main) ? (acct.cfZoneId || null) : null
+    if (!zoneId) { const z = await cfService.getZoneByName(qd).catch(() => null); zoneId = z?.id || null }
+    if (!zoneId) return res.status(404).json({ error: 'zone_not_found', message: `No Cloudflare zone found for ${qd} — it may not be on our protected DNS.` })
+
+    const r = await hostingVisits.totalVisitors(getDb(), { zoneId, domain: qd, chatId: acct.chatId, since, until: new Date() })
+    const sinceStr = hostingVisits.dayStr(since)
+    const complete = r.coverage_from ? (r.coverage_from <= sinceStr) : false
+    res.json({
+      username: acct._id,
+      domain: qd,
+      is_main: qd === main,
+      plan: ctx.cpPlan || null,
+      source: 'cloudflare',
+      linked_at: linkedAt.toISOString(),
+      since: sinceStr,
+      until: hostingVisits.dayStr(Date.now()),
+      total_visitors: r.total_visitors,
+      total_page_views: r.total_page_views,
+      total_requests: r.total_requests,
+      days_counted: r.days_counted,
+      coverage_from: r.coverage_from,
+      coverage_to: r.coverage_to,
+      coverage_complete: complete,
+      note: (!complete && r.coverage_from)
+        ? `Cloudflare retains a limited analytics window, so visitor history is available from ${r.coverage_from} onward. Lifetime totals accrue daily from when tracking began.`
+        : undefined,
+      cloudflare_error: r.live_error || undefined,
     })
   }))
 
