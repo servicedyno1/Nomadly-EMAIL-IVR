@@ -595,3 +595,8 @@ User inherited a fully-set-up Nomadly bot pod pointed at LIVE PRODUCTION. Task b
 - Sweep now scope:'all' → protects hosting/shortener/VPS/RDP for bot customers on Nomadly AND Smadav, not just reseller-API owners. Recheck window (SB_RECHECK_HOURS=20) keeps it quota-safe + rotating.
 - Pending prod: deploy to app-main + app-wl, and add GOOGLE_SAFE_BROWSING_KEY to app-wl env (Smadav) + restart.
 - Backlog: wire assertAddable add-time guard into the bot purchase flows (currently reseller-API only).
+
+## 2026-10-11 — Hosting order failure fix: addon-domain "already exists in the userdata" (code DONE; deploy pending)
+- RCA of @smsbeast_real (5976060042) failed Premium Anti-Red order: requested primary domain was an ADDON on their own SUSPENDED cPanel account, still in WHM userdata → createAccount collided. No money lost (wallet not charged).
+- Fixes (js/cr-register-domain-&-create-cpanel.js, js/whm-service.js): (A) pre-flight guard now matches addonDomains and blocks pre-charge with an unlink message; (B) isRetryableError no longer username-retries a domain-userdata conflict; (C) userdata self-heal wired into the primary provisioning path.
+- Tests: test_hosting_addon_userdata_conflict.js 19/19. Customer verified unblocked (domains now free on WHM). Full RCA: memory/HOSTING_ADDON_USERDATA_CONFLICT_RCA_2026-10-11.md. DEPLOY via Save to GitHub.

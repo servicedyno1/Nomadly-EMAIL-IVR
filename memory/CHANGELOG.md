@@ -1,3 +1,22 @@
+## 2026-10-11 — Hosting order failure RCA + fix: "domain already exists in the userdata" (@smsbeast_real)
+
+Traced a failed hosting order on nomadlybot. User `5976060042` (`@smsbeast_real`) bought Premium Anti-Red (1-Week)
+with `luxelitecasinoreviews.com` as primary; provisioning failed with WHM `createacct` → *"The domain … already exists
+in the userdata."* Wallet **not charged** (no money lost). **Root cause:** that domain was an **addon** on the user's
+own **suspended** `eliteescapesau.com` cPanel account (`elitda5b`), still present in WHM userdata — and nothing detected
+it before `createAccount`. Fixed 3 defects (`js/cr-register-domain-&-create-cpanel.js`, `js/whm-service.js`):
+- **(A)** Pre-flight guard now matches `$or:[{domain},{addonDomains}]` → blocks an addon-on-existing-plan conflict
+  BEFORE createAccount/charge, with an actionable unlink message (same-owner) and `{addonConflict:true}`.
+- **(B)** `isRetryableError` no longer treats "already exists in the userdata" / "the domain X already exists" as a
+  retryable USERNAME conflict (was burning 3 createacct retries). Username conflicts still retry. Exported for tests.
+- **(C)** Primary provisioning path now runs `whm-userdata-heal.attemptUserdataRelease` (same-owner, DELETED stale
+  rows) + retries createAccount once — defense in depth, mirroring addon-flow / change-primary / reseller-hosting-mgmt.
+
+Tests: `js/tests/test_hosting_addon_userdata_conflict.js` 19/19 PASS. Customer verified unblocked read-only — after
+their manual cancel, `whm.domainExists()` = `{exists:false}` for both domains; wallet $28.58 intact. Full RCA:
+`memory/HOSTING_ADDON_USERDATA_CONFLICT_RCA_2026-10-11.md`. **Deploy via Save to GitHub.**
+
+
 ## 2026-09-28 — Auto-deploy pipeline review: bugs fixed + hardening (first live run already ✅)
 
 Reviewed the GitHub Actions → SSH → droplet pipeline after its first real run (36475062686). Fixed:

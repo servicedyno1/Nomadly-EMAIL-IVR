@@ -138,6 +138,13 @@ const RETRYABLE_PATTERNS = [
 
 function isRetryableError(errorMsg) {
   const lower = (errorMsg || '').toLowerCase()
+  // A DOMAIN-already-in-userdata conflict ("the domain X already exists in the
+  // userdata") is NOT fixable by generating a new username — a fresh username
+  // still collides with the same domain. Treating it as retryable just burns
+  // MAX_RETRIES createacct calls then fails anyway (RCA @smsbeast_real
+  // 2026-10-11). This class needs userdata self-heal / reuse at the caller, not
+  // a username retry. Exclude it explicitly before the broad `already exists`.
+  if (/already exists in the userdata|the domain .* already exists/.test(lower)) return false
   return RETRYABLE_PATTERNS.some(pattern => lower.match(new RegExp(pattern)))
 }
 
@@ -869,4 +876,6 @@ module.exports = {
   excludeDomainsFromAutoSSL,
   // Internal — exposed for the WHM disk-monitor only
   _whmApi: whmApi,
+  // Internal — exposed for unit tests
+  isRetryableError,
 }
