@@ -3058,6 +3058,9 @@ function createResellerApi(deps = {}) {
   // Google Safe Browsing monitor: flag linked hosting/VPS/RDP/shortener domains →
   // notify reseller webhook + unlink from our server (production + active slot only).
   try { safeBrowsingMonitor.start({ getDb, log }) } catch (e) { log(`[ResellerAPI] safe-browsing monitor init warn: ${e.message}`) }
+  // Daily Cloudflare visitor snapshot so lifetime "visitors since linked" totals survive CF's
+  // retention window (production + active-slot only).
+  try { require('./hosting-visits').start({ getDb, log }) } catch (e) { log(`[ResellerAPI] hosting-visits snapshot init warn: ${e.message}`) }
   // Per-domain wallet auto-renew (OpenProvider) — production + active slot only.
   try { domainAutoRenew.start({ getDb, log }) } catch (e) { log(`[ResellerAPI] domain auto-renew init warn: ${e.message}`) }
 

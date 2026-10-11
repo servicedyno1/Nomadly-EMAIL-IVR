@@ -102,6 +102,23 @@ current_task_2026_10_11_three_fixes: |
     unconfigured→fail-open / error→fail-open; shortener POST integration: flagged→422 domain_flagged, clean→passes
     guard). safe-browsing-service patched in-test (no real Google call). All 5 regression suites PASS; services healthy.
 
+  FOLLOW-UP (2026-10-11e) — reseller endpoint: TOTAL VISITORS to a hosting domain since linked (Cloudflare):
+    • js/cf-service.js: added getZoneVisitsRange(zoneId, since, until) → per-day {uniques,pageViews,requests} from
+      the NON-sampled httpRequests1dGroups GraphQL dataset (accurate visitor counts). Verified live against a real
+      zone (uniques + requests populate; pageViews can be 0 on some zones — visitors = uniques).
+    • js/hosting-visits.js (NEW): hostingVisits daily-snapshot store (idempotent upsert by zone+date) so lifetime
+      totals survive Cloudflare's limited retention. totalVisitors() merges stored history + a LIVE top-up (live
+      authoritative on overlap; also persists fetched days). snapshotAll() + start() = production-gated DAILY cron
+      (OFF on dev, confirmed in logs — never hammers prod CF). Wired start() in js/reseller-api.js after the monitors.
+    • NEW endpoint GET /reseller/v1/hosting/:user/visitors[?domain=&since=] (js/reseller-hosting-mgmt.js): resolves
+      the domain's CF zone (acct.cfZoneId for main, getZoneByName for addon), linked_at = account createdAt (addon
+      domains are plain strings → inherit account link date), returns total_visitors/total_page_views/total_requests
+      + coverage_from/coverage_to/coverage_complete (+ note when CF retention makes lifetime partial). 404
+      domain_not_associated / zone_not_found. apidoc updated.
+    Test: node js/tests/test_hosting_visits.js → ALL PASS (totalVisitors merge + live-override persist + CF-error
+    fallback; endpoint 200 total=stored+live, linked_at, coverage_complete, 404 not-associated — cf patched in-test).
+    All 6 Safe Browsing/visits regression suites PASS; endpoint mounted (401); daily cron OFF on dev; services healthy.
+
 
 
 #====================================================================================================

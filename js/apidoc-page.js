@@ -1526,6 +1526,20 @@ function endpointGroups(base) {
   "results": [ { "domain": "mysite.com", "is_main": true, "safe": true, "flagged": false, "threats": [], "error": null, "monitor_status": "clear" } ] }`,
         },
         {
+          method: 'GET', path: '/hosting/:user/visitors', auth: true, billed: false,
+          desc: 'TOTAL number of website VISITORS to a hosting-plan domain SINCE it was linked, from Cloudflare analytics (accurate daily unique visitors — the non-sampled httpRequests1dGroups dataset — plus page views and total requests). ?domain=<d> selects a plan domain (its main or an addon domain; default = the main domain; a domain not on the plan returns 404 domain_not_associated). ?since=YYYY-MM-DD overrides the linked date. Lifetime history is snapshotted daily so totals survive the Cloudflare retention window; coverage_complete=false (with a note) means the window starts at coverage_from because the domain was linked before visitor tracking began.',
+          params: [
+            ['domain', false, 'A domain on this plan (defaults to the main domain)'],
+            ['since', false, 'Override the start date (YYYY-MM-DD); defaults to when the domain was linked'],
+          ],
+          curl: `curl -s "${base}/hosting/mysite01/visitors" \\
+  -H "Authorization: Bearer YOUR_API_KEY"`,
+          resp: `{ "username": "mysite01", "domain": "mysite.com", "is_main": true, "plan": "Golden Anti-Red HostPanel (1-Month)",
+  "source": "cloudflare", "linked_at": "2026-08-01T10:00:00.000Z", "since": "2026-08-01", "until": "2026-10-11",
+  "total_visitors": 48213, "total_page_views": 91002, "total_requests": 377540,
+  "days_counted": 71, "coverage_from": "2026-08-01", "coverage_to": "2026-10-11", "coverage_complete": true }`,
+        },
+        {
           method: 'POST', path: '/hosting/:user/security/anti-red/deploy', auth: true, billed: false,
           desc: 'Deploy the full Anti-Red protection stack (.htaccess cloaking, JS challenge, JA3 fingerprinting, CF worker) for the primary domain. It also checks website DNS first and re-creates any missing apex/www tunnel CNAME (same as POST /dns/repair); see "dns" in the response. Read status: GET /security/anti-red/status.',
           curl: `curl -s -X POST ${base}/hosting/mysite01/security/anti-red/deploy \\

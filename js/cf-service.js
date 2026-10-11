@@ -1559,6 +1559,40 @@ const migrateToTunnel = async (zoneId, domainName, serverIP) => {
   }
 }
 
+// Accurate per-day visitor counts for a zone over an explicit date range.
+// Uses the httpRequests1dGroups dataset (NOT sampled — unlike the adaptive datasets),
+// so uniq.uniques is an accurate daily visitor count. `since`/`until` are 'YYYY-MM-DD'.
+// Cloudflare only retains a limited window; days older than retention are simply absent
+// from the result (no error), which is why js/hosting-visits.js snapshots daily rows so
+// lifetime totals survive beyond Cloudflare's window.
+const getZoneVisitsRange = async (zoneId, sinceDate, untilDate) => {
+  try {
+    const since = String(sinceDate).split('T')[0]
+    const until = String(untilDate).split('T')[0]
+    const dayMs = 86400000
+    const span = Math.round((new Date(until) - new Date(since)) / dayMs) + 2
+    const limit = Math.min(366, Math.max(1, span))
+    const query = `{ viewer { zones(filter: {zoneTag: "${zoneId}"}) {
+      httpRequests1dGroups(limit: ${limit}, filter: {date_geq: "${since}", date_leq: "${until}"}, orderBy: [date_ASC]) {
+        dimensions { date }
+        sum { requests pageViews }
+        uniq { uniques }
+      }
+    }}}`
+    const res = await axios.post(`${CF_BASE_URL}/graphql`, { query }, { headers: cfHeaders(), timeout: 20000 })
+    const errors = res.data?.errors
+    if (errors && errors.length) return { success: false, error: errors[0]?.message || 'graphql_error', days: [] }
+    const groups = res.data?.data?.viewer?.zones?.[0]?.httpRequests1dGroups || []
+    const days = groups
+      .filter(g => g.dimensions?.date)
+      .map(g => ({ date: g.dimensions.date, uniques: g.uniq?.uniques || 0, pageViews: g.sum?.pageViews || 0, requests: g.sum?.requests || 0 }))
+    return { success: true, days }
+  } catch (err) {
+    log('CF getZoneVisitsRange error:', err.response?.data?.errors?.[0]?.message || err.message)
+    return { success: false, error: err.message, days: [] }
+  }
+}
+
 module.exports = {
   testConnection,
   getAccountNameservers,
@@ -1587,6 +1621,7 @@ module.exports = {
   getOrCreateCustomRulesEntrypoint: _getOrCreateCustomRulesEntrypoint,
   CF_CUSTOM_RULES_PHASE,
   getZoneAnalytics,
+  getZoneVisitsRange,
   getDetailedZoneAnalytics,
   checkZoneNSStatus,
   // Anti-Bot
