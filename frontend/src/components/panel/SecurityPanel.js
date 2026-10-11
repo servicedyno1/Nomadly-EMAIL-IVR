@@ -14,7 +14,11 @@ function StatusBadge({ active, loading, label }) {
 
 // Layer keys drive both the data wiring (to security/status response) and the
 // i18n lookup (sec.layers.<key>.label / .desc). Keep in sync with en.json.
-const LAYER_KEYS = ['htaccessCloaking', 'scannerUaBlocking', 'cfWafRules', 'cfWorker', 'jsChallenge', 'honeypot'];
+// NOTE: the Cloudflare Worker (cfWorker) is the *mechanism* that serves the
+// Visitor Captcha at the edge — it is intentionally NOT listed as its own layer
+// so the panel shows a SINGLE "Visitor Captcha" control (the jsChallenge toggle)
+// instead of two overlapping entries (Worker + Captcha).
+const LAYER_KEYS = ['htaccessCloaking', 'scannerUaBlocking', 'cfWafRules', 'jsChallenge', 'honeypot'];
 
 export default function SecurityPanel() {
   const { t } = useTranslation();
@@ -135,7 +139,7 @@ export default function SecurityPanel() {
   const captchaGoldOnly = !!status?.captchaGoldOnly;
   const isMonthly = status?.isMonthly !== false;
   const honeypotMonthlyOnly = !!status?.honeypotMonthlyOnly;
-  const activeCount = Object.values(layers).filter(Boolean).length;
+  const activeCount = LAYER_KEYS.filter(k => layers[k]).length;
   const totalCount = LAYER_KEYS.length;
 
   return (

@@ -1212,6 +1212,23 @@ function endpointGroups(base) {
 //   "data": { "id": null, "product": "account", "wallet_balance_usd": 42.1, "threshold_usd": 50, "currency": "usd" } }`,
         },
         {
+          method: 'GET', path: '/safe-browsing/flags', auth: true, billed: false,
+          desc: 'List every domain of yours (across hosting, VPS, RDP and the URL shortener) that Google Safe Browsing has flagged. When a linked domain is flagged we auto-unlink it from our server (hosting → suspended; VPS/RDP → its DNS A-record removed; shortener → deactivated so its slugs stop resolving) and push a <product>.flagged webhook. Filter with ?product=hosting|vps|rdp|shortener. For an on-demand LIVE check of a single hosting plan, see GET /hosting/:user/safe-browsing.',
+          params: [['product', false, 'Filter: hosting | vps | rdp | shortener']],
+          curl: `curl -s ${base}/safe-browsing/flags \\
+  -H "Authorization: Bearer YOUR_API_KEY"`,
+          resp: `{ "count": 1, "flags": [ { "domain": "bad.example.com", "product": "shortener", "status": "unlinked",
+  "flagged": true, "threats": ["MALWARE"], "first_flagged_at": "…", "last_checked_at": "…", "unlinked_at": "…" } ] }`,
+        },
+        {
+          method: 'GET', path: '/safe-browsing/status', auth: true, billed: false,
+          desc: 'Get the current Safe-Browsing flag state for one of your domains. Returns { domain, flagged:false, status:"clear" } when the domain is not flagged (or not yours). This reads the stored flag from the monitor; for a forced LIVE recheck of a hosting plan use GET /hosting/:user/safe-browsing.',
+          params: [['domain', true, 'The domain to look up']],
+          curl: `curl -s "${base}/safe-browsing/status?domain=bad.example.com" \\
+  -H "Authorization: Bearer YOUR_API_KEY"`,
+          resp: `{ "domain": "bad.example.com", "product": "shortener", "status": "unlinked", "flagged": true, "threats": ["MALWARE"] }`,
+        },
+        {
           method: 'GET', path: '/hosting/:user/health', auth: true, billed: false,
           desc: 'Live health of a hosting account, probed from our network through the Cloudflare Tunnel so you see the REAL origin, not the decoy page the protection layer serves to datacenter traffic. dns: apex/www resolve publicly (null = resolver unavailable); when a lookup fails, dns.cloudflare shows whether the records exist on Cloudflare and dns.repair_url points to POST /hosting/:user/dns/repair. tunnel: connected + status. origin: ok, http_status, ttfb_ms, checked_at (a 5xx / 52x / 530 or a network error = down). ssl: valid, valid_until, days_left, issuer (the certificate visitors see). php_errors_last_24h: PHP errors written to public_html/error_log in the last 24 hours (null + php_errors_note when it cannot be read). status: up | degraded (works, but www/tunnel/SSL has a problem) | down | unknown. monitor: the 5-minute uptime monitor state (status, consecutive_failures, down_since, last_ok_at, last_checked_at, last_dns_repair_at). Read-only. 409 account_not_live (provisioning / failed / terminated), 409 account_suspended or maintenance_mode.',
           curl: `curl -s ${base}/hosting/mysite01/health -H "Authorization: Bearer YOUR_API_KEY"`,
@@ -1470,6 +1487,16 @@ function endpointGroups(base) {
   "eligibility": { "visitor_captcha": true, "geo_blocking": true, "js_challenge": true, "mysql": true, "honeypot": true },
   "antiRed": { "safeBrowsing": { "safe": true }, "blacklist": { "listed": false } },
   "protectionLayers": { "jsChallenge": true, "honeypot": true, "cloudflareZone": true } }`,
+        },
+        {
+          method: 'GET', path: '/hosting/:user/safe-browsing', auth: true, billed: false,
+          desc: 'REALTIME Google Safe Browsing status for the domains ASSOCIATED with this hosting plan (its primary domain + any addon domains). This performs a LIVE check against Google (bypasses the 30-min cache) every call. Pass ?domain=<d> to check a single associated domain (its main or an addon domain — a domain not on this plan returns 404 domain_not_associated); omit it to check every domain on the plan. Read-only: it reports status only (safe / flagged / threat types) and never suspends or unlinks — the background monitor handles enforcement and pushes <product>.flagged webhooks.',
+          params: [['domain', false, 'A single domain on this plan to check (defaults to all plan domains)']],
+          curl: `curl -s "${base}/hosting/mysite01/safe-browsing?domain=mysite.com" \\
+  -H "Authorization: Bearer YOUR_API_KEY"`,
+          resp: `{ "username": "mysite01", "plan": "Golden Anti-Red HostPanel (1-Month)", "domain": "mysite.com",
+  "checked_at": "2026-10-11T21:30:00.000Z", "realtime": true, "configured": true, "flagged_count": 0,
+  "results": [ { "domain": "mysite.com", "is_main": true, "safe": true, "flagged": false, "threats": [], "error": null, "monitor_status": "clear" } ] }`,
         },
         {
           method: 'POST', path: '/hosting/:user/security/anti-red/deploy', auth: true, billed: false,

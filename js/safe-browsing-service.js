@@ -19,16 +19,19 @@ const CACHE_TTL = 30 * 60 * 1000 // 30 minutes
 /**
  * Check a single domain against Google Safe Browsing API v4
  * Returns { safe: true/false, threats: [...], error: string|null }
+ * Pass { fresh: true } to bypass the 30-min cache (realtime on-demand checks).
  */
-async function checkDomain(domain) {
+async function checkDomain(domain, { fresh = false } = {}) {
   if (!SB_API_KEY) {
     return { safe: null, threats: [], error: 'GOOGLE_SAFE_BROWSING_KEY not configured' }
   }
 
-  // Check cache first
-  const cached = cache.get(domain)
-  if (cached && Date.now() - cached.checkedAt < CACHE_TTL) {
-    return { safe: cached.safe, threats: cached.threats, error: null, cached: true }
+  // Check cache first (skipped for fresh/realtime lookups)
+  if (!fresh) {
+    const cached = cache.get(domain)
+    if (cached && Date.now() - cached.checkedAt < CACHE_TTL) {
+      return { safe: cached.safe, threats: cached.threats, error: null, cached: true }
+    }
   }
 
   try {

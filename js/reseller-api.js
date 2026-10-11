@@ -56,6 +56,7 @@ const { apiRecorder } = require('./reseller-activity-api')    // records success
 const alerts = require('./reseller-alerts')                   // expiry / renewal / low-balance webhooks + sweeps
 const siteHealth = require('./reseller-site-health')          // GET /hosting/:user/health + uptime monitor
 const usageAlerts = require('./reseller-usage-alerts')        // usage-threshold levels (documented on GET /account/alerts)
+const safeBrowsingMonitor = require('./safe-browsing-monitor') // Google Safe Browsing: flag linked domains → notify + unlink
 
 // Customer-facing HostPanel URL (same one the Telegram bot shows).
 function panelUrl() {
@@ -716,7 +717,7 @@ function createResellerApi(deps = {}) {
   }))
 
   // ── Alerts: low-balance threshold (per key) + the fixed reminder / monitor / usage settings ──
-  const ALERT_EVENTS = ['hosting.expiring', 'vps.expiring', 'rdp.expiring', 'domain.expiring', 'domain.expired', 'hosting.renewed', 'vps.renewed', 'rdp.renewed', 'domain.renewed', 'hosting.unsuspended', 'hosting.site_down', 'hosting.site_recovered', 'hosting.usage_threshold', 'vps.usage_threshold', 'rdp.usage_threshold', 'account.low_balance']
+  const ALERT_EVENTS = ['hosting.expiring', 'vps.expiring', 'rdp.expiring', 'domain.expiring', 'domain.expired', 'hosting.renewed', 'vps.renewed', 'rdp.renewed', 'domain.renewed', 'hosting.unsuspended', 'hosting.site_down', 'hosting.site_recovered', 'hosting.usage_threshold', 'vps.usage_threshold', 'rdp.usage_threshold', 'account.low_balance', 'hosting.flagged', 'vps.flagged', 'rdp.flagged', 'shortener.flagged']
   async function alertsView(req) {
     const k = await col('resellerApiKeys').findOne({ _id: req.reseller.keyId }, { projection: { alerts: 1, webhookUrl: 1 } })
     const a = (k && k.alerts) || {}
@@ -768,6 +769,30 @@ function createResellerApi(deps = {}) {
       count: pg.items.length, has_more: pg.has_more, next_cursor: pg.next_cursor,
       activity: pg.items,
     })
+  }))
+
+  // ── Google Safe Browsing flags ───────────────────────────────────────────
+  // When a domain linked to your hosting / VPS / RDP / shortener is caught by
+  // Google Safe Browsing (malware / phishing / unwanted software), we unlink it
+  // from our server and push a `<product>.flagged` webhook. These endpoints let
+  // you pull the current flag state on demand.
+  router.get('/safe-browsing/flags', apiKeyAuth, h(async (req, res) => {
+    const product = req.query.product ? String(req.query.product) : null
+    if (product && !['hosting', 'vps', 'rdp', 'shortener'].includes(product)) {
+      return res.status(400).json({ error: 'invalid_product', message: 'product must be one of: hosting, vps, rdp, shortener.' })
+    }
+    const flags = await safeBrowsingMonitor.listFlags(getDb(), { chatId: req.reseller.ownerChatId, product })
+    res.json({ count: flags.length, flags: flags.map(safeBrowsingMonitor.publicFlagView) })
+  }))
+
+  router.get('/safe-browsing/status', apiKeyAuth, h(async (req, res) => {
+    const domain = String(req.query.domain || '').trim().toLowerCase()
+    if (!/^[a-z0-9-]+(\.[a-z0-9-]+)+$/.test(domain)) return res.status(400).json({ error: 'invalid_domain', message: 'Pass ?domain=yourdomain.com' })
+    const flag = await safeBrowsingMonitor.getFlag(getDb(), domain)
+    if (!flag || String(flag.chatId) !== String(req.reseller.ownerChatId)) {
+      return res.json({ domain, flagged: false, status: 'clear' })
+    }
+    res.json(safeBrowsingMonitor.publicFlagView(flag))
   }))
 
   // ── Bot pricing catalog (the same prices the Telegram bot charges) ──
@@ -2978,6 +3003,9 @@ function createResellerApi(deps = {}) {
   } catch (e) { log(`[ResellerAPI] provision worker init warn: ${e.message}`) }
   // Expiry / renewal / low-balance, uptime and usage alert sweeps (production + active slot only).
   try { alerts.start({ getDb, log }) } catch (e) { log(`[ResellerAPI] alert sweeps init warn: ${e.message}`) }
+  // Google Safe Browsing monitor: flag linked hosting/VPS/RDP/shortener domains →
+  // notify reseller webhook + unlink from our server (production + active slot only).
+  try { safeBrowsingMonitor.start({ getDb, log }) } catch (e) { log(`[ResellerAPI] safe-browsing monitor init warn: ${e.message}`) }
   // Per-domain wallet auto-renew (OpenProvider) — production + active slot only.
   try { domainAutoRenew.start({ getDb, log }) } catch (e) { log(`[ResellerAPI] domain auto-renew init warn: ${e.message}`) }
 
