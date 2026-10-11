@@ -61,17 +61,25 @@ function extractRouteBlock(src, marker) {
 const statusBlock = extractRouteBlock(routesSrc, "router.get('/security/captcha/status'")
 assert(statusBlock.length > 0, 'A0 located /security/captcha/status route block')
 
-assert(
-  /visitorCaptchaOff/.test(statusBlock),
-  'A1 status route references visitorCaptchaOff (current flag)'
+// The status route now delegates flag-reading to the SINGLE SOURCE OF TRUTH,
+// antiRedService.resolveDomainCfState(domain, db), which OR-checks BOTH the
+// current `visitorCaptchaOff` and the legacy `antiRedOff` flags. So we assert
+// the route delegates to it, and that the helper does the OR-check.
+const antiRedSrc = fs.readFileSync(
+  path.join(__dirname, '..', 'js', 'anti-red-service.js'),
+  'utf8'
 )
 assert(
-  /antiRedOff/.test(statusBlock),
-  'A2 status route still references antiRedOff (legacy flag — backwards compatibility)'
+  /resolveDomainCfState/.test(statusBlock),
+  'A1 status route derives captcha state from resolveDomainCfState (single source of truth)'
 )
 assert(
-  /v\.visitorCaptchaOff === true \|\| v\.antiRedOff === true/.test(statusBlock),
-  'A3 status route OR-checks BOTH flags (the actual fix)'
+  /antiRedOff/.test(antiRedSrc),
+  'A2 resolveDomainCfState still references antiRedOff (legacy flag — backwards compatibility)'
+)
+assert(
+  /v\.visitorCaptchaOff === true \|\| v\.antiRedOff === true/.test(antiRedSrc),
+  'A3 resolveDomainCfState OR-checks BOTH flags (the actual fix)'
 )
 assert(
   !/const enabled = hasCloudflare && v\.antiRedOff !== true\s*\n/.test(statusBlock),

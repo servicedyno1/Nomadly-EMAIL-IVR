@@ -91,11 +91,14 @@ assert(!/if \(message !== 'DISABLE'\)/.test(idx),
 assert(/antiRedConfirmDisable/.test(idx),
   'B.6 _index.js uses `antiRedConfirmDisable` button label')
 
-// Status reads must accept both legacy and new field
+// Status reads must accept both legacy and new field. The bot now derives the
+// captcha on/off state via antiRedService.resolveDomainCfState(...).isOff (the
+// SINGLE SOURCE OF TRUTH), and that helper OR-checks BOTH flags.
 {
-  const m = idx.match(/const isOff = val\.visitorCaptchaOff === true \|\| val\.antiRedOff === true/g)
-  assert((m || []).length >= 2,
-    'B.7 isOff reads BOTH `visitorCaptchaOff` (current) and `antiRedOff` (legacy)')
+  assert(/resolveDomainCfState\([^)]*\)/.test(idx) && /\.isOff/.test(idx),
+    'B.7a _index.js reads captcha state via resolveDomainCfState(...).isOff')
+  assert(/result\.isOff = v\.visitorCaptchaOff === true \|\| v\.antiRedOff === true/.test(antiRedSrc),
+    'B.7b resolveDomainCfState isOff reads BOTH `visitorCaptchaOff` (current) and `antiRedOff` (legacy)')
 }
 // AntiRed-Cron loop must NOT skip on antiRedOff
 {
