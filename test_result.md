@@ -72,6 +72,19 @@ current_task_2026_10_11_three_fixes: |
       Test: node js/tests/test_hosting_safe_browsing_realtime.js → ALL PASS (mounts the router on LOCAL db w/ mock auth:
       all/single/association-404/unknown-user-404 + response shape). Route mounted check 401. fresh cache-bypass verified.
 
+  FOLLOW-UP (2026-10-11c) — realtime check extended to shortener + VPS + RDP:
+    • js/safe-browsing-monitor.js: added shared helpers liveCheck(db,domains,{main}) (cache-bypassed rows),
+      domainResolvesTo(domain,ip,{resolve4}) and linkedDomainsForIp(db,owner,ip,{resolve4}); hosting endpoint
+      refactored to use liveCheck.
+    • Shortener (js/reseller-shortener.js): GET /shortener/safe-browsing (all activated domains) and
+      GET /shortener/domains/:domain/safe-browsing (one; 404 if not an owned activation).
+    • VPS/RDP (js/reseller-api.js): vpsSafeBrowsingHandler → GET /vps/:id/safe-browsing and /rdp/:id/safe-browsing.
+      "Linked" = a domain whose A-record points at the box IP (rec.host). ?domain= verifies association via DNS
+      (404 domain_not_associated); omit = auto-discover reseller domains resolving to the IP (best-effort, capped 60).
+    • All read-only (report only; monitor still owns enforcement). apidoc updated for all four product endpoints.
+    Tests: node js/tests/test_safe_browsing_realtime_ext.js → ALL PASS (helpers + shortener routes on LOCAL db w/
+    mocks). New routes mounted check = 401. VPS/RDP handler is thin glue over the verified helpers. apidoc renders.
+
 
 
 #====================================================================================================

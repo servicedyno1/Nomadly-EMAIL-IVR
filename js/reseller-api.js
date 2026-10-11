@@ -57,6 +57,7 @@ const alerts = require('./reseller-alerts')                   // expiry / renewa
 const siteHealth = require('./reseller-site-health')          // GET /hosting/:user/health + uptime monitor
 const usageAlerts = require('./reseller-usage-alerts')        // usage-threshold levels (documented on GET /account/alerts)
 const safeBrowsingMonitor = require('./safe-browsing-monitor') // Google Safe Browsing: flag linked domains → notify + unlink
+const safeBrowsing = require('./safe-browsing-service')        // realtime on-demand Google Safe Browsing check
 
 // Customer-facing HostPanel URL (same one the Telegram bot shows).
 function panelUrl() {
@@ -1288,6 +1289,33 @@ function createResellerApi(deps = {}) {
     res.json(out)
   }
 
+  // Realtime Google Safe Browsing status for the domain(s) linked to a VPS / RDP box.
+  // "Linked" = a domain whose DNS A-record points at the box's IP. Pass ?domain= to check
+  // one such domain (404 domain_not_associated if it does not resolve to this box); omit it
+  // to auto-discover your domains pointing at the box and check them all (best-effort DNS).
+  // LIVE check (bypasses the 30-min cache). Read-only — reports status only; the background
+  // monitor handles enforcement + <product>.flagged webhooks.
+  async function vpsSafeBrowsingHandler(req, res, isRDP) {
+    const rec = await loadOwnedVps(req, req.params.id, isRDP)
+    if (!rec) return res.status(404).json({ error: 'not_found' })
+    const product = isRDP ? 'rdp' : 'vps'
+    if (!safeBrowsing.isConfigured()) return res.status(503).json({ error: 'safe_browsing_unconfigured', message: 'Google Safe Browsing is not configured on this server.' })
+    const ip = String(rec.host || rec.ip || rec.mainIp || '').trim()
+    const id = rec.vpsId || rec._id
+    if (!ip) return res.json({ id, product, ip: null, realtime: true, configured: true, flagged_count: 0, results: [], note: 'No IP on record yet — the box may still be provisioning.' })
+    const qd = req.query.domain ? String(req.query.domain).trim().toLowerCase() : null
+    let targets = []
+    if (qd) {
+      const linked = await safeBrowsingMonitor.domainResolvesTo(qd, ip)
+      if (!linked) return res.status(404).json({ error: 'domain_not_associated', message: `${qd} does not resolve to this ${product.toUpperCase()}'s IP (${ip}). Point its DNS A-record at the box first.`, ip })
+      targets = [qd]
+    } else {
+      targets = await safeBrowsingMonitor.linkedDomainsForIp(getDb(), req.reseller.ownerChatId, ip)
+    }
+    const results = await safeBrowsingMonitor.liveCheck(getDb(), targets)
+    res.json({ id, product, ip, domain: qd || null, checked_at: new Date().toISOString(), realtime: true, configured: true, flagged_count: results.filter(r => r.flagged).length, results })
+  }
+
   async function vpsActionHandler(req, res, isRDP) {
     const rec = await loadOwnedVps(req, req.params.id, isRDP)
     if (!rec) return res.status(404).json({ error: 'not_found' })
@@ -1681,6 +1709,7 @@ function createResellerApi(deps = {}) {
   router.post('/vps', apiKeyAuth, h((req, res) => vpsCreateHandler(req, res, false)))
   router.get('/vps', apiKeyAuth, h((req, res) => vpsListHandler(req, res, false)))
   router.get('/vps/:id', apiKeyAuth, h((req, res) => vpsGetHandler(req, res, false)))
+  router.get('/vps/:id/safe-browsing', apiKeyAuth, h((req, res) => vpsSafeBrowsingHandler(req, res, false)))
   router.post('/vps/:id/action', apiKeyAuth, h((req, res) => vpsActionHandler(req, res, false)))
   router.delete('/vps/:id', apiKeyAuth, h((req, res) => vpsDestroyHandler(req, res, false)))
   router.get('/vps/:id/credentials', apiKeyAuth, h((req, res) => vpsCredsHandler(req, res, false)))
@@ -1701,6 +1730,7 @@ function createResellerApi(deps = {}) {
   router.post('/rdp', apiKeyAuth, h((req, res) => vpsCreateHandler(req, res, true)))
   router.get('/rdp', apiKeyAuth, h((req, res) => vpsListHandler(req, res, true)))
   router.get('/rdp/:id', apiKeyAuth, h((req, res) => vpsGetHandler(req, res, true)))
+  router.get('/rdp/:id/safe-browsing', apiKeyAuth, h((req, res) => vpsSafeBrowsingHandler(req, res, true)))
   router.post('/rdp/:id/action', apiKeyAuth, h((req, res) => vpsActionHandler(req, res, true)))
   router.post('/rdp/:id/password-reset', apiKeyAuth, h((req, res) => rdpPasswordResetHandler(req, res)))
   router.post('/rdp/:id/reinstall', apiKeyAuth, h((req, res) => rdpReinstallHandler(req, res)))

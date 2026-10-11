@@ -272,6 +272,52 @@ async function listFlags(db, { chatId = null, product = null } = {}) {
   if (product) q.product = product
   return db.collection(COLLECTION).find(q).limit(1000).toArray().catch(() => [])
 }
+
+// ── Realtime on-demand checks (shared by hosting / shortener / vps / rdp endpoints) ──
+const DNS_MATCH_CAP = 60 // cap domains we DNS-resolve for a VPS/RDP "all" realtime sweep
+
+// Does `domain`'s A-record point at `ip`? (VPS/RDP association check.)
+async function domainResolvesTo(domain, ip, { resolve4 = (h) => dns.resolve4(h) } = {}) {
+  if (!isIp(ip)) return false
+  let ips = []
+  try { ips = await resolve4(norm(domain)) } catch (_) { ips = [] }
+  return (ips || []).map(String).includes(String(ip))
+}
+
+// Reseller's domains whose A-record currently points at `ip` (a VPS/RDP box). Best-effort.
+async function linkedDomainsForIp(db, ownerChatId, ip, { resolve4 = (h) => dns.resolve4(h), limit = DNS_MATCH_CAP } = {}) {
+  if (!db || !isIp(ip)) return []
+  const domains = await db.collection('domainsOf').find({ chatId: String(ownerChatId), domainName: { $exists: true } }).limit(2000).toArray().catch(() => [])
+  const out = []
+  for (const d of domains.slice(0, limit)) {
+    const name = norm(d.domainName)
+    if (!name) continue
+    const matches = await domainResolvesTo(name, ip, { resolve4 })
+    if (matches) out.push(name)
+  }
+  return out
+}
+
+// LIVE (cache-bypassed) Safe Browsing check over a list of domains → uniform result rows.
+// Pass { main } to tag which row is the primary domain (hosting). Read-only: no enforce/notify.
+async function liveCheck(db, domains, { main = null, sb = sbService } = {}) {
+  const uniq = [...new Set((domains || []).map(norm).filter(Boolean))]
+  const mainN = main ? norm(main) : null
+  return Promise.all(uniq.slice(0, 100).map(async (d) => {
+    const r = await sb.checkDomain(d, { fresh: true }).catch(() => ({ safe: null, threats: [], error: 'check_failed' }))
+    const flagState = await getFlag(db, d).catch(() => null)
+    const row = {
+      domain: d,
+      safe: r.safe,                                 // true | false | null (null = could not determine)
+      flagged: r.safe === false,
+      threats: (r.threats || []).map(t => t.type || t),
+      error: r.error || null,
+      monitor_status: flagState ? (flagState.status || (flagState.flagged ? 'flagged' : 'clear')) : 'clear',
+    }
+    if (mainN !== null) row.is_main = (d === mainN)
+    return row
+  }))
+}
 function publicFlagView(f) {
   if (!f) return null
   return {
@@ -321,6 +367,9 @@ module.exports = {
   runSweep,
   getFlag,
   listFlags,
+  domainResolvesTo,
+  linkedDomainsForIp,
+  liveCheck,
   publicFlagView,
   defaultActions,
   enabled,

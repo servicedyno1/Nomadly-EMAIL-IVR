@@ -985,19 +985,7 @@ function registerHostingMgmtRoutes(deps) {
     }
 
     const checkedAt = new Date().toISOString()
-    const results = await Promise.all(targets.slice(0, 100).map(async (d) => {
-      const r = await safeBrowsing.checkDomain(d, { fresh: true }).catch(() => ({ safe: null, threats: [], error: 'check_failed' }))
-      const flagState = await safeBrowsingMonitor.getFlag(getDb(), d).catch(() => null)
-      return {
-        domain: d,
-        is_main: d === main,
-        safe: r.safe,                                 // true | false | null (null = could not determine)
-        flagged: r.safe === false,
-        threats: (r.threats || []).map(t => t.type || t),
-        error: r.error || null,
-        monitor_status: flagState ? (flagState.status || (flagState.flagged ? 'flagged' : 'clear')) : 'clear',
-      }
-    }))
+    const results = await safeBrowsingMonitor.liveCheck(getDb(), targets, { main })
 
     res.json({
       username: acct._id,
