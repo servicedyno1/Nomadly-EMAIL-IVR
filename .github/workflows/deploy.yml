@@ -1,5 +1,12 @@
 name: Deploy to Droplet
 
+# Make the run title say WHICH app is deploying. A push to main/WhiteLabel shows
+# the branch; the app-wl (Smadav) deploy is dispatched by the Sync workflow as a
+# workflow_dispatch, so show its `app` input — otherwise it just reads "Deploy to
+# Droplet" and looks like the Smadav bot never redeployed.
+run-name: >-
+  Deploy ${{ github.event_name == 'workflow_dispatch' && inputs.app || (github.ref_name == 'WhiteLabel' && 'app-wl (Smadav)' || 'app-main (Nomadly)') }}
+
 # Auto-deploy: a push to `main` or `WhiteLabel` that touches runtime files
 # ships to the DigitalOcean droplet. The runner SSHes in and runs
 # /opt/nomadly/deploy.sh (git sync + smart deps + pm2 restart + /health
