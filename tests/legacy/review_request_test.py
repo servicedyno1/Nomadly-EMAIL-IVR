@@ -10,7 +10,7 @@ import sys
 from datetime import datetime
 
 # Backend URL from frontend/.env
-BACKEND_URL = "https://vault-app-setup.preview.emergentagent.com"
+BACKEND_URL = "https://app-setup-68.preview.emergentagent.com"
 TEST_USER_ID = "6687923716"  # From test_result.md
 
 def test_health_check():

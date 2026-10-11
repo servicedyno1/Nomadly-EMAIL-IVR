@@ -19,7 +19,7 @@ import sys
 import time
 
 # Base URL from frontend/.env
-BASE_URL = "https://vault-app-setup.preview.emergentagent.com"
+BASE_URL = "https://app-setup-68.preview.emergentagent.com"
 API_BASE = f"{BASE_URL}/api/reseller/v1"
 
 # API Key (bound to @onarrival1 / chatId 5590563715, wallet $5.00)
