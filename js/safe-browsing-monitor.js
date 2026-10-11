@@ -318,6 +318,33 @@ async function liveCheck(db, domains, { main = null, sb = sbService } = {}) {
     return row
   }))
 }
+
+// ── Add-time guard ──────────────────────────────────────────────────────────
+// Reject a domain that Google Safe Browsing currently flags BEFORE it is attached
+// to any product (hosting create/addon, shortener activate, domain register, DNS
+// pointing at a VPS/RDP box). LIVE check (bypasses cache). Returns:
+//   { allowed: true }                                   → safe, or check unavailable (fail-open)
+//   { allowed: false, status: 422, error, message, threats } → definitively flagged → caller 422s
+// We fail OPEN when the key is unconfigured or the API errors, so a Google outage
+// never blocks a legitimate domain — but a confirmed flag is always rejected.
+async function assertAddable(domain, { sb = sbService } = {}) {
+  const d = norm(domain)
+  if (!d) return { allowed: true }
+  if (!sb.isConfigured || !sb.isConfigured()) return { allowed: true, skipped: 'unconfigured' }
+  let r
+  try { r = await sb.checkDomain(d, { fresh: true }) } catch (_) { return { allowed: true, skipped: 'check_failed' } }
+  if (r && r.safe === false && (r.threats || []).length) {
+    const threats = r.threats.map(t => t.type || t)
+    return {
+      allowed: false,
+      status: 422,
+      error: 'domain_flagged',
+      threats,
+      message: `${d} is flagged by Google Safe Browsing (${threats.join(', ')}) and cannot be added to our services. Clean the site, request a review in Google Search Console, and try again once it clears.`,
+    }
+  }
+  return { allowed: true }
+}
 function publicFlagView(f) {
   if (!f) return null
   return {
@@ -370,6 +397,7 @@ module.exports = {
   domainResolvesTo,
   linkedDomainsForIp,
   liveCheck,
+  assertAddable,
   publicFlagView,
   defaultActions,
   enabled,

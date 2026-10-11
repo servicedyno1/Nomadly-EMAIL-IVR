@@ -159,6 +159,10 @@ function registerShortenerRoutes({ router, apiKeyAuth, h, col, getDb, isLive, mo
     if (!domainOk(domain)) return res.status(400).json({ error: 'invalid_domain', message: 'Provide a valid domain in body: { "domain": "go.mysite.com", "source": "buy|existing|external" }' })
     if (!['buy', 'existing', 'external'].includes(source)) return res.status(400).json({ error: 'invalid_source', message: 'source must be one of: buy, existing, external.' })
 
+    // Reject domains Google Safe Browsing currently flags — do not activate them as a shortener.
+    const sbGate = await sbMonitor.assertAddable(domain)
+    if (!sbGate.allowed) return res.status(sbGate.status || 422).json({ error: sbGate.error, message: sbGate.message, threats: sbGate.threats })
+
     // ── BUY: register (billed) then activate, in one order ──
     if (source === 'buy') {
       const priceInfo = await domainService.checkDomainPrice(domain, getDb())
