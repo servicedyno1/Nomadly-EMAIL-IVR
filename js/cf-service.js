@@ -857,7 +857,7 @@ const getDetailedZoneAnalytics = async (zoneId, days = 7) => {
 
   try {
     // Run queries in parallel: daily totals + adaptive groups for breakdowns
-    const [dailyRes, hostRes, pathRes, uaRes] = await Promise.all([
+    const [dailyRes, hostRes, pathRes, uaRes, deviceRes] = await Promise.all([
       // 1. Daily totals with country + status breakdown
       axios.post(`${CF_BASE_URL}/graphql`, {
         query: `{ viewer { zones(filter: {zoneTag: "${zoneId}"}) {
@@ -897,6 +897,16 @@ const getDetailedZoneAnalytics = async (zoneId, days = 7) => {
         query: `{ viewer { zones(filter: {zoneTag: "${zoneId}"}) {
           httpRequestsAdaptiveGroups(limit: 50, filter: {datetime_geq: "${adaptiveSince}", datetime_leq: "${adaptiveUntil}"}, orderBy: [count_DESC]) {
             dimensions { userAgent }
+            count
+          }
+        }}}`,
+      }, { headers: cfHeaders(), timeout: 15000 }),
+
+      // 5. Device-type breakdown — desktop / mobile / tablet (last 24h)
+      axios.post(`${CF_BASE_URL}/graphql`, {
+        query: `{ viewer { zones(filter: {zoneTag: "${zoneId}"}) {
+          httpRequestsAdaptiveGroups(limit: 10, filter: {datetime_geq: "${adaptiveSince}", datetime_leq: "${adaptiveUntil}"}, orderBy: [count_DESC]) {
+            dimensions { clientDeviceType }
             count
           }
         }}}`,
@@ -979,6 +989,18 @@ const getDetailedZoneAnalytics = async (zoneId, days = 7) => {
     }
     topUserAgents.sort((a, b) => b.requests - a.requests)
 
+    // Device-type breakdown (desktop / mobile / tablet / unknown)
+    const deviceZones = deviceRes.data?.data?.viewer?.zones || []
+    const deviceGroups = deviceZones[0]?.httpRequestsAdaptiveGroups || []
+    const deviceMap = {}
+    for (const g of deviceGroups) {
+      const dt = (g.dimensions?.clientDeviceType || 'unknown').toLowerCase()
+      deviceMap[dt] = (deviceMap[dt] || 0) + g.count
+    }
+    const byDevice = Object.entries(deviceMap)
+      .map(([device, requests]) => ({ device, requests }))
+      .sort((a, b) => b.requests - a.requests)
+
     // Country breakdown sorted
     const byCountry = Object.entries(countryAgg)
       .map(([country, data]) => ({ country, requests: data.requests, threats: data.threats }))
@@ -1008,6 +1030,7 @@ const getDetailedZoneAnalytics = async (zoneId, days = 7) => {
       byHost,
       byCountry,
       byStatus,
+      byDevice,
       topPaths,
       topUserAgents: topUserAgents.slice(0, 20),
     }

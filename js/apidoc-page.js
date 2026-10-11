@@ -1527,17 +1527,21 @@ function endpointGroups(base) {
         },
         {
           method: 'GET', path: '/hosting/:user/visitors', auth: true, billed: false,
-          desc: 'TOTAL number of website VISITORS to a hosting-plan domain SINCE it was linked, from Cloudflare analytics (accurate daily unique visitors — the non-sampled httpRequests1dGroups dataset — plus page views and total requests). ?domain=<d> selects a plan domain (its main or an addon domain; default = the main domain; a domain not on the plan returns 404 domain_not_associated). ?since=YYYY-MM-DD overrides the linked date. Lifetime history is snapshotted daily so totals survive the Cloudflare retention window; coverage_complete=false (with a note) means the window starts at coverage_from because the domain was linked before visitor tracking began.',
+          desc: 'TOTAL number of website VISITORS to a hosting-plan domain SINCE it was linked, from Cloudflare analytics (accurate daily unique visitors — the non-sampled httpRequests1dGroups dataset — plus page views and total requests). ?domain=<d> selects a plan domain (its main or an addon domain; default = the main domain; a domain not on the plan returns 404 domain_not_associated). ?since=YYYY-MM-DD overrides the linked date. Lifetime history is snapshotted daily so totals survive the Cloudflare retention window; coverage_complete=false (with a note) means the window starts at coverage_from because the domain was linked before visitor tracking began. The response also carries visitor breakdowns — top_countries (over the lookback window), top_devices (desktop/mobile/tablet) and top_pages (Cloudflare only exposes devices & pages for the last 24h, so each block has its own "window"). Pass ?breakdown=false to skip the breakdowns and return totals only.',
           params: [
             ['domain', false, 'A domain on this plan (defaults to the main domain)'],
             ['since', false, 'Override the start date (YYYY-MM-DD); defaults to when the domain was linked'],
+            ['breakdown', false, 'Set to false to skip the top_countries / top_devices / top_pages breakdowns (default: true)'],
           ],
           curl: `curl -s "${base}/hosting/mysite01/visitors" \\
   -H "Authorization: Bearer YOUR_API_KEY"`,
           resp: `{ "username": "mysite01", "domain": "mysite.com", "is_main": true, "plan": "Golden Anti-Red HostPanel (1-Month)",
   "source": "cloudflare", "linked_at": "2026-08-01T10:00:00.000Z", "since": "2026-08-01", "until": "2026-10-11",
   "total_visitors": 48213, "total_page_views": 91002, "total_requests": 377540,
-  "days_counted": 71, "coverage_from": "2026-08-01", "coverage_to": "2026-10-11", "coverage_complete": true }`,
+  "days_counted": 71, "coverage_from": "2026-08-01", "coverage_to": "2026-10-11", "coverage_complete": true,
+  "top_countries": { "window": "last_30d", "items": [ { "country": "United States", "requests": 128400, "threats": 12 } ] },
+  "top_devices": { "window": "last_24h", "items": [ { "device": "desktop", "requests": 5120 }, { "device": "mobile", "requests": 3880 } ] },
+  "top_pages": { "window": "last_24h", "items": [ { "path": "/", "requests": 4210 }, { "path": "/login", "requests": 980 } ] } }`,
         },
         {
           method: 'POST', path: '/hosting/:user/security/anti-red/deploy', auth: true, billed: false,

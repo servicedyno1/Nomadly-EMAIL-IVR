@@ -3301,6 +3301,44 @@ function createCpanelRoutes(getCpanelCol, opts = {}) {
     }
   })
 
+  /**
+   * GET /visitors — TOTAL visitors to this hosting domain SINCE it was linked,
+   * from Cloudflare analytics (accurate daily uniques; survives CF's retention
+   * window via the daily snapshot in hosting-visits.js). Surfaced in the panel so
+   * the customer sees lifetime reach without calling the reseller API.
+   */
+  router.get('/visitors', ...auth, async (req, res) => {
+    try {
+      const zone = await cfService.getZoneByName(req.cpDomain).catch(() => null)
+      if (!zone) return res.json({ success: false, error: 'Domain not in Cloudflare' })
+      const col = getCpanelCol()
+      const account = col ? await col.findOne({ _id: req.cpUser.toLowerCase() }) : null
+      let linkedAt = account?.createdAt ? new Date(account.createdAt) : null
+      if (!linkedAt || isNaN(linkedAt.getTime())) linkedAt = new Date(Date.now() - 30 * 86400000)
+      const hostingVisits = require('./hosting-visits')
+      const getDb = opts.getDb || (() => null)
+      const r = await hostingVisits.totalVisitors(getDb(), {
+        zoneId: zone.id, domain: req.cpDomain, chatId: account?.chatId, since: linkedAt, until: new Date(),
+      })
+      const sinceStr = hostingVisits.dayStr(linkedAt)
+      res.json({
+        success: true,
+        domain: req.cpDomain,
+        linked_at: linkedAt.toISOString(),
+        since: sinceStr,
+        until: hostingVisits.dayStr(Date.now()),
+        total_visitors: r.total_visitors,
+        total_page_views: r.total_page_views,
+        total_requests: r.total_requests,
+        coverage_from: r.coverage_from,
+        coverage_complete: r.coverage_from ? (r.coverage_from <= sinceStr) : false,
+      })
+    } catch (err) {
+      log(`[Panel] Visitors error: ${err.message}`)
+      res.status(500).json({ error: 'Failed to fetch visitors' })
+    }
+  })
+
   // ─── Security: Anti-Bot & Anti-Red ──────────────────────
 
   /**
