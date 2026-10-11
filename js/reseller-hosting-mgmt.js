@@ -1035,6 +1035,24 @@ function registerHostingMgmtRoutes(deps) {
     const r = await hostingVisits.totalVisitors(getDb(), { zoneId, domain: qd, chatId: acct.chatId, since, until: new Date() })
     const sinceStr = hostingVisits.dayStr(since)
     const complete = r.coverage_from ? (r.coverage_from <= sinceStr) : false
+
+    // Visitor breakdowns (top countries / devices / pages) from Cloudflare analytics.
+    // Countries cover the lookback window; devices & pages are Cloudflare's last-24h
+    // adaptive-groups window (the only range CF exposes for those dimensions). Pass
+    // ?breakdown=false to skip these extra CF calls and return totals only.
+    let breakdowns = {}
+    if (String(req.query.breakdown || '').toLowerCase() !== 'false') {
+      const lookbackDays = Math.min(30, Math.max(1, Math.ceil((Date.now() - since.getTime()) / 86400000)))
+      const detail = await cfService.getDetailedZoneAnalytics(zoneId, lookbackDays).catch(() => null)
+      if (detail && detail.success) {
+        breakdowns = {
+          top_countries: { window: `last_${lookbackDays}d`, items: (detail.byCountry || []).slice(0, 10).map(c => ({ country: c.country, requests: c.requests, threats: c.threats || 0 })) },
+          top_devices: { window: 'last_24h', items: (detail.byDevice || []).map(d => ({ device: d.device, requests: d.requests })) },
+          top_pages: { window: 'last_24h', items: (detail.topPaths || []).slice(0, 10).map(p => ({ path: p.path, requests: p.requests })) },
+        }
+      }
+    }
+
     res.json({
       username: acct._id,
       domain: qd,
@@ -1051,6 +1069,9 @@ function registerHostingMgmtRoutes(deps) {
       coverage_from: r.coverage_from,
       coverage_to: r.coverage_to,
       coverage_complete: complete,
+      top_countries: breakdowns.top_countries,
+      top_devices: breakdowns.top_devices,
+      top_pages: breakdowns.top_pages,
       note: (!complete && r.coverage_from)
         ? `Cloudflare retains a limited analytics window, so visitor history is available from ${r.coverage_from} onward. Lifetime totals accrue daily from when tracking began.`
         : undefined,

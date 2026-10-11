@@ -580,3 +580,8 @@ User inherited a fully-set-up Nomadly bot pod pointed at LIVE PRODUCTION. Task b
 
 ## 2026-06 — Membership copy fix
 - Removed `📞 Cloud IVR` from the Membership / "Choose Your Plan" perks list (js/lang/plan-copy.js) across en/fr/hi/zh. Cloud IVR is a separate product, not a membership perk. Verified by rendering all 4 locales. Live in preview; pending production deploy.
+
+## 2026-06-11 — Visitor breakdown + panel lifetime visitors (DONE)
+- Reseller GET /hosting/:user/visitors: added top_countries / top_devices / top_pages (CF getDetailedZoneAnalytics; devices via new clientDeviceType query). ?breakdown=false opts out. Documented in /apidoc.
+- New panel GET /panel/visitors (customer session) → "visitors since linked"; shown as a banner + By Device section on the HostPanel Analytics tab.
+- Tests green: test_visitor_breakdown.js (11/11), test_panel_visitors.js (4/4). UI verified desktop + mobile.

@@ -37,6 +37,7 @@ export default function Analytics() {
   const truncateUA = useTruncateUA();
   const { api } = useAuth();
   const [data, setData] = useState(null);
+  const [lifetime, setLifetime] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [days, setDays] = useState(7);
@@ -60,16 +61,36 @@ export default function Analytics() {
 
   useEffect(() => { fetchAnalytics(); }, [fetchAnalytics]);
 
+  // Lifetime "visitors since linked" — independent of the day-range toggle.
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        const res = await api('/visitors');
+        if (active && res && res.success) setLifetime(res);
+      } catch (_) { /* non-fatal: panel still shows the period analytics */ }
+    })();
+    return () => { active = false; };
+  }, [api]);
+
   const totals = data?.totals;
   const timeseries = data?.timeseries || [];
   const tq = data?.trafficQuality;
   const byHost = data?.byHost || [];
   const byCountry = data?.byCountry || [];
   const byStatus = data?.byStatus || [];
+  const byDevice = data?.byDevice || [];
   const topPaths = data?.topPaths || [];
   const topUserAgents = data?.topUserAgents || [];
 
   const maxVisitors = Math.max(1, ...timeseries.map(t => t.uniqueVisitors));
+
+  const formatSince = (iso) => {
+    if (!iso) return '';
+    try {
+      return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+    } catch { return iso; }
+  };
 
   return (
     <div className="an" data-testid="analytics">
@@ -90,6 +111,18 @@ export default function Analytics() {
       </div>
 
       {error && <div className="fm-error" data-testid="an-error">{error}</div>}
+
+      {lifetime && lifetime.success && lifetime.total_visitors != null && (
+        <div className="an-lifetime" data-testid="an-lifetime">
+          <div className="an-lifetime-icon" aria-hidden="true">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4-4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+          </div>
+          <div className="an-lifetime-body">
+            <span className="an-lifetime-value" data-testid="an-lifetime-value">{formatNum(lifetime.total_visitors)}</span>
+            <span className="an-lifetime-label">{t('an.totalVisitorsSince', { date: formatSince(lifetime.since) })}</span>
+          </div>
+        </div>
+      )}
 
       {loading ? (
         <div className="fm-loading">{t('an.loading')}</div>
@@ -202,6 +235,27 @@ export default function Analytics() {
               </div>
             )}
           </div>
+
+          {/* Device Types */}
+          {byDevice.length > 0 && (
+            <div className="an-section" data-testid="an-by-device">
+              <h3>{t('an.byDevice')} <span className="an-section-badge">{t('an.last24h')}</span></h3>
+              <div className="an-table">
+                {byDevice.map((d, i) => {
+                  const pct = (d.requests / (byDevice[0]?.requests || 1)) * 100;
+                  return (
+                    <div key={i} className="an-table-row" data-testid={`an-device-${i}`}>
+                      <span className="an-table-name" style={{ textTransform: 'capitalize' }}>{d.device}</span>
+                      <div className="an-table-bar-wrap">
+                        <div className="an-table-bar" style={{ width: `${pct}%`, background: '#f59e0b' }} />
+                      </div>
+                      <span className="an-table-val">{formatNum(d.requests)}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {/* Two-column grid: Status Codes + Top Paths */}
           <div className="an-grid-2">
