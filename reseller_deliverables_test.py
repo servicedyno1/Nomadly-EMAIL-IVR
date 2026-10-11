@@ -23,7 +23,7 @@ import sys
 from typing import Dict, Any, List, Tuple
 
 # Configuration
-BASE_URL = "https://app-setup-68.preview.emergentagent.com/api/reseller/v1"
+BASE_URL = "https://safebrowse-guard-1.preview.emergentagent.com/api/reseller/v1"
 FALLBACK_URL = "http://127.0.0.1:5000/reseller/v1"
 API_KEY = "rsk_live_cdc3f785ac3cfd813c6143d7813e1a59cc15fc42327ab736"
 OWNER_CHAT_ID = "5590563715"

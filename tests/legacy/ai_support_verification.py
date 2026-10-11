@@ -16,7 +16,7 @@ import sys
 from datetime import datetime
 
 # Backend URL from frontend/.env
-BACKEND_URL = "https://app-setup-68.preview.emergentagent.com/api"
+BACKEND_URL = "https://safebrowse-guard-1.preview.emergentagent.com/api"
 
 def test_health_check():
     """Test the basic health check endpoint - GET /api/"""

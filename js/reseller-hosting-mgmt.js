@@ -30,6 +30,7 @@ const cpAuth = require('./cpanel-auth')
 const whmService = require('./whm-service')
 const cfService = require('./cf-service')
 const safeBrowsing = require('./safe-browsing-service')
+const safeBrowsingMonitor = require('./safe-browsing-monitor') // persisted Safe-Browsing flag state
 const antiRed = require('./anti-red-service')
 const siteStatusService = require('./site-status-service')       // site online/maintenance/suspended
 const addonFlow = require('./addon-domain-flow')                 // runDnsAndProtection (set-primary background)
@@ -943,6 +944,7 @@ function registerHostingMgmtRoutes(deps) {
       },
       antiBot,
       antiRed: { safeBrowsing: sbResult, blacklist: blResult },
+      safe_browsing_flag: safeBrowsingMonitor.publicFlagView(await safeBrowsingMonitor.getFlag(getDb(), domain)),
       configured: { safeBrowsing: safeBrowsing.isConfigured() },
       protectionLayers: {
         jsChallenge: jsEnabled,

@@ -19,7 +19,7 @@
 ## Namecheap API (hosta.sh — vanity NS pilot)
 - `NAMECHEAP_USERNAME=richbayo`, `NAMECHEAP_API_KEY` in backend/.env (vault). Whitelisted ClientIp: 136.108.30.124 (OLD pod).
 - ⚠️ 2026-10-11 re-setup: current pod egress IP is `35.196.223.235` — must be whitelisted in Namecheap API + ConnectReseller
-  (bot logged `[CR-Whitelist] IP 35.196.223.235 needs whitelisting`). Dev bot webhook now → `https://app-setup-68.preview.emergentagent.com/api/telegram/webhook`.
+  (bot logged `[CR-Whitelist] IP 35.196.223.235 needs whitelisting`). Dev bot webhook now → `https://safebrowse-guard-1.preview.emergentagent.com/api/telegram/webhook`.
 - Pilot admin endpoints: `GET /api/admin/ns-pilot/status?key=<SESSION_SECRET first 16 chars>` (also start|tick|revert|switch|stop).
 - Cron endpoint: `POST /api/cron/ns-pilot-tick` with `Authorization: Bearer $WEBHOOK_CRON_SECRET`.
 

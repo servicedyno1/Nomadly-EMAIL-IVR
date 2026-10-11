@@ -3,7 +3,7 @@
 const https = require('https');
 const { URL } = require('url');
 
-const BASE = (process.env.REACT_APP_BACKEND_URL || 'https://app-setup-68.preview.emergentagent.com').replace(/\/$/, '') + '/api/reseller/v1';
+const BASE = (process.env.REACT_APP_BACKEND_URL || 'https://safebrowse-guard-1.preview.emergentagent.com').replace(/\/$/, '') + '/api/reseller/v1';
 const KEY = 'nmdly_e2e_51573577f5db956c5c0cb039';
 
 let pass = 0, fail = 0;

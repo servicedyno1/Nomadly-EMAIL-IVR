@@ -450,8 +450,8 @@
         "desc": "Injection de challenge au niveau de la frontière & blocage de scanners"
       },
       "jsChallenge": {
-        "label": "Captcha Visiteur (Défi JS)",
-        "desc": "Défi bot par domaine — plan Gold uniquement. Gérer par domaine dans l'onglet Domaines."
+        "label": "Captcha Visiteur",
+        "desc": "Défi « vérifiez votre navigateur » par domaine qui bloque les bots et scanners. Plan Gold uniquement. Gérer par domaine dans l'onglet Domaines."
       },
       "honeypot": {
         "label": "Pièges Honeypot",

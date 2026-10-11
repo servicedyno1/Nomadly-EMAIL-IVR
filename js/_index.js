@@ -47528,6 +47528,31 @@ app.get('/:id', async (req, res) => {
   if (!url) return res.status(404).send(html('Link not found'))
   if (!(await isValid(lookupKey))) return res.status(404).send(html(translation('t.linkExpired')))
 
+  // ── Deactivated-domain guard (reseller shortener) ──────────────────────────
+  // A reseller can deactivate a custom shortener domain via the reseller API
+  // (DELETE /shortener/domains/:domain → shortenerActivations.status 'deactivated').
+  // Link rows are intentionally KEPT so a later POST /shortener/domains re-activation
+  // restores them — but while deactivated the domain's slugs MUST stop resolving.
+  // The handler above only honours per-LINK expiry (isValid); without this check a
+  // deactivated domain kept 302-ing (lapsed customers still forwarded, flagged links
+  // stayed live). Gate on the DOMAIN's activation status here, before the redirect.
+  // Statuses mirror ACTIVE_STATUSES in js/reseller-shortener.js. Domains with NO
+  // activation record (the bot's own self-hosted links / legacy links) are untouched.
+  try {
+    if (db) {
+      const actHost = String(req.hostname || req.headers.host || '')
+        .toLowerCase().split(':')[0].replace(/\.$/, '').trim()
+      if (actHost) {
+        const SHORTENER_ACTIVE_STATUSES = ['host_linked', 'railway_linked', 'dns_added', 'completed']
+        const act = await db.collection('shortenerActivations')
+          .findOne({ _id: actHost }, { projection: { status: 1 } })
+        if (act && !SHORTENER_ACTIVE_STATUSES.includes(act.status)) {
+          return res.status(410).send(html('This short link has been disabled.'))
+        }
+      }
+    }
+  } catch (_) { /* fail-open: never block a legitimate redirect on a transient DB error */ }
+
   // Reseller API links (shortenerLinks with an owner) get smart routing (country/device) + rich analytics.
   // Bot/legacy links have no API metadata → unchanged behaviour (base url + simple counter).
   let finalUrl = url

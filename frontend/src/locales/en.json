@@ -365,8 +365,8 @@
         "desc": "Edge-level challenge injection & scanner blocking"
       },
       "jsChallenge": {
-        "label": "Visitor Captcha (JS Challenge)",
-        "desc": "Per-domain bot challenge — Golden plan only. Manage per-domain in the Domains tab."
+        "label": "Visitor Captcha",
+        "desc": "Per-domain \"verify your browser\" challenge that blocks bots & scanners. Golden plan only. Manage per-domain in the Domains tab."
       },
       "honeypot": {
         "label": "Honeypot Traps",

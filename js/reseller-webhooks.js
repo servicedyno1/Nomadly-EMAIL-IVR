@@ -48,6 +48,9 @@ const EVENTS = [
   'hosting.site_down', 'hosting.site_recovered',
   'hosting.usage_threshold', 'vps.usage_threshold', 'rdp.usage_threshold',
   'account.low_balance',
+  // Google Safe Browsing: a linked domain was flagged (malware/phishing) → auto-unlinked
+  // from our server. Reactivation requires the reseller to clean the site + re-attach.
+  'hosting.flagged', 'vps.flagged', 'rdp.flagged', 'shortener.flagged',
 ]
 
 // Shared by the hosting scheduler (auto-renew) and the alert sweep so a renewal is pushed once.
