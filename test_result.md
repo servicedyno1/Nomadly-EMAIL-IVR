@@ -85,6 +85,23 @@ current_task_2026_10_11_three_fixes: |
     Tests: node js/tests/test_safe_browsing_realtime_ext.js → ALL PASS (helpers + shortener routes on LOCAL db w/
     mocks). New routes mounted check = 401. VPS/RDP handler is thin glue over the verified helpers. apidoc renders.
 
+  FOLLOW-UP (2026-10-11d) — ADD-TIME guard: reject flagged domains before they're added to any product:
+    • js/safe-browsing-monitor.js: new assertAddable(domain,{sb}) → {allowed:false,status:422,error:'domain_flagged',
+      threats,message} when Google Safe Browsing definitively flags it; fail-OPEN (allowed:true) when the key is
+      unconfigured or the API errors so a Google outage never blocks legit domains.
+    • Wired the guard (→ 422 domain_flagged + threats + message) into every entry point a domain enters a product:
+        POST /shortener/domains                 (js/reseller-shortener.js, all sources)
+        POST /hosting                            (js/reseller-api.js, primary domain, before billing)
+        POST /hosting/:user/addons               (js/reseller-api.js, addon domain)
+        POST /domains/register                   (js/reseller-api.js, keeps flagged domains off the platform)
+        POST /dns/:domain/records (A/AAAA/CNAME)  (js/reseller-api.js — covers pointing a domain at a VPS/RDP box;
+                                                   TXT/MX/etc. still allowed for Search-Console review/remediation)
+    • apidoc updated (5 endpoints note 422 domain_flagged). Complements the periodic monitor (which unlinks domains
+      flagged AFTER they're added).
+    Test: node js/tests/test_safe_browsing_add_guard.js → ALL PASS (assertAddable: flagged→422 / clean→allow /
+    unconfigured→fail-open / error→fail-open; shortener POST integration: flagged→422 domain_flagged, clean→passes
+    guard). safe-browsing-service patched in-test (no real Google call). All 5 regression suites PASS; services healthy.
+
 
 
 #====================================================================================================

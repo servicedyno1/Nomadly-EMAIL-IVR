@@ -165,8 +165,8 @@ function endpointGroups(base) {
         {
           method: 'POST', path: '/domains/register', auth: true, billed: true,
           desc: !BR
-            ? 'Register a domain. Charged to your wallet at the price returned by /domains/search. NAMESERVERS: by default (ns_choice "cloudflare") the domain is delegated to its Cloudflare-assigned nameservers, so DNS sits on our protected Cloudflare edge (proxy, WAF, anti-red). Use ns_choice "registrar" for the registrar default DNS, or pass your own "nameservers" array (2–4 hostnames) to use custom nameservers — custom DNS is NOT protected by our edge.'
-            : `Register a domain. Charged to your wallet at the price returned by /domains/search. NAMESERVERS: by default (ns_choice "branded") the domain is delegated to the branded nameservers ${BNS_TXT} while DNS stays on our protected Cloudflare edge (proxy, WAF, anti-red). Cloudflare only activates a zone on its own assigned names, so the domain is first registered on the Cloudflare-assigned nameservers and our worker switches the registrar to ${BNS_TXT} automatically as soon as the zone is ACTIVE and proxied (usually minutes, up to a few hours) — no action needed; the response carries nameserver_status "activating" and current_nameservers until then, and the domain.nameservers_branded webhook fires when done. Every branded domain is then monitored hourly: if Cloudflare ever stops treating it as active, it is switched back to the Cloudflare names automatically (domain.nameservers_reverted webhook) so the site stays protected. Opt out with ns_choice "cloudflare" (Cloudflare-assigned names) or "registrar" (registrar default DNS), or pass your own "nameservers" array (2–4 hostnames) to use custom nameservers — custom DNS is NOT protected by our edge.`,
+            ? 'Register a domain. Charged to your wallet at the price returned by /domains/search. NAMESERVERS: by default (ns_choice "cloudflare") the domain is delegated to its Cloudflare-assigned nameservers, so DNS sits on our protected Cloudflare edge (proxy, WAF, anti-red). Use ns_choice "registrar" for the registrar default DNS, or pass your own "nameservers" array (2–4 hostnames) to use custom nameservers — custom DNS is NOT protected by our edge. Rejected with 422 domain_flagged if Google Safe Browsing currently flags the domain.'
+            : `Register a domain. Charged to your wallet at the price returned by /domains/search. NAMESERVERS: by default (ns_choice "branded") the domain is delegated to the branded nameservers ${BNS_TXT} while DNS stays on our protected Cloudflare edge (proxy, WAF, anti-red). Cloudflare only activates a zone on its own assigned names, so the domain is first registered on the Cloudflare-assigned nameservers and our worker switches the registrar to ${BNS_TXT} automatically as soon as the zone is ACTIVE and proxied (usually minutes, up to a few hours) — no action needed; the response carries nameserver_status "activating" and current_nameservers until then, and the domain.nameservers_branded webhook fires when done. Every branded domain is then monitored hourly: if Cloudflare ever stops treating it as active, it is switched back to the Cloudflare names automatically (domain.nameservers_reverted webhook) so the site stays protected. Opt out with ns_choice "cloudflare" (Cloudflare-assigned names) or "registrar" (registrar default DNS), or pass your own "nameservers" array (2–4 hostnames) to use custom nameservers — custom DNS is NOT protected by our edge. Rejected with 422 domain_flagged if Google Safe Browsing currently flags the domain.`,
           params: [
             ['domain', true, 'Domain to register, e.g. mysite.com'],
             ['ns_choice', false, BR ? `"branded" (default — ${BNS_TXT}) | "cloudflare" | "registrar"` : '"cloudflare" (default) | "registrar"'],
@@ -276,7 +276,7 @@ function endpointGroups(base) {
         },
         {
           method: 'POST', path: '/dns/:domain/records', auth: true, billed: false,
-          desc: 'Add a DNS record.',
+          desc: 'Add a DNS record. A / AAAA / CNAME records are rejected with 422 domain_flagged (+threats) if Google Safe Browsing currently flags the domain — so a flagged domain cannot be pointed at any host or VPS/RDP box (other record types such as TXT are still allowed so you can complete a Search-Console review).',
           params: [
             ['type', true, 'Record type: A, AAAA, CNAME, MX, TXT, …'],
             ['name', false, 'Host/subdomain — defaults to "@" (root)'],
@@ -359,7 +359,7 @@ function endpointGroups(base) {
       endpoints: [
         {
           method: 'POST', path: '/shortener/domains', auth: true, billed: true,
-          desc: 'Activate a domain as a URL shortener. Body { domain, source } where source is "buy" (register the domain — wallet-billed at the domain price — then auto-activate), "existing" (a domain already on your account — free, DNS set automatically via Cloudflare) or "external" (a domain you host elsewhere — free; the response lists the CNAME + TXT records to add at your DNS host, then confirm with POST /shortener/domains/:domain/verify).',
+          desc: 'Activate a domain as a URL shortener. Body { domain, source } where source is "buy" (register the domain — wallet-billed at the domain price — then auto-activate), "existing" (a domain already on your account — free, DNS set automatically via Cloudflare) or "external" (a domain you host elsewhere — free; the response lists the CNAME + TXT records to add at your DNS host, then confirm with POST /shortener/domains/:domain/verify). Rejected with 422 domain_flagged (+threats) if Google Safe Browsing currently flags the domain.',
           params: [['domain', true, 'Domain to use for short links, e.g. go.mysite.com'], ['source', true, '"buy" | "existing" | "external"']],
           curl: `curl -s -X POST ${base}/shortener/domains \\
   -H "Authorization: Bearer YOUR_API_KEY" -H "Content-Type: application/json" \\
@@ -844,7 +844,7 @@ function endpointGroups(base) {
         },
         {
           method: 'POST', path: '/hosting', auth: true, billed: true,
-          desc: 'Create a cPanel hosting account. ASYNC: returns 202 immediately with status "provisioning", the cPanel username (generated up-front) and a job_id — the slow WHM build runs in the background so the request never times out (no more orphaned accounts from a 30s client timeout). The wallet is charged up-front (plan price + domain price when domain_mode=buy); if the build ultimately fails the charge is auto-refunded and a hosting.provision_failed webhook fires. Poll GET /hosting/:user until state "online", or subscribe to the hosting.provisioned / hosting.provision_failed webhooks. domain_mode "buy" registers a new domain in the same call; "existing" links a domain already on this platform (Cloudflare); "external" connects a domain at an outside registrar (point its nameservers at Cloudflare). Legacy "byo" = "external". Pass an optional idempotent client_ref — a retry with the same client_ref echoes the SAME 202 handle and never double-charges.',
+          desc: 'Create a cPanel hosting account. ASYNC: returns 202 immediately with status "provisioning", the cPanel username (generated up-front) and a job_id — the slow WHM build runs in the background so the request never times out (no more orphaned accounts from a 30s client timeout). The wallet is charged up-front (plan price + domain price when domain_mode=buy); if the build ultimately fails the charge is auto-refunded and a hosting.provision_failed webhook fires. Poll GET /hosting/:user until state "online", or subscribe to the hosting.provisioned / hosting.provision_failed webhooks. domain_mode "buy" registers a new domain in the same call; "existing" links a domain already on this platform (Cloudflare); "external" connects a domain at an outside registrar (point its nameservers at Cloudflare). Legacy "byo" = "external". Pass an optional idempotent client_ref — a retry with the same client_ref echoes the SAME 202 handle and never double-charges. Rejected with 422 domain_flagged (+threats) if Google Safe Browsing currently flags the domain.',
           params: [
             ['plan_id', true, 'A plan_id from GET /hosting/plans'],
             ['months', false, 'Prepaid term for monthly plans: 1 (default), 3, 6 or 12 — charged at the term price from GET /hosting/plans (10% / 15% / 25% off). Auto-renew repeats this term. Weekly plan: omit (else 400 term_not_available).'],
@@ -1108,7 +1108,7 @@ function endpointGroups(base) {
         },
         {
           method: 'POST', path: '/hosting/:user/addons', auth: true, billed: false,
-          desc: 'Add an addon domain to a hosting account (free — no wallet charge; enforces the plan addon quota: weekly 1, premium 5, gold unlimited).',
+          desc: 'Add an addon domain to a hosting account (free — no wallet charge; enforces the plan addon quota: weekly 1, premium 5, gold unlimited). Rejected with 422 domain_flagged (+threats) if Google Safe Browsing currently flags the domain.',
           params: [['domain', true, 'The addon domain to attach']],
           curl: `curl -s -X POST ${base}/hosting/mysite01/addons \\
   -H "Authorization: Bearer YOUR_API_KEY" \\

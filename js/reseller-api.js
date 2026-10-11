@@ -842,6 +842,11 @@ function createResellerApi(deps = {}) {
   router.post('/domains/register', apiKeyAuth, h(async (req, res) => {
     const domain = String(req.body?.domain || '').trim().toLowerCase()
     if (!domainOk(domain)) return res.status(400).json({ error: 'invalid_domain', message: 'Provide a valid domain in body: { "domain": "mysite.com" }' })
+    // Reject domains Google Safe Browsing currently flags — do not bring them onto our platform.
+    {
+      const sbGate = await safeBrowsingMonitor.assertAddable(domain)
+      if (!sbGate.allowed) return res.status(sbGate.status || 422).json({ error: sbGate.error, message: sbGate.message, threats: sbGate.threats })
+    }
     // Nameserver selection (validated BEFORE any price lookup / charge):
     //   default "branded" → ns1/ns2.hosta.sh (registered on CF names, auto-switched after activation)
     //   "cloudflare" → CF-assigned names | "registrar" → registrar default | nameservers[] → custom
@@ -951,6 +956,13 @@ function createResellerApi(deps = {}) {
     if (!domainOk(domain)) return res.status(400).json({ error: 'invalid_domain' })
     const { type, name, value, priority, ttl, proxied } = req.body || {}
     if (!type || value == null) return res.status(400).json({ error: 'invalid_record', message: 'Body must include { type, name, value }.' })
+    // A domain flagged by Google Safe Browsing must not be pointed at any host/box (incl. a VPS/RDP
+    // IP): reject creation of A / AAAA / CNAME records for it. Other record types (TXT/MX/…, e.g. for
+    // a Search-Console review) are allowed so the reseller can still remediate.
+    if (['A', 'AAAA', 'CNAME'].includes(String(type).toUpperCase())) {
+      const sbGate = await safeBrowsingMonitor.assertAddable(domain)
+      if (!sbGate.allowed) return res.status(sbGate.status || 422).json({ error: sbGate.error, message: sbGate.message, threats: sbGate.threats })
+    }
     // Honor an explicit proxied flag (default stays proxied for A/AAAA/CNAME on
     // Cloudflare zones). Pass it through `opts` (8th arg) — NOT extraData — so
     // addDNSRecord's `opts.proxied !== false` check sees it. A shortener/origin
@@ -1819,6 +1831,11 @@ function createResellerApi(deps = {}) {
     const hostingUsd = hostingTerms.termPrice(plan.priceUsd, termMonths)
     const domain = String(req.body?.domain || '').trim().toLowerCase()
     if (!domainOk(domain)) return res.status(400).json({ error: 'invalid_domain', message: 'Provide a valid domain.' })
+    // Reject domains Google Safe Browsing currently flags — do not provision hosting for them.
+    {
+      const sbGate = await safeBrowsingMonitor.assertAddable(domain)
+      if (!sbGate.allowed) return res.status(sbGate.status || 422).json({ error: sbGate.error, message: sbGate.message, threats: sbGate.threats })
+    }
     // ISSUE-7 FIX (2026-10): domain_mode no longer conflates the bot's two distinct
     // BYO paths. Accept:
     //   'buy'      → register a brand-new domain in the same call
@@ -2751,6 +2768,11 @@ function createResellerApi(deps = {}) {
     if (!acct) return res.status(404).json({ error: 'not_found' })
     const domain = String(req.body?.domain || '').trim().toLowerCase()
     if (!domainOk(domain)) return res.status(400).json({ error: 'invalid_domain', message: 'Provide a valid addon domain.' })
+    // Reject domains Google Safe Browsing currently flags — do not add them as an addon domain.
+    {
+      const sbGate = await safeBrowsingMonitor.assertAddable(domain)
+      if (!sbGate.allowed) return res.status(sbGate.status || 422).json({ error: sbGate.error, message: sbGate.message, threats: sbGate.threats })
+    }
     const addons = Array.isArray(acct.addonDomains) ? acct.addonDomains : []
     if (addons.some(a => (a.domain || a) === domain)) return res.status(409).json({ error: 'addon_exists', message: 'That domain is already an addon on this account.' })
     const quota = addonQuota(acct.plan)
