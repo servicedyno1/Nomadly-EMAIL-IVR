@@ -166,6 +166,15 @@ function walletSummary({ lang, usdBal, walletPrice, loyaltyInfo = null }) {
     const tier = loyaltyInfo.tier || {}
     text += '\n' + s.loyalty(tier.badge || '🏆', tier.name || '', Math.round((tier.discount || 0) * 100), walletPrice)
   }
+  if (!covers) {
+    const legend = {
+      en: `\n\n<i>💵 Deposit tops up your wallet by the shortfall, then pays. ₿ Crypto pays the full amount directly.</i>`,
+      fr: `\n\n<i>💵 Deposit recharge votre portefeuille du montant manquant, puis paie. ₿ Crypto paie le montant total directement.</i>`,
+      zh: `\n\n<i>💵 Deposit 按差额充值钱包后再支付。₿ Crypto 直接支付全额。</i>`,
+      hi: `\n\n<i>💵 Deposit वॉलेट में कमी जितनी राशि जोड़कर फिर भुगतान करता है। ₿ Crypto पूरी राशि सीधे भुगतान करता है।</i>`,
+    }
+    text += (legend[lang] || legend.en)
+  }
   return text
 }
 

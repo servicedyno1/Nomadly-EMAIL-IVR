@@ -2079,7 +2079,7 @@ async function streamAiReply(chatId, message, lang = 'en') {
   try {
     placeholder = await bot.sendMessage(chatId, _aiStreamIndicator[L], {
       parse_mode: 'HTML',
-      reply_markup: { keyboard: [['/done']], resize_keyboard: true },
+      reply_markup: { keyboard: [['/done', '🏠 Main Menu']], resize_keyboard: true },
     })
   } catch (e) {
     log(`[Support] stream placeholder send failed: ${e.message}`)
@@ -2166,7 +2166,7 @@ async function streamAiReply(chatId, message, lang = 'en') {
     const suggestedButtons = extractActionButtons(aiResponse, L)
     if (suggestedButtons.length > 0) {
       const keyboardRows = suggestedButtons.map(b => [b])
-      keyboardRows.push(['/done'])
+      keyboardRows.push(['/done', '🏠 Main Menu'])
       send(chatId, _aiQuickActionsLabel[L], {
         parse_mode: 'HTML',
         reply_markup: { keyboard: keyboardRows, resize_keyboard: true },
@@ -5321,10 +5321,10 @@ async function sendRemindersForExpiringPackages() {
           const expiryTime = new Date(rawTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
 
           const msgs = {
-            en: `⚠️ <b>FINAL REMINDER: Subscription Expiring Tomorrow!</b>\n\n📦 Your <b>${plan}</b> expires in <b>24 hours</b> (${expiryDate} at ${expiryTime}).\n\n🔗 You will lose access to URL shortening and other premium features.\n\n👉 Tap <b>⚡ Upgrade Plan</b> to renew now!`,
-            fr: `⚠️ <b>RAPPEL FINAL: Abonnement expire demain!</b>\n\n📦 Votre <b>${plan}</b> expire dans <b>24 heures</b> (${expiryDate} à ${expiryTime}).\n\n🔗 Vous perdrez l'accès aux liens courts et autres fonctionnalités premium.\n\n👉 Appuyez sur <b>⚡ Upgrade Plan</b> pour renouveler!`,
-            hi: `⚠️ <b>अंतिम अनुस्मारक: सदस्यता कल समाप्त!</b>\n\n📦 आपका <b>${plan}</b> <b>24 घंटों</b> में समाप्त (${expiryDate} ${expiryTime} पर)।\n\n🔗 आप URL शॉर्टनिंग और अन्य प्रीमियम सुविधाओं तक पहुंच खो देंगे।\n\n👉 अभी नवीनीकरण के लिए <b>⚡ Upgrade Plan</b> टैप करें!`,
-            zh: `⚠️ <b>最后提醒：订阅明天到期！</b>\n\n📦 您的 <b>${plan}</b> 将在 <b>24小时</b> 后到期 (${expiryDate} ${expiryTime})。\n\n🔗 您将失去短链接和其他高级功能的访问权限。\n\n👉 点击 <b>⚡ Upgrade Plan</b> 立即续订！`,
+            en: `⚠️ <b>FINAL REMINDER: Subscription Expiring Tomorrow!</b>\n\n📦 Your <b>${plan}</b> expires in <b>24 hours</b> (${expiryDate} at ${expiryTime}).\n\n🔗 You will lose access to URL shortening and other premium features.\n\n👉 Tap <b>⭐ Membership</b> to renew now!`,
+            fr: `⚠️ <b>RAPPEL FINAL: Abonnement expire demain!</b>\n\n📦 Votre <b>${plan}</b> expire dans <b>24 heures</b> (${expiryDate} à ${expiryTime}).\n\n🔗 Vous perdrez l'accès aux liens courts et autres fonctionnalités premium.\n\n👉 Appuyez sur <b>⭐ Membership</b> pour renouveler!`,
+            hi: `⚠️ <b>अंतिम अनुस्मारक: सदस्यता कल समाप्त!</b>\n\n📦 आपका <b>${plan}</b> <b>24 घंटों</b> में समाप्त (${expiryDate} ${expiryTime} पर)।\n\n🔗 आप URL शॉर्टनिंग और अन्य प्रीमियम सुविधाओं तक पहुंच खो देंगे।\n\n👉 अभी नवीनीकरण के लिए <b>⭐ Membership</b> टैप करें!`,
+            zh: `⚠️ <b>最后提醒：订阅明天到期！</b>\n\n📦 您的 <b>${plan}</b> 将在 <b>24小时</b> 后到期 (${expiryDate} ${expiryTime})。\n\n🔗 您将失去短链接和其他高级功能的访问权限。\n\n👉 点击 <b>⭐ Membership</b> 立即续订！`,
           }
           send(chatId, msgs[lang] || msgs.en, { parse_mode: 'HTML' })
           await state.updateOne(
@@ -5364,10 +5364,10 @@ async function sendRemindersForExpiringPackages() {
           const lang = userState?.userLanguage ?? 'en'
 
           const msgs = {
-            en: `🔴 <b>Subscription Expired</b>\n\n📦 Your <b>${plan}</b> has expired.\n\n❌ URL shortening is now disabled\n❌ Premium features are no longer available\n\n👉 Tap <b>⚡ Upgrade Plan</b> to reactivate your subscription and continue using all features!`,
-            fr: `🔴 <b>Abonnement Expiré</b>\n\n📦 Votre <b>${plan}</b> a expiré.\n\n❌ Les liens courts sont désactivés\n❌ Les fonctionnalités premium ne sont plus disponibles\n\n👉 Appuyez sur <b>⚡ Upgrade Plan</b> pour réactiver!`,
-            hi: `🔴 <b>सदस्यता समाप्त</b>\n\n📦 आपका <b>${plan}</b> समाप्त हो गया है।\n\n❌ URL शॉर्टनिंग अक्षम है\n❌ प्रीमियम सुविधाएं उपलब्ध नहीं हैं\n\n👉 पुनः सक्रिय करने के लिए <b>⚡ Upgrade Plan</b> टैप करें!`,
-            zh: `🔴 <b>订阅已过期</b>\n\n📦 您的 <b>${plan}</b> 已过期。\n\n❌ 短链接功能已禁用\n❌ 高级功能不再可用\n\n👉 点击 <b>⚡ Upgrade Plan</b> 重新激活订阅！`,
+            en: `🔴 <b>Subscription Expired</b>\n\n📦 Your <b>${plan}</b> has expired.\n\n❌ URL shortening is now disabled\n❌ Premium features are no longer available\n\n👉 Tap <b>⭐ Membership</b> to reactivate your subscription and continue using all features!`,
+            fr: `🔴 <b>Abonnement Expiré</b>\n\n📦 Votre <b>${plan}</b> a expiré.\n\n❌ Les liens courts sont désactivés\n❌ Les fonctionnalités premium ne sont plus disponibles\n\n👉 Appuyez sur <b>⭐ Membership</b> pour réactiver!`,
+            hi: `🔴 <b>सदस्यता समाप्त</b>\n\n📦 आपका <b>${plan}</b> समाप्त हो गया है।\n\n❌ URL शॉर्टनिंग अक्षम है\n❌ प्रीमियम सुविधाएं उपलब्ध नहीं हैं\n\n👉 पुनः सक्रिय करने के लिए <b>⭐ Membership</b> टैप करें!`,
+            zh: `🔴 <b>订阅已过期</b>\n\n📦 您的 <b>${plan}</b> 已过期。\n\n❌ 短链接功能已禁用\n❌ 高级功能不再可用\n\n👉 点击 <b>⭐ Membership</b> 重新激活订阅！`,
           }
           send(chatId, msgs[lang] || msgs.en, { parse_mode: 'HTML' })
           await state.updateOne(
@@ -10273,9 +10273,22 @@ bot?.on('message', msg => {
       send(chatId, t.chooseSubscription, trans('chooseSubscription'))
     },
     'choose-url-to-shorten': async () => {
+      adminDomains = await getPurchasedDomains(TELEGRAM_DOMAINS_SHOW_CHAT_ID)
+      const owned = await getPurchasedDomains(chatId)
+      // Audit 2026-06: check branded-domain availability BEFORE asking for a URL,
+      // so the user isn't told "buy a domain first" only after typing their link.
+      if (owned.length === 0 && adminDomains.length === 0) {
+        await set(state, chatId, 'action', 'none')
+        const _m = {
+          en: `✂️🌐 <b>Custom Domain Shortener</b>\n\nThis turns your <b>own</b> domain into branded short links (e.g. <code>yourdomain.com/abc</code>).\n\nYou don't have a domain yet — register one from 🌐 <b>Bulletproof Domains</b>, then come back to activate it.\n\n💡 Need a link right now? Use ✂️ <b>Bit.ly</b> or ✂️ <b>Shortit</b> instead.`,
+          fr: `✂️🌐 <b>Raccourcisseur à domaine personnalisé</b>\n\nTransforme <b>votre</b> domaine en liens courts personnalisés (ex. <code>votredomaine.com/abc</code>).\n\nVous n'avez pas encore de domaine — enregistrez-en un via 🌐 <b>Domaines Blindés</b>, puis revenez l'activer.\n\n💡 Besoin d'un lien tout de suite ? Utilisez ✂️ <b>Bit.ly</b> ou ✂️ <b>Shortit</b>.`,
+          zh: `✂️🌐 <b>自定义域名短链接</b>\n\n可将<b>您自己的</b>域名变成品牌短链接（例如 <code>yourdomain.com/abc</code>）。\n\n您还没有域名 — 请先在 🌐 <b>防弹域名</b> 注册一个，然后回来激活。\n\n💡 现在就想要链接？请改用 ✂️ <b>Bit.ly</b> 或 ✂️ <b>Shortit</b>。`,
+          hi: `✂️🌐 <b>कस्टम डोमेन शॉर्टनर</b>\n\nयह आपके <b>अपने</b> डोमेन को ब्रांडेड शॉर्ट लिंक बनाता है (जैसे <code>yourdomain.com/abc</code>)।\n\nआपके पास अभी डोमेन नहीं है — पहले 🌐 <b>बुलेटप्रूफ डोमेन</b> से एक रजिस्टर करें, फिर यहाँ आकर सक्रिय करें।\n\n💡 अभी लिंक चाहिए? इसके बजाय ✂️ <b>Bit.ly</b> या ✂️ <b>Shortit</b> इस्तेमाल करें।`,
+        }
+        return send(chatId, _m[lang] || _m.en, k.of([[user.domainNames], [user.urlShortenerMain], ['🏠 Main Menu']]))
+      }
       await set(state, chatId, 'action', 'choose-url-to-shorten')
       send(chatId, t.shortenedUrlLink, bc)
-      adminDomains = await getPurchasedDomains(TELEGRAM_DOMAINS_SHOW_CHAT_ID)
     },
     'choose-domain-with-shorten': async (domains) => {
       send(chatId, t.chooseDomainWithShortener, trans('show', domains))
@@ -14560,7 +14573,7 @@ All verified numbers generated during sourcing.`))
     // back to the canonical menu label so the auto-escape also navigates.
     const menuEscapeLabels = new Set()
     // Top-level service menu buttons — known from user-translation dict
-    for (const key of ['cloudPhone','hostingDomainsRedirect','domainNames','digitalProducts','marketplace','vpsPlans','emailValidation','emailBlast','virtualCard','wallet','referEarn','becomeReseller','getSupport','changeSetting','changeLanguage','shippingLabel','smsAppMain','freeTrialAvailable','serviceBundles','viewPlan','shortLink','urlShortener','leadsValidation','joinChannel','upgradePlan']) {
+    for (const key of ['cloudPhone','hostingDomainsRedirect','domainNames','digitalProducts','marketplace','vpsPlans','emailValidation','emailBlast','virtualCard','wallet','referEarn','becomeReseller','getSupport','changeSetting','changeLanguage','shippingLabel','smsAppMain','freeTrialAvailable','serviceBundles','viewPlan','shortLink','urlShortener','leadsValidation','joinChannel','upgradePlan','more']) {
       const v = user && user[key]
       if (typeof v === 'string' && v) menuEscapeLabels.add(v)
     }
@@ -14613,7 +14626,7 @@ All verified numbers generated during sourcing.`))
     }
     for (const aiLabel of Object.keys(AI_BUTTON_TO_USER_KEY)) menuEscapeLabels.add(aiLabel)
 
-    const isEscapeTap = menuEscapeLabels.has(message) || /^\/(start|menu|home)\b/.test(message)
+    const isEscapeTap = menuEscapeLabels.has(message) || message === '🏠 Main Menu' || /^\/(start|menu|home|help|orderhistory|orders)\b/.test(message)
     if (isEscapeTap) {
       // ── Fix Railway-log issue #6: distinguish "user navigated away" from
       //    "user tapped an AI-suggested action button". For AI-suggested
@@ -15297,7 +15310,7 @@ All verified numbers generated during sourcing.`))
     await saveInfo('action', a.supportChat)
     // Clear admin takeover flag — fresh session starts with AI enabled
     await set(state, chatId, 'adminTakeover', false)
-    send(chatId, ({ en: `💬 <b>Support</b>\n\n🤖 Our AI assistant will try to help you right away! If it can't resolve your issue, a <b>human agent</b> will step in.\n\nDescribe your question or issue below.\n\nWhen done, send /done to close the chat.`, fr: `💬 <b>Support</b>\n\n🤖 Notre assistant IA va essayer de vous aider immédiatement ! S'il ne peut pas résoudre votre problème, un <b>agent humain</b> prendra le relais.\n\nDécrivez votre question ou problème ci-dessous.\n\nQuand terminé, envoyez /done pour fermer le chat.`, zh: `💬 <b>客服支持</b>\n\n🤖 我们的 AI 助手会立即尝试帮助您！如果无法解决您的问题，<b>人工客服</b>会介入。\n\n请在下方描述您的问题。\n\n完成后，发送 /done 结束对话。`, hi: `💬 <b>सहायता</b>\n\n🤖 हमारा AI असिस्टेंट तुरंत आपकी मदद करने की कोशिश करेगा! अगर यह आपकी समस्या हल नहीं कर सकता, तो एक <b>मानव एजेंट</b> आएगा।\n\nनीचे अपना सवाल या समस्या बताएं।\n\nसमस्या हल होने पर, /done भेजकर चैट बंद करें।` }[lang] || `💬 <b>Support</b>\n\n🤖 Our AI assistant will try to help you right away! If it can't resolve your issue, a <b>human agent</b> will step in.\n\nDescribe your question or issue below.\n\nWhen done, send /done to close the chat.`), { parse_mode: 'HTML', reply_markup: { keyboard: [['/done']], resize_keyboard: true } })
+    send(chatId, ({ en: `💬 <b>Support</b>\n\n🤖 Our AI assistant will try to help you right away! If it can't resolve your issue, a <b>human agent</b> will step in.\n\nDescribe your question or issue below.\n\nWhen done, send /done to close the chat.`, fr: `💬 <b>Support</b>\n\n🤖 Notre assistant IA va essayer de vous aider immédiatement ! S'il ne peut pas résoudre votre problème, un <b>agent humain</b> prendra le relais.\n\nDécrivez votre question ou problème ci-dessous.\n\nQuand terminé, envoyez /done pour fermer le chat.`, zh: `💬 <b>客服支持</b>\n\n🤖 我们的 AI 助手会立即尝试帮助您！如果无法解决您的问题，<b>人工客服</b>会介入。\n\n请在下方描述您的问题。\n\n完成后，发送 /done 结束对话。`, hi: `💬 <b>सहायता</b>\n\n🤖 हमारा AI असिस्टेंट तुरंत आपकी मदद करने की कोशिश करेगा! अगर यह आपकी समस्या हल नहीं कर सकता, तो एक <b>मानव एजेंट</b> आएगा।\n\nनीचे अपना सवाल या समस्या बताएं।\n\nसमस्या हल होने पर, /done भेजकर चैट बंद करें।` }[lang] || `💬 <b>Support</b>\n\n🤖 Our AI assistant will try to help you right away! If it can't resolve your issue, a <b>human agent</b> will step in.\n\nDescribe your question or issue below.\n\nWhen done, send /done to close the chat.`), { parse_mode: 'HTML', reply_markup: { keyboard: [['/done', '🏠 Main Menu']], resize_keyboard: true } })
     // Notify admin — private message only, not to groups
     const name = await get(nameOf, chatId)
     const userTag = name ? `@${name}` : (msg?.from?.username ? `@${msg.from.username}` : 'unknown')
@@ -20393,6 +20406,25 @@ ${message.replace(/\n/g, '<br>')}
     saveInfo('vpsDetails', vpsDetails)
     // Windows RDP (DigitalOcean) sells 1 / 2 / 3-month prepaid periods — ask before the coupon.
     if (vpsDetails.isRDP && (selectedConfigType.billingCycles || []).length > 1) return goto.askRdpDuration()
+    // ── Early affordability heads-up (audit 2026-06) ──
+    // The plan-list screen already shows wallet vs. prices; reinforce it the
+    // moment a plan is picked so an under-funded user learns the exact top-up
+    // now, instead of only at the final order summary after OS/SSH/coupon.
+    try {
+      const _price = Number(vpsDetails.plantotalPrice) || 0
+      const { usdBal } = await getBalance(walletOf, chatId)
+      const _bal = Number(usdBal) || 0
+      if (_price > _bal + 1e-9) {
+        const _short = (_price - _bal).toFixed(2)
+        const _hb = {
+          en: `💡 Heads-up: <b>${selectedConfigType.name}</b> is $${_price}. Your wallet has $${_bal.toFixed(2)} — you'll top up <b>$${_short}</b> at checkout. Continue setting it up below.`,
+          fr: `💡 Info : <b>${selectedConfigType.name}</b> coûte $${_price}. Votre portefeuille a $${_bal.toFixed(2)} — vous rechargerez <b>$${_short}</b> au paiement. Continuez la configuration ci-dessous.`,
+          zh: `💡 提示：<b>${selectedConfigType.name}</b> 为 $${_price}。您的钱包有 $${_bal.toFixed(2)} — 结账时需充值 <b>$${_short}</b>。请在下方继续设置。`,
+          hi: `💡 ध्यान दें: <b>${selectedConfigType.name}</b> की कीमत $${_price} है। आपके वॉलेट में $${_bal.toFixed(2)} है — चेकआउट पर <b>$${_short}</b> टॉप-अप होगा। नीचे सेटअप जारी रखें।`,
+        }
+        await send(chatId, _hb[lang] || _hb.en, { parse_mode: 'HTML' })
+      }
+    } catch (_) { /* non-blocking */ }
     return goto.askCouponForVPSPlan()
   }
 
@@ -34310,6 +34342,24 @@ Select a category:`), k.of(catBtns))
   if (message === user.becomeReseller) {
     return send(chatId, t.becomeReseller)
   }
+  // ── "➕ More" submenu (2026-06 menu simplify) ──
+  // Secondary services moved off the crowded main menu live here. Each item
+  // is still handled by its own global handler (match-by-label), so this just
+  // renders the keyboard. '🏠 Main Menu' returns home; kOf won't duplicate it.
+  if (message === user.more) {
+    const rows = [[user.emailValidation, user.referEarn]]
+    if (process.env.HIDE_BECOME_RESELLER !== 'true') rows.push([user.becomeReseller])
+    rows.push([user.joinChannel])
+    if (process.env.EMAIL_BLAST_ON === 'true') rows.push([user.emailBlast])
+    rows.push(['🏠 Main Menu'])
+    const moreText = {
+      en: '➕ <b>More services</b>\n\nExtra tools and options:',
+      fr: '➕ <b>Plus de services</b>\n\nOutils et options supplémentaires :',
+      zh: '➕ <b>更多服务</b>\n\n其他工具和选项：',
+      hi: '➕ <b>और सेवाएँ</b>\n\nअतिरिक्त टूल और विकल्प:',
+    }
+    return send(chatId, moreText[lang] || moreText.en, k.of(rows))
+  }
   if (message === user.viewShortLinks) {
     const links = await getShortLinks(chatId)
     if (links.length === 0) {
@@ -35988,6 +36038,38 @@ Tap a button below to change. Changes sync to your phone on next app open.`
       zh: `❓ <b>需要帮助？</b>\n\n您可以：\n\n📞 <b>Cloud IVR + SIP</b> — 获取您自己的电话号码\n🔗 <b>URL 缩短</b> — 缩短链接\n📧 <b>批量短信</b> — 发送群发消息\n🛡️ <b>Anti-Red 托管</b> — 托管网站\n\n💡 使用下方按钮导航，或输入 /start 查看完整菜单。`
     }
     return send(chatId, helpMsg[lang] || helpMsg.en, isAdmin(chatId) ? aO : trans('o'))
+  }
+
+  // ── Natural-language intent routing (base state only) ──
+  // A conversational bot should understand typed intent, not just button taps.
+  // When the user is NOT mid-flow and types e.g. "i want to buy a domain",
+  // point them straight at the right button instead of a generic "use the
+  // buttons below". Mid-action text falls through to the gentle hint below so
+  // we never hijack a legitimate in-flow input (domain name, amount, etc.).
+  if (!isMidAction) {
+    const nlIntents = [
+      { btn: user.domainNames,            kw: ['domain'] },
+      { btn: user.hostingDomainsRedirect, kw: ['hosting', 'cpanel', 'anti-red', 'antired', 'web host', 'host a website', 'host my website', 'host a site'] },
+      { btn: user.vpsPlans,               kw: ['vps', 'rdp', 'remote desktop', 'windows server', 'linux server'] },
+      { btn: user.cloudPhone,             kw: ['phone number', 'virtual number', 'ivr', 'voip', 'auto attendant', 'voicemail', 'caller id', 'toll free', 'toll-free'] },
+      { btn: user.urlShortenerMain,       kw: ['shorten', 'short link', 'shortlink', 'url shortener', 'short url', 'bitly', 'bit.ly'] },
+      { btn: user.leadsValidation,        kw: ['leads', 'phone lead', 'validate number', 'number validation'] },
+      { btn: user.smsAppMain,             kw: ['bulk sms', 'bulksms', 'send sms', 'mass sms', 'text blast', 'sms campaign'] },
+      { btn: user.virtualCard,            kw: ['virtual card', 'debit card', 'prepaid card'] },
+      { btn: user.marketplace,            kw: ['marketplace', 'escrow'] },
+      { btn: user.digitalProducts,        kw: ['twilio', 'telnyx', 'workspace', 'zoho', 'esim', 'e-sim', 'digital product'] },
+      { btn: user.wallet,                 kw: ['deposit', 'top up', 'topup', 'add funds', 'add money', 'fund my wallet', 'wallet balance', 'recharge'] },
+    ]
+    const nlHit = nlIntents.find(it => it.btn && it.kw.some(k => messageLower.includes(k)))
+    if (nlHit) {
+      const guide = {
+        en: `👇 Tap <b>${nlHit.btn}</b> below to continue.`,
+        fr: `👇 Appuyez sur <b>${nlHit.btn}</b> ci-dessous pour continuer.`,
+        zh: `👇 点击下方的 <b>${nlHit.btn}</b> 继续。`,
+        hi: `👇 जारी रखने के लिए नीचे <b>${nlHit.btn}</b> पर टैप करें।`,
+      }
+      return send(chatId, guide[lang2] || guide.en, { ...(isAdmin(chatId) ? aO : trans('o')), parse_mode: 'HTML' })
+    }
   }
 
   // Enhanced fallback for new users — guide them to use buttons instead of typing

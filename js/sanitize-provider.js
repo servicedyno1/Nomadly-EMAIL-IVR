@@ -314,9 +314,12 @@ function sanitizeUserText(text) {
   s = s.replace(/\[\s*(?:see|visit|check|more\s+(?:info|details)|details?|docs?|help)?\s*\]/gi, '')
   s = s.replace(/\bFor\s+more\s+(?:information|details|info)\s+please(?:\s+(?:check|visit|see|refer\s+to))?\s*[.,;:]?\s*$/gim, '')
 
-  // Tidy double spaces & space-before-punct
-  s = s.replace(/\s+([.,;!?])/g, '$1')
-  s = s.replace(/\s{2,}/g, ' ').trim()
+  // Tidy spaces & space-before-punct — but PRESERVE line breaks so list items
+  // and paragraphs don't collapse into one run-on line (AI formatting fix).
+  s = s.replace(/[ \t]+([.,;!?])/g, '$1')
+  s = s.replace(/[ \t]{2,}/g, ' ')
+  s = s.replace(/[ \t]*\n[ \t]*/g, '\n')
+  s = s.replace(/\n{3,}/g, '\n\n').trim()
 
   return s
 }

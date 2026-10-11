@@ -113,7 +113,8 @@ const user = {
  cloudPhone: '📞 Cloud IVR + SIP',
  testSip: '🧪 免费测试 SIP',
  vpsPlans: '🖥️ VPS / RDP',
- buyPlan: '⚡ 升级计划',
+ buyPlan: '⭐ 会员订阅',
+ more: '➕ 更多',
  freeTrialAvailable: '🆓 BulkSMS 免费试用',
  smsAppMain: '📱 BulkSMS',
  smsCreateCampaign: '📱 创建活动',
@@ -947,7 +948,7 @@ ${CHAT_BOT_NAME}`,
  subscriptionExpire: (subscribedPlan, timeEnd) => `您的 ${subscribedPlan} 订阅已过期 ${timeEnd}`,
  plansSubscripedtill: (subscribedPlan, timeEnd) =>
  `您当前订阅的是 ${subscribedPlan} 计划。您的计划有效期至 ${timeEnd}`,
- planNotSubscriped: `您当前没有任何订阅计划。`,
+ planNotSubscriped: `您当前没有任何有效的产品或订阅。\n\n购买后，您的托管、Cloud IVR 号码、VPS 和会员订阅都会显示在这里。点击主菜单中的产品即可开始！`,
  noShortenedUrlLink: `您还没有缩短的链接。`,
  shortenedLinkText: linksText => `这是您的缩短链接：\n${linksText}`,
  analyticsNotAvailable: provider => `📊 暂不支持分析数据 (${provider})`,
@@ -2441,22 +2442,18 @@ const adminKeyboard = {
 const userKeyboard = {
  reply_markup: {
  keyboard: [
+ // ── Main menu (2026-06 simplify): grouped into clear sections; secondary
+ // services (Email Validation, Refer, Reseller, Join Channel, Email Blast)
+ // moved under "➕ More" to cut top-level clutter. Handlers match by label,
+ // so grouping/order changes carry no routing risk.
  [user.cloudPhone, user.hostingDomainsRedirect],
- [user.domainNames, user.digitalProducts],
- [user.marketplace, user.referEarn],
- ...(VPS_ENABLED === 'true'
- ? (HIDE_SMS_APP !== 'true' ? [[user.vpsPlans, user.smsAppMain]] : [[user.vpsPlans]])
- : (HIDE_SMS_APP !== 'true' ? [[user.smsAppMain]] : [])),
- [user.emailValidation, user.virtualCard],
- [user.wallet, user.leadsValidation],
- [user.urlShortenerMain, user.buyPlan],
- ...(EMAIL_BLAST_ON === 'true' ? [[user.emailBlast]] : []),
- // Service Bundles removed from the main menu to save space (still reachable
- // via contextual upsell prompts). Join Channel remains on its own row.
- [user.joinChannel],
- HIDE_BECOME_RESELLER === 'true'
- ? [user.changeSetting, user.getSupport]
- : [user.becomeReseller, user.changeSetting, user.getSupport],
+ ...(VPS_ENABLED === 'true' ? [[user.domainNames, user.vpsPlans]] : [[user.domainNames]]),
+ ...(HIDE_SMS_APP !== 'true' ? [[user.smsAppMain, user.leadsValidation]] : [[user.leadsValidation]]),
+ [user.digitalProducts, user.marketplace],
+ [user.urlShortenerMain, user.virtualCard],
+ [user.wallet, user.buyPlan],
+ [user.changeSetting, user.getSupport],
+ [user.more],
  ],
  resize_keyboard: true,
  },

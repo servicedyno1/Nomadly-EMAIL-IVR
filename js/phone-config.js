@@ -168,7 +168,7 @@ const btn = {
 
   // Number types
   localNumber: '📍 Local Number',
-  tollFreeNumber: '🆓 Toll-Free Number',
+  tollFreeNumber: '📞 Toll-Free Number',
   mobileNumber: '📱 Mobile Number',
   nationalNumber: '🌐 National Number',
 
@@ -1483,7 +1483,7 @@ const btnI18n = {
     sipSettings: '📖 Guide SIP',
     usageBilling: '📊 Utilisation & Facturation',
     localNumber: '📍 Numéro Local',
-    tollFreeNumber: '🆓 Numéro Gratuit',
+    tollFreeNumber: '📞 Numéro Gratuit',
     mobileNumber: '📱 Numéro Mobile',
     nationalNumber: '🌐 Numéro National',
     starterPlan: PHONE_STARTER_ON ? `💡 Starter — $${PHONE_STARTER_PRICE}/mois` : '💡 Starter — Bientôt 🔜',
@@ -1568,7 +1568,7 @@ const btnI18n = {
     sipSettings: '📖 SIP 设置指南',
     usageBilling: '📊 使用量与账单',
     localNumber: '📍 本地号码',
-    tollFreeNumber: '🆓 免费号码',
+    tollFreeNumber: '📞 免费号码',
     mobileNumber: '📱 手机号码',
     nationalNumber: '🌐 全国号码',
     starterPlan: PHONE_STARTER_ON ? `💡 入门版 — $${PHONE_STARTER_PRICE}/月` : '💡 入门版 — 即将推出 🔜',
@@ -1653,7 +1653,7 @@ const btnI18n = {
     sipSettings: '📖 SIP सेटअप गाइड',
     usageBilling: '📊 उपयोग और बिलिंग',
     localNumber: '📍 लोकल नंबर',
-    tollFreeNumber: '🆓 टोल-फ्री नंबर',
+    tollFreeNumber: '📞 टोल-फ्री नंबर',
     mobileNumber: '📱 मोबाइल नंबर',
     nationalNumber: '🌐 नेशनल नंबर',
     starterPlan: PHONE_STARTER_ON ? `💡 स्टार्टर — $${PHONE_STARTER_PRICE}/माह` : '💡 स्टार्टर — जल्द आ रहा है 🔜',

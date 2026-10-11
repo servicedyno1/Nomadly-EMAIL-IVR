@@ -108,7 +108,8 @@ const user = {
  wallet: '👛 Portefeuille',
  urlShortenerMain: "🔗 Raccourcisseur d'URL",
  vpsPlans: '🖥️ VPS / RDP',
- buyPlan: '⚡ Améliorer le plan',
+ buyPlan: '⭐ Abonnement',
+ more: '➕ Plus',
  domainNames: '🌐 Domaines Blindés',
  viewPlan: '📋 Mes Plans',
  becomeReseller: '💼 Revendeur',
@@ -963,7 +964,7 @@ ${CHAT_BOT_NAME}`,
  subscriptionExpire: (subscribedPlan, timeEnd) => `Votre abonnement ${subscribedPlan} est expiré le ${timeEnd}`,
  plansSubscripedtill: (subscribedPlan, timeEnd) =>
  `Vous êtes actuellement abonné au plan ${subscribedPlan}. Votre plan est valide jusqu'au ${timeEnd}`,
- planNotSubscriped: `Vous n'êtes actuellement abonné à aucun plan.`,
+ planNotSubscriped: `Vous n'avez pas encore de produits ou d'abonnements actifs.\n\nVos hébergements, numéros Cloud IVR, VPS et abonnements apparaîtront ici après l'achat. Touchez un produit dans le menu principal pour commencer !`,
  noShortenedUrlLink: `Vous n'avez encore aucun lien raccourci.`,
  shortenedLinkText: linksText => `Voici vos liens raccourcis :\n${linksText}`,
  analyticsNotAvailable: provider => `📊 statistiques indisponibles (${provider})`,
@@ -2457,22 +2458,18 @@ const adminKeyboard = {
 const userKeyboard = {
  reply_markup: {
  keyboard: [
+ // ── Main menu (2026-06 simplify): grouped into clear sections; secondary
+ // services (Email Validation, Refer, Reseller, Join Channel, Email Blast)
+ // moved under "➕ More" to cut top-level clutter. Handlers match by label,
+ // so grouping/order changes carry no routing risk.
  [user.cloudPhone, user.hostingDomainsRedirect],
- [user.domainNames, user.digitalProducts],
- [user.marketplace, user.referEarn],
- ...(VPS_ENABLED === 'true'
- ? (HIDE_SMS_APP !== 'true' ? [[user.vpsPlans, user.smsAppMain]] : [[user.vpsPlans]])
- : (HIDE_SMS_APP !== 'true' ? [[user.smsAppMain]] : [])),
- [user.emailValidation, user.virtualCard],
- [user.wallet, user.leadsValidation],
- [user.urlShortenerMain, user.buyPlan],
- ...(EMAIL_BLAST_ON === 'true' ? [[user.emailBlast]] : []),
- // Service Bundles removed from the main menu to save space (still reachable
- // via contextual upsell prompts). Join Channel remains on its own row.
- [user.joinChannel],
- HIDE_BECOME_RESELLER === 'true'
- ? [user.changeSetting, user.getSupport]
- : [user.becomeReseller, user.changeSetting, user.getSupport],
+ ...(VPS_ENABLED === 'true' ? [[user.domainNames, user.vpsPlans]] : [[user.domainNames]]),
+ ...(HIDE_SMS_APP !== 'true' ? [[user.smsAppMain, user.leadsValidation]] : [[user.leadsValidation]]),
+ [user.digitalProducts, user.marketplace],
+ [user.urlShortenerMain, user.virtualCard],
+ [user.wallet, user.buyPlan],
+ [user.changeSetting, user.getSupport],
+ [user.more],
  ],
  resize_keyboard: true,
  },
