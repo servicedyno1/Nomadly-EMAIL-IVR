@@ -64,9 +64,24 @@ async function registerDomainAndCreateCpanel(send, info, keyboardButtons, state,
     const guardClient = new MongoClient(process.env.MONGO_URL)
     await guardClient.connect()
     const guardDb = guardClient.db(process.env.DB_NAME || 'test')
+    // ── DUPLICATE-MATCH SCOPE (2026-10-11 fix) ──
+    // Only a REAL, still-live account for this domain is a true duplicate. Two
+    // records must NEVER count as a duplicate or the reseller/bot gets charged,
+    // refunded, and told "contact support — a retry would be blocked the same way":
+    //   1. provisionState:'failed' ghosts — a prior attempt was refunded, so the
+    //      domain is free again (mirrors the reseller API outer check at
+    //      reseller-api.js `findOne({domain, deleted:{$ne:true}, provisionState:{$ne:'failed'}})`).
+    //   2. THIS order's own placeholder stub — the reseller API inserts a
+    //      {_id: <customUsername>, provisionState:'provisioning'} row BEFORE the
+    //      worker calls this function; matching it = self-collision (the exact
+    //      namewords.sbs/nameb2b2 incident — guard matched its own stub,
+    //      cpUser=undefined, aborted, left a non-deleted failed ghost that then
+    //      permanently blocked every future order for the domain).
     const existingAccount = await guardDb.collection('cpanelAccounts').findOne({
       domain: domain,
       deleted: { $ne: true },
+      provisionState: { $ne: 'failed' },
+      _id: { $ne: info.customUsername || '__no_self__' },
     })
 
     // ── RE-RUN SAFETY — skip already-registered domains ──
