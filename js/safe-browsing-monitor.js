@@ -41,6 +41,28 @@ const DEFAULT_BATCH = 300
 const norm = (d) => String(d || '').trim().toLowerCase().replace(/\.$/, '')
 const isIp = (s) => /^\d{1,3}(\.\d{1,3}){3}$/.test(String(s || '').trim())
 
+// Resolve a promise but never hang forever — rejects after `ms` so one stuck
+// network call can't wedge a whole sweep. Timer is unref'd + cleared so it
+// never keeps the event loop alive.
+async function withTimeout(promise, ms, label) {
+  let to = null
+  try {
+    return await Promise.race([
+      promise,
+      new Promise((_, reject) => { to = setTimeout(() => reject(new Error(label || `timed out after ${ms}ms`)), ms); if (to && to.unref) to.unref() }),
+    ])
+  } finally { if (to) clearTimeout(to) }
+}
+
+// dns.resolve4 has NO timeout and can hang indefinitely on a flaky resolver —
+// that single hang used to wedge the whole sweep (the monitor's `running`
+// guard then stayed true forever, silently stopping all future sweeps until
+// the next process restart). Cap every lookup so it always resolves/rejects.
+const DNS_TIMEOUT_MS = Math.max(1000, Number(process.env.SB_DNS_TIMEOUT_MS) || 8000)
+function dnsResolve4(host) {
+  return withTimeout(dns.resolve4(host), DNS_TIMEOUT_MS, 'dns_timeout')
+}
+
 let _indexed = false
 async function ensureIndexes(db) {
   if (_indexed || !db) return
@@ -61,7 +83,7 @@ async function resellerOwners(db) {
 // Enumerate every domain linked to our server for the given resellers.
 // Returns [{ domain, product, resourceId, chatId, ip?, account? }]
 // resolve4 is injected for testability (VPS/RDP domain→IP matching).
-async function enumerateLinkedDomains(db, { owners = null, scope = 'reseller', resolve4 = (h) => dns.resolve4(h), log = clog } = {}) {
+async function enumerateLinkedDomains(db, { owners = null, scope = 'reseller', resolve4 = dnsResolve4, log = clog } = {}) {
   const items = []
   const seen = new Set()
   const add = (domain, product, resourceId, chatId, extra = {}) => {
@@ -313,7 +335,7 @@ async function listFlags(db, { chatId = null, product = null } = {}) {
 const DNS_MATCH_CAP = 60 // cap domains we DNS-resolve for a VPS/RDP "all" realtime sweep
 
 // Does `domain`'s A-record point at `ip`? (VPS/RDP association check.)
-async function domainResolvesTo(domain, ip, { resolve4 = (h) => dns.resolve4(h) } = {}) {
+async function domainResolvesTo(domain, ip, { resolve4 = dnsResolve4 } = {}) {
   if (!isIp(ip)) return false
   let ips = []
   try { ips = await resolve4(norm(domain)) } catch (_) { ips = [] }
@@ -321,7 +343,7 @@ async function domainResolvesTo(domain, ip, { resolve4 = (h) => dns.resolve4(h) 
 }
 
 // Reseller's domains whose A-record currently points at `ip` (a VPS/RDP box). Best-effort.
-async function linkedDomainsForIp(db, ownerChatId, ip, { resolve4 = (h) => dns.resolve4(h), limit = DNS_MATCH_CAP } = {}) {
+async function linkedDomainsForIp(db, ownerChatId, ip, { resolve4 = dnsResolve4, limit = DNS_MATCH_CAP } = {}) {
   if (!db || !isIp(ip)) return []
   const domains = await db.collection('domainsOf').find({ chatId: String(ownerChatId), domainName: { $exists: true } }).limit(2000).toArray().catch(() => [])
   const out = []
@@ -408,18 +430,36 @@ function start({ getDb, log = clog } = {}) {
   const activeSlot = require('./active-slot')
   const ms = Math.max(5, Number(process.env.SAFE_BROWSING_SWEEP_MIN) || DEFAULT_SWEEP_MIN) * 60000
   const batch = Math.max(50, Number(process.env.SB_SWEEP_BATCH) || 500)
+  // Hard ceiling on ONE sweep so a single hung DNS/HTTP call can never wedge the
+  // monitor forever. Previously, if a sweep's promise never resolved, the
+  // `running` guard below stayed true for the life of the process and EVERY
+  // later tick returned early — the monitor went silent until the next restart
+  // (seen in prod: exactly one "sweep done" then 12h of nothing on a stable pod).
+  const sweepTimeoutMs = Math.max(60000, Number(process.env.SB_SWEEP_TIMEOUT_MS) || 10 * 60000)
   let running = false
-  const t = activeSlot.singletonInterval('safe-browsing-monitor', async () => {
+  const doSweep = async (reason) => {
     const db = getDb()
     if (running || !db) return
     running = true
-    // scope:'all' → protect EVERY linked domain (reseller API + bot-purchased, Nomadly & white-label).
-    try { await runSweep(db, { enforce: true, scope: 'all', limit: batch, log }) }
-    catch (e) { log(`[SafeBrowsingMonitor] sweep error: ${e.message}`) }
-    finally { running = false }
-  }, ms)
+    try {
+      await withTimeout(runSweep(db, { enforce: true, scope: 'all', limit: batch, log }), sweepTimeoutMs, `sweep timed out after ${Math.round(sweepTimeoutMs / 1000)}s`)
+    } catch (e) {
+      log(`[SafeBrowsingMonitor] sweep error (${reason}): ${e.message}`)
+    } finally {
+      running = false
+    }
+  }
+  // Periodic sweep — active-slot singleton so only the nginx-active slot runs it.
+  const t = setInterval(activeSlot.singleton('safe-browsing-monitor', () => { doSweep('interval') }), ms)
   if (t && typeof t.unref === 'function') t.unref()
-  log(`[SafeBrowsingMonitor] scheduled: every ${ms / 60000} min (enforce ON, scope=all, batch=${batch})`)
+  // Kick off an initial sweep shortly after boot so every restart/deploy gets
+  // protection coverage right away instead of waiting a full interval. (The bare
+  // setInterval above only fires `ms` AFTER boot, so frequent restarts kept
+  // resetting the timer before it ever ran — the root cause of the prod gaps.)
+  const initialDelayMs = Math.max(0, Number(process.env.SB_SWEEP_INITIAL_DELAY_MS) || 45000)
+  const kickoff = setTimeout(activeSlot.singleton('safe-browsing-monitor-initial', () => { doSweep('startup') }), initialDelayMs)
+  if (kickoff && typeof kickoff.unref === 'function') kickoff.unref()
+  log(`[SafeBrowsingMonitor] scheduled: every ${ms / 60000} min (enforce ON, scope=all, batch=${batch}); initial sweep in ${Math.round(initialDelayMs / 1000)}s; per-sweep timeout ${Math.round(sweepTimeoutMs / 1000)}s`)
   return t
 }
 
@@ -440,4 +480,6 @@ module.exports = {
   defaultActions,
   enabled,
   start,
+  withTimeout,
+  dnsResolve4,
 }
