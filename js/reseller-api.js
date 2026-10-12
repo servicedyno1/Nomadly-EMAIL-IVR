@@ -336,6 +336,19 @@ function createResellerApi(deps = {}) {
   }
 
   const VPS_TERMINAL = ['CANCELLED', 'DESTROYED', 'destroyed', 'DELETED']
+  // True when the provider's live-check authoritatively reports the instance no longer exists
+  // (e.g. a DigitalOcean droplet GET returns 404/410). Used to reconcile a stale top-level status.
+  // Transient failures (5xx / network / timeout) deliberately return false so a blip never destroys.
+  function liveIndicatesGone(live) {
+    if (!live) return false
+    if (live.gone === true || live.notFound === true) return true
+    const code = Number(live.status_code)
+    if (code === 404 || code === 410) return true
+    const msg = String(live.error || '')
+    if (/\((?:404|410)\)/.test(msg)) return true
+    if (/could not be found|not be found|does not exist|no such|not found/i.test(msg)) return true
+    return false
+  }
   function vpsRenewability(rec, isRDP, prov) {
     const st = String(rec.status || '')
     if (st === 'provisioning' || st === 'PROVISIONING') return { renewable: false, renew_blocked_reason: 'provisioning' }
@@ -1336,13 +1349,40 @@ function createResellerApi(deps = {}) {
     const rec = await loadOwnedVps(req, req.params.id, isRDP)
     if (!rec) return res.status(404).json({ error: 'not_found' })
     let live = null
-    if (rec.instanceId) { try { const prov = isRDP ? rdpProviderForRecord(rec) : providerFor(false); live = await prov.getInstance(rec.instanceId) } catch (e) { live = { error: e.message } } }
+    if (rec.instanceId) { try { const prov = isRDP ? rdpProviderForRecord(rec) : providerFor(false); live = await prov.getInstance(rec.instanceId) } catch (e) { live = { error: e.message, status_code: e.status || e.statusCode || null } } }
     if (live && (live.mainIp || live.status) && (live.mainIp !== rec.host || live.status !== rec.status)) {
       col('vpsPlansOf').updateOne({ _id: rec._id }, { $set: { ...(live.mainIp ? { host: live.mainIp } : {}), ...(live.status ? { status: live.status } : {}) } }).catch(() => {})
     }
-    const out = { id: rec.vpsId || rec._id, instance_id: rec.instanceId || null, plan: rec.plan, region: rec.region, os: rec.osType, os_id: rec.osId || null, hostname: rec.hostname || null, ...hwFromRecord(isRDP ? rdpProviderForRecord(rec) : providerFor(false), rec), status: live?.status || rec.status, ip: live?.mainIp || rec.host || null, live }
-    out.provision_state = rec.provisionState || null
-    if (rec.provisionState === 'failed') out.provision_failed_reason = rec.provisionFailedReason || 'provision_failed'
+    // Reconcile a GONE instance: if the provider authoritatively reports the droplet is deleted
+    // (404/410), flip the stale top-level record to the SAME terminal state a normal DELETE sets,
+    // so GET stops reporting running/active/renewable and the lifecycle scheduler never renews a
+    // server that no longer exists. (Transient 5xx/timeout errors are NOT treated as gone.)
+    let providerGone = liveIndicatesGone(live)
+    // RDP's getInstance reflects the doRdpServers status, which can lag an out-of-band droplet
+    // deletion (so `live` shows a stale "active" with no 404). When an RDP box still reports
+    // active/running, confirm the droplet directly against DigitalOcean so a destroyed RDP box is
+    // reconciled too. Gated to active-ish states to avoid an extra DO call on every provisioning poll.
+    if (!providerGone && isRDP && rec.instanceId && !(VPS_TERMINAL.includes(String(rec.status)) || rec.deleted === true)) {
+      const eff = String((live && live.status) || rec.status || '').toLowerCase()
+      if (['active', 'running', 'online'].includes(eff)) {
+        try { const prov = rdpProviderForRecord(rec); if (typeof prov.isInstanceGone === 'function') providerGone = await prov.isInstanceGone(rec.instanceId) } catch (_) {}
+      }
+    }
+    if (providerGone && !(VPS_TERMINAL.includes(String(rec.status)) || rec.deleted === true)) {
+      await col('vpsPlansOf').updateOne({ _id: rec._id }, { $set: {
+        status: 'destroyed', deleted: true, _autoRenewAttempted: true, autoRenew: false,
+        cancelledAt: rec.cancelledAt || new Date(),
+        destroy_reason: rec.destroy_reason || 'provider_gone',
+        reconciledFromProvider404At: new Date(),
+      } }).catch(() => {})
+      rec.status = 'destroyed'; rec.deleted = true; rec.autoRenew = false
+      rec.destroy_reason = rec.destroy_reason || 'provider_gone'
+    }
+    const out = { id: rec.vpsId || rec._id, instance_id: rec.instanceId || null, plan: rec.plan, region: rec.region, os: rec.osType, os_id: rec.osId || null, hostname: rec.hostname || null, ...hwFromRecord(isRDP ? rdpProviderForRecord(rec) : providerFor(false), rec), status: (providerGone || VPS_TERMINAL.includes(String(rec.status))) ? 'destroyed' : (live?.status || rec.status), ip: live?.mainIp || rec.host || null, live }
+    const _vpsTerminal = VPS_TERMINAL.includes(String(out.status))
+    out.provision_state = _vpsTerminal ? 'destroyed' : (rec.provisionState || null)
+    if (!_vpsTerminal && rec.provisionState === 'failed') out.provision_failed_reason = rec.provisionFailedReason || 'provision_failed'
+    if (_vpsTerminal && (rec.destroy_reason || rec.cancelReason)) out.destroy_reason = rec.destroy_reason || rec.cancelReason
     // While our async job is still building (no provider block yet), surface the job ETA/progress so a
     // storefront can show a countdown. Once the provider reports its own `provisioning` block (RDP), that
     // richer, stage-accurate data below takes precedence.
@@ -1428,6 +1468,11 @@ function createResellerApi(deps = {}) {
   async function vpsDestroyHandler(req, res, isRDP) {
     const rec = await loadOwnedVps(req, req.params.id, isRDP)
     if (!rec) return res.status(404).json({ error: 'not_found' })
+    // Idempotent: a server already in a terminal state (incl. one reconciled after a provider 404)
+    // returns success without re-calling the provider — DELETE on an already-gone box is a no-op.
+    if (VPS_TERMINAL.includes(String(rec.status)) || rec.deleted === true) {
+      return res.json({ mode: mode(), id: rec.vpsId || rec._id, destroyed: true, already_destroyed: true, provider_removed: true })
+    }
     if (!isLive()) return res.json({ mode: 'dry_run', id: rec.vpsId || rec._id, note: 'Dry-run: instance not destroyed.' })
     const prov = providerFor(isRDP)
     let providerRemoved = true
