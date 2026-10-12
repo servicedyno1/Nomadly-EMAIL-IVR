@@ -1181,6 +1181,18 @@ function botStatus(s) {
   if (s === 'destroyed') return 'deleted'
   return 'provisioning'
 }
+// True ONLY when we can confirm the backing DO droplet no longer exists (404). Used by the
+// reseller API to reconcile an RDP box whose droplet was deleted out-of-band — its doRdpServers
+// status can otherwise lag at 'active'. Returns false for unknown servers, already-terminal
+// records, and transient errors so a blip never destroys a live box.
+async function isInstanceGone(instanceId) {
+  const id = normId(instanceId)
+  const s = _servers ? await _servers.findOne({ server_id: id }) : null
+  if (!s || !s.do_droplet_id) return false
+  if (['destroyed', 'DESTROYED', 'cancelled', 'CANCELLED', 'deleted', 'DELETED'].includes(String(s.status))) return false
+  try { await doGetDroplet(s.do_droplet_id); return false }
+  catch (e) { return !!(e && e.status === 404) }
+}
 async function getInstance(instanceId) {
   const id = normId(instanceId)
   const s = _servers ? await _servers.findOne({ server_id: id }) : null
@@ -1528,7 +1540,7 @@ module.exports = {
   // catalog / pricing
   listProducts, getProduct, calculatePrice, formatSpecs, buildRdpFile, listRegions, REGION_DISPLAY, getDefaultWindowsImageId, sizeCandidatesFor,
   // lifecycle
-  createInstance, createInstanceWithFallback, getInstance,
+  createInstance, createInstanceWithFallback, getInstance, isInstanceGone,
   startInstance, stopInstance, restartInstance, shutdownInstance,
   cancelInstance, getSecretPassword, createSecret, resetPassword, reinstallInstance, renewInstance,
   // grace lifecycle mirror helpers (bot scheduler owns the grace lifecycle; these keep doRdpServers in sync)

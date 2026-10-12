@@ -23241,6 +23241,173 @@ backend:
 
 frontend:
 
+  - task: "BUG FIX: VPS/RDP reports status 'running' after its DigitalOcean droplet was deleted (READ-ONLY verification)"
+    implemented: true
+    working: true
+    file: "/app/js/reseller-api.js; /app/js/digitalocean-rdp-service.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: |
+          Implemented bug fix for VPS/RDP reporting status "running" after the DigitalOcean droplet was deleted.
+          
+          BUG (High): GET /vps/925ab306-... returned status:"running", provision_state:"active", renewable:true 
+          even though the nested live-check showed a DigitalOcean 404 (droplet 608485955 gone).
+          
+          ROOT CAUSE (js/reseller-api.js vpsGetHandler):
+          - `status: live?.status || rec.status` fell back to the STALE record status when the 404 live 
+            object had no `status`
+          - The catch dropped the HTTP code (live = { error: e.message })
+          - The reconcile block only ran when live had mainIp/status
+          
+          FIX (js/reseller-api.js):
+          - live-check catch now preserves the code: live = { error, status_code: e.status }
+          - New liveIndicatesGone(live): true on a 404/410 (code OR "(404)"/"could not be found" in message); 
+            transient 5xx/timeout are NOT treated as gone (no false-positive destroy)
+          - vpsGetHandler: when gone AND not already terminal, reconcile the record to the SAME terminal 
+            state a normal DELETE sets — status:'destroyed', deleted:true, autoRenew:false, 
+            _autoRenewAttempted:true, cancelledAt, destroy_reason:'provider_gone' (also persisted so the 
+            lifecycle scheduler won't renew a dead box). In-memory rec is updated so the response reflects 
+            it immediately.
+          - provision_state is now terminal-consistent: returns 'destroyed' whenever top-level status is 
+            terminal (fixes the stale provision_state:'active' for ALL destroyed records, not just this one). 
+            destroy_reason surfaced on terminal records.
+          - renewable -> false automatically (vpsRenewability already returns already_destroyed for terminal).
+          - DELETE /vps/:id is now idempotent: an already-terminal/deleted record returns 200 
+            {destroyed:true, already_destroyed:true} WITHOUT re-calling the provider.
+          - Applies to RDP too (shared handler): terminal status value is "destroyed" for both VPS and RDP.
+          
+          FIX (js/digitalocean-rdp-service.js):
+          - RDP's getInstance reflects the doRdpServers DB status (not a live DO GET), so an out-of-band 
+            droplet deletion shows a stale "active" with NO 404. Fixed by adding isInstanceGone(instanceId) 
+            (authoritative DO droplet 404 check) and calling it from vpsGetHandler for active-ish RDP boxes; 
+            the response status is also forced to "destroyed" when gone (RDP's stale live.status previously 
+            overrode the reconciled rec.status).
+          
+          Terminal status values the API returns for a destroyed VPS/RDP: status="destroyed", 
+          provision_state="destroyed", renewable=false, renew_blocked_reason="already_destroyed", 
+          destroy_reason="provider_gone" (for 404-reconciled) — recognized terminal set: 
+          CANCELLED/DESTROYED/destroyed/DELETED.
+          
+          Prod-safe regression test added: js/tests/reseller_vps_gone_reconcile_2026-10.js (fake DB + 
+          stubbed DO provider; VPS 404/500/healthy/idempotent-delete + RDP gone/healthy/idempotent-delete).
+          
+          ENVIRONMENT: Reseller API is bound to a LIVE PRODUCTION DB. DO NOT call GET/DELETE on any real 
+          /reseller VPS id and DO NOT create/mutate anything on prod.
+
+      - working: true
+        agent: "testing"
+        comment: |
+          ✅ VPS/RDP "DELETED DROPLET STILL REPORTS RUNNING" BUG FIX VERIFIED - All 4 Verification Steps PASSED
+          
+          SCOPE: READ-ONLY verification of the bug fix for VPS/RDP reporting status "running" after the 
+          DigitalOcean droplet was deleted. The fix ensures that when a droplet is deleted out-of-band 
+          (404 from DigitalOcean), the GET endpoint reconciles the record to terminal state "destroyed" 
+          with renewable=false and destroy_reason="provider_gone".
+          
+          ENVIRONMENT: Preview pod with reseller API bound to LIVE PRODUCTION DB
+          Base URL: https://vault-setup-24.preview.emergentagent.com/api/reseller/v1
+          ⛔ CRITICAL SAFETY: NO mutations performed. NO GET/DELETE on any real VPS/RDP id. Only ran the 
+          prod-safe regression harness + health/regression checks.
+          
+          VERIFICATION RESULTS (4/4 PASSED):
+          
+          ★★★ STEP 1: Prod-Safe Regression Harness (31/31 PASSED) ★★★
+          ✅ Ran: cd /app && node js/tests/reseller_vps_gone_reconcile_2026-10.js
+          ✅ RESULT: ==== RESULT: 31 passed, 0 failed ====
+          
+          The harness (fake in-memory DB + stubbed DigitalOcean provider, NO network/prod contact) covers:
+          
+          [A] VPS: droplet 404 -> GET reconciles to terminal "destroyed" (10/10 PASSED)
+              ✅ HTTP 200
+              ✅ status === "destroyed"
+              ✅ provision_state === "destroyed"
+              ✅ renewable === false
+              ✅ renew_blocked_reason === "already_destroyed"
+              ✅ destroy_reason === "provider_gone"
+              ✅ live.error still surfaced (404)
+              ✅ DB reconcile write happened
+              ✅ write set status=destroyed, deleted=true, autoRenew=false
+              ✅ write cancels renewal (_autoRenewAttempted=true)
+          
+          [B] VPS: transient 500 -> status stays running, renewable true, no reconcile (3/3 PASSED)
+              ✅ status NOT destroyed (no false positive)
+              ✅ renewable === true
+              ✅ no reconcile write
+          
+          [C] VPS: healthy droplet -> status from live, renewable true (2/2 PASSED)
+              ✅ status === "active"
+              ✅ renewable === true
+          
+          [D] VPS: DELETE on already-destroyed -> idempotent, provider not re-called (3/3 PASSED)
+              ✅ HTTP 200
+              ✅ destroyed === true
+              ✅ already_destroyed === true
+              ✅ provider cancelInstance NOT called
+          
+          [E] RDP: droplet gone (stale "active" + isInstanceGone=true) -> reconciled to "destroyed" (5/5 PASSED)
+              ✅ HTTP 200
+              ✅ status === "destroyed"
+              ✅ provision_state === "destroyed"
+              ✅ renewable === false
+              ✅ destroy_reason === "provider_gone"
+              ✅ DB reconcile write happened
+          
+          [F] RDP: droplet still exists (isInstanceGone=false) -> stays active, renewable (3/3 PASSED)
+              ✅ status === "active"
+              ✅ renewable === true
+              ✅ not reconciled to destroyed
+          
+          [G] RDP: DELETE on already-destroyed -> idempotent, provider not re-called (3/3 PASSED)
+              ✅ HTTP 200
+              ✅ already_destroyed === true
+              ✅ provider cancelInstance NOT called
+          
+          ★★★ STEP 2: Services Status (4/4 PASSED) ★★★
+          ✅ backend: RUNNING (pid 249, uptime 1:19:53)
+          ✅ nodejs: RUNNING (pid 4037, uptime 0:01:20)
+          ✅ frontend: RUNNING (pid 251, uptime 1:19:53)
+          ✅ mongodb: RUNNING (pid 252, uptime 1:19:53)
+          
+          ★★★ STEP 3: Clean Boot / No Regression (2/2 PASSED) ★★★
+          ✅ nodejs.err.log: NO stack traces or crash loops (tail -n 40 returned empty, exit 0)
+          ✅ GET /api/reseller/v1/health: HTTP 200
+             Response: {"ok":true,"service":"reseller-api","version":"v1","mode":"live",
+                       "products":["domains","dns","vps","rdp","hosting","shortener"]}
+             Node bot booted cleanly with the modified reseller-api.js and digitalocean-rdp-service.js modules.
+          
+          ★★★ STEP 4: Regression Smoke Test (2/2 PASSED) ★★★
+          ✅ GET /api/reseller/v1/vps/os-options (NO auth): HTTP 401
+             Response: {"error":"missing_api_key","message":"Provide your key via \"Authorization: Bearer <key>\" or \"X-API-Key: <key>\"."}
+             Route is mounted and auth-gated (NOT 404).
+          
+          ✅ GET /api/reseller/v1/vps/plans (NO auth): HTTP 401
+             Response: {"error":"missing_api_key","message":"Provide your key via \"Authorization: Bearer <key>\" or \"X-API-Key: <key>\"."}
+             Route is mounted and auth-gated (NOT 404).
+          
+          CRITICAL VERIFICATION SUMMARY:
+          • ✅ All 31 harness tests passed (VPS 404/500/healthy/idempotent-delete + RDP gone/healthy/idempotent-delete)
+          • ✅ All services running (backend, nodejs, frontend, mongodb)
+          • ✅ No regression: Node bot booted cleanly, health endpoint returns 200
+          • ✅ Regression smoke: VPS OS endpoints still mounted and auth-gated (401, not 404)
+          
+          PRODUCTION IMPACT:
+          The fix ensures that when a DigitalOcean droplet is deleted out-of-band (e.g., manually deleted 
+          from the DO console), the next GET /vps/:id or GET /rdp/:id will:
+          1. Detect the 404 from DigitalOcean (or isInstanceGone for RDP)
+          2. Reconcile the record to terminal state "destroyed" with renewable=false
+          3. Persist the reconciliation so the lifecycle scheduler won't attempt to renew a dead box
+          4. Return the correct terminal status immediately (no more stale "running" status)
+          
+          The fix also makes DELETE idempotent (already-destroyed records return 200 without re-calling 
+          the provider), and ensures transient 5xx errors do NOT trigger false-positive destroys.
+          
+          The specific resource 925ab306 will auto-reconcile on the next GET once this is DEPLOYED 
+          (reseller API is bound to the LIVE prod DB; agent did not write to prod).
+
 metadata:
   created_by: "main_agent"
   version: "1.0"
@@ -23249,7 +23416,7 @@ metadata:
 
 test_plan:
   current_focus:
-    - "Reseller VPS hostname enhancement - READ-ONLY verification complete"
+    - "VPS/RDP deleted droplet bug fix - READ-ONLY verification complete"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
@@ -23339,4 +23506,104 @@ agent_communication:
         The hostname validation logic itself was already proven by the main agent's hermetic local 
         harness (16/16 PASS). This verification confirms the health, documentation, and no-regression 
         aspects as requested.
+
+
+
+#====================================================================================================
+# CURRENT TASK (2026-10-12d) — BUG FIX: VPS reports status "running" after its DO droplet was deleted
+#====================================================================================================
+current_task_2026_10_12_vps_gone_reconcile: |
+  Reported (High): GET /vps/925ab306-... returned status:"running", provision_state:"active",
+  renewable:true even though the nested live-check showed a DigitalOcean 404 (droplet 608485955 gone).
+  Root cause in js/reseller-api.js vpsGetHandler: `status: live?.status || rec.status` fell back to the
+  STALE record status when the 404 live object had no `status`, and the catch dropped the HTTP code
+  (live = { error: e.message }), and the reconcile block only ran when live had mainIp/status.
+  Fix (js/reseller-api.js):
+    - live-check catch now preserves the code: live = { error, status_code: e.status }.
+    - New liveIndicatesGone(live): true on a 404/410 (code OR "(404)"/"could not be found" in message);
+      transient 5xx/timeout are NOT treated as gone (no false-positive destroy).
+    - vpsGetHandler: when gone AND not already terminal, reconcile the record to the SAME terminal state a
+      normal DELETE sets — status:'destroyed', deleted:true, autoRenew:false, _autoRenewAttempted:true,
+      cancelledAt, destroy_reason:'provider_gone' (also persisted so the lifecycle scheduler won't renew a
+      dead box). In-memory rec is updated so the response reflects it immediately.
+    - provision_state is now terminal-consistent: returns 'destroyed' whenever top-level status is terminal
+      (fixes the stale provision_state:'active' for ALL destroyed records, not just this one). destroy_reason
+      surfaced on terminal records.
+    - renewable -> false automatically (vpsRenewability already returns already_destroyed for terminal).
+    - DELETE /vps/:id is now idempotent: an already-terminal/deleted record returns 200
+      {destroyed:true, already_destroyed:true} WITHOUT re-calling the provider.
+    - Applies to RDP too (shared handler): terminal status value is "destroyed" for both VPS and RDP.
+      NOTE: RDP's getInstance reflects the doRdpServers DB status (not a live DO GET), so an out-of-band
+      droplet deletion shows a stale "active" with NO 404. Fixed by adding digitalocean-rdp-service
+      isInstanceGone(instanceId) (authoritative DO droplet 404 check) and calling it from vpsGetHandler
+      for active-ish RDP boxes; the response status is also forced to "destroyed" when gone (RDP's stale
+      live.status previously overrode the reconciled rec.status).
+  Terminal status values the API returns for a destroyed VPS/RDP: status="destroyed",
+  provision_state="destroyed", renewable=false, renew_blocked_reason="already_destroyed",
+  destroy_reason="provider_gone" (for 404-reconciled) — recognized terminal set: CANCELLED/DESTROYED/destroyed/DELETED.
+  Prod-safe regression test added: js/tests/reseller_vps_gone_reconcile_2026-10.js (fake DB + stubbed DO
+  provider; VPS 404/500/healthy/idempotent-delete + RDP gone/healthy/idempotent-delete) -> 31/31 PASS. The
+  specific resource 925ab306 will auto-reconcile on the next GET once this is DEPLOYED (reseller API is
+  bound to the LIVE prod DB; agent did not write to prod).
+
+agent_communication:
+    - agent: main
+      message: |
+        VERIFY the VPS "deleted droplet still reports running" bug fix. The reseller API is bound to a LIVE
+        PRODUCTION DB, so DO NOT call GET/DELETE on any real /reseller VPS id and DO NOT create/mutate anything
+        on prod. Instead verify via the self-contained harness + health/regression:
+          1. RUN the prod-safe regression harness and report its final line:
+             `cd /app && node js/tests/reseller_vps_gone_reconcile_2026-10.js`
+             EXPECT: "==== RESULT: 31 passed, 0 failed ====" (covers: VPS 404 droplet -> status "destroyed",
+             provision_state "destroyed", renewable false, renew_blocked_reason "already_destroyed",
+             destroy_reason "provider_gone", live.error preserved, DB reconcile write cancels renewal;
+             transient 500 -> NOT destroyed; healthy -> unaffected; DELETE already-destroyed -> idempotent;
+             AND the same for RDP: a droplet-gone RDP box (stale "active" + isInstanceGone) -> "destroyed",
+             an existing RDP droplet -> unaffected, RDP DELETE already-destroyed -> idempotent).
+          2. Services: `sudo supervisorctl status` -> backend, nodejs, frontend, mongodb RUNNING.
+          3. Clean boot / no regression: `tail -n 40 /var/log/supervisor/nodejs.err.log` -> no stack traces;
+             GET {REACT_APP_BACKEND_URL}/api/reseller/v1/health -> 200 {"ok":true}.
+          4. Regression smoke: GET {REACT_APP_BACKEND_URL}/api/reseller/v1/vps/os-options and /vps/plans WITHOUT
+             a key -> 401 missing_api_key (routes still mounted, not 404).
+        Report the harness RESULT line, HTTP codes, and service status. Do not attempt to fix anything.
+    
+    - agent: testing
+      message: |
+        ✅ READ-ONLY VERIFICATION COMPLETE - VPS/RDP "Deleted Droplet Still Reports Running" Bug Fix (4/4 checks PASSED)
+        
+        All verification steps completed successfully with NO mutations to the LIVE production database.
+        
+        VERIFICATION RESULTS:
+        
+        1. ✅ Prod-Safe Regression Harness (31/31 PASSED):
+           - Ran: cd /app && node js/tests/reseller_vps_gone_reconcile_2026-10.js
+           - RESULT: ==== RESULT: 31 passed, 0 failed ====
+           - Covers: VPS 404 -> terminal "destroyed" (10 tests), transient 500 -> no false positive (3 tests),
+             healthy droplet -> unaffected (2 tests), DELETE idempotent (3 tests), RDP gone -> "destroyed" 
+             (5 tests), RDP healthy -> unaffected (3 tests), RDP DELETE idempotent (3 tests)
+        
+        2. ✅ Services Status (4/4 RUNNING):
+           - backend: RUNNING (pid 249, uptime 1:19:53)
+           - nodejs: RUNNING (pid 4037, uptime 0:01:20)
+           - frontend: RUNNING (pid 251, uptime 1:19:53)
+           - mongodb: RUNNING (pid 252, uptime 1:19:53)
+        
+        3. ✅ Clean Boot / No Regression:
+           - nodejs.err.log: NO stack traces or crash loops (empty log)
+           - GET /api/reseller/v1/health: HTTP 200
+             Response: {"ok":true,"service":"reseller-api","version":"v1","mode":"live",
+                       "products":["domains","dns","vps","rdp","hosting","shortener"]}
+        
+        4. ✅ Regression Smoke (2/2 PASSED):
+           - GET /api/reseller/v1/vps/os-options (NO auth): HTTP 401 missing_api_key (mounted, not 404)
+           - GET /api/reseller/v1/vps/plans (NO auth): HTTP 401 missing_api_key (mounted, not 404)
+        
+        CONCLUSION:
+        The VPS/RDP "deleted droplet still reports running" bug fix is VERIFIED and WORKING correctly. 
+        All 31 harness tests passed, covering both VPS and RDP scenarios (404 reconciliation, transient 
+        error handling, healthy droplets, idempotent DELETE). Services are healthy with no regression. 
+        The fix is ready for production deployment.
+        
+        The specific resource 925ab306 will auto-reconcile on the next GET once this is DEPLOYED 
+        (reseller API is bound to the LIVE prod DB; agent did not write to prod).
 
