@@ -1133,6 +1133,16 @@ function createResellerApi(deps = {}) {
   // order time (POST /vps { os }) and on a reinstall (POST /vps/:id/reinstall),
   // and discover the valid values up-front (GET /vps/plans → os_options, or the
   // dedicated GET /vps/os-options endpoint).
+  // ── Hostname (VM name) validation ────────────────────────────────────────
+  // DigitalOcean uses the droplet name as the VM hostname and requires a valid
+  // hostname label: lowercase letters/digits/hyphens, start+end alphanumeric,
+  // max 63 chars. We validate up-front and REJECT invalid input (no silent
+  // rewriting) so what the reseller sends is exactly what the box is named.
+  const VPS_HOSTNAME_RE = /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$/
+  const VPS_HOSTNAME_RULES = 'Lowercase letters, digits and hyphens only; must start and end with a letter or digit; max 63 characters. Dots, spaces, underscores and uppercase letters are not allowed.'
+  const VPS_HOSTNAME_EXAMPLES = ['web-01', 'client-prod-db', 'mail1', 'app-eu-west', 'node7']
+  const autoHostname = () => `vps-${Date.now().toString(36)}${Math.floor(Math.random() * 1296).toString(36)}`
+
   const DEFAULT_LINUX_OS = 'ubuntu-24-04-x64'
   async function linuxOsOptions(prov) {
     if (!prov || typeof prov.listImages !== 'function') return []
@@ -1197,7 +1207,7 @@ function createResellerApi(deps = {}) {
   async function vpsCreateHandler(req, res, isRDP) {
     const region = String(req.body?.region || 'EU').toUpperCase()
     const planId = req.body?.plan_id
-    const hostname = req.body?.hostname || null
+    let hostname = req.body?.hostname || null
     const prov = providerFor(isRDP)
     const product = prov.getProduct ? prov.getProduct(planId) : null
     if (!product) return res.status(400).json({ error: 'invalid_plan', message: 'Unknown plan_id. Call GET plans first.' })
@@ -1224,6 +1234,24 @@ function createResellerApi(deps = {}) {
         osId = want
       } else {
         osId = opts.length ? defaultLinuxOs(opts) : null
+      }
+    }
+
+    // Hostname: optional. For Linux VPS, validate it up-front (no silent rewriting) and
+    // auto-generate one when omitted. DO uses the droplet name as the VM hostname.
+    if (!isRDP) {
+      if (hostname) {
+        hostname = String(hostname).trim()
+        if (!VPS_HOSTNAME_RE.test(hostname)) {
+          return res.status(400).json({
+            error: 'invalid_hostname',
+            message: `hostname "${req.body?.hostname}" is not a valid hostname. ${VPS_HOSTNAME_RULES}`,
+            rules: VPS_HOSTNAME_RULES,
+            examples: VPS_HOSTNAME_EXAMPLES,
+          })
+        }
+      } else {
+        hostname = autoHostname()
       }
     }
 
@@ -1271,7 +1299,7 @@ function createResellerApi(deps = {}) {
       _id: vpsId, chatId: owner, vpsId,
       provider: prov.PROVIDER, instanceId: null, host: null,
       region, productId: planId, plan: planName, planPrice: pricing.totalWithMarkup,
-      osType: isRDP ? 'windows' : 'linux', osId: osId || null, isRDP: !!isRDP,
+      osType: isRDP ? 'windows' : 'linux', osId: osId || null, isRDP: !!isRDP, hostname: hostname || null,
       status: 'provisioning', provisionState: 'provisioning', provisionJobId: jobId, clientRef,
       source: 'reseller_api', start_time: new Date(), timestamp: new Date(),
     })
@@ -1281,6 +1309,7 @@ function createResellerApi(deps = {}) {
 
     return res.status(202).json({
       ...jobHandle(jobDoc),
+      hostname: request.hostname || null,
       wallet_balance_usd: Math.round((charge.balance - (charge.charged ? charge.price : 0)) * 100) / 100,
       note: `Provisioning started. Poll GET /jobs/${jobId} for live progress + ETA, or GET /${isRDP ? 'rdp' : 'vps'}/{id} until status="RUNNING", or subscribe to the ${isRDP ? 'rdp' : 'vps'}.provisioned / ${isRDP ? 'rdp' : 'vps'}.provision_failed webhooks. Reuse client_ref to make retries idempotent.`,
     })
@@ -1290,7 +1319,7 @@ function createResellerApi(deps = {}) {
     const docs = await col('vpsPlansOf').find({ chatId: String(req.reseller.ownerChatId), isRDP: !!isRDP }).limit(500).toArray()
     res.json({ [isRDP ? 'rdp' : 'vps']: docs.map(d => ({
       id: d.vpsId || d._id, instance_id: d.instanceId || d.contaboInstanceId || null, ip: d.host || null,
-      plan: d.plan || null, region: d.region || null, os: d.osType || null, os_id: d.osId || null, status: d.status || null,
+      plan: d.plan || null, region: d.region || null, os: d.osType || null, os_id: d.osId || null, hostname: d.hostname || null, status: d.status || null,
       provision_state: d.provisionState || null,
       ...(d.provisionState === 'failed' ? { provision_failed_reason: d.provisionFailedReason || 'provision_failed' } : {}),
       ...hwFromRecord(isRDP ? rdpProviderForRecord(d) : providerFor(false), d),
@@ -1311,7 +1340,7 @@ function createResellerApi(deps = {}) {
     if (live && (live.mainIp || live.status) && (live.mainIp !== rec.host || live.status !== rec.status)) {
       col('vpsPlansOf').updateOne({ _id: rec._id }, { $set: { ...(live.mainIp ? { host: live.mainIp } : {}), ...(live.status ? { status: live.status } : {}) } }).catch(() => {})
     }
-    const out = { id: rec.vpsId || rec._id, instance_id: rec.instanceId || null, plan: rec.plan, region: rec.region, os: rec.osType, os_id: rec.osId || null, ...hwFromRecord(isRDP ? rdpProviderForRecord(rec) : providerFor(false), rec), status: live?.status || rec.status, ip: live?.mainIp || rec.host || null, live }
+    const out = { id: rec.vpsId || rec._id, instance_id: rec.instanceId || null, plan: rec.plan, region: rec.region, os: rec.osType, os_id: rec.osId || null, hostname: rec.hostname || null, ...hwFromRecord(isRDP ? rdpProviderForRecord(rec) : providerFor(false), rec), status: live?.status || rec.status, ip: live?.mainIp || rec.host || null, live }
     out.provision_state = rec.provisionState || null
     if (rec.provisionState === 'failed') out.provision_failed_reason = rec.provisionFailedReason || 'provision_failed'
     // While our async job is still building (no provider block yet), surface the job ETA/progress so a

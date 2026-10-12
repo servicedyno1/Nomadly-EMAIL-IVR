@@ -531,7 +531,7 @@ function endpointGroups(base) {
           params: [
             ['plan_id', true, 'A plan_id from GET /vps/plans (SSD or NVMe). An out-of-stock plan returns 409 out_of_stock — pick another plan or region'],
             ['region', false, 'Region code — defaults to EU'],
-            ['hostname', false, 'Optional label/hostname'],
+            ['hostname', false, 'Optional VM hostname. Lowercase letters, digits and hyphens only; must start and end with a letter or digit; max 63 chars — e.g. "web-01", "client-prod-db", "mail1", "app-eu-west". Dots, spaces, underscores and uppercase are rejected with 400 invalid_hostname (no silent rewriting). Omit it and we auto-generate one like "vps-m8k2p1". DigitalOcean uses this as the droplet name / VM hostname; the resolved value is echoed back in the create response and in GET /vps/:id.'],
             ['os', false, 'Linux distribution image id (e.g. ubuntu-24-04-x64, debian-12-x64, rockylinux-9-x64) — defaults to Ubuntu 24.04 LTS. Must be one of the ids from GET /vps/plans → os_options (or GET /vps/os-options); an unknown value returns 400 invalid_os with the valid list.'],
             ['ssh_keys', false, 'Optional OpenSSH public key(s) to pre-install for root at first boot — a single string or an array (e.g. "ssh-ed25519 AAAA… user@host"). Keys are registered on the provider and baked into the droplet, so you can SSH in immediately. (Linux VPS only; ignored for RDP.)'],
             ['client_ref', false, 'Your own idempotency key — a retry with the same value returns the same provisioning job (no double-charge)'],
@@ -549,6 +549,7 @@ function endpointGroups(base) {
   "id": "4e2a6b47-…",
   "plan": "Cloud VPS 10",
   "region": "EU",
+  "hostname": "web-01",
   "price_usd": 18,
   "wallet_balance_usd": 111.51,
   "poll_url": "/vps/4e2a6b47-…",
@@ -563,7 +564,7 @@ function endpointGroups(base) {
           resp: `{
   "vps": [
     { "id": "b2f1c0a4-…", "instance_id": "419287654", "ip": "203.0.113.55",
-      "plan": "1 vCPU / 1 GB", "region": "EU", "os": "linux", "status": "active",
+      "plan": "1 vCPU / 1 GB", "region": "EU", "os": "linux", "hostname": "web-01", "status": "active",
       "created_at": "2026-09-08T10:40:00.000Z" }
   ]
 }`,
@@ -575,7 +576,7 @@ function endpointGroups(base) {
   -H "Authorization: Bearer YOUR_API_KEY"`,
           resp: `{
   "id": "b2f1c0a4-…", "instance_id": "419287654",
-  "plan": "1 vCPU / 1 GB", "region": "EU", "os": "linux",
+  "plan": "1 vCPU / 1 GB", "region": "EU", "os": "linux", "hostname": "web-01",
   "status": "active", "ip": "203.0.113.55", "live": { "status": "active" }
 }`,
         },
