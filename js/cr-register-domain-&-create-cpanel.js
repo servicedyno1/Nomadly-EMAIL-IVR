@@ -78,7 +78,12 @@ async function registerDomainAndCreateCpanel(send, info, keyboardButtons, state,
     //      cpUser=undefined, aborted, left a non-deleted failed ghost that then
     //      permanently blocked every future order for the domain).
     const existingAccount = await guardDb.collection('cpanelAccounts').findOne({
-      domain: domain,
+      // Match the requested domain whether it's the PRIMARY of an existing plan
+      // OR an ADDON on one (RCA @smsbeast_real 2026-10-11: luxelitecasinoreviews.com
+      // was an addon on the user's own suspended eliteescapesau.com plan, so the
+      // old `domain: domain` guard missed it and WHM `createacct` then collided
+      // with "domain already exists in the userdata").
+      $or: [{ domain: domain }, { addonDomains: domain }],
       deleted: { $ne: true },
       provisionState: { $ne: 'failed' },
       _id: { $ne: info.customUsername || '__no_self__' },
@@ -118,6 +123,33 @@ async function registerDomainAndCreateCpanel(send, info, keyboardButtons, state,
 
     await guardClient.close()
     if (existingAccount) {
+      // ── ADDON-CONFLICT branch (RCA @smsbeast_real 2026-10-11) ──
+      // The requested domain is not the primary of this record but is attached
+      // as an ADDON on an existing (active/suspended) plan. Creating a brand-new
+      // cPanel account with it as primary WILL fail at WHM ("already exists in
+      // the userdata"). Block BEFORE createAccount with an actionable message so
+      // the user unlinks it (or manages/renews the owning plan) first.
+      const isAddonConflict = existingAccount.domain !== domain &&
+        Array.isArray(existingAccount.addonDomains) &&
+        existingAccount.addonDomains.includes(domain)
+      if (isAddonConflict) {
+        const sameOwner = String(existingAccount.chatId) === String(ownerChatId)
+        const susp = existingAccount.suspended ? true : false
+        log(`[Hosting] PRE-FLIGHT: ${domain} is an ADDON on existing${susp ? ' suspended' : ''} plan ${existingAccount.cpUser} (primary=${existingAccount.domain}, owner=${existingAccount.chatId}) — blocking new-primary provisioning for ${chatId}`)
+        if (sameOwner) {
+          const suspTxt = { en: susp ? ' (currently suspended)' : '', fr: susp ? ' (actuellement suspendu)' : '', zh: susp ? '（当前已暂停）' : '', hi: susp ? ' (वर्तमान में निलंबित)' : '' }
+          send(chatId, {
+            en: `⚠️ <b>${domain}</b> is already part of your hosting plan for <b>${existingAccount.domain}</b>${suspTxt.en}.\n\nTo host <b>${domain}</b> on its own plan, first unlink it via 🛡️ Anti-Red Hosting → 📋 My Hosting Plans → 🗑️ Unlink a Domain, then try again.`,
+            fr: `⚠️ <b>${domain}</b> fait déjà partie de votre plan d'hébergement pour <b>${existingAccount.domain}</b>${suspTxt.fr}.\n\nPour héberger <b>${domain}</b> sur son propre plan, dissociez-le d'abord via 🛡️ Hébergement Anti-Red → 📋 Mes Plans d'Hébergement → 🗑️ Dissocier un domaine, puis réessayez.`,
+            zh: `⚠️ <b>${domain}</b> 已经是您 <b>${existingAccount.domain}</b> 主机套餐的一部分${suspTxt.zh}。\n\n若要为 <b>${domain}</b> 单独开通套餐，请先通过 🛡️ Anti-Red 主机 → 📋 我的主机套餐 → 🗑️ 取消关联域名 解除关联，然后重试。`,
+            hi: `⚠️ <b>${domain}</b> पहले से ही आपके <b>${existingAccount.domain}</b> होस्टिंग प्लान का हिस्सा है${suspTxt.hi}।\n\n<b>${domain}</b> को अलग प्लान पर होस्ट करने के लिए, पहले इसे 🛡️ Anti-Red Hosting → 📋 My Hosting Plans → 🗑️ Unlink a Domain से अनलिंक करें, फिर पुनः प्रयास करें।`,
+          }[lang] || `⚠️ <b>${domain}</b> is already part of your hosting plan for <b>${existingAccount.domain}</b>. Unlink it first, then try again.`, keyboardButtons)
+        } else {
+          send(chatId, { en: `⚠️ <b>${domain}</b> is already attached to an existing hosting plan. If this is unexpected, contact support.`, fr: `⚠️ <b>${domain}</b> est déjà rattaché à un plan d'hébergement existant. Si inattendu, contactez le support.`, zh: `⚠️ <b>${domain}</b> 已附加到现有主机套餐。如意外，请联系支持。`, hi: `⚠️ <b>${domain}</b> पहले से ही किसी मौजूदा होस्टिंग प्लान से जुड़ा है। यदि अप्रत्याशित है, तो समर्थन से संपर्क करें।` }[lang] || `⚠️ <b>${domain}</b> is already attached to an existing hosting plan.`, keyboardButtons)
+        }
+        return { success: false, error: 'domain_is_addon_on_existing_plan', duplicate: true, addonConflict: true }
+      }
+
       log(`[Hosting] IDEMPOTENCY: cpanel already exists for ${domain} (cpUser=${existingAccount.cpUser}, chatId=${existingAccount.chatId}) — aborting duplicate provisioning for ${chatId}`)
       send(chatId, { en: `⚠️ Hosting for <b>${domain}</b> is already provisioned. If this is unexpected, contact support.`, fr: `⚠️ L'hébergement pour <b>${domain}</b> est déjà provisionné. Si inattendu, contactez le support.`, zh: `⚠️ <b>${domain}</b> 的主机已经配置。如果这是意外，请联系支持。`, hi: `⚠️ <b>${domain}</b> के लिए होस्टिंग पहले से ही प्रावधान की गई है। यदि अप्रत्याशित है, तो समर्थन से संपर्क करें।` }[lang] || `⚠️ Hosting for <b>${domain}</b> is already provisioned.`, keyboardButtons)
       return { success: false, error: 'duplicate_provisioning_prevented', duplicate: true }
@@ -487,6 +519,47 @@ async function registerDomainAndCreateCpanel(send, info, keyboardButtons, state,
       // a retry (job stays pending; next drain tick completes it once
       // WHM is back).
       return { success: false, queued: true, deferred: true, code: 'CPANEL_DOWN', domainRegistered }
+    }
+
+    // ── Self-heal: "domain already exists in the userdata" (stale DELETED account) ──
+    // Defense-in-depth for the Mongo-says-deleted / WHM-still-has-it class: a
+    // prior DELETED account (SAME owner) can still hold this domain (primary or
+    // addon) in WHM userdata because grace-period /removeacct silently failed.
+    // The pre-flight guard excludes deleted rows, so provisioning proceeds, then
+    // cPanel rejects here. Retry /removeacct on the stale row via
+    // whm-userdata-heal (same-owner only — never cross-user) + retry createAccount
+    // once. (The active/suspended-addon case is handled earlier by the pre-flight
+    // guard; this covers the deleted-but-not-removed-from-WHM case.)
+    if (!result.success) {
+      const heal = require('./whm-userdata-heal')
+      if (heal.isStaleUserdataError(result.error)) {
+        try {
+          const { MongoClient } = require('mongodb')
+          const healClient = new MongoClient(process.env.MONGO_URL)
+          await healClient.connect()
+          const release = await heal.attemptUserdataRelease({
+            db: healClient.db(process.env.DB_NAME || 'test'),
+            whmService: whm,
+            domain,
+            chatId: ownerChatId,
+          })
+          await healClient.close()
+          if (release.released) {
+            log(`[Hosting] userdata self-heal released ${domain} from stale ${release.staleCpUser} — retrying createAccount`)
+            result = await whm.createAccount(
+              domain,
+              info.plan,
+              info.email || process.env.NOMADLY_SERVICE_EMAIL,
+              info.customUsername || undefined,
+              { useCloudflareNS: isCloudflareNS },
+            )
+          } else {
+            log(`[Hosting] userdata self-heal did NOT release ${domain}: ${release.reason}`)
+          }
+        } catch (healErr) {
+          log(`[Hosting] userdata self-heal error (non-blocking): ${healErr.message}`)
+        }
+      }
     }
 
     if (!result.success) {
