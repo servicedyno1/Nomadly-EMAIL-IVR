@@ -429,6 +429,7 @@ async function listImages(filter = 'all') {
     osType:    'Linux',
     version:   o.name,
     isWindows: false,
+    isDefault: !!o.isDefault,
     // legacy flat fields
     id:        o.imageId,
     family:    o.family,

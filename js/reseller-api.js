@@ -1127,6 +1127,42 @@ function createResellerApi(deps = {}) {
     return hwFromProduct(prod || {})
   }
 
+  // ── Linux OS (distribution image) discovery + validation ─────────────────
+  // DigitalOcean (and the other Linux providers) expose a curated distro list
+  // via prov.listImages('linux'). We surface it so resellers can pick an OS at
+  // order time (POST /vps { os }) and on a reinstall (POST /vps/:id/reinstall),
+  // and discover the valid values up-front (GET /vps/plans → os_options, or the
+  // dedicated GET /vps/os-options endpoint).
+  const DEFAULT_LINUX_OS = 'ubuntu-24-04-x64'
+  async function linuxOsOptions(prov) {
+    if (!prov || typeof prov.listImages !== 'function') return []
+    let imgs = []
+    try { imgs = await prov.listImages('linux') } catch (_) { imgs = [] }
+    return (imgs || []).map(i => ({
+      id: String(i.imageId || i.id),
+      name: i.name || i.version || String(i.imageId || i.id),
+      family: i.family || null,
+      default: !!i.isDefault,
+    }))
+  }
+  function defaultLinuxOs(options) {
+    const d = (options || []).find(o => o.default)
+    return (d && d.id) || (options && options[0] && options[0].id) || DEFAULT_LINUX_OS
+  }
+
+  // GET /vps/os-options | GET /rdp/os-options — standalone OS discovery.
+  async function osOptionsHandler(req, res, isRDP) {
+    const prov = providerFor(isRDP)
+    if (isRDP) {
+      let os_options = {}
+      try { if (typeof prov.listOsOptions === 'function') os_options = await prov.listOsOptions() }
+      catch (e) { log(`[ResellerAPI] listOsOptions warn: ${e.message}`) }
+      return res.json({ product: 'rdp', provider: prov.PROVIDER || process.env.VPS_RDP_PROVIDER, default_os: prov.DEFAULT_OS_ID || null, os_options })
+    }
+    const opts = await linuxOsOptions(prov)
+    res.json({ product: 'vps', provider: prov.PROVIDER || process.env.VPS_DEFAULT_PROVIDER, default_os: opts.length ? defaultLinuxOs(opts) : null, os_options: opts })
+  }
+
   async function vpsPlansHandler(req, res, isRDP) {
     const region = String(req.query.region || 'EU').toUpperCase()
     const storage = String(req.query.storage || '').toLowerCase()
@@ -1150,6 +1186,10 @@ function createResellerApi(deps = {}) {
     if (isRDP && typeof prov.listOsOptions === 'function') {
       try { out.default_os = prov.DEFAULT_OS_ID || null; out.os_options = await prov.listOsOptions() }
       catch (e) { log(`[ResellerAPI] listOsOptions warn: ${e.message}`) }
+    } else if (!isRDP) {
+      // Linux distributions selectable at order time (POST /vps { os }) and on reinstall.
+      const opts = await linuxOsOptions(prov)
+      if (opts.length) { out.os_options = opts; out.default_os = defaultLinuxOs(opts) }
     }
     res.json(out)
   }
@@ -1171,6 +1211,20 @@ function createResellerApi(deps = {}) {
     if (isRDP && prov.OS_OPTIONS) {
       osId = String(req.body?.os || prov.DEFAULT_OS_ID || '').toLowerCase()
       if (!prov.OS_OPTIONS[osId]) return res.status(400).json({ error: 'invalid_os', message: `Unknown os "${req.body?.os}". Valid values: ${Object.keys(prov.OS_OPTIONS).join(', ')} (see os_options in GET /rdp/plans).` })
+    } else if (!isRDP) {
+      // Linux: optional distribution image (e.g. ubuntu-24-04-x64). Validate against the
+      // provider's curated list so an order can't silently fall back to a different OS, and
+      // persist the resolved id so it is actually provisioned and returned post-order.
+      const opts = await linuxOsOptions(prov)
+      if (req.body?.os) {
+        const want = String(req.body.os).toLowerCase()
+        if (opts.length && !opts.some(o => o.id.toLowerCase() === want)) {
+          return res.status(400).json({ error: 'invalid_os', message: `Unknown os "${req.body.os}". Valid values: ${opts.map(o => o.id).join(', ')} (see os_options in GET /vps/plans or GET /vps/os-options).`, valid_os: opts })
+        }
+        osId = want
+      } else {
+        osId = opts.length ? defaultLinuxOs(opts) : null
+      }
     }
 
     // ── Async create: return a fast 202 with a stable id; the real provider build runs in the
@@ -1182,7 +1236,7 @@ function createResellerApi(deps = {}) {
       if (prior && (prior.product === 'vps' || prior.product === 'rdp')) return res.status(202).json({ ...jobHandle(prior), idempotent: true })
     }
     const planName = product.name || planId
-    const request = { plan_id: planId, plan: planName, region, hostname, isRDP: !!isRDP, osId: osId || null, os: isRDP ? (osId || 'windows') : (req.body?.os || 'ubuntu') }
+    const request = { plan_id: planId, plan: planName, region, hostname, isRDP: !!isRDP, osId: osId || null, os: isRDP ? (osId || 'windows') : (osId || 'ubuntu') }
 
     // Optional: launch a Linux VPS with reseller-supplied SSH public key(s) pre-installed
     // (uploaded to the provider account; referenced as ssh_keys at droplet create).
@@ -1718,6 +1772,7 @@ function createResellerApi(deps = {}) {
 
   // VPS routes
   router.get('/vps/plans', apiKeyAuth, h((req, res) => vpsPlansHandler(req, res, false)))
+  router.get('/vps/os-options', apiKeyAuth, h((req, res) => osOptionsHandler(req, res, false)))
   router.post('/vps', apiKeyAuth, h((req, res) => vpsCreateHandler(req, res, false)))
   router.get('/vps', apiKeyAuth, h((req, res) => vpsListHandler(req, res, false)))
   router.get('/vps/:id', apiKeyAuth, h((req, res) => vpsGetHandler(req, res, false)))
@@ -1739,6 +1794,7 @@ function createResellerApi(deps = {}) {
 
   // RDP routes (Windows)
   router.get('/rdp/plans', apiKeyAuth, h((req, res) => vpsPlansHandler(req, res, true)))
+  router.get('/rdp/os-options', apiKeyAuth, h((req, res) => osOptionsHandler(req, res, true)))
   router.post('/rdp', apiKeyAuth, h((req, res) => vpsCreateHandler(req, res, true)))
   router.get('/rdp', apiKeyAuth, h((req, res) => vpsListHandler(req, res, true)))
   router.get('/rdp/:id', apiKeyAuth, h((req, res) => vpsGetHandler(req, res, true)))
