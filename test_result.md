@@ -23127,6 +23127,118 @@ backend:
           
           Fix reaches production only on the user's next deploy (NOT deployed by agent).
 
+  - task: "Reseller VPS hostname: validate + surface resolved name + document (READ-ONLY verification)"
+    implemented: true
+    working: true
+    file: "/app/js/reseller-api.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: |
+          ✅ RESELLER VPS HOSTNAME ENHANCEMENT - READ-ONLY VERIFICATION COMPLETE (4/4 checks PASSED)
+          
+          SCOPE: Focused READ-ONLY verification of the reseller VPS hostname enhancement. The enhancement 
+          adds strict validation for the optional `hostname` parameter in POST /vps, surfaces the resolved 
+          hostname in responses, and documents acceptable hostname examples + rules in the API docs.
+          
+          CRITICAL SAFETY: The reseller API is bound to a LIVE PRODUCTION database. NO mutations performed.
+          NO POST/PUT/DELETE to any /api/reseller/* endpoints. GETs and reading local logs/services only.
+          The hostname validation logic itself was already proven by a hermetic local harness (16/16 PASS).
+          
+          ENVIRONMENT:
+          • Base URL: https://83e8fb33-69d8-4ff1-8eb2-3f93abc6e23d.preview.emergentagent.com
+          • All backend routes prefixed /api, proxied by FastAPI to Node bot on :5000
+          • Mode: LIVE (reseller API => production DB)
+          
+          VERIFICATION RESULTS (4/4 PASSED):
+          
+          ★★★ STEP 1: Services Status (4/4 PASSED) ★★★
+          ✅ backend: RUNNING (pid 685, uptime 0:47:59)
+          ✅ nodejs: RUNNING (pid 5914, uptime 0:01:05)
+          ✅ frontend: RUNNING (pid 1663, uptime 0:44:19)
+          ✅ mongodb: RUNNING (pid 52, uptime 1:21:05)
+          
+          ★★★ STEP 2: Clean Boot / No Regression (2/2 PASSED) ★★★
+          ✅ nodejs.err.log: NO stack traces or crash loops (tail -n 40 returned empty, exit 0)
+          ✅ GET /api/reseller/v1/health: HTTP 200
+             Response: {"ok":true,"service":"reseller-api","version":"v1","mode":"live",
+                       "products":["domains","dns","vps","rdp","hosting","shortener"]}
+             Node bot booted cleanly with the modified reseller-api.js and apidoc-page.js modules.
+          
+          ★★★ STEP 3: API DOCS - Hostname Examples + Rules (4/4 PASSED) ★★★
+          ✅ GET /api/apidoc: HTTP 200 HTML
+          ✅ FOUND: "invalid_hostname" (error code for invalid hostname validation)
+          ✅ FOUND: "web-01" (acceptable hostname example)
+          ✅ FOUND: "client-prod-db" (acceptable hostname example)
+          ✅ FOUND: "auto-generate" text in context:
+             "Omit it and we auto-generate one like \"vps-m8k2p1\""
+             
+             Full hostname documentation excerpt from /api/apidoc:
+             "Optional VM hostname. Lowercase letters, digits and hyphens only; must start and end 
+             with a letter or digit; max 63 chars — e.g. \"web-01\", \"client-prod-db\", \"mail1\", 
+             \"app-eu-west\". Dots, spaces, underscores and uppercase are rejected with 400 
+             invalid_hostname (no silent rewriting). Omit it and we auto-generate one like 
+             \"vps-m8k2p1\". DigitalOcean uses this as the droplet name / VM hostname; the resolved 
+             value is echoed back in the create response and in GET /vps/:id."
+          
+          CRITICAL: The API documentation now includes:
+          • Strict validation rules (lowercase, digits, hyphens only; start/end with letter/digit; max 63 chars)
+          • Acceptable examples: "web-01", "client-prod-db", "mail1", "app-eu-west"
+          • Rejected patterns: dots, spaces, underscores, uppercase
+          • Error code: 400 invalid_hostname (no silent rewriting)
+          • Auto-generate behavior: "vps-<base36>" format when hostname is omitted
+          • The resolved hostname is echoed in create response and GET /vps/:id
+          
+          ★★★ STEP 4: Regression Smoke - Earlier Reseller OS Endpoints (2/2 PASSED) ★★★
+          ✅ GET /api/reseller/v1/vps/os-options (NO auth): HTTP 401
+             Response: {"error":"missing_api_key","message":"Provide your key via \"Authorization: Bearer <key>\" or \"X-API-Key: <key>\"."}
+             Route is mounted and auth-gated (NOT 404).
+          
+          ✅ GET /api/reseller/v1/vps/plans (NO auth): HTTP 401
+             Response: {"error":"missing_api_key","message":"Provide your key via \"Authorization: Bearer <key>\" or \"X-API-Key: <key>\"."}
+             Route is mounted and auth-gated (NOT 404).
+          
+          CRITICAL VERIFICATION SUMMARY:
+          • ✅ All services running (backend, nodejs, frontend, mongodb)
+          • ✅ No regression: Node bot booted cleanly, health endpoint returns 200
+          • ✅ API DOCS UPDATED: All required hostname examples + rules + auto-generate behavior documented
+          • ✅ Regression smoke: VPS OS endpoints still mounted and auth-gated (401, not 404)
+          
+          WHAT WAS VERIFIED:
+          1. Services health: All required services (backend, nodejs, frontend, mongodb) are RUNNING
+          2. Clean boot: No stack traces or crash loops in nodejs.err.log
+          3. Health endpoint: GET /api/reseller/v1/health returns 200 with ok:true
+          4. API documentation: GET /api/apidoc contains all required hostname-related strings:
+             - "invalid_hostname" (error code)
+             - "web-01" (example)
+             - "client-prod-db" (example)
+             - "auto-generate one like" (auto-generate behavior)
+          5. Regression: Earlier reseller OS endpoints (vps/os-options, vps/plans) still mounted and auth-gated
+          
+          WHAT WAS NOT TESTED (by design, per review request):
+          • POST /vps with hostname parameter (would create a real droplet + charge real wallet on LIVE prod DB)
+          • Any mutating operations (POST/PUT/DELETE to /reseller endpoints)
+          • The validation logic itself (already proven by hermetic local harness: 16/16 PASS)
+          
+          CONCLUSION:
+          The reseller VPS hostname enhancement is VERIFIED and WORKING correctly:
+          • Services are healthy and running without errors
+          • API documentation now includes acceptable hostname examples (web-01, client-prod-db) and rules
+          • Auto-generate behavior is documented ("vps-<base36>" format)
+          • No regression in earlier reseller endpoints
+          • The enhancement is ready for production use
+          
+          The hostname validation logic (strict DO hostname rule: ^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$) 
+          was already proven by the main agent's hermetic local harness (16/16 PASS), which tested:
+          • Valid hostnames are echoed in responses
+          • Omitted hostname auto-generates "vps-<base36>" format
+          • Invalid patterns (dots, spaces, underscores, uppercase, leading/trailing hyphen, >63 chars) 
+            return 400 invalid_hostname with examples + rules
+          • GET /vps/:id surfaces stored hostname
+
 frontend:
 
 metadata:
@@ -23137,7 +23249,94 @@ metadata:
 
 test_plan:
   current_focus:
-    - "Safe Browsing monitor RELIABILITY fix - verify initial sweep runs within seconds of boot"
+    - "Reseller VPS hostname enhancement - READ-ONLY verification complete"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
+
+
+#====================================================================================================
+# CURRENT TASK (2026-10-12c) — Reseller VPS hostname: validate + surface resolved name + document
+#====================================================================================================
+current_task_2026_10_12_vps_hostname: |
+  Enhancement (Linux VPS only; RDP untouched) in js/reseller-api.js + js/apidoc-page.js:
+    - POST /vps `hostname` is OPTIONAL. If provided it is now VALIDATED up-front against a strict DO
+      hostname rule (^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$) and REJECTED with 400 invalid_hostname + {rules,
+      examples} when invalid (dots, spaces, underscores, uppercase, leading/trailing hyphen, >63 chars) —
+      no more silent rewriting. If omitted, an auto name "vps-<base36>" is generated.
+    - The resolved hostname is persisted on the vpsPlansOf record and ECHOED in the 202 create response,
+      GET /vps/:id and GET /vps (list).
+    - API docs (/apidoc): the POST /vps `hostname` param now documents the rules + acceptable examples
+      (web-01, client-prod-db, mail1, app-eu-west, node7) and the auto-generate behaviour; VPS create/get/list
+      response samples now include "hostname".
+  Local proof (hermetic harness, fake in-memory DB, DRY-RUN, no prod contact, no provider calls): 16/16 PASS
+  (valid echoed; omitted auto-generates vps-*; dots/spaces/underscore/uppercase/leading/trailing/>63 → 400
+  invalid_hostname w/ examples+rules; GET /vps/:id surfaces stored hostname).
+  Note: POST cannot be exercised on preview with a real key (reseller API => LIVE prod DB; a valid order would
+  create a real droplet/charge a real wallet), so the agent verifies health + docs + no-regression only.
+
+agent_communication:
+    - agent: main
+      message: |
+        VERIFY the reseller VPS hostname enhancement (js/reseller-api.js, js/apidoc-page.js). READ-ONLY —
+        DO NOT create orders / POST to /reseller endpoints (they hit a LIVE production DB). Base URL =
+        REACT_APP_BACKEND_URL from /app/frontend/.env (all routes prefixed /api -> proxied to Node :5000).
+          1. Services: `sudo supervisorctl status` -> backend, nodejs, frontend, mongodb RUNNING.
+          2. Clean boot / no regression: `tail -n 40 /var/log/supervisor/nodejs.err.log` -> no stack traces;
+             GET {BASE}/api/reseller/v1/health -> 200 {"ok":true}.
+          3. DOCS (requirement): GET {BASE}/api/apidoc -> 200 HTML that CONTAINS all of: "invalid_hostname",
+             "client-prod-db", "web-01", and text about auto-generating a name (e.g. "auto-generate one like").
+             This confirms acceptable-hostname examples + rules now appear in the API documentation.
+          4. Regression smoke (earlier reseller-OS change): GET {BASE}/api/reseller/v1/vps/os-options and
+             {BASE}/api/reseller/v1/vps/plans WITHOUT a key -> 401 missing_api_key (routes mounted, not 404).
+        Report HTTP codes + which doc strings you found. Do not attempt to fix anything.
+    
+    - agent: testing
+      message: |
+        ✅ READ-ONLY VERIFICATION COMPLETE - Reseller VPS Hostname Enhancement (4/4 checks PASSED)
+        
+        All verification steps completed successfully with NO mutations to the LIVE production database.
+        
+        VERIFICATION RESULTS:
+        
+        1. ✅ Services Status (4/4 RUNNING):
+           - backend: RUNNING (pid 685, uptime 0:47:59)
+           - nodejs: RUNNING (pid 5914, uptime 0:01:05)
+           - frontend: RUNNING (pid 1663, uptime 0:44:19)
+           - mongodb: RUNNING (pid 52, uptime 1:21:05)
+        
+        2. ✅ Clean Boot / No Regression:
+           - nodejs.err.log: NO stack traces or crash loops (empty log)
+           - GET /api/reseller/v1/health: HTTP 200
+             Response: {"ok":true,"service":"reseller-api","version":"v1","mode":"live",
+                       "products":["domains","dns","vps","rdp","hosting","shortener"]}
+        
+        3. ✅ API DOCS - Hostname Examples + Rules (ALL FOUND):
+           - GET /api/apidoc: HTTP 200 HTML
+           - ✅ FOUND: "invalid_hostname" (error code)
+           - ✅ FOUND: "web-01" (acceptable example)
+           - ✅ FOUND: "client-prod-db" (acceptable example)
+           - ✅ FOUND: "auto-generate one like \"vps-m8k2p1\"" (auto-generate behavior)
+           
+           Full documentation excerpt:
+           "Optional VM hostname. Lowercase letters, digits and hyphens only; must start and end 
+           with a letter or digit; max 63 chars — e.g. \"web-01\", \"client-prod-db\", \"mail1\", 
+           \"app-eu-west\". Dots, spaces, underscores and uppercase are rejected with 400 
+           invalid_hostname (no silent rewriting). Omit it and we auto-generate one like 
+           \"vps-m8k2p1\". DigitalOcean uses this as the droplet name / VM hostname; the resolved 
+           value is echoed back in the create response and in GET /vps/:id."
+        
+        4. ✅ Regression Smoke (2/2 PASSED):
+           - GET /api/reseller/v1/vps/os-options (NO auth): HTTP 401 missing_api_key (mounted, not 404)
+           - GET /api/reseller/v1/vps/plans (NO auth): HTTP 401 missing_api_key (mounted, not 404)
+        
+        CONCLUSION:
+        The reseller VPS hostname enhancement is VERIFIED and WORKING correctly. All required 
+        documentation (hostname examples, validation rules, auto-generate behavior) is present in 
+        the API docs. Services are healthy with no regression. The enhancement is ready for 
+        production use.
+        
+        The hostname validation logic itself was already proven by the main agent's hermetic local 
+        harness (16/16 PASS). This verification confirms the health, documentation, and no-regression 
+        aspects as requested.
+
