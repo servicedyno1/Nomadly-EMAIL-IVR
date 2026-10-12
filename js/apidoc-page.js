@@ -483,7 +483,7 @@ function endpointGroups(base) {
       endpoints: [
         {
           method: 'GET', path: '/vps/plans', auth: true, billed: false,
-          desc: 'List the Linux VPS plans that can be ordered RIGHT NOW in a region (stock is re-checked hourly; out-of-stock plans are hidden). Two storage classes: Standard plans (storage_type "SSD", cpu "Standard") and Premium NVMe plans (storage_type "NVMe SSD", cpu "AMD" or "Intel" — newer EPYC / Xeon CPUs with a much faster disk). Use ?storage=nvme or ?storage=ssd to filter.',
+          desc: 'List the Linux VPS plans that can be ordered RIGHT NOW in a region (stock is re-checked hourly; out-of-stock plans are hidden). Two storage classes: Standard plans (storage_type "SSD", cpu "Standard") and Premium NVMe plans (storage_type "NVMe SSD", cpu "AMD" or "Intel" — newer EPYC / Xeon CPUs with a much faster disk). Use ?storage=nvme or ?storage=ssd to filter. The response also returns os_options — the Linux distributions you can request at order time (Ubuntu 24.04/22.04 LTS, Debian 13/12, AlmaLinux 9/8, Rocky 9/10, CentOS Stream 9/10, Fedora) — plus default_os, so you can render an OS picker on your storefront. Pass the chosen os id as "os" on POST /vps (and on POST /vps/:id/reinstall). The same list is also available on its own at GET /vps/os-options.',
           params: [['region', false, 'Region code — defaults to EU'], ['storage', false, '"nvme" | "ssd" — omit for both']],
           curl: `curl -s "${base}/vps/plans?region=EU" \\
   -H "Authorization: Bearer YOUR_API_KEY"`,
@@ -495,6 +495,33 @@ function endpointGroups(base) {
     { "plan_id": "s-1vcpu-1gb", "name": "Cloud VPS 10", "vcpus": 1, "ram_gb": 1, "disk_gb": 25, "cpu": "Standard", "storage_type": "SSD", "price_usd": 18.00 },
     { "plan_id": "s-2vcpu-4gb-amd", "name": "NVMe AMD 2vCPU/4GB/80GB", "vcpus": 2, "ram_gb": 4, "disk_gb": 80, "cpu": "AMD", "storage_type": "NVMe SSD", "price_usd": 84.00 },
     { "plan_id": "s-2vcpu-4gb-120gb-intel", "name": "NVMe Intel 2vCPU/4GB/120GB", "vcpus": 2, "ram_gb": 4, "disk_gb": 120, "cpu": "Intel", "storage_type": "NVMe SSD", "price_usd": 96.00 }
+  ],
+  "default_os": "ubuntu-24-04-x64",
+  "os_options": [
+    { "id": "ubuntu-24-04-x64", "name": "Ubuntu 24.04 LTS", "family": "Ubuntu", "default": true },
+    { "id": "ubuntu-22-04-x64", "name": "Ubuntu 22.04 LTS", "family": "Ubuntu", "default": false },
+    { "id": "debian-12-x64", "name": "Debian 12", "family": "Debian", "default": false }
+  ]
+}`,
+        },
+        {
+          method: 'GET', path: '/vps/os-options', auth: true, billed: false,
+          desc: 'List the Linux distributions (operating-system images) you can request when ordering a VPS (POST /vps { os }) or reinstalling one (POST /vps/:id/reinstall { os }). Each entry has a stable id to pass as "os", a display name, an OS family and a default flag. (The same list is embedded in GET /vps/plans; this endpoint is a lightweight standalone fetch for an OS picker.)',
+          curl: `curl -s ${base}/vps/os-options \\
+  -H "Authorization: Bearer YOUR_API_KEY"`,
+          resp: `{
+  "product": "vps",
+  "provider": "digitalocean",
+  "default_os": "ubuntu-24-04-x64",
+  "os_options": [
+    { "id": "ubuntu-24-04-x64", "name": "Ubuntu 24.04 LTS", "family": "Ubuntu", "default": true },
+    { "id": "ubuntu-22-04-x64", "name": "Ubuntu 22.04 LTS", "family": "Ubuntu", "default": false },
+    { "id": "debian-13-x64", "name": "Debian 13", "family": "Debian", "default": false },
+    { "id": "debian-12-x64", "name": "Debian 12", "family": "Debian", "default": false },
+    { "id": "almalinux-9-x64", "name": "AlmaLinux 9", "family": "AlmaLinux", "default": false },
+    { "id": "rockylinux-9-x64", "name": "Rocky Linux 9", "family": "Rocky", "default": false },
+    { "id": "centos-stream-9-x64", "name": "CentOS Stream 9", "family": "CentOS", "default": false },
+    { "id": "fedora-42-x64", "name": "Fedora 42", "family": "Fedora", "default": false }
   ]
 }`,
         },
@@ -505,7 +532,7 @@ function endpointGroups(base) {
             ['plan_id', true, 'A plan_id from GET /vps/plans (SSD or NVMe). An out-of-stock plan returns 409 out_of_stock — pick another plan or region'],
             ['region', false, 'Region code — defaults to EU'],
             ['hostname', false, 'Optional label/hostname'],
-            ['os', false, 'OS image — defaults to ubuntu'],
+            ['os', false, 'Linux distribution image id (e.g. ubuntu-24-04-x64, debian-12-x64, rockylinux-9-x64) — defaults to Ubuntu 24.04 LTS. Must be one of the ids from GET /vps/plans → os_options (or GET /vps/os-options); an unknown value returns 400 invalid_os with the valid list.'],
             ['ssh_keys', false, 'Optional OpenSSH public key(s) to pre-install for root at first boot — a single string or an array (e.g. "ssh-ed25519 AAAA… user@host"). Keys are registered on the provider and baked into the droplet, so you can SSH in immediately. (Linux VPS only; ignored for RDP.)'],
             ['client_ref', false, 'Your own idempotency key — a retry with the same value returns the same provisioning job (no double-charge)'],
           ],
@@ -714,6 +741,14 @@ function endpointGroups(base) {
     { "plan_id": "standard-2m", "name": "Standard — Windows RDP (2 months)", "vcpus": 2, "ram_gb": 4, "disk_gb": 80, "cpu": "AMD", "storage_type": "NVMe SSD", "duration_months": 2, "discount_pct": 10, "price_usd": 100.8 },
     { "plan_id": "standard-3m", "name": "Standard — Windows RDP (3 months)", "vcpus": 2, "ram_gb": 4, "disk_gb": 80, "cpu": "AMD", "storage_type": "NVMe SSD", "duration_months": 3, "discount_pct": 15, "price_usd": 142.8 }, … ],
   "os_options": [ { "id": "ws2022", "name": "Windows Server 2022", "default": true, "fast_deploy": true, "eta_minutes": 3, "fast_deploy_regions": ["EU","US","UK",…] }, … ] }`,
+        },
+        {
+          method: 'GET', path: '/rdp/os-options', auth: true, billed: false,
+          desc: 'List the Windows editions you can request when ordering an RDP server (POST /rdp { os }) or reinstalling one (POST /rdp/:id/reinstall { os }), with per-edition fast_deploy readiness and eta_minutes. (The same list is embedded in GET /rdp/plans; this is a lightweight standalone fetch for an edition picker.)',
+          curl: `curl -s ${base}/rdp/os-options \\
+  -H "Authorization: Bearer YOUR_API_KEY"`,
+          resp: `{ "product": "rdp", "provider": "digitalocean", "default_os": "ws2022",
+  "os_options": { "ws2019": { "name": "Windows Server 2019", … }, "ws2022": { "name": "Windows Server 2022", "default": true, … }, "ws2025": { "name": "Windows Server 2025", … } } }`,
         },
         {
           method: 'POST', path: '/rdp', auth: true, billed: true,
