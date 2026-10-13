@@ -38,6 +38,7 @@ const vpsProvider = require('./vps-provider')
 const hostingScheduler = require('./hosting-scheduler')       // getPlanPrice / getPlanDuration (bot-accurate)
 const hostingPlanChange = require('./hosting-plan-change')   // hosting upgrade/downgrade pro-rata quote
 const hostingTerms = require('./hosting-terms')               // prepaid 1/3/6/12-month hosting terms + discounts
+const vpsTerms = require('./vps-terms')                       // prepaid 1/3/6/12-month Linux VPS terms + discounts
 const domainAutoRenew = require('./domain-auto-renew')        // per-domain wallet auto-renew (OpenProvider)
 const opService = require('./op-service')                     // OpenProvider reads (expiry, renewal price)
 const doPlanChange = require('./do-plan-change')             // DigitalOcean VPS/RDP in-place resize engine
@@ -569,7 +570,7 @@ function createResellerApi(deps = {}) {
     const okEvent = isRDP ? 'rdp.provisioned' : 'vps.provisioned'
     const failEvent = isRDP ? 'rdp.provision_failed' : 'vps.provision_failed'
     if (job.mode === 'dry_run') {
-      await col('vpsPlansOf').updateOne({ _id: job.vpsId }, { $set: { status: 'RUNNING', provisionState: 'active', host: '203.0.113.10', end_time: new Date(Date.now() + 30 * 86400000) } })
+      await col('vpsPlansOf').updateOne({ _id: job.vpsId }, { $set: { status: 'RUNNING', provisionState: 'active', host: '203.0.113.10', end_time: new Date(Date.now() + 30 * (Number(r.months) || 1) * 86400000) } })
       await provisionJobs().updateOne({ _id: job._id }, { $set: { status: 'done', finishedAt: new Date(), simulated: true } })
       emitEvent(owner, okEvent, job.vpsId, { plan: r.plan, region: r.region, id: job.vpsId, simulated: true })
       return
@@ -607,7 +608,7 @@ function createResellerApi(deps = {}) {
     await col('vpsPlansOf').updateOne({ _id: job.vpsId }, { $set: {
       instanceId: inst.instanceId || null, host: inst.mainIp || null, status: inst.status || 'RUNNING',
       provisionState: 'active', rootPasswordSecretId: inst.passwordSecretId || vpsPasswordSecretId || null,
-      end_time: new Date(Date.now() + 30 * 86400000),
+      end_time: new Date(Date.now() + 30 * (Number(r.months) || 1) * 86400000),
     } })
     await provisionJobs().updateOne({ _id: job._id }, { $set: { status: 'done', finishedAt: new Date(), result: { id: job.vpsId, instance_id: inst.instanceId || null, ip: inst.mainIp || null } } })
     emitEvent(owner, okEvent, job.vpsId, { plan: r.plan, region: r.region, id: job.vpsId, ip: inst.mainIp || null, instance_id: inst.instanceId || null })
@@ -1192,13 +1193,19 @@ function createResellerApi(deps = {}) {
     if (storage && !['nvme', 'ssd'].includes(storage)) return res.status(400).json({ error: 'invalid_storage', message: 'storage must be "nvme" or "ssd" (omit for both).' })
     const prov = providerFor(isRDP)
     const products = prov.listProducts(region, isRDP) || []
-    const plans = products.map(p => ({
-      plan_id: p.productId, name: p.name || p.productId,
-      vcpus: p.vcpus || p.vCpus || p.cpuCores || null, ram_gb: p.ramGb || null, disk_gb: p.diskGb || null,
-      ...hwFromProduct(p),
-      duration_months: p.durationMonths || 1, discount_pct: (p.pricing && p.pricing.discountPct) || 0,
-      price_usd: p.pricing ? p.pricing.totalWithMarkup : null,
-    }))
+    const plans = products.map(p => {
+      const base = p.pricing ? p.pricing.totalWithMarkup : null
+      return {
+        plan_id: p.productId, name: p.name || p.productId,
+        vcpus: p.vcpus || p.vCpus || p.cpuCores || null, ram_gb: p.ramGb || null, disk_gb: p.diskGb || null,
+        ...hwFromProduct(p),
+        duration_months: p.durationMonths || 1, discount_pct: (p.pricing && p.pricing.discountPct) || 0,
+        price_usd: base,
+        // Linux VPS is a single monthly product bought for a 1/3/6/12-month term via POST /vps { months }.
+        // terms[] carries the discounted total per term so storefronts can render a duration picker.
+        ...(isRDP || base == null ? {} : { terms: vpsTerms.termsFor(base) }),
+      }
+    })
     const out = {
       product: isRDP ? 'rdp' : 'vps',
       provider: prov.PROVIDER || (isRDP ? process.env.VPS_RDP_PROVIDER : process.env.VPS_DEFAULT_PROVIDER),
@@ -1228,6 +1235,16 @@ function createResellerApi(deps = {}) {
     if (!pricing) return res.status(400).json({ error: 'unavailable', message: `Plan not available in region ${region}.` })
     if (typeof prov.isProductAvailable === 'function' && !prov.isProductAvailable(planId, region)) {
       return res.status(409).json({ error: 'out_of_stock', message: `Plan ${planId} is temporarily out of stock in region ${region}. Call GET plans for what can be ordered right now.` })
+    }
+    // Linux VPS: optional prepaid term (1/3/6/12 months) with a bundle discount. RDP encodes its
+    // term in the plan_id (standard-2m etc.), so it is charged at its product price and skips this.
+    let termMonths = 1
+    let chargePriceUsd = pricing.totalWithMarkup
+    if (!isRDP) {
+      const mParsed = vpsTerms.parseMonths(req.body?.months)
+      if (mParsed.error) return res.status(400).json({ error: mParsed.error, message: mParsed.message })
+      termMonths = mParsed.months
+      chargePriceUsd = vpsTerms.termPrice(pricing.totalWithMarkup, termMonths)
     }
     // RDP: optional Windows edition (ws2019 | ws2022 | ws2025) when the provider exposes OS options.
     let osId = null
@@ -1277,7 +1294,7 @@ function createResellerApi(deps = {}) {
       if (prior && (prior.product === 'vps' || prior.product === 'rdp')) return res.status(202).json({ ...jobHandle(prior), idempotent: true })
     }
     const planName = product.name || planId
-    const request = { plan_id: planId, plan: planName, region, hostname, isRDP: !!isRDP, osId: osId || null, os: isRDP ? (osId || 'windows') : (osId || 'ubuntu') }
+    const request = { plan_id: planId, plan: planName, region, hostname, isRDP: !!isRDP, osId: osId || null, os: isRDP ? (osId || 'windows') : (osId || 'ubuntu'), months: termMonths }
 
     // Optional: launch a Linux VPS with reseller-supplied SSH public key(s) pre-installed
     // (uploaded to the provider account; referenced as ssh_keys at droplet create).
@@ -1296,7 +1313,7 @@ function createResellerApi(deps = {}) {
       }
     }
 
-    const charge = await chargeForAsync(req, res, { product: isRDP ? 'rdp' : 'vps', action: 'create', priceUsd: pricing.totalWithMarkup, request })
+    const charge = await chargeForAsync(req, res, { product: isRDP ? 'rdp' : 'vps', action: 'create', priceUsd: chargePriceUsd, request })
     if (!charge.ok) return // chargeForAsync already sent the 402/400
 
     const vpsId = crypto.randomUUID()
@@ -1312,6 +1329,7 @@ function createResellerApi(deps = {}) {
       _id: vpsId, chatId: owner, vpsId,
       provider: prov.PROVIDER, instanceId: null, host: null,
       region, productId: planId, plan: planName, planPrice: pricing.totalWithMarkup,
+      ...(isRDP ? {} : { durationMonths: termMonths }),
       osType: isRDP ? 'windows' : 'linux', osId: osId || null, isRDP: !!isRDP, hostname: hostname || null,
       status: 'provisioning', provisionState: 'provisioning', provisionJobId: jobId, clientRef,
       source: 'reseller_api', start_time: new Date(), timestamp: new Date(),
@@ -1599,7 +1617,9 @@ function createResellerApi(deps = {}) {
       let unit = Number(rec.planPrice)
       if (!unit && typeof prov.getProduct === 'function') { const p = prov.getProduct(rec.productId); if (p && p.pricing) { unit = p.pricing.totalWithMarkup; planName = rec.plan || p.name } }
       if (!unit) return res.status(400).json({ error: 'pricing_failed', renew_blocked_reason: 'pricing_unavailable', message: 'Could not determine a renewal price for this VPS. Contact support.' })
-      priceUsd = +(unit * months).toFixed(2)
+      // VPS renews at the plan's monthly rate × months, with the same 1/3/6/12-month bundle discount
+      // used at purchase (non-standard month counts fall back to a straight multiple — no discount).
+      priceUsd = vpsTerms.termPrice(unit, months)
     }
     const canProviderRenew = !!rec.instanceId && typeof prov.renewInstance === 'function'
     // RDP must power the box back on + cancel its pending deletion via the provider. VPS on PAYG
