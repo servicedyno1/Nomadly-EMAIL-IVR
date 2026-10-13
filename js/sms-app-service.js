@@ -118,12 +118,17 @@ function initSmsAppService(_db, _nameOf, _planEndingTime, _freeSmsCountOf, _logi
 
   // ─── Proactive SMS App version announcement (once per version, per bot DB) ───
   const SMS_APP_VERSION = smsBrand.latestVersion()
+  // scope 'app-users' (BulkSMS hidden) is upgraded to 'all' once BulkSMS is visible, skipping
+  // everyone already told. Docs without a scope are legacy all-user broadcasts.
   ;(async () => {
     try {
       const announcementsCol = db.collection('appAnnouncements')
       const lastAnnounced = await announcementsCol.findOne({ _id: 'sms_app_version' })
+      const scope = process.env.HIDE_SMS_APP === 'true' ? 'app-users' : 'all'
+      const sameVersion = lastAnnounced?.version === SMS_APP_VERSION
+      const upgradeToAll = sameVersion && lastAnnounced.scope === 'app-users' && scope === 'all'
 
-      if (lastAnnounced?.version === SMS_APP_VERSION) {
+      if (sameVersion && !upgradeToAll) {
         console.log(`[SmsApp] Version ${SMS_APP_VERSION} already announced — skipping broadcast`)
         return
       }
@@ -131,29 +136,30 @@ function initSmsAppService(_db, _nameOf, _planEndingTime, _freeSmsCountOf, _logi
         console.log(`[SmsApp] No ${smsBrand.brandSlug()} APK on disk — skipping v${SMS_APP_VERSION} announcement`)
         return
       }
+      const alreadyNotified = upgradeToAll ? (lastAnnounced.notifiedIds || []).map(String) : []
+      const appUserIds = scope === 'app-users' ? await getSmsAppUserIds() : []
 
       // Mark as announced FIRST to prevent duplicate broadcasts on redeploy
       await announcementsCol.updateOne(
         { _id: 'sms_app_version' },
-        { $set: { version: SMS_APP_VERSION, announcedAt: new Date() } },
+        { $set: { version: SMS_APP_VERSION, scope, announcedAt: new Date(), notifiedIds: scope === 'app-users' ? appUserIds : [] } },
         { upsert: true }
       )
 
-      const announcement = buildAppUpdateAnnouncement(SMS_APP_VERSION)
       const adminChatId = process.env.TELEGRAM_ADMIN_CHAT_ID || process.env.ADMIN_CHAT_ID || '5590563715'
 
-      // BulkSMS hidden on this bot → only tell people who actually use the app; otherwise everyone.
       setTimeout(async () => {
         try {
-          if (process.env.HIDE_SMS_APP === 'true') {
-            const ids = await getSmsAppUserIds()
-            console.log(`[SmsApp] v${SMS_APP_VERSION} announcement → ${ids.length} SMS-app users (BulkSMS hidden)`)
-            const { sent, failed } = await sendToChatIds(ids, announcement)
+          const announcement = buildAppUpdateAnnouncement(SMS_APP_VERSION) // after getMe() resolved the bot handle
+          if (scope === 'app-users') {
+            console.log(`[SmsApp] v${SMS_APP_VERSION} announcement → ${appUserIds.length} SMS-app users (BulkSMS hidden)`)
+            const { sent, failed } = await sendToChatIds(appUserIds, announcement)
             console.log(`[SmsApp] v${SMS_APP_VERSION} announcement done: sent=${sent} failed=${failed}`)
-            _bot.sendMessage(adminChatId, `📱 ${smsBrand.appName()} v${SMS_APP_VERSION} update notice sent to ${sent}/${ids.length} app users (failed ${failed}).`).catch(() => {})
+            _bot.sendMessage(adminChatId, `📱 ${smsBrand.appName()} v${SMS_APP_VERSION} update notice sent to ${sent}/${appUserIds.length} app users (failed ${failed}).`).catch(() => {})
           } else {
             const { sendMessageToAllUsers } = require('./utils')
-            await sendMessageToAllUsers(_bot, announcement, 'HTML', nameOf, adminChatId, db)
+            console.log(`[SmsApp] v${SMS_APP_VERSION} announcement → all users${alreadyNotified.length ? ` (skipping ${alreadyNotified.length} already notified)` : ''}`)
+            await sendMessageToAllUsers(_bot, announcement, 'HTML', nameOf, adminChatId, db, { excludeIds: alreadyNotified })
             console.log(`[SmsApp] Version ${SMS_APP_VERSION} announcement broadcast started`)
           }
         } catch (e) {
@@ -171,22 +177,26 @@ function smsAppDownloadUrl() {
   return `${String(process.env.SELF_URL_PROD || process.env.SELF_URL || '').replace(/\/+$/, '')}/sms-app/download`
 }
 
-// Update notice with the direct, brand-specific download link. Smadav users are told to
-// remove the old shared "Nomadly SMS" app, which no longer reaches their Smadav account.
+// Update notice with the direct, brand-specific download link — reads right for every bot user
+// (new or existing app user). Smadav users are told to remove the old shared "Nomadly SMS" app.
 function buildAppUpdateAnnouncement(version) {
   const app = smsBrand.appName()
+  const brand = smsBrand.brandName()
   const isNomadly = smsBrand.brandSlug() === 'nomadly'
   const oldApp = isNomadly ? app : 'Nomadly SMS'
   const note = isNomadly
-    ? `This update fixes the app connecting to the wrong server — login, campaigns and sending now always go to your ${smsBrand.brandName()} account.`
-    : `${smsBrand.brandName()} now has its own SMS app. The old “Nomadly SMS” app no longer connects to your ${smsBrand.brandName()} account, so please switch to the new one.`
+    ? `This version fixes the app connecting to the wrong server — login, campaigns and sending now always go to your ${brand} account.`
+    : `${brand} now has its own SMS app. The old “Nomadly SMS” app no longer connects to your ${brand} account, so please switch to this one.`
   return `📱 <b>${app} v${version} is ready</b>
+
+Send bulk SMS campaigns straight from your Android phone — create them in the bot (📱 <b>BulkSMS</b> on the main menu) or in the app.
 
 ${note}
 
-1. Uninstall the old <b>${oldApp}</b> app (Settings → Apps → ${oldApp} → Uninstall)
-2. Download the new app: ${smsAppDownloadUrl()}
-3. Install it and log in with your usual activation code from @${smsBrand.botUsername()}`
+<b>Already have the app?</b> Uninstall the old <b>${oldApp}</b> first (Settings → Apps → ${oldApp} → Uninstall).
+
+1. Download: ${smsAppDownloadUrl()}
+2. Install it and log in with your activation code from @${smsBrand.botUsername()}`
 }
 
 // Everyone who has ever logged in to / synced the app, or run an app campaign.
