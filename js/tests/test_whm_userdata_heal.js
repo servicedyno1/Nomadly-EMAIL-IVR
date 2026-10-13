@@ -223,11 +223,15 @@ console.log('\n=== (2) attemptStaleTerminate ===')
   const slurp = rel => fs.readFileSync(path.join('/app', rel), 'utf8')
   const sched = slurp('js/hosting-scheduler.js')
   ok('scheduler: hourly-check captures terminated + sets whmTerminatePending on false',
-    /const terminated = await terminateAccount\(account\.cpUser\)[\s\S]{0,1200}if \(!terminated\) \{[\s\S]{0,500}whmTerminatePending\s*=\s*true/.test(sched))
+    /const terminated = await terminateAccount\(account\.cpUser\)[\s\S]{0,1200}else \{[\s\S]{0,500}whmTerminatePending\s*=\s*true/.test(sched))
+  ok('scheduler: hourly-check stamps terminatedOnWhm=true on /removeacct success',
+    /const terminated = await terminateAccount\(account\.cpUser\)[\s\S]{0,600}if \(terminated\) \{[\s\S]{0,300}terminatedOnWhm\s*=\s*true/.test(sched))
   ok('scheduler: startup-enforce also sets whmTerminatePending on /removeacct failure',
-    /updateFields2\s*=\s*\{[\s\S]{0,120}deleted: true[\s\S]{0,500}if \(!terminated\)[\s\S]{0,200}whmTerminatePending\s*=\s*true/.test(sched))
-  ok('scheduler: self-heal sweep is registered (setInterval on healInterval) — production-gated',
-    /if \(_healEnabled\)[\s\S]{0,500}healInterval = setInterval\(safeRunSelfHeal, CHECK_INTERVAL_MS\)/.test(sched))
+    /updateFields2\s*=\s*\{[\s\S]{0,120}deleted: true[\s\S]{0,500}else \{[\s\S]{0,200}whmTerminatePending\s*=\s*true/.test(sched))
+  ok('scheduler: startup-enforce stamps terminatedOnWhm=true on /removeacct success',
+    /updateFields2\s*=\s*\{[\s\S]{0,120}deleted: true[\s\S]{0,200}if \(terminated\) \{[\s\S]{0,120}terminatedOnWhm\s*=\s*true/.test(sched))
+  ok('scheduler: self-heal sweep is registered (singletonInterval on healInterval) — production-gated',
+    /if \(_healEnabled\)[\s\S]{0,500}healInterval = activeSlot\.singletonInterval\('hosting-selfheal', safeRunSelfHeal, CHECK_INTERVAL_MS\)/.test(sched))
   ok('scheduler: self-heal sweep gated by BOT_ENVIRONMENT=production (matches CF-Sync / AntiRed pattern)',
     /BOT_ENVIRONMENT[\s\S]{0,80}=== 'production'/.test(sched))
   ok('scheduler: notifyAdmin helper reads TELEGRAM_ADMIN_CHAT_ID',
