@@ -1,0 +1,22 @@
+{
+  "nomadly": {
+    "name": "Nomadly",
+    "appName": "Nomadly SMS",
+    "appId": "com.nomadly.sms",
+    "botUsername": "NomadlyBot",
+    "apiBase": "https://2.speechcue.com",
+    "accent": "#10d9a0",
+    "bg": "#0b0f1a",
+    "apk": "nomadly-sms.apk"
+  },
+  "smadav": {
+    "name": "Smadav",
+    "appName": "Smadav SMS",
+    "appId": "com.smadav.sms",
+    "botUsername": "smadavv_bot",
+    "apiBase": "https://1.smadavspeech.com",
+    "accent": "#3b82f6",
+    "bg": "#0d1117",
+    "apk": "smadav-sms.apk"
+  }
+}

@@ -4,11 +4,11 @@ android {
     namespace "com.nomadly.sms"
     compileSdk rootProject.ext.compileSdkVersion
     defaultConfig {
-        applicationId "com.nomadly.sms"
+        applicationId project.hasProperty("brandAppId") ? project.property("brandAppId") : "com.nomadly.sms"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 21
-        versionName "2.7.5"
+        versionCode 22
+        versionName project.hasProperty("brandVersion") ? project.property("brandVersion") : "2.8.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.

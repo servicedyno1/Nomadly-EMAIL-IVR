@@ -1,5 +1,5 @@
 /**
- * Nomadly SMS App v2.0 — Main Application Logic
+ * SMS App — Main Application Logic (brand-aware via brand.js)
  * Capacitor hybrid app: runs in WebView inside APK, native SMS via DirectSms plugin
  */
 
@@ -14,10 +14,41 @@ const App = {
   simsChecked: false,
   simLabels: {},                // user-custom SIM labels keyed by String(subscriptionId); synced from server
 
+  // ─── Brand (from brand.js, generated per build) ───
+  brand() {
+    const b = window.BRAND || {}
+    const botUsername = (b.botUsername || 'NomadlyBot').replace(/^@/, '')
+    return {
+      slug: b.slug || 'nomadly',
+      name: b.name || 'Nomadly',
+      appName: b.appName || `${b.name || 'Nomadly'} SMS`,
+      botUsername,
+      botHandle: `@${botUsername}`,
+      botUrl: b.botUrl || `https://t.me/${botUsername}`,
+      accent: b.accent || '#10d9a0',
+      initial: (b.name || 'N').charAt(0).toUpperCase(),
+    }
+  },
+  applyBrand() {
+    const b = this.brand()
+    document.querySelectorAll('[data-brand]').forEach(el => { const v = b[el.getAttribute('data-brand')]; if (v !== undefined) el.textContent = v })
+    document.querySelectorAll('[data-brand-href]').forEach(el => { const v = b[el.getAttribute('data-brand-href')]; if (v) el.setAttribute('href', v) })
+    document.documentElement.style.setProperty('--brand-accent', b.accent)
+    // Brand mark image (img/mark.png, generated per build) — falls back to the initial letter
+    const logo = document.querySelector('.login-logo')
+    if (logo && !logo.querySelector('img')) {
+      const img = new Image()
+      img.alt = b.appName
+      img.onload = () => { logo.textContent = ''; logo.appendChild(img) }
+      img.src = 'img/mark.png'
+    }
+  },
+
   // ─── Init ───
   async init() {
+    this.applyBrand()
     console.log('='.repeat(50))
-    console.log('Nomadly SMS App v2.7.5 - Initializing')
+    console.log(`${this.brand().appName} App v${this.getAppVersion()} - Initializing`)
     console.log('Platform:', window.Capacitor ? 'Native (APK)' : 'Browser')
     console.log('='.repeat(50))
     
@@ -111,7 +142,7 @@ const App = {
         if (statusEl) statusEl.style.display = 'none'
       } else {
         console.warn('[SMS] ⚠️ Permission denied by user')
-        this.toast('Permission denied. Enable in Settings > Apps > Nomadly SMS > Permissions', 'error')
+        this.toast(`Permission denied. Enable in Settings > Apps > ${this.brand().appName} > Permissions`, 'error')
       }
     } catch (e) {
       console.error('[SMS] ❌ Failed to request permission:', e)
@@ -305,7 +336,7 @@ const App = {
   // ─── Login ───
   async login() {
     const code = document.getElementById('loginCode').value.trim()
-    if (!code) return this.showLoginError('Enter the activation code from @NomadlyBot')
+    if (!code) return this.showLoginError(`Enter the activation code from ${this.brand().botHandle}`)
     console.log('[Login] Starting login for code:', code)
     console.log('[Login] Is Capacitor?', window.Capacitor ? 'YES' : 'NO')
     console.log('[Login] Is Native?', window.Capacitor?.isNativePlatform ? window.Capacitor.isNativePlatform() : 'N/A')
@@ -332,13 +363,13 @@ const App = {
       const type = e && e.type
       const status = e && e.status
       if (type === 'network') {
-        this.showLoginError(`Can't reach the server. Check your internet connection, then try again. If the problem persists, the server may be down — contact @NomadlyBot support.`)
+        this.showLoginError(`Can't reach the server. Check your internet connection, then try again. If the problem persists, the server may be down — contact ${this.brand().botHandle} support.`)
       } else if (type === 'timeout') {
         this.showLoginError('The server is responding slowly. Try again in a moment.')
       } else if (status === 401) {
-        this.showLoginError(e.message || 'Invalid activation code. Get a fresh code from @NomadlyBot.')
+        this.showLoginError(e.message || `Invalid activation code. Get a fresh code from ${this.brand().botHandle}.`)
       } else if (status === 403) {
-        this.showLoginError(e.message || 'Device limit reached. Logout from another device or type /resetlogin in @NomadlyBot.')
+        this.showLoginError(e.message || `Device limit reached. Logout from another device or type /resetlogin in ${this.brand().botHandle}.`)
       } else if (status >= 500) {
         this.showLoginError('Server error. Please try again in a few minutes.')
       } else {
@@ -391,7 +422,7 @@ const App = {
     }
     // Populate version dynamically from meta tag (avoids hardcoded-mismatch bugs)
     const verEl = document.getElementById('setVersion')
-    if (verEl) verEl.textContent = this.getAppVersion() || '2.7.5'
+    if (verEl) verEl.textContent = this.getAppVersion()
     // Populate saved test phone label (if any)
     const testPhone = Storage.get('testPhoneNumber')
     const tpLabel = document.getElementById('testPhoneLabel')
@@ -456,7 +487,7 @@ const App = {
     const hh = String(now.getHours()).padStart(2, '0')
     const mm = String(now.getMinutes()).padStart(2, '0')
     const ss = String(now.getSeconds()).padStart(2, '0')
-    const msg = `Nomadly SMS test - your device can send SMS. Sent at ${hh}:${mm}:${ss}`
+    const msg = `${this.brand().appName} test - your device can send SMS. Sent at ${hh}:${mm}:${ss}`
 
     if (btn) { btn.disabled = true; btn.textContent = 'Sending...' }
     setStatus(`Sending test to ${phone}...`)
@@ -726,7 +757,7 @@ const App = {
           <strong>Update Available</strong>
           <span>v${latestVersion} is ready — you're on v${currentVersion}</span>
         </div>
-        <a href="https://t.me/NomadlyBot" target="_blank" class="btn btn-sm btn-update">Update</a>
+        <a href="${this.brand().botUrl}" target="_blank" class="btn btn-sm btn-update">Update</a>
         <button class="update-dismiss" onclick="document.getElementById('updateBanner').style.display='none'">&times;</button>
       </div>`
     banner.style.display = 'block'
@@ -738,7 +769,7 @@ const App = {
       const meta = document.querySelector('meta[name="app-version"]')
       if (meta) return meta.content
     } catch {}
-    return '2.7.5' // fallback to current build version
+    return (window.BRAND && window.BRAND.version) || 'unknown' // brand.js is generated per build
   },
 
   // ─── New Campaign (subscription gate — FRESH check from server) ───
@@ -1130,7 +1161,7 @@ const App = {
           `Only the first ${remaining} messages will be sent. Subscribe for unlimited sending.`,
           [
             { label: 'Cancel', action: 'App.hideModal()' },
-            { label: 'Subscribe', class: 'btn-subscribe', action: "window.open('https://t.me/NomadlyBot','_blank');App.hideModal()" },
+            { label: 'Subscribe', class: 'btn-subscribe', action: `window.open('${this.brand().botUrl}','_blank');App.hideModal()` },
             { label: 'Send Anyway', class: 'btn-primary', action: 'App.hideModal();App._doSendCampaign()' },
           ])
         this._pendingSendData = data
@@ -1209,15 +1240,15 @@ const App = {
     const limit = user.freeSmsLimit || 100
     let msg
     if (used >= limit) {
-      msg = `You've used all ${limit} free trial SMS! Subscribe via @NomadlyBot to unlock unlimited BulkSMS campaigns, URL shortening, phone validations & more.`
+      msg = `You've used all ${limit} free trial SMS! Subscribe via ${this.brand().botHandle} to unlock unlimited BulkSMS campaigns, URL shortening, phone validations & more.`
     } else {
-      msg = 'Your subscription has expired. Subscribe via @NomadlyBot on Telegram to continue sending campaigns.'
+      msg = `Your subscription has expired. Subscribe via ${this.brand().botHandle} on Telegram to continue sending campaigns.`
     }
     this.showModal('⚡ Upgrade Plan',
       msg,
       [
         { label: 'Later', action: 'App.hideModal()' },
-        { label: '⚡ Upgrade Plan', class: 'btn-primary', action: "window.open('https://t.me/NomadlyBot','_blank');App.hideModal()" },
+        { label: '⚡ Upgrade Plan', class: 'btn-primary', action: `window.open('${this.brand().botUrl}','_blank');App.hideModal()` },
       ])
   },
 
@@ -1407,7 +1438,7 @@ const App = {
             perm = await window.Capacitor.Plugins.DirectSms.requestPermission()
           } catch (reqErr) {
             console.error('[SMS] Direct permission request also failed:', reqErr)
-            return this.toast('SMS permission check failed. Please go to Android Settings > Apps > Nomadly SMS > Permissions and enable SMS manually.', 'error')
+            return this.toast(`SMS permission check failed. Please go to Android Settings > Apps > ${this.brand().appName} > Permissions and enable SMS manually.`, 'error')
           }
         }
 
@@ -1420,7 +1451,7 @@ const App = {
           
           if (!req.granted) {
             console.error('[SMS] ❌ Permission DENIED by user - blocking send')
-            return this.toast('SMS permission DENIED. Go to Android Settings > Apps > Nomadly SMS > Permissions and enable SMS.', 'error')
+            return this.toast(`SMS permission DENIED. Go to Android Settings > Apps > ${this.brand().appName} > Permissions and enable SMS.`, 'error')
           }
           console.log('[SMS] ✅ Permission granted after request')
         } else {
@@ -1547,7 +1578,7 @@ const App = {
           }
           else if (lastErr.reason === 'send_timeout') hint = 'SMS timed out — carrier may be blocking sends.'
           else if (lastErr.reason === 'null_pdu') hint = 'Message encoding error — try a shorter message.'
-          else if (lastErr.reason === 'permission_denied') hint = 'SMS permission denied — enable in Android Settings > Apps > Nomadly SMS > Permissions.'
+          else if (lastErr.reason === 'permission_denied') hint = `SMS permission denied — enable in Android Settings > Apps > ${this.brand().appName} > Permissions.`
           else if (lastErr.reason === 'permission_permanently_denied') hint = 'SMS permission permanently denied. You must enable it manually in Android Settings.'
           else if (lastErr.reason === 'permission_needed') hint = 'SMS permission not granted. Please grant SMS permission to use this feature.'
           else if (lastErr.reason === 'invalid_input') hint = 'Invalid phone number format — check contact numbers.'

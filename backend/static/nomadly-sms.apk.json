@@ -1,0 +1,9 @@
+{
+  "brand": "nomadly",
+  "appName": "Nomadly SMS",
+  "appId": "com.nomadly.sms",
+  "version": "2.8.0",
+  "apiBase": "https://2.speechcue.com",
+  "builtAt": "2026-10-13T16:39:03.043Z",
+  "md5": "edaa93334e81bf4933171392a013853a"
+}

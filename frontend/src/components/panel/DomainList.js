@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useAuth } from './AuthContext';
 import { pickErrorMessage, friendlyMessage, isTransientError } from './shared/cpanelErrors';
 import PanelEmptyState from './shared/PanelEmptyState';
+import { useBrand } from '../../hooks/useBrand';
 
 // ─── Shared pure helpers (defined ABOVE the component so render + delete
 // filter agree, and so React never sees a "new" function each render) ───
@@ -176,6 +177,8 @@ export default function DomainList({ onNavigateToFileManager }) {
   const [autoSSLResult, setAutoSSLResult] = useState(null);
 
   // Visitor Captcha (Anti-Red) per-domain toggle state
+  const brand = useBrand();
+  const brandBotUrl = `https://t.me/${brand.botUsername}`;
   const [captchaInfo, setCaptchaInfo] = useState({ isGold: false, plan: '', goldPrice: 100, botUrl: '', loaded: false });
   const [captchaByDomain, setCaptchaByDomain] = useState({});
   const [captchaToggling, setCaptchaToggling] = useState({});
@@ -191,13 +194,13 @@ export default function DomainList({ onNavigateToFileManager }) {
         isGold: !!res.isGold,
         plan: res.plan || '',
         goldPrice: Number(res.goldPrice) || 100,
-        botUrl: res.botUrl || 'https://t.me/nomadlybot',
+        botUrl: res.botUrl || brandBotUrl,
         loaded: true,
       });
     } catch (_) {
-      setCaptchaInfo({ isGold: false, plan: '', goldPrice: 100, botUrl: 'https://t.me/nomadlybot', loaded: true });
+      setCaptchaInfo({ isGold: false, plan: '', goldPrice: 100, botUrl: brandBotUrl, loaded: true });
     }
-  }, [api]);
+  }, [api, brandBotUrl]);
 
   useEffect(() => { fetchCaptcha(); }, [fetchCaptcha]);
 
@@ -701,7 +704,7 @@ export default function DomainList({ onNavigateToFileManager }) {
             <span dangerouslySetInnerHTML={{ __html: t('dl.upgradeCaptchaBody', { price: captchaInfo.goldPrice }) }} />
             <a
               className="dl-captcha-upgrade-cta"
-              href={captchaInfo.botUrl || 'https://t.me/nomadlybot'}
+              href={captchaInfo.botUrl || brandBotUrl}
               target="_blank"
               rel="noopener noreferrer"
               data-testid="dl-captcha-upgrade-cta"

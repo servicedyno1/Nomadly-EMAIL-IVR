@@ -19,6 +19,8 @@ const { log } = require('console')
 
 const httpsAgent = new https.Agent({ rejectUnauthorized: false })
 
+// Standalone scripts/tests may require this before config-setup — load the real secret first
+if (!process.env.SESSION_SECRET) require('dotenv').config({ path: require('path').resolve(__dirname, '../backend/.env') })
 function getEncryptionKey() {
   if (!process.env.SESSION_SECRET) {
     console.error('⚠️ CRITICAL: SESSION_SECRET not set — cPanel migration decryption will fail!')

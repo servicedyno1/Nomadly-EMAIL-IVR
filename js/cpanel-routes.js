@@ -3838,7 +3838,7 @@ function createCpanelRoutes(getCpanelCol, opts = {}) {
         plan: req.cpPlan,
         captchaGoldOnly: true,
         goldPrice: Number(process.env.GOLDEN_ANTIRED_CPANEL_PRICE || 100),
-        botUrl: 'https://t.me/nomadlybot',
+        botUrl: require('./sms-app-brand.js').botUrl(),
         domains,
       })
     } catch (err) {

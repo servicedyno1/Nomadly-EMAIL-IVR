@@ -4,12 +4,14 @@ import { useAuth } from '../components/panel/AuthContext';
 import useTheme from '../components/panel/useTheme';
 import LanguageSwitcher from '../components/LanguageSwitcher';
 import AutoDetectLanguageBanner from '../components/AutoDetectLanguageBanner';
+import { useBrand, BrandMark } from '../hooks/useBrand';
 
 const REMEMBER_KEY = 'panel_remember_username';
 
 export default function PanelLogin() {
   const { t } = useTranslation();
   const { login } = useAuth();
+  const brand = useBrand();
   const [username, setUsername] = useState(() => localStorage.getItem(REMEMBER_KEY) || '');
   const [pin, setPin] = useState('');
   const [showPin, setShowPin] = useState(false);
@@ -28,8 +30,8 @@ export default function PanelLogin() {
 
   // Set browser tab title
   useEffect(() => {
-    document.title = 'HostBay | Hosting Panel';
-  }, []);
+    document.title = `${brand.brandName} | Hosting Panel`;
+  }, [brand.brandName]);
 
   // Auto-focus username on mount (or PIN if remembered)
   useEffect(() => {
@@ -113,14 +115,8 @@ export default function PanelLogin() {
 
       <div className="panel-login-card" data-testid="panel-login-card">
         <div className="panel-login-logo">
-          <div className="panel-login-icon" data-testid="panel-login-brand-mark" aria-label="HostBay">
-            <svg width="34" height="34" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-              {/* HostBay logomark — H letterform (Host) over a gentle wave (Bay) */}
-              <rect x="6" y="4" width="4" height="20" rx="1.5" fill="currentColor"/>
-              <rect x="22" y="4" width="4" height="20" rx="1.5" fill="currentColor"/>
-              <rect x="10" y="12" width="12" height="4" fill="currentColor"/>
-              <path d="M5 28 Q10.5 25 16 28 T27 28" stroke="currentColor" strokeWidth="2" strokeLinecap="round" fill="none" opacity="0.85"/>
-            </svg>
+          <div className="panel-login-icon" data-testid="panel-login-brand-mark" aria-label={brand.brandName}>
+            <BrandMark brand={brand} size={64} testId="panel-login-brand-img" />
           </div>
           <h1>{t('login.title')}</h1>
           <p>{t('login.subtitle')}</p>

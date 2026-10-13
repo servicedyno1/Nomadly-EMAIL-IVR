@@ -1,5 +1,5 @@
 from fastapi import FastAPI, Request
-from fastapi.responses import Response, JSONResponse, FileResponse
+from fastapi.responses import Response, JSONResponse, FileResponse, RedirectResponse
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -167,44 +167,15 @@ async def get_subaccount_statuses():
 
 
 # ============================================================
-# SMS APP: Serve APK download + web preview for testing
+# SMS APP: web preview for testing (APK download/info are proxied to Node.js,
+# which resolves the brand-specific APK — see js/sms-app-brand.js)
 # ============================================================
-SMS_APP_APK = Path("/app/static/nomadly-sms.apk")
 SMS_APP_DIR = Path(__file__).parent.parent / "sms-app" / "www"
-
-@app.get("/api/sms-app/download")
-async def download_sms_app():
-    """Serve the Nomadly SMS APK for download."""
-    if SMS_APP_APK.exists():
-        return FileResponse(
-            SMS_APP_APK,
-            media_type="application/vnd.android.package-archive",
-            filename="NomadlySMS.apk",
-            headers={"Content-Disposition": "attachment; filename=NomadlySMS.apk"}
-        )
-    return JSONResponse({"error": "APK not available"}, status_code=404)
 
 @app.get("/api/smsapp")
 async def download_sms_app_short():
-    """Short URL redirect for SMS app download."""
-    if SMS_APP_APK.exists():
-        return FileResponse(
-            SMS_APP_APK,
-            media_type="application/vnd.android.package-archive",
-            filename="NomadlySMS.apk",
-            headers={"Content-Disposition": "attachment; filename=NomadlySMS.apk"}
-        )
-    return JSONResponse({"error": "APK not available"}, status_code=404)
-
-@app.get("/api/sms-app/download/info")
-async def sms_app_info():
-    """Get SMS app version info."""
-    return JSONResponse({
-        "version": "2.4.1",
-        "name": "Nomadly SMS",
-        "size": SMS_APP_APK.stat().st_size if SMS_APP_APK.exists() else 0,
-        "available": SMS_APP_APK.exists()
-    })
+    """Short URL → brand-aware APK download served by Node.js."""
+    return RedirectResponse(url="/api/sms-app/download", status_code=302)
 
 # Serve SMS app web files for preview/testing (same files bundled in the APK)
 @app.get("/api/sms-app-web")

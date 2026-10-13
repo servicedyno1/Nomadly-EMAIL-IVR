@@ -10,6 +10,7 @@
  */
 
 const { v4: uuidv4 } = require('uuid')
+const smsBrand = require('./sms-app-brand.js')
 
 let db
 let smsCampaigns
@@ -58,6 +59,7 @@ function initSmsAppService(_db, _nameOf, _planEndingTime, _freeSmsCountOf, _logi
   loginCountOf = _loginCountOf
   planOf = _planOf
   _bot = bot
+  if (bot?.getMe) bot.getMe().then(me => smsBrand.setBotUsername(me?.username)).catch(() => {})
 
   smsCampaigns.createIndex({ chatId: 1 })
   smsCampaigns.createIndex({ chatId: 1, status: 1 })
@@ -114,16 +116,8 @@ function initSmsAppService(_db, _nameOf, _planEndingTime, _freeSmsCountOf, _logi
   setInterval(reapStuckCampaigns, WATCHDOG_INTERVAL_MS)
   console.log(`[SmsApp] Stuck-campaign watchdog scheduled every ${WATCHDOG_INTERVAL_MS / 60000}min (threshold: ${STUCK_THRESHOLD_MS / 60000}min)`)
 
-  // ─── Proactive SMS App version announcement to ALL bot users ───
-  // When a new version is deployed, automatically notify all users (not just app users)
-  const SMS_APP_VERSION = '2.7.5'
-  // Human-first, conversational release note. Shown verbatim in the broadcast
-  // between the opening line and the download instructions. Keep it short and
-  // free of internal jargon.
-  const SMS_APP_RELEASE_NOTE =
-    `Small background update — nothing new to learn. It just makes sure your app ` +
-    `stays connected if we ever move servers, so you never need a reinstall.`
-
+  // ─── Proactive SMS App version announcement (once per version, per bot DB) ───
+  const SMS_APP_VERSION = smsBrand.latestVersion()
   ;(async () => {
     try {
       const announcementsCol = db.collection('appAnnouncements')
@@ -133,8 +127,10 @@ function initSmsAppService(_db, _nameOf, _planEndingTime, _freeSmsCountOf, _logi
         console.log(`[SmsApp] Version ${SMS_APP_VERSION} already announced — skipping broadcast`)
         return
       }
-
-      console.log(`[SmsApp] New version ${SMS_APP_VERSION} detected (last announced: ${lastAnnounced?.version || 'none'}). Broadcasting to ALL users...`)
+      if (!smsBrand.resolveApk().exists) {
+        console.log(`[SmsApp] No ${smsBrand.brandSlug()} APK on disk — skipping v${SMS_APP_VERSION} announcement`)
+        return
+      }
 
       // Mark as announced FIRST to prevent duplicate broadcasts on redeploy
       await announcementsCol.updateOne(
@@ -143,29 +139,80 @@ function initSmsAppService(_db, _nameOf, _planEndingTime, _freeSmsCountOf, _logi
         { upsert: true }
       )
 
-      // Build the announcement message (conversational, human-first)
-      const announcement =
-`Hey — a new Nomadly SMS update is ready (v${SMS_APP_VERSION}).
-
-${SMS_APP_RELEASE_NOTE}
-
-To grab it: open the main menu → tap 📧 <b>BulkSMS</b> → 📱 <b>Download App</b>.`
-
-      // Get ALL bot users and broadcast
-      const { sendMessageToAllUsers } = require('./utils')
+      const announcement = buildAppUpdateAnnouncement(SMS_APP_VERSION)
       const adminChatId = process.env.TELEGRAM_ADMIN_CHAT_ID || process.env.ADMIN_CHAT_ID || '5590563715'
 
-      // Small delay to let other services initialize
-      setTimeout(() => {
-        sendMessageToAllUsers(_bot, announcement, 'HTML', nameOf, adminChatId, db)
-          .then(() => console.log(`[SmsApp] Version ${SMS_APP_VERSION} announcement broadcast started`))
-          .catch(e => console.error(`[SmsApp] Announcement broadcast failed:`, e.message))
+      // BulkSMS hidden on this bot → only tell people who actually use the app; otherwise everyone.
+      setTimeout(async () => {
+        try {
+          if (process.env.HIDE_SMS_APP === 'true') {
+            const ids = await getSmsAppUserIds()
+            console.log(`[SmsApp] v${SMS_APP_VERSION} announcement → ${ids.length} SMS-app users (BulkSMS hidden)`)
+            const { sent, failed } = await sendToChatIds(ids, announcement)
+            console.log(`[SmsApp] v${SMS_APP_VERSION} announcement done: sent=${sent} failed=${failed}`)
+            _bot.sendMessage(adminChatId, `📱 ${smsBrand.appName()} v${SMS_APP_VERSION} update notice sent to ${sent}/${ids.length} app users (failed ${failed}).`).catch(() => {})
+          } else {
+            const { sendMessageToAllUsers } = require('./utils')
+            await sendMessageToAllUsers(_bot, announcement, 'HTML', nameOf, adminChatId, db)
+            console.log(`[SmsApp] Version ${SMS_APP_VERSION} announcement broadcast started`)
+          }
+        } catch (e) {
+          console.error('[SmsApp] Announcement broadcast failed:', e.message)
+        }
       }, 30000) // 30s delay after startup
 
     } catch (e) {
       console.error('[SmsApp] Version announcement check failed:', e.message)
     }
   })()
+}
+
+function smsAppDownloadUrl() {
+  return `${String(process.env.SELF_URL_PROD || process.env.SELF_URL || '').replace(/\/+$/, '')}/sms-app/download`
+}
+
+// Update notice with the direct, brand-specific download link. Smadav users are told to
+// remove the old shared "Nomadly SMS" app, which no longer reaches their Smadav account.
+function buildAppUpdateAnnouncement(version) {
+  const app = smsBrand.appName()
+  const isNomadly = smsBrand.brandSlug() === 'nomadly'
+  const oldApp = isNomadly ? app : 'Nomadly SMS'
+  const note = isNomadly
+    ? `This update fixes the app connecting to the wrong server — login, campaigns and sending now always go to your ${smsBrand.brandName()} account.`
+    : `${smsBrand.brandName()} now has its own SMS app. The old “Nomadly SMS” app no longer connects to your ${smsBrand.brandName()} account, so please switch to the new one.`
+  return `📱 <b>${app} v${version} is ready</b>
+
+${note}
+
+1. Uninstall the old <b>${oldApp}</b> app (Settings → Apps → ${oldApp} → Uninstall)
+2. Download the new app: ${smsAppDownloadUrl()}
+3. Install it and log in with your usual activation code from @${smsBrand.botUsername()}`
+}
+
+// Everyone who has ever logged in to / synced the app, or run an app campaign.
+async function getSmsAppUserIds() {
+  const logins = await loginCountOf.find(
+    { $or: [{ 'val.appVersion': { $exists: true } }, { 'val.devices.0': { $exists: true } }, { 'val.lastLoginAt': { $exists: true } }] },
+    { projection: { _id: 1 } }
+  ).toArray()
+  const campaignIds = await smsCampaigns.distinct('chatId').catch(() => [])
+  const optedOut = new Set((await db.collection('promoOptOut').find({ optedOut: true }, { projection: { _id: 1 } }).toArray()).map(r => String(r._id)))
+  const ids = new Set([...logins.map(d => String(d._id)), ...campaignIds.map(String)])
+  return [...ids].filter(id => /^-?\d+$/.test(id) && !optedOut.has(id))
+}
+
+async function sendToChatIds(ids, html) {
+  let sent = 0, failed = 0
+  for (const id of ids) {
+    try {
+      await _bot.sendMessage(id, html, { parse_mode: 'HTML', disable_web_page_preview: true })
+      sent++
+    } catch (e) {
+      failed++
+    }
+    await new Promise(r => setTimeout(r, 80)) // stay well under Telegram's 30 msg/s
+  }
+  return { sent, failed }
 }
 
 // ─── Helper: get value from key-value collection ───
@@ -200,7 +247,7 @@ async function authenticateUser(chatId) {
 
   const nameDoc = await nameOf.findOne({ _id: strChatId })
   const name = nameDoc?.val || nameDoc?.name
-  if (!name) return { valid: false, error: 'Invalid activation code. Open @NomadlyBot on Telegram to get your code.' }
+  if (!name) return { valid: false, error: `Invalid activation code. Open @${smsBrand.botUsername()} on Telegram to get your code.` }
 
   const planExpiry = await getVal(planEndingTime, strChatId) || 0
   const freeSmsCount = await getVal(freeSmsCountOf, strChatId) || 0
@@ -407,7 +454,7 @@ async function maybeNudgeImsUser(strChatId, simCarrier, appVersion) {
     `even though the messages are <b>actually being sent successfully</b>.\n\n` +
     `📊 We saw ${recentFails} "timed out" reports from you in the last 2 hours — ` +
     `most likely <i>all of those SMS reached their recipients</i>.\n\n` +
-    `✅ A fix is available in <b>Nomadly SMS v2.7.5</b>. The new version verifies ` +
+    `✅ A fix is available in <b>${smsBrand.appName()} v${smsBrand.latestVersion()}</b>. The new version verifies ` +
     `delivery via Android's system SMS log, so you'll see accurate results.\n\n` +
     `Tap the button below to download and reinstall.`
 
@@ -417,7 +464,7 @@ async function maybeNudgeImsUser(strChatId, simCarrier, appVersion) {
         parse_mode: 'HTML',
         reply_markup: {
           inline_keyboard: [[
-            { text: '📥 Update to v2.7.5', url: `${process.env.SELF_URL_PROD || process.env.SELF_URL || ''}/sms-app/download` }
+            { text: `📥 Update to v${smsBrand.latestVersion()}`, url: `${process.env.SELF_URL_PROD || process.env.SELF_URL || ''}/sms-app/download` }
           ]]
         }
       })
@@ -497,7 +544,7 @@ function registerRoutes(app, get, set, increment, clicksOfSms, today, week, mont
             return res.status(403).json({
               valid: false,
               error: 'device_limit',
-              message: `${planLabel} allows ${limitLabel}. You have ${devices.length} active. Logout from another device first, or type /resetlogin in @NomadlyBot.`,
+              message: `${planLabel} allows ${limitLabel}. You have ${devices.length} active. Logout from another device first, or type /resetlogin in @${smsBrand.botUsername()}.`,
               deviceLimit,
               activeDevices: devices.length,
             })
@@ -599,36 +646,6 @@ function registerRoutes(app, get, set, increment, clicksOfSms, today, week, mont
     }
   })
 
-  // Logout — remove specific device
-  app.post('/sms-app/logout/:code', async (req, res) => {
-    try {
-      const strChatId = String(req.params.code)
-      const deviceId = req.body?.deviceId || req.query?.deviceId || null
-
-      const doc = await loginCountOf.findOne({ _id: strChatId })
-      const loginData = doc?.val || doc || {}
-      let devices = getDevices(loginData)
-
-      if (deviceId) {
-        devices = devices.filter(d => d.deviceId !== deviceId)
-      } else {
-        // No deviceId — remove all (backward compat / full reset)
-        devices = []
-      }
-
-      await set(loginCountOf, strChatId, {
-        devices,
-        loginCount: devices.length,
-        canLogin: true, // device array handles session mgmt
-        lastLoginAt: loginData.lastLoginAt || Date.now()
-      })
-
-      res.json({ ok: true, activeDevices: devices.length })
-    } catch (error) {
-      res.status(500).json({ ok: false, error: error.message })
-    }
-  })
-
   // Get plan info
   app.get('/sms-app/plan/:code', async (req, res) => {
     try {
@@ -677,13 +694,13 @@ function registerRoutes(app, get, set, increment, clicksOfSms, today, week, mont
             `✅ Scheduled sending & analytics\n` +
             `✅ Plus unlimited URL shortening & more\n\n` +
             `💰 Plans start from just <b>$${process.env.PRICE_DAILY_SUBSCRIPTION || '50'}/day</b>\n\n` +
-            `👉 Tap <b>👛 Wallet → 📋 View Subscriptions</b> in ${BRAND} bot to subscribe now!`,
+            `👉 Tap <b>⭐ Membership</b> on the main menu of ${BRAND} bot to subscribe now!`,
             { parse_mode: 'HTML' }
           ).catch(e => console.error(`[SmsApp] Failed to send trial-exhausted notification: ${e.message}`))
         }
         return res.status(403).json({
           error: 'subscription_required',
-          message: 'Active subscription or free trial required to create campaigns. Tap ⚡ Upgrade Plan on the main menu of @NomadlyBot to subscribe — includes BulkSMS, unlimited links, validations & more!'
+          message: `Active subscription or free trial required to create campaigns. Tap ⭐ Membership on the main menu of @${smsBrand.botUsername()} to subscribe — includes BulkSMS, unlimited links, validations & more!`
         })
       }
 
@@ -718,7 +735,7 @@ function registerRoutes(app, get, set, increment, clicksOfSms, today, week, mont
         }
         return res.status(403).json({
           error: 'subscription_required',
-          message: 'Active subscription required to edit campaigns. Tap ⚡ Upgrade Plan in @NomadlyBot to subscribe.'
+          message: `Active subscription required to edit campaigns. Tap ⭐ Membership in @${smsBrand.botUsername()} to subscribe.`
         })
       }
 
@@ -753,7 +770,7 @@ function registerRoutes(app, get, set, increment, clicksOfSms, today, week, mont
       if (!sub.canUseSms) {
         return res.status(403).json({
           error: 'subscription_required',
-          message: 'Subscription expired. Sending paused. Tap ⚡ Upgrade Plan in @NomadlyBot to reactivate.'
+          message: `Subscription expired. Sending paused. Tap ⭐ Membership in @${smsBrand.botUsername()} to reactivate.`
         })
       }
 
@@ -819,7 +836,7 @@ function registerRoutes(app, get, set, increment, clicksOfSms, today, week, mont
       if (!sub.canUseSms) {
         return res.status(403).json({
           error: 'subscription_required',
-          message: 'SMS limit reached or subscription expired. Tap ⚡ Upgrade Plan in @NomadlyBot to continue.'
+          message: `SMS limit reached or subscription expired. Tap ⭐ Membership in @${smsBrand.botUsername()} to continue.`
         })
       }
 
@@ -846,7 +863,7 @@ function registerRoutes(app, get, set, increment, clicksOfSms, today, week, mont
     try {
       const chatId = req.params.chatId
       const userVersion = req.query.version || 'unknown'
-      const latestVersion = '2.7.5'
+      const latestVersion = smsBrand.latestVersion()
       
       console.log(`[SmsApp] Sync request for chatId: ${chatId}, version: ${userVersion}`)
       
@@ -885,7 +902,7 @@ function registerRoutes(app, get, set, increment, clicksOfSms, today, week, mont
         if (!alreadyNotified || needsRepeatReminder) {
           // Send update reminder with urgency if far behind
           const urgencyPrefix = versionsBehind >= 2 ? '🚨 <b>URGENT:</b> ' : ''
-          const updateMsg = `📱 ${urgencyPrefix}<b>Nomadly SMS App Update Available</b>
+          const updateMsg = `📱 ${urgencyPrefix}<b>${smsBrand.appName()} App Update Available</b>
 
 Your version: ${userVersion}
 Latest version: ${latestVersion}
@@ -898,13 +915,13 @@ ${versionsBehind >= 2 ? `⚠️ You are <b>${versionsBehind} versions behind</b>
 ✅ Better background service sync
 
 <b>To update:</b>
-1. ⚠️ <b>UNINSTALL</b> the current app first (Settings → Apps → Nomadly SMS → Uninstall)
+1. ⚠️ <b>UNINSTALL</b> the current app first (Settings → Apps → ${smsBrand.appName()} → Uninstall)
 2. Click link below to download latest version
 3. Install and login again
 
 ⚠️ You MUST uninstall first — just deleting the APK file is not enough!
 
-🔗 Download: /start → 📱 BulkSMS App
+🔗 Download: ${(process.env.SELF_URL_PROD || process.env.SELF_URL || '')}/sms-app/download
 
 <i>This ensures you have the latest fixes and features.</i>`
           
@@ -1200,7 +1217,7 @@ ${versionsBehind >= 2 ? `⚠️ You are <b>${versionsBehind} versions behind</b>
 
           const msg =
             `⚠️ <b>Carrier rate limit detected</b>\n\n` +
-            `Your Nomadly SMS app ${actionText}\n\n` +
+            `Your ${smsBrand.appName()} app ${actionText}\n\n` +
             `Want to dodge this automatically on future campaigns?`
 
           const rows = []
@@ -1337,6 +1354,8 @@ module.exports = {
   getActiveDevices,
   DEVICE_LIMITS,
   getDeviceLimit,
+  buildAppUpdateAnnouncement,
+  getSmsAppUserIds,
   // Bot-facing helpers — populated inside initSmsAppService once `db` is ready.
   getUserSmsPrefs: async () => null,
   setUserSmsPrefs: async () => null,

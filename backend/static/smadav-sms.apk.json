@@ -1,0 +1,9 @@
+{
+  "brand": "smadav",
+  "appName": "Smadav SMS",
+  "appId": "com.smadav.sms",
+  "version": "2.8.0",
+  "apiBase": "https://1.smadavspeech.com",
+  "builtAt": "2026-10-13T16:39:15.335Z",
+  "md5": "f18bacb2c7830bcabad042066548c530"
+}

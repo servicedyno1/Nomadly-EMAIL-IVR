@@ -13,6 +13,7 @@ import AccountSettings from '../components/panel/AccountSettings';
 import SiteStatusCard from '../components/panel/SiteStatusCard';
 import LanguageSwitcher from '../components/LanguageSwitcher';
 import useTheme from '../components/panel/useTheme';
+import { useBrand } from '../hooks/useBrand';
 
 const TABS = [
   { id: 'site', i18nKey: 'site', icon: 'power' },
@@ -40,10 +41,11 @@ export default function PanelDashboard() {
     setActiveTab('files');
   }, []);
 
-  // Set browser tab title — overrides static "Speechcue | Cloud Phone" from index.html
+  // Set browser tab title — overrides the static title from index.html
+  const brand = useBrand();
   useEffect(() => {
-    document.title = 'HostBay | Hosting Panel';
-  }, []);
+    document.title = `${brand.brandName} | Hosting Panel`;
+  }, [brand.brandName]);
 
   return (
     <div className={`panel-dashboard ${theme === 'light' ? 'panel-light' : ''}`} data-testid="panel-dashboard" data-panel-theme={theme}>

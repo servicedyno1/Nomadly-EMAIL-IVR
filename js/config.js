@@ -1017,10 +1017,17 @@ const payBank = url => ({
 })
 
 const html = (text = t.successPayment) => {
+  const brand = String(process.env.CHAT_BOT_BRAND || 'Nomadly')
+  const slug = brand.toLowerCase().replace(/[^a-z0-9]+/g, '') || 'nomadly'
+  const accent = slug === 'smadav' ? '#3b82f6' : '#10d9a0'
   return `
         <html>
-            <body style="background-color: white;">
-                <p style="font-family: 'system-ui';" >${text}</p>
+            <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${brand}</title></head>
+            <body style="margin:0;background:#0b0f1a;color:#e6e8ee;font-family:system-ui,-apple-system,Segoe UI,sans-serif;">
+                <div style="max-width:640px;margin:0 auto;padding:48px 24px;">
+                  <img src="/brand/wordmark.png" alt="${brand}" style="height:44px;display:block;margin-bottom:28px" onerror="this.outerHTML='<div style=\\'font-weight:800;font-size:28px;letter-spacing:.08em;color:${accent};margin-bottom:28px\\'>${brand.toUpperCase()}</div>'">
+                  <p style="font-size:16px;line-height:1.6;white-space:pre-wrap;">${text}</p>
+                </div>
             </body>
         </html>
     `
