@@ -20404,8 +20404,9 @@ ${message.replace(/\n/g, '<br>')}
     vpsDetails.planNewPrice = 0
     info.vpsDetails = vpsDetails
     saveInfo('vpsDetails', vpsDetails)
-    // Windows RDP (DigitalOcean) sells 1 / 2 / 3-month prepaid periods — ask before the coupon.
-    if (vpsDetails.isRDP && (selectedConfigType.billingCycles || []).length > 1) return goto.askRdpDuration()
+    // Multi-term plans (DigitalOcean Windows RDP 1/2/3-month bundles, and Linux VPS 1/3/6/12-month
+    // prepaid terms) show a duration picker before the coupon. Single-cycle plans skip straight to it.
+    if ((selectedConfigType.billingCycles || []).length > 1) return goto.askRdpDuration()
     // ── Early affordability heads-up (audit 2026-06) ──
     // The plan-list screen already shows wallet vs. prices; reinforce it the
     // moment a plan is picked so an under-funded user learns the exact top-up

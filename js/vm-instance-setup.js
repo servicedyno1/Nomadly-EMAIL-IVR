@@ -32,6 +32,7 @@ const nodemailer = require('nodemailer')
 // without any per-line rewrites — legacy Contabo records keep working,
 // and new orders ship via OVH automatically.
 const vpsProvider = require('./vps-provider')
+const vpsTerms = require('./vps-terms')
 const contabo = vpsProvider.buildSmartProxy()
 
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN
@@ -249,7 +250,22 @@ async function fetchAvailableVPSConfigs(telegramId, vpsDetails) {
     const multiDuration = allProducts.some(p => Number(p.durationMonths) > 1)
     const products = multiDuration ? allProducts.filter(p => Number(p.durationMonths || 1) === 1) : allProducts
     const cyclesFor = (p) => {
-      if (!multiDuration) return [{ type: 'Monthly', price: p.pricing.totalWithMarkup, period: 1, productId: p.productId }]
+      if (!multiDuration) {
+        const monthly = p.pricing.totalWithMarkup
+        // Linux VPS is one monthly product — offer 1/3/6/12-month prepaid terms (same bundle
+        // discounts as the reseller API & hosting). All terms keep the SAME productId; the chosen
+        // term drives durationMonths → expiry. Single-cycle providers keep their monthly-only cycle.
+        if (!isRDP) {
+          return vpsTerms.TERM_MONTHS.map(m => ({
+            type: m === 1 ? 'Monthly' : `${m} Months`,
+            price: vpsTerms.termPrice(monthly, m),
+            period: m,
+            productId: p.productId,
+            discountPct: vpsTerms.discountPct(m),
+          }))
+        }
+        return [{ type: 'Monthly', price: monthly, period: 1, productId: p.productId }]
+      }
       return allProducts.filter(x => x.slug === p.slug).sort((x, y) => x.durationMonths - y.durationMonths)
         .map(x => ({ type: x.durationMonths === 1 ? 'Monthly' : `${x.durationMonths} Months`, price: x.pricing.totalWithMarkup, period: x.durationMonths, productId: x.productId, discountPct: (x.pricing && x.pricing.discountPct) || 0 }))
     }

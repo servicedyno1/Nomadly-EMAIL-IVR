@@ -487,7 +487,7 @@ function endpointGroups(base) {
       endpoints: [
         {
           method: 'GET', path: '/vps/plans', auth: true, billed: false,
-          desc: 'List the Linux VPS plans that can be ordered RIGHT NOW in a region (stock is re-checked hourly; out-of-stock plans are hidden). Two storage classes: Standard plans (storage_type "SSD", cpu "Standard") and Premium NVMe plans (storage_type "NVMe SSD", cpu "AMD" or "Intel" — newer EPYC / Xeon CPUs with a much faster disk). Use ?storage=nvme or ?storage=ssd to filter. The response also returns os_options — the Linux distributions you can request at order time (Ubuntu 24.04/22.04 LTS, Debian 13/12, AlmaLinux 9/8, Rocky 9/10, CentOS Stream 9/10, Fedora) — plus default_os, so you can render an OS picker on your storefront. Pass the chosen os id as "os" on POST /vps (and on POST /vps/:id/reinstall). The same list is also available on its own at GET /vps/os-options.',
+          desc: 'List the Linux VPS plans that can be ordered RIGHT NOW in a region (stock is re-checked hourly; out-of-stock plans are hidden). Two storage classes: Standard plans (storage_type "SSD", cpu "Standard") and Premium NVMe plans (storage_type "NVMe SSD", cpu "AMD" or "Intel" — newer EPYC / Xeon CPUs with a much faster disk). Use ?storage=nvme or ?storage=ssd to filter. price_usd is the 1-month price; each plan also returns a terms array — the prepaid 1/3/6/12-month options with their bundle discount (3 months = 10% off, 6 months = 15% off, 12 months = 25% off), the discounted total (price_usd), the per-month equivalent and the savings — so you can render a duration picker. Pass the chosen term as "months" on POST /vps (the plan_id stays the same). The response also returns os_options — the Linux distributions you can request at order time (Ubuntu 24.04/22.04 LTS, Debian 13/12, AlmaLinux 9/8, Rocky 9/10, CentOS Stream 9/10, Fedora) — plus default_os, so you can render an OS picker on your storefront. Pass the chosen os id as "os" on POST /vps (and on POST /vps/:id/reinstall). The same list is also available on its own at GET /vps/os-options.',
           params: [['region', false, 'Region code — defaults to EU'], ['storage', false, '"nvme" | "ssd" — omit for both']],
           curl: `curl -s "${base}/vps/plans?region=EU" \\
   -H "Authorization: Bearer YOUR_API_KEY"`,
@@ -496,9 +496,15 @@ function endpointGroups(base) {
   "provider": "digitalocean",
   "region": "EU",
   "plans": [
-    { "plan_id": "s-1vcpu-1gb", "name": "Cloud VPS 10", "vcpus": 1, "ram_gb": 1, "disk_gb": 25, "cpu": "Standard", "storage_type": "SSD", "price_usd": 18.00 },
-    { "plan_id": "s-2vcpu-4gb-amd", "name": "NVMe AMD 2vCPU/4GB/80GB", "vcpus": 2, "ram_gb": 4, "disk_gb": 80, "cpu": "AMD", "storage_type": "NVMe SSD", "price_usd": 84.00 },
-    { "plan_id": "s-2vcpu-4gb-120gb-intel", "name": "NVMe Intel 2vCPU/4GB/120GB", "vcpus": 2, "ram_gb": 4, "disk_gb": 120, "cpu": "Intel", "storage_type": "NVMe SSD", "price_usd": 96.00 }
+    { "plan_id": "s-1vcpu-1gb", "name": "Cloud VPS 10", "vcpus": 1, "ram_gb": 1, "disk_gb": 25, "cpu": "Standard", "storage_type": "SSD", "price_usd": 18.00,
+      "terms": [
+        { "months": 1,  "duration_days": 30,  "discount_pct": 0,  "price_usd": 18.00,  "monthly_equivalent_usd": 18.00, "savings_usd": 0 },
+        { "months": 3,  "duration_days": 90,  "discount_pct": 10, "price_usd": 48.60,  "monthly_equivalent_usd": 16.20, "savings_usd": 5.40 },
+        { "months": 6,  "duration_days": 180, "discount_pct": 15, "price_usd": 91.80,  "monthly_equivalent_usd": 15.30, "savings_usd": 16.20 },
+        { "months": 12, "duration_days": 360, "discount_pct": 25, "price_usd": 162.00, "monthly_equivalent_usd": 13.50, "savings_usd": 54.00 }
+      ] },
+    { "plan_id": "s-2vcpu-4gb-amd", "name": "NVMe AMD 2vCPU/4GB/80GB", "vcpus": 2, "ram_gb": 4, "disk_gb": 80, "cpu": "AMD", "storage_type": "NVMe SSD", "price_usd": 84.00, "terms": [ "…" ] },
+    { "plan_id": "s-2vcpu-4gb-120gb-intel", "name": "NVMe Intel 2vCPU/4GB/120GB", "vcpus": 2, "ram_gb": 4, "disk_gb": 120, "cpu": "Intel", "storage_type": "NVMe SSD", "price_usd": 96.00, "terms": [ "…" ] }
   ],
   "default_os": "ubuntu-24-04-x64",
   "os_options": [
@@ -531,9 +537,10 @@ function endpointGroups(base) {
         },
         {
           method: 'POST', path: '/vps', auth: true, billed: true,
-          desc: 'Create a Linux VPS. ASYNC: returns 202 immediately with status "provisioning" and a stable id (the build runs in the background so the request never times out). The wallet is charged up-front; if the build ultimately fails the charge is auto-refunded and a vps.provision_failed webhook fires. Poll GET /vps/:id until status "RUNNING" (then read /vps/:id/credentials), or subscribe to the vps.provisioned / vps.provision_failed webhooks. Pass an optional idempotent client_ref — a retry with the same client_ref echoes the SAME 202 handle and never double-charges.',
+          desc: 'Create a Linux VPS. ASYNC: returns 202 immediately with status "provisioning" and a stable id (the build runs in the background so the request never times out). The wallet is charged up-front at the prepaid-term rate (see months); if the build ultimately fails the charge is auto-refunded and a vps.provision_failed webhook fires. Poll GET /vps/:id until status "RUNNING" (then read /vps/:id/credentials), or subscribe to the vps.provisioned / vps.provision_failed webhooks. Pass an optional idempotent client_ref — a retry with the same client_ref echoes the SAME 202 handle and never double-charges.',
           params: [
             ['plan_id', true, 'A plan_id from GET /vps/plans (SSD or NVMe). An out-of-stock plan returns 409 out_of_stock — pick another plan or region'],
+            ['months', false, 'Prepaid term in months: 1 | 3 | 6 | 12 — defaults to 1. The plan_id stays the same; longer terms get a bundle discount (3mo −10%, 6mo −15%, 12mo −25%) and set the server\u2019s expiry that many months out. See terms[] in GET /vps/plans for the exact price per term. Any other value returns 400 invalid_months.'],
             ['region', false, 'Region code — defaults to EU'],
             ['hostname', false, 'Optional VM hostname. Lowercase letters, digits and hyphens only; must start and end with a letter or digit; max 63 chars — e.g. "web-01", "client-prod-db", "mail1", "app-eu-west". Dots, spaces, underscores and uppercase are rejected with 400 invalid_hostname (no silent rewriting). Omit it and we auto-generate one like "vps-m8k2p1". DigitalOcean uses this as the droplet name / VM hostname; the resolved value is echoed back in the create response and in GET /vps/:id.'],
             ['os', false, 'Linux distribution image id (e.g. ubuntu-24-04-x64, debian-12-x64, rockylinux-9-x64) — defaults to Ubuntu 24.04 LTS. Must be one of the ids from GET /vps/plans → os_options (or GET /vps/os-options); an unknown value returns 400 invalid_os with the valid list.'],
