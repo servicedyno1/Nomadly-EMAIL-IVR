@@ -9,6 +9,11 @@
   bash /app/scripts/setup-nodejs.sh
   ```
 - `frontend/.env` is gitignored — create it with the current pod's `REACT_APP_BACKEND_URL` if missing.
+- Fresh-pod gotchas (2026-10-13): if `/app` is empty except `.git`, extract code with `git archive HEAD | tar -x -C /app`.
+  Run root `yarn install --ignore-engines` and `frontend/ yarn install` SEQUENTIALLY (parallel runs corrupt the shared
+  yarn cache → `Cannot find module 'es-abstract/...'`; fix = `yarn cache clean` + delete node_modules + reinstall).
+  Also `pip install -r backend/requirements.txt` and `apt-get install ffmpeg` (.emergent/system_deps.txt).
+  Local Mongo starts empty → run `node scripts/seed_panel_apps_test.js` for the panel test account.
 - Dev Telegram bot is `@Nomadlytestbot` (`TELEGRAM_BOT_TOKEN_DEV`). Because `SKIP_WEBHOOK_SYNC=true`, the bot does NOT
   auto-repoint its webhook — on a fresh pod call Telegram `setWebhook` for the DEV token only, with
   `<REACT_APP_BACKEND_URL>/api/telegram/webhook`. NEVER touch `TELEGRAM_BOT_TOKEN_PROD` (@NomadlyBot → 2.speechcue.com).
@@ -18,8 +23,9 @@
 
 ## Namecheap API (hosta.sh — vanity NS pilot)
 - `NAMECHEAP_USERNAME=richbayo`, `NAMECHEAP_API_KEY` in backend/.env (vault). Whitelisted ClientIp: 136.108.30.124 (OLD pod).
-- ⚠️ 2026-10-11 re-setup: current pod egress IP is `35.196.223.235` — must be whitelisted in Namecheap API + ConnectReseller
-  (bot logged `[CR-Whitelist] IP 35.196.223.235 needs whitelisting`). Dev bot webhook now → `https://vault-setup-24.preview.emergentagent.com/api/telegram/webhook`.
+- ⚠️ 2026-10-13 re-setup: current pod egress IP is `34.170.12.145` — ConnectReseller startup check PASSED (already
+  whitelisted); Namecheap API whitelist must include it for the hosta.sh pilot
+  (previous pods: `35.196.223.235`, `136.108.30.124`). Dev bot webhook now → `https://22c02043-236c-4eb1-a3e7-4f2596f50442.preview.emergentagent.com/api/telegram/webhook`.
 - Pilot admin endpoints: `GET /api/admin/ns-pilot/status?key=<SESSION_SECRET first 16 chars>` (also start|tick|revert|switch|stop).
 - Cron endpoint: `POST /api/cron/ns-pilot-tick` with `Authorization: Bearer $WEBHOOK_CRON_SECRET`.
 
