@@ -1,5 +1,6 @@
-/* Nomadly SMS App v2.0 — Redesigned UX */
+/* SMS App — Redesigned UX (brand accent injected by brand.js → --brand-accent) */
 :root {
+  --brand-accent: #494CD2;
   --primary: #494CD2;
   --primary-dark: #3538a8;
   --primary-light: #6366f1;
@@ -37,6 +38,7 @@ body {
 .login-logo { width:72px; height:72px; background:rgba(255,255,255,0.95); border-radius:18px;
   display:inline-flex; align-items:center; justify-content:center; font-size:32px; font-weight:800;
   color:var(--primary); margin-bottom:20px; box-shadow:var(--shadow); }
+.login-logo img { width:100%; height:100%; object-fit:cover; border-radius:18px; }
 .login-title { font-size:26px; font-weight:700; }
 .login-subtitle { font-size:14px; color:rgba(255,255,255,0.65); margin-top:6px; }
 .login-card { background:var(--bg-card); border-radius:20px; padding:28px 22px; width:100%; max-width:400px; box-shadow:var(--shadow); }

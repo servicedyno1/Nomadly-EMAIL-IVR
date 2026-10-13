@@ -11,6 +11,8 @@ const crypto = require('crypto')
 const jwt = require('jsonwebtoken')
 const bcrypt = require('bcryptjs')
 
+// Standalone scripts/tests may require this before config-setup — load the real secret first
+if (!process.env.SESSION_SECRET) require('dotenv').config({ path: require('path').resolve(__dirname, '../backend/.env') })
 const JWT_SECRET = process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex')
 // Security: Use SESSION_SECRET for encryption key, warn loudly if missing
 if (!process.env.SESSION_SECRET) {

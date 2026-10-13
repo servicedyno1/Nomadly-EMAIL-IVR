@@ -4345,30 +4345,34 @@ const loadData = async () => {
     console.log('[CF-Sync] module load failed:', e.message)
   }
 
-  // SMS App APK download route
-  const apkPath = require('path').join(__dirname, '..', 'static', 'nomadly-sms.apk')
+  // SMS App APK download route — brand-aware (static/<brand>-sms.apk, see js/sms-app-brand.js)
+  const smsBrand = require('./sms-app-brand.js')
   app.get('/sms-app/download', (req, res) => {
-    const fs = require('fs')
-    if (fs.existsSync(apkPath)) {
-      // Prevent caching so users always get the latest APK
-      res.setHeader('Content-Disposition', 'attachment; filename=NomadlySMS.apk')
-      res.setHeader('Content-Type', 'application/vnd.android.package-archive')
-      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
-      res.setHeader('Pragma', 'no-cache')
-      res.setHeader('Expires', '0')
-      const stat = fs.statSync(apkPath)
-      res.setHeader('ETag', `"${stat.size}-${stat.mtimeMs}"`)
-      res.sendFile(apkPath)
-    } else {
-      res.status(404).json({ error: 'APK not available' })
-    }
+    const apk = smsBrand.resolveApk()
+    if (!apk.exists) return res.status(404).json({ error: 'APK not available', brand: apk.slug })
+    // Prevent caching so users always get the latest APK
+    res.setHeader('Content-Disposition', `attachment; filename=${apk.downloadName}`)
+    res.setHeader('Content-Type', 'application/vnd.android.package-archive')
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
+    res.setHeader('Pragma', 'no-cache')
+    res.setHeader('Expires', '0')
+    const stat = require('fs').statSync(apk.path)
+    res.setHeader('ETag', `"${stat.size}-${stat.mtimeMs}"`)
+    res.sendFile(apk.path)
   })
   app.get('/sms-app/download/info', (req, res) => {
-    const fs = require('fs')
-    const exists = fs.existsSync(apkPath)
-    const size = exists ? fs.statSync(apkPath).size : 0
+    const apk = smsBrand.resolveApk()
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
-    res.json({ version: '2.7.5', name: 'Nomadly SMS', size, available: exists })
+    res.json({ version: apk.version, name: apk.appName, brand: apk.slug, size: apk.size, available: apk.exists, builtAt: apk.builtAt, bot: `@${smsBrand.botUsername()}` })
+  })
+  // Brand assets (wordmark/logo/icon) for the landing page, panel and storefront.
+  app.get('/brand/:file', (req, res) => {
+    const file = String(req.params.file || '').toLowerCase()
+    if (!/^(logo|wordmark|icon|mark)\.(png|svg|jpg)$/.test(file)) return res.status(404).end()
+    const p = require('path').join(__dirname, 'assets', 'brand', smsBrand.brandSlug(), file)
+    if (!require('fs').existsSync(p)) return res.status(404).end()
+    res.setHeader('Cache-Control', 'public, max-age=86400')
+    res.sendFile(p)
   })
 
   // Initialize Email Blast Service

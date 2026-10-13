@@ -1,29 +1,26 @@
 /**
- * Cloudflare Discovery Worker auto-sync.
+ * Cloudflare Discovery Worker sync — BRAND-KEYED (2026-06).
  *
- * At server startup, compare the `apiBase` currently served by the APK-facing
- * discovery Worker against `SELF_URL_PROD` (the canonical live backend URL
- * from .env). If they differ, re-upload the Worker script so the APK routes
- * new traffic to this instance on next launch.
+ * One Worker serves every APK in the wild. Each bot (Nomadly on 2.speechcue.com,
+ * Smadav on 1.smadavspeech.com) owns ONE key in the payload and never touches the
+ * other's, so restarts can no longer flip all users to the wrong backend:
  *
- * This closes the operational loop:
- *   Railway spins up on a new URL → this backend starts →
- *   it pushes the new URL to the Worker → every APK picks it up automatically.
+ *   { apiBase: <nomadly url (legacy APKs)>, brands: { nomadly: url, smadav: url }, version: 2 }
  *
- * Silent no-ops if CLOUDFLARE_* env vars are missing or SELF_URL_PROD is
- * empty/invalid so dev / preview / self-hosted deployments aren't affected.
+ * The APK asks `?brand=<slug>` and reads `brands[slug]`, falling back to its baked
+ * per-brand URL. `apiBase` is only ever written by the "nomadly" brand so pre-2.8
+ * single-brand APKs keep working.
  */
+const { brandSlug } = require('./sms-app-brand.js')
 
 const CF_ACCOUNT_ID = 'ed6035ebf6bd3d85f5b26c60189a21e2'
 const CF_SCRIPT_NAME = 'nomadly-api-config'
 const CF_DISCOVERY_URL = 'https://nomadly-api-config.nomadly-cfg.workers.dev/'
+const LEGACY_BRAND = 'nomadly'
 
-function buildWorkerSource(apiBase) {
-  // Keep this template minimal and self-contained — it's served billions of
-  // times per user lifecycle. Do not pull in libraries.
-  return `// Nomadly SMS App — API Discovery Worker
-// Auto-synced by backend on startup. To pin manually, disable backend
-// self-sync via DISABLE_CF_DISCOVERY_SYNC=true in the server env.
+function buildWorkerSource(brands, apiBase) {
+  return `// SMS App — API Discovery Worker (brand-keyed)
+const BRANDS = ${JSON.stringify(brands)}
 const API_BASE = ${JSON.stringify(apiBase)}
 const SYNCED_AT = ${JSON.stringify(new Date().toISOString())}
 
@@ -40,7 +37,9 @@ async function handleRequest(request) {
   if (request.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
   }
-  const payload = { apiBase: API_BASE, version: 1, syncedAt: SYNCED_AT }
+  const url = new URL(request.url)
+  const brand = (url.searchParams.get('brand') || '').toLowerCase().replace(/[^a-z0-9]/g, '')
+  const payload = { apiBase: brand && BRANDS[brand] ? BRANDS[brand] : API_BASE, brand: brand || null, brands: BRANDS, version: 2, syncedAt: SYNCED_AT }
   return new Response(JSON.stringify(payload, null, 2), {
     headers: {
       'Content-Type': 'application/json; charset=utf-8',
@@ -52,11 +51,22 @@ async function handleRequest(request) {
 `
 }
 
+// Pure merge: current payload + this brand's URL → { brands, apiBase, changed }
+function mergeDiscovery(current, slug, desiredUrl) {
+  const hadBrands = !!current?.brands
+  const brands = { ...(current?.brands || {}) }
+  // v1 payload migration: its single apiBase belonged to whichever bot synced last;
+  // only treat it as the legacy (nomadly) URL when it is clearly not ours.
+  if (!hadBrands && current?.apiBase && current.apiBase !== desiredUrl) brands[LEGACY_BRAND] = current.apiBase
+  const before = brands[slug]
+  brands[slug] = desiredUrl
+  const apiBase = brands[LEGACY_BRAND] || current?.apiBase || desiredUrl
+  const changed = !hadBrands || before !== desiredUrl || current?.apiBase !== apiBase
+  return { brands, apiBase, changed }
+}
+
 async function syncDiscoveryWorker() {
   try {
-    // Safety: require explicit opt-in. Set CF_DISCOVERY_SYNC=true ONLY on the
-    // production Railway deployment so preview/dev/local servers can't
-    // accidentally overwrite the Worker and break live APK users.
     if (process.env.CF_DISCOVERY_SYNC !== 'true') {
       console.log('[CF-Sync] Disabled (CF_DISCOVERY_SYNC!=true) — skipping')
       return
@@ -66,20 +76,17 @@ async function syncDiscoveryWorker() {
       return
     }
     // SAFETY: Never sync the Discovery Worker from a development environment
-    // This prevents dev pods from hijacking the shared Cloudflare worker
     const botEnv = (process.env.BOT_ENVIRONMENT || '').toLowerCase().trim()
     if (botEnv === 'development') {
       console.log('[CF-Sync] Skipped — BOT_ENVIRONMENT=development (only production can sync the Discovery Worker)')
       return
     }
 
-    const rawUrl = process.env.SELF_URL || ''
-    const desiredUrl = String(rawUrl).trim().replace(/\/+$/, '')
+    const desiredUrl = String(process.env.SELF_URL || '').trim().replace(/\/+$/, '')
     if (!/^https:\/\/.+/.test(desiredUrl)) {
       console.log('[CF-Sync] SELF_URL not set / invalid — skipping')
       return
     }
-
     const email = process.env.CLOUDFLARE_EMAIL
     const key = process.env.CLOUDFLARE_API_KEY
     if (!email || !key) {
@@ -87,36 +94,33 @@ async function syncDiscoveryWorker() {
       return
     }
 
-    // Check current Worker response — avoid unnecessary re-deploys.
+    const slug = brandSlug()
+    let current = null
     try {
-      const resp = await fetch(CF_DISCOVERY_URL, {
-        headers: { 'cache-control': 'no-cache' },
-        signal: AbortSignal.timeout(5000)
-      })
-      if (resp.ok) {
-        const cur = await resp.json()
-        if (cur?.apiBase === desiredUrl) {
-          console.log('[CF-Sync] Discovery Worker already in sync:', desiredUrl)
-          return
-        }
-        console.log(`[CF-Sync] Drift detected. Worker=${cur?.apiBase || '(none)'} Want=${desiredUrl}`)
-      } else {
-        console.log(`[CF-Sync] Current Worker returned ${resp.status} — proceeding with sync`)
-      }
+      const resp = await fetch(CF_DISCOVERY_URL, { headers: { 'cache-control': 'no-cache' }, signal: AbortSignal.timeout(5000) })
+      if (resp.ok) current = await resp.json()
+      else console.log(`[CF-Sync] Current Worker returned ${resp.status}`)
     } catch (e) {
-      console.log('[CF-Sync] Could not read current Worker (network?):', e.message, '— proceeding with sync')
+      console.log('[CF-Sync] Could not read current Worker (network?):', e.message)
+    }
+    // Never PUT blind: without the current payload we would drop the other brand's entry.
+    if (!current) {
+      console.log(`[CF-Sync] Current Worker payload unavailable — not overwriting (brand=${slug})`)
+      return
     }
 
-    // PUT the new Worker script.
+    const { brands, apiBase, changed } = mergeDiscovery(current, slug, desiredUrl)
+    if (!changed) {
+      console.log(`[CF-Sync] Discovery Worker already in sync for brand=${slug}: ${desiredUrl}`)
+      return
+    }
+    console.log(`[CF-Sync] Updating brand=${slug} → ${desiredUrl} (was ${current?.brands?.[slug] || current?.apiBase || '(none)'}); other brands untouched: ${JSON.stringify(Object.fromEntries(Object.entries(brands).filter(([k]) => k !== slug)))}`)
+
     const putUrl = `https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/workers/scripts/${CF_SCRIPT_NAME}`
     const putResp = await fetch(putUrl, {
       method: 'PUT',
-      headers: {
-        'X-Auth-Email': email,
-        'X-Auth-Key': key,
-        'Content-Type': 'application/javascript',
-      },
-      body: buildWorkerSource(desiredUrl),
+      headers: { 'X-Auth-Email': email, 'X-Auth-Key': key, 'Content-Type': 'application/javascript' },
+      body: buildWorkerSource(brands, apiBase),
       signal: AbortSignal.timeout(15000),
     })
     if (!putResp.ok) {
@@ -124,11 +128,10 @@ async function syncDiscoveryWorker() {
       console.error(`[CF-Sync] PUT failed ${putResp.status}:`, txt.slice(0, 300))
       return
     }
-    console.log('[CF-Sync] ✅ Discovery Worker updated to:', desiredUrl)
+    console.log(`[CF-Sync] ✅ Discovery Worker updated — brands=${JSON.stringify(brands)} apiBase=${apiBase}`)
   } catch (e) {
-    // Never let sync failures crash the server.
     console.error('[CF-Sync] Unexpected error:', e.message)
   }
 }
 
-module.exports = { syncDiscoveryWorker }
+module.exports = { syncDiscoveryWorker, mergeDiscovery, buildWorkerSource, CF_DISCOVERY_URL }

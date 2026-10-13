@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from './AuthContext';
+import { useBrand } from '../../hooks/useBrand';
 
 const COUNTRIES = [
   {code:'AF',name:'Afghanistan'},{code:'AL',name:'Albania'},{code:'DZ',name:'Algeria'},{code:'AR',name:'Argentina'},
@@ -24,6 +25,7 @@ const COUNTRIES = [
 export default function GeoManager() {
   const { t } = useTranslation();
   const { api, user } = useAuth();
+  const brand = useBrand();
   const isGold = !!user?.isGold;
   const [rules, setRules] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -72,7 +74,7 @@ export default function GeoManager() {
           })}
         </p>
         <a
-          href="https://t.me/nomadlybot"
+          href={`https://t.me/${brand.botUsername}`}
           target="_blank"
           rel="noopener noreferrer"
           data-testid="geo-locked-upgrade-cta"

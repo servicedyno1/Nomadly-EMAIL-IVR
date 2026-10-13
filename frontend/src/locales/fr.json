@@ -256,6 +256,7 @@
     "cpanelDown": "Le service d'hébergement est temporairement indisponible. Veuillez réessayer dans quelques minutes — vos données sont en sécurité.",
     "cpanelSlow": "Votre serveur d'hébergement répond lentement en ce moment. Veuillez réessayer dans un instant.",
     "cpanelUnreachable": "Impossible de joindre votre serveur d'hébergement pour le moment. Veuillez réessayer dans un instant.",
+    "cpanelAuthIssue": "Impossible de se connecter à votre compte d'hébergement pour le moment. Déconnectez-vous puis reconnectez-vous ; si le problème persiste, contactez le support depuis le bot.",
     "cpanelPermIssue": "Un problème d'autorisation temporaire sur votre compte d'hébergement empêche actuellement les modifications de fichiers. Notre équipe a été alertée et procède à la réparation — vos fichiers et données sont en sécurité. Veuillez réessayer sous peu.",
     "retry": "Réessayer",
     "uploadSlow": "Toujours en cours — votre serveur d'hébergement répond lentement. Les fichiers volumineux ou les réseaux mobiles lents peuvent prendre plus de temps. Ne fermez pas cet onglet."

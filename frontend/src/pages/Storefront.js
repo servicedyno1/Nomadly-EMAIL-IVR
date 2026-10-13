@@ -5,6 +5,7 @@ import { Sun, Moon } from 'lucide-react';
 import { LanguageSwitcher } from '../components/LanguageSwitcher';
 import { StoreProvider, useStore } from '../components/store/StoreContext';
 import useTheme from '../components/panel/useTheme';
+import { useBrand } from '../hooks/useBrand';
 
 const money = (n) => `$${Number(n || 0).toFixed(2)}`;
 const BACKEND = process.env.REACT_APP_BACKEND_URL || '';
@@ -218,7 +219,7 @@ export default function Storefront() {
 function StoreInner() {
   const { user, botLogin } = useStore();
   const [plans, setPlans] = useState([]);
-  const [config, setConfig] = useState({ botUsername: 'NomadlyBot', botStartPayload: 'web-login' });
+  const [config, setConfig] = useState({ botUsername: '', botStartPayload: 'web-login' });
   const [botLoginStatus, setBotLoginStatus] = useState('idle'); // idle | exchanging | failed
   const [botLoginError, setBotLoginError] = useState('');
   const [pending, setPending] = useState(() => loadPendingOrder());
@@ -327,14 +328,18 @@ function BrandLogo({ logoUrl, letter }) {
   return <span className="store-logo" data-testid="store-logo-letter">{letter || 'H'}</span>;
 }
 
-function StoreHeader({ rightExtras, logoUrl, brandName = 'HostBay' }) {
+function StoreHeader({ rightExtras }) {
   const { theme, toggleTheme, isDark } = useTheme();
   const { t } = useTranslation();
+  const brand = useBrand();
+  useEffect(() => {
+    if (brand.loaded) document.title = `${brand.brandName} | Anti-Red Hosting`;
+  }, [brand.loaded, brand.brandName]);
   return (
     <header className="store-top">
       <div className="store-brand">
-        <BrandLogo logoUrl={logoUrl} letter={(brandName || 'H').charAt(0).toUpperCase()} />
-        <span className="store-brand-name">{brandName}</span>
+        <BrandLogo logoUrl={brand.markUrl} letter={(brand.brandName || 'N').charAt(0).toUpperCase()} />
+        <span className="store-brand-name" data-testid="store-brand-name">{brand.brandName}</span>
         <span className="store-sub">Anti-Red Hosting</span>
       </div>
       <div className="store-top-right">
@@ -381,9 +386,10 @@ function AuthGate({ plans, config, botLoginError }) {
   useEffect(() => { if (botLoginError) setError(botLoginError); }, [botLoginError]);
 
   // Build the Telegram deep-link used by the QR + "Open Telegram" button.
-  const botUsername = (config?.botUsername || 'NomadlyBot').replace(/^@/, '');
+  // Rendered only once /api/store/config has told us THIS deployment's bot.
+  const botUsername = (config?.botUsername || '').replace(/^@/, '');
   const startPayload = config?.botStartPayload || 'web-login';
-  const tgDeepLink = `https://t.me/${botUsername}?start=${encodeURIComponent(startPayload)}`;
+  const tgDeepLink = botUsername ? `https://t.me/${botUsername}?start=${encodeURIComponent(startPayload)}` : '';
 
   const submit = async (e) => {
     e.preventDefault();
@@ -423,7 +429,7 @@ function AuthGate({ plans, config, botLoginError }) {
 
   return (
     <div className="store-landing">
-      <StoreHeader logoUrl={config?.logoUrl} brandName={config?.brandName || 'HostBay'} />
+      <StoreHeader />
 
       <div className="store-landing-grid">
         {/* RIGHT column on desktop, BELOW plans on mobile: unified single login */}
@@ -467,6 +473,7 @@ function AuthGate({ plans, config, botLoginError }) {
             </p>
 
             {/* ── Continue with Telegram: one-tap login via the bot ── */}
+            {tgDeepLink && (
             <div className="store-tg-section" data-testid="store-tg-section">
               <div className="store-tg-divider"><span>{t('store.orDivider')}</span></div>
               <a
@@ -486,6 +493,7 @@ function AuthGate({ plans, config, botLoginError }) {
                 <p className="store-muted store-tg-qr-cap">{t('store.tgScanCap')}</p>
               </div>
             </div>
+            )}
           </section>
         </aside>
 

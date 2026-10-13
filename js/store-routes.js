@@ -388,9 +388,16 @@ function createStoreRoutes(deps = {}) {
   // Public storefront config — exposes the Telegram bot username so the
   // landing page can render the "Continue with Telegram" QR / deep-link.
   router.get('/config', (req, res) => {
+    const smsBrand = require('./sms-app-brand.js')
+    const brandName = process.env.STORE_BRAND_NAME || smsBrand.brandName()
     res.json({
-      botUsername: process.env.TELEGRAM_BOT_USERNAME || 'NomadlyBot',
+      botUsername: process.env.TELEGRAM_BOT_USERNAME || smsBrand.botUsername(),
       botStartPayload: 'web-login',
+      brandName,
+      brandSlug: smsBrand.brandSlug(),
+      logoUrl: '/brand/wordmark.png',
+      markUrl: '/brand/mark.png',
+      accent: smsBrand.brandSlug() === 'smadav' ? '#3b82f6' : '#10d9a0',
     })
   })
 

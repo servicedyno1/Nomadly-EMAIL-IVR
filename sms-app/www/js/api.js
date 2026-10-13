@@ -1,19 +1,13 @@
 /**
- * Nomadly SMS App — API Client
+ * SMS App — API Client (brand-aware, see brand.js)
  *
- * Resolution order for the API base URL:
- *   1. In a browser (non-Capacitor) → use same-origin with `/api` prefix (dev mode).
- *   2. In the native APK → GET the Cloudflare Worker at `discoveryUrl` once per
- *      launch. The Worker returns `{apiBase: "<current-backend-url>"}` and the
- *      APK uses that for every subsequent request.
- *   3. If the Worker is unreachable (3 retries with backoff) → throw a clean
- *      "Cannot reach Nomadly servers" error so users see a clear state rather
- *      than silently routing to a stale baked URL.
- *
- * Single-source-of-truth design: the Cloudflare Worker is the ONLY place the
- * backend URL is defined for production. To move the backend, edit one line in
- * the Worker via Cloudflare dashboard — zero APK rebuilds, zero user updates.
- * Worker source kept in /app/ops/nomadly-api-config-worker.js for version control.
+ * API base resolution (native APK):
+ *   1. The brand's OWN baked server (`BRAND.apiBase`, e.g. 2.speechcue.com /
+ *      1.smadavspeech.com) — probed via GET /sms-app/config. Used whenever reachable.
+ *   2. Backup only: the Cloudflare discovery Worker, reading `brands[<slug>]` (never
+ *      another brand's server). Used only if the baked server is unreachable.
+ *   3. Neither reachable → clean "Cannot reach <Brand> servers" error; next action retries.
+ * In a browser (dev/preview) the same-origin `/api` prefix is used.
  */
 
 class APIError extends Error {
@@ -27,34 +21,18 @@ class APIError extends Error {
 }
 
 const API = {
-  // ─── SINGLE SOURCE OF TRUTH: external discovery service ───
-  // The APK asks this Cloudflare Worker at startup: "where's the backend?"
-  // The Worker returns `{apiBase: "<current-backend-url>"}`. When the backend
-  // moves (Railway migration, new region, etc.), update ONE line in the
-  // Worker via Cloudflare dashboard — every APK in the wild picks up the
-  // new URL on next startup without a rebuild.
-  //
-  // Dashboard:  https://dash.cloudflare.com → Workers & Pages → nomadly-api-config
-  // Source:     /app/ops/nomadly-api-config-worker.js
-  //
-  // If this URL is unreachable at startup (captive wifi, network drop, etc.)
-  // the APK surfaces a clean "Cannot reach Nomadly servers" error instead of
-  // silently routing to a stale baked URL. Users simply retry.
+  // Backup-only discovery Worker (brand-keyed). Source: /app/ops/nomadly-api-config-worker.js
   discoveryUrl: 'https://nomadly-api-config.nomadly-cfg.workers.dev/',
 
   _resolvedBase: null,
   _configFetchPromise: null,
 
-  // For in-browser development only. Native APK MUST resolve via discoveryUrl.
+  // For in-browser development only.
   get devFallbackUrl() {
     return `${window.location.origin}/api`
   },
 
-  // Returns the effective backend base URL. Resolution order:
-  //   Native APK: fetch discoveryUrl → use `apiBase` (throws if unreachable)
-  //   Browser:    use window.location.origin + /api (dev only)
-  // Result is memoised for the rest of the session so network cost is one
-  // extra request at startup.
+  // Effective backend base URL (see header). Memoised once resolved; failures are retried.
   async baseUrl() {
     if (this._resolvedBase) return this._resolvedBase
     if (!this._configFetchPromise) {
@@ -64,31 +42,22 @@ const API = {
         // Browser dev mode — skip discovery, use relative /api
         if (!isNative) return this.devFallbackUrl
 
-        // Native APK — fetch discovery service with 2 retries + brief backoff
-        const attempts = [0, 1500, 3500] // delays in ms before each try
-        for (let i = 0; i < attempts.length; i++) {
-          if (attempts[i] > 0) await new Promise(r => setTimeout(r, attempts[i]))
-          try {
-            const ctl = new AbortController()
-            const t = setTimeout(() => ctl.abort(), 4000)
-            const r = await fetch(this.discoveryUrl, { signal: ctl.signal, cache: 'no-cache' })
-            clearTimeout(t)
-            if (r.ok) {
-              const cfg = await r.json()
-              if (cfg && typeof cfg.apiBase === 'string' && cfg.apiBase.trim()) {
-                console.log(`[API] Discovery resolved apiBase (try ${i + 1}):`, cfg.apiBase)
-                return cfg.apiBase.replace(/\/+$/, '')
-              }
-            }
-            console.warn(`[API] Discovery try ${i + 1} returned non-OK status:`, r.status)
-          } catch (e) {
-            console.warn(`[API] Discovery try ${i + 1} failed:`, e.message)
-          }
+        // Native APK — the brand's own baked server FIRST (never depends on Cloudflare).
+        const brand = window.BRAND || {}
+        const slug = brand.slug || 'nomadly'
+        const baked = (brand.apiBase || '').replace(/\/+$/, '')
+        if (baked && await this._reachable(baked)) {
+          console.log(`[API] Using baked apiBase for ${slug}:`, baked)
+          return baked
         }
 
-        // All retries exhausted. Throw so every API call bubbles a clear error
-        // rather than silently hitting a wrong URL.
-        throw new APIError('Cannot reach Nomadly servers. Check your connection and try again.', 0, 'network', 'discovery_unreachable')
+        // Backup: the discovery Worker, reading ONLY this brand's entry (`brands[slug]`).
+        const discovered = await this._discover(slug)
+        if (discovered && discovered !== baked && await this._reachable(discovered)) {
+          console.warn(`[API] Baked apiBase unreachable — using discovered backup for ${slug}:`, discovered)
+          return discovered
+        }
+        throw new APIError(`Cannot reach ${brand.name || 'Nomadly'} servers. Check your connection and try again.`, 0, 'network', 'server_unreachable')
       })()
       // If discovery fails, DO NOT permanently memoize the failure —
       // clear the in-flight promise so a future retry re-runs discovery.
@@ -98,6 +67,44 @@ const API = {
     }
     this._resolvedBase = await this._configFetchPromise
     return this._resolvedBase
+  },
+
+  // Quick liveness probe: any HTTP answer from <base>/sms-app/config = reachable.
+  async _reachable(base, timeoutMs = 6000) {
+    for (let i = 0; i < 2; i++) {
+      const ctl = new AbortController()
+      const t = setTimeout(() => ctl.abort(), timeoutMs)
+      try {
+        const r = await fetch(`${base}/sms-app/config`, { signal: ctl.signal, cache: 'no-cache' })
+        if (r.status < 500) return true
+      } catch (e) {
+        console.warn(`[API] Probe ${i + 1} failed for ${base}:`, e.message)
+      } finally {
+        clearTimeout(t)
+      }
+      if (i === 0) await new Promise(r => setTimeout(r, 1500))
+    }
+    return false
+  },
+
+  // Brand-keyed discovery (v2 `brands[slug]`); a v1 payload is honoured only by nomadly.
+  async _discover(slug) {
+    const ctl = new AbortController()
+    const t = setTimeout(() => ctl.abort(), 5000)
+    try {
+      const sep = this.discoveryUrl.includes('?') ? '&' : '?'
+      const r = await fetch(`${this.discoveryUrl}${sep}brand=${encodeURIComponent(slug)}`, { signal: ctl.signal, cache: 'no-cache' })
+      if (!r.ok) return ''
+      const cfg = await r.json()
+      const fromBrands = cfg?.brands && typeof cfg.brands[slug] === 'string' ? cfg.brands[slug].trim() : ''
+      const legacy = !cfg?.brands && slug === 'nomadly' && typeof cfg?.apiBase === 'string' ? cfg.apiBase.trim() : ''
+      return (fromBrands || legacy).replace(/\/+$/, '')
+    } catch (e) {
+      console.warn('[API] Discovery failed:', e.message)
+      return ''
+    } finally {
+      clearTimeout(t)
+    }
   },
 
   async request(method, path, body = null) {
@@ -241,7 +248,7 @@ const API = {
   },
 
   // Full sync
-  async sync(chatId, appVersion = '2.7.4') {
+  async sync(chatId, appVersion = (window.BRAND && window.BRAND.version) || 'unknown') {
     return this.request('GET', `sms-app/sync/${chatId}?version=${encodeURIComponent(appVersion)}`)
   },
 }
