@@ -15,6 +15,8 @@
 // is temporarily slow or unreachable (but not permanently broken).
 const TIMEOUT_RX = /timeout of \d+ms exceeded|ETIMEDOUT|ECONNABORTED/i
 const UNREACHABLE_RX = /ECONNREFUSED|ENOTFOUND|ECONNRESET|ENETUNREACH|EAI_AGAIN|socket hang up/i
+// cPanel answered with its HTML login page instead of JSON (auth failure upstream)
+const HTML_RX = /^\s*<(!doctype|html)/i
 
 /**
  * Translate a raw cPanel/axios error string to a friendly i18n message.
@@ -25,6 +27,7 @@ export function friendlyMessage(raw, t) {
   const msg = String(raw || '')
   if (TIMEOUT_RX.test(msg)) return t('errors.cpanelSlow')
   if (UNREACHABLE_RX.test(msg)) return t('errors.cpanelUnreachable')
+  if (HTML_RX.test(msg)) return t('errors.cpanelAuthIssue')
   return ''
 }
 
@@ -50,6 +53,7 @@ export function pickErrorMessage(res, t, lang) {
     return t('errors.cpanelPermIssue')
   }
   const raw = (res.errors && res.errors[0]) || ''
+  if (res.code === 'CPANEL_AUTH_FAILURE' || HTML_RX.test(raw)) return t('errors.cpanelAuthIssue')
   return friendlyMessage(raw, t) || raw
 }
 

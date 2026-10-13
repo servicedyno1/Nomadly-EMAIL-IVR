@@ -13,7 +13,7 @@ import AccountSettings from '../components/panel/AccountSettings';
 import SiteStatusCard from '../components/panel/SiteStatusCard';
 import LanguageSwitcher from '../components/LanguageSwitcher';
 import useTheme from '../components/panel/useTheme';
-import { useBrand } from '../hooks/useBrand';
+import { useBrand, BrandMark } from '../hooks/useBrand';
 
 const TABS = [
   { id: 'site', i18nKey: 'site', icon: 'power' },
@@ -51,15 +51,8 @@ export default function PanelDashboard() {
     <div className={`panel-dashboard ${theme === 'light' ? 'panel-light' : ''}`} data-testid="panel-dashboard" data-panel-theme={theme}>
       <header className="panel-header" data-testid="panel-header">
         <div className="panel-header-left">
-          <div className="panel-header-icon">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-              <rect x="2" y="2" width="20" height="8" rx="2"/>
-              <rect x="2" y="14" width="20" height="8" rx="2"/>
-              <circle cx="6" cy="6" r="1" fill="currentColor"/>
-              <circle cx="6" cy="18" r="1" fill="currentColor"/>
-            </svg>
-          </div>
-          <span className="panel-header-title">Nomadly Hosting</span>
+          <BrandMark brand={brand} size={36} testId="panel-header-brand-mark" />
+          <span className="panel-header-title" data-testid="panel-header-brand-name">{brand.brandName} Hosting</span>
           <a 
             href={`https://${user?.domain}`} 
             target="_blank" 

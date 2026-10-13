@@ -150,3 +150,8 @@ The new layout differs from the old in-place `/opt/nomadly/app-main` checkout. O
 - **app-main** (Nomadly, `/opt/nomadly/shared/app-main/backend.env`): was `HIDE_SMS_APP="false"` → set to `true`. Backup: `backend.env.bak-20261011T160548Z`. Applied with `pm2 reload app-main-b --update-env`.
 - Verified live: both bots `/health` healthy + DB connected; booting config shows `HIDE_SMS_APP="true"` and the rendered main-menu keyboard no longer contains the `📱 BulkSMS` button (app-main shows `📱 SMS Leads` alone on that row).
 - Durability: the env lives in `/opt/nomadly/shared/<app>/backend.env` (symlinked into each release); GitHub-Actions auto-deploy never rewrites it, so the change survives future code deploys. To re-enable later: set `HIDE_SMS_APP=false` in app-main's shared env + `pm2 reload app-main-b --update-env`.
+
+
+## 2026-10-13 — SMS app discovery Worker hotfix
+- Cloudflare Worker `nomadly-api-config` now brand-keyed v2 (bare/?brand=nomadly → https://2.speechcue.com, ?brand=smadav → https://1.smadavspeech.com).
+- app-wl `/opt/nomadly/shared/app-wl/backend.env`: `CF_DISCOVERY_SYNC=false` (backup `backend.env.bak.cfsync.20261013T163411Z`), applied with `pm2 reload app-wl-a --update-env`. Old app-wl code would otherwise re-point ALL APKs to Smadav on restart. Safe to set back to true once the brand-keyed code is deployed.

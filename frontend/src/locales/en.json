@@ -687,6 +687,7 @@
     "cpanelDown": "Hosting service is temporarily unavailable. Please try again in a few minutes — your data is safe.",
     "cpanelSlow": "Your hosting server is responding slowly right now. Please try again in a moment.",
     "cpanelUnreachable": "Can't reach your hosting server right now. Please try again in a moment.",
+    "cpanelAuthIssue": "We couldn't connect to your hosting account right now. Please sign out and back in; if this keeps happening, contact support from the bot.",
     "cpanelPermIssue": "A temporary permission issue on your hosting account is blocking file changes right now. Our team has been alerted and is fixing it — your files and data are safe. Please try again shortly.",
     "retry": "Try Again",
     "uploadSlow": "Still working — your hosting server is responding slowly. Large files or slow mobile networks can take longer. Please don't close this tab."
