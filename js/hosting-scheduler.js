@@ -461,7 +461,12 @@ function initScheduler(deps) {
             // purchase when they try to attach or re-primary one of these
             // same domains. Root-caused via @Devils_gods report 2026-08-29.
             const updateFields = { deleted: true, deletedAt: now }
-            if (!terminated) {
+            if (terminated) {
+              // WHM confirmed /removeacct — stamp the canonical "gone from WHM"
+              // flag so this row drops out of future expiry scans (otherwise a
+              // successfully-deleted account is re-fetched every cycle forever).
+              updateFields.terminatedOnWhm = true
+            } else {
               updateFields.whmTerminatePending = true
               updateFields.whmTerminateLastAttemptAt = now
               try { notifyAdmin && notifyAdmin(`⚠️ <b>WHM /removeacct failed (grace-period)</b>\nUser: ${chatId}\ncPanel: <code>${account.cpUser}</code>\nDomain: <b>${domain}</b>\n\n<i>Row flagged whmTerminatePending — self-heal will retry hourly.</i>`) } catch (_) {}
@@ -631,7 +636,9 @@ function initScheduler(deps) {
           // Same self-heal flag as the hourly path — don't lose the domain
           // in WHM userdata if /removeacct hiccups (2026-08-29 fix).
           const updateFields2 = { deleted: true, deletedAt: now }
-          if (!terminated) {
+          if (terminated) {
+            updateFields2.terminatedOnWhm = true
+          } else {
             updateFields2.whmTerminatePending = true
             updateFields2.whmTerminateLastAttemptAt = now
             try { notifyAdmin && notifyAdmin(`⚠️ <b>WHM /removeacct failed (startup-enforce)</b>\nUser: ${chatId}\ncPanel: <code>${account.cpUser}</code>\nDomain: <b>${domain}</b>\n\n<i>Row flagged whmTerminatePending — self-heal will retry hourly.</i>`) } catch (_) {}

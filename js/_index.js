@@ -37150,13 +37150,23 @@ async function checkVPSPlansExpiryandPayment() {
       || (vpsPlan.provider || '').toLowerCase()
     return name === 'vultr' || name === 'digitalocean' || name === 'digitalocean-rdp' || name === 'azure'
   }
-  // DigitalOcean Windows-RDP has its own 3-day grace lifecycle (Phase 2-RDP below).
+  // DigitalOcean Windows-RDP has its own 2-day grace lifecycle (Phase 2-RDP below).
   // DO bills powered-off droplets hourly, so an un-renewed RDP box must be DESTROYED
-  // after a 3-day grace period (not just powered off). This scheduler OWNS that lifecycle
+  // after a 2-day grace period (not just powered off). This scheduler OWNS that lifecycle
   // (it can notify the user); the RDP-service processExpiries() sweep is only a safety net.
   const rdpGrace = require('./rdp-grace-lifecycle')
   const resellerWebhooks = require('./reseller-webhooks')
   const _isDoRdp = (vpsPlan) => rdpGrace.isDigitalOceanRdp(vpsPlan)
+  // DigitalOcean Linux VPS runs the SAME 2-day grace lifecycle as DO-RDP: DO bills powered-off
+  // droplets hourly, so an un-renewed box is powered OFF at end_time, held for the grace window,
+  // then DESTROYED. _isGraceManaged = every DO box this scheduler drives through that flow.
+  const VPS_GRACE_DAYS = Math.max(0, Number(process.env.VPS_GRACE_DAYS || 2))
+  const _isDoVps = (vpsPlan) => {
+    if (_isDoRdp(vpsPlan)) return false
+    if (String(vpsPlan.provider || '').toLowerCase() === 'digitalocean') return true
+    return _detectByPrefix(vpsPlan.contaboInstanceId || vpsPlan.vpsId || vpsPlan.instanceId) === 'digitalocean'
+  }
+  const _isGraceManaged = (vpsPlan) => _isDoRdp(vpsPlan) || _isDoVps(vpsPlan)
   // Push a VPS lifecycle event to the owner's reseller webhook (no-op for ordinary bot users).
   const _notifyResellerVps = (vpsPlan, event, reason) => {
     require('./reseller-activity').record(db, { ownerChatId: vpsPlan.chatId, resourceType: vpsPlan.isRDP ? 'rdp' : 'vps', resourceId: vpsPlan.vpsId || vpsPlan._id, action: event.endsWith('.deleted') ? 'delete' : 'suspend', actor: 'system', details: { reason: reason || null } })
@@ -37212,7 +37222,9 @@ async function checkVPSPlansExpiryandPayment() {
         log(`[VPS Scheduler] ${displayName} marked PENDING_CANCELLATION for ${chatId} — auto-renew disabled`)
         // Reseller webhook: PAYG box keeps running until end_time, so this is the grace window
         // (deletion happens in Phase 2 at end_time). Non-PAYG is cancelled immediately below.
-        if (_isPAYGProvider(vpsPlan)) _notifyResellerVps(vpsPlan, 'vps.grace_start', 'auto_renew_disabled')
+        // DO VPS + DO-RDP are grace-managed: they emit their own vps./rdp.grace_start from the
+        // Phase 2-DO lifecycle (at end_time, when powered off) — suppress the Phase-1 emit here.
+        if (_isPAYGProvider(vpsPlan) && !_isGraceManaged(vpsPlan)) _notifyResellerVps(vpsPlan, 'vps.grace_start', 'auto_renew_disabled')
         // ── BUG-B FIX: cancel on Contabo IMMEDIATELY (24h before expiry) ──
         // Contabo bills monthly contracts in advance; waiting until the 5h
         // pre-emptive cancel (Phase 1.5) was too late and caused €30+ leak
@@ -37269,7 +37281,8 @@ async function checkVPSPlansExpiryandPayment() {
         log(`[VPS Scheduler] ${displayName} PENDING_CANCELLATION for ${chatId} — balance insufficient ($${usdBal || 0} < $${planPrice})`)
         // Reseller webhook: PAYG box keeps running until end_time → grace window begins (Phase 2
         // destroys at end_time). Gives the storefront a window to renew via POST /vps/:id/renew.
-        if (_isPAYGProvider(vpsPlan)) _notifyResellerVps(vpsPlan, 'vps.grace_start', 'insufficient_funds')
+        // DO VPS + DO-RDP are grace-managed and emit their own grace_start from Phase 2-DO.
+        if (_isPAYGProvider(vpsPlan) && !_isGraceManaged(vpsPlan)) _notifyResellerVps(vpsPlan, 'vps.grace_start', 'insufficient_funds')
         // ── BUG-B FIX (extended): cancel on Contabo IMMEDIATELY at wallet-fail.
         // Contabo pre-bills the next period ~4 days BEFORE end_time, which is
         // earlier than the old Phase 1.5 trigger (T-5h) — so without this we
@@ -37388,10 +37401,10 @@ async function checkVPSPlansExpiryandPayment() {
     }
 
     // ═══════════════════════════════════════════════════════════════
-    // Phase 2-RDP: DigitalOcean Windows-RDP 3-day grace lifecycle (OWNER).
-    // For digitalocean-rdp records this scheduler is the single owner of the
-    // expiry → power-off → 3-day-grace → DESTROY flow (with Telegram notices).
-    // Phase 2 + Phase 3 below skip digitalocean-rdp so they never double-handle
+    // Phase 2-DO: DigitalOcean VPS + Windows-RDP 2-day grace lifecycle (OWNER).
+    // For digitalocean / digitalocean-rdp records this scheduler is the single owner of the
+    // expiry → power-off → 2-day-grace → DESTROY flow (with Telegram notices).
+    // Phase 2 + Phase 3 below skip these DO records so they never double-handle
     // (or 0-grace-destroy) these. The RDP-service processExpiries() sweep only
     // fires as a defensive safety net if this cycle is missed.
     // ═══════════════════════════════════════════════════════════════
@@ -37401,24 +37414,32 @@ async function checkVPSPlansExpiryandPayment() {
         status: { $nin: ['CANCELLED', 'DESTROYED', 'destroyed', 'DELETED'] },
         $or: [
           { provider: 'digitalocean-rdp' },
+          { provider: 'digitalocean' },
           { contaboInstanceId: { $regex: '^rdp-', $options: 'i' } },
+          { contaboInstanceId: { $regex: '^do-', $options: 'i' } },
         ],
       }).toArray()
       for (const vpsPlan of rdpCandidates) {
-        if (!_isDoRdp(vpsPlan)) continue
-        const decision = rdpGrace.decideRdpGrace(vpsPlan, { now })
+        if (!_isGraceManaged(vpsPlan)) continue
+        const isRdpBox = _isDoRdp(vpsPlan)
+        const graceDays = isRdpBox ? rdpGrace.GRACE_DAYS : VPS_GRACE_DAYS
+        const decision = rdpGrace.decideRdpGrace(vpsPlan, { now, graceDays })
         if (decision.action === 'none' || decision.action === 'wait') continue
         const info = await state.findOne({ _id: String(vpsPlan.chatId) })
         const lang = info?.userLanguage || 'en'
         const provider = _providerForRecord(vpsPlan)
         await rdpGrace.applyRdpGrace(vpsPlan, decision, {
           now,
+          product: isRdpBox ? 'rdp' : 'vps',
+          msgKeys: isRdpBox
+            ? { graceStart: 't.rdpGraceStart', graceReminder: 't.rdpGraceReminder', deletedAfterGrace: 't.rdpDeletedAfterGrace' }
+            : { graceStart: 't.vpsGraceStart', graceReminder: 't.vpsGraceReminder', deletedAfterGrace: 't.vpsDeletedAfterGrace' },
           powerOff: (inst) => (provider && typeof provider.stopInstance === 'function') ? provider.stopInstance(inst) : Promise.resolve(),
           destroy: (cid, vid) => deleteVPSinstance(cid, vid),
           updatePlan: (planId, set) => vpsPlansOf.updateOne({ _id: planId }, { $set: set }),
-          mirrorGrace: (inst, fields) => (typeof rdpSvc.markGrace === 'function') ? rdpSvc.markGrace(inst, fields) : Promise.resolve(),
-          mirrorDestroy: (inst) => (typeof rdpSvc.markGraceDestroy === 'function') ? rdpSvc.markGraceDestroy(inst) : Promise.resolve(),
-          notifyUser: (cid, key, args) => { try { send(cid, translation(key, lang, ...(args || []))) } catch (e) { log(`[RDP Grace] notify failed: ${e.message}`) } },
+          mirrorGrace: isRdpBox ? ((inst, fields) => (typeof rdpSvc.markGrace === 'function') ? rdpSvc.markGrace(inst, fields) : Promise.resolve()) : null,
+          mirrorDestroy: isRdpBox ? ((inst) => (typeof rdpSvc.markGraceDestroy === 'function') ? rdpSvc.markGraceDestroy(inst) : Promise.resolve()) : null,
+          notifyUser: (cid, key, args) => { try { send(cid, translation(key, lang, ...(args || []))) } catch (e) { log(`[DO Grace] notify failed: ${e.message}`) } },
           notifyReseller: (event, payload) => { try { resellerWebhooks.emit(db, { chatId: vpsPlan.chatId, event, instanceId: vpsPlan.vpsId || vpsPlan._id, payload, log }).catch(() => {}) } catch (_) {} },
           notifyAdmin: (text) => { try { send(TELEGRAM_ADMIN_CHAT_ID, text, adminMsgOpts({ chatId: vpsPlan.chatId })) } catch (_) {} },
           log,
@@ -37438,7 +37459,7 @@ async function checkVPSPlansExpiryandPayment() {
     }).toArray()
 
     for (const vpsPlan of pastDeadline) {
-      if (_isDoRdp(vpsPlan)) continue // DigitalOcean-RDP is handled by the Phase 2-RDP grace lifecycle (3-day grace, not 0-grace destroy)
+      if (_isGraceManaged(vpsPlan)) continue // DigitalOcean VPS+RDP are handled by the Phase 2-DO grace lifecycle (2-day grace, not 0-grace destroy)
       const { chatId, _id, vpsId, label, contaboInstanceId, planPrice, lastDeleteAlertAt, deleteRetryCount } = vpsPlan
       const displayName = label || vpsPlan.name || 'VPS'
       const info = await state.findOne({ _id: String(chatId) })
@@ -37505,7 +37526,7 @@ async function checkVPSPlansExpiryandPayment() {
     }).toArray()
 
     for (const vpsPlan of staleExpired) {
-      if (_isDoRdp(vpsPlan)) continue // DigitalOcean-RDP enters the Phase 2-RDP grace lifecycle instead of PENDING_CANCELLATION
+      if (_isGraceManaged(vpsPlan)) continue // DigitalOcean VPS+RDP enter the Phase 2-DO grace lifecycle instead of PENDING_CANCELLATION
       const { chatId, _id, planPrice, vpsId, label, autoRenewable } = vpsPlan
       const displayName = label || vpsPlan.name || 'VPS'
       const info = await state.findOne({ _id: String(chatId) })

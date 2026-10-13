@@ -2056,10 +2056,14 @@ host_4: (safeHtml) => `${safeHtml}`,
  util_8: (displayName, expiryDate, planPrice, toFixed, statusIcon, v5) => `🖥️ <b>VPS 将在 3 天后到期</b>\n\n<b>${displayName}</b> 将于 <b>${expiryDate}</b> 到期。\n💵 需要：<b>$${planPrice}/月</b>\n💳 余额：$${toFixed}\n${statusIcon} ${v5}`,
  util_9: (domain, ngnPrice) => `💰 <b>自动退款：</b>域名 <b>${domain}</b> 注册失败。您支付的 ${ngnPrice} NGN 已存入您的钱包余额。`,
 
- // === Windows RDP 3 天宽限期 ===
- rdpGraceStart: (displayName, deleteDate) => `🖥 <b>${displayName}</b> 已<b>到期</b>并已<b>关机</b>。\n\n🗑 除非续订，否则将于 <b>${deleteDate}</b> <b>永久删除</b>（3 天宽限期）——所有数据都将丢失。\n\n♻️ 立即续订：🖥️ VPS/RDP → 管理 → 续订`,
+ // === Windows RDP 2 天（48 小时）宽限期 ===
+ rdpGraceStart: (displayName, deleteDate) => `🖥 <b>${displayName}</b> 已<b>到期</b>并已<b>关机</b>。\n\n🗑 除非续订，否则将于 <b>${deleteDate}</b> <b>永久删除</b>（2 天宽限期）——所有数据都将丢失。\n\n♻️ 立即续订：🖥️ VPS/RDP → 管理 → 续订`,
  rdpGraceReminder: (displayName, deleteDate) => `⏳ <b>最后提醒</b>\n\n🖥 除非续订，<b>${displayName}</b> 将于 <b>${deleteDate}</b> <b>永久删除</b>。\n\n之后服务器及其所有数据将无法恢复。\n\n♻️ 立即续订：🖥️ VPS/RDP → 管理 → 续订`,
- rdpDeletedAfterGrace: (displayName) => `🗑 <b>${displayName}</b> 在 3 天宽限期结束且未续订后已被<b>永久删除</b>。\n\n服务器上的所有数据均已丢失。您可以随时从菜单订购新的 Windows RDP。`,
+ rdpDeletedAfterGrace: (displayName) => `🗑 <b>${displayName}</b> 在 2 天宽限期结束且未续订后已被<b>永久删除</b>。\n\n服务器上的所有数据均已丢失。您可以随时从菜单订购新的 Windows RDP。`,
+ // === DigitalOcean VPS 2 天（48 小时）宽限期 ===
+ vpsGraceStart: (displayName, deleteDate) => `🖥 <b>${displayName}</b> 已<b>到期</b>并已<b>关机</b>。\n\n🗑 除非续订，否则将于 <b>${deleteDate}</b> <b>永久删除</b>（2 天宽限期）——所有数据都将丢失。\n\n♻️ 立即续订：🖥️ VPS/RDP → 管理 → 续订`,
+ vpsGraceReminder: (displayName, deleteDate) => `⏳ <b>最后提醒</b>\n\n🖥 除非续订，<b>${displayName}</b> 将于 <b>${deleteDate}</b> <b>永久删除</b>。\n\n之后服务器及其所有数据将无法恢复。\n\n♻️ 立即续订：🖥️ VPS/RDP → 管理 → 续订`,
+ vpsDeletedAfterGrace: (displayName) => `🗑 <b>${displayName}</b> 在 2 天宽限期结束且未续订后已被<b>永久删除</b>。\n\n服务器上的所有数据均已丢失。您可以随时从菜单订购新的 VPS。`,
  vps_1: (message) => `❌ 读取文件失败：${message}`,
  vps_10: '✏️ 请输入新的<b>主题</b>行：',
  vps_11: '⚙️ <b>Email Admin Panel</b>',

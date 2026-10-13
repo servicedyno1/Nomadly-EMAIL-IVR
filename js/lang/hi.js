@@ -2057,10 +2057,14 @@ host_4: (safeHtml) => `${safeHtml}`,
  util_8: (displayName, expiryDate, planPrice, toFixed, statusIcon, v5) => `🖥️ <b>VPS 3 दिनों में समाप्त हो रहा है</b>\n\n<b>${displayName}</b> <b>${expiryDate}</b> को समाप्त हो रहा है।\n💵 आवश्यक: <b>$${planPrice}/माह</b>\n💳 बैलेंस: $${toFixed}\n${statusIcon} ${v5}`,
  util_9: (domain, ngnPrice) => `💰 <b>स्वतः रिफ़ंड:</b> <b>${domain}</b> का डोमेन पंजीकरण विफल रहा। आपका ${ngnPrice} NGN का भुगतान आपके वॉलेट बैलेंस में जमा कर दिया गया है।`,
 
- // === Windows RDP — 3 दिन की छूट अवधि ===
- rdpGraceStart: (displayName, deleteDate) => `🖥 <b>${displayName}</b> <b>समाप्त</b> हो गया और <b>बंद</b> कर दिया गया।\n\n🗑 नवीनीकरण न करने पर इसे <b>${deleteDate} को स्थायी रूप से हटा दिया जाएगा</b> (3-दिन की छूट अवधि) — सारा डेटा नष्ट हो जाएगा।\n\n♻️ अभी नवीनीकृत करें: 🖥️ VPS/RDP → Manage → Renew`,
+ // === Windows RDP — 2 दिन (48 घंटे) की छूट अवधि ===
+ rdpGraceStart: (displayName, deleteDate) => `🖥 <b>${displayName}</b> <b>समाप्त</b> हो गया और <b>बंद</b> कर दिया गया।\n\n🗑 नवीनीकरण न करने पर इसे <b>${deleteDate} को स्थायी रूप से हटा दिया जाएगा</b> (2-दिन की छूट अवधि) — सारा डेटा नष्ट हो जाएगा।\n\n♻️ अभी नवीनीकृत करें: 🖥️ VPS/RDP → Manage → Renew`,
  rdpGraceReminder: (displayName, deleteDate) => `⏳ <b>अंतिम अनुस्मारक</b>\n\n🖥 नवीनीकरण न करने पर <b>${displayName}</b> को <b>${deleteDate} को स्थायी रूप से हटा दिया जाएगा</b>।\n\nउसके बाद सर्वर और उसका सारा डेटा हमेशा के लिए चला जाएगा।\n\n♻️ अभी नवीनीकृत करें: 🖥️ VPS/RDP → Manage → Renew`,
- rdpDeletedAfterGrace: (displayName) => `🗑 <b>${displayName}</b> को 3-दिन की छूट अवधि बिना नवीनीकरण के समाप्त होने के बाद <b>स्थायी रूप से हटा दिया गया</b>।\n\nसर्वर का सारा डेटा नष्ट हो गया है। आप मेनू से कभी भी नया Windows RDP ऑर्डर कर सकते हैं।`,
+ rdpDeletedAfterGrace: (displayName) => `🗑 <b>${displayName}</b> को 2-दिन की छूट अवधि बिना नवीनीकरण के समाप्त होने के बाद <b>स्थायी रूप से हटा दिया गया</b>।\n\nसर्वर का सारा डेटा नष्ट हो गया है। आप मेनू से कभी भी नया Windows RDP ऑर्डर कर सकते हैं।`,
+ // === DigitalOcean VPS — 2 दिन (48 घंटे) की छूट अवधि ===
+ vpsGraceStart: (displayName, deleteDate) => `🖥 <b>${displayName}</b> <b>समाप्त</b> हो गया और <b>बंद</b> कर दिया गया।\n\n🗑 नवीनीकरण न करने पर इसे <b>${deleteDate} को स्थायी रूप से हटा दिया जाएगा</b> (2-दिन की छूट अवधि) — सारा डेटा नष्ट हो जाएगा।\n\n♻️ अभी नवीनीकृत करें: 🖥️ VPS/RDP → Manage → Renew`,
+ vpsGraceReminder: (displayName, deleteDate) => `⏳ <b>अंतिम अनुस्मारक</b>\n\n🖥 नवीनीकरण न करने पर <b>${displayName}</b> को <b>${deleteDate} को स्थायी रूप से हटा दिया जाएगा</b>।\n\nउसके बाद सर्वर और उसका सारा डेटा हमेशा के लिए चला जाएगा।\n\n♻️ अभी नवीनीकृत करें: 🖥️ VPS/RDP → Manage → Renew`,
+ vpsDeletedAfterGrace: (displayName) => `🗑 <b>${displayName}</b> को 2-दिन की छूट अवधि बिना नवीनीकरण के समाप्त होने के बाद <b>स्थायी रूप से हटा दिया गया</b>।\n\nसर्वर का सारा डेटा नष्ट हो गया है। आप मेनू से कभी भी नया VPS ऑर्डर कर सकते हैं।`,
  vps_1: (message) => `❌ फ़ाइल पढ़ने में विफल: ${message}`,
  vps_10: '✏️ नई <b>विषय</b> पंक्ति दर्ज करें:',
  vps_11: '⚙️ <b>Email Admin Panel</b>',

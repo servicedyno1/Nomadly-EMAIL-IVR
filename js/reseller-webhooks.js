@@ -7,7 +7,7 @@
 // instead of polling GET /renewals.
 //
 // Scope (owner-approved 2026-06): PLAIN POST (no signature) + auto-retry/backoff.
-// Events: rdp.grace_start (subscription expired → powered off, 3-day grace begins)
+// Events: rdp.grace_start (subscription expired → powered off, 2-day/48h grace begins)
 //         rdp.deleted     (droplet permanently deleted after grace ended unrenewed)
 //
 // Idempotent per (keyId, event, instanceId) via the resellerWebhookDeliveries

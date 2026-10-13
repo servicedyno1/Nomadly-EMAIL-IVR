@@ -284,8 +284,8 @@ function createResellerApi(deps = {}) {
   // ── Lifecycle / renewability helpers (shared by reads, /renewals, renew pre-flight) ──
   // Hosting grace = the window between expiry-suspension and permanent deletion. The
   // hosting scheduler suspends the moment a plan expires and deletes HOSTING_GRACE_HOURS
-  // later, so delete_at = expiryDate + HOSTING_GRACE_HOURS. Hosting grace is 48h (shorter
-  // than the 72h / 3-day VPS+RDP grace) — kept in sync with hosting-scheduler.GRACE_PERIOD_HOURS.
+  // later, so delete_at = expiryDate + HOSTING_GRACE_HOURS. Hosting grace is 48h (the same
+  // as the 48h / 2-day VPS+RDP grace) — kept in sync with hosting-scheduler.GRACE_PERIOD_HOURS.
   const HOSTING_GRACE_HOURS = 48
 
   function hostingGraceInfo(acct, nowMs) {
@@ -1398,16 +1398,19 @@ function createResellerApi(deps = {}) {
     }
     // RDP only: whether the in-guest management agent (used by password-reset) has checked in recently.
     if (isRDP) out.agent_online = live ? !!live.agentOnline : null
-    // RDP 3-day grace: surface pending-deletion so a polling reseller sees the box is expired-but-not-yet-deleted.
-    if (isRDP) {
+    // DO VPS/RDP 2-day (48h) grace: surface pending-deletion so a polling reseller sees the box is expired-but-not-yet-deleted.
+    {
       const graceUntil = rec.grace_until ? new Date(rec.grace_until) : null
       const destroyedByGrace = rec.cancelReason === 'expired_grace' || rec.destroy_reason === 'expired_grace'
       if (destroyedByGrace || out.status === 'destroyed') {
         out.status = 'destroyed'
         if (destroyedByGrace) out.destroy_reason = 'expired_grace'
       } else if (graceUntil && !isNaN(graceUntil.getTime())) {
+        const expiredAt = rec.expired_at ? new Date(rec.expired_at) : null
+        const graceHours = (expiredAt && !isNaN(expiredAt.getTime())) ? Math.max(0, Math.round((graceUntil.getTime() - expiredAt.getTime()) / 3600000)) : 48
         const daysRemaining = Math.max(0, Math.ceil((graceUntil.getTime() - Date.now()) / 86400000))
-        out.grace = { in_grace: true, expired_at: rec.expired_at || null, delete_at: graceUntil.toISOString(), days_remaining: daysRemaining }
+        const hoursRemaining = Math.max(0, Math.ceil((graceUntil.getTime() - Date.now()) / 3600000))
+        out.grace = { in_grace: true, expired_at: rec.expired_at || null, delete_at: graceUntil.toISOString(), grace_hours: graceHours, days_remaining: daysRemaining, hours_remaining: hoursRemaining }
       }
     }
     if (live && live.provisioning) {
@@ -1621,7 +1624,12 @@ function createResellerApi(deps = {}) {
       product: isRDP ? 'rdp' : 'vps', action: 'renew', priceUsd,
       request: { id: rec.vpsId || rec._id, months, plan: planName },
       provision: async () => {
+        const wasInGrace = String(rec.status) === 'EXPIRED_GRACE' || !!rec.grace_until || !!rec.expired_at
         const r = canProviderRenew ? await prov.renewInstance(rec.instanceId, months) : null
+        // PAYG VPS has no provider renew op; if it was powered off during the grace window, power it back on.
+        if (!canProviderRenew && wasInGrace && rec.instanceId && prov && typeof prov.startInstance === 'function') {
+          try { await prov.startInstance(rec.instanceId) } catch (_) { /* best-effort: scheduler/next poll reconciles power state */ }
+        }
         const base = (rec.end_time && new Date(rec.end_time) > new Date()) ? new Date(rec.end_time) : new Date()
         const newExpiry = r?.expires_at ? new Date(r.expires_at) : new Date(base.getTime() + 30 * months * 86400000)
         // Mirror onto vpsPlansOf: back to good standing + clear every grace/cancel field so
@@ -2575,15 +2583,16 @@ function createResellerApi(deps = {}) {
         const days = Math.ceil((exp.getTime() - nowMs) / DAY)
         const rn = vpsRenewability(v, v.isRDP, v.isRDP ? rdpProviderForRecord(v) : null)
         const item = { product: v.isRDP ? 'rdp' : 'vps', id: v.vpsId || v._id, plan: v.plan || null, region: v.region || null, expires_at: exp.toISOString(), days_until_expiry: days, status: bucket(days), renewable: rn.renewable, renew_blocked_reason: rn.renew_blocked_reason }
-        // RDP 3-day grace: an expired-but-not-yet-deleted box is powered off and pending
+        // DO VPS/RDP 2-day (48h) grace: an expired-but-not-yet-deleted box is powered off and pending
         // permanent deletion at grace_until. Surface it so a polling reseller can renew in time.
         const graceUntil = v.grace_until ? new Date(v.grace_until) : null
-        if (v.isRDP && graceUntil && !isNaN(graceUntil.getTime()) && !VPS_TERM.includes(String(v.status))) {
+        if (graceUntil && !isNaN(graceUntil.getTime()) && !VPS_TERM.includes(String(v.status))) {
           item.status = 'grace'
           item.in_grace = true
           item.expired_at = v.expired_at ? new Date(v.expired_at).toISOString() : null
           item.delete_at = graceUntil.toISOString()
           item.days_until_deletion = Math.max(0, Math.ceil((graceUntil.getTime() - nowMs) / DAY))
+          item.hours_until_deletion = Math.max(0, Math.ceil((graceUntil.getTime() - nowMs) / 3600000))
         }
         items.push(item)
       }
@@ -2700,21 +2709,59 @@ function createResellerApi(deps = {}) {
   }))
 
   // ════════════════════════════════════════════════════════
-  // DOMAIN RENEWAL (pricing/simulation; live renewal not yet wired)
+  // DOMAIN RENEWAL — manual, on-demand (OpenProvider domains)
+  // Renews the domain now for {years} (default 1) at the current registrar price, charged to the
+  // API key's wallet, reusing the same OpenProvider path as the hourly auto-renew sweep. Works
+  // before expiry AND inside the registrar's post-expiry recovery window. Pre-flight {dry_run:true}.
   // ════════════════════════════════════════════════════════
   router.post('/domains/:domain/renew', apiKeyAuth, h(async (req, res) => {
     const domain = String(req.params.domain || '').trim().toLowerCase()
     if (!domainOk(domain)) return res.status(400).json({ error: 'invalid_domain' })
     const owned = await col('domainsOf').findOne({ chatId: String(req.reseller.ownerChatId), domainName: domain })
     if (!owned) return res.status(404).json({ error: 'not_found', message: 'That domain is not registered under your account.' })
-    const dp = await domainService.checkDomainPrice(domain, getDb())
-    const price = Number(dp?.price) || 0
-    if (!price) return res.status(502).json({ error: 'pricing_failed', message: 'Could not fetch a renewal price for this domain.' })
-    if (isLive()) {
-      // No registrar renewal path exists in the codebase yet — refuse BEFORE charging.
-      return res.status(501).json({ error: 'not_implemented', message: 'Live domain renewal via API is not yet available. Renew at the registrar or via the Telegram bot. Dry-run pricing is available on sandbox pods.', price_usd: price })
+    // Live registrar renewal is wired for OpenProvider only (same path as auto-renew). Others 501.
+    const registrar = await domainAutoRenew.registrarOf(getDb(), owned)
+    if (!domainAutoRenew.isOpenProvider(registrar)) {
+      return res.status(501).json({ error: 'not_supported', message: `On-demand renewal is only available for OpenProvider domains. This domain is registered via ${registrar || 'another registrar'} — renew it at that registrar.` })
     }
-    return billedProvision(req, res, { product: 'domain', action: 'renew', priceUsd: price, request: { domain, renew_usd: price }, provision: async () => ({ success: true, domain }) })
+    const years = Math.min(10, Math.max(1, parseInt(req.body?.years ?? req.body?.period, 10) || 1))
+    const quote = await opService.getRenewPrice(domain)
+    const unit = Number(quote && quote.price) || 0
+    if (!unit) return res.status(502).json({ error: 'pricing_failed', message: (quote && quote.error) || 'Could not fetch a renewal price for this domain.' })
+    const priceUsd = +(unit * years).toFixed(2)
+
+    if (req.body?.dry_run === true) {
+      const balance = await walletBalance(req.reseller.ownerChatId)
+      return res.json({
+        dry_run: true, product: 'domain', action: 'renew', domain,
+        period_years: years, price_usd: priceUsd,
+        wallet_balance_usd: balance, sufficient_balance: balance >= priceUsd,
+        note: 'Pre-flight only: nothing was charged and no renewal happened. Re-send without dry_run to renew.',
+      })
+    }
+
+    return billedProvision(req, res, {
+      product: 'domain', action: 'renew', priceUsd,
+      request: { domain, period_years: years },
+      provision: async () => {
+        const r = await opService.renewDomain(domain, years)
+        if (!r || !r.success) return { success: false, error: (r && r.error) || 'registrar renewal failed' }
+        let newExp = r.expiresAt ? new Date(r.expiresAt) : null
+        if (!newExp || isNaN(newExp.getTime())) {
+          const cur = owned.expiresAt ? new Date(owned.expiresAt) : new Date()
+          newExp = new Date(cur); newExp.setUTCFullYear(newExp.getUTCFullYear() + years)
+        }
+        await col('domainsOf').updateOne({ _id: owned._id }, {
+          $set: { expiresAt: newExp, lastRenewedAt: new Date(), autoRenewLastError: null, autoRenewNextAttemptAt: null },
+          $inc: { renewalCount: 1 },
+        })
+        const prevExp = r.previousExpiresAt || (owned.expiresAt ? new Date(owned.expiresAt).toISOString() : null)
+        const details = { domain, registrar: domainAutoRenew.OPENPROVIDER, via: 'api', charged_usd: priceUsd, period_years: years, previous_expires_at: prevExp, expires_at: newExp.toISOString() }
+        try { activity.record(getDb(), { ownerChatId: req.reseller.ownerChatId, resourceType: 'domain', resourceId: domain, action: 'renew', actor: 'api', details }) } catch (_) {}
+        try { emitEvent(req.reseller.ownerChatId, 'domain.renewed', domain, details, require('./reseller-webhooks').renewedDedupKey(domain, newExp)) } catch (_) {}
+        return { success: true, domain, period_years: years, expires_at: newExp.toISOString() }
+      },
+    })
   }))
 
   // ── Per-domain auto-renew (OpenProvider domains only) ──
