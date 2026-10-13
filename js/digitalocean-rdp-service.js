@@ -130,7 +130,7 @@ const GOLDEN_ALL_REGIONS = [...new Set(Object.values(REGION_TO_DO))]
 const UBUNTU_IMAGE = process.env.DO_UBUNTU_IMAGE || 'ubuntu-22-04-x64'
 
 // Poll timings (ms / min) — exported as _timing so tests can shrink them.
-const T = { bootPoll: 5000, rdpPoll: 30000, actionPoll: 15000, offPoll: 10000, rdpPort: 3389, rdpMaxMin: 90, transferMaxMin: 90, buildMaxMin: 120, importPoll: 30000, importMaxMin: 240, importRetryMin: 150, importRetries: 2, importSlotMaxMin: 480, callbackGraceMs: 90000, fastTargetMs: 180000, digestMs: 24 * 60 * 60 * 1000, commandWaitMs: 150000, commandPoll: 2000, agentStaleMs: 10 * 60 * 1000, rebuildMaxMin: 20, graceDays: Number(process.env.RDP_GRACE_DAYS || 3) }
+const T = { bootPoll: 5000, rdpPoll: 30000, actionPoll: 15000, offPoll: 10000, rdpPort: 3389, rdpMaxMin: 90, transferMaxMin: 90, buildMaxMin: 120, importPoll: 30000, importMaxMin: 240, importRetryMin: 150, importRetries: 2, importSlotMaxMin: 480, callbackGraceMs: 90000, fastTargetMs: 180000, digestMs: 24 * 60 * 60 * 1000, commandWaitMs: 150000, commandPoll: 2000, agentStaleMs: 10 * 60 * 1000, rebuildMaxMin: 20, graceDays: Number(process.env.RDP_GRACE_DAYS || 2) }
 
 // ─────────────────────────────────────────────────────────────
 // Admin alerts (Telegram via the bot's notifyAdmin, injected by _index.js init)
@@ -591,7 +591,7 @@ async function renewInstance(instanceId, months = 1) {
   const base = s.expires_at && new Date(s.expires_at) > new Date() ? new Date(s.expires_at) : new Date()
   const expires = new Date(base.getTime() + 30 * m * 86400000)
   const set = { expires_at: expires, renewed_at: new Date() }
-  // A renewal always clears any 3-day grace state — the server is back in good standing.
+  // A renewal always clears any grace state — the server is back in good standing.
   set.expired_at = null
   set.grace_until = null
   if (s.status === 'expired' || s.status === 'suspended') {
@@ -1348,7 +1348,7 @@ async function cancelInstance(instanceId, opts = {}) {
 }
 
 // ─────────────────────────────────────────────────────────────
-// 3-day grace lifecycle helpers.
+// 2-day (48h) grace lifecycle helpers.
 // The bot VPS scheduler (js/_index.js) OWNS the DO-RDP grace lifecycle and
 // mirrors the grace state onto doRdpServers via these helpers so this service's
 // safety-net sweep + the reseller API read a consistent state.
@@ -1402,7 +1402,7 @@ async function getSecretPassword(secretId) {
 }
 
 // Hourly sweep (production only). Two passes:
-//   Sweep-1: an ACTIVE subscription that just expired → power OFF + enter the 3-day grace
+//   Sweep-1: an ACTIVE subscription that just expired → power OFF + enter the 2-day (48h) grace
 //            (set expired_at / grace_until) and mirror it onto vpsPlansOf. Customer loses
 //            access but the box (and its data) survive for grace before deletion.
 //   Sweep-2 (SAFETY NET): an EXPIRED box whose grace deadline has passed → DESTROY the droplet
@@ -1421,7 +1421,7 @@ async function processExpiries() {
     const graceUntil = new Date(new Date(s.expires_at || now).getTime() + T.graceDays * 86400000)
     await _servers.updateOne({ server_id: s.server_id }, { $set: { status: 'expired', expired_at: now, grace_until: graceUntil } })
     await _mirrorVpsPlan(s.server_id, { status: 'EXPIRED_GRACE', expired_at: now, grace_until: graceUntil })
-    _emitResellerWebhook(s.server_id, 'rdp.grace_start', { expired_at: now.toISOString(), delete_at: graceUntil.toISOString() }).catch(() => {})
+    _emitResellerWebhook(s.server_id, 'rdp.grace_start', { expired_at: now.toISOString(), delete_at: graceUntil.toISOString(), grace_hours: T.graceDays * 24 }).catch(() => {})
     suspended.push(s.server_id)
   }
   // Sweep-2 — expired past the grace deadline → destroy (safety net).

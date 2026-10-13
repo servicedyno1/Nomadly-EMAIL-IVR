@@ -2073,10 +2073,15 @@ host_4: (safeHtml) => `${safeHtml}`,
  util_8: (displayName, expiryDate, planPrice, toFixed, statusIcon, v5) => `🖥️ <b>VPS expire dans 3 jours</b>\n\n<b>${displayName}</b> expire le <b>${expiryDate}</b>.\n💵 Requis : <b>$${planPrice}/mois</b>\n💳 Solde : $${toFixed}\n${statusIcon} ${v5}`,
  util_9: (domain, ngnPrice) => `💰 <b>Remboursement automatique :</b> l'enregistrement du domaine <b>${domain}</b> a échoué. Votre paiement de ${ngnPrice} NGN a été crédité sur votre portefeuille.`,
 
- // === Windows RDP — période de grâce de 3 jours ===
- rdpGraceStart: (displayName, deleteDate) => `🖥 <b>${displayName}</b> a <b>expiré</b> et a été <b>éteint</b>.\n\n🗑 Il sera <b>définitivement supprimé le ${deleteDate}</b> (période de grâce de 3 jours) sauf renouvellement — toutes les données seront perdues.\n\n♻️ Renouveler : 🖥️ VPS/RDP → Gérer → Renouveler`,
+ // === Windows RDP — période de grâce de 2 jours ===
+ rdpGraceStart: (displayName, deleteDate) => `🖥 <b>${displayName}</b> a <b>expiré</b> et a été <b>éteint</b>.\n\n🗑 Il sera <b>définitivement supprimé le ${deleteDate}</b> (période de grâce de 2 jours) sauf renouvellement — toutes les données seront perdues.\n\n♻️ Renouveler : 🖥️ VPS/RDP → Gérer → Renouveler`,
  rdpGraceReminder: (displayName, deleteDate) => `⏳ <b>Dernier rappel</b>\n\n🖥 <b>${displayName}</b> sera <b>définitivement supprimé le ${deleteDate}</b> sauf renouvellement.\n\nEnsuite, le serveur et toutes ses données seront perdus.\n\n♻️ Renouveler : 🖥️ VPS/RDP → Gérer → Renouveler`,
- rdpDeletedAfterGrace: (displayName) => `🗑 <b>${displayName}</b> a été <b>définitivement supprimé</b> après la fin de la période de grâce de 3 jours sans renouvellement.\n\nToutes les données du serveur sont perdues. Vous pouvez commander un nouveau RDP Windows à tout moment depuis le menu.`,
+ rdpDeletedAfterGrace: (displayName) => `🗑 <b>${displayName}</b> a été <b>définitivement supprimé</b> après la fin de la période de grâce de 2 jours sans renouvellement.\n\nToutes les données du serveur sont perdues. Vous pouvez commander un nouveau RDP Windows à tout moment depuis le menu.`,
+
+ // === VPS DigitalOcean — période de grâce de 2 jours ===
+ vpsGraceStart: (displayName, deleteDate) => `🖥 <b>${displayName}</b> a <b>expiré</b> et a été <b>éteint</b>.\n\n🗑 Il sera <b>définitivement supprimé le ${deleteDate}</b> (période de grâce de 2 jours) sauf renouvellement — toutes les données seront perdues.\n\n♻️ Renouveler : 🖥️ VPS/RDP → Gérer → Renouveler`,
+ vpsGraceReminder: (displayName, deleteDate) => `⏳ <b>Dernier rappel</b>\n\n🖥 <b>${displayName}</b> sera <b>définitivement supprimé le ${deleteDate}</b> sauf renouvellement.\n\nEnsuite, le serveur et toutes ses données seront perdus.\n\n♻️ Renouveler : 🖥️ VPS/RDP → Gérer → Renouveler`,
+ vpsDeletedAfterGrace: (displayName) => `🗑 <b>${displayName}</b> a été <b>définitivement supprimé</b> après la fin de la période de grâce de 2 jours sans renouvellement.\n\nToutes les données du serveur sont perdues. Vous pouvez commander un nouveau VPS à tout moment depuis le menu.`,
  vps_1: (message) => `❌ Lecture du fichier impossible : ${message}`,
  vps_10: '✏️ Entrez la nouvelle ligne <b>Objet</b> :',
  vps_11: '⚙️ <b>Email Admin Panel</b>',

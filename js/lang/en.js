@@ -2299,10 +2299,15 @@ host_4: (safeHtml) => `${safeHtml}`,
  util_8: (displayName, expiryDate, planPrice, toFixed, statusIcon, v5) => `🖥️ <b>VPS Expiring in 3 Days</b>\n\n<b>${displayName}</b> expires on <b>${expiryDate}</b>.\n💵 Required: <b>$${planPrice}/mo</b>\n💳 Balance: $${toFixed}\n${statusIcon} ${v5}`,
  util_9: (domain, ngnPrice) => `💰 <b>Auto-Refund:</b> Domain registration for <b>${domain}</b> failed. Your payment of ${ngnPrice} NGN has been credited to your wallet balance.`,
 
- // === Windows RDP 3-day grace lifecycle ===
- rdpGraceStart: (displayName, deleteDate) => `🖥 <b>${displayName}</b> has <b>expired</b> and was <b>powered off</b>.\n\n🗑 It will be <b>permanently deleted on ${deleteDate}</b> (3-day grace period) unless you renew — all data will be lost.\n\n♻️ Renew now: 🖥️ VPS/RDP → Manage → Renew`,
+ // === Windows RDP 2-day grace lifecycle ===
+ rdpGraceStart: (displayName, deleteDate) => `🖥 <b>${displayName}</b> has <b>expired</b> and was <b>powered off</b>.\n\n🗑 It will be <b>permanently deleted on ${deleteDate}</b> (2-day grace period) unless you renew — all data will be lost.\n\n♻️ Renew now: 🖥️ VPS/RDP → Manage → Renew`,
  rdpGraceReminder: (displayName, deleteDate) => `⏳ <b>Final reminder</b>\n\n🖥 <b>${displayName}</b> will be <b>permanently deleted on ${deleteDate}</b> unless you renew.\n\nAfter that, the server and all its data are gone for good.\n\n♻️ Renew now: 🖥️ VPS/RDP → Manage → Renew`,
- rdpDeletedAfterGrace: (displayName) => `🗑 <b>${displayName}</b> was <b>permanently deleted</b> after the 3-day grace period ended without a renewal.\n\nAll data on the server is gone. You can order a new Windows RDP anytime from the menu.`,
+ rdpDeletedAfterGrace: (displayName) => `🗑 <b>${displayName}</b> was <b>permanently deleted</b> after the 2-day grace period ended without a renewal.\n\nAll data on the server is gone. You can order a new Windows RDP anytime from the menu.`,
+
+ // === DigitalOcean VPS 2-day grace lifecycle ===
+ vpsGraceStart: (displayName, deleteDate) => `🖥 <b>${displayName}</b> has <b>expired</b> and was <b>powered off</b>.\n\n🗑 It will be <b>permanently deleted on ${deleteDate}</b> (2-day grace period) unless you renew — all data will be lost.\n\n♻️ Renew now: 🖥️ VPS/RDP → Manage → Renew`,
+ vpsGraceReminder: (displayName, deleteDate) => `⏳ <b>Final reminder</b>\n\n🖥 <b>${displayName}</b> will be <b>permanently deleted on ${deleteDate}</b> unless you renew.\n\nAfter that, the server and all its data are gone for good.\n\n♻️ Renew now: 🖥️ VPS/RDP → Manage → Renew`,
+ vpsDeletedAfterGrace: (displayName) => `🗑 <b>${displayName}</b> was <b>permanently deleted</b> after the 2-day grace period ended without a renewal.\n\nAll data on the server is gone. You can order a new VPS anytime from the menu.`,
 
  // === Admin ===
  adm_1: '📸 Maximum 5 images. Tap ✅ Done Uploading to continue.',
