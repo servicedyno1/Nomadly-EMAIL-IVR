@@ -108,7 +108,9 @@ run('SMTP and BulkSMS footers are no longer in the caption pipeline', () => {
   const block = src.slice(start, start + 4000)
   assert.ok(!block.includes('getSmtpFooter(lang)'), 'getSmtpFooter should NOT appear inside sendPromoToUser')
   assert.ok(!block.includes('getBulkSmsFooter(lang)'), 'getBulkSmsFooter should NOT appear inside sendPromoToUser')
-  assert.ok(block.includes('getOptOutFooter(lang)'), 'getOptOutFooter SHOULD appear inside sendPromoToUser')
+  // 2026-06: the unsubscribe footer moved into the shared renderer (promo-copy/index.js)
+  const renderer = fs.readFileSync(path.resolve(__dirname, '../promo-copy/index.js'), 'utf8')
+  assert.ok(/parts\.push\(''\s*,\s*FOOTER\[lang\] \|\| FOOTER\.en\)/.test(renderer), 'renderPromo SHOULD append the unsubscribe footer')
 })
 
 console.log('\nAll auto-promo caption tests passed.')

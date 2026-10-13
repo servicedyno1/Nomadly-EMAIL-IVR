@@ -6370,6 +6370,19 @@ Tap a button below to change. Changes sync to your phone on next app open.`
       return
     }
 
+    // ── AutoPromo one-tap hub button → synthetic `/start open_<hub>` ──
+    if (data.startsWith('promo_open:')) {
+      const hub = data.slice('promo_open:'.length).replace(/[^a-z_]/g, '')
+      try { await bot.answerCallbackQuery(query.id) } catch { /* noop */ }
+      try {
+        await bot.processUpdate({
+          update_id: Date.now(),
+          message: { message_id: query.message.message_id, from: query.from, chat: query.message.chat, date: Math.floor(Date.now() / 1000), text: `/start open_${hub}` },
+        })
+      } catch (e) { log(`[AutoPromo] promo_open:${hub} dispatch error: ${e.message}`) }
+      return
+    }
+
     // ── AutoPromo Opt-Out Button Handler ──
     if (data === 'promo_optout') {
       if (autoPromo) {
@@ -8198,11 +8211,37 @@ bot?.on('message', msg => {
 
   // Admin: /orders — list pending digital product orders
   // /ad command — preview and post service ad to channel
-  if (isAdmin(chatId) && message === '/ad') {
-    const adText = translation('l.serviceAd', 'en')
-    send(chatId, adText, { parse_mode: 'HTML', disable_web_page_preview: true })
-    send(chatId, `👆 <b>Ad Preview</b>\n\nType <b>/ad post</b> to send this to ${TG_CHANNEL}`, { parse_mode: 'HTML' })
-    return
+  // /ad [theme] — preview today's one-product channel post (deep-link button + coupon)
+  // /ad post [theme] — publish it to the channel · /ad list — themes · /ad bot <theme> [lang] — in-bot preview
+  if (isAdmin(chatId) && (message === '/ad' || message.startsWith('/ad '))) {
+    if (!autoPromo) return send(chatId, '❌ AutoPromo is not loaded (Telegram bot disabled).')
+    const themes = autoPromo.getThemes()
+    const args = message.split(/\s+/).slice(1)
+    const sub = args[0]
+    if (sub === 'list') return send(chatId, `<b>Promo themes</b>\n${themes.map(t => `• <code>${t}</code>`).join('\n')}\n\n<code>/ad &lt;theme&gt;</code> preview · <code>/ad post &lt;theme&gt;</code> publish · <code>/ad bot &lt;theme&gt; [en|fr|zh|hi]</code> in-bot preview`, { parse_mode: 'HTML' })
+    const todayTheme = autoPromo.getTodayThemes()[0] || themes[0]
+    if (sub === 'bot') {
+      const theme = args[1] || todayTheme
+      const lang = ['en', 'fr', 'zh', 'hi'].includes(args[2]) ? args[2] : 'en'
+      if (!themes.includes(theme)) return send(chatId, `❌ Unknown theme <code>${theme}</code>. Try <code>/ad list</code>.`, { parse_mode: 'HTML' })
+      const r = await autoPromo.previewPromo(chatId, theme, lang).catch(e => ({ success: false, error: e.message }))
+      return r.success ? send(chatId, `👆 In-bot preview — <code>${theme}</code>/${lang}${r.banner ? ' (with banner)' : ' (text only)'}`, { parse_mode: 'HTML' }) : send(chatId, `❌ ${r.error}`)
+    }
+    const posting = sub === 'post'
+    const theme = (posting ? args[1] : sub) || todayTheme
+    if (!themes.includes(theme)) return send(chatId, `❌ Unknown theme <code>${theme}</code>. Try <code>/ad list</code>.`, { parse_mode: 'HTML' })
+    const post = await autoPromo.buildChannelPost(theme, 'en')
+    if (!post) return send(chatId, '❌ Could not build the post.')
+    if (!posting) {
+      await send(chatId, post.text, { parse_mode: 'HTML', disable_web_page_preview: true, reply_markup: post.reply_markup })
+      return send(chatId, `👆 <b>Channel post preview</b> — <code>${theme}</code>\nButton → ${post.url}\n\n<code>/ad post ${theme}</code> to publish to ${TG_CHANNEL}`, { parse_mode: 'HTML' })
+    }
+    const channelId = process.env.TELEGRAM_DOMAINS_SHOW_CHAT_ID
+    if (!channelId) return send(chatId, '❌ Channel ID not configured.')
+    try {
+      await bot.sendMessage(channelId, post.text, { parse_mode: 'HTML', disable_web_page_preview: true, reply_markup: post.reply_markup })
+      return send(chatId, `✅ Posted <code>${theme}</code> to channel.`, { parse_mode: 'HTML' })
+    } catch (e) { return send(chatId, `❌ Channel post failed: ${e.message}`) }
   }
 
   // ── Admin: /hostingstatus — cPanel/WHM control plane health ──
@@ -8488,18 +8527,6 @@ bot?.on('message', msg => {
     } catch (e) {
       return send(chatId, '❌ testlogs error: ' + e.message)
     }
-  }
-
-  if (isAdmin(chatId) && message === '/ad post') {
-    const adText = translation('l.serviceAd', 'en')
-    const channelId = process.env.TELEGRAM_DOMAINS_SHOW_CHAT_ID
-    if (channelId) {
-      send(channelId, adText, { parse_mode: 'HTML', disable_web_page_preview: true })
-      send(chatId, '✅ Ad posted to channel!')
-    } else {
-      send(chatId, '❌ Channel ID not configured.')
-    }
-    return
   }
 
   if (isAdmin(chatId) && message === '/orders') {
@@ -14187,7 +14214,24 @@ All verified numbers generated during sourcing.`))
         _btns.push(['↩️ Back'])
         return send(chatId, monetization.formatBundleMenu(_l), k.of(_btns))
       },
+      // Promo hubs without a direct goto: replay the (English canonical) menu label —
+      // canonicalizeIncoming() already maps localized labels, so handlers match as usual.
+      leads: () => _synthMenuTap(user.leadsValidation),
+      vps: () => _synthMenuTap(user.vpsPlans),
+      marketplace: () => _synthMenuTap(user.marketplace),
+      shortener: () => _synthMenuTap(user.urlShortenerMain),
+      bulksms: () => _synthMenuTap(user.smsAppMain),
+      emailval: () => _synthMenuTap(user.emailValidation),
+      emailblast: () => _synthMenuTap(user.emailBlast),
+      refer: () => _synthMenuTap(user.referEarn),
     }[_hub]
+    async function _synthMenuTap(label) {
+      await set(state, chatId, 'action', 'none')
+      return bot.processUpdate({
+        update_id: Date.now(),
+        message: { message_id: (msg?.message_id || 0) + 1, from: msg?.from, chat: msg?.chat, date: Math.floor(Date.now() / 1000), text: label },
+      })
+    }
     if (_hubGoto) return _hubGoto()
     // Unknown payload → fall through to the normal /start below.
   }
@@ -44167,6 +44211,22 @@ app.post('/dev/escalation-alert-plan-test', async (req, res) => {
     ccByReminderCount: cases.ccByReminderCount.action === 'remind' && cases.ccByReminderCount.overdue === false && cases.ccByReminderCount.ccSecondary === true,
   }
   return res.json({ cases, checks, pass: Object.values(checks).every(Boolean) })
+})
+
+// ── DEV-ONLY: run one real AutoPromo blast against the local DB (dev bot sends) ──
+app.post('/dev/promo-blast', async (req, res) => {
+  if ((process.env.BOT_ENVIRONMENT || '').toLowerCase() === 'production') {
+    return res.status(404).json({ error: 'not found' })
+  }
+  if (!autoPromo) return res.status(503).json({ error: 'autopromo not loaded' })
+  const slot = req.body?.slot === 'evening' ? 'evening' : 'morning'
+  const themeIndex = Number.isInteger(req.body?.themeIndex) ? req.body.themeIndex : 0
+  const prevCadence = process.env.PROMO_CADENCE
+  if (req.body?.force) process.env.PROMO_CADENCE = 'daily' // dev only: bypass the every-other-day cadence
+  try { await autoPromo.broadcastPromoForLang(themeIndex, req.body?.lang || 'en', slot) }
+  finally { if (prevCadence === undefined) delete process.env.PROMO_CADENCE; else process.env.PROMO_CADENCE = prevCadence }
+  const last = await db.collection('promoStats').find({}).sort({ sentAt: -1 }).limit(1).next()
+  return res.json({ ok: true, slot, stats: last })
 })
 
 // ── DEV-ONLY: promo cadence (repeat-blocker back-off + pre-blast report) ───
