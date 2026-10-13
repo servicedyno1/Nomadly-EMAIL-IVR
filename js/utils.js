@@ -529,7 +529,7 @@ function isPermanentTelegramError(error) {
   return msg.includes('chat not found') || msg.includes('user is deactivated') || msg.includes('bot was blocked') || msg.includes('have no rights to send a message')
 }
 
-const sendMessageToAllUsers = async (bot, message, method, nameOf, myChatId, db) => {
+const sendMessageToAllUsers = async (bot, message, method, nameOf, myChatId, db, opts = {}) => {
   try {
     const chatIds = await getChatIds(nameOf)
     
@@ -547,6 +547,11 @@ const sendMessageToAllUsers = async (bot, message, method, nameOf, myChatId, db)
       const deadSet = new Set(allOptedOut.map(r => r._id))
       filteredChatIds = chatIds.filter(id => !deadSet.has(id))
       skippedPermanent = chatIds.length - filteredChatIds.length
+    }
+    // Optional: skip people who already got this message (e.g. an earlier targeted send)
+    if (opts.excludeIds?.length) {
+      const exclude = new Set(opts.excludeIds.map(String))
+      filteredChatIds = filteredChatIds.filter(id => !exclude.has(String(id)))
     }
 
     const total = filteredChatIds.length

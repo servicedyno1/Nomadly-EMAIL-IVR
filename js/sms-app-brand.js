@@ -9,9 +9,14 @@ function brandName() { return String(process.env.CHAT_BOT_BRAND || 'Nomadly').tr
 function brandSlug() { return brandName().toLowerCase().replace(/[^a-z0-9]+/g, '') || 'nomadly' }
 function appName() { return `${brandName()} SMS` }
 
-let _botUsername = process.env.TELEGRAM_BOT_USERNAME || process.env.BOT_USERNAME || 'NomadlyBot'
+// Live value comes from bot.getMe(); until then env, then the brand's entry in sms-app/brands/brands.json.
+let _botUsername = null
 function setBotUsername(u) { if (u) _botUsername = String(u).replace(/^@/, '') }
-function botUsername() { return _botUsername }
+function botUsername() {
+  if (_botUsername) return _botUsername
+  if (process.env.TELEGRAM_BOT_USERNAME || process.env.BOT_USERNAME) return process.env.TELEGRAM_BOT_USERNAME || process.env.BOT_USERNAME
+  try { return require(path.join(__dirname, '..', 'sms-app', 'brands', 'brands.json'))[brandSlug()].botUsername } catch { return 'NomadlyBot' }
+}
 function botUrl() { return `https://t.me/${botUsername()}` }
 
 function packageVersion() {
