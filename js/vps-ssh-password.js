@@ -78,10 +78,12 @@ function normalizePrivateKey(pem) {
  * `chpasswd`, so the password is NEVER interpolated into the shell — any
  * character (quotes, $, !, #, spaces) is safe.
  */
-function buildPasswordScript(username, newPassword) {
+function buildPasswordScript(username, newPassword, { waitForCloudInit = false } = {}) {
   const cred = Buffer.from(`${username}:${newPassword}`, 'utf-8').toString('base64')
   return [
     'set -u',
+    // After a rebuild the create-time cloud-init sets its own password on first boot — let it finish first.
+    ...(waitForCloudInit ? ['command -v cloud-init >/dev/null 2>&1 && timeout 600 cloud-init status --wait >/dev/null 2>&1 || true'] : []),
     // 1. Set the password without ever exposing it to the shell parser
     `echo '${cred}' | base64 -d | chpasswd`,
     // 2. Unlock the account (Ubuntu 24.04 ships root locked)
@@ -215,6 +217,7 @@ async function applyPasswordOverSSH(opts = {}) {
     privateKeys = [],
     currentPassword = null,
     verify = true,
+    waitForCloudInit = false,
     timeoutMs = DEFAULT_TIMEOUT_MS,
   } = opts
 
@@ -222,7 +225,7 @@ async function applyPasswordOverSSH(opts = {}) {
   if (!host) return { ok: false, method: null, verified: false, attempts, error: 'no host on record' }
   if (!newPassword) return { ok: false, method: null, verified: false, attempts, error: 'no newPassword supplied' }
 
-  const script = buildPasswordScript(username, newPassword)
+  const script = buildPasswordScript(username, newPassword, { waitForCloudInit })
 
   const candidates = []
   for (const k of (Array.isArray(privateKeys) ? privateKeys : [privateKeys])) {

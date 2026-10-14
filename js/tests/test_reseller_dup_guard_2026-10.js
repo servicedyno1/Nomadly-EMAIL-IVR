@@ -36,7 +36,7 @@ async function main() {
 
   // Task 2 — inner guard now scopes the duplicate match
   const guardBlock = crRegisterJs.slice(crRegisterJs.indexOf("const existingAccount = await guardDb.collection('cpanelAccounts').findOne({"))
-    .slice(0, 400)
+    .slice(0, 900)
   assert(/provisionState:\s*\{\s*\$ne:\s*'failed'\s*\}/.test(guardBlock), "G1: inner guard excludes provisionState:'failed' ghosts")
   assert(/_id:\s*\{\s*\$ne:\s*info\.customUsername/.test(guardBlock), "G2: inner guard excludes THIS order's own stub (_id !== info.customUsername)")
 

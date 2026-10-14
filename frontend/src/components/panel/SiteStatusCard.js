@@ -88,9 +88,10 @@ export default function SiteStatusCard() {
 
   const formatDate = (iso) => {
     if (!iso) return t('site.dashPlaceholder');
-    try {
-      return new Date(iso).toLocaleDateString(i18n.language || 'en', { month: 'short', day: 'numeric', year: 'numeric' });
-    } catch { return t('site.dashPlaceholder'); }
+    const opts = { month: 'short', day: 'numeric', year: 'numeric' };
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return t('site.dashPlaceholder');
+    try { return d.toLocaleDateString(i18n.language || 'en', opts); } catch { return d.toLocaleDateString(undefined, opts); }
   };
 
   if (loading) {

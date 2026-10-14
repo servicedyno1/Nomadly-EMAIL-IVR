@@ -33,7 +33,7 @@ async function fakeDO({ method, url, data }) {
   if (m === 'POST' && (mt = u.match(/^\/volumes\/([^/]+)\/actions$/))) { const v = fake.volumes[mt[1]]; if (!v) return { status: 404, data: { message: 'nf' } }; if (data.type === 'detach') v.droplet_ids = []; return { status: 202, data: { action: { id: fake.nextId++, status: 'completed' } } } }
   if (m === 'DELETE' && (mt = u.match(/^\/volumes\/([^/]+)$/))) { if (!fake.volumes[mt[1]]) return { status: 404, data: { message: 'nf' } }; if (fake.volumes[mt[1]].droplet_ids.length) return { status: 409, data: { message: 'attached' } }; delete fake.volumes[mt[1]]; return { status: 204, data: '' } }
   if (m === 'POST' && u === '/droplets') {
-    if (fake.unavailableSizes.includes(data.size)) return { status: 422, data: { message: 'Size is not available in this region.' } }
+    if (fake.unavailableSizes.includes(data.size) || fake.unavailableSizes.includes(`${data.size}@${data.region}`)) return { status: 422, data: { message: 'Size is not available in this region.' } }
     const id = fake.nextId++
     for (const v of (data.volumes || [])) { if (!fake.volumes[v]) return { status: 422, data: { message: 'unknown volume' } }; fake.volumes[v].droplet_ids = [id] }
     fake.droplets[id] = { id, name: data.name, status: 'new', image: data.image, user_data: data.user_data, size_slug: data.size, region: { slug: data.region }, tags: data.tags || [], volumes: data.volumes || [], polls: 0, networks: { v4: [] } }
@@ -181,25 +181,35 @@ async function main() {
   await sleep(100)
   const fastCreate = calls.find(c => c.m === 'POST' && c.u === '/droplets')
   ok('fast path creates droplet FROM golden image with KEY=VALUE user-data', fastCreate && fastCreate.data.image === b.snapshot_image_id && /^ADMIN_PASSWORD=.+\nCALLBACK_URL=https:\/\/example\.test\/api\/provision\/callback\n/.test(fastCreate.data.user_data))
-  ok('region-aware size: nyc3 has NO AMD → Premium Intel slug (s-2vcpu-4gb-intel), not Basic shared CPU', fastCreate.data.size === 's-2vcpu-4gb-intel')
-  ok('size candidates: fra1/tor1 → Intel then Basic; sgp1 → AMD, Intel, Basic; legacy starter → basic only',
-    JSON.stringify(svc.sizeCandidatesFor(svc.getProduct('standard-1m'), 'fra1')) === JSON.stringify(['s-2vcpu-4gb-intel', 's-2vcpu-4gb'])
-    && JSON.stringify(svc.sizeCandidatesFor(svc.getProduct('power-1m'), 'tor1')) === JSON.stringify(['s-8vcpu-16gb-intel', 's-8vcpu-16gb'])
-    && JSON.stringify(svc.sizeCandidatesFor(svc.getProduct('pro-1m'), 'sgp1')) === JSON.stringify(['s-4vcpu-8gb-amd', 's-4vcpu-8gb-intel', 's-4vcpu-8gb'])
-    && JSON.stringify(svc.sizeCandidatesFor({ do_size_slug: 's-1vcpu-2gb', do_size_slug_basic: 's-1vcpu-2gb' }, 'ams3')) === JSON.stringify(['s-1vcpu-2gb']))
+  ok('AMD only: nyc3 order runs on the Premium AMD slug (s-2vcpu-4gb-amd)', fastCreate.data.size === 's-2vcpu-4gb-amd' && fastCreate.data.region === 'nyc3')
+  ok('size candidates are AMD only (never Intel / Basic) for every tier + region; legacy raw shapes get none',
+    svc.TIERS.every(t => ['nyc3', 'fra1', 'tor1', 'sgp1', 'lon1'].every(r => svc.sizeCandidatesFor(t, r).every(x => /-amd$/.test(x))))
+    && JSON.stringify(svc.sizeCandidatesFor(svc.getProduct('pro-1m'), 'sgp1')) === JSON.stringify(['s-4vcpu-8gb-amd'])
+    && JSON.stringify(svc.sizeCandidatesFor({ do_size_slug: 's-1vcpu-2gb', do_size_slug_basic: 's-1vcpu-2gb' }, 'ams3')) === '[]')
   ok('fast-path user-data carries the REAL per-order password (from the secret store, not "undefined")', fastCreate.data.user_data.startsWith(`ADMIN_PASSWORD=${inst.defaultPassword}\n`) && inst.defaultPassword.length >= 16)
   const keyPost = calls.find(c => c.m === 'POST' && c.u === '/account/keys')
   ok('custom-image create carries the auto-registered throwaway ed25519 SSH key', keyPost && /^ssh-ed25519 [A-Za-z0-9+/=]+ nomadly-rdp-golden$/.test(keyPost.data.public_key) && JSON.stringify(fastCreate.data.ssh_keys) === '[555]')
-  // Premium Intel out of stock in nyc3 → order falls back to Basic instead of failing.
+  // AMD out of stock in nyc3 → the SAME AMD size is built in nyc1 (same city), never Intel/Basic.
   calls.length = 0
-  fake.unavailableSizes = ['s-2vcpu-4gb-intel']
+  fake.unavailableSizes = ['s-2vcpu-4gb-amd@nyc3']
   const oos = await svc.createInstance({ productId: 'standard-1m', regionSlug: 'US', osId: 'ws2022' })
   await waitFor(async () => calls.filter(c => c.m === 'POST' && c.u === '/droplets').length >= 2)
-  await sleep(100)
+  await sleep(150)
   const oosPosts = calls.filter(c => c.m === 'POST' && c.u === '/droplets')
   const oosDoc = await db.collection('doRdpServers').findOne({ server_id: oos.serverId })
-  ok('422 "Size is not available" on the Premium size → Basic size tried next, order continues', oosPosts.length === 2 && oosPosts[0].data.size === 's-2vcpu-4gb-intel' && oosPosts[1].data.size === 's-2vcpu-4gb' && oosDoc.do_droplet_id)
-  ok('fallback persisted: do_size_slug = size actually used + order log explains it', oosDoc.do_size_slug === 's-2vcpu-4gb' && (oosDoc.logs || []).some(l => /s-2vcpu-4gb-intel is not available in nyc3/.test(l.message)))
+  ok('422 "Size is not available" in nyc3 → same AMD size tried in nyc1 (same city), order continues', oosPosts.length === 2 && oosPosts[0].data.region === 'nyc3' && oosPosts[1].data.region === 'nyc1' && oosPosts.every(x => x.data.size === 's-2vcpu-4gb-amd') && oosDoc.do_droplet_id)
+  ok('fallback persisted: region nyc1 (requested nyc3) + order log explains it', oosDoc.region === 'nyc1' && oosDoc.requested_region === 'nyc3' && oosDoc.do_size_slug === 's-2vcpu-4gb-amd' && (oosDoc.logs || []).some(l => /s-2vcpu-4gb-amd is not available in nyc3/.test(l.message)) && (oosDoc.logs || []).some(l => /built in nyc1 \(same city\)/.test(l.message)))
+  // AMD gone in the whole city → order fails cleanly (refundable) + admin out-of-stock alert; no Intel/Basic attempt.
+  require('../do-size-catalog')._resetForTest()
+  calls.length = 0
+  fake.unavailableSizes = ['s-2vcpu-4gb-amd']
+  const dead = await svc.createInstance({ productId: 'standard-1m', regionSlug: 'US', osId: 'ws2022' })
+  await waitFor(async () => ((await db.collection('doRdpServers').findOne({ server_id: dead.serverId })) || {}).status === 'failed')
+  const deadDoc = await db.collection('doRdpServers').findOne({ server_id: dead.serverId })
+  const deadPosts = calls.filter(c => c.m === 'POST' && c.u === '/droplets')
+  ok('no AMD anywhere in New York → failed with "no AMD capacity", tried nyc3/nyc1/nyc2 only with AMD', deadDoc.status === 'failed' && /no AMD capacity/.test((deadDoc.logs || []).slice(-1)[0].message) && deadPosts.length === 3 && deadPosts.every(x => x.data.size === 's-2vcpu-4gb-amd'))
+  ok('admin alerted: RDP out of stock in New York', alerts.some(a => /RDP out of stock: Standard in United States \(New York\)/.test(a)))
+  require('../do-size-catalog')._resetForTest()
   fake.unavailableSizes = []
   calls.length = 0
   const slow = await svc.createInstance({ productId: 'pro-1m', regionSlug: 'SG', osId: 'ws2022' })
@@ -258,7 +268,7 @@ async function main() {
   svc._watchFastTarget('srv-active'); await sleep(600)
   ok('watchdog is silent for an active order', !alerts.some(m => /srv-active/.test(m)))
   const digest = await svc.sendDailyDigest()
-  ok('daily digest summarises last-24h orders (count, fast-path time to active, failures)', typeof digest === 'string' && /RDP orders last 24h: \d+/.test(digest) && /fast path \d+/.test(digest) && /failed 1/.test(digest))
+  ok('daily digest summarises last-24h orders (count, fast-path time to active, failures)', typeof digest === 'string' && /RDP orders last 24h: \d+/.test(digest) && /fast path \d+/.test(digest) && /failed 2/.test(digest))
 
   console.log('\n[3] Droplet-reported conversion failure via /provision/callback → build fails + cleanup')
   reset()

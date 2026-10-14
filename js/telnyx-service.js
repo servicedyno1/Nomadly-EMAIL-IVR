@@ -554,6 +554,7 @@ async function rejectCall(callControlId, cause = 'CALL_REJECTED') {
 
 // ── Setup: Initialize Telnyx resources (SIP + Messaging Profile + Call Control App) ──
 async function initializeTelnyxResources(selfUrl) {
+  const brand = String(process.env.CHAT_BOT_BRAND || 'Nomadly').trim() || 'Nomadly'
   const voiceWebhook = `${selfUrl}/telnyx/voice-webhook`
   const smsWebhook = `${selfUrl}/telnyx/sms-webhook`
 
@@ -567,7 +568,7 @@ async function initializeTelnyxResources(selfUrl) {
 
   // Update SIP Connection webhook to current domain
   if (!sipConnectionId) {
-    const sip = await createSIPConnection('Nomadly Cloud Phone SIP', voiceWebhook)
+    const sip = await createSIPConnection(`${brand} Cloud Phone SIP`, voiceWebhook)
     if (sip) {
       sipConnectionId = sip.id
       log('Created SIP Connection:', sipConnectionId)
@@ -607,7 +608,7 @@ async function initializeTelnyxResources(selfUrl) {
 
   // Create Messaging Profile if not exists, or recreate if stale
   if (!messagingProfileId) {
-    const mp = await createMessagingProfile('Nomadly Cloud Phone SMS', smsWebhook)
+    const mp = await createMessagingProfile(`${brand} Cloud Phone SMS`, smsWebhook)
     if (mp) {
       messagingProfileId = mp.id
       log('Created Messaging Profile:', messagingProfileId)
@@ -617,7 +618,7 @@ async function initializeTelnyxResources(selfUrl) {
     const updated = await updateMessagingProfile(messagingProfileId, smsWebhook)
     if (updated === null) {
       log(`Messaging Profile ${messagingProfileId} not found on Telnyx — creating new one`)
-      const mp = await createMessagingProfile('Nomadly Cloud Phone SMS', smsWebhook)
+      const mp = await createMessagingProfile(`${brand} Cloud Phone SMS`, smsWebhook)
       if (mp) {
         messagingProfileId = mp.id
         log('Created replacement Messaging Profile:', messagingProfileId)
@@ -629,7 +630,7 @@ async function initializeTelnyxResources(selfUrl) {
 
   // Create Call Control App if not exists
   if (!callControlAppId) {
-    const app = await createCallControlApp('Nomadly Cloud Phone Voice', voiceWebhook)
+    const app = await createCallControlApp(`${brand} Cloud Phone Voice`, voiceWebhook)
     if (app) {
       callControlAppId = app.id
       log('Created Call Control App:', callControlAppId)
@@ -638,7 +639,7 @@ async function initializeTelnyxResources(selfUrl) {
       try {
         const listRes = await axios.get(`${BASE}/call_control_applications`, { headers: headers(), params: { 'page[size]': 20 } })
         const apps = listRes.data?.data || []
-        const existing = apps.find(a => a.application_name === 'Nomadly Cloud Phone Voice')
+        const existing = apps.find(a => a.application_name === `${brand} Cloud Phone Voice`)
         if (existing) {
           callControlAppId = existing.id
           await updateCallControlApp(callControlAppId, voiceWebhook)
@@ -879,7 +880,8 @@ async function migrateNumbersToCallControlApp(callControlAppId, botNumbers = [],
 
     for (const num of numbers) {
       const normalizedNum = (num.phone_number || '').replace(/[^+\d]/g, '')
-      const isBotNumber = normalizedBotNumbers.size === 0 || normalizedBotNumbers.has(normalizedNum)
+      // Empty list = no bot-owned numbers (never "all"): a brand sharing the Telnyx account must not grab others' numbers.
+      const isBotNumber = normalizedBotNumbers.has(normalizedNum)
 
       if (!isBotNumber) {
         // ── DETACH: If this external number is on the bot's Call Control App, remove it ──

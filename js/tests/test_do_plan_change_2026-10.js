@@ -240,7 +240,7 @@ antiRed.deployFullProtection = async () => ({ success: true })
     const po = await pc.planOptions(rec)
     assert.strictEqual(po.options.find((o) => o.plan_id === 'standard').allowed, false) // 80 GB < 160 GB disk
     const power = po.options.find((o) => o.plan_id === 'power')
-    assert.strictEqual(power.size_slug, 's-8vcpu-16gb-intel')
+    assert.strictEqual(power.size_slug, 's-8vcpu-16gb-amd') // RDP is AMD only (2026-10-14) — an Intel box upgrades onto AMD
     assert.strictEqual(power.renewal_price_usd, rdp.getProduct('power-3m').pricing.totalWithMarkup)
     assert.ok(Math.abs(power.charge_now_usd - 224) < 0.05, power.charge_now_usd) // (224-112) × 60/30
   })
@@ -388,7 +388,7 @@ antiRed.deployFullProtection = async () => ({ success: true })
     const r = await api('post', `/rdp/${rec.vpsId}/upgrade`, { plan_id: 'power' })
     assert.strictEqual(r.status, 202, JSON.stringify(r.data))
     for (let i = 0; i < 100; i++) { const g = await api('get', `/rdp/${rec.vpsId}`); if (g.data.plan_change && g.data.plan_change.status !== 'running') break; await sleep(30) }
-    assert.strictEqual(fake.droplets.get('402').size_slug, 's-8vcpu-16gb-intel')
+    assert.strictEqual(fake.droplets.get('402').size_slug, 's-8vcpu-16gb-amd') // AMD only
     assert.strictEqual((await plans.findOne({ _id: rec._id })).productId, 'power-1m')
   })
   await t('non-DigitalOcean server → 501 not_supported', async () => {

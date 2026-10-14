@@ -51,6 +51,10 @@ const EVENTS = [
   // Google Safe Browsing: a linked domain was flagged (malware/phishing) → auto-unlinked
   // from our server. Reactivation requires the reseller to clean the site + re-attach.
   'hosting.flagged', 'vps.flagged', 'rdp.flagged', 'shortener.flagged',
+  // A plan that was sold out in a city can be ordered again (sent to every key with a webhook URL)
+  'vps.back_in_stock', 'rdp.back_in_stock',
+  // A reinstall that had to copy the Windows image to the server's datacenter first started / was cancelled
+  'rdp.reinstall_started', 'rdp.reinstall_failed',
 ]
 
 // Shared by the hosting scheduler (auto-renew) and the alert sweep so a renewal is pushed once.
@@ -144,4 +148,18 @@ async function emit(db, { chatId, event, instanceId, dedupKey, keyIds, payload =
   return { delivered, skipped }
 }
 
-module.exports = { emit, deliver, isHttpUrl, newWebhookSecret, renewedDedupKey, EVENTS, RETRIES, TIMEOUT_MS }
+// Account-wide event (e.g. *.back_in_stock) → every owner with an enabled key + webhook URL, de-duplicated by dedupKey.
+async function broadcast(db, { event, instanceId, dedupKey, payload = {}, log = () => {} } = {}) {
+  if (!db || typeof db.collection !== 'function' || !event) return { delivered: 0, skipped: 0, owners: 0 }
+  let owners = []
+  try { owners = await db.collection('resellerApiKeys').distinct('ownerChatId', { enabled: true, webhookUrl: { $exists: true, $ne: null } }) }
+  catch (e) { log(`[ResellerWebhook] broadcast owner lookup failed: ${e.message}`); return { delivered: 0, skipped: 0, owners: 0 } }
+  let delivered = 0, skipped = 0
+  for (const chatId of owners) {
+    const r = await emit(db, { chatId, event, instanceId, dedupKey, payload, log })
+    delivered += r.delivered; skipped += r.skipped
+  }
+  return { delivered, skipped, owners: owners.length }
+}
+
+module.exports = { emit, broadcast, deliver, isHttpUrl, newWebhookSecret, renewedDedupKey, EVENTS, RETRIES, TIMEOUT_MS }

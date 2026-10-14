@@ -3493,7 +3493,7 @@ ${cycles.map(c => {
 }).join('\n')}
 
 लंबी अवधि का भुगतान एक बार में होता है और इसमें बंडल छूट शामिल है; अवधि समाप्त होने पर ऑटो-रिन्यूअल उसी अवधि का शुल्क फिर से लेता है।`,
- rdpEditionBtn: o => `🪟 ${o.name}${o.fast_deploy ? ` ⚡ ~${o.eta_minutes || 3} मिनट` : ' ⏳ ~45 मिनट'}`,
+ rdpEditionBtn: o => `🪟 ${o.name} ${o.fast_deploy ? '⚡' : '⏳'} ~${o.eta_minutes || (o.fast_deploy ? 3 : 45)} मिनट`,
  askRdpEdition: options => `🪟 <strong>अपना Windows संस्करण चुनें</strong>
 
 ${options.map(o => `• <b>${o.name}</b> — ${o.fast_deploy ? `⚡ लगभग ${o.eta_minutes || 3} मिनट में तैयार (आपके क्षेत्र में प्री-बिल्ट इमेज)` : '⏳ पूर्ण इंस्टॉल, लगभग 45 मिनट'}`).join('\n')}
@@ -3503,12 +3503,12 @@ ${options.map(o => `• <b>${o.name}</b> — ${o.fast_deploy ? `⚡ लगभग
 
 इंस्टॉल करने के लिए संस्करण चुनें। आपका IP पता वही रहेगा।
 
-${options.map(o => `• <b>${o.name}</b> — ${o.fast_deploy ? `⚡ लगभग ${o.eta_minutes || 3} मिनट` : '⏳ लगभग 45 मिनट'}`).join('\n')}`,
- confirmReinstallWindowsRdpText: (name, osName, etaMin) => `🔄 <strong>${name} पर ${osName} रीइंस्टॉल करें</strong>
+${options.map(o => `• <b>${o.name}</b> — ${o.fast_deploy ? `⚡ लगभग ${o.eta_minutes || 3} मिनट` : (o.copy_first ? `⏳ लगभग ${o.eta_minutes} मिनट (इमेज पहले आपके सर्वर के डेटासेंटर में कॉपी की जाती है)` : '⏳ लगभग 45 मिनट')}`).join('\n')}`,
+ confirmReinstallWindowsRdpText: (name, osName, etaMin, copyFirst) => `🔄 <strong>${name} पर ${osName} रीइंस्टॉल करें</strong>
 
 ⚠️ <strong>चेतावनी — डिस्क मिटा दी जाएगी:</strong>
 • सर्वर की सभी फ़ाइलें, प्रोग्राम और सेटिंग्स हट जाएंगी
-• हमारी प्री-बिल्ट इमेज से नया ${osName} इंस्टॉल होगा (~${etaMin} मिनट)
+• हमारी प्री-बिल्ट इमेज से नया ${osName} इंस्टॉल होगा (~${etaMin} मिनट)${copyFirst ? `\n• इमेज पहले आपके सर्वर के डेटासेंटर में कॉपी होती है (~20 मिनट) — तब तक आपका सर्वर बिना बदलाव के चलता रहता है` : ''}
 • एक नया Administrator पासवर्ड बनेगा — पुराना काम नहीं करेगा
 • ✅ आपका IP पता और भुगतान की गई अवधि बनी रहेगी
 
@@ -3522,6 +3522,58 @@ ${options.map(o => `• <b>${o.name}</b> — ${o.fast_deploy ? `⚡ लगभग
 ⏱️ Windows अभी इंस्टॉल हो रहा है — लगभग <b>${etaMin} मिनट</b> में इन क्रेडेंशियल्स से कनेक्ट करें।
 💡 कॉपी करने के लिए पासवर्ड पर टैप करें। आप इसे 🔐 पासवर्ड दिखाएँ से कभी भी फिर देख सकते हैं।`,
  rdpActionReason: reason => `\n\n<i>कारण: ${reason}</i>`,
+ // ── DigitalOcean Linux VPS: DigitalOcean की लाइव सूची से कोई भी OS रीइंस्टॉल करें (IP + लॉगिन वही) ──
+ reinstallOsBtn: '🔄 OS रीइंस्टॉल करें',
+ linuxOsBtn: o => `${o.current ? '✅ ' : ''}🐧 ${o.name}${o.requiresSshKey ? ' 🔑' : ''}`,
+ askReinstallLinuxOs: (name, options) => `🔄 <b>${name} पर ऑपरेटिंग सिस्टम रीइंस्टॉल करें</b>
+
+इंस्टॉल करने के लिए सिस्टम चुनें। ✅ = अभी इंस्टॉल है। 🔑 = आपके सर्वर पर पहले से मौजूद SSH कुंजी चाहिए।
+आपका IP पता, root पासवर्ड और SSH कुंजी वही रहेंगे।`,
+ confirmReinstallLinuxText: (name, osName) => `🔄 <b>${name} पर ${osName} रीइंस्टॉल करें</b>
+
+⚠️ <b>चेतावनी — इससे डिस्क मिट जाएगी:</b>
+• सर्वर की सभी फ़ाइलें, प्रोग्राम और सेटिंग्स हट जाएँगी
+• नया ${osName} इंस्टॉल होगा (~3 मिनट)
+• ✅ आपका IP पता, root पासवर्ड, SSH कुंजी और भुगतान अवधि बनी रहेगी
+
+क्या आप जारी रखना चाहते हैं?`,
+ linuxReinstallStarted: (name, osName, etaMin) => `🔄 <b>${name} पर ${osName} रीइंस्टॉल हो रहा है</b>
+
+⏱️ लगभग <b>${etaMin} मिनट</b> में तैयार। आपका IP पता, root पासवर्ड और SSH कुंजी वही रहेंगे।
+सर्वर ऑनलाइन होते ही हम आपको लॉगिन भेज देंगे।`,
+ linuxReinstallDone: (name, ip, username, password, osName) => `✅ <b>${name} पर ${osName} तैयार है</b>
+
+🌐 <b>IP:</b> <code>${ip}</code>
+👤 <b>यूज़रनेम:</b> ${username}
+🔑 <b>पासवर्ड:</b> <code>${password}</code> (अपरिवर्तित)
+
+💡 आपकी SSH कुंजी भी काम करती है। पासवर्ड कभी भी 🔐 Show Password से दोबारा देखें।`,
+ linuxReinstallDoneNoPassword: (name, ip, username, osName) => `✅ <b>${name} पर ${osName} तैयार है</b>
+
+🌐 <b>IP:</b> <code>${ip}</code>
+👤 <b>यूज़रनेम:</b> ${username}
+
+🔑 अपनी SSH कुंजी से लॉगिन करें, या 🔐 Show Password / 🔄 Reset Password दबाएँ।`,
+ linuxReinstallDoneUnverified: (name, ip, username, osName) => `✅ <b>${name} पर ${osName} रीइंस्टॉल हो गया</b>
+
+🌐 <b>IP:</b> <code>${ip}</code>
+👤 <b>यूज़रनेम:</b> ${username}
+
+⚠️ हम अभी आपके पासवर्ड की पुष्टि नहीं कर सके। आपकी SSH कुंजी काम करती है; अन्यथा कुछ मिनट बाद 🔐 Show Password या 🔄 Reset Password दबाएँ। हमारी टीम को सूचित कर दिया गया है।`,
+ linuxReinstallFailed: name => `❌ <b>रीइंस्टॉल विफल</b>
+
+हम <b>${name}</b> को रीइंस्टॉल नहीं कर सके। कुछ भी नहीं बदला गया। कृपया कुछ मिनट बाद फिर कोशिश करें या सपोर्ट से संपर्क करें।`,
+ linuxReinstallNeedsKey: name => `🔑 <b>इस सिस्टम के लिए SSH कुंजी चाहिए</b>
+
+<b>${name}</b> बिना SSH कुंजी के बनाया गया था, इसलिए उस पर Fedora, CentOS, AlmaLinux और Rocky Linux इंस्टॉल नहीं हो सकते। Ubuntu या Debian चुनें। कुछ भी नहीं बदला गया।`,
+ windowsReinstallQueued: (name, osName, copyMin, etaMin) => `⏳ <b>${name} पर ${osName} का रीइंस्टॉल कतार में है</b>
+
+${osName} इमेज पहले आपके सर्वर के डेटासेंटर में कॉपी की जा रही है (~${copyMin} मिनट)। तब तक आपका सर्वर <b>बिना बदलाव</b> के चलता रहेगा और मौजूदा पासवर्ड काम करता रहेगा।
+
+फिर रीइंस्टॉल अपने आप शुरू होगा (डिस्क मिटेगी, IP वही रहेगा) और हम आपको <b>नया पासवर्ड</b> भेजेंगे — अभी से लगभग <b>${etaMin} मिनट</b> में तैयार।`,
+ windowsReinstallCopyFailed: (name, osName) => `❌ <b>${name} पर ${osName} का रीइंस्टॉल शुरू नहीं हो सका</b>
+
+आपके सर्वर के डेटासेंटर में Windows इमेज तैयार नहीं हो सकी। <b>कुछ भी नहीं बदला गया</b> — आपका सर्वर और पासवर्ड पहले जैसे ही हैं। कृपया बाद में फिर कोशिश करें या दूसरा एडिशन चुनें। हमारी टीम को सूचित कर दिया गया है।`,
  vpsBeingDeleted: name => `⚙️ कृपया प्रतीक्षा करें, आपका VPS (${name}) हटाया जा रहा है`,
  vpsDeleted: name => `✅ VPS (${name}) स्थायी रूप से हटा दिया गया है।`,
  failedDeletingVPS: name => `❌ VPS (${name}) को हटाने में विफल।
@@ -3769,6 +3821,14 @@ ${
  payNowBtn: '✅ अभी भुगतान करें',
 
  vpsChangePaymentRecieved: `✅ भुगतान सफल! आपका VPS सेट किया जा रहा है। विवरण जल्द ही उपलब्ध होगा।`,
+  planOutOfStock: (isRDP, region, suggestions = []) => `😔 <b>${region} में ${isRDP ? 'Windows RDP' : 'VPS'} अभी स्टॉक में नहीं है</b>\n\nउस शहर में हमारे ${isRDP ? 'AMD ' : ''}सर्वर अभी पूरी तरह भरे हुए हैं — आपसे <b>कोई शुल्क नहीं</b> लिया गया।${suggestions.length ? `\n\n✅ अभी यहाँ उपलब्ध:\n${suggestions.map(s => `• ${s}`).join('\n')}` : '\n\n⏳ कृपया थोड़ी देर बाद पुनः प्रयास करें।'}\n\nनीचे कोई दूसरा स्थान चुनें 👇`,
+  stockNotifyBtn: '🔔 वापस आने पर मुझे बताएं',
+  stockNotifySaved: (isRDP, place, days) => `🔔 <b>हो गया!</b> ${place} में ${isRDP ? 'Windows RDP' : 'VPS'} फिर से उपलब्ध होते ही हम आपको संदेश भेजेंगे।\n\n<i>यह अलर्ट ${days} दिनों तक चालू रहेगा।</i>`,
+  stockBackInStock: (isRDP, place, planName) => `🟢 <b>फिर से स्टॉक में!</b>\n\n${place} में ${isRDP ? 'Windows RDP' : 'VPS'}${planName ? ` <b>${planName}</b>` : ''} अब फिर से ऑर्डर किया जा सकता है।\n\nस्टॉक जल्दी खत्म हो सकता है — ऑर्डर करने के लिए नीचे टैप करें।`,
+  stockOrderNowBtn: '🛒 अभी ऑर्डर करें',
+  rdpLateFailRefund: (amount, reason, balance, cities = []) => `❌ <b>आपका Windows RDP सेट अप नहीं हो सका</b>\n\n${reason}\n\n✅ <b>$${amount} आपके वॉलेट में वापस कर दिए गए हैं</b> (बैलेंस: $${balance})। अधूरा सर्वर हटा दिया गया।${cities.length ? `\n\n🌍 अभी यहाँ उपलब्ध:\n${cities.map(c => `• ${c}`).join('\n')}` : ''}\n\nदूसरे शहर में फिर से ऑर्डर करने के लिए नीचे टैप करें।`,
+  rdpTryAnotherCityBtn: '🌍 दूसरा शहर आज़माएं',
+  rdpFailReasons: { out_of_stock: 'सेटअप के दौरान DigitalOcean की उस शहर में AMD क्षमता खत्म हो गई।', provisioning_timeout: 'Windows सेटअप समय पर पूरा नहीं हुआ।', provision_failed: 'सर्वर नहीं बनाया जा सका।' },
 
  bankPayVPSRenewPlan: priceNGN =>
  `कृपया नीचे "भुगतान करें" पर क्लिक करके ${priceNGN} NGN भेजें। जैसे ही लेन-देन की पुष्टि होगी, आपको तुरंत सूचित किया जाएगा, और आपका VPS प्लान सक्रिय और नवीनीकृत कर दिया जाएगा।`,

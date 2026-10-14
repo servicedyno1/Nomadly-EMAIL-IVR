@@ -1018,8 +1018,7 @@ const payBank = url => ({
 
 const html = (text = t.successPayment) => {
   const brand = String(process.env.CHAT_BOT_BRAND || 'Nomadly')
-  const slug = brand.toLowerCase().replace(/[^a-z0-9]+/g, '') || 'nomadly'
-  const accent = slug === 'smadav' ? '#3b82f6' : '#10d9a0'
+  const accent = require('./sms-app-brand.js').accent()
   return `
         <html>
             <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${brand}</title></head>

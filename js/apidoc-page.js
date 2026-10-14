@@ -21,8 +21,8 @@ function endpointGroups(base) {
   const BNS_JSON = JSON.stringify(BNS)
   const BNS_TXT = BNS.join(' / ')
   const CF_JSON = '["ada.ns.cloudflare.com", "rob.ns.cloudflare.com"]'
-  const NS_EVENTS = BR ? ',"domain.nameservers_branded","domain.nameservers_reverted","domain.nameservers_branding_failed"' : ''
-  const ALERT_EVENTS = ',"hosting.expiring","hosting.renewed","hosting.unsuspended","vps.expiring","vps.renewed","rdp.expiring","rdp.renewed","domain.expiring","domain.expired","domain.renewed","domain.auto_renew_failed","hosting.site_down","hosting.site_recovered","hosting.usage_threshold","vps.usage_threshold","rdp.usage_threshold","account.low_balance"'
+  // The exact list GET/PUT /account/webhook returns (same source + same branded-NS filter) — never drifts.
+  const WEBHOOK_EVENTS_JSON = JSON.stringify(require('./reseller-webhooks').EVENTS.filter(e => BR || !e.startsWith('domain.nameservers_')))
   return [
     {
       id: 'meta', title: 'Meta',
@@ -88,13 +88,13 @@ function endpointGroups(base) {
           resp: `{
   "webhook_url": "https://your-app.com/hooks/nomadly",
   "webhook_secret": "whsec_…",
-  "events": ["hosting.provisioned","hosting.provision_failed","hosting.grace_start","hosting.suspended","hosting.deleted","hosting.auto_renew_failed","hosting.plan_changed","hosting.app_installed","hosting.app_install_failed","vps.provisioned","vps.provision_failed","vps.grace_start","vps.deleted","vps.plan_changed","vps.plan_change_failed","rdp.provisioned","rdp.provision_failed","rdp.grace_start","rdp.deleted","rdp.plan_changed","rdp.plan_change_failed"${NS_EVENTS}${ALERT_EVENTS}],
+  "events": ${WEBHOOK_EVENTS_JSON},
   "delivery": "POST signed with HMAC-SHA256 (X-Nomadly-Signature: sha256=<hex>), auto-retry with backoff, de-duplicated per server+event"
 }`,
         },
         {
           method: 'PUT', path: '/account/webhook', auth: true, billed: false,
-          desc: 'Register (or clear) the push-webhook URL for your account. Send {"webhook_url":"https://…"} to set it (the first time this also mints a webhook_secret you must store), or {"webhook_url":null} to clear it (the secret is kept for re-enabling). Nomadly then POSTs a JSON body { event, product, occurred_at, data:{ id, product, domain, reason, … } } to your URL for each lifecycle event across all three products: hosting.provisioned / vps.provisioned / rdp.provisioned (an async create finished — data carries the id/username, domain, plan and ip/nameservers), hosting.provision_failed / vps.provision_failed / rdp.provision_failed (an async create ultimately failed — the wallet was auto-refunded; data carries reason and refunded:true), hosting.grace_start / vps.grace_start / rdp.grace_start (subscription expired → service suspended/powered off and a grace period begins; data carries expired_at + delete_at + grace_hours — hosting grace is 48h, VPS/RDP is 48h/2-day), hosting.auto_renew_failed (a wallet auto-renew attempt failed on insufficient funds; data carries price_usd, wallet_balance_usd, next_attempt_at — the plan then falls into grace, it is NOT terminated), hosting.deleted / vps.deleted / rdp.deleted (the resource was permanently removed after grace; data carries reason), hosting.plan_changed (a hosting plan change made through the API was applied; data carries username, domain, direction, billing ("pro_rata" = Premium <-> Golden, expiry unchanged | "new_term" = weekly -> monthly, fresh 30-day term), from_plan, to_plan, to_plan_name, charged_usd, unused_credit_usd, previous_expires_at, expires_at, renewal_price_usd), hosting.app_installed / hosting.app_install_failed (a one-click WordPress install finished or failed — data carries username, domain, app, app_id, path and site_url/admin_url/admin_user/version, or reason + message), vps.plan_changed / rdp.plan_changed (an in-place plan change finished; data carries change_id, direction, from_plan, to_plan, charged_usd, resize_disk, disk_gb) and vps.plan_change_failed / rdp.plan_change_failed (the resize did not complete, the server stays on its old plan and any charge was refunded; data carries reason, refunded, refund_usd)' + (BR ? ', and the branded-nameserver events domain.nameservers_branded (registrar switched to the branded nameservers; data carries domain + nameservers + previous_nameservers), domain.nameservers_reverted (rolled back to the Cloudflare-assigned names to keep the domain protected; data carries reason + nameservers) and domain.nameservers_branding_failed (the domain stays on the Cloudflare names; data carries reason)' : '') + '. ALERTS (see "Alerts, Monitoring & Activity"): hosting.expiring / vps.expiring / rdp.expiring / domain.expiring (7, 3 and 1 day before expiry), *.renewed, hosting.unsuspended, domain.expired, hosting.site_down / hosting.site_recovered (uptime monitor), *.usage_threshold and account.low_balance. SECURITY: every delivery is signed — header "X-Nomadly-Signature: sha256=<hex>" is HMAC-SHA256 of the exact raw request body keyed by your webhook_secret. Recompute it and constant-time compare BEFORE acting on any *.deleted. Delivery is retried with backoff and de-duplicated per server+event (grace/auto_renew_failed re-fire each billing cycle; *.deleted fires once). Reply 2xx to acknowledge.',
+          desc: 'Register (or clear) the push-webhook URL for your account. Send {"webhook_url":"https://…"} to set it (the first time this also mints a webhook_secret you must store), or {"webhook_url":null} to clear it (the secret is kept for re-enabling). Nomadly then POSTs a JSON body { event, product, occurred_at, data:{ id, product, domain, reason, … } } to your URL for each lifecycle event across all three products: hosting.provisioned / vps.provisioned / rdp.provisioned (an async create finished — data carries the id/username, domain, plan and ip/nameservers), hosting.provision_failed / vps.provision_failed / rdp.provision_failed (an async create ultimately failed — the wallet was auto-refunded; data carries reason and refunded:true), hosting.grace_start / vps.grace_start / rdp.grace_start (subscription expired → service suspended/powered off and a grace period begins; data carries expired_at + delete_at + grace_hours — hosting grace is 48h, VPS/RDP is 48h/2-day), hosting.auto_renew_failed (a wallet auto-renew attempt failed on insufficient funds; data carries price_usd, wallet_balance_usd, next_attempt_at — the plan then falls into grace, it is NOT terminated), hosting.deleted / vps.deleted / rdp.deleted (the resource was permanently removed after grace; data carries reason), hosting.plan_changed (a hosting plan change made through the API was applied; data carries username, domain, direction, billing ("pro_rata" = Premium <-> Golden, expiry unchanged | "new_term" = weekly -> monthly, fresh 30-day term), from_plan, to_plan, to_plan_name, charged_usd, unused_credit_usd, previous_expires_at, expires_at, renewal_price_usd), hosting.app_installed / hosting.app_install_failed (a one-click WordPress install finished or failed — data carries username, domain, app, app_id, path and site_url/admin_url/admin_user/version, or reason + message), vps.plan_changed / rdp.plan_changed (an in-place plan change finished; data carries change_id, direction, from_plan, to_plan, charged_usd, resize_disk, disk_gb) and vps.plan_change_failed / rdp.plan_change_failed (the resize did not complete, the server stays on its old plan and any charge was refunded; data carries reason, refunded, refund_usd)' + (BR ? ', and the branded-nameserver events domain.nameservers_branded (registrar switched to the branded nameservers; data carries domain + nameservers + previous_nameservers), domain.nameservers_reverted (rolled back to the Cloudflare-assigned names to keep the domain protected; data carries reason + nameservers) and domain.nameservers_branding_failed (the domain stays on the Cloudflare names; data carries reason)' : '') + '. STOCK (see "Stock, provisioning & refunds"): vps.back_in_stock / rdp.back_in_stock (a plan that was sold out in a city can be ordered again; sent to every account with a webhook URL, once per city + plan per restoration; data carries region, plan or plan_id, build_region, same_city_fallback, price_usd and restored_at). SAFE BROWSING: hosting.flagged / vps.flagged / rdp.flagged / shortener.flagged (Google Safe Browsing flagged a domain linked to that hosting plan, VPS/RDP or shortener — data carries domain, threats, action "flagged" or "unlinked" (enforced: the domain was detached from our servers) and reason "google_safe_browsing"; sent once per flag episode). REINSTALL: rdp.reinstall_started / rdp.reinstall_failed (only for a POST /rdp/:id/reinstall that answered 202 copying_image — the Windows image was copied to the server\'s datacenter first; started = the rebuild began, read the new password from credentials_url; failed = nothing changed). ALERTS (see "Alerts, Monitoring & Activity"): hosting.expiring / vps.expiring / rdp.expiring / domain.expiring (7, 3 and 1 day before expiry), *.renewed, hosting.unsuspended, domain.expired, hosting.site_down / hosting.site_recovered (uptime monitor), *.usage_threshold and account.low_balance. SECURITY: every delivery is signed — header "X-Nomadly-Signature: sha256=<hex>" is HMAC-SHA256 of the exact raw request body keyed by your webhook_secret. Recompute it and constant-time compare BEFORE acting on any *.deleted. Delivery is retried with backoff and de-duplicated per server+event (grace/auto_renew_failed re-fire each billing cycle; *.deleted fires once). Reply 2xx to acknowledge.',
           params: [['webhook_url', true, 'Your http(s) endpoint URL, or null to clear']],
           curl: `curl -s -X PUT ${base}/account/webhook \\
   -H "Authorization: Bearer YOUR_API_KEY" \\
@@ -103,7 +103,7 @@ function endpointGroups(base) {
           resp: `{
   "webhook_url": "https://your-app.com/hooks/nomadly",
   "webhook_secret": "whsec_… (store this — it signs every delivery)",
-  "events": ["hosting.provisioned","hosting.provision_failed","hosting.grace_start","hosting.suspended","hosting.deleted","hosting.auto_renew_failed","hosting.plan_changed","hosting.app_installed","hosting.app_install_failed","vps.provisioned","vps.provision_failed","vps.grace_start","vps.deleted","vps.plan_changed","vps.plan_change_failed","rdp.provisioned","rdp.provision_failed","rdp.grace_start","rdp.deleted","rdp.plan_changed","rdp.plan_change_failed"${NS_EVENTS}${ALERT_EVENTS}],
+  "events": ${WEBHOOK_EVENTS_JSON},
   "delivery": "POST signed with HMAC-SHA256 (X-Nomadly-Signature: sha256=<hex>), auto-retry with backoff, de-duplicated per server+event"
 }
 
@@ -487,8 +487,8 @@ function endpointGroups(base) {
       endpoints: [
         {
           method: 'GET', path: '/vps/plans', auth: true, billed: false,
-          desc: 'List the Linux VPS plans that can be ordered RIGHT NOW in a region (stock is re-checked hourly; out-of-stock plans are hidden). Two storage classes: Standard plans (storage_type "SSD", cpu "Standard") and Premium NVMe plans (storage_type "NVMe SSD", cpu "AMD" or "Intel" — newer EPYC / Xeon CPUs with a much faster disk). Use ?storage=nvme or ?storage=ssd to filter. price_usd is the 1-month price; each plan also returns a terms array — the prepaid 1/3/6/12-month options with their bundle discount (3 months = 10% off, 6 months = 15% off, 12 months = 25% off), the discounted total (price_usd), the per-month equivalent and the savings — so you can render a duration picker. Pass the chosen term as "months" on POST /vps (the plan_id stays the same). The response also returns os_options — the Linux distributions you can request at order time (Ubuntu 24.04/22.04 LTS, Debian 13/12, AlmaLinux 9/8, Rocky 9/10, CentOS Stream 9/10, Fedora) — plus default_os, so you can render an OS picker on your storefront. Pass the chosen os id as "os" on POST /vps (and on POST /vps/:id/reinstall). The same list is also available on its own at GET /vps/os-options.',
-          params: [['region', false, 'Region code — defaults to EU'], ['storage', false, '"nvme" | "ssd" — omit for both']],
+          desc: 'List the Linux VPS plans that can be ordered RIGHT NOW in a region (stock is read live from DigitalOcean — re-pulled when older than ~2 minutes, so the list is at most ~2 min old; add ?refresh=true to force a fresh pull; out-of-stock plans are hidden; catalog tells you how old the data is). Two storage classes: Standard plans (storage_type "SSD", cpu "Standard") and Premium NVMe plans (storage_type "NVMe SSD", cpu "AMD" or "Intel" — newer EPYC / Xeon CPUs with a much faster disk). Use ?storage=nvme or ?storage=ssd to filter. price_usd is the 1-month price; each plan also returns a terms array — the prepaid 1/3/6/12-month options with their bundle discount (3 months = 10% off, 6 months = 15% off, 12 months = 25% off), the discounted total (price_usd), the per-month equivalent and the savings — so you can render a duration picker. Pass the chosen term as "months" on POST /vps (the plan_id stays the same). The response also returns os_options — the Linux distributions you can request at order time, read LIVE from DigitalOcean (every Ubuntu LTS it sells, e.g. 26.04 / 24.04 / 22.04, plus Debian, AlmaLinux, Rocky Linux, CentOS Stream and Fedora — new releases appear and retired ones disappear automatically) — plus default_os, so you can render an OS picker on your storefront. requires_ssh_key:true marks the images DigitalOcean only builds with an SSH key (Fedora, CentOS, AlmaLinux, Rocky Linux): send ssh_keys on POST /vps for them. Pass the chosen os id as "os" on POST /vps (and on POST /vps/:id/reinstall). The same list is also available on its own at GET /vps/os-options.',
+          params: [['region', false, 'Region code — defaults to EU'], ['storage', false, '"nvme" | "ssd" — omit for both'], ['refresh', false, 'true = re-pull stock from DigitalOcean now (at most once a minute) instead of using the up-to-2-minute-old copy']],
           curl: `curl -s "${base}/vps/plans?region=EU" \\
   -H "Authorization: Bearer YOUR_API_KEY"`,
           resp: `{
@@ -506,17 +506,20 @@ function endpointGroups(base) {
     { "plan_id": "s-2vcpu-4gb-amd", "name": "NVMe AMD 2vCPU/4GB/80GB", "vcpus": 2, "ram_gb": 4, "disk_gb": 80, "cpu": "AMD", "storage_type": "NVMe SSD", "price_usd": 84.00, "terms": [ "…" ] },
     { "plan_id": "s-2vcpu-4gb-120gb-intel", "name": "NVMe Intel 2vCPU/4GB/120GB", "vcpus": 2, "ram_gb": 4, "disk_gb": 120, "cpu": "Intel", "storage_type": "NVMe SSD", "price_usd": 96.00, "terms": [ "…" ] }
   ],
+  "catalog": { "source": "live", "fetched_at": "2026-10-14T09:15:02.000Z", "age_seconds": 41, "stale": false, "refresh_interval_seconds": 900 },
   "default_os": "ubuntu-24-04-x64",
   "os_options": [
-    { "id": "ubuntu-24-04-x64", "name": "Ubuntu 24.04 LTS", "family": "Ubuntu", "default": true },
-    { "id": "ubuntu-22-04-x64", "name": "Ubuntu 22.04 LTS", "family": "Ubuntu", "default": false },
-    { "id": "debian-12-x64", "name": "Debian 12", "family": "Debian", "default": false }
+    { "id": "ubuntu-24-04-x64", "name": "Ubuntu 24.04 LTS", "family": "Ubuntu", "version": "24.04", "default": true, "requires_ssh_key": false },
+    { "id": "ubuntu-26-04-x64", "name": "Ubuntu 26.04 LTS", "family": "Ubuntu", "version": "26.04", "default": false, "requires_ssh_key": false },
+    { "id": "debian-13-x64", "name": "Debian 13", "family": "Debian", "version": "13", "default": false, "requires_ssh_key": false },
+    { "id": "rockylinux-10-x64", "name": "Rocky Linux 10", "family": "Rocky Linux", "version": "10", "default": false, "requires_ssh_key": true },
+    "…"
   ]
 }`,
         },
         {
           method: 'GET', path: '/vps/os-options', auth: true, billed: false,
-          desc: 'List the Linux distributions (operating-system images) you can request when ordering a VPS (POST /vps { os }) or reinstalling one (POST /vps/:id/reinstall { os }). Each entry has a stable id to pass as "os", a display name, an OS family and a default flag. (The same list is embedded in GET /vps/plans; this endpoint is a lightweight standalone fetch for an OS picker.)',
+          desc: 'List the Linux distributions (operating-system images) you can request when ordering a VPS (POST /vps { os }) or reinstalling one (POST /vps/:id/reinstall { os }). The list is DigitalOcean\'s own, read live (refreshed hourly): every version it currently sells is listed (e.g. Ubuntu 26.04, 24.04 and 22.04 LTS) and a version DigitalOcean retires disappears on its own — always pick from this list instead of hard-coding ids. Each entry has a stable id to pass as "os", a display name, family, version, a default flag and requires_ssh_key. SSH KEYS: DigitalOcean builds Fedora, CentOS Stream, AlmaLinux and Rocky Linux ONLY with an SSH key (its control panel shows "Requires an SSH Key"; there is no password-only option) — for those (requires_ssh_key:true) send at least one public key in ssh_keys on POST /vps, otherwise you get 400 ssh_key_required and nothing is charged. Ubuntu and Debian work with a password alone (ssh_keys optional). A root password is still set on every server and shown in GET /vps/:id/credentials. (The same list is embedded in GET /vps/plans; this endpoint is a lightweight standalone fetch for an OS picker.)',
           curl: `curl -s ${base}/vps/os-options \\
   -H "Authorization: Bearer YOUR_API_KEY"`,
           resp: `{
@@ -524,33 +527,39 @@ function endpointGroups(base) {
   "provider": "digitalocean",
   "default_os": "ubuntu-24-04-x64",
   "os_options": [
-    { "id": "ubuntu-24-04-x64", "name": "Ubuntu 24.04 LTS", "family": "Ubuntu", "default": true },
-    { "id": "ubuntu-22-04-x64", "name": "Ubuntu 22.04 LTS", "family": "Ubuntu", "default": false },
-    { "id": "debian-13-x64", "name": "Debian 13", "family": "Debian", "default": false },
-    { "id": "debian-12-x64", "name": "Debian 12", "family": "Debian", "default": false },
-    { "id": "almalinux-9-x64", "name": "AlmaLinux 9", "family": "AlmaLinux", "default": false },
-    { "id": "rockylinux-9-x64", "name": "Rocky Linux 9", "family": "Rocky", "default": false },
-    { "id": "centos-stream-9-x64", "name": "CentOS Stream 9", "family": "CentOS", "default": false },
-    { "id": "fedora-42-x64", "name": "Fedora 42", "family": "Fedora", "default": false }
+    { "id": "ubuntu-24-04-x64", "name": "Ubuntu 24.04 LTS", "family": "Ubuntu", "version": "24.04", "default": true, "requires_ssh_key": false },
+    { "id": "ubuntu-26-04-x64", "name": "Ubuntu 26.04 LTS", "family": "Ubuntu", "version": "26.04", "default": false, "requires_ssh_key": false },
+    { "id": "ubuntu-22-04-x64", "name": "Ubuntu 22.04 LTS", "family": "Ubuntu", "version": "22.04", "default": false, "requires_ssh_key": false },
+    { "id": "debian-13-x64", "name": "Debian 13", "family": "Debian", "version": "13", "default": false, "requires_ssh_key": false },
+    { "id": "almalinux-10-x64", "name": "AlmaLinux 10", "family": "AlmaLinux", "version": "10", "default": false, "requires_ssh_key": true },
+    { "id": "almalinux-9-x64", "name": "AlmaLinux 9", "family": "AlmaLinux", "version": "9", "default": false, "requires_ssh_key": true },
+    { "id": "almalinux-8-x64", "name": "AlmaLinux 8", "family": "AlmaLinux", "version": "8", "default": false, "requires_ssh_key": true },
+    { "id": "rockylinux-10-x64", "name": "Rocky Linux 10", "family": "Rocky Linux", "version": "10", "default": false, "requires_ssh_key": true },
+    { "id": "rockylinux-9-x64", "name": "Rocky Linux 9", "family": "Rocky Linux", "version": "9", "default": false, "requires_ssh_key": true },
+    { "id": "rockylinux-8-x64", "name": "Rocky Linux 8", "family": "Rocky Linux", "version": "8", "default": false, "requires_ssh_key": true },
+    { "id": "centos-stream-10-x64", "name": "CentOS Stream 10", "family": "CentOS", "version": "10", "default": false, "requires_ssh_key": true },
+    { "id": "centos-stream-9-x64", "name": "CentOS Stream 9", "family": "CentOS", "version": "9", "default": false, "requires_ssh_key": true },
+    { "id": "fedora-44-x64", "name": "Fedora 44", "family": "Fedora", "version": "44", "default": false, "requires_ssh_key": true },
+    { "id": "fedora-43-x64", "name": "Fedora 43", "family": "Fedora", "version": "43", "default": false, "requires_ssh_key": true }
   ]
 }`,
         },
         {
           method: 'POST', path: '/vps', auth: true, billed: true,
-          desc: 'Create a Linux VPS. ASYNC: returns 202 immediately with status "provisioning" and a stable id (the build runs in the background so the request never times out). The wallet is charged up-front at the prepaid-term rate (see months); if the build ultimately fails the charge is auto-refunded and a vps.provision_failed webhook fires. Poll GET /vps/:id until status "RUNNING" (then read /vps/:id/credentials), or subscribe to the vps.provisioned / vps.provision_failed webhooks. Pass an optional idempotent client_ref — a retry with the same client_ref echoes the SAME 202 handle and never double-charges.',
+          desc: 'Create a Linux VPS. ASYNC: returns 202 immediately with status "provisioning" and a stable id (the build runs in the background so the request never times out). The wallet is charged up-front at the prepaid-term rate (see months); if the build ultimately fails the charge is auto-refunded and a vps.provision_failed webhook fires (reason, reason_code, refunded:true). vps.provisioned fires only once the server is running with its IP (the job stays "provisioning" until then). If the chosen datacenter is out of the exact size, the same size (same CPU type) is built in another datacenter in the same city; an out-of-stock plan returns 409 out_of_stock with available_regions and nothing is charged. Poll GET /vps/:id until status "RUNNING" (then read /vps/:id/credentials), or subscribe to the vps.provisioned / vps.provision_failed webhooks. Pass an optional idempotent client_ref — a retry with the same client_ref echoes the SAME 202 handle and never double-charges.',
           params: [
             ['plan_id', true, 'A plan_id from GET /vps/plans (SSD or NVMe). An out-of-stock plan returns 409 out_of_stock — pick another plan or region'],
             ['months', false, 'Prepaid term in months: 1 | 3 | 6 | 12 — defaults to 1. The plan_id stays the same; longer terms get a bundle discount (3mo −10%, 6mo −15%, 12mo −25%) and set the server\u2019s expiry that many months out. See terms[] in GET /vps/plans for the exact price per term. Any other value returns 400 invalid_months.'],
             ['region', false, 'Region code — defaults to EU'],
             ['hostname', false, 'Optional VM hostname. Lowercase letters, digits and hyphens only; must start and end with a letter or digit; max 63 chars — e.g. "web-01", "client-prod-db", "mail1", "app-eu-west". Dots, spaces, underscores and uppercase are rejected with 400 invalid_hostname (no silent rewriting). Omit it and we auto-generate one like "vps-m8k2p1". DigitalOcean uses this as the droplet name / VM hostname; the resolved value is echoed back in the create response and in GET /vps/:id.'],
-            ['os', false, 'Linux distribution image id (e.g. ubuntu-24-04-x64, debian-12-x64, rockylinux-9-x64) — defaults to Ubuntu 24.04 LTS. Must be one of the ids from GET /vps/plans → os_options (or GET /vps/os-options); an unknown value returns 400 invalid_os with the valid list.'],
-            ['ssh_keys', false, 'Optional OpenSSH public key(s) to pre-install for root at first boot — a single string or an array (e.g. "ssh-ed25519 AAAA… user@host"). Keys are registered on the provider and baked into the droplet, so you can SSH in immediately. (Linux VPS only; ignored for RDP.)'],
+            ['os', false, 'Linux distribution image id (e.g. ubuntu-24-04-x64, ubuntu-26-04-x64, debian-13-x64, rockylinux-10-x64) — defaults to Ubuntu 24.04 LTS. Must be one of the ids from GET /vps/os-options (or GET /vps/plans → os_options), which mirror DigitalOcean live; an unknown or retired value returns 400 invalid_os with the valid list.'],
+            ['ssh_keys', false, 'OpenSSH public key(s) to pre-install for root at first boot — a single string or an array (e.g. "ssh-ed25519 AAAA… user@host"). Keys are registered on the provider and baked into the droplet, so you can SSH in immediately. REQUIRED when the chosen os has requires_ssh_key:true (Fedora, CentOS Stream, AlmaLinux, Rocky Linux) — without it: 400 ssh_key_required (nothing charged; the response lists os_without_ssh_key). Optional for Ubuntu and Debian. (Linux VPS only; ignored for RDP.)'],
             ['client_ref', false, 'Your own idempotency key — a retry with the same value returns the same provisioning job (no double-charge)'],
           ],
           curl: `curl -s -X POST ${base}/vps \\
   -H "Authorization: Bearer YOUR_API_KEY" \\
   -H "Content-Type: application/json" \\
-  -d '{"plan_id":"s-1vcpu-1gb","region":"EU","hostname":"web-01","ssh_keys":["ssh-ed25519 AAAA… user@host"],"client_ref":"order-9A1"}'`,
+  -d '{"plan_id":"s-1vcpu-1gb","region":"EU","hostname":"web-01","os":"rockylinux-10-x64","ssh_keys":["ssh-ed25519 AAAA… user@host"],"client_ref":"order-9A1"}'`,
           resp: `HTTP 202 Accepted
 {
   "status": "provisioning",
@@ -648,7 +657,7 @@ function endpointGroups(base) {
         },
         {
           method: 'POST', path: '/vps/:id/ssh-key', auth: true, billed: false,
-          desc: 'Install an OpenSSH public key onto the ALREADY-RUNNING VPS — appended to root\u2019s authorized_keys in place (idempotent, nothing is wiped, data preserved). Logs in using the stored root password or an existing key. The plural path POST /vps/:id/ssh-keys is an alias for this same action. Requires the box to have an IP already (else 409 no_host); on an unreachable server returns 409 ssh_key_apply_failed. (Linux VPS only.)',
+          desc: '(Alias: POST /vps/:id/ssh-keys.) Install an OpenSSH public key onto the ALREADY-RUNNING VPS — appended to root\u2019s authorized_keys in place (idempotent, nothing is wiped, data preserved). Logs in using the stored root password or an existing key. The plural path POST /vps/:id/ssh-keys is an alias for this same action. Requires the box to have an IP already (else 409 no_host); on an unreachable server returns 409 ssh_key_apply_failed. (Linux VPS only.)',
           params: [['public_key', true, 'An OpenSSH public key string (e.g. "ssh-ed25519 AAAA… user@host"). Alias field: ssh_key.']],
           curl: `curl -s -X POST ${base}/vps/b2f1c0a4-…/ssh-key \\
   -H "Authorization: Bearer YOUR_API_KEY" \\
@@ -665,10 +674,10 @@ function endpointGroups(base) {
         },
         {
           method: 'POST', path: '/vps/:id/reinstall', auth: true, billed: false,
-          desc: 'DESTRUCTIVE OS reinstall — rebuild the SAME droplet from a chosen image. The disk is WIPED (all data lost) but the public IP is kept, and the box is back in ~3 min. CONFIRMATION REQUIRED: the first call without {"confirm": true} returns 400 confirmation_required; re-send with confirm:true to proceed. Optionally switch distro with "os" (an image id from the provider; defaults to the current OS). Your original root password is re-applied by the re-run cloud-init; if the box had no stored password, call POST /vps/:id/password-reset (or use your SSH key) once it is back online. Returns 400 invalid_os for an unknown image and 501 not_supported if the provider/record has no reinstall op.',
+          desc: 'DESTRUCTIVE OS reinstall — rebuild the SAME droplet from a chosen image. The disk is WIPED (all data lost) but the public IP is kept, and the box is back in ~3 min. CONFIRMATION REQUIRED: the first call without {"confirm": true} returns 400 confirmation_required; re-send with confirm:true to proceed. Optionally switch distro with "os" (an image id from the provider; defaults to the current OS). Your original root password is re-applied by the re-run cloud-init; if the box had no stored password, call POST /vps/:id/password-reset (or use your SSH key) once it is back online. Returns 400 invalid_os for an unknown image and 501 not_supported if the provider/record has no reinstall op. SSH KEYS: a rebuild keeps the SSH keys the server was created with and cannot add new ones, so switching to an OS with requires_ssh_key:true (Fedora, CentOS Stream, AlmaLinux, Rocky Linux) only works on a server created with ssh_keys — otherwise 400 ssh_key_required (nothing changed; the response lists os_without_ssh_key).',
           params: [
             ['confirm', true, 'Must be true — reinstall wipes the disk, so it is never performed accidentally.'],
-            ['os', false, 'Image id to reinstall (e.g. ubuntu-24-04-x64) — defaults to the current OS. Invalid values return 400 invalid_os with the valid list.'],
+            ['os', false, 'Image id to reinstall (e.g. ubuntu-24-04-x64) from GET /vps/os-options — defaults to the current OS. Invalid values return 400 invalid_os with the valid list; an SSH-key-only image on a server without keys returns 400 ssh_key_required.'],
           ],
           curl: `curl -s -X POST ${base}/vps/b2f1c0a4-…/reinstall \\
   -H "Authorization: Bearer YOUR_API_KEY" \\
@@ -739,32 +748,52 @@ function endpointGroups(base) {
     },
     {
       id: 'rdp', title: 'RDP (Windows)',
-      blurb: 'Identical to the VPS endpoints but provisions Windows Server (DigitalOcean). Replace /vps with /rdp. The login user is "Administrator". Choose the edition with the optional "os" field (ws2019 | ws2022 | ws2025, default ws2022). Editions flagged fast_deploy in GET /rdp/plans boot from a pre-built golden image and are RDP-ready in about 3 minutes (Windows Server 2025: about 5 — see eta_minutes per edition); otherwise a full unattended Windows install runs (20-45 min). Poll GET /rdp/:id (its "provisioning" block gives stage, progress, ETA countdown and a step timeline you can render as a live "Windows is booting" status page) until credentials_ready is true, then read GET /rdp/:id/credentials. Manage the running server with POST /rdp/:id/password-reset (in-place Administrator password change, data preserved) and POST /rdp/:id/reinstall (rebuild from a golden image, same IP, disk wiped, ~3-5 min). Password reset runs through a lightweight in-guest agent — check agent_online on GET /rdp/:id first (it must be true); reinstall needs no agent. When a subscription ends without renewal the server is powered off and held for a 2-day (48h) grace period (GET /rdp/:id then shows a "grace" block with delete_at + days_remaining, and GET /renewals lists it with status "grace"); if it is still not renewed the droplet is permanently deleted. Call POST /rdp/:id/renew {months} any time before deletion to extend the term, power the box back on and cancel the pending deletion.',
+      blurb: 'Identical to the VPS endpoints but provisions Windows Server (DigitalOcean). Replace /vps with /rdp. The login user is "Administrator". Choose the edition with the optional "os" field (ws2019 | ws2022 | ws2025, default ws2022). Editions flagged fast_deploy in GET /rdp/plans boot from a pre-built golden image and are RDP-ready in about 3 minutes (Windows Server 2025: about 5 — see eta_minutes per edition); otherwise a full unattended Windows install runs (20-45 min). Poll GET /rdp/:id (its "provisioning" block gives stage, progress, ETA countdown and a step timeline you can render as a live "Windows is booting" status page) until credentials_ready is true, then read GET /rdp/:id/credentials. Manage the running server with POST /rdp/:id/password-reset (in-place Administrator password change, data preserved) and POST /rdp/:id/reinstall (rebuild from a golden image, same IP, disk wiped, ~3-5 min). Password reset runs through a lightweight in-guest agent — check agent_online on GET /rdp/:id first (it must be true); reinstall needs no agent. When a subscription ends without renewal the server is powered off and held for a 2-day (48h) grace period (GET /rdp/:id then shows a "grace" block with delete_at + days_remaining, and GET /renewals lists it with status "grace"); if it is still not renewed the droplet is permanently deleted. Call POST /rdp/:id/renew {months} any time before deletion to extend the term, power the box back on and cancel the pending deletion. HARDWARE + STOCK: every RDP runs on DigitalOcean Premium AMD (AMD EPYC + NVMe) only — never Intel or shared Basic CPUs. Stock is read live from DigitalOcean (refreshed every 15 min): if the region\'s datacenter is full, the server is built in another datacenter in the SAME city (e.g. New York nyc3 → nyc1/nyc2). If a same-spec AMD size costs DigitalOcean more (at most +15%), price_usd already includes it (surcharge_usd shows the extra) — the price you see in GET /rdp/plans is exactly what POST /rdp charges. When no datacenter in that city has AMD capacity, the plan is out of stock: GET /rdp/plans flags it in_stock:false, GET /rdp/availability shows where it is in stock, and POST /rdp answers 409 out_of_stock without charging.',
       endpoints: [
         {
           method: 'GET', path: '/rdp/plans', auth: true, billed: false,
-          desc: 'List Windows RDP plans and prices for a region, plus os_options with per-edition fast_deploy readiness and eta_minutes. Each tier is sold in 1/2/3-month terms — the multi-month terms carry a bundle discount (2 months = 10% off, 3 months = 15% off); each plan returns duration_months and discount_pct, and price_usd is already the discounted total. Every tier runs on premium AMD hardware with NVMe SSD storage — each plan also returns cpu (AMD/Intel) and storage_type (NVMe SSD) so resale buyers can see the class of hardware at a glance.',
-          params: [['region', false, 'Region code — defaults to EU']],
+          desc: 'List Windows RDP plans and prices for a region, plus os_options with per-edition fast_deploy readiness and eta_minutes. Each tier is sold in 1/2/3-month terms — the multi-month terms carry a bundle discount (2 months = 10% off, 3 months = 15% off); each plan returns duration_months and discount_pct, and price_usd is already the discounted total. Every tier runs on premium AMD hardware with NVMe SSD storage — each plan also returns cpu (AMD/Intel) and storage_type (NVMe SSD) so resale buyers can see the class of hardware at a glance (RDP is always cpu "AMD"). STOCK: out-of-stock plans are listed too, flagged in_stock:false / out_of_stock:true — POST /rdp for them returns 409 out_of_stock. surcharge_usd is the extra included in price_usd when the plan has to run on a pricier same-spec AMD size (0 normally); same_city_fallback:true means it will be built in another datacenter of the same city. catalog tells you how fresh the live stock data is. DEPLOY TIME: each os_options entry carries eta_minutes_in_region / fast_deploy_in_region for THIS region — ~3 min (~5 for Windows Server 2025) when our pre-built Windows image is in the datacenter the order would be built in right now, ~45 min (full install) otherwise. Images are copied automatically to every datacenter an order can be built in, so ~45 min only shows briefly after DigitalOcean moves capacity to a new datacenter.',
+          params: [['region', false, 'Region code — defaults to EU'], ['refresh', false, 'true = re-pull stock from DigitalOcean now (at most once a minute)']],
           curl: `curl -s "${base}/rdp/plans?region=EU" \\
   -H "Authorization: Bearer YOUR_API_KEY"`,
           resp: `{ "product": "rdp", "provider": "digitalocean", "region": "EU", "default_os": "ws2022",
   "plans": [
-    { "plan_id": "standard-1m", "name": "Standard — Windows RDP (1 month)",  "vcpus": 2, "ram_gb": 4, "disk_gb": 80, "cpu": "AMD", "storage_type": "NVMe SSD", "duration_months": 1, "discount_pct": 0,  "price_usd": 56 },
-    { "plan_id": "standard-2m", "name": "Standard — Windows RDP (2 months)", "vcpus": 2, "ram_gb": 4, "disk_gb": 80, "cpu": "AMD", "storage_type": "NVMe SSD", "duration_months": 2, "discount_pct": 10, "price_usd": 100.8 },
-    { "plan_id": "standard-3m", "name": "Standard — Windows RDP (3 months)", "vcpus": 2, "ram_gb": 4, "disk_gb": 80, "cpu": "AMD", "storage_type": "NVMe SSD", "duration_months": 3, "discount_pct": 15, "price_usd": 142.8 }, … ],
-  "os_options": [ { "id": "ws2022", "name": "Windows Server 2022", "default": true, "fast_deploy": true, "eta_minutes": 3, "fast_deploy_regions": ["EU","US","UK",…] }, … ] }`,
+    { "plan_id": "standard-1m", "name": "Standard — Windows RDP (1 month)",  "vcpus": 2, "ram_gb": 4, "disk_gb": 80, "cpu": "AMD", "storage_type": "NVMe SSD", "duration_months": 1, "discount_pct": 0,  "price_usd": 56, "in_stock": true, "out_of_stock": false, "surcharge_usd": 0, "same_city_fallback": false },
+    { "plan_id": "standard-2m", "name": "Standard — Windows RDP (2 months)", "vcpus": 2, "ram_gb": 4, "disk_gb": 80, "cpu": "AMD", "storage_type": "NVMe SSD", "duration_months": 2, "discount_pct": 10, "price_usd": 100.8, "in_stock": true, … },
+    { "plan_id": "standard-3m", "name": "Standard — Windows RDP (3 months)", "vcpus": 2, "ram_gb": 4, "disk_gb": 80, "cpu": "AMD", "storage_type": "NVMe SSD", "duration_months": 3, "discount_pct": 15, "price_usd": 142.8, "in_stock": true, … }, … ],
+  "catalog": { "source": "live", "fetched_at": "2026-10-14T09:15:02.000Z", "stale": false, "refresh_interval_seconds": 900 },
+  "os_options": [ { "id": "ws2022", "name": "Windows Server 2022", "default": true, "fast_deploy": true, "eta_minutes": 3, "fast_deploy_regions": ["EU","US","UK",…], "eta_minutes_in_region": 3, "fast_deploy_in_region": true }, … ] }`,
         },
         {
           method: 'GET', path: '/rdp/os-options', auth: true, billed: false,
-          desc: 'List the Windows editions you can request when ordering an RDP server (POST /rdp { os }) or reinstalling one (POST /rdp/:id/reinstall { os }), with per-edition fast_deploy readiness and eta_minutes. (The same list is embedded in GET /rdp/plans; this is a lightweight standalone fetch for an edition picker.)',
+          desc: 'List the Windows editions you can request when ordering an RDP server (POST /rdp { os }) or reinstalling one (POST /rdp/:id/reinstall { os }), with per-edition fast_deploy readiness and eta_minutes. eta_minutes_by_region gives the REAL deploy time per region code right now (~3-5 min where the image is in the datacenter the order would be built in, ~45 min full install elsewhere) — use it, not the global eta_minutes, for a per-city "ready in" label. (The same list is embedded in GET /rdp/plans; this is a lightweight standalone fetch for an edition picker.)',
           curl: `curl -s ${base}/rdp/os-options \\
   -H "Authorization: Bearer YOUR_API_KEY"`,
           resp: `{ "product": "rdp", "provider": "digitalocean", "default_os": "ws2022",
-  "os_options": { "ws2019": { "name": "Windows Server 2019", … }, "ws2022": { "name": "Windows Server 2022", "default": true, … }, "ws2025": { "name": "Windows Server 2025", … } } }`,
+  "os_options": [ { "id": "ws2022", "name": "Windows Server 2022", "default": true, "fast_deploy": true, "eta_minutes": 3,
+      "fast_deploy_regions": ["US", "US-WEST", "UK", "EU", "NL", "IN", "SG", "AU"],
+      "eta_minutes_by_region": { "US": 3, "US-WEST": 3, "CA": 3, "UK": 3, "EU": 3, "NL": 3, "IN": 3, "SG": 3, "AU": 3 } }, … ] }`,
+        },
+        {
+          method: 'GET', path: '/rdp/availability', auth: true, billed: false,
+          desc: 'Live RDP stock for every region (or one, with ?region=) and plan, read from DigitalOcean\'s catalogue (refreshed every 15 min). RDP runs on Premium AMD only; a region counts as in stock when ANY datacenter in its city has AMD capacity — build_region is where it would be built right now and same_city_fallback is true when that is not the region\'s main datacenter. price_usd is the current 1-month price (base_price_usd + the surcharge_pct of a pricier same-spec AMD size, if one is needed). Use it to grey out sold-out regions/plans in your storefront and to suggest alternatives; POST /rdp for an out-of-stock plan returns 409 out_of_stock with available_regions. ACCURACY: the answer comes from a DigitalOcean catalogue at most ~2 minutes old (re-pulled first when older; ?refresh=true forces a fresh pull, at most once a minute) — the same check POST /rdp makes right before charging. datacenters lists every datacenter of the city and which plans DigitalOcean will build there right now, so you can match it 1:1 with DigitalOcean\'s control panel (e.g. New York: nyc3 none, nyc1 + nyc2 all plans → in stock, built in nyc1). catalog.age_seconds is the age of the data; catalog.stale:true means DigitalOcean could not be reached for 2 h+ and the last good copy is being used. deploy_eta_minutes is the real deploy time per Windows edition for an order placed in that region right now (~3-5 min with the pre-built image in the build datacenter, ~45 min full install otherwise).',
+          params: [['region', false, 'Region code (US, US-WEST, CA, UK, EU, NL, IN, SG, AU) — omit for all regions'], ['refresh', false, 'true = re-pull stock from DigitalOcean now (at most once a minute)']],
+          curl: `curl -s "${base}/rdp/availability?region=US" \\
+  -H "Authorization: Bearer YOUR_API_KEY"`,
+          resp: `{ "product": "rdp", "cpu": "AMD", "checked_at": "2026-10-14T09:20:11.000Z",
+  "catalog": { "source": "live", "fetched_at": "2026-10-14T09:19:58.000Z", "age_seconds": 13, "stale": false, "refresh_interval_seconds": 900 },
+  "regions": [ { "region": "US", "region_slug": "nyc3", "label": "United States (New York)", "emoji": "🇺🇸", "in_stock": true,
+    "plans": [ { "plan": "standard", "name": "Standard", "in_stock": true, "build_region": "nyc1", "same_city_fallback": true, "size_slug": "s-2vcpu-4gb-amd", "price_usd": 56, "base_price_usd": 56, "surcharge_pct": 0 },
+               { "plan": "pro", "name": "Pro", "in_stock": true, "build_region": "nyc1", "same_city_fallback": true, "size_slug": "s-4vcpu-8gb-amd", "price_usd": 112, "base_price_usd": 112, "surcharge_pct": 0 }, … ],
+    "datacenters": [ { "datacenter": "nyc3", "plans_in_stock": [] },
+                     { "datacenter": "nyc1", "plans_in_stock": ["standard", "pro", "power"] },
+                     { "datacenter": "nyc2", "plans_in_stock": ["standard", "pro", "power"] } ],
+    "deploy_eta_minutes": { "ws2019": 3, "ws2022": 3, "ws2025": 5 } },
+    { "region": "EU", "region_slug": "fra1", "label": "Germany (Frankfurt)", "in_stock": false, "plans": [ { "plan": "standard", "in_stock": false, "build_region": null, … }, … ] }, … ] }`,
         },
         {
           method: 'POST', path: '/rdp', auth: true, billed: true,
-          desc: 'Create a Windows RDP server. Same body as POST /vps plus an optional "os" edition. ASYNC: returns 202 immediately with status "provisioning" and a stable id; the wallet is charged up-front and auto-refunded (with an rdp.provision_failed webhook) if the build fails. Poll GET /rdp/:id until status "RUNNING"/credentials_ready, or subscribe to rdp.provisioned / rdp.provision_failed. Pass an optional idempotent client_ref — a retry with the same client_ref echoes the SAME 202 handle and never double-charges.',
+          desc: 'Create a Windows RDP server. Same body as POST /vps plus an optional "os" edition. ASYNC: returns 202 immediately with status "provisioning" and a stable id; the wallet is charged up-front. The order STAYS "provisioning" (GET /jobs/:job_id status provisioning, GET /rdp/:id provision_state provisioning) until Windows is actually up: rdp.provisioned fires only then, carrying the server ip (and datacenter, the DigitalOcean datacenter it was built in). If the build fails — including when DigitalOcean has no AMD capacity left in any datacenter of that city — the wallet is auto-refunded, the job turns "failed" with refunded:true, and rdp.provision_failed fires with reason + reason_code (out_of_stock | provision_failed | provisioning_timeout) and refunded:true. Ordering a plan that is already out of stock returns 409 out_of_stock (nothing charged) with available_regions. Poll GET /rdp/:id until status "RUNNING"/credentials_ready, or subscribe to rdp.provisioned / rdp.provision_failed. Pass an optional idempotent client_ref — a retry with the same client_ref echoes the SAME 202 handle and never double-charges. ETA: eta_seconds / eta_at in the 202 (and in GET /jobs/:id) are the real deploy time for that city + edition (~3-5 min with the pre-built image in the build datacenter, ~45 min full install) and are corrected once the build starts.',
           params: [
             ['plan_id', true, 'A plan_id from GET /rdp/plans (e.g. standard-1m)'],
             ['region', false, 'Region code — defaults to EU'],
@@ -778,12 +807,16 @@ function endpointGroups(base) {
   -d '{"plan_id":"standard-1m","region":"EU","os":"ws2022","client_ref":"rdp-77"}'`,
           resp: `HTTP 202 Accepted
 { "status": "provisioning", "mode": "live", "product": "rdp", "job_id": "f050afee-…", "id": "dc012468-…",
-  "plan": "Standard — Windows RDP (1 month)", "region": "EU", "price_usd": 56, "os": "ws2022",
+  "plan": "Standard — Windows RDP (1 month)", "region": "EU", "price_usd": 56, "os": "ws2022", "progress": 10, "eta_seconds": 180, "eta_at": "2026-10-14T09:33:00.000Z",
   "poll_url": "/rdp/dc012468-…", "credentials_url": "/rdp/dc012468-…/credentials",
-  "note": "Provisioning started. Poll GET /rdp/{id} until status=\\"RUNNING\\", or subscribe to the rdp.provisioned / rdp.provision_failed webhooks." }`,
+  "note": "Provisioning started. Poll GET /rdp/{id} until status=\\"RUNNING\\", or subscribe to the rdp.provisioned / rdp.provision_failed webhooks." }
+
+HTTP 409 Conflict  (plan out of stock in that city — nothing charged)
+{ "error": "out_of_stock", "message": "Plan pro-1m is temporarily out of stock in region EU (no AMD capacity in any datacenter of that city). Nothing was charged. In stock right now in: US, US-WEST, UK, NL, IN, SG, AU. See GET /rdp/availability.",
+  "plan_id": "pro-1m", "region": "EU", "available_regions": ["US", "US-WEST", "UK", "NL", "IN", "SG", "AU"] }`,
         },
         { method: 'GET', path: '/rdp', auth: true, billed: false, desc: 'List all Windows RDP instances you own.', curl: `curl -s ${base}/rdp -H "Authorization: Bearer YOUR_API_KEY"`, resp: `{ "rdp": [ { "id": "…", "os": "windows", "os_id": "ws2022", "status": "active", "ip": "203.0.113.80" }, … ] }` },
-        { method: 'GET', path: '/rdp/:id', auth: true, billed: false, desc: 'Get one RDP instance with a live "provisioning" status block built for order/status pages: stage + human label, progress %, eta_seconds countdown (eta_at), elapsed_seconds, a 4-step timeline (steps[].done/current), credentials_ready and password_confirmed flags, and the last 10 log lines. Also returns agent_online — true when the in-guest management agent has checked in recently (required before POST /rdp/:id/password-reset). Poll every 10-15 s until credentials_ready is true, then call credentials_url. Status goes queued → creating → booting → installing (fast path) or converting (full install) → active; "failed" is terminal. If the subscription has expired and entered the 2-day (48h) grace period, the response also carries a "grace" block: { in_grace: true, expired_at, delete_at, grace_hours: 48, days_remaining, hours_remaining }; once the box is deleted after grace, status becomes "destroyed" with destroy_reason "expired_grace". Renew with POST /rdp/:id/renew to clear grace.', curl: `curl -s ${base}/rdp/ID -H "Authorization: Bearer YOUR_API_KEY"`, resp: `{ "id": "…", "os": "windows", "os_id": "ws2022", "status": "installing", "ip": "203.0.113.80", "agent_online": false, "credentials_ready": false, "credentials_url": null,
+        { method: 'GET', path: '/rdp/:id', auth: true, billed: false, desc: 'provisioning.reinstall_queued is set while a POST /rdp/:id/reinstall waits for its Windows image to be copied to this server\'s datacenter ({ os, phase: "copying_image", queued_at, eta_minutes }; null otherwise). Get one RDP instance with a live "provisioning" status block built for order/status pages: stage + human label, progress %, eta_seconds countdown (eta_at), elapsed_seconds, a 4-step timeline (steps[].done/current), credentials_ready and password_confirmed flags, and the last 10 log lines. Also returns agent_online — true when the in-guest management agent has checked in recently (required before POST /rdp/:id/password-reset). Poll every 10-15 s until credentials_ready is true, then call credentials_url. Status goes queued → creating → booting → installing (fast path) or converting (full install) → active; "failed" is terminal. If the subscription has expired and entered the 2-day (48h) grace period, the response also carries a "grace" block: { in_grace: true, expired_at, delete_at, grace_hours: 48, days_remaining, hours_remaining }; once the box is deleted after grace, status becomes "destroyed" with destroy_reason "expired_grace". Renew with POST /rdp/:id/renew to clear grace.', curl: `curl -s ${base}/rdp/ID -H "Authorization: Bearer YOUR_API_KEY"`, resp: `{ "id": "…", "os": "windows", "os_id": "ws2022", "status": "installing", "ip": "203.0.113.80", "agent_online": false, "credentials_ready": false, "credentials_url": null,
   "provisioning": { "status": "installing", "stage": "rdp_up", "stage_label": "RDP port open - confirming password", "progress": 90,
     "fast_deploy": true, "os": "ws2022", "eta_minutes": 3, "eta_seconds": 42, "eta_at": "2026-09-22T22:25:00.000Z", "elapsed_seconds": 138, "time_to_active_s": null,
     "credentials_ready": false, "password_confirmed": null,
@@ -797,11 +830,15 @@ function endpointGroups(base) {
   -d '{"action":"reboot"}'`, resp: `{ "mode": "live", "id": "…", "action": "reboot" }` },
         { method: 'POST', path: '/rdp/:id/password-reset', auth: true, billed: false, desc: 'Change the Administrator password IN PLACE via the in-guest agent — no reinstall, all data preserved. The server must be running and its agent online (check agent_online on GET /rdp/:id first). Returns a freshly generated password; GET /rdp/:id/credentials is updated to match. On agent-offline / server-stopped this returns 409 with a human-readable message.', curl: `curl -s -X POST ${base}/rdp/ID/password-reset \\
   -H "Authorization: Bearer YOUR_API_KEY"`, resp: `{ "mode": "live", "id": "…", "password": "N3w-Pass-…", "username": "Administrator", "method": "agent", "data_preserved": true }` },
-        { method: 'POST', path: '/rdp/:id/reinstall', auth: true, billed: false, desc: 'Reinstall Windows = rebuild the SAME droplet from a golden image. The public IP is kept, the disk is wiped, and the server is RDP-ready again in about 3 minutes (about 5 for Windows Server 2025 — see eta_minutes in the response). Optionally switch edition with "os" (ws2019 | ws2022 | ws2025); omit it to reinstall the current edition. A new password is generated and applied on first boot. Updates os_id, status (→ reinstalling) and credentials on the record.', params: [['os', false, 'Windows edition to reinstall: ws2019 | ws2022 | ws2025 — defaults to the current edition']], curl: `curl -s -X POST ${base}/rdp/ID/reinstall \\
+        { method: 'POST', path: '/rdp/:id/reinstall', auth: true, billed: false, desc: 'Reinstall Windows = rebuild the SAME droplet from a golden image. The public IP is kept, the disk is wiped, and the server is RDP-ready again in about 3 minutes (about 5 for Windows Server 2025 — see eta_minutes in the response). Optionally switch edition with "os" (ws2019 | ws2022 | ws2025); omit it to reinstall the current edition. A new password is generated and applied on first boot. Updates os_id, status (→ reinstalling) and credentials on the record. IMAGE NOT IN THIS DATACENTER YET (rare — images are copied to every build datacenter automatically): you get HTTP 202 { status: "copying_image", copy_minutes, eta_minutes, password: null, server_changed: false } — the image is copied to the server\'s datacenter first (~20 min) while the server keeps running UNCHANGED (current password still works); the reinstall then starts by itself and rdp.reinstall_started fires (data: os, os_name, eta_minutes, credentials_url — read the NEW password from GET /rdp/:id/credentials). If the copy fails nothing is changed and rdp.reinstall_failed fires (data: os, reason, server_changed:false). GET /rdp/:id → provisioning.reinstall_queued shows the queued reinstall meanwhile; a second reinstall while one is queued returns 409 reinstall_failed.', params: [['os', false, 'Windows edition to reinstall: ws2019 | ws2022 | ws2025 — defaults to the current edition']], curl: `curl -s -X POST ${base}/rdp/ID/reinstall \\
   -H "Authorization: Bearer YOUR_API_KEY" \\
   -H "Content-Type: application/json" \\
-  -d '{"os":"ws2019"}'`, resp: `{ "mode": "live", "id": "…", "os": "ws2019", "os_name": "Windows Server 2019", "ip": "203.0.113.80", "eta_minutes": 3, "password": "N3w-Pass-…" }` },
-        { method: 'POST', path: '/rdp/:id/renew', auth: true, billed: true, desc: 'Renew (extend) a Windows RDP subscription and, if it had expired, bring it out of the 2-day (48h) grace period — the server is powered back on and its scheduled deletion is cancelled. Charged from your wallet at the bundle-discounted rate for the chosen term (1 month = full price, 2 months −10%, 3 months −15%). PRE-FLIGHT: send { dry_run: true } for price + renewability with no charge or state change (works on a LIVE key). Blocked items 409/400/501 BEFORE any charge: 409 already_destroyed if deleted after grace, 501 not_supported ("not_supported") if this box has no provider renew op, 400 pricing_failed ("pricing_unavailable"). months defaults to 1 and is clamped to 1–3.', params: [['months', false, 'Renewal term in months: 1 | 2 | 3 — defaults to 1'], ['dry_run', false, 'If true, return price + renewability only — no charge (safe on a live key).']], curl: `curl -s -X POST ${base}/rdp/ID/renew \\
+  -d '{"os":"ws2019"}'`, resp: `{ "mode": "live", "id": "…", "os": "ws2019", "os_name": "Windows Server 2019", "ip": "203.0.113.80", "eta_minutes": 3, "password": "N3w-Pass-…" }
+
+HTTP 202 Accepted  (image is copied to this datacenter first — server unchanged until then)
+{ "mode": "live", "id": "…", "os": "ws2019", "os_name": "Windows Server 2019", "ip": "203.0.113.80", "status": "copying_image",
+  "copy_minutes": 20, "eta_minutes": 23, "password": null, "server_changed": false, "note": "…rdp.reinstall_started webhook, then GET /rdp/:id/credentials…" }` },
+        { method: 'POST', path: '/rdp/:id/renew', auth: true, billed: true, desc: 'Renew (extend) a Windows RDP subscription and, if it had expired, bring it out of the 2-day (48h) grace period — the server is powered back on and its scheduled deletion is cancelled. Charged from your wallet at the bundle-discounted rate for the chosen term (1 month = full price, 2 months −10%, 3 months −15%). PRICE IS RE-CHECKED AT EVERY RENEWAL: it is what the plan costs in the server\'s city right now on live AMD stock — the base price, or up to +15% when only a pricier same-spec AMD size is available there (it can go up or down between renewals; the server itself is never moved). The response (and the dry_run pre-flight) carries renewal_pricing { base_price_usd, surcharge_usd, surcharge_pct, price_source: live_quote | base_no_stock, checked_at, datacenter } — with no AMD stock anywhere in the city at renewal time you are charged the normal plan price (base_no_stock) and the server keeps running — see "Stock, provisioning & refunds". PRE-FLIGHT: send { dry_run: true } for price + renewability with no charge or state change (works on a LIVE key). Blocked items 409/400/501 BEFORE any charge: 409 already_destroyed if deleted after grace, 501 not_supported ("not_supported") if this box has no provider renew op, 400 pricing_failed ("pricing_unavailable"). months defaults to 1 and is clamped to 1–3.', params: [['months', false, 'Renewal term in months: 1 | 2 | 3 — defaults to 1'], ['dry_run', false, 'If true, return price + renewability only — no charge (safe on a live key).']], curl: `curl -s -X POST ${base}/rdp/ID/renew \\
   -H "Authorization: Bearer YOUR_API_KEY" \\
   -H "Content-Type: application/json" \\
   -d '{"months":1}'`, resp: `{ "mode": "live", "product": "rdp", "action": "renew", "charged_usd": 56.00,
@@ -1678,6 +1715,8 @@ const ERRORS = [
   ['400', 'pricing_failed', 'A valid price could not be determined for the order.'],
   ['402', 'insufficient_wallet_balance', 'Wallet balance is below the order price — order refused before provisioning (both live and dry-run). Response includes price_usd, wallet_balance_usd and shortfall_usd. Top up and retry.'],
   ['409', 'domain_unavailable', 'The requested domain cannot be registered.'],
+  ['400', 'ssh_key_required', 'The chosen Linux image (Fedora, CentOS Stream, AlmaLinux, Rocky Linux — requires_ssh_key:true in GET /vps/os-options) is only built by DigitalOcean with an SSH key: send ssh_keys on POST /vps, or pick one of os_without_ssh_key. On reinstall: the server was created without a key. Nothing is charged or changed.'],
+  ['409', 'out_of_stock', 'The VPS/RDP plan cannot be built in any datacenter of that city right now (live DigitalOcean stock, at most ~2 min old). Nothing is charged; available_regions lists where it is in stock.'],
   ['409', 'domain_in_use', 'That domain already has an active hosting plan.'],
   ['404', 'not_found', 'The resource does not exist or is not owned by your account.'],
   ['400', 'invalid_body / invalid_upgrade_target', 'Request body missing/invalid (e.g. captcha needs {enabled:bool}); or plan_id is not a valid upgrade target (response lists the available targets).'],
@@ -1701,6 +1740,17 @@ const ERRORS = [
   ['501', 'auto_renew_not_supported', 'Domain auto-renew is available for OpenProvider-registered domains only for now.'],
   ['501', 'not_supported / no_credentials', 'The action is not available for this resource (e.g. on-demand domain renewal is OpenProvider-only — a domain at another registrar returns not_supported; cPanel password not on file for an API addon).'],
   ['502', 'provisioning_failed', 'The provider failed to fulfil the request. Any charge is auto-refunded.'],
+  ['400', 'invalid_os', 'VPS: the os id is not in GET /vps/os-options (DigitalOcean live list — an image DigitalOcean has retired is refused). RDP: not ws2019 / ws2022 / ws2025. The response lists the valid ids. Nothing charged / changed.'],
+  ['400', 'invalid_region / unavailable / invalid_storage / missing_plan_id', 'VPS/RDP order: unknown region code, plan not sold in that region, storage not "nvme"|"ssd", or plan_id missing. Nothing charged.'],
+  ['400', 'invalid_hostname', 'POST /vps hostname is not a valid RFC-1123 hostname — the response carries rules + examples. Nothing charged.'],
+  ['400', 'invalid_ssh_key / invalid_public_key / ssh_keys_unsupported', 'An ssh_keys entry is not an OpenSSH public key, or SSH keys were sent for a product that does not take them (RDP). Nothing charged.'],
+  ['400', 'confirmation_required', 'A destructive call (reinstall wipes the disk) must be re-sent with {"confirm": true}.'],
+  ['409', 'reinstall_failed', 'The reinstall could not start (e.g. another operation is running, or a reinstall is already queued while its Windows image is copied to the datacenter). Nothing changed.'],
+  ['409', 'password_reset_failed / password_not_set_in_place / no_host / ssh_key_apply_failed', 'VPS/RDP password reset or SSH-key install could not be applied on the running server (unreachable, no IP yet, or no credential on file). Nothing changed.'],
+  ['409', 'not_active / already_destroyed', 'The server is not running (usage needs a running server), or was permanently deleted after grace and cannot be renewed — order a new one.'],
+  ['400', 'invalid_period / invalid_resize_disk', 'Usage period is not one of the listed values, or resize_disk is not a boolean.'],
+  ['502', 'plan_change_failed', 'The provider rejected the VPS/RDP resize. The charge is refunded and the server keeps its current plan.'],
+  ['—', 'provider_unavailable / provisioning_interrupted', 'Async job outcome (GET /jobs/:id error + vps.provision_failed / rdp.provision_failed reason): the provider could not be used, or a build stopped mid-way and was reconciled. The wallet is refunded automatically (refunded: true).'],
   ['500', 'internal_error / auth_error', 'Unexpected server error — safe to retry; contact support if persistent.'],
 ]
 
@@ -1926,6 +1976,124 @@ curl -s -X POST ${base}/hosting/mysite01/change-plan \\
     </section>`
 }
 
+// "Stock, provisioning & refunds" developer guide (2026-10-14): live stock rules, the async order lifecycle,
+// late-failure refunds, re-checked RDP renewal pricing and the back-in-stock webhooks.
+function stockGuide(base) {
+  const lifecycle = `POST /rdp  {"plan_id":"pro-1m","region":"US","os":"ws2022","client_ref":"order-1842"}
+→ 202 { "status": "provisioning", "id": "6f1c…", "job_id": "a91e…", "price_usd": 112 }   (wallet charged once)
+
+GET /jobs/a91e…  → { "status": "provisioning", "progress": 42, "eta_seconds": 95, … }
+
+# success — only once Windows is really up:
+webhook rdp.provisioned      { "id": "6f1c…", "ip": "203.0.113.7", "datacenter": "nyc1", … }
+
+# failure — at ANY point, even 25-90 min into the Windows setup:
+webhook rdp.provision_failed { "id": "6f1c…", "reason": "RDP not reachable at 203.0.113.7:3389 after 90 min. Windows conversion did not complete.",
+                               "reason_code": "provisioning_timeout", "refunded": true }`
+  const renew = `curl -s -X POST ${base}/rdp/ID/renew \\
+  -H "Authorization: Bearer YOUR_API_KEY" -H "Content-Type: application/json" \\
+  -d '{"months":1,"dry_run":true}'
+
+{ "dry_run": true, "product": "rdp", "action": "renew", "id": "6f1c…", "renewable": true, "months": 1,
+  "plan": "Standard — Windows RDP (1 month)", "price_usd": 64,
+  "renewal_pricing": { "base_price_usd": 56, "surcharge_usd": 8, "surcharge_pct": 14.3,
+                       "price_source": "live_quote", "checked_at": "2026-10-14T09:31:10.000Z", "datacenter": "nyc1" },
+  "wallet_balance_usd": 120.5, "sufficient_balance": true }`
+  const hooks = `{ "event": "rdp.back_in_stock", "product": "rdp", "occurred_at": "2026-10-14T09:30:02.114Z",
+  "data": { "id": "nyc3:pro", "product": "rdp", "region": "US", "region_label": "United States (New York)", "region_slug": "nyc3",
+            "plan": "pro", "plan_name": "Pro", "plan_ids": ["pro-1m", "pro-2m", "pro-3m"], "cpu": "AMD",
+            "build_region": "nyc1", "same_city_fallback": true, "price_usd": 112, "base_price_usd": 112, "surcharge_pct": 0,
+            "restored_at": "2026-10-14T09:30:00.000Z" } }
+
+{ "event": "vps.back_in_stock", "product": "vps", "occurred_at": "2026-10-14T09:30:02.120Z",
+  "data": { "id": "US-central:s-2vcpu-4gb", "product": "vps", "region": "US-central", "region_label": "US Central",
+            "plan_id": "s-2vcpu-4gb", "plan_name": "SSD 2vCPU/4GB/80GB", "build_region": "nyc1", "same_city_fallback": true,
+            "price_usd": 36, "restored_at": "2026-10-14T09:30:00.000Z" } }`
+  const codes = [
+    ['out_of_stock', 'DigitalOcean had no capacity left for this plan in any datacenter of the city (at create or while building).', 'Offer the available_regions from GET /rdp/availability, or wait for rdp.back_in_stock.'],
+    ['provisioning_timeout', 'The server never became ready in time (e.g. Windows setup did not finish; RDP waits up to 3 h, VPS 45 min).', 'Retry — usually in another city.'],
+    ['provision_failed', 'Any other provider error.', 'Retry; contact support if it repeats.'],
+  ]
+  const codeRows = codes.map(([c, w, d]) => `<tr><td><code>${esc(c)}</code></td><td>${esc(w)}</td><td>${esc(d)}</td></tr>`).join('')
+  return `
+    <section id="stock-lifecycle" class="grp" data-testid="stock-lifecycle-guide">
+      <h2>Stock, provisioning &amp; refunds (VPS / RDP)</h2>
+      <p class="grp-blurb">How live DigitalOcean stock decides where a server is built, what happens when a city is sold out, how an async order ends (provisioned or refunded), how RDP renewals are priced, and the webhooks that tell you about each step.</p>
+
+      <div class="card">
+        <h3>Where a server is built</h3>
+        <table class="ptable">
+          <thead><tr><th></th><th>RDP (Windows)</th><th>VPS (Linux)</th></tr></thead>
+          <tbody>
+            <tr><td><b>Hardware</b></td><td>DigitalOcean Premium <b>AMD only</b> (AMD EPYC + NVMe). Never Intel, never shared Basic CPUs.</td><td>Exactly the plan_id you ordered. A different size or CPU type is <b>never</b> substituted.</td></tr>
+            <tr><td><b>Datacenter</b></td><td>The region&rsquo;s datacenter first, then another datacenter in the <b>same city</b> (New York nyc3 &rarr; nyc1 / nyc2).</td><td>Same rule: the region&rsquo;s datacenter, then a same-city datacenter, same size.</td></tr>
+            <tr><td><b>Price</b></td><td>If only a pricier same-spec AMD size is available (at most <b>+15%</b>), the extra is already inside price_usd (surcharge_usd shows it). The order never runs on a size pricier than you were quoted.</td><td>Always the plan price.</td></tr>
+            <tr><td><b>City sold out</b></td><td>in_stock:false in GET /rdp/plans and GET /rdp/availability. POST /rdp &rarr; <code>409 out_of_stock</code> with available_regions. <b>Nothing is charged.</b></td><td>Plan hidden from GET /vps/plans. POST /vps &rarr; <code>409 out_of_stock</code> with available_regions. <b>Nothing is charged.</b></td></tr>
+            <tr><td><b>Deploy time (RDP)</b></td><td colspan="2">~3 min (~5 for Windows Server 2025) when our pre-built Windows image is in the datacenter the order is built in, ~45 min (full unattended install) otherwise. The images are copied automatically to every datacenter an order of a city can be built in, re-checked after every stock refresh &mdash; so a same-city fallback (New York nyc3 &rarr; nyc1) is fast too. The real minutes per city + edition: <code>deploy_eta_minutes</code> (GET /rdp/availability), <code>eta_minutes_by_region</code> (GET /rdp/os-options), <code>eta_minutes_in_region</code> (GET /rdp/plans) and the order&rsquo;s <code>eta_seconds</code>.</td></tr>
+            <tr><td><b>Freshness</b></td><td colspan="2">Stock is read live from DigitalOcean: refreshed every 15 minutes in the background AND re-pulled right before every stock answer and every order when the copy is older than ~2 minutes, so a quote, a 409 and a charge are decided on data at most ~2 minutes old. <code>?refresh=true</code> on GET /rdp/availability, /rdp/plans and /vps/plans forces a fresh pull. <code>catalog.age_seconds</code> shows the age; <code>catalog.stale:true</code> means DigitalOcean could not be reached for 2 h+ and the last good copy is used. A city counts as in stock when <b>any</b> of its datacenters can build the plan &mdash; <code>datacenters</code> in GET /rdp/availability shows each one (DigitalOcean&rsquo;s control panel shows the same per datacenter).</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="card">
+        <h3>Order lifecycle: provisioning &rarr; provisioned, or refunded</h3>
+        <ol class="muted" style="margin:0 0 12px;padding-left:18px">
+          <li><b>POST /vps</b> or <b>POST /rdp</b> returns <code>202</code> with status <code>provisioning</code>, a stable <code>id</code> and a <code>job_id</code>. The wallet is charged <b>once</b>, at the price shown in GET /vps|rdp/plans.</li>
+          <li>The order <b>stays</b> <code>provisioning</code> while the server is built (Linux VPS &asymp; 3 min; RDP &asymp; 3-5 min from a golden image, up to &asymp; 45 min for a full Windows install). GET /jobs/:job_id gives progress + ETA.</li>
+          <li>Only when the server runs with its IP: job <code>provisioned</code>, record <code>RUNNING</code>, webhook <code>vps.provisioned</code> / <code>rdp.provisioned</code> (ip, datacenter).</li>
+          <li>If the build fails at <b>any</b> point &mdash; including <b>late failures</b> such as Windows setup timing out 25-90 min in, or DigitalOcean capacity running out mid-build &mdash; the half-built server is removed, the <b>full price is refunded to your wallet</b>, the job turns <code>failed</code> with <code>refunded:true</code>, and <code>vps.provision_failed</code> / <code>rdp.provision_failed</code> fires with <code>reason</code>, <code>reason_code</code> and <code>refunded:true</code>.</li>
+        </ol>
+        <p class="muted" style="margin:0 0 10px"><b>Exactly once:</b> a refund is recorded on the job before the wallet is credited, so retries, restarts and parallel workers never refund twice, and <code>*.provisioned</code> never fires for a refunded order. Each order is processed only by the environment that accepted it. A retry with the same <code>client_ref</code> returns the same job; after a refund, retry with a new <code>client_ref</code>.</p>
+        <table class="etable">
+          <thead><tr><th>reason_code</th><th>Meaning</th><th>What to do</th></tr></thead>
+          <tbody>${codeRows}</tbody>
+        </table>
+        <div class="ctitle" style="margin-top:12px"><span>Lifecycle example</span><button class="copy">Copy</button></div>
+        <pre class="code"><code>${esc(lifecycle)}</code></pre>
+      </div>
+
+      <div class="card">
+        <h3>Renewal pricing</h3>
+        <ul class="muted" style="margin:0 0 10px;padding-left:18px">
+          <li><b>RDP: re-checked at every renewal.</b> The price is what the plan costs in the server&rsquo;s city <b>right now</b>: the base price, or up to <b>+15%</b> when only a pricier same-spec AMD size is in stock there. It can go up or down between renewals; the running server is never moved or changed. The same rule is used for wallet auto-renew in the bot.</li>
+          <li>Ask before you charge: <code>POST /rdp/:id/renew {"dry_run":true}</code> returns <code>price_usd</code> + <code>renewal_pricing</code> without charging. The real renewal re-checks at that moment, so charge your customer from the live response.</li>
+          <li><code>price_source</code>: <code>live_quote</code> (priced on current AMD stock in the city, base &hellip; +15%) &middot; <code>base_no_stock</code> (no AMD stock anywhere in the city right now &rarr; the normal plan price; the server keeps running).</li>
+          <li><b>VPS:</b> the plan&rsquo;s monthly price &times; months with the 3/6/12-month term discount (unchanged).</li>
+        </ul>
+        <div class="ctitle"><span>Renewal quote (no charge)</span><button class="copy">Copy</button></div>
+        <pre class="code"><code>${esc(renew)}</code></pre>
+      </div>
+
+      <div class="card">
+        <h3>Linux images &amp; SSH keys (VPS)</h3>
+        <ul class="muted" style="margin:0 0 10px;padding-left:18px">
+          <li><b>Live list.</b> <code>GET /vps/os-options</code> (and <code>os_options</code> in GET /vps/plans) is DigitalOcean&rsquo;s own distribution list, refreshed hourly: every version it sells is offered (e.g. Ubuntu 26.04 / 24.04 / 22.04 LTS) and a version it retires disappears by itself. Never hard-code image ids &mdash; an id DigitalOcean no longer sells returns <code>400 invalid_os</code>.</li>
+          <li><b>SSH-key-only images.</b> DigitalOcean builds <b>Fedora, CentOS Stream, AlmaLinux and Rocky Linux</b> only with an SSH key (<code>requires_ssh_key:true</code>). Send <code>ssh_keys</code> on POST /vps for them, or you get <code>400 ssh_key_required</code> before anything is charged. Ubuntu and Debian work with the root password alone.</li>
+          <li><b>Reinstall.</b> A rebuild keeps the keys the server was created with; switching an existing server to an SSH-key-only image needs a server created with <code>ssh_keys</code> (else <code>400 ssh_key_required</code>, nothing changed).</li>
+          <li>Every Linux server still gets a root password (GET /vps/:id/credentials). RDP editions are Windows Server 2019 / 2022 / 2025 (GET /rdp/os-options) and need no SSH key.</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <h3>Back-in-stock webhooks</h3>
+        <p class="muted" style="margin:0 0 10px"><code>rdp.back_in_stock</code> and <code>vps.back_in_stock</code> fire when a plan that was sold out in a city at the previous 15-minute check can be ordered again. Every account with a webhook URL receives them (PUT /account/webhook), <b>once per city + plan each time stock returns</b>, signed like every other event. <code>data.id</code> is <code>&lt;region&gt;:&lt;plan&gt;</code>. Stock can sell out again quickly &mdash; confirm with GET /rdp/availability (or GET /vps/plans) right before you order, and expect a <code>409 out_of_stock</code> if it is gone.</p>
+        <div class="ctitle"><span>Example payloads</span><button class="copy">Copy</button></div>
+        <pre class="code"><code>${esc(hooks)}</code></pre>
+      </div>
+
+      <div class="card">
+        <h3>Recommended integration flow</h3>
+        <ol class="muted" style="margin:0;padding-left:18px">
+          <li>Show stock from <code>GET /rdp/availability</code> / <code>GET /rdp/plans</code> (or <code>GET /vps/plans</code>); grey out <code>in_stock:false</code>.</li>
+          <li>Order with a <code>client_ref</code>. On <code>409 out_of_stock</code> offer <code>available_regions</code>, or let your customer wait for <code>*.back_in_stock</code>.</li>
+          <li>Keep the order "setting up" until <code>*.provisioned</code> (or poll GET /jobs/:job_id). Never hand out credentials before it.</li>
+          <li>On <code>*.provision_failed</code> the money is already back in your wallet: refund or re-offer your customer (another city for <code>out_of_stock</code>).</li>
+          <li>Before each RDP renewal, quote with <code>{"dry_run":true}</code> and bill your customer the returned <code>price_usd</code>.</li>
+        </ol>
+      </div>
+    </section>`
+}
+
 function methodBadge(m) {
   return `<span class="m m-${m.toLowerCase()}">${m}</span>`
 }
@@ -1987,6 +2155,26 @@ const epAnchor = (method, path) => `ep-${method}-${path}`.toLowerCase().replace(
 
 // "What's new" changelog, newest first. Each link is [METHOD, path] of a documented endpoint or ['#', anchor, label].
 const WHATS_NEW = [
+  {
+    date: '2026-10-14', title: 'Real RDP deploy times per city, reinstall that copies the image first',
+    text: 'RDP eta_seconds (POST /rdp, GET /jobs/:id) is now the real time for that city + Windows edition, and GET /rdp/availability (deploy_eta_minutes), GET /rdp/os-options (eta_minutes_by_region) and GET /rdp/plans (eta_minutes_in_region) show it per region. Our pre-built Windows images are now copied automatically to every datacenter an order can be built in (e.g. New York nyc1 + nyc2), so same-city builds are ~3 min instead of ~45. POST /rdp/:id/reinstall on a datacenter that does not have the image yet answers 202 copying_image and reinstalls by itself after the copy — new rdp.reinstall_started / rdp.reinstall_failed webhooks.',
+    links: [['GET', '/rdp/availability'], ['GET', '/rdp/os-options'], ['POST', '/rdp/:id/reinstall']],
+  },
+  {
+    date: '2026-10-14', title: 'Live Linux image list, SSH-key-only images, fresher stock checks',
+    text: 'GET /vps/os-options now mirrors DigitalOcean live: every Ubuntu LTS it sells (26.04, 24.04, 22.04), Debian 13, AlmaLinux 10/9/8, Rocky Linux 10/9/8, CentOS Stream 10/9 and Fedora 44/43; retired images (Debian 12, Fedora 42) are gone. Each option has requires_ssh_key — Fedora, CentOS, AlmaLinux and Rocky Linux need ssh_keys on POST /vps (else 400 ssh_key_required, nothing charged). Stock answers and orders are now decided on a DigitalOcean catalogue at most ~2 minutes old (?refresh=true forces a pull), GET /rdp/availability lists every datacenter of a city with the plans it can build, and an RDP renewal with no AMD stock in the city is charged the normal plan price (price_source base_no_stock).',
+    links: [['GET', '/vps/os-options'], ['POST', '/vps'], ['GET', '/rdp/availability'], ['#', 'stock-lifecycle', 'Stock, provisioning & refunds']],
+  },
+  {
+    date: '2026-10-14', title: 'Late-failure refunds, re-checked RDP renewals, back-in-stock webhooks',
+    text: 'A VPS/RDP build that fails at ANY point after the 202 (including late Windows-setup timeouts and capacity lost mid-build) is refunded once in full and fires *.provision_failed with reason_code + refunded:true; the half-built server is removed. RDP renewals are now re-priced at every renewal on live AMD stock in the server\'s city (base … +15%) — POST /rdp/:id/renew returns renewal_pricing, and {dry_run:true} quotes it without charging. New vps.back_in_stock / rdp.back_in_stock webhooks tell you when a sold-out plan can be ordered again in a city. Read the new "Stock, provisioning & refunds" guide.',
+    links: [['#', 'stock-lifecycle', 'Stock, provisioning & refunds'], ['POST', '/rdp/:id/renew'], ['GET', '/rdp/availability'], ['PUT', '/account/webhook']],
+  },
+  {
+    date: '2026-10-14', title: 'Live RDP stock, AMD-only servers, refund-safe provisioning',
+    text: 'RDP now runs on DigitalOcean Premium AMD only and reads stock live (every 15 min). New GET /rdp/availability shows, per region and plan, whether it can be ordered right now and where it would be built. GET /rdp/plans lists sold-out plans flagged in_stock:false. If a region\'s datacenter is full, RDP and VPS orders are built in another datacenter in the same city; when an RDP plan needs a pricier same-spec AMD size (at most +15%), the quoted price_usd already includes it (surcharge_usd). Out-of-stock orders get 409 out_of_stock with available_regions and are never charged. rdp.provisioned / vps.provisioned now fire only once the server is really up (with its IP); a build that fails afterwards is refunded automatically and fires *.provision_failed with reason_code and refunded:true.',
+    links: [['GET', '/rdp/availability'], ['GET', '/rdp/plans'], ['POST', '/rdp'], ['POST', '/vps']],
+  },
   {
     date: '2026-10-10', title: 'One-click WordPress',
     text: 'Install WordPress on a hosting account in one call. The install runs in the background (state installing → ready | failed, usually 1–3 minutes) and creates its own MySQL database and admin login. The ready app returns the admin password; reset it any time. New webhooks: hosting.app_installed and hosting.app_install_failed. Your customers get the same installer in the new "Apps" tab of the HostPanel.',
@@ -2231,6 +2419,7 @@ function renderApiDocPage(baseUrl) {
     <a class="nav-group" href="#auth">Authentication</a>
     <a class="nav-group" href="#billing">Billing &amp; Modes</a>
     <a class="nav-group" href="#plan-changes">Plan changes</a>
+    <a class="nav-group" href="#stock-lifecycle" data-testid="nav-stock-lifecycle">Stock &amp; provisioning</a>
     ${nav}
     <a class="nav-group" href="#errors">Errors</a>
   </aside>
@@ -2303,6 +2492,8 @@ X-API-Key: YOUR_API_KEY</code></pre>
     </section>
 
     ${planChangeGuide(base)}
+
+    ${stockGuide(base)}
 
     ${sections}
 

@@ -18,6 +18,8 @@ const axios = require('axios')
 const { MongoClient } = require('mongodb')
 const d = require('../digitalocean-service')
 const en = require('../lang/en')
+// Stock comes from the fixture only: the order-time live re-pull (2026-10-14) must not reach DigitalOcean here.
+require('../do-size-catalog').ensureFresh = async () => ({})
 
 let passed = 0
 let failed = 0
