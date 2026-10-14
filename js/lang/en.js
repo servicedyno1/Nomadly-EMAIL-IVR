@@ -3200,7 +3200,8 @@ ${plans
   const plans = list.map(config => {
    const star = config.name === cheapestName ? '🌟 ' : ''
    const line = `<strong>• ${star}${config.name}</strong> — ${config.specs.vCPU} vCPU · ${config.specs.RAM}GB RAM · ${config.specs.disk}GB ${config.specs.diskType} — $${config.monthlyPrice}/mo`
-   return config.isRDP ? `${line}\n   ⚡ <i>Premium AMD · NVMe SSD</i>` : line
+   const hw = config.hardware || (config.isRDP ? '⚡ Premium AMD · NVMe SSD' : '')
+   return hw ? `${line}\n   <i>${hw}</i>` : line
   }).join('\n')
 
   // Affordability footer — picks the priciest plan the user can afford,
@@ -3292,7 +3293,7 @@ ${list.map(item => `${name == 'whm' ? `<strong>• ${item.name} - </strong>` : '
  let summary = `<strong>📋 Order Summary:</strong>
 
 <strong>${planEmoji} ${vpsDetails.config.name}</strong>${planKind} — ${vpsDetails.config.specs.vCPU} vCPU · ${vpsDetails.config.specs.RAM}GB RAM · ${vpsDetails.config.specs.disk}GB ${vpsDetails.config.specs.diskType}
-<strong>📍 Region:</strong> ${vpsDetails.regionName || vpsDetails.country}
+${vpsDetails.config.hardware ? `<strong>⚙️ Hardware:</strong> ${vpsDetails.config.hardware}\n` : ''}<strong>📍 Region:</strong> ${vpsDetails.regionName || vpsDetails.country}
 <strong>💻 OS:</strong> ${osLabel}`
 
  if (isRDP) {
@@ -3439,7 +3440,7 @@ ${list
 <strong>• Plan:</strong> ${data.planDetails.name}
 <strong>• vCPUs:</strong> ${data.planDetails.specs.vCPU} | RAM: ${data.planDetails.specs.RAM} GB | Disk: ${
    data.planDetails.specs.disk
- } GB (${data.diskTypeDetails.type})
+ } GB (${data.diskTypeDetails.type})${data.hardware ? `\n<strong>• Hardware:</strong> ${data.hardware}` : ''}
 <strong>• OS:</strong> ${data.osDetails.name}${panelLine}${billingLine}
 <strong>• Status:</strong> ${running ? '🟢' : '🔴'} ${data.status}
 <strong>• Auto-Renewal:</strong> ${data.autoRenewable ? 'Enabled' : 'Disabled'}

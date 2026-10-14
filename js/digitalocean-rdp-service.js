@@ -1471,9 +1471,25 @@ async function getInstance(instanceId) {
     ipConfig: { v4: { ip: s.ip_address || null } }, ipv4: s.ip_address || null,
     botStatus: botStatus(s.status), region: s.region, productId: product ? product.productId : `${s.tier_slug}-${s.duration_months || 1}m`,
     cpuCores: product && product.cpuCores, ramMb: product && product.ramMb, diskMb: product && product.diskMb,
+    // The size the droplet was ACTUALLY built on (a same-spec fallback / legacy Intel box differs from the tier default).
+    sizeSlug: s.do_size_slug || (product && product.do_size_slug) || null,
     osType: 'Windows', imageId: s.os_id, osName, defaultUser: 'Administrator', provider: PROVIDER, durationMonths: s.duration_months || 1,
     agentOnline: !!(s.agent_seen_at && Date.now() - new Date(s.agent_seen_at) < T.agentStaleMs), agentSeenAt: s.agent_seen_at || null,
   }
+}
+
+// instanceId ('rdp-<uuid>' or bare uuid) → the droplet size each server was ACTUALLY built on (one query for a
+// list view — reseller GET /rdp). Unknown / not-yet-built ids are simply absent from the map.
+async function sizeSlugsFor(instanceIds = []) {
+  const ids = [...new Set((instanceIds || []).filter(Boolean).map(normId))]
+  const out = new Map()
+  if (!_servers || !ids.length) return out
+  const rows = await _servers.find({ server_id: { $in: ids } }, { projection: { server_id: 1, do_size_slug: 1, tier_slug: 1 } }).toArray()
+  for (const s of rows) {
+    const slug = s.do_size_slug || ((TIER_BY_SLUG.get(s.tier_slug) || {}).do_size_slug) || null
+    if (slug) { out.set(extId(s.server_id), slug); out.set(s.server_id, slug) }
+  }
+  return out
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -1863,7 +1879,7 @@ module.exports = {
   // live stock (AMD only, same-city fallback, +15% cap passed on in the price)
   isProductAvailable, quoteFor, buildOptions, productInRegion, availability, renewalPrice, MAX_SIZE_COST_FACTOR,
   // lifecycle
-  createInstance, createInstanceWithFallback, getInstance, isInstanceGone,
+  createInstance, createInstanceWithFallback, getInstance, isInstanceGone, sizeSlugsFor,
   startInstance, stopInstance, restartInstance, shutdownInstance,
   cancelInstance, getSecretPassword, createSecret, resetPassword, reinstallInstance, renewInstance,
   // grace lifecycle mirror helpers (bot scheduler owns the grace lifecycle; these keep doRdpServers in sync)

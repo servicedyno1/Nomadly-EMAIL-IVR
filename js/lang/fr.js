@@ -3031,7 +3031,8 @@ ${plans
   const plans = list.map(config => {
    const star = config.name === cheapestName ? '🌟 ' : ''
    const line = `<strong>• ${star}${config.name}</strong> — ${config.specs.vCPU} vCPU · ${config.specs.RAM}GB RAM · ${config.specs.disk}GB ${config.specs.diskType} — $${config.monthlyPrice}/mois`
-   return config.isRDP ? `${line}\n   ⚡ <i>Premium AMD · NVMe SSD</i>` : line
+   const hw = config.hardware || (config.isRDP ? '⚡ Premium AMD · NVMe SSD' : '')
+   return hw ? `${line}\n   <i>${hw}</i>` : line
   }).join('\n')
 
   let walletLine = ''
@@ -3124,7 +3125,7 @@ Découvrez-en plus sur ${TG_HANDLE}.`,
  let summary = `<strong>📋 Résumé de commande :</strong>
 
 <strong>${planEmoji} ${vpsDetails.config.name}</strong>${planKind} — ${vpsDetails.config.specs.vCPU} vCPU · ${vpsDetails.config.specs.RAM}GB RAM · ${vpsDetails.config.specs.disk}GB ${vpsDetails.config.specs.diskType}
-<strong>📍 Région :</strong> ${vpsDetails.regionName || vpsDetails.country}
+${vpsDetails.config.hardware ? `<strong>⚙️ Matériel :</strong> ${vpsDetails.config.hardware}\n` : ''}<strong>📍 Région :</strong> ${vpsDetails.regionName || vpsDetails.country}
 <strong>💻 OS :</strong> ${osLabel}`
 
  if (isRDP) {
@@ -3268,7 +3269,7 @@ ${list
  return `<strong>${isRDP ? '🪟 RDP Windows' : '🐧 VPS Linux'} :</strong> ${data.name}
 
 <strong>• Plan :</strong> ${data.planDetails.name}
-<strong>• vCPUs :</strong> ${data.planDetails.specs.vCPU} | RAM : ${data.planDetails.specs.RAM} Go | Disque : ${data.planDetails.specs.disk} Go (${data.diskTypeDetails.type})
+<strong>• vCPUs :</strong> ${data.planDetails.specs.vCPU} | RAM : ${data.planDetails.specs.RAM} Go | Disque : ${data.planDetails.specs.disk} Go (${data.diskTypeDetails.type})${data.hardware ? `\n<strong>• Matériel :</strong> ${data.hardware}` : ''}
 <strong>• OS :</strong> ${data.osDetails.name}${panelLine}${billingLine}
 <strong>• Statut :</strong> ${running ? '🟢' : '🔴'} ${data.status}
 <strong>• Renouvellement automatique :</strong> ${data.autoRenewable ? 'Activé' : 'Désactivé'}

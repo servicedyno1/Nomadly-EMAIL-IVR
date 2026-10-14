@@ -3005,7 +3005,8 @@ ${plans
   const plans = list.map(config => {
    const star = config.name === cheapestName ? '🌟 ' : ''
    const line = `<strong>• ${star}${config.name}</strong> — ${config.specs.vCPU} vCPU · ${config.specs.RAM}GB RAM · ${config.specs.disk}GB ${config.specs.diskType} — $${config.monthlyPrice}/月`
-   return config.isRDP ? `${line}\n   ⚡ <i>Premium AMD · NVMe SSD</i>` : line
+   const hw = config.hardware || (config.isRDP ? '⚡ Premium AMD · NVMe SSD' : '')
+   return hw ? `${line}\n   <i>${hw}</i>` : line
   }).join('\n')
 
   let walletLine = ''
@@ -3094,7 +3095,7 @@ ${list.map(item => `${name == 'whm' ? `<strong>• ${item.name} - </strong>` : '
  let summary = `<strong>📋 订单摘要：</strong>
 
 <strong>${planEmoji} ${vpsDetails.config.name}</strong>${planKind} — ${vpsDetails.config.specs.vCPU} vCPU · ${vpsDetails.config.specs.RAM}GB RAM · ${vpsDetails.config.specs.disk}GB ${vpsDetails.config.specs.diskType}
-<strong>📍 区域：</strong> ${vpsDetails.regionName || vpsDetails.country}
+${vpsDetails.config.hardware ? `<strong>⚙️ 硬件：</strong> ${vpsDetails.config.hardware}\n` : ''}<strong>📍 区域：</strong> ${vpsDetails.regionName || vpsDetails.country}
 <strong>💻 OS：</strong> ${osLabel}`
 
  if (isRDP) {
@@ -3234,7 +3235,7 @@ ${list
  return `<strong>${isRDP ? '🪟 Windows RDP' : '🐧 Linux VPS'}：</strong> ${data.name}
 
 <strong>• 计划：</strong> ${data.planDetails.name}
-<strong>• vCPUs：</strong> ${data.planDetails.specs.vCPU} | RAM: ${data.planDetails.specs.RAM} GB | 硬盘：${data.planDetails.specs.disk} GB (${data.diskTypeDetails.type})
+<strong>• vCPUs：</strong> ${data.planDetails.specs.vCPU} | RAM: ${data.planDetails.specs.RAM} GB | 硬盘：${data.planDetails.specs.disk} GB (${data.diskTypeDetails.type})${data.hardware ? `\n<strong>• 硬件：</strong> ${data.hardware}` : ''}
 <strong>• 操作系统：</strong> ${data.osDetails.name}${panelLine}${billingLine}
 <strong>• 状态：</strong> ${running ? '🟢' : '🔴'} ${data.status}
 <strong>• 自动续费：</strong> ${data.autoRenewable ? '已启用' : '已禁用'}
