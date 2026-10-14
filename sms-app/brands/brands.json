@@ -18,5 +18,15 @@
     "accent": "#3b82f6",
     "bg": "#0d1117",
     "apk": "smadav-sms.apk"
+  },
+  "voodooland": {
+    "name": "Voodoo Land",
+    "appName": "Voodoo Land SMS",
+    "appId": "com.voodoo.sms",
+    "botUsername": "Voodoo_landbot",
+    "apiBase": "https://voodooivr.xyz",
+    "accent": "#14B8A6",
+    "bg": "#0b1215",
+    "apk": "voodooland-sms.apk"
   }
 }

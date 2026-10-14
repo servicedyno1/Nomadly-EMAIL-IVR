@@ -182,11 +182,15 @@ function smsAppDownloadUrl() {
 function buildAppUpdateAnnouncement(version) {
   const app = smsBrand.appName()
   const brand = smsBrand.brandName()
-  const isNomadly = smsBrand.brandSlug() === 'nomadly'
-  const oldApp = isNomadly ? app : 'Nomadly SMS'
+  const slug = smsBrand.brandSlug()
+  const isNomadly = slug === 'nomadly'
+  // Only Smadav users ever ran the shared "Nomadly SMS" app; newer brands shipped with their own.
+  const oldApp = slug === 'smadav' ? 'Nomadly SMS' : app
   const note = isNomadly
     ? `This version fixes the app connecting to the wrong server — login, campaigns and sending now always go to your ${brand} account.`
-    : `${brand} now has its own SMS app. The old “Nomadly SMS” app no longer connects to your ${brand} account, so please switch to this one.`
+    : slug === 'smadav'
+      ? `${brand} now has its own SMS app. The old “Nomadly SMS” app no longer connects to your ${brand} account, so please switch to this one.`
+      : `Login, campaigns and sending go straight to your ${brand} account.`
   return `📱 <b>${app} v${version} is ready</b>
 
 Send bulk SMS campaigns straight from your Android phone — create them in the bot (📱 <b>BulkSMS</b> on the main menu) or in the app.

@@ -18,6 +18,9 @@ function botUsername() {
   try { return require(path.join(__dirname, '..', 'sms-app', 'brands', 'brands.json'))[brandSlug()].botUsername } catch { return 'NomadlyBot' }
 }
 function botUrl() { return `https://t.me/${botUsername()}` }
+function accent() {
+  try { return require(path.join(__dirname, '..', 'sms-app', 'brands', 'brands.json'))[brandSlug()].accent || '#10d9a0' } catch { return '#10d9a0' }
+}
 
 function packageVersion() {
   try { return require(path.join(__dirname, '..', 'sms-app', 'package.json')).version } catch { return null }
@@ -46,4 +49,4 @@ function resolveApk() {
 
 function latestVersion() { return resolveApk().version }
 
-module.exports = { brandName, brandSlug, appName, botUsername, botUrl, setBotUsername, resolveApk, latestVersion, packageVersion }
+module.exports = { brandName, brandSlug, appName, botUsername, botUrl, accent, setBotUsername, resolveApk, latestVersion, packageVersion }

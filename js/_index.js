@@ -51159,7 +51159,7 @@ if (fs.existsSync(frontendBuildPath)) {
   // those later-registered handlers. Without this, /phone/reviews etc. get index.html on Railway.
   app.get('/{*splat}', (req, res, next) => {
     // Known Express API paths registered asynchronously — let them pass through to actual handlers
-    const apiPrefixes = ['/phone/', '/honeypot/', '/telegram/', '/telnyx/', '/twilio/', '/panel/', '/dynopay/', '/fincra/', '/blockbee/', '/sms-app/']
+    const apiPrefixes = ['/phone/', '/honeypot/', '/telegram/', '/telnyx/', '/twilio/', '/panel/', '/dynopay/', '/fincra/', '/blockbee/', '/sms-app/', '/brand/']
     if (apiPrefixes.some(p => req.path.startsWith(p))) {
       return next()
     }

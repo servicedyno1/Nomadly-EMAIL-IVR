@@ -644,7 +644,7 @@ const App = {
         <div class="empty-icon"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="1.5"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg></div>
         <h3>No campaigns yet</h3>
         <p>${user.canUseSms ? 'Create your first campaign to start sending' : 'Subscribe to start creating campaigns'}</p>
-        ${user.canUseSms ? '<button class="btn btn-primary btn-sm" style="margin-top:12px" onclick="App.startNewCampaign()">Create Campaign</button>' : '<a href="https://t.me/NomadlyBot" class="btn btn-subscribe" style="margin-top:12px" target="_blank">Subscribe on Telegram</a>'}
+        ${user.canUseSms ? '<button class="btn btn-primary btn-sm" style="margin-top:12px" onclick="App.startNewCampaign()">Create Campaign</button>' : `<a href="${this.brand().botUrl}" class="btn btn-subscribe" style="margin-top:12px" target="_blank">Subscribe on Telegram</a>`}
       </div>`
       return
     }

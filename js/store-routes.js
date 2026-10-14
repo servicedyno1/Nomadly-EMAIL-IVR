@@ -397,7 +397,7 @@ function createStoreRoutes(deps = {}) {
       brandSlug: smsBrand.brandSlug(),
       logoUrl: '/brand/wordmark.png',
       markUrl: '/brand/mark.png',
-      accent: smsBrand.brandSlug() === 'smadav' ? '#3b82f6' : '#10d9a0',
+      accent: smsBrand.accent(),
     })
   })
 

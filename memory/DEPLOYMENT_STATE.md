@@ -19,7 +19,7 @@
 ## Plan (3 Node apps on one droplet)
 - app-main  -> PORT 5000 (branch main)      -> panel/webhook subdomain 1
 - app-wl    -> PORT 5001 (branch WhiteLabel) -> panel/webhook subdomain 2
-- app-3     -> PORT 5002 (TBD)               -> panel/webhook subdomain 3
+- app-voodoo -> PORT 5003/5103 (branch WhiteLabel, own backend.env) -> voodooivr.xyz + panel.voodoohost.xyz — LIVE 2026-10-14, see memory/VOODOO_LAND_SETUP_2026-10-14.md (5002 is taken by hosta python)
 - nginx reverse proxy (subdomain -> port) + catch-all for customer domains (route by Host)
 - PM2 process manager, autostart on boot
 - MongoDB: reuse existing external MONGO_URL from vault (DB_NAME=test = production data, 49 collections). Each extra brand should get its own DB_NAME.

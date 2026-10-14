@@ -139,6 +139,18 @@ prev_release_dir() {   # hardlink/reuse source: active release, else the legacy 
   if [ -n "$cur" ] && [ -d "$cur/node_modules" ]; then echo "$cur"; return; fi
   [ -d "$LEGACY/node_modules" ] && echo "$LEGACY"
 }
+# REACT_APP_* lines of the app's backend.env are exported into its frontend build (process env beats
+# frontend/.env.production), so brands sharing one branch each bake their own UI. fe_env = their signature.
+fe_env_lines() { grep -E '^REACT_APP_[A-Z0-9_]+=' "$SHARED/backend.env" 2>/dev/null | sort; }
+fe_env_sig() { local l; l="$(fe_env_lines)"; if [ -n "$l" ]; then printf '%s' "$l" | sha1sum | awk '{print $1}'; else echo none; fi; }
+prev_fe_env() { local v; v="$(rel_field "$1" fe_env)"; echo "${v:-none}"; }
+export_fe_env() {
+  local line k v
+  while IFS= read -r line; do
+    k="${line%%=*}"; v="${line#*=}"; v="${v#[\"\']}"; v="${v%[\"\']}"
+    export "$k=$v"
+  done < <(fe_env_lines)
+}
 prev_fe_tree() {       # frontend tree sha of a previous release (RELEASE file) or legacy checkout (.git)
   if [ -f "$1/RELEASE" ]; then rel_field "$1" fe_tree
   elif [ -d "$1/.git" ]; then git -C "$1" rev-parse HEAD:frontend 2>/dev/null || echo none
@@ -148,14 +160,15 @@ link_tree() { cp -al "$1" "$2" 2>/dev/null || { rm -rf "$2"; cp -a "$1" "$2"; };
 
 # build_release <sha>: immutable tree in $REL (sets REL, FE_NOTE). Never touches the active release.
 build_release() {
-  local sha="$1" ts prev fe_tree
+  local sha="$1" ts prev fe_tree fe_env
   ts="$(date -u +%Y%m%dT%H%M%SZ)"
+  fe_env="$(fe_env_sig)"
   REL="$RELEASES/$ts-${sha:0:7}"
   FE_NOTE=""
   mkdir -p "$REL" || return 1
   git --git-dir="$REPO" archive "$sha" | tar -x -C "$REL" || { echo "$P ERROR: git archive $sha failed"; return 1; }
   fe_tree="$(git --git-dir="$REPO" rev-parse "$sha:frontend" 2>/dev/null || echo none)"
-  printf 'sha=%s\nbranch=%s\nfe_tree=%s\nbuilt_at=%s\n' "$sha" "$BRANCH" "$fe_tree" "$ts" > "$REL/RELEASE"
+  printf 'sha=%s\nbranch=%s\nfe_tree=%s\nfe_env=%s\nbuilt_at=%s\n' "$sha" "$BRANCH" "$fe_tree" "$fe_env" "$ts" > "$REL/RELEASE"
   mkdir -p "$REL/backend" && ln -sfn "$SHARED/backend.env" "$REL/backend/.env"
   prev="$(prev_release_dir)"
   [ -n "$prev" ] && echo "$P reuse source: $prev"
@@ -176,12 +189,12 @@ build_release() {
     echo "$P frontend deps changed (or first release) → npm install --legacy-peer-deps"
     ( cd "$REL/frontend" && npm install --legacy-peer-deps --no-audit --no-fund ) || echo "$P WARN: frontend npm install failed"
   fi
-  if [ -n "$prev" ] && [ -f "$prev/frontend/build/index.html" ] && [ "$(prev_fe_tree "$prev")" = "$fe_tree" ]; then
+  if [ -n "$prev" ] && [ -f "$prev/frontend/build/index.html" ] && [ "$(prev_fe_tree "$prev")" = "$fe_tree" ] && [ "$(prev_fe_env "$prev")" = "$fe_env" ]; then
     echo "$P frontend unchanged → reuse previous build"
     cp -a "$prev/frontend/build" "$REL/frontend/build"
   else
     echo "$P frontend changed (or first release) → build"
-    if ( cd "$REL/frontend" && DISABLE_ESLINT_PLUGIN=true CI=false nice -n 10 npm run build ) && [ -f "$REL/frontend/build/index.html" ]; then
+    if ( cd "$REL/frontend" && export_fe_env && DISABLE_ESLINT_PLUGIN=true CI=false nice -n 10 npm run build ) && [ -f "$REL/frontend/build/index.html" ]; then
       echo "$P frontend build OK"
     elif [ -n "$prev" ] && [ -f "$prev/frontend/build/index.html" ]; then
       rm -rf "$REL/frontend/build"; cp -a "$prev/frontend/build" "$REL/frontend/build"
