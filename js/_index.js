@@ -14221,9 +14221,9 @@ All verified numbers generated during sourcing.`))
   }
 
   // Handle /start pinreset deep link — navigate user directly to My Hosting Plans
-  if (message === '/start pinreset' || message === '/start resetpin') {
+  if (message === '/start pinreset' || message === '/start resetpin' || message === '/start renew') {
     bot?.sendChatAction?.(chatId, 'typing').catch(() => {})
-    log(`[DeepLink] ${chatId} opened PIN reset deep link`)
+    log(`[DeepLink] ${chatId} opened ${message.slice(7)} deep link → My Hosting Plans`)
     // Trigger the myHostingPlans flow so user can tap "Show Credentials" to get a fresh PIN
     if (goto?.myHostingPlans) {
       return goto.myHostingPlans()
@@ -14376,7 +14376,7 @@ All verified numbers generated during sourcing.`))
     }
   }
 
-  if (message === '/start' || message.startsWith('/start ref_') || message === '/start pinreset' || message === '/start resetpin' || message.startsWith('/start open_')) {
+  if (message === '/start' || message.startsWith('/start ref_') || message === '/start pinreset' || message === '/start resetpin' || message === '/start renew' || message.startsWith('/start open_')) {
     // Bug 7: Immediate typing indicator — gives instant visual feedback so users
     // don't tap /start multiple times while waiting for the first reply.
     bot?.sendChatAction?.(chatId, 'typing').catch(() => {})

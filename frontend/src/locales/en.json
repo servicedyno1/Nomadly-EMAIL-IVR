@@ -153,7 +153,7 @@
       "faq5Q": "How fast is setup?",
       "faq5A": "Setup starts automatically as soon as the blockchain confirms your payment. Keep the payment page open and your login details appear there.",
       "faq6Q": "What's the difference between the plans?",
-      "faq6A": "The weekly plan includes 1 addon domain. The monthly plan adds 5 addon domains and MySQL databases. Golden adds unlimited addon domains plus visitor captcha and geo controls.",
+      "faq6A": "The weekly plan includes 1 addon domain and 2 MySQL databases. The monthly plan raises that to 5 addon domains and 5 databases. Golden adds unlimited addon domains and databases, plus visitor captcha and geo controls.",
       "faq7Q": "How do I get help?",
       "faq7A": "Message our human support team on Telegram. You can also manage your plans from the Telegram bot.",
       "finalTitle": "Ready to launch a site that stays clickable?",
@@ -164,7 +164,23 @@
       "footerBot": "Telegram bot",
       "footerSupport": "Support",
       "footerStatus": "Store online",
-      "footerRights": "© {{year}} {{brand}}. All rights reserved."
+      "footerRights": "© {{year}} {{brand}}. All rights reserved.",
+      "cmpTitle": "Compare plans",
+      "cmpFeature": "Feature",
+      "cmpUnlimited": "Unlimited",
+      "cmpIncluded": "Included",
+      "cmpNotIncluded": "Not included",
+      "cmpRow_price": "Price",
+      "cmpRow_billing": "Billing",
+      "cmpRow_addons": "Addon domains",
+      "cmpRow_mysql": "MySQL databases",
+      "cmpRow_antired": "Anti-Red protection",
+      "cmpRow_panel": "HostPanel + File Manager",
+      "cmpRow_email": "Email accounts",
+      "cmpRow_apps": "One-click apps",
+      "cmpRow_captcha": "Visitor captcha",
+      "cmpRow_geo": "Geo controls",
+      "cmpRow_guarantee": "Replacement guarantee"
     }
   },
   "common": {
@@ -276,8 +292,7 @@
       "manage": "Manage",
       "view": "View",
       "loading": "Loading…",
-      "daysLeft": "{{count}} days left",
-      "expiresToday": "Expires today",
+      "expiresToday": "Less than a day left",
       "expired": "Expired",
       "autoRenewOn": "Auto-renew on",
       "autoRenewOff": "Auto-renew off",
@@ -295,7 +310,17 @@
       "qaRenew": "Renew or upgrade",
       "qaRenewD": "Manage billing and upgrades in the Telegram bot.",
       "qaBuy": "Buy another plan",
-      "qaBuyD": "Host another site from the store."
+      "qaBuyD": "Host another site from the store.",
+      "daysLeft_one": "{{count}} day left",
+      "daysLeft_other": "{{count}} days left",
+      "expBannerSoon_one": "Your plan expires in {{count}} day",
+      "expBannerSoon_other": "Your plan expires in {{count}} days",
+      "expBannerToday": "Your plan expires in less than a day",
+      "expBannerExpired": "Your plan has expired",
+      "expAutoOn": "Auto-renew is on. We'll renew from your wallet, so make sure it has enough balance.",
+      "expAutoOff": "Auto-renew is off. Renew now so your site stays online.",
+      "expExpiredBody": "Renew now to keep your site online and your files safe.",
+      "expRenewNow": "Renew now"
     }
   },
   "domains": {
