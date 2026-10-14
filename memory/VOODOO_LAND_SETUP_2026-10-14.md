@@ -44,3 +44,8 @@ The first Voodoo release (`20261014T112332Z-9b30149`) was patched in place with 
 `/brand/` catch-all passthrough + PhoneTestPage brand fix + voodooland APK/assets (RELEASE has `patched=` lines).
 After the owner saves to GitHub, the normal sync → `deploy.yml app=whitelabel` ships all of it to app-wl and app-voodoo.
 Smadav's active release also got the rebuilt smadav-sms.apk (Subscribe link fix, same v2.8.0 → no broadcast).
+
+## Sales & Profit dashboard
+- URL: https://voodooivr.xyz/sales (same as Smadav's https://1.smadavspeech.com/sales; the panel host only serves the HostPanel)
+- Password: owner-set `SALES_DASHBOARD_PASSWORD` in the Voodoo backend.env (kept across `voodoo_env_build.py` re-runs). Verified 2026-10-14:
+  wrong pw → 401, login → JWT, /overview /transactions /users /export.csv → 200, UI branded "Voodoo Land" (no other-brand text).

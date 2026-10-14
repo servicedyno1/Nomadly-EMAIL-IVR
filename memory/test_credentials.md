@@ -43,3 +43,5 @@
 - Bot @Voodoo_landbot, panel https://panel.voodoohost.xyz, call page https://voodooivr.xyz/call. No test user accounts created.
 - All secrets (bot token, Mongo URL, Dynopay key, SESSION_SECRET, SALES_DASHBOARD_PASSWORD) live ONLY in
   /opt/nomadly/shared/app-voodoo/backend.env on the droplet — never copied into the repo. Setup: memory/VOODOO_LAND_SETUP_2026-10-14.md
+- Voodoo Sales & Profit dashboard: https://voodooivr.xyz/sales (API /api/admin/sales/*). Password = owner-chosen value in
+  SALES_DASHBOARD_PASSWORD of /opt/nomadly/shared/app-voodoo/backend.env (set 2026-10-14; not written here — this file is in git).
