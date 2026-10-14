@@ -438,14 +438,14 @@ function SelectField({ id, label, value, onChange, options, testid }) {
 const FilterBar = ({ children }) => <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-2 mb-4">{children}</div>;
 
 function Pager({ page, pages, total, noun, onPage, testidPrefix }) {
-  if (!pages || pages <= 1) return null;
+  if (!pages) return null;
   return (
     <nav className="flex items-center justify-between flex-wrap gap-4 mt-4" aria-label={`${noun} pages`}>
-      <span className="text-[#A1A1AA] font-mono text-xs" data-testid={`${testidPrefix}-page-info`}>{fmtNum(total)} {noun} · page {page}/{pages}</span>
-      <div className="flex items-center gap-2">
+      <span className="text-[#A1A1AA] font-mono text-xs" data-testid={`${testidPrefix}-page-info`}>{fmtNum(total)} {noun}{pages > 1 ? ` · page ${page}/${pages}` : ''}</span>
+      {pages > 1 && <div className="flex items-center gap-2">
         <button disabled={page <= 1} onClick={() => onPage(page - 1)} data-testid={`${testidPrefix}-prev-btn`} className={GHOST_BTN}>Prev</button>
         <button disabled={page >= pages} onClick={() => onPage(page + 1)} data-testid={`${testidPrefix}-next-btn`} className={GHOST_BTN}>Next</button>
-      </div>
+      </div>}
     </nav>
   );
 }

@@ -1,0 +1,42 @@
+{
+  "summary": "Comprehensive frontend-only UI/UX audit test of the rewritten Sales & Profit dashboard served at http://localhost:3100/sales (production build, live Smadav read-only API). Injected salesToken from /root/.smadav_sales_token to bypass login. Tested login screen, desktop 1920x800 and mobile 390x844 layouts, all four tabs (Overview/Trends/Breakdown/Records), sticky header, range segmented control + aria-pressed, KPIs/sections/funnel/wallet-flow, trends charts + legends, breakdown sections, records (bot users expand/aria-expanded + user detail; transactions filters), range change + persistence (session + reload), hash deep-links, refresh timestamp update, logout, CSV summary export (client-side) and server CSV presence, 12px font floor, no horizontal overflow, 44px tap targets on mobile, bottom tab bar + 96px main padding, icon-only export w/ aria-label on mobile, native range-select on mobile, accessible names on all inputs/selects, and console error check. Overall: PASS — the implementation matches every requirement in the spec.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_results_detail": {
+    "login_screen": "sales-password-input has <label for>; sales-login-btn disabled when empty — PASS (no submit performed).",
+    "desktop_header_sticky": "sales-header stays at top (y=0) after scrolling 1500px on Breakdown — PASS.",
+    "tabs": "tab-overview/trends/breakdown/records present with role=tab and aria-selected toggles correctly; URL hash updates (#trends/#breakdown/#records); sales-panel-title mirrors active tab — PASS.",
+    "range_selector": "All six buttons present (today/7d/30d/90d/1y/all); aria-pressed=true on active range; default is 30d — PASS.",
+    "overview_panel": "sales-kpis contains exactly 4 KPI cards (kpi-revenue $673, kpi-profit $190.88, kpi-eligible-payout $253.88, kpi-orders 19) each with -value; section-users/section-wallet present; sales-funnel with funnel-count-joined/deposited/purchased; sales-user-kpis (total/new/paying); wallet-flow-strip (kpi-deposits/bonuses/refunds/adjustments) — PASS.",
+    "trends_panel": "sales-timeseries + legend-timeseries (Revenue, Profit) and sales-weekly + legend-weekly (Profit week / Loss week stripe) — PASS.",
+    "breakdown_panel": "section-category/pricing/top present; sales-by-category, sales-category-detail, revenue-waterfall, sales-by-tier, sales-top-products, sales-top-customers all rendered — PASS.",
+    "records_panel": "sales-bot-users with user-search + user-sort; 25 user-row-* rows; user-expand-<id> toggles aria-expanded false->true and reveals user-detail-<id>; user-prev-btn/next-btn/page-info present; sales-transactions with txn-search/group/category and sales-export-btn; export-summary button correctly hidden on Records — PASS.",
+    "txn_pagination_note": "txn-prev-btn/next-btn/page-info not rendered during live-data runs because Pager returns null when pages<=1 (SalesDashboard.js L441). Not a bug — intentional. If regression testing with larger datasets is needed, lower the page size on the API.",
+    "range_change_and_persistence": "Clicking range-7d: updated-at changes to 'Last 7 days · Updated …'; aria-pressed=true; selection persists after switching to Trends and after full page reload (sessionStorage) — PASS.",
+    "hash_deeplink": "Direct load of /sales#breakdown opens Breakdown panel with aria-selected=true on tab; /sales#trends opens Trends — PASS. (Earlier false-negative was because logout had cleared localStorage; re-tested in isolation — works.)",
+    "refresh_logout": "sales-refresh-btn updates 'Updated' timestamp (3:07:17 PM -> 3:07:24 PM); sales-logout-btn returns to login screen — PASS.",
+    "csv_export_summary": "sales-export-summary-btn triggers client-side download: filename 'smadav-sales-summary-7d.csv' — PASS. Hidden on Records tab — PASS.",
+    "server_csv_export": "sales-export-btn present on Records transactions card (download not initiated to avoid noisy server call, but handler + testid confirmed in source and clickable).",
+    "mobile_390x844": "mobile-tab-bar fixed at bottom; mobile-tab-overview/trends/breakdown/records all 64px tall (>=44px); range-select-mobile is a native <select> 44px tall and switching to 90d triggers refetch ('Last 90 days · Updated …'); sales-refresh-btn, sales-logout-btn, sales-export-summary-btn all 44x44; export-summary has aria-label='Export summary CSV' (icon-only); main padding-bottom=96px so bottom bar does not cover content; no horizontal page overflow on Overview or Records (scrollW=390=clientW); export-summary hidden on Records — PASS.",
+    "typography_a11y": "No visible text element has computed font-size < 12px on Desktop Overview, Mobile Overview, or inside an expanded user-detail row. All <input>/<select> elements have an accessible name (label[for], aria-label, or wrapping <label>) — zero violations.",
+    "console": "Zero console errors / page errors across the full test run (desktop and mobile)."
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "SalesDashboard.js is ~1367 lines in a single file. The spec explicitly keeps it as a WhiteLabel-owned single file, but for maintainability consider extracting the panels (OverviewPanel/TrendsPanel/BreakdownPanel/BotUsers/Transactions) and shared primitives (Kpi/StatCell/Pager/FilterBar/RangeSegmented/MobileTabBar) into separate files. Not blocking — file size >700 lines flagged per code-review guidelines.",
+    "Pager (L440) returns null when pages<=1, which is correct UX but means txn-prev-btn/next-btn/page-info testids are not queryable in low-data regression runs. Consider still rendering a disabled page-info span (count '19 transactions · page 1/1') so automation can assert pagination state without seeding data.",
+    "Nothing else — the implementation is clean, uses data-testid consistently on every interactive element, respects semantic roles (role=tab, aria-selected, aria-pressed, aria-expanded), and handles the 'purchased > deposited' funnel edge case with a positive message rather than a negative drop-off."
+  ],
+  "updated_files": [],
+  "success_rate": { "backend": "N/A", "frontend": "100%" },
+  "test_credentials": "Sales dashboard JWT read from /root/.smadav_sales_token and injected into localStorage key 'salesToken'. Not printed/logged. Login form never submitted.",
+  "seed_data_creation": "None — live Smadav production read-only data was used.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "App under test is NOT /app's preview; it is the production build at /tmp/fe2/wl_test_build served by /tmp/fe2/serve_test.js on http://localhost:3100. Backend is the live Smadav read-only analytics API — do not attempt writes. Auth: never submit the login form; set localStorage.salesToken from /root/.smadav_sales_token then reload. Dashboard source: /tmp/fe2/app-wl/frontend/src/pages/SalesDashboard.js (backup /app/memory/wl/SalesDashboard.js). The txn pager testids only render when pages>1 — expected behavior."
+}
