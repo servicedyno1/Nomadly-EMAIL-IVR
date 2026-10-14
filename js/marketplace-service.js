@@ -14,8 +14,9 @@ let _bans = null
 let _access = null
 
 const CATEGORIES = ['💻 Digital Goods', '🏦 Bnk Logs', '🏧 Bnk Opening', '🔧 Tools']
-const MIN_PRICE = 20
-const MAX_PRICE = 5000
+// Matches SafeDeal's accepted deal range ($30 min, ~€2,999 max) so every listing can be escrowed.
+const MIN_PRICE = 30
+const MAX_PRICE = 3000
 const MAX_LISTINGS = 10
 const MAX_TITLE = 100
 const MAX_DESC = 500
@@ -53,11 +54,17 @@ const PAYMENT_PATTERNS = [
   /\b[13][a-km-zA-HJ-NP-Z1-9]{25,34}\b/,     // Bitcoin
   /\b0x[a-fA-F0-9]{40}\b/,                      // Ethereum
   /\bT[A-Za-z1-9]{33}\b/,                       // USDT/TRC20
-  /send\s*(to|me|payment|money|funds)/i,
+  /send\s*(payment|money|funds)/i,
+  /send\s*(to|me)\s+(?!(?:the\s+|your\s+|a\s+|my\s+)?(?:safedeal\s+)?(?:escrow\s+)?(?:link|invite|deal)\b)/i, // "send me the link" is fine
   /pay\s*(me|directly|outside|first)/i,
   /no\s*escrow/i,
   /wire\s*transfer/i,
+  /lockbay/i,                                   // discontinued escrow bot — impersonation risk
+  /@\w*escrow\w*/i,                             // any other "escrow" bot/handle
+  /t\.me\/\w*escrow/i,
+  /escrow\s*bot/i,
 ]
+const SAFEDEAL_LINK_RE = /https?:\/\/(?:www\.)?safedeal\.sh\S*/gi
 
 /**
  * Initialize marketplace service
@@ -311,9 +318,16 @@ async function getRecentMessageCount(conversationId, withinHours = 1) {
 
 // ── Anti-Scam ──
 
+// SafeDeal (safedeal.sh) invite links are the sanctioned escrow — strip them before scanning.
 function detectPaymentPattern(text) {
   if (!text || typeof text !== 'string') return false
-  return PAYMENT_PATTERNS.some(pattern => pattern.test(text))
+  const scan = text.replace(SAFEDEAL_LINK_RE, ' ')
+  return PAYMENT_PATTERNS.some(pattern => pattern.test(scan))
+}
+
+function isEscrowPriceOk(price) {
+  const n = Number(price)
+  return Number.isFinite(n) && n >= MIN_PRICE && n <= MAX_PRICE
 }
 
 // ── Auto-close stale conversations ──
@@ -404,6 +418,7 @@ module.exports = {
   getRecentMessageCount,
   // Anti-scam
   detectPaymentPattern,
+  isEscrowPriceOk,
   // Maintenance
   closeStaleConversations,
   getSellerStats,

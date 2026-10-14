@@ -504,22 +504,24 @@ This opens the Marketplace hub. Users can buy and sell digital goods peer-to-pee
 - 🤖 Ask AI — Get AI-powered help about buying, selling, or escrow
 
 #### How to sell (list a product):
-🏪 Marketplace → 💰 Start Selling → Upload 1-5 product photos → Enter title → Enter description → Enter price ($20–$5,000) → Select category (💻 Digital Goods, 🏦 Bnk Logs, 🏧 Bnk Opening, 🔧 Tools) → Preview → Publish
+🏪 Marketplace → 💰 Start Selling → Upload 1-5 product photos → Enter title → Enter description → Enter price ($30–$3,000 — SafeDeal's escrow range) → Select category (💻 Digital Goods, 🏦 Bnk Logs, 🏧 Bnk Opening, 🔧 Tools) → Preview → Publish
 After publishing, your product is instantly visible to all buyers.
 
 #### How to buy / contact seller:
 🏪 Marketplace → 🔥 Browse Deals → Select category or "All" → Browse product cards with photos → Tap "💬 Chat with Seller" or "🔒 Start Escrow"
 
-#### How escrow works:
-All marketplace payments MUST go through @Lockbaybot escrow for safety.
-1. Buyer & seller chat about the product
-2. When ready, either party types /escrow or taps "🔒 Start Escrow"
-3. Both parties receive a link to @Lockbaybot to complete the transaction
-4. Buyer's money is held safely until they confirm delivery
-5. ⚠️ NEVER send payment outside of escrow — this is the #1 scam tactic
+#### How escrow works (SafeDeal — https://safedeal.sh web escrow; the old @Lockbaybot is DISCONTINUED):
+All marketplace payments MUST go through SafeDeal escrow for safety.
+1. Buyer & seller chat about the product and agree a price ($30–$3,000)
+2. When ready, either party types /escrow or taps "🔒 Start Escrow" — both get step-by-step SafeDeal instructions
+3. Buyer opens safedeal.sh → "I'm buying" → pastes the deal name & price → "Share a link" → signs in with an email code → pastes the invite link into the marketplace chat
+4. Seller opens the link, signs in with an email code and accepts (if the buyer is stuck, the seller can create it via "I'm selling")
+5. Buyer pays on SafeDeal (10 coins accepted, held as USDT); seller delivers only after the deal shows "Funded"; buyer releases (or it auto-releases after the inspection period)
+6. SafeDeal fee: 5% (min $10), paid by the buyer by default. Disputes get human arbitration from SafeDeal (hi@safedeal.sh)
+7. ⚠️ NEVER send payment outside of SafeDeal — treat anyone suggesting @Lockbaybot or any other "escrow" bot as a scam.
 
 #### Chat commands in marketplace conversations:
-- /escrow — Start escrow payment via @Lockbaybot
+- /escrow — Get the SafeDeal escrow steps (safedeal.sh)
 - /price XX — Suggest a new price (e.g., /price 150)
 - /done — End the conversation
 - /report — Report suspicious behavior to admin
@@ -531,14 +533,14 @@ All marketplace payments MUST go through @Lockbaybot escrow for safety.
 - 🗑️ Remove — Delete the listing
 
 #### Anti-scam protections:
-- All transactions are escrow-protected via @Lockbaybot
+- All transactions are escrow-protected via SafeDeal (safedeal.sh); safedeal.sh invite links shared in chat are allowed
 - AI monitors chat for suspicious payment patterns (PayPal, CashApp, wire transfer, crypto addresses)
 - Both buyer and seller receive warnings if off-platform payment is detected
 - Admins are notified of all flagged conversations
 - Users can report abuse via /report command
 
 #### Marketplace rules:
-- Min price: $20, Max price: $5,000
+- Min price: $30, Max price: $3,000 (SafeDeal escrow range)
 - Max active listings: 10 per user
 - Products must be in approved categories
 - Photos required (at least 1, max 5)
@@ -630,8 +632,8 @@ From main menu → tap <b>💬 Get Support</b>
 Opens live support chat. Type messages and get AI-assisted responses. Send /done to end session.
 
 ### 💼 Become A Reseller
-From main menu → tap <b>💼 Become A Reseller</b>
-65/35% profit share on every sale. Contact support to get started.
+From main menu → <b>➕ More</b> → tap <b>💼 Reseller</b>
+Resell our services under your own brand with a <b>50/50</b> profit share on every sale. Tapping it opens this AI support chat right away so the user can ask anything about reselling; a human team member joins for onboarding or anything you can't confirm.
 
 ## COMMON SUPPORT SCENARIOS
 
@@ -801,10 +803,10 @@ To join the community channel: <b>🌍 Settings</b> → <b>📢 Join Channel</b>
 → Tap <b>🔗 URL Shortener</b> from main menu → <b>✂️ Shorten a Link</b> → Paste your URL → Get shortened link.
 
 ### "How do I sell on the Marketplace?"
-→ Main menu → <b>🏪 Marketplace</b> → <b>💰 Start Selling</b> → Upload photos (1-5) → Enter title → Description → Price ($20-$5000) → Category → Preview → Publish. Your listing is immediately visible to buyers. Respond quickly to inquiries for faster sales.
+→ Main menu → <b>🏪 Marketplace</b> → <b>💰 Start Selling</b> → Upload photos (1-5) → Enter title → Description → Price ($30-$3,000) → Category → Preview → Publish. Your listing is immediately visible to buyers. Respond quickly to inquiries for faster sales.
 
 ### "How does escrow work?"
-→ Escrow protects both buyers and sellers. When ready to pay: type <b>/escrow</b> in the chat or tap <b>🔒 Start Escrow</b>. Both parties receive a link to @Lockbaybot. The buyer's money is held safely until they confirm delivery. ⚠️ <b>NEVER pay outside of escrow</b> — this is the #1 scam tactic.
+→ Escrow protects both buyers and sellers. When ready to pay: type <b>/escrow</b> in the chat or tap <b>🔒 Start Escrow</b>. Both parties get step-by-step instructions for <b>SafeDeal</b> (https://safedeal.sh): the buyer creates the deal ("I'm buying" → "Share a link") and pastes the invite link in the chat, the seller accepts it, the buyer pays on SafeDeal and the money is held until they confirm delivery. Fee: 5% (min $10). ⚠️ <b>NEVER pay outside of escrow</b> — this is the #1 scam tactic.
 
 ### "How do I browse / buy on the Marketplace?"
 → Main menu → <b>🏪 Marketplace</b> → <b>🔥 Browse Deals</b> → Select a category or "All" → Browse products → Tap <b>💬 Chat with Seller</b> to ask questions or <b>🔒 Start Escrow</b> to pay directly.
@@ -813,7 +815,7 @@ To join the community channel: <b>🌍 Settings</b> → <b>📢 Join Channel</b>
 → <b>🏪 Marketplace</b> → <b>📦 My Listings</b> → Select a listing → Edit (title/desc/price), Mark Sold, or Remove.
 
 ### "Someone is trying to pay me outside escrow"
-→ This is likely a scam. <b>NEVER accept payments outside of @Lockbaybot escrow</b>. Report the user by typing <b>/report</b> in the chat. The AI and admin team monitor all conversations for suspicious payment patterns.
+→ This is likely a scam. <b>NEVER accept payments outside of SafeDeal escrow (safedeal.sh)</b>. Report the user by typing <b>/report</b> in the chat. The AI and admin team monitor all conversations for suspicious payment patterns.
 
 ### "I got scammed / fraud in Marketplace"
 → I'll escalate this to our support team immediately. Please provide the conversation details, product name, and what happened. Type <b>/report</b> in the marketplace chat to flag the conversation for admin review.
@@ -1787,7 +1789,8 @@ async function clearHistory(chatId) {
 const MP_MODERATION_PROMPT = `You are a marketplace safety AI. Analyze this message from a buyer-seller chat on ${BRAND} marketplace.
 
 RULES:
-- All payments MUST go through @Lockbaybot escrow
+- All payments MUST go through SafeDeal escrow (https://safedeal.sh). Sharing a safedeal.sh invite link is NORMAL and SAFE — never flag it
+- Mentions of @Lockbaybot (discontinued) or any other "escrow" bot/handle are a scam indicator
 - Any attempt to move payment off-platform is suspicious
 - Watch for: fake urgency, pressure tactics, requests for personal info, phishing links, social engineering
 - PayPal, CashApp, Venmo, Western Union, wire transfers, direct crypto addresses are ALL red flags
@@ -1827,14 +1830,14 @@ async function moderateMarketplaceChat(message) {
 const MP_HELPER_PROMPT = `You are the AI assistant for the ${BRAND} Marketplace — a P2P digital goods marketplace inside Telegram.
 
 Help users with marketplace-specific questions:
-- How to list/sell products (photos required, pricing $20-$5000, categories)
+- How to list/sell products (photos required, pricing $30-$3,000, categories)
 - How to buy (browse deals, chat with seller, start escrow)
-- How escrow works (@Lockbaybot holds funds until delivery confirmed)
+- How escrow works (SafeDeal at https://safedeal.sh holds funds as USDT until delivery is confirmed; the buyer creates the deal with "I'm buying" → "Share a link" and pastes the invite link in chat; the seller accepts; deliver only after "Funded"; fee 5%, min $10; @Lockbaybot is discontinued)
 - Pricing tips, listing optimization, safety advice
 - Chat commands: /escrow, /price XX, /done, /report
 
 SAFETY RULES you MUST emphasize:
-- ALWAYS use @Lockbaybot escrow — NEVER pay outside of escrow
+- ALWAYS use SafeDeal escrow (safedeal.sh) — NEVER pay outside of escrow or through any other "escrow" bot
 - Report suspicious users with /report
 - AI monitors all chats for scam patterns
 
@@ -2067,6 +2070,8 @@ module.exports = {
   getMarketplaceAiResponse,
   moderateMarketplaceChat,
   clearHistory,
+  // Seeds the support chat with context the user just saw (e.g. the Reseller page).
+  addSupportContext: (chatId, text) => saveMessage(chatId, 'assistant', text),
   needsEscalation,
   isAiEnabled: () => !!openai,
   // ── Tier 1 new exports ──

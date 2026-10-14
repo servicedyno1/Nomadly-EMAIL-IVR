@@ -269,7 +269,11 @@ const t = {
 
 以您自己的品牌转售我们的全套服务 — ${services.join('、')}。
 
-每笔销售<b>65/35%</b>利润分成。点击 💬 <b>获取支持</b> 开始合作。`
+每笔销售 <b>50/50</b> 利润分成。
+
+🤖 <b>关于经销的任何问题都可以问我们的 AI 助手</b> — 直接在下方输入问题即可。如有需要，我们的团队成员会加入。
+
+发送 /done 结束此对话。`
  })(),
  resetLoginAdmit: `${CHAT_BOT_BRAND} SMS: 您已成功退出您之前的设备。请立即登录。`,
  resetLoginDeny: '好的。无需进一步操作。',
@@ -1197,7 +1201,7 @@ captchaDomainButton: (domain, isOff, hasCF) => hasCF ? `${isOff ? '🔴 关闭' 
  invalidAmountPositive: '⚠️ 金额必须是正数。',
 
  // ── Marketplace ──
- mpHome: '🏪 <b>NOMADLY 市场</b>\n\n💰 <b>出售你的数字商品</b> — 60秒发布，即时收款\n🛍️ <b>发现独家优惠</b> — 经验证的卖家，真实交易\n\n🔒 所有购买<b>必须使用</b> @Lockbaybot <b>托管</b>\n⚠️ 切勿直接向卖家或通过卖家的机器人付款 — 仅限托管。\n\n👇 准备好赚钱或购物了吗？',
+ mpHome: `🏪 <b>${(CHAT_BOT_BRAND || 'Nomadly').toUpperCase()} 市场</b>\n\n💰 <b>出售你的数字商品</b> — 60秒发布，通过托管安全收款\n🛍️ <b>发现独家优惠</b> — 经验证的卖家，真实交易\n\n🔒 <b>必须使用托管</b> — 所有购买都通过 <b>SafeDeal</b>（safedeal.sh）完成\n⚠️ 切勿直接向卖家或通过卖家的机器人付款 — 仅限 SafeDeal 托管。\n\n👇 准备好赚钱或购物了吗？`,
  mpBrowse: '🔥 浏览优惠',
  mpListProduct: '💰 开始出售',
  mpMyConversations: '💬 我的对话',
@@ -1205,25 +1209,25 @@ captchaDomainButton: (domain, isOff, hasCF) => hasCF ? `${isOff ? '🔴 关闭' 
  mpAiHelper: '🤖 AI助手',
  mpAiHelperPrompt: '🤖 <b>市场AI助手</b>\n\n询问我有关购买、出售、托管或市场安全的任何问题。\n\n在下方输入您的问题，或点击 ↩️ 返回。',
  mpAiThinking: '🤖 思考中...',
- mpAiScamWarning: '🚨 <b>AI安全警报</b>\n\n⚠️ 此消息可能包含可疑的付款请求。请记住：\n\n🔒 <b>始终使用 @Lockbaybot 托管</b>\n❌ 切勿通过PayPal、CashApp、加密货币或电汇付款\n📢 如果您感到不安全，请输入 /report\n\n您的安全是我们的首要任务。',
+ mpAiScamWarning: `🚨 <b>AI安全警报</b>\n\n⚠️ 此消息可能包含可疑的付款请求。请记住：\n\n🔒 <b>始终通过 SafeDeal 托管付款</b> — 仅限以 https://safedeal.sh 开头的链接\n❌ 切勿通过 PayPal、CashApp、加密货币、电汇或任何其他"托管"机器人付款\n📢 如果您感到不安全，请输入 /report\n\n您的安全是我们的首要任务。`,
  mpUploadImages: '📸 上传产品图片（1-5张）。\n逐张发送。完成后点击 ✅ 上传完成。',
  mpDoneUpload: '✅ 上传完成',
  mpEnterTitle: '📝 输入产品标题（最多100个字符）：',
  mpEnterDesc: '📄 输入产品描述（最多500个字符）：',
- mpEnterPrice: '💰 设置价格（$20 - $5,000 美元）：',
+ mpEnterPrice: '💰 设置价格（$30 - $3,000 美元）：',
  mpSelectCategory: '🏷️ 选择类别：',
  mpPreview: (title, desc, price, category, imageCount) =>
- `✅ <b>产品预览</b>\n\n📦 <b>${title}</b>\n📄 ${desc}\n💰 <b>$${Number(price).toFixed(2)}</b>\n📂 ${category}\n📸 ${imageCount} 张图片\n\n🔒 通过 @Lockbaybot 托管保护`,
+ `✅ <b>产品预览</b>\n\n📦 <b>${title}</b>\n📄 ${desc}\n💰 <b>$${Number(price).toFixed(2)}</b>\n📂 ${category}\n📸 ${imageCount} 张图片\n\n🔒 通过 SafeDeal（safedeal.sh）托管保护`,
  mpPublish: '✅ 发布',
  mpCancel: '❌ 取消',
  mpEditProduct: '✏️ 编辑',
  mpRemoveProduct: '❌ 删除商品',
  mpMarkSold: '✅ 标记为已售',
- mpProductPublished: '🎉 您的商品已上线！\n\n买家现在可以发现它。\n\n⚠️ <b>提醒：</b>所有销售必须通过 @Lockbaybot 托管。\n\n💡 <b>快速出售技巧：</b>\n• 快速回复咨询\n• 添加清晰的照片和详细描述\n• 设定有竞争力的价格',
+ mpProductPublished: `🎉 您的商品已上线！\n\n买家现在可以发现它。\n\n⚠️ <b>提醒：</b>所有销售必须通过 SafeDeal 托管（safedeal.sh）。只有在 SafeDeal 显示 <b>Funded</b>（已注资）后才交付。\n\n💡 <b>快速出售技巧：</b>\n• 快速回复咨询\n• 添加清晰的照片和详细描述\n• 设定有竞争力的价格`,
  mpProductRemoved: '✅ 商品已删除。',
  mpProductSold: '✅ 商品已标记为已售。',
  mpMaxListings: '❌ 您已达到10个活跃商品的上限。请删除或标记为已售。',
- mpPriceError: '❌ 价格必须在 $20 到 $5,000 美元之间。',
+ mpPriceError: '❌ 价格必须在 $30 到 $3,000 美元之间。',
  mpNoImage: '📸 请至少上传一张产品图片。',
  mpImageAsPhoto: '📸 请以照片形式发送，而不是文件。',
  mpOwnProduct: '❌ 您不能咨询自己的商品。',
@@ -1231,9 +1235,9 @@ captchaDomainButton: (domain, isOff, hasCF) => hasCF ? `${isOff ? '🔴 关闭' 
  mpNoListings: '📭 您还没有商品。',
  mpNoConversations: '📭 没有活跃的对话。',
  mpChatStartBuyer: (title, price) =>
- `💬 您正在与卖家讨论 <b>${title}</b>（$${price}）\n\n⚠️ <b>必须使用托管</b> — 输入 /escrow 通过 @Lockbaybot 安全支付\n❌ 切勿直接向卖家或通过其机器人付款。\n\n💡 购买前请索要详情或证明。\n发送 /done 结束聊天。`,
+ `💬 您正在与卖家讨论 <b>${title}</b>（$${price}）\n\n⚠️ <b>必须使用托管</b> — 准备购买时，输入 /escrow 通过 SafeDeal 安全支付\n❌ 切勿直接向卖家或通过任何机器人付款。\n\n💡 购买前请索要详情或证明。\n发送 /done 结束聊天。`,
  mpChatStartSeller: (title) =>
- `💬 🔔 一位买家对 <b>${title}</b> 感兴趣！\n🔒 通过 @Lockbaybot 托管保护\n\n💡 提示：快速回复 — 响应快的卖家成交更多。\n在下方回复。发送 /done 结束聊天。`,
+ `💬 🔔 一位买家对 <b>${title}</b> 感兴趣！\n🔒 通过 SafeDeal 托管保护 — 仅在交易显示 <b>Funded</b>（已注资）后交付\n\n💡 提示：快速回复 — 响应快的卖家成交更多。\n在下方回复。发送 /done 结束聊天。`,
  mpMessageSent: '✅ 消息已发送',
  mpSellerChatReady: (title) =>
  `💬 您已进入 <b>${title}</b> 的聊天。\n在下方输入回复。发送 /done 退出, /escrow 开始托管, /price XX 建议价格。`,
@@ -1245,12 +1249,18 @@ captchaDomainButton: (domain, isOff, hasCF) => hasCF ? `${isOff ? '🔴 关闭' 
  mpSellerOffline: '⏳ 卖家24小时未回复。您可以浏览其他商品。',
  mpRateLimit: '⚠️ 消息限制已达到。请稍后再发送。',
  mpOnlyTextPhoto: '⚠️ 市场聊天中只能发送文字和照片。',
- mpPaymentWarning: '🚨 <b>警告：检测到直接付款请求！</b>\n\n❌ 切勿直接向卖家或通过其机器人付款。\n🔒 通过 @Lockbaybot 托管是<b>强制性的</b>。\n📢 如感到不安全，请输入 /report。',
- mpEscrowMsg: (title, price, sellerRef) =>
- `🔒 <b>托管 — 强制性购买</b>\n\n📦 产品：<b>${title}</b>\n💰 价格：<b>$${Number(price).toFixed(2)}</b>\n👤 卖家：<b>${sellerRef}</b>\n\n1. 打开 @Lockbaybot\n2. 与 <b>${sellerRef}</b> 创建 <b>$${Number(price).toFixed(2)}</b> 的托管\n3. 双方确认\n\n⚠️ 切勿在托管之外或通过卖家的机器人付款`,
+ mpPaymentWarning: `🚨 <b>警告：检测到直接付款请求！</b>\n\n❌ 切勿直接向卖家、钱包地址或通过任何机器人付款。\n🔒 SafeDeal 托管（safedeal.sh）是<b>强制性的</b> — 这是保护您资金的唯一方式。输入 /escrow 开始。\n📢 如感到不安全，请输入 /report。`,
+ mpEscrowBuyer: (title, price) =>
+ `🔒 <b>通过 SafeDeal 托管安全付款</b>\n\n📦 商品：<b>${title}</b>\n💰 价格：<b>$${Number(price).toFixed(2)}</b>\n\n1. 点击 <b>打开 SafeDeal</b> → 选择 <b>I'm buying</b>（我是买家）\n2. 交易名称：<code>${title}</code>（点击复制）\n3. 价格：<code>${Number(price).toFixed(2)}</code>（点击复制）\n4. 选择 <b>Share a link</b>（分享链接）→ 用邮箱验证码登录\n5. <b>把邀请链接粘贴到这里</b>，方便卖家接受\n6. 在 SafeDeal 付款 — 资金会被托管，直到您确认收货\n\n💡 SafeDeal 手续费：5%（最低 $10），默认由买家支付。\n⚠️ 切勿直接向卖家付款。`,
+ mpEscrowSeller: (title, price) =>
+ `🔒 <b>买家正在发起 SafeDeal 托管</b>\n\n📦 商品：<b>${title}</b>\n💰 价格：<b>$${Number(price).toFixed(2)}</b>\n\n1. 在此聊天中等待买家的 <b>safedeal.sh 邀请链接</b>\n2. 打开链接，用邮箱验证码登录并<b>接受</b>\n3. <b>只有在</b> SafeDeal 显示 <b>Funded</b>（已注资）后才交付\n4. 买家放款后您即可收款 — 请在 SafeDeal 上添加 USDT/USDC 收款地址\n\n💡 买家卡住了？您也可以自己创建：<b>打开 SafeDeal</b> → <b>I'm selling</b>（我是卖家）→ 名称 <code>${title}</code>，价格 <code>${Number(price).toFixed(2)}</code> → <b>Share a link</b> → 粘贴到这里。`,
+ mpEscrowOutOfRange: (price) =>
+ `⚠️ <b>无法以 $${Number(price).toFixed(2)} 发起托管</b>\n\nSafeDeal 接受 <b>$30 至 $3,000</b> 的交易。请在此聊天中商定该范围内的价格 — 例如输入 <code>/price 50</code> — 然后再次输入 /escrow。`,
+ mpOpenSafeDeal: '🔒 打开 SafeDeal',
+ mpSafeDealLinkNote: `🔒 <b>这是 SafeDeal 托管邀请</b> — 完成这笔交易的安全方式。\n打开链接，用邮箱验证码登录并接受。买家在 SafeDeal 付款；卖家在显示 <b>Funded</b>（已注资）后才交付。`,
  mpPriceSuggest: (role, amount) => `💰 <b>${role}</b> 建议：<b>$${amount}</b>`,
  mpPriceUsage: '用法：/price 50 建议 $50',
- mpPriceInvalid: '❌ 金额无效。必须在 $20 到 $5,000 之间。',
+ mpPriceInvalid: '❌ 金额无效。必须在 $30 到 $3,000 之间。',
  mpReported: '✅ 举报已提交。管理员将审查此对话。',
  mpChatMode: '⚠️ 您正在市场聊天中。发送 /done 退出。',
  mpExistingConv: '💬 您已有关于此产品的活跃对话。恢复中...',
@@ -1265,9 +1275,9 @@ captchaDomainButton: (domain, isOff, hasCF) => hasCF ? `${isOff ? '🔴 关闭' 
  mpListingRemoved: '📦 [商品已删除]',
  mpSellerStats: (sales, since) => `⭐ 卖家：${sales} 笔交易 | 加入于 ${since}`,
  mpProductCard: (title, price, category, sellerStats) =>
- `🏷️ <b>${title}</b>\n💰 <b>$${Number(price).toFixed(2)}</b> · ${category}\n${sellerStats}\n🔒 ⚠️ 必须使用托管 — 仅通过 @Lockbaybot 付款`,
+ `🏷️ <b>${title}</b>\n💰 <b>$${Number(price).toFixed(2)}</b> · ${category}\n${sellerStats}\n🔒 ⚠️ 必须使用托管 — 仅通过 SafeDeal 付款`,
  mpProductDetail: (title, desc, price, category, sellerStats, listedAgo) =>
- `📦 <b>${title}</b>\n\n📄 ${desc}\n\n💰 价格：<b>$${Number(price).toFixed(2)}</b>\n📂 ${category}\n${sellerStats}\n📅 发布：${listedAgo}\n\n🔒 <b>必须使用托管</b>\n仅通过 @Lockbaybot 托管付款。切勿直接向卖家或通过其机器人付款。`,
+ `📦 <b>${title}</b>\n\n📄 ${desc}\n\n💰 价格：<b>$${Number(price).toFixed(2)}</b>\n📂 ${category}\n${sellerStats}\n📅 发布：${listedAgo}\n\n🔒 <b>必须使用托管</b>\n仅通过 SafeDeal 托管（safedeal.sh）付款。切勿直接向卖家或通过其机器人付款。`,
  mpMyListingsHeader: (count, max) => `📦 <b>我的商品</b>（${count}/${max}）`,
  mpConvHeader: '💬 <b>我的对话</b>',
  mpConvItem: (title, role, lastMsg) => `💬 <b>${title}</b>（${role}）— ${lastMsg}`,
@@ -1276,7 +1286,7 @@ captchaDomainButton: (domain, isOff, hasCF) => hasCF ? `${isOff ? '🔴 关闭' 
  mpPriceCmd: '/price',
  mpReportCmd: '/report',
  mpEnteredChat: (title, price) => `💬 您已进入 <b>${title}</b>（$${price}）的聊天\n发送 /done 退出，/escrow 开始托管，/price XX 建议价格。`,
- mpResumedChat: (title, price, role) => `💬 恢复聊天：<b>${title}</b>（$${price}）— 您是${role}\n⚠️ <b>必须使用托管</b> — 仅通过 @Lockbaybot 付款。切勿直接向卖家或通过其机器人付款。\n\n发送 /done 退出，/escrow 开始托管，/price XX 建议价格。`,
+ mpResumedChat: (title, price, role) => `💬 恢复聊天：<b>${title}</b>（$${price}）— 您是${role}\n⚠️ <b>必须使用托管</b> — 仅通过 SafeDeal（safedeal.sh）付款。切勿直接向卖家或通过其机器人付款。\n\n发送 /done 退出，/escrow 开始托管，/price XX 建议价格。`,
  mpBuyerPhotoCaption: '💬 买家发送了一张照片：',
  mpSellerPhotoCaption: '💬 卖家发送了一张照片：',
  mpChatClosedReset: (title) => `💬 关于 <b>${title}</b> 的对话已被对方关闭。您已返回市场。`,

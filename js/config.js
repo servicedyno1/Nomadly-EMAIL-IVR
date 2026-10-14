@@ -233,7 +233,7 @@ const t = {
 
 Resell our full suite — ${services.join(', ')} — under your brand.
 
-<b>65/35%</b> profit share on every sale. Tap 💬 <b>Get Support</b> to get started.`
+<b>50/50</b> profit share on every sale. Tap 💼 <b>Become A Reseller</b> and ask our AI assistant anything about reselling.`
   })(),
   resetLoginAdmit: `${CHAT_BOT_BRAND} SMS: You have been successfully logged out of your previous device.Please login now`,
   resetLoginDeny: 'Ok sure. No further action required.',
