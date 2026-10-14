@@ -1,0 +1,26 @@
+{
+  "summary": "Backend-only review of hosting-health-check.js (tunnel RCA) and auto-promo.js zeroLiftVerdict. Ran all 3 requested suites + wrote an additional edge-case suite. All pass: 19+15+58+19 = 111 checks, 0 failures. No production code changes required — behaviour matches spec on every corner case the main agent asked for.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": { "ui_bugs": [], "integration_issues": [], "design_issues": [] },
+  "test_report_links": [
+    "/app/js/tests/test_healthcheck_tunnel_2026-10.js",
+    "/app/js/tests/test_promo_lift_metric_2026-06.js",
+    "/app/js/tests/test_promo_pipeline_2026-06.js",
+    "/app/js/tests/test_healthcheck_promo_edge_2026-10.js"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "hosting-health-check.js is 1173 lines — approaching the 700-line split guideline. Consider splitting into {routing, detectUserContent/scanDirectory, fixInfraIssues/fixContentIssues, reportResults} modules.",
+    "_esc() escapes & < > but not quotes. The current call sites always use it inside HTML text content (not attributes), so this is safe for Telegram HTML parse_mode — flagging only for future reuse.",
+    "scanDirectory issues two separate listfiles calls (types=file then types=dir); on a slow tunnel this doubles latency per folder. Low priority."
+  ],
+  "updated_files": [
+    "/app/js/tests/test_healthcheck_promo_edge_2026-10.js (new, 19 edge-case checks)"
+  ],
+  "success_rate": { "backend": "100% (111/111)", "frontend": "n/a (skipped per request)" },
+  "seed_data_creation": "Local Mongo db 'autopromo_edge_test' seeded and cleaned per test; isolated from 'autopromo_lift_test'. No production data touched.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "All four suites are offline (axios + anti-red-service stubbed via require.cache; local Mongo). Run from /app with `node <file>`. test_promo_pipeline_2026-06.js specifically needs `node -r dotenv/config js/tests/test_promo_pipeline_2026-06.js dotenv_config_path=/app/backend/.env`. New edge suite covers: scanDirectory throwing on cpanelresult.error / event.result===0 / malformed envelope; sub-folder scan failure keeping root content (scanErrors counter, no total error); HTML escaping of < > & in reportResults for originRoot/content/prepend errors; expected==3 boundary alert, expected 2.0 no alert; 7-day cooldown expiry re-alerts and tracker is bumped; 6-day cooldown still blocks; baseline excludes same theme+slot (same-theme zero-history → 'not enough history'); language isolation (FR baseline does not power EN verdict and vice versa).",
+  "rca of the issue": "Prod symptom (Health Check Stage 2 always 'Content: empty' + Zero-lift spam) is already fixed by the main agent. Verified: (a) when WHM_API_URL is set, whmApi.baseURL = <tunnel>/json-api with Authorization 'whm root:<token>' + CF-Access-Client-Id/Secret; ORIGIN_DIRECT_IP=null and ORIGIN_LABEL='Site (via Cloudflare tunnel)'; HTTP probes do not pin WHM_HOST (NET.directLookups stays 0). (b) scanDirectory throws on every WHM failure path, so an unreachable WHM never degrades to 'empty' — reportResults instead says 'Content: could not check (<reason>)' / 'Prepend: could not check (<reason>)' and no IP-fix redeploy fires. (c) zeroLiftVerdict only alerts when sum-of-same-theme/lang/slot returns==0 AND other-themes-in-same-lang baseline has >=500 delivered + >0 returns AND expected>=3, and respects a 7-day per-slot cooldown via promoTracker _id 'lift_alert_<theme>_<lang>_<slot>'."
+}
