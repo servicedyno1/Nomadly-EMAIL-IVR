@@ -1,5 +1,8 @@
 # PRD — Nomadly Cloud IVR + Telegram Bot
 
+## 2026-10-14h — Voodoo Land: 💼 Reseller button hidden (prod env only)
+- `/opt/nomadly/shared/app-voodoo/backend.env`: `HIDE_BECOME_RESELLER=true` (backup `backend.env.bak.hidereseller.<ts>`), `pm2 restart app-voodoo-a` at 0 calls → healthy, webhooks flowing. Hides the button in the ➕ More menu (`_index.js` `user.more` handler) and the legacy config.js main row. Nomadly/Smadav unchanged (false).
+
 ## 2026-10-14g — Sales & Profit dashboard UX overhaul (Smadav + Voodoo) — TESTED (iteration_90 100%) & LIVE, saved to WhiteLabel 401efdb2
 - Audit (Hick's Law, Gestalt, 8-pt grid, core loop) presented first; user approved fixing all 8 findings. Nomadly has NO sales dashboard (user chose to leave it).
 - `frontend/src/pages/SalesDashboard.js` exists ONLY on the WhiteLabel branch (BRAND_PATTERNS in scripts/sync_whitelabel.py) → backup copy `/app/memory/wl/SalesDashboard.js`.
