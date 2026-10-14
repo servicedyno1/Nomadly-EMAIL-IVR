@@ -23,12 +23,32 @@ const https = require('https')
 const { log } = require('console')
 
 const WHM_HOST = process.env.WHM_HOST
+const WHM_USERNAME = process.env.WHM_USERNAME || 'root'
 const WHM_TOKEN = process.env.WHM_TOKEN
 const TELEGRAM_DEV_CHAT_ID = process.env.TELEGRAM_DEV_CHAT_ID
+// ── Tunnel routing (2026-10-14 RCA) ──
+// Production keeps the WHM box firewalled: WHM :2087 is only reachable through the Cloudflare
+// Tunnel at WHM_API_URL, and websites only through Cloudflare (CF_TUNNEL_CNAME). This module used to
+// call https://<WHM_HOST>:2087 and https://<WHM_HOST>:443 directly, so EVERY call timed out and was
+// swallowed → every report said "Content: empty", "Prepend: none", "Origin: HTTP N/A" and re-deployed
+// the IP-fix prepend, even when the user had uploaded their site. Same routing as whm-service.js and
+// anti-red-service.js now; failures are reported as "could not check", never as "empty"/"missing".
+const WHM_API_URL = (process.env.WHM_API_URL || '').replace(/\/+$/, '')
+const WHM_BASE = WHM_API_URL ? `${WHM_API_URL}/json-api` : (WHM_HOST ? `https://${WHM_HOST}:2087/json-api` : null)
+// Direct-to-origin HTTP probes only work when the origin is NOT tunnel-only; otherwise probe via Cloudflare.
+const ORIGIN_DIRECT_IP = WHM_API_URL ? null : (WHM_HOST || null)
+const ORIGIN_LABEL = ORIGIN_DIRECT_IP ? 'Origin' : 'Site (via Cloudflare tunnel)'
 
-const whmApi = WHM_HOST && WHM_TOKEN ? axios.create({
-  baseURL: `https://${WHM_HOST}:2087/json-api`,
-  headers: { Authorization: `whm root:${WHM_TOKEN}` },
+const whmApi = WHM_BASE && WHM_TOKEN ? axios.create({
+  baseURL: WHM_BASE,
+  headers: {
+    Authorization: `whm ${WHM_USERNAME}:${WHM_TOKEN}`,
+    // Cloudflare Access service token — required when WHM_API_URL is a CF Access-protected tunnel host.
+    ...(process.env.CF_ACCESS_CLIENT_ID && process.env.CF_ACCESS_CLIENT_SECRET ? {
+      'CF-Access-Client-Id': process.env.CF_ACCESS_CLIENT_ID,
+      'CF-Access-Client-Secret': process.env.CF_ACCESS_CLIENT_SECRET,
+    } : {}),
+  },
   timeout: 30000,
   httpsAgent: new https.Agent({ rejectUnauthorized: false }),
 }) : null
@@ -136,10 +156,11 @@ async function runHealthCheck(domain, cpUsername, stage = 3) {
   if (stage >= 1) {
     // 1a. Direct origin check (root)
     try {
-      results.checks.originRoot = await httpCheck(domain, '/', WHM_HOST, { followRedirects: false })
+      results.checks.originRoot = await httpCheck(domain, '/', ORIGIN_DIRECT_IP, { followRedirects: false })
       log(`[HealthCheck] ${domain} origin root: HTTP ${results.checks.originRoot.status}`)
     } catch (err) {
-      results.checks.originRoot = { error: err.message }
+      results.checks.originRoot = { error: err.code || err.message }
+      log(`[HealthCheck] ${domain} origin root: not reachable (${err.code || err.message})`)
     }
 
     // 1b. Check .htaccess integrity
@@ -199,7 +220,7 @@ async function runHealthCheck(domain, cpUsername, stage = 3) {
     if (redirectUrl) {
       try {
         const path = new URL(redirectUrl, `https://${domain}`).pathname
-        results.checks.redirectTarget = await httpCheck(domain, path, WHM_HOST, {
+        results.checks.redirectTarget = await httpCheck(domain, path, ORIGIN_DIRECT_IP, {
           headers: { 'CF-Connecting-IP': '98.45.123.67' }, // Simulate real visitor IP
         })
         log(`[HealthCheck] ${domain} redirect target: HTTP ${results.checks.redirectTarget.status}`)
@@ -220,7 +241,7 @@ async function runHealthCheck(domain, cpUsername, stage = 3) {
     if (results.autoFixes.length > 0) {
       await sleep(5000)
       try {
-        results.checks.postFix = await httpCheck(domain, '/', WHM_HOST, {
+        results.checks.postFix = await httpCheck(domain, '/', ORIGIN_DIRECT_IP, {
           followRedirects: true,
           headers: { 'CF-Connecting-IP': '98.45.123.67' },
         })
@@ -263,7 +284,7 @@ async function detectUserContent(cpUsername) {
   }
 
   try {
-    // Scan root level
+    // Scan root level (throws when WHM can't be reached → reported as "could not check", never "empty")
     const rootScan = await scanDirectory(cpUsername, '/public_html')
     result.hasRootIndex = rootScan.hasIndex
     result.totalFiles = rootScan.fileCount
@@ -282,7 +303,7 @@ async function detectUserContent(cpUsername) {
     const userDirs = rootScan.dirs.filter(d => d !== 'cgi-bin')
     for (const dir of userDirs) {
       const l1Path = `/public_html/${dir}`
-      const l1Scan = await scanDirectory(cpUsername, l1Path)
+      const l1Scan = await scanDirectory(cpUsername, l1Path).catch(e => { result.scanErrors = (result.scanErrors || 0) + 1; log(`[HealthCheck] scan ${l1Path} failed: ${e.message}`); return EMPTY_SCAN() })
 
       if (l1Scan.hasIndex) {
         result.contentPaths.push({ path: `/${dir}/`, files: l1Scan.files, indexFile: l1Scan.indexFile })
@@ -291,7 +312,7 @@ async function detectUserContent(cpUsername) {
       // Scan level 2
       for (const subDir of l1Scan.dirs) {
         const l2Path = `${l1Path}/${subDir}`
-        const l2Scan = await scanDirectory(cpUsername, l2Path)
+        const l2Scan = await scanDirectory(cpUsername, l2Path).catch(e => { result.scanErrors = (result.scanErrors || 0) + 1; log(`[HealthCheck] scan ${l2Path} failed: ${e.message}`); return EMPTY_SCAN() })
 
         if (l2Scan.hasIndex) {
           result.contentPaths.push({ path: `/${dir}/${subDir}/`, files: l2Scan.files, indexFile: l2Scan.indexFile })
@@ -300,7 +321,7 @@ async function detectUserContent(cpUsername) {
         // Scan level 3
         for (const subSubDir of l2Scan.dirs) {
           const l3Path = `${l2Path}/${subSubDir}`
-          const l3Scan = await scanDirectory(cpUsername, l3Path)
+          const l3Scan = await scanDirectory(cpUsername, l3Path).catch(e => { result.scanErrors = (result.scanErrors || 0) + 1; log(`[HealthCheck] scan ${l3Path} failed: ${e.message}`); return EMPTY_SCAN() })
 
           if (l3Scan.hasIndex) {
             result.contentPaths.push({ path: `/${dir}/${subDir}/${subSubDir}/`, files: l3Scan.files, indexFile: l3Scan.indexFile })
@@ -338,54 +359,61 @@ async function detectUserContent(cpUsername) {
 }
 
 /**
- * Scan a single directory for files, subdirectories, and index presence
+ * Scan a single directory for files, subdirectories, and index presence.
+ * THROWS when WHM can't be asked (timeout / auth / API error) — the caller must not mistake an
+ * unreachable WHM for an empty folder.
  */
+const EMPTY_SCAN = () => ({ files: [], dirs: [], hasIndex: false, indexFile: null, fileCount: 0 })
+function _listfilesData(res, what) {
+  const cr = res && res.data && res.data.cpanelresult
+  if (!cr) throw new Error(`listfiles ${what}: unexpected WHM response`)
+  if (cr.error || (cr.event && cr.event.result === 0)) throw new Error(`listfiles ${what}: ${cr.error || cr.event.reason || 'failed'}`)
+  return Array.isArray(cr.data) ? cr.data : []
+}
 async function scanDirectory(cpUsername, dirPath) {
-  const result = { files: [], dirs: [], hasIndex: false, indexFile: null, fileCount: 0 }
+  const result = EMPTY_SCAN()
 
-  try {
-    // List files
-    const fileRes = await whmApi.get('/cpanel', {
-      params: {
-        cpanel_jsonapi_user: cpUsername,
-        cpanel_jsonapi_apiversion: 2,
-        cpanel_jsonapi_module: 'Fileman',
-        cpanel_jsonapi_func: 'listfiles',
-        dir: `/home/${cpUsername}${dirPath}`,
-        types: 'file',
-        showdotfiles: 1,
-      },
-    })
-    result.files = (fileRes.data?.cpanelresult?.data || [])
-      .map(f => f.file || f.name)
-      .filter(Boolean)
-    result.fileCount = result.files.length
+  // List files
+  const fileRes = await whmApi.get('/cpanel', {
+    params: {
+      cpanel_jsonapi_user: cpUsername,
+      cpanel_jsonapi_apiversion: 2,
+      cpanel_jsonapi_module: 'Fileman',
+      cpanel_jsonapi_func: 'listfiles',
+      dir: `/home/${cpUsername}${dirPath}`,
+      types: 'file',
+      showdotfiles: 1,
+    },
+  })
+  result.files = _listfilesData(fileRes, 'files')
+    .map(f => f.file || f.name)
+    .filter(Boolean)
+  result.fileCount = result.files.length
 
-    // Check for index files (priority: index.php > index.html > default.php)
-    for (const idx of ['index.php', 'index.html', 'default.php', 'home.php', 'main.php']) {
-      if (result.files.includes(idx)) {
-        result.hasIndex = true
-        result.indexFile = idx
-        break
-      }
+  // Check for index files (priority: index.php > index.html > default.php)
+  for (const idx of ['index.php', 'index.html', 'index.htm', 'default.php', 'home.php', 'main.php']) {
+    if (result.files.includes(idx)) {
+      result.hasIndex = true
+      result.indexFile = idx
+      break
     }
+  }
 
-    // List directories
-    const dirRes = await whmApi.get('/cpanel', {
-      params: {
-        cpanel_jsonapi_user: cpUsername,
-        cpanel_jsonapi_apiversion: 2,
-        cpanel_jsonapi_module: 'Fileman',
-        cpanel_jsonapi_func: 'listfiles',
-        dir: `/home/${cpUsername}${dirPath}`,
-        types: 'dir',
-        showdotfiles: 0,
-      },
-    })
-    result.dirs = (dirRes.data?.cpanelresult?.data || [])
-      .map(d => d.file || d.name)
-      .filter(Boolean)
-  } catch (_) {}
+  // List directories
+  const dirRes = await whmApi.get('/cpanel', {
+    params: {
+      cpanel_jsonapi_user: cpUsername,
+      cpanel_jsonapi_apiversion: 2,
+      cpanel_jsonapi_module: 'Fileman',
+      cpanel_jsonapi_func: 'listfiles',
+      dir: `/home/${cpUsername}${dirPath}`,
+      types: 'dir',
+      showdotfiles: 0,
+    },
+  })
+  result.dirs = _listfilesData(dirRes, 'dirs')
+    .map(d => d.file || d.name)
+    .filter(Boolean)
 
   return result
 }
@@ -592,8 +620,13 @@ async function fixInfraIssues(results) {
     }
   }
 
+  // Couldn't read the prepend config → don't guess, don't redeploy
+  if (checks.prepend?.error) {
+    results.warnings.push(`Could not read the prepend config (${checks.prepend.error}) — IP-fix check skipped.`)
+  }
+
   // Ensure IP fix is deployed
-  if (!checks.prepend?.hasIPFix && !checks.prepend?.hasJsChallenge) {
+  if (checks.prepend && !checks.prepend.error && !checks.prepend.hasIPFix && !checks.prepend.hasJsChallenge) {
     try {
       const antiRedService = require('./anti-red-service')
       // force: health-check confirmed the IP-fix prepend is MISSING on WHM —
@@ -614,6 +647,12 @@ async function fixContentIssues(results) {
   const content = checks.content
 
   if (!content) return
+
+  // Couldn't list the files → say so; never claim the user uploaded nothing
+  if (content.error) {
+    results.warnings.push(`Could not check uploaded files (${content.error}) — content check skipped.`)
+    return
+  }
 
   // Auto-redirect when content is in exactly one subdirectory
   if (content.needsRedirect && content.redirectTarget) {
@@ -694,10 +733,10 @@ async function verifyAntibotIPFix(results) {
 
   try {
     // Test WITHOUT CF-Connecting-IP (should be blocked by antibot)
-    const withoutIP = await httpCheck(domain, path, WHM_HOST, {})
+    const withoutIP = await httpCheck(domain, path, ORIGIN_DIRECT_IP, {})
     
     // Test WITH CF-Connecting-IP (should pass through)
-    const withIP = await httpCheck(domain, path, WHM_HOST, {
+    const withIP = await httpCheck(domain, path, ORIGIN_DIRECT_IP, {
       headers: { 'CF-Connecting-IP': '76.187.45.123' },
     })
 
@@ -933,7 +972,8 @@ async function checkHtaccessIntegrity(cpUsername) {
         file: '.htaccess',
       },
     })
-    const content = readRes.data?.result?.data?.content || ''
+    if (!readRes.data?.result) throw new Error('get_file_content .htaccess: unexpected WHM response')
+    const content = readRes.data.result.data?.content || ''
 
     if (content.includes('&lt;') || content.includes('&gt;')) {
       issues.push({ type: 'html_entities', desc: 'Contains HTML entities instead of < >' })
@@ -947,7 +987,7 @@ async function checkHtaccessIntegrity(cpUsername) {
 
     return { issues, rootHtaccessLength: content.length }
   } catch (err) {
-    return { error: err.message, issues }
+    return { error: err.code || err.message, issues }
   }
 }
 
@@ -958,8 +998,10 @@ async function checkPrependConfig(cpUsername) {
   if (!whmApi) return { error: 'WHM not configured' }
 
   try {
+    // A network/auth failure must surface as { error } (→ "could not check", no redeploy). A missing
+    // file is a normal UAPI answer (status 0 / errors) → empty content → genuinely "none".
     let userIniContent = ''
-    try {
+    {
       const iniRes = await whmApi.get('/cpanel', {
         params: {
           'api.version': 1,
@@ -971,11 +1013,12 @@ async function checkPrependConfig(cpUsername) {
           file: '.user.ini',
         },
       })
-      userIniContent = iniRes.data?.result?.data?.content || ''
-    } catch (_) {}
+      if (!iniRes.data?.result) throw new Error('get_file_content .user.ini: unexpected WHM response')
+      userIniContent = iniRes.data.result.data?.content || ''
+    }
 
     let challengeContent = ''
-    try {
+    {
       const phpRes = await whmApi.get('/cpanel', {
         params: {
           'api.version': 1,
@@ -987,8 +1030,9 @@ async function checkPrependConfig(cpUsername) {
           file: '.antired-challenge.php',
         },
       })
-      challengeContent = phpRes.data?.result?.data?.content || ''
-    } catch (_) {}
+      if (!phpRes.data?.result) throw new Error('get_file_content .antired-challenge.php: unexpected WHM response')
+      challengeContent = phpRes.data.result.data?.content || ''
+    }
 
     const hasJsChallenge = challengeContent.includes('JS Challenge') && challengeContent.includes('echo')
     const hasIPFix = challengeContent.includes('ANTIRED_IP_FIXED') || challengeContent.includes('CF_CONNECTING_IP')
@@ -1001,7 +1045,7 @@ async function checkPrependConfig(cpUsername) {
       type: hasIPFix ? 'ip_fix' : hasJsChallenge ? 'js_challenge' : hasPrepend ? 'unknown' : 'none',
     }
   } catch (err) {
-    return { error: err.message }
+    return { error: err.code || err.message }
   }
 }
 
@@ -1021,8 +1065,10 @@ async function reportResults(domain, cpUsername, chatId, results, stage) {
 
   // Origin status
   if (checks.originRoot) {
-    msg += `<b>Origin:</b> HTTP ${checks.originRoot.status || 'N/A'}`
-    if (checks.originRoot.redirectUrl) msg += ` → ${checks.originRoot.redirectUrl}`
+    msg += checks.originRoot.status
+      ? `<b>${ORIGIN_LABEL}:</b> HTTP ${checks.originRoot.status}`
+      : `<b>${ORIGIN_LABEL}:</b> not reachable yet (${_esc(checks.originRoot.error || 'no response')})`
+    if (checks.originRoot.redirectUrl) msg += ` → ${_esc(checks.originRoot.redirectUrl)}`
     msg += '\n'
   }
 
@@ -1035,7 +1081,7 @@ async function reportResults(domain, cpUsername, chatId, results, stage) {
 
   // Content info
   if (checks.content) {
-    msg += `<b>Content:</b> ${checks.content.location || 'unknown'}`
+    msg += checks.content.error ? `<b>Content:</b> could not check (${_esc(checks.content.error)})` : `<b>Content:</b> ${checks.content.location || 'unknown'}`
     if (checks.content.contentPaths?.length > 0) {
       msg += ` (${checks.content.contentPaths.map(p => p.path).join(', ')})`
     }
@@ -1055,7 +1101,7 @@ async function reportResults(domain, cpUsername, chatId, results, stage) {
 
   // Prepend type
   if (checks.prepend) {
-    msg += `<b>Prepend:</b> ${checks.prepend.type}\n`
+    msg += `<b>Prepend:</b> ${checks.prepend.error ? `could not check (${_esc(checks.prepend.error)})` : checks.prepend.type}\n`
   }
 
   // Auto-fixes
@@ -1106,6 +1152,10 @@ function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms))
 }
 
+function _esc(v) {
+  return String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').slice(0, 120)
+}
+
 
 // ─── EXPORTS ────────────────────────────────────────────────────────
 
@@ -1117,4 +1167,6 @@ module.exports = {
   detectAntibot,
   checkHtaccessIntegrity,
   checkPrependConfig,
+  // exported for tests
+  scanDirectory, reportResults, httpCheck, _routing: { WHM_BASE, ORIGIN_DIRECT_IP, ORIGIN_LABEL },
 }

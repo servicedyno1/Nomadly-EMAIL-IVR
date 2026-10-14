@@ -113,7 +113,21 @@ async function main() {
   await ap.evaluateBlastLift(zero.insertedId)
   const dz = await db.collection('promoStats').findOne({ _id: zero.insertedId })
   ok('zero-lift blast evaluated', dz.liftEvaluated === true && dz.liftReturnedUsers === 0)
-  ok('admin alerted about zero-lift', adminMsgs.some(m => m.chatId === '999999' && /Zero-lift/i.test(m.text)))
+  // 2026-10-14: one small zero-return blast is normal noise (~0.2% return rates) → no alert without history
+  ok('single 25-user zero-lift blast with no history → NOT alerted (normal noise)', !adminMsgs.some(m => /Zero-lift/i.test(m.text)))
+
+  // …but a theme/slot that stays at zero over enough deliveries to be surprising → alerted
+  const now = Date.now()
+  for (let i = 0; i < 5; i++) await db.collection('promoStats').insertOne({ theme: 'marketplace', lang: 'en', slot: 'morning', success: 1000, sentAt: new Date(now - (i + 1) * 86400000), liftUserIds: [], liftReturnedUsers: 3, liftEvaluated: true })
+  for (let i = 0; i < 3; i++) await db.collection('promoStats').insertOne({ theme: 'email_validation', lang: 'en', slot: 'morning', success: 500, sentAt: new Date(now - (i + 1) * 86400000), liftUserIds: [], liftReturnedUsers: 0, liftEvaluated: true })
+  adminMsgs.length = 0
+  const zero2 = await db.collection('promoStats').insertOne({ theme: 'email_validation', lang: 'en', slot: 'morning', success: 25, sentAt: new Date(), liftStartCount: 0, liftHubTapCount: 0, liftUserIds: [], liftWindowMs: 45 * MIN, liftEvaluated: false })
+  await ap.evaluateBlastLift(zero2.insertedId)
+  ok('theme/slot at 0 over 1550 delivered (≈5.5 expected at 0.36%) → admin alerted once', adminMsgs.some(m => m.chatId === '999999' && /Zero-lift theme/i.test(m.text) && /0 returns from 1550 delivered over 5 blast/.test(m.text)))
+  adminMsgs.length = 0
+  const zero3 = await db.collection('promoStats').insertOne({ theme: 'email_validation', lang: 'en', slot: 'morning', success: 25, sentAt: new Date(), liftUserIds: [], liftEvaluated: false })
+  await ap.evaluateBlastLift(zero3.insertedId)
+  ok('…and not again within 7 days (cooldown)', !adminMsgs.some(m => /Zero-lift/i.test(m.text)))
 
   // Zero-lift but tiny audience (<20) → NO alert (avoid noise)
   adminMsgs.length = 0

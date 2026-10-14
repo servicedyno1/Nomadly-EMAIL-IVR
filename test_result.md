@@ -11,6 +11,27 @@
 #====================================================================================================
 # CURRENT TASK (2026-10-14b) — Admin DO stock alerts: confirmed changes only (30 min) + short text
 #====================================================================================================
+current_task_2026_10_14d_healthcheck_promo: |
+  User bug report: hosting "Health Check Stage 1/2" alerts (vabillaprepaid.com / vabi2597) say "Origin: HTTP N/A,
+  Content: empty, Prepend: none, Auto-fix: Deployed IP-fix prepend (was missing), No user content found" even
+  though the user uploaded files; and "why [AutoPromo Alert] Zero-lift blast leads_validation/en/evening 0 returns
+  from 197 delivered".
+  RCA (prod logs + live WHM probe): js/hosting-health-check.js built its own WHM client on https://<WHM_HOST>:2087
+  and probed the origin by pinning WHM_HOST:443 — both firewalled in prod (only reachable via Cloudflare Tunnel
+  WHM_API_URL=https://whm-api.hostbay.io). Every call timed out (30 s) and was swallowed → 100% of retained
+  reports (23) said content empty / prepend none / origin N/A and force-redeployed the IP-fix. vabi2597 had
+  uploaded index.php at 19:23:23 (Panel log); via the tunnel the scan finds it in 0.9 s, prepend=ip_fix.
+  FIX: WHM client = WHM_API_URL (+CF Access headers) like whm-service/anti-red-service; HTTP probes via Cloudflare
+  when tunnel mode (label "Site (via Cloudflare tunnel)"); scanDirectory/checkPrependConfig/htaccess THROW on
+  API failure → report "could not check (…)" and NO auto-fix / no "No user content" warning; origin error shown
+  as "not reachable yet (ENOTFOUND)". Legacy direct mode unchanged when WHM_API_URL unset.
+  AutoPromo: lift tracking verified working (synthetic promo_open tap on preview → hubtap counted). Returns are
+  genuinely ~0.1-0.3% for every theme, so a ~200-user blast has 0 returns ~2/3 of the time → old ">=20 delivered"
+  rule alerted 39 times in 30 days. NEW zeroLiftVerdict (js/auto-promo.js): alert only if the theme/lang/slot had
+  0 returns over 30 days AND >= 3 were expected at the language's normal return rate (other themes; >= 500
+  delivered history), max once / 7 days (promoTracker lift_alert_*). Prod replay: 39 → 1 alert.
+  Tests: js/tests/test_healthcheck_tunnel_2026-10.js 19/0; test_promo_lift_metric_2026-06.js 15/0 (updated);
+  test_promo_pipeline_2026-06.js 58/0 (needs backend/.env loaded: node -r dotenv/config … dotenv_config_path=/app/backend/.env).
 current_task_2026_10_14c_hw_type: |
   User: "ensure we return the DigitalOcean VPS and RDP real types (AMD, NVMe, etc) via reseller API and on the bot".
   Choices: add NEW fields, leave cpu/storage_type unchanged; bot shows type in plan list + order summary + My VPS/RDP
