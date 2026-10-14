@@ -1,3 +1,9 @@
+## 2026-10-14 — Real hardware type (Premium AMD / Premium Intel / Regular · NVMe SSD / SSD) in reseller API + bot — LIVE
+
+New `js/do-hw-type.js`; reseller API adds cpu_type / size_slug / hardware (cpu + storage_type unchanged) on plans, servers
+(read from the size actually built), 202 order responses and *.provisioned webhooks; bot shows it in the plan list, order
+summary and My VPS/RDP screen (4 languages). Hot-patched + blue/green restarted all 3 apps. Details: memory/PRD.md.
+
 ## 2026-10-14 — Admin stock alerts: confirmed changes only (30 min) + short text — LIVE on Nomadly, Smadav, Voodoo
 
 Why Voodoo looked silent + why the alerts were noise: every "stock changed" alert was DigitalOcean flapping the 15 Premium

@@ -1,0 +1,37 @@
+{
+  "summary": "Re-ran the new DO hardware-type suite plus 6 regression suites requested by main agent, and added a NEW independent 27-case edge-case file for js/do-hw-type.js covering unknown/non-DO slugs (g-*, c-*, m-*, Azure, Vultr, hetzner, RDP tier ids, empty/null/number), uppercase normalisation, whitespace trimming, bot-label HTML/markdown safety, slugOfProduct precedence (quote > do_size_slug > productId > _id), productId-not-a-DO-size, empty-string quote fallback, legacy non-DO records (Azure/Vultr/Hetzner) returning fully-null fields, Regular keeping storage_type='SSD' (not NVMe), and the module's exported surface. Everything passes; no production code was touched.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": { "ui_bugs": [], "integration_issues": [], "design_issues": [] },
+  "test_report_links": [
+    "/app/js/tests/test_do_hw_type_2026-10.js",
+    "/app/js/tests/test_do_hw_type_edge_2026-10.js"
+  ],
+  "test_results": {
+    "test_do_hw_type_2026-10.js": "55 passed / 0 failed",
+    "test_do_hw_type_edge_2026-10.js (NEW)": "27 passed / 0 failed",
+    "test_do_nvme_plans_2026-10.js": "16 passed / 0 failed",
+    "test_do_plan_change_2026-10.js": "28 passed / 0 failed",
+    "test_do_stock_amd_fallback_2026-10.js": "88 passed / 0 failed",
+    "test_do_stock_watch_confirm_2026-10.js": "14 passed / 0 failed",
+    "test_do_usage_2026-10.js": "11 passed / 0 failed",
+    "reseller_vps_gone_reconcile_2026-10.js": "31 passed / 0 failed"
+  },
+  "action_items": [],
+  "critical_code_review_comments": [
+    "do-hw-type.js is small (43 lines), pure, no I/O, no mutation of inputs — good design.",
+    "classOf trims and lowercases input, handles null/undefined/number safely via String() coercion — no crash paths observed in edge tests.",
+    "slugOfProduct precedence (quote.size_slug → do_size_slug → productId/_id if DO size) is sensible and well covered.",
+    "botLabel output contains only '⚡'/'💾' + ASCII · and the fixed English words — safe for HTML/Markdown contexts (no injection surface).",
+    "All 4 bot languages (en/fr/zh/hi) use `${data.hardware ? ... : ''}` guards and `config.hardware ? ... : ''` — undefined/null hardware fields render cleanly as empty string in generateBillSummary and selectedVpsData, confirmed by grep.",
+    "Regular slug returns storage_type='SSD' (not NVMe) → existing contract preserved as the user requested.",
+    "No existing field (cpu / storage_type) semantics were changed by the new module — new fields are strictly additive."
+  ],
+  "updated_files": [
+    "/app/js/tests/test_do_hw_type_edge_2026-10.js (NEW — 27 edge-case tests, no production code touched)"
+  ],
+  "success_rate": { "backend": "100% (270/270 checks across 8 suites)", "frontend": "n/a — backend only" },
+  "seed_data_creation": "none — all test suites create and drop their own isolated Mongo DBs; axios is stubbed, no live DigitalOcean calls.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "DO hardware-type feature (do-hw-type.js + reseller-api/bot wiring) is production-ready: 55-case main suite + 27-case edge suite both green, and 6 regression suites unaffected. If future agents touch the module, keep: (a) Regular → SSD (not NVMe); (b) non-s-*vcpu-* slugs → null (never guess); (c) slugOfProduct precedence quote > do_size_slug > productId. Edge suite covers Azure/Vultr/Hetzner/RDP-tier-id non-regression."
+}

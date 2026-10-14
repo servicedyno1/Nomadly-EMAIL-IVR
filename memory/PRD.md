@@ -707,3 +707,18 @@ User inherited a fully-set-up Nomadly bot pod pointed at LIVE PRODUCTION. Task b
       2026-10-05 11:23-12:59Z (DO action log; nothing in bot logs) but DB still says active/RUNNING.
   (4) [RDP Grace] destroy loop every 5 min (535+ attempts) for owner test record vpsPlansOf 227de9e3 (provider digitalocean-rdp,
       instanceId rdp-d2ae47d3…) routed to Vultr DELETE → 401; box already gone (no DO droplet, no doRdpServers row).
+
+## 2026-10-14 — Real DigitalOcean hardware type on every VPS/RDP plan + server (LIVE on all 3 bots)
+- NEW `js/do-hw-type.js`: s-*-amd → Premium AMD · NVMe SSD; s-*-intel → Premium Intel · NVMe SSD; other s-* → "Regular CPU · SSD"
+  (DO mixes older Intel/AMD, no brand claim); anything else → null (never guessed).
+- Reseller API (additive — `cpu` 'AMD'|'Intel'|'Standard' + `storage_type` unchanged): + `cpu_type`, `size_slug`, `hardware` on
+  /vps/plans, /rdp/plans (size from the live quote → same-spec fallback size shows), /pricing, /rdp/availability plans, GET /vps,/rdp
+  (RDP real size batched via `rdp.sizeSlugsFor`), GET /vps/:id,/rdp/:id (live `sizeSlug`), POST /vps|/rdp 202, *.provisioned webhooks
+  (+ `do_size_slug` saved on vpsPlansOf). getInstance returns `sizeSlug` (DO droplet size_slug; DO-RDP doRdpServers.do_size_slug → tier).
+  Fix: a legacy Intel RDP (60811b81) was reported cpu "AMD" — now Intel / Premium Intel. Docs + What's new updated.
+- Bot (en/fr/zh/hi): plan list italic hardware line under every plan; order summary "⚙️ Hardware:"; My VPS/RDP "• Hardware:".
+- Tests: test_do_hw_type_2026-10.js 55/0, test_do_hw_type_edge_2026-10.js 27/0 (testing agent, iteration_92) + regressions green.
+- Deploy: owner's Save to GitHub at ~17:29Z had already shipped the stock-watch fix via CI (releases main 20261014T172956Z-78ec6b7,
+  WL 20261014T173126Z-42e3ca5 / voodoo 20261014T173258Z-42e3ca5). Hardware change hot-patched into THOSE releases (`.bak.<ts>`,
+  RELEASE patched=) + blue/green same-release reactivation → app-main-b :5100, app-wl-b :5101, app-voodoo-b :5103, /apidoc shows it.
+  (The older 142xxx release dirs were also patched by mistake first — inactive, harmless.) NEEDS another "Save to GitHub".
