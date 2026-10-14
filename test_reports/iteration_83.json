@@ -1,0 +1,37 @@
+{
+  "summary": "Ran the dedicated late-refund/stock-alerts/renewal re-check suite + all 13 regression suites + 3 jest suites requested. Everything green: 99/0 main suite, 80/0 + 16/0 + 28/0 + 93/0 + 20/0 + 40/0 + 60/0 + 15/0 + 73/0 + 10/0 + 27/0 + 31/0 + 40/0 regressions, 86/86 jest. Also code-reviewed rdp-order-failure.js double-refund guard and confirmed via tests (section 1) that the atomic 'lateFailure $exists:false' claim prevents double refunds and that the purchase-flow foreground window (provisioning + <30min) defers correctly to the owning caller.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": { "ui_bugs": [], "integration_issues": [], "design_issues": [] },
+  "test_report_links": [
+    "/app/js/tests/test_late_refund_stock_alerts_2026-10.js",
+    "/app/js/tests/test_do_stock_amd_fallback_2026-10.js",
+    "/app/js/tests/test_do_nvme_plans_2026-10.js",
+    "/app/js/tests/test_do_plan_change_2026-10.js",
+    "/app/js/tests/test_do_rdp_golden_2026-06.js",
+    "/app/js/tests/test_phase1_fixes_2026-10.js",
+    "/app/js/tests/test_phase4_bigbuilds_2026-10.js",
+    "/app/js/tests/test_rdp_checkout_math_2026-06.js",
+    "/app/js/tests/test_rdp_discount_2026-06.js",
+    "/app/js/tests/test_rdp_grace_destroy_2026-06.js",
+    "/app/js/tests/test_reseller_dup_guard_2026-10.js",
+    "/app/js/tests/test_vps_terms_2026-06.js",
+    "/app/js/tests/reseller_vps_gone_reconcile_2026-10.js",
+    "/app/js/tests/test_reseller_api_grace_2026-06.js",
+    "/app/tests/digitalocean-provider.test.js",
+    "/app/tests/vps-provider-contract.test.js",
+    "/app/tests/os-aware-provider-routing.test.js"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "rdp-order-failure.handle(): double-refund guard is airtight — atomic updateOne with { lateFailure: { $exists: false } }, claim.modifiedCount==0 → 'already'. Reseller/comp paths exit before claim. Foreground (status=provisioning, age<30min) returns retry so the purchase-flow catch path owns the refund. Suite section 1 verifies exactly-once across concurrent invocations.",
+    "renewalPrice base_no_stock path and live-OS SSH-key-required enforcement are exercised end-to-end in sections 6 and 11; GET /vps/os-options comes from doSizeCatalog.getImages() with static fallback carrying no retired ids.",
+    "do-size-catalog.ensureFresh(): awaited in all 5 call sites verified (section 12). vpsPlanInStock is now async with both call sites awaited."
+  ],
+  "updated_files": [],
+  "success_rate": { "backend": "100%", "frontend": "n/a (not tested per request)" },
+  "test_credentials": "none required (fake DO + isolated local MongoDB)",
+  "seed_data_creation": "none; each suite uses throw-away isolated DBs",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Iteration 83 fully green on all 14 Node suites + 3 jest suites requested. Preview reseller worker is OFF as expected (log line '[ResellerAPI] provision worker OFF on this sandbox'). Do NOT call live preview /api/reseller/v1 endpoints with real keys — reseller DB is production. The ~25 pre-existing unrelated failing suites noted in iteration 82 were not retouched."
+}
