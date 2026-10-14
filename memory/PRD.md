@@ -1,5 +1,14 @@
 # PRD — Nomadly Cloud IVR + Telegram Bot
 
+## 2026-10-14f — Marketplace escrow → SafeDeal (Lockbay removed) + Reseller 50/50 with in-page AI support — TESTED (iteration_88 100%, 89 checks) & LIVE on all 3 bots (hot-patch #3)
+- Reseller: copy 65/35 → **50/50** (en/fr/hi/zh, config.js, AI KB). Tapping 💼 Reseller now opens an AI support session (action supportChat, /done + 🏠 Main Menu keyboard), seeds AI history via new `ai-support.addSupportContext()`, admin gets "💼 Reseller enquiry" alert + SLA nudge.
+- Escrow: new `js/mp-safedeal.js` (`SAFEDEAL_START_URL=https://safedeal.sh/#sd-start`, `sendSafeDealSteps`, `sendSafeDealLinkNote`). Buyer gets "I'm buying → tap-to-copy title/price → Share a link → paste here" steps; seller gets "wait for link → accept → deliver only after Funded" (+ "I'm selling" backup); each in their OWN language; fee hint 5% (min $10, buyer default). Out-of-range price → note, escrow not started.
+- Marketplace price range now **$30–$3,000** (`MIN_PRICE/MAX_PRICE`, `isEscrowPriceOk`). Scam regex: safedeal.sh links stripped before scanning; `lockbay`, `@*escrow*`, `t.me/*escrow`, "escrow bot" flagged; "send me the link" no longer flagged. AI moderation ignores SafeDeal links.
+- UX fixes: "Start Escrow" from product card now puts buyer INTO the chat (they can paste the link) and notifies the seller like Chat with Seller (`_mpNotifySeller` helper; unpaid seller gets locked alert, no steps). Marketplace header uses brand (no more "NOMADLY MARKETPLACE" on Smadav/Voodoo). Relay adds a "That's a SafeDeal escrow invite" note to the receiver.
+- Tests: `js/tests/test_safedeal_reseller_2026-10.js` 46/46 (also on WL trees); testing agent live mock-Telegram run (`js/tests/live_safedeal_reseller_integration_2026-01.js`). `test_marketplace_gate_wiring.js` 3 pre-existing stale failures (unchanged).
+- Prod: `git diff 1ed8ca5e` patch applied cleanly to app-main/app-wl/app-voodoo release trees, backups `/opt/nomadly/logs/*-sd-backup-20261014T1420*.tgz`, restarted active `-b` slots at 0 calls → healthy. Nomadly has 2 active listings under $30 (they'll get the out-of-range note at escrow time).
+
+
 ## 2026-10-14e — Plan comparison table + panel expiry banner + bot `/start renew` — TESTED (iteration_87 100%) & LIVE on all 3 brands (hot-patch #2)
 - User saved to GitHub at 12:52 (commit 4cf61e85) → CI redeployed all 3 with the landing/panel rebuild + `/brand/` passthrough (real logos now live on Nomadly/Smadav too).
 - `/api/store/plans` now has `mysql` (from whm-service PLAN_MYSQL_LIMITS: 2/5/unlimited), `captcha`, `geo` per plan. FAQ 6 corrected (weekly has 2 DBs).

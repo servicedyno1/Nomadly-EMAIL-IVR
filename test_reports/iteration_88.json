@@ -1,0 +1,25 @@
+{
+  "summary": "Live integration + static tests for SafeDeal (B1-B7) and Reseller 50/50 AI chat (A1) flows. Drove the real Telegram bot via a local mock Bot API + /telegram/webhook POSTs; asserted messages, buttons, DB state, admin alerts. 46 static (test_safedeal_reseller_2026-10.js) + 43 live integration checks = 89/89 passing. Verified multi-language (EN/FR/HI/ZH) copy, brand-aware marketplace header (CHAT_BOT_BRAND=Nomadly → 'NOMADLY MARKETPLACE'), price range 30-3000 enforcement, SafeDeal button URL = https://safedeal.sh/#sd-start, no Lockbay in live flows, buyer/seller language separation, out-of-range handling, chat relay with safedeal.sh pass-through, payment-pattern/Lockbay warnings, and ai-support KB.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": { "ui_bugs": [], "integration_issues": [], "design_issues": [] },
+  "test_report_links": [
+    "/app/js/tests/test_safedeal_reseller_2026-10.js",
+    "/app/js/tests/live_safedeal_reseller_integration_2026-01.js"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "js/_index.js line 7520 converts chatId to String but marketplaceService.createConversation stores buyerId/sellerId with whatever is passed. In 19887 the relay compares `conv.buyerId === chatId` — this works ONLY because callers consistently pass the String form. Any future caller that stores a numeric chatId (e.g. admin tools, migrations, or seed scripts) will silently flip buyer/seller direction in the relay. Suggest normalizing with String() inside createConversation + comparing with == or String()-wrapping in the relay for defensive safety.",
+    "Marketplace conv._id is a UUID string (crypto.randomUUID); ensure any external docs/examples don't suggest ObjectId — would mislead integrators / testers."
+  ],
+  "updated_files": [
+    "/app/js/tests/live_safedeal_reseller_integration_2026-01.js (NEW live integration suite)",
+    "/app/backend/.env (TELEGRAM_API_BASE_URL added for test then REMOVED; nodejs restarted — preview back to normal)"
+  ],
+  "success_rate": { "backend": "100%", "frontend": "n/a (backend-only per request)" },
+  "test_credentials": "none (fake chat ids 990001 buyer, 990002 seller)",
+  "seed_data_creation": "During test only: state docs for 990001/990002, marketplaceAccess paid=true, 1 product + 2 conversations (in-range 100 and out-of-range 20). All removed in teardown; verified post-run collection queries return empty.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Mock Telegram API lives at /app/js/tests/mock_telegram_api.js (port 5099). To re-run the live suite: 1) `node js/tests/mock_telegram_api.js &`  2) append `TELEGRAM_API_BASE_URL=http://127.0.0.1:5099` to /app/backend/.env  3) `sudo supervisorctl restart nodejs`  4) `node js/tests/live_safedeal_reseller_integration_2026-01.js`  5) remove TELEGRAM_API_BASE_URL from backend/.env, kill the mock, restart nodejs. The test uses MongoDB directly to seed/teardown state. Marketplace conv._id is a UUID — pass strings, not ObjectIds. buyerId/sellerId must be stored as STRING chatIds (that is how production stores them). Pre-existing test_marketplace_gate_wiring.js 3 failures are stale and unrelated (confirmed by main agent note).",
+  "rca of the issue": "n/a — no bugs found; all A1/B1/B2/B3/B4/B5/B6/B7 behaviours and regression paths verified end-to-end."
+}
