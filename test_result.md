@@ -1069,7 +1069,7 @@ user_problem_statement: |
 
 
 backend:
-  - task: "Subdomain shortener activation + PATCH url edit bugfix (2026-10-08c) — Fixed critical production bug where activating a SUBDOMAIN shortener (go.namewords.sbs, parent namewords.sbs on Cloudflare NS) failed with 'Domain go.namewords.sbs is not registered with us' and POST /shortener/links returned 409 domain_not_activated. BUG REPORTED: Reseller @onarrival1 (chatId 5590563715) tried to activate subdomain go.namewords.sbs as a shortener. GET /shortener/domains showed status:'failed', error:'Domain go.namewords.sbs is not registered with us'. POST /shortener/links returned 409 domain_not_activated. ROOT CAUSE: The shortener DNS path looked up the EXACT host in registered-domains metadata (only the PARENT namewords.sbs is registered) so getDomainMeta(subdomain)=null → addShortenerCNAME failed → activation 'failed' → links blocked. FIX: (1) js/domain-service.js: new resolveZoneMeta(host, db) walks parent suffixes (+ live CF zone fallback) so a subdomain resolves to the PARENT zone's cfZoneId; addShortenerCNAME() now uses it (record name stays the full host, written into the parent zone). Exported resolveZoneMeta. (2) js/reseller-shortener.js: ownsDomain() now recognizes a subdomain of an owned parent (source 'existing' no longer 404s). GET /shortener/domains now returns active (bool) + active_statuses. PATCH /shortener/links/:slug now also edits the destination url (plus existing disabled / expires_in_days). Slug rename stays unsupported (delete + re-create). Files: js/domain-service.js (resolveZoneMeta function, lines 350-391), js/reseller-shortener.js (ownsDomain function lines 53-62, PATCH handler lines 348-390), js/tests/test_subdomain_shortener_zone.js (NEW, 3 assertions). Environment: LIVE MODE (HOSTED_ON=droplet, legacy 'railway' labels). Base URL: https://vault-setup-24.preview.emergentagent.com/api/reseller/v1. Valid LIVE key: rsk_live_cdc3f785ac3cfd813c6143d7813e1a59cc15fc42327ab736 (owner 5590563715). VERIFIED: All 7 comprehensive checks PASSED (100% pass rate). CHECK 1: Deterministic unit test (3/3 assertions passed). CHECK 2: Subdomain activation (domain marked as completed, active:true). CHECK 3: Link creation (HTTP 201, link created successfully). CHECK 4: PATCH url edit (HTTP 200, URL updated correctly). CHECK 5: GET confirms edited URL. CHECK 6: PATCH with no editable field returns 400 nothing_to_update. CHECK 7: Cleanup (DELETE link, HTTP 200). The subdomain go.namewords.sbs is NOW ACTIVE as a URL shortener and accepts link creation. Bugfix is WORKING CORRECTLY."
+  - task: "Subdomain shortener activation + PATCH url edit bugfix (2026-10-08c) — Fixed critical production bug where activating a SUBDOMAIN shortener (go.namewords.sbs, parent namewords.sbs on Cloudflare NS) failed with 'Domain go.namewords.sbs is not registered with us' and POST /shortener/links returned 409 domain_not_activated. BUG REPORTED: Reseller @onarrival1 (chatId 5590563715) tried to activate subdomain go.namewords.sbs as a shortener. GET /shortener/domains showed status:'failed', error:'Domain go.namewords.sbs is not registered with us'. POST /shortener/links returned 409 domain_not_activated. ROOT CAUSE: The shortener DNS path looked up the EXACT host in registered-domains metadata (only the PARENT namewords.sbs is registered) so getDomainMeta(subdomain)=null → addShortenerCNAME failed → activation 'failed' → links blocked. FIX: (1) js/domain-service.js: new resolveZoneMeta(host, db) walks parent suffixes (+ live CF zone fallback) so a subdomain resolves to the PARENT zone's cfZoneId; addShortenerCNAME() now uses it (record name stays the full host, written into the parent zone). Exported resolveZoneMeta. (2) js/reseller-shortener.js: ownsDomain() now recognizes a subdomain of an owned parent (source 'existing' no longer 404s). GET /shortener/domains now returns active (bool) + active_statuses. PATCH /shortener/links/:slug now also edits the destination url (plus existing disabled / expires_in_days). Slug rename stays unsupported (delete + re-create). Files: js/domain-service.js (resolveZoneMeta function, lines 350-391), js/reseller-shortener.js (ownsDomain function lines 53-62, PATCH handler lines 348-390), js/tests/test_subdomain_shortener_zone.js (NEW, 3 assertions). Environment: LIVE MODE (HOSTED_ON=droplet, legacy 'railway' labels). Base URL: https://nomadly-deploy.preview.emergentagent.com/api/reseller/v1. Valid LIVE key: rsk_live_cdc3f785ac3cfd813c6143d7813e1a59cc15fc42327ab736 (owner 5590563715). VERIFIED: All 7 comprehensive checks PASSED (100% pass rate). CHECK 1: Deterministic unit test (3/3 assertions passed). CHECK 2: Subdomain activation (domain marked as completed, active:true). CHECK 3: Link creation (HTTP 201, link created successfully). CHECK 4: PATCH url edit (HTTP 200, URL updated correctly). CHECK 5: GET confirms edited URL. CHECK 6: PATCH with no editable field returns 400 nothing_to_update. CHECK 7: Cleanup (DELETE link, HTTP 200). The subdomain go.namewords.sbs is NOW ACTIVE as a URL shortener and accepts link creation. Bugfix is WORKING CORRECTLY."
     implemented: true
     working: true
     file: "/app/js/domain-service.js"
@@ -1115,7 +1115,7 @@ backend:
           
           ENVIRONMENT:
           • Mode: LIVE (HOSTED_ON=droplet, legacy "railway" labels in code/status are for the droplet host)
-          • Base URL: https://vault-setup-24.preview.emergentagent.com/api/reseller/v1
+          • Base URL: https://nomadly-deploy.preview.emergentagent.com/api/reseller/v1
           • Valid LIVE key: rsk_live_cdc3f785ac3cfd813c6143d7813e1a59cc15fc42327ab736
           • Owner: chatId 5590563715 (@onarrival1)
           • Test domain: go.namewords.sbs (LIVE production subdomain, parent namewords.sbs on Cloudflare NS)
@@ -1229,7 +1229,7 @@ backend:
           • /app/backend_test.py (7 checks, comprehensive end-to-end API test)
           Test run: 2026-10-08c (all 7 checks passed, 0 failures, 0 warnings)
           Environment: LIVE MODE (HOSTED_ON=droplet, RESELLER_DB_URL=production Railway MongoDB)
-          Base URL: https://vault-setup-24.preview.emergentagent.com/api/reseller/v1
+          Base URL: https://nomadly-deploy.preview.emergentagent.com/api/reseller/v1
           Supervisor: nodejs RUNNING (PID 7165, uptime 0:07:53)
           Test domain: go.namewords.sbs (LIVE production subdomain, parent namewords.sbs on Cloudflare NS)
           Test link: qatest1959 (created, edited, verified, deleted)
@@ -1309,7 +1309,7 @@ backend:
           
           ✅ CHECK 2: SANITY (service health)
              • Test 2a: GET /api/health (external URL)
-               - URL: https://vault-setup-24.preview.emergentagent.com/api/health
+               - URL: https://nomadly-deploy.preview.emergentagent.com/api/health
                - Response: HTTP 200 ✅
                - Body: {"status":"healthy","database":"connected","uptime":"0.06 hours","calls":{"activeCalls":0,"pendingBridges":0,"outboundIvrCalls":0,"twilioIvrSessions":0,"total":0},"slot":{"name":null,"upstream":null,"port":null,"active":true}}
                - PASS: Backend is healthy and database is connected
@@ -1364,11 +1364,11 @@ backend:
           Test file: /app/js/tests/test_call_billing_thresholds.js (6 assertions)
           Test run: 2026-10-08b (all 2 checks passed, 0 failures, 0 warnings)
           Environment: DEV SANDBOX (safe, no real calls, no wallet mutations, no Telnyx webhooks)
-          Base URL: https://vault-setup-24.preview.emergentagent.com/api/health
+          Base URL: https://nomadly-deploy.preview.emergentagent.com/api/health
           Supervisor: nodejs RUNNING (PID 5366, uptime 0:03:53)
 
 
-  - task: "Shortener domain verify bugfix for Cloudflare-PROXIED records (2026-10-08) — Fixed critical production bug where POST /shortener/domains/:domain/verify returned HTTP 409 forever for Cloudflare-PROXIED (orange-cloud) DNS records. BUG REPORTED: Reseller @onarrival1 (chatId 5590563715) domain go.namewords.sbs stuck at status 'railway_linked'. The A record go.namewords.sbs -> 146.190.238.190 is Cloudflare-PROXIED (orange cloud), so public DNS resolves to Cloudflare anycast IPs (104.21.x / 172.67.x), never the origin IP. The droplet origin REQUIRES the proxy (it serves TLS with a Cloudflare Origin-CA cert), so the record is correct and the host serves fine (HTTPS 200 with a valid cert) — only verification was wrong. ROOT CAUSE: js/reseller-shortener.js dnsPointsTo() did ONLY a live public-DNS lookup (dns.resolve4), which can never see the origin behind a proxied record. FIX: New js/shortener-verify.js module with dnsPointsTo() that now falls back to an AUTHORITATIVE Cloudflare-zone check (cfZoneRecordMatches) — if the zone WE manage has an A/AAAA record at the host whose content == origin IP (or a CNAME == target), it verifies, proxied or not. DNS-only records still verify via the public-DNS path (unchanged). Files: js/shortener-verify.js (NEW, 111 lines), js/reseller-shortener.js (line 31, imports dnsPointsTo from shortener-verify), js/tests/test_shortener_proxied_verify.js (NEW, 119 lines, 7 assertions + live CF check). Environment: LIVE MODE. Base URL: https://vault-setup-24.preview.emergentagent.com/api/reseller/v1. Valid LIVE key: rsk_live_cdc3f785ac3cfd813c6143d7813e1a59cc15fc42327ab736 (owner 5590563715, @onarrival1). VERIFIED: All 4 comprehensive checks PASSED (100% pass rate). CHECK 1: Regression unit test (7/7 assertions passed including LIVE CF zone check). CHECK 2: END-TO-END API (POST /shortener/domains/go.namewords.sbs/verify → 200 with verified:true, status:completed). CHECK 3: Auth guards (no auth → 401 missing_api_key, invalid auth → 401 invalid_api_key). CHECK 4: Sanity (GET /api/health → 200 healthy, nodejs supervisor RUNNING). The reported domain go.namewords.sbs is NOW ACTIVE as a URL shortener (status changed from railway_linked to completed). Bugfix is WORKING CORRECTLY."
+  - task: "Shortener domain verify bugfix for Cloudflare-PROXIED records (2026-10-08) — Fixed critical production bug where POST /shortener/domains/:domain/verify returned HTTP 409 forever for Cloudflare-PROXIED (orange-cloud) DNS records. BUG REPORTED: Reseller @onarrival1 (chatId 5590563715) domain go.namewords.sbs stuck at status 'railway_linked'. The A record go.namewords.sbs -> 146.190.238.190 is Cloudflare-PROXIED (orange cloud), so public DNS resolves to Cloudflare anycast IPs (104.21.x / 172.67.x), never the origin IP. The droplet origin REQUIRES the proxy (it serves TLS with a Cloudflare Origin-CA cert), so the record is correct and the host serves fine (HTTPS 200 with a valid cert) — only verification was wrong. ROOT CAUSE: js/reseller-shortener.js dnsPointsTo() did ONLY a live public-DNS lookup (dns.resolve4), which can never see the origin behind a proxied record. FIX: New js/shortener-verify.js module with dnsPointsTo() that now falls back to an AUTHORITATIVE Cloudflare-zone check (cfZoneRecordMatches) — if the zone WE manage has an A/AAAA record at the host whose content == origin IP (or a CNAME == target), it verifies, proxied or not. DNS-only records still verify via the public-DNS path (unchanged). Files: js/shortener-verify.js (NEW, 111 lines), js/reseller-shortener.js (line 31, imports dnsPointsTo from shortener-verify), js/tests/test_shortener_proxied_verify.js (NEW, 119 lines, 7 assertions + live CF check). Environment: LIVE MODE. Base URL: https://nomadly-deploy.preview.emergentagent.com/api/reseller/v1. Valid LIVE key: rsk_live_cdc3f785ac3cfd813c6143d7813e1a59cc15fc42327ab736 (owner 5590563715, @onarrival1). VERIFIED: All 4 comprehensive checks PASSED (100% pass rate). CHECK 1: Regression unit test (7/7 assertions passed including LIVE CF zone check). CHECK 2: END-TO-END API (POST /shortener/domains/go.namewords.sbs/verify → 200 with verified:true, status:completed). CHECK 3: Auth guards (no auth → 401 missing_api_key, invalid auth → 401 invalid_api_key). CHECK 4: Sanity (GET /api/health → 200 healthy, nodejs supervisor RUNNING). The reported domain go.namewords.sbs is NOW ACTIVE as a URL shortener (status changed from railway_linked to completed). Bugfix is WORKING CORRECTLY."
     implemented: true
     working: true
     file: "/app/js/shortener-verify.js"
@@ -1414,7 +1414,7 @@ backend:
           
           ENVIRONMENT:
           • Mode: LIVE (production-like, real Cloudflare API calls)
-          • Base URL: https://vault-setup-24.preview.emergentagent.com/api/reseller/v1
+          • Base URL: https://nomadly-deploy.preview.emergentagent.com/api/reseller/v1
           • Valid LIVE key: rsk_live_cdc3f785ac3cfd813c6143d7813e1a59cc15fc42327ab736
           • Owner: chatId 5590563715 (@onarrival1)
           • Test domain: go.namewords.sbs (LIVE production domain, Cloudflare-PROXIED)
@@ -1503,7 +1503,7 @@ backend:
           Test file: /app/js/tests/test_shortener_proxied_verify.js (7 assertions + live CF check)
           Test run: 2026-10-08 (all 4 checks passed, 0 failures, 0 warnings)
           Environment: LIVE MODE (real Cloudflare API calls)
-          Base URL: https://vault-setup-24.preview.emergentagent.com/api/reseller/v1
+          Base URL: https://nomadly-deploy.preview.emergentagent.com/api/reseller/v1
           Valid LIVE key: rsk_live_cdc3f785ac3cfd813c6143d7813e1a59cc15fc42327ab736
           Test domain: go.namewords.sbs (LIVE production domain, Cloudflare-PROXIED, NOW ACTIVE)
 
@@ -1541,7 +1541,7 @@ backend:
           ENVIRONMENT:
           • Mode: DEV POD (reproducing production condition)
           • RESELLER_DB_URL: TEMPORARILY DISABLED (to test the fallback path)
-          • Base URL: https://vault-setup-24.preview.emergentagent.com/api/reseller/v1
+          • Base URL: https://nomadly-deploy.preview.emergentagent.com/api/reseller/v1
           • Valid API Key: rsk_live_6af6daabd545fccb80c2c5265a8caaae52af8ae6dd49f848
           • Owner: chatId 5590563715
           
@@ -1596,7 +1596,7 @@ backend:
           Test output: /tmp/reseller_api_bugfix_test_output.txt (full test run log)
           Test run: 2026-10-06 (all 3 tests passed, 0 failures, 0 warnings)
           Environment: DEV POD (RESELLER_DB_URL disabled to reproduce production condition)
-          Base URL: https://vault-setup-24.preview.emergentagent.com/api/reseller/v1
+          Base URL: https://nomadly-deploy.preview.emergentagent.com/api/reseller/v1
           Valid API Key: rsk_live_6af6daabd545fccb80c2c5265a8caaae52af8ae6dd49f848
 
   - task: "Reseller VPS OS-reinstall endpoint (2026-10-05c) — Verified NEW reseller VPS OS-reinstall endpoint on the Nomadly reseller API. NEW ENDPOINT: POST /vps/:id/reinstall { os?, confirm } → DESTRUCTIVE OS reinstall (DigitalOcean rebuild from chosen image: disk wiped, IP kept, ~3 min). Validates os against provider's Linux image list (DO: ubuntu-24-04-x64, ubuntu-22-04-x64, debian-13/12, almalinux-9/8, rockylinux-9/10, centos-stream-9/10, fedora-42). Invalid os → 400 invalid_os with valid_os list. Requires {confirm: true} (disk-wipe guard). Missing/false → 400 confirmation_required (NO action). On confirm: DO rebuild (disk wiped, IP kept); keeps stored rootPasswordSecretId (create-time cloud-init re-applies same root password) and returns it; legacy boxes return password null + note. Files: js/reseller-api.js (vpsReinstallHandler, line 1298-1335). Environment: LIVE MODE (RESELLER_API_LIVE=true, dedicated PROD Railway DB via RESELLER_DB_URL). Base URL: {REACT_APP_BACKEND_URL}/api/reseller/v1. Auth: Authorization: Bearer rsk_live_cdc3f785ac3cfd813c6143d7813e1a59cc15fc42327ab736 (owner chatId 5590563715, @onarrival1). Test VPS id: b7a9f3b5-be02-4545-921d-b2f2e6603556 (legacy box, no stored credential). CRITICAL SAFETY: Testing was SAFE CHECKS ONLY (3 safe checks: no-auth 401, valid-os-no-confirm 400, invalid-os-with-confirm 400). NO real reinstall triggered, NO disk wipe, NO mutations."
@@ -1618,7 +1618,7 @@ backend:
           
           ENVIRONMENT:
           • Mode: LIVE (RESELLER_API_LIVE=true, dedicated PROD Railway DB via RESELLER_DB_URL)
-          • Base URL: https://vault-setup-24.preview.emergentagent.com/api/reseller/v1
+          • Base URL: https://nomadly-deploy.preview.emergentagent.com/api/reseller/v1
           • Auth: Authorization: Bearer rsk_live_cdc3f785ac3cfd813c6143d7813e1a59cc15fc42327ab736
           • Owner: chatId 5590563715 (@onarrail1)
           • Test VPS: b7a9f3b5-be02-4545-921d-b2f2e6603556 (LIVE PRODUCTION droplet)
@@ -1704,7 +1704,7 @@ backend:
           Test output: /tmp/vps_reinstall_test_output.txt (full test run log)
           Test run: 2026-10-05c (all 8 tests passed, 0 failures, 0 warnings)
           Environment: LIVE MODE (RESELLER_API_LIVE=true, dedicated PROD Railway DB via RESELLER_DB_URL)
-          Base URL: https://vault-setup-24.preview.emergentagent.com/api/reseller/v1
+          Base URL: https://nomadly-deploy.preview.emergentagent.com/api/reseller/v1
           Auth: Authorization: Bearer rsk_live_cdc3f785ac3cfd813c6143d7813e1a59cc15fc42327ab736
 
   - task: "Reseller VPS password/SSH management endpoints (2026-10-05b) — Verified newly-added reseller VPS password/SSH endpoints on the Nomadly reseller API. NEW ENDPOINTS: (a) POST /vps/:id/password-reset (in-place SSH root password reset, no wipe), (b) POST /vps/:id/ssh-key (append SSH key to root authorized_keys, idempotent), (c) GET /vps/:id/ssh-keys (list installed keys), (d) GET /vps/:id/credentials (enhanced with fallback to revealVpsPassword). Files: js/reseller-api.js (reusing js/digitalocean-service.js + js/vps-ssh-password.js + js/vps-password-reveal.js). Environment: LIVE MODE (RESELLER_API_LIVE=true, dedicated PROD Railway DB via RESELLER_DB_URL). Base URL: {REACT_APP_BACKEND_URL}/api/reseller/v1. Auth: Authorization: Bearer rsk_live_cdc3f785ac3cfd813c6143d7813e1a59cc15fc42327ab736 (owner chatId 5590563715, @onarrival1). Test VPS id: b7a9f3b5-be02-4545-921d-b2f2e6603556 (legacy box, no stored credential). CRITICAL SAFETY: Testing was READ-ONLY + VALIDATION ONLY (no live password resets, no live SSH key injections, no VPS creation, no mutations)."
@@ -1726,7 +1726,7 @@ backend:
           
           ENVIRONMENT:
           • Mode: LIVE (RESELLER_API_LIVE=true, dedicated PROD Railway DB via RESELLER_DB_URL)
-          • Base URL: https://vault-setup-24.preview.emergentagent.com/api/reseller/v1
+          • Base URL: https://nomadly-deploy.preview.emergentagent.com/api/reseller/v1
           • Auth: Authorization: Bearer rsk_live_cdc3f785ac3cfd813c6143d7813e1a59cc15fc42327ab736
           • Owner: chatId 5590563715 (@onarrival1), wallet balance $612
           • Test VPS: b7a9f3b5-be02-4545-921d-b2f2e6603556 (legacy box, no stored credential)
@@ -1821,7 +1821,7 @@ backend:
           Test output: /tmp/vps_password_ssh_test_output.txt (full test run log)
           Test run: 2026-10-05b (all 9 tests passed, 0 failures, 0 warnings)
           Environment: LIVE MODE (RESELLER_API_LIVE=true, dedicated PROD Railway DB via RESELLER_DB_URL)
-          Base URL: https://vault-setup-24.preview.emergentagent.com/api/reseller/v1
+          Base URL: https://nomadly-deploy.preview.emergentagent.com/api/reseller/v1
           Auth: Authorization: Bearer rsk_live_cdc3f785ac3cfd813c6143d7813e1a59cc15fc42327ab736
 
   - task: "Reseller API ↔ bot parity: 9 hosting/domain API bug fixes (2026-10-03) — Fixed 9 reseller-API bugs so the API matches the Telegram bot's canonical behaviour. ISSUE-1: addonDomains canonically array of lowercase STRINGS (findOwnedAccountByDomain matches both string + legacy object shapes for captcha/honeypot lookups). ISSUE-2: POST /hosting/:user/upgrade honours changePackage {success:false}, starts fresh 30-day cycle, unsuspends, sets autoRenew, clears deleted flags, redeploys Anti-Red. ISSUE-3: POST /hosting/:user/renew checks WHM account exists before keeping charge, resets expiryNotified + renewalCount, redeploys Anti-Red. ISSUE-4: DELETE /hosting/:user does Cloudflare cleanup (worker routes + hosting DNS for primary & addons) and whmTerminatePending soft-delete self-heal. ISSUE-5: NEW POST /hosting/:user/auto-renew {enabled?} toggle endpoint. ISSUE-6: site-status single implementation served at BOTH /hosting/:user/site-status and legacy alias /hosting/:user/account/site-status. ISSUE-7: POST /hosting domain_mode distinguishes buy|existing|external (legacy byo→external), no longer sets BOTH flags. ISSUE-8: POST /hosting (domain_mode=buy) + cr-register record domain ownership under REAL API-key owner chatId (info.ownerChatId), not synthetic reseller_<uuid>. ISSUE-9: POST /domains/register writes bot's domainsOf ownership map so API-registered domains show in bot's 'My Domain Names'. Files: js/reseller-api.js, js/reseller-hosting-mgmt.js, js/cr-register-domain-&-create-cpanel.js. Environment: DEV SANDBOX (local Mongo test, BOT_ENVIRONMENT=development, SKIP_WEBHOOK_SYNC=true, RESELLER_API_LIVE NOT set → dry-run mode, no WHM/Cloudflare/registrar calls, no real wallet debits). Node bot runs under supervisor program nodejs on 127.0.0.1:5000, proxied by FastAPI at /api → external {REACT_APP_BACKEND_URL}/api/reseller/v1/*. Auth: Authorization: Bearer rsk_live_6fc131dd06c97b3dd6fe3a4cbbd69d0c6eac28871fbf0f7c (or X-API-Key). Owner chatId 999000111, wallet funded $100000. Pre-seeded fixtures: cpUser apifix01 (domain apifixhost.com, plan Golden Anti-Red HostPanel (1-Month), addonDomains:['addon-apifix.com'] STRING shape, autoRenew true), cpUser apifix02 (domain apifixpremium.com, plan Premium Anti-Red HostPanel (1-Month))."
@@ -2023,7 +2023,7 @@ backend:
           Test run: 2026-10-03 (all 51 tests passed, 0 failures, 0 warnings)
           Environment: DEV SANDBOX pod (local Mongo test, BOT_ENVIRONMENT=development, SKIP_WEBHOOK_SYNC=true)
           Node bot: supervisor program nodejs on 127.0.0.1:5000 (RUNNING, uptime 0:05:08)
-          Base URL: https://vault-setup-24.preview.emergentagent.com/api/reseller/v1
+          Base URL: https://nomadly-deploy.preview.emergentagent.com/api/reseller/v1
           Auth: Authorization: Bearer rsk_live_6fc131dd06c97b3dd6fe3a4cbbd69d0c6eac28871fbf0f7c
 
 
@@ -2072,7 +2072,7 @@ backend:
           TEST RESULTS (6/6 CRITICAL ITEMS PASSED):
           
           ✅ ITEM 1: Backend Health Check (PASS)
-             • GET https://vault-setup-24.preview.emergentagent.com/api/health
+             • GET https://nomadly-deploy.preview.emergentagent.com/api/health
              • Response: {"status":"healthy","database":"connected","uptime":"0.03 hours"}
              • Also verified via localhost: curl http://127.0.0.1:8001/api/health → same response
              • Backend is HEALTHY and database is CONNECTED
@@ -2535,7 +2535,7 @@ backend:
         comment: |
           ✅ RE-VERIFICATION COMPLETE - RDP Reseller API D1/D2/D3 CONFIRMED WORKING (33/33 tests, 100% pass rate)
           
-          Re-verified all RDP Reseller API endpoints on the current pod (https://vault-setup-24.preview.emergentagent.com).
+          Re-verified all RDP Reseller API endpoints on the current pod (https://nomadly-deploy.preview.emergentagent.com).
           All 33 tests passed with identical results to the previous test run. The API continues to work correctly.
           
           TEST RESULTS (33/33 PASSED):
@@ -5258,7 +5258,7 @@ backend:
               
               ✅ ok === true
               ✅ audio.audioUrl present and ending in .mp3
-                URL: https://vault-setup-24.preview.emergentagent.com/api/assets/user-audio/tts_1786329027952_rachel.mp3
+                URL: https://nomadly-deploy.preview.emergentagent.com/api/assets/user-audio/tts_1786329027952_rachel.mp3
               ✅ NO audio.error field
               ✅ audio.voice === "Rachel"
               ✅ audio.fallbackUsed === false
@@ -8430,7 +8430,7 @@ backend:
             
             ✅ Step 2: permanent_mp3_url (CORE FIX)
                 • pass: true ✅
-                • audioUrl: "https://vault-setup-24.preview.emergentagent.com/api/assets/user-audio/DEVTEST-VM_01e0ce71-bbb.mp3" ✅
+                • audioUrl: "https://nomadly-deploy.preview.emergentagent.com/api/assets/user-audio/DEVTEST-VM_01e0ce71-bbb.mp3" ✅
                 ★ CORE FIX VERIFIED: The saved audioUrl is a PERMANENT /assets/user-audio/*.mp3 URL
                 ★ NOT an api.telegram.org link (which would expire in ~1h)
                 ★ The OGG voice note was transcoded to MP3 format
@@ -13150,7 +13150,7 @@ backend:
             • test_phone_scheduler_no_leak.js: 12 passed, 0 failed ✓
           
           TEST 10 - Admin endpoint smoke test: ✅ PASSED
-            • GET https://vault-setup-24.preview.emergentagent.com/api/admin/dns-heal-status?key=o/Qb8ArGahlquhCQ
+            • GET https://nomadly-deploy.preview.emergentagent.com/api/admin/dns-heal-status?key=o/Qb8ArGahlquhCQ
             • HTTP 200, ok=true ✓
           
           CONCLUSION:
@@ -14488,7 +14488,7 @@ frontend:
           mocked panel data endpoints (no live cPanel/WHM/Cloudflare impact).
           
           Test method: Playwright browser automation with page.route() mocking
-          Base URL: https://vault-setup-24.preview.emergentagent.com/panel
+          Base URL: https://nomadly-deploy.preview.emergentagent.com/panel
           Test run: 2026-09-28 (all tests passed, 0 failures, 0 warnings)
 
   - task: "HostBay Panel End-to-End UI Test (2026-08-31) - Full verification of domains, subdomains, addon domains, File Manager, and MySQL with WHM-root fallback"
@@ -14505,7 +14505,7 @@ frontend:
           ✅ HOSTBAY PANEL END-TO-END TEST PASSED (2026-08-31) - All core functionality working with WHM-root fallback:
           
           TEST ENVIRONMENT:
-          • URL: https://vault-setup-24.preview.emergentagent.com/panel
+          • URL: https://nomadly-deploy.preview.emergentagent.com/panel
           • Test account: nbayftest / PIN: 241743
           • Domain: testingbays.sbs
           • Context: Account has DEAD user-level cPanel auth (by design) - all operations use WHM-root fallback
@@ -14597,7 +14597,7 @@ frontend:
           ❌ CRITICAL ISSUES FOUND - Subdomain quick-nav and bulk import features tested (2026-08-30):
           
           TEST ENVIRONMENT:
-          • URL: https://vault-setup-24.preview.emergentagent.com/panel
+          • URL: https://nomadly-deploy.preview.emergentagent.com/panel
           • Test account: nbayftest / PIN: 241743
           • Domain: testingbays.sbs
           
@@ -14666,7 +14666,7 @@ frontend:
         comment: |
           ✅ READ-ONLY UI VERIFICATION COMPLETE - ALL TESTS PASSED (100% pass rate)
           
-          SCOPE: Verified the Nomadly admin panel UI at https://vault-setup-24.preview.emergentagent.com
+          SCOPE: Verified the Nomadly admin panel UI at https://nomadly-deploy.preview.emergentagent.com
           in READ-ONLY mode. This is a LIVE PRODUCTION environment with real MongoDB and payment/domain/telephony APIs.
           NO data-modifying actions were taken (no clicks on Buy, Register, Purchase, Create, Delete, Send, Connect, 
           Verify, Submit, Save buttons). Only page navigation, reading text, and capturing console/network errors.
@@ -15145,7 +15145,7 @@ agent_communication:
       
       Test file: /app/backend_test.py (51 comprehensive tests covering all 9 issues)
       Test run: 2026-10-03 (all 51 tests passed, 0 failures, 0 warnings)
-      Base URL: https://vault-setup-24.preview.emergentagent.com/api/reseller/v1
+      Base URL: https://nomadly-deploy.preview.emergentagent.com/api/reseller/v1
 
 
   - agent: "testing"
@@ -16111,7 +16111,7 @@ agent_communication:
         
         ✅ ok === true
         ✅ audio.audioUrl present and ending in .mp3
-          URL: https://vault-setup-24.preview.emergentagent.com/api/assets/user-audio/tts_1786329027952_rachel.mp3
+          URL: https://nomadly-deploy.preview.emergentagent.com/api/assets/user-audio/tts_1786329027952_rachel.mp3
         ✅ NO audio.error field
         ✅ audio.voice === "Rachel"
         ✅ audio.fallbackUsed === false
@@ -21864,7 +21864,7 @@ frontend_ui_test_scope_2026-08-31: |
       TEST SCOPE:
       • Account: nbayftest / PIN: 241743 / domain: testingbays.sbs
       • User-level cPanel auth is BROKEN on purpose (must use WHM session fallback)
-      • Backend URL: https://vault-setup-24.preview.emergentagent.com
+      • Backend URL: https://nomadly-deploy.preview.emergentagent.com
       • Test file: qa-content-test.txt in /public_html
       • Test content: "hello-fallback-2026-verify-XYZ"
       
@@ -21946,7 +21946,7 @@ frontend_ui_test_scope_2026-08-31: |
       ✅ VERIFICATION PASSED - HostBay Panel subdomain delete fix WORKING (2/2 tests passed):
       
       SCOPE: Re-verified the subdomain delete fix in the HostBay hosting panel (React app at 
-      https://vault-setup-24.preview.emergentagent.com/panel). This is a 
+      https://nomadly-deploy.preview.emergentagent.com/panel). This is a 
       PRODUCTION-connected environment. Account: nbayftest / PIN: 241743 / domain: testingbays.sbs.
       
       [TEST 1] PRIMARY - Subdomain delete must not "reappear": ✅ PASSED
@@ -22059,7 +22059,7 @@ frontend_ui_test_scope_2026-08-31: |
       ❌ VERIFICATION FAILED - HostBay Panel subdomain delete & console warnings (3/3 CRITICAL FAILURES):
       
       SCOPE: Verified two specific fixes in the HostBay hosting panel (React app at 
-      https://vault-setup-24.preview.emergentagent.com/panel). This is a 
+      https://nomadly-deploy.preview.emergentagent.com/panel). This is a 
       PRODUCTION-connected environment. Account: nbayftest / PIN: 241743 / domain: testingbays.sbs.
       
       [TEST 1] FIX #1 - Subdomain delete must not "reappear": ❌ CRITICAL FAILURE
@@ -22448,7 +22448,7 @@ frontend_ui_test_scope_2026-08-31: |
       The API is working correctly and ready for production use when RESELLER_API_LIVE=true is set.
       
       VERIFICATION SCOPE:
-      • Base URL: https://vault-setup-24.preview.emergentagent.com/api/reseller/v1
+      • Base URL: https://nomadly-deploy.preview.emergentagent.com/api/reseller/v1
       • Auth: X-API-Key: nmdly_e2e_51573577f5db956c5c0cb039 (or Authorization: Bearer)
       • Test RDP: e2e-rdp-1 (provider digitalocean-rdp, os_id ws2022)
       • Environment: DEV SANDBOX (SKIP_WEBHOOK_SYNC=true, dry_run mode)
@@ -22544,7 +22544,7 @@ backend:
           the reseller API reads from, and backfilled the existing account name65fb.
           
           ENVIRONMENT: LIVE mode (RESELLER_API_LIVE=true, uses PROD Railway DB via RESELLER_DB_URL)
-          Base URL: https://vault-setup-24.preview.emergentagent.com/api/reseller/v1
+          Base URL: https://nomadly-deploy.preview.emergentagent.com/api/reseller/v1
           API Key: rsk_live_cdc3f785ac3cfd813c6143d7813e1a59cc15fc42327ab736
           Owner: chatId 5590563715 (@onarrival1), wallet balance $686
           ⛔ CRITICAL SAFETY: ALL tests are READ-ONLY GET requests. NO mutations performed.
@@ -22698,7 +22698,7 @@ backend:
           Test output: /tmp/reseller_cpanel_credentials_test_output.txt (full test run log)
           Test run: 2026-10-05 (all 22 tests passed, 0 failures, 0 warnings)
           Environment: LIVE mode (RESELLER_API_LIVE=true, PROD Railway DB via RESELLER_DB_URL)
-          Base URL: https://vault-setup-24.preview.emergentagent.com/api/reseller/v1
+          Base URL: https://nomadly-deploy.preview.emergentagent.com/api/reseller/v1
           API Key: rsk_live_cdc3f785ac3cfd813c6143d7813e1a59cc15fc42327ab736
           Owner: chatId 5590563715 (@onarrival1), wallet balance $686
 
@@ -22737,7 +22737,7 @@ agent_communication:
       Test run: 2026-10-05b (9/9 tests passed, 0 failures)
 
 
-  - task: "Slug rename endpoint + Railway→host naming cleanup (2026-10-08d) — Implemented NEW POST /shortener/links/:slug/rename endpoint that moves a link to a new slug and MIGRATES clicks + settings (destination url, expiry, disabled). Old slug then 404s. Also implemented Railway→host naming cleanup with status compatibility: status value is now 'host_linked' (legacy 'railway_linked' still treated as active); functions renamed (old names kept as aliases). TWO CHANGES: (A) NEW slug rename endpoint — POST /shortener/links/:slug/rename body { domain, new_slug } moves a link to a new slug and MIGRATES clicks + settings (destination url, expiry, disabled). Old slug stops resolving (404). Validations: invalid/missing new_slug, reserved word, alias_taken (new slug exists), same_slug, not_found (old slug missing/not owned). (B) Railway→host naming cleanup (status compatibility preserved): markRailwayLinked → markHostLinked; status value now 'host_linked' (legacy 'railway_linked' still accepted as active/linked everywhere). saveDomainInServerRailway → saveShortenerHost; getExistingRailwayDNS → getExistingHostDNS (old names kept as deprecated aliases). Logs/comments de-Railwayed. ACTIVE_STATUSES = ['host_linked','railway_linked','dns_added','completed']. Must NOT break the server or the existing activation/link flow. Files: js/reseller-shortener.js (lines 394-449, NEW rename endpoint; lines 46-47, ACTIVE_STATUSES; lines 86, 108, markHostLinked calls), js/rl-save-domain.js (saveShortenerHost function, old saveDomainInServerRailway kept as alias), js/domain-service.js (getExistingHostDNS function, old getExistingRailwayDNS kept as alias). Environment: LIVE MODE (HOSTED_ON=droplet, legacy 'railway' labels in code/status refer to the droplet host). Base URL: https://vault-setup-24.preview.emergentagent.com/api/reseller/v1. Valid LIVE key: rsk_live_cdc3f785ac3cfd813c6143d7813e1a59cc15fc42327ab736 (owner 5590563715). Test domain: go.namewords.sbs (LIVE production subdomain, parent namewords.sbs on Cloudflare NS). VERIFIED: All 15 comprehensive checks PASSED (100% pass rate). TEST 1 (SANITY / naming compat): (1a) GET /api/health → 200 healthy ✅ (1b) nodejs supervisor RUNNING ✅ (1c) GET /shortener/domains → go.namewords.sbs has active:true and status completed ✅. TEST 2 (RENAME happy path + MIGRATION): (2a) POST /shortener/links (create source link) → 201 ✅ (2b) Seed 7 clicks → SEEDED ✅ (2c) GET source link → clicks:7 ✅ (2d) PATCH source link (disabled:true, expires_in_days:30) → 200 ✅ (2e) POST rename → 200 {renamed:true, old_slug, slug} ✅ (2f) GET renamed link → url MIGRATED, clicks:7 MIGRATED, status:disabled MIGRATED ✅ (2g) GET old slug → 404 not_found (old slug gone) ✅ (2h) DELETE renamed link (cleanup) → 200 ✅. TEST 3 (RENAME negatives): (3a) Rename non-existent slug → 404 not_found ✅ (3b) Rename to existing slug → 409 alias_taken ✅ (3c) Rename to reserved word 'api' → 409 reserved_alias ✅ (3d) Rename with missing new_slug → 400 missing_new_slug ✅. CRITICAL OBSERVATIONS: ✅ All 15 tests passed (100% pass rate). ✅ Rename endpoint correctly migrates clicks (7 clicks preserved). ✅ Rename endpoint correctly migrates URL (destination preserved). ✅ Rename endpoint correctly migrates disabled status (disabled state preserved). ✅ Rename endpoint correctly migrates expiry (stored in metadata, shows as null when disabled by design). ✅ Old slug correctly returns 404 after rename (old slug deleted). ✅ All negative validations work correctly (404 not_found, 409 alias_taken, 409 reserved_alias, 400 missing_new_slug). ✅ Railway→host naming cleanup: status 'host_linked' and legacy 'railway_linked' both treated as active. ✅ ACTIVE_STATUSES includes both 'host_linked' and 'railway_linked' for backward compatibility. ✅ Backend health and nodejs supervisor are running correctly (no boot crash). ✅ The domain go.namewords.sbs is active with status 'completed'. CONCLUSION: The slug rename endpoint + Railway→host naming cleanup is FIXED and WORKING CORRECTLY. All 15 comprehensive checks passed (100% pass rate). The rename endpoint correctly migrates clicks, URL, disabled status, and expiry to the new slug. The old slug is correctly deleted and returns 404. All negative validations work correctly. The Railway→host naming cleanup preserves backward compatibility (legacy 'railway_linked' status still treated as active). The fix is ready for production deployment."
+  - task: "Slug rename endpoint + Railway→host naming cleanup (2026-10-08d) — Implemented NEW POST /shortener/links/:slug/rename endpoint that moves a link to a new slug and MIGRATES clicks + settings (destination url, expiry, disabled). Old slug then 404s. Also implemented Railway→host naming cleanup with status compatibility: status value is now 'host_linked' (legacy 'railway_linked' still treated as active); functions renamed (old names kept as aliases). TWO CHANGES: (A) NEW slug rename endpoint — POST /shortener/links/:slug/rename body { domain, new_slug } moves a link to a new slug and MIGRATES clicks + settings (destination url, expiry, disabled). Old slug stops resolving (404). Validations: invalid/missing new_slug, reserved word, alias_taken (new slug exists), same_slug, not_found (old slug missing/not owned). (B) Railway→host naming cleanup (status compatibility preserved): markRailwayLinked → markHostLinked; status value now 'host_linked' (legacy 'railway_linked' still accepted as active/linked everywhere). saveDomainInServerRailway → saveShortenerHost; getExistingRailwayDNS → getExistingHostDNS (old names kept as deprecated aliases). Logs/comments de-Railwayed. ACTIVE_STATUSES = ['host_linked','railway_linked','dns_added','completed']. Must NOT break the server or the existing activation/link flow. Files: js/reseller-shortener.js (lines 394-449, NEW rename endpoint; lines 46-47, ACTIVE_STATUSES; lines 86, 108, markHostLinked calls), js/rl-save-domain.js (saveShortenerHost function, old saveDomainInServerRailway kept as alias), js/domain-service.js (getExistingHostDNS function, old getExistingRailwayDNS kept as alias). Environment: LIVE MODE (HOSTED_ON=droplet, legacy 'railway' labels in code/status refer to the droplet host). Base URL: https://nomadly-deploy.preview.emergentagent.com/api/reseller/v1. Valid LIVE key: rsk_live_cdc3f785ac3cfd813c6143d7813e1a59cc15fc42327ab736 (owner 5590563715). Test domain: go.namewords.sbs (LIVE production subdomain, parent namewords.sbs on Cloudflare NS). VERIFIED: All 15 comprehensive checks PASSED (100% pass rate). TEST 1 (SANITY / naming compat): (1a) GET /api/health → 200 healthy ✅ (1b) nodejs supervisor RUNNING ✅ (1c) GET /shortener/domains → go.namewords.sbs has active:true and status completed ✅. TEST 2 (RENAME happy path + MIGRATION): (2a) POST /shortener/links (create source link) → 201 ✅ (2b) Seed 7 clicks → SEEDED ✅ (2c) GET source link → clicks:7 ✅ (2d) PATCH source link (disabled:true, expires_in_days:30) → 200 ✅ (2e) POST rename → 200 {renamed:true, old_slug, slug} ✅ (2f) GET renamed link → url MIGRATED, clicks:7 MIGRATED, status:disabled MIGRATED ✅ (2g) GET old slug → 404 not_found (old slug gone) ✅ (2h) DELETE renamed link (cleanup) → 200 ✅. TEST 3 (RENAME negatives): (3a) Rename non-existent slug → 404 not_found ✅ (3b) Rename to existing slug → 409 alias_taken ✅ (3c) Rename to reserved word 'api' → 409 reserved_alias ✅ (3d) Rename with missing new_slug → 400 missing_new_slug ✅. CRITICAL OBSERVATIONS: ✅ All 15 tests passed (100% pass rate). ✅ Rename endpoint correctly migrates clicks (7 clicks preserved). ✅ Rename endpoint correctly migrates URL (destination preserved). ✅ Rename endpoint correctly migrates disabled status (disabled state preserved). ✅ Rename endpoint correctly migrates expiry (stored in metadata, shows as null when disabled by design). ✅ Old slug correctly returns 404 after rename (old slug deleted). ✅ All negative validations work correctly (404 not_found, 409 alias_taken, 409 reserved_alias, 400 missing_new_slug). ✅ Railway→host naming cleanup: status 'host_linked' and legacy 'railway_linked' both treated as active. ✅ ACTIVE_STATUSES includes both 'host_linked' and 'railway_linked' for backward compatibility. ✅ Backend health and nodejs supervisor are running correctly (no boot crash). ✅ The domain go.namewords.sbs is active with status 'completed'. CONCLUSION: The slug rename endpoint + Railway→host naming cleanup is FIXED and WORKING CORRECTLY. All 15 comprehensive checks passed (100% pass rate). The rename endpoint correctly migrates clicks, URL, disabled status, and expiry to the new slug. The old slug is correctly deleted and returns 404. All negative validations work correctly. The Railway→host naming cleanup preserves backward compatibility (legacy 'railway_linked' status still treated as active). The fix is ready for production deployment."
     implemented: true
     working: true
     file: "/app/js/reseller-shortener.js"
@@ -22759,7 +22759,7 @@ agent_communication:
           
           ENVIRONMENT:
           • Mode: LIVE (HOSTED_ON=droplet, legacy "railway" labels in code/status refer to the droplet host)
-          • Base URL: https://vault-setup-24.preview.emergentagent.com/api/reseller/v1
+          • Base URL: https://nomadly-deploy.preview.emergentagent.com/api/reseller/v1
           • Valid LIVE key: rsk_live_cdc3f785ac3cfd813c6143d7813e1a59cc15fc42327ab736
           • Owner: chatId 5590563715 (@onarrival1)
           • Test domain: go.namewords.sbs (LIVE production subdomain, parent namewords.sbs on Cloudflare NS)
@@ -22896,7 +22896,7 @@ agent_communication:
           • /app/js/tests/seed_shortener_clicks.js (helper script for seeding clicks)
           Test run: 2026-10-08d (all 15 checks passed, 0 failures, 0 warnings)
           Environment: LIVE MODE (HOSTED_ON=droplet, RESELLER_DB_URL=production Railway MongoDB)
-          Base URL: https://vault-setup-24.preview.emergentagent.com/api/reseller/v1
+          Base URL: https://nomadly-deploy.preview.emergentagent.com/api/reseller/v1
           Supervisor: nodejs RUNNING (PID 9648, uptime 0:10:22)
           Test domain: go.namewords.sbs (LIVE production subdomain, parent namewords.sbs on Cloudflare NS)
           Test links: All created links were deleted (cleanup complete, no test artifacts left)
@@ -23067,7 +23067,7 @@ backend:
           - SAFE_BROWSING_MONITOR_ENABLED=true
           - SB_SWEEP_INITIAL_DELAY_MS=5000 (5 seconds)
           - SB_SWEEP_TIMEOUT_MS=120000 (120 seconds)
-          Base URL: https://83e8fb33-69d8-4ff1-8eb2-3f93abc6e23d.preview.emergentagent.com
+          Base URL: https://nomadly-deploy.preview.emergentagent.com
           ⛔ CRITICAL SAFETY: NO mutations performed. This is a LIVE production DB - only GET requests used.
           
           VERIFICATION RESULTS (4/4 PASSED):
@@ -23149,7 +23149,7 @@ backend:
           The hostname validation logic itself was already proven by a hermetic local harness (16/16 PASS).
           
           ENVIRONMENT:
-          • Base URL: https://83e8fb33-69d8-4ff1-8eb2-3f93abc6e23d.preview.emergentagent.com
+          • Base URL: https://nomadly-deploy.preview.emergentagent.com
           • All backend routes prefixed /api, proxied by FastAPI to Node bot on :5000
           • Mode: LIVE (reseller API => production DB)
           
@@ -23309,7 +23309,7 @@ frontend:
           with renewable=false and destroy_reason="provider_gone".
           
           ENVIRONMENT: Preview pod with reseller API bound to LIVE PRODUCTION DB
-          Base URL: https://vault-setup-24.preview.emergentagent.com/api/reseller/v1
+          Base URL: https://nomadly-deploy.preview.emergentagent.com/api/reseller/v1
           ⛔ CRITICAL SAFETY: NO mutations performed. NO GET/DELETE on any real VPS/RDP id. Only ran the 
           prod-safe regression harness + health/regression checks.
           

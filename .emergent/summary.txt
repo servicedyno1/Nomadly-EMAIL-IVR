@@ -40,10 +40,10 @@ None explicitly requested beyond resolving the  domain bug.
 - Ran Node.js setup script ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 🚀 Nomadly Node.js Server Setup
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-📍 Detected pod URL: https://vault-setup-24.preview.emergentagent.com
-📡 Webhook base: https://vault-setup-24.preview.emergentagent.com/api
-✅ Updated SELF_URL=https://vault-setup-24.preview.emergentagent.com/api
-✅ Updated SELF_URL_PROD=https://vault-setup-24.preview.emergentagent.com/api
+📍 Detected pod URL: https://nomadly-deploy.preview.emergentagent.com
+📡 Webhook base: https://nomadly-deploy.preview.emergentagent.com/api
+✅ Updated SELF_URL=https://nomadly-deploy.preview.emergentagent.com/api
+✅ Updated SELF_URL_PROD=https://nomadly-deploy.preview.emergentagent.com/api
 ✅ Symlink /app/.env already exists
 ✅ Node.js dependencies already installed
 ✅ Supervisor config already exists
@@ -97,10 +97,10 @@ None
 - ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 🚀 Nomadly Node.js Server Setup
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-📍 Detected pod URL: https://vault-setup-24.preview.emergentagent.com
-📡 Webhook base: https://vault-setup-24.preview.emergentagent.com/api
-✅ Updated SELF_URL=https://vault-setup-24.preview.emergentagent.com/api
-✅ Updated SELF_URL_PROD=https://vault-setup-24.preview.emergentagent.com/api
+📍 Detected pod URL: https://nomadly-deploy.preview.emergentagent.com
+📡 Webhook base: https://nomadly-deploy.preview.emergentagent.com/api
+✅ Updated SELF_URL=https://nomadly-deploy.preview.emergentagent.com/api
+✅ Updated SELF_URL_PROD=https://nomadly-deploy.preview.emergentagent.com/api
 ✅ Symlink /app/.env already exists
 ✅ Node.js dependencies already installed
 ✅ Supervisor config already exists

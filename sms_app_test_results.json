@@ -1,6 +1,6 @@
 {
   "timestamp": 1775944443.1276975,
-  "backend_url": "https://vault-setup-24.preview.emergentagent.com",
+  "backend_url": "https://nomadly-deploy.preview.emergentagent.com",
   "test_chat_id": "6687923716",
   "total_tests": 12,
   "passed_tests": 12,
