@@ -1,0 +1,33 @@
+{
+  "summary": "Backend-only testing of js/do-stock-watch.js (confirmed-change admin stock alerts, short message format, 30-min hold, 5-min re-check, atomic rev swap, legacy upgrade, start()/scheduleRecheck). Ran the 3 requested Node suites — all green (14/0, 88/0, 100/0). Added a new edge-case suite at js/tests/test_do_stock_watch_edge_2026-01.js covering DO_STOCK_CONFIRM_MIN=0 immediate alerts, HTML escaping of region labels, empty changeMessage/baselineMessage, _scheduleRecheck single-flight semantics, and bogus-kind key filtering — 10/0 passed. Verified apidoc page copy at js/apidoc-page.js:2079 explicitly says 'stayed orderable for 30 minutes'. No production code changes made; no DigitalOcean / Telegram / reseller mutating calls were made.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/js/tests/test_do_stock_watch_confirm_2026-10.js",
+    "/app/js/tests/test_do_stock_amd_fallback_2026-10.js",
+    "/app/js/tests/test_late_refund_stock_alerts_2026-10.js",
+    "/app/js/tests/test_do_stock_watch_edge_2026-01.js"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "do-stock-watch.js is a single file at ~204 lines — well-structured and under the 700-line threshold.",
+    "check() correctly uses atomic rev-based updateOne so concurrent pods produce exactly one notify + one onBackInStock (verified in confirm suite section 6).",
+    "The slack-of-one-minute (slackOf, line 27) lets a 29-min hold confirm — matches spec ('1-minute slack: 29 min counts') and is exercised in confirm suite section 4.",
+    "esc() is called on both place list and description inside _lines() (line 92); XSS/HTML-injection via a weird region label is contained (confirmed in edge E2).",
+    "Minor nit (not a bug): staleCheck uses a module-level _staleAlerted flag — fine for a single-process watcher, but if multiple pods run start() each would alert independently on stale events (the main rev-swap de-dup only applies to check()). Not in scope for this fix; worth a note."
+  ],
+  "updated_files": [],
+  "success_rate": { "backend": "100%", "frontend": "N/A (skipped per request)" },
+  "test_credentials": "None required (local MongoDB via MONGO_URL; DigitalOcean faked inside the suites).",
+  "seed_data_creation": "Each suite creates and drops its own throwaway Mongo DB (test_stock_confirm_*, test_stock_edge_*, etc.). No shared/seed data touched.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "All 4 suites (3 required + 1 new edge-case) are deterministic and run offline. Totals: 14 + 88 + 100 + 10 = 212 passed, 0 failed. New edge file: /app/js/tests/test_do_stock_watch_edge_2026-01.js. apidoc back-in-stock copy change verified at js/apidoc-page.js line 2079."
+}

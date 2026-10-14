@@ -682,3 +682,28 @@ User inherited a fully-set-up Nomadly bot pod pointed at LIVE PRODUCTION. Task b
 - @Voodoo_landbot · panel.voodoohost.xyz (panel+landing; apex/www 301) · voodooivr.xyz (/call, webhooks) · sip.voodooivr.xyz. Own Mongo/Dynopay/bot; Nomadly Telnyx account with own SIP/CCA/MP. Full record: memory/VOODOO_LAND_SETUP_2026-10-14.md
 - Fixes: Telnyx empty-number-list hijack guard, brand-scoped Telnyx names, per-app REACT_APP_* frontend build (deploy.sh), /brand/* assets served, PhoneTestPage per-brand bot/SIP, SMS app Subscribe → each brand's bot (voodooland + smadav APKs rebuilt). Tests: test_voodoo_whitelabel 39/0, iteration_85 100%.
 - PENDING: owner "Save to GitHub" → WhiteLabel sync ships the code to app-wl + app-voodoo (Voodoo release is hot-patched until then). Owner to supply final logo, support handle, TG channel; /start @Voodoo_landbot from the admin account.
+
+## 2026-10-14 — Admin DigitalOcean stock alerts: confirmed changes only + short text (LIVE on all 3 bots)
+- RCA: every admin "stock changed" alert that day was DigitalOcean flapping — all 15 Premium Intel VPS sizes in nyc2 (New York)
+  listed/dropped between API calls seconds apart → 30 keys (US Central + US East) out/back every 2-35 min. Nomadly 11, Smadav 4,
+  Voodoo 2 alerts (idle bot = only 15-min pulls). No RDP flips. Voodoo's first alert (12:56 UTC) failed "chat not found" —
+  admin 5590563715 /start-ed @Voodoo_landbot at 13:08; the bot reaches the admin now.
+- Fix `js/do-stock-watch.js`: per-key pending {val,since} in doSizeCatalog `stock_state` (+ `rev` atomic swap); announce only
+  after the change held on EVERY pull for `DO_STOCK_CONFIRM_MIN` (30, 1-min slack); one pull back = blip dropped; while pending
+  `start()` books a one-shot refresh in `DO_STOCK_RECHECK_MIN` (5). Reseller *.back_in_stock webhooks follow confirmed changes
+  (apidoc card updated). Order-time stock gates unchanged (live catalogue).
+- Short text: `📦 <b>Stock change</b>` + one line per change (`🔴 VPS US Central, US East: all Intel`, `🟢 RDP Frankfurt: Pro, Power`);
+  baseline `📦 Stock watch on — sold out now:`; stale `⚠️ DigitalOcean unreachable 2h+ …` / `✅ DigitalOcean reachable again`.
+- Tests: js/tests/test_do_stock_watch_confirm_2026-10.js 14/0, test_do_stock_watch_edge_2026-01.js 10/0 (testing agent),
+  test_do_stock_amd_fallback_2026-10.js 88/0, test_late_refund_stock_alerts_2026-10.js 100/0 (iteration_91).
+- Deployed 17:20-17:23Z: hot-patched the active releases (RELEASE `patched=` line, `.bak.<ts>` copies) + blue/green
+  `deploy.sh <app> rollback <same release>` → app-voodoo-b :5103, app-wl-b :5101, app-main-b :5100 (0 live calls, /health OK).
+  "Save to GitHub" ships the same code via CI (main → app-main; WhiteLabel sync → app-wl + app-voodoo).
+- Found while checking @Loaded4's RDP (1aef405b, Pro, nyc3→nyc2 same-city, ready in 101 s, healthy) — NOT fixed yet (owner to decide):
+  (1) RDP expiry mismatch: doRdpServers.expires_at = activation + 30 days, vpsPlansOf.end_time = +1 calendar month → the hourly
+      `processExpiries` safety net would power off 24 h before the bot's end date (60811b81 Nov 1 vs Nov 2; 1aef405b Nov 13 vs 14).
+  (2) `send()` logs full replies → RDP Administrator password lands in PM2 logs in plaintext.
+  (3) @morganfreebandzz Power RDP 60811b81 (paid to Nov 2): DO droplet 605654801 was powered off, resized and DESTROYED on
+      2026-10-05 11:23-12:59Z (DO action log; nothing in bot logs) but DB still says active/RUNNING.
+  (4) [RDP Grace] destroy loop every 5 min (535+ attempts) for owner test record vpsPlansOf 227de9e3 (provider digitalocean-rdp,
+      instanceId rdp-d2ae47d3…) routed to Vultr DELETE → 401; box already gone (no DO droplet, no doRdpServers row).

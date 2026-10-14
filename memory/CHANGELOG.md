@@ -1,3 +1,11 @@
+## 2026-10-14 — Admin stock alerts: confirmed changes only (30 min) + short text — LIVE on Nomadly, Smadav, Voodoo
+
+Why Voodoo looked silent + why the alerts were noise: every "stock changed" alert was DigitalOcean flapping the 15 Premium
+Intel VPS sizes in nyc2 (seen directly on DO's API between calls seconds apart). Voodoo's first alert failed (admin hadn't
+started @Voodoo_landbot yet) and, being idle, it only pulls every 15 min, so it caught fewer flips. `js/do-stock-watch.js`
+now announces a change only after it holds 30 min on every pull (re-pull every 5 min while unconfirmed) and sends short
+one-line-per-change messages. Hot-patched + blue/green restarted all 3 apps (same release). Details: memory/PRD.md.
+
 ## 2026-10-11 — Hosting order failure RCA + fix: "domain already exists in the userdata" (@smsbeast_real)
 
 Traced a failed hosting order on nomadlybot. User `5976060042` (`@smsbeast_real`) bought Premium Anti-Red (1-Week)
