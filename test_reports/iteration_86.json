@@ -1,0 +1,43 @@
+{
+  "summary": "End-to-end verification of UX-audit Storefront /store (logged-out) + HostPanel /panel (wpapps01/246810). All 17 checklist items in the review request pass across desktop (1920x1080) and mobile (390x844), light + dark themes, and i18n (EN/FR/ZH). No critical or minor bugs found.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "detailed_findings": {
+    "backend_api_store_config": {
+      "endpoint": "/api/store/config",
+      "returns": "supportHandle=@onarrival1, supportLink=https://t.me/onarrival1, botUsername=Nomadlytestbot, brandName=Nomadly, brandSlug=nomadly, logoUrl=/brand/wordmark.png, markUrl=/brand/mark.png, accent=#10d9a0",
+      "status": "PASS"
+    },
+    "storefront_theme": "Light default on fresh load (html class empty). Toggle via store-theme-toggle sets 'dark' + persists across reload; toggling again clears dark. Panel also light-default and panel-theme-toggle flips to dark.",
+    "section_order": "All sections present with correct testids: store-hero, store-trust-bar, store-compare, store-how, store-pricing (containing store-plans), store-proof, store-signin-section, store-faq, store-final-cta, store-footer.",
+    "hero": "H1 'Bulletproof Anti-Red Hosting', store-hero-sub, store-antired-explainer, store-hero-cta, store-mobile-signin, store-hero-visual, store-hero-from = 'From $30.00/wk · No account needed · Pay with USDT, BTC, ETH & more' — matches cheapest plan from /api/store/plans ($30).",
+    "no_fabricated_numbers": "Scanned full body text for '99.9%', '14,200', '45,000', '14200', '45000' — none present. Trust row shows exactly: Instant crypto delivery / Free replacement guarantee / No account needed / Human support @onarrival1.",
+    "pricing": "3 plan cards present with gold 'Most Popular' badge (store-badge-golden-monthly). Prices render at font-size 32px. Guest-buy modal opens on store-buynow-<id>, has all 8 fields (email, domain, byo/buy radios, coin, submit, close, total), submit disabled until email+domain filled, Esc closes modal. Did NOT submit crypto checkout (per instructions).",
+    "faq": "7 items present (store-faq-item-1..7). Clicking store-faq-q-3 expands and store-faq-a-3 text == store-antired-explainer text (exact match verified).",
+    "footer": "brand=Nomadly, support href=https://t.me/onarrival1, bot href=https://t.me/Nomadlytestbot, status badge visible (plans loaded), copyright '© 2026 Nomadly. All rights reserved.'",
+    "signin_card": "All testids present (store-auth-card, store-login-helper, store-id-input, store-secret-input, store-auth-submit, store-no-acct, store-tg-section, store-tg-button, store-tg-qr). TG deep link = https://t.me/Nomadlytestbot?start=web-login. Page loads with scrollY=0 (no autofocus-triggered scroll). Wrong PIN shows store-auth-error 'Invalid username or PIN.'; correct creds redirect to /panel.",
+    "storefront_mobile_390": "No horizontal overflow (scrollWidth==clientWidth==390). store-nav hidden (desktop-only), header items (sign in, lang, theme toggle) visible on one row. Hero CTA width 358px (full-bleed with 16px gutters).",
+    "panel_overview_default": "panel-tab-overview active after login, panel-overview visible, H1 'Welcome back, wpapps01'. Stat cards: Status=Online, Plan=Premium Anti-Red (1-Week), Expires=Oct 20, 2026 + '6 days left', Domains=—. All 8 quick-action testids present (qa-upload/domain/email/open/renew/buy, ov-status-manage, ov-domains-view). panel-qa-upload switches to Files tab (panel-tab-files becomes active).",
+    "panel_qa_hrefs": "panel-qa-open=https://wpapps-demo.com, panel-qa-renew=https://t.me/Nomadlytestbot, panel-qa-buy=/store — all correct.",
+    "panel_page_head": "After switching to Files, panel-page-title='Nomadly / File Manager' (breadcrumb), panel-page-desc='Upload, edit and organise your website files.' — correct across tabs.",
+    "all_11_tabs": "overview, site, files, domains, email, mysql, apps, security, geo, analytics, account — all open without JS crash. (cPanel-backed endpoints may show connection errors in preview as expected.)",
+    "site_tab_expires": "SiteStatusCard EXPIRES column shows 'Oct 20, 2026' (real formatted date, no '—' bug).",
+    "panel_mobile_390": "No body horizontal overflow. Header one row with brand mark, panel-domain chip (wpapps-demo..), panel-store-link (icon only), language switcher, panel-theme-toggle, panel-logout-btn (icon only). Tab bar panel-tabs is horizontally scrollable (scrollWidth=1162 > clientWidth=390). Light-default theme.",
+    "i18n": "Language switcher (language-switcher-trigger + -option-fr/zh) translates landing hero (FR: 'Hébergement Anti-Red blindé') and panel overview (ZH: '欢迎回来, wpapps01'). No raw i18n keys like 'store.lp.*' or 'dashboard.ov.*' visible in rendered output after switching."
+  },
+  "test_report_links": ["/app/test_reports/iteration_86.json"],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [],
+  "success_rate": { "backend": "100%", "frontend": "100%" },
+  "test_credentials": "HostPanel wpapps01 / 246810 (from /app/memory/test_credentials.md) — verified working.",
+  "seed_data_creation": "none",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Full UX-audit end-to-end verification passed on preview https://nomadly-deploy.preview.emergentagent.com. Backend /api/store/config now exposes supportHandle + supportLink. Storefront landing shows no fabricated numeric social proof, light-default theme, correct section order, working guest-buy modal (did NOT submit crypto), accurate FAQ (item 3 == anti-red explainer), real support/bot links. Panel defaults to new Overview tab with real stats (Expires Oct 20 2026 / 6 days left), page-head breadcrumbs on non-overview tabs, mobile 390 header one-row + scrollable tab bar, i18n coverage (en/fr/zh). No bugs to fix; brand ready for Smadav/Voodoo deploy from the user's side.",
+  "rca of the issue": "N/A — verification only, zero defects found this iteration."
+}

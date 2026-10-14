@@ -2148,3 +2148,56 @@ User-approved order: #4 → #7 → #2 → #3 → #5 → #6. Sandbox-verified; pr
 - New production app `app-voodoo` (PM2 :5003/:5103, branch WhiteLabel, /opt/nomadly/shared/app-voodoo/backend.env), nginx `voodoo` site, LE certs, Cloudflare DNS + 301s, Telnyx SIP/CCA/MP, Twilio SIP domain `voodoo-*`, CF discovery worker entry `voodooland`.
 - Code: telnyx-service (no hijack on empty list, brand-scoped names), sms-app-brand.accent(), config/store-routes accent, sms-app-service note, _index.js /brand/ passthrough, PhoneTestPage brand-aware, sms-app app.js Subscribe link, deploy.sh fe_env, deploy.yml deploy-voodoo + sync whitelabel dispatch, brands.json voodooland + assets, voodooland/smadav APKs.
 - Ops scripts: js/ops/voodoo_telnyx_setup.js, voodoo_cf_dns.js, voodoo_env_build.py. Tests: js/tests/test_voodoo_whitelabel_2026-10.js (39/0); testing agent iteration_85 100%.
+
+<!-- moved from PRD.md 2026-10-14 (size cap) -->
+## 2026-06 — Membership copy fix
+- Removed `📞 Cloud IVR` from the Membership / "Choose Your Plan" perks list (js/lang/plan-copy.js) across en/fr/hi/zh. Cloud IVR is a separate product, not a membership perk. Verified by rendering all 4 locales. Live in preview; pending production deploy.
+
+## 2026-06-11 — Visitor breakdown + panel lifetime visitors (DONE)
+- Reseller GET /hosting/:user/visitors: added top_countries / top_devices / top_pages (CF getDetailedZoneAnalytics; devices via new clientDeviceType query). ?breakdown=false opts out. Documented in /apidoc.
+- New panel GET /panel/visitors (customer session) → "visitors since linked"; shown as a banner + By Device section on the HostPanel Analytics tab.
+- Tests green: test_visitor_breakdown.js (11/11), test_panel_visitors.js (4/4). UI verified desktop + mobile.
+
+## 2026-06-11 — Per-addon-domain visitors + prod GSB key verified (DONE)
+- GET /panel/visitors?domain=<planDomain> → per-domain lifetime visitors; HostPanel Analytics tab has a domain selector so multi-site customers view each addon domain individually.
+- Production GSB key confirmed present & loaded on the nomadlybot (app-main) droplet env; value matches dev. (app-wl white-label lacks it — flagged, not changed.)
+- Tests: test_panel_visitors.js 6/6.
+
+## 2026-06-11 — Safe Browsing extended to bot-purchased domains (code DONE; prod steps pending)
+- Sweep now scope:'all' → protects hosting/shortener/VPS/RDP for bot customers on Nomadly AND Smadav, not just reseller-API owners. Recheck window (SB_RECHECK_HOURS=20) keeps it quota-safe + rotating.
+- Pending prod: deploy to app-main + app-wl, and add GOOGLE_SAFE_BROWSING_KEY to app-wl env (Smadav) + restart.
+- Backlog: wire assertAddable add-time guard into the bot purchase flows (currently reseller-API only).
+
+## 2026-10-11 — Hosting order failure fix: addon-domain "already exists in the userdata" (code DONE; deploy pending)
+- RCA of @smsbeast_real (5976060042) failed Premium Anti-Red order: requested primary domain was an ADDON on their own SUSPENDED cPanel account, still in WHM userdata → createAccount collided. No money lost (wallet not charged).
+- Fixes (js/cr-register-domain-&-create-cpanel.js, js/whm-service.js): (A) pre-flight guard now matches addonDomains and blocks pre-charge with an unlink message; (B) isRetryableError no longer username-retries a domain-userdata conflict; (C) userdata self-heal wired into the primary provisioning path.
+- Tests: test_hosting_addon_userdata_conflict.js 19/19. Customer verified unblocked (domains now free on WHM). Full RCA: memory/HOSTING_ADDON_USERDATA_CONFLICT_RCA_2026-10-11.md. DEPLOY via Save to GitHub.
+
+## 2026-06 — Grace lifecycle audit: true deletion on WHM (hosting) + DigitalOcean (VPS/RDP)
+- User ask: confirm hosting grace period parity and ensure TRUE deletion from WHM and DigitalOcean at grace end.
+- Audit result — already implemented & verified:
+  - Hosting (js/hosting-scheduler.js): grace = 48h (GRACE_PERIOD_HOURS=48), parity with VPS/RDP. Flow: expiry → suspend + hosting.grace_start webhook → 48h → whmService.terminateAccount() → WHM /removeacct (true delete) → hosting.deleted webhook. Failure → whmTerminatePending flag → hourly runSelfHealSweep (js/whm-userdata-heal.js) retries until WHM confirms, stamps terminatedOnWhm:true (prod-gated via BOT_ENVIRONMENT=production).
+  - DO VPS/RDP (js/rdp-grace-lifecycle.js → vm-instance-setup.deleteVPSinstance → vps-provider routing → digitalocean-service.cancelInstance → DELETE /droplets/{id}): immediate destroy at grace end, stops DO hourly billing. isDestructiveCancelProvider covers digitalocean + digitalocean-rdp. Destroy failures retried up to 10× with throttled admin alerts.
+- Small hardening applied: hosting happy-path (hourly check + startup-enforce) now stamps terminatedOnWhm:true on /removeacct success, so confirmed-deleted rows drop out of the expiry scan (previously only the failure→self-heal path set it, causing unbounded re-scan of deleted accounts).
+- Tests: test_whm_userdata_heal.js 44/44 (2 new happy-path assertions + 1 stale setInterval regex fixed to activeSlot.singletonInterval); test_rdp_grace_destroy_2026-06.js 73/73. Bot boots clean. DEPLOY via Save to GitHub.
+
+## 2026-06 — Multi-month Linux VPS plans (1/3/6/12) in reseller API + bot
+- Gap found: GET /vps/plans only ever showed 1-month Linux plans because digitalocean-service.listProducts emits a single monthly product per tier. Multi-month existed only for RDP (1/2/3 bundles) and hosting (1/3/6/12 terms) — never Linux VPS. Also the /vps/:id/renew docs promised a bundle discount the code never applied (it did linear planPrice×months).
+- Design (user-confirmed): terms 1/3/6/12; discounts 3mo−10%/6mo−15%/12mo−25%; single plan_id + `months` param (not separate plan_ids); exposed in BOTH reseller API and Telegram bot; DO droplet provisioned for the full term, renewals extend accordingly.
+- New shared module js/vps-terms.js (TERM_MONTHS, TERM_DISCOUNTS, termPrice, termsFor, parseMonths) — mirrors hosting-terms, VPS max 12.
+- Reseller API (js/reseller-api.js): GET /vps/plans adds terms[] per Linux plan (months/discount/price/monthly_equivalent/savings; RDP unchanged). POST /vps accepts months (1/3/6/12, else 400 invalid_months), charges termPrice, stores durationMonths, end_time = now + months×30d. POST /vps/:id/renew now applies the same term discount (fixes the doc/code mismatch; non-standard months still linear).
+- Bot (js/vm-instance-setup.js cyclesFor + js/_index.js askVpsConfig): Linux VPS config builds 1/3/6/12 billingCycles via vps-terms (all share the base productId), and the duration picker (askRdpDuration step) now shows for Linux too. RDP path untouched.
+- Docs (js/apidoc-page.js): GET /vps/plans terms[] + POST /vps months documented.
+- Tests: test_vps_terms_2026-06.js 27/27 (pricing math, parseMonths, bot cycles vs real DO catalog, RDP-not-affected, plans mapping shape). Regression: RDP discount 15/15, RDP grace 73/73. Modules load + bot boots clean + /apidoc renders new content.
+- ⚠️ NOT live-tested: reseller API on this pod points at the LIVE prod DB, so POST /vps (charges wallet + provisions a real droplet) was NOT executed here. Verify on a sandbox/prod key after deploy. DEPLOY via Save to GitHub.
+
+## 2026-06 — AutoPromo conversion rewrite (per-user themed ads, one-tap buttons, brand banners)
+- Diagnosis (Sept audit + code trace): 10k deliveries/week, ~9% blocked, zero lift. Causes: only tappable button was "Stop Promos"; 18/36 EN ads lost their CTA to the 420-char trim; GIF prices contradicted captions ($30 Business/"coming soon" vs $120); ads hardcoded stale prices ($3 domains vs $30 in bot); ALL-CAPS + 6–15 emoji + fake social proof; 14 ads/week to the same ~700 users; no targeting.
+- New pipeline: js/promo-copy/{index,en,fr,zh,hi}.js (12 themes × 2 hero + 2 cross-sell hooks × 4 langs, template = coupon header → emoji+hook → 3 bullets → 💰 price line → /stoppromos footer; ≤380 chars, ≤4 emoji; keeps Anti-Red/Bulletproof/DMCA-ignored) + js/promo-prices.js (every price read from phone-config / env / DO catalogs — never hardcoded) + rewritten js/auto-promo.js (4837→~900 lines).
+- Buttons: row 1 `promo_open:<hub>` callback → synthetic `/start open_<hub>` (one tap, no URL confirm); row 2 localized 🔕 Mute. `_index.js` `/start open_` map extended to all 12 hubs (leads/vps/marketplace/shortener/bulksms/emailval/emailblast/refer replay the canonical menu label via bot.processUpdate).
+- Cadence (E): `cadenceSlot()` — each user gets 1 promo every other day (~3–4/week), slot alternates weekly; `PROMO_CADENCE=daily` to disable. Lifecycle-diet 24h cap / welcome window / balance wall unchanged. State lookups are now bulk (`loadStates`) instead of N+1.
+- Segmentation (F): `buildProfiles()` probes ownership (phoneNumbersOf, cpanelAccounts, domainsOf, vpsPlansOf, leadJobs, digitalOrders, marketplaceProducts) + browseTracking; `pickTheme()` = browsed/cross-sell win 2 of 3 sends, 3rd falls back to the day schedule, then rotation; never an owned or disabled theme. AI (gpt-4.1-mini, JSON) now writes only hook + 3 lines in sentence case; prices stay config-driven.
+- Banners: js/assets/promo/{nomadly,smadav}/{cloudphone,antired_hosting,vps_rdp,leads_validation,domains_shortener}.jpg — wordmark-only, no prices. Folder = CHAT_BOT_BRAND slug (prod: app-main "Nomadly", app-wl "Smadav" — verified on droplet); unknown brand → text-only. Old mis-priced GIFs deleted.
+- Channel ad (G): `/ad [theme]` preview, `/ad post [theme]` publish one-product post with URL deep-link button (bot username from getMe), `/ad list`, `/ad bot <theme> [lang]` in-bot preview. Dev: `POST /dev/promo-blast {slot, themeIndex, force}` (404 in prod), `scripts/promo_webhook_sim.sh`.
+- Tests: js/tests/test_promo_pipeline_2026-06.js 58/58; caption 13/13; lift 12/13 (1 pre-existing env-dependent fail); i18n OK. E2E on dev bot @Nomadlytestbot: `/ad`, `/ad bot`, all 12 `/start open_*`, `promo_open:` callback, real blast (AI + banner + coupon) delivered. DEPLOY via Save to GitHub → main → WhiteLabel auto-sync.
+
