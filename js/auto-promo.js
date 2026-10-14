@@ -270,6 +270,11 @@ function initAutoPromo(bot, db, nameOf, stateCol, lifecycleDiet = null) {
 
   // ── Per-blast lift window (#18): count /start + hub taps within 45 min ──
   const LIFT_WINDOW_MS = 45 * 60 * 1000
+  // Zero-lift alert: only when statistically surprising (see zeroLiftVerdict)
+  const LIFT_BASELINE_DAYS = 30
+  const LIFT_BASELINE_MIN_DELIVERED = 500
+  const LIFT_ALERT_MIN_EXPECTED = 3
+  const LIFT_ALERT_COOLDOWN_MS = 7 * 86400000
 
   let dailyCouponSystem = null
   function setDailyCouponSystem(sys) { dailyCouponSystem = sys }
@@ -878,9 +883,41 @@ function initAutoPromo(bot, db, nameOf, stateCol, lifecycleDiet = null) {
       )
       log(`[AutoPromo][Lift] ${doc.theme}/${doc.lang}/${doc.slot}: ${returned} returned of ${delivered} delivered (${liftRate}% lift, starts=${doc.liftStartCount || 0} hubtaps=${doc.liftHubTapCount || 0})`)
       if (returned === 0 && delivered >= 20) {
-        alertAdmin(`⚠️ Zero-lift blast: <b>${doc.theme}/${doc.lang}/${doc.slot}</b> — 0 returns from ${delivered} delivered. Consider dropping this theme/slot.`)
+        const v = await zeroLiftVerdict(doc)
+        if (v.alert) {
+          alertAdmin(`⚠️ Zero-lift theme: <b>${doc.theme}/${doc.lang}/${doc.slot}</b> — 0 returns from ${v.deliveredTotal} delivered over ${v.blasts} blast(s) in ${LIFT_BASELINE_DAYS} days (normal return rate ${v.ratePct}% → ~${v.expected} expected). Consider dropping this theme/slot.`)
+        } else {
+          log(`[AutoPromo][Lift] zero-lift not alerted for ${doc.theme}/${doc.lang}/${doc.slot}: ${v.reason}`)
+        }
       }
     } catch (e) { log(`[AutoPromo][Lift] eval error: ${e.message}`) }
+  }
+
+  // Zero returns from ONE blast is normal: users return to a blast at ~0.1-0.3% (1 in 400-1000), so a
+  // 200-user blast has 0 returns ~2 times out of 3 by pure chance (2026-10-14 RCA — the old ">= 20
+  // delivered" rule alerted on almost every blast). Alert only when the zero is SURPRISING: this
+  // theme/lang/slot had no returns at all over the last 30 days while, at the normal return rate of the
+  // other blasts in that language, >= 3 were expected (P(0) ≈ e^-3 ≈ 5%). Max once per 7 days per slot.
+  async function zeroLiftVerdict(doc) {
+    const since = new Date(Date.now() - LIFT_BASELINE_DAYS * 86400000)
+    const rows = await db.collection('promoStats')
+      .find({ lang: doc.lang, liftEvaluated: true, sentAt: { $gte: since }, _id: { $ne: doc._id } }, { projection: { theme: 1, slot: 1, success: 1, liftReturnedUsers: 1 } })
+      .toArray()
+    let baseDel = 0, baseRet = 0, delivered = doc.success || 0, returned = 0, blasts = 1
+    for (const r of rows) {
+      if (r.theme === doc.theme && r.slot === doc.slot) { delivered += r.success || 0; returned += r.liftReturnedUsers || 0; blasts++ } else { baseDel += r.success || 0; baseRet += r.liftReturnedUsers || 0 }
+    }
+    if (returned > 0) return { alert: false, reason: `${returned} return(s) from ${delivered} delivered over ${blasts} blast(s) in ${LIFT_BASELINE_DAYS}d — this blast's zero is normal noise` }
+    if (baseDel < LIFT_BASELINE_MIN_DELIVERED || baseRet === 0) return { alert: false, reason: `not enough ${doc.lang} history to judge (${baseRet} returns / ${baseDel} delivered in ${LIFT_BASELINE_DAYS}d)` }
+    const rate = baseRet / baseDel
+    const expected = delivered * rate
+    const fmt = { ratePct: +(rate * 100).toFixed(2), expected: +expected.toFixed(1), deliveredTotal: delivered, blasts }
+    if (expected < LIFT_ALERT_MIN_EXPECTED) return { alert: false, ...fmt, reason: `0 of ${delivered} over ${blasts} blast(s) is normal at the ${fmt.ratePct}% return rate (~${fmt.expected} expected, need >= ${LIFT_ALERT_MIN_EXPECTED})` }
+    const key = `lift_alert_${doc.theme}_${doc.lang}_${doc.slot}`
+    const prev = await promoTracker.findOne({ _id: key })
+    if (prev?.lastAlertAt && Date.now() - new Date(prev.lastAlertAt).getTime() < LIFT_ALERT_COOLDOWN_MS) return { alert: false, ...fmt, reason: 'already alerted in the last 7 days' }
+    await promoTracker.updateOne({ _id: key }, { $set: { lastAlertAt: new Date(), delivered, expected: fmt.expected } }, { upsert: true })
+    return { alert: true, ...fmt }
   }
 
   // ─── Admin helpers: channel post + in-bot preview ─────────────────────
@@ -909,6 +946,7 @@ function initAutoPromo(bot, db, nameOf, stateCol, lifecycleDiet = null) {
     trackPromoResponse,
     recordPromoLift,
     evaluateBlastLift,
+    zeroLiftVerdict,
     buildChannelPost,
     previewPromo,
     composePromo,

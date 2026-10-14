@@ -179,7 +179,7 @@ const UBUNTU_IMAGE = process.env.DO_UBUNTU_IMAGE || 'ubuntu-22-04-x64'
 const T = { bootPoll: 5000, rdpPoll: 30000, actionPoll: 15000, offPoll: 10000, rdpPort: 3389, rdpMaxMin: 90, transferMaxMin: 90, buildMaxMin: 120, importPoll: 30000, importMaxMin: 240, importRetryMin: 150, importRetries: 2, importSlotMaxMin: 480, callbackGraceMs: 90000, fastTargetMs: 180000, digestMs: 24 * 60 * 60 * 1000, commandWaitMs: 150000, commandPoll: 2000, agentStaleMs: 10 * 60 * 1000, rebuildMaxMin: 20, graceDays: Number(process.env.RDP_GRACE_DAYS || 2),
   // Late-failure safety net: a first build still unfinished after stuckBuildMin is failed (→ refund); failed orders
   // the purchase flow still owned are re-checked once they are failedRecheckMs old. Sweep runs every reconcileMs.
-  stuckBuildMin: Math.max(120, Number(process.env.DO_RDP_STUCK_BUILD_MIN) || 180), failedRecheckMs: 30 * 60000, reconcileMs: 10 * 60000 }
+  stuckBuildMin: Math.max(120, Number(process.env.DO_RDP_STUCK_BUILD_MIN) || 180), failedRecheckMs: 30 * 60000, reconcileMs: 10 * 60000, goneRecheckMs: 5000 }
 
 // ─────────────────────────────────────────────────────────────
 // Admin alerts (Telegram via the bot's notifyAdmin, injected by _index.js init)
@@ -1692,14 +1692,17 @@ async function cancelInstance(instanceId, opts = {}) {
 // ─────────────────────────────────────────────────────────────
 // Mirror a grace/lifecycle change onto the customer-facing vpsPlansOf record.
 // RDP records use contaboInstanceId = vpsId = extId(server_id) (vm-instance-setup.js).
+// Reseller-API records keep the RDP id in `instanceId` (vpsId is their own uuid).
+const _planQuery = (serverId) => ({ $or: [{ contaboInstanceId: extId(serverId) }, { vpsId: extId(serverId) }, { instanceId: extId(serverId) }] })
 async function _mirrorVpsPlan(serverId, set) {
   if (!_db || typeof _db.collection !== 'function') return
   try {
-    await _db.collection('vpsPlansOf').updateOne(
-      { $or: [{ contaboInstanceId: extId(serverId) }, { vpsId: extId(serverId) }] },
-      { $set: set },
-    )
+    await _db.collection('vpsPlansOf').updateOne(_planQuery(serverId), { $set: set })
   } catch (e) { log(`_mirrorVpsPlan(${serverId}) warn: ${e.message}`) }
+}
+async function _findVpsPlan(serverId) {
+  if (!_db || typeof _db.collection !== 'function') return null
+  try { return await _db.collection('vpsPlansOf').findOne(_planQuery(serverId)) } catch (_) { return null }
 }
 
 // Best-effort reseller webhook from the SAFETY-NET sweep. The bot scheduler owns the
@@ -1708,7 +1711,7 @@ async function _mirrorVpsPlan(serverId, set) {
 async function _emitResellerWebhook(serverId, event, extra = {}) {
   if (!_db || typeof _db.collection !== 'function') return
   try {
-    const plan = await _db.collection('vpsPlansOf').findOne({ $or: [{ contaboInstanceId: extId(serverId) }, { vpsId: extId(serverId) }] })
+    const plan = await _findVpsPlan(serverId)
     if (!plan || !plan.chatId) return
     const webhooks = require('./reseller-webhooks')
     await webhooks.emit(_db, { chatId: plan.chatId, event, instanceId: plan.vpsId || plan._id, payload: { plan: plan.plan || null, region: plan.region || null, ...extra }, log })
@@ -1738,22 +1741,56 @@ async function getSecretPassword(secretId) {
   try { return await secretStore.getSecretPassword(secretId) } catch (_) { return null }
 }
 
-// Hourly sweep (production only). Two passes:
+// Hourly sweep (production only). Three passes:
+//   Sweep-0: a live box whose droplet DigitalOcean no longer has (404 twice) → mark destroyed,
+//            mirror vpsPlansOf DELETED + admin alert (a box deleted out-of-band kept showing RUNNING).
 //   Sweep-1: an ACTIVE subscription that just expired → power OFF + enter the 2-day (48h) grace
 //            (set expired_at / grace_until) and mirror it onto vpsPlansOf. Customer loses
-//            access but the box (and its data) survive for grace before deletion.
+//            access but the box (and its data) survive for grace before deletion. The paid-until
+//            date the customer sees is vpsPlansOf.end_time — a later end_time wins over expires_at.
 //   Sweep-2 (SAFETY NET): an EXPIRED box whose grace deadline has passed → DESTROY the droplet
 //            so DigitalOcean stops billing us (DO bills powered-off droplets per hour).
 //            The bot VPS scheduler normally owns this destroy (it can notify the user); the
 //            sweep only fires for records the scheduler missed.
+async function _dropletGone(dropletId) {
+  for (let i = 0; i < 2; i++) {
+    try { await doGetDroplet(dropletId); return false } catch (e) { if (!e || e.status !== 404) return false }
+    if (i === 0) await sleep(T.goneRecheckMs)
+  }
+  return true
+}
+async function reconcileVanished(now = new Date()) {
+  const gone = []
+  const cursor = _servers.find({ status: { $in: ['active', 'expired', 'suspended'] }, do_droplet_id: { $ne: null } })
+  for await (const s of cursor) {
+    if (!(await _dropletGone(s.do_droplet_id))) continue
+    await _servers.updateOne({ server_id: s.server_id }, { $set: { status: 'destroyed', destroy_reason: 'droplet_gone_external', destroyed_at: now, ip_address: null, do_droplet_id: null, gone_droplet_id: s.do_droplet_id } })
+    await addLog(s.server_id, 'droplet_gone', `Droplet ${s.do_droplet_id} no longer exists at DigitalOcean (deleted outside the bot).`, null, null)
+    const plan = await _findVpsPlan(s.server_id)
+    await _mirrorVpsPlan(s.server_id, { status: 'DELETED', deletedAt: now, cancelReason: 'droplet_gone_external' })
+    _emitResellerWebhook(s.server_id, 'rdp.deleted', { reason: 'droplet_gone' }).catch(() => {})
+    const paid = plan && plan.end_time ? new Date(plan.end_time).toISOString().slice(0, 10) : '?'
+    alertAdmin(`gone:${s.server_id}`, `⚠️ RDP ${orderRef(s)} — droplet ${s.do_droplet_id} was deleted outside the bot.\nCustomer chat ${plan ? plan.chatId : '?'} · paid until ${paid}${plan && plan.planPrice ? ` · $${plan.planPrice}` : ''}\nMarked DELETED — refund or replace the box.`)
+    gone.push(s.server_id)
+  }
+  if (gone.length) log(`processExpiries: ${gone.length} server(s) deleted outside the bot → marked destroyed`)
+  return gone
+}
 async function processExpiries() {
   if (!_servers) return []
   const now = new Date()
   const suspended = []
   const destroyed = []
+  try { await reconcileVanished(now) } catch (e) { log(`processExpiries: vanished-droplet check error: ${e.message}`) }
   // Sweep-1 — active → expired (enter grace).
   const cursor = _servers.find({ status: 'active', expires_at: { $lte: now } })
   for await (const s of cursor) {
+    const plan = await _findVpsPlan(s.server_id)
+    if (plan && plan.end_time && new Date(plan.end_time) > now) {
+      await _servers.updateOne({ server_id: s.server_id }, { $set: { expires_at: new Date(plan.end_time) } })
+      log(`processExpiries: ${s.server_id} paid until ${new Date(plan.end_time).toISOString()} — expires_at synced, not powered off`)
+      continue
+    }
     try { if (s.do_droplet_id) await doDropletAction(s.do_droplet_id, { type: 'power_off' }) } catch (_) {}
     const graceUntil = new Date(new Date(s.expires_at || now).getTime() + T.graceDays * 86400000)
     await _servers.updateOne({ server_id: s.server_id }, { $set: { status: 'expired', expired_at: now, grace_until: graceUntil } })
@@ -1885,7 +1922,7 @@ module.exports = {
   // grace lifecycle mirror helpers (bot scheduler owns the grace lifecycle; these keep doRdpServers in sync)
   markGrace, markGraceDestroy,
   // ops
-  processExpiries, provisionRouter, sendDailyDigest, provisioningStatus, reconcileOrders, handleFailedOrder,
+  processExpiries, reconcileVanished, provisionRouter, sendDailyDigest, provisioningStatus, reconcileOrders, handleFailedOrder,
   // golden images
   startGoldenBuild, cancelBuild, resumeBuilds, syncGoldenFromDO, transferGolden, goldenStatus, listOsOptions, listOsOptionsForRegion,
   goldenBuildSites, ensureGoldenAtBuildSites, reinstallOptions, resumeQueuedReinstalls, COPY_ETA_MIN,

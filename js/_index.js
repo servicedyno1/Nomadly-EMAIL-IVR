@@ -37344,7 +37344,7 @@ async function checkVPSPlansExpiryandPayment() {
   const _isDoVps = (vpsPlan) => {
     if (_isDoRdp(vpsPlan)) return false
     if (String(vpsPlan.provider || '').toLowerCase() === 'digitalocean') return true
-    return _detectByPrefix(vpsPlan.contaboInstanceId || vpsPlan.vpsId || vpsPlan.instanceId) === 'digitalocean'
+    return _detectByPrefix(vpsPlan.contaboInstanceId || vpsPlan.instanceId || vpsPlan.vpsId) === 'digitalocean'
   }
   const _isGraceManaged = (vpsPlan) => _isDoRdp(vpsPlan) || _isDoVps(vpsPlan)
   // Push a VPS lifecycle event to the owner's reseller webhook (no-op for ordinary bot users).

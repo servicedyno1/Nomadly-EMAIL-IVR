@@ -38,8 +38,17 @@ function isDigitalOceanRdp(vpsPlan) {
   if (!vpsPlan) return false
   const explicit = String(vpsPlan.provider || '').toLowerCase()
   if (explicit === 'digitalocean-rdp') return true
-  return detectProviderByInstanceId(vpsPlan.contaboInstanceId || vpsPlan.vpsId || vpsPlan.instanceId) === 'digitalocean-rdp'
+  return detectProviderByInstanceId(instanceIdOf(vpsPlan)) === 'digitalocean-rdp'
 }
+
+// Provider instance id. Reseller-API records keep it in `instanceId` (their vpsId is a bare uuid).
+function instanceIdOf(vpsPlan) {
+  return vpsPlan.contaboInstanceId || vpsPlan.instanceId || vpsPlan.vpsId
+}
+
+// After this many failed destroys, retry only every DESTROY_BACKOFF_MS (was every 5-min tick forever).
+const DESTROY_FAST_RETRIES = 10
+const DESTROY_BACKOFF_MS = 6 * 3600 * 1000
 
 // grace_until = subscription end + graceDays (grace clock starts at end of subscription).
 function graceUntil(endTime, graceDays = GRACE_DAYS) {
@@ -99,7 +108,7 @@ async function applyRdpGrace(vpsPlan, decision, deps = {}) {
   const displayName = vpsPlan.label || vpsPlan.name || (product === 'vps' ? 'VPS' : 'Windows RDP')
   const chatId = vpsPlan.chatId
   const vpsId = vpsPlan.vpsId || vpsPlan._id
-  const inst = vpsPlan.contaboInstanceId || vpsPlan.vpsId || vpsPlan.instanceId
+  const inst = instanceIdOf(vpsPlan)
 
   switch (decision.action) {
     case 'enter_grace': {
@@ -120,6 +129,10 @@ async function applyRdpGrace(vpsPlan, decision, deps = {}) {
       return { action: 'remind' }
     }
     case 'destroy': {
+      const lastTry = vpsPlan.lastDeleteAttemptAt ? new Date(vpsPlan.lastDeleteAttemptAt).getTime() : 0
+      if ((vpsPlan.deleteRetryCount || 0) >= DESTROY_FAST_RETRIES && now.getTime() - lastTry < DESTROY_BACKOFF_MS) {
+        return { action: 'destroy', destroyed: false, skipped: 'backoff' }
+      }
       let result = null
       try { result = deps.destroy ? await deps.destroy(chatId, vpsId) : { success: false, error: 'no destroy fn' } }
       catch (e) { result = { success: false, error: e.message } }
@@ -131,12 +144,12 @@ async function applyRdpGrace(vpsPlan, decision, deps = {}) {
         log(`[RDP Grace] ${displayName} (${vpsId}) DELETED after the ${GRACE_DAYS}-day grace period`)
         return { action: 'destroy', destroyed: true }
       }
-      // Destroy failed → throttled admin alert + retry counter (same pattern as scheduler Phase 2:
-      // alert on attempt 1, then only every 6h, and stop after 10 retries).
+      // Destroy failed → throttled admin alert + retry counter (alert on attempt 1, then every 6h,
+      // up to 10 alerts). After 10 failures the destroy itself backs off to once per 6h.
       const retries = (vpsPlan.deleteRetryCount || 0) + 1
       const lastAlertAgeMs = vpsPlan.lastDeleteAlertAt ? (now.getTime() - new Date(vpsPlan.lastDeleteAlertAt).getTime()) : Infinity
       const shouldAlert = retries === 1 || (retries <= 10 && lastAlertAgeMs >= 6 * 3600 * 1000)
-      if (deps.updatePlan) await deps.updatePlan(vpsPlan._id, { deleteRetryCount: retries, lastDeleteError: (result && result.error) || 'destroy failed', ...(shouldAlert ? { lastDeleteAlertAt: now } : {}) })
+      if (deps.updatePlan) await deps.updatePlan(vpsPlan._id, { deleteRetryCount: retries, lastDeleteAttemptAt: now, lastDeleteError: (result && result.error) || 'destroy failed', ...(shouldAlert ? { lastDeleteAlertAt: now } : {}) })
       if (shouldAlert && deps.notifyAdmin) {
         try {
           deps.notifyAdmin(`🚨 <b>RDP grace-delete FAILED</b>${retries === 1 ? '' : ` (retry ${retries})`}\n${displayName} (vpsId ${vpsId}, inst ${inst})\nError: ${(result && result.error) || 'unknown'}${retries >= 10 ? '\n🛑 Auto-retries exhausted — manual deletion required to stop DO billing.' : ' (next alert in ≥6h)'}`)
@@ -168,6 +181,9 @@ module.exports = {
   REMINDER_LEAD_HOURS,
   REMINDER_LEAD_MS,
   isDigitalOceanRdp,
+  instanceIdOf,
+  DESTROY_FAST_RETRIES,
+  DESTROY_BACKOFF_MS,
   graceUntil,
   decideRdpGrace,
   applyRdpGrace,

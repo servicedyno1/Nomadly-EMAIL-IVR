@@ -99,8 +99,26 @@ function redactDomains(input) {
   })
 }
 
+// Credential labels (en/fr/de/es/pt/zh/hi) — a log line carrying one of these has its secret masked.
+const SECRET_LABEL_RE = /pass(?:word|wd|code)?\b|mot de passe|passwort|contraseña|senha|密码|पासवर्ड|\bpin\b|पिन|api[ _-]?key|secret/i
+const SECRET_TAG_RE = /(<(code|pre|tg-spoiler)>)([\s\S]*?)(<\/\2>)/gi
+const SECRET_KV_RE = /((?:password|passwd|passcode|\bpin)["']?\s*[:=]\s*["']?)([^\s"'<>,;)}\]]+)/gi
+
+/** Mask credential values (RDP/VPS/cPanel passwords, PINs, keys) in a log string. */
+function redactSecrets(input) {
+  if (typeof input !== 'string' || !SECRET_LABEL_RE.test(input)) return input
+  return input.split('\n').map((line) => {
+    const m = SECRET_LABEL_RE.exec(line)
+    if (!m) return line
+    // Only values AFTER the label are secrets ("files stay in <code>/home/x</code> … same password" keeps the path).
+    const head = line.slice(0, m.index), tail = line.slice(m.index)
+    return head + tail.replace(SECRET_TAG_RE, (s, open, _t, body, close) => (body.replace(/<[^>]+>/g, '').trim() ? `${open}***${close}` : s))
+      .replace(SECRET_KV_RE, '$1***')
+  }).join('\n')
+}
+
 let _installed = false
-/** Wrap console.* so every string argument is domain-redacted. Idempotent. */
+/** Wrap console.* so every string argument is domain- and secret-redacted. Idempotent. */
 function installConsoleRedaction() {
   if (_installed || process.env.LOG_REDACT === '0') return
   _installed = true
@@ -108,8 +126,8 @@ function installConsoleRedaction() {
   for (const name of methods) {
     const orig = console[name]
     if (typeof orig !== 'function') continue
-    console[name] = (...args) => orig.apply(console, args.map(a => (typeof a === 'string' ? redactDomains(a) : a)))
+    console[name] = (...args) => orig.apply(console, args.map(a => (typeof a === 'string' ? redactDomains(redactSecrets(a)) : a)))
   }
 }
 
-module.exports = { redactDomains, installConsoleRedaction, KNOWN_TLDS, INFRA_SUFFIXES }
+module.exports = { redactDomains, redactSecrets, installConsoleRedaction, KNOWN_TLDS, INFRA_SUFFIXES }

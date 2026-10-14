@@ -1307,7 +1307,10 @@ async function deleteVPSinstance(chatId, vpsId) {
       })
     }
 
-    const contaboId = localRecord?.contaboInstanceId || instanceId
+    // Reseller-API records keep the provider id in `instanceId`; a bare uuid on a DO-RDP record
+    // would otherwise be routed to Vultr by its shape.
+    let contaboId = localRecord?.contaboInstanceId || localRecord?.instanceId || instanceId
+    if (String(localRecord?.provider || '').toLowerCase() === 'digitalocean-rdp' && !/^rdp-/i.test(String(contaboId))) contaboId = `rdp-${contaboId}`
 
     // Helper: Contabo returns 404 when the instance was already deleted
     // (manually via panel, prior-successful-but-undelivered-response, or
