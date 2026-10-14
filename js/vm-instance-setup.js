@@ -32,6 +32,7 @@ const nodemailer = require('nodemailer')
 // without any per-line rewrites — legacy Contabo records keep working,
 // and new orders ship via OVH automatically.
 const vpsProvider = require('./vps-provider')
+const hwType = require('./do-hw-type') // real DigitalOcean hardware class: "⚡ Premium AMD · NVMe SSD"
 const vpsTerms = require('./vps-terms')
 const contabo = vpsProvider.buildSmartProxy()
 
@@ -306,6 +307,8 @@ async function fetchAvailableVPSConfigs(telegramId, vpsDetails) {
       // Spec display (object for templates, string for fallback)
       specs: { vCPU: p.cpuCores, RAM: p.ramGb, disk: p.diskGb, diskType: p.diskType?.toUpperCase() || 'NVMe' },
       specsStr: providerForOs.formatSpecs(p),
+      // Real hardware class of the size it will be built on (RDP: the AMD size quoted for that city right now)
+      hardware: hwType.botLabel(hwType.slugOfProduct(p)),
       // Flag for display
       isRDP: isRDP,
       // DO-RDP: the DO $/month this price was quoted on — the build never uses a pricier size.
@@ -1216,6 +1219,8 @@ async function fetchVPSDetails(telegramId, vpsId) {
       diskTypeDetails: {
         type: diskType.toUpperCase()
       },
+      // The size the server was ACTUALLY built on (live droplet / doRdpServers), else its plan's size.
+      hardware: hwType.botLabel(live.sizeSlug || localRecord?.do_size_slug || hwType.slugOfProduct(product)),
       osDetails: {
         name: isRDP ? `🪟 ${live.osName || 'Windows Server'}` : (live.osType || 'Linux')
       },

@@ -44,6 +44,7 @@ const opService = require('./op-service')                     // OpenProvider re
 const doPlanChange = require('./do-plan-change')             // DigitalOcean VPS/RDP in-place resize engine
 const planChangeHistory = require('./plan-change-history')   // plan-change history (hosting + VPS + RDP) for GET …/plan-changes
 const doUsage = require('./do-usage')                         // DigitalOcean VPS/RDP usage metrics
+const hwType = require('./do-hw-type')                        // REAL DigitalOcean hardware class (cpu_type / size_slug / hardware)
 const antiRed = require('./anti-red-service')                 // resolveDomainCfState / setDomainChallengeBypass
 const addonFlow = require('./addon-domain-flow')              // attachAddonDomain
 const cpanelAuth = require('./cpanel-auth')                   // resetPin (reveal = reset, prod mutation)
@@ -663,8 +664,9 @@ function createResellerApi(deps = {}) {
     const okEvent = isRDP ? 'rdp.provisioned' : 'vps.provisioned'
     const failEvent = isRDP ? 'rdp.provision_failed' : 'vps.provision_failed'
     if (ready) {
-      await col('vpsPlansOf').updateOne({ _id: job.vpsId }, { $set: { host: ip, status: 'RUNNING', provisionState: 'active', end_time: new Date(now.getTime() + 30 * (Number(r.months) || 1) * 86400000) } })
-      emitEvent(owner, okEvent, job.vpsId, { plan: r.plan, region: r.region, id: job.vpsId, ip, instance_id: job.instanceId, ...(live.region ? { datacenter: live.region } : {}) })
+      const builtSlug = (live && live.sizeSlug) || null // the size DigitalOcean actually built (hardware type)
+      await col('vpsPlansOf').updateOne({ _id: job.vpsId }, { $set: { host: ip, status: 'RUNNING', provisionState: 'active', end_time: new Date(now.getTime() + 30 * (Number(r.months) || 1) * 86400000), ...(builtSlug ? { do_size_slug: builtSlug } : {}) } })
+      emitEvent(owner, okEvent, job.vpsId, { plan: r.plan, region: r.region, id: job.vpsId, ip, instance_id: job.instanceId, ...(live.region ? { datacenter: live.region } : {}), ...hwFromRecord(prov, { productId: r.plan_id }, builtSlug) })
       return 'provisioned'
     }
     // Never leave a half-built server running after a refund (no-op when nothing was created).
@@ -1185,20 +1187,25 @@ function createResellerApi(deps = {}) {
     const d = String(diskType || '').toLowerCase()
     return d === 'nvme' ? 'NVMe SSD' : d === 'ssd' ? 'SSD' : null
   }
-  // From a catalog product (has do_size_slug for DO, azureSku for Azure, diskType for every provider).
-  function hwFromProduct(p) {
-    const slug = String((p && p.do_size_slug) || '').toLowerCase()
-    if (slug.endsWith('-amd')) return { cpu: 'AMD', storage_type: 'NVMe SSD' }
-    if (slug.endsWith('-intel')) return { cpu: 'Intel', storage_type: 'NVMe SSD' }
-    if (slug) return { cpu: 'Standard', storage_type: 'SSD' } // plain DO Basic size = SSD
-    return { cpu: _cpuVendor((p && (p.azureSku || p.productId)) || ''), storage_type: _storageLabel(p && p.diskType) }
+  // cpu + storage_type (unchanged since 2026-09) + the REAL DigitalOcean class (2026-10-14, do-hw-type.js):
+  // cpu_type "Premium AMD" | "Premium Intel" | "Regular", size_slug (exact DO size), hardware ("Premium AMD · NVMe SSD").
+  function _hwOfSlug(slug) {
+    const s = String(slug || '').toLowerCase()
+    const legacy = s.endsWith('-amd') ? { cpu: 'AMD', storage_type: 'NVMe SSD' } : s.endsWith('-intel') ? { cpu: 'Intel', storage_type: 'NVMe SSD' } : { cpu: 'Standard', storage_type: 'SSD' } // plain DO Basic size = SSD
+    return { ...legacy, ...hwType.apiFields(s) }
   }
-  // From a stored instance record: prefer the EXACT size slug the droplet got, else the catalog default.
-  function hwFromRecord(prov, rec) {
-    const slug = String((rec && rec.do_size_slug) || '').toLowerCase()
-    if (slug.endsWith('-amd')) return { cpu: 'AMD', storage_type: 'NVMe SSD' }
-    if (slug.endsWith('-intel')) return { cpu: 'Intel', storage_type: 'NVMe SSD' }
-    if (slug) return { cpu: 'Standard', storage_type: 'SSD' }
+  // From a catalog product (has do_size_slug for DO, azureSku for Azure, diskType for every provider). RDP plans
+  // carry the live quote → size_slug is the size it would be built on in that region right now.
+  function hwFromProduct(p) {
+    const slug = hwType.slugOfProduct(p)
+    if (slug) return _hwOfSlug(slug)
+    return { cpu: _cpuVendor((p && (p.azureSku || p.productId)) || ''), storage_type: _storageLabel(p && p.diskType), ...hwType.apiFields(null) }
+  }
+  // From a stored instance record: the size the server was ACTUALLY built on (live droplet / doRdpServers →
+  // actualSlug, or do_size_slug saved at provision / plan change), else the catalog default for its plan.
+  function hwFromRecord(prov, rec, actualSlug) {
+    const slug = actualSlug || (rec && rec.do_size_slug)
+    if (slug && hwType.classOf(slug)) return _hwOfSlug(slug)
     let prod = null
     try { if (prov && typeof prov.getProduct === 'function') prod = prov.getProduct((rec && rec.productId) || (rec && rec.plan)) } catch (_) { /* unknown product */ }
     return hwFromProduct(prod || {})
@@ -1342,7 +1349,12 @@ function createResellerApi(deps = {}) {
     res.json({
       product: 'rdp', cpu: 'AMD', checked_at: new Date().toISOString(),
       catalog: catalogInfo(st),
-      regions: await Promise.all(regions.map(async r => ({ ...r, in_stock: r.plans.some(p => p.in_stock), deploy_eta_minutes: await rdpEtaByOs(prov, r.region_slug) }))),
+      regions: await Promise.all(regions.map(async r => ({
+        ...r,
+        // cpu_type / hardware per plan (size_slug stays null while a plan is sold out in that city)
+        plans: r.plans.map(p => ({ ...hwType.apiFields(p.size_slug || ((prov.TIERS || []).find(t => t.slug === p.plan) || {}).do_size_slug), ...p })),
+        in_stock: r.plans.some(p => p.in_stock), deploy_eta_minutes: await rdpEtaByOs(prov, r.region_slug),
+      }))),
     })
   }
 
@@ -1420,7 +1432,8 @@ function createResellerApi(deps = {}) {
     const planName = product.name || planId
     const request = { plan_id: planId, plan: planName, region, hostname, isRDP: !!isRDP, osId: osId || null, os: isRDP ? (osId || 'windows') : (osId || 'ubuntu'), months: termMonths }
     // RDP: the DO $/month this price was quoted on (a pricier same-spec AMD size raises the price) — the build may never exceed it.
-    if (isRDP && typeof prov.quoteFor === 'function') { const q = prov.quoteFor(product, region); if (q && q.do_cost) request.maxDoCost = q.do_cost }
+    let orderQuote = null
+    if (isRDP && typeof prov.quoteFor === 'function') { const q = prov.quoteFor(product, region); orderQuote = q; if (q && q.do_cost) request.maxDoCost = q.do_cost }
 
     // Optional: launch a Linux VPS with reseller-supplied SSH public key(s) pre-installed
     // (uploaded to the provider account; referenced as ssh_keys at droplet create).
@@ -1472,6 +1485,9 @@ function createResellerApi(deps = {}) {
     return res.status(202).json({
       ...jobHandle(jobDoc),
       hostname: request.hostname || null,
+      // Hardware it is being built on (RDP: the AMD size quoted for that city right now) — the exact built size
+      // is confirmed in the *.provisioned webhook and GET /${isRDP ? 'rdp' : 'vps'}/{id}.
+      ...hwFromProduct(orderQuote && orderQuote.size_slug ? { ...product, quote: orderQuote } : product),
       wallet_balance_usd: Math.round((charge.balance - (charge.charged ? charge.price : 0)) * 100) / 100,
       note: `Provisioning started. Poll GET /jobs/${jobId} for live progress + ETA, or GET /${isRDP ? 'rdp' : 'vps'}/{id} until status="RUNNING", or subscribe to the ${isRDP ? 'rdp' : 'vps'}.provisioned / ${isRDP ? 'rdp' : 'vps'}.provision_failed webhooks. Reuse client_ref to make retries idempotent.`,
     })
@@ -1479,12 +1495,15 @@ function createResellerApi(deps = {}) {
 
   async function vpsListHandler(req, res, isRDP) {
     const docs = await col('vpsPlansOf').find({ chatId: String(req.reseller.ownerChatId), isRDP: !!isRDP }).limit(500).toArray()
+    // RDP: the size each box was ACTUALLY built on lives in doRdpServers (one query for the whole list).
+    let rdpSizes = new Map()
+    if (isRDP) { try { rdpSizes = await require('./digitalocean-rdp-service').sizeSlugsFor(docs.map(d => d.instanceId || d.contaboInstanceId).filter(Boolean)) } catch { rdpSizes = new Map() } }
     res.json({ [isRDP ? 'rdp' : 'vps']: docs.map(d => ({
       id: d.vpsId || d._id, instance_id: d.instanceId || d.contaboInstanceId || null, ip: d.host || null,
       plan: d.plan || null, region: d.region || null, os: d.osType || null, os_id: d.osId || null, hostname: d.hostname || null, status: d.status || null,
       provision_state: d.provisionState || null,
       ...(d.provisionState === 'failed' ? { provision_failed_reason: d.provisionFailedReason || 'provision_failed' } : {}),
-      ...hwFromRecord(isRDP ? rdpProviderForRecord(d) : providerFor(false), d),
+      ...hwFromRecord(isRDP ? rdpProviderForRecord(d) : providerFor(false), d, isRDP ? rdpSizes.get(d.instanceId || d.contaboInstanceId) : null),
       ...vpsRenewability(d, isRDP, isRDP ? rdpProviderForRecord(d) : null),
       created_at: d.start_time || d.timestamp || null,
     })) })
@@ -1527,7 +1546,7 @@ function createResellerApi(deps = {}) {
       rec.status = 'destroyed'; rec.deleted = true; rec.autoRenew = false
       rec.destroy_reason = rec.destroy_reason || 'provider_gone'
     }
-    const out = { id: rec.vpsId || rec._id, instance_id: rec.instanceId || null, plan: rec.plan, region: rec.region, os: rec.osType, os_id: rec.osId || null, hostname: rec.hostname || null, ...hwFromRecord(isRDP ? rdpProviderForRecord(rec) : providerFor(false), rec), status: (providerGone || VPS_TERMINAL.includes(String(rec.status))) ? 'destroyed' : (live?.status || rec.status), ip: live?.mainIp || rec.host || null, live }
+    const out = { id: rec.vpsId || rec._id, instance_id: rec.instanceId || null, plan: rec.plan, region: rec.region, os: rec.osType, os_id: rec.osId || null, hostname: rec.hostname || null, ...hwFromRecord(isRDP ? rdpProviderForRecord(rec) : providerFor(false), rec, (live && !live.error && live.sizeSlug) || null), status: (providerGone || VPS_TERMINAL.includes(String(rec.status))) ? 'destroyed' : (live?.status || rec.status), ip: live?.mainIp || rec.host || null, live }
     const _vpsTerminal = VPS_TERMINAL.includes(String(out.status))
     out.provision_state = _vpsTerminal ? 'destroyed' : (rec.provisionState || null)
     if (!_vpsTerminal && rec.provisionState === 'failed') out.provision_failed_reason = rec.provisionFailedReason || 'provision_failed'

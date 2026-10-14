@@ -3019,7 +3019,8 @@ ${plans
   const plans = list.map(config => {
    const star = config.name === cheapestName ? '🌟 ' : ''
    const line = `<strong>• ${star}${config.name}</strong> — ${config.specs.vCPU} vCPU · ${config.specs.RAM}GB RAM · ${config.specs.disk}GB ${config.specs.diskType} — $${config.monthlyPrice}/माह`
-   return config.isRDP ? `${line}\n   ⚡ <i>Premium AMD · NVMe SSD</i>` : line
+   const hw = config.hardware || (config.isRDP ? '⚡ Premium AMD · NVMe SSD' : '')
+   return hw ? `${line}\n   <i>${hw}</i>` : line
   }).join('\n')
 
   let walletLine = ''
@@ -3112,7 +3113,7 @@ ${list.map(item => `${name == 'whm' ? `<strong>• ${item.name} - </strong>` : '
  let summary = `<strong>📋 ऑर्डर सारांश:</strong>
 
 <strong>${planEmoji} ${vpsDetails.config.name}</strong>${planKind} — ${vpsDetails.config.specs.vCPU} vCPU · ${vpsDetails.config.specs.RAM}GB RAM · ${vpsDetails.config.specs.disk}GB ${vpsDetails.config.specs.diskType}
-<strong>📍 क्षेत्र:</strong> ${vpsDetails.regionName || vpsDetails.country}
+${vpsDetails.config.hardware ? `<strong>⚙️ हार्डवेयर:</strong> ${vpsDetails.config.hardware}\n` : ''}<strong>📍 क्षेत्र:</strong> ${vpsDetails.regionName || vpsDetails.country}
 <strong>💻 OS:</strong> ${osLabel}`
 
  if (isRDP) {
@@ -3254,7 +3255,7 @@ ${list
  return `<strong>${isRDP ? '🪟 Windows RDP' : '🐧 Linux VPS'}:</strong> ${data.name}
 
 <strong>• योजना:</strong> ${data.planDetails.name}
-<strong>• vCPUs:</strong> ${data.planDetails.specs.vCPU} | RAM: ${data.planDetails.specs.RAM} GB | डिस्क: ${data.planDetails.specs.disk} GB (${data.diskTypeDetails.type})
+<strong>• vCPUs:</strong> ${data.planDetails.specs.vCPU} | RAM: ${data.planDetails.specs.RAM} GB | डिस्क: ${data.planDetails.specs.disk} GB (${data.diskTypeDetails.type})${data.hardware ? `\n<strong>• हार्डवेयर:</strong> ${data.hardware}` : ''}
 <strong>• OS:</strong> ${data.osDetails.name}${panelLine}${billingLine}
 <strong>• स्थिति:</strong> ${running ? '🟢' : '🔴'} ${data.status}
 <strong>• स्वचालित नवीनीकरण:</strong> ${data.autoRenewable ? 'सक्षम' : 'अक्षम'}

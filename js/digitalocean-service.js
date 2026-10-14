@@ -732,6 +732,7 @@ async function getInstance(instanceId) {
     providerStatus:  droplet.status, // untranslated, for debugging
     region:          droplet.region?.slug,
     plan:            droplet.size_slug,
+    sizeSlug:        droplet.size_slug || null, // the REAL size → hardware type (do-hw-type.js)
     osId:            droplet.image?.slug || droplet.image?.id,
     label:           droplet.name,
     tag:             (droplet.tags && droplet.tags[0]) || null,

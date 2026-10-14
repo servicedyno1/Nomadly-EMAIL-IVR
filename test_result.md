@@ -11,6 +11,20 @@
 #====================================================================================================
 # CURRENT TASK (2026-10-14b) — Admin DO stock alerts: confirmed changes only (30 min) + short text
 #====================================================================================================
+current_task_2026_10_14c_hw_type: |
+  User: "ensure we return the DigitalOcean VPS and RDP real types (AMD, NVMe, etc) via reseller API and on the bot".
+  Choices: add NEW fields, leave cpu/storage_type unchanged; bot shows type in plan list + order summary + My VPS/RDP
+  screen; Regular SSD plans labelled "Regular CPU · SSD"; hot-patch all 3 live bots + keep in code.
+  NEW js/do-hw-type.js (classOf/apiFields/botLabel/slugOfProduct): s-*-amd → Premium AMD · NVMe SSD, s-*-intel →
+  Premium Intel · NVMe SSD, other s-* → Regular CPU · SSD, anything else → null.
+  Reseller API (js/reseller-api.js hwFromProduct/hwFromRecord): + cpu_type, size_slug, hardware on /vps/plans,
+  /rdp/plans (size from the live quote — same-spec fallback size), /pricing, /rdp/availability plans, GET /vps,/rdp
+  lists (RDP real size via rdp.sizeSlugsFor), GET /vps/:id,/rdp/:id (live sizeSlug), POST /vps|/rdp 202, and
+  vps.provisioned / rdp.provisioned webhooks (+ do_size_slug saved on the record). getInstance now returns sizeSlug
+  (digitalocean-service: droplet.size_slug; digitalocean-rdp-service: doRdpServers.do_size_slug → tier size).
+  Bot: vm-instance-setup configs/details get `hardware`; lang en/fr/zh/hi askVpsConfig / generateBillSummary /
+  selectedVpsData render it. apidoc updated (+ What's new). Tests: js/tests/test_do_hw_type_2026-10.js 55/0 +
+  regressions (nvme plans 16, plan change 28, stock/AMD 88, late refund 100, voodoo 39, rdp checkout 60 …) all pass.
 current_task_2026_10_14b_stock_alerts: |
   User: "smadav and nomadly Admin bots get regular notifications about RDP stocks but not Voodoo. why? are they
   reliable? make the notification text shorter". User chose: alert only when a change lasts 30+ min (re-check
