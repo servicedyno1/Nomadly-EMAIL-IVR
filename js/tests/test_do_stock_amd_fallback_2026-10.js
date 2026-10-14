@@ -311,19 +311,42 @@ const nyc = (r) => ['nyc1', 'nyc2', 'nyc3'].includes(r)
     const sent = []
     const notify = (m) => sent.push(m)
     await setCatalog([...AMD(EVERYWHERE), ...BASIC(EVERYWHERE), ...INTEL(EVERYWHERE)])
-    let w = await stockWatch.check({ col, notify })
-    ok('first run stores a baseline (one summary of what is currently out of stock: Toronto RDP)', w.baseline === true && sent.length === 1 && /Currently out of stock/.test(sent[0]) && /RDP <b>Standard<\/b> — 🇨🇦 Canada \(Toronto\)/.test(sent[0]), sent[0])
+    const t0 = Date.now()
+    const at = (min) => new Date(t0 + min * 60000)
+    let w = await stockWatch.check({ col, notify, now: at(0) })
+    ok('first run stores a baseline (one short summary of what is sold out now: Toronto RDP)', w.baseline === true && sent.length === 1 && /Stock watch on/.test(sent[0]) && /🔴 RDP Toronto: all plans/.test(sent[0]) && sent[0].split('\n').length <= 4, sent[0])
     sent.length = 0
-    w = await stockWatch.check({ col, notify })
+    w = await stockWatch.check({ col, notify, now: at(1) })
     ok('no change → no alert', w.changed === 0 && sent.length === 0)
     await setCatalog([...AMD(ALL_BUT_NY), ...BASIC(EVERYWHERE), ...INTEL(EVERYWHERE)])
-    w = await stockWatch.check({ col, notify })
-    ok('AMD gone in New York → one alert: RDP Standard/Pro/Power New York out of stock (+ the VPS AMD sizes)',
-      sent.length === 1 && ['standard', 'pro', 'power'].every(t => w.wentOut.includes(`rdp|nyc3|${t}`)) && /Out of stock now/.test(sent[0]) && /RDP <b>Pro<\/b> — 🇺🇸 United States \(New York\)/.test(sent[0]) && /VPS .*s-2vcpu-4gb-amd/.test(sent[0]) && !w.cameBack.length, sent[0])
+    w = await stockWatch.check({ col, notify, now: at(2) })
+    ok('AMD gone in New York → NOT announced yet (unconfirmed, waiting 30 min)', sent.length === 0 && w.changed === 0 && w.pending >= 3, w)
+    w = await stockWatch.check({ col, notify, now: at(17) })
+    ok('still gone 15 min later → still waiting', sent.length === 0 && w.pending >= 3, w)
+    w = await stockWatch.check({ col, notify, now: at(32) })
+    ok('held 30 min → ONE short alert: RDP New York all plans out (+ the VPS AMD sizes)',
+      sent.length === 1 && ['standard', 'pro', 'power'].every(t => w.wentOut.includes(`rdp|nyc3|${t}`)) && /Stock change/.test(sent[0]) && /🔴 RDP New York: all plans/.test(sent[0]) && /🔴 VPS .*AMD/.test(sent[0]) && !w.cameBack.length && !/s-2vcpu-4gb-amd/.test(sent[0]), sent[0])
     sent.length = 0
     await setCatalog([...AMD(EVERYWHERE), ...BASIC(EVERYWHERE), ...INTEL(EVERYWHERE)])
-    const [wa, wb] = await Promise.all([stockWatch.check({ col, notify }), stockWatch.check({ col, notify })])
-    ok('back in stock → exactly ONE "Back in stock" alert even with two pods checking at once', sent.length === 1 && /Back in stock/.test(sent[0]) && [wa, wb].filter(x => x.cameBack && x.cameBack.includes('rdp|nyc3|standard')).length === 1, { sent: sent.length, wa, wb })
+    w = await stockWatch.check({ col, notify, now: at(40) })
+    ok('back → waits 30 min too', sent.length === 0 && w.pending >= 3, w)
+    const [wa, wb] = await Promise.all([stockWatch.check({ col, notify, now: at(71) }), stockWatch.check({ col, notify, now: at(71) })])
+    ok('back in stock (held 30 min) → exactly ONE alert even with two pods checking at once', sent.length === 1 && /🟢 RDP New York: all plans/.test(sent[0]) && [wa, wb].filter(x => x.cameBack && x.cameBack.includes('rdp|nyc3|standard')).length === 1, { sent, wa, wb })
+    sent.length = 0
+    // DigitalOcean flapping (2026-10-14 RCA): gone → back 5 min later → gone again → never announced
+    await setCatalog([...AMD(EVERYWHERE), ...BASIC(EVERYWHERE)])
+    w = await stockWatch.check({ col, notify, now: at(80) })
+    ok('flap: Intel sizes vanish → waiting', sent.length === 0 && w.pending > 0, w)
+    await setCatalog([...AMD(EVERYWHERE), ...BASIC(EVERYWHERE), ...INTEL(EVERYWHERE)])
+    w = await stockWatch.check({ col, notify, now: at(85) })
+    ok('flap: back 5 min later → dropped as a blip, nothing sent', sent.length === 0 && w.pending === 0 && w.blips > 0, w)
+    await setCatalog([...AMD(EVERYWHERE), ...BASIC(EVERYWHERE)])
+    await stockWatch.check({ col, notify, now: at(90) })
+    w = await stockWatch.check({ col, notify, now: at(115) })
+    ok('flap: gone again → the 30 min restart from the latest flip (25 min held → still silent)', sent.length === 0 && w.pending > 0, w)
+    await setCatalog([...AMD(EVERYWHERE), ...BASIC(EVERYWHERE), ...INTEL(EVERYWHERE)])
+    w = await stockWatch.check({ col, notify, now: at(118) })
+    ok('flap: back before 30 min → blip, the admin never saw any of it', sent.length === 0 && w.pending === 0, w)
     sent.length = 0
     sizeCatalog._setForTest(CAT.sizes, CAT.regions, { source: 'live', fetchedAt: new Date(Date.now() - 3 * 3600000) })
     fake.sizesDown = true
@@ -338,8 +361,17 @@ const nyc = (r) => ['nyc1', 'nyc2', 'nyc3'].includes(r)
     stockWatch._resetForTest()
     ok('start() wires the watcher to every catalogue refresh', stockWatch.start(db, { notify }) === true)
     await setCatalog([...AMD(ALL_BUT_NY), ...BASIC(EVERYWHERE), ...INTEL(EVERYWHERE)])
-    await waitFor(async () => sent.some(m => /Out of stock now/.test(m)), 5000)
-    ok('a refresh that changes stock alerts the admin automatically', sent.some(m => /Out of stock now/.test(m) && /New York/.test(m)), sent)
+    await sleep(500)
+    ok('a refresh that changes stock does NOT alert at once, and books a 5-min re-check', !sent.length && stockWatch._scheduleRecheck() === false, sent)
+    const savedConfirm = stockWatch._timing.confirmMs
+    stockWatch._timing.confirmMs = 0
+    await setCatalog([...AMD(EVERYWHERE), ...BASIC(EVERYWHERE), ...INTEL(EVERYWHERE)])
+    await sleep(500)
+    await setCatalog([...AMD(ALL_BUT_NY), ...BASIC(EVERYWHERE), ...INTEL(EVERYWHERE)])
+    await waitFor(async () => sent.some(m => /🔴 RDP New York/.test(m)), 5000)
+    stockWatch._timing.confirmMs = savedConfirm
+    ok('a confirmed change after a refresh alerts the admin automatically', sent.some(m => /Stock change/.test(m) && /🔴 RDP New York: all plans/.test(m)), sent)
+    stockWatch._resetForTest()
   } catch (e) {
     fail++; console.log('  ❌ suite crashed:', e.stack || e.message)
   } finally {

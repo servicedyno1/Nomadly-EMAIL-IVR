@@ -2076,7 +2076,7 @@ webhook rdp.provision_failed { "id": "6f1c…", "reason": "RDP not reachable at 
 
       <div class="card">
         <h3>Back-in-stock webhooks</h3>
-        <p class="muted" style="margin:0 0 10px"><code>rdp.back_in_stock</code> and <code>vps.back_in_stock</code> fire when a plan that was sold out in a city at the previous 15-minute check can be ordered again. Every account with a webhook URL receives them (PUT /account/webhook), <b>once per city + plan each time stock returns</b>, signed like every other event. <code>data.id</code> is <code>&lt;region&gt;:&lt;plan&gt;</code>. Stock can sell out again quickly &mdash; confirm with GET /rdp/availability (or GET /vps/plans) right before you order, and expect a <code>409 out_of_stock</code> if it is gone.</p>
+        <p class="muted" style="margin:0 0 10px"><code>rdp.back_in_stock</code> and <code>vps.back_in_stock</code> fire when a plan that was sold out in a city can be ordered again <b>and has stayed orderable for 30 minutes</b> (DigitalOcean capacity often blinks on and off for a few minutes &mdash; those blips are ignored). Every account with a webhook URL receives them (PUT /account/webhook), <b>once per city + plan each time stock returns</b>, signed like every other event. <code>data.id</code> is <code>&lt;region&gt;:&lt;plan&gt;</code>. Stock can sell out again quickly &mdash; confirm with GET /rdp/availability (or GET /vps/plans) right before you order, and expect a <code>409 out_of_stock</code> if it is gone.</p>
         <div class="ctitle"><span>Example payloads</span><button class="copy">Copy</button></div>
         <pre class="code"><code>${esc(hooks)}</code></pre>
       </div>

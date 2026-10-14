@@ -13,7 +13,7 @@ import pytest
 
 BASE_URL = os.environ.get(
     "REACT_APP_BACKEND_URL",
-    "https://nomadly-deploy.preview.emergentagent.com",
+    "https://vigilant-tesla-8.preview.emergentagent.com",
 ).rstrip("/")
 TEST_CHATID = "5346193142"
 

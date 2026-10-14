@@ -354,14 +354,22 @@ async function setCatalog(sizes) { CAT.sizes = sizes; await sizeCatalog.refresh(
     const col = db.collection('doSizeCatalog')
     const restored = []
     const onBackInStock = (keys) => { restored.push(keys) }
+    const t9 = Date.now(), at9 = (min) => new Date(t9 + min * 60000)
     await setCatalog([...AMD(EVERYWHERE)])
-    await stockWatch.check({ col, notify: () => {}, onBackInStock })
+    await stockWatch.check({ col, notify: () => {}, onBackInStock, now: at9(0) })
     await setCatalog([...AMD(ALL_BUT_NY)])
-    await stockWatch.check({ col, notify: () => {}, onBackInStock })
+    await stockWatch.check({ col, notify: () => {}, onBackInStock, now: at9(1) })
+    await stockWatch.check({ col, notify: () => {}, onBackInStock, now: at9(32) })
     ok('stock going OUT does not fire back_in_stock', restored.length === 0)
     await setCatalog([...AMD(EVERYWHERE)])
-    await Promise.all([stockWatch.check({ col, notify: () => {}, onBackInStock }), stockWatch.check({ col, notify: () => {}, onBackInStock })])
-    ok('New York AMD back → onBackInStock called ONCE (two pods) with rdp|nyc3|standard/pro/power', restored.length === 1 && ['standard', 'pro', 'power'].every(t => restored[0].includes(`rdp|nyc3|${t}`)), restored)
+    await stockWatch.check({ col, notify: () => {}, onBackInStock, now: at9(40) })
+    await setCatalog([...AMD(ALL_BUT_NY)])
+    await stockWatch.check({ col, notify: () => {}, onBackInStock, now: at9(45) })
+    ok('a 5-minute "back" blip from DigitalOcean does NOT fire back_in_stock', restored.length === 0, restored)
+    await setCatalog([...AMD(EVERYWHERE)])
+    await stockWatch.check({ col, notify: () => {}, onBackInStock, now: at9(50) })
+    await Promise.all([stockWatch.check({ col, notify: () => {}, onBackInStock, now: at9(81) }), stockWatch.check({ col, notify: () => {}, onBackInStock, now: at9(81) })])
+    ok('New York AMD back and held 30 min → onBackInStock called ONCE (two pods) with rdp|nyc3|standard/pro/power', restored.length === 1 && ['standard', 'pro', 'power'].every(t => restored[0].includes(`rdp|nyc3|${t}`)), restored)
     ok('bot: stock watcher pushes them to resellers via broadcast (production pod only)', /do-stock-watch'\)\.start\(db, \{ notify: notifyAdmin, onBackInStock: \(keys, at\) => pushBackInStock\(keys, at\) \}\)/.test(indexSrc) && /webhooks\.broadcast\(resellerDb \|\| db, \{ \.\.\.e, log \}\)/.test(indexSrc))
 
     // ── 10. Docs ──
