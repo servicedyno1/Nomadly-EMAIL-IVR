@@ -53,6 +53,8 @@ const EVENTS = [
   'hosting.flagged', 'vps.flagged', 'rdp.flagged', 'shortener.flagged',
   // A plan that was sold out in a city can be ordered again (sent to every key with a webhook URL)
   'vps.back_in_stock', 'rdp.back_in_stock',
+  // A reinstall that had to copy the Windows image to the server's datacenter first started / was cancelled
+  'rdp.reinstall_started', 'rdp.reinstall_failed',
 ]
 
 // Shared by the hosting scheduler (auto-renew) and the alert sweep so a renewal is pushed once.

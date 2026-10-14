@@ -186,7 +186,11 @@ const T = { bootPoll: 5000, rdpPoll: 30000, actionPoll: 15000, offPoll: 10000, r
 // ─────────────────────────────────────────────────────────────
 let _notifyAdmin = null
 let _onOrderFailed = null
+let _onReinstallEvent = null // ({ type: 'started'|'failed', server_id, instanceId, osId, osName, password?, etaMinutes?, reason?, source })
 const _alertSeen = new Map()
+const _xfer = new Map()          // `${imageId}@${region}` → in-flight transfer promise (one copy per image+datacenter)
+const _xferFailedAt = new Map()  // same key → last failure (auto-copy backs off 6 h)
+const COPY_ETA_MIN = 20          // typical DigitalOcean image copy between datacenters (~9-14 GB)
 function alertAdmin(key, message) {
   const now = Date.now()
   for (const [k, t] of _alertSeen) if (now - t > 10 * 60 * 1000) _alertSeen.delete(k)
@@ -462,11 +466,12 @@ let _osCol = null
 let _builds = null
 let _agentMetrics = null
 let _db = null
-function init(db, { notifyAdmin, onOrderFailed } = {}) {
+function init(db, { notifyAdmin, onOrderFailed, onReinstallEvent } = {}) {
   try {
     if (!db || typeof db.collection !== 'function') return false
     if (typeof notifyAdmin === 'function') _notifyAdmin = notifyAdmin
     if (typeof onOrderFailed === 'function') _onOrderFailed = onOrderFailed
+    if (typeof onReinstallEvent === 'function') _onReinstallEvent = onReinstallEvent
     _db = db
     _servers = db.collection('doRdpServers')
     _osCol = db.collection('doRdpOsOptions')
@@ -491,6 +496,10 @@ function init(db, { notifyAdmin, onOrderFailed } = {}) {
       setInterval(() => { processExpiries().catch(e => log('expiry sweep error:', e.message)) }, 60 * 60 * 1000)
       setInterval(() => { sendDailyDigest().catch(e => log('digest error:', e.message)) }, T.digestMs)
       setInterval(() => { reconcileOrders().catch(e => log('order reconcile error:', e.message)) }, T.reconcileMs).unref()
+      // Keep every Windows image in every datacenter an order could be built in (re-checked after each stock refresh).
+      if (_token() && process.env.DO_RDP_GOLDEN_AUTOCOPY !== 'false') {
+        sizeCatalog.onRefresh(() => { ensureGoldenAtBuildSites().catch(e => log('golden auto-copy error:', e.message)) })
+      }
     } else {
       log('SKIP_WEBHOOK_SYNC=true — expiry sweep + daily digest DISABLED (dev sandbox)')
     }
@@ -500,6 +509,7 @@ function init(db, { notifyAdmin, onOrderFailed } = {}) {
       setTimeout(() => {
         syncGoldenFromDO().then(r => log('golden sync:', JSON.stringify(r))).catch(e => log('golden sync error:', e.message))
         resumeBuilds().catch(e => log('resumeBuilds error:', e.message))
+        resumeQueuedReinstalls().catch(e => log('resumeQueuedReinstalls error:', e.message))
       }, 15000)
       setInterval(() => { syncGoldenFromDO().catch(e => log('golden sync error:', e.message)) }, 6 * 60 * 60 * 1000)
     }
@@ -981,7 +991,19 @@ async function waitImageInRegion(imageId, region, minutes) {
   return false
 }
 
-async function transferGoldenImage(imageId, region, osId) {
+// One copy per image+datacenter at a time: concurrent callers (auto-copy, an order, a reinstall) share it.
+// `after` (optional promise) runs the copy only once that one settled (sequential batches stay registered).
+function transferGoldenImage(imageId, region, osId, after = null) {
+  const key = `${imageIdNum(imageId)}@${region}`
+  if (_xfer.has(key)) return _xfer.get(key)
+  const p = (after || Promise.resolve()).then(() => _transferGoldenImage(imageId, region, osId))
+    .then(ok => { if (ok) _xferFailedAt.delete(key); else _xferFailedAt.set(key, Date.now()); return ok })
+    .catch(e => { _xferFailedAt.set(key, Date.now()); throw e })
+    .finally(() => _xfer.delete(key))
+  _xfer.set(key, p)
+  return p
+}
+async function _transferGoldenImage(imageId, region, osId) {
   let img = {}
   try { img = (await doGetImage(imageId)).image || {} } catch (_) {}
   let ok = (img.regions || []).includes(region)
@@ -1241,15 +1263,50 @@ async function transferGolden(osId, regions) {
   if (!(o.golden_status === 'available' && o.golden_image_id)) throw new Error(`no golden image available for ${osId}`)
   const wanted = regions === 'all' || !regions ? GOLDEN_ALL_REGIONS : regions.map(regionToSlug)
   const targets = [...new Set(wanted)].filter(r => !(o.golden_regions || []).includes(r))
-  ;(async () => {
-    for (const r of targets) {
-      let ok = false
-      try { ok = await transferGoldenImage(o.golden_image_id, r, o.id); log(`transfer ${o.id}→${r}: ${ok ? 'ok' : 'FAILED'}`) }
-      catch (e) { log(`transfer ${o.id}→${r} error: ${e.message}`) }
+  // One after the other, but every target is registered in-flight right away (no duplicate queueing).
+  let prev = null
+  for (const r of targets) {
+    const p = transferGoldenImage(o.golden_image_id, r, o.id, prev)
+    prev = p.catch(() => false)
+    prev.then((ok) => {
+      log(`transfer ${o.id}→${r}: ${ok ? 'ok' : 'FAILED'}`)
       if (!ok) alertAdmin(`xfer:${o.id}:${r}`, `🌍 Golden image ${o.golden_image_id} (${o.id}) could not be copied to ${r} - orders there fall back to the slow conversion.\nRetry: node js/ops/rdp_golden_build.js transfer --os ${o.id} --regions ${r}`)
-    }
-  })()
+    })
+  }
   return { os_id: o.id, image_id: o.golden_image_id, queued_regions: targets }
+}
+
+// Every datacenter an order of a sold city could be BUILT in right now (the city's own + same-city fallbacks
+// that sell at least one AMD tier). Owner decision 2026-10-14: each holds a copy of every Windows image
+// (~$0.06/GB-month per datacenter) so a same-city fallback (New York nyc3 → nyc1) still deploys in ~3 min.
+function goldenBuildSites() {
+  const out = new Set()
+  for (const r of listRegions()) {
+    for (const dc of [r.regionSlug, ...sizeCatalog.sameCityOf(r.regionSlug)]) {
+      if (TIERS.some(t => _sizeOptions(t, dc, t.monthly_do_cost * MAX_SIZE_COST_FACTOR).length)) out.add(dc)
+    }
+  }
+  return [...out]
+}
+// Copy each ready golden image to the build sites that lack it (production; after every catalogue refresh,
+// so it follows DigitalOcean when AMD capacity moves). Failed copies are retried after 6 h (admin alerted).
+async function ensureGoldenAtBuildSites() {
+  if (!_osCol || !_token() || !sizeCatalog.isLoaded()) return { sites: [], queued: [] }
+  const sites = goldenBuildSites()
+  const queued = []
+  for (const id of Object.keys(OS_OPTIONS)) {
+    const o = await getOsOption(id)
+    if (!(o.golden_status === 'available' && o.golden_image_id)) continue
+    const missing = sites.filter(r => {
+      const key = `${imageIdNum(o.golden_image_id)}@${r}`
+      return !(o.golden_regions || []).includes(r) && !_xfer.has(key) && !(Date.now() - (_xferFailedAt.get(key) || 0) < 6 * 3600000)
+    })
+    if (!missing.length) continue
+    await transferGolden(id, missing)
+    queued.push(...missing.map(r => `${id}@${r}`))
+  }
+  if (queued.length) log(`golden auto-copy queued: ${queued.join(', ')}`)
+  return { sites, queued }
 }
 
 async function goldenStatus() {
@@ -1366,6 +1423,7 @@ function provisioningStatus(s) {
     time_to_active_s: reinstall ? (s.reinstalled_at ? elapsed : null) : (s.time_to_active_s ?? (s.activated_at ? Math.round((new Date(s.activated_at) - created) / 1000) : null)),
     credentials_ready: s.status === 'active', password_confirmed: s.password_confirmed ?? null,
     reinstall: !!reinstall,
+    reinstall_queued: s.pending_reinstall ? { os: s.pending_reinstall.os_id, phase: 'copying_image', queued_at: s.pending_reinstall.queued_at, eta_minutes: s.pending_reinstall.eta_minutes } : null,
     steps: order.map((k, i) => ({ key: k, label: STAGE_LABELS[k], done: i <= reached, current: i === reached + 1 && !done && !failed })),
     logs: (s.logs || []).slice(-10).map(l => ({ ts: l.ts, stage: l.stage, message: l.message })),
   }
@@ -1469,19 +1527,34 @@ async function resetPassword(instanceId, opts = {}) {
 
 // Reinstall Windows (optionally another edition) = DO rebuild of the SAME droplet from the golden image:
 // IP kept, disk wiped, ~3 min. The new password is queued for the agent so it lands right after first boot.
+// Image not in this server's datacenter yet (owner decision 2026-10-14): copy it there in the background,
+// then reinstall automatically. The server keeps running UNCHANGED until the copy lands; the new password
+// is only created when the rebuild starts and is announced through onReinstallEvent (bot DM / reseller webhook).
 async function reinstallInstance(instanceId, opts = {}) {
   const id = normId(instanceId)
   const s = _servers ? await _servers.findOne({ server_id: id }) : null
   if (!s || !s.do_droplet_id) throw new Error('server has no droplet yet')
   if (['creating', 'booting', 'reinstalling', 'converting'].includes(s.status)) throw new Error(`server is ${s.status} - wait for the current operation to finish`)
+  if (s.pending_reinstall) throw new Error(`a reinstall (${s.pending_reinstall.os_id}) is already queued - its image is being copied to ${s.region}`)
   const osId = String(opts.osId || opts.imageId || s.os_id).toLowerCase()
   if (!OS_OPTIONS[osId]) throw new Error(`unknown Windows edition "${opts.osId || opts.imageId}"`)
   const osOption = await getOsOption(osId)
   if (!(osOption.golden_status === 'available' && osOption.golden_image_id)) throw new Error(`${osOption.name} has no ready image yet - choose another edition`)
   if (!(osOption.golden_regions || []).includes(s.region)) {
-    transferGolden(osId, [s.region]).catch(() => {})
-    throw new Error(`${osOption.name} is not available in ${s.region} yet - it is being copied there now, try again in ~15 minutes`)
+    const eta = COPY_ETA_MIN + fastEta(osOption)
+    await _servers.updateOne({ server_id: id }, {
+      $set: { pending_reinstall: { os_id: osId, root_password: opts.rootPassword || null, source: opts.source || null, queued_at: new Date(), eta_minutes: eta } },
+      $push: { logs: { ts: new Date(), stage: 'info', message: `Reinstall of ${osOption.name} queued: copying its image to ${s.region} first (~${COPY_ETA_MIN} min). The server keeps running unchanged until then.` } },
+    })
+    _runQueuedReinstall(id).catch(e => log(`queued reinstall ${id} error: ${e.message}`))
+    return { success: true, queued: true, phase: 'copying_image', instanceId: extId(id), osId, osName: osOption.name, ip: s.ip_address, password: null, secretId: null, etaMinutes: eta, copyMinutes: COPY_ETA_MIN }
   }
+  return _rebuildNow(s, osOption, opts)
+}
+
+async function _rebuildNow(s, osOption, opts = {}) {
+  const id = s.server_id
+  const osId = osOption.id
   const password = (opts.rootPassword && await getSecretPassword(opts.rootPassword)) || genPassword()
   const secretId = opts.rootPassword || id
   await _servers.updateOne({ server_id: id }, {
@@ -1502,6 +1575,56 @@ async function reinstallInstance(instanceId, opts = {}) {
     } catch (e) { await addLog(id, 'failed', `Reinstall failed: ${e.message}`, null, 'failed') }
   })()
   return { success: true, instanceId: extId(id), osId, osName: osOption.name, imageId: osOption.golden_image_id, password, secretId, ip: s.ip_address, etaMinutes: fastEta(osOption) }
+}
+
+const _emitReinstall = (ev) => { try { if (_onReinstallEvent) Promise.resolve(_onReinstallEvent(ev)).catch(e => log(`onReinstallEvent error: ${e.message}`)) } catch (e) { log(`onReinstallEvent error: ${e.message}`) } }
+
+async function _runQueuedReinstall(id) {
+  const s = await _servers.findOne({ server_id: id })
+  const p = s && s.pending_reinstall
+  if (!p) return
+  const o = await getOsOption(p.os_id)
+  let ok = false
+  try { ok = !!o.golden_image_id && await transferGoldenImage(o.golden_image_id, s.region, o.id) } catch (e) { log(`queued reinstall ${id}: copy error ${e.message}`) }
+  // Claim the queued reinstall exactly once (a resumed run after a restart may race the original one).
+  const claim = await _servers.findOneAndUpdate({ server_id: id, 'pending_reinstall.queued_at': p.queued_at }, { $unset: { pending_reinstall: '' } })
+  const cur = claim && (claim.value !== undefined ? claim.value : claim)
+  if (!cur || !cur.server_id) return
+  const base = { server_id: id, instanceId: extId(id), osId: o.id, osName: o.name, source: p.source || null, rootPassword: p.root_password || null }
+  if (!cur.do_droplet_id || ['destroyed', 'expired', 'suspended', 'failed'].includes(cur.status)) {
+    await addLog(id, 'info', `Queued reinstall of ${o.name} dropped: the server is ${cur.status || 'gone'}.`, null, null)
+    return _emitReinstall({ ...base, type: 'failed', reason: `server_${cur.status || 'gone'}` })
+  }
+  if (!ok) {
+    await addLog(id, 'info', `Reinstall of ${o.name} cancelled: its image could not be copied to ${s.region}. The server was not changed.`, null, null)
+    alertAdmin(`xfer:${o.id}:${s.region}`, `🌍 Queued reinstall of ${o.name} on ${orderRef(cur)} cancelled: image ${o.golden_image_id} could not be copied to ${s.region}. Server untouched.\nRetry: node js/ops/rdp_golden_build.js transfer --os ${o.id} --regions ${s.region}`)
+    return _emitReinstall({ ...base, type: 'failed', reason: 'image_copy_failed' })
+  }
+  try {
+    const r = await _rebuildNow(cur, await getOsOption(o.id), { rootPassword: p.root_password || undefined })
+    _emitReinstall({ ...base, type: 'started', password: r.password, secretId: r.secretId, ip: r.ip, etaMinutes: r.etaMinutes })
+  } catch (e) {
+    await addLog(id, 'info', `Reinstall of ${o.name} could not start: ${e.message}. The server was not changed.`, null, null)
+    _emitReinstall({ ...base, type: 'failed', reason: e.message })
+  }
+}
+// A restart during the copy must not lose the customer's reinstall.
+async function resumeQueuedReinstalls() {
+  if (!_servers) return 0
+  const rows = await _servers.find({ pending_reinstall: { $exists: true } }, { projection: { server_id: 1 } }).toArray()
+  for (const r of rows) _runQueuedReinstall(r.server_id).catch(e => log(`resume queued reinstall ${r.server_id}: ${e.message}`))
+  return rows.length
+}
+
+// Reinstall edition picker for ONE server: ETA from where THAT droplet lives (image there → ~3-5 min,
+// image elsewhere → copy first ~20 min + boot). Editions without a ready image are left out.
+async function reinstallOptions(instanceId) {
+  const s = _servers ? await _servers.findOne({ server_id: normId(instanceId) }) : null
+  const all = await Promise.all(Object.keys(OS_OPTIONS).map(getOsOption))
+  return all.filter(o => o.golden_status === 'available' && o.golden_image_id).map(o => {
+    const here = !!s && (o.golden_regions || []).includes(s.region)
+    return { id: o.id, name: o.name, default: o.id === DEFAULT_OS_ID, golden: true, fast_deploy: here, copy_first: !here, eta_minutes: here ? fastEta(o) : COPY_ETA_MIN + fastEta(o), current: !!s && s.os_id === o.id }
+  })
 }
 
 // Daily admin digest of the last 24 h of RDP orders (only when there were any).
@@ -1749,6 +1872,7 @@ module.exports = {
   processExpiries, provisionRouter, sendDailyDigest, provisioningStatus, reconcileOrders, handleFailedOrder,
   // golden images
   startGoldenBuild, cancelBuild, resumeBuilds, syncGoldenFromDO, transferGolden, goldenStatus, listOsOptions, listOsOptionsForRegion,
+  goldenBuildSites, ensureGoldenAtBuildSites, reinstallOptions, resumeQueuedReinstalls, COPY_ETA_MIN,
   // exported for tests / internal use
   _buildUserData: buildUserData, _buildMetadataUserData: buildMetadataUserData,
   serversCollection: () => _servers,

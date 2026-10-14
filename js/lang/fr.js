@@ -3507,7 +3507,7 @@ ${cycles.map(c => {
 }).join('\n')}
 
 Les périodes plus longues sont facturées en une fois et incluent une remise ; le renouvellement automatique refacture la même période à l'échéance.`,
- rdpEditionBtn: o => `🪟 ${o.name}${o.fast_deploy ? ` ⚡ ~${o.eta_minutes || 3} min` : ' ⏳ ~45 min'}`,
+ rdpEditionBtn: o => `🪟 ${o.name} ${o.fast_deploy ? '⚡' : '⏳'} ~${o.eta_minutes || (o.fast_deploy ? 3 : 45)} min`,
  askRdpEdition: options => `🪟 <strong>Choisissez votre édition Windows</strong>
 
 ${options.map(o => `• <b>${o.name}</b> — ${o.fast_deploy ? `⚡ prêt en environ ${o.eta_minutes || 3} minutes (image pré-construite dans votre région)` : '⏳ installation complète, environ 45 minutes'}`).join('\n')}
@@ -3517,12 +3517,12 @@ Toutes les éditions sont Windows Server Standard (Expérience utilisateur) avec
 
 Choisissez l'édition à installer. Votre adresse IP reste la même.
 
-${options.map(o => `• <b>${o.name}</b> — ${o.fast_deploy ? `⚡ environ ${o.eta_minutes || 3} minutes` : '⏳ environ 45 minutes'}`).join('\n')}`,
- confirmReinstallWindowsRdpText: (name, osName, etaMin) => `🔄 <strong>Réinstaller ${osName} sur ${name}</strong>
+${options.map(o => `• <b>${o.name}</b> — ${o.fast_deploy ? `⚡ environ ${o.eta_minutes || 3} minutes` : (o.copy_first ? `⏳ environ ${o.eta_minutes} minutes (image d'abord copiée dans le datacenter de votre serveur)` : '⏳ environ 45 minutes')}`).join('\n')}`,
+ confirmReinstallWindowsRdpText: (name, osName, etaMin, copyFirst) => `🔄 <strong>Réinstaller ${osName} sur ${name}</strong>
 
 ⚠️ <strong>ATTENTION — le disque sera effacé :</strong>
 • Tous les fichiers, programmes et paramètres du serveur sont supprimés
-• Un ${osName} neuf est installé depuis notre image pré-construite (~${etaMin} min)
+• Un ${osName} neuf est installé depuis notre image pré-construite (~${etaMin} min)${copyFirst ? `\n• L'image est d'abord copiée dans le datacenter de votre serveur (~20 min) — votre serveur continue de fonctionner sans changement jusque-là` : ''}
 • Un NOUVEAU mot de passe Administrator est généré — l'ancien ne fonctionne plus
 • ✅ Votre adresse IP et votre période payée sont conservées
 
@@ -3536,6 +3536,58 @@ Voulez-vous continuer ?`,
 ⏱️ Windows s'installe maintenant — connectez-vous avec ces identifiants dans environ <b>${etaMin} minutes</b>.
 💡 Touchez le mot de passe pour le copier. Vous pouvez le réafficher à tout moment avec 🔐 Afficher le mot de passe.`,
  rdpActionReason: reason => `\n\n<i>Raison : ${reason}</i>`,
+ // ── DigitalOcean Linux VPS : réinstaller n'importe quel OS de la liste DigitalOcean (IP + accès conservés) ──
+ reinstallOsBtn: "🔄 Réinstaller l'OS",
+ linuxOsBtn: o => `${o.current ? '✅ ' : ''}🐧 ${o.name}${o.requiresSshKey ? ' 🔑' : ''}`,
+ askReinstallLinuxOs: (name, options) => `🔄 <b>Réinstaller le système sur ${name}</b>
+
+Choisissez le système à installer. ✅ = installé actuellement. 🔑 = nécessite la clé SSH que votre serveur possède déjà.
+Votre adresse IP, votre mot de passe root et votre clé SSH restent les mêmes.`,
+ confirmReinstallLinuxText: (name, osName) => `🔄 <b>Réinstaller ${osName} sur ${name}</b>
+
+⚠️ <b>ATTENTION — le disque sera effacé :</b>
+• Tous les fichiers, programmes et paramètres du serveur sont supprimés
+• Un ${osName} neuf est installé (~3 min)
+• ✅ Votre adresse IP, mot de passe root, clé SSH et période payée sont conservés
+
+Voulez-vous continuer ?`,
+ linuxReinstallStarted: (name, osName, etaMin) => `🔄 <b>Réinstallation de ${osName} sur ${name}</b>
+
+⏱️ Prêt dans environ <b>${etaMin} minutes</b>. Votre adresse IP, mot de passe root et clé SSH restent les mêmes.
+Nous vous enverrons les accès dès qu'il sera de nouveau en ligne.`,
+ linuxReinstallDone: (name, ip, username, password, osName) => `✅ <b>${osName} est prêt sur ${name}</b>
+
+🌐 <b>IP :</b> <code>${ip}</code>
+👤 <b>Utilisateur :</b> ${username}
+🔑 <b>Mot de passe :</b> <code>${password}</code> (inchangé)
+
+💡 Votre clé SSH fonctionne aussi. Vous pouvez réafficher le mot de passe avec 🔐 Afficher le mot de passe.`,
+ linuxReinstallDoneNoPassword: (name, ip, username, osName) => `✅ <b>${osName} est prêt sur ${name}</b>
+
+🌐 <b>IP :</b> <code>${ip}</code>
+👤 <b>Utilisateur :</b> ${username}
+
+🔑 Connectez-vous avec votre clé SSH, ou utilisez 🔐 Afficher / 🔄 Réinitialiser le mot de passe.`,
+ linuxReinstallDoneUnverified: (name, ip, username, osName) => `✅ <b>${osName} a été réinstallé sur ${name}</b>
+
+🌐 <b>IP :</b> <code>${ip}</code>
+👤 <b>Utilisateur :</b> ${username}
+
+⚠️ Nous n'avons pas encore pu confirmer votre mot de passe. Votre clé SSH fonctionne ; sinon utilisez 🔐 Afficher ou 🔄 Réinitialiser le mot de passe dans quelques minutes. Notre équipe a été prévenue.`,
+ linuxReinstallFailed: name => `❌ <b>Échec de la réinstallation</b>
+
+Impossible de réinstaller <b>${name}</b>. Rien n'a été modifié. Réessayez dans quelques minutes ou contactez le support.`,
+ linuxReinstallNeedsKey: name => `🔑 <b>Ce système nécessite une clé SSH</b>
+
+<b>${name}</b> a été créé sans clé SSH : Fedora, CentOS, AlmaLinux et Rocky Linux ne peuvent pas y être installés. Choisissez Ubuntu ou Debian. Rien n'a été modifié.`,
+ windowsReinstallQueued: (name, osName, copyMin, etaMin) => `⏳ <b>Réinstallation de ${osName} sur ${name} en file d'attente</b>
+
+L'image ${osName} est d'abord copiée dans le datacenter de votre serveur (~${copyMin} min). Votre serveur continue de fonctionner <b>sans changement</b> jusque-là et le mot de passe actuel reste valable.
+
+Ensuite la réinstallation démarre automatiquement (disque effacé, IP conservée) et nous vous enverrons le <b>nouveau mot de passe</b> — prêt dans environ <b>${etaMin} minutes</b>.`,
+ windowsReinstallCopyFailed: (name, osName) => `❌ <b>La réinstallation de ${osName} sur ${name} n'a pas pu démarrer</b>
+
+L'image Windows n'a pas pu être préparée dans le datacenter de votre serveur. <b>Rien n'a été modifié</b> — votre serveur et votre mot de passe sont inchangés. Réessayez plus tard ou choisissez une autre édition. Notre équipe a été prévenue.`,
  vpsBeingDeleted: name => `⚙️ Veuillez patienter pendant que votre VPS (${name}) est en cours de suppression`,
  vpsDeleted: name => `✅ Le VPS (${name}) a été supprimé de manière permanente.`,
  failedDeletingVPS: name => `❌ Échec de la suppression du VPS (${name}).

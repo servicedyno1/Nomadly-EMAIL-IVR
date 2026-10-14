@@ -188,7 +188,7 @@ async function setCatalog(sizes) { CAT.sizes = sizes; await sizeCatalog.refresh(
 
     // ── 5. Wiring + wording ──
     console.log('\n── 5: bot wiring + wording ──')
-    ok('DO-RDP init gets the refund handler; new servers are flagged refund_on_failure', /init\(db, \{ notifyAdmin, onOrderFailed: \(ctx\) => handleRdpOrderFailed\(ctx\) \}\)/.test(indexSrc) && /refund_on_failure: true,/.test(fs.readFileSync(path.join(__dirname, '../digitalocean-rdp-service.js'), 'utf8')))
+    ok('DO-RDP init gets the refund handler; new servers are flagged refund_on_failure', /init\(db, \{ notifyAdmin, onOrderFailed: \(ctx\) => handleRdpOrderFailed\(ctx\)[,}]/.test(indexSrc) && /refund_on_failure: true,/.test(fs.readFileSync(path.join(__dirname, '../digitalocean-rdp-service.js'), 'utf8')))
     ok('vm-instance-setup stores paidUsd (the coupon-adjusted amount) on the order', /paidUsd: Number\(vpsDetails\.totalPrice\) > 0/.test(fs.readFileSync(path.join(__dirname, '../vm-instance-setup.js'), 'utf8')))
     ok('purchase flow marks the order when it returns false (its caller refunds) → no double refund', /createdInstanceId && vpsPlansOf\) vpsPlansOf\.updateOne\(\{ contaboInstanceId: createdInstanceId, lateFailure: \{ \$exists: false \} \}/.test(indexSrc))
     ok('"rdpcity" / "stkbuy" buttons open the RDP/VPS order flow at city selection', /data === 'rdpcity'/.test(indexSrc) && /translation\(data === 'stkbuy:v' \? 'user\.buyLinuxVpsBtn' : 'user\.buyRdpBtn', lang\)/.test(indexSrc))

@@ -3542,7 +3542,7 @@ const loadData = async () => {
 
   // DigitalOcean Windows-RDP provider state (droplets, callback tokens, expiry).
   try {
-    require('./digitalocean-rdp-service').init(db, { notifyAdmin, onOrderFailed: (ctx) => handleRdpOrderFailed(ctx) })
+    require('./digitalocean-rdp-service').init(db, { notifyAdmin, onOrderFailed: (ctx) => handleRdpOrderFailed(ctx), onReinstallEvent: (ev) => handleRdpReinstallEvent(ev) })
   } catch (e) {
     log(`[DO-RDP] init failed: ${e.message || e}`)
   }
@@ -9586,6 +9586,8 @@ bot?.on('message', msg => {
     confirmResetPassword: 'confirmResetPassword',
     confirmReinstallWindows: 'confirmReinstallWindows',
     askReinstallEdition: 'askReinstallEdition',
+    askReinstallLinuxOs: 'askReinstallLinuxOs',
+    confirmReinstallLinux: 'confirmReinstallLinux',
     upgradeVpsInstance: 'upgradeVpsInstance',
     upgradeVpsPlan: 'upgradeVpsPlan',
     askVpsUpgradePayment: 'askVpsUpgradePayment',
@@ -12482,9 +12484,11 @@ Enter new value:`), bc)
       // Add instance management buttons — Reset Password + Show Password for all,
       // Reinstall Windows for RDP only
       const isRDP = vpsData.isRDP || vpsData.osType === 'Windows'
+      let isDoLinux = false
+      try { isDoLinux = !isRDP && require('./vps-provider').providerNameForRecord(vpsData) === 'digitalocean' } catch (_) { /* unknown provider */ }
       const extraButtons = isRDP
         ? [vp.revealPasswordBtn, vp.resetPasswordBtn, vp.reinstallWindowsBtn]
-        : [vp.revealPasswordBtn, vp.resetPasswordBtn]
+        : [vp.revealPasswordBtn, vp.resetPasswordBtn, ...(isDoLinux ? [vp.reinstallOsBtn] : [])]
       // SSH keys are meaningless on a Windows RDP — hide the button there.
       const tailButtons = isRDP
         ? [vp.subscriptionBtn, vp.upgradeVpsBtn, vp.deleteVpsBtn]
@@ -12578,7 +12582,7 @@ Enter new value:`), bc)
         const picked = info.reinstallEdition
         if (!picked) return goto.askReinstallEdition()
         await set(state, chatId, 'action', a.confirmReinstallWindows)
-        return send(chatId, vp.confirmReinstallWindowsRdpText(vpsDetails.name, picked.name, picked.eta_minutes || 3), vp.of([vp.confirmChangeBtn, vp.cancel]))
+        return send(chatId, vp.confirmReinstallWindowsRdpText(vpsDetails.name, picked.name, picked.eta_minutes || 3, !!picked.copy_first), vp.of([vp.confirmChangeBtn, vp.cancel]))
       }
       
       await set(state, chatId, 'action', a.confirmReinstallWindows)
@@ -12591,7 +12595,9 @@ Enter new value:`), bc)
       let options = []
       try {
         const rdpSvc = require('./vps-provider').getProviderForRecord(vpsDetails)
-        if (typeof rdpSvc.listOsOptionsForRegion === 'function') options = await rdpSvc.listOsOptionsForRegion(vpsDetails.region || vpsDetails.zone)
+        // ETA from where THIS droplet lives (image there ~3 min / copied there first ~20 min + boot).
+        if (typeof rdpSvc.reinstallOptions === 'function') options = await rdpSvc.reinstallOptions(vpsDetails.contaboInstanceId || vpsDetails._id)
+        else if (typeof rdpSvc.listOsOptionsForRegion === 'function') options = await rdpSvc.listOsOptionsForRegion(vpsDetails.region || vpsDetails.zone)
       } catch (e) { console.log(`[RDP] askReinstallEdition: listOsOptionsForRegion failed for ${chatId}: ${e.message}`) }
       if (!options.length) {
         await set(state, chatId, 'action', a.confirmReinstallWindows)
@@ -12600,6 +12606,24 @@ Enter new value:`), bc)
       await set(state, chatId, 'action', a.askReinstallEdition)
       await saveInfo('reinstallEditionOptions', options)
       return send(chatId, vp.askReinstallEdition(vpsDetails.name, options), vp.of([...options.map(o => vp.rdpEditionBtn(o)), vp.cancel]))
+    },
+
+    // DigitalOcean Linux VPS: any image from DigitalOcean's live list → confirm (disk wiped; IP + login kept).
+    askReinstallLinuxOs: async () => {
+      const vpsDetails = info.userVPSDetails
+      let options = []
+      try {
+        const rec = await vpsPlansOf.findOne({ chatId: String(chatId), vpsId: String(vpsDetails._id) })
+        options = await require('./vps-linux-reinstall').options(rec || vpsDetails, require('./vps-provider').getProviderForRecord(rec || vpsDetails))
+      } catch (e) { console.log(`[VPS] askReinstallLinuxOs failed for ${chatId}: ${e.message}`) }
+      if (!options.length) { send(chatId, vp.linuxReinstallFailed(vpsDetails.name)); return goto.getVPSDetails() }
+      await set(state, chatId, 'action', a.askReinstallLinuxOs)
+      await saveInfo('reinstallLinuxOptions', options)
+      return send(chatId, vp.askReinstallLinuxOs(vpsDetails.name, options), vp.of(linuxOsRows(options, vp)))
+    },
+    confirmReinstallLinux: async () => {
+      await set(state, chatId, 'action', a.confirmReinstallLinux)
+      return send(chatId, vp.confirmReinstallLinuxText(info.userVPSDetails.name, info.reinstallLinuxOs.name), vp.of([vp.confirmChangeBtn, vp.cancel]))
     },
 
     upgradeVpsInstance: async () => {
@@ -20881,6 +20905,7 @@ ${message.replace(/\n/g, '<br>')}
       await saveInfo('reinstallEdition', null)
       return goto.confirmReinstallWindows()
     }
+    if (message === vp.reinstallOsBtn) return goto.askReinstallLinuxOs()
     if (message === vp.startVpsBtn) {
       send(chatId, asKind(vp.vpsBeingStarted(userVPSDetails.name), isRdpRecord(userVPSDetails)))
       const changeVpsStatus = await changeVpsInstanceStatus(userVPSDetails, 'start')
@@ -21069,6 +21094,43 @@ ${message.replace(/\n/g, '<br>')}
     return goto.confirmReinstallWindows()
   }
 
+  if (action === a.askReinstallLinuxOs) {
+    if (message === vp.back || message === vp.cancel) return goto.getVPSDetails()
+    const options = info?.reinstallLinuxOptions || []
+    const picked = options.find(o => vp.linuxOsBtn(o) === message)
+    if (!picked) return send(chatId, vp.askReinstallLinuxOs(info.userVPSDetails?.name, options), vp.of(linuxOsRows(options, vp)))
+    info.reinstallLinuxOs = picked
+    await saveInfo('reinstallLinuxOs', picked)
+    return goto.confirmReinstallLinux()
+  }
+
+  if (action === a.confirmReinstallLinux) {
+    if (message === vp.back || message === vp.cancel) return goto.getVPSDetails()
+    if (message !== vp.confirmChangeBtn) return send(chatId, vp.selectCorrectOption, vp.of([vp.confirmChangeBtn, vp.cancel]))
+    const d = info.userVPSDetails
+    const picked = info.reinstallLinuxOs
+    try {
+      const rec = await vpsPlansOf.findOne({ chatId: String(chatId), vpsId: String(d?._id) })
+      if (!rec || !picked) return goto.getVPSDetails()
+      const lang = info?.userLanguage || 'en'
+      const r = await require('./vps-linux-reinstall').start({
+        rec: { ...rec, host: rec.host || d.host }, osId: picked.id,
+        provider: require('./vps-provider').getProviderForRecord(rec),
+        privateKeys: await fetchUserSSHPrivateKeys(chatId, rec.sshKeySecretId),
+        applyPassword: require('./vps-ssh-password').applyPasswordOverSSH,
+        onDone: (done) => notifyLinuxReinstallDone(chatId, lang, rec.label || d.name, done),
+      })
+      await vpsPlansOf.updateOne({ _id: rec._id }, { $set: { osId: r.osId, imageId: r.osId, lastReinstall: new Date() } })
+      await saveInfo('reinstallLinuxOs', null)
+      console.log(`[VPS] Linux reinstall started (${r.osId}) - ChatId: ${chatId}, Instance: ${rec.contaboInstanceId}`)
+      send(chatId, vp.linuxReinstallStarted(d.name, r.osName, r.etaMinutes), { parse_mode: 'HTML' })
+    } catch (e) {
+      console.error(`[VPS] Linux reinstall failed - ChatId: ${chatId}, Error:`, e.message || e)
+      send(chatId, e.code === 'ssh_key_required' ? vp.linuxReinstallNeedsKey(d?.name) : vp.linuxReinstallFailed(d?.name), { parse_mode: 'HTML' })
+    }
+    return goto.getVPSDetails()
+  }
+
   if (action === a.confirmReinstallWindows) {
     if (message === vp.back || message === vp.cancel) return goto.getVPSDetails()
     if (message === vp.confirmChangeBtn) {
@@ -21114,6 +21176,17 @@ ${message.replace(/\n/g, '<br>')}
             imageId: windowsImageId,
             rootPassword: newSecret.secretId
           })
+        }
+
+        // DO-RDP: the edition's image is being copied to this datacenter first — nothing changed yet; the
+        // new password is announced (handleRdpReinstallEvent) when the rebuild actually starts.
+        if (isDoRdp && reinstallResult?.queued) {
+          await vpsPlansOf.updateOne({ vpsId: userVPSDetails._id }, { $set: { reinstallQueued: { osId: windowsImageId, at: new Date() } } })
+          info.reinstallEdition = null
+          saveInfo('reinstallEdition', null)
+          console.log(`[RDP] Windows reinstall queued (image copy to the server's datacenter) - ChatId: ${chatId}, Instance: ${instanceId}, image=${windowsImageId}`)
+          send(chatId, vp.windowsReinstallQueued(userVPSDetails.name, reinstallResult.osName || 'Windows Server', reinstallResult.copyMinutes || 20, reinstallResult.etaMinutes || 25), { parse_mode: 'HTML' })
+          return goto.getVPSDetails()
         }
 
         // Update MongoDB
@@ -37746,6 +37819,43 @@ const handleRdpOrderFailed = (ctx) => require('./rdp-order-failure').handle(ctx,
       { parse_mode: 'HTML', reply_markup: { inline_keyboard: [[{ text: translation('vp.rdpTryAnotherCityBtn', lang), callback_data: 'rdpcity' }]] } })
   },
 })
+// Queued RDP reinstall (image was copied to the droplet's datacenter first) started or was cancelled.
+// Bot customer → DM (new password when it starts); reseller order → rdp.reinstall_started / _failed webhook.
+const handleRdpReinstallEvent = async (ev) => {
+  const reseller = ev.source === 'reseller_api'
+  const pdb = reseller ? (resellerDb || db) : db
+  const plans = pdb.collection('vpsPlansOf')
+  const rec = await plans.findOne({ $or: [{ contaboInstanceId: ev.instanceId }, { instanceId: ev.instanceId }, { vpsId: ev.instanceId }] })
+  if (!rec) return
+  const started = ev.type === 'started'
+  await plans.updateOne({ _id: rec._id }, started
+    ? { $set: { osId: ev.osId, imageId: ev.osId, status: reseller ? 'reinstalling' : 'provisioning', lastReinstall: new Date(), ...(ev.secretId ? { rootPasswordSecretId: ev.secretId } : {}), ...(ev.ip ? { host: ev.ip } : {}) }, $unset: { reinstallQueued: '' } }
+    : { $unset: { reinstallQueued: '' } })
+  const id = rec.vpsId || String(rec._id)
+  if (reseller) {
+    await require('./reseller-webhooks').emit(pdb, { chatId: rec.chatId, event: started ? 'rdp.reinstall_started' : 'rdp.reinstall_failed', instanceId: id, dedupKey: `${id}:reinstall:${ev.type}:${Date.now()}`,
+      payload: { os: ev.osId, os_name: ev.osName, eta_minutes: started ? (ev.etaMinutes || 3) : null, reason: ev.reason || null, server_changed: started, credentials_url: started ? `/rdp/${id}/credentials` : null }, log })
+    return
+  }
+  const lang = (await state.findOne({ _id: String(rec.chatId) }))?.userLanguage || 'en'
+  const name = rec.label || rec.name || id
+  if (started) send(rec.chatId, translation('vp.windowsReinstallStarted', lang, name, ev.ip || rec.host, 'Administrator', ev.password, ev.osName, ev.etaMinutes || 3), { parse_mode: 'HTML' })
+  else send(rec.chatId, translation('vp.windowsReinstallCopyFailed', lang, name, ev.osName), { parse_mode: 'HTML' })
+}
+// Linux reinstall finished (vps-linux-reinstall.js): show the login again, or point to Show Password.
+const notifyLinuxReinstallDone = (chatId, lang, name, done) => {
+  const t = done.passwordApplied ? translation('vp.linuxReinstallDone', lang, name, done.ip, done.username, done.password, done.osName)
+    : done.ok ? translation('vp.linuxReinstallDoneNoPassword', lang, name, done.ip, done.username, done.osName)
+      : translation('vp.linuxReinstallDoneUnverified', lang, name, done.ip, done.username, done.osName)
+  send(chatId, t, { parse_mode: 'HTML' })
+  if (!done.ok) { try { notifyAdmin(`⚠️ Linux reinstall (${done.osName}) on ${name} / chat ${chatId}: the password could not be re-applied over SSH after the rebuild${done.error ? ` (${done.error})` : ''}. Customer was told to use Show Password / Reset Password.`) } catch (_) { /* best-effort */ } }
+}
+const linuxOsRows = (options, L) => {
+  const btns = options.map(o => L.linuxOsBtn(o))
+  const rows = []
+  for (let i = 0; i < btns.length; i += 2) rows.push(btns.slice(i, i + 2))
+  return [...rows, L.cancel]
+}
 // RDP renewals are re-priced on live AMD stock in the server's city at every renewal (2026-10-14); others keep planPrice.
 const vpsRenewalPrice = async (rec) => {
   const id = String(rec?.contaboInstanceId || rec?.instanceId || '')

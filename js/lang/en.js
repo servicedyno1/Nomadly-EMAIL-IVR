@@ -3709,7 +3709,7 @@ ${cycles.map(c => {
 }).join('\n')}
 
 Longer periods are billed once up front and include a bundle discount; auto-renewal charges the same period again when it ends.`,
- rdpEditionBtn: o => `🪟 ${o.name}${o.fast_deploy ? ` ⚡ ~${o.eta_minutes || 3} min` : ' ⏳ ~45 min'}`,
+ rdpEditionBtn: o => `🪟 ${o.name} ${o.fast_deploy ? '⚡' : '⏳'} ~${o.eta_minutes || (o.fast_deploy ? 3 : 45)} min`,
  askRdpEdition: options => `🪟 <strong>Choose your Windows edition</strong>
 
 ${options.map(o => `• <b>${o.name}</b> — ${o.fast_deploy ? `⚡ ready in about ${o.eta_minutes || 3} minutes (pre-built image in your region)` : '⏳ full install, about 45 minutes'}`).join('\n')}
@@ -3719,12 +3719,12 @@ All editions are Windows Server Standard (Desktop Experience) with RDP enabled a
 
 Pick the edition to install. Your IP address stays the same.
 
-${options.map(o => `• <b>${o.name}</b> — ${o.fast_deploy ? `⚡ about ${o.eta_minutes || 3} minutes` : '⏳ about 45 minutes'}`).join('\n')}`,
- confirmReinstallWindowsRdpText: (name, osName, etaMin) => `🔄 <strong>Reinstall ${osName} on ${name}</strong>
+${options.map(o => `• <b>${o.name}</b> — ${o.fast_deploy ? `⚡ about ${o.eta_minutes || 3} minutes` : (o.copy_first ? `⏳ about ${o.eta_minutes} minutes (image copied to your server's datacenter first)` : '⏳ about 45 minutes')}`).join('\n')}`,
+ confirmReinstallWindowsRdpText: (name, osName, etaMin, copyFirst) => `🔄 <strong>Reinstall ${osName} on ${name}</strong>
 
 ⚠️ <strong>WARNING — this erases the disk:</strong>
 • All files, programs and settings on the server are deleted
-• A fresh ${osName} is installed from our pre-built image (~${etaMin} min)
+• A fresh ${osName} is installed from our pre-built image (~${etaMin} min)${copyFirst ? `\n• The image is first copied to your server's datacenter (~20 min) — your server keeps running unchanged until then` : ''}
 • A NEW Administrator password is generated — the old one stops working
 • ✅ Your IP address and your paid period are kept
 
@@ -3738,6 +3738,58 @@ Do you want to continue?`,
 ⏱️ Windows is being installed now — connect with these credentials in about <b>${etaMin} minutes</b>.
 💡 Tap the password to copy it. You can always show it again with 🔐 Show Password.`,
  rdpActionReason: reason => `\n\n<i>Reason: ${reason}</i>`,
+ // ── DigitalOcean Linux VPS: reinstall any OS from DigitalOcean's live list (IP + login kept) ──
+ reinstallOsBtn: '🔄 Reinstall OS',
+ linuxOsBtn: o => `${o.current ? '✅ ' : ''}🐧 ${o.name}${o.requiresSshKey ? ' 🔑' : ''}`,
+ askReinstallLinuxOs: (name, options) => `🔄 <b>Reinstall the operating system on ${name}</b>
+
+Pick the system to install. ✅ = installed now. 🔑 = needs the SSH key your server already has.
+Your IP address, root password and SSH key stay the same.`,
+ confirmReinstallLinuxText: (name, osName) => `🔄 <b>Reinstall ${osName} on ${name}</b>
+
+⚠️ <b>WARNING — this erases the disk:</b>
+• All files, programs and settings on the server are deleted
+• A fresh ${osName} is installed (~3 min)
+• ✅ Your IP address, root password, SSH key and paid period are kept
+
+Do you want to continue?`,
+ linuxReinstallStarted: (name, osName, etaMin) => `🔄 <b>Reinstalling ${osName} on ${name}</b>
+
+⏱️ Ready in about <b>${etaMin} minutes</b>. Your IP address, root password and SSH key stay the same.
+We'll message you with the login as soon as it is back online.`,
+ linuxReinstallDone: (name, ip, username, password, osName) => `✅ <b>${osName} is ready on ${name}</b>
+
+🌐 <b>IP:</b> <code>${ip}</code>
+👤 <b>Username:</b> ${username}
+🔑 <b>Password:</b> <code>${password}</code> (unchanged)
+
+💡 Your SSH key works too. You can always show the password again with 🔐 Show Password.`,
+ linuxReinstallDoneNoPassword: (name, ip, username, osName) => `✅ <b>${osName} is ready on ${name}</b>
+
+🌐 <b>IP:</b> <code>${ip}</code>
+👤 <b>Username:</b> ${username}
+
+🔑 Log in with your SSH key, or tap 🔐 Show Password / 🔄 Reset Password.`,
+ linuxReinstallDoneUnverified: (name, ip, username, osName) => `✅ <b>${osName} has been reinstalled on ${name}</b>
+
+🌐 <b>IP:</b> <code>${ip}</code>
+👤 <b>Username:</b> ${username}
+
+⚠️ We could not confirm your password yet. Your SSH key works; otherwise tap 🔐 Show Password or 🔄 Reset Password in a few minutes. Our team has been notified.`,
+ linuxReinstallFailed: name => `❌ <b>Reinstall failed</b>
+
+We could not reinstall <b>${name}</b>. Nothing was changed. Please try again in a few minutes or contact support.`,
+ linuxReinstallNeedsKey: name => `🔑 <b>This system needs an SSH key</b>
+
+<b>${name}</b> was created without an SSH key, so Fedora, CentOS, AlmaLinux and Rocky Linux cannot be installed on it. Pick Ubuntu or Debian instead. Nothing was changed.`,
+ windowsReinstallQueued: (name, osName, copyMin, etaMin) => `⏳ <b>Reinstall of ${osName} on ${name} is queued</b>
+
+The ${osName} image is being copied to your server's datacenter first (~${copyMin} min). Your server keeps running <b>unchanged</b> until then and the current password still works.
+
+Then the reinstall starts automatically (disk erased, IP kept) and we'll send you the <b>new password</b> — ready about <b>${etaMin} minutes</b> from now.`,
+ windowsReinstallCopyFailed: (name, osName) => `❌ <b>Reinstall of ${osName} on ${name} could not start</b>
+
+The Windows image could not be prepared in your server's datacenter. <b>Nothing was changed</b> — your server and password are exactly as before. Please try again later or pick another edition. Our team has been notified.`,
  vpsBeingDeleted: name => `⚙️ Please wait while your VPS (${name}) is being deleted`,
  vpsDeleted: name => `✅ VPS (${name}) has been permanently deleted.`,
  failedDeletingVPS: name => `❌ Failed to delete VPS (${name}). 

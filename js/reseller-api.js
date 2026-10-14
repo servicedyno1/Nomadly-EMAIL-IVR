@@ -623,7 +623,8 @@ function createResellerApi(deps = {}) {
       instanceId: inst.instanceId || null, host: inst.mainIp || null, status: 'provisioning',
       provisionState: 'provisioning', rootPasswordSecretId: inst.passwordSecretId || vpsPasswordSecretId || null,
     } })
-    await provisionJobs().updateOne({ _id: job._id }, { $set: { status: 'awaiting_provider', instanceId: inst.instanceId || null, awaitingSince: new Date(), buildHost: BUILD_HOST, leaseAt: null } })
+    const realEta = Number(inst.etaMinutes) > 0 ? Math.round((Date.now() - new Date(job.createdAt || Date.now()).getTime()) / 1000) + Number(inst.etaMinutes) * 60 : null
+    await provisionJobs().updateOne({ _id: job._id }, { $set: { status: 'awaiting_provider', instanceId: inst.instanceId || null, awaitingSince: new Date(), buildHost: BUILD_HOST, leaseAt: null, ...(realEta ? { etaSeconds: realEta } : {}) } })
     await checkAwaitingJob({ ...job, status: 'awaiting_provider', instanceId: inst.instanceId || null, awaitingSince: new Date(), buildHost: BUILD_HOST })
   }
 
@@ -1241,6 +1242,14 @@ function createResellerApi(deps = {}) {
   })
   // Order-time stock decisions use a DigitalOcean catalogue at most ~2 min old (?refresh=true → re-pulled now).
   const freshCatalog = (force) => require('./do-size-catalog').ensureFresh(force ? { maxAgeMs: 0 } : {}).catch(() => null)
+  // RDP deploy minutes per Windows edition for ONE region/city: ~3-5 min when the golden image is in the
+  // datacenter the order would be built in right now, else ~45 min (full install). {} if unknown.
+  async function rdpEtaByOs(prov, region) {
+    try {
+      if (typeof prov.listOsOptionsForRegion !== 'function') return {}
+      return Object.fromEntries((await prov.listOsOptionsForRegion(region)).map(o => [o.id, o.eta_minutes]))
+    } catch (_) { return {} }
+  }
   const catalogInfo = (st) => ({ source: st.source, fetched_at: st.fetched_at, age_seconds: st.age_seconds, stale: st.stale, refresh_interval_seconds: st.refresh_interval_seconds })
   function defaultLinuxOs(options) {
     const d = (options || []).find(o => o.default)
@@ -1254,6 +1263,11 @@ function createResellerApi(deps = {}) {
       let os_options = {}
       try { if (typeof prov.listOsOptions === 'function') os_options = await prov.listOsOptions() }
       catch (e) { log(`[ResellerAPI] listOsOptions warn: ${e.message}`) }
+      if (Array.isArray(os_options) && typeof prov.listRegions === 'function') {
+        const regs = (await Promise.resolve(prov.listRegions())) || []
+        const byRegion = await Promise.all(regs.map(async r => [r.code, await rdpEtaByOs(prov, r.regionSlug || r.code)]))
+        os_options = os_options.map(o => ({ ...o, eta_minutes_by_region: Object.fromEntries(byRegion.filter(([, m]) => m[o.id] != null).map(([code, m]) => [code, m[o.id]])) }))
+      }
       return res.json({ product: 'rdp', provider: prov.PROVIDER || process.env.VPS_RDP_PROVIDER, default_os: prov.DEFAULT_OS_ID || null, os_options })
     }
     const opts = await linuxOsOptions(prov)
@@ -1291,8 +1305,11 @@ function createResellerApi(deps = {}) {
     if (typeof prov.availability === 'function' || typeof prov.isProductAvailable === 'function') out.catalog = catalogInfo(st)
     // Windows editions + fast-deploy (golden image) readiness per region code.
     if (isRDP && typeof prov.listOsOptions === 'function') {
-      try { out.default_os = prov.DEFAULT_OS_ID || null; out.os_options = await prov.listOsOptions() }
-      catch (e) { log(`[ResellerAPI] listOsOptions warn: ${e.message}`) }
+      try {
+        out.default_os = prov.DEFAULT_OS_ID || null
+        const etas = await rdpEtaByOs(prov, region)
+        out.os_options = (await prov.listOsOptions()).map(o => etas[o.id] != null ? { ...o, eta_minutes_in_region: etas[o.id], fast_deploy_in_region: etas[o.id] < 45 } : o)
+      } catch (e) { log(`[ResellerAPI] listOsOptions warn: ${e.message}`) }
     } else if (!isRDP) {
       // Linux distributions selectable at order time (POST /vps { os }) and on reinstall.
       const opts = await linuxOsOptions(prov)
@@ -1325,7 +1342,7 @@ function createResellerApi(deps = {}) {
     res.json({
       product: 'rdp', cpu: 'AMD', checked_at: new Date().toISOString(),
       catalog: catalogInfo(st),
-      regions: regions.map(r => ({ ...r, in_stock: r.plans.some(p => p.in_stock) })),
+      regions: await Promise.all(regions.map(async r => ({ ...r, in_stock: r.plans.some(p => p.in_stock), deploy_eta_minutes: await rdpEtaByOs(prov, r.region_slug) }))),
     })
   }
 
@@ -1435,6 +1452,7 @@ function createResellerApi(deps = {}) {
       vpsId, priceUsd: charge.price, charged: charge.charged, mode: mode(), env: JOB_ENV,
       status: 'pending', attempts: 0, createdAt: new Date(), etaSeconds: estimateEtaSeconds(isRDP ? 'rdp' : 'vps', request), request,
     }
+    if (isRDP) { const m = (await rdpEtaByOs(prov, region))[String(osId || prov.DEFAULT_OS_ID || '').toLowerCase()]; if (m > 0) jobDoc.etaSeconds = m * 60 }
     await provisionJobs().insertOne(jobDoc)
     // Placeholder record so GET /vps|/rdp + GET /:id report status:'provisioning' immediately.
     await col('vpsPlansOf').insertOne({
@@ -1685,7 +1703,16 @@ function createResellerApi(deps = {}) {
     if (!isLive()) return res.json({ mode: 'dry_run', id: rec.vpsId || rec._id, os: osId, note: 'Dry-run: no reinstall sent to provider.' })
     if (!rec.instanceId || typeof prov.reinstallInstance !== 'function') return res.status(501).json({ error: 'not_supported' })
     try {
-      const r = await prov.reinstallInstance(rec.instanceId, { osId })
+      const r = await prov.reinstallInstance(rec.instanceId, { osId, source: 'reseller_api' })
+      if (r && r.queued) {
+        // Image is being copied to this server's datacenter first — nothing changed yet (rdp.reinstall_started follows).
+        await col('vpsPlansOf').updateOne({ _id: rec._id }, { $set: { reinstallQueued: { osId: r.osId || osId, at: new Date() } } })
+        return res.status(202).json({
+          mode: 'live', id: rec.vpsId || rec._id, os: r.osId || osId, os_name: r.osName || null, ip: r.ip || rec.host || null,
+          status: 'copying_image', copy_minutes: r.copyMinutes || null, eta_minutes: r.etaMinutes || null, password: null, server_changed: false,
+          note: `The ${r.osName || osId} image is being copied to this server's datacenter first (~${r.copyMinutes || 20} min). The server keeps running unchanged (current password still works) until then; the reinstall then starts automatically with a NEW Administrator password — rdp.reinstall_started webhook, then GET /rdp/:id/credentials. If the copy fails nothing changes and rdp.reinstall_failed is sent.`,
+        })
+      }
       await col('vpsPlansOf').updateOne({ _id: rec._id }, { $set: {
         osId: r.osId || osId,
         status: 'reinstalling',

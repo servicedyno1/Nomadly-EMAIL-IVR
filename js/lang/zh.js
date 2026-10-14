@@ -3472,7 +3472,7 @@ ${cycles.map(c => {
 }).join('\n')}
 
 更长的周期一次性付费并享受套餐折扣；到期时自动续费将按同一周期再次扣费。`,
- rdpEditionBtn: o => `🪟 ${o.name}${o.fast_deploy ? ` ⚡ 约 ${o.eta_minutes || 3} 分钟` : ' ⏳ 约 45 分钟'}`,
+ rdpEditionBtn: o => `🪟 ${o.name} ${o.fast_deploy ? '⚡' : '⏳'} 约 ${o.eta_minutes || (o.fast_deploy ? 3 : 45)} 分钟`,
  askRdpEdition: options => `🪟 <strong>选择您的 Windows 版本</strong>
 
 ${options.map(o => `• <b>${o.name}</b> — ${o.fast_deploy ? `⚡ 约 ${o.eta_minutes || 3} 分钟就绪（您所在区域已有预构建镜像）` : '⏳ 完整安装，约 45 分钟'}`).join('\n')}
@@ -3482,12 +3482,12 @@ ${options.map(o => `• <b>${o.name}</b> — ${o.fast_deploy ? `⚡ 约 ${o.eta_
 
 请选择要安装的版本。您的 IP 地址保持不变。
 
-${options.map(o => `• <b>${o.name}</b> — ${o.fast_deploy ? `⚡ 约 ${o.eta_minutes || 3} 分钟` : '⏳ 约 45 分钟'}`).join('\n')}`,
- confirmReinstallWindowsRdpText: (name, osName, etaMin) => `🔄 <strong>在 ${name} 上重装 ${osName}</strong>
+${options.map(o => `• <b>${o.name}</b> — ${o.fast_deploy ? `⚡ 约 ${o.eta_minutes || 3} 分钟` : (o.copy_first ? `⏳ 约 ${o.eta_minutes} 分钟 (先将镜像复制到您服务器所在的数据中心)` : '⏳ 约 45 分钟')}`).join('\n')}`,
+ confirmReinstallWindowsRdpText: (name, osName, etaMin, copyFirst) => `🔄 <strong>在 ${name} 上重装 ${osName}</strong>
 
 ⚠️ <strong>警告 — 将清空磁盘：</strong>
 • 服务器上的所有文件、程序和设置都会被删除
-• 将从我们的预构建镜像全新安装 ${osName}（约 ${etaMin} 分钟）
+• 将从我们的预构建镜像全新安装 ${osName}（约 ${etaMin} 分钟）${copyFirst ? `\n• 镜像会先复制到您服务器所在的数据中心（约 20 分钟）——在此之前服务器保持原样继续运行` : ''}
 • 将生成新的 Administrator 密码 — 旧密码失效
 • ✅ 您的 IP 地址和已付费周期保持不变
 
@@ -3501,6 +3501,58 @@ ${options.map(o => `• <b>${o.name}</b> — ${o.fast_deploy ? `⚡ 约 ${o.eta_
 ⏱️ Windows 正在安装 — 约 <b>${etaMin} 分钟</b> 后即可使用这些凭据连接。
 💡 点击密码即可复制。您随时可以通过 🔐 显示密码 再次查看。`,
  rdpActionReason: reason => `\n\n<i>原因：${reason}</i>`,
+ // ── DigitalOcean Linux VPS：从 DigitalOcean 实时列表重装任意系统（保留 IP 与登录信息）──
+ reinstallOsBtn: '🔄 重装系统',
+ linuxOsBtn: o => `${o.current ? '✅ ' : ''}🐧 ${o.name}${o.requiresSshKey ? ' 🔑' : ''}`,
+ askReinstallLinuxOs: (name, options) => `🔄 <b>在 ${name} 上重装操作系统</b>
+
+请选择要安装的系统。✅ = 当前系统。🔑 = 需要您服务器已有的 SSH 密钥。
+您的 IP 地址、root 密码和 SSH 密钥保持不变。`,
+ confirmReinstallLinuxText: (name, osName) => `🔄 <b>在 ${name} 上重装 ${osName}</b>
+
+⚠️ <b>警告——这将清空磁盘：</b>
+• 服务器上的所有文件、程序和设置都会被删除
+• 将安装全新的 ${osName}（约 3 分钟）
+• ✅ 您的 IP 地址、root 密码、SSH 密钥和已付费期限均保留
+
+是否继续？`,
+ linuxReinstallStarted: (name, osName, etaMin) => `🔄 <b>正在 ${name} 上重装 ${osName}</b>
+
+⏱️ 约 <b>${etaMin} 分钟</b>后就绪。您的 IP 地址、root 密码和 SSH 密钥保持不变。
+服务器恢复在线后我们会立即把登录信息发给您。`,
+ linuxReinstallDone: (name, ip, username, password, osName) => `✅ <b>${name} 上的 ${osName} 已就绪</b>
+
+🌐 <b>IP：</b> <code>${ip}</code>
+👤 <b>用户名：</b> ${username}
+🔑 <b>密码：</b> <code>${password}</code>（未改变）
+
+💡 您的 SSH 密钥同样可用。随时可通过 🔐 显示密码 再次查看。`,
+ linuxReinstallDoneNoPassword: (name, ip, username, osName) => `✅ <b>${name} 上的 ${osName} 已就绪</b>
+
+🌐 <b>IP：</b> <code>${ip}</code>
+👤 <b>用户名：</b> ${username}
+
+🔑 请使用您的 SSH 密钥登录，或点击 🔐 显示密码 / 🔄 重置密码。`,
+ linuxReinstallDoneUnverified: (name, ip, username, osName) => `✅ <b>${name} 已重装为 ${osName}</b>
+
+🌐 <b>IP：</b> <code>${ip}</code>
+👤 <b>用户名：</b> ${username}
+
+⚠️ 我们暂时无法确认您的密码。SSH 密钥可以使用；否则请几分钟后点击 🔐 显示密码 或 🔄 重置密码。我们的团队已收到通知。`,
+ linuxReinstallFailed: name => `❌ <b>重装失败</b>
+
+无法重装 <b>${name}</b>，未做任何更改。请几分钟后重试或联系客服。`,
+ linuxReinstallNeedsKey: name => `🔑 <b>该系统需要 SSH 密钥</b>
+
+<b>${name}</b> 创建时没有 SSH 密钥，因此无法安装 Fedora、CentOS、AlmaLinux 和 Rocky Linux。请改选 Ubuntu 或 Debian。未做任何更改。`,
+ windowsReinstallQueued: (name, osName, copyMin, etaMin) => `⏳ <b>${name} 上的 ${osName} 重装已排队</b>
+
+${osName} 镜像正在先复制到您服务器所在的数据中心（约 ${copyMin} 分钟）。在此之前服务器<b>保持原样</b>继续运行，当前密码仍然有效。
+
+随后重装会自动开始（清空磁盘，保留 IP），我们会把<b>新密码</b>发给您——约 <b>${etaMin} 分钟</b>后就绪。`,
+ windowsReinstallCopyFailed: (name, osName) => `❌ <b>${name} 上的 ${osName} 重装未能开始</b>
+
+无法在您服务器所在的数据中心准备 Windows 镜像。<b>未做任何更改</b>——服务器和密码与之前完全相同。请稍后重试或选择其他版本。我们的团队已收到通知。`,
  vpsBeingDeleted: name => `⚙️ 请稍等，您的 VPS (${name}) 正在删除中`,
  vpsDeleted: name => `✅ VPS (${name}) 已永久删除。`,
  failedDeletingVPS: name => `❌ 删除 VPS (${name}) 失败。
