@@ -79,6 +79,8 @@ function partA() {
     ['kv', 'reset ok password=kvPw123 for vps', 'kvPw123'],
   ]
   for (const [n, line, secret] of cases) ok(`${n}: secret masked`, !redactSecrets(line).includes(secret), redactSecrets(line))
+  const pathFirst = '<i>Your website files stay exactly where they are (<code>/home/acme/public_html</code>). You keep the same cPanel username &amp; password.</i>'
+  ok('value BEFORE the label is kept (not a secret)', redactSecrets(pathFirst) === pathFirst, redactSecrets(pathFirst))
   const plain = ['[VPS] Password revealed - ChatId: 1, Instance: rdp-abc', 'Order 123 passed checks', 'reply: Select an option <code>MENU</code> to: 5', 'RDP Port: <code>3389</code>']
   for (const l of plain) ok(`untouched: ${l.slice(0, 40)}`, redactSecrets(l) === l, redactSecrets(l))
   ok('non-strings pass through', redactSecrets(42) === 42 && redactSecrets(null) === null)

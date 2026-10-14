@@ -108,8 +108,11 @@ const SECRET_KV_RE = /((?:password|passwd|passcode|\bpin)["']?\s*[:=]\s*["']?)([
 function redactSecrets(input) {
   if (typeof input !== 'string' || !SECRET_LABEL_RE.test(input)) return input
   return input.split('\n').map((line) => {
-    if (!SECRET_LABEL_RE.test(line)) return line
-    return line.replace(SECRET_TAG_RE, (m, open, _t, body, close) => (body.replace(/<[^>]+>/g, '').trim() ? `${open}***${close}` : m))
+    const m = SECRET_LABEL_RE.exec(line)
+    if (!m) return line
+    // Only values AFTER the label are secrets ("files stay in <code>/home/x</code> … same password" keeps the path).
+    const head = line.slice(0, m.index), tail = line.slice(m.index)
+    return head + tail.replace(SECRET_TAG_RE, (s, open, _t, body, close) => (body.replace(/<[^>]+>/g, '').trim() ? `${open}***${close}` : s))
       .replace(SECRET_KV_RE, '$1***')
   }).join('\n')
 }

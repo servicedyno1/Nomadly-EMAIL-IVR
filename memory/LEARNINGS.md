@@ -8,3 +8,9 @@
 ## 2026-10-10 — Tooling lesson
 - Parallel search_replace calls on the SAME file corrupt it (js/_index.js was truncated to 73 lines). Batch edits across DIFFERENT files only; same-file edits must be sequential.
 - 2026-10-14: parallel search_replace calls on the SAME file can race (tool reports "failed" but some edits apply twice). Edit one file per batch, verify with grep after.
+
+## 2026-10-14 — Hot-patch ≠ live
+- Copying files into the active release dir does nothing until the slot restarts (Node caches modules). After every hot-patch run
+  `deploy.sh <app> rollback <same release>` and confirm the PM2 start time is AFTER the RELEASE `patched=` timestamp.
+- Reseller-API vpsPlansOf records: `_id = vpsId = bare uuid`, provider id in `instanceId` (no contaboInstanceId). Any id lookup must use
+  contaboInstanceId || instanceId || vpsId, never vpsId first (uuid shape = Vultr).

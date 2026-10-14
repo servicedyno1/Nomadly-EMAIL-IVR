@@ -1,0 +1,28 @@
+{
+  "summary": "Backend-only verification of 4 RDP lifecycle bug fixes (processExpiries paid-until guard + vanished-droplet reconciler, PM2 log redaction, DO-RDP routing in deleteVPSinstance, grace destroy backoff). Ran all 6 listed node test suites against local MongoDB with stubbed axios; 223/223 assertions passed. Code review of _dropletGone, reconcileVanished, instanceIdOf, deleteVPSinstance DO-RDP branch, and redactSecrets confirms all edge cases (404-then-200, non-404 errors, suspended+live droplet, missing DO token, legacy rows w/o lastDeleteAttemptAt, calendar-month end_time winning over 30-day expires_at) are handled.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/js/tests/test_rdp_lifecycle_fixes_2026-10.js",
+    "/app/js/tests/test_rdp_grace_destroy_2026-06.js",
+    "/app/js/tests/test_log_redact_2026-06.js",
+    "/app/js/tests/test_reseller_api_grace_2026-06.js",
+    "/app/js/tests/reseller_vps_gone_reconcile_2026-10.js",
+    "/app/js/tests/test_delete_vps_verify.js"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "_dropletGone correctly treats any non-404 (incl. network errors without .status) as 'alive' thanks to `!e || e.status !== 404` — no false destroys on transient 5xx/429/ECONNRESET.",
+    "reconcileVanished includes 'suspended' in its filter, which is correct: live droplet GET→200 means the record is left untouched; vanished→two 404s before marking destroyed (double-check timing via T.goneRecheckMs).",
+    "Sweep-1 guard (plan.end_time > now → sync expires_at, no power_off) correctly resolves bug (a) where 30-day expires_at expired ~24h before the calendar-month end_time the bot displays.",
+    "deleteVPSinstance now derives contaboId = contaboInstanceId || instanceId || vpsId AND, for provider='digitalocean-rdp', prefixes 'rdp-' when missing — eliminates the reseller-API bare-uuid → Vultr DELETE 401 loop (bug d).",
+    "Grace destroy backoff: ≥10 failures within 6h skips the call AND writes nothing/alerts nothing; legacy rows without lastDeleteAttemptAt get exactly one attempt then back off — prevents the 582-attempt loop.",
+    "redactSecrets scoped to lines carrying credential labels only (multi-lang incl. 密码/पासवर्ड/PIN/SIP Pass/api key/secret), leaves IP/Username/menu text intact; installConsoleRedaction covers console.* string args so send() 'reply: …' log line is now safe."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100% (223/223)", "frontend": "not tested (per request)"},
+  "seed_data_creation": "None — tests use ephemeral local MongoDB docs and in-process axios stub.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "All 4 RDP lifecycle bug fixes (iteration 94) verified. Existing suite in test_rdp_lifecycle_fixes_2026-10.js already covers: 404-twice-marked-gone, DO 500 → stays active, GET-checked-twice, live-droplet-untouched, provisioning-row-ignored, admin alert content, reseller mirror, Sweep-1 paid-until guard. No regression on Contabo/Vultr/OVH/DO-Linux routing (test_delete_vps_verify + partC confirm). No new tests needed."
+}

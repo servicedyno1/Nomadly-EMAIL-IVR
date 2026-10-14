@@ -1,5 +1,25 @@
 # PRD — Nomadly Cloud IVR + Telegram Bot
 
+## 2026-10-14i — Health-check + AutoPromo fixes actually LIVE; 4 DO-RDP lifecycle bugs fixed — TESTED (iteration_93 111/111, iteration_94 223/223) & LIVE on all 3 bots
+- Found: the 20:24Z hot-patch of js/hosting-health-check.js (WHM via CF tunnel → no more false "No user content found") + js/auto-promo.js
+  (zeroLiftVerdict → no more false "Zero-lift blast") was on disk but the bots had been running since 18:50Z → reactivated all 3 (blue/green).
+- (a) Early power-off: doRdpServers.expires_at = activation+30d vs vpsPlansOf.end_time = +1 calendar month. `processExpiries` Sweep-1 now
+  skips a box whose plan end_time is still in the future and syncs expires_at := end_time. Data: 1aef405b → Nov 14, e92d1b57 (null) → Oct 27.
+- (b) Passwords in PM2 logs: `send()` logged full credential replies. js/log-redact.js `redactSecrets()` (in the console shim) masks the
+  <code>/<pre>/<tg-spoiler> value or key=value AFTER a credential label (Password/Mot de passe/密码/पासवर्ड/PIN/पिन/SIP Pass/api key/secret).
+  112 old log lines scrubbed in /root/.pm2/logs (js/ops/pm2_log_secret_scrub_2026-10.js, same inode → PM2 keeps writing).
+- (c) Box deleted outside the bot: new `reconcileVanished()` (Sweep-0, hourly): droplet 404 twice → doRdpServers destroyed
+  (droplet_gone_external), vpsPlansOf DELETED, reseller rdp.deleted, admin alert "refund or replace". Data: @morganfreebandzz 60811b81
+  (droplet 605654801 destroyed 2026-10-05 12:59Z — not by our code; owner refunded $156 TXN-20261014-1E0PI) → destroyed/DELETED.
+- (d) Grace destroy loop: reseller-API records keep the RDP id in `instanceId` (vpsId = bare uuid → Vultr 401). deleteVPSinstance +
+  rdp-grace-lifecycle `instanceIdOf()` = contaboInstanceId || instanceId || vpsId (+ `rdp-` prefix for provider digitalocean-rdp); after 10
+  failures the destroy backs off to once/6h (lastDeleteAttemptAt). Data: 227de9e3 (583 attempts) → CANCELLED. Loop gone after 21:10Z.
+- Mirror/webhook lookups in digitalocean-rdp-service also match `instanceId` (reseller RDP grace now mirrors correctly).
+- Tests: js/tests/test_rdp_lifecycle_fixes_2026-10.js 52/0 + grace 73/0, log-redact 25/0, reseller grace 40/0, gone-reconcile 31/0.
+- Deploy: hot-patched releases main 20261014T184959Z-e87c43a / wl + voodoo 20261014T18xxxxZ-a9f0a27 (`.bak.<ts>`, RELEASE patched=),
+  same-release blue/green → app-main-b :5100, app-wl-b :5101, app-voodoo-b :5103, /health healthy. NEEDS "Save to GitHub".
+- Ops scripts: js/ops/rdp_lifecycle_audit_2026-10.js (read-only), js/ops/rdp_lifecycle_datafix_2026-10.js (dry-run / --apply).
+
 ## 2026-10-14h — Voodoo Land: 💼 Reseller button hidden (prod env only)
 - `/opt/nomadly/shared/app-voodoo/backend.env`: `HIDE_BECOME_RESELLER=true` (backup `backend.env.bak.hidereseller.<ts>`), `pm2 restart app-voodoo-a` at 0 calls → healthy, webhooks flowing. Hides the button in the ➕ More menu (`_index.js` `user.more` handler) and the legacy config.js main row. Nomadly/Smadav unchanged (false).
 
