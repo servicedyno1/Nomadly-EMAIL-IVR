@@ -153,7 +153,7 @@
       "faq5Q": "开通需要多久？",
       "faq5A": "区块链确认您的付款后会自动开始开通。请保持付款页面打开，登录信息会显示在该页面上。",
       "faq6Q": "各套餐有什么区别？",
-      "faq6A": "周套餐包含 1 个附加域名。月套餐增加到 5 个附加域名并提供 MySQL 数据库。Golden 套餐提供无限附加域名，以及访客验证码和地区控制。",
+      "faq6A": "周套餐包含 1 个附加域名和 2 个 MySQL 数据库。月套餐提升到 5 个附加域名和 5 个数据库。Golden 套餐提供无限附加域名和数据库，以及访客验证码和地区控制。",
       "faq7Q": "如何获得帮助？",
       "faq7A": "在 Telegram 上联系我们的真人客服团队。您也可以通过 Telegram 机器人管理套餐。",
       "finalTitle": "准备好上线一个始终可点击的网站了吗？",
@@ -164,7 +164,23 @@
       "footerBot": "Telegram 机器人",
       "footerSupport": "客服",
       "footerStatus": "商店在线",
-      "footerRights": "© {{year}} {{brand}}。保留所有权利。"
+      "footerRights": "© {{year}} {{brand}}。保留所有权利。",
+      "cmpTitle": "套餐对比",
+      "cmpFeature": "功能",
+      "cmpUnlimited": "无限",
+      "cmpIncluded": "包含",
+      "cmpNotIncluded": "不包含",
+      "cmpRow_price": "价格",
+      "cmpRow_billing": "计费周期",
+      "cmpRow_addons": "附加域名",
+      "cmpRow_mysql": "MySQL 数据库",
+      "cmpRow_antired": "Anti-Red 防护",
+      "cmpRow_panel": "HostPanel + 文件管理",
+      "cmpRow_email": "邮箱账户",
+      "cmpRow_apps": "一键应用",
+      "cmpRow_captcha": "访客验证码",
+      "cmpRow_geo": "地区控制",
+      "cmpRow_guarantee": "更换保障"
     }
   },
   "common": {
@@ -276,8 +292,7 @@
       "manage": "管理",
       "view": "查看",
       "loading": "加载中…",
-      "daysLeft": "剩余 {{count}} 天",
-      "expiresToday": "今天到期",
+      "expiresToday": "剩余不到一天",
       "expired": "已到期",
       "autoRenewOn": "自动续费已开启",
       "autoRenewOff": "自动续费已关闭",
@@ -295,7 +310,17 @@
       "qaRenew": "续费或升级",
       "qaRenewD": "在 Telegram 机器人中管理账单和升级。",
       "qaBuy": "购买其他套餐",
-      "qaBuyD": "在商店中托管另一个网站。"
+      "qaBuyD": "在商店中托管另一个网站。",
+      "daysLeft_one": "剩余 {{count}} 天",
+      "daysLeft_other": "剩余 {{count}} 天",
+      "expBannerSoon_one": "您的套餐将在 {{count}} 天后到期",
+      "expBannerSoon_other": "您的套餐将在 {{count}} 天后到期",
+      "expBannerToday": "您的套餐将在一天内到期",
+      "expBannerExpired": "您的套餐已到期",
+      "expAutoOn": "自动续费已开启。我们将从您的钱包续费，请确保余额充足。",
+      "expAutoOff": "自动续费已关闭。请立即续费，保持网站在线。",
+      "expExpiredBody": "请立即续费，保持网站在线并确保文件安全。",
+      "expRenewNow": "立即续费"
     }
   },
   "domains": {

@@ -117,3 +117,26 @@
   .pov-hero { padding: 20px; }
   .pov-stat-value { font-size: 17px; }
 }
+
+/* ─── Expiry banner (≤ 3 days / expired) ─── */
+.pov-exp {
+  display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  padding: 16px 18px; border-radius: 14px;
+  background: rgba(245, 158, 11, .12); border: 1px solid rgba(245, 158, 11, .45);
+  color: var(--pv-text-primary);
+}
+.pov-exp-icon { flex: none; color: #d97706; }
+.pov-exp--bad { background: rgba(239, 68, 68, .10); border-color: rgba(239, 68, 68, .5); }
+.pov-exp--bad .pov-exp-icon { color: var(--pv-danger); }
+.pov-exp-text { display: flex; flex-direction: column; gap: 2px; flex: 1 1 220px; min-width: 0; }
+.pov-exp-text strong { font-size: 15px; font-weight: 700; }
+.pov-exp-text span { font-size: 13.5px; line-height: 1.45; color: var(--pv-text-secondary); }
+.pov-exp-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px; flex: none;
+  min-height: 44px; padding: 0 20px; border-radius: 999px;
+  background: var(--pv-coral); color: #fff; font-size: 14px; font-weight: 700; text-decoration: none;
+  transition: transform .15s ease, filter .15s ease;
+}
+.pov-exp-btn:hover { transform: translateY(-1px); filter: brightness(1.06); }
+.pov-exp-btn:focus-visible { outline: 2px solid var(--pv-coral); outline-offset: 3px; }
+@media (max-width: 560px) { .pov-exp-btn { width: 100%; } }

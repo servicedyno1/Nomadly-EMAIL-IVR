@@ -5,6 +5,7 @@ import {
   LayoutGrid, KeyRound, LifeBuoy, Info,
 } from 'lucide-react';
 import { HeroVisual } from './HeroVisual';
+import { PlanCompare } from './PlanCompare';
 
 const money = (n) => `$${Number(n || 0).toFixed(2)}`;
 
@@ -158,6 +159,7 @@ export function PricingSection({ plans, onBuy, children }) {
         <div className="store-plan-grid" data-testid="store-plans">
           {plans.map(p => <PlanCard key={p.id} p={p} onBuy={onBuy} />)}
         </div>
+        <PlanCompare plans={plans} onBuy={onBuy} />
         {children}
       </div>
     </section>

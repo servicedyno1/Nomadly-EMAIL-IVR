@@ -1,13 +1,36 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Upload, Globe, ExternalLink, RefreshCw, Mail, ShoppingCart, Power, CalendarClock, Layers, Crown } from 'lucide-react';
+import { Upload, Globe, ExternalLink, RefreshCw, Mail, ShoppingCart, Power, CalendarClock, Layers, Crown, AlertTriangle } from 'lucide-react';
 import { useAuth } from './AuthContext';
 import { useBrand } from '../../hooks/useBrand';
 
 function daysLeft(iso) {
   if (!iso) return null;
-  const d = new Date(iso);
-  return isNaN(d.getTime()) ? null : Math.ceil((d.getTime() - Date.now()) / 86400000);
+  const ms = new Date(iso).getTime() - Date.now();
+  if (isNaN(ms)) return null;
+  return ms < 0 ? Math.min(-1, Math.floor(ms / 86400000)) : Math.floor(ms / 86400000);
+}
+
+function ExpiryBanner({ days, autoRenew, renewUrl }) {
+  const { t } = useTranslation();
+  if (days === null || days > 3) return null;
+  const expired = days < 0;
+  const title = expired ? t('dashboard.ov.expBannerExpired') : days === 0 ? t('dashboard.ov.expBannerToday') : t('dashboard.ov.expBannerSoon', { count: days });
+  const body = expired ? t('dashboard.ov.expExpiredBody') : autoRenew ? t('dashboard.ov.expAutoOn') : t('dashboard.ov.expAutoOff');
+  return (
+    <div className={`pov-exp ${expired ? 'pov-exp--bad' : ''}`} role="alert" data-testid="panel-expiry-banner" data-state={expired ? 'expired' : 'soon'}>
+      <AlertTriangle size={22} aria-hidden="true" className="pov-exp-icon" />
+      <div className="pov-exp-text">
+        <strong data-testid="panel-expiry-title">{title}</strong>
+        <span data-testid="panel-expiry-body">{body}</span>
+      </div>
+      {renewUrl && (
+        <a className="pov-exp-btn" href={renewUrl} target="_blank" rel="noopener noreferrer" data-testid="panel-expiry-renew">
+          <RefreshCw size={16} aria-hidden="true" />{t('dashboard.ov.expRenewNow')}
+        </a>
+      )}
+    </div>
+  );
 }
 
 function StatCard({ icon: Icon, label, value, note, tone = '', action, testId }) {
@@ -51,6 +74,7 @@ export default function PanelOverview({ onNavigate }) {
     try { return new Date(iso).toLocaleDateString(i18n.language, opts); } catch { return new Date(iso).toLocaleDateString(undefined, opts); }
   };
   const bot = (brand.botUsername || '').replace(/^@/, '');
+  const renewUrl = bot ? `https://t.me/${bot}?start=renew` : '';
   const loading = status === null;
 
   return (
@@ -62,6 +86,8 @@ export default function PanelOverview({ onNavigate }) {
         </div>
         {user?.isGold && <span className="pov-gold" data-testid="panel-overview-gold"><Crown size={14} aria-hidden="true" />{t('dashboard.ov.goldBadge')}</span>}
       </section>
+
+      <ExpiryBanner days={days} autoRenew={!!status?.autoRenew} renewUrl={renewUrl} />
 
       <section className="pov-stats" aria-label={t('dashboard.tabs.overview')}>
         <StatCard icon={Power} testId="panel-ov-status" label={t('dashboard.ov.statusLabel')} tone={s === 'online' ? 'ok' : 'warn'}
@@ -84,7 +110,7 @@ export default function PanelOverview({ onNavigate }) {
           <QuickAction icon={Globe} testId="panel-qa-domain" title={t('dashboard.ov.qaDomain')} desc={t('dashboard.ov.qaDomainD')} onClick={() => onNavigate('domains')} />
           <QuickAction icon={ExternalLink} testId="panel-qa-open" title={t('dashboard.ov.qaOpen')} desc={t('dashboard.ov.qaOpenD')} href={`https://${user?.domain}`} />
           <QuickAction icon={Mail} testId="panel-qa-email" title={t('dashboard.ov.qaEmail')} desc={t('dashboard.ov.qaEmailD')} onClick={() => onNavigate('email')} />
-          {bot && <QuickAction icon={RefreshCw} testId="panel-qa-renew" title={t('dashboard.ov.qaRenew')} desc={t('dashboard.ov.qaRenewD')} href={`https://t.me/${bot}`} />}
+          {renewUrl && <QuickAction icon={RefreshCw} testId="panel-qa-renew" title={t('dashboard.ov.qaRenew')} desc={t('dashboard.ov.qaRenewD')} href={renewUrl} />}
           <QuickAction icon={ShoppingCart} testId="panel-qa-buy" title={t('dashboard.ov.qaBuy')} desc={t('dashboard.ov.qaBuyD')} href="/store" />
         </div>
       </section>

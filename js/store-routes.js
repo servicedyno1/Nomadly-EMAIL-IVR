@@ -858,20 +858,22 @@ function createStoreRoutes(deps = {}) {
 
   const num = (v, d) => { const n = parseFloat(v); return Number.isFinite(n) ? n : d }
   function plansCatalog() {
+    const { PLAN_MYSQL_LIMITS: SQL } = require('./whm-service')
+    const lim = (pkg, d) => (SQL[pkg] === -1 ? 'unlimited' : (SQL[pkg] ?? d))
     return [
       {
         id: 'premium-weekly', name: 'Premium Anti-Red (1-Week)', tier: 'premium',
-        priceUsd: num(process.env.PREMIUM_ANTIRED_WEEKLY_PRICE, 30), durationDays: 7, addons: 1,
+        priceUsd: num(process.env.PREMIUM_ANTIRED_WEEKLY_PRICE, 30), durationDays: 7, addons: 1, mysql: lim('Premium-Anti-Red-1-Week', 2), captcha: false, geo: false,
         features: ['Anti-Red protection', '1 addon domain', 'HostPanel + File Manager', '7 days'],
       },
       {
         id: 'premium-monthly', name: 'Premium Anti-Red HostPanel (1-Month)', tier: 'premium',
-        priceUsd: num(process.env.PREMIUM_ANTIRED_CPANEL_PRICE, 75), durationDays: 30, addons: 5,
+        priceUsd: num(process.env.PREMIUM_ANTIRED_CPANEL_PRICE, 75), durationDays: 30, addons: 5, mysql: lim('Premium-Anti-Red-HostPanel-1-Month', 5), captcha: false, geo: false,
         features: ['Anti-Red protection', '5 addon domains', 'MySQL databases', '30 days'],
       },
       {
         id: 'golden-monthly', name: 'Golden Anti-Red HostPanel (1-Month)', tier: 'gold',
-        priceUsd: num(process.env.GOLDEN_ANTIRED_CPANEL_PRICE, 100), durationDays: 30, addons: 'unlimited',
+        priceUsd: num(process.env.GOLDEN_ANTIRED_CPANEL_PRICE, 100), durationDays: 30, addons: 'unlimited', mysql: lim('Golden-Anti-Red-HostPanel-1-Month', 'unlimited'), captcha: true, geo: true,
         features: ['Anti-Red protection', 'Unlimited addon domains', 'Visitor Captcha + Geo', '30 days'],
       },
     ]

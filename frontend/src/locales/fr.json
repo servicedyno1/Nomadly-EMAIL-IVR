@@ -153,7 +153,7 @@
       "faq5Q": "Combien de temps prend l'installation ?",
       "faq5A": "L'installation démarre automatiquement dès que la blockchain confirme votre paiement. Gardez la page de paiement ouverte : vos accès s'y affichent.",
       "faq6Q": "Quelle est la différence entre les offres ?",
-      "faq6A": "L'offre hebdomadaire inclut 1 domaine additionnel. L'offre mensuelle ajoute 5 domaines additionnels et des bases MySQL. Golden ajoute des domaines additionnels illimités, le captcha visiteurs et le contrôle géographique.",
+      "faq6A": "L'offre hebdomadaire inclut 1 domaine additionnel et 2 bases MySQL. L'offre mensuelle passe à 5 domaines additionnels et 5 bases. Golden offre des domaines additionnels et des bases illimités, plus le captcha visiteurs et le contrôle géographique.",
       "faq7Q": "Comment obtenir de l'aide ?",
       "faq7A": "Écrivez à notre équipe de support humain sur Telegram. Vous pouvez aussi gérer vos offres depuis le bot Telegram.",
       "finalTitle": "Prêt à lancer un site qui reste cliquable ?",
@@ -164,7 +164,23 @@
       "footerBot": "Bot Telegram",
       "footerSupport": "Support",
       "footerStatus": "Boutique en ligne",
-      "footerRights": "© {{year}} {{brand}}. Tous droits réservés."
+      "footerRights": "© {{year}} {{brand}}. Tous droits réservés.",
+      "cmpTitle": "Comparer les offres",
+      "cmpFeature": "Fonctionnalité",
+      "cmpUnlimited": "Illimité",
+      "cmpIncluded": "Inclus",
+      "cmpNotIncluded": "Non inclus",
+      "cmpRow_price": "Prix",
+      "cmpRow_billing": "Facturation",
+      "cmpRow_addons": "Domaines additionnels",
+      "cmpRow_mysql": "Bases MySQL",
+      "cmpRow_antired": "Protection Anti-Red",
+      "cmpRow_panel": "HostPanel + gestionnaire de fichiers",
+      "cmpRow_email": "Comptes e-mail",
+      "cmpRow_apps": "Applications en un clic",
+      "cmpRow_captcha": "Captcha visiteurs",
+      "cmpRow_geo": "Contrôle géographique",
+      "cmpRow_guarantee": "Garantie de remplacement"
     }
   },
   "common": {
@@ -276,8 +292,7 @@
       "manage": "Gérer",
       "view": "Voir",
       "loading": "Chargement…",
-      "daysLeft": "{{count}} jours restants",
-      "expiresToday": "Expire aujourd'hui",
+      "expiresToday": "Moins d'un jour restant",
       "expired": "Expiré",
       "autoRenewOn": "Renouvellement auto activé",
       "autoRenewOff": "Renouvellement auto désactivé",
@@ -295,7 +310,17 @@
       "qaRenew": "Renouveler ou améliorer",
       "qaRenewD": "Gérez la facturation et les améliorations dans le bot Telegram.",
       "qaBuy": "Acheter une autre offre",
-      "qaBuyD": "Hébergez un autre site depuis la boutique."
+      "qaBuyD": "Hébergez un autre site depuis la boutique.",
+      "daysLeft_one": "{{count}} jour restant",
+      "daysLeft_other": "{{count}} jours restants",
+      "expBannerSoon_one": "Votre offre expire dans {{count}} jour",
+      "expBannerSoon_other": "Votre offre expire dans {{count}} jours",
+      "expBannerToday": "Votre offre expire dans moins d'un jour",
+      "expBannerExpired": "Votre offre a expiré",
+      "expAutoOn": "Le renouvellement auto est activé. Nous renouvellerons depuis votre portefeuille : vérifiez que le solde suffit.",
+      "expAutoOff": "Le renouvellement auto est désactivé. Renouvelez maintenant pour garder votre site en ligne.",
+      "expExpiredBody": "Renouvelez maintenant pour garder votre site en ligne et vos fichiers en sécurité.",
+      "expRenewNow": "Renouveler"
     }
   },
   "domains": {
