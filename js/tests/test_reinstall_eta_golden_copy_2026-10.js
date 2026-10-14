@@ -321,6 +321,10 @@ const GOLD = { ws2019: '501', ws2022: '502', ws2025: '503' }
     // ── 7. Docs ──
     const html = require('../apidoc-page').renderApiDocPage('https://example.test/reseller/v1')
     ok('docs: deploy_eta_minutes, eta_minutes_by_region, eta_minutes_in_region, copying_image, rdp.reinstall_started/_failed, auto-copy', ['deploy_eta_minutes', 'eta_minutes_by_region', 'eta_minutes_in_region', 'copying_image', 'rdp.reinstall_started', 'rdp.reinstall_failed', 'Deploy time (RDP)'].every(x => html.includes(x)))
+    const evList = require('../reseller-webhooks').EVENTS.filter(e => require('../branded-ns').isEnabled() || !e.startsWith('domain.nameservers_'))
+    const docList = (html.match(/events(?:&quot;|")\s*:\s*(\[[^\]]*\])/) || [])[1]
+    ok('docs: the GET/PUT /account/webhook "events" sample is exactly the list the API returns', docList && JSON.stringify(JSON.parse(docList.replace(/&quot;/g, '"'))) === JSON.stringify(evList), docList)
+    ok('docs: errors table covers VPS/RDP codes (invalid_os, invalid_hostname, confirmation_required, reinstall_failed, plan_change_failed, provisioning_interrupted)', ['invalid_os', 'invalid_hostname', 'confirmation_required', 'reinstall_failed', 'plan_change_failed', 'provisioning_interrupted'].every(c => html.includes(`<code>${c}`) || html.includes(c)) && /SAFE BROWSING/.test(html))
   } catch (e) {
     fail++; console.log('  ❌ suite crashed:', e.stack || e.message)
   } finally {
