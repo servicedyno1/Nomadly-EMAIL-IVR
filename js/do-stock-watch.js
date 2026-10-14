@@ -63,7 +63,7 @@ function baselineMessage(cur) {
     '', 'You will be alerted here when anything goes out of stock or comes back.'].join('\n')
 }
 
-async function check({ col, notify, now = new Date() } = {}) {
+async function check({ col, notify, onBackInStock, now = new Date() } = {}) {
   const st = sizeCatalog.getState()
   if (!col || !st.loaded || st.source !== 'live' || st.last_error) return { skipped: 'no_live_catalogue' }
   const cur = snapshot()
@@ -84,6 +84,10 @@ async function check({ col, notify, now = new Date() } = {}) {
   if (!wentOut.length && !cameBack.length) return { changed: 0 }
   const message = changeMessage(wentOut, cameBack)
   if (notify) notify(message)
+  // Only the pod that won the hash swap gets here → each restoration is pushed once (reseller back_in_stock webhooks).
+  if (cameBack.length && typeof onBackInStock === 'function') {
+    try { const p = onBackInStock(cameBack, now); if (p && p.catch) p.catch(e => log(`back-in-stock hook error: ${e.message}`)) } catch (e) { log(`back-in-stock hook error: ${e.message}`) }
+  }
   log(`stock changed: ${wentOut.length} out, ${cameBack.length} back`)
   return { wentOut, cameBack, message }
 }
@@ -108,13 +112,13 @@ function staleCheck(notify) {
 }
 
 let _started = false
-function start(db, { notify } = {}) {
+function start(db, { notify, onBackInStock } = {}) {
   if (_started || !db || typeof db.collection !== 'function' || typeof notify !== 'function') return false
   _started = true
   const col = db.collection('doSizeCatalog')
   sizeCatalog.onRefresh(() => {
     staleCheck(notify)
-    check({ col, notify }).catch(e => log(`check error: ${e.message}`))
+    check({ col, notify, onBackInStock }).catch(e => log(`check error: ${e.message}`))
   })
   log('started (alerts on stock changes after each catalogue refresh)')
   return true

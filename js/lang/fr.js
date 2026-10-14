@@ -3782,6 +3782,13 @@ ${
 
  vpsChangePaymentRecieved: `✅ Paiement réussi ! Votre VPS est en cours de configuration. Les détails seront bientôt disponibles.`,
   planOutOfStock: (isRDP, region, suggestions = []) => `😔 <b>${isRDP ? 'Windows RDP' : 'VPS'} en rupture de stock à ${region} pour le moment</b>\n\nNos ${isRDP ? 'serveurs AMD' : 'serveurs'} de cette ville sont complets — vous n'avez <b>pas</b> été débité.${suggestions.length ? `\n\n✅ Disponible maintenant à :\n${suggestions.map(s => `• ${s}`).join('\n')}` : '\n\n⏳ Veuillez réessayer un peu plus tard.'}\n\nChoisissez un autre emplacement ci-dessous 👇`,
+  stockNotifyBtn: '🔔 Me prévenir du retour',
+  stockNotifySaved: (isRDP, place, days) => `🔔 <b>C'est noté !</b> Nous vous écrirons dès que ${isRDP ? 'Windows RDP' : 'VPS'} sera de nouveau disponible à ${place}.\n\n<i>Cette alerte reste active ${days} jours.</i>`,
+  stockBackInStock: (isRDP, place, planName) => `🟢 <b>De retour en stock !</b>\n\n${isRDP ? 'Windows RDP' : 'VPS'}${planName ? ` <b>${planName}</b>` : ''} peut de nouveau être commandé à ${place}.\n\nLe stock part vite — appuyez ci-dessous pour commander.`,
+  stockOrderNowBtn: '🛒 Commander',
+  rdpLateFailRefund: (amount, reason, balance, cities = []) => `❌ <b>Votre Windows RDP n'a pas pu être installé</b>\n\n${reason}\n\n✅ <b>$${amount} ont été remboursés sur votre portefeuille</b> (solde : $${balance}). Le serveur inachevé a été supprimé.${cities.length ? `\n\n🌍 Disponible maintenant à :\n${cities.map(c => `• ${c}`).join('\n')}` : ''}\n\nAppuyez ci-dessous pour commander dans une autre ville.`,
+  rdpTryAnotherCityBtn: '🌍 Essayer une autre ville',
+  rdpFailReasons: { out_of_stock: "DigitalOcean n'avait plus de capacité AMD dans cette ville pendant l'installation.", provisioning_timeout: "L'installation de Windows n'a pas abouti à temps.", provision_failed: "Le serveur n'a pas pu être créé." },
 
  bankPayVPSRenewPlan: priceNGN =>
  `Veuillez envoyer ${priceNGN} NGN en cliquant sur "Effectuer le paiement" ci-dessous. Une fois la transaction confirmée, vous serez immédiatement notifié et votre plan VPS sera activé et renouvelé.`,

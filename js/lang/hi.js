@@ -3770,6 +3770,13 @@ ${
 
  vpsChangePaymentRecieved: `✅ भुगतान सफल! आपका VPS सेट किया जा रहा है। विवरण जल्द ही उपलब्ध होगा।`,
   planOutOfStock: (isRDP, region, suggestions = []) => `😔 <b>${region} में ${isRDP ? 'Windows RDP' : 'VPS'} अभी स्टॉक में नहीं है</b>\n\nउस शहर में हमारे ${isRDP ? 'AMD ' : ''}सर्वर अभी पूरी तरह भरे हुए हैं — आपसे <b>कोई शुल्क नहीं</b> लिया गया।${suggestions.length ? `\n\n✅ अभी यहाँ उपलब्ध:\n${suggestions.map(s => `• ${s}`).join('\n')}` : '\n\n⏳ कृपया थोड़ी देर बाद पुनः प्रयास करें।'}\n\nनीचे कोई दूसरा स्थान चुनें 👇`,
+  stockNotifyBtn: '🔔 वापस आने पर मुझे बताएं',
+  stockNotifySaved: (isRDP, place, days) => `🔔 <b>हो गया!</b> ${place} में ${isRDP ? 'Windows RDP' : 'VPS'} फिर से उपलब्ध होते ही हम आपको संदेश भेजेंगे।\n\n<i>यह अलर्ट ${days} दिनों तक चालू रहेगा।</i>`,
+  stockBackInStock: (isRDP, place, planName) => `🟢 <b>फिर से स्टॉक में!</b>\n\n${place} में ${isRDP ? 'Windows RDP' : 'VPS'}${planName ? ` <b>${planName}</b>` : ''} अब फिर से ऑर्डर किया जा सकता है।\n\nस्टॉक जल्दी खत्म हो सकता है — ऑर्डर करने के लिए नीचे टैप करें।`,
+  stockOrderNowBtn: '🛒 अभी ऑर्डर करें',
+  rdpLateFailRefund: (amount, reason, balance, cities = []) => `❌ <b>आपका Windows RDP सेट अप नहीं हो सका</b>\n\n${reason}\n\n✅ <b>$${amount} आपके वॉलेट में वापस कर दिए गए हैं</b> (बैलेंस: $${balance})। अधूरा सर्वर हटा दिया गया।${cities.length ? `\n\n🌍 अभी यहाँ उपलब्ध:\n${cities.map(c => `• ${c}`).join('\n')}` : ''}\n\nदूसरे शहर में फिर से ऑर्डर करने के लिए नीचे टैप करें।`,
+  rdpTryAnotherCityBtn: '🌍 दूसरा शहर आज़माएं',
+  rdpFailReasons: { out_of_stock: 'सेटअप के दौरान DigitalOcean की उस शहर में AMD क्षमता खत्म हो गई।', provisioning_timeout: 'Windows सेटअप समय पर पूरा नहीं हुआ।', provision_failed: 'सर्वर नहीं बनाया जा सका।' },
 
  bankPayVPSRenewPlan: priceNGN =>
  `कृपया नीचे "भुगतान करें" पर क्लिक करके ${priceNGN} NGN भेजें। जैसे ही लेन-देन की पुष्टि होगी, आपको तुरंत सूचित किया जाएगा, और आपका VPS प्लान सक्रिय और नवीनीकृत कर दिया जाएगा।`,

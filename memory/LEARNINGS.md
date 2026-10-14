@@ -7,3 +7,4 @@
 
 ## 2026-10-10 — Tooling lesson
 - Parallel search_replace calls on the SAME file corrupt it (js/_index.js was truncated to 73 lines). Batch edits across DIFFERENT files only; same-file edits must be sequential.
+- 2026-10-14: parallel search_replace calls on the SAME file can race (tool reports "failed" but some edits apply twice). Edit one file per batch, verify with grep after.

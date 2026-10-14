@@ -14,6 +14,7 @@ process.env.VPS_RDP_PROVIDER = 'digitalocean-rdp'
 process.env.VPS_DEFAULT_PROVIDER = 'digitalocean'
 process.env.RESELLER_API_LIVE = 'true' // isolated DB + stubbed provider: exercises the real charge/refund path
 process.env.RESELLER_PROVISION_WORKER_MS = '15000'
+process.env.RESELLER_PROVISION_WORKER = 'true' // the worker is OFF on a sandbox unless turned on (2026-10-14 isolation)
 const { MongoClient } = require('mongodb')
 
 // ── Fake DigitalOcean ─────────────────────────────────────────────────────
@@ -62,7 +63,7 @@ const indexSrc = fs.readFileSync(path.join(__dirname, '../_index.js'), 'utf8')
 const grab = (re) => { const m = indexSrc.match(re); if (!m) throw new Error(`not found in _index.js: ${re}`); return m[0] }
 const botHelpers = new Function('require', [
   grab(/const isRdpRecord = .*\n/), grab(/const asKind = .*\n/),
-  grab(/const vpsPlanInStock = \(vpsDetails\) => \{[\s\S]*?\n\}\n/).replace("require('./vps-provider')", `require(${JSON.stringify(path.join(__dirname, '../vps-provider'))})`),
+  grab(/const vpsPlanInStock = async \(vpsDetails\) => \{[\s\S]*?\n\}\n/).replace("require('./vps-provider')", `require(${JSON.stringify(path.join(__dirname, '../vps-provider'))})`).replace("require('./do-size-catalog')", `require(${JSON.stringify(path.join(__dirname, '../do-size-catalog'))})`),
   'return { isRdpRecord, asKind, vpsPlanInStock }',
 ].join('\n'))(require)
 
@@ -138,7 +139,7 @@ const nyc = (r) => ['nyc1', 'nyc2', 'nyc3'].includes(r)
     const flagged = rdp.listProducts('nyc3', true, undefined, { includeOutOfStock: true })
     ok('includeOutOfStock lists every plan flagged inStock:false', flagged.length === 9 && flagged.every(p => p.inStock === false))
     ok('bot pre-payment gate: RDP New York → blocked; RDP Frankfurt → allowed',
-      botHelpers.vpsPlanInStock({ isRDP: true, config: { _id: 'standard-1m' }, zone: 'nyc3' }) === false && botHelpers.vpsPlanInStock({ isRDP: true, config: { _id: 'standard-1m' }, zone: 'fra1' }) === true)
+      (await botHelpers.vpsPlanInStock({ isRDP: true, config: { _id: 'standard-1m' }, zone: 'nyc3' })) === false && (await botHelpers.vpsPlanInStock({ isRDP: true, config: { _id: 'standard-1m' }, zone: 'fra1' })) === true)
     const sugg = await vmSetup.fetchRegionsWithStock(true)
     ok('suggested cities = only where AMD RDP is in stock (Frankfurt, London)', sugg.length === 2 && sugg.some(s => /Frankfurt/.test(s)) && sugg.some(s => /London/.test(s)) && !sugg.some(s => /New York|Toronto/.test(s)), sugg)
     const cfgs = await vmSetup.fetchAvailableVPSConfigs('t', { region: 'nyc3', isRDP: true })
@@ -147,10 +148,10 @@ const nyc = (r) => ['nyc1', 'nyc2', 'nyc3'].includes(r)
     try { await rdp.createInstance({ productId: 'standard-1m', regionSlug: 'US', osId: 'ws2022' }) } catch (e) { threw = e }
     ok('createInstance refuses (code out_of_stock) before anything is created', threw && threw.code === 'out_of_stock' && !doCalls.some(c => c.m === 'POST'), threw && threw.message)
     // Bot wiring: the gate runs before the payment screen and before the wallet debit.
-    const planPay = indexSrc.slice(indexSrc.indexOf("if (!vpsPlanInStock(info.vpsDetails)) return goto.vpsOutOfStock()"))
+    const planPay = indexSrc.slice(indexSrc.indexOf("if (!(await vpsPlanInStock(info.vpsDetails))) return goto.vpsOutOfStock()"))
     ok('bot: stock gate runs BEFORE the payment-method screen', planPay.length > 0 && planPay.indexOf("checkoutScreen('vps-plan-pay'") > 0 && planPay.indexOf("checkoutScreen('vps-plan-pay'") < 200)
     const walletPay = indexSrc.slice(indexSrc.indexOf("'vps-plan-pay': async coin => {"))
-    const gateAt = walletPay.indexOf('if (!vpsPlanInStock(vpsDetails)) return goto.vpsOutOfStock()')
+    const gateAt = walletPay.indexOf('if (!(await vpsPlanInStock(vpsDetails))) return goto.vpsOutOfStock()')
     const debitAt = walletPay.indexOf("atomicIncrement(walletOf, chatId, 'usdOut', priceUsd)")
     ok('bot: wallet payment re-checks stock BEFORE debiting', gateAt > 0 && debitAt > gateAt)
     ok('bot: sold-out screen sends planOutOfStock(isRDP, region, suggestions) and asks for the region again',
@@ -268,7 +269,7 @@ const nyc = (r) => ['nyc1', 'nyc2', 'nyc3'].includes(r)
     ok('in-place ops (exactRegion) only count nyc3 itself', vps.isProductAvailable('s-2vcpu-4gb', 'US-central', { exactRegion: true }) === false)
     await setCatalog([...BASIC(['fra1']), ...AMD(['nyc3'])])
     ok('s-2vcpu-4gb in no New York datacenter → out of stock (bot gate blocks; AMD is NOT substituted)',
-      vps.isProductAvailable('s-2vcpu-4gb', 'US-central') === false && botHelpers.vpsPlanInStock({ isRDP: false, config: { _id: 's-2vcpu-4gb' }, zone: 'US-central' }) === false && !vps.listProducts('US-central', false).some(p => p.productId === 's-2vcpu-4gb'))
+      vps.isProductAvailable('s-2vcpu-4gb', 'US-central') === false && (await botHelpers.vpsPlanInStock({ isRDP: false, config: { _id: 's-2vcpu-4gb' }, zone: 'US-central' })) === false && !vps.listProducts('US-central', false).some(p => p.productId === 's-2vcpu-4gb'))
     doCalls.length = 0; threw = null
     try { await vps.createInstance({ productId: 's-2vcpu-4gb', regionSlug: 'US-central', osId: 'ubuntu-24-04-x64' }) } catch (e) { threw = e }
     ok('VPS createInstance refuses with out_of_stock and creates nothing', threw && threw.code === 'out_of_stock' && !doCalls.some(c => c.m === 'POST'), threw && threw.message)

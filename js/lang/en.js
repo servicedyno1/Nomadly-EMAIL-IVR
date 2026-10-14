@@ -3972,6 +3972,13 @@ ${
 
  vpsChangePaymentRecieved: `✅ Payment successful! Your VPS is being set up. Details will be available shortly.`,
   planOutOfStock: (isRDP, region, suggestions = []) => `😔 <b>${isRDP ? 'Windows RDP' : 'VPS'} is sold out in ${region} right now</b>\n\nOur ${isRDP ? 'AMD servers' : 'servers'} in that city are fully booked at the moment — you have <b>not</b> been charged.${suggestions.length ? `\n\n✅ Available right now in:\n${suggestions.map(s => `• ${s}`).join('\n')}` : '\n\n⏳ Please try again a little later.'}\n\nPick another location below 👇`,
+  stockNotifyBtn: '🔔 Notify me when it\'s back',
+  stockNotifySaved: (isRDP, place, days) => `🔔 <b>Done!</b> We'll message you as soon as ${isRDP ? 'Windows RDP' : 'VPS'} can be ordered again in ${place}.\n\n<i>This alert stays on for ${days} days.</i>`,
+  stockBackInStock: (isRDP, place, planName) => `🟢 <b>Back in stock!</b>\n\n${isRDP ? 'Windows RDP' : 'VPS'}${planName ? ` <b>${planName}</b>` : ''} can be ordered again in ${place}.\n\nStock can sell out quickly — tap below to order.`,
+  stockOrderNowBtn: '🛒 Order now',
+  rdpLateFailRefund: (amount, reason, balance, cities = []) => `❌ <b>Your Windows RDP could not be set up</b>\n\n${reason}\n\n✅ <b>$${amount} has been refunded to your wallet</b> (balance: $${balance}). The unfinished server was removed.${cities.length ? `\n\n🌍 In stock right now in:\n${cities.map(c => `• ${c}`).join('\n')}` : ''}\n\nTap below to order again in another city.`,
+  rdpTryAnotherCityBtn: '🌍 Try another city',
+  rdpFailReasons: { out_of_stock: 'DigitalOcean ran out of AMD capacity in that city while building it.', provisioning_timeout: 'Windows setup did not finish in time.', provision_failed: 'The server could not be built.' },
 
  bankPayVPSRenewPlan: priceNGN =>
  `Please remit ${priceNGN} NGN by clicking “Make Payment” below. Once the transaction has been confirmed, you will be promptly notified, and your VPS plan be seamlessly activated and renewed.`,

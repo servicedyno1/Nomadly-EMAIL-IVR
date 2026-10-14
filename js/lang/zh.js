@@ -3740,6 +3740,13 @@ ${
 
  vpsChangePaymentRecieved: `✅ 付款成功！您的 VPS 正在配置中，详细信息将很快提供。`,
   planOutOfStock: (isRDP, region, suggestions = []) => `😔 <b>${region} 的 ${isRDP ? 'Windows RDP' : 'VPS'} 暂时售罄</b>\n\n该城市的${isRDP ? ' AMD ' : ''}服务器目前已满 — 您<b>没有</b>被扣款。${suggestions.length ? `\n\n✅ 目前可选地区：\n${suggestions.map(s => `• ${s}`).join('\n')}` : '\n\n⏳ 请稍后再试。'}\n\n请在下方选择其他地区 👇`,
+  stockNotifyBtn: '🔔 到货提醒我',
+  stockNotifySaved: (isRDP, place, days) => `🔔 <b>已设置！</b>${place} 的 ${isRDP ? 'Windows RDP' : 'VPS'} 一旦可以订购，我们会立即通知您。\n\n<i>此提醒有效期 ${days} 天。</i>`,
+  stockBackInStock: (isRDP, place, planName) => `🟢 <b>已到货！</b>\n\n${place} 的 ${isRDP ? 'Windows RDP' : 'VPS'}${planName ? ` <b>${planName}</b>` : ''} 现在可以订购了。\n\n库存可能很快售罄 — 点击下方立即订购。`,
+  stockOrderNowBtn: '🛒 立即订购',
+  rdpLateFailRefund: (amount, reason, balance, cities = []) => `❌ <b>您的 Windows RDP 未能完成部署</b>\n\n${reason}\n\n✅ <b>$${amount} 已退还到您的钱包</b>（余额：$${balance}）。未完成的服务器已删除。${cities.length ? `\n\n🌍 目前有货的地区：\n${cities.map(c => `• ${c}`).join('\n')}` : ''}\n\n点击下方在其他城市重新订购。`,
+  rdpTryAnotherCityBtn: '🌍 换个城市',
+  rdpFailReasons: { out_of_stock: '部署过程中 DigitalOcean 在该城市的 AMD 容量已用完。', provisioning_timeout: 'Windows 安装未能按时完成。', provision_failed: '服务器无法创建。' },
 
  bankPayVPSRenewPlan: priceNGN =>
  `请点击下方的“支付”按钮支付 ${priceNGN} NGN。一旦交易确认，您将立即收到通知，您的 VPS 计划将被激活并续订。`,

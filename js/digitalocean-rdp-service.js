@@ -176,12 +176,16 @@ const GOLDEN_ALL_REGIONS = [...new Set(Object.values(REGION_TO_DO))]
 const UBUNTU_IMAGE = process.env.DO_UBUNTU_IMAGE || 'ubuntu-22-04-x64'
 
 // Poll timings (ms / min) — exported as _timing so tests can shrink them.
-const T = { bootPoll: 5000, rdpPoll: 30000, actionPoll: 15000, offPoll: 10000, rdpPort: 3389, rdpMaxMin: 90, transferMaxMin: 90, buildMaxMin: 120, importPoll: 30000, importMaxMin: 240, importRetryMin: 150, importRetries: 2, importSlotMaxMin: 480, callbackGraceMs: 90000, fastTargetMs: 180000, digestMs: 24 * 60 * 60 * 1000, commandWaitMs: 150000, commandPoll: 2000, agentStaleMs: 10 * 60 * 1000, rebuildMaxMin: 20, graceDays: Number(process.env.RDP_GRACE_DAYS || 2) }
+const T = { bootPoll: 5000, rdpPoll: 30000, actionPoll: 15000, offPoll: 10000, rdpPort: 3389, rdpMaxMin: 90, transferMaxMin: 90, buildMaxMin: 120, importPoll: 30000, importMaxMin: 240, importRetryMin: 150, importRetries: 2, importSlotMaxMin: 480, callbackGraceMs: 90000, fastTargetMs: 180000, digestMs: 24 * 60 * 60 * 1000, commandWaitMs: 150000, commandPoll: 2000, agentStaleMs: 10 * 60 * 1000, rebuildMaxMin: 20, graceDays: Number(process.env.RDP_GRACE_DAYS || 2),
+  // Late-failure safety net: a first build still unfinished after stuckBuildMin is failed (→ refund); failed orders
+  // the purchase flow still owned are re-checked once they are failedRecheckMs old. Sweep runs every reconcileMs.
+  stuckBuildMin: Math.max(120, Number(process.env.DO_RDP_STUCK_BUILD_MIN) || 180), failedRecheckMs: 30 * 60000, reconcileMs: 10 * 60000 }
 
 // ─────────────────────────────────────────────────────────────
 // Admin alerts (Telegram via the bot's notifyAdmin, injected by _index.js init)
 // ─────────────────────────────────────────────────────────────
 let _notifyAdmin = null
+let _onOrderFailed = null
 const _alertSeen = new Map()
 function alertAdmin(key, message) {
   const now = Date.now()
@@ -270,6 +274,8 @@ function isProductAvailable(planId, regionSlug) {
   return !!p && quoteFor(p, regionSlug).in_stock
 }
 // RDP stock per sellable region × tier (reseller GET /rdp/availability, admin stock alerts).
+// datacenters = every datacenter of the city and which plans DigitalOcean will build there right now
+// (matches DigitalOcean's control panel, e.g. New York: nyc3 none · nyc1 + nyc2 all plans).
 function availability() {
   return listRegions().map(r => ({
     region: r.code, region_slug: r.regionSlug, label: r.display.label, emoji: r.display.emoji,
@@ -277,9 +283,29 @@ function availability() {
       const q = quoteFor(t, r.regionSlug)
       return { plan: t.slug, name: t.name, in_stock: q.in_stock, build_region: q.build_region, same_city_fallback: q.same_city, size_slug: q.size_slug, price_usd: sellPrice(t, 1, q.do_cost), base_price_usd: sellPrice(t, 1), surcharge_pct: Math.round((q.price_factor - 1) * 1000) / 10 }
     }),
+    datacenters: [r.regionSlug, ...sizeCatalog.sameCityOf(r.regionSlug)].map(dc => ({
+      datacenter: dc, plans_in_stock: TIERS.filter(t => _sizeOptions(t, dc, t.monthly_do_cost * MAX_SIZE_COST_FACTOR).length).map(t => t.slug),
+    })),
   }))
 }
 function formatSpecs(p) { return p ? `${p.cpuCores || p.vcpus} vCPU · ${p.ramGb} GB RAM · ${p.diskGb} GB NVMe · Windows Server` : '' }
+// Renewal price for an EXISTING server, RE-CHECKED at every renewal (owner decisions 2026-10-14): what this
+// plan costs in the server's city right now (live AMD stock — a pricier same-spec size raises it, restored
+// stock lowers it), clamped to [plan base, base +15%]. No AMD stock anywhere in the city right now → the
+// normal plan price (the server keeps running). null = not a sellable-tier DO-RDP server (callers keep theirs).
+async function renewalPrice(instanceId, months = 1) {
+  const s = _servers ? await _servers.findOne({ server_id: normId(instanceId) }) : null
+  const t = s && TIERS.find(x => x.slug === s.tier_slug)
+  if (!t) return null
+  const m = Math.min(3, Math.max(1, parseInt(months, 10) || 1))
+  const q = quoteFor(t, s.requested_region || s.region)
+  const source = q.in_stock ? 'live_quote' : 'base_no_stock'
+  const raw = q.in_stock ? q.do_cost : t.monthly_do_cost
+  const cost = round2(Math.min(Math.max(raw, t.monthly_do_cost), t.monthly_do_cost * MAX_SIZE_COST_FACTOR))
+  const price = sellPrice(t, m, cost)
+  const base = sellPrice(t, m)
+  return { months: m, price_usd: price, base_price_usd: base, surcharge_usd: round2(price - base), surcharge_pct: Math.round((cost / t.monthly_do_cost - 1) * 1000) / 10, do_monthly_cost: cost, price_source: source, checked_at: new Date().toISOString(), size_slug: s.do_size_slug || null, datacenter: s.region || null, tier: t.slug }
+}
 
 // Speed lever 4: a ready-made .rdp connection file tuned for a fast/LAN-like experience so the
 // customer isn't stuck on laggy client defaults (bitmap caching ON, wallpaper/animations OFF,
@@ -436,10 +462,11 @@ let _osCol = null
 let _builds = null
 let _agentMetrics = null
 let _db = null
-function init(db, { notifyAdmin } = {}) {
+function init(db, { notifyAdmin, onOrderFailed } = {}) {
   try {
     if (!db || typeof db.collection !== 'function') return false
     if (typeof notifyAdmin === 'function') _notifyAdmin = notifyAdmin
+    if (typeof onOrderFailed === 'function') _onOrderFailed = onOrderFailed
     _db = db
     _servers = db.collection('doRdpServers')
     _osCol = db.collection('doRdpOsOptions')
@@ -463,6 +490,7 @@ function init(db, { notifyAdmin } = {}) {
     if (process.env.SKIP_WEBHOOK_SYNC !== 'true') {
       setInterval(() => { processExpiries().catch(e => log('expiry sweep error:', e.message)) }, 60 * 60 * 1000)
       setInterval(() => { sendDailyDigest().catch(e => log('digest error:', e.message)) }, T.digestMs)
+      setInterval(() => { reconcileOrders().catch(e => log('order reconcile error:', e.message)) }, T.reconcileMs).unref()
     } else {
       log('SKIP_WEBHOOK_SYNC=true — expiry sweep + daily digest DISABLED (dev sandbox)')
     }
@@ -490,16 +518,24 @@ async function getOsOption(osId) {
   return { ...base, golden_status: 'none', golden_image_id: null, golden_regions: [], golden_min_disk_gb: 0, ...g }
 }
 
+// Fast deploy (~3 min) only when the datacenter an order would be BUILT in right now holds the golden image:
+// a same-city fallback (New York nyc3 → nyc1) without it is a full Windows install (~45 min).
+function _fastIn(o, slug) {
+  if (!(o.golden_status === 'available' && o.golden_image_id)) return false
+  const t = TIERS[0]
+  const first = _attemptsFor({ tier_slug: t.slug, requested_region: slug, region: slug, disk_gb: t.disk_gb, max_do_cost: t.monthly_do_cost * MAX_SIZE_COST_FACTOR }, o)[0]
+  return first ? first.fast : (o.golden_regions || []).includes(slug)
+}
+
 // Reseller-facing OS list: which editions deploy in ~3 min (golden image) and where.
 async function listOsOptions() {
   const all = await Promise.all(Object.keys(OS_OPTIONS).map(getOsOption))
   return all.map(o => {
-    const regs = o.golden_regions || []
     const fast = o.golden_status === 'available' && !!o.golden_image_id
     return {
       id: o.id, name: o.name, default: o.id === DEFAULT_OS_ID,
       fast_deploy: fast, eta_minutes: fast ? fastEta(o) : 45,
-      fast_deploy_regions: fast ? Object.entries(REGION_TO_DO).filter(([, slug]) => regs.includes(slug)).map(([code]) => code) : [],
+      fast_deploy_regions: fast ? Object.entries(REGION_TO_DO).filter(([, slug]) => _fastIn(o, slug)).map(([code]) => code) : [],
     }
   })
 }
@@ -510,7 +546,7 @@ async function listOsOptionsForRegion(region) {
   const all = await Promise.all(Object.keys(OS_OPTIONS).map(getOsOption))
   return all.map(o => {
     const golden = o.golden_status === 'available' && !!o.golden_image_id
-    const fast = golden && (o.golden_regions || []).includes(slug)
+    const fast = _fastIn(o, slug)
     return { id: o.id, name: o.name, default: o.id === DEFAULT_OS_ID, golden, fast_deploy: fast, eta_minutes: fast ? fastEta(o) : 45 }
   })
 }
@@ -604,7 +640,44 @@ async function addLog(serverId, stage, message, progress, status) {
   if (status === 'failed') {
     const s = await _servers.findOne({ server_id: serverId }).catch(() => null) || { server_id: serverId }
     alertAdmin(`fail:${serverId}`, `❌ RDP order ${orderRef(s)} FAILED after ${fmtSecs((Date.now() - new Date(s.created_at || Date.now())) / 1000)}\n${message}${s.ip_address ? `\nIP ${s.ip_address}` : ''}${s.do_droplet_id ? ` · droplet ${s.do_droplet_id}` : ''}`)
+    handleFailedOrder(serverId).catch(e => log(`handleFailedOrder(${serverId}) error: ${e.message}`))
   }
+}
+
+// A FIRST build that ended 'failed' → the bot's refund/notify handler (once; reinstall failures of a live
+// server and servers created before this existed are never refunded). retry = the purchase flow still owns it.
+const _reasonCode = (m) => (/no AMD capacity|out of stock/i.test(m || '') ? 'out_of_stock' : /not reachable|did not finish|timed? ?out/i.test(m || '') ? 'provisioning_timeout' : 'provision_failed')
+async function handleFailedOrder(serverId) {
+  if (!_onOrderFailed || !_servers) return null
+  const s = await _servers.findOne({ server_id: serverId })
+  if (!s || s.status !== 'failed' || s.activated_at || s.failure_handled_at || s.refund_on_failure !== true) return null
+  const last = (s.logs || []).filter(l => l.stage === 'failed').slice(-1)[0]
+  const reason = (last && last.message) || 'Provisioning failed'
+  const r = await _onOrderFailed({ instanceId: extId(serverId), serverId, reason, reasonCode: _reasonCode(reason), createdAt: s.created_at || null })
+  if (r && r.retry) return r
+  await _servers.updateOne({ server_id: serverId }, { $set: { failure_handled_at: new Date(), failure_outcome: (r && r.action) || null } })
+  return r
+}
+
+// Safety net (every 10 min, production): a first build that never finished (e.g. its poller died in a restart)
+// is failed after stuckBuildMin unless RDP already answers, and failed orders not yet handled are retried.
+async function reconcileOrders({ now = new Date() } = {}) {
+  if (!_servers) return { stuck: 0, handled: 0 }
+  let stuck = 0, handled = 0
+  const stuckCutoff = new Date(now.getTime() - T.stuckBuildMin * 60000)
+  const building = await _servers.find({ status: { $in: ['queued', 'creating', 'booting', 'installing', 'converting', 'rdp_up'] }, activated_at: null, refund_on_failure: true, created_at: { $lt: stuckCutoff } }).limit(50).toArray()
+  for (const s of building) {
+    if (s.ip_address && await tcpOpen(s.ip_address, T.rdpPort)) {
+      await applyActivation(s)
+      await addLog(s.server_id, 'rdp_ready', `RDP reachable at ${s.ip_address}:3389 (found by the stuck-build check). Server is active.`, 100, 'active')
+      continue
+    }
+    await addLog(s.server_id, 'failed', `Windows setup did not finish within ${Math.round(T.stuckBuildMin / 60)} h (last status: ${s.status}).`, null, 'failed')
+    stuck++
+  }
+  const failed = await _servers.find({ status: 'failed', activated_at: null, refund_on_failure: true, failure_handled_at: { $exists: false }, created_at: { $lt: new Date(now.getTime() - T.failedRecheckMs) } }).limit(50).toArray()
+  for (const s of failed) { const r = await handleFailedOrder(s.server_id).catch(() => null); if (r && !r.retry) handled++ }
+  return { stuck, handled }
 }
 
 // Fast-path promise = RDP-ready in ~3 min. Alert the admin once if an order is still provisioning past the target.
@@ -1229,7 +1302,7 @@ async function createInstance(opts = {}) {
     do_monthly_cost: pick.cost, max_do_cost: maxDoCost, fast_deploy: fast, eta_minutes: fast ? fastEta(osOpt) : 45,
     disk_gb: product.diskGb, do_droplet_id: null, volume_id: null, ip_address: null,
     admin_username: 'Administrator', callback_token: callbackToken, vnc_password: crypto.randomBytes(6).toString('base64url').slice(0, 8),
-    status: 'queued', progress: 0, logs: [], label, product_id: product.productId,
+    status: 'queued', progress: 0, logs: [], label, product_id: product.productId, refund_on_failure: true,
     created_at: new Date(), activated_at: null, expires_at: null, commands: [], agent_seen_at: null,
   }
   if (_servers) await _servers.insertOne(doc)
@@ -1665,7 +1738,7 @@ module.exports = {
   // catalog / pricing
   listProducts, getProduct, calculatePrice, formatSpecs, buildRdpFile, listRegions, REGION_DISPLAY, getDefaultWindowsImageId, sizeCandidatesFor,
   // live stock (AMD only, same-city fallback, +15% cap passed on in the price)
-  isProductAvailable, quoteFor, buildOptions, productInRegion, availability, MAX_SIZE_COST_FACTOR,
+  isProductAvailable, quoteFor, buildOptions, productInRegion, availability, renewalPrice, MAX_SIZE_COST_FACTOR,
   // lifecycle
   createInstance, createInstanceWithFallback, getInstance, isInstanceGone,
   startInstance, stopInstance, restartInstance, shutdownInstance,
@@ -1673,7 +1746,7 @@ module.exports = {
   // grace lifecycle mirror helpers (bot scheduler owns the grace lifecycle; these keep doRdpServers in sync)
   markGrace, markGraceDestroy,
   // ops
-  processExpiries, provisionRouter, sendDailyDigest, provisioningStatus,
+  processExpiries, provisionRouter, sendDailyDigest, provisioningStatus, reconcileOrders, handleFailedOrder,
   // golden images
   startGoldenBuild, cancelBuild, resumeBuilds, syncGoldenFromDO, transferGolden, goldenStatus, listOsOptions, listOsOptionsForRegion,
   // exported for tests / internal use

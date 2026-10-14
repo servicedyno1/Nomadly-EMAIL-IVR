@@ -30,6 +30,10 @@ const T = {
   staleMs: 2 * 60 * 60000,
   // Never hammer DO: a 422-triggered refresh is skipped if one ran this recently.
   minForcedGapMs: 60000,
+  // Order-time decisions (quote, stock gate, charge) use a catalogue at most this old (ensureFresh).
+  freshMs: Math.max(30000, Number(process.env.DO_SIZE_CATALOG_FRESH_MS) || 2 * 60000),
+  // Distribution (Linux OS) images change rarely: re-pulled at most hourly, piggybacking on a refresh.
+  imagesMs: 60 * 60000,
 }
 
 let _col = null
@@ -39,6 +43,8 @@ let _lastErrorAt = null
 let _lastAttemptAt = null
 let _refreshing = null
 let _timer = null
+let _images = null // [{ slug, distribution, name, status, min_disk_size }] — DO distribution images, null = unknown
+let _imagesAt = null
 const _refused = new Map() // `${slug}@${region}` → { until: ms, reason }
 const _listeners = new Set()
 
@@ -109,11 +115,16 @@ function refresh({ force = false } = {}) {
       try { regions = (await _get('/regions?per_page=200')).regions || null } catch (e) { log(`regions fetch failed (sizes still applied): ${e.message}`) }
       _state = _build(sizes, regions, { source: 'live' })
       _lastError = null; _lastErrorAt = null
+      const imagesDue = !_imagesAt || Date.now() - _imagesAt.getTime() >= T.imagesMs
+      if (imagesDue) {
+        try { _setImages((await _get('/images?type=distribution&per_page=200')).images, new Date()) } catch (e) { log(`images fetch failed (keeping ${_images ? 'last copy' : 'static OS list'}): ${e.message}`) }
+      }
       if (_col) {
         _col.updateOne({ _id: 'live' }, { $set: {
           sizes: sizes.map(_slim),
           regions: Array.isArray(regions) ? regions.map(r => ({ slug: String(r.slug), name: String(r.name || ''), available: r.available !== false })) : null,
           fetched_at: _state.fetchedAt,
+          ...(imagesDue && _images ? { images: _images, images_fetched_at: _imagesAt } : {}),
         } }, { upsert: true }).catch(e => log(`persist warn: ${e.message}`))
       }
       _emit()
@@ -128,10 +139,19 @@ function refresh({ force = false } = {}) {
   return _refreshing
 }
 
+function _setImages(raw, at) {
+  if (!Array.isArray(raw) || !raw.length) return
+  _images = raw.filter(i => i && i.slug).map(i => ({ slug: String(i.slug), distribution: String(i.distribution || ''), name: String(i.name || ''), status: String(i.status || 'available'), min_disk_size: Number(i.min_disk_size) || 0 }))
+  _imagesAt = new Date(at || Date.now())
+}
+/** DigitalOcean's current distribution images (Linux OS list), or null before the first pull. */
+function getImages() { return _images ? _images.slice() : null }
+
 async function _loadFromDb() {
   if (!_col || _state) return false
   try {
     const doc = await _col.findOne({ _id: 'live' })
+    if (doc && Array.isArray(doc.images) && !_images) _setImages(doc.images, doc.images_fetched_at)
     if (doc && Array.isArray(doc.sizes) && doc.sizes.length && !_state) {
       _state = _build(doc.sizes, doc.regions, { fetchedAt: doc.fetched_at || new Date(0), source: 'db' })
       log(`loaded last good catalogue from DB (${doc.sizes.length} sizes, fetched ${_state.fetchedAt.toISOString()})`)
@@ -157,6 +177,20 @@ function init(db, { autoRefresh = true } = {}) {
 }
 
 function isLoaded() { return !!(_state && _state.sizes && _state.sizes.size) }
+
+/**
+ * Make an order-time decision on a catalogue pulled from DigitalOcean at most maxAgeMs ago (default 2 min):
+ * an older copy is re-pulled first (one pull per minute at most, shared by all callers), waiting up to
+ * timeoutMs. DigitalOcean unreachable / slow → the last good copy is used, never blocks the order.
+ */
+async function ensureFresh({ maxAgeMs = T.freshMs, timeoutMs = 8000 } = {}) {
+  const age = _state && _state.source === 'live' ? Date.now() - _state.fetchedAt.getTime() : Infinity
+  if (age <= maxAgeMs || !_token()) return getState()
+  let timer
+  await Promise.race([refresh().catch(() => false), new Promise(r => { timer = setTimeout(r, timeoutMs); if (timer.unref) timer.unref() })])
+  clearTimeout(timer)
+  return getState()
+}
 
 function _refusedKey(slug, region) { return `${slug}@${region}` }
 function isRefused(slug, region) {
@@ -227,6 +261,7 @@ function getState() {
     refresh_interval_seconds: Math.round(T.refreshMs / 1000),
     last_error: _lastError, last_error_at: _lastErrorAt ? _lastErrorAt.toISOString() : null,
     refused: refusedList().length,
+    images: _images ? _images.length : 0, images_fetched_at: _imagesAt ? _imagesAt.toISOString() : null,
   }
 }
 
@@ -234,14 +269,15 @@ function onRefresh(fn) { if (typeof fn === 'function') _listeners.add(fn); retur
 
 // ── test hooks ──
 function _setForTest(rawSizes, rawRegions, opts = {}) { _state = rawSizes ? _build(rawSizes, rawRegions, { source: 'test', ...opts }) : null }
+function _setImagesForTest(raw) { if (raw) _setImages(raw, new Date()); else { _images = null; _imagesAt = null } }
 function _resetForTest() {
-  _state = null; _lastError = null; _lastErrorAt = null; _lastAttemptAt = null; _refreshing = null; _refused.clear()
+  _state = null; _lastError = null; _lastErrorAt = null; _lastAttemptAt = null; _refreshing = null; _refused.clear(); _images = null; _imagesAt = null
   if (_timer) { clearInterval(_timer); _timer = null }
   _col = null
 }
 
 module.exports = {
-  init, refresh, isLoaded, isAvailable, sizesAvailableIn, getSize, getState, isRegionUp, sameCityOf,
-  markRefused, isRefused, refusedList, onRefresh,
-  _timing: T, _setForTest, _resetForTest, _loadFromDb,
+  init, refresh, ensureFresh, isLoaded, isAvailable, sizesAvailableIn, getSize, getState, isRegionUp, sameCityOf,
+  markRefused, isRefused, refusedList, onRefresh, getImages,
+  _timing: T, _setForTest, _setImagesForTest, _resetForTest, _loadFromDb,
 }

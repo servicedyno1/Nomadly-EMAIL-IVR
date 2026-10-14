@@ -3542,14 +3542,16 @@ const loadData = async () => {
 
   // DigitalOcean Windows-RDP provider state (droplets, callback tokens, expiry).
   try {
-    require('./digitalocean-rdp-service').init(db, { notifyAdmin })
+    require('./digitalocean-rdp-service').init(db, { notifyAdmin, onOrderFailed: (ctx) => handleRdpOrderFailed(ctx) })
   } catch (e) {
     log(`[DO-RDP] init failed: ${e.message || e}`)
   }
   // Live DigitalOcean size catalogue (RDP + VPS stock, 15-min refresh) + admin stock alerts (prod only).
   try {
     require('./do-size-catalog').init(db)
-    if (process.env.SKIP_WEBHOOK_SYNC !== 'true') require('./do-stock-watch').start(db, { notify: notifyAdmin })
+    if (process.env.SKIP_WEBHOOK_SYNC !== 'true') require('./do-stock-watch').start(db, { notify: notifyAdmin, onBackInStock: (keys, at) => pushBackInStock(keys, at) })
+    // Customer "Notify me when it's back" alerts (this pod's own users only, one send per alert).
+    require('./do-stock-alerts').start(db, { notify: (a) => sendStockAlert(a) })
   } catch (e) {
     log(`[DO-Catalog] init failed: ${e.message || e}`)
   }
@@ -6065,6 +6067,33 @@ bot?.on('callback_query', async (query) => {
         // Soft fallback: tell the user which menu key to tap
         try { return send(chatId, `Tap <b>${triggerText}</b> in the menu below.`, { parse_mode: 'HTML' }) } catch { /* noop */ }
       }
+      return
+    }
+
+    // ── Live stock (2026-10-14): "🔔 Notify me when it's back" (stk:<r|v>:<region>:<plan|*>), the alert's
+    // "🛒 Order now" (stkbuy:<r|v>) and the late-failure refund's "🌍 Try another city" (rdpcity). ──
+    if (data.startsWith('stk:') || data.startsWith('stkbuy:') || data === 'rdpcity') {
+      const lang = (await get(state, chatId))?.userLanguage || 'en'
+      if (data.startsWith('stk:')) {
+        const [, k, region, plan] = data.split(':')
+        const kind = k === 'r' ? 'rdp' : 'vps'
+        try {
+          const alerts = require('./do-stock-alerts')
+          await alerts.subscribe(db.collection('doStockAlerts'), { chatId, kind, region, plan: plan && plan !== '*' ? plan : null, lang })
+          try { await bot.answerCallbackQuery(query.id, { text: '🔔' }) } catch { /* noop */ }
+          return send(chatId, translation('vp.stockNotifySaved', lang, kind === 'rdp', alerts.describe(kind, region, plan).place, alerts.TTL_DAYS), { parse_mode: 'HTML' })
+        } catch (e) {
+          log(`[StockAlert] subscribe failed for ${chatId}: ${e.message}`)
+          try { await bot.answerCallbackQuery(query.id) } catch { /* noop */ }
+          return
+        }
+      }
+      try { await bot.answerCallbackQuery(query.id) } catch { /* noop */ }
+      await set(state, chatId, 'action', 'none')
+      const text = translation(data === 'stkbuy:v' ? 'user.buyLinuxVpsBtn' : 'user.buyRdpBtn', lang)
+      try {
+        await bot.processUpdate({ update_id: Date.now(), message: { message_id: query.message.message_id, from: query.from, chat: query.message.chat, date: Math.floor(Date.now() / 1000), text } })
+      } catch (e) { log(`[StockAlert] ${data} redirect err: ${e.message}`) }
       return
     }
 
@@ -10079,7 +10108,7 @@ bot?.on('message', msg => {
         log(`[VPS] vps-plan-pay called without vpsDetails for ${chatId} — redirecting`)
         return goto.displayMainMenuButtons()
       }
-      if (!vpsPlanInStock(info.vpsDetails)) return goto.vpsOutOfStock()
+      if (!(await vpsPlanInStock(info.vpsDetails))) return goto.vpsOutOfStock()
       await set(state, chatId, 'action', 'vps-plan-pay')
       return checkoutScreen('vps-plan-pay', vp.askPaymentMethod)
     },
@@ -12217,7 +12246,7 @@ Enter new value:`), bc)
       const here = vpsDetails.regionName || vpsDetails.country || vpsDetails.region || ''
       const suggestions = (await fetchRegionsWithStock(isRDP)).filter(l => l !== here)
       log(`[VPS] out of stock: ${isRDP ? 'RDP' : 'VPS'} ${vpsDetails.config?._id || ''} in ${vpsDetails.region} for ${chatId} — suggested ${suggestions.length} region(s)`)
-      await send(chatId, vp.planOutOfStock(isRDP, here, suggestions))
+      await send(chatId, vp.planOutOfStock(isRDP, here, suggestions), stockNotifyKb(vpsDetails, vp.stockNotifyBtn))
       return goto.askRegionForVps()
     },
 
@@ -13018,7 +13047,7 @@ Enter new value:`), bc)
       const priceUsd = price
       if (usdBal < priceUsd) { return _showBalanceWall(usdBal, priceUsd) }
       // Stock can change while the user is on the payment screen — re-check BEFORE debiting.
-      if (!vpsPlanInStock(vpsDetails)) return goto.vpsOutOfStock()
+      if (!(await vpsPlanInStock(vpsDetails))) return goto.vpsOutOfStock()
 
       const lang = info?.userLanguage ?? 'en'
       const name = await get(nameOf, chatId)
@@ -21293,7 +21322,7 @@ ${message.replace(/\n/g, '<br>')}
     if (message === vp.vpsPlanRenewBtn) {
       let vpsDetails = info.vpsDetails
       vpsDetails.upgradeType = 'vps-renew'
-      vpsDetails.totalPrice = info.userVPSDetails.planPrice || info.userVPSDetails.price
+      vpsDetails.totalPrice = (await vpsRenewalPrice(info.userVPSDetails)) || info.userVPSDetails.price
       vpsDetails.billingCycle = info.userVPSDetails.plan || 'Monthly'
       info.vpsDetails = vpsDetails
       saveInfo('vpsDetails', vpsDetails)
@@ -37283,7 +37312,9 @@ async function checkVPSPlansExpiryandPayment() {
     }).toArray()
 
     for (const vpsPlan of dueForRenewal) {
-      const { chatId, _id, planPrice, vpsId, label, autoRenewable, contaboInstanceId } = vpsPlan
+      const { chatId, _id, vpsId, label, autoRenewable, contaboInstanceId } = vpsPlan
+      // RDP: re-priced on live AMD stock in its city (base … +15%); everything else renews at planPrice.
+      const planPrice = await vpsRenewalPrice(vpsPlan)
       const info = await state.findOne({ _id: String(chatId) })
       const lang = info?.userLanguage || 'en'
       const displayName = label || vpsPlan.name || (isRdpRecord(vpsPlan) ? 'RDP' : 'VPS')
@@ -37334,7 +37365,7 @@ async function checkVPSPlansExpiryandPayment() {
         newEnd.setMonth(newEnd.getMonth() + renewMonths)
 
         await vpsPlansOf.updateOne({ _id }, {
-          $set: { end_time: newEnd, status: 'RUNNING', _autoRenewAttempted: true, _reminder3DaySent: false, _reminder1DaySent: false }
+          $set: { end_time: newEnd, status: 'RUNNING', _autoRenewAttempted: true, _reminder3DaySent: false, _reminder1DaySent: false, ...(planPrice !== Number(vpsPlan.planPrice) ? { planPrice } : {}) }
         })
         await _syncProviderRenewal(vpsPlan, renewMonths)
         const currSymbol = deductResult.currency === 'ngn' ? '₦' : '$'
@@ -37651,6 +37682,7 @@ async function checkVPSPlansExpiryandPayment() {
 
       // 3-day reminder
       if (daysLeft > 2.5 && daysLeft <= 3.1 && !vpsPlan._reminder3DaySent) {
+        const planPrice = await vpsRenewalPrice(vpsPlan)
         const { usdBal } = await getBalance(walletOf, chatId)
         const sufficient = usdBal >= planPrice
         const statusIcon = sufficient ? '✅' : '⚠️'
@@ -37669,18 +37701,62 @@ async function checkVPSPlansExpiryandPayment() {
 // such as "VPS/RDP → Manage" are kept.
 const isRdpRecord = (r) => !!(r && (r.isRDP === true || r.os?.isRDP || r.osType === 'Windows' || r.provider === 'digitalocean-rdp' || /^rdp-/i.test(String(r.contaboInstanceId || r.instanceId || r.vpsId || ''))))
 const asKind = (text, isRDP) => (isRDP && typeof text === 'string' ? text.replace(/\bVPS\b(?!\s*\/\s*RDP)/g, 'RDP') : text)
-// Live stock gate (2026-10-14): never take money for a plan DigitalOcean cannot build right now.
-// Unknown provider / no stock data = allowed (the provider's own create decides).
-const vpsPlanInStock = (vpsDetails) => {
+// Live stock gate (2026-10-14): never take money for a plan DigitalOcean cannot build right now. Decided on a
+// catalogue at most ~2 min old (re-pulled first if older). Unknown provider / no stock data = allowed.
+const vpsPlanInStock = async (vpsDetails) => {
   try {
     const prov = require('./vps-provider').pickProviderForOs(!!vpsDetails?.isRDP)
     const productId = vpsDetails?.config?._id || vpsDetails?.productId
     if (!productId || typeof prov.isProductAvailable !== 'function') return true
+    await require('./do-size-catalog').ensureFresh().catch(() => null)
     return prov.isProductAvailable(productId, vpsDetails.zone || vpsDetails.region) !== false
   } catch (_) { return true }
 }
 
+// "🔔 Notify me when it's back" inline button for the sold-out screen (region + plan, or any plan = '*').
+const stockNotifyKb = (vpsDetails, label) => {
+  const region = vpsDetails?.zone || vpsDetails?.region
+  const pid = String(vpsDetails?.config?._id || '')
+  const cb = `stk:${vpsDetails?.isRDP ? 'r' : 'v'}:${region}:${(vpsDetails?.isRDP ? pid.replace(/-\d+m$/, '') : pid) || '*'}`
+  return region && label && Buffer.byteLength(cb) <= 64 ? { parse_mode: 'HTML', reply_markup: { inline_keyboard: [[{ text: label, callback_data: cb }]] } } : undefined
+}
+// Back-in-stock alert for a customer who tapped "Notify me" (sent once by js/do-stock-alerts.js).
+const sendStockAlert = (a) => {
+  const isRDP = a.kind === 'rdp'
+  const d = require('./do-stock-alerts').describe(a.kind, a.region, a.plan)
+  send(a.chatId, translation('vp.stockBackInStock', a.lang, isRDP, d.place, a.plan ? d.planName : null), { parse_mode: 'HTML', reply_markup: { inline_keyboard: [[{ text: translation('vp.stockOrderNowBtn', a.lang), callback_data: `stkbuy:${isRDP ? 'r' : 'v'}` }]] } })
+}
+// A sold-out plan came back → rdp.back_in_stock / vps.back_in_stock to every reseller with a webhook URL.
+const pushBackInStock = async (keys, at) => {
+  const webhooks = require('./reseller-webhooks')
+  for (const e of require('./do-stock-alerts').backInStockEvents(keys, at)) await webhooks.broadcast(resellerDb || db, { ...e, log })
+}
+// RDP build failed AFTER the purchase flow finished → one wallet refund, droplet removed, customer + admin told.
+const handleRdpOrderFailed = (ctx) => require('./rdp-order-failure').handle(ctx, {
+  plans: vpsPlansOf,
+  credit: (chatId, amount) => atomicIncrement(walletOf, chatId, 'usdIn', amount),
+  cancel: (id) => require('./digitalocean-rdp-service').cancelInstance(id, { reason: 'build_failed_refunded' }),
+  notifyAdmin: (m) => { try { notifyAdmin(m) } catch (_) { /* best-effort */ } },
+  notifyCustomer: async (rec, { amount, reasonCode }) => {
+    if (!(amount > 0)) return
+    const lang = (await state.findOne({ _id: String(rec.chatId) }))?.userLanguage || 'en'
+    const { usdBal } = await getBalance(walletOf, String(rec.chatId))
+    const cities = await fetchRegionsWithStock(true)
+    send(rec.chatId, translation('vp.rdpLateFailRefund', lang, amount.toFixed(2), translation(`vp.rdpFailReasons.${reasonCode || 'provision_failed'}`, lang), Number(usdBal || 0).toFixed(2), cities),
+      { parse_mode: 'HTML', reply_markup: { inline_keyboard: [[{ text: translation('vp.rdpTryAnotherCityBtn', lang), callback_data: 'rdpcity' }]] } })
+  },
+})
+// RDP renewals are re-priced on live AMD stock in the server's city at every renewal (2026-10-14); others keep planPrice.
+const vpsRenewalPrice = async (rec) => {
+  const id = String(rec?.contaboInstanceId || rec?.instanceId || '')
+  if (/^rdp-/i.test(id)) {
+    try { const q = await require('./digitalocean-rdp-service').renewalPrice(id, Math.max(1, Number(rec.durationMonths) || 1)); if (q && q.price_usd > 0) return q.price_usd } catch (_) { /* keep stored price */ }
+  }
+  return Number(rec?.planPrice) || 0
+}
+
 const buyVPSPlanFullProcess = async (chatId, lang, vpsDetails) => {
+  let createdInstanceId = null
   try {
     // Create progress tracker for VPS provisioning
     const setupKind = vpsDetails?.isRDP ? 'RDP' : 'VPS'
@@ -37707,6 +37783,7 @@ const buyVPSPlanFullProcess = async (chatId, lang, vpsDetails) => {
     await progress.completeStep(1)
     
     const { data: vpsData } = vmInstance
+    createdInstanceId = vpsData?.contaboInstanceId || null
     let info = await get(state, chatId)
 
     // NOTE: vm-instance-setup.js already inserts into vpsPlansOf during createVPSInstance.
@@ -37936,6 +38013,8 @@ const buyVPSPlanFullProcess = async (chatId, lang, vpsDetails) => {
     sendMessage(chatId, m)
     sendMessage(TELEGRAM_DEV_CHAT_ID, errorMessage)
     console.error(errorMessage)
+    // Returning false makes the payment caller refund → mark the order so a later build failure never refunds it again.
+    if (createdInstanceId && vpsPlansOf) vpsPlansOf.updateOne({ contaboInstanceId: createdInstanceId, lateFailure: { $exists: false } }, { $set: { lateFailure: { at: new Date(), by: 'purchase_flow', reason: error?.message || null } } }).catch(() => {})
     return false
   }
 }
@@ -37981,7 +38060,9 @@ const upgradeVPSDetails = async (chatId, lang, vpsDetails) => {
             { vpsId: vpsDetails._id },
             { $set: { 
               'end_time': new Date(vmInstanceUpgrade.data.subscriptionEnd), 
-              'status': 'RUNNING'
+              'status': 'RUNNING',
+              // RDP renewals are re-priced on live stock → keep the record on the price just paid.
+              ...(isRdpRecord(vmInstanceDetails) && Number(vpsDetails.totalPrice) > 0 ? { planPrice: Number(vpsDetails.totalPrice) } : {}),
             }},
           )
           const expiryDate = date(vmInstanceUpgrade.data.subscriptionEnd)

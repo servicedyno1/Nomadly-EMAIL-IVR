@@ -959,6 +959,8 @@ async function createVPSInstance(telegramId, vpsDetails) {
         plan: vpsDetails.plan || 'Monthly',
         durationMonths,
         planPrice: vpsDetails.plantotalPrice || vpsDetails.monthlyPrice,
+        // What the customer actually paid for this order (after coupon) — the amount an auto-refund returns.
+        paidUsd: Number(vpsDetails.totalPrice) > 0 ? Number(vpsDetails.totalPrice) : null,
         status: vpsData.status,
         // Explicit default: safer for user (no surprise wallet deductions).
         // When undefined, scheduler already treats as false — this just makes

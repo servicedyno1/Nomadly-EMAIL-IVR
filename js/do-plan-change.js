@@ -243,7 +243,8 @@ async function applyRecord(vpsPlansOf, recId, change, result) {
   })
   if (change.kind === 'rdp') {
     await doRdp.serversCollection().updateOne({ server_id: change.server_id }, {
-      $set: { tier_slug: to.plan_id, product_id: to.product_id, do_size_slug: result.size_slug, disk_gb: result.disk_gb, updated_at: at },
+      // Resize targets are capped at the tier's own cost → the new tier's base cost drives renewals.
+      $set: { tier_slug: to.plan_id, product_id: to.product_id, do_size_slug: result.size_slug, disk_gb: result.disk_gb, do_monthly_cost: ((doRdp.TIERS || []).find((t) => t.slug === to.plan_id) || {}).monthly_do_cost || null, updated_at: at },
     })
   }
 }

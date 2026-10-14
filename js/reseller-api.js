@@ -158,6 +158,15 @@ function createResellerApi(deps = {}) {
   }
   const mode = () => (isLive() ? 'live' : 'dry_run')
 
+  // ── Environment isolation (2026-10-14): a preview pod shares the LIVE jobs collection (RESELLER_DB_URL),
+  // so every job is tagged with the environment that created it and a pod only ever claims its OWN
+  // environment's jobs. Untagged (older) jobs belong to production. The background worker is also OFF on
+  // a sandbox (SKIP_WEBHOOK_SYNC=true) unless RESELLER_PROVISION_WORKER=true turns it on.
+  const JOB_ENV = process.env.RESELLER_JOB_ENV || (process.env.SKIP_WEBHOOK_SYNC === 'true' ? 'preview' : 'production')
+  const envFilter = () => (JOB_ENV === 'production' ? { $or: [{ env: 'production' }, { env: { $exists: false } }] } : { env: JOB_ENV })
+  const jobInEnv = (job) => (job && (job.env || 'production')) === JOB_ENV
+  const workerEnabled = () => process.env.RESELLER_PROVISION_WORKER === 'true' || (process.env.RESELLER_PROVISION_WORKER !== 'false' && process.env.SKIP_WEBHOOK_SYNC !== 'true')
+
   // ── Wallet helpers (bound to the API key's owner account) ──
   async function walletBalance(chatId) {
     try {
@@ -631,6 +640,7 @@ function createResellerApi(deps = {}) {
     const r = job.request || {}
     const isRDP = !!r.isRDP
     if (!job.instanceId) return 'pending'
+    if (!jobInEnv(job)) return 'other_env'
     if (job.buildHost && job.buildHost !== BUILD_HOST) return 'other_host'
     const prov = isRDP ? rdpProviderForRecord({ instanceId: job.instanceId }) : providerFor(false)
     let live = null, gone = false
@@ -669,7 +679,7 @@ function createResellerApi(deps = {}) {
     let job
     try {
       job = await provisionJobs().findOneAndUpdate(
-        { _id: jobId, status: 'pending' },
+        { _id: jobId, status: 'pending', ...envFilter() },
         { $set: { status: 'processing', leaseAt: new Date() }, $inc: { attempts: 1 } },
         { returnDocument: 'after', includeResultMetadata: false },
       )
@@ -695,9 +705,9 @@ function createResellerApi(deps = {}) {
   // job died mid-build — e.g. a deploy flip). Never blindly re-runs a half-done build.
   async function provisionWorkerTick() {
     try {
-      const pend = await provisionJobs().find({ status: 'pending' }).limit(10).toArray()
+      const pend = await provisionJobs().find({ status: 'pending', ...envFilter() }).limit(10).toArray()
       for (const j of pend) await processJob(j._id)
-      const waiting = await provisionJobs().find({ status: 'awaiting_provider', buildHost: { $in: [BUILD_HOST, null] } }).sort({ awaitingSince: 1 }).limit(25).toArray()
+      const waiting = await provisionJobs().find({ status: 'awaiting_provider', buildHost: { $in: [BUILD_HOST, null] }, ...envFilter() }).sort({ awaitingSince: 1 }).limit(25).toArray()
       for (const j of waiting) await checkAwaitingJob(j).catch((e) => log(`[ResellerAPI] awaiting job ${j._id} check error: ${e.message}`))
       if (!isLive()) return
       await doPlanChange.reconcileStale({
@@ -705,7 +715,7 @@ function createResellerApi(deps = {}) {
         onDone: (r) => { if (r.change.via === 'api') emitPlanChange(r.change.kind === 'rdp', r.rec, r) },
       }).catch((e) => log(`[ResellerAPI] plan-change reconcile error: ${e.message}`))
       const cutoff = new Date(Date.now() - PROVISION_STUCK_MS)
-      const stale = await provisionJobs().find({ status: 'processing', leaseAt: { $lt: cutoff } }).limit(10).toArray()
+      const stale = await provisionJobs().find({ status: 'processing', leaseAt: { $lt: cutoff }, ...envFilter() }).limit(10).toArray()
       for (const job of stale) {
         const owner = String(job.ownerChatId)
         if (job.product === 'hosting') {
@@ -1218,9 +1228,20 @@ function createResellerApi(deps = {}) {
       id: String(i.imageId || i.id),
       name: i.name || i.version || String(i.imageId || i.id),
       family: i.family || null,
+      version: i.version || null,
       default: !!i.isDefault,
+      // DigitalOcean only builds Fedora / CentOS / AlmaLinux / Rocky Linux with an SSH key → POST /vps needs ssh_keys.
+      requires_ssh_key: !!i.requiresSshKey,
     }))
   }
+  const sshKeyRequiredError = (osId, opts, why) => ({
+    error: 'ssh_key_required', os: osId,
+    message: `${osId} needs an SSH key on DigitalOcean (Fedora, CentOS, AlmaLinux and Rocky Linux have no password-only option). ${why}`,
+    os_without_ssh_key: (opts || []).filter(o => !o.requires_ssh_key).map(o => o.id),
+  })
+  // Order-time stock decisions use a DigitalOcean catalogue at most ~2 min old (?refresh=true → re-pulled now).
+  const freshCatalog = (force) => require('./do-size-catalog').ensureFresh(force ? { maxAgeMs: 0 } : {}).catch(() => null)
+  const catalogInfo = (st) => ({ source: st.source, fetched_at: st.fetched_at, age_seconds: st.age_seconds, stale: st.stale, refresh_interval_seconds: st.refresh_interval_seconds })
   function defaultLinuxOs(options) {
     const d = (options || []).find(o => o.default)
     return (d && d.id) || (options && options[0] && options[0].id) || DEFAULT_LINUX_OS
@@ -1244,6 +1265,7 @@ function createResellerApi(deps = {}) {
     const storage = String(req.query.storage || '').toLowerCase()
     if (storage && !['nvme', 'ssd'].includes(storage)) return res.status(400).json({ error: 'invalid_storage', message: 'storage must be "nvme" or "ssd" (omit for both).' })
     const prov = providerFor(isRDP)
+    const st = (await freshCatalog(String(req.query.refresh || '') === 'true')) || require('./do-size-catalog').getState()
     // RDP lists out-of-stock plans too (flagged in_stock:false) so a storefront can show "sold out".
     const products = (isRDP ? prov.listProducts(region, isRDP, undefined, { includeOutOfStock: true }) : prov.listProducts(region, isRDP)) || []
     const plans = products.map(p => {
@@ -1266,10 +1288,7 @@ function createResellerApi(deps = {}) {
       region,
       plans: storage ? plans.filter(p => (p.storage_type === 'NVMe SSD') === (storage === 'nvme')) : plans,
     }
-    if (isRDP && typeof prov.availability === 'function') {
-      const st = require('./do-size-catalog').getState()
-      out.catalog = { source: st.source, fetched_at: st.fetched_at, stale: st.stale, refresh_interval_seconds: st.refresh_interval_seconds }
-    }
+    if (typeof prov.availability === 'function' || typeof prov.isProductAvailable === 'function') out.catalog = catalogInfo(st)
     // Windows editions + fast-deploy (golden image) readiness per region code.
     if (isRDP && typeof prov.listOsOptions === 'function') {
       try { out.default_os = prov.DEFAULT_OS_ID || null; out.os_options = await prov.listOsOptions() }
@@ -1295,6 +1314,7 @@ function createResellerApi(deps = {}) {
     const prov = providerFor(true)
     if (typeof prov.availability !== 'function') return res.status(501).json({ error: 'not_supported', message: 'Live availability is not available for the configured RDP provider.' })
     const want = req.query.region ? String(req.query.region).trim() : null
+    await freshCatalog(String(req.query.refresh || '') === 'true')
     let regions = prov.availability()
     if (want) {
       const hit = regions.filter(r => r.region === want.toUpperCase() || r.region_slug === want.toLowerCase())
@@ -1304,7 +1324,7 @@ function createResellerApi(deps = {}) {
     const st = require('./do-size-catalog').getState()
     res.json({
       product: 'rdp', cpu: 'AMD', checked_at: new Date().toISOString(),
-      catalog: { source: st.source, fetched_at: st.fetched_at, stale: st.stale, refresh_interval_seconds: st.refresh_interval_seconds },
+      catalog: catalogInfo(st),
       regions: regions.map(r => ({ ...r, in_stock: r.plans.some(p => p.in_stock) })),
     })
   }
@@ -1316,6 +1336,7 @@ function createResellerApi(deps = {}) {
     const prov = providerFor(isRDP)
     const product = prov.getProduct ? prov.getProduct(planId) : null
     if (!product) return res.status(400).json({ error: 'invalid_plan', message: 'Unknown plan_id. Call GET plans first.' })
+    await freshCatalog(false) // price + stock below are decided on a catalogue at most ~2 min old
     const pricing = prov.calculatePrice(product, region, isRDP)
     if (!pricing) return res.status(400).json({ error: 'unavailable', message: `Plan not available in region ${region}.` })
     if (typeof prov.isProductAvailable === 'function' && !prov.isProductAvailable(planId, region)) {
@@ -1389,6 +1410,9 @@ function createResellerApi(deps = {}) {
     if (!isRDP) {
       const rawKeys = req.body?.ssh_keys || req.body?.ssh_key || null
       const keyList = (Array.isArray(rawKeys) ? rawKeys : (rawKeys ? [rawKeys] : [])).map(k => String(k).trim()).filter(Boolean)
+      if (!keyList.length && osId && typeof prov.osRequiresSshKey === 'function' && prov.osRequiresSshKey(osId)) {
+        return res.status(400).json(sshKeyRequiredError(osId, await linuxOsOptions(prov), 'Send your public key(s) in "ssh_keys", or pick an OS that works with a password. Nothing was charged.'))
+      }
       if (keyList.length) {
         if (typeof prov.createSecret !== 'function') return res.status(400).json({ error: 'ssh_keys_unsupported', message: 'This provider cannot register SSH keys.' })
         const ids = []
@@ -1408,7 +1432,7 @@ function createResellerApi(deps = {}) {
     const jobId = crypto.randomUUID()
     const jobDoc = {
       _id: jobId, product: isRDP ? 'rdp' : 'vps', ownerChatId: owner, clientRef,
-      vpsId, priceUsd: charge.price, charged: charge.charged, mode: mode(),
+      vpsId, priceUsd: charge.price, charged: charge.charged, mode: mode(), env: JOB_ENV,
       status: 'pending', attempts: 0, createdAt: new Date(), etaSeconds: estimateEtaSeconds(isRDP ? 'rdp' : 'vps', request), request,
     }
     await provisionJobs().insertOne(jobDoc)
@@ -1419,6 +1443,7 @@ function createResellerApi(deps = {}) {
       region, productId: planId, plan: planName, planPrice: pricing.totalWithMarkup,
       ...(isRDP ? {} : { durationMonths: termMonths }),
       osType: isRDP ? 'windows' : 'linux', osId: osId || null, isRDP: !!isRDP, hostname: hostname || null,
+      ...(request.ssh_key_ids ? { sshKeyIds: request.ssh_key_ids } : {}),
       status: 'provisioning', provisionState: 'provisioning', provisionJobId: jobId, clientRef,
       source: 'reseller_api', start_time: new Date(), timestamp: new Date(),
     })
@@ -1693,14 +1718,17 @@ function createResellerApi(deps = {}) {
     //         bot's VPS auto-renew which charges record.planPrice for the plan's native duration.
     let priceUsd = null
     let planName = rec.plan
+    let renewalQuote = null
     if (isRDP) {
       const slug = String(rec.productId || '').replace(/-\d+m$/i, '')
       const product = (slug && typeof prov.getProduct === 'function') ? prov.getProduct(`${slug}-${months}m`) : null
-      if (!product || !product.pricing) {
+      // Re-checked against live AMD stock in the server's city at every renewal (base … +15%).
+      if (rec.instanceId && typeof prov.renewalPrice === 'function') { try { renewalQuote = await prov.renewalPrice(rec.instanceId, months) } catch (_) { renewalQuote = null } }
+      if (!renewalQuote && (!product || !product.pricing)) {
         return res.status(400).json({ error: 'pricing_failed', renew_blocked_reason: 'pricing_unavailable', message: `Could not determine a renewal price for this RDP plan${months > 1 ? ` at ${months} month(s)` : ''}. Contact support.` })
       }
-      priceUsd = product.pricing.totalWithMarkup
-      planName = rec.plan || product.name
+      priceUsd = renewalQuote ? renewalQuote.price_usd : product.pricing.totalWithMarkup
+      planName = rec.plan || (product && product.name)
     } else {
       let unit = Number(rec.planPrice)
       if (!unit && typeof prov.getProduct === 'function') { const p = prov.getProduct(rec.productId); if (p && p.pricing) { unit = p.pricing.totalWithMarkup; planName = rec.plan || p.name } }
@@ -1717,12 +1745,13 @@ function createResellerApi(deps = {}) {
 
     // No-charge pre-flight: {"dry_run":true} returns price + renewability WITHOUT any charge or
     // write (works on a LIVE key too). Blocked items 409/400/501 above before we ever reach this.
+    const pricingInfo = renewalQuote ? { renewal_pricing: { base_price_usd: renewalQuote.base_price_usd, surcharge_usd: renewalQuote.surcharge_usd, surcharge_pct: renewalQuote.surcharge_pct, price_source: renewalQuote.price_source, checked_at: renewalQuote.checked_at, datacenter: renewalQuote.datacenter } } : {}
     if (req.body?.dry_run === true) {
       const balance = await walletBalance(req.reseller.ownerChatId)
       return res.json({
         dry_run: true, product: isRDP ? 'rdp' : 'vps', action: 'renew',
         id: rec.vpsId || rec._id, renewable: true, renew_blocked_reason: null,
-        months, plan: planName, price_usd: priceUsd,
+        months, plan: planName, price_usd: priceUsd, ...pricingInfo,
         wallet_balance_usd: balance, sufficient_balance: balance >= priceUsd,
         note: 'Pre-flight only: nothing was charged and no state changed. Re-send without dry_run to renew.',
       })
@@ -1743,10 +1772,10 @@ function createResellerApi(deps = {}) {
         // Mirror onto vpsPlansOf: back to good standing + clear every grace/cancel field so
         // neither the bot scheduler nor the VPS/RDP-service sweep destroys the box.
         await col('vpsPlansOf').updateOne({ _id: rec._id }, {
-          $set: { status: 'RUNNING', end_time: newExpiry, renewed_at: new Date() },
+          $set: { status: 'RUNNING', end_time: newExpiry, renewed_at: new Date(), ...(renewalQuote ? { lastRenewalPriceUsd: priceUsd } : {}) },
           $unset: { expired_at: '', grace_until: '', _graceReminderSent: '', cancelReason: '', cancelledAt: '', deleteRetryCount: '', lastDeleteError: '', lastDeleteAlertAt: '' },
         })
-        return { success: true, id: rec.vpsId || rec._id, months, plan: planName, expires_at: newExpiry.toISOString() }
+        return { success: true, id: rec.vpsId || rec._id, months, plan: planName, expires_at: newExpiry.toISOString(), ...pricingInfo }
       },
     })
   }
@@ -1832,6 +1861,12 @@ function createResellerApi(deps = {}) {
     try { if (prov && typeof prov.listImages === 'function') images = await prov.listImages('linux') } catch (_) {}
     if (images.length && !images.some(i => String(i.imageId || i.id).toLowerCase() === osId)) {
       return res.status(400).json({ error: 'invalid_os', message: `Unknown os "${req.body?.os}". Valid values: ${images.map(i => i.imageId || i.id).join(', ')}.`, valid_os: images.map(i => ({ id: i.imageId || i.id, name: i.name })) })
+    }
+    // A rebuild keeps the SSH keys the server was created with — switching to an SSH-key-only OS needs one.
+    if (prov && typeof prov.osRequiresSshKey === 'function' && prov.osRequiresSshKey(osId)) {
+      let keys = Array.isArray(rec.sshKeyIds) ? rec.sshKeyIds : (rec.sshKeySecretId ? [rec.sshKeySecretId] : [])
+      if (!keys.length && rec.provisionJobId) { try { const j = await provisionJobs().findOne({ _id: rec.provisionJobId }); keys = (j && j.request && j.request.ssh_key_ids) || [] } catch (_) { /* no job */ } }
+      if (!keys.length) return res.status(400).json(sshKeyRequiredError(osId, images.map(i => ({ id: i.imageId || i.id, requires_ssh_key: !!i.requiresSshKey })), 'This server was created without an SSH key, so it cannot be reinstalled with it. Pick an OS that works with a password (nothing was changed).'))
     }
     // Destructive — require explicit confirmation so a reinstall is never accidental.
     if (req.body?.confirm !== true) {
@@ -2144,7 +2179,7 @@ function createResellerApi(deps = {}) {
     const jobId = crypto.randomUUID()
     const jobDoc = {
       _id: jobId, product: 'hosting', ownerChatId: owner, clientRef,
-      username, priceUsd: charge.price, charged: charge.charged, mode: mode(),
+      username, priceUsd: charge.price, charged: charge.charged, mode: mode(), env: JOB_ENV,
       status: 'pending', attempts: 0, createdAt: new Date(), etaSeconds: estimateEtaSeconds('hosting', request), request,
     }
     await provisionJobs().insertOne(jobDoc)
@@ -3336,9 +3371,14 @@ function createResellerApi(deps = {}) {
   // flip (checks WHM for the account → provisioned, else refund + provision_failed). Active-slot only
   // so the standby slot can't double-provision/double-refund.
   const PROVISION_WORKER_MS = Math.max(15000, Number(process.env.RESELLER_PROVISION_WORKER_MS) || 30000)
-  try {
-    activeSlot.singletonInterval('reseller-provision-worker', () => { provisionWorkerTick().catch((e) => log(`[ResellerAPI] worker tick: ${e.message}`)) }, PROVISION_WORKER_MS)
-  } catch (e) { log(`[ResellerAPI] provision worker init warn: ${e.message}`) }
+  if (workerEnabled()) {
+    try {
+      activeSlot.singletonInterval('reseller-provision-worker', () => { provisionWorkerTick().catch((e) => log(`[ResellerAPI] worker tick: ${e.message}`)) }, PROVISION_WORKER_MS)
+    } catch (e) { log(`[ResellerAPI] provision worker init warn: ${e.message}`) }
+    log(`[ResellerAPI] provision worker ON (claims only env=${JOB_ENV} jobs)`)
+  } else {
+    log(`[ResellerAPI] provision worker OFF on this sandbox (SKIP_WEBHOOK_SYNC=true) — set RESELLER_PROVISION_WORKER=true to run it for env=${JOB_ENV} jobs only`)
+  }
   // Expiry / renewal / low-balance, uptime and usage alert sweeps (production + active slot only).
   try { alerts.start({ getDb, log }) } catch (e) { log(`[ResellerAPI] alert sweeps init warn: ${e.message}`) }
   // Google Safe Browsing monitor: flag linked hosting/VPS/RDP/shortener domains →

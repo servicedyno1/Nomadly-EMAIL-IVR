@@ -416,37 +416,69 @@ async function listRegions() {
 }
 
 // ─── Images / OS ─────────────────────────────────────────────────────────
-// DO distribution images. We expose a stable curated subset so customers
-// see clean "Ubuntu / Debian / Rocky / Alma / CentOS Stream" names rather
-// than 30+ permutations.
-const CURATED_LINUX_IMAGES = [
-  { imageId: 'ubuntu-24-04-x64',   name: 'Ubuntu 24.04 LTS',     family: 'Ubuntu',     isDefault: true  },
-  { imageId: 'ubuntu-22-04-x64',   name: 'Ubuntu 22.04 LTS',     family: 'Ubuntu',     isDefault: false },
-  { imageId: 'debian-13-x64',      name: 'Debian 13',            family: 'Debian',     isDefault: false },
-  { imageId: 'debian-12-x64',      name: 'Debian 12',            family: 'Debian',     isDefault: false },
-  { imageId: 'almalinux-9-x64',    name: 'AlmaLinux 9',          family: 'AlmaLinux',  isDefault: false },
-  { imageId: 'almalinux-8-x64',    name: 'AlmaLinux 8',          family: 'AlmaLinux',  isDefault: false },
-  { imageId: 'rockylinux-9-x64',   name: 'Rocky Linux 9',        family: 'Rocky',      isDefault: false },
-  { imageId: 'rockylinux-10-x64',  name: 'Rocky Linux 10',       family: 'Rocky',      isDefault: false },
-  { imageId: 'centos-stream-9-x64',  name: 'CentOS Stream 9',    family: 'CentOS',     isDefault: false },
-  { imageId: 'centos-stream-10-x64', name: 'CentOS Stream 10',   family: 'CentOS',     isDefault: false },
-  { imageId: 'fedora-42-x64',      name: 'Fedora 42',            family: 'Fedora',     isDefault: false },
-]
+// Linux distributions = DigitalOcean's LIVE distribution image list (do-size-catalog pulls it hourly), so
+// a new release (e.g. Ubuntu 26.04) shows up and a retired one (e.g. Debian 12) disappears on its own.
+// GPU/AI images are left out. STATIC_LINUX_IMAGES (DigitalOcean's list on 2026-10-14) is used only until
+// the first pull. Fedora, CentOS, AlmaLinux and Rocky Linux need an SSH key on DigitalOcean (its control
+// panel says "Requires an SSH Key"): the bot always attaches one; the reseller API asks for ssh_keys.
+const SSH_KEY_REQUIRED_FAMILIES = ['Fedora', 'CentOS', 'AlmaLinux', 'Rocky Linux']
+const FAMILY_ORDER = ['Ubuntu', 'Debian', 'AlmaLinux', 'Rocky Linux', 'CentOS', 'Fedora']
+const DEFAULT_LINUX_IMAGE = 'ubuntu-24-04-x64'
+const STATIC_LINUX_IMAGES = [
+  ['ubuntu-26-04-x64', 'Ubuntu', '26.04 (LTS) x64'], ['ubuntu-24-04-x64', 'Ubuntu', '24.04 (LTS) x64'], ['ubuntu-22-04-x64', 'Ubuntu', '22.04 (LTS) x64'],
+  ['debian-13-x64', 'Debian', '13 x64'],
+  ['almalinux-10-x64', 'AlmaLinux', 'AlmaLinux 10'], ['almalinux-9-x64', 'AlmaLinux', 'AlmaLinux 9'], ['almalinux-8-x64', 'AlmaLinux', 'AlmaLinux 8'],
+  ['rockylinux-10-x64', 'Rocky Linux', '10 x64'], ['rockylinux-9-x64', 'Rocky Linux', '9 x64'], ['rockylinux-8-x64', 'Rocky Linux', '8 x64'],
+  ['centos-stream-10-x64', 'CentOS', '10 Stream x64'], ['centos-stream-9-x64', 'CentOS', '9 Stream x64'],
+  ['fedora-44-x64', 'Fedora', '44 x64'], ['fedora-43-x64', 'Fedora', '43 x64'],
+].map(([slug, distribution, name]) => ({ slug, distribution, name, status: 'available' }))
+
+// "24.04 (LTS) x64" + Ubuntu → { name: "Ubuntu 24.04 LTS", version: "24.04" }; "10 Stream x64" + CentOS → "CentOS Stream 10".
+function _imageView(img) {
+  const family = img.distribution
+  let rest = String(img.name || '').replace(/\s*x64$/i, '').replace(/\(LTS\)/, 'LTS').trim()
+  if (rest.toLowerCase().startsWith(family.toLowerCase())) rest = rest.slice(family.length).trim()
+  const stream = /\bStream\b/i.test(rest)
+  const version = (rest.match(/\d+(\.\d+)?/) || [''])[0]
+  const name = stream ? `${family} Stream ${version}` : `${family} ${rest}`.trim()
+  return { slug: img.slug, family, version, name, requiresSshKey: SSH_KEY_REQUIRED_FAMILIES.includes(family) }
+}
+function _linuxImages() {
+  const live = sizeCatalog.getImages()
+  const src = live && live.length ? live : STATIC_LINUX_IMAGES
+  const out = src.filter(i => FAMILY_ORDER.includes(i.distribution) && !/^gpu-/i.test(i.slug) && /x64$/i.test(i.slug) && (i.status || 'available') === 'available').map(_imageView)
+  const ver = (v) => v.split('.').map(Number)
+  return out.sort((a, b) => FAMILY_ORDER.indexOf(a.family) - FAMILY_ORDER.indexOf(b.family)
+    || (ver(b.version)[0] - ver(a.version)[0]) || ((ver(b.version)[1] || 0) - (ver(a.version)[1] || 0)) || a.slug.localeCompare(b.slug))
+}
+function _defaultImageSlug(list) {
+  return (list.find(i => i.slug === DEFAULT_LINUX_IMAGE) || list.find(i => i.family === 'Ubuntu') || list[0] || { slug: DEFAULT_LINUX_IMAGE }).slug
+}
+/** Linux image as currently sold (live list), or null when DigitalOcean does not offer it. */
+function getLinuxImage(osId) { return _linuxImages().find(i => i.slug === String(osId || '').toLowerCase()) || null }
+/** Does DigitalOcean require an SSH key for this image (Fedora / CentOS / AlmaLinux / Rocky Linux)? */
+function osRequiresSshKey(osId) {
+  const img = getLinuxImage(osId)
+  if (img) return img.requiresSshKey
+  return /^(fedora|centos|almalinux|rockylinux)-/i.test(String(osId || ''))
+}
 
 async function listImages(filter = 'all') {
   // filter: 'all' | 'linux' | 'windows'
   if (filter === 'windows') return [] // DO has no Windows
-  // Always return curated list (regardless of filter='all'|'linux') since
-  // DO is Linux-only. Returning curated avoids 30+ confusing variants.
-  return CURATED_LINUX_IMAGES.map(o => ({
-    imageId:   o.imageId,
+  const list = _linuxImages()
+  const def = _defaultImageSlug(list)
+  // Default first (Ubuntu 24.04 LTS), then families in order, newest version first.
+  return [...list.filter(i => i.slug === def), ...list.filter(i => i.slug !== def)].map(o => ({
+    imageId:   o.slug,
     name:      o.name,
     osType:    'Linux',
-    version:   o.name,
+    version:   o.version,
     isWindows: false,
-    isDefault: !!o.isDefault,
+    isDefault: o.slug === def,
+    requiresSshKey: o.requiresSshKey,
     // legacy flat fields
-    id:        o.imageId,
+    id:        o.slug,
     family:    o.family,
     arch:      'x86_64',
   }))
@@ -600,6 +632,13 @@ async function createInstance(opts) {
   if (!regions.length) {
     const err = new Error(`${productId} is out of stock in ${region} and its same-city datacenters right now`)
     err.code = 'out_of_stock'
+    throw err
+  }
+
+  // Fedora / CentOS / AlmaLinux / Rocky Linux: DigitalOcean only builds them with an SSH key.
+  if (osRequiresSshKey(osId) && !(Array.isArray(sshKeyIds) && sshKeyIds.length)) {
+    const err = new Error(`${osId} requires an SSH key on DigitalOcean — pass at least one SSH key`)
+    err.code = 'ssh_key_required'
     throw err
   }
 
@@ -1207,6 +1246,9 @@ module.exports = {
   listRegions,
   // Images / OS
   listImages,
+  getLinuxImage,
+  osRequiresSshKey,
+  SSH_KEY_REQUIRED_FAMILIES,
   getDefaultWindowsImageId,
   getCompatibleWindowsImage,
   getCompatibleLinuxImage,
