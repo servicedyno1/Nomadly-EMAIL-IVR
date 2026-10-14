@@ -1,0 +1,53 @@
+{
+  "summary": "Backend-only review of DO RDP/VPS AMD-only hardening. Ran all 10 requested node suites serially from /app/js (new 2026-10 AMD/stock suite + 9 regressions). 100% pass across the board. Spot-checked AMD guards in digitalocean-rdp-service.js and verified apidoc-page.js loads cleanly and documents GET /rdp/availability, in_stock/surcharge_usd/same_city_fallback on GET /rdp/plans, 409 out_of_stock on POST /rdp, and the 2026-10-14 changelog entry.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/js/tests/test_do_stock_amd_fallback_2026-10.js",
+    "/app/js/tests/test_do_rdp_golden_2026-06.js",
+    "/app/js/tests/test_do_plan_change_2026-10.js",
+    "/app/js/tests/test_rdp_checkout_math_2026-06.js",
+    "/app/js/tests/test_reseller_api_grace_2026-06.js",
+    "/app/js/tests/reseller_vps_gone_reconcile_2026-10.js",
+    "/app/js/tests/test_do_nvme_plans_2026-10.js",
+    "/app/js/tests/test_rdp_discount_2026-06.js",
+    "/app/js/tests/test_vps_terms_2026-06.js",
+    "/app/js/tests/test_reseller_dup_guard_2026-10.js"
+  ],
+  "suite_results": {
+    "test_do_stock_amd_fallback_2026-10.js": "80 passed / 0 failed",
+    "test_do_rdp_golden_2026-06.js": "93 passed / 0 failed",
+    "test_do_plan_change_2026-10.js": "28 passed / 0 failed",
+    "test_rdp_checkout_math_2026-06.js": "60 passed / 0 failed",
+    "test_reseller_api_grace_2026-06.js": "40 passed / 0 failed",
+    "reseller_vps_gone_reconcile_2026-10.js": "31 passed / 0 failed",
+    "test_do_nvme_plans_2026-10.js": "16 passed / 0 failed",
+    "test_rdp_discount_2026-06.js": "15 passed / 0 failed",
+    "test_vps_terms_2026-06.js": "27 passed / 0 failed",
+    "test_reseller_dup_guard_2026-10.js": "10 passed / 0 failed",
+    "apidoc_load": "require('./apidoc-page.js') prints 'doc ok' with no errors"
+  },
+  "requirement_coverage_of_new_suite": {
+    "1_amd_only_no_intel_or_basic_fallback": "sections 2 (nyc3 Intel/Basic -> nyc1 AMD; Toronto Intel/Basic -> out_of_stock) and 6 (VPS never swaps CPU type)",
+    "2_live_catalog_same_city_15pct_surcharge": "sections 1 (catalog, 15-min refresh, Mongo persistence, last-good-copy on failure), 2 (same-city nyc1/nyc2 walk), 4 (+14.3% size used, +17.9% rejected, maxDoCost cap honoured by builder)",
+    "3_rdp_pre_payment_gate_with_suggestions": "section 3 (bot gate before payment screen, wallet re-check before debit, vpsOutOfStock + planOutOfStock suggestions)",
+    "4_vps_same_size_same_city_only": "section 6 (s-2vcpu-4gb walked nyc3->nyc1->nyc2 then out_of_stock, no CPU swap)",
+    "5_rdp_vs_vps_wording_4_langs": "section 7 (en/fr/hi/zh purchase+expiry+refund + sold-out notices)",
+    "6_reseller_async_lifecycle": "section 5 (202 provisioning, provisioned only on active+IP, failure -> refund + provision_failed with reason_code out_of_stock|provision_failed|provisioning_timeout, atomic claim prevents double emit, host-scoped buildHost, exactly one provisioned event)",
+    "7_admin_stock_alerts": "section 8 (baseline, transitions only, two-pod race -> single alert via atomic hash swap, DO unreachable alert + recovery, start() wiring on refresh)"
+  },
+  "critical_code_review_comments": [
+    "digitalocean-rdp-service.js line 171 defines BUILD_SIZE_FALLBACKS containing '-intel' and basic slugs. Verified via grep: it is only consumed at line 987 inside the golden-image builder (admin one-shot template prep) and never on the customer RDP creation path (createDroplet uses _attemptsFor -> _sizeOptions which are AMD-filtered via _isAmd). No customer droplet can land on Intel/Basic. Safe but worth a comment to prevent future misuse.",
+    "createDroplet properly walks only AMD attempts within quoted maxDoCost; createInstance throws err.code='out_of_stock' when _attemptsFor is empty (line 1217-1220).",
+    "do-size-catalog.js keeps the last good copy on refresh failure and marks refused sizes for 30 min — covered by section 2 and section 8 tests.",
+    "do-stock-watch.js atomic hash swap confirmed single-alert even with two pods (section 8).",
+    "reseller-api.js runVpsJob/checkAwaitingJob atomic findOneAndUpdate claim + buildHost scoping tested (section 5): a job owned by another host is left alone, no double refund possible.",
+    "apidoc-page.js GET /rdp/availability entry, in_stock/surcharge_usd/same_city_fallback on /rdp/plans, 409 out_of_stock on POST /rdp, and the 2026-10-14 changelog entry are all present and match actual API behaviour observed in the test suites."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100% (400 assertions across 10 suites, 0 failures)", "frontend": "n/a"},
+  "seed_data_creation": "none; every suite self-seeds and uses stubbed axios + isolated throwaway Mongo DBs. No real DigitalOcean calls, no reseller API endpoint on the preview URL was invoked.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "AMD-only RDP + same-city stock fallback + reseller async lifecycle are green on this tree. If re-running, keep suites serial because test_reseller_api_grace / reseller_vps_gone_reconcile / test_reseller_dup_guard share local Mongo collections. BUILD_SIZE_FALLBACKS at digitalocean-rdp-service.js:171 is golden-image-only; if someone later wires it into customer createDroplet, the AMD-only rule would break — add a regression guard assertion for that."
+}

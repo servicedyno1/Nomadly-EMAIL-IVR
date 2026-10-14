@@ -168,6 +168,7 @@ function regionToSlug(region) {
 // gd-2vcpu-8gb = dedicated 2 vCPU / 8 GB / 50 GB (~$0.10/h; a build is ~1 h).
 const BUILD_SIZE = process.env.DO_RDP_BUILD_SIZE || 'gd-2vcpu-8gb'
 // Same 50 GB disk, tried in order when DO reports "Size is not available in this region" (capacity fluctuates).
+// Golden-image BUILD droplet only (admin template prep) — customer RDPs are AMD-only via _sizeOptions.
 const BUILD_SIZE_FALLBACKS = ['c-4', 'm-2vcpu-16gb', 'm-2vcpu-16gb-intel', 'c-4-intel', 'c2-2vcpu-4gb']
 const BUILD_DISK_GB = 50
 const BUILD_REGION = process.env.DO_RDP_BUILD_REGION || 'nyc3'

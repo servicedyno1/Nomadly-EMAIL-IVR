@@ -1,5 +1,17 @@
 # PRD — Nomadly Cloud IVR + Telegram Bot
 
+## 2026-10-14 — DO RDP/VPS live stock: AMD-only RDP, same-city fallback, pre-payment out-of-stock gate, refund-safe reseller lifecycle — CODE DONE & TESTED (local only; user deploys)
+- Incident: prod RDP order in nyc3 failed with DO 422 (static `s-4vcpu-8gb-intel` not sold there). RCA: `memory/RDP_NYC3_SIZE_UNAVAILABLE_RCA_2026-10-14.md`.
+- **RDP = Premium AMD only** (owner decision): Intel + Basic-regular sizes removed everywhere, never a fallback. Live DO catalogue `js/do-size-catalog.js` (GET /v2/sizes + /v2/regions every 15 min, Mongo `doSizeCatalog` last-good copy, 422 "refused" marks 30 min). Spec match (vCPU, RAM, disk ≥ plan), requested DC first then same-city DCs (nyc3→nyc1/nyc2), same-spec AMD size up to +15% DO cost allowed and PASSED ON in the quoted price (`regionSurcharge`/`surcharge_usd`); build never exceeds the quoted `maxDoCost`.
+- **VPS**: same exact size in a same-city DC, else out of stock (never another CPU type).
+- **Bot**: stock gate before the payment screen and again before wallet debit → `vpsOutOfStock` screen (`vp.planOutOfStock`, 4 langs, "not charged" + cities with stock). RDP notices never say "VPS" (`asKind`/`isRdpRecord`).
+- **Reseller API**: `GET /rdp/availability`; `/rdp/plans` lists sold-out plans (`in_stock:false`); POST 409 `out_of_stock` + `available_regions`, nothing charged. Jobs stay `awaiting_provider`/provisioning until the server is up with an IP → `rdp.provisioned`; failure/timeout → cancel + refund + `*.provision_failed` (`reason_code`, `refunded:true`). Jobs carry `buildHost` so only the host that built them judges them (preview pod shares the prod jobs collection).
+- **Admin alerts**: `js/do-stock-watch.js` (out of stock / back in stock / catalogue unreachable; one pod only). Docs: `/apidoc` updated + changelog entry.
+- Tests: new `js/tests/test_do_stock_amd_fallback_2026-10.js` 80/80; regressions golden 93, plan-change 28, checkout-math 60, grace 40 (converted to in-process), vps-gone 31, nvme 16, discount 15, vps-terms 27, dup-guard 10 — all green; testing agent iteration_82 100%. ~25 other suites fail identically on untouched HEAD (pre-existing, unrelated).
+- Known gaps (not fixed): bot RDP builds that fail AFTER the 25-min foreground poll are not auto-refunded (admin alert only; stock-outs fail within seconds and ARE refunded); RDP renewals bill the base tier price even if the server runs on a +≤15% size; this preview pod's reseller worker can claim PROD `pending` jobs (pre-existing design).
+- **PENDING (user):** Save to GitHub → deploy.
+
+
 ## 2026-10-13b — BulkSMS ENABLED in production (both bots) + v2.8.0 notice to all users — DONE (live); 1 follow-up deploy pending
 - User redeployed both bots (app-main 9904415 @16:50Z, app-wl 78b2948 @16:54Z) → both serve their own 2.8.0 APK (`/sms-app/download/info`: Nomadly SMS @NomadlyBot / Smadav SMS @smadavv_bot).
 - PROD env (backups `backend.env.bak.smsapp.20261013T165316Z`): `HIDE_SMS_APP=false` on app-main + app-wl (BulkSMS menu + BulkSMS promo themes back). app-wl `CF_DISCOVERY_SYNC=true` again (backup `.bak.cfsync-on.*`); new brand-keyed code logged "already in sync for brand=smadav"; Worker still v2 (nomadly 2.speechcue.com / smadav 1.smadavspeech.com).
