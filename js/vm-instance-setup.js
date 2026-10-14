@@ -175,6 +175,19 @@ async function fetchAvailableRegionsOfCountry(country, isRDP = false) {
   }
 }
 
+// Region button labels where at least one plan of this kind can be ordered right now
+// (live stock; used to suggest alternatives when the chosen region is sold out).
+async function fetchRegionsWithStock(isRDP = false) {
+  try {
+    const prov = vpsProvider.pickProviderForOs(!!isRDP)
+    const regions = await prov.listRegions()
+    return regions.filter(r => (prov.listProducts(r.regionSlug, !!isRDP) || []).length > 0).map(r => `${r.display.emoji} ${r.display.label}`)
+  } catch (err) {
+    console.log('Error in fetchRegionsWithStock:', err.message || err)
+    return []
+  }
+}
+
 /**
  * OLD: fetchAvailableZones(region) → [{name, label}]
  * NEW: Contabo has no zones. Returns the region slug as a single "zone".
@@ -294,7 +307,9 @@ async function fetchAvailableVPSConfigs(telegramId, vpsDetails) {
       specs: { vCPU: p.cpuCores, RAM: p.ramGb, disk: p.diskGb, diskType: p.diskType?.toUpperCase() || 'NVMe' },
       specsStr: providerForOs.formatSpecs(p),
       // Flag for display
-      isRDP: isRDP
+      isRDP: isRDP,
+      // DO-RDP: the DO $/month this price was quoted on — the build never uses a pricier size.
+      ...(p.quote && p.quote.do_cost ? { maxDoCost: p.quote.do_cost } : {}),
     }))
   } catch (err) {
     console.log('Error in fetchAvailableVPSConfigs (contabo):', err.message || err)
@@ -745,7 +760,8 @@ async function createVPSInstance(telegramId, vpsDetails) {
       imageId:      imageId,
       displayName:  shortInstanceLabel(),
       rootPassword: passwordSecret.secretId,
-      period:       1 // monthly
+      period:       1, // monthly
+      ...(vpsDetails.config?.maxDoCost ? { maxDoCost: vpsDetails.config.maxDoCost } : {}),
     }
 
     // Attach SSH keys. For Linux VPS we ALWAYS ensure a bot-managed key is
@@ -2009,6 +2025,7 @@ module.exports = {
 
   // VPS configs / plans
   fetchAvailableVPSConfigs,
+  fetchRegionsWithStock,
 
   // OS images
   fetchAvailableOS,

@@ -133,7 +133,7 @@ function _targets(ctx) {
     const fam = family(ctx.current.size_slug)
     return (doRdp.TIERS || []).filter((t) => t.slug !== ctx.current.plan_id).map((t) => {
       const sizes = doRdp.sizeCandidatesFor(t, ctx.region).sort((a, b) => (family(b) === fam) - (family(a) === fam))
-      const size = sizes.find((s) => doVps.isProductAvailable(s, ctx.region))
+      const size = sizes.find((s) => doVps.isProductAvailable(s, ctx.region, { exactRegion: true }))
       if (!size) return null
       const renewal = doRdp.getProduct(`${t.slug}-${ctx.months}m`)
       return {
@@ -142,7 +142,7 @@ function _targets(ctx) {
       }
     }).filter(Boolean)
   }
-  return doVps.listProducts(ctx.region, false).filter((p) => p.productId !== ctx.current.size_slug).map((p) => ({
+  return doVps.listProducts(ctx.region, false, undefined, { exactRegion: true }).filter((p) => p.productId !== ctx.current.size_slug).map((p) => ({
     plan_id: p.productId, name: p.name, vcpus: p.cpuCores, ram_gb: p.ramGb, disk_gb: p.diskGb, size_slug: p.productId,
     monthly: p.pricing.totalWithMarkup, renewal: p.pricing.totalWithMarkup,
   }))

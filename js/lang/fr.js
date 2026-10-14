@@ -3781,6 +3781,7 @@ ${
  payNowBtn: '✅ Payer maintenant',
 
  vpsChangePaymentRecieved: `✅ Paiement réussi ! Votre VPS est en cours de configuration. Les détails seront bientôt disponibles.`,
+  planOutOfStock: (isRDP, region, suggestions = []) => `😔 <b>${isRDP ? 'Windows RDP' : 'VPS'} en rupture de stock à ${region} pour le moment</b>\n\nNos ${isRDP ? 'serveurs AMD' : 'serveurs'} de cette ville sont complets — vous n'avez <b>pas</b> été débité.${suggestions.length ? `\n\n✅ Disponible maintenant à :\n${suggestions.map(s => `• ${s}`).join('\n')}` : '\n\n⏳ Veuillez réessayer un peu plus tard.'}\n\nChoisissez un autre emplacement ci-dessous 👇`,
 
  bankPayVPSRenewPlan: priceNGN =>
  `Veuillez envoyer ${priceNGN} NGN en cliquant sur "Effectuer le paiement" ci-dessous. Une fois la transaction confirmée, vous serez immédiatement notifié et votre plan VPS sera activé et renouvelé.`,

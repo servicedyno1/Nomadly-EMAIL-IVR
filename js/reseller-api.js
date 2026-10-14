@@ -581,7 +581,7 @@ function createResellerApi(deps = {}) {
     // with any reseller-supplied SSH keys so the box is reachable immediately. (RDP keeps
     // its own agent-driven password handling inside the provider's create.)
     let vpsPasswordSecretId = null
-    const createOpts = { productId: r.plan_id, regionSlug: r.region, isWindows: isRDP, osId: r.osId || undefined, label: r.hostname || undefined }
+    const createOpts = { productId: r.plan_id, regionSlug: r.region, isWindows: isRDP, osId: r.osId || undefined, label: r.hostname || undefined, ...(r.maxDoCost ? { maxDoCost: r.maxDoCost } : {}) }
     if (!isRDP) {
       try {
         if (typeof prov.createSecret === 'function') {
@@ -597,21 +597,71 @@ function createResellerApi(deps = {}) {
     try {
       const createFn = (isRDP && prov.createInstanceWithFallback) ? prov.createInstanceWithFallback.bind(prov) : prov.createInstance.bind(prov)
       inst = await createFn(createOpts)
-    } catch (e) { inst = { success: false, error: e.message } }
+    } catch (e) { inst = { success: false, error: e.message, code: e.code } }
     if (!inst || inst.success === false) {
+      const reasonCode = (inst && inst.code === 'out_of_stock') ? 'out_of_stock' : 'provision_failed'
       if (job.charged) await refundWallet(owner, job.priceUsd)
       await col('vpsPlansOf').updateOne({ _id: job.vpsId }, { $set: { status: 'failed', provisionState: 'failed', provisionFailedReason: (inst && inst.error) || 'provision_failed' } })
-      await provisionJobs().updateOne({ _id: job._id }, { $set: { status: 'failed', finishedAt: new Date(), error: (inst && inst.error) || 'provision_failed', refunded: !!job.charged } })
-      emitEvent(owner, failEvent, job.vpsId, { plan: r.plan, region: r.region, id: job.vpsId, reason: (inst && inst.error) || 'provision_failed', refunded: !!job.charged })
+      await provisionJobs().updateOne({ _id: job._id }, { $set: { status: 'failed', finishedAt: new Date(), error: (inst && inst.error) || 'provision_failed', error_code: reasonCode, refunded: !!job.charged } })
+      emitEvent(owner, failEvent, job.vpsId, { plan: r.plan, region: r.region, id: job.vpsId, reason: (inst && inst.error) || 'provision_failed', reason_code: reasonCode, refunded: !!job.charged })
       return
     }
+    // The provider ACCEPTED the order, but the server is not up yet (RDP: Windows boots in 3-45 min
+    // and the build can still fail, e.g. no capacity). Job + record stay 'provisioning'; the worker
+    // (checkAwaitingJob) emits *.provisioned only once it runs with an IP, or refunds + emits
+    // *.provision_failed if the build fails (2026-10-14 — previously provisioned fired right here).
     await col('vpsPlansOf').updateOne({ _id: job.vpsId }, { $set: {
-      instanceId: inst.instanceId || null, host: inst.mainIp || null, status: inst.status || 'RUNNING',
-      provisionState: 'active', rootPasswordSecretId: inst.passwordSecretId || vpsPasswordSecretId || null,
-      end_time: new Date(Date.now() + 30 * (Number(r.months) || 1) * 86400000),
+      instanceId: inst.instanceId || null, host: inst.mainIp || null, status: 'provisioning',
+      provisionState: 'provisioning', rootPasswordSecretId: inst.passwordSecretId || vpsPasswordSecretId || null,
     } })
-    await provisionJobs().updateOne({ _id: job._id }, { $set: { status: 'done', finishedAt: new Date(), result: { id: job.vpsId, instance_id: inst.instanceId || null, ip: inst.mainIp || null } } })
-    emitEvent(owner, okEvent, job.vpsId, { plan: r.plan, region: r.region, id: job.vpsId, ip: inst.mainIp || null, instance_id: inst.instanceId || null })
+    await provisionJobs().updateOne({ _id: job._id }, { $set: { status: 'awaiting_provider', instanceId: inst.instanceId || null, awaitingSince: new Date(), buildHost: BUILD_HOST, leaseAt: null } })
+    await checkAwaitingJob({ ...job, status: 'awaiting_provider', instanceId: inst.instanceId || null, awaitingSince: new Date(), buildHost: BUILD_HOST })
+  }
+
+  // ── Wait for the provider to report the server UP (or failed) before telling the reseller ──
+  const AWAIT_MAX_MS = {
+    rdp: Math.max(600000, Number(process.env.RESELLER_RDP_AWAIT_MAX_MS) || 3 * 60 * 60000),
+    vps: Math.max(300000, Number(process.env.RESELLER_VPS_AWAIT_MAX_MS) || 45 * 60000),
+  }
+  // Only the host that started the build judges it: the RDP build state lives in that host's own DB, so
+  // another pod sharing resellerProvisionJobs (e.g. a preview pod on RESELLER_DB_URL) would see 'unknown'.
+  const BUILD_HOST = require('os').hostname()
+  async function checkAwaitingJob(job) {
+    const owner = String(job.ownerChatId)
+    const r = job.request || {}
+    const isRDP = !!r.isRDP
+    if (!job.instanceId) return 'pending'
+    if (job.buildHost && job.buildHost !== BUILD_HOST) return 'other_host'
+    const prov = isRDP ? rdpProviderForRecord({ instanceId: job.instanceId }) : providerFor(false)
+    let live = null, gone = false
+    try { live = await prov.getInstance(job.instanceId) } catch (e) { if (e.status === 404 || e.statusCode === 404) gone = true; else return 'pending' }
+    const st = String((live && live.status) || '').toLowerCase()
+    const ip = (live && (live.mainIp || live.ipv4 || (live.ipConfig && live.ipConfig.v4 && live.ipConfig.v4.ip))) || null
+    const ready = ['active', 'running'].includes(st) && !!ip
+    const failed = gone || !live || ['failed', 'error', 'destroyed', 'deleted', 'unknown'].includes(st)
+    const timedOut = !ready && !failed && Date.now() - new Date(job.awaitingSince || job.createdAt || Date.now()).getTime() > AWAIT_MAX_MS[isRDP ? 'rdp' : 'vps']
+    if (!ready && !failed && !timedOut) return 'pending'
+    const lastMsg = live && Array.isArray(live.logs) && live.logs.length ? live.logs[live.logs.length - 1].message : null
+    const reason = ready ? null : timedOut ? 'provisioning_timeout' : (lastMsg || (gone || !live ? 'instance_gone' : `provider_status_${st}`))
+    const reasonCode = ready ? null : timedOut ? 'provisioning_timeout' : /out of stock|no AMD capacity|not available/i.test(reason) ? 'out_of_stock' : 'provision_failed'
+    const now = new Date()
+    const claimed = await provisionJobs().findOneAndUpdate({ _id: job._id, status: 'awaiting_provider' }, { $set: ready
+      ? { status: 'done', finishedAt: now, result: { id: job.vpsId, instance_id: job.instanceId, ip } }
+      : { status: 'failed', finishedAt: now, error: reason, error_code: reasonCode, refunded: !!job.charged } }, { returnDocument: 'after', includeResultMetadata: false })
+    if (!claimed) return 'claimed_elsewhere'
+    const okEvent = isRDP ? 'rdp.provisioned' : 'vps.provisioned'
+    const failEvent = isRDP ? 'rdp.provision_failed' : 'vps.provision_failed'
+    if (ready) {
+      await col('vpsPlansOf').updateOne({ _id: job.vpsId }, { $set: { host: ip, status: 'RUNNING', provisionState: 'active', end_time: new Date(now.getTime() + 30 * (Number(r.months) || 1) * 86400000) } })
+      emitEvent(owner, okEvent, job.vpsId, { plan: r.plan, region: r.region, id: job.vpsId, ip, instance_id: job.instanceId, ...(live.region ? { datacenter: live.region } : {}) })
+      return 'provisioned'
+    }
+    // Never leave a half-built server running after a refund (no-op when nothing was created).
+    if (!gone) { try { await prov.cancelInstance(job.instanceId, { reason: reasonCode }) } catch (e) { log(`[ResellerAPI] cleanup of failed ${job.instanceId} warn: ${e.message}`) } }
+    if (job.charged) await refundWallet(owner, job.priceUsd)
+    await col('vpsPlansOf').updateOne({ _id: job.vpsId }, { $set: { status: 'failed', provisionState: 'failed', provisionFailedReason: reason } })
+    emitEvent(owner, failEvent, job.vpsId, { plan: r.plan, region: r.region, id: job.vpsId, reason, reason_code: reasonCode, refunded: !!job.charged })
+    return 'failed'
   }
 
   // Atomically claim + run one job. Safe against double-processing (worker + request path).
@@ -647,6 +697,8 @@ function createResellerApi(deps = {}) {
     try {
       const pend = await provisionJobs().find({ status: 'pending' }).limit(10).toArray()
       for (const j of pend) await processJob(j._id)
+      const waiting = await provisionJobs().find({ status: 'awaiting_provider', buildHost: { $in: [BUILD_HOST, null] } }).sort({ awaitingSince: 1 }).limit(25).toArray()
+      for (const j of waiting) await checkAwaitingJob(j).catch((e) => log(`[ResellerAPI] awaiting job ${j._id} check error: ${e.message}`))
       if (!isLive()) return
       await doPlanChange.reconcileStale({
         vpsPlansOf: col('vpsPlansOf'), walletOf: col('walletOf'), log,
@@ -1192,7 +1244,8 @@ function createResellerApi(deps = {}) {
     const storage = String(req.query.storage || '').toLowerCase()
     if (storage && !['nvme', 'ssd'].includes(storage)) return res.status(400).json({ error: 'invalid_storage', message: 'storage must be "nvme" or "ssd" (omit for both).' })
     const prov = providerFor(isRDP)
-    const products = prov.listProducts(region, isRDP) || []
+    // RDP lists out-of-stock plans too (flagged in_stock:false) so a storefront can show "sold out".
+    const products = (isRDP ? prov.listProducts(region, isRDP, undefined, { includeOutOfStock: true }) : prov.listProducts(region, isRDP)) || []
     const plans = products.map(p => {
       const base = p.pricing ? p.pricing.totalWithMarkup : null
       return {
@@ -1201,6 +1254,7 @@ function createResellerApi(deps = {}) {
         ...hwFromProduct(p),
         duration_months: p.durationMonths || 1, discount_pct: (p.pricing && p.pricing.discountPct) || 0,
         price_usd: base,
+        ...(isRDP ? { in_stock: p.inStock !== false, out_of_stock: p.inStock === false, surcharge_usd: (p.pricing && p.pricing.regionSurcharge) || 0, same_city_fallback: !!(p.quote && p.quote.same_city) } : {}),
         // Linux VPS is a single monthly product bought for a 1/3/6/12-month term via POST /vps { months }.
         // terms[] carries the discounted total per term so storefronts can render a duration picker.
         ...(isRDP || base == null ? {} : { terms: vpsTerms.termsFor(base) }),
@@ -1211,6 +1265,10 @@ function createResellerApi(deps = {}) {
       provider: prov.PROVIDER || (isRDP ? process.env.VPS_RDP_PROVIDER : process.env.VPS_DEFAULT_PROVIDER),
       region,
       plans: storage ? plans.filter(p => (p.storage_type === 'NVMe SSD') === (storage === 'nvme')) : plans,
+    }
+    if (isRDP && typeof prov.availability === 'function') {
+      const st = require('./do-size-catalog').getState()
+      out.catalog = { source: st.source, fetched_at: st.fetched_at, stale: st.stale, refresh_interval_seconds: st.refresh_interval_seconds }
     }
     // Windows editions + fast-deploy (golden image) readiness per region code.
     if (isRDP && typeof prov.listOsOptions === 'function') {
@@ -1224,6 +1282,33 @@ function createResellerApi(deps = {}) {
     res.json(out)
   }
 
+  // Region codes where this plan can be ordered right now (409 out_of_stock suggestions).
+  async function regionsInStock(prov, planId) {
+    try {
+      const regions = (await Promise.resolve(prov.listRegions())) || []
+      return regions.map(r => r.code || r.regionSlug).filter(code => code && prov.isProductAvailable(planId, code))
+    } catch (_) { return [] }
+  }
+
+  // GET /rdp/availability — live RDP stock per region × plan (AMD only, same-city datacenters count).
+  async function rdpAvailabilityHandler(req, res) {
+    const prov = providerFor(true)
+    if (typeof prov.availability !== 'function') return res.status(501).json({ error: 'not_supported', message: 'Live availability is not available for the configured RDP provider.' })
+    const want = req.query.region ? String(req.query.region).trim() : null
+    let regions = prov.availability()
+    if (want) {
+      const hit = regions.filter(r => r.region === want.toUpperCase() || r.region_slug === want.toLowerCase())
+      if (!hit.length) return res.status(400).json({ error: 'invalid_region', message: `Unknown region "${want}". Valid: ${regions.map(r => r.region).join(', ')}.` })
+      regions = hit
+    }
+    const st = require('./do-size-catalog').getState()
+    res.json({
+      product: 'rdp', cpu: 'AMD', checked_at: new Date().toISOString(),
+      catalog: { source: st.source, fetched_at: st.fetched_at, stale: st.stale, refresh_interval_seconds: st.refresh_interval_seconds },
+      regions: regions.map(r => ({ ...r, in_stock: r.plans.some(p => p.in_stock) })),
+    })
+  }
+
   async function vpsCreateHandler(req, res, isRDP) {
     const region = String(req.body?.region || 'EU').toUpperCase()
     const planId = req.body?.plan_id
@@ -1234,7 +1319,8 @@ function createResellerApi(deps = {}) {
     const pricing = prov.calculatePrice(product, region, isRDP)
     if (!pricing) return res.status(400).json({ error: 'unavailable', message: `Plan not available in region ${region}.` })
     if (typeof prov.isProductAvailable === 'function' && !prov.isProductAvailable(planId, region)) {
-      return res.status(409).json({ error: 'out_of_stock', message: `Plan ${planId} is temporarily out of stock in region ${region}. Call GET plans for what can be ordered right now.` })
+      const available_regions = await regionsInStock(prov, planId)
+      return res.status(409).json({ error: 'out_of_stock', message: `Plan ${planId} is temporarily out of stock in region ${region}${isRDP ? ' (no AMD capacity in any datacenter of that city)' : ''}. Nothing was charged. ${available_regions.length ? `In stock right now in: ${available_regions.join(', ')}.` : 'Retry later.'}${isRDP ? ' See GET /rdp/availability.' : ' Call GET /vps/plans for what can be ordered right now.'}`, plan_id: planId, region, available_regions })
     }
     // Linux VPS: optional prepaid term (1/3/6/12 months) with a bundle discount. RDP encodes its
     // term in the plan_id (standard-2m etc.), so it is charged at its product price and skips this.
@@ -1295,6 +1381,8 @@ function createResellerApi(deps = {}) {
     }
     const planName = product.name || planId
     const request = { plan_id: planId, plan: planName, region, hostname, isRDP: !!isRDP, osId: osId || null, os: isRDP ? (osId || 'windows') : (osId || 'ubuntu'), months: termMonths }
+    // RDP: the DO $/month this price was quoted on (a pricier same-spec AMD size raises the price) — the build may never exceed it.
+    if (isRDP && typeof prov.quoteFor === 'function') { const q = prov.quoteFor(product, region); if (q && q.do_cost) request.maxDoCost = q.do_cost }
 
     // Optional: launch a Linux VPS with reseller-supplied SSH public key(s) pre-installed
     // (uploaded to the provider account; referenced as ssh_keys at droplet create).
@@ -1897,6 +1985,7 @@ function createResellerApi(deps = {}) {
   // RDP routes (Windows)
   router.get('/rdp/plans', apiKeyAuth, h((req, res) => vpsPlansHandler(req, res, true)))
   router.get('/rdp/os-options', apiKeyAuth, h((req, res) => osOptionsHandler(req, res, true)))
+  router.get('/rdp/availability', apiKeyAuth, h(rdpAvailabilityHandler))
   router.post('/rdp', apiKeyAuth, h((req, res) => vpsCreateHandler(req, res, true)))
   router.get('/rdp', apiKeyAuth, h((req, res) => vpsListHandler(req, res, true)))
   router.get('/rdp/:id', apiKeyAuth, h((req, res) => vpsGetHandler(req, res, true)))

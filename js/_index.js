@@ -704,6 +704,7 @@ const {
   generateNewSSHkey,
   uploadSSHPublicKey,
   fetchAvailableVPSConfigs,
+  fetchRegionsWithStock,
   fetchSelectedCpanelOptions,
   attachSSHKeysToVM,
   fetchUserVPSList,
@@ -3544,6 +3545,13 @@ const loadData = async () => {
     require('./digitalocean-rdp-service').init(db, { notifyAdmin })
   } catch (e) {
     log(`[DO-RDP] init failed: ${e.message || e}`)
+  }
+  // Live DigitalOcean size catalogue (RDP + VPS stock, 15-min refresh) + admin stock alerts (prod only).
+  try {
+    require('./do-size-catalog').init(db)
+    if (process.env.SKIP_WEBHOOK_SYNC !== 'true') require('./do-stock-watch').start(db, { notify: notifyAdmin })
+  } catch (e) {
+    log(`[DO-Catalog] init failed: ${e.message || e}`)
   }
 
   // ── Register Contabo provisioning circuit-breaker admin alert ──
@@ -10071,6 +10079,7 @@ bot?.on('message', msg => {
         log(`[VPS] vps-plan-pay called without vpsDetails for ${chatId} — redirecting`)
         return goto.displayMainMenuButtons()
       }
+      if (!vpsPlanInStock(info.vpsDetails)) return goto.vpsOutOfStock()
       await set(state, chatId, 'action', 'vps-plan-pay')
       return checkoutScreen('vps-plan-pay', vp.askPaymentMethod)
     },
@@ -12192,11 +12201,24 @@ Enter new value:`), bc)
     askVpsDiskType: async () => {
       await set(state, chatId, 'action', a.askVpsDiskType)
       const diskTypes = await fetchAvailableDiskTpes(info?.vpsDetails?.zone, !!info?.vpsDetails?.isRDP)
+      if (Array.isArray(diskTypes) && !diskTypes.length) return goto.vpsOutOfStock()
       if (!diskTypes || !diskTypes.length) return send(chatId, vp.failedFetchingData, trans('o'))
       await saveInfo('vpsDiskTypes', diskTypes)
       // Single storage type (DigitalOcean Linux/RDP, OVH): nothing to choose — straight to the plans.
       if (diskTypes.length === 1) return goto.selectVpsDiskType(diskTypes[0])
       return send(chatId, vp.askVpsDiskType(diskTypes), vp.of(diskTypes.map((item) => item.label)))
+    },
+
+    // Live stock gate (2026-10-14): nothing orderable in this region right now → say so (nothing was
+    // charged), suggest regions that have stock, and ask for the region again.
+    vpsOutOfStock: async () => {
+      const vpsDetails = info?.vpsDetails || {}
+      const isRDP = !!vpsDetails.isRDP
+      const here = vpsDetails.regionName || vpsDetails.country || vpsDetails.region || ''
+      const suggestions = (await fetchRegionsWithStock(isRDP)).filter(l => l !== here)
+      log(`[VPS] out of stock: ${isRDP ? 'RDP' : 'VPS'} ${vpsDetails.config?._id || ''} in ${vpsDetails.region} for ${chatId} — suggested ${suggestions.length} region(s)`)
+      await send(chatId, vp.planOutOfStock(isRDP, here, suggestions))
+      return goto.askRegionForVps()
     },
 
     selectVpsDiskType: async (diskDetails) => {
@@ -12207,6 +12229,7 @@ Enter new value:`), bc)
       send(chatId, vp.vpsWaitingTime)
       const configTypes = await fetchAvailableVPSConfigs(chatId, vpsDetails)
       if (!configTypes) return send(chatId, vp.failedFetchingData, trans('o'))
+      if (!configTypes.length) { await saveInfo('vpsDetails', vpsDetails); return goto.vpsOutOfStock() }
       await saveInfo('vpsConfigTypes', configTypes)
       await saveInfo('vpsDetails', vpsDetails)
       return goto.askVpsConfig()
@@ -12443,12 +12466,12 @@ Enter new value:`), bc)
 
     confirmStopVps : async () => {
       await set(state, chatId, 'action', a.confirmStopVps)
-      return send(chatId, vp.confirmStopVpstext(info.vpsDetails.name), vp.of([ vp.confirmChangeBtn, vp.cancel])) 
+      return send(chatId, asKind(vp.confirmStopVpstext(info.vpsDetails.name), isRdpRecord(info.userVPSDetails || info.vpsDetails)), vp.of([ vp.confirmChangeBtn, vp.cancel])) 
     },
 
     confirmDeleteVps: async () => {
       await set(state, chatId, 'action', a.confirmDeleteVps)
-      return send(chatId, vp.confirmDeleteVpstext(info.vpsDetails.name), vp.of([ vp.confirmChangeBtn, vp.cancel])) 
+      return send(chatId, asKind(vp.confirmDeleteVpstext(info.vpsDetails.name), isRdpRecord(info.userVPSDetails || info.vpsDetails)), vp.of([ vp.confirmChangeBtn, vp.cancel])) 
     },
 
     confirmResetPassword: async () => {
@@ -12994,6 +13017,8 @@ Enter new value:`), bc)
 
       const priceUsd = price
       if (usdBal < priceUsd) { return _showBalanceWall(usdBal, priceUsd) }
+      // Stock can change while the user is on the payment screen — re-check BEFORE debiting.
+      if (!vpsPlanInStock(vpsDetails)) return goto.vpsOutOfStock()
 
       const lang = info?.userLanguage ?? 'en'
       const name = await get(nameOf, chatId)
@@ -13011,7 +13036,7 @@ Enter new value:`), bc)
             zh: `⏸ <b>VPS 购买暂时暂停</b>\n\n上游 VPS 服务商目前拒绝新订单。我们已暂停购买流程以确保<b>不会扣款</b>。\n\n⏳ 请在 15–30 分钟后重试。服务恢复后会自动恢复。<i>您的钱包未被扣款。</i>`,
             hi: `⏸ <b>VPS खरीद अस्थायी रूप से रोकी गई</b>\n\nहमारा VPS प्रदाता वर्तमान में नए ऑर्डर अस्वीकार कर रहा है। आपको <b>शुल्क न लगे</b> इसके लिए हमने खरीद रोकी है।\n\n⏳ कृपया 15–30 मिनट बाद पुनः प्रयास करें। सेवा बहाल होने पर स्वतः फिर चालू हो जाएगा। <i>आपके वॉलेट से कटौती नहीं हुई।</i>`,
           }[lang]) || `⏸ <b>VPS purchases temporarily paused</b>\n\nOur upstream VPS provider is currently rejecting new orders. We've paused purchases for now so you're <b>not charged</b>.\n\n⏳ Please try again in 15–30 minutes. <i>Your wallet has NOT been debited.</i>`
-          send(chatId, pauseMsg, { parse_mode: 'HTML' })
+          send(chatId, asKind(pauseMsg, isRdpRecord(vpsDetails)), { parse_mode: 'HTML' })
           log(`[VPS] Pre-flight blocked: provisioning paused (${health.minutesOpen}m). chatId=${chatId}, plan=${vpsDetails.plan}, price=$${priceUsd}`)
           return
         }
@@ -13072,7 +13097,7 @@ Enter new value:`), bc)
       set(payments, nanoid(), `Wallet,VPSUpgrade,${vpsDetails?.upgradeType},$${priceUsd},${chatId},${name},${new Date()}`)
       await atomicIncrement(walletOf, chatId, 'usdOut', priceUsd)
       _finalizeWalletPurchase()
-      sendMessage(chatId, translation('vp.vpsChangePaymentRecieved', lang), rem)
+      sendMessage(chatId, asKind(translation('vp.vpsChangePaymentRecieved', lang), isRdpRecord(vpsDetails)), rem)
 
       const isSuccess = await upgradeVPSDetails(chatId, lang, vpsDetails)
       if (!isSuccess) return
@@ -20828,14 +20853,14 @@ ${message.replace(/\n/g, '<br>')}
       return goto.confirmReinstallWindows()
     }
     if (message === vp.startVpsBtn) {
-      send(chatId, vp.vpsBeingStarted(userVPSDetails.name))
+      send(chatId, asKind(vp.vpsBeingStarted(userVPSDetails.name), isRdpRecord(userVPSDetails)))
       const changeVpsStatus = await changeVpsInstanceStatus(userVPSDetails, 'start')
       if (changeVpsStatus.success) {
         await vpsPlansOf.updateOne(
           { vpsId: userVPSDetails._id },
           { $set: { 'status': 'RUNNING' } },
         )
-        send(chatId, vp.vpsStarted(userVPSDetails.name))
+        send(chatId, asKind(vp.vpsStarted(userVPSDetails.name), isRdpRecord(userVPSDetails)))
       } else {
         // UX P0 fix (2026-06-21): surface the actual reason instead of a
         // generic "Failed to start VPS".  Users were retrying 5× with no
@@ -20848,18 +20873,18 @@ ${message.replace(/\n/g, '<br>')}
           : (s === 502 || s === 503 || s === 504) ? `⚠️ The VPS provider is temporarily unreachable.  Please try again in a few minutes.`
           : s === 500 ? `⚠️ The VPS provider returned an internal error for ${userVPSDetails.name}.  We've been notified — please retry in a minute, or contact support if it persists.`
           : vp.failedStartedVPS(userVPSDetails.name)
-        try { await bot.sendMessage(chatId, friendly, { parse_mode: 'HTML' }) }
-        catch { send(chatId, vp.failedStartedVPS(userVPSDetails.name)) }
+        try { await bot.sendMessage(chatId, asKind(friendly, isRdpRecord(userVPSDetails)), { parse_mode: 'HTML' }) }
+        catch { send(chatId, asKind(vp.failedStartedVPS(userVPSDetails.name), isRdpRecord(userVPSDetails))) }
       }
       return goto.getVPSDetails()
     }
     if (message === vp.restartVpsBtn) {
-      send(chatId, vp.vpsBeingRestarted(userVPSDetails.name))
+      send(chatId, asKind(vp.vpsBeingRestarted(userVPSDetails.name), isRdpRecord(userVPSDetails)))
       const changeVpsStatus = await changeVpsInstanceStatus(userVPSDetails, 'restart')
       if (changeVpsStatus.success) {
-        send(chatId, vp.vpsRestarted(userVPSDetails.name))
+        send(chatId, asKind(vp.vpsRestarted(userVPSDetails.name), isRdpRecord(userVPSDetails)))
       } else {
-        send(chatId, vp.failedRestartingVPS(userVPSDetails.name))
+        send(chatId, asKind(vp.failedRestartingVPS(userVPSDetails.name), isRdpRecord(userVPSDetails)))
       }
       return goto.getVPSDetails()
     }
@@ -20871,16 +20896,16 @@ ${message.replace(/\n/g, '<br>')}
     if (message === vp.cancel) return goto.getUserAllVmIntances()
     if (message === vp.confirmChangeBtn) {
       const userVPSDetails = info.userVPSDetails
-      send(chatId, vp.vpsBeingStopped(userVPSDetails.name))
+      send(chatId, asKind(vp.vpsBeingStopped(userVPSDetails.name), isRdpRecord(userVPSDetails)))
       const changeVpsStatus = await changeVpsInstanceStatus(userVPSDetails, 'stop')
       if (changeVpsStatus.success) {
         await vpsPlansOf.updateOne(
           { vpsId: userVPSDetails._id },
           { $set: { 'status': 'TERMINATED' } },
         )
-        send(chatId, vp.vpsStopped(userVPSDetails.name))
+        send(chatId, asKind(vp.vpsStopped(userVPSDetails.name), isRdpRecord(userVPSDetails)))
       } else {
-        send(chatId, vp.failedStoppingVPS(userVPSDetails.name))
+        send(chatId, asKind(vp.failedStoppingVPS(userVPSDetails.name), isRdpRecord(userVPSDetails)))
       }
       return goto.getVPSDetails()
     }
@@ -20892,15 +20917,15 @@ ${message.replace(/\n/g, '<br>')}
     if (message === vp.cancel) return goto.getUserAllVmIntances()
     if (message === vp.confirmChangeBtn) {
       const userVPSDetails = info.userVPSDetails
-      send(chatId, vp.vpsBeingDeleted(userVPSDetails.name))
+      send(chatId, asKind(vp.vpsBeingDeleted(userVPSDetails.name), isRdpRecord(userVPSDetails)))
       const deleteVpsStatus = await deleteVPSinstance(chatId, userVPSDetails._id)
       if (deleteVpsStatus.success) {
         await vpsPlansOf.deleteOne(
           { vpsId: userVPSDetails._id }
         )
-        send(chatId, vp.vpsDeleted(userVPSDetails.name))
+        send(chatId, asKind(vp.vpsDeleted(userVPSDetails.name), isRdpRecord(userVPSDetails)))
       } else {
-        send(chatId, vp.failedDeletingVPS(userVPSDetails.name))
+        send(chatId, asKind(vp.failedDeletingVPS(userVPSDetails.name), isRdpRecord(userVPSDetails)))
       }
       return goto.getUserAllVmIntances()
     }
@@ -21261,7 +21286,7 @@ ${message.replace(/\n/g, '<br>')}
           } catch (_) { /* noop */ }
         }
       } else {
-        send(chatId, vp.failedDeletingVPS(vpsDetails.name))
+        send(chatId, asKind(vp.failedDeletingVPS(vpsDetails.name), isRdpRecord(vpsDetails)))
       }
       return goto.vpsSubscription()
     }
@@ -37261,13 +37286,13 @@ async function checkVPSPlansExpiryandPayment() {
       const { chatId, _id, planPrice, vpsId, label, autoRenewable, contaboInstanceId } = vpsPlan
       const info = await state.findOne({ _id: String(chatId) })
       const lang = info?.userLanguage || 'en'
-      const displayName = label || vpsPlan.name || 'VPS'
+      const displayName = label || vpsPlan.name || (isRdpRecord(vpsPlan) ? 'RDP' : 'VPS')
       const expiryDate = new Date(vpsPlan.end_time).toLocaleDateString()
 
       if (!autoRenewable) {
         // Auto-renew disabled — mark as pending cancellation, warn user
         await vpsPlansOf.updateOne({ _id }, { $set: { status: 'PENDING_CANCELLATION', _autoRenewAttempted: true } })
-        try { send(chatId, translation('t.util_1', lang, displayName, expiryDate)) } catch (notifErr) { log(`[VPS Scheduler] notify failed: ${notifErr.message}`) }
+        try { send(chatId, asKind(translation('t.util_1', lang, displayName, expiryDate), isRdpRecord(vpsPlan))) } catch (notifErr) { log(`[VPS Scheduler] notify failed: ${notifErr.message}`) }
         log(`[VPS Scheduler] ${displayName} marked PENDING_CANCELLATION for ${chatId} — auto-renew disabled`)
         // Reseller webhook: PAYG box keeps running until end_time, so this is the grace window
         // (deletion happens in Phase 2 at end_time). Non-PAYG is cancelled immediately below.
@@ -37319,13 +37344,13 @@ async function checkVPSPlansExpiryandPayment() {
         set(payments, nanoid(), `Wallet,VPSAutoRenew,${renewMonths === 1 ? 'Monthly' : `${renewMonths} Months`},$${planPrice},${chatId},${new Date()},${deductResult.currency}`)
 
         const { usdBal: usd } = await getBalance(walletOf, chatId)
-        try { send(chatId, translation('t.util_2', lang, displayName, chargedDisplay, deductResult.currency.toUpperCase(), newEnd.toLocaleDateString(), usd.toFixed(2), '0.00')) } catch (notifErr) { log(`[VPS Scheduler] notify failed: ${notifErr.message}`) }
+        try { send(chatId, asKind(translation('t.util_2', lang, displayName, chargedDisplay, deductResult.currency.toUpperCase(), newEnd.toLocaleDateString(), usd.toFixed(2), '0.00'), isRdpRecord(vpsPlan))) } catch (notifErr) { log(`[VPS Scheduler] notify failed: ${notifErr.message}`) }
         log(`[VPS Scheduler] Auto-renewed ${displayName} for ${chatId}, charged ${deductResult.currency} $${planPrice}`)
       } else {
         // Both USD and NGN failed — mark pending cancellation
         await vpsPlansOf.updateOne({ _id }, { $set: { status: 'PENDING_CANCELLATION', _autoRenewAttempted: true } })
         const { usdBal } = deductResult
-        try { send(chatId, translation('t.util_3', lang, displayName, (usdBal || 0).toFixed(2), planPrice, expiryDate)) } catch (notifErr) { log(`[VPS Scheduler] notify failed: ${notifErr.message}`) }
+        try { send(chatId, asKind(translation('t.util_3', lang, displayName, (usdBal || 0).toFixed(2), planPrice, expiryDate), isRdpRecord(vpsPlan))) } catch (notifErr) { log(`[VPS Scheduler] notify failed: ${notifErr.message}`) }
         send(TELEGRAM_ADMIN_CHAT_ID, `⚠️ <b>VPS Renewal Failed</b>\nUser: ${adminUserTag(await get(nameOf, chatId), chatId)}\nVPS: ${displayName}\nPrice: $${planPrice}\nBalance: $${(usdBal || 0).toFixed(2)}`, adminMsgOpts({ chatId }))
         log(`[VPS Scheduler] ${displayName} PENDING_CANCELLATION for ${chatId} — balance insufficient ($${usdBal || 0} < $${planPrice})`)
         // Reseller webhook: PAYG box keeps running until end_time → grace window begins (Phase 2
@@ -37374,7 +37399,7 @@ async function checkVPSPlansExpiryandPayment() {
     for (const vpsPlan of urgentCancellations) {
       if (_isPAYGProvider(vpsPlan)) continue // Phase 2 handles these at end_time
       const { chatId, _id, vpsId, label, contaboInstanceId, planPrice } = vpsPlan
-      const displayName = label || vpsPlan.name || 'VPS'
+      const displayName = label || vpsPlan.name || (isRdpRecord(vpsPlan) ? 'RDP' : 'VPS')
       const hoursLeft = ((new Date(vpsPlan.end_time).getTime() - now.getTime()) / (1000 * 60 * 60)).toFixed(1)
       const _info = await state.findOne({ _id: String(chatId) })
       const lang = _info?.userLanguage || 'en'
@@ -37384,7 +37409,7 @@ async function checkVPSPlansExpiryandPayment() {
         const cancelResult = await deleteVPSinstance(chatId, vpsId)
         if (cancelResult.success) {
           await vpsPlansOf.updateOne({ _id }, { $set: { _contaboCancelledEarly: true, status: 'CANCELLED', cancelledAt: new Date(), cancelReason: 'pre_emptive_no_payment' } })
-          try { send(chatId, translation('t.util_4', lang, displayName)) } catch (notifErr) { log(`[VPS Scheduler] notify failed: ${notifErr.message}`) }
+          try { send(chatId, asKind(translation('t.util_4', lang, displayName), isRdpRecord(vpsPlan))) } catch (notifErr) { log(`[VPS Scheduler] notify failed: ${notifErr.message}`) }
           bot?.sendMessage(TELEGRAM_ADMIN_CHAT_ID, `🛑 <b>VPS Pre-emptive Cancel</b>\nUser: ${adminUserTag(await get(nameOf, chatId), chatId)}\nVPS: ${displayName}\nContabo ID: ${contaboInstanceId || vpsId}\nHours before expiry: ${hoursLeft}h\nPrice: $${planPrice}/mo\n\n✅ Cancelled on Contabo to prevent their billing.`, adminMsgOpts({ chatId })).catch(() => {})
           log(`[VPS Scheduler] PRE-EMPTIVE CANCEL: ${displayName} for ${chatId} — ${hoursLeft}h before expiry`)
         } else {
@@ -37419,7 +37444,7 @@ async function checkVPSPlansExpiryandPayment() {
 
     for (const vpsPlan of pendingVps) {
       const { chatId, _id, label, contaboInstanceId, planPrice, end_time } = vpsPlan
-      const displayName = label || vpsPlan.name || 'VPS'
+      const displayName = label || vpsPlan.name || (isRdpRecord(vpsPlan) ? 'RDP' : 'VPS')
       const hoursLeft = (new Date(end_time).getTime() - now.getTime()) / (1000 * 60 * 60)
       const notifySent = vpsPlan._adminNotifyHistory || []
 
@@ -37510,7 +37535,7 @@ async function checkVPSPlansExpiryandPayment() {
     for (const vpsPlan of pastDeadline) {
       if (_isGraceManaged(vpsPlan)) continue // DigitalOcean VPS+RDP are handled by the Phase 2-DO grace lifecycle (2-day grace, not 0-grace destroy)
       const { chatId, _id, vpsId, label, contaboInstanceId, planPrice, lastDeleteAlertAt, deleteRetryCount } = vpsPlan
-      const displayName = label || vpsPlan.name || 'VPS'
+      const displayName = label || vpsPlan.name || (isRdpRecord(vpsPlan) ? 'RDP' : 'VPS')
       const info = await state.findOne({ _id: String(chatId) })
       const lang = info?.userLanguage || 'en'
 
@@ -37521,7 +37546,7 @@ async function checkVPSPlansExpiryandPayment() {
           await vpsPlansOf.updateOne({ _id }, { $set: { status: 'CANCELLED', cancelledAt: new Date(), cancelReason: deleteResult.alreadyGone ? 'auto_renewal_failed_already_gone' : 'auto_renewal_failed' } })
           // Reseller webhook: the box was permanently deleted at end_time after an unrenewed grace.
           _notifyResellerVps(vpsPlan, 'vps.deleted', deleteResult.alreadyGone ? 'already_gone' : 'auto_renewal_failed')
-          try { send(chatId, translation('t.util_5', lang, displayName)) } catch (notifErr) { log(`[VPS Scheduler] notify failed: ${notifErr.message}`) }
+          try { send(chatId, asKind(translation('t.util_5', lang, displayName), isRdpRecord(vpsPlan))) } catch (notifErr) { log(`[VPS Scheduler] notify failed: ${notifErr.message}`) }
           // Only alert admin on ACTIVE deletions (skip idempotent no-ops:
           // the instance was already gone on the provider — nothing new).
           if (!deleteResult.alreadyGone) {
@@ -37577,7 +37602,7 @@ async function checkVPSPlansExpiryandPayment() {
     for (const vpsPlan of staleExpired) {
       if (_isGraceManaged(vpsPlan)) continue // DigitalOcean VPS+RDP enter the Phase 2-DO grace lifecycle instead of PENDING_CANCELLATION
       const { chatId, _id, planPrice, vpsId, label, autoRenewable } = vpsPlan
-      const displayName = label || vpsPlan.name || 'VPS'
+      const displayName = label || vpsPlan.name || (isRdpRecord(vpsPlan) ? 'RDP' : 'VPS')
       const info = await state.findOne({ _id: String(chatId) })
       const lang = info?.userLanguage || 'en'
 
@@ -37595,7 +37620,7 @@ async function checkVPSPlansExpiryandPayment() {
             : `$${planPrice}`
           set(payments, nanoid(), `Wallet,VPSAutoRenew,Monthly,$${planPrice},${chatId},${new Date()},${deductResult.currency}`)
           const { usdBal: usd } = await getBalance(walletOf, chatId)
-          try { send(chatId, translation('t.util_6', lang, displayName, chargedDisplay, newEnd.toLocaleDateString(), usd.toFixed(2), '0.00')) } catch (notifErr) { log(`[VPS Scheduler] notify failed: ${notifErr.message}`) }
+          try { send(chatId, asKind(translation('t.util_6', lang, displayName, chargedDisplay, newEnd.toLocaleDateString(), usd.toFixed(2), '0.00'), isRdpRecord(vpsPlan))) } catch (notifErr) { log(`[VPS Scheduler] notify failed: ${notifErr.message}`) }
           log(`[VPS Scheduler] Late auto-renewed ${displayName} for ${chatId}`)
           continue
         }
@@ -37603,7 +37628,7 @@ async function checkVPSPlansExpiryandPayment() {
       // Failed or auto-renew off — mark pending cancellation (will be deleted next cycle)
       await vpsPlansOf.updateOne({ _id }, { $set: { status: 'PENDING_CANCELLATION', _autoRenewAttempted: true } })
       const { usdBal } = await getBalance(walletOf, chatId)
-      try { send(chatId, translation('t.util_7', lang, displayName, (usdBal).toFixed(2))) } catch (notifErr) { log(`[VPS Scheduler] notify failed: ${notifErr.message}`) }
+      try { send(chatId, asKind(translation('t.util_7', lang, displayName, (usdBal).toFixed(2)), isRdpRecord(vpsPlan))) } catch (notifErr) { log(`[VPS Scheduler] notify failed: ${notifErr.message}`) }
       log(`[VPS Scheduler] ${displayName} marked PENDING_CANCELLATION (stale) for ${chatId}`)
     }
 
@@ -37617,7 +37642,7 @@ async function checkVPSPlansExpiryandPayment() {
 
     for (const vpsPlan of soonExpiring) {
       const { chatId, _id, label, end_time, planPrice } = vpsPlan
-      const displayName = label || vpsPlan.name || 'VPS'
+      const displayName = label || vpsPlan.name || (isRdpRecord(vpsPlan) ? 'RDP' : 'VPS')
       const msLeft = new Date(end_time).getTime() - now.getTime()
       const daysLeft = msLeft / (1000 * 60 * 60 * 24)
       const expiryDate = new Date(end_time).toLocaleDateString()
@@ -37629,7 +37654,7 @@ async function checkVPSPlansExpiryandPayment() {
         const { usdBal } = await getBalance(walletOf, chatId)
         const sufficient = usdBal >= planPrice
         const statusIcon = sufficient ? '✅' : '⚠️'
-        try { send(chatId, translation('t.util_8', lang, displayName, expiryDate, planPrice, usdBal.toFixed(2), statusIcon, sufficient ? 'Auto-renewal will be attempted 1 day before expiry.' : 'Insufficient balance — top up or renew manually to keep your server!')) } catch (notifErr) { log(`[VPS Scheduler] notify failed: ${notifErr.message}`) }
+        try { send(chatId, asKind(translation('t.util_8', lang, displayName, expiryDate, planPrice, usdBal.toFixed(2), statusIcon, sufficient ? 'Auto-renewal will be attempted 1 day before expiry.' : 'Insufficient balance — top up or renew manually to keep your server!'), isRdpRecord(vpsPlan))) } catch (notifErr) { log(`[VPS Scheduler] notify failed: ${notifErr.message}`) }
         await vpsPlansOf.updateOne({ _id }, { $set: { _reminder3DaySent: true } })
         log(`[VPS Scheduler] 3-day reminder sent to ${chatId} for ${displayName}`)
       }
@@ -37637,6 +37662,22 @@ async function checkVPSPlansExpiryandPayment() {
   } catch (error) {
     console.error('[VPS Scheduler] Error:', error.message || error)
   }
+}
+
+// Customer wording (2026-10-14): an RDP (Windows) order/server is never called a "VPS". Swaps the
+// product word in an already-translated message (all 4 languages use the Latin "VPS"); menu paths
+// such as "VPS/RDP → Manage" are kept.
+const isRdpRecord = (r) => !!(r && (r.isRDP === true || r.os?.isRDP || r.osType === 'Windows' || r.provider === 'digitalocean-rdp' || /^rdp-/i.test(String(r.contaboInstanceId || r.instanceId || r.vpsId || ''))))
+const asKind = (text, isRDP) => (isRDP && typeof text === 'string' ? text.replace(/\bVPS\b(?!\s*\/\s*RDP)/g, 'RDP') : text)
+// Live stock gate (2026-10-14): never take money for a plan DigitalOcean cannot build right now.
+// Unknown provider / no stock data = allowed (the provider's own create decides).
+const vpsPlanInStock = (vpsDetails) => {
+  try {
+    const prov = require('./vps-provider').pickProviderForOs(!!vpsDetails?.isRDP)
+    const productId = vpsDetails?.config?._id || vpsDetails?.productId
+    if (!productId || typeof prov.isProductAvailable !== 'function') return true
+    return prov.isProductAvailable(productId, vpsDetails.zone || vpsDetails.region) !== false
+  } catch (_) { return true }
 }
 
 const buyVPSPlanFullProcess = async (chatId, lang, vpsDetails) => {
@@ -37882,7 +37923,7 @@ const buyVPSPlanFullProcess = async (chatId, lang, vpsDetails) => {
       const regionStr = vpsDetails.region ? ` in <b>${vpsDetails.region}</b>` : ''
       notifyGroup(
         `🖥 <b>New ${planType} Deployed!</b>\nUser ${maskName(name)} just deployed a <b>${vpsDetails.plan || 'Cloud VPS'}</b> server${regionStr}.\nGet yours — /start`,
-        `🖥 <b>VPS Purchase</b>\n👤 ${adminUserTag(name, chatId)}\n📦 ${vpsDetails.plan || 'Cloud VPS'}${regionStr}\n💰 $${vpsDetails.totalPrice}\n🖥 IP: ${vpsData.host || 'pending'}`
+        `🖥 <b>${planType} Purchase</b>\n👤 ${adminUserTag(name, chatId)}\n📦 ${vpsDetails.plan || 'Cloud VPS'}${regionStr}\n💰 $${vpsDetails.totalPrice}\n🖥 IP: ${vpsData.host || 'pending'}`
       )
     } catch (e) {
       log('[VPS] notifyGroup error: ' + e.message)
@@ -37904,7 +37945,7 @@ const upgradeVPSDetails = async (chatId, lang, vpsDetails) => {
     log(vpsDetails)
     const vmInstanceDetails = await fetchVPSDetails(chatId, vpsDetails._id)
     if (!vmInstanceDetails) {
-      const m = translation('vp.errorUpgradingVPS', lang, vpsDetails.name)
+      const m = asKind(translation('vp.errorUpgradingVPS', lang, vpsDetails.name), isRdpRecord(vpsDetails))
       log(m)
       sendMessage(TELEGRAM_DEV_CHAT_ID, m)
       sendMessage(chatId, m)
@@ -38858,7 +38899,7 @@ const bankApis = {
     }
     await insert(vpsTransactions, chatId, "bank", transaction)
     const totalPrice = Number(vpsDetails?.totalPrice)
-    sendMessage(chatId, translation('vp.vpsChangePaymentRecieved', lang))
+    sendMessage(chatId, asKind(translation('vp.vpsChangePaymentRecieved', lang), isRdpRecord(vpsDetails)))
     // Update Wallet
     const ngnPrice = await usdToNgn(price)
     if (usdIn < price) {
@@ -40243,7 +40284,7 @@ app.get('/crypto-pay-vps', auth, async (req, res) => {
       addFundsTo(walletOf, chatId, 'usd', refundAmt, lang)
       const { usdIn: wIn = 0, usdOut: wOut = 0 } = (await get(walletOf, chatId)) || {}
       const usdBal = (wIn - wOut).toFixed(2)
-      sendMessage(chatId, trans('t.wh_13', refundAmt.toFixed(2), usdBal), { parse_mode: 'HTML' })
+      sendMessage(chatId, asKind(trans('t.wh_13', refundAmt.toFixed(2), usdBal), isRdpRecord(vpsDetails)), { parse_mode: 'HTML' })
       log(`[crypto-pay-vps] Refunded $${refundAmt.toFixed(2)} to wallet for chatId=${chatId} after VPS provisioning failure (BlockBee)`)
     }
     return res.send(html('error'))
@@ -40272,7 +40313,7 @@ app.get('/crypto-pay-upgrade-vps', auth, async (req, res) => {
   const totalPrice = Number(vpsDetails?.totalPrice)
   const preSpend = await loyalty.getTotalSpend(walletOf, chatId)
 
-  sendMessage(chatId, translation('vp.vpsChangePaymentRecieved', lang))
+  sendMessage(chatId, asKind(translation('vp.vpsChangePaymentRecieved', lang), isRdpRecord(vpsDetails)))
   // Logs
   del(chatIdOfPayment, ref)
   let transaction = {
@@ -45540,7 +45581,7 @@ app.post('/dynopay/crypto-pay-vps', authDyno, async (req, res) => {
       addFundsTo(walletOf, chatId, 'usd', refundAmt, lang)
       const { usdIn: wIn = 0, usdOut: wOut = 0 } = (await get(walletOf, chatId)) || {}
       const usdBal = (wIn - wOut).toFixed(2)
-      sendMessage(chatId, translation('t.wh_23', lang, refundAmt.toFixed(2), usdBal), { parse_mode: 'HTML' })
+      sendMessage(chatId, asKind(translation('t.wh_23', lang, refundAmt.toFixed(2), usdBal), isRdpRecord(vpsDetails)), { parse_mode: 'HTML' })
       log(`[crypto-pay-vps] Refunded $${refundAmt.toFixed(2)} to wallet for chatId=${chatId} after VPS provisioning failure`)
     }
     return res.send(html('error'))
@@ -45553,9 +45594,10 @@ app.post('/dynopay/crypto-pay-vps', authDyno, async (req, res) => {
   // pay?" audits silently missed it (the @user_uu0 Aug-12 $18 BTC case). Keyed
   // on `ref` so a webhook replay upserts the same row (idempotent).
   set(payments, ref, `Crypto,VPSPlan,${vpsDetails?.plan},$${price},${chatId},${name},${new Date()},${value} ${coin}`)
+  const dynoKind = isRdpRecord(vpsDetails) ? 'RDP' : 'VPS'
   notifyGroup(
-    `🖥️ <b>VPS Deployed!</b>\nUser ${maskName(name)} just deployed a new VPS server via crypto.\nDeploy yours in seconds — /start`,
-    `🖥️ <b>New VPS (Crypto DynoPay)</b>\n👤 User: ${adminUserTag(name, chatId)}\n💰 Price: <b>$${Number(price).toFixed(2)}</b> (${value} ${coin})\n📦 Plan: ${vpsDetails?.plan || 'VPS'}\n💳 Payment: Crypto DynoPay`
+    `🖥️ <b>${dynoKind} Deployed!</b>\nUser ${maskName(name)} just deployed a new ${dynoKind} server via crypto.\nDeploy yours in seconds — /start`,
+    `🖥️ <b>New ${dynoKind} (Crypto DynoPay)</b>\n👤 User: ${adminUserTag(name, chatId)}\n💰 Price: <b>$${Number(price).toFixed(2)}</b> (${value} ${coin})\n📦 Plan: ${vpsDetails?.plan || 'VPS'}\n💳 Payment: Crypto DynoPay`
   )
   webhookTierCheck(chatId, preSpend, lang)
   if (cartRecovery) cartRecovery.recordPaymentCompleted(String(chatId))
@@ -45579,7 +45621,7 @@ app.post('/dynopay/crypto-pay-upgrade-vps', authDyno, async (req, res) => {
   const totalPrice = Number(vpsDetails?.totalPrice)
   const preSpend = await loyalty.getTotalSpend(walletOf, chatId)
 
-  sendMessage(chatId, translation('vp.vpsChangePaymentRecieved', lang))
+  sendMessage(chatId, asKind(translation('vp.vpsChangePaymentRecieved', lang), isRdpRecord(vpsDetails)))
   // Logs
   del(chatIdOfDynopayPayment, ref)
   let transaction = {

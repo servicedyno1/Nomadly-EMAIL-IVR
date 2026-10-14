@@ -3739,6 +3739,7 @@ ${
  payNowBtn: '✅ 立即支付',
 
  vpsChangePaymentRecieved: `✅ 付款成功！您的 VPS 正在配置中，详细信息将很快提供。`,
+  planOutOfStock: (isRDP, region, suggestions = []) => `😔 <b>${region} 的 ${isRDP ? 'Windows RDP' : 'VPS'} 暂时售罄</b>\n\n该城市的${isRDP ? ' AMD ' : ''}服务器目前已满 — 您<b>没有</b>被扣款。${suggestions.length ? `\n\n✅ 目前可选地区：\n${suggestions.map(s => `• ${s}`).join('\n')}` : '\n\n⏳ 请稍后再试。'}\n\n请在下方选择其他地区 👇`,
 
  bankPayVPSRenewPlan: priceNGN =>
  `请点击下方的“支付”按钮支付 ${priceNGN} NGN。一旦交易确认，您将立即收到通知，您的 VPS 计划将被激活并续订。`,

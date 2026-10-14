@@ -27,6 +27,8 @@ require('dotenv').config()
 const axios = require('axios')
 const crypto = require('crypto')
 const secretStore = require('./vps-secret-store')
+// Shared live DigitalOcean size catalogue (15-min refresh, Mongo-persisted, 422 "refused" marks).
+const sizeCatalog = require('./do-size-catalog')
 
 const API_TOKEN  = process.env.DIGITALOCEAN_API_TOKEN || ''
 const API_BASE   = 'https://api.digitalocean.com/v2'
@@ -327,13 +329,25 @@ function refreshSizeAvailability() {
   return _refreshing
 }
 
-// regionSlug: customer code (EU) or a raw DO region slug (ams3 — RDP regions outside the VPS list).
-function isProductAvailable(productId, regionSlug) {
-  const doRegion = REGION_TO_DO_SLUG[_customerRegion(regionSlug)] || (/^[a-z]{3}\d$/.test(String(regionSlug)) ? regionSlug : null)
-  if (!doRegion) return false
+// Is this exact size creatable in ONE DO datacenter? Shared live catalogue first (15 min), then
+// this module's hourly map; unknown (no data yet) = assume yes and let the 422 walk decide.
+function _sizeIn(productId, doRegion) {
+  const live = sizeCatalog.isAvailable(productId, doRegion)
+  if (live !== null) return live
   if (!_sizeRegions) return true
-  const live = _sizeRegions.get(productId)
-  return !!live && live.regions.has(doRegion)
+  const m = _sizeRegions.get(productId)
+  return !!m && m.regions.has(doRegion)
+}
+// Datacenters that can build this EXACT size (same CPU type) for a customer region: the region's own
+// datacenter first, then other datacenters in the same city (nyc3 → nyc1/nyc2). exactRegion = in-place ops.
+function buildRegionsFor(productId, regionSlug, { exactRegion = false } = {}) {
+  const doRegion = REGION_TO_DO_SLUG[_customerRegion(regionSlug)] || (/^[a-z]{3}\d$/.test(String(regionSlug)) ? regionSlug : null)
+  if (!doRegion) return []
+  return [doRegion, ...(exactRegion ? [] : sizeCatalog.sameCityOf(doRegion))].filter(r => _sizeIn(productId, r))
+}
+// regionSlug: customer code (EU) or a raw DO region slug (ams3 — RDP regions outside the VPS list).
+function isProductAvailable(productId, regionSlug, opts) {
+  return buildRegionsFor(productId, regionSlug, opts).length > 0
 }
 
 function getAvailabilityState() {
@@ -350,12 +364,13 @@ if (API_TOKEN && process.env.NODE_ENV !== 'test') {
 const PRODUCT_CATALOG_SSD = PRODUCT_CATALOG
 
 // diskPreference: 'ssd' | 'nvme' | anything else (e.g. undefined) = both classes.
-function listProducts(regionSlug = 'EU', isWindows = false, diskPreference) {
+// exactRegion: only the region's own datacenter (in-place resize); default also counts same-city ones.
+function listProducts(regionSlug = 'EU', isWindows = false, diskPreference, { exactRegion = false } = {}) {
   if (isWindows) return [] // DO has no Windows
   const pref = String(diskPreference || '').toLowerCase()
   const source = pref === 'ssd' ? PRODUCT_CATALOG : pref === 'nvme' ? PRODUCT_CATALOG_NVME : ALL_PRODUCTS
   return source
-    .filter(p => isProductAvailable(p.productId, regionSlug))
+    .filter(p => isProductAvailable(p.productId, regionSlug, { exactRegion }))
     .map(p => {
       const pricing = calculatePrice(p, regionSlug, false)
       if (!pricing) return null
@@ -380,7 +395,7 @@ function diskSwitchTarget(product, regionSlug) {
     ? [product.productId.replace(/-(amd|intel)$/, '')]
     : [`${product.productId}-amd`, `${product.productId}-intel`]
   const pool = product.diskType === 'nvme' ? PRODUCT_CATALOG : PRODUCT_CATALOG_NVME
-  return candidates.map(id => pool.find(p => p.productId === id)).find(p => p && isProductAvailable(p.productId, regionSlug)) || null
+  return candidates.map(id => pool.find(p => p.productId === id)).find(p => p && isProductAvailable(p.productId, regionSlug, { exactRegion: true })) || null
 }
 
 async function listRegions() {
@@ -580,6 +595,13 @@ async function createInstance(opts) {
   }
   const region = REGION_TO_DO_SLUG[_customerRegion(regionSlug)]
   if (!region) throw new Error(`DO has no datacenter for region slug: ${regionSlug}`)
+  // Same size in the region's datacenter, else another datacenter in the same city (never another CPU type).
+  const regions = buildRegionsFor(productId, region)
+  if (!regions.length) {
+    const err = new Error(`${productId} is out of stock in ${region} and its same-city datacenters right now`)
+    err.code = 'out_of_stock'
+    throw err
+  }
 
   // user_data on DO is sent as plain text (NOT base64). Build a cloud-init
   // script that sets the password and/or runs the caller's userData.
@@ -613,7 +635,16 @@ async function createInstance(opts) {
   if (userData) body.user_data = userData
 
   try {
-    const data = await apiRequest('POST', '/droplets', body)
+    let data = null
+    for (let i = 0; i < regions.length; i++) {
+      body.region = regions[i]
+      try { data = await apiRequest('POST', '/droplets', body); break }
+      catch (e) {
+        if (!(e.status === 422 && /not available|unavailable|capacity/i.test(e.message)) || i === regions.length - 1) throw e
+        sizeCatalog.markRefused(productId, regions[i], e.message)
+        log(`${productId} not available in ${regions[i]} - trying same-city ${regions[i + 1]}`)
+      }
+    }
     const droplet = data.droplet || {}
     _trackCreateResult(true)
     // DO returns droplet immediately but it's still provisioning — main_ip
@@ -625,10 +656,12 @@ async function createInstance(opts) {
       defaultPassword: password || null,
       status:          _mapStatus(droplet.status),
       providerStatus:  droplet.status,
+      region:          body.region,
       raw:             droplet,
     }
   } catch (err) {
-    _trackCreateResult(false, err)
+    if (err.status === 422 && /not available|unavailable|capacity/i.test(err.message)) { sizeCatalog.markRefused(productId, body.region, err.message); err.code = 'out_of_stock' }
+    else _trackCreateResult(false, err) // stock-outs are not provider failures (circuit breaker)
     throw err
   }
 }
@@ -1161,6 +1194,7 @@ module.exports = {
   getProduct,
   diskSwitchTarget,
   isProductAvailable,
+  buildRegionsFor,
   refreshSizeAvailability,
   getAvailabilityState,
   _applySizes,

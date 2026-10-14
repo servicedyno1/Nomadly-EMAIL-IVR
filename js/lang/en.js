@@ -3971,6 +3971,7 @@ ${
  payNowBtn: '✅ Pay now',
 
  vpsChangePaymentRecieved: `✅ Payment successful! Your VPS is being set up. Details will be available shortly.`,
+  planOutOfStock: (isRDP, region, suggestions = []) => `😔 <b>${isRDP ? 'Windows RDP' : 'VPS'} is sold out in ${region} right now</b>\n\nOur ${isRDP ? 'AMD servers' : 'servers'} in that city are fully booked at the moment — you have <b>not</b> been charged.${suggestions.length ? `\n\n✅ Available right now in:\n${suggestions.map(s => `• ${s}`).join('\n')}` : '\n\n⏳ Please try again a little later.'}\n\nPick another location below 👇`,
 
  bankPayVPSRenewPlan: priceNGN =>
  `Please remit ${priceNGN} NGN by clicking “Make Payment” below. Once the transaction has been confirmed, you will be promptly notified, and your VPS plan be seamlessly activated and renewed.`,

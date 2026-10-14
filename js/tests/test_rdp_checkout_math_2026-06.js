@@ -9,6 +9,7 @@
 const path = require('path')
 require('dotenv').config({ path: path.resolve(__dirname, '../../backend/.env') })
 process.env.VPS_RDP_PROVIDER = 'digitalocean-rdp' // resolve RDP provider to DO in THIS process only
+process.env.RESELLER_API_LIVE = 'false' // in-process API stays dry-run so renew never hits a provider
 const crypto = require('crypto')
 const express = require('express')
 const axios = require('axios')

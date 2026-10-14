@@ -30,6 +30,8 @@ const fs = require('fs')
 const path = require('path')
 
 const secretStore = require('./vps-secret-store')
+// Live DigitalOcean size catalogue (GET /v2/sizes, refreshed every 15 min, persisted to Mongo).
+const sizeCatalog = require('./do-size-catalog')
 
 const log = (...a) => console.log('[DO-RDP]', ...a)
 const PROVIDER = 'digitalocean-rdp'
@@ -46,51 +48,94 @@ const SCRIPTS_DIR = path.join(__dirname, 'rdp-scripts')
 // ─────────────────────────────────────────────────────────────
 const DURATIONS = [1, 2, 3]
 
-// Sellable tiers. Speed lever 1: RDPs run on DigitalOcean **Premium** droplets (dedicated-class
-// AMD EPYC / Intel Xeon CPUs, faster RAM, true NVMe) — never on Basic-Regular shared CPUs unless
-// nothing else is in stock. `do_size_slug` = Premium AMD, `do_size_slug_intel` = Premium Intel
-// (same price + disk, offered in the regions AMD is not: nyc3, tor1, fra1), `do_size_slug_basic`
-// = last-resort Basic-Regular. Prices track the Premium monthly cost × months × 2 (see sellPrice):
-// Standard $56/mo, Pro $112/mo, Power $224/mo.
+// Sellable tiers. RDPs run ONLY on DigitalOcean Premium AMD droplets (AMD EPYC + NVMe) — owner
+// decision 2026-10-14: Premium Intel and Basic shared-CPU droplets are too slow for Windows, so they
+// are never used (not even as a fallback). Prices track the AMD monthly cost × months × 2 (see
+// sellPrice): Standard $56/mo, Pro $112/mo, Power $224/mo.
 // Speed lever 2: the 1vCPU/2GB "Starter" was retired 2026-09 (below Windows Server's memory
 // floor → always slow). It lives in LEGACY_TIERS only, so servers already provisioned on it
 // still render a name/spec; it is NOT sold anymore.
 const TIERS = [
-  { slug: 'standard', name: 'Standard', vcpu: 2, ram_gb: 4,  disk_gb: 80,  do_size_slug: 's-2vcpu-4gb-amd',  do_size_slug_intel: 's-2vcpu-4gb-intel',  do_size_slug_basic: 's-2vcpu-4gb',  monthly_do_cost: 28 },
-  { slug: 'pro',      name: 'Pro',      vcpu: 4, ram_gb: 8,  disk_gb: 160, do_size_slug: 's-4vcpu-8gb-amd',  do_size_slug_intel: 's-4vcpu-8gb-intel',  do_size_slug_basic: 's-4vcpu-8gb',  monthly_do_cost: 56 },
-  { slug: 'power',    name: 'Power',    vcpu: 8, ram_gb: 16, disk_gb: 320, do_size_slug: 's-8vcpu-16gb-amd', do_size_slug_intel: 's-8vcpu-16gb-intel', do_size_slug_basic: 's-8vcpu-16gb', monthly_do_cost: 112 },
+  { slug: 'standard', name: 'Standard', vcpu: 2, ram_gb: 4,  disk_gb: 80,  do_size_slug: 's-2vcpu-4gb-amd',  monthly_do_cost: 28 },
+  { slug: 'pro',      name: 'Pro',      vcpu: 4, ram_gb: 8,  disk_gb: 160, do_size_slug: 's-4vcpu-8gb-amd',  monthly_do_cost: 56 },
+  { slug: 'power',    name: 'Power',    vcpu: 8, ram_gb: 16, disk_gb: 320, do_size_slug: 's-8vcpu-16gb-amd', monthly_do_cost: 112 },
 ]
 // Retired tiers — NOT sold, kept only so existing servers still resolve a name/spec.
 const LEGACY_TIERS = [
-  { slug: 'starter', name: 'Starter (legacy)', vcpu: 1, ram_gb: 2, disk_gb: 50, do_size_slug: 's-1vcpu-2gb', do_size_slug_basic: 's-1vcpu-2gb', monthly_do_cost: 12 },
+  { slug: 'starter', name: 'Starter (legacy)', vcpu: 1, ram_gb: 2, disk_gb: 50, do_size_slug: 's-1vcpu-2gb', monthly_do_cost: 12 },
 ]
 const TIER_BY_SLUG = new Map([...TIERS, ...LEGACY_TIERS].map(t => [t.slug, t]))
 
-// Regions where each DigitalOcean Premium family is sold (verified live via GET /v2/sizes, 2026-09-24).
-// AMD is NOT sold in fra1/nyc3/tor1; Intel covers exactly those, so every region gets a Premium CPU.
-const PREMIUM_AMD_REGIONS = new Set(['ams3', 'blr1', 'lon1', 'nyc1', 'nyc2', 'sfo3', 'sgp1', 'syd1'])
-const PREMIUM_INTEL_REGIONS = new Set(['blr1', 'fra1', 'nyc2', 'nyc3', 'sfo3', 'sgp1', 'tor1'])
-// Ordered DO size candidates for a tier in a region: Premium AMD → Premium Intel → Basic (capacity
-// fallback only). provisionServer walks this list on 422 "not available" so an order never fails
-// just because one size family is out of stock or not sold in that region.
-function sizeCandidatesFor(tier, regionSlug) {
-  if (!tier) return []
-  const r = String(regionSlug || '')
-  const out = []
-  if (PREMIUM_AMD_REGIONS.has(r) && tier.do_size_slug) out.push(tier.do_size_slug)
-  if (PREMIUM_INTEL_REGIONS.has(r) && tier.do_size_slug_intel) out.push(tier.do_size_slug_intel)
-  if (tier.do_size_slug_basic) out.push(tier.do_size_slug_basic)
-  if (!out.length) out.push(tier.do_size_slug)
-  return [...new Set(out)]
+// ── LIVE, spec-based AMD size selection (2026-10-14) ─────────────────────────────────────────
+// Until 2026-10-14 the size families sold per region were HARDCODED; DigitalOcean silently changed
+// nyc3 and every New York order failed with 422 (memory/RDP_NYC3_SIZE_UNAVAILABLE_RCA_2026-10-14.md).
+// Now DigitalOcean's live catalogue (js/do-size-catalog.js, refreshed every 15 min) decides:
+//   • a tier is its SPEC — exact vCPU + RAM, disk ≥ the plan's, AMD CPU only;
+//   • the chosen datacenter first, then other datacenters in the SAME city (nyc3 → nyc1/nyc2);
+//   • a same-spec AMD size costing up to MAX_SIZE_COST_FACTOR × the tier's cost (+15%) may be
+//     used — the extra cost is PASSED ON in the price quoted before payment (quoteFor);
+//   • sizes DO just refused with 422 are skipped for 30 min (sizeCatalog.markRefused).
+// With no catalogue at all (cold start + DigitalOcean unreachable + nothing in Mongo) the tier's AMD
+// slug is tried in each same-city datacenter and the 422 walk decides.
+const MAX_SIZE_COST_FACTOR = Math.max(1, Number(process.env.DO_RDP_MAX_SIZE_COST_FACTOR) || 1.15)
+const round2 = (n) => Math.round(n * 100) / 100
+// Accepts a tier, a product (slug = tier slug), a server doc (tier_slug), a tier slug or a plan_id.
+function _tierOf(x) {
+  if (!x) return null
+  if (typeof x === 'string') return TIER_BY_SLUG.get(x) || TIER_BY_SLUG.get(x.replace(/-\d+m$/, '')) || null
+  return TIER_BY_SLUG.get(x.slug || x.tier_slug) || null
 }
-// Preferred DO size slug for a tier in a given region (first candidate).
-function sizeSlugFor(tier, regionSlug) { return sizeCandidatesFor(tier, regionSlug)[0] || null }
+const _isAmd = (s) => /-amd$/i.test(s.slug) || /\bAMD\b/i.test(s.description || '')
+function _specMatch(t, s, cap) {
+  return _isAmd(s) && s.vcpus === t.vcpu && s.memory === t.ram_gb * 1024 && s.disk >= t.disk_gb
+    && s.price_monthly > 0 && s.price_monthly <= cap + 1e-9
+}
+// AMD sizes for a tier in ONE datacenter, cheapest first: [{ slug, cost }]. cap = max DO $/month.
+function _sizeOptions(t, region, cap) {
+  const r = String(region || '')
+  if (!sizeCatalog.isLoaded()) return t.do_size_slug && !sizeCatalog.isRefused(t.do_size_slug, r) && t.monthly_do_cost <= cap + 1e-9 ? [{ slug: t.do_size_slug, cost: t.monthly_do_cost }] : []
+  return sizeCatalog.sizesAvailableIn(r).filter(s => _specMatch(t, s, cap))
+    .sort((a, b) => a.price_monthly - b.price_monthly || (b.slug === t.do_size_slug) - (a.slug === t.do_size_slug) || a.disk - b.disk || a.slug.localeCompare(b.slug))
+    .map(s => ({ slug: s.slug, cost: s.price_monthly }))
+}
+// Ordered AMD size slugs for a tier in ONE datacenter (in-place resize / plan change). Default cap =
+// the tier's own cost, so a resize never lands on a pricier size than the plan is billed at.
+function sizeCandidatesFor(tier, regionSlug, { maxCost } = {}) {
+  const t = _tierOf(tier)
+  if (!t) return []
+  return _sizeOptions(t, regionSlug, maxCost != null ? maxCost : t.monthly_do_cost).map(o => o.slug)
+}
+// Every (datacenter, AMD size) that can build this tier for a customer who chose `regionInput`:
+// cheapest first; on equal cost the chosen datacenter wins. Default cap = tier cost × 1.15.
+function buildOptions(tier, regionInput, { maxCost } = {}) {
+  const t = _tierOf(tier)
+  if (!t || !t.monthly_do_cost) return []
+  const region = regionToSlug(regionInput)
+  const cap = maxCost != null ? Number(maxCost) : t.monthly_do_cost * MAX_SIZE_COST_FACTOR
+  const out = []
+  ;[region, ...sizeCatalog.sameCityOf(region)].forEach((r, order) => {
+    for (const o of _sizeOptions(t, r, cap)) out.push({ region: r, size: o.slug, cost: o.cost, order })
+  })
+  return out.sort((a, b) => a.cost - b.cost || a.order - b.order)
+}
+// Can this plan be built for a customer in `regionInput` right now — where, on what, at what DO cost?
+function quoteFor(product, regionInput) {
+  const t = _tierOf(product)
+  const region = regionToSlug(regionInput)
+  if (!t) return { region, in_stock: false, build_region: null, size_slug: null, do_cost: null, price_factor: 1, same_city: false }
+  const best = buildOptions(t, region)[0] || null
+  return {
+    region, in_stock: !!best, build_region: best ? best.region : null, size_slug: best ? best.size : null,
+    do_cost: best ? best.cost : t.monthly_do_cost, price_factor: best ? Math.round(best.cost / t.monthly_do_cost * 10000) / 10000 : 1,
+    same_city: !!best && best.region !== region,
+  }
+}
 // Display-only product shape for retired tiers (e.g. legacy 'starter' servers still running).
 function legacyProductFor(s) {
   const t = TIER_BY_SLUG.get(s && s.tier_slug)
   if (!t) return null
   const m = s.duration_months || 1
-  return { productId: `${t.slug}-${m}m`, slug: t.slug, cpuCores: t.vcpu, vcpus: t.vcpu, ramGb: t.ram_gb, ramMb: t.ram_gb * 1024, diskGb: t.disk_gb, diskMb: t.disk_gb * 1024, durationMonths: m, do_size_slug: t.do_size_slug, do_size_slug_intel: t.do_size_slug_intel, do_size_slug_basic: t.do_size_slug_basic }
+  return { productId: `${t.slug}-${m}m`, slug: t.slug, cpuCores: t.vcpu, vcpus: t.vcpu, ramGb: t.ram_gb, ramMb: t.ram_gb * 1024, diskGb: t.disk_gb, diskMb: t.disk_gb * 1024, durationMonths: m, do_size_slug: t.do_size_slug }
 }
 
 const VIRTIO = 'https://fedorapeople.org/groups/virt/virtio-win/direct-downloads/stable-virtio/virtio-win.iso'
@@ -159,17 +204,21 @@ const orderRef = (s) => `${(s.server_id || '').slice(0, 8)} (${s.os_id || '?'}, 
 // Base = monthly_do_cost × months × 2; discount applied on top as a multi-month incentive.
 const BUNDLE_DISCOUNT = { 1: 0, 2: 0.10, 3: 0.15 }
 function bundleDiscount(months) { return BUNDLE_DISCOUNT[Number(months)] || 0 }
-function sellPrice(tier, months) {
-  const base = tier.monthly_do_cost * months * 2
+// doCost = the DO $/month of the AMD size the order will run on (defaults to the tier's own cost).
+function sellPrice(tier, months, doCost = tier.monthly_do_cost) {
+  const base = doCost * months * 2
   return Math.round(base * (1 - bundleDiscount(months)) * 100) / 100
 }
 
+function _pricing(t, m, doCost) {
+  const price = sellPrice(t, m, doCost)
+  const basePrice = sellPrice(t, m)
+  return { base: price, markup: 0, totalWithMarkup: price, basePriceUsd: price, regionSurcharge: round2(price - basePrice), windowsLicense: 0, totalBeforeMarkup: price, currency: 'usd', durationMonths: m, discountPct: Math.round(bundleDiscount(m) * 100) }
+}
 function _products() {
   const out = []
   TIERS.forEach((t, tierIdx) => {
     for (const m of DURATIONS) {
-      const price = sellPrice(t, m)
-      const discountPct = Math.round(bundleDiscount(m) * 100)
       out.push({
         productId: `${t.slug}-${m}m`,
         slug: t.slug,
@@ -179,8 +228,8 @@ function _products() {
         vcpus: t.vcpu, ramGb: t.ram_gb, diskGb: t.disk_gb,
         // bot / vm-instance-setup compat fields
         cpuCores: t.vcpu, ramMb: t.ram_gb * 1024, diskMb: t.disk_gb * 1024, diskType: 'nvme', bandwidthTb: 4, portSpeedMbps: 1000, tier: tierIdx + 1,
-        do_size_slug: t.do_size_slug, do_size_slug_intel: t.do_size_slug_intel, do_size_slug_basic: t.do_size_slug_basic,
-        pricing: { base: price, markup: 0, totalWithMarkup: price, basePriceUsd: price, regionSurcharge: 0, windowsLicense: 0, totalBeforeMarkup: price, currency: 'usd', durationMonths: m, discountPct },
+        do_size_slug: t.do_size_slug,
+        pricing: _pricing(t, m, t.monthly_do_cost),
       })
     }
   })
@@ -189,16 +238,45 @@ function _products() {
 const PRODUCTS = _products()
 const PRODUCT_BY_ID = new Map(PRODUCTS.map(p => [p.productId, p]))
 
+// The product as sold in one region RIGHT NOW: stock (live, same-city aware) + the price for the AMD
+// size it will run on (a pricier same-spec size raises the price; regionSurcharge shows the extra).
+function productInRegion(product, regionSlug) {
+  const p = typeof product === 'string' ? getProduct(product) : (getProduct(product && product.productId) || product)
+  const t = _tierOf(p)
+  if (!p || !t) return null
+  const q = quoteFor(t, regionSlug)
+  const pricing = q.do_cost === t.monthly_do_cost ? p.pricing : _pricing(t, p.durationMonths || 1, q.do_cost)
+  return { ...p, pricing, inStock: q.in_stock, quote: q }
+}
 // Bot purchase flow is monthly: hide the 2/3-month bundles there (the reseller API still sells them).
-function listProducts(_regionSlug = 'EU', isWindows = true, _diskPreference, { monthlyOnly = false } = {}) {
+// Out-of-stock plans are left out unless includeOutOfStock (reseller GET /rdp/plans shows them flagged).
+function listProducts(regionSlug = 'EU', isWindows = true, _diskPreference, { monthlyOnly = false, includeOutOfStock = false } = {}) {
   if (isWindows === false) return [] // this provider is RDP-only
-  return monthlyOnly ? PRODUCTS.filter(p => p.durationMonths === 1) : PRODUCTS
+  const out = (monthlyOnly ? PRODUCTS.filter(p => p.durationMonths === 1) : PRODUCTS).map(p => productInRegion(p, regionSlug))
+  return includeOutOfStock ? out : out.filter(p => p.inStock)
 }
 function getProduct(planId) { return PRODUCT_BY_ID.get(String(planId || '')) || null }
-function calculatePrice(product, _regionSlug, _isWindows) {
+function calculatePrice(product, regionSlug, _isWindows) {
   const p = typeof product === 'string' ? getProduct(product) : product
   if (!p || !p.pricing) return null
-  return p.pricing
+  if (!regionSlug) return p.pricing
+  const r = productInRegion(p, regionSlug)
+  return r ? r.pricing : p.pricing
+}
+// Live stock gate used before taking payment (bot) and by the reseller API (409 out_of_stock).
+function isProductAvailable(planId, regionSlug) {
+  const p = getProduct(planId)
+  return !!p && quoteFor(p, regionSlug).in_stock
+}
+// RDP stock per sellable region × tier (reseller GET /rdp/availability, admin stock alerts).
+function availability() {
+  return listRegions().map(r => ({
+    region: r.code, region_slug: r.regionSlug, label: r.display.label, emoji: r.display.emoji,
+    plans: TIERS.map(t => {
+      const q = quoteFor(t, r.regionSlug)
+      return { plan: t.slug, name: t.name, in_stock: q.in_stock, build_region: q.build_region, same_city_fallback: q.same_city, size_slug: q.size_slug, price_usd: sellPrice(t, 1, q.do_cost), base_price_usd: sellPrice(t, 1), surcharge_pct: Math.round((q.price_factor - 1) * 1000) / 10 }
+    }),
+  }))
 }
 function formatSpecs(p) { return p ? `${p.cpuCores || p.vcpus} vCPU · ${p.ramGb} GB RAM · ${p.diskGb} GB NVMe · Windows Server` : '' }
 
@@ -630,25 +708,63 @@ async function pollRdp(serverId, ip, minutes = 90, { callbackGraceMs = 0 } = {})
   return done()
 }
 
-// Run a droplet-creating `create(size)` with the order's size first, then the remaining region
-// candidates when DO answers 422 "not available" (out of stock / family not sold there). Persists
-// the size that actually worked so the record matches the running droplet.
-async function createWithSizeFallback(server, create) {
-  const tier = TIER_BY_SLUG.get(server.tier_slug)
-  const candidates = [...new Set([server.do_size_slug, ...sizeCandidatesFor(tier, server.region)].filter(Boolean))]
+const _notAvailable = (e) => e && e.status === 422 && /not available|invalid size|unavailable|capacity/i.test(e.message || '')
+const _cityLabel = (region) => (REGION_DISPLAY[region] && REGION_DISPLAY[region].label) || region
+
+// Ordered build attempts for an order: AMD sizes within the cost the customer was quoted, the chosen
+// datacenter first then its same-city siblings (on equal cost: chosen DC, then golden-image holders).
+function _attemptsFor(server, osOption, conversionOnly) {
+  const t = TIER_BY_SLUG.get(server.tier_slug)
+  const requested = server.requested_region || server.region
+  const cap = server.max_do_cost || (t && t.monthly_do_cost) || 0
+  const fastIn = (r) => !conversionOnly && goldenFastPathOk({ ...server, region: r }, osOption).ok
+  const rank = (o) => (o.region === requested ? 0 : o.fast ? 1 : 2)
+  return buildOptions(t, requested, { maxCost: cap }).map(o => ({ ...o, fast: fastIn(o.region) }))
+    .sort((a, b) => a.cost - b.cost || rank(a) - rank(b) || a.order - b.order)
+}
+
+// Create the droplet (golden image when the datacenter holds it, else the full conversion), walking
+// the attempts on 422 "not available". Persists where + on what it was actually built.
+async function createDroplet(server, osOption, name, { conversionOnly = false } = {}) {
+  const requested = server.requested_region || server.region
+  const attempts = _attemptsFor(server, osOption, conversionOnly)
+  const tried = []
   let lastErr = null
-  for (const size of candidates) {
+  for (const at of attempts) {
     try {
-      const out = await create(size)
-      if (size !== server.do_size_slug) { server.do_size_slug = size; await _servers.updateOne({ server_id: server.server_id }, { $set: { do_size_slug: size } }) }
-      return out
+      let out
+      if (at.fast) {
+        const sshKeyId = await ensureSshKeyId()
+        const data = await doCreateDroplet({ name, region: at.region, size: at.size, image: osOption.golden_image_id, ssh_keys: [sshKeyId], user_data: buildMetadataUserData(server), tags: ['rdp-reseller'] })
+        out = { dropletId: data.droplet && data.droplet.id, volumeId: null }
+      } else {
+        out = await launchConversion({ name, region: at.region, size: at.size, doc: server, osOption, tags: ['rdp-reseller'] })
+      }
+      server.region = at.region; server.do_size_slug = at.size; server.fast_deploy = at.fast
+      await _servers.updateOne({ server_id: server.server_id }, { $set: {
+        region: at.region, do_size_slug: at.size, do_monthly_cost: at.cost, fast_deploy: at.fast,
+        eta_minutes: at.fast ? fastEta(osOption) : 45, golden_image_id: at.fast ? osOption.golden_image_id : null,
+      } })
+      if (at.region !== requested) await addLog(server.server_id, 'info', `${requested} has no AMD capacity for this plan right now - built in ${at.region} (same city).`)
+      const g = goldenFastPathOk(server, osOption)
+      if (!at.fast && g.goldenReady && g.diskOk && !g.regionReady) {
+        transferGoldenImage(osOption.golden_image_id, at.region, osOption.id).catch(e => log(`on-demand transfer ${osOption.id}→${at.region} failed: ${e.message}`))
+        await addLog(server.server_id, 'info', `Golden image not in ${at.region} yet - using full conversion this time (image transfer started for future orders).`, 5)
+      }
+      return { ...out, fast: at.fast }
     } catch (e) {
-      if (!(e.status === 422 && /not available|invalid size/i.test(e.message))) throw e
+      if (!_notAvailable(e)) throw e
       lastErr = e
-      await addLog(server.server_id, 'info', `${size} is not available in ${server.region} right now - trying the next size...`)
+      sizeCatalog.markRefused(at.size, at.region, e.message)
+      tried.push(`${at.size}@${at.region}`)
+      await addLog(server.server_id, 'info', `${at.size} is not available in ${at.region} right now - trying the next option...`)
     }
   }
-  throw lastErr || new Error(`no droplet size available in ${server.region}`)
+  const tier = TIER_BY_SLUG.get(server.tier_slug)
+  alertAdmin(`oos:${server.tier_slug}:${requested}`, `🔴 RDP out of stock: ${tier ? tier.name : server.tier_slug} in ${_cityLabel(requested)} - no AMD size DigitalOcean will build (${tried.length ? `refused: ${tried.join(', ')}` : 'none in the live catalogue'}). Order ${orderRef(server)} cannot be built.`)
+  const err = new Error(`no AMD capacity for this plan in ${_cityLabel(requested)} right now (${tried.length ? `tried ${tried.join(', ')}` : 'out of stock'})${lastErr ? ` - ${lastErr.message}` : ''}`)
+  err.code = 'out_of_stock'
+  throw err
 }
 
 // Fire-and-forget provisioning orchestrator (golden fast-path → conversion fallback).
@@ -661,15 +777,17 @@ async function provisionServer(serverId) {
     if (!server.admin_password) throw new Error('per-order Administrator password not found in the secret store')
     const osOption = await getOsOption(server.os_id)
     const name = `rdp-${serverId.slice(0, 8)}`
-    const fast = goldenFastPathOk(server, osOption)
-    await _servers.updateOne({ server_id: serverId }, { $set: { fast_deploy: fast.ok, eta_minutes: fast.ok ? fastEta(osOption) : 45, golden_image_id: fast.ok ? osOption.golden_image_id : null } })
+    const first = _attemptsFor(server, osOption)[0]
 
-    if (fast.ok) {
+    if (first && first.fast) {
       watchFastTarget(serverId, Math.max(T.fastTargetMs, fastEta(osOption) * 60000))
       await addLog(serverId, 'creating', 'Creating droplet from golden image (fast, ~2-3 min)...', 10, 'creating')
-      const sshKeyId = await ensureSshKeyId()
-      const data = await createWithSizeFallback(server, (size) => doCreateDroplet({ name, region: server.region, size, image: osOption.golden_image_id, ssh_keys: [sshKeyId], user_data: buildMetadataUserData(server), tags: ['rdp-reseller'] }))
-      const dropletId = data.droplet && data.droplet.id
+    } else {
+      await addLog(serverId, 'creating', 'Creating DigitalOcean droplet + install volume...', 5, 'creating')
+    }
+    let made = await createDroplet(server, osOption, name)
+    if (made.fast) {
+      const dropletId = made.dropletId
       await _servers.updateOne({ server_id: serverId }, { $set: { do_droplet_id: dropletId } })
       await addLog(serverId, 'booting', `Droplet ${dropletId} created from image. Booting...`, 30, 'booting')
       const boot = await waitBootIp(dropletId)
@@ -688,15 +806,12 @@ async function provisionServer(serverId) {
       await addLog(serverId, 'info', `DigitalOcean could not provision droplet ${dropletId} from golden image ${osOption.golden_image_id} (create action errored) - falling back to a full Windows conversion (20-45 min).`, 5)
       log(`fast path failed for ${serverId}: droplet ${dropletId} from image ${osOption.golden_image_id} vanished`)
       alertAdmin(`fallback:${serverId}`, `⚠️ RDP order ${orderRef(server)}: DigitalOcean errored the create from golden image ${osOption.golden_image_id} (droplet ${dropletId} vanished) - falling back to the 20-45 min conversion. Check the image with rdp_golden_build.js status.`)
-    } else if (fast.goldenReady && fast.diskOk && !fast.regionReady) {
-      // Golden image exists but not in this region yet → copy it for next time.
-      transferGoldenImage(osOption.golden_image_id, server.region, osOption.id).catch(e => log(`on-demand transfer ${osOption.id}→${server.region} failed: ${e.message}`))
-      await addLog(serverId, 'info', `Golden image not in ${server.region} yet - using full conversion this time (image transfer started for future orders).`, 5)
+      await addLog(serverId, 'creating', 'Creating DigitalOcean droplet + install volume...', 5, 'creating')
+      made = await createDroplet(server, osOption, name, { conversionOnly: true })
     }
 
     // Full Ubuntu → Windows conversion (onto an attached volume, then dd'd to the boot disk).
-    await addLog(serverId, 'creating', 'Creating DigitalOcean droplet + install volume...', 5, 'creating')
-    const { dropletId, volumeId } = await createWithSizeFallback(server, (size) => launchConversion({ name, region: server.region, size, doc: server, osOption, tags: ['rdp-reseller'] }))
+    const { dropletId, volumeId } = made
     await _servers.updateOne({ server_id: serverId }, { $set: { do_droplet_id: dropletId, volume_id: volumeId } })
     await addLog(serverId, 'booting', `Droplet ${dropletId} created. Waiting for boot...`, 10, 'booting')
     const { ip } = await waitBootIp(dropletId)
@@ -1094,12 +1209,23 @@ async function createInstance(opts = {}) {
   const callbackToken = genToken()
   const label = opts.label || opts.displayName || null
 
-  // Speed lever 2: pick the region-aware DO size — AMD (NVMe) where available, Basic elsewhere.
-  const sizeSlug = sizeSlugFor(product, region)
+  // Where + on which AMD size: the cheapest live option within what the customer was quoted
+  // (maxDoCost from the checkout quote; default = the tier's own cost, so we never absorb a pricier size).
+  const tier = _tierOf(product)
+  const maxDoCost = Number(opts.maxDoCost) > 0 ? Number(opts.maxDoCost) : tier.monthly_do_cost
+  const osOpt = await getOsOption(osId)
+  const pick = _attemptsFor({ tier_slug: product.slug, region, max_do_cost: maxDoCost, disk_gb: product.diskGb }, osOpt)[0]
+  if (!pick) {
+    const err = new Error(`${product.botName} is out of stock in ${_cityLabel(region)} right now (no AMD capacity in ${[region, ...sizeCatalog.sameCityOf(region)].join(', ')}).`)
+    err.code = 'out_of_stock'
+    throw err
+  }
+  const fast = pick.fast
 
   const doc = {
     server_id: serverId, os_id: osId, tier_slug: product.slug,
-    duration_months: product.durationMonths, region, do_size_slug: sizeSlug,
+    duration_months: product.durationMonths, region: pick.region, requested_region: region, do_size_slug: pick.size,
+    do_monthly_cost: pick.cost, max_do_cost: maxDoCost, fast_deploy: fast, eta_minutes: fast ? fastEta(osOpt) : 45,
     disk_gb: product.diskGb, do_droplet_id: null, volume_id: null, ip_address: null,
     admin_username: 'Administrator', callback_token: callbackToken, vnc_password: crypto.randomBytes(6).toString('base64url').slice(0, 8),
     status: 'queued', progress: 0, logs: [], label, product_id: product.productId,
@@ -1108,8 +1234,6 @@ async function createInstance(opts = {}) {
   if (_servers) await _servers.insertOne(doc)
   // Store the password durably so /rdp/:id/credentials can reveal it later.
   await secretStore.putSecret(serverId, adminPassword, { name: `rdp-${serverId.slice(0, 8)}`, provider: PROVIDER })
-  const osOpt = await getOsOption(osId)
-  const fast = goldenFastPathOk(doc, osOpt).ok
 
   // Kick off provisioning asynchronously; return immediately.
   provisionServer(serverId).catch(e => log(`provisionServer(${serverId}) error: ${e.message}`))
@@ -1120,7 +1244,7 @@ async function createInstance(opts = {}) {
     name: label || `rdp-${serverId.slice(0, 8)}`, displayName: label || `rdp-${serverId.slice(0, 8)}`,
     mainIp: null, ipConfig: { v4: { ip: null } },
     status: 'provisioning',
-    region, productId: product.productId, imageId: osId, osType: 'Windows', defaultUser: 'Administrator',
+    region: pick.region, requestedRegion: region, sizeSlug: pick.size, productId: product.productId, imageId: osId, osType: 'Windows', defaultUser: 'Administrator',
     passwordSecretId: opts.rootPassword || serverId,
     defaultPassword: adminPassword,
     osId,
@@ -1539,6 +1663,8 @@ module.exports = {
   init,
   // catalog / pricing
   listProducts, getProduct, calculatePrice, formatSpecs, buildRdpFile, listRegions, REGION_DISPLAY, getDefaultWindowsImageId, sizeCandidatesFor,
+  // live stock (AMD only, same-city fallback, +15% cap passed on in the price)
+  isProductAvailable, quoteFor, buildOptions, productInRegion, availability, MAX_SIZE_COST_FACTOR,
   // lifecycle
   createInstance, createInstanceWithFallback, getInstance, isInstanceGone,
   startInstance, stopInstance, restartInstance, shutdownInstance,
