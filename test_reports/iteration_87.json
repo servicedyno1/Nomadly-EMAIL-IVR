@@ -1,0 +1,39 @@
+{
+  "summary": "Verified new features: Plan comparison table on /store and expiry reminders banner on /panel. All 9 testing areas pass: backend plans fields, /start renew deep-link handler, store compare table (desktop + mobile sticky first column, no overflow), FAQ item 6 copy, 6 panel banner states (A-F) with correct titles/bodies/data-state/renew href, mobile banner + dark mode, i18n FR translations for both banner and comparison table (no raw keys). Mongo wpapps01 restored to original state (expiryDate=2026-10-20T06:39:42.234Z, autoRenew=false).",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "detailed_findings": {
+    "backend_plans": "GET /api/store/plans returns all 3 plans with required fields: premium-weekly {addons:1, mysql:2, captcha:false, geo:false}, premium-monthly {addons:5, mysql:5, captcha:false, geo:false}, golden-monthly {addons:'unlimited', mysql:'unlimited', captcha:true, geo:true}. Existing fields intact.",
+    "deep_link_handler": "js/_index.js line 14224 matches '/start renew' (routes to goto.myHostingPlans), line 14379 onboarding /start condition list includes '/start renew'. Verified via grep.",
+    "store_compare_table": "data-testid='store-compare-table' present. Head cells for all 3 planIds. All 11 row keys present (price,billing,addons,mysql,antired,panel,email,apps,captcha,geo,guarantee). Cell values: addons 1/5/Unlimited, mysql 2/5/Unlimited. Golden column shows 'Most Popular' badge. Buy buttons open store-guest-modal correctly. Captcha weekly cell: center x matches icon center x (0.0 diff — perfectly centered).",
+    "mobile_390": "Page scrollWidth==clientWidth==390 (NO horizontal overflow). .lp-cmp-scroll scrollWidth=560 > clientWidth=356 (horizontal scroll inside container). First column computed position:sticky left:0. After scrollLeft=200, first column bounding x stays at 17 (pinned correctly).",
+    "faq_item_6": "store-faq-a-6: 'The weekly plan includes 1 addon domain and 2 MySQL databases. The monthly plan raises that to 5 addon domains and 5 databases. Golden adds unlimited addon domains and databases, plus visitor captcha and geo controls.' — matches spec.",
+    "panel_banner_states": {
+      "A (now+2.5d, autoRenew ON)": "state=soon, title='Your plan expires in 2 days', body='Auto-renew is on. We'll renew from your wallet, so make sure it has enough balance.', href=https://t.me/Nomadlytestbot?start=renew, target=_blank. Expiry card '2 days left'.",
+      "B (now+2.5d, autoRenew OFF)": "state=soon, title='Your plan expires in 2 days', body='Auto-renew is off. Renew now so your site stays online.'",
+      "C (now+1d2h)": "state=soon, title='Your plan expires in 1 day' (singular). Card '1 day left'.",
+      "D (now+5h)": "state=soon, title='Your plan expires in less than a day'. Card 'Less than a day left'.",
+      "E (now-1h)": "state=expired, title='Your plan has expired', body='Renew now to keep your site online and your files safe.' Card 'Expired'.",
+      "F (now+6d)": "NO banner shown (correctly suppressed above 3-day threshold). Card shows '5 days left' (floor due to time elapsed since mongo set; expected behavior).",
+      "panel-qa-renew": "href=https://t.me/Nomadlytestbot?start=renew target=_blank — matches banner."
+    },
+    "panel_mobile_dark": "No horizontal overflow on 390. Renew button width 320 out of 358 banner width (full-ish). Dark mode toggle flips html.dark, banner title remains visible/readable in dark theme.",
+    "i18n_fr": "FR banner title='Votre offre expire dans 2 jours', body='Le renouvellement auto est désactivé. Renouvelez maintenant pour garder votre site en ligne.' Store compare row labels all translated (Prix, Facturation, Domaines additionnels, Bases MySQL, Protection Anti-Red, HostPanel + gestionnaire de fichiers, Comptes e-mail, Applications en un clic, Captcha visiteurs, Contrôle géographique, Garantie de remplacement). Zero raw i18n key leaks (no 'store.lp.*' or 'dashboard.ov.*' present).",
+    "regression": "Store hero + CTA, plan Buy Now → GuestBuyModal, FAQ expand, panel tabs navigate — all unchanged from iteration_86."
+  },
+  "test_report_links": ["/app/test_reports/iteration_87.json"],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [],
+  "success_rate": { "backend": "100%", "frontend": "100%" },
+  "test_credentials": "wpapps01 / 246810 — verified working.",
+  "seed_data_creation": "Transient mongo edits to cpanelAccounts.wpapps01 (expiryDate + autoRenew) for the 6 banner states. RESTORED at end to expiryDate=2026-10-20T06:39:42.234Z, autoRenew=false per main agent instructions.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "New features (Plan Compare table + Panel Expiry Banner) fully verified on preview. All 6 banner states (soon/expired variations with autoRenew on/off) render correct copy, data-state, singular/plural, and renew href https://t.me/Nomadlytestbot?start=renew. Compare table has sticky first column on mobile, no page overflow, correct values from server plans. I18n FR verified clean. Mongo wpapps01 restored to original.",
+  "rca of the issue": "N/A — verification only, zero defects."
+}

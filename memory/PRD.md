@@ -1,5 +1,14 @@
 # PRD — Nomadly Cloud IVR + Telegram Bot
 
+## 2026-10-14e — Plan comparison table + panel expiry banner + bot `/start renew` — TESTED (iteration_87 100%) & LIVE on all 3 brands (hot-patch #2)
+- User saved to GitHub at 12:52 (commit 4cf61e85) → CI redeployed all 3 with the landing/panel rebuild + `/brand/` passthrough (real logos now live on Nomadly/Smadav too).
+- `/api/store/plans` now has `mysql` (from whm-service PLAN_MYSQL_LIMITS: 2/5/unlimited), `captcha`, `geo` per plan. FAQ 6 corrected (weekly has 2 DBs).
+- Storefront `components/store/PlanCompare.js`: "Compare plans" table under the plan cards (11 rows, Golden column highlighted, Buy buttons → GuestBuyModal), sticky feature column + sideways scroll on phones.
+- Panel Overview `ExpiryBanner`: shows at ≤3 days (amber; "less than a day" / "1 day" / "N days" plurals) and red when expired; text changes with auto-renew on/off; "Renew now" → `https://t.me/<brand bot>?start=renew`. Quick action "Renew or upgrade" uses the same link.
+- Bot `_index.js`: `/start renew` deep link → My Hosting Plans (same handler as `/start pinreset`), also in the onboarding /start condition.
+- Prod hot-patch (pending "Save to GitHub"): rebuilt each brand's frontend from its live tree + REACT_APP env, swapped build (`build.prev-20261014T1306*`), copied src + `js/_index.js` (WL: targeted patch) + `js/store-routes.js`, restarted `app-*-a` slots at 0 calls → healthy. Backups `/opt/nomadly/logs/*-hp2-backup-20261014T1306*.tgz`.
+
+
 ## 2026-10-14d — Storefront sales landing + HostPanel shell rebuild — TESTED (iteration_86 100%) & LIVE on all 3 brands (hot-patch)
 - User asks: "fix all end to end" UX audit (5-sec test, Fitts CTA, Z-pattern, 8pt, Gestalt, H1/H2/H3, Hook→Problem/Solution→Proof→FAQ→CTA, 390px). Choices: NO made-up numbers (non-numeric trust only), LIGHT default + toggle, deploy all brands.
 - Storefront (`pages/Storefront.js` + `components/store/{LandingSections,HeroVisual,StoreFooter}.js`, `store-landing.css`): header nav + Sign in, hero (H1, sub, explainer, big coral CTA → #plans, cheapest-plan microcopy, animated brand-neutral "link status" visual), trust bar, standard-vs-Anti-Red compare, 3 steps, pricing (same testids, GuestBuyModal/CryptoPayBox untouched), proof + free-replacement card (support link), sign-in section (no autofocus), 7-item FAQ, final CTA band, footer (support, bot, "Store online"). Removed "99.9% uptime" claim. Decorative tints use `--brand-accent`.
