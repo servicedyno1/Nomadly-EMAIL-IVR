@@ -390,7 +390,10 @@ function createStoreRoutes(deps = {}) {
   router.get('/config', (req, res) => {
     const smsBrand = require('./sms-app-brand.js')
     const brandName = process.env.STORE_BRAND_NAME || smsBrand.brandName()
+    const supportHandle = (process.env.SUPPORT_HANDLE || '').trim()
     res.json({
+      supportHandle,
+      supportLink: supportHandle ? `https://t.me/${supportHandle.replace(/^@/, '')}` : '',
       botUsername: process.env.TELEGRAM_BOT_USERNAME || smsBrand.botUsername(),
       botStartPayload: 'web-login',
       brandName,

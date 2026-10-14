@@ -25,7 +25,7 @@ Third brand on the same droplet (`nomadly-prod-ams3`, 146.190.238.190), same cod
   messaging profile 4001a13a-23a5-430d-8c9c-8e7c4f6bdc4a — `js/ops/voodoo_telnyx_setup.js`), OpenAI, Twilio
   (SIP domain prefix `voodoo`), Cloudflare, OpenProvider, DigitalOcean, WHM, Safe Browsing
 - Contabo / Railway keys intentionally blank (VPS = DigitalOcean only)
-- Placeholders until owner supplies: support = @onarrival1, TG channel/handle = @Voodoo_landbot
+- Placeholders until owner supplies: support + channel = @Voodoo_land / https://t.me/voodoo_land (all SUPPORT_*, APP_SUPPORT_LINK, TG_*, REACT_APP_BRAND_SUPPORT)
 
 ## Brand
 - `CHAT_BOT_BRAND="Voodoo Land"` → slug `voodooland`; accent #14B8A6, bg #0b1215; "VL" mark + "VOODOO LAND" wordmark

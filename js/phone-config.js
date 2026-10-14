@@ -453,11 +453,13 @@ const upgradeMessage = (feature, currentPlan, lang) => {
   // legacy data flag that hasn't been cleared yet). Tells the user to
   // contact support instead of trying to upgrade to a plan they're already
   // on (which would do nothing).
+  // Brand's support group (Nomadly → @Hostbay_support; white-labels set SUPPORT_HANDLE_2 in their .env).
+  const sup = process.env.SUPPORT_HANDLE_2 || '@Hostbay_support'
   const lockedTemplates = {
-    en: (fn, cp) => `🔒 <b>${fn}</b> is temporarily unavailable on this number.\n\nYour current plan: <b>${cp}</b> (already includes this feature).\n\nPlease contact <b>@Hostbay_support</b> — we'll re-enable it for you.`,
-    fr: (fn, cp) => `🔒 <b>${fn}</b> est temporairement indisponible sur ce numéro.\n\nVotre forfait actuel : <b>${cp}</b> (inclut déjà cette fonctionnalité).\n\nContactez <b>@Hostbay_support</b> — nous la réactiverons pour vous.`,
-    zh: (fn, cp) => `🔒 <b>${fn}</b> 在此号码上暂时不可用。\n\n当前套餐：<b>${cp}</b>（已包含此功能）。\n\n请联系 <b>@Hostbay_support</b> — 我们将为您重新启用。`,
-    hi: (fn, cp) => `🔒 इस नंबर पर <b>${fn}</b> अस्थायी रूप से अनुपलब्ध है।\n\nआपका वर्तमान प्लान: <b>${cp}</b> (इस सुविधा को पहले से शामिल करता है)।\n\nकृपया <b>@Hostbay_support</b> से संपर्क करें — हम इसे पुनः सक्षम करेंगे।`,
+    en: (fn, cp) => `🔒 <b>${fn}</b> is temporarily unavailable on this number.\n\nYour current plan: <b>${cp}</b> (already includes this feature).\n\nPlease contact <b>${sup}</b> — we'll re-enable it for you.`,
+    fr: (fn, cp) => `🔒 <b>${fn}</b> est temporairement indisponible sur ce numéro.\n\nVotre forfait actuel : <b>${cp}</b> (inclut déjà cette fonctionnalité).\n\nContactez <b>${sup}</b> — nous la réactiverons pour vous.`,
+    zh: (fn, cp) => `🔒 <b>${fn}</b> 在此号码上暂时不可用。\n\n当前套餐：<b>${cp}</b>（已包含此功能）。\n\n请联系 <b>${sup}</b> — 我们将为您重新启用。`,
+    hi: (fn, cp) => `🔒 इस नंबर पर <b>${fn}</b> अस्थायी रूप से अनुपलब्ध है।\n\nआपका वर्तमान प्लान: <b>${cp}</b> (इस सुविधा को पहले से शामिल करता है)।\n\nकृपया <b>${sup}</b> से संपर्क करें — हम इसे पुनः सक्षम करेंगे।`,
   }
   // SIP-credentials specific upgrade pitch — for STARTER users who tap the
   // gated menu. Reassures them that credentials already exist on Telnyx

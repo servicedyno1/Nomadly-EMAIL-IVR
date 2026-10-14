@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../components/panel/AuthContext';
 import FileManager from '../components/panel/FileManager';
@@ -11,11 +11,13 @@ import Analytics from '../components/panel/Analytics';
 import SecurityPanel from '../components/panel/SecurityPanel';
 import AccountSettings from '../components/panel/AccountSettings';
 import SiteStatusCard from '../components/panel/SiteStatusCard';
+import PanelOverview from '../components/panel/PanelOverview';
 import LanguageSwitcher from '../components/LanguageSwitcher';
 import useTheme from '../components/panel/useTheme';
 import { useBrand, BrandMark } from '../hooks/useBrand';
 
 const TABS = [
+  { id: 'overview', i18nKey: 'overview', icon: 'home' },
   { id: 'site', i18nKey: 'site', icon: 'power' },
   { id: 'files', i18nKey: 'files', icon: 'folder' },
   { id: 'domains', i18nKey: 'domains', icon: 'globe' },
@@ -31,8 +33,19 @@ const TABS = [
 export default function PanelDashboard() {
   const { t } = useTranslation();
   const { user, logout } = useAuth();
-  const [activeTab, setActiveTab] = useState('files');
+  const [activeTab, setActiveTab] = useState('overview');
   const { theme, toggleTheme, isDark } = useTheme();
+  const tabsRef = useRef(null);
+  const [tabsAtEnd, setTabsAtEnd] = useState(false);
+  const onTabsScroll = useCallback(() => {
+    const el = tabsRef.current;
+    if (el) setTabsAtEnd(el.scrollLeft + el.clientWidth >= el.scrollWidth - 4);
+  }, []);
+  useEffect(() => {
+    const el = tabsRef.current?.querySelector('.panel-tab--active');
+    if (el && el.scrollIntoView) el.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' });
+    onTabsScroll();
+  }, [activeTab, onTabsScroll]);
   // Cross-tab navigation: DomainList → FileManager
   const [fileManagerTargetDir, setFileManagerTargetDir] = useState(null);
 
@@ -57,21 +70,21 @@ export default function PanelDashboard() {
             href={`https://${user?.domain}`} 
             target="_blank" 
             rel="noopener noreferrer" 
-            className="panel-header-domain" 
+            className="panel-header-domain panel-hdr-site" 
             data-testid="panel-domain"
             title={t('dashboard.visitWebsite')}
           >
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10A15.3 15.3 0 0112 2z"/></svg>
-            {user?.domain}
+            <span className="panel-hdr-text">{user?.domain}</span>
           </a>
         </div>
         <div className="panel-header-right">
-          <a href="/store" className="panel-header-domain" data-testid="panel-store-link" title="Buy another hosting plan">
+          <a href="/store" className="panel-header-domain panel-hdr-buy" data-testid="panel-store-link" title={t('dashboard.buyMore')} aria-label={t('dashboard.buyMore')}>
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 002 1.61h9.72a2 2 0 002-1.61L23 6H6"/></svg>
-            Buy more
+            <span className="panel-hdr-text">{t('dashboard.buyMore')}</span>
           </a>
           <LanguageSwitcher />
-          <button onClick={toggleTheme} className="panel-theme-btn" data-testid="panel-theme-toggle" title={isDark ? t('login.switchToLight') : t('login.switchToDark')}>
+          <button onClick={toggleTheme} className="panel-theme-btn" data-testid="panel-theme-toggle" title={isDark ? t('login.switchToLight') : t('login.switchToDark')} aria-label={isDark ? t('login.switchToLight') : t('login.switchToDark')}>
             {isDark ? (
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
             ) : (
@@ -80,16 +93,17 @@ export default function PanelDashboard() {
           </button>
           <span className="panel-header-user" data-testid="panel-username">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-            {user?.username}
+            <span className="panel-hdr-text">{user?.username}</span>
           </span>
-          <button onClick={logout} className="panel-logout-btn" data-testid="panel-logout-btn">
+          <button onClick={logout} className="panel-logout-btn" data-testid="panel-logout-btn" aria-label={t('account.logout')}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-            {t('account.logout')}
+            <span className="panel-hdr-text">{t('account.logout')}</span>
           </button>
         </div>
       </header>
 
-      <nav className="panel-tabs" data-testid="panel-tabs">
+      <div className={`panel-tabs-wrap ${tabsAtEnd ? 'panel-tabs-wrap--end' : ''}`}>
+      <nav className="panel-tabs" data-testid="panel-tabs" ref={tabsRef} onScroll={onTabsScroll}>
         {TABS.map(tab => {
           // Tab-level lock badge (small lock icon next to the label): geo is Gold-only.
           const locked = tab.id === 'geo' && !user?.isGold;
@@ -124,8 +138,20 @@ export default function PanelDashboard() {
           );
         })}
       </nav>
+      </div>
 
       <main className="panel-main" data-testid="panel-main">
+        {activeTab === 'overview' && <PanelOverview onNavigate={setActiveTab} />}
+        {activeTab !== 'overview' && (
+          <div className="panel-page-head" data-testid="panel-page-head">
+            <h1 className="panel-page-title" data-testid="panel-page-title">
+              <span className="panel-page-crumb">{brand.brandName}</span>
+              <span className="panel-page-sep" aria-hidden="true">/</span>
+              <span>{t(`dashboard.titles.${activeTab}`)}</span>
+            </h1>
+            <p className="panel-page-desc" data-testid="panel-page-desc">{t(`dashboard.descs.${activeTab}`)}</p>
+          </div>
+        )}
         {activeTab === 'site' && (
           <div className="acct-section" data-testid="site-status-section">
             <SiteStatusCard />
@@ -156,6 +182,7 @@ function TabIcon({ name }) {
     chart: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>,
     user: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>,
     apps: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><path d="M17.5 14v7M14 17.5h7"/></svg>,
+    home: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 10.5L12 3l9 7.5V20a1 1 0 01-1 1h-5v-6H9v6H4a1 1 0 01-1-1z"/></svg>,
     power: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18.36 6.64a9 9 0 11-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/></svg>,
   };
   return icons[name] || null;

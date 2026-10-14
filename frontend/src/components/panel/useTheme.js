@@ -2,31 +2,12 @@ import { useState, useEffect, useCallback } from 'react';
 
 const STORAGE_KEY = 'panel-theme-pref';
 
-/**
- * Auto-detects device dark/light mode, allows manual override.
- * Returns { theme: 'dark'|'light', toggleTheme, isDark }
- */
+// Light by default; a manual toggle is remembered in localStorage.
 export default function useTheme() {
   const [theme, setTheme] = useState(() => {
-    // 1. Check localStorage for user override
     const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored === 'dark' || stored === 'light') return stored;
-    // 2. Auto-detect from system
-    if (window.matchMedia?.('(prefers-color-scheme: light)').matches) return 'light';
-    return 'dark';
+    return stored === 'dark' ? 'dark' : 'light';
   });
-
-  // Listen to OS-level changes (only if user hasn't overridden)
-  useEffect(() => {
-    const mql = window.matchMedia('(prefers-color-scheme: dark)');
-    const handler = (e) => {
-      if (!localStorage.getItem(STORAGE_KEY)) {
-        setTheme(e.matches ? 'dark' : 'light');
-      }
-    };
-    mql.addEventListener('change', handler);
-    return () => mql.removeEventListener('change', handler);
-  }, []);
 
   // Sync theme across browser tabs via storage event
   useEffect(() => {

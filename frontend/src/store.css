@@ -233,7 +233,7 @@ html.dark .store-plan-card--gold {
   font-size: clamp(26px, 4vw, 32px); font-weight: 800;
   margin: 8px 0 10px; letter-spacing: -0.02em;
 }
-.store-plan-price span {
+.store-plan-price .store-plan-per {
   font-size: 14px; font-weight: 500; color: var(--st-text-muted);
   margin-left: 2px;
 }

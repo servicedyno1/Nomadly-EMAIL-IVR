@@ -6,6 +6,10 @@ import { LanguageSwitcher } from '../components/LanguageSwitcher';
 import { StoreProvider, useStore } from '../components/store/StoreContext';
 import useTheme from '../components/panel/useTheme';
 import { useBrand } from '../hooks/useBrand';
+import {
+  scrollToId, HeroSection, TrustBar, CompareSection, HowItWorks, PricingSection, ProofSection, FaqSection, FinalCta,
+} from '../components/store/LandingSections';
+import { StoreFooter } from '../components/store/StoreFooter';
 
 const money = (n) => `$${Number(n || 0).toFixed(2)}`;
 const BACKEND = process.env.REACT_APP_BACKEND_URL || '';
@@ -328,8 +332,10 @@ function BrandLogo({ logoUrl, letter }) {
   return <span className="store-logo" data-testid="store-logo-letter">{letter || 'H'}</span>;
 }
 
-function StoreHeader({ rightExtras }) {
-  const { theme, toggleTheme, isDark } = useTheme();
+const NAV = [['plans', 'navPlans'], ['how', 'navHow'], ['faq', 'navFaq']];
+
+function StoreHeader({ rightExtras, landing }) {
+  const { toggleTheme, isDark } = useTheme();
   const { t } = useTranslation();
   const brand = useBrand();
   useEffect(() => {
@@ -342,8 +348,20 @@ function StoreHeader({ rightExtras }) {
         <span className="store-brand-name" data-testid="store-brand-name">{brand.brandName}</span>
         <span className="store-sub">Anti-Red Hosting</span>
       </div>
+      {landing && (
+        <nav className="lp-nav" aria-label={t('store.lp.navAria')} data-testid="store-nav">
+          {NAV.map(([id, key]) => (
+            <a key={id} href={`#${id}`} onClick={e => scrollToId(e, id)} data-testid={`store-nav-${id}`}>{t(`store.lp.${key}`)}</a>
+          ))}
+        </nav>
+      )}
       <div className="store-top-right">
         {rightExtras}
+        {landing && (
+          <a href="#store-signin" onClick={e => scrollToId(e, 'store-signin')} className="lp-signin-link" data-testid="store-header-signin">
+            {t('store.lp.navSignIn')}
+          </a>
+        )}
         <LanguageSwitcher />
         <button
           className="store-icon-btn"
@@ -363,7 +381,7 @@ function StoreHeader({ rightExtras }) {
    crypto-only, instant-delivery product. */
 function TrustRow({ supportHandle }) {
   const { t } = useTranslation();
-  const items = [t('store.trustInstant'), t('store.trustReplace'), t('store.trustUptime'), t('store.trustNoLogin')];
+  const items = [t('store.trustInstant'), t('store.trustReplace'), t('store.trustNoLogin')];
   if (supportHandle) items.push(t('store.trustSupport', { handle: supportHandle }));
   return (
     <div className="store-trust-row" data-testid="store-trust-row">
@@ -372,21 +390,62 @@ function TrustRow({ supportHandle }) {
   );
 }
 
-/* ─────────────── Not logged in: showcase + UNIFIED auth ─────────────── */
+/* ─────────────── Not logged in: sales landing + UNIFIED auth ─────────────── */
 function AuthGate({ plans, config, botLoginError }) {
+  const brand = useBrand();
+  const [buyPlan, setBuyPlan] = useState(null);
+  return (
+    <div className="lp" data-testid="store-landing">
+      <StoreHeader landing />
+      <main>
+        <HeroSection plans={plans} />
+        <TrustBar />
+        <CompareSection brandName={brand.brandName} />
+        <HowItWorks />
+        <PricingSection plans={plans} onBuy={setBuyPlan}>
+          <TrustRow supportHandle={config?.supportHandle} />
+        </PricingSection>
+        <ProofSection supportHandle={config?.supportHandle} supportLink={config?.supportLink} />
+        <SignInSection config={config} botLoginError={botLoginError} />
+        <FaqSection />
+        <FinalCta />
+      </main>
+      <StoreFooter brand={brand} config={config} online={plans.length > 0} />
+      {buyPlan && <GuestBuyModal plan={buyPlan} onClose={() => setBuyPlan(null)} />}
+    </div>
+  );
+}
+
+function SignInSection({ config, botLoginError }) {
+  const { t } = useTranslation();
+  return (
+    <section className="lp-section lp-section--inset" id="store-signin" data-testid="store-signin-section">
+      <div className="lp-wrap lp-signin">
+        <div className="lp-signin-copy">
+          <span className="lp-kicker">{t('store.lp.signinKicker')}</span>
+          <h2 className="lp-h2">{t('store.lp.signinTitle')}</h2>
+          <p className="lp-sub">{t('store.lp.signinSub')}</p>
+          <ul className="lp-signin-list">
+            {[1, 2, 3].map(i => <li key={i}><span className="lp-signin-tick" aria-hidden="true">✓</span>{t(`store.lp.signin${i}`)}</li>)}
+          </ul>
+        </div>
+        <AuthCard config={config} botLoginError={botLoginError} />
+      </div>
+    </section>
+  );
+}
+
+function AuthCard({ config, botLoginError }) {
   const { login: webLogin } = useStore();
   const { t } = useTranslation();
   const [identifier, setIdentifier] = useState('');
   const [secret, setSecret] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(botLoginError || '');
-  const [buyPlan, setBuyPlan] = useState(null);
 
-  // Surface bot-login failure as a regular form error so it's visible.
   useEffect(() => { if (botLoginError) setError(botLoginError); }, [botLoginError]);
 
-  // Build the Telegram deep-link used by the QR + "Open Telegram" button.
-  // Rendered only once /api/store/config has told us THIS deployment's bot.
+  // Telegram deep-link for THIS deployment's bot (from /api/store/config).
   const botUsername = (config?.botUsername || '').replace(/^@/, '');
   const startPayload = config?.botStartPayload || 'web-login';
   const tgDeepLink = botUsername ? `https://t.me/${botUsername}?start=${encodeURIComponent(startPayload)}` : '';
@@ -398,11 +457,8 @@ function AuthGate({ plans, config, botLoginError }) {
     const pw = secret;
     try {
       if (isEmail(id)) {
-        // Email → web storefront login (existing webUser collection)
         await webLogin(id.toLowerCase(), pw);
-        // success → useStore() user becomes truthy → Dashboard renders
       } else {
-        // Username → HostPanel login. On success, store panel_session and route to /panel.
         const res = await fetch(`${BACKEND}/api/panel/login`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -410,13 +466,7 @@ function AuthGate({ plans, config, botLoginError }) {
         });
         const body = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(body.error || `Login failed (${res.status})`);
-        const session = {
-          token: body.token,
-          username: body.username,
-          domain: body.domain,
-          isGold: !!body.isGold,
-          plan: body.plan || '',
-        };
+        const session = { token: body.token, username: body.username, domain: body.domain, isGold: !!body.isGold, plan: body.plan || '' };
         sessionStorage.setItem('panel_session', JSON.stringify(session));
         window.location.href = '/panel';
       }
@@ -428,115 +478,38 @@ function AuthGate({ plans, config, botLoginError }) {
   };
 
   return (
-    <div className="store-landing">
-      <StoreHeader />
-
-      <div className="store-landing-grid">
-        {/* RIGHT column on desktop, BELOW plans on mobile: unified single login */}
-        <aside className="store-landing-right" id="store-signin">
-          <section className="store-auth-card" data-testid="store-auth-card">
-            <h2 className="store-auth-title">{t('store.loginTitle')}</h2>
-            <p className="store-muted store-auth-sub">{t('store.loginSub')}</p>
-            <p className="store-auth-hint" data-testid="store-login-helper">{t('store.loginHelper')}</p>
-            <form onSubmit={submit}>
-              {error && <div className="store-error" data-testid="store-auth-error">{error}</div>}
-              <label className="store-label" htmlFor="store-id-input">{t('store.userOrEmail')}</label>
-              <input
-                id="store-id-input"
-                type="text"
-                inputMode="email"
-                autoComplete="username"
-                placeholder={t('store.userOrEmailPh')}
-                value={identifier}
-                onChange={e => setIdentifier(e.target.value)}
-                required
-                autoFocus
-                data-testid="store-id-input"
-              />
-              <label className="store-label" htmlFor="store-secret-input">{t('store.passOrPin')}</label>
-              <input
-                id="store-secret-input"
-                type="password"
-                autoComplete="current-password"
-                placeholder={t('store.passOrPinPh')}
-                value={secret}
-                onChange={e => setSecret(e.target.value)}
-                required
-                data-testid="store-secret-input"
-              />
-              <button type="submit" className="store-btn store-btn--primary" disabled={busy || !identifier.trim() || !secret} data-testid="store-auth-submit">
-                {busy ? t('store.pleaseWait') : t('store.signInBtn')}
-              </button>
-            </form>
-            <p className="store-muted store-auth-help" data-testid="store-no-acct">
-              {t('store.noAcct')}
-            </p>
-
-            {/* ── Continue with Telegram: one-tap login via the bot ── */}
-            {tgDeepLink && (
-            <div className="store-tg-section" data-testid="store-tg-section">
-              <div className="store-tg-divider"><span>{t('store.orDivider')}</span></div>
-              <a
-                href={tgDeepLink}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="store-btn store-btn--telegram"
-                data-testid="store-tg-button"
-              >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221l-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.446 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.022c.24-.213-.054-.334-.373-.121l-6.871 4.326-2.96-.924c-.643-.204-.66-.643.135-.953l11.566-4.458c.532-.196.998.128.832.938z"/></svg>
-                {t('store.tgButton')}
-              </a>
-              <div className="store-tg-qr-wrap">
-                <div className="store-tg-qr" data-testid="store-tg-qr">
-                  <QRCode value={tgDeepLink} size={132} bgColor="#ffffff" fgColor="#0b0e14" />
-                </div>
-                <p className="store-muted store-tg-qr-cap">{t('store.tgScanCap')}</p>
-              </div>
+    <div className="store-auth-card" data-testid="store-auth-card">
+      <h3 className="store-auth-title">{t('store.loginTitle')}</h3>
+      <p className="store-muted store-auth-sub">{t('store.loginSub')}</p>
+      <p className="store-auth-hint" data-testid="store-login-helper">{t('store.loginHelper')}</p>
+      <form onSubmit={submit}>
+        {error && <div className="store-error" data-testid="store-auth-error">{error}</div>}
+        <label className="store-label" htmlFor="store-id-input">{t('store.userOrEmail')}</label>
+        <input id="store-id-input" type="text" inputMode="email" autoComplete="username" placeholder={t('store.userOrEmailPh')}
+          value={identifier} onChange={e => setIdentifier(e.target.value)} required data-testid="store-id-input" />
+        <label className="store-label" htmlFor="store-secret-input">{t('store.passOrPin')}</label>
+        <input id="store-secret-input" type="password" autoComplete="current-password" placeholder={t('store.passOrPinPh')}
+          value={secret} onChange={e => setSecret(e.target.value)} required data-testid="store-secret-input" />
+        <button type="submit" className="store-btn store-btn--primary" disabled={busy || !identifier.trim() || !secret} data-testid="store-auth-submit">
+          {busy ? t('store.pleaseWait') : t('store.signInBtn')}
+        </button>
+      </form>
+      <p className="store-muted store-auth-help" data-testid="store-no-acct">{t('store.noAcct')}</p>
+      {tgDeepLink && (
+        <div className="store-tg-section" data-testid="store-tg-section">
+          <div className="store-tg-divider"><span>{t('store.orDivider')}</span></div>
+          <a href={tgDeepLink} target="_blank" rel="noopener noreferrer" className="store-btn store-btn--telegram" data-testid="store-tg-button">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221l-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.446 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.022c.24-.213-.054-.334-.373-.121l-6.871 4.326-2.96-.924c-.643-.204-.66-.643.135-.953l11.566-4.458c.532-.196.998.128.832.938z"/></svg>
+            {t('store.tgButton')}
+          </a>
+          <div className="store-tg-qr-wrap">
+            <div className="store-tg-qr" data-testid="store-tg-qr">
+              <QRCode value={tgDeepLink} size={132} bgColor="#ffffff" fgColor="#0b0e14" />
             </div>
-            )}
-          </section>
-        </aside>
-
-        {/* LEFT column on desktop, FIRST on mobile: hero + plans */}
-        <div className="store-landing-left">
-          <section className="store-hero">
-            <h1>{t('store.heroTitle')}</h1>
-            <p>{t('store.tagline')}</p>
-            <p className="store-hero-explainer" data-testid="store-antired-explainer">{t('store.antiRedExplainer')}</p>
-            <a href="#store-signin" className="store-hero-signin" data-testid="store-mobile-signin">{t('store.signInMobile')} ↓</a>
-          </section>
-
-          <section className="store-plan-grid" data-testid="store-plans">
-            {plans.map(p => {
-              const isGold = p.tier === 'gold';
-              const per = p.durationDays === 7 ? t('store.perWeek') : t('store.perMonth');
-              const moEq = p.durationDays === 7 ? (Number(p.priceUsd) * 30 / 7) : null;
-              return (
-                <div key={p.id} className={`store-plan-card ${isGold ? 'store-plan-card--gold' : ''}`} data-testid={`store-plan-${p.id}`}>
-                  {isGold && <div className="store-plan-badge" data-testid={`store-badge-${p.id}`}>{t('store.badgePopular')}</div>}
-                  <div className="store-plan-name">{p.name}</div>
-                  <div className="store-plan-price">{money(p.priceUsd)}<span className="store-plan-per">/{per}</span></div>
-                  <div className="store-plan-billing" data-testid={`store-billing-${p.id}`}>
-                    {moEq ? `${t('store.moEquiv', { amount: money(moEq) })} · ${t('store.billedWeekly')}` : t('store.billedMonthly')}
-                  </div>
-                  <ul className="store-plan-feats">{(p.features || []).map((f, i) => <li key={i}><span className="store-feat-check" aria-hidden="true">✓</span>{f}</li>)}</ul>
-                  <button
-                    className={`store-btn store-btn--primary ${isGold ? 'store-btn--gold' : ''}`}
-                    onClick={() => setBuyPlan(p)}
-                    data-testid={`store-buynow-${p.id}`}
-                  >
-                    {isGold ? t('store.getPlan', { name: (p.name || '').split(' ')[0] }) : t('store.buyNow')}
-                  </button>
-                </div>
-              );
-            })}
-          </section>
-
-          <TrustRow supportHandle={config?.supportHandle} />
+            <p className="store-muted store-tg-qr-cap">{t('store.tgScanCap')}</p>
+          </div>
         </div>
-      </div>
-
-      {buyPlan && <GuestBuyModal plan={buyPlan} onClose={() => setBuyPlan(null)} />}
+      )}
     </div>
   );
 }

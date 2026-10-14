@@ -10,6 +10,8 @@ import Storefront from './pages/Storefront';
 import './App.css';
 import './panel-v2.css';
 import './store.css';
+import './store-landing.css';
+import './panel-v3.css';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || '';
 const PANEL_DOMAIN = (process.env.REACT_APP_PANEL_DOMAIN || 'panel.hostbay.io').toLowerCase();
