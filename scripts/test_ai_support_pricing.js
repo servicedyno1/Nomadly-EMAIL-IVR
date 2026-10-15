@@ -83,6 +83,7 @@ const CASES = [
     maxWords: 150,
     maxLines: 14,
     noMixedBullets: true,
+    noFillerCloser: true,
   },
 ]
 
@@ -113,7 +114,7 @@ const CASES = [
     if (c.maxWords) { const w = last.split(/\s+/).filter(Boolean).length; if (w > c.maxWords) problems.push(`too long: ${w} words > ${c.maxWords}`) }
     if (c.maxLines) { const ln = last.split('\n').filter(s => s.trim()).length; if (ln > c.maxLines) problems.push(`too many lines: ${ln} > ${c.maxLines}`) }
     if (c.noMixedBullets) { const hasDash = /(^|\n)\s*-\s+\S/.test(last); const hasDot = /(^|\n)\s*•\s+\S/.test(last); if (hasDash && hasDot) problems.push('mixes "-" and "•" bullets') }
-    if (c.noFillerCloser && /\b(anything else|need help with (anything|something)|let me know if you need)\b/i.test(last)) problems.push('has filler closer')
+    if (c.noFillerCloser && /\b(anything else|need help with (anything|something)|let me know if|need help setting up|happy to help|feel free to ask)\b/i.test(last)) problems.push('has filler closer')
     if (problems.length) { fail++; console.log(`RESULT: ❌ FAIL — ${problems.join('; ')}`) }
     else { pass++; console.log('RESULT: ✅ PASS') }
   }

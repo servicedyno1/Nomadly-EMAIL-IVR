@@ -1,0 +1,28 @@
+{
+  "summary": "Tested the AI support reply formatting/length fix with real gpt-4.1-mini. Ran the harness scripts/test_ai_support_pricing.js 3 times: 9/9 PASS every time (exit 0), 27/27 case runs in total. Wrote a separate metrics script (scripts/qa_fmt_metrics.js) and ran it 3 more times to get exact word/line counts and to try two extra questions (VPS setup, French SIP). SIP answer: 124/126/127 words, 9 lines each run (limit 170 words / 16 lines; old output was ~204 words / 22 lines). Hosting-panel answer: 67/65/68 words, 8 lines (limit 150 / 14). No mixed '-'/'•' bullets in any answer, and <b> tags were always balanced. Answers are still complete: the SIP answer mentions Cloud IVR + SIP, Choose a Plan and My Plans; the panel answer mentions My Hosting Plans, Reveal Credentials and the panel URL. All pricing checks still pass ($30/week vs $75/month vs $100/month, ~$105 using $75/MONTH, marketplace $30-$3,000, eSIM $60, Email Blast $0.10, VPS framed as approximate). Code review: both admin-mirror lines in js/_index.js (14914 and 35973) now use safeHtml.substring(0, 3500) + '…'. One leftover problem: an older 'RESPONSE FORMAT' section in the same prompt contradicts the new rules (details in action_items).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "js/ai-support.js SYSTEM_PROMPT ~line 971 '## RESPONSE FORMAT' (legacy)", "issue": "Contradicts the new 'RESPONSE FORMAT & LENGTH' section at line 74. It says 'Keep responses under 300 words' (new rule: ~120), 'use → arrows between steps' (new rule: a single numbered list) and 'Always end with asking if they need anything else' (new rule: drop filler closers). As a result, most replies still end with a soft closer such as 'Let me know if you want setup help!' or 'Need help setting up a softphone?'. This happened in 2 of 3 harness runs for SIP and in the eSIM, Email Blast and VPS answers. The harness filler check only looks for 'anything else' / 'need help with anything', so these closers pass it."},
+      {"endpoint": "js/_index.js:14914 / 35973 admin mirror", "issue": "substring(0, 3500) on HTML can cut through a tag (e.g. '<b>' or '&amp;'), and Telegram then rejects the message with a parse_mode HTML error. This was already possible at 500 chars; at 3500 it only affects very long replies. Consider stripping tags or making sure the cut does not land inside one."}
+    ]
+  },
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": ["/app/scripts/test_ai_support_pricing.js", "/app/scripts/qa_fmt_metrics.js"],
+  "action_items": [
+    "Remove or reword the legacy '## RESPONSE FORMAT' block (~line 971 of js/ai-support.js) so it agrees with the new section: drop 'Always end with asking if they need anything else', change 'under 300 words' to match the ~120-word goal, and change the '→ arrows' instruction to agree with the numbered-list rule. This would remove the remaining soft closers.",
+    "Optional: widen the harness noFillerCloser regex to also catch 'let me know if' and 'need help setting up', so the check is strict.",
+    "Optional: make the 3500-char admin-mirror cut safe for HTML tags."
+  ],
+  "critical_code_review_comments": [
+    "Two RESPONSE FORMAT sections in the same SYSTEM_PROMPT give the model conflicting instructions (length, list style, closing line).",
+    "The admin-mirror change is confirmed at both lines (14914 and 35973): 3500 chars + '…' ellipsis.",
+    "SIP answers sometimes add plan prices (Pro $75/mo, Business $120/mo). These were not asked for, but they are short."
+  ],
+  "updated_files": ["/app/scripts/qa_fmt_metrics.js (new QA metrics helper; no product code changed)"],
+  "success_rate": {"backend": "100% (27/27 harness case runs across 3 runs; extra metric runs within limits)", "frontend": "N/A (skipped)"},
+  "seed_data_creation": "None. Chat history in Mongo DB 'test' was cleared and rewritten for the qa_* chatIds only.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run: cd /app && node scripts/test_ai_support_pricing.js (9 cases, exit 0 = pass). For exact word/line counts run: node scripts/qa_fmt_metrics.js 3. Typical counts: SIP ~125 words / 9 lines; panel ~67 words / 8 lines; VPS ~110 words / 12-13 lines; French SIP ~95 words / 11 lines. The only open item is the conflicting legacy RESPONSE FORMAT block around line 971."
+}
