@@ -1,0 +1,24 @@
+{
+  "summary": "Validated the two new backend features — (1) Web Access invite (hosta.sh) wired into js/web-access.js + js/_index.js + 4 language keyboards, and (2) Password Truth for DO-RDP (boot-secret / passwordStatus / revert-on-failure / Show Password resolver + localized reveal notes). New suites test_web_access_2026-10.js (43/43) and test_rdp_password_truth_2026-10.js (40/40) both pass. node --check js/_index.js passes. All 9 listed regression suites pass (52+73+93+40+31+VPS creds+8/8+25+109 = all green). log-redact still masks <code>password</code> in revealPasswordSuccess and leaves the new rdpState notes & revealPasswordNotApplied text intact. No code changes made.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/js/tests/test_web_access_2026-10.js",
+    "/app/js/tests/test_rdp_password_truth_2026-10.js"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "web-access.js is well-isolated and language keyboards only mutate when WEBSITE_URL is set — Smadav/Voodoo stay unaffected as required.",
+    "passwordStatus() correctly treats pending set_password after reinstall as 'applying' and only falls back to 'boot' after pwApplyGraceMs; _revertToBootPassword updates both the server-id secret AND vpsPlansOf.rootPasswordSecretId so Show Password + reseller credentials stay in sync.",
+    "In-place reset failures intentionally do NOT revert (test confirms) — matches spec.",
+    "Reveal template picks up rdpState without breaking the non-DO-RDP (Linux/Contabo/Vultr) paths; log-redact keeps the message safe to log."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100%", "frontend": "N/A (not tested per request)"},
+  "test_credentials": "N/A (no auth paths touched)",
+  "seed_data_creation": "None — tests stub axios and use isolated DBs internally",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Nomadly has WEBSITE_URL=https://hosta.sh in /app/backend/.env; Smadav/Voodoo must stay empty. Two new suites live at js/tests/test_web_access_2026-10.js and js/tests/test_rdp_password_truth_2026-10.js — keep them in the regression set alongside the RDP lifecycle/golden/grace/reconcile/log-redact/nav suites. Pre-existing failure in test_intent_funnel_2026-06.js is unrelated.",
+  "rca of the issue": "N/A — no defects found."
+}

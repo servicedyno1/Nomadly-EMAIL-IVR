@@ -2236,3 +2236,24 @@ User-approved order: #4 → #7 → #2 → #3 → #5 → #6. Sandbox-verified; pr
   same-release blue/green → app-main-b :5100, app-wl-b :5101, app-voodoo-b :5103, /health healthy. NEEDS "Save to GitHub".
 - Ops scripts: js/ops/rdp_lifecycle_audit_2026-10.js (read-only), js/ops/rdp_lifecycle_datafix_2026-10.js (dry-run / --apply).
 
+
+## 2026-10-15 — "🌐 Use on Web" (hosta.sh) + Show Password truth for DO RDP — TESTED (iteration_95 100%) & LIVE on Nomadly
+- Web access (Nomadly only; owner: just invite, no mention of separate accounts; button on TOP row): new js/web-access.js driven by
+  `WEBSITE_URL` (set ONLY in /opt/nomadly/shared/app-main/backend.env + /app/backend/.env = https://hosta.sh; Smadav/Voodoo unset →
+  nothing shown). Main keyboard (lang/{en,fr,zh,hi}.js) gets a localized "🌐 Use on Web" first row → reply with an inline
+  "🌐 Open hosta.sh" URL button (_index.js handler before the Settings-menu block). First-start welcome (showFirstSessionIntent)
+  ends with "🌐 Prefer the web? Use hosta.sh" (link, no preview). Tests: js/tests/test_web_access_2026-10.js 43/0.
+  NOTE: hosta.sh is a separate app (/opt/hosta, DB "nameword", own accounts + wallet, buys via ONE reseller key) — bot balances
+  and services are not visible there.
+- Show Password (DO RDP): prod audit (js/ops/rdp_password_audit_2026-10.js, hashes only) → all 3 active RDPs stored == applied.
+  Gaps closed in js/digitalocean-rdp-service.js: `<id>:boot` secret = create-time (user-data) password (createInstance; older
+  never-reset/reinstalled servers backfilled at reinstall); reinstall records `reinstall_password_cmd`; rdp_ready while it is
+  pending → `boot_password_applied_at`; agent reports it FAILED → server + plan secrets reverted to the boot password (+ admin
+  alert); `passwordStatus()` = confirmed | applying | boot (agent silent >10 min) | failed | unknown. Bot revealVpsPassword:
+  failed → new vp.revealPasswordNotApplied (no wrong password shown), boot → shows the working one, notes per state in 4 languages.
+  Tests: js/tests/test_rdp_password_truth_2026-10.js 40/0 + all RDP/reseller/redaction regressions green.
+- Deploy: hot-patched app-main release 20261014T221827Z-22e5de2 (.bak.20261015T072808Z / T074038Z, RELEASE patched=), blue/green →
+  app-main-b :5100 healthy. Smadav/Voodoo untouched (inert there). NEEDS "Save to GitHub".
+- Observed (pre-existing, not touched): app-main error log has thousands/day of `checkDomainPriceOnline ... 401 Unauthenticated user`
+  since ≥ 2026-10-10; Contabo auth circuit `invalid_client`.
+
