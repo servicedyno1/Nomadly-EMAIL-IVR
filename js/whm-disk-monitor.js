@@ -29,9 +29,15 @@ const axios = require('axios')
 
 const CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000 // 6 hours
 const ADMIN_ALERT_DEDUPE_HOURS = 24           // don't spam admin
-const ACCOUNT_COUNT_WARN_THRESHOLD = 150       // warn when WHM has >150 accounts on a small droplet
 
 function log(...args) { console.log('[WhmDiskMonitor]', ...args) }
+
+// cPanel license usage. Defaults: limit 30, warn at limit-3 (27). Same env the daily digest uses.
+function licenseStats(accountCount) {
+  const limit = parseInt(process.env.WHM_LICENSE_LIMIT, 10) || 30
+  const warnAt = parseInt(process.env.WHM_LICENSE_WARN_AT, 10) || Math.max(1, limit - 3)
+  return { count: accountCount, limit, warnAt, remaining: limit - accountCount, nearLimit: accountCount >= warnAt, atLimit: accountCount >= limit }
+}
 
 async function probeWhmHealth(whmService) {
   const result = { healthy: true, signals: [], httpStatus: null }
@@ -99,6 +105,29 @@ async function sendAdminAlert(bot, db, signals, probeResult) {
 }
 
 /**
+ * Near-license-limit admin DM. Own dedupe doc so it never collides with the
+ * health-warning alert, and re-fires once a day while usage stays at/over warn.
+ */
+async function sendLicenseAlert(bot, db, stats) {
+  const TELEGRAM_ADMIN_CHAT_ID = process.env.TELEGRAM_ADMIN_CHAT_ID
+  if (!TELEGRAM_ADMIN_CHAT_ID || !bot) return
+  const alertsCol = db.collection('whmDiskMonitorAlerts')
+  const last = await alertsCol.findOne({ _id: 'lastLicenseAlert' })
+  const level = stats.atLimit ? 'at' : 'near'
+  const sameLevel = last && last.level === level
+  if (last && sameLevel && (Date.now() - new Date(last.at).getTime()) < ADMIN_ALERT_DEDUPE_HOURS * 3600 * 1000) {
+    log(`License alert deduped (last ${last.level} at ${last.at})`)
+    return
+  }
+  const left = stats.remaining
+  const msg = stats.atLimit
+    ? `🛑 <b>cPanel license full</b>\n\nHost: <code>${process.env.WHM_HOST || 'unknown'}</code>\n<b>${stats.count} / ${stats.limit}</b> accounts used. New hosting orders will FAIL until you upgrade the license or remove an account.`
+    : `⚠️ <b>Near cPanel license limit</b>\n\nHost: <code>${process.env.WHM_HOST || 'unknown'}</code>\n<b>${stats.count} / ${stats.limit}</b> accounts used — only <b>${left}</b> slot${left === 1 ? '' : 's'} left.\n\n<i>Upgrade the license or delete an empty account soon.</i>`
+  await bot.sendMessage(TELEGRAM_ADMIN_CHAT_ID, msg, { parse_mode: 'HTML', disable_web_page_preview: true }).catch(e => log(`sendMessage error: ${e.message}`))
+  await alertsCol.updateOne({ _id: 'lastLicenseAlert' }, { $set: { at: new Date(), level, count: stats.count, limit: stats.limit } }, { upsert: true })
+}
+
+/**
  * Initialise the monitor — wired from start-bot.js / _index.js startup.
  * @param {object} deps  { bot, whmService } — whmService MUST expose `_whmApi` (the axios instance)
  */
@@ -124,11 +153,12 @@ function initMonitor(deps) {
       }
       const probe = await probeWhmHealth(whmService)
       if (probe.healthy) {
-        if (typeof probe.accountCount === 'number' && probe.accountCount >= ACCOUNT_COUNT_WARN_THRESHOLD) {
-          probe.signals.push(`Account count ${probe.accountCount} >= warn threshold ${ACCOUNT_COUNT_WARN_THRESHOLD}`)
-          await sendAdminAlert(bot, db, probe.signals, probe)
+        if (typeof probe.accountCount === 'number') {
+          const stats = licenseStats(probe.accountCount)
+          if (stats.nearLimit) await sendLicenseAlert(bot, db, stats)
+          log(`OK — http=${probe.httpStatus}, accounts=${stats.count}/${stats.limit}${stats.nearLimit ? ' (NEAR LIMIT)' : ''}`)
         } else {
-          log(`OK — http=${probe.httpStatus}, accounts=${probe.accountCount}`)
+          log(`OK — http=${probe.httpStatus}, accounts=unknown`)
         }
       } else {
         log(`UNHEALTHY — signals: ${probe.signals.join(' | ')}`)
@@ -145,4 +175,4 @@ function initMonitor(deps) {
   log(`Monitor initialised — interval ${CHECK_INTERVAL_MS / 3600000}h`)
 }
 
-module.exports = { initMonitor, probeWhmHealth }
+module.exports = { initMonitor, probeWhmHealth, licenseStats, sendLicenseAlert }
