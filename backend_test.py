@@ -24,7 +24,7 @@ import json
 import sys
 
 # Configuration
-BASE_URL = "https://smadav-prod-logs.preview.emergentagent.com"
+BASE_URL = "https://ivr-call-setup.preview.emergentagent.com"
 
 # Test accounts (seeded in LOCAL DB - safe to use)
 GOLD_ACCOUNT = {"username": "goldtest", "pin": "123456"}
