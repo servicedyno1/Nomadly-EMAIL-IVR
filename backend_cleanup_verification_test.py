@@ -14,7 +14,7 @@ import json
 import sys
 
 # Backend URL from frontend/.env
-BACKEND_URL = "https://vigilant-tesla-8.preview.emergentagent.com"
+BACKEND_URL = "https://smadav-prod-logs.preview.emergentagent.com"
 
 def print_section(title):
     """Print a formatted section header"""

@@ -23,14 +23,14 @@
 
 ## Namecheap API (hosta.sh — vanity NS pilot)
 - `NAMECHEAP_USERNAME=richbayo`, `NAMECHEAP_API_KEY` in backend/.env (vault). Whitelisted ClientIp: 136.108.30.124 (OLD pod).
-- ⚠️ 2026-10-14 re-setup: pod `https://vigilant-tesla-8.preview.emergentagent.com`, egress IP
+- ⚠️ 2026-10-14 re-setup: pod `https://smadav-prod-logs.preview.emergentagent.com`, egress IP
   `136.70.105.25` — ConnectReseller startup check says it NEEDS whitelisting (Namecheap too). Dev bot webhook →
   `<pod>/api/telegram/webhook`. Pod has Node 20 → frontend needs `yarn install --ignore-engines` (webpack-dev-server 6
   wants Node ≥22.15). Delete the generated untracked `yarn.lock` files after install (avoid a needless prod deploy).
   Prod droplet SSH key restore: `VAULT_PASSWORD=... bash scripts/restore_infra_keys.sh`.
 - ⚠️ 2026-10-13 re-setup: current pod egress IP is `34.170.12.145` — ConnectReseller startup check PASSED (already
   whitelisted); Namecheap API whitelist must include it for the hosta.sh pilot
-  (previous pods: `35.196.223.235`, `136.108.30.124`). Dev bot webhook now → `https://vigilant-tesla-8.preview.emergentagent.com/api/telegram/webhook`.
+  (previous pods: `35.196.223.235`, `136.108.30.124`). Dev bot webhook now → `https://smadav-prod-logs.preview.emergentagent.com/api/telegram/webhook`.
 - Pilot admin endpoints: `GET /api/admin/ns-pilot/status?key=<SESSION_SECRET first 16 chars>` (also start|tick|revert|switch|stop).
 - Cron endpoint: `POST /api/cron/ns-pilot-tick` with `Authorization: Bearer $WEBHOOK_CRON_SECRET`.
 
