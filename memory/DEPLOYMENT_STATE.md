@@ -156,3 +156,14 @@ The new layout differs from the old in-place `/opt/nomadly/app-main` checkout. O
 - Cloudflare Worker `nomadly-api-config` now brand-keyed v2 (bare/?brand=nomadly → https://2.speechcue.com, ?brand=smadav → https://1.smadavspeech.com).
 - app-wl `/opt/nomadly/shared/app-wl/backend.env`: `CF_DISCOVERY_SYNC=false` (backup `backend.env.bak.cfsync.20261013T163411Z`), applied with `pm2 reload app-wl-a --update-env`. Old app-wl code would otherwise re-point ALL APKs to Smadav on restart. Safe to set back to true once the brand-keyed code is deployed.
 - 2026-10-13 16:53Z: `HIDE_SMS_APP=false` on app-main + app-wl (BulkSMS enabled; backups `backend.env.bak.smsapp.20261013T165316Z`). 16:56Z: app-wl `CF_DISCOVERY_SYNC=true` restored (new brand-keyed code deployed; backup `.bak.cfsync-on.*`). Prod Nomadly DB `appAnnouncements.sms_app_version` patched to `{scope:'app-users', notifiedIds:[38]}` so the next app-main deploy sends the v2.8.0 notice to the remaining users.
+
+## 2026-10-15 17:56Z — EdenAI key rotated on all 3 bots (TTS 402 fix)
+- Cause: old shared `EDENAI_API_KEY` (fp f0159ee7ebb0) ran out of credits → every IVR/TTS generation returned HTTP 402 on ALL brands
+  (RCA: `memory/IVR_TTS_402_RCA_2026-10-15.md`).
+- New key (`sk-eden-live-…`, sha256 fp df62874e9faa, $7.74 credit at rotation) written to
+  `/opt/nomadly/shared/{app-main,app-wl,app-voodoo}/backend.env` (backups `backend.env.bak.edenai.20261015T175640Z`; app-main keeps quoted format).
+- Applied: `pm2 reload app-main-a app-wl-b app-voodoo-b --update-env` one at a time (activeCalls=0 each), all healthy in ~4s.
+- Verified per live release via its own code + env: ElevenLabs Rachel + OpenAI Nova generate OK, no fallback. Telegram pending=0 on all 3.
+- Vault (`memory/nomadly.vault.enc`) + dev `backend/.env` updated with ONLY the EdenAI line changed.
+- Rollback: `cp -p backend.env.bak.edenai.20261015T175640Z backend.env && pm2 reload <slot> --update-env` (old key is dead though).
+- ⚠️ Balance is low (ElevenLabs ≈ $0.30/1K chars via EdenAI) — EdenAI is still NOT in balance-monitor.js.
