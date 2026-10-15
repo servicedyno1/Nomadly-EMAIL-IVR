@@ -1,5 +1,24 @@
 # PRD — Nomadly Cloud IVR + Telegram Bot
 
+## 2026-10-15b — cPanel license cleanup: deleted 1 empty account + proactive 27/30 safeguard
+- Request: "which cPanel account has no uploaded content — delete it, license almost full". License cap = 30 accounts
+  (whmapi1 get_current_users_count / cpanel.lisc maxusers:30); disk is fine (21G/119G). So it's the ACCOUNT-COUNT limit.
+- Audit (new js/ops/whm_empty_accounts_audit_2026-10.sh — run as root on WHM; walks ALL docroots incl. addon/sub domains,
+  ignores cgi-bin/.well-known/.htaccess/.user.ini/.antired-challenge.php/error_log + the Anti-Red index.php wrapper):
+  ONLY nbayftest / testingbays.sbs was empty (0 user files across 5 addon docroots, 0 db, 0 mail) — the owner's test acct
+  (chatId 5590563715). listaccts "0M" is misleading: luxe6b41 & gogo2a5c show 0M but DO have content — NOT deleted.
+- Deleted nbayftest via js/ops/whm_delete_account_2026-10.js (same /removeacct API the bot uses, CF-tunnel headers) →
+  result=1, confirmed gone, WHM now 28/30; cpanelAccounts row set deleted+terminatedOnWhm (self-heal sweep won't retry).
+- Safeguard: js/whm-disk-monitor.js (6-hourly, already wired) warned only at a dead hardcoded 150 (never reachable under a
+  30 license). Now license-aware: licenseStats() warns at WHM_LICENSE_WARN_AT (default limit-3 = 27), separate "near" vs
+  "at limit" admin DM with its own 24h dedupe. Runs per bot process → each brand admin (Nomadly/Smadav/Voodoo, shared WHM)
+  gets the alert. Daily digest (js/whm-account-digest.js) already warned at 27 too; this makes it proactive between digests.
+  Tests: js/tests/test_whm_license_guard_2026-10.js 15/0.
+- Deploy: hot-patched the LIVE releases (app-main bd01a02, app-wl/app-voodoo be8ee8d — the platform rebuilt these from git
+  at 07:44Z, and they already contain the earlier web-access/RDP/log-redact/password-truth work → Save-to-GitHub worked),
+  .bak.<ts> + RELEASE patched=, blue/green → -b slots healthy. NEEDS "Save to GitHub" to persist the monitor change.
+- Ops (read-only unless --apply): whm_empty_accounts_audit_2026-10.sh, whm_delete_account_2026-10.js, whm_account_audit.js.
+
 ## 2026-10-15 — "🌐 Use on Web" (hosta.sh) + Show Password truth for DO RDP — TESTED (iteration_95 100%) & LIVE on Nomadly
 - Web access (Nomadly only; owner: just invite, no mention of separate accounts; button on TOP row): new js/web-access.js driven by
   `WEBSITE_URL` (set ONLY in /opt/nomadly/shared/app-main/backend.env + /app/backend/.env = https://hosta.sh; Smadav/Voodoo unset →
