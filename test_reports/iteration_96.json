@@ -1,0 +1,28 @@
+{
+  "summary": "Ran the AI support pricing-accuracy check (scripts/test_ai_support_pricing.js) 3 separate times against the real OpenAI model at temperature 0.2. All 12 case runs passed (4/4 in each run, exit code 0 every time). Domain+cPanel total: confirmed about $105 = domain from $30 + Premium HostPanel $75/month, and never said '$75/week'. Trap question: always answered 'No', with $30/week for the 1-Week plan and $75/month for the HostPanel. Plan listing: all 3 plans with the correct periods ($30/week, $75/month, $100/month). Marketplace: $30–$3,000 every time. No crashes or errors. Code review confirmed getUserContext() is still called in buildAiMessages (line ~1625), the canonical pricing table reads its prices from env (PREMIUM_ANTIRED_WEEKLY_PRICE=30, PREMIUM_ANTIRED_CPANEL_PRICE=75, GOLDEN_ANTIRED_CPANEL_PRICE=100, MIN_DOMAIN_PRICE=30), and temperatures are 0.2 for getAiResponse, streaming and marketplace, and 0.1 for moderation.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "js/ai-support.js getAiResponse (prompt leakage)", "issue": "In run 1, the 'list hosting plans' answer repeated an internal prompt rule to the customer: 'Note: Do NOT confuse the $75 monthly plan with a weekly plan — $75 is monthly only.' Not factually wrong, but it reads like system text. Suggest adding a prompt line telling the model never to repeat the anti-confusion rules word for word to the customer."},
+      {"endpoint": "js/ai-support.js SYSTEM_PROMPT marketplace range", "issue": "The $30–$3,000 range is typed in by hand in the prompt (lines 91, 527, 535, 563) instead of reading MIN_PRICE/MAX_PRICE from js/marketplace-service.js. The two match today but could drift apart if the constants change."}
+    ]
+  },
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": ["/app/scripts/test_ai_support_pricing.js"],
+  "action_items": [
+    "Optional: tell the model not to repeat the internal anti-confusion rules to customers (seen once in 3 runs)",
+    "Optional: build the marketplace range in the prompt from marketplace-service MIN_PRICE/MAX_PRICE",
+    "Could not check the Virtual Card $50–$1,000 range: no Virtual Card min/max constant or env variable was found in the code"
+  ],
+  "critical_code_review_comments": [
+    "Pricing table reads prices from env with sensible defaults, so it stays consistent per brand",
+    "Prompt marketplace range is typed in by hand (drift risk)",
+    "Virtual Card range is only stated in the prompt; no code constant to check it against"
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100% (12/12 case runs over 3 runs)", "frontend": "N/A"},
+  "seed_data_creation": "None. The script uses chatIds qa_pricing_1..4 and clears their history before each case.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Node Telegram bot, with no HTTP endpoint for AI support. Run `cd /app && node scripts/test_ai_support_pricing.js` (exit 0 = pass). It ran stably 3/3 at temperature 0.2."
+}
