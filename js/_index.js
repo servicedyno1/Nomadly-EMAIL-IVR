@@ -14911,7 +14911,7 @@ All verified numbers generated during sourcing.`))
           // Show AI response to admin with escalation flag
           const escalateTag = escalate ? '\n\n🚨 <b>NEEDS HUMAN ATTENTION</b>' : ''
           send(TELEGRAM_ADMIN_CHAT_ID,
-            `🤖 <b>AI replied to ${displayName}</b> (${chatId}):\n<i>${safeHtml.substring(0, 500)}${safeHtml.length > 500 ? '...' : ''}</i>${escalateTag}`,
+            `🤖 <b>AI replied to ${displayName}</b> (${chatId}):\n<i>${safeHtml.substring(0, 3500)}${safeHtml.length > 3500 ? '…' : ''}</i>${escalateTag}`,
             adminMsgOpts({ chatId, supportSession: true }))
           log(`[Support] AI -> ${chatId}: ${aiResponse.substring(0, 100)}... (escalate: ${escalate})`)
 
@@ -35970,7 +35970,7 @@ Tap a button below to change. Changes sync to your phone on next app open.`
           // Streamed live into chat by streamAiReply; safeHtml used for the
           // admin mirror + escalation pipeline below.
           const escalateTag = escalate ? '\n\n🚨 <b>NEEDS HUMAN ATTENTION</b>' : ''
-          send(TELEGRAM_ADMIN_CHAT_ID, `🤖 <b>AI replied to ${displayName}</b> (${chatId}):\n<i>${safeHtml.substring(0, 500)}${safeHtml.length > 500 ? '...' : ''}</i>${escalateTag}`, { parse_mode: 'HTML' })
+          send(TELEGRAM_ADMIN_CHAT_ID, `🤖 <b>AI replied to ${displayName}</b> (${chatId}):\n<i>${safeHtml.substring(0, 3500)}${safeHtml.length > 3500 ? '…' : ''}</i>${escalateTag}`, { parse_mode: 'HTML' })
           log(`[Support] Fallback AI -> ${chatId}: ${aiResponse.substring(0, 100)}... (escalate: ${escalate})`)
 
           // ── Railway-log issue #2 fix (fallback path): same escalation pipeline ──

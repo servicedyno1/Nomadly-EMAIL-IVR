@@ -65,6 +65,25 @@ const CASES = [
     mustMatch: [/vary|varies|approx|around|starting|from|region|selection screen|before payment|~/i],
     mustNotMatch: [/check with (the|our) team/i],
   },
+  {
+    name: 'Formatting & length — SIP buy (must be tight, single list, no mixed bullets)',
+    chatId: 'qa_fmt_1',
+    turns: ['How do I buy a SIP number and use it for calls?'],
+    mustMatch: [/cloud ivr|choose a plan|my plans/i],
+    maxWords: 170,
+    maxLines: 16,
+    noMixedBullets: true,
+    noFillerCloser: true,
+  },
+  {
+    name: 'Formatting & length — how to access hosting panel (tight)',
+    chatId: 'qa_fmt_2',
+    turns: ['How do I access my hosting panel?'],
+    mustMatch: [/reveal credentials|hosting plan|panel/i],
+    maxWords: 150,
+    maxLines: 14,
+    noMixedBullets: true,
+  },
 ]
 
 ;(async () => {
@@ -91,6 +110,10 @@ const CASES = [
     const problems = []
     for (const rx of (c.mustMatch || [])) if (!rx.test(last)) problems.push(`missing expected ${rx}`)
     for (const rx of (c.mustNotMatch || [])) if (rx.test(last)) problems.push(`contains forbidden ${rx}`)
+    if (c.maxWords) { const w = last.split(/\s+/).filter(Boolean).length; if (w > c.maxWords) problems.push(`too long: ${w} words > ${c.maxWords}`) }
+    if (c.maxLines) { const ln = last.split('\n').filter(s => s.trim()).length; if (ln > c.maxLines) problems.push(`too many lines: ${ln} > ${c.maxLines}`) }
+    if (c.noMixedBullets) { const hasDash = /(^|\n)\s*-\s+\S/.test(last); const hasDot = /(^|\n)\s*•\s+\S/.test(last); if (hasDash && hasDot) problems.push('mixes "-" and "•" bullets') }
+    if (c.noFillerCloser && /\b(anything else|need help with (anything|something)|let me know if you need)\b/i.test(last)) problems.push('has filler closer')
     if (problems.length) { fail++; console.log(`RESULT: ❌ FAIL — ${problems.join('; ')}`) }
     else { pass++; console.log('RESULT: ✅ PASS') }
   }
