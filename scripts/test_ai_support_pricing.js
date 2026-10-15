@@ -43,6 +43,28 @@ const CASES = [
     mustMatch: [/\$?30\b/, /\$?3[,.]?000\b/],
     mustNotMatch: [/\$?20\b[^.]{0,20}\$?5[,.]?000/i, /\$?5[,.]?000\b/],
   },
+  {
+    name: 'Digital product price must still be quoted (reworded-rule regression)',
+    chatId: 'qa_pricing_5',
+    turns: ['How much is the eSIM T-Mobile?'],
+    mustMatch: [/\$?60\b/],
+    mustNotMatch: [/check with (the|our) team/i, /i(''|')?ll check/i, /not listed/i],
+  },
+  {
+    name: 'Email Blast price must still be quoted',
+    chatId: 'qa_pricing_6',
+    turns: ['How much does Email Blast cost per email?'],
+    mustMatch: [/0\.10|10\s*cents/i],
+    mustNotMatch: [/check with (the|our) team/i],
+  },
+  {
+    name: 'VPS price framed as approximate / varies (not a flat exact promise)',
+    chatId: 'qa_pricing_7',
+    turns: ['How much is the Cloud VPS 10 per month?'],
+    // must signal variability/approximation or point to the selection screen; must not refuse outright
+    mustMatch: [/vary|varies|approx|around|starting|from|region|selection screen|before payment|~/i],
+    mustNotMatch: [/check with (the|our) team/i],
+  },
 ]
 
 ;(async () => {
