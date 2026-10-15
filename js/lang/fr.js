@@ -2477,6 +2477,7 @@ const userKeyboard = {
  // services (Email Validation, Refer, Reseller, Join Channel, Email Blast)
  // moved under "➕ More" to cut top-level clutter. Handlers match by label,
  // so grouping/order changes carry no routing risk.
+ ...require('../web-access').webMenuRows('fr'), // 🌐 Use on Web (only when WEBSITE_URL is set)
  [user.cloudPhone, user.hostingDomainsRedirect],
  ...(VPS_ENABLED === 'true' ? [[user.domainNames, user.vpsPlans]] : [[user.domainNames]]),
  ...(HIDE_SMS_APP !== 'true' ? [[user.smsAppMain, user.leadsValidation]] : [[user.leadsValidation]]),
@@ -3310,6 +3311,10 @@ ${list
    const recoveredLine = opts.recovered
      ? '\n\n♻️ <i>Récupéré depuis la configuration d\'origine de votre serveur — enregistré pour un chargement instantané la prochaine fois.</i>'
      : ''
+   const rdpLine = opts.rdpState === 'confirmed' ? '\n✅ <b>Votre RDP a confirmé que ce mot de passe est appliqué.</b>'
+     : opts.rdpState === 'applying' ? `\n⏳ <b>Windows est encore en cours de configuration</b> — ce mot de passe fonctionnera une fois la configuration terminée${opts.etaMinutes ? ` (environ ${opts.etaMinutes} min)` : ''}. Réessayez à ce moment-là.`
+     : opts.rdpState === 'boot' ? '\nℹ️ <b>Le nouveau mot de passe de votre réinstallation n\'a pas pu être appliqué</b>, Windows utilise donc toujours celui-ci. Appuyez sur <b>🔑 Réinitialiser le mot de passe</b> si vous en voulez un nouveau.'
+     : ''
    return `🔐 <strong>Mot de passe VPS actuel</strong>
 
 🖥️ <strong>${isRDP ? 'RDP' : 'Serveur'} :</strong> ${name}
@@ -3318,10 +3323,16 @@ ${list
 👤 <strong>Nom d'utilisateur :</strong> <code>${username}</code>
 🔑 <strong>Mot de passe :</strong> <code>${password}</code>
 
-📋 <strong>Connexion :</strong> <code>${isRDP ? `${ip}:${port}` : `ssh ${username}@${ip} -p ${port}`}</code>${statusLine}${recoveredLine}
+📋 <strong>Connexion :</strong> <code>${isRDP ? `${ip}:${port}` : `ssh ${username}@${ip} -p ${port}`}</code>${statusLine}${rdpLine}${recoveredLine}
 
 💡 Cliquez sur le mot de passe pour le copier. Gardez-le privé — quiconque le possède a un accès complet.`
  },
+
+ revealPasswordNotApplied: name => `🔐 <strong>Mot de passe à réinitialiser</strong>
+
+Windows a démarré sur <strong>${name}</strong>, mais le mot de passe enregistré n'a pas pu y être appliqué — il ne fonctionnerait donc pas.
+
+✅ <strong>Que faire :</strong> appuyez sur <b>🔑 Réinitialiser le mot de passe</b>. Cela définit un tout nouveau mot de passe sur votre RDP en cours d'exécution en environ une minute — <b>vos fichiers et données sont conservés</b>.`,
 
  revealPasswordNotStored: (name, reason) => `🔐 <strong>Mot de passe non disponible</strong>
 

@@ -179,7 +179,7 @@ const UBUNTU_IMAGE = process.env.DO_UBUNTU_IMAGE || 'ubuntu-22-04-x64'
 const T = { bootPoll: 5000, rdpPoll: 30000, actionPoll: 15000, offPoll: 10000, rdpPort: 3389, rdpMaxMin: 90, transferMaxMin: 90, buildMaxMin: 120, importPoll: 30000, importMaxMin: 240, importRetryMin: 150, importRetries: 2, importSlotMaxMin: 480, callbackGraceMs: 90000, fastTargetMs: 180000, digestMs: 24 * 60 * 60 * 1000, commandWaitMs: 150000, commandPoll: 2000, agentStaleMs: 10 * 60 * 1000, rebuildMaxMin: 20, graceDays: Number(process.env.RDP_GRACE_DAYS || 2),
   // Late-failure safety net: a first build still unfinished after stuckBuildMin is failed (→ refund); failed orders
   // the purchase flow still owned are re-checked once they are failedRecheckMs old. Sweep runs every reconcileMs.
-  stuckBuildMin: Math.max(120, Number(process.env.DO_RDP_STUCK_BUILD_MIN) || 180), failedRecheckMs: 30 * 60000, reconcileMs: 10 * 60000, goneRecheckMs: 5000 }
+  stuckBuildMin: Math.max(120, Number(process.env.DO_RDP_STUCK_BUILD_MIN) || 180), failedRecheckMs: 30 * 60000, reconcileMs: 10 * 60000, goneRecheckMs: 5000, pwApplyGraceMs: 10 * 60000 }
 
 // ─────────────────────────────────────────────────────────────
 // Admin alerts (Telegram via the bot's notifyAdmin, injected by _index.js init)
@@ -1365,6 +1365,8 @@ async function createInstance(opts = {}) {
   if (_servers) await _servers.insertOne(doc)
   // Store the password durably so /rdp/:id/credentials can reveal it later.
   await secretStore.putSecret(serverId, adminPassword, { name: `rdp-${serverId.slice(0, 8)}`, provider: PROVIDER })
+  // The create-time password stays in the droplet's user-data for life: a rebuild re-applies it at first boot.
+  await secretStore.putSecret(bootSecretId(serverId), adminPassword, { name: `rdp-${serverId.slice(0, 8)}-boot`, provider: PROVIDER })
 
   // Kick off provisioning asynchronously; return immediately.
   provisionServer(serverId).catch(e => log(`provisionServer(${serverId}) error: ${e.message}`))
@@ -1573,11 +1575,13 @@ async function _rebuildNow(s, osOption, opts = {}) {
   const osId = osOption.id
   const password = (opts.rootPassword && await getSecretPassword(opts.rootPassword)) || genPassword()
   const secretId = opts.rootPassword || id
+  await _keepBootSecret(s)
   await _servers.updateOne({ server_id: id }, {
-    $set: { status: 'reinstalling', progress: 5, os_id: osId, fast_deploy: true, eta_minutes: fastEta(osOption), golden_image_id: osOption.golden_image_id, password_confirmed: null, agent_seen_at: null, commands: [], reinstall_started_at: new Date() },
+    $set: { status: 'reinstalling', progress: 5, os_id: osId, fast_deploy: true, eta_minutes: fastEta(osOption), golden_image_id: osOption.golden_image_id, password_confirmed: null, agent_seen_at: null, commands: [], reinstall_started_at: new Date(), boot_password_applied_at: null },
     $push: { logs: { ts: new Date(), stage: 'reinstall', message: `Reinstalling ${osOption.name} from golden image ${osOption.golden_image_id} (disk wiped, IP ${s.ip_address || ''} kept)...` } },
   })
-  await queueCommand(id, 'set_password', { password })
+  const pwCmd = await queueCommand(id, 'set_password', { password })
+  await _servers.updateOne({ server_id: id }, { $set: { reinstall_password_cmd: pwCmd } })
   await secretStore.putSecret(id, password, { name: `rdp-${id.slice(0, 8)}`, provider: PROVIDER })
   if (secretId !== id) await secretStore.putSecret(secretId, password, { name: secretId, provider: PROVIDER, type: 'password' })
   const act = (await doDropletAction(s.do_droplet_id, { type: 'rebuild', image: osOption.golden_image_id })).action || {}
@@ -1680,7 +1684,7 @@ async function cancelInstance(instanceId, opts = {}) {
   const set = { status: 'destroyed', ip_address: null, do_droplet_id: null, volume_id: null }
   if (opts && opts.reason) { set.destroy_reason = opts.reason; set.destroyed_at = new Date() }
   if (_servers) await _servers.updateOne({ server_id: id }, { $set: set })
-  try { await secretStore.deleteSecret(id) } catch (_) {}
+  try { await secretStore.deleteSecret(id); await secretStore.deleteSecret(bootSecretId(id)) } catch (_) {}
   return { destroyed: true, instanceId: extId(id) }
 }
 
@@ -1739,6 +1743,56 @@ async function markGraceDestroy(instanceId) {
 
 async function getSecretPassword(secretId) {
   try { return await secretStore.getSecretPassword(secretId) } catch (_) { return null }
+}
+
+// ── Which password is really on the box ("Show Password" must never reveal one that does not work) ──
+// A reinstall stores the NEW password at once, but Windows first boots with the create-time (user-data)
+// password and only gets the new one when the agent runs the queued set_password.
+const bootSecretId = (id) => `${normId(id)}:boot`
+const PW_APPLYING_STATUSES = ['queued', 'creating', 'booting', 'installing', 'converting', 'reinstalling']
+async function _keepBootSecret(s) {
+  if (await getSecretPassword(bootSecretId(s.server_id))) return
+  // Older servers: the server-id secret is still the create-time one unless it was reset / reinstalled since.
+  if (s.reinstall_started_at || s.password_reset_at) return
+  const pw = await getSecretPassword(s.server_id)
+  if (pw) await secretStore.putSecret(bootSecretId(s.server_id), pw, { name: `rdp-${s.server_id.slice(0, 8)}-boot`, provider: PROVIDER })
+}
+// The reinstall's new password could not be applied → the box keeps the create-time one: store THAT.
+async function _revertToBootPassword(s, reason) {
+  const boot = s.boot_password_applied_at ? await getSecretPassword(bootSecretId(s.server_id)) : null
+  if (!boot) {
+    alertAdmin(`pwrevert:${s.server_id}`, `🔑 RDP ${orderRef(s)}: the new password after the reinstall could not be applied (${reason || 'no detail'}) and the original one is unknown. Customer should tap Reset Password.`)
+    return false
+  }
+  await secretStore.putSecret(s.server_id, boot, { name: `rdp-${s.server_id.slice(0, 8)}`, provider: PROVIDER })
+  const plan = await _findVpsPlan(s.server_id)
+  if (plan && plan.rootPasswordSecretId && plan.rootPasswordSecretId !== s.server_id) await secretStore.putSecret(plan.rootPasswordSecretId, boot, { name: plan.rootPasswordSecretId, provider: PROVIDER, type: 'password' })
+  await _servers.updateOne({ server_id: s.server_id }, { $set: { password_confirmed: true, password_reverted_at: new Date() } })
+  await addLog(s.server_id, 'password_reset', `New password could not be applied after the reinstall (${reason || 'no detail'}) - the original password is still active and is the one shown to the customer.`, null, null)
+  alertAdmin(`pwrevert:${s.server_id}`, `🔑 RDP ${orderRef(s)}: the new password after the reinstall could not be applied (${reason || 'no detail'}). Windows kept the original password - Show Password now reveals that one.`)
+  return true
+}
+/**
+ * State of the Administrator password for "Show Password":
+ *   confirmed — the box confirmed the stored password · applying — setup / reinstall still applying it
+ *   boot      — reinstall's new password never landed; `password` = the one Windows really uses
+ *   failed    — the stored password could not be applied · unknown — legacy / no record
+ */
+async function passwordStatus(instanceId) {
+  const s = _servers ? await _servers.findOne({ server_id: normId(instanceId) }) : null
+  if (!s) return { state: 'unknown' }
+  if (s.password_confirmed === false) return { state: 'failed' }
+  const cmd = s.reinstall_password_cmd ? (s.commands || []).find(c => c.id === s.reinstall_password_cmd) : null
+  if (cmd && cmd.status === 'pending') {
+    const bootFor = s.boot_password_applied_at ? Date.now() - new Date(s.boot_password_applied_at).getTime() : 0
+    if (bootFor > T.pwApplyGraceMs) {
+      const password = await getSecretPassword(bootSecretId(s.server_id))
+      if (password) return { state: 'boot', password }
+    }
+    return { state: 'applying', etaMinutes: s.eta_minutes || null }
+  }
+  if (PW_APPLYING_STATUSES.includes(s.status)) return { state: 'applying', etaMinutes: s.eta_minutes || null }
+  return { state: s.password_confirmed ? 'confirmed' : 'unknown' }
 }
 
 // Hourly sweep (production only). Three passes:
@@ -1853,6 +1907,7 @@ function provisionRouter() {
         // still queued for the agent - don't advertise it as confirmed yet.
         const pendingPw = (s.commands || []).some(c => c.type === 'set_password' && c.status === 'pending')
         if (!pendingPw) await _servers.updateOne({ server_id }, { $set: { password_confirmed: true } })
+        else if (!s.boot_password_applied_at) await _servers.updateOne({ server_id }, { $set: { boot_password_applied_at: new Date() } })
         await addLog(server_id, 'rdp_ready', message || 'Windows is live.', 100, 'active')
       } else if (stage === 'failed') {
         await addLog(server_id, 'failed', message || 'Conversion failed.', progress, 'failed')
@@ -1901,6 +1956,7 @@ function provisionRouter() {
       const set = { 'commands.$.status': ok ? 'done' : 'failed', 'commands.$.finished_at': new Date(), 'commands.$.result': String(message || ''), agent_seen_at: new Date() }
       if (cmd.type === 'set_password' && ok) set.password_confirmed = true
       await _servers.updateOne({ server_id: s.server_id, 'commands.id': id }, { $set: set })
+      if (cmd.type === 'set_password' && !ok && cmd.id === s.reinstall_password_cmd) await _revertToBootPassword(s, String(message || ''))
       log(`agent ${s.server_id.slice(0, 8)}: ${cmd.type} ${id} → ${ok ? 'ok' : 'FAILED'} ${message || ''}`)
       res.json({ ok: true })
     } catch (e) { log(`commands/result error: ${e.message}`); res.status(500).json({ error: 'commands_error' }) }
@@ -1916,7 +1972,7 @@ module.exports = {
   // live stock (AMD only, same-city fallback, +15% cap passed on in the price)
   isProductAvailable, quoteFor, buildOptions, productInRegion, availability, renewalPrice, MAX_SIZE_COST_FACTOR,
   // lifecycle
-  createInstance, createInstanceWithFallback, getInstance, isInstanceGone, sizeSlugsFor,
+  createInstance, createInstanceWithFallback, getInstance, isInstanceGone, sizeSlugsFor, passwordStatus, bootSecretId,
   startInstance, stopInstance, restartInstance, shutdownInstance,
   cancelInstance, getSecretPassword, createSecret, resetPassword, reinstallInstance, renewInstance,
   // grace lifecycle mirror helpers (bot scheduler owns the grace lifecycle; these keep doRdpServers in sync)

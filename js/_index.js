@@ -680,6 +680,7 @@ const k = trans('k')
 // Module-scope `TG_CHANNEL` shim — used in /ad admin command. Sourced from
 // env so prod and dev can have different channels.
 const TG_CHANNEL = process.env.TG_CHANNEL || '@nomadly'
+const webAccess = require('./web-access.js')
 // Module-scope `restoreData` stub — referenced from a developer-only command
 // ('Restore Data'). The original implementation was removed; this stub keeps
 // the command safe-to-press while leaving an audit trail.
@@ -9406,6 +9407,7 @@ bot?.on('message', msg => {
         zh: `👋 <b>欢迎使用 ${CHAT_BOT_NAME}</b> — 一站式工具箱：电话号码、主机、域名和数字产品。\n\n<b>您今天需要什么？</b>点击直接进入 — 或点 👀 随便看看 浏览全部。\n\n💸 <i>提示：首次充值 $20+ 即可获得 $${depBonus} 赠金。</i>`,
         hi: `👋 <b>${CHAT_BOT_NAME} में आपका स्वागत है</b> — फ़ोन नंबर, होस्टिंग, डोमेन और डिजिटल प्रोडक्ट के लिए ऑल-इन-वन टूलकिट।\n\n<b>आज आपको क्या चाहिए?</b> सीधे जाने के लिए टैप करें — या सब कुछ देखने के लिए 👀 बस देख रहे हैं।\n\n💸 <i>टिप: $20+ जमा करें और पहली जमा पर $${depBonus} मुफ़्त पाएं।</i>`,
       })[_l] || `👋 <b>Welcome to ${CHAT_BOT_NAME}</b> — what do you need today?`
+      const qWeb = q + webAccess.webWelcomeLine(_l)
       const rows = [
         [FIRST_SESSION_INTENT.numbers[_l] || FIRST_SESSION_INTENT.numbers.en],
         [FIRST_SESSION_INTENT.hosting[_l] || FIRST_SESSION_INTENT.hosting.en, FIRST_SESSION_INTENT.domains[_l] || FIRST_SESSION_INTENT.domains.en],
@@ -9414,7 +9416,7 @@ bot?.on('message', msg => {
       ]
       // Send FIRST, then set the action — so a send failure never strands the
       // user in the firstSessionIntent state with the full menu showing.
-      await bot.sendMessage(chatId, q, { parse_mode: 'HTML', reply_markup: { keyboard: rows, resize_keyboard: true } })
+      await bot.sendMessage(chatId, qWeb, { parse_mode: 'HTML', disable_web_page_preview: true, reply_markup: { keyboard: rows, resize_keyboard: true } })
       await set(state, chatId, 'action', a.firstSessionIntent)
       return true
     } catch (e) {
@@ -12544,11 +12546,23 @@ Enter new value:`), bc)
         const { revealVpsPassword: resolvePassword } = require('./vps-password-reveal')
         const res = await resolvePassword(record, { sshPrivateKeys })
 
+        // DigitalOcean RDP: reveal only the password Windows really uses (setup / a reinstall may still be applying it).
+        let rdpPw = null
+        if (isRDP && require('./vps-provider').providerNameForRecord(record) === 'digitalocean-rdp') {
+          try { rdpPw = await require('./digitalocean-rdp-service').passwordStatus(record.contaboInstanceId || record.instanceId || record.vpsId || record._id) } catch (_) { /* fall back to the stored password */ }
+          if (rdpPw?.state === 'failed') {
+            console.log(`[VPS] Password reveal blocked (not applied on the box) - ChatId: ${chatId}, Instance: ${record.vpsId || record._id}`)
+            send(chatId, vp.revealPasswordNotApplied(record.name))
+            return goto.getVPSDetails()
+          }
+          if (rdpPw?.state === 'boot' && rdpPw.password) Object.assign(res, { status: 'ok', password: rdpPw.password, source: 'boot' })
+        }
+
         if (res.status === 'ok' && res.password) {
-          console.log(`[VPS] Password revealed - ChatId: ${chatId}, Instance: ${record.vpsId || record._id}, source=${res.source}, recovered=${res.recovered}, verification=${res.verification?.status || 'n/a'}`)
+          console.log(`[VPS] Password revealed - ChatId: ${chatId}, Instance: ${record.vpsId || record._id}, source=${res.source}, recovered=${res.recovered}, verification=${res.verification?.status || 'n/a'}${rdpPw ? `, rdp=${rdpPw.state}` : ''}`)
           send(chatId, vp.revealPasswordSuccess(
             record.name, record.host, username, res.password,
-            { isRDP, verification: res.verification, recovered: res.recovered }
+            { isRDP, verification: res.verification, recovered: res.recovered, rdpState: rdpPw?.state, etaMinutes: rdpPw?.etaMinutes }
           ))
         } else {
           console.log(`[VPS] Password reveal unavailable - ChatId: ${chatId}, Instance: ${record.vpsId || record._id}, reason=${res.reason}`)
@@ -15389,6 +15403,12 @@ All verified numbers generated during sourcing.`))
     if (FIRST_SESSION_INTENT_ALL.digital.includes(message)) return goto.submenu6 ? goto.submenu6() : goto.displayMainMenuButtons()
     // "👀 Just looking" OR anything else → full menu (never stuck)
     return goto.displayMainMenuButtons()
+  }
+
+  // 🌐 Use on Web (top row of the main menu): invite + inline button to the brand website. Action untouched.
+  if (webAccess.isWebButton(message)) {
+    const { text: webText, opts: webOpts } = webAccess.webAccessMessage(info?.userLanguage || 'en')
+    return send(chatId, webText, webOpts)
   }
 
   // ━━━ Settings Menu ━━━

@@ -2468,6 +2468,7 @@ const userKeyboard = {
  // services (Email Validation, Refer, Reseller, Join Channel, Email Blast)
  // moved under "➕ More" to cut top-level clutter. Handlers match by label,
  // so grouping/order changes carry no routing risk.
+ ...require('../web-access').webMenuRows('hi'), // 🌐 Use on Web (only when WEBSITE_URL is set)
  [user.cloudPhone, user.hostingDomainsRedirect],
  ...(VPS_ENABLED === 'true' ? [[user.domainNames, user.vpsPlans]] : [[user.domainNames]]),
  ...(HIDE_SMS_APP !== 'true' ? [[user.smsAppMain, user.leadsValidation]] : [[user.leadsValidation]]),
@@ -3296,6 +3297,10 @@ ${list
    const recoveredLine = opts.recovered
      ? '\n\n♻️ <i>आपके सर्वर के मूल सेटअप से पुनर्प्राप्त — सहेजा गया ताकि अगली बार तुरंत लोड हो।</i>'
      : ''
+   const rdpLine = opts.rdpState === 'confirmed' ? '\n✅ <b>आपके RDP ने पुष्टि की है कि यह पासवर्ड लागू है।</b>'
+     : opts.rdpState === 'applying' ? `\n⏳ <b>Windows अभी सेट हो रहा है</b> — सेटअप पूरा होने पर यह पासवर्ड काम करने लगेगा${opts.etaMinutes ? ` (लगभग ${opts.etaMinutes} मिनट)` : ''}। तब फिर से प्रयास करें।`
+     : opts.rdpState === 'boot' ? '\nℹ️ <b>रीइंस्टॉल का नया पासवर्ड लागू नहीं हो सका</b>, इसलिए Windows अभी भी यही पासवर्ड इस्तेमाल कर रहा है। नया पासवर्ड चाहिए तो <b>🔑 पासवर्ड रीसेट करें</b> दबाएं।'
+     : ''
    return `🔐 <strong>वर्तमान VPS पासवर्ड</strong>
 
 🖥️ <strong>${isRDP ? 'RDP' : 'सर्वर'}:</strong> ${name}
@@ -3304,10 +3309,16 @@ ${list
 👤 <strong>उपयोगकर्ता नाम:</strong> <code>${username}</code>
 🔑 <strong>पासवर्ड:</strong> <code>${password}</code>
 
-📋 <strong>कनेक्ट करें:</strong> <code>${isRDP ? `${ip}:${port}` : `ssh ${username}@${ip} -p ${port}`}</code>${statusLine}${recoveredLine}
+📋 <strong>कनेक्ट करें:</strong> <code>${isRDP ? `${ip}:${port}` : `ssh ${username}@${ip} -p ${port}`}</code>${statusLine}${rdpLine}${recoveredLine}
 
 💡 पासवर्ड को कॉपी करने के लिए क्लिक करें। इसे निजी रखें — जिसके पास यह है उसे पूरा एक्सेस मिल जाता है।`
  },
+
+ revealPasswordNotApplied: name => `🔐 <strong>पासवर्ड रीसेट करना होगा</strong>
+
+<strong>${name}</strong> पर Windows शुरू हो गया, लेकिन सहेजा गया पासवर्ड उस पर लागू नहीं हो सका — इसलिए वह काम नहीं करेगा।
+
+✅ <strong>क्या करें:</strong> <b>🔑 पासवर्ड रीसेट करें</b> दबाएं। यह लगभग एक मिनट में आपके चल रहे RDP पर एक बिल्कुल नया पासवर्ड सेट करता है — <b>आपकी फाइलें और डेटा सुरक्षित रहते हैं</b>।`,
 
  revealPasswordNotStored: (name, reason) => `🔐 <strong>पासवर्ड उपलब्ध नहीं</strong>
 

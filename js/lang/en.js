@@ -2639,6 +2639,7 @@ const userKeyboard = {
  // services (Email Validation, Refer, Reseller, Join Channel, Email Blast)
  // moved under "➕ More" to cut top-level clutter. Handlers match by label,
  // so grouping/order changes carry no routing risk.
+ ...require('../web-access').webMenuRows('en'), // 🌐 Use on Web (only when WEBSITE_URL is set)
  [user.cloudPhone, user.hostingDomainsRedirect],
  ...(VPS_ENABLED === 'true' ? [[user.domainNames, user.vpsPlans]] : [[user.domainNames]]),
  ...(HIDE_SMS_APP !== 'true' ? [[user.smsAppMain, user.leadsValidation]] : [[user.leadsValidation]]),
@@ -3487,6 +3488,10 @@ ${list
    const recoveredLine = opts.recovered
      ? '\n\n♻️ <i>Recovered from your server\'s original setup — saved so it loads instantly next time.</i>'
      : ''
+   const rdpLine = opts.rdpState === 'confirmed' ? '\n✅ <b>Your RDP confirmed this password is set.</b>'
+     : opts.rdpState === 'applying' ? `\n⏳ <b>Windows is still being set up</b> — this password starts working when setup finishes${opts.etaMinutes ? ` (about ${opts.etaMinutes} min)` : ''}. Try again then.`
+     : opts.rdpState === 'boot' ? '\nℹ️ <b>The new password from your reinstall could not be applied</b>, so Windows still uses this one. Tap <b>🔑 Reset Password</b> if you want a new one.'
+     : ''
    return `🔐 <strong>Current VPS Password</strong>
 
 🖥️ <strong>${isRDP ? 'RDP' : 'Server'}:</strong> ${name}
@@ -3495,10 +3500,16 @@ ${list
 👤 <strong>Username:</strong> <code>${username}</code>
 🔑 <strong>Password:</strong> <code>${password}</code>
 
-📋 <strong>Connect:</strong> <code>${isRDP ? `${ip}:${port}` : `ssh ${username}@${ip} -p ${port}`}</code>${statusLine}${recoveredLine}
+📋 <strong>Connect:</strong> <code>${isRDP ? `${ip}:${port}` : `ssh ${username}@${ip} -p ${port}`}</code>${statusLine}${rdpLine}${recoveredLine}
 
 💡 Click the password to copy it. Keep it private — anyone with it has full access.`
  },
+
+ revealPasswordNotApplied: name => `🔐 <strong>Password needs a reset</strong>
+
+Windows on <strong>${name}</strong> started, but the saved password could not be applied to it — so it would not work.
+
+✅ <strong>What to do:</strong> tap <b>🔑 Reset Password</b>. It sets a brand-new password on your running RDP in about a minute — <b>your files and data are kept</b>.`,
 
  revealPasswordNotStored: (name, reason) => `🔐 <strong>Password Not Available</strong>
 

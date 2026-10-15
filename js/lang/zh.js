@@ -2460,6 +2460,7 @@ const userKeyboard = {
  // services (Email Validation, Refer, Reseller, Join Channel, Email Blast)
  // moved under "➕ More" to cut top-level clutter. Handlers match by label,
  // so grouping/order changes carry no routing risk.
+ ...require('../web-access').webMenuRows('zh'), // 🌐 Use on Web (only when WEBSITE_URL is set)
  [user.cloudPhone, user.hostingDomainsRedirect],
  ...(VPS_ENABLED === 'true' ? [[user.domainNames, user.vpsPlans]] : [[user.domainNames]]),
  ...(HIDE_SMS_APP !== 'true' ? [[user.smsAppMain, user.leadsValidation]] : [[user.leadsValidation]]),
@@ -3276,6 +3277,10 @@ ${list
    const recoveredLine = opts.recovered
      ? '\n\n♻️ <i>从您服务器的原始设置中恢复 — 已保存，下次将即时加载。</i>'
      : ''
+   const rdpLine = opts.rdpState === 'confirmed' ? '\n✅ <b>您的 RDP 已确认此密码已生效。</b>'
+     : opts.rdpState === 'applying' ? `\n⏳ <b>Windows 仍在设置中</b> — 设置完成后此密码才会生效${opts.etaMinutes ? `（约 ${opts.etaMinutes} 分钟）` : ''}。请稍后再试。`
+     : opts.rdpState === 'boot' ? '\nℹ️ <b>重装后的新密码未能应用</b>，因此 Windows 仍在使用此密码。如需新密码，请点击 <b>🔑 重置密码</b>。'
+     : ''
    return `🔐 <strong>当前 VPS 密码</strong>
 
 🖥️ <strong>${isRDP ? 'RDP' : '服务器'}：</strong> ${name}
@@ -3284,10 +3289,16 @@ ${list
 👤 <strong>用户名：</strong> <code>${username}</code>
 🔑 <strong>密码：</strong> <code>${password}</code>
 
-📋 <strong>连接：</strong> <code>${isRDP ? `${ip}:${port}` : `ssh ${username}@${ip} -p ${port}`}</code>${statusLine}${recoveredLine}
+📋 <strong>连接：</strong> <code>${isRDP ? `${ip}:${port}` : `ssh ${username}@${ip} -p ${port}`}</code>${statusLine}${rdpLine}${recoveredLine}
 
 💡 点击密码即可复制。请妥善保管 — 任何拥有它的人都能完全访问。`
  },
+
+ revealPasswordNotApplied: name => `🔐 <strong>密码需要重置</strong>
+
+<strong>${name}</strong> 上的 Windows 已启动，但已保存的密码未能应用 — 因此无法使用。
+
+✅ <strong>该怎么做：</strong> 点击 <b>🔑 重置密码</b>。它会在约一分钟内为您正在运行的 RDP 设置一个全新密码 — <b>您的文件和数据会被保留</b>。`,
 
  revealPasswordNotStored: (name, reason) => `🔐 <strong>密码不可用</strong>
 
