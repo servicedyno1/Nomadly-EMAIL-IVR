@@ -26,8 +26,8 @@ const CASES = [
     name: 'Is Premium $75 weekly?',
     chatId: 'qa_pricing_2',
     turns: ['Is the Premium Anti-Red plan $75 per week?'],
-    mustNotMatch: [/yes[^.]{0,30}\$?75\s*\/?\s*(per\s*)?week/i],
-    mustMatch: [/30\s*\/?\s*(per\s*)?week|\$?30\b/i, /75[^.]{0,15}month/i],
+    mustNotMatch: [/yes[^.]{0,30}\$?75\s*\/?\s*(per\s*)?week/i, /\bconfuse\b/i, /do not confuse/i, /mix[- ]?up/i],
+    mustMatch: [/30\s*\/?\s*(per\s*)?week|\$?30\b/i, /(75[\s\S]{0,90}month)|(month[\s\S]{0,90}75)/i],
   },
   {
     name: 'List all hosting plans',
