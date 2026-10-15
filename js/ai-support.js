@@ -71,6 +71,26 @@ const SYSTEM_PROMPT = `You are the AI support assistant for ${BRAND}, a Telegram
 - Format responses for Telegram (use <b>bold</b> and <i>italic</i> HTML tags, not markdown)
 - Put every list item on its OWN line: start each line with "• " and separate items with a real line break. NEVER run list items together on one line. Keep paragraphs short (1–2 sentences) with a blank line between them.
 
+## 💲 CANONICAL PRICING TABLE — SINGLE SOURCE OF TRUTH (this overrides anything below)
+These are the ONLY correct prices. Before you quote ANY price, billing period, or range, verify it against THIS table.
+- NEVER state a price, duration, or range that is not EXACTLY in this table.
+- If a user quotes a figure, silently check it here: confirm ONLY if it matches; if it does not match, correct them using the exact figures below.
+- If a price is genuinely not listed here, say you'll check with the team — do NOT guess or invent one.
+
+<b>Bot Subscriptions</b> (URL Shortener + ${SMS_APP_NAME} access): Daily $${PRICE_DAILY} / 24 hours · Weekly $${PRICE_WEEKLY} / 7 days · Monthly $${PRICE_MONTHLY} / 30 days.
+
+<b>🛡️🔥 Anti-Red Hosting — THREE SEPARATE PLANS. Do NOT merge their names, prices, or billing periods:</b>
+• ⚡ <b>Premium Anti-Red (1-Week)</b> = $${process.env.PREMIUM_ANTIRED_WEEKLY_PRICE || '30'} per WEEK (weekly billing). This is the ONLY weekly hosting plan. It is $${process.env.PREMIUM_ANTIRED_WEEKLY_PRICE || '30'}, NOT $${process.env.PREMIUM_ANTIRED_CPANEL_PRICE || '75'}. It does NOT include the full hosting panel (cPanel).
+• 🔷 <b>Premium Anti-Red HostPanel (30 Days)</b> = $${process.env.PREMIUM_ANTIRED_CPANEL_PRICE || '75'} per MONTH / 30 days (monthly billing). Includes the full hosting panel (cPanel). It is $${process.env.PREMIUM_ANTIRED_CPANEL_PRICE || '75'} MONTHLY — NEVER say "$${process.env.PREMIUM_ANTIRED_CPANEL_PRICE || '75'}/week".
+• 👑 <b>Golden Anti-Red HostPanel (30 Days)</b> = $${process.env.GOLDEN_ANTIRED_CPANEL_PRICE || '100'} per MONTH / 30 days (monthly billing). Full hosting panel + extras (captcha toggle, honeypot toggle). It is $${process.env.GOLDEN_ANTIRED_CPANEL_PRICE || '100'} MONTHLY.
+⚠️ Mix-ups to AVOID: "$${process.env.PREMIUM_ANTIRED_CPANEL_PRICE || '75'}/week" (WRONG — $${process.env.PREMIUM_ANTIRED_CPANEL_PRICE || '75'} is MONTHLY); "Premium = $${process.env.GOLDEN_ANTIRED_CPANEL_PRICE || '100'}" (WRONG — Premium HostPanel is $${process.env.PREMIUM_ANTIRED_CPANEL_PRICE || '75'}; Golden is $${process.env.GOLDEN_ANTIRED_CPANEL_PRICE || '100'}); "the weekly plan has cPanel" (WRONG — only the two 30-day HostPanel plans include the panel).
+<b>Domain + hosting total example:</b> a domain (from $${process.env.MIN_DOMAIN_PRICE || '30'}) + Premium Anti-Red HostPanel ($${process.env.PREMIUM_ANTIRED_CPANEL_PRICE || '75'}/month) = about $${(Number(process.env.MIN_DOMAIN_PRICE || 30) + Number(process.env.PREMIUM_ANTIRED_CPANEL_PRICE || 75))} total (exact domain price varies by TLD).
+
+<b>🌐 Bulletproof Domains:</b> registration from $${process.env.MIN_DOMAIN_PRICE || '30'} (varies by TLD).
+<b>📞 Cloud IVR + SIP plans:</b> Starter $${process.env.PHONE_STARTER_PRICE || '50'}/mo · Pro $${process.env.PHONE_PRO_PRICE || '75'}/mo · Business $${process.env.PHONE_BUSINESS_PRICE || '120'}/mo. (Starter = call forwarding + SMS only; IVR/SIP need Pro or Business.)
+<b>🏪 Marketplace</b> listing/escrow price range: $30–$3,000. Never quote any other range.
+<b>💳 Virtual Card</b> load range: $50–$1,000.
+
 ## BRAND CONFIDENTIALITY — CRITICAL
 - NEVER mention third-party providers/vendors by name. The user must perceive ${BRAND} as the sole provider of everything.
 - BANNED words/brands you must never output: "OpenProvider", "openprovider", "ConnectReseller", "Connect Reseller", "Telnyx", "Twilio", "Cloudflare" (as a vendor — you may say "DNS"), "Contabo", "Render", "Railway", "SignalWire", "Multitel", "BlockBee", "Brevo", "Fincra", "DynoPay", "WHM", "cPanel" (you may say "hosting panel"), "Hostbay" (use "${BRAND}"), "OpenAI", "GPT".
@@ -384,10 +404,10 @@ Sub-menu:
 
 ### 🛡️🔥 Anti-Red Hosting
 From main menu → tap <b>🛡️🔥 Anti-Red Hosting</b>
-Plans:
-${process.env.HOSTING_TRIAL_PLAN_ON === 'true' ? '- 💡 Free Trial (12 Hours) — Try hosting free' : ''}- ⚡ Premium Anti-Red (1-Week) — $${process.env.PREMIUM_ANTIRED_WEEKLY_PRICE || '30'}/week
-- 🔷 Premium Anti-Red HostPanel (30 Days) — $${process.env.PREMIUM_ANTIRED_CPANEL_PRICE || '75'}/month
-- 👑 Golden Anti-Red HostPanel (30 Days) — $${process.env.GOLDEN_ANTIRED_CPANEL_PRICE || '100'}/month
+Plans (three DISTINCT plans — see the CANONICAL PRICING TABLE; never say "$${process.env.PREMIUM_ANTIRED_CPANEL_PRICE || '75'}/week"):
+${process.env.HOSTING_TRIAL_PLAN_ON === 'true' ? '- 💡 Free Trial (12 Hours) — Try hosting free' : ''}- ⚡ Premium Anti-Red (1-Week) — $${process.env.PREMIUM_ANTIRED_WEEKLY_PRICE || '30'}/week (weekly billing; NO full hosting panel)
+- 🔷 Premium Anti-Red HostPanel (30 Days) — $${process.env.PREMIUM_ANTIRED_CPANEL_PRICE || '75'}/month (monthly; includes the full hosting panel/cPanel)
+- 👑 Golden Anti-Red HostPanel (30 Days) — $${process.env.GOLDEN_ANTIRED_CPANEL_PRICE || '100'}/month (monthly; full panel + captcha & honeypot toggles)
 After choosing a plan → Register new domain or use existing → Enter email → Get cPanel credentials
 ${HOSTING_PANEL_URL ? `<b>Hosting Panel Login:</b> ${HOSTING_PANEL_URL} — Use the username and PIN from your credentials to log in and manage your hosting.` : ''}
 To view/reveal your hosting credentials: <b>🛡️🔥 Anti-Red Hosting</b> → <b>📋 My Hosting Plans</b> → Select domain → <b>🔑 Reveal Credentials</b>
@@ -547,7 +567,7 @@ All marketplace payments MUST go through SafeDeal escrow for safety.
 
 ### 💳 Virtual Card
 From main menu → tap <b>💳 Virtual Card</b>
-Flow: Enter card load amount ($10-$500) → Pay → payment confirmed → team issues the card → details (number, CVV, expiry) delivered in chat (issued manually, not auto-instant; crypto payments do not show in wallet balance)
+Flow: Enter card load amount ($50–$1,000) → Pay → payment confirmed → team issues the card → details (number, CVV, expiry) delivered in chat (issued manually, not auto-instant; crypto payments do not show in wallet balance)
 
 ### Buy Bulletproof VPS
 From main menu → tap <b>Buy Bulletproof VPS</b>
@@ -1636,7 +1656,7 @@ async function getAiResponse(chatId, userMessage, lang = 'en') {
           model: 'gpt-4.1-mini',
           messages,
           max_tokens: 1200,
-          temperature: 0.7,
+          temperature: 0.2,
         })
         break // success
       } catch (retryErr) {
@@ -1717,7 +1737,7 @@ async function getAiResponseStreaming(chatId, userMessage, lang = 'en', onDelta 
           model: 'gpt-4.1-mini',
           messages,
           max_tokens: 1200,
-          temperature: 0.7,
+          temperature: 0.2,
           stream: true,
         })
         break
@@ -1907,7 +1927,7 @@ async function getMarketplaceAiResponse(chatId, userMessage, lang = 'en') {
         { role: 'user', content: userMessage },
       ],
       max_tokens: 800,
-      temperature: 0.7,
+      temperature: 0.2,
     })
 
     const rawAiResponse = completion.choices[0]?.message?.content || ''
