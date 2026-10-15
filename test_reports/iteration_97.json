@@ -1,0 +1,32 @@
+{
+  "summary": "Phase 2 pricing-hardening test of js/ai-support.js. I ran the harness scripts/test_ai_support_pricing.js 3 times against live gpt-4.1-mini: 21/21 passed (7/7 each run, every run printed '0 failed'). Regression guard holds: eSIM T-Mobile is quoted as $60 and Email Blast as $0.10/email in every run, with no 'check with the team' or 'not listed'. VPS 10 is always framed as 'starts from approximately $15/mo (EU base), varies by region/disk, exact price shown on the plan-selection screen before payment'. Phase 1 still holds: $30/WEEK, $75/MONTH (never weekly), $100/month, domain+cPanel about $105, marketplace $30-$3,000. All quoted figures match the KB (lines 453, 474, 515, 94, 85-89). Temperature is 0.2 on the 3 support calls (lines 1662, 1743, 1933); marketplace moderation uses 0.1 on purpose. No crashes or setup errors.",
+  "sample_answers": {
+    "qa_pricing_1": "Yes, approximately. Domain registration starts from $30 (varies by TLD) + Premium Anti-Red HostPanel hosting is $75 per month ... totals about $105",
+    "qa_pricing_2": "No, the Premium Anti-Red plan is NOT $75 per week. Premium Anti-Red (1-Week) = $30 per WEEK ... HostPanel (30 Days) = $75 per MONTH",
+    "qa_pricing_3": "Three plans: $30 per WEEK (no panel) / $75 per MONTH (HostPanel) / $100 per MONTH (Golden)",
+    "qa_pricing_4": "between $30 and $3,000",
+    "qa_pricing_5": "The eSIM T-Mobile costs <b>$60</b>. Main menu → 🛒 Digital Products → eSIM T-Mobile",
+    "qa_pricing_6": "The Email Blast service costs <b>$0.10 per email</b>. Up to 5,000 emails per campaign.",
+    "qa_pricing_7": "The Cloud VPS 10 plan starts from approximately $15 per month (EU base price) ... exact price varies by region and disk type (NVMe or SSD) and is shown on the plan-selection screen before payment."
+  },
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "getAiResponse (prompt-rule leak)", "issue": "In run 1, the qa_pricing_2 answer included 'Please do not confuse the $75 monthly plan with a weekly price.' The prompt (line 80) forbids exactly this kind of paraphrase of the internal rules. The case still passes and the pricing is correct; this is a cosmetic tone issue that happens some of the time (seen in 1 of 3 runs)."}
+    ]
+  },
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": ["/app/scripts/test_ai_support_pricing.js"],
+  "action_items": [
+    "Optional: tone down the '⚠️ Mix-ups to AVOID' wording, or add a mustNotMatch /do not confuse/i to qa_pricing_2, so the rule stops leaking into answers some of the time."
+  ],
+  "critical_code_review_comments": [
+    "The harness checks one answer per run. LLM output is non-deterministic, so consider adding a few more VPS/RDP questions (an RDP price, a region surcharge) and an upgrade-cost question, to check that the 'use USER CONTEXT only' rule makes the model avoid computing prorated prices."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100% (21/21 across 3 runs)", "frontend": "N/A (not tested)"},
+  "seed_data_creation": "None. The harness only clears and writes AI history for chatIds qa_pricing_1..7 in the local DB 'test'.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run: cd /app && node scripts/test_ai_support_pricing.js (exit 0 = pass). It calls getAiResponse directly, with no HTTP. Phase 1 = iteration_96 and Phase 2 = this report; both are stable."
+}
