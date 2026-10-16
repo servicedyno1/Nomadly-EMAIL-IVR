@@ -38821,7 +38821,18 @@ const addFundsTo = async (walletOf, chatId, coin, valueIn, lang) => {
     const vs = require('./voice-service.js')
     const resume = (typeof vs.LOW_BALANCE_RESUME === 'number') ? vs.LOW_BALANCE_RESUME : 20
     if (usdBal >= resume) {
-      vs.removeSipPreDialBlockByChatId(chatId)
+      const cleared = vs.removeSipPreDialBlockByChatId(chatId)
+      // Only confirm when the user was actually locked — tells them calling works
+      // again instead of leaving them to discover it via another failed call.
+      if (cleared > 0) {
+        const reMsg = ({
+          en: `✅ <b>Outbound calling re-enabled</b>\n\nYour balance is back above the minimum — you can place SIP & IVR calls again.`,
+          fr: `✅ <b>Appels sortants réactivés</b>\n\nVotre solde est de nouveau au-dessus du minimum — vous pouvez repasser des appels SIP et IVR.`,
+          zh: `✅ <b>拨出通话已重新启用</b>\n\n您的余额已高于最低要求 — 可以再次拨打 SIP 和 IVR 电话。`,
+          hi: `✅ <b>आउटबाउंड कॉलिंग फिर से सक्षम</b>\n\nआपका बैलेंस न्यूनतम से ऊपर है — अब आप SIP और IVR कॉल कर सकते हैं।`,
+        }[lang]) || `✅ <b>Outbound calling re-enabled</b>\n\nYour balance is back above the minimum — you can place SIP & IVR calls again.`
+        sendMessage(chatId, reMsg, { parse_mode: 'HTML' })
+      }
     }
   } catch (e) { /* voice-service not loaded yet — non-critical */ }
 }

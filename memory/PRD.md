@@ -1,5 +1,14 @@
 # PRD — Nomadly Cloud IVR + Telegram Bot
 
+## 2026-10-16 — SIP "503" low-balance UX: never-silent alert + top-up re-enable confirmation + threshold retune (ALL 4 bots) — LIVE
+- RCA (Nomadly @pirate_script 1005284399): number +18445716353 & SIP cred healthy; Zoiper "503" was a correct LOW BALANCE
+  LOCK at $0.18. Gaps fixed: (A) low-balance alerts no longer silently dropped when a translation is missing (English
+  fallback on all paths); (B) thresholds now CALL_LOW_BALANCE_TRIGGER=1 / CALL_LOW_BALANCE_RESUME=5 / BULK_CALL_MIN_WALLET=20
+  on all 4 brands (were default 20 / 50); (C) addFundsTo sends "✅ Outbound calling re-enabled" when a top-up unlocks a
+  previously-locked user. Hot-patched+reloaded all 4 live bots; verified. Detail: memory/SIP_LOWBALANCE_ALERT_2026-10-16.md.
+  PENDING: owner "Save to GitHub" to persist js/voice-service.js + js/_index.js.
+
+
 ## 2026-10-16 — PROSHOP white-label (4th brand, app-proshop) — LIVE (public, certs OK)
 - @ProshopHQ_bot · panel.proshophost.xyz (panel+landing) · proshopivr.xyz (/call, webhooks, /sales) · sip.proshopivr.xyz.
   Own Mongo (Railway) / Dynopay / bot; shared Nomadly Telnyx account with own SIP/CCA/MP; support+channel @proshopHQ; phone ON; reseller shown.

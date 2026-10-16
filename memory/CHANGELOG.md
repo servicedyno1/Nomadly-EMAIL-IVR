@@ -1,3 +1,20 @@
+## 2026-10-16 — SIP "503" low-balance: never-silent alert + top-up re-enable confirmation + threshold retune (ALL 4 bots) — LIVE
+- Nomadly @pirate_script (1005284399) saw a bare Zoiper "503" with no bot explanation. RCA: number +18445716353 & SIP
+  cred healthy; the 503 was our LOW BALANCE LOCK rejecting his INVITE at $0.18 (he'd just bought the number). Full RCA:
+  memory/SIP_LOWBALANCE_ALERT_2026-10-16.md.
+- Fixed the SILENT lock: low-balance alerts were gated on an optional translation (`if (baseMsg)`) — a missing string
+  suppressed the whole message. Now every path (pre-dial block, LOW BALANCE LOCK, sipCallBlocked, auto-routed) ALWAYS
+  sends with an English fallback. `removeSipPreDialBlockByChatId` now ALWAYS clears lingering walletRejectCooldown (up to
+  2h) and returns a count.
+- NEW: on any wallet top-up (addFundsTo — DynoPay/BlockBee/NGN/admin), a previously-locked user who returns to ≥ resume
+  gets "✅ Outbound calling re-enabled". Only fires if they were actually locked.
+- Thresholds retuned on all 4 brands' env: CALL_LOW_BALANCE_TRIGGER=1, CALL_LOW_BALANCE_RESUME=5 (was default 20),
+  BULK_CALL_MIN_WALLET=20 (was 50).
+- Deploy: hot-patched + env-set + pm2 reload --update-env on ALL 4 live bots (app-main/wl/voodoo/proshop); verified
+  RESUME=5 TRIGGER=1 BULK=20 live, /health healthy. Tests: test_call_billing_thresholds 6/6, test_sip_lowbalance_alert
+  2026-10 3/3. NEEDS "Save to GitHub" to persist voice-service.js + _index.js.
+
+
 ## 2026-10-16 — SMADAV .it domain swap + IVR TTS hardening (direct OpenAI fallback, EdenAI alerts) + license limit 100 — LIVE
 - Origin CA: provisioning race left 24 domains on Flexible with no origin cert → backfilled (Origin CA + Full) and added guarded 6h self-heal in protection-enforcer (originCertState). Details: memory/DEPLOYMENT_STATE.md.
 
