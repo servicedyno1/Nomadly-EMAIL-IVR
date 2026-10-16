@@ -117,8 +117,24 @@ const registerDomain = async (domainName, registrar, nsChoice, db, chatId, custo
   let result
   let nameservers = []
   let cfZoneId = null
+  let cfZoneCreated = false // true only if THIS call created the Cloudflare zone
   const originalRegistrar = registrar
   let actualPrice = null
+
+  // Remove a Cloudflare zone this attempt created when the registration did
+  // not go through — otherwise every failed order leaves an orphan zone for a
+  // domain we never registered (net.it / org.it, 2026-10-16). Pre-existing
+  // zones (createZone reuses them) are NEVER touched: they may belong to a
+  // live customer domain.
+  const _cleanupCreatedZone = async (why) => {
+    if (!cfZoneId || !cfZoneCreated) return
+    try {
+      const del = await cfService.deleteZone(cfZoneId)
+      log(`[domain-service] ${del?.success ? '🧹 Deleted' : '⚠️ Could not delete'} Cloudflare zone ${cfZoneId} for ${domainName} after failed registration (${why})`)
+    } catch (e) {
+      log(`[domain-service] Cloudflare zone cleanup error for ${domainName}: ${e.message}`)
+    }
+  }
 
   // Determine nameservers based on choice
   if (nsChoice === 'cloudflare') {
@@ -139,6 +155,7 @@ const registerDomain = async (domainName, registrar, nsChoice, db, chatId, custo
     if (cfResult.success) {
       nameservers = cfResult.nameservers || []
       cfZoneId = cfResult.zoneId
+      cfZoneCreated = cfResult.created === true
       log(`[domain-service] Cloudflare zone created. NS: ${nameservers.join(', ')}`)
     } else {
       // Hard failure after retry — abort registration instead of silently
@@ -180,6 +197,8 @@ const registerDomain = async (domainName, registrar, nsChoice, db, chatId, custo
     if (!nast.ready) {
       const detail = nast.perNs.map((n) => `${n.ns}=${n.aa ? 'AA' : 'noAA'}(${n.error || 'ok'})`).join(', ')
       log(`[domain-service] ❌ NAST pre-flight FAILED for ${domainName}: ${detail}`)
+      // Registration was never submitted → safe to remove the zone we just made.
+      await _cleanupCreatedZone('NAST pre-flight failed')
       return {
         error: `Nameserver pre-check failed for .${tld}. ${nast.authoritativeCount}/${nameservers.length} nameservers are authoritative. The registry would reject this delegation. Your card was NOT charged — please retry in a couple of minutes.`,
       }
@@ -226,10 +245,23 @@ const registerDomain = async (domainName, registrar, nsChoice, db, chatId, custo
       log(`[domain-service] ${domainName} registered on OpenProvider (ID: ${result.domainId})`)
     }
   } else {
+    await _cleanupCreatedZone('unknown registrar — nothing submitted')
     return { error: 'Domain registration failed. Please try again or contact support.' }
   }
 
-  if (result.error) return { error: sanitizeErrorForUser(result.error) }
+  if (result.error) {
+    // OpenProvider-only attempts are definitive: op-service re-verifies after
+    // an HTTP 500 and only returns an error when the domain is NOT registered.
+    // A ConnectReseller attempt can be ambiguous (CR timeout yet registered,
+    // then OP "not free") — keep the zone in that case so a registered domain
+    // never loses its DNS.
+    if (originalRegistrar === 'OpenProvider') {
+      await _cleanupCreatedZone(`OpenProvider: ${String(result.error).slice(0, 80)}`)
+    } else if (cfZoneId && cfZoneCreated) {
+      log(`[domain-service] Kept Cloudflare zone ${cfZoneId} for ${domainName} (ConnectReseller path — outcome ambiguous)`)
+    }
+    return { error: sanitizeErrorForUser(result.error) }
+  }
 
   // Store metadata in MongoDB
   if (db) {

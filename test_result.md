@@ -11,6 +11,32 @@
 #====================================================================================================
 # CURRENT TASK (2026-10-14b) — Admin DO stock alerts: confirmed changes only (30 min) + short text
 #====================================================================================================
+current_task_2026_10_16_it_registry_gate: |
+  User bug report (SMADAV prod): "determine why the user had error buying a hosting plan" → then "apply the fix on
+  all three bots, nomadly, smadav and voodoo land".
+  RCA (prod logs app-wl-b 2026-10-16 07:05Z + 07:10Z, @Todexman009 8514352552): Golden HostPanel $100 + new domain.
+  Bot offered net.it / org.it as "available on OpenProvider only @ $30"; user paid $130 from wallet; OP registerDomain
+  → code 311 "The domain you want to register is not free!". Wallet NOT debited (wallet path only debits on success).
+  Root cause: OpenProvider /v1beta/domains/check for .it is a DNS heuristic — status "free", reason
+  "available (domain not found in DNS)". NIC.it registry (DAS das.nic.it:4343) says both are UNASSIGNABLE (reserved).
+  Only .it gets the heuristic (other 11 suggested TLDs are registry-backed). Side effects: orphan Cloudflare zones
+  (registerDomain created the zone first, never deleted it on failure) + unclear message without "not charged".
+  FIX (5 files, hot-patched to all 3 live bots):
+   1. js/op-service.js — verifyRegistryAvailability(): NIC.it DAS → WHOIS fallback, only "AVAILABLE" passes, 10-min
+      cache, fail-closed for .it if registry unreachable; checkDomainAvailability() gates every OP "free" for .it (or
+      any "not found in DNS" heuristic) through it.
+   2. js/cf-service.js — createZone() returns created:true ONLY for a freshly created zone (existing zones unchanged).
+   3. js/domain-service.js — registerDomain() deletes the zone it created when: NAST pre-check fails, unknown
+      registrar, or an OpenProvider-only attempt fails. Kept on the ambiguous ConnectReseller→OP path. Never deletes
+      pre-existing zones.
+   4. js/cr-register-domain-&-create-cpanel.js — _domainFailMsg(lang, domain, error): en/fr/zh/hi "can't be
+      registered — reserved/taken" + "not charged (crypto/bank → full amount in wallet)" + pick another name; returns
+      userNotified:true.
+   5. js/_index.js — wallet / bank NGN / 2× crypto full-refund paths skip the duplicate raw-error message when
+      hostingResult.userNotified.
+  Tests: js/tests/test_it_registry_gate_2026-10.js 47/0 (includes live NIC.it DAS checks). Live dev check:
+  checkAlternativeTLDs('net') no longer offers net.it; ('org') no longer offers org.it.
+
 current_task_2026_10_14d_healthcheck_promo: |
   User bug report: hosting "Health Check Stage 1/2" alerts (vabillaprepaid.com / vabi2597) say "Origin: HTTP N/A,
   Content: empty, Prepend: none, Auto-fix: Deployed IP-fix prepend (was missing), No user content found" even

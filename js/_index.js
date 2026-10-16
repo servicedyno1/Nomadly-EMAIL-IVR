@@ -13044,6 +13044,9 @@ Enter new value:`), bc)
             `❌ Error: ${hostingResult?.error || 'Unknown'}`,
             adminMsgOpts({ chatId }))
         } catch (e) { log('[Hosting] Admin alert error (wallet existing): ' + e.message) }
+        // The domain-step failure already sent the user a clear "not charged"
+        // message (userNotified) — don't follow it with the raw registrar error.
+        if (hostingResult?.userNotified) return
         return send(chatId, hostingResult?.error || 'Hosting creation failed. Your wallet was not charged. Please try again or contact support.', trans('o'))
       }
 
@@ -39028,7 +39031,7 @@ const bankApis = {
         recordHostingTransaction(chatId, { ...txBase, outcome: 'domain_only', refundAmount: hostingRefundNgn, refundCurrency: 'NGN' })
       } else {
         addFundsTo(walletOf, chatId, 'ngn', ngnIn, lang)
-        sendMessage(chatId, hostingResult?.error || 'Hosting creation failed. Full payment refunded to your wallet.')
+        if (!hostingResult?.userNotified) sendMessage(chatId, hostingResult?.error || 'Hosting creation failed. Full payment refunded to your wallet.')
         recordHostingTransaction(chatId, { ...txBase, outcome: 'full_refund', refundAmount: ngnIn, refundCurrency: 'NGN' })
       }
       return res.send(html(hostingResult?.error || 'Hosting creation failed'))
@@ -40103,7 +40106,7 @@ app.get('/crypto-pay-hosting', auth, async (req, res) => {
       recordHostingTransaction(chatId, { ...txBase, outcome: 'domain_only', refundAmount: hostingRefund, refundCurrency: 'USD' })
     } else {
       addFundsTo(walletOf, chatId, 'usd', usdIn, lang)
-      sendMessage(chatId, hostingResult?.error || 'Hosting creation failed. Full payment refunded to your USD wallet.')
+      if (!hostingResult?.userNotified) sendMessage(chatId, hostingResult?.error || 'Hosting creation failed. Full payment refunded to your USD wallet.')
       recordHostingTransaction(chatId, { ...txBase, outcome: 'full_refund', refundAmount: usdIn, refundCurrency: 'USD' })
     }
     // ── Admin alert on hosting failure (Crypto BlockBee) ──
@@ -45360,7 +45363,7 @@ app.post('/dynopay/crypto-pay-hosting', authDyno, async (req, res) => {
       recordHostingTransaction(chatId, { ...txBase, outcome: 'domain_only', refundAmount: hostingRefund, refundCurrency: 'USD' })
     } else {
       addFundsTo(walletOf, chatId, 'usd', usdIn, lang)
-      sendMessage(chatId, hostingResult?.error || 'Hosting creation failed. Full payment refunded to your USD wallet.')
+      if (!hostingResult?.userNotified) sendMessage(chatId, hostingResult?.error || 'Hosting creation failed. Full payment refunded to your USD wallet.')
       recordHostingTransaction(chatId, { ...txBase, outcome: 'full_refund', refundAmount: usdIn, refundCurrency: 'USD' })
     }
     // ── Admin alert on hosting failure (Crypto DynoPay) ──

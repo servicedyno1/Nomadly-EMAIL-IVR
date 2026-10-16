@@ -26,6 +26,58 @@ const QUEUED_PROVISIONING_MSG = {
   hi: (domain) => `🎉 <b>भुगतान की पुष्टि हो गई!</b>\n\n<b>${domain}</b> के लिए आपकी होस्टिंग तैयार की जा रही है। तैयार होते ही हम आपके लॉगिन विवरण यहीं भेज देंगे — आमतौर पर कुछ मिनटों में।\n\n<i>आपको कुछ नहीं करना — बस इस चैट को खुला रखें।</i>`,
 }
 
+// Shown when the DOMAIN step fails before anything was registered. Every caller
+// (wallet / crypto / bank) leaves the user with nothing charged: the wallet path
+// never debits, crypto + bank NGN paths credit the full payment to the wallet.
+// The old text ("❌ Domain registration failed: <registrar error>") never said
+// that, so users went straight to support (SMADAV @Todexman009, 2026-10-16).
+const _UNAVAILABLE_ERR_RE = /not free|unassignable|not available|already registered|already taken|is taken|reserved/i
+function _domainFailMsg(lang, domain, error) {
+  const unavailable = _UNAVAILABLE_ERR_RE.test(String(error || ''))
+  const d = `<b>${domain}</b>`
+  const T = {
+    en: {
+      head: unavailable
+        ? `❌ ${d} can't be registered — the registry has it reserved or already taken.`
+        : `❌ We couldn't register ${d} right now.`,
+      money: '💵 You were <b>not charged</b> for this order. If you paid by crypto or bank transfer, the full amount has been added to your wallet.',
+      next: unavailable
+        ? 'Open 🛡️ Anti-Red Hosting below to choose a different domain name.'
+        : 'Please try again in a few minutes, or choose a different domain name. Tap 💬 Get Support if it keeps failing.',
+    },
+    fr: {
+      head: unavailable
+        ? `❌ ${d} ne peut pas être enregistré — le registre l'a réservé ou il est déjà pris.`
+        : `❌ Nous n'avons pas pu enregistrer ${d} pour le moment.`,
+      money: '💵 Vous <b>n\'avez pas été débité</b> pour cette commande. Si vous avez payé en crypto ou par virement, le montant total a été ajouté à votre portefeuille.',
+      next: unavailable
+        ? 'Ouvrez 🛡️ Hébergement Anti-Red ci-dessous pour choisir un autre nom de domaine.'
+        : 'Réessayez dans quelques minutes ou choisissez un autre nom de domaine. Contactez le support si le problème persiste.',
+    },
+    zh: {
+      head: unavailable
+        ? `❌ ${d} 无法注册 — 该域名已被注册局保留或已被占用。`
+        : `❌ 我们暂时无法注册 ${d}。`,
+      money: '💵 此订单<b>未扣款</b>。如果您使用加密货币或银行转账付款，全部金额已退回您的钱包。',
+      next: unavailable
+        ? '请在下方打开主机服务，选择其他域名。'
+        : '请几分钟后重试，或选择其他域名。如持续失败，请联系客服。',
+    },
+    hi: {
+      head: unavailable
+        ? `❌ ${d} पंजीकृत नहीं किया जा सकता — रजिस्ट्री ने इसे आरक्षित रखा है या यह पहले से लिया जा चुका है।`
+        : `❌ हम अभी ${d} पंजीकृत नहीं कर सके।`,
+      money: '💵 इस ऑर्डर के लिए आपसे <b>कोई शुल्क नहीं लिया गया</b>। यदि आपने क्रिप्टो या बैंक ट्रांसफर से भुगतान किया है, तो पूरी राशि आपके वॉलेट में जोड़ दी गई है।',
+      next: unavailable
+        ? 'दूसरा डोमेन नाम चुनने के लिए नीचे होस्टिंग खोलें।'
+        : 'कुछ मिनट बाद फिर से प्रयास करें या दूसरा डोमेन नाम चुनें। समस्या बनी रहे तो सपोर्ट से संपर्क करें।',
+    },
+  }
+  const t = T[lang] || T.en
+  return `${t.head}\n\n${t.money}\n\n${t.next}`
+}
+
+
 async function registerDomainAndCreateCpanel(send, info, keyboardButtons, state, bot = null) {
   const lang = info?.userLanguage ?? 'en'
   const chatId = info._id
@@ -449,13 +501,13 @@ async function registerDomainAndCreateCpanel(send, info, keyboardButtons, state,
           send(chatId, { en: `✅ Domain <b>${domain}</b> registered`, fr: `✅ Domaine <b>${domain}</b> enregistré`, zh: `✅ 域名 <b>${domain}</b> 已注册`, hi: `✅ डोमेन <b>${domain}</b> पंजीकृत` }[lang] || `✅ Domain <b>${domain}</b> registered`, rem)
         } else {
           log(`[Hosting] Domain registration failed for ${domain}: ${regResult.error}`)
-          send(chatId, `❌ Domain registration failed: ${regResult.error}\n\nTap 💬 Get Support for help.`, keyboardButtons)
-          return { success: false, error: `Domain registration failed: ${regResult.error}`, domainRegistered }
+          send(chatId, _domainFailMsg(lang, domain, regResult.error), keyboardButtons)
+          return { success: false, error: `Domain registration failed: ${regResult.error}`, domainRegistered, userNotified: true }
         }
       } catch (regErr) {
         log(`[Hosting] Domain registration error: ${regErr.message}`)
-        send(chatId, `❌ Domain registration failed. Tap 💬 Get Support for help.\n\nError: ${regErr.message}`, keyboardButtons)
-        return { success: false, error: `Domain registration error: ${regErr.message}`, domainRegistered }
+        send(chatId, _domainFailMsg(lang, domain, null), keyboardButtons)
+        return { success: false, error: `Domain registration error: ${regErr.message}`, domainRegistered, userNotified: true }
       }
     } else if (isExisting) {
       send(chatId, { en: `🔗 Linking <b>${domain}</b> to your hosting...`, fr: `🔗 Liaison de <b>${domain}</b> à votre hébergement...`, zh: `🔗 正在将 <b>${domain}</b> 链接到您的主机...`, hi: `🔗 <b>${domain}</b> को आपकी होस्टिंग से जोड़ रहे हैं...` }[lang] || `🔗 Linking <b>${domain}</b> to your hosting...`, rem)
@@ -1019,4 +1071,4 @@ Login: ${panelUrl}
   }
 }
 
-module.exports = { registerDomainAndCreateCpanel }
+module.exports = { registerDomainAndCreateCpanel, _domainFailMsg }

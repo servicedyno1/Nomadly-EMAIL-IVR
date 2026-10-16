@@ -124,6 +124,9 @@ const createZone = async (domainName) => {
         zoneId: zone.id,
         nameservers: zone.name_servers || [],
         status: zone.status,
+        // true ONLY when this call created the zone — callers may safely
+        // delete it on a later failure. Pre-existing zones never carry it.
+        created: true,
       }
     }
 
