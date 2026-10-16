@@ -1,4 +1,5 @@
 ## 2026-10-16 — SMADAV .it domain swap + IVR TTS hardening (direct OpenAI fallback, EdenAI alerts) + license limit 100 — LIVE
+- Origin CA: provisioning race left 24 domains on Flexible with no origin cert → backfilled (Origin CA + Full) and added guarded 6h self-heal in protection-enforcer (originCertState). Details: memory/DEPLOYMENT_STATE.md.
 
 - SMADAV customer 8514352552: 73sandoresworld.it (stuck in OP REQ, .it verification mail went to lost cloakhost@tutamail.com)
   silently replaced by 72sandoresworld.it on cPanel nsan2e0c (OP + CF + WHM + Mongo). Details: memory/SMADAV_IT_DOMAIN_SWAP_2026-10-16.md.

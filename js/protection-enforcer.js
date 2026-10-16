@@ -505,17 +505,86 @@ async function enforceSSLMode(domain, zoneId) {
   }
 }
 
+// ─── Origin CA self-heal ────────────────────────────────
+// At provisioning the Origin CA cert is requested right after the CF zone is
+// created, while the zone is still activating; Cloudflare rejects it with the
+// misleading "zone is not part of your account" and provisioning never retries.
+// The origin (cPanel) then has no cert for the domain, so enforceSSLMode's HTTPS
+// probe fails and the zone is stuck on 'flexible' (plain-HTTP CF→origin) forever.
+// This self-heal (runs in the 6-hourly loop) mints + installs an Origin CA cert
+// once the zone is active, breaking the deadlock → next pass upgrades SSL to full.
+const ORIGIN_CERT_REFRESH_DAYS = parseInt(process.env.ORIGIN_CERT_REFRESH_DAYS || '30', 10)
+
+const ORIGIN_CERT_FAIL_BACKOFF_DAYS = 7
+
+async function ensureOriginCert(domain, zoneId, cpUser) {
+  const actions = []
+  if (!cpUser || !zoneId || !db) return actions
+
+  // Only act on domains actually hosted on a LIVE cPanel account. The enforcer's
+  // domain map includes deleted accounts (cpanelAccounts.find({})), whose domains
+  // WHM no longer manages — minting a cert for those just orphans it on CF.
+  const acct = await db.collection('cpanelAccounts').findOne({ $or: [{ _id: cpUser }, { cpUser }] })
+  if (!acct || acct.deleted) return actions
+  const hosted = [acct.domain, ...(acct.addonDomains || []).map(a => (typeof a === 'string' ? a : a?.domain))]
+    .filter(Boolean).map(s => String(s).toLowerCase())
+  if (!hosted.includes(String(domain).toLowerCase())) return actions
+
+  // Dedup: skip if satisfied within the refresh window, or failed within the backoff.
+  try {
+    const state = await db.collection('originCertState').findOne({ _id: domain })
+    const age = (t) => Date.now() - new Date(t).getTime()
+    if (state?.installedAt && age(state.installedAt) < ORIGIN_CERT_REFRESH_DAYS * 86400000) return actions
+    if (state?.failedAt && age(state.failedAt) < ORIGIN_CERT_FAIL_BACKOFF_DAYS * 86400000) return actions
+  } catch { /* fall through and attempt */ }
+
+  const recordState = async (fields) => {
+    try {
+      await db.collection('originCertState').updateOne(
+        { _id: domain },
+        { $set: { ...fields, domain, cpUser, updatedAt: new Date() } },
+        { upsert: true }
+      )
+    } catch (e) { log(`[ProtectionEnforcer] originCertState write error for ${domain}: ${e.message}`) }
+  }
+
+  // If the origin already terminates TLS for this domain (AutoSSL or a prior
+  // cert), there's nothing to do — remember it so we don't re-check every pass.
+  const probe = await probeOriginSSL(domain)
+  if (probe.ok) {
+    await recordState({ installedAt: new Date(), via: 'origin-already-ok' })
+    return actions
+  }
+
+  const cfService = require('./cf-service')
+  const whmService = require('./whm-service')
+  const certResult = await cfService.generateOriginCACert([domain, `*.${domain}`])
+  if (!certResult.success) {
+    // Zone most likely still pending/activating — let the next 6h pass retry.
+    actions.push(`origin CA skipped for ${domain}: ${certResult.code || certResult.error || 'unknown'}`)
+    return actions
+  }
+  const installRes = await whmService.installDomainSSL(cpUser, domain, certResult.certificate, certResult.privateKey)
+  if (!installRes.success) {
+    await recordState({ failedAt: new Date(), via: 'install-failed', error: String(installRes.error || '').slice(0, 200) })
+    actions.push(`origin CA install FAILED for ${domain}: ${installRes.error}`)
+    return actions
+  }
+  try { await whmService.excludeDomainsFromAutoSSL(cpUser, [domain, `www.${domain}`]) } catch (_) { /* best-effort */ }
+  await recordState({ installedAt: new Date(), via: 'origin-ca', certId: certResult.id || null })
+  actions.push(`origin CA installed for ${domain}`)
+  return actions
+}
+
 // ─── Origin Hardening (CT + Direct IP protection) ───────
 
 /**
- * Ensure a hosting domain has Authenticated Origin Pulls enabled.
- * 
- * Origin CA cert install on WHM has been REMOVED — Cloudflare handles all SSL
- * (mode=full), so WHM's AutoSSL/self-signed certs are sufficient for CF→origin.
+ * Ensure a hosting domain has Authenticated Origin Pulls enabled AND a valid
+ * origin cert (self-heals the provisioning race that left CF↔origin on 'flexible').
  *
  * @param {string} domain
  * @param {string} zoneId
- * @param {string|null} cpUser - cPanel username (unused now, kept for API compat)
+ * @param {string|null} cpUser - cPanel username (used for Origin CA install)
  */
 async function enforceOriginHardening(domain, zoneId, cpUser) {
   const actions = []
@@ -534,6 +603,14 @@ async function enforceOriginHardening(domain, zoneId, cpUser) {
     }
   } catch (err) {
     actions.push(`AOP check error for ${domain}: ${err.message}`)
+  }
+
+  // Origin CA cert self-heal (install on cPanel so CF SSL can reach 'full')
+  try {
+    const certActions = await ensureOriginCert(domain, zoneId, cpUser)
+    actions.push(...certActions)
+  } catch (err) {
+    actions.push(`origin CA check error for ${domain}: ${err.message}`)
   }
 
   return actions
@@ -986,4 +1063,5 @@ module.exports = {
   runLegacyAntiRedOffMigration,
   startScheduler,
   stopScheduler,
+  ensureOriginCert,
 }

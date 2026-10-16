@@ -10,6 +10,7 @@
   Tests: js/tests/test_tts_billing_fallback_2026-10.js 39/0; real-API forced-invalid-key run OK.
 - cPanel license alerts: WHM_LICENSE_LIMIT=100 set on all 3 bots (was unset → default 30). Live: accounts=28/100.
 - 180 OP contact handles moved off cloakhost@tutamail.com → hosta1@proton.me.
+- Origin CA: 24 stuck Flexible domains backfilled to Origin CA + Full; enforcer self-heal live (guarded to live hosted domains). Cause was provisioning race, not the missing key.
 - NEEDS "Save to GitHub" so auto-deploys keep the hot-patched code.
 
 ## 2026-10-15b — cPanel license cleanup: deleted 1 empty account + proactive 27/30 safeguard

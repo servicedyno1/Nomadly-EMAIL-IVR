@@ -178,3 +178,14 @@ The new layout differs from the old in-place `/opt/nomadly/app-main` checkout. O
 - Verified live: `[BalanceMonitor] EdenAI: $7.58 USD [ok]` + `[WhmDiskMonitor] OK — accounts=28/100` on all 3.
 - Rollback: `cd <release>/js && for f in tts-service.js balance-monitor.js _index.js lang/*.js; do cp -p $f.bak.ttshard.20261016T101206Z $f; done && pm2 reload <slot>`.
 - ⚠️ Needs "Save to GitHub" so the next auto-deploy keeps these changes (the /app tree already has them).
+
+## 2026-10-16 ~11:40Z — Origin CA self-heal + backfill (LIVE on all 3 bots)
+- Root cause of "origin CA cert skipped": NOT the missing CLOUDFLARE_ORIGIN_CA_KEY (global CF key issues Origin CA fine; that key type is retired).
+  Provisioning requests the cert right after createZone while the zone is still activating → CF rejects ("zone not part of your account"),
+  no retry → origin has no cert → protection-enforcer's HTTPS probe fails → zone stuck on Flexible.
+- Backfill (`memory/ops/origin_ca_backfill.js`): 24 domains (8 Nomadly, 15 SMADAV, 1 Voodoo) → Origin CA installed on cPanel, AutoSSL-excluded, CF SSL flexible→full. 0 failures; sites verified 200/302 via CF.
+- Durable: `protection-enforcer.js` `ensureOriginCert()` in enforceOriginHardening (6h loop). Guarded to LIVE hosted domains only
+  (enforcer map includes deleted accounts — first version minted orphan CF certs for ~50 deleted-account domains in one run; fixed + 7-day failure backoff + 30-day refresh dedup, state in `originCertState`).
+  Test `js/tests/test_origin_cert_selfheal_2026-10.js` 13/0 (local + all 3 releases). Live run after fix: 0 new mints, 0 "not managed on this server".
+- NOTE: a GitHub auto-deploy at 10:35Z moved live slots to app-main-b:5100 (20261016T103545Z-cc66d4c), app-wl-a:5001 / app-voodoo-a:5003 (…-5606afa); it already contained the TTS/EdenAI/lang changes. protection-enforcer was hot-patched into these releases (backups *.bak.ocfix.* / *.bak.guard.*). Needs Save to GitHub.
+- Leftover: ~50 orphan (unused, key discarded) Origin CA certs on CF from the first run — harmless; optional cleanup.
