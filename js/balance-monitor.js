@@ -1,6 +1,6 @@
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // Provider Balance Monitor
-// Periodically checks Telnyx & Twilio account balances
+// Periodically checks Telnyx, Twilio & EdenAI account balances
 // and sends Telegram admin alerts when they fall below thresholds
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -12,6 +12,21 @@ const log = (msg) => console.log(msg)
 const WARN_THRESHOLD  = parseFloat(process.env.BALANCE_WARN_THRESHOLD  || '10')
 const CRIT_THRESHOLD  = parseFloat(process.env.BALANCE_CRIT_THRESHOLD  || '5')
 const CHECK_INTERVAL  = parseInt(process.env.BALANCE_CHECK_INTERVAL_MIN || '120', 10) // minutes
+const THRESHOLDS = {
+  EdenAI: {
+    warn: parseFloat(process.env.EDENAI_WARN_THRESHOLD || '5'),
+    crit: parseFloat(process.env.EDENAI_CRIT_THRESHOLD || '2'),
+  },
+}
+const thresholdsFor = (provider) => THRESHOLDS[provider] || { warn: WARN_THRESHOLD, crit: CRIT_THRESHOLD }
+const PROVIDER_LINKS = {
+  Telnyx: 'https://portal.telnyx.com',
+  Twilio: 'https://console.twilio.com',
+  EdenAI: 'https://app.edenai.run',
+}
+const EMERGENCY_IMPACT = {
+  EdenAI: '🔴 EdenAI credits exhausted — AI voice (TTS) falls back to direct OpenAI; ElevenLabs voices are unavailable',
+}
 
 // ── State ──
 let _bot = null
@@ -97,12 +112,35 @@ async function checkTwilioBalance() {
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// EdenAI Credit Check (all IVR/TTS voices bill this one account)
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+async function checkEdenAiBalance() {
+  const apiKey = process.env.EDENAI_API_KEY
+  if (!apiKey) return null
+  try {
+    const res = await axios.get('https://api.edenai.run/v2/cost_management/credits/', {
+      headers: { Authorization: `Bearer ${apiKey}` }, timeout: 15000,
+    })
+    const balance = parseFloat(res.data?.credits)
+    if (!Number.isFinite(balance)) return { provider: 'EdenAI', error: 'unexpected response', errorCategory: 'other' }
+    return { provider: 'EdenAI', balance, currency: 'USD', raw: res.data }
+  } catch (e) {
+    const status = e.response?.status
+    // 402 = credits exhausted — report as a zero balance so the emergency alert fires
+    if (status === 402) return { provider: 'EdenAI', balance: 0, currency: 'USD', raw: e.response?.data }
+    const errorCategory = (!status || status >= 500) ? 'transient' : (status === 401 || status === 403) ? 'auth' : 'other'
+    return { provider: 'EdenAI', error: `HTTP ${status || '-'}: ${e.message}`, errorStatus: status, errorCategory }
+  }
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // Alert Logic
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-function getAlertLevel(balance) {
-  if (balance <= 0)              return 'emergency'
-  if (balance <= CRIT_THRESHOLD) return 'critical'
-  if (balance <= WARN_THRESHOLD) return 'warning'
+function getAlertLevel(balance, provider) {
+  const { warn, crit } = thresholdsFor(provider)
+  if (balance <= 0)    return 'emergency'
+  if (balance <= crit) return 'critical'
+  if (balance <= warn) return 'warning'
   return 'ok'
 }
 
@@ -120,25 +158,26 @@ function recordAlert(provider, level) {
 async function sendAlert(result) {
   if (!_bot || !_adminChatId) return
 
-  const level = getAlertLevel(result.balance)
+  const level = getAlertLevel(result.balance, result.provider)
   if (!shouldAlert(result.provider, level)) return
 
   const icon = level === 'emergency' ? '🚨' : level === 'critical' ? '⚠️' : '💡'
   const tag  = level.toUpperCase()
+  const th = thresholdsFor(result.provider)
 
   const msg = [
     `${icon} <b>${tag}: ${result.provider} Balance Low</b>`,
     ``,
     `💰 Balance: <b>$${result.balance.toFixed(2)}</b> ${result.currency}`,
-    `📊 Thresholds: warn=$${WARN_THRESHOLD} | critical=$${CRIT_THRESHOLD}`,
+    `📊 Thresholds: warn=$${th.warn} | critical=$${th.crit}`,
     ``,
     level === 'emergency'
-      ? `🔴 Account may be disabled — outbound calls/SMS will FAIL`
+      ? (EMERGENCY_IMPACT[result.provider] || `🔴 Account may be disabled — outbound calls/SMS will FAIL`)
       : level === 'critical'
         ? `🟠 Running critically low — top up ASAP to avoid service disruption`
         : `🟡 Balance getting low — consider topping up soon`,
     ``,
-    `🔗 ${result.provider === 'Telnyx' ? 'https://portal.telnyx.com' : 'https://console.twilio.com'}`,
+    `🔗 ${PROVIDER_LINKS[result.provider] || ''}`,
   ].join('\n')
 
   try {
@@ -172,6 +211,9 @@ async function checkAllBalances() {
 
   const twilioResult = _authDisabled.Twilio ? null : await checkTwilioBalance()
   if (twilioResult) results.push(twilioResult)
+
+  const edenResult = _authDisabled.EdenAI ? null : await checkEdenAiBalance()
+  if (edenResult) results.push(edenResult)
 
   for (const r of results) {
     if (r.error) {
@@ -226,11 +268,40 @@ async function checkAllBalances() {
       delete _consecutiveErrors[r.provider]
     }
 
-    log(`[BalanceMonitor] ${r.provider}: $${r.balance.toFixed(2)} ${r.currency} [${getAlertLevel(r.balance)}]`)
+    log(`[BalanceMonitor] ${r.provider}: $${r.balance.toFixed(2)} ${r.currency} [${getAlertLevel(r.balance, r.provider)}]`)
     await sendAlert(r)
   }
 
   return results
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// Live TTS failure alert — called by tts-service on EdenAI 401/402/403 (6h dedup)
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+async function reportEdenAiFailure({ status, body } = {}) {
+  if (!_bot || !_adminChatId) return
+  const key = `EdenAI_tts_${status || 'err'}`
+  if (!shouldAlert(key, 'emergency')) return
+  recordAlert(key, 'emergency')
+  const esc = (s) => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').slice(0, 300)
+  const directOn = !!process.env.APP_OPEN_API_KEY
+  const msg = [
+    `🚨 <b>EdenAI TTS requests failing (HTTP ${status || '?'})</b>`,
+    ``,
+    body ? `EdenAI said: <code>${esc(body)}</code>` : '',
+    status === 402 ? `💳 EdenAI credits are exhausted.` : `🔒 EdenAI rejected the API key (EDENAI_API_KEY).`,
+    directOn
+      ? `✅ Users' IVR audio is being generated via direct OpenAI TTS (ElevenLabs voices mapped to the closest OpenAI voice).`
+      : `🔴 No direct OpenAI key configured — users CANNOT generate IVR audio.`,
+    ``,
+    `Fix: top up EdenAI or rotate EDENAI_API_KEY → ${PROVIDER_LINKS.EdenAI}`,
+  ].filter(Boolean).join('\n')
+  try {
+    await _bot.sendMessage(_adminChatId, msg, { parse_mode: 'HTML' })
+    log(`[BalanceMonitor] EdenAI TTS failure alert sent (HTTP ${status})`)
+  } catch (e) {
+    log(`[BalanceMonitor] Failed to send EdenAI TTS alert: ${e.message}`)
+  }
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -264,4 +335,6 @@ module.exports = {
   checkAllBalances,
   checkTelnyxBalance,
   checkTwilioBalance,
+  checkEdenAiBalance,
+  reportEdenAiFailure,
 }

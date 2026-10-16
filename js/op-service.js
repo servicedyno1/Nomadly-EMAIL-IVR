@@ -20,6 +20,99 @@ const OP_DEFAULT_NS = ['ns1.openprovider.nl', 'ns2.openprovider.be', 'ns3.openpr
 let cachedToken = null
 let tokenExpiry = 0
 
+// ─── Registry-side availability verification ───────────
+// For some ccTLDs OpenProvider's /domains/check is NOT a registry lookup but a
+// DNS heuristic — it answers status "free" with reason
+// "available (domain not found in DNS)" for ANY name without DNS records, even
+// names the registry has reserved or that are registered-but-undelegated.
+// Incident 2026-10-16 (SMADAV, @Todexman009): net.it + org.it were sold as
+// "available", the user paid, then registration failed with OP code 311
+// "The domain you want to register is not free!" — NIC.it lists both as
+// UNASSIGNABLE (reserved). For these TLDs we ask the registry itself before
+// a name is ever offered or charged.
+const net = require('net')
+const REGISTRY_VERIFIERS = {
+  // NIC.it Domain Availability Service (DAS) — AVAILABLE | NOT AVAILABLE | UNASSIGNABLE
+  it: { das: { host: 'das.nic.it', port: 4343 }, whois: { host: 'whois.nic.it', port: 43 } },
+}
+const DAS_KNOWN_STATUS = new Set(['AVAILABLE', 'NOT AVAILABLE', 'UNASSIGNABLE'])
+const REGISTRY_CACHE_MS = 10 * 60 * 1000
+const _registryCache = new Map() // domain -> { at, result }
+
+function _registryTcpQuery(host, port, query, timeoutMs = 6000) {
+  return new Promise((resolve, reject) => {
+    let buf = ''
+    let done = false
+    const sock = net.createConnection({ host, port })
+    const finish = (err) => {
+      if (done) return
+      done = true
+      try { sock.destroy() } catch (_) { /* already closed */ }
+      if (err) reject(err); else resolve(buf)
+    }
+    sock.setTimeout(timeoutMs, () => finish(new Error(`timeout ${host}:${port}`)))
+    sock.on('connect', () => sock.write(`${query}\r\n`))
+    sock.on('data', (d) => { buf += d.toString('utf8'); if (buf.length > 65536) finish() })
+    sock.on('end', () => finish())
+    sock.on('close', () => finish())
+    sock.on('error', (e) => finish(e))
+  })
+}
+
+function _parseRegistryStatus(text) {
+  const m = String(text || '').match(/^\s*Status:\s*(.+?)\s*$/im)
+  return m ? m[1].trim().toUpperCase() : null
+}
+
+/**
+ * Ask the registry whether a domain can really be registered.
+ * Returns { verified: true, available, status, source } when the registry
+ * answered, or { verified: false, error } when no verifier exists for the TLD
+ * or the registry could not be reached / gave an unrecognised answer.
+ * Only an explicit registry "AVAILABLE" counts as available.
+ */
+async function verifyRegistryAvailability(domainName, { queryFn = _registryTcpQuery } = {}) {
+  const key = String(domainName || '').trim().toLowerCase()
+  const tld = key.split('.').pop()
+  const v = REGISTRY_VERIFIERS[tld]
+  if (!v) return { verified: false, error: 'no_verifier' }
+
+  const hit = _registryCache.get(key)
+  if (hit && Date.now() - hit.at < REGISTRY_CACHE_MS) return hit.result
+
+  let result = null
+  // 1) DAS — fast, purpose-built availability answer.
+  if (v.das) {
+    try {
+      const status = _parseRegistryStatus(await queryFn(v.das.host, v.das.port, key))
+      if (status && DAS_KNOWN_STATUS.has(status)) {
+        result = { verified: true, available: status === 'AVAILABLE', status, source: 'das' }
+      } else {
+        log(`[OP] Registry DAS gave no usable status for ${key} (${status || 'none'}) — trying WHOIS`)
+      }
+    } catch (e) {
+      log(`[OP] Registry DAS check failed for ${key}: ${e.message} — trying WHOIS`)
+    }
+  }
+  // 2) WHOIS fallback — "Status: AVAILABLE" when free, anything else = taken/reserved.
+  if (!result && v.whois) {
+    try {
+      const raw = await queryFn(v.whois.host, v.whois.port, key)
+      const status = _parseRegistryStatus(raw)
+      if (status && !/LIMIT|EXCEED|TOO MANY|DENIED|REFUSED/.test(status)) {
+        result = { verified: true, available: status === 'AVAILABLE', status, source: 'whois' }
+      } else {
+        log(`[OP] Registry WHOIS gave no usable status for ${key} (${status || 'none'})`)
+      }
+    } catch (e) {
+      log(`[OP] Registry WHOIS check failed for ${key}: ${e.message}`)
+    }
+  }
+  if (!result) return { verified: false, error: 'registry_unreachable' }
+  _registryCache.set(key, { at: Date.now(), result })
+  return result
+}
+
 // ─── Auth ───────────────────────────────────────────────
 
 const authenticate = async () => {
@@ -189,6 +282,28 @@ const checkDomainAvailability = async (domainName) => {
     const status = (result.status || '').toLowerCase()
 
     if (status === 'free' || status === 'available') {
+      // Registry gate: OP's answer for some ccTLDs is only a DNS heuristic.
+      // Never offer (or charge for) a name until the registry confirms it.
+      const fullDomain = `${name}.${extension}`.toLowerCase()
+      const dnsHeuristic = /not found in dns/i.test(result.reason || '')
+      if (REGISTRY_VERIFIERS[tldLower] || dnsHeuristic) {
+        const reg = await verifyRegistryAvailability(fullDomain)
+        if (reg.verified && !reg.available) {
+          log(`[OP] ${fullDomain}: OpenProvider says free (${result.reason || 'no reason'}) but the registry says ${reg.status} (${reg.source}) — NOT available`)
+          return { available: false, message: 'Domain not available (registry)', registryStatus: reg.status }
+        }
+        if (!reg.verified) {
+          if (REGISTRY_VERIFIERS[tldLower]) {
+            // Fail closed: selling an unverifiable name costs the user a failed order.
+            log(`[OP] ${fullDomain}: registry verification unavailable (${reg.error}) — not offering unverified .${tldLower}`)
+            return { available: false, message: 'Could not verify availability with the registry. Please try again shortly.' }
+          }
+          log(`[OP] ⚠️ ${fullDomain}: availability is only a DNS heuristic and no registry verifier exists for .${tldLower} — add one to REGISTRY_VERIFIERS`)
+        } else {
+          log(`[OP] ${fullDomain}: registry confirms ${reg.status} (${reg.source})`)
+        }
+      }
+
       const priceObj = result.price || {}
       const createPrice = parseFloat(priceObj.create?.price || priceObj.product?.price || 0)
       const originalPrice = createPrice < 1 ? 1 : createPrice
@@ -638,6 +753,31 @@ const getDomainInfo = async (domainName) => {
 }
 
 // ─── Domain renewal ─────────────────────────────────────
+
+// Tri-state ownership probe used before destructive cleanup:
+//   true  → the domain exists in our OpenProvider account
+//   false → OpenProvider positively answered "not in this account"
+//   null  → could not tell (auth/network/API error) — callers must treat as "maybe"
+const isDomainInAccount = async (domainName) => {
+  try {
+    const headers = await authHeaders()
+    const { name, extension } = parseDomain(domainName)
+    const res = await axios.get(`${OP_BASE_URL}/v1beta/domains`, {
+      headers, params: { domain_name_pattern: name, extension, limit: 5 }, timeout: 15000,
+    })
+    if (res.data?.code !== 0) return null
+    const data = res.data?.data || {}
+    const results = data.results
+    if (Array.isArray(results)) return results.length > 0
+    // OP omits `results` when nothing matches and returns { total: 0 }.
+    if (data.total === 0 || data.total === '0') return false
+    if (Number(data.total) > 0) return true
+    return null
+  } catch (err) {
+    log(`[OP] isDomainInAccount error for ${domainName}: ${err.message}`)
+    return null
+  }
+}
 
 // 1-year renewal price with the same markup + floor as registration.
 const getRenewPrice = async (domainName) => {
@@ -1406,8 +1546,13 @@ module.exports = {
   SERVICE_EMAIL,
   authenticate,
   checkDomainAvailability,
+  verifyRegistryAvailability,
+  REGISTRY_VERIFIERS,
+  _parseRegistryStatus,
+  _registryCache,
   registerDomain,
   getDomainInfo,
+  isDomainInAccount,
   getRenewPrice,
   renewDomain,
   updateNameservers,

@@ -39,8 +39,28 @@ const checkDomainPrice = async (domainName, db) => {
     opService.checkDomainAvailability(domainName),
   ])
 
-  const cr = crResult.status === 'fulfilled' ? crResult.value : { available: false, message: crResult.reason?.message }
+  let cr = crResult.status === 'fulfilled' ? crResult.value : { available: false, message: crResult.reason?.message }
   const op = opResult.status === 'fulfilled' ? opResult.value : { available: false, message: opResult.reason?.message }
+
+  // Registry gate for ConnectReseller too (defense-in-depth): for TLDs whose
+  // registry we can query directly (.it), never trust a registrar "available"
+  // the registry contradicts. OP results are already gated inside op-service;
+  // the shared 10-min cache means this rarely costs an extra registry query.
+  if (cr.available) {
+    const tld = String(domainName).toLowerCase().split('.').pop()
+    if (opService.REGISTRY_VERIFIERS && opService.REGISTRY_VERIFIERS[tld]) {
+      try {
+        const reg = await opService.verifyRegistryAvailability(domainName)
+        if (!reg.verified || !reg.available) {
+          log(`[domain-service] ${domainName}: ConnectReseller says available but the registry ${reg.verified ? `says ${reg.status}` : `could not confirm (${reg.error})`} — NOT offering it`)
+          cr = { available: false, message: 'Domain not available (registry)' }
+        }
+      } catch (e) {
+        log(`[domain-service] ${domainName}: registry gate error for ConnectReseller result: ${e.message} — NOT offering it`)
+        cr = { available: false, message: 'Domain not available (registry)' }
+      }
+    }
+  }
 
   // When both registrars have the domain:
   // Show the HIGHER price to the user (worst-case), try the cheaper registrar first.
@@ -117,8 +137,24 @@ const registerDomain = async (domainName, registrar, nsChoice, db, chatId, custo
   let result
   let nameservers = []
   let cfZoneId = null
+  let cfZoneCreated = false // true only if THIS call created the Cloudflare zone
   const originalRegistrar = registrar
   let actualPrice = null
+
+  // Remove a Cloudflare zone this attempt created when the registration did
+  // not go through — otherwise every failed order leaves an orphan zone for a
+  // domain we never registered (net.it / org.it, 2026-10-16). Pre-existing
+  // zones (createZone reuses them) are NEVER touched: they may belong to a
+  // live customer domain.
+  const _cleanupCreatedZone = async (why) => {
+    if (!cfZoneId || !cfZoneCreated) return
+    try {
+      const del = await cfService.deleteZone(cfZoneId)
+      log(`[domain-service] ${del?.success ? '🧹 Deleted' : '⚠️ Could not delete'} Cloudflare zone ${cfZoneId} for ${domainName} after failed registration (${why})`)
+    } catch (e) {
+      log(`[domain-service] Cloudflare zone cleanup error for ${domainName}: ${e.message}`)
+    }
+  }
 
   // Determine nameservers based on choice
   if (nsChoice === 'cloudflare') {
@@ -139,6 +175,7 @@ const registerDomain = async (domainName, registrar, nsChoice, db, chatId, custo
     if (cfResult.success) {
       nameservers = cfResult.nameservers || []
       cfZoneId = cfResult.zoneId
+      cfZoneCreated = cfResult.created === true
       log(`[domain-service] Cloudflare zone created. NS: ${nameservers.join(', ')}`)
     } else {
       // Hard failure after retry — abort registration instead of silently
@@ -180,6 +217,8 @@ const registerDomain = async (domainName, registrar, nsChoice, db, chatId, custo
     if (!nast.ready) {
       const detail = nast.perNs.map((n) => `${n.ns}=${n.aa ? 'AA' : 'noAA'}(${n.error || 'ok'})`).join(', ')
       log(`[domain-service] ❌ NAST pre-flight FAILED for ${domainName}: ${detail}`)
+      // Registration was never submitted → safe to remove the zone we just made.
+      await _cleanupCreatedZone('NAST pre-flight failed')
       return {
         error: `Nameserver pre-check failed for .${tld}. ${nast.authoritativeCount}/${nameservers.length} nameservers are authoritative. The registry would reject this delegation. Your card was NOT charged — please retry in a couple of minutes.`,
       }
@@ -226,10 +265,32 @@ const registerDomain = async (domainName, registrar, nsChoice, db, chatId, custo
       log(`[domain-service] ${domainName} registered on OpenProvider (ID: ${result.domainId})`)
     }
   } else {
+    await _cleanupCreatedZone('unknown registrar — nothing submitted')
     return { error: 'Domain registration failed. Please try again or contact support.' }
   }
 
-  if (result.error) return { error: sanitizeErrorForUser(result.error) }
+  if (result.error) {
+    // OpenProvider-only attempt: delete the zone we created ONLY when OP
+    // positively confirms the domain is NOT in our account. A 5xx/timeout whose
+    // own re-verification failed could still have registered the domain — an
+    // unknown answer (null) keeps the zone so a registered domain never loses DNS.
+    // A ConnectReseller attempt is ambiguous by nature (CR timeout yet
+    // registered, then OP "not free") — always keep the zone there.
+    if (originalRegistrar === 'OpenProvider') {
+      if (cfZoneId && cfZoneCreated) {
+        let inAccount = null
+        try { inAccount = await opService.isDomainInAccount(domainName) } catch (_) { inAccount = null }
+        if (inAccount === false) {
+          await _cleanupCreatedZone(`OpenProvider: ${String(result.error).slice(0, 80)}`)
+        } else {
+          log(`[domain-service] Kept Cloudflare zone ${cfZoneId} for ${domainName} — OpenProvider ownership ${inAccount === true ? 'CONFIRMED (domain is in our account)' : 'could not be confirmed'}`)
+        }
+      }
+    } else if (cfZoneId && cfZoneCreated) {
+      log(`[domain-service] Kept Cloudflare zone ${cfZoneId} for ${domainName} (ConnectReseller path — outcome ambiguous)`)
+    }
+    return { error: sanitizeErrorForUser(result.error) }
+  }
 
   // Store metadata in MongoDB
   if (db) {

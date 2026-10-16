@@ -13044,6 +13044,9 @@ Enter new value:`), bc)
             `❌ Error: ${hostingResult?.error || 'Unknown'}`,
             adminMsgOpts({ chatId }))
         } catch (e) { log('[Hosting] Admin alert error (wallet existing): ' + e.message) }
+        // The domain-step failure already sent the user a clear "not charged"
+        // message (userNotified) — don't follow it with the raw registrar error.
+        if (hostingResult?.userNotified) return
         return send(chatId, hostingResult?.error || 'Hosting creation failed. Your wallet was not charged. Please try again or contact support.', trans('o'))
       }
 
@@ -27918,7 +27921,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       return
     } catch (err) {
       log(`[BulkTTS] TTS error: ${err.message}`)
-      return send(chatId, trans('t.cp_207', sanitizeProviderError(err.message, 'voice')), k.of([['🎤 Change Voice'], ['↩️ Back']]))
+      return send(chatId, trans('t.cp_207'), k.of([['📎 Upload New Audio'], ['🎤 Change Voice'], ['↩️ Back']]))
     }
   }
 
@@ -27934,6 +27937,10 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       const ttsService = require('./tts-service.js')
       const providerBtns = ttsService.getProviderButtons().map(b => [b])
       return send(chatId, trans('t.cp_209'), k.of([...providerBtns, ['↩️ Back']]))
+    }
+    if (message === '📎 Upload New Audio') {
+      await set(state, chatId, 'action', a.bulkUploadAudio)
+      return send(chatId, trans('t.cp_140'), k.of([['↩️ Back']]))
     }
     if (message === '🎚 Change Speed') {
       await set(state, chatId, 'action', a.bulkTTSSpeed)
@@ -39042,7 +39049,7 @@ const bankApis = {
         recordHostingTransaction(chatId, { ...txBase, outcome: 'domain_only', refundAmount: hostingRefundNgn, refundCurrency: 'NGN' })
       } else {
         addFundsTo(walletOf, chatId, 'ngn', ngnIn, lang)
-        sendMessage(chatId, hostingResult?.error || 'Hosting creation failed. Full payment refunded to your wallet.')
+        if (!hostingResult?.userNotified) sendMessage(chatId, hostingResult?.error || 'Hosting creation failed. Full payment refunded to your wallet.')
         recordHostingTransaction(chatId, { ...txBase, outcome: 'full_refund', refundAmount: ngnIn, refundCurrency: 'NGN' })
       }
       return res.send(html(hostingResult?.error || 'Hosting creation failed'))
@@ -40117,7 +40124,7 @@ app.get('/crypto-pay-hosting', auth, async (req, res) => {
       recordHostingTransaction(chatId, { ...txBase, outcome: 'domain_only', refundAmount: hostingRefund, refundCurrency: 'USD' })
     } else {
       addFundsTo(walletOf, chatId, 'usd', usdIn, lang)
-      sendMessage(chatId, hostingResult?.error || 'Hosting creation failed. Full payment refunded to your USD wallet.')
+      if (!hostingResult?.userNotified) sendMessage(chatId, hostingResult?.error || 'Hosting creation failed. Full payment refunded to your USD wallet.')
       recordHostingTransaction(chatId, { ...txBase, outcome: 'full_refund', refundAmount: usdIn, refundCurrency: 'USD' })
     }
     // ── Admin alert on hosting failure (Crypto BlockBee) ──
@@ -45374,7 +45381,7 @@ app.post('/dynopay/crypto-pay-hosting', authDyno, async (req, res) => {
       recordHostingTransaction(chatId, { ...txBase, outcome: 'domain_only', refundAmount: hostingRefund, refundCurrency: 'USD' })
     } else {
       addFundsTo(walletOf, chatId, 'usd', usdIn, lang)
-      sendMessage(chatId, hostingResult?.error || 'Hosting creation failed. Full payment refunded to your USD wallet.')
+      if (!hostingResult?.userNotified) sendMessage(chatId, hostingResult?.error || 'Hosting creation failed. Full payment refunded to your USD wallet.')
       recordHostingTransaction(chatId, { ...txBase, outcome: 'full_refund', refundAmount: usdIn, refundCurrency: 'USD' })
     }
     // ── Admin alert on hosting failure (Crypto DynoPay) ──

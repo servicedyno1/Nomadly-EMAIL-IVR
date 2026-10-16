@@ -3936,6 +3936,21 @@ function createCpanelRoutes(getCpanelCol, opts = {}) {
     }
   })
 
+  // ── AI App Hosting (Node.js container apps) — see js/webapp-routes.js ──
+  try {
+    const { registerWebAppRoutes } = require('./webapp-routes')
+    registerWebAppRoutes(router, {
+      auth,
+      cpProxy,
+      upload,
+      log,
+      userCall: (req, doCall) => _userCallWithHeal(req, doCall, () => _selfHealCpPass(req, getCpanelCol)),
+      userWriteCall: (req, doCall) => _userWriteCallWithHeal(req, getCpanelCol, doCall),
+    })
+  } catch (err) {
+    log(`[Panel] Failed to register WebApp routes: ${err.message}`)
+  }
+
   return router
 }
 
