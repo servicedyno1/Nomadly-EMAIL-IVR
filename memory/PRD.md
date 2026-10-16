@@ -1,10 +1,10 @@
 # PRD — Nomadly Cloud IVR + Telegram Bot
 
-## 2026-10-16 — PROSHOP white-label (4th brand, app-proshop) — LIVE on droplet (public DNS/certs pending .xyz publish)
+## 2026-10-16 — PROSHOP white-label (4th brand, app-proshop) — LIVE (public, certs OK)
 - @ProshopHQ_bot · panel.proshophost.xyz (panel+landing) · proshopivr.xyz (/call, webhooks, /sales) · sip.proshopivr.xyz.
   Own Mongo (Railway) / Dynopay / bot; shared Nomadly Telnyx account with own SIP/CCA/MP; support+channel @proshopHQ; phone ON; reseller shown.
 - Domains via OpenProvider, auto-renew OFF. Full record: memory/PROSHOP_SETUP_2026-10-16.md
-- PENDING: `/root/proshop_cert_watch.sh` issues LE certs + enables nginx site once .xyz delegates; owner /start @ProshopHQ_bot;
+- Sales dashboard password Nomadly123@ (owner standard). PENDING: owner /start @ProshopHQ_bot;
   owner "Save to GitHub" (ships deploy-proshop CI job + brand assets/APK via WhiteLabel sync).
 
 ## 2026-10-16 — SMADAV .it swap DONE · IVR TTS hardening LIVE · license alert 100 · OP emails → hosta1@proton.me

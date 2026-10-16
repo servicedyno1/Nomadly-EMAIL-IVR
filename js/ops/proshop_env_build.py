@@ -54,7 +54,7 @@ ov = {
     'OPEN_API_KEY': main['OPEN_API_KEY'], 'APP_OPEN_API_KEY': main['APP_OPEN_API_KEY'],
     'TWILIO_SIP_DOMAIN_PREFIX': 'proshop',
     'SESSION_SECRET': prev.get('SESSION_SECRET') or secrets.token_hex(32),
-    'SALES_DASHBOARD_PASSWORD': prev.get('SALES_DASHBOARD_PASSWORD') or secrets.token_urlsafe(18),
+    'SALES_DASHBOARD_PASSWORD': 'Nomadly123@',  # owner standard for white-label sales dashboards (same as Smadav/Voodoo)
     'CONTABO_API_USER': '', 'CONTABO_API_PASSWORD': '', 'CONTABO_CLIENT_ID': '', 'CONTABO_CLIENT_SECRET': '',
     'API_KEY_RAILWAY': '',
     'PHONE_SERVICE_ON': 'true',
@@ -80,4 +80,4 @@ wl = load(f'{SH}/app-wl/backend.env')
 leaks = [k for k, v in final.items() if re.search(r'smadav|voodoo', v, re.I)]
 print('wrote', OUT, 'keys=', len(final), 'PHONE_SERVICE_ON=', final['PHONE_SERVICE_ON'], 'PORT=', final['PORT'])
 print('values still mentioning smadav/voodoo:', leaks or 'none')
-print('same-as-smadav secret keys:', [k for k in ['TELEGRAM_BOT_TOKEN_PROD', 'MONGO_URL', 'DYNO_PAY_API_KEY', 'SESSION_SECRET', 'SALES_DASHBOARD_PASSWORD'] if final.get(k) == wl.get(k)] or 'none')
+print('same-as-smadav secret keys:', [k for k in ['TELEGRAM_BOT_TOKEN_PROD', 'MONGO_URL', 'DYNO_PAY_API_KEY', 'SESSION_SECRET'] if final.get(k) == wl.get(k)] or 'none')

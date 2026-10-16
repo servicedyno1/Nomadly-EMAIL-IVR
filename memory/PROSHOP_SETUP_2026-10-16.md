@@ -31,7 +31,7 @@ Fourth brand on the same droplet (`nomadly-prod-ams3`, 146.190.238.190), same co
 - Contabo / Railway keys blank (VPS = DigitalOcean only). Admin chat 5590563715 (shared) — must /start @ProshopHQ_bot.
 - Support + channel: **@proshopHQ / https://t.me/proshopHQ** (owner-supplied).
 - PHONE_SERVICE_ON=true (day one). HIDE_BECOME_RESELLER=false (💼 Reseller shown).
-- Sales dashboard: https://proshopivr.xyz/sales — `SALES_DASHBOARD_PASSWORD` generated in the PROSHOP backend.env (kept across rebuilds).
+- Sales dashboard: https://proshopivr.xyz/sales (API `POST /admin/sales/login`, js/routes/sales.js on WhiteLabel) — `SALES_DASHBOARD_PASSWORD=Nomadly123@` (owner standard, same as Smadav/Voodoo; pinned in proshop_env_build.py).
 
 ## Brand
 - `CHAT_BOT_BRAND="PROSHOP"` → slug `proshop`; accent #F59E0B (amber), bg #0f0d0a; "PS" mark + "PROSHOP" wordmark
@@ -45,3 +45,7 @@ Fourth brand on the same droplet (`nomadly-prod-ams3`, 146.190.238.190), same co
 - Boot: webhook set (https://proshopivr.xyz/telegram/webhook, pinned IP), Telnyx resources wired to PROSHOP webhooks,
   number migration "0 migrated, 3 external skipped" (no other brand's numbers touched). Frontend bundle: PROSHOP + #F59E0B + @proshopHQ,
   0 Smadav/Voodoo strings. /brand/logo.png 200, /sms-app/download/info → PROSHOP SMS.
+- 13:10Z: .xyz delegated → watcher issued LE certs (proshopivr.xyz, panel.proshophost.xyz; exp 2027-01-14) and enabled nginx site.
+  Public checks: /health 200, panel 200, /brand/logo.png 200, /sms-app/download/info 200, www/root 301s OK, sales login 200,
+  Telegram webhook no errors.
+- Re-patch kit until Save to GitHub: `/root/proshop_brand_payload.tgz` on the droplet (extract into the new release + restart slot).
