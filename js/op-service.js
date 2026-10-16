@@ -754,6 +754,31 @@ const getDomainInfo = async (domainName) => {
 
 // ─── Domain renewal ─────────────────────────────────────
 
+// Tri-state ownership probe used before destructive cleanup:
+//   true  → the domain exists in our OpenProvider account
+//   false → OpenProvider positively answered "not in this account"
+//   null  → could not tell (auth/network/API error) — callers must treat as "maybe"
+const isDomainInAccount = async (domainName) => {
+  try {
+    const headers = await authHeaders()
+    const { name, extension } = parseDomain(domainName)
+    const res = await axios.get(`${OP_BASE_URL}/v1beta/domains`, {
+      headers, params: { domain_name_pattern: name, extension, limit: 5 }, timeout: 15000,
+    })
+    if (res.data?.code !== 0) return null
+    const data = res.data?.data || {}
+    const results = data.results
+    if (Array.isArray(results)) return results.length > 0
+    // OP omits `results` when nothing matches and returns { total: 0 }.
+    if (data.total === 0 || data.total === '0') return false
+    if (Number(data.total) > 0) return true
+    return null
+  } catch (err) {
+    log(`[OP] isDomainInAccount error for ${domainName}: ${err.message}`)
+    return null
+  }
+}
+
 // 1-year renewal price with the same markup + floor as registration.
 const getRenewPrice = async (domainName) => {
   try {
@@ -1527,6 +1552,7 @@ module.exports = {
   _registryCache,
   registerDomain,
   getDomainInfo,
+  isDomainInAccount,
   getRenewPrice,
   renewDomain,
   updateNameservers,

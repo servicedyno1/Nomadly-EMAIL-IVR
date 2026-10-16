@@ -18,7 +18,8 @@ const stubModule = (rel, exportsObj) => {
   require.cache[p] = { id: p, filename: p, loaded: true, exports: exportsObj }
 }
 stubModule('../cr-domain-register', { buyDomainOnline: async (...a) => { crCalls.push(a); return crImpl(...a) } })
-stubModule('../cr-domain-price-get', { checkDomainPriceOnline: async () => ({ available: false }) })
+let crPriceImpl = async () => ({ available: false })
+stubModule('../cr-domain-price-get', { checkDomainPriceOnline: async (...a) => crPriceImpl(...a) })
 
 const axios = require('axios')
 const op = require('../op-service.js')
@@ -122,23 +123,32 @@ async function main() {
   const orig = {
     createZone: cf.createZone, deleteZone: cf.deleteZone,
     registerDomain: op.registerDomain, checkNsAuthoritative: op.checkNsAuthoritative,
-    checkDomainAvailability: op.checkDomainAvailability,
+    checkDomainAvailability: op.checkDomainAvailability, isDomainInAccount: op.isDomainInAccount,
   }
   let deleted = []
   let opRegisterCalls = 0
-  const setStubs = ({ created, opResult, nastReady = true }) => {
+  const setStubs = ({ created, opResult, nastReady = true, inAccount = false }) => {
     deleted = []; opRegisterCalls = 0; crCalls.length = 0
     cf.createZone = async (d) => ({ success: true, zoneId: `zone-${d}`, nameservers: ['a.ns.cloudflare.com', 'b.ns.cloudflare.com'], ...(created ? { created: true } : {}) })
     cf.deleteZone = async (id) => { deleted.push(id); return { success: true } }
     op.registerDomain = async () => { opRegisterCalls++; return opResult }
     op.checkNsAuthoritative = async (_d, ns) => ({ ready: nastReady, authoritativeCount: nastReady ? ns.length : 0, elapsedMs: 5, perNs: ns.map(n => ({ ns: n, aa: nastReady })) })
     op.checkDomainAvailability = async () => ({ available: true, price: 30 })
+    op.isDomainInAccount = async () => inAccount
   }
   try {
     setStubs({ created: true, opResult: { error: 'The domain you want to register is not free!' } })
     let res = await ds.registerDomain('fail-new.com', 'OpenProvider', 'cloudflare', null, 1, null)
     ok('OP failure + zone created now → error returned', !!res.error && !res.success, JSON.stringify(res))
     ok('…and the new zone is DELETED', deleted.length === 1 && deleted[0] === 'zone-fail-new.com', JSON.stringify(deleted))
+
+    setStubs({ created: true, opResult: { error: 'OpenProvider HTTP 500 (verification failed)' }, inAccount: null })
+    res = await ds.registerDomain('maybe-registered.com', 'OpenProvider', 'cloudflare', null, 1, null)
+    ok('OP failure but ownership UNKNOWN (null) → zone KEPT', !!res.error && deleted.length === 0, JSON.stringify(deleted))
+
+    setStubs({ created: true, opResult: { error: 'timeout' }, inAccount: true })
+    res = await ds.registerDomain('actually-ours.com', 'OpenProvider', 'cloudflare', null, 1, null)
+    ok('OP failure but domain IS in our OP account → zone KEPT', !!res.error && deleted.length === 0, JSON.stringify(deleted))
 
     setStubs({ created: false, opResult: { error: 'The domain you want to register is not free!' } })
     res = await ds.registerDomain('fail-existing.com', 'OpenProvider', 'cloudflare', null, 1, null)
@@ -166,7 +176,47 @@ async function main() {
     ok('provider_default (no Cloudflare zone) failure → no delete attempted', !!res.error && deleted.length === 0)
   } finally {
     Object.assign(cf, { createZone: orig.createZone, deleteZone: orig.deleteZone })
-    Object.assign(op, { registerDomain: orig.registerDomain, checkNsAuthoritative: orig.checkNsAuthoritative, checkDomainAvailability: orig.checkDomainAvailability })
+    Object.assign(op, { registerDomain: orig.registerDomain, checkNsAuthoritative: orig.checkNsAuthoritative, checkDomainAvailability: orig.checkDomainAvailability, isDomainInAccount: orig.isDomainInAccount })
+  }
+
+  // ─────────────────────────────────────────────────────────────────
+  console.log('\n── isDomainInAccount tri-state (stubbed OpenProvider list API) ──')
+  {
+    const origGet = axios.get, origPost2 = axios.post
+    axios.post = async (url) => { if (url.includes('/auth/login')) return { data: { code: 0, data: { token: 't' } } }; throw new Error('unexpected post ' + url) }
+    let listAnswer
+    axios.get = async (url) => { if (url.includes('/v1beta/domains')) { if (listAnswer instanceof Error) throw listAnswer; return listAnswer } throw new Error('unexpected get ' + url) }
+    try {
+      listAnswer = { data: { code: 0, data: { total: 0 } } }
+      ok('{ total: 0 } (OP omits results) → false', (await op.isDomainInAccount('net.it')) === false)
+      listAnswer = { data: { code: 0, data: { total: 1, results: [{ id: 9 }] } } }
+      ok('results present → true', (await op.isDomainInAccount('ours.com')) === true)
+      listAnswer = { data: { code: 0, data: { results: [] } } }
+      ok('empty results array → false', (await op.isDomainInAccount('x.com')) === false)
+      listAnswer = { data: { code: 196, desc: 'auth' } }
+      ok('API error code → null (unknown)', (await op.isDomainInAccount('x.com')) === null)
+      listAnswer = { data: { code: 0, data: {} } }
+      ok('unrecognised shape → null (unknown)', (await op.isDomainInAccount('x.com')) === null)
+      listAnswer = new Error('ETIMEDOUT')
+      ok('network error → null (unknown)', (await op.isDomainInAccount('x.com')) === null)
+    } finally { axios.get = origGet; axios.post = origPost2 }
+  }
+
+  // ─────────────────────────────────────────────────────────────────
+  console.log('\n── checkDomainPrice: ConnectReseller "available" is registry-gated for .it (live DAS) ──')
+  {
+    const origCheck = op.checkDomainAvailability
+    op.checkDomainAvailability = async () => ({ available: false, message: 'stub OP' })
+    crPriceImpl = async (d) => ({ available: true, price: 30, originalPrice: 9, message: 'CR stub available ' + d })
+    try {
+      op._registryCache.clear()
+      let p = await ds.checkDomainPrice('net.it', null)
+      ok('CR says net.it available, registry UNASSIGNABLE → NOT offered', p.available === false, JSON.stringify(p))
+      p = await ds.checkDomainPrice(rnd, null)
+      ok(`CR says ${rnd} available, registry AVAILABLE → offered via ConnectReseller`, p.available === true && p.registrar === 'ConnectReseller', JSON.stringify(p))
+      p = await ds.checkDomainPrice('zqcrnotgated' + Date.now() + '.com', null)
+      ok('CR .com available → offered (no registry gate for .com)', p.available === true && p.registrar === 'ConnectReseller')
+    } finally { op.checkDomainAvailability = origCheck; crPriceImpl = async () => ({ available: false }) }
   }
 
   // ─────────────────────────────────────────────────────────────────
@@ -190,6 +240,12 @@ async function main() {
   ok('zh copy', /未扣款/.test(_domainFailMsg('zh', 'net.it', 'not free')))
   ok('hi copy', /कोई शुल्क नहीं/.test(_domainFailMsg('hi', 'net.it', 'not free')))
   ok('unknown language → English', /not charged/.test(_domainFailMsg('xx', 'net.it', 'not free')))
+  const mq = _domainFailMsg('en', 'net.it', 'The domain you want to register is not free!', { queued: true })
+  ok('QUEUED (already charged) order: never claims "not charged"', !/not charged/.test(mq) && !/added to your wallet/.test(mq), mq)
+  ok('QUEUED: says payment is safe + team will refund or help + no need to pay again', /payment is safe/.test(mq) && /refund/.test(mq) && /don't need to pay again/.test(mq))
+  ok('QUEUED fr/zh/hi variants avoid the "not charged" line', !/n'avez pas été débité/.test(_domainFailMsg('fr', 'x.it', 'not free', { queued: true })) && !/未扣款/.test(_domainFailMsg('zh', 'x.it', 'not free', { queued: true })) && !/कोई शुल्क नहीं/.test(_domainFailMsg('hi', 'x.it', 'not free', { queued: true })))
+  const crs = require('fs').readFileSync(path.resolve(__dirname, '../cr-register-domain-&-create-cpanel.js'), 'utf8')
+  ok('both call sites pass { queued: !!info._fromQueue }', (crs.match(/_domainFailMsg\(lang, domain, [^)]*\{ queued: !!info\._fromQueue \}\)/g) || []).length === 2)
 
   // ─────────────────────────────────────────────────────────────────
   console.log('\n── _index.js: no duplicate raw-error message after a domain-step failure ──')

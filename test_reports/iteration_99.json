@@ -1,0 +1,29 @@
+{
+  "summary": "Checked the .it registry gate, the Cloudflare orphan-zone cleanup, the user-facing failure message and the userNotified guards for the SMADAV net.it/org.it incident. Main test file js/tests/test_it_registry_gate_2026-10.js: 47 passed, 0 failed. Added my own edge-case test js/tests/test_it_registry_edgecases_t1.js: 15 passed, 0 failed. It checks live NIC.it DAS for uppercase/whitespace input, cache keys and cache hits, google.it NOT AVAILABLE, a random name AVAILABLE; it injects odd answers (DAS rate limit falls back to WHOIS, WHOIS rate limit gives unreachable and is not cached, lowercase status, empty answers, a non-exact AVAILABLE); and it checks checkDomainAvailability with OP stubbed (ORG.IT uppercase blocked, .it gated even without the DNS reason, .com unchanged, multi-label x.net.it blocked). Live read-only checkAlternativeTLDs('net'/'org') does not return net.it or org.it: DAS says UNASSIGNABLE (net -> ['net.sbs'], org -> []). node --check passes for all 5 files, /health is healthy and supervisor 'nodejs' is RUNNING. Code review confirms: cf-service.createZone sets created:true only in the fresh-create branch; the userNotified guards are at all 4 _index.js paths; the refund/charge logic is unchanged. Found 1 medium messaging bug (queued provisioning path) and 2 low-risk edge cases. Nothing in production was touched. No real registrations and no real Cloudflare calls were made.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "cr-register-domain-&-create-cpanel.js _domainFailMsg used when info._fromQueue (cpanel-job-handlers provision job)", "issue": "MEDIUM: If WHM is down at payment time, registerDomainAndCreateCpanel returns {success:true, queued:true}. The wallet/crypto caller then charges the full price. Later the queue worker re-runs it with _fromQueue=true and registers the domain. If that registration fails, the user now gets 'You were not charged ... full amount has been added to your wallet'. That is false: the user was charged, and cpanel-job-handlers does not refund. Before this change the user got the raw error, which was not false. Fix: when info._fromQueue is set, use different copy (e.g. 'our team will refund/contact you') or trigger a refund."},
+      {"endpoint": "domain-service.registerDomain (OpenProvider path) + op-service.registerDomain", "issue": "LOW: The OP-only cleanup treats every OP error as definitive. But op-service returns an error after an HTTP 5xx/timeout when _verifyRegistration itself fails (it returns null on its own error). In that rare case the domain may in fact be registered with Cloudflare NS while its new CF zone has been deleted. Consider skipping cleanup when the error came from the 5xx/timeout branch (or re-verifying once more before deleting)."},
+      {"endpoint": "domain-service.checkDomainPrice", "issue": "LOW / defense-in-depth: only the OpenProvider result goes through the registry gate. A ConnectReseller 'available' answer for a .it name is trusted as-is. In the incident CR said not available, and the order would fail before any charge anyway, but gating CR results for TLDs in REGISTRY_VERIFIERS would close the gap fully. Not testable here: CR returns 401 (pod IP not whitelisted)."}
+    ]
+  },
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": ["/app/js/tests/test_it_registry_gate_2026-10.js", "/app/js/tests/test_it_registry_edgecases_t1.js"],
+  "action_items": [
+    "Fix the misleading 'not charged' copy for the _fromQueue (queued provisioning) domain-failure path, or refund in that path.",
+    "Optional: do not delete the CF zone when the OP error came from the 5xx/timeout branch with failed re-verification.",
+    "Optional: apply verifyRegistryAvailability to ConnectReseller 'available' results for TLDs in REGISTRY_VERIFIERS."
+  ],
+  "critical_code_review_comments": [
+    "verifyRegistryAvailability caches only verified results. AVAILABLE is cached for 10 minutes, so a name registered by someone else within that window would still fail at the registrar (harmless: user not charged).",
+    "createZone retry edge: if attempt 1 creates the zone but then throws (e.g. in _applyHttpsDefaults), attempt 2 finds it through getZoneByName without created:true, so it will never be cleaned up. Rare, and it errs on the safe side.",
+    "The CR-path zone is kept by design (ambiguous outcome). Confirmed correct in the test."
+  ],
+  "updated_files": ["/app/js/tests/test_it_registry_edgecases_t1.js"],
+  "success_rate": {"backend": "100% (62/62 checks)", "frontend": "N/A"},
+  "seed_data_creation": "None",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run: cd /app && node js/tests/test_it_registry_gate_2026-10.js (47 checks) and node js/tests/test_it_registry_edgecases_t1.js (15 checks). Both use live read-only NIC.it DAS/WHOIS and stub OP axios.post. ConnectReseller 401 errors are expected in this pod."
+}

@@ -39,8 +39,28 @@ const checkDomainPrice = async (domainName, db) => {
     opService.checkDomainAvailability(domainName),
   ])
 
-  const cr = crResult.status === 'fulfilled' ? crResult.value : { available: false, message: crResult.reason?.message }
+  let cr = crResult.status === 'fulfilled' ? crResult.value : { available: false, message: crResult.reason?.message }
   const op = opResult.status === 'fulfilled' ? opResult.value : { available: false, message: opResult.reason?.message }
+
+  // Registry gate for ConnectReseller too (defense-in-depth): for TLDs whose
+  // registry we can query directly (.it), never trust a registrar "available"
+  // the registry contradicts. OP results are already gated inside op-service;
+  // the shared 10-min cache means this rarely costs an extra registry query.
+  if (cr.available) {
+    const tld = String(domainName).toLowerCase().split('.').pop()
+    if (opService.REGISTRY_VERIFIERS && opService.REGISTRY_VERIFIERS[tld]) {
+      try {
+        const reg = await opService.verifyRegistryAvailability(domainName)
+        if (!reg.verified || !reg.available) {
+          log(`[domain-service] ${domainName}: ConnectReseller says available but the registry ${reg.verified ? `says ${reg.status}` : `could not confirm (${reg.error})`} — NOT offering it`)
+          cr = { available: false, message: 'Domain not available (registry)' }
+        }
+      } catch (e) {
+        log(`[domain-service] ${domainName}: registry gate error for ConnectReseller result: ${e.message} — NOT offering it`)
+        cr = { available: false, message: 'Domain not available (registry)' }
+      }
+    }
+  }
 
   // When both registrars have the domain:
   // Show the HIGHER price to the user (worst-case), try the cheaper registrar first.
@@ -250,13 +270,22 @@ const registerDomain = async (domainName, registrar, nsChoice, db, chatId, custo
   }
 
   if (result.error) {
-    // OpenProvider-only attempts are definitive: op-service re-verifies after
-    // an HTTP 500 and only returns an error when the domain is NOT registered.
-    // A ConnectReseller attempt can be ambiguous (CR timeout yet registered,
-    // then OP "not free") — keep the zone in that case so a registered domain
-    // never loses its DNS.
+    // OpenProvider-only attempt: delete the zone we created ONLY when OP
+    // positively confirms the domain is NOT in our account. A 5xx/timeout whose
+    // own re-verification failed could still have registered the domain — an
+    // unknown answer (null) keeps the zone so a registered domain never loses DNS.
+    // A ConnectReseller attempt is ambiguous by nature (CR timeout yet
+    // registered, then OP "not free") — always keep the zone there.
     if (originalRegistrar === 'OpenProvider') {
-      await _cleanupCreatedZone(`OpenProvider: ${String(result.error).slice(0, 80)}`)
+      if (cfZoneId && cfZoneCreated) {
+        let inAccount = null
+        try { inAccount = await opService.isDomainInAccount(domainName) } catch (_) { inAccount = null }
+        if (inAccount === false) {
+          await _cleanupCreatedZone(`OpenProvider: ${String(result.error).slice(0, 80)}`)
+        } else {
+          log(`[domain-service] Kept Cloudflare zone ${cfZoneId} for ${domainName} — OpenProvider ownership ${inAccount === true ? 'CONFIRMED (domain is in our account)' : 'could not be confirmed'}`)
+        }
+      }
     } else if (cfZoneId && cfZoneCreated) {
       log(`[domain-service] Kept Cloudflare zone ${cfZoneId} for ${domainName} (ConnectReseller path — outcome ambiguous)`)
     }
