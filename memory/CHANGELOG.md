@@ -1,3 +1,14 @@
+## 2026-10-16 — SMADAV .it domain swap + IVR TTS hardening (direct OpenAI fallback, EdenAI alerts) + license limit 100 — LIVE
+
+- SMADAV customer 8514352552: 73sandoresworld.it (stuck in OP REQ, .it verification mail went to lost cloakhost@tutamail.com)
+  silently replaced by 72sandoresworld.it on cPanel nsan2e0c (OP + CF + WHM + Mongo). Details: memory/SMADAV_IT_DOMAIN_SWAP_2026-10-16.md.
+- All 180 OpenProvider handles on cloakhost@tutamail.com → hosta1@proton.me (incl. default IT/US/AU handles used by all 3 bots).
+- IVR audio: no recurrence since the 10-15 key rotation, but EdenAI is a single prepaid account ($7.58). Shipped: EdenAI
+  401/402/403 → direct OpenAI TTS fallback, EdenAI body logging, EdenAI credit monitor + live admin alert, friendly failure
+  copy + Bulk IVR "📎 Upload New Audio". Details: memory/IVR_TTS_402_RCA_2026-10-15.md (2026-10-16 section).
+- Admin license alerts showed "/30" after the license upgrade: WHM_LICENSE_LIMIT was never set → code default 30. Set to 100
+  on all 3 bots (+ dev/vault); live monitor now reports 28/100.
+
 ## 2026-10-14 — Real hardware type (Premium AMD / Premium Intel / Regular · NVMe SSD / SSD) in reseller API + bot — LIVE
 
 New `js/do-hw-type.js`; reseller API adds cpu_type / size_slug / hardware (cpu + storage_type unchanged) on plans, servers

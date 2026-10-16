@@ -27921,7 +27921,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       return
     } catch (err) {
       log(`[BulkTTS] TTS error: ${err.message}`)
-      return send(chatId, trans('t.cp_207', sanitizeProviderError(err.message, 'voice')), k.of([['🎤 Change Voice'], ['↩️ Back']]))
+      return send(chatId, trans('t.cp_207'), k.of([['📎 Upload New Audio'], ['🎤 Change Voice'], ['↩️ Back']]))
     }
   }
 
@@ -27937,6 +27937,10 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       const ttsService = require('./tts-service.js')
       const providerBtns = ttsService.getProviderButtons().map(b => [b])
       return send(chatId, trans('t.cp_209'), k.of([...providerBtns, ['↩️ Back']]))
+    }
+    if (message === '📎 Upload New Audio') {
+      await set(state, chatId, 'action', a.bulkUploadAudio)
+      return send(chatId, trans('t.cp_140'), k.of([['↩️ Back']]))
     }
     if (message === '🎚 Change Speed') {
       await set(state, chatId, 'action', a.bulkTTSSpeed)

@@ -8,6 +8,8 @@ const path = require('path')
 const { log } = require('console')
 
 const EDENAI_API_KEY = process.env.EDENAI_API_KEY
+const OPENAI_TTS_KEY = process.env.APP_OPEN_API_KEY
+const OPENAI_TTS_MODEL = 'tts-1'
 const AUDIO_DIR = path.join(__dirname, '..', 'audio_cache')
 
 // MongoDB reference for persistent audio storage (set via setDb)
@@ -113,6 +115,43 @@ const PROVIDER_FALLBACK = {
   elevenlabs: { provider: 'openai', voiceKey: 'alloy', label: 'OpenAI Alloy' },
 }
 
+// Closest OpenAI voice for each ElevenLabs voice (used by the direct-OpenAI fallback)
+const ELEVENLABS_TO_OPENAI = {
+  rachel: 'nova', sarah: 'shimmer', laura: 'nova', emily: 'shimmer', domi: 'nova', dorothy: 'shimmer', glinda: 'fable',
+  drew: 'echo', charlie: 'echo', clyde: 'onyx', adam: 'onyx', josh: 'echo', arnold: 'onyx', sam: 'onyx', thomas: 'echo',
+}
+
+// 401/402/403 = EdenAI billing/auth problem — the other EdenAI provider bills the same account, so it can't help
+function isBillingOrAuthError(err) {
+  return [401, 402, 403].includes(err?.response?.status)
+}
+
+function _errBody(err) {
+  const data = err?.response?.data
+  if (!data) return ''
+  const text = Buffer.isBuffer(data) ? data.toString('utf8') : (typeof data === 'string' ? data : JSON.stringify(data))
+  return ` | body: ${text.slice(0, 300)}`
+}
+
+function _reportEdenAiFailure(err) {
+  try { require('./balance-monitor').reportEdenAiFailure({ status: err?.response?.status, body: _errBody(err).replace(' | body: ', '') }) } catch (_) { /* alert is best-effort */ }
+}
+
+async function _callOpenAIDirect(text, voiceId, speed = 1.0) {
+  const res = await axios.post('https://api.openai.com/v1/audio/speech', {
+    model: OPENAI_TTS_MODEL,
+    voice: voiceId,
+    input: text.trim(),
+    speed: Math.max(0.25, Math.min(4.0, speed || 1.0)),
+    response_format: 'mp3',
+  }, {
+    headers: { Authorization: `Bearer ${OPENAI_TTS_KEY}`, 'Content-Type': 'application/json' },
+    responseType: 'arraybuffer',
+    timeout: TTS_TIMEOUT_MS,
+  })
+  return { audio: Buffer.from(res.data).toString('base64') }
+}
+
 /**
  * Check if an error is transient (network/timeout) and worth retrying
  */
@@ -192,7 +231,7 @@ async function _callEdenAIWithRetry(text, provider, voiceId, gender, language, s
       lastErr = err
       if (!isTransientError(err)) {
         // Non-transient error (API key invalid, bad request) — don't retry
-        log(`[TTS] Non-transient error from ${provider}: ${err.message}`)
+        log(`[TTS] Non-transient error from ${provider}: ${err.message}${_errBody(err)}`)
         throw err
       }
       log(`[TTS] Transient error from ${provider} (attempt ${attempt + 1}): ${err.message}`)
@@ -226,8 +265,9 @@ function _saveAudioResult(result, voiceKey) {
  *
  * Flow:
  *   1. Try requested provider with 1 automatic retry on transient errors
- *   2. If all retries fail → auto-fallback to the other provider
- *   3. Return result with fallbackUsed flag so callers can inform the user
+ *   2. If it fails → fallback to the other EdenAI provider (skipped on 401/402/403: same EdenAI account)
+ *   3. If still no audio → direct OpenAI TTS (APP_OPEN_API_KEY); ElevenLabs voices map to the closest OpenAI voice
+ *   4. Return result with fallbackUsed flag so callers can inform the user
  *
  * @param {string} text - Text to convert
  * @param {string} voiceKey - Voice key from ALL_VOICES
@@ -248,41 +288,54 @@ async function generateTTS(text, voiceKey = DEFAULT_VOICE, langCode = null, spee
   let usedVoiceName = voice.name
   let usedVoiceKey = voiceKey
   let fallbackUsed = false
+  let directUsed = false
 
   // ── Step 1: Try the requested provider with retry ──
   try {
     result = await _callEdenAIWithRetry(text, provider, voice.voiceId, voice.gender, language, speed)
   } catch (primaryErr) {
     log(`[TTS] Primary provider ${provider} failed after retries: ${primaryErr.message}`)
-
-    // ── Step 2: Fallback to other provider ──
+    let lastErr = primaryErr
     const fb = PROVIDER_FALLBACK[provider]
-    if (fb) {
-      const fbVoice = ALL_VOICES[fb.voiceKey]
-      if (fbVoice) {
-        log(`[TTS] Falling back to ${fb.label}...`)
-        try {
-          result = await _callEdenAI(text, fb.provider, fbVoice.voiceId, fbVoice.gender, language, speed)
-          usedProvider = fb.provider
-          usedVoiceName = fbVoice.name
-          usedVoiceKey = fb.voiceKey
-          fallbackUsed = true
-          log(`[TTS] Fallback to ${fb.label} succeeded`)
-        } catch (fbErr) {
-          log(`[TTS] Fallback ${fb.label} also failed: ${fbErr.message}`)
-          // Throw a combined error with guidance
-          throw new Error(
-            `Both ${provider} and ${fb.provider} failed. ` +
-            `${provider}: ${primaryErr.message}. ` +
-            `${fb.provider}: ${fbErr.message}. ` +
-            `Please try again in a moment.`
-          )
-        }
-      } else {
-        throw primaryErr
+    const fbVoice = fb && ALL_VOICES[fb.voiceKey]
+
+    // ── Step 2: same-account EdenAI fallback (skipped on billing/auth errors) ──
+    if (isBillingOrAuthError(primaryErr)) {
+      log(`[TTS] EdenAI HTTP ${primaryErr.response.status} — skipping same-account ${fb?.label || ''} fallback`)
+      _reportEdenAiFailure(primaryErr)
+    } else if (fbVoice) {
+      log(`[TTS] Falling back to ${fb.label}...`)
+      try {
+        result = await _callEdenAI(text, fb.provider, fbVoice.voiceId, fbVoice.gender, language, speed)
+        usedProvider = fb.provider
+        usedVoiceName = fbVoice.name
+        usedVoiceKey = fb.voiceKey
+        fallbackUsed = true
+        log(`[TTS] Fallback to ${fb.label} succeeded`)
+      } catch (fbErr) {
+        log(`[TTS] Fallback ${fb.label} also failed: ${fbErr.message}${_errBody(fbErr)}`)
+        if (isBillingOrAuthError(fbErr)) _reportEdenAiFailure(fbErr)
+        lastErr = fbErr
       }
-    } else {
-      throw primaryErr
+    }
+
+    // ── Step 3: direct OpenAI TTS (independent of EdenAI billing) ──
+    if (!result) {
+      const resolvedKey = ALL_VOICES[voiceKey] ? voiceKey : DEFAULT_VOICE
+      const directKey = provider === 'openai' ? voice.voiceId : (ELEVENLABS_TO_OPENAI[resolvedKey] || 'alloy')
+      if (!OPENAI_TTS_KEY) throw new Error(`Voice generation unavailable (EdenAI: ${lastErr.message}; no direct OpenAI key)`)
+      try {
+        result = await _callOpenAIDirect(text, directKey, speed)
+        usedProvider = 'openai'
+        usedVoiceKey = directKey
+        usedVoiceName = OPENAI_VOICES[directKey].name
+        fallbackUsed = provider !== 'openai'
+        directUsed = true
+        log(`[TTS] Direct OpenAI fallback succeeded (voice: ${usedVoiceName})`)
+      } catch (directErr) {
+        log(`[TTS] Direct OpenAI fallback failed: ${directErr.message}${_errBody(directErr)}`)
+        throw new Error(`Voice generation unavailable (EdenAI: ${lastErr.message}; OpenAI direct: ${directErr.message})`)
+      }
     }
   }
 
@@ -323,7 +376,7 @@ async function generateTTS(text, voiceKey = DEFAULT_VOICE, langCode = null, spee
   const selfHostedUrl = `${baseUrl}/assets/user-audio/${userAudioFilename}`
 
   const speedNote = speed !== 1.0 ? `, speed: ${speed}x` : ''
-  const fallbackNote = fallbackUsed ? ` [FALLBACK from ${provider} → ${usedProvider}]` : ''
+  const fallbackNote = (fallbackUsed ? ` [FALLBACK from ${provider} → ${usedProvider}]` : '') + (directUsed ? ' [DIRECT OpenAI, EdenAI bypassed]' : '')
   log(`[TTS] Generated: ${filename} (provider: ${usedProvider}, voice: ${usedVoiceName}, ${text.length} chars${speedNote})${fallbackNote}`)
 
   return {

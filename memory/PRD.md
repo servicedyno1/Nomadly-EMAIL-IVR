@@ -1,5 +1,17 @@
 # PRD — Nomadly Cloud IVR + Telegram Bot
 
+## 2026-10-16 — SMADAV .it swap DONE · IVR TTS hardening LIVE · license alert 100 · OP emails → hosta1@proton.me
+- Setup: vault (`scripts/vault.sh`, pass from owner) already matched dev .env; droplet SSH key from `DROPLET_SSH_KEY_B64`.
+- SMADAV 73sandoresworld.it → 72sandoresworld.it (OP 30422145, CF 0e19f39f…, cPanel nsan2e0c). OWNER ACTION: click the .it
+  verification email in hosta1@proton.me. See memory/SMADAV_IT_DOMAIN_SWAP_2026-10-16.md.
+- IVR "Audio generation failed": root cause = EdenAI credits (HTTP 402) — not recurring now (16/16 OK), balance $7.58.
+  Fix B live on all 3 bots: direct OpenAI TTS fallback on 401/402/403, EdenAI error-body logs, EdenAI credit monitor
+  (warn $5 / crit $2) + live 402 admin alert, friendly copy (no raw errors) + Bulk IVR Upload New Audio button.
+  Tests: js/tests/test_tts_billing_fallback_2026-10.js 39/0; real-API forced-invalid-key run OK.
+- cPanel license alerts: WHM_LICENSE_LIMIT=100 set on all 3 bots (was unset → default 30). Live: accounts=28/100.
+- 180 OP contact handles moved off cloakhost@tutamail.com → hosta1@proton.me.
+- NEEDS "Save to GitHub" so auto-deploys keep the hot-patched code.
+
 ## 2026-10-15b — cPanel license cleanup: deleted 1 empty account + proactive 27/30 safeguard
 - Request: "which cPanel account has no uploaded content — delete it, license almost full". License cap = 30 accounts
   (whmapi1 get_current_users_count / cpanel.lisc maxusers:30); disk is fine (21G/119G). So it's the ACCOUNT-COUNT limit.

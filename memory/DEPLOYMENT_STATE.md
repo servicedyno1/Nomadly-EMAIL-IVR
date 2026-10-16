@@ -167,3 +167,14 @@ The new layout differs from the old in-place `/opt/nomadly/app-main` checkout. O
 - Vault (`memory/nomadly.vault.enc`) + dev `backend/.env` updated with ONLY the EdenAI line changed.
 - Rollback: `cp -p backend.env.bak.edenai.20261015T175640Z backend.env && pm2 reload <slot> --update-env` (old key is dead though).
 - ⚠️ Balance is low (ElevenLabs ≈ $0.30/1K chars via EdenAI) — EdenAI is still NOT in balance-monitor.js.
+
+## 2026-10-16 ~10:13Z — TTS hardening (EdenAI 402 Fix B) + WHM_LICENSE_LIMIT=100 on all 3 bots
+- Hot-patched live releases app-main 32532c1, app-wl c89b4d7, app-voodoo c89b4d7: `js/tts-service.js`, `js/balance-monitor.js`,
+  `js/lang/{en,fr,hi,zh}.js` (bases md5-identical to /app → copied), `js/_index.js` (brand-specific → `memory/ops/patch_tts_hardening.py`).
+  Backups `*.bak.ttshard.20261016T101206Z`; RELEASE gets `patched=20261016T101206Z tts-billing-fallback+...`.
+- `/opt/nomadly/shared/{app-main,app-wl,app-voodoo}/backend.env`: added `WHM_LICENSE_LIMIT=100` (license upgraded 30 → 100;
+  code defaulted to 30 because the var was unset) — backups `backend.env.bak.license.20261016T101206Z`. Dev .env + vault updated (only that line).
+- `pm2 reload app-main-a app-wl-b app-voodoo-b --update-env` one at a time at calls.total=0 → all healthy.
+- Verified live: `[BalanceMonitor] EdenAI: $7.58 USD [ok]` + `[WhmDiskMonitor] OK — accounts=28/100` on all 3.
+- Rollback: `cd <release>/js && for f in tts-service.js balance-monitor.js _index.js lang/*.js; do cp -p $f.bak.ttshard.20261016T101206Z $f; done && pm2 reload <slot>`.
+- ⚠️ Needs "Save to GitHub" so the next auto-deploy keeps these changes (the /app tree already has them).
