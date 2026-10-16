@@ -4,6 +4,7 @@
 - @ProshopHQ_bot · panel.proshophost.xyz (panel+landing) · proshopivr.xyz (/call, webhooks, /sales) · sip.proshopivr.xyz.
   Own Mongo (Railway) / Dynopay / bot; shared Nomadly Telnyx account with own SIP/CCA/MP; support+channel @proshopHQ; phone ON; reseller shown.
 - Domains via OpenProvider, auto-renew OFF. Full record: memory/PROSHOP_SETUP_2026-10-16.md
+- 2026-10-16: PROSHOP BotFather avatar 640×640 (`js/assets/brand/proshop/icon.png`, public https://panel.proshophost.xyz/brand/icon.png); full rebuild runbook `memory/ECOSYSTEM_REBUILD_RUNBOOK.md`.
 - Sales dashboard password Nomadly123@ (owner standard). PENDING: owner /start @ProshopHQ_bot;
   owner "Save to GitHub" (ships deploy-proshop CI job + brand assets/APK via WhiteLabel sync).
 
