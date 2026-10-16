@@ -87,12 +87,12 @@ jobs:
       # --ref main = use main's canonical deploy.yml; deploy.sh app-wl always ships
       # the WhiteLabel branch (/opt/nomadly/shared/app-wl/branch).
       # Automatic (push) runs always redeploy; manual runs honour the `deploy` box.
-      - name: Redeploy app-wl (Smadav bot) + app-voodoo (Voodoo Land)
+      - name: Redeploy app-wl (Smadav bot) + app-voodoo (Voodoo Land) + app-proshop (PROSHOP)
         if: ${{ steps.sync.outputs.pushed == 'true' && steps.sync.outputs.runtime_changed == 'true' && (github.event_name == 'push' || inputs.deploy) }}
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          # whitelabel = app-wl (Smadav) then app-voodoo (Voodoo Land) in ONE run — both ship the WhiteLabel
+          # whitelabel = app-wl (Smadav) → app-voodoo (Voodoo Land) → app-proshop (PROSHOP) in ONE run — all ship the WhiteLabel
           # branch with their own backend.env. One dispatch, so a queued run can't cancel the other.
           gh workflow run deploy.yml --repo "$GITHUB_REPOSITORY" --ref main -f app=whitelabel
-          echo "### 🚢 Started \"Deploy to Droplet\" for app-wl + app-voodoo — see the Actions tab" >> "$GITHUB_STEP_SUMMARY"
+          echo "### 🚢 Started \"Deploy to Droplet\" for app-wl + app-voodoo + app-proshop — see the Actions tab" >> "$GITHUB_STEP_SUMMARY"

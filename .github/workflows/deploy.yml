@@ -31,7 +31,7 @@ on:
   workflow_dispatch:
     inputs:
       app:
-        description: 'Which app to deploy (app-main, app-wl, app-voodoo, whitelabel = app-wl then app-voodoo, or both = all)'
+        description: 'Which app to deploy (app-main, app-wl, app-voodoo, app-proshop, whitelabel = app-wl → app-voodoo → app-proshop, or both = all)'
         required: false
         default: 'both'
         type: choice
@@ -40,6 +40,7 @@ on:
           - app-main
           - app-wl
           - app-voodoo
+          - app-proshop
           - whitelabel
 
 # The job only SSHes out — it needs no GITHUB_TOKEN permissions at all.
@@ -152,3 +153,39 @@ jobs:
               -o ServerAliveCountMax=6 \
               "$DROPLET_USER@$DROPLET_HOST" \
               'bash /opt/nomadly/deploy.sh app-voodoo'
+
+  deploy-proshop:
+    name: Deploy app-proshop (PROSHOP, branch WhiteLabel)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    # After app-voodoo (never two builds at once on the 2-vCPU box); still runs when an earlier brand was skipped or failed.
+    needs: deploy-voodoo
+    if: >-
+      !cancelled() && (
+      (github.event_name == 'push' && github.ref == 'refs/heads/WhiteLabel') ||
+      (github.event_name == 'workflow_dispatch' && (github.event.inputs.app == 'both' || github.event.inputs.app == 'app-proshop' || github.event.inputs.app == 'whitelabel')))
+    env:
+      DROPLET_HOST: ${{ secrets.DROPLET_HOST }}
+      DROPLET_USER: ${{ secrets.DROPLET_USER }}
+    steps:
+      - name: Configure SSH
+        env:
+          SSH_KEY: ${{ secrets.DROPLET_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.DROPLET_SSH_KNOWN_HOSTS }}
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 644 ~/.ssh/known_hosts
+
+      - name: Deploy over SSH
+        run: |
+          ssh -i ~/.ssh/deploy_key \
+              -o UserKnownHostsFile=~/.ssh/known_hosts \
+              -o StrictHostKeyChecking=yes \
+              -o ConnectTimeout=20 \
+              -o ServerAliveInterval=30 \
+              -o ServerAliveCountMax=6 \
+              "$DROPLET_USER@$DROPLET_HOST" \
+              'bash /opt/nomadly/deploy.sh app-proshop'

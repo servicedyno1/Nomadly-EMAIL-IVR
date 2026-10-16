@@ -28,5 +28,15 @@
     "accent": "#14B8A6",
     "bg": "#0b1215",
     "apk": "voodooland-sms.apk"
+  },
+  "proshop": {
+    "name": "PROSHOP",
+    "appName": "PROSHOP SMS",
+    "appId": "com.proshop.sms",
+    "botUsername": "ProshopHQ_bot",
+    "apiBase": "https://proshopivr.xyz",
+    "accent": "#F59E0B",
+    "bg": "#0f0d0a",
+    "apk": "proshop-sms.apk"
   }
 }
