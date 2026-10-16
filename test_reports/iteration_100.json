@@ -1,0 +1,22 @@
+{
+  "summary": "Retest of the 3 iteration_99 issues (.it registry gate / orphan CF zone / 'not charged' copy). All 3 are fixed and verified. Main suite test_it_registry_gate_2026-10.js 62/0, previous T1 edge cases test_it_registry_edgecases_t1.js 15/0, new T1 file test_it_registry_fixes_t1_iter100.js 44/0 (it adds edge cases for the 3 fixes, including live read-only OP list checks). /health is healthy and node --check passes on all 5 files. CR modules were stubbed through require.cache. No real OP registerDomain call was made and no Cloudflare zone was created or deleted.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": { "ui_bugs": [], "integration_issues": [], "design_issues": [] },
+  "verified": [
+    "Fix 1 (queued copy): with { queued: true }, the en/fr/zh/hi messages and the unknown-lang fallback to en never say 'not charged' or 'wallet', for unavailable errors, 500 errors and null errors. The en text has 'payment is safe', 'don't need to pay again' and 'Get Support'. The unavailable headline is kept, and there is no 'Open Anti-Red Hosting' re-buy prompt. Calls with no opts, queued:false or opts=undefined keep the old copy. Both call sites (lines 516 and 521) pass queued: !!info._fromQueue.",
+    "Fix 2 (isDomainInAccount): total '0' (string) → false; total>0 with no results → true; code 0 with no data, a non-numeric total, a null body or HTTP 500 → null; the query uses name/extension correctly. Live read-only: net.it → false, a random .com → false, vabillaprepaid.com → true. In registerDomain, the zone is kept when isDomainInAccount throws or returns undefined (the check is strictly === false). With a pre-existing zone, isDomainInAccount is never called. If deleteZone throws or returns success:false, {error} is still returned with no crash. On the CR → OP fallback path the zone is kept even when inAccount is false.",
+    "Fix 3 (CR gate): an unreachable registry or a verifier that throws → the CR .it result is not offered. Uppercase NET.IT is gated. For .com the verifier is never called. If CR is gated but OP is available, the domain is offered only via OpenProvider. If CR is not available, the CR gate makes no extra registry call."
+  ],
+  "test_report_links": ["/app/js/tests/test_it_registry_gate_2026-10.js", "/app/js/tests/test_it_registry_edgecases_t1.js", "/app/js/tests/test_it_registry_fixes_t1_iter100.js"],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Optional hardening: isDomainInAccount returns true for any non-empty results. It could also require an exact match of results[i].domain.name + extension against the queried domain. This is not a risk today: a false 'true' only keeps the zone, which is the safe direction, and the live check showed the pattern is exact.",
+    "Test-only note: op-service caches the auth token for the whole process. If a test stubs /auth/login and then makes live OP calls in the same process, the live calls get null back. Run live checks before the stubbed ones, as the new test file does."
+  ],
+  "updated_files": ["/app/js/tests/test_it_registry_fixes_t1_iter100.js"],
+  "success_rate": { "backend": "100%", "frontend": "N/A (backend only)" },
+  "seed_data_creation": "None",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Run from /app: node js/tests/test_it_registry_gate_2026-10.js (62), node js/tests/test_it_registry_edgecases_t1.js (15), node js/tests/test_it_registry_fixes_t1_iter100.js (44). CR returns 401 in this pod (expected) and is stubbed. Never call real OP registerDomain or CF zone create/delete. Production is untouched; the main agent does the rollout to the 3 bots."
+}
