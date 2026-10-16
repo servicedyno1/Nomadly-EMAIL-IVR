@@ -279,15 +279,18 @@ function removeSipPreDialBlockByChatId(chatId) {
       db.collection('sipPreDialBlocklist').deleteMany({ chatId }).catch(() => {})
     }
   } catch (e) { /* non-critical */ }
-  if (removed > 0) {
-    log(`[Voice] PRE-DIAL: Removed ${removed} block(s) for chatId ${chatId} — wallet topped up`)
-    // Also clear wallet cooldowns for this user
-    delete walletRejectCooldown[`chatId:${chatId}`]
-    for (const [key, entry] of Object.entries(walletRejectCooldown)) {
-      if (entry?.chatId === chatId) delete walletRejectCooldown[key]
-    }
+  // ALWAYS clear lingering wallet-reject cooldowns for this user — they outlive
+  // the in-memory pre-dial block (escalating up to 2h) and would keep rejecting
+  // SIP calls with a bare "503" even after the wallet is topped up.
+  let cooldownsCleared = 0
+  if (walletRejectCooldown[`chatId:${target}`]) { delete walletRejectCooldown[`chatId:${target}`]; cooldownsCleared++ }
+  for (const [key, entry] of Object.entries(walletRejectCooldown)) {
+    if (String(entry?.chatId) === target) { delete walletRejectCooldown[key]; cooldownsCleared++ }
   }
-  return removed
+  if (removed > 0 || cooldownsCleared > 0) {
+    log(`[Voice] PRE-DIAL: Cleared ${removed} block(s) + ${cooldownsCleared} cooldown(s) for chatId ${chatId} — wallet topped up`)
+  }
+  return removed + cooldownsCleared
 }
 
 // Notify a blocked user (throttled) WHY their outbound call was rejected. This
@@ -297,6 +300,10 @@ function removeSipPreDialBlockByChatId(chatId) {
 // assumed the call feature was broken. Throttled to at most once per
 // PRE_DIAL_NOTIFY_MS per credential so repeated redials don't spam the chat.
 const PRE_DIAL_NOTIFY_MS = 10 * 60 * 1000
+// English fallback header so a low-balance lock alert is NEVER silently dropped
+// when a translation string is missing — otherwise the user only sees the raw
+// SIP "503" in their softphone and opens a support ticket.
+const LOCK_FALLBACK_HEADER = '🚫 <b>Outbound Calling Locked</b>\n\n'
 function notifyPreDialLowBalance(block) {
   try {
     if (!_bot || !block || !block.chatId || block.reason !== 'low_balance') return
@@ -307,8 +314,7 @@ function notifyPreDialLowBalance(block) {
     ;(async () => {
       try {
         const lang = await _getUserLang(block.chatId)
-        const baseMsg = _trans('vs.outboundCallingLocked', lang)
-        if (!baseMsg) return
+        const baseMsg = _trans('vs.outboundCallingLocked', lang) || LOCK_FALLBACK_HEADER
         const fullMsg = baseMsg +
           `Your wallet balance is below $${LOW_BALANCE_TRIGGER}, so outbound calls are temporarily locked.\n\n` +
           `💰 <b>Top up to at least $${LOW_BALANCE_RESUME}</b> to resume calling.\n` +
@@ -441,7 +447,8 @@ async function handleAutoRoutedRealTimeBilling(callControlId, sipUsername, fromC
           await _telnyxApi.hangupCall(callControlId).catch(() => {})
           const lang = await _getUserLang(chatId)
           const msg = _trans('vs.callDisconnectedAutoRouted', lang, walletCheck.usdBal.toFixed(2), LOW_BALANCE_TRIGGER, LOW_BALANCE_RESUME)
-          if (msg) _bot?.sendMessage(chatId, msg, { parse_mode: 'HTML' }).catch(() => {})
+            || `🚫 <b>Call Disconnected</b>\n\nWallet: <b>$${walletCheck.usdBal.toFixed(2)}</b> — below the $${LOW_BALANCE_TRIGGER} minimum.\n💰 Top up at least $${LOW_BALANCE_RESUME} to resume calling.`
+          _bot?.sendMessage(chatId, msg, { parse_mode: 'HTML' }).catch(() => {})
           return
         }
         if (!walletCheck.sufficient) {
@@ -449,7 +456,8 @@ async function handleAutoRoutedRealTimeBilling(callControlId, sipUsername, fromC
           await _telnyxApi.hangupCall(callControlId).catch(() => {})
           const lang = await _getUserLang(chatId)
           const msg = _trans('vs.callDisconnectedWalletInsufficient', lang, rate, CALL_CONNECTION_FEE)
-          if (msg) _bot?.sendMessage(chatId, msg, { parse_mode: 'HTML' }).catch(() => {})
+            || `🚫 <b>Call Disconnected</b> — wallet balance too low for this call (need ~$${(rate + CALL_CONNECTION_FEE).toFixed(2)}).\n💰 Top up via 👛 <b>Wallet</b> to resume calling.`
+          _bot?.sendMessage(chatId, msg, { parse_mode: 'HTML' }).catch(() => {})
           return
         }
       } catch (e) { log(`[Voice] Fix #5: Wallet check error: ${e.message}`) }
@@ -3071,7 +3079,7 @@ async function handleOutboundSipCall(payload) {
           await _telnyxApi.rejectCall(callControlId, 'CALL_REJECTED')
         }
         const lang = await _getUserLang(chatId)
-        const baseMsg = _trans('vs.outboundCallingLocked', lang)
+        const baseMsg = _trans('vs.outboundCallingLocked', lang) || LOCK_FALLBACK_HEADER
         const reservedNote = reservedNow > 0
           ? `\n\n(You have other calls in progress reserving <b>$${reservedNow.toFixed(2)}</b>.)`
           : ''
@@ -3079,7 +3087,7 @@ async function handleOutboundSipCall(payload) {
           `Your available wallet balance (<b>$${availableBal.toFixed(2)}</b>) is below $${LOW_BALANCE_TRIGGER}. To protect your account, outbound calls are temporarily locked.${reservedNote}\n\n` +
           `💰 <b>Top up at least $${LOW_BALANCE_RESUME}</b> to resume calling.\n` +
           `Use 👛 <b>Wallet</b> to add funds.`
-        if (baseMsg) _bot?.sendMessage(chatId, fullMsg, { parse_mode: 'HTML', reply_markup: { inline_keyboard: [[{ text: '💰 Top Up Now', callback_data: 'wallet_topup_quick' }]] } }).catch(() => {})
+        _bot?.sendMessage(chatId, fullMsg, { parse_mode: 'HTML', reply_markup: { inline_keyboard: [[{ text: '💰 Top Up Now', callback_data: 'wallet_topup_quick' }]] } }).catch(() => {})
         return
       }
 
@@ -3095,7 +3103,8 @@ async function handleOutboundSipCall(payload) {
         const lang = await _getUserLang(chatId)
         const region = isUSCanada(destination) ? 'US/CA' : 'Intl'
         const msg = _trans('vs.sipCallBlocked', lang, sipRate, CALL_CONNECTION_FEE, region, availableBal.toFixed(2), 0)
-        if (msg) _bot?.sendMessage(chatId, msg, { parse_mode: 'HTML' }).catch(() => {})
+          || `🚫 <b>SIP Call Blocked</b> — wallet balance too low (need $${sipRate}/min + $${CALL_CONNECTION_FEE} connect fee ${region}).\nBalance: $${availableBal.toFixed(2)}\n💰 Top up via 👛 <b>Wallet</b> to resume calling.`
+        _bot?.sendMessage(chatId, msg, { parse_mode: 'HTML' }).catch(() => {})
         return
       }
     } catch (e) { log(`[Voice] Wallet check error: ${e.message}`) }
