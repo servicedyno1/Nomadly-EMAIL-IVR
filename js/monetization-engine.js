@@ -219,16 +219,16 @@ async function checkAndAwardWelcomeBonus(chatId, lang = 'en') {
         en: `🎉 <b>Welcome Gift!</b>\n\n` +
             `$${WELCOME_BONUS_USD} has been added to your wallet as a welcome gift!\n\n` +
             `💡 Use it toward any service — domains, phone numbers, hosting, or more.\n\n` +
-            `Thank you for joining Nomadly! 🚀`,
+            `Thank you for joining ${(process.env.CHAT_BOT_BRAND || 'Nomadly')}! 🚀`,
         fr: `🎉 <b>Cadeau de bienvenue !</b>\n\n` +
             `$${WELCOME_BONUS_USD} ajoutés à votre portefeuille en cadeau de bienvenue !\n\n` +
-            `💡 Utilisez-le pour n'importe quel service. Merci d'avoir rejoint Nomadly ! 🚀`,
+            `💡 Utilisez-le pour n'importe quel service. Merci d'avoir rejoint ${(process.env.CHAT_BOT_BRAND || 'Nomadly')} ! 🚀`,
         zh: `🎉 <b>欢迎礼物！</b>\n\n` +
             `$${WELCOME_BONUS_USD} 已作为欢迎礼物添加到您的钱包！\n\n` +
-            `💡 可用于任何服务。感谢加入 Nomadly！🚀`,
+            `💡 可用于任何服务。感谢加入 ${(process.env.CHAT_BOT_BRAND || 'Nomadly')}！🚀`,
         hi: `🎉 <b>स्वागत उपहार!</b>\n\n` +
             `$${WELCOME_BONUS_USD} स्वागत उपहार के रूप में आपके वॉलेट में जोड़ दिए गए!\n\n` +
-            `💡 किसी भी सेवा पर इस्तेमाल करें। Nomadly में स्वागत है! 🚀`,
+            `💡 किसी भी सेवा पर इस्तेमाल करें। ${(process.env.CHAT_BOT_BRAND || 'Nomadly')} में स्वागत है! 🚀`,
       }
 
       return { awarded: true, amount: WELCOME_BONUS_USD, message: msgs[lang] || msgs.en }
@@ -260,21 +260,21 @@ async function giftAllUsersWelcomeBonus(getChatIds, sendMessage, adminSend, getU
 
   const giftMsgs = {
     en: `🎉 <b>Welcome Gift!</b>\n\n` +
-        `$${WELCOME_BONUS_USD} has been added to your wallet as a welcome gift from Nomadly!\n\n` +
+        `$${WELCOME_BONUS_USD} has been added to your wallet as a welcome gift from ${(process.env.CHAT_BOT_BRAND || 'Nomadly')}!\n\n` +
         `💡 Use it toward any service — domains, phone numbers, hosting, or more.\n\n` +
-        `Thank you for being part of Nomadly! 🚀`,
+        `Thank you for being part of ${(process.env.CHAT_BOT_BRAND || 'Nomadly')}! 🚀`,
     fr: `🎉 <b>Cadeau de bienvenue !</b>\n\n` +
-        `$${WELCOME_BONUS_USD} ajoutés à votre portefeuille en cadeau de bienvenue de Nomadly !\n\n` +
+        `$${WELCOME_BONUS_USD} ajoutés à votre portefeuille en cadeau de bienvenue de ${(process.env.CHAT_BOT_BRAND || 'Nomadly')} !\n\n` +
         `💡 Utilisez-le pour n'importe quel service — domaines, numéros, hébergement, et plus.\n\n` +
-        `Merci de faire partie de Nomadly ! 🚀`,
+        `Merci de faire partie de ${(process.env.CHAT_BOT_BRAND || 'Nomadly')} ! 🚀`,
     zh: `🎉 <b>欢迎礼物！</b>\n\n` +
-        `$${WELCOME_BONUS_USD} 已作为 Nomadly 的欢迎礼物添加到您的钱包！\n\n` +
+        `$${WELCOME_BONUS_USD} 已作为 ${(process.env.CHAT_BOT_BRAND || 'Nomadly')} 的欢迎礼物添加到您的钱包！\n\n` +
         `💡 可用于任何服务 — 域名、电话号码、托管等。\n\n` +
-        `感谢您成为 Nomadly 的一员！🚀`,
+        `感谢您成为 ${(process.env.CHAT_BOT_BRAND || 'Nomadly')} 的一员！🚀`,
     hi: `🎉 <b>स्वागत उपहार!</b>\n\n` +
-        `$${WELCOME_BONUS_USD} Nomadly से स्वागत उपहार के रूप में आपके वॉलेट में जोड़ दिए गए!\n\n` +
+        `$${WELCOME_BONUS_USD} ${(process.env.CHAT_BOT_BRAND || 'Nomadly')} से स्वागत उपहार के रूप में आपके वॉलेट में जोड़ दिए गए!\n\n` +
         `💡 किसी भी सेवा पर इस्तेमाल करें — डोमेन, फ़ोन नंबर, होस्टिंग, और बहुत कुछ।\n\n` +
-        `Nomadly का हिस्सा बनने के लिए धन्यवाद! 🚀`,
+        `${(process.env.CHAT_BOT_BRAND || 'Nomadly')} का हिस्सा बनने के लिए धन्यवाद! 🚀`,
   }
 
   const chatIds = await getChatIds()
@@ -533,7 +533,7 @@ async function markWinbackCodeUsed(code) {
 function getWinbackMessage(lang, code, discount, expiryHours) {
   const msgs = {
     en: `👋 <b>We miss you!</b>\n\n` +
-        `It's been a while since you used Nomadly. We'd love to have you back!\n\n` +
+        `It's been a while since you used ${(process.env.CHAT_BOT_BRAND || 'Nomadly')}. We'd love to have you back!\n\n` +
         `🎁 <b>Exclusive come-back offer:</b>\n` +
         `Use code <code>${code}</code> for <b>${discount}% off</b> your next purchase!\n\n` +
         `⏰ <b>Expires in ${expiryHours} hours</b> — don't miss out.\n\n` +

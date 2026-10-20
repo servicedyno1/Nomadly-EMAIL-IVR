@@ -243,11 +243,11 @@ function sanitizeAiContext(text) {
   s = s.replace(/\bTelnyx\b/gi, 'Speechcue')
 
   // Domain-registrar brand names → Nomadly (the consumer-facing brand for purchased domains)
-  s = s.replace(/\bOpenProvider\b/gi, 'Nomadly')
-  s = s.replace(/\bConnect\s?Reseller\b/gi, 'Nomadly')
+  s = s.replace(/\bOpenProvider\b/gi, (process.env.CHAT_BOT_BRAND || 'Nomadly'))
+  s = s.replace(/\bConnect\s?Reseller\b/gi, (process.env.CHAT_BOT_BRAND || 'Nomadly'))
   // Strip lowercase forms that may come from DB source fields like source: 'openprovider'
-  s = s.replace(/\bopenprovider\b/gi, 'Nomadly')
-  s = s.replace(/\bconnectreseller\b/gi, 'Nomadly')
+  s = s.replace(/\bopenprovider\b/gi, (process.env.CHAT_BOT_BRAND || 'Nomadly'))
+  s = s.replace(/\bconnectreseller\b/gi, (process.env.CHAT_BOT_BRAND || 'Nomadly'))
 
   // Internal abbreviations
   s = s.replace(/\bOP\s+(API|service|error|domain|account)/gi, 'registrar $1')
@@ -255,9 +255,9 @@ function sanitizeAiContext(text) {
 
   // Infrastructure / VPS providers
   s = s.replace(/\b[\w-]+\.up\.railway\.app\b/gi, 'our infrastructure')
-  s = s.replace(/\bRailway\b/g, 'Nomadly infrastructure')
+  s = s.replace(/\bRailway\b/g, ((process.env.CHAT_BOT_BRAND || 'Nomadly') + ' infrastructure'))
   s = s.replace(/\b(?:[\w-]+\.)*contabo\.com\b/gi, 'our VPS provider')
-  s = s.replace(/\bContabo\b/gi, 'Nomadly VPS')
+  s = s.replace(/\bContabo\b/gi, ((process.env.CHAT_BOT_BRAND || 'Nomadly') + ' VPS'))
 
   // Provider-default nameserver hostnames
   s = s.replace(/\bns\d+\.(?:openprovider|nomadly)\.(?:nl|be|eu|com|net|de)\b/gi, 'default nameserver')
@@ -293,18 +293,18 @@ function sanitizeUserText(text) {
   // Brand names → user-facing alternatives
   s = s.replace(/\bTwilio\b/gi, 'Speechcue')
   s = s.replace(/\bTelnyx\b/gi, 'Speechcue')
-  s = s.replace(/\bOpenProvider\b/gi, 'Nomadly')
-  s = s.replace(/\bopenprovider\b/gi, 'Nomadly')
-  s = s.replace(/\bConnect\s?Reseller\b/gi, 'Nomadly')
-  s = s.replace(/\bconnectreseller\b/gi, 'Nomadly')
+  s = s.replace(/\bOpenProvider\b/gi, (process.env.CHAT_BOT_BRAND || 'Nomadly'))
+  s = s.replace(/\bopenprovider\b/gi, (process.env.CHAT_BOT_BRAND || 'Nomadly'))
+  s = s.replace(/\bConnect\s?Reseller\b/gi, (process.env.CHAT_BOT_BRAND || 'Nomadly'))
+  s = s.replace(/\bconnectreseller\b/gi, (process.env.CHAT_BOT_BRAND || 'Nomadly'))
 
   // Infrastructure / VPS providers
   s = s.replace(/https?:\/\/[\w-]+\.up\.railway\.app[^\s)\]<>"';]*/gi, '')
   s = s.replace(/\b[\w-]+\.up\.railway\.app\b/gi, 'our infrastructure')
-  s = s.replace(/\bRailway\b/g, 'Nomadly infrastructure')
+  s = s.replace(/\bRailway\b/g, ((process.env.CHAT_BOT_BRAND || 'Nomadly') + ' infrastructure'))
   s = s.replace(/https?:\/\/(?:[\w-]+\.)*contabo\.com[^\s)\]<>"';]*/gi, '')
   s = s.replace(/\b(?:[\w-]+\.)*contabo\.com\b/gi, 'our VPS provider')
-  s = s.replace(/\bContabo\b/gi, 'Nomadly VPS')
+  s = s.replace(/\bContabo\b/gi, ((process.env.CHAT_BOT_BRAND || 'Nomadly') + ' VPS'))
 
   // Provider-default nameserver hostnames
   s = s.replace(/\bns\d+\.(?:openprovider|connectreseller)\.(?:nl|be|eu|com|net|de)\b/gi, 'default nameserver')

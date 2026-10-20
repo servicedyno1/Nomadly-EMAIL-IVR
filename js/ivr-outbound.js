@@ -169,7 +169,7 @@ const SMART_PLACEHOLDERS = {
     icon: '📞',
     label: 'Callback Number',
     description: 'Spoofed callback number',
-    hint: 'Select your Nomadly number or type a custom number',
+    hint: ('Select your ' + (process.env.CHAT_BOT_BRAND || 'Nomadly') + ' number or type a custom number'),
   },
 }
 

@@ -1972,7 +1972,7 @@ async function sendVPSCredentialsEmail(info, response, vpsDetails, credentials) 
             </p>
             <p style="font-size: 18px; line-height: 1.6; margin-top: 15px;">
                 Best regards,<br>
-                Nomadly Team
+                ${(process.env.CHAT_BOT_BRAND || 'Nomadly')} Team
             </p>
         </div>
     </div>`

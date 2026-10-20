@@ -75,7 +75,7 @@ function initTestMyNumber(app, deps) {
           try {
             await _telnyxApi.gatherDTMF(
               callControlId,
-              'Hello. This is your Nomadly test call. Press one to confirm your SIP device is working.',
+              ('Hello. This is your ' + (process.env.CHAT_BOT_BRAND || 'Nomadly') + ' test call. Press one to confirm your SIP device is working.'),
               {
                 voice: 'female',
                 language: 'en-US',
@@ -217,7 +217,7 @@ async function placeTestCall(chatId, num, lang) {
 
   return {
     ok: true,
-    message: M('placing', targetNumber) || `📞 Calling <code>${targetNumber}</code> from a Nomadly test line… pick up and press <b>1</b> when it rings (you have ~12 seconds after answer).\n\nResult will appear here in under 60s.`,
+    message: M('placing', targetNumber) || `📞 Calling <code>${targetNumber}</code> from a ${(process.env.CHAT_BOT_BRAND || 'Nomadly')} test line… pick up and press <b>1</b> when it rings (you have ~12 seconds after answer).\n\nResult will appear here in under 60s.`,
   }
 }
 

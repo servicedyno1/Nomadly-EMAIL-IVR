@@ -65,7 +65,7 @@ const ANCHORS = [
   ['Issues found', ['Problèmes trouvés', '发现的问题', 'समस्याएँ मिलीं']],
   ['documents provided did not meet the telecom regulatory', ['documents fournis', '提供的文件', 'प्रदान किए गए दस्तावेज़']],
   ['Which SIM should send this campaign', ['Quelle SIM', 'SIM 卡应发送', 'SIM भेजे']],
-  ['Open the Nomadly SMS app once', ['Ouvrez l\'application Nomadly', '打开 Nomadly SMS', 'Nomadly SMS ऐप एक बार']],
+  ["SMS app once, then come back", ['Ouvrez l\'application ${', ' SMS 应用一次', ' SMS ऐप एक बार']],
   ['No previous call data found', ['Aucune donnée d', '未找到先前的通话', 'पिछला कॉल डेटा']],
   ['OTP already processed (status:', ['OTP déjà traité (statut', 'OTP 已处理（状态', 'OTP पहले से ही प्रोसेस किया गया (स्थिति']],
   ['OTP already processed (phase:', ['OTP déjà traité (phase', 'OTP 已处理（阶段', 'OTP पहले से ही प्रोसेस किया गया (चरण']],

@@ -1,0 +1,27 @@
+{
+  "summary": "White-label rebrand (hardcoded 'Nomadly' -> CHAT_BOT_BRAND / CHAT_BOT_NAME / BOT_USERNAME) verified with pure Node module/static tests only. No bot started, no external APIs hit. node --check passes for all 13 modified files. I added a regression test, js/tests/test_whitelabel_rebrand_strings_2026-10.js (120/120 pass). It: (1) AST-parses all 13 files (acorn) and finds no env-expression text leaked into plain string literals or template raw text, so there is no broken quoting or concatenation; (2) runs a grep over lang/*.js, monetization-engine.js and phone-config.js and finds 0 non-fallback 'Nomadly'; (3) loads modules in a fresh child process for each brand (Voodoo Land/Voodoo_landbot, Smadav/smadavv_bot, PROSHOP/ProshopHQ_bot, main with no env, main with CHAT_BOT_BRAND=Nomadly). For each brand it walks about 9.9k exported strings and function outputs (en/fr/zh/hi lang files, phone-config incl. getTxt(lang).testMyNumber for 4 langs, test-my-number, monetization-engine) and checks: 0 'Nomadly' for the white-label brands, the @<user> Start Now promo, continueAtHostbay/redirectMessage mentioning '<Brand> Bot', scanQrOrUseChat showing '<Brand> SMS App/应用/ऐप' in 4 langs, the SIP 'placing' message in 4 langs, the trunk guide, all 4 sanitize-provider exports (OpenProvider/ConnectReseller->brand, Railway->'<brand> infrastructure', Contabo->'<brand> VPS'), and the Quick Tour (4 langs, apostrophe escape intact). It also builds the Refer & Earn template from the _index.js source and runs it: Voodoo gives https://t.me/Voodoo_landbot?start=ref_777 and 'Invite friends to Voodoo Land.' with real newlines; the same holds for Smadav, PROSHOP and Nomadly. refLink lines 14656/24919/25221 use BOT_USERNAME. A baseline built from the pre-change code (git archive HEAD~1) shows 0 new 'undefined' strings. With the main brand, the output is byte-identical to the pre-change output across all 9929 strings in both main variants, so there is no regression. Regression suites: test_user_facing_localization 26/26, test_voodoo_whitelabel 39/39, test_sms_app_brand_resolution 25/25, test_promo_pipeline 54 passed / 4 failed (the same 4 pre-existing failures), plus test_twilio_brand_leak_fix 66/66 and test_localization_parity 79/79.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "js/_index.js ~442/~464 (short-link HTML landing page)", "issue": "This is a behaviour change on the main brand: the old link was t.me/nomadly_bot and the new fallback is t.me/Nomadlybot. Nomadlybot is probably the correct bot, but please confirm, because the main instance has no BOT_USERNAME set."},
+      {"endpoint": "js/lang/en.js becomeReseller (pre-existing, not from this change)", "issue": "This uses ${CHAT_BOT_BRAND} with no fallback, so it renders 'Become a undefined Reseller' if CHAT_BOT_BRAND is unset. Production main sets CHAT_BOT_BRAND=\"Nomadly\" and config-setup.js sets a default, so there is no impact in prod."}
+    ]
+  },
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": ["/app/js/tests/test_whitelabel_rebrand_strings_2026-10.js"],
+  "action_items": [
+    "None blocking. Safe to push.",
+    "Optional: set BOT_USERNAME=Nomadlybot explicitly in the main instance env so the deep links do not depend on the hardcoded fallback."
+  ],
+  "critical_code_review_comments": [
+    "The AST rewrite is clean: string literals became ('a ' + expr + ' b') concatenations, and templates got ${expr} interpolation. Pre-existing double-escaped '\\\\n' in cp_295/cp_47 was preserved unchanged, not introduced by the rewrite.",
+    "Lang strings are evaluated at require time, so the env must be set before the process starts. That is how each instance is launched, so it is fine. Do not expect a runtime env change to take effect without a restart.",
+    "Internal identifiers stay hardcoded on purpose (Twilio sub-account 'Nomadly-${chatId}-...', config comments, User-Agent strings, WHM comments). sms-app-service.js still mentions the 'Nomadly SMS' legacy app name on purpose, for the migration notice."
+  ],
+  "updated_files": ["/app/js/tests/test_whitelabel_rebrand_strings_2026-10.js"],
+  "success_rate": {"backend": "100%", "frontend": "N/A (skipped as requested)"},
+  "seed_data_creation": "None",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Run `node js/tests/test_whitelabel_rebrand_strings_2026-10.js` (about 1-2 min). It spawns one child process per brand and builds a baseline from `git archive HEAD~1 js` in /tmp, so the baseline comparison assumes the rebrand commit is HEAD. If later commits are added, the 'byte-identical main brand' check may show legitimate diffs. test_promo_pipeline_2026-06.js has 4 known pre-existing failures."
+}
