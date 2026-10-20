@@ -11,6 +11,7 @@ const cpAuth = require('./cpanel-auth')
 const domainService = require('./domain-service')
 const cpHealth = require('./cpanel-health')
 const cpQueue = require('./cpanel-job-queue')
+const { TIERS } = require('./loyalty-service')
 
 const WHM_HOST = process.env.WHM_HOST
 const TELEGRAM_DEV_CHAT_ID = process.env.TELEGRAM_DEV_CHAT_ID
@@ -96,6 +97,12 @@ function _domainFailMsg(lang, domain, error, opts = {}) {
 function hostingTxnRecord(info, domain, cpUser) {
   const charged = typeof info.chargedUsd === 'number'
   const external = !!(info.existingDomain || info.connectExternalDomain)
+  // Loyalty set by applyCheckoutLoyaltyOnce on the very price charged here (wallet checkout).
+  const la = info.loyaltyApplied
+  const loyalty = charged && la && la.step === 'hosting-pay' && Math.abs(Number(la.to) - info.chargedUsd) < 0.01 ? Number(info.loyaltyDiscount) || 0 : 0
+  const coupon = info.couponApplied ? (Number(info.couponDiscount) || 0) : 0
+  const rate = loyalty > 0 ? Math.round((loyalty / (info.chargedUsd + loyalty)) * 100) / 100 : 0
+  const loyaltyTier = Object.keys(TIERS).find((k) => TIERS[k].discount === rate) || 'bronze'
   return {
     type: 'hosting',
     amount: charged ? info.chargedUsd : (info.price || 0),
@@ -108,7 +115,11 @@ function hostingTxnRecord(info, domain, cpUser) {
         existingDomain: external,
         hostingPrice: info.hostingPrice ?? null,
         domainPrice: external ? 0 : (info.domainPrice ?? null),
-        couponDiscount: info.couponApplied ? (info.couponDiscount || 0) : 0,
+        listPrice: Math.round((info.chargedUsd + loyalty + coupon) * 100) / 100,
+        loyaltyDiscount: loyalty,
+        loyaltyTier,
+        couponCode: info.couponApplied ? (info.couponCode || null) : null,
+        couponDiscount: coupon,
       } : {}),
     },
   }
