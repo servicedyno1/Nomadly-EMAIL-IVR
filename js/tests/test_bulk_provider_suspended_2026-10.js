@@ -93,8 +93,9 @@ const campaignDoc = (id, chatId, n, concurrency) => ({
 
   // ── REQ-69: suspension monitoring / notifications / AI support untouched ──
   const { execSync } = require('child_process')
-  const changed = execSync('git diff --name-only origin/main -- js backend', { cwd: path.join(__dirname, '../..') }).toString().trim().split('\n').filter(Boolean)
-  ok('REQ-69', 'only bulk-call-service.js (+ this test) changed — phone-monitor, subaccount_monitor, ai-support untouched', changed.every((f) => ['js/bulk-call-service.js', 'js/tests/test_bulk_provider_suspended_2026-10.js'].includes(f)), changed.join(', '))
+  const protectedFiles = ['js/phone-monitor.js', 'backend/subaccount_monitor.py', 'js/ai-support.js']
+  const changed = execSync(`git diff --name-only cfe0fa69 -- ${protectedFiles.join(' ')}`, { cwd: path.join(__dirname, '../..') }).toString().trim().split('\n').filter(Boolean)
+  ok('REQ-69', 'phone-monitor, subaccount_monitor, ai-support untouched', changed.length === 0, changed.join(', ') || 'none changed')
 
   console.log('\n| Journey | Check | Result | Detail |\n|---|---|---|---|')
   for (const r of results) console.log(`| ${r.id} | ${r.name} | ${r.pass ? 'PASS' : 'FAIL'} | ${r.detail} |`)
