@@ -31,9 +31,11 @@ let _stateOf = null
 let _notifyGroup = null
 let _maskName = null
 let _nanoid = null
+let _db = null
 
 function initPhoneScheduler(deps) {
   _bot = deps.bot
+  _db = deps.db || null
   _phoneNumbersOf = deps.phoneNumbersOf
   _phoneTransactions = deps.phoneTransactions
   _phoneLogs = deps.phoneLogs
@@ -543,6 +545,16 @@ async function attemptAutoRenew(chatId, num, index, numbers) {
       paymentMethod: 'wallet_usd',
       timestamp: new Date().toISOString(),
     })
+    if (_db) {
+      await require('./transaction-id').logTransaction(_db, {
+        chatId,
+        type: 'cloudphone-subscription',
+        amount: Number(price),
+        currency: 'USD',
+        status: 'completed',
+        metadata: { action: 'auto_renew', phoneNumber: num.phoneNumber, plan: num.plan, paymentMethod: 'wallet_usd', newExpiry: newExpiry.toISOString() },
+      })
+    }
 
     const { usdBal: newUsd } = await getBalance(_walletOf, chatId)
     sendToUser(chatId, buildAutoRenewSuccessMsg(num, newExpiry, price, 0).replace(/\$[\d.]+\s*remaining/, `$${newUsd.toFixed(2)} remaining`))
@@ -1074,4 +1086,5 @@ module.exports = {
   runMonthlyReset,
   runPricingReconciler,
   runInactiveReleasedCleanup,
+  attemptAutoRenew,
 }

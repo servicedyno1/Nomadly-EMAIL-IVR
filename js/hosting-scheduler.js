@@ -111,6 +111,12 @@ function initScheduler(deps) {
 
   const { smartWalletDeduct, usdToNgn, getBalance } = require('./utils')
   const { translation } = require('./translation')
+  const { logTransaction } = require('./transaction-id')
+  // One sale row per successful wallet auto-renewal (written only after the atomic claim).
+  const logRenewalTxn = (account, price, newExpiry) => logTransaction(db, {
+    chatId: account.chatId, type: 'hosting-renewal', amount: Number(price), currency: 'USD', status: 'completed',
+    metadata: { domain: account.domain, plan: account.plan, cpUser: account.cpUser, paymentMethod: 'wallet_usd', action: 'auto_renew', newExpiry: newExpiry.toISOString() },
+  })
 
   log('[HostingScheduler] Initialized — checking every hour')
   log('[HostingScheduler] Policy: all plans auto-renew if enabled by user')
@@ -354,6 +360,7 @@ function initScheduler(deps) {
                 await walletOf.updateOne({ _id: chatId }, { $inc: { usdOut: -price } })
                 continue
               }
+              await logRenewalTxn(account, price, newExpiry)
 
               if (antiRedService) {
                 try {
@@ -564,6 +571,7 @@ function initScheduler(deps) {
               await walletOf.updateOne({ _id: chatId }, { $inc: { usdOut: -price } })
               continue
             }
+            await logRenewalTxn(account, price, newExpiry)
 
             // Unsuspend on WHM if it was suspended
             if (account.suspended) {
