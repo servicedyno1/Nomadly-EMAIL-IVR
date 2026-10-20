@@ -1,6 +1,6 @@
 {
   "timestamp": 1775944443.1276975,
-  "backend_url": "https://ivr-call-setup.preview.emergentagent.com",
+  "backend_url": "https://vault-setup-28.preview.emergentagent.com",
   "test_chat_id": "6687923716",
   "total_tests": 12,
   "passed_tests": 12,

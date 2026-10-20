@@ -1,0 +1,40 @@
+{
+  "summary": "Checked the DR droplet independently over SSH. Redis now follows Railway live: role:slave, link up, last_io 0s. redis_probe gave PASS SET 23ms / overwrite 14ms / HSET 12ms / DEL 14ms and 'REDIS PROBE OK'. Replica key counts match the source exactly (db0 6803 = 6803, db1 314 = 314). redis_snapshot.sh reads from 127.0.0.1:6379, cron runs it every 10 min, and the newest snapshot was under 5 min old. Mongo probe.sh printed PROBE OK for all 4 DBs and all 4 tailers are active. dr-status shows STATUS: OK with redis:replica, pg:pit-archive and mongo:pit-archive lines. The restore drill ran in the background and printed 'RESTORE DRILL: ALL PASSED ✅' and 'cleanup: temporary targets removed'. Drill results: Mongo proshop 76 colls/1712 docs, voodoo 100/4945, smadav 112/5510, nomadly 153/190482, all with 0 mismatches. Mongo PIT, Postgres live (109 tables, 71732 rows, 0 mismatches) and Postgres PIT also passed; 98 sequences checked, 0 behind. Redis live restore copied 6802+314 keys with TTLs preserved (3580=3580); Redis PIT passed. All 3 guards refused a non-empty target. Afterwards nothing temporary was left: no listeners on 27100/6390/6391, no dr_selftest db or role, /opt/dr/restore_tmp empty. Separate check on a temp redis :6395 with a password: RESTORE OK, guard ABORT works, then it was shut down and removed. The same temp redis showed one real bug (see backend_issues). The 14 scripts in /app/scripts/dr are byte-identical (md5) to /opt/dr/bin. No hardcoded secrets found. The PROD active slots (5100 app-main-b, 5001 app-wl-a, 5003 app-voodoo-a, 5104 app-proshop-b) are healthy with database connected. The runbook is mostly consistent with the scripts and the PROD layout (deploy.sh rollback, current/<app> symlinks, shared/<app>/backend.env linked as .env, DB_NAME values).",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "scripts/dr/restore_redis.py (dest URL handling)", "issue": "redis-py 8.1 from_url() lets the db in the URL path override the db= kwarg. If the target URL has a db path (e.g. redis://default:PW@host:port/0), every source db is written into db0: db1's 314 keys get merged into db0. Verify still prints OK because dbsize for 'db1' actually reads db0. Reproduced on temp :6395: db0=7032 keys, db1 missing, script printed RESTORE OK. Railway's REDIS_PUBLIC_URL normally has no path, but a user/agent adding /0 would silently corrupt the restore.", "priority": "HIGH"}
+    ],
+    "minor": [
+      {"endpoint": "scripts/dr/restore_redis.py", "issue": "A wrong password or unreachable target dies with a raw Python traceback (redis.exceptions.AuthenticationError) instead of a clear 'ABORT: cannot connect/auth' message."},
+      {"endpoint": "scripts/dr/restore_pg.sh --dump (PIT)", "issue": "PIT restore only reports a table count. There is no per-table row-count check against the dump, unlike the live path (could compare with pg_restore -l / a TOC count, or a temp db)."},
+      {"endpoint": "scripts/dr/restore_pg.sh line 37", "issue": "`grep -E ERROR: | grep -vqE 'already exists'` under pipefail: grep -q exits early, so for a large errlog the first grep can get SIGPIPE (141). The `if` is then false and real errors are ignored. Safer: grep -E 'ERROR:' \"$errlog\" | grep -vE 'already exists' > /dev/null, or count with grep -c."},
+      {"endpoint": "scripts/dr/restore_mongo.sh", "issue": "On RESTORE FAILED / VERIFY FAILED the temporary live-mirror archive in /opt/dr/restore_tmp is not deleted (nomadly is hundreds of MB). It accumulates on repeated failures; use a trap to remove it."}
+    ]
+  },
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "runbook_review": [
+    "DR_RESTORE_RUNBOOK §2 says 'project/service listing query is in DR_REPLICA_SETUP', but that file has no such GraphQL query, only truncated IDs (753bf146…). A new agent cannot find serviceId/environmentId for a NEW Railway service. Add the query, e.g. query($p:String!){ project(id:$p){ environments{edges{node{id name}}} services{edges{node{id name}}} } }, or a `python3 rw.py projects` helper.",
+    "§3 example PIT name 'voodoo-20261020T1517Z.archive.gz' does not match the real format 'voodoo-20261020T151701Z.archive.gz' (seconds + Z). Cosmetic, but copy-paste fails.",
+    "§2 rw.py only exists in /app/scripts/dr on the pod, not on the droplet. The runbook says 'run in /app/scripts/dr', which is correct; just be explicit that it is run on the pod, not the droplet.",
+    "§5: suggest warning to use the URL WITHOUT a /<db> path, at least until the restore_redis.py bug is fixed.",
+    "All other paths, flags and script names match the installed scripts: restore_mongo.sh <name> <uri> [--archive] [--to-db] [--force]; restore_pg.sh <url> [--dump] [--force]; restore_redis.py <url> [--from-rdb] [--force]; :6391 temp; PIT dirs; vault.sh / restore_infra_keys.sh exist; deploy.sh rollback [dir] semantics; /opt/nomadly/current/<app> symlinks; app→db mapping and DB_NAME values on PROD."
+  ],
+  "test_report_links": ["/app/backend/tests/test_dr_replica_health.py", "/app/test_reports/pytest/dr_replica_health.xml"],
+  "action_items": [
+    "Fix restore_redis.py so the dest URL's path/db cannot override the per-db loop. E.g. strip the path with urllib.parse before from_url, or build a ConnectionPool.from_url(url, db=db) with the path removed. Also make verify compare against the right db (e.g. INFO keyspace of a db-less connection). Re-copy to /opt/dr/bin and re-run the drill.",
+    "Catch redis connection/auth errors in restore_redis.py and print a clear ABORT message.",
+    "Add the Railway project/environment/service listing GraphQL query to the runbook (or to rw.py), and fix the example PIT filename in §3.",
+    "Optional: SIGPIPE-safe error grep in restore_pg.sh; trap-based temp archive cleanup in restore_mongo.sh; row-count verify for PG PIT restores."
+  ],
+  "critical_code_review_comments": [
+    "restore_redis.py verify (size >= n*0.99) also passes trivially with --force onto a target that already has data. Consider comparing per-db against the source or a pre-restore baseline.",
+    "Secrets hygiene OK: grep found no Railway token, ghp_, dop_v1_, or plaintext mongo/redis/pg passwords in /app/scripts/dr or the 2 memory docs."
+  ],
+  "updated_files": ["/app/backend/tests/test_dr_replica_health.py"],
+  "success_rate": {"backend": "100% of requested checks passed (9/9 pytest; drill all passed); 1 high-priority latent bug found in restore_redis.py via a manual edge case", "frontend": "N/A"},
+  "seed_data_creation": "None persistent. Temp redis-server :6395 (QA spot-check) was created and removed; only the probes' self-removing dr:probe:* keys and dr_probe_tmp collection touched Railway.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run restore_selftest.sh in the background with setsid nohup ... </dev/null and poll /opt/dr/logs/restore_selftest_qa.log (about 4-5 min). After fixing restore_redis.py, retest with a temp redis on :6395 using the URL suffix /0: db1 must stay separate (314 keys in db1). Regression: pytest /app/backend/tests/test_dr_replica_health.py (read-only SSH checks).",
+  "rca of the issue": "restore_redis.py calls redis.Redis.from_url(args.dest, db=db). In redis-py, ConnectionPool.from_url merges the parsed URL options over the kwargs, so a '/0' path sets db=0 for every iteration. Repro: start a temp redis with requirepass, run restore_redis.py 'redis://default:PW@127.0.0.1:6395/0'. Result: db0 holds db0+db1 keys and there is no db1. Fix: remove the URL path (urlsplit(...)._replace(path='')) before from_url, or pass db via connection_kwargs after pool creation."
+}

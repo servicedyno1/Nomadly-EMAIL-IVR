@@ -17,23 +17,30 @@
 - Dev Telegram bot is `@Nomadlytestbot` (`TELEGRAM_BOT_TOKEN_DEV`). Because `SKIP_WEBHOOK_SYNC=true`, the bot does NOT
   auto-repoint its webhook — on a fresh pod call Telegram `setWebhook` for the DEV token only, with
   `<REACT_APP_BACKEND_URL>/api/telegram/webhook`. NEVER touch `TELEGRAM_BOT_TOKEN_PROD` (@NomadlyBot → 2.speechcue.com).
+- ⚠️ 2026-10-20 re-setup (pod `https://vault-setup-28.preview.emergentagent.com`, egress IP `34.170.12.145`, CR whitelist PASSED):
+  upstream `webpack-dev-server` 6.1.0 + `webpack-dev-middleware` 8.4/8.5 (released 2026-10-17/18) break `yarn start`
+  ("Can't import the named export 'Logger' … webpack-dev-middleware/client/utils/log.js"). Local-only workaround (no tracked
+  change): temporarily set frontend `resolutions` → `"webpack-dev-server": "6.0.0"`, `"webpack-dev-middleware": "8.3.0"`,
+  `yarn install --ignore-engines`, then restore the original package.json. Vault `DIGITALOCEAN_API_TOKEN` returns 401
+  (stale/revoked in vault) → DO size/catalog/RDP sync fail on the dev pod only.
+
 
 ## Environment notes
 - `BOT_ENVIRONMENT=development`, `SKIP_WEBHOOK_SYNC=true` (dev sandbox — does NOT touch production Telegram/Telnyx/Twilio).
 
 ## Namecheap API (hosta.sh — vanity NS pilot)
 - `NAMECHEAP_USERNAME=richbayo`, `NAMECHEAP_API_KEY` in backend/.env (vault). Whitelisted ClientIp: 136.108.30.124 (OLD pod).
-- 2026-10-15 re-setup (fresh pod): vault unlock → `frontend/.env` created (`REACT_APP_BACKEND_URL=https://ivr-call-setup.preview.emergentagent.com`)
+- 2026-10-15 re-setup (fresh pod): vault unlock → `frontend/.env` created (`REACT_APP_BACKEND_URL=https://vault-setup-28.preview.emergentagent.com`)
   → pip/ffmpeg/root yarn → frontend yarn (sequential) → `setup-nodejs.sh` → `supervisorctl restart backend` (it starts before
   pip finishes → `No module named 'apscheduler'`) → DEV bot setWebhook. Egress IP now `136.108.30.124` (CR whitelist check failing).
-- ⚠️ 2026-10-14 re-setup: pod `https://ivr-call-setup.preview.emergentagent.com`, egress IP
+- ⚠️ 2026-10-14 re-setup: pod `https://vault-setup-28.preview.emergentagent.com`, egress IP
   `136.70.105.25` — ConnectReseller startup check says it NEEDS whitelisting (Namecheap too). Dev bot webhook →
   `<pod>/api/telegram/webhook`. Pod has Node 20 → frontend needs `yarn install --ignore-engines` (webpack-dev-server 6
   wants Node ≥22.15). Delete the generated untracked `yarn.lock` files after install (avoid a needless prod deploy).
   Prod droplet SSH key restore: `VAULT_PASSWORD=... bash scripts/restore_infra_keys.sh`.
 - ⚠️ 2026-10-13 re-setup: current pod egress IP is `34.170.12.145` — ConnectReseller startup check PASSED (already
   whitelisted); Namecheap API whitelist must include it for the hosta.sh pilot
-  (previous pods: `35.196.223.235`, `136.108.30.124`). Dev bot webhook now → `https://ivr-call-setup.preview.emergentagent.com/api/telegram/webhook`.
+  (previous pods: `35.196.223.235`, `136.108.30.124`). Dev bot webhook now → `https://vault-setup-28.preview.emergentagent.com/api/telegram/webhook`.
 - Pilot admin endpoints: `GET /api/admin/ns-pilot/status?key=<SESSION_SECRET first 16 chars>` (also start|tick|revert|switch|stop).
 - Cron endpoint: `POST /api/cron/ns-pilot-tick` with `Authorization: Bearer $WEBHOOK_CRON_SECRET`.
 
