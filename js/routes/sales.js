@@ -255,7 +255,11 @@ async function loadSalesTxns(db, filter = {}) {
     const amount = parseFloat(String(f[2] || '').replace('$', '')) || 0
     const at = new Date(f.find((s) => /GMT/.test(s)) || NaN)
     if (amount <= 0 || isNaN(at.getTime()) || (chat && f[3] !== chat)) continue
-    if (raw.some((t) => /^(phone|cloudphone)/.test(String(t.type)) && String(t.chatId) === f[3] && near(t.createdAt, at))) continue
+    // Twilio address/document flows debit at checkout and write the transaction when the number is
+    // bought (hours/days later): match same chat + same amount up to 45 days after the debit, once per txn.
+    const late = (t) => { const d = new Date(t.createdAt) - at; return d >= -10 * 60000 && d < 45 * 86400000 }
+    const match = raw.find((t) => /^(phone|cloudphone)/.test(String(t.type)) && String(t.chatId) === f[3] && !t._payMatched && (near(t.createdAt, at) || (Math.abs((Number(t.amount) || 0) - amount) < 0.01 && late(t))))
+    if (match) { match._payMatched = true; continue }
     raw.push({ _id: `PAY-${p._id}`, chatId: f[3], type: 'phone-number', amount, currency: 'USD', status: 'completed', createdAt: at, metadata: { priceSource: 'payments' } })
   }
   return raw.filter((t) => !t._superseded)
