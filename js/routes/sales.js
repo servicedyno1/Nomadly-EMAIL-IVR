@@ -37,7 +37,7 @@ const SMS_USAGE_TYPES = ['sms', 'outbound_sms']
 const MARKETPLACE_TYPES = ['marketplace_access']
 
 const SALE_TYPES = new Set([
-  'domain', 'hosting', 'vps', 'phone-number', 'phone-sub-number', 'cloudphone-subscription',
+  'domain', 'hosting', 'hosting-renewal', 'hosting-upgrade', 'vps', 'phone-number', 'phone-sub-number', 'cloudphone-subscription', 'cloudphone-upgrade',
   'plan-subscription', 'virtual-card', 'digital-product', 'digital-product-purchase',
   'leads', 'purchase', 'esim',
 ])
@@ -50,9 +50,9 @@ const REFUND_TYPES = new Set(['refund', 'refund-reversal', 'domain-refund'])
 function categoryOf(type) {
   const t = String(type || '').toLowerCase()
   if (t.startsWith('domain')) return 'Domains'
-  if (t === 'hosting') return 'Hosting'
+  if (t === 'hosting' || t === 'hosting-renewal' || t === 'hosting-upgrade') return 'Hosting'
   if (t === 'vps') return 'VPS'
-  if (t === 'phone-number' || t === 'phone-sub-number' || t === 'cloudphone-subscription') return 'Cloud Phone'
+  if (t === 'phone-number' || t === 'phone-sub-number' || t === 'cloudphone-subscription' || t === 'cloudphone-upgrade') return 'Cloud Phone'
   if (t === 'plan-subscription') return 'Subscriptions'
   if (t === 'leads') return 'Leads'
   if (t === 'virtual-card' || t.startsWith('digital-product') || t === 'esim' || t === 'purchase') return 'Digital Products'
