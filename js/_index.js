@@ -17321,6 +17321,7 @@ All verified numbers generated during sourcing.`))
         const { usdBal: newUsdBal } = await getBalance(walletOf, chatId)
 
         set(payments, nanoid(), `Wallet,HostingRenew,${domain},$${price},${chatId},${new Date()}`)
+        await logTransaction(db, { chatId, type: 'hosting-renewal', amount: Number(price), currency: 'USD', status: 'completed', metadata: { domain, plan: plan.plan, cpUser: plan.cpUser, paymentMethod: 'wallet_usd', action: 'manual_renew', newExpiry: newExpiry.toISOString() } })
 
         await send(chatId,
           trans('t.renewSuccessTitle') + '\n\n'
@@ -17546,6 +17547,7 @@ All verified numbers generated during sourcing.`))
         send(TELEGRAM_ADMIN_CHAT_ID, `⬆️ <b>Hosting Upgrade</b>\nUser: @${_upgName || chatId} (${chatId})\nDomain: ${domain}\n${plan.plan} → ${selected.name}${adminCreditLine}\nCharged: $${upgradePrice.toFixed(2)}`, { parse_mode: 'HTML' })
 
         set(payments, nanoid(), `Wallet,HostingUpgrade,${domain},$${upgradePrice.toFixed(2)},${chatId},${new Date()}`)
+        await logTransaction(db, { chatId, type: 'hosting-upgrade', amount: Number(upgradePrice.toFixed(2)), currency: 'USD', status: 'completed', metadata: { domain, cpUser: plan.cpUser, fromPlan: plan.plan, toPlan: selected.name, listPrice: originalPrice, creditApplied, paymentMethod: 'wallet_usd' } })
 
         let summary = trans('t.upgradeSuccessTitle') + '\n\n'
           + trans('t.upgradeSuccessOldPlan', plan.plan) + '\n'
@@ -38372,6 +38374,10 @@ async function applyPhonePlanUpgrade(chatId, num, newPlan, newPrice, lang, payme
     } catch (notifyErr) {
       log(`[CloudPhone] could not notify admin of phoneTransactions failure: ${notifyErr.message}`)
     }
+  }
+  // One sale row with the amount actually charged (after any 14-day upgrade credit); all payment methods.
+  if (chargeAmount > 0) {
+    await logTransaction(db, { chatId, type: 'cloudphone-upgrade', amount: Number(chargeAmount.toFixed(2)), currency: 'USD', status: 'completed', metadata: { phoneNumber: num.phoneNumber, oldPlan, newPlan, listPrice: newPrice, credit: Number(credit.toFixed(2)), eligibleForCredit, paymentMethod } })
   }
 
   const m = phoneConfig.getMsg(lang)

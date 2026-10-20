@@ -15,6 +15,12 @@ process.env.DB_NAME = 'p3_sandbox'
 process.env.SESSION_SECRET = process.env.SESSION_SECRET || 'sandbox-only'
 const sp = require.resolve('node-schedule')
 require.cache[sp] = Object.assign(new Module(sp), { filename: sp, loaded: true, exports: { scheduleJob: () => null } })
+// Hosting scheduler runs for real against the sandbox; its outbound side effects are stubbed.
+for (const [mod, exp] of [['../anti-red-service.js', { deployFullProtection: async () => ({}) }], ['../reseller-webhooks.js', new Proxy({}, { get: () => async () => ({}) })]]) {
+  const p = require.resolve(mod)
+  require.cache[p] = Object.assign(new Module(p), { filename: p, loaded: true, exports: exp })
+}
+delete process.env.SKIP_WEBHOOK_SYNC
 
 const { MongoClient } = require('mongodb')
 const { logTransaction } = require('../transaction-id.js')
@@ -24,7 +30,7 @@ const { getBalance } = require('../utils.js')
 const phoneScheduler = require('../phone-scheduler.js')
 const { purchaseEntry, dropDuplicatePurchases } = require('../tx-history-purchases.js')
 
-const SALE = ['hosting', 'domain', 'phone-number', 'phone-sub-number', 'cloudphone-subscription']
+const SALE = ['hosting', 'hosting-renewal', 'hosting-upgrade', 'domain', 'phone-number', 'phone-sub-number', 'cloudphone-subscription', 'cloudphone-upgrade']
 const r2 = (n) => Math.round(n * 100) / 100
 const results = []
 let db, col
@@ -99,6 +105,57 @@ async function walletPhone(chatId, price, { sub = false, provider = 'telnyx', de
   return 'success'
 }
 
+// Mirror of _index.js hosting "Renew Now" (wallet): balance check → atomic debit → CAS on expiry
+// (lost race → debit reversed) → payments HostingRenew + hosting-renewal row.
+async function manualHostingRenew(chatId, price, { raceLost = false } = {}) {
+  const plan = { _id: 'cp' + chatId, chatId, domain: `renew${chatId.slice(-2)}.org`, cpUser: 'cpu' + chatId.slice(-4), plan: 'Premium Anti-Red HostPanel (1-Month)', expiryDate: new Date(Date.now() + 86400000) }
+  await db.collection('cpanelAccounts').insertOne(plan)
+  const { usdBal } = await getBalance(col.walletOf, chatId)
+  if (usdBal < price) return 'insufficient'
+  const debited = await atomicIncrement(col.walletOf, chatId, 'usdOut', price)
+  if (!debited) return 'insufficient'
+  const newExpiry = new Date(plan.expiryDate.getTime() + 30 * 86400000)
+  const renewUpd = await db.collection('cpanelAccounts').updateOne({ _id: plan._id, expiryDate: raceLost ? new Date(0) : plan.expiryDate, plan: plan.plan }, { $set: { expiryDate: newExpiry } })
+  if (!renewUpd || renewUpd.matchedCount === 0) { await atomicIncrement(col.walletOf, chatId, 'usdOut', -price); return 'already_applied' }
+  const domain = plan.domain
+  await pay(`Wallet,HostingRenew,${domain},$${price},${chatId},${new Date()}`)
+  await logTransaction(db, { chatId, type: 'hosting-renewal', amount: Number(price), currency: 'USD', status: 'completed', metadata: { domain, plan: plan.plan, cpUser: plan.cpUser, paymentMethod: 'wallet_usd', action: 'manual_renew', newExpiry: newExpiry.toISOString() } })
+  return 'renewed'
+}
+
+// Mirror of _index.js hosting plan upgrade (wallet): balance check → debit → WHM changePackage (fail → refund) → row.
+async function hostingUpgrade(chatId, { listPrice, creditApplied }, whmOk = true) {
+  const plan = { cpUser: 'cpu' + chatId.slice(-4), plan: 'Premium Anti-Red (1-Week)' }
+  const selected = { name: 'Golden Anti-Red HostPanel (1-Month)', price: listPrice, creditApplied, chargeAmount: r2(listPrice - creditApplied) }
+  const originalPrice = selected.price
+  const upgradePrice = (typeof selected.chargeAmount === 'number') ? selected.chargeAmount : selected.price
+  const { usdBal } = await getBalance(col.walletOf, chatId)
+  if (usdBal < upgradePrice) return 'insufficient'
+  const upgradeDebited = await atomicIncrement(col.walletOf, chatId, 'usdOut', upgradePrice)
+  if (!upgradeDebited) return 'insufficient'
+  if (!whmOk) { await atomicIncrement(col.walletOf, chatId, 'usdIn', upgradePrice); return 'refunded' }
+  const domain = `upg${chatId.slice(-2)}.org`
+  await pay(`Wallet,HostingUpgrade,${domain},$${upgradePrice.toFixed(2)},${chatId},${new Date()}`)
+  await logTransaction(db, { chatId, type: 'hosting-upgrade', amount: Number(upgradePrice.toFixed(2)), currency: 'USD', status: 'completed', metadata: { domain, cpUser: plan.cpUser, fromPlan: plan.plan, toPlan: selected.name, listPrice: originalPrice, creditApplied, paymentMethod: 'wallet_usd' } })
+  return 'upgraded'
+}
+
+// Mirror of _index.js Cloud Phone upgrade: wallet (balance check → debit) or crypto (paid + payments row) → applyPhonePlanUpgrade row.
+async function phoneUpgrade(chatId, { newPrice, credit, method = 'wallet' }) {
+  const chargeAmount = r2(newPrice - credit)
+  if (method === 'wallet' && chargeAmount > 0) {
+    const { usdBal } = await getBalance(col.walletOf, chatId)
+    if (usdBal < chargeAmount) return 'insufficient'
+    await atomicIncrement(col.walletOf, chatId, 'usdOut', chargeAmount)
+  }
+  if (method === 'crypto') await pay(`Crypto,PhoneUpgrade,+1555${chatId.slice(-7)},$${chargeAmount},${chatId},name,${new Date()},0.5 LTC`)
+  const paymentMethod = method === 'wallet' ? 'wallet' : '🪙 Crypto (LTC)'
+  if (chargeAmount > 0) {
+    await logTransaction(db, { chatId, type: 'cloudphone-upgrade', amount: Number(chargeAmount.toFixed(2)), currency: 'USD', status: 'completed', metadata: { phoneNumber: '+1555' + chatId.slice(-7), oldPlan: 'starter', newPlan: 'pro', listPrice: newPrice, credit: Number(credit.toFixed(2)), eligibleForCredit: credit > 0, paymentMethod } })
+  }
+  return 'upgraded'
+}
+
 // The bot's /history view: legacy payments debits + structured rows via tx-history-purchases (same as txHistory).
 async function history(chatId) {
   const parsed = []
@@ -147,6 +204,13 @@ function sourceGuards() {
   ok('phone auto-renew writes cloudphone-subscription only after the atomic claim', /if \(!claimResult\) \{[\s\S]*return \{ outcome: 'duplicate_prevented'[\s\S]*type: 'cloudphone-subscription'/.test(ps))
   ok('initPhoneScheduler receives db', /initPhoneScheduler\(\{\n\s*bot,\n\s*db,/.test(idx))
   ok('/history uses purchaseEntry + dropDuplicatePurchases', /purchaseEntry\(txn\)/.test(idx) && /parsed = dropDuplicatePurchases\(parsed\)/.test(idx))
+  ok('manual hosting renew: hosting-renewal row only after debit + CAS success', /if \(!renewUpd \|\| renewUpd\.matchedCount === 0\)[\s\S]*Wallet,HostingRenew[^\n]*\n\s*await logTransaction\(db, \{ chatId, type: 'hosting-renewal', amount: Number\(price\)/.test(idx))
+  ok('hosting upgrade: hosting-upgrade row only after WHM changePackage success', /if \(!changeResult\.success\)[\s\S]*Wallet,HostingUpgrade[^\n]*\n\s*await logTransaction\(db, \{ chatId, type: 'hosting-upgrade', amount: Number\(upgradePrice\.toFixed\(2\)\)/.test(idx))
+  const hs = fs.readFileSync(path.join(__dirname, '../hosting-scheduler.js'), 'utf8')
+  ok('hosting auto-renew (hourly + startup): row only after the atomic claim', (hs.match(/continue\n\s*\}\n\s*await logRenewalTxn\(account, price, newExpiry\)/g) || []).length === 2)
+  const up = idx.slice(idx.indexOf('async function applyPhonePlanUpgrade('), idx.indexOf('async function applyPhonePlanUpgrade(') + 5000)
+  ok('applyPhonePlanUpgrade: one cloudphone-upgrade row with chargeAmount (after credit), all payment methods', /if \(chargeAmount > 0\) \{\n\s*await logTransaction\(db, \{ chatId, type: 'cloudphone-upgrade', amount: Number\(chargeAmount\.toFixed\(2\)\)/.test(up))
+  ok('wallet phone upgrade: balance check + debit of chargeAmount before applyPhonePlanUpgrade', /if \(walletBal < chargeAmount\)[\s\S]{0,200}atomicIncrement\(walletOf, chatId, 'usdOut', chargeAmount\)[\s\S]{0,200}applyPhonePlanUpgrade\(chatId, num, upgNewPlan/.test(idx))
   return g
 }
 
@@ -252,8 +316,66 @@ async function dashboard() {
     return check(c, w0, { outcome: out, expectedOutcome: 'insufficient_funds', expectRows: 0 })
   })
 
+  // ── REQ-56..61: renewals and upgrades ──
+  await scenario('JRN-34a', 'Hosting "Renew Now" from wallet ($75)', async () => {
+    const c = '9000000341', w0 = await fund(c, 100)
+    const out = await manualHostingRenew(c, 75)
+    truth.push(75); return check(c, w0, { outcome: out, expectedOutcome: 'renewed', expectRows: 1 })
+  })
+  // Real hosting-scheduler startupEnforcement: one funded and one short expired account.
+  const expired = (c) => ({ _id: 'cp' + c, chatId: c, domain: `auto${c.slice(-2)}.org`, cpUser: 'cpu' + c.slice(-4), plan: 'Premium Anti-Red HostPanel (1-Month)', renewalPriceUsd: 75, autoRenew: true, expiryDate: new Date(Date.now() - 3600000) })
+  const wAuto = await fund('9000000342', 100), wAutoShort = await fund('9000000351', 10)
+  await db.collection('cpanelAccounts').insertMany([expired('9000000342'), expired('9000000351')])
+  const whmMock = { suspendAccount: async () => true, unsuspendAccount: async () => true, terminateAccount: async () => ({ success: true }), getAccountInfo: async () => ({ success: true, data: {} }) }
+  require('../hosting-scheduler.js').initScheduler({ bot: { sendMessage: async () => ({}) }, db, whmService: whmMock })
+  await new Promise((r) => setTimeout(r, 13000))
+  await scenario('JRN-34b', 'Hosting auto-renew from wallet ($75, real hosting-scheduler)', async () => {
+    const c = '9000000342'
+    const acct = await db.collection('cpanelAccounts').findOne({ _id: 'cp' + c })
+    const r = await check(c, wAuto, { outcome: new Date(acct.expiryDate) > new Date() ? 'renewed' : 'not renewed', expectedOutcome: 'renewed', expectRows: 1 })
+    r.pass = r.pass && (await rows(c))[0]?.type === 'hosting-renewal'
+    truth.push(75); return r
+  })
+  await scenario('JRN-35a', '$10 wallet, "Renew Now" $75 → refused', async () => {
+    const c = '9000000350', w0 = await fund(c, 10)
+    return check(c, w0, { outcome: await manualHostingRenew(c, 75), expectedOutcome: 'insufficient', expectRows: 0 })
+  })
+  await scenario('JRN-35b', '$10 wallet, hosting auto-renew $75 (real hosting-scheduler) → not renewed', async () => {
+    const c = '9000000351'
+    const acct = await db.collection('cpanelAccounts').findOne({ _id: 'cp' + c })
+    return check(c, wAutoShort, { outcome: new Date(acct.expiryDate) > new Date() ? 'renewed' : 'not renewed', expectedOutcome: 'not renewed', expectRows: 0 })
+  })
+  await scenario('JRN-35c', 'Renew Now double-tap: renewal already applied → debit reversed', async () => {
+    const c = '9000000352', w0 = await fund(c, 100)
+    return check(c, w0, { outcome: await manualHostingRenew(c, 75, { raceLost: true }), expectedOutcome: 'already_applied', expectRows: 0 })
+  })
+  await scenario('JRN-36a', 'Cloud Phone Starter → Pro, no upgrade credit (wallet $75)', async () => {
+    const c = '9000000361', w0 = await fund(c, 100)
+    const out = await phoneUpgrade(c, { newPrice: 75, credit: 0 })
+    truth.push(75); return check(c, w0, { outcome: out, expectedOutcome: 'upgraded', expectRows: 1 })
+  })
+  await scenario('JRN-36b', 'Cloud Phone Starter → Pro within 14 days (25% credit $12.50 → wallet $62.50)', async () => {
+    const c = '9000000362', w0 = await fund(c, 100)
+    const out = await phoneUpgrade(c, { newPrice: 75, credit: 12.5 })
+    truth.push(62.5); return check(c, w0, { outcome: out, expectedOutcome: 'upgraded', expectRows: 1 })
+  })
+  await scenario('JRN-36c', 'Cloud Phone upgrade paid in crypto ($62.50, legacy Crypto,PhoneUpgrade row too)', async () => {
+    const c = '9000000363', w0 = await fund(c, 0)
+    const out = await phoneUpgrade(c, { newPrice: 75, credit: 12.5, method: 'crypto' })
+    truth.push(62.5); return check(c, w0, { paid: 62.5, outcome: out, expectedOutcome: 'upgraded', expectRows: 1 })
+  })
+  await scenario('JRN-37a', 'Hosting plan upgrade from wallet (list $105 − credit $26.25 = $78.75)', async () => {
+    const c = '9000000371', w0 = await fund(c, 100)
+    const out = await hostingUpgrade(c, { listPrice: 105, creditApplied: 26.25 })
+    truth.push(78.75); return check(c, w0, { outcome: out, expectedOutcome: 'upgraded', expectRows: 1 })
+  })
+  await scenario('JRN-37b', 'Hosting plan upgrade, WHM changePackage fails → refunded', async () => {
+    const c = '9000000372', w0 = await fund(c, 200)
+    return check(c, w0, { outcome: await hostingUpgrade(c, { listPrice: 105, creditApplied: 0 }, false), expectedOutcome: 'refunded', expectRows: 0 })
+  })
+
   // JRN-32: add pre-fix-shaped orders (as found on Smadav/Voodoo), then run the WhiteLabel dashboard.
-  await scenario('JRN-32', 'WhiteLabel sales.js over old-style + new-style orders: each counted once', async () => {
+  await scenario('JRN-32+38', 'WhiteLabel sales.js over old-style + new-style orders incl. renewals/upgrades: each counted once', async () => {
     const t = new Date(Date.now() - 5 * 86400000)
     const old = [
       // wallet hosting, existing domain: $0 provisioning row + hostingTransactions $75
@@ -271,7 +393,7 @@ async function dashboard() {
     const rev = r2(S.grossRevenue ?? S.revenue)
     const exp = r2(truth.reduce((a, b) => a + b, 0))
     const cat = (re) => r2((o.categories || o.byCategory || []).filter((x) => re.test(x.category)).reduce((a, x) => a + (x.revenue || 0), 0))
-    return { pass: Math.abs(rev - exp) <= 0.01 && S.orders === truth.length, outcome: `orders ${S.orders}/${truth.length}`, debit: exp, recorded: rev, diff: r2(exp - rev), rows: `hosting ${cat(/Hosting/)} · cloud phone ${cat(/Cloud Phone/)}`, history: '—', note: 'old: $0 row, $30 placeholder, $30+$105 crypto pair, payments-only CloudPhone; new: JRN-23..30' }
+    return { pass: Math.abs(rev - exp) <= 0.01 && S.orders === truth.length, outcome: `orders ${S.orders}/${truth.length}`, debit: exp, recorded: rev, diff: r2(exp - rev), rows: `hosting ${cat(/Hosting/)} · cloud phone ${cat(/Cloud Phone/)}`, history: '—', note: 'old: $0 row, $30 placeholder, $30+$105 crypto pair, payments-only CloudPhone; new: JRN-23..30 + renewals/upgrades JRN-34..37' }
   })
 
   const guards = sourceGuards()

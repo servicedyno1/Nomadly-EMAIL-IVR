@@ -4,10 +4,13 @@
 
 const PURCHASE_LABELS = {
   hosting: ['🖥️', 'Hosting'],
+  'hosting-renewal': ['🖥️', 'Hosting Renewal'],
+  'hosting-upgrade': ['🖥️', 'Hosting Upgrade'],
   domain: ['🌐', 'Domain'],
   'phone-number': ['☎️', 'Cloud Phone'],
   'phone-sub-number': ['☎️', 'Cloud Phone (extra number)'],
   'cloudphone-subscription': ['☎️', 'Cloud Phone Renewal'],
+  'cloudphone-upgrade': ['☎️', 'Cloud Phone Upgrade'],
 }
 const WINDOW_MS = 45 * 86400000
 
