@@ -614,6 +614,7 @@ const dialGuard = require('./dial-rate-guard.js')
 
 // ── New UX Enhancement Utilities ──
 const { generateTransactionId, logTransaction, updateTransactionStatus, getUserTransactions } = require('./transaction-id.js')
+const { purchaseEntry, dropDuplicatePurchases } = require('./tx-history-purchases.js')
 const { handleError, safeRefund, safeExecute } = require('./error-handler.js')
 const { createProgressTracker } = require('./progress-tracker.js')
 const { checkDNSStatus, formatDNSStatus } = require('./dns-status-checker.js')
@@ -3456,6 +3457,15 @@ async function executeTwilioPurchase(chatId, selectedNumber, planKey, price, cou
   else { userData = userData || {}; userData.numbers = [numberDoc] }
 
   await phoneTransactions.insertOne({ chatId, phoneNumber: selectedNumber, action: subOpts?.isSubNumber ? 'sub-number-purchase' : 'purchase', plan: planKey, amount: price, paymentMethod, timestamp: new Date().toISOString() })
+  // Twilio purchases (all payment methods) previously wrote no `transactions` row.
+  await logTransaction(db, {
+    chatId,
+    type: subOpts?.isSubNumber ? 'phone-sub-number' : 'phone-number',
+    amount: Number(price),
+    currency: 'USD',
+    status: 'completed',
+    metadata: { phoneNumber: selectedNumber, plan: planKey, provider: 'twilio', paymentMethod, ...(subOpts?.isSubNumber ? { parentNumber: subOpts.parentNumber } : {}) },
+  })
 
   // 6. Verify caller ID on main account for SIP bridge support
   // This allows the main account's SIP domain to use this sub-account number as callerId
@@ -3996,6 +4006,7 @@ const loadData = async () => {
   if (process.env.PHONE_SERVICE_ON === 'true') {
     initPhoneScheduler({
       bot,
+      db,
       phoneNumbersOf,
       phoneTransactions,
       phoneLogs,
@@ -10854,10 +10865,12 @@ Enter new value:`), bc)
         }).sort({ createdAt: -1 }).toArray()
 
         // Parse and sort transactions
-        const parsed = []
+        let parsed = []
         
         // ── Parse structured transactions first (newer format) ──
         for (const txn of structuredTxns) {
+          const purchase = purchaseEntry(txn)
+          if (purchase) { if (!purchase.skip) parsed.push(purchase); continue }
           let icon = '🟢'
           let desc = ''
           
@@ -11009,6 +11022,9 @@ Enter new value:`), bc)
 
           parsed.push({ icon, isCredit, amount, amountStr, desc, dateObj, raw })
         }
+
+        // Purchase rows already shown via their legacy payments debit are not listed twice.
+        parsed = dropDuplicatePurchases(parsed)
 
         // Sort by date descending (newest first)
         parsed.sort((a, b) => {
@@ -12989,6 +13005,8 @@ Enter new value:`), bc)
       const txPayMethod = 'wallet_usd'
       const txCurrency = 'USD'
 
+      info.chargedUsd = priceUsd
+      info.chargedVia = { paymentMethod: 'wallet_usd' }
       const hostingResult = await registerDomainAndCreateCpanel(send, info, trans('o'), state)
       if (hostingResult?.duplicate) {
         log(`[Hosting] Duplicate provisioning blocked for wallet path — chatId ${chatId} domain ${info?.website_name}. Skipping charge/refund.`)
@@ -39022,6 +39040,8 @@ const bankApis = {
     }
 
     // Buy Domain Hosting
+    info.chargedUsd = Number(price)
+    info.chargedVia = { paymentMethod: 'bank_ngn', ngnPaid: ngnIn }
     const hostingResult = await registerDomainAndCreateCpanel(send, info, translation('o', lang), state)
     if (hostingResult?.duplicate) {
       log(`[Hosting] Duplicate provisioning blocked for bank NGN path — chatId ${chatId} domain ${info?.website_name}. Skipping refund.`)
@@ -40098,6 +40118,8 @@ app.get('/crypto-pay-hosting', auth, async (req, res) => {
     sendMessage(chatId, translation('t.sentMoreMoney', lang, `$${price}`, `$${usdIn}`))
   }
 
+  info.chargedUsd = Number(price)
+  info.chargedVia = { paymentMethod: 'blockbee', coin, value, ref, psp: 'blockbee' }
   const hostingResult = await registerDomainAndCreateCpanel(send, info, translation('o', lang), state)
   if (hostingResult?.duplicate) {
     log(`[Hosting] Duplicate provisioning blocked for crypto BlockBee path — chatId ${chatId} domain ${info?.website_name}. Skipping refund.`)
@@ -40148,7 +40170,7 @@ app.get('/crypto-pay-hosting', auth, async (req, res) => {
 
   // Record successful hosting transaction
   recordHostingTransaction(chatId, { ...txBase, outcome: 'success' })
-  await auditCryptoTx(chatId, 'hosting', price, { domain: txDomain, plan: txPlan, hostingType: txHostingType, coin, value, ref }, 'blockbee')
+  // The single `transactions` hosting row (with coin/value/ref/psp) is written by registerDomainAndCreateCpanel.
 
 
   // ── Hosting purchase group notification (was missing — Fix #1) ──
@@ -45355,6 +45377,8 @@ app.post('/dynopay/crypto-pay-hosting', authDyno, async (req, res) => {
     sendMessage(chatId, translation('t.sentMoreMoney', lang, `$${price}`, `$${usdIn}`))
   }
 
+  info.chargedUsd = Number(price)
+  info.chargedVia = { paymentMethod: 'dynopay', coin, value, ref, psp: 'dynopay' }
   const hostingResult = await registerDomainAndCreateCpanel(send, info, translation('o', lang), state)
   if (hostingResult?.duplicate) {
     log(`[Hosting] Duplicate provisioning blocked for crypto DynoPay path — chatId ${chatId} domain ${info?.website_name}. Skipping refund.`)
@@ -45405,7 +45429,7 @@ app.post('/dynopay/crypto-pay-hosting', authDyno, async (req, res) => {
 
   // Record successful hosting transaction
   recordHostingTransaction(chatId, { ...txBase, outcome: 'success' })
-  await auditCryptoTx(chatId, 'hosting', price, { domain: txDomain, plan: txPlan, hostingType: txHostingType, coin, value, ref }, 'dynopay')
+  // The single `transactions` hosting row (with coin/value/ref/psp) is written by registerDomainAndCreateCpanel.
 
 
   // ── Hosting purchase group notification (was missing — Fix #1) ──

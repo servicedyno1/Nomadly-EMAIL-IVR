@@ -90,6 +90,30 @@ function _domainFailMsg(lang, domain, error, opts = {}) {
 }
 
 
+// The single `transactions` hosting row for a completed order. Bot payment paths set
+// info.chargedUsd (amount really debited/paid, incl. any new domain); there info.price is a
+// stale domain-step value ($0/$30). Store/reseller callers carry the real total in info.price.
+function hostingTxnRecord(info, domain, cpUser) {
+  const charged = typeof info.chargedUsd === 'number'
+  const external = !!(info.existingDomain || info.connectExternalDomain)
+  return {
+    type: 'hosting',
+    amount: charged ? info.chargedUsd : (info.price || 0),
+    currency: 'USD',
+    status: 'completed',
+    metadata: {
+      domain, plan: info.plan, cpUser,
+      ...(charged ? {
+        ...(info.chargedVia || {}),
+        existingDomain: external,
+        hostingPrice: info.hostingPrice ?? null,
+        domainPrice: external ? 0 : (info.domainPrice ?? null),
+        couponDiscount: info.couponApplied ? (info.couponDiscount || 0) : 0,
+      } : {}),
+    },
+  }
+}
+
 async function registerDomainAndCreateCpanel(send, info, keyboardButtons, state, bot = null) {
   const lang = info?.userLanguage ?? 'en'
   const chatId = info._id
@@ -981,15 +1005,7 @@ NS2: <code>${cfNameservers[1]}</code>
         await client.connect()
         const db = client.db(process.env.DB_NAME)
         
-        await logTransaction(db, {
-          transactionId: txnId,
-          chatId,
-          type: 'hosting',
-          amount: info.price || 0,
-          currency: 'USD',
-          status: 'completed',
-          metadata: { domain, plan: info.plan, cpUser: result.username }
-        })
+        await logTransaction(db, { transactionId: txnId, chatId, ...hostingTxnRecord(info, domain, result.username) })
         await client.close()
       } catch (txErr) {
         log('[Hosting] Failed to log transaction (non-blocking):', txErr.message)
@@ -1083,4 +1099,4 @@ Login: ${panelUrl}
   }
 }
 
-module.exports = { registerDomainAndCreateCpanel, _domainFailMsg }
+module.exports = { registerDomainAndCreateCpanel, _domainFailMsg, hostingTxnRecord }
