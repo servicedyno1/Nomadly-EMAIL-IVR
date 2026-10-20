@@ -208,19 +208,34 @@ function authMiddleware(req, res, next) {
 }
 
 // ── Call/SMS usage aggregation from walletLedger ──
-// Sales the bot records outside `transactions` (or there with amount 0): wallet-paid hosting is
-// logged with amount 0 (real price in hostingTransactions.priceUsd) and wallet Cloud Phone plans
-// can exist only as a legacy `payments` row. Merged here, read-only, de-duplicated by chatId + time.
+// Sales the bot records outside `transactions` (or there with a partial amount): hosting is priced
+// from hostingTransactions.priceUsd (success; domain_only keeps price minus refund as a domain sale),
+// duplicate crypto domain rows are collapsed, and wallet Cloud Phone plans can exist only as a
+// legacy `payments` row. Merged here, read-only, de-duplicated by chatId + time.
 async function loadSalesTxns(db, filter = {}) {
   const raw = await db.collection('transactions').find(filter).toArray()
   const chat = filter.chatId != null ? String(filter.chatId) : null
   const near = (a, b) => Math.abs(new Date(a) - new Date(b)) < 10 * 60000
   let hosting = []
   let pays = []
-  try { hosting = await db.collection('hostingTransactions').find({ outcome: 'success' }).toArray() } catch (_) {}
+  // Crypto orders also get a provisioning row with no psp next to the paid row: drop it.
+  for (const t of raw) {
+    if (t.type !== 'domain' || t.metadata?.psp) continue
+    if (raw.some((o) => o !== t && o.type === 'domain' && o.metadata?.psp && String(o.chatId) === String(t.chatId) && o.metadata?.domain === t.metadata?.domain && near(o.createdAt, t.createdAt))) t._superseded = true
+  }
+  try { hosting = await db.collection('hostingTransactions').find({ outcome: { $in: ['success', 'domain_only'] } }).toArray() } catch (_) {}
   for (const h of hosting) {
+    if (chat && String(h.chatId) !== chat) continue
+    if (h.outcome === 'domain_only') {
+      // Crypto paid in full, hosting failed, refundAmount went back to the wallet: the rest is a domain sale.
+      const kept = h.refundAmount != null ? Math.round(((Number(h.priceUsd) || 0) - Number(h.refundAmount)) * 100) / 100 : 0
+      if (kept > 0 && !raw.some((t) => t.type === 'domain' && String(t.chatId) === String(h.chatId) && t.metadata?.domain === h.domain && near(t.createdAt, h.timestamp))) {
+        raw.push({ _id: `HTD-${h._id}`, chatId: String(h.chatId), type: 'domain', amount: kept, currency: 'USD', status: 'completed', createdAt: h.timestamp, metadata: { domain: h.domain, listPrice: kept, priceSource: 'hostingTransactions.domain_only' } })
+      }
+      continue
+    }
     const price = Number(h.priceUsd) || 0
-    if (price <= 0 || (chat && String(h.chatId) !== chat)) continue
+    if (price <= 0) continue
     const disc = Number(h.couponDiscount) || 0
     const matches = raw.filter((t) => t.type === 'hosting' && String(t.chatId) === String(h.chatId) && (t.metadata?.domain || null) === (h.domain || null) && near(t.createdAt, h.timestamp) && !t._htMatched)
     if (matches.length) {
