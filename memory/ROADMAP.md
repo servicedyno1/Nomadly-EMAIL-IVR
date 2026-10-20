@@ -95,3 +95,10 @@ Sources: `HOSTING_CAPABILITIES_2026-10.md` (H#) and `RESELLER_FEATURE_REQUESTS_2
 - 2026-10-10: droplet ops done (pm2-logrotate installed, legacy /opt/nomadly/app-main|app-wl removed, /opt/nomadly/deploy.sh = scripts/droplet_deploy.sh).
 - Declined by the owner: don't bill failed SIP bridges / refund @Login4six8.
 - 2026-10-10: namewords.sbs DNS teardown RCA. Fixed, deployed, restored. The reseller deleted name1d6a/name303c through the guarded path; the DNS was kept (re-verified).
+
+## DR / infra backlog (updated 2026-10-20 — realtime DR for PG + all 4 Mongos is DONE)
+- P1: ConnectReseller API 401 in prod (check key + droplet IP whitelist on CR dashboard).
+- P2: Hosted customer domains showing a security-check page instead of the site (nginx / CF proxy / SSL).
+- P2: Off-site copy of DR PIT archives to DO Spaces (3-2-1).
+- P2: Telegram alerts for DR problems (just add `BOT_TOKEN|CHAT_ID` to /opt/dr/conf/alert.conf on dr-replica-ams3).
+- P2: Provider Status Board in admin panel (Telnyx, DO, ConnectReseller, Brevo).

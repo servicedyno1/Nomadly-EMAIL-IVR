@@ -1,3 +1,26 @@
+## 2026-10-20 (later) — Redis realtime + one-command restores + restore drill (DR droplet)
+- Redis: redis-server 8.10.2 (packages.redis.io, = source version) on dr-replica-ams3 now REPLICAOF Railway Dynopay Redis
+  (/etc/redis/dr-replica.conf) — live stream, probe latency 10–15 ms; 10-min RDB snapshots now taken from the LOCAL replica
+  (no more pulls from Railway). Railway Redis untouched. Stream egress ≈115 KB/s (write-heavy Redis, ~2k ops/s).
+- Postgres: hourly local PIT pg_dump of dynopay_dr (keep 24). Monitor: redis replica link + pg/mongo PIT freshness.
+- NEW restore tooling (scripts/dr → /opt/dr/bin): restore_mongo.sh, restore_pg.sh (always re-syncs sequences — logical
+  replication never copies them; 98 sequences fixed), restore_redis.py (DUMP/RESTORE all dbs + TTLs), restore_selftest.sh drill.
+  Drill result: ALL PASSED (4 Mongo DBs live + PIT, PG live + PIT + sequences, Redis live + PIT + TTLs, non-empty-target guards).
+- Runbook for any future agent: memory/DR_RESTORE_RUNBOOK.md. restore_infra_keys.sh now also restores the DR SSH key.
+- Railway DB-account token moved to vault key RAILWAY_DB_ACCOUNT_TOKEN (removed from docs/scripts).
+
+## 2026-10-20 — MongoDB realtime DR: all 4 Railway Mongos → replica sets + change-stream tailers (LIVE)
+- Converted voodoo (VLAND), smadav (SMADAV), nomadly (Nomadly Database) to single-node replica sets `rs0` (ProShop pilot earlier);
+  ~30s DB blip each, all apps healthy after. Order per DB: env `MONGO_URL …/?directConnection=true` → blue/green same-release
+  reactivation (zero downtime, notify suppressed) → Railway startCommand+keyfile+redeploy → `rs_init.sh` auto-initiate → verify.
+- app-proshop also reactivated so it runs on the directConnection URL. Preview `RESELLER_DB_URL` updated + vault re-locked.
+- DR droplet: systemd `dr-mongo-tail@{nomadly,voodoo,smadav,proshop}` (scripts/dr/mongo_tail.py) — lag 0.1–1s, resume-token
+  persistence (tested stop→write→start), auto full-resync. 2-min dump cron disabled; hourly local PIT archive (24 kept) added;
+  monitor checks tailer heartbeat + PIT age; logrotate for /opt/dr/logs.
+- Verified: probe.sh (insert/update/replace/createIndex/delete/drop) PASS on all 4; compare.sh counts identical on all 4.
+- Source files: /app/scripts/dr/ (railway_convert.py, rs_init.sh, mongo_tail.py, dr-mongo-tail@.service, probe.sh, compare.sh,
+  mongo_local_archive.sh, logrotate-dr). Runbook: memory/DR_REPLICA_SETUP_2026-10-20.md.
+
 ## 2026-10-16 — SIP "503" low-balance: never-silent alert + top-up re-enable confirmation + threshold retune (ALL 4 bots) — LIVE
 - Nomadly @pirate_script (1005284399) saw a bare Zoiper "503" with no bot explanation. RCA: number +18445716353 & SIP
   cred healthy; the 503 was our LOW BALANCE LOCK rejecting his INVITE at $0.18 (he'd just bought the number). Full RCA:
@@ -668,7 +691,7 @@ last_error: "Wrong response from the webhook: 404 Not Found"
 ### Operational restoration
 - Called Telegram `setWebhook` to put the prod bot back on Railway:  
   `https://nomadly-email-ivr-production.up.railway.app/telegram/webhook` — verified `last_error: none, pending_update_count: 0`.
-- Local nodejs restarted cleanly; logs show `[Webhooks] SKIP_WEBHOOK_SYNC=true — preserving existing Telegram webhook (NOT overwriting)` and `📡 Existing webhook (left untouched): https://ivr-call-setup.preview.emergentagent.com/api/telegram/webhook` (the dev bot's webhook is preserved, even though it points at a dead preview pod — that's fine, we'll re-point it on demand if needed for dev testing).
+- Local nodejs restarted cleanly; logs show `[Webhooks] SKIP_WEBHOOK_SYNC=true — preserving existing Telegram webhook (NOT overwriting)` and `📡 Existing webhook (left untouched): https://vault-setup-28.preview.emergentagent.com/api/telegram/webhook` (the dev bot's webhook is preserved, even though it points at a dead preview pod — that's fine, we'll re-point it on demand if needed for dev testing).
 
 ### Tests
 - `/app/backend/tests/test_webhook_isolation.js` — 3 cases (the SKIP_WEBHOOK_SYNC guard comes before `bot.setWebHook` in source order; the setup-nodejs.sh `SKIP_SELF_URL_UPDATE` gate is wired correctly and sits BEFORE the sed rewrite; `.env` is in dev mode with the safety flag set). All pass.

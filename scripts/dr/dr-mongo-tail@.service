@@ -1,0 +1,14 @@
+[Unit]
+Description=DR Mongo change-stream tailer (%i)
+After=network-online.target mongod.service
+Wants=network-online.target
+
+[Service]
+ExecStart=/opt/dr/venv/bin/python /opt/dr/bin/mongo_tail.py %i
+Restart=always
+RestartSec=5
+StandardOutput=append:/opt/dr/logs/tail_%i.log
+StandardError=append:/opt/dr/logs/tail_%i.log
+
+[Install]
+WantedBy=multi-user.target

@@ -811,3 +811,10 @@ User inherited a fully-set-up Nomadly bot pod pointed at LIVE PRODUCTION. Task b
   WL 20261014T173126Z-42e3ca5 / voodoo 20261014T173258Z-42e3ca5). Hardware change hot-patched into THOSE releases (`.bak.<ts>`,
   RELEASE patched=) + blue/green same-release reactivation → app-main-b :5100, app-wl-b :5101, app-voodoo-b :5103, /apidoc shows it.
   (The older 142xxx release dirs were also patched by mistake first — inactive, harmless.) NEEDS another "Save to GitHub".
+
+## 2026-10-20 — Disaster Recovery (DigitalOcean `dr-replica-ams3`, 146.190.229.132) — COMPLETE
+- Postgres (Dynopay): logical replication, realtime + hourly PIT dumps. Redis (Dynopay): live Redis 8.10.2 replica (realtime) + 10-min PIT snapshots.
+- MongoDB (nomadly/voodoo/smadav/proshop): Railway Mongos converted to replica sets; change-stream tailers mirror in realtime (<1s);
+  hourly local point-in-time archives (24h). All prod MONGO_URLs MUST keep `?directConnection=true`.
+- Runbooks: memory/DR_REPLICA_SETUP_2026-10-20.md (architecture) + memory/DR_RESTORE_RUNBOOK.md (restore any DB into a new Railway DB; drill = /opt/dr/bin/restore_selftest.sh). Still open (not requested now): ConnectReseller 401, hosted domains showing
+  security-check page, DO Spaces off-site copy, Telegram alerts for DR (drop BOT_TOKEN|CHAT_ID in /opt/dr/conf/alert.conf).

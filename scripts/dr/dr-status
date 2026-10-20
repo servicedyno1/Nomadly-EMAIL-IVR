@@ -1,0 +1,2 @@
+#!/bin/bash
+cat /opt/dr/state/health.txt

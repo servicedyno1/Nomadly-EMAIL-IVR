@@ -14,3 +14,10 @@
   `deploy.sh <app> rollback <same release>` and confirm the PM2 start time is AFTER the RELEASE `patched=` timestamp.
 - Reseller-API vpsPlansOf records: `_id = vpsId = bare uuid`, provider id in `instanceId` (no contaboInstanceId). Any id lookup must use
   contaboInstanceId || instanceId || vpsId, never vpsId first (uuid shape = Vultr).
+
+## 2026-10-20 — Mongo replica-set conversion
+- Single-node RS with member host `localhost:27017` → every client needs `?directConnection=true` (driver otherwise discovers
+  "localhost" and fails). Set it BEFORE converting — it also works on standalone. Find all clients via `$currentOp` idleConnections.
+- A process started against the standalone keeps working after conversion (driver stays in Single topology) — that is NOT proof
+  the new URL works; restart (blue/green reactivation) to prove it.
+- mongosh: `db._foo` is NOT a collection (underscore props are internal) → use `db.getCollection('_foo')`.
