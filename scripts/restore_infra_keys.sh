@@ -2,7 +2,7 @@
 # ============================================================
 # Restore infra SSH keys + Git PAT from the Nomadly vault
 # ============================================================
-# Pulls DROPLET_SSH_KEY_B64 / WHM_BOX_SSH_KEY_B64 / GITHUB_PAT_CLASSIC
+# Pulls DROPLET_SSH_KEY_B64 / WHM_BOX_SSH_KEY_B64 / DR_REPLICA_SSH_KEY_B64 / GITHUB_PAT_CLASSIC
 # out of memory/nomadly.vault.enc and writes them to /root/.ssh
 # (chmod 600) + prints the git remote line. Use on a fresh pod so
 # SSH to the DO droplet and WHM box + GitHub pushes work again.
@@ -21,11 +21,14 @@ grep '^DROPLET_SSH_KEY_B64=' "$TMP" | cut -d= -f2- | base64 -d > /root/.ssh/noma
 grep '^DROPLET_SSH_PUB='     "$TMP" | cut -d= -f2- > /root/.ssh/nomadly_droplet.pub
 grep '^WHM_BOX_SSH_KEY_B64=' "$TMP" | cut -d= -f2- | base64 -d > /root/.ssh/whm_box
 grep '^WHM_BOX_SSH_PUB='     "$TMP" | cut -d= -f2- > /root/.ssh/whm_box.pub
-chmod 600 /root/.ssh/nomadly_droplet /root/.ssh/whm_box
-chmod 644 /root/.ssh/nomadly_droplet.pub /root/.ssh/whm_box.pub
+grep '^DR_REPLICA_SSH_KEY_B64=' "$TMP" | cut -d= -f2- | base64 -d > /root/.ssh/dr_replica
+grep '^DR_REPLICA_SSH_PUB='     "$TMP" | cut -d= -f2- > /root/.ssh/dr_replica.pub
+chmod 600 /root/.ssh/nomadly_droplet /root/.ssh/whm_box /root/.ssh/dr_replica
+chmod 644 /root/.ssh/nomadly_droplet.pub /root/.ssh/whm_box.pub /root/.ssh/dr_replica.pub
 
 DROPLET_IP=$(grep '^DROPLET_IP=' "$TMP" | cut -d= -f2-)
 WHM_IP=$(grep '^WHM_IP=' "$TMP" | cut -d= -f2-)
+DR_IP=$(grep '^DR_REPLICA_IP=' "$TMP" | cut -d= -f2-)
 PAT=$(grep '^GITHUB_PAT_CLASSIC=' "$TMP" | cut -d= -f2-)
 REPO=$(grep '^GITHUB_REPO=' "$TMP" | cut -d= -f2- | sed 's#https://##')
 rm -f "$TMP"
@@ -33,4 +36,5 @@ rm -f "$TMP"
 echo "✅ Restored SSH keys to /root/.ssh"
 echo "   DO droplet : ssh -i /root/.ssh/nomadly_droplet root@${DROPLET_IP}"
 echo "   WHM box    : ssh -i /root/.ssh/whm_box root@${WHM_IP}"
+echo "   DR replica : ssh -i /root/.ssh/dr_replica root@${DR_IP}   (restore guide: memory/DR_RESTORE_RUNBOOK.md)"
 echo "   Git remote : git remote set-url origin https://${PAT}@${REPO}"

@@ -1,0 +1,8 @@
+/opt/dr/logs/*.log {
+  weekly
+  rotate 4
+  compress
+  missingok
+  notifempty
+  copytruncate
+}
