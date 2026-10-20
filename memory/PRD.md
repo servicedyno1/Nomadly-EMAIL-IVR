@@ -818,3 +818,4 @@ User inherited a fully-set-up Nomadly bot pod pointed at LIVE PRODUCTION. Task b
   hourly local point-in-time archives (24h). All prod MONGO_URLs MUST keep `?directConnection=true`.
 - Runbooks: memory/DR_REPLICA_SETUP_2026-10-20.md (architecture) + memory/DR_RESTORE_RUNBOOK.md (restore any DB into a new Railway DB; drill = /opt/dr/bin/restore_selftest.sh). Still open (not requested now): ConnectReseller 401, hosted domains showing
   security-check page, DO Spaces off-site copy, Telegram alerts for DR (drop BOT_TOKEN|CHAT_ID in /opt/dr/conf/alert.conf).
+- 2026-10-20: pushed to GitHub main by agent with GITHUB_PAT_CLASSIC from a separate clone (bad924b DR toolkit, f445b8b workspace sync); CI deployed app-main f445b8b + WhiteLabel sync → app-wl/voodoo/proshop ef28b7c, all healthy.
