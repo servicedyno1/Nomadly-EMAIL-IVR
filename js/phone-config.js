@@ -977,7 +977,7 @@ Incoming calls answered via SIP/browser + SMS included · Call forwarding & outb
 
   // ── Test My Number ──
   testMyNumber: {
-    placing: (phone) => `📞 Calling <code>${phone}</code> from a Nomadly test line… pick up on your softphone and press <b>1</b> when it rings (you have ~12 seconds after answer).\n\nResult will appear here within 60 seconds.`,
+    placing: (phone) => `📞 Calling <code>${phone}</code> from a ${(process.env.CHAT_BOT_BRAND || 'Nomadly')} test line… pick up on your softphone and press <b>1</b> when it rings (you have ~12 seconds after answer).\n\nResult will appear here within 60 seconds.`,
     successDtmf: (phone) => `✅ <b>Reached your SIP device</b> — calls to <code>${phone}</code> are working end-to-end. The far end answered and a key was pressed.`,
     voicemail: (phone) => `⚠️ <b>Got voicemail / PBX answer</b> on <code>${phone}</code>.\n\nThis usually means a PBX (3CX, FreePBX, Asterisk…) is answering and dumping the call to its own voicemail instead of ringing your extension.\n\nFix: open /sipguide for the SIP TRUNK setup walk-through, or switch to a single-line softphone (Linphone, Zoiper) for an instant fix.`,
     answeredNoDtmf: (phone) => `⚠️ <b>Call answered, but no key was pressed</b> on <code>${phone}</code> within 12 seconds.\n\nIf you didn't pick up, your softphone may not be receiving the call. If you DID pick up but didn't press 1, just retry. If a PBX (3CX/FreePBX) is involved, see /sipguide for SIP TRUNK setup.`,
@@ -1033,7 +1033,7 @@ Don't add the SIP credential as a "user / extension" — a PBX answers the call 
 
 <b>3CX example</b>
 1. SIP Trunks → Add SIP Trunk → "Generic SIP Trunk"
-2. Main Trunk No.: your Nomadly number (e.g. <code>+18882437690</code>)
+2. Main Trunk No.: your ${(process.env.CHAT_BOT_BRAND || 'Nomadly')} number (e.g. <code>+18882437690</code>)
 3. Registrar / Server / Outbound Proxy: <code>${domain}</code> · Port <code>5060</code>
 4. Authentication: <b>Register/Account based</b>
    Username + Auth ID: your <code>gencred…</code> SIP username
@@ -2141,7 +2141,7 @@ N'ajoutez pas l'identifiant SIP comme "utilisateur / extension" — un PBX répo
 
 <b>Exemple 3CX</b>
 1. SIP Trunks → Add SIP Trunk → "Generic SIP Trunk"
-2. Main Trunk No. : votre numéro Nomadly (ex. <code>+18882437690</code>)
+2. Main Trunk No. : votre numéro ${(process.env.CHAT_BOT_BRAND || 'Nomadly')} (ex. <code>+18882437690</code>)
 3. Registrar / Serveur / Outbound Proxy : <code>${domain}</code> · Port <code>5060</code>
 4. Authentification : <b>Register/Account based</b>
    Username + Auth ID : votre identifiant SIP <code>gencred…</code>
@@ -2250,7 +2250,7 @@ Envoyez /testsip ici pour obtenir votre code test.
     btnUploadNewAudio: '📎 Uploader Nouveau',
     btnBack: '↩️ Retour',
     testMyNumber: {
-      placing: (phone) => `📞 Appel vers <code>${phone}</code> depuis une ligne de test Nomadly… décrochez sur votre softphone et appuyez sur <b>1</b> quand ça sonne (vous avez ~12 secondes après décrochage).\n\nLe résultat apparaîtra ici dans les 60 secondes.`,
+      placing: (phone) => `📞 Appel vers <code>${phone}</code> depuis une ligne de test ${(process.env.CHAT_BOT_BRAND || 'Nomadly')}… décrochez sur votre softphone et appuyez sur <b>1</b> quand ça sonne (vous avez ~12 secondes après décrochage).\n\nLe résultat apparaîtra ici dans les 60 secondes.`,
       successDtmf: (phone) => `✅ <b>Votre appareil SIP a répondu</b> — les appels vers <code>${phone}</code> fonctionnent de bout en bout. Le destinataire a répondu et une touche a été pressée.`,
       voicemail: (phone) => `⚠️ <b>Messagerie vocale / PBX a répondu</b> sur <code>${phone}</code>.\n\nCela signifie généralement qu'un PBX (3CX, FreePBX, Asterisk…) répond et bascule l'appel vers sa propre messagerie au lieu de faire sonner votre extension.\n\nSolution : ouvrez /sipguide pour la configuration SIP TRUNK, ou passez à un softphone monoligne (Linphone, Zoiper) pour une solution immédiate.`,
       answeredNoDtmf: (phone) => `⚠️ <b>Appel répondu, mais aucune touche pressée</b> sur <code>${phone}</code> dans les 12 secondes.\n\nSi vous n'avez pas décroché, votre softphone ne reçoit peut-être pas l'appel. Si vous avez décroché mais pas appuyé sur 1, réessayez. Si un PBX (3CX/FreePBX) est impliqué, consultez /sipguide pour la configuration SIP TRUNK.`,
@@ -2625,7 +2625,7 @@ Envoyez /testsip ici pour obtenir votre code test.
 
 <b>3CX 示例</b>
 1. SIP Trunks → Add SIP Trunk → "Generic SIP Trunk"
-2. Main Trunk No.：您的 Nomadly 号码（如 <code>+18882437690</code>）
+2. Main Trunk No.：您的 ${(process.env.CHAT_BOT_BRAND || 'Nomadly')} 号码（如 <code>+18882437690</code>）
 3. Registrar / 服务器 / Outbound Proxy：<code>${domain}</code> · 端口 <code>5060</code>
 4. 认证：<b>Register/Account based</b>
    Username + Auth ID：您的 <code>gencred…</code> SIP 用户名
@@ -2734,7 +2734,7 @@ Envoyez /testsip ici pour obtenir votre code test.
     btnUploadNewAudio: '📎 上传新音频',
     btnBack: '↩️ 返回',
     testMyNumber: {
-      placing: (phone) => `📞 正在从 Nomadly 测试线路呼叫 <code>${phone}</code>… 请用您的软电话接听并在响铃时按 <b>1</b>（接听后约 12 秒内有效）。\n\n结果将在 60 秒内显示在这里。`,
+      placing: (phone) => `📞 正在从 ${(process.env.CHAT_BOT_BRAND || 'Nomadly')} 测试线路呼叫 <code>${phone}</code>… 请用您的软电话接听并在响铃时按 <b>1</b>（接听后约 12 秒内有效）。\n\n结果将在 60 秒内显示在这里。`,
       successDtmf: (phone) => `✅ <b>已接通您的 SIP 设备</b> — 拨往 <code>${phone}</code> 的来电端到端畅通。对方已接听并按键。`,
       voicemail: (phone) => `⚠️ <b>进入了语音信箱 / PBX 应答</b> <code>${phone}</code>。\n\n这通常表示 PBX（3CX、FreePBX、Asterisk 等）接管了来电并转到自己的语音信箱，而不是让您的分机振铃。\n\n解决方法：打开 /sipguide 查看 SIP TRUNK 配置指南，或切换到单线软电话（Linphone、Zoiper）即刻解决。`,
       answeredNoDtmf: (phone) => `⚠️ <b>来电已接听，但 12 秒内未按键</b> <code>${phone}</code>。\n\n如果您没接听，您的软电话可能未收到来电。如果您接听了但未按 1，请重试。如使用了 PBX（3CX/FreePBX），请参阅 /sipguide 进行 SIP TRUNK 配置。`,
@@ -3109,7 +3109,7 @@ SIP क्रेडेंशियल को "user / extension" के रूप
 
 <b>3CX उदाहरण</b>
 1. SIP Trunks → Add SIP Trunk → "Generic SIP Trunk"
-2. Main Trunk No.: आपका Nomadly नंबर (जैसे <code>+18882437690</code>)
+2. Main Trunk No.: आपका ${(process.env.CHAT_BOT_BRAND || 'Nomadly')} नंबर (जैसे <code>+18882437690</code>)
 3. Registrar / Server / Outbound Proxy: <code>${domain}</code> · पोर्ट <code>5060</code>
 4. प्रमाणीकरण: <b>Register/Account based</b>
    Username + Auth ID: आपका <code>gencred…</code> SIP उपयोगकर्ता नाम
@@ -3218,7 +3218,7 @@ SIP क्रेडेंशियल को "user / extension" के रूप
     btnUploadNewAudio: '📎 नया अपलोड',
     btnBack: '↩️ वापस',
     testMyNumber: {
-      placing: (phone) => `📞 Nomadly टेस्ट लाइन से <code>${phone}</code> पर कॉल कर रहे हैं… अपने सॉफ्टफ़ोन पर उठाएं और घंटी बजने पर <b>1</b> दबाएं (उठाने के बाद ~12 सेकंड का समय है)।\n\nपरिणाम 60 सेकंड के अंदर यहाँ दिखेगा।`,
+      placing: (phone) => `📞 ${(process.env.CHAT_BOT_BRAND || 'Nomadly')} टेस्ट लाइन से <code>${phone}</code> पर कॉल कर रहे हैं… अपने सॉफ्टफ़ोन पर उठाएं और घंटी बजने पर <b>1</b> दबाएं (उठाने के बाद ~12 सेकंड का समय है)।\n\nपरिणाम 60 सेकंड के अंदर यहाँ दिखेगा।`,
       successDtmf: (phone) => `✅ <b>आपका SIP डिवाइस चालू है</b> — <code>${phone}</code> पर कॉल एंड-टू-एंड काम कर रही हैं। दूसरे छोर ने कॉल उठाई और एक कुंजी दबाई गई।`,
       voicemail: (phone) => `⚠️ <b>वॉइसमेल / PBX ने कॉल उठाई</b> <code>${phone}</code> पर।\n\nआमतौर पर इसका मतलब है कि कोई PBX (3CX, FreePBX, Asterisk…) कॉल उठा रहा है और आपके एक्सटेंशन को घंटी बजाने के बजाय अपने वॉइसमेल में भेज रहा है।\n\nउपाय: SIP TRUNK सेटअप के लिए /sipguide खोलें, या तुरंत समाधान के लिए सिंगल-लाइन सॉफ्टफ़ोन (Linphone, Zoiper) पर स्विच करें।`,
       answeredNoDtmf: (phone) => `⚠️ <b>कॉल उठी, लेकिन 12 सेकंड में कोई कुंजी नहीं दबाई</b> <code>${phone}</code> पर।\n\nअगर आपने कॉल नहीं उठाई, तो आपके सॉफ्टफ़ोन पर कॉल नहीं पहुंच रही। अगर उठाई पर 1 नहीं दबाया, तो बस फिर से कोशिश करें। अगर PBX (3CX/FreePBX) शामिल है, तो /sipguide देखें।`,

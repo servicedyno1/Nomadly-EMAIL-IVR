@@ -414,7 +414,7 @@ Sub-menu:
 1. <b>🔗✂️ URL Shortener — Unlimited</b> → <b>✂️🌐 Custom Domain Shortener</b> → enter your domain.
 2. Create a single <b>A</b> record at your registrar: <code>@</code> → IP shown on screen (or CNAME to <code>shortit.${BRAND.toLowerCase()}.app</code> if displayed).
 
-<b>If user mentions ns1.hostbay.io / hostbay.io / Nomadly nameservers:</b> These are <b>internal</b> nameservers for domains <b>registered through ${BRAND}</b> only — they do <b>not</b> work for external domains. Tell the user to ignore those and follow Option A (DNS A records) above.
+<b>If user mentions ns1.hostbay.io / hostbay.io / ${(process.env.CHAT_BOT_BRAND || 'Nomadly')} nameservers:</b> These are <b>internal</b> nameservers for domains <b>registered through ${BRAND}</b> only — they do <b>not</b> work for external domains. Tell the user to ignore those and follow Option A (DNS A records) above.
 
 <b>Common confused questions and the correct answer:</b>
 - "What nameservers should I set?" → Don't change nameservers. Set DNS A records at your registrar.
@@ -511,7 +511,7 @@ Our virtual cards do <b>NOT</b> support 3D Secure (3DS / Verified-by-Visa / Mast
 <b>Workarounds when a merchant requires 3DS:</b>
 1. <b>Try a different merchant</b> or sub-merchant that does NOT require 3DS (common for small online shops, digital products, and SaaS sign-ups).
 2. <b>Use the card to top up a wallet</b> (e.g. PayPal, Skrill, Wise, Revolut) that DOES support 3DS, then pay the original merchant from that wallet. Many wallets accept non-3DS top-ups.
-3. <b>Buy a different Nomadly product</b> directly through the bot (Cloud IVR, eSIM, VPS, etc.) — those payments are charged via the wallet, no card needed.
+3. <b>Buy a different ${(process.env.CHAT_BOT_BRAND || 'Nomadly')} product</b> directly through the bot (Cloud IVR, eSIM, VPS, etc.) — those payments are charged via the wallet, no card needed.
 
 Do <b>NOT</b> promise 3DS support is coming. If the user keeps insisting after the workarounds, escalate.
 
@@ -638,7 +638,7 @@ Activates a free trial of the BulkSMS Android app for sending SMS messages.
 From main menu → tap <b>📦 Ship & Mail</b>
 Opens BozzMail — a web-based service for creating shipping labels, sending letters, and postcards.
 - Ships from the US to worldwide destinations
-- Integrates with the Nomadly wallet for payment
+- Integrates with the ${(process.env.CHAT_BOT_BRAND || 'Nomadly')} wallet for payment
 
 ### 🎁 Service Bundles
 From main menu → tap <b>🎁 Service Bundles</b>
@@ -652,7 +652,7 @@ Pre-packaged service combinations at a 15–20% discount:
 From main menu → tap <b>🤝 Refer & Earn</b>
 Invite friends and earn money:
 - Share your unique referral link
-- When your referral spends $30 total on Nomadly, you earn <b>$5</b> credited to your wallet
+- When your referral spends $30 total on ${(process.env.CHAT_BOT_BRAND || 'Nomadly')}, you earn <b>$5</b> credited to your wallet
 - Track referrals, progress bars, and earnings in the Refer & Earn screen
 - No limit on number of referrals
 
@@ -926,7 +926,7 @@ If the user complains that <code>[name]</code> stays literal in the sent SMS:
 → Main menu → <b>📦 Ship & Mail</b> → Opens BozzMail web app for creating shipping labels, sending letters, and postcards. Ships from the US to worldwide destinations.
 
 ### "How does Refer & Earn work?"
-→ Main menu → <b>🤝 Refer & Earn</b> → Share your unique referral link → When your friend joins and spends $30 total on Nomadly, you earn <b>$5</b> credited to your wallet. Track referrals, progress bars, and earnings. No limit on referrals.
+→ Main menu → <b>🤝 Refer & Earn</b> → Share your unique referral link → When your friend joins and spends $30 total on ${(process.env.CHAT_BOT_BRAND || 'Nomadly')}, you earn <b>$5</b> credited to your wallet. Track referrals, progress bars, and earnings. No limit on referrals.
 
 ## ESCALATION RULES
 You MUST escalate to a human agent (set needsEscalation: true) for:
@@ -1231,7 +1231,7 @@ async function getUserContext(chatId, userMessage = '') {
           const addons = Array.isArray(c.addonDomains) && c.addonDomains.length ? ` (addons: ${c.addonDomains.join(', ')})` : ''
           return `• ${c.cpUser} on ${c.domain} — ${c.plan || 'hosting'} — cancelled ${fmtTs(c.deletedAt)} by ${c.deletedBy || 'user'}${addons}`
         }).join('\n')
-        context.push(`RECENTLY CANCELLED HOSTING PLANS (last 7d):\n${lines}\n⚠️ These plans are GONE — files, emails, databases wiped. No refund per Nomadly cancellation policy. If the user asks "where did my site / files go?" the answer is the cancellation above. Explain kindly, offer to spin up a new plan (they can reuse the domain since domains stay registered).`)
+        context.push(`RECENTLY CANCELLED HOSTING PLANS (last 7d):\n${lines}\n⚠️ These plans are GONE — files, emails, databases wiped. No refund per ${(process.env.CHAT_BOT_BRAND || 'Nomadly')} cancellation policy. If the user asks "where did my site / files go?" the answer is the cancellation above. Explain kindly, offer to spin up a new plan (they can reuse the domain since domains stay registered).`)
       }
     } catch (e) { /* cpanelAccounts collection may not exist */ }
 
@@ -1484,7 +1484,7 @@ async function getUserContext(chatId, userMessage = '') {
           const parts = [d]
 
           if (purchasedSet.has(d) || reg) {
-            const rawRegistrar = reg?.val?.registrar || reg?.val?.provider || (purchasedSet.has(d) ? 'Nomadly' : 'external')
+            const rawRegistrar = reg?.val?.registrar || reg?.val?.provider || (purchasedSet.has(d) ? (process.env.CHAT_BOT_BRAND || 'Nomadly') : 'external')
             // Sanitize: never expose third-party registrar names (OpenProvider, ConnectReseller, etc.)
             // to the LLM context — it will faithfully repeat them to the user. Map all known
             // upstream registrars to the consumer-facing brand "Nomadly".

@@ -67,13 +67,13 @@ async function forwardSmsToEmail(toEmail, from, to, body) {
         <div style="background: #16213e; padding: 16px; border-radius: 8px; margin-top: 16px; border-left: 3px solid #10b981;">
           <p style="margin: 0; color: #e5e5e5; font-size: 15px;">${body}</p>
         </div>
-        <p style="color: #6b7280; font-size: 12px; margin-top: 16px;">Powered by Nomadly Cloud Phone</p>
+        <p style="color: #6b7280; font-size: 12px; margin-top: 16px;">Powered by ${(process.env.CHAT_BOT_BRAND || 'Nomadly')} Cloud Phone</p>
       </div>
     </div>`
 
   try {
     await axios.post('https://api.brevo.com/v3/smtp/email', {
-      sender: { name: 'Nomadly Cloud Phone', email: MAIL_SENDER },
+      sender: { name: ((process.env.CHAT_BOT_BRAND || 'Nomadly') + ' Cloud Phone'), email: MAIL_SENDER },
       to: [{ email: toEmail }],
       subject: subject,
       htmlContent: htmlContent,

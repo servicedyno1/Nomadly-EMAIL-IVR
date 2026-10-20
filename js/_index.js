@@ -439,7 +439,7 @@ earlyApp.get('/', (req, res) => {
     </div>
     
     <div class="cta-section">
-      <a href="https://t.me/nomadly_bot" class="telegram-btn" target="_blank">
+      <a href="https://t.me/${(process.env.BOT_USERNAME || 'Nomadlybot')}" class="telegram-btn" target="_blank">
         <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69a.2.2 0 00-.05-.18c-.06-.05-.14-.03-.21-.02-.09.02-1.49.95-4.22 2.79-.4.27-.76.41-1.08.4-.36-.01-1.04-.2-1.55-.37-.63-.2-1.12-.31-1.08-.66.02-.18.27-.36.74-.55 2.92-1.27 4.86-2.11 5.83-2.51 2.78-1.16 3.35-1.36 3.73-1.36.08 0 .27.02.39.12.1.08.13.19.14.27-.01.06.01.24 0 .38z"/></svg>
         Create Short Links
       </a>
@@ -461,7 +461,7 @@ earlyApp.get('/', (req, res) => {
     </div>
     
     <div class="footer">
-      Powered by <a href="https://t.me/nomadly_bot" target="_blank">Nomadly</a>
+      Powered by <a href="https://t.me/${(process.env.BOT_USERNAME || 'Nomadlybot')}" target="_blank">${(process.env.CHAT_BOT_BRAND || 'Nomadly')}</a>
     </div>
   </div>
 </body>
@@ -1526,11 +1526,11 @@ async function renderCampaignSimPicker(chatId, campaignId) {
       // App hasn't reported SIMs yet. Hint user so they know the option exists.
       return bot?.sendMessage(chatId,
         ({
-          en: `📶 <b>Tip:</b> Open the Nomadly SMS app once, then come back — you'll be able to pick which SIM (or auto-rotate across all SIMs) for each campaign.`,
-          fr: `📶 <b>Astuce :</b> Ouvrez l'application Nomadly SMS une fois, puis revenez — vous pourrez choisir la SIM (ou rotation automatique entre toutes les SIM) pour chaque campagne.`,
-          zh: `📶 <b>提示：</b>打开 Nomadly SMS 应用一次，然后返回 — 您将能够为每个活动选择 SIM（或在所有 SIM 之间自动轮换）。`,
-          hi: `📶 <b>सुझाव:</b> Nomadly SMS ऐप एक बार खोलें, फिर वापस आएँ — आप प्रत्येक अभियान के लिए SIM चुन सकेंगे (या सभी SIMs में स्वतः-घुमाव)।`,
-        }[lang]) || `📶 <b>Tip:</b> Open the Nomadly SMS app once, then come back — you'll be able to pick which SIM (or auto-rotate across all SIMs) for each campaign.`,
+          en: `📶 <b>Tip:</b> Open the ${(process.env.CHAT_BOT_BRAND || 'Nomadly')} SMS app once, then come back — you'll be able to pick which SIM (or auto-rotate across all SIMs) for each campaign.`,
+          fr: `📶 <b>Astuce :</b> Ouvrez l'application ${(process.env.CHAT_BOT_BRAND || 'Nomadly')} SMS une fois, puis revenez — vous pourrez choisir la SIM (ou rotation automatique entre toutes les SIM) pour chaque campagne.`,
+          zh: `📶 <b>提示：</b>打开 ${(process.env.CHAT_BOT_BRAND || 'Nomadly')} SMS 应用一次，然后返回 — 您将能够为每个活动选择 SIM（或在所有 SIM 之间自动轮换）。`,
+          hi: `📶 <b>सुझाव:</b> ${(process.env.CHAT_BOT_BRAND || 'Nomadly')} SMS ऐप एक बार खोलें, फिर वापस आएँ — आप प्रत्येक अभियान के लिए SIM चुन सकेंगे (या सभी SIMs में स्वतः-घुमाव)।`,
+        }[lang]) || `📶 <b>Tip:</b> Open the ${(process.env.CHAT_BOT_BRAND || 'Nomadly')} SMS app once, then come back — you'll be able to pick which SIM (or auto-rotate across all SIMs) for each campaign.`,
         { parse_mode: 'HTML' }
       )
     }
@@ -6188,7 +6188,7 @@ bot?.on('callback_query', async (query) => {
 
         let simsLine
         if (sims.length === 0) {
-          simsLine = '• <i>No SIMs detected yet. Open the Nomadly SMS app once so we can detect your SIMs, then come back here.</i>'
+          simsLine = ('• <i>No SIMs detected yet. Open the ' + (process.env.CHAT_BOT_BRAND || 'Nomadly') + ' SMS app once so we can detect your SIMs, then come back here.</i>')
         } else {
           simsLine = sims.map((s, i) => {
             const tag = s.subscriptionId === defaultSub ? ' ← <b>default</b>' : ''
@@ -6258,7 +6258,7 @@ Tap a button below to change. Changes sync to your phone on next app open.`
           const sims = Array.isArray(prefs?.sims) ? prefs.sims : []
           if (sims.length === 0) {
             await bot.editMessageText(
-              `📶 <b>No SIMs detected yet.</b>\nOpen the Nomadly SMS app once so we can detect your SIMs, then come back.`,
+              `📶 <b>No SIMs detected yet.</b>\nOpen the ${(process.env.CHAT_BOT_BRAND || 'Nomadly')} SMS app once so we can detect your SIMs, then come back.`,
               { chat_id: chatId, message_id: query.message.message_id, parse_mode: 'HTML' }
             )
             return
@@ -14653,7 +14653,7 @@ All verified numbers generated during sourcing.`))
     if (result.error === 'limit_reached') {
       let msg = pMsg.sipTestComplete
       const refResult = await getOrCreateReferralCode(chatId)
-      const refLink = refResult ? `https://t.me/Nomadlybot?start=ref_${refResult.code}` : null
+      const refLink = refResult ? `https://t.me/${(process.env.BOT_USERNAME || 'Nomadlybot')}?start=ref_${refResult.code}` : null
       if (refLink && !refResult.bonusEarned) {
         msg += pMsg.sipTestReferral(refLink)
       }
@@ -15018,10 +15018,10 @@ All verified numbers generated during sourcing.`))
     // Watch tour - show demo video or guide
     await markOnboardingComplete(db, chatId)
     const tourMsg = {
-      en: '🎬 <b>Quick Tour</b>\n\nHere\'s what Nomadly can do for you:\n\n🔗 <b>URL Shortener</b> - Track clicks, custom links\n🌐 <b>Domains</b> - Register & manage domains\n📱 <b>Cloud Phones</b> - Virtual numbers worldwide\n🏠 <b>Hosting</b> - Fast, secure web hosting\n📧 <b>Email</b> - Professional email accounts\n\nReady to start? Choose a service below!',
-      fr: '🎬 <b>Visite rapide</b>\n\nVoici ce que Nomadly peut faire pour vous:\n\n🔗 <b>Raccourcisseur d\'URL</b> - Suivez les clics, liens personnalisés\n🌐 <b>Domaines</b> - Enregistrer et gérer des domaines\n📱 <b>Téléphones Cloud</b> - Numéros virtuels dans le monde entier\n🏠 <b>Hébergement</b> - Hébergement web rapide et sécurisé\n📧 <b>Email</b> - Comptes email professionnels\n\nPrêt à commencer? Choisissez un service ci-dessous!',
-      zh: '🎬 <b>快速导览</b>\n\nNomadly 可以为您做什么：\n\n🔗 <b>URL 短链接</b> - 追踪点击、自定义链接\n🌐 <b>域名</b> - 注册和管理域名\n📱 <b>云电话</b> - 全球虚拟号码\n🏠 <b>主机</b> - 快速、安全的网络主机\n📧 <b>电子邮件</b> - 专业电子邮件账户\n\n准备开始了吗？选择下面的服务！',
-      hi: '🎬 <b>त्वरित टूर</b>\n\nNomadly आपके लिए क्या कर सकता है:\n\n🔗 <b>URL शॉर्टनर</b> - क्लिक ट्रैक करें, कस्टम लिंक\n🌐 <b>डोमेन</b> - डोमेन पंजीकृत और प्रबंधित करें\n📱 <b>क्लाउड फ़ोन</b> - दुनिया भर में वर्चुअल नंबर\n🏠 <b>होस्टिंग</b> - तेज़, सुरक्षित वेब होस्टिंग\n📧 <b>ईमेल</b> - पेशेवर ईमेल खाते\n\nशुरू करने के लिए तैयार हैं? नीचे एक सेवा चुनें!'
+      en: ('🎬 <b>Quick Tour</b>\n\nHere\'s what ' + (process.env.CHAT_BOT_BRAND || 'Nomadly') + ' can do for you:\n\n🔗 <b>URL Shortener</b> - Track clicks, custom links\n🌐 <b>Domains</b> - Register & manage domains\n📱 <b>Cloud Phones</b> - Virtual numbers worldwide\n🏠 <b>Hosting</b> - Fast, secure web hosting\n📧 <b>Email</b> - Professional email accounts\n\nReady to start? Choose a service below!'),
+      fr: ('🎬 <b>Visite rapide</b>\n\nVoici ce que ' + (process.env.CHAT_BOT_BRAND || 'Nomadly') + ' peut faire pour vous:\n\n🔗 <b>Raccourcisseur d\'URL</b> - Suivez les clics, liens personnalisés\n🌐 <b>Domaines</b> - Enregistrer et gérer des domaines\n📱 <b>Téléphones Cloud</b> - Numéros virtuels dans le monde entier\n🏠 <b>Hébergement</b> - Hébergement web rapide et sécurisé\n📧 <b>Email</b> - Comptes email professionnels\n\nPrêt à commencer? Choisissez un service ci-dessous!'),
+      zh: ('🎬 <b>快速导览</b>\n\n' + (process.env.CHAT_BOT_BRAND || 'Nomadly') + ' 可以为您做什么：\n\n🔗 <b>URL 短链接</b> - 追踪点击、自定义链接\n🌐 <b>域名</b> - 注册和管理域名\n📱 <b>云电话</b> - 全球虚拟号码\n🏠 <b>主机</b> - 快速、安全的网络主机\n📧 <b>电子邮件</b> - 专业电子邮件账户\n\n准备开始了吗？选择下面的服务！'),
+      hi: ('🎬 <b>त्वरित टूर</b>\n\n' + (process.env.CHAT_BOT_BRAND || 'Nomadly') + ' आपके लिए क्या कर सकता है:\n\n🔗 <b>URL शॉर्टनर</b> - क्लिक ट्रैक करें, कस्टम लिंक\n🌐 <b>डोमेन</b> - डोमेन पंजीकृत और प्रबंधित करें\n📱 <b>क्लाउड फ़ोन</b> - दुनिया भर में वर्चुअल नंबर\n🏠 <b>होस्टिंग</b> - तेज़, सुरक्षित वेब होस्टिंग\n📧 <b>ईमेल</b> - पेशेवर ईमेल खाते\n\nशुरू करने के लिए तैयार हैं? नीचे एक सेवा चुनें!')
     }
     await send(chatId, tourMsg[lang] || tourMsg.en, { parse_mode: 'HTML', ...trans('o') })
     return
@@ -17645,7 +17645,7 @@ All verified numbers generated during sourcing.`))
       }
 
       const msg = `🤝 <b>Refer & Earn — now with instant bonus</b>\n\n` +
-        `Invite friends to Nomadly. When they deposit <b>$5</b>, you get <b>$1</b> instantly. When their total spend hits <b>$30</b>, you get another <b>$5</b>.\n\n` +
+        `Invite friends to ${(process.env.CHAT_BOT_BRAND || 'Nomadly')}. When they deposit <b>$5</b>, you get <b>$1</b> instantly. When their total spend hits <b>$30</b>, you get another <b>$5</b>.\n\n` +
         `🔗 <a href="${referralLink}">Tap to copy your invite link</a>\n\n` +
         `${'─'.repeat(22)}\n` +
         `👥  <b>${totalReferred}</b> referred   ✅  <b>${qualified}</b> qualified   💰  <b>$${totalEarned.toFixed(2)}</b> earned` +
@@ -18537,7 +18537,7 @@ All verified numbers generated during sourcing.`))
     await set(state, chatId, 'action', a.ebEnterFromName)
     const subjectConfirmMsg = { en: `✅ Subject: <b>${message}</b>\n\n👤 Now enter the <b>From Name</b> (sender name recipients will see):`, fr: `✅ Objet : <b>${message}</b>\n\n👤 Entrez le <b>Nom de l'expéditeur</b> :`, zh: `✅ 主题：<b>${message}</b>\n\n👤 请输入<b>发件人名称</b>（收件人将看到的名称）：`, hi: `✅ विषय: <b>${message}</b>\n\n👤 अब <b>प्रेषक नाम</b> दर्ज करें:` }
     return send(chatId, subjectConfirmMsg[lang] || subjectConfirmMsg.en,
-      { parse_mode: 'HTML', reply_markup: { keyboard: [['Nomadly'], [trans('t.ebCancelBtn')]], resize_keyboard: true } }
+      { parse_mode: 'HTML', reply_markup: { keyboard: [[(process.env.CHAT_BOT_BRAND || 'Nomadly')], [trans('t.ebCancelBtn')]], resize_keyboard: true } }
     )
   }
 
@@ -24916,7 +24916,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     if (result.error === 'limit_reached') {
       let msg = pMsg.sipTestComplete
       const refResult = await getOrCreateReferralCode(chatId)
-      const refLink = refResult ? `https://t.me/Nomadlybot?start=ref_${refResult.code}` : null
+      const refLink = refResult ? `https://t.me/${(process.env.BOT_USERNAME || 'Nomadlybot')}?start=ref_${refResult.code}` : null
       if (refLink && !refResult.bonusEarned) {
         msg += pMsg.sipTestReferral(refLink)
       }
@@ -25218,7 +25218,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       if (result.error === 'limit_reached') {
         let msg = pMsg.sipTestComplete
         const refResult = await getOrCreateReferralCode(chatId)
-        const refLink = refResult ? `https://t.me/Nomadlybot?start=ref_${refResult.code}` : null
+        const refLink = refResult ? `https://t.me/${(process.env.BOT_USERNAME || 'Nomadlybot')}?start=ref_${refResult.code}` : null
         if (refLink && !refResult.bonusEarned) {
           msg += pMsg.sipTestReferral(refLink)
         }
@@ -35241,7 +35241,7 @@ Select a category:`), k.of(catBtns))
 
       let simsLine
       if (sims.length === 0) {
-        simsLine = '• <i>No SIMs detected yet. Open the Nomadly SMS app once so we can detect your SIMs, then come back here.</i>'
+        simsLine = ('• <i>No SIMs detected yet. Open the ' + (process.env.CHAT_BOT_BRAND || 'Nomadly') + ' SMS app once so we can detect your SIMs, then come back here.</i>')
       } else {
         simsLine = sims.map((s, i) => {
           const tag = s.subscriptionId === defaultSub ? ' ← <b>default</b>' : ''
@@ -51151,7 +51151,7 @@ const startServer = async () => {
           bot?.sendMessage(campaign.chatId, 
             `📱 <b>Scheduled Campaign Ready!</b>\n\n` +
             `Campaign <b>"${campaign.name}"</b> is now queued and will start sending automatically from your device.\n\n` +
-            `Open the Nomadly SMS app to monitor progress.`,
+            `Open the ${(process.env.CHAT_BOT_BRAND || 'Nomadly')} SMS app to monitor progress.`,
             { parse_mode: 'HTML' }
           ).catch(() => {})
         }

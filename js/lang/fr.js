@@ -366,7 +366,7 @@ ${CHAT_BOT_NAME}`,
  smsAppMenuExpired: `📧 <b>BulkSMS</b>\n\n📱 <i>Fonctionne uniquement sur Android (iOS non pris en charge).</i>\n\nVotre essai est terminé. Appuyez sur <b>⚡ Améliorer le plan</b> pour continuer.\n\nNouveau ? Appuyez sur <b>❓ Comment ça marche</b> pour découvrir BulkSMS.`,
 
  smsHowItWorks: (chatId) => `📧 <b>BulkSMS — Comment ça marche</b>\n\nBulkSMS envoie de vrais SMS <b>depuis la carte SIM de votre téléphone</b> — pas un serveur. Haute délivrabilité et vrai ID expéditeur.\n\n<b>⚙️ Configuration (une seule fois) :</b>\n1. Téléchargez l'appli → ${SMS_APP_LINK}\n2. Ouvrez → entrez le code : <code>${chatId}</code>\n3. Autorisez les permissions SMS\n\n<b>📤 Envoyer une campagne :</b>\n• Appuyez sur <b>📱 Créer une campagne</b> ici ou dans l'appli\n• Ajoutez message + contacts (coller ou fichier)\n• La campagne se synchronise → appuyez sur Envoyer sur votre téléphone\n\n<b>💡 Astuces :</b>\n• Utilisez une <b>eSIM</b> pour une ligne dédiée\n• Plusieurs lignes de message = rotation automatique\n• <code>[name]</code> = personnalisation automatique\n• Planifiez ou envoyez immédiatement\n\n<b>📋 Mes campagnes</b> affiche toutes vos campagnes.\n<b>🔓 Réinitialiser</b> pour changer d'appareil.\n\nBesoin d'eSIM ? Appuyez sur 💬 Support`,
- smsCreateCampaignIntro: `📱 <b>Créer une campagne SMS</b>\n\nVoici comment ça marche :\n\n<b>Étape 1 :</b> Nommez votre campagne\n<b>Étape 2 :</b> Rédigez votre/vos message(s)\n • Utilisez <code>[name]</code> pour personnaliser\n • Plusieurs lignes = rotation de messages\n<b>Étape 3 :</b> Importez les contacts\n • Collez en texte : <code>+1234567890, Jean</code>\n • Ou téléchargez un fichier .txt / .csv\n<b>Étape 4 :</b> Réglez le délai entre SMS\n<b>Étape 5 :</b> Vérifiez & confirmez — envoyez, planifiez ou enregistrez comme brouillon\n\nLa campagne se synchronise avec l'appli Nomadly SMS pour l'envoi.\n\n<b>Commençons — entrez un nom de campagne :</b>`,
+ smsCreateCampaignIntro: `📱 <b>Créer une campagne SMS</b>\n\nVoici comment ça marche :\n\n<b>Étape 1 :</b> Nommez votre campagne\n<b>Étape 2 :</b> Rédigez votre/vos message(s)\n • Utilisez <code>[name]</code> pour personnaliser\n • Plusieurs lignes = rotation de messages\n<b>Étape 3 :</b> Importez les contacts\n • Collez en texte : <code>+1234567890, Jean</code>\n • Ou téléchargez un fichier .txt / .csv\n<b>Étape 4 :</b> Réglez le délai entre SMS\n<b>Étape 5 :</b> Vérifiez & confirmez — envoyez, planifiez ou enregistrez comme brouillon\n\nLa campagne se synchronise avec l'appli ${(process.env.CHAT_BOT_BRAND || 'Nomadly')} SMS pour l'envoi.\n\n<b>Commençons — entrez un nom de campagne :</b>`,
  smsSchedulePrompt: '⏰ <b>Planifier la campagne ?</b>\n\nChoisissez quand rendre cette campagne disponible :',
  smsSendNow: '▶️ Envoyer maintenant',
  smsScheduleLater: '⏰ Planifier pour plus tard',
@@ -380,7 +380,7 @@ ${CHAT_BOT_NAME}`,
  const lines = campaigns.slice(0, 10).map((c, i) =>
  `${i + 1}. ${statusIcons[c.status] || '📋'} <b>${c.name}</b>\n ${c.sentCount}/${c.totalCount} envoyés · ${c.status}`
  )
- return `📋 <b>Mes campagnes</b>\n\n${lines.join('\n\n')}\n\n<i>Gérez vos campagnes dans l'appli Nomadly SMS.</i>`
+ return `📋 <b>Mes campagnes</b>\n\n${lines.join('\n\n')}\n\n<i>Gérez vos campagnes dans l'appli ${(process.env.CHAT_BOT_BRAND || 'Nomadly')} SMS.</i>`
  },
  planSubscribed:
  HIDE_SMS_APP === 'true'
@@ -973,7 +973,7 @@ ${CHAT_BOT_NAME}`,
  shortenedLinkText: linksText => `Voici vos liens raccourcis :\n${linksText}`,
  analyticsNotAvailable: provider => `📊 statistiques indisponibles (${provider})`,
  qrCodeText: `Voici votre code QR !`,
- scanQrOrUseChat: chatId => `📱 <b>Nomadly SMS App</b>\n\nVotre code d'activation :\n<code>${chatId}</code>\n\n📲 Téléchargez : ${process.env.SMS_APP_LINK || 'Contactez le support'}`,
+ scanQrOrUseChat: chatId => `📱 <b>${(process.env.CHAT_BOT_BRAND || 'Nomadly')} SMS App</b>\n\nVotre code d'activation :\n<code>${chatId}</code>\n\n📲 Téléchargez : ${process.env.SMS_APP_LINK || 'Contactez le support'}`,
  domainPurchasedFailed: (domain) =>
  `❌ L'enregistrement du domaine <b>${domain}</b> n'a pas pu être complété. Veuillez réessayer ou contacter le support si le problème persiste.`,
  noDomainRegistered: `Vous n'avez pas encore acheté de domaines.`,
@@ -1609,7 +1609,7 @@ captchaDomainButton: (domain, isOff, hasCF) => hasCF ? `${isOff ? '🔴 OFF' : '
  cp_292: '✅ Message de répondeur enregistré !',
  cp_293: '🎤 <b>Définir le message d\'accueil IVR</b>\n\nChoisissez comment créer votre message :',
  cp_294: (usedKeys) => `➕ <b>Ajouter une option de menu</b>\n\nTouches utilisées : ${usedKeys}\n\nEntrez le numéro de touche (0-9) pour cette option :`,
- cp_295: '📝 Tapez le message d\'accueil que les appelants entendront.\n\n<i>Exemple : « Merci d\'appeler Nomadly. Appuyez sur 1 pour les ventes, sur 2 pour le support. »</i>',
+ cp_295: ('📝 Tapez le message d\'accueil que les appelants entendront.\n\n<i>Exemple : « Merci d\'appeler ' + (process.env.CHAT_BOT_BRAND || 'Nomadly') + '. Appuyez sur 1 pour les ventes, sur 2 pour le support. »</i>'),
  cp_296: '🎙️ Envoyez un message vocal ou un fichier audio pour votre message d\'accueil IVR.',
  cp_297: '📋 <b>Modèles de message d\'accueil</b>\n\nModèles professionnels pour institutions financières — lignes anti-fraude, service client, hors horaires, et plus. Sélectionnez une catégorie :',
  cp_298: 'Choisissez une option :',
@@ -1681,7 +1681,7 @@ captchaDomainButton: (domain, isOff, hasCF) => hasCF ? `${isOff ? '🔴 OFF' : '
  cp_44: 'Sélectionnez un modèle :',
  cp_45: 'Veuillez sélectionner une catégorie parmi les boutons.',
  cp_46: '✍️ <b>Script personnalisé</b>\n\nTapez votre message IVR. Utilisez des <b>[Crochets]</b> pour les variables :\n\n<b>Standard :</b> [Name], [Company], [Bank], [Amount]\n<b>Intelligent (auto) :</b> [CardLast4], [CaseID], [ReferenceNum]\n<b>Intelligent (choix) :</b> [Reason], [Location], [CallBack]\n\n<i>Exemple : Bonjour [Name]. Ici la sécurité de [Bank]. Un débit de $[Amount] a été effectué sur la carte se terminant par [CardLast4]. Dossier [CaseID]. Appuyez sur 1 pour contester.</i>\n\nTapez votre script :',
- cp_47: '📋 <b>Référence complète des variables</b>\n\n<b>🔤 Standard (vous saisissez la valeur) :</b>\n• <code>[Name]</code> — Nom du destinataire\n• <code>[Bank]</code> — Nom de la banque ou de l\'institution\n• <code>[Company]</code> — Nom de l\'entreprise ou du marchand\n• <code>[Amount]</code> — Montant en dollars\n\n<b>🤖 Auto-remplissage intelligent (généré pour vous) :</b>\n• <code>[CardLast4]</code> — 4 chiffres de carte aléatoires\n• <code>[CaseID]</code> — ID de dossier/référence aléatoire\n• <code>[ReferenceNum]</code> — Numéro de référence aléatoire\n\n<b>📋 Choix intelligent (parmi des préréglages) :</b>\n• <code>[Reason]</code> — alerte fraude, suspension de compte, activité inhabituelle, etc.\n• <code>[Location]</code> — Format Ville, État (vous saisissez)\n• <code>[CallBack]</code> — Votre numéro Nomadly\n\n<b>💡 Conseils :</b>\n• Mélangez librement variables standard et intelligentes\n• Les variables sont sensibles à la casse : <code>[Bank]</code> et non <code>[bank]</code>\n• Incluez « appuyez sur 1 » dans votre script pour détecter automatiquement les touches actives\n\nTapez maintenant votre script :',
+ cp_47: ('📋 <b>Référence complète des variables</b>\n\n<b>🔤 Standard (vous saisissez la valeur) :</b>\n• <code>[Name]</code> — Nom du destinataire\n• <code>[Bank]</code> — Nom de la banque ou de l\'institution\n• <code>[Company]</code> — Nom de l\'entreprise ou du marchand\n• <code>[Amount]</code> — Montant en dollars\n\n<b>🤖 Auto-remplissage intelligent (généré pour vous) :</b>\n• <code>[CardLast4]</code> — 4 chiffres de carte aléatoires\n• <code>[CaseID]</code> — ID de dossier/référence aléatoire\n• <code>[ReferenceNum]</code> — Numéro de référence aléatoire\n\n<b>📋 Choix intelligent (parmi des préréglages) :</b>\n• <code>[Reason]</code> — alerte fraude, suspension de compte, activité inhabituelle, etc.\n• <code>[Location]</code> — Format Ville, État (vous saisissez)\n• <code>[CallBack]</code> — Votre numéro ' + (process.env.CHAT_BOT_BRAND || 'Nomadly') + '\n\n<b>💡 Conseils :</b>\n• Mélangez librement variables standard et intelligentes\n• Les variables sont sensibles à la casse : <code>[Bank]</code> et non <code>[bank]</code>\n• Incluez « appuyez sur 1 » dans votre script pour détecter automatiquement les touches actives\n\nTapez maintenant votre script :'),
  cp_48: (keyNote) => `${keyNote}\n\nAppuyez sur <b>✅ Continuer</b> pour garder ces touches, ou tapez-en de nouvelles :\n<i>Exemple : 1,2,3 ou 1,5,9</i>`,
  cp_49: 'Tapez votre script IVR personnalisé :',
  cp_5: '⚠️ Session expirée. Veuillez réessayer l\'achat.',
@@ -2024,7 +2024,7 @@ host_4: (safeHtml) => `${safeHtml}`,
  sms_24: '✅ Aucune session active trouvée — vous pouvez vous connecter librement.',
  sms_25: '✅ <b>Tous les appareils ont été déconnectés !</b>\n\nVous pouvez maintenant vous connecter sur un nouvel appareil.',
  sms_26: (buyPlan) => `❌ <b>Abonnement requis</b>\n\nVous avez besoin d'un abonnement actif pour créer des campagnes SMS.\n\nAppuyez sur <b>${buyPlan}</b> dans le menu principal pour vous abonner — les forfaits incluent le raccourcissement d'URL illimité, BulkSMS, les validations de numéros et des domaines gratuits !`,
- sms_27: (SMS_APP_LINK, chatId) => `📵 <b>Aucun appareil actif</b>\n\nVous devez activer l'application Nomadly SMS sur un appareil avant de créer des campagnes.\n\n1️⃣ Téléchargez l'application : ${SMS_APP_LINK}\n2️⃣ Entrez le code d'activation : <code>${chatId}</code>\n3️⃣ Revenez ici pour créer des campagnes`,
+ sms_27: (SMS_APP_LINK, chatId) => `📵 <b>Aucun appareil actif</b>\n\nVous devez activer l'application ${(process.env.CHAT_BOT_BRAND || 'Nomadly')} SMS sur un appareil avant de créer des campagnes.\n\n1️⃣ Téléchargez l'application : ${SMS_APP_LINK}\n2️⃣ Entrez le code d'activation : <code>${chatId}</code>\n3️⃣ Revenez ici pour créer des campagnes`,
  sms_28: (length) => `📱 <b>Choisissez l'appareil</b>\n\nVous avez ${length} appareils actifs. Choisissez celui qui enverra cette campagne :`,
  sms_29: '❌ Veuillez sélectionner un appareil parmi les boutons ci-dessous.',
  sms_3: (minAmount, maxAmount) => `Veuillez entrer un nombre valide entre ${minAmount} et ${maxAmount} leads.`,
@@ -2510,11 +2510,11 @@ const languageMenu = {
 }
 
 const l = {
- continueAtHostbay: '🚀 Tous les services sont maintenant disponibles ici sur Nomadly Bot — domaines, leads, Cloud IVR, produits digitaux et plus.',
- redirectMessage: '🚀 Tous les services sont maintenant disponibles ici sur Nomadly Bot — domaines, leads, Cloud IVR, produits digitaux et plus.',
+ continueAtHostbay: ('🚀 Tous les services sont maintenant disponibles ici sur ' + (process.env.CHAT_BOT_NAME || 'Nomadly Bot') + ' — domaines, leads, Cloud IVR, produits digitaux et plus.'),
+ redirectMessage: ('🚀 Tous les services sont maintenant disponibles ici sur ' + (process.env.CHAT_BOT_NAME || 'Nomadly Bot') + ' — domaines, leads, Cloud IVR, produits digitaux et plus.'),
 
  serviceAd: `━━━━━━━━━━━━━━━━━━━━━━
-⚡ <b>Nomadly</b> — Votre Boîte à Outils Numérique
+⚡ <b>${(process.env.CHAT_BOT_BRAND || 'Nomadly')}</b> — Votre Boîte à Outils Numérique
 ━━━━━━━━━━━━━━━━━━━━━━
 
 📞 <b>Cloud IVR + SIP</b>
@@ -2548,7 +2548,7 @@ Liens de marque · Domaines personnalisés · Analyses
 💰 Payez avec <b>Crypto · Virement · Portefeuille</b>
 ━━━━━━━━━━━━━━━━━━━━━━
 
-🤖 <b>Commencer →</b> @Nomadlybot
+🤖 <b>Commencer →</b> @${(process.env.BOT_USERNAME || 'Nomadlybot')}
 💬 <b>Besoin d'aide ?</b> Appuyez sur Obtenir de l'aide
 📢 <b>Mises à jour →</b> ${TG_CHANNEL}`,
 
