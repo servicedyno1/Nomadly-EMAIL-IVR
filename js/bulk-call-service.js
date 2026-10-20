@@ -650,6 +650,32 @@ async function launchDueScheduledCampaigns() {
 /**
  * Start a campaign — begin dialing leads via Twilio
  */
+const PROVIDER_SUSPENDED_REASON = 'provider suspended'
+
+function isProviderSuspended(result) {
+  const s = result?.subAccountStatus
+  return (s && s !== 'active') || /sub-account is (suspended|closed)/i.test(String(result?.error || ''))
+}
+
+// Ends the campaign: cancelled + reason, pending leads marked not called. The in-memory state stays
+// paused (not deleted) so in-flight legs still settle and bill normally via onCallStatusUpdate.
+async function endCampaignProviderSuspended(campaignId, leadNumber) {
+  const state = activeCampaigns[campaignId]
+  if (state) state.paused = true
+  const r = await _collection.updateOne(
+    { id: campaignId, status: 'running' },
+    { $set: {
+      status: 'cancelled', cancelledReason: PROVIDER_SUSPENDED_REASON, completedAt: new Date(),
+      'leads.$[p].notCalled': true, 'leads.$[p].hangupCause': `not called — campaign ended (${PROVIDER_SUSPENDED_REASON})`,
+    } },
+    { arrayFilters: [{ 'p.status': 'pending' }] }
+  )
+  if (r.modifiedCount) {
+    log(`[BulkCall] Campaign ${campaignId} ended — ${PROVIDER_SUSPENDED_REASON} (first failing lead ${leadNumber}); no further dials`)
+    await recalcStats(campaignId).catch(() => {})
+  }
+}
+
 async function startCampaign(campaignId) {
   const campaign = await _collection.findOne({ id: campaignId })
   if (!campaign) return { error: 'Campaign not found' }
@@ -839,6 +865,11 @@ async function fireNextBatch(campaignId) {
 
       if (result.error) {
         state.activeCalls--
+        // Sub-account / caller ID suspended or closed → end the whole campaign now (no further dials, no charge).
+        if (isProviderSuspended(result)) {
+          await endCampaignProviderSuspended(campaignId, lead.number)
+          return
+        }
         await updateLeadResult(campaignId, lead.index, {
           status: 'failed',
           hangupCause: result.error,
