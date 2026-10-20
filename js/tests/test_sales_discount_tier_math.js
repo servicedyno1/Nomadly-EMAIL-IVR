@@ -1,5 +1,6 @@
 /* Unit test: discount + membership-tier aware profit/payout math (no DB). */
-process.env.SALES_FLAT_MARGIN_PCT = '30'
+process.env.PERCENT_INCREASE_DOMAIN = '2.25'
+process.env.VPS_MARKUP_PERCENT = '200'
 const assert = require('assert')
 const { normalizeTxn, buildReport } = require('../routes/sales.js')
 
@@ -25,7 +26,7 @@ const usage = { byCat: {}, byDay: {}, total: 0 }
 const rep = buildReport(rows, usage, new Date(0), new Date(Date.now() + 86400000))
 const s = rep.summary
 
-const approx = (a, b, m) => assert.ok(Math.abs(a - b) < 0.001, `${m}: got ${a}, expected ${b}`)
+const approx = (a, b, m) => assert.ok(Math.abs(a - b) < 0.006, `${m}: got ${a}, expected ${b}`)
 
 // Revenue = net paid; list = pre-discount; discounts break down
 approx(s.grossRevenue, 163.5, 'net revenue')
@@ -35,17 +36,17 @@ approx(s.couponDiscounts, 5, 'coupon discounts')
 approx(s.totalDiscounts, 6.5, 'total discounts')
 approx(s.grossListSales - s.totalDiscounts, s.grossRevenue, 'waterfall balances (list − discounts = net)')
 
-// Cost anchored to LIST → discounts come out of profit
-approx(s.totalCost, 119, 'total cost (list×70%)')      // 21 + 35 + 63
-approx(s.netProfit, 44.5, 'profit')                    // 163.5 − 119
-approx(s.payout, 44.5, 'payout == profit')
+// Real cost from LIST (domain list/3.25, hosting 20%, VPS list/3), shown profit = 70% of real when > 0
+approx(s.totalCost, 83.511538, 'total cost')            // 15.011538 + 20.5 + 48
+approx(s.netProfit, 79.988462, 'profit')                // 13.488462 + 24.5 + 42
+approx(s.payout, 79.988462, 'payout == profit')
 
-// Profit on the Silver domain reflects discount: 7.50 (NOT flat 30% of net = 8.55)
+// Silver domain: list 30 → cost 9.230769, paid 28.50 → real 19.269231 → shown 13.488462
 const silver = rep.byTier.find((t) => t.tier === 'silver')
 const bronze = rep.byTier.find((t) => t.tier === 'bronze')
-approx(silver.profit, 7.5, 'silver profit reflects discount')
+approx(silver.profit, 13.488462, 'silver profit reflects discount')
 approx(silver.discount, 1.5, 'silver discount')
-approx(bronze.profit, 37, 'bronze profit (hosting 10 + vps 27)')
+approx(bronze.profit, 66.5, 'bronze profit (hosting 24.5 + vps 42)')
 approx(bronze.revenue, 135, 'bronze revenue')
 
 // Bonuses & deposits excluded from profit

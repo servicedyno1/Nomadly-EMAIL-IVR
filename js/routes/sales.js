@@ -10,7 +10,8 @@
  *       Domains sale = cost * (1 + PERCENT_INCREASE_DOMAIN)  => cost = amt / mult
  *       VPS     sale = cost * (1 + VPS_MARKUP_PERCENT/100)   => cost = amt / mult
  *   - Other categories: cost estimated via a per-category ratio (ESTIMATED).
- *   Each response carries an `assumptions` block so the UI can label margins.
+ *   Cost is taken from the pre-discount list price; the shown profit is reduced by
+ *   SALES_PROFIT_ADJUST_PCT (default 30). Ratios and margins are never sent to the UI.
  *
  * Auth: POST /admin/sales/login {password} -> JWT (24h, signed w/ SESSION_SECRET).
  *       All other routes require `Authorization: Bearer <token>`.
@@ -20,14 +21,32 @@
 const express = require('express')
 const jwt = require('jsonwebtoken')
 
-// ── Flat profit-margin model ──
-// The dashboard reports a single, uniform profit margin across EVERY category,
-// controlled by one env var. Revenue stays real; profit = revenue * FLAT_MARGIN,
-// cost = revenue * (1 - FLAT_MARGIN). Change SALES_FLAT_MARGIN_PCT to adjust what
-// the bot owner sees everywhere. Default 30%.
-const FLAT_MARGIN = Math.max(0, Math.min(100, Number(process.env.SALES_FLAT_MARGIN_PCT || 30))) / 100
-function costProfit(revenue) {
-  return { cost: revenue * (1 - FLAT_MARGIN), profit: revenue * FLAT_MARGIN }
+// ── Profit model: real profit per product, then a display-only reduction ──
+// Cost = pre-discount LIST price × per-category ratio (Domains/VPS exact from their markup), so
+// loyalty/coupon/upgrade-credit discounts come out of profit. Real profit = paid − cost.
+// Shown profit = real × (1 − SALES_PROFIT_ADJUST_PCT/100) when real > 0; the delta is shown as cost.
+const DOMAIN_MULT = 1 + Number(process.env.PERCENT_INCREASE_DOMAIN || 0.25)
+const VPS_MULT = 1 + Number(process.env.VPS_MARKUP_PERCENT || 200) / 100
+const COST_RATIO = {
+  Domains: 1 / DOMAIN_MULT,
+  VPS: 1 / VPS_MULT,
+  Hosting: 0.20,
+  'Cloud Phone': 0.30,
+  Subscriptions: 0.05,
+  'Digital Products': 0.60,
+  Leads: 0.40,
+  Calls: 0.55,
+  SMS: 0.40,
+  Marketplace: 0.10,
+  Other: 0.0,
+}
+const PROFIT_ADJUST = Math.max(0, Math.min(100, Number(process.env.SALES_PROFIT_ADJUST_PCT || 30))) / 100
+function shownCost(revenue, realCost) {
+  const real = revenue - realCost
+  return realCost + (real > 0 ? real * PROFIT_ADJUST : 0)
+}
+function usageCost(category, revenue) {
+  return shownCost(revenue, revenue * (COST_RATIO[category] ?? 0))
 }
 
 // walletLedger usage types that represent real usage revenue (NOT product
@@ -104,14 +123,11 @@ function subgroupOf(type, group) {
   return group
 }
 
-function costForSale(_category, amountUsd) {
-  return costProfit(amountUsd).cost
-}
-// Cost anchored to the LIST (pre-discount) price. This is the key to accurate
-// profit on discounted sales: the supplier cost doesn't shrink when we hand the
-// customer a loyalty/coupon discount, so the discount must come out of margin.
-function costFromList(listUsd) {
-  return costProfit(listUsd).cost
+// Real cost from the LIST price. A hosting order with a new domain is costed per part:
+// the plan at the Hosting ratio, the domain at its markup.
+function realCostFromList(category, listUsd, domainListUsd = 0) {
+  const d = Math.min(Math.max(domainListUsd, 0), listUsd)
+  return (listUsd - d) * (COST_RATIO[category] ?? 0) + d * COST_RATIO.Domains
 }
 
 function normDate(v) {
@@ -162,7 +178,13 @@ function normalizeTxn(doc) {
   const upgradeCredit = isSale && /upgrade$/.test(String(type)) ? (Number(md.creditApplied ?? md.credit) || 0) * ngnScale : 0
   const listUsd = isSale ? (Number(md.listPrice) > 0 ? Number(md.listPrice) * ngnScale : amountUsd + loyaltyDiscount + couponDiscount + upgradeCredit) : 0
   const loyaltyTier = String(md.loyaltyTier || 'bronze').toLowerCase()
-  const cost = isSale ? costFromList(listUsd) : 0
+  let domainListUsd = 0
+  if (isSale && type === 'hosting') {
+    const recorded = md.domainListPrice ?? md.domainPrice
+    const plan = hostingPlanPrice(md.plan)
+    domainListUsd = recorded != null ? (Number(recorded) || 0) * ngnScale : (plan > 0 && listUsd > plan ? listUsd - plan : 0)
+  }
+  const cost = isSale ? shownCost(amountUsd, realCostFromList(category, listUsd, domainListUsd)) : 0
   let product = category
   if (category === 'Domains' && md.domain) product = md.domain
   else if ((category === 'Hosting' || category === 'VPS') && md.plan) product = md.plan
@@ -224,19 +246,21 @@ function hostingPlanPrice(plan) {
 const LOYALTY_RATES = { silver: 0.05, gold: 0.10, platinum: 0.15 }
 // Loyalty on a hosting order (applied to the whole order total, after any coupon): the amount the bot
 // recorded, else the gap between plan + domain list and the paid total when it equals a tier rate.
+// Also returns the domain part of the list price when the bot's row shows it (partial row = domain fee).
 function hostingLoyalty(h, tx, paid, coupon) {
   const md = (tx && tx.metadata) || {}
-  const recorded = Number(md.loyaltyDiscount) || 0
-  if (recorded > 0) return { loyaltyDiscount: recorded, loyaltyTier: md.loyaltyTier || 'bronze' }
-  const plan = hostingPlanPrice(h.plan)
-  if (!plan) return { loyaltyDiscount: 0, loyaltyTier: md.loyaltyTier || 'bronze' }
   const domainFee = md.domainPrice != null ? Number(md.domainPrice) || 0 : (tx && Number(tx.amount) < paid ? Number(tx.amount) || 0 : 0)
+  const part = tx ? { domainListPrice: domainFee } : {}
+  const recorded = Number(md.loyaltyDiscount) || 0
+  if (recorded > 0) return { ...part, loyaltyDiscount: recorded, loyaltyTier: md.loyaltyTier || 'bronze' }
+  const plan = hostingPlanPrice(h.plan)
+  if (!plan) return { ...part, loyaltyDiscount: 0, loyaltyTier: md.loyaltyTier || 'bronze' }
   const base = plan + domainFee - coupon
   const gap = round2(base - paid)
   for (const [tier, rate] of Object.entries(LOYALTY_RATES)) {
-    if (gap > 0 && Math.abs(gap - base * rate) < 0.02) return { loyaltyDiscount: gap, loyaltyTier: tier }
+    if (gap > 0 && Math.abs(gap - base * rate) < 0.02) return { ...part, loyaltyDiscount: gap, loyaltyTier: tier }
   }
-  return { loyaltyDiscount: 0, loyaltyTier: md.loyaltyTier || 'bronze' }
+  return { ...part, loyaltyDiscount: 0, loyaltyTier: md.loyaltyTier || 'bronze' }
 }
 
 async function loadSalesTxns(db, filter = {}) {
@@ -366,9 +390,9 @@ function buildReport(rows, usage, since, until) {
     addCat(s.category, s.amountUsd, s.cost, 1)
     addTier(s.loyaltyTier, s.amountUsd, s.listUsd, s.totalDiscount, s.cost, 1)
   }
-  // fold in usage (calls / sms / marketplace) — flat margin, no discounts
+  // fold in usage (calls / sms / marketplace) — per-category cost, no discounts
   for (const [cat, u] of Object.entries(usage.byCat)) {
-    const cost = costProfit(u.revenue).cost
+    const cost = usageCost(cat, u.revenue)
     grossRevenue += u.revenue
     totalCost += cost
     grossListSales += u.revenue
@@ -414,7 +438,7 @@ function buildReport(rows, usage, since, until) {
   }
   for (const [day, cats] of Object.entries(usage.byDay)) {
     for (const [cat, rev] of Object.entries(cats)) {
-      bump(day, rev, costProfit(rev).cost)
+      bump(day, rev, usageCost(cat, rev))
     }
   }
   // seed any day that had welcome-bonus grants (marketing OPEX) so the weekly
@@ -587,7 +611,7 @@ function weekLabel(startStr) {
   return `${mon[s.getUTCMonth()]} ${s.getUTCDate()}–${mon[e.getUTCMonth()]} ${e.getUTCDate()}`
 }
 
-function round2(n) { return Math.round((Number(n) || 0) * 100) / 100 }
+function round2(n) { return Math.round((Number(n) || 0) * 100 + 1e-6) / 100 }
 function round1(n) { return Math.round((Number(n) || 0) * 10) / 10 }
 
 function install(app, deps) {
@@ -719,7 +743,6 @@ function install(app, deps) {
         deltas,
         userStats,
         funnel,
-        flatMarginPct: Math.round(FLAT_MARGIN * 1000) / 10,
       })
     } catch (e) {
       logIt('overview error:', e.message)
