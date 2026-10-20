@@ -209,6 +209,13 @@ ${process.env.PHONE_SERVICE_ON === 'true' ? `- <b>Starter — $${process.env.PHO
 - <b>Pro plan OTP</b>: Uses default system messages. Caller hears standard "Please enter the verification code..." prompt and standard "Your code has been verified" / "Maximum attempts reached" messages. No customization.
 - <b>Business plan OTP</b>: Full customization — user can write their own Confirm message (what caller hears on ✅ Confirm) and Reject/Goodbye message (what caller hears after max attempts). Also includes <b>IVR Redial</b> — a 🔁 Redial button appears after each call to instantly re-call the same number with the same settings.
 
+#### Suspended / released number (carrier suspension) — DO NOT sell a new plan by default:
+- A suspended or released NUMBER is not the same as an expired PLAN. Always read the "PHONE PLANS & EXTRA-NUMBER SLOTS" block in the user context first.
+- If the user still has an ACTIVE plan with free extra-number slots → tell them to replace the number under that plan: <b>📞 Cloud IVR + SIP</b> → <b>📋 My Plans</b> → select the active plan's number → <b>➕ Add Number to Plan</b>. State the slots (used/limit). Extra-number limits: Starter ${require('./phone-config.js').SUB_NUMBER_LIMITS.starter}, Pro ${require('./phone-config.js').SUB_NUMBER_LIMITS.pro}, Business ${require('./phone-config.js').SUB_NUMBER_LIMITS.business}. Do NOT tell them to buy another plan or "purchase a new number" as the only option.
+- If the active plan's extra-number slots are FULL → explain the limit is reached and offer the options: upgrade the plan (⬆️ Upgrade on the Manage screen, higher limit) or free a slot by releasing an unused extra number; a new plan is only one optional choice.
+- If the plan itself has EXPIRED or was cancelled (no active plan) → tell them to renew or buy a plan via <b>🛒 Choose a Plan</b>.
+- Never tell a user their number "is not suspended" when the context shows it as suspended/released. Carrier suspensions can't be reversed by us; offer escalation to a human if they want the case reviewed.
+
 #### Plan Upgrades & Downgrades:
 - <b>One-tap upgrade button</b>: From any active Starter/Pro number, the Manage screen now shows ⬆️ Upgrade to Pro / ⬆️ Upgrade to Business directly — the button label includes the live upgrade cost (e.g. "⬆️ Upgrade to Pro — $62.50") so the user knows exactly what they'll pay before tapping. No need to navigate Renew → Change Plan first.
 - <b>Upgrading</b>: User receives a 25% credit from their current plan price <b>only if their current plan is ≤14 days old</b> (purchased within the last 2 weeks). After 14 days, no credit is applied — user pays the full new-plan price. The upgrade preview screen always shows the exact charge and either "Credit (25% of starter, plan only Nd old): -$X.XX" or "No credit applied — plan Nd old, past 14-day window". Payment via Wallet, Crypto, or Bank NGN.
@@ -1119,6 +1126,42 @@ function needsEscalation(message, lang, aiResponse = null, chatId = null) {
 // ── Get user context for AI — Enhanced with last action, errors, and more ──
 // `userMessage` is optional — when provided we can fetch additional context
 // only when it's relevant (e.g. DNS records when the user mentions DNS).
+// Plan-vs-number status + extra-number slots, so the AI never confuses a suspended number with an expired plan.
+function phonePlanSlotsContext(numbers, now = Date.now()) {
+  const { getSubNumberLimit } = require('./phone-config.js')
+  const live = (n) => n.status === 'active' || n.status === 'suspended'
+  const notExpired = (n) => !n.expiresAt || new Date(n.expiresAt).getTime() > now
+  const primaries = numbers.filter(n => n && !n.isSubNumber && n.status !== 'deleted')
+  const lines = []
+  let activePlans = 0
+  let freePlans = 0
+  const full = []
+  for (const p of primaries) {
+    const plan = (p.plan || '').toLowerCase()
+    const label = `${p.plan || 'unknown'} plan on ${p.phoneNumber}`
+    if (live(p) && notExpired(p)) {
+      activePlans++
+      const limit = getSubNumberLimit(plan)
+      const used = numbers.filter(n => n && n.isSubNumber && n.parentNumber === p.phoneNumber && live(n)).length
+      if (used < limit) freePlans++; else full.push(`${p.plan} ${used}/${limit}`)
+      const slots = used < limit ? `${limit - used} free → "➕ Add Number to Plan" AVAILABLE` : 'FULL → upgrade the plan or free a slot'
+      lines.push(`PLAN ACTIVE: ${label} (number ${p.status.toUpperCase()}), expires ${p.expiresAt ? new Date(p.expiresAt).toISOString().slice(0, 10) : 'n/a'} · extra numbers ${used}/${limit} used · slots ${slots}`)
+    } else {
+      lines.push(`NO LONGER USABLE: ${label} — number ${String(p.status || 'unknown').toUpperCase()}${notExpired(p) ? ' (carrier suspension/release; paid period not over)' : ' (plan EXPIRED)'}`)
+    }
+  }
+  for (const s of numbers.filter(n => n && n.isSubNumber && !live(n) && n.status !== 'deleted')) {
+    lines.push(`EXTRA NUMBER ${s.phoneNumber} under ${s.parentNumber}: ${String(s.status).toUpperCase()} (frees its slot)`)
+  }
+  if (!lines.length) return ''
+  lines.push(freePlans > 0
+    ? 'RULE: user HAS an active phone plan with a free slot — for a suspended/released number, guide to "➕ Add Number to Plan" under that active plan and STATE the plan\'s extra-number limit and slots (e.g. "Pro: up to 15 extra numbers, 0/15 used"); never say a new plan is required.'
+    : activePlans > 0
+      ? `RULE: user HAS an active phone plan but its extra-number slots are FULL (${full.join(', ')}; suspended extra numbers still hold a slot) — "➕ Add Number to Plan" is NOT available. Explain the limit is reached and offer: upgrade the plan (higher limit) or free a slot by releasing an unused/suspended extra number. Do not say a new plan is required.`
+      : 'RULE: user has NO active phone plan — to get a number again they must renew/buy a plan (🛒 Choose a Plan).')
+  return `PHONE PLANS & EXTRA-NUMBER SLOTS (authoritative):\n  • ${lines.join('\n  • ')}`
+}
+
 async function getUserContext(chatId, userMessage = '') {
   if (!_db) return ''
   try {
@@ -1299,7 +1342,7 @@ async function getUserContext(chatId, userMessage = '') {
       }
       const phoneSummaries = []
       for (const num of phoneNumbers.slice(0, 5)) {
-        if (!num || num.status === 'deleted' || num.status === 'expired') continue
+        if (!num || num.status === 'deleted') continue
         const planKey = (num.plan || '').toLowerCase()
         const paidPrice = Number(num.planPrice || PHONE_PLAN_PRICES[planKey] || 0)
         const purchaseISO = num.purchaseDate || num.activatedAt || null
@@ -1313,12 +1356,16 @@ async function getUserContext(chatId, userMessage = '') {
         const parts = [
           `${num.phoneNumber || num._id || 'number'}`,
           `${num.plan || 'unknown'} plan ($${paidPrice}/cycle)`,
+          `number status: ${(num.status || 'unknown').toUpperCase()}`,
         ]
+        if (num.isSubNumber) parts.push(`extra number under ${num.parentNumber || 'a plan'}`)
         if (purchaseISO) parts.push(`purchased ${fmtDate(purchaseISO)}${ageDays != null ? ` (${ageDays}d ago)` : ''}`)
         if (expiresISO)  parts.push(`expires ${fmtDate(expiresISO)}${remainingDays != null ? ` (${remainingDays}d left)` : ''}`)
         if (remainingValue != null && paidPrice > 0) parts.push(`unused credit ~$${remainingValue.toFixed(2)}`)
         phoneSummaries.push(parts.join(' · '))
       }
+      const planBlock = phonePlanSlotsContext(phoneNumbers)
+      if (planBlock) context.push(planBlock)
       if (phoneSummaries.length > 0) {
         context.push(`Cloud IVR numbers:\n  • ${phoneSummaries.join('\n  • ')}`)
         // Hand the model concrete tier prices so it stops guessing.
