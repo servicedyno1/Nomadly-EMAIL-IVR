@@ -156,9 +156,11 @@ function normalizeTxn(doc) {
   // ── Discount / membership-tier fields (present on newer sales) ──
   // listPrice = pre-discount price. When absent (older sales) fall back to the
   // amount paid (treat as no discount). Cost is anchored to the LIST price.
-  const listUsd = isSale ? (Number(md.listPrice) > 0 ? Number(md.listPrice) * ngnScale : amountUsd) : 0
   const loyaltyDiscount = isSale ? (Number(md.loyaltyDiscount) || 0) * ngnScale : 0
   const couponDiscount = isSale ? (Number(md.couponDiscount) || 0) * ngnScale : 0
+  // 14-day plan-upgrade credit: a discount on the new plan's list price (comes out of profit).
+  const upgradeCredit = isSale && /upgrade$/.test(String(type)) ? (Number(md.creditApplied ?? md.credit) || 0) * ngnScale : 0
+  const listUsd = isSale ? (Number(md.listPrice) > 0 ? Number(md.listPrice) * ngnScale : amountUsd + loyaltyDiscount + couponDiscount + upgradeCredit) : 0
   const loyaltyTier = String(md.loyaltyTier || 'bronze').toLowerCase()
   const cost = isSale ? costFromList(listUsd) : 0
   let product = category
@@ -177,7 +179,8 @@ function normalizeTxn(doc) {
     listUsd,
     loyaltyDiscount,
     couponDiscount,
-    totalDiscount: round2(loyaltyDiscount + couponDiscount),
+    upgradeCredit,
+    totalDiscount: round2(loyaltyDiscount + couponDiscount + upgradeCredit),
     loyaltyTier,
     couponCode: md.couponCode || null,
     cost,
@@ -212,6 +215,30 @@ function authMiddleware(req, res, next) {
 // from hostingTransactions.priceUsd (success; domain_only keeps price minus refund as a domain sale),
 // duplicate crypto domain rows are collapsed, and wallet Cloud Phone plans can exist only as a
 // legacy `payments` row. Merged here, read-only, de-duplicated by chatId + time.
+// Pre-discount hosting plan price: the same env values the bot charges from.
+function hostingPlanPrice(plan) {
+  const p = String(plan || '')
+  const key = /golden/i.test(p) ? 'GOLDEN_ANTIRED_CPANEL_PRICE' : /week/i.test(p) ? 'PREMIUM_ANTIRED_WEEKLY_PRICE' : /premium/i.test(p) ? 'PREMIUM_ANTIRED_CPANEL_PRICE' : null
+  return key ? Number(process.env[key]) || 0 : 0
+}
+const LOYALTY_RATES = { silver: 0.05, gold: 0.10, platinum: 0.15 }
+// Loyalty on a hosting order (applied to the whole order total, after any coupon): the amount the bot
+// recorded, else the gap between plan + domain list and the paid total when it equals a tier rate.
+function hostingLoyalty(h, tx, paid, coupon) {
+  const md = (tx && tx.metadata) || {}
+  const recorded = Number(md.loyaltyDiscount) || 0
+  if (recorded > 0) return { loyaltyDiscount: recorded, loyaltyTier: md.loyaltyTier || 'bronze' }
+  const plan = hostingPlanPrice(h.plan)
+  if (!plan) return { loyaltyDiscount: 0, loyaltyTier: md.loyaltyTier || 'bronze' }
+  const domainFee = md.domainPrice != null ? Number(md.domainPrice) || 0 : (tx && Number(tx.amount) < paid ? Number(tx.amount) || 0 : 0)
+  const base = plan + domainFee - coupon
+  const gap = round2(base - paid)
+  for (const [tier, rate] of Object.entries(LOYALTY_RATES)) {
+    if (gap > 0 && Math.abs(gap - base * rate) < 0.02) return { loyaltyDiscount: gap, loyaltyTier: tier }
+  }
+  return { loyaltyDiscount: 0, loyaltyTier: md.loyaltyTier || 'bronze' }
+}
+
 async function loadSalesTxns(db, filter = {}) {
   const raw = await db.collection('transactions').find(filter).toArray()
   const chat = filter.chatId != null ? String(filter.chatId) : null
@@ -241,13 +268,15 @@ async function loadSalesTxns(db, filter = {}) {
     if (matches.length) {
       // hostingTransactions.priceUsd is the charged total; transactions rows hold a partial (domain fee / 0).
       const [tx, ...dups] = matches
+      const loy = hostingLoyalty(h, tx, price, disc)
       tx.amount = price
       tx._htMatched = true
-      tx.metadata = { ...(tx.metadata || {}), listPrice: price + disc, couponDiscount: disc, priceSource: 'hostingTransactions' }
+      tx.metadata = { ...(tx.metadata || {}), ...loy, listPrice: round2(price + loy.loyaltyDiscount + disc), couponDiscount: disc, priceSource: 'hostingTransactions' }
       for (const dup of dups) dup._superseded = true
       continue
     }
-    raw.push({ _id: `HT-${h._id}`, chatId: String(h.chatId), type: 'hosting', amount: price, currency: 'USD', status: 'completed', createdAt: h.timestamp, metadata: { domain: h.domain, plan: h.plan, listPrice: price + disc, couponDiscount: disc, priceSource: 'hostingTransactions' } })
+    const loy = hostingLoyalty(h, null, price, disc)
+    raw.push({ _id: `HT-${h._id}`, chatId: String(h.chatId), type: 'hosting', amount: price, currency: 'USD', status: 'completed', createdAt: h.timestamp, metadata: { domain: h.domain, plan: h.plan, ...loy, listPrice: round2(price + loy.loyaltyDiscount + disc), couponDiscount: disc, priceSource: 'hostingTransactions' } })
   }
   try { pays = await db.collection('payments').find({ val: /^Wallet,CloudPhone,/ }).toArray() } catch (_) {}
   for (const p of pays) {
@@ -306,7 +335,7 @@ function buildReport(rows, usage, since, until) {
   const adjustments = rows.filter((r) => r.group === 'adjustment')
 
   let grossRevenue = 0, totalCost = 0
-  let grossListSales = 0, loyaltyDiscountTotal = 0, couponDiscountTotal = 0
+  let grossListSales = 0, loyaltyDiscountTotal = 0, couponDiscountTotal = 0, upgradeCreditTotal = 0
   const catMap = {}
   const addCat = (cat, revenue, cost, count) => {
     catMap[cat] = catMap[cat] || { category: cat, revenue: 0, cost: 0, profit: 0, orders: 0 }
@@ -333,6 +362,7 @@ function buildReport(rows, usage, since, until) {
     grossListSales += s.listUsd
     loyaltyDiscountTotal += s.loyaltyDiscount
     couponDiscountTotal += s.couponDiscount
+    upgradeCreditTotal += s.upgradeCredit
     addCat(s.category, s.amountUsd, s.cost, 1)
     addTier(s.loyaltyTier, s.amountUsd, s.listUsd, s.totalDiscount, s.cost, 1)
   }
@@ -472,7 +502,7 @@ function buildReport(rows, usage, since, until) {
   }))
 
   // ── Sales by membership tier ──
-  const totalDiscountAmt = loyaltyDiscountTotal + couponDiscountTotal
+  const totalDiscountAmt = loyaltyDiscountTotal + couponDiscountTotal + upgradeCreditTotal
   const TIER_RANK = { bronze: 0, silver: 1, gold: 2, platinum: 3 }
   const TIER_NAMES = { bronze: 'Bronze', silver: 'Silver', gold: 'Gold', platinum: 'Platinum' }
   const byTier = Object.values(tierMap)
@@ -512,6 +542,7 @@ function buildReport(rows, usage, since, until) {
       grossListSales: round2(grossListSales),
       loyaltyDiscounts: round2(loyaltyDiscountTotal),
       couponDiscounts: round2(couponDiscountTotal),
+      upgradeCredits: round2(upgradeCreditTotal),
       totalDiscounts: round2(totalDiscountAmt),
       // Promo credit issued this period (welcome + first-deposit). INFORMATIONAL
       // ONLY — shown in its own panel, never subtracted from profit.
@@ -1028,4 +1059,4 @@ function install(app, deps) {
 }
 
 // normalizeTxn + buildReport exported for unit testing the profit/discount math.
-module.exports = { install, normalizeTxn, buildReport }
+module.exports = { install, normalizeTxn, buildReport, loadSalesTxns }

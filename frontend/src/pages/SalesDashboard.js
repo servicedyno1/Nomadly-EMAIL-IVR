@@ -1055,6 +1055,7 @@ function PricingCards({ data }) {
           <WaterfallRow label="List sales" value={fmtUsd(s.grossListSales || 0)} />
           <WaterfallRow icon={Award} color={C.violet} label="Loyalty discounts" value={`−${fmtUsd(s.loyaltyDiscounts || 0)}`} />
           <WaterfallRow icon={Tag} color={C.amber} label="Coupon discounts" value={`−${fmtUsd(s.couponDiscounts || 0)}`} />
+          {s.upgradeCredits > 0 && <WaterfallRow icon={Tag} color={C.amber} label="Upgrade credits" value={`−${fmtUsd(s.upgradeCredits)}`} />}
           <WaterfallRow strong color={C.mint} label="Net revenue" value={fmtUsd(s.grossRevenue || 0)} />
         </div>
         <p className="text-[#A1A1AA] text-xs mt-4 leading-relaxed">Discounts come out of profit — supplier cost is based on the full list price.</p>
