@@ -32,12 +32,12 @@ function costProfit(revenue) {
 
 // walletLedger usage types that represent real usage revenue (NOT product
 // purchases already captured in `transactions` — avoids double counting).
-const CALL_USAGE_TYPES = ['outbound_call', 'connection_fee', 'twilio_bridge_per_minute', 'inbound_call', 'call_recording', 'caller-name']
+const CALL_USAGE_TYPES = ['outbound_call', 'connection_fee', 'twilio_bridge_per_minute', 'inbound_call', 'call_recording', 'caller-name', 'sip_per_minute', 'sip_ring', 'overage_charge', 'ivr_inbound']
 const SMS_USAGE_TYPES = ['sms', 'outbound_sms']
 const MARKETPLACE_TYPES = ['marketplace_access']
 
 const SALE_TYPES = new Set([
-  'domain', 'hosting', 'vps', 'phone-number', 'cloudphone-subscription',
+  'domain', 'hosting', 'vps', 'phone-number', 'phone-sub-number', 'cloudphone-subscription',
   'plan-subscription', 'virtual-card', 'digital-product', 'digital-product-purchase',
   'leads', 'purchase', 'esim',
 ])
@@ -52,7 +52,7 @@ function categoryOf(type) {
   if (t.startsWith('domain')) return 'Domains'
   if (t === 'hosting') return 'Hosting'
   if (t === 'vps') return 'VPS'
-  if (t === 'phone-number' || t === 'cloudphone-subscription') return 'Cloud Phone'
+  if (t === 'phone-number' || t === 'phone-sub-number' || t === 'cloudphone-subscription') return 'Cloud Phone'
   if (t === 'plan-subscription') return 'Subscriptions'
   if (t === 'leads') return 'Leads'
   if (t === 'virtual-card' || t.startsWith('digital-product') || t === 'esim' || t === 'purchase') return 'Digital Products'
@@ -208,6 +208,43 @@ function authMiddleware(req, res, next) {
 }
 
 // ── Call/SMS usage aggregation from walletLedger ──
+// Sales the bot records outside `transactions` (or there with amount 0): wallet-paid hosting is
+// logged with amount 0 (real price in hostingTransactions.priceUsd) and wallet Cloud Phone plans
+// can exist only as a legacy `payments` row. Merged here, read-only, de-duplicated by chatId + time.
+async function loadSalesTxns(db, filter = {}) {
+  const raw = await db.collection('transactions').find(filter).toArray()
+  const chat = filter.chatId != null ? String(filter.chatId) : null
+  const near = (a, b) => Math.abs(new Date(a) - new Date(b)) < 10 * 60000
+  let hosting = []
+  let pays = []
+  try { hosting = await db.collection('hostingTransactions').find({ outcome: 'success' }).toArray() } catch (_) {}
+  for (const h of hosting) {
+    const price = Number(h.priceUsd) || 0
+    if (price <= 0 || (chat && String(h.chatId) !== chat)) continue
+    const disc = Number(h.couponDiscount) || 0
+    const matches = raw.filter((t) => t.type === 'hosting' && String(t.chatId) === String(h.chatId) && (t.metadata?.domain || null) === (h.domain || null) && near(t.createdAt, h.timestamp) && !t._htMatched)
+    if (matches.length) {
+      // hostingTransactions.priceUsd is the charged total; transactions rows hold a partial (domain fee / 0).
+      const [tx, ...dups] = matches
+      tx.amount = price
+      tx._htMatched = true
+      tx.metadata = { ...(tx.metadata || {}), listPrice: price + disc, couponDiscount: disc, priceSource: 'hostingTransactions' }
+      for (const dup of dups) dup._superseded = true
+      continue
+    }
+    raw.push({ _id: `HT-${h._id}`, chatId: String(h.chatId), type: 'hosting', amount: price, currency: 'USD', status: 'completed', createdAt: h.timestamp, metadata: { domain: h.domain, plan: h.plan, listPrice: price + disc, couponDiscount: disc, priceSource: 'hostingTransactions' } })
+  }
+  try { pays = await db.collection('payments').find({ val: /^Wallet,CloudPhone,/ }).toArray() } catch (_) {}
+  for (const p of pays) {
+    const f = String(p.val).split(',')
+    const amount = parseFloat(String(f[2] || '').replace('$', '')) || 0
+    const at = new Date(f.find((s) => /GMT/.test(s)) || NaN)
+    if (amount <= 0 || isNaN(at.getTime()) || (chat && f[3] !== chat)) continue
+    if (raw.some((t) => /^(phone|cloudphone)/.test(String(t.type)) && String(t.chatId) === f[3] && near(t.createdAt, at))) continue
+    raw.push({ _id: `PAY-${p._id}`, chatId: f[3], type: 'phone-number', amount, currency: 'USD', status: 'completed', createdAt: at, metadata: { priceSource: 'payments' } })
+  }
+  return raw.filter((t) => !t._superseded)
+}
 async function loadUsage(db, since, until) {
   const match = { amount: { $lt: 0 }, type: { $in: [...CALL_USAGE_TYPES, ...SMS_USAGE_TYPES, ...MARKETPLACE_TYPES] } }
   match.timestamp = { $gte: since }
@@ -530,9 +567,7 @@ function install(app, deps) {
       const since = rangeToSince(range)
       const until = new Date()
 
-      const raw = await db.collection('transactions')
-        .find({}, { projection: { _id: 1, chatId: 1, type: 1, amount: 1, currency: 1, status: 1, metadata: 1, createdAt: 1, updatedAt: 1 } })
-        .toArray()
+      const raw = await loadSalesTxns(db)
       const normalized = raw.map(normalizeTxn).filter((r) => r.date && r.date >= since && r.date <= until)
 
       const usage = await loadUsage(db, since, until)
@@ -656,7 +691,7 @@ function install(app, deps) {
       const page = Math.max(1, parseInt(req.query.page, 10) || 1)
       const limit = Math.min(200, Math.max(10, parseInt(req.query.limit, 10) || 50))
 
-      const raw = await db.collection('transactions').find({}).toArray()
+      const raw = await loadSalesTxns(db)
       let rows = raw.map(normalizeTxn).filter((r) => r.date && r.date >= since)
       if (groupFilter) rows = rows.filter((r) => r.group === groupFilter)
       if (catFilter) rows = rows.filter((r) => r.category === catFilter)
@@ -703,7 +738,7 @@ function install(app, deps) {
       const statusFilter = req.query.status || ''
       const search = String(req.query.search || '').toLowerCase().trim()
 
-      const raw = await db.collection('transactions').find({}).toArray()
+      const raw = await loadSalesTxns(db)
       let rows = raw.map(normalizeTxn).filter((r) => r.date && r.date >= since)
       if (groupFilter) rows = rows.filter((r) => r.group === groupFilter)
       if (catFilter) rows = rows.filter((r) => r.category === catFilter)
@@ -747,7 +782,7 @@ function install(app, deps) {
       db.collection('userConversion').find({}, { projection: { chatId: 1, joinedAt: 1, lang: 1, hasPurchased: 1 } }).toArray(),
       db.collection('nameOf').find({}).toArray(),
       db.collection('walletOf').find({}).toArray(),
-      db.collection('transactions').find({}).toArray(),
+      loadSalesTxns(db),
       db.collection('welcomeBonuses').find({}, { projection: { chatId: 1, bonusAmount: 1 } }).toArray(),
     ])
     const nameMap = {}
@@ -905,7 +940,7 @@ function install(app, deps) {
         db.collection('userConversion').findOne({ chatId }),
         db.collection('nameOf').findOne({ _id: chatId }),
         db.collection('walletOf').findOne({ _id: chatId }),
-        db.collection('transactions').find({ chatId }).toArray(),
+        loadSalesTxns(db, { chatId }),
         db.collection('welcomeBonuses').findOne({ chatId }),
       ])
       const txns = txnDocs.map(normalizeTxn).sort((a, b) => (b.date ? b.date.getTime() : 0) - (a.date ? a.date.getTime() : 0))
