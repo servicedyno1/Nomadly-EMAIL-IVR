@@ -1,5 +1,8 @@
 // Admin "💸 Reseller Payouts": per white-label bot eligible payout + manual payout ledger (stored on each bot's sales API)
 const crypto = require('crypto')
+const fs = require('fs')
+const path = require('path')
+const dotenv = require('dotenv')
 
 const usd = (n) => (Number(n) < 0 ? '−' : '') + '$' + Math.abs(Number(n) || 0).toFixed(2)
 const day = (d) => new Date(d).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric', timeZone: 'UTC' })
@@ -7,19 +10,37 @@ const esc = (s) => String(s ?? '').replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<'
 const btn = (text, data) => ({ text, callback_data: `aPY:${data}` })
 const back = [btn('⬅️ Back to payouts', 'list')]
 
-// RESELLER_PAYOUT_BOTS="smadav|Smadav|https://1.smadavspeech.com;voodoo|Voodoo Land|https://voodooivr.xyz"
+// RESELLER_PAYOUT_BOTS="auto" (main bot on the droplet): every app in shared/<app>/backend.env that has a sales
+// dashboard is a reseller bot — new reseller bots appear automatically. Each bot's own PAYOUT_ADMIN_KEY is used.
+function discover() {
+  const dir = process.env.RESELLER_BOTS_ENV_DIR || '/opt/nomadly/shared'
+  let apps = []
+  try { apps = fs.readdirSync(dir).sort() } catch { return [] }
+  return apps.map((app) => {
+    let env
+    try { env = dotenv.parse(fs.readFileSync(path.join(dir, app, 'backend.env'))) } catch { return null }
+    if (!env.SALES_DASHBOARD_PASSWORD || (env.CHAT_BOT_BRAND && env.CHAT_BOT_BRAND === process.env.CHAT_BOT_BRAND)) return null
+    const url = String(env.SELF_URL_PROD || env.SELF_URL || '').replace(/\/api\/?$/, '')
+    return { id: app.replace(/^app-/, '').toLowerCase(), name: env.CHAT_BOT_BRAND || app, url, key: env.PAYOUT_ADMIN_KEY || '' }
+  }).filter(Boolean)
+}
+
+// Or an explicit list: RESELLER_PAYOUT_BOTS="smadav|Smadav|https://1.smadavspeech.com;voodoo|Voodoo Land|https://voodooivr.xyz"
 function bots() {
-  return String(process.env.RESELLER_PAYOUT_BOTS || '').split(';').map((s) => s.split('|').map((x) => x.trim()))
-    .map(([id, name, url]) => ({ id, name, url: String(url || '').replace(/\/+$/, '') }))
+  const raw = String(process.env.RESELLER_PAYOUT_BOTS || '').trim()
+  const list = raw === 'auto' ? discover() : raw.split(';').map((s) => s.split('|').map((x) => x.trim()))
+    .map(([id, name, url]) => ({ id, name, url, key: process.env.PAYOUT_ADMIN_KEY || '' }))
+  return list.map((b) => ({ ...b, url: String(b.url || '').replace(/\/+$/, '') }))
     .filter((b) => /^[a-z0-9_-]{1,16}$/.test(b.id || '') && b.name && /^https?:\/\//.test(b.url))
 }
-const enabled = () => String(process.env.PAYOUT_ADMIN_KEY || '').length >= 32 && bots().length > 0
+const enabled = () => bots().length > 0
 const botById = (id) => bots().find((b) => b.id === id)
 
 async function call(bot, method, path, body) {
+  if (String(bot.key || '').length < 32) throw new Error('payout key not set up on this bot yet — redeploy it once')
   const res = await fetch(`${bot.url}/api/admin/sales${path}`, {
     method,
-    headers: { 'X-Payout-Key': process.env.PAYOUT_ADMIN_KEY, 'Content-Type': 'application/json' },
+    headers: { 'X-Payout-Key': bot.key, 'Content-Type': 'application/json' },
     body: body ? JSON.stringify(body) : undefined,
     signal: AbortSignal.timeout(45000),
   })

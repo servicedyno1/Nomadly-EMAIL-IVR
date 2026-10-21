@@ -280,6 +280,11 @@ CUR="$(current_dir)"
 echo "$P branch=$BRANCH  target=${SHA:0:8} ($SUBJECT)  active=$(rel_field "${CUR:-/nonexistent}" sha | cut -c1-8)"
 
 REL=""
+# Reseller bots (they have a sales dashboard) get a payout key once, so the main bot's 💸 Reseller Payouts finds them.
+if [ -n "$(envval SALES_DASHBOARD_PASSWORD)" ] && [ -z "$(envval PAYOUT_ADMIN_KEY)" ]; then
+  [ -n "$(tail -c1 "$SHARED/backend.env")" ] && echo >> "$SHARED/backend.env"
+  echo "PAYOUT_ADMIN_KEY=\"$(openssl rand -hex 32)\"" >> "$SHARED/backend.env" && echo "$P added PAYOUT_ADMIN_KEY (reseller payouts)"
+fi
 if ! build_release "$SHA"; then
   [ -n "$REL" ] && rm -rf "$REL"
   fail "release build failed for ${SHA:0:8} — active release untouched"
