@@ -93,6 +93,7 @@ const admin = {
  messageUsers: '👋 Message all users',
  resetDead: '🗑️ Reset Dead Users',
  gift5all: '🎁 Gift $5 All Users',
+ ...(process.env.RESELLER_PAYOUT_BOTS ? { resellerPayouts: '💸 रीसेलर भुगतान' } : {}),
 }
 const user = {
  // main keyboards
