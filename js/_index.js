@@ -50616,6 +50616,7 @@ const setupTelegramWebhook = async (retryCount = 0) => {
         { command: 'monetization', description: 'Monetization stats — bonuses, win-back, conversions' },
         { command: 'winback', description: 'Trigger win-back campaign for inactive users' },
         { command: 'escalations', description: 'List open AI-support escalations needing reply' },
+        ...(resellerPayouts.enabled() ? [{ command: 'payouts', description: 'Reseller payouts — record payouts to white-label bot owners' }] : []),
       ], {
         scope: JSON.stringify({ type: 'chat', chat_id: adminChatId }),
       })
