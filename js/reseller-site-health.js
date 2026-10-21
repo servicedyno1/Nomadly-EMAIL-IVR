@@ -10,6 +10,7 @@ const tls = require('tls')
 const dnsRepair = require('./hosting-dns-repair')
 const webhooks = require('./reseller-webhooks')
 const activity = require('./reseller-activity')
+const { distinctValues } = require('./db')
 
 const DAY = 86400000
 const FAIL_THRESHOLD = 3
@@ -131,7 +132,7 @@ async function checkHealth(acct, { deep = false } = {}) {
 }
 
 async function monitoredAccounts(db) {
-  const owners = (await db.collection('resellerApiKeys').distinct('ownerChatId', { enabled: true })).map(String)
+  const owners = (await distinctValues(db.collection('resellerApiKeys'), 'ownerChatId', { enabled: true })).map(String)
   if (!owners.length) return []
   return db.collection('cpanelAccounts').find({
     chatId: { $in: owners }, deleted: { $ne: true }, terminatedOnWhm: { $ne: true }, archived: { $ne: true },

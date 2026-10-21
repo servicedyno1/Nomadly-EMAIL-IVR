@@ -16,6 +16,7 @@
 // ============================================================
 
 const crypto = require('crypto')
+const { distinctValues } = require('./db')
 
 const RETRIES = Math.max(0, Number(process.env.RESELLER_WEBHOOK_RETRIES || 3))
 const TIMEOUT_MS = Math.max(1000, Number(process.env.RESELLER_WEBHOOK_TIMEOUT_MS || 10000))
@@ -152,7 +153,7 @@ async function emit(db, { chatId, event, instanceId, dedupKey, keyIds, payload =
 async function broadcast(db, { event, instanceId, dedupKey, payload = {}, log = () => {} } = {}) {
   if (!db || typeof db.collection !== 'function' || !event) return { delivered: 0, skipped: 0, owners: 0 }
   let owners = []
-  try { owners = await db.collection('resellerApiKeys').distinct('ownerChatId', { enabled: true, webhookUrl: { $exists: true, $ne: null } }) }
+  try { owners = await distinctValues(db.collection('resellerApiKeys'), 'ownerChatId', { enabled: true, webhookUrl: { $exists: true, $ne: null } }) }
   catch (e) { log(`[ResellerWebhook] broadcast owner lookup failed: ${e.message}`); return { delivered: 0, skipped: 0, owners: 0 } }
   let delivered = 0, skipped = 0
   for (const chatId of owners) {

@@ -31,6 +31,7 @@ const { log: clog } = require('console')
 
 const sbService = require('./safe-browsing-service')
 const webhooks = require('./reseller-webhooks')
+const { distinctValues } = require('./db')
 
 const COLLECTION = 'safeBrowsingFlags'
 const VPS_TERMINAL = ['CANCELLED', 'DESTROYED', 'DELETED', 'FAILED']
@@ -76,7 +77,7 @@ async function ensureIndexes(db) {
 // Resellers with at least one enabled API key — Safe Browsing protection is a
 // reseller-API feature, so we scope to their resources (mirrors reseller-site-health).
 async function resellerOwners(db) {
-  const ids = await db.collection('resellerApiKeys').distinct('ownerChatId', { enabled: true }).catch(() => [])
+  const ids = await distinctValues(db.collection('resellerApiKeys'), 'ownerChatId', { enabled: true }).catch(() => [])
   return [...new Set((ids || []).map(String))]
 }
 
