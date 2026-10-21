@@ -126,6 +126,24 @@ const ok = (cond, name) => { if (cond) { pass++; console.log('  ✅', name) } el
   ok(s.eligiblePayout === 24.5 && s.payoutEarnedToDate === 45 && s.payoutPaidToDate === 20.5 && s.lastPayout?.amount === 20.5 && ov.body.payouts.length === 2, 'dashboard overview: eligible 24.50, earned 45, paid 20.50, last paid 20.50, 2 history rows')
   ok(s.deposits === 500 && s.eligiblePayout < s.deposits, 'wallet deposits still never count toward payout')
 
+  console.log('Auto-discovery (future reseller bots)')
+  const os = require('os'), fs = require('fs'), path = require('path')
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'rp-'))
+  const mk = (app, lines) => { fs.mkdirSync(path.join(tmp, app)); fs.writeFileSync(path.join(tmp, app, 'backend.env'), lines.join('\n')) }
+  mk('app-main', ['CHAT_BOT_BRAND="Nomadly"', 'SELF_URL=https://main.example'])
+  mk('app-test', ['CHAT_BOT_BRAND="Test Bot"', 'SALES_DASHBOARD_PASSWORD=x', `SELF_URL_PROD=${base}/api`, `PAYOUT_ADMIN_KEY="${process.env.PAYOUT_ADMIN_KEY}"`])
+  mk('app-newbrand', ['CHAT_BOT_BRAND="New Brand"', 'SALES_DASHBOARD_PASSWORD=x', 'SELF_URL=https://new.example'])
+  process.env.RESELLER_PAYOUT_BOTS = 'auto'
+  process.env.RESELLER_BOTS_ENV_DIR = tmp
+  process.env.CHAT_BOT_BRAND = 'Nomadly'
+  const found = rp.bots()
+  ok(found.map((b) => b.id).join(',') === 'newbrand,test', 'auto mode lists every reseller bot on the server and skips the main bot')
+  ok(found.find((b) => b.id === 'test').url === base, 'SELF_URL_PROD /api suffix is stripped')
+  await admin.open(A)
+  ok(/Test Bot<\/b> — \$24\.50 eligible · last paid \$20\.50/.test(last().text), 'a discovered bot works end-to-end with its own key')
+  ok(/New Brand<\/b> — ⚠️ couldn't load \(payout key not set up/.test(last().text), 'a new bot without a key shows a setup hint instead of failing')
+  fs.rmSync(tmp, { recursive: true })
+
   console.log('Parsing')
   ok(rp.parseAmount('200') === 200 && rp.parseAmount('$1,250.5') === 1250.5 && rp.parseAmount('99.99 USD') === 99.99, 'parseAmount accepts 200 / $1,250.5 / 99.99 USD')
   ok([ '0', '-5', '1.234', 'ten', '' ].every((v) => Number.isNaN(rp.parseAmount(v))), 'parseAmount rejects 0, negatives, 3 decimals, words, empty')
