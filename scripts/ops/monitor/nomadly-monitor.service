@@ -1,0 +1,8 @@
+[Unit]
+Description=Nomadly alert feed (bots, websites, DR sync -> Telegram)
+After=network-online.target
+
+[Service]
+Type=oneshot
+TimeoutStartSec=55
+ExecStart=/usr/bin/python3 /opt/monitor/monitor.py
