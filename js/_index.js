@@ -7112,6 +7112,19 @@ Tap a button below to change. Changes sync to your phone on next app open.`
   }
 })
 
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 💸 Reseller Payouts (admin): aPY:* callbacks + typed amount/note steps (js/reseller-payouts-admin.js).
+// Ledger lives on each white-label bot (routes/sales.js /payouts); enabled by RESELLER_PAYOUT_BOTS + PAYOUT_ADMIN_KEY.
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+const resellerPayouts = require('./reseller-payouts')
+const payoutAdmin = require('./reseller-payouts-admin').createPayoutAdmin({
+  getBot: () => bot,
+  getPending: async (id) => (await get(state, id))?.awaitingAdminAction,
+  setPending: (id, v) => set(state, id, 'awaitingAdminAction', v),
+  log: (...a) => log(...a),
+})
+
+
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // Admin one-tap action callbacks (💬 Reply, 📩 Deliver, ❌/💵 Refund)
 // Buttons attached to admin-bot notifications by `notifyGroup(g, a, buildAdminButtons(...))`.
@@ -7138,6 +7151,8 @@ bot?.on('callback_query', async (query) => {
     }
     const adminId = fromId
     const ackPopup = (text) => bot.answerCallbackQuery(query.id, text ? { text } : undefined).catch(() => {})
+
+    if (data.startsWith('aPY:')) return payoutAdmin.onCallback(query, data.slice(4), adminId, ackPopup)
 
     // ── 💬 Reply User ── aR:<targetChatId>
     if (data.startsWith('aR:')) {
@@ -7621,6 +7636,8 @@ bot?.on('message', msg => {
         await set(state, chatId, 'awaitingAdminAction', null)
         message = `/deliver ${pending.orderId} ${message}`
         log(`[AdminAction] Quick-deliver rewritten → ${message.substring(0, 80)}…`)
+      } else if (pending.type === 'payout' && await payoutAdmin.onText(chatId, pending, message)) {
+        return
       }
     }
   }
@@ -8293,6 +8310,11 @@ bot?.on('message', msg => {
       await bot.sendMessage(channelId, post.text, { parse_mode: 'HTML', disable_web_page_preview: true, reply_markup: post.reply_markup })
       return send(chatId, `✅ Posted <code>${theme}</code> to channel.`, { parse_mode: 'HTML' })
     } catch (e) { return send(chatId, `❌ Channel post failed: ${e.message}`) }
+  }
+
+  // ── Admin: 💸 Reseller Payouts — record manual payouts to white-label bot owners ──
+  if (isAdmin(chatId) && resellerPayouts.enabled() && (message === '/payouts' || message === trans('admin')?.resellerPayouts)) {
+    return payoutAdmin.open(chatId)
   }
 
   // ── Admin: /hostingstatus — cPanel/WHM control plane health ──
