@@ -19,6 +19,7 @@
 require('dotenv').config()
 const { log: clog } = require('console')
 const cf = require('./cf-service')
+const { distinctValues } = require('./db')
 
 const COLLECTION = 'hostingVisits'
 const SNAPSHOT_DAYS = 7     // re-fetch a trailing window each run (CF finalizes a day a bit late)
@@ -89,7 +90,7 @@ async function totalVisitors(db, { zoneId, domain, chatId, since, until, live = 
 
 // ── Daily snapshot of every reseller hosting zone (production + active-slot only) ──
 async function resellerOwners(db) {
-  const ids = await db.collection('resellerApiKeys').distinct('ownerChatId', { enabled: true }).catch(() => [])
+  const ids = await distinctValues(db.collection('resellerApiKeys'), 'ownerChatId', { enabled: true }).catch(() => [])
   return [...new Set((ids || []).map(String))]
 }
 

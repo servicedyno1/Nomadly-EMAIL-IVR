@@ -442,7 +442,14 @@ async function del(c, _id) {
   }
 }
 
+// distinct() is rejected under serverApi { strict: true } (not in Stable API v1) — aggregate is allowed
+async function distinctValues(c, field, filter = {}) {
+  const rows = await c.aggregate([{ $match: filter }, { $group: { _id: `$${field}` } }]).toArray()
+  return rows.map(r => r._id).filter(v => v !== null && v !== undefined)
+}
+
 module.exports = {
+  distinctValues,
   increment,
   atomicIncrement,
   decrement,

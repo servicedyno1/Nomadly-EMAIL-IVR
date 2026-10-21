@@ -209,7 +209,7 @@ async function getSmsAppUserIds() {
     { $or: [{ 'val.appVersion': { $exists: true } }, { 'val.devices.0': { $exists: true } }, { 'val.lastLoginAt': { $exists: true } }] },
     { projection: { _id: 1 } }
   ).toArray()
-  const campaignIds = await smsCampaigns.distinct('chatId').catch(() => [])
+  const campaignIds = await require('./db').distinctValues(smsCampaigns, 'chatId').catch(() => [])
   const optedOut = new Set((await db.collection('promoOptOut').find({ optedOut: true }, { projection: { _id: 1 } }).toArray()).map(r => String(r._id)))
   const ids = new Set([...logins.map(d => String(d._id)), ...campaignIds.map(String)])
   return [...ids].filter(id => /^-?\d+$/.test(id) && !optedOut.has(id))
