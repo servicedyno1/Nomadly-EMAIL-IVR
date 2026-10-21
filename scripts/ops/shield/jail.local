@@ -1,0 +1,23 @@
+[DEFAULT]
+ignoreip = 127.0.0.1/8 ::1 146.190.238.190 146.190.229.132
+backend = systemd
+banaction = ufw
+banaction_allports = ufw
+
+[sshd]
+enabled  = true
+mode     = aggressive
+port     = ssh
+journalmatch = _SYSTEMD_UNIT=ssh.service + _COMM=sshd
+maxretry = 5
+findtime = 10m
+bantime  = 1h
+
+[recidive]
+enabled  = true
+backend  = auto
+logpath  = /var/log/fail2ban.log
+banaction = %(banaction_allports)s
+maxretry = 3
+findtime = 1d
+bantime  = 1w
