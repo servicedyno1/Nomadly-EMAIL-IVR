@@ -107,7 +107,7 @@ function summaryCsv(data, range) {
   const u = data.userStats || {};
   const f = data.funnel || {};
   const rows = [['Section', 'Item', 'Value', 'Profit', 'Orders'], ['Period', rangeLong(range), '', '', '']];
-  [['Gross revenue', s.grossRevenue], ['Profit', s.netProfit], ['Eligible payout (all-time)', payoutOf(s)],
+  [['Gross revenue', s.grossRevenue], ['Profit', s.netProfit], ['Eligible payout', payoutOf(s)], ['Paid out to date', s.payoutPaidToDate || 0],
     ['Average order value', s.avgOrderValue], ['Wallet deposits', s.deposits], ['Promo credit issued', promoOf(s)],
     ['Refunds', s.refunds], ['Adjustments', s.adjustments], ['List sales', s.grossListSales],
     ['Loyalty discounts', s.loyaltyDiscounts], ['Coupon discounts', s.couponDiscounts],
@@ -878,6 +878,40 @@ function Transactions({ authFetch, range, tick, categories }) {
   );
 }
 
+function PayoutHistory({ s, rows }) {
+  return (
+    <div className={`${CARD} ${PAD}`} data-testid="payout-history">
+      <div className="flex flex-wrap gap-x-8 gap-y-2 mb-4 text-sm">
+        <span className="text-[#A1A1AA]">Earned to date <span className="font-mono text-[#FAFAFA]" data-testid="payout-earned">{fmtUsd(s.payoutEarnedToDate ?? payoutOf(s))}</span></span>
+        <span className="text-[#A1A1AA]">Paid out <span className="font-mono text-[#FAFAFA]" data-testid="payout-paid">{fmtUsd(s.payoutPaidToDate || 0)}</span></span>
+        <span className="text-[#A1A1AA]">Eligible now <span className="font-mono" style={{ color: C.violet }} data-testid="payout-eligible">{fmtUsd(payoutOf(s))}</span></span>
+      </div>
+      {rows.length ? (
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm min-w-[520px]">
+            <thead>
+              <tr className={`${TH} border-b border-white/[0.06]`}>
+                <th className="text-left py-2 px-2">Date</th><th className="text-right py-2 px-2">Amount</th>
+                <th className="text-left py-2 px-2">Note</th><th className="text-left py-2 px-2">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((p) => (
+                <tr key={p.id} className={`border-b border-white/[0.04] ${p.voided ? 'opacity-50' : ''}`} data-testid={`payout-row-${p.id}`}>
+                  <td className="py-2 px-2">{fmtDate(p.paidAt)}</td>
+                  <td className={`py-2 px-2 text-right font-mono ${p.voided ? 'line-through' : ''}`}>{fmtUsd(p.amount)}</td>
+                  <td className="py-2 px-2 text-[#A1A1AA] break-all">{p.note || '—'}</td>
+                  <td className="py-2 px-2">{p.voided ? <span className="text-[#A1A1AA]">Undone {fmtDate(p.voidedAt)}</span> : <span style={{ color: C.mint }}>Paid</span>}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : <p className="text-[#A1A1AA] text-sm" data-testid="payout-empty">No payouts recorded yet. When the platform pays you, it appears here and Eligible Payout goes down by that amount.</p>}
+    </div>
+  );
+}
+
 // ─────────────────────────────────────────────────────────────
 // Tab panels
 // ─────────────────────────────────────────────────────────────
@@ -891,9 +925,13 @@ function OverviewPanel({ data }) {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4" data-testid="sales-kpis">
         <Kpi icon={DollarSign} label="Gross Revenue" value={<Money value={s.grossRevenue} />} accent="mint" delta={d.grossRevenue} sub="vs prev period" testid="kpi-revenue" />
         <Kpi icon={PiggyBank} label="Profit" value={<Money value={s.netProfit} />} accent="cyan" delta={d.netProfit} sub="revenue − cost" footnote="excludes bonuses" testid="kpi-profit" />
-        <Kpi icon={Banknote} label="Eligible Payout" value={<Money value={payout} />} accent="violet" sub="all-time · safe to withdraw" footnote="since first sale · excludes deposits & bonuses" testid="kpi-eligible-payout" />
+        <Kpi icon={Banknote} label="Eligible Payout" value={<Money value={payout} />} accent="violet" sub="earned − paid out · safe to withdraw"
+          footnote={s.lastPayout ? `Last paid ${fmtUsd(s.lastPayout.amount)} on ${fmtDate(s.lastPayout.paidAt)}` : 'No payouts recorded yet · excludes deposits & bonuses'} testid="kpi-eligible-payout" />
         <Kpi icon={ShoppingCart} label="Orders" value={fmtNum(s.orders)} accent="amber" delta={d.orders} sub={`AOV ${fmtUsd(s.avgOrderValue)}`} testid="kpi-orders" />
       </div>
+
+      <SectionHeading title="Payouts" hint="Payments the platform has sent you" testid="section-payouts" />
+      <PayoutHistory s={s} rows={data.payouts || []} />
 
       <SectionHeading title="Users & conversion" hint="Joined → deposited → purchased" testid="section-users" />
       <div className="grid grid-cols-1 xl:grid-cols-5 gap-4">

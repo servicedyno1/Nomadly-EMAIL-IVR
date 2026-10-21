@@ -17,6 +17,7 @@
  *
  * Mounted at /admin/sales — reachable externally at <pod>/api/admin/sales/*.
  */
+const crypto = require('crypto')
 const express = require('express')
 const jwt = require('jsonwebtoken')
 
@@ -590,6 +591,33 @@ function weekLabel(startStr) {
 function round2(n) { return Math.round((Number(n) || 0) * 100) / 100 }
 function round1(n) { return Math.round((Number(n) || 0) * 10) / 10 }
 
+// ── Payout ledger: manual payouts the platform admin records from the main bot ──
+// Eligible payout = all-time profit (earned to date) − Σ non-voided payouts. Nothing is deleted.
+const PAYOUTS = 'resellerPayouts'
+function payoutKeyOk(req) {
+  const want = process.env.PAYOUT_ADMIN_KEY || ''
+  const got = String(req.headers['x-payout-key'] || '')
+  return want.length >= 32 && got.length === want.length && crypto.timingSafeEqual(Buffer.from(got), Buffer.from(want))
+}
+function payoutKeyAuth(req, res, next) {
+  return payoutKeyOk(req) ? next() : res.status(401).json({ error: 'Invalid payout key' })
+}
+function publicPayout(p, full) {
+  const out = { id: String(p._id), amount: round2(p.amount), paidAt: p.paidAt, note: p.note || '', voided: !!p.voided, voidedAt: p.voidedAt || null }
+  if (full) out.recordedBy = p.recordedBy || null
+  return out
+}
+async function payoutSummary(db, raw, full = false) {
+  const until = new Date()
+  const epoch = new Date(0)
+  const earned = buildReport(raw.map(normalizeTxn).filter((r) => r.date), await loadUsage(db, epoch, until), epoch, until).summary.payout
+  const col = db.collection(PAYOUTS)
+  const [agg] = await col.aggregate([{ $match: { voided: { $ne: true } } }, { $group: { _id: null, total: { $sum: '$amount' } } }]).toArray()
+  const paid = round2(agg ? agg.total : 0)
+  const history = (await col.find({}).sort({ paidAt: -1 }).limit(20).toArray()).map((p) => publicPayout(p, full))
+  return { earnedToDate: round2(earned), paidToDate: paid, eligible: round2(earned - paid), lastPayout: history.find((p) => !p.voided) || null, history }
+}
+
 function install(app, deps) {
   const { getDb, log } = deps
   const router = express.Router()
@@ -624,14 +652,14 @@ function install(app, deps) {
       const report = buildReport(normalized, usage, since, until)
 
       // ── Eligible payout (range-independent) ──
-      // Cumulative profit that is safe to withdraw since the VERY FIRST sale —
-      // NOT the selected range and NOT just this week. Always all-time.
+      // All-time profit since the first sale minus payouts the admin has recorded.
       try {
-        const epoch = new Date(0)
-        const allNorm = raw.map(normalizeTxn).filter((r) => r.date)
-        const allUsage = await loadUsage(db, epoch, until)
-        const allReport = buildReport(allNorm, allUsage, epoch, until)
-        report.summary.eligiblePayout = allReport.summary.payout
+        const ps = await payoutSummary(db, raw)
+        report.summary.eligiblePayout = ps.eligible
+        report.summary.payoutEarnedToDate = ps.earnedToDate
+        report.summary.payoutPaidToDate = ps.paidToDate
+        report.summary.lastPayout = ps.lastPayout
+        report.payouts = ps.history
       } catch (_) {
         report.summary.eligiblePayout = report.summary.payout
       }
@@ -1054,9 +1082,74 @@ function install(app, deps) {
     }
   })
 
+  // ── Payouts: dashboard token (owner, read-only) or X-Payout-Key (platform admin via the main bot) ──
+  router.get('/payouts', (req, res, next) => (payoutKeyOk(req) ? next() : authMiddleware(req, res, next)), async (req, res) => {
+    try {
+      const db = getDb()
+      if (!db) return res.status(503).json({ error: 'DB not ready' })
+      res.json({ brand: process.env.CHAT_BOT_BRAND || '', ...(await payoutSummary(db, await loadSalesTxns(db), payoutKeyOk(req))) })
+    } catch (e) {
+      logIt('payouts error:', e.message)
+      res.status(500).json({ error: e.message })
+    }
+  })
+
+  router.post('/payouts', payoutKeyAuth, async (req, res) => {
+    try {
+      const db = getDb()
+      if (!db) return res.status(503).json({ error: 'DB not ready' })
+      const { amount, note, requestId, recordedBy } = req.body || {}
+      const amt = round2(amount)
+      if (!(amt > 0)) return res.status(400).json({ error: 'Amount must be greater than $0' })
+      if (typeof requestId !== 'string' || !/^[\w-]{8,64}$/.test(requestId)) return res.status(400).json({ error: 'Invalid requestId' })
+      const col = db.collection(PAYOUTS)
+      await col.createIndex({ requestId: 1 }, { unique: true })
+      const raw = await loadSalesTxns(db)
+      const dup = await col.findOne({ requestId })
+      if (dup) return res.json({ duplicate: true, payout: publicPayout(dup, true), ...(await payoutSummary(db, raw, true)) })
+      const before = await payoutSummary(db, raw, true)
+      if (amt > before.eligible + 0.005) return res.status(400).json({ error: `Amount is more than the eligible payout ($${before.eligible.toFixed(2)})` })
+      const doc = {
+        requestId, amount: amt, currency: 'USD', paidAt: new Date(), note: String(note || '').trim().slice(0, 200),
+        recordedBy: { chatId: String(recordedBy?.chatId || ''), username: String(recordedBy?.username || '') },
+        earnedAtRecord: before.earnedToDate, eligibleBefore: before.eligible,
+      }
+      try {
+        doc._id = (await col.insertOne(doc)).insertedId
+      } catch (e) {
+        if (e.code !== 11000) throw e
+        return res.json({ duplicate: true, payout: publicPayout(await col.findOne({ requestId }), true), ...(await payoutSummary(db, raw, true)) })
+      }
+      logIt(`payout recorded $${amt} by ${doc.recordedBy.username || doc.recordedBy.chatId} (eligible ${before.eligible} → ${round2(before.eligible - amt)})`)
+      res.json({ payout: publicPayout(doc, true), ...(await payoutSummary(db, raw, true)) })
+    } catch (e) {
+      logIt('payout record error:', e.message)
+      res.status(500).json({ error: e.message })
+    }
+  })
+
+  router.post('/payouts/undo-last', payoutKeyAuth, async (req, res) => {
+    try {
+      const db = getDb()
+      if (!db) return res.status(503).json({ error: 'DB not ready' })
+      const col = db.collection(PAYOUTS)
+      const last = await col.find({ voided: { $ne: true } }).sort({ paidAt: -1 }).limit(1).next()
+      if (!last) return res.status(404).json({ error: 'No payout to undo' })
+      if (req.body?.id && String(req.body.id) !== String(last._id)) return res.status(409).json({ error: 'The last payout changed — open the bot card again' })
+      const by = req.body?.recordedBy || {}
+      const voidedAt = new Date()
+      await col.updateOne({ _id: last._id, voided: { $ne: true } }, { $set: { voided: true, voidedAt, voidedBy: { chatId: String(by.chatId || ''), username: String(by.username || '') } } })
+      logIt(`payout undone $${last.amount} (${last._id})`)
+      res.json({ undone: publicPayout({ ...last, voided: true, voidedAt }, true), ...(await payoutSummary(db, await loadSalesTxns(db), true)) })
+    } catch (e) {
+      logIt('payout undo error:', e.message)
+      res.status(500).json({ error: e.message })
+    }
+  })
+
   app.use('/admin/sales', router)
   logIt('Sales dashboard routes mounted at /admin/sales')
 }
 
 // normalizeTxn + buildReport exported for unit testing the profit/discount math.
-module.exports = { install, normalizeTxn, buildReport, loadSalesTxns }
+module.exports = { install, normalizeTxn, buildReport, loadSalesTxns, PAYOUTS }
