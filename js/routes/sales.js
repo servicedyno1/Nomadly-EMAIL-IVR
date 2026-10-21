@@ -596,8 +596,15 @@ function round1(n) { return Math.round((Number(n) || 0) * 10) / 10 }
 const PAYOUTS = 'resellerPayouts'
 function payoutKeyOk(req) {
   const want = process.env.PAYOUT_ADMIN_KEY || ''
-  const got = String(req.headers['x-payout-key'] || '')
-  return want.length >= 32 && got.length === want.length && crypto.timingSafeEqual(Buffer.from(got), Buffer.from(want))
+  const got = Buffer.from(String(req.headers['x-payout-key'] || ''))
+  return want.length >= 32 && got.length === Buffer.byteLength(want) && crypto.timingSafeEqual(got, Buffer.from(want))
+}
+// Payout writes run one at a time in this process; a post-insert check also guards against a second process.
+let payoutQueue = Promise.resolve()
+function serialized(fn) {
+  const run = payoutQueue.then(fn, fn)
+  payoutQueue = run.catch(() => {})
+  return run
 }
 function payoutKeyAuth(req, res, next) {
   return payoutKeyOk(req) ? next() : res.status(401).json({ error: 'Invalid payout key' })
@@ -615,7 +622,8 @@ async function payoutSummary(db, raw, full = false) {
   const [agg] = await col.aggregate([{ $match: { voided: { $ne: true } } }, { $group: { _id: null, total: { $sum: '$amount' } } }]).toArray()
   const paid = round2(agg ? agg.total : 0)
   const history = (await col.find({}).sort({ paidAt: -1 }).limit(20).toArray()).map((p) => publicPayout(p, full))
-  return { earnedToDate: round2(earned), paidToDate: paid, eligible: round2(earned - paid), lastPayout: history.find((p) => !p.voided) || null, history }
+  const last = await col.find({ voided: { $ne: true } }).sort({ paidAt: -1 }).limit(1).next()
+  return { earnedToDate: round2(earned), paidToDate: paid, eligible: round2(earned - paid), lastPayout: last ? publicPayout(last, full) : null, history }
 }
 
 function install(app, deps) {
@@ -1094,7 +1102,7 @@ function install(app, deps) {
     }
   })
 
-  router.post('/payouts', payoutKeyAuth, async (req, res) => {
+  router.post('/payouts', payoutKeyAuth, (req, res) => serialized(async () => {
     try {
       const db = getDb()
       if (!db) return res.status(503).json({ error: 'DB not ready' })
@@ -1120,15 +1128,20 @@ function install(app, deps) {
         if (e.code !== 11000) throw e
         return res.json({ duplicate: true, payout: publicPayout(await col.findOne({ requestId }), true), ...(await payoutSummary(db, raw, true)) })
       }
-      logIt(`payout recorded $${amt} by ${doc.recordedBy.username || doc.recordedBy.chatId} (eligible ${before.eligible} → ${round2(before.eligible - amt)})`)
-      res.json({ payout: publicPayout(doc, true), ...(await payoutSummary(db, raw, true)) })
+      const after = await payoutSummary(db, raw, true)
+      if (after.eligible < -0.005) {
+        await col.deleteOne({ _id: doc._id })
+        return res.status(409).json({ error: 'Another payout was recorded at the same moment — open the bot card again' })
+      }
+      logIt(`payout recorded $${amt} by ${doc.recordedBy.username || doc.recordedBy.chatId} (eligible ${before.eligible} → ${after.eligible})`)
+      res.json({ payout: publicPayout(doc, true), ...after })
     } catch (e) {
       logIt('payout record error:', e.message)
       res.status(500).json({ error: e.message })
     }
-  })
+  }))
 
-  router.post('/payouts/undo-last', payoutKeyAuth, async (req, res) => {
+  router.post('/payouts/undo-last', payoutKeyAuth, (req, res) => serialized(async () => {
     try {
       const db = getDb()
       if (!db) return res.status(503).json({ error: 'DB not ready' })
@@ -1145,7 +1158,7 @@ function install(app, deps) {
       logIt('payout undo error:', e.message)
       res.status(500).json({ error: e.message })
     }
-  })
+  }))
 
   app.use('/admin/sales', router)
   logIt('Sales dashboard routes mounted at /admin/sales')
