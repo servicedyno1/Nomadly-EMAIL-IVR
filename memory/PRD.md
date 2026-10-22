@@ -15,7 +15,10 @@
 - Tests: test_bulk_telnyx_2026-10 48/48, test_bulk_controls_edge_2026-10 32/32 (new), bot_ui_bulk_ivr_2026-10 59/59 (new, mock
   Telegram), test_bulk_telnyx_edge 17/17, bulkivr_wallet 10/10, twilio_switch 43/43, provider_suspended 7/8 (REQ-69 baseline),
   i18n coverage + parity 79/79; iteration_106 + iteration_107. No real calls placed.
-- PENDING (user): try one small live campaign; Save to GitHub + deploy (TWILIO_ENABLED=false in prod).
+- PROD 2026-10-22 08:42Z: TWILIO_ENABLED=false added to all 4 droplet brand envs (app-main/app-wl/app-voodoo/app-proshop,
+  backups `.bak.twilio-off.20261022T084243Z`); inert until the new code deploys. WhiteLabel sync dry-run clean.
+- PENDING (user): Save to GitHub (main) → CI deploys all 4; then agent verifies health/flag/new release on droplet;
+  try one small live campaign. User pasted a GitHub PAT in chat — advised to revoke (agent does not push).
 
 ## 2026-10-16 — SIP "503" low-balance UX: never-silent alert + top-up re-enable confirmation + threshold retune (ALL 4 bots) — LIVE
 - RCA (Nomadly @pirate_script 1005284399): number +18445716353 & SIP cred healthy; Zoiper "503" was a correct LOW BALANCE

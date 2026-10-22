@@ -34,6 +34,11 @@ Set `TWILIO_ENABLED=false` in BOTH prod envs, then redeploy/restart:
 - Railway service `Nomadly-EMAIL-IVR` (env `production`)
 - Droplet `/opt/nomadly/shared/{app-main,app-wl}/backend.env`
 Also re-lock the vault after editing sandbox .env if it becomes the source of truth.
+- ✅ DONE 2026-10-22 08:42Z: `TWILIO_ENABLED=false` appended to ALL 4 droplet envs
+  `/opt/nomadly/shared/{app-main,app-wl,app-voodoo,app-proshop}/backend.env` (backups `backend.env.bak.twilio-off.20261022T084243Z`).
+  All 4 brands share the same (suspended) Twilio SID. No restart: running releases (21 Oct) predate the flag; it takes
+  effect on the next deploy (owner "Save to GitHub" → main deploy + Sync main → WhiteLabel → wl/voodoo/proshop).
+  Railway is dormant — not changed. WhiteLabel sync dry-run: clean (exit 0, _index.js + voice-service.js 3-way merged).
 **And top up the Telnyx balance** (currently $6.92).
 
 ## Phase 0 — DONE (sandbox, 2026-10-22) — steer new purchases to Telnyx
