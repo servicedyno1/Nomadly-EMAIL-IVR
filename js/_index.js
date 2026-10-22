@@ -755,6 +755,7 @@ const marketplaceService = require('./marketplace-service.js')
 const mpSafeDeal = require('./mp-safedeal.js')
 const depositFunnel = require('./deposit-funnel.js')
 const regulatoryFlow = require('./regulatory-flow.js')
+const txReg = require('./telnyx-regulatory.js') // Telnyx intl numbers: pre-payment verification + review tracking
 const { needsDocUpload } = require('./regulatory-config.js')
 const smsAppService = require('./sms-app-service.js')
 
@@ -1283,6 +1284,294 @@ function getSubNumberPrice(countryCode, numberType, provider) {
   const monthlyPrice = cc?.prices?.[numberType] || 0
   const withMarkup = monthlyPrice * (1 + phoneConfig.SUB_NUMBER_MARKUP) // cost + 50% markup
   return Math.max(phoneConfig.SUB_NUMBER_BASE_PRICE, Math.round(withMarkup * 100) / 100)
+}
+
+// ━━━ Telnyx international checkout (2026-10) ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// Surcharge from the LIVE Telnyx cost of the selected number (same ≥$5 rule as
+// Twilio): monthly part is shown as "/mo", the one-time upfront part as setup fee.
+function getTelnyxIntlSurcharge(sel) {
+  const thr = twilioService.NUMBER_COST_FREE_THRESHOLD
+  const m = parseFloat(sel?.cost_information?.monthly_cost) || 0
+  const u = parseFloat(sel?.cost_information?.upfront_cost) || 0
+  return { monthly: m >= thr ? Math.round(m * 100) / 100 : 0, setup: u >= thr ? Math.round(u * 100) / 100 : 0 }
+}
+const isTelnyxIntl = (provider, cc) => provider === 'telnyx' && !['US', 'CA'].includes(String(cc || 'US').toUpperCase())
+
+/**
+ * Telnyx purchase entry point for every payment path (wallet / bank / BlockBee / DynoPay), AFTER payment.
+ *  • US/CA + intl countries without requirements → telnyxApi.buyNumber (instant, unchanged)
+ *  • Countries with requirements → pay-first verification chat (same as the Twilio flow);
+ *    returns { _verification: true } → caller stops (no refund, no activation now).
+ * Returns null on failure → caller refunds exactly as before.
+ */
+async function telnyxPaidCheckout(chatId, selectedNumber, ctx = {}) {
+  const { countryCode = 'US', numberType = 'local', areaCode = null } = ctx
+  const retry = { countryCode, numberType, areaCode }
+  if (!isTelnyxIntl('telnyx', countryCode)) {
+    return telnyxApi.buyNumber(selectedNumber, telnyxResources.sipConnectionId, telnyxResources.messagingProfileId, retry)
+  }
+  const mpId = ctx.capabilities?.sms === false ? null : telnyxResources.messagingProfileId
+  const rq = await txReg.getRequirements(countryCode, numberType)
+  if (!rq.ok) { log(`[TelnyxCheckout] requirements lookup failed for ${countryCode}/${numberType} — not ordering`); return null }
+  if (!rq.reqs.length) return telnyxApi.buyNumber(selectedNumber, telnyxResources.sipConnectionId, mpId, retry)
+  const lang = ctx.lang || 'en'
+  if (ctx.isSubNumber) { send(chatId, txReg.T(lang).subNotSupported, { parse_mode: 'HTML' }); return null }
+  const payment = {
+    planKey: ctx.planKey || 'starter', price: Number(ctx.price) || 0, paymentMethod: ctx.paymentMethod || 'unknown',
+    refund: ctx.refund || { currency: 'usd', amount: Number(ctx.price) || 0 },
+    capabilities: ctx.capabilities || { voice: true, sms: mpId !== null, fax: false }, areaCode, numberCost: ctx.numberCost || null,
+  }
+  const st = await txReg.startSession(chatId, { countryCode, numberType, countryName: ctx.countryName, selectedNumber, reqs: rq.reqs, lang, payment })
+  if (!st.ok) { send(chatId, st.text, { parse_mode: 'HTML' }); return null }
+  await set(state, chatId, 'action', 'cpTxReg')
+  send(chatId, `${st.intro}\n\n${st.prompt.text}`, { parse_mode: 'HTML', reply_markup: { keyboard: st.prompt.keyboard, resize_keyboard: true } })
+  notifyAdmin(`🛂 [Telnyx] Paid — collecting verification details\nchatId: ${chatId}\nnumber: ${selectedNumber}\ncountry: ${countryCode}/${numberType}\npaid: ${txReg.fmtAmount(payment.refund)} (${payment.paymentMethod})`)
+  if (cartRecovery) cartRecovery.recordPaymentCompleted(String(chatId))
+  if (userConversion) userConversion.markPurchased(chatId)
+  return { _verification: true, sessionId: st.session._id }
+}
+
+// Cached live requirements → true when the paid order will go through verification (skip "Purchasing…" text)
+async function telnyxNeedsVerification(provider, countryCode, numberType) {
+  if (!isTelnyxIntl(provider || 'telnyx', countryCode)) return false
+  const rq = await txReg.getRequirements(countryCode, numberType || 'local')
+  return !!(rq.ok && rq.reqs.length)
+}
+
+async function refundTelnyxVerification(chatId, refund, lang) {
+  const cur = refund?.currency === 'ngn' ? 'ngn' : 'usd'
+  const amt = Number(refund?.amount) || 0
+  try { if (amt > 0) await addFundsTo(walletOf, chatId, cur, amt, lang || 'en') } catch (e) {
+    notifyAdmin(`🚨 CRITICAL [TelnyxVerify] refund failed\nchatId: ${chatId}\namount: ${amt} ${cur}\nerror: ${e.message}`)
+  }
+}
+
+// /cancel, "Cancel & Refund" from the resume menu → close the paid session + refund once.
+async function cancelTelnyxVerification(chatId, lang) {
+  const s = await txReg.cancelSession(chatId)
+  if (!s) return false
+  const l = lang || s.lang || 'en'
+  await set(state, chatId, 'action', 'none')
+  await refundTelnyxVerification(chatId, s.payment?.refund, l)
+  send(chatId, txReg.T(l).cancelled(txReg.fmtAmount(s.payment?.refund)), translation('o', l))
+  notifyAdmin(`↩️ [TelnyxVerify] Cancelled by user → refunded ${txReg.fmtAmount(s.payment?.refund)}\nchatId: ${chatId}\nnumber: ${s.selectedNumber}\ncountry: ${s.countryCode}/${s.numberType}`)
+  return true
+}
+
+// One user message (text / photo / document) for the active verification. Returns false when no session.
+async function handleTelnyxVerificationInput(chatId, input, lang) {
+  const r = await txReg.handleInput(chatId, input, lang)
+  if (!r) { await set(state, chatId, 'action', 'none'); return false }
+  if (r.closed) { await set(state, chatId, 'action', 'none'); return true }
+  if (r.cancelled) {
+    await set(state, chatId, 'action', 'none')
+    if (r.refundable) {
+      await refundTelnyxVerification(chatId, r.session?.payment?.refund, lang)
+      notifyAdmin(`↩️ [TelnyxVerify] Cancelled by user → refunded ${txReg.fmtAmount(r.session?.payment?.refund)}\nchatId: ${chatId}\nnumber: ${r.session?.selectedNumber}`)
+    }
+    send(chatId, r.text, translation('o', lang))
+    return true
+  }
+  if (r.done) {
+    await set(state, chatId, 'action', 'none')
+    send(chatId, r.text, { reply_markup: { remove_keyboard: true } })
+    await submitTelnyxVerification(r.session)
+    return true
+  }
+  send(chatId, r.text, { parse_mode: 'HTML', reply_markup: { keyboard: r.keyboard, resize_keyboard: true } })
+  return true
+}
+
+const TELNYX_NUMBER_GONE = /recognize|did you first search|not available|no longer available|already (been )?(reserved|ordered|purchased)/i
+
+// User tapped Submit → order with the collected details. Active → activate now; pending → review poller.
+async function submitTelnyxVerification(session) {
+  try { return await _submitTelnyxVerification(session) } catch (e) {
+    log(`[TelnyxVerify] submit crashed for ${session.chatId}: ${e.message}`)
+    const s = await txReg.getSessionById(session._id)
+    if (s?.status === 'submitting') {
+      await txReg.setStatus(session._id, 'refunded', { reason: `crash: ${e.message}` })
+      await refundTelnyxVerification(session.chatId, session.payment?.refund, session.lang)
+      send(session.chatId, txReg.T(session.lang).orderFailed(txReg.fmtAmount(session.payment?.refund)), translation('o', session.lang || 'en'))
+    }
+    notifyAdmin(`🚨 [TelnyxVerify] submit crashed (${s?.status || 'unknown'})\nchatId: ${session.chatId}\nnumber: ${session.selectedNumber}\nerror: ${e.message}`)
+  }
+}
+async function _submitTelnyxVerification(session) {
+  const chatId = session.chatId
+  const lang = session.lang || 'en'
+  const p = session.payment || {}
+  const t = txReg.T(lang)
+  const opts = {
+    connectionId: telnyxResources.sipConnectionId,
+    messagingProfileId: p.capabilities?.sms === false ? null : telnyxResources.messagingProfileId,
+    customerReference: `nomadly-${chatId}`,
+  }
+  let r = await txReg.placeRegulatedOrder(session, opts)
+  if (!r.ok && TELNYX_NUMBER_GONE.test(r.error || '')) {
+    // Replacement must not cost us more than the number the user paid for
+    const cap = p.numberCost
+    const cost = n => ({ m: parseFloat(n.cost_information?.monthly_cost) || 0, u: parseFloat(n.cost_information?.upfront_cost) || 0 })
+    const fresh = (await telnyxApi.searchNumbers(session.countryCode, session.numberType, p.areaCode || null, 5))
+      .find(n => n.phone_number !== session.selectedNumber && (!cap || (cost(n).m <= cap.monthly + 0.01 && cost(n).u <= cap.upfront + 0.01)))
+    if (fresh) {
+      log(`[TelnyxVerify] ${session.selectedNumber} no longer available — retrying with ${fresh.phone_number} for ${chatId}`)
+      await txReg.setStatus(session._id, 'submitting', { selectedNumber: fresh.phone_number, replacedNumber: session.selectedNumber })
+      session.selectedNumber = fresh.phone_number
+      r = await txReg.placeRegulatedOrder(session, opts)
+    }
+  }
+  if (!r.ok || r.state === 'failed') {
+    const reason = String(r.error || r.order?.status || 'failed').slice(0, 300)
+    await txReg.setStatus(session._id, 'refunded', { reason })
+    await refundTelnyxVerification(chatId, p.refund, lang)
+    send(chatId, t.orderFailed(txReg.fmtAmount(p.refund)), translation('o', lang))
+    notifyAdmin(`❌ [TelnyxVerify] Regulated order failed — user refunded ${txReg.fmtAmount(p.refund)}\nchatId: ${chatId}\nnumber: ${session.selectedNumber}\ncountry: ${session.countryCode}/${session.numberType}\nerror: ${reason}`)
+    return
+  }
+  const doc = {
+    _id: r.order.id, orderId: r.order.id, chatId: String(chatId), phoneNumber: session.selectedNumber, sessionId: session._id,
+    countryCode: session.countryCode, countryName: session.countryName || session.countryCode, numberType: session.numberType,
+    planKey: p.planKey || 'starter', price: Number(p.price) || 0, paymentMethod: p.paymentMethod || 'unknown',
+    refund: p.refund || { currency: 'usd', amount: Number(p.price) || 0 },
+    capabilities: p.capabilities || { voice: true, sms: false, fax: false },
+    lang, status: 'under_review', checks: 0, createdAt: new Date(), nextCheckAt: new Date(Date.now() + 2 * 60 * 1000),
+  }
+  try {
+    await telnyxPendingOrders.insertOne(doc)
+  } catch (e) {
+    await txReg.setStatus(session._id, 'ordered_untracked', { trackError: e.message })
+    notifyAdmin(`🚨 [TelnyxVerify] Order ${r.order.id} placed but NOT tracked (${e.message}) — check manually\nchatId: ${chatId}\nnumber: ${session.selectedNumber}`)
+    return
+  }
+  if (r.state === 'active') { await activateTelnyxReviewedOrder(doc); return }
+  send(chatId, t.underReview(session.selectedNumber, doc.countryName), translation('o', lang))
+  notifyAdmin(`🛂 [Telnyx] Number under regulatory review\nchatId: ${chatId}\nnumber: ${session.selectedNumber}\ncountry: ${session.countryCode}/${session.numberType}\norder: ${r.order.id}\npaid: ${txReg.fmtAmount(doc.refund)} (${doc.paymentMethod})`)
+}
+
+// Paid but unfinished verifications: one reminder after 6h idle, auto-refund after 48h idle.
+async function sweepTelnyxVerifications() {
+  const { remind, expire, stuck } = await txReg.findAbandoned()
+  for (const s of stuck) {
+    await txReg.markStuckAlerted(s._id)
+    notifyAdmin(`⚠️ [TelnyxVerify] Session stuck in 'submitting' for 30+ min — check Telnyx orders, then refund or activate manually\nchatId: ${s.chatId}\nnumber: ${s.selectedNumber}\nsession: ${s._id}\npaid: ${txReg.fmtAmount(s.payment?.refund)}`)
+  }
+  for (const s of expire) {
+    const closed = await txReg.closeSession(s._id, 'expired', { expiredAt: new Date() })
+    if (!closed) continue
+    const l = s.lang || 'en'
+    const amt = txReg.fmtAmount(s.payment?.refund)
+    await refundTelnyxVerification(s.chatId, s.payment?.refund, l)
+    const st = await get(state, s.chatId)
+    if (st?.action === 'cpTxReg') await set(state, s.chatId, 'action', 'none')
+    send(s.chatId, txReg.T(l).expired(String(s.countryName || s.countryCode), amt), translation('o', l))
+    notifyAdmin(`⌛ [TelnyxVerify] Not completed in 48h → refunded ${amt}\nchatId: ${s.chatId}\nnumber: ${s.selectedNumber}`)
+  }
+  for (const s of remind) {
+    await txReg.markReminded(s._id)
+    send(s.chatId, txReg.T(s.lang || 'en').reminder(String(s.countryName || s.countryCode), txReg.fmtAmount(s.payment?.refund)), { parse_mode: 'HTML' })
+  }
+  return { reminded: remind.length, expired: expire.length }
+}
+
+// Approved by the carrier → configure + save the number exactly like a normal purchase.
+async function activateTelnyxReviewedOrder(doc) {
+  const claim = await telnyxPendingOrders.updateOne({ _id: doc._id, status: 'under_review' }, { $set: { status: 'activating', activatingAt: new Date() } })
+  if (!claim.modifiedCount) return false
+  const chatId = doc.chatId
+  const lang = doc.lang || 'en'
+  const cpTxt = phoneConfig.getTxt(lang)
+  const plan = phoneConfig.plans[doc.planKey] || { name: doc.planKey, price: doc.price }
+  const caps = doc.capabilities || { voice: true, sms: false, fax: false }
+  try {
+    if (telnyxResources.callControlAppId) await telnyxApi.assignNumberToCallControlApp(doc.phoneNumber, telnyxResources.callControlAppId)
+    let sipUsername = phoneConfig.generateSipUsername()
+    let sipPassword = phoneConfig.generateSipPassword()
+    let credId = null
+    if (telnyxResources.sipConnectionId) {
+      const tc = await telnyxApi.createSIPCredential(telnyxResources.sipConnectionId, sipUsername, sipPassword)
+      if (tc?.sip_username) { sipUsername = tc.sip_username; sipPassword = tc.sip_password || sipPassword; credId = tc.id || null }
+    }
+    const expiresAt = new Date(); expiresAt.setMonth(expiresAt.getMonth() + 1) // plan starts at activation
+    const numberDoc = {
+      phoneNumber: doc.phoneNumber, telnyxOrderId: doc.orderId, provider: 'telnyx',
+      country: doc.countryCode, countryName: doc.countryName, type: doc.numberType,
+      plan: doc.planKey, planPrice: Number(plan.price) || doc.price,
+      purchaseDate: new Date().toISOString(), expiresAt: expiresAt.toISOString(),
+      autoRenew: true, status: 'active', regulatoryVerified: true,
+      sipUsername, sipPassword, telnyxSipUsername: sipUsername, telnyxSipPassword: sipPassword, telnyxCredentialId: credId,
+      sipDomain: phoneConfig.SIP_DOMAIN,
+      messagingProfileId: caps.sms ? telnyxResources.messagingProfileId : null,
+      connectionId: telnyxResources.sipConnectionId,
+      smsUsed: 0, minutesUsed: 0, capabilities: caps,
+      features: { sms: !!caps.sms,
+        callForwarding: { enabled: false, mode: 'disabled', forwardTo: null, ringTimeout: 25, holdMusic: false },
+        voicemail: { enabled: false, greetingType: 'default', customGreetingUrl: null, forwardToTelegram: true, forwardToEmail: null, ringTimeout: 25 },
+        smsForwarding: { toTelegram: true, toEmail: null, webhookUrl: null },
+        faxForwarding: { toTelegram: true },
+        recording: false },
+    }
+    await phoneNumbersOf.updateOne({ _id: chatId }, { $push: { 'val.numbers': numberDoc } }, { upsert: true })
+    await phoneTransactions.insertOne({ chatId, phoneNumber: doc.phoneNumber, action: 'purchase', plan: doc.planKey, amount: doc.price, paymentMethod: doc.paymentMethod, note: 'telnyx-regulatory-approved', timestamp: new Date().toISOString() })
+    await telnyxPendingOrders.updateOne({ _id: doc._id }, { $set: { status: 'active', activatedAt: new Date() } })
+    sendMessage(chatId, cpTxt.activated(doc.phoneNumber, plan.name, doc.price, sipUsername, phoneConfig.SIP_DOMAIN, phoneConfig.shortDate(expiresAt.toISOString())))
+    postActivationNudge(chatId, doc.phoneNumber, plan.name)
+    const name = await get(nameOf, chatId)
+    const via = `${doc.paymentMethod} · verified ${doc.countryCode}`
+    notifyGroup(cpTxt.adminPurchase(maskName(name), doc.phoneNumber, plan.name, doc.price, via), cpTxt.adminPurchasePrivate(adminUserTag(name, chatId), doc.phoneNumber, plan.name, doc.price, via))
+    log(`[TelnyxReview] ✅ ${doc.phoneNumber} approved + activated for ${chatId}`)
+    return true
+  } catch (e) {
+    log(`[TelnyxReview] activation error for ${doc.phoneNumber}: ${e.message}`)
+    await telnyxPendingOrders.updateOne({ _id: doc._id }, { $set: { status: 'activation_error', lastError: e.message } })
+    notifyAdmin(`🚨 [TelnyxReview] Number APPROVED by carrier but activation failed — fix manually\nchatId: ${chatId}\nnumber: ${doc.phoneNumber}\norder: ${doc.orderId}\nerror: ${e.message}`)
+    return false
+  }
+}
+
+// Rejected / cancelled / never completed → full refund (same currency as paid).
+async function refundTelnyxPending(doc, reason) {
+  const claim = await telnyxPendingOrders.updateOne({ _id: doc._id, status: 'under_review' }, { $set: { status: 'rejected', rejectedAt: new Date(), reason } })
+  if (!claim.modifiedCount) return false
+  const cur = doc.refund?.currency === 'ngn' ? 'ngn' : 'usd'
+  const amt = Number(doc.refund?.amount) || 0
+  try { if (amt > 0) await addFundsTo(walletOf, doc.chatId, cur, amt, doc.lang || 'en') } catch (e) {
+    notifyAdmin(`🚨 CRITICAL [TelnyxReview] refund failed\nchatId: ${doc.chatId}\namount: ${amt} ${cur}\nerror: ${e.message}`)
+  }
+  const shown = cur === 'ngn' ? `${amt} NGN` : `$${amt.toFixed(2)}`
+  sendMessage(doc.chatId, txReg.T(doc.lang).rejected(doc.phoneNumber, shown))
+  notifyAdmin(`↩️ [TelnyxReview] Not approved → refunded ${shown}\nchatId: ${doc.chatId}\nnumber: ${doc.phoneNumber}\norder: ${doc.orderId}\nreason: ${reason}`)
+  log(`[TelnyxReview] ❌ ${doc.phoneNumber} not approved (${reason}) — refunded ${shown} to ${doc.chatId}`)
+  return true
+}
+
+// Background review poller (every 5 min). Backs off: 5 min (<1h) → 15 min (<24h) → 60 min.
+async function pollTelnyxPendingOrders() {
+  if (!telnyxPendingOrders) return { checked: 0 }
+  const due = await telnyxPendingOrders.find({ status: 'under_review', nextCheckAt: { $lte: new Date() } }).limit(25).toArray()
+  let checked = 0
+  for (const doc of due) {
+    checked++
+    let order
+    try { order = await txReg.getOrder(doc.orderId) } catch (e) {
+      await telnyxPendingOrders.updateOne({ _id: doc._id }, { $set: { nextCheckAt: new Date(Date.now() + 10 * 60 * 1000), lastError: e.message } })
+      continue
+    }
+    const st = txReg.classifyOrder(order)
+    const ageH = (Date.now() - new Date(doc.createdAt).getTime()) / 3.6e6
+    const reqStatus = (order?.phone_numbers || []).map(p => p.requirements_status || p.status).join(',')
+    if (st === 'active') { await activateTelnyxReviewedOrder(doc); continue }
+    if (st === 'failed') { await refundTelnyxPending(doc, `${order?.status || 'failure'} / ${reqStatus}`); continue }
+    if (txReg.isMissingInfo(order) && ageH > 72) { await refundTelnyxPending(doc, `requirement info still missing after ${Math.round(ageH)}h`); continue }
+    const nextMin = ageH < 1 ? 5 : ageH < 24 ? 15 : 60
+    const set = { nextCheckAt: new Date(Date.now() + nextMin * 60 * 1000), lastStatus: order?.status, lastReqStatus: reqStatus, lastCheckedAt: new Date() }
+    if (ageH > 120 && !doc.slaAlerted) {
+      set.slaAlerted = true
+      notifyAdmin(`⏰ [TelnyxReview] Still under review after ${Math.round(ageH)}h\nchatId: ${doc.chatId}\nnumber: ${doc.phoneNumber}\norder: ${doc.orderId}\nstatus: ${order?.status} / ${reqStatus}`)
+    }
+    await telnyxPendingOrders.updateOne({ _id: doc._id }, { $set: set, $inc: { checks: 1 } })
+  }
+  return { checked }
 }
 
 // ── Get pool-wide minutes used for a number (parent + all sub-numbers sharing the plan) ──
@@ -3368,6 +3657,7 @@ let lifecycleDiet = null
 
 // Telnyx resources (set during init)
 let telnyxResources = { sipConnectionId: null, messagingProfileId: null, callControlAppId: null }
+let telnyxPendingOrders = null // Telnyx intl orders awaiting regulatory review (see pollTelnyxPendingOrders)
 let twilioResources = { sipDomainSid: null, sipDomainName: null, credentialListSid: null, accountSid: null }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -4497,6 +4787,19 @@ const loadData = async () => {
     getCachedTwilioAddress,
     cacheTwilioAddress,
   })
+
+  // Telnyx international numbers — verification sessions + review poller (2026-10)
+  txReg.init({ db, bot, log })
+  telnyxPendingOrders = db.collection('telnyxPendingOrders')
+  telnyxPendingOrders.createIndex({ status: 1, nextCheckAt: 1 }).catch(() => {})
+  if (process.env.SKIP_WEBHOOK_SYNC !== 'true' || process.env.TELNYX_REVIEW_POLLER === 'true') {
+    singletonInterval('telnyx-review-poller', () => {
+      pollTelnyxPendingOrders().catch(e => log(`[TelnyxReview] poll error: ${e.message}`))
+        .then(() => sweepTelnyxVerifications()).catch(e => log(`[TelnyxVerify] sweep error: ${e.message}`))
+    }, 5 * 60 * 1000)
+  } else {
+    log('[TelnyxReview] SKIP_WEBHOOK_SYNC=true — review poller OFF on this pod (set TELNYX_REVIEW_POLLER=true to enable)')
+  }
 
   // Schedule stale marketplace conversation cleanup every 6 hours
   singletonInterval('marketplace-stale-conversations', async () => {
@@ -7991,6 +8294,15 @@ bot?.on('message', msg => {
     }
   }
 
+  // ── Telnyx verification (pay-first): ID / proof-of-address photos & files ──
+  if ((msg?.photo || msg?.document) && chatId) {
+    const userInfo = await get(state, chatId)
+    if (userInfo?.action === 'cpTxReg') {
+      const handled = await handleTelnyxVerificationInput(chatId, { photo: msg.photo, document: msg.document }, userInfo?.userLanguage || 'en')
+      if (handled) return
+    }
+  }
+
   // ── Handle photo messages for Regulatory Document Collection ──
   if (msg?.photo && chatId) {
     const userInfo = await get(state, chatId)
@@ -9771,6 +10083,7 @@ bot?.on('message', msg => {
     bundleSelect: 'bundleSelect',
     bundleConfirm: 'bundleConfirm',
     cpResumeDoc: 'cpResumeDoc',
+    cpTxReg: 'cpTxReg',
     cpSelectCountry: 'cpSelectCountry',
     cpSelectType: 'cpSelectType',
     cpSelectArea: 'cpSelectArea',
@@ -10014,6 +10327,7 @@ bot?.on('message', msg => {
     }
     const base = Number(info?.cpPriceBase) || 0
     if (base > totalPrice) s += `\n\n🎟️ Coupon: <s>$${base.toFixed(2)}</s> → <b>$${totalPrice.toFixed(2)}</b>`
+    if (info?.cpVerifyNote && !info?.cpIsSubNumber) s += `\n\n${info.cpVerifyNote}`
     return s
   }
   // Domains registered with us that are NOT already on an active hosting plan
@@ -10275,16 +10589,16 @@ bot?.on('message', msg => {
       // ── Browse Tracking (Feature 4) ──
       if (userConversion) userConversion.trackBrowse(chatId, 'cloudphone', info?.userLanguage || 'en')
       // ── Check for incomplete document verification sessions ──
-      const incompleteDoc = await regulatoryFlow.getIncompleteSession(chatId)
+      const incompleteDoc = await regulatoryFlow.getIncompleteSession(chatId) || await txReg.getIncompleteSession(chatId)
       if (incompleteDoc) {
         const lang = info?.userLanguage || 'en'
         const country = incompleteDoc.countryName || incompleteDoc.countryCode
-        const price = Number(incompleteDoc.price || 0).toFixed(2)
+        const price = incompleteDoc.payment?.refund ? txReg.fmtAmount(incompleteDoc.payment.refund) : `$${Number(incompleteDoc.price || 0).toFixed(2)}`
         const resumeMsg = {
-          en: `⚠️ <b>Incomplete Verification Found</b>\n\nYou have a pending ${country} number verification (paid $${price}).\n\nWould you like to resume or cancel for a refund?`,
-          fr: `⚠️ <b>Vérification incomplète</b>\n\nVérification ${country} en attente ($${price}).\n\nReprendre ou annuler pour un remboursement ?`,
-          zh: `⚠️ <b>发现未完成的验证</b>\n\n您有一个待处理的 ${country} 号码验证（已付 $${price}）。\n\n要继续还是取消并退款？`,
-          hi: `⚠️ <b>अधूरा सत्यापन मिला</b>\n\n${country} नंबर सत्यापन लंबित ($${price}).\n\nजारी रखें या रद्द करें और रिफंड पाएं?`,
+          en: `⚠️ <b>Incomplete Verification Found</b>\n\nYou have a pending ${country} number verification (paid ${price}).\n\nWould you like to resume or cancel for a refund?`,
+          fr: `⚠️ <b>Vérification incomplète</b>\n\nVérification ${country} en attente (${price}).\n\nReprendre ou annuler pour un remboursement ?`,
+          zh: `⚠️ <b>发现未完成的验证</b>\n\n您有一个待处理的 ${country} 号码验证（已付 ${price}）。\n\n要继续还是取消并退款？`,
+          hi: `⚠️ <b>अधूरा सत्यापन मिला</b>\n\n${country} नंबर सत्यापन लंबित (${price}).\n\nजारी रखें या रद्द करें और रिफंड पाएं?`,
         }
         await set(state, chatId, 'action', a.cpResumeDoc)
         const resumeBtn = { en: '▶️ Resume Verification', fr: '▶️ Reprendre', zh: '▶️ 继续验证', hi: '▶️ जारी रखें' }[lang] || '▶️ Resume Verification'
@@ -13679,7 +13993,7 @@ Enter new value:`), bc)
         }
       }
 
-      send(chatId, phoneConfig.getMsg(info?.userLanguage).purchasingNumber)
+      if (!(await telnyxNeedsVerification(provider, countryCode, info?.cpNumberType))) send(chatId, phoneConfig.getMsg(info?.userLanguage).purchasingNumber)
 
       let orderResult, sipUsername, sipPassword
 
@@ -13723,12 +14037,12 @@ Enter new value:`), bc)
         }
       } else {
         // ── TELNYX PURCHASE FLOW ──
-        orderResult = await telnyxApi.buyNumber(
-          selectedNumber,
-          telnyxResources.sipConnectionId,
-          telnyxResources.messagingProfileId,
-          { countryCode, numberType: info?.cpNumberType || 'local', areaCode: info?.cpAreaCode || null }
-        )
+        orderResult = await telnyxPaidCheckout(chatId, selectedNumber, {
+          countryCode, countryName, numberType: info?.cpNumberType || 'local', areaCode: info?.cpAreaCode || null,
+          capabilities: info?.cpSelectedCapabilities, numberCost: info?.cpNumberCost, isSubNumber: !!info?.cpIsSubNumber, planKey, price: priceUsd,
+          refund: { currency: 'usd', amount: priceUsd }, paymentMethod: 'wallet_usd', lang: info?.userLanguage || 'en',
+        })
+        if (orderResult?._verification) return
         // Update selectedNumber if retry returned a different number
         if (orderResult?._retriedNumber) {
           selectedNumber = orderResult._retriedNumber
@@ -14780,7 +15094,14 @@ All verified numbers generated during sourcing.`))
       await regulatoryFlow.cancelAndRefund(chatId)
       return // cancelAndRefund sends its own refund confirmation message
     }
+    if (await cancelTelnyxVerification(chatId, info?.userLanguage || 'en')) return
     // No orphaned session — fall through to normal action handling
+  }
+
+  // Telnyx verification (pay-first) — text answers + buttons
+  if (action === a.cpTxReg && typeof message === 'string' && message) {
+    if (await handleTelnyxVerificationInput(chatId, { text: message }, info?.userLanguage || 'en')) return
+    action = 'none'
   }
 
   // /testsip — generate OTP for SIP test page
@@ -25075,6 +25396,18 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     const resumeBtn = { en: '▶️ Resume Verification', fr: '▶️ Reprendre', zh: '▶️ 继续验证', hi: '▶️ जारी रखें' }[lang] || '▶️ Resume Verification'
     const restartBtn = { en: '🔄 Start Over', fr: '🔄 Recommencer', zh: '🔄 重新开始', hi: '🔄 शुरू से करें' }[lang] || '🔄 Start Over'
     const cancelBtn = { en: '❌ Cancel & Refund', fr: '❌ Annuler & Rembourser', zh: '❌ 取消并退款', hi: '❌ रद्द करें और रिफंड' }[lang] || '❌ Cancel & Refund'
+    const txSession = await txReg.getIncompleteSession(chatId)
+    if (txSession && !(await regulatoryFlow.getIncompleteSession(chatId))) {
+      if (message === resumeBtn || message === restartBtn) {
+        const p = message === resumeBtn ? await txReg.resumePrompt(chatId, lang) : await txReg.restartSession(chatId, lang)
+        if (p) {
+          await set(state, chatId, 'action', a.cpTxReg)
+          return send(chatId, p.text, { parse_mode: 'HTML', reply_markup: { keyboard: p.keyboard, resize_keyboard: true } })
+        }
+      }
+      if (message === cancelBtn && await cancelTelnyxVerification(chatId, lang)) return
+      return goto.submenu5()
+    }
     if (message === resumeBtn) {
       const resumed = await regulatoryFlow.resumeSession(chatId)
       if (!resumed) {
@@ -28432,6 +28765,8 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       return send(chatId, cpTxt.selectArea, k.of(rows))
     }
     // Non-US or toll-free: search directly with the appropriate provider
+    await saveInfo('cpAreaCode', null)
+    await saveInfo('cpAreaName', null)
     await set(state, chatId, 'action', a.cpSelectNumber)
     send(chatId, cpTxt.searching)
 
@@ -28641,7 +28976,18 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     const plan = phoneConfig.plans[planKey]
     const numberType = info?.cpNumberType || 'local'
     const countryCode = info?.cpCountryCode || 'US'
-    const surcharge = getNumberSurcharge(countryCode, numberType)
+    let surcharge = getNumberSurcharge(countryCode, numberType)
+    let verifyNote = null
+    // Telnyx international: live cost + tell the user BEFORE paying what verification follows
+    if (isTelnyxIntl(selectedProvider, countryCode)) {
+      const rq = await txReg.getRequirements(countryCode, numberType)
+      if (!rq.ok) return send(chatId, txReg.T(lang).lookupFailed, { parse_mode: 'HTML' })
+      if (rq.reqs.length && !txReg.analyze(rq.reqs).supported) return send(chatId, txReg.T(lang).unsupported(info?.cpCountryName || countryCode), { parse_mode: 'HTML' })
+      verifyNote = txReg.prePayNote(rq.reqs, info?.cpCountryName || countryCode, lang) || null
+      surcharge = getTelnyxIntlSurcharge(selected).monthly
+    }
+    await saveInfo('cpVerifyNote', verifyNote)
+    await saveInfo('cpNumberCost', { monthly: parseFloat(selected?.cost_information?.monthly_cost) || 0, upfront: parseFloat(selected?.cost_information?.upfront_cost) || 0 })
     const totalPrice = plan.price + surcharge
 
     await saveInfo('cpPrice', totalPrice)
@@ -30402,6 +30748,8 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     if (!countryCode) return send(chatId, phoneConfig.getMsg(info?.userLanguage).selectValidCountry)
     const countryEntry = phoneConfig.allCountries.find(c => c.name === message) || phoneConfig.moreCountries.find(c => c.name === message)
     const nativeProvider = countryEntry?.provider || 'telnyx'
+    // Telnyx countries that need verification can only be bought as a main number
+    if (nativeProvider === 'telnyx' && countryEntry?.verify) return send(chatId, txReg.T(lang).subNotSupported, { parse_mode: 'HTML' })
     await saveInfo('cpCountryCode', countryCode)
     await saveInfo('cpCountryName', message)
     await saveInfo('cpProvider', nativeProvider)
@@ -30623,6 +30971,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     await saveInfo('cpSelectedCapabilities', caps)
     const numberType = info?.cpNumberType || 'local'
     const countryCode = info?.cpCountryCode || 'US'
+    if (await telnyxNeedsVerification(selectedProvider, countryCode, numberType)) return send(chatId, txReg.T(lang).subNotSupported, { parse_mode: 'HTML' })
     const subPrice = getSubNumberPrice(countryCode, numberType, selectedProvider)
     await saveInfo('cpPrice', subPrice)
     await saveInfo('price', subPrice)
@@ -39399,6 +39748,7 @@ const bankApis = {
       addFundsTo(walletOf, chatId, 'ngn', ngnIn - ngnPrice, lang)
       sendMessage(chatId, translation('t.sentMoreMoney', lang, `${ngnPrice} NGN`, `${ngnIn} NGN`))
     }
+    const ngnPaid = Math.min(Number(ngnIn) || 0, Number(ngnPrice) || Number(ngnIn) || 0) // excess already credited above
 
     let selectedNumber = cpData.selectedNumber
     const planKey = cpData.planKey
@@ -39434,7 +39784,7 @@ const bankApis = {
               sendMessage(chatId, phoneConfig.getMsg(lang).purchasingNumber)
               const result = await executeTwilioPurchase(chatId, selectedNumber, planKey, price, countryCode, countryName, info?.cpNumberType || 'local', 'bank_ngn', cachedAddr, null, approvedBundle.bundleSid)
               if (result.error) {
-                addFundsTo(walletOf, chatId, 'ngn', ngnIn, lang)
+                addFundsTo(walletOf, chatId, 'ngn', ngnPaid, lang)
                 return res.send(html(phoneConfig.getMsg(lang).purchaseFailed))
               }
               sendMessage(chatId, cpTxt.activated(selectedNumber, result.plan?.name || planKey, price, result.sipUsername, phoneConfig.SIP_DOMAIN, phoneConfig.shortDate(result.expiresAt.toISOString())))
@@ -39457,7 +39807,7 @@ const bankApis = {
           sendMessage(chatId, phoneConfig.getMsg(lang).purchasingNumber)
           const result = await executeTwilioPurchase(chatId, selectedNumber, planKey, price, countryCode, countryName, info?.cpNumberType || 'local', 'bank_ngn', cachedAddr)
           if (result.error) {
-            addFundsTo(walletOf, chatId, 'ngn', ngnIn, lang)
+            addFundsTo(walletOf, chatId, 'ngn', ngnPaid, lang)
             return res.send(html(phoneConfig.getMsg(lang).purchaseFailed))
           }
           sendMessage(chatId, cpTxt.activated(selectedNumber, result.plan?.name || planKey, price, result.sipUsername, phoneConfig.SIP_DOMAIN, phoneConfig.shortDate(result.expiresAt.toISOString())))
@@ -39481,7 +39831,7 @@ const bankApis = {
       sendMessage(chatId, phoneConfig.getMsg(lang).purchasingNumber)
       const result = await executeTwilioPurchase(chatId, selectedNumber, planKey, price, countryCode, countryName, info?.cpNumberType || 'local', 'bank_ngn', null)
       if (result.error) {
-        addFundsTo(walletOf, chatId, 'ngn', ngnIn, lang)
+        addFundsTo(walletOf, chatId, 'ngn', ngnPaid, lang)
         return res.send(html(phoneConfig.getMsg(lang).purchaseFailed))
       }
       sendMessage(chatId, cpTxt.activated(selectedNumber, result.plan?.name || planKey, price, result.sipUsername, phoneConfig.SIP_DOMAIN, phoneConfig.shortDate(result.expiresAt.toISOString())))
@@ -39489,18 +39839,23 @@ const bankApis = {
       return res.send(html())
       } catch (purchaseErr) {
         log(`[CloudPhone] ❌ Bank/Twilio purchase crashed for ${chatId}: ${purchaseErr?.message || purchaseErr}`)
-        try { addFundsTo(walletOf, chatId, 'ngn', ngnIn, lang) } catch (e) { log(`[CloudPhone] ❌ CRITICAL: Bank refund failed for ${chatId}: ${e?.message}`) }
+        try { addFundsTo(walletOf, chatId, 'ngn', ngnPaid, lang) } catch (e) { log(`[CloudPhone] ❌ CRITICAL: Bank refund failed for ${chatId}: ${e?.message}`) }
         sendMessage(chatId, phoneConfig.getMsg(lang).purchaseFailed + '\n' + sanitizeProviderError(purchaseErr?.message || 'Unexpected error', 'voice'))
         return res.send(html(phoneConfig.getMsg(lang).purchaseFailed))
       }
     }
 
     // ── TELNYX PURCHASE ──
-    sendMessage(chatId, phoneConfig.getMsg(lang).purchasingNumber)
-    let orderResult = await telnyxApi.buyNumber(selectedNumber, telnyxResources.sipConnectionId, telnyxResources.messagingProfileId, { countryCode, numberType: info?.cpNumberType || 'local', areaCode: info?.cpAreaCode || null })
+    if (!(await telnyxNeedsVerification(provider, countryCode, info?.cpNumberType))) sendMessage(chatId, phoneConfig.getMsg(lang).purchasingNumber)
+    let orderResult = await telnyxPaidCheckout(chatId, selectedNumber, {
+      countryCode, countryName, numberType: info?.cpNumberType || 'local', areaCode: info?.cpAreaCode || null,
+      capabilities: info?.cpSelectedCapabilities, numberCost: info?.cpNumberCost, isSubNumber: !!info?.cpIsSubNumber, planKey, price,
+      refund: { currency: 'ngn', amount: ngnPaid }, paymentMethod: 'bank_ngn', lang,
+    })
+    if (orderResult?._verification) return res.send(html())
     if (orderResult?._retriedNumber) selectedNumber = orderResult._retriedNumber
     if (!orderResult) {
-      addFundsTo(walletOf, chatId, 'ngn', ngnIn, lang)
+      addFundsTo(walletOf, chatId, 'ngn', ngnPaid, lang)
       return res.send(html(phoneConfig.getMsg(lang).purchaseFailed))
     }
     // Assign to Call Control App for inbound webhook routing
@@ -40494,8 +40849,17 @@ app.get('/crypto-pay-phone', auth, async (req, res) => {
   }
 
   // ── TELNYX (BlockBee crypto path) ──
-  sendMessage(chatId, phoneConfig.getMsg(lang).purchasingNumber)
-  const orderResult = await telnyxApi.buyNumber(selectedNumber, telnyxResources.sipConnectionId, telnyxResources.messagingProfileId, { countryCode, numberType: info?.cpNumberType || 'local', areaCode: info?.cpAreaCode || null })
+  if (!(await telnyxNeedsVerification(provider, countryCode, info?.cpNumberType))) sendMessage(chatId, phoneConfig.getMsg(lang).purchasingNumber)
+  const orderResult = await telnyxPaidCheckout(chatId, selectedNumber, {
+    countryCode, countryName, numberType: info?.cpNumberType || 'local', areaCode: info?.cpAreaCode || null,
+    capabilities: info?.cpSelectedCapabilities, numberCost: info?.cpNumberCost, isSubNumber: !!info?.cpIsSubNumber, planKey, price: Number(price),
+    refund: { currency: 'usd', amount: Number(price) }, paymentMethod: 'crypto_' + coin, lang,
+  })
+  if (orderResult?._verification) {
+    await auditCryptoTx(chatId, 'phone-number', price, { phoneNumber: selectedNumber, plan: planKey, countryCode, provider: 'telnyx', coin, value, ref, verification: true }, 'blockbee')
+    if (excessUsd > 0) { addFundsTo(walletOf, chatId, 'usd', excessUsd, lang); sendMessage(chatId, translation('t.sentMoreMoney', lang, `$${price}`, `$${usdIn}`)) }
+    return res.send(html())
+  }
   if (orderResult?._retriedNumber) selectedNumber = orderResult._retriedNumber
   if (!orderResult) { addFundsTo(walletOf, chatId, 'usd', Number(price) + excessUsd, lang); return res.send(html(phoneConfig.getMsg(lang).purchaseFailed)) }
   // Credit excess to wallet only after successful purchase
@@ -45764,8 +46128,17 @@ app.post('/dynopay/crypto-pay-phone', authDyno, async (req, res) => {
   }
 
   // ── TELNYX ──
-  sendMessage(chatId, phoneConfig.getMsg(lang).purchasingNumber)
-  const orderResult = await telnyxApi.buyNumber(selectedNumber, telnyxResources.sipConnectionId, telnyxResources.messagingProfileId, { countryCode, numberType: info?.cpNumberType || 'local', areaCode: info?.cpAreaCode || null })
+  if (!(await telnyxNeedsVerification(provider, countryCode, info?.cpNumberType))) sendMessage(chatId, phoneConfig.getMsg(lang).purchasingNumber)
+  const orderResult = await telnyxPaidCheckout(chatId, selectedNumber, {
+    countryCode, countryName, numberType: info?.cpNumberType || 'local', areaCode: info?.cpAreaCode || null,
+    capabilities: info?.cpSelectedCapabilities, numberCost: info?.cpNumberCost, isSubNumber: !!info?.cpIsSubNumber, planKey, price: Number(price),
+    refund: { currency: 'usd', amount: Number(price) }, paymentMethod: 'crypto_dynopay_' + coin, lang,
+  })
+  if (orderResult?._verification) {
+    await auditCryptoTx(chatId, 'phone-number', price, { phoneNumber: selectedNumber, plan: planKey, countryCode, provider: 'telnyx', coin, value, ref, verification: true }, 'dynopay')
+    if (excessUsd > 0) { addFundsTo(walletOf, chatId, 'usd', excessUsd, lang); sendMessage(chatId, translation('t.sentMoreMoney', lang, `$${price}`, `$${usdIn}`)) }
+    return res.send(html())
+  }
   if (orderResult?._retriedNumber) selectedNumber = orderResult._retriedNumber
   if (!orderResult) { addFundsTo(walletOf, chatId, 'usd', Number(price) + excessUsd, lang); return res.send(html(phoneConfig.getMsg(lang).purchaseFailed)) }
   // Credit excess to wallet only after successful purchase (DynoPay)

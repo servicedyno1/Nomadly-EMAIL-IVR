@@ -52,6 +52,7 @@ const server = http.createServer((req, res) => {
     const chat = u.searchParams.get('chat_id'), since = Number(u.searchParams.get('since') || 0), method = u.searchParams.get('method')
     return json(200, calls.filter(c => (!chat || String(c.chat_id) === String(chat)) && c.ts >= since && (!method || c.method === method)))
   }
+  if (/^\/file\/bot[^/]+\//.test(u.pathname)) { res.writeHead(200, { 'Content-Type': 'application/pdf' }); return res.end(Buffer.from('%PDF-1.4\n% mock telegram file\n%%EOF\n')) }
   const m = u.pathname.match(/^\/bot[^/]+\/(\w+)$/)
   if (!m) return json(404, { ok: false, description: 'not found' })
   const method = m[1]
