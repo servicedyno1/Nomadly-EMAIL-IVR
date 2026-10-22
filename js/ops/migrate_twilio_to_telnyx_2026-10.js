@@ -36,8 +36,8 @@ const argVal = (k) => { const a = ARGS.find(x => x.startsWith(`--${k}=`)); retur
 if (!ARGS.includes('--child')) {
   const { loadBrandEnv, parseBrandsArg } = require('./_brand_env')
   const PICK = ['MONGO_URL', 'DB_NAME', 'TELNYX_API_KEY', 'TELNYX_SIP_CONNECTION_ID', 'TELNYX_CALL_CONTROL_APP_ID',
-    'TELNYX_MESSAGING_PROFILE_ID', 'SIP_DOMAIN', 'TELEGRAM_BOT_TOKEN_PROD', 'TELEGRAM_ADMIN_CHAT_ID', 'BRAND_PHONE_NAME']
-  console.log(`MODE: ${APPLY ? 'APPLY — buying numbers + writing production DB' : 'DRY RUN — no purchases, no writes, no messages'}`)
+    'TELNYX_MESSAGING_PROFILE_ID', 'SIP_DOMAIN', 'TELEGRAM_BOT_TOKEN_PROD', 'TELEGRAM_ADMIN_CHAT_ID', 'BRAND_PHONE_NAME', 'CHAT_BOT_BRAND']
+  console.log(`MODE: ${APPLY ? 'APPLY — ' : 'DRY RUN — no purchases, no writes, no messages — '}${ARGS.includes('--apologize-migrated') ? 'apology follow-up to already-migrated users' : 'buying numbers + writing production DB'}`)
   let failed = false
   for (const brand of parseBrandsArg(ARGS)) {
     const env = loadBrandEnv(brand)
@@ -68,16 +68,31 @@ const fmt = p => { const d = String(p || '').replace(/\D/g, ''); return d.length
 const sleep = ms => new Promise(r => setTimeout(r, ms))
 const randStr = (n, abc) => Array.from({ length: n }, () => abc[Math.floor(Math.random() * abc.length)]).join('')
 
-function notifyText(lang, oldNum, newNum, n, sipUser, sipDomain, brandName) {
+const BRAND_NAME = process.env.BRAND_PHONE_NAME || process.env.CHAT_BOT_BRAND || 'Cloud IVR'
+// User messages must never name the carriers.
+const assertClean = (t) => { if (/twilio|telnyx/i.test(t)) throw new Error('user message mentions a carrier name — not sent'); return t }
+
+function notifyText(lang, oldNum, newNum, n, sipUser, sipDomain) {
   const exp = String(n.expiresAt).slice(0, 10)
   const plan = n.plan.charAt(0).toUpperCase() + n.plan.slice(1)
   const T = {
-    en: `✅ <b>Your ${brandName || 'Cloud IVR'} number has been upgraded</b>\n\nWe moved your line to our new, more reliable calling network.\n\n📞 <b>New number:</b> <code>${fmt(newNum)}</code>\n(replaces ${fmt(oldNum)})\n📦 Plan: <b>${plan}</b> — same expiry date: <b>${exp}</b>\n🔑 SIP login: <b>unchanged</b> (<code>${sipUser}</code> @ ${sipDomain}) — your softphone keeps working\n⚙️ Your forwarding, voicemail and IVR settings were carried over.\n\nNo charge was made. Questions? Tap 💬 Support.`,
-    fr: `✅ <b>Votre numéro ${brandName || 'Cloud IVR'} a été mis à niveau</b>\n\nNous avons transféré votre ligne vers notre nouveau réseau d'appels, plus fiable.\n\n📞 <b>Nouveau numéro :</b> <code>${fmt(newNum)}</code>\n(remplace ${fmt(oldNum)})\n📦 Forfait : <b>${plan}</b> — même date d'expiration : <b>${exp}</b>\n🔑 Identifiant SIP : <b>inchangé</b> (<code>${sipUser}</code> @ ${sipDomain}) — votre softphone continue de fonctionner\n⚙️ Vos réglages de transfert, messagerie vocale et SVI ont été conservés.\n\nAucun débit. Des questions ? Appuyez sur 💬 Support.`,
-    zh: `✅ <b>您的 ${brandName || 'Cloud IVR'} 号码已升级</b>\n\n我们已将您的线路迁移到更可靠的新通话网络。\n\n📞 <b>新号码：</b><code>${fmt(newNum)}</code>\n（替换 ${fmt(oldNum)}）\n📦 套餐：<b>${plan}</b> — 到期日不变：<b>${exp}</b>\n🔑 SIP 登录：<b>不变</b>（<code>${sipUser}</code> @ ${sipDomain}）— 软电话可继续使用\n⚙️ 您的转接、语音信箱和 IVR 设置已保留。\n\n未产生任何费用。有疑问？请点击 💬 Support。`,
-    hi: `✅ <b>आपका ${brandName || 'Cloud IVR'} नंबर अपग्रेड हो गया है</b>\n\nहमने आपकी लाइन को हमारे नए, अधिक विश्वसनीय कॉलिंग नेटवर्क पर ले जाया है।\n\n📞 <b>नया नंबर:</b> <code>${fmt(newNum)}</code>\n(${fmt(oldNum)} की जगह)\n📦 प्लान: <b>${plan}</b> — वही समाप्ति तिथि: <b>${exp}</b>\n🔑 SIP लॉगिन: <b>अपरिवर्तित</b> (<code>${sipUser}</code> @ ${sipDomain}) — आपका सॉफ्टफ़ोन चलता रहेगा\n⚙️ आपकी फ़ॉरवर्डिंग, वॉइसमेल और IVR सेटिंग्स बनी रहीं।\n\nकोई शुल्क नहीं लिया गया। सवाल? 💬 Support दबाएँ।`,
+    en: `🙏 <b>We're sorry for the interruption to your ${BRAND_NAME} line</b>\n\nYour number ${fmt(oldNum)} stopped working for a while, and we apologise for the trouble this caused. To get you back up and running, we've moved your line to our new, more reliable calling network.\n\n📞 <b>Your new number:</b> <code>${fmt(newNum)}</code>\n(replaces ${fmt(oldNum)}, which can no longer take calls — please share the new number with your contacts)\n📦 Plan: <b>${plan}</b> — same expiry date: <b>${exp}</b>\n🔑 SIP login: <b>unchanged</b> (<code>${sipUser}</code> @ ${sipDomain}) — your softphone keeps working\n⚙️ Your forwarding, voicemail and IVR settings were carried over.\n\nNo charge was made, and we've added nothing to your bill. Questions? Tap 💬 Support.`,
+    fr: `🙏 <b>Toutes nos excuses pour l'interruption de votre ligne ${BRAND_NAME}</b>\n\nVotre numéro ${fmt(oldNum)} a cessé de fonctionner pendant un moment, et nous sommes désolés pour la gêne occasionnée. Pour vous remettre en service, nous avons transféré votre ligne vers notre nouveau réseau d'appels, plus fiable.\n\n📞 <b>Votre nouveau numéro :</b> <code>${fmt(newNum)}</code>\n(remplace ${fmt(oldNum)}, qui ne peut plus recevoir d'appels — merci de communiquer le nouveau numéro à vos contacts)\n📦 Forfait : <b>${plan}</b> — même date d'expiration : <b>${exp}</b>\n🔑 Identifiant SIP : <b>inchangé</b> (<code>${sipUser}</code> @ ${sipDomain}) — votre softphone continue de fonctionner\n⚙️ Vos réglages de transfert, messagerie vocale et SVI ont été conservés.\n\nAucun débit, rien n'a été ajouté à votre facture. Des questions ? Appuyez sur 💬 Support.`,
+    zh: `🙏 <b>很抱歉，您的 ${BRAND_NAME} 线路出现了中断</b>\n\n您的号码 ${fmt(oldNum)} 曾有一段时间无法使用，给您带来不便，我们深表歉意。为尽快恢复服务，我们已将您的线路迁移到更可靠的新通话网络。\n\n📞 <b>您的新号码：</b><code>${fmt(newNum)}</code>\n（替换 ${fmt(oldNum)}，旧号码已无法接听来电 — 请将新号码告知您的联系人）\n📦 套餐：<b>${plan}</b> — 到期日不变：<b>${exp}</b>\n🔑 SIP 登录：<b>不变</b>（<code>${sipUser}</code> @ ${sipDomain}）— 软电话可继续使用\n⚙️ 您的转接、语音信箱和 IVR 设置已保留。\n\n未产生任何费用，账单也没有任何增加。有疑问？请点击 💬 Support。`,
+    hi: `🙏 <b>आपकी ${BRAND_NAME} लाइन में आई रुकावट के लिए हमें खेद है</b>\n\nआपका नंबर ${fmt(oldNum)} कुछ समय के लिए काम नहीं कर रहा था, इस परेशानी के लिए हम क्षमा चाहते हैं। सेवा जल्द बहाल करने के लिए हमने आपकी लाइन को हमारे नए, अधिक विश्वसनीय कॉलिंग नेटवर्क पर ले जाया है।\n\n📞 <b>आपका नया नंबर:</b> <code>${fmt(newNum)}</code>\n(${fmt(oldNum)} की जगह, जिस पर अब कॉल नहीं आ सकतीं — कृपया नया नंबर अपने संपर्कों के साथ साझा करें)\n📦 प्लान: <b>${plan}</b> — वही समाप्ति तिथि: <b>${exp}</b>\n🔑 SIP लॉगिन: <b>अपरिवर्तित</b> (<code>${sipUser}</code> @ ${sipDomain}) — आपका सॉफ्टफ़ोन चलता रहेगा\n⚙️ आपकी फ़ॉरवर्डिंग, वॉइसमेल और IVR सेटिंग्स बनी रहीं।\n\nकोई शुल्क नहीं लिया गया और आपके बिल में कुछ नहीं जोड़ा गया। सवाल? 💬 Support दबाएँ।`,
   }
-  return T[lang] || T.en
+  return assertClean(T[lang] || T.en)
+}
+
+// Short follow-up for users migrated before the apology wording existed.
+function apologyText(lang, oldNum, newNum) {
+  const T = {
+    en: `🙏 <b>Sorry for the interruption</b>\n\nYour ${BRAND_NAME} line was down for a while before we moved it to our new calling network, and we apologise for the trouble this caused.\n\nEverything is working again on your new number: <code>${fmt(newNum)}</code> (it replaced ${fmt(oldNum)}). Please share it with your contacts. Your plan, expiry date and settings are unchanged, and no charge was made.\n\nQuestions? Tap 💬 Support.`,
+    fr: `🙏 <b>Désolés pour l'interruption</b>\n\nVotre ligne ${BRAND_NAME} a été indisponible un moment avant son transfert vers notre nouveau réseau d'appels, et nous nous excusons pour la gêne occasionnée.\n\nTout fonctionne à nouveau sur votre nouveau numéro : <code>${fmt(newNum)}</code> (il remplace ${fmt(oldNum)}). Merci de le communiquer à vos contacts. Votre forfait, votre date d'expiration et vos réglages sont inchangés, et aucun débit n'a été effectué.\n\nDes questions ? Appuyez sur 💬 Support.`,
+    zh: `🙏 <b>很抱歉给您带来中断</b>\n\n在迁移到新通话网络之前，您的 ${BRAND_NAME} 线路曾中断一段时间，给您带来不便，我们深表歉意。\n\n您的新号码现已恢复正常使用：<code>${fmt(newNum)}</code>（替换 ${fmt(oldNum)}）。请将新号码告知您的联系人。您的套餐、到期日和设置均保持不变，且未产生任何费用。\n\n有疑问？请点击 💬 Support。`,
+    hi: `🙏 <b>रुकावट के लिए क्षमा करें</b>\n\nहमारे नए कॉलिंग नेटवर्क पर ले जाने से पहले आपकी ${BRAND_NAME} लाइन कुछ समय के लिए बंद रही, इस परेशानी के लिए हम क्षमा चाहते हैं।\n\nआपके नए नंबर पर सब कुछ फिर से काम कर रहा है: <code>${fmt(newNum)}</code> (${fmt(oldNum)} की जगह)। कृपया इसे अपने संपर्कों के साथ साझा करें। आपका प्लान, समाप्ति तिथि और सेटिंग्स नहीं बदलीं, और कोई शुल्क नहीं लिया गया।\n\nसवाल? 💬 Support दबाएँ।`,
+  }
+  return assertClean(T[lang] || T.en)
 }
 
 async function tg(chatId, text) {
@@ -120,6 +135,24 @@ async function waitOnAccount(phone, tries = 12) {
   await client.connect()
   const db = client.db(process.env.DB_NAME)
   const col = db.collection('phoneNumbersOf')
+  if (ARGS.includes('--apologize-migrated')) {
+    const ds = await col.find({ 'val.numbers.migratedFromProvider': 'twilio' }).toArray()
+    let sent = 0
+    for (const d of ds) {
+      for (const n of (d.val?.numbers || []).filter(x => x.migratedFromProvider === 'twilio' && x.status === 'active' && !x._apologySentAt)) {
+        const st = await db.collection('state').findOne({ _id: String(d._id) }).catch(() => null)
+        const lang = st?.userLanguage || 'en'
+        const text = apologyText(lang, n.migratedFrom, n.phoneNumber)
+        console.log(`  chat=${d._id} ${mask(n.migratedFrom)} → ${mask(n.phoneNumber)} lang=${lang}${APPLY ? '' : ' (would send apology)'}`)
+        if (!APPLY) continue
+        const r = await tg(d._id, text)
+        console.log(`     📨 ${r.ok ? 'sent' : 'NOT sent — ' + r.description}`)
+        if (r.ok) { sent++; await col.updateOne({ _id: d._id }, { $set: { 'val.numbers.$[n]._apologySentAt': new Date().toISOString() } }, { arrayFilters: [{ 'n.phoneNumber': n.phoneNumber, 'n.provider': 'telnyx' }] }) }
+      }
+    }
+    console.log(`  APOLOGY: ${APPLY ? `sent=${sent}` : 'dry run'}`)
+    await client.close(); return
+  }
   const statuses = INCLUDE_SUSPENDED ? ['active', 'suspended'] : ['active']
   const docs = await col.find(ONLY ? { _id: isNaN(+ONLY) ? ONLY : { $in: [ONLY, +ONLY] } } : { 'val.numbers.provider': 'twilio' }).toArray()
 
@@ -128,12 +161,13 @@ async function waitOnAccount(phone, tries = 12) {
     // group by phone number; on duplicate entries keep the one with the LATEST expiresAt
     const byPhone = new Map()
     for (const n of d.val?.numbers || []) {
-      if (n.provider !== 'twilio' || !statuses.includes(n.status)) continue
+      if (n.provider !== 'twilio' || !statuses.includes(n.status) || n._released) continue
+      if (new Date(n.expiresAt) <= new Date()) { console.log(`  ⏭ chat=${d._id} ${mask(n.phoneNumber)} skipped — plan already expired ${String(n.expiresAt).slice(0, 10)}`); continue }
       const prev = byPhone.get(n.phoneNumber)
       if (prev) console.log(`  ⚠️ chat=${d._id} duplicate entry for ${mask(n.phoneNumber)} — migrating once (keeping the later expiry)`)
       if (!prev || new Date(n.expiresAt) > new Date(prev.expiresAt)) byPhone.set(n.phoneNumber, n)
     }
-    for (const n of byPhone.values()) jobs.push({ chatId: d._id, old: n })
+    for (const n of byPhone.values()) jobs.push({ chatId: d._id, old: n, nums: d.val?.numbers || [] })
   }
   if (!jobs.length) { console.log('  no Twilio numbers to migrate'); await client.close(); return }
 
@@ -177,7 +211,15 @@ async function waitOnAccount(phone, tries = 12) {
       const vm = old.features?.voicemail?.enabled ? 'vm=on' : 'vm=off'
       const audio = await db.collection('ivrAudioStore').countDocuments({ _id: { $regex: `^${old.phoneNumber.replace('+', '\\+')}:` } }).catch(() => 0)
       const ar = KEEP_AR_OFF ? false : (old._autoRenewPausedForMigration ? old._autoRenewBeforePause === true : old.autoRenew !== false)
-      console.log(`${tag}\n     → ${old.migratedTo ? 'RESUME with' : 'buy'} ${mask(newPhone)}${pick ? ` (${pick.ndcMatched ? 'same prefix' : 'different prefix'}, $${pick.cost?.upfront_cost ?? '?'} upfront / $${pick.cost?.monthly_cost ?? '?'}/mo)` : ''} | ${sipPlan} | ${fwd} ${vm} | IVR audio docs: ${audio} | autoRenew on new: ${ar}`)
+      // A sub-number keeps its parent only if that parent is (or was migrated to) an active number; else it becomes standalone.
+      let parentNow = null
+      if (old.isSubNumber) {
+        const par = job.nums.find(x => x.phoneNumber === old.parentNumber)
+        if (par?.status === 'active') parentNow = par.phoneNumber
+        else if (par?.migratedTo && job.nums.some(x => x.phoneNumber === par.migratedTo && x.status === 'active')) parentNow = par.migratedTo
+      }
+      const subPlan = old.isSubNumber ? (parentNow ? `sub of ${mask(parentNow)}` : 'sub → STANDALONE (parent line expired)') : ''
+      console.log(`${tag}\n     → ${old.migratedTo ? 'RESUME with' : 'buy'} ${mask(newPhone)}${pick ? ` (${pick.ndcMatched ? 'same prefix' : 'different prefix'}, $${pick.cost?.upfront_cost ?? '?'} upfront / $${pick.cost?.monthly_cost ?? '?'}/mo)` : ''} | ${sipPlan} | ${fwd} ${vm} | IVR audio docs: ${audio} | autoRenew on new: ${ar}${subPlan ? ' | ' + subPlan : ''}`)
       if (!APPLY) continue
 
       // ── 1. Buy (idempotent) ──
@@ -217,7 +259,8 @@ async function waitOnAccount(phone, tries = 12) {
           features: JSON.parse(JSON.stringify(old.features || {})),
           migratedFrom: old.phoneNumber, migratedFromProvider: 'twilio', migratedAt: new Date().toISOString(),
         }
-        if (old.isSubNumber) { numberDoc.isSubNumber = true; numberDoc.parentNumber = old.parentNumber }
+        if (old.isSubNumber && parentNow) { numberDoc.isSubNumber = true; numberDoc.parentNumber = parentNow }
+        else if (old.isSubNumber) numberDoc.formerSubNumberOf = old.parentNumber
         if (old.numberSurcharge !== undefined) numberDoc.numberSurcharge = old.numberSurcharge
         if (old.grandfathered) numberDoc.grandfathered = old.grandfathered
         // $position:0 → the new active Telnyx record is matched FIRST by findNumberBySipUser
@@ -243,8 +286,9 @@ async function waitOnAccount(phone, tries = 12) {
       // ── 7. Notify user ──
       if (NOTIFY) {
         const st = await db.collection('state').findOne({ _id: String(chatId) }).catch(() => null)
-        const r = await tg(chatId, notifyText(st?.userLanguage || 'en', old.phoneNumber, newPhone, old, sipUsername, old.sipDomain || process.env.SIP_DOMAIN, process.env.BRAND_PHONE_NAME))
+        const r = await tg(chatId, notifyText(st?.userLanguage || 'en', old.phoneNumber, newPhone, old, sipUsername, old.sipDomain || process.env.SIP_DOMAIN))
         console.log(`     📨 user notified: ${r.ok ? 'yes' : 'NO — ' + r.description}`)
+        if (r.ok) await col.updateOne({ _id: chatId }, { $set: { 'val.numbers.$[n]._apologySentAt': new Date().toISOString() } }, { arrayFilters: [{ 'n.phoneNumber': newPhone, 'n.provider': 'telnyx' }] })
       }
       console.log(`     ✅ migrated → ${mask(newPhone)}`)
       done++
