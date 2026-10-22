@@ -13,7 +13,7 @@ import time
 import sys
 
 # Base URL from frontend/.env
-BASE_URL = "https://app-vault-setup-1.preview.emergentagent.com"
+BASE_URL = "https://vault-app-setup-3.preview.emergentagent.com"
 
 # Test credentials
 USERNAME = "nbayftest"
