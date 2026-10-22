@@ -864,3 +864,18 @@ User inherited a fully-set-up Nomadly bot pod pointed at LIVE PRODUCTION. Task b
 - Details: memory/TWILIO_TO_TELNYX_MIGRATION_2026-10-22.md. Tests: iteration_105 + js/tests/test_bulk_telnyx*_2026-10.js.
 - Next: owner Save to GitHub + deploy (set TWILIO_ENABLED=false in prod), top up Telnyx balance, decide intl bulk rate,
   add Resume/Pause/Cancel buttons for running campaigns, Phase 3 toll-free SMS verification.
+
+
+## 2026-10-22 — Telnyx international numbers: catalog + PAY-FIRST verification (sandbox, tested)
+- Catalog (TWILIO_ENABLED=false): US, CA, GB, NL, IL, NZ, AU, IE, PR, CO + More (HK, CZ, EE, MX, RO, SK, ZA). Intl = voice-only OK.
+  PR/CO instant; others need verification (live Telnyx regulatory_requirements, cached 6h). Coverage: memory/TELNYX_INTL_COVERAGE_2026-10-22.md.
+- Flow (user: "pay first, then docs — like Twilio"): order summary shows "🛂 Verification after payment: …" → pay (wallet / bank NGN /
+  BlockBee / DynoPay all via telnyxPaidCheckout) → "✅ Payment received — Step 2 of 2" → contact, address (+Telnyx validate, Keep/Re-enter),
+  text answers, ID / proof-of-address photo or PDF → Submit → number order with regulatory data → under review → 5-min poller
+  activates (plan starts) or refunds. Cancel / /cancel / hub "Cancel & Refund" = refund once; 6h reminder, 48h auto-refund.
+  Sub-numbers blocked for regulated countries. Engine: js/telnyx-regulatory.js (sessions in telnyxRegSessions, orders in telnyxPendingOrders).
+- Sandbox .env: TWILIO_ENABLED=false restored. Review poller is OFF on this pod (SKIP_WEBHOOK_SYNC) — runs in prod.
+- Tests: iteration_108 + iteration_109 (121/122; the 1 miss is a sandbox mock limit). Scripts js/tests/test_tx_payfirst_*.js,
+  test_telnyx_payfirst_smoke_2026-10.js, mocks js/tests/mock_telegram_api.js + mock_telnyx_reg_api.js (env TELNYX_REG_API_BASE test-only).
+- Deferred by user: reseller application form; reseller.co (taken, premium ~$125/yr) — ask later.
+- Next: Save to GitHub + deploy (TWILIO_ENABLED=false in prod), one real paid NL order end-to-end in prod.

@@ -780,12 +780,12 @@ async function placeRegulatedOrder(session, { connectionId, messagingProfileId, 
     const phoneEntry = { phone_number: s.selectedNumber }
     let requirementGroupId = null
     if (REQUIREMENT_GROUP_COUNTRIES.has(s.countryCode)) {
-      const g = await http().post('/requirement_groups', {
+      requirementGroupId = s._requirementGroupId || (await http().post('/requirement_groups', {
         country_code: s.countryCode, phone_number_type: s.numberType, action: 'ordering',
         customer_reference: customerReference || `tg-${s.chatId}`, regulatory_requirements: values,
-      })
-      requirementGroupId = g.data?.data?.id
+      })).data?.data?.id
       if (!requirementGroupId) throw new Error('requirement group creation returned no id')
+      s._requirementGroupId = requirementGroupId
       phoneEntry.requirement_group_id = requirementGroupId
     } else {
       phoneEntry.regulatory_requirements = values
@@ -796,10 +796,11 @@ async function placeRegulatedOrder(session, { connectionId, messagingProfileId, 
     const r = await http().post('/number_orders', body)
     const order = r.data?.data
     if (!order?.id) throw new Error('number order returned no id')
+    // Order exists at Telnyx now — a DB blip here must not turn into a refund
     if (sessions) {
       await sessions.updateOne({ _id: s._id }, { $set: {
         status: 'ordered', orderId: order.id, addressId, documentIds: docIds, requirementGroupId, orderedAt: new Date(), updatedAt: new Date(),
-      } })
+      } }).catch(e => deps.log(`[TelnyxReg] order ${order.id} placed but session update failed: ${e.message}`))
     }
     return { ok: true, order, state: classifyOrder(order) }
   } catch (e) {

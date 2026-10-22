@@ -1319,7 +1319,7 @@ async function telnyxPaidCheckout(chatId, selectedNumber, ctx = {}) {
   const payment = {
     planKey: ctx.planKey || 'starter', price: Number(ctx.price) || 0, paymentMethod: ctx.paymentMethod || 'unknown',
     refund: ctx.refund || { currency: 'usd', amount: Number(ctx.price) || 0 },
-    capabilities: ctx.capabilities || { voice: true, sms: mpId !== null, fax: false }, areaCode,
+    capabilities: ctx.capabilities || { voice: true, sms: mpId !== null, fax: false }, areaCode, numberCost: ctx.numberCost || null,
   }
   const st = await txReg.startSession(chatId, { countryCode, numberType, countryName: ctx.countryName, selectedNumber, reqs: rq.reqs, lang, payment })
   if (!st.ok) { send(chatId, st.text, { parse_mode: 'HTML' }); return null }
@@ -1409,7 +1409,11 @@ async function _submitTelnyxVerification(session) {
   }
   let r = await txReg.placeRegulatedOrder(session, opts)
   if (!r.ok && TELNYX_NUMBER_GONE.test(r.error || '')) {
-    const fresh = (await telnyxApi.searchNumbers(session.countryCode, session.numberType, p.areaCode || null, 3)).find(n => n.phone_number !== session.selectedNumber)
+    // Replacement must not cost us more than the number the user paid for
+    const cap = p.numberCost
+    const cost = n => ({ m: parseFloat(n.cost_information?.monthly_cost) || 0, u: parseFloat(n.cost_information?.upfront_cost) || 0 })
+    const fresh = (await telnyxApi.searchNumbers(session.countryCode, session.numberType, p.areaCode || null, 5))
+      .find(n => n.phone_number !== session.selectedNumber && (!cap || (cost(n).m <= cap.monthly + 0.01 && cost(n).u <= cap.upfront + 0.01)))
     if (fresh) {
       log(`[TelnyxVerify] ${session.selectedNumber} no longer available — retrying with ${fresh.phone_number} for ${chatId}`)
       await txReg.setStatus(session._id, 'submitting', { selectedNumber: fresh.phone_number, replacedNumber: session.selectedNumber })
@@ -14035,7 +14039,7 @@ Enter new value:`), bc)
         // ── TELNYX PURCHASE FLOW ──
         orderResult = await telnyxPaidCheckout(chatId, selectedNumber, {
           countryCode, countryName, numberType: info?.cpNumberType || 'local', areaCode: info?.cpAreaCode || null,
-          capabilities: info?.cpSelectedCapabilities, isSubNumber: !!info?.cpIsSubNumber, planKey, price: priceUsd,
+          capabilities: info?.cpSelectedCapabilities, numberCost: info?.cpNumberCost, isSubNumber: !!info?.cpIsSubNumber, planKey, price: priceUsd,
           refund: { currency: 'usd', amount: priceUsd }, paymentMethod: 'wallet_usd', lang: info?.userLanguage || 'en',
         })
         if (orderResult?._verification) return
@@ -28983,6 +28987,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       surcharge = getTelnyxIntlSurcharge(selected).monthly
     }
     await saveInfo('cpVerifyNote', verifyNote)
+    await saveInfo('cpNumberCost', { monthly: parseFloat(selected?.cost_information?.monthly_cost) || 0, upfront: parseFloat(selected?.cost_information?.upfront_cost) || 0 })
     const totalPrice = plan.price + surcharge
 
     await saveInfo('cpPrice', totalPrice)
@@ -39830,7 +39835,7 @@ const bankApis = {
     if (!(await telnyxNeedsVerification(provider, countryCode, info?.cpNumberType))) sendMessage(chatId, phoneConfig.getMsg(lang).purchasingNumber)
     let orderResult = await telnyxPaidCheckout(chatId, selectedNumber, {
       countryCode, countryName, numberType: info?.cpNumberType || 'local', areaCode: info?.cpAreaCode || null,
-      capabilities: info?.cpSelectedCapabilities, isSubNumber: !!info?.cpIsSubNumber, planKey, price,
+      capabilities: info?.cpSelectedCapabilities, numberCost: info?.cpNumberCost, isSubNumber: !!info?.cpIsSubNumber, planKey, price,
       refund: { currency: 'ngn', amount: ngnPaid }, paymentMethod: 'bank_ngn', lang,
     })
     if (orderResult?._verification) return res.send(html())
@@ -40833,7 +40838,7 @@ app.get('/crypto-pay-phone', auth, async (req, res) => {
   if (!(await telnyxNeedsVerification(provider, countryCode, info?.cpNumberType))) sendMessage(chatId, phoneConfig.getMsg(lang).purchasingNumber)
   const orderResult = await telnyxPaidCheckout(chatId, selectedNumber, {
     countryCode, countryName, numberType: info?.cpNumberType || 'local', areaCode: info?.cpAreaCode || null,
-    capabilities: info?.cpSelectedCapabilities, isSubNumber: !!info?.cpIsSubNumber, planKey, price: Number(price),
+    capabilities: info?.cpSelectedCapabilities, numberCost: info?.cpNumberCost, isSubNumber: !!info?.cpIsSubNumber, planKey, price: Number(price),
     refund: { currency: 'usd', amount: Number(price) }, paymentMethod: 'crypto_' + coin, lang,
   })
   if (orderResult?._verification) {
@@ -46112,7 +46117,7 @@ app.post('/dynopay/crypto-pay-phone', authDyno, async (req, res) => {
   if (!(await telnyxNeedsVerification(provider, countryCode, info?.cpNumberType))) sendMessage(chatId, phoneConfig.getMsg(lang).purchasingNumber)
   const orderResult = await telnyxPaidCheckout(chatId, selectedNumber, {
     countryCode, countryName, numberType: info?.cpNumberType || 'local', areaCode: info?.cpAreaCode || null,
-    capabilities: info?.cpSelectedCapabilities, isSubNumber: !!info?.cpIsSubNumber, planKey, price: Number(price),
+    capabilities: info?.cpSelectedCapabilities, numberCost: info?.cpNumberCost, isSubNumber: !!info?.cpIsSubNumber, planKey, price: Number(price),
     refund: { currency: 'usd', amount: Number(price) }, paymentMethod: 'crypto_dynopay_' + coin, lang,
   })
   if (orderResult?._verification) {

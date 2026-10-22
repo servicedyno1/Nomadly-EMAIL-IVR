@@ -1,0 +1,47 @@
+{
+  "summary": "Retest of the iteration_108 fixes plus a full regression of the Telnyx pay-first verification flow. The real bot (webhook :5000) was driven against mock Telegram (:5099) and mock Telnyx-reg (:5098), with TWILIO_ENABLED=false. Scripts were run one at a time (C on its own). Results: A 34/34, B 28/28 (all subsets including sub and race), C 9/10, D 6/6, E 4/4, F 7/7, G 1/1, NL smoke 12/12, and the new H 20/20 (fixes 3, 5, 8, 9). Fix 7's stuck sweeper was checked live: a seeded 'submitting' session 31 min old got stuckAlerted=true and exactly one admin alert over 3+ sweeper passes; a 10-min-old one was not alerted. Fixes 4 and 6 and the crash/insert-failure branches of fix 7 were checked by code review only. All 9 fixes are verified, and no new functional bugs were found. The only failure, C10, is the known sandbox limitation from iteration_108 (see minor issues).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "Poller rejection message (C10)", "issue": "Sandbox only, same as iteration_108: utils.sendMessage hardcodes api.telegram.org, so the mock never receives 'Verification not approved'. The bot log shows the correct text was sent for 990300021, the status became rejected and the refund was made once. Not a production bug."},
+      {"endpoint": "telnyx-regulatory.js placeRegulatedOrder()", "issue": "Edge case: if POST /number_orders succeeds but the following sessions.updateOne (status 'ordered') throws (for example a DB blip), the catch returns ok:false. The caller then refunds while a live Telnyx order exists. Possible fix: track 'order placed' locally and return ok:true with the order (or a status like 'ordered_untracked') when only the DB write failed."},
+      {"endpoint": "telnyx-regulatory.js placeRegulatedOrder() retry for REQUIREMENT_GROUP_COUNTRIES (IE, IT, CH, DK, NO, PT, SE)", "issue": "The address id and doc ids are now reused (verified), but POST /requirement_groups is sent again on the number-gone retry. Low impact (it is an extra orphan group), but it is inconsistent with fix 9. Could cache s._requirementGroupId."},
+      {"endpoint": "_submitTelnyxVerification number-gone retry", "issue": "Already existed before: the replacement number found by searchNumbers is ordered with no check that its monthly or upfront cost matches the price the user paid."}
+    ]
+  },
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/js/tests/tx_payfirst_harness.js",
+    "/app/js/tests/test_tx_payfirst_A_gb_full.js",
+    "/app/js/tests/test_tx_payfirst_B_flows.js",
+    "/app/js/tests/test_tx_payfirst_C_sweeper_poller.js",
+    "/app/js/tests/test_tx_payfirst_D_instant_summary.js",
+    "/app/js/tests/test_tx_payfirst_E_subnumber.js",
+    "/app/js/tests/test_tx_payfirst_F_addrcheck.js",
+    "/app/js/tests/test_tx_payfirst_G_race_resurrect.js",
+    "/app/js/tests/test_tx_payfirst_H_iter109_fixes.js",
+    "/app/js/tests/test_telnyx_payfirst_smoke_2026-10.js"
+  ],
+  "action_items": [
+    "Optional: in placeRegulatedOrder, do not report ok:false once POST /number_orders has succeeded, so that a DB write failure cannot cause a refund while the Telnyx order is live.",
+    "Optional: cache the requirement_group id across the number-gone retry (IE and the other group countries).",
+    "Optional: compare the replacement number's cost with the paid price before ordering it on retry."
+  ],
+  "critical_code_review_comments": [
+    "Fix 1 verified: validateAddress uses validateStatus <500, maps 422 or result:'invalid' to invalid, and shows a suggestion only when street, locality or postal is present (F 7/7).",
+    "Fix 2 verified: reply() and restartSession use replaceOne({_id, status:'collecting'}). When matchedCount is 0 it returns {closed:true}, and handleTelnyxVerificationInput resets the action silently (G1, B27, B28).",
+    "Fix 3 verified: there is a telnyxNeedsVerification guard in the wallet (13992), bank (39830), BlockBee (40833) and DynoPay (46112) paths. H1/H2: NL and GB wallet pay show no 'Purchasing your number'. US/CA return false through isTelnyxIntl. PR/CO have no requirements, so the message is still sent there (code review only: no PR/CO/US end-to-end, per instructions).",
+    "Fix 4 verified (code review): DynoPay _verification branch calls auditCryptoTx(..., verification:true, 'dynopay') at 46119, and the excess is credited after it.",
+    "Fix 5 verified: country select is blocked through the verify flag for NL, GB and HK, while US goes on to type select (H3/H4, B26). Number select is blocked through live requirements with no confirm step, no charge and no session (H5/H6). The post-payment guard in telnyxPaidCheckout still works as a fallback (E 4/4).",
+    "Fix 6 verified (code review): /bank-pay-phone credits the excess up front, ngnPaid=min(ngnIn, ngnPrice), and every later refund in the handler (Twilio branches, crash catch, Telnyx failure, verification refund.amount) uses ngnPaid. No ngnIn refund is left after line 39728.",
+    "Fix 7: a stuck 'submitting' session older than 30 min gets one admin alert and stuckAlerted=true, which held over multiple passes (live). The crash path (refund only if the status is still 'submitting') and the insert-failure path ('ordered_untracked' + admin alert) were checked by code review only and look correct.",
+    "Fix 8 verified: the hub shows '(paid ₦75,000)' for an ngn session (H7/H7b). Cancel & Refund says ₦75,000 and credits the wallet (NGN is converted to USD by addFundsTo, as designed) (H8).",
+    "Fix 9 verified with GB (address + 2 documents): on number-gone there were 2 POST /number_orders, but only 1 POST /addresses and 2 POST /documents (no duplicates), and both orders carried the same requirement values (H9-H13)."
+  ],
+  "updated_files": ["/app/js/tests/test_tx_payfirst_H_iter109_fixes.js (new)"],
+  "success_rate": {"backend": "99% (121/122 checks; the 1 failure, C10, is a sandbox-only mock limitation)", "frontend": "N/A (not requested)"},
+  "seed_data_creation": "Only test users 9903000xx (and the temporary sessions TEST_stuck_1 and TEST_stuck_2). All removed with tests/_cleanup_tx.js. Mock Telnyx config reset to pending with no error. The env lines were left in place.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run the scripts one at a time; C waits for the 5-minute in-bot poller and uses mock config, so never run it in parallel. To include the poller checks in C, first run 'KEEP=1 node tests/test_tx_payfirst_A_gb_full.js', then 'node tests/test_tx_payfirst_C_sweeper_poller.js 990300021'. H takes subsets: purch, sub, hub, gone. C10 always fails in the sandbox because utils.sendMessage bypasses the mock. With TWILIO_ENABLED=false the Cloud IVR list is the Telnyx catalog; sub-number country select uses phoneConfig verify flags. The number-gone retry calls the real Telnyx search (read-only) for a replacement number; the order itself goes to the mock."
+}
