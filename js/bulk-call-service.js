@@ -420,15 +420,8 @@ async function recoverRunningCampaigns() {
         if (!walletCheck.sufficient) {
           // Reset in-flight leads before pausing (those calls are dead after restart)
           await resetInflightLeads(campaignId, leads, campaignProvider(campaign))
-          await _collection.updateOne({ id: campaignId }, { $set: { status: 'paused' } })
           log(`[BulkCall] Recovery: Campaign ${campaignId} (user ${campaign.chatId}) — paused (insufficient funds)`)
-          _bot?.sendMessage(campaign.chatId,
-            `⏸️ <b>Campaign Paused After Restart</b>\n\n` +
-            `Your Bulk IVR campaign has ${pendingLeads.length} leads remaining but your wallet is too low.\n` +
-            `Wallet: <b>$${walletCheck.usdBal.toFixed(2)}</b> (need $${BULK_CALL_RATE.toFixed(2)}/min)\n\n` +
-            `Top up via 👛 Wallet to resume.`,
-            { parse_mode: 'HTML' }
-          ).catch(() => {})
+          await pauseForWallet(campaign, walletCheck.usdBal, BULK_CALL_RATE, 'Campaign Paused After Restart')
           canResume = false
         }
       } catch (e) {
@@ -478,6 +471,81 @@ async function cancelForTwilioUpgrade(campaign) {
     $set: { status: 'cancelled', completedAt: new Date(), cancelledReason: 'Twilio number being upgraded' }
   })
   _bot?.sendMessage(campaign.chatId, TWILIO_UPGRADE_NOTICE, { parse_mode: 'HTML' }).catch(() => {})
+}
+
+// Per-minute rate for one lead — same destination pricing as Quick IVR
+// (US/CA flat, international + high-cost destinations higher).
+function leadRate(number) {
+  return typeof _voiceService?.getIvrCallRate === 'function' ? _voiceService.getIvrCallRate(number) : BULK_CALL_RATE
+}
+
+// Pre-launch estimate (min 1 min per lead), split standard-rate vs higher-rate leads.
+function estimateLeadsCost(leads) {
+  let total = 0, domestic = 0, intl = 0, intlMin = Infinity, intlMax = 0
+  for (const l of leads || []) {
+    const r = leadRate(l.number)
+    total += r
+    if (r > BULK_CALL_RATE) { intl++; intlMin = Math.min(intlMin, r); intlMax = Math.max(intlMax, r) } else domestic++
+  }
+  const intlLabel = intl ? (intlMin === intlMax ? `$${intlMax.toFixed(2)}` : `$${intlMin.toFixed(2)}–$${intlMax.toFixed(2)}`) : ''
+  const rateLine = intl
+    ? `Rate: $${BULK_CALL_RATE.toFixed(2)}/min US/CA · ${intlLabel}/min international (${intl} lead${intl === 1 ? '' : 's'})`
+    : `Rate: $${BULK_CALL_RATE.toFixed(2)}/min per call`
+  return { total: +total.toFixed(2), domestic, intl, intlRate: intlMax, rateLine }
+}
+
+const STATUS_ICON = { running: '▶️', paused: '⏸', scheduled: '⏰', created: '🆕', completed: '✅', cancelled: '❌' }
+const escHtml = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+
+// Inline Pause / Resume / Cancel buttons for a campaign's current status.
+function campaignControls(c) {
+  const id = c.id
+  const status = { text: '📊 Status', callback_data: `bulk_view:${id}` }
+  const cancel = { text: '❌ Cancel', callback_data: `bulk_cancel:${id}` }
+  if (c.status === 'running') return [[{ text: '⏸ Pause', callback_data: `bulk_pause:${id}` }, cancel], [status]]
+  if (c.status === 'paused') return [[{ text: '▶️ Resume', callback_data: `bulk_resume:${id}` }, cancel], [status]]
+  if (c.status === 'scheduled' || c.status === 'created') return [[cancel]]
+  return []
+}
+
+function formatCampaignStatus(c) {
+  const s = c.stats || {}
+  const pct = s.total ? Math.round(((s.completed || 0) / s.total) * 100) : 0
+  return [
+    `📊 <b>Campaign Status</b> — ${STATUS_ICON[c.status] || ''} <b>${String(c.status).toUpperCase()}</b>`,
+    ``,
+    `📱 Caller ID: <b>${c.callerId}</b>`,
+    `🎵 Audio: <b>${escHtml(c.audioName || 'Custom Audio')}</b>`,
+    `Progress: <b>${s.completed || 0}/${s.total || 0}</b> (${pct}%)`,
+    `✅ Answered: <b>${s.answered || 0}</b>`,
+    `🔘 Key Pressed: <b>${s.keyPressed || 0}</b>`,
+    c.mode === 'transfer' ? `🔗 Transferred: <b>${s.transferred || 0}</b>` : null,
+    `📵 No Answer: <b>${s.noAnswer || 0}</b>`,
+    `📵 Hung Up: <b>${s.hungUp || 0}</b>`,
+    s.voicemail ? `📭 Voicemail: <b>${s.voicemail}</b>${s.voicemailLeft ? ` (📩 ${s.voicemailLeft} message${s.voicemailLeft === 1 ? '' : 's'} left)` : ''}` : null,
+    `🚫 Busy: <b>${s.busy || 0}</b>`,
+    `❌ Failed: <b>${s.failed || 0}</b>`,
+    c.status === 'paused' && c.pausedReason === 'wallet' ? `\n⏸ Paused — wallet depleted. Top up via 👛 Wallet, then tap ▶️ Resume.` : null,
+    c.status === 'scheduled' && c.scheduledFor ? `\n⏰ Launches at <b>${new Date(c.scheduledFor).toISOString().replace('T', ' ').slice(0, 16)} UTC</b>` : null,
+    c.status === 'cancelled' && c.cancelledReason ? `\nReason: ${escHtml(c.cancelledReason)}` : null,
+  ].filter(v => v !== null).join('\n')
+}
+
+// Pauses a running campaign for low wallet balance and offers ▶️ Resume / ❌ Cancel.
+async function pauseForWallet(campaign, usdBal, rate, title = 'Campaign Paused — Wallet Depleted') {
+  const state = activeCampaigns[campaign.id]
+  if (state && state.paused) return
+  if (state) state.paused = true
+  const r = await _collection.updateOne({ id: campaign.id, status: 'running' }, { $set: { status: 'paused', pausedReason: 'wallet' } })
+  if (r.modifiedCount !== 1) return
+  const fresh = await _collection.findOne({ id: campaign.id })
+  _bot?.sendMessage(campaign.chatId,
+    `⏸️ <b>${title}</b>\n\n` +
+    `📞 ${fresh?.stats?.completed || 0}/${fresh?.stats?.total || 0} calls completed so far.\n` +
+    `Wallet: <b>$${Number(usdBal || 0).toFixed(2)}</b> (need $${rate.toFixed(2)}/min per call).\n\n` +
+    `Top up via 👛 Wallet, then tap ▶️ Resume.`,
+    { parse_mode: 'HTML', reply_markup: { inline_keyboard: campaignControls({ id: campaign.id, status: 'paused' }) } }
+  ).catch(() => {})
 }
 
 /**
@@ -618,7 +686,7 @@ function parseLeadsFile(content) {
  * Create a new campaign
  */
 async function createCampaign(params) {
-  const { chatId, callerId, audioUrl, audioName, mode, transferNumber, menu, activeKeys, concurrency, holdMusic, leads, twilioSubAccountSid, twilioSubAccountToken, scheduledFor, provider } = params
+  const { chatId, callerId, audioUrl, audioName, mode, transferNumber, menu, activeKeys, concurrency, holdMusic, leads, twilioSubAccountSid, twilioSubAccountToken, scheduledFor, provider, voicemailAudioUrl, voicemailAudioName } = params
 
   // ━━━ Enforce max lead limit ━━━
   if (leads.length > MAX_BULK_LEADS) {
@@ -646,6 +714,8 @@ async function createCampaign(params) {
     concurrency: Math.min(concurrency || 10, 20),
     holdMusic: holdMusic || false,
     provider: provider || (twilioSubAccountSid ? 'twilio' : 'telnyx'),
+    voicemailAudioUrl: voicemailAudioUrl || null,
+    voicemailAudioName: voicemailAudioName || null,
     twilioSubAccountSid: twilioSubAccountSid || null,
     twilioSubAccountToken: twilioSubAccountToken || null,
     leads: leads.map((l, i) => ({
@@ -675,6 +745,7 @@ async function createCampaign(params) {
       failed: 0,
       hungUp: 0,
       voicemail: 0,
+      voicemailLeft: 0,
     },
     scheduledFor: schedAt,
     startedAt: null,
@@ -807,15 +878,18 @@ async function startCampaign(campaignId) {
         }
       }
 
-      // ── Pre-campaign estimate for all users ──
-      const minRequired = BULK_CALL_RATE * campaign.leads.length
+      // ── Pre-campaign estimate for all users (destination-based rates, min 1 min per lead) ──
+      const est = estimateLeadsCost(campaign.leads)
+      const minRequired = est.total
       const estLeadsCovered = Math.floor(Math.max(usdBal, 0) / BULK_CALL_RATE)
+      const rateLine = est.rateLine
       const costCheck = await smartWalletCheck(_walletOf, campaign.chatId, minRequired)
       if (!costCheck.sufficient) {
         _bot?.sendMessage(campaign.chatId,
           `⚠️ <b>Low Balance Warning</b>\n\n` +
           `Wallet: <b>$${usdBal.toFixed(2)}</b> (~${estLeadsCovered}+ calls at $${BULK_CALL_RATE.toFixed(2)}/min).\n` +
           `Campaign has <b>${campaign.leads.length}</b> leads — estimated cost: <b>$${minRequired.toFixed(2)}</b>.\n` +
+          `${rateLine}\n` +
           `Campaign will pause automatically if balance runs out.\n` +
           `Consider topping up for uninterrupted dialing.`,
           { parse_mode: 'HTML' }
@@ -826,7 +900,7 @@ async function startCampaign(campaignId) {
           `📊 <b>Campaign Starting</b>\n\n` +
           `📞 <b>${campaign.leads.length}</b> leads — estimated cost: <b>$${minRequired.toFixed(2)}</b>\n` +
           `Wallet: <b>$${usdBal.toFixed(2)}</b> (~${estLeadsCovered}+ calls covered)\n` +
-          `Rate: $${BULK_CALL_RATE.toFixed(2)}/min per call`,
+          rateLine,
           { parse_mode: 'HTML' }
         ).catch(() => {})
       }
@@ -873,8 +947,9 @@ async function startCampaign(campaignId) {
     `📞 Provider: <b>Speechcue</b>\n` +
     `⚡ Concurrency: <b>${campaign.concurrency}</b>\n` +
     `📊 Mode: <b>${campaign.mode === 'transfer' ? '🔗 Transfer + Report' : '📊 Report Only'}</b>\n` +
+    (isTelnyx ? `📭 Voicemail: <b>${campaign.voicemailAudioUrl ? `Leave "${escHtml(campaign.voicemailAudioName || 'message')}"` : 'Hang up'}</b>\n` : '') +
     `Dialing now... You'll receive updates as calls complete.`,
-    { parse_mode: 'HTML' }
+    { parse_mode: 'HTML', reply_markup: { inline_keyboard: campaignControls({ id: campaignId, status: 'running' }) } }
   ).catch(() => {})
 
   // Fire initial batch (Telnyx dials are paced, so don't hold the caller while they ramp up)
@@ -933,6 +1008,7 @@ function dialTelnyx(campaign, lead) {
     activeKeys: campaign.activeKeys || ['1'],
     templateName: campaign.audioName,
     holdMusic: !!campaign.holdMusic,
+    voicemailAudioUrl: /^https?:\/\//i.test(campaign.voicemailAudioUrl || '') ? campaign.voicemailAudioUrl : null,
     campaignId: campaign.id,
     leadIndex: lead.index,
     bulkMode: isTransfer ? 'transfer' : 'report_only',
@@ -965,15 +1041,7 @@ async function fireNextBatch(campaignId) {
       if (!walletCheck.sufficient) {
         // No credits — pause campaign
         log(`[BulkCall] Pausing campaign ${campaignId}: insufficient funds`)
-        state.paused = true
-        await _collection.updateOne({ id: campaignId }, { $set: { status: 'paused' } })
-        _bot?.sendMessage(campaign.chatId,
-          `⏸️ <b>Campaign Paused — Wallet Depleted</b>\n\n` +
-          `📞 ${campaign.stats.completed}/${campaign.stats.total} calls completed so far.\n` +
-          `Wallet: <b>$${walletCheck.usdBal.toFixed(2)}</b> (need $${BULK_CALL_RATE.toFixed(2)}/min per call).\n\n` +
-          `Top up via 👛 Wallet, then resume the campaign.`,
-          { parse_mode: 'HTML' }
-        ).catch(() => {})
+        await pauseForWallet(campaign, walletCheck.usdBal, BULK_CALL_RATE)
         return
       }
     } catch (e) { log(`[BulkCall] Per-batch credit check error: ${e.message}`) }
@@ -1002,6 +1070,14 @@ async function fireNextBatch(campaignId) {
         if (isProviderSuspended(result)) {
           await updateLeadResult(campaignId, lead.index, { status: 'pending', startedAt: null })
           await endCampaignProviderSuspended(campaignId, lead.number)
+          return
+        }
+        // Wallet can't cover this lead's (destination) rate → pause instead of failing the lead.
+        if (/^Insufficient wallet balance/i.test(String(result.error))) {
+          await updateLeadResult(campaignId, lead.index, { status: 'pending', startedAt: null })
+          const { usdBal } = await getBalance(_walletOf, campaign.chatId)
+          log(`[BulkCall] Pausing campaign ${campaignId}: wallet can't cover ${lead.number} at $${leadRate(lead.number)}/min`)
+          await pauseForWallet(campaign, usdBal, leadRate(lead.number))
           return
         }
         await updateLeadResult(campaignId, lead.index, {
@@ -1148,6 +1224,7 @@ async function onCallComplete(callControlId, r = {}) {
     transferConnected: !!r.transferConnected,
     answeredBy: r.answeredBy || null,
     answeredAt: r.answeredAt || null,
+    voicemailDropped: finalStatus === 'voicemail' && !!r.voicemailDropped,
   })
 }
 
@@ -1169,6 +1246,7 @@ async function finalizeLead(campaign, leadIndex, callSid, res) {
   }
   if (res.answeredBy) set[`${p}.answeredBy`] = res.answeredBy
   if (res.answeredAt) set[`${p}.answeredAt`] = res.answeredAt
+  if (res.voicemailDropped) set[`${p}.voicemailDropped`] = true
   const filter = { id: campaignId, [`${p}.status`]: { $in: INFLIGHT_STATUSES } }
   // NOTE: {$in:[null, sid]} on an array path always matches (Mongo also probes field "0" of each
   // element, which is missing ⇒ null), so match the sid exactly or a genuinely null/absent callSid.
@@ -1193,6 +1271,7 @@ async function finalizeLead(campaign, leadIndex, callSid, res) {
     hangupCause: res.hangupCause,
     transferred: res.transferred,
     transferConnected: res.transferConnected,
+    voicemailDropped: !!res.voicemailDropped,
   })
 
   // Fire next batch
@@ -1216,7 +1295,8 @@ async function billLead(campaign, leadIndex, finalStatus, duration) {
   if (!_walletOf || !campaign.chatId) return
   try {
     const minutesBilled = Math.max(1, Math.ceil((duration || 0) / 60))  // minimum 1 minute always
-    const charge = +(minutesBilled * BULK_CALL_RATE).toFixed(4)
+    const rate = leadRate(lead?.number)  // US/CA flat; international / high-cost destinations higher
+    const charge = +(minutesBilled * rate).toFixed(4)
 
     // Direct wallet deduction (bulk calls do NOT use plan minutes) — tries USD first, then NGN.
     // Metadata gives walletLedger full per-call attribution (2026-05-05 @johngambino audit).
@@ -1225,7 +1305,7 @@ async function billLead(campaign, leadIndex, finalStatus, duration) {
       callType: 'BulkIVR',
       destination: lead?.number || null,
       phoneNumber: lead?.number || null,
-      description: `BulkIVR ${campaign.callerId} → ${lead?.number || 'unknown'} (${minutesBilled} min × $${BULK_CALL_RATE}, status=${finalStatus})`,
+      description: `BulkIVR ${campaign.callerId} → ${lead?.number || 'unknown'} (${minutesBilled} min × $${rate}, status=${finalStatus})`,
     })
     if (deductResult.success) {
       const chargedStr = deductResult.currency === 'ngn' ? `₦${deductResult.chargedNgn}` : `$${charge.toFixed(2)}`
@@ -1242,14 +1322,14 @@ async function billLead(campaign, leadIndex, finalStatus, duration) {
           charge,
           chargedCurrency: deductResult.currency,
           chargedNgn: deductResult.chargedNgn || null,
-          rate: BULK_CALL_RATE,
+          rate,
           callStatus: finalStatus,
           campaignId,
           leadIndex,
           createdAt: new Date(),
         })
       }
-      log(`[BulkCall] Billed ${chargedStr} (${minutesBilled} min × $${BULK_CALL_RATE}/min) for campaign=${campaignId} lead=${leadIndex} status=${finalStatus}`)
+      log(`[BulkCall] Billed ${chargedStr} (${minutesBilled} min × $${rate}/min) for campaign=${campaignId} lead=${leadIndex} status=${finalStatus}`)
     } else {
       log(`[BulkCall] Billing failed (insufficient funds) for campaign=${campaignId} lead=${leadIndex}`)
     }
@@ -1261,15 +1341,7 @@ async function billLead(campaign, leadIndex, finalStatus, duration) {
         const campState = activeCampaigns[campaignId]
         if (campState && !campState.paused) {
           log(`[BulkCall] Wallet exhausted after billing — pausing campaign ${campaignId}`)
-          campState.paused = true
-          await _collection.updateOne({ id: campaignId }, { $set: { status: 'paused' } })
-          _bot?.sendMessage(campaign.chatId,
-            `⏸️ <b>Campaign Auto-Paused — Wallet Depleted</b>\n\n` +
-            `Wallet: <b>$${postCheck.usdBal.toFixed(2)}</b> (need $${BULK_CALL_RATE.toFixed(2)}/min per call).\n` +
-            `${campaign.stats?.completed || 0}/${campaign.stats?.total || 0} calls completed.\n\n` +
-            `Top up via 👛 Wallet to resume.`,
-            { parse_mode: 'HTML' }
-          ).catch(() => {})
+          await pauseForWallet(campaign, postCheck.usdBal, BULK_CALL_RATE, 'Campaign Auto-Paused — Wallet Depleted')
         }
       }
     } catch (e) { log(`[BulkCall] Post-billing wallet check error: ${e.message}`) }
@@ -1296,6 +1368,7 @@ async function recalcStats(campaignId) {
     failed: 0,
     hungUp: 0,
     voicemail: 0,
+    voicemailLeft: 0,
   }
 
   for (const lead of campaign.leads) {
@@ -1304,7 +1377,7 @@ async function recalcStats(campaignId) {
     if (lead.status === 'no_answer') stats.noAnswer++
     else if (lead.status === 'busy') stats.busy++
     else if (lead.status === 'failed') stats.failed++
-    else if (lead.status === 'voicemail') stats.voicemail++
+    else if (lead.status === 'voicemail') { stats.voicemail++; if (lead.voicemailDropped) stats.voicemailLeft++ }
     else {
       // answered/completed/transferred
       if (lead.duration > 0 || lead.status === 'answered' || lead.digitPressed) stats.answered++
@@ -1336,7 +1409,7 @@ async function sendProgressUpdate(campaignId, leadIndex, result) {
   if (result.status === 'no_answer') { icon = '📵'; statusText = 'No answer' }
   else if (result.status === 'busy') { icon = '📵'; statusText = 'Busy' }
   else if (result.status === 'failed') { icon = '❌'; statusText = `Failed: ${sanitizeHangupCause(result.hangupCause)}` }
-  else if (result.status === 'voicemail') { icon = '📭'; statusText = 'Voicemail — hung up' }
+  else if (result.status === 'voicemail') { icon = '📭'; statusText = result.voicemailDropped ? 'Voicemail — message left' : 'Voicemail — hung up' }
   else if (result.digitPressed) {
     icon = '🔘'
     statusText = `Pressed ${result.digitPressed}`
@@ -1430,7 +1503,7 @@ async function sendFinalReport(campaignId) {
     campaign.mode === 'transfer' ? `🔗 ${tt('bulkCallReportTransferred')} <b>${stats.transferred}</b>` : null,
     `📵 ${tt('bulkCallReportNoAnswer')} <b>${stats.noAnswer}</b>`,
     `📵 ${tt('bulkCallReportHungUp')} <b>${stats.hungUp}</b>`,
-    stats.voicemail ? `📭 ${tt('bulkCallReportVoicemail')} <b>${stats.voicemail}</b>` : null,
+    stats.voicemail ? `📭 ${tt('bulkCallReportVoicemail')} <b>${stats.voicemail}</b>${stats.voicemailLeft ? ` (📩 ${stats.voicemailLeft})` : ''}` : null,
     `🚫 ${tt('bulkCallReportBusy')} <b>${stats.busy}</b>`,
     `❌ ${tt('bulkCallReportFailed')} <b>${stats.failed}</b>`,
   ].filter(Boolean).join('\n')
@@ -1468,7 +1541,7 @@ async function generateReportFile(campaign) {
       lead.transferred ? 'Yes' : 'No',
       lead.transferConnected ? 'Yes' : 'No',
       lead.hangupCause ? sanitizeHangupCause(lead.hangupCause) : '',
-      lead.answeredBy || '',
+      lead.answeredBy ? `${lead.answeredBy}${lead.voicemailDropped ? ' (message left)' : ''}` : '',
     ].join(','))
   }
 
@@ -1479,15 +1552,20 @@ async function generateReportFile(campaign) {
 }
 
 /**
- * Cancel a running campaign
+ * Cancel a campaign (running / paused / scheduled). Calls already in progress finish normally
+ * and are billed as usual; pending leads are marked not called. Sends the report so far.
  */
-async function cancelCampaign(campaignId) {
+async function cancelCampaign(campaignId, reason = 'Cancelled by user') {
   const state = activeCampaigns[campaignId]
   if (state) state.paused = true
 
-  await _collection.updateOne(
-    { id: campaignId },
-    { $set: { status: 'cancelled', completedAt: new Date() } }
+  const r = await _collection.updateOne(
+    { id: campaignId, status: { $in: ['created', 'scheduled', 'running', 'paused'] } },
+    { $set: {
+      status: 'cancelled', completedAt: new Date(), cancelledReason: reason,
+      'leads.$[p].notCalled': true, 'leads.$[p].hangupCause': 'not called — campaign cancelled',
+    } },
+    { arrayFilters: [{ 'p.status': 'pending' }] }
   )
   delete activeCampaigns[campaignId]
 
@@ -1495,20 +1573,65 @@ async function cancelCampaign(campaignId) {
   for (const [sid, mapping] of Object.entries(callToCampaign)) {
     if (mapping.campaignId === campaignId) delete callToCampaign[sid]
   }
+  if (r.modifiedCount !== 1) return { error: 'Campaign already finished or cancelled.' }
 
-  log(`[BulkCall] Campaign ${campaignId} cancelled`)
-  return true
+  log(`[BulkCall] Campaign ${campaignId} cancelled (${reason})`)
+  await recalcStats(campaignId)
+  const c = await _collection.findOne({ id: campaignId })
+  if (c?.startedAt) await sendFinalReport(campaignId).catch(() => {})
+  return { success: true, notCalled: (c?.leads || []).filter(l => l.notCalled).length }
 }
 
 /**
  * Pause a running campaign (stop firing new calls, let active calls finish)
  */
 async function pauseCampaign(campaignId) {
+  const r = await _collection.updateOne({ id: campaignId, status: 'running' }, { $set: { status: 'paused', pausedReason: 'user' } })
+  if (r.modifiedCount !== 1) return { error: 'Campaign is not running.' }
   const state = activeCampaigns[campaignId]
   if (state) state.paused = true
-  await _collection.updateOne({ id: campaignId }, { $set: { status: 'paused' } })
   log(`[BulkCall] Campaign ${campaignId} paused`)
-  return true
+  return { success: true }
+}
+
+/**
+ * Resume a paused campaign once the wallet covers the next lead's rate.
+ */
+async function resumeCampaign(campaignId) {
+  const campaign = await _collection.findOne({ id: campaignId })
+  if (!campaign) return { error: 'Campaign not found.' }
+  if (campaign.status !== 'paused') return { error: `Campaign is ${campaign.status}, not paused.` }
+  const provider = campaignProvider(campaign)
+  if (provider === 'twilio' && !isTwilioEnabled()) {
+    await cancelForTwilioUpgrade(campaign)
+    return { error: 'This number is being upgraded to our new calling network. Start a new campaign from your new number.' }
+  }
+
+  const next = campaign.leads.find(l => l.status === 'pending')
+  const need = next ? leadRate(next.number) : BULK_CALL_RATE
+  if (_walletOf && next) {
+    const w = await smartWalletCheck(_walletOf, campaign.chatId, need)
+    if (!w.sufficient) {
+      return { error: `Wallet balance $${w.usdBal.toFixed(2)} is too low — at least $${need.toFixed(2)} is needed to continue. Top up via 👛 Wallet, then tap ▶️ Resume.`, lowBalance: true }
+    }
+  }
+
+  const claim = await _collection.updateOne({ id: campaignId, status: 'paused' }, { $set: { status: 'running', resumedAt: new Date() }, $unset: { pausedReason: '' } })
+  if (claim.modifiedCount !== 1) return { error: 'Campaign status changed — please try again.' }
+
+  if (activeCampaigns[campaignId]) {
+    activeCampaigns[campaignId].paused = false
+  } else {
+    // Paused before a restart: settle in-flight bookkeeping the same way recovery does.
+    const { kept } = await resetInflightLeads(campaignId, campaign.leads, provider)
+    activeCampaigns[campaignId] = { activeCalls: kept, nextLeadIndex: 0, paused: false }
+  }
+  log(`[BulkCall] Campaign ${campaignId} resumed`)
+
+  const firing = fireNextBatch(campaignId)
+  if (provider === 'telnyx') firing.catch(e => log(`[BulkCall] Resume batch error for ${campaignId}: ${e.message}`))
+  else await firing
+  return { success: true }
 }
 
 /**
@@ -1554,6 +1677,11 @@ module.exports = {
   sweepStuckLeads,
   cancelCampaign,
   pauseCampaign,
+  resumeCampaign,
+  estimateLeadsCost,
+  leadRate,
+  formatCampaignStatus,
+  campaignControls,
   getCampaign,
   getUserCampaigns,
   isBulkCall,

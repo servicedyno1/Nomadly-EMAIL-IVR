@@ -2142,6 +2142,7 @@ async function handleVoiceWebhook(req, res) {
         await handleSpeakEnded(payload)
         break
       case 'call.playback.ended':
+        if (await handleVoicemailDropEnded(payload)) break
         // Only route to handleSpeakEnded for voicemail flows, NOT for hold music
         // Hold music transfers are handled via call.speak.ended only
         if (!pendingHoldTransfers[payload?.call_control_id]) {
@@ -2169,14 +2170,22 @@ async function handleVoiceWebhook(req, res) {
             : amdResult === 'human' ? 'human'
             : 'unknown'
           log(`[OutboundIVR] AMD: ${amdSession.targetNumber} → ${amdSession.answeredBy}`)
-          // Bulk IVR: a voicemail can't press a key — hang up (lead is reported as "Voicemail").
+          // Bulk IVR: a voicemail can't press a key — leave the voicemail clip (if set) or hang up.
           if (amdSession.campaignId && amdSession.answeredBy === 'machine' && !amdSession.digitPressed && amdSession.phase === 'playing') {
-            log(`[OutboundIVR] Bulk AMD machine → hanging up ${amdSession.targetNumber} (campaign ${amdSession.campaignId})`)
-            await _telnyxApi.hangupCall(amdCallControlId).catch(() => {})
+            if (amdSession.voicemailAudioUrl) {
+              await startVoicemailWait(amdCallControlId, amdSession)
+            } else {
+              log(`[OutboundIVR] Bulk AMD machine → hanging up ${amdSession.targetNumber} (campaign ${amdSession.campaignId})`)
+              await _telnyxApi.hangupCall(amdCallControlId).catch(() => {})
+            }
           }
         }
         break
       }
+      case 'call.machine.greeting.ended':
+        // detect_beep: voicemail greeting finished (beep heard) → drop the message now
+        await playVoicemailDrop(payload.call_control_id, `greeting ${payload.result || 'ended'}`)
+        break
       case 'fax.received':
       case 'fax.receiving.started':
       case 'fax.media.processing.started':
@@ -2191,6 +2200,47 @@ async function handleVoiceWebhook(req, res) {
   } catch (e) {
     log(`[Voice] Webhook error: ${e.message}`)
   }
+}
+
+// ── Bulk voicemail drop (Telnyx detect_beep) ──
+// machine detected → stop the IVR prompt, wait for the beep (greeting.ended) or a fallback
+// timeout, play the campaign's voicemail clip once, then hang up when it finishes.
+const VM_BEEP_WAIT_MS = parseInt(process.env.BULK_VM_BEEP_WAIT_MS || '20000', 10)
+const VM_MAX_PLAY_MS = 120000
+
+async function startVoicemailWait(callControlId, session) {
+  session.phase = 'voicemail_wait'
+  log(`[OutboundIVR] Bulk AMD machine → waiting for beep to leave voicemail on ${session.targetNumber} (campaign ${session.campaignId})`)
+  await _telnyxApi.gatherStop(callControlId).catch(() => {})
+  session._vmTimer = setTimeout(() => playVoicemailDrop(callControlId, 'beep wait timeout').catch(() => {}), VM_BEEP_WAIT_MS)
+}
+
+async function playVoicemailDrop(callControlId, reason) {
+  const session = outboundIvrCalls[callControlId]
+  if (!session || session.phase !== 'voicemail_wait' || isCallEnded(callControlId)) return
+  if (session._vmTimer) clearTimeout(session._vmTimer)
+  session.phase = 'voicemail_playing'
+  session.voicemailDropped = true
+  log(`[OutboundIVR] Leaving voicemail on ${session.targetNumber} (${reason})`)
+  const started = await _telnyxApi.playbackStart(callControlId, session.voicemailAudioUrl)
+  if (!started) {
+    session.voicemailDropped = false
+    log(`[OutboundIVR] Voicemail clip failed to play on ${session.targetNumber} — hanging up`)
+    await _telnyxApi.hangupCall(callControlId).catch(() => {})
+    return
+  }
+  session._vmTimer = setTimeout(() => _telnyxApi.hangupCall(callControlId).catch(() => {}), VM_MAX_PLAY_MS)
+}
+
+async function handleVoicemailDropEnded(payload) {
+  const callControlId = payload.call_control_id
+  const session = outboundIvrCalls[callControlId]
+  if (!session || session.phase !== 'voicemail_playing') return false
+  if (payload.media_url && payload.media_url !== session.voicemailAudioUrl) return true
+  if (session._vmTimer) clearTimeout(session._vmTimer)
+  log(`[OutboundIVR] Voicemail message finished on ${session.targetNumber} — hanging up`)
+  await _telnyxApi.hangupCall(callControlId).catch(() => {})
+  return true
 }
 
 /**
@@ -4521,7 +4571,7 @@ const ivrOutbound = require('./ivr-outbound.js')
  * @returns {{ callControlId, error }}
  */
 async function initiateOutboundIvrCall(params) {
-  const { chatId, callerId, targetNumber, ivrNumber, menu, audioUrl, activeKeys, templateName, placeholderValues, voiceName, isTrial, holdMusic, campaignId, leadIndex, bulkMode, ivrMode, otpLength, otpMaxAttempts, otpConfirmMsg, otpRejectMsg } = params
+  const { chatId, callerId, targetNumber, ivrNumber, menu, audioUrl, activeKeys, templateName, placeholderValues, voiceName, isTrial, holdMusic, campaignId, leadIndex, bulkMode, ivrMode, otpLength, otpMaxAttempts, otpConfirmMsg, otpRejectMsg, voicemailAudioUrl } = params
 
   // ── Block satellite / premium-rate destinations (target + transfer leg) ──
   for (const dest of [targetNumber, ivrNumber].filter(Boolean)) {
@@ -4707,7 +4757,9 @@ async function initiateOutboundIvrCall(params) {
 
   // ── TELNYX PATH (default): Use Telnyx Call Control API ──
   const webhookUrl = `${_selfUrl}/telnyx/voice-webhook`
-  const result = await _telnyxApi.createOutboundCall(callerId, targetNumber, webhookUrl)
+  // Voicemail drop needs the beep (call.machine.greeting.ended) so the message records cleanly.
+  const amdOpts = voicemailAudioUrl ? { answering_machine_detection: 'detect_beep' } : {}
+  const result = await _telnyxApi.createOutboundCall(callerId, targetNumber, webhookUrl, undefined, amdOpts)
 
   if (result.error) {
     return { error: result.error }
@@ -4735,6 +4787,8 @@ async function initiateOutboundIvrCall(params) {
     campaignId: campaignId || null,
     leadIndex: leadIndex != null ? leadIndex : null,
     bulkMode: bulkMode || null, // 'transfer' | 'report_only'
+    voicemailAudioUrl: voicemailAudioUrl || null, // bulk voicemail drop clip (null → hang up on machine)
+    voicemailDropped: false,
     answeredBy: null, // AMD result: 'human', 'machine', 'not_sure', null
     // OTP Collection fields (Business plan)
     ivrMode: ivrMode || 'transfer',
@@ -4927,6 +4981,8 @@ async function handleOutboundIvrGatherEnded(payload) {
     log(`[OutboundIVR] Skipping gather for ${session.targetNumber} — call already ended`)
     return true
   }
+  // Voicemail drop in progress — the stopped IVR prompt's gather result is irrelevant.
+  if (session.phase === 'voicemail_wait' || session.phase === 'voicemail_playing') return true
 
   const digits = payload.digits || ''
   log(`[OutboundIVR] DTMF received: "${digits}" for ${session.targetNumber}`)
@@ -5095,6 +5151,7 @@ async function handleOutboundIvrHangup(payload) {
 
   // Clean up mid-call limit timer
   if (session._limitTimer) clearInterval(session._limitTimer)
+  if (session._vmTimer) clearTimeout(session._vmTimer)
 
   // Use tracked answerTime for accurate duration (Telnyx reports 0 for bridged/transferred calls)
   const telnyxDuration = payload.duration_secs || 0
@@ -5187,6 +5244,7 @@ async function handleOutboundIvrHangup(payload) {
         transferConnected,
         answeredBy: session.answeredBy || null,
         answeredAt: session.answerTime ? new Date(session.answerTime) : null,
+        voicemailDropped: !!session.voicemailDropped,
       })
     } catch (e) {
       log(`[OutboundIVR] Bulk campaign report error: ${e.message}`)

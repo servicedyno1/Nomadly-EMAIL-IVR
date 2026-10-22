@@ -499,6 +499,18 @@ async function playbackStop(callControlId) {
   }
 }
 
+// ── Call Control: Gather Stop (ends an in-progress gather and its prompt audio) ──
+async function gatherStop(callControlId) {
+  try {
+    const res = await axios.post(`${BASE}/calls/${callControlId}/actions/gather_stop`, {}, { headers: headers() })
+    return res.data?.data || null
+  } catch (e) {
+    const errDetail = e.response?.data?.errors?.[0]?.detail || e.message || ''
+    log('Telnyx gatherStop error:', errDetail)
+    return null
+  }
+}
+
 // ── Call Control: Record Stop ──
 async function stopRecording(callControlId) {
   try {
@@ -990,6 +1002,7 @@ module.exports = {
   gatherDTMFWithAudio,
   gatherDTMFWithSpeak,
   playbackStop,
+  gatherStop,
   playbackStart,
   createOutboundCall,
   bridgeCalls,

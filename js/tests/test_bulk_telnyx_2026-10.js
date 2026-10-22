@@ -8,6 +8,7 @@ process.env.MONGO_URL = URL
 process.env.DB_NAME = 'p2_telnyx_sandbox'
 process.env.BULK_TELNYX_DIAL_GAP_MS = '0'
 process.env.TWILIO_ENABLED = 'false'
+process.env.BULK_VM_BEEP_WAIT_MS = '1500'
 delete process.env.SELF_URL; delete process.env.SELF_URL_PROD
 
 const { MongoClient } = require('mongodb')
@@ -25,24 +26,27 @@ const waitFor = async (fn, ms = 4000) => { const t = Date.now(); while (Date.now
 const dials = []          // { id, from, to }
 const hangups = []
 const failTo = {}         // to → error string
+const gathers = [], gatherStops = [], playbacks = []
 let seq = 0
 const telnyxStub = {
-  async createOutboundCall(from, to) {
+  async createOutboundCall(from, to, webhookUrl, connId, opts) {
     if (failTo[to]) return { error: failTo[to] }
     const id = `v3:cc-${++seq}`
-    dials.push({ id, from, to })
+    dials.push({ id, from, to, amd: opts?.answering_machine_detection || 'detect' })
     return { callControlId: id }
   },
-  async gatherDTMFWithAudio() { return {} }, async gatherDTMF() { return {} }, async gatherDTMFWithSpeak() { return {} },
-  async speakOnCall() { return {} }, async playbackStart() { return {} }, async playbackStop() { return {} },
+  async gatherDTMFWithAudio(id) { gathers.push(id); return {} }, async gatherDTMF() { return {} }, async gatherDTMFWithSpeak() { return {} },
+  async gatherStop(id) { gatherStops.push(id); return {} },
+  async speakOnCall() { return {} }, async playbackStart(id, url) { playbacks.push({ id, url }); return /fail/.test(url) ? null : {} }, async playbackStop() { return {} },
   async bridgeCalls() { return {} }, async transferCall() { return {} }, async answerCall() { return {} },
   async hangupCall(id) { hangups.push(id); return {} },
 }
 const twilioDials = []
 const twilioStub = { async makeOutboundCall(...a) { twilioDials.push(a); return { callSid: 'CAx' } }, async getSubAccount() { return { authToken: 't' } } }
 const sent = []; const docs = []
+const sentOpts = []
 const botStub = {
-  sendMessage: async (chatId, text) => { sent.push({ chatId: String(chatId), text: String(text) }); return {} },
+  sendMessage: async (chatId, text, opts) => { sent.push({ chatId: String(chatId), text: String(text) }); sentOpts.push({ chatId: String(chatId), text: String(text), opts }); return {} },
   sendDocument: async (chatId, p) => { docs.push({ chatId: String(chatId), p }); return {} },
 }
 
@@ -186,6 +190,142 @@ const dialFor = (to) => dials.filter(d => d.to === to).slice(-1)[0]
   await bulk.recoverRunningCampaigns()
   const cE2 = await camps.findOne({ id: 'p2-legacy-running' })
   ok('P2-22', 'restart recovery: running legacy Twilio campaign cancelled as being upgraded, no dial', cE2.status === 'cancelled' && cE2.cancelledReason === 'Twilio number being upgraded' && twilioDials.length === 0, `status=${cE2.status}`)
+
+
+  // ━━━ Feature: international pricing (destination-based, same as Quick IVR) ━━━
+  const I = '9000000510', callerI = '+18885550510', uk = '+447700900123'
+  await walletOf.insertOne({ _id: I, usdIn: 50, usdOut: 0 })
+  await phoneNumbersOf.insertOne({ _id: I, val: { numbers: [{ phoneNumber: callerI, status: 'active', plan: 'pro', provider: 'telnyx' }] } })
+  const est = bulk.estimateLeadsCost([{ number: L(60) }, { number: L(61) }, { number: uk }])
+  ok('P3-01', 'estimate splits US/CA vs international: 2×$0.15 + 1×$0.50 = $0.80, rate line mentions both', est.domestic === 2 && est.intl === 1 && est.total === 0.8 && /\$0\.15\/min US\/CA · \$0\.50\/min international/.test(est.rateLine), JSON.stringify(est))
+  const campI = await bulk.createCampaign({ chatId: I, callerId: callerI, audioUrl: 'https://cdn.invalid/i.mp3', mode: 'report_only', concurrency: 2, provider: 'telnyx', leads: [{ number: L(60) }, { number: uk }] })
+  await bulk.startCampaign(campI.id)
+  await waitFor(() => !!dialFor(uk) && !!dialFor(L(60)))
+  ok('P3-02', 'start message shows the split rate line', sent.some(m => m.chatId === I && /international \(1 lead\)/.test(m.text)), '')
+  for (const [to, secs] of [[L(60), 70], [uk, 70]]) {
+    const id = dialFor(to).id
+    await hook('call.initiated', { call_control_id: id, direction: 'outgoing', from: callerI, to })
+    await hook('call.answered', { call_control_id: id })
+    await hook('call.hangup', { call_control_id: id, hangup_cause: 'normal_clearing', duration_secs: secs })
+  }
+  await waitFor(async () => (await camps.findOne({ id: campI.id })).status === 'completed')
+  const rowsI = (await ledger.find({ chatId: I }).toArray()).map(l => r2(Math.abs(l.amount))).sort()
+  ok('P3-03', '70 s US lead billed 2×$0.15 = $0.30; 70 s UK lead billed 2×$0.50 = $1.00', JSON.stringify(rowsI) === JSON.stringify([0.3, 1]), JSON.stringify(rowsI))
+
+  // ━━━ Feature: campaign controls (pause / resume / cancel) ━━━
+  const P = '9000000520', callerP = '+18885550520'
+  await walletOf.insertOne({ _id: P, usdIn: 25, usdOut: 0 })
+  await phoneNumbersOf.insertOne({ _id: P, val: { numbers: [{ phoneNumber: callerP, status: 'active', plan: 'pro', provider: 'telnyx' }] } })
+  const campP = await bulk.createCampaign({ chatId: P, callerId: callerP, audioUrl: 'https://cdn.invalid/p.mp3', mode: 'report_only', concurrency: 1, provider: 'telnyx', leads: [0, 1, 2, 3].map(i => ({ number: L(70 + i) })) })
+  await bulk.startCampaign(campP.id)
+  await waitFor(() => !!dialFor(L(70)))
+  const startMsg = sent.find(m => m.chatId === P && /Campaign Started/.test(m.text))
+  ok('P4-01', 'campaign controls helper: running → Pause + Cancel; paused → Resume + Cancel', JSON.stringify(bulk.campaignControls({ id: 'x', status: 'running' }).flat().map(b => b.callback_data)) === JSON.stringify(['bulk_pause:x', 'bulk_cancel:x', 'bulk_view:x']) && JSON.stringify(bulk.campaignControls({ id: 'x', status: 'paused' }).flat().map(b => b.callback_data)) === JSON.stringify(['bulk_resume:x', 'bulk_cancel:x', 'bulk_view:x']), '')
+  const pz = await bulk.pauseCampaign(campP.id)
+  const p0 = dialFor(L(70)).id
+  await hook('call.initiated', { call_control_id: p0, direction: 'outgoing', from: callerP, to: L(70) })
+  await hook('call.hangup', { call_control_id: p0, hangup_cause: 'timeout' })
+  await sleep(300)
+  const cP1 = await camps.findOne({ id: campP.id })
+  ok('P4-02', 'pause: status paused (reason user), in-flight lead settles, NO next dial', pz.success && cP1.status === 'paused' && cP1.pausedReason === 'user' && cP1.leads[0].status === 'no_answer' && !dialFor(L(71)), `status=${cP1.status} lead0=${cP1.leads[0].status} lead1Dialled=${!!dialFor(L(71))}`)
+  ok('P4-03', 'pause again → error (not running)', !!(await bulk.pauseCampaign(campP.id)).error, '')
+  await walletOf.updateOne({ _id: P }, { $set: { usdOut: 24.95 } })   // wallet → $0.05 (after the $0.15 no-answer charge it's below)
+  const rz1 = await bulk.resumeCampaign(campP.id)
+  ok('P4-04', 'resume with low wallet → refused with a top-up message, stays paused, nothing dialled', rz1.lowBalance && /Top up/.test(rz1.error) && (await camps.findOne({ id: campP.id })).status === 'paused' && !dialFor(L(71)), rz1.error)
+  await walletOf.updateOne({ _id: P }, { $set: { usdOut: 0 } })
+  const rz2 = await bulk.resumeCampaign(campP.id)
+  await waitFor(() => !!dialFor(L(71)))
+  ok('P4-05', 'resume after top-up → running again and the next lead is dialled', rz2.success && (await camps.findOne({ id: campP.id })).status === 'running' && !!dialFor(L(71)), JSON.stringify(rz2))
+  const docsBefore = docs.length
+  const cz = await bulk.cancelCampaign(campP.id)
+  const cP2 = await camps.findOne({ id: campP.id })
+  ok('P4-06', 'cancel: status cancelled, 2 untouched leads marked not called, report sent', cz.success && cz.notCalled === 2 && cP2.status === 'cancelled' && cP2.leads.filter(l => l.notCalled).length === 2 && docs.length > docsBefore, JSON.stringify(cz))
+  const p1 = dialFor(L(71)).id
+  await hook('call.initiated', { call_control_id: p1, direction: 'outgoing', from: callerP, to: L(71) })
+  await hook('call.answered', { call_control_id: p1 })
+  await hook('call.hangup', { call_control_id: p1, hangup_cause: 'normal_clearing', duration_secs: 20 })
+  await sleep(300)
+  const cP3 = await camps.findOne({ id: campP.id })
+  ok('P4-07', 'call in progress at cancel settles + bills; no further dials; cancel twice → error', cP3.leads[1].status === 'completed' && !dialFor(L(72)) && !!(await bulk.cancelCampaign(campP.id)).error && (await ledger.countDocuments({ chatId: P })) === 2, `lead1=${cP3.leads[1].status} ledger=${await ledger.countDocuments({ chatId: P })}`)
+  ok('P4-08', 'status card formats paused/cancelled with reason', /CANCELLED/.test(bulk.formatCampaignStatus(cP3)) && /Reason: Cancelled by user/.test(bulk.formatCampaignStatus(cP3)), '')
+
+  // wallet auto-pause message carries ▶️ Resume + ❌ Cancel buttons
+  const W = '9000000521', callerW = '+18885550521'
+  await walletOf.insertOne({ _id: W, usdIn: 20.2, usdOut: 0 })
+  await phoneNumbersOf.insertOne({ _id: W, val: { numbers: [{ phoneNumber: callerW, status: 'active', plan: 'pro', provider: 'telnyx' }] } })
+  const campW = await bulk.createCampaign({ chatId: W, callerId: callerW, audioUrl: 'https://cdn.invalid/w.mp3', mode: 'report_only', concurrency: 1, provider: 'telnyx', leads: [{ number: L(80) }, { number: L(81) }] })
+  await bulk.startCampaign(campW.id)
+  await waitFor(() => !!dialFor(L(80)))
+  await walletOf.updateOne({ _id: W }, { $set: { usdOut: 20.1 } })   // $0.10 left → after billing the first call, wallet is depleted
+  const w0 = dialFor(L(80)).id
+  await hook('call.initiated', { call_control_id: w0, direction: 'outgoing', from: callerW, to: L(80) })
+  await hook('call.answered', { call_control_id: w0 })
+  await hook('call.hangup', { call_control_id: w0, hangup_cause: 'normal_clearing', duration_secs: 30 })
+  await waitFor(async () => (await camps.findOne({ id: campW.id })).status === 'paused')
+  const pauseMsgs = []
+  botStub._last = null
+  const cW = await camps.findOne({ id: campW.id })
+  ok('P4-09', 'wallet depleted → auto-paused (pausedReason wallet) and next lead not dialled', cW.status === 'paused' && cW.pausedReason === 'wallet' && !dialFor(L(81)), `status=${cW.status} reason=${cW.pausedReason}`)
+  ok('P4-10', 'pause message offers ▶️ Resume / ❌ Cancel inline buttons', sentOpts.some(o => o.chatId === W && /Wallet Depleted/.test(o.text) && JSON.stringify(o.opts?.reply_markup || {}).includes(`bulk_resume:${campW.id}`)), '')
+  void pauseMsgs
+
+  // ━━━ Feature: voicemail drop (detect_beep → leave clip → hang up) ━━━
+  const V = '9000000530', callerV = '+18885550530', vmUrl = 'https://cdn.invalid/vm-drop.mp3'
+  await walletOf.insertOne({ _id: V, usdIn: 50, usdOut: 0 })
+  await phoneNumbersOf.insertOne({ _id: V, val: { numbers: [{ phoneNumber: callerV, status: 'active', plan: 'pro', provider: 'telnyx' }] } })
+  const campV = await bulk.createCampaign({ chatId: V, callerId: callerV, audioUrl: 'https://cdn.invalid/v.mp3', audioName: 'v', mode: 'report_only', concurrency: 2, provider: 'telnyx', voicemailAudioUrl: vmUrl, voicemailAudioName: 'Call us back', leads: [{ number: L(90) }, { number: L(91) }] })
+  ok('P5-01', 'campaign stores the voicemail clip', campV.voicemailAudioUrl === vmUrl && campV.voicemailAudioName === 'Call us back', '')
+  await bulk.startCampaign(campV.id)
+  await waitFor(() => !!dialFor(L(90)) && !!dialFor(L(91)))
+  ok('P5-02', 'voicemail-drop campaign dials with AMD detect_beep', dialFor(L(90)).amd === 'detect_beep' && dialFor(L(91)).amd === 'detect_beep' && dials.filter(d => d.from === callerA).every(d => d.amd === 'detect'), `${dialFor(L(90)).amd}`)
+  // lead 0: beep detected → clip plays → finishes → hang up
+  const v0 = dialFor(L(90)).id
+  await hook('call.initiated', { call_control_id: v0, direction: 'outgoing', from: callerV, to: L(90) })
+  await hook('call.answered', { call_control_id: v0 })
+  await hook('call.machine.detection.ended', { call_control_id: v0, result: 'machine' })
+  ok('P5-03', 'machine → IVR prompt stopped (gather_stop), not hung up, waiting for beep', gatherStops.includes(v0) && !hangups.includes(v0) && voice.outboundIvrCalls[v0]?.phase === 'voicemail_wait', `phase=${voice.outboundIvrCalls[v0]?.phase}`)
+  const gathersBefore = gathers.filter(g => g === v0).length
+  await hook('call.gather.ended', { call_control_id: v0, digits: '' })
+  ok('P5-04', 'stale gather.ended during voicemail wait is ignored (prompt not replayed)', gathers.filter(g => g === v0).length === gathersBefore, '')
+  await hook('call.machine.greeting.ended', { call_control_id: v0, result: 'beep_detected' })
+  ok('P5-05', 'beep → voicemail clip played on the call', playbacks.some(pb => pb.id === v0 && pb.url === vmUrl), JSON.stringify(playbacks.filter(pb => pb.id === v0)))
+  await hook('call.playback.ended', { call_control_id: v0, media_url: vmUrl, status: 'completed' })
+  ok('P5-06', 'clip finished → app hangs up', hangups.includes(v0), '')
+  await hook('call.hangup', { call_control_id: v0, hangup_cause: 'normal_clearing', duration_secs: 75 })
+  // lead 1: no beep → fallback timeout plays the clip
+  const v1 = dialFor(L(91)).id
+  await hook('call.initiated', { call_control_id: v1, direction: 'outgoing', from: callerV, to: L(91) })
+  await hook('call.answered', { call_control_id: v1 })
+  await hook('call.machine.detection.ended', { call_control_id: v1, result: 'machine' })
+  await waitFor(() => playbacks.some(pb => pb.id === v1), 4000)
+  ok('P5-07', 'no beep within the wait window → clip still played (fallback timeout)', playbacks.some(pb => pb.id === v1 && pb.url === vmUrl), '')
+  await hook('call.playback.ended', { call_control_id: v1, media_url: vmUrl })
+  await hook('call.hangup', { call_control_id: v1, hangup_cause: 'normal_clearing', duration_secs: 40 })
+  await waitFor(async () => (await camps.findOne({ id: campV.id })).status === 'completed')
+  const cV = await camps.findOne({ id: campV.id })
+  ok('P5-08', 'both leads → voicemail + voicemailDropped; stats.voicemailLeft = 2', cV.leads.every(l => l.status === 'voicemail' && l.voicemailDropped) && cV.stats.voicemail === 2 && cV.stats.voicemailLeft === 2, JSON.stringify(cV.stats))
+  const rowsV = (await ledger.find({ chatId: V }).toArray()).map(l => r2(Math.abs(l.amount))).sort()
+  ok('P5-09', 'voicemail drops billed by duration: 75 s → $0.30, 40 s → $0.15', JSON.stringify(rowsV) === JSON.stringify([0.15, 0.3]), JSON.stringify(rowsV))
+  ok('P5-10', 'progress says "Voicemail — message left"; report shows 📩 count', sent.some(m => m.chatId === V && /Voicemail — message left/.test(m.text)) && sent.some(m => m.chatId === V && /Voicemail:.*📩 2/.test(m.text)), '')
+  ok('P5-11', 'start message shows voicemail choice', sent.some(m => m.chatId === V && /Voicemail: <b>Leave "Call us back"/.test(m.text)), '')
+
+  // voicemail clip fails to play → hang up straight away, not counted as a message left
+  const F = '9000000531', callerF = '+18885550531'
+  await walletOf.insertOne({ _id: F, usdIn: 50, usdOut: 0 })
+  await phoneNumbersOf.insertOne({ _id: F, val: { numbers: [{ phoneNumber: callerF, status: 'active', plan: 'pro', provider: 'telnyx' }] } })
+  const campF = await bulk.createCampaign({ chatId: F, callerId: callerF, audioUrl: 'https://cdn.invalid/f.mp3', mode: 'report_only', concurrency: 1, provider: 'telnyx', voicemailAudioUrl: 'https://cdn.invalid/fail.mp3', voicemailAudioName: 'x', leads: [{ number: L(95) }] })
+  await bulk.startCampaign(campF.id)
+  await waitFor(() => !!dialFor(L(95)))
+  const f0 = dialFor(L(95)).id
+  await hook('call.initiated', { call_control_id: f0, direction: 'outgoing', from: callerF, to: L(95) })
+  await hook('call.answered', { call_control_id: f0 })
+  await hook('call.machine.detection.ended', { call_control_id: f0, result: 'machine' })
+  await hook('call.machine.greeting.ended', { call_control_id: f0, result: 'beep_detected' })
+  ok('P5-12', 'clip fails to play → call hung up immediately', hangups.includes(f0), '')
+  await hook('call.hangup', { call_control_id: f0, hangup_cause: 'normal_clearing', duration_secs: 25 })
+  await waitFor(async () => (await camps.findOne({ id: campF.id })).status === 'completed')
+  const cF = await camps.findOne({ id: campF.id })
+  ok('P5-13', 'failed clip → Voicemail, not counted as message left', cF.leads[0].status === 'voicemail' && !cF.leads[0].voicemailDropped && cF.stats.voicemailLeft === 0, JSON.stringify(cF.stats))
 
   console.log('\n| Journey | Check | Result | Detail |\n|---|---|---|---|')
   for (const r of results) console.log(`| ${r.id} | ${r.name} | ${r.pass ? 'PASS' : 'FAIL'} | ${r.detail} |`)

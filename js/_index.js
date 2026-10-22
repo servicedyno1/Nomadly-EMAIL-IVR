@@ -902,6 +902,62 @@ function _ivrSpeedPrompt(lang, voiceName) {
   }[lang] || `🎚 <b>Choose speaking speed</b> for <b>${voiceName}</b>:`)
 }
 
+// ── Bulk IVR UI helpers (preview / voicemail-drop prompt / My Campaigns list) ──
+const BULK_VM_HANGUP_BTN = '📵 Hang up (no message)'
+const _bulkEsc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+const _bulkIsTwilio = (bd) => (bd?.provider ? bd.provider === 'twilio' : !!bd?.twilioSubAccountSid)
+const _bulkClipLabel = (au) => `🎵 ${String(au.name || 'Untitled').substring(0, 30)}`
+
+function _bulkPreviewText(bulkData, lang) {
+  const leads = bulkData.leads || []
+  const est = bulkCallService.estimateLeadsCost(leads)
+  return [
+    `📋 <b>Campaign Preview</b>`,
+    ``,
+    `📱 Caller ID: <b>${bulkData.callerId}</b>`,
+    `📞 Leads: <b>${leads.length}</b> (max ${bulkCallService.MAX_BULK_LEADS || 500})${est.intl ? ` — ${est.domestic} US/CA · ${est.intl} international` : ''}`,
+    `🎵 Audio: <b>${_bulkEsc(bulkData.audioName || 'Selected')}</b>`,
+    `📊 Mode: <b>${bulkData.mode === 'transfer' ? '🔗 Transfer + Report' : '📊 Report Only'}</b>`,
+    bulkData.menu ? `🔀 Menu: <b>${Object.keys(bulkData.menu).length} key(s)</b>\n${_obMenuSummary(bulkData.menu, lang)}` : (bulkData.transferNumber ? `🔗 Transfer to: <b>${bulkData.transferNumber}</b>` : null),
+    `⚡ Concurrency: <b>${bulkData.concurrency || 10}</b>`,
+    bulkData.menu ? null : `🔘 Active keys: <b>${(bulkData.activeKeys || ['1']).join(', ')}</b>`,
+    _bulkIsTwilio(bulkData) ? null : `📭 Voicemail: <b>${bulkData.voicemailAudioUrl ? `Leave "${_bulkEsc(bulkData.voicemailAudioName || 'message')}" after the beep` : 'Hang up'}</b>`,
+    ``,
+    `💰 <b>${est.rateLine}</b> (min 1 min, charged whether answered or not)`,
+    `💰 <b>Estimated cost: $${est.total.toFixed(2)}</b>`,
+    ``,
+    `Ready to launch? Tap <b>🚀 Launch Campaign</b>, or <b>⏰ Schedule for later</b>.`,
+  ].filter(v => v !== null).join('\n')
+}
+
+async function _bulkVoicemailPrompt(chatId) {
+  const audios = await audioLibraryService.listAudios(chatId)
+  const rows = [[BULK_VM_HANGUP_BTN], ...audios.slice(0, 20).map(au => [_bulkClipLabel(au)]), ['↩️ Back']]
+  const text = `📭 <b>Voicemail</b>\n\nIf a call reaches voicemail, what should happen?\n\n` +
+    `• <b>${BULK_VM_HANGUP_BTN}</b> — end the call right away\n` +
+    `• <b>🎵 Pick a clip</b> — wait for the beep, then leave that recording from your Audio Library` +
+    (audios.length ? '' : `\n\n<i>Your Audio Library is empty — upload a clip via 🎵 Audio Library to leave voicemail messages.</i>`)
+  return { text, rows }
+}
+
+function _bulkCampaignList(campaigns) {
+  const icon = { running: '▶️', paused: '⏸', scheduled: '⏰', created: '🆕', completed: '✅', cancelled: '❌' }
+  if (!campaigns.length) return { text: `📋 <b>My Campaigns</b>\n\nNo Bulk IVR campaigns yet.`, opts: { parse_mode: 'HTML' } }
+  const rows = campaigns.map((c, i) => {
+    const s = c.stats || {}
+    const when = new Date(c.createdAt || Date.now()).toISOString().replace('T', ' ').slice(5, 16)
+    const ic = icon[c.status] || '•'
+    return {
+      line: `${i + 1}. ${ic} <b>${String(c.status).toUpperCase()}</b> · ${s.completed || 0}/${s.total || 0} · ${when} UTC · ${_bulkEsc(String(c.audioName || '').slice(0, 24))}`,
+      btn: [{ text: `${i + 1}. ${ic} ${s.completed || 0}/${s.total || 0} · ${when}`, callback_data: `bulk_view:${c.id}` }],
+    }
+  })
+  return {
+    text: `📋 <b>My Bulk IVR Campaigns</b>\n\n${rows.map(r => r.line).join('\n')}\n\nTap a campaign to view, pause, resume or cancel it.`,
+    opts: { parse_mode: 'HTML', reply_markup: { inline_keyboard: rows.map(r => r.btn) } },
+  }
+}
+
 // ── Outbound multi-key menu builder (Phase 2 parity) — pure render helpers ──
 function _obRouteLabel(opt) {
   if (!opt) return '—'
@@ -6520,6 +6576,51 @@ Tap a button below to change. Changes sync to your phone on next app open.`
       return
     }
 
+    // ── Bulk IVR campaign controls: 📊 status / ⏸ pause / ▶️ resume / ❌ cancel (owner only) ──
+    if (chatId && /^bulk_(view|pause|resume|cancel|cancelyes):/.test(data)) {
+      const [verb, campaignId] = data.split(':')
+      const campaign = await bulkCallService.getCampaign(campaignId)
+      if (!campaign || String(campaign.chatId) !== chatId) {
+        try { await bot.answerCallbackQuery(query.id, { text: 'Campaign not found.' }) } catch (_) { /* ignore */ }
+        return
+      }
+      const showCard = async (prefix) => {
+        const c = await bulkCallService.getCampaign(campaignId)
+        const kb = bulkCallService.campaignControls(c)
+        return bot.sendMessage(chatId, (prefix ? `${prefix}\n\n` : '') + bulkCallService.formatCampaignStatus(c),
+          { parse_mode: 'HTML', ...(kb.length ? { reply_markup: { inline_keyboard: kb } } : {}) }).catch(() => {})
+      }
+      const esc = (s) => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      if (verb === 'bulk_view') {
+        try { await bot.answerCallbackQuery(query.id) } catch (_) { /* ignore */ }
+        return showCard()
+      }
+      if (verb === 'bulk_pause') {
+        const r = await bulkCallService.pauseCampaign(campaignId)
+        try { await bot.answerCallbackQuery(query.id, { text: r.error || 'Campaign paused' }) } catch (_) { /* ignore */ }
+        return showCard(r.error ? `⚠️ ${esc(r.error)}` : '⏸ <b>Campaign paused.</b> No new calls will be dialed — calls already in progress finish normally.')
+      }
+      if (verb === 'bulk_resume') {
+        const r = await bulkCallService.resumeCampaign(campaignId)
+        try { await bot.answerCallbackQuery(query.id, { text: r.error ? 'Could not resume' : 'Campaign resumed' }) } catch (_) { /* ignore */ }
+        return showCard(r.error ? `⚠️ ${esc(r.error)}` : '▶️ <b>Campaign resumed.</b> Dialing continues — you\'ll keep getting updates.')
+      }
+      if (verb === 'bulk_cancel') {
+        try { await bot.answerCallbackQuery(query.id) } catch (_) { /* ignore */ }
+        const pending = (campaign.leads || []).filter(l => l.status === 'pending').length
+        return bot.sendMessage(chatId,
+          `❌ <b>Cancel this campaign?</b>\n\n<b>${pending}</b> lead${pending === 1 ? '' : 's'} not dialed yet will be skipped. Calls already in progress finish normally. This can't be undone.`,
+          { parse_mode: 'HTML', reply_markup: { inline_keyboard: [[{ text: '✅ Yes, cancel campaign', callback_data: `bulk_cancelyes:${campaignId}` }], [{ text: '↩️ Keep it', callback_data: `bulk_view:${campaignId}` }]] } }
+        ).catch(() => {})
+      }
+      if (verb === 'bulk_cancelyes') {
+        const r = await bulkCallService.cancelCampaign(campaignId)
+        try { await bot.answerCallbackQuery(query.id, { text: r.error || 'Campaign cancelled' }) } catch (_) { /* ignore */ }
+        if (r.error) return showCard(`⚠️ ${esc(r.error)}`)
+        return bot.sendMessage(chatId, `❌ <b>Campaign cancelled.</b>\n\n${r.notCalled} lead${r.notCalled === 1 ? ' was' : 's were'} not dialed. Calls already in progress finish normally.`, { parse_mode: 'HTML' }).catch(() => {})
+      }
+    }
+
     // ── Save Preset handler (#1 Quick Dial Presets) ──
     if (chatId && data.startsWith('save_preset:')) {
       try { await bot.answerCallbackQuery(query.id) } catch (e) { /* ignore */ }
@@ -9791,6 +9892,7 @@ bot?.on('message', msg => {
     bulkSelectKeys: 'bulkSelectKeys',
     bulkEnterCustomKeys: 'bulkEnterCustomKeys',
     bulkSetConcurrency: 'bulkSetConcurrency',
+    bulkSelectVoicemail: 'bulkSelectVoicemail',
     bulkConfirm: 'bulkConfirm',
     bulkRunning: 'bulkRunning',
     bulkTTSCategory: 'bulkTTSCategory',
@@ -10190,7 +10292,7 @@ bot?.on('message', msg => {
         [pc.testSipFree],
         [ivrBtnHub],
         [pc.buyPhoneNumber],
-        [pc.bulkCallCampaign],
+        [pc.bulkCallCampaign, pc.myCampaigns],
         [pc.audioLibrary],
         [pc.myNumbers],
         [pc.sipSettings],
@@ -24923,7 +25025,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       [pc.testSipFree],
       [ivrBtnHiw],
       [pc.buyPhoneNumber],
-      [pc.bulkCallCampaign],
+      [pc.bulkCallCampaign, pc.myCampaigns],
       [pc.audioLibrary],
       [pc.myNumbers],
       [pc.sipSettings],
@@ -25212,7 +25314,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
         disable_web_page_preview: true,
         reply_markup: { keyboard: [
           [pc.ivrOutboundCall],
-          [pc.bulkCallCampaign],
+          [pc.bulkCallCampaign, pc.myCampaigns],
           [pc.audioLibrary],
           [pc.testSipFree],
           [pc.buyPhoneNumber],
@@ -25251,6 +25353,12 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
         return send(chatId, msg, { parse_mode: 'HTML' })
       }
       return send(chatId, pMsg.sipTestCode(result.otp, result.callsRemaining), { parse_mode: 'HTML', reply_markup: { keyboard: [[TRIAL_PRO_CTA[info?.userLanguage || 'en'] || TRIAL_PRO_CTA.en], [user.cloudPhone], ['↩️ Back']], resize_keyboard: true } })
+    }
+
+    // ── My Bulk IVR Campaigns (view / pause / resume / cancel) ──
+    if (message === pc.myCampaigns) {
+      const list = _bulkCampaignList(await bulkCallService.getUserCampaigns(chatId, 10))
+      return send(chatId, list.text, list.opts)
     }
 
     // ── Bulk Call Campaign ──
@@ -27377,10 +27485,12 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     await saveInfo('bulkData', bulkData)
 
     const bulkRate = bulkCallService.BULK_CALL_RATE || 0.15
-    const estCost = (leads.length * bulkRate).toFixed(2)
+    const leadsEst = bulkCallService.estimateLeadsCost(leads)
+    const estCost = leadsEst.total.toFixed(2)
     const preview = leads.slice(0, 5).map(l => `  ${l.number}${l.name ? ' — ' + escHtml(l.name) : ''}`).join('\n')
     const more = leads.length > 5 ? `\n  ... and ${leads.length - 5} more` : ''
-    const errNote = errors.length > 0 ? `\n⚠️ ${errors.length} invalid lines skipped` : ''
+    const errNote = (errors.length > 0 ? `\n⚠️ ${errors.length} invalid lines skipped` : '') +
+      (leadsEst.intl ? `\n🌍 ${leadsEst.intl} international lead${leadsEst.intl === 1 ? '' : 's'} — ${leadsEst.rateLine}` : '')
 
     await set(state, chatId, 'action', a.bulkSelectAudio)
     const audios = await audioLibraryService.listAudios(chatId)
@@ -28044,32 +28154,47 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     bulkData.concurrency = num
     await saveInfo('bulkData', bulkData)
 
-    // Show campaign preview
+    // Telnyx campaigns: choose what happens on voicemail, then preview
+    if (!_bulkIsTwilio(bulkData)) {
+      await set(state, chatId, 'action', a.bulkSelectVoicemail)
+      const vm = await _bulkVoicemailPrompt(chatId)
+      return send(chatId, vm.text, k.of(vm.rows))
+    }
     await set(state, chatId, 'action', a.bulkConfirm)
-    const leadCount = (bulkData.leads || []).length
-    const bulkRate = bulkCallService.BULK_CALL_RATE || 0.15
-    const estCost = (leadCount * bulkRate).toFixed(2)
-    const preview = [
-      `📋 <b>Campaign Preview</b>`,
-      ``,
-      `📱 Caller ID: <b>${bulkData.callerId}</b>`,
-      `📞 Leads: <b>${leadCount}</b> (max ${bulkCallService.MAX_BULK_LEADS || 500})`,
-      `🎵 Audio: <b>${bulkData.audioName || 'Selected'}</b>`,
-      `📊 Mode: <b>${bulkData.mode === 'transfer' ? '🔗 Transfer + Report' : '📊 Report Only'}</b>`,
-      bulkData.menu ? `🔀 Menu: <b>${Object.keys(bulkData.menu).length} key(s)</b>\n${_obMenuSummary(bulkData.menu, lang)}` : (bulkData.transferNumber ? `🔗 Transfer to: <b>${bulkData.transferNumber}</b>` : null),
-      `⚡ Concurrency: <b>${num}</b>`,
-      bulkData.menu ? null : `🔘 Active keys: <b>${(bulkData.activeKeys || ['1']).join(', ')}</b>`,
-      ``,
-      `💰 <b>Rate: $${bulkRate.toFixed(2)}/min per number</b> (min 1 min, charged whether answered or not)`,
-      `💰 <b>Estimated cost: $${estCost}</b>`,
-      ``,
-      `Ready to launch? Tap <b>🚀 Launch Campaign</b>, or <b>⏰ Schedule for later</b>.`,
-    ].filter(Boolean).join('\n')
-    return send(chatId, preview, k.of([['🚀 Launch Campaign'], ['⏰ Schedule for later'], ['↩️ Back']]))
+    return send(chatId, _bulkPreviewText(bulkData, lang), k.of([['🚀 Launch Campaign'], ['⏰ Schedule for later'], ['↩️ Back']]))
+  }
+
+  if (action === a.bulkSelectVoicemail) {
+    if (isBackPress(message)) {
+      await set(state, chatId, 'action', a.bulkSetConcurrency)
+      return send(chatId, trans('t.cp_216'), k.of([['5'], ['10'], ['15'], ['20'], ['↩️ Back']]))
+    }
+    const bulkData = info?.bulkData || {}
+    if (message === BULK_VM_HANGUP_BTN) {
+      bulkData.voicemailAudioUrl = null
+      bulkData.voicemailAudioName = null
+    } else {
+      const audios = await audioLibraryService.listAudios(chatId)
+      const picked = audios.find(au => _bulkClipLabel(au) === message)
+      if (!picked || !/^https?:\/\//i.test(picked.audioUrl || '')) {
+        const vm = await _bulkVoicemailPrompt(chatId)
+        return send(chatId, `⚠️ Please pick an option from the list.\n\n${vm.text}`, k.of(vm.rows))
+      }
+      bulkData.voicemailAudioUrl = picked.audioUrl
+      bulkData.voicemailAudioName = picked.name
+    }
+    await saveInfo('bulkData', bulkData)
+    await set(state, chatId, 'action', a.bulkConfirm)
+    return send(chatId, _bulkPreviewText(bulkData, lang), k.of([['🚀 Launch Campaign'], ['⏰ Schedule for later'], ['↩️ Back']]))
   }
 
   if (action === a.bulkConfirm) {
     if (isBackPress(message)) {
+      if (!_bulkIsTwilio(info?.bulkData || {})) {
+        await set(state, chatId, 'action', a.bulkSelectVoicemail)
+        const vm = await _bulkVoicemailPrompt(chatId)
+        return send(chatId, vm.text, k.of(vm.rows))
+      }
       await set(state, chatId, 'action', a.bulkSetConcurrency)
       return send(chatId, trans('t.cp_216'), k.of([['5'], ['10'], ['15'], ['20'], ['↩️ Back']]))
     }
@@ -28093,6 +28218,8 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
           holdMusic: bulkData.mode === 'transfer',
           leads: bulkData.leads,
           provider: bulkData.provider || null,
+          voicemailAudioUrl: bulkData.voicemailAudioUrl || null,
+          voicemailAudioName: bulkData.voicemailAudioName || null,
           twilioSubAccountSid: bulkData.twilioSubAccountSid || null,
           twilioSubAccountToken: bulkData.twilioSubAccountToken || null,
         })
@@ -28103,7 +28230,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
           return send(chatId, trans('t.cp_219', sanitizeProviderError(startResult.error, 'voice')), k.of([['↩️ Back']]))
         }
         // Campaign is now running — user gets real-time updates
-        return send(chatId, trans('t.cp_220'), k.of([['📊 Show Status']]))
+        return send(chatId, trans('t.cp_220'), k.of([['📊 Show Status'], [phoneConfig.getBtn(info?.userLanguage || 'en').myCampaigns], ['↩️ Back']]))
       } catch (e) {
         log(`[BulkCall] Launch error: ${e.message}`)
         return send(chatId, trans('t.cp_221', sanitizeProviderError(e.message, 'voice')), k.of([['↩️ Back']]))
@@ -28154,6 +28281,8 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
         holdMusic: bulkData.mode === 'transfer',
         leads: bulkData.leads,
         provider: bulkData.provider || null,
+        voicemailAudioUrl: bulkData.voicemailAudioUrl || null,
+        voicemailAudioName: bulkData.voicemailAudioName || null,
         twilioSubAccountSid: bulkData.twilioSubAccountSid || null,
         twilioSubAccountToken: bulkData.twilioSubAccountToken || null,
         scheduledFor,
@@ -28194,33 +28323,26 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
   }
 
   if (action === a.bulkRunning) {
+    const pcR = phoneConfig.getBtn(info?.userLanguage || 'en')
+    const runKb = k.of([['📊 Show Status'], [pcR.myCampaigns], ['↩️ Back']])
+    if (isBackPress(message) || isCancelPress(message)) return goto.submenu5()
+    if (message === pcR.myCampaigns) {
+      const list = _bulkCampaignList(await bulkCallService.getUserCampaigns(chatId, 10))
+      return send(chatId, list.text, list.opts)
+    }
     if (message === '📊 Show Status') {
       const campaignId = info?.activeCampaignId
       if (campaignId) {
         const campaign = await bulkCallService.getCampaign(campaignId)
         if (campaign) {
-          const s = campaign.stats
-          const pct = s.total > 0 ? Math.round((s.completed / s.total) * 100) : 0
-          const statusMsg = [
-            `📊 <b>Campaign Status</b>`,
-            ``,
-            `Progress: <b>${s.completed}/${s.total}</b> (${pct}%)`,
-            `✅ Answered: <b>${s.answered}</b>`,
-            `🔘 Key Pressed: <b>${s.keyPressed}</b>`,
-            campaign.mode === 'transfer' ? `🔗 Transferred: <b>${s.transferred}</b>` : null,
-            `📵 No Answer: <b>${s.noAnswer}</b>`,
-            `📵 Hung Up: <b>${s.hungUp}</b>`,
-            `❌ Failed: <b>${s.failed}</b>`,
-            ``,
-            `Status: <b>${campaign.status.toUpperCase()}</b>`,
-          ].filter(Boolean).join('\n')
-          send(chatId, statusMsg, { parse_mode: 'HTML' })
+          const kb = bulkCallService.campaignControls(campaign)
+          send(chatId, bulkCallService.formatCampaignStatus(campaign), { parse_mode: 'HTML', ...(kb.length ? { reply_markup: { inline_keyboard: kb } } : {}) })
         }
       }
-      return send(chatId, trans('t.cp_223'), k.of([['📊 Show Status']]))
+      return send(chatId, trans('t.cp_223'), runKb)
     }
     // Any other message while campaign is running
-    return send(chatId, trans('t.cp_224'), k.of([['📊 Show Status']]))
+    return send(chatId, trans('t.cp_224'), runKb)
   }
 
   // ── BUY FLOW: Select Country ──

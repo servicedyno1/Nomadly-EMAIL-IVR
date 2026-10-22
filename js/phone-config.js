@@ -267,6 +267,7 @@ const btn = {
 
   // Bulk IVR Campaign (multiple numbers)
   bulkCallCampaign: '📞 Bulk IVR Campaign',
+  myCampaigns: '📋 My Campaigns',
   audioLibrary: '🎵 Audio Library',
 
   // Test SIP
@@ -1594,6 +1595,7 @@ const btnI18n = {
     ivrOutboundCallTrial: '📢 Appel IVR Rapide — 1 Gratuit',
     ivrOutboundBack: '↩️ Retour',
     bulkCallCampaign: '📞 Campagne IVR en Masse',
+    myCampaigns: '📋 Mes Campagnes',
     audioLibrary: '🎵 Bibliothèque Audio',
     testSipFree: '🆓 Essayer SIP Gratuit',
     howItWorks: '❓ Comment ça marche',
@@ -1679,6 +1681,7 @@ const btnI18n = {
     ivrOutboundCallTrial: '📢 快速IVR呼叫 — 1次免费',
     ivrOutboundBack: '↩️ 返回',
     bulkCallCampaign: '📞 批量IVR活动',
+    myCampaigns: '📋 我的活动',
     audioLibrary: '🎵 音频库',
     testSipFree: '🆓 免费试用SIP通话',
     howItWorks: '❓ 使用说明',
@@ -1764,6 +1767,7 @@ const btnI18n = {
     ivrOutboundCallTrial: '📢 त्वरित IVR कॉल — 1 मुफ्त',
     ivrOutboundBack: '↩️ वापस',
     bulkCallCampaign: '📞 बल्क IVR अभियान',
+    myCampaigns: '📋 मेरे अभियान',
     audioLibrary: '🎵 ऑडियो लाइब्रेरी',
     testSipFree: '🆓 SIP कॉल मुफ्त आज़माएं',
     howItWorks: '❓ कैसे काम करता है',
