@@ -12,6 +12,7 @@ const { getBalance, smartWalletDeduct, smartWalletCheck } = require('./utils.js'
 const { get } = require('./db.js')
 const { translation } = require('./translation.js')
 const { isTwilioEnabled } = require('./phone-config.js')
+const dialGuard = require('./dial-rate-guard.js')
 
 // ━━━ Bulk Call Pricing & Limits ━━━
 const BULK_CALL_RATE       = parseFloat(process.env.BULK_CALL_RATE_PER_MIN || '0.15')   // $/min — charged whether answered or not
@@ -480,9 +481,11 @@ function leadRate(number) {
 }
 
 // Pre-launch estimate (min 1 min per lead), split standard-rate vs higher-rate leads.
+// Blocked (satellite / premium-rate) numbers are never dialled or billed, so they are left out.
 function estimateLeadsCost(leads) {
-  let total = 0, domestic = 0, intl = 0, intlMin = Infinity, intlMax = 0
+  let total = 0, domestic = 0, intl = 0, blocked = 0, intlMin = Infinity, intlMax = 0
   for (const l of leads || []) {
+    if (dialGuard.classifyDial(l.number).blocked) { blocked++; continue }
     const r = leadRate(l.number)
     total += r
     if (r > BULK_CALL_RATE) { intl++; intlMin = Math.min(intlMin, r); intlMax = Math.max(intlMax, r) } else domestic++
@@ -491,7 +494,8 @@ function estimateLeadsCost(leads) {
   const rateLine = intl
     ? `Rate: $${BULK_CALL_RATE.toFixed(2)}/min US/CA · ${intlLabel}/min international (${intl} lead${intl === 1 ? '' : 's'})`
     : `Rate: $${BULK_CALL_RATE.toFixed(2)}/min per call`
-  return { total: +total.toFixed(2), domestic, intl, intlRate: intlMax, rateLine }
+  const blockedLine = blocked ? `🚫 ${blocked} blocked number${blocked === 1 ? '' : 's'} (satellite/premium-rate) will be skipped — not charged` : ''
+  return { total: +total.toFixed(2), domestic, intl, blocked, intlRate: intlMax, rateLine, blockedLine }
 }
 
 const STATUS_ICON = { running: '▶️', paused: '⏸', scheduled: '⏰', created: '🆕', completed: '✅', cancelled: '❌' }
@@ -535,9 +539,11 @@ function formatCampaignStatus(c) {
 async function pauseForWallet(campaign, usdBal, rate, title = 'Campaign Paused — Wallet Depleted') {
   const state = activeCampaigns[campaign.id]
   if (state && state.paused) return
-  if (state) state.paused = true
-  const r = await _collection.updateOne({ id: campaign.id, status: 'running' }, { $set: { status: 'paused', pausedReason: 'wallet' } })
+  // Only pause while leads are still waiting to be dialled — a campaign whose last lead just
+  // billed must complete (final report), not sit paused asking for a top-up.
+  const r = await _collection.updateOne({ id: campaign.id, status: 'running', 'leads.status': 'pending' }, { $set: { status: 'paused', pausedReason: 'wallet' } })
   if (r.modifiedCount !== 1) return
+  if (state) state.paused = true
   const fresh = await _collection.findOne({ id: campaign.id })
   _bot?.sendMessage(campaign.chatId,
     `⏸️ <b>${title}</b>\n\n` +
@@ -882,7 +888,7 @@ async function startCampaign(campaignId) {
       const est = estimateLeadsCost(campaign.leads)
       const minRequired = est.total
       const estLeadsCovered = Math.floor(Math.max(usdBal, 0) / BULK_CALL_RATE)
-      const rateLine = est.rateLine
+      const rateLine = est.rateLine + (est.blockedLine ? `\n${est.blockedLine}` : '')
       const costCheck = await smartWalletCheck(_walletOf, campaign.chatId, minRequired)
       if (!costCheck.sufficient) {
         _bot?.sendMessage(campaign.chatId,
@@ -1454,15 +1460,18 @@ async function getUserLang(chatId) {
  */
 async function checkCampaignCompletion(campaignId) {
   const campaign = await _collection.findOne({ id: campaignId })
-  if (!campaign || campaign.status !== 'running') return
+  if (campaign?.status === 'cancelled') return sendCancelledReport(campaignId)
+  // 'paused' too: a campaign paused while its last call(s) were in flight is finished once they settle.
+  if (!campaign || !['running', 'paused'].includes(campaign.status)) return
 
   const allDone = campaign.leads.every(l => !['pending', 'calling', 'ringing', 'answered'].includes(l.status))
   if (!allDone) return
 
-  // Campaign complete!
-  await _collection.updateOne({ id: campaignId }, {
+  // Campaign complete! (atomic flip so concurrent final settlements send ONE report)
+  const done = await _collection.updateOne({ id: campaignId, status: { $in: ['running', 'paused'] } }, {
     $set: { status: 'completed', completedAt: new Date() }
   })
+  if (done.modifiedCount !== 1) return
   delete activeCampaigns[campaignId]
 
   log(`[BulkCall] Campaign ${campaignId} completed!`)
@@ -1558,28 +1567,37 @@ async function generateReportFile(campaign) {
 async function cancelCampaign(campaignId, reason = 'Cancelled by user') {
   const state = activeCampaigns[campaignId]
   if (state) state.paused = true
+  const before = await _collection.findOne({ id: campaignId })
 
   const r = await _collection.updateOne(
     { id: campaignId, status: { $in: ['created', 'scheduled', 'running', 'paused'] } },
     { $set: {
-      status: 'cancelled', completedAt: new Date(), cancelledReason: reason,
+      status: 'cancelled', completedAt: new Date(), cancelledReason: reason, reportPending: !!before?.startedAt,
       'leads.$[p].notCalled': true, 'leads.$[p].hangupCause': 'not called — campaign cancelled',
     } },
     { arrayFilters: [{ 'p.status': 'pending' }] }
   )
-  delete activeCampaigns[campaignId]
-
-  // Clean up callToCampaign mappings for this campaign
-  for (const [sid, mapping] of Object.entries(callToCampaign)) {
-    if (mapping.campaignId === campaignId) delete callToCampaign[sid]
-  }
   if (r.modifiedCount !== 1) return { error: 'Campaign already finished or cancelled.' }
 
   log(`[BulkCall] Campaign ${campaignId} cancelled (${reason})`)
   await recalcStats(campaignId)
   const c = await _collection.findOne({ id: campaignId })
-  if (c?.startedAt) await sendFinalReport(campaignId).catch(() => {})
-  return { success: true, notCalled: (c?.leads || []).filter(l => l.notCalled).length }
+  const inFlight = (c?.leads || []).filter(l => INFLIGHT_STATUSES.includes(l.status)).length
+  // State stays (paused) while calls are in flight so they settle, bill and get swept if stuck.
+  if (!inFlight) delete activeCampaigns[campaignId]
+  await sendCancelledReport(campaignId)
+  return { success: true, notCalled: (c?.leads || []).filter(l => l.notCalled).length, inFlight }
+}
+
+// Cancelled campaign: send the final report once its in-flight calls have settled (exactly once).
+async function sendCancelledReport(campaignId) {
+  const c = await _collection.findOne({ id: campaignId })
+  if (!c || c.status !== 'cancelled' || !c.reportPending) return
+  if (c.leads.some(l => INFLIGHT_STATUSES.includes(l.status))) return
+  const r = await _collection.updateOne({ id: campaignId, reportPending: true }, { $unset: { reportPending: '' } })
+  if (r.modifiedCount !== 1) return
+  delete activeCampaigns[campaignId]
+  await sendFinalReport(campaignId).catch(() => {})
 }
 
 /**

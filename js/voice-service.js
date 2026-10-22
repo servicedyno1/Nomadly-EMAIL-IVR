@@ -2211,8 +2211,10 @@ const VM_MAX_PLAY_MS = 120000
 async function startVoicemailWait(callControlId, session) {
   session.phase = 'voicemail_wait'
   log(`[OutboundIVR] Bulk AMD machine → waiting for beep to leave voicemail on ${session.targetNumber} (campaign ${session.campaignId})`)
-  await _telnyxApi.gatherStop(callControlId).catch(() => {})
+  // Arm the fallback BEFORE awaiting gather_stop: a greeting.ended that lands while gather_stop is
+  // in flight starts the clip + its max-play timer, which must not be overwritten afterwards.
   session._vmTimer = setTimeout(() => playVoicemailDrop(callControlId, 'beep wait timeout').catch(() => {}), VM_BEEP_WAIT_MS)
+  await _telnyxApi.gatherStop(callControlId).catch(() => {})
 }
 
 async function playVoicemailDrop(callControlId, reason) {
@@ -2229,6 +2231,7 @@ async function playVoicemailDrop(callControlId, reason) {
     await _telnyxApi.hangupCall(callControlId).catch(() => {})
     return
   }
+  if (isCallEnded(callControlId)) return  // hung up while playback_start was in flight — no timer
   session._vmTimer = setTimeout(() => _telnyxApi.hangupCall(callControlId).catch(() => {}), VM_MAX_PLAY_MS)
 }
 

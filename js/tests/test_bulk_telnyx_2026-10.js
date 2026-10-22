@@ -239,14 +239,14 @@ const dialFor = (to) => dials.filter(d => d.to === to).slice(-1)[0]
   const docsBefore = docs.length
   const cz = await bulk.cancelCampaign(campP.id)
   const cP2 = await camps.findOne({ id: campP.id })
-  ok('P4-06', 'cancel: status cancelled, 2 untouched leads marked not called, report sent', cz.success && cz.notCalled === 2 && cP2.status === 'cancelled' && cP2.leads.filter(l => l.notCalled).length === 2 && docs.length > docsBefore, JSON.stringify(cz))
+  ok('P4-06', 'cancel: status cancelled, 2 untouched leads marked not called, report waits for the call in progress', cz.success && cz.notCalled === 2 && cz.inFlight === 1 && cP2.status === 'cancelled' && cP2.leads.filter(l => l.notCalled).length === 2 && docs.length === docsBefore, JSON.stringify(cz))
   const p1 = dialFor(L(71)).id
   await hook('call.initiated', { call_control_id: p1, direction: 'outgoing', from: callerP, to: L(71) })
   await hook('call.answered', { call_control_id: p1 })
   await hook('call.hangup', { call_control_id: p1, hangup_cause: 'normal_clearing', duration_secs: 20 })
   await sleep(300)
   const cP3 = await camps.findOne({ id: campP.id })
-  ok('P4-07', 'call in progress at cancel settles + bills; no further dials; cancel twice → error', cP3.leads[1].status === 'completed' && !dialFor(L(72)) && !!(await bulk.cancelCampaign(campP.id)).error && (await ledger.countDocuments({ chatId: P })) === 2, `lead1=${cP3.leads[1].status} ledger=${await ledger.countDocuments({ chatId: P })}`)
+  ok('P4-07', 'call in progress at cancel settles + bills, then the report is sent once; no further dials; cancel twice → error', cP3.leads[1].status === 'completed' && docs.length === docsBefore + 1 && !dialFor(L(72)) && !!(await bulk.cancelCampaign(campP.id)).error && (await ledger.countDocuments({ chatId: P })) === 2, `lead1=${cP3.leads[1].status} ledger=${await ledger.countDocuments({ chatId: P })}`)
   ok('P4-08', 'status card formats paused/cancelled with reason', /CANCELLED/.test(bulk.formatCampaignStatus(cP3)) && /Reason: Cancelled by user/.test(bulk.formatCampaignStatus(cP3)), '')
 
   // wallet auto-pause message carries ▶️ Resume + ❌ Cancel buttons

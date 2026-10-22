@@ -906,7 +906,15 @@ function _ivrSpeedPrompt(lang, voiceName) {
 const BULK_VM_HANGUP_BTN = '📵 Hang up (no message)'
 const _bulkEsc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 const _bulkIsTwilio = (bd) => (bd?.provider ? bd.provider === 'twilio' : !!bd?.twilioSubAccountSid)
-const _bulkClipLabel = (au) => `🎵 ${String(au.name || 'Untitled').substring(0, 30)}`
+// One button label per clip; clips whose names clash get a " #2", " #3"… suffix.
+function _bulkClipLabels(audios) {
+  const seen = {}
+  return audios.map(au => {
+    const base = `🎵 ${String(au.name || 'Untitled').substring(0, 30)}`
+    seen[base] = (seen[base] || 0) + 1
+    return seen[base] > 1 ? `${base} #${seen[base]}` : base
+  })
+}
 
 function _bulkPreviewText(bulkData, lang) {
   const leads = bulkData.leads || []
@@ -916,6 +924,7 @@ function _bulkPreviewText(bulkData, lang) {
     ``,
     `📱 Caller ID: <b>${bulkData.callerId}</b>`,
     `📞 Leads: <b>${leads.length}</b> (max ${bulkCallService.MAX_BULK_LEADS || 500})${est.intl ? ` — ${est.domestic} US/CA · ${est.intl} international` : ''}`,
+    est.blockedLine || null,
     `🎵 Audio: <b>${_bulkEsc(bulkData.audioName || 'Selected')}</b>`,
     `📊 Mode: <b>${bulkData.mode === 'transfer' ? '🔗 Transfer + Report' : '📊 Report Only'}</b>`,
     bulkData.menu ? `🔀 Menu: <b>${Object.keys(bulkData.menu).length} key(s)</b>\n${_obMenuSummary(bulkData.menu, lang)}` : (bulkData.transferNumber ? `🔗 Transfer to: <b>${bulkData.transferNumber}</b>` : null),
@@ -932,7 +941,7 @@ function _bulkPreviewText(bulkData, lang) {
 
 async function _bulkVoicemailPrompt(chatId) {
   const audios = await audioLibraryService.listAudios(chatId)
-  const rows = [[BULK_VM_HANGUP_BTN], ...audios.slice(0, 20).map(au => [_bulkClipLabel(au)]), ['↩️ Back']]
+  const rows = [[BULK_VM_HANGUP_BTN], ..._bulkClipLabels(audios.slice(0, 20)).map(l => [l]), ['↩️ Back']]
   const text = `📭 <b>Voicemail</b>\n\nIf a call reaches voicemail, what should happen?\n\n` +
     `• <b>${BULK_VM_HANGUP_BTN}</b> — end the call right away\n` +
     `• <b>🎵 Pick a clip</b> — wait for the beep, then leave that recording from your Audio Library` +
@@ -6607,6 +6616,7 @@ Tap a button below to change. Changes sync to your phone on next app open.`
       }
       if (verb === 'bulk_cancel') {
         try { await bot.answerCallbackQuery(query.id) } catch (_) { /* ignore */ }
+        if (!['created', 'scheduled', 'running', 'paused'].includes(campaign.status)) return showCard('⚠️ This campaign has already finished.')
         const pending = (campaign.leads || []).filter(l => l.status === 'pending').length
         return bot.sendMessage(chatId,
           `❌ <b>Cancel this campaign?</b>\n\n<b>${pending}</b> lead${pending === 1 ? '' : 's'} not dialed yet will be skipped. Calls already in progress finish normally. This can't be undone.`,
@@ -6617,7 +6627,8 @@ Tap a button below to change. Changes sync to your phone on next app open.`
         const r = await bulkCallService.cancelCampaign(campaignId)
         try { await bot.answerCallbackQuery(query.id, { text: r.error || 'Campaign cancelled' }) } catch (_) { /* ignore */ }
         if (r.error) return showCard(`⚠️ ${esc(r.error)}`)
-        return bot.sendMessage(chatId, `❌ <b>Campaign cancelled.</b>\n\n${r.notCalled} lead${r.notCalled === 1 ? ' was' : 's were'} not dialed. Calls already in progress finish normally.`, { parse_mode: 'HTML' }).catch(() => {})
+        const tail = r.inFlight ? `${r.inFlight} call${r.inFlight === 1 ? '' : 's'} in progress will finish normally — the final report follows when ${r.inFlight === 1 ? 'it ends' : 'they end'}.` : ''
+        return bot.sendMessage(chatId, `❌ <b>Campaign cancelled.</b>\n\n${r.notCalled} lead${r.notCalled === 1 ? ' was' : 's were'} not dialed. ${tail}`.trim(), { parse_mode: 'HTML' }).catch(() => {})
       }
     }
 
@@ -27490,7 +27501,8 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     const preview = leads.slice(0, 5).map(l => `  ${l.number}${l.name ? ' — ' + escHtml(l.name) : ''}`).join('\n')
     const more = leads.length > 5 ? `\n  ... and ${leads.length - 5} more` : ''
     const errNote = (errors.length > 0 ? `\n⚠️ ${errors.length} invalid lines skipped` : '') +
-      (leadsEst.intl ? `\n🌍 ${leadsEst.intl} international lead${leadsEst.intl === 1 ? '' : 's'} — ${leadsEst.rateLine}` : '')
+      (leadsEst.intl ? `\n🌍 ${leadsEst.intl} international lead${leadsEst.intl === 1 ? '' : 's'} — ${leadsEst.rateLine}` : '') +
+      (leadsEst.blockedLine ? `\n${leadsEst.blockedLine}` : '')
 
     await set(state, chatId, 'action', a.bulkSelectAudio)
     const audios = await audioLibraryService.listAudios(chatId)
@@ -28175,7 +28187,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       bulkData.voicemailAudioName = null
     } else {
       const audios = await audioLibraryService.listAudios(chatId)
-      const picked = audios.find(au => _bulkClipLabel(au) === message)
+      const picked = audios.slice(0, 20)[_bulkClipLabels(audios.slice(0, 20)).indexOf(message)]
       if (!picked || !/^https?:\/\//i.test(picked.audioUrl || '')) {
         const vm = await _bulkVoicemailPrompt(chatId)
         return send(chatId, `⚠️ Please pick an option from the list.\n\n${vm.text}`, k.of(vm.rows))
