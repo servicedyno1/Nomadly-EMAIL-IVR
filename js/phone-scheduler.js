@@ -104,6 +104,7 @@ async function runExpiryCheck() {
     let remindersSent = 0
     let autoRenewed = 0
     let suspended = 0
+    let heldForMigration = 0
 
     for (const user of allUsers) {
       const chatId = user._id
@@ -113,6 +114,16 @@ async function runExpiryCheck() {
       for (let i = 0; i < numbers.length; i++) {
         const num = numbers[i]
         if (num.status !== 'active' && num.status !== 'suspended') continue
+
+        // ── Twilio paused (TWILIO_ENABLED=false — account suspended) ──
+        // Dead Twilio numbers are HELD for migration to Telnyx: no renewal
+        // reminders, no auto-renew wallet charge, no release. The plan keeps its
+        // expiresAt; the migration tool moves it to a Telnyx number with the same
+        // expiry. Flip TWILIO_ENABLED back to true and normal processing resumes.
+        if (num.provider === 'twilio' && !phoneConfig.isTwilioEnabled()) {
+          heldForMigration++
+          continue
+        }
 
         const expiresAt = new Date(num.expiresAt)
         const msUntilExpiry = expiresAt.getTime() - now.getTime()
@@ -300,7 +311,7 @@ async function runExpiryCheck() {
       }
     }
 
-    log(`[PhoneScheduler] Expiry check complete: ${remindersSent} reminders, ${autoRenewed} auto-renewed, ${suspended} released`)
+    log(`[PhoneScheduler] Expiry check complete: ${remindersSent} reminders, ${autoRenewed} auto-renewed, ${suspended} released${heldForMigration ? `, ${heldForMigration} Twilio held for migration (TWILIO_ENABLED=false)` : ''}`)
   } catch (e) {
     log(`[PhoneScheduler] Expiry check error: ${e.message}`)
   }

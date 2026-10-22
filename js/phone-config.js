@@ -291,6 +291,23 @@ function isTwilioEnabled() {
   return String(process.env.TWILIO_ENABLED ?? 'true').toLowerCase().trim() !== 'false'
 }
 
+// True when a number lives on Twilio while Twilio is switched off (held for migration).
+function isHeldTwilioNumber(n) {
+  return !!n && n.provider === 'twilio' && !isTwilioEnabled()
+}
+
+// Shown instead of Renew / Change Plan / Auto-Renew for a held Twilio number.
+function twilioUpgradeHoldMsg(lang, expiresAt) {
+  const d = expiresAt ? new Date(expiresAt).toISOString().slice(0, 10) : '—'
+  const m = {
+    en: `🔧 <b>This number is being upgraded</b>\n\nRenewals and plan changes are paused while we move it to our new calling network — <b>you won't be charged</b>. Your plan keeps its current expiry date (<b>${d}</b>) and moves with it to your new number. We'll message you as soon as it's ready.`,
+    fr: `🔧 <b>Ce numéro est en cours de mise à niveau</b>\n\nLes renouvellements et changements de forfait sont en pause pendant le transfert vers notre nouveau réseau — <b>aucun débit</b>. Votre forfait garde sa date d'expiration (<b>${d}</b>) et sera transféré sur votre nouveau numéro. Nous vous préviendrons dès qu'il sera prêt.`,
+    zh: `🔧 <b>此号码正在升级</b>\n\n在迁移到新通话网络期间，续费和套餐变更已暂停 — <b>不会向您收费</b>。您的套餐保留当前到期日（<b>${d}</b>），并将随迁移转到您的新号码。准备就绪后我们会立即通知您。`,
+    hi: `🔧 <b>यह नंबर अपग्रेड हो रहा है</b>\n\nहमारे नए कॉलिंग नेटवर्क पर ले जाते समय नवीनीकरण और प्लान बदलाव रुके हुए हैं — <b>आपसे कोई शुल्क नहीं लिया जाएगा</b>। आपका प्लान अपनी मौजूदा समाप्ति तिथि (<b>${d}</b>) बनाए रखेगा और आपके नए नंबर पर चला जाएगा। तैयार होते ही हम आपको सूचित करेंगे।`,
+  }
+  return m[lang] || m.en
+}
+
 // ── Countries with flag (compliance-free only — no additional registration needed) ──
 const countries = [
   { code: 'US', name: '🇺🇸 United States', provider: 'telnyx' },
@@ -3517,6 +3534,8 @@ module.exports = {
   comingSoonText,
   planAvailability,
   isTwilioEnabled,
+  isHeldTwilioNumber,
+  twilioUpgradeHoldMsg,
   countries,
   twilioCountries,
   allCountries,

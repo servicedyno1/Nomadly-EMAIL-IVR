@@ -25273,17 +25273,24 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       // Filter to only numbers with eligible plans for bulk calls
       const eligibleNumbers = userNumbers.filter(n => phoneConfig.canAccessFeature(n.plan, 'bulkCall'))
 
-      // Build caller ID list — ONLY user-owned Twilio numbers with sub-accounts
+      // Build caller ID list — user-owned Telnyx numbers (Telnyx Call Control engine) plus
+      // user-owned Twilio numbers with sub-accounts (only while Twilio is enabled).
       // Security: Verified caller IDs from the main Twilio account are NOT exposed to users
-      // This prevents unauthorized use of the main Twilio account for Bulk IVR
-      const bulkCapableNumbers = eligibleNumbers.filter(n => n.provider === 'twilio' && phoneConfig.isTwilioEnabled()).map(n => ({
+      const isBulkCapable = (n) => n.provider === 'twilio' ? phoneConfig.isTwilioEnabled() : true
+      const bulkCapableNumbers = eligibleNumbers.filter(isBulkCapable).map(n => n.provider === 'twilio' ? ({
         phoneNumber: n.phoneNumber,
         label: `${n.phoneNumber} ☎️`,
         type: 'owned_twilio',
+        provider: 'twilio',
         subAccountSid: n.twilioSubAccountSid || userData?.twilioSubAccountSid || null,
         subAccountToken: n.twilioSubAccountToken || userData?.twilioSubAccountToken || null,
+      }) : ({
+        phoneNumber: n.phoneNumber,
+        label: `${n.phoneNumber} ☎️`,
+        type: 'owned_telnyx',
+        provider: 'telnyx',
       }))
-      const nonBulkNumbers = eligibleNumbers.filter(n => n.provider !== 'twilio').map(n => ({
+      const nonBulkNumbers = eligibleNumbers.filter(n => !isBulkCapable(n)).map(n => ({
         phoneNumber: n.phoneNumber,
         label: `${n.phoneNumber} ⚠️ Not supported`,
         type: 'not_bulk_capable',
@@ -27314,6 +27321,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     const bulkData = info?.bulkData || {}
     bulkData.callerId = found.phoneNumber
     bulkData.callerType = found.type
+    bulkData.provider = found.provider || (found.type === 'owned_twilio' ? 'twilio' : 'telnyx')
     bulkData.twilioSubAccountSid = found.subAccountSid || null
     bulkData.twilioSubAccountToken = found.subAccountToken || null
     await saveInfo('bulkData', bulkData)
@@ -28084,6 +28092,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
           concurrency: bulkData.concurrency || 10,
           holdMusic: bulkData.mode === 'transfer',
           leads: bulkData.leads,
+          provider: bulkData.provider || null,
           twilioSubAccountSid: bulkData.twilioSubAccountSid || null,
           twilioSubAccountToken: bulkData.twilioSubAccountToken || null,
         })
@@ -28144,6 +28153,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
         concurrency: bulkData.concurrency || 10,
         holdMusic: bulkData.mode === 'transfer',
         leads: bulkData.leads,
+        provider: bulkData.provider || null,
         twilioSubAccountSid: bulkData.twilioSubAccountSid || null,
         twilioSubAccountToken: bulkData.twilioSubAccountToken || null,
         scheduledFor,
@@ -28299,7 +28309,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
         telnyxApi.searchNumbers(cc, numberType, null, 3).catch(() => []),
         twilioService.searchNumbers(cc, numberType, 3).catch(() => []),
       ])
-      telnyxResults.forEach(r => { r._provider = 'telnyx'; r._bulkIvrCapable = false })
+      telnyxResults.forEach(r => { r._provider = 'telnyx'; r._bulkIvrCapable = true })
       twilioResults.forEach(r => { r._provider = 'twilio'; r._bulkIvrCapable = true })
       results = [...telnyxResults, ...twilioResults]
     } else {
@@ -28309,7 +28319,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
         : await telnyxApi.searchNumbers(cc, numberType, null, 5)
       results.forEach(r => {
         r._provider = provider
-        r._bulkIvrCapable = (provider === 'twilio')
+        r._bulkIvrCapable = true
       })
     }
 
@@ -28352,7 +28362,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
         telnyxApi.searchNumbers(info?.cpCountryCode || 'US', info?.cpNumberType || 'local', areaCode, 3).catch(() => []),
         twilioService.searchNumbers(info?.cpCountryCode || 'US', info?.cpNumberType || 'local', 3, areaCode).catch(() => []),
       ])
-      telnyxResults.forEach(r => { r._provider = 'telnyx'; r._bulkIvrCapable = false })
+      telnyxResults.forEach(r => { r._provider = 'telnyx'; r._bulkIvrCapable = true })
       twilioResults.forEach(r => { r._provider = 'twilio'; r._bulkIvrCapable = true })
       results = [...telnyxResults, ...twilioResults]
     } else {
@@ -28361,7 +28371,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       } else {
         results = await telnyxApi.searchNumbers(info?.cpCountryCode || 'US', info?.cpNumberType || 'local', areaCode, 5)
       }
-      results.forEach(r => { r._provider = provider; r._bulkIvrCapable = (provider === 'twilio') })
+      results.forEach(r => { r._provider = provider; r._bulkIvrCapable = true })
     }
 
     if (!results.length) return send(chatId, cpTxt.noSearchResults, k.of([[pc.back]]))
@@ -28401,7 +28411,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
         telnyxApi.searchNumbers(info?.cpCountryCode || 'US', info?.cpNumberType || 'local', areaCode, 3).catch(() => []),
         twilioService.searchNumbers(info?.cpCountryCode || 'US', info?.cpNumberType || 'local', 3, areaCode).catch(() => []),
       ])
-      telnyxResults.forEach(r => { r._provider = 'telnyx'; r._bulkIvrCapable = false })
+      telnyxResults.forEach(r => { r._provider = 'telnyx'; r._bulkIvrCapable = true })
       twilioResults.forEach(r => { r._provider = 'twilio'; r._bulkIvrCapable = true })
       results = [...telnyxResults, ...twilioResults]
     } else {
@@ -28410,7 +28420,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       } else {
         results = await telnyxApi.searchNumbers(info?.cpCountryCode || 'US', info?.cpNumberType || 'local', areaCode, 5)
       }
-      results.forEach(r => { r._provider = provider; r._bulkIvrCapable = (provider === 'twilio') })
+      results.forEach(r => { r._provider = provider; r._bulkIvrCapable = true })
     }
 
     if (!results.length) return send(chatId, cpTxt.noSearchResults + '\nTry a different area code.', k.of([[pc.back]]))
@@ -28450,7 +28460,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
           telnyxApi.searchNumbers(info?.cpCountryCode || 'US', info?.cpNumberType || 'local', info?.cpAreaCode, 3).catch(() => []),
           twilioService.searchNumbers(info?.cpCountryCode || 'US', info?.cpNumberType || 'local', 3, info?.cpAreaCode || null).catch(() => []),
         ])
-        telnyxResults.forEach(r => { r._provider = 'telnyx'; r._bulkIvrCapable = false })
+        telnyxResults.forEach(r => { r._provider = 'telnyx'; r._bulkIvrCapable = true })
         twilioResults.forEach(r => { r._provider = 'twilio'; r._bulkIvrCapable = true })
         results = [...telnyxResults, ...twilioResults]
       } else {
@@ -28459,7 +28469,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
         } else {
           results = await telnyxApi.searchNumbers(info?.cpCountryCode || 'US', info?.cpNumberType || 'local', info?.cpAreaCode, 5)
         }
-        results.forEach(r => { r._provider = provider; r._bulkIvrCapable = (provider === 'twilio') })
+        results.forEach(r => { r._provider = provider; r._bulkIvrCapable = true })
       }
 
       if (!results.length) return send(chatId, cpTxt.noSearchResults, k.of([[pc.back]]))
@@ -30130,6 +30140,10 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
 
     // Renew / Change Plan
     if (message === pc.renewChangePlan) {
+      // Held Twilio number (TWILIO_ENABLED=false): no renewals/charges until migrated
+      if (phoneConfig.isHeldTwilioNumber(num)) {
+        return send(chatId, phoneConfig.twilioUpgradeHoldMsg(info?.userLanguage || 'en', num.expiresAt), { parse_mode: 'HTML' })
+      }
       await set(state, chatId, 'action', a.cpRenewPlan)
       const plan = phoneConfig.plans[num.plan] || { name: num.plan, price: num.planPrice }
       return send(chatId, cpTxt.renewMenu(num.phoneNumber, plan.name, num.planPrice, num.expiresAt, num.autoRenew), k.of([
@@ -30304,14 +30318,14 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
         telnyxApi.searchNumbers(cc, numberType, null, 3).catch(() => []),
         twilioService.searchNumbers(cc, numberType, 3).catch(() => []),
       ])
-      telnyxResults.forEach(r => { r._provider = 'telnyx'; r._bulkIvrCapable = false })
+      telnyxResults.forEach(r => { r._provider = 'telnyx'; r._bulkIvrCapable = true })
       twilioResults.forEach(r => { r._provider = 'twilio'; r._bulkIvrCapable = true })
       results = [...telnyxResults, ...twilioResults]
     } else {
       results = provider === 'twilio'
         ? await twilioService.searchNumbers(cc, numberType, 5)
         : await telnyxApi.searchNumbers(cc, numberType, null, 5)
-      results.forEach(r => { r._provider = provider; r._bulkIvrCapable = (provider === 'twilio') })
+      results.forEach(r => { r._provider = provider; r._bulkIvrCapable = true })
     }
     if (!results.length) return send(chatId, cpTxt.noSearchResults, k.of([[pc.back]]))
     await saveInfo('cpSearchResults', results)
@@ -30347,7 +30361,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
         telnyxApi.searchNumbers(info?.cpCountryCode || 'US', info?.cpNumberType || 'local', areaCode, 3).catch(() => []),
         twilioService.searchNumbers(info?.cpCountryCode || 'US', info?.cpNumberType || 'local', 3, areaCode).catch(() => []),
       ])
-      telnyxResults.forEach(r => { r._provider = 'telnyx'; r._bulkIvrCapable = false })
+      telnyxResults.forEach(r => { r._provider = 'telnyx'; r._bulkIvrCapable = true })
       twilioResults.forEach(r => { r._provider = 'twilio'; r._bulkIvrCapable = true })
       results = [...telnyxResults, ...twilioResults]
     } else {
@@ -30357,7 +30371,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       } else {
         results = await telnyxApi.searchNumbers(info?.cpCountryCode || 'US', info?.cpNumberType || 'local', areaCode, 5)
       }
-      results.forEach(r => { r._provider = provider; r._bulkIvrCapable = (provider === 'twilio') })
+      results.forEach(r => { r._provider = provider; r._bulkIvrCapable = true })
     }
     if (!results.length) return send(chatId, cpTxt.noSearchResults, k.of([[pc.back]]))
     await saveInfo('cpSearchResults', results)
@@ -30393,7 +30407,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
         telnyxApi.searchNumbers(info?.cpCountryCode || 'US', info?.cpNumberType || 'local', areaCode, 3).catch(() => []),
         twilioService.searchNumbers(info?.cpCountryCode || 'US', info?.cpNumberType || 'local', 3, areaCode).catch(() => []),
       ])
-      telnyxResults.forEach(r => { r._provider = 'telnyx'; r._bulkIvrCapable = false })
+      telnyxResults.forEach(r => { r._provider = 'telnyx'; r._bulkIvrCapable = true })
       twilioResults.forEach(r => { r._provider = 'twilio'; r._bulkIvrCapable = true })
       results = [...telnyxResults, ...twilioResults]
     } else {
@@ -30403,7 +30417,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       } else {
         results = await telnyxApi.searchNumbers(info?.cpCountryCode || 'US', info?.cpNumberType || 'local', areaCode, 5)
       }
-      results.forEach(r => { r._provider = provider; r._bulkIvrCapable = (provider === 'twilio') })
+      results.forEach(r => { r._provider = provider; r._bulkIvrCapable = true })
     }
     if (!results.length) return send(chatId, cpTxt.noSearchResults + '\nTry a different area code.', k.of([[pc.back]]))
     await saveInfo('cpSearchResults', results)
@@ -30436,7 +30450,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
           telnyxApi.searchNumbers(info?.cpCountryCode || 'US', info?.cpNumberType || 'local', info?.cpAreaCode, 3).catch(() => []),
           twilioService.searchNumbers(info?.cpCountryCode || 'US', info?.cpNumberType || 'local', 3, info?.cpAreaCode || null).catch(() => []),
         ])
-        telnyxResults.forEach(r => { r._provider = 'telnyx'; r._bulkIvrCapable = false })
+        telnyxResults.forEach(r => { r._provider = 'telnyx'; r._bulkIvrCapable = true })
         twilioResults.forEach(r => { r._provider = 'twilio'; r._bulkIvrCapable = true })
         results = [...telnyxResults, ...twilioResults]
       } else {
@@ -30445,7 +30459,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
         } else {
           results = await telnyxApi.searchNumbers(info?.cpCountryCode || 'US', info?.cpNumberType || 'local', info?.cpAreaCode, 5)
         }
-        results.forEach(r => { r._provider = provider; r._bulkIvrCapable = (provider === 'twilio') })
+        results.forEach(r => { r._provider = provider; r._bulkIvrCapable = true })
       }
       if (!results.length) return send(chatId, cpTxt.noSearchResults, k.of([[pc.back]]))
       await saveInfo('cpSearchResults', results)
@@ -33610,6 +33624,10 @@ Select a category:`), k.of(catBtns))
       await set(state, chatId, 'action', a.cpManageNumber)
       return showManageScreen(chatId, num)
     }
+    // Held Twilio number (TWILIO_ENABLED=false): block Renew Now / Auto-Renew toggle / Change Plan
+    if (phoneConfig.isHeldTwilioNumber(num)) {
+      return send(chatId, phoneConfig.twilioUpgradeHoldMsg(info?.userLanguage || 'en', num.expiresAt), { parse_mode: 'HTML' })
+    }
     // Toggle Auto-Renew
     if (message.startsWith('🔁 Auto-Renew')) {
       const newState = !num.autoRenew
@@ -33660,6 +33678,9 @@ Select a category:`), k.of(catBtns))
         [pc.changePlan],
         ['🔁 Auto-Renew: ' + (num.autoRenew ? '✅ ON' : '❌ OFF')],
       ]))
+    }
+    if (phoneConfig.isHeldTwilioNumber(num)) {
+      return send(chatId, phoneConfig.twilioUpgradeHoldMsg(info?.userLanguage || 'en', num.expiresAt), { parse_mode: 'HTML' })
     }
 
     // Block "Coming Soon" plans

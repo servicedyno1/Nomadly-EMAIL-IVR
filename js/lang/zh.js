@@ -1965,6 +1965,7 @@ bulkCallReportKeyPressed: '按键操作：',
 bulkCallReportTransferred: '已转接：',
 bulkCallReportNoAnswer: '无人接听：',
 bulkCallReportHungUp: '已挂断：',
+bulkCallReportVoicemail: '语音信箱：',
 bulkCallReportBusy: '忙线：',
 bulkCallReportFailed: '失败：',
 // === SMS App service ===

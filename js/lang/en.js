@@ -2136,6 +2136,7 @@ bulkCallReportKeyPressed: 'Key Pressed:',
 bulkCallReportTransferred: 'Transferred:',
 bulkCallReportNoAnswer: 'No Answer:',
 bulkCallReportHungUp: 'Hung Up:',
+bulkCallReportVoicemail: 'Voicemail:',
 bulkCallReportBusy: 'Busy:',
 bulkCallReportFailed: 'Failed:',
 // === SMS App service ===

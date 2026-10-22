@@ -1819,6 +1819,7 @@ async function handleBridgeTransferAnswered(payload) {
   // Notify bot user
   const parentSession = outboundIvrCalls[transfer.originalCallControlId] || activeCalls[transfer.originalCallControlId]
   if (parentSession) {
+    parentSession.transferConnected = true
     const chatId = String(parentSession.chatId) // Ensure string for consistency
     const msg = transfer.type === 'sip_ring'
       ? `✅ <b>SIP Call Connected</b>\nIncoming call bridged to your device`
@@ -2168,6 +2169,11 @@ async function handleVoiceWebhook(req, res) {
             : amdResult === 'human' ? 'human'
             : 'unknown'
           log(`[OutboundIVR] AMD: ${amdSession.targetNumber} → ${amdSession.answeredBy}`)
+          // Bulk IVR: a voicemail can't press a key — hang up (lead is reported as "Voicemail").
+          if (amdSession.campaignId && amdSession.answeredBy === 'machine' && !amdSession.digitPressed && amdSession.phase === 'playing') {
+            log(`[OutboundIVR] Bulk AMD machine → hanging up ${amdSession.targetNumber} (campaign ${amdSession.campaignId})`)
+            await _telnyxApi.hangupCall(amdCallControlId).catch(() => {})
+          }
         }
         break
       }
@@ -5133,9 +5139,9 @@ async function handleOutboundIvrHangup(payload) {
     }
   }
 
-  // ── Bill IVR leg via unified billing (skip trial calls and failed calls) ──
+  // ── Bill IVR leg via unified billing (skip trial calls; bulk campaign calls bill in bulk-call-service) ──
   let billingInfo = { planMinUsed: 0, overageMin: 0, overageCharge: 0, rate: 0, used: 0, limit: 0 }
-  if (!session.isTrial && minutesBilled > 0) {
+  if (!session.isTrial && !session.campaignId && minutesBilled > 0) {
     try {
       const { chatId: ownerId, num } = await findNumberOwner(session.callerId)
       if (ownerId && num) {
@@ -5161,6 +5167,7 @@ async function handleOutboundIvrHangup(payload) {
       let transferConnected = false
       if (session.bulkMode === 'transfer' && session.digitPressed) {
         transferred = true
+        transferConnected = previousPhase === 'bridged' || !!session.transferConnected
         for (const [, transfer] of Object.entries(ivrTransferLegs)) {
           if (transfer.parentCallControlId === callControlId && transfer.phase === 'answered') {
             transferConnected = true
@@ -5169,18 +5176,15 @@ async function handleOutboundIvrHangup(payload) {
         }
       }
 
-      const resultStatus = notifType === 'no_answer' ? 'no_answer'
-        : notifType === 'busy' ? 'busy'
-        : notifType === 'failed' ? 'failed'
-        : 'completed'
-
       await bulkCallService.onCallComplete(callControlId, {
-        status: resultStatus,
+        campaignId: session.campaignId,
+        leadIndex: session.leadIndex,
         digitPressed: session.digitPressed,
         duration,
         hangupCause,
         transferred,
         transferConnected,
+        answeredBy: session.answeredBy || null,
         answeredAt: session.answerTime ? new Date(session.answerTime) : null,
       })
     } catch (e) {

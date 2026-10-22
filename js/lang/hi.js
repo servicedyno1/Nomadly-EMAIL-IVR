@@ -1966,6 +1966,7 @@ bulkCallReportKeyPressed: 'कुंजी दबाई:',
 bulkCallReportTransferred: 'स्थानांतरित:',
 bulkCallReportNoAnswer: 'कोई उत्तर नहीं:',
 bulkCallReportHungUp: 'काट दिया:',
+bulkCallReportVoicemail: 'वॉइसमेल:',
 bulkCallReportBusy: 'व्यस्त:',
 bulkCallReportFailed: 'विफल:',
 // === SMS App service ===
