@@ -1040,7 +1040,8 @@ const dynopayActions = {
   payVps: 'payVps',
   payPhone: 'payPhone',
   payLeads: 'payLeads',
-  payMarketplaceAccess: 'payMarketplaceAccess'
+  payMarketplaceAccess: 'payMarketplaceAccess',
+  payResellerPriority: 'payResellerPriority',
 }
 
 module.exports = {
