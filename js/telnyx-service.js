@@ -38,7 +38,9 @@ async function searchNumbers(countryCode, numberType, areaCode, limit = 5) {
           fax: (n.features || []).some(f => f.name === 'fax'),
         }
       }))
-      .filter(n => n._capabilities.voice && n._capabilities.sms) // ensure voice+sms
+      // US/CA: keep requiring voice+sms (unchanged). International: voice is enough —
+      // Cloud IVR plans only need calling and most intl Telnyx numbers are voice-only.
+      .filter(n => n._capabilities.voice && (['US', 'CA'].includes(String(countryCode || 'US').toUpperCase()) ? n._capabilities.sms : true))
   } catch (e) {
     log('Telnyx searchNumbers error:', e.response?.data || e.message)
     return []

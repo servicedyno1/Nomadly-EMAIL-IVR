@@ -327,11 +327,42 @@ const twilioCountries = [
   { code: 'IT', name: '🇮🇹 Italy', provider: 'twilio', types: ['toll_free'] },
 ]
 
-// Combined list for user selection — Twilio countries drop out when TWILIO_ENABLED=false
-const allCountries = isTwilioEnabled() ? [...countries, ...twilioCountries] : [...countries]
+// ── Telnyx international catalog (2026-10, audited in memory/TELNYX_INTL_COVERAGE_2026-10-22.md) ──
+// Shown ONLY while Twilio is switched off (TWILIO_ENABLED=false) so flipping Twilio
+// back on restores the exact Twilio catalog. Kill-switch: TELNYX_INTL_ON=false.
+// `verify: true` → Telnyx needs contact details / address / documents before ordering
+// (collected pre-payment by telnyx-regulatory.js, requirements fetched LIVE from Telnyx).
+// Not offered: AU mobile (needs a live Onfido face check), countries with no Telnyx stock.
+function isTelnyxIntlEnabled() {
+  return String(process.env.TELNYX_INTL_ON ?? 'true').toLowerCase().trim() !== 'false'
+}
+const telnyxIntlCountries = [
+  { code: 'GB', name: '🇬🇧 United Kingdom', provider: 'telnyx', types: ['mobile'], verify: true },
+  { code: 'NL', name: '🇳🇱 Netherlands', provider: 'telnyx', types: ['mobile'], verify: true },
+  { code: 'IL', name: '🇮🇱 Israel', provider: 'telnyx', types: ['mobile', 'local'], verify: true },
+  { code: 'NZ', name: '🇳🇿 New Zealand', provider: 'telnyx', types: ['local', 'toll_free'], verify: true },
+  { code: 'AU', name: '🇦🇺 Australia', provider: 'telnyx', types: ['toll_free'], verify: true },
+  { code: 'IE', name: '🇮🇪 Ireland', provider: 'telnyx', types: ['local'], verify: true },
+  { code: 'PR', name: '🇵🇷 Puerto Rico', provider: 'telnyx', types: ['local', 'toll_free'] },
+  { code: 'CO', name: '🇨🇴 Colombia', provider: 'telnyx', types: ['mobile'] },
+]
+const _telnyxIntlMore = [
+  { code: 'HK', name: '🇭🇰 Hong Kong', provider: 'telnyx', types: ['toll_free'], verify: true },
+  { code: 'CZ', name: '🇨🇿 Czech Republic', provider: 'telnyx', types: ['local', 'toll_free'], verify: true },
+  { code: 'EE', name: '🇪🇪 Estonia', provider: 'telnyx', types: ['local', 'toll_free'], verify: true },
+  { code: 'MX', name: '🇲🇽 Mexico', provider: 'telnyx', types: ['toll_free'], verify: true },
+  { code: 'RO', name: '🇷🇴 Romania', provider: 'telnyx', types: ['toll_free'], verify: true },
+  { code: 'SK', name: '🇸🇰 Slovakia', provider: 'telnyx', types: ['toll_free'], verify: true },
+  { code: 'ZA', name: '🇿🇦 South Africa', provider: 'telnyx', types: ['local'], verify: true },
+]
+const _telnyxIntlOn = !isTwilioEnabled() && isTelnyxIntlEnabled()
 
-// Additional countries (shown after "More Countries" button) — all Twilio, so this list
-// is empty (and the "More Countries" button auto-hides) when TWILIO_ENABLED=false.
+// Combined list for user selection — Twilio countries drop out when TWILIO_ENABLED=false
+// (replaced by the Telnyx international catalog).
+const allCountries = isTwilioEnabled() ? [...countries, ...twilioCountries] : [...countries, ...(_telnyxIntlOn ? telnyxIntlCountries : [])]
+
+// Additional countries (shown after "More Countries" button) — Twilio's list while Twilio
+// is on; the Telnyx international extras while it is off (empty → button auto-hides).
 const _twilioMoreCountries = [
   { code: 'PR', name: '🇵🇷 Puerto Rico', provider: 'twilio', types: ['local'] },
   { code: 'TN', name: '🇹🇳 Tunisia', provider: 'twilio', types: ['local'] },
@@ -350,7 +381,7 @@ const _twilioMoreCountries = [
   { code: 'ZA', name: '🇿🇦 South Africa', provider: 'twilio', types: ['local'] },
   { code: 'TH', name: '🇹🇭 Thailand', provider: 'twilio', types: ['toll_free', 'mobile'] },
 ]
-const moreCountries = isTwilioEnabled() ? _twilioMoreCountries : []
+const moreCountries = isTwilioEnabled() ? _twilioMoreCountries : (_telnyxIntlOn ? _telnyxIntlMore : [])
 
 // US popular area codes
 const usAreaCodes = [
@@ -3538,6 +3569,7 @@ module.exports = {
   comingSoonText,
   planAvailability,
   isTwilioEnabled,
+  isTelnyxIntlEnabled,
   isHeldTwilioNumber,
   twilioUpgradeHoldMsg,
   countries,
