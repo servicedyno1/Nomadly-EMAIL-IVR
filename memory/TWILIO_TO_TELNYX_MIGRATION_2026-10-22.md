@@ -91,3 +91,19 @@ clean Node boot with `TWILIO_ENABLED=false`, `/api/health` 200. Sandbox .env has
   no "resume paused campaign" action exists in the bot (pre-existing).
 
 ## Phase 3 — deferred — Telnyx toll-free SMS verification; retire Twilio code paths.
+
+## Round 2 — DONE 2026-10-22 ~09:40Z (owner-approved message + purchases)
+- Found 7 more PAID numbers (status 'suspended' by phone-monitor when the Twilio sub-accounts died, expiry in the future):
+  Nomadly 6 numbers / 5 users (1005284399, 1185070608 [sub-number, parent expired → migrated STANDALONE,
+  `formerSubNumberOf`], 5999851454 ×2, 5739696549 [fr], 8666352410 [2nd number]) + Voodoo Land 1 (5980737073).
+  Skipped: 5 Twilio numbers whose plans expired before the outage. Smadav / PROSHOP: none.
+- `migrate_twilio_to_telnyx_2026-10.js --apply --include-suspended --brands=app-main,app-voodoo` → migrated 7/7.
+  Script now: skips expired/_released entries; sub-number keeps parent only if parent active (or migrated to active);
+  user message = apology wording, brand name from BRAND_PHONE_NAME || CHAT_BOT_BRAND, hard guard: never sends text
+  containing "twilio"/"telnyx"; marks `_apologySentAt` on the new record.
+- `--apologize-migrated` → short apology + new number sent to the 6 users migrated in round 1 (6/6 sent).
+- verify (`verify_twilio_migration_2026-10.js --brands=app-main,app-voodoo`, now multi-brand + 429 retry):
+  app-main 132/132, app-voodoo 11/11 (13 migrated numbers). No Twilio number with a future expiry remains.
+- Telnyx balance after purchases: $9.33 (was $18.81; ~$1.35 per number incl. first month). Logs: /root/migration_logs/.
+- New read-only helper: js/ops/list_twilio_numbers_2026-10.js (all brands, status/expiry per Twilio number).
+

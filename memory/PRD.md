@@ -29,6 +29,9 @@
   public 200, isTwilioEnabled=false, no `patched=` lines. GitHub and server are in sync again.
   Rollback per app: `bash /opt/nomadly/deploy.sh <app> rollback` (previous releases kept).
 - Known noise (pre-existing): app-main PhoneMonitor logs AUTH_FAILED for every suspended Twilio sub-account at boot.
+- 2026-10-22 ~09:40Z Round-2 migration: 7 more paid numbers (Nomadly 6 / Voodoo 1) moved to new numbers, apology
+  messages sent (no carrier names), 6 round-1 users got an apology follow-up; verify 143/143. Telnyx balance $9.33.
+  Details: memory/TWILIO_TO_TELNYX_MIGRATION_2026-10-22.md (Round 2).
 - User pasted a GitHub PAT in chat — advised to revoke (agent does not push).
 - Ready-to-push copy prepared on the droplet: `/root/nomadly-push` (main = local workspace HEAD, clean fast-forward over
   origin/main b4d62d5, uses the droplet's stored git credentials). Owner runs `cd /root/nomadly-push && git push origin main`
