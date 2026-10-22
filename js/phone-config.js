@@ -279,6 +279,18 @@ const btn = {
   cancel: 'Cancel',
 }
 
+// ── Provider availability switch (REVERSIBLE) ──────────────────────────────
+// TWILIO_ENABLED unset/"true"  → current dual-provider behavior (Twilio + Telnyx).
+// TWILIO_ENABLED="false"       → Twilio hidden: Telnyx-only catalog. Set this when
+//                                the Twilio account is suspended. Flip back to "true"
+//                                (then restart the process) to restore Twilio to its
+//                                exact current role — no data migration needed.
+// Read at module load on purpose: env vars are fixed per process, and flipping the
+// flag requires an .env edit + restart anyway.
+function isTwilioEnabled() {
+  return String(process.env.TWILIO_ENABLED ?? 'true').toLowerCase().trim() !== 'false'
+}
+
 // ── Countries with flag (compliance-free only — no additional registration needed) ──
 const countries = [
   { code: 'US', name: '🇺🇸 United States', provider: 'telnyx' },
@@ -297,11 +309,12 @@ const twilioCountries = [
   { code: 'IT', name: '🇮🇹 Italy', provider: 'twilio', types: ['toll_free'] },
 ]
 
-// Combined list for user selection
-const allCountries = [...countries, ...twilioCountries]
+// Combined list for user selection — Twilio countries drop out when TWILIO_ENABLED=false
+const allCountries = isTwilioEnabled() ? [...countries, ...twilioCountries] : [...countries]
 
-// Additional countries (shown after "More Countries" button)
-const moreCountries = [
+// Additional countries (shown after "More Countries" button) — all Twilio, so this list
+// is empty (and the "More Countries" button auto-hides) when TWILIO_ENABLED=false.
+const _twilioMoreCountries = [
   { code: 'PR', name: '🇵🇷 Puerto Rico', provider: 'twilio', types: ['local'] },
   { code: 'TN', name: '🇹🇳 Tunisia', provider: 'twilio', types: ['local'] },
   { code: 'FI', name: '🇫🇮 Finland', provider: 'twilio', types: ['toll_free', 'mobile'] },
@@ -319,6 +332,7 @@ const moreCountries = [
   { code: 'ZA', name: '🇿🇦 South Africa', provider: 'twilio', types: ['local'] },
   { code: 'TH', name: '🇹🇭 Thailand', provider: 'twilio', types: ['toll_free', 'mobile'] },
 ]
+const moreCountries = isTwilioEnabled() ? _twilioMoreCountries : []
 
 // US popular area codes
 const usAreaCodes = [
@@ -3484,6 +3498,7 @@ module.exports = {
   isPlanAvailable,
   comingSoonText,
   planAvailability,
+  isTwilioEnabled,
   countries,
   twilioCountries,
   allCountries,

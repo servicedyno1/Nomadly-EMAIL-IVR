@@ -23,6 +23,14 @@ const findLegacySipDomain = domains => IS_DEFAULT_SIP_PREFIX
 // ━━━ SECURITY: Main account SID — used to detect and block unauthorized main-account usage ━━━
 const MAIN_ACCOUNT_SID = ACCOUNT_SID
 
+// ── Provider availability switch (REVERSIBLE) ──
+// When TWILIO_ENABLED=false (Twilio account suspended), all Twilio number
+// provisioning is disabled so new purchases are steered to Telnyx. Default/unset
+// = true = current behavior. Flip back to true (+restart) to fully restore Twilio.
+function isTwilioEnabled() {
+  return String(process.env.TWILIO_ENABLED ?? 'true').toLowerCase().trim() !== 'false'
+}
+
 // Stores the active Twilio SIP domain name (set during initialization)
 let activeSipDomainName = null
 
@@ -261,6 +269,13 @@ const AREA_CODE_OVERLAYS = {
 }
 
 async function searchNumbers(countryCode, numberType = 'local', limit = 5, areaCode = null) {
+  // Reversible kill-switch: when Twilio is disabled, offer no Twilio inventory so
+  // dual-provider (US/CA) searches return Telnyx-only and Twilio-only countries show
+  // "no results". Zero API calls / zero cost while suspended.
+  if (!isTwilioEnabled()) {
+    log('[Twilio] searchNumbers skipped — TWILIO_ENABLED=false (steering purchases to Telnyx)')
+    return []
+  }
   try {
     const client = getClient()
     const params = { limit, voiceEnabled: true }
@@ -320,6 +335,12 @@ async function searchNumbers(countryCode, numberType = 'local', limit = 5, areaC
 }
 
 async function buyNumber(phoneNumber, subSid, subToken, webhookBaseUrl, addressSid, bundleSid) {
+  // Reversible kill-switch: block Twilio purchases while suspended (defense in depth —
+  // the catalog already hides Twilio numbers when TWILIO_ENABLED=false).
+  if (!isTwilioEnabled()) {
+    log(`[Twilio] buyNumber blocked — TWILIO_ENABLED=false (${phoneNumber})`)
+    return { error: 'This number type is temporarily unavailable. Please choose a US or Canada number.' }
+  }
   try {
     // ━━━ SECURITY: User number purchases MUST use sub-account credentials ━━━
     //

@@ -28236,7 +28236,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     await saveInfo('cpCountryName', message)
     await saveInfo('cpProvider', nativeProvider)
     // Check if this country supports dual-provider search (Telnyx countries can also search Twilio)
-    const canSearchBoth = (nativeProvider === 'telnyx') // Telnyx countries (US, CA) — search both
+    const canSearchBoth = (nativeProvider === 'telnyx') && phoneConfig.isTwilioEnabled() // Telnyx countries (US, CA) — search both
     await saveInfo('cpCanSearchBoth', canSearchBoth)
     await set(state, chatId, 'action', a.cpSelectType)
     // Show available types for this country
@@ -30250,7 +30250,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     await saveInfo('cpCountryCode', countryCode)
     await saveInfo('cpCountryName', message)
     await saveInfo('cpProvider', nativeProvider)
-    const canSearchBoth = (nativeProvider === 'telnyx')
+    const canSearchBoth = (nativeProvider === 'telnyx') && phoneConfig.isTwilioEnabled()
     await saveInfo('cpCanSearchBoth', canSearchBoth)
     await set(state, chatId, 'action', a.cpSubAddType)
     const types = countryEntry?.types || ['local', 'toll_free']

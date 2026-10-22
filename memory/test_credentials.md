@@ -34,6 +34,11 @@
 
 ## Environment notes
 - `BOT_ENVIRONMENT=development`, `SKIP_WEBHOOK_SYNC=true` (dev sandbox — does NOT touch production Telegram/Telnyx/Twilio).
+- `TWILIO_ENABLED` (added 2026-10-22): reversible Twilio kill-switch. unset/`true` = current dual-provider
+  behavior; `false` = Twilio hidden, purchases steered to Telnyx. Sandbox is set to `false` (Twilio account
+  AC754fb3… is suspended). To restore Twilio when reactivated: set back to `true` (+ restart). PROD rollout:
+  set in Railway `production` env AND droplet `/opt/nomadly/shared/{app-main,app-wl}/backend.env`.
+  See memory/TWILIO_TO_TELNYX_MIGRATION_2026-10-22.md.
 
 ## Namecheap API (hosta.sh — vanity NS pilot)
 - `NAMECHEAP_USERNAME=richbayo`, `NAMECHEAP_API_KEY` in backend/.env (vault). Whitelisted ClientIp: 136.108.30.124 (OLD pod).
