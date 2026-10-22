@@ -46,6 +46,8 @@ const INFRA_SUFFIXES = new Set([
   'cloudflare.com', 'cloudflareapi.com', 'cloudflare.net',
   // Payments
   'dynopay.com',
+  // Link shortener provider (Shortit "Random" links, 2026-10-22)
+  'linkly.link', 'linklyhq.com',
   // Hosting / VPS / registry / voice infra
   'contabo.com', 'openprovider.com', 'openprovider.eu', 'openprovider.nl',
   'twilio.com', 'twiml.com',

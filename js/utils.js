@@ -68,9 +68,10 @@ function isValidUrl(url) {
 //
 // Context (2026-04-21): User typed "https://canada.ca-cms.cfd." (trailing
 // period). Node's URL() accepts trailing dots in hostnames so isValidUrl()
-// returned true, but RapidAPI url-shortener57 rejected it with 400 "URL is
+// returned true, but the shortener provider rejected it with 400 "URL is
 // invalid". Admin got noisy error pings. Sanitize before validation so
-// user-typos are caught early and we never call RapidAPI with garbage.
+// user-typos are caught early and we never call the shortener with garbage
+// (Linkly, the current provider, accepts any string — so this is the only guard).
 //
 // Rules:
 //   • Trim outer whitespace (including zero-width / unicode spaces).
