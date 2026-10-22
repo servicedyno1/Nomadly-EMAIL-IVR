@@ -29,6 +29,9 @@
   Rollback per app: `bash /opt/nomadly/deploy.sh <app> rollback` (previous releases kept).
 - Known noise (pre-existing): app-main PhoneMonitor logs AUTH_FAILED for every suspended Twilio sub-account at boot.
 - User pasted a GitHub PAT in chat — advised to revoke (agent does not push).
+- Ready-to-push copy prepared on the droplet: `/root/nomadly-push` (main = local workspace HEAD, clean fast-forward over
+  origin/main b4d62d5, uses the droplet's stored git credentials). Owner runs `cd /root/nomadly-push && git push origin main`
+  → CI redeploys app-main (same code) + Sync main → WhiteLabel redeploys wl/voodoo/proshop.
 
 ## 2026-10-16 — SIP "503" low-balance UX: never-silent alert + top-up re-enable confirmation + threshold retune (ALL 4 bots) — LIVE
 - RCA (Nomadly @pirate_script 1005284399): number +18445716353 & SIP cred healthy; Zoiper "503" was a correct LOW BALANCE
