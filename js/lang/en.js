@@ -2139,6 +2139,8 @@ bulkCallReportHungUp: 'Hung Up:',
 bulkCallReportVoicemail: 'Voicemail:',
 bulkCallReportBusy: 'Busy:',
 bulkCallReportFailed: 'Failed:',
+bulkCallReportTitleCancelled: '📊 <b>Campaign Cancelled</b>',
+bulkCallReportNotDialed: 'Not dialed (campaign cancelled):',
 // === SMS App service ===
 smsAppTrialCompleteTitle: '📱 <b>BulkSMS Free Trial Complete!</b>',
 smsAppTrialCompleteBody: limit =>

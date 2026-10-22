@@ -1968,6 +1968,8 @@ bulkCallReportHungUp: '已挂断：',
 bulkCallReportVoicemail: '语音信箱：',
 bulkCallReportBusy: '忙线：',
 bulkCallReportFailed: '失败：',
+bulkCallReportTitleCancelled: '📊 <b>营销活动已取消</b>',
+bulkCallReportNotDialed: '未拨打（活动已取消）：',
 // === SMS App service ===
 smsAppTrialCompleteTitle: '📱 <b>BulkSMS 免费试用完成！</b>',
 smsAppTrialCompleteBody: limit =>

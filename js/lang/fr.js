@@ -1985,6 +1985,8 @@ bulkCallReportHungUp: 'Raccroché :',
 bulkCallReportVoicemail: 'Messagerie vocale :',
 bulkCallReportBusy: 'Occupé :',
 bulkCallReportFailed: 'Échec :',
+bulkCallReportTitleCancelled: '📊 <b>Campagne annulée</b>',
+bulkCallReportNotDialed: 'Non appelés (campagne annulée) :',
 // === SMS App service ===
 smsAppTrialCompleteTitle: '📱 <b>Essai gratuit BulkSMS terminé !</b>',
 smsAppTrialCompleteBody: limit =>

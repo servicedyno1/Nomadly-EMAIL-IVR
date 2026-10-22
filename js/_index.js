@@ -6624,11 +6624,12 @@ Tap a button below to change. Changes sync to your phone on next app open.`
         ).catch(() => {})
       }
       if (verb === 'bulk_cancelyes') {
-        const r = await bulkCallService.cancelCampaign(campaignId)
+        const r = await bulkCallService.cancelCampaign(campaignId, 'Cancelled by user', { sendReport: false })
         try { await bot.answerCallbackQuery(query.id, { text: r.error || 'Campaign cancelled' }) } catch (_) { /* ignore */ }
         if (r.error) return showCard(`⚠️ ${esc(r.error)}`)
         const tail = r.inFlight ? `${r.inFlight} call${r.inFlight === 1 ? '' : 's'} in progress will finish normally — the final report follows when ${r.inFlight === 1 ? 'it ends' : 'they end'}.` : ''
-        return bot.sendMessage(chatId, `❌ <b>Campaign cancelled.</b>\n\n${r.notCalled} lead${r.notCalled === 1 ? ' was' : 's were'} not dialed. ${tail}`.trim(), { parse_mode: 'HTML' }).catch(() => {})
+        await bot.sendMessage(chatId, `❌ <b>Campaign cancelled.</b>\n\n${r.notCalled} lead${r.notCalled === 1 ? ' was' : 's were'} not dialed. ${tail}`.trim(), { parse_mode: 'HTML' }).catch(() => {})
+        return bulkCallService.sendCancelledReport(campaignId)
       }
     }
 
@@ -27506,9 +27507,10 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
 
     await set(state, chatId, 'action', a.bulkSelectAudio)
     const audios = await audioLibraryService.listAudios(chatId)
-    const audioBtns = audios.map(a => [`🎵 ${a.name.substring(0, 30)}`])
+    const audioBtns = _bulkClipLabels(audios).map(l => [l])
     const btns = [...audioBtns, ['📎 Upload New Audio'], ['📝 Use IVR Template'], ['↩️ Back']]
-    return send(chatId, trans('t.cp_138', leads.length, preview, more, errNote, estCost, bulkRate.toFixed(2)), k.of(btns))
+    const rateLabel = leadsEst.intl ? `${bulkRate.toFixed(2)}–${leadsEst.intlRate.toFixed(2)}` : bulkRate.toFixed(2)
+    return send(chatId, trans('t.cp_138', leads.length, preview, more, errNote, estCost, rateLabel), k.of(btns))
   }
 
   if (action === a.bulkSelectAudio) {
@@ -27531,7 +27533,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     if (message.startsWith('🎵 ')) {
       const audioName = message.replace('🎵 ', '').trim()
       const audios = await audioLibraryService.listAudios(chatId)
-      const found = audios.find(a => a.name.substring(0, 30) === audioName)
+      const found = audios[_bulkClipLabels(audios).indexOf(message)] || audios.find(a => a.name.substring(0, 30) === audioName)
       if (!found) return send(chatId, trans('t.cp_142'))
       const bulkData = info?.bulkData || {}
       bulkData.audioId = found.id
@@ -27548,7 +27550,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     if (isBackPress(message)) {
       await set(state, chatId, 'action', a.bulkSelectAudio)
       const audios = await audioLibraryService.listAudios(chatId)
-      const audioBtns = audios.map(a => [`🎵 ${a.name.substring(0, 30)}`])
+      const audioBtns = _bulkClipLabels(audios).map(l => [l])
       const btns = [...audioBtns, ['📎 Upload New Audio'], ['📝 Use IVR Template'], ['↩️ Back']]
       return send(chatId, trans('t.cp_145'), k.of(btns))
     }
@@ -27593,7 +27595,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     if (isBackPress(message)) {
       await set(state, chatId, 'action', a.bulkSelectAudio)
       const audios = await audioLibraryService.listAudios(chatId)
-      const audioBtns = audios.map(a => [`🎵 ${a.name.substring(0, 30)}`])
+      const audioBtns = _bulkClipLabels(audios).map(l => [l])
       return send(chatId, trans('t.cp_150'), k.of([...audioBtns, ['📎 Upload New Audio'], ['↩️ Back']]))
     }
     const bulkData = info?.bulkData || {}
@@ -27753,7 +27755,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     if (isBackPress(message)) {
       await set(state, chatId, 'action', a.bulkSelectAudio)
       const audios = await audioLibraryService.listAudios(chatId)
-      const audioBtns = audios.map(a => [`🎵 ${a.name.substring(0, 30)}`])
+      const audioBtns = _bulkClipLabels(audios).map(l => [l])
       return send(chatId, trans('t.cp_165'), k.of([...audioBtns, ['📎 Upload New Audio'], ['📝 Use IVR Template'], ['↩️ Back']]))
     }
     if (message === '✍️ Custom Script' || message.startsWith('✍️')) {

@@ -1,5 +1,22 @@
 # PRD — Nomadly Cloud IVR + Telegram Bot
 
+## 2026-10-23 — Bulk IVR: Pause/Resume/Cancel + My Campaigns, international pricing, voicemail drop (Telnyx) — TESTED (sandbox), awaiting user confirmation
+- Controls: inline ⏸ Pause / ▶️ Resume / ❌ Cancel (+ 📊 Status) on Campaign Started, wallet-pause and status messages;
+  `📋 My Campaigns` (en/fr/zh/hi) in Cloud IVR menu + running screen. Callbacks `bulk_view|pause|resume|cancel|cancelyes:<id>`
+  owner-only. Resume checks the wallet against the next lead's rate. Cancel marks pending leads notCalled; calls in progress
+  finish + bill; the final report ("Campaign Cancelled", localized) is sent once after they settle (`reportPending`).
+  Wallet pause only while a lead is still pending; a campaign whose last call drained the wallet completes normally.
+- Pricing: per-lead `getIvrCallRate` (US/CA $0.15, intl $0.50, high-cost higher); preview/upload/start show US/CA vs
+  international split; blocked (satellite/premium) numbers are left out of the estimate and flagged.
+- Voicemail drop: setup step after concurrency (Telnyx only) — 📵 Hang up or an Audio Library clip (duplicate names get #2).
+  Dials with AMD `detect_beep`; machine → gather_stop → wait for `call.machine.greeting.ended` (fallback BULK_VM_BEEP_WAIT_MS,
+  default 20 s) → play clip → hang up; clip failure → hang up. Report/progress show "message left" (📩 count).
+- Files: js/bulk-call-service.js, js/voice-service.js, js/telnyx-service.js (gatherStop), js/_index.js, js/phone-config.js, js/lang/*.js.
+- Tests: test_bulk_telnyx_2026-10 48/48, test_bulk_controls_edge_2026-10 32/32 (new), bot_ui_bulk_ivr_2026-10 59/59 (new, mock
+  Telegram), test_bulk_telnyx_edge 17/17, bulkivr_wallet 10/10, twilio_switch 43/43, provider_suspended 7/8 (REQ-69 baseline),
+  i18n coverage + parity 79/79; iteration_106 + iteration_107. No real calls placed.
+- PENDING (user): try one small live campaign; Save to GitHub + deploy (TWILIO_ENABLED=false in prod).
+
 ## 2026-10-16 — SIP "503" low-balance UX: never-silent alert + top-up re-enable confirmation + threshold retune (ALL 4 bots) — LIVE
 - RCA (Nomadly @pirate_script 1005284399): number +18445716353 & SIP cred healthy; Zoiper "503" was a correct LOW BALANCE
   LOCK at $0.18. Gaps fixed: (A) low-balance alerts no longer silently dropped when a translation is missing (English

@@ -1499,7 +1499,7 @@ async function sendFinalReport(campaignId) {
 
   // Summary message
   const summary = [
-    tt('bulkCallReportTitle'),
+    tt(campaign.status === 'cancelled' ? 'bulkCallReportTitleCancelled' : 'bulkCallReportTitle'),
     ``,
     `📱 ${tt('bulkCallReportCallerId')} <b>${campaign.callerId}</b>`,
     `🎵 ${tt('bulkCallReportAudio')} <b>${campaign.audioName}</b>`,
@@ -1515,6 +1515,7 @@ async function sendFinalReport(campaignId) {
     stats.voicemail ? `📭 ${tt('bulkCallReportVoicemail')} <b>${stats.voicemail}</b>${stats.voicemailLeft ? ` (📩 ${stats.voicemailLeft})` : ''}` : null,
     `🚫 ${tt('bulkCallReportBusy')} <b>${stats.busy}</b>`,
     `❌ ${tt('bulkCallReportFailed')} <b>${stats.failed}</b>`,
+    campaign.status === 'cancelled' && (leads || []).some(l => l.notCalled) ? `⏭ ${tt('bulkCallReportNotDialed')} <b>${leads.filter(l => l.notCalled).length}</b>` : null,
   ].filter(Boolean).join('\n')
 
   _bot?.sendMessage(campaign.chatId, summary, { parse_mode: 'HTML' }).catch(() => {})
@@ -1564,7 +1565,7 @@ async function generateReportFile(campaign) {
  * Cancel a campaign (running / paused / scheduled). Calls already in progress finish normally
  * and are billed as usual; pending leads are marked not called. Sends the report so far.
  */
-async function cancelCampaign(campaignId, reason = 'Cancelled by user') {
+async function cancelCampaign(campaignId, reason = 'Cancelled by user', { sendReport = true } = {}) {
   const state = activeCampaigns[campaignId]
   if (state) state.paused = true
   const before = await _collection.findOne({ id: campaignId })
@@ -1585,7 +1586,7 @@ async function cancelCampaign(campaignId, reason = 'Cancelled by user') {
   const inFlight = (c?.leads || []).filter(l => INFLIGHT_STATUSES.includes(l.status)).length
   // State stays (paused) while calls are in flight so they settle, bill and get swept if stuck.
   if (!inFlight) delete activeCampaigns[campaignId]
-  await sendCancelledReport(campaignId)
+  if (sendReport) await sendCancelledReport(campaignId)
   return { success: true, notCalled: (c?.leads || []).filter(l => l.notCalled).length, inFlight }
 }
 
@@ -1694,6 +1695,7 @@ module.exports = {
   onCallComplete,
   sweepStuckLeads,
   cancelCampaign,
+  sendCancelledReport,
   pauseCampaign,
   resumeCampaign,
   estimateLeadsCost,

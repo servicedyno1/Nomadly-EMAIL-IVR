@@ -1,0 +1,35 @@
+{
+  "summary": "Ran the real bot (js/_index.js) end-to-end against the local mock Telegram API (TELEGRAM_API_BASE_URL=http://127.0.0.1:5099, which was added and later removed). The new driver js/tests/bot_ui_bulk_ivr_2026-10.js passed 59/59 after 2 small fixes. It covered: My Campaigns sitting next to Bulk IVR in the Cloud IVR submenu (en/fr/zh/hi); the list and its empty state; the owner's bulk_view, bulk_pause, bulk_resume (wallet too low), bulk_cancel (confirm prompt, or 'already finished' for completed/cancelled campaigns) and bulk_cancelyes (status set to cancelled, pending leads marked notCalled, reply text, final report sent once, second tap shows an error); a different chat id gets 'Campaign not found.' for all 5 verbs and nothing changes; the Telnyx setup flow (voicemail step with hang-up option, clip buttons and ' #2' for duplicate names, Back to concurrency, preview lines for clip and hang-up, the #2 clip's audioUrl stored in bulkData, Back from preview to the voicemail step, preview with 2 US/CA + 1 international lead and the split rate line, Cuba number blocked and left out, estimate $0.80); Schedule for later (scheduled doc stores voicemailAudioUrl/Name and provider telnyx, then cancelled); Twilio bulkData skips the voicemail step; a US/CA-only preview shows the flat rate ($0.30 for 2 leads). No calls were placed: Launch was never tapped, and resume was only tried with a too-low wallet. Regression suites: controls_edge 32/32, bulk_telnyx 48/48, bulkivr_wallet 10/10.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "bot: bulkSelectAudio (main IVR audio pick)", "issue": "FIXED: the main-audio list showed clips with the same name twice ('🎵 Promo','🎵 Promo'), and tapping either one picked the first clip. It now uses _bulkClipLabels (' #2' suffix) and looks up the clip by label index."},
+      {"endpoint": "bulk-call-service sendFinalReport (cancelled campaign)", "issue": "PARTLY FIXED: the final report for a cancelled campaign gave no count of skipped leads. It now adds '⏭ Not dialed (campaign cancelled): N'. Still open: the title still says '📊 Campaign Complete!', and 'Total Calls' shows the total number of leads, not the calls actually placed."},
+      {"endpoint": "bot: bulk_cancelyes", "issue": "Order of messages when nothing is in flight: the final report and the report file arrive BEFORE the '❌ Campaign cancelled.' confirmation. Cosmetic."},
+      {"endpoint": "bot: leads upload message (t.cp_138)", "issue": "With international leads, the estimate line still says '($0.15/min per number…)' right under the international rate line. This is misleading; use leadsEst.rateLine or drop the parenthetical when est.intl > 0."}
+    ]
+  },
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": ["/app/js/tests/bot_ui_bulk_ivr_2026-10.js", "/app/test_reports/bot_ui_bulk_ivr_2026-10_results.json"],
+  "action_items": [
+    "Optional: for cancelled campaigns, use a localized 'Campaign Cancelled' title and show calls actually dialed instead of total leads in sendFinalReport",
+    "Optional: send the '❌ Campaign cancelled.' reply before the final report (or merge them)",
+    "Optional: fix the '$0.15/min per number' parenthetical in t.cp_138 when there are international leads",
+    "Optional: localize the new '⏭ Not dialed (campaign cancelled)' line (English only for now)"
+  ],
+  "critical_code_review_comments": [
+    "_index.js is over 51k lines (already known); the Bulk UI helpers are well separated",
+    "The bulk_* callback handler correctly checks the owner before any change; the cancel/pause/resume flows are atomic in the service",
+    "The schedule flow's Back goes to a short prompt rather than the full preview (minor UX)"
+  ],
+  "updated_files": [
+    "/app/js/_index.js (bulkSelectAudio + 3 back-paths: _bulkClipLabels for main-audio buttons; lookup by label index with fallback to name)",
+    "/app/js/bulk-call-service.js (sendFinalReport: not-dialed line for cancelled campaigns)",
+    "/app/js/tests/bot_ui_bulk_ivr_2026-10.js (new)"
+  ],
+  "success_rate": {"backend": "100% (59/59 bot UI checks after fixes; 45/56 on first run, all first-run failures were harness issues except the duplicate-clip and report items fixed above)", "frontend": "N/A"},
+  "seed_data_creation": "Throwaway chat ids 990107001-006 (state, walletOf, phoneNumbersOf pro Telnyx +18885550107, 3 ivrAudioFiles incl. 2 named 'Promo', 5 bulkCallCampaigns TEST_c_*). All removed, along with side-effect docs in freeShortLinksOf/browseTracking/scheduledEvents. backend/.env is byte-identical to the original (TELEGRAM_API_BASE_URL removed), nodejs restarted, health 200, mock killed.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "To re-run: start node js/tests/mock_telegram_api.js, add TELEGRAM_API_BASE_URL=\"http://127.0.0.1:5099\" to backend/.env, restart nodejs, wait 25 s, run node js/tests/bot_ui_bulk_ivr_2026-10.js (it seeds and cleans up itself, about 3.5 min), then remove the env key and restart. answerCallbackQuery calls have no chat_id in the mock, so the driver matches them by callback_query_id. k.of() adds '🏠 Main Menu','Cancel' to every reply keyboard. Seed running/paused campaigns only after bot startup + 15 s (recoverRunningCampaigns runs once at boot and would dial), and never resume with a sufficient wallet."
+}

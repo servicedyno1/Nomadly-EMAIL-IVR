@@ -1969,6 +1969,8 @@ bulkCallReportHungUp: 'काट दिया:',
 bulkCallReportVoicemail: 'वॉइसमेल:',
 bulkCallReportBusy: 'व्यस्त:',
 bulkCallReportFailed: 'विफल:',
+bulkCallReportTitleCancelled: '📊 <b>कैम्पेन रद्द</b>',
+bulkCallReportNotDialed: 'डायल नहीं हुए (कैम्पेन रद्द):',
 // === SMS App service ===
 smsAppTrialCompleteTitle: '📱 <b>BulkSMS मुफ्त परीक्षण पूर्ण!</b>',
 smsAppTrialCompleteBody: limit =>
