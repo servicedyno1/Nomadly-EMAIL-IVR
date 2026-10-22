@@ -550,6 +550,7 @@ const { computeDepositCreditUsd } = require('./crypto-credit.js')
 const createShortBitly = require('./bitly.js')
 const { getBitlyClicks, isBitlyUrl } = require('./bitly.js')
 const { createShortUrlApi, analyticsCuttly } = require('./cuttly.js')
+const linklyUsageMonitor = require('./linkly-usage-monitor.js') // admin warning before Linkly plan limits (links/clicks)
 const { getAnalyticsCapability } = require('./shortener-analytics.js')
 const {
   week,
@@ -4819,6 +4820,10 @@ const loadData = async () => {
   // Initialize Provider Balance Monitor (Telnyx + Twilio)
   const { initBalanceMonitor } = require('./balance-monitor.js')
   initBalanceMonitor(bot)
+
+  // Linkly usage monitor — warns the admin before the shared Linkly account hits its
+  // plan limits (new links / clicks per month). Runs only where LINKLY_USAGE_ALERTS=true.
+  linklyUsageMonitor.initLinklyUsageMonitor({ bot, db, adminChatId: TELEGRAM_ADMIN_CHAT_ID })
 
   // User wallet balance monitor — proactive low-balance warnings to bot users
   initUserWalletMonitor()
@@ -12207,20 +12212,11 @@ Enter new value:`), bc)
         }
       }
       
-      // Show preferred domain if set
-      const preferredDomain = await get(state, chatId, 'preferredShortenerDomain')
-      if (preferredDomain && typeof preferredDomain === 'string') {
-        statusMsg += `\n\n🌐 Default domain: <b>${preferredDomain}</b>`
-      } else if (preferredDomain && typeof preferredDomain === 'object') {
-        // Fix: stored as object instead of string — extract domain name and repair
-        const domainStr = preferredDomain.domain || preferredDomain.name || Object.values(preferredDomain).find(v => typeof v === 'string' && v.includes('.')) || ''
-        if (domainStr) {
-          statusMsg += `\n\n🌐 Default domain: <b>${domainStr}</b>`
-          // Self-heal: store as string going forward
-          set(state, chatId, 'preferredShortenerDomain', domainStr).catch(() => {})
-        }
-      }
-      
+      // 2026-10-22: the "🌐 Default domain" line was removed. It read the user's whole
+      // state document (3-arg get() misuse) and displayed — then saved — whatever
+      // domain-looking value it found there, which could be a domain belonging to
+      // another flow or another user. Quick-shorten links use SELF_URL.
+
       // Tip for quick shorten
       statusMsg += `\n\n💡 <i>Tip: Use /shorten URL for quick links!</i>`
       
@@ -15748,8 +15744,8 @@ All verified numbers generated during sourcing.`))
     }
 
     try {
-      // Get user's preferred domain or use SELF_URL
-      const preferredDomain = await get(state, chatId, 'preferredShortenerDomain')
+      // Default-domain preference removed (2026-10-22) — links always use SELF_URL here.
+      const preferredDomain = null
       const domains = await getPurchasedDomains(chatId)
       const activeDomains = domains.filter(d => d) // Filter out empty
       
@@ -22280,8 +22276,8 @@ ${message.replace(/\n/g, '<br>')}
             { ...trans('o'), parse_mode: 'HTML' })
         }
 
-        // Get user's preferred domain or use SELF_URL
-        const preferredDomain = await get(state, chatId, 'preferredShortenerDomain')
+        // Default-domain preference removed (2026-10-22) — links always use SELF_URL here.
+        const preferredDomain = null
         const domains = await getPurchasedDomains(chatId)
         const activeDomains = domains.filter(d => d)
         
@@ -22356,8 +22352,8 @@ ${message.replace(/\n/g, '<br>')}
     }
     
     try {
-      // Get user's preferred domain or use SELF_URL
-      const preferredDomain = await get(state, chatId, 'preferredShortenerDomain')
+      // Default-domain preference removed (2026-10-22) — links always use SELF_URL here.
+      const preferredDomain = null
       const domains = await getPurchasedDomains(chatId)
       const activeDomains = domains.filter(d => d)
       
@@ -22410,7 +22406,8 @@ ${message.replace(/\n/g, '<br>')}
     if (isBackPress(message)) return goto.submenu1()
     // S1 fix (2026-04-21): sanitize before validating — strips trailing
     // punctuation (e.g. "https://cnn.com." → "https://cnn.com") that
-    // otherwise passes URL() parse but later trips RapidAPI 400.
+    // otherwise passes URL() parse but later trips the shortener provider.
+    // (Linkly accepts any string, so this check is the only URL guard.)
     const cleanedUrl = sanitizeShortenerUrl(message)
     if (!isValidUrl(cleanedUrl)) return send(chatId, t.redValidUrl, bc)
     saveInfo('url', cleanedUrl)
@@ -22472,32 +22469,33 @@ ${message.replace(/\n/g, '<br>')}
         }
 
         // Always route through SELF_URL key for "My Links" listing,
-        // but shorten the DESTINATION URL directly via RapidAPI (single hop).
+        // but shorten the DESTINATION URL directly via Linkly (single hop).
         // Trade-off: click tracking is lost for these new links since clicks
-        // bypass the Railway click handler at app.get('/:id'). Per product
-        // decision: url-shortener57 has no stats endpoint, so accept loss.
+        // bypass the click handler at app.get('/:id'). Per product decision
+        // (2026-10-22) Linkly links show "analytics not available" in My Links.
         const slug = nanoid()
         const __shortUrl = `${SELF_URL}/${slug}`
         const shortUrl = __shortUrl.replaceAll('.', '@').replace('https://', '')
         let _shortUrl
         try {
           _shortUrl = await createShortUrlApi(url)
-          log(`[Shortener] RapidAPI success: ${_shortUrl}`)
+          log(`[Shortener] Linkly success: ${_shortUrl}`)
+          linklyUsageMonitor.notifyLinkCreated()
         } catch (error) {
           const errMsg = String(error?.message || error)
-          log(`[Shortener] RapidAPI failed: ${errMsg}`)
-          // S1 fix (2026-04-21): A "400 URL is invalid" from RapidAPI almost
+          log(`[Shortener] Linkly failed: ${errMsg}`)
+          // S1 fix (2026-04-21): A "400 … invalid" from the provider almost
           // always means the user sent a typo we couldn't catch with
           // sanitizeShortenerUrl (e.g. invalid TLD). Don't wake the admin —
           // just give the user a clean, actionable hint. Only escalate real
-          // provider failures (5xx, 429, network, undefined).
+          // provider failures (401/403 plan limit, 5xx, 429, network, undefined).
           const isUserInputError = /\b400\b/.test(errMsg) && /invalid/i.test(errMsg)
           if (!isUserInputError) {
-            send(TELEGRAM_ADMIN_CHAT_ID, `⚠️ RapidAPI URL shortener failed:\n${errMsg}`)
+            send(TELEGRAM_ADMIN_CHAT_ID, `⚠️ Linkly URL shortener failed:\n${errMsg}`)
           } else {
             log(`[Shortener] Suppressed admin ping for user-input 400 error: ${url}`)
           }
-          recordUserError(chatId, 'rapidapi-shortlink', errMsg || 'URL shortening service unavailable')
+          recordUserError(chatId, 'linkly-shortlink', errMsg || 'URL shortening service unavailable')
           await set(state, chatId, 'action', 'none')
           if (isUserInputError) {
             const hint = {
@@ -22557,9 +22555,9 @@ ${message.replace(/\n/g, '<br>')}
 
     // ── Custom alias validation ──
     // The user's alias becomes the path on our short domain (e.g. SELF_URL/my-alias).
-    // We do NOT call RapidAPI here — url-shortener57 doesn't actually support custom
-    // aliases (the previous createCustomShortUrlCuttly silently dropped the alias and
-    // returned a random hash). Instead we use the alias directly as our slug.
+    // We do NOT call the external shortener (Linkly) here — custom aliases live
+    // on our own domain. (Historically url-shortener57 silently dropped the alias and
+    // returned a random hash.) Instead we use the alias directly as our slug.
     const alias = String(message || '').trim()
     if (!/^[A-Za-z0-9_-]{3,32}$/.test(alias)) {
       return send(chatId, trans('t.notValidHalf'))
@@ -22576,7 +22574,7 @@ ${message.replace(/\n/g, '<br>')}
 
     try {
       const { url } = info
-      // Use the user's alias AS the slug (no nanoid). Single hop: RapidAPI is bypassed.
+      // Use the user's alias AS the slug (no nanoid). Single hop: Linkly is bypassed.
       const __shortUrl = `${SELF_URL}/${alias}`
       const shortUrl = __shortUrl.replaceAll('.', '@').replace('https://', '')
 
@@ -22766,12 +22764,10 @@ ${message.replace(/\n/g, '<br>')}
       return send(chatId, trans('t.vps_73'))
     }
     set(state, chatId, 'selectedDomain', message)
-    
-    // ━━━ Remember Last Domain: Save as preferred domain ━━━
-    if (domains.includes(domain)) {
-      await set(state, chatId, 'preferredShortenerDomain', domain)
-    }
-    
+
+    // (2026-10-22) "Remember last domain as default" removed together with the
+    // "🌐 Default domain" display — the preference was never applied to links.
+
     return goto['choose-link-type']()
   }
   if (action === 'choose-link-type') {
@@ -41993,10 +41989,11 @@ app.get('/dev/shortlink-analytics-test', (req, res) => {
     { clicks: 0,  shorter: 'https://srtn.me/abc',        url: 'https://example.com',                     analytics: getAnalyticsCapability('https://srtn.me/abc') },
     { clicks: 0,  shorter: 'https://ap1s.net/xyz',       url: 'https://example.com',                     analytics: getAnalyticsCapability('https://ap1s.net/xyz') },
     { clicks: 11, shorter: 'https://bit.ly/zzz',         url: 'https://example.com',                     analytics: getAnalyticsCapability('https://bit.ly/zzz') },
+    { clicks: 0,  shorter: 'https://linkly.link/2y2aQ',  url: 'https://example.com',                     analytics: getAnalyticsCapability('https://linkly.link/2y2aQ') },
   ]
 
   const rendered = formatLinks(sampleLinks, t)
-  const [customDomainLine, customDomainLine2, srtnLine, ap1sLine, bitlyLine] = rendered
+  const [customDomainLine, customDomainLine2, srtnLine, ap1sLine, bitlyLine, linklyLine] = rendered
 
   const customShowsClicks =
     /\b7 clicks\b/.test(customDomainLine) && !/analytics not available/i.test(customDomainLine) &&
@@ -42006,15 +42003,36 @@ app.get('/dev/shortlink-analytics-test', (req, res) => {
     /analytics not available/i.test(ap1sLine)
   const bitlyShowsClicks =
     /\b11 clicks\b/.test(bitlyLine) && !/analytics not available/i.test(bitlyLine)
+  // 2026-10-22: Shortit "Random" links now come from Linkly → must say N/A.
+  const linklyShowsNA = /analytics not available/i.test(linklyLine) && /linkly\.link/i.test(linklyLine)
 
   return res.json({
-    ok: customShowsClicks && externalsStillNA && bitlyShowsClicks,
+    ok: customShowsClicks && externalsStillNA && bitlyShowsClicks && linklyShowsNA,
     customShowsClicks,
     externalsStillNA,
     bitlyShowsClicks,
+    linklyShowsNA,
     capabilities: sampleLinks.map(l => ({ shorter: l.shorter, analytics: l.analytics })),
     rendered,
   })
+})
+
+// ── DEV-ONLY: run the Linkly usage check on demand ─────────────────────────
+// GET /dev/linkly-usage            → real check (2 list_links calls), alerts the
+//                                    admin if a threshold is crossed + saves state
+// GET /dev/linkly-usage?dryRun=1   → compute + report only (never alerts/persists)
+// Thresholds come from LINKLY_* env (see js/linkly-usage-monitor.js). 404 in production.
+app.get('/dev/linkly-usage', async (req, res) => {
+  if ((process.env.BOT_ENVIRONMENT || '').toLowerCase() === 'production') {
+    return res.status(404).json({ error: 'not found' })
+  }
+  try {
+    const dryRun = String(req.query.dryRun || '') === '1'
+    const result = await linklyUsageMonitor.checkLinklyUsage({ force: true, dryRun, reason: 'dev-endpoint' })
+    return res.json(result)
+  } catch (e) {
+    return res.status(500).json({ ok: false, error: e.message })
+  }
 })
 
 // ── DEV-ONLY: verify DigitalOcean-RDP 1/2/3-month plan pricing & math ──────
