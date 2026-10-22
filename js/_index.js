@@ -550,6 +550,7 @@ const { computeDepositCreditUsd } = require('./crypto-credit.js')
 const createShortBitly = require('./bitly.js')
 const { getBitlyClicks, isBitlyUrl } = require('./bitly.js')
 const { createShortUrlApi, analyticsCuttly } = require('./cuttly.js')
+const linklyUsageMonitor = require('./linkly-usage-monitor.js') // admin warning before Linkly plan limits (links/clicks)
 const { getAnalyticsCapability } = require('./shortener-analytics.js')
 const {
   week,
@@ -4819,6 +4820,10 @@ const loadData = async () => {
   // Initialize Provider Balance Monitor (Telnyx + Twilio)
   const { initBalanceMonitor } = require('./balance-monitor.js')
   initBalanceMonitor(bot)
+
+  // Linkly usage monitor — warns the admin before the shared Linkly account hits its
+  // plan limits (new links / clicks per month). Runs only where LINKLY_USAGE_ALERTS=true.
+  linklyUsageMonitor.initLinklyUsageMonitor({ bot, db, adminChatId: TELEGRAM_ADMIN_CHAT_ID })
 
   // User wallet balance monitor — proactive low-balance warnings to bot users
   initUserWalletMonitor()
@@ -12207,20 +12212,11 @@ Enter new value:`), bc)
         }
       }
       
-      // Show preferred domain if set
-      const preferredDomain = await get(state, chatId, 'preferredShortenerDomain')
-      if (preferredDomain && typeof preferredDomain === 'string') {
-        statusMsg += `\n\n🌐 Default domain: <b>${preferredDomain}</b>`
-      } else if (preferredDomain && typeof preferredDomain === 'object') {
-        // Fix: stored as object instead of string — extract domain name and repair
-        const domainStr = preferredDomain.domain || preferredDomain.name || Object.values(preferredDomain).find(v => typeof v === 'string' && v.includes('.')) || ''
-        if (domainStr) {
-          statusMsg += `\n\n🌐 Default domain: <b>${domainStr}</b>`
-          // Self-heal: store as string going forward
-          set(state, chatId, 'preferredShortenerDomain', domainStr).catch(() => {})
-        }
-      }
-      
+      // 2026-10-22: the "🌐 Default domain" line was removed. It read the user's whole
+      // state document (3-arg get() misuse) and displayed — then saved — whatever
+      // domain-looking value it found there, which could be a domain belonging to
+      // another flow or another user. Quick-shorten links use SELF_URL.
+
       // Tip for quick shorten
       statusMsg += `\n\n💡 <i>Tip: Use /shorten URL for quick links!</i>`
       
@@ -15748,8 +15744,8 @@ All verified numbers generated during sourcing.`))
     }
 
     try {
-      // Get user's preferred domain or use SELF_URL
-      const preferredDomain = await get(state, chatId, 'preferredShortenerDomain')
+      // Default-domain preference removed (2026-10-22) — links always use SELF_URL here.
+      const preferredDomain = null
       const domains = await getPurchasedDomains(chatId)
       const activeDomains = domains.filter(d => d) // Filter out empty
       
@@ -22280,8 +22276,8 @@ ${message.replace(/\n/g, '<br>')}
             { ...trans('o'), parse_mode: 'HTML' })
         }
 
-        // Get user's preferred domain or use SELF_URL
-        const preferredDomain = await get(state, chatId, 'preferredShortenerDomain')
+        // Default-domain preference removed (2026-10-22) — links always use SELF_URL here.
+        const preferredDomain = null
         const domains = await getPurchasedDomains(chatId)
         const activeDomains = domains.filter(d => d)
         
@@ -22356,8 +22352,8 @@ ${message.replace(/\n/g, '<br>')}
     }
     
     try {
-      // Get user's preferred domain or use SELF_URL
-      const preferredDomain = await get(state, chatId, 'preferredShortenerDomain')
+      // Default-domain preference removed (2026-10-22) — links always use SELF_URL here.
+      const preferredDomain = null
       const domains = await getPurchasedDomains(chatId)
       const activeDomains = domains.filter(d => d)
       
@@ -22484,6 +22480,7 @@ ${message.replace(/\n/g, '<br>')}
         try {
           _shortUrl = await createShortUrlApi(url)
           log(`[Shortener] Linkly success: ${_shortUrl}`)
+          linklyUsageMonitor.notifyLinkCreated()
         } catch (error) {
           const errMsg = String(error?.message || error)
           log(`[Shortener] Linkly failed: ${errMsg}`)
@@ -22767,12 +22764,10 @@ ${message.replace(/\n/g, '<br>')}
       return send(chatId, trans('t.vps_73'))
     }
     set(state, chatId, 'selectedDomain', message)
-    
-    // ━━━ Remember Last Domain: Save as preferred domain ━━━
-    if (domains.includes(domain)) {
-      await set(state, chatId, 'preferredShortenerDomain', domain)
-    }
-    
+
+    // (2026-10-22) "Remember last domain as default" removed together with the
+    // "🌐 Default domain" display — the preference was never applied to links.
+
     return goto['choose-link-type']()
   }
   if (action === 'choose-link-type') {
@@ -42006,6 +42001,24 @@ app.get('/dev/shortlink-analytics-test', (req, res) => {
     capabilities: sampleLinks.map(l => ({ shorter: l.shorter, analytics: l.analytics })),
     rendered,
   })
+})
+
+// ── DEV-ONLY: run the Linkly usage check on demand ─────────────────────────
+// GET /dev/linkly-usage            → real check (2 list_links calls), alerts the
+//                                    admin if a threshold is crossed + saves state
+// GET /dev/linkly-usage?dryRun=1   → compute + report only (never alerts/persists)
+// Thresholds come from LINKLY_* env (see js/linkly-usage-monitor.js). 404 in production.
+app.get('/dev/linkly-usage', async (req, res) => {
+  if ((process.env.BOT_ENVIRONMENT || '').toLowerCase() === 'production') {
+    return res.status(404).json({ error: 'not found' })
+  }
+  try {
+    const dryRun = String(req.query.dryRun || '') === '1'
+    const result = await linklyUsageMonitor.checkLinklyUsage({ force: true, dryRun, reason: 'dev-endpoint' })
+    return res.json(result)
+  } catch (e) {
+    return res.status(500).json({ ok: false, error: e.message })
+  }
 })
 
 // ── DEV-ONLY: verify DigitalOcean-RDP 1/2/3-month plan pricing & math ──────
