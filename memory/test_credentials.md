@@ -47,6 +47,10 @@
 
 
 ## Environment notes
+- Linkly (Shortit "Random" link provider since 2026-10-22): `LINKLY_API_KEY` (secret, in vault + all 4 droplet
+  backend.env), `LINKLY_WORKSPACE_ID="414714"`. FREE plan = 100 links total across ALL bots — tests must create as few
+  links as possible and delete them (DELETE /api/v1/workspace/414714/links/{id}); never delete linkly.link/2y2V3.
+  Do NOT call Linkly analytics endpoints (/clicks, /counters: 100/month). list_links can 429 if called repeatedly.
 - `BOT_ENVIRONMENT=development`, `SKIP_WEBHOOK_SYNC=true` (dev sandbox — does NOT touch production Telegram/Telnyx/Twilio).
 - `TWILIO_ENABLED` (added 2026-10-22): reversible Twilio kill-switch. unset/`true` = current dual-provider
   behavior; `false` = Twilio hidden, purchases steered to Telnyx. Sandbox is set to `false` (Twilio account

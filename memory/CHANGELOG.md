@@ -1,3 +1,24 @@
+## 2026-10-22 — Shortit "Random" links: RapidAPI (srtn.me) → Linkly (linkly.link) — LIVE on all 4 bots
+- js/cuttly.js createShortUrlApi(): POST https://api.linklyhq.com/api/v1/workspace/{LINKLY_WORKSPACE_ID}/links
+  (Bearer LINKLY_API_KEY, JSON {workspace_id,url,name}) → full_url `https://linkly.link/<code>`. Workspace auto-discovered
+  via GET /workspaces when LINKLY_WORKSPACE_ID unset. Optional LINKLY_DOMAIN (custom Linkly domain), LINKLY_LINK_NAME.
+  Errors normalised to "Linkly error (<status>): <msg>". RAPIDAPI_KEY no longer used by code (left in env).
+- User choices: Linkly default domain linkly.link; My Links shows "📊 analytics not available (linkly.link)"
+  (shortener-analytics.js); on failure keep old behaviour = user error + admin alert "⚠️ Linkly URL shortener failed"
+  (no fallback link). log-redact.js keeps linkly.link / linklyhq.com readable. Quick-shorten + custom alias unchanged (own domain).
+- Linkly account: workspace 414714 "My Workspace", FREE plan → 100 links TOTAL (shared by all 4 bots), 500 tracked
+  clicks/month; analytics API 50/h + 100/month (not used). Linkly does NOT validate URLs (bot's sanitize/isValidUrl is the guard).
+  Pre-existing user link linkly.link/2y2V3 → google.com (never delete).
+- Tests: backend/tests/test_shortener_tinyurl_fix.py rewritten for Linkly (12/12 with test_rdp_pricing_and_shortlink);
+  /api/dev/shortlink-analytics-test adds linklyShowsNA; js/tests/linkly_provider_live_2026-10.js (creates+deletes 1 link);
+  testing agent iteration_112: 6/6 E2E via mock Telegram (helpers js/tests/sim_send.py, js/tests/linkly_cleanup_marker.py).
+- Deploy 20261022T204354Z: hot-patched live releases (app-main 2d8b634 full-file; app-wl/app-voodoo/app-proshop c32c353:
+  3 identical files copied + _index.js via diff), `.bak.linkly.<ts>` backups, RELEASE `patched=… linkly`; LINKLY_API_KEY +
+  LINKLY_WORKSPACE_ID appended to /opt/nomadly/shared/<app>/backend.env (backups `.bak.linkly.<ts>`); blue/green same-release
+  reactivation (0 active calls) → app-main-b:5100, app-wl-b:5101, app-voodoo-b:5103, app-proshop-a:5004, all healthy,
+  0 restarts. Vault re-locked with LINKLY_*. NEEDS "Save to GitHub" (main → sync-whitelabel → WL bots) to persist the code.
+
+
 ## 2026-10-20 (later) — Redis realtime + one-command restores + restore drill (DR droplet)
 - Redis: redis-server 8.10.2 (packages.redis.io, = source version) on dr-replica-ams3 now REPLICAOF Railway Dynopay Redis
   (/etc/redis/dr-replica.conf) — live stream, probe latency 10–15 ms; 10-min RDB snapshots now taken from the LOCAL replica
