@@ -1,3 +1,11 @@
+## 2026-10-22 — Cleared leftover "default domain" data (state.preferredShortenerDomain) on all 4 live bots
+- Field no longer read/written by any live code (verified 0 refs in all 4 live releases). `$unset` on `state` with
+  per-DB JSON backup first: test (Nomadly) 93 docs (28 were full URLs — self-heal junk), smadav 4, voodoo 2, proshop 0;
+  re-check 0 remaining everywhere; all 4 /health 200. Backups (chmod 600) on droplet:
+  /root/backups/default-domain-cleanup/<db>_state_preferredShortenerDomain_20261022T212040Z.json
+  (restore: for each {_id, preferredShortenerDomain} → updateOne({_id},{$set:{preferredShortenerDomain}})).
+
+
 ## 2026-10-22 — Shortit "Random" links: RapidAPI (srtn.me) → Linkly (linkly.link) — LIVE on all 4 bots
 - js/cuttly.js createShortUrlApi(): POST https://api.linklyhq.com/api/v1/workspace/{LINKLY_WORKSPACE_ID}/links
   (Bearer LINKLY_API_KEY, JSON {workspace_id,url,name}) → full_url `https://linkly.link/<code>`. Workspace auto-discovered
