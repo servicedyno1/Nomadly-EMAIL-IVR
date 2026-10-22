@@ -1855,8 +1855,6 @@ Votre propre numéro virtuel dans plus de 30 pays. Recevez des appels, envoyez d
     searching: '🔍 Recherche de numéros disponibles...',
     noSearchResults: '❌ Aucun numéro disponible. Essayez une autre zone ou un autre pays.',
     noNumbers: '📱 Vous n\'avez pas encore de numéro.\n\nAppuyez ci-dessous pour obtenir votre premier numéro virtuel.',
-    enterEmail: 'Entrez l\'adresse email pour recevoir les SMS :',
-    enterWebhook: 'Entrez votre URL webhook (les SMS seront envoyés en JSON) :',
     ivrTrialUsed: (buyLabel) => `📢 <b>Appel IVR Sortant</b>\n\nVous avez déjà utilisé votre appel d'essai gratuit.\n\nAbonnez-vous à Cloud IVR pour des appels IVR illimités avec votre propre Caller ID !\n\nAppuyez sur <b>${buyLabel}</b> pour commencer.`,
     ivrTrialOffer: (callerId) => `📢 <b>Appel IVR Sortant — Essai Gratuit</b>\n\n🎁 Vous avez <b>1 appel d'essai gratuit !</b>\n📱 Caller ID: <b>${callerId}</b> (partagé)\n\nEntrez le numéro à appeler (avec indicatif pays) :\n<i>Exemple : +33612345678</i>`,
     ivrSelectCallerId: '📢 <b>Appel IVR Sortant</b>\n\nSélectionnez le numéro pour l\'appel (Caller ID) :',
@@ -1947,6 +1945,9 @@ Votre propre numéro virtuel dans plus de 30 pays. Recevez des appels, envoyez d
         const status = n.status === 'active' ? '✅ Actif' : n.status === 'suspended' ? '⚠️ Suspendu' : n.status === 'inactive_released' ? '🚫 Inactif (libéré par le fournisseur)' : '🗑️ Supprimé'
         text += `${i + 1}️⃣  ${formatPhone(n.phoneNumber)}  ${status}\n`
         text += `    Forfait ${n.plan.charAt(0).toUpperCase() + n.plan.slice(1)} · Renouvellement ${shortDate(n.expiresAt)}\n`
+        if (n.provider === 'twilio' && !isTwilioEnabled() && (n.status === 'active' || n.status === 'suspended')) {
+          text += `    🔧 <i>En cours de migration vers notre nouveau réseau d'appels — temporairement en pause</i>\n`
+        }
         if (n.status === 'inactive_released') {
           const hoursLeft = n._inactiveSince ? Math.max(0, 48 - Math.round((Date.now() - new Date(n._inactiveSince).getTime()) / 3600000)) : '?'
           text += `    <i>Suppression auto dans ~${hoursLeft}h · Contactez le support en cas d'erreur</i>\n`
@@ -1989,6 +1990,9 @@ Votre propre numéro virtuel dans plus de 30 pays. Recevez des appels, envoyez d
       const hasVoice = n.capabilities?.voice !== false
       let text = `⚙️ Gestion : <b>${formatPhone(n.phoneNumber)}</b>`
       if (n.isSubNumber) text += ` <i>(numéro ajouté)</i>`
+      if (n.provider === 'twilio' && !isTwilioEnabled() && n.status !== 'inactive_released') {
+        text += `\n\n🔧 <b>Ce numéro est en cours de mise à niveau</b>\nNous le transférons vers notre nouveau réseau d'appels, plus fiable. Les appels et SMS sont en pause pour un court moment. Aucune action requise — nous vous préviendrons dès qu'il sera prêt. Des questions ? Appuyez sur 💬 Support.`
+      }
       if (n.status === 'inactive_released') {
         const hoursLeft = n._inactiveSince ? Math.max(0, 48 - Math.round((Date.now() - new Date(n._inactiveSince).getTime()) / 3600000)) : '?'
         text += `\n\n🚫 <b>INACTIF — Libéré par le fournisseur</b>\nCe numéro a été supprimé par l'opérateur et ne peut plus passer ni recevoir d'appels.\nSuppression auto dans ~${hoursLeft}h.\n\nSi c'est une erreur, contactez le support immédiatement.`
@@ -2339,8 +2343,6 @@ Envoyez /testsip ici pour obtenir votre code test.
     searching: '🔍 正在搜索可用号码...',
     noSearchResults: '❌ 没有可用号码。请尝试其他区域或国家。',
     noNumbers: '📱 您还没有电话号码。\n\n点击下方获取您的第一个虚拟号码。',
-    enterEmail: '输入用于接收短信的电子邮件地址：',
-    enterWebhook: '输入您的 Webhook URL（短信将以 JSON 格式发送）：',
     ivrTrialUsed: (buyLabel) => `📢 <b>IVR 外呼</b>\n\n您已使用了免费试用通话。\n\n订阅 Cloud IVR 即可使用您自己的来电显示进行无限 IVR 通话！\n\n点击 <b>${buyLabel}</b> 开始。`,
     ivrTrialOffer: (callerId) => `📢 <b>IVR 外呼 — 免费试用</b>\n\n🎁 您有 <b>1 次免费试用通话！</b>\n📱 来电显示：<b>${callerId}</b>（共享）\n\n输入要拨打的电话号码（含国际区号）：\n<i>示例：+8613812345678</i>`,
     ivrSelectCallerId: '📢 <b>IVR 外呼</b>\n\n选择拨出号码（来电显示）：',
@@ -2431,6 +2433,9 @@ Envoyez /testsip ici pour obtenir votre code test.
         const status = n.status === 'active' ? '✅ 活跃' : n.status === 'suspended' ? '⚠️ 已暂停' : n.status === 'inactive_released' ? '🚫 不活跃 (已被运营商释放)' : '🗑️ 已删除'
         text += `${i + 1}️⃣  ${formatPhone(n.phoneNumber)}  ${status}\n`
         text += `    ${n.plan.charAt(0).toUpperCase() + n.plan.slice(1)} 套餐 · 续费 ${shortDate(n.expiresAt)}\n`
+        if (n.provider === 'twilio' && !isTwilioEnabled() && (n.status === 'active' || n.status === 'suspended')) {
+          text += `    🔧 <i>正在升级到我们的新通话网络 — 暂时暂停</i>\n`
+        }
         if (n.status === 'inactive_released') {
           const hoursLeft = n._inactiveSince ? Math.max(0, 48 - Math.round((Date.now() - new Date(n._inactiveSince).getTime()) / 3600000)) : '?'
           text += `    <i>~${hoursLeft}小时后自动移除 · 如有错误请联系客服</i>\n`
@@ -2473,6 +2478,9 @@ Envoyez /testsip ici pour obtenir votre code test.
       const hasVoice = n.capabilities?.voice !== false
       let text = `⚙️ 管理：<b>${formatPhone(n.phoneNumber)}</b>`
       if (n.isSubNumber) text += ` <i>(附加号码)</i>`
+      if (n.provider === 'twilio' && !isTwilioEnabled() && n.status !== 'inactive_released') {
+        text += `\n\n🔧 <b>此号码正在升级</b>\n我们正在将其迁移到更可靠的新通话网络。通话和短信暂时暂停。无需任何操作 — 准备就绪后我们会通知您。有疑问？请点击 💬 Support。`
+      }
       if (n.status === 'inactive_released') {
         const hoursLeft = n._inactiveSince ? Math.max(0, 48 - Math.round((Date.now() - new Date(n._inactiveSince).getTime()) / 3600000)) : '?'
         text += `\n\n🚫 <b>不活跃 — 已被运营商释放</b>\n此号码已被电信运营商停用，无法再拨打或接听电话。\n将在约 ${hoursLeft} 小时后自动移除。\n\n如有错误，请立即联系客服。`
@@ -2823,8 +2831,6 @@ Envoyez /testsip ici pour obtenir votre code test.
     searching: '🔍 उपलब्ध नंबर खोज रहे हैं...',
     noSearchResults: '❌ कोई नंबर उपलब्ध नहीं। कोई और क्षेत्र या देश आज़माएं।',
     noNumbers: '📱 आपके पास अभी तक कोई फ़ोन नंबर नहीं है।\n\nअपना पहला वर्चुअल नंबर पाने के लिए नीचे टैप करें।',
-    enterEmail: 'SMS प्राप्त करने के लिए ईमेल पता दर्ज करें:',
-    enterWebhook: 'अपना Webhook URL दर्ज करें (SMS JSON में भेजा जाएगा):',
     ivrTrialUsed: (buyLabel) => `📢 <b>IVR आउटबाउंड कॉल</b>\n\nआपने अपना मुफ्त ट्रायल कॉल पहले ही उपयोग कर लिया है।\n\nCloud IVR की सदस्यता लें और अपनी Caller ID से असीमित IVR कॉल करें!\n\n<b>${buyLabel}</b> पर टैप करें।`,
     ivrTrialOffer: (callerId) => `📢 <b>IVR आउटबाउंड कॉल — मुफ्त ट्रायल</b>\n\n🎁 आपके पास <b>1 मुफ्त ट्रायल कॉल है!</b>\n📱 Caller ID: <b>${callerId}</b> (साझा)\n\nकॉल करने के लिए फ़ोन नंबर दर्ज करें (देश कोड के साथ):\n<i>उदाहरण: +919876543210</i>`,
     ivrSelectCallerId: '📢 <b>IVR आउटबाउंड कॉल</b>\n\nकॉल करने के लिए नंबर चुनें (Caller ID):',
@@ -2915,6 +2921,9 @@ Envoyez /testsip ici pour obtenir votre code test.
         const status = n.status === 'active' ? '✅ सक्रिय' : n.status === 'suspended' ? '⚠️ निलंबित' : n.status === 'inactive_released' ? '🚫 निष्क्रिय (प्रदाता द्वारा जारी)' : '🗑️ हटाया गया'
         text += `${i + 1}️⃣  ${formatPhone(n.phoneNumber)}  ${status}\n`
         text += `    ${n.plan.charAt(0).toUpperCase() + n.plan.slice(1)} प्लान · नवीनीकरण ${shortDate(n.expiresAt)}\n`
+        if (n.provider === 'twilio' && !isTwilioEnabled() && (n.status === 'active' || n.status === 'suspended')) {
+          text += `    🔧 <i>हमारे नए कॉलिंग नेटवर्क पर अपग्रेड हो रहा है — अस्थायी रूप से रुका हुआ</i>\n`
+        }
         if (n.status === 'inactive_released') {
           const hoursLeft = n._inactiveSince ? Math.max(0, 48 - Math.round((Date.now() - new Date(n._inactiveSince).getTime()) / 3600000)) : '?'
           text += `    <i>~${hoursLeft} घंटे में स्वतः हटाया जाएगा · त्रुटि होने पर सहायता से संपर्क करें</i>\n`
@@ -2957,6 +2966,9 @@ Envoyez /testsip ici pour obtenir votre code test.
       const hasVoice = n.capabilities?.voice !== false
       let text = `⚙️ प्रबंधन: <b>${formatPhone(n.phoneNumber)}</b>`
       if (n.isSubNumber) text += ` <i>(अतिरिक्त नंबर)</i>`
+      if (n.provider === 'twilio' && !isTwilioEnabled() && n.status !== 'inactive_released') {
+        text += `\n\n🔧 <b>यह नंबर अपग्रेड हो रहा है</b>\nहम इसे अपने नए, अधिक विश्वसनीय कॉलिंग नेटवर्क पर ले जा रहे हैं। कॉल और SMS कुछ समय के लिए रुके हुए हैं। कोई कार्रवाई आवश्यक नहीं — तैयार होने पर हम आपको सूचित करेंगे। सवाल? 💬 Support दबाएँ।`
+      }
       if (n.status === 'inactive_released') {
         const hoursLeft = n._inactiveSince ? Math.max(0, 48 - Math.round((Date.now() - new Date(n._inactiveSince).getTime()) / 3600000)) : '?'
         text += `\n\n🚫 <b>निष्क्रिय — प्रदाता द्वारा जारी</b>\nयह नंबर टेलीकॉम प्रदाता द्वारा हटा दिया गया है और अब कॉल नहीं कर सकता।\nलगभग ${hoursLeft} घंटे में स्वतः हटाया जाएगा।\n\nगलती होने पर तुरंत सहायता से संपर्क करें।`
@@ -3266,7 +3278,7 @@ function getTxt(lang) {
   // Return a proxy-like merged object: translated values override English
   return new Proxy(txt, {
     get(target, prop) {
-      if (translations.hasOwnProperty(prop)) return translations[prop]
+      if (Object.prototype.hasOwnProperty.call(translations, prop)) return translations[prop]
       return target[prop]
     }
   })

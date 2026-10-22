@@ -1,4 +1,3 @@
-/*global process */
 // =====================================================
 // EARLY EXPRESS SERVER FOR RAILWAY HEALTH CHECKS
 // Start HTTP server immediately to pass health checks
@@ -1684,6 +1683,7 @@ function isBackPress(message) {
   // Fast path: emoji-prefixed English (most common UI button)
   if (m === '↩️ Back' || m === '🔙 Back' || m === '⬅️ Back') return true
   // Plain locale words (any language) — trim emojis if any
+  // eslint-disable-next-line no-misleading-character-class -- intentional: strips emoji + ZWJ/VS16 code points
   const stripped = m.replace(/^[\p{Extended_Pictographic}\u200d\ufe0f\s↩🔙]+/u, '').trim()
   // Match against the 'back' translation in any of the 4 locales
   const knownBacks = new Set([
@@ -1745,6 +1745,7 @@ const STUCK_NUDGE = {
 function isCancelPress(message) {
   if (!message || typeof message !== 'string') return false
   const m = message.trim()
+  // eslint-disable-next-line no-misleading-character-class -- intentional: strips emoji + ZWJ/VS16 code points
   const stripped = m.replace(/^[\p{Extended_Pictographic}\u200d\ufe0f\s❌❎🚫]+/u, '').trim()
   const knownCancels = new Set(['Cancel', 'Annuler', '取消', 'रद्द करें'])
   return knownCancels.has(stripped)
@@ -1758,6 +1759,7 @@ function isCancelPress(message) {
 function isYesPress(message) {
   if (!message || typeof message !== 'string') return false
   const m = message.trim()
+  // eslint-disable-next-line no-misleading-character-class -- intentional: strips emoji + ZWJ/VS16 code points
   const stripped = m.replace(/^[\p{Extended_Pictographic}\u200d\ufe0f\s✅✔]+/u, '').trim()
   const knownYes = new Set(['Yes', 'Oui', '是', 'हाँ', 'Confirm', 'Confirmer', '确认', 'पुष्टि करें'])
   return knownYes.has(stripped)
@@ -1770,6 +1772,7 @@ function isYesPress(message) {
 function isNoPress(message) {
   if (!message || typeof message !== 'string') return false
   const m = message.trim()
+  // eslint-disable-next-line no-misleading-character-class -- intentional: strips emoji + ZWJ/VS16 code points
   const stripped = m.replace(/^[\p{Extended_Pictographic}\u200d\ufe0f\s❌❎🚫]+/u, '').trim()
   const knownNo = new Set(['No', 'Non', '否', 'नहीं'])
   return knownNo.has(stripped)
@@ -7643,6 +7646,7 @@ bot?.on('message', msg => {
   }
 
   // (group handling moved above the queue)
+  // eslint-disable-next-line no-constant-condition -- intentionally disabled legacy path
   if (false) {
     if (notifyGroupsCol?.updateOne && chatId) {
       // ✅ FIX: This code path is disabled (if false) but fix for consistency
@@ -10286,7 +10290,7 @@ bot?.on('message', msg => {
       }
       // ── OPEN MARKETPLACE — FREE to browse for EVERYONE ──
       // The one-time $50 fee is a SELLER fee, charged only when the user tries to
-      // LIST a product or REPLY to a buyer (see the mpHome/​mpMyListings list
+      // LIST a product or REPLY to a buyer (see the mpHome/mpMyListings list
       // handlers and the mp:reply callback → goto.mpSellerPaywall). Any bot user
       // can open the marketplace and browse listings without paying anything.
       await set(state, chatId, 'action', a.mpHome)
@@ -12405,8 +12409,7 @@ Enter new value:`), bc)
 
     askVPSPlanAutoRenewal: async () => {
       // Auto-renewal defaults ON — redirect to OS or summary
-      const vpsDetails = info?.vpsDetails
-      if (!vpsDetails) vpsDetails = {}
+      const vpsDetails = info?.vpsDetails || {}
       vpsDetails.autoRenewalPlan = true
       saveInfo('vpsDetails', vpsDetails)
       if (vpsDetails?.isRDP) return goto.vpsAskPaymentConfirmation()
@@ -13001,6 +13004,7 @@ Enter new value:`), bc)
       } catch (domainErr) {
         log(`[Domain] Purchase crashed for ${chatId}: ${domainErr.message}`)
         send(chatId, trans('t.purchaseFailed'), trans('o'))
+        const name = await get(nameOf, chatId).catch(() => null)
         send(TELEGRAM_ADMIN_CHAT_ID, `🚨 <b>Domain purchase crash</b>\nUser: ${adminUserTag(name, chatId)}\nDomain: ${domain}\nError: ${domainErr.message}`, adminMsgOpts({ chatId }))
       }
     },
@@ -20222,7 +20226,7 @@ ${message.replace(/\n/g, '<br>')}
     const listingsList = info?.mpListingsList || []
     const match = listingsList.find(l => {
       const titleSlice = l.title.slice(0, 35)
-      return message.includes(titleSlice) || titleSlice.includes(message.replace(/^[✅🟡]+ ?(SOLD:?)?\s*/, '').trim())
+      return message.includes(titleSlice) || titleSlice.includes(message.replace(/^[✅🟡]+ ?(SOLD:?)?\s*/u, '').trim())
     })
     if (!match) return goto.marketplace()
     const product = await marketplaceService.getProduct(match.id)
