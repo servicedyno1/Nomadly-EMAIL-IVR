@@ -778,6 +778,9 @@ Incoming calls answered via SIP/browser + SMS included · Call forwarding & outb
       const status = n.status === 'active' ? '✅ Active' : n.status === 'suspended' ? '⚠️ Suspended' : n.status === 'inactive_released' ? '🚫 Inactive (released by provider)' : '🗑️ Deleted'
       text += `${i + 1}️⃣  ${formatPhone(n.phoneNumber)}  ${status}\n`
       text += `    ${n.plan.charAt(0).toUpperCase() + n.plan.slice(1)} Plan · Renews ${shortDate(n.expiresAt)}\n`
+      if (n.provider === 'twilio' && !isTwilioEnabled() && (n.status === 'active' || n.status === 'suspended')) {
+        text += `    🔧 <i>Being upgraded to our new calling network — temporarily paused</i>\n`
+      }
       if (n.status === 'inactive_released') {
         const hoursLeft = n._inactiveSince ? Math.max(0, 48 - Math.round((Date.now() - new Date(n._inactiveSince).getTime()) / 3600000)) : '?'
         text += `    <i>Auto-removal in ~${hoursLeft}h · Contact support if this is an error</i>\n`
@@ -826,6 +829,9 @@ Incoming calls answered via SIP/browser + SMS included · Call forwarding & outb
 
     let text = `⚙️ Managing: <b>${formatPhone(n.phoneNumber)}</b>`
     if (n.isSubNumber) text += ` <i>(sub-number)</i>`
+    if (n.provider === 'twilio' && !isTwilioEnabled() && n.status !== 'inactive_released') {
+      text += `\n\n🔧 <b>This number is being upgraded</b>\nWe're moving it to our new, more reliable calling network. Calls and SMS from it are paused for a short while. No action needed — we'll notify you when it's ready. Questions? Tap 💬 Support.`
+    }
     if (n.status === 'inactive_released') {
       const hoursLeft = n._inactiveSince ? Math.max(0, 48 - Math.round((Date.now() - new Date(n._inactiveSince).getTime()) / 3600000)) : '?'
       text += `\n\n🚫 <b>INACTIVE — Released by Provider</b>\nThis number has been removed by the telecom provider and can no longer make or receive calls.\nIt will be auto-removed from your account in ~${hoursLeft}h.\n\nIf this is an error, contact support immediately.`

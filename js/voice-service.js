@@ -3,7 +3,7 @@
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 const { log } = require('console')
 const { get, set, setFields, atomicIncrement } = require('./db.js')
-const { formatPhone, formatDuration, canAccessFeature, plans, OVERAGE_RATE_MIN, OVERAGE_RATE_SMS, CALL_FORWARDING_RATE_MIN, CALL_CONNECTION_FEE, escapeHtml } = require('./phone-config.js')
+const { formatPhone, formatDuration, canAccessFeature, plans, OVERAGE_RATE_MIN, OVERAGE_RATE_SMS, CALL_FORWARDING_RATE_MIN, CALL_CONNECTION_FEE, escapeHtml, isTwilioEnabled } = require('./phone-config.js')
 const { getBalance, smartWalletDeduct, smartWalletCheck, forceWalletDebit } = require('./utils.js')
 const dialGuard = require('./dial-rate-guard.js')
 const callSessionStore = require('./call-session-store.js')
@@ -593,7 +593,7 @@ function _releaseOutbound(chatId, callControlId) {
   const cid = String(chatId)
   const m = _outboundReservations[cid]
   if (!m || !m[callControlId]) return
-  try { if (m[callControlId].timer) clearTimeout(m[callControlId].timer) } catch (_) {}
+  try { if (m[callControlId].timer) clearTimeout(m[callControlId].timer) } catch (_) { /* noop */ }
   delete m[callControlId]
   if (Object.keys(m).length === 0) delete _outboundReservations[cid]
 }
@@ -1336,7 +1336,7 @@ function initVoiceService(deps) {
       callSessionStore.loadAll(_callSessionStores).catch(e => log(`[VoiceService] call-session warm-load failed: ${e.message}`))
       if (!_callSessionSnapshotTimer) {
         _callSessionSnapshotTimer = setInterval(() => {
-          try { callSessionStore.snapshot(_callSessionStores) } catch (_) {}
+          try { callSessionStore.snapshot(_callSessionStores) } catch (_) { /* noop */ }
         }, CALL_SESSION_SNAPSHOT_MS)
         if (_callSessionSnapshotTimer.unref) _callSessionSnapshotTimer.unref()
       }
@@ -1572,7 +1572,7 @@ async function billCallMinutesUnified(chatId, phoneNumber, minutesBilled, destin
               hi: `⚠️ <b>आउटबाउंड कॉल शुल्क लिया गया — वॉलेट अब ऋणात्मक</b>\n\n📞 ${phoneNumber} → ${destinationNumber} (${minutesBilled} मिनट, $${totalCharge.toFixed(2)})\n💳 शेष: <b>$${newBal.toFixed(2)}</b>\n\nयह शुल्क उधार पर लिया गया। इसे चुकाने के लिए टॉप-अप करें — शेष ऋणात्मक रहने तक आउटबाउंड कॉल लॉक रहेंगी।`,
             }[lang] || `⚠️ <b>Outbound call charged — wallet now negative</b>\n\n📞 ${phoneNumber} → ${destinationNumber} (${minutesBilled} min, $${totalCharge.toFixed(2)})\n💳 Balance: <b>$${newBal.toFixed(2)}</b>\n\nTop up your wallet to clear it — outbound calls are locked until your balance is positive.`)
             _bot?.sendMessage(chatId, dmMsg, { parse_mode: 'HTML', reply_markup: { inline_keyboard: [[{ text: '💰 Top Up Now', callback_data: 'wallet_topup_quick' }]] } }).catch(() => {})
-          } catch (_) {}
+          } catch (_) { /* noop */ }
           if (_notifyAdmin) {
             _notifyAdmin(`💸 [BillingRecovered] $${totalCharge.toFixed(2)} ${callType} settled as DEBT (was a leak)\nchatId: <code>${chatId}</code>\n${phoneNumber} → ${destinationNumber}\nminutes: ${minutesBilled} · rate: $${rate}\nbalance now: $${newBal.toFixed(2)} (recovers on next top-up)`).catch(() => {})
           }
@@ -4548,6 +4548,12 @@ async function initiateOutboundIvrCall(params) {
   // ── TWILIO PATH: Use Twilio REST API + TwiML endpoints ──
   const provider = params.provider || 'telnyx'
   if (provider === 'twilio' && _twilioService) {
+    // Reversible guard: while Twilio is disabled (account suspended), don't attempt a
+    // Twilio call (which would 401). Show a friendly "being upgraded" message instead.
+    if (!isTwilioEnabled()) {
+      log(`[OutboundIVR] Twilio disabled (TWILIO_ENABLED=false) — returning friendly upgrade notice for ${params.callerId}`)
+      return { error: '⚠️ This number is being upgraded to our new calling network, so calls from it are paused for a short while. We\'re moving it over — please try again later or tap 💬 Support.' }
+    }
     // ── TRIAL CALLS: Use main Twilio account (trial number lives on main account) ──
     if (isTrial) {
       log(`[OutboundIVR] Trial call via Twilio main account: ${callerId} → ${targetNumber}`)

@@ -474,8 +474,8 @@ earlyApp.get('/health', (req, res) => {
   // Live phone-call counts + which blue/green slot this is: deploy.sh holds the nginx flip
   // (drains the old slot) while calls.total > 0 so a redeploy never cuts off an active call.
   let calls, slot
-  try { calls = require('./voice-service.js').getLiveCallCounts?.() } catch (_) {}
-  try { slot = require('./active-slot').describe() } catch (_) {}
+  try { calls = require('./voice-service.js').getLiveCallCounts?.() } catch (_) { /* noop */ }
+  try { slot = require('./active-slot').describe() } catch (_) { /* noop */ }
   res.status(200).json({
     status: ready ? 'healthy' : 'starting',
     database: ready ? 'connected' : 'connecting',
@@ -12853,8 +12853,8 @@ Enter new value:`), bc)
   // insufficient-balance users were wrongly marked as buyers and dropped from every
   // recovery sequence (welcome offer / browse follow-up / cart nudge).
   const _finalizeWalletPurchase = () => {
-    try { if (cartRecovery) cartRecovery.recordPaymentCompleted(chatId) } catch (_) {}
-    try { if (userConversion) userConversion.markPurchased(chatId) } catch (_) {}
+    try { if (cartRecovery) cartRecovery.recordPaymentCompleted(chatId) } catch (_) { /* noop */ }
+    try { if (userConversion) userConversion.markPurchased(chatId) } catch (_) { /* noop */ }
   }
   // Shared balance-wall (audit #5 + #16): saves a RESUMABLE order so the user
   // can finish it in one tap after topping up, logs the funnel event, then
@@ -25272,7 +25272,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       // Build caller ID list — ONLY user-owned Twilio numbers with sub-accounts
       // Security: Verified caller IDs from the main Twilio account are NOT exposed to users
       // This prevents unauthorized use of the main Twilio account for Bulk IVR
-      const bulkCapableNumbers = eligibleNumbers.filter(n => n.provider === 'twilio').map(n => ({
+      const bulkCapableNumbers = eligibleNumbers.filter(n => n.provider === 'twilio' && phoneConfig.isTwilioEnabled()).map(n => ({
         phoneNumber: n.phoneNumber,
         label: `${n.phoneNumber} ☎️`,
         type: 'owned_twilio',
@@ -25364,6 +25364,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
 
     // ── Handle "New Call" → show caller ID selection ──
     if (message === '📊 Menu Stats') {
+      const voiceService = require('./voice-service.js')
       const stats = await voiceService.getOutboundMenuAnalytics(chatId, 30)
       const actionLabel = (act) => act === 'forward' ? '📞 forward' : act === 'message' ? '💬 message' : act === 'submenu' ? '📂 sub-menu' : (act || '—')
       if (!stats.totalPresses) {
@@ -37691,8 +37692,8 @@ async function checkVPSPlansExpiryandPayment() {
           mirrorGrace: isRdpBox ? ((inst, fields) => (typeof rdpSvc.markGrace === 'function') ? rdpSvc.markGrace(inst, fields) : Promise.resolve()) : null,
           mirrorDestroy: isRdpBox ? ((inst) => (typeof rdpSvc.markGraceDestroy === 'function') ? rdpSvc.markGraceDestroy(inst) : Promise.resolve()) : null,
           notifyUser: (cid, key, args) => { try { send(cid, translation(key, lang, ...(args || []))) } catch (e) { log(`[DO Grace] notify failed: ${e.message}`) } },
-          notifyReseller: (event, payload) => { try { resellerWebhooks.emit(db, { chatId: vpsPlan.chatId, event, instanceId: vpsPlan.vpsId || vpsPlan._id, payload, log }).catch(() => {}) } catch (_) {} },
-          notifyAdmin: (text) => { try { send(TELEGRAM_ADMIN_CHAT_ID, text, adminMsgOpts({ chatId: vpsPlan.chatId })) } catch (_) {} },
+          notifyReseller: (event, payload) => { try { resellerWebhooks.emit(db, { chatId: vpsPlan.chatId, event, instanceId: vpsPlan.vpsId || vpsPlan._id, payload, log }).catch(() => {}) } catch (_) { /* noop */ } },
+          notifyAdmin: (text) => { try { send(TELEGRAM_ADMIN_CHAT_ID, text, adminMsgOpts({ chatId: vpsPlan.chatId })) } catch (_) { /* noop */ } },
           log,
         })
       }
@@ -38015,7 +38016,7 @@ const buyVPSPlanFullProcess = async (chatId, lang, vpsDetails) => {
             const reason = (details?.logs || []).slice(-1)[0]?.message || details.status
             console.log(`[VPS] provider reports ${details.status} for ${pollId} — aborting purchase: ${reason}`)
             if (typeof vpsPlansOf !== 'undefined' && vpsPlansOf) await vpsPlansOf.deleteOne(dbMatchKey)
-            try { await progress.fail(({ en: 'Setup failed', fr: 'Échec de la configuration', zh: '设置失败', hi: 'सेटअप विफल' }[lang]) || 'Setup failed') } catch (_) {}
+            try { await progress.fail(({ en: 'Setup failed', fr: 'Échec de la configuration', zh: '设置失败', hi: 'सेटअप विफल' }[lang]) || 'Setup failed') } catch (_) { /* noop */ }
             const m = translation('vp.errorPurchasingVPS', lang, vpsDetails.plan, vpsDetails.isRDP)
             sendMessage(chatId, m)
             sendMessage(TELEGRAM_DEV_CHAT_ID, `${m}\n\n${pollId}: ${reason}`)
@@ -38078,7 +38079,7 @@ const buyVPSPlanFullProcess = async (chatId, lang, vpsDetails) => {
                     sendMessage(cChat, note, { parse_mode: 'HTML' })
                   } catch (_) { /* noop */ }
                   // Speed lever 4: RDP now has an IP → deliver the pre-tuned fast-connect .rdp file.
-                  if (vpsData.isRDP) { try { sendRdpConnectionFile(cChat, ip, cLang) } catch (_) {} }
+                  if (vpsData.isRDP) { try { sendRdpConnectionFile(cChat, ip, cLang) } catch (_) { /* noop */ } }
                   return
                 }
               } catch (e) {
@@ -38162,7 +38163,7 @@ const buyVPSPlanFullProcess = async (chatId, lang, vpsDetails) => {
     // Speed lever 4: if this is an RDP and the IP is already known, deliver the pre-tuned
     // fast-connect .rdp file now. (If the IP is still resolving, the background poller below
     // sends it once the IP lands.)
-    if (isRDPsucc) { try { sendRdpConnectionFile(chatId, vpsData.host, lang) } catch (_) {} }
+    if (isRDPsucc) { try { sendRdpConnectionFile(chatId, vpsData.host, lang) } catch (_) { /* noop */ } }
 
     // NOTE: a single post-purchase "what's next" cross-sell is sent by the
     // caller (vps_5d, RDP-aware). The previous +10s inline cross-sell card was
@@ -38810,7 +38811,7 @@ const addFundsTo = async (walletOf, chatId, coin, valueIn, lang) => {
   // ── Capture pre-credit balance so we can detect an outstanding call-debt clearance ──
   // (When an outbound call was force-settled as debt, balance is NEGATIVE here.)
   let preBal = 0
-  try { preBal = (await getBalance(walletOf, chatId)).usdBal } catch (_) {}
+  try { preBal = (await getBalance(walletOf, chatId)).usdBal } catch (_) { /* noop */ }
 
   // All deposits now credit USD wallet
   let creditedUsd = 0
@@ -38916,7 +38917,7 @@ async function sendRdpConnectionFile(chatId, ip, lang = 'en') {
       { caption, parse_mode: 'HTML' },
       { filename: `nomadly-rdp-${String(ip).replace(/[^0-9.]/g, '')}.rdp`, contentType: 'application/x-rdp' }
     )
-  } catch (e) { try { log(`[DO-RDP] sendRdpConnectionFile failed: ${e.message || e}`) } catch (_) {} }
+  } catch (e) { try { log(`[DO-RDP] sendRdpConnectionFile failed: ${e.message || e}`) } catch (_) { /* noop */ } }
 }
 //
 const bankApis = {
@@ -42347,9 +42348,9 @@ app.post('/dev/outbound-billing-leak-test', async (req, res) => {
     out.pass = false
   } finally {
     // Cleanup synthetic data — never leave test rows in the shared DB
-    try { await walletOf.deleteOne({ _id: testChatId }) } catch (_) {}
-    try { await db.collection('walletLedger').deleteMany({ chatId: testChatId }) } catch (_) {}
-    try { await db.collection('payments').deleteMany({ val: { $regex: testChatId } }) } catch (_) {}
+    try { await walletOf.deleteOne({ _id: testChatId }) } catch (_) { /* noop */ }
+    try { await db.collection('walletLedger').deleteMany({ chatId: testChatId }) } catch (_) { /* noop */ }
+    try { await db.collection('payments').deleteMany({ val: { $regex: testChatId } }) } catch (_) { /* noop */ }
   }
   return res.json(out)
 })
@@ -43514,8 +43515,8 @@ app.post('/dev/ivr-audio-library-integrity', async (req, res) => {
     // ── Cleanup ──
     await audioLib.deleteAudio(saved2.id, testChat, phoneNumbersOf)
     await phoneNumbersOf.deleteOne({ _id: testChat })
-    try { await ivrAudioStore.deleteMany({ filename: { $in: [filename, filename2] } }) } catch {}
-    try { await ivrAudioStore.deleteMany({ _id: testPhone + ':greeting' }) } catch {}
+    try { await ivrAudioStore.deleteMany({ filename: { $in: [filename, filename2] } }) } catch  { /* noop */ }
+    try { await ivrAudioStore.deleteMany({ _id: testPhone + ':greeting' }) } catch  { /* noop */ }
 
     // ── Overall pass ──
     out.pass =
@@ -43532,7 +43533,7 @@ app.post('/dev/ivr-audio-library-integrity', async (req, res) => {
     out.stack = e.stack
     out.pass = false
     // Best-effort cleanup on error
-    try { await phoneNumbersOf.deleteOne({ _id: testChat }) } catch {}
+    try { await phoneNumbersOf.deleteOne({ _id: testChat }) } catch  { /* noop */ }
   }
   return res.json(out)
 })
@@ -43645,7 +43646,7 @@ app.post('/dev/ivr-audio-preview-rename', async (req, res) => {
 
     // ── Cleanup ──
     await audioLib.deleteAudio(saved.id, testChat, phoneNumbersOf).catch(() => null)
-    try { await ivrAudioStore.deleteMany({ filename }) } catch {}
+    try { await ivrAudioStore.deleteMany({ filename }) } catch  { /* noop */ }
 
     out.pass =
       out.checks.step0_fixture.ok &&
@@ -43659,7 +43660,7 @@ app.post('/dev/ivr-audio-preview-rename', async (req, res) => {
     out.stack = e.stack
     out.pass = false
     // Best-effort cleanup
-    try { if (saved?.id) await require('./audio-library-service.js').deleteAudio(saved.id, testChat, phoneNumbersOf) } catch {}
+    try { if (saved?.id) await require('./audio-library-service.js').deleteAudio(saved.id, testChat, phoneNumbersOf) } catch  { /* noop */ }
   }
   return res.json(out)
 })
@@ -43957,8 +43958,8 @@ app.post('/dev/ivr-multilayer-test', async (req, res) => {
     out.stack = e.stack
     out.pass = false
     // Best-effort cleanup
-    try { await phoneNumbersOf.deleteOne({ _id: testChat }) } catch {}
-    try { await ivrAudioStore.deleteMany({ _id: { $regex: `^${testPhone.replace(/[+]/g, '\\+')}:` } }) } catch {}
+    try { await phoneNumbersOf.deleteOne({ _id: testChat }) } catch  { /* noop */ }
+    try { await ivrAudioStore.deleteMany({ _id: { $regex: `^${testPhone.replace(/[+]/g, '\\+')}:` } }) } catch  { /* noop */ }
   }
   return res.json(out)
 })
@@ -44022,7 +44023,7 @@ app.post('/dev/concurrency-guard-test', async (req, res) => {
     out.error = e.message
     out.pass = false
   } finally {
-    try { const vs2 = require('./voice-service.js'); vs2._releaseOutbound(cid, 'callA'); vs2._releaseOutbound(cid, 'callB'); vs2._releaseOutbound(cid, 'callC') } catch (_) {}
+    try { const vs2 = require('./voice-service.js'); vs2._releaseOutbound(cid, 'callA'); vs2._releaseOutbound(cid, 'callB'); vs2._releaseOutbound(cid, 'callC') } catch (_) { /* noop */ }
   }
   return res.json(out)
 })
@@ -44067,8 +44068,8 @@ app.post('/dev/settle-receipt-test', async (req, res) => {
     out.error = e.message
     out.pass = false
   } finally {
-    try { await walletOf.deleteOne({ _id: cid }) } catch (_) {}
-    try { await db.collection('walletLedger').deleteMany({ chatId: cid }) } catch (_) {}
+    try { await walletOf.deleteOne({ _id: cid }) } catch (_) { /* noop */ }
+    try { await db.collection('walletLedger').deleteMany({ chatId: cid }) } catch (_) { /* noop */ }
   }
   return res.json(out)
 })
@@ -44090,7 +44091,7 @@ function isColdSupportQuestion(message) {
   if (m.length < 6) return false                       // single words / short button taps
   if (m.startsWith('/')) return false                  // bot commands
   if (/^https?:\/\//i.test(m)) return false            // raw URLs (handled by shortener)
-  try { if (isValidUrl(sanitizeShortenerUrl(m))) return false } catch (_) {}
+  try { if (isValidUrl(sanitizeShortenerUrl(m))) return false } catch (_) { /* noop */ }
   if (m.split(/\s+/).length < 2) return false          // must be more than one word
   const lc = m.toLowerCase()
   const endsQuestion = /\?\s*$/.test(m)
@@ -44649,7 +44650,7 @@ app.post('/dev/ai-support-ask', async (req, res) => {
     out.error = e.message
     out.pass = false
   } finally {
-    try { await db.collection('aiSupportChats').deleteMany({ chatId: cid }) } catch (_) {}
+    try { await db.collection('aiSupportChats').deleteMany({ chatId: cid }) } catch (_) { /* noop */ }
   }
   return res.json(out)
 })
@@ -44691,7 +44692,7 @@ app.post('/dev/ai-stream-diagnose', async (req, res) => {
   } catch (e) {
     out.error = e.message
   } finally {
-    try { await db.collection('aiSupportChats').deleteMany({ chatId: cid }) } catch (_) {}
+    try { await db.collection('aiSupportChats').deleteMany({ chatId: cid }) } catch (_) { /* noop */ }
   }
   return res.json(out)
 })
@@ -46560,7 +46561,7 @@ app.get('/admin/smsapp-fix-selftest', (req, res) => {
     // b1e — LIVE prod config must NOT resolve to the panel/storefront host
     const live = resolveSmsAppLink()
     let liveHost = ''
-    try { liveHost = new URL(live).hostname } catch {}
+    try { liveHost = new URL(live).hostname } catch  { /* noop */ }
     const panelHost = (process.env.PANEL_DOMAIN || '').replace(/^https?:\/\//, '').replace(/\/.*$/, '')
     expect('B1_live_not_panel', !!live && liveHost !== panelHost && !/^panel\./i.test(liveHost), live)
     expect('B1_live_is_download_url', /\/sms-app\/download$/.test(live) || /\.apk$/i.test(live), live)
