@@ -1,0 +1,3645 @@
+{
+  "generatedAt": "2026-10-22T09:49:41.852Z",
+  "note": "READ-ONLY Telnyx coverage audit vs former Twilio catalog",
+  "countries": [
+    {
+      "code": "GB",
+      "name": "🇬🇧 United Kingdom",
+      "twilioTypes": [
+        "mobile"
+      ],
+      "twilioAddrReq": [
+        "any",
+        "local",
+        "none"
+      ],
+      "telnyxCoverage": {
+        "numbers": true,
+        "types": [
+          "national",
+          "mobile",
+          "local",
+          "toll_free"
+        ],
+        "region": "EMEA"
+      },
+      "rows": [
+        {
+          "type": "local",
+          "twilioSoldThisType": false,
+          "twilioMonthlyPrice": null,
+          "telnyxCoverageListsType": true,
+          "telnyxCoverageFeatures": [
+            "local_calling",
+            "fax",
+            "emergency",
+            "voice"
+          ],
+          "searchOk": true,
+          "searchErr": null,
+          "availableCount": 10,
+          "voiceCapable": 10,
+          "voiceAndSms": 0,
+          "sampleNumber": "+441174730653",
+          "telnyxMonthlyUSD": 1,
+          "telnyxUpfrontUSD": 1,
+          "quickship": false,
+          "reservable": true,
+          "requirements": [
+            {
+              "name": "Company Website URL (Business Use Only)",
+              "field_type": "textual"
+            },
+            {
+              "name": "Passport/ID Copy OR Business Registration Certificate (Depending on Use Case)",
+              "field_type": "document"
+            },
+            {
+              "name": "Contact Information (Name, Business Name, Phone Number)",
+              "field_type": "textual"
+            },
+            {
+              "name": "Proof of Address (Recent Bill or Invoice)",
+              "field_type": "document"
+            },
+            {
+              "name": "Business Use Case Description (with Sub-Allocation Disclosure)",
+              "field_type": "textual"
+            },
+            {
+              "name": "Worldwide Physical Address",
+              "field_type": "address"
+            }
+          ],
+          "requirementCategories": [
+            "Text",
+            "Document",
+            "Address"
+          ],
+          "reqErr": null
+        },
+        {
+          "type": "mobile",
+          "twilioSoldThisType": true,
+          "twilioMonthlyPrice": 1.15,
+          "telnyxCoverageListsType": true,
+          "telnyxCoverageFeatures": [
+            "local_calling",
+            "sms",
+            "fax",
+            "voice"
+          ],
+          "searchOk": true,
+          "searchErr": null,
+          "availableCount": 10,
+          "voiceCapable": 10,
+          "voiceAndSms": 10,
+          "sampleNumber": "+447822018142",
+          "telnyxMonthlyUSD": 2,
+          "telnyxUpfrontUSD": 2,
+          "quickship": false,
+          "reservable": true,
+          "requirements": [
+            {
+              "name": "Company Website URL (Business Use Only)",
+              "field_type": "textual"
+            },
+            {
+              "name": "Passport/ID Copy OR Business Registration Certificate (Depending on Use Case)",
+              "field_type": "document"
+            },
+            {
+              "name": "Contact Information (Name, Business Name, Phone Number)",
+              "field_type": "textual"
+            },
+            {
+              "name": "Proof of Address (Recent Bill or Invoice)",
+              "field_type": "document"
+            },
+            {
+              "name": "Business Use Case Description (with Sub-Allocation Disclosure)",
+              "field_type": "textual"
+            },
+            {
+              "name": "Worldwide Physical Address",
+              "field_type": "address"
+            }
+          ],
+          "requirementCategories": [
+            "Text",
+            "Document",
+            "Address"
+          ],
+          "reqErr": null
+        },
+        {
+          "type": "toll_free",
+          "twilioSoldThisType": false,
+          "twilioMonthlyPrice": null,
+          "telnyxCoverageListsType": true,
+          "telnyxCoverageFeatures": [
+            "fax",
+            "voice"
+          ],
+          "searchOk": true,
+          "searchErr": null,
+          "availableCount": 10,
+          "voiceCapable": 10,
+          "voiceAndSms": 0,
+          "sampleNumber": "+448000554563",
+          "telnyxMonthlyUSD": 2,
+          "telnyxUpfrontUSD": 2,
+          "quickship": false,
+          "reservable": true,
+          "requirements": [
+            {
+              "name": "Company Website URL (Business Use Only)",
+              "field_type": "textual"
+            },
+            {
+              "name": "Passport/ID Copy OR Business Registration Certificate (Depending on Use Case)",
+              "field_type": "document"
+            },
+            {
+              "name": "Contact Information (Name, Business Name, Phone Number)",
+              "field_type": "textual"
+            },
+            {
+              "name": "Proof of Address (Recent Bill or Invoice)",
+              "field_type": "document"
+            },
+            {
+              "name": "Business Use Case Description (with Sub-Allocation Disclosure)",
+              "field_type": "textual"
+            },
+            {
+              "name": "Worldwide Physical Address",
+              "field_type": "address"
+            }
+          ],
+          "requirementCategories": [
+            "Text",
+            "Document",
+            "Address"
+          ],
+          "reqErr": null
+        },
+        {
+          "type": "national",
+          "twilioSoldThisType": false,
+          "twilioMonthlyPrice": null,
+          "telnyxCoverageListsType": true,
+          "telnyxCoverageFeatures": [
+            "local_calling",
+            "fax",
+            "emergency",
+            "voice"
+          ],
+          "searchOk": true,
+          "searchErr": null,
+          "availableCount": 10,
+          "voiceCapable": 10,
+          "voiceAndSms": 0,
+          "sampleNumber": "+443301901341",
+          "telnyxMonthlyUSD": 1,
+          "telnyxUpfrontUSD": 1,
+          "quickship": false,
+          "reservable": true,
+          "requirements": [
+            {
+              "name": "Company Website URL (Business Use Only)",
+              "field_type": "textual"
+            },
+            {
+              "name": "Passport/ID Copy OR Business Registration Certificate (Depending on Use Case)",
+              "field_type": "document"
+            },
+            {
+              "name": "Contact Information (Name, Business Name, Phone Number)",
+              "field_type": "textual"
+            },
+            {
+              "name": "Proof of Address (Recent Bill or Invoice)",
+              "field_type": "document"
+            },
+            {
+              "name": "Business Use Case Description (with Sub-Allocation Disclosure)",
+              "field_type": "textual"
+            },
+            {
+              "name": "Worldwide Physical Address",
+              "field_type": "address"
+            }
+          ],
+          "requirementCategories": [
+            "Text",
+            "Document",
+            "Address"
+          ],
+          "reqErr": null
+        }
+      ]
+    },
+    {
+      "code": "IE",
+      "name": "🇮🇪 Ireland",
+      "twilioTypes": [
+        "local"
+      ],
+      "twilioAddrReq": [
+        "local"
+      ],
+      "telnyxCoverage": {
+        "numbers": true,
+        "types": [
+          "mobile",
+          "local"
+        ],
+        "region": "EMEA"
+      },
+      "rows": [
+        {
+          "type": "local",
+          "twilioSoldThisType": true,
+          "twilioMonthlyPrice": 1.6,
+          "telnyxCoverageListsType": true,
+          "telnyxCoverageFeatures": [
+            "local_calling",
+            "fax",
+            "voice",
+            "emergency"
+          ],
+          "searchOk": true,
+          "searchErr": null,
+          "availableCount": 10,
+          "voiceCapable": 10,
+          "voiceAndSms": 0,
+          "sampleNumber": "+35319646332",
+          "telnyxMonthlyUSD": 0.5,
+          "telnyxUpfrontUSD": 0.5,
+          "quickship": false,
+          "reservable": false,
+          "requirements": [
+            {
+              "name": "End User Name (Business Legal Name or Individual Full Name)",
+              "field_type": "textual"
+            },
+            {
+              "name": "Service Usage Description",
+              "field_type": "textual"
+            },
+            {
+              "name": "End User Type (Individual or Company)",
+              "field_type": "textual"
+            },
+            {
+              "name": "Local Government-Issued ID/Passport Copy or Local Company Registration Certificate",
+              "field_type": "document"
+            },
+            {
+              "name": "Address Matching the DID Area Code (Geographic Match)",
+              "field_type": "address"
+            },
+            {
+              "name": "Proof of Address (Recent Bill or Invoice)",
+              "field_type": "document"
+            },
+            {
+              "name": "Contact Email Address of End Client",
+              "field_type": "textual"
+            }
+          ],
+          "requirementCategories": [
+            "Text",
+            "Document",
+            "Address"
+          ],
+          "reqErr": null
+        },
+        {
+          "type": "mobile",
+          "twilioSoldThisType": false,
+          "twilioMonthlyPrice": null,
+          "telnyxCoverageListsType": true,
+          "telnyxCoverageFeatures": [
+            "sms"
+          ],
+          "searchOk": true,
+          "searchErr": null,
+          "availableCount": 0,
+          "voiceCapable": 0,
+          "voiceAndSms": 0,
+          "sampleNumber": null,
+          "telnyxMonthlyUSD": null,
+          "telnyxUpfrontUSD": null,
+          "quickship": false,
+          "reservable": false,
+          "requirements": [
+            {
+              "name": "Proof of Address (National), Recent Utility Bill or Invoice",
+              "field_type": "document"
+            },
+            {
+              "name": "Address (National)",
+              "field_type": "address"
+            },
+            {
+              "name": "Contact Information (Name, Business Name, Phone Number)",
+              "field_type": "textual"
+            },
+            {
+              "name": "Service Usage Description",
+              "field_type": "textual"
+            },
+            {
+              "name": "Contact Email Address of End Client",
+              "field_type": "textual"
+            },
+            {
+              "name": "Local Company Registration Certificate",
+              "field_type": "document"
+            }
+          ],
+          "requirementCategories": [
+            "Document",
+            "Address",
+            "Text"
+          ],
+          "reqErr": null
+        }
+      ]
+    },
+    {
+      "code": "IL",
+      "name": "🇮🇱 Israel",
+      "twilioTypes": [
+        "local",
+        "mobile"
+      ],
+      "twilioAddrReq": [
+        "none"
+      ],
+      "telnyxCoverage": {
+        "numbers": true,
+        "types": [
+          "mobile",
+          "national",
+          "local",
+          "toll_free"
+        ],
+        "region": "EMEA"
+      },
+      "rows": [
+        {
+          "type": "local",
+          "twilioSoldThisType": true,
+          "twilioMonthlyPrice": 4.25,
+          "telnyxCoverageListsType": true,
+          "telnyxCoverageFeatures": [
+            "local_calling",
+            "fax",
+            "emergency",
+            "voice"
+          ],
+          "searchOk": true,
+          "searchErr": null,
+          "availableCount": 10,
+          "voiceCapable": 10,
+          "voiceAndSms": 0,
+          "sampleNumber": "+97233769982",
+          "telnyxMonthlyUSD": 3,
+          "telnyxUpfrontUSD": 3,
+          "quickship": false,
+          "reservable": true,
+          "requirements": [
+            {
+              "name": "Contact Information (Name, Business Name, Phone Number)",
+              "field_type": "textual"
+            },
+            {
+              "name": "Recent Proof of Address (Worldwide), Within 3 Months",
+              "field_type": "document"
+            },
+            {
+              "name": "Business Use Case Description (with Sub-Allocation Disclosure)",
+              "field_type": "textual"
+            },
+            {
+              "name": "Worldwide Physical Address",
+              "field_type": "address"
+            },
+            {
+              "name": "Company Registration Certificate (Business Use Only)",
+              "field_type": "document"
+            }
+          ],
+          "requirementCategories": [
+            "Text",
+            "Document",
+            "Address"
+          ],
+          "reqErr": null
+        },
+        {
+          "type": "mobile",
+          "twilioSoldThisType": true,
+          "twilioMonthlyPrice": 15,
+          "telnyxCoverageListsType": true,
+          "telnyxCoverageFeatures": [
+            "local_calling",
+            "fax",
+            "voice"
+          ],
+          "searchOk": true,
+          "searchErr": null,
+          "availableCount": 5,
+          "voiceCapable": 5,
+          "voiceAndSms": 0,
+          "sampleNumber": "+972555077747",
+          "telnyxMonthlyUSD": 3.6,
+          "telnyxUpfrontUSD": 3,
+          "quickship": false,
+          "reservable": false,
+          "requirements": [
+            {
+              "name": "Contact Information (Name, Business Name, Phone Number)",
+              "field_type": "textual"
+            },
+            {
+              "name": "Contact Email Address of End Client",
+              "field_type": "textual"
+            },
+            {
+              "name": "Worldwide Physical Address",
+              "field_type": "address"
+            }
+          ],
+          "requirementCategories": [
+            "Text",
+            "Address"
+          ],
+          "reqErr": null
+        },
+        {
+          "type": "toll_free",
+          "twilioSoldThisType": false,
+          "twilioMonthlyPrice": null,
+          "telnyxCoverageListsType": true,
+          "telnyxCoverageFeatures": [
+            "voice"
+          ],
+          "searchOk": true,
+          "searchErr": null,
+          "availableCount": 5,
+          "voiceCapable": 5,
+          "voiceAndSms": 0,
+          "sampleNumber": "+9721809533162",
+          "telnyxMonthlyUSD": 15,
+          "telnyxUpfrontUSD": 20,
+          "quickship": false,
+          "reservable": false,
+          "requirements": [
+            {
+              "name": "Passport/ID Copy OR Business Registration Certificate (Depending on Use Case)",
+              "field_type": "document"
+            },
+            {
+              "name": "Contact Information (Name, Business Name, Phone Number)",
+              "field_type": "textual"
+            },
+            {
+              "name": "Worldwide Physical Address",
+              "field_type": "address"
+            }
+          ],
+          "requirementCategories": [
+            "Document",
+            "Text",
+            "Address"
+          ],
+          "reqErr": null
+        },
+        {
+          "type": "national",
+          "twilioSoldThisType": false,
+          "twilioMonthlyPrice": null,
+          "telnyxCoverageListsType": true,
+          "telnyxCoverageFeatures": [
+            "local_calling",
+            "fax",
+            "emergency",
+            "voice"
+          ],
+          "searchOk": true,
+          "searchErr": null,
+          "availableCount": 0,
+          "voiceCapable": 0,
+          "voiceAndSms": 0,
+          "sampleNumber": null,
+          "telnyxMonthlyUSD": null,
+          "telnyxUpfrontUSD": null,
+          "quickship": false,
+          "reservable": false,
+          "requirements": [
+            {
+              "name": "Contact Information (Name, Business Name, Phone Number)",
+              "field_type": "textual"
+            },
+            {
+              "name": "Recent Proof of Address (Worldwide), Within 3 Months",
+              "field_type": "document"
+            },
+            {
+              "name": "Business Use Case Description (with Sub-Allocation Disclosure)",
+              "field_type": "textual"
+            },
+            {
+              "name": "Worldwide Physical Address",
+              "field_type": "address"
+            },
+            {
+              "name": "Company Registration Certificate (Business Use Only)",
+              "field_type": "document"
+            }
+          ],
+          "requirementCategories": [
+            "Text",
+            "Document",
+            "Address"
+          ],
+          "reqErr": null
+        }
+      ]
+    },
+    {
+      "code": "AU",
+      "name": "🇦🇺 Australia",
+      "twilioTypes": [
+        "toll_free",
+        "mobile"
+      ],
+      "twilioAddrReq": [
+        "any"
+      ],
+      "telnyxCoverage": {
+        "numbers": true,
+        "types": [
+          "shared_cost",
+          "mobile",
+          "toll_free",
+          "local"
+        ],
+        "region": "APAC"
+      },
+      "rows": [
+        {
+          "type": "local",
+          "twilioSoldThisType": false,
+          "twilioMonthlyPrice": null,
+          "telnyxCoverageListsType": true,
+          "telnyxCoverageFeatures": [
+            "voice",
+            "local_calling",
+            "hd_voice",
+            "fax",
+            "emergency"
+          ],
+          "searchOk": true,
+          "searchErr": null,
+          "availableCount": 10,
+          "voiceCapable": 10,
+          "voiceAndSms": 0,
+          "sampleNumber": "+61352133279",
+          "telnyxMonthlyUSD": 2,
+          "telnyxUpfrontUSD": 2,
+          "quickship": false,
+          "reservable": true,
+          "requirements": [
+            {
+              "name": "Address (National)",
+              "field_type": "address"
+            },
+            {
+              "name": "Contact Information (Name, Business Name, Phone Number)",
+              "field_type": "textual"
+            },
+            {
+              "name": "Proof of Address (Local), with Local Activity Evidence",
+              "field_type": "document"
+            }
+          ],
+          "requirementCategories": [
+            "Address",
+            "Text",
+            "Document"
+          ],
+          "reqErr": null
+        },
+        {
+          "type": "mobile",
+          "twilioSoldThisType": true,
+          "twilioMonthlyPrice": 6.5,
+          "telnyxCoverageListsType": true,
+          "telnyxCoverageFeatures": [
+            "voice",
+            "local_calling",
+            "sms",
+            "hd_voice",
+            "emergency"
+          ],
+          "searchOk": true,
+          "searchErr": null,
+          "availableCount": 10,
+          "voiceCapable": 10,
+          "voiceAndSms": 10,
+          "sampleNumber": "+61485814174",
+          "telnyxMonthlyUSD": 5.5,
+          "telnyxUpfrontUSD": 6.5,
+          "quickship": false,
+          "reservable": true,
+          "requirements": [
+            {
+              "name": "Proof of Address (National), Recent Utility Bill or Invoice",
+              "field_type": "document"
+            },
+            {
+              "name": "Contact Information (Name, Business Name, Phone Number)",
+              "field_type": "textual"
+            },
+            {
+              "name": "List of In-Service Australian Mobile Numbers (Purchaser Disclosure)",
+              "field_type": "textual"
+            },
+            {
+              "name": "Purchaser or Service Activator Confirmation (AU Mobile)",
+              "field_type": "textual"
+            },
+            {
+              "name": "Physical Address Within the Country of the Phone Number (National)",
+              "field_type": "address"
+            },
+            {
+              "name": "Australian Mobile ID Verification (Onfido Process)",
+              "field_type": "action"
+            },
+            {
+              "name": "End User Date of Birth (ISO 8601 Format)",
+              "field_type": "textual"
+            }
+          ],
+          "requirementCategories": [
+            "Document",
+            "Text",
+            "Address",
+            "action"
+          ],
+          "reqErr": null
+        },
+        {
+          "type": "toll_free",
+          "twilioSoldThisType": true,
+          "twilioMonthlyPrice": 16,
+          "telnyxCoverageListsType": true,
+          "telnyxCoverageFeatures": [
+            "hd_voice",
+            "voice"
+          ],
+          "searchOk": true,
+          "searchErr": null,
+          "availableCount": 6,
+          "voiceCapable": 6,
+          "voiceAndSms": 0,
+          "sampleNumber": "+611800951079",
+          "telnyxMonthlyUSD": 10,
+          "telnyxUpfrontUSD": 50,
+          "quickship": false,
+          "reservable": true,
+          "requirements": [
+            {
+              "name": "Contact Information (Name, Business Name, Phone Number)",
+              "field_type": "textual"
+            },
+            {
+              "name": "Recent Proof of Address (Worldwide), Within 3 Months",
+              "field_type": "document"
+            },
+            {
+              "name": "Worldwide Physical Address",
+              "field_type": "address"
+            },
+            {
+              "name": "Passport or Government-Issued ID Copy (End User or Authorized Representative)",
+              "field_type": "document"
+            }
+          ],
+          "requirementCategories": [
+            "Text",
+            "Document",
+            "Address"
+          ],
+          "reqErr": null
+        }
+      ]
+    },
+    {
+      "code": "NZ",
+      "name": "🇳🇿 New Zealand",
+      "twilioTypes": [
+        "local",
+        "toll_free"
+      ],
+      "twilioAddrReq": [
+        "any"
+      ],
+      "telnyxCoverage": {
+        "numbers": true,
+        "types": [
+          "toll_free",
+          "local"
+        ],
+        "region": "APAC"
+      },
+      "rows": [
+        {
+          "type": "local",
+          "twilioSoldThisType": true,
+          "twilioMonthlyPrice": 3.15,
+          "telnyxCoverageListsType": true,
+          "telnyxCoverageFeatures": [
+            "local_calling",
+            "fax",
+            "voice",
+            "emergency"
+          ],
+          "searchOk": true,
+          "searchErr": null,
+          "availableCount": 10,
+          "voiceCapable": 10,
+          "voiceAndSms": 0,
+          "sampleNumber": "+6448886896",
+          "telnyxMonthlyUSD": 2,
+          "telnyxUpfrontUSD": 2,
+          "quickship": false,
+          "reservable": true,
+          "requirements": [
+            {
+              "name": "Contact Information (Name, Business Name, Phone Number)",
+              "field_type": "textual"
+            },
+            {
+              "name": "Physical Address Within the Country of the Phone Number (National)",
+              "field_type": "address"
+            }
+          ],
+          "requirementCategories": [
+            "Text",
+            "Address"
+          ],
+          "reqErr": null
+        },
+        {
+          "type": "toll_free",
+          "twilioSoldThisType": true,
+          "twilioMonthlyPrice": 40,
+          "telnyxCoverageListsType": true,
+          "telnyxCoverageFeatures": [
+            "voice"
+          ],
+          "searchOk": true,
+          "searchErr": null,
+          "availableCount": 5,
+          "voiceCapable": 5,
+          "voiceAndSms": 0,
+          "sampleNumber": "+64800449029",
+          "telnyxMonthlyUSD": 25,
+          "telnyxUpfrontUSD": 25,
+          "quickship": false,
+          "reservable": false,
+          "requirements": [
+            {
+              "name": "Passport/ID Copy OR Business Registration Certificate (Depending on Use Case)",
+              "field_type": "document"
+            },
+            {
+              "name": "Contact Information (Name, Business Name, Phone Number)",
+              "field_type": "textual"
+            },
+            {
+              "name": "Worldwide Physical Address",
+              "field_type": "address"
+            }
+          ],
+          "requirementCategories": [
+            "Document",
+            "Text",
+            "Address"
+          ],
+          "reqErr": null
+        }
+      ]
+    },
+    {
+      "code": "HK",
+      "name": "🇭🇰 Hong Kong",
+      "twilioTypes": [
+        "toll_free",
+        "mobile"
+      ],
+      "twilioAddrReq": [
+        "any"
+      ],
+      "telnyxCoverage": {
+        "numbers": true,
+        "types": [
+          "national",
+          "toll_free"
+        ],
+        "region": null
+      },
+      "rows": [
+        {
+          "type": "mobile",
+          "twilioSoldThisType": true,
+          "twilioMonthlyPrice": 15,
+          "telnyxCoverageListsType": false,
+          "telnyxCoverageFeatures": [],
+          "searchOk": true,
+          "searchErr": null,
+          "availableCount": 0,
+          "voiceCapable": 0,
+          "voiceAndSms": 0,
+          "sampleNumber": null,
+          "telnyxMonthlyUSD": null,
+          "telnyxUpfrontUSD": null,
+          "quickship": false,
+          "reservable": false,
+          "requirements": [],
+          "requirementCategories": [],
+          "reqErr": null
+        },
+        {
+          "type": "toll_free",
+          "twilioSoldThisType": true,
+          "twilioMonthlyPrice": 25,
+          "telnyxCoverageListsType": true,
+          "telnyxCoverageFeatures": [
+            "voice"
+          ],
+          "searchOk": true,
+          "searchErr": null,
+          "availableCount": 5,
+          "voiceCapable": 5,
+          "voiceAndSms": 0,
+          "sampleNumber": "+852800938638",
+          "telnyxMonthlyUSD": 85,
+          "telnyxUpfrontUSD": 85,
+          "quickship": false,
+          "reservable": false,
+          "requirements": [
+            {
+              "name": "Contact Information (Name, Business Name, Phone Number)",
+              "field_type": "textual"
+            },
+            {
+              "name": "Service Usage Description",
+              "field_type": "textual"
+            },
+            {
+              "name": "Proof of Address (Recent Bill or Invoice)",
+              "field_type": "document"
+            },
+            {
+              "name": "Worldwide Physical Address",
+              "field_type": "address"
+            }
+          ],
+          "requirementCategories": [
+            "Text",
+            "Document",
+            "Address"
+          ],
+          "reqErr": null
+        },
+        {
+          "type": "national",
+          "twilioSoldThisType": false,
+          "twilioMonthlyPrice": null,
+          "telnyxCoverageListsType": true,
+          "telnyxCoverageFeatures": [
+            "fax",
+            "voice"
+          ],
+          "searchOk": true,
+          "searchErr": null,
+          "availableCount": 0,
+          "voiceCapable": 0,
+          "voiceAndSms": 0,
+          "sampleNumber": null,
+          "telnyxMonthlyUSD": null,
+          "telnyxUpfrontUSD": null,
+          "quickship": false,
+          "reservable": false,
+          "requirements": [
+            {
+              "name": "Proof of Address (National), Recent Utility Bill or Invoice",
+              "field_type": "document"
+            },
+            {
+              "name": "Contact Information (Name, Business Name, Phone Number)",
+              "field_type": "textual"
+            },
+            {
+              "name": "Hong Kong Tripartite Agreement",
+              "field_type": "document"
+            },
+            {
+              "name": "Certificate of Incorporation (In-Country)",
+              "field_type": "document"
+            },
+            {
+              "name": "Physical Address Within the Country of the Phone Number (National)",
+              "field_type": "address"
+            }
+          ],
+          "requirementCategories": [
+            "Document",
+            "Text",
+            "Address"
+          ],
+          "reqErr": null
+        }
+      ]
+    },
+    {
+      "code": "NL",
+      "name": "🇳🇱 Netherlands",
+      "twilioTypes": [
+        "mobile"
+      ],
+      "twilioAddrReq": [
+        "any"
+      ],
+      "telnyxCoverage": {
+        "numbers": true,
+        "types": [
+          "local",
+          "toll_free",
+          "mobile",
+          "national"
+        ],
+        "region": "EMEA"
+      },
+      "rows": [
+        {
+          "type": "local",
+          "twilioSoldThisType": false,
+          "twilioMonthlyPrice": null,
+          "telnyxCoverageListsType": true,
+          "telnyxCoverageFeatures": [
+            "voice",
+            "local_calling",
+            "hd_voice",
+            "fax",
+            "emergency"
+          ],
+          "searchOk": true,
+          "searchErr": null,
+          "availableCount": 10,
+          "voiceCapable": 10,
+          "voiceAndSms": 0,
+          "sampleNumber": "+31545236019",
+          "telnyxMonthlyUSD": 1,
+          "telnyxUpfrontUSD": 1,
+          "quickship": false,
+          "reservable": true,
+          "requirements": [
+            {
+              "name": "Contact Information (Name, Business Name, Phone Number)",
+              "field_type": "textual"
+            },
+            {
+              "name": "Address Matching the DID Area Code (Geographic Match)",
+              "field_type": "address"
+            },
+            {
+              "name": "Proof of Address (Recent Bill or Invoice)",
+              "field_type": "document"
+            },
+            {
+              "name": "Passport or Government-Issued ID Copy (End User or Authorized Representative)",
+              "field_type": "document"
+            },
+            {
+              "name": "Company Registration Certificate (Business Use Only)",
+              "field_type": "document"
+            }
+          ],
+          "requirementCategories": [
+            "Text",
+            "Address",
+            "Document"
+          ],
+          "reqErr": null
+        },
+        {
+          "type": "mobile",
+          "twilioSoldThisType": true,
+          "twilioMonthlyPrice": 6,
+          "telnyxCoverageListsType": true,
+          "telnyxCoverageFeatures": [
+            "sms",
+            "fax",
+            "voice",
+            "local_calling"
+          ],
+          "searchOk": true,
+          "searchErr": null,
+          "availableCount": 5,
+          "voiceCapable": 5,
+          "voiceAndSms": 5,
+          "sampleNumber": "+3197010281237",
+          "telnyxMonthlyUSD": 3,
+          "telnyxUpfrontUSD": 2,
+          "quickship": false,
+          "reservable": false,
+          "requirements": [
+            {
+              "name": "Contact Information (Name, Business Name, Phone Number)",
+              "field_type": "textual"
+            },
+            {
+              "name": "Worldwide Physical Address",
+              "field_type": "address"
+            }
+          ],
+          "requirementCategories": [
+            "Text",
+            "Address"
+          ],
+          "reqErr": null
+        },
+        {
+          "type": "toll_free",
+          "twilioSoldThisType": false,
+          "twilioMonthlyPrice": null,
+          "telnyxCoverageListsType": true,
+          "telnyxCoverageFeatures": [
+            "fax",
+            "voice"
+          ],
+          "searchOk": true,
+          "searchErr": null,
+          "availableCount": 0,
+          "voiceCapable": 0,
+          "voiceAndSms": 0,
+          "sampleNumber": null,
+          "telnyxMonthlyUSD": null,
+          "telnyxUpfrontUSD": null,
+          "quickship": false,
+          "reservable": false,
+          "requirements": [
+            {
+              "name": "Contact Information (Name, Business Name, Phone Number)",
+              "field_type": "textual"
+            },
+            {
+              "name": "Service Usage Description",
+              "field_type": "textual"
+            },
+            {
+              "name": "Proof of Allocation from the Dutch National Regulator (ACM)",
+              "field_type": "document"
+            },
+            {
+              "name": "Certificate of Incorporation (In-Country)",
+              "field_type": "document"
+            },
+            {
+              "name": "Contact Email Address of End Client",
+              "field_type": "textual"
+            },
+            {
+              "name": "Worldwide Physical Address",
+              "field_type": "address"
+            }
+          ],
+          "requirementCategories": [
+            "Text",
+            "Document",
+            "Address"
+          ],
+          "reqErr": null
+        },
+        {
+          "type": "national",
+          "twilioSoldThisType": false,
+          "twilioMonthlyPrice": null,
+          "telnyxCoverageListsType": true,
+          "telnyxCoverageFeatures": [
+            "fax",
+            "emergency",
+            "voice",
+            "local_calling"
+          ],
+          "searchOk": true,
+          "searchErr": null,
+          "availableCount": 0,
+          "voiceCapable": 0,
+          "voiceAndSms": 0,
+          "sampleNumber": null,
+          "telnyxMonthlyUSD": null,
+          "telnyxUpfrontUSD": null,
+          "quickship": false,
+          "reservable": false,
+          "requirements": [
+            {
+              "name": "Contact Information (Name, Business Name, Phone Number)",
+              "field_type": "textual"
+            },
+            {
+              "name": "Physical Address Within the Country of the Phone Number (National)",
+              "field_type": "address"
+            },
+            {
+              "name": "Company Name (Full Legal Name)",
+              "field_type": "textual"
+            }
+          ],
+          "requirementCategories": [
+            "Text",
+            "Address"
+          ],
+          "reqErr": null
+        }
+      ]
+    },
+    {
+      "code": "IT",
+      "name": "🇮🇹 Italy",
+      "twilioTypes": [
+        "toll_free"
+      ],
+      "twilioAddrReq": [
+        "any"
+      ],
+      "telnyxCoverage": {
+        "numbers": true,
+        "types": [
+          "toll_free",
+          "local"
+        ],
+        "region": "EMEA"
+      },
+      "rows": [
+        {
+          "type": "local",
+          "twilioSoldThisType": false,
+          "twilioMonthlyPrice": null,
+          "telnyxCoverageListsType": true,
+          "telnyxCoverageFeatures": [
+            "emergency",
+            "local_calling",
+            "fax",
+            "voice"
+          ],
+          "searchOk": true,
+          "searchErr": null,
+          "availableCount": 10,
+          "voiceCapable": 10,
+          "voiceAndSms": 0,
+          "sampleNumber": "+390372910064",
+          "telnyxMonthlyUSD": 2,
+          "telnyxUpfrontUSD": 2,
+          "quickship": false,
+          "reservable": false,
+          "requirements": [
+            {
+              "name": "Proof of Address (National), Recent Utility Bill or Invoice",
+              "field_type": "document"
+            },
+            {
+              "name": "Address (National)",
+              "field_type": "address"
+            },
+            {
+              "name": "Identity Document Type",
+              "field_type": "textual"
+            },
+            {
+              "name": "End User Name (Business Legal Name or Individual Full Name)",
+              "field_type": "textual"
+            },
+            {
+              "name": "Place of Birth of Contact Person",
+              "field_type": "textual"
+            },
+            {
+              "name": "Identity Document Expiration Date (ISO 8601 Format)",
+              "field_type": "textual"
+            },
+            {
+              "name": "Italian Customer Type (Natural Person, Legal Entity, or Sole Proprietorship)",
+              "field_type": "textual"
+            },
+            {
+              "name": "Local Government-Issued ID or Passport Copy (issued by country of phone number)",
+              "field_type": "document"
+            },
+            {
+              "name": "Italian Company Tax Code, Partita IVA (For Legal Entities and Sole Proprietorships Only)",
+              "field_type": "textual"
+            },
+            {
+              "name": "Identity Document Number",
+              "field_type": "textual"
+            },
+            {
+              "name": "Italian Personal Tax Code, Codice Fiscale (For Natural Persons and Sole Proprietorships Only)",
+              "field_type": "textual"
+            },
+            {
+              "name": "Local Company Registration Certificate (For Legal Entities and Sole Proprietorships Only)",
+              "field_type": "document"
+            },
+            {
+              "name": "Identity Document Issuing Authority",
+              "field_type": "textual"
+            },
+            {
+              "name": "Supplemental Address of Legal Representative's Residence in Italy (Legal Entity Only)",
+              "field_type": "address"
+            },
+            {
+              "name": "Contact Email Address of End Client",
+              "field_type": "textual"
+            },
+            {
+              "name": "VAT Number (For Legal Entities and Sole Proprietorships Only)",
+              "field_type": "textual"
+            },
+            {
+              "name": "End User Date of Birth (ISO 8601 Format)",
+              "field_type": "textual"
+            }
+          ],
+          "requirementCategories": [
+            "Document",
+            "Address",
+            "Text"
+          ],
+          "reqErr": null
+        },
+        {
+          "type": "toll_free",
+          "twilioSoldThisType": true,
+          "twilioMonthlyPrice": 25,
+          "telnyxCoverageListsType": true,
+          "telnyxCoverageFeatures": [
+            "voice",
+            "fax"
+          ],
+          "searchOk": true,
+          "searchErr": null,
+          "availableCount": 0,
+          "voiceCapable": 0,
+          "voiceAndSms": 0,
+          "sampleNumber": null,
+          "telnyxMonthlyUSD": null,
+          "telnyxUpfrontUSD": null,
+          "quickship": false,
+          "reservable": false,
+          "requirements": [
+            {
+              "name": "Proof of Address (National), Recent Utility Bill or Invoice",
+              "field_type": "document"
+            },
+            {
+              "name": "Address (National)",
+              "field_type": "address"
+            },
+            {
+              "name": "Local Passport or ID Copy of Authorized Representative (Front and Back)",
+              "field_type": "document"
+            },
+            {
+              "name": "Italy VAT Number (Partita IVA)",
+              "field_type": "textual"
+            },
+            {
+              "name": "Business Registration Certificate",
+              "field_type": "document"
+            },
+            {
+              "name": "Authorized Representative's Tax Identification Number",
+              "field_type": "textual"
+            }
+          ],
+          "requirementCategories": [
+            "Document",
+            "Address",
+            "Text"
+          ],
+          "reqErr": null
+        }
+      ]
+    },
+    {
+      "code": "PR",
+      "name": "🇵🇷 Puerto Rico",
+      "twilioTypes": [
+        "local"
+      ],
+      "twilioAddrReq": [
+        "none"
+      ],
+      "telnyxCoverage": {
+        "numbers": true,
+        "types": [
+          "local",
+          "toll_free"
+        ],
+        "region": "AMER"
+      },
+      "rows": [
+        {
+          "type": "local",
+          "twilioSoldThisType": true,
+          "twilioMonthlyPrice": 3.25,
+          "telnyxCoverageListsType": true,
+          "telnyxCoverageFeatures": [
+            "voice",
+            "mms",
+            "local_calling",
+            "sms",
+            "international_sms",
+            "fax",
+            "emergency"
+          ],
+          "searchOk": true,
+          "searchErr": null,
+          "availableCount": 10,
+          "voiceCapable": 10,
+          "voiceAndSms": 10,
+          "sampleNumber": "+19392143942",
+          "telnyxMonthlyUSD": 3,
+          "telnyxUpfrontUSD": 3,
+          "quickship": false,
+          "reservable": true,
+          "requirements": [],
+          "requirementCategories": [],
+          "reqErr": null
+        },
+        {
+          "type": "toll_free",
+          "twilioSoldThisType": false,
+          "twilioMonthlyPrice": null,
+          "telnyxCoverageListsType": true,
+          "telnyxCoverageFeatures": [
+            "sms",
+            "voice",
+            "fax",
+            "mms"
+          ],
+          "searchOk": true,
+          "searchErr": null,
+          "availableCount": 10,
+          "voiceCapable": 10,
+          "voiceAndSms": 9,
+          "sampleNumber": "+18334120472",
+          "telnyxMonthlyUSD": 1,
+          "telnyxUpfrontUSD": 1,
+          "quickship": true,
+          "reservable": true,
+          "requirements": [],
+          "requirementCategories": [],
+          "reqErr": null
+        }
+      ]
+    },
+    {
+      "code": "TN",
+      "name": "🇹🇳 Tunisia",
+      "twilioTypes": [
+        "local"
+      ],
+      "twilioAddrReq": [
+        "none"
+      ],
+      "telnyxCoverage": {
+        "numbers": false,
+        "types": [],
+        "region": null
+      },
+      "rows": [
+        {
+          "type": "local",
+          "twilioSoldThisType": true,
+          "twilioMonthlyPrice": 120,
+          "telnyxCoverageListsType": false,
+          "telnyxCoverageFeatures": [],
+          "searchOk": false,
+          "searchErr": "400 No coverage found in the specified country based on the provided search parameters.",
+          "availableCount": 0,
+          "voiceCapable": 0,
+          "voiceAndSms": 0,
+          "sampleNumber": null,
+          "telnyxMonthlyUSD": null,
+          "telnyxUpfrontUSD": null,
+          "quickship": false,
+          "reservable": false,
+          "requirements": [],
+          "requirementCategories": [],
+          "reqErr": null
+        }
+      ]
+    },
+    {
+      "code": "FI",
+      "name": "🇫🇮 Finland",
+      "twilioTypes": [
+        "toll_free",
+        "mobile"
+      ],
+      "twilioAddrReq": [
+        "any"
+      ],
+      "telnyxCoverage": {
+        "numbers": true,
+        "types": [
+          "local",
+          "national",
+          "toll_free",
+          "mobile"
+        ],
+        "region": "EMEA"
+      },
+      "rows": [
+        {
+          "type": "local",
+          "twilioSoldThisType": false,
+          "twilioMonthlyPrice": null,
+          "telnyxCoverageListsType": true,
+          "telnyxCoverageFeatures": [
+            "fax",
+            "emergency",
+            "voice",
+            "local_calling"
+          ],
+          "searchOk": true,
+          "searchErr": null,
+          "availableCount": 10,
+          "voiceCapable": 10,
+          "voiceAndSms": 0,
+          "sampleNumber": "+358172700427",
+          "telnyxMonthlyUSD": 1,
+          "telnyxUpfrontUSD": 1,
+          "quickship": false,
+          "reservable": true,
+          "requirements": [
+            {
+              "name": "Proof of Address (National), Recent Utility Bill or Invoice",
+              "field_type": "document"
+            },
+            {
+              "name": "Local Business Registration Certificate (issued in country of phone number)",
+              "field_type": "document"
+            },
+            {
+              "name": "Contact Information (Name, Business Name, Phone Number)",
+              "field_type": "textual"
+            },
+            {
+              "name": "VAT or Tax ID Number",
+              "field_type": "textual"
+            },
+            {
+              "name": "Physical Address Within the Country of the Phone Number (National)",
+              "field_type": "address"
+            },
+            {
+              "name": "Contact Email Address of End Client",
+              "field_type": "textual"
+            }
+          ],
+          "requirementCategories": [
+            "Document",
+            "Text",
+            "Address"
+          ],
+          "reqErr": null
+        },
+        {
+          "type": "mobile",
+          "twilioSoldThisType": true,
+          "twilioMonthlyPrice": 5,
+          "telnyxCoverageListsType": true,
+          "telnyxCoverageFeatures": [
+            "sms",
+            "voice",
+            "local_calling"
+          ],
+          "searchOk": true,
+          "searchErr": null,
+          "availableCount": 0,
+          "voiceCapable": 0,
+          "voiceAndSms": 0,
+          "sampleNumber": null,
+          "telnyxMonthlyUSD": null,
+          "telnyxUpfrontUSD": null,
+          "quickship": false,
+          "reservable": false,
+          "requirements": [
+            {
+              "name": "Contact Information (Name, Business Name, Phone Number)",
+              "field_type": "textual"
+            },
+            {
+              "name": "VAT or Tax ID Number",
+              "field_type": "textual"
+            },
+            {
+              "name": "Company Registration Certificate (Local Language or English)",
+              "field_type": "document"
+            },
+            {
+              "name": "Physical Address Within the Country of the Phone Number (National)",
+              "field_type": "address"
+            },
+            {
+              "name": "Contact Email Address of End Client",
+              "field_type": "textual"
+            },
+            {
+              "name": "Company Name (Full Legal Name)",
+              "field_type": "textual"
+            }
+          ],
+          "requirementCategories": [
+            "Text",
+            "Document",
+            "Address"
+          ],
+          "reqErr": null
+        },
+        {
+          "type": "toll_free",
+          "twilioSoldThisType": true,
+          "twilioMonthlyPrice": 40,
+          "telnyxCoverageListsType": true,
+          "telnyxCoverageFeatures": [
+            "fax",
+            "voice"
+          ],
+          "searchOk": true,
+          "searchErr": null,
+          "availableCount": 0,
+          "voiceCapable": 0,
+          "voiceAndSms": 0,
+          "sampleNumber": null,
+          "telnyxMonthlyUSD": null,
+          "telnyxUpfrontUSD": null,
+          "quickship": false,
+          "reservable": false,
+          "requirements": [
+            {
+              "name": "Contact Information (Name, Business Name, Phone Number)",
+              "field_type": "textual"
+            },
+            {
+              "name": "VAT or Tax ID Number",
+              "field_type": "textual"
+            },
+            {
+              "name": "Company Registration Certificate (Local Language or English)",
+              "field_type": "document"
+            },
+            {
+              "name": "Physical Address Within the Country of the Phone Number (National)",
+              "field_type": "address"
+            },
+            {
+              "name": "Contact Email Address of End Client",
+              "field_type": "textual"
+            },
+            {
+              "name": "Company Name (Full Legal Name)",
+              "field_type": "textual"
+            }
+          ],
+          "requirementCategories": [
+            "Text",
+            "Document",
+            "Address"
+          ],
+          "reqErr": null
+        },
+        {
+          "type": "national",
+          "twilioSoldThisType": false,
+          "twilioMonthlyPrice": null,
+          "telnyxCoverageListsType": true,
+          "telnyxCoverageFeatures": [
+            "fax",
+            "emergency",
+            "voice",
+            "local_calling"
+          ],
+          "searchOk": true,
+          "searchErr": null,
+          "availableCount": 10,
+          "voiceCapable": 10,
+          "voiceAndSms": 0,
+          "sampleNumber": "+358753255375",
+          "telnyxMonthlyUSD": 1,
+          "telnyxUpfrontUSD": 2,
+          "quickship": false,
+          "reservable": true,
+          "requirements": [
+            {
+              "name": "Proof of Address (National), Recent Utility Bill or Invoice",
+              "field_type": "document"
+            },
+            {
+              "name": "Local Business Registration Certificate (issued in country of phone number)",
+              "field_type": "document"
+            },
+            {
+              "name": "Contact Information (Name, Business Name, Phone Number)",
+              "field_type": "textual"
+            },
+            {
+              "name": "VAT or Tax ID Number",
+              "field_type": "textual"
+            },
+            {
+              "name": "Physical Address Within the Country of the Phone Number (National)",
+              "field_type": "address"
+            },
+            {
+              "name": "Contact Email Address of End Client",
+              "field_type": "textual"
+            }
+          ],
+          "requirementCategories": [
+            "Document",
+            "Text",
+            "Address"
+          ],
+          "reqErr": null
+        }
+      ]
+    },
+    {
+      "code": "MX",
+      "name": "🇲🇽 Mexico",
+      "twilioTypes": [
+        "toll_free"
+      ],
+      "twilioAddrReq": [
+        "any"
+      ],
+      "telnyxCoverage": {
+        "numbers": true,
+        "types": [
+          "local",
+          "mobile",
+          "toll_free"
+        ],
+        "region": "AMER"
+      },
+      "rows": [
+        {
+          "type": "local",
+          "twilioSoldThisType": false,
+          "twilioMonthlyPrice": null,
+          "telnyxCoverageListsType": true,
+          "telnyxCoverageFeatures": [
+            "emergency",
+            "local_calling",
+            "fax",
+            "voice"
+          ],
+          "searchOk": true,
+          "searchErr": null,
+          "availableCount": 0,
+          "voiceCapable": 0,
+          "voiceAndSms": 0,
+          "sampleNumber": null,
+          "telnyxMonthlyUSD": null,
+          "telnyxUpfrontUSD": null,
+          "quickship": false,
+          "reservable": false,
+          "requirements": [
+            {
+              "name": "Passport/ID Copy OR Business Registration Certificate (Depending on Use Case)",
+              "field_type": "document"
+            },
+            {
+              "name": "Contact Information (Name, Business Name, Phone Number)",
+              "field_type": "textual"
+            },
+            {
+              "name": "Worldwide Physical Address",
+              "field_type": "address"
+            }
+          ],
+          "requirementCategories": [
+            "Document",
+            "Text",
+            "Address"
+          ],
+          "reqErr": null
+        },
+        {
+          "type": "mobile",
+          "twilioSoldThisType": false,
+          "twilioMonthlyPrice": null,
+          "telnyxCoverageListsType": true,
+          "telnyxCoverageFeatures": [
+            "voice",
+            "sms",
+            "local_calling",
+            "fax"
+          ],
+          "searchOk": true,
+          "searchErr": null,
+          "availableCount": 0,
+          "voiceCapable": 0,
+          "voiceAndSms": 0,
+          "sampleNumber": null,
+          "telnyxMonthlyUSD": null,
+          "telnyxUpfrontUSD": null,
+          "quickship": false,
+          "reservable": false,
+          "requirements": [
+            {
+              "name": "Contact Information (Name, Business Name, Phone Number)",
+              "field_type": "textual"
+            },
+            {
+              "name": "Worldwide Physical Address",
+              "field_type": "address"
+            }
+          ],
+          "requirementCategories": [
+            "Text",
+            "Address"
+          ],
+          "reqErr": null
+        },
+        {
+          "type": "toll_free",
+          "twilioSoldThisType": true,
+          "twilioMonthlyPrice": 30,
+          "telnyxCoverageListsType": true,
+          "telnyxCoverageFeatures": [
+            "voice"
+          ],
+          "searchOk": true,
+          "searchErr": null,
+          "availableCount": 10,
+          "voiceCapable": 10,
+          "voiceAndSms": 0,
+          "sampleNumber": "+528004612041",
+          "telnyxMonthlyUSD": 20,
+          "telnyxUpfrontUSD": 20,
+          "quickship": false,
+          "reservable": false,
+          "requirements": [
+            {
+              "name": "Passport/ID Copy OR Business Registration Certificate (Depending on Use Case)",
+              "field_type": "document"
+            },
+            {
+              "name": "Contact Information (Name, Business Name, Phone Number)",
+              "field_type": "textual"
+            },
+            {
+              "name": "Worldwide Physical Address",
+              "field_type": "address"
+            }
+          ],
+          "requirementCategories": [
+            "Document",
+            "Text",
+            "Address"
+          ],
+          "reqErr": null
+        }
+      ]
+    },
+    {
+      "code": "CO",
+      "name": "🇨🇴 Colombia",
+      "twilioTypes": [
+        "toll_free"
+      ],
+      "twilioAddrReq": [
+        "any"
+      ],
+      "telnyxCoverage": {
+        "numbers": true,
+        "types": [
+          "mobile",
+          "local",
+          "toll_free"
+        ],
+        "region": "AMER"
+      },
+      "rows": [
+        {
+          "type": "local",
+          "twilioSoldThisType": false,
+          "twilioMonthlyPrice": null,
+          "telnyxCoverageListsType": true,
+          "telnyxCoverageFeatures": [
+            "local_calling",
+            "fax",
+            "emergency",
+            "voice"
+          ],
+          "searchOk": true,
+          "searchErr": null,
+          "availableCount": 10,
+          "voiceCapable": 10,
+          "voiceAndSms": 0,
+          "sampleNumber": "+576017940587",
+          "telnyxMonthlyUSD": 13.5,
+          "telnyxUpfrontUSD": 13.5,
+          "quickship": false,
+          "reservable": false,
+          "requirements": [
+            {
+              "name": "Contact Information (Name, Business Name, Phone Number)",
+              "field_type": "textual"
+            },
+            {
+              "name": "Worldwide Physical Address",
+              "field_type": "address"
+            }
+          ],
+          "requirementCategories": [
+            "Text",
+            "Address"
+          ],
+          "reqErr": null
+        },
+        {
+          "type": "mobile",
+          "twilioSoldThisType": false,
+          "twilioMonthlyPrice": null,
+          "telnyxCoverageListsType": true,
+          "telnyxCoverageFeatures": [
+            "fax",
+            "voice"
+          ],
+          "searchOk": true,
+          "searchErr": null,
+          "availableCount": 5,
+          "voiceCapable": 5,
+          "voiceAndSms": 0,
+          "sampleNumber": "+573009138824",
+          "telnyxMonthlyUSD": 20,
+          "telnyxUpfrontUSD": 20,
+          "quickship": false,
+          "reservable": false,
+          "requirements": [],
+          "requirementCategories": [],
+          "reqErr": null
+        },
+        {
+          "type": "toll_free",
+          "twilioSoldThisType": true,
+          "twilioMonthlyPrice": 25,
+          "telnyxCoverageListsType": true,
+          "telnyxCoverageFeatures": [
+            "voice"
+          ],
+          "searchOk": true,
+          "searchErr": null,
+          "availableCount": 0,
+          "voiceCapable": 0,
+          "voiceAndSms": 0,
+          "sampleNumber": null,
+          "telnyxMonthlyUSD": null,
+          "telnyxUpfrontUSD": null,
+          "quickship": false,
+          "reservable": false,
+          "requirements": [
+            {
+              "name": "Passport/ID Copy OR Business Registration Certificate (Depending on Use Case)",
+              "field_type": "document"
+            },
+            {
+              "name": "Contact Information (Name, Business Name, Phone Number)",
+              "field_type": "textual"
+            },
+            {
+              "name": "Worldwide Physical Address",
+              "field_type": "address"
+            }
+          ],
+          "requirementCategories": [
+            "Document",
+            "Text",
+            "Address"
+          ],
+          "reqErr": null
+        }
+      ]
+    },
+    {
+      "code": "BG",
+      "name": "🇧🇬 Bulgaria",
+      "twilioTypes": [
+        "toll_free"
+      ],
+      "twilioAddrReq": [
+        "any"
+      ],
+      "telnyxCoverage": {
+        "numbers": true,
+        "types": [
+          "local",
+          "toll_free"
+        ],
+        "region": "EMEA"
+      },
+      "rows": [
+        {
+          "type": "local",
+          "twilioSoldThisType": false,
+          "twilioMonthlyPrice": null,
+          "telnyxCoverageListsType": true,
+          "telnyxCoverageFeatures": [
+            "local_calling",
+            "voice"
+          ],
+          "searchOk": true,
+          "searchErr": null,
+          "availableCount": 0,
+          "voiceCapable": 0,
+          "voiceAndSms": 0,
+          "sampleNumber": null,
+          "telnyxMonthlyUSD": null,
+          "telnyxUpfrontUSD": null,
+          "quickship": false,
+          "reservable": false,
+          "requirements": [
+            {
+              "name": "Contact Information (Name, Business Name, Phone Number)",
+              "field_type": "textual"
+            },
+            {
+              "name": "ID/Passport Copy or Company Registration Certificate (Depending on Number Owner)",
+              "field_type": "document"
+            },
+            {
+              "name": "Address Matching the DID Area Code (Geographic Match)",
+              "field_type": "address"
+            },
+            {
+              "name": "Proof of Address (Recent Bill or Invoice)",
+              "field_type": "document"
+            }
+          ],
+          "requirementCategories": [
+            "Text",
+            "Document",
+            "Address"
+          ],
+          "reqErr": null
+        },
+        {
+          "type": "toll_free",
+          "twilioSoldThisType": true,
+          "twilioMonthlyPrice": 110,
+          "telnyxCoverageListsType": true,
+          "telnyxCoverageFeatures": [
+            "voice"
+          ],
+          "searchOk": true,
+          "searchErr": null,
+          "availableCount": 0,
+          "voiceCapable": 0,
+          "voiceAndSms": 0,
+          "sampleNumber": null,
+          "telnyxMonthlyUSD": null,
+          "telnyxUpfrontUSD": null,
+          "quickship": false,
+          "reservable": false,
+          "requirements": [
+            {
+              "name": "Contact Information (Name, Business Name, Phone Number)",
+              "field_type": "textual"
+            },
+            {
+              "name": "Worldwide Physical Address",
+              "field_type": "address"
+            }
+          ],
+          "requirementCategories": [
+            "Text",
+            "Address"
+          ],
+          "reqErr": null
+        }
+      ]
+    },
+    {
+      "code": "CZ",
+      "name": "🇨🇿 Czech Republic",
+      "twilioTypes": [
+        "local",
+        "toll_free"
+      ],
+      "twilioAddrReq": [
+        "any"
+      ],
+      "telnyxCoverage": {
+        "numbers": true,
+        "types": [
+          "toll_free",
+          "local"
+        ],
+        "region": "EMEA"
+      },
+      "rows": [
+        {
+          "type": "local",
+          "twilioSoldThisType": true,
+          "twilioMonthlyPrice": 1.5,
+          "telnyxCoverageListsType": true,
+          "telnyxCoverageFeatures": [
+            "local_calling",
+            "fax",
+            "voice",
+            "emergency"
+          ],
+          "searchOk": true,
+          "searchErr": null,
+          "availableCount": 10,
+          "voiceCapable": 10,
+          "voiceAndSms": 0,
+          "sampleNumber": "+420491200178",
+          "telnyxMonthlyUSD": 1,
+          "telnyxUpfrontUSD": 1,
+          "quickship": false,
+          "reservable": true,
+          "requirements": [
+            {
+              "name": "Contact Information (Name, Business Name, Phone Number)",
+              "field_type": "textual"
+            },
+            {
+              "name": "Local Government-Issued ID/Passport Copy or Local Company Registration Certificate",
+              "field_type": "document"
+            },
+            {
+              "name": "Address Matching the DID Area Code (Geographic Match)",
+              "field_type": "address"
+            },
+            {
+              "name": "Proof of Address (Recent Bill or Invoice)",
+              "field_type": "document"
+            }
+          ],
+          "requirementCategories": [
+            "Text",
+            "Document",
+            "Address"
+          ],
+          "reqErr": null
+        },
+        {
+          "type": "toll_free",
+          "twilioSoldThisType": true,
+          "twilioMonthlyPrice": 35,
+          "telnyxCoverageListsType": true,
+          "telnyxCoverageFeatures": [
+            "fax",
+            "voice"
+          ],
+          "searchOk": true,
+          "searchErr": null,
+          "availableCount": 10,
+          "voiceCapable": 10,
+          "voiceAndSms": 0,
+          "sampleNumber": "+420800810297",
+          "telnyxMonthlyUSD": 25,
+          "telnyxUpfrontUSD": 25,
+          "quickship": false,
+          "reservable": true,
+          "requirements": [
+            {
+              "name": "Proof of Address (National), Recent Utility Bill or Invoice",
+              "field_type": "document"
+            },
+            {
+              "name": "Contact Information (Name, Business Name, Phone Number)",
+              "field_type": "textual"
+            },
+            {
+              "name": "Local Government-Issued ID/Passport Copy or Local Company Registration Certificate",
+              "field_type": "document"
+            },
+            {
+              "name": "Physical Address Within the Country of the Phone Number (National)",
+              "field_type": "address"
+            }
+          ],
+          "requirementCategories": [
+            "Document",
+            "Text",
+            "Address"
+          ],
+          "reqErr": null
+        }
+      ]
+    },
+    {
+      "code": "EE",
+      "name": "🇪🇪 Estonia",
+      "twilioTypes": [
+        "local",
+        "toll_free",
+        "mobile"
+      ],
+      "twilioAddrReq": [
+        "any"
+      ],
+      "telnyxCoverage": {
+        "numbers": true,
+        "types": [
+          "mobile",
+          "local",
+          "toll_free"
+        ],
+        "region": "EMEA"
+      },
+      "rows": [
+        {
+          "type": "local",
+          "twilioSoldThisType": true,
+          "twilioMonthlyPrice": 1,
+          "telnyxCoverageListsType": true,
+          "telnyxCoverageFeatures": [
+            "emergency",
+            "local_calling",
+            "voice",
+            "fax"
+          ],
+          "searchOk": true,
+          "searchErr": null,
+          "availableCount": 10,
+          "voiceCapable": 10,
+          "voiceAndSms": 0,
+          "sampleNumber": "+3723349512",
+          "telnyxMonthlyUSD": 2.5,
+          "telnyxUpfrontUSD": 2.5,
+          "quickship": false,
+          "reservable": true,
+          "requirements": [
+            {
+              "name": "Contact Information (Name, Business Name, Phone Number)",
+              "field_type": "textual"
+            },
+            {
+              "name": "Physical Address Within the Country of the Phone Number (National)",
+              "field_type": "address"
+            },
+            {
+              "name": "Proof of Address (Recent Bill or Invoice)",
+              "field_type": "document"
+            },
+            {
+              "name": "Passport or Government-Issued ID Copy (End User or Authorized Representative)",
+              "field_type": "document"
+            },
+            {
+              "name": "Company Registration Certificate (Business Use Only)",
+              "field_type": "document"
+            }
+          ],
+          "requirementCategories": [
+            "Text",
+            "Address",
+            "Document"
+          ],
+          "reqErr": null
+        },
+        {
+          "type": "mobile",
+          "twilioSoldThisType": true,
+          "twilioMonthlyPrice": 3,
+          "telnyxCoverageListsType": true,
+          "telnyxCoverageFeatures": [
+            "emergency",
+            "voice",
+            "sms",
+            "local_calling"
+          ],
+          "searchOk": true,
+          "searchErr": null,
+          "availableCount": 0,
+          "voiceCapable": 0,
+          "voiceAndSms": 0,
+          "sampleNumber": null,
+          "telnyxMonthlyUSD": null,
+          "telnyxUpfrontUSD": null,
+          "quickship": false,
+          "reservable": false,
+          "requirements": [
+            {
+              "name": "Contact Information (Name, Business Name, Phone Number)",
+              "field_type": "textual"
+            },
+            {
+              "name": "Worldwide Physical Address",
+              "field_type": "address"
+            }
+          ],
+          "requirementCategories": [
+            "Text",
+            "Address"
+          ],
+          "reqErr": null
+        },
+        {
+          "type": "toll_free",
+          "twilioSoldThisType": true,
+          "twilioMonthlyPrice": 38,
+          "telnyxCoverageListsType": true,
+          "telnyxCoverageFeatures": [
+            "voice",
+            "fax"
+          ],
+          "searchOk": true,
+          "searchErr": null,
+          "availableCount": 5,
+          "voiceCapable": 5,
+          "voiceAndSms": 0,
+          "sampleNumber": "+3728000353018",
+          "telnyxMonthlyUSD": 50,
+          "telnyxUpfrontUSD": 260,
+          "quickship": false,
+          "reservable": false,
+          "requirements": [
+            {
+              "name": "Passport/ID Copy OR Business Registration Certificate (Depending on Use Case)",
+              "field_type": "document"
+            },
+            {
+              "name": "Contact Information (Name, Business Name, Phone Number)",
+              "field_type": "textual"
+            },
+            {
+              "name": "Worldwide Physical Address",
+              "field_type": "address"
+            }
+          ],
+          "requirementCategories": [
+            "Document",
+            "Text",
+            "Address"
+          ],
+          "reqErr": null
+        }
+      ]
+    },
+    {
+      "code": "ID",
+      "name": "🇮🇩 Indonesia",
+      "twilioTypes": [
+        "toll_free"
+      ],
+      "twilioAddrReq": [
+        "any"
+      ],
+      "telnyxCoverage": {
+        "numbers": true,
+        "types": [
+          "local",
+          "toll_free"
+        ],
+        "region": "APAC"
+      },
+      "rows": [
+        {
+          "type": "local",
+          "twilioSoldThisType": false,
+          "twilioMonthlyPrice": null,
+          "telnyxCoverageListsType": true,
+          "telnyxCoverageFeatures": [
+            "local_calling",
+            "voice"
+          ],
+          "searchOk": true,
+          "searchErr": null,
+          "availableCount": 0,
+          "voiceCapable": 0,
+          "voiceAndSms": 0,
+          "sampleNumber": null,
+          "telnyxMonthlyUSD": null,
+          "telnyxUpfrontUSD": null,
+          "quickship": false,
+          "reservable": false,
+          "requirements": [
+            {
+              "name": "Proof of Address (National), Recent Utility Bill or Invoice",
+              "field_type": "document"
+            },
+            {
+              "name": "Recently Signed Letter of Intent (LOI) Within 1 Month",
+              "field_type": "document"
+            },
+            {
+              "name": "Contact Information (Name, Business Name, Phone Number)",
+              "field_type": "textual"
+            },
+            {
+              "name": "Indonesian NPWP Card (Tax ID)",
+              "field_type": "document"
+            },
+            {
+              "name": "Physical Address Within the Country of the Phone Number (National)",
+              "field_type": "address"
+            },
+            {
+              "name": "Passport or Government-Issued ID Copy (End User or Authorized Representative)",
+              "field_type": "document"
+            },
+            {
+              "name": "Company Registration Certificate (Business Use Only)",
+              "field_type": "document"
+            }
+          ],
+          "requirementCategories": [
+            "Document",
+            "Text",
+            "Address"
+          ],
+          "reqErr": null
+        },
+        {
+          "type": "toll_free",
+          "twilioSoldThisType": true,
+          "twilioMonthlyPrice": 25,
+          "telnyxCoverageListsType": true,
+          "telnyxCoverageFeatures": [
+            "voice"
+          ],
+          "searchOk": true,
+          "searchErr": null,
+          "availableCount": 0,
+          "voiceCapable": 0,
+          "voiceAndSms": 0,
+          "sampleNumber": null,
+          "telnyxMonthlyUSD": null,
+          "telnyxUpfrontUSD": null,
+          "quickship": false,
+          "reservable": false,
+          "requirements": [
+            {
+              "name": "Proof of Address (National), Recent Utility Bill or Invoice",
+              "field_type": "document"
+            },
+            {
+              "name": "Contact Information (Name, Business Name, Phone Number)",
+              "field_type": "textual"
+            },
+            {
+              "name": "Physical Address Within the Country of the Phone Number (National)",
+              "field_type": "address"
+            },
+            {
+              "name": "Passport or Government-Issued ID Copy (End User or Authorized Representative)",
+              "field_type": "document"
+            }
+          ],
+          "requirementCategories": [
+            "Document",
+            "Text",
+            "Address"
+          ],
+          "reqErr": null
+        }
+      ]
+    },
+    {
+      "code": "KE",
+      "name": "🇰🇪 Kenya",
+      "twilioTypes": [
+        "local"
+      ],
+      "twilioAddrReq": [
+        "any"
+      ],
+      "telnyxCoverage": {
+        "numbers": true,
+        "types": [
+          "local",
+          "mobile",
+          "toll_free"
+        ],
+        "region": "EMEA"
+      },
+      "rows": [
+        {
+          "type": "local",
+          "twilioSoldThisType": true,
+          "twilioMonthlyPrice": 16,
+          "telnyxCoverageListsType": true,
+          "telnyxCoverageFeatures": [
+            "voice",
+            "local_calling"
+          ],
+          "searchOk": true,
+          "searchErr": null,
+          "availableCount": 0,
+          "voiceCapable": 0,
+          "voiceAndSms": 0,
+          "sampleNumber": null,
+          "telnyxMonthlyUSD": null,
+          "telnyxUpfrontUSD": null,
+          "quickship": false,
+          "reservable": false,
+          "requirements": [
+            {
+              "name": "Contact Information (Name, Business Name, Phone Number)",
+              "field_type": "textual"
+            },
+            {
+              "name": "Service Usage Description",
+              "field_type": "textual"
+            },
+            {
+              "name": "Recent Proof of Address (Worldwide), Within 3 Months",
+              "field_type": "document"
+            },
+            {
+              "name": "Worldwide Physical Address",
+              "field_type": "address"
+            }
+          ],
+          "requirementCategories": [
+            "Text",
+            "Document",
+            "Address"
+          ],
+          "reqErr": null
+        },
+        {
+          "type": "mobile",
+          "twilioSoldThisType": false,
+          "twilioMonthlyPrice": null,
+          "telnyxCoverageListsType": true,
+          "telnyxCoverageFeatures": [
+            "voice",
+            "local_calling"
+          ],
+          "searchOk": true,
+          "searchErr": null,
+          "availableCount": 8,
+          "voiceCapable": 8,
+          "voiceAndSms": 0,
+          "sampleNumber": "+254709180604",
+          "telnyxMonthlyUSD": 35,
+          "telnyxUpfrontUSD": 60,
+          "quickship": false,
+          "reservable": true,
+          "requirements": [
+            {
+              "name": "Contact Information (Name, Business Name, Phone Number)",
+              "field_type": "textual"
+            },
+            {
+              "name": "Recent Proof of Address (Worldwide), Within 3 Months",
+              "field_type": "document"
+            },
+            {
+              "name": "Worldwide Physical Address",
+              "field_type": "address"
+            },
+            {
+              "name": "Company Name (Full Legal Name)",
+              "field_type": "textual"
+            }
+          ],
+          "requirementCategories": [
+            "Text",
+            "Document",
+            "Address"
+          ],
+          "reqErr": null
+        },
+        {
+          "type": "toll_free",
+          "twilioSoldThisType": false,
+          "twilioMonthlyPrice": null,
+          "telnyxCoverageListsType": true,
+          "telnyxCoverageFeatures": [
+            "voice"
+          ],
+          "searchOk": true,
+          "searchErr": null,
+          "availableCount": 0,
+          "voiceCapable": 0,
+          "voiceAndSms": 0,
+          "sampleNumber": null,
+          "telnyxMonthlyUSD": null,
+          "telnyxUpfrontUSD": null,
+          "quickship": false,
+          "reservable": false,
+          "requirements": [],
+          "requirementCategories": [],
+          "reqErr": null
+        }
+      ]
+    },
+    {
+      "code": "MY",
+      "name": "🇲🇾 Malaysia",
+      "twilioTypes": [
+        "local"
+      ],
+      "twilioAddrReq": [
+        "any"
+      ],
+      "telnyxCoverage": {
+        "numbers": true,
+        "types": [
+          "local",
+          "mobile",
+          "national",
+          "toll_free"
+        ],
+        "region": "APAC"
+      },
+      "rows": [
+        {
+          "type": "local",
+          "twilioSoldThisType": true,
+          "twilioMonthlyPrice": 4,
+          "telnyxCoverageListsType": true,
+          "telnyxCoverageFeatures": [
+            "emergency",
+            "local_calling",
+            "voice"
+          ],
+          "searchOk": true,
+          "searchErr": null,
+          "availableCount": 0,
+          "voiceCapable": 0,
+          "voiceAndSms": 0,
+          "sampleNumber": null,
+          "telnyxMonthlyUSD": null,
+          "telnyxUpfrontUSD": null,
+          "quickship": false,
+          "reservable": false,
+          "requirements": [
+            {
+              "name": "Address (National)",
+              "field_type": "address"
+            },
+            {
+              "name": "Recently Signed Letter of Intent (LOI) Within 1 Month",
+              "field_type": "document"
+            },
+            {
+              "name": "Contact Information (Name, Business Name, Phone Number)",
+              "field_type": "textual"
+            },
+            {
+              "name": "Proof of Address (Recent Bill or Invoice)",
+              "field_type": "document"
+            },
+            {
+              "name": "Passport or Government-Issued ID Copy (End User or Authorized Representative)",
+              "field_type": "document"
+            }
+          ],
+          "requirementCategories": [
+            "Address",
+            "Document",
+            "Text"
+          ],
+          "reqErr": null
+        },
+        {
+          "type": "mobile",
+          "twilioSoldThisType": false,
+          "twilioMonthlyPrice": null,
+          "telnyxCoverageListsType": true,
+          "telnyxCoverageFeatures": [
+            "voice",
+            "local_calling"
+          ],
+          "searchOk": true,
+          "searchErr": null,
+          "availableCount": 0,
+          "voiceCapable": 0,
+          "voiceAndSms": 0,
+          "sampleNumber": null,
+          "telnyxMonthlyUSD": null,
+          "telnyxUpfrontUSD": null,
+          "quickship": false,
+          "reservable": false,
+          "requirements": [
+            {
+              "name": "Recently Signed Letter of Intent (LOI) Within 1 Month",
+              "field_type": "document"
+            },
+            {
+              "name": "Contact Information (Name, Business Name, Phone Number)",
+              "field_type": "textual"
+            },
+            {
+              "name": "Recent Proof of Address (Worldwide), Within 3 Months",
+              "field_type": "document"
+            },
+            {
+              "name": "Company Registration Certificate (Local Language or English)",
+              "field_type": "document"
+            },
+            {
+              "name": "Worldwide Physical Address",
+              "field_type": "address"
+            },
+            {
+              "name": "Passport or Government-Issued ID Copy (End User or Authorized Representative)",
+              "field_type": "document"
+            }
+          ],
+          "requirementCategories": [
+            "Document",
+            "Text",
+            "Address"
+          ],
+          "reqErr": null
+        },
+        {
+          "type": "toll_free",
+          "twilioSoldThisType": false,
+          "twilioMonthlyPrice": null,
+          "telnyxCoverageListsType": true,
+          "telnyxCoverageFeatures": [
+            "voice"
+          ],
+          "searchOk": true,
+          "searchErr": null,
+          "availableCount": 0,
+          "voiceCapable": 0,
+          "voiceAndSms": 0,
+          "sampleNumber": null,
+          "telnyxMonthlyUSD": null,
+          "telnyxUpfrontUSD": null,
+          "quickship": false,
+          "reservable": false,
+          "requirements": [
+            {
+              "name": "Proof of Address (National), Recent Utility Bill or Invoice",
+              "field_type": "document"
+            },
+            {
+              "name": "Address (National)",
+              "field_type": "address"
+            },
+            {
+              "name": "Contact Information (Name, Business Name, Phone Number)",
+              "field_type": "textual"
+            }
+          ],
+          "requirementCategories": [
+            "Document",
+            "Address",
+            "Text"
+          ],
+          "reqErr": null
+        },
+        {
+          "type": "national",
+          "twilioSoldThisType": false,
+          "twilioMonthlyPrice": null,
+          "telnyxCoverageListsType": true,
+          "telnyxCoverageFeatures": [
+            "voice",
+            "local_calling"
+          ],
+          "searchOk": true,
+          "searchErr": null,
+          "availableCount": 0,
+          "voiceCapable": 0,
+          "voiceAndSms": 0,
+          "sampleNumber": null,
+          "telnyxMonthlyUSD": null,
+          "telnyxUpfrontUSD": null,
+          "quickship": false,
+          "reservable": false,
+          "requirements": [
+            {
+              "name": "Proof of Address (National), Recent Utility Bill or Invoice",
+              "field_type": "document"
+            },
+            {
+              "name": "Recently Signed Letter of Intent (LOI) Within 1 Month",
+              "field_type": "document"
+            },
+            {
+              "name": "Contact Information (Name, Business Name, Phone Number)",
+              "field_type": "textual"
+            },
+            {
+              "name": "Local Passport or ID Copy of Authorized Representative (Front and Back)",
+              "field_type": "document"
+            },
+            {
+              "name": "Physical Address Within the Country of the Phone Number (National)",
+              "field_type": "address"
+            },
+            {
+              "name": "Local Company Registration Certificate",
+              "field_type": "document"
+            }
+          ],
+          "requirementCategories": [
+            "Document",
+            "Text",
+            "Address"
+          ],
+          "reqErr": null
+        }
+      ]
+    },
+    {
+      "code": "PL",
+      "name": "🇵🇱 Poland",
+      "twilioTypes": [
+        "mobile"
+      ],
+      "twilioAddrReq": [
+        "any"
+      ],
+      "telnyxCoverage": {
+        "numbers": true,
+        "types": [
+          "toll_free",
+          "local",
+          "mobile"
+        ],
+        "region": "EMEA"
+      },
+      "rows": [
+        {
+          "type": "local",
+          "twilioSoldThisType": false,
+          "twilioMonthlyPrice": null,
+          "telnyxCoverageListsType": true,
+          "telnyxCoverageFeatures": [
+            "emergency",
+            "local_calling",
+            "voice",
+            "fax"
+          ],
+          "searchOk": true,
+          "searchErr": null,
+          "availableCount": 10,
+          "voiceCapable": 10,
+          "voiceAndSms": 0,
+          "sampleNumber": "+48257489094",
+          "telnyxMonthlyUSD": 1,
+          "telnyxUpfrontUSD": 1,
+          "quickship": false,
+          "reservable": true,
+          "requirements": [
+            {
+              "name": "Contact Information (Name, Business Name, Phone Number)",
+              "field_type": "textual"
+            },
+            {
+              "name": "Service Usage Description",
+              "field_type": "textual"
+            },
+            {
+              "name": "Local Government-Issued ID/Passport Copy or Local Company Registration Certificate",
+              "field_type": "document"
+            },
+            {
+              "name": "Address Matching the DID Area Code (Geographic Match)",
+              "field_type": "address"
+            },
+            {
+              "name": "Proof of Address (Recent Bill or Invoice)",
+              "field_type": "document"
+            }
+          ],
+          "requirementCategories": [
+            "Text",
+            "Document",
+            "Address"
+          ],
+          "reqErr": null
+        },
+        {
+          "type": "mobile",
+          "twilioSoldThisType": true,
+          "twilioMonthlyPrice": 4,
+          "telnyxCoverageListsType": true,
+          "telnyxCoverageFeatures": [
+            "local_calling",
+            "voice",
+            "sms",
+            "fax"
+          ],
+          "searchOk": true,
+          "searchErr": null,
+          "availableCount": 0,
+          "voiceCapable": 0,
+          "voiceAndSms": 0,
+          "sampleNumber": null,
+          "telnyxMonthlyUSD": null,
+          "telnyxUpfrontUSD": null,
+          "quickship": false,
+          "reservable": false,
+          "requirements": [
+            {
+              "name": "Proof of Address (National), Recent Utility Bill or Invoice",
+              "field_type": "document"
+            },
+            {
+              "name": "Contact Information (Name, Business Name, Phone Number)",
+              "field_type": "textual"
+            },
+            {
+              "name": "Local Government-Issued ID/Passport Copy or Local Company Registration Certificate",
+              "field_type": "document"
+            },
+            {
+              "name": "Physical Address Within the Country of the Phone Number (National)",
+              "field_type": "address"
+            }
+          ],
+          "requirementCategories": [
+            "Document",
+            "Text",
+            "Address"
+          ],
+          "reqErr": null
+        },
+        {
+          "type": "toll_free",
+          "twilioSoldThisType": false,
+          "twilioMonthlyPrice": null,
+          "telnyxCoverageListsType": true,
+          "telnyxCoverageFeatures": [
+            "voice",
+            "fax"
+          ],
+          "searchOk": true,
+          "searchErr": null,
+          "availableCount": 5,
+          "voiceCapable": 5,
+          "voiceAndSms": 0,
+          "sampleNumber": "+48800011075",
+          "telnyxMonthlyUSD": 15,
+          "telnyxUpfrontUSD": 45,
+          "quickship": false,
+          "reservable": false,
+          "requirements": [
+            {
+              "name": "Proof of Address (National), Recent Utility Bill or Invoice",
+              "field_type": "document"
+            },
+            {
+              "name": "Contact Information (Name, Business Name, Phone Number)",
+              "field_type": "textual"
+            },
+            {
+              "name": "Polish ID Copy: PESEL, NIP, REGON, KRS, or Foreign ID of Authorized Representative",
+              "field_type": "document"
+            },
+            {
+              "name": "Local Government-Issued ID/Passport Copy or Local Company Registration Certificate",
+              "field_type": "document"
+            },
+            {
+              "name": "Physical Address Within the Country of the Phone Number (National)",
+              "field_type": "address"
+            }
+          ],
+          "requirementCategories": [
+            "Document",
+            "Text",
+            "Address"
+          ],
+          "reqErr": null
+        }
+      ]
+    },
+    {
+      "code": "RO",
+      "name": "🇷🇴 Romania",
+      "twilioTypes": [
+        "toll_free"
+      ],
+      "twilioAddrReq": [
+        "any"
+      ],
+      "telnyxCoverage": {
+        "numbers": true,
+        "types": [
+          "local",
+          "national",
+          "toll_free"
+        ],
+        "region": "EMEA"
+      },
+      "rows": [
+        {
+          "type": "local",
+          "twilioSoldThisType": false,
+          "twilioMonthlyPrice": null,
+          "telnyxCoverageListsType": true,
+          "telnyxCoverageFeatures": [
+            "emergency",
+            "local_calling",
+            "fax",
+            "voice"
+          ],
+          "searchOk": true,
+          "searchErr": null,
+          "availableCount": 10,
+          "voiceCapable": 10,
+          "voiceAndSms": 0,
+          "sampleNumber": "+40354060016",
+          "telnyxMonthlyUSD": 2,
+          "telnyxUpfrontUSD": 2,
+          "quickship": false,
+          "reservable": true,
+          "requirements": [
+            {
+              "name": "Proof of Address (National), Recent Utility Bill or Invoice",
+              "field_type": "document"
+            },
+            {
+              "name": "Contact Information (Name, Business Name, Phone Number)",
+              "field_type": "textual"
+            },
+            {
+              "name": "Local Government-Issued ID/Passport Copy or Local Company Registration Certificate",
+              "field_type": "document"
+            },
+            {
+              "name": "Physical Address Within the Country of the Phone Number (National)",
+              "field_type": "address"
+            }
+          ],
+          "requirementCategories": [
+            "Document",
+            "Text",
+            "Address"
+          ],
+          "reqErr": null
+        },
+        {
+          "type": "toll_free",
+          "twilioSoldThisType": true,
+          "twilioMonthlyPrice": 25,
+          "telnyxCoverageListsType": true,
+          "telnyxCoverageFeatures": [
+            "voice"
+          ],
+          "searchOk": true,
+          "searchErr": null,
+          "availableCount": 10,
+          "voiceCapable": 10,
+          "voiceAndSms": 0,
+          "sampleNumber": "+40800006012",
+          "telnyxMonthlyUSD": 20,
+          "telnyxUpfrontUSD": 20,
+          "quickship": false,
+          "reservable": true,
+          "requirements": [
+            {
+              "name": "Proof of Address (National), Recent Utility Bill or Invoice",
+              "field_type": "document"
+            },
+            {
+              "name": "Contact Information (Name, Business Name, Phone Number)",
+              "field_type": "textual"
+            },
+            {
+              "name": "Local Government-Issued ID/Passport Copy or Local Company Registration Certificate",
+              "field_type": "document"
+            },
+            {
+              "name": "Physical Address Within the Country of the Phone Number (National)",
+              "field_type": "address"
+            }
+          ],
+          "requirementCategories": [
+            "Document",
+            "Text",
+            "Address"
+          ],
+          "reqErr": null
+        },
+        {
+          "type": "national",
+          "twilioSoldThisType": false,
+          "twilioMonthlyPrice": null,
+          "telnyxCoverageListsType": true,
+          "telnyxCoverageFeatures": [
+            "emergency",
+            "local_calling",
+            "fax",
+            "voice"
+          ],
+          "searchOk": true,
+          "searchErr": null,
+          "availableCount": 10,
+          "voiceCapable": 10,
+          "voiceAndSms": 0,
+          "sampleNumber": "+40376060082",
+          "telnyxMonthlyUSD": 3,
+          "telnyxUpfrontUSD": 4.5,
+          "quickship": false,
+          "reservable": true,
+          "requirements": [
+            {
+              "name": "Proof of Address (National), Recent Utility Bill or Invoice",
+              "field_type": "document"
+            },
+            {
+              "name": "Contact Information (Name, Business Name, Phone Number)",
+              "field_type": "textual"
+            },
+            {
+              "name": "Local Government-Issued ID/Passport Copy or Local Company Registration Certificate",
+              "field_type": "document"
+            },
+            {
+              "name": "Physical Address Within the Country of the Phone Number (National)",
+              "field_type": "address"
+            }
+          ],
+          "requirementCategories": [
+            "Document",
+            "Text",
+            "Address"
+          ],
+          "reqErr": null
+        }
+      ]
+    },
+    {
+      "code": "SK",
+      "name": "🇸🇰 Slovakia",
+      "twilioTypes": [
+        "toll_free"
+      ],
+      "twilioAddrReq": [
+        "any"
+      ],
+      "telnyxCoverage": {
+        "numbers": true,
+        "types": [
+          "local",
+          "toll_free"
+        ],
+        "region": "EMEA"
+      },
+      "rows": [
+        {
+          "type": "local",
+          "twilioSoldThisType": false,
+          "twilioMonthlyPrice": null,
+          "telnyxCoverageListsType": true,
+          "telnyxCoverageFeatures": [
+            "fax",
+            "emergency",
+            "voice",
+            "local_calling"
+          ],
+          "searchOk": true,
+          "searchErr": null,
+          "availableCount": 10,
+          "voiceCapable": 10,
+          "voiceAndSms": 0,
+          "sampleNumber": "+421552301605",
+          "telnyxMonthlyUSD": 1,
+          "telnyxUpfrontUSD": 1,
+          "quickship": false,
+          "reservable": true,
+          "requirements": [
+            {
+              "name": "Contact Information (Name, Business Name, Phone Number)",
+              "field_type": "textual"
+            },
+            {
+              "name": "Address Matching the DID Area Code (Geographic Match)",
+              "field_type": "address"
+            },
+            {
+              "name": "Proof of Address (Recent Bill or Invoice)",
+              "field_type": "document"
+            },
+            {
+              "name": "Passport or Government-Issued ID Copy (End User or Authorized Representative)",
+              "field_type": "document"
+            },
+            {
+              "name": "Company Registration Certificate (Business Use Only)",
+              "field_type": "document"
+            }
+          ],
+          "requirementCategories": [
+            "Text",
+            "Address",
+            "Document"
+          ],
+          "reqErr": null
+        },
+        {
+          "type": "toll_free",
+          "twilioSoldThisType": true,
+          "twilioMonthlyPrice": 25,
+          "telnyxCoverageListsType": true,
+          "telnyxCoverageFeatures": [
+            "voice"
+          ],
+          "searchOk": true,
+          "searchErr": null,
+          "availableCount": 5,
+          "voiceCapable": 5,
+          "voiceAndSms": 0,
+          "sampleNumber": "+421800601476",
+          "telnyxMonthlyUSD": 20,
+          "telnyxUpfrontUSD": 20,
+          "quickship": false,
+          "reservable": false,
+          "requirements": [
+            {
+              "name": "Contact Information (Name, Business Name, Phone Number)",
+              "field_type": "textual"
+            },
+            {
+              "name": "Company Registration Certificate (Local Language or English)",
+              "field_type": "document"
+            },
+            {
+              "name": "Worldwide Physical Address",
+              "field_type": "address"
+            },
+            {
+              "name": "VAT Number (Worldwide)",
+              "field_type": "textual"
+            }
+          ],
+          "requirementCategories": [
+            "Text",
+            "Document",
+            "Address"
+          ],
+          "reqErr": null
+        }
+      ]
+    },
+    {
+      "code": "ZA",
+      "name": "🇿🇦 South Africa",
+      "twilioTypes": [
+        "local"
+      ],
+      "twilioAddrReq": [
+        "any"
+      ],
+      "telnyxCoverage": {
+        "numbers": true,
+        "types": [
+          "local",
+          "national",
+          "mobile",
+          "toll_free"
+        ],
+        "region": "EMEA"
+      },
+      "rows": [
+        {
+          "type": "local",
+          "twilioSoldThisType": true,
+          "twilioMonthlyPrice": 1.5,
+          "telnyxCoverageListsType": true,
+          "telnyxCoverageFeatures": [
+            "emergency",
+            "local_calling",
+            "fax",
+            "voice"
+          ],
+          "searchOk": true,
+          "searchErr": null,
+          "availableCount": 10,
+          "voiceCapable": 10,
+          "voiceAndSms": 0,
+          "sampleNumber": "+27108805782",
+          "telnyxMonthlyUSD": 4,
+          "telnyxUpfrontUSD": 4,
+          "quickship": false,
+          "reservable": true,
+          "requirements": [
+            {
+              "name": "Contact Information (Name, Business Name, Phone Number)",
+              "field_type": "textual"
+            },
+            {
+              "name": "Address Matching the DID Area Code (Geographic Match)",
+              "field_type": "address"
+            },
+            {
+              "name": "Proof of Address (Recent Bill or Invoice)",
+              "field_type": "document"
+            },
+            {
+              "name": "South African Passport or ID Copy",
+              "field_type": "document"
+            },
+            {
+              "name": "Company Registration Certificate (Business Use Only)",
+              "field_type": "document"
+            }
+          ],
+          "requirementCategories": [
+            "Text",
+            "Address",
+            "Document"
+          ],
+          "reqErr": null
+        },
+        {
+          "type": "mobile",
+          "twilioSoldThisType": false,
+          "twilioMonthlyPrice": null,
+          "telnyxCoverageListsType": true,
+          "telnyxCoverageFeatures": [
+            "voice",
+            "sms",
+            "local_calling"
+          ],
+          "searchOk": true,
+          "searchErr": null,
+          "availableCount": 5,
+          "voiceCapable": 5,
+          "voiceAndSms": 5,
+          "sampleNumber": "+27600641959",
+          "telnyxMonthlyUSD": 9.5,
+          "telnyxUpfrontUSD": 9.5,
+          "quickship": false,
+          "reservable": false,
+          "requirements": [
+            {
+              "name": "Passport/ID Copy OR Business Registration Certificate (Depending on Use Case)",
+              "field_type": "document"
+            },
+            {
+              "name": "Contact Information (Name, Business Name, Phone Number)",
+              "field_type": "textual"
+            },
+            {
+              "name": "Proof of Address (Recent Bill or Invoice)",
+              "field_type": "document"
+            },
+            {
+              "name": "Worldwide Physical Address",
+              "field_type": "address"
+            }
+          ],
+          "requirementCategories": [
+            "Document",
+            "Text",
+            "Address"
+          ],
+          "reqErr": null
+        },
+        {
+          "type": "toll_free",
+          "twilioSoldThisType": false,
+          "twilioMonthlyPrice": null,
+          "telnyxCoverageListsType": true,
+          "telnyxCoverageFeatures": [
+            "voice"
+          ],
+          "searchOk": true,
+          "searchErr": null,
+          "availableCount": 5,
+          "voiceCapable": 5,
+          "voiceAndSms": 0,
+          "sampleNumber": "+27800172972",
+          "telnyxMonthlyUSD": 20,
+          "telnyxUpfrontUSD": 20,
+          "quickship": false,
+          "reservable": false,
+          "requirements": [
+            {
+              "name": "Recently Signed Letter of Intent (LOI) Within 1 Month",
+              "field_type": "document"
+            },
+            {
+              "name": "Contact Information (Name, Business Name, Phone Number)",
+              "field_type": "textual"
+            },
+            {
+              "name": "Proof of Address (Recent Bill or Invoice)",
+              "field_type": "document"
+            },
+            {
+              "name": "Worldwide Physical Address",
+              "field_type": "address"
+            },
+            {
+              "name": "South African Passport or ID Copy",
+              "field_type": "document"
+            },
+            {
+              "name": "Company Registration Certificate (Business Use Only)",
+              "field_type": "document"
+            }
+          ],
+          "requirementCategories": [
+            "Document",
+            "Text",
+            "Address"
+          ],
+          "reqErr": null
+        },
+        {
+          "type": "national",
+          "twilioSoldThisType": false,
+          "twilioMonthlyPrice": null,
+          "telnyxCoverageListsType": true,
+          "telnyxCoverageFeatures": [
+            "voice",
+            "fax",
+            "local_calling"
+          ],
+          "searchOk": true,
+          "searchErr": null,
+          "availableCount": 4,
+          "voiceCapable": 4,
+          "voiceAndSms": 0,
+          "sampleNumber": "+27875510539",
+          "telnyxMonthlyUSD": 10,
+          "telnyxUpfrontUSD": 10,
+          "quickship": false,
+          "reservable": false,
+          "requirements": [
+            {
+              "name": "Contact Information (Name, Business Name, Phone Number)",
+              "field_type": "textual"
+            },
+            {
+              "name": "Physical Address Within the Country of the Phone Number (National)",
+              "field_type": "address"
+            },
+            {
+              "name": "Proof of Address (Recent Bill or Invoice)",
+              "field_type": "document"
+            },
+            {
+              "name": "South African Passport or ID Copy",
+              "field_type": "document"
+            },
+            {
+              "name": "Company Registration Certificate (Business Use Only)",
+              "field_type": "document"
+            }
+          ],
+          "requirementCategories": [
+            "Text",
+            "Address",
+            "Document"
+          ],
+          "reqErr": null
+        }
+      ]
+    },
+    {
+      "code": "TH",
+      "name": "🇹🇭 Thailand",
+      "twilioTypes": [
+        "toll_free",
+        "mobile"
+      ],
+      "twilioAddrReq": [
+        "any"
+      ],
+      "telnyxCoverage": {
+        "numbers": true,
+        "types": [
+          "mobile",
+          "local",
+          "national",
+          "toll_free"
+        ],
+        "region": "APAC"
+      },
+      "rows": [
+        {
+          "type": "local",
+          "twilioSoldThisType": false,
+          "twilioMonthlyPrice": null,
+          "telnyxCoverageListsType": true,
+          "telnyxCoverageFeatures": [
+            "voice",
+            "local_calling"
+          ],
+          "searchOk": true,
+          "searchErr": null,
+          "availableCount": 0,
+          "voiceCapable": 0,
+          "voiceAndSms": 0,
+          "sampleNumber": null,
+          "telnyxMonthlyUSD": null,
+          "telnyxUpfrontUSD": null,
+          "quickship": false,
+          "reservable": false,
+          "requirements": [
+            {
+              "name": "Contact Information (Name, Business Name, Phone Number)",
+              "field_type": "textual"
+            },
+            {
+              "name": "Recent Proof of Address (Worldwide), Within 3 Months",
+              "field_type": "document"
+            },
+            {
+              "name": "Company Registration Certificate (Local Language or English)",
+              "field_type": "document"
+            },
+            {
+              "name": "Worldwide Physical Address",
+              "field_type": "address"
+            }
+          ],
+          "requirementCategories": [
+            "Text",
+            "Document",
+            "Address"
+          ],
+          "reqErr": null
+        },
+        {
+          "type": "mobile",
+          "twilioSoldThisType": true,
+          "twilioMonthlyPrice": 22,
+          "telnyxCoverageListsType": true,
+          "telnyxCoverageFeatures": [
+            "sms",
+            "fax",
+            "voice",
+            "local_calling"
+          ],
+          "searchOk": true,
+          "searchErr": null,
+          "availableCount": 0,
+          "voiceCapable": 0,
+          "voiceAndSms": 0,
+          "sampleNumber": null,
+          "telnyxMonthlyUSD": null,
+          "telnyxUpfrontUSD": null,
+          "quickship": false,
+          "reservable": false,
+          "requirements": [
+            {
+              "name": "Recently Signed Letter of Intent (LOI) Within 1 Month",
+              "field_type": "document"
+            },
+            {
+              "name": "Contact Information (Name, Business Name, Phone Number)",
+              "field_type": "textual"
+            },
+            {
+              "name": "Service Usage Description",
+              "field_type": "textual"
+            },
+            {
+              "name": "Recent Proof of Address (Worldwide), Within 3 Months",
+              "field_type": "document"
+            },
+            {
+              "name": "Company Registration Certificate (Local Language or English)",
+              "field_type": "document"
+            },
+            {
+              "name": "Contact Email Address of End Client",
+              "field_type": "textual"
+            },
+            {
+              "name": "Worldwide Physical Address",
+              "field_type": "address"
+            },
+            {
+              "name": "Passport or Government-Issued ID Copy (End User or Authorized Representative)",
+              "field_type": "document"
+            }
+          ],
+          "requirementCategories": [
+            "Document",
+            "Text",
+            "Address"
+          ],
+          "reqErr": null
+        },
+        {
+          "type": "toll_free",
+          "twilioSoldThisType": true,
+          "twilioMonthlyPrice": 25,
+          "telnyxCoverageListsType": true,
+          "telnyxCoverageFeatures": [
+            "voice"
+          ],
+          "searchOk": true,
+          "searchErr": null,
+          "availableCount": 0,
+          "voiceCapable": 0,
+          "voiceAndSms": 0,
+          "sampleNumber": null,
+          "telnyxMonthlyUSD": null,
+          "telnyxUpfrontUSD": null,
+          "quickship": false,
+          "reservable": false,
+          "requirements": [
+            {
+              "name": "Contact Information (Name, Business Name, Phone Number)",
+              "field_type": "textual"
+            },
+            {
+              "name": "Recent Proof of Address (Worldwide), Within 3 Months",
+              "field_type": "document"
+            },
+            {
+              "name": "Worldwide Physical Address",
+              "field_type": "address"
+            }
+          ],
+          "requirementCategories": [
+            "Text",
+            "Document",
+            "Address"
+          ],
+          "reqErr": null
+        },
+        {
+          "type": "national",
+          "twilioSoldThisType": false,
+          "twilioMonthlyPrice": null,
+          "telnyxCoverageListsType": true,
+          "telnyxCoverageFeatures": [
+            "voice"
+          ],
+          "searchOk": true,
+          "searchErr": null,
+          "availableCount": 0,
+          "voiceCapable": 0,
+          "voiceAndSms": 0,
+          "sampleNumber": null,
+          "telnyxMonthlyUSD": null,
+          "telnyxUpfrontUSD": null,
+          "quickship": false,
+          "reservable": false,
+          "requirements": [
+            {
+              "name": "Contact Information (Name, Business Name, Phone Number)",
+              "field_type": "textual"
+            },
+            {
+              "name": "Service Usage Description",
+              "field_type": "textual"
+            },
+            {
+              "name": "Proof of Address (Recent Bill or Invoice)",
+              "field_type": "document"
+            },
+            {
+              "name": "Worldwide Physical Address",
+              "field_type": "address"
+            },
+            {
+              "name": "Passport or Government-Issued ID Copy (End User or Authorized Representative)",
+              "field_type": "document"
+            },
+            {
+              "name": "Company Registration Certificate (Business Use Only)",
+              "field_type": "document"
+            }
+          ],
+          "requirementCategories": [
+            "Text",
+            "Document",
+            "Address"
+          ],
+          "reqErr": null
+        }
+      ]
+    }
+  ]
+}
