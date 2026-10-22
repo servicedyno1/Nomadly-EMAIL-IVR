@@ -1,4 +1,3 @@
-/*global process */
 // =====================================================
 // EARLY EXPRESS SERVER FOR RAILWAY HEALTH CHECKS
 // Start HTTP server immediately to pass health checks
@@ -474,8 +473,8 @@ earlyApp.get('/health', (req, res) => {
   // Live phone-call counts + which blue/green slot this is: deploy.sh holds the nginx flip
   // (drains the old slot) while calls.total > 0 so a redeploy never cuts off an active call.
   let calls, slot
-  try { calls = require('./voice-service.js').getLiveCallCounts?.() } catch (_) {}
-  try { slot = require('./active-slot').describe() } catch (_) {}
+  try { calls = require('./voice-service.js').getLiveCallCounts?.() } catch (_) { /* noop */ }
+  try { slot = require('./active-slot').describe() } catch (_) { /* noop */ }
   res.status(200).json({
     status: ready ? 'healthy' : 'starting',
     database: ready ? 'connected' : 'connecting',
@@ -901,6 +900,71 @@ function _ivrSpeedPrompt(lang, voiceName) {
     zh: `🎚 为 <b>${voiceName}</b> <b>选择语速</b>：`,
     hi: `🎚 <b>${voiceName}</b> के लिए <b>बोलने की गति चुनें</b>:`,
   }[lang] || `🎚 <b>Choose speaking speed</b> for <b>${voiceName}</b>:`)
+}
+
+// ── Bulk IVR UI helpers (preview / voicemail-drop prompt / My Campaigns list) ──
+const BULK_VM_HANGUP_BTN = '📵 Hang up (no message)'
+const _bulkEsc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+const _bulkIsTwilio = (bd) => (bd?.provider ? bd.provider === 'twilio' : !!bd?.twilioSubAccountSid)
+// One button label per clip; clips whose names clash get a " #2", " #3"… suffix.
+function _bulkClipLabels(audios) {
+  const seen = {}
+  return audios.map(au => {
+    const base = `🎵 ${String(au.name || 'Untitled').substring(0, 30)}`
+    seen[base] = (seen[base] || 0) + 1
+    return seen[base] > 1 ? `${base} #${seen[base]}` : base
+  })
+}
+
+function _bulkPreviewText(bulkData, lang) {
+  const leads = bulkData.leads || []
+  const est = bulkCallService.estimateLeadsCost(leads)
+  return [
+    `📋 <b>Campaign Preview</b>`,
+    ``,
+    `📱 Caller ID: <b>${bulkData.callerId}</b>`,
+    `📞 Leads: <b>${leads.length}</b> (max ${bulkCallService.MAX_BULK_LEADS || 500})${est.intl ? ` — ${est.domestic} US/CA · ${est.intl} international` : ''}`,
+    est.blockedLine || null,
+    `🎵 Audio: <b>${_bulkEsc(bulkData.audioName || 'Selected')}</b>`,
+    `📊 Mode: <b>${bulkData.mode === 'transfer' ? '🔗 Transfer + Report' : '📊 Report Only'}</b>`,
+    bulkData.menu ? `🔀 Menu: <b>${Object.keys(bulkData.menu).length} key(s)</b>\n${_obMenuSummary(bulkData.menu, lang)}` : (bulkData.transferNumber ? `🔗 Transfer to: <b>${bulkData.transferNumber}</b>` : null),
+    `⚡ Concurrency: <b>${bulkData.concurrency || 10}</b>`,
+    bulkData.menu ? null : `🔘 Active keys: <b>${(bulkData.activeKeys || ['1']).join(', ')}</b>`,
+    _bulkIsTwilio(bulkData) ? null : `📭 Voicemail: <b>${bulkData.voicemailAudioUrl ? `Leave "${_bulkEsc(bulkData.voicemailAudioName || 'message')}" after the beep` : 'Hang up'}</b>`,
+    ``,
+    `💰 <b>${est.rateLine}</b> (min 1 min, charged whether answered or not)`,
+    `💰 <b>Estimated cost: $${est.total.toFixed(2)}</b>`,
+    ``,
+    `Ready to launch? Tap <b>🚀 Launch Campaign</b>, or <b>⏰ Schedule for later</b>.`,
+  ].filter(v => v !== null).join('\n')
+}
+
+async function _bulkVoicemailPrompt(chatId) {
+  const audios = await audioLibraryService.listAudios(chatId)
+  const rows = [[BULK_VM_HANGUP_BTN], ..._bulkClipLabels(audios.slice(0, 20)).map(l => [l]), ['↩️ Back']]
+  const text = `📭 <b>Voicemail</b>\n\nIf a call reaches voicemail, what should happen?\n\n` +
+    `• <b>${BULK_VM_HANGUP_BTN}</b> — end the call right away\n` +
+    `• <b>🎵 Pick a clip</b> — wait for the beep, then leave that recording from your Audio Library` +
+    (audios.length ? '' : `\n\n<i>Your Audio Library is empty — upload a clip via 🎵 Audio Library to leave voicemail messages.</i>`)
+  return { text, rows }
+}
+
+function _bulkCampaignList(campaigns) {
+  const icon = { running: '▶️', paused: '⏸', scheduled: '⏰', created: '🆕', completed: '✅', cancelled: '❌' }
+  if (!campaigns.length) return { text: `📋 <b>My Campaigns</b>\n\nNo Bulk IVR campaigns yet.`, opts: { parse_mode: 'HTML' } }
+  const rows = campaigns.map((c, i) => {
+    const s = c.stats || {}
+    const when = new Date(c.createdAt || Date.now()).toISOString().replace('T', ' ').slice(5, 16)
+    const ic = icon[c.status] || '•'
+    return {
+      line: `${i + 1}. ${ic} <b>${String(c.status).toUpperCase()}</b> · ${s.completed || 0}/${s.total || 0} · ${when} UTC · ${_bulkEsc(String(c.audioName || '').slice(0, 24))}`,
+      btn: [{ text: `${i + 1}. ${ic} ${s.completed || 0}/${s.total || 0} · ${when}`, callback_data: `bulk_view:${c.id}` }],
+    }
+  })
+  return {
+    text: `📋 <b>My Bulk IVR Campaigns</b>\n\n${rows.map(r => r.line).join('\n')}\n\nTap a campaign to view, pause, resume or cancel it.`,
+    opts: { parse_mode: 'HTML', reply_markup: { inline_keyboard: rows.map(r => r.btn) } },
+  }
 }
 
 // ── Outbound multi-key menu builder (Phase 2 parity) — pure render helpers ──
@@ -1684,6 +1748,7 @@ function isBackPress(message) {
   // Fast path: emoji-prefixed English (most common UI button)
   if (m === '↩️ Back' || m === '🔙 Back' || m === '⬅️ Back') return true
   // Plain locale words (any language) — trim emojis if any
+  // eslint-disable-next-line no-misleading-character-class -- intentional: strips emoji + ZWJ/VS16 code points
   const stripped = m.replace(/^[\p{Extended_Pictographic}\u200d\ufe0f\s↩🔙]+/u, '').trim()
   // Match against the 'back' translation in any of the 4 locales
   const knownBacks = new Set([
@@ -1745,6 +1810,7 @@ const STUCK_NUDGE = {
 function isCancelPress(message) {
   if (!message || typeof message !== 'string') return false
   const m = message.trim()
+  // eslint-disable-next-line no-misleading-character-class -- intentional: strips emoji + ZWJ/VS16 code points
   const stripped = m.replace(/^[\p{Extended_Pictographic}\u200d\ufe0f\s❌❎🚫]+/u, '').trim()
   const knownCancels = new Set(['Cancel', 'Annuler', '取消', 'रद्द करें'])
   return knownCancels.has(stripped)
@@ -1758,6 +1824,7 @@ function isCancelPress(message) {
 function isYesPress(message) {
   if (!message || typeof message !== 'string') return false
   const m = message.trim()
+  // eslint-disable-next-line no-misleading-character-class -- intentional: strips emoji + ZWJ/VS16 code points
   const stripped = m.replace(/^[\p{Extended_Pictographic}\u200d\ufe0f\s✅✔]+/u, '').trim()
   const knownYes = new Set(['Yes', 'Oui', '是', 'हाँ', 'Confirm', 'Confirmer', '确认', 'पुष्टि करें'])
   return knownYes.has(stripped)
@@ -1770,6 +1837,7 @@ function isYesPress(message) {
 function isNoPress(message) {
   if (!message || typeof message !== 'string') return false
   const m = message.trim()
+  // eslint-disable-next-line no-misleading-character-class -- intentional: strips emoji + ZWJ/VS16 code points
   const stripped = m.replace(/^[\p{Extended_Pictographic}\u200d\ufe0f\s❌❎🚫]+/u, '').trim()
   const knownNo = new Set(['No', 'Non', '否', 'नहीं'])
   return knownNo.has(stripped)
@@ -6517,6 +6585,54 @@ Tap a button below to change. Changes sync to your phone on next app open.`
       return
     }
 
+    // ── Bulk IVR campaign controls: 📊 status / ⏸ pause / ▶️ resume / ❌ cancel (owner only) ──
+    if (chatId && /^bulk_(view|pause|resume|cancel|cancelyes):/.test(data)) {
+      const [verb, campaignId] = data.split(':')
+      const campaign = await bulkCallService.getCampaign(campaignId)
+      if (!campaign || String(campaign.chatId) !== chatId) {
+        try { await bot.answerCallbackQuery(query.id, { text: 'Campaign not found.' }) } catch (_) { /* ignore */ }
+        return
+      }
+      const showCard = async (prefix) => {
+        const c = await bulkCallService.getCampaign(campaignId)
+        const kb = bulkCallService.campaignControls(c)
+        return bot.sendMessage(chatId, (prefix ? `${prefix}\n\n` : '') + bulkCallService.formatCampaignStatus(c),
+          { parse_mode: 'HTML', ...(kb.length ? { reply_markup: { inline_keyboard: kb } } : {}) }).catch(() => {})
+      }
+      const esc = (s) => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      if (verb === 'bulk_view') {
+        try { await bot.answerCallbackQuery(query.id) } catch (_) { /* ignore */ }
+        return showCard()
+      }
+      if (verb === 'bulk_pause') {
+        const r = await bulkCallService.pauseCampaign(campaignId)
+        try { await bot.answerCallbackQuery(query.id, { text: r.error || 'Campaign paused' }) } catch (_) { /* ignore */ }
+        return showCard(r.error ? `⚠️ ${esc(r.error)}` : '⏸ <b>Campaign paused.</b> No new calls will be dialed — calls already in progress finish normally.')
+      }
+      if (verb === 'bulk_resume') {
+        const r = await bulkCallService.resumeCampaign(campaignId)
+        try { await bot.answerCallbackQuery(query.id, { text: r.error ? 'Could not resume' : 'Campaign resumed' }) } catch (_) { /* ignore */ }
+        return showCard(r.error ? `⚠️ ${esc(r.error)}` : '▶️ <b>Campaign resumed.</b> Dialing continues — you\'ll keep getting updates.')
+      }
+      if (verb === 'bulk_cancel') {
+        try { await bot.answerCallbackQuery(query.id) } catch (_) { /* ignore */ }
+        if (!['created', 'scheduled', 'running', 'paused'].includes(campaign.status)) return showCard('⚠️ This campaign has already finished.')
+        const pending = (campaign.leads || []).filter(l => l.status === 'pending').length
+        return bot.sendMessage(chatId,
+          `❌ <b>Cancel this campaign?</b>\n\n<b>${pending}</b> lead${pending === 1 ? '' : 's'} not dialed yet will be skipped. Calls already in progress finish normally. This can't be undone.`,
+          { parse_mode: 'HTML', reply_markup: { inline_keyboard: [[{ text: '✅ Yes, cancel campaign', callback_data: `bulk_cancelyes:${campaignId}` }], [{ text: '↩️ Keep it', callback_data: `bulk_view:${campaignId}` }]] } }
+        ).catch(() => {})
+      }
+      if (verb === 'bulk_cancelyes') {
+        const r = await bulkCallService.cancelCampaign(campaignId, 'Cancelled by user', { sendReport: false })
+        try { await bot.answerCallbackQuery(query.id, { text: r.error || 'Campaign cancelled' }) } catch (_) { /* ignore */ }
+        if (r.error) return showCard(`⚠️ ${esc(r.error)}`)
+        const tail = r.inFlight ? `${r.inFlight} call${r.inFlight === 1 ? '' : 's'} in progress will finish normally — the final report follows when ${r.inFlight === 1 ? 'it ends' : 'they end'}.` : ''
+        await bot.sendMessage(chatId, `❌ <b>Campaign cancelled.</b>\n\n${r.notCalled} lead${r.notCalled === 1 ? ' was' : 's were'} not dialed. ${tail}`.trim(), { parse_mode: 'HTML' }).catch(() => {})
+        return bulkCallService.sendCancelledReport(campaignId)
+      }
+    }
+
     // ── Save Preset handler (#1 Quick Dial Presets) ──
     if (chatId && data.startsWith('save_preset:')) {
       try { await bot.answerCallbackQuery(query.id) } catch (e) { /* ignore */ }
@@ -7643,6 +7759,7 @@ bot?.on('message', msg => {
   }
 
   // (group handling moved above the queue)
+  // eslint-disable-next-line no-constant-condition -- intentionally disabled legacy path
   if (false) {
     if (notifyGroupsCol?.updateOne && chatId) {
       // ✅ FIX: This code path is disabled (if false) but fix for consistency
@@ -9787,6 +9904,7 @@ bot?.on('message', msg => {
     bulkSelectKeys: 'bulkSelectKeys',
     bulkEnterCustomKeys: 'bulkEnterCustomKeys',
     bulkSetConcurrency: 'bulkSetConcurrency',
+    bulkSelectVoicemail: 'bulkSelectVoicemail',
     bulkConfirm: 'bulkConfirm',
     bulkRunning: 'bulkRunning',
     bulkTTSCategory: 'bulkTTSCategory',
@@ -10186,7 +10304,7 @@ bot?.on('message', msg => {
         [pc.testSipFree],
         [ivrBtnHub],
         [pc.buyPhoneNumber],
-        [pc.bulkCallCampaign],
+        [pc.bulkCallCampaign, pc.myCampaigns],
         [pc.audioLibrary],
         [pc.myNumbers],
         [pc.sipSettings],
@@ -10286,7 +10404,7 @@ bot?.on('message', msg => {
       }
       // ── OPEN MARKETPLACE — FREE to browse for EVERYONE ──
       // The one-time $50 fee is a SELLER fee, charged only when the user tries to
-      // LIST a product or REPLY to a buyer (see the mpHome/​mpMyListings list
+      // LIST a product or REPLY to a buyer (see the mpHome/mpMyListings list
       // handlers and the mp:reply callback → goto.mpSellerPaywall). Any bot user
       // can open the marketplace and browse listings without paying anything.
       await set(state, chatId, 'action', a.mpHome)
@@ -12405,8 +12523,7 @@ Enter new value:`), bc)
 
     askVPSPlanAutoRenewal: async () => {
       // Auto-renewal defaults ON — redirect to OS or summary
-      const vpsDetails = info?.vpsDetails
-      if (!vpsDetails) vpsDetails = {}
+      const vpsDetails = info?.vpsDetails || {}
       vpsDetails.autoRenewalPlan = true
       saveInfo('vpsDetails', vpsDetails)
       if (vpsDetails?.isRDP) return goto.vpsAskPaymentConfirmation()
@@ -12853,8 +12970,8 @@ Enter new value:`), bc)
   // insufficient-balance users were wrongly marked as buyers and dropped from every
   // recovery sequence (welcome offer / browse follow-up / cart nudge).
   const _finalizeWalletPurchase = () => {
-    try { if (cartRecovery) cartRecovery.recordPaymentCompleted(chatId) } catch (_) {}
-    try { if (userConversion) userConversion.markPurchased(chatId) } catch (_) {}
+    try { if (cartRecovery) cartRecovery.recordPaymentCompleted(chatId) } catch (_) { /* noop */ }
+    try { if (userConversion) userConversion.markPurchased(chatId) } catch (_) { /* noop */ }
   }
   // Shared balance-wall (audit #5 + #16): saves a RESUMABLE order so the user
   // can finish it in one tap after topping up, logs the funnel event, then
@@ -13001,6 +13118,7 @@ Enter new value:`), bc)
       } catch (domainErr) {
         log(`[Domain] Purchase crashed for ${chatId}: ${domainErr.message}`)
         send(chatId, trans('t.purchaseFailed'), trans('o'))
+        const name = await get(nameOf, chatId).catch(() => null)
         send(TELEGRAM_ADMIN_CHAT_ID, `🚨 <b>Domain purchase crash</b>\nUser: ${adminUserTag(name, chatId)}\nDomain: ${domain}\nError: ${domainErr.message}`, adminMsgOpts({ chatId }))
       }
     },
@@ -20222,7 +20340,7 @@ ${message.replace(/\n/g, '<br>')}
     const listingsList = info?.mpListingsList || []
     const match = listingsList.find(l => {
       const titleSlice = l.title.slice(0, 35)
-      return message.includes(titleSlice) || titleSlice.includes(message.replace(/^[✅🟡]+ ?(SOLD:?)?\s*/, '').trim())
+      return message.includes(titleSlice) || titleSlice.includes(message.replace(/^[✅🟡]+ ?(SOLD:?)?\s*/u, '').trim())
     })
     if (!match) return goto.marketplace()
     const product = await marketplaceService.getProduct(match.id)
@@ -24919,7 +25037,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       [pc.testSipFree],
       [ivrBtnHiw],
       [pc.buyPhoneNumber],
-      [pc.bulkCallCampaign],
+      [pc.bulkCallCampaign, pc.myCampaigns],
       [pc.audioLibrary],
       [pc.myNumbers],
       [pc.sipSettings],
@@ -25208,7 +25326,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
         disable_web_page_preview: true,
         reply_markup: { keyboard: [
           [pc.ivrOutboundCall],
-          [pc.bulkCallCampaign],
+          [pc.bulkCallCampaign, pc.myCampaigns],
           [pc.audioLibrary],
           [pc.testSipFree],
           [pc.buyPhoneNumber],
@@ -25249,6 +25367,12 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       return send(chatId, pMsg.sipTestCode(result.otp, result.callsRemaining), { parse_mode: 'HTML', reply_markup: { keyboard: [[TRIAL_PRO_CTA[info?.userLanguage || 'en'] || TRIAL_PRO_CTA.en], [user.cloudPhone], ['↩️ Back']], resize_keyboard: true } })
     }
 
+    // ── My Bulk IVR Campaigns (view / pause / resume / cancel) ──
+    if (message === pc.myCampaigns) {
+      const list = _bulkCampaignList(await bulkCallService.getUserCampaigns(chatId, 10))
+      return send(chatId, list.text, list.opts)
+    }
+
     // ── Bulk Call Campaign ──
     if (message === pc.bulkCallCampaign) {
       // Bulk Call Campaign — requires Pro or Business plan
@@ -25269,17 +25393,24 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       // Filter to only numbers with eligible plans for bulk calls
       const eligibleNumbers = userNumbers.filter(n => phoneConfig.canAccessFeature(n.plan, 'bulkCall'))
 
-      // Build caller ID list — ONLY user-owned Twilio numbers with sub-accounts
+      // Build caller ID list — user-owned Telnyx numbers (Telnyx Call Control engine) plus
+      // user-owned Twilio numbers with sub-accounts (only while Twilio is enabled).
       // Security: Verified caller IDs from the main Twilio account are NOT exposed to users
-      // This prevents unauthorized use of the main Twilio account for Bulk IVR
-      const bulkCapableNumbers = eligibleNumbers.filter(n => n.provider === 'twilio').map(n => ({
+      const isBulkCapable = (n) => n.provider === 'twilio' ? phoneConfig.isTwilioEnabled() : true
+      const bulkCapableNumbers = eligibleNumbers.filter(isBulkCapable).map(n => n.provider === 'twilio' ? ({
         phoneNumber: n.phoneNumber,
         label: `${n.phoneNumber} ☎️`,
         type: 'owned_twilio',
+        provider: 'twilio',
         subAccountSid: n.twilioSubAccountSid || userData?.twilioSubAccountSid || null,
         subAccountToken: n.twilioSubAccountToken || userData?.twilioSubAccountToken || null,
+      }) : ({
+        phoneNumber: n.phoneNumber,
+        label: `${n.phoneNumber} ☎️`,
+        type: 'owned_telnyx',
+        provider: 'telnyx',
       }))
-      const nonBulkNumbers = eligibleNumbers.filter(n => n.provider !== 'twilio').map(n => ({
+      const nonBulkNumbers = eligibleNumbers.filter(n => !isBulkCapable(n)).map(n => ({
         phoneNumber: n.phoneNumber,
         label: `${n.phoneNumber} ⚠️ Not supported`,
         type: 'not_bulk_capable',
@@ -25364,6 +25495,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
 
     // ── Handle "New Call" → show caller ID selection ──
     if (message === '📊 Menu Stats') {
+      const voiceService = require('./voice-service.js')
       const stats = await voiceService.getOutboundMenuAnalytics(chatId, 30)
       const actionLabel = (act) => act === 'forward' ? '📞 forward' : act === 'message' ? '💬 message' : act === 'submenu' ? '📂 sub-menu' : (act || '—')
       if (!stats.totalPresses) {
@@ -27309,6 +27441,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     const bulkData = info?.bulkData || {}
     bulkData.callerId = found.phoneNumber
     bulkData.callerType = found.type
+    bulkData.provider = found.provider || (found.type === 'owned_twilio' ? 'twilio' : 'telnyx')
     bulkData.twilioSubAccountSid = found.subAccountSid || null
     bulkData.twilioSubAccountToken = found.subAccountToken || null
     await saveInfo('bulkData', bulkData)
@@ -27364,16 +27497,20 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     await saveInfo('bulkData', bulkData)
 
     const bulkRate = bulkCallService.BULK_CALL_RATE || 0.15
-    const estCost = (leads.length * bulkRate).toFixed(2)
+    const leadsEst = bulkCallService.estimateLeadsCost(leads)
+    const estCost = leadsEst.total.toFixed(2)
     const preview = leads.slice(0, 5).map(l => `  ${l.number}${l.name ? ' — ' + escHtml(l.name) : ''}`).join('\n')
     const more = leads.length > 5 ? `\n  ... and ${leads.length - 5} more` : ''
-    const errNote = errors.length > 0 ? `\n⚠️ ${errors.length} invalid lines skipped` : ''
+    const errNote = (errors.length > 0 ? `\n⚠️ ${errors.length} invalid lines skipped` : '') +
+      (leadsEst.intl ? `\n🌍 ${leadsEst.intl} international lead${leadsEst.intl === 1 ? '' : 's'} — ${leadsEst.rateLine}` : '') +
+      (leadsEst.blockedLine ? `\n${leadsEst.blockedLine}` : '')
 
     await set(state, chatId, 'action', a.bulkSelectAudio)
     const audios = await audioLibraryService.listAudios(chatId)
-    const audioBtns = audios.map(a => [`🎵 ${a.name.substring(0, 30)}`])
+    const audioBtns = _bulkClipLabels(audios).map(l => [l])
     const btns = [...audioBtns, ['📎 Upload New Audio'], ['📝 Use IVR Template'], ['↩️ Back']]
-    return send(chatId, trans('t.cp_138', leads.length, preview, more, errNote, estCost, bulkRate.toFixed(2)), k.of(btns))
+    const rateLabel = leadsEst.intl ? `${bulkRate.toFixed(2)}–${leadsEst.intlRate.toFixed(2)}` : bulkRate.toFixed(2)
+    return send(chatId, trans('t.cp_138', leads.length, preview, more, errNote, estCost, rateLabel), k.of(btns))
   }
 
   if (action === a.bulkSelectAudio) {
@@ -27396,7 +27533,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     if (message.startsWith('🎵 ')) {
       const audioName = message.replace('🎵 ', '').trim()
       const audios = await audioLibraryService.listAudios(chatId)
-      const found = audios.find(a => a.name.substring(0, 30) === audioName)
+      const found = audios[_bulkClipLabels(audios).indexOf(message)] || audios.find(a => a.name.substring(0, 30) === audioName)
       if (!found) return send(chatId, trans('t.cp_142'))
       const bulkData = info?.bulkData || {}
       bulkData.audioId = found.id
@@ -27413,7 +27550,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     if (isBackPress(message)) {
       await set(state, chatId, 'action', a.bulkSelectAudio)
       const audios = await audioLibraryService.listAudios(chatId)
-      const audioBtns = audios.map(a => [`🎵 ${a.name.substring(0, 30)}`])
+      const audioBtns = _bulkClipLabels(audios).map(l => [l])
       const btns = [...audioBtns, ['📎 Upload New Audio'], ['📝 Use IVR Template'], ['↩️ Back']]
       return send(chatId, trans('t.cp_145'), k.of(btns))
     }
@@ -27458,7 +27595,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     if (isBackPress(message)) {
       await set(state, chatId, 'action', a.bulkSelectAudio)
       const audios = await audioLibraryService.listAudios(chatId)
-      const audioBtns = audios.map(a => [`🎵 ${a.name.substring(0, 30)}`])
+      const audioBtns = _bulkClipLabels(audios).map(l => [l])
       return send(chatId, trans('t.cp_150'), k.of([...audioBtns, ['📎 Upload New Audio'], ['↩️ Back']]))
     }
     const bulkData = info?.bulkData || {}
@@ -27618,7 +27755,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     if (isBackPress(message)) {
       await set(state, chatId, 'action', a.bulkSelectAudio)
       const audios = await audioLibraryService.listAudios(chatId)
-      const audioBtns = audios.map(a => [`🎵 ${a.name.substring(0, 30)}`])
+      const audioBtns = _bulkClipLabels(audios).map(l => [l])
       return send(chatId, trans('t.cp_165'), k.of([...audioBtns, ['📎 Upload New Audio'], ['📝 Use IVR Template'], ['↩️ Back']]))
     }
     if (message === '✍️ Custom Script' || message.startsWith('✍️')) {
@@ -28031,32 +28168,47 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     bulkData.concurrency = num
     await saveInfo('bulkData', bulkData)
 
-    // Show campaign preview
+    // Telnyx campaigns: choose what happens on voicemail, then preview
+    if (!_bulkIsTwilio(bulkData)) {
+      await set(state, chatId, 'action', a.bulkSelectVoicemail)
+      const vm = await _bulkVoicemailPrompt(chatId)
+      return send(chatId, vm.text, k.of(vm.rows))
+    }
     await set(state, chatId, 'action', a.bulkConfirm)
-    const leadCount = (bulkData.leads || []).length
-    const bulkRate = bulkCallService.BULK_CALL_RATE || 0.15
-    const estCost = (leadCount * bulkRate).toFixed(2)
-    const preview = [
-      `📋 <b>Campaign Preview</b>`,
-      ``,
-      `📱 Caller ID: <b>${bulkData.callerId}</b>`,
-      `📞 Leads: <b>${leadCount}</b> (max ${bulkCallService.MAX_BULK_LEADS || 500})`,
-      `🎵 Audio: <b>${bulkData.audioName || 'Selected'}</b>`,
-      `📊 Mode: <b>${bulkData.mode === 'transfer' ? '🔗 Transfer + Report' : '📊 Report Only'}</b>`,
-      bulkData.menu ? `🔀 Menu: <b>${Object.keys(bulkData.menu).length} key(s)</b>\n${_obMenuSummary(bulkData.menu, lang)}` : (bulkData.transferNumber ? `🔗 Transfer to: <b>${bulkData.transferNumber}</b>` : null),
-      `⚡ Concurrency: <b>${num}</b>`,
-      bulkData.menu ? null : `🔘 Active keys: <b>${(bulkData.activeKeys || ['1']).join(', ')}</b>`,
-      ``,
-      `💰 <b>Rate: $${bulkRate.toFixed(2)}/min per number</b> (min 1 min, charged whether answered or not)`,
-      `💰 <b>Estimated cost: $${estCost}</b>`,
-      ``,
-      `Ready to launch? Tap <b>🚀 Launch Campaign</b>, or <b>⏰ Schedule for later</b>.`,
-    ].filter(Boolean).join('\n')
-    return send(chatId, preview, k.of([['🚀 Launch Campaign'], ['⏰ Schedule for later'], ['↩️ Back']]))
+    return send(chatId, _bulkPreviewText(bulkData, lang), k.of([['🚀 Launch Campaign'], ['⏰ Schedule for later'], ['↩️ Back']]))
+  }
+
+  if (action === a.bulkSelectVoicemail) {
+    if (isBackPress(message)) {
+      await set(state, chatId, 'action', a.bulkSetConcurrency)
+      return send(chatId, trans('t.cp_216'), k.of([['5'], ['10'], ['15'], ['20'], ['↩️ Back']]))
+    }
+    const bulkData = info?.bulkData || {}
+    if (message === BULK_VM_HANGUP_BTN) {
+      bulkData.voicemailAudioUrl = null
+      bulkData.voicemailAudioName = null
+    } else {
+      const audios = await audioLibraryService.listAudios(chatId)
+      const picked = audios.slice(0, 20)[_bulkClipLabels(audios.slice(0, 20)).indexOf(message)]
+      if (!picked || !/^https?:\/\//i.test(picked.audioUrl || '')) {
+        const vm = await _bulkVoicemailPrompt(chatId)
+        return send(chatId, `⚠️ Please pick an option from the list.\n\n${vm.text}`, k.of(vm.rows))
+      }
+      bulkData.voicemailAudioUrl = picked.audioUrl
+      bulkData.voicemailAudioName = picked.name
+    }
+    await saveInfo('bulkData', bulkData)
+    await set(state, chatId, 'action', a.bulkConfirm)
+    return send(chatId, _bulkPreviewText(bulkData, lang), k.of([['🚀 Launch Campaign'], ['⏰ Schedule for later'], ['↩️ Back']]))
   }
 
   if (action === a.bulkConfirm) {
     if (isBackPress(message)) {
+      if (!_bulkIsTwilio(info?.bulkData || {})) {
+        await set(state, chatId, 'action', a.bulkSelectVoicemail)
+        const vm = await _bulkVoicemailPrompt(chatId)
+        return send(chatId, vm.text, k.of(vm.rows))
+      }
       await set(state, chatId, 'action', a.bulkSetConcurrency)
       return send(chatId, trans('t.cp_216'), k.of([['5'], ['10'], ['15'], ['20'], ['↩️ Back']]))
     }
@@ -28079,6 +28231,9 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
           concurrency: bulkData.concurrency || 10,
           holdMusic: bulkData.mode === 'transfer',
           leads: bulkData.leads,
+          provider: bulkData.provider || null,
+          voicemailAudioUrl: bulkData.voicemailAudioUrl || null,
+          voicemailAudioName: bulkData.voicemailAudioName || null,
           twilioSubAccountSid: bulkData.twilioSubAccountSid || null,
           twilioSubAccountToken: bulkData.twilioSubAccountToken || null,
         })
@@ -28089,7 +28244,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
           return send(chatId, trans('t.cp_219', sanitizeProviderError(startResult.error, 'voice')), k.of([['↩️ Back']]))
         }
         // Campaign is now running — user gets real-time updates
-        return send(chatId, trans('t.cp_220'), k.of([['📊 Show Status']]))
+        return send(chatId, trans('t.cp_220'), k.of([['📊 Show Status'], [phoneConfig.getBtn(info?.userLanguage || 'en').myCampaigns], ['↩️ Back']]))
       } catch (e) {
         log(`[BulkCall] Launch error: ${e.message}`)
         return send(chatId, trans('t.cp_221', sanitizeProviderError(e.message, 'voice')), k.of([['↩️ Back']]))
@@ -28139,6 +28294,9 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
         concurrency: bulkData.concurrency || 10,
         holdMusic: bulkData.mode === 'transfer',
         leads: bulkData.leads,
+        provider: bulkData.provider || null,
+        voicemailAudioUrl: bulkData.voicemailAudioUrl || null,
+        voicemailAudioName: bulkData.voicemailAudioName || null,
         twilioSubAccountSid: bulkData.twilioSubAccountSid || null,
         twilioSubAccountToken: bulkData.twilioSubAccountToken || null,
         scheduledFor,
@@ -28179,33 +28337,26 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
   }
 
   if (action === a.bulkRunning) {
+    const pcR = phoneConfig.getBtn(info?.userLanguage || 'en')
+    const runKb = k.of([['📊 Show Status'], [pcR.myCampaigns], ['↩️ Back']])
+    if (isBackPress(message) || isCancelPress(message)) return goto.submenu5()
+    if (message === pcR.myCampaigns) {
+      const list = _bulkCampaignList(await bulkCallService.getUserCampaigns(chatId, 10))
+      return send(chatId, list.text, list.opts)
+    }
     if (message === '📊 Show Status') {
       const campaignId = info?.activeCampaignId
       if (campaignId) {
         const campaign = await bulkCallService.getCampaign(campaignId)
         if (campaign) {
-          const s = campaign.stats
-          const pct = s.total > 0 ? Math.round((s.completed / s.total) * 100) : 0
-          const statusMsg = [
-            `📊 <b>Campaign Status</b>`,
-            ``,
-            `Progress: <b>${s.completed}/${s.total}</b> (${pct}%)`,
-            `✅ Answered: <b>${s.answered}</b>`,
-            `🔘 Key Pressed: <b>${s.keyPressed}</b>`,
-            campaign.mode === 'transfer' ? `🔗 Transferred: <b>${s.transferred}</b>` : null,
-            `📵 No Answer: <b>${s.noAnswer}</b>`,
-            `📵 Hung Up: <b>${s.hungUp}</b>`,
-            `❌ Failed: <b>${s.failed}</b>`,
-            ``,
-            `Status: <b>${campaign.status.toUpperCase()}</b>`,
-          ].filter(Boolean).join('\n')
-          send(chatId, statusMsg, { parse_mode: 'HTML' })
+          const kb = bulkCallService.campaignControls(campaign)
+          send(chatId, bulkCallService.formatCampaignStatus(campaign), { parse_mode: 'HTML', ...(kb.length ? { reply_markup: { inline_keyboard: kb } } : {}) })
         }
       }
-      return send(chatId, trans('t.cp_223'), k.of([['📊 Show Status']]))
+      return send(chatId, trans('t.cp_223'), runKb)
     }
     // Any other message while campaign is running
-    return send(chatId, trans('t.cp_224'), k.of([['📊 Show Status']]))
+    return send(chatId, trans('t.cp_224'), runKb)
   }
 
   // ── BUY FLOW: Select Country ──
@@ -28236,7 +28387,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     await saveInfo('cpCountryName', message)
     await saveInfo('cpProvider', nativeProvider)
     // Check if this country supports dual-provider search (Telnyx countries can also search Twilio)
-    const canSearchBoth = (nativeProvider === 'telnyx') // Telnyx countries (US, CA) — search both
+    const canSearchBoth = (nativeProvider === 'telnyx') && phoneConfig.isTwilioEnabled() // Telnyx countries (US, CA) — search both
     await saveInfo('cpCanSearchBoth', canSearchBoth)
     await set(state, chatId, 'action', a.cpSelectType)
     // Show available types for this country
@@ -28294,7 +28445,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
         telnyxApi.searchNumbers(cc, numberType, null, 3).catch(() => []),
         twilioService.searchNumbers(cc, numberType, 3).catch(() => []),
       ])
-      telnyxResults.forEach(r => { r._provider = 'telnyx'; r._bulkIvrCapable = false })
+      telnyxResults.forEach(r => { r._provider = 'telnyx'; r._bulkIvrCapable = true })
       twilioResults.forEach(r => { r._provider = 'twilio'; r._bulkIvrCapable = true })
       results = [...telnyxResults, ...twilioResults]
     } else {
@@ -28304,7 +28455,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
         : await telnyxApi.searchNumbers(cc, numberType, null, 5)
       results.forEach(r => {
         r._provider = provider
-        r._bulkIvrCapable = (provider === 'twilio')
+        r._bulkIvrCapable = true
       })
     }
 
@@ -28347,7 +28498,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
         telnyxApi.searchNumbers(info?.cpCountryCode || 'US', info?.cpNumberType || 'local', areaCode, 3).catch(() => []),
         twilioService.searchNumbers(info?.cpCountryCode || 'US', info?.cpNumberType || 'local', 3, areaCode).catch(() => []),
       ])
-      telnyxResults.forEach(r => { r._provider = 'telnyx'; r._bulkIvrCapable = false })
+      telnyxResults.forEach(r => { r._provider = 'telnyx'; r._bulkIvrCapable = true })
       twilioResults.forEach(r => { r._provider = 'twilio'; r._bulkIvrCapable = true })
       results = [...telnyxResults, ...twilioResults]
     } else {
@@ -28356,7 +28507,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       } else {
         results = await telnyxApi.searchNumbers(info?.cpCountryCode || 'US', info?.cpNumberType || 'local', areaCode, 5)
       }
-      results.forEach(r => { r._provider = provider; r._bulkIvrCapable = (provider === 'twilio') })
+      results.forEach(r => { r._provider = provider; r._bulkIvrCapable = true })
     }
 
     if (!results.length) return send(chatId, cpTxt.noSearchResults, k.of([[pc.back]]))
@@ -28396,7 +28547,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
         telnyxApi.searchNumbers(info?.cpCountryCode || 'US', info?.cpNumberType || 'local', areaCode, 3).catch(() => []),
         twilioService.searchNumbers(info?.cpCountryCode || 'US', info?.cpNumberType || 'local', 3, areaCode).catch(() => []),
       ])
-      telnyxResults.forEach(r => { r._provider = 'telnyx'; r._bulkIvrCapable = false })
+      telnyxResults.forEach(r => { r._provider = 'telnyx'; r._bulkIvrCapable = true })
       twilioResults.forEach(r => { r._provider = 'twilio'; r._bulkIvrCapable = true })
       results = [...telnyxResults, ...twilioResults]
     } else {
@@ -28405,7 +28556,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       } else {
         results = await telnyxApi.searchNumbers(info?.cpCountryCode || 'US', info?.cpNumberType || 'local', areaCode, 5)
       }
-      results.forEach(r => { r._provider = provider; r._bulkIvrCapable = (provider === 'twilio') })
+      results.forEach(r => { r._provider = provider; r._bulkIvrCapable = true })
     }
 
     if (!results.length) return send(chatId, cpTxt.noSearchResults + '\nTry a different area code.', k.of([[pc.back]]))
@@ -28445,7 +28596,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
           telnyxApi.searchNumbers(info?.cpCountryCode || 'US', info?.cpNumberType || 'local', info?.cpAreaCode, 3).catch(() => []),
           twilioService.searchNumbers(info?.cpCountryCode || 'US', info?.cpNumberType || 'local', 3, info?.cpAreaCode || null).catch(() => []),
         ])
-        telnyxResults.forEach(r => { r._provider = 'telnyx'; r._bulkIvrCapable = false })
+        telnyxResults.forEach(r => { r._provider = 'telnyx'; r._bulkIvrCapable = true })
         twilioResults.forEach(r => { r._provider = 'twilio'; r._bulkIvrCapable = true })
         results = [...telnyxResults, ...twilioResults]
       } else {
@@ -28454,7 +28605,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
         } else {
           results = await telnyxApi.searchNumbers(info?.cpCountryCode || 'US', info?.cpNumberType || 'local', info?.cpAreaCode, 5)
         }
-        results.forEach(r => { r._provider = provider; r._bulkIvrCapable = (provider === 'twilio') })
+        results.forEach(r => { r._provider = provider; r._bulkIvrCapable = true })
       }
 
       if (!results.length) return send(chatId, cpTxt.noSearchResults, k.of([[pc.back]]))
@@ -30125,6 +30276,10 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
 
     // Renew / Change Plan
     if (message === pc.renewChangePlan) {
+      // Held Twilio number (TWILIO_ENABLED=false): no renewals/charges until migrated
+      if (phoneConfig.isHeldTwilioNumber(num)) {
+        return send(chatId, phoneConfig.twilioUpgradeHoldMsg(info?.userLanguage || 'en', num.expiresAt), { parse_mode: 'HTML' })
+      }
       await set(state, chatId, 'action', a.cpRenewPlan)
       const plan = phoneConfig.plans[num.plan] || { name: num.plan, price: num.planPrice }
       return send(chatId, cpTxt.renewMenu(num.phoneNumber, plan.name, num.planPrice, num.expiresAt, num.autoRenew), k.of([
@@ -30250,7 +30405,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     await saveInfo('cpCountryCode', countryCode)
     await saveInfo('cpCountryName', message)
     await saveInfo('cpProvider', nativeProvider)
-    const canSearchBoth = (nativeProvider === 'telnyx')
+    const canSearchBoth = (nativeProvider === 'telnyx') && phoneConfig.isTwilioEnabled()
     await saveInfo('cpCanSearchBoth', canSearchBoth)
     await set(state, chatId, 'action', a.cpSubAddType)
     const types = countryEntry?.types || ['local', 'toll_free']
@@ -30299,14 +30454,14 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
         telnyxApi.searchNumbers(cc, numberType, null, 3).catch(() => []),
         twilioService.searchNumbers(cc, numberType, 3).catch(() => []),
       ])
-      telnyxResults.forEach(r => { r._provider = 'telnyx'; r._bulkIvrCapable = false })
+      telnyxResults.forEach(r => { r._provider = 'telnyx'; r._bulkIvrCapable = true })
       twilioResults.forEach(r => { r._provider = 'twilio'; r._bulkIvrCapable = true })
       results = [...telnyxResults, ...twilioResults]
     } else {
       results = provider === 'twilio'
         ? await twilioService.searchNumbers(cc, numberType, 5)
         : await telnyxApi.searchNumbers(cc, numberType, null, 5)
-      results.forEach(r => { r._provider = provider; r._bulkIvrCapable = (provider === 'twilio') })
+      results.forEach(r => { r._provider = provider; r._bulkIvrCapable = true })
     }
     if (!results.length) return send(chatId, cpTxt.noSearchResults, k.of([[pc.back]]))
     await saveInfo('cpSearchResults', results)
@@ -30342,7 +30497,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
         telnyxApi.searchNumbers(info?.cpCountryCode || 'US', info?.cpNumberType || 'local', areaCode, 3).catch(() => []),
         twilioService.searchNumbers(info?.cpCountryCode || 'US', info?.cpNumberType || 'local', 3, areaCode).catch(() => []),
       ])
-      telnyxResults.forEach(r => { r._provider = 'telnyx'; r._bulkIvrCapable = false })
+      telnyxResults.forEach(r => { r._provider = 'telnyx'; r._bulkIvrCapable = true })
       twilioResults.forEach(r => { r._provider = 'twilio'; r._bulkIvrCapable = true })
       results = [...telnyxResults, ...twilioResults]
     } else {
@@ -30352,7 +30507,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       } else {
         results = await telnyxApi.searchNumbers(info?.cpCountryCode || 'US', info?.cpNumberType || 'local', areaCode, 5)
       }
-      results.forEach(r => { r._provider = provider; r._bulkIvrCapable = (provider === 'twilio') })
+      results.forEach(r => { r._provider = provider; r._bulkIvrCapable = true })
     }
     if (!results.length) return send(chatId, cpTxt.noSearchResults, k.of([[pc.back]]))
     await saveInfo('cpSearchResults', results)
@@ -30388,7 +30543,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
         telnyxApi.searchNumbers(info?.cpCountryCode || 'US', info?.cpNumberType || 'local', areaCode, 3).catch(() => []),
         twilioService.searchNumbers(info?.cpCountryCode || 'US', info?.cpNumberType || 'local', 3, areaCode).catch(() => []),
       ])
-      telnyxResults.forEach(r => { r._provider = 'telnyx'; r._bulkIvrCapable = false })
+      telnyxResults.forEach(r => { r._provider = 'telnyx'; r._bulkIvrCapable = true })
       twilioResults.forEach(r => { r._provider = 'twilio'; r._bulkIvrCapable = true })
       results = [...telnyxResults, ...twilioResults]
     } else {
@@ -30398,7 +30553,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       } else {
         results = await telnyxApi.searchNumbers(info?.cpCountryCode || 'US', info?.cpNumberType || 'local', areaCode, 5)
       }
-      results.forEach(r => { r._provider = provider; r._bulkIvrCapable = (provider === 'twilio') })
+      results.forEach(r => { r._provider = provider; r._bulkIvrCapable = true })
     }
     if (!results.length) return send(chatId, cpTxt.noSearchResults + '\nTry a different area code.', k.of([[pc.back]]))
     await saveInfo('cpSearchResults', results)
@@ -30431,7 +30586,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
           telnyxApi.searchNumbers(info?.cpCountryCode || 'US', info?.cpNumberType || 'local', info?.cpAreaCode, 3).catch(() => []),
           twilioService.searchNumbers(info?.cpCountryCode || 'US', info?.cpNumberType || 'local', 3, info?.cpAreaCode || null).catch(() => []),
         ])
-        telnyxResults.forEach(r => { r._provider = 'telnyx'; r._bulkIvrCapable = false })
+        telnyxResults.forEach(r => { r._provider = 'telnyx'; r._bulkIvrCapable = true })
         twilioResults.forEach(r => { r._provider = 'twilio'; r._bulkIvrCapable = true })
         results = [...telnyxResults, ...twilioResults]
       } else {
@@ -30440,7 +30595,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
         } else {
           results = await telnyxApi.searchNumbers(info?.cpCountryCode || 'US', info?.cpNumberType || 'local', info?.cpAreaCode, 5)
         }
-        results.forEach(r => { r._provider = provider; r._bulkIvrCapable = (provider === 'twilio') })
+        results.forEach(r => { r._provider = provider; r._bulkIvrCapable = true })
       }
       if (!results.length) return send(chatId, cpTxt.noSearchResults, k.of([[pc.back]]))
       await saveInfo('cpSearchResults', results)
@@ -33605,6 +33760,10 @@ Select a category:`), k.of(catBtns))
       await set(state, chatId, 'action', a.cpManageNumber)
       return showManageScreen(chatId, num)
     }
+    // Held Twilio number (TWILIO_ENABLED=false): block Renew Now / Auto-Renew toggle / Change Plan
+    if (phoneConfig.isHeldTwilioNumber(num)) {
+      return send(chatId, phoneConfig.twilioUpgradeHoldMsg(info?.userLanguage || 'en', num.expiresAt), { parse_mode: 'HTML' })
+    }
     // Toggle Auto-Renew
     if (message.startsWith('🔁 Auto-Renew')) {
       const newState = !num.autoRenew
@@ -33655,6 +33814,9 @@ Select a category:`), k.of(catBtns))
         [pc.changePlan],
         ['🔁 Auto-Renew: ' + (num.autoRenew ? '✅ ON' : '❌ OFF')],
       ]))
+    }
+    if (phoneConfig.isHeldTwilioNumber(num)) {
+      return send(chatId, phoneConfig.twilioUpgradeHoldMsg(info?.userLanguage || 'en', num.expiresAt), { parse_mode: 'HTML' })
     }
 
     // Block "Coming Soon" plans
@@ -37691,8 +37853,8 @@ async function checkVPSPlansExpiryandPayment() {
           mirrorGrace: isRdpBox ? ((inst, fields) => (typeof rdpSvc.markGrace === 'function') ? rdpSvc.markGrace(inst, fields) : Promise.resolve()) : null,
           mirrorDestroy: isRdpBox ? ((inst) => (typeof rdpSvc.markGraceDestroy === 'function') ? rdpSvc.markGraceDestroy(inst) : Promise.resolve()) : null,
           notifyUser: (cid, key, args) => { try { send(cid, translation(key, lang, ...(args || []))) } catch (e) { log(`[DO Grace] notify failed: ${e.message}`) } },
-          notifyReseller: (event, payload) => { try { resellerWebhooks.emit(db, { chatId: vpsPlan.chatId, event, instanceId: vpsPlan.vpsId || vpsPlan._id, payload, log }).catch(() => {}) } catch (_) {} },
-          notifyAdmin: (text) => { try { send(TELEGRAM_ADMIN_CHAT_ID, text, adminMsgOpts({ chatId: vpsPlan.chatId })) } catch (_) {} },
+          notifyReseller: (event, payload) => { try { resellerWebhooks.emit(db, { chatId: vpsPlan.chatId, event, instanceId: vpsPlan.vpsId || vpsPlan._id, payload, log }).catch(() => {}) } catch (_) { /* noop */ } },
+          notifyAdmin: (text) => { try { send(TELEGRAM_ADMIN_CHAT_ID, text, adminMsgOpts({ chatId: vpsPlan.chatId })) } catch (_) { /* noop */ } },
           log,
         })
       }
@@ -38015,7 +38177,7 @@ const buyVPSPlanFullProcess = async (chatId, lang, vpsDetails) => {
             const reason = (details?.logs || []).slice(-1)[0]?.message || details.status
             console.log(`[VPS] provider reports ${details.status} for ${pollId} — aborting purchase: ${reason}`)
             if (typeof vpsPlansOf !== 'undefined' && vpsPlansOf) await vpsPlansOf.deleteOne(dbMatchKey)
-            try { await progress.fail(({ en: 'Setup failed', fr: 'Échec de la configuration', zh: '设置失败', hi: 'सेटअप विफल' }[lang]) || 'Setup failed') } catch (_) {}
+            try { await progress.fail(({ en: 'Setup failed', fr: 'Échec de la configuration', zh: '设置失败', hi: 'सेटअप विफल' }[lang]) || 'Setup failed') } catch (_) { /* noop */ }
             const m = translation('vp.errorPurchasingVPS', lang, vpsDetails.plan, vpsDetails.isRDP)
             sendMessage(chatId, m)
             sendMessage(TELEGRAM_DEV_CHAT_ID, `${m}\n\n${pollId}: ${reason}`)
@@ -38078,7 +38240,7 @@ const buyVPSPlanFullProcess = async (chatId, lang, vpsDetails) => {
                     sendMessage(cChat, note, { parse_mode: 'HTML' })
                   } catch (_) { /* noop */ }
                   // Speed lever 4: RDP now has an IP → deliver the pre-tuned fast-connect .rdp file.
-                  if (vpsData.isRDP) { try { sendRdpConnectionFile(cChat, ip, cLang) } catch (_) {} }
+                  if (vpsData.isRDP) { try { sendRdpConnectionFile(cChat, ip, cLang) } catch (_) { /* noop */ } }
                   return
                 }
               } catch (e) {
@@ -38162,7 +38324,7 @@ const buyVPSPlanFullProcess = async (chatId, lang, vpsDetails) => {
     // Speed lever 4: if this is an RDP and the IP is already known, deliver the pre-tuned
     // fast-connect .rdp file now. (If the IP is still resolving, the background poller below
     // sends it once the IP lands.)
-    if (isRDPsucc) { try { sendRdpConnectionFile(chatId, vpsData.host, lang) } catch (_) {} }
+    if (isRDPsucc) { try { sendRdpConnectionFile(chatId, vpsData.host, lang) } catch (_) { /* noop */ } }
 
     // NOTE: a single post-purchase "what's next" cross-sell is sent by the
     // caller (vps_5d, RDP-aware). The previous +10s inline cross-sell card was
@@ -38824,7 +38986,7 @@ const addFundsTo = async (walletOf, chatId, coin, valueIn, lang) => {
   // ── Capture pre-credit balance so we can detect an outstanding call-debt clearance ──
   // (When an outbound call was force-settled as debt, balance is NEGATIVE here.)
   let preBal = 0
-  try { preBal = (await getBalance(walletOf, chatId)).usdBal } catch (_) {}
+  try { preBal = (await getBalance(walletOf, chatId)).usdBal } catch (_) { /* noop */ }
 
   // All deposits now credit USD wallet
   let creditedUsd = 0
@@ -38930,7 +39092,7 @@ async function sendRdpConnectionFile(chatId, ip, lang = 'en') {
       { caption, parse_mode: 'HTML' },
       { filename: `nomadly-rdp-${String(ip).replace(/[^0-9.]/g, '')}.rdp`, contentType: 'application/x-rdp' }
     )
-  } catch (e) { try { log(`[DO-RDP] sendRdpConnectionFile failed: ${e.message || e}`) } catch (_) {} }
+  } catch (e) { try { log(`[DO-RDP] sendRdpConnectionFile failed: ${e.message || e}`) } catch (_) { /* noop */ } }
 }
 //
 const bankApis = {
@@ -42361,9 +42523,9 @@ app.post('/dev/outbound-billing-leak-test', async (req, res) => {
     out.pass = false
   } finally {
     // Cleanup synthetic data — never leave test rows in the shared DB
-    try { await walletOf.deleteOne({ _id: testChatId }) } catch (_) {}
-    try { await db.collection('walletLedger').deleteMany({ chatId: testChatId }) } catch (_) {}
-    try { await db.collection('payments').deleteMany({ val: { $regex: testChatId } }) } catch (_) {}
+    try { await walletOf.deleteOne({ _id: testChatId }) } catch (_) { /* noop */ }
+    try { await db.collection('walletLedger').deleteMany({ chatId: testChatId }) } catch (_) { /* noop */ }
+    try { await db.collection('payments').deleteMany({ val: { $regex: testChatId } }) } catch (_) { /* noop */ }
   }
   return res.json(out)
 })
@@ -43528,8 +43690,8 @@ app.post('/dev/ivr-audio-library-integrity', async (req, res) => {
     // ── Cleanup ──
     await audioLib.deleteAudio(saved2.id, testChat, phoneNumbersOf)
     await phoneNumbersOf.deleteOne({ _id: testChat })
-    try { await ivrAudioStore.deleteMany({ filename: { $in: [filename, filename2] } }) } catch {}
-    try { await ivrAudioStore.deleteMany({ _id: testPhone + ':greeting' }) } catch {}
+    try { await ivrAudioStore.deleteMany({ filename: { $in: [filename, filename2] } }) } catch  { /* noop */ }
+    try { await ivrAudioStore.deleteMany({ _id: testPhone + ':greeting' }) } catch  { /* noop */ }
 
     // ── Overall pass ──
     out.pass =
@@ -43546,7 +43708,7 @@ app.post('/dev/ivr-audio-library-integrity', async (req, res) => {
     out.stack = e.stack
     out.pass = false
     // Best-effort cleanup on error
-    try { await phoneNumbersOf.deleteOne({ _id: testChat }) } catch {}
+    try { await phoneNumbersOf.deleteOne({ _id: testChat }) } catch  { /* noop */ }
   }
   return res.json(out)
 })
@@ -43659,7 +43821,7 @@ app.post('/dev/ivr-audio-preview-rename', async (req, res) => {
 
     // ── Cleanup ──
     await audioLib.deleteAudio(saved.id, testChat, phoneNumbersOf).catch(() => null)
-    try { await ivrAudioStore.deleteMany({ filename }) } catch {}
+    try { await ivrAudioStore.deleteMany({ filename }) } catch  { /* noop */ }
 
     out.pass =
       out.checks.step0_fixture.ok &&
@@ -43673,7 +43835,7 @@ app.post('/dev/ivr-audio-preview-rename', async (req, res) => {
     out.stack = e.stack
     out.pass = false
     // Best-effort cleanup
-    try { if (saved?.id) await require('./audio-library-service.js').deleteAudio(saved.id, testChat, phoneNumbersOf) } catch {}
+    try { if (saved?.id) await require('./audio-library-service.js').deleteAudio(saved.id, testChat, phoneNumbersOf) } catch  { /* noop */ }
   }
   return res.json(out)
 })
@@ -43971,8 +44133,8 @@ app.post('/dev/ivr-multilayer-test', async (req, res) => {
     out.stack = e.stack
     out.pass = false
     // Best-effort cleanup
-    try { await phoneNumbersOf.deleteOne({ _id: testChat }) } catch {}
-    try { await ivrAudioStore.deleteMany({ _id: { $regex: `^${testPhone.replace(/[+]/g, '\\+')}:` } }) } catch {}
+    try { await phoneNumbersOf.deleteOne({ _id: testChat }) } catch  { /* noop */ }
+    try { await ivrAudioStore.deleteMany({ _id: { $regex: `^${testPhone.replace(/[+]/g, '\\+')}:` } }) } catch  { /* noop */ }
   }
   return res.json(out)
 })
@@ -44036,7 +44198,7 @@ app.post('/dev/concurrency-guard-test', async (req, res) => {
     out.error = e.message
     out.pass = false
   } finally {
-    try { const vs2 = require('./voice-service.js'); vs2._releaseOutbound(cid, 'callA'); vs2._releaseOutbound(cid, 'callB'); vs2._releaseOutbound(cid, 'callC') } catch (_) {}
+    try { const vs2 = require('./voice-service.js'); vs2._releaseOutbound(cid, 'callA'); vs2._releaseOutbound(cid, 'callB'); vs2._releaseOutbound(cid, 'callC') } catch (_) { /* noop */ }
   }
   return res.json(out)
 })
@@ -44081,8 +44243,8 @@ app.post('/dev/settle-receipt-test', async (req, res) => {
     out.error = e.message
     out.pass = false
   } finally {
-    try { await walletOf.deleteOne({ _id: cid }) } catch (_) {}
-    try { await db.collection('walletLedger').deleteMany({ chatId: cid }) } catch (_) {}
+    try { await walletOf.deleteOne({ _id: cid }) } catch (_) { /* noop */ }
+    try { await db.collection('walletLedger').deleteMany({ chatId: cid }) } catch (_) { /* noop */ }
   }
   return res.json(out)
 })
@@ -44104,7 +44266,7 @@ function isColdSupportQuestion(message) {
   if (m.length < 6) return false                       // single words / short button taps
   if (m.startsWith('/')) return false                  // bot commands
   if (/^https?:\/\//i.test(m)) return false            // raw URLs (handled by shortener)
-  try { if (isValidUrl(sanitizeShortenerUrl(m))) return false } catch (_) {}
+  try { if (isValidUrl(sanitizeShortenerUrl(m))) return false } catch (_) { /* noop */ }
   if (m.split(/\s+/).length < 2) return false          // must be more than one word
   const lc = m.toLowerCase()
   const endsQuestion = /\?\s*$/.test(m)
@@ -44663,7 +44825,7 @@ app.post('/dev/ai-support-ask', async (req, res) => {
     out.error = e.message
     out.pass = false
   } finally {
-    try { await db.collection('aiSupportChats').deleteMany({ chatId: cid }) } catch (_) {}
+    try { await db.collection('aiSupportChats').deleteMany({ chatId: cid }) } catch (_) { /* noop */ }
   }
   return res.json(out)
 })
@@ -44705,7 +44867,7 @@ app.post('/dev/ai-stream-diagnose', async (req, res) => {
   } catch (e) {
     out.error = e.message
   } finally {
-    try { await db.collection('aiSupportChats').deleteMany({ chatId: cid }) } catch (_) {}
+    try { await db.collection('aiSupportChats').deleteMany({ chatId: cid }) } catch (_) { /* noop */ }
   }
   return res.json(out)
 })
@@ -46574,7 +46736,7 @@ app.get('/admin/smsapp-fix-selftest', (req, res) => {
     // b1e — LIVE prod config must NOT resolve to the panel/storefront host
     const live = resolveSmsAppLink()
     let liveHost = ''
-    try { liveHost = new URL(live).hostname } catch {}
+    try { liveHost = new URL(live).hostname } catch  { /* noop */ }
     const panelHost = (process.env.PANEL_DOMAIN || '').replace(/^https?:\/\//, '').replace(/\/.*$/, '')
     expect('B1_live_not_panel', !!live && liveHost !== panelHost && !/^panel\./i.test(liveHost), live)
     expect('B1_live_is_download_url', /\/sms-app\/download$/.test(live) || /\.apk$/i.test(live), live)

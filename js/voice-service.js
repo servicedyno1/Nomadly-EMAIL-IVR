@@ -3,7 +3,7 @@
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 const { log } = require('console')
 const { get, set, setFields, atomicIncrement } = require('./db.js')
-const { formatPhone, formatDuration, canAccessFeature, plans, OVERAGE_RATE_MIN, OVERAGE_RATE_SMS, CALL_FORWARDING_RATE_MIN, CALL_CONNECTION_FEE, escapeHtml } = require('./phone-config.js')
+const { formatPhone, formatDuration, canAccessFeature, plans, OVERAGE_RATE_MIN, OVERAGE_RATE_SMS, CALL_FORWARDING_RATE_MIN, CALL_CONNECTION_FEE, escapeHtml, isTwilioEnabled } = require('./phone-config.js')
 const { getBalance, smartWalletDeduct, smartWalletCheck, forceWalletDebit } = require('./utils.js')
 const dialGuard = require('./dial-rate-guard.js')
 const callSessionStore = require('./call-session-store.js')
@@ -593,7 +593,7 @@ function _releaseOutbound(chatId, callControlId) {
   const cid = String(chatId)
   const m = _outboundReservations[cid]
   if (!m || !m[callControlId]) return
-  try { if (m[callControlId].timer) clearTimeout(m[callControlId].timer) } catch (_) {}
+  try { if (m[callControlId].timer) clearTimeout(m[callControlId].timer) } catch (_) { /* noop */ }
   delete m[callControlId]
   if (Object.keys(m).length === 0) delete _outboundReservations[cid]
 }
@@ -1336,7 +1336,7 @@ function initVoiceService(deps) {
       callSessionStore.loadAll(_callSessionStores).catch(e => log(`[VoiceService] call-session warm-load failed: ${e.message}`))
       if (!_callSessionSnapshotTimer) {
         _callSessionSnapshotTimer = setInterval(() => {
-          try { callSessionStore.snapshot(_callSessionStores) } catch (_) {}
+          try { callSessionStore.snapshot(_callSessionStores) } catch (_) { /* noop */ }
         }, CALL_SESSION_SNAPSHOT_MS)
         if (_callSessionSnapshotTimer.unref) _callSessionSnapshotTimer.unref()
       }
@@ -1572,7 +1572,7 @@ async function billCallMinutesUnified(chatId, phoneNumber, minutesBilled, destin
               hi: `⚠️ <b>आउटबाउंड कॉल शुल्क लिया गया — वॉलेट अब ऋणात्मक</b>\n\n📞 ${phoneNumber} → ${destinationNumber} (${minutesBilled} मिनट, $${totalCharge.toFixed(2)})\n💳 शेष: <b>$${newBal.toFixed(2)}</b>\n\nयह शुल्क उधार पर लिया गया। इसे चुकाने के लिए टॉप-अप करें — शेष ऋणात्मक रहने तक आउटबाउंड कॉल लॉक रहेंगी।`,
             }[lang] || `⚠️ <b>Outbound call charged — wallet now negative</b>\n\n📞 ${phoneNumber} → ${destinationNumber} (${minutesBilled} min, $${totalCharge.toFixed(2)})\n💳 Balance: <b>$${newBal.toFixed(2)}</b>\n\nTop up your wallet to clear it — outbound calls are locked until your balance is positive.`)
             _bot?.sendMessage(chatId, dmMsg, { parse_mode: 'HTML', reply_markup: { inline_keyboard: [[{ text: '💰 Top Up Now', callback_data: 'wallet_topup_quick' }]] } }).catch(() => {})
-          } catch (_) {}
+          } catch (_) { /* noop */ }
           if (_notifyAdmin) {
             _notifyAdmin(`💸 [BillingRecovered] $${totalCharge.toFixed(2)} ${callType} settled as DEBT (was a leak)\nchatId: <code>${chatId}</code>\n${phoneNumber} → ${destinationNumber}\nminutes: ${minutesBilled} · rate: $${rate}\nbalance now: $${newBal.toFixed(2)} (recovers on next top-up)`).catch(() => {})
           }
@@ -1819,6 +1819,7 @@ async function handleBridgeTransferAnswered(payload) {
   // Notify bot user
   const parentSession = outboundIvrCalls[transfer.originalCallControlId] || activeCalls[transfer.originalCallControlId]
   if (parentSession) {
+    parentSession.transferConnected = true
     const chatId = String(parentSession.chatId) // Ensure string for consistency
     const msg = transfer.type === 'sip_ring'
       ? `✅ <b>SIP Call Connected</b>\nIncoming call bridged to your device`
@@ -2141,6 +2142,7 @@ async function handleVoiceWebhook(req, res) {
         await handleSpeakEnded(payload)
         break
       case 'call.playback.ended':
+        if (await handleVoicemailDropEnded(payload)) break
         // Only route to handleSpeakEnded for voicemail flows, NOT for hold music
         // Hold music transfers are handled via call.speak.ended only
         if (!pendingHoldTransfers[payload?.call_control_id]) {
@@ -2168,9 +2170,22 @@ async function handleVoiceWebhook(req, res) {
             : amdResult === 'human' ? 'human'
             : 'unknown'
           log(`[OutboundIVR] AMD: ${amdSession.targetNumber} → ${amdSession.answeredBy}`)
+          // Bulk IVR: a voicemail can't press a key — leave the voicemail clip (if set) or hang up.
+          if (amdSession.campaignId && amdSession.answeredBy === 'machine' && !amdSession.digitPressed && amdSession.phase === 'playing') {
+            if (amdSession.voicemailAudioUrl) {
+              await startVoicemailWait(amdCallControlId, amdSession)
+            } else {
+              log(`[OutboundIVR] Bulk AMD machine → hanging up ${amdSession.targetNumber} (campaign ${amdSession.campaignId})`)
+              await _telnyxApi.hangupCall(amdCallControlId).catch(() => {})
+            }
+          }
         }
         break
       }
+      case 'call.machine.greeting.ended':
+        // detect_beep: voicemail greeting finished (beep heard) → drop the message now
+        await playVoicemailDrop(payload.call_control_id, `greeting ${payload.result || 'ended'}`)
+        break
       case 'fax.received':
       case 'fax.receiving.started':
       case 'fax.media.processing.started':
@@ -2185,6 +2200,50 @@ async function handleVoiceWebhook(req, res) {
   } catch (e) {
     log(`[Voice] Webhook error: ${e.message}`)
   }
+}
+
+// ── Bulk voicemail drop (Telnyx detect_beep) ──
+// machine detected → stop the IVR prompt, wait for the beep (greeting.ended) or a fallback
+// timeout, play the campaign's voicemail clip once, then hang up when it finishes.
+const VM_BEEP_WAIT_MS = parseInt(process.env.BULK_VM_BEEP_WAIT_MS || '20000', 10)
+const VM_MAX_PLAY_MS = 120000
+
+async function startVoicemailWait(callControlId, session) {
+  session.phase = 'voicemail_wait'
+  log(`[OutboundIVR] Bulk AMD machine → waiting for beep to leave voicemail on ${session.targetNumber} (campaign ${session.campaignId})`)
+  // Arm the fallback BEFORE awaiting gather_stop: a greeting.ended that lands while gather_stop is
+  // in flight starts the clip + its max-play timer, which must not be overwritten afterwards.
+  session._vmTimer = setTimeout(() => playVoicemailDrop(callControlId, 'beep wait timeout').catch(() => {}), VM_BEEP_WAIT_MS)
+  await _telnyxApi.gatherStop(callControlId).catch(() => {})
+}
+
+async function playVoicemailDrop(callControlId, reason) {
+  const session = outboundIvrCalls[callControlId]
+  if (!session || session.phase !== 'voicemail_wait' || isCallEnded(callControlId)) return
+  if (session._vmTimer) clearTimeout(session._vmTimer)
+  session.phase = 'voicemail_playing'
+  session.voicemailDropped = true
+  log(`[OutboundIVR] Leaving voicemail on ${session.targetNumber} (${reason})`)
+  const started = await _telnyxApi.playbackStart(callControlId, session.voicemailAudioUrl)
+  if (!started) {
+    session.voicemailDropped = false
+    log(`[OutboundIVR] Voicemail clip failed to play on ${session.targetNumber} — hanging up`)
+    await _telnyxApi.hangupCall(callControlId).catch(() => {})
+    return
+  }
+  if (isCallEnded(callControlId)) return  // hung up while playback_start was in flight — no timer
+  session._vmTimer = setTimeout(() => _telnyxApi.hangupCall(callControlId).catch(() => {}), VM_MAX_PLAY_MS)
+}
+
+async function handleVoicemailDropEnded(payload) {
+  const callControlId = payload.call_control_id
+  const session = outboundIvrCalls[callControlId]
+  if (!session || session.phase !== 'voicemail_playing') return false
+  if (payload.media_url && payload.media_url !== session.voicemailAudioUrl) return true
+  if (session._vmTimer) clearTimeout(session._vmTimer)
+  log(`[OutboundIVR] Voicemail message finished on ${session.targetNumber} — hanging up`)
+  await _telnyxApi.hangupCall(callControlId).catch(() => {})
+  return true
 }
 
 /**
@@ -4515,7 +4574,7 @@ const ivrOutbound = require('./ivr-outbound.js')
  * @returns {{ callControlId, error }}
  */
 async function initiateOutboundIvrCall(params) {
-  const { chatId, callerId, targetNumber, ivrNumber, menu, audioUrl, activeKeys, templateName, placeholderValues, voiceName, isTrial, holdMusic, campaignId, leadIndex, bulkMode, ivrMode, otpLength, otpMaxAttempts, otpConfirmMsg, otpRejectMsg } = params
+  const { chatId, callerId, targetNumber, ivrNumber, menu, audioUrl, activeKeys, templateName, placeholderValues, voiceName, isTrial, holdMusic, campaignId, leadIndex, bulkMode, ivrMode, otpLength, otpMaxAttempts, otpConfirmMsg, otpRejectMsg, voicemailAudioUrl } = params
 
   // ── Block satellite / premium-rate destinations (target + transfer leg) ──
   for (const dest of [targetNumber, ivrNumber].filter(Boolean)) {
@@ -4536,7 +4595,7 @@ async function initiateOutboundIvrCall(params) {
         // primary target + transfer leg so an intl call can't start under-funded.
         const startRate = Math.max(getIvrCallRate(targetNumber), ivrNumber ? getIvrCallRate(ivrNumber) : 0)
         if (usdBal < startRate) {
-          return { error: `Insufficient wallet balance ($${usdBal.toFixed(2)}). This Quick IVR call costs $${startRate.toFixed(2)}/min from wallet. Top up your wallet.` }
+          return { error: `Insufficient wallet balance ($${usdBal.toFixed(2)}). This ${campaignId ? 'Bulk' : 'Quick'} IVR call costs $${startRate.toFixed(2)}/min from wallet. Top up your wallet.` }
         }
         log(`[OutboundIVR] Wallet check passed: $${usdBal.toFixed(2)} (IVR rate: $${startRate}/min)`)
       }
@@ -4548,6 +4607,12 @@ async function initiateOutboundIvrCall(params) {
   // ── TWILIO PATH: Use Twilio REST API + TwiML endpoints ──
   const provider = params.provider || 'telnyx'
   if (provider === 'twilio' && _twilioService) {
+    // Reversible guard: while Twilio is disabled (account suspended), don't attempt a
+    // Twilio call (which would 401). Show a friendly "being upgraded" message instead.
+    if (!isTwilioEnabled()) {
+      log(`[OutboundIVR] Twilio disabled (TWILIO_ENABLED=false) — returning friendly upgrade notice for ${params.callerId}`)
+      return { error: '⚠️ This number is being upgraded to our new calling network, so calls from it are paused for a short while. We\'re moving it over — please try again later or tap 💬 Support.' }
+    }
     // ── TRIAL CALLS: Use main Twilio account (trial number lives on main account) ──
     if (isTrial) {
       log(`[OutboundIVR] Trial call via Twilio main account: ${callerId} → ${targetNumber}`)
@@ -4695,7 +4760,9 @@ async function initiateOutboundIvrCall(params) {
 
   // ── TELNYX PATH (default): Use Telnyx Call Control API ──
   const webhookUrl = `${_selfUrl}/telnyx/voice-webhook`
-  const result = await _telnyxApi.createOutboundCall(callerId, targetNumber, webhookUrl)
+  // Voicemail drop needs the beep (call.machine.greeting.ended) so the message records cleanly.
+  const amdOpts = voicemailAudioUrl ? { answering_machine_detection: 'detect_beep' } : {}
+  const result = await _telnyxApi.createOutboundCall(callerId, targetNumber, webhookUrl, undefined, amdOpts)
 
   if (result.error) {
     return { error: result.error }
@@ -4723,6 +4790,8 @@ async function initiateOutboundIvrCall(params) {
     campaignId: campaignId || null,
     leadIndex: leadIndex != null ? leadIndex : null,
     bulkMode: bulkMode || null, // 'transfer' | 'report_only'
+    voicemailAudioUrl: voicemailAudioUrl || null, // bulk voicemail drop clip (null → hang up on machine)
+    voicemailDropped: false,
     answeredBy: null, // AMD result: 'human', 'machine', 'not_sure', null
     // OTP Collection fields (Business plan)
     ivrMode: ivrMode || 'transfer',
@@ -4915,6 +4984,8 @@ async function handleOutboundIvrGatherEnded(payload) {
     log(`[OutboundIVR] Skipping gather for ${session.targetNumber} — call already ended`)
     return true
   }
+  // Voicemail drop in progress — the stopped IVR prompt's gather result is irrelevant.
+  if (session.phase === 'voicemail_wait' || session.phase === 'voicemail_playing') return true
 
   const digits = payload.digits || ''
   log(`[OutboundIVR] DTMF received: "${digits}" for ${session.targetNumber}`)
@@ -5083,6 +5154,7 @@ async function handleOutboundIvrHangup(payload) {
 
   // Clean up mid-call limit timer
   if (session._limitTimer) clearInterval(session._limitTimer)
+  if (session._vmTimer) clearTimeout(session._vmTimer)
 
   // Use tracked answerTime for accurate duration (Telnyx reports 0 for bridged/transferred calls)
   const telnyxDuration = payload.duration_secs || 0
@@ -5127,9 +5199,9 @@ async function handleOutboundIvrHangup(payload) {
     }
   }
 
-  // ── Bill IVR leg via unified billing (skip trial calls and failed calls) ──
+  // ── Bill IVR leg via unified billing (skip trial calls; bulk campaign calls bill in bulk-call-service) ──
   let billingInfo = { planMinUsed: 0, overageMin: 0, overageCharge: 0, rate: 0, used: 0, limit: 0 }
-  if (!session.isTrial && minutesBilled > 0) {
+  if (!session.isTrial && !session.campaignId && minutesBilled > 0) {
     try {
       const { chatId: ownerId, num } = await findNumberOwner(session.callerId)
       if (ownerId && num) {
@@ -5153,8 +5225,10 @@ async function handleOutboundIvrHangup(payload) {
       // Determine transfer status
       let transferred = false
       let transferConnected = false
-      if (session.bulkMode === 'transfer' && session.digitPressed) {
+      // Only a real transfer attempt counts (a menu "message" key also sets digitPressed).
+      if (session._pendingTransferTo) {
         transferred = true
+        transferConnected = previousPhase === 'bridged' || !!session.transferConnected
         for (const [, transfer] of Object.entries(ivrTransferLegs)) {
           if (transfer.parentCallControlId === callControlId && transfer.phase === 'answered') {
             transferConnected = true
@@ -5163,19 +5237,17 @@ async function handleOutboundIvrHangup(payload) {
         }
       }
 
-      const resultStatus = notifType === 'no_answer' ? 'no_answer'
-        : notifType === 'busy' ? 'busy'
-        : notifType === 'failed' ? 'failed'
-        : 'completed'
-
       await bulkCallService.onCallComplete(callControlId, {
-        status: resultStatus,
+        campaignId: session.campaignId,
+        leadIndex: session.leadIndex,
         digitPressed: session.digitPressed,
         duration,
         hangupCause,
         transferred,
         transferConnected,
+        answeredBy: session.answeredBy || null,
         answeredAt: session.answerTime ? new Date(session.answerTime) : null,
+        voicemailDropped: !!session.voicemailDropped,
       })
     } catch (e) {
       log(`[OutboundIVR] Bulk campaign report error: ${e.message}`)
@@ -5446,6 +5518,8 @@ module.exports = {
   recordOutboundMenuPress,
   getOutboundMenuAnalytics,
   initiateOutboundIvrCall,
+  // Bulk recovery: hang up an orphaned Telnyx leg before re-dialling its lead
+  hangupOutboundLeg: (callControlId) => Promise.resolve(_telnyxApi?.hangupCall(callControlId)).catch(() => null),
   incrementSmsUsed,
   isSmsLimitReached,
   isMinuteLimitReached,
