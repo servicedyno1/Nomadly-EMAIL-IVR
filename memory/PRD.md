@@ -24,8 +24,9 @@
   (main e4788daf, :5000 app-main-a), app-wl/voodoo/proshop 2026102208525x-ddde6d6 (WhiteLabel sync commit ddde6d69 built
   locally by sync_whitelabel.py --dry-run, parent 8f26507d). All 4: /health healthy, public 200, isTwilioEnabled=false,
   0 restarts, recovery "no running campaigns". WL tree also passed bulk suites 48/48 + 32/32 locally.
-- ⚠️ GitHub does NOT have this code (origin/main still b4d62d5, WhiteLabel 8f26507). Any CI deploy from GitHub would
-  roll the bots back to old code — get these commits onto GitHub (main; WhiteLabel via the sync workflow) first.
+- ✅ 2026-10-22 09:05Z owner pushed from the droplet (`/root/nomadly-push`): origin/main = d348083b; Sync main → WhiteLabel
+  pushed 59505e0c; CI redeployed all 4 from GitHub (app-main d348083b :5100, wl/voodoo/proshop 59505e0c) — healthy,
+  public 200, isTwilioEnabled=false, no `patched=` lines. GitHub and server are in sync again.
   Rollback per app: `bash /opt/nomadly/deploy.sh <app> rollback` (previous releases kept).
 - Known noise (pre-existing): app-main PhoneMonitor logs AUTH_FAILED for every suspended Twilio sub-account at boot.
 - User pasted a GitHub PAT in chat — advised to revoke (agent does not push).
