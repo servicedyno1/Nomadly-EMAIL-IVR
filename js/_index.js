@@ -1479,14 +1479,30 @@ async function sweepTelnyxVerifications() {
 async function sendResellerPrompt(chatId, p) {
   try {
     await bot.sendMessage(chatId, p.text, { parse_mode: 'HTML', reply_markup: { keyboard: p.keyboard, resize_keyboard: true } })
-    if (p.inline) await bot.sendMessage(chatId, p.inline.text, { parse_mode: 'HTML', reply_markup: { inline_keyboard: p.inline.inline_keyboard } })
+    if (p.inline) {
+      const m = await bot.sendMessage(chatId, p.inline.text, { parse_mode: 'HTML', reply_markup: { inline_keyboard: p.inline.inline_keyboard } })
+      if (m?.message_id) await rsApply.setPanelMsg(chatId, m.message_id)
+    }
   } catch (e) { log(`[Reseller] prompt send failed for ${chatId}: ${e.message}`) }
 }
+const clearResellerPanel = (chatId, mid) => mid && bot.editMessageReplyMarkup({ inline_keyboard: [] }, { chat_id: chatId, message_id: mid }).catch(() => {})
+async function closeResellerDraft(chatId) {
+  const d = await rsApply.abandon(chatId)
+  clearResellerPanel(chatId, d?.panelMsgId)
+}
 async function alertResellerApplication(app, note = '') {
-  try {
-    const m = await bot.sendMessage(TELEGRAM_ADMIN_CHAT_ID, `${rsApply.adminText(app)}${note ? '\n\n' + note : ''}`, { parse_mode: 'HTML', reply_markup: rsApply.adminButtons(app) })
-    if (m?.message_id) await rsApply.setAdminMsg(app._id, { chatId: String(TELEGRAM_ADMIN_CHAT_ID), messageId: m.message_id })
-  } catch (e) { log(`[Reseller] admin alert failed for ${app._id}: ${e.message}`) }
+  const text = `${rsApply.adminText(app)}${note ? '\n\n' + note : ''}`
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      const m = await bot.sendMessage(TELEGRAM_ADMIN_CHAT_ID, text, { parse_mode: 'HTML', reply_markup: rsApply.adminButtons(app) })
+      if (m?.message_id) await rsApply.setAdminMsg(app._id, { chatId: String(TELEGRAM_ADMIN_CHAT_ID), messageId: m.message_id })
+      return
+    } catch (e) {
+      log(`[Reseller] admin alert attempt ${attempt} failed for ${app._id}: ${e.message}`)
+      if (attempt < 3) await new Promise(r => setTimeout(r, attempt * 2000))
+    }
+  }
+  notifyAdmin(`🚨 [Reseller] Could not deliver the application card for ${String(app._id).slice(0, 8)} (chatId ${app.chatId}, ${app.tier}${app.payment?.status === 'paid' ? ', PAID' : ''}) — check resellerApplications.`)
 }
 // Every payment rail lands here once the $200 is in. Closed application → money goes to the wallet instead.
 async function completeResellerPriority(chatId, appId, payment, lang) {
@@ -1503,6 +1519,7 @@ async function completeResellerPriority(chatId, appId, payment, lang) {
     return false
   }
   send(chatId, t.paid, translation('o', l))
+  if (before?.adminMsg) bot.editMessageReplyMarkup({ inline_keyboard: [] }, { chat_id: before.adminMsg.chatId, message_id: before.adminMsg.messageId }).catch(() => {})
   await alertResellerApplication(doc, before?.status === 'pending' ? '⬆️ <i>Upgraded from Standard after payment.</i>' : '')
   return true
 }
@@ -3038,6 +3055,7 @@ const resolveCryptoCreditUsd = async (req, { chatId, coin, value, ticker, invoic
   const svc = service || req?.path || 'crypto'
   log(`[CryptoCredit] ${svc}: recv=${value} ${coin} | blockbee=$${Number.isFinite(bbValue) ? bbValue.toFixed(2) : 'n/a'} dynopay=$${Number.isFinite(dpValue) ? dpValue.toFixed(2) : 'n/a'} src=${convSource} invoice=$${Number.isFinite(inv) ? inv.toFixed(2) : 'n/a'} → credit=$${Number.isFinite(usdIn) ? usdIn.toFixed(2) : usdIn} (${decided.mode})`)
   notifyUnderpayment({ decided, chatId, coin, value, service: svc })
+  if (convSource === 'none') notifyAdmin(`⚠️ [CryptoCredit] ${svc}: could not price ${value} ${coin} for ${chatId} (rate source down) — credited the $${Number.isFinite(inv) ? inv.toFixed(2) : '?'} invoice. Please verify the payment.`)
   return usdIn
 }
 
@@ -6411,13 +6429,13 @@ bot?.on('callback_query', async (query) => {
       const answer = (text, alert = false) => bot.answerCallbackQuery(query.id, text ? { text, show_alert: alert } : {}).catch(() => {})
       if (kind === 't') {
         const panel = await rsApply.toggleService(chatId, arg, lang)
-        if (!panel) return answer(rt.stale)
+        if (!panel) { clearResellerPanel(chatId, mid); return answer(rt.stale) }
         answer()
         return bot.editMessageText(panel.text, { chat_id: chatId, message_id: mid, parse_mode: 'HTML', reply_markup: { inline_keyboard: panel.inline_keyboard } }).catch(() => {})
       }
       if (kind === 'c') {
         const r = await rsApply.continueServices(chatId, lang)
-        if (!r) return answer(rt.stale)
+        if (!r) { clearResellerPanel(chatId, mid); return answer(rt.stale) }
         if (r.error) return answer(r.error.replace(/<[^>]+>/g, ''), true)
         answer()
         bot.editMessageReplyMarkup({ inline_keyboard: [] }, { chat_id: chatId, message_id: mid }).catch(() => {})
@@ -15029,6 +15047,7 @@ All verified numbers generated during sourcing.`))
       log(`[CartRecovery] /start pressed from payment action "${action}" — recording abandonment`)
       cartRecovery.recordAbandonment(chatId, info?.userLanguage || 'en')
     }
+    if (action === 'rsApply') await closeResellerDraft(chatId)
 
     // Check for recent referral clicks for existing users (fallback when deep link doesn't work)
     // This handles the case where Telegram doesn't send the parameter for existing users
@@ -15256,11 +15275,16 @@ All verified numbers generated during sourcing.`))
   }
 
   // 💼 Reseller — application steps
+  if (action === 'rsApply' && typeof message === 'string' && message && (isMainMenuPress(message) || (!rsApply.isFormLabel(message) && Object.values(user).some(v => typeof v === 'string' && v === message)))) {
+    await closeResellerDraft(chatId)
+    await set(state, chatId, 'action', 'none')
+    action = 'none'
+  }
   if (action === 'rsApply' && typeof message === 'string' && message) {
     const r = await rsApply.handleInput(chatId, message, lang)
     if (!r) { await set(state, chatId, 'action', 'none'); action = 'none' }
     else if (r.closed) return goto.resellerHome()
-    else if (r.cancelled) { await set(state, chatId, 'action', 'none'); return send(chatId, r.text, trans('o')) }
+    else if (r.cancelled) { clearResellerPanel(chatId, r.panelMsgId); await set(state, chatId, 'action', 'none'); return send(chatId, r.text, trans('o')) }
     else if (r.submitted) {
       const doc = r.submitted
       if (doc.status === 'pending_payment') { await saveInfo('rsAppId', doc._id); return goto['reseller-pay']() }
@@ -40714,7 +40738,8 @@ app.get('/crypto-pay-reseller', auth, async (req, res) => {
   del(chatIdOfPayment, ref)
   const name = await get(nameOf, chatId)
   set(payments, ref, `Crypto,ResellerPriority,${rsAppId},$${price},${chatId},${name},${new Date()},${value} ${coin}`)
-  const usdIn = await convert(value, coin, 'usd')
+  // Same tolerance + conversion-failure handling as DynoPay (fee shave ≤10% counts as paid; never null)
+  const usdIn = await resolveCryptoCreditUsd(req, { chatId, coin, value, ticker: coin, invoiceUsd: price, feePayer: 'company', service: 'crypto-pay-reseller' })
   if (usdIn < price) {
     sendMessage(chatId, translation('t.sentLessMoney', lang, `$${price}`, `$${usdIn}`), translation('o', lang))
     addFundsTo(walletOf, chatId, 'usd', usdIn, lang)

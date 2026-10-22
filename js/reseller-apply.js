@@ -218,6 +218,8 @@ const optKey = (group, text) => {
   for (const l of Object.values(L)) for (const [k, v] of Object.entries(l.opt[group])) if (v === text) return k
   return null
 }
+// Any keyboard label the form itself shows (so ❌ Cancel etc. are never treated as leaving the form).
+const isFormLabel = text => !!text && Object.values(L).some(l => Object.values(l.btn).includes(text) || Object.values(l.opt).some(g => Object.values(g).includes(text)))
 const rows2 = arr => arr.reduce((r, x, i) => (i % 2 ? r[r.length - 1].push(x) : r.push([x])) && r, [])
 const nav = (t, { back = true, skip = false } = {}) => [...(skip ? [[t.btn.skip]] : []), back ? [t.btn.back, t.btn.cancel] : [t.btn.cancel]]
 const fmtDate = d => new Date(d || Date.now()).toISOString().slice(0, 10)
@@ -290,7 +292,7 @@ async function handleInput(chatId, text, lang) {
 
   if (isBtn(msg, b => b.cancel) || msg === '/cancel') {
     const r = await col.updateOne({ _id: app._id, status: 'draft' }, { $set: { status: 'cancelled', updatedAt: new Date() } })
-    return r.modifiedCount ? { cancelled: true, text: t.cancelled } : { closed: true }
+    return r.modifiedCount ? { cancelled: true, text: t.cancelled, panelMsgId: app.panelMsgId || null } : { closed: true }
   }
   if (isBtn(msg, b => b.back) && app.idx > 0) {
     app.idx--
@@ -367,6 +369,9 @@ const switchToStandard = id => transition({ _id: String(id), status: 'pending_pa
 const withdraw = id => transition({ _id: String(id), 'payment.status': { $ne: 'paid' }, status: { $in: ['pending_payment', 'pending'] } }, { status: 'withdrawn', withdrawnAt: new Date() })
 const decide = (id, approve, by) => transition({ _id: String(id), status: 'pending' }, { status: approve ? 'approved' : 'rejected', decidedAt: new Date(), decidedBy: by || null })
 const setAdminMsg = (id, msg) => col.updateOne({ _id: String(id) }, { $set: { adminMsg: msg } })
+const setPanelMsg = (chatId, messageId) => col.updateOne({ chatId: String(chatId), status: 'draft' }, { $set: { panelMsgId: messageId } })
+// Applicant left the form via a menu button or /start: the draft is cancelled (returned so the caller can clear its panel).
+const abandon = chatId => transition({ chatId: String(chatId), status: 'draft' }, { status: 'cancelled', cancelReason: 'left_form' })
 
 // Status screen for 💼 Reseller when an application is open.
 function statusScreen(app, lang) {
@@ -404,7 +409,7 @@ function adminText(app) {
 const adminButtons = app => ({ inline_keyboard: [[{ text: '✅ Approve', callback_data: `rsa:ok:${app._id}` }, { text: '❌ Reject', callback_data: `rsa:no:${app._id}` }]] })
 
 module.exports = {
-  init, T, isBtn, start, getDraft, getOpen, getById, handleInput, toggleService, continueServices, prompt,
-  markPaid, switchToStandard, withdraw, decide, setAdminMsg, statusScreen, homeScreen, summary, adminText, adminButtons,
+  init, T, isBtn, isFormLabel, start, getDraft, getOpen, getById, handleInput, toggleService, continueServices, prompt,
+  markPaid, switchToStandard, withdraw, decide, setAdminMsg, setPanelMsg, abandon, statusScreen, homeScreen, summary, adminText, adminButtons,
   PRIORITY_FEE_USD, STEPS, SVC_KEYS, esc, brand: () => BRAND,
 }
