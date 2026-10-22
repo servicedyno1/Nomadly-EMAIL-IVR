@@ -17,8 +17,18 @@
   i18n coverage + parity 79/79; iteration_106 + iteration_107. No real calls placed.
 - PROD 2026-10-22 08:42Z: TWILIO_ENABLED=false added to all 4 droplet brand envs (app-main/app-wl/app-voodoo/app-proshop,
   backups `.bak.twilio-off.20261022T084243Z`); inert until the new code deploys. WhiteLabel sync dry-run clean.
-- PENDING (user): Save to GitHub (main) → CI deploys all 4; then agent verifies health/flag/new release on droplet;
-  try one small live campaign. User pasted a GitHub PAT in chat — advised to revoke (agent does not push).
+- LIVE 2026-10-22 ~08:51–08:54Z — DIRECT DROPLET DEPLOY (no GitHub push; user can't use Save to GitHub): git-archive
+  tarballs → new release trees via `js/ops/droplet_direct_release_2026-10.sh` (node_modules + frontend build reused,
+  user-audio/audio_cache carried over, RELEASE `patched=direct deploy…`) → activated with a copy of deploy.sh
+  (`/root/deploy_activate.sh` = rollback path + drain, notify "🚀 direct deploy"). Releases: app-main 20261022T085035Z-e4788da
+  (main e4788daf, :5000 app-main-a), app-wl/voodoo/proshop 2026102208525x-ddde6d6 (WhiteLabel sync commit ddde6d69 built
+  locally by sync_whitelabel.py --dry-run, parent 8f26507d). All 4: /health healthy, public 200, isTwilioEnabled=false,
+  0 restarts, recovery "no running campaigns". WL tree also passed bulk suites 48/48 + 32/32 locally.
+- ⚠️ GitHub does NOT have this code (origin/main still b4d62d5, WhiteLabel 8f26507). Any CI deploy from GitHub would
+  roll the bots back to old code — get these commits onto GitHub (main; WhiteLabel via the sync workflow) first.
+  Rollback per app: `bash /opt/nomadly/deploy.sh <app> rollback` (previous releases kept).
+- Known noise (pre-existing): app-main PhoneMonitor logs AUTH_FAILED for every suspended Twilio sub-account at boot.
+- User pasted a GitHub PAT in chat — advised to revoke (agent does not push).
 
 ## 2026-10-16 — SIP "503" low-balance UX: never-silent alert + top-up re-enable confirmation + threshold retune (ALL 4 bots) — LIVE
 - RCA (Nomadly @pirate_script 1005284399): number +18445716353 & SIP cred healthy; Zoiper "503" was a correct LOW BALANCE

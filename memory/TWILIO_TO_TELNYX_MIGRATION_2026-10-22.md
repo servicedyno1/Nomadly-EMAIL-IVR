@@ -39,6 +39,8 @@ Also re-lock the vault after editing sandbox .env if it becomes the source of tr
   All 4 brands share the same (suspended) Twilio SID. No restart: running releases (21 Oct) predate the flag; it takes
   effect on the next deploy (owner "Save to GitHub" → main deploy + Sync main → WhiteLabel → wl/voodoo/proshop).
   Railway is dormant — not changed. WhiteLabel sync dry-run: clean (exit 0, _index.js + voice-service.js 3-way merged).
+- ✅ LIVE 2026-10-22 ~08:54Z on all 4 bots via direct droplet deploy (not via GitHub) — Twilio OFF, Telnyx Bulk IVR +
+  controls/intl pricing/voicemail drop live. Details + rollback in PRD.md (2026-10-23 entry). GitHub still needs the code.
 **And top up the Telnyx balance** (currently $6.92).
 
 ## Phase 0 — DONE (sandbox, 2026-10-22) — steer new purchases to Telnyx
