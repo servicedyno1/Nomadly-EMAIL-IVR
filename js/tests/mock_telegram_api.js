@@ -10,6 +10,7 @@ const http = require('http')
 const { URL } = require('url')
 const PORT = Number(process.env.MOCK_TG_PORT || 5099)
 const calls = []
+const failRules = []
 let nextMsgId = 1000
 
 function parseBody(raw, ctype) {
@@ -48,6 +49,8 @@ const server = http.createServer((req, res) => {
   const json = (code, obj) => { res.writeHead(code, { 'Content-Type': 'application/json' }); res.end(JSON.stringify(obj)) }
   if (u.pathname === '/_health') return json(200, { ok: true, calls: calls.length })
   if (u.pathname === '/_calls' && req.method === 'DELETE') { calls.length = 0; return json(200, { ok: true }) }
+  // Test-only failure injection: POST /_fail?method=sendMessage&match=<substring>&count=N → next N matching calls get HTTP 500
+  if (u.pathname === '/_fail') { failRules.push({ method: u.searchParams.get('method'), match: u.searchParams.get('match') || '', left: Number(u.searchParams.get('count') || 1) }); return json(200, { ok: true, rules: failRules }) }
   if (u.pathname === '/_calls') {
     const chat = u.searchParams.get('chat_id'), since = Number(u.searchParams.get('since') || 0), method = u.searchParams.get('method')
     return json(200, calls.filter(c => (!chat || String(c.chat_id) === String(chat)) && c.ts >= since && (!method || c.method === method)))
@@ -64,6 +67,8 @@ const server = http.createServer((req, res) => {
     calls.push(rec)
     if (calls.length > 5000) calls.splice(0, calls.length - 5000)
     console.log(`[mock-tg] ${method} chat=${rec.chat_id} ${rec.text ? JSON.stringify(String(rec.text).slice(0, 80)) : ''} ${rec.buttons.length ? 'buttons=' + JSON.stringify(rec.buttons) : ''}`)
+    const rule = failRules.find(r => r.left > 0 && (!r.method || r.method === method) && String(rec.text || '').includes(r.match))
+    if (rule) { rule.left--; rec.injectedFailure = true; return json(500, { ok: false, error_code: 500, description: 'Internal Server Error: injected by mock' }) }
     json(200, { ok: true, result: result(method, p) })
   })
 })

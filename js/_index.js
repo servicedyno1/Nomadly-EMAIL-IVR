@@ -756,6 +756,7 @@ const mpSafeDeal = require('./mp-safedeal.js')
 const depositFunnel = require('./deposit-funnel.js')
 const regulatoryFlow = require('./regulatory-flow.js')
 const txReg = require('./telnyx-regulatory.js') // Telnyx intl numbers: pre-payment verification + review tracking
+const rsApply = require('./reseller-apply.js') // 💼 Reseller in-bot application form (RESELLER_APPLY_FORM=true)
 const { needsDocUpload } = require('./regulatory-config.js')
 const smsAppService = require('./sms-app-service.js')
 
@@ -1472,6 +1473,57 @@ async function sweepTelnyxVerifications() {
     send(s.chatId, txReg.T(s.lang || 'en').reminder(String(s.countryName || s.countryCode), txReg.fmtAmount(s.payment?.refund)), { parse_mode: 'HTML' })
   }
   return { reminded: remind.length, expired: expire.length }
+}
+
+// ── 💼 Reseller applications: ordered prompts, admin alert, Priority payment completion ──
+async function sendResellerPrompt(chatId, p) {
+  try {
+    await bot.sendMessage(chatId, p.text, { parse_mode: 'HTML', reply_markup: { keyboard: p.keyboard, resize_keyboard: true } })
+    if (p.inline) {
+      const m = await bot.sendMessage(chatId, p.inline.text, { parse_mode: 'HTML', reply_markup: { inline_keyboard: p.inline.inline_keyboard } })
+      if (m?.message_id) await rsApply.setPanelMsg(chatId, m.message_id)
+    }
+  } catch (e) { log(`[Reseller] prompt send failed for ${chatId}: ${e.message}`) }
+}
+const clearResellerPanel = (chatId, mid) => mid && bot.editMessageReplyMarkup({ inline_keyboard: [] }, { chat_id: chatId, message_id: mid }).catch(() => {})
+let _allUserLabels = null
+const isAnyUserLabel = m => (_allUserLabels ||= new Set(['en', 'fr', 'zh', 'hi'].flatMap(l => Object.values(translation('user', l) || {}).filter(v => typeof v === 'string')))).has(m)
+async function closeResellerDraft(chatId) {
+  const d = await rsApply.abandon(chatId)
+  clearResellerPanel(chatId, d?.panelMsgId)
+}
+async function alertResellerApplication(app, note = '') {
+  const text = `${rsApply.adminText(app)}${note ? '\n\n' + note : ''}`
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      const m = await bot.sendMessage(TELEGRAM_ADMIN_CHAT_ID, text, { parse_mode: 'HTML', reply_markup: rsApply.adminButtons(app) })
+      if (m?.message_id) await rsApply.setAdminMsg(app._id, { chatId: String(TELEGRAM_ADMIN_CHAT_ID), messageId: m.message_id })
+      return
+    } catch (e) {
+      log(`[Reseller] admin alert attempt ${attempt} failed for ${app._id}: ${e.message}`)
+      if (attempt < 3) await new Promise(r => setTimeout(r, attempt * 2000))
+    }
+  }
+  notifyAdmin(`🚨 [Reseller] Could not deliver the application card for ${String(app._id).slice(0, 8)} (chatId ${app.chatId}, ${app.tier}${app.payment?.status === 'paid' ? ', PAID' : ''}) — check resellerApplications.`)
+}
+// Every payment rail lands here once the $200 is in. Closed application → money goes to the wallet instead.
+async function completeResellerPriority(chatId, appId, payment, lang) {
+  const l = lang || 'en'
+  const t = rsApply.T(l)
+  const before = await rsApply.getById(appId)
+  const doc = await rsApply.markPaid(appId, { method: payment.method, amountUsd: payment.amountUsd, ref: payment.ref || null })
+  if (!doc) {
+    const r = payment.refund || { currency: 'usd', amount: payment.amountUsd }
+    await addFundsTo(walletOf, chatId, r.currency === 'ngn' ? 'ngn' : 'usd', Number(r.amount) || 0, l)
+    const amt = r.currency === 'ngn' ? `₦${Number(r.amount).toLocaleString()}` : `$${Number(r.amount).toFixed(2)}`
+    send(chatId, t.payClosed(amt), translation('o', l))
+    notifyAdmin(`ℹ️ [Reseller] Priority payment for application ${String(appId).slice(0, 8)} (status ${before?.status || 'missing'}) → ${amt} credited to wallet\nchatId: ${chatId}`)
+    return false
+  }
+  send(chatId, t.paid, translation('o', l))
+  if (before?.adminMsg) bot.editMessageReplyMarkup({ inline_keyboard: [] }, { chat_id: before.adminMsg.chatId, message_id: before.adminMsg.messageId }).catch(() => {})
+  await alertResellerApplication(doc, before?.status === 'pending' ? '⬆️ <i>Upgraded from Standard after payment.</i>' : '')
+  return true
 }
 
 // Approved by the carrier → configure + save the number exactly like a normal purchase.
@@ -3005,6 +3057,7 @@ const resolveCryptoCreditUsd = async (req, { chatId, coin, value, ticker, invoic
   const svc = service || req?.path || 'crypto'
   log(`[CryptoCredit] ${svc}: recv=${value} ${coin} | blockbee=$${Number.isFinite(bbValue) ? bbValue.toFixed(2) : 'n/a'} dynopay=$${Number.isFinite(dpValue) ? dpValue.toFixed(2) : 'n/a'} src=${convSource} invoice=$${Number.isFinite(inv) ? inv.toFixed(2) : 'n/a'} → credit=$${Number.isFinite(usdIn) ? usdIn.toFixed(2) : usdIn} (${decided.mode})`)
   notifyUnderpayment({ decided, chatId, coin, value, service: svc })
+  if (convSource === 'none') notifyAdmin(`⚠️ [CryptoCredit] ${svc}: could not price ${value} ${coin} for ${chatId} (rate source down) — credited the $${Number.isFinite(inv) ? inv.toFixed(2) : '?'} invoice. Please verify the payment.`)
   return usdIn
 }
 
@@ -4790,6 +4843,7 @@ const loadData = async () => {
 
   // Telnyx international numbers — verification sessions + review poller (2026-10)
   txReg.init({ db, bot, log })
+  rsApply.init({ db, brand: process.env.CHAT_BOT_BRAND })
   telnyxPendingOrders = db.collection('telnyxPendingOrders')
   telnyxPendingOrders.createIndex({ status: 1, nextCheckAt: 1 }).catch(() => {})
   if (process.env.SKIP_WEBHOOK_SYNC !== 'true' || process.env.TELNYX_REVIEW_POLLER === 'true') {
@@ -6368,6 +6422,50 @@ bot?.on('callback_query', async (query) => {
     const chatId = String(query?.message?.chat?.id) // Always convert to string for DB consistency
     try { setChatLang(chatId, (await get(state, chatId))?.userLanguage || 'en') } catch { /* non-fatal */ }
 
+    // ── 💼 Reseller application: service toggles, Continue, admin Approve/Reject ──
+    if (data.startsWith('rsa:')) {
+      const lang = (await get(state, chatId))?.userLanguage || 'en'
+      const rt = rsApply.T(lang)
+      const [, kind, arg] = data.split(':')
+      const mid = query.message?.message_id
+      const answer = (text, alert = false) => bot.answerCallbackQuery(query.id, text ? { text, show_alert: alert } : {}).catch(() => {})
+      if (kind === 't') {
+        const panel = await rsApply.toggleService(chatId, arg, lang, mid)
+        if (!panel) { clearResellerPanel(chatId, mid); return answer(rt.stale) }
+        answer()
+        return bot.editMessageText(panel.text, { chat_id: chatId, message_id: mid, parse_mode: 'HTML', reply_markup: { inline_keyboard: panel.inline_keyboard } }).catch(() => {})
+      }
+      if (kind === 'c') {
+        const r = await rsApply.continueServices(chatId, lang, mid)
+        if (!r) { clearResellerPanel(chatId, mid); return answer(rt.stale) }
+        if (r.error) return answer(r.error.replace(/<[^>]+>/g, ''), true)
+        answer()
+        bot.editMessageReplyMarkup({ inline_keyboard: [] }, { chat_id: chatId, message_id: mid }).catch(() => {})
+        return sendResellerPrompt(chatId, r.prompt)
+      }
+      if (kind === 'ok' || kind === 'no') {
+        if (chatId !== String(TELEGRAM_ADMIN_CHAT_ID)) return answer('Admins only.', true)
+        const by = query.from?.username ? '@' + query.from.username : String(query.from?.id || 'admin')
+        const doc = await rsApply.decide(arg, kind === 'ok', by)
+        if (!doc) {
+          const cur = await rsApply.getById(arg)
+          bot.editMessageReplyMarkup({ inline_keyboard: [] }, { chat_id: chatId, message_id: mid }).catch(() => {})
+          return answer(cur ? `Already ${cur.status.replace('_', ' ')}.` : 'Application not found.', true)
+        }
+        answer(kind === 'ok' ? 'Approved ✅' : 'Rejected ❌')
+        const paid = doc.payment?.status === 'paid'
+        const footer = kind === 'ok'
+          ? `✅ <b>Approved</b> by ${rsApply.esc(by)}`
+          : `❌ <b>Rejected</b> by ${rsApply.esc(by)}${paid ? `\n💰 Paid $${doc.payment.amountUsd} (${rsApply.esc(doc.payment.method)}) — no automatic refund; refund manually if needed.` : ''}`
+        bot.editMessageText(`${rsApply.adminText(doc)}\n\n${footer}`, { chat_id: chatId, message_id: mid, parse_mode: 'HTML' }).catch(() => {})
+        const aLang = (await get(state, doc.chatId))?.userLanguage || doc.lang || 'en'
+        const at = rsApply.T(aLang)
+        send(doc.chatId, kind === 'ok' ? at.approved(rsApply.brand(), doc.tier === 'priority') : at.rejected(rsApply.brand()), translation('o', aLang))
+        return
+      }
+      return answer()
+    }
+
     // ── Post-purchase action shortcuts (UX P-Domain/VPS/Phone #4, 2026-06-21) ──
     // Inline-button shortcuts sent right after a successful purchase. Lets the
     // user single-tap into the most likely next step without hunting through
@@ -7191,7 +7289,6 @@ Tap a button below to change. Changes sync to your phone on next app open.`
 
     try { await bot.answerCallbackQuery(query.id) } catch (e) { /* ignore for test/expired queries */ }
 
-    const { translation } = require('./translation.js')
     const info = await state.findOne({ _id: String(chatId) })
     const lang = info?.userLanguage || 'en'
     const trans = (key, ...args) => translation(key, lang, ...args)
@@ -10382,6 +10479,7 @@ bot?.on('message', msg => {
         return { step, total: n(cp ? info?.newPrice : info?.price), label: isValidator ? 'Phone Validation' : 'Phone Leads', walletOkKey: isValidator ? a.validatorSelectFormat : a.buyLeadsSelectFormat }
       }
       case 'bundleConfirm': return { step, total: n(cp && info?.newPrice ? info?.newPrice : info?.bundlePrice), label: info?.bundleName || 'bundle', walletOkKey: 'bundleConfirm' }
+      case 'reseller-pay': return { step, total: rsApply.PRIORITY_FEE_USD, label: 'Priority Reseller Setup', walletOkKey: step }
       default: return { step, total: n(cp ? info?.newPrice : (info?.price || info?.totalPrice)), label: step, walletOkKey: rawStep }
     }
   }
@@ -10803,6 +10901,41 @@ bot?.on('message', msg => {
         const { plan, price, couponApplied, newPrice } = info
         return couponApplied ? t.planNewPrice(plan, price, newPrice) : t.planPrice(plan, price)
       })
+    },
+    // 💼 Reseller: intro (no open application) or status screen (open one)
+    resellerHome: async () => {
+      const open = await rsApply.getOpen(chatId)
+      const scr = open ? rsApply.statusScreen(open, lang) : rsApply.homeScreen(lang)
+      await set(state, chatId, 'action', 'rsHome')
+      if (open) await saveInfo('rsAppId', open._id)
+      return send(chatId, scr.text, { parse_mode: 'HTML', reply_markup: { keyboard: scr.keyboard, resize_keyboard: true } })
+    },
+    resellerAsk: async () => {
+      await set(supportSessions, chatId, Date.now())
+      await saveInfo('action', a.supportChat)
+      await set(state, chatId, 'adminTakeover', false)
+      // Seed the AI with what the user just saw so its first answer is about reselling (50/50 split).
+      await addSupportContext(chatId, `[User opened the 💼 Reseller page] ${t.becomeReseller.replace(/<[^>]+>/g, '')}`)
+      send(chatId, t.becomeReseller, { parse_mode: 'HTML', reply_markup: { keyboard: [['/done', '🏠 Main Menu']], resize_keyboard: true } })
+      const name = await get(nameOf, chatId)
+      const userTag = name ? `@${name}` : (msg?.from?.username ? `@${msg.from.username}` : 'unknown')
+      send(TELEGRAM_ADMIN_CHAT_ID, `💼 <b>Reseller enquiry</b> — support session opened\nUser: <b>${userTag}</b> (${chatId})\n\n🤖 <i>AI will answer reseller questions first (50/50 profit share). You'll be notified if escalation is needed.</i>\n\nReply with: /reply ${chatId} <i>your message</i>\nClose with: /close ${chatId}`, adminMsgOpts({ chatId, supportSession: true }))
+      log(`[Support] Reseller enquiry session opened for ${chatId} ${name}`)
+      scheduleSupportSlaNudge(chatId, name || msg?.from?.username || 'unknown', Date.now())
+    },
+    resellerSwitchStd: async () => {
+      const open = await rsApply.getOpen(chatId)
+      const doc = open && await rsApply.switchToStandard(open._id)
+      if (!doc) return goto.resellerHome()
+      await set(state, chatId, 'action', 'none')
+      send(chatId, rsApply.T(lang).switched, trans('o'))
+      return alertResellerApplication(doc)
+    },
+    'reseller-pay': async () => {
+      const app = info?.rsAppId ? await rsApply.getById(info.rsAppId) : null
+      if (!app || app.status !== 'pending_payment') return goto.resellerHome()
+      await set(state, chatId, 'action', 'reseller-pay')
+      return checkoutScreen('reseller-pay', rsApply.T(lang).checkout, { extraRows: [[rsApply.T(lang).btn.switchStd]] })
     },
     'choose-subscription': async () => {
       await set(state, chatId, 'action', 'choose-subscription')
@@ -13373,6 +13506,20 @@ Enter new value:`), bc)
       )
     },
 
+    'reseller-pay': async coin => {
+      await set(state, chatId, 'action', 'none')
+      const fee = rsApply.PRIORITY_FEE_USD
+      const app = info?.rsAppId ? await rsApply.getById(info.rsAppId) : null
+      if (!app || app.status !== 'pending_payment') return goto.resellerHome()
+      const { usdBal } = await getBalance(walletOf, chatId)
+      if (usdBal < fee) return _showBalanceWall(usdBal, fee)
+      if (!(await atomicIncrement(walletOf, chatId, 'usdOut', fee))) return _showBalanceWall(usdBal, fee)
+      const name = await get(nameOf, chatId)
+      set(payments, nanoid(), `Wallet,ResellerPriority,${app._id},$${fee},${chatId},${name},${new Date()}`)
+      _finalizeWalletPurchase()
+      return completeResellerPriority(chatId, app._id, { method: 'wallet_usd', amountUsd: fee, refund: { currency: 'usd', amount: fee } }, lang)
+    },
+
     'domain-pay': async coin => {
       await set(state, chatId, 'action', 'none')
       const shownPrice = info?.couponApplied ? info?.newPrice : info?.price
@@ -14902,6 +15049,7 @@ All verified numbers generated during sourcing.`))
       log(`[CartRecovery] /start pressed from payment action "${action}" — recording abandonment`)
       cartRecovery.recordAbandonment(chatId, info?.userLanguage || 'en')
     }
+    if (action === 'rsApply') await closeResellerDraft(chatId)
 
     // Check for recent referral clicks for existing users (fallback when deep link doesn't work)
     // This handles the case where Telegram doesn't send the parameter for existing users
@@ -15102,6 +15250,50 @@ All verified numbers generated during sourcing.`))
   if (action === a.cpTxReg && typeof message === 'string' && message) {
     if (await handleTelnyxVerificationInput(chatId, { text: message }, info?.userLanguage || 'en')) return
     action = 'none'
+  }
+
+  // 💼 Reseller — intro / status screen buttons
+  if (action === 'rsHome' && typeof message === 'string' && message) {
+    if (rsApply.isBtn(message, b => b.apply) || rsApply.isBtn(message, b => b.applyAgain)) {
+      if (await rsApply.getOpen(chatId)) return goto.resellerHome()
+      const p = await rsApply.start(chatId, { username: currentUsername || nameOfChatId || null, lang })
+      await set(state, chatId, 'action', 'rsApply')
+      return sendResellerPrompt(chatId, p)
+    }
+    if (rsApply.isBtn(message, b => b.ask)) return goto.resellerAsk()
+    if (rsApply.isBtn(message, b => b.pay)) return goto['reseller-pay']()
+    if (rsApply.isBtn(message, b => b.switchStd)) return goto.resellerSwitchStd()
+    if (rsApply.isBtn(message, b => b.withdraw)) {
+      const open = await rsApply.getOpen(chatId)
+      const doc = open && await rsApply.withdraw(open._id)
+      if (!doc) return goto.resellerHome()
+      await set(state, chatId, 'action', 'none')
+      if (doc.adminMsg) bot.editMessageReplyMarkup({ inline_keyboard: [] }, { chat_id: doc.adminMsg.chatId, message_id: doc.adminMsg.messageId }).catch(() => {})
+      if (open.status === 'pending') notifyAdmin(`🗑 [Reseller] Application ${String(doc._id).slice(0, 8)} withdrawn by the applicant (${chatId})`)
+      return send(chatId, rsApply.T(lang).withdrawn, trans('o'))
+    }
+    await set(state, chatId, 'action', 'none')
+    action = 'none'
+  }
+
+  // 💼 Reseller — application steps
+  if (action === 'rsApply' && typeof message === 'string' && message && (isMainMenuPress(message) || (!rsApply.isFormLabel(message) && isAnyUserLabel(message)))) {
+    await closeResellerDraft(chatId)
+    await set(state, chatId, 'action', 'none')
+    action = 'none'
+  }
+  if (action === 'rsApply' && typeof message === 'string' && message) {
+    const r = await rsApply.handleInput(chatId, message, lang)
+    if (!r) { await set(state, chatId, 'action', 'none'); action = 'none' }
+    else if (r.closed) return goto.resellerHome()
+    else if (r.cancelled) { clearResellerPanel(chatId, r.panelMsgId); await set(state, chatId, 'action', 'none'); return send(chatId, r.text, trans('o')) }
+    else if (r.submitted) {
+      const doc = r.submitted
+      if (doc.status === 'pending_payment') { await saveInfo('rsAppId', doc._id); return goto['reseller-pay']() }
+      await set(state, chatId, 'action', 'none')
+      send(chatId, rsApply.T(lang).submittedStd, trans('o'))
+      return alertResellerApplication(doc)
+    } else { clearResellerPanel(chatId, r.clearPanel); return sendResellerPrompt(chatId, r) }
   }
 
   // /testsip — generate OTP for SIP test page
@@ -23588,6 +23780,72 @@ ${message.replace(/\n/g, '<br>')}
         return send(chatId, t.showDepositCryptoInfoPlan(price, priceCrypto, ticker, bbAddr, plan), trans('o'))
       }
     }
+  }
+  // ── 💼 Reseller Priority setup fee ($200): wallet / crypto / bank ──
+  if (action === 'reseller-pay') {
+    if (isBackPress(message)) return goto.resellerHome()
+    if (rsApply.isBtn(message, b => b.switchStd)) return goto.resellerSwitchStd()
+    const tap = hcx.parseCheckoutTap(message)
+    if (tap) return runCheckoutTap('reseller-pay', tap)
+    if (message === payIn.crypto) {
+      await set(state, chatId, 'action', 'crypto-pay-reseller')
+      return send(chatId, t.selectCryptoToDeposit, trans('k.of', trans('supportedCryptoViewOf')))
+    }
+    if (message === payIn.bank) {
+      await set(state, chatId, 'action', 'bank-pay-reseller')
+      return send(chatId, t.askEmail, bc)
+    }
+    if (message === payIn.wallet) {
+      set(state, chatId, 'lastStep', 'reseller-pay')
+      return goto.walletSelectCurrency()
+    }
+    return send(chatId, t.askValidPayOption)
+  }
+  if (action === 'bank-pay-reseller') {
+    if (isBackPress(message)) return goto['reseller-pay']()
+    const email = message
+    if (!isValidEmail(email)) return send(chatId, t.askValidEmail)
+    const app = info?.rsAppId ? await rsApply.getById(info.rsAppId) : null
+    if (!app || app.status !== 'pending_payment') return goto.resellerHome()
+    const price = rsApply.PRIORITY_FEE_USD
+    const priceNGN = Number(await usdToNgn(price))
+    if (!priceNGN || isNaN(priceNGN) || priceNGN <= 0) return send(chatId, trans('t.vps_91'), trans('o'))
+    const ref = nanoid()
+    await set(state, chatId, 'action', 'none')
+    set(chatIdOfPayment, ref, { chatId, price, rsAppId: app._id, endpoint: '/bank-pay-reseller', _createdAt: new Date().toISOString() })
+    const { url, error } = await createCheckout(priceNGN, `/ok?a=b&ref=${ref}&`, email, username, ref)
+    if (error) return send(chatId, error, trans('o'))
+    return send(chatId, rsApply.T(lang).bankPay(priceNGN.toLocaleString()), trans('payBank', url))
+  }
+  if (action === 'crypto-pay-reseller') {
+    if (isBackPress(message)) return goto['reseller-pay']()
+    const ticker = trans('supportedCryptoView')[message]
+    if (!ticker) return send(chatId, t.askValidCrypto)
+    const app = info?.rsAppId ? await rsApply.getById(info.rsAppId) : null
+    if (!app || app.status !== 'pending_payment') return goto.resellerHome()
+    const price = rsApply.PRIORITY_FEE_USD
+    const ref = nanoid()
+    const viaBlockBee = async () => {
+      const bbResult = await getCryptoDepositAddress(tickerOf[ticker], chatId, SELF_URL, `/crypto-pay-reseller?a=b&ref=${ref}&`)
+      if (!bbResult?.address) return null
+      set(chatIdOfPayment, ref, { chatId, price, rsAppId: app._id })
+      await sendQrCode(bot, chatId, bbResult.bb, lang)
+      return bbResult.address
+    }
+    const viaDynopay = async () => {
+      const coin = tickerOfDyno[ticker]
+      if (!coin) return null
+      const d = await getDynopayCryptoAddress(price, coin, `${SELF_URL}/dynopay/crypto-pay-reseller`, { product_name: dynopayActions.payResellerPriority, refId: ref })
+      if (!d?.address) return null
+      set(chatIdOfDynopayPayment, ref, { chatId, price, rsAppId: app._id, action: dynopayActions.payResellerPriority, address: d.address })
+      await generateQr(bot, chatId, d.qr_code, lang)
+      return d.address
+    }
+    const address = BLOCKBEE_CRYTPO_PAYMENT_ON === 'true' ? (await viaBlockBee() || await viaDynopay()) : (await viaDynopay() || await viaBlockBee())
+    if (!address) return send(chatId, t.errorFetchingCryptoAddress, trans('o'))
+    await set(state, chatId, 'action', 'none')
+    const priceCrypto = await convert(price, 'usd', tickerOf[ticker])
+    return send(chatId, t.showDepositCryptoInfo(price, priceCrypto, ticker, address), trans('o'))
   }
   //
   //
@@ -35089,18 +35347,8 @@ Select a category:`), k.of(catBtns))
     return
   }
   if (message === user.becomeReseller) {
-    await set(supportSessions, chatId, Date.now())
-    await saveInfo('action', a.supportChat)
-    await set(state, chatId, 'adminTakeover', false)
-    // Seed the AI with what the user just saw so its first answer is about reselling (50/50 split).
-    await addSupportContext(chatId, `[User opened the 💼 Reseller page] ${t.becomeReseller.replace(/<[^>]+>/g, '')}`)
-    send(chatId, t.becomeReseller, { parse_mode: 'HTML', reply_markup: { keyboard: [['/done', '🏠 Main Menu']], resize_keyboard: true } })
-    const name = await get(nameOf, chatId)
-    const userTag = name ? `@${name}` : (msg?.from?.username ? `@${msg.from.username}` : 'unknown')
-    send(TELEGRAM_ADMIN_CHAT_ID, `💼 <b>Reseller enquiry</b> — support session opened\nUser: <b>${userTag}</b> (${chatId})\n\n🤖 <i>AI will answer reseller questions first (50/50 profit share). You'll be notified if escalation is needed.</i>\n\nReply with: /reply ${chatId} <i>your message</i>\nClose with: /close ${chatId}`, adminMsgOpts({ chatId, supportSession: true }))
-    log(`[Support] Reseller enquiry session opened for ${chatId} ${name}`)
-    scheduleSupportSlaNudge(chatId, name || msg?.from?.username || 'unknown', Date.now())
-    return
+    if (process.env.RESELLER_APPLY_FORM === 'true') return goto.resellerHome()
+    return goto.resellerAsk()
   }
   // ── "➕ More" submenu (2026-06 menu simplify) ──
   // Secondary services moved off the crowded main menu live here. Each item
@@ -39485,6 +39733,28 @@ const bankApis = {
     await set(state, chatId, 'action', 'none') // Reset action after bank payment completes
     res.send(html())
   },
+  '/bank-pay-reseller': async (req, res, ngnIn) => {
+    const { ref, chatId, price, rsAppId } = req.pay || {}
+    if (!ref || !chatId || !price || !rsAppId) return log(translation('t.argsErr')) || res.send(html(translation('t.argsErr')))
+    const info = await state.findOne({ _id: String(chatId) })
+    const lang = info?.userLanguage ?? 'en'
+    del(chatIdOfPayment, ref)
+    const usdIn = await ngnToUsd(ngnIn)
+    const name = await get(nameOf, chatId)
+    set(payments, ref, `Bank,ResellerPriority,${rsAppId},$${usdIn},${chatId},${name},${new Date()},₦${ngnIn}`)
+    const ngnPrice = await usdToNgn(price)
+    if (usdIn < price) {
+      sendMessage(chatId, translation('t.sentLessMoney', lang, `${ngnPrice} NGN`, `${ngnIn} NGN`), translation('o', lang))
+      addFundsTo(walletOf, chatId, 'ngn', ngnIn, lang)
+      return res.send(html(translation('t.lowPrice')))
+    }
+    if (ngnIn > ngnPrice) {
+      addFundsTo(walletOf, chatId, 'ngn', ngnIn - ngnPrice, lang)
+      sendMessage(chatId, translation('t.sentMoreMoney', lang, `${ngnPrice} NGN`, `${ngnIn} NGN`))
+    }
+    await completeResellerPriority(chatId, rsAppId, { method: 'bank_ngn', amountUsd: price, ref, refund: { currency: 'ngn', amount: Math.min(Number(ngnIn) || 0, Number(ngnPrice) || 0) } }, lang)
+    res.send(html())
+  },
   '/bank-pay-domain': async (req, res, ngnIn) => {
     // Validate
     const { ref, chatId, price, domain } = req.pay || {}
@@ -40471,6 +40741,33 @@ app.get('/content-demo-link', async (req, res) => {
 
 app.get('/free-sms', async (req, res) => {
   res.send(process.env.APP_FREE_SMS)
+})
+
+// 💼 Reseller Priority setup fee — BlockBee
+app.get('/crypto-pay-reseller', auth, async (req, res) => {
+  const { ref, chatId, price, rsAppId } = req.pay
+  const coin = req?.query?.coin
+  const value = req?.query?.value_coin
+  if (!ref || !chatId || !price || !rsAppId || !coin || !value) return log(translation('t.argsErr')) || res.send(html(translation('t.argsErr')))
+  const info = await state.findOne({ _id: String(chatId) })
+  const lang = info?.userLanguage ?? 'en'
+  del(chatIdOfPayment, ref)
+  const name = await get(nameOf, chatId)
+  set(payments, ref, `Crypto,ResellerPriority,${rsAppId},$${price},${chatId},${name},${new Date()},${value} ${coin}`)
+  // Same tolerance + conversion-failure handling as DynoPay (fee shave ≤10% counts as paid; never null)
+  const usdIn = await resolveCryptoCreditUsd(req, { chatId, coin, value, ticker: coin, invoiceUsd: price, feePayer: 'company', service: 'crypto-pay-reseller' })
+  if (usdIn < price) {
+    sendMessage(chatId, translation('t.sentLessMoney', lang, `$${price}`, `$${usdIn}`), translation('o', lang))
+    addFundsTo(walletOf, chatId, 'usd', usdIn, lang)
+    return res.send(html(translation('t.lowPrice')))
+  }
+  if (usdIn > price) {
+    addFundsTo(walletOf, chatId, 'usd', usdIn - price, lang)
+    sendMessage(chatId, translation('t.sentMoreMoney', lang, `$${price}`, `$${usdIn}`))
+  }
+  await auditCryptoTx(chatId, 'reseller-priority', price, { rsAppId, coin, value, ref }, 'blockbee')
+  await completeResellerPriority(chatId, rsAppId, { method: 'crypto_' + coin, amountUsd: price, ref, refund: { currency: 'usd', amount: price } }, lang)
+  res.send(html())
 })
 
 app.get('/crypto-pay-plan', auth, async (req, res) => {
@@ -45792,6 +46089,31 @@ app.post('/dynopay/crypto-pay-plan', authDyno, async (req, res) => {
   if (cartRecovery) cartRecovery.recordPaymentCompleted(String(chatId))
   if (userConversion) userConversion.markPurchased(chatId)
   await set(state, chatId, 'action', 'none') // Reset action after crypto payment completes
+  res.send(html())
+})
+
+// 💼 Reseller Priority setup fee — DynoPay
+app.post('/dynopay/crypto-pay-reseller', authDyno, async (req, res) => {
+  const { ref, chatId, price, rsAppId } = req.pay
+  const { amount: value, currency: coin, payment_id: id } = req.body
+  if (!ref || !chatId || !price || !rsAppId || !coin || !value) return log(translation('t.argsErr')) || res.send(html(translation('t.argsErr')))
+  const info = await state.findOne({ _id: String(chatId) })
+  const lang = info?.userLanguage ?? 'en'
+  del(chatIdOfDynopayPayment, ref)
+  const name = await get(nameOf, chatId)
+  set(payments, ref, `Crypto,ResellerPriority,${rsAppId},$${price},${chatId},${name},${new Date()},${value} ${coin},transaction,${id}`)
+  const usdIn = await resolveCryptoCreditUsd(req, { chatId, coin, value, ticker: tickerViewOfDyno[coin], invoiceUsd: parseFloat(req.body.base_amount), feePayer: req.body.fee_payer })
+  if (usdIn < price) {
+    sendMessage(chatId, translation('t.sentLessMoney', lang, `$${price}`, `$${usdIn}`), translation('o', lang))
+    addFundsTo(walletOf, chatId, 'usd', usdIn, lang)
+    return res.send(html(translation('t.lowPrice')))
+  }
+  if (usdIn > price) {
+    addFundsTo(walletOf, chatId, 'usd', usdIn - price, lang)
+    sendMessage(chatId, translation('t.sentMoreMoney', lang, `$${price}`, `$${usdIn}`))
+  }
+  await auditCryptoTx(chatId, 'reseller-priority', price, { rsAppId, coin, value, ref, payment_id: id }, 'dynopay')
+  await completeResellerPriority(chatId, rsAppId, { method: 'crypto_dynopay_' + coin, amountUsd: price, ref, refund: { currency: 'usd', amount: price } }, lang)
   res.send(html())
 })
 
