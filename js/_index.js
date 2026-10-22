@@ -22410,7 +22410,8 @@ ${message.replace(/\n/g, '<br>')}
     if (isBackPress(message)) return goto.submenu1()
     // S1 fix (2026-04-21): sanitize before validating — strips trailing
     // punctuation (e.g. "https://cnn.com." → "https://cnn.com") that
-    // otherwise passes URL() parse but later trips RapidAPI 400.
+    // otherwise passes URL() parse but later trips the shortener provider.
+    // (Linkly accepts any string, so this check is the only URL guard.)
     const cleanedUrl = sanitizeShortenerUrl(message)
     if (!isValidUrl(cleanedUrl)) return send(chatId, t.redValidUrl, bc)
     saveInfo('url', cleanedUrl)
@@ -22472,32 +22473,32 @@ ${message.replace(/\n/g, '<br>')}
         }
 
         // Always route through SELF_URL key for "My Links" listing,
-        // but shorten the DESTINATION URL directly via RapidAPI (single hop).
+        // but shorten the DESTINATION URL directly via Linkly (single hop).
         // Trade-off: click tracking is lost for these new links since clicks
-        // bypass the Railway click handler at app.get('/:id'). Per product
-        // decision: url-shortener57 has no stats endpoint, so accept loss.
+        // bypass the click handler at app.get('/:id'). Per product decision
+        // (2026-10-22) Linkly links show "analytics not available" in My Links.
         const slug = nanoid()
         const __shortUrl = `${SELF_URL}/${slug}`
         const shortUrl = __shortUrl.replaceAll('.', '@').replace('https://', '')
         let _shortUrl
         try {
           _shortUrl = await createShortUrlApi(url)
-          log(`[Shortener] RapidAPI success: ${_shortUrl}`)
+          log(`[Shortener] Linkly success: ${_shortUrl}`)
         } catch (error) {
           const errMsg = String(error?.message || error)
-          log(`[Shortener] RapidAPI failed: ${errMsg}`)
-          // S1 fix (2026-04-21): A "400 URL is invalid" from RapidAPI almost
+          log(`[Shortener] Linkly failed: ${errMsg}`)
+          // S1 fix (2026-04-21): A "400 … invalid" from the provider almost
           // always means the user sent a typo we couldn't catch with
           // sanitizeShortenerUrl (e.g. invalid TLD). Don't wake the admin —
           // just give the user a clean, actionable hint. Only escalate real
-          // provider failures (5xx, 429, network, undefined).
+          // provider failures (401/403 plan limit, 5xx, 429, network, undefined).
           const isUserInputError = /\b400\b/.test(errMsg) && /invalid/i.test(errMsg)
           if (!isUserInputError) {
-            send(TELEGRAM_ADMIN_CHAT_ID, `⚠️ RapidAPI URL shortener failed:\n${errMsg}`)
+            send(TELEGRAM_ADMIN_CHAT_ID, `⚠️ Linkly URL shortener failed:\n${errMsg}`)
           } else {
             log(`[Shortener] Suppressed admin ping for user-input 400 error: ${url}`)
           }
-          recordUserError(chatId, 'rapidapi-shortlink', errMsg || 'URL shortening service unavailable')
+          recordUserError(chatId, 'linkly-shortlink', errMsg || 'URL shortening service unavailable')
           await set(state, chatId, 'action', 'none')
           if (isUserInputError) {
             const hint = {
@@ -22557,9 +22558,9 @@ ${message.replace(/\n/g, '<br>')}
 
     // ── Custom alias validation ──
     // The user's alias becomes the path on our short domain (e.g. SELF_URL/my-alias).
-    // We do NOT call RapidAPI here — url-shortener57 doesn't actually support custom
-    // aliases (the previous createCustomShortUrlCuttly silently dropped the alias and
-    // returned a random hash). Instead we use the alias directly as our slug.
+    // We do NOT call the external shortener (Linkly) here — custom aliases live
+    // on our own domain. (Historically url-shortener57 silently dropped the alias and
+    // returned a random hash.) Instead we use the alias directly as our slug.
     const alias = String(message || '').trim()
     if (!/^[A-Za-z0-9_-]{3,32}$/.test(alias)) {
       return send(chatId, trans('t.notValidHalf'))
@@ -22576,7 +22577,7 @@ ${message.replace(/\n/g, '<br>')}
 
     try {
       const { url } = info
-      // Use the user's alias AS the slug (no nanoid). Single hop: RapidAPI is bypassed.
+      // Use the user's alias AS the slug (no nanoid). Single hop: Linkly is bypassed.
       const __shortUrl = `${SELF_URL}/${alias}`
       const shortUrl = __shortUrl.replaceAll('.', '@').replace('https://', '')
 
@@ -41979,10 +41980,11 @@ app.get('/dev/shortlink-analytics-test', (req, res) => {
     { clicks: 0,  shorter: 'https://srtn.me/abc',        url: 'https://example.com',                     analytics: getAnalyticsCapability('https://srtn.me/abc') },
     { clicks: 0,  shorter: 'https://ap1s.net/xyz',       url: 'https://example.com',                     analytics: getAnalyticsCapability('https://ap1s.net/xyz') },
     { clicks: 11, shorter: 'https://bit.ly/zzz',         url: 'https://example.com',                     analytics: getAnalyticsCapability('https://bit.ly/zzz') },
+    { clicks: 0,  shorter: 'https://linkly.link/2y2aQ',  url: 'https://example.com',                     analytics: getAnalyticsCapability('https://linkly.link/2y2aQ') },
   ]
 
   const rendered = formatLinks(sampleLinks, t)
-  const [customDomainLine, customDomainLine2, srtnLine, ap1sLine, bitlyLine] = rendered
+  const [customDomainLine, customDomainLine2, srtnLine, ap1sLine, bitlyLine, linklyLine] = rendered
 
   const customShowsClicks =
     /\b7 clicks\b/.test(customDomainLine) && !/analytics not available/i.test(customDomainLine) &&
@@ -41992,12 +41994,15 @@ app.get('/dev/shortlink-analytics-test', (req, res) => {
     /analytics not available/i.test(ap1sLine)
   const bitlyShowsClicks =
     /\b11 clicks\b/.test(bitlyLine) && !/analytics not available/i.test(bitlyLine)
+  // 2026-10-22: Shortit "Random" links now come from Linkly → must say N/A.
+  const linklyShowsNA = /analytics not available/i.test(linklyLine) && /linkly\.link/i.test(linklyLine)
 
   return res.json({
-    ok: customShowsClicks && externalsStillNA && bitlyShowsClicks,
+    ok: customShowsClicks && externalsStillNA && bitlyShowsClicks && linklyShowsNA,
     customShowsClicks,
     externalsStillNA,
     bitlyShowsClicks,
+    linklyShowsNA,
     capabilities: sampleLinks.map(l => ({ shorter: l.shorter, analytics: l.analytics })),
     rendered,
   })

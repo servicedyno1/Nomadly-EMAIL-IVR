@@ -27,29 +27,41 @@ def test_default_provider_is_not_tinyurl():
     assert "tinyurl.com" not in src_no_comments.lower()
 
 
-def test_default_provider_is_srtn_me():
+def test_default_provider_is_linkly():
+    """2026-10-22: Shortit "Random" links moved from RapidAPI (srtn.me) to Linkly."""
     src = SRC.read_text()
-    assert "srtn-me-url-shortener.p.rapidapi.com" in src
-    # Endpoint + result field must match the provider's contract
-    assert "'/api/shorten'" in src
-    assert "PROVIDER_RESULT_FIELD || 'url'" in src or "FIELD || 'url'" in src
-    # Description field must be sent (required by provider)
-    assert "description" in src
+    # Strip full-line comments only (a naive // regex would eat "https://…" strings)
+    src_no_comments = re.sub(r"^\s*//[^\n]*", "", src, flags=re.M)
+    assert "https://api.linklyhq.com/api/v1" in src_no_comments
+    assert "/workspace/${workspaceId}/links" in src_no_comments
+    assert "full_url" in src_no_comments
+    assert "Bearer ${process.env.LINKLY_API_KEY}" in src_no_comments
+    # RapidAPI must be fully gone from the live code path
+    assert "rapidapi" not in src_no_comments.lower()
+    assert "srtn-me-url-shortener" not in src_no_comments
 
 
-def test_provider_overridable_via_env():
+def test_linkly_env_contract():
     src = SRC.read_text()
-    for v in ("RAPIDAPI_SHORTENER_HOST", "RAPIDAPI_SHORTENER_PATH", "RAPIDAPI_SHORTENER_FIELD"):
-        assert v in src, f"Env override variable {v} missing"
+    for v in ("LINKLY_API_KEY", "LINKLY_WORKSPACE_ID", "LINKLY_DOMAIN"):
+        assert v in src, f"Env variable {v} missing"
+    # Workspace ID auto-discovery fallback
+    assert "/workspaces" in src
 
 
-def test_index_js_random_slug_uses_rapidapi_again():
+def test_index_js_random_slug_uses_linkly():
     """The random-slug flow must call createShortUrlApi unconditionally."""
     src = INDEX.read_text()
-    # Find the block that handles the random-slug short URL flow.
     region_start = src.index("Always route through SELF_URL key")
     region = src[region_start:region_start + 2500]
-    # Hard-coded RapidAPI call — no feature flag gate
     assert "await createShortUrlApi(url)" in region
     assert "process.env.SHORTLINK_PROVIDER" not in region
+    assert "Linkly URL shortener failed" in region
+    assert "RapidAPI" not in region
+
+
+def test_linkly_links_show_analytics_not_available():
+    src = Path("/app/js/shortener-analytics.js").read_text()
+    assert "linkly\\.link" in src
+
 
