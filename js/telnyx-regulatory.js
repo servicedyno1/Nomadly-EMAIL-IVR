@@ -392,6 +392,7 @@ async function getSession(chatId) {
   return sessions ? sessions.findOne({ chatId: String(chatId), status: 'collecting' }, { sort: { updatedAt: -1 } }) : null
 }
 const getIncompleteSession = getSession
+async function getSessionById(id) { return sessions ? sessions.findOne({ _id: id }) : null }
 
 // Atomic collecting → <status>. Returns the session when THIS call made the transition (refund exactly once).
 async function closeSession(id, status, extra = {}) {
@@ -432,9 +433,11 @@ async function findAbandoned({ remindMs = 6 * 3600e3, expireMs = 48 * 3600e3 } =
   const base = { status: 'collecting', payment: { $ne: null } }
   const expire = await sessions.find({ ...base, updatedAt: { $lt: new Date(now - expireMs) } }).limit(25).toArray()
   const remind = await sessions.find({ ...base, reminded: { $ne: true }, updatedAt: { $lt: new Date(now - remindMs), $gte: new Date(now - expireMs) } }).limit(25).toArray()
-  return { remind, expire }
+  const stuck = await sessions.find({ status: 'submitting', stuckAlerted: { $ne: true }, updatedAt: { $lt: new Date(now - 30 * 60e3) } }).limit(25).toArray()
+  return { remind, expire, stuck }
 }
 async function markReminded(id) { await sessions.updateOne({ _id: id }, { $set: { reminded: true } }) }
+async function markStuckAlerted(id) { await sessions.updateOne({ _id: id }, { $set: { stuckAlerted: true } }) }
 
 // Pre-payment summary line: what the user will be asked for after paying.
 function prePayNote(reqs, countryName, lang = 'en') {
@@ -568,7 +571,8 @@ async function handleInput(chatId, input = {}, lang = 'en') {
   const step = s.steps[s.idx]
   const reply = async (extra = {}) => {
     s.updatedAt = new Date()
-    await sessions.replaceOne({ _id: s._id }, s)
+    const w = await sessions.replaceOne({ _id: s._id, status: 'collecting' }, s)
+    if (!w.matchedCount) return { text: '', closed: true }
     const p = prompt(s, lang)
     return { text: (extra.prefix ? extra.prefix + '\n\n' : '') + p.text, keyboard: p.keyboard, ...extra }
   }
@@ -576,7 +580,8 @@ async function handleInput(chatId, input = {}, lang = 'en') {
 
   if (text && isBtn(text, 'btnCancel')) {
     const closed = await closeSession(s._id, 'cancelled', { cancelledAt: new Date() })
-    return { text: t.cancelled(fmtAmount(s.payment?.refund)), cancelled: true, session: closed || s, refundable: !!closed }
+    if (!closed) return { text: '', closed: true }
+    return { text: t.cancelled(fmtAmount(s.payment?.refund)), cancelled: true, session: closed, refundable: true }
   }
   if (text && isBtn(text, 'btnBack')) {
     s.idx = backIdx(s)
@@ -688,14 +693,17 @@ async function validateAddress(s) {
     const r = await http().post('/addresses/actions/validate', {
       street_address: a.street, locality: a.city, administrative_area: a.region || a.city,
       postal_code: a.postal || undefined, country_code: a.country,
-    })
+    }, { validateStatus: st => st < 500 })
     const d = r.data?.data || {}
-    const sug = d.suggested ? {
-      street: d.suggested.street_address, city: d.suggested.locality,
-      region: d.suggested.administrative_area, postal: d.suggested.postal_code, country: a.country,
+    const g = d.suggested || {}
+    const sug = (g.street_address || g.locality || g.postal_code) ? {
+      street: g.street_address, city: g.locality, region: g.administrative_area, postal: g.postal_code, country: a.country,
     } : null
-    const errors = (d.errors || []).map(e => `• ${e.detail || e.title || e.code || ''}`).filter(x => x.length > 2).join('\n')
-    return { result: d.result === 'invalid' ? 'invalid' : 'valid', suggested: d.result === 'invalid' ? sug : null, errors }
+    const errs = [...(d.errors || []), ...(r.data?.errors || [])]
+    const errors = errs.map(e => `• ${e.detail || e.title || e.code || ''}`).filter(x => x.length > 2).join('\n')
+    const invalid = d.result === 'invalid' || r.status === 422
+    if (r.status >= 400 && !invalid) throw new Error(errors || `HTTP ${r.status}`)
+    return { result: invalid ? 'invalid' : 'valid', suggested: invalid ? sug : null, errors }
   } catch (e) {
     deps.log(`[TelnyxReg] address validate unavailable (${a.country}): ${errDetail(e)}`)
     return { result: 'unavailable' }
@@ -750,8 +758,9 @@ async function placeRegulatedOrder(session, { connectionId, messagingProfileId, 
     const values = []
     let addressId = null
     if (a.address) {
-      addressId = await createAddress(s)
+      addressId = s._addressId || await createAddress(s)
       if (!addressId) throw new Error('address creation returned no id')
+      s._addressId = addressId
       values.push({ requirement_id: a.address.id, field_value: addressId })
     }
     for (const r of a.textual) {
@@ -762,9 +771,10 @@ async function placeRegulatedOrder(session, { connectionId, messagingProfileId, 
     for (const r of a.docs) {
       const f = s.docs?.[r.id]
       if (!f || f.skipped || !f.file_id) continue
-      const id = await uploadDocument(s, f)
+      const id = s._docIds?.[r.id] || await uploadDocument(s, f)
       if (!id) throw new Error(`document upload returned no id (${r.name})`)
       docIds[r.id] = id
+      s._docIds = { ...(s._docIds || {}), [r.id]: id }
       values.push({ requirement_id: r.id, field_value: id })
     }
     const phoneEntry = { phone_number: s.selectedNumber }
@@ -821,8 +831,8 @@ function isMissingInfo(order) {
 }
 
 module.exports = {
-  init, getRequirements, analyze, buildSteps, startSession, handleInput, getSession, getIncompleteSession,
-  cancelSession, closeSession, setStatus, resumePrompt, restartSession, findAbandoned, markReminded, prePayNote, fmtAmount,
+  init, getRequirements, analyze, buildSteps, startSession, handleInput, getSession, getIncompleteSession, getSessionById,
+  cancelSession, closeSession, setStatus, resumePrompt, restartSession, findAbandoned, markReminded, markStuckAlerted, prePayNote, fmtAmount,
   placeRegulatedOrder, getOrder, classifyOrder, isMissingInfo, parseCountry, autoValue, T, isBtn,
   REQUIREMENT_GROUP_COUNTRIES, _reqCache: reqCache,
 }
