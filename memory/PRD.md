@@ -887,3 +887,20 @@ User inherited a fully-set-up Nomadly bot pod pointed at LIVE PRODUCTION. Task b
 - GitHub NOT updated yet: owner "Save to GitHub" or `cd /root/nomadly-push && git push origin main` on the droplet
   (prepared: main = e3f70c25, fast-forward over origin/main 33512dfd) → CI redeploys same code + WhiteLabel sync.
 - Next: owner tests one real paid NL order from the bot (Telnyx balance was ~$7 — top up first).
+
+## 2026-10-22 — 💼 Reseller in-bot application form — TESTED (iteration_110 + 111, 192/192) & LIVE on Nomadly only
+- Flow (js/reseller-apply.js, flag RESELLER_APPLY_FORM=true): Email (optional) → Brand → sell mode → volume → audience →
+  size → services (inline toggles) → Note to Admin (optional) → Standard (free, 3–5 days) / Priority ($200, 24h) → review →
+  submit. Admin card with Approve/Reject. Priority paid via wallet / BlockBee / DynoPay / bank NGN.
+- Fixes this round: tapping a main-menu label (any of the 4 languages) or /start mid-form cancels the draft
+  (cancelReason left_form), clears the services panel and opens the tapped menu; the form's own buttons (❌ Cancel, Back, Skip,
+  options) are never treated as escapes; only the newest services panel is live (old ones answer "This step is closed." and lose
+  their buttons; Back/leaving the step clears it). BlockBee /crypto-pay-reseller uses resolveCryptoCreditUsd (feePayer company:
+  ≥90% counts as paid, no "$null"; an admin note when the coin can't be priced). Admin card: 3 retries + notifyAdmin fallback;
+  Standard→Priority upgrade removes the old card's buttons.
+- Tests: js/tests/test_reseller_apply_{smoke 30, deep 103, escape 14, escape_ext 45}_2026-10.js + probe_reseller_panel_edge_2026-10.js.
+- LIVE 2026-10-22 13:55Z — DIRECT DROPLET DEPLOY, app-main ONLY (user: "Nomadly only for now"): release
+  20261022T135104Z-522a1f3 (working tree tarball) on :5100 app-main-b; /health healthy, public 200, 0 restarts.
+  /opt/nomadly/shared/app-main/backend.env RESELLER_APPLY_FORM=true (backup .bak.rsapply.<ts>). Smadav/Voodoo/ProShop untouched
+  (flag unset → old 💼 Reseller AI-support behaviour). Rollback: `bash /opt/nomadly/deploy.sh app-main rollback`.
+- PENDING: owner "Save to GitHub" (otherwise the next CI deploy of app-main drops this code; the env flag stays).

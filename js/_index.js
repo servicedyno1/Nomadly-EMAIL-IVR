@@ -1486,6 +1486,8 @@ async function sendResellerPrompt(chatId, p) {
   } catch (e) { log(`[Reseller] prompt send failed for ${chatId}: ${e.message}`) }
 }
 const clearResellerPanel = (chatId, mid) => mid && bot.editMessageReplyMarkup({ inline_keyboard: [] }, { chat_id: chatId, message_id: mid }).catch(() => {})
+let _allUserLabels = null
+const isAnyUserLabel = m => (_allUserLabels ||= new Set(['en', 'fr', 'zh', 'hi'].flatMap(l => Object.values(translation('user', l) || {}).filter(v => typeof v === 'string')))).has(m)
 async function closeResellerDraft(chatId) {
   const d = await rsApply.abandon(chatId)
   clearResellerPanel(chatId, d?.panelMsgId)
@@ -6428,13 +6430,13 @@ bot?.on('callback_query', async (query) => {
       const mid = query.message?.message_id
       const answer = (text, alert = false) => bot.answerCallbackQuery(query.id, text ? { text, show_alert: alert } : {}).catch(() => {})
       if (kind === 't') {
-        const panel = await rsApply.toggleService(chatId, arg, lang)
+        const panel = await rsApply.toggleService(chatId, arg, lang, mid)
         if (!panel) { clearResellerPanel(chatId, mid); return answer(rt.stale) }
         answer()
         return bot.editMessageText(panel.text, { chat_id: chatId, message_id: mid, parse_mode: 'HTML', reply_markup: { inline_keyboard: panel.inline_keyboard } }).catch(() => {})
       }
       if (kind === 'c') {
-        const r = await rsApply.continueServices(chatId, lang)
+        const r = await rsApply.continueServices(chatId, lang, mid)
         if (!r) { clearResellerPanel(chatId, mid); return answer(rt.stale) }
         if (r.error) return answer(r.error.replace(/<[^>]+>/g, ''), true)
         answer()
@@ -15275,7 +15277,7 @@ All verified numbers generated during sourcing.`))
   }
 
   // 💼 Reseller — application steps
-  if (action === 'rsApply' && typeof message === 'string' && message && (isMainMenuPress(message) || (!rsApply.isFormLabel(message) && Object.values(user).some(v => typeof v === 'string' && v === message)))) {
+  if (action === 'rsApply' && typeof message === 'string' && message && (isMainMenuPress(message) || (!rsApply.isFormLabel(message) && isAnyUserLabel(message)))) {
     await closeResellerDraft(chatId)
     await set(state, chatId, 'action', 'none')
     action = 'none'
@@ -15291,7 +15293,7 @@ All verified numbers generated during sourcing.`))
       await set(state, chatId, 'action', 'none')
       send(chatId, rsApply.T(lang).submittedStd, trans('o'))
       return alertResellerApplication(doc)
-    } else return sendResellerPrompt(chatId, r)
+    } else { clearResellerPanel(chatId, r.clearPanel); return sendResellerPrompt(chatId, r) }
   }
 
   // /testsip — generate OTP for SIP test page

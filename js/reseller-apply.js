@@ -288,7 +288,9 @@ async function handleInput(chatId, text, lang) {
   const step = STEPS[app.idx]
   const msg = String(text || '').trim()
   const re = extra => ({ ...prompt(app, lang), text: `${extra}\n\n${prompt(app, lang).text}` })
-  const next = async () => { app.idx++; if (!(await save(app))) return { closed: true }; return prompt(app, lang) }
+  // Leaving the services step → tell the caller to clear that inline panel.
+  const out = p => (step === 'services' && app.panelMsgId && STEPS[app.idx] !== 'services' ? { ...p, clearPanel: app.panelMsgId } : p)
+  const next = async () => { app.idx++; if (!(await save(app))) return { closed: true }; return out(prompt(app, lang)) }
 
   if (isBtn(msg, b => b.cancel) || msg === '/cancel') {
     const r = await col.updateOne({ _id: app._id, status: 'draft' }, { $set: { status: 'cancelled', updatedAt: new Date() } })
@@ -297,7 +299,7 @@ async function handleInput(chatId, text, lang) {
   if (isBtn(msg, b => b.back) && app.idx > 0) {
     app.idx--
     if (!(await save(app))) return { closed: true }
-    return prompt(app, lang)
+    return out(prompt(app, lang))
   }
   switch (step) {
     case 'email':
@@ -338,19 +340,21 @@ async function handleInput(chatId, text, lang) {
 }
 
 // Inline service toggles (edit in place). Returns the new panel, or null when the step is closed.
-async function toggleService(chatId, key, lang) {
+// Only the newest panel is live (an older copy left in the chat is stale).
+const livePanel = (app, mid) => app && STEPS[app.idx] === 'services' && !(mid && app.panelMsgId && mid !== app.panelMsgId)
+async function toggleService(chatId, key, lang, mid) {
   if (!SVC_KEYS.includes(key)) return null
   const app = await getDraft(chatId)
-  if (!app || STEPS[app.idx] !== 'services') return null
+  if (!livePanel(app, mid)) return null
   const sel = new Set(app.answers.services || [])
   sel.has(key) ? sel.delete(key) : sel.add(key)
   app.answers.services = SVC_KEYS.filter(k => sel.has(k))
   if (!(await save(app))) return null
   return servicesPanel(app, lang)
 }
-async function continueServices(chatId, lang) {
+async function continueServices(chatId, lang, mid) {
   const app = await getDraft(chatId)
-  if (!app || STEPS[app.idx] !== 'services') return null
+  if (!livePanel(app, mid)) return null
   if (!(app.answers.services || []).length) return { error: T(lang).bad.services }
   app.idx++
   if (!(await save(app))) return null

@@ -22,7 +22,9 @@ async function text(chat, t, wait = 1800) {
   await sleep(wait)
   return (await calls(chat, since)).filter(c => c.method === 'sendMessage')
 }
-async function cb(chat, data, wait = 1500, fromId = chat, mid = 77) {
+async function cb(chat, data, wait = 1500, fromId = chat, mid) {
+  // Service-panel taps come from the live panel message (as real Telegram sends them).
+  if (mid === undefined) mid = /^rsa:[tc]/.test(data) ? ((await db.collection('resellerApplications').findOne({ chatId: String(chat), status: 'draft' }))?.panelMsgId || 77) : 77
   const since = Date.now(); const n = uid++
   await axios.post(WEBHOOK, { update_id: n, callback_query: { id: String(n), from: { id: Number(fromId), is_bot: false, first_name: 'Adm', username: 'adm' }, message: { message_id: mid, date: Math.floor(Date.now() / 1000), chat: { id: Number(chat), type: 'private' } }, data } }, { timeout: 20000 })
   await sleep(wait)

@@ -1,0 +1,33 @@
+{
+  "summary": "Backend-only retest of the 💼 Reseller in-bot form (RESELLER_APPLY_FORM=true), driving the real bot on :5000 with mock Telegram on :5099. Smoke 30/30, deep 103/103, escape 14/14. New extended suite 45/45. It covers: escaping from the note step (🏠 Main Menu / 👛 Wallet); fr/zh/hi wallet and main-menu labels on the brand step (draft cancelled with cancelReason left_form, label not saved, action≠rsApply, the target menu is shown); /cancel and localized ❌ Cancel on the services step (Application cancelled, status cancelled not left_form, panelMsgId buttons removed); /start on the services step (panel cleared, stale rsa:c answers 'This step is closed.' and its buttons are removed); Skip and Back are still not treated as escapes. BlockBee: 200 USDT (≈$199.8) and 185 USDT count as paid with no wallet credit and a PRIORITY admin card; 150 USDT → pending_payment, $149.84 to the wallet and an admin UNDERPAYMENT alert; 260 USDT → paid with $59.7 excess to the wallet; an unpriceable coin → falls back to the invoice (no '$null') and sends the admin '⚠️ [CryptoCredit] … could not price' note. Upgrade from Standard: the old adminMsg buttons are removed before the new 'Upgraded from Standard' card is sent, and adminMsg is repointed. alertResellerApplication: with 2 injected 500s the card is delivered on attempt 3 (backoff ≈2s/4s); with 3 injected 500s the '🚨 [Reseller] Could not deliver the application card … PAID' fallback is sent and the app stays paid. All 4 minor items from iteration_110 are verified fixed.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "rsApply services step: ⬅️ Back (reseller-apply.js handleInput back branch / _index.js rsApply branch)", "issue": "Back from the services step does not clear the services inline panel. When the user comes back to services, a new panel is sent (panelMsgId is overwritten) and the OLD panel stays live: tapping a toggle on it still edits the draft and redraws the old message. Data stays consistent (same draft), but there are two live panels, and abandon/cancel later only clears the newest one. Repro: probe_reseller_panel_edge_2026-10.js (a). Fix: clear the panel when leaving the services step via Back (handleInput could return panelMsgId like cancel does), and/or check query.message.message_id === app.panelMsgId in toggleService/continueServices."},
+      {"endpoint": "rsApply escape matcher (_index.js ~15278)", "issue": "Only labels in the user's own language count as escapes (trans('user') + isMainMenuPress). A fr user who sends the English '👛 Wallet' (for example from an old cached keyboard) gets it saved as the brand. This is an edge case; it could also check the user.* labels of all languages."}
+    ]
+  },
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": ["/app/js/tests/test_reseller_apply_smoke_2026-10.js", "/app/js/tests/test_reseller_apply_deep_2026-10.js", "/app/js/tests/test_reseller_apply_escape_2026-10.js", "/app/js/tests/test_reseller_apply_escape_ext_2026-10.js", "/app/js/tests/probe_reseller_panel_edge_2026-10.js"],
+  "action_items": [
+    "(Minor) Clear the services panel on ⬅️ Back from services, or make toggles/continue only act on the current panelMsgId",
+    "(Optional) Match main-menu labels in all languages for the rsApply escape"
+  ],
+  "critical_code_review_comments": [
+    "resolveCryptoCreditUsd with feePayer 'company' credits the full invoice when conversion fails (src=none). A payment in an unpriceable or garbage coin therefore marks the Priority app as paid, whatever the amount; the only safeguard is the admin 'could not price' note. This matches the DynoPay policy and needs a valid ref (forging the callback is already a full bypass anyway), so it is low risk, but the admin should verify these.",
+    "Small overpays (for example 201 USDT → $0.79) send sentMoreMoney and a wallet credit for cents. This is cosmetic.",
+    "isFormLabel includes btn.menu ('🏠 Main Menu'), but isMainMenuPress is checked first, so Main Menu still escapes correctly (verified in all 4 languages).",
+    "The deep suite's BlockBee 'underpay' case uses 50 USDT (<90%), so it still passes with the 10% tolerance. No expectation change was needed."
+  ],
+  "updated_files": [
+    "/app/js/tests/mock_telegram_api.js (test infra: added POST /_fail?method=&match=&count= failure injection; the mock was restarted with nohup)",
+    "/app/js/tests/test_reseller_apply_escape_ext_2026-10.js (new, 45 checks)",
+    "/app/js/tests/probe_reseller_panel_edge_2026-10.js (new probe)"
+  ],
+  "success_rate": {"backend": "100% (192/192 checks: smoke 30, deep 103, escape 14, escape_ext 45); 2 minor edge findings from the probe", "frontend": "N/A (skipped)"},
+  "seed_data_creation": "Chat ids 990400010-990400096 (state/walletOf/nameOf/resellerApplications) and TEST-prefixed chatIdOfPayment/payments refs are seeded and cleaned by each script. A post-run check found 0 leftovers.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "The mock Telegram now supports POST /_fail?method=sendMessage&match=<substr>&count=N (the next N matching calls return 500). The extended suite needs this (restart the mock: node js/tests/mock_telegram_api.js). Run order: smoke → deep (~5 min, background) → escape → escape_ext (~3 min). backend/.env has two MONGO_URL lines; dotenv resolves to localhost:27017 (the same one the bot uses). Use node + dotenv for DB checks, not a grep of .env.",
+  "rca of the issue": "Stale old panel after Back: sendResellerPrompt stores only the latest panel id, the Back branch in handleInput doesn't return/clear the previous panelMsgId, and toggleService/continueServices check only the draft step, not which message was tapped."
+}

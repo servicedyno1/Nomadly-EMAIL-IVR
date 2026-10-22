@@ -18,9 +18,12 @@ async function text(chat, t, wait = 2200) {
   await sleep(wait)
   return (await calls(chat, since)).filter(c => c.method === 'sendMessage')
 }
+let DB = null
 async function cb(chat, data, wait = 1800, fromId = chat) {
+  // Service-panel taps come from the live panel message (as real Telegram sends them).
+  const mid = /^rsa:[tc]/.test(data) ? ((await DB.collection('resellerApplications').findOne({ chatId: String(chat), status: 'draft' }))?.panelMsgId || 77) : 77
   const since = Date.now(); const n = uid++
-  await axios.post(WEBHOOK, { update_id: n, callback_query: { id: String(n), from: { id: Number(fromId), is_bot: false, first_name: 'Adm', username: 'adm' }, message: { message_id: 77, date: Math.floor(Date.now() / 1000), chat: { id: Number(chat), type: 'private' } }, data } }, { timeout: 20000 })
+  await axios.post(WEBHOOK, { update_id: n, callback_query: { id: String(n), from: { id: Number(fromId), is_bot: false, first_name: 'Adm', username: 'adm' }, message: { message_id: mid, date: Math.floor(Date.now() / 1000), chat: { id: Number(chat), type: 'private' } }, data } }, { timeout: 20000 })
   await sleep(wait)
   return { all: await calls(null, since), n }
 }
@@ -29,6 +32,7 @@ const last = cs => cs.slice(-1)[0] || {}
 ;(async () => {
   const mc = await MongoClient.connect(process.env.MONGO_URL)
   const db = mc.db(process.env.DB_NAME)
+  DB = db
   const U1 = '990400001', U2 = '990400002'
   const clean = async () => {
     for (const c of ['state', 'walletOf', 'nameOf']) await db.collection(c).deleteMany({ _id: { $in: [U1, U2] } })
