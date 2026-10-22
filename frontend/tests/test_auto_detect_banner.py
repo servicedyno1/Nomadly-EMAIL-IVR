@@ -12,7 +12,7 @@ Run: /opt/plugins-venv/bin/python3 frontend/tests/test_auto_detect_banner.py
 import sys
 from playwright.sync_api import sync_playwright
 
-URL = 'https://vault-preview-122.preview.emergentagent.com/panel'
+URL = 'https://app-vault-setup-1.preview.emergentagent.com/panel'
 BANNER = '[data-testid="auto-detect-language-banner"]'
 BTN_KEEP = '[data-testid="auto-detect-banner-keep"]'
 BTN_SWITCH_EN = '[data-testid="auto-detect-banner-switch-en"]'
