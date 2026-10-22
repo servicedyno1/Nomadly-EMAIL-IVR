@@ -64,6 +64,48 @@ ok(!off.listTx.includes('Being upgraded'), 'false: myNumbersList telnyx has no b
 ok(!off.manageTx.includes('being upgraded'), 'false: manageNumber telnyx has no banner')
 console.log('INFO non-EN (fr) banner present when disabled:', off.frBanner)
 
+// ── FIX F: 🔧 banner in ALL languages (en/fr/zh/hi) ──
+const langCode = `
+const pc = require('/app/js/phone-config.js')
+const future = new Date(Date.now() + 20*86400000).toISOString()
+const tw = { provider:'twilio', status:'active', phoneNumber:'+18885551234', plan:'pro', expiresAt: future, features:{}, capabilities:{}, planPrice:75 }
+const tx = { ...tw, provider:'telnyx', phoneNumber:'+18885550000' }
+const out = {}
+for (const lang of ['en','fr','zh','hi']) {
+  const t = pc.getTxt(lang)
+  try {
+    out[lang] = { tl: /🔧/.test(t.myNumbersList([tw])), tm: /🔧/.test(t.manageNumber(tw,0,3,[tw])),
+                  xl: /🔧/.test(t.myNumbersList([tx])), xm: /🔧/.test(t.manageNumber(tx,0,3,[tx])) }
+  } catch (e) { out[lang] = { err: e.message } }
+}
+console.log('JSON:' + JSON.stringify(out)); process.exit(0)`
+const lOff = runChild(langCode, 'false')
+for (const lang of ['en','fr','zh','hi']) {
+  const r = lOff[lang]
+  ok(!r.err && r.tl && r.tm, `false: ${lang} twilio list+manage show 🔧 banner`, JSON.stringify(r))
+  ok(!r.err && !r.xl && !r.xm, `false: ${lang} telnyx list+manage have NO banner`, JSON.stringify(r))
+}
+for (const mode of [undefined, 'true']) {
+  const lOn = runChild(langCode, mode)
+  const label = `TWILIO_ENABLED=${mode === undefined ? 'unset' : mode}`
+  ok(['en','fr','zh','hi'].every(l => !lOn[l].err && !lOn[l].tl && !lOn[l].tm), `${label}: no 🔧 banner for twilio in any lang`, JSON.stringify(lOn))
+}
+
+// ── FIX D: dedup'd fr/zh/hi enterEmail keep previously-effective (later) values ──
+const dCode = `const pc = require('/app/js/phone-config.js'); console.log('JSON:' + JSON.stringify({
+  fr: pc.getTxt('fr').enterEmail, zh: pc.getTxt('zh').enterEmail, hi: pc.getTxt('hi').enterEmail,
+  unk: pc.getTxt('fr').__nope__ === undefined })); process.exit(0)`
+const d = runChild(dCode, 'false')
+ok(d.fr === "Entrez l'adresse email pour transférer les SMS :" && d.zh === '输入用于转发短信的电子邮件地址：' && d.hi === 'SMS फ़ॉरवर्ड करने के लिए ईमेल पता दर्ज करें:' && d.unk, 'fr/zh/hi enterEmail values unchanged + unknown key fallback', JSON.stringify(d))
+
+// ── FIX E: unicode regex for SOLD prefix strip ──
+{
+  const isrc0 = fs.readFileSync('/app/js/_index.js', 'utf8')
+  ok(isrc0.includes("message.replace(/^[✅🟡]+ ?(SOLD:?)?\\s*/u, '')"), '_index.js SOLD regex uses u flag')
+  const re = /^[✅🟡]+ ?(SOLD:?)?\s*/u
+  ok('🟡 SOLD: Item'.replace(re, '') === 'Item' && '✅ Item'.replace(re, '') === 'Item' && '🚀 Item'.replace(re, '') === '🚀 Item', 'SOLD regex strips ✅/🟡 only, leaves 🚀 intact')
+}
+
 // ── twilio-service boundary guards (disabled mode only; no network) ──
 const twCode = `
 const t = require('/app/js/twilio-service.js')

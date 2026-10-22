@@ -1,0 +1,18 @@
+{
+  "summary": "Retested fixes A-F from iteration_103 plus regressions. All passed. A: askVPSPlanAutoRenewal now uses `const vpsDetails = info?.vpsDetails || {}`. Running the same logic with info={} and info=undefined does not throw and sets autoRenewalPlan=true. B: in domain-pay (async coin =>, ~L12948) the `name` declared inside try at L12967 is out of scope in the catch. The catch now declares its own `const name = await get(nameOf, chatId).catch(() => null)` before adminUserTag. C: root eslint gives 0 fatal errors and only no-unused-vars 414, no-useless-assignment 35, no-useless-escape 10. Every other rule is at zero. D: loaded the pre-fix phone-config.js (git 05220872) next to the current one and compared all 364 getTxt keys across en/fr/zh/hi (strings plus function outputs). There were 0 differences. fr/zh/hi enterEmail match the expected later copies. Lookup through hasOwnProperty.call still returns fr strings and falls back to en for unknown keys. E: the regex has the u flag; '🟡 SOLD: Item' becomes 'Item', '✅ Item' becomes 'Item', '🚀 Item' is left intact with no lone surrogate. I confirmed the old non-u regex did break '🚀 Item'. F: with TWILIO_ENABLED=false the 🔧 banner appears in myNumbersList and manageNumber for a twilio number in en/fr/zh/hi. Telnyx numbers never show it, and twilio numbers don't show it when the flag is unset or true. I ran this in child processes and also with `node -r dotenv/config` against backend/.env (enabled=false, all 4 languages true). Regression: the test suite was extended to 43 checks and passes 43/43. node --check passes on all 4 files. Supervisor services are RUNNING; /api/health returns 200 healthy/connected. nodejs.err.log is empty and nodejs.out.log has no Reference/Syntax/TypeError since the latest restart. HostPanel login wpapps01/246810 reaches the dashboard ('Welcome back, wpapps01').",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": ["/app/js/tests/test_twilio_switch_2026-10.js"],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Known cosmetic lint debt remains (no-unused-vars 414, no-useless-assignment 35, no-useless-escape 10). This was intentionally left and is not a failure.",
+    "The fix diff is minimal and keeps behavior the same: 4 eslint-disable comments for intentional emoji character classes, 1 for no-constant-condition on a legacy path, and a zero-width char removed from a comment. No unintended changes found."
+  ],
+  "updated_files": ["/app/js/tests/test_twilio_switch_2026-10.js (added FIX F all-language banner checks, FIX D enterEmail check, FIX E regex checks; now 43 tests)"],
+  "success_rate": {"backend": "100%", "frontend": "100% (HostPanel login regression only)"},
+  "test_credentials": "HostPanel wpapps01 / 246810 (from review request; /app/memory/test_credentials.md present)",
+  "seed_data_creation": "None",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Regression: `node /app/js/tests/test_twilio_switch_2026-10.js` (43 checks, spawns child processes per TWILIO_ENABLED mode). Lint: `/app/node_modules/.bin/eslint -f json js/_index.js js/voice-service.js js/phone-config.js js/twilio-service.js` should give only no-unused-vars/no-useless-assignment/no-useless-escape. backend/.env has TWILIO_ENABLED=false (line 276)."
+}

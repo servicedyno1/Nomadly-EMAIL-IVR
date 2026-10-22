@@ -50,6 +50,12 @@ Verified: unit check (true→full catalog incl. GB; false→US/CA only, Twilio s
 clean Node boot with `TWILIO_ENABLED=false`, `/api/health` 200. Sandbox .env has `TWILIO_ENABLED=false`.
 
 ## Phase 1 — NEXT — existing numbers on Telnyx
+- DONE 2026-10-22: graceful "being upgraded" banner (myNumbersList + manageNumber, en/fr/zh/hi) and
+  Quick-IVR guard in voice-service initiateOutboundIvrCall (friendly error, no Twilio call) + Bulk IVR
+  capable list excludes Twilio numbers when the flag is off. Tests: js/tests/test_twilio_switch_2026-10.js (43/0).
+- Lint cleanup same day: all no-empty / no-undef / dupe-key / const-assign etc. fixed in _index.js,
+  voice-service.js, phone-config.js (2 real bugs: askVPSPlanAutoRenewal const reassign; domain-purchase
+  catch out-of-scope `name`). Remaining cosmetic only: no-unused-vars 414, no-useless-assignment 35, no-useless-escape 10.
 - Reassign the 6 users to new Telnyx toll-free numbers; route their forwarding / voicemail /
   inbound SIP / Quick IVR through the existing Telnyx paths.
 - When `TWILIO_ENABLED=false`, any lingering Twilio-number action should return a friendly
