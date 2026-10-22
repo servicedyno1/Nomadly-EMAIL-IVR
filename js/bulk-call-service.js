@@ -18,6 +18,7 @@ const BULK_CALL_RATE       = parseFloat(process.env.BULK_CALL_RATE_PER_MIN || '0
 const MAX_BULK_LEADS       = parseInt(process.env.BULK_CALL_MAX_LEADS || '500', 10)      // max leads per campaign
 const BULK_CALL_MIN_WALLET = parseFloat(process.env.BULK_CALL_MIN_WALLET || '20')        // minimum wallet balance to launch
 const TELNYX_DIAL_GAP_MS   = parseInt(process.env.BULK_TELNYX_DIAL_GAP_MS || '1000', 10) // account-wide Telnyx dial pacing (CPS)
+const STUCK_LEAD_MAX_MIN   = parseInt(process.env.BULK_STUCK_LEAD_MAX_MIN || '20', 10)   // in-flight lead with no completion → swept
 
 // Legacy campaigns (pre-Telnyx) carry no provider field — they are Twilio campaigns.
 const campaignProvider = (c) => (c && c.provider) || 'twilio'
@@ -69,9 +70,15 @@ async function initBulkCallService(db, bot, twilioService, walletOf, app) {
   // ━━━ CAMPAIGN RECOVERY: Resume campaigns that were running before deployment ━━━
   // Delay recovery to let all services fully initialize (Twilio, webhooks, etc.)
   setTimeout(() => recoverRunningCampaigns().catch(e => log(`[BulkCall] Recovery error: ${e.message}`)), 15000)
+
+  if (!_stuckSweepTimer) {
+    _stuckSweepTimer = setInterval(() => sweepStuckLeads().catch(e => log(`[BulkCall] Stuck-lead sweep error: ${e.message}`)), 2 * 60 * 1000)
+    if (_stuckSweepTimer.unref) _stuckSweepTimer.unref()
+  }
 }
 
 let _routesRegistered = false
+let _stuckSweepTimer = null
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // Twilio Webhook Routes — registered AFTER initBulkCallService completes
@@ -345,6 +352,11 @@ async function recoverRunningCampaigns() {
 
   for (const campaign of runningCampaigns) {
     const campaignId = campaign.id
+    // Started (or already recovered) by THIS process — its legs are live and tracked; don't reset/redial.
+    if (activeCampaigns[campaignId]) {
+      log(`[BulkCall] Recovery: Campaign ${campaignId} already active in this process — skipped`)
+      continue
+    }
     const leads = campaign.leads || []
     const pendingLeads = leads.filter(l => ['pending', 'calling', 'ringing'].includes(l.status))
 
@@ -407,7 +419,7 @@ async function recoverRunningCampaigns() {
         const walletCheck = await smartWalletCheck(_walletOf, campaign.chatId, BULK_CALL_RATE)
         if (!walletCheck.sufficient) {
           // Reset in-flight leads before pausing (those calls are dead after restart)
-          await resetInflightLeads(campaignId, leads)
+          await resetInflightLeads(campaignId, leads, campaignProvider(campaign))
           await _collection.updateOne({ id: campaignId }, { $set: { status: 'paused' } })
           log(`[BulkCall] Recovery: Campaign ${campaignId} (user ${campaign.chatId}) — paused (insufficient funds)`)
           _bot?.sendMessage(campaign.chatId,
@@ -427,12 +439,13 @@ async function recoverRunningCampaigns() {
     if (!canResume) continue
 
     // ── 5. RESUME: Reset in-flight leads and re-populate in-memory state ──
-    // Reset leads that were mid-call (calling/ringing) when deployment happened → pending
-    await resetInflightLeads(campaignId, leads)
+    // Twilio legs from the old process are dead → pending. Telnyx legs whose voice-service session
+    // was warm-loaded keep running and settle via their hangup webhook (they hold a slot).
+    const { kept } = await resetInflightLeads(campaignId, leads, campaignProvider(campaign))
 
     // Re-populate in-memory state
     activeCampaigns[campaignId] = {
-      activeCalls: 0,
+      activeCalls: kept,
       nextLeadIndex: 0,
       paused: false,
     }
@@ -483,14 +496,21 @@ function getLastLeadActivity(campaign) {
 }
 
 /**
- * Reset in-flight leads (calling/ringing) to pending after restart
- * These calls are dead — the old process that initiated them is gone
+ * Reset in-flight leads (calling/ringing) to pending after restart.
+ * Telnyx: a lead whose leg still has a voice-service session is kept (counted in `kept`);
+ * an orphaned Telnyx leg is hung up first so the re-dial never overlaps a live call.
  */
-async function resetInflightLeads(campaignId, leads) {
+async function resetInflightLeads(campaignId, leads, provider = 'twilio') {
   const resetOps = {}
   let count = 0
+  let kept = 0
   for (let i = 0; i < leads.length; i++) {
     if (leads[i].status === 'calling' || leads[i].status === 'ringing') {
+      const sid = leads[i].callSid
+      if (provider === 'telnyx' && sid) {
+        if (_voiceService?.outboundIvrCalls?.[sid]) { kept++; continue }
+        await _voiceService?.hangupOutboundLeg?.(sid)
+      }
       resetOps[`leads.${i}.status`] = 'pending'
       resetOps[`leads.${i}.callSid`] = null
       resetOps[`leads.${i}.startedAt`] = null
@@ -499,9 +519,33 @@ async function resetInflightLeads(campaignId, leads) {
   }
   if (count > 0) {
     await _collection.updateOne({ id: campaignId }, { $set: resetOps })
-    log(`[BulkCall] Recovery: Reset ${count} in-flight leads to pending for campaign ${campaignId}`)
+    log(`[BulkCall] Recovery: Reset ${count} in-flight leads to pending for campaign ${campaignId}${kept ? ` (${kept} live Telnyx leg(s) kept)` : ''}`)
   }
-  return count
+  return { count, kept }
+}
+
+/**
+ * Settle leads stuck in flight (completion webhook lost) so their slot frees and the
+ * campaign can complete. Marked failed with 0s → not billed.
+ */
+async function sweepStuckLeads() {
+  if (!_collection) return 0
+  const cutoff = Date.now() - STUCK_LEAD_MAX_MIN * 60 * 1000
+  let swept = 0
+  for (const campaignId of Object.keys(activeCampaigns)) {
+    const campaign = await _collection.findOne({ id: campaignId })
+    if (!campaign) continue
+    for (const lead of campaign.leads || []) {
+      if (!INFLIGHT_STATUSES.includes(lead.status) || !lead.startedAt || new Date(lead.startedAt).getTime() > cutoff) continue
+      log(`[BulkCall] Sweeping stuck lead campaign=${campaignId} lead=${lead.index} (in flight > ${STUCK_LEAD_MAX_MIN} min)`)
+      await finalizeLead(campaign, lead.index, lead.callSid || null, {
+        finalStatus: 'failed', duration: 0, hangupCause: 'no completion received',
+        digitPressed: lead.digitPressed || null, transferred: false, transferConnected: false,
+      })
+      swept++
+    }
+  }
+  return swept
 }
 
 /**
@@ -682,7 +726,7 @@ function isProviderSuspended(result) {
   const s = result?.subAccountStatus
   const err = String(result?.error || '')
   return (s && s !== 'active') || /sub-account is (suspended|closed)/i.test(err) ||
-    /insufficient (funds|balance)|balance (is )?too low|account (is )?(not active|inactive|disabled|suspended)|unauthori[sz]ed|authentication failed/i.test(err)
+    /insufficient (funds|balance)|balance (is )?too low|account (is )?(not active|inactive|disabled|suspended)|authentication failed|api key|provided credentials/i.test(err)
 }
 
 // Ends the campaign: cancelled + reason, pending leads marked not called. The in-memory state stays
@@ -976,7 +1020,10 @@ async function fireNextBatch(campaignId) {
         // Map callSid (Twilio) / callControlId (Telnyx) to campaign
         const sid = result.callSid || result.callControlId
         callToCampaign[sid] = { campaignId, leadIndex: lead.index }
-        await updateLeadResult(campaignId, lead.index, { callSid: sid })
+        await _collection.updateOne(
+          { id: campaignId, [`leads.${lead.index}.status`]: { $in: INFLIGHT_STATUSES } },
+          { $set: { [`leads.${lead.index}.callSid`]: sid } }
+        )
         log(`[BulkCall] Speechcue call initiated (${isTelnyx ? 'telnyx' : 'twilio'}): ${sid} → ${lead.number}`)
       }
     } catch (e) {
@@ -1123,7 +1170,9 @@ async function finalizeLead(campaign, leadIndex, callSid, res) {
   if (res.answeredBy) set[`${p}.answeredBy`] = res.answeredBy
   if (res.answeredAt) set[`${p}.answeredAt`] = res.answeredAt
   const filter = { id: campaignId, [`${p}.status`]: { $in: INFLIGHT_STATUSES } }
-  if (callSid) filter[`${p}.callSid`] = { $in: [null, callSid] }
+  // NOTE: {$in:[null, sid]} on an array path always matches (Mongo also probes field "0" of each
+  // element, which is missing ⇒ null), so match the sid exactly or a genuinely null/absent callSid.
+  if (callSid) filter.$or = [{ [`${p}.callSid`]: callSid }, { [`${p}.callSid`]: { $type: 'null' } }, { [`${p}.callSid`]: { $exists: false } }]
   const claim = await _collection.updateOne(filter, { $set: set })
   if (claim.modifiedCount !== 1) {
     log(`[BulkCall] Ignoring stale/duplicate completion campaign=${campaignId} lead=${leadIndex} sid=${callSid}`)
@@ -1502,6 +1551,7 @@ module.exports = {
   onDigitReceived,
   onCallStatusUpdate,
   onCallComplete,
+  sweepStuckLeads,
   cancelCampaign,
   pauseCampaign,
   getCampaign,

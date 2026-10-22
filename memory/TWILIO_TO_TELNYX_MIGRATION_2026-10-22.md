@@ -61,10 +61,26 @@ clean Node boot with `TWILIO_ENABLED=false`, `/api/health` 200. Sandbox .env has
 - When `TWILIO_ENABLED=false`, any lingering Twilio-number action should return a friendly
   "number is being upgraded" message instead of a raw 401.
 
-## Phase 2 — LATER — Bulk IVR on Telnyx
-- Rebuild `js/bulk-call-service.js` on Telnyx Call Control (reuse the Telnyx outbound-IVR state
-  machine in voice-service.js: menu / OTP / transfer / AMD), with queue + concurrency + per-lead
-  tracking. Billing via the in-app wallet ledger (no Twilio sub-accounts). Then Telnyx numbers
-  become "☎️ Bulk IVR capable" and the Twilio-sub-account requirement is gated on the flag.
+## Phase 2 — DONE (sandbox) — Bulk IVR on Telnyx Call Control
+- `bulk-call-service.js`: campaigns carry `provider` ('telnyx' | 'twilio'; missing = legacy twilio).
+  Telnyx campaigns need no sub-account; dial via `voiceService.initiateOutboundIvrCall` (audio+DTMF,
+  hold-music bridge transfer, multi-key menu, report-only). New `onCallComplete` (called by
+  voice-service hangup) → shared `finalizeLead` (atomic, once per lead) → `billLead` ($0.15/min, min 1,
+  failed+0s not billed) → progress → next dial → completion/report.
+- Status map (Telnyx): answered→completed; answered+AMD machine (no key)→**voicemail** (app hangs up);
+  busy/user_busy/call_rejected→busy; timeout/no_answer/originator_cancel/normal_clearing→no_answer; else→failed.
+- Safety: atomic `claimLead` (no double-dial), account-wide pacing `BULK_TELNYX_DIAL_GAP_MS` (1000),
+  stuck-lead sweeper `BULK_STUCK_LEAD_MAX_MIN` (20, every 2 min), recovery skips in-process campaigns,
+  keeps warm-loaded live Telnyx legs, hangs up orphaned legs before re-dial; Telnyx account errors
+  (insufficient funds / account inactive / auth) end the campaign "provider suspended".
+- voice-service: no unified IVR_Outbound billing for campaign calls (no double charge); transferred flag
+  only on a real transfer attempt; bridged transfer sets `transferConnected`.
+- Legacy Twilio campaigns while `TWILIO_ENABLED=false` → cancelled "Twilio number being upgraded" + friendly DM.
+- `_index.js`: Telnyx numbers always Bulk-IVR capable (caller list + ☎️ badge); Twilio only when flag on.
+- Report: Voicemail line (en/fr/hi/zh), CSV "Answered By" column.
+- Tests (sandbox Mongo 27999, Telnyx stubbed): test_bulk_telnyx_2026-10.js 22/22,
+  test_bulk_telnyx_edge_2026-10.js 17/17, Twilio regressions green. Report: test_reports/iteration_105.json.
+- OPEN owner decisions: intl leads bill flat $0.15/min on Telnyx (Quick IVR intl = $0.50) — margin risk;
+  no "resume paused campaign" action exists in the bot (pre-existing).
 
 ## Phase 3 — deferred — Telnyx toll-free SMS verification; retire Twilio code paths.

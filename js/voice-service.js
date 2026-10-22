@@ -4542,7 +4542,7 @@ async function initiateOutboundIvrCall(params) {
         // primary target + transfer leg so an intl call can't start under-funded.
         const startRate = Math.max(getIvrCallRate(targetNumber), ivrNumber ? getIvrCallRate(ivrNumber) : 0)
         if (usdBal < startRate) {
-          return { error: `Insufficient wallet balance ($${usdBal.toFixed(2)}). This Quick IVR call costs $${startRate.toFixed(2)}/min from wallet. Top up your wallet.` }
+          return { error: `Insufficient wallet balance ($${usdBal.toFixed(2)}). This ${campaignId ? 'Bulk' : 'Quick'} IVR call costs $${startRate.toFixed(2)}/min from wallet. Top up your wallet.` }
         }
         log(`[OutboundIVR] Wallet check passed: $${usdBal.toFixed(2)} (IVR rate: $${startRate}/min)`)
       }
@@ -5165,7 +5165,8 @@ async function handleOutboundIvrHangup(payload) {
       // Determine transfer status
       let transferred = false
       let transferConnected = false
-      if (session.bulkMode === 'transfer' && session.digitPressed) {
+      // Only a real transfer attempt counts (a menu "message" key also sets digitPressed).
+      if (session._pendingTransferTo) {
         transferred = true
         transferConnected = previousPhase === 'bridged' || !!session.transferConnected
         for (const [, transfer] of Object.entries(ivrTransferLegs)) {
@@ -5456,6 +5457,8 @@ module.exports = {
   recordOutboundMenuPress,
   getOutboundMenuAnalytics,
   initiateOutboundIvrCall,
+  // Bulk recovery: hang up an orphaned Telnyx leg before re-dialling its lead
+  hangupOutboundLeg: (callControlId) => Promise.resolve(_telnyxApi?.hangupCall(callControlId)).catch(() => null),
   incrementSmsUsed,
   isSmsLimitReached,
   isMinuteLimitReached,

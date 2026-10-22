@@ -1,0 +1,50 @@
+{
+  "summary": "Phase 2 (Bulk IVR on Telnyx Call Control) backend review + sandbox testing (Mongo 27999 only, Telnyx/Twilio/Telegram stubbed, no real dials). All main-agent harnesses reproduce: test_bulk_telnyx_2026-10.js 22/22, test_bulk_provider_suspended_2026-10.js (TWILIO_ENABLED=true) 7/8 (REQ-69 fails only because ai-support.js changed earlier, unrelated), test_bulkivr_wallet.js 10/10, test_twilio_switch_2026-10.js 43/43. /api/health 200, nodejs RUNNING. Lang key bulkCallReportVoicemail resolves in en/fr/hi/zh. A new edge harness test_bulk_telnyx_edge_2026-10.js scored 11/13 and found 2 real bugs: (1) the callSid guard in finalizeLead does nothing because of how MongoDB matches null on an array path, so a stale leg's completion can settle a lead, and the boot-time recovery timer re-dials live leads of campaigns started in the same process; (2) a menu 'message' key in a transfer-mode bulk campaign is reported as transferred.",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "bulk-call-service.js finalizeLead (~L1125-1127)", "issue": "The stale-completion guard does nothing. filter[`leads.${i}.callSid`] = {$in:[null, callSid]} always matches because 'leads.0.callSid' also walks into each array element looking for a field named '0'. That field is missing, and a missing field matches null. Checked with mongosh: lead callSid 'B' with filter {$in:[null,'A']} gives modifiedCount 1. Result: a completion from an older or other leg can finalize the current leg's lead. The real leg's completion is then ignored (not billed), and activeCalls drops early, which can push dialling past the concurrency limit. Double billing is still blocked by the in-flight status filter.", "priority": "HIGH"},
+      {"endpoint": "bulk-call-service.js initBulkCallService L71 setTimeout(recoverRunningCampaigns, 15000) + recoverRunningCampaigns", "issue": "Recovery handles EVERY 'running' campaign, including ones started in this same process inside the first 15 s after boot. For example, the every-minute scheduled-campaign cron can launch a campaign right after a deploy. Recovery calls resetInflightLeads, replaces activeCampaigns state with activeCalls=0 and re-dials, so the same person gets a second call while the first is still live. The first leg settles the lead (because of the guard bug above) and the second leg's completion is ignored and never billed. Reproduced in edge case E7: lead0 dialled 2x, lead1 dialled while lead0's 2nd leg was still live with concurrency 1.", "priority": "HIGH"}
+    ],
+    "minor": [
+      {"endpoint": "voice-service.js handleOutboundIvrHangup ~L5168", "issue": "Bulk transferred flag = bulkMode==='transfer' && digitPressed. In a menu bulk campaign, a key with action 'message' (spoken message, then hangup, no transfer) is reported as transferred=true, so stats.transferred is too high (E4d: stats.transferred=2, should be 1). Only set transferred when the session really tried a transfer (_pendingTransferTo set, or phase was transferring/bridged)."},
+      {"endpoint": "bulk-call-service.js recoverRunningCampaigns step 5 (Telnyx)", "issue": "After a real restart, Telnyx legs that were mid-call keep running at Telnyx, but their voice-service sessions are gone. resetInflightLeads re-dials those leads (a duplicate call to the same person), and the orphaned leg is never billed. Consider marking leftover 'calling' Telnyx leads as failed/'interrupted' (or hanging up the callSid via the Telnyx API) instead of re-dialling."},
+      {"endpoint": "bulk-call-service.js billLead / BULK_CALL_RATE", "issue": "International leads are allowed (parseLeadsFile) and Telnyx will dial them. Bulk bills a flat $0.15/min, while voice-service's own pre-dial check uses the intl rate of $0.50/min (E6: a 60 s UK lead was charged $0.15). On Twilio, sub-account geo-permissions used to block these calls, but on Telnyx this loses margin. Consider billing with getIvrCallRate(lead.number) or limiting bulk leads to US/CA."},
+      {"endpoint": "bulk-call-service.js lead stuck in 'calling'", "issue": "Nothing sweeps stuck leads. If a Telnyx call.hangup webhook is lost, or arrives with no voice-service session, the lead stays 'calling', the concurrency slot is never freed and the campaign never completes. Suggest a per-lead max-age sweep (e.g. 10 min)."},
+      {"endpoint": "bulk-call-service.js telnyxDialSlot", "issue": "A slot is reserved before the paused/concurrency re-check. When the loop then breaks, the reserved slot is wasted and every other campaign's next dial is pushed back by BULK_TELNYX_DIAL_GAP_MS. Low impact."},
+      {"endpoint": "voice-service.js initiateOutboundIvrCall wallet check", "issue": "When the wallet is below the intl rate, the bulk lead fails with a 'This Quick IVR call costs…' message that the user sees in the bulk progress line. The wording is wrong for bulk."},
+      {"endpoint": "_index.js Bulk IVR UI", "issue": "Pre-existing: messages say 'Top up… then resume the campaign', but no resume, pause or cancel action is wired in the bot (only createCampaign, startCampaign and getCampaign are used). A wallet-paused campaign can never be resumed."}
+    ]
+  },
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/js/tests/test_bulk_telnyx_edge_2026-10.js",
+    "/app/js/tests/test_bulk_telnyx_2026-10.js",
+    "/app/js/tests/test_bulk_provider_suspended_2026-10.js",
+    "/app/js/tests/test_bulkivr_wallet.js",
+    "/app/js/tests/test_twilio_switch_2026-10.js"
+  ],
+  "action_items": [
+    "HIGH: fix the finalizeLead callSid filter. Replace {$in:[null, callSid]} with $or: [{[`${p}.callSid`]: callSid}, {[`${p}.callSid`]: {$type:'null'}}, {[`${p}.callSid`]: {$exists:false}}] (checked in mongosh: $type:'null' and the equality do not match a different sid). Then also make sure updateLeadResult({callSid}) after the dial only writes when the lead is still in flight.",
+    "HIGH: recoverRunningCampaigns must skip campaigns already in activeCampaigns (started in this process), or only recover campaigns with startedAt < process boot time. Re-run test_bulk_telnyx_edge_2026-10.js case E7.",
+    "Set the bulk transferred flag only when a transfer was actually attempted, not just when a digit was pressed. Re-run E4d.",
+    "Decide what recovery does with leftover Telnyx 'calling' leads (re-dial = duplicate call). Add a stuck-lead sweeper.",
+    "Decide the intl rate policy for Telnyx bulk calls (flat $0.15 vs getIvrCallRate)."
+  ],
+  "critical_code_review_comments": [
+    "Atomic claimLead (pending→calling, guarded on campaign status 'running') plus the synchronous activeCalls check and increment prevent over-dial from concurrent fireNextBatch calls. E1: 3 simultaneous completions gave exactly 3 in flight and unique leads.",
+    "Cancel while a paced dial is waiting works: the state.paused re-check after the slot plus claimLead requiring status 'running' means no dial happens after cancel (E2). An in-flight leg after cancel still settles and bills once (E2b).",
+    "Wallet exhaustion on the Telnyx path pauses the campaign after billing and stops further dials (E3).",
+    "Menu forward on a Telnyx bulk transfer campaign dials the forward number, and the lead is transferred + transferConnected (E4b/E4c).",
+    "No double billing: voice-service skips billCallMinutesUnified when session.campaignId is set, and bulk bills exactly once (main harness P2-11/P2-12).",
+    "bulk-call-service.js is 1517 lines (over the 700-line guideline). Consider splitting the Twilio TwiML routes, recovery and reporting into separate modules.",
+    "isProviderSuspended matches /unauthori[sz]ed/. A Telnyx per-destination error that contains 'unauthorized' would end the whole campaign instead of failing just that lead. Check this against Telnyx's real error strings."
+  ],
+  "updated_files": ["/app/js/tests/test_bulk_telnyx_edge_2026-10.js (new, test only; no production code changed)"],
+  "success_rate": {"backend": "Main-agent harnesses 82/83 (the 1 failure is unrelated REQ-69); new edge harness 11/13 (2 real bugs)", "frontend": "N/A (backend only)"},
+  "test_credentials": "None needed; sandbox Mongo mongodb://127.0.0.1:27999",
+  "seed_data_creation": "Edge harness uses DB p2_telnyx_edge_sandbox on 27999 and drops it at the end. Nothing written to the real DB.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Start mongod on 27999 (see test_credentials). Run: node js/tests/test_bulk_telnyx_2026-10.js ; node js/tests/test_bulk_telnyx_edge_2026-10.js (takes about 20 s; it waits for the init-time 15 s recovery timer before E4). Expected after the fixes: edge 13/13. E5b and E6 are informational: E5b passes when lead0 is re-dialled once (that re-dial is the risk), and E6 prints the intl charge. Never use the live Telnyx creds in backend/.env.",
+  "rca of the issue": "Bug 1 RCA: in MongoDB a query path 'arr.0.f' is also tried as 'field \"0\" inside each array element'. That field is missing, and a missing field matches null, so {'leads.0.callSid': {$in:[null,x]}} is always true when leads is an array of objects. Repro: mongosh insert {leads:[{status:'calling',callSid:'B'}]} and run updateOne with {'leads.0.callSid':{$in:[null,'A']}}: modifiedCount=1. Mitigation: use $type:'null' / equality in an $or. Bug 2 RCA: setTimeout(recoverRunningCampaigns,15000) does not tell apart campaigns started after boot (present in activeCampaigns). Repro: E7 (start a campaign, call recoverRunningCampaigns, and lead0 is dialled twice). Mitigation: skip if activeCampaigns[id] exists or startedAt > bootTime."
+}

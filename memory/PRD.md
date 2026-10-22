@@ -819,3 +819,11 @@ User inherited a fully-set-up Nomadly bot pod pointed at LIVE PRODUCTION. Task b
 - Runbooks: memory/DR_REPLICA_SETUP_2026-10-20.md (architecture) + memory/DR_RESTORE_RUNBOOK.md (restore any DB into a new Railway DB; drill = /opt/dr/bin/restore_selftest.sh). Still open (not requested now): ConnectReseller 401, hosted domains showing
   security-check page, DO Spaces off-site copy, Telegram alerts for DR (drop BOT_TOKEN|CHAT_ID in /opt/dr/conf/alert.conf).
 - 2026-10-20: pushed to GitHub main by agent with GITHUB_PAT_CLASSIC from a separate clone (bad924b DR toolkit, f445b8b workspace sync); CI deployed app-main f445b8b + WhiteLabel sync → app-wl/voodoo/proshop ef28b7c, all healthy.
+
+## 2026-10-22 — Twilio→Telnyx Phase 2: Bulk IVR rebuilt on Telnyx Call Control (sandbox, tested)
+- Bulk IVR campaigns now run on Telnyx (provider field per campaign), billed once per call from wallet ($0.15/min, min 1).
+- Voicemail detection hangs up + "Voicemail" in report; Telnyx numbers always ☎️ Bulk IVR capable.
+- Hardening: atomic lead claim, Telnyx dial pacing, stuck-lead sweeper, restart-safe recovery.
+- Details: memory/TWILIO_TO_TELNYX_MIGRATION_2026-10-22.md. Tests: iteration_105 + js/tests/test_bulk_telnyx*_2026-10.js.
+- Next: owner Save to GitHub + deploy (set TWILIO_ENABLED=false in prod), top up Telnyx balance, decide intl bulk rate,
+  add Resume/Pause/Cancel buttons for running campaigns, Phase 3 toll-free SMS verification.
