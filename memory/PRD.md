@@ -878,4 +878,12 @@ User inherited a fully-set-up Nomadly bot pod pointed at LIVE PRODUCTION. Task b
 - Tests: iteration_108 + iteration_109 (121/122; the 1 miss is a sandbox mock limit). Scripts js/tests/test_tx_payfirst_*.js,
   test_telnyx_payfirst_smoke_2026-10.js, mocks js/tests/mock_telegram_api.js + mock_telnyx_reg_api.js (env TELNYX_REG_API_BASE test-only).
 - Deferred by user: reseller application form; reseller.co (taken, premium ~$125/yr) — ask later.
-- Next: Save to GitHub + deploy (TWILIO_ENABLED=false in prod), one real paid NL order end-to-end in prod.
+- LIVE 2026-10-22 ~11:40–11:42Z — DIRECT DROPLET DEPLOY on all 4 bots (user's choice; same method as 08:51Z):
+  app-main 20261022T113959Z-e3f70c2 (:5100 app-main-b), app-wl/voodoo/proshop 2026102211412xZ-3326c62 (WhiteLabel commit
+  3326c625 built locally by `sync_whitelabel.py --source HEAD --dry-run`, parent d21825c4, no runtime conflicts) on
+  :5001 / :5003 / :5104. All: /health healthy, public 200, isTwilioEnabled=false, 10 countries, 0 restarts, no new errors;
+  prod Telnyx requirements lookup OK (NL mobile 2, PR 0, GB mobile 6). RELEASE has `patched=direct deploy…`.
+  Rollback per app: `bash /opt/nomadly/deploy.sh <app> rollback` (previous releases 33512df / d21825c kept).
+- GitHub NOT updated yet: owner "Save to GitHub" or `cd /root/nomadly-push && git push origin main` on the droplet
+  (prepared: main = e3f70c25, fast-forward over origin/main 33512dfd) → CI redeploys same code + WhiteLabel sync.
+- Next: owner tests one real paid NL order from the bot (Telnyx balance was ~$7 — top up first).

@@ -22,7 +22,7 @@ cp -a "$CUR/frontend/build" "$REL/frontend/build"
 for d in js/assets/user-audio audio_cache; do
   if [ -d "$CUR/$d" ]; then mkdir -p "$REL/$d" && cp -aln "$CUR/$d/." "$REL/$d/"; fi
 done
-for f in js/_index.js js/bulk-call-service.js js/voice-service.js js/telnyx-service.js js/phone-config.js js/phone-scheduler.js js/twilio-service.js; do
+for f in js/_index.js js/bulk-call-service.js js/voice-service.js js/telnyx-service.js js/telnyx-regulatory.js js/phone-config.js js/phone-scheduler.js js/twilio-service.js; do
   node --check "$REL/$f"
 done
 echo "$REL"
