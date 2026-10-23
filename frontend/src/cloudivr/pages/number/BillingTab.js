@@ -5,12 +5,14 @@ import { api, enc, money, day } from '../../api';
 import { useShell } from '../../Shell';
 import { Field, Toggle } from '../../ui';
 import { PlanFeatures, unlocks } from '../../PlanFeatures';
+import { Downgrade, ExtraNumbers } from './BillingExtras';
+import { ask } from '../../i18n';
 
 function Renewal({ num, reload, refreshSummary }) {
   const [busy, setBusy] = useState(false);
   const path = `/numbers/${enc(num.phoneNumber)}`;
   const renew = async () => {
-    if (!window.confirm(`Renew ${num.phoneNumber} for ${money(num.planPrice)}?`)) return;
+    if (!ask(`Renew ${num.phoneNumber} for ${money(num.planPrice)}?`)) return;
     setBusy(true);
     try { const d = await api(`${path}/renew`, { method: 'POST' }); toast.success(`Renewed until ${day(d.expiresAt)}`); reload(); refreshSummary(); } catch (e) { toast.error(e.message); } finally { setBusy(false); }
   };
@@ -79,7 +81,9 @@ export default function BillingTab({ num, reload, onDeleted }) {
   return (
     <div className="grid lg:grid-cols-2 gap-4">
       <Renewal num={num} reload={reload} refreshSummary={refreshSummary} />
-      {catalog && <Upgrade num={num} reload={reload} refreshSummary={refreshSummary} plans={catalog.plans} />}
+      {catalog && !num.isSubNumber && <Upgrade num={num} reload={reload} refreshSummary={refreshSummary} plans={catalog.plans} />}
+      {catalog && <Downgrade num={num} reload={reload} refreshSummary={refreshSummary} plans={catalog.plans} />}
+      <ExtraNumbers num={num} />
       <Danger num={num} onDeleted={onDeleted} refreshSummary={refreshSummary} />
     </div>
   );

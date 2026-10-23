@@ -39478,6 +39478,14 @@ if (CLOUDIVR_WEB_ON) app.use('/cloudivr-web', cloudivrWeb.createCloudIvrWeb({
   getDb: () => db, log, telnyxApi, txReg, audioLibraryService, ttsService, bulkCallService, notifyAdmin, logTransaction, generateTransactionId,
   voiceService: require('./voice-service.js'),
   getTelnyxResources: () => telnyxResources,
+  resolveCoupon,
+  redeemCoupon: async (chatId, code, type) => {
+    const cid = String(chatId)
+    if (type === 'daily' && dailyCouponSystem) await dailyCouponSystem.markCouponUsed(code, cid)
+    else if (type === 'welcome_offer' && userConversion) await userConversion.markWelcomeCouponUsed(code, cid)
+  },
+  getTodayCoupons: async () => (dailyCouponSystem ? dailyCouponSystem.getTodayCoupons() : {}),
+  placeTestMyNumberCall, startTestOutboundSip,
   paidCheckout: telnyxPaidCheckout, refundTelnyxVerification, submitTelnyxVerification,
   numberSurcharge: (cc, type, sel) => (isTelnyxIntl('telnyx', cc) ? getTelnyxIntlSurcharge(sel).monthly : getNumberSurcharge(cc, type)) || 0,
   verificationInfo: async (cc, type, countryName) => {

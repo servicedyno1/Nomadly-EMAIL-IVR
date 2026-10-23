@@ -1,4 +1,5 @@
 import React, { useRef, useState } from 'react';
+import { ask } from '../i18n';
 import { toast } from 'sonner';
 import { Music, Upload, Wand2, Trash2, Pencil, Loader2, Check, X } from 'lucide-react';
 import { api, useApi, day, playUrl } from '../api';
@@ -56,7 +57,7 @@ function TtsCard({ onDone }) {
 function AudioRow({ a, i, reload }) {
   const [edit, setEdit] = useState(null);
   const rename = async () => { try { await api(`/audio/${a.id}`, { method: 'PATCH', body: { name: edit } }); setEdit(null); reload(); } catch (e) { toast.error(e.message); } };
-  const remove = async () => { if (!window.confirm(`Delete “${a.name}”? Numbers using it fall back to the default greeting.`)) return; try { await api(`/audio/${a.id}`, { method: 'DELETE' }); toast.success('Deleted'); reload(); } catch (e) { toast.error(e.message); } };
+  const remove = async () => { if (!ask(`Delete “${a.name}”? Numbers using it fall back to the default greeting.`)) return; try { await api(`/audio/${a.id}`, { method: 'DELETE' }); toast.success('Deleted'); reload(); } catch (e) { toast.error(e.message); } };
   return (
     <div className="civr-card p-4 flex flex-col md:flex-row md:items-center gap-3" data-testid={`audio-row-${i}`}>
       <div className="md:w-56 min-w-0">

@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom';
 import { Plus, Trash2, BarChart3 } from 'lucide-react';
 import { useApi, enc } from '../../api';
 import { Field, Toggle, AudioSelect } from '../../ui';
+import { VoiceMaker } from '../../VoiceMaker';
+import { IvrTemplates } from './IvrTemplates';
 import { useSave } from './SettingsTabs';
 import { cp } from '../../paths';
 
@@ -11,7 +13,7 @@ const DIGITS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'];
 const toList = (opts) => Object.entries(opts || {}).map(([digit, o]) => ({ digit, ...o, subMenu: o.subMenu ? { ...o.subMenu, options: toList(o.subMenu.options) } : undefined }));
 const toObj = (list) => Object.fromEntries(list.map(({ digit, subMenu, ...o }) => [digit, { ...o, ...(o.action === 'submenu' ? { subMenu: { ...(subMenu || {}), options: toObj(subMenu?.options || []) } } : {}) }]));
 
-function Greeting({ g, set, audios, prefix, label = 'Greeting' }) {
+function Greeting({ g, set, audios, prefix, label = 'Greeting', onAudio }) {
   const audio = !!g.greetingAudioUrl || g.mode === 'audio';
   return (
     <div className="space-y-3">
@@ -19,7 +21,8 @@ function Greeting({ g, set, audios, prefix, label = 'Greeting' }) {
         {[['text', 'Spoken text'], ['audio', 'Audio file']].map(([m, l]) => <button key={m} type="button" onClick={() => set({ mode: m, greetingAudioUrl: m === 'text' ? null : g.greetingAudioUrl })} className={`civr-pill cursor-pointer ${(audio ? 'audio' : 'text') === m ? 'civr-pill-on' : ''}`} data-testid={`${prefix}-greeting-mode-${m}`}>{l}</button>)}
       </div>
       {audio ? <AudioSelect value={g.greetingAudioUrl} onChange={v => set({ greetingAudioUrl: v || null, mode: 'audio' })} audios={audios} testid={`${prefix}-greeting-audio-select`} />
-        : <textarea rows={2} className="civr-input" value={g.greeting || ''} onChange={e => set({ greeting: e.target.value })} data-testid={`${prefix}-greeting-text-input`} />}
+        : <><textarea rows={2} className="civr-input" value={g.greeting || ''} onChange={e => set({ greeting: e.target.value })} data-testid={`${prefix}-greeting-text-input`} />
+          {onAudio && <VoiceMaker text={g.greeting} name={label} onMade={(a) => { onAudio(); set({ greetingAudioUrl: a.audioUrl, mode: 'audio' }); }} testid={`${prefix}-greeting-voice`} />}</>}
     </div>
   );
 }
@@ -28,14 +31,15 @@ function RowHead({ o, set, onRemove, used, depth, prefix }) {
   return (
     <div className="flex flex-wrap gap-2 items-center">
       <select className="civr-input !w-20 font-mono" value={o.digit} onChange={e => set({ digit: e.target.value })} data-testid={`${prefix}-digit-select`}>{DIGITS.filter(d => d === o.digit || !used.includes(d)).map(d => <option key={d}>{d}</option>)}</select>
-      <select className="civr-input !w-auto flex-1" value={o.action} onChange={e => set({ action: e.target.value })} data-testid={`${prefix}-action-select`}>{ACTIONS.filter(([a]) => depth === 0 || a !== 'submenu').map(([a, l]) => <option key={a} value={a}>{l}</option>)}</select>
+      <select className="civr-input !w-auto flex-1 min-w-0 max-w-full" value={o.action} onChange={e => set({ action: e.target.value })} data-testid={`${prefix}-action-select`}>{ACTIONS.filter(([a]) => depth === 0 || a !== 'submenu').map(([a, l]) => <option key={a} value={a}>{l}</option>)}</select>
       <input className="civr-input !w-40" value={o.label || ''} onChange={e => set({ label: e.target.value })} placeholder="Label (e.g. Sales)" data-testid={`${prefix}-label-input`} />
       <button type="button" onClick={onRemove} className="p-2 text-[#888] hover:text-[#fb7185]" data-testid={`${prefix}-remove-button`} aria-label="Remove option"><Trash2 className="w-4 h-4" /></button>
     </div>
   );
 }
 
-function ActionFields({ o, set, audios, prefix }) {
+function ActionFields({ o, set, audios, prefix, onAudio }) {
+  if (o.action === 'message' && onAudio) return <div className="space-y-2"><div className="grid md:grid-cols-2 gap-2"><input className="civr-input" value={o.message || ''} onChange={e => set({ message: e.target.value })} placeholder="Text to read out" data-testid={`${prefix}-message-input`} /><AudioSelect value={o.audioUrl} onChange={v => set({ audioUrl: v || null })} audios={audios} placeholder="…or pick audio" testid={`${prefix}-message-audio-select`} /></div>{o.message && !o.audioUrl && <VoiceMaker text={o.message} name={o.label || `Key ${o.digit}`} onMade={(a) => { onAudio(); set({ audioUrl: a.audioUrl }); }} testid={`${prefix}-message-voice`} />}</div>;
   if (o.action === 'forward') return <input className="civr-input font-mono" value={o.forwardTo || ''} onChange={e => set({ forwardTo: e.target.value })} placeholder="+14155550100" data-testid={`${prefix}-forward-input`} />;
   if (o.action === 'message') return <div className="grid md:grid-cols-2 gap-2"><input className="civr-input" value={o.message || ''} onChange={e => set({ message: e.target.value })} placeholder="Text to read out" data-testid={`${prefix}-message-input`} /><AudioSelect value={o.audioUrl} onChange={v => set({ audioUrl: v || null })} audios={audios} placeholder="…or pick audio" testid={`${prefix}-message-audio-select`} /></div>;
   return null;
@@ -53,29 +57,29 @@ function OptionList({ list, setList, prefix, render }) {
   );
 }
 
-function LeafRow({ o, onChange, onRemove, used, audios, prefix }) {
+function LeafRow({ o, onChange, onRemove, used, audios, prefix, onAudio }) {
   const set = (patch) => onChange({ ...o, ...patch });
   return (
     <div className="border border-[#222] rounded-xl p-4 space-y-3" data-testid={prefix}>
       <RowHead o={o} set={set} onRemove={onRemove} used={used} depth={1} prefix={prefix} />
-      <ActionFields o={o} set={set} audios={audios} prefix={prefix} />
+      <ActionFields o={o} set={set} audios={audios} prefix={prefix} onAudio={onAudio} />
     </div>
   );
 }
 
-function TopRow({ o, onChange, onRemove, used, audios, prefix }) {
+function TopRow({ o, onChange, onRemove, used, audios, prefix, onAudio }) {
   const set = (patch) => onChange({ ...o, ...patch });
   const sub = o.subMenu || { greeting: 'Please select an option.', options: [] };
   const sp = `${prefix}-sub`;
   return (
     <div className="border border-[#222] rounded-xl p-4 space-y-3" data-testid={prefix}>
       <RowHead o={o} set={set} onRemove={onRemove} used={used} depth={0} prefix={prefix} />
-      <ActionFields o={o} set={set} audios={audios} prefix={prefix} />
+      <ActionFields o={o} set={set} audios={audios} prefix={prefix} onAudio={onAudio} />
       {o.action === 'submenu' && (
         <div className="pl-4 border-l-2 border-[#34d399]/30 space-y-3">
-          <Greeting g={sub} set={(p) => set({ subMenu: { ...sub, ...p } })} audios={audios} prefix={sp} label="Sub-menu greeting" />
+          <Greeting g={sub} set={(p) => set({ subMenu: { ...sub, ...p } })} audios={audios} prefix={sp} label="Sub-menu greeting" onAudio={onAudio} />
           <OptionList list={sub.options || []} setList={(l) => set({ subMenu: { ...sub, options: l } })} prefix={sp}
-            render={(so, i, u, ch, rm) => <LeafRow key={i} o={so} used={u} onChange={ch} onRemove={rm} audios={audios} prefix={`${sp}-option-${i}`} />} />
+            render={(so, i, u, ch, rm) => <LeafRow key={i} o={so} used={u} onChange={ch} onRemove={rm} audios={audios} prefix={`${sp}-option-${i}`} onAudio={onAudio} />} />
         </div>
       )}
     </div>
@@ -98,13 +102,15 @@ function Analytics({ num }) {
 
 export default function IvrTab({ num, reload }) {
   const ivr = num.features.ivr || {};
-  const { data } = useApi('/audio');
+  const { data, reload: reloadAudio } = useApi('/audio');
   const audios = data?.audios || [];
   const [enabled, setEnabled] = useState(!!ivr.enabled);
   const [g, setG] = useState({ greeting: ivr.greeting || 'Thank you for calling. Please select an option.', greetingAudioUrl: ivr.greetingAudioUrl || null });
   const [list, setList] = useState(toList(ivr.options));
   const [save, busy] = useSave(num, 'ivr', reload);
-  const submit = () => save({ enabled, greeting: g.greeting, greetingAudioUrl: g.greetingAudioUrl || null, options: toObj(list) }, 'PUT');
+  const current = () => ({ greeting: g.greeting, greetingAudioUrl: g.greetingAudioUrl || null, options: toObj(list) });
+  const submit = () => save({ enabled, ...current() }, 'PUT');
+  const apply = (c) => { setG({ greeting: c.greeting || '', greetingAudioUrl: c.greetingAudioUrl || null }); setList(toList(c.options)); };
   return (
     <div className="grid lg:grid-cols-3 gap-4">
       <div className="civr-card p-6 lg:col-span-2 space-y-6" data-testid="ivr-builder">
@@ -112,13 +118,13 @@ export default function IvrTab({ num, reload }) {
           <div><div className="font-display text-2xl font-bold">IVR menu</div><p className="text-sm text-[#888]">Callers hear the greeting, then press a key.</p></div>
           <Toggle checked={enabled} onChange={setEnabled} testid="ivr-enabled-toggle" />
         </div>
-        <Greeting g={g} set={(p) => setG({ ...g, ...p })} audios={audios} prefix="ivr" />
+        <Greeting g={g} set={(p) => setG({ ...g, ...p })} audios={audios} prefix="ivr" onAudio={reloadAudio} />
         {!audios.length && <div className="text-xs text-[#8a8a8a]">Want your own recordings? <Link to={cp('/app/audio')} className="text-[#34d399]" data-testid="ivr-audio-library-link">Open the audio library</Link>.</div>}
         <OptionList list={list} setList={setList} prefix="ivr"
-          render={(o, i, u, ch, rm) => <TopRow key={i} o={o} used={u} onChange={ch} onRemove={rm} audios={audios} prefix={`ivr-option-${i}`} />} />
+          render={(o, i, u, ch, rm) => <TopRow key={i} o={o} used={u} onChange={ch} onRemove={rm} audios={audios} prefix={`ivr-option-${i}`} onAudio={reloadAudio} />} />
         <button className="civr-btn civr-btn-primary" disabled={busy} onClick={submit} data-testid="ivr-save-button">Save IVR</button>
       </div>
-      <Analytics num={num} />
+      <div className="space-y-4"><IvrTemplates current={current} onApply={apply} /><Analytics num={num} /></div>
     </div>
   );
 }

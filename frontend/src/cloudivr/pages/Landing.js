@@ -8,6 +8,7 @@ import { Coverage, Features, HowItWorks } from './landing/Sections';
 import { TryCall } from './landing/TryCall';
 import { Pricing, Faq, FinalCta, Footer } from './landing/PricingFaq';
 import { Slide } from './landing/kit';
+import { LangSwitcher } from '../i18n';
 
 export const LANDING_LINKS = [['#coverage', 'Coverage', 'coverage'], ['#try', 'Free test call', 'try'], ['#features', 'Features', 'features'], ['#pricing', 'Pricing', 'pricing'], ['#faq', 'FAQ', 'faq']];
 
@@ -28,6 +29,7 @@ function Nav() {
           {LANDING_LINKS.map(([href, label, id]) => <a key={id} href={href} className="text-sm text-[#FEFDF5]/70 hover:text-[#00E3AA] py-3 transition-colors" data-testid={`landing-nav-${id}`}>{label}</a>)}
         </nav>
         {scrolled && <a href="#try" className="hidden md:inline-flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-[#00E3AA] civr-rise" data-testid="civr-nav-sticky-cta"><span className="civr-l-dot" />Free call</a>}
+        <LangSwitcher tone="landing" testid="landing-lang-switcher" />
         {account
           ? <Link to={cp('/app')} className="civr-l-btn civr-l-btn-sm" data-testid="landing-open-dashboard"><Slide>Open dashboard</Slide></Link>
           : <>

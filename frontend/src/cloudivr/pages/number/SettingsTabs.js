@@ -5,6 +5,14 @@ import { Field, Toggle } from '../../ui';
 import { Link } from 'react-router-dom';
 import { cp } from '../../paths';
 import { useShell } from '../../Shell';
+import { RouteSummary, TestNumber } from './RouteSummary';
+import { VoiceMaker } from '../../VoiceMaker';
+
+const VM_TEMPLATES = [
+  ['Standard', 'Hi, you have reached [Name]. I can’t take your call right now. Please leave a message after the tone.'],
+  ['Business', 'Thank you for calling [Business]. All of our team members are busy. Please leave your name, number and a short message and we will call you back.'],
+  ['After hours', 'Thanks for calling [Business]. We are closed right now. Please leave a message and we will return your call on the next business day.'],
+];
 
 // Shared save helper for the simple PATCH settings forms.
 export function useSave(num, path, reload) {
@@ -35,10 +43,12 @@ function Meter({ label, used, total, testid }) {
   );
 }
 
-export function OverviewTab({ num }) {
+export function OverviewTab({ num, reload }) {
   const caps = num.capabilities || {};
   return (
     <div className="grid lg:grid-cols-3 gap-4">
+      <RouteSummary num={num} reload={reload} />
+      <TestNumber num={num} />
       <div className="civr-card p-6 lg:col-span-2 space-y-6">
         <div className="font-display text-2xl font-bold">This month</div>
         <Meter label="Inbound minutes" used={num.usage.minutesUsed} total={num.usage.minutesIncluded} testid="overview-minutes-meter" />
@@ -76,8 +86,9 @@ export function ForwardingTab({ num, reload }) {
 
 export function VoicemailTab({ num, reload }) {
   const vm = num.features.voicemail;
-  const { data } = useApi('/audio');
+  const { data, reload: reloadAudio } = useApi('/audio');
   const { catalog } = useShell();
+  const [script, setScript] = useState('');
   const langs = catalog?.voicemailLanguages || [{ code: 'en', label: 'English' }];
   const [f, setF] = useState({ enabled: !!vm.enabled, greetingType: vm.greetingType === 'custom' ? 'custom' : 'default', customGreetingUrl: vm.customGreetingUrl || '', forwardToEmail: vm.forwardToEmail || '', ringTimeout: vm.ringTimeout || 25, language: vm.language || 'en', transcribe: vm.transcribe !== false });
   const [save, busy] = useSave(num, 'voicemail', reload);
@@ -94,7 +105,7 @@ export function VoicemailTab({ num, reload }) {
         <select className="civr-input" value={f.language} onChange={e => setF({ ...f, language: e.target.value })} data-testid="voicemail-language-select">
           {langs.map(l => <option key={l.code} value={l.code}>{l.label}</option>)}
         </select>
-        {f.greetingType === 'default' && sample && <span className="block text-sm text-[#ccc] italic mt-2" dir="auto" data-testid="voicemail-language-sample">“{sample}”</span>}
+        {f.greetingType === 'default' && sample && <span className="block text-sm text-[#ccc] italic mt-2" dir="auto" data-no-translate data-testid="voicemail-language-sample">“{sample}”</span>}
       </Field>
       {f.greetingType === 'custom' && (
         <Field label="Greeting audio" hint={!data?.audios?.length ? 'Add audio in the Audio library first.' : null}>
@@ -103,6 +114,13 @@ export function VoicemailTab({ num, reload }) {
           </select>
         </Field>
       )}
+      <div className="border border-[#222] rounded-xl p-4 space-y-3" data-testid="voicemail-tts-box">
+        <div className="text-sm font-medium">Make a greeting from text</div>
+        <div className="flex flex-wrap gap-1.5">{VM_TEMPLATES.map(([l, t], i) => <button key={l} type="button" onClick={() => setScript(t)} className="civr-pill cursor-pointer" data-testid={`voicemail-template-${i}`}>{l}</button>)}</div>
+        <textarea rows={3} className="civr-input" value={script} onChange={e => setScript(e.target.value)} placeholder="Type what callers hear before the beep" data-testid="voicemail-tts-text-input" />
+        <VoiceMaker text={script} name="Voicemail greeting" onMade={(a) => { reloadAudio(); setF(x => ({ ...x, greetingType: 'custom', customGreetingUrl: a.audioUrl })); }} testid="voicemail-tts" />
+        <p className="text-[11px] text-[#8a8a8a]">Replace [Name] / [Business] before making the voice. The new audio is picked as your greeting — press Save voicemail.</p>
+      </div>
       <Field label="Also email voicemails to (optional)"><input className="civr-input" type="email" value={f.forwardToEmail} onChange={e => setF({ ...f, forwardToEmail: e.target.value })} data-testid="voicemail-email-input" /></Field>
       <Field label="Ring time before voicemail (seconds)"><input type="number" min={10} max={60} className="civr-input" value={f.ringTimeout} onChange={e => setF({ ...f, ringTimeout: e.target.value })} data-testid="voicemail-ring-timeout-input" /></Field>
       <div className="flex items-start justify-between gap-4">
@@ -114,7 +132,21 @@ export function VoicemailTab({ num, reload }) {
   );
 }
 
+function FaxCard({ num, reload }) {
+  const [save, busy] = useSave(num, 'fax', reload);
+  if (!num.capabilities?.fax) return null;
+  return (
+    <Card title="Fax" sub="This number can receive faxes. Each fax arrives in your Inbox as a PDF.">
+      <div className="flex items-center justify-between"><span className="text-sm">Send faxes to my Inbox</span><Toggle checked={num.features.fax?.toInbox !== false} disabled={busy} onChange={v => save({ toInbox: v })} testid="fax-inbox-toggle" /></div>
+    </Card>
+  );
+}
+
 export function SmsTab({ num, reload }) {
+  return <div className="space-y-4"><SmsCard num={num} reload={reload} /><FaxCard num={num} reload={reload} /></div>;
+}
+
+function SmsCard({ num, reload }) {
   const s = num.features.smsForwarding;
   const [f, setF] = useState({ toEmail: s.toEmail || '', webhookUrl: s.webhookUrl || '' });
   const [save, busy] = useSave(num, 'sms', reload);

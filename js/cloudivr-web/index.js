@@ -13,6 +13,9 @@ const calls = require('./calls')
 const orders = require('./orders')
 const trycall = require('./trycall')
 const notes = require('./notes')
+const outbound = require('./outbound')
+const extras = require('./extras')
+const support = require('./support')
 const { sendMail } = require('./auth')
 
 function createCloudIvrWeb(deps) {
@@ -44,8 +47,11 @@ function createCloudIvrWeb(deps) {
     Object.assign(numbersApi, numbers.routes(r, { ...deps, db, h }))
     verification.routes(r, { ...deps, db, h, upload })
     audio.routes(r, { ...deps, db, h, upload })
+    outbound.routes(r, { ...deps, db, h, numbersApi })
     calls.routes(r, { ...deps, db, h, numbersApi })
     notes.routes(r, { db, h, numbersApi })
+    extras.routes(r, { ...deps, db, h, numbersApi })
+    support.routes(r, { ...deps, db, h, numbersApi })
     r.get('/dashboard', h(async (req, res) => {
       const id = req.webChatId
       const nums = await numbersApi.myNumbers(id)

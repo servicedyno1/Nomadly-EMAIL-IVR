@@ -70,6 +70,8 @@
 .civr details[open] .civr-faq-chevron { transform: rotate(180deg); }
 @media (pointer: coarse) { .civr .civr-btn-sm { height: 44px; padding: 0 16px; } }
 @media (prefers-reduced-motion: reduce) { .civr .civr-rise, .civr .civr-pulse { animation: none; } }
+.civr .grid > * { min-width: 0; }
+@media (max-width: 640px) { .civr .civr-btn { white-space: normal; text-align: center; max-width: 100%; height: auto; min-height: 42px; padding-top: 8px; padding-bottom: 8px; line-height: 1.25; } }
 
 /* ── Landing (Telnyx-style: ink / cream sections, electric green) ── */
 .civr .civr-l { --l-ink: #0A0D0E; --l-ink-2: #14181B; --l-cream: #FEFDF5; --l-cream-2: #F5F4EC; --l-green: #00E3AA; --l-green-h: #00C795; --l-blue: #3434EF; overflow-x: clip; }

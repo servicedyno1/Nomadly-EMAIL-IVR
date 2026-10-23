@@ -8,6 +8,7 @@ import { PageHeader, Field, Spinner, ErrorNote, Label } from '../ui';
 import { cp } from '../paths';
 import Checkout from './buy/Checkout';
 import { PlanFeatures, RecommendedBadge, availablePlans } from '../PlanFeatures';
+import { usePrivacy } from '../privacy';
 
 // The chosen number + plan survive the wallet top-up detour (Wallet links back with ?resume=1).
 const RESUME_KEY = 'civr.buyResume';
@@ -100,13 +101,17 @@ export default function BuyNumber() {
   const [plan, setPlan] = useState(saved?.plan || params.get('plan') || null);
   const [busy, setBusy] = useState('');
   const [error, setError] = useState(null);
+  const [coupon, setCoupon] = useState(saved?.coupon || null);
+  const extraOf = params.get('extra');
+  const { data: extra } = useApi(extraOf ? `/numbers/${enc(extraOf)}/extra` : null);
+  const pv = usePrivacy();
   const { data: open } = useApi('/numbers/orders?open=1');
   useEffect(() => { refreshSummary(); }, [refreshSummary]);
   if (!catalog) return <Spinner />;
   // Picked plan → the recommended plan (Pro) → the first plan on sale.
   const avail = (id) => catalog.plans.find(p => p.id === id && p.available);
   const planObj = avail(plan) || avail(catalog.recommendedPlan) || catalog.plans.find(p => p.available);
-  const total = planObj ? planObj.price + (pick?.surcharge || 0) : 0;
+  const total = extraOf ? (extra?.price || 0) : planObj ? planObj.price + (pick?.surcharge || 0) : 0;
   const fromParam = !saved && params.get('plan') && planObj?.id === params.get('plan');
 
   const search = async (e) => {
@@ -114,13 +119,15 @@ export default function BuyNumber() {
     try { setRes(await api(`/numbers/search?country=${q.country}&type=${q.type}${q.areaCode ? `&areaCode=${q.areaCode}` : ''}`)); } catch (err) { setError(err); setRes(null); } finally { setBusy(''); }
   };
   const topUp = (shortBy) => {
-    sessionStorage.setItem(RESUME_KEY, JSON.stringify({ q, res, pick, plan: planObj?.id }));
-    nav(cp(`/app/wallet?need=${shortBy}&for=${enc(pick.phoneNumber)}`));
+    sessionStorage.setItem(RESUME_KEY, JSON.stringify({ q, res, pick, plan: planObj?.id, coupon }));
+    nav(cp(`/app/wallet?need=${shortBy}&for=${enc(pick.phoneNumber)}${extraOf ? `&extra=${enc(extraOf)}` : ''}`));
   };
   const buy = async ({ method, coin, autoRenew }) => {
     setBusy('buy'); setError(null);
     try {
-      const d = await api('/numbers/checkout', { method: 'POST', body: { phoneNumber: pick.phoneNumber, plan: planObj.id, method, coin, autoRenew } });
+      const d = extraOf
+        ? await api(`/numbers/${enc(extraOf)}/extra`, { method: 'POST', body: { phoneNumber: pick.phoneNumber, coupon: coupon?.code, autoRenew } })
+        : await api('/numbers/checkout', { method: 'POST', body: { phoneNumber: pick.phoneNumber, plan: planObj.id, method, coin, autoRenew, coupon: coupon?.code } });
       sessionStorage.removeItem(RESUME_KEY);
       refreshSummary();
       if (d.order) { nav(cp(`/app/orders/${enc(d.order.id)}`)); return; }
@@ -133,7 +140,8 @@ export default function BuyNumber() {
 
   return (
     <div data-testid="buy-page">
-      <PageHeader label="Buy" title="Get a new number" sub={`${catalog.countries.length} countries. Pay with crypto or your wallet, renews monthly.`} testid="buy-header" />
+      {extraOf ? <PageHeader label="Extra number" title="Add an extra number" sub={`Shares the plan of ${pv.phone(extraOf)} — ${money(extra?.price || 25)}/month from your wallet, same features.${extra ? ` ${extra.used} of ${extra.limit} used.` : ''}`} testid="buy-header" />
+        : <PageHeader label="Buy" title="Get a new number" sub={`${catalog.countries.length} countries. Pay with crypto or your wallet, renews monthly.`} testid="buy-header" />}
       {open?.orders?.[0] && <OpenOrder order={open.orders[0]} />}
       {saved?.pick && <div className="civr-card p-4 mb-4 text-sm flex items-center gap-2" data-testid="buy-resume-note"><Check className="w-4 h-4 text-[#34d399]" />Welcome back — {saved.pick.phoneNumber} and the {planObj?.name} plan are still selected below.</div>}
       {fromParam && <div className="text-sm text-[#34d399] mb-4 flex items-center gap-2" data-testid="buy-plan-hint"><Check className="w-4 h-4" />{planObj.name} plan picked — search for a number below.</div>}
@@ -142,10 +150,13 @@ export default function BuyNumber() {
       {res && <div className="mt-8"><Label>1 · Pick a number</Label><Results res={res} pick={pick} setPick={setPick} /></div>}
       {pick && (
         <div className="mt-8 civr-rise">
+          {!extraOf && <>
           <Label>2 · Pick a plan</Label>
           <p className="text-xs text-[#9a9a9a] -mt-1 mb-3" data-testid="buy-plan-help">✓ included · ✗ not on that plan. You can upgrade a number later from its Billing tab.</p>
           <PlanPicker plans={catalog.plans} value={planObj?.id} onChange={setPlan} surcharge={pick.surcharge} />
-          <Checkout key={`${pick.phoneNumber}-${summary ? 1 : 0}`} pick={pick} planObj={planObj} total={total} balance={summary?.balance} coins={catalog.coins || []} busy={busy === 'buy'} onPay={buy} onTopUp={topUp} />
+          </>}
+          <Checkout key={`${pick.phoneNumber}-${summary ? 1 : 0}`} pick={pick} planObj={planObj} total={total} balance={summary?.balance} coins={catalog.coins || []} busy={busy === 'buy'} onPay={buy} onTopUp={topUp}
+            coupon={coupon} setCoupon={setCoupon} initialCode={params.get('coupon') || ''} cryptoOk={!extraOf} label={extraOf ? `Extra number on ${pv.phone(extraOf)} · monthly` : null} />
         </div>
       )}
     </div>

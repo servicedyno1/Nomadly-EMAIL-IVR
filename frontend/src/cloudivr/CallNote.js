@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { ask } from './i18n';
 import { toast } from 'sonner';
 import { StickyNote, Pencil, Trash2 } from 'lucide-react';
 import { api, enc } from './api';
@@ -23,7 +24,7 @@ export function NoteCell({ log: l, phone, onSaved, testid }) {
   const save = () => run(() => (note
     ? api(`/notes/${enc(note.id)}`, { method: 'PATCH', body: { text } })
     : api(`/numbers/${enc(phone)}/notes`, { method: 'POST', body: { text, logId: l.id, peer: l.direction === 'outbound' ? l.to : l.from, direction: l.direction, callAt: l.timestamp } })), 'Note saved');
-  const remove = () => { if (window.confirm('Delete this note?')) run(() => api(`/notes/${enc(note.id)}`, { method: 'DELETE' }), 'Note deleted'); };
+  const remove = () => { if (ask('Delete this note?')) run(() => api(`/notes/${enc(note.id)}`, { method: 'DELETE' }), 'Note deleted'); };
 
   if (open) {
     return (

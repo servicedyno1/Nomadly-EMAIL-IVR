@@ -40,6 +40,7 @@ export default function Numbers() {
                 {on(n.features.hours) && <span className="civr-pill civr-pill-on" data-testid={`number-card-${i}-hours`}>Hours</span>}
                 {on(n.features.voicemail) && <span className="civr-pill civr-pill-on">Voicemail</span>}
                 {n.features.recording && <span className="civr-pill civr-pill-on">Recording</span>}
+                {n.isSubNumber && <span className="civr-pill" data-testid={`number-card-${i}-extra`}>Extra on {pv.phone(n.parentNumber)}</span>}
                 {n.dryRun && <span className="civr-pill civr-pill-warn">Preview</span>}
               </div>
               <div className="flex items-center justify-between mt-6 text-xs text-[#9a9a9a]">

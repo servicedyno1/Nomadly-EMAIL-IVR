@@ -37,7 +37,7 @@ function NeedBanner({ need, forNum }) {
     <div className="civr-card civr-trace p-4 md:p-6 mb-6 flex flex-col sm:flex-row sm:items-center gap-4" data-testid="wallet-resume-banner">
       <Info className="w-5 h-5 text-[#34d399] shrink-0" />
       <div className="flex-1 text-sm">Add at least <span className="font-mono">{money(need)}</span> {forNum ? <>to buy <span className="font-mono">{forNum}</span></> : 'to cover your next renewal'}. Your balance updates here once the network confirms the deposit.</div>
-      {forNum && <Link to={cp('/app/buy?resume=1')} className="civr-btn civr-btn-ghost civr-btn-sm" data-testid="wallet-resume-link">Back to your number</Link>}
+      {forNum && <Link to={cp(`/app/buy?resume=1${new URLSearchParams(window.location.search).get('extra') ? `&extra=${encodeURIComponent(new URLSearchParams(window.location.search).get('extra'))}` : ''}`)} className="civr-btn civr-btn-ghost civr-btn-sm" data-testid="wallet-resume-link">Back to your number</Link>}
     </div>
   );
 }

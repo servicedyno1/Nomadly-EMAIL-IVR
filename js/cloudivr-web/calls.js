@@ -4,13 +4,14 @@ const phoneConfig = require('../phone-config')
 const { walletOps } = require('./wallet')
 const { normPhone, E164 } = require('./numbers')
 const { spokenNumber } = require('../voicemail-greeting')
+const { cleanMenu, firstForward } = require('./outbound')
 
 const dryRun = () => process.env.WEB_CLOUDIVR_DRY_RUN === 'true'
 const QUICK_MIN_WALLET = 1
 const KEYS = /^[0-9*#]$/
 
 const publicCampaign = (c, withLeads = false) => ({
-  id: c.id, callerId: c.callerId, audioName: c.audioName, mode: c.mode, transferNumber: c.transferNumber, activeKeys: c.activeKeys,
+  id: c.id, callerId: c.callerId, audioName: c.audioName, mode: c.menu ? 'menu' : c.mode, menu: c.menu || null, transferNumber: c.transferNumber, activeKeys: c.activeKeys,
   concurrency: c.concurrency, status: c.status, stats: c.stats, scheduledFor: c.scheduledFor, startedAt: c.startedAt, completedAt: c.completedAt,
   createdAt: c.createdAt, cancelledReason: c.cancelledReason || null, pausedReason: c.pausedReason || null, dryRun: !!c.dryRun,
   ...(withLeads ? { leads: (c.leads || []).slice(0, 500).map(l => ({ number: l.number, name: l.name, status: l.status, digitPressed: l.digitPressed, transferred: !!l.transferred, duration: l.duration || 0, hangupCause: l.hangupCause || null })) } : {}),
@@ -44,29 +45,7 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
     return { to }
   }
 
-  router.post('/calls/quick', h(async (req, res) => {
-    const chatId = req.webChatId
-    const c = await caller(chatId, req.body.callerId, 'ivrOutbound', 'Quick IVR calls')
-    if (c.err) return bad(res, ...c.err)
-    const target = normPhone(req.body.to)
-    if (!E164.test(target)) return bad(res, 400, 'invalid_number', 'Enter the number to call with country code, e.g. +14155550100.')
-    if (phoneConfig.isBlockedPrefix(target)) return bad(res, 400, 'blocked_destination', `${target} is a blocked premium/satellite destination.`)
-    const audio = await ownAudio(chatId, req.body.audioId)
-    if (!audio) return bad(res, 400, 'invalid_audio', 'Pick a message from your audio library.')
-    const t = transferTo(req.body, c.n.phoneNumber)
-    if (t.err) return bad(res, 400, 'invalid_transfer', t.err)
-    const bal = await w.balance(chatId)
-    const rate = voiceService.getIvrCallRate(target)
-    if (bal < Math.max(QUICK_MIN_WALLET, rate)) return bad(res, 402, 'insufficient_balance', `Quick IVR calls bill $${rate.toFixed(2)}/min from your wallet. Your balance is $${bal.toFixed(2)} — top up first.`)
-    const activeKeys = keysOf(req.body)
-    if (dryRun()) return res.status(202).json({ dryRun: true, rate, message: `Preview mode: the call to ${target} was validated but not dialed.` })
-    const r = await voiceService.initiateOutboundIvrCall({ chatId, callerId: c.n.phoneNumber, targetNumber: target, audioUrl: audio.audioUrl, ivrNumber: t.to, activeKeys, ivrMode: 'transfer', templateName: audio.name, holdMusic: !!req.body.holdMusic, provider: 'telnyx' })
-    if (r?.error) return bad(res, 424, 'call_failed', String(r.error).slice(0, 200))
-    log(`[CloudIVR-Web] quick IVR ${c.n.phoneNumber} → ${target} by ${chatId}`)
-    res.status(201).json({ started: true, callId: r?.callControlId || r?.callSid || null, rate })
-  }))
-
-  // Call me first: we ring the owner's own phone from their CloudIVR number; pressing 1 connects them to `to`, who
+  // Quick IVR calls live in outbound.js. Call me first: we ring the owner's own phone from their CloudIVR number; pressing 1 connects them to `to`, who
   // sees the CloudIVR number. Runs on the outbound IVR engine; both legs bill per minute (plan minutes first).
   const prefs = db.collection('webPrefs')
   router.get('/calls/callback', h(async (req, res) => {
@@ -118,9 +97,15 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
     const { leads, errors } = bulkCallService.parseLeadsFile(String(b.leads || ''))
     if (!leads.length) return bad(res, 400, 'no_leads', errors[0] || 'Add at least one number to call (one per line, optional ",name").')
     if (leads.length > bulkCallService.MAX_BULK_LEADS) return bad(res, 400, 'too_many_leads', `Maximum ${bulkCallService.MAX_BULK_LEADS} numbers per campaign.`)
-    const mode = b.mode === 'transfer' ? 'transfer' : 'report_only'
-    let transferNumber = null
-    if (mode === 'transfer') {
+    // 'menu' = route each key (forward / message / sub-menu); the engine runs it as a transfer campaign.
+    const mode = ['transfer', 'menu'].includes(b.mode) ? 'transfer' : 'report_only'
+    let transferNumber = null, menu = null, activeKeys = keysOf(b)
+    if (b.mode === 'menu') {
+      try { menu = cleanMenu(b.menu, c.n.phoneNumber) } catch (e) { return bad(res, 400, 'invalid_menu', e.message) }
+      if (!Object.keys(menu).length) return bad(res, 400, 'invalid_menu', 'Add at least one key to the menu.')
+      transferNumber = firstForward(menu)
+      activeKeys = Object.keys(menu)
+    } else if (mode === 'transfer') {
       const t = transferTo({ transferTo: b.transferNumber }, c.n.phoneNumber)
       if (t.err) return bad(res, 400, 'invalid_transfer', t.err)
       transferNumber = t.to
@@ -133,8 +118,8 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
     }
     if (dryRun() && scheduledFor) return bad(res, 400, 'dry_run', 'Scheduling is turned off in preview mode — calls would be dialed for real.')
     const campaign = await bulkCallService.createCampaign({
-      chatId, callerId: c.n.phoneNumber, audioUrl: audio.audioUrl, audioName: audio.name, mode, transferNumber,
-      activeKeys: keysOf(b), concurrency: Math.min(20, Math.max(1, parseInt(b.concurrency, 10) || 5)), holdMusic: !!b.holdMusic,
+      chatId, callerId: c.n.phoneNumber, audioUrl: audio.audioUrl, audioName: audio.name, mode, transferNumber, menu,
+      activeKeys, concurrency: Math.min(20, Math.max(1, parseInt(b.concurrency, 10) || 5)), holdMusic: !!b.holdMusic,
       leads, scheduledFor, provider: 'telnyx', voicemailAudioUrl: vm?.audioUrl || null, voicemailAudioName: vm?.name || null,
     })
     if (campaign.error) return bad(res, 400, 'create_failed', campaign.error)

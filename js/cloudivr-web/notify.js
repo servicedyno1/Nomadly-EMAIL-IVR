@@ -12,7 +12,7 @@ function setDb(db) {
 }
 
 const strip = (s) => String(s || '')
-  .replace(/<br\s*\/?>/gi, '\n').replace(/<[^>]+>/g, '')
+  .replace(/\/sipguide/g, 'the SIP tab').replace(/<br\s*\/?>/gi, '\n').replace(/<[^>]+>/g, '')
   .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&amp;/g, '&').trim()
 
 function kindOf(t) {
@@ -25,11 +25,12 @@ function kindOf(t) {
   return 'info'
 }
 
-async function push(chatId, text, mediaUrl = null) {
+// extra = { kind, meta } for app-made notices (e.g. a coupon the Inbox can apply).
+async function push(chatId, text, mediaUrl = null, extra = null) {
   if (!_col) return
   const clean = strip(text).slice(0, 4000)
   if (!clean && !mediaUrl) return
-  await _col.insertOne({ chatId: String(chatId), text: clean, kind: kindOf(clean), mediaUrl, read: false, createdAt: new Date() })
+  await _col.insertOne({ chatId: String(chatId), text: clean, kind: extra?.kind || kindOf(clean), mediaUrl, meta: extra?.meta || null, read: false, createdAt: new Date() })
 }
 
 const FAKE = (chatId) => Promise.resolve({ message_id: 0, chat: { id: chatId }, web: true })
@@ -72,7 +73,7 @@ function routes(router, { h }) {
       _col.find(q).sort({ createdAt: -1 }).limit(Math.min(200, parseInt(req.query.limit, 10) || 50)).toArray(),
       _col.countDocuments({ chatId: req.webChatId, read: false }),
     ])
-    res.json({ unread, notifications: items.map(n => ({ id: String(n._id), text: n.text, kind: n.kind, mediaUrl: n.mediaUrl, read: n.read, createdAt: n.createdAt })) })
+    res.json({ unread, notifications: items.map(n => ({ id: String(n._id), text: n.text, kind: n.kind, mediaUrl: n.mediaUrl, meta: n.meta || null, read: n.read, createdAt: n.createdAt })) })
   }))
   router.post('/notifications/read', h(async (req, res) => {
     await _col.updateMany({ chatId: req.webChatId, read: false }, { $set: { read: true } })

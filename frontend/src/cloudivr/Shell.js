@@ -22,6 +22,8 @@ import Wallet from './pages/Wallet';
 import Inbox from './pages/Inbox';
 import Settings from './pages/Settings';
 import { cp } from './paths';
+import { LangSwitcher } from './i18n';
+import SupportChat from './SupportChat';
 
 const ShellCtx = createContext(null);
 export const useShell = () => useContext(ShellCtx);
@@ -76,6 +78,7 @@ function TopBar({ summary, onPhone }) {
       <div className="hidden lg:block mr-auto text-sm text-[#a1a1aa]" data-testid="topbar-greeting">Signed in as <span className="text-[#ddd]">{account?.email}</span></div>
       <Link to={cp('/app/wallet')} className="civr-pill civr-pill-on !text-sm !normal-case !tracking-normal h-9" data-testid="topbar-balance">{money(summary?.balance)}</Link>
       <Link to={cp('/app/wallet')} className="civr-btn civr-btn-ghost civr-btn-sm !hidden md:!inline-flex" data-testid="topbar-add-funds-button"><Plus className="w-4 h-4" />Add funds</Link>
+      <LangSwitcher testid="topbar-lang-switcher" />
       <PrivateButton />
       <Link to={cp('/app/inbox')} className={ICON_BTN} data-testid="topbar-inbox-button" aria-label="Inbox">
         <Bell className="w-5 h-5" />
@@ -130,6 +133,7 @@ export default function Shell() {
       </div>
       <MobileNav />
       <Softphone open={phoneOpen} onClose={() => setPhoneOpen(false)} />
+      <SupportChat supportLink={catalog?.supportLink} />
      </PrivacyProvider>
     </ShellCtx.Provider>
   );

@@ -63,7 +63,7 @@ function routes(router, { db, h, numbersApi, coins = [], createCryptoDeposit, se
     let loaded = false
     for (let i = 0; i < list.length; i++) {
       const hit = list[i]
-      const r = await numbersApi.purchase({ chatId: o.chatId, email: o.email, phone: hit.phoneNumber, planKey: o.planKey, hit, country: o.country, type: o.type, areaCode: o.areaCode, autoRenew: o.autoRenew, viaOrder: o._id })
+      const r = await numbersApi.purchase({ chatId: o.chatId, email: o.email, phone: hit.phoneNumber, planKey: o.planKey, hit, country: o.country, type: o.type, areaCode: o.areaCode, autoRenew: o.autoRenew, coupon: o.coupon || null, viaOrder: o._id })
       if (r.status === 201 || r.status === 202) {
         const assigned = r.status === 201 ? r.body.number.phoneNumber : hit.phoneNumber
         const swapped = assigned !== o.phoneNumber
@@ -113,13 +113,18 @@ function routes(router, { db, h, numbersApi, coins = [], createCryptoDeposit, se
     const planKey = String(req.body.plan || ''), plan = phoneConfig.plans[planKey]
     if (!plan || !phoneConfig.isPlanAvailable(planKey)) return bad(res, 400, 'invalid_plan', 'That plan is not available.')
     const autoRenew = req.body.autoRenew !== false
+    let coupon = null
+    if (req.body.coupon) {
+      coupon = await numbersApi.checkCoupon(chatId, req.body.coupon)
+      if (coupon.error) return bad(res, 400, 'invalid_coupon', coupon.message)
+    }
     if (req.body.method !== 'crypto') {
-      const r = await numbersApi.purchase({ chatId, email: req.webUser.email, phone: picked.hit.phoneNumber, planKey, autoRenew, ...picked })
+      const r = await numbersApi.purchase({ chatId, email: req.webUser.email, phone: picked.hit.phoneNumber, planKey, autoRenew, coupon, ...picked })
       return res.status(r.status).json(r.body)
     }
     const coin = String(req.body.coin || '')
     if (!coins.includes(coin)) return bad(res, 400, 'invalid_coin', `Pick one of: ${coins.join(', ')}.`)
-    const price = round2(plan.price + (picked.hit.surcharge || 0))
+    const price = round2((plan.price + (picked.hit.surcharge || 0)) * (1 - (coupon ? coupon.discount : 0) / 100))
     const dep = !livePayments()
       ? { ref: `dry-${crypto.randomUUID().slice(0, 12)}`, address: 'PREVIEW-MODE-DO-NOT-SEND-FUNDS', amountCrypto: null, provider: 'preview' }
       : await createCryptoDeposit(chatId, price, coin)
@@ -127,7 +132,7 @@ function routes(router, { db, h, numbersApi, coins = [], createCryptoDeposit, se
     const now = new Date()
     const doc = {
       _id: dep.ref, chatId, email: req.webUser.email, phoneNumber: picked.hit.phoneNumber, hit: picked.hit, country: picked.country, type: picked.type,
-      areaCode: picked.areaCode, planKey, price, autoRenew, coin, address: dep.address, amountCrypto: dep.amountCrypto || null, provider: dep.provider,
+      areaCode: picked.areaCode, planKey, price, autoRenew, coupon, coin, address: dep.address, amountCrypto: dep.amountCrypto || null, provider: dep.provider,
       status: 'awaiting_payment', dryRun: dryRun(), createdAt: now, updatedAt: now,
     }
     await orders.insertOne(doc)
