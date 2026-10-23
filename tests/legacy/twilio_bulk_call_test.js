@@ -94,7 +94,7 @@ async function testTwiMLEndpoints() {
     id: campaignId,
     chatId: 123456789,
     callerId: '+18001234567',
-    audioUrl: 'https://vault-launch-6.preview.emergentagent.com/api/assets/user-audio/test.mp3',
+    audioUrl: 'https://app-vault-launch-1.preview.emergentagent.com/api/assets/user-audio/test.mp3',
     audioName: 'Test Audio',
     mode: 'report_only',
     transferNumber: null,
@@ -166,7 +166,7 @@ async function testTwiMLEndpoints() {
     id: transferCampaignId,
     chatId: 987654321, // Different chatId to avoid conflicts
     callerId: '+18001234567',
-    audioUrl: 'https://vault-launch-6.preview.emergentagent.com/api/assets/user-audio/test.mp3',
+    audioUrl: 'https://app-vault-launch-1.preview.emergentagent.com/api/assets/user-audio/test.mp3',
     audioName: 'Test Audio Transfer',
     mode: 'transfer',
     transferNumber: '+41791234567',

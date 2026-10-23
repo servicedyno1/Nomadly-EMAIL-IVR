@@ -12,7 +12,7 @@ import sys
 import time
 from pathlib import Path
 
-BACKEND_URL = "https://vault-launch-6.preview.emergentagent.com"
+BACKEND_URL = "https://app-vault-launch-1.preview.emergentagent.com"
 
 def run_test(test_name, test_func):
     """Run a test and return results"""

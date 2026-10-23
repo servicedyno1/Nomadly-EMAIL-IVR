@@ -2,7 +2,7 @@
 """
 Nomadly Backend Review Request Verification Test
 Test Date: January 2025
-Backend URL: https://vault-launch-6.preview.emergentagent.com
+Backend URL: https://app-vault-launch-1.preview.emergentagent.com
 Test User: 6687923716
 
 Review Request Tests:
@@ -19,7 +19,7 @@ import os
 from datetime import datetime
 
 # Backend URL from environment
-BACKEND_URL = "https://vault-launch-6.preview.emergentagent.com"
+BACKEND_URL = "https://app-vault-launch-1.preview.emergentagent.com"
 TEST_USER = "6687923716"
 
 class ReviewRequestTester:

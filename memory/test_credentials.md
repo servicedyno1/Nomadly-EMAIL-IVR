@@ -17,32 +17,32 @@
 - Dev Telegram bot is `@Nomadlytestbot` (`TELEGRAM_BOT_TOKEN_DEV`). Because `SKIP_WEBHOOK_SYNC=true`, the bot does NOT
   auto-repoint its webhook — on a fresh pod call Telegram `setWebhook` for the DEV token only, with
   `<REACT_APP_BACKEND_URL>/api/telegram/webhook`. NEVER touch `TELEGRAM_BOT_TOKEN_PROD` (@NomadlyBot → 2.speechcue.com).
-- ⚠️ 2026-10-20 re-setup (pod `https://vault-launch-6.preview.emergentagent.com`, egress IP `34.170.12.145`, CR whitelist PASSED):
+- ⚠️ 2026-10-20 re-setup (pod `https://app-vault-launch-1.preview.emergentagent.com`, egress IP `34.170.12.145`, CR whitelist PASSED):
   upstream `webpack-dev-server` 6.1.0 + `webpack-dev-middleware` 8.4/8.5 (released 2026-10-17/18) break `yarn start`
   ("Can't import the named export 'Logger' … webpack-dev-middleware/client/utils/log.js"). Local-only workaround (no tracked
   change): temporarily set frontend `resolutions` → `"webpack-dev-server": "6.0.0"`, `"webpack-dev-middleware": "8.3.0"`,
   `yarn install --ignore-engines`, then restore the original package.json. Vault `DIGITALOCEAN_API_TOKEN` returns 401
   (stale/revoked in vault) → DO size/catalog/RDP sync fail on the dev pod only.
-- ✅ 2026-10-22 re-setup (fresh pod, `/app` populated by platform): pod `https://vault-launch-6.preview.emergentagent.com`
-  (alias `https://vault-launch-6.preview.emergentagent.com` routes to the same pod — both verified). Egress IP `34.170.12.145`
+- ✅ 2026-10-22 re-setup (fresh pod, `/app` populated by platform): pod `https://app-vault-launch-1.preview.emergentagent.com`
+  (alias `https://app-vault-launch-1.preview.emergentagent.com` routes to the same pod — both verified). Egress IP `34.170.12.145`
   (CR whitelist PASSED, WHM cPHulk whitelisted). Steps: vault unlock → `frontend/.env` (REACT_APP_BACKEND_URL=pod, WDS_SOCKET_PORT=443)
   → apt ffmpeg/whois/netcat + pip (parallel) → root yarn → frontend yarn (sequential, wds 6.0.0 / wdm 8.3.0 pin still required —
   upstream still 6.1.0/8.5.0; package.json restored after) → `setup-nodejs.sh` → restart backend+frontend → DEV bot (@Nomadlytestbot)
   setWebhook → `<pod>/api/telegram/webhook` → seed panel test account → deleted untracked yarn.lock files.
   Twilio READ-ONLY init reports "account AC754f… status 4 is not active" (vault Twilio creds — account inactive).
-- ✅ 2026-10-22 (later) re-setup on pod `https://vault-launch-6.preview.emergentagent.com`
+- ✅ 2026-10-22 (later) re-setup on pod `https://app-vault-launch-1.preview.emergentagent.com`
   (alias `app-vault-setup-1.preview.emergentagent.com` also routes here — both verified /api/health 200). Same steps as above
   (wds 6.0.0 / wdm 8.3.0 pin still required). Egress IP now `35.193.209.116`: WHM cPHulk + Host Access whitelisted OK, but
   ConnectReseller whitelist FAILS (API 401 + browser automation "Login failed" → CR panel creds in vault likely stale;
   CR domain calls from this dev pod will fail). DEV bot webhook → `<pod>/api/telegram/webhook` (verified, no errors).
   Panel test account re-seeded (`wpapps01` / `246810`, login verified). `TWILIO_ENABLED` is NOT in the vault (unset = Twilio on).
-- ✅ 2026-10-22 (3rd) re-setup on pod `https://vault-launch-6.preview.emergentagent.com` (UUID alias
+- ✅ 2026-10-22 (3rd) re-setup on pod `https://app-vault-launch-1.preview.emergentagent.com` (UUID alias
   `5ed988f7-3278-4d80-bc3c-55e8d98d9d26.preview.emergentagent.com` routes to the same pod — both /api/health 200).
   Same runbook steps; wds 6.0.0 / wdm 8.3.0 local pin STILL required (upstream 6.1.0 / 8.5.0), package.json restored.
   Egress IP back to `34.170.12.145`: CR whitelist PASSED, WHM cPHulk + Host Access OK. DEV bot webhook repointed from old
   `ac76aa2f…` pod → `<pod>/api/telegram/webhook` (no errors). Panel `wpapps01`/`246810` re-seeded + UI login verified.
   Startup alerts: Telnyx balance $7.38 (warn <$10), EdenAI $4.98 (warn <$5), Twilio 401 (account inactive — known).
-- ✅ 2026-10-23 re-setup (fresh pod, `/app` populated by platform): pod `https://vault-launch-6.preview.emergentagent.com`
+- ✅ 2026-10-23 re-setup (fresh pod, `/app` populated by platform): pod `https://app-vault-launch-1.preview.emergentagent.com`
   (UUID alias `839d2a0b-800d-4b9c-8cbb-5b901c2bf000.preview.emergentagent.com` → same pod, both /api/health 200).
   Egress IP `34.16.56.64`: CR whitelist PASSED, WHM cPHulk + Host Access OK. Frontend now resolves wds 5.2.7 / wdm 7.4.6
   (package.json resolution `~5.2.1`) → the old 6.0.0/8.3.0 local pin is NO LONGER needed. `WEB_CLOUDIVR_DRY_RUN` is NOT in
@@ -50,6 +50,19 @@
   until it is). DEV bot webhook repointed from old `vault-app-setup-3` pod → `<pod>/api/telegram/webhook` (no errors).
   Panel `wpapps01`/`246810` + CloudIVR Alice/Bob re-created (Alice dry-run number +13807100346, $380). TTS step of the smoke
   script skipped (spends provider credits). Startup alerts: Telnyx $5.01, EdenAI $4.81, Twilio 401 (known).
+- ✅ 2026-10-23 (2nd) re-setup (fresh pod, `/app` populated by platform, no `.env` files): pod
+  `https://app-vault-launch-1.preview.emergentagent.com` (UUID alias `09487ecd-b7df-4e50-8814-23c73fce34e2.preview.emergentagent.com`
+  → same pod, verified via access-log marker). Egress IP `35.193.209.116`: WHM cPHulk + Host Access OK; ConnectReseller whitelist
+  FAILS (API 401 + browser "Login failed" — CR panel creds in vault stale; CR domain calls from this dev pod fail). Frontend resolves
+  wds 5.2.7 / wdm 7.4.6 (no pin needed). NOT in the vault → appended to dev `backend/.env` (vault NOT re-locked on purpose so
+  dev-only flags never reach prod via `railway_setup_prod.js`): `WEB_CLOUDIVR_DRY_RUN=true`, `TWILIO_ENABLED=false`,
+  `CLOUDIVR_WEB_ON=true` (without it `/cloudivr` + `/api/cloudivr-web/*` return 404), `WEB_TRYCALL_LIVE=false`.
+  `WEB_DYNO_PAY_API_KEY` is NOT in vault or secret store → preview top-ups show the PREVIEW placeholder address.
+  DEV bot webhook repointed from old `vault-launch-6` pod → `<pod>/api/telegram/webhook` (no errors). Panel `wpapps01`/`246810`
+  + CloudIVR Alice (dry-run +15156442785, Business, $380) / Bob ($500) re-created; UI logins verified on admin, /panel, /cloudivr.
+  Seeded with a safe variant of cloudivr_web_smoke.sh (no TTS / top-up / campaigns). Startup alerts: Telnyx $14.99 ok,
+  EdenAI $4.81 (warn), Twilio 401 (known).
+
 
 
 
@@ -68,17 +81,17 @@
 
 ## Namecheap API (hosta.sh — vanity NS pilot)
 - `NAMECHEAP_USERNAME=richbayo`, `NAMECHEAP_API_KEY` in backend/.env (vault). Whitelisted ClientIp: 136.108.30.124 (OLD pod).
-- 2026-10-15 re-setup (fresh pod): vault unlock → `frontend/.env` created (`REACT_APP_BACKEND_URL=https://vault-launch-6.preview.emergentagent.com`)
+- 2026-10-15 re-setup (fresh pod): vault unlock → `frontend/.env` created (`REACT_APP_BACKEND_URL=https://app-vault-launch-1.preview.emergentagent.com`)
   → pip/ffmpeg/root yarn → frontend yarn (sequential) → `setup-nodejs.sh` → `supervisorctl restart backend` (it starts before
   pip finishes → `No module named 'apscheduler'`) → DEV bot setWebhook. Egress IP now `136.108.30.124` (CR whitelist check failing).
-- ⚠️ 2026-10-14 re-setup: pod `https://vault-launch-6.preview.emergentagent.com`, egress IP
+- ⚠️ 2026-10-14 re-setup: pod `https://app-vault-launch-1.preview.emergentagent.com`, egress IP
   `136.70.105.25` — ConnectReseller startup check says it NEEDS whitelisting (Namecheap too). Dev bot webhook →
   `<pod>/api/telegram/webhook`. Pod has Node 20 → frontend needs `yarn install --ignore-engines` (webpack-dev-server 6
   wants Node ≥22.15). Delete the generated untracked `yarn.lock` files after install (avoid a needless prod deploy).
   Prod droplet SSH key restore: `VAULT_PASSWORD=... bash scripts/restore_infra_keys.sh`.
 - ⚠️ 2026-10-13 re-setup: current pod egress IP is `34.170.12.145` — ConnectReseller startup check PASSED (already
   whitelisted); Namecheap API whitelist must include it for the hosta.sh pilot
-  (previous pods: `35.196.223.235`, `136.108.30.124`). Dev bot webhook now → `https://vault-launch-6.preview.emergentagent.com/api/telegram/webhook`.
+  (previous pods: `35.196.223.235`, `136.108.30.124`). Dev bot webhook now → `https://app-vault-launch-1.preview.emergentagent.com/api/telegram/webhook`.
 - Pilot admin endpoints: `GET /api/admin/ns-pilot/status?key=<SESSION_SECRET first 16 chars>` (also start|tick|revert|switch|stop).
 - Cron endpoint: `POST /api/cron/ns-pilot-tick` with `Authorization: Bearer $WEBHOOK_CRON_SECRET`.
 
