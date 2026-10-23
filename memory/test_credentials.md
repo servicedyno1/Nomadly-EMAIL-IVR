@@ -85,3 +85,12 @@
   /opt/nomadly/shared/app-voodoo/backend.env on the droplet — never copied into the repo. Setup: memory/VOODOO_LAND_SETUP_2026-10-14.md
 - Voodoo Sales & Profit dashboard: https://voodooivr.xyz/sales (API /api/admin/sales/*). Password = owner-chosen value in
   SALES_DASHBOARD_PASSWORD of /opt/nomadly/shared/app-voodoo/backend.env (set 2026-10-14; not written here — this file is in git).
+
+## CloudIVR web app (preview, local DB) — 2026-10-23
+- URL: `{REACT_APP_BACKEND_URL}/cloudivr` (login `/cloudivr/login`). Web-only accounts, separate from Telegram users.
+- Account A: `civr.alice@example.com` / `AliceTest#2026` (owns dry-run US number, Business plan, ~$380 test wallet)
+- Account B: `civr.bob@example.com` / `BobTest#2026` (no numbers, ~$500 test wallet) — use for isolation checks.
+- Re-create/fund: `bash scripts/cloudivr_web_smoke.sh` (registers both, tops wallets up to ≥$300 in the LOCAL DB, buys a dry-run number for A).
+- Preview runs `WEB_CLOUDIVR_DRY_RUN=true`: purchases/calls/SIP are simulated; crypto top-ups are live only when `WEB_DYNO_PAY_API_KEY` is set.
+- Google sign-in: hidden until `GOOGLE_OAUTH_CLIENT_ID` (owner's own Google app) is set. No Google test identities yet.
+

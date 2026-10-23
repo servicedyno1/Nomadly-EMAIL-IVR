@@ -1816,6 +1816,10 @@ if (TELEGRAM_BOT_ON === 'true') {
   log('Bot ran away! ' + new Date())
 }
 
+// CloudIVR web accounts (reserved chatId range): engine messages to them land in the web inbox, never Telegram.
+const cloudivrWeb = require('./cloudivr-web')
+cloudivrWeb.notify.attach(bot)
+
 // Auto-detect when bot is added to or removed from groups
 bot?.on('my_chat_member', async update => {
   try {
@@ -4847,7 +4851,8 @@ const loadData = async () => {
   })
 
   // Telnyx international numbers — verification sessions + review poller (2026-10)
-  txReg.init({ db, bot, log })
+  txReg.init({ db, bot, log, downloadFile: cloudivrWeb.makeDownloader(() => db, bot) })
+  cloudivrWeb.notify.setDb(db)
   rsApply.init({ db, brand: process.env.CHAT_BOT_BRAND })
   telnyxPendingOrders = db.collection('telnyxPendingOrders')
   telnyxPendingOrders.createIndex({ status: 1, nextCheckAt: 1 }).catch(() => {})
@@ -39435,6 +39440,32 @@ app.use('/store', createStoreRoutes({
   getDb: () => (cpanelAccounts && cpanelAccounts.s && cpanelAccounts.s.db) || null,
   selfUrl: SELF_URL,
   notifyAdmin,
+}))
+
+// ── CloudIVR web app API (web-only accounts) — external /api/cloudivr-web/* ──
+app.use('/cloudivr-web', cloudivrWeb.createCloudIvrWeb({
+  getDb: () => db, log, telnyxApi, txReg, audioLibraryService, ttsService, bulkCallService, notifyAdmin, logTransaction, generateTransactionId,
+  voiceService: require('./voice-service.js'),
+  getTelnyxResources: () => telnyxResources,
+  paidCheckout: telnyxPaidCheckout, refundTelnyxVerification, submitTelnyxVerification,
+  numberSurcharge: (cc, type, sel) => (isTelnyxIntl('telnyx', cc) ? getTelnyxIntlSurcharge(sel).monthly : getNumberSurcharge(cc, type)) || 0,
+  verificationInfo: async (cc, type, countryName) => {
+    const rq = await txReg.getRequirements(cc, type)
+    if (!rq.ok) return { error: 'Could not check the paperwork needed for this country right now. Try again in a minute.' }
+    const required = rq.reqs.length > 0
+    return { required, supported: !required || txReg.analyze(rq.reqs).supported, note: required ? txReg.prePayNote(rq.reqs, countryName, 'en') : null }
+  },
+  coins: Object.keys(tickerOfDyno),
+  createCryptoDeposit: async (chatId, amountUsd, coin) => {
+    const ref = nanoid()
+    const r = await getDynopayCryptoAddress(amountUsd, tickerOfDyno[coin], `${SELF_URL}/dynopay/crypto-wallet`, { product_name: dynopayActions.walletFund, refId: ref }, process.env.WEB_DYNO_PAY_API_KEY)
+    if (!r?.address) return null
+    await set(chatIdOfDynopayPayment, ref, { chatId, action: dynopayActions.walletFund, address: r.address, _createdAt: new Date().toISOString(), channel: 'web' })
+    let amountCrypto = null
+    try { amountCrypto = await convert(amountUsd, 'usd', tickerOf[coin]) } catch (_) { /* display only */ }
+    depositFunnel.recordDepositIntent({ chatId, ref, amountUsd, coin, provider: 'dynopay' })
+    return { ref, address: r.address, amountCrypto, provider: 'dynopay' }
+  },
 }))
 
 // ── Reseller API (API-key authenticated public REST API) ──

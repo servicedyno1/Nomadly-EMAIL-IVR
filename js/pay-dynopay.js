@@ -27,14 +27,15 @@ const SUPPORTED_CRYPTO = [
   { currency: 'TRX', name: 'TRON' },
 ]
 
-const getDynopayCryptoAddress = async (amount, currency, webhook_url, meta_data) => {
+// keyOverride: optional DynoPay API key (CloudIVR web uses its own key).
+const getDynopayCryptoAddress = async (amount, currency, webhook_url, meta_data, keyOverride) => {
   // Enforce minimum $1 USD as required by DynoPay
   const finalAmount = Math.max(amount, 1)
 
   const options = {
     method: 'POST',
     url: `${baseUrl}/user/cryptoPayment`,
-    headers: headers,
+    headers: keyOverride ? { ...headers, 'x-api-key': keyOverride } : headers,
     data: {
       amount: finalAmount,
       currency,

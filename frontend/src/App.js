@@ -7,6 +7,7 @@ import PanelLogin from './pages/PanelLogin';
 import PanelDashboard from './pages/PanelDashboard';
 import PhoneTestPage from './pages/PhoneTestPage';
 import Storefront from './pages/Storefront';
+import CloudIvrApp from './cloudivr/CloudIvrApp';
 import './App.css';
 import './panel-v2.css';
 import './store.css';
@@ -206,6 +207,7 @@ export default function App() {
               <Route path="/store/*" element={<Storefront />} />
               <Route path="/phone/test" element={<PhoneTestPage />} />
               <Route path="/call" element={<PhoneTestPage />} />
+              <Route path="/cloudivr/*" element={<CloudIvrApp />} />
               <Route path="/*" element={<MainApp />} />
             </>
           )}

@@ -3,7 +3,7 @@
 // phoneNumbersOf so the existing call engine (forwarding, IVR, voicemail, recording, SIP, renewals) serves them.
 const crypto = require('crypto')
 const phoneConfig = require('../phone-config')
-const { walletOps, round2 } = require('./wallet')
+const { walletOps, round2, livePayments } = require('./wallet')
 
 const TYPE_NAMES = { local: 'Local', toll_free: 'Toll-free', mobile: 'Mobile', national: 'National' }
 const FEATURE_KEYS = ['callForwarding', 'smsToEmail', 'smsWebhook', 'voicemail', 'sipCredentials', 'callRecording', 'ivr', 'ivrOutbound', 'bulkCall', 'otpCollection']
@@ -23,6 +23,13 @@ function countries() {
     return { code: c.code, flag: c.name.slice(0, i), name: c.name.slice(i + 1), types: c.types || ['local', 'toll_free'], verification: !!c.verify }
   })
 }
+
+const catalog = () => ({
+  plans: Object.entries(phoneConfig.plans).map(([id, p]) => ({ id, name: p.name, price: p.price, minutes: p.minutes, sms: p.sms, features: p.features.map(webText), available: phoneConfig.isPlanAvailable(id), access: access(id) })),
+  countries: countries(), typeNames: TYPE_NAMES,
+  rates: { forwardingPerMin: phoneConfig.CALL_FORWARDING_RATE_MIN, overagePerMin: phoneConfig.OVERAGE_RATE_MIN, overagePerSms: phoneConfig.OVERAGE_RATE_SMS },
+  sipDomain: phoneConfig.SIP_DOMAIN, dryRun: dryRun(), livePayments: livePayments(),
+})
 
 function access(plan) {
   return Object.fromEntries(FEATURE_KEYS.map(k => [k, !!phoneConfig.canAccessFeature(plan, k)]))
@@ -131,12 +138,7 @@ function routes(router, deps) {
     return false
   }
 
-  router.get('/catalog', (req, res) => res.json({
-    plans: Object.entries(phoneConfig.plans).map(([id, p]) => ({ id, name: p.name, price: p.price, minutes: p.minutes, sms: p.sms, features: p.features.map(webText), available: phoneConfig.isPlanAvailable(id), access: access(id) })),
-    countries: countries(), typeNames: TYPE_NAMES,
-    rates: { forwardingPerMin: phoneConfig.CALL_FORWARDING_RATE_MIN, overagePerMin: phoneConfig.OVERAGE_RATE_MIN, overagePerSms: phoneConfig.OVERAGE_RATE_SMS },
-    sipDomain: phoneConfig.SIP_DOMAIN, dryRun: dryRun(),
-  }))
+  router.get('/catalog', (req, res) => res.json(catalog()))
 
   router.get('/numbers/search', h(async (req, res) => {
     const country = String(req.query.country || 'US').toUpperCase()
@@ -146,7 +148,7 @@ function routes(router, deps) {
     if (!c.types.includes(type)) return bad(res, 400, 'invalid_type', `${c.name} offers: ${c.types.map(t => TYPE_NAMES[t] || t).join(', ')}.`)
     const areaCode = ['US', 'CA'].includes(country) && type === 'local' && /^\d{3}$/.test(String(req.query.areaCode || '')) ? String(req.query.areaCode) : null
     const verification = await verificationInfo(country, type, `${c.flag} ${c.name}`)
-    if (verification.error) return bad(res, 502, 'lookup_failed', verification.error)
+    if (verification.error) return bad(res, 424, 'lookup_failed', verification.error)
     if (verification.required && !verification.supported) return bad(res, 400, 'unsupported', `${c.name} ${TYPE_NAMES[type] || type} numbers need paperwork we can't collect online yet. Pick another country or type.`)
     const found = await telnyxApi.searchNumbers(country, type, areaCode, 12)
     const results = (found || []).map(n => ({
@@ -175,7 +177,7 @@ function routes(router, deps) {
     const { country, type, areaCode } = cache
     const c = countries().find(x => x.code === country)
     const ver = await verificationInfo(country, type, `${c.flag} ${c.name}`)
-    if (ver.error) return bad(res, 502, 'lookup_failed', ver.error)
+    if (ver.error) return bad(res, 424, 'lookup_failed', ver.error)
     const price = round2(plan.price + (hit.surcharge || 0))
     if (!(await w.debit(chatId, price))) return bad(res, 402, 'insufficient_balance', `This number costs $${price.toFixed(2)}. Your wallet has $${(await w.balance(chatId)).toFixed(2)} — top up first.`)
 
@@ -226,7 +228,7 @@ function routes(router, deps) {
     } catch (e) {
       await w.credit(chatId, price)
       log(`[CloudIVR-Web] purchase failed for ${chatId} ${phone}: ${e.message} — refunded $${price}`)
-      return bad(res, 502, 'purchase_failed', `${e.message && e.message.length < 160 ? e.message : 'The number could not be activated.'} You were refunded $${price.toFixed(2)}.`)
+      return bad(res, 424, 'purchase_failed', `${e.message && e.message.length < 160 ? e.message : 'The number could not be activated.'} You were refunded $${price.toFixed(2)}.`)
     }
   }))
 
@@ -322,7 +324,7 @@ function routes(router, deps) {
     let user = phoneConfig.generateSipUsername(), pass = phoneConfig.generateSipPassword(), credId = null
     if (!dryRun() && tr.sipConnectionId) {
       const cred = await telnyxApi.createSIPCredential(tr.sipConnectionId, user, pass)
-      if (!cred?.sip_username) return bad(res, 502, 'sip_reset_failed', 'Could not create new SIP credentials. Your current ones still work.')
+      if (!cred?.sip_username) return bad(res, 424, 'sip_reset_failed', 'Could not create new SIP credentials. Your current ones still work.')
       user = cred.sip_username; pass = cred.sip_password || pass; credId = cred.id || null
       if (n.telnyxCredentialId) await telnyxApi.deleteSIPCredential(n.telnyxCredentialId).catch(() => {})
     }
@@ -378,4 +380,4 @@ function routes(router, deps) {
   return { myNumbers, findMine }
 }
 
-module.exports = { routes, publicNumber, validateIvr, normPhone, countries, E164 }
+module.exports = { routes, catalog, publicNumber, validateIvr, normPhone, countries, E164 }

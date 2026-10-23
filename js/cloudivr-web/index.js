@@ -25,6 +25,7 @@ function createCloudIvrWeb(deps) {
     const r = express.Router()
     const auth = createAuth(db, { log })
     auth.routes(r, h)
+    r.get('/public/catalog', (req, res) => res.json(numbers.catalog()))
     r.use(auth.requireUser)
     notify.routes(r, { h })
     wallet.routes(r, { db, h, coins: deps.coins, createCryptoDeposit: deps.createCryptoDeposit })

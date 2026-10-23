@@ -41,7 +41,7 @@ function routes(router, { db, h, upload, audioLibraryService, ttsService, log = 
     let tts
     try { tts = await ttsService.generateTTS(text, voiceKey, null, speed) } catch (e) {
       log(`[CloudIVR-Web] TTS failed for ${req.webChatId}: ${e.message}`)
-      return bad(res, 502, 'tts_failed', 'The voice service could not create this audio. Try again or pick another voice.')
+      return bad(res, 424, 'tts_failed', 'The voice service could not create this audio. Try again or pick another voice.')
     }
     const buf = fs.readFileSync(tts.audioPath)
     const saved = await audioLibraryService.saveBuffer(buf, req.webChatId, 'tts.mp3', 'audio/mpeg')

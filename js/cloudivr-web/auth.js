@@ -60,7 +60,9 @@ function createAuth(db, { log = console.log } = {}) {
   const attempts = db.collection('webLoginAttempts')
   const resets = db.collection('webPasswordResets')
   accounts.createIndex({ email: 1 }, { unique: true }).catch(() => {})
-  accounts.createIndex({ googleSub: 1 }, { unique: true, sparse: true }).catch(() => {})
+  // googleSub is only stored for Google accounts; the partial index ignores email-only accounts.
+  accounts.dropIndex('googleSub_1').catch(() => {}).then(() => accounts.updateMany({ googleSub: null }, { $unset: { googleSub: '' } }))
+    .then(() => accounts.createIndex({ googleSub: 1 }, { unique: true, name: 'googleSub_partial', partialFilterExpression: { googleSub: { $type: 'string' } } })).catch(e => log(`[CloudIVR-Web] googleSub index: ${e.message}`))
   attempts.createIndex({ updatedAt: 1 }, { expireAfterSeconds: 86400 }).catch(() => {})
   resets.createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 }).catch(() => {})
 
@@ -72,7 +74,7 @@ function createAuth(db, { log = console.log } = {}) {
 
   async function createAccount({ email, name, passwordHash = null, googleSub = null }) {
     const _id = await nextChatId()
-    const acc = { _id, email, name: String(name || '').trim().slice(0, 80), passwordHash, googleSub, tokenVersion: 0, createdAt: new Date(), lastLoginAt: new Date() }
+    const acc = { _id, email, name: String(name || '').trim().slice(0, 80), passwordHash, ...(googleSub ? { googleSub } : {}), tokenVersion: 0, createdAt: new Date(), lastLoginAt: new Date() }
     await accounts.insertOne(acc)
     await db.collection('walletOf').updateOne({ _id: String(_id) }, { $setOnInsert: { usdIn: 0, usdOut: 0 } }, { upsert: true })
     await db.collection('state').updateOne({ _id: String(_id) }, { $setOnInsert: { userLanguage: 'en', webAccount: true } }, { upsert: true })
@@ -85,13 +87,13 @@ function createAuth(db, { log = console.log } = {}) {
     const a = await attempts.findOne({ _id: key })
     return a && a.lockedUntil && a.lockedUntil > new Date() ? a.lockedUntil : null
   }
-  async function recordFailure(key) {
+  async function recordFailure(key, max = LOCK.max) {
     const now = new Date()
     const a = await attempts.findOne({ _id: key })
     const fresh = !a || now - a.firstAt > LOCK.windowMs
     const count = fresh ? 1 : a.count + 1
     const set = { count, firstAt: fresh ? now : a.firstAt, updatedAt: now }
-    if (count >= LOCK.max) set.lockedUntil = new Date(now.getTime() + LOCK.lockMs)
+    if (count >= max) set.lockedUntil = new Date(now.getTime() + LOCK.lockMs)
     await attempts.updateOne({ _id: key }, { $set: set }, { upsert: true })
   }
 
@@ -119,7 +121,7 @@ function createAuth(db, { log = console.log } = {}) {
       const ipKey = `reg|${clientIp(req)}`
       if (await lockState(ipKey)) return res.status(429).json({ error: 'too_many_attempts', message: 'Too many sign-ups from this network. Try again later.' })
       if (await accounts.findOne({ email })) return res.status(409).json({ error: 'email_taken', message: 'An account with this email already exists. Sign in instead.' })
-      await recordFailure(ipKey) // counts sign-ups per IP (5 per 15 min)
+      await recordFailure(ipKey, 15) // counts sign-ups per IP (15 per 15 min)
       const acc = await createAccount({ email, name: req.body.name, passwordHash: await bcrypt.hash(password, 12) })
       setSession(req, res, acc)
       res.status(201).json({ account: publicAccount(acc) })

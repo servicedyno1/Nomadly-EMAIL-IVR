@@ -2,6 +2,7 @@
 // Wallet for web accounts — the SAME walletOf documents the bot engine bills (calls, forwarding, renewals).
 const MIN_TOPUP_USD = 10
 const round2 = (n) => Math.round(Number(n) * 100) / 100
+const livePayments = () => process.env.WEB_CLOUDIVR_DRY_RUN !== 'true' || !!process.env.WEB_DYNO_PAY_API_KEY
 
 function walletOps(db) {
   const walletOf = db.collection('walletOf')
@@ -54,11 +55,14 @@ function routes(router, { db, h, coins, createCryptoDeposit }) {
     const coin = String(req.body.coin || '')
     if (!(amountUsd >= MIN_TOPUP_USD) || amountUsd > 10000) return res.status(400).json({ error: 'invalid_amount', message: `Top up between $${MIN_TOPUP_USD} and $10,000.` })
     if (!coins.includes(coin)) return res.status(400).json({ error: 'invalid_coin', message: `Pick one of: ${coins.join(', ')}.` })
-    const dep = await createCryptoDeposit(req.webChatId, amountUsd, coin)
-    if (!dep || !dep.address) return res.status(502).json({ error: 'deposit_unavailable', message: 'The crypto payment service did not return an address. Try again or pick another coin.' })
+    // Preview without the web DynoPay key: no payment session is created — a clearly labelled placeholder address is returned.
+    const dep = !livePayments()
+      ? { ref: `dry-${Date.now().toString(36)}`, address: 'PREVIEW-MODE-DO-NOT-SEND-FUNDS', amountCrypto: null, provider: 'preview', dryRun: true }
+      : await createCryptoDeposit(req.webChatId, amountUsd, coin)
+    if (!dep || !dep.address) return res.status(424).json({ error: 'deposit_unavailable', message: 'The crypto payment service did not return an address. Try again or pick another coin.' })
     await db.collection('webDeposits').insertOne({ chatId: req.webChatId, ref: dep.ref, amountUsd, coin, address: dep.address, amountCrypto: dep.amountCrypto || null, provider: dep.provider, createdAt: new Date() })
-    res.status(201).json({ ref: dep.ref, address: dep.address, amountCrypto: dep.amountCrypto || null, coin, amountUsd, provider: dep.provider, note: 'Send exactly this amount. Your balance updates automatically once the network confirms the payment.' })
+    res.status(201).json({ ref: dep.ref, address: dep.address, amountCrypto: dep.amountCrypto || null, coin, amountUsd, provider: dep.provider, dryRun: !!dep.dryRun, note: dep.dryRun ? 'Preview mode: no payment was created. Do not send any funds.' : 'Send exactly this amount. Your balance updates automatically once the network confirms the payment.' })
   }))
 }
 
-module.exports = { walletOps, routes, MIN_TOPUP_USD, round2 }
+module.exports = { walletOps, routes, MIN_TOPUP_USD, round2, livePayments }
