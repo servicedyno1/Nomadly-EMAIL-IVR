@@ -89,7 +89,7 @@ function Analytics({ num }) {
   return (
     <div className="civr-card p-6 h-fit" data-testid="ivr-analytics">
       <div className="flex items-center gap-2 font-display text-2xl font-bold mb-4"><BarChart3 className="w-5 h-5 text-[#38bdf8]" />Last 30 days</div>
-      {!keys.length ? <div className="text-sm text-[#666]">No key presses yet.</div> : keys.map((k, i) => (
+      {!keys.length ? <div className="text-sm text-[#8a8a8a]">No key presses yet.</div> : keys.map((k, i) => (
         <div key={i} className="mb-3" data-testid={`ivr-analytics-row-${i}`}><div className="flex justify-between text-sm"><span>Key {k.digit} · {k.action}</span><span className="font-mono">{k.count}</span></div><div className="h-1.5 bg-[#1c1c1c] rounded-full mt-1"><div className="h-full bg-[#38bdf8] rounded-full" style={{ width: `${(k.count / max) * 100}%` }} /></div></div>
       ))}
     </div>
@@ -113,7 +113,7 @@ export default function IvrTab({ num, reload }) {
           <Toggle checked={enabled} onChange={setEnabled} testid="ivr-enabled-toggle" />
         </div>
         <Greeting g={g} set={(p) => setG({ ...g, ...p })} audios={audios} prefix="ivr" />
-        {!audios.length && <div className="text-xs text-[#666]">Want your own recordings? <Link to={cp('/app/audio')} className="text-[#34d399]" data-testid="ivr-audio-library-link">Open the audio library</Link>.</div>}
+        {!audios.length && <div className="text-xs text-[#8a8a8a]">Want your own recordings? <Link to={cp('/app/audio')} className="text-[#34d399]" data-testid="ivr-audio-library-link">Open the audio library</Link>.</div>}
         <OptionList list={list} setList={setList} prefix="ivr"
           render={(o, i, u, ch, rm) => <TopRow key={i} o={o} used={u} onChange={ch} onRemove={rm} audios={audios} prefix={`ivr-option-${i}`} />} />
         <button className="civr-btn civr-btn-primary" disabled={busy} onClick={submit} data-testid="ivr-save-button">Save IVR</button>

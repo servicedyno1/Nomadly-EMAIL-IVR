@@ -19,7 +19,7 @@ export function DateTimePicker({ value, onChange, testid, maxDays = 30 }) {
         <PopoverTrigger asChild>
           <button type="button" className="civr-input flex items-center gap-2 text-left" data-testid={`${testid}-trigger`}>
             <CalendarDays className="w-4 h-4 text-[#888]" />
-            {d ? d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }) : <span className="text-[#555]">Not scheduled</span>}
+            {d ? d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }) : <span className="text-[#8a8a8a]">Not scheduled</span>}
           </button>
         </PopoverTrigger>
         <PopoverContent className="w-auto p-0 bg-[#141414] border-[#2a2a2a] text-[#f0f0f0]" align="start" data-testid={`${testid}-calendar`}>

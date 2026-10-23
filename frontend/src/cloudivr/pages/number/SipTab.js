@@ -26,7 +26,7 @@ export default function SipTab({ num }) {
           {rows.map(([k, v, id]) => (
             <div key={id} className="flex items-center justify-between py-3">
               <span className="text-sm text-[#888]">{k}</span>
-              <span className="flex items-center gap-2"><code className="text-sm" data-testid={id}>{v}</code>{v && !String(v).startsWith('•') && <button onClick={() => copy(v)} className="p-1 text-[#666] hover:text-[#34d399]" data-testid={`${id}-copy`}><Copy className="w-3.5 h-3.5" /></button>}</span>
+              <span className="flex items-center gap-2"><code className="text-sm" data-testid={id}>{v}</code>{v && !String(v).startsWith('•') && <button onClick={() => copy(v)} className="p-1 text-[#8a8a8a] hover:text-[#34d399]" data-testid={`${id}-copy`}><Copy className="w-3.5 h-3.5" /></button>}</span>
             </div>
           ))}
         </div>

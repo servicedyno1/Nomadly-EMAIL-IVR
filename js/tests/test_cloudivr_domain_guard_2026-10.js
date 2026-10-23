@@ -4,19 +4,21 @@ const assert = require('assert')
 const fs = require('fs')
 const os = require('os')
 const path = require('path')
-const { createCloudIvrDomainGuard, parseDomain, appPathPrefix } = require('../cloudivr-web/domain-guard')
+const { createCloudIvrDomainGuard, parseDomain, appPathPrefix, brandHtml } = require('../cloudivr-web/domain-guard')
 
 const idx = path.join(os.tmpdir(), `civr_idx_${process.pid}.html`)
-fs.writeFileSync(idx, '<html>spa</html>')
+fs.writeFileSync(idx, '<html><head><meta name="description" content="Hosting Control Panel" /><title>Hosting Panel</title></head><body>spa</body></html>')
 const guard = createCloudIvrDomainGuard({ domain: 'https://www.CloudIVR.net/', buildIndex: idx })
 
+// out.file = idx when the SPA index (CloudIVR-branded) was served.
 const run = (host, url, method = 'GET', g = guard) => {
-  const out = { next: false, status: null, location: null, file: null, headers: {} }
+  const out = { next: false, status: null, location: null, file: null, html: null, headers: {} }
   const req = { method, headers: { host }, originalUrl: url, url, path: url.split('?')[0] }
   const res = {
     set: (k, v) => { out.headers[k] = v },
     redirect: (s, l) => { out.status = s; out.location = l },
-    sendFile: (f) => { out.file = f },
+    type: () => res,
+    send: (b) => { out.html = b; if (String(b).includes('spa')) out.file = idx },
   }
   g(req, res, () => { out.next = true })
   return out
@@ -54,5 +56,13 @@ t('appPathPrefix: own domain → "", shared host → /cloudivr', () => {
   assert.strictEqual(appPathPrefix('https://x.preview.emergentagent.com', ''), '/cloudivr')
 })
 
+t('served index is CloudIVR-branded (no hosting-panel title/description)', () => {
+  const html = run('cloudivr.net', '/').html
+  assert.ok(html.includes('<title>CloudIVR'), html)
+  assert.ok(!html.includes('Hosting Panel') && !html.includes('Hosting Control Panel'), html)
+  assert.ok(html.includes('og:title'))
+})
+t('brandHtml injects into <head> when there is no <title>', () => assert.ok(brandHtml('<html><head></head></html>').includes('<title>CloudIVR')))
+
 fs.unlinkSync(idx)
-console.log(`\n${pass}/16 passed`)
+console.log(`\n${pass}/18 passed`)

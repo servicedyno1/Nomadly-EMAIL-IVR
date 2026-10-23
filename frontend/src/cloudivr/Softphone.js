@@ -55,7 +55,7 @@ export default function Softphone({ open, onClose }) {
   const press = (k) => (call ? call.ref.dtmf(k) : setDest(d => d + k));
 
   return (
-    <div className={`fixed bottom-4 right-4 z-50 w-[320px] civr-card p-5 shadow-2xl transition-[opacity,transform] duration-200 ${open ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4 pointer-events-none'}`} data-testid="softphone-panel">
+    <div className={`fixed bottom-24 lg:bottom-4 right-4 left-4 sm:left-auto z-50 sm:w-[320px] civr-card p-6 shadow-2xl transition-[opacity,transform] duration-200 ${open ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4 pointer-events-none'}`} data-testid="softphone-panel">
       <audio id="civr-remote-audio" autoPlay />
       <div className="flex items-center justify-between mb-4"><span className="font-display text-xl font-bold">Browser phone</span><button onClick={onClose} className="p-1 text-[#888] hover:text-white" data-testid="softphone-close-button" aria-label="Close"><X className="w-4 h-4" /></button></div>
       {!nums.length ? <p className="text-sm text-[#888]" data-testid="softphone-no-numbers">You need an active number on a plan with SIP to call from the browser.</p> : (

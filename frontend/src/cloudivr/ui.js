@@ -23,7 +23,7 @@ export function Field({ label, hint, children }) {
     <label className="block">
       <span className="block text-xs font-medium text-[#aaa] mb-1.5">{label}</span>
       {children}
-      {hint && <span className="block text-xs text-[#666] mt-1.5">{hint}</span>}
+      {hint && <span className="block text-xs text-[#8a8a8a] mt-1.5">{hint}</span>}
     </label>
   );
 }
@@ -40,7 +40,7 @@ export function ErrorNote({ error, testid = 'error-message' }) {
 export function Empty({ icon: Icon, title, sub, children, testid }) {
   return (
     <div className="civr-card p-10 text-center" data-testid={testid}>
-      {Icon && <Icon className="w-8 h-8 mx-auto text-[#555] mb-4" />}
+      {Icon && <Icon className="w-8 h-8 mx-auto text-[#8a8a8a] mb-4" />}
       <div className="font-display text-2xl font-bold">{title}</div>
       {sub && <p className="text-sm text-[#888] mt-2 max-w-md mx-auto">{sub}</p>}
       {children && <div className="mt-6 flex justify-center gap-2">{children}</div>}
@@ -73,8 +73,8 @@ export function Toggle({ checked, onChange, testid, disabled }) {
 export function PreviewBanner({ show, livePayments }) {
   if (!show) return null;
   return (
-    <div className="text-xs font-mono uppercase tracking-widest text-[#fbbf24] bg-[#fbbf24]/10 border-b border-[#fbbf24]/30 px-4 py-2 text-center" data-testid="preview-mode-banner">
-      Preview mode — number purchases and outbound calls are simulated{livePayments ? '. Crypto top-ups are REAL.' : ', and so are crypto top-ups.'}
+    <div className="text-xs font-mono uppercase tracking-wider text-[#fbbf24] bg-[#fbbf24]/10 border-b border-[#fbbf24]/30 px-4 py-2 text-center" data-testid="preview-mode-banner">
+      Preview — purchases and calls are simulated · {livePayments ? 'crypto top-ups are REAL' : 'top-ups too'}
     </div>
   );
 }
@@ -95,7 +95,7 @@ export function KeyPicker({ value, onChange, testid }) {
     <div className="flex flex-wrap gap-1.5" data-testid={testid}>
       {keys.map(k => (
         <button key={k} type="button" onClick={() => toggle(k)} data-testid={`${testid}-${k === '*' ? 'star' : k === '#' ? 'hash' : k}`}
-          className={`w-9 h-9 rounded-lg font-mono text-sm border transition-colors ${value.includes(k) ? 'border-[#34d399] text-[#34d399] bg-[#34d399]/10' : 'border-[#2a2a2a] text-[#888] hover:text-white'}`}>{k}</button>
+          className={`w-11 h-11 rounded-lg font-mono text-sm border transition-colors ${value.includes(k) ? 'border-[#34d399] text-[#34d399] bg-[#34d399]/10' : 'border-[#2a2a2a] text-[#888] hover:text-white'}`}>{k}</button>
       ))}
     </div>
   );

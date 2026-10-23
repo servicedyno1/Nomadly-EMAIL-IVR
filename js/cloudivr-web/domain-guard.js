@@ -22,6 +22,27 @@ function appPathPrefix(base, domain = process.env.CLOUDIVR_WEB_DOMAIN) {
   return apex && parseDomain(base) === apex ? '' : '/cloudivr'
 }
 
+// The shared build's index.html is titled for the hosting panel; on the CloudIVR domain swap in CloudIVR's
+// title + description so tabs, search results and link previews show the right brand.
+const BRAND_HEAD = [
+  '<title>CloudIVR — Virtual phone numbers, IVR &amp; SIP</title>',
+  '<meta name="description" content="Virtual numbers in 17 countries with call forwarding, voicemail, SMS, IVR menus and outbound IVR campaigns. Pay with crypto." />',
+  '<meta property="og:title" content="CloudIVR — Virtual phone numbers, IVR &amp; SIP" />',
+  '<meta property="og:description" content="Phone numbers that answer, route and call for you. Pay with crypto, run it from your browser." />',
+  '<meta property="og:type" content="website" />',
+].join('')
+const brandHtml = (html) => {
+  const out = html.replace(/<meta name="description"[^>]*>/i, '')
+  if (/<title>[^<]*<\/title>/i.test(out)) return out.replace(/<title>[^<]*<\/title>/i, BRAND_HEAD)
+  return out.includes('</head>') ? out.replace('</head>', `${BRAND_HEAD}</head>`) : out
+}
+let cachedIndex = { file: '', mtime: 0, html: '' }
+function brandedIndex(file) {
+  const mtime = fs.statSync(file).mtimeMs
+  if (cachedIndex.file !== file || cachedIndex.mtime !== mtime) cachedIndex = { file, mtime, html: brandHtml(fs.readFileSync(file, 'utf8')) }
+  return cachedIndex.html
+}
+
 function createCloudIvrDomainGuard({ domain = process.env.CLOUDIVR_WEB_DOMAIN, buildIndex } = {}) {
   const apex = parseDomain(domain)
   if (!apex) return null
@@ -45,10 +66,10 @@ function createCloudIvrDomainGuard({ domain = process.env.CLOUDIVR_WEB_DOMAIN, b
     }
     if (buildIndex && fs.existsSync(buildIndex)) {
       res.set('Cache-Control', 'no-cache')
-      return res.sendFile(buildIndex)
+      return res.type('html').send(brandedIndex(buildIndex))
     }
     return next()
   }
 }
 
-module.exports = { createCloudIvrDomainGuard, parseDomain, appPathPrefix }
+module.exports = { createCloudIvrDomainGuard, parseDomain, appPathPrefix, brandHtml }

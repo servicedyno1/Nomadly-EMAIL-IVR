@@ -15,7 +15,7 @@ function Renewal({ num, reload, refreshSummary }) {
   };
   const auto = async (v) => { try { await api(`${path}/auto-renew`, { method: 'POST', body: { enabled: v } }); toast.success(v ? 'Auto-renew on' : 'Auto-renew off'); reload(); } catch (e) { toast.error(e.message); } };
   return (
-    <div className="civr-card p-6 space-y-5" data-testid="billing-renewal-card">
+    <div className="civr-card p-6 space-y-6" data-testid="billing-renewal-card">
       <div className="font-display text-2xl font-bold">Renewal</div>
       <div className="flex justify-between text-sm"><span className="text-[#888]">Plan</span><span>{num.planName} · {money(num.planPrice)}/month</span></div>
       <div className="flex justify-between text-sm"><span className="text-[#888]">Paid until</span><span data-testid="billing-expires">{day(num.expiresAt)}</span></div>
@@ -40,7 +40,7 @@ function Upgrade({ num, reload, refreshSummary, plans }) {
     } catch (e) { toast.error(e.message); } finally { setBusy(false); }
   };
   return (
-    <div className="civr-card p-6 space-y-5" data-testid="billing-upgrade-card">
+    <div className="civr-card p-6 space-y-6" data-testid="billing-upgrade-card">
       <div className="font-display text-2xl font-bold">Upgrade plan</div>
       <Field label="New plan"><select className="civr-input" value={plan} onChange={e => { setPlan(e.target.value); setQuote(null); }} data-testid="billing-upgrade-plan-select">{higher.map(p => <option key={p.id} value={p.id}>{p.name} · {money(p.price)}/month</option>)}</select></Field>
       <div className="text-xs text-[#888]">{(plans.find(p => p.id === plan)?.features || []).slice(0, 4).join(' · ')}</div>

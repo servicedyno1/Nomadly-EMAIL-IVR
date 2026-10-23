@@ -58,11 +58,11 @@ export default function CampaignDetail() {
       <div className="civr-card p-6 mb-4">
         <div className="flex items-center justify-between mb-3"><span className="text-sm text-[#aaa]">Progress</span><span className="font-mono text-sm" data-testid="campaign-progress">{pct}%</span></div>
         <div className="h-2 rounded-full bg-[#1c1c1c] overflow-hidden"><div className={`h-full bg-[#34d399] transition-[width] duration-700 ${c.status === 'running' ? 'civr-pulse' : ''}`} style={{ width: `${pct}%` }} /></div>
-        <div className="grid grid-cols-3 md:grid-cols-6 gap-4 mt-6">{STATS.map(([k, l]) => <div key={k} data-testid={`campaign-stat-${k}`}><div className="font-mono text-2xl">{c.stats?.[k] || 0}</div><div className="text-xs text-[#777]">{l}</div></div>)}</div>
+        <div className="grid grid-cols-3 md:grid-cols-6 gap-4 mt-6">{STATS.map(([k, l]) => <div key={k} data-testid={`campaign-stat-${k}`}><div className="font-mono text-2xl">{c.stats?.[k] || 0}</div><div className="text-xs text-[#9a9a9a]">{l}</div></div>)}</div>
         <div className="mt-6"><Controls c={c} act={act} busy={busy} /></div>
         {(c.cancelledReason || c.pausedReason) && <div className="text-xs text-[#888] mt-3" data-testid="campaign-reason">{c.cancelledReason || c.pausedReason}</div>}
       </div>
-      <div className="civr-card p-5 overflow-x-auto">
+      <div className="civr-card p-6 overflow-x-auto">
         <div className="font-display text-2xl font-bold mb-3">Numbers</div>
         <table className="civr-table" data-testid="campaign-leads-table">
           <thead><tr><th>Number</th><th>Name</th><th>Status</th><th>Key</th><th>Length</th></tr></thead>

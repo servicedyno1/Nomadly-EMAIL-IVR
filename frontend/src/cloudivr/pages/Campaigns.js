@@ -20,12 +20,12 @@ export function Campaigns() {
       {loading && !data ? <Spinner /> : !list.length ? <Empty icon={Megaphone} title="No campaigns yet" sub="Paste your numbers, pick a message and go." testid="campaigns-empty" /> : (
         <div className="space-y-3">
           {list.map((c, i) => (
-            <Link key={c.id} to={cp(`/app/campaigns/${c.id}`)} className="civr-card civr-card-link p-5 flex flex-col md:flex-row md:items-center gap-3" data-testid={`campaign-row-${i}`}>
-              <div className="flex-1 min-w-0"><div className="font-semibold truncate">{c.audioName || 'Campaign'}</div><div className="text-xs text-[#777] font-mono">{c.callerId} · {when(c.createdAt)}</div></div>
+            <Link key={c.id} to={cp(`/app/campaigns/${c.id}`)} className="civr-card civr-card-link p-6 flex flex-col md:flex-row md:items-center gap-3" data-testid={`campaign-row-${i}`}>
+              <div className="flex-1 min-w-0"><div className="font-semibold truncate">{c.audioName || 'Campaign'}</div><div className="text-xs text-[#9a9a9a] font-mono">{c.callerId} · {when(c.createdAt)}</div></div>
               <div className="font-mono text-sm text-[#aaa]">{c.stats?.completed || 0}/{c.stats?.total || 0} called</div>
               <span className={statusPill(c.status)} data-testid={`campaign-row-${i}-status`}>{c.status}</span>
               {c.dryRun && <span className="civr-pill civr-pill-warn">preview</span>}
-              <ChevronRight className="w-4 h-4 text-[#555]" />
+              <ChevronRight className="w-4 h-4 text-[#8a8a8a]" />
             </Link>
           ))}
         </div>
@@ -86,7 +86,7 @@ export function CampaignNew() {
     <div data-testid="campaign-new-page">
       <PageHeader label="Campaigns" title="New campaign" testid="campaign-new-header" />
       <form onSubmit={create} className="grid lg:grid-cols-2 gap-4">
-        <div className="civr-card p-6 space-y-5">
+        <div className="civr-card p-6 space-y-6">
           <Field label="Caller ID"><select className="civr-input font-mono" value={callerId} onChange={set('callerId')} data-testid="campaign-caller-select">{numbers.map(n => <option key={n.phoneNumber}>{n.phoneNumber}</option>)}</select></Field>
           <Field label="Message"><AudioSelect value={f.audioId} onChange={set('audioId')} audios={au?.audios} by="id" testid="campaign-audio-select" /></Field>
           <Field label="Voicemail drop (optional)" hint="Played when an answering machine picks up."><AudioSelect value={f.voicemailAudioId} onChange={set('voicemailAudioId')} audios={au?.audios} by="id" placeholder="None" testid="campaign-voicemail-audio-select" /></Field>
@@ -94,7 +94,7 @@ export function CampaignNew() {
           <button type="button" className="civr-btn civr-btn-ghost civr-btn-sm" disabled={!f.leads.trim() || busy === 'est'} onClick={estimate} data-testid="campaign-estimate-button">{busy === 'est' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Calculator className="w-4 h-4" />}Check numbers &amp; cost</button>
           <Estimate est={est} />
         </div>
-        <div className="civr-card p-6 space-y-5 h-fit">
+        <div className="civr-card p-6 space-y-6 h-fit">
           <Field label="When someone presses a key">
             <select className="civr-input" value={f.mode} onChange={set('mode')} data-testid="campaign-mode-select"><option value="report_only">Just report it</option><option value="transfer">Transfer the call to me</option></select>
           </Field>

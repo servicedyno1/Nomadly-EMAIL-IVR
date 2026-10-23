@@ -11,7 +11,7 @@ const LABEL = {
 const labelOf = (t) => LABEL[t] || [String(t || 'Event').replace(/_/g, ' '), PhoneIncoming, '#888'];
 
 export function LogTable({ logs, showNumber = false, testid = 'log-table' }) {
-  if (!logs?.length) return <div className="text-sm text-[#666] py-8 text-center" data-testid={`${testid}-empty`}>No activity yet.</div>;
+  if (!logs?.length) return <div className="text-sm text-[#8a8a8a] py-8 text-center" data-testid={`${testid}-empty`}>No activity yet.</div>;
   return (
     <div className="overflow-x-auto">
       <table className="civr-table" data-testid={testid}>

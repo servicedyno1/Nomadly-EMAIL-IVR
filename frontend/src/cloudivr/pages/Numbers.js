@@ -23,15 +23,15 @@ export default function Numbers() {
       ) : (
         <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-4">
           {nums.map((n, i) => (
-            <Link key={n.phoneNumber} to={cp(`/app/numbers/${enc(n.phoneNumber)}`)} className={`civr-card civr-card-link p-5 civr-rise civr-d${(i % 4) + 1}`} data-testid={`number-card-${i}`}>
+            <Link key={n.phoneNumber} to={cp(`/app/numbers/${enc(n.phoneNumber)}`)} className={`civr-card civr-card-link p-6 civr-rise civr-d${(i % 4) + 1}`} data-testid={`number-card-${i}`}>
               <div className="flex items-start justify-between">
                 <div>
                   <div className="font-mono text-xl" data-testid={`number-card-${i}-phone`}>{n.phoneNumber}</div>
-                  <div className="text-xs text-[#777] mt-1">{n.countryName || n.country} · {n.type?.replace('_', '-')}</div>
+                  <div className="text-xs text-[#9a9a9a] mt-1">{n.countryName || n.country} · {n.type?.replace('_', '-')}</div>
                 </div>
                 <span className={statusPill(n.status)} data-testid={`number-card-${i}-status`}>{n.status}</span>
               </div>
-              <div className="flex flex-wrap gap-1.5 mt-5">
+              <div className="flex flex-wrap gap-1.5 mt-6">
                 <span className="civr-pill">{n.planName} · {money(n.planPrice)}</span>
                 {on(n.features.ivr) && <span className="civr-pill civr-pill-on">IVR</span>}
                 {on(n.features.callForwarding) && <span className="civr-pill civr-pill-on">Forwarding</span>}
@@ -39,7 +39,7 @@ export default function Numbers() {
                 {n.features.recording && <span className="civr-pill civr-pill-on">Recording</span>}
                 {n.dryRun && <span className="civr-pill civr-pill-warn">Preview</span>}
               </div>
-              <div className="flex items-center justify-between mt-5 text-xs text-[#777]">
+              <div className="flex items-center justify-between mt-6 text-xs text-[#9a9a9a]">
                 <span>{n.autoRenew ? 'Renews' : 'Expires'} {day(n.expiresAt)}</span><ChevronRight className="w-4 h-4" />
               </div>
             </Link>

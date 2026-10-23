@@ -12,7 +12,7 @@ function Profile({ account, setAccount }) {
   const [busy, setBusy] = useState(false);
   const save = async (e) => { e.preventDefault(); setBusy(true); try { const d = await api('/auth/profile', { method: 'PATCH', body: { name } }); setAccount(d.account); toast.success('Profile saved'); } catch (err) { toast.error(err.message); } finally { setBusy(false); } };
   return (
-    <form onSubmit={save} className="civr-card p-6 space-y-5" data-testid="settings-profile-form">
+    <form onSubmit={save} className="civr-card p-6 space-y-6" data-testid="settings-profile-form">
       <div className="font-display text-2xl font-bold">Profile</div>
       <Field label="Email"><input className="civr-input" value={account.email} disabled data-testid="settings-email" /></Field>
       <Field label="Name"><input className="civr-input" value={name} onChange={e => setName(e.target.value)} data-testid="settings-name-input" /></Field>
@@ -34,7 +34,7 @@ function Password({ account, refresh }) {
     try { await api('/auth/change-password', { method: 'POST', body: f }); toast.success('Password updated — other sessions were signed out'); setF({ currentPassword: '', newPassword: '' }); refresh(); } catch (err) { toast.error(err.message); } finally { setBusy(false); }
   };
   return (
-    <form onSubmit={save} className="civr-card p-6 space-y-5" data-testid="settings-password-form">
+    <form onSubmit={save} className="civr-card p-6 space-y-6" data-testid="settings-password-form">
       <div className="font-display text-2xl font-bold">{account.hasPassword ? 'Change password' : 'Set a password'}</div>
       {account.hasPassword && <Field label="Current password"><input type="password" required className="civr-input" value={f.currentPassword} onChange={e => setF({ ...f, currentPassword: e.target.value })} data-testid="settings-current-password-input" /></Field>}
       <Field label="New password" hint="At least 8 characters."><input type="password" required minLength={8} className="civr-input" value={f.newPassword} onChange={e => setF({ ...f, newPassword: e.target.value })} data-testid="settings-new-password-input" /></Field>
@@ -49,7 +49,7 @@ export default function Settings() {
   return (
     <div data-testid="settings-page">
       <PageHeader label="Account" title="Settings" sub="This web account is separate from any Telegram bot account." testid="settings-header">
-        <button className="civr-btn civr-btn-ghost civr-btn-sm" onClick={async () => { await logout(); nav(cp()); }} data-testid="settings-logout-button"><LogOut className="w-4 h-4" />Sign out</button>
+        <button className="civr-btn civr-btn-ghost civr-btn-sm" onClick={async () => { nav(cp(), { replace: true }); await logout(); }} data-testid="settings-logout-button"><LogOut className="w-4 h-4" />Sign out</button>
       </PageHeader>
       <div className="grid lg:grid-cols-2 gap-4 max-w-5xl"><Profile account={account} setAccount={setAccount} /><Password account={account} refresh={refresh} /></div>
     </div>

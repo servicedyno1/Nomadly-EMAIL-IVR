@@ -1,0 +1,29 @@
+{
+  "summary": "CloudIVR root-domain routing fix verified. PRODUCTION https://cloudivr.net (read-only): / stays at / (landing-page present); Sign in -> /login; Get a number + hero Create free account -> /signup; landing-logo and auth-logo -> /; Forgot password -> /forgot. Server 301s: /cloudivr -> /, /cloudivr/login -> /login, /cloudivr/reset-password?token=abc -> /reset-password?token=abc, www.cloudivr.net/signup -> cloudivr.net/signup, http -> https. Signed-out /app/wallet -> /login. /panel and /xyz123 return the SPA (200) and client-redirect to / landing (no hosting panel, no shortener 404). Wrong-password login shows 'Wrong email or password.'; all API calls are same-origin https://cloudivr.net/api/cloudivr-web/* (auth/login 401 invalid_credentials). PREVIEW UUID alias (root-mount): / landing; login alice -> /app (Hi Alice); all 9 sidebar links -> /app/{numbers,buy,quick-call,campaigns,audio,inbox,wallet,settings} and /app/ (Overview), each page renders; number card -> /app/numbers/%2B13807100346; all 9 tabs render (?tab=...); back link, balance pill -> /app/wallet, bell -> /app/inbox; back/forward OK; hard refresh /app/numbers OK. No URL contained /cloudivr. SHARED HOST vault-launch-6: / = NomadlyBot admin; /cloudivr landing; bob login -> /cloudivr/app; sidebar stays under /cloudivr/app/...; /panel login wpapps01/246810 works. Backend: domain guard unit test 16/16, test_cloudivr_web.py 24/24.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Shell TopBar logout", "issue": "Logout lands on /login (alias) and /cloudivr/login (shared host), not / or /cloudivr as specified. RCA: Shell.js line 62 runs `await logout(); nav(cp())`, but logout() sets account=null first, so <Protected> (CloudIvrApp.js line 15) renders <Navigate to={cp('/login')}> before nav(cp()) runs. Fix: call nav(cp()) before or together with clearing the account, or make Protected skip redirect during logout. This was not caused by this fix, and the URL never gets the wrong prefix.", "selector": "[data-testid=topbar-logout-button]", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "cloudivr.net all pages", "issues": ["The browser tab title is 'Hosting Panel' because the shared public/index.html is used. Set document.title (for example 'CloudIVR') when IS_CIVR_DOMAIN, or have the domain guard rewrite <title> and meta tags."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_cloudivr_web.py", "/app/js/tests/test_cloudivr_domain_guard_2026-10.js", "/app/test_reports/pytest/pytest_cloudivr_root.xml"],
+  "action_items": [
+    "(Low) Fix the logout race so it lands on cp() ('/' or '/cloudivr') instead of the login page",
+    "(Low) Set the page title to CloudIVR on the cloudivr.net domain instead of 'Hosting Panel'",
+    "(Optional) On the root-mount alias without the server guard (preview), legacy /cloudivr/app/wallet falls through the client catch-all to /, not /app/wallet. Production is covered by the server 301. A client-side redirect that strips /cloudivr would make this consistent."
+  ],
+  "critical_code_review_comments": [
+    "Shell.js: the Overview NavLink uses cp('/app/'), which gives a trailing-slash URL /app/ (cosmetic; login itself lands on /app)",
+    "Shell.js: topbar-greeting shows 'Signed in as <email>'. The 'Hi Alice' greeting is on the dashboard page"
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100% (16/16 guard, 24/24 API)", "frontend": "~97% (all routing checks pass; logout destination differs from spec)"},
+  "seed_data_creation": "None. No accounts or transactions were created on production.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Root mount is controlled by REACT_APP_CLOUDIVR_DOMAINS (preview UUID alias 839d2a0b-...). Production cloudivr.net has a server domain guard (CLOUDIVR_WEB_DOMAIN). Login testids: auth-email-input, auth-password-input, auth-submit-button, auth-logo-link, auth-forgot-link. Only test production read-only."
+}
