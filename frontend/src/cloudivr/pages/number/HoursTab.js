@@ -18,10 +18,10 @@ function DayRow({ id, label, d, onChange }) {
       {d.on ? (
         <div className="flex items-center gap-2">
           <input type="time" className="civr-input !w-[7.5rem] font-mono" value={d.start} onChange={e => onChange({ ...d, start: e.target.value })} aria-label={`${label} opens at`} data-testid={`hours-day-${id}-start-input`} />
-          <span className="text-[#8a8a8a]">–</span>
+          <span className="text-[#a1a1aa]">–</span>
           <input type="time" className="civr-input !w-[7.5rem] font-mono" value={d.end} onChange={e => onChange({ ...d, end: e.target.value })} aria-label={`${label} closes at`} data-testid={`hours-day-${id}-end-input`} />
         </div>
-      ) : <span className="text-sm text-[#8a8a8a]" data-testid={`hours-day-${id}-closed`}>Closed all day</span>}
+      ) : <span className="text-sm text-[#a1a1aa]" data-testid={`hours-day-${id}-closed`}>Closed all day</span>}
     </div>
   );
 }
@@ -50,7 +50,7 @@ export default function HoursTab({ num, reload }) {
         <div className="font-display text-2xl font-bold">On/off hours</div>
         {openNow !== null && <span className={status[1]} data-testid="hours-status-pill">{status[0]}</span>}
       </div>
-      <p className="text-sm text-[#888] mt-1 mb-6">Outside these hours your number doesn’t ring or forward. Callers go to voicemail or hear a short closed message.</p>
+      <p className="text-sm text-[#a1a1aa] mt-1 mb-6">Outside these hours your number doesn’t ring or forward. Callers go to voicemail or hear a short closed message.</p>
       <div className="space-y-6">
         <div className="flex items-center justify-between gap-4"><span className="text-sm">Use a weekly schedule</span><Toggle checked={f.enabled} onChange={v => setF({ ...f, enabled: v })} testid="hours-enabled-toggle" /></div>
         <Field label="Time zone">
@@ -60,7 +60,7 @@ export default function HoursTab({ num, reload }) {
         </Field>
         <div>
           <div className="flex items-center justify-between gap-2 mb-1">
-            <span className="text-xs font-medium text-[#aaa]">Opening hours</span>
+            <span className="text-xs font-medium text-[#d4d4d8]">Opening hours</span>
             <button type="button" className="text-xs text-[#34d399] hover:underline py-2" disabled={!f.days.mon?.on} onClick={copyMonday} data-testid="hours-copy-monday-button">Copy Monday to all open days</button>
           </div>
           {DAYS.map(([id, label]) => <DayRow key={id} id={id} label={label} d={f.days[id]} onChange={d => setDay(id, d)} />)}

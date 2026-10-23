@@ -33,7 +33,7 @@ export function Downgrade({ num, plans, reload, refreshSummary }) {
           <div>New price <span className="font-mono">{money(preview.newPrice)}</span>/month from your next renewal · {preview.minutes[1]} min · {preview.sms[1]} SMS.</div>
           {preview.lost.length > 0 && <div className="text-[#fbbf24]" data-testid="billing-downgrade-lost">Turns off now: {preview.lost.join(', ')}.</div>}
           {preview.extras > preview.extraLimit && <div className="text-[#fbbf24]">You have {preview.extras} extra numbers; the new plan allows {preview.extraLimit}. They keep working but you can’t add more.</div>}
-          <div className="text-xs text-[#8a8a8a]">No refund for the current month.</div>
+          <div className="text-xs text-[#a1a1aa]">No refund for the current month.</div>
         </div>
       )}
       {preview ? <button className="civr-btn civr-btn-danger" disabled={busy} onClick={() => call(true)} data-testid="billing-downgrade-confirm-button">{busy && <Loader2 className="w-4 h-4 animate-spin" />}Switch to {preview.planName} now</button>
@@ -49,7 +49,7 @@ export function ExtraNumbers({ num }) {
   if (num.isSubNumber) return (
     <div className="civr-card p-6 space-y-2" data-testid="billing-extra-of">
       <div className="font-display text-2xl font-bold">Extra number</div>
-      <p className="text-sm text-[#888]">This number is an extra on <Link className="text-[#34d399] font-mono" to={cp(`/app/numbers/${enc(num.parentNumber)}?tab=billing`)} data-testid="billing-extra-parent-link">{pv.phone(num.parentNumber)}</Link> and follows that number’s plan.</p>
+      <p className="text-sm text-[#a1a1aa]">This number is an extra on <Link className="text-[#34d399] font-mono" to={cp(`/app/numbers/${enc(num.parentNumber)}?tab=billing`)} data-testid="billing-extra-parent-link">{pv.phone(num.parentNumber)}</Link> and follows that number’s plan.</p>
     </div>
   );
   if (!data) return null;
@@ -57,9 +57,9 @@ export function ExtraNumbers({ num }) {
   return (
     <div className="civr-card p-6 space-y-4" data-testid="billing-extra-card">
       <div className="flex items-center gap-2 font-display text-2xl font-bold"><Layers className="w-5 h-5 text-[#38bdf8]" />Extra numbers</div>
-      <p className="text-sm text-[#888]">{`Add more numbers to this plan for ${money(data.price)}/month each. They get the same ${num.planName} features.`}</p>
+      <p className="text-sm text-[#a1a1aa]">{`Add more numbers to this plan for ${money(data.price)}/month each. They get the same ${num.planName} features.`}</p>
       <div className="text-sm font-mono" data-testid="billing-extra-usage">{`${data.used} of ${data.limit} used`}</div>
-      {data.numbers.map((x, i) => <Link key={x.phoneNumber} to={cp(`/app/numbers/${enc(x.phoneNumber)}`)} className="block font-mono text-sm text-[#ddd] hover:text-[#34d399]" data-testid={`billing-extra-row-${i}`}>{pv.phone(x.phoneNumber)} · {x.status}</Link>)}
+      {data.numbers.map((x, i) => <Link key={x.phoneNumber} to={cp(`/app/numbers/${enc(x.phoneNumber)}`)} className="block font-mono text-sm text-[#f4f4f5] hover:text-[#34d399]" data-testid={`billing-extra-row-${i}`}>{pv.phone(x.phoneNumber)} · {x.status}</Link>)}
       {full ? <div className="text-xs text-[#fbbf24]">Limit reached — upgrade this number to add more.</div>
         : <Link to={cp(`/app/buy?extra=${enc(num.phoneNumber)}`)} className="civr-btn civr-btn-ghost civr-btn-sm" data-testid="billing-extra-add-link"><Plus className="w-4 h-4" />Add an extra number</Link>}
     </div>

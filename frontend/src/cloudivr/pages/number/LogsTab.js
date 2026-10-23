@@ -14,7 +14,7 @@ export default function LogsTab({ num }) {
           <button key={k} onClick={() => setKind(k)} className={`civr-pill cursor-pointer ${kind === k ? 'civr-pill-on' : ''}`} data-testid={`logs-filter-${k}`}>{label}</button>
         ))}
       </div>
-      {loading && !data ? <div className="text-sm text-[#8a8a8a] py-6">Loading…</div> : <LogTable logs={data?.logs} testid="number-logs" notePhone={num.phoneNumber} onNotesChange={reload} />}
+      {loading && !data ? <div className="text-sm text-[#a1a1aa] py-6">Loading…</div> : <LogTable logs={data?.logs} testid="number-logs" notePhone={num.phoneNumber} onNotesChange={reload} />}
     </div>
   );
 }

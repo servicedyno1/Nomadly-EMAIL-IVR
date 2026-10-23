@@ -22,10 +22,10 @@ function DepositCard({ dep }) {
         <div className="min-w-0 space-y-4">
           <div><div className="text-xs text-[#a1a1aa]">Send exactly</div><div className="font-mono text-2xl" data-testid="wallet-deposit-amount">{dep.amountCrypto ? `${dep.amountCrypto} ${dep.coin}` : `${money(dep.amountUsd)} in ${dep.coin}`}</div></div>
           <div><div className="text-xs text-[#a1a1aa]">To address</div>
-            <div className="flex items-center gap-2"><code className="text-sm break-all" data-testid="wallet-deposit-address">{dep.address}</code>{!preview && <button onClick={() => copy(dep.address)} className="w-11 h-11 shrink-0 flex items-center justify-center text-[#9a9a9a] hover:text-[#34d399]" aria-label="Copy address" data-testid="wallet-deposit-copy-button"><Copy className="w-4 h-4" /></button>}</div>
+            <div className="flex items-center gap-2"><code className="text-sm break-all" data-testid="wallet-deposit-address">{dep.address}</code>{!preview && <button onClick={() => copy(dep.address)} className="w-11 h-11 shrink-0 flex items-center justify-center text-[#a1a1aa] hover:text-[#34d399]" aria-label="Copy address" data-testid="wallet-deposit-copy-button"><Copy className="w-4 h-4" /></button>}</div>
           </div>
           <p className="text-xs text-[#a1a1aa]">{dep.note}</p>
-          {!preview && <p className="text-xs text-[#9a9a9a]" data-testid="wallet-deposit-polling-note">We check for your payment every 20 seconds while this page is open.</p>}
+          {!preview && <p className="text-xs text-[#a1a1aa]" data-testid="wallet-deposit-polling-note">We check for your payment every 20 seconds while this page is open.</p>}
         </div>
       </div>
     </div>
@@ -73,14 +73,14 @@ function Tables({ data }) {
     <div className="grid lg:grid-cols-2 gap-4 mt-6">
       <div className="civr-card p-6 overflow-x-auto">
         <div className="font-display text-2xl font-bold mb-4">Deposits</div>
-        {!data.deposits.length ? <div className="text-sm text-[#9a9a9a] py-6" data-testid="wallet-deposits-empty">No deposits yet.</div> : (
+        {!data.deposits.length ? <div className="text-sm text-[#a1a1aa] py-6" data-testid="wallet-deposits-empty">No deposits yet.</div> : (
           <table className="civr-table" data-testid="wallet-deposits-table"><thead><tr><th>Amount</th><th>Coin</th><th>Status</th><th>When</th></tr></thead>
             <tbody>{data.deposits.map((d, i) => <tr key={d.ref} data-testid={`wallet-deposit-${i}`}><td className="font-mono">{money(d.amountUsd)}</td><td>{d.coin}</td><td><span className={statusPill(d.status)}>{d.address === 'PREVIEW-MODE-DO-NOT-SEND-FUNDS' ? 'preview' : d.status}</span></td><td className="text-xs text-[#a1a1aa]">{when(d.createdAt)}</td></tr>)}</tbody></table>
         )}
       </div>
       <div className="civr-card p-6 overflow-x-auto">
         <div className="font-display text-2xl font-bold mb-4">History</div>
-        {!data.history.length ? <div className="text-sm text-[#9a9a9a] py-6" data-testid="wallet-history-empty">No transactions yet.</div> : (
+        {!data.history.length ? <div className="text-sm text-[#a1a1aa] py-6" data-testid="wallet-history-empty">No transactions yet.</div> : (
           <table className="civr-table" data-testid="wallet-history-table"><thead><tr><th>What</th><th>Amount</th><th>When</th></tr></thead>
             <tbody>{data.history.map((h, i) => <tr key={h.id} data-testid={`wallet-history-${i}`}><td className="text-xs">{h.description}</td><td className={`font-mono ${h.amount > 0 ? 'text-[#34d399]' : ''}`}>{h.amount > 0 ? '+' : '−'}{money(Math.abs(h.amount))}</td><td className="text-xs text-[#a1a1aa]">{when(h.at)}</td></tr>)}</tbody></table>
         )}
@@ -114,7 +114,7 @@ export default function Wallet() {
         <div className="civr-card p-6 flex flex-col justify-between" data-testid="wallet-balance-card">
           <div className="flex items-center justify-between"><span className="civr-label">Balance</span><WalletIcon className="w-5 h-5 text-[#34d399]" /></div>
           <div className="font-mono text-5xl mt-6" data-testid="wallet-balance">{money(data.balance)}</div>
-          <div className="text-xs text-[#9a9a9a] mt-2">USD · credited once the network confirms your deposit</div>
+          <div className="text-xs text-[#a1a1aa] mt-2">USD · credited once the network confirms your deposit</div>
         </div>
         <div className="lg:col-span-2"><TopUp coins={data.coins} min={data.minTopup} initial={need ? Math.max(data.minTopup, Math.ceil(need)) : 50} onCreated={(d) => { setDep(d); reload(); }} /></div>
       </div>

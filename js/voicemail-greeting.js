@@ -7,12 +7,33 @@ const LANGS = {
     greeting: (n) => `The person at ${n} is unavailable. Please leave a message after the tone.`,
     closed: 'Thank you for calling. We are closed right now. Please call back during our opening hours.',
     closedVm: 'Thank you for calling. We are closed right now. Please leave a message after the tone.',
+    ivr: {
+      greeting: 'Thank you for calling. Please select an option.', fallback: 'Thank you for calling. Please listen to the following options.',
+      sub: 'Please select an option.', invalid: 'Sorry, that was not a valid option. Please try again.', goodbye: 'Goodbye.',
+      leaveMessage: 'Please leave a message after the tone.', thanks: 'Thank you for calling.', error: 'An error occurred. Goodbye.',
+    },
   },
   fr: {
     label: 'Français', tts: 'fr-FR',
     greeting: (n) => `Votre correspondant au ${n} n'est pas disponible. Veuillez laisser un message après le bip.`,
     closed: 'Merci de votre appel. Nous sommes actuellement fermés. Veuillez rappeler pendant nos heures d’ouverture.',
     closedVm: 'Merci de votre appel. Nous sommes actuellement fermés. Veuillez laisser un message après le bip.',
+    ivr: {
+      greeting: 'Merci de votre appel. Veuillez choisir une option.', fallback: 'Merci de votre appel. Veuillez écouter les options suivantes.',
+      sub: 'Veuillez choisir une option.', invalid: 'Désolé, cette option n’est pas valide. Veuillez réessayer.', goodbye: 'Au revoir.',
+      leaveMessage: 'Veuillez laisser un message après le bip.', thanks: 'Merci de votre appel.', error: 'Une erreur est survenue. Au revoir.',
+    },
+  },
+  es: {
+    label: 'Español', tts: 'es-US',
+    greeting: (n) => `La persona del número ${n} no está disponible. Por favor, deje un mensaje después del tono.`,
+    closed: 'Gracias por llamar. En este momento estamos cerrados. Por favor, vuelva a llamar en nuestro horario de atención.',
+    closedVm: 'Gracias por llamar. En este momento estamos cerrados. Por favor, deje un mensaje después del tono.',
+    ivr: {
+      greeting: 'Gracias por llamar. Por favor, seleccione una opción.', fallback: 'Gracias por llamar. Por favor, escuche las siguientes opciones.',
+      sub: 'Por favor, seleccione una opción.', invalid: 'Lo sentimos, esa opción no es válida. Por favor, inténtelo de nuevo.', goodbye: 'Adiós.',
+      leaveMessage: 'Por favor, deje un mensaje después del tono.', thanks: 'Gracias por llamar.', error: 'Ocurrió un error. Adiós.',
+    },
   },
   pt: {
     label: 'Português', tts: 'pt-BR',
@@ -45,7 +66,26 @@ function closedMessage(code, custom, withVoicemail) {
   return { text: String(custom || '').trim() || (withVoicemail ? l.closedVm : l.closed), language: l.tts }
 }
 
+// IVR speech for a number's menu language (web IVRs follow the app language; unset = English, as before).
+const IVR_LANGS = ['en', 'fr', 'es']
+function ivrSpeech(code) {
+  const l = IVR_LANGS.includes(code) ? LANGS[code] : LANGS.en
+  return { tts: l.tts, ...l.ivr }
+}
+// Moves a saved IVR to `code`: sets its language and swaps greetings still on a built-in default text.
+function relocalizeIvr(ivr, code) {
+  const to = ivrSpeech(code)
+  const defaults = (k) => IVR_LANGS.map(c => LANGS[c].ivr[k])
+  const swap = (text, k, into) => (defaults(k).includes(String(text || '').trim()) ? into : text)
+  const options = {}
+  for (const [d, o] of Object.entries(ivr.options || {})) {
+    options[d] = o.subMenu ? { ...o, subMenu: { ...o.subMenu, greeting: swap(o.subMenu.greeting, 'sub', to.sub) } } : o
+  }
+  const greeting = swap(swap(ivr.greeting, 'greeting', to.greeting), 'fallback', to.greeting)
+  return { ...ivr, language: IVR_LANGS.includes(code) ? code : 'en', greeting, options }
+}
+
 const LANG_CODES = Object.keys(LANGS)
 const publicLangs = () => LANG_CODES.map(code => ({ code, label: LANGS[code].label, sample: LANGS[code].greeting('…') }))
 
-module.exports = { LANGS, LANG_CODES, langOf, spokenNumber, standardGreeting, closedMessage, publicLangs }
+module.exports = { LANGS, LANG_CODES, IVR_LANGS, langOf, spokenNumber, standardGreeting, closedMessage, publicLangs, ivrSpeech, relocalizeIvr }

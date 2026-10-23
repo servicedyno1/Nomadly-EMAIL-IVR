@@ -34,8 +34,8 @@ const base = { enabled: true, timezone: 'America/New_York', days: week(), offAct
   await t('off message trimmed to 500 chars', () => assert.strictEqual(hours.validateHours({ ...base, offMessage: 'a'.repeat(900) }).offMessage.length, 500))
 
   console.log('voicemail-greeting')
-  await t('4 languages', () => assert.deepStrictEqual(vm.LANG_CODES, ['en', 'fr', 'pt', 'ar']))
-  await t('Telnyx language codes', () => assert.deepStrictEqual(vm.LANG_CODES.map(c => vm.LANGS[c].tts), ['en-US', 'fr-FR', 'pt-BR', 'arb']))
+  await t('5 languages', () => assert.deepStrictEqual(vm.LANG_CODES, ['en', 'fr', 'es', 'pt', 'ar']))
+  await t('Telnyx language codes', () => assert.deepStrictEqual(vm.LANG_CODES.map(c => vm.LANGS[c].tts), ['en-US', 'fr-FR', 'es-US', 'pt-BR', 'arb']))
   await t('number read digit by digit', () => assert.strictEqual(vm.spokenNumber('+15156442785'), '1, 5 1 5, 6 4 4, 2 7 8 5'))
   await t('French greeting text + code', () => {
     const g = vm.standardGreeting('fr', '+15156442785')
@@ -78,7 +78,7 @@ const base = { enabled: true, timezone: 'America/New_York', days: week(), offAct
   await t('Pro: browser phone, voicemail, call me first, bulk; no IVR / recording', () => { const s = inc('pro'); assert.ok(['browserPhone', 'voicemail', 'callMeFirst', 'bulk'].every(k => s.includes(k))); assert.ok(!s.includes('ivr') && !s.includes('recording')) })
   await t('Business: everything', () => assert.strictEqual(inc('business').length, numbers.WEB_FEATURES.length))
   await t('no Telegram-only items in the web list', () => assert.ok(!numbers.WEB_FEATURES.some(([, label]) => /redial|preset|extra numbers|otp|telegram/i.test(label))))
-  await t('voicemail languages in catalog', () => assert.deepStrictEqual(c.voicemailLanguages.map(l => l.code), ['en', 'fr', 'pt', 'ar']))
+  await t('voicemail languages in catalog', () => assert.deepStrictEqual(c.voicemailLanguages.map(l => l.code), ['en', 'fr', 'es', 'pt', 'ar']))
 
   console.log(`\n${pass} passed${process.exitCode ? ', some FAILED' : ''}`)
 })()

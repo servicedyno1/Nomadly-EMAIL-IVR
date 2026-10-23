@@ -38,7 +38,7 @@ function LiveCallCard() {
   const [Icon, title, sub] = EVENTS[i];
   return (
     <div className="absolute left-0 bottom-4 sm:left-4 sm:bottom-10 w-64 rounded-2xl border border-white/10 bg-[#0A0D0E]/70 backdrop-blur-xl p-4" data-testid="hero-live-ivr-card">
-      <div className="civr-l-eyebrow !text-[10px]"><span className="civr-l-dot" />Live IVR</div>
+      <div className="civr-l-eyebrow !text-xs"><span className="civr-l-dot" />Live IVR</div>
       <div key={i} className="flex items-start gap-3 mt-3 civr-rise">
         <Icon className="w-4 h-4 text-[#00E3AA] mt-0.5 shrink-0" />
         <div><div className="text-sm font-semibold">{title}</div><div className="text-xs font-mono civr-l-muted mt-0.5">{sub}</div></div>
@@ -55,7 +55,7 @@ function StatStrip({ catalog }) {
         {stats.map(([v, l], i) => (
           <div key={l} className={`py-6 md:py-8 ${i % 2 ? 'pl-6' : ''} ${i > 0 ? 'md:pl-8 md:border-l civr-l-rule' : ''} ${i > 1 ? 'border-t md:border-t-0 civr-l-rule' : ''}`} data-testid={`hero-stat-${i}`}>
             <div className="civr-l-h text-4xl md:text-5xl">{v}</div>
-            <div className="civr-l-eyebrow !text-[10px] !text-[#FEFDF5]/60 mt-2">{l}</div>
+            <div className="civr-l-eyebrow !text-xs !text-[#FEFDF5]/60 mt-2">{l}</div>
           </div>
         ))}
       </div>

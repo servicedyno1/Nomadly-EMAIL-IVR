@@ -29,7 +29,7 @@ export default function Numbers() {
               <div className="flex items-start justify-between">
                 <div>
                   <div className="font-mono text-xl" data-testid={`number-card-${i}-phone`}>{pv.phone(n.phoneNumber)}</div>
-                  <div className="text-xs text-[#9a9a9a] mt-1">{n.countryName || n.country} · {n.type?.replace('_', '-')}</div>
+                  <div className="text-xs text-[#a1a1aa] mt-1">{n.countryName || n.country} · {n.type?.replace('_', '-')}</div>
                 </div>
                 <span className={statusPill(n.status)} data-testid={`number-card-${i}-status`}>{n.status}</span>
               </div>
@@ -43,7 +43,7 @@ export default function Numbers() {
                 {n.isSubNumber && <span className="civr-pill" data-testid={`number-card-${i}-extra`}>Extra on {pv.phone(n.parentNumber)}</span>}
                 {n.dryRun && <span className="civr-pill civr-pill-warn">Preview</span>}
               </div>
-              <div className="flex items-center justify-between mt-6 text-xs text-[#9a9a9a]">
+              <div className="flex items-center justify-between mt-6 text-xs text-[#a1a1aa]">
                 <span>{n.autoRenew ? 'Renews' : 'Expires'} {day(n.expiresAt)}</span><ChevronRight className="w-4 h-4" />
               </div>
             </Link>

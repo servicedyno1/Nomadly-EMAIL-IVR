@@ -68,7 +68,7 @@ function Answer({ f, set, isBiz }) {
         {isBiz ? <div className="grid sm:grid-cols-2 gap-3">
           <Field label="Said after a valid code (optional)"><input className="civr-input" value={f.otp.confirmMsg} onChange={e => set({ otp: { ...f.otp, confirmMsg: e.target.value } })} placeholder="Thank you, your code is confirmed." data-testid="quick-otp-confirm" /></Field>
           <Field label="Said after a wrong code (optional)"><input className="civr-input" value={f.otp.rejectMsg} onChange={e => set({ otp: { ...f.otp, rejectMsg: e.target.value } })} placeholder="That code was not valid." data-testid="quick-otp-reject" /></Field>
-        </div> : <div className="text-xs text-[#8a8a8a]">Custom confirm / reject messages are on the Business plan.</div>}
+        </div> : <div className="text-xs text-[#a1a1aa]">Custom confirm / reject messages are on the Business plan.</div>}
       </div>}
       {f.mode === 'menu' && <MenuBuilder value={f.menu} onChange={(v) => set({ menu: v })} testid="quick-menu" />}
     </div>
@@ -126,7 +126,7 @@ export default function QuickCall() {
             <Section n="3" title="When they press a key"><Answer f={f} set={set} isBiz={isBiz} /></Section>
             <Section n="4" title="When to call">
               {isBiz ? <Field label="Schedule (optional)" hint="5 minutes to 24 hours from now. Leave empty to call now."><DateTimePicker value={f.scheduleAt} onChange={(v) => set({ scheduleAt: v })} maxDays={1} testid="quick-schedule" /></Field>
-                : <div className="text-sm text-[#8a8a8a]" data-testid="quick-schedule-locked">Calls start right away. Scheduling, presets and redial are on the Business plan.</div>}
+                : <div className="text-sm text-[#a1a1aa]" data-testid="quick-schedule-locked">Calls start right away. Scheduling, presets and redial are on the Business plan.</div>}
               <ErrorNote error={error} testid="quick-call-error" />
               {result && <div className="civr-card p-4 text-sm" data-testid="quick-call-result">{result.message || (result.scheduled ? `Scheduled ${result.scheduled} call(s).` : `Started ${result.started} call(s) · about $${Number(result.rate).toFixed(2)}/min.`)}</div>}
               <button className="civr-btn civr-btn-primary" disabled={busy} data-testid="quick-call-submit-button">{busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <PhoneOutgoing className="w-4 h-4" />}{f.scheduleAt ? 'Schedule call' : 'Place call'}</button>

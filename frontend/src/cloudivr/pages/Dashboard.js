@@ -8,6 +8,7 @@ import { PageHeader, Spinner } from '../ui';
 import { LogTable } from '../LogTable';
 import { cp } from '../paths';
 import { GetStarted, YourNumbers } from './dashboard/Widgets';
+import { CouponBanner, ChannelCard } from './dashboard/Banners';
 
 function Stat({ icon: Icon, label, value, to, testid, accent = '#34d399', delay }) {
   const body = (
@@ -39,7 +40,7 @@ function QuickActions({ unread }) {
     <div className="grid lg:grid-cols-3 gap-4 mt-6">
       {items.map(([to, Icon, t, sub, id]) => (
         <Link key={id} to={to} className="civr-card civr-card-link p-6 flex items-center gap-4" data-testid={id}>
-          <Icon className="w-5 h-5 text-[#34d399]" /><div className="flex-1"><div className="font-semibold">{t}</div><div className="text-xs text-[#9a9a9a]">{sub}</div></div><ArrowRight className="w-4 h-4 text-[#8a8a8a]" />
+          <Icon className="w-5 h-5 text-[#34d399]" /><div className="flex-1"><div className="font-semibold">{t}</div><div className="text-xs text-[#a1a1aa]">{sub}</div></div><ArrowRight className="w-4 h-4 text-[#a1a1aa]" />
         </Link>
       ))}
     </div>
@@ -57,6 +58,8 @@ export default function Dashboard() {
       <PageHeader label="Overview" title={`Hi ${account?.name?.split(' ')[0] || 'there'}`} sub={fresh ? 'Three quick steps and your number is live.' : 'Your numbers, wallet and live activity at a glance.'} testid="dashboard-header">
         {s && !fresh && <Link to={cp('/app/buy')} className="civr-btn civr-btn-primary" data-testid="dashboard-buy-number-button"><ShoppingCart className="w-4 h-4" />Buy a number</Link>}
       </PageHeader>
+      <ChannelCard />
+      <CouponBanner />
       {s?.pendingVerification > 0 && (
         <Link to={cp('/app/verification')} className="civr-card civr-trace p-6 mb-6 flex items-center gap-4" data-testid="dashboard-verification-alert">
           <ShieldCheck className="w-6 h-6 text-[#fbbf24]" />

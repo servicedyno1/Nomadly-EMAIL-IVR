@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useLayoutEffect, useState } from 'react';
-import { Globe } from 'lucide-react';
+import { Globe, ChevronDown } from 'lucide-react';
 import { setDictionary, tr } from './engine';
 
 export { tr };
@@ -41,15 +41,19 @@ export function LangProvider({ children }) {
   );
 }
 
+// The native <select> covers the whole pill, so a tap on the globe, the name or the arrow opens the list.
 export function LangSwitcher({ testid = 'lang-switcher', className = '', tone = 'app' }) {
   const { lang, setLang } = useLang();
-  const dark = tone === 'landing' ? 'bg-transparent text-[#FEFDF5]/80 hover:text-[#00E3AA]' : 'bg-transparent text-[#a1a1aa] hover:text-white';
+  const color = tone === 'landing' ? 'text-[#FEFDF5]/85 hover:text-[#00E3AA] hover:bg-white/5' : 'text-[#d4d4d8] hover:text-white hover:bg-white/5';
+  const name = (LANGS.find(([c]) => c === lang) || LANGS[0])[1];
   return (
-    <label className={`relative inline-flex items-center gap-1 h-11 px-2 rounded-full cursor-pointer ${dark} ${className}`} data-no-translate title="Language">
+    <div className={`relative inline-flex items-center gap-1.5 h-11 px-2.5 rounded-full transition-colors focus-within:ring-2 focus-within:ring-[#34d399]/50 ${color} ${className}`} data-no-translate title="Language">
       <Globe className="w-4 h-4 shrink-0" />
-      <select value={lang} onChange={e => setLang(e.target.value)} aria-label="Language" className="bg-transparent text-sm font-medium cursor-pointer outline-none appearance-none pr-1" data-testid={testid}>
-        {LANGS.map(([c, name]) => <option key={c} value={c} className="bg-[#111] text-white normal-case">{name}</option>)}
+      <span className="text-sm font-medium hidden sm:inline">{name}</span><span className="text-sm font-semibold uppercase sm:hidden">{lang}</span>
+      <ChevronDown className="w-3.5 h-3.5 opacity-70" />
+      <select value={lang} onChange={e => setLang(e.target.value)} aria-label="Language" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" data-testid={testid}>
+        {LANGS.map(([c, n]) => <option key={c} value={c} className="bg-[#111] text-white">{n}</option>)}
       </select>
-    </label>
+    </div>
   );
 }

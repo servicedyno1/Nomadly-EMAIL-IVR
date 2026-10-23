@@ -49,7 +49,7 @@ function Results({ res, pick, setPick }) {
         <button key={n.phoneNumber} type="button" onClick={() => setPick(n)} data-testid={`buy-result-${i}`}
           className={`civr-card text-left p-4 ${pick?.phoneNumber === n.phoneNumber ? 'civr-trace' : ''}`}>
           <div className="flex items-center justify-between"><span className="font-mono text-lg">{n.phoneNumber}</span>{pick?.phoneNumber === n.phoneNumber && <Check className="w-4 h-4 text-[#34d399]" />}</div>
-          <div className="text-xs text-[#9a9a9a] mt-1 truncate">{n.region || 'Any region'}</div>
+          <div className="text-xs text-[#a1a1aa] mt-1 truncate">{n.region || 'Any region'}</div>
           <div className="flex gap-2 mt-4">
             {n.capabilities.voice && <span className="civr-pill">voice</span>}{n.capabilities.sms && <span className="civr-pill">sms</span>}{n.capabilities.fax && <span className="civr-pill">fax</span>}
             {n.surcharge > 0 && <span className="civr-pill civr-pill-warn">+{money(n.surcharge)}/mo</span>}
@@ -70,7 +70,7 @@ function PlanPicker({ plans, value, onChange, surcharge }) {
             <span className="font-display text-2xl font-bold">{p.name}</span>
             <span className="flex items-center gap-2">{p.recommended && <RecommendedBadge testid={`buy-plan-${p.id}-recommended`} />}{value === p.id && <Check className="w-5 h-5 text-[#34d399]" />}</span>
           </div>
-          <div className="font-mono text-2xl mt-2">{money(p.price + (surcharge || 0))}<span className="text-xs text-[#9a9a9a]"> /month</span></div>
+          <div className="font-mono text-2xl mt-2">{money(p.price + (surcharge || 0))}<span className="text-xs text-[#a1a1aa]"> /month</span></div>
           <div className="text-xs text-[#a1a1aa] mt-1">{p.minutes} min · {p.sms} SMS included</div>
           <div className="mt-4"><PlanFeatures plan={p} compact testid={`buy-plan-${p.id}-feature`} /></div>
         </button>
@@ -152,7 +152,7 @@ export default function BuyNumber() {
         <div className="mt-8 civr-rise">
           {!extraOf && <>
           <Label>2 · Pick a plan</Label>
-          <p className="text-xs text-[#9a9a9a] -mt-1 mb-3" data-testid="buy-plan-help">✓ included · ✗ not on that plan. You can upgrade a number later from its Billing tab.</p>
+          <p className="text-xs text-[#a1a1aa] -mt-1 mb-3" data-testid="buy-plan-help">✓ included · ✗ not on that plan. You can upgrade a number later from its Billing tab.</p>
           <PlanPicker plans={catalog.plans} value={planObj?.id} onChange={setPlan} surcharge={pick.surcharge} />
           </>}
           <Checkout key={`${pick.phoneNumber}-${summary ? 1 : 0}`} pick={pick} planObj={planObj} total={total} balance={summary?.balance} coins={catalog.coins || []} busy={busy === 'buy'} onPay={buy} onTopUp={topUp}

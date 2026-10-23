@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, Plus, MessageCircle } from 'lucide-react';
+import { ArrowRight, Plus, MessageCircle, Send } from 'lucide-react';
 import { usd, money, startPrice } from '../../api';
 import { useCivrAuth } from '../../AuthContext';
 import { cp } from '../../paths';
@@ -106,6 +106,7 @@ export function Footer({ catalog }) {
         <nav className="flex flex-wrap items-center gap-x-6">
           {links.map(([href, label, id]) => <a key={id} href={href} className={link} data-testid={`footer-link-${id}`}>{label}</a>)}
           <Link to={cp('/login')} className={link} data-testid="footer-link-signin">Sign in</Link>
+          {catalog?.channelLink && <a href={catalog.channelLink} target="_blank" rel="noopener noreferrer" className={`${link} flex items-center gap-2`} data-testid="footer-channel-link"><Send className="w-4 h-4" />Telegram channel</a>}
           {catalog?.supportLink && <a href={catalog.supportLink} target="_blank" rel="noopener noreferrer" className={`${link} flex items-center gap-2`} data-testid="footer-support-link"><MessageCircle className="w-4 h-4" />Support on Telegram</a>}
         </nav>
       </div>

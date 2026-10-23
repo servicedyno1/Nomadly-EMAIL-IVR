@@ -5,7 +5,7 @@ import { api, useApi, when } from '../api';
 import { PageHeader, Spinner, ErrorNote, Empty, statusPill } from '../ui';
 import { cp } from '../paths';
 
-const Prompt = ({ html, testid }) => <div className="civr-prompt text-sm leading-relaxed text-[#ddd] whitespace-pre-line" data-testid={testid} dangerouslySetInnerHTML={{ __html: html || '' }} />;
+const Prompt = ({ html, testid }) => <div className="civr-prompt text-sm leading-relaxed text-[#f4f4f5] whitespace-pre-line" data-testid={testid} dangerouslySetInnerHTML={{ __html: html || '' }} />;
 
 function PendingOrders({ list }) {
   if (!list?.length) return null;
@@ -14,7 +14,7 @@ function PendingOrders({ list }) {
       <div className="font-display text-xl font-bold mb-3">Submitted verifications</div>
       {list.map((o, i) => (
         <div key={i} className="flex items-center justify-between py-2 border-b border-[#1c1c1c] last:border-0 text-sm" data-testid={`verification-order-${i}`}>
-          <span className="font-mono">{o.phoneNumber}</span><span className="text-[#888]">{o.countryName}</span><span className={statusPill(o.status)}>{o.status}</span><span className="text-xs text-[#8a8a8a]">{when(o.createdAt)}</span>
+          <span className="font-mono">{o.phoneNumber}</span><span className="text-[#a1a1aa]">{o.countryName}</span><span className={statusPill(o.status)}>{o.status}</span><span className="text-xs text-[#a1a1aa]">{when(o.createdAt)}</span>
         </div>
       ))}
     </div>

@@ -16,7 +16,7 @@ function Row({ r, set, remove, used, depth, testid }) {
       <div className="flex flex-wrap gap-2 items-center">
         <select className="civr-input !w-20 font-mono" value={r.digit} onChange={e => set({ digit: e.target.value })} data-testid={`${testid}-digit`} aria-label="Key">{DIGITS.filter(d => d === r.digit || !used.includes(d)).map(d => <option key={d}>{d}</option>)}</select>
         <select className="civr-input !w-auto flex-1 min-w-0 max-w-full" value={r.action} onChange={e => set({ action: e.target.value })} data-testid={`${testid}-action`} aria-label="Action">{ACTIONS.filter(([a]) => depth === 0 || a !== 'submenu').map(([a, l]) => <option key={a} value={a}>{l}</option>)}</select>
-        <button type="button" onClick={remove} className="p-2 text-[#888] hover:text-[#fb7185]" data-testid={`${testid}-remove`} aria-label="Remove key"><Trash2 className="w-4 h-4" /></button>
+        <button type="button" onClick={remove} className="p-2 text-[#a1a1aa] hover:text-[#fb7185]" data-testid={`${testid}-remove`} aria-label="Remove key"><Trash2 className="w-4 h-4" /></button>
       </div>
       {r.action === 'forward' && <input className="civr-input font-mono" value={r.forwardTo || ''} onChange={e => set({ forwardTo: e.target.value })} placeholder="+14155550100" data-testid={`${testid}-forward`} />}
       {r.action === 'message' && <input className="civr-input" value={r.message || ''} onChange={e => set({ message: e.target.value })} placeholder="Text to read out, then hang up" data-testid={`${testid}-message`} />}

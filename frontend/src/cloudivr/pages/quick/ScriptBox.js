@@ -34,7 +34,7 @@ export function ScriptBox({ value, onChange, onAudio, testid = 'script' }) {
       </Field>
       {names.length > 0 && (
         <div className="space-y-3" data-testid={`${testid}-placeholders`}>
-          <div className="flex items-center justify-between"><span className="text-xs font-medium text-[#aaa]">Fill in the placeholders</span>
+          <div className="flex items-center justify-between"><span className="text-xs font-medium text-[#d4d4d8]">Fill in the placeholders</span>
             <button type="button" className="civr-btn civr-btn-ghost civr-btn-sm" onClick={autofill} data-testid={`${testid}-autofill`}><Sparkles className="w-4 h-4" />Auto-fill</button></div>
           <div className="grid sm:grid-cols-2 gap-3">
             {names.map(n => (
@@ -47,7 +47,7 @@ export function ScriptBox({ value, onChange, onAudio, testid = 'script' }) {
           </div>
         </div>
       )}
-      {filled && filled !== value.text && <div className="text-sm text-[#ccc] border border-[#222] rounded-xl p-3" dir="auto" data-no-translate data-testid={`${testid}-preview-text`}>{filled}</div>}
+      {filled && filled !== value.text && <div className="text-sm text-[#e4e4e7] border border-[#222] rounded-xl p-3" dir="auto" data-no-translate data-testid={`${testid}-preview-text`}>{filled}</div>}
       {onAudio && <VoiceMaker text={filled} name={value.templateName || 'Call script'} onMade={onAudio} testid={`${testid}-voice`} />}
     </div>
   );

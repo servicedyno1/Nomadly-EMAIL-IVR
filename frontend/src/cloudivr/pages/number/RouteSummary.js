@@ -31,12 +31,12 @@ export function RouteSummary({ num, reload }) {
   return (
     <div className="civr-card p-6 lg:col-span-2 space-y-4" data-testid="route-summary">
       <div className="flex items-center gap-2 font-display text-2xl font-bold"><Compass className="w-5 h-5 text-[#34d399]" />What callers get now</div>
-      <p className="text-sm text-[#ddd]" data-testid="route-summary-primary">{headline(r, pv.phone)}</p>
+      <p className="text-sm text-[#f4f4f5]" data-testid="route-summary-primary">{headline(r, pv.phone)}</p>
       {r.brokenIvr && <div className="text-sm text-[#fbbf24] flex gap-2" data-testid="route-summary-broken-ivr"><AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />Your IVR is on but has no keys yet — add options in the IVR tab or turn it off.</div>}
       {r.skipped?.length > 0 && (
         <div className="space-y-3" data-testid="route-summary-skipped">
           <div className="flex flex-wrap gap-1.5">{r.skipped.map(s => <span key={s} className="civr-pill civr-pill-warn" data-testid={`route-summary-skipped-${s}`}>{SKIP[s] || s} · skipped</span>)}</div>
-          <p className="text-xs text-[#9a9a9a]">These are switched on but never run, because forwarding answers every call first.</p>
+          <p className="text-xs text-[#a1a1aa]">These are switched on but never run, because forwarding answers every call first.</p>
           <div className="flex flex-wrap gap-2">
             <button className="civr-btn civr-btn-ghost civr-btn-sm" disabled={!!busy} onClick={() => setFwd('no_answer', 'Now forwarding only when not answered')} data-testid="route-summary-fix-no-answer">{busy === 'no_answer' && <Loader2 className="w-4 h-4 animate-spin" />}Forward only when not answered</button>
             <button className="civr-btn civr-btn-ghost civr-btn-sm" disabled={!!busy} onClick={() => setFwd('disabled', 'Forwarding off')} data-testid="route-summary-fix-off">{busy === 'disabled' && <Loader2 className="w-4 h-4 animate-spin" />}Turn forwarding off</button>
@@ -58,9 +58,9 @@ export function TestNumber({ num }) {
   return (
     <div className="civr-card p-6 space-y-3" data-testid="test-number-card">
       <div className="flex items-center gap-2 font-display text-2xl font-bold"><PhoneIncoming className="w-5 h-5 text-[#38bdf8]" />Test my number</div>
-      <p className="text-sm text-[#888]">We call this number from our test line so you hear exactly what callers get. Up to 5 tests a day.</p>
+      <p className="text-sm text-[#a1a1aa]">We call this number from our test line so you hear exactly what callers get. Up to 5 tests a day.</p>
       <button className="civr-btn civr-btn-ghost civr-btn-sm" disabled={busy || num.status !== 'active'} onClick={go} data-testid="test-number-button">{busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <PhoneIncoming className="w-4 h-4" />}Call my number</button>
-      {msg && <div className="text-xs text-[#ccc]" data-testid="test-number-result">{msg}</div>}
+      {msg && <div className="text-xs text-[#e4e4e7]" data-testid="test-number-result">{msg}</div>}
     </div>
   );
 }

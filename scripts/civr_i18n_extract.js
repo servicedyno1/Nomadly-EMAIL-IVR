@@ -107,7 +107,7 @@ const t = outbound.templates()
 t.categories.forEach(x => keep(x.name)); t.templates.forEach(x => keep(x.name))
 Object.values(t.smart).forEach(s => { keep(s.label); s.hint && keep(s.hint); (s.presets || []).forEach(x => keep(x, { single: false })) })
 for (const m of fs.readFileSync(path.join(ROOT, 'js/tts-service.js'), 'utf8').matchAll(/desc:\s*'([^']+)'/g)) keep(m[1])
-for (const m of fs.readFileSync(path.join(ROOT, 'js/ivr-templates.js'), 'utf8').matchAll(/name:\s*'([^']+)'/g)) keep(m[1])
+for (const m of fs.readFileSync(path.join(ROOT, 'js/ivr-templates.js'), 'utf8').matchAll(/(?:name|greeting):\s*'([^']+)'/g)) keep(m[1])
 out.add('{0} new'); keep('Voicemail'); keep('Sales'); keep('Support'); keep('Billing'); keep('Operator'); keep('My phone')
 
 const list = [...out].sort()

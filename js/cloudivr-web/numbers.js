@@ -114,6 +114,9 @@ function publicNumber(n) {
 // audioOk(url) → true when the url is one of the account's own library files.
 function validateIvr(body, plan, audioOk = () => true) {
   const ivr = body || {}
+  // Spoken menu language = the web app's language when saved (unset/other = English).
+  const language = vmGreeting.IVR_LANGS.includes(ivr.language) ? ivr.language : 'en'
+  const speech = vmGreeting.ivrSpeech(language)
   const audio = (url, where) => {
     if (!url) return null
     if (!audioOk(url)) throw new Error(`${where}: pick an audio file from your library.`)
@@ -140,7 +143,7 @@ function validateIvr(body, plan, audioOk = () => true) {
         if (depth > 0) throw new Error('Sub-menus can only be one level deep.')
         const sub = o.subMenu || {}
         const subAudio = audio(sub.greetingAudioUrl, `Key ${digit} sub-menu`)
-        out[digit] = { action, label, subMenu: { greetingType: subAudio ? 'audio' : 'text', greeting: String(sub.greeting || 'Please select an option.').slice(0, 1000), greetingAudioUrl: subAudio, options: clean(sub.options, 1) } }
+        out[digit] = { action, label, subMenu: { greetingType: subAudio ? 'audio' : 'text', greeting: String(sub.greeting || speech.sub).slice(0, 1000), greetingAudioUrl: subAudio, options: clean(sub.options, 1) } }
       } else throw new Error(`Key ${digit}: unknown action "${action}".`)
     }
     return out
@@ -151,8 +154,8 @@ function validateIvr(body, plan, audioOk = () => true) {
   return {
     enabled: !!ivr.enabled,
     greetingType: greetingAudioUrl ? 'audio' : 'text',
-    greeting: String(ivr.greeting || 'Thank you for calling. Please select an option.').slice(0, 1000),
-    greetingAudioUrl,
+    greeting: String(ivr.greeting || speech.greeting).slice(0, 1000),
+    greetingAudioUrl, language,
     voice: ivr.voice || null, speed: Number(ivr.speed) || 1,
     options,
   }

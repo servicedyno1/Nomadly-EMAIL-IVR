@@ -35,7 +35,7 @@ function GoogleButton({ dest, signup }) {
           }}
           onError={() => toast.error('Google sign-in was cancelled or failed.')} />
       </div>
-      <div className="flex items-center gap-4 my-6 text-xs text-[#9a9a9a] font-mono uppercase tracking-widest"><span className="flex-1 h-px bg-[#222]" />or<span className="flex-1 h-px bg-[#222]" /></div>
+      <div className="flex items-center gap-4 my-6 text-xs text-[#a1a1aa] font-mono uppercase tracking-widest"><span className="flex-1 h-px bg-[#222]" />or<span className="flex-1 h-px bg-[#222]" /></div>
     </GoogleOAuthProvider>
   );
 }
@@ -57,7 +57,7 @@ function SidePanel({ signup }) {
           </ol>
         </div>
       ) : <p className="font-display text-5xl font-extrabold leading-[0.95] max-w-md">Your numbers, IVR and campaigns — one dashboard.</p>}
-      <div className="text-xs text-[#9a9a9a] font-mono uppercase tracking-widest">Free to sign up · No contracts</div>
+      <div className="text-xs text-[#a1a1aa] font-mono uppercase tracking-widest">Free to sign up · No contracts</div>
     </div>
   );
 }
@@ -89,7 +89,7 @@ function PasswordInput({ value, onChange, minLength, autoComplete, testid, toggl
   return (
     <div className="relative">
       <input className="civr-input !pr-12" type={show ? 'text' : 'password'} required minLength={minLength} value={value} onChange={onChange} autoComplete={autoComplete} data-testid={testid} />
-      <button type="button" onClick={() => setShow(s => !s)} className="absolute right-0 top-0 h-full w-11 flex items-center justify-center text-[#9a9a9a] hover:text-white" aria-label={show ? 'Hide password' : 'Show password'} data-testid={toggleTestid}>
+      <button type="button" onClick={() => setShow(s => !s)} className="absolute right-0 top-0 h-full w-11 flex items-center justify-center text-[#a1a1aa] hover:text-white" aria-label={show ? 'Hide password' : 'Show password'} data-testid={toggleTestid}>
         {show ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
       </button>
     </div>

@@ -1,0 +1,101 @@
+{
+  "typography": {
+    "fonts": {
+      "google_fonts_import": "https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800;900&family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500;600&display=swap",
+      "display": "'Barlow Condensed', sans-serif",
+      "body": "'DM Sans', sans-serif",
+      "mono": "'JetBrains Mono', monospace"
+    },
+    "type_scale": {
+      "h1": { "desktop": "2.75rem (44px)", "mobile": "2.25rem (36px)", "line_height": "1.1", "letter_spacing": "-0.01em", "font_weight": "800" },
+      "h2": { "desktop": "2rem (32px)", "mobile": "1.625rem (26px)", "line_height": "1.25", "letter_spacing": "-0.01em", "font_weight": "700" },
+      "h3": { "desktop": "1.375rem (22px)", "mobile": "1.25rem (20px)", "line_height": "1.3", "font_weight": "600" },
+      "body_lg": { "size": "1rem (16px)", "line_height": "1.5", "font_weight": "400" },
+      "body_md": { "size": "0.875rem (14px)", "line_height": "1.5", "font_weight": "400" },
+      "small": { "size": "0.75rem (12px)", "line_height": "1.4", "font_weight": "500" },
+      "label": { "size": "0.75rem (12px)", "line_height": "1.2", "font_weight": "600", "letter_spacing": "0.06em", "case": "sentence case or readable mono" }
+    },
+    "minimum_font_size": "12px (never use 10px/11px for labels or table headers to guarantee WCAG AA readability)"
+  },
+  "colors": {
+    "palette": {
+      "bg_app": "#0a0a0a",
+      "card_bg": "#141414",
+      "card_hover": "#1c1c1c",
+      "border_default": "#262626",
+      "border_hover": "#3a3a3a",
+      "emerald_primary": "#34d399",
+      "emerald_hover": "#5ee3b0",
+      "emerald_deep": "#04130d",
+      "sky_info": "#38bdf8",
+      "amber_warning": "#fbbf24",
+      "rose_danger": "#fb7185",
+      "text_primary": "#f3f4f6",
+      "text_secondary": "#a1a1aa",
+      "text_muted": "#71717a"
+    },
+    "grey_mapping_table": {
+      "#888888": "#a1a1aa (text-secondary, WCAG AA contrast ratio 4.8:1)",
+      "#8a8a8a": "#a1a1aa (text-secondary)",
+      "#9a9a9a": "#d4d4d8 (text-bright-sub)",
+      "#a1a1aa": "#a1a1aa (maintained as standard secondary text)",
+      "#aaaaaa": "#d4d4d8 (increased brightness for high contrast readability)",
+      "#cccccc": "#e4e4e7 (primary body accent)",
+      "#dddddd": "#f4f4f5 (high contrast text)"
+    }
+  },
+  "component_styles": {
+    "civr_card": "background: #141414; border: 1px solid #262626; border-radius: 14px; padding: 1.25rem (20px) on mobile, 1.5rem (24px) on desktop; transition: border-color .2s ease, background-color .2s ease, transform .2s ease;",
+    "civr_btn": {
+      "base": "display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 42px; padding: 0 18px; border-radius: 999px; font-weight: 600; font-size: 14px; transition: all .15s ease; cursor: pointer; white-space: nowrap;",
+      "primary": "background: #34d399; color: #04130d;",
+      "primary_hover": "background: #5ee3b0; transform: translateY(-1px);",
+      "ghost": "background: transparent; color: #f3f4f6; border: 1px solid #3a3a3a;",
+      "ghost_hover": "border-color: #34d399; color: #34d399; background: rgba(52, 211, 153, 0.05);",
+      "danger": "background: transparent; color: #fb7185; border: 1px solid rgba(251, 113, 133, 0.4);",
+      "danger_hover": "background: rgba(251, 113, 133, 0.12);",
+      "sm": "height: 36px; padding: 0 14px; font-size: 13px;"
+    },
+    "civr_input": "background: #0f0f0f; border: 1px solid #262626; color: #f3f4f6; border-radius: 10px; height: 44px; padding: 0 14px; width: 100%; font-size: 14px; transition: border-color .15s ease, box-shadow .15s ease;",
+    "focus_rings": "outline: none; border-color: #34d399; box-shadow: 0 0 0 3px rgba(52, 211, 153, 0.2);",
+    "civr_label": "font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: #34d399; margin-bottom: 6px;",
+    "civr_pill": "display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 500; font-family: 'DM Sans', sans-serif;",
+    "civr_table": "width: 100%; border-collapse: collapse; font-size: 13px. Header: font-size: 12px, font-family: 'DM Sans', color: #a1a1aa, uppercase, padding: 12px. Rows: border-bottom: 1px solid #262626, padding: 12px, hover bg: #181818.",
+    "tabs_strip": "flex wrap, gap-2, padding-bottom: 4px, border-bottom: 1px solid #262626. Active tab: border-bottom 2px solid #34d399, text #34d399, font-weight 600.",
+    "sidebar_nav": "padding: 10px 14px; border-radius: 10px; font-size: 14px; font-weight: 500; color: #a1a1aa; active bg: rgba(52, 211, 153, 0.1) text: #34d399.",
+    "topbar": "height: 64px; background: rgba(10, 10, 10, 0.85); backdrop-filter: blur(16px); border-bottom: 1px solid #262626; z-index: 40;",
+    "mobile_bottom_nav": "fixed bottom 0, left 0, right 0; height: 64px; background: #121212; border-top: 1px solid #262626; grid-cols-5; text-size: 11px; labels flex-wrap & truncated appropriately for French/Spanish ('Portefeuille', 'Billetera', 'Numéros')."
+  },
+  "spacing_and_layout": {
+    "desktop_padding": "px-8 py-8",
+    "mobile_padding": "px-4 py-5 (390px viewport optimized)",
+    "section_gap": "space-y-8",
+    "card_gap": "gap-6",
+    "i18n_text_expansion": "French and Spanish strings are 20-40% longer. Ensure buttons, nav tabs, table cells, and mobile navigation items use flexible layouts, max-w with truncation where necessary, and flex-wrap so text never overflows or overlaps."
+  },
+  "landing_page_polish": {
+    "hero_headline": "font-display text-4xl sm:text-6xl lg:text-7xl font-black, line-height 1.05, text-transform uppercase to keep French/Spanish titles punchy and balanced without breaking lines awkwardness.",
+    "section_spacing": "py-16 md:py-24",
+    "pricing_cards": "civr-l-card with 1px border rgba(254, 253, 245, 0.12), padding 2rem, highlighted emerald badge for recommended tier."
+  },
+  "motion_and_microinteractions": {
+    "hover_transitions": "transition: background-color .15s ease, border-color .15s ease, transform .15s ease, box-shadow .15s ease",
+    "reduced_motion": "@media (prefers-reduced-motion: reduce) { animation: none !important; transition: none !important; }"
+  },
+  "image_urls": {
+    "hero_network_bg": "https://images.unsplash.com/photo-1780729995836-cfdc370723f5?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDQ2NDF8MHwxfHNlYXJjaHwzfHxnbG9iYWwlMjBuZXR3b3JrJTIwdGVjaG5vbG9neSUyMGJhY2tncm91bmQlMjBkYXJrJTIwZW1lcmFsZHxlbnwwfHx8fDE3OTI3NzcxNTZ8MA&ixlib=rb-4.1.0&q=85",
+    "globe_network": "https://images.unsplash.com/photo-1705339613128-28b8d900fb52?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDQ2NDF8MHwxfHNlYXJjaHwyfHxnbG9iYWwlMjBuZXR3b3JrJTIwdGVjaG5vbG9neSUyMGJhY2tncm91bmQlMjBkYXJrJTIwZW1lcmFsZHxlbnwwfHx8fDE3OTI3NzcxNTZ8MA&ixlib=rb-4.1.0&q=85",
+    "digital_matrix": "https://images.pexels.com/photos/26765065/pexels-photo-26765065.png?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940"
+  },
+  "general_ui_ux_guidelines": {
+    "data_testid_rule": "ALL interactive components (buttons, links, inputs, tabs, switches, modals, menu items) and key info containers MUST have descriptive data-testid attributes (e.g. data-testid=\"numbers-tab-forwarding\", data-testid=\"wallet-topup-btn\").",
+    "contrast_wcag_aa": "Ensure contrast ratio exceeds 4.5:1 for standard text and 3:1 for large text/interactive borders against dark surfaces (#0a0a0a and #141414).",
+    "no_transparent_overlays": "Never use fully transparent backgrounds on dropdowns, modals, or fixed sticky headers. Always apply backdrop-blur with semi-opaque background e.g. bg-[#0a0a0a]/90 backdrop-blur-md."
+  },
+  "instructions_to_main_agent": [
+    "Apply all CSS updates to /app/frontend/src/cloudivr/cloudivr.css including grey token mapping, minimum 12px font size, and revised civr-* classes.",
+    "Update /app/frontend/src/cloudivr/ui.js and related components to replace hardcoded muted greys (#888, #8a8a8a, #9a9a9a, #aaa) with semantic classes or high-contrast tokens (#a1a1aa, #d4d4d8).",
+    "Ensure mobile bottom navigation in Shell/MobileNav gracefully handles Spanish and French translation lengths with proper flex/text truncation/wrapping.",
+    "Verify all interactive elements retain or gain appropriate data-testid attributes."
+  ]
+}

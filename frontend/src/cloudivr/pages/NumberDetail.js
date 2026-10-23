@@ -41,7 +41,7 @@ export default function NumberDetail() {
   const [, label, gate, Comp] = TABS.find(t => t[0] === tab) || TABS[0];
   return (
     <div data-testid="number-detail-page">
-      <Link to={cp('/app/numbers')} className="inline-flex items-center gap-2 text-sm text-[#888] hover:text-[#34d399] mb-6" data-testid="number-detail-back-link"><ArrowLeft className="w-4 h-4" />All numbers</Link>
+      <Link to={cp('/app/numbers')} className="inline-flex items-center gap-2 text-sm text-[#a1a1aa] hover:text-[#34d399] mb-6" data-testid="number-detail-back-link"><ArrowLeft className="w-4 h-4" />All numbers</Link>
       <div className="flex flex-col md:flex-row md:items-end gap-4 justify-between mb-8 civr-rise">
         <div>
           <div className="civr-label">{n.countryName || n.country} · {n.type?.replace('_', '-')} · {n.planName}</div>
@@ -56,7 +56,7 @@ export default function NumberDetail() {
       <div ref={strip} className="flex gap-1 overflow-x-auto border-b border-[#1f1f1f] mb-8" role="tablist">
         {TABS.map(([id, name]) => (
           <button key={id} role="tab" aria-selected={tab === id} onClick={() => setParams({ tab: id }, { replace: true })} data-testid={`number-tab-${id}`}
-            className={`px-4 py-3 text-sm font-medium border-b-2 -mb-px transition-colors shrink-0 ${tab === id ? 'border-[#34d399] text-[#34d399]' : 'border-transparent text-[#888] hover:text-white'}`}>{name}</button>
+            className={`px-4 py-3 text-sm font-medium border-b-2 -mb-px transition-colors shrink-0 ${tab === id ? 'border-[#34d399] text-[#34d399]' : 'border-transparent text-[#a1a1aa] hover:text-white'}`}>{name}</button>
         ))}
       </div>
       <div data-testid={`number-tabpanel-${tab}`}>

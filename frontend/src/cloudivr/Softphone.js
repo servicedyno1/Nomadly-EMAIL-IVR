@@ -85,10 +85,10 @@ export default function Softphone({ open, onClose }) {
   return (
     <div className={`fixed bottom-24 lg:bottom-4 right-4 left-4 sm:left-auto z-50 sm:w-[340px] max-h-[calc(100dvh-7rem)] lg:max-h-[calc(100dvh-2rem)] overflow-y-auto civr-card p-6 shadow-2xl transition-[opacity,transform] duration-200 ${open ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4 pointer-events-none'}`} data-testid="softphone-panel">
       <audio id="civr-remote-audio" autoPlay />
-      <div className="flex items-center justify-between mb-4"><span className="font-display text-xl font-bold">Browser phone</span><button onClick={onClose} className="p-1 text-[#888] hover:text-white" data-testid="softphone-close-button" aria-label="Close"><X className="w-4 h-4" /></button></div>
+      <div className="flex items-center justify-between mb-4"><span className="font-display text-xl font-bold">Browser phone</span><button onClick={onClose} className="p-1 text-[#a1a1aa] hover:text-white" data-testid="softphone-close-button" aria-label="Close"><X className="w-4 h-4" /></button></div>
       {!nums.length ? (
         <div data-testid="softphone-no-numbers">
-          <p className="text-sm text-[#888]">Calling from the browser needs an active number on the Pro plan or higher.</p>
+          <p className="text-sm text-[#a1a1aa]">Calling from the browser needs an active number on the Pro plan or higher.</p>
           <Link to={cp('/app/numbers')} onClick={onClose} className="civr-btn civr-btn-ghost civr-btn-sm mt-4" data-testid="softphone-upgrade-link">Upgrade a number</Link>
         </div>
       ) : (
@@ -99,11 +99,11 @@ export default function Softphone({ open, onClose }) {
           </div>
           <CallMeFirst on={cmf} onChange={v => { setCmf(v); setInfo(null); }} myPhone={myPhone} setMyPhone={setMyPhone} allowed={cmfAllowed} />
           <div className="text-xs mb-3" data-testid="softphone-status">
-            {viaMobile ? <span className="text-[#888]">Rings your mobile first — no browser connection needed.</span> : <span className={status === 'ready' ? 'text-[#34d399]' : status === 'error' ? 'text-[#fb7185]' : 'text-[#888]'}>{call ? `Call ${call.state}` : STATUS[status]}</span>}
-            {!viaMobile && msg && <span className="block text-[#888] mt-1">{msg}</span>}
+            {viaMobile ? <span className="text-[#a1a1aa]">Rings your mobile first — no browser connection needed.</span> : <span className={status === 'ready' ? 'text-[#34d399]' : status === 'error' ? 'text-[#fb7185]' : 'text-[#a1a1aa]'}>{call ? `Call ${call.state}` : STATUS[status]}</span>}
+            {!viaMobile && msg && <span className="block text-[#a1a1aa] mt-1">{msg}</span>}
             {info && <span className={`block mt-1 ${info.ok ? 'text-[#34d399]' : 'text-[#fb7185]'}`} data-testid="softphone-callback-result">{info.text}</span>}
           </div>
-          <div className="flex items-center gap-2 mb-3"><input className={`civr-input font-mono ${pv.input}`} inputMode="tel" autoComplete="off" value={dest} onChange={e => setDest(e.target.value)} placeholder="+14155550100" aria-label="Number to call" data-testid="softphone-destination-input" /><button onClick={() => setDest(d => d.slice(0, -1))} className="p-2 text-[#888]" data-testid="softphone-backspace-button" aria-label="Delete digit"><Delete className="w-4 h-4" /></button></div>
+          <div className="flex items-center gap-2 mb-3"><input className={`civr-input font-mono ${pv.input}`} inputMode="tel" autoComplete="off" value={dest} onChange={e => setDest(e.target.value)} placeholder="+14155550100" aria-label="Number to call" data-testid="softphone-destination-input" /><button onClick={() => setDest(d => d.slice(0, -1))} className="p-2 text-[#a1a1aa]" data-testid="softphone-backspace-button" aria-label="Delete digit"><Delete className="w-4 h-4" /></button></div>
           <div className="grid grid-cols-3 gap-2 mb-4">{KEYS.map(k => <button key={k} className="civr-key" onClick={() => press(k)} data-testid={`softphone-key-${k === '*' ? 'star' : k === '#' ? 'hash' : k}`}>{k}</button>)}</div>
           {call ? (
             <div className="flex gap-2">

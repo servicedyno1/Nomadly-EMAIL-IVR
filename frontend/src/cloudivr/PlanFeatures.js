@@ -21,7 +21,7 @@ export const availablePlans = (plans) => byPrice(plans).filter(p => p.available)
 export function PlanFeatures({ plan, tone = 'app', compact = false, testid }) {
   const list = plan?.webFeatures || [];
   const on = { app: 'text-[#34d399]', dark: 'text-[#00E3AA]', cream: 'text-[#3434EF]' }[tone];
-  const offText = { app: 'text-[#6b6b6b]', dark: 'text-white/35', cream: 'text-black/35' }[tone];
+  const offText = { app: 'text-[#a1a1aa]', dark: 'text-white/35', cream: 'text-black/35' }[tone];
   const onText = { app: 'text-[#d4d4d8]', dark: '', cream: '' }[tone];
   return (
     <ul className={`flex flex-col ${compact ? 'gap-1 text-xs' : 'gap-2 text-sm'}`} data-testid={testid}>
@@ -37,5 +37,5 @@ export function PlanFeatures({ plan, tone = 'app', compact = false, testid }) {
 
 export function RecommendedBadge({ tone = 'app', testid }) {
   const cls = tone === 'app' ? 'bg-[#34d399] text-[#04130d]' : 'bg-[#00E3AA] text-[#0A0D0E]';
-  return <span className={`text-[10px] font-mono uppercase tracking-widest px-2.5 py-1 rounded-full font-bold ${cls}`} data-testid={testid}>Recommended</span>;
+  return <span className={`text-xs font-mono uppercase tracking-widest px-2.5 py-1 rounded-full font-bold ${cls}`} data-testid={testid}>Recommended</span>;
 }

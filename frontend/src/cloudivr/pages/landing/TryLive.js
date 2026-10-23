@@ -28,7 +28,7 @@ function Ring({ left, max }) {
   return (
     <div className="relative w-36 h-36 shrink-0" data-testid="civr-try-timer">
       <svg viewBox="0 0 120 120" className="w-full h-full -rotate-90"><circle cx="60" cy="60" r={r} fill="none" stroke="rgba(254,253,245,.12)" strokeWidth="6" /><circle cx="60" cy="60" r={r} fill="none" stroke="#00E3AA" strokeWidth="6" strokeLinecap="round" strokeDasharray={c} strokeDashoffset={c * (1 - left / max)} style={{ transition: 'stroke-dashoffset .3s linear' }} /></svg>
-      <div className="absolute inset-0 flex flex-col items-center justify-center"><span className="civr-l-h text-5xl" data-testid="civr-try-seconds-left">{left}</span><span className="text-[10px] font-mono uppercase tracking-widest civr-l-muted">seconds</span></div>
+      <div className="absolute inset-0 flex flex-col items-center justify-center"><span className="civr-l-h text-5xl" data-testid="civr-try-seconds-left">{left}</span><span className="text-xs font-mono uppercase tracking-widest civr-l-muted">seconds</span></div>
     </div>
   );
 }
@@ -36,10 +36,10 @@ function Ring({ left, max }) {
 function Header({ to, phase, dryRun, testid }) {
   return (
     <div className="flex flex-wrap items-start justify-between gap-3">
-      <div><div className="civr-l-eyebrow !text-[10px]">Free test call</div><div className="font-mono text-2xl mt-1" data-testid={`${testid}-number`}>{to}</div></div>
+      <div><div className="civr-l-eyebrow !text-xs">Free test call</div><div className="font-mono text-2xl mt-1" data-testid={`${testid}-number`}>{to}</div></div>
       <div className="flex flex-wrap gap-2">
-        {dryRun && <span className="text-[10px] font-mono uppercase tracking-widest px-2.5 py-1 rounded-full border border-[#fbbf24]/50 text-[#fbbf24]" data-testid="civr-try-preview-pill">Preview · simulated</span>}
-        <span className={`text-[10px] font-mono uppercase tracking-widest px-2.5 py-1 rounded-full border flex items-center gap-2 ${OVER.includes(phase) ? 'border-white/20 text-white/60' : 'border-[#00E3AA]/50 text-[#00E3AA]'}`} data-testid={`${testid}-phase`}>{!OVER.includes(phase) && <span className="civr-l-dot" />}{PHASE[phase] || phase}</span>
+        {dryRun && <span className="text-xs font-mono uppercase tracking-widest px-2.5 py-1 rounded-full border border-[#fbbf24]/50 text-[#fbbf24]" data-testid="civr-try-preview-pill">Preview · simulated</span>}
+        <span className={`text-xs font-mono uppercase tracking-widest px-2.5 py-1 rounded-full border flex items-center gap-2 ${OVER.includes(phase) ? 'border-white/20 text-white/60' : 'border-[#00E3AA]/50 text-[#00E3AA]'}`} data-testid={`${testid}-phase`}>{!OVER.includes(phase) && <span className="civr-l-dot" />}{PHASE[phase] || phase}</span>
       </div>
     </div>
   );

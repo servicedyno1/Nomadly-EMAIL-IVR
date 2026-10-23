@@ -6,7 +6,7 @@ import { Field, Toggle } from '../../ui';
 function Option({ on, onClick, icon: Icon, title, sub, testid }) {
   return (
     <button type="button" onClick={onClick} aria-pressed={on} className={`civr-card text-left p-4 flex gap-4 items-start ${on ? 'civr-trace' : ''}`} data-testid={testid}>
-      <Icon className={`w-5 h-5 mt-0.5 shrink-0 ${on ? 'text-[#34d399]' : 'text-[#9a9a9a]'}`} />
+      <Icon className={`w-5 h-5 mt-0.5 shrink-0 ${on ? 'text-[#34d399]' : 'text-[#a1a1aa]'}`} />
       <div className="flex-1"><div className="font-semibold">{title}</div><div className="text-xs text-[#a1a1aa] mt-1">{sub}</div></div>
       {on && <Check className="w-4 h-4 text-[#34d399] shrink-0" />}
     </button>
@@ -28,7 +28,7 @@ export function CouponField({ total, coupon, setCoupon, initialCode }) {
   const today = data?.coupon && !data.coupon.used ? data.coupon : null;
   if (coupon) return (
     <div className="flex items-center gap-2 text-sm text-[#34d399] mt-4" data-testid="checkout-coupon-applied"><Ticket className="w-4 h-4" /><span className="font-mono">{coupon.code}</span> · {coupon.discount}% off
-      <button type="button" onClick={() => setCoupon(null)} className="p-1 text-[#888] hover:text-white" aria-label="Remove coupon" data-testid="checkout-coupon-remove"><X className="w-3.5 h-3.5" /></button></div>
+      <button type="button" onClick={() => setCoupon(null)} className="p-1 text-[#a1a1aa] hover:text-white" aria-label="Remove coupon" data-testid="checkout-coupon-remove"><X className="w-3.5 h-3.5" /></button></div>
   );
   return (
     <div className="mt-4 space-y-2" data-testid="checkout-coupon">
@@ -52,19 +52,19 @@ export default function Checkout({ pick, planObj, total, balance, coins, busy, o
     <div className="civr-card p-6 mt-6" data-testid="buy-summary">
       <div className="flex flex-col md:flex-row md:items-center gap-4">
         <div className="flex-1"><div className="font-mono text-xl" data-testid="buy-summary-number">{pick.phoneNumber}</div><div className="text-sm text-[#a1a1aa]">{label || `${planObj?.name} plan · monthly`}</div></div>
-        <div className="text-right">{coupon && <div className="font-mono text-sm text-[#8a8a8a] line-through" data-testid="buy-total-before">{money(total)}</div>}<div className="font-mono text-3xl" data-testid="buy-total">{money(due)}</div>{coupon && <div className="text-xs text-[#9a9a9a]">first month · then {money(total)}/month</div>}</div>
+        <div className="text-right">{coupon && <div className="font-mono text-sm text-[#a1a1aa] line-through" data-testid="buy-total-before">{money(total)}</div>}<div className="font-mono text-3xl" data-testid="buy-total">{money(due)}</div>{coupon && <div className="text-xs text-[#a1a1aa]">first month · then {money(total)}/month</div>}</div>
       </div>
       <div className="grid sm:grid-cols-2 gap-3 mt-6">
         <Option on={method === 'wallet'} onClick={() => setMethod('wallet')} icon={WalletIcon} title="Pay from wallet" sub={`Balance ${money(balance)}${short > 0 ? ` · ${money(short)} short` : ' · activates instantly'}`} testid="civr-checkout-wallet-option" />
         {cryptoOk ? <Option on={method === 'crypto'} onClick={() => setMethod('crypto')} icon={Bitcoin} title="Pay with crypto" sub="Send the exact price — the number activates once the network confirms." testid="civr-checkout-crypto-option" />
-          : <div className="civr-card p-4 text-xs text-[#a1a1aa] flex gap-3"><Bitcoin className="w-5 h-5 shrink-0 text-[#9a9a9a]" />Extra numbers are paid from the wallet. Short? Add funds with crypto first.</div>}
+          : <div className="civr-card p-4 text-xs text-[#a1a1aa] flex gap-3"><Bitcoin className="w-5 h-5 shrink-0 text-[#a1a1aa]" />Extra numbers are paid from the wallet. Short? Add funds with crypto first.</div>}
       </div>
       {setCoupon && <CouponField total={total} coupon={coupon} setCoupon={setCoupon} initialCode={initialCode} />}
       {method === 'crypto' && (
         <div className="mt-4 max-w-xs"><Field label="Coin"><select className="civr-input" value={coin} onChange={e => setCoin(e.target.value)} data-testid="civr-checkout-coin-select">{coins.map(c => <option key={c}>{c}</option>)}</select></Field></div>
       )}
       <div className="flex items-center justify-between gap-4 mt-6 py-4 border-y border-[#1c1c1c]">
-        <div><div className="text-sm font-medium">Auto-renew monthly</div><div className="text-xs text-[#8a8a8a] mt-0.5">Renews from your wallet so the number never lapses. Turn it off any time.</div></div>
+        <div><div className="text-sm font-medium">Auto-renew monthly</div><div className="text-xs text-[#a1a1aa] mt-0.5">Renews from your wallet so the number never lapses. Turn it off any time.</div></div>
         <Toggle checked={autoRenew} onChange={setAutoRenew} testid="civr-checkout-auto-renew-toggle" />
       </div>
       {walletShort && <div className="text-sm text-[#fbbf24] mt-4" data-testid="buy-shortfall-note">You need {money(short)} more in your wallet. Add funds — we keep this number and plan selected{cryptoOk ? ' — or pay with crypto instead' : ''}.</div>}

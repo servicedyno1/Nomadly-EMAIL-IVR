@@ -27,7 +27,7 @@ function UploadCard({ onDone }) {
       <button type="button" className="civr-btn civr-btn-ghost w-full" disabled={busy} onClick={() => ref.current?.click()} data-testid="audio-upload-choose-button"><Music className="w-4 h-4" /><span className="truncate">{file ? file.name : 'Choose audio file'}</span></button>
       <Field label="Name"><input className="civr-input" value={name} onChange={e => setName(e.target.value)} placeholder="Main greeting" data-testid="audio-upload-name-input" /></Field>
       <button className="civr-btn civr-btn-primary w-full" disabled={!file || busy} onClick={send} data-testid="audio-upload-button">{busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}{busy ? 'Converting…' : 'Upload'}</button>
-      <p className="text-xs text-[#8a8a8a]">MP3, WAV, OGG, M4A · up to 10 MB. Converted for phone playback.</p>
+      <p className="text-xs text-[#a1a1aa]">MP3, WAV, OGG, M4A · up to 10 MB. Converted for phone playback.</p>
     </div>
   );
 }
@@ -62,14 +62,14 @@ function AudioRow({ a, i, reload }) {
     <div className="civr-card p-4 flex flex-col md:flex-row md:items-center gap-3" data-testid={`audio-row-${i}`}>
       <div className="md:w-56 min-w-0">
         {edit !== null ? (
-          <div className="flex gap-1"><input className="civr-input !h-9" value={edit} onChange={e => setEdit(e.target.value)} data-testid={`audio-row-${i}-rename-input`} /><button onClick={rename} className="p-2 text-[#34d399]" data-testid={`audio-row-${i}-rename-save`}><Check className="w-4 h-4" /></button><button onClick={() => setEdit(null)} className="p-2 text-[#888]" data-testid={`audio-row-${i}-rename-cancel`}><X className="w-4 h-4" /></button></div>
+          <div className="flex gap-1"><input className="civr-input !h-9" value={edit} onChange={e => setEdit(e.target.value)} data-testid={`audio-row-${i}-rename-input`} /><button onClick={rename} className="p-2 text-[#34d399]" data-testid={`audio-row-${i}-rename-save`}><Check className="w-4 h-4" /></button><button onClick={() => setEdit(null)} className="p-2 text-[#a1a1aa]" data-testid={`audio-row-${i}-rename-cancel`}><X className="w-4 h-4" /></button></div>
         ) : <div className="font-semibold truncate" data-testid={`audio-row-${i}-name`}>{a.name}</div>}
-        <div className="text-xs text-[#8a8a8a] mt-0.5">{a.source === 'tts' ? 'Text to speech' : 'Upload'} · {day(a.createdAt)}</div>
+        <div className="text-xs text-[#a1a1aa] mt-0.5">{a.source === 'tts' ? 'Text to speech' : 'Upload'} · {day(a.createdAt)}</div>
       </div>
       <audio controls preload="none" src={playUrl(a.audioUrl)} className="h-9 flex-1 min-w-0" data-testid={`audio-row-${i}-player`} />
       <div className="flex gap-1">
-        <button onClick={() => setEdit(a.name)} className="p-2 rounded-lg text-[#888] hover:text-white hover:bg-[#1a1a1a]" data-testid={`audio-row-${i}-rename-button`} aria-label="Rename"><Pencil className="w-4 h-4" /></button>
-        <button onClick={remove} className="p-2 rounded-lg text-[#888] hover:text-[#fb7185] hover:bg-[#1a1a1a]" data-testid={`audio-row-${i}-delete-button`} aria-label="Delete"><Trash2 className="w-4 h-4" /></button>
+        <button onClick={() => setEdit(a.name)} className="p-2 rounded-lg text-[#a1a1aa] hover:text-white hover:bg-[#1a1a1a]" data-testid={`audio-row-${i}-rename-button`} aria-label="Rename"><Pencil className="w-4 h-4" /></button>
+        <button onClick={remove} className="p-2 rounded-lg text-[#a1a1aa] hover:text-[#fb7185] hover:bg-[#1a1a1a]" data-testid={`audio-row-${i}-delete-button`} aria-label="Delete"><Trash2 className="w-4 h-4" /></button>
       </div>
     </div>
   );

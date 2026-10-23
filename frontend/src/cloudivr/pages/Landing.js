@@ -9,6 +9,7 @@ import { TryCall } from './landing/TryCall';
 import { Pricing, Faq, FinalCta, Footer } from './landing/PricingFaq';
 import { Slide } from './landing/kit';
 import { LangSwitcher } from '../i18n';
+import SupportChat from '../SupportChat';
 
 export const LANDING_LINKS = [['#coverage', 'Coverage', 'coverage'], ['#try', 'Free test call', 'try'], ['#features', 'Features', 'features'], ['#pricing', 'Pricing', 'pricing'], ['#faq', 'FAQ', 'faq']];
 
@@ -57,6 +58,7 @@ export default function Landing() {
         <FinalCta catalog={catalog} />
       </main>
       <Footer catalog={catalog} />
+      <SupportChat visitor supportLink={catalog?.supportLink} />
     </div>
   );
 }

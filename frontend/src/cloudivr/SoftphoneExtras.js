@@ -13,7 +13,7 @@ export function CallMeFirst({ on, onChange, myPhone, setMyPhone, allowed }) {
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
           <div className="text-sm font-medium">Call me first</div>
-          <div className="text-[11px] text-[#8a8a8a]">{allowed ? 'We ring your mobile, then connect the call' : 'Needs the Pro plan or higher on this number'}</div>
+          <div className="text-xs text-[#a1a1aa]">{allowed ? 'We ring your mobile, then connect the call' : 'Needs the Pro plan or higher on this number'}</div>
         </div>
         <Toggle checked={on && allowed} disabled={!allowed} onChange={onChange} testid="softphone-call-me-first-toggle" />
       </div>
@@ -38,7 +38,7 @@ export function CallNoteBox({ phone, peer, direction }) {
   };
   return (
     <div className="mt-3 pt-3 border-t border-[#1f1f1f]" data-testid="softphone-note-box">
-      <label className="flex items-center gap-1.5 text-xs font-medium text-[#aaa] mb-1.5"><StickyNote className="w-3.5 h-3.5 text-[#fbbf24]" />Notes for this call</label>
+      <label className="flex items-center gap-1.5 text-xs font-medium text-[#d4d4d8] mb-1.5"><StickyNote className="w-3.5 h-3.5 text-[#fbbf24]" />Notes for this call</label>
       <textarea rows={2} maxLength={2000} className="civr-input text-xs" value={text} onChange={e => setText(e.target.value)} placeholder="What was this call about?" data-testid="softphone-note-input" />
       <button className="civr-btn civr-btn-ghost civr-btn-sm w-full mt-2" disabled={busy || !text.trim()} onClick={save} data-testid="softphone-note-save-button">Save note</button>
     </div>

@@ -34,7 +34,7 @@ export function Coverage({ catalog }) {
         {list.map(c => (
           <div key={c.code} className="civr-l-card-cream civr-l-tilt px-4 py-4 min-w-0" data-testid={`coverage-${c.code}`}>
             <div className="flex items-center gap-3 min-w-0"><span className="text-2xl">{c.flag}</span><span className="font-semibold truncate">{c.name}</span></div>
-            <div className="text-[11px] civr-l-muted mt-2 font-mono uppercase tracking-wider truncate">{c.types.map(t => tn[t] || t).join(' · ')}</div>
+            <div className="text-xs civr-l-muted mt-2 font-mono uppercase tracking-wider truncate">{c.types.map(t => tn[t] || t).join(' · ')}</div>
           </div>
         ))}
       </div>
@@ -46,7 +46,7 @@ function Badge({ plans, k, dark }) {
   const b = planBadge(plans, k);
   if (!b) return null;
   const every = b === 'Every plan';
-  return <span className={`text-[10px] font-mono uppercase tracking-widest px-2.5 py-1 rounded-full border ${every ? (dark ? 'border-[#00E3AA]/50 text-[#00E3AA]' : 'border-[#3434EF]/40 text-[#3434EF]') : (dark ? 'border-white/20 text-white/70' : 'border-black/20 text-black/60')}`}>{b}</span>;
+  return <span className={`text-xs font-mono uppercase tracking-widest px-2.5 py-1 rounded-full border ${every ? (dark ? 'border-[#00E3AA]/50 text-[#00E3AA]' : 'border-[#3434EF]/40 text-[#3434EF]') : (dark ? 'border-white/20 text-white/70' : 'border-black/20 text-black/60')}`}>{b}</span>;
 }
 
 function FeatureCard({ icon: Icon, title, text, k, plans, dark, img, className, testid, children }) {

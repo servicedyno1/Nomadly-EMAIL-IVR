@@ -18,16 +18,16 @@ export function DateTimePicker({ value, onChange, testid, maxDays = 30 }) {
       <Popover>
         <PopoverTrigger asChild>
           <button type="button" className="civr-input flex items-center gap-2 text-left" data-testid={`${testid}-trigger`}>
-            <CalendarDays className="w-4 h-4 text-[#888]" />
-            {d ? d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }) : <span className="text-[#8a8a8a]">Not scheduled</span>}
+            <CalendarDays className="w-4 h-4 text-[#a1a1aa]" />
+            {d ? d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }) : <span className="text-[#a1a1aa]">Not scheduled</span>}
           </button>
         </PopoverTrigger>
-        <PopoverContent className="w-auto p-0 bg-[#141414] border-[#2a2a2a] text-[#f0f0f0]" align="start" data-testid={`${testid}-calendar`}>
+        <PopoverContent className="w-auto p-0 bg-[#141414] border-[#2a2a2a] text-[#f3f4f6]" align="start" data-testid={`${testid}-calendar`}>
           <Calendar mode="single" selected={d || undefined} onSelect={(day) => day && onChange(at(day, time))} disabled={[{ before: today }, { after: max }]} initialFocus />
         </PopoverContent>
       </Popover>
       <input type="time" className="civr-input !w-32 font-mono" value={time} disabled={!d} onChange={e => onChange(at(d, e.target.value))} data-testid={`${testid}-time-input`} />
-      {d && <button type="button" onClick={() => onChange('')} className="p-2 text-[#888] hover:text-white" data-testid={`${testid}-clear`} aria-label="Clear schedule"><X className="w-4 h-4" /></button>}
+      {d && <button type="button" onClick={() => onChange('')} className="p-2 text-[#a1a1aa] hover:text-white" data-testid={`${testid}-clear`} aria-label="Clear schedule"><X className="w-4 h-4" /></button>}
     </div>
   );
 }

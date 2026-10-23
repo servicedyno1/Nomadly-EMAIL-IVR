@@ -6,7 +6,7 @@ import { NAV_ITEMS, appPath } from './nav';
 const SHORT = { 'nav-dashboard': 'Overview', 'nav-numbers': 'Numbers', 'nav-buy': 'Buy', 'nav-wallet': 'Wallet' };
 const MAIN = NAV_ITEMS.filter(([, , , id]) => SHORT[id]);
 const MORE = NAV_ITEMS.filter(([, , , id]) => !SHORT[id]);
-const tab = (active) => `flex flex-col items-center justify-center gap-1 h-16 text-[11px] font-medium transition-colors ${active ? 'text-[#34d399]' : 'text-[#a1a1aa]'}`;
+const tab = (active) => `min-w-0 flex flex-col items-center justify-center gap-1 h-16 text-[11px] font-medium transition-colors ${active ? 'text-[#34d399]' : 'text-[#a1a1aa]'}`;
 
 // Phone-sized screens: bottom tab bar with the four main pages + a "More" menu for the rest.
 export default function MobileNav() {
@@ -26,7 +26,7 @@ export default function MobileNav() {
       )}
       <nav className="lg:hidden fixed bottom-0 inset-x-0 z-40 grid grid-cols-5 bg-[#0a0a0a]/90 backdrop-blur-xl border-t border-white/10 pb-[env(safe-area-inset-bottom)]" data-testid="mobile-bottom-nav">
         {MAIN.map(([to, , Icon, id]) => (
-          <NavLink key={id} end={to === ''} to={appPath(to)} className={({ isActive }) => tab(isActive && !open)} data-testid={`mobile-${id}`}><Icon className="w-5 h-5" />{SHORT[id]}</NavLink>
+          <NavLink key={id} end={to === ''} to={appPath(to)} className={({ isActive }) => tab(isActive && !open)} data-testid={`mobile-${id}`}><Icon className="w-5 h-5" /><span className="max-w-full truncate px-1">{SHORT[id]}</span></NavLink>
         ))}
         <button type="button" onClick={() => setOpen(o => !o)} aria-expanded={open} className={tab(open || moreActive)} data-testid="mobile-nav-more"><MoreHorizontal className="w-5 h-5" />More</button>
       </nav>

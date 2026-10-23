@@ -6,6 +6,7 @@ import { Link } from 'react-router-dom';
 import { cp } from '../../paths';
 import { useShell } from '../../Shell';
 import { RouteSummary, TestNumber } from './RouteSummary';
+import { SipCredentials } from './SipTab';
 import { VoiceMaker } from '../../VoiceMaker';
 
 const VM_TEMPLATES = [
@@ -27,7 +28,7 @@ export function useSave(num, path, reload) {
 const Card = ({ title, sub, children }) => (
   <div className="civr-card p-6 max-w-2xl">
     <div className="font-display text-2xl font-bold">{title}</div>
-    {sub && <p className="text-sm text-[#888] mt-1 mb-6">{sub}</p>}
+    {sub && <p className="text-sm text-[#a1a1aa] mt-1 mb-6">{sub}</p>}
     <div className="space-y-6">{children}</div>
   </div>
 );
@@ -37,7 +38,7 @@ function Meter({ label, used, total, testid }) {
   const pct = unlimited ? 0 : Math.min(100, (Number(used) / Number(total || 1)) * 100);
   return (
     <div data-testid={testid}>
-      <div className="flex justify-between text-sm"><span className="text-[#aaa]">{label}</span><span className="font-mono">{used} / {unlimited ? '∞' : total}</span></div>
+      <div className="flex justify-between text-sm"><span className="text-[#d4d4d8]">{label}</span><span className="font-mono">{used} / {unlimited ? '∞' : total}</span></div>
       <div className="h-2 rounded-full bg-[#1c1c1c] mt-2 overflow-hidden"><div className="h-full bg-[#34d399] rounded-full transition-[width] duration-700" style={{ width: `${pct}%` }} /></div>
     </div>
   );
@@ -49,6 +50,7 @@ export function OverviewTab({ num, reload }) {
     <div className="grid lg:grid-cols-3 gap-4">
       <RouteSummary num={num} reload={reload} />
       <TestNumber num={num} />
+      {num.access?.sipCredentials && <SipCredentials num={num} prefix="overview-sip" heading="SIP login" />}
       <div className="civr-card p-6 lg:col-span-2 space-y-6">
         <div className="font-display text-2xl font-bold">This month</div>
         <Meter label="Inbound minutes" used={num.usage.minutesUsed} total={num.usage.minutesIncluded} testid="overview-minutes-meter" />
@@ -56,8 +58,8 @@ export function OverviewTab({ num, reload }) {
       </div>
       <div className="civr-card p-6 space-y-3 text-sm" data-testid="overview-capabilities">
         <div className="font-display text-2xl font-bold mb-2">Capabilities</div>
-        {[['voice', 'Voice'], ['sms', 'SMS'], ['fax', 'Fax']].map(([c, l]) => <div key={c} className="flex justify-between"><span className="text-[#aaa]">{l}</span><span className={caps[c] ? 'text-[#34d399]' : 'text-[#8a8a8a]'} data-testid={`overview-capability-${c}`}>{caps[c] ? 'Yes' : 'No'}</span></div>)}
-        <div className="flex justify-between"><span className="text-[#aaa]">SIP domain</span><span className="font-mono text-xs">{num.sipDomain}</span></div>
+        {[['voice', 'Voice'], ['sms', 'SMS'], ['fax', 'Fax']].map(([c, l]) => <div key={c} className="flex justify-between"><span className="text-[#d4d4d8]">{l}</span><span className={caps[c] ? 'text-[#34d399]' : 'text-[#a1a1aa]'} data-testid={`overview-capability-${c}`}>{caps[c] ? 'Yes' : 'No'}</span></div>)}
+        <div className="flex justify-between"><span className="text-[#d4d4d8]">SIP domain</span><span className="font-mono text-xs">{num.sipDomain}</span></div>
       </div>
     </div>
   );
@@ -105,7 +107,7 @@ export function VoicemailTab({ num, reload }) {
         <select className="civr-input" value={f.language} onChange={e => setF({ ...f, language: e.target.value })} data-testid="voicemail-language-select">
           {langs.map(l => <option key={l.code} value={l.code}>{l.label}</option>)}
         </select>
-        {f.greetingType === 'default' && sample && <span className="block text-sm text-[#ccc] italic mt-2" dir="auto" data-no-translate data-testid="voicemail-language-sample">“{sample}”</span>}
+        {f.greetingType === 'default' && sample && <span className="block text-sm text-[#e4e4e7] italic mt-2" dir="auto" data-no-translate data-testid="voicemail-language-sample">“{sample}”</span>}
       </Field>
       {f.greetingType === 'custom' && (
         <Field label="Greeting audio" hint={!data?.audios?.length ? 'Add audio in the Audio library first.' : null}>
@@ -119,12 +121,12 @@ export function VoicemailTab({ num, reload }) {
         <div className="flex flex-wrap gap-1.5">{VM_TEMPLATES.map(([l, t], i) => <button key={l} type="button" onClick={() => setScript(t)} className="civr-pill cursor-pointer" data-testid={`voicemail-template-${i}`}>{l}</button>)}</div>
         <textarea rows={3} className="civr-input" value={script} onChange={e => setScript(e.target.value)} placeholder="Type what callers hear before the beep" data-testid="voicemail-tts-text-input" />
         <VoiceMaker text={script} name="Voicemail greeting" onMade={(a) => { reloadAudio(); setF(x => ({ ...x, greetingType: 'custom', customGreetingUrl: a.audioUrl })); }} testid="voicemail-tts" />
-        <p className="text-[11px] text-[#8a8a8a]">Replace [Name] / [Business] before making the voice. The new audio is picked as your greeting — press Save voicemail.</p>
+        <p className="text-xs text-[#a1a1aa]">Replace [Name] / [Business] before making the voice. The new audio is picked as your greeting — press Save voicemail.</p>
       </div>
       <Field label="Also email voicemails to (optional)"><input className="civr-input" type="email" value={f.forwardToEmail} onChange={e => setF({ ...f, forwardToEmail: e.target.value })} data-testid="voicemail-email-input" /></Field>
       <Field label="Ring time before voicemail (seconds)"><input type="number" min={10} max={60} className="civr-input" value={f.ringTimeout} onChange={e => setF({ ...f, ringTimeout: e.target.value })} data-testid="voicemail-ring-timeout-input" /></Field>
       <div className="flex items-start justify-between gap-4">
-        <div><div className="text-sm">Transcribe voicemails</div><div className="text-xs text-[#8a8a8a] mt-1">The message as text in your inbox, email and call logs.</div></div>
+        <div><div className="text-sm">Transcribe voicemails</div><div className="text-xs text-[#a1a1aa] mt-1">The message as text in your inbox, email and call logs.</div></div>
         <Toggle checked={f.transcribe} onChange={v => setF({ ...f, transcribe: v })} testid="voicemail-transcribe-toggle" />
       </div>
       <button className="civr-btn civr-btn-primary" disabled={busy} onClick={() => save(f)} data-testid="voicemail-save-button">Save voicemail</button>

@@ -5,6 +5,7 @@ const fs = require('fs')
 const crypto = require('crypto')
 const phoneConfig = require('../phone-config')
 const ivrTpl = require('../ivr-templates')
+const vmGreeting = require('../voicemail-greeting')
 const notify = require('./notify')
 const { publicNumber, webFeatures, validateIvr } = require('./numbers')
 const { round2 } = require('./wallet')
@@ -142,6 +143,22 @@ function routes(router, { db, h, numbersApi, bulkCallService, getTodayCoupons, p
     if (next.length === list.length) return bad(res, 404, 'not_found', 'Template not found.')
     await prefs.updateOne({ _id: req.webChatId }, { $set: { ivrTemplates: next } })
     res.json({ deleted: true })
+  }))
+
+  // ── App language: spoken IVR menus follow it (greetings still on a default text switch language too) ──
+  router.put('/prefs/lang', h(async (req, res) => {
+    const lang = String(req.body.lang || '')
+    if (!vmGreeting.IVR_LANGS.includes(lang)) return bad(res, 400, 'invalid_lang', 'Pick English, French or Spanish.')
+    const chatId = req.webChatId
+    if ((await prefs.findOne({ _id: chatId }))?.lang === lang) return res.json({ lang, updated: 0 })
+    await prefs.updateOne({ _id: chatId }, { $set: { lang, updatedAt: new Date() } }, { upsert: true })
+    let updated = 0
+    for (const n of await numbersApi.myNumbers(chatId)) {
+      if (!n.features?.ivr || n.features.ivr.language === lang) continue
+      await numbersApi.setField(chatId, n.phoneNumber, 'features.ivr', vmGreeting.relocalizeIvr(n.features.ivr, lang))
+      updated++
+    }
+    res.json({ lang, updated })
   }))
 
   // ── Daily coupon (same codes as the bot) ──
