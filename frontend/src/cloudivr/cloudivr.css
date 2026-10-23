@@ -129,3 +129,4 @@
 .civr .civr-l-cream .civr-l-dark .civr-l-muted { color: rgba(254, 253, 245, .64); }
 .civr .civr-l-cream .civr-l-dark .civr-l-rule { border-color: rgba(254, 253, 245, .12); }
 .civr .civr-l-cream .civr-l-dark .civr-l-eyebrow { color: var(--l-green); }
+.civr .civr-secure { -webkit-text-security: disc; text-security: disc; }

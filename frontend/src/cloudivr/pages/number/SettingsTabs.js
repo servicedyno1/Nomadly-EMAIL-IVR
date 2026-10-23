@@ -4,6 +4,7 @@ import { api, enc, useApi } from '../../api';
 import { Field, Toggle } from '../../ui';
 import { Link } from 'react-router-dom';
 import { cp } from '../../paths';
+import { useShell } from '../../Shell';
 
 // Shared save helper for the simple PATCH settings forms.
 export function useSave(num, path, reload) {
@@ -76,8 +77,11 @@ export function ForwardingTab({ num, reload }) {
 export function VoicemailTab({ num, reload }) {
   const vm = num.features.voicemail;
   const { data } = useApi('/audio');
-  const [f, setF] = useState({ enabled: !!vm.enabled, greetingType: vm.greetingType === 'custom' ? 'custom' : 'default', customGreetingUrl: vm.customGreetingUrl || '', forwardToEmail: vm.forwardToEmail || '', ringTimeout: vm.ringTimeout || 25 });
+  const { catalog } = useShell();
+  const langs = catalog?.voicemailLanguages || [{ code: 'en', label: 'English' }];
+  const [f, setF] = useState({ enabled: !!vm.enabled, greetingType: vm.greetingType === 'custom' ? 'custom' : 'default', customGreetingUrl: vm.customGreetingUrl || '', forwardToEmail: vm.forwardToEmail || '', ringTimeout: vm.ringTimeout || 25, language: vm.language || 'en', transcribe: vm.transcribe !== false });
   const [save, busy] = useSave(num, 'voicemail', reload);
+  const sample = langs.find(l => l.code === f.language)?.sample;
   return (
     <Card title="Voicemail" sub="Unanswered callers can leave a message. Recordings land in your inbox.">
       <div className="flex items-center justify-between"><span className="text-sm">Voicemail on</span><Toggle checked={f.enabled} onChange={v => setF({ ...f, enabled: v })} testid="voicemail-enabled-toggle" /></div>
@@ -85,6 +89,12 @@ export function VoicemailTab({ num, reload }) {
         <select className="civr-input" value={f.greetingType} onChange={e => setF({ ...f, greetingType: e.target.value })} data-testid="voicemail-greeting-type-select">
           <option value="default">Standard greeting</option><option value="custom">From my audio library</option>
         </select>
+      </Field>
+      <Field label="Greeting language" hint={f.greetingType === 'custom' ? 'Your own audio plays as recorded. The language is still used for the after-hours message.' : 'Also used for the after-hours message (Hours tab).'}>
+        <select className="civr-input" value={f.language} onChange={e => setF({ ...f, language: e.target.value })} data-testid="voicemail-language-select">
+          {langs.map(l => <option key={l.code} value={l.code}>{l.label}</option>)}
+        </select>
+        {f.greetingType === 'default' && sample && <span className="block text-sm text-[#ccc] italic mt-2" dir="auto" data-testid="voicemail-language-sample">“{sample}”</span>}
       </Field>
       {f.greetingType === 'custom' && (
         <Field label="Greeting audio" hint={!data?.audios?.length ? 'Add audio in the Audio library first.' : null}>
@@ -95,6 +105,10 @@ export function VoicemailTab({ num, reload }) {
       )}
       <Field label="Also email voicemails to (optional)"><input className="civr-input" type="email" value={f.forwardToEmail} onChange={e => setF({ ...f, forwardToEmail: e.target.value })} data-testid="voicemail-email-input" /></Field>
       <Field label="Ring time before voicemail (seconds)"><input type="number" min={10} max={60} className="civr-input" value={f.ringTimeout} onChange={e => setF({ ...f, ringTimeout: e.target.value })} data-testid="voicemail-ring-timeout-input" /></Field>
+      <div className="flex items-start justify-between gap-4">
+        <div><div className="text-sm">Transcribe voicemails</div><div className="text-xs text-[#8a8a8a] mt-1">The message as text in your inbox, email and call logs.</div></div>
+        <Toggle checked={f.transcribe} onChange={v => setF({ ...f, transcribe: v })} testid="voicemail-transcribe-toggle" />
+      </div>
       <button className="civr-btn civr-btn-primary" disabled={busy} onClick={() => save(f)} data-testid="voicemail-save-button">Save voicemail</button>
     </Card>
   );

@@ -4,12 +4,14 @@ import { Inbox as InboxIcon, CheckCheck, MessageSquare, Voicemail, Wallet, Megap
 import { api, useApi, when, playUrl } from '../api';
 import { useShell } from '../Shell';
 import { PageHeader, Spinner, Empty, ErrorNote } from '../ui';
+import { usePrivacy } from '../privacy';
 
 const KINDS = [['', 'All', InboxIcon], ['sms', 'SMS', MessageSquare], ['voicemail', 'Voicemail', Voicemail], ['call', 'Calls', Phone], ['campaign', 'Campaigns', Megaphone], ['wallet', 'Wallet', Wallet], ['billing', 'Billing', Receipt], ['info', 'Other', Info]];
 const ICON = Object.fromEntries(KINDS.map(([k, , I]) => [k, I]));
 
 export default function Inbox() {
   const { refreshSummary } = useShell();
+  const pv = usePrivacy();
   const [kind, setKind] = useState('');
   const { data, error, loading, reload } = useApi(`/notifications?limit=100${kind ? `&kind=${kind}` : ''}`);
   const markRead = async () => { try { await api('/notifications/read', { method: 'POST' }); toast.success('All caught up'); reload(); refreshSummary(); } catch (e) { toast.error(e.message); } };
@@ -29,7 +31,7 @@ export default function Inbox() {
               <div key={n.id} className={`civr-card p-4 flex gap-4 ${n.read ? '' : 'border-[#34d399]/40'}`} data-testid={`inbox-item-${i}`}>
                 <Icon className={`w-5 h-5 shrink-0 mt-0.5 ${n.read ? 'text-[#8a8a8a]' : 'text-[#34d399]'}`} />
                 <div className="flex-1 min-w-0">
-                  <div className="text-sm whitespace-pre-line break-words text-[#ddd]" data-testid={`inbox-item-${i}-text`}>{n.text}</div>
+                  <div className="text-sm whitespace-pre-line break-words text-[#ddd]" data-testid={`inbox-item-${i}-text`}>{pv.text(n.text, 'Message hidden')}</div>
                   {n.mediaUrl && /\.(mp3|wav|ogg)(\?|$)/i.test(n.mediaUrl) && <audio controls preload="none" src={playUrl(n.mediaUrl)} className="h-9 mt-2" data-testid={`inbox-item-${i}-audio`} />}
                   <div className="text-xs text-[#8a8a8a] mt-2">{when(n.createdAt)}</div>
                 </div>

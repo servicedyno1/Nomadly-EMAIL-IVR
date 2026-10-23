@@ -6,7 +6,7 @@ const KINDS = [['all', 'All'], ['calls', 'Calls'], ['sms', 'SMS'], ['voicemail',
 
 export default function LogsTab({ num }) {
   const [kind, setKind] = useState('all');
-  const { data, loading } = useApi(`/numbers/${enc(num.phoneNumber)}/logs?kind=${kind}`);
+  const { data, loading, reload } = useApi(`/numbers/${enc(num.phoneNumber)}/logs?kind=${kind}`);
   return (
     <div className="civr-card p-6">
       <div className="flex flex-wrap gap-2 mb-4">
@@ -14,7 +14,7 @@ export default function LogsTab({ num }) {
           <button key={k} onClick={() => setKind(k)} className={`civr-pill cursor-pointer ${kind === k ? 'civr-pill-on' : ''}`} data-testid={`logs-filter-${k}`}>{label}</button>
         ))}
       </div>
-      {loading ? <div className="text-sm text-[#8a8a8a] py-6">Loading…</div> : <LogTable logs={data?.logs} testid="number-logs" />}
+      {loading && !data ? <div className="text-sm text-[#8a8a8a] py-6">Loading…</div> : <LogTable logs={data?.logs} testid="number-logs" notePhone={num.phoneNumber} onNotesChange={reload} />}
     </div>
   );
 }

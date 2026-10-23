@@ -6,6 +6,7 @@ import { api, useApi, when, secs } from '../api';
 import { useShell } from '../Shell';
 import { Spinner, ErrorNote, statusPill } from '../ui';
 import { cp } from '../paths';
+import { usePrivacy } from '../privacy';
 
 const STATS = [['total', 'Numbers'], ['completed', 'Called'], ['answered', 'Answered'], ['keyPressed', 'Pressed a key'], ['transferred', 'Transferred'], ['noAnswer', 'No answer']];
 const LIVE = ['running', 'scheduled'];
@@ -25,6 +26,7 @@ function Controls({ c, act, busy }) {
 export default function CampaignDetail() {
   const { id } = useParams();
   const { refreshSummary } = useShell();
+  const pv = usePrivacy();
   const { data, error, loading, reload, setData } = useApi(`/campaigns/${id}`);
   const [busy, setBusy] = useState(false);
   const c = data?.campaign;
@@ -49,9 +51,9 @@ export default function CampaignDetail() {
       <Link to={cp('/app/campaigns')} className="inline-flex items-center gap-2 text-sm text-[#888] hover:text-[#34d399] mb-6" data-testid="campaign-back-link"><ArrowLeft className="w-4 h-4" />All campaigns</Link>
       <div className="flex flex-col md:flex-row md:items-end gap-4 justify-between mb-8">
         <div>
-          <div className="civr-label">{c.mode === 'transfer' ? `Transfer to ${c.transferNumber}` : 'Report key presses'} · keys {c.activeKeys?.join(' ')}</div>
+          <div className="civr-label">{c.mode === 'transfer' ? `Transfer to ${pv.phone(c.transferNumber)}` : 'Report key presses'} · keys {c.activeKeys?.join(' ')}</div>
           <h1 className="font-display text-4xl sm:text-5xl font-extrabold mt-2" data-testid="campaign-title">{c.audioName || 'Campaign'}</h1>
-          <div className="text-sm text-[#888] font-mono mt-1">from {c.callerId} · created {when(c.createdAt)}{c.scheduledFor ? ` · scheduled ${when(c.scheduledFor)}` : ''}</div>
+          <div className="text-sm text-[#888] font-mono mt-1">from {pv.phone(c.callerId)} · created {when(c.createdAt)}{c.scheduledFor ? ` · scheduled ${when(c.scheduledFor)}` : ''}</div>
         </div>
         <div className="flex items-center gap-2"><span className={statusPill(c.status)} data-testid="campaign-status">{c.status}</span>{c.dryRun && <span className="civr-pill civr-pill-warn">preview</span>}</div>
       </div>
@@ -67,7 +69,7 @@ export default function CampaignDetail() {
         <table className="civr-table" data-testid="campaign-leads-table">
           <thead><tr><th>Number</th><th>Name</th><th>Status</th><th>Key</th><th>Length</th></tr></thead>
           <tbody>{(c.leads || []).map((l, i) => (
-            <tr key={`${l.number}-${i}`} data-testid={`campaign-lead-${i}`}><td className="font-mono text-xs">{l.number}</td><td>{l.name || '—'}</td><td><span className={statusPill(l.status)}>{l.status}</span>{l.transferred && <span className="civr-pill civr-pill-on ml-1">transferred</span>}</td><td className="font-mono">{l.digitPressed || '—'}</td><td className="font-mono text-xs">{l.duration ? secs(l.duration) : '—'}</td></tr>
+            <tr key={`${l.number}-${i}`} data-testid={`campaign-lead-${i}`}><td className="font-mono text-xs">{pv.phone(l.number)}</td><td>{pv.text(l.name, '•••') || '—'}</td><td><span className={statusPill(l.status)}>{l.status}</span>{l.transferred && <span className="civr-pill civr-pill-on ml-1">transferred</span>}</td><td className="font-mono">{l.digitPressed || '—'}</td><td className="font-mono text-xs">{l.duration ? secs(l.duration) : '—'}</td></tr>
           ))}</tbody>
         </table>
       </div>

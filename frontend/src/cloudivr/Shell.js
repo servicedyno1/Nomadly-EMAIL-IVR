@@ -1,9 +1,10 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { NavLink, Route, Routes, Link, useNavigate } from 'react-router-dom';
-import { Bell, LogOut, Phone, Plus, LifeBuoy } from 'lucide-react';
+import { Bell, LogOut, Phone, Plus, LifeBuoy, Eye, EyeOff } from 'lucide-react';
 import { api, money } from './api';
 import { useCivrAuth } from './AuthContext';
 import { PreviewBanner } from './ui';
+import { PrivacyProvider, PrivateBanner, usePrivacy } from './privacy';
 import Softphone from './Softphone';
 import MobileNav from './MobileNav';
 import { NAV, appPath } from './nav';
@@ -56,15 +57,26 @@ function Sidebar({ supportLink }) {
   );
 }
 
+function PrivateButton() {
+  const { on, toggle } = usePrivacy();
+  const Icon = on ? EyeOff : Eye;
+  const tip = on ? 'Private mode on — tap to show numbers and messages' : 'Private mode — hide numbers and messages';
+  return (
+    <button onClick={toggle} aria-pressed={on} aria-label={tip} title={tip} data-testid="topbar-private-mode-button" data-private={on ? 'on' : 'off'}
+      className={`${ICON_BTN} ${on ? 'text-[#c4b5fd] bg-[#a78bfa]/15 hover:bg-[#a78bfa]/25' : ''}`}><Icon className="w-5 h-5" /></button>
+  );
+}
+
 function TopBar({ summary, onPhone }) {
   const { account, logout } = useCivrAuth();
   const nav = useNavigate();
   return (
-    <header className="civr-glass sticky top-0 z-30 flex items-center gap-2 px-4 md:px-8 h-16">
-      <Link to={cp('/app')} className="font-display text-2xl font-extrabold tracking-tight mr-auto lg:hidden" data-testid="topbar-logo">CLOUD<span className="text-[#34d399]">IVR</span></Link>
+    <header className="civr-glass sticky top-0 z-30 flex items-center gap-1 sm:gap-2 px-4 md:px-8 h-16">
+      <Link to={cp('/app')} className="font-display text-xl sm:text-2xl font-extrabold tracking-tight mr-auto lg:hidden" data-testid="topbar-logo">CLOUD<span className="text-[#34d399]">IVR</span></Link>
       <div className="hidden lg:block mr-auto text-sm text-[#a1a1aa]" data-testid="topbar-greeting">Signed in as <span className="text-[#ddd]">{account?.email}</span></div>
       <Link to={cp('/app/wallet')} className="civr-pill civr-pill-on !text-sm !normal-case !tracking-normal h-9" data-testid="topbar-balance">{money(summary?.balance)}</Link>
       <Link to={cp('/app/wallet')} className="civr-btn civr-btn-ghost civr-btn-sm !hidden md:!inline-flex" data-testid="topbar-add-funds-button"><Plus className="w-4 h-4" />Add funds</Link>
+      <PrivateButton />
       <Link to={cp('/app/inbox')} className={ICON_BTN} data-testid="topbar-inbox-button" aria-label="Inbox">
         <Bell className="w-5 h-5" />
         {summary?.unread > 0 && <span className="absolute top-1 right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-[#34d399] text-[#04130d] text-[10px] font-bold flex items-center justify-center" data-testid="topbar-unread-count">{summary.unread}</span>}
@@ -89,11 +101,13 @@ export default function Shell() {
 
   return (
     <ShellCtx.Provider value={{ summary, refreshSummary, catalog, openPhone: () => setPhoneOpen(true) }}>
+     <PrivacyProvider>
       <div className="lg:flex">
         <Sidebar supportLink={catalog?.supportLink} />
         <div className="flex-1 min-w-0">
           <PreviewBanner show={catalog?.dryRun} livePayments={catalog?.livePayments} />
           <TopBar summary={summary} onPhone={() => setPhoneOpen(o => !o)} />
+          <PrivateBanner />
           <main className="px-4 md:px-8 pt-8 md:pt-10 pb-28 lg:pb-12 max-w-7xl mx-auto" data-testid="app-main">
             <Routes>
               <Route index element={<Dashboard />} />
@@ -116,6 +130,7 @@ export default function Shell() {
       </div>
       <MobileNav />
       <Softphone open={phoneOpen} onClose={() => setPhoneOpen(false)} />
+     </PrivacyProvider>
     </ShellCtx.Provider>
   );
 }

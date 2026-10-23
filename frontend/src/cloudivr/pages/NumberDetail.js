@@ -8,12 +8,14 @@ import SipTab from './number/SipTab';
 import IvrTab from './number/IvrTab';
 import LogsTab from './number/LogsTab';
 import BillingTab from './number/BillingTab';
+import HoursTab from './number/HoursTab';
 import { cp } from '../paths';
 import { useShell } from '../Shell';
 import { planFor } from '../PlanFeatures';
+import { usePrivacy } from '../privacy';
 
 const TABS = [
-  ['overview', 'Overview', null, OverviewTab], ['forwarding', 'Forwarding', 'callForwarding', ForwardingTab], ['ivr', 'IVR', 'ivr', IvrTab],
+  ['overview', 'Overview', null, OverviewTab], ['forwarding', 'Forwarding', 'callForwarding', ForwardingTab], ['hours', 'Hours', null, HoursTab], ['ivr', 'IVR', 'ivr', IvrTab],
   ['voicemail', 'Voicemail', 'voicemail', VoicemailTab], ['sms', 'SMS', null, SmsTab], ['sip', 'SIP', 'sipCredentials', SipTab],
   ['recording', 'Recording', 'callRecording', RecordingTab], ['logs', 'Logs', null, LogsTab], ['billing', 'Billing', null, BillingTab],
 ];
@@ -24,6 +26,7 @@ export default function NumberDetail() {
   const nav = useNavigate();
   const { data, error, loading, reload } = useApi(`/numbers/${enc(phone)}`);
   const { catalog } = useShell();
+  const pv = usePrivacy();
   const tab = params.get('tab') || 'overview';
   const n = data?.number;
   if (loading && !n) return <Spinner />;
@@ -35,7 +38,7 @@ export default function NumberDetail() {
       <div className="flex flex-col md:flex-row md:items-end gap-4 justify-between mb-8 civr-rise">
         <div>
           <div className="civr-label">{n.countryName || n.country} · {n.type?.replace('_', '-')} · {n.planName}</div>
-          <h1 className="font-mono text-4xl sm:text-5xl mt-2" data-testid="number-detail-phone">{n.phoneNumber}</h1>
+          <h1 className="font-mono text-4xl sm:text-5xl mt-2" data-testid="number-detail-phone">{pv.phone(n.phoneNumber)}</h1>
         </div>
         <div className="flex items-center gap-2">
           <span className={statusPill(n.status)} data-testid="number-detail-status">{n.status}</span>

@@ -7,9 +7,11 @@ import { PageHeader, Field, Spinner, Empty, AudioSelect, KeyPicker, Toggle, Erro
 import { useCallerNumbers } from './QuickCall';
 import { DateTimePicker } from '../DateTimePicker';
 import { cp } from '../paths';
+import { usePrivacy } from '../privacy';
 
 export function Campaigns() {
   const { data, loading, error } = useApi('/campaigns');
+  const pv = usePrivacy();
   const list = data?.campaigns || [];
   return (
     <div data-testid="campaigns-page">
@@ -21,7 +23,7 @@ export function Campaigns() {
         <div className="space-y-3">
           {list.map((c, i) => (
             <Link key={c.id} to={cp(`/app/campaigns/${c.id}`)} className="civr-card civr-card-link p-6 flex flex-col md:flex-row md:items-center gap-3" data-testid={`campaign-row-${i}`}>
-              <div className="flex-1 min-w-0"><div className="font-semibold truncate">{c.audioName || 'Campaign'}</div><div className="text-xs text-[#9a9a9a] font-mono">{c.callerId} · {when(c.createdAt)}</div></div>
+              <div className="flex-1 min-w-0"><div className="font-semibold truncate">{c.audioName || 'Campaign'}</div><div className="text-xs text-[#9a9a9a] font-mono">{pv.phone(c.callerId)} · {when(c.createdAt)}</div></div>
               <div className="font-mono text-sm text-[#aaa]">{c.stats?.completed || 0}/{c.stats?.total || 0} called</div>
               <span className={statusPill(c.status)} data-testid={`campaign-row-${i}-status`}>{c.status}</span>
               {c.dryRun && <span className="civr-pill civr-pill-warn">preview</span>}

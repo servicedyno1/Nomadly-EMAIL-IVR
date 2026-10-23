@@ -34,6 +34,7 @@ const WEB_FEATURES = [
   ['forwarding', 'Call forwarding to any phone', 'callForwarding'],
   ['hours', 'On/off hours for each number', null],
   ['notes', 'Call notes', null],
+  ['private', 'Private mode — hide numbers on screen', null],
   ['voicemail', 'Voicemail in 4 languages + transcripts', 'voicemail'],
   ['browserPhone', 'Browser phone & SIP for softphones', 'sipCredentials'],
   ['smsEmail', 'SMS to email & webhooks', 'smsToEmail'],
