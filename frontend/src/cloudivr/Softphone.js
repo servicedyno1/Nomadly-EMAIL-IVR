@@ -2,6 +2,8 @@ import React, { useEffect, useRef, useState } from 'react';
 import { TelnyxRTC } from '@telnyx/webrtc';
 import { X, Phone, PhoneOff, Delete, Loader2 } from 'lucide-react';
 import { api, enc } from './api';
+import { Link } from 'react-router-dom';
+import { cp } from './paths';
 
 const KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '*', '0', '#'];
 const STATUS = { idle: 'Offline', connecting: 'Connecting…', ready: 'Online', error: 'Not connected' };
@@ -58,7 +60,12 @@ export default function Softphone({ open, onClose }) {
     <div className={`fixed bottom-24 lg:bottom-4 right-4 left-4 sm:left-auto z-50 sm:w-[320px] civr-card p-6 shadow-2xl transition-[opacity,transform] duration-200 ${open ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4 pointer-events-none'}`} data-testid="softphone-panel">
       <audio id="civr-remote-audio" autoPlay />
       <div className="flex items-center justify-between mb-4"><span className="font-display text-xl font-bold">Browser phone</span><button onClick={onClose} className="p-1 text-[#888] hover:text-white" data-testid="softphone-close-button" aria-label="Close"><X className="w-4 h-4" /></button></div>
-      {!nums.length ? <p className="text-sm text-[#888]" data-testid="softphone-no-numbers">You need an active number on a plan with SIP to call from the browser.</p> : (
+      {!nums.length ? (
+        <div data-testid="softphone-no-numbers">
+          <p className="text-sm text-[#888]">Calling from the browser needs an active number on the Pro plan or higher.</p>
+          <Link to={cp('/app/numbers')} onClick={onClose} className="civr-btn civr-btn-ghost civr-btn-sm mt-4" data-testid="softphone-upgrade-link">Upgrade a number</Link>
+        </div>
+      ) : (
         <>
           <div className="flex gap-2 mb-3">
             <select className="civr-input !h-9 font-mono text-xs" value={sel} onChange={e => setSel(e.target.value)} data-testid="softphone-number-select">{nums.map(n => <option key={n.phoneNumber}>{n.phoneNumber}</option>)}</select>

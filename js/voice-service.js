@@ -7,6 +7,10 @@ const { formatPhone, formatDuration, canAccessFeature, plans, OVERAGE_RATE_MIN, 
 const { getBalance, smartWalletDeduct, smartWalletCheck, forceWalletDebit } = require('./utils.js')
 const dialGuard = require('./dial-rate-guard.js')
 const callSessionStore = require('./call-session-store.js')
+const numberHours = require('./number-hours.js')
+const vmGreeting = require('./voicemail-greeting.js')
+// CloudIVR web accounts (reserved chatId range): voicemail is kept, transcribed and emailed. Loaded lazily (see _webVoicemail).
+let _webVoicemailDeliver = null
 
 let _bot = null
 let _db = null
@@ -1938,24 +1942,7 @@ async function handleBridgeTransferHangup(payload) {
         else if (vm?.enabled && canAccessFeature(transfer.num.plan, 'voicemail')) {
           origSession.phase = 'voicemail_greeting'
           log(`[Voice] SIP no answer → playing voicemail for ${transfer.num.phoneNumber}`)
-          if (vm.greetingType === 'custom' && vm.customAudioGreetingUrl) {
-            try {
-              const axios = require('axios')
-              await axios.post(`https://api.telnyx.com/v2/calls/${transfer.originalCallControlId}/actions/playback_start`, {
-                audio_url: vm.customAudioGreetingUrl,
-              }, {
-                headers: { 'Authorization': `Bearer ${process.env.TELNYX_API_KEY}`, 'Content-Type': 'application/json' }
-              })
-            } catch (e) {
-              const fallback = vm.customGreetingText || `The person at ${formatPhone(transfer.num.phoneNumber)} is unavailable. Please leave a message after the tone.`
-              await _telnyxApi.speakOnCall(transfer.originalCallControlId, fallback)
-            }
-          } else {
-            const greeting = vm.greetingType === 'custom' && vm.customGreetingText
-              ? vm.customGreetingText
-              : `The person at ${formatPhone(transfer.num.phoneNumber)} is unavailable. Please leave a message after the tone.`
-            await _telnyxApi.speakOnCall(transfer.originalCallControlId, greeting)
-          }
+          await playVoicemailGreeting(transfer.originalCallControlId, transfer.num, vm)
         }
         // No forwarding or voicemail — missed call
         else {
@@ -2403,6 +2390,8 @@ async function handleCallInitiated(payload) {
     startedAt: new Date(),
     phase: 'answering',
     recordingEnabled: num.features?.recording === true && canAccessFeature(num.plan, 'callRecording'),
+    // On/off hours (CloudIVR web): outside the hours the number doesn't ring or forward — see routeOffHours.
+    offHours: !!(num.features?.hours?.enabled && !numberHours.isOpen(num.features.hours)),
   }
 
   // ── MID-CALL LIMIT MONITOR ──
@@ -2476,8 +2465,8 @@ async function handleCallInitiated(payload) {
   const hasIvr = ivrConfig?.enabled && canAccessFeature(num.plan, 'ivr') && ivrConfig.options && Object.keys(ivrConfig.options).length > 0
   const hasForwardAlways = fwdConfig?.enabled && fwdConfig.forwardTo && fwdConfig.mode === 'always'
 
-  // Only do unanswered SIP ring if: has SIP, no IVR, no forward-always (those need answered call)
-  if (hasSip && !hasIvr && !hasForwardAlways) {
+  // Only do unanswered SIP ring if: has SIP, no IVR, no forward-always (those need answered call), and the number is not off
+  if (hasSip && !hasIvr && !hasForwardAlways && !sessionRef.offHours) {
     sessionRef.phase = 'ringing_sip'
     const sipUser = num.telnyxSipUsername || num.sipUsername
     const sipUri = `sip:${sipUser}@sip.telnyx.com`
@@ -3638,6 +3627,71 @@ async function findNumberBySipUser(sipUsername, fromPhone, connectionPhoneNumber
 // CALL ANSWERED — Route based on features
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
+// ── Voicemail greeting ──
+// Own audio when set (greetingType 'custom'), else the standard greeting — spoken in the chosen language for numbers
+// that picked one (CloudIVR web), or the original English wording. `say` = { text, language } overrides the speech.
+async function playVoicemailGreeting(callControlId, num, vm = {}, say = null) {
+  const audioUrl = vm.greetingType === 'custom' ? (vm.customAudioGreetingUrl || vm.customGreetingUrl || null) : null
+  const legacy = `The person at ${formatPhone(num.phoneNumber)} is unavailable. Please leave a message after the tone.`
+  if (audioUrl && !say) {
+    try {
+      const axios = require('axios')
+      await axios.post(`https://api.telnyx.com/v2/calls/${callControlId}/actions/playback_start`, { audio_url: audioUrl }, {
+        headers: { 'Authorization': `Bearer ${process.env.TELNYX_API_KEY}`, 'Content-Type': 'application/json' },
+      })
+      return
+    } catch (e) {
+      log(`[Voice] Custom audio playback failed, falling back to TTS: ${e.message}`)
+      if (!vm.language) return _telnyxApi.speakOnCall(callControlId, vm.customGreetingText || legacy)
+    }
+  }
+  if (say) return _telnyxApi.speakOnCall(callControlId, say.text, 'female', say.language)
+  if (vm.greetingType === 'custom' && vm.customGreetingText) return _telnyxApi.speakOnCall(callControlId, vm.customGreetingText)
+  if (vm.language) {
+    const g = vmGreeting.standardGreeting(vm.language, num.phoneNumber)
+    return _telnyxApi.speakOnCall(callControlId, g.text, 'female', g.language)
+  }
+  return _telnyxApi.speakOnCall(callControlId, legacy)
+}
+
+// ── On/off hours ──
+// Outside a number's hours nothing rings or forwards: the caller gets voicemail (plans with voicemail, unless the
+// owner chose "message") or the closed message, then the call ends. Only numbers with hours switched on get here.
+async function routeOffHours(callControlId, session) {
+  const { num, chatId, to, from } = session
+  const hrs = num.features?.hours || {}
+  const vm = num.features?.voicemail || {}
+  const lang = vm.language || 'en'
+  const toVoicemail = hrs.offAction !== 'message' && canAccessFeature(num.plan, 'voicemail')
+  log(`[Voice] ${to} is OFF (outside hours, tz=${hrs.timezone}) — ${toVoicemail ? 'voicemail' : 'closed message'} for ${from}`)
+  logEvent(to, from, 'off_hours', 0)
+  const what = toVoicemail ? 'They were offered voicemail.' : 'They heard your closed message.'
+  _bot?.sendMessage(chatId, `📴 <b>Call outside your hours</b>\n\n📞 To: ${formatPhone(to)}\n👤 From: ${formatPhone(from)}\n${what}`, { parse_mode: 'HTML' }).catch(() => {})
+  if (toVoicemail) {
+    session.phase = 'voicemail_greeting'
+    const custom = String(hrs.offMessage || '').trim()
+    const ownAudio = vm.greetingType === 'custom' && (vm.customAudioGreetingUrl || vm.customGreetingUrl)
+    await playVoicemailGreeting(callControlId, num, vm, (custom || !ownAudio) ? vmGreeting.closedMessage(lang, custom, true) : null)
+    return
+  }
+  session.phase = 'off_hours'
+  const say = vmGreeting.closedMessage(lang, hrs.offMessage, false)
+  await _telnyxApi.speakOnCall(callControlId, say.text, 'female', say.language)
+  // Hang up when the message ends (handleSpeakEnded); this is the safety net.
+  setTimeout(() => { if (activeCalls[callControlId] && !isCallEnded(callControlId)) _telnyxApi.hangupCall(callControlId).catch(() => {}) }, 25000)
+}
+
+// Lazily builds the web voicemail deliverer (keeps voice-service free of web deps at load time).
+function _webVoicemail() {
+  if (_webVoicemailDeliver) return _webVoicemailDeliver
+  const { createVoicemailDelivery } = require('./cloudivr-web/voicemail-delivery.js')
+  const audioLib = require('./audio-library-service.js')
+  const { transcribe } = require('./voicemail-transcribe.js')
+  const { sendMail } = require('./cloudivr-web/auth.js')
+  _webVoicemailDeliver = createVoicemailDelivery({ saveBuffer: audioLib.saveBuffer, transcribe, sendMail, phoneLogs: _phoneLogs, bot: _bot, formatPhone, log })
+  return _webVoicemailDeliver
+}
+
 async function handleCallAnswered(payload) {
   const callControlId = payload.call_control_id
   const session = activeCalls[callControlId]
@@ -3659,6 +3713,12 @@ async function handleCallAnswered(payload) {
       session.isRecording = true
     }
     session.phase = session.phase === 'outbound_telnyx' ? 'outbound_telnyx_active' : session.phase
+    return
+  }
+
+  // On/off hours: outside the number's hours nothing rings or forwards (checked before recording starts).
+  if (session.offHours) {
+    await routeOffHours(callControlId, session)
     return
   }
 
@@ -3847,31 +3907,7 @@ async function handleCallAnswered(payload) {
   // 5. Voicemail — Pro/Business (also counts toward minutes)
   if (vmConfig?.enabled && canAccessFeature(num.plan, 'voicemail')) {
     session.phase = 'voicemail_greeting'
-    
-    // Check for custom audio greeting first
-    if (vmConfig.greetingType === 'custom' && vmConfig.customAudioGreetingUrl) {
-      try {
-        const axios = require('axios')
-        await axios.post(`https://api.telnyx.com/v2/calls/${callControlId}/actions/playback_start`, {
-          audio_url: vmConfig.customAudioGreetingUrl,
-        }, {
-          headers: {
-            'Authorization': `Bearer ${process.env.TELNYX_API_KEY}`,
-            'Content-Type': 'application/json',
-          }
-        })
-      } catch (e) {
-        log(`[Voice] Custom audio playback failed, falling back to TTS: ${e.message}`)
-        const fallback = vmConfig.customGreetingText || `The person at ${formatPhone(num.phoneNumber)} is unavailable. Please leave a message after the tone.`
-        await _telnyxApi.speakOnCall(callControlId, fallback)
-      }
-      return
-    }
-    
-    const greeting = vmConfig.greetingType === 'custom' && vmConfig.customGreetingText
-      ? vmConfig.customGreetingText
-      : `The person at ${formatPhone(num.phoneNumber)} is unavailable. Please leave a message after the tone.`
-    await _telnyxApi.speakOnCall(callControlId, greeting)
+    await playVoicemailGreeting(callControlId, num, vmConfig)
     return
   }
 
@@ -4123,6 +4159,11 @@ async function handleSpeakEnded(payload) {
   // ── Race condition guard: skip if call already ended ──
   if (isCallEnded(callControlId)) return
 
+  if (session.phase === 'off_hours') {
+    await _telnyxApi.hangupCall(callControlId).catch(() => {})
+    return
+  }
+
   if (session.phase === 'voicemail_greeting') {
     session.phase = 'voicemail_recording'
     log(`[Voice] Starting voicemail recording for ${session.num.phoneNumber}`)
@@ -4154,6 +4195,11 @@ async function handleRecordingSaved(payload) {
 
   if (session.phase === 'voicemail_recording') {
     log(`[Voice] Voicemail saved for ${to} from ${from}: ${recordingUrl}`)
+
+    // CloudIVR web accounts: keep the MP3 (Telnyx links expire), transcribe, inbox + email. Falls back to the bot path on error.
+    if (recordingUrl && require('./cloudivr-web/notify.js').isWebChatId(chatId)) {
+      try { await _webVoicemail()({ chatId, num, from, to, recordingUrl, duration }); return } catch (e) { log(`[Voice] Web voicemail delivery failed, using default delivery: ${e.message}`) }
+    }
 
     if (num.features?.voicemail?.forwardToTelegram && recordingUrl) {
       const caption = `🎙️ <b>New Voicemail</b>\n\n📞 To: ${formatPhone(to)}\n👤 From: ${formatPhone(from)}\n⏱️ Duration: ${formatDuration(duration)}\n🕐 ${time}`

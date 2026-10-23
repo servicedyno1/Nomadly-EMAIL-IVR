@@ -1,5 +1,11 @@
 # PRD — Nomadly Cloud IVR + Telegram Bot
 
+## 2026-10-24 — CloudIVR: 6 Onoff-style features — BACKEND DONE (31/31 unit), FRONTEND PENDING, NOT pushed/deployed
+- Owner picks: Pro default plan (DONE), On/off hours, Call notes, Call me first (per-call switch on dialer), Voicemail transcription
+  (owner's own OpenAI key APP_OPEN_API_KEY), Voicemail greeting language (EN/FR/PT/AR), Private mode (tap again to unhide, no PIN).
+- Full handoff, API contract and UI TODO list: **memory/CLOUDIVR_FEATURES_PROGRESS_2026-10-24.md**.
+- Owner asked to push to main with a pasted GitHub token → not done (use Save to GitHub; revoke the token). main = live server; voice-service.js changed.
+
 ## 2026-10-23 (night) — CloudIVR Telnyx-style redesign + free test call + crypto checkout — TESTED (iteration_116/117, 16/16 pytest) — LIVE on https://cloudivr.net 2026-10-23 13:57Z (release 20261023T135709Z-54b98d4)
 - Landing (`pages/Landing.js` + `pages/landing/{Hero,Hero3D,Sections,PricingFaq,TryCall,TryLive,EmailGate,tryApi,kit}.js`): black/cream
   Telnyx-style sections, bright green accent, live R3F 3D hero. `Hero3D.js` is written with React.createElement (NO JSX) because the dev

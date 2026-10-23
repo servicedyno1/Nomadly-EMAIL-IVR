@@ -3,6 +3,7 @@
 const phoneConfig = require('../phone-config')
 const { walletOps } = require('./wallet')
 const { normPhone, E164 } = require('./numbers')
+const { spokenNumber } = require('../voicemail-greeting')
 
 const dryRun = () => process.env.WEB_CLOUDIVR_DRY_RUN === 'true'
 const QUICK_MIN_WALLET = 1
@@ -63,6 +64,38 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
     if (r?.error) return bad(res, 424, 'call_failed', String(r.error).slice(0, 200))
     log(`[CloudIVR-Web] quick IVR ${c.n.phoneNumber} → ${target} by ${chatId}`)
     res.status(201).json({ started: true, callId: r?.callControlId || r?.callSid || null, rate })
+  }))
+
+  // Call me first: we ring the owner's own phone from their CloudIVR number; pressing 1 connects them to `to`, who
+  // sees the CloudIVR number. Runs on the outbound IVR engine; both legs bill per minute (plan minutes first).
+  const prefs = db.collection('webPrefs')
+  router.get('/calls/callback', h(async (req, res) => {
+    const p = await prefs.findOne({ _id: req.webChatId })
+    res.json({ myPhone: p?.callbackPhone || '' })
+  }))
+  router.post('/calls/callback', h(async (req, res) => {
+    const chatId = req.webChatId
+    const c = await caller(chatId, req.body.callerId, 'ivrOutbound', 'Call me first')
+    if (c.err) return bad(res, ...c.err)
+    const me = normPhone(req.body.myPhone), to = normPhone(req.body.to)
+    if (!E164.test(me)) return bad(res, 400, 'invalid_my_phone', 'Enter your mobile number with country code, e.g. +14155550100.')
+    if (!E164.test(to)) return bad(res, 400, 'invalid_number', 'Enter the number to call with country code, e.g. +14155550100.')
+    for (const [n, label] of [[me, 'Your mobile'], [to, 'The number to call']]) {
+      if (phoneConfig.isBlockedPrefix(n)) return bad(res, 400, 'blocked_destination', `${label} (${n}) is a blocked premium/satellite destination.`)
+    }
+    if (me === c.n.phoneNumber || to === c.n.phoneNumber) return bad(res, 400, 'same_number', 'Use numbers other than your CloudIVR number.')
+    if (me === to) return bad(res, 400, 'same_number', 'Your mobile and the number to call must be different.')
+    const rateMe = voiceService.getIvrCallRate(me), rateTo = voiceService.getIvrCallRate(to)
+    const rate = Math.round((rateMe + rateTo) * 100) / 100
+    const bal = await w.balance(chatId)
+    if (bal < Math.max(QUICK_MIN_WALLET, rate)) return bad(res, 402, 'insufficient_balance', `Call me first bills both calls — about $${rate.toFixed(2)}/min together after your plan minutes. Your balance is $${bal.toFixed(2)} — top up first.`)
+    await prefs.updateOne({ _id: chatId }, { $set: { callbackPhone: me, updatedAt: new Date() } }, { upsert: true })
+    if (dryRun()) return res.status(202).json({ dryRun: true, rate, message: `Preview mode: we would ring ${me}, and after you press 1 connect you to ${to} showing ${c.n.phoneNumber}. Nothing was dialed.` })
+    const greetingText = `This is your CloudIVR line. Press 1 to call ${spokenNumber(to)}. To cancel, just hang up.`
+    const r = await voiceService.initiateOutboundIvrCall({ chatId, callerId: c.n.phoneNumber, targetNumber: me, ivrNumber: to, greetingText, activeKeys: ['1'], ivrMode: 'transfer', templateName: 'Call me first', holdMusic: false, provider: 'telnyx' })
+    if (r?.error) return bad(res, 424, 'call_failed', String(r.error).replace(/<[^>]+>/g, '').slice(0, 200))
+    log(`[CloudIVR-Web] call-me-first ${c.n.phoneNumber}: ${me} → ${to} by ${chatId}`)
+    res.status(201).json({ started: true, callId: r?.callControlId || null, rate })
   }))
 
   router.post('/campaigns/estimate', h(async (req, res) => {
