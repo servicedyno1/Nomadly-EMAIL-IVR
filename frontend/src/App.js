@@ -7,13 +7,13 @@ import PanelLogin from './pages/PanelLogin';
 import PanelDashboard from './pages/PanelDashboard';
 import PhoneTestPage from './pages/PhoneTestPage';
 import Storefront from './pages/Storefront';
-import CloudIvrApp from './cloudivr/CloudIvrApp';
-import { IS_CIVR_DOMAIN } from './cloudivr/paths';
 import './App.css';
 import './panel-v2.css';
 import './store.css';
 import './store-landing.css';
 import './panel-v3.css';
+import CloudIvrApp from './cloudivr/CloudIvrApp';
+import { IS_CIVR_DOMAIN } from './cloudivr/paths';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || '';
 const PANEL_DOMAIN = (process.env.REACT_APP_PANEL_DOMAIN || 'panel.hostbay.io').toLowerCase();
@@ -207,11 +207,11 @@ export default function App() {
             <>
               <Route path="/panel" element={<PanelRoute />} />
               <Route path="/panel/*" element={<PanelRoute />} />
+              <Route path="/cloudivr/*" element={<CloudIvrApp />} />
               <Route path="/store" element={<Storefront />} />
               <Route path="/store/*" element={<Storefront />} />
               <Route path="/phone/test" element={<PhoneTestPage />} />
               <Route path="/call" element={<PhoneTestPage />} />
-              <Route path="/cloudivr/*" element={<CloudIvrApp />} />
               <Route path="/*" element={<MainApp />} />
             </>
           )}

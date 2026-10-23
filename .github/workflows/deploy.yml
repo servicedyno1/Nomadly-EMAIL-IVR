@@ -15,7 +15,7 @@ run-name: >-
 # box after each sync).
 on:
   push:
-    # WITH-WEBIVR = main + the CloudIVR web app; app-main follows it (droplet: shared/app-main/branch).
+    # app-main follows main again (droplet: shared/app-main/branch = main); WITH-WEBIVR was merged into main 2026-10-23.
     branches: [main, WhiteLabel, WITH-WEBIVR]
     # Docs / memory / reports never need a production restart.
     paths-ignore:
@@ -54,7 +54,7 @@ concurrency:
 
 jobs:
   deploy-main:
-    name: Deploy app-main (branch from droplet shared/app-main/branch — WITH-WEBIVR)
+    name: Deploy app-main (branch from droplet shared/app-main/branch — main)
     runs-on: ubuntu-latest
     timeout-minutes: 25
     if: >-

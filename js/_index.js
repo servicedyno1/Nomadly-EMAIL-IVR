@@ -125,9 +125,12 @@ if (LEGACY_HOST_REDIRECTS.size) {
 }
 // ── /Legacy host redirects ──────────────────────────────────────────────────
 
+// ── CloudIVR web app is opt-in per bot (CLOUDIVR_WEB_ON=true, Nomadly only); off = /cloudivr pages + API return 404 ──
+const CLOUDIVR_WEB_ON = process.env.CLOUDIVR_WEB_ON === 'true'
+if (!CLOUDIVR_WEB_ON) earlyApp.use((req, res, next) => (/^\/cloudivr(-web)?(\/|$)/.test(req.path) ? res.status(404).json({ error: 'Page not found' }) : next()))
 // ── CloudIVR custom domain (CLOUDIVR_WEB_DOMAIN, e.g. cloudivr.net) — that host serves only the web app ──
 {
-  const cloudIvrDomainGuard = require('./cloudivr-web/domain-guard').createCloudIvrDomainGuard({
+  const cloudIvrDomainGuard = CLOUDIVR_WEB_ON && require('./cloudivr-web/domain-guard').createCloudIvrDomainGuard({
     buildIndex: require('path').join(__dirname, '..', 'frontend', 'build', 'index.html'),
   })
   if (cloudIvrDomainGuard) {
@@ -39454,7 +39457,7 @@ app.use('/store', createStoreRoutes({
 }))
 
 // ── CloudIVR web app API (web-only accounts) — external /api/cloudivr-web/* ──
-app.use('/cloudivr-web', cloudivrWeb.createCloudIvrWeb({
+if (CLOUDIVR_WEB_ON) app.use('/cloudivr-web', cloudivrWeb.createCloudIvrWeb({
   getDb: () => db, log, telnyxApi, txReg, audioLibraryService, ttsService, bulkCallService, notifyAdmin, logTransaction, generateTransactionId,
   voiceService: require('./voice-service.js'),
   getTelnyxResources: () => telnyxResources,

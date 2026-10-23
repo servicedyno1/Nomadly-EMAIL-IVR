@@ -19,14 +19,16 @@ function usePlanParam() {
 
 // REMINDER: Google sign-in uses the owner's own OAuth client id (GOOGLE_OAUTH_CLIENT_ID, served by /auth/config).
 // REMINDER: DO NOT HARDCODE THE URL, OR ADD ANY FALLBACKS OR REDIRECT URLS, THIS BREAKS THE AUTH
-function GoogleButton({ dest }) {
+// One Tap: Google's small "Continue as …" prompt appears on its own for visitors already signed in to Google.
+function GoogleButton({ dest, signup }) {
   const { config, setAccount } = useCivrAuth();
   const nav = useNavigate();
   if (!config?.googleClientId) return null;
   return (
     <GoogleOAuthProvider clientId={config.googleClientId}>
       <div className="flex justify-center" data-testid="google-signin-button">
-        <GoogleLogin theme="filled_black" shape="pill" width="320"
+        <GoogleLogin theme="filled_black" shape="pill" width="320" text="continue_with"
+          context={signup ? 'signup' : 'signin'} useOneTap use_fedcm_for_prompt cancel_on_tap_outside={false}
           onSuccess={async (r) => {
             try { const d = await api('/auth/google', { method: 'POST', body: { credential: r.credential } }); setAccount(d.account); nav(dest); } catch (e) { toast.error(e.message); }
           }}
@@ -112,7 +114,7 @@ export function AuthPage({ mode }) {
     <AuthFrame signup={signup} testid={signup ? 'signup-page' : 'login-page'} title={signup ? 'Create your free account' : 'Welcome back'}
       sub={signup ? 'Free to create. Next you add funds with crypto and pick a number.' : 'Sign in to manage your numbers.'}>
       {plan && <div className="flex items-center gap-2 text-sm text-[#34d399] mb-6" data-testid="auth-chosen-plan"><Check className="w-4 h-4" /><span><span className="capitalize">{plan}</span> plan picked — you’ll choose your number next.</span></div>}
-      <GoogleButton dest={dest} />
+      <GoogleButton dest={dest} signup={signup} />
       <form onSubmit={submit} className="space-y-4">
         {signup && <Field label="Name (optional)"><input className="civr-input" value={f.name} onChange={set('name')} placeholder="Jane Doe" autoComplete="name" data-testid="auth-name-input" /></Field>}
         <Field label="Email"><input className="civr-input" type="email" required value={f.email} onChange={set('email')} placeholder="you@company.com" autoComplete="email" data-testid="auth-email-input" /></Field>
