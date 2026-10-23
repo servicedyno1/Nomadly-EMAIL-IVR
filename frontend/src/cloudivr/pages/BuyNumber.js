@@ -5,6 +5,7 @@ import { Search, Check, Loader2, ShieldCheck } from 'lucide-react';
 import { api, money, enc } from '../api';
 import { useShell } from '../Shell';
 import { PageHeader, Field, Spinner, ErrorNote, Label } from '../ui';
+import { cp } from '../paths';
 
 function SearchForm({ catalog, q, setQ, onSearch, busy }) {
   const country = catalog.countries.find(c => c.code === q.country) || catalog.countries[0];
@@ -86,9 +87,9 @@ export default function BuyNumber() {
     try {
       const d = await api('/numbers/buy', { method: 'POST', body: { phoneNumber: pick.phoneNumber, plan } });
       refreshSummary();
-      if (d.verification) { toast.success('Paid — now finish the verification'); nav('/cloudivr/app/verification'); return; }
+      if (d.verification) { toast.success('Paid — now finish the verification'); nav(cp('/app/verification')); return; }
       toast.success(`${d.number.phoneNumber} is yours`);
-      nav(`/cloudivr/app/numbers/${enc(d.number.phoneNumber)}`);
+      nav(cp(`/app/numbers/${enc(d.number.phoneNumber)}`));
     } catch (err) { setError(err); } finally { setBusy(''); }
   };
 
@@ -115,7 +116,7 @@ export default function BuyNumber() {
             </div>
             <div className="font-mono text-3xl" data-testid="buy-total">{money(total)}</div>
             {summary && summary.balance < total
-              ? <Link to="/cloudivr/app/wallet" className="civr-btn civr-btn-ghost" data-testid="buy-topup-link">Top up wallet first</Link>
+              ? <Link to={cp('/app/wallet')} className="civr-btn civr-btn-ghost" data-testid="buy-topup-link">Top up wallet first</Link>
               : <button className="civr-btn civr-btn-primary" onClick={buy} disabled={busy === 'buy'} data-testid="buy-confirm-button">{busy === 'buy' && <Loader2 className="w-4 h-4 animate-spin" />}Pay {money(total)} &amp; activate</button>}
           </div>
         </div>

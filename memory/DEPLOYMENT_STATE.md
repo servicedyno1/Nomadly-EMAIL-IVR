@@ -95,6 +95,29 @@ The new layout differs from the old in-place `/opt/nomadly/app-main` checkout. O
 3. Only after app-main is proven: repeat layout for `app-wl`, then add both to `.github/workflows/deploy.yml`.
 - ⚠️ Until this bootstrap exists, the installed `/opt/nomadly/deploy.sh` is still the OLD hardened in-place script — the auto-deploy pipeline keeps working as-is; the new script activates only after the repo push + the layout is created.
 
+## 2026-10-23 ~11:03Z — app-main now follows branch WITH-WEBIVR + CloudIVR web LIVE on https://cloudivr.net
+- Owner decision: app-main deploys from **`WITH-WEBIVR`** (= main + CloudIVR web app). Droplet `/opt/nomadly/shared/app-main/branch`
+  = `WITH-WEBIVR` (was absent = main); bare mirror fetches it fine. `.github/workflows/deploy.yml`: push to `WITH-WEBIVR` (or main)
+  runs `deploy.sh app-main`, which ALWAYS builds the branch-file head (WITH-WEBIVR). main-only changes go live only after merging
+  into WITH-WEBIVR. WhiteLabel brands unchanged (sync workflow still runs from main pushes).
+- Deployed over SSH from the workspace (GitHub WITH-WEBIVR was 2d3211d2, without the cloudivr.net fixes): one-off copy of deploy.sh
+  with `git archive`/fetch swapped for `tar -xzf <workspace tarball>` (same build → health → drain → nginx flip). Release
+  `20261023T110059Z-c178a0a` on `app-main-a`:5000 (RELEASE has `source=workspace-tarball`); previous `…090734Z-2ce6d39` kept for
+  rollback (`deploy.sh app-main rollback`). One-off script + tarball deleted afterwards. ⚠️ Owner must "Save to GitHub" (WITH-WEBIVR)
+  so the next auto-deploy does not rebuild 2d3211d2 (it lacks the `REACT_APP_BACKEND_URL || ''` fix → CloudIVR UI would break).
+- app-main `backend.env` (backup `backend.env.bak.cloudivr.20261023T110018Z`): `CLOUDIVR_WEB_DOMAIN=cloudivr.net`,
+  `WEB_APP_URL=https://cloudivr.net` (password-reset links). `WEB_CLOUDIVR_DRY_RUN` NOT set (live). `WEB_DYNO_PAY_API_KEY` pending
+  (secure card) — until set, web top-ups use the main `DYNO_PAY_API_KEY` account.
+- Domain `cloudivr.net`: registered 2026-10-23 at **OpenProvider** (ConnectReseller failed: "Low Balance"), OP domain id `30463176`,
+  wholesale $15.53, **auto-renew OFF** (expires 2027-10-23). NOT in the bot DB (no domainsOf/registeredDomains) on purpose, so the
+  anti-red ProtectionEnforcer / DNS healer / shortener reconciler never touch it. CF zone `da39d84510bac341a9b6ed6a6e8442ea`
+  (NS anderson/leanna.ns.cloudflare.com, active), A `@` + `www` → 146.190.238.190 proxied, SSL Full (strict), Always-HTTPS + HSTS.
+- Droplet nginx: `sites-available/cloudivr` (symlinked) → `proxy_pass http://app_main` (blue/green upstream); CF Origin CA cert
+  (cloudivr.net + *.cloudivr.net, valid to 2041) at `/etc/nginx/ssl/cloudivr.net/{cert,key}.pem`.
+- App routing: `js/cloudivr-web/domain-guard.js` (early Express middleware, env `CLOUDIVR_WEB_DOMAIN`): www → apex 301, `/` + any
+  non-CloudIVR page → 302 `/cloudivr`, `/cloudivr/*` → SPA, API/static pass. Test `js/tests/test_cloudivr_domain_guard_2026-10.js` 12/12.
+  Also `cloudivr` added to the shortener `/:id` SPA list + reserved aliases (fixes 2.speechcue.com/cloudivr).
+
 ## Telegram DNS-cache lesson (2026-09-28)
 - Symptom: DNS for `2.speechcue.com` was correct everywhere (146.190.238.190) but `getWebhookInfo` showed `ip_address: 69.46.46.98` (Railway anycast) + `Wrong response from the webhook: 404`. Telegram caches the resolved webhook IP for hours after a host move; re-calling setWebhook alone does NOT refresh it.
 - Fix: `setWebhook` with `ip_address=146.190.238.190` → delivery switched instantly (46 pending updates flushed).

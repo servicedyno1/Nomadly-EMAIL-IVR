@@ -7,11 +7,12 @@ import { Spinner } from './ui';
 import Landing from './pages/Landing';
 import { AuthPage, ForgotPage, ResetPage } from './pages/AuthPages';
 import Shell from './Shell';
+import { cp } from './paths';
 
 function Protected({ children }) {
   const { account } = useCivrAuth();
   if (account === undefined) return <div className="px-8"><Spinner label="Checking your session…" /></div>;
-  if (!account) return <Navigate to="/cloudivr/login" replace />;
+  if (!account) return <Navigate to={cp('/login')} replace />;
   return children;
 }
 
@@ -27,7 +28,7 @@ export default function CloudIvrApp() {
           <Route path="forgot" element={<ForgotPage />} />
           <Route path="reset-password" element={<ResetPage />} />
           <Route path="app/*" element={<Protected><Shell /></Protected>} />
-          <Route path="*" element={<Navigate to="/cloudivr" replace />} />
+          <Route path="*" element={<Navigate to={cp()} replace />} />
         </Routes>
       </CivrAuthProvider>
     </div>

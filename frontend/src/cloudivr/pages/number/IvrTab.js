@@ -4,6 +4,7 @@ import { Plus, Trash2, BarChart3 } from 'lucide-react';
 import { useApi, enc } from '../../api';
 import { Field, Toggle, AudioSelect } from '../../ui';
 import { useSave } from './SettingsTabs';
+import { cp } from '../../paths';
 
 const ACTIONS = [['forward', 'Forward to a phone'], ['message', 'Play a message'], ['voicemail', 'Take a voicemail'], ['submenu', 'Open a sub-menu']];
 const DIGITS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'];
@@ -112,7 +113,7 @@ export default function IvrTab({ num, reload }) {
           <Toggle checked={enabled} onChange={setEnabled} testid="ivr-enabled-toggle" />
         </div>
         <Greeting g={g} set={(p) => setG({ ...g, ...p })} audios={audios} prefix="ivr" />
-        {!audios.length && <div className="text-xs text-[#666]">Want your own recordings? <Link to="/cloudivr/app/audio" className="text-[#34d399]" data-testid="ivr-audio-library-link">Open the audio library</Link>.</div>}
+        {!audios.length && <div className="text-xs text-[#666]">Want your own recordings? <Link to={cp('/app/audio')} className="text-[#34d399]" data-testid="ivr-audio-library-link">Open the audio library</Link>.</div>}
         <OptionList list={list} setList={setList} prefix="ivr"
           render={(o, i, u, ch, rm) => <TopRow key={i} o={o} used={u} onChange={ch} onRemove={rm} audios={audios} prefix={`ivr-option-${i}`} />} />
         <button className="civr-btn civr-btn-primary" disabled={busy} onClick={submit} data-testid="ivr-save-button">Save IVR</button>

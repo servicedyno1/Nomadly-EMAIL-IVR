@@ -17,6 +17,7 @@ import CampaignDetail from './pages/CampaignDetail';
 import Wallet from './pages/Wallet';
 import Inbox from './pages/Inbox';
 import Settings from './pages/Settings';
+import { cp } from './paths';
 
 const ShellCtx = createContext(null);
 export const useShell = () => useContext(ShellCtx);
@@ -37,7 +38,7 @@ function SideNav() {
   return (
     <nav className="flex lg:flex-col gap-1 overflow-x-auto lg:overflow-visible" data-testid="nav-header">
       {NAV.map(([to, label, Icon, id]) => (
-        <NavLink key={id} end={to === ''} to={`/cloudivr/app/${to}`} className={({ isActive }) => `civr-nav-link shrink-0 ${isActive ? 'active' : ''}`} data-testid={id}>
+        <NavLink key={id} end={to === ''} to={cp(`/app/${to}`)} className={({ isActive }) => `civr-nav-link shrink-0 ${isActive ? 'active' : ''}`} data-testid={id}>
           <Icon className="w-4 h-4" />{label}
         </NavLink>
       ))}
@@ -50,15 +51,15 @@ function TopBar({ summary, onPhone }) {
   const nav = useNavigate();
   return (
     <header className="civr-glass sticky top-0 z-30 flex items-center gap-3 px-4 md:px-8 h-16">
-      <Link to="/cloudivr/app" className="font-display text-2xl font-extrabold tracking-tight mr-auto lg:hidden" data-testid="topbar-logo">CLOUD<span className="text-[#34d399]">IVR</span></Link>
+      <Link to={cp('/app')} className="font-display text-2xl font-extrabold tracking-tight mr-auto lg:hidden" data-testid="topbar-logo">CLOUD<span className="text-[#34d399]">IVR</span></Link>
       <div className="hidden lg:block mr-auto text-sm text-[#888]" data-testid="topbar-greeting">Signed in as <span className="text-[#ddd]">{account?.email}</span></div>
-      <Link to="/cloudivr/app/wallet" className="civr-pill civr-pill-on !text-sm !normal-case !tracking-normal" data-testid="topbar-balance">{money(summary?.balance)}</Link>
-      <Link to="/cloudivr/app/inbox" className="relative p-2 rounded-full hover:bg-[#151515]" data-testid="topbar-inbox-button" aria-label="Inbox">
+      <Link to={cp('/app/wallet')} className="civr-pill civr-pill-on !text-sm !normal-case !tracking-normal" data-testid="topbar-balance">{money(summary?.balance)}</Link>
+      <Link to={cp('/app/inbox')} className="relative p-2 rounded-full hover:bg-[#151515]" data-testid="topbar-inbox-button" aria-label="Inbox">
         <Bell className="w-5 h-5" />
         {summary?.unread > 0 && <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 rounded-full bg-[#34d399] text-[#04130d] text-[10px] font-bold flex items-center justify-center" data-testid="topbar-unread-count">{summary.unread}</span>}
       </Link>
       <button onClick={onPhone} className="p-2 rounded-full hover:bg-[#151515]" data-testid="topbar-softphone-button" aria-label="Browser phone"><Phone className="w-5 h-5" /></button>
-      <button onClick={async () => { await logout(); nav('/cloudivr'); }} className="p-2 rounded-full hover:bg-[#151515]" data-testid="topbar-logout-button" aria-label="Sign out"><LogOut className="w-5 h-5" /></button>
+      <button onClick={async () => { await logout(); nav(cp()); }} className="p-2 rounded-full hover:bg-[#151515]" data-testid="topbar-logout-button" aria-label="Sign out"><LogOut className="w-5 h-5" /></button>
     </header>
   );
 }
@@ -80,7 +81,7 @@ export default function Shell() {
       <PreviewBanner show={catalog?.dryRun} livePayments={catalog?.livePayments} />
       <div className="lg:flex">
         <aside className="hidden lg:flex lg:flex-col w-64 shrink-0 h-screen sticky top-0 border-r border-[#1a1a1a] px-4 py-6">
-          <Link to="/cloudivr/app" className="font-display text-3xl font-extrabold tracking-tight px-3 mb-8" data-testid="sidebar-logo">CLOUD<span className="text-[#34d399]">IVR</span></Link>
+          <Link to={cp('/app')} className="font-display text-3xl font-extrabold tracking-tight px-3 mb-8" data-testid="sidebar-logo">CLOUD<span className="text-[#34d399]">IVR</span></Link>
           <SideNav />
           <div className="mt-auto px-3 text-[11px] font-mono text-[#555] uppercase tracking-widest">Speechcue network</div>
         </aside>

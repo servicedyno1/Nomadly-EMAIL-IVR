@@ -5,6 +5,7 @@ import { ArrowLeft, Play, Pause, RotateCcw, XCircle } from 'lucide-react';
 import { api, useApi, when, secs } from '../api';
 import { useShell } from '../Shell';
 import { Spinner, ErrorNote, statusPill } from '../ui';
+import { cp } from '../paths';
 
 const STATS = [['total', 'Numbers'], ['completed', 'Called'], ['answered', 'Answered'], ['keyPressed', 'Pressed a key'], ['transferred', 'Transferred'], ['noAnswer', 'No answer']];
 const LIVE = ['running', 'scheduled'];
@@ -45,7 +46,7 @@ export default function CampaignDetail() {
   const pct = c.stats?.total ? Math.round(((c.stats.completed || 0) / c.stats.total) * 100) : 0;
   return (
     <div data-testid="campaign-detail-page">
-      <Link to="/cloudivr/app/campaigns" className="inline-flex items-center gap-2 text-sm text-[#888] hover:text-[#34d399] mb-6" data-testid="campaign-back-link"><ArrowLeft className="w-4 h-4" />All campaigns</Link>
+      <Link to={cp('/app/campaigns')} className="inline-flex items-center gap-2 text-sm text-[#888] hover:text-[#34d399] mb-6" data-testid="campaign-back-link"><ArrowLeft className="w-4 h-4" />All campaigns</Link>
       <div className="flex flex-col md:flex-row md:items-end gap-4 justify-between mb-8">
         <div>
           <div className="civr-label">{c.mode === 'transfer' ? `Transfer to ${c.transferNumber}` : 'Report key presses'} · keys {c.activeKeys?.join(' ')}</div>

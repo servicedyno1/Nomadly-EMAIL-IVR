@@ -8,6 +8,7 @@ import PanelDashboard from './pages/PanelDashboard';
 import PhoneTestPage from './pages/PhoneTestPage';
 import Storefront from './pages/Storefront';
 import CloudIvrApp from './cloudivr/CloudIvrApp';
+import { IS_CIVR_DOMAIN } from './cloudivr/paths';
 import './App.css';
 import './panel-v2.css';
 import './store.css';
@@ -189,7 +190,10 @@ export default function App() {
     <BrowserRouter>
       <AuthProvider>
         <Routes>
-          {isPanelDomain ? (
+          {IS_CIVR_DOMAIN ? (
+            // CloudIVR's own domain (cloudivr.net): the web app owns the site root — /, /login, /app/…
+            <Route path="/*" element={<CloudIvrApp />} />
+          ) : isPanelDomain ? (
             <>
               {/* On the panel domain, the STOREFRONT is the landing (buy + login). */}
               <Route path="/" element={<Storefront />} />

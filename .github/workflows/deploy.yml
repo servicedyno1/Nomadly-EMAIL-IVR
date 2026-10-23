@@ -15,7 +15,8 @@ run-name: >-
 # box after each sync).
 on:
   push:
-    branches: [main, WhiteLabel]
+    # WITH-WEBIVR = main + the CloudIVR web app; app-main follows it (droplet: shared/app-main/branch).
+    branches: [main, WhiteLabel, WITH-WEBIVR]
     # Docs / memory / reports never need a production restart.
     paths-ignore:
       - 'memory/**'
@@ -53,11 +54,11 @@ concurrency:
 
 jobs:
   deploy-main:
-    name: Deploy app-main (branch main)
+    name: Deploy app-main (branch from droplet shared/app-main/branch — WITH-WEBIVR)
     runs-on: ubuntu-latest
     timeout-minutes: 25
     if: >-
-      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/WITH-WEBIVR')) ||
       (github.event_name == 'workflow_dispatch' && (github.event.inputs.app == 'both' || github.event.inputs.app == 'app-main'))
     env:
       DROPLET_HOST: ${{ secrets.DROPLET_HOST }}

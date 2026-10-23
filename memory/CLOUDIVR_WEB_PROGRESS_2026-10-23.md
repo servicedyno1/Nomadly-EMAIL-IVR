@@ -1,7 +1,10 @@
 # CloudIVR Web App — progress & handoff (2026-10-23)
 
 Status (late 2026-10-23): **BUILT + TESTED ON PREVIEW** (test_reports/iteration_113.json: backend 24/24, all frontend flows pass;
-minor findings fixed after). Mounted at `/api/cloudivr-web/*`, UI at `/cloudivr`. Not in production (owner: keep on preview).
+minor findings fixed after). Mounted at `/api/cloudivr-web/*`, UI at `/cloudivr`.
+**LIVE in production since 2026-10-23 ~11:03Z at https://cloudivr.net** (app-main, branch WITH-WEBIVR — see DEPLOYMENT_STATE.md).
+Prod is NOT dry-run: real number purchases, real calls. Still pending: `WEB_DYNO_PAY_API_KEY` (secure card → preview + droplet
+app-main backend.env), `GOOGLE_OAUTH_CLIENT_ID` (+ add https://cloudivr.net to Authorized JavaScript origins).
 Pending owner: `WEB_DYNO_PAY_API_KEY` (web-only DynoPay key) and `GOOGLE_OAUTH_CLIENT_ID` via the secure secrets card.
 Google Cloud Console → Authorized JavaScript origins must include the preview origin (and later the custom domain).
 The sections below are the original plan; "Remaining work" items 1–5 are DONE.

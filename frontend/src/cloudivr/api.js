@@ -1,6 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
+import { IS_CIVR_DOMAIN } from './paths';
 
-const BASE = `${process.env.REACT_APP_BACKEND_URL}/api/cloudivr-web`;
+// Same-origin on CloudIVR's own domain and when REACT_APP_BACKEND_URL is unset (production droplet build:
+// Express serves UI + API on one host). Shared preview hosts use REACT_APP_BACKEND_URL.
+const API_ROOT = IS_CIVR_DOMAIN ? '' : (process.env.REACT_APP_BACKEND_URL || '');
+const BASE = `${API_ROOT}/api/cloudivr-web`;
 
 export class ApiError extends Error {
   constructor(status, body) {
@@ -24,7 +28,7 @@ export async function api(path, { method = 'GET', body, form } = {}) {
 
 export const enc = (s) => encodeURIComponent(s);
 // Library audio is served by this app's own API host, so playback works on every environment.
-export const playUrl = (u) => { const f = String(u || '').split('/assets/user-audio/')[1]; return f ? `${process.env.REACT_APP_BACKEND_URL}/api/assets/user-audio/${f}` : u; };
+export const playUrl = (u) => { const f = String(u || '').split('/assets/user-audio/')[1]; return f ? `${API_ROOT}/api/assets/user-audio/${f}` : u; };
 export const money = (n) => `$${Number(n || 0).toFixed(2)}`;
 export const when = (d) => (d ? new Date(d).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—');
 export const day = (d) => (d ? new Date(d).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }) : '—');

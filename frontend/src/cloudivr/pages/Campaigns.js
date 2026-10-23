@@ -6,6 +6,7 @@ import { api, useApi, when, money } from '../api';
 import { PageHeader, Field, Spinner, Empty, AudioSelect, KeyPicker, Toggle, ErrorNote, statusPill } from '../ui';
 import { useCallerNumbers } from './QuickCall';
 import { DateTimePicker } from '../DateTimePicker';
+import { cp } from '../paths';
 
 export function Campaigns() {
   const { data, loading, error } = useApi('/campaigns');
@@ -13,13 +14,13 @@ export function Campaigns() {
   return (
     <div data-testid="campaigns-page">
       <PageHeader label="Outbound" title="Bulk IVR campaigns" sub="Call a list of numbers, play your message, report key presses or transfer interested callers to you." testid="campaigns-header">
-        <Link to="/cloudivr/app/campaigns/new" className="civr-btn civr-btn-primary" data-testid="campaigns-new-button"><Plus className="w-4 h-4" />New campaign</Link>
+        <Link to={cp('/app/campaigns/new')} className="civr-btn civr-btn-primary" data-testid="campaigns-new-button"><Plus className="w-4 h-4" />New campaign</Link>
       </PageHeader>
       <ErrorNote error={error} />
       {loading && !data ? <Spinner /> : !list.length ? <Empty icon={Megaphone} title="No campaigns yet" sub="Paste your numbers, pick a message and go." testid="campaigns-empty" /> : (
         <div className="space-y-3">
           {list.map((c, i) => (
-            <Link key={c.id} to={`/cloudivr/app/campaigns/${c.id}`} className="civr-card civr-card-link p-5 flex flex-col md:flex-row md:items-center gap-3" data-testid={`campaign-row-${i}`}>
+            <Link key={c.id} to={cp(`/app/campaigns/${c.id}`)} className="civr-card civr-card-link p-5 flex flex-col md:flex-row md:items-center gap-3" data-testid={`campaign-row-${i}`}>
               <div className="flex-1 min-w-0"><div className="font-semibold truncate">{c.audioName || 'Campaign'}</div><div className="text-xs text-[#777] font-mono">{c.callerId} · {when(c.createdAt)}</div></div>
               <div className="font-mono text-sm text-[#aaa]">{c.stats?.completed || 0}/{c.stats?.total || 0} called</div>
               <span className={statusPill(c.status)} data-testid={`campaign-row-${i}-status`}>{c.status}</span>
@@ -67,7 +68,7 @@ export function CampaignNew() {
   const [error, setError] = useState(null);
   const set = (k) => (v) => setF({ ...f, [k]: v?.target ? v.target.value : v });
   if (loading) return <Spinner />;
-  if (!numbers.length) return <Empty icon={Megaphone} title="No number can run campaigns" sub="Bulk IVR needs an active number on the Pro plan or higher." testid="campaign-new-empty"><Link to="/cloudivr/app/numbers" className="civr-btn civr-btn-primary" data-testid="campaign-new-empty-action">My numbers</Link></Empty>;
+  if (!numbers.length) return <Empty icon={Megaphone} title="No number can run campaigns" sub="Bulk IVR needs an active number on the Pro plan or higher." testid="campaign-new-empty"><Link to={cp('/app/numbers')} className="civr-btn civr-btn-primary" data-testid="campaign-new-empty-action">My numbers</Link></Empty>;
   const callerId = f.callerId || numbers[0].phoneNumber;
 
   const estimate = async () => { setBusy('est'); try { setEst(await api('/campaigns/estimate', { method: 'POST', body: { leads: f.leads } })); } catch (e) { toast.error(e.message); } finally { setBusy(''); } };
@@ -77,7 +78,7 @@ export function CampaignNew() {
       const body = { ...f, callerId, scheduledFor: f.scheduledFor ? new Date(f.scheduledFor).toISOString() : null };
       const d = await api('/campaigns', { method: 'POST', body });
       toast.success(d.skipped ? `Campaign saved · ${d.skipped} line(s) skipped` : 'Campaign saved');
-      nav(`/cloudivr/app/campaigns/${d.campaign.id}`);
+      nav(cp(`/app/campaigns/${d.campaign.id}`));
     } catch (err) { setError(err); } finally { setBusy(''); }
   };
 

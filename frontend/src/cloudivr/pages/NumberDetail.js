@@ -8,6 +8,7 @@ import SipTab from './number/SipTab';
 import IvrTab from './number/IvrTab';
 import LogsTab from './number/LogsTab';
 import BillingTab from './number/BillingTab';
+import { cp } from '../paths';
 
 const TABS = [
   ['overview', 'Overview', null, OverviewTab], ['forwarding', 'Forwarding', 'callForwarding', ForwardingTab], ['ivr', 'IVR', 'ivr', IvrTab],
@@ -27,7 +28,7 @@ export default function NumberDetail() {
   const [, label, gate, Comp] = TABS.find(t => t[0] === tab) || TABS[0];
   return (
     <div data-testid="number-detail-page">
-      <Link to="/cloudivr/app/numbers" className="inline-flex items-center gap-2 text-sm text-[#888] hover:text-[#34d399] mb-6" data-testid="number-detail-back-link"><ArrowLeft className="w-4 h-4" />All numbers</Link>
+      <Link to={cp('/app/numbers')} className="inline-flex items-center gap-2 text-sm text-[#888] hover:text-[#34d399] mb-6" data-testid="number-detail-back-link"><ArrowLeft className="w-4 h-4" />All numbers</Link>
       <div className="flex flex-col md:flex-row md:items-end gap-4 justify-between mb-8 civr-rise">
         <div>
           <div className="civr-label">{n.countryName || n.country} · {n.type?.replace('_', '-')} · {n.planName}</div>
@@ -46,7 +47,7 @@ export default function NumberDetail() {
         ))}
       </div>
       <div data-testid={`number-tabpanel-${tab}`}>
-        {gate && !n.access[gate] ? <Locked feature={label} phone={n.phoneNumber} /> : <Comp num={n} reload={reload} onDeleted={() => nav('/cloudivr/app/numbers')} />}
+        {gate && !n.access[gate] ? <Locked feature={label} phone={n.phoneNumber} /> : <Comp num={n} reload={reload} onDeleted={() => nav(cp('/app/numbers'))} />}
       </div>
     </div>
   );

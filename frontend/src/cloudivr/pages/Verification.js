@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Upload, Send, Loader2, ShieldCheck } from 'lucide-react';
 import { api, useApi, when } from '../api';
 import { PageHeader, Spinner, ErrorNote, Empty, statusPill } from '../ui';
+import { cp } from '../paths';
 
 const Prompt = ({ html, testid }) => <div className="civr-prompt text-sm leading-relaxed text-[#ddd] whitespace-pre-line" data-testid={testid} dangerouslySetInnerHTML={{ __html: html || '' }} />;
 
@@ -42,7 +43,7 @@ export default function Verification() {
     <div data-testid="verification-page">
       <PageHeader label="Verification" title="Number verification" sub="Some countries require the carrier to check who owns the number. Your payment is held until it’s approved — cancel any time for a refund." testid="verification-header" />
       <ErrorNote error={error} />
-      {state === 'none' && <Empty icon={ShieldCheck} title="Nothing to verify" sub="Buying a number in a country with an ID check starts the steps here." testid="verification-empty"><Link to="/cloudivr/app/buy" className="civr-btn civr-btn-primary" data-testid="verification-buy-link">Buy a number</Link></Empty>}
+      {state === 'none' && <Empty icon={ShieldCheck} title="Nothing to verify" sub="Buying a number in a country with an ID check starts the steps here." testid="verification-empty"><Link to={cp('/app/buy')} className="civr-btn civr-btn-primary" data-testid="verification-buy-link">Buy a number</Link></Empty>}
       {state && state !== 'none' && (
         <div className="civr-card p-6 max-w-3xl" data-testid="verification-session">
           {data.session && <div className="flex flex-wrap gap-2 mb-5"><span className="civr-pill civr-pill-on font-mono">{data.session.phoneNumber}</span><span className="civr-pill">{data.session.countryName}</span><span className="civr-pill">paid {data.session.paid}</span></div>}

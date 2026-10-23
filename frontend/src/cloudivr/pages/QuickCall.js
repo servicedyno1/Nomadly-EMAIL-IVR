@@ -5,6 +5,7 @@ import { PhoneOutgoing, Loader2 } from 'lucide-react';
 import { api, useApi } from '../api';
 import { useShell } from '../Shell';
 import { PageHeader, Field, Spinner, Empty, AudioSelect, KeyPicker, Toggle, ErrorNote } from '../ui';
+import { cp } from '../paths';
 
 // Active numbers allowed to place outbound IVR calls for `feature`.
 export function useCallerNumbers(feature) {
@@ -34,13 +35,13 @@ export default function QuickCall() {
       <PageHeader label="Outbound" title="Quick IVR call" sub="Call one person, play a message, and connect them to you when they press a key. Billed per minute from your wallet." testid="quick-call-header" />
       {!numbers.length ? (
         <Empty icon={PhoneOutgoing} title="No number can place IVR calls yet" sub={all.length ? 'Quick IVR calls need an active number on the Pro plan or higher. Upgrade one in its Billing tab.' : 'Buy a number on the Pro plan or higher to place IVR calls.'} testid="quick-call-empty">
-          <Link to={all.length ? '/cloudivr/app/numbers' : '/cloudivr/app/buy'} className="civr-btn civr-btn-primary" data-testid="quick-call-empty-action">{all.length ? 'My numbers' : 'Buy a number'}</Link>
+          <Link to={all.length ? cp('/app/numbers') : cp('/app/buy')} className="civr-btn civr-btn-primary" data-testid="quick-call-empty-action">{all.length ? 'My numbers' : 'Buy a number'}</Link>
         </Empty>
       ) : (
         <form onSubmit={go} className="civr-card p-6 max-w-2xl space-y-5" data-testid="quick-call-form">
           <Field label="Call from"><select className="civr-input font-mono" value={callerId} onChange={set('callerId')} data-testid="quick-call-caller-select">{numbers.map(n => <option key={n.phoneNumber}>{n.phoneNumber}</option>)}</select></Field>
           <Field label="Number to call" hint="With country code, e.g. +14155550100."><input className="civr-input font-mono" required value={f.to} onChange={set('to')} placeholder="+14155550100" data-testid="quick-call-to-input" /></Field>
-          <Field label="Message to play" hint={!au?.audios?.length ? <Link to="/cloudivr/app/audio" className="text-[#34d399]">Create audio first →</Link> : null}><AudioSelect value={f.audioId} onChange={set('audioId')} audios={au?.audios} by="id" testid="quick-call-audio-select" /></Field>
+          <Field label="Message to play" hint={!au?.audios?.length ? <Link to={cp('/app/audio')} className="text-[#34d399]">Create audio first →</Link> : null}><AudioSelect value={f.audioId} onChange={set('audioId')} audios={au?.audios} by="id" testid="quick-call-audio-select" /></Field>
           <Field label="Connect to (when they press a key)"><input className="civr-input font-mono" required value={f.transferTo} onChange={set('transferTo')} placeholder="+14155550199" data-testid="quick-call-transfer-input" /></Field>
           <Field label="Keys that connect"><KeyPicker value={f.activeKeys} onChange={set('activeKeys')} testid="quick-call-keys" /></Field>
           <div className="flex items-center justify-between"><span className="text-sm">Hold music while connecting</span><Toggle checked={f.holdMusic} onChange={set('holdMusic')} testid="quick-call-hold-music-toggle" /></div>

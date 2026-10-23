@@ -1,6 +1,7 @@
 import React from 'react';
 import { Loader2, Lock } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { cp } from './paths';
 
 export const Label = ({ children }) => <div className="civr-label mb-2">{children}</div>;
 
@@ -55,7 +56,7 @@ export function Locked({ feature, phone }) {
         <div className="font-semibold">{feature} needs a higher plan</div>
         <div className="text-sm text-[#888]">Upgrade this number in the Billing tab to unlock it.</div>
       </div>
-      <Link to={`/cloudivr/app/numbers/${encodeURIComponent(phone)}?tab=billing`} className="civr-btn civr-btn-ghost civr-btn-sm" data-testid="feature-locked-upgrade-link">See upgrades</Link>
+      <Link to={cp(`/app/numbers/${encodeURIComponent(phone)}?tab=billing`)} className="civr-btn civr-btn-ghost civr-btn-sm" data-testid="feature-locked-upgrade-link">See upgrades</Link>
     </div>
   );
 }

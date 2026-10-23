@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Hash, ShoppingCart, ChevronRight } from 'lucide-react';
 import { useApi, day, money, enc } from '../api';
 import { PageHeader, Spinner, ErrorNote, Empty, statusPill } from '../ui';
+import { cp } from '../paths';
 
 const on = (f) => f?.enabled;
 
@@ -12,17 +13,17 @@ export default function Numbers() {
   return (
     <div data-testid="numbers-page">
       <PageHeader label="Numbers" title="My numbers" sub="Tap a number to set up forwarding, IVR, voicemail, SMS and SIP." testid="numbers-header">
-        <Link to="/cloudivr/app/buy" className="civr-btn civr-btn-primary" data-testid="numbers-buy-button"><ShoppingCart className="w-4 h-4" />Buy a number</Link>
+        <Link to={cp('/app/buy')} className="civr-btn civr-btn-primary" data-testid="numbers-buy-button"><ShoppingCart className="w-4 h-4" />Buy a number</Link>
       </PageHeader>
       <ErrorNote error={error} />
       {loading ? <Spinner /> : !nums.length ? (
         <Empty icon={Hash} title="No numbers yet" sub="Pick a country, choose a number and a plan — it’s live in under a minute." testid="numbers-empty">
-          <Link to="/cloudivr/app/buy" className="civr-btn civr-btn-primary" data-testid="numbers-empty-buy-button">Buy your first number</Link>
+          <Link to={cp('/app/buy')} className="civr-btn civr-btn-primary" data-testid="numbers-empty-buy-button">Buy your first number</Link>
         </Empty>
       ) : (
         <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-4">
           {nums.map((n, i) => (
-            <Link key={n.phoneNumber} to={`/cloudivr/app/numbers/${enc(n.phoneNumber)}`} className={`civr-card civr-card-link p-5 civr-rise civr-d${(i % 4) + 1}`} data-testid={`number-card-${i}`}>
+            <Link key={n.phoneNumber} to={cp(`/app/numbers/${enc(n.phoneNumber)}`)} className={`civr-card civr-card-link p-5 civr-rise civr-d${(i % 4) + 1}`} data-testid={`number-card-${i}`}>
               <div className="flex items-start justify-between">
                 <div>
                   <div className="font-mono text-xl" data-testid={`number-card-${i}-phone`}>{n.phoneNumber}</div>

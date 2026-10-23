@@ -5,6 +5,7 @@ import { Loader2, LogOut } from 'lucide-react';
 import { api, day } from '../api';
 import { useCivrAuth } from '../AuthContext';
 import { PageHeader, Field } from '../ui';
+import { cp } from '../paths';
 
 function Profile({ account, setAccount }) {
   const [name, setName] = useState(account.name || '');
@@ -48,7 +49,7 @@ export default function Settings() {
   return (
     <div data-testid="settings-page">
       <PageHeader label="Account" title="Settings" sub="This web account is separate from any Telegram bot account." testid="settings-header">
-        <button className="civr-btn civr-btn-ghost civr-btn-sm" onClick={async () => { await logout(); nav('/cloudivr'); }} data-testid="settings-logout-button"><LogOut className="w-4 h-4" />Sign out</button>
+        <button className="civr-btn civr-btn-ghost civr-btn-sm" onClick={async () => { await logout(); nav(cp()); }} data-testid="settings-logout-button"><LogOut className="w-4 h-4" />Sign out</button>
       </PageHeader>
       <div className="grid lg:grid-cols-2 gap-4 max-w-5xl"><Profile account={account} setAccount={setAccount} /><Password account={account} refresh={refresh} /></div>
     </div>

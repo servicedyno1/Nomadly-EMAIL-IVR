@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { ArrowRight, Workflow, PhoneForwarded, Voicemail, MessageSquare, Megaphone, Headphones, Globe2, Bitcoin, Check } from 'lucide-react';
 import { useApi, money } from '../api';
 import { useCivrAuth } from '../AuthContext';
+import { cp } from '../paths';
 
 const HERO_IMG = 'https://images.pexels.com/photos/7682203/pexels-photo-7682203.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940';
 
@@ -20,14 +21,14 @@ function Nav() {
   return (
     <header className="civr-glass sticky top-0 z-30">
       <div className="max-w-7xl mx-auto px-5 md:px-8 h-16 flex items-center gap-6">
-        <Link to="/cloudivr" className="font-display text-2xl font-extrabold tracking-tight mr-auto" data-testid="landing-logo">CLOUD<span className="text-[#34d399]">IVR</span></Link>
+        <Link to={cp()} className="font-display text-2xl font-extrabold tracking-tight mr-auto" data-testid="landing-logo">CLOUD<span className="text-[#34d399]">IVR</span></Link>
         <a href="#features" className="hidden md:inline text-sm text-[#888] hover:text-white" data-testid="landing-nav-features">Features</a>
         <a href="#pricing" className="hidden md:inline text-sm text-[#888] hover:text-white" data-testid="landing-nav-pricing">Pricing</a>
         {account
-          ? <Link to="/cloudivr/app" className="civr-btn civr-btn-primary civr-btn-sm" data-testid="landing-open-dashboard">Open dashboard</Link>
+          ? <Link to={cp('/app')} className="civr-btn civr-btn-primary civr-btn-sm" data-testid="landing-open-dashboard">Open dashboard</Link>
           : <>
-              <Link to="/cloudivr/login" className="text-sm text-[#ddd] hover:text-[#34d399]" data-testid="landing-signin-link">Sign in</Link>
-              <Link to="/cloudivr/signup" className="civr-btn civr-btn-primary civr-btn-sm" data-testid="landing-signup-button">Get a number</Link>
+              <Link to={cp('/login')} className="text-sm text-[#ddd] hover:text-[#34d399]" data-testid="landing-signin-link">Sign in</Link>
+              <Link to={cp('/signup')} className="civr-btn civr-btn-primary civr-btn-sm" data-testid="landing-signup-button">Get a number</Link>
             </>}
       </div>
     </header>
@@ -48,7 +49,7 @@ function Hero() {
             Virtual numbers in 17 countries with an auto-attendant, forwarding, voicemail, SMS and outbound IVR campaigns. Pay with crypto. Run it all from your browser.
           </p>
           <div className="flex flex-wrap gap-3 mt-9 civr-rise civr-d3">
-            <Link to="/cloudivr/signup" className="civr-btn civr-btn-primary" data-testid="hero-get-started-button">Create free account <ArrowRight className="w-4 h-4" /></Link>
+            <Link to={cp('/signup')} className="civr-btn civr-btn-primary" data-testid="hero-get-started-button">Create free account <ArrowRight className="w-4 h-4" /></Link>
             <a href="#pricing" className="civr-btn civr-btn-ghost" data-testid="hero-see-pricing-button">See pricing</a>
           </div>
           <div className="flex flex-wrap gap-5 mt-10 text-xs font-mono uppercase tracking-widest text-[#666] civr-rise civr-d4">
@@ -127,7 +128,7 @@ function Pricing() {
             <ul className="mt-6 space-y-2.5 text-sm text-[#bbb] flex-1">
               {p.features.map(f => <li key={f} className="flex gap-2"><Check className="w-4 h-4 text-[#34d399] mt-0.5 shrink-0" />{f}</li>)}
             </ul>
-            <Link to="/cloudivr/signup" className={`civr-btn mt-8 ${i === 1 ? 'civr-btn-primary' : 'civr-btn-ghost'}`} data-testid={`pricing-choose-${p.id}`}>Choose {p.name}</Link>
+            <Link to={cp('/signup')} className={`civr-btn mt-8 ${i === 1 ? 'civr-btn-primary' : 'civr-btn-ghost'}`} data-testid={`pricing-choose-${p.id}`}>Choose {p.name}</Link>
           </div>
         ))}
       </div>

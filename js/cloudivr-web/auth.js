@@ -7,6 +7,7 @@ const jwt = require('jsonwebtoken')
 const axios = require('axios')
 const nodemailer = require('nodemailer')
 const { WEB_ID_BASE } = require('./notify')
+const { appPathPrefix } = require('./domain-guard')
 
 const COOKIE = 'civr_session'
 const SESSION_DAYS = 7
@@ -175,7 +176,7 @@ function createAuth(db, { log = console.log } = {}) {
         const token = crypto.randomBytes(32).toString('hex')
         await resets.insertOne({ _id: sha(token), chatId: acc._id, expiresAt: new Date(Date.now() + 30 * 60000), used: false })
         const base = String(process.env.WEB_APP_URL || req.headers.origin || '').replace(/\/+$/, '')
-        const link = `${base}/cloudivr/reset-password?token=${token}`
+        const link = `${base}${appPathPrefix(base)}/reset-password?token=${token}`
         sendMail(email, 'Reset your CloudIVR password', `<p>Someone asked to reset the password for your CloudIVR account.</p><p><a href="${link}">Choose a new password</a> (link valid for 30 minutes).</p><p>If this wasn't you, ignore this email.</p>`)
           .catch(e => log(`[CloudIVR-Web] reset email failed: ${e.message}`))
       }

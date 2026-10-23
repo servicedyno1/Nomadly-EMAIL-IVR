@@ -125,6 +125,17 @@ if (LEGACY_HOST_REDIRECTS.size) {
 }
 // ── /Legacy host redirects ──────────────────────────────────────────────────
 
+// ── CloudIVR custom domain (CLOUDIVR_WEB_DOMAIN, e.g. cloudivr.net) — that host serves only the web app ──
+{
+  const cloudIvrDomainGuard = require('./cloudivr-web/domain-guard').createCloudIvrDomainGuard({
+    buildIndex: require('path').join(__dirname, '..', 'frontend', 'build', 'index.html'),
+  })
+  if (cloudIvrDomainGuard) {
+    earlyApp.use(cloudIvrDomainGuard)
+    console.log(`[Express] CloudIVR web domain active: ${process.env.CLOUDIVR_WEB_DOMAIN}`)
+  }
+}
+
 earlyApp.use(cors())
 earlyApp.use(express.json({
   limit: '50mb',
@@ -22575,7 +22586,7 @@ ${message.replace(/\n/g, '<br>')}
     const reserved = new Set([
       'call', 'panel', 'phone', 'login', 'signup', 'dashboard', 'settings',
       'api', 'admin', 'webhook', 'webhooks', 'twilio', 'telnyx', 'static',
-      'health', 'sms-app', 'voice', 'sms', 'auth', 'apidoc',
+      'health', 'sms-app', 'voice', 'sms', 'auth', 'apidoc', 'cloudivr', 'cloudivr-web',
     ])
     if (reserved.has(alias.toLowerCase())) {
       return send(chatId, trans('t.notValidHalf'))
@@ -48822,7 +48833,7 @@ app.get('/:id', async (req, res) => {
   }
 
   // Skip known frontend SPA routes — let them be handled by the React catch-all
-  const spaRoutes = ['call', 'panel', 'phone', 'login', 'signup', 'dashboard', 'settings', 'sales']
+  const spaRoutes = ['call', 'panel', 'phone', 'login', 'signup', 'dashboard', 'settings', 'sales', 'cloudivr']
   if (spaRoutes.includes(id.toLowerCase())) {
     // Serve the React SPA index.html for these routes
     const buildPath = require('path').join(__dirname, '..', 'frontend', 'build', 'index.html')
