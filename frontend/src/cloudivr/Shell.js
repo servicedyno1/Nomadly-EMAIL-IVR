@@ -28,7 +28,7 @@ const ICON_BTN = 'relative w-11 h-11 flex items-center justify-center rounded-fu
 
 function SideNav() {
   return (
-    <nav className="space-y-6" data-testid="nav-header">
+    <nav className="flex flex-col gap-6" data-testid="nav-header">
       {NAV.map(([group, items]) => (
         <div key={group} data-testid={`nav-group-${group.toLowerCase()}`}>
           <div className="px-3 mb-2 text-[11px] font-mono uppercase tracking-widest text-[#8a8a8a]">{group}</div>
@@ -50,7 +50,7 @@ function Sidebar({ supportLink }) {
     <aside className="hidden lg:flex lg:flex-col w-64 shrink-0 h-screen sticky top-0 border-r border-[#1a1a1a] px-4 py-6 overflow-y-auto">
       <Link to={cp('/app')} className="font-display text-3xl font-extrabold tracking-tight px-3 mb-8" data-testid="sidebar-logo">CLOUD<span className="text-[#34d399]">IVR</span></Link>
       <SideNav />
-      {supportLink && <a href={supportLink} target="_blank" rel="noopener noreferrer" className="civr-nav-link mt-auto" data-testid="sidebar-support-link"><LifeBuoy className="w-4 h-4" />Need help? Message support</a>}
+      {supportLink && <a href={supportLink} target="_blank" rel="noopener noreferrer" className="civr-nav-link mt-auto" data-testid="sidebar-support-link"><LifeBuoy className="w-4 h-4" />Message support</a>}
     </aside>
   );
 }

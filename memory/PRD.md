@@ -1,5 +1,28 @@
 # PRD — Nomadly Cloud IVR + Telegram Bot
 
+## 2026-10-23 (eve) — CloudIVR UI/UX audit → ALL 15 fixes — TESTED (iteration_115, 100%) & LIVE on https://cloudivr.net
+- Audit (5-sec, Fitts, Z/F, 8-pt, Gestalt, narrative arc) presented first; owner: "FIX ALL END TO END".
+- Landing (`pages/Landing.js` + `pages/landing/{Sections,PricingFaq}.js`): one CTA label "Get your number", microcopy
+  "Free to sign up · Numbers from $50/month · No contracts", fake "Network online" pulse removed, How it works (3 steps),
+  feature cards with plan badges derived from catalog `access` (IVR builder = Business only), Why CloudIVR + 17-country
+  coverage grid (Instant vs ID check), pricing whole dollars + minutes/SMS + extra-usage rates, 7-item FAQ, final CTA,
+  footer (support link). Only "CloudIVR" brand on customer pages. `/public/catalog` now also returns coins, minTopup, supportLink.
+- Auth: mobile logo + Home link, show/hide password, `?plan=` carried signup/login → `/app/buy?plan=`, "what happens next".
+- App: grouped sidebar (Numbers/Calling/Account) + support link, phone bottom tab bar + More menu (`MobileNav.js`, `nav.js`),
+  44px targets, preview banner inside content column, centered content, topbar "Add funds".
+- Dashboard: first-run Get-started checklist (no zero-stat wall); existing users get "Your numbers" + next renewal +
+  low-balance warning. Buy: top-up detour keeps number+plan (sessionStorage `civr.buyResume`, `/app/wallet?need=&for=` → `?resume=1`).
+  Wallet: amount prefilled with shortfall, polls every 20 s while a deposit is open, "Check now".
+- Contrast: all #555/#666/#777 text lifted (#8a8a8a/#9a9a9a), --c-muted #8a8a8a; off-grid 20/28/36px spacing → 8-pt.
+- domain-guard serves the index with CloudIVR <title>/description/og tags (was "Hosting Panel"); test 18/18.
+- Deployed via `scripts/deploy_workspace_to_droplet.sh app-main` → release 20261023T115939Z-1b31835 (:5100 app-main-b).
+  ⚠️ Owner must "Save to GitHub" (WITH-WEBIVR) or the next CI deploy rebuilds the old UI.
+- LESSON: search_replace sometimes reports "failed" but HAS applied (twice) — verify with git diff; patch via python asserts.
+- ✅ WEB_DYNO_PAY_API_KEY saved via secure card (2026-10-23 12:05Z). Preview: real DynoPay USDT-TRC20 address created for a $10
+  test top-up (no funds sent; preview needs `supervisorctl restart nodejs` after .env changes). Droplet: appended to
+  /opt/nomadly/shared/app-main/backend.env (backup `.bak.webdyno.20261023T120712Z`), app-main-b restarted at 0 live calls → healthy.
+  Next: owner makes one real $10 deposit on cloudivr.net to confirm the credit lands; add GOOGLE_OAUTH_CLIENT_ID for Google sign-in.
+
 ## 2026-10-23 (late) — CloudIVR web app built end-to-end on PREVIEW — TESTED (iteration_113: backend 24/24, frontend all flows), awaiting user confirmation
 - Web app at `/cloudivr` (landing, sign up/in, forgot/reset) + `/cloudivr/app/*`: overview, my numbers, buy (17 Telnyx countries,
   Twilio never shown), number tabs (overview, forwarding, IVR builder w/ sub-menu + 30-day key analytics, voicemail, SMS,

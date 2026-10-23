@@ -19,7 +19,7 @@ export function GetStarted({ balance }) {
   return (
     <div className="civr-card p-6 md:p-8 civr-rise" data-testid="dashboard-get-started">
       <div className="civr-label">Get started</div>
-      <ol className="mt-6 space-y-4">
+      <ol className="mt-6 flex flex-col gap-4">
         {steps.map((x, i) => {
           const active = i === current;
           return (

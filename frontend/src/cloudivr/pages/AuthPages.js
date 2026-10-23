@@ -45,7 +45,7 @@ function SidePanel({ signup }) {
       {signup ? (
         <div>
           <div className="civr-label">What happens next</div>
-          <ol className="mt-6 space-y-6" data-testid="auth-next-steps">
+          <ol className="mt-6 flex flex-col gap-6" data-testid="auth-next-steps">
             {NEXT_STEPS.map((s, i) => (
               <li key={s} className="flex items-center gap-4 font-display text-3xl font-bold">
                 <span className="w-10 h-10 rounded-full border border-[#34d399]/50 text-[#34d399] font-mono text-base flex items-center justify-center shrink-0">{i + 1}</span>{s}

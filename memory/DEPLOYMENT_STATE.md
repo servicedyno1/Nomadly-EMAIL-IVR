@@ -118,6 +118,12 @@ The new layout differs from the old in-place `/opt/nomadly/app-main` checkout. O
   non-CloudIVR page → 302 `/cloudivr`, `/cloudivr/*` → SPA, API/static pass. Test `js/tests/test_cloudivr_domain_guard_2026-10.js` 12/12.
   Also `cloudivr` added to the shortener `/:id` SPA list + reserved aliases (fixes 2.speechcue.com/cloudivr).
 
+## 2026-10-23 ~12:00Z — CloudIVR UX overhaul LIVE (workspace tarball deploy)
+- `bash scripts/deploy_workspace_to_droplet.sh app-main` → release `20261023T115939Z-1b31835` on app-main-b :5100 (frontend rebuilt
+  on the droplet, health OK, 0 live calls at flip). Previous release kept for rollback. Not on GitHub yet → owner "Save to GitHub".
+- domain-guard now `res.send`s a CloudIVR-branded copy of build/index.html (cached by mtime) instead of `sendFile`.
+- 12:07Z `WEB_DYNO_PAY_API_KEY` appended to app-main backend.env (backup `.bak.webdyno.20261023T120712Z`); `pm2 restart app-main-b` at 0 calls → healthy. Web top-ups now use the CloudIVR DynoPay account.
+
 ## Telegram DNS-cache lesson (2026-09-28)
 - Symptom: DNS for `2.speechcue.com` was correct everywhere (146.190.238.190) but `getWebhookInfo` showed `ip_address: 69.46.46.98` (Railway anycast) + `Wrong response from the webhook: 404`. Telegram caches the resolved webhook IP for hours after a host move; re-calling setWebhook alone does NOT refresh it.
 - Fix: `setWebhook` with `ip_address=146.190.238.190` → delivery switched instantly (46 pending updates flushed).

@@ -21,7 +21,7 @@ export function Pricing({ catalog }) {
             <div className="flex items-center justify-between"><div className="font-display text-3xl font-bold">{p.name}</div>{i === 1 && <span className="civr-pill civr-pill-on">Recommended</span>}</div>
             <div className="font-mono text-4xl mt-4" data-testid={`pricing-price-${p.id}`}>{usd(p.price)}<span className="text-sm text-[#9a9a9a]">/mo</span></div>
             <div className="text-sm text-[#ddd] mt-2" data-testid={`pricing-allowance-${p.id}`}>{p.minutes} minutes · {p.sms} SMS included each month</div>
-            <ul className="mt-6 space-y-2 text-sm text-[#bbb] flex-1">
+            <ul className="mt-6 flex flex-col gap-2 text-sm text-[#bbb] flex-1">
               {p.features.map(f => <li key={f} className="flex gap-2"><Check className="w-4 h-4 text-[#34d399] mt-0.5 shrink-0" />{f}</li>)}
             </ul>
             <Link to={start(p.id)} className={`civr-btn mt-8 ${i === 1 ? 'civr-btn-primary' : 'civr-btn-ghost'}`} data-testid={`pricing-choose-${p.id}`}>Choose {p.name}</Link>
@@ -56,7 +56,7 @@ export function Faq({ catalog }) {
   return (
     <section id="faq" className="max-w-7xl mx-auto px-6 md:px-8 py-24 grid lg:grid-cols-12 gap-12 scroll-mt-16">
       <div className="lg:col-span-4"><SectionHead label="FAQ" title="Questions before you buy" /></div>
-      <div className="lg:col-span-8 space-y-2" data-testid="faq-list">
+      <div className="lg:col-span-8 flex flex-col gap-2" data-testid="faq-list">
         {faqItems(catalog).map(([q, a], i) => (
           <details key={q} className="civr-card" data-testid={`faq-item-${i}`}>
             <summary className="flex items-center justify-between gap-4 cursor-pointer px-6 py-4 min-h-[56px] font-semibold" data-testid={`faq-question-${i}`}>{q}<ChevronDown className="civr-faq-chevron w-4 h-4 shrink-0 text-[#a1a1aa]" /></summary>

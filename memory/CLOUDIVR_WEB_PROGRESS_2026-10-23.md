@@ -3,9 +3,9 @@
 Status (late 2026-10-23): **BUILT + TESTED ON PREVIEW** (test_reports/iteration_113.json: backend 24/24, all frontend flows pass;
 minor findings fixed after). Mounted at `/api/cloudivr-web/*`, UI at `/cloudivr`.
 **LIVE in production since 2026-10-23 ~11:03Z at https://cloudivr.net** (app-main, branch WITH-WEBIVR — see DEPLOYMENT_STATE.md).
-Prod is NOT dry-run: real number purchases, real calls. Still pending: `WEB_DYNO_PAY_API_KEY` (secure card → preview + droplet
+Prod is NOT dry-run: real number purchases, real calls. ✅ `WEB_DYNO_PAY_API_KEY` set on preview + droplet (2026-10-23 12:07Z). Still pending:
 app-main backend.env), `GOOGLE_OAUTH_CLIENT_ID` (+ add https://cloudivr.net to Authorized JavaScript origins).
-Pending owner: `WEB_DYNO_PAY_API_KEY` (web-only DynoPay key) and `GOOGLE_OAUTH_CLIENT_ID` via the secure secrets card.
+Pending owner: `GOOGLE_OAUTH_CLIENT_ID` via the secure secrets card (WEB_DYNO_PAY_API_KEY done 2026-10-23). UX audit fixes LIVE (see PRD 2026-10-23 eve).
 Google Cloud Console → Authorized JavaScript origins must include the preview origin (and later the custom domain).
 The sections below are the original plan; "Remaining work" items 1–5 are DONE.
 Pitfalls found: babel visual-edits plugin overflows on mutually recursive React components (IvrTab uses a render-prop list);

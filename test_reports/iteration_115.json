@@ -1,0 +1,32 @@
+{
+  "summary": "Ran the full CloudIVR UX-audit fix review on the preview hosts only, nothing on production cloudivr.net, and no TTS calls. Backend: test_cloudivr_web.py passed 24/24. The domain-guard unit test passed 18/18. /public/catalog returns 8 coins including BTC and 'USDT (TRC20)', minTopup=10 and supportLink=https://t.me/onarrival1. Landing on the root alias (1920px): nav anchors, Sign in and 'Get your number' CTAs, microcopy and trust row are correct. The 'Network online' pulse and all Nomadly/Speechcue text are gone. Sections come in the right order (how, features, why, pricing, faq, final-cta, footer). The 6 feature plan badges match the catalog. All 17 coverage tiles show; US/CA/PR/CO say Instant. Prices are $50/$75/$120 and the allowance and extra-usage lines are correct. There are 7 FAQ items and they expand. Footer links and copyright are correct. Plan carry-through works: pricing-choose-pro goes to /signup?plan=pro and shows 'Pro plan picked'; the switch link keeps ?plan=pro; Bob signs in to /app/buy?plan=pro, sees the buy-plan-hint, and after picking result-0 buy-summary shows Pro. Auth: the password toggle switches password↔text, signup copy and auth-next-steps are correct, no Telegram/Speechcue text, auth-error appears on a wrong password, and the phone-width logo and home links go to '/'. New-user dashboard (fresh account) and Bob's dashboard (funds Done, buy step active) are correct. Alice's dashboard is correct: stats grid, number-0 with Business and renew date, all-numbers link, next-renewal line, no low-balance warning, and only one 'All numbers' link. Top-up detour works end to end: shortfall note, 'Add $75.00 to continue' goes to /app/wallet?need=75&for=%2B1..., resume banner, amount prefilled with 75, 'Check now' label, presets 44px, PREVIEW deposit card with warning, then 'Back to your number' returns to /app/buy?resume=1 with the resume note, the same number and Pro still selected, and the summary showing. All desktop sidebar nav items, the topbar buttons (44px, softphone panel opens) and the preview banner work. Phone (390px): bottom tab bar with 64px tabs, the More menu items navigate and close the menu, the backdrop closes it, content stays above the bar, and there is no horizontal overflow on landing, login, signup, dashboard, numbers, buy or wallet. Regression: all 8 number-detail tabs and the other app pages render. On the shared host /cloudivr, links keep the prefix (pricing-choose-pro goes to /cloudivr/signup?plan=pro).",
+  "backend_issues": {"critical": [], "minor": [
+    {"endpoint": "GET / on the preview hosts (raw HTML)", "issue": "The preview dev server serves public/index.html with <title>Hosting Panel</title> and description 'Hosting Control Panel', because domain-guard brandedIndex only runs on the Node build path. The title is fixed at runtime ('CloudIVR — Cloud phone numbers, IVR & SIP'), so this only affects crawlers and link-preview bots on preview. Production should be fine according to the unit test."}
+  ]},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Shell SideNav (desktop)", "issue": "There was no gap between the NUMBERS, CALLING and ACCOUNT groups: each group's bottom touched the next group's top. Cause: the preview's visual-edit wrapper (<span style='display:contents'>) sits around the .map() output, so the 'space-y-6' rule '> :not([hidden]) ~ :not([hidden])' never matched the groups. FIXED by the tester: nav now uses 'flex flex-col gap-6'. Verified: 24px gaps (92-260, 284-451, 475-643).", "selector": "[data-testid=nav-header]", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Dashboard stats grid (1920px)", "issues": ["The stat cards are different heights. 'ACTIVE NUMBERS' and 'LIVE CAMPAIGNS' wrap onto 2 lines, so the wallet card is about 96px tall while the others are about 110px, and the Live campaigns card sits slightly lower. Suggested fix: make the cards equal height (h-full) and stop the labels wrapping (whitespace-nowrap), or use shorter labels."]},
+      {"screen": "Buy page after ?resume=1", "issues": ["Restored results show the region in a different order from a fresh search ('IA, DES MOINES, DES MOINES, US' vs 'US, DES MOINES, IA, DES MOINES'). This is cosmetic; the backend joins region_information in whatever order the provider returns it."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_cloudivr_web.py", "/app/js/tests/test_cloudivr_domain_guard_2026-10.js"],
+  "action_items": [
+    "Optional: make the dashboard stat cards equal height and stop the labels wrapping",
+    "Optional: sort the region parts in numbers.js so the order is stable",
+    "Watch for other 'space-y-*' or 'divide-*' containers wrapping .map() output: on preview they lose spacing because of the display:contents wrapper. Prefer flex/grid gap."
+  ],
+  "critical_code_review_comments": [
+    "space-y-* on containers whose children come from .map() breaks under the preview visual-edit wrapper. Use gap utilities instead.",
+    "domain-guard brandedIndex only covers the build path, so the preview dev-server HTML keeps the 'Hosting Panel' meta."
+  ],
+  "updated_files": ["/app/frontend/src/cloudivr/Shell.js"],
+  "success_rate": {"backend": "100%", "frontend": "~98% (all requested flows pass; one low-priority spacing bug fixed by the tester)"},
+  "seed_data_creation": "Registered one fresh preview account, civr.test+24289@example.com / TestPass#2026 ($0). No purchases were made.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Root alias https://839d2a0b-800d-4b9c-8cbb-5b901c2bf000.preview.emergentagent.com mounts the app at '/'. Shared host https://vault-launch-6.preview.emergentagent.com mounts it at /cloudivr. Alice: $380, +13807100346 Business, renews Nov 23 2026. Bob: $500, 0 numbers. Don't write to production cloudivr.net."
+}

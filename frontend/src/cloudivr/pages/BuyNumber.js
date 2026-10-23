@@ -65,7 +65,7 @@ function PlanPicker({ plans, value, onChange, surcharge }) {
           <div className="flex items-center justify-between"><span className="font-display text-2xl font-bold">{p.name}</span>{value === p.id && <Check className="w-5 h-5 text-[#34d399]" />}</div>
           <div className="font-mono text-2xl mt-2">{money(p.price + (surcharge || 0))}<span className="text-xs text-[#9a9a9a]"> /month</span></div>
           <div className="text-xs text-[#a1a1aa] mt-1">{p.minutes} min · {p.sms} SMS included</div>
-          <ul className="mt-4 space-y-1 text-xs text-[#bbb]">{p.features.slice(0, 6).map(f => <li key={f}>· {f}</li>)}</ul>
+          <ul className="mt-4 flex flex-col gap-1 text-xs text-[#bbb]">{p.features.slice(0, 6).map(f => <li key={f}>· {f}</li>)}</ul>
         </button>
       ))}
     </div>
