@@ -1,3 +1,4 @@
+const { networkLabel } = require('./sanitize-provider.js')
 /**
  * Phone Number Health Monitor
  * - Runs every 30 minutes via setInterval
@@ -139,7 +140,7 @@ function buildAdminMessage(chatId, phoneNumber, provider, detailId, friendlyName
   const icon = userNotified ? '✅' : '❌ (will retry)';
   return (
     `🔴 <b>Number Suspended</b>\n\n` +
-    `Provider: ${provider}\n` +
+    `Provider: ${networkLabel(provider)}\n` +
     `ID: <code>${detailId}</code>\n` +
     `User: ${chatId} (${friendlyName})\n` +
     `Number: ${phoneNumber}\n` +

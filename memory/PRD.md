@@ -1,5 +1,12 @@
 # PRD — Nomadly Cloud IVR + Telegram Bot
 
+## 2026-10-23 (pm) — Bulk cancel stops billing · carrier name hidden · CloudIVR web handoff
+- Bulk IVR Cancel now hangs up live calls still playing the message (transferred calls keep going). RCA + refund
+  ($1.95 to 8666352410, done + notified): memory/BULK_CANCEL_BILLING_RCA_2026-10-23.md. Tests 10/10 + 32/32 + 48/48 + 17/17.
+- "telnyx" no longer shown in support escalations / admin alerts (`networkLabel` → "Speechcue").
+- CloudIVR web app: backend modules in `js/cloudivr-web/` (NOT mounted, inert), frontend not started.
+  Full handoff + next steps: **memory/CLOUDIVR_WEB_PROGRESS_2026-10-23.md**.
+
 ## 2026-10-23 — Bulk IVR: Pause/Resume/Cancel + My Campaigns, international pricing, voicemail drop (Telnyx) — TESTED (sandbox), awaiting user confirmation
 - Controls: inline ⏸ Pause / ▶️ Resume / ❌ Cancel (+ 📊 Status) on Campaign Started, wallet-pause and status messages;
   `📋 My Campaigns` (en/fr/zh/hi) in Cloud IVR menu + running screen. Callbacks `bulk_view|pause|resume|cancel|cancelyes:<id>`
