@@ -1,0 +1,42 @@
+{
+  "summary": "Retested the iteration_118 fixes for CloudIVR web (DRY-RUN preview). All 9 items PASS. Backend: new pytest file test_cloudivr_web_retest119.py, 4/4 passing (downgrade→upgrade restores recording and keeps a $5 surcharge, past preview scheduled calls become 'completed', Alice GET /prefs/voice = onyx, coupons/today used=true for Alice and Bob). Frontend checks run with Playwright. (1) Bob trial: after submit, quick-trial-result stays visible with the preview message, the free-call note and quick-trial-buy-link → /cloudivr/app/buy; the submit button is gone; after a reload quick-call-empty shows. (2) Alice quick-voice-select starts at 'onyx', and the POST /calls/quick body sends voice:'onyx'. (3) UI round trip: Recording on → downgrade to Pro (preview lists IVR, Call recording, Priority support + 'No refund'; confirm dialog; toast 'Now on Pro · $75.00/month') → Recording tab locked → upgrade in Billing (quote $45, toast 'Upgraded · charged $45.00') → Recording back ON. (4) Inbox: no use-coupon button for Alice or Bob; Bob's 'Coupon … applied' notice has no button; a fresh qa account has the button and it links to /buy?coupon=NMD10EQA5U5. (5) qa.coupon1792775586@example.com registered 17:13:07 got the daily notice at 17:16:09 (marker daily:<date>:<id>), no restart needed. (6) No cancel buttons on past preview entries. (7) FR/ES scan of the landing page and 12 app pages (overview, number overview/forwarding/hours/ivr/voicemail/billing, extra-number billing, wallet, quick-call, inbox, buy) found no remaining UI English except the intentional or content items below. 'Salut Alice'/'Hola Alice', 'Tester mon numéro'/'Appeler mon numéro', 'Probar mi número'/'Llamar a mi número', route summary, LLAMADAS/APPELS, 'Horaires'/'Horario', pricing-extra-usage full sentence, 'Numéro vert'/'Número gratuito' and mobile bottom nav 'Accueil' are all translated. (8) At 390px in fr and es: no horizontal overflow on quick-call, settings, billing/ivr/voicemail tabs, campaigns/new or buy. (9) Switching from es to en via topbar-lang-switcher restores English. AI chat answered a how-to question, and 'talk to a human' shows support-chat-human-link-3 → t.me/onarrival1 (2 OpenAI messages used). Quick IVR transfer returns the preview result. State restored: Alice main on Business $120, recording on, downgradeSaved []; Bob ivrTrialUsed=false.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "console", "issue": "React warning 'Cannot infer the option value of complex children' is still logged (an <option> has mixed children without a value prop). The '<span> cannot be a child of <tbody>/<tr>' hydration warnings also remain; they likely come from the visual-edit tooling.", "selector": "select option", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Remaining English in FR/ES (content-like, judge whether to translate)", "issues": [
+        "IVR tab greeting textarea (ivr-greeting-text-input) is prefilled with 'Thank you for calling. Please select an option.' when no IVR is saved (Alice's ivr is undefined), so it is a default prefill, not user text. Consider a localized default.",
+        "Overview activity shows 'Is the shop open on Sunday?' and the '“Hi, this is Dana from Acme…”' voicemail transcript. These are seeded SMS/voicemail content (intentional).",
+        "Voicemail sample 'The person at … is unavailable…' follows the selected greeting language (intentional).",
+        "ES number tab 'Recording' is translated as 'Grabando' ('recording in progress'); 'Grabación' would be more natural."
+      ]},
+      {"screen": "Mobile number detail tabs (390px)", "issues": ["With ?tab=billing the horizontal tab strip does not scroll to show the active tab. The visible tabs are Accueil/Renvoi/Horaires/IVR, so the user cannot see which tab is active. Consider scrollIntoView on the active tab."]},
+      {"screen": "AI support chat content", "issues": ["Asked 'How do I schedule a Quick IVR call?', the AI says Quick IVR calls are on Pro and Business, but it does not mention that scheduling is Business-only (the UI shows 'Scheduling, presets and redial are on the Business plan'). Consider adding this to the support prompt's knowledge."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_cloudivr_web_retest119.py", "/app/test_reports/pytest/pytest_results_119.xml"],
+  "action_items": [
+    "LOW: give the <option> with complex children a value prop or a plain string to silence the React warning",
+    "LOW: localize the default IVR greeting prefill, or leave it empty with a translated placeholder",
+    "LOW: ES 'Grabando' → 'Grabación' for the Recording tab",
+    "LOW: on mobile, scroll the active number tab into view",
+    "LOW: support AI prompt: scheduling/presets/redial are Business-only"
+  ],
+  "critical_code_review_comments": [
+    "extras.js announceCoupon loads all webAccounts and tries an insertOne per account every 5 minutes (duplicate-key errors for the ones already sent). That is fine at the current scale, but it is O(accounts) DB writes every run; consider a bulk query of the markers that already exist, or filtering by createdAt > the last run.",
+    "numbers.js upgrade restores downgradeSaved values blindly. If the user changed the same setting in between (only possible for features still allowed on the lower plan), the saved value would overwrite it. Today all saved keys are gated on the lower plan, so this is OK."
+  ],
+  "updated_files": ["/app/backend/tests/test_cloudivr_web_retest119.py"],
+  "success_rate": {"backend": "100% (4/4 retest)", "frontend": "100% of the 9 retest items"},
+  "seed_data_creation": "Registered qa.coupon1792775586@example.com / QaTest#2026x (id 5000000000000005). Added $100 to Alice's wallet (walletOf usdIn 500→600) for two Pro→Business upgrades ($45 each). Alice's wallet is now $82.50.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Node backend = supervisor 'nodejs'; DB 'test'. webPrefs/walletOf/phoneNumbersOf _id = string chatId (Alice '5000000000000001', Bob '5000000000000002'). Alice is on Business ($120) with recording on and downgradeSaved []. Bob ivrTrialUsed=false (reset). test_cloudivr_web_retest119.py does one API downgrade→upgrade round trip ($45 from Alice's wallet) and temporarily adds a $5 surcharge that it reverts. Total OpenAI messages used this iteration: 2. Language is in localStorage 'civr.lang'.",
+  "test_credentials": "From /app/memory/test_credentials.md: Alice civr.alice@example.com / AliceTest#2026, Bob civr.bob@example.com / BobTest#2026"
+}

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useNavigate, useParams, useSearchParams, Link } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { useApi, enc, day } from '../api';
@@ -29,6 +29,13 @@ export default function NumberDetail() {
   const pv = usePrivacy();
   const tab = params.get('tab') || 'overview';
   const n = data?.number;
+  const strip = useRef(null);
+  const hasNum = !!n;
+  // Mobile: keep the active tab visible in the scrolling tab strip (horizontal only).
+  useEffect(() => {
+    const s = strip.current, el = s?.querySelector('[aria-selected="true"]');
+    if (el) s.scrollLeft += el.getBoundingClientRect().left - s.getBoundingClientRect().left - 16;
+  }, [tab, hasNum]);
   if (loading && !n) return <Spinner />;
   if (error) return <ErrorNote error={error} />;
   const [, label, gate, Comp] = TABS.find(t => t[0] === tab) || TABS[0];
@@ -46,7 +53,7 @@ export default function NumberDetail() {
           {n.dryRun && <span className="civr-pill civr-pill-warn">preview</span>}
         </div>
       </div>
-      <div className="flex gap-1 overflow-x-auto border-b border-[#1f1f1f] mb-8" role="tablist">
+      <div ref={strip} className="flex gap-1 overflow-x-auto border-b border-[#1f1f1f] mb-8" role="tablist">
         {TABS.map(([id, name]) => (
           <button key={id} role="tab" aria-selected={tab === id} onClick={() => setParams({ tab: id }, { replace: true })} data-testid={`number-tab-${id}`}
             className={`px-4 py-3 text-sm font-medium border-b-2 -mb-px transition-colors shrink-0 ${tab === id ? 'border-[#34d399] text-[#34d399]' : 'border-transparent text-[#888] hover:text-white'}`}>{name}</button>

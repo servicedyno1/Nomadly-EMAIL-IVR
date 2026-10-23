@@ -127,5 +127,7 @@
 - Free test call (landing): preview shows the OTP on screen (dry run). `WEB_TRYCALL_LIVE=true` in backend/.env (+ restart nodejs) = real calls
   and real emailed codes. Limits are per IP: clear `webTryCalls`/`webTryCodes` for qa.* emails between test runs. Owner's real test number
   +13025141000 is used for 30 days (records ip set to `owner-real-test`).
+- 2026-10-24: Alice wallet ~$82.50 (Business, recording on); Bob trial reset (`db.webPrefs.updateOne({_id:'5000000000000002'},{$set:{ivrTrialUsed:false}})`, DB `test`).
+  Extra QA accounts (password `QaTest#2026x`): qa.cpn1792774767@example.com (Pro dry-run number), qa.coupon1792775586@example.com.
 - Google sign-in: hidden until `GOOGLE_OAUTH_CLIENT_ID` (owner's own Google app) is set. No Google test identities yet.
 

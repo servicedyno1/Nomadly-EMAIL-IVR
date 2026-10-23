@@ -992,3 +992,9 @@ User inherited a fully-set-up Nomadly bot pod pointed at LIVE PRODUCTION. Task b
 - DONE: DR — Hosta + BozzMail in 2-min live mirror + hourly archives (sources are standalone → no change streams).
 - DONE: PhoneMonitor parent-down guard. OPEN (owner): Nomadly's main Twilio account inactive since 2026-10-22 00:00Z (Twilio 20003) — 49 Twilio lines affected.
 - Backlog: realtime change streams for Hosta/BozzMail (needs replica-set conversion, ~30s downtime each); Vultr 401 stale key (RDP grace destroy); Contabo invalid_client.
+
+## 2026-10-24 — CloudIVR web bot-parity (21 features) + English/French/Spanish — TESTED (iteration_118/119), preview only
+- Details: memory/CHANGELOG.md (2026-10-24) + memory/CLOUDIVR_BOT_WEB_GAP_AUDIT_2026-10-24.md. Calls/purchases are DRY-RUN (MOCKED) in preview.
+- Re-translate after UI text changes: `node scripts/civr_i18n_extract.js && python3 scripts/civr_i18n_translate.py`.
+- NOT pushed / NOT deployed: owner uses "Save to GitHub" when ready (main redeploys all 4 bots; js/voice-service.js is the live call engine).
+- Backlog: localized default IVR greeting prefill (LOW), React "option complex children" dev warning (LOW), Telegram-style per-language voicemail greeting for Spanish (voicemail languages are EN/FR/PT/AR only).

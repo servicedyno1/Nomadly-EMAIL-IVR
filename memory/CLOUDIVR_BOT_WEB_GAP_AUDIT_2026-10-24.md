@@ -1,5 +1,7 @@
 # CloudIVR — Telegram bot vs web app: feature gap audit (2026-10-24)
 
+**STATUS 2026-10-24: ALL 21 DONE on web (iteration_118 + 119 green). Languages on web = EN/FR/ES (owner's choice, not 中文/हिन्दी).**
+
 Read-only audit (no code changed). Sources: `js/phone-config.js` (btn, plans, planFeatureAccess),
 `js/_index.js` (cp*/ivrOb*/bulk*/cpIvr* handlers, buildManageMenu ~L30219), `js/ivr-outbound.js`,
 `js/ivr-templates.js`, `js/bulk-call-service.js`, `js/voice-service.js` vs `js/cloudivr-web/*` + `frontend/src/cloudivr/*`.
