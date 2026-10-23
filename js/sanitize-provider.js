@@ -324,7 +324,12 @@ function sanitizeUserText(text) {
   return s
 }
 
+// Display name for a voice carrier in any chat message (customer, support or admin). Raw values stay in DB/logs.
+const NETWORK_LABELS = { telnyx: 'Speechcue' }
+const networkLabel = (provider) => NETWORK_LABELS[String(provider || '').toLowerCase()] || provider
+
 module.exports = {
+  networkLabel,
   sanitizeProviderError,
   sanitizeHangupCause,
   sanitizeAiContext,

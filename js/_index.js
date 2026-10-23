@@ -605,7 +605,7 @@ const { updateDNSRecord } = require('./cr-dns-record-update.js')
 const { checkDomainPriceOnline } = require('./cr-domain-price-get.js')
 const domainService = require('./domain-service.js')
 const dnsChecker = require('./dns-checker.js')
-const { sanitizeProviderError, sanitizeHangupCause } = require('./sanitize-provider.js')
+const { sanitizeProviderError, sanitizeHangupCause, networkLabel } = require('./sanitize-provider.js')
 const { initCartAbandonment } = require('./cart-abandonment.js')
 const { initNewUserConversion } = require('./new-user-conversion.js')
 const { initLifecycleDiet } = require('./lifecycle-diet.js')
@@ -1327,7 +1327,7 @@ async function telnyxPaidCheckout(chatId, selectedNumber, ctx = {}) {
   if (!st.ok) { send(chatId, st.text, { parse_mode: 'HTML' }); return null }
   await set(state, chatId, 'action', 'cpTxReg')
   send(chatId, `${st.intro}\n\n${st.prompt.text}`, { parse_mode: 'HTML', reply_markup: { keyboard: st.prompt.keyboard, resize_keyboard: true } })
-  notifyAdmin(`🛂 [Telnyx] Paid — collecting verification details\nchatId: ${chatId}\nnumber: ${selectedNumber}\ncountry: ${countryCode}/${numberType}\npaid: ${txReg.fmtAmount(payment.refund)} (${payment.paymentMethod})`)
+  notifyAdmin(`🛂 [Numbers] Paid — collecting verification details\nchatId: ${chatId}\nnumber: ${selectedNumber}\ncountry: ${countryCode}/${numberType}\npaid: ${txReg.fmtAmount(payment.refund)} (${payment.paymentMethod})`)
   if (cartRecovery) cartRecovery.recordPaymentCompleted(String(chatId))
   if (userConversion) userConversion.markPurchased(chatId)
   return { _verification: true, sessionId: st.session._id }
@@ -1344,7 +1344,7 @@ async function refundTelnyxVerification(chatId, refund, lang) {
   const cur = refund?.currency === 'ngn' ? 'ngn' : 'usd'
   const amt = Number(refund?.amount) || 0
   try { if (amt > 0) await addFundsTo(walletOf, chatId, cur, amt, lang || 'en') } catch (e) {
-    notifyAdmin(`🚨 CRITICAL [TelnyxVerify] refund failed\nchatId: ${chatId}\namount: ${amt} ${cur}\nerror: ${e.message}`)
+    notifyAdmin(`🚨 CRITICAL [NumberVerify] refund failed\nchatId: ${chatId}\namount: ${amt} ${cur}\nerror: ${e.message}`)
   }
 }
 
@@ -1356,7 +1356,7 @@ async function cancelTelnyxVerification(chatId, lang) {
   await set(state, chatId, 'action', 'none')
   await refundTelnyxVerification(chatId, s.payment?.refund, l)
   send(chatId, txReg.T(l).cancelled(txReg.fmtAmount(s.payment?.refund)), translation('o', l))
-  notifyAdmin(`↩️ [TelnyxVerify] Cancelled by user → refunded ${txReg.fmtAmount(s.payment?.refund)}\nchatId: ${chatId}\nnumber: ${s.selectedNumber}\ncountry: ${s.countryCode}/${s.numberType}`)
+  notifyAdmin(`↩️ [NumberVerify] Cancelled by user → refunded ${txReg.fmtAmount(s.payment?.refund)}\nchatId: ${chatId}\nnumber: ${s.selectedNumber}\ncountry: ${s.countryCode}/${s.numberType}`)
   return true
 }
 
@@ -1369,7 +1369,7 @@ async function handleTelnyxVerificationInput(chatId, input, lang) {
     await set(state, chatId, 'action', 'none')
     if (r.refundable) {
       await refundTelnyxVerification(chatId, r.session?.payment?.refund, lang)
-      notifyAdmin(`↩️ [TelnyxVerify] Cancelled by user → refunded ${txReg.fmtAmount(r.session?.payment?.refund)}\nchatId: ${chatId}\nnumber: ${r.session?.selectedNumber}`)
+      notifyAdmin(`↩️ [NumberVerify] Cancelled by user → refunded ${txReg.fmtAmount(r.session?.payment?.refund)}\nchatId: ${chatId}\nnumber: ${r.session?.selectedNumber}`)
     }
     send(chatId, r.text, translation('o', lang))
     return true
@@ -1396,7 +1396,7 @@ async function submitTelnyxVerification(session) {
       await refundTelnyxVerification(session.chatId, session.payment?.refund, session.lang)
       send(session.chatId, txReg.T(session.lang).orderFailed(txReg.fmtAmount(session.payment?.refund)), translation('o', session.lang || 'en'))
     }
-    notifyAdmin(`🚨 [TelnyxVerify] submit crashed (${s?.status || 'unknown'})\nchatId: ${session.chatId}\nnumber: ${session.selectedNumber}\nerror: ${e.message}`)
+    notifyAdmin(`🚨 [NumberVerify] submit crashed (${s?.status || 'unknown'})\nchatId: ${session.chatId}\nnumber: ${session.selectedNumber}\nerror: ${e.message}`)
   }
 }
 async function _submitTelnyxVerification(session) {
@@ -1428,7 +1428,7 @@ async function _submitTelnyxVerification(session) {
     await txReg.setStatus(session._id, 'refunded', { reason })
     await refundTelnyxVerification(chatId, p.refund, lang)
     send(chatId, t.orderFailed(txReg.fmtAmount(p.refund)), translation('o', lang))
-    notifyAdmin(`❌ [TelnyxVerify] Regulated order failed — user refunded ${txReg.fmtAmount(p.refund)}\nchatId: ${chatId}\nnumber: ${session.selectedNumber}\ncountry: ${session.countryCode}/${session.numberType}\nerror: ${reason}`)
+    notifyAdmin(`❌ [NumberVerify] Regulated order failed — user refunded ${txReg.fmtAmount(p.refund)}\nchatId: ${chatId}\nnumber: ${session.selectedNumber}\ncountry: ${session.countryCode}/${session.numberType}\nerror: ${reason}`)
     return
   }
   const doc = {
@@ -1443,12 +1443,12 @@ async function _submitTelnyxVerification(session) {
     await telnyxPendingOrders.insertOne(doc)
   } catch (e) {
     await txReg.setStatus(session._id, 'ordered_untracked', { trackError: e.message })
-    notifyAdmin(`🚨 [TelnyxVerify] Order ${r.order.id} placed but NOT tracked (${e.message}) — check manually\nchatId: ${chatId}\nnumber: ${session.selectedNumber}`)
+    notifyAdmin(`🚨 [NumberVerify] Order ${r.order.id} placed but NOT tracked (${e.message}) — check manually\nchatId: ${chatId}\nnumber: ${session.selectedNumber}`)
     return
   }
   if (r.state === 'active') { await activateTelnyxReviewedOrder(doc); return }
   send(chatId, t.underReview(session.selectedNumber, doc.countryName), translation('o', lang))
-  notifyAdmin(`🛂 [Telnyx] Number under regulatory review\nchatId: ${chatId}\nnumber: ${session.selectedNumber}\ncountry: ${session.countryCode}/${session.numberType}\norder: ${r.order.id}\npaid: ${txReg.fmtAmount(doc.refund)} (${doc.paymentMethod})`)
+  notifyAdmin(`🛂 [Numbers] Number under regulatory review\nchatId: ${chatId}\nnumber: ${session.selectedNumber}\ncountry: ${session.countryCode}/${session.numberType}\norder: ${r.order.id}\npaid: ${txReg.fmtAmount(doc.refund)} (${doc.paymentMethod})`)
 }
 
 // Paid but unfinished verifications: one reminder after 6h idle, auto-refund after 48h idle.
@@ -1456,7 +1456,7 @@ async function sweepTelnyxVerifications() {
   const { remind, expire, stuck } = await txReg.findAbandoned()
   for (const s of stuck) {
     await txReg.markStuckAlerted(s._id)
-    notifyAdmin(`⚠️ [TelnyxVerify] Session stuck in 'submitting' for 30+ min — check Telnyx orders, then refund or activate manually\nchatId: ${s.chatId}\nnumber: ${s.selectedNumber}\nsession: ${s._id}\npaid: ${txReg.fmtAmount(s.payment?.refund)}`)
+    notifyAdmin(`⚠️ [NumberVerify] Session stuck in 'submitting' for 30+ min — check carrier orders, then refund or activate manually\nchatId: ${s.chatId}\nnumber: ${s.selectedNumber}\nsession: ${s._id}\npaid: ${txReg.fmtAmount(s.payment?.refund)}`)
   }
   for (const s of expire) {
     const closed = await txReg.closeSession(s._id, 'expired', { expiredAt: new Date() })
@@ -1467,7 +1467,7 @@ async function sweepTelnyxVerifications() {
     const st = await get(state, s.chatId)
     if (st?.action === 'cpTxReg') await set(state, s.chatId, 'action', 'none')
     send(s.chatId, txReg.T(l).expired(String(s.countryName || s.countryCode), amt), translation('o', l))
-    notifyAdmin(`⌛ [TelnyxVerify] Not completed in 48h → refunded ${amt}\nchatId: ${s.chatId}\nnumber: ${s.selectedNumber}`)
+    notifyAdmin(`⌛ [NumberVerify] Not completed in 48h → refunded ${amt}\nchatId: ${s.chatId}\nnumber: ${s.selectedNumber}`)
   }
   for (const s of remind) {
     await txReg.markReminded(s._id)
@@ -1577,7 +1577,7 @@ async function activateTelnyxReviewedOrder(doc) {
   } catch (e) {
     log(`[TelnyxReview] activation error for ${doc.phoneNumber}: ${e.message}`)
     await telnyxPendingOrders.updateOne({ _id: doc._id }, { $set: { status: 'activation_error', lastError: e.message } })
-    notifyAdmin(`🚨 [TelnyxReview] Number APPROVED by carrier but activation failed — fix manually\nchatId: ${chatId}\nnumber: ${doc.phoneNumber}\norder: ${doc.orderId}\nerror: ${e.message}`)
+    notifyAdmin(`🚨 [NumberReview] Number APPROVED by carrier but activation failed — fix manually\nchatId: ${chatId}\nnumber: ${doc.phoneNumber}\norder: ${doc.orderId}\nerror: ${e.message}`)
     return false
   }
 }
@@ -1589,11 +1589,11 @@ async function refundTelnyxPending(doc, reason) {
   const cur = doc.refund?.currency === 'ngn' ? 'ngn' : 'usd'
   const amt = Number(doc.refund?.amount) || 0
   try { if (amt > 0) await addFundsTo(walletOf, doc.chatId, cur, amt, doc.lang || 'en') } catch (e) {
-    notifyAdmin(`🚨 CRITICAL [TelnyxReview] refund failed\nchatId: ${doc.chatId}\namount: ${amt} ${cur}\nerror: ${e.message}`)
+    notifyAdmin(`🚨 CRITICAL [NumberReview] refund failed\nchatId: ${doc.chatId}\namount: ${amt} ${cur}\nerror: ${e.message}`)
   }
   const shown = cur === 'ngn' ? `${amt} NGN` : `$${amt.toFixed(2)}`
   sendMessage(doc.chatId, txReg.T(doc.lang).rejected(doc.phoneNumber, shown))
-  notifyAdmin(`↩️ [TelnyxReview] Not approved → refunded ${shown}\nchatId: ${doc.chatId}\nnumber: ${doc.phoneNumber}\norder: ${doc.orderId}\nreason: ${reason}`)
+  notifyAdmin(`↩️ [NumberReview] Not approved → refunded ${shown}\nchatId: ${doc.chatId}\nnumber: ${doc.phoneNumber}\norder: ${doc.orderId}\nreason: ${reason}`)
   log(`[TelnyxReview] ❌ ${doc.phoneNumber} not approved (${reason}) — refunded ${shown} to ${doc.chatId}`)
   return true
 }
@@ -1620,7 +1620,7 @@ async function pollTelnyxPendingOrders() {
     const set = { nextCheckAt: new Date(Date.now() + nextMin * 60 * 1000), lastStatus: order?.status, lastReqStatus: reqStatus, lastCheckedAt: new Date() }
     if (ageH > 120 && !doc.slaAlerted) {
       set.slaAlerted = true
-      notifyAdmin(`⏰ [TelnyxReview] Still under review after ${Math.round(ageH)}h\nchatId: ${doc.chatId}\nnumber: ${doc.phoneNumber}\norder: ${doc.orderId}\nstatus: ${order?.status} / ${reqStatus}`)
+      notifyAdmin(`⏰ [NumberReview] Still under review after ${Math.round(ageH)}h\nchatId: ${doc.chatId}\nnumber: ${doc.phoneNumber}\norder: ${doc.orderId}\nstatus: ${order?.status} / ${reqStatus}`)
     }
     await telnyxPendingOrders.updateOne({ _id: doc._id }, { $set: set, $inc: { checks: 1 } })
   }
@@ -3232,7 +3232,7 @@ async function recordEscalation({ chatId, displayName, userMessage, aiResponse, 
           const others = active.length - 1
           const plan = _escapeHtmlForTelegram(first.plan || '?')
           const num = _escapeHtmlForTelegram(first.phoneNumber || '?')
-          const provider = _escapeHtmlForTelegram(first.provider || '?')
+          const provider = _escapeHtmlForTelegram(networkLabel(first.provider || '?'))
           const sipUser = first.telnyxSipUsername || first.sipUsername
           summaryLines.push(`📞 Active plan: <b>${plan}</b> on <code>${num}</code> (${provider})`)
           if (sipUser) summaryLines.push(`🔑 SIP user: <code>${_escapeHtmlForTelegram(sipUser)}</code>`)
@@ -7025,7 +7025,7 @@ Tap a button below to change. Changes sync to your phone on next app open.`
         if (!['created', 'scheduled', 'running', 'paused'].includes(campaign.status)) return showCard('⚠️ This campaign has already finished.')
         const pending = (campaign.leads || []).filter(l => l.status === 'pending').length
         return bot.sendMessage(chatId,
-          `❌ <b>Cancel this campaign?</b>\n\n<b>${pending}</b> lead${pending === 1 ? '' : 's'} not dialed yet will be skipped. Calls already in progress finish normally. This can't be undone.`,
+          `❌ <b>Cancel this campaign?</b>\n\n<b>${pending}</b> lead${pending === 1 ? '' : 's'} not dialed yet will be skipped. Live calls still playing your message are ended right away; calls already transferred to you keep going. This can't be undone.`,
           { parse_mode: 'HTML', reply_markup: { inline_keyboard: [[{ text: '✅ Yes, cancel campaign', callback_data: `bulk_cancelyes:${campaignId}` }], [{ text: '↩️ Keep it', callback_data: `bulk_view:${campaignId}` }]] } }
         ).catch(() => {})
       }
@@ -7033,7 +7033,11 @@ Tap a button below to change. Changes sync to your phone on next app open.`
         const r = await bulkCallService.cancelCampaign(campaignId, 'Cancelled by user', { sendReport: false })
         try { await bot.answerCallbackQuery(query.id, { text: r.error || 'Campaign cancelled' }) } catch (_) { /* ignore */ }
         if (r.error) return showCard(`⚠️ ${esc(r.error)}`)
-        const tail = r.inFlight ? `${r.inFlight} call${r.inFlight === 1 ? '' : 's'} in progress will finish normally — the final report follows when ${r.inFlight === 1 ? 'it ends' : 'they end'}.` : ''
+        const tail = [
+          r.ended ? `${r.ended} live call${r.ended === 1 ? ' was' : 's were'} ended — no further charges for ${r.ended === 1 ? 'it' : 'them'}.` : '',
+          r.transferring ? `${r.transferring} call${r.transferring === 1 ? '' : 's'} already transferred to you will finish normally.` : '',
+          r.inFlight ? 'The final report follows once every call has closed.' : '',
+        ].filter(Boolean).join(' ')
         await bot.sendMessage(chatId, `❌ <b>Campaign cancelled.</b>\n\n${r.notCalled} lead${r.notCalled === 1 ? ' was' : 's were'} not dialed. ${tail}`.trim(), { parse_mode: 'HTML' }).catch(() => {})
         return bulkCallService.sendCancelledReport(campaignId)
       }
@@ -45681,7 +45685,7 @@ app.post('/dev/escalation-alert-preview', async (req, res) => {
       const others = active.length - 1
       const plan = _escapeHtmlForTelegram(first.plan || '?')
       const num = _escapeHtmlForTelegram(first.phoneNumber || '?')
-      const provider = _escapeHtmlForTelegram(first.provider || '?')
+      const provider = _escapeHtmlForTelegram(networkLabel(first.provider || '?'))
       const sipUser = first.telnyxSipUsername || first.sipUsername
       summaryLines.push(`📞 Active plan: <b>${plan}</b> on <code>${num}</code> (${provider})`)
       if (sipUser) summaryLines.push(`🔑 SIP user: <code>${_escapeHtmlForTelegram(sipUser)}</code>`)
