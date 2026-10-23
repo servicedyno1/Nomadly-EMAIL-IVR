@@ -10,6 +10,9 @@ const numbers = require('./numbers')
 const verification = require('./verification')
 const audio = require('./audio')
 const calls = require('./calls')
+const orders = require('./orders')
+const trycall = require('./trycall')
+const { sendMail } = require('./auth')
 
 function createCloudIvrWeb(deps) {
   const { getDb, log = console.log } = deps
@@ -30,6 +33,7 @@ function createCloudIvrWeb(deps) {
       ...numbers.catalog(), coins: deps.coins || [], minTopup: wallet.MIN_TOPUP_USD,
       supportLink: supportHandle() ? `https://t.me/${supportHandle()}` : '',
     }))
+    trycall.routes(r, { ...deps, db, h })
     r.use(auth.requireUser)
     notify.routes(r, { h })
     wallet.routes(r, { db, h, coins: deps.coins, createCryptoDeposit: deps.createCryptoDeposit })
@@ -37,6 +41,7 @@ function createCloudIvrWeb(deps) {
     verification.routes(r, { ...deps, db, h, upload })
     audio.routes(r, { ...deps, db, h, upload })
     calls.routes(r, { ...deps, db, h, numbersApi })
+    orders.routes(r, { ...deps, db, h, numbersApi, sendMail })
     r.get('/dashboard', h(async (req, res) => {
       const id = req.webChatId
       const nums = await numbersApi.myNumbers(id)
@@ -57,9 +62,13 @@ function createCloudIvrWeb(deps) {
   }
 
   let ready = null
+  const boot = () => { if (!ready) { const db = getDb(); if (db) ready = build(db) } return ready }
+  // Build as soon as the DB is up so background work (crypto order pickup) runs without waiting for a visitor.
+  const bootTimer = setInterval(() => { if (boot()) clearInterval(bootTimer) }, 5000)
+  if (bootTimer.unref) bootTimer.unref()
   const router = express.Router()
   router.use((req, res, next) => {
-    if (!ready) { const db = getDb(); if (db) ready = build(db) }
+    boot()
     if (!ready) return res.status(503).json({ error: 'starting', message: 'Service is starting. Try again in a moment.' })
     ready(req, res, next)
   })

@@ -1,142 +1,106 @@
 import React from 'react';
-import { Workflow, PhoneForwarded, Voicemail, MessageSquare, Megaphone, Headphones, UserPlus, Wallet, Hash, CalendarCheck, Bitcoin, Zap, SlidersHorizontal } from 'lucide-react';
+import { Workflow, PhoneForwarded, Voicemail, MessageSquare, Megaphone, Headphones, UserPlus, Hash, Wallet } from 'lucide-react';
 import { usd } from '../../api';
+import { ART, SectionHead, coinList, planBadge } from './kit';
 
-// "BTC, LTC, ETH, USDT and more" from the catalog's coin list.
-export const coinList = (c) => {
-  const s = [...new Set((c?.coins || []).map(x => x.replace(/\s*\(.*\)/, '')))];
-  return s.length > 4 ? `${s.slice(0, 4).join(', ')} and more` : s.join(', ');
-};
-export const andList = (a) => (a.length > 1 ? `${a.slice(0, -1).join(', ')} and ${a[a.length - 1]}` : a[0] || '');
-export const instantCountries = (c) => andList((c?.countries || []).filter(x => !x.verification).map(x => x.name));
+export { coinList, andList, planBadge } from './kit';
 
-// Which plans include a feature, e.g. "Every plan", "Pro and up", "Business plan only".
-export function planBadge(plans, key) {
-  const ps = [...(plans || [])].sort((a, b) => a.price - b.price);
-  if (!ps.length) return null;
-  const ok = key ? ps.filter(p => p.access?.[key]) : ps;
-  if (ok.length === ps.length) return 'Every plan';
-  return ok.length === 1 ? `${ok[0].name} plan only` : `${ok[0].name} and up`;
+function Marquee({ list }) {
+  const row = [...list, ...list];
+  return (
+    <div className="border-y civr-l-rule overflow-hidden py-5" data-testid="civr-country-marquee">
+      <div className="civr-l-marquee">
+        {row.map((c, i) => (
+          <span key={`${c.code}-${i}`} className="civr-l-h text-3xl md:text-5xl px-6 md:px-10 flex items-center gap-4 whitespace-nowrap">
+            <span className="text-2xl md:text-4xl">{c.flag}</span>{c.name}<span className="w-2.5 h-2.5 rotate-45 bg-[#3434EF] ml-6 md:ml-10" />
+          </span>
+        ))}
+      </div>
+    </div>
+  );
 }
 
-export function SectionHead({ label, title, sub }) {
+export function Coverage({ catalog }) {
+  const list = catalog?.countries || [];
+  const tn = catalog?.typeNames || {};
   return (
-    <div className="mb-12 max-w-2xl">
-      <div className="civr-label">{label}</div>
-      <h2 className="font-display text-3xl sm:text-4xl font-bold mt-4">{title}</h2>
-      {sub && <p className="text-base text-[#a1a1aa] mt-4">{sub}</p>}
+    <section id="coverage" className="civr-l-cream scroll-mt-16" data-testid="coverage-section">
+      <div className="max-w-7xl mx-auto px-6 md:px-8 pt-24 pb-12 grid lg:grid-cols-12 gap-8 items-end">
+        <div className="lg:col-span-8"><SectionHead n="01" label="Coverage" title={`Local numbers in ${list.length || 17} countries.`} sub="Local, toll-free and mobile numbers. Pick a country, pay, and your number is ready to route calls." /></div>
+        <p className="lg:col-span-4 text-sm civr-l-muted lg:text-right font-mono uppercase tracking-wider">Voice · SMS · SIP on one line</p>
+      </div>
+      {list.length > 0 && <Marquee list={list} />}
+      <div className="max-w-7xl mx-auto px-6 md:px-8 py-16 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3" data-testid="coverage-grid">
+        {list.map(c => (
+          <div key={c.code} className="civr-l-card-cream civr-l-tilt px-4 py-4 min-w-0" data-testid={`coverage-${c.code}`}>
+            <div className="flex items-center gap-3 min-w-0"><span className="text-2xl">{c.flag}</span><span className="font-semibold truncate">{c.name}</span></div>
+            <div className="text-[11px] civr-l-muted mt-2 font-mono uppercase tracking-wider truncate">{c.types.map(t => tn[t] || t).join(' · ')}</div>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function Badge({ plans, k, dark }) {
+  const b = planBadge(plans, k);
+  if (!b) return null;
+  const every = b === 'Every plan';
+  return <span className={`text-[10px] font-mono uppercase tracking-widest px-2.5 py-1 rounded-full border ${every ? (dark ? 'border-[#00E3AA]/50 text-[#00E3AA]' : 'border-[#3434EF]/40 text-[#3434EF]') : (dark ? 'border-white/20 text-white/70' : 'border-black/20 text-black/60')}`}>{b}</span>;
+}
+
+function FeatureCard({ icon: Icon, title, text, k, plans, dark, img, className, testid, children }) {
+  return (
+    <div className={`${dark ? 'civr-l-card civr-l-dark' : 'civr-l-card-cream'} civr-l-tilt p-6 md:p-8 flex flex-col overflow-hidden relative ${className}`} data-testid={testid}>
+      <div className="flex items-start justify-between gap-4 relative z-10"><Icon className={`w-6 h-6 ${dark ? 'text-[#00E3AA]' : 'text-[#3434EF]'}`} /><Badge plans={plans} k={k} dark={dark} /></div>
+      {img && <img src={img} alt="" className="civr-l-float w-full max-h-[300px] object-contain my-4 select-none pointer-events-none" draggable="false" />}
+      {children}
+      <div className="mt-auto pt-6 relative z-10">
+        <div className="civr-l-h text-3xl md:text-4xl">{title}</div>
+        <p className={`text-sm mt-2 max-w-md ${dark ? 'civr-l-muted' : 'text-black/60'}`}>{text}</p>
+      </div>
     </div>
+  );
+}
+
+export function Features({ catalog }) {
+  const plans = catalog?.plans;
+  return (
+    <section id="features" className="civr-l-cream scroll-mt-16 border-t civr-l-rule" data-testid="features-section">
+      <div className="max-w-7xl mx-auto px-6 md:px-8 py-24">
+        <SectionHead n="03" label="What you get" title="One number. A full phone system behind it." sub="Every card shows which plans include it, so you know exactly what you're paying for." />
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-4 mt-14">
+          <FeatureCard icon={Workflow} title="Visual IVR builder" text="Press 1 for sales, 2 for support. Greetings from text-to-speech or your own audio, one sub-menu deep." k="ivr" plans={plans} dark img={ART.callflow} className="md:col-span-7 md:row-span-2 min-h-[520px]" testid="feature-card-0" />
+          <FeatureCard icon={Megaphone} title="Bulk IVR campaigns" text="Paste leads, pick a message, watch answers and key presses live. Pause or cancel any time." k="bulkCall" plans={plans} img={ART.campaign} className="md:col-span-5" testid="feature-card-1" />
+          <FeatureCard icon={PhoneForwarded} title="Call forwarding" text="Always, when busy or on no answer — to any phone worldwide." k="callForwarding" plans={plans} dark className="md:col-span-5" testid="feature-card-2" />
+          <FeatureCard icon={Voicemail} title="Voicemail" text="Custom greetings, recordings in your inbox and email." k="voicemail" plans={plans} className="md:col-span-4" testid="feature-card-3" />
+          <FeatureCard icon={Headphones} title="Browser phone" text="Call and answer from your browser tab on your number's SIP line." k="sipCredentials" plans={plans} className="md:col-span-4" testid="feature-card-4" />
+          <FeatureCard icon={MessageSquare} title="SMS inbox" text="Inbound texts land in your inbox. Email and webhook delivery on Pro and up." plans={plans} className="md:col-span-4" testid="feature-card-5" />
+        </div>
+      </div>
+    </section>
   );
 }
 
 export function HowItWorks({ catalog }) {
   const steps = [
-    [UserPlus, 'Create your free account', 'Email and password. No card and no contract.'],
-    [Wallet, 'Add funds with crypto', `${coinList(catalog) || 'Crypto'} · from ${usd(catalog?.minTopup || 10)}. Credited once the network confirms.`],
-    [Hash, 'Pick a number and plan', 'Choose a country and a plan. Most numbers are live in about a minute.'],
+    [UserPlus, 'Create a free account', 'Email and password or Google. No card, no contract.'],
+    [Hash, 'Pick a number and plan', 'Choose a country, number type and plan. Auto-renew is on so it never lapses — switch it off any time.'],
+    [Wallet, 'Pay with crypto or wallet', `${coinList(catalog) || 'Crypto'}, or your CloudIVR wallet (top-ups from ${usd(catalog?.minTopup || 10)}). Most numbers are live in about a minute.`],
   ];
   return (
-    <section id="how" className="max-w-7xl mx-auto px-6 md:px-8 py-24 scroll-mt-16">
-      <SectionHead label="How it works" title="From sign-up to a ringing number in three steps." />
-      <ol className="grid md:grid-cols-3 gap-6">
-        {steps.map(([Icon, t, s], i) => (
-          <li key={t} className="civr-card p-8" data-testid={`how-step-${i + 1}`}>
-            <div className="flex items-center justify-between"><span className="font-mono text-sm text-[#34d399]">0{i + 1}</span><Icon className="w-6 h-6 text-[#34d399]" /></div>
-            <div className="font-display text-2xl font-bold mt-8">{t}</div>
-            <p className="text-sm text-[#a1a1aa] mt-2">{s}</p>
-          </li>
-        ))}
-      </ol>
-    </section>
-  );
-}
-
-const FEATURES = [
-  [Workflow, 'Visual IVR builder', 'Press 1 for sales, 2 for support. Greetings from text-to-speech or your own audio, one sub-menu deep.', 'ivr', 'md:col-span-8 md:row-span-2', true],
-  [PhoneForwarded, 'Call forwarding', 'Always, when busy or on no answer — to any phone worldwide.', 'callForwarding', 'md:col-span-4'],
-  [Voicemail, 'Voicemail', 'Custom greetings, with recordings in your inbox and email.', 'voicemail', 'md:col-span-4'],
-  [Megaphone, 'Bulk IVR campaigns', 'Paste leads, pick a message, watch answers and key presses live. Pause or cancel any time.', 'bulkCall', 'md:col-span-4'],
-  [Headphones, 'Browser phone', 'Call and answer from this tab with your number’s SIP line.', 'sipCredentials', 'md:col-span-4'],
-  [MessageSquare, 'SMS inbox', 'Inbound texts land in your inbox. Email and webhook delivery on Pro and up.', null, 'md:col-span-4'],
-];
-
-export function Features({ catalog }) {
-  return (
-    <section id="features" className="max-w-7xl mx-auto px-6 md:px-8 py-24 scroll-mt-16">
-      <SectionHead label="What you get" title="One number. A full phone system behind it." sub="Each card shows which plans include it, so you know what you’re paying for." />
-      <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
-        {FEATURES.map(([Icon, title, text, key, span, big], i) => {
-          const badge = planBadge(catalog?.plans, key);
-          return (
-            <div key={title} className={`civr-card p-8 ${span} ${big ? 'flex flex-col justify-between min-h-[264px]' : ''}`} data-testid={`feature-card-${i}`}>
-              <div className="flex items-start justify-between gap-4">
-                <Icon className={`${big ? 'w-10 h-10' : 'w-6 h-6'} text-[#34d399]`} />
-                {badge && <span className={`civr-pill ${badge === 'Every plan' ? 'civr-pill-on' : 'civr-pill-warn'}`} data-testid={`feature-plan-badge-${i}`}>{badge}</span>}
-              </div>
-              {big && <IvrSketch />}
-              <div className="mt-6">
-                <div className={`font-display font-bold ${big ? 'text-4xl' : 'text-2xl'}`}>{title}</div>
-                <p className="text-sm text-[#a1a1aa] mt-2 max-w-lg">{text}</p>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </section>
-  );
-}
-
-// Mini call-flow drawn inside the big IVR feature card.
-function IvrSketch() {
-  const keys = [['1', 'Sales', 'Forward → +1 415…'], ['2', 'Support', 'Sub-menu'], ['3', 'After hours', 'Voicemail']];
-  return (
-    <div className="my-6 flex flex-col sm:flex-row sm:items-center gap-4" data-testid="feature-ivr-sketch">
-      <div className="civr-pill civr-pill-on !text-xs shrink-0">“Thanks for calling…”</div>
-      <div className="hidden sm:block h-px flex-1 max-w-[64px] bg-[#34d399]/40" />
-      <div className="grid gap-2 flex-1">
-        {keys.map(([k, l, a], i) => (
-          <div key={k} className={`flex items-center gap-4 rounded-xl border border-[#222] bg-[#0f0f0f] px-4 py-2 civr-rise civr-d${i + 1}`}>
-            <span className="w-8 h-8 rounded-lg border border-[#34d399]/50 text-[#34d399] font-mono text-sm flex items-center justify-center">{k}</span>
-            <span className="text-sm font-medium">{l}</span><span className="ml-auto text-xs font-mono text-[#9a9a9a]">{a}</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-export function WhyUs({ catalog }) {
-  const points = [
-    [CalendarCheck, 'Month to month', 'Every number renews monthly from your wallet. Turn off auto-renew and it simply won’t renew.'],
-    [Bitcoin, 'Crypto top-ups', `Pay with ${coinList(catalog) || 'crypto'}. No bank card, no billing address.`],
-    [Zap, 'Live in minutes', `${instantCountries(catalog) || 'US and Canada'} numbers go live right after payment. Other countries need a short ID check.`],
-    [SlidersHorizontal, 'You stay in control', 'Pause, resume or cancel a campaign mid-run, and see every call, key press and SMS in your logs.'],
-  ];
-  return (
-    <section id="why" className="border-y border-[#1a1a1a] bg-[#0d0d0d]" data-testid="why-section">
-      <div className="max-w-7xl mx-auto px-6 md:px-8 py-24 grid lg:grid-cols-12 gap-12">
-        <div className="lg:col-span-5">
-          <SectionHead label="Why CloudIVR" title="No contracts. No card. No surprises." />
-          <ul className="grid gap-8">
-            {points.map(([Icon, t, s], i) => (
-              <li key={t} className="flex gap-4" data-testid={`why-point-${i}`}>
-                <Icon className="w-5 h-5 text-[#34d399] shrink-0 mt-1" />
-                <div><div className="font-semibold">{t}</div><p className="text-sm text-[#a1a1aa] mt-1">{s}</p></div>
-              </li>
-            ))}
-          </ul>
-        </div>
-        <div className="lg:col-span-7" data-testid="coverage-grid">
-          <div className="civr-label mb-4">Where you can get a number</div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-            {(catalog?.countries || []).map(c => (
-              <div key={c.code} className="flex items-center gap-2 rounded-xl border border-[#222] bg-[#111] px-4 py-3 text-sm min-w-0" data-testid={`coverage-${c.code}`}>
-                <span className="text-lg">{c.flag}</span><span className="flex-1 truncate">{c.name}</span>
-                <span className={`text-[10px] font-mono uppercase ${c.verification ? 'text-[#fbbf24]' : 'text-[#34d399]'}`}>{c.verification ? 'ID check' : 'Instant'}</span>
-              </div>
-            ))}
-          </div>
-        </div>
+    <section id="how" className="civr-l-dark scroll-mt-16" data-testid="how-section">
+      <div className="max-w-7xl mx-auto px-6 md:px-8 py-24">
+        <SectionHead n="04" label="How it works" title="Sign up to ringing in three steps." />
+        <ol className="grid md:grid-cols-3 mt-14 border-t civr-l-rule">
+          {steps.map(([Icon, t, s], i) => (
+            <li key={t} className={`pt-8 pb-4 md:pr-8 ${i > 0 ? 'md:pl-8 md:border-l civr-l-rule' : ''}`} data-testid={`how-step-${i + 1}`}>
+              <div className="flex items-center justify-between"><span className="civr-l-h text-7xl text-[#00E3AA]">0{i + 1}</span><Icon className="w-6 h-6 civr-l-muted" /></div>
+              <div className="civr-l-h text-3xl mt-6">{t}</div>
+              <p className="text-sm civr-l-muted mt-3">{s}</p>
+            </li>
+          ))}
+        </ol>
       </div>
     </section>
   );

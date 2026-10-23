@@ -3103,7 +3103,8 @@ async function handleOutboundSipCall(payload) {
   // Wallet balance check — outbound calls charge directly from wallet (plan minutes are for inbound only)
   const sipRate = getCallRate(destination)
   const minRequired = sipRate + CALL_CONNECTION_FEE  // Per-minute rate + connection fee
-  if (_walletOf) {
+  // CloudIVR landing-page free test lines have no wallet: one capped 60 s call, never billed.
+  if (_walletOf && !lookupResult.webTest) {
     try {
       const walletCheck = await smartWalletCheck(_walletOf, chatId, minRequired)
       // ── Concurrency Guard: subtract funds already committed to in-flight
@@ -3175,7 +3176,7 @@ async function handleOutboundSipCall(payload) {
   _reserveOutbound(chatId, callControlId, sipRate * OUTBOUND_RESERVE_MINUTES)
 
   // ── CONNECTION FEE: Charge $CALL_CONNECTION_FEE per call attempt ──
-  if (CALL_CONNECTION_FEE > 0 && _walletOf) {
+  if (CALL_CONNECTION_FEE > 0 && _walletOf && !lookupResult.webTest) {
     try {
       const feeResult = await smartWalletDeduct(_walletOf, chatId, CALL_CONNECTION_FEE, {
         type: 'connection_fee', callType: 'SIPOutbound',
@@ -3203,7 +3204,7 @@ async function handleOutboundSipCall(payload) {
     let testCallInfo = { isTestCall: false }
     try {
       const { checkTestCredentialCall } = require('./phone-test-routes.js')
-      testCallInfo = await checkTestCredentialCall(sipUsername, chatId)
+      testCallInfo = await checkTestCredentialCall(sipUsername, chatId, destination)
       if (testCallInfo.isTestCall) {
         log(`[Voice] TEST CALL detected — max ${testCallInfo.maxDuration}s, ${testCallInfo.callsRemaining} calls remaining`)
         if (testCallInfo.callsRemaining < 0) {
@@ -3597,7 +3598,7 @@ async function findNumberBySipUser(sipUsername, fromPhone, connectionPhoneNumber
         const testNumbers = testAccountDoc?.val?.numbers || []
         const testNum = testNumbers.find(n => n.status === 'active')
         if (testNum) {
-          return { chatId: testCred.chatId, num: testNum, isTestCall: true }
+          return { chatId: testCred.chatId, num: testNum, isTestCall: true, webTest: !!testCred.webTest }
         }
         // FALLBACK: Test account has no active number — create a virtual test number
         // using TELNYX_DEFAULT_ANI so test calls can still be routed via the SIP connection
@@ -3611,7 +3612,7 @@ async function findNumberBySipUser(sipUsername, fromPhone, connectionPhoneNumber
             plan: 'test',
             _isVirtualTestNumber: true
           }
-          return { chatId: testCred.chatId, num: virtualTestNum, isTestCall: true }
+          return { chatId: testCred.chatId, num: virtualTestNum, isTestCall: true, webTest: !!testCred.webTest }
         }
         log(`[Voice] Test account ${TEST_ACCOUNT_CHAT_ID} has no active number and no TELNYX_DEFAULT_ANI fallback — cannot route test call`)
       }
@@ -4574,7 +4575,7 @@ const ivrOutbound = require('./ivr-outbound.js')
  * @returns {{ callControlId, error }}
  */
 async function initiateOutboundIvrCall(params) {
-  const { chatId, callerId, targetNumber, ivrNumber, menu, audioUrl, activeKeys, templateName, placeholderValues, voiceName, isTrial, holdMusic, campaignId, leadIndex, bulkMode, ivrMode, otpLength, otpMaxAttempts, otpConfirmMsg, otpRejectMsg, voicemailAudioUrl } = params
+  const { chatId, callerId, targetNumber, ivrNumber, menu, audioUrl, greetingText, activeKeys, templateName, placeholderValues, voiceName, isTrial, holdMusic, campaignId, leadIndex, bulkMode, ivrMode, otpLength, otpMaxAttempts, otpConfirmMsg, otpRejectMsg, voicemailAudioUrl } = params
 
   // ── Block satellite / premium-rate destinations (target + transfer leg) ──
   for (const dest of [targetNumber, ivrNumber].filter(Boolean)) {
@@ -4775,6 +4776,7 @@ async function initiateOutboundIvrCall(params) {
     targetNumber,
     ivrNumber,
     audioUrl,
+    greetingText: greetingText || null, // spoken greeting when there is no audio file (CloudIVR demo line)
     activeKeys: activeKeys || ['1'],
     menu: menu || null,
     obPath: null,
@@ -4878,11 +4880,12 @@ async function handleOutboundIvrAnswered(payload) {
   } else {
     // Fallback to TTS if no audio URL
     const tVoice = getTelnyxVoice(session.voiceName)
-    await _telnyxApi.gatherDTMF(callControlId, 'Thank you for your time. Goodbye.', {
+    await _telnyxApi.gatherDTMF(callControlId, session.greetingText || 'Thank you for your time. Goodbye.', {
       minDigits: 1,
       maxDigits: 1,
       timeout: 15000,
       voice: tVoice,
+      ...(session.greetingText ? { validDigits: validDigits || '0123456789' } : {}),
     })
   }
   return true
@@ -4956,7 +4959,7 @@ async function handleOutboundMenuDigit(callControlId, session, digits) {
         minDigits: 1, maxDigits: 1, timeout: 15000, validDigits: Object.keys(menu).join('') || '0123456789',
       })
     } else {
-      await _telnyxApi.gatherDTMFWithSpeak(callControlId, 'Sorry, that was not a valid option. Please try again.', getTelnyxVoice(session.voiceName), {
+      await _telnyxApi.gatherDTMFWithSpeak(callControlId, `Sorry, that was not a valid option. ${session.greetingText || 'Please try again.'}`, getTelnyxVoice(session.voiceName), {
         minDigits: 1, maxDigits: 1, timeout: 15000, validDigits: Object.keys(menu).join('') || '0123456789',
       })
     }
@@ -5518,6 +5521,8 @@ module.exports = {
   recordOutboundMenuPress,
   getOutboundMenuAnalytics,
   initiateOutboundIvrCall,
+  // CloudIVR web demo line: current phase of an outbound IVR call (null once it has ended)
+  getOutboundIvrPhase: (callControlId) => outboundIvrCalls[callControlId]?.phase || null,
   // Bulk recovery: hang up an orphaned Telnyx leg before re-dialling its lead
   hangupOutboundLeg: (callControlId) => Promise.resolve(_telnyxApi?.hangupCall(callControlId)).catch(() => null),
   incrementSmsUsed,

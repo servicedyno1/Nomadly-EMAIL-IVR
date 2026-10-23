@@ -216,4 +216,4 @@ function createAuth(db, { log = console.log } = {}) {
   return { requireUser, routes }
 }
 
-module.exports = { createAuth, parseCookies, COOKIE }
+module.exports = { createAuth, parseCookies, COOKIE, secret, clientIp, sendMail, normEmail, EMAIL_RE }

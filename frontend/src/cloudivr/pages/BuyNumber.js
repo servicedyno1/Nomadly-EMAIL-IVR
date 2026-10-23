@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
-import { Search, Check, Loader2, ShieldCheck, Wallet as WalletIcon } from 'lucide-react';
-import { api, money, enc } from '../api';
+import { Search, Check, Loader2, Clock } from 'lucide-react';
+import { api, money, enc, useApi } from '../api';
 import { useShell } from '../Shell';
 import { PageHeader, Field, Spinner, ErrorNote, Label } from '../ui';
 import { cp } from '../paths';
+import Checkout from './buy/Checkout';
 
 // The chosen number + plan survive the wallet top-up detour (Wallet links back with ?resume=1).
 const RESUME_KEY = 'civr.buyResume';
@@ -22,7 +23,7 @@ function SearchForm({ catalog, q, setQ, onSearch, busy }) {
     <form onSubmit={onSearch} className="civr-card p-6 grid md:grid-cols-4 gap-4 items-end" data-testid="buy-search-form">
       <Field label="Country">
         <select className="civr-input" value={q.country} onChange={e => setCountry(e.target.value)} data-testid="buy-country-select">
-          {catalog.countries.map(c => <option key={c.code} value={c.code}>{c.flag} {c.name}{c.verification ? ' · ID check' : ''}</option>)}
+          {catalog.countries.map(c => <option key={c.code} value={c.code}>{c.flag} {c.name}</option>)}
         </select>
       </Field>
       <Field label="Number type">
@@ -72,20 +73,14 @@ function PlanPicker({ plans, value, onChange, surcharge }) {
   );
 }
 
-function Summary({ pick, planObj, total, summary, busy, onBuy, onTopUp }) {
-  const shortBy = summary ? Math.max(0, Math.round((total - summary.balance) * 100) / 100) : 0;
+// A crypto checkout still waiting for its payment.
+function OpenOrder({ order }) {
   return (
-    <div className="civr-card p-6 mt-6 flex flex-col md:flex-row md:items-center gap-4" data-testid="buy-summary">
-      <div className="flex-1">
-        <div className="font-mono text-xl">{pick.phoneNumber}</div>
-        <div className="text-sm text-[#a1a1aa]">{planObj?.name} plan · wallet {money(summary?.balance)}</div>
-        {shortBy > 0 && <div className="text-sm text-[#fbbf24] mt-2" data-testid="buy-shortfall-note">You need {money(shortBy)} more. We’ll keep this number and plan selected while you top up — numbers aren’t held, so finish soon.</div>}
-      </div>
-      <div className="font-mono text-3xl" data-testid="buy-total">{money(total)}</div>
-      {shortBy > 0
-        ? <button type="button" onClick={() => onTopUp(shortBy)} className="civr-btn civr-btn-primary" data-testid="buy-topup-link"><WalletIcon className="w-4 h-4" />Add {money(shortBy)} to continue</button>
-        : <button className="civr-btn civr-btn-primary" onClick={onBuy} disabled={busy} data-testid="buy-confirm-button">{busy && <Loader2 className="w-4 h-4 animate-spin" />}Pay {money(total)} &amp; activate</button>}
-    </div>
+    <Link to={cp(`/app/orders/${enc(order.id)}`)} className="civr-card civr-card-link p-4 mb-4 text-sm flex items-center gap-3" data-testid="buy-open-order-banner">
+      <Clock className="w-4 h-4 text-[#fbbf24] shrink-0" />
+      <span className="flex-1">Crypto payment {order.status === 'underpaid' ? 'came in short' : 'pending'} for <span className="font-mono">{order.phoneNumber}</span> ({money(order.price)})</span>
+      <span className="text-[#34d399]">View →</span>
+    </Link>
   );
 }
 
@@ -100,6 +95,7 @@ export default function BuyNumber() {
   const [plan, setPlan] = useState(saved?.plan || params.get('plan') || 'starter');
   const [busy, setBusy] = useState('');
   const [error, setError] = useState(null);
+  const { data: open } = useApi('/numbers/orders?open=1');
   useEffect(() => { refreshSummary(); }, [refreshSummary]);
   if (!catalog) return <Spinner />;
   const planObj = catalog.plans.find(p => p.id === plan && p.available) || catalog.plans.find(p => p.available);
@@ -114,37 +110,34 @@ export default function BuyNumber() {
     sessionStorage.setItem(RESUME_KEY, JSON.stringify({ q, res, pick, plan: planObj?.id }));
     nav(cp(`/app/wallet?need=${shortBy}&for=${enc(pick.phoneNumber)}`));
   };
-  const buy = async () => {
+  const buy = async ({ method, coin, autoRenew }) => {
     setBusy('buy'); setError(null);
     try {
-      const d = await api('/numbers/buy', { method: 'POST', body: { phoneNumber: pick.phoneNumber, plan: planObj.id } });
+      const d = await api('/numbers/checkout', { method: 'POST', body: { phoneNumber: pick.phoneNumber, plan: planObj.id, method, coin, autoRenew } });
       sessionStorage.removeItem(RESUME_KEY);
       refreshSummary();
-      if (d.verification) { toast.success('Paid — now finish the verification'); nav(cp('/app/verification')); return; }
-      toast.success(`${d.number.phoneNumber} is yours`);
+      if (d.order) { nav(cp(`/app/orders/${enc(d.order.id)}`)); return; }
+      if (d.verification) { toast.success('Paid — one last step for this number'); nav(cp('/app/verification')); return; }
+      if (d.substitutedFrom) toast.info(`${d.substitutedFrom} was just taken, so you got ${d.number.phoneNumber} instead — same price.`);
+      else toast.success(`${d.number.phoneNumber} is yours`);
       nav(cp(`/app/numbers/${enc(d.number.phoneNumber)}`));
     } catch (err) { setError(err); } finally { setBusy(''); }
   };
 
   return (
     <div data-testid="buy-page">
-      <PageHeader label="Buy" title="Get a new number" sub={`${catalog.countries.length} countries. Paid from your wallet, renews monthly.`} testid="buy-header" />
+      <PageHeader label="Buy" title="Get a new number" sub={`${catalog.countries.length} countries. Pay with crypto or your wallet, renews monthly.`} testid="buy-header" />
+      {open?.orders?.[0] && <OpenOrder order={open.orders[0]} />}
       {saved?.pick && <div className="civr-card p-4 mb-4 text-sm flex items-center gap-2" data-testid="buy-resume-note"><Check className="w-4 h-4 text-[#34d399]" />Welcome back — {saved.pick.phoneNumber} and the {planObj?.name} plan are still selected below.</div>}
       {fromParam && <div className="text-sm text-[#34d399] mb-4 flex items-center gap-2" data-testid="buy-plan-hint"><Check className="w-4 h-4" />{planObj.name} plan picked — search for a number below.</div>}
       <SearchForm catalog={catalog} q={q} setQ={setQ} onSearch={search} busy={busy === 'search'} />
       <div className="mt-4"><ErrorNote error={error} testid="buy-error" /></div>
-      {res?.verification?.required && (
-        <div className="civr-card p-6 mt-4 flex gap-4 text-sm" data-testid="buy-verification-note">
-          <ShieldCheck className="w-5 h-5 text-[#fbbf24] shrink-0" />
-          <div><div className="font-semibold mb-1">This country needs an ID check</div><div className="text-[#a1a1aa] civr-prompt" dangerouslySetInnerHTML={{ __html: (res.verification.note || '').replace(/\n/g, '<br/>') }} /></div>
-        </div>
-      )}
       {res && <div className="mt-8"><Label>1 · Pick a number</Label><Results res={res} pick={pick} setPick={setPick} /></div>}
       {pick && (
         <div className="mt-8 civr-rise">
           <Label>2 · Pick a plan</Label>
           <PlanPicker plans={catalog.plans} value={planObj?.id} onChange={setPlan} surcharge={pick.surcharge} />
-          <Summary pick={pick} planObj={planObj} total={total} summary={summary} busy={busy === 'buy'} onBuy={buy} onTopUp={topUp} />
+          <Checkout key={`${pick.phoneNumber}-${summary ? 1 : 0}`} pick={pick} planObj={planObj} total={total} balance={summary?.balance} coins={catalog.coins || []} busy={busy === 'buy'} onPay={buy} onTopUp={topUp} />
         </div>
       )}
     </div>

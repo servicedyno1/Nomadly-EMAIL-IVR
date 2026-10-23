@@ -41,9 +41,9 @@ export default function Verification() {
   const state = data?.state;
   return (
     <div data-testid="verification-page">
-      <PageHeader label="Verification" title="Number verification" sub="Some countries require the carrier to check who owns the number. Your payment is held until it’s approved — cancel any time for a refund." testid="verification-header" />
+      <PageHeader label="Verification" title="Number verification" sub="The carrier needs a few details before this number goes live. Your number is held for you with no time limit — if the carrier asks for changes, you can send corrected details here." testid="verification-header" />
       <ErrorNote error={error} />
-      {state === 'none' && <Empty icon={ShieldCheck} title="Nothing to verify" sub="Buying a number in a country with an ID check starts the steps here." testid="verification-empty"><Link to={cp('/app/buy')} className="civr-btn civr-btn-primary" data-testid="verification-buy-link">Buy a number</Link></Empty>}
+      {state === 'none' && <Empty icon={ShieldCheck} title="Nothing to verify" sub="If a number you buy needs details for the carrier, the steps show up here." testid="verification-empty"><Link to={cp('/app/buy')} className="civr-btn civr-btn-primary" data-testid="verification-buy-link">Buy a number</Link></Empty>}
       {state && state !== 'none' && (
         <div className="civr-card p-6 max-w-3xl" data-testid="verification-session">
           {data.session && <div className="flex flex-wrap gap-2 mb-6"><span className="civr-pill civr-pill-on font-mono">{data.session.phoneNumber}</span><span className="civr-pill">{data.session.countryName}</span><span className="civr-pill">paid {data.session.paid}</span></div>}

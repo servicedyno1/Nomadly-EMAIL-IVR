@@ -11,6 +11,7 @@ import Dashboard from './pages/Dashboard';
 import Numbers from './pages/Numbers';
 import NumberDetail from './pages/NumberDetail';
 import BuyNumber from './pages/BuyNumber';
+import OrderStatus from './pages/buy/OrderStatus';
 import Verification from './pages/Verification';
 import AudioLibrary from './pages/AudioLibrary';
 import QuickCall from './pages/QuickCall';
@@ -99,6 +100,7 @@ export default function Shell() {
               <Route path="numbers" element={<Numbers />} />
               <Route path="numbers/:phone" element={<NumberDetail />} />
               <Route path="buy" element={<BuyNumber />} />
+              <Route path="orders/:id" element={<OrderStatus />} />
               <Route path="verification" element={<Verification />} />
               <Route path="audio" element={<AudioLibrary />} />
               <Route path="quick-call" element={<QuickCall />} />

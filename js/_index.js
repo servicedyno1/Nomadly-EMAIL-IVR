@@ -1336,11 +1336,13 @@ async function telnyxPaidCheckout(chatId, selectedNumber, ctx = {}) {
     planKey: ctx.planKey || 'starter', price: Number(ctx.price) || 0, paymentMethod: ctx.paymentMethod || 'unknown',
     refund: ctx.refund || { currency: 'usd', amount: Number(ctx.price) || 0 },
     capabilities: ctx.capabilities || { voice: true, sms: mpId !== null, fax: false }, areaCode, numberCost: ctx.numberCost || null,
+    // hold (CloudIVR web): never auto-expire or auto-refund — the paid number waits until the owner finishes.
+    ...(ctx.hold ? { hold: true } : {}),
   }
   const st = await txReg.startSession(chatId, { countryCode, numberType, countryName: ctx.countryName, selectedNumber, reqs: rq.reqs, lang, payment })
   if (!st.ok) { send(chatId, st.text, { parse_mode: 'HTML' }); return null }
   await set(state, chatId, 'action', 'cpTxReg')
-  send(chatId, `${st.intro}\n\n${st.prompt.text}`, { parse_mode: 'HTML', reply_markup: { keyboard: st.prompt.keyboard, resize_keyboard: true } })
+  if (!ctx.hold) send(chatId, `${st.intro}\n\n${st.prompt.text}`, { parse_mode: 'HTML', reply_markup: { keyboard: st.prompt.keyboard, resize_keyboard: true } })
   notifyAdmin(`🛂 [Numbers] Paid — collecting verification details\nchatId: ${chatId}\nnumber: ${selectedNumber}\ncountry: ${countryCode}/${numberType}\npaid: ${txReg.fmtAmount(payment.refund)} (${payment.paymentMethod})`)
   if (cartRecovery) cartRecovery.recordPaymentCompleted(String(chatId))
   if (userConversion) userConversion.markPurchased(chatId)
@@ -1450,7 +1452,7 @@ async function _submitTelnyxVerification(session) {
     countryCode: session.countryCode, countryName: session.countryName || session.countryCode, numberType: session.numberType,
     planKey: p.planKey || 'starter', price: Number(p.price) || 0, paymentMethod: p.paymentMethod || 'unknown',
     refund: p.refund || { currency: 'usd', amount: Number(p.price) || 0 },
-    capabilities: p.capabilities || { voice: true, sms: false, fax: false },
+    capabilities: p.capabilities || { voice: true, sms: false, fax: false }, ...(p.hold ? { hold: true } : {}),
     lang, status: 'under_review', checks: 0, createdAt: new Date(), nextCheckAt: new Date(Date.now() + 2 * 60 * 1000),
   }
   try {
@@ -1596,8 +1598,23 @@ async function activateTelnyxReviewedOrder(doc) {
   }
 }
 
+// CloudIVR web orders are held, not refunded: a fresh verification opens so the owner can resend corrected details.
+async function holdTelnyxPending(doc, reason) {
+  const claim = await telnyxPendingOrders.updateOne({ _id: doc._id, status: 'under_review' }, { $set: { status: 'rejected_on_hold', rejectedAt: new Date(), reason } })
+  if (!claim.modifiedCount) return false
+  const prev = doc.sessionId ? await txReg.getSessionById(doc.sessionId) : null
+  const payment = prev?.payment || { planKey: doc.planKey, price: doc.price, paymentMethod: doc.paymentMethod, refund: doc.refund, capabilities: doc.capabilities, hold: true }
+  const rq = await txReg.getRequirements(doc.countryCode, doc.numberType)
+  const st = rq.ok ? await txReg.startSession(doc.chatId, { countryCode: doc.countryCode, numberType: doc.numberType, countryName: doc.countryName, selectedNumber: doc.phoneNumber, reqs: rq.reqs, lang: doc.lang || 'en', payment: { ...payment, hold: true } }) : null
+  sendMessage(doc.chatId, `The carrier didn't approve the details for ${doc.phoneNumber}. Your payment is kept and the number stays on hold for you — open Verification to send corrected details.`)
+  notifyAdmin(`⏸ [NumberReview] Not approved → ON HOLD (CloudIVR web, no refund)\nchatId: ${doc.chatId}\nnumber: ${doc.phoneNumber}\norder: ${doc.orderId}\nreason: ${reason}${st?.ok ? '\nnew verification opened' : '\n⚠️ could not reopen verification — follow up manually'}`)
+  log(`[TelnyxReview] ⏸ ${doc.phoneNumber} not approved (${reason}) — held for ${doc.chatId}`)
+  return true
+}
+
 // Rejected / cancelled / never completed → full refund (same currency as paid).
 async function refundTelnyxPending(doc, reason) {
+  if (doc.hold) return holdTelnyxPending(doc, reason)
   const claim = await telnyxPendingOrders.updateOne({ _id: doc._id, status: 'under_review' }, { $set: { status: 'rejected', rejectedAt: new Date(), reason } })
   if (!claim.modifiedCount) return false
   const cur = doc.refund?.currency === 'ngn' ? 'ngn' : 'usd'
