@@ -232,3 +232,4 @@ The new layout differs from the old in-place `/opt/nomadly/app-main` checkout. O
 - 14:07Z droplet `/opt/nomadly/shared/app-main/branch` switched WITH-WEBIVR → **main** (backup `branch.bak.<ts>`), as deploy.yml already
   assumed. Owner now saves to GitHub **main** → CI builds main head for app-main (and Sync main → WhiteLabel redeploys wl/voodoo/proshop;
   CloudIVR stays off there via CLOUDIVR_WEB_ON). Workspace HEAD contains origin/main 2ce6d39e → the save is a fast-forward.
+- 14:12Z prod app-main backend.env: appended `GOOGLE_OAUTH_CLIENT_ID` (same client as preview; backup `.bak.google.<ts>`), app-main-a restarted at 0 calls → "Continue with Google" shows on cloudivr.net/login, GSI loads with no origin error.
