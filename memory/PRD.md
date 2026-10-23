@@ -1,6 +1,11 @@
 # PRD — Nomadly Cloud IVR + Telegram Bot
 
-## 2026-10-24 — CloudIVR: 6 Onoff-style features — BACKEND DONE (31/31 unit), FRONTEND PENDING, NOT pushed/deployed
+## 2026-10-24 (later) — Bot vs web gap audit — REPORTED, awaiting owner's pick
+- 21 bot features missing on web (most already supported by the shared call engine → UI + route work only). Top: OTP collection,
+  per-key outbound menu, script templates/type-a-script, campaign CSV report, "what callers get" routing summary, inbound IVR templates.
+- Full table + suggested order: **memory/CLOUDIVR_BOT_WEB_GAP_AUDIT_2026-10-24.md**.
+
+## 2026-10-24 — CloudIVR: 6 Onoff-style features — BACKEND DONE (31/31 unit), FRONTEND BUILT (untested — owner paused testing), NOT pushed/deployed
 - Owner picks: Pro default plan (DONE), On/off hours, Call notes, Call me first (per-call switch on dialer), Voicemail transcription
   (owner's own OpenAI key APP_OPEN_API_KEY), Voicemail greeting language (EN/FR/PT/AR), Private mode (tap again to unhide, no PIN).
 - Full handoff, API contract and UI TODO list: **memory/CLOUDIVR_FEATURES_PROGRESS_2026-10-24.md**.

@@ -1,6 +1,26 @@
 # CloudIVR web — 6 Onoff-style features · PROGRESS / HANDOFF (2026-10-24)
 
-Status: BACKEND DONE (unit tests 31/31) · FRONTEND UI NOT BUILT · NOT pushed, NOT deployed.
+Status: BACKEND DONE (unit tests 31/31) · FRONTEND BUILT 2026-10-24 (lint clean, screenshots OK) · testing_agent NOT run yet (owner paused: "we can test later") · NOT pushed, NOT deployed.
+
+## Frontend built (2026-10-24, second agent) — needs testing_agent run
+- `privacy.js` (new): PrivacyProvider/usePrivacy (`civr.private` in localStorage, syncs tabs), `maskPhone` → `+1 ••• ••• 0100`,
+  `PrivateBanner`; `.civr-secure` CSS (dots while typing). Eye button `topbar-private-mode-button` (data-private on/off) in Shell TopBar.
+  Masked: Numbers cards, NumberDetail header, Dashboard widgets, LogTable (number/from/to/SMS body/transcript/note), Inbox text,
+  Softphone (number list + destination + my mobile), Campaigns list + CampaignDetail (caller, transfer, lead numbers/names).
+- `pages/number/HoursTab.js` (new, tab `hours` after Forwarding): testids `hours-enabled-toggle`, `hours-timezone-select`,
+  `hours-day-{mon..sun}-toggle|start-input|end-input|closed`, `hours-copy-monday-button`, `hours-off-action-select`
+  (voicemail option disabled without `access.voicemail`), `hours-off-message-input`, `hours-save-button`, `hours-status-pill`.
+- Voicemail tab: `voicemail-language-select` (+ `voicemail-language-sample`), `voicemail-transcribe-toggle`.
+- `LogTable.js`: `off_hours` label, transcript `{testid}-transcript-{i}` / `{testid}-transcript-status-{i}`; notes via `CallNote.js`
+  (`number-logs-note-{i}` / `-add-button` / `-edit-button` / `-input` / `-save-button` / `-delete-button`), only in the number Logs tab.
+- Softphone: numbers with SIP **or** ivrOutbound; `softphone-call-me-first-toggle`, `softphone-my-mobile-input`, Call button POSTs
+  `/calls/callback` when on (`softphone-callback-result`); notes box `softphone-note-input` / `softphone-note-save-button` after a call.
+  New file `SoftphoneExtras.js`.
+- Backend: `WEB_FEATURES` adds `['private','Private mode — hide numbers on screen',null]` (nodejs restarted; 31/31 still pass).
+- Test data (local DB): Alice `+15156445205` Business + 6 seeded `phoneLogs` (seed `civr-features-2026-10`) + 1 peer-matched note;
+  Bob `+19565971129` **Starter** (gating checks). OpenAI key verified for `whisper-1`.
+- Next: run testing_agent (frontend + backend) per the P1 list below, fix findings, then owner decides on Save to GitHub.
+- Owner also asked for a bot-vs-web gap audit → `memory/CLOUDIVR_BOT_WEB_GAP_AUDIT_2026-10-24.md` (awaiting owner's pick).
 Respond to the owner in English. Preview only — `WEB_CLOUDIVR_DRY_RUN=true` (calls/purchases MOCKED).
 
 ## Owner's choices (ask_human, 2026-10-24) — do NOT re-ask
