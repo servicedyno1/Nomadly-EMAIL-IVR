@@ -21,7 +21,7 @@
   real codes on preview). Preview crypto checkout returns REAL DynoPay addresses (WEB_DYNO_PAY_API_KEY set) — never send funds; use simulate.
 - Twilio: owner says it is managed on the Nomadly side — no change here. Admin balance overview deferred.
 - 13:49Z a GitHub CI deploy rebuilt stale WITH-WEBIVR `2d3211d` → cloudivr.net showed the URL shortener; rolled back, then workspace deploy +
-  `CLOUDIVR_WEB_ON=true` added to prod backend.env (flag was missing). ⚠️ Owner must Save to GitHub → WITH-WEBIVR or the next CI deploy reverts it.
+  `CLOUDIVR_WEB_ON=true` added to prod backend.env (flag was missing). ⚠️ Server now follows **main** (14:07Z) — owner must Save to GitHub → main or the next CI deploy reverts it.
 - Tests: `backend/tests/test_cloudivr_trycall_orders.py` (16). Next: GOOGLE_OAUTH_CLIENT_ID on prod;
   Google Console JS origins (cloudivr.net, www.cloudivr.net, preview hosts).
 

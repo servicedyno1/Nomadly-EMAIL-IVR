@@ -229,3 +229,6 @@ The new layout differs from the old in-place `/opt/nomadly/app-main` checkout. O
   (added on main; 1b31835 had no flag) and prod backend.env lacked it → appended `CLOUDIVR_WEB_ON=true` (backup `.bak.webon.<ts>`),
   `pm2 restart app-main-a --update-env` at 0 live calls → cloudivr.net OK (3D hero canvas, /public/try/* live, /numbers/orders 401 unauth).
   Prod has NO GOOGLE_OAUTH_CLIENT_ID (Google button hidden). Rollback: `bash /opt/nomadly/deploy.sh app-main rollback`.
+- 14:07Z droplet `/opt/nomadly/shared/app-main/branch` switched WITH-WEBIVR → **main** (backup `branch.bak.<ts>`), as deploy.yml already
+  assumed. Owner now saves to GitHub **main** → CI builds main head for app-main (and Sync main → WhiteLabel redeploys wl/voodoo/proshop;
+  CloudIVR stays off there via CLOUDIVR_WEB_ON). Workspace HEAD contains origin/main 2ce6d39e → the save is a fast-forward.
