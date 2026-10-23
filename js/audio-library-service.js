@@ -68,6 +68,12 @@ function detectAudioFormat(buf) {
  * @returns {{ filename, localPath, audioUrl, size }}
  */
 async function downloadAndSave(fileLink, chatId, originalName, mimeType) {
+  const response = await axios.get(fileLink, { responseType: 'arraybuffer', timeout: 30000 })
+  return saveBuffer(Buffer.from(response.data), chatId, originalName, mimeType)
+}
+
+// Same pipeline for bytes already in memory (web uploads, generated TTS).
+async function saveBuffer(downloadedBuf, chatId, originalName, mimeType) {
   // Determine file extension
   let ext = 'mp3'
   if (mimeType) {
@@ -84,9 +90,6 @@ async function downloadAndSave(fileLink, chatId, originalName, mimeType) {
   const rawFilename = `${chatId}_${id}.${ext}`
   const rawPath = path.join(AUDIO_DIR, rawFilename)
 
-  // Download file
-  const response = await axios.get(fileLink, { responseType: 'arraybuffer', timeout: 30000 })
-  const downloadedBuf = Buffer.from(response.data)
   fs.writeFileSync(rawPath, downloadedBuf)
 
   let filename = rawFilename
@@ -253,7 +256,7 @@ async function deleteAudio(audioId, chatId, phoneNumbersOf) {
   //    provider (Telnyx <Play> / Twilio <Play>).
   if (phoneNumbersOf && audio.filename) {
     try {
-      const cursor = phoneNumbersOf.find({ _id: String(chatId) })
+      const cursor = phoneNumbersOf.find({ _id: { $in: [String(chatId), Number(chatId)] } })
       const docs = await cursor.toArray()
       for (const doc of docs) {
         const nums = doc?.val?.numbers || []
@@ -402,6 +405,7 @@ async function generatePreview(audioId, chatId, seconds = 5) {
 module.exports = {
   initAudioLibrary,
   downloadAndSave,
+  saveBuffer,
   saveAudio,
   listAudios,
   getAudio,

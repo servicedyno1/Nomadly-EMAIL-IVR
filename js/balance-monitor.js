@@ -1,3 +1,4 @@
+const { networkLabel } = require('./sanitize-provider.js')
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // Provider Balance Monitor
 // Periodically checks Telnyx, Twilio & EdenAI account balances
@@ -166,7 +167,7 @@ async function sendAlert(result) {
   const th = thresholdsFor(result.provider)
 
   const msg = [
-    `${icon} <b>${tag}: ${result.provider} Balance Low</b>`,
+    `${icon} <b>${tag}: ${networkLabel(result.provider)} Balance Low</b>`,
     ``,
     `💰 Balance: <b>$${result.balance.toFixed(2)}</b> ${result.currency}`,
     `📊 Thresholds: warn=$${th.warn} | critical=$${th.crit}`,
@@ -177,7 +178,7 @@ async function sendAlert(result) {
         ? `🟠 Running critically low — top up ASAP to avoid service disruption`
         : `🟡 Balance getting low — consider topping up soon`,
     ``,
-    `🔗 ${PROVIDER_LINKS[result.provider] || ''}`,
+    PROVIDER_LINKS[result.provider] ? `🔗 <a href="${PROVIDER_LINKS[result.provider]}">Open account portal</a>` : '',
   ].join('\n')
 
   try {
@@ -249,11 +250,11 @@ async function checkAllBalances() {
       if (!shouldAlert(r.provider + '_error_' + r.errorCategory, 'critical')) continue
 
       const title = isAuthError
-        ? `🔒 <b>${r.provider} CREDENTIALS REJECTED (HTTP ${r.errorStatus})</b>`
-        : `🌐 <b>${r.provider} API unreachable (${consecutive} consecutive failures)</b>`
+        ? `🔒 <b>${networkLabel(r.provider)} CREDENTIALS REJECTED (HTTP ${r.errorStatus})</b>`
+        : `🌐 <b>${networkLabel(r.provider)} API unreachable (${consecutive} consecutive failures)</b>`
       const body = isAuthError
-        ? `Auth token rejected by ${r.provider}. Check that the SID/Token in env are still valid and that the account is not suspended.\n\nError: <code>${r.error}</code>`
-        : `Last error: <code>${r.error}</code>\n\nLikely a transient ${r.provider} edge / network issue. If this clears on the next check, no action needed. If it persists for 30+ minutes, investigate Twilio/Telnyx status pages.`
+        ? `Auth token rejected by ${networkLabel(r.provider)}. Check that the SID/Token in env are still valid and that the account is not suspended.\n\nError: <code>${r.error}</code>`
+        : `Last error: <code>${r.error}</code>\n\nLikely a transient ${networkLabel(r.provider)} edge / network issue. If this clears on the next check, no action needed. If it persists for 30+ minutes, investigate the carrier status pages.`
 
       try {
         await _bot.sendMessage(_adminChatId, `${title}\n\n${body}`, { parse_mode: 'HTML' })

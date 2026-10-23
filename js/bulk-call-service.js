@@ -1561,9 +1561,24 @@ async function generateReportFile(campaign) {
   return reportPath
 }
 
+// Telnyx leg already transferred to the customer's own line (digit pressed / bridging) — keep it on cancel.
+function isLegTransferring(sid) {
+  const s = _voiceService?.outboundIvrCalls?.[sid]
+  return !!(s && (s.digitPressed || ['transferring', 'bridged'].includes(s.phase)))
+}
+
+// Cancel = stop billing now: hang up live legs still ringing or playing the message.
+async function hangupUntransferred(c) {
+  const live = (c?.leads || []).filter(l => INFLIGHT_STATUSES.includes(l.status) && l.callSid && !String(l.callSid).startsWith('CA') && !isLegTransferring(l.callSid))
+  await Promise.all(live.map(l => _voiceService?.hangupOutboundLeg?.(l.callSid)))
+  if (live.length) log(`[BulkCall] Campaign ${c.id}: ended ${live.length} live call(s) on cancel`)
+  return live.length
+}
+
 /**
- * Cancel a campaign (running / paused / scheduled). Calls already in progress finish normally
- * and are billed as usual; pending leads are marked not called. Sends the report so far.
+ * Cancel a campaign (running / paused / scheduled). Live calls still ringing or playing the message are
+ * hung up (they bill only the time already used); calls already transferred to the customer keep going.
+ * Pending leads are marked not called. Sends the report once in-flight calls settle.
  */
 async function cancelCampaign(campaignId, reason = 'Cancelled by user', { sendReport = true } = {}) {
   const state = activeCampaigns[campaignId]
@@ -1584,10 +1599,11 @@ async function cancelCampaign(campaignId, reason = 'Cancelled by user', { sendRe
   await recalcStats(campaignId)
   const c = await _collection.findOne({ id: campaignId })
   const inFlight = (c?.leads || []).filter(l => INFLIGHT_STATUSES.includes(l.status)).length
+  const ended = inFlight ? await hangupUntransferred(c) : 0
   // State stays (paused) while calls are in flight so they settle, bill and get swept if stuck.
   if (!inFlight) delete activeCampaigns[campaignId]
   if (sendReport) await sendCancelledReport(campaignId)
-  return { success: true, notCalled: (c?.leads || []).filter(l => l.notCalled).length, inFlight }
+  return { success: true, notCalled: (c?.leads || []).filter(l => l.notCalled).length, inFlight, ended, transferring: inFlight - ended }
 }
 
 // Cancelled campaign: send the final report once its in-flight calls have settled (exactly once).

@@ -359,6 +359,10 @@ If a customer still hears silence AFTER re-uploading a fresh MP3, escalate — t
 1. Confirm the numbers actually START with +1 in the "leads loaded" preview screen — if they show <code>+40…</code> or <code>+41…</code> etc for what should be US numbers, escalate.
 2. For legitimate international destinations (non-NANP), the user must include the correct country code with <code>+</code>. Twilio geo-permissions must be enabled per destination country on the sub-account — this is a support/billing action, escalate.
 
+### "Balance still going down after I stopped / cancelled my Bulk IVR campaign"
+→ ⏸ <b>Pause</b> stops NEW calls only — calls already connected keep playing and bill per minute until they end. ❌ <b>Cancel</b> (📋 My Campaigns → campaign → ❌ Cancel → ✅ Yes) ends every live call still playing the message right away; only calls already transferred to the user's own phone keep going. Each answered or busy call bills at least 1 minute. Tell the user to check 📋 My Campaigns: if nothing is running and the balance still drops, other usage is the cause (call forwarding minutes, SIP calls, Quick IVR) — escalate with the wallet history.
+
+
 
 ### 📱 SMS Leads
 From main menu → tap <b>📱 SMS Leads</b>
