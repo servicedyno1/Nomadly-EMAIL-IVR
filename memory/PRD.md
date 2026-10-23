@@ -1,6 +1,6 @@
 # PRD — Nomadly Cloud IVR + Telegram Bot
 
-## 2026-10-23 (night) — CloudIVR Telnyx-style redesign + free test call + crypto checkout — TESTED on PREVIEW (iteration_116/117, 16/16 pytest) — NOT deployed yet
+## 2026-10-23 (night) — CloudIVR Telnyx-style redesign + free test call + crypto checkout — TESTED (iteration_116/117, 16/16 pytest) — LIVE on https://cloudivr.net 2026-10-23 13:57Z (release 20261023T135709Z-54b98d4)
 - Landing (`pages/Landing.js` + `pages/landing/{Hero,Hero3D,Sections,PricingFaq,TryCall,TryLive,EmailGate,tryApi,kit}.js`): black/cream
   Telnyx-style sections, bright green accent, live R3F 3D hero. `Hero3D.js` is written with React.createElement (NO JSX) because the dev
   visual-edits babel plugin injects <span>/x-* props into JSX → R3F errors + CRA overlay blocking clicks.
@@ -20,7 +20,9 @@
 - Sign-out → landing page. Preview flags: `WEB_CLOUDIVR_DRY_RUN=true`; `WEB_TRYCALL_LIVE=false` (set true to place real demo calls + email
   real codes on preview). Preview crypto checkout returns REAL DynoPay addresses (WEB_DYNO_PAY_API_KEY set) — never send funds; use simulate.
 - Twilio: owner says it is managed on the Nomadly side — no change here. Admin balance overview deferred.
-- Tests: `backend/tests/test_cloudivr_trycall_orders.py` (16). Next: owner verifies on preview → deploy to cloudivr.net + "Save to GitHub" (WITH-WEBIVR);
+- 13:49Z a GitHub CI deploy rebuilt stale WITH-WEBIVR `2d3211d` → cloudivr.net showed the URL shortener; rolled back, then workspace deploy +
+  `CLOUDIVR_WEB_ON=true` added to prod backend.env (flag was missing). ⚠️ Owner must Save to GitHub → WITH-WEBIVR or the next CI deploy reverts it.
+- Tests: `backend/tests/test_cloudivr_trycall_orders.py` (16). Next: GOOGLE_OAUTH_CLIENT_ID on prod;
   Google Console JS origins (cloudivr.net, www.cloudivr.net, preview hosts).
 
 ## 2026-10-23 (eve) — CloudIVR UI/UX audit → ALL 15 fixes — TESTED (iteration_115, 100%) & LIVE on https://cloudivr.net

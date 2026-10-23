@@ -218,3 +218,14 @@ The new layout differs from the old in-place `/opt/nomadly/app-main` checkout. O
   Test `js/tests/test_origin_cert_selfheal_2026-10.js` 13/0 (local + all 3 releases). Live run after fix: 0 new mints, 0 "not managed on this server".
 - NOTE: a GitHub auto-deploy at 10:35Z moved live slots to app-main-b:5100 (20261016T103545Z-cc66d4c), app-wl-a:5001 / app-voodoo-a:5003 (…-5606afa); it already contained the TTS/EdenAI/lang changes. protection-enforcer was hot-patched into these releases (backups *.bak.ocfix.* / *.bak.guard.*). Needs Save to GitHub.
 - Leftover: ~50 orphan (unused, key discarded) Origin CA certs on CF from the first run — harmless; optional cleanup.
+
+## 2026-10-23 13:49Z — CI auto-deploy REVERTED cloudivr.net → rolled back 13:52Z
+- A GitHub-triggered deploy rebuilt WITH-WEBIVR head `2d3211d` (stale — lacks the workspace-tarball CloudIVR fixes) → cloudivr.net `/` showed
+  "cloudivr.net — URL Shortener", `/cloudivr` 404. Fixed with `deploy.sh app-main rollback /opt/nomadly/releases/app-main/20261023T115939Z-1b31835`
+  → app-main-b :5100, title "CloudIVR — Virtual phone numbers…" again. WILL RECUR on every CI deploy until GitHub WITH-WEBIVR holds the
+  workspace code (owner: Save to GitHub → branch WITH-WEBIVR). Telnyx-style redesign (preview) NOT deployed yet.
+- 13:57Z workspace tarball deploy `54b98d4` (+3 uncommitted) → release `20261023T135709Z-54b98d4` app-main-a :5000 (Telnyx-style redesign,
+  free test call, crypto checkout). It first showed the URL shortener too: the merged code gates the web app behind `CLOUDIVR_WEB_ON=true`
+  (added on main; 1b31835 had no flag) and prod backend.env lacked it → appended `CLOUDIVR_WEB_ON=true` (backup `.bak.webon.<ts>`),
+  `pm2 restart app-main-a --update-env` at 0 live calls → cloudivr.net OK (3D hero canvas, /public/try/* live, /numbers/orders 401 unauth).
+  Prod has NO GOOGLE_OAUTH_CLIENT_ID (Google button hidden). Rollback: `bash /opt/nomadly/deploy.sh app-main rollback`.
