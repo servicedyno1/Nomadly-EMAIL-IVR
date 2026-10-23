@@ -60,7 +60,7 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
     const activeKeys = keysOf(req.body)
     if (dryRun()) return res.status(202).json({ dryRun: true, rate, message: `Preview mode: the call to ${target} was validated but not dialed.` })
     const r = await voiceService.initiateOutboundIvrCall({ chatId, callerId: c.n.phoneNumber, targetNumber: target, audioUrl: audio.audioUrl, ivrNumber: t.to, activeKeys, ivrMode: 'transfer', templateName: audio.name, holdMusic: !!req.body.holdMusic, provider: 'telnyx' })
-    if (r?.error) return bad(res, 502, 'call_failed', String(r.error).slice(0, 200))
+    if (r?.error) return bad(res, 424, 'call_failed', String(r.error).slice(0, 200))
     log(`[CloudIVR-Web] quick IVR ${c.n.phoneNumber} → ${target} by ${chatId}`)
     res.status(201).json({ started: true, callId: r?.callControlId || r?.callSid || null, rate })
   }))

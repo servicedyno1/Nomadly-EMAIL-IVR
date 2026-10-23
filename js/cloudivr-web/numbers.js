@@ -3,7 +3,7 @@
 // phoneNumbersOf so the existing call engine (forwarding, IVR, voicemail, recording, SIP, renewals) serves them.
 const crypto = require('crypto')
 const phoneConfig = require('../phone-config')
-const { walletOps, round2 } = require('./wallet')
+const { walletOps, round2, livePayments } = require('./wallet')
 
 const TYPE_NAMES = { local: 'Local', toll_free: 'Toll-free', mobile: 'Mobile', national: 'National' }
 const FEATURE_KEYS = ['callForwarding', 'smsToEmail', 'smsWebhook', 'voicemail', 'sipCredentials', 'callRecording', 'ivr', 'ivrOutbound', 'bulkCall', 'otpCollection']
@@ -20,9 +20,16 @@ function countries() {
   const intl = phoneConfig.isTelnyxIntlEnabled() ? [...phoneConfig.telnyxIntlCountries, ...phoneConfig.telnyxIntlMore] : []
   return [...phoneConfig.countries, ...intl].filter(c => c.provider === 'telnyx').map(c => {
     const i = c.name.indexOf(' ')
-    return { code: c.code, flag: c.name.slice(0, i), name: c.name.slice(i + 1), types: c.types || ['local', 'toll_free'], verification: !!c.verify }
+    return { code: c.code, flag: c.name.slice(0, i), name: c.name.slice(i + 1), types: c.types || ['local', 'toll_free'] }
   })
 }
+
+const catalog = () => ({
+  plans: Object.entries(phoneConfig.plans).map(([id, p]) => ({ id, name: p.name, price: p.price, minutes: p.minutes, sms: p.sms, features: p.features.map(webText), available: phoneConfig.isPlanAvailable(id), access: access(id) })),
+  countries: countries(), typeNames: TYPE_NAMES,
+  rates: { forwardingPerMin: phoneConfig.CALL_FORWARDING_RATE_MIN, overagePerMin: phoneConfig.OVERAGE_RATE_MIN, overagePerSms: phoneConfig.OVERAGE_RATE_SMS },
+  sipDomain: phoneConfig.SIP_DOMAIN, dryRun: dryRun(), livePayments: livePayments(),
+})
 
 function access(plan) {
   return Object.fromEntries(FEATURE_KEYS.map(k => [k, !!phoneConfig.canAccessFeature(plan, k)]))
@@ -32,7 +39,7 @@ function publicNumber(n) {
   const plan = phoneConfig.plans[n.plan] || {}
   const f = n.features || {}
   return {
-    phoneNumber: n.phoneNumber, country: n.country, countryName: n.countryName, type: n.type, provider: n.provider,
+    phoneNumber: n.phoneNumber, country: n.country, countryName: n.countryName, type: n.type,
     plan: n.plan, planName: plan.name || n.plan, planPrice: n.planPrice, status: n.status, autoRenew: n.autoRenew !== false,
     purchaseDate: n.purchaseDate, expiresAt: n.expiresAt, isSubNumber: !!n.isSubNumber, dryRun: !!n.dryRun,
     capabilities: n.capabilities || { voice: true, sms: true, fax: false },
@@ -118,6 +125,16 @@ function routes(router, deps) {
   const txn = (chatId, type, amount, metadata) => {
     try { return logTransaction && logTransaction(db, { transactionId: generateTransactionId ? generateTransactionId() : crypto.randomUUID(), chatId, type, amount, currency: 'USD', status: 'completed', metadata: { ...metadata, channel: 'web' } }) } catch (_) { return null }
   }
+  // Drops search hits that some account already holds (the dry-run preview never really buys, so they come back).
+  const unheld = async (found) => {
+    const list = found || []
+    const phones = list.map(n => n.phone_number)
+    if (!phones.length) return list
+    const docs = await phoneNumbersOf.find({ 'val.numbers': { $elemMatch: { phoneNumber: { $in: phones }, status: { $ne: 'released' } } } }, { projection: { 'val.numbers.phoneNumber': 1, 'val.numbers.status': 1 } }).toArray()
+    const held = new Set(docs.flatMap(d => (d.val?.numbers || []).filter(n => n.status !== 'released').map(n => n.phoneNumber)))
+    return list.filter(n => !held.has(n.phone_number))
+  }
+
   // Loads the caller's number into req.num (404 when it isn't theirs).
   const withNumber = (fn) => h(async (req, res) => {
     const num = await findMine(req.webChatId, req.params.phone)
@@ -131,12 +148,7 @@ function routes(router, deps) {
     return false
   }
 
-  router.get('/catalog', (req, res) => res.json({
-    plans: Object.entries(phoneConfig.plans).map(([id, p]) => ({ id, name: p.name, price: p.price, minutes: p.minutes, sms: p.sms, features: p.features.map(webText), available: phoneConfig.isPlanAvailable(id), access: access(id) })),
-    countries: countries(), typeNames: TYPE_NAMES,
-    rates: { forwardingPerMin: phoneConfig.CALL_FORWARDING_RATE_MIN, overagePerMin: phoneConfig.OVERAGE_RATE_MIN, overagePerSms: phoneConfig.OVERAGE_RATE_SMS },
-    sipDomain: phoneConfig.SIP_DOMAIN, dryRun: dryRun(),
-  }))
+  router.get('/catalog', (req, res) => res.json(catalog()))
 
   router.get('/numbers/search', h(async (req, res) => {
     const country = String(req.query.country || 'US').toUpperCase()
@@ -146,10 +158,10 @@ function routes(router, deps) {
     if (!c.types.includes(type)) return bad(res, 400, 'invalid_type', `${c.name} offers: ${c.types.map(t => TYPE_NAMES[t] || t).join(', ')}.`)
     const areaCode = ['US', 'CA'].includes(country) && type === 'local' && /^\d{3}$/.test(String(req.query.areaCode || '')) ? String(req.query.areaCode) : null
     const verification = await verificationInfo(country, type, `${c.flag} ${c.name}`)
-    if (verification.error) return bad(res, 502, 'lookup_failed', verification.error)
-    if (verification.required && !verification.supported) return bad(res, 400, 'unsupported', `${c.name} ${TYPE_NAMES[type] || type} numbers need paperwork we can't collect online yet. Pick another country or type.`)
-    const found = await telnyxApi.searchNumbers(country, type, areaCode, 12)
-    const results = (found || []).map(n => ({
+    if (verification.error) return bad(res, 424, 'lookup_failed', verification.error)
+    if (verification.required && !verification.supported) return bad(res, 400, 'unsupported', `${c.name} ${TYPE_NAMES[type] || type} numbers can't be ordered online right now. Pick another country or type.`)
+    const found = await unheld(await telnyxApi.searchNumbers(country, type, areaCode, 12))
+    const results = found.map(n => ({
       phoneNumber: n.phone_number,
       region: (n.region_information || []).map(r => r.region_name).filter(Boolean).join(', '),
       capabilities: n._capabilities || { voice: true, sms: false, fax: false },
@@ -157,39 +169,66 @@ function routes(router, deps) {
       cost: { monthly: parseFloat(n.cost_information?.monthly_cost) || 0, upfront: parseFloat(n.cost_information?.upfront_cost) || 0 },
     }))
     await searchCache.updateOne({ _id: req.webChatId }, { $set: { country, type, areaCode, results, at: new Date() } }, { upsert: true })
-    res.json({ numbers: results.map(({ cost, ...r }) => r), verification: { required: verification.required, note: verification.note } })
+    res.json({ numbers: results.map(({ cost, ...r }) => r) })
   }))
 
   router.get('/numbers', h(async (req, res) => res.json({ numbers: (await myNumbers(req.webChatId)).map(publicNumber) })))
   router.get('/numbers/:phone', withNumber(async (req, res) => res.json({ number: publicNumber(req.num) })))
 
-  router.post('/numbers/buy', h(async (req, res) => {
-    const chatId = req.webChatId
-    const phone = normPhone(req.body.phoneNumber)
-    const planKey = String(req.body.plan || '')
-    const plan = phoneConfig.plans[planKey]
-    if (!plan || !phoneConfig.isPlanAvailable(planKey)) return bad(res, 400, 'invalid_plan', 'That plan is not available.')
+  // Picked number from the account's last search (null when it is no longer there).
+  const pickFromSearch = async (chatId, phone) => {
     const cache = await searchCache.findOne({ _id: chatId })
-    const hit = cache?.results?.find(r => r.phoneNumber === phone)
-    if (!hit) return bad(res, 400, 'search_again', 'That number is no longer in your search results. Search again and pick a number.')
-    const { country, type, areaCode } = cache
+    const hit = cache?.results?.find(r => r.phoneNumber === normPhone(phone))
+    return hit ? { hit, country: cache.country, type: cache.type, areaCode: cache.areaCode } : null
+  }
+  const searchSimilar = async (country, type, areaCode) => (await unheld(await telnyxApi.searchNumbers(country, type, areaCode, 6))).map(n => ({
+    phoneNumber: n.phone_number, capabilities: n._capabilities || { voice: true, sms: false, fax: false },
+    surcharge: round2(numberSurcharge(country, type, n)), cost: { monthly: parseFloat(n.cost_information?.monthly_cost) || 0, upfront: parseFloat(n.cost_information?.upfront_cost) || 0 },
+  }))
+
+  // Account currently holding this number (anyone, including the buyer), or null.
+  const holderOf = async (phone) => (await phoneNumbersOf.findOne({ 'val.numbers': { $elemMatch: { phoneNumber: phone, status: { $ne: 'released' } } } }, { projection: { _id: 1 } }))?._id ?? null
+
+  // One buyer at a time per number: the lock closes the gap between the holder check and saving the number
+  // (TTL frees it if the process dies mid-purchase).
+  const locks = db.collection('webNumberLocks')
+  locks.createIndex({ at: 1 }, { expireAfterSeconds: 600 }).catch(() => {})
+  async function purchase(args) {
+    try { await locks.insertOne({ _id: args.phone, chatId: args.chatId, at: new Date() }) } catch (e) {
+      if (e.code === 11000) return { status: 409, body: { error: 'number_taken', message: 'Someone is buying that number right now. Pick another one.' } }
+      throw e
+    }
+    try { return await purchaseLocked(args) } finally { await locks.deleteOne({ _id: args.phone }).catch(() => {}) }
+  }
+
+  // Debits the wallet and activates the number → { status, body } (HTTP-style; refunds on failure).
+  async function purchaseLocked({ chatId, email, phone, planKey, hit, country, type, areaCode, autoRenew = true, viaOrder = null }) {
+    const plan = phoneConfig.plans[planKey]
+    if (!plan || !phoneConfig.isPlanAvailable(planKey)) return { status: 400, body: { error: 'invalid_plan', message: 'That plan is not available.' } }
+    const holder = await holderOf(phone)
+    if (holder !== null) {
+      return { status: 409, body: String(holder) === String(chatId)
+        ? { error: 'already_yours', message: 'You already have this number. Pick another one.' }
+        : { error: 'number_taken', message: 'Someone just took that number. Pick another one.' } }
+    }
     const c = countries().find(x => x.code === country)
     const ver = await verificationInfo(country, type, `${c.flag} ${c.name}`)
-    if (ver.error) return bad(res, 502, 'lookup_failed', ver.error)
+    if (ver.error) return { status: 424, body: { error: 'lookup_failed', message: ver.error } }
     const price = round2(plan.price + (hit.surcharge || 0))
-    if (!(await w.debit(chatId, price))) return bad(res, 402, 'insufficient_balance', `This number costs $${price.toFixed(2)}. Your wallet has $${(await w.balance(chatId)).toFixed(2)} — top up first.`)
+    if (!(await w.debit(chatId, price))) return { status: 402, body: { error: 'insufficient_balance', message: `This number costs $${price.toFixed(2)}. Your wallet has $${(await w.balance(chatId)).toFixed(2)} — top up first.` } }
 
     let selected = phone
     try {
       const tr = getTelnyxResources() || {}
-      const ctx = { countryCode: country, numberType: type, areaCode, planKey, price, paymentMethod: 'wallet_usd', refund: { currency: 'usd', amount: price }, capabilities: hit.capabilities, numberCost: hit.cost, countryName: `${c.flag} ${c.name}`, lang: 'en' }
+      // hold: web verifications never expire or auto-refund — the number waits until the owner finishes.
+      const ctx = { countryCode: country, numberType: type, areaCode, planKey, price, paymentMethod: viaOrder ? 'crypto_order' : 'wallet_usd', refund: { currency: 'usd', amount: price }, capabilities: hit.capabilities, numberCost: hit.cost, countryName: `${c.flag} ${c.name}`, lang: 'en', hold: true }
       let order
       if (!ver.required && dryRun()) order = { id: `dryrun-${crypto.randomUUID().slice(0, 8)}` }
       else order = await paidCheckout(chatId, phone, ctx)
       if (order?._verification) {
         await phoneTransactions.insertOne({ chatId, phoneNumber: phone, action: 'purchase_verification', plan: planKey, amount: price, paymentMethod: 'wallet_usd', channel: 'web', timestamp: new Date().toISOString() })
-        notifyAdmin(`🌐 CloudIVR web: paid ${country} number ${phone} — collecting verification\nweb account: ${chatId} (${req.webUser.email})\nplan: ${plan.name} $${price}`)
-        return res.status(202).json({ verification: true, sessionId: order.sessionId, balance: await w.balance(chatId) })
+        notifyAdmin(`🌐 CloudIVR web: paid ${country} number ${phone} — collecting verification\nweb account: ${chatId} (${email})\nplan: ${plan.name} $${price}`)
+        return { status: 202, body: { verification: true, sessionId: order.sessionId, phoneNumber: phone, substitutedFrom: null, balance: await w.balance(chatId) } }
       }
       if (!order) throw new Error('The number could not be reserved — it may have just been taken. Pick another one.')
       if (order._retriedNumber) selected = order._retriedNumber
@@ -205,7 +244,7 @@ function routes(router, deps) {
       const expiresAt = new Date(); expiresAt.setMonth(expiresAt.getMonth() + 1)
       const doc = {
         phoneNumber: selected, telnyxOrderId: order.id, provider: 'telnyx', country, countryName: c.name,
-        type, plan: planKey, planPrice: price, purchaseDate: new Date().toISOString(), expiresAt: expiresAt.toISOString(), autoRenew: true, status: 'active',
+        type, plan: planKey, planPrice: price, purchaseDate: new Date().toISOString(), expiresAt: expiresAt.toISOString(), autoRenew: autoRenew !== false, status: 'active',
         sipUsername, sipPassword, telnyxSipUsername: tUser, telnyxSipPassword: tPass, telnyxCredentialId: tCredId, sipDomain: phoneConfig.SIP_DOMAIN,
         messagingProfileId: caps.sms ? tr.messagingProfileId || null : null, connectionId: tr.sipConnectionId || null, smsUsed: 0, minutesUsed: 0,
         capabilities: caps, channel: 'web', ...(dryRun() ? { dryRun: true } : {}),
@@ -218,16 +257,23 @@ function routes(router, deps) {
         },
       }
       await phoneNumbersOf.updateOne({ _id: chatId }, { $push: { 'val.numbers': doc } }, { upsert: true })
-      await phoneTransactions.insertOne({ chatId, phoneNumber: selected, action: 'purchase', plan: planKey, amount: price, paymentMethod: 'wallet_usd', channel: 'web', timestamp: new Date().toISOString() })
+      await phoneTransactions.insertOne({ chatId, phoneNumber: selected, action: 'purchase', plan: planKey, amount: price, paymentMethod: viaOrder ? 'crypto_order' : 'wallet_usd', ...(viaOrder ? { orderRef: viaOrder } : {}), channel: 'web', timestamp: new Date().toISOString() })
       await txn(chatId, 'phone-number', price, { phoneNumber: selected, plan: planKey, provider: 'telnyx', country })
-      notifyAdmin(`🌐 CloudIVR web purchase${dryRun() ? ' (DRY RUN)' : ''}\nweb account: ${chatId} (${req.webUser.email})\nnumber: ${selected} (${country})\nplan: ${plan.name} $${price}`)
+      notifyAdmin(`🌐 CloudIVR web purchase${dryRun() ? ' (DRY RUN)' : ''}${viaOrder ? ' · crypto checkout' : ''}\nweb account: ${chatId} (${email})\nnumber: ${selected} (${country})\nplan: ${plan.name} $${price}`)
       await searchCache.deleteOne({ _id: chatId })
-      res.status(201).json({ number: publicNumber(doc), balance: await w.balance(chatId) })
+      return { status: 201, body: { number: publicNumber(doc), substitutedFrom: selected !== phone ? phone : null, balance: await w.balance(chatId) } }
     } catch (e) {
       await w.credit(chatId, price)
       log(`[CloudIVR-Web] purchase failed for ${chatId} ${phone}: ${e.message} — refunded $${price}`)
-      return bad(res, 502, 'purchase_failed', `${e.message && e.message.length < 160 ? e.message : 'The number could not be activated.'} You were refunded $${price.toFixed(2)}.`)
+      return { status: 424, body: { error: 'purchase_failed', message: `${e.message && e.message.length < 160 ? e.message : 'The number could not be activated.'} You were refunded $${price.toFixed(2)}.` } }
     }
+  }
+
+  router.post('/numbers/buy', h(async (req, res) => {
+    const picked = await pickFromSearch(req.webChatId, req.body.phoneNumber)
+    if (!picked) return bad(res, 400, 'search_again', 'That number is no longer in your search results. Search again and pick a number.')
+    const r = await purchase({ chatId: req.webChatId, email: req.webUser.email, phone: normPhone(req.body.phoneNumber), planKey: String(req.body.plan || ''), autoRenew: req.body.autoRenew !== false, ...picked })
+    res.status(r.status).json(r.body)
   }))
 
   router.patch('/numbers/:phone/forwarding', withNumber(async (req, res) => {
@@ -322,7 +368,7 @@ function routes(router, deps) {
     let user = phoneConfig.generateSipUsername(), pass = phoneConfig.generateSipPassword(), credId = null
     if (!dryRun() && tr.sipConnectionId) {
       const cred = await telnyxApi.createSIPCredential(tr.sipConnectionId, user, pass)
-      if (!cred?.sip_username) return bad(res, 502, 'sip_reset_failed', 'Could not create new SIP credentials. Your current ones still work.')
+      if (!cred?.sip_username) return bad(res, 424, 'sip_reset_failed', 'Could not create new SIP credentials. Your current ones still work.')
       user = cred.sip_username; pass = cred.sip_password || pass; credId = cred.id || null
       if (n.telnyxCredentialId) await telnyxApi.deleteSIPCredential(n.telnyxCredentialId).catch(() => {})
     }
@@ -338,9 +384,11 @@ function routes(router, deps) {
   router.post('/numbers/:phone/renew', withNumber(async (req, res) => {
     const n = req.num, price = round2(n.planPrice || phoneConfig.plans[n.plan]?.price)
     if (!(await w.debit(req.webChatId, price))) return bad(res, 402, 'insufficient_balance', `Renewal costs $${price.toFixed(2)}. Top up your wallet first.`)
+    const lapsed = new Date(n.expiresAt || 0).getTime() <= Date.now()
     const base = new Date(Math.max(Date.now(), new Date(n.expiresAt || Date.now()).getTime()))
     base.setMonth(base.getMonth() + 1)
-    await phoneNumbersOf.updateOne({ _id: req.webChatId, 'val.numbers.phoneNumber': n.phoneNumber }, { $set: { 'val.numbers.$.expiresAt': base.toISOString(), 'val.numbers.$.status': 'active', 'val.numbers.$.minutesUsed': 0, 'val.numbers.$.smsUsed': 0 } })
+    // Early renewal only adds a month; the monthly allowance resets when a lapsed number starts a new cycle.
+    await phoneNumbersOf.updateOne({ _id: req.webChatId, 'val.numbers.phoneNumber': n.phoneNumber }, { $set: { 'val.numbers.$.expiresAt': base.toISOString(), 'val.numbers.$.status': 'active', ...(lapsed ? { 'val.numbers.$.minutesUsed': 0, 'val.numbers.$.smsUsed': 0 } : {}) } })
     await phoneTransactions.insertOne({ chatId: req.webChatId, phoneNumber: n.phoneNumber, action: 'renew', plan: n.plan, amount: price, paymentMethod: 'wallet_usd', channel: 'web', timestamp: new Date().toISOString() })
     await txn(req.webChatId, 'phone-renewal', price, { phoneNumber: n.phoneNumber, plan: n.plan })
     res.json({ expiresAt: base.toISOString(), balance: await w.balance(req.webChatId) })
@@ -375,7 +423,7 @@ function routes(router, deps) {
     res.json({ released: true })
   }))
 
-  return { myNumbers, findMine }
+  return { myNumbers, findMine, purchase, pickFromSearch, searchSimilar }
 }
 
-module.exports = { routes, publicNumber, validateIvr, normPhone, countries, E164 }
+module.exports = { routes, catalog, publicNumber, validateIvr, normPhone, countries, E164 }

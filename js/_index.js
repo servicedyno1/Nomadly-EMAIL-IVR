@@ -125,6 +125,20 @@ if (LEGACY_HOST_REDIRECTS.size) {
 }
 // ── /Legacy host redirects ──────────────────────────────────────────────────
 
+// ── CloudIVR web app is opt-in per bot (CLOUDIVR_WEB_ON=true, Nomadly only); off = /cloudivr pages + API return 404 ──
+const CLOUDIVR_WEB_ON = process.env.CLOUDIVR_WEB_ON === 'true'
+if (!CLOUDIVR_WEB_ON) earlyApp.use((req, res, next) => (/^\/cloudivr(-web)?(\/|$)/.test(req.path) ? res.status(404).json({ error: 'Page not found' }) : next()))
+// ── CloudIVR custom domain (CLOUDIVR_WEB_DOMAIN, e.g. cloudivr.net) — that host serves only the web app ──
+{
+  const cloudIvrDomainGuard = CLOUDIVR_WEB_ON && require('./cloudivr-web/domain-guard').createCloudIvrDomainGuard({
+    buildIndex: require('path').join(__dirname, '..', 'frontend', 'build', 'index.html'),
+  })
+  if (cloudIvrDomainGuard) {
+    earlyApp.use(cloudIvrDomainGuard)
+    console.log(`[Express] CloudIVR web domain active: ${process.env.CLOUDIVR_WEB_DOMAIN}`)
+  }
+}
+
 earlyApp.use(cors())
 earlyApp.use(express.json({
   limit: '50mb',
@@ -1322,11 +1336,13 @@ async function telnyxPaidCheckout(chatId, selectedNumber, ctx = {}) {
     planKey: ctx.planKey || 'starter', price: Number(ctx.price) || 0, paymentMethod: ctx.paymentMethod || 'unknown',
     refund: ctx.refund || { currency: 'usd', amount: Number(ctx.price) || 0 },
     capabilities: ctx.capabilities || { voice: true, sms: mpId !== null, fax: false }, areaCode, numberCost: ctx.numberCost || null,
+    // hold (CloudIVR web): never auto-expire or auto-refund — the paid number waits until the owner finishes.
+    ...(ctx.hold ? { hold: true } : {}),
   }
   const st = await txReg.startSession(chatId, { countryCode, numberType, countryName: ctx.countryName, selectedNumber, reqs: rq.reqs, lang, payment })
   if (!st.ok) { send(chatId, st.text, { parse_mode: 'HTML' }); return null }
   await set(state, chatId, 'action', 'cpTxReg')
-  send(chatId, `${st.intro}\n\n${st.prompt.text}`, { parse_mode: 'HTML', reply_markup: { keyboard: st.prompt.keyboard, resize_keyboard: true } })
+  if (!ctx.hold) send(chatId, `${st.intro}\n\n${st.prompt.text}`, { parse_mode: 'HTML', reply_markup: { keyboard: st.prompt.keyboard, resize_keyboard: true } })
   notifyAdmin(`🛂 [Numbers] Paid — collecting verification details\nchatId: ${chatId}\nnumber: ${selectedNumber}\ncountry: ${countryCode}/${numberType}\npaid: ${txReg.fmtAmount(payment.refund)} (${payment.paymentMethod})`)
   if (cartRecovery) cartRecovery.recordPaymentCompleted(String(chatId))
   if (userConversion) userConversion.markPurchased(chatId)
@@ -1436,7 +1452,7 @@ async function _submitTelnyxVerification(session) {
     countryCode: session.countryCode, countryName: session.countryName || session.countryCode, numberType: session.numberType,
     planKey: p.planKey || 'starter', price: Number(p.price) || 0, paymentMethod: p.paymentMethod || 'unknown',
     refund: p.refund || { currency: 'usd', amount: Number(p.price) || 0 },
-    capabilities: p.capabilities || { voice: true, sms: false, fax: false },
+    capabilities: p.capabilities || { voice: true, sms: false, fax: false }, ...(p.hold ? { hold: true } : {}),
     lang, status: 'under_review', checks: 0, createdAt: new Date(), nextCheckAt: new Date(Date.now() + 2 * 60 * 1000),
   }
   try {
@@ -1582,8 +1598,23 @@ async function activateTelnyxReviewedOrder(doc) {
   }
 }
 
+// CloudIVR web orders are held, not refunded: a fresh verification opens so the owner can resend corrected details.
+async function holdTelnyxPending(doc, reason) {
+  const claim = await telnyxPendingOrders.updateOne({ _id: doc._id, status: 'under_review' }, { $set: { status: 'rejected_on_hold', rejectedAt: new Date(), reason } })
+  if (!claim.modifiedCount) return false
+  const prev = doc.sessionId ? await txReg.getSessionById(doc.sessionId) : null
+  const payment = prev?.payment || { planKey: doc.planKey, price: doc.price, paymentMethod: doc.paymentMethod, refund: doc.refund, capabilities: doc.capabilities, hold: true }
+  const rq = await txReg.getRequirements(doc.countryCode, doc.numberType)
+  const st = rq.ok ? await txReg.startSession(doc.chatId, { countryCode: doc.countryCode, numberType: doc.numberType, countryName: doc.countryName, selectedNumber: doc.phoneNumber, reqs: rq.reqs, lang: doc.lang || 'en', payment: { ...payment, hold: true } }) : null
+  sendMessage(doc.chatId, `The carrier didn't approve the details for ${doc.phoneNumber}. Your payment is kept and the number stays on hold for you — open Verification to send corrected details.`)
+  notifyAdmin(`⏸ [NumberReview] Not approved → ON HOLD (CloudIVR web, no refund)\nchatId: ${doc.chatId}\nnumber: ${doc.phoneNumber}\norder: ${doc.orderId}\nreason: ${reason}${st?.ok ? '\nnew verification opened' : '\n⚠️ could not reopen verification — follow up manually'}`)
+  log(`[TelnyxReview] ⏸ ${doc.phoneNumber} not approved (${reason}) — held for ${doc.chatId}`)
+  return true
+}
+
 // Rejected / cancelled / never completed → full refund (same currency as paid).
 async function refundTelnyxPending(doc, reason) {
+  if (doc.hold) return holdTelnyxPending(doc, reason)
   const claim = await telnyxPendingOrders.updateOne({ _id: doc._id, status: 'under_review' }, { $set: { status: 'rejected', rejectedAt: new Date(), reason } })
   if (!claim.modifiedCount) return false
   const cur = doc.refund?.currency === 'ngn' ? 'ngn' : 'usd'
@@ -1815,6 +1846,10 @@ if (TELEGRAM_BOT_ON === 'true') {
   log('TELEGRAM_BOT_ON: ' + TELEGRAM_BOT_ON)
   log('Bot ran away! ' + new Date())
 }
+
+// CloudIVR web accounts (reserved chatId range): engine messages to them land in the web inbox, never Telegram.
+const cloudivrWeb = require('./cloudivr-web')
+cloudivrWeb.notify.attach(bot)
 
 // Auto-detect when bot is added to or removed from groups
 bot?.on('my_chat_member', async update => {
@@ -4847,7 +4882,8 @@ const loadData = async () => {
   })
 
   // Telnyx international numbers — verification sessions + review poller (2026-10)
-  txReg.init({ db, bot, log })
+  txReg.init({ db, bot, log, downloadFile: cloudivrWeb.makeDownloader(() => db, bot) })
+  cloudivrWeb.notify.setDb(db)
   rsApply.init({ db, brand: process.env.CHAT_BOT_BRAND })
   telnyxPendingOrders = db.collection('telnyxPendingOrders')
   telnyxPendingOrders.createIndex({ status: 1, nextCheckAt: 1 }).catch(() => {})
@@ -22570,7 +22606,7 @@ ${message.replace(/\n/g, '<br>')}
     const reserved = new Set([
       'call', 'panel', 'phone', 'login', 'signup', 'dashboard', 'settings',
       'api', 'admin', 'webhook', 'webhooks', 'twilio', 'telnyx', 'static',
-      'health', 'sms-app', 'voice', 'sms', 'auth', 'apidoc',
+      'health', 'sms-app', 'voice', 'sms', 'auth', 'apidoc', 'cloudivr', 'cloudivr-web',
     ])
     if (reserved.has(alias.toLowerCase())) {
       return send(chatId, trans('t.notValidHalf'))
@@ -39451,6 +39487,32 @@ app.use('/store', createStoreRoutes({
   notifyAdmin,
 }))
 
+// ── CloudIVR web app API (web-only accounts) — external /api/cloudivr-web/* ──
+if (CLOUDIVR_WEB_ON) app.use('/cloudivr-web', cloudivrWeb.createCloudIvrWeb({
+  getDb: () => db, log, telnyxApi, txReg, audioLibraryService, ttsService, bulkCallService, notifyAdmin, logTransaction, generateTransactionId,
+  voiceService: require('./voice-service.js'),
+  getTelnyxResources: () => telnyxResources,
+  paidCheckout: telnyxPaidCheckout, refundTelnyxVerification, submitTelnyxVerification,
+  numberSurcharge: (cc, type, sel) => (isTelnyxIntl('telnyx', cc) ? getTelnyxIntlSurcharge(sel).monthly : getNumberSurcharge(cc, type)) || 0,
+  verificationInfo: async (cc, type, countryName) => {
+    const rq = await txReg.getRequirements(cc, type)
+    if (!rq.ok) return { error: 'Could not check the paperwork needed for this country right now. Try again in a minute.' }
+    const required = rq.reqs.length > 0
+    return { required, supported: !required || txReg.analyze(rq.reqs).supported, note: required ? txReg.prePayNote(rq.reqs, countryName, 'en') : null }
+  },
+  coins: Object.keys(tickerOfDyno),
+  createCryptoDeposit: async (chatId, amountUsd, coin) => {
+    const ref = nanoid()
+    const r = await getDynopayCryptoAddress(amountUsd, tickerOfDyno[coin], `${SELF_URL}/dynopay/crypto-wallet`, { product_name: dynopayActions.walletFund, refId: ref }, process.env.WEB_DYNO_PAY_API_KEY)
+    if (!r?.address) return null
+    await set(chatIdOfDynopayPayment, ref, { chatId, action: dynopayActions.walletFund, address: r.address, _createdAt: new Date().toISOString(), channel: 'web' })
+    let amountCrypto = null
+    try { amountCrypto = await convert(amountUsd, 'usd', tickerOf[coin]) } catch (_) { /* display only */ }
+    depositFunnel.recordDepositIntent({ chatId, ref, amountUsd, coin, provider: 'dynopay' })
+    return { ref, address: r.address, amountCrypto, provider: 'dynopay' }
+  },
+}))
+
 // ── Reseller API (API-key authenticated public REST API) ──
 // Lets a reseller programmatically resell domains, DNS, VPS, RDP & cPanel
 // hosting. Billing debits the wallet system (walletOf). Provisioning only runs
@@ -48805,7 +48867,7 @@ app.get('/:id', async (req, res) => {
   }
 
   // Skip known frontend SPA routes — let them be handled by the React catch-all
-  const spaRoutes = ['call', 'panel', 'phone', 'login', 'signup', 'dashboard', 'settings', 'sales']
+  const spaRoutes = ['call', 'panel', 'phone', 'login', 'signup', 'dashboard', 'settings', 'sales', 'cloudivr']
   if (spaRoutes.includes(id.toLowerCase())) {
     // Serve the React SPA index.html for these routes
     const buildPath = require('path').join(__dirname, '..', 'frontend', 'build', 'index.html')

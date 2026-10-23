@@ -3570,6 +3570,8 @@ module.exports = {
   planAvailability,
   isTwilioEnabled,
   isTelnyxIntlEnabled,
+  telnyxIntlCountries,
+  telnyxIntlMore: _telnyxIntlMore,
   isHeldTwilioNumber,
   twilioUpgradeHoldMsg,
   countries,

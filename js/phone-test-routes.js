@@ -474,7 +474,7 @@ async function trackReferral(newUserChatId, refCode) {
  * credential extraction may fail (sipUsername = phone number instead of gencred).
  * The chatId fallback ensures test calls are ALWAYS detected and counted.
  */
-async function checkTestCredentialCall(sipUsername, chatId) {
+async function checkTestCredentialCall(sipUsername, chatId, destination) {
   if (!_db) return { isTestCall: false }
 
   try {
@@ -498,7 +498,12 @@ async function checkTestCredentialCall(sipUsername, chatId) {
 
     if (!cred) return { isTestCall: false }
 
-    const maxAllowed = await getMaxCallsForUser(cred.chatId)
+    // CloudIVR landing-page line: one call, only to the number the visitor entered on the site.
+    if (cred.webTest && cred.allowedTo && destination && String(destination).replace(/[^\d+]/g, '') !== cred.allowedTo) {
+      console.log(`[PhoneTest] Web test line ${cred.sipUsername} dialed ${destination}, allowed only ${cred.allowedTo} — blocking`)
+      return { isTestCall: true, maxDuration: MAX_CALL_DURATION_SEC, callsRemaining: -1 }
+    }
+    const maxAllowed = cred.webTest ? (cred.maxCalls || 1) : await getMaxCallsForUser(cred.chatId)
     const newCount = (cred.callsMade || 0) + 1
     await _db.collection('testCredentials').updateOne(
       { _id: cred._id },
@@ -513,7 +518,7 @@ async function checkTestCredentialCall(sipUsername, chatId) {
       console.log(`[PhoneTest] Test credential ${sipUsername} expired after ${newCount} calls`)
       
       // ── Send subscription upsell notification via Telegram ──
-      if (_bot && cred.chatId) {
+      if (_bot && cred.chatId && !cred.webTest) {
         const BRAND = process.env.CHAT_BOT_BRAND || 'Nomadly'
         setTimeout(() => {
           _bot.sendMessage(cred.chatId,

@@ -10,6 +10,9 @@ const numbers = require('./numbers')
 const verification = require('./verification')
 const audio = require('./audio')
 const calls = require('./calls')
+const orders = require('./orders')
+const trycall = require('./trycall')
+const { sendMail } = require('./auth')
 
 function createCloudIvrWeb(deps) {
   const { getDb, log = console.log } = deps
@@ -25,10 +28,19 @@ function createCloudIvrWeb(deps) {
     const r = express.Router()
     const auth = createAuth(db, { log })
     auth.routes(r, h)
+    const supportHandle = () => String(process.env.SUPPORT_HANDLE || '').trim().replace(/^@/, '')
+    r.get('/public/catalog', (req, res) => res.json({
+      ...numbers.catalog(), coins: deps.coins || [], minTopup: wallet.MIN_TOPUP_USD,
+      supportLink: supportHandle() ? `https://t.me/${supportHandle()}` : '',
+    }))
+    trycall.routes(r, { ...deps, db, h })
     r.use(auth.requireUser)
     notify.routes(r, { h })
     wallet.routes(r, { db, h, coins: deps.coins, createCryptoDeposit: deps.createCryptoDeposit })
-    const numbersApi = numbers.routes(r, { ...deps, db, h })
+    // Orders go first so /numbers/orders is not caught by /numbers/:phone; numbersApi is filled in right after.
+    const numbersApi = {}
+    orders.routes(r, { ...deps, db, h, numbersApi, sendMail })
+    Object.assign(numbersApi, numbers.routes(r, { ...deps, db, h }))
     verification.routes(r, { ...deps, db, h, upload })
     audio.routes(r, { ...deps, db, h, upload })
     calls.routes(r, { ...deps, db, h, numbersApi })
@@ -52,9 +64,13 @@ function createCloudIvrWeb(deps) {
   }
 
   let ready = null
+  const boot = () => { if (!ready) { const db = getDb(); if (db) ready = build(db) } return ready }
+  // Build as soon as the DB is up so background work (crypto order pickup) runs without waiting for a visitor.
+  const bootTimer = setInterval(() => { if (boot()) clearInterval(bootTimer) }, 5000)
+  if (bootTimer.unref) bootTimer.unref()
   const router = express.Router()
   router.use((req, res, next) => {
-    if (!ready) { const db = getDb(); if (db) ready = build(db) }
+    boot()
     if (!ready) return res.status(503).json({ error: 'starting', message: 'Service is starting. Try again in a moment.' })
     ready(req, res, next)
   })

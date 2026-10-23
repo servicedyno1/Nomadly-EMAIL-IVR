@@ -430,7 +430,7 @@ async function restartSession(chatId, lang) {
 async function findAbandoned({ remindMs = 6 * 3600e3, expireMs = 48 * 3600e3 } = {}) {
   if (!sessions) return { remind: [], expire: [] }
   const now = Date.now()
-  const base = { status: 'collecting', payment: { $ne: null } }
+  const base = { status: 'collecting', payment: { $ne: null }, 'payment.hold': { $ne: true } } // held (CloudIVR web) sessions never expire
   const expire = await sessions.find({ ...base, updatedAt: { $lt: new Date(now - expireMs) } }).limit(25).toArray()
   const remind = await sessions.find({ ...base, reminded: { $ne: true }, updatedAt: { $lt: new Date(now - remindMs), $gte: new Date(now - expireMs) } }).limit(25).toArray()
   const stuck = await sessions.find({ status: 'submitting', stuckAlerted: { $ne: true }, updatedAt: { $lt: new Date(now - 30 * 60e3) } }).limit(25).toArray()

@@ -24,7 +24,7 @@ import json
 import sys
 
 # Configuration
-BASE_URL = "https://vault-app-setup-3.preview.emergentagent.com"
+BASE_URL = "https://vault-launch-6.preview.emergentagent.com"
 
 # Test accounts (seeded in LOCAL DB - safe to use)
 GOLD_ACCOUNT = {"username": "goldtest", "pin": "123456"}

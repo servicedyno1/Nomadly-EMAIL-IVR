@@ -1,4 +1,5 @@
 'use strict'
+const net = require('net')
 // CloudIVR web accounts: email + password (bcrypt), Google sign-in (own OAuth client id), httpOnly JWT cookie sessions,
 // lockout after repeated failures, emailed password reset. Accounts are web-only (not linked to Telegram).
 const crypto = require('crypto')
@@ -7,6 +8,7 @@ const jwt = require('jsonwebtoken')
 const axios = require('axios')
 const nodemailer = require('nodemailer')
 const { WEB_ID_BASE } = require('./notify')
+const { appPathPrefix } = require('./domain-guard')
 
 const COOKIE = 'civr_session'
 const SESSION_DAYS = 7
@@ -20,7 +22,30 @@ const secret = () => {
 }
 const sha = (s) => crypto.createHash('sha256').update(String(s)).digest('hex')
 const normEmail = (e) => String(e || '').trim().toLowerCase()
-const clientIp = (req) => String(req.headers['x-forwarded-for'] || req.ip || '').split(',')[0].trim()
+const PRIVATE_IP = /^(10\.|127\.|169\.254\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\.|::1$|f[cd][0-9a-f]{2}:|fe80:|::ffff:(10|127)\.|::ffff:192\.168\.)/i
+// Cloudflare edge ranges (cloudflare.com/ips). Cloudflare appends the real visitor to X-Forwarded-For just before its own hop.
+const CF_EDGE = new net.BlockList()
+for (const c of ['173.245.48.0/20', '103.21.244.0/22', '103.22.200.0/22', '103.31.4.0/22', '141.101.64.0/18', '108.162.192.0/18', '190.93.240.0/20', '188.114.96.0/20', '197.234.240.0/22', '198.41.128.0/17', '162.158.0.0/15', '104.16.0.0/13', '104.24.0.0/14', '172.64.0.0/13', '131.0.72.0/22', '2400:cb00::/32', '2606:4700::/32', '2803:f800::/32', '2405:b500::/32', '2405:8100::/32', '2a06:98c0::/29', '2c0f:f248::/32']) {
+  const [a, bits] = c.split('/')
+  CF_EDGE.addSubnet(a, Number(bits), a.includes(':') ? 'ipv6' : 'ipv4')
+}
+const isCfEdge = (ip) => { try { return net.isIP(ip) > 0 && CF_EDGE.check(ip, net.isIP(ip) === 6 ? 'ipv6' : 'ipv4') } catch (_) { return false } }
+// Real visitor IP. Left-most X-Forwarded-For entries are whatever the client sent, so they are never trusted:
+// via Cloudflare → the hop just left of its right-most edge hop (CF-Connecting-IP if a proxy dropped that hop);
+// otherwise the right-most public hop.
+const clientIp = (req) => {
+  const hops = String(req.headers['x-forwarded-for'] || '').split(',').map(s => s.trim()).filter(Boolean)
+  const cf = String(req.headers['cf-connecting-ip'] || '').trim()
+  if (!hops.length) return cf || String(req.ip || '')
+  let i = hops.length - 1
+  while (i >= 0 && !isCfEdge(hops[i])) i--
+  if (i >= 0) {
+    while (i >= 0 && isCfEdge(hops[i])) i--
+    return i >= 0 ? hops[i] : (cf || hops[0])
+  }
+  for (let j = hops.length - 1; j >= 0; j--) if (!PRIVATE_IP.test(hops[j])) return hops[j]
+  return String(req.ip || '')
+}
 const isHttps = (req) => req.secure || /https/i.test(String(req.headers['x-forwarded-proto'] || '')) || /^https:/i.test(String(req.headers.origin || ''))
 
 function parseCookies(req) {
@@ -60,7 +85,9 @@ function createAuth(db, { log = console.log } = {}) {
   const attempts = db.collection('webLoginAttempts')
   const resets = db.collection('webPasswordResets')
   accounts.createIndex({ email: 1 }, { unique: true }).catch(() => {})
-  accounts.createIndex({ googleSub: 1 }, { unique: true, sparse: true }).catch(() => {})
+  // googleSub is only stored for Google accounts; the partial index ignores email-only accounts.
+  accounts.dropIndex('googleSub_1').catch(() => {}).then(() => accounts.updateMany({ googleSub: null }, { $unset: { googleSub: '' } }))
+    .then(() => accounts.createIndex({ googleSub: 1 }, { unique: true, name: 'googleSub_partial', partialFilterExpression: { googleSub: { $type: 'string' } } })).catch(e => log(`[CloudIVR-Web] googleSub index: ${e.message}`))
   attempts.createIndex({ updatedAt: 1 }, { expireAfterSeconds: 86400 }).catch(() => {})
   resets.createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 }).catch(() => {})
 
@@ -72,7 +99,7 @@ function createAuth(db, { log = console.log } = {}) {
 
   async function createAccount({ email, name, passwordHash = null, googleSub = null }) {
     const _id = await nextChatId()
-    const acc = { _id, email, name: String(name || '').trim().slice(0, 80), passwordHash, googleSub, tokenVersion: 0, createdAt: new Date(), lastLoginAt: new Date() }
+    const acc = { _id, email, name: String(name || '').trim().slice(0, 80), passwordHash, ...(googleSub ? { googleSub } : {}), tokenVersion: 0, createdAt: new Date(), lastLoginAt: new Date() }
     await accounts.insertOne(acc)
     await db.collection('walletOf').updateOne({ _id: String(_id) }, { $setOnInsert: { usdIn: 0, usdOut: 0 } }, { upsert: true })
     await db.collection('state').updateOne({ _id: String(_id) }, { $setOnInsert: { userLanguage: 'en', webAccount: true } }, { upsert: true })
@@ -85,13 +112,13 @@ function createAuth(db, { log = console.log } = {}) {
     const a = await attempts.findOne({ _id: key })
     return a && a.lockedUntil && a.lockedUntil > new Date() ? a.lockedUntil : null
   }
-  async function recordFailure(key) {
+  async function recordFailure(key, max = LOCK.max) {
     const now = new Date()
     const a = await attempts.findOne({ _id: key })
     const fresh = !a || now - a.firstAt > LOCK.windowMs
     const count = fresh ? 1 : a.count + 1
     const set = { count, firstAt: fresh ? now : a.firstAt, updatedAt: now }
-    if (count >= LOCK.max) set.lockedUntil = new Date(now.getTime() + LOCK.lockMs)
+    if (count >= max) set.lockedUntil = new Date(now.getTime() + LOCK.lockMs)
     await attempts.updateOne({ _id: key }, { $set: set }, { upsert: true })
   }
 
@@ -119,7 +146,7 @@ function createAuth(db, { log = console.log } = {}) {
       const ipKey = `reg|${clientIp(req)}`
       if (await lockState(ipKey)) return res.status(429).json({ error: 'too_many_attempts', message: 'Too many sign-ups from this network. Try again later.' })
       if (await accounts.findOne({ email })) return res.status(409).json({ error: 'email_taken', message: 'An account with this email already exists. Sign in instead.' })
-      await recordFailure(ipKey) // counts sign-ups per IP (5 per 15 min)
+      await recordFailure(ipKey, 15) // counts sign-ups per IP (15 per 15 min)
       const acc = await createAccount({ email, name: req.body.name, passwordHash: await bcrypt.hash(password, 12) })
       setSession(req, res, acc)
       res.status(201).json({ account: publicAccount(acc) })
@@ -127,16 +154,17 @@ function createAuth(db, { log = console.log } = {}) {
 
     router.post('/auth/login', h(async (req, res) => {
       const email = normEmail(req.body.email), password = String(req.body.password || '')
-      const key = `login|${email}|${clientIp(req)}`
-      const until = await lockState(key)
+      const key = `login|${email}|${clientIp(req)}`, emailKey = `login|${email}` // per-email lock can't be dodged by spoofing the IP
+      const until = (await lockState(key)) || (await lockState(emailKey))
       if (until) return res.status(429).json({ error: 'locked', message: `Too many failed attempts. Try again after ${until.toISOString().slice(11, 16)} UTC.` })
       const acc = await accounts.findOne({ email })
       const ok = acc && acc.passwordHash && !acc.disabled && await bcrypt.compare(password, acc.passwordHash)
       if (!ok) {
         await recordFailure(key)
+        await recordFailure(emailKey, 10)
         return res.status(401).json({ error: 'invalid_credentials', message: acc && !acc.passwordHash ? 'This account uses Google sign-in. Continue with Google or reset your password.' : 'Wrong email or password.' })
       }
-      await attempts.deleteOne({ _id: key })
+      await attempts.deleteMany({ _id: { $in: [key, emailKey] } })
       await accounts.updateOne({ _id: acc._id }, { $set: { lastLoginAt: new Date() } })
       setSession(req, res, acc)
       res.json({ account: publicAccount(acc) })
@@ -172,7 +200,7 @@ function createAuth(db, { log = console.log } = {}) {
         const token = crypto.randomBytes(32).toString('hex')
         await resets.insertOne({ _id: sha(token), chatId: acc._id, expiresAt: new Date(Date.now() + 30 * 60000), used: false })
         const base = String(process.env.WEB_APP_URL || req.headers.origin || '').replace(/\/+$/, '')
-        const link = `${base}/cloudivr/reset-password?token=${token}`
+        const link = `${base}${appPathPrefix(base)}/reset-password?token=${token}`
         sendMail(email, 'Reset your CloudIVR password', `<p>Someone asked to reset the password for your CloudIVR account.</p><p><a href="${link}">Choose a new password</a> (link valid for 30 minutes).</p><p>If this wasn't you, ignore this email.</p>`)
           .catch(e => log(`[CloudIVR-Web] reset email failed: ${e.message}`))
       }
@@ -212,4 +240,4 @@ function createAuth(db, { log = console.log } = {}) {
   return { requireUser, routes }
 }
 
-module.exports = { createAuth, parseCookies, COOKIE }
+module.exports = { createAuth, parseCookies, COOKIE, secret, clientIp, sendMail, normEmail, EMAIL_RE }

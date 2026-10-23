@@ -330,7 +330,8 @@ async function runHealthCheck(bot, db) {
   for (const doc of allDocs) {
     const numbers = doc.val?.numbers || [];
     for (const num of numbers) {
-      if (num.provider === 'telnyx' && num.phoneNumber &&
+      // dryRun = CloudIVR web preview number that was never ordered from the carrier.
+      if (num.provider === 'telnyx' && num.phoneNumber && !num.dryRun &&
           !['released', 'expired', 'cancelled'].includes(num.status)) {
         telnyxNumbers.push({
           chatId: doc._id,

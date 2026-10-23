@@ -18,6 +18,8 @@ import './panel-v2.css';
 import './store.css';
 import './store-landing.css';
 import './panel-v3.css';
+import CloudIvrApp from './cloudivr/CloudIvrApp';
+import { IS_CIVR_DOMAIN } from './cloudivr/paths';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || '';
 const PANEL_DOMAIN = (process.env.REACT_APP_PANEL_DOMAIN || 'panel.hostbay.io').toLowerCase();
@@ -276,7 +278,10 @@ export default function App() {
     <BrowserRouter>
       <AuthProvider>
         <Routes>
-          {isPanelDomain ? (
+          {IS_CIVR_DOMAIN ? (
+            // CloudIVR's own domain (cloudivr.net): the web app owns the site root — /, /login, /app/…
+            <Route path="/*" element={<CloudIvrApp />} />
+          ) : isPanelDomain ? (
             <>
               {/* On the panel domain, the STOREFRONT is the landing (buy + login). */}
               <Route path="/" element={<Storefront />} />
@@ -290,6 +295,7 @@ export default function App() {
             <>
               <Route path="/panel" element={<PanelRoute />} />
               <Route path="/panel/*" element={<PanelRoute />} />
+              <Route path="/cloudivr/*" element={<CloudIvrApp />} />
               <Route path="/store" element={<Storefront />} />
               <Route path="/store/*" element={<Storefront />} />
               <Route path="/phone/test" element={<PhoneTestPage />} />
