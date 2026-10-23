@@ -1,0 +1,46 @@
+{
+  "summary": "First full E2E test of the CloudIVR web app (/cloudivr, /api/cloudivr-web/*) in preview dry-run. Backend: I wrote a new pytest suite with 24 tests and all pass. It covers auth, 401s without a cookie, account isolation A vs B on every number/campaign/audio/caller-ID endpoint, forwarding/IVR/SMS/SIP validation, wallet top-up preview placeholder, search-before-buy, TTS create/rename/delete, quick call dry run, campaign create/start/cancel and refusal to schedule in preview. Frontend (Playwright, desktop 1920 and mobile 390): signup lands on the dashboard; login, wrong password and sign-out work; signed-out /app redirects to login; forgot returns the generic message; the Google button is not rendered. Buy flow: the country list has 17 countries and no carrier names; with too little balance the top-up link shows; buying debits the wallet and the number appears ACTIVE with a PREVIEW pill. Starter numbers show the locked state on IVR/Voicemail/SIP/Recording. Also checked: forwarding self/invalid errors, IVR builder (bad forward shown as a toast, add key, sub-menu, save), voicemail email check, SMS https-only, SIP reveal and new credentials, recording toggle, log filters, billing (auto-renew, renew debits $120 and adds a month, upgrade quote+confirm debits, delete needs the exact number), audio library (TTS player src on preview host returns 200 audio/mpeg; upload, rename, delete), quick call validation and the dry-run 'validated but not dialed' message, campaign estimate and save, start dry run, cancel dialog text, status CANCELLED in the list. Wallet: preview placeholder address with 'Do not send funds', no QR, deposits table, purchase/renew/upgrade shown as negative amounts. Inbox: kind filters and mark-all-read clear the badge (2 TEST_ notifications seeded). Settings: name update; password change rejects a wrong current password, after the change the old password fails and the new one works. Softphone: Connect on a preview number shows the 'line isn't live' message with no crash. The preview banner text is correct. Mobile 390px: horizontal nav and no horizontal overflow on all 14 app pages. No 'Telnyx'/'Twilio' in visible text on any /cloudivr page. No JS page errors. Only minor issues found.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/cloudivr-web/numbers, /numbers/:phone, POST /numbers/buy (publicNumber)", "issue": "The JSON response includes \"provider\": \"telnyx\". Users can see the carrier name in devtools/network, which goes against the 'never show carrier names' rule. Remove it from publicNumber or map it to 'speechcue'."},
+      {"endpoint": "POST /api/cloudivr-web/audio/tts", "issue": "saveAudio is not passed source:'tts', so publicAudio always returns source 'upload'. The Audio library lists TTS clips as 'Upload · date'."},
+      {"endpoint": "POST /api/cloudivr-web/numbers/:phone/renew", "issue": "Business-logic question: early renewal resets minutesUsed/smsUsed straight away and also extends expiresAt by a month. A user who renews mid-cycle gets a fresh allowance right away and keeps the added month. Confirm this is intended."},
+      {"endpoint": "Number capabilities", "issue": "The Overview tab shows Fax: Yes (stored capabilities.fax=true from the carrier search), but the search result cards showed only VOICE/SMS pills. The display is inconsistent. The Overview label 'Sms' should read 'SMS'."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Softphone", "issue": "The status label shows the raw lowercase word 'error'. On a live line the message comes from the SDK error (e?.error?.message), which may contain the carrier name. Map SDK errors to friendly text.", "selector": "[data-testid=softphone-status]", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "New campaign", "issues": ["The Schedule field uses the browser's native datetime-local picker instead of the shadcn Calendar/date-time picker."]},
+      {"screen": "Global toasts", "issues": ["Sonner toasts at top-right cover the topbar balance, inbox and phone icons, and several toasts stack. Consider bottom-right or adding an offset."]},
+      {"screen": "Wallet", "issues": ["Amounts under $10 or over $10000 are blocked only by the native HTML min/max bubble. There is no inline error that matches the app's style."]},
+      {"screen": "Landing features", "issues": ["feature-card-0 (Visual IVR builder) is a large card with an empty middle area, about 250px of blank space."]},
+      {"screen": "Audio upload", "issues": ["Upload starts as soon as a file is picked, so a name typed afterwards is ignored. Add a hint to type the name first, or add an explicit Upload button."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_cloudivr_web.py", "/app/test_reports/pytest/cloudivr_web.xml"],
+  "action_items": [
+    "Remove or mask the 'provider' (telnyx) field from publicNumber API responses",
+    "Pass source:'tts' when saving TTS audio so the library labels it correctly",
+    "Map Softphone SDK errors to friendly messages with no carrier name, and use a nicer status label",
+    "Optional: replace the native datetime-local on campaign schedule with a shadcn date/time picker; move or offset toasts away from the topbar",
+    "Confirm the intended behaviour of early renewal resetting usage; fix the Fax capability display inconsistency and the 'Sms' label"
+  ],
+  "critical_code_review_comments": [
+    "Isolation is solid: withNumber/findMine scopes by req.webChatId, withCampaign checks chatId, audio rename/delete are scoped by chatId, IVR/voicemail audio URLs are checked against the user's own library. All tested and they return 404/400 for other accounts.",
+    "wallet.debit is atomic with a $expr guard (good). Buy refunds on failure (good).",
+    "auth.js: the register rate limit uses recordFailure(ipKey,15) for successful sign-ups too, so 15 sign-ups per IP per 15 min behind a shared NAT gets locked out. Acceptable, but note it for QA scripts.",
+    "numbers.js clientIp trusts the first X-Forwarded-For entry, which the client can spoof to get around login/forgot lockouts unless the ingress strips it."
+  ],
+  "updated_files": ["/app/backend/tests/test_cloudivr_web.py"],
+  "success_rate": {"backend": "100% (24/24)", "frontend": "~97% (all requested flows pass; only minor/design items)"},
+  "test_credentials": "From /app/memory/test_credentials.md: civr.alice@example.com / AliceTest#2026, civr.bob@example.com / BobTest#2026. Created civr.qa+ui43780@example.com (password changed to NewQaPass#2026 during the test; funded $180 in the local DB; its starter->pro test number was deleted). Pytest also registers random civr.qa+<hex>@example.com accounts.",
+  "seed_data_creation": "Local preview DB only: funded the QA account through walletOf.usdIn; inserted 2 webNotifications for Alice (text prefixed TEST_, now read). Alice: forwarding busy->disabled, IVR saved with keys 1-4 (+sub-menu), SMS webhook https://example.com/hook, voicemail email, SIP credentials reset, recording toggled, renewed once (wallet now $260, paid until Dec 23 2026), one cancelled dry-run campaign, TTS audio 'UI TTS greeting' left in the library.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Routes: /cloudivr, /cloudivr/login, /cloudivr/signup, /cloudivr/forgot (NOT /forgot-password), /cloudivr/app/{numbers,buy,quick-call,campaigns,campaigns/new,audio,inbox,wallet,settings}, /cloudivr/app/numbers/%2B<phone>?tab=<tab>. Confirmations use native window.confirm (handle page dialog). Toasts are sonner ([data-sonner-toast]); Quick call/campaign errors are shown inline in the form, not as toasts. Fund accounts with a node script that uses dotenv backend/.env MONGO_URL/DB_NAME and $inc walletOf.usdIn. Run the suite: REACT_APP_BACKEND_URL=<url> pytest backend/tests/test_cloudivr_web.py."
+}

@@ -39,7 +39,7 @@ function publicNumber(n) {
   const plan = phoneConfig.plans[n.plan] || {}
   const f = n.features || {}
   return {
-    phoneNumber: n.phoneNumber, country: n.country, countryName: n.countryName, type: n.type, provider: n.provider,
+    phoneNumber: n.phoneNumber, country: n.country, countryName: n.countryName, type: n.type,
     plan: n.plan, planName: plan.name || n.plan, planPrice: n.planPrice, status: n.status, autoRenew: n.autoRenew !== false,
     purchaseDate: n.purchaseDate, expiresAt: n.expiresAt, isSubNumber: !!n.isSubNumber, dryRun: !!n.dryRun,
     capabilities: n.capabilities || { voice: true, sms: true, fax: false },
@@ -340,9 +340,11 @@ function routes(router, deps) {
   router.post('/numbers/:phone/renew', withNumber(async (req, res) => {
     const n = req.num, price = round2(n.planPrice || phoneConfig.plans[n.plan]?.price)
     if (!(await w.debit(req.webChatId, price))) return bad(res, 402, 'insufficient_balance', `Renewal costs $${price.toFixed(2)}. Top up your wallet first.`)
+    const lapsed = new Date(n.expiresAt || 0).getTime() <= Date.now()
     const base = new Date(Math.max(Date.now(), new Date(n.expiresAt || Date.now()).getTime()))
     base.setMonth(base.getMonth() + 1)
-    await phoneNumbersOf.updateOne({ _id: req.webChatId, 'val.numbers.phoneNumber': n.phoneNumber }, { $set: { 'val.numbers.$.expiresAt': base.toISOString(), 'val.numbers.$.status': 'active', 'val.numbers.$.minutesUsed': 0, 'val.numbers.$.smsUsed': 0 } })
+    // Early renewal only adds a month; the monthly allowance resets when a lapsed number starts a new cycle.
+    await phoneNumbersOf.updateOne({ _id: req.webChatId, 'val.numbers.phoneNumber': n.phoneNumber }, { $set: { 'val.numbers.$.expiresAt': base.toISOString(), 'val.numbers.$.status': 'active', ...(lapsed ? { 'val.numbers.$.minutesUsed': 0, 'val.numbers.$.smsUsed': 0 } : {}) } })
     await phoneTransactions.insertOne({ chatId: req.webChatId, phoneNumber: n.phoneNumber, action: 'renew', plan: n.plan, amount: price, paymentMethod: 'wallet_usd', channel: 'web', timestamp: new Date().toISOString() })
     await txn(req.webChatId, 'phone-renewal', price, { phoneNumber: n.phoneNumber, plan: n.plan })
     res.json({ expiresAt: base.toISOString(), balance: await w.balance(req.webChatId) })

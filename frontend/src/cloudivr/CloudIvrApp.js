@@ -19,7 +19,7 @@ export default function CloudIvrApp() {
   return (
     <div className="civr" data-testid="cloudivr-app">
       <CivrAuthProvider>
-        <Toaster theme="dark" position="top-right" richColors closeButton />
+        <Toaster theme="dark" position="bottom-right" richColors closeButton visibleToasts={3} />
         <Routes>
           <Route index element={<Landing />} />
           <Route path="login" element={<AuthPage mode="login" />} />

@@ -1,6 +1,15 @@
 # CloudIVR Web App — progress & handoff (2026-10-23)
 
-Status: **IN PROGRESS — backend modules written, NOT mounted, NOT tested; frontend NOT started.**
+Status (late 2026-10-23): **BUILT + TESTED ON PREVIEW** (test_reports/iteration_113.json: backend 24/24, all frontend flows pass;
+minor findings fixed after). Mounted at `/api/cloudivr-web/*`, UI at `/cloudivr`. Not in production (owner: keep on preview).
+Pending owner: `WEB_DYNO_PAY_API_KEY` (web-only DynoPay key) and `GOOGLE_OAUTH_CLIENT_ID` via the secure secrets card.
+Google Cloud Console → Authorized JavaScript origins must include the preview origin (and later the custom domain).
+The sections below are the original plan; "Remaining work" items 1–5 are DONE.
+Pitfalls found: babel visual-edits plugin overflows on mutually recursive React components (IvrTab uses a render-prop list);
+phone monitor must skip `dryRun` numbers; googleSub index must be partial; Node app does NOT hot-reload (restart `nodejs`).
+
+---
+Original status: **IN PROGRESS — backend modules written, NOT mounted, NOT tested; frontend NOT started.**
 Nothing here is live: `js/cloudivr-web/` is not `require`d by `_index.js`, so shipping it is inert.
 
 ## User decisions (locked — do not re-ask)

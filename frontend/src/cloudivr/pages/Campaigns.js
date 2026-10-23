@@ -5,6 +5,7 @@ import { Megaphone, Plus, Loader2, Calculator, FileUp, ChevronRight } from 'luci
 import { api, useApi, when, money } from '../api';
 import { PageHeader, Field, Spinner, Empty, AudioSelect, KeyPicker, Toggle, ErrorNote, statusPill } from '../ui';
 import { useCallerNumbers } from './QuickCall';
+import { DateTimePicker } from '../DateTimePicker';
 
 export function Campaigns() {
   const { data, loading, error } = useApi('/campaigns');
@@ -99,7 +100,7 @@ export function CampaignNew() {
           {f.mode === 'transfer' && <Field label="Transfer to"><input className="civr-input font-mono" value={f.transferNumber} onChange={set('transferNumber')} placeholder="+14155550199" data-testid="campaign-transfer-input" /></Field>}
           <Field label="Keys that count"><KeyPicker value={f.activeKeys} onChange={set('activeKeys')} testid="campaign-keys" /></Field>
           <Field label="Calls at the same time"><input type="number" min={1} max={20} className="civr-input" value={f.concurrency} onChange={set('concurrency')} data-testid="campaign-concurrency-input" /></Field>
-          <Field label="Schedule (optional)" hint="Leave empty to start manually."><input type="datetime-local" className="civr-input" value={f.scheduledFor} onChange={set('scheduledFor')} data-testid="campaign-schedule-input" /></Field>
+          <Field label="Schedule (optional)" hint="Leave empty to start manually."><DateTimePicker value={f.scheduledFor} onChange={set('scheduledFor')} testid="campaign-schedule" /></Field>
           {f.mode === 'transfer' && <div className="flex items-center justify-between"><span className="text-sm">Hold music during transfer</span><Toggle checked={f.holdMusic} onChange={set('holdMusic')} testid="campaign-hold-music-toggle" /></div>}
           <ErrorNote error={error} testid="campaign-create-error" />
           <button className="civr-btn civr-btn-primary w-full" disabled={busy === 'create'} data-testid="campaign-create-button">{busy === 'create' && <Loader2 className="w-4 h-4 animate-spin" />}Save campaign</button>

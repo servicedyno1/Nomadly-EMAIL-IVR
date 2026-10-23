@@ -1,5 +1,20 @@
 # PRD — Nomadly Cloud IVR + Telegram Bot
 
+## 2026-10-23 (late) — CloudIVR web app built end-to-end on PREVIEW — TESTED (iteration_113: backend 24/24, frontend all flows), awaiting user confirmation
+- Web app at `/cloudivr` (landing, sign up/in, forgot/reset) + `/cloudivr/app/*`: overview, my numbers, buy (17 Telnyx countries,
+  Twilio never shown), number tabs (overview, forwarding, IVR builder w/ sub-menu + 30-day key analytics, voicemail, SMS,
+  SIP, recording, logs, billing: renew/auto-renew/upgrade/delete), verification wizard, audio library (upload + TTS),
+  Quick IVR call, campaigns (estimate, schedule picker, start/pause/resume/cancel, live stats), wallet (DynoPay crypto, QR),
+  inbox, settings, browser phone dock. API `/api/cloudivr-web/*` (js/cloudivr-web/, mounted in _index.js).
+- Fixes in this pass: googleSub unique index broke sign-up (now partial index); phone monitor skipped dry-run numbers
+  (were flagged "suspended"); `provider` removed from web API; per-email login lockout (XFF spoof-proof); early renewal keeps usage.
+- DynoPay web key: `WEB_DYNO_PAY_API_KEY` (own key for web top-ups, passed via `getDynopayCryptoAddress(..., keyOverride)`);
+  until it is set, preview returns a clearly labelled PREVIEW placeholder address. Google button hidden until `GOOGLE_OAUTH_CLIENT_ID`.
+- Preview `WEB_CLOUDIVR_DRY_RUN=true` = MOCKED number purchase/release, SIP creds, dialing, verification submit. Not deployed to production (owner: keep on preview).
+- Frontend dep pin: `webpack-dev-server` resolution `~5.2.1` (>=5.2.1 pulled 6.x which needs Node 22 and broke the dev server).
+- Tests: `backend/tests/test_cloudivr_web.py` (run with REACT_APP_BACKEND_URL exported), `scripts/cloudivr_web_smoke.sh`.
+- Next: owner adds WEB_DYNO_PAY_API_KEY + GOOGLE_OAUTH_CLIENT_ID → verify a real $10 deposit + Google sign-in; then custom domain + production rollout (dry-run OFF).
+
 ## 2026-10-23 (pm) — Bulk cancel stops billing · carrier name hidden · CloudIVR web handoff
 - Bulk IVR Cancel now hangs up live calls still playing the message (transferred calls keep going). RCA + refund
   ($1.95 to 8666352410, done + notified): memory/BULK_CANCEL_BILLING_RCA_2026-10-23.md. Tests 10/10 + 32/32 + 48/48 + 17/17.

@@ -34,11 +34,14 @@ function TopUp({ coins, min, onCreated }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
   const go = async (e) => {
-    e.preventDefault(); setBusy(true); setError(null);
-    try { onCreated(await api('/wallet/topup', { method: 'POST', body: { amountUsd: Number(amount), coin } })); } catch (err) { setError(err); } finally { setBusy(false); }
+    e.preventDefault(); setError(null);
+    const n = Number(amount);
+    if (!(n >= min) || n > 10000) { setError(new Error(`Enter an amount between $${min} and $10,000.`)); return; }
+    setBusy(true);
+    try { onCreated(await api('/wallet/topup', { method: 'POST', body: { amountUsd: n, coin } })); } catch (err) { setError(err); } finally { setBusy(false); }
   };
   return (
-    <form onSubmit={go} className="civr-card p-6 space-y-5" data-testid="wallet-topup-form">
+    <form onSubmit={go} noValidate className="civr-card p-6 space-y-5" data-testid="wallet-topup-form">
       <div className="font-display text-2xl font-bold">Add funds with crypto</div>
       <div className="flex flex-wrap gap-2">{PRESETS.map(p => <button type="button" key={p} onClick={() => setAmount(p)} className={`civr-pill cursor-pointer !text-sm ${Number(amount) === p ? 'civr-pill-on' : ''}`} data-testid={`wallet-preset-${p}`}>${p}</button>)}</div>
       <div className="grid sm:grid-cols-2 gap-3">

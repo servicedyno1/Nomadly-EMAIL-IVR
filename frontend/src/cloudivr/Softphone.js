@@ -4,6 +4,14 @@ import { X, Phone, PhoneOff, Delete, Loader2 } from 'lucide-react';
 import { api, enc } from './api';
 
 const KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '*', '0', '#'];
+const STATUS = { idle: 'Offline', connecting: 'Connecting…', ready: 'Online', error: 'Not connected' };
+// SDK errors can carry carrier wording — show our own text instead.
+const friendly = (e) => {
+  const detail = `${e?.error?.message || e?.message || ''}`;
+  const code = e?.error?.code ?? e?.code;
+  if (code === -32001 || /login incorrect|auth|forbidden|unauthor|credential/i.test(detail)) return 'The line’s SIP login was rejected. Create new SIP credentials in the number’s SIP tab, then connect again.';
+  return 'Could not connect the browser phone. Check your internet connection and microphone permission, then try again.';
+};
 
 // Registers the selected number's SIP line in the browser and places/answers calls.
 function useRtc() {
@@ -21,7 +29,7 @@ function useRtc() {
       const rtc = new TelnyxRTC({ login: c.username, password: c.password });
       rtc.remoteElement = 'civr-remote-audio';
       rtc.on('telnyx.ready', () => setStatus('ready'));
-      rtc.on('telnyx.error', (e) => { setStatus('error'); setMsg(e?.error?.message || e?.message || 'Could not connect the browser phone.'); });
+      rtc.on('telnyx.error', (e) => { setStatus('error'); setMsg(friendly(e)); });
       rtc.on('telnyx.socket.close', () => setStatus(s => (s === 'ready' ? 'idle' : s)));
       rtc.on('telnyx.notification', (n) => {
         if (n.type !== 'callUpdate') return;
@@ -29,7 +37,7 @@ function useRtc() {
       });
       rtc.connect();
       client.current = rtc;
-    } catch (e) { setStatus('error'); setMsg(e.message); }
+    } catch (e) { setStatus('error'); setMsg(e.status ? e.message : friendly(e)); }
   };
   const dial = (dest, from) => client.current?.newCall({ destinationNumber: dest, callerNumber: from, audio: true, video: false });
   return { status, call, msg, connect, dial };
@@ -56,7 +64,7 @@ export default function Softphone({ open, onClose }) {
             <select className="civr-input !h-9 font-mono text-xs" value={sel} onChange={e => setSel(e.target.value)} data-testid="softphone-number-select">{nums.map(n => <option key={n.phoneNumber}>{n.phoneNumber}</option>)}</select>
             <button className="civr-btn civr-btn-ghost civr-btn-sm" disabled={status === 'connecting'} onClick={() => connect(sel)} data-testid="softphone-connect-button">{status === 'connecting' ? <Loader2 className="w-4 h-4 animate-spin" /> : status === 'ready' ? 'Online' : 'Connect'}</button>
           </div>
-          <div className="text-xs mb-3" data-testid="softphone-status"><span className={status === 'ready' ? 'text-[#34d399]' : status === 'error' ? 'text-[#fb7185]' : 'text-[#888]'}>{call ? `Call ${call.state}` : status}</span>{msg && <span className="block text-[#888] mt-1">{msg}</span>}</div>
+          <div className="text-xs mb-3" data-testid="softphone-status"><span className={status === 'ready' ? 'text-[#34d399]' : status === 'error' ? 'text-[#fb7185]' : 'text-[#888]'}>{call ? `Call ${call.state}` : STATUS[status]}</span>{msg && <span className="block text-[#888] mt-1">{msg}</span>}</div>
           <div className="flex items-center gap-2 mb-3"><input className="civr-input font-mono" value={dest} onChange={e => setDest(e.target.value)} placeholder="+14155550100" data-testid="softphone-destination-input" /><button onClick={() => setDest(d => d.slice(0, -1))} className="p-2 text-[#888]" data-testid="softphone-backspace-button" aria-label="Delete digit"><Delete className="w-4 h-4" /></button></div>
           <div className="grid grid-cols-3 gap-2 mb-4">{KEYS.map(k => <button key={k} className="civr-key" onClick={() => press(k)} data-testid={`softphone-key-${k === '*' ? 'star' : k === '#' ? 'hash' : k}`}>{k}</button>)}</div>
           {call ? (

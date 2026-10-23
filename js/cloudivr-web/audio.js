@@ -6,7 +6,7 @@ const fs = require('fs')
 const MAX_BYTES = 10 * 1024 * 1024
 const AUDIO_TYPES = /^audio\/(mpeg|mp3|wav|x-wav|wave|ogg|webm|mp4|x-m4a|aac|flac|opus)$/i
 
-const publicAudio = (a) => ({ id: a.id, name: a.name, audioUrl: a.audioUrl, duration: a.duration || 0, size: a.size || 0, mimeType: a.mimeType, createdAt: a.createdAt, source: a.source || 'upload' })
+const publicAudio = (a) => ({ id: a.id, name: a.name, audioUrl: a.audioUrl, duration: a.duration || 0, size: a.size || 0, mimeType: a.mimeType, createdAt: a.createdAt, source: a.source || (/^tts-/.test(a.originalName || '') ? 'tts' : 'upload') })
 
 function routes(router, { db, h, upload, audioLibraryService, ttsService, log = console.log }) {
   const phoneNumbersOf = db.collection('phoneNumbersOf')

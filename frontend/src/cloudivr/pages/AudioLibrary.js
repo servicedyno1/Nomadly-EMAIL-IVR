@@ -6,21 +6,26 @@ import { PageHeader, Field, Spinner, ErrorNote, Empty } from '../ui';
 
 function UploadCard({ onDone }) {
   const [name, setName] = useState('');
+  const [file, setFile] = useState(null);
   const [busy, setBusy] = useState(false);
   const ref = useRef(null);
-  const pick = async (e) => {
-    const f = e.target.files?.[0]; if (!f) return;
+  const pick = (e) => {
+    const f = e.target.files?.[0]; e.target.value = ''; if (!f) return;
     if (f.size > 10 * 1024 * 1024) { toast.error('Audio files must be under 10 MB.'); return; }
-    const fd = new FormData(); fd.append('file', f); fd.append('name', name || f.name.replace(/\.[^.]+$/, ''));
+    setFile(f); if (!name) setName(f.name.replace(/\.[^.]+$/, '').slice(0, 60));
+  };
+  const send = async () => {
+    const fd = new FormData(); fd.append('file', file); fd.append('name', name || file.name);
     setBusy(true);
-    try { await api('/audio/upload', { method: 'POST', form: fd }); toast.success('Audio added'); setName(''); onDone(); } catch (err) { toast.error(err.message); } finally { setBusy(false); e.target.value = ''; }
+    try { await api('/audio/upload', { method: 'POST', form: fd }); toast.success('Audio added'); setName(''); setFile(null); onDone(); } catch (err) { toast.error(err.message); } finally { setBusy(false); }
   };
   return (
     <div className="civr-card p-6 space-y-4" data-testid="audio-upload-card">
       <div className="flex items-center gap-2 font-display text-2xl font-bold"><Upload className="w-5 h-5 text-[#34d399]" />Upload</div>
-      <Field label="Name (optional)"><input className="civr-input" value={name} onChange={e => setName(e.target.value)} placeholder="Main greeting" data-testid="audio-upload-name-input" /></Field>
       <input ref={ref} type="file" accept="audio/*,.mp3,.wav,.ogg,.m4a" className="hidden" onChange={pick} data-testid="audio-upload-file-input" />
-      <button className="civr-btn civr-btn-ghost w-full" disabled={busy} onClick={() => ref.current?.click()} data-testid="audio-upload-button">{busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}{busy ? 'Converting…' : 'Choose audio file'}</button>
+      <button type="button" className="civr-btn civr-btn-ghost w-full" disabled={busy} onClick={() => ref.current?.click()} data-testid="audio-upload-choose-button"><Music className="w-4 h-4" /><span className="truncate">{file ? file.name : 'Choose audio file'}</span></button>
+      <Field label="Name"><input className="civr-input" value={name} onChange={e => setName(e.target.value)} placeholder="Main greeting" data-testid="audio-upload-name-input" /></Field>
+      <button className="civr-btn civr-btn-primary w-full" disabled={!file || busy} onClick={send} data-testid="audio-upload-button">{busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}{busy ? 'Converting…' : 'Upload'}</button>
       <p className="text-xs text-[#666]">MP3, WAV, OGG, M4A · up to 10 MB. Converted for phone playback.</p>
     </div>
   );
@@ -58,7 +63,7 @@ function AudioRow({ a, i, reload }) {
         {edit !== null ? (
           <div className="flex gap-1"><input className="civr-input !h-9" value={edit} onChange={e => setEdit(e.target.value)} data-testid={`audio-row-${i}-rename-input`} /><button onClick={rename} className="p-2 text-[#34d399]" data-testid={`audio-row-${i}-rename-save`}><Check className="w-4 h-4" /></button><button onClick={() => setEdit(null)} className="p-2 text-[#888]" data-testid={`audio-row-${i}-rename-cancel`}><X className="w-4 h-4" /></button></div>
         ) : <div className="font-semibold truncate" data-testid={`audio-row-${i}-name`}>{a.name}</div>}
-        <div className="text-xs text-[#666] mt-0.5">{a.source === 'upload' ? 'Upload' : a.source} · {day(a.createdAt)}</div>
+        <div className="text-xs text-[#666] mt-0.5">{a.source === 'tts' ? 'Text to speech' : 'Upload'} · {day(a.createdAt)}</div>
       </div>
       <audio controls preload="none" src={playUrl(a.audioUrl)} className="h-9 flex-1 min-w-0" data-testid={`audio-row-${i}-player`} />
       <div className="flex gap-1">

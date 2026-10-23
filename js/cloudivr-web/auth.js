@@ -129,16 +129,17 @@ function createAuth(db, { log = console.log } = {}) {
 
     router.post('/auth/login', h(async (req, res) => {
       const email = normEmail(req.body.email), password = String(req.body.password || '')
-      const key = `login|${email}|${clientIp(req)}`
-      const until = await lockState(key)
+      const key = `login|${email}|${clientIp(req)}`, emailKey = `login|${email}` // per-email lock can't be dodged by spoofing the IP
+      const until = (await lockState(key)) || (await lockState(emailKey))
       if (until) return res.status(429).json({ error: 'locked', message: `Too many failed attempts. Try again after ${until.toISOString().slice(11, 16)} UTC.` })
       const acc = await accounts.findOne({ email })
       const ok = acc && acc.passwordHash && !acc.disabled && await bcrypt.compare(password, acc.passwordHash)
       if (!ok) {
         await recordFailure(key)
+        await recordFailure(emailKey, 10)
         return res.status(401).json({ error: 'invalid_credentials', message: acc && !acc.passwordHash ? 'This account uses Google sign-in. Continue with Google or reset your password.' : 'Wrong email or password.' })
       }
-      await attempts.deleteOne({ _id: key })
+      await attempts.deleteMany({ _id: { $in: [key, emailKey] } })
       await accounts.updateOne({ _id: acc._id }, { $set: { lastLoginAt: new Date() } })
       setSession(req, res, acc)
       res.json({ account: publicAccount(acc) })

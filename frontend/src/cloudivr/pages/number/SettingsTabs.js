@@ -43,7 +43,7 @@ export function OverviewTab({ num }) {
       </div>
       <div className="civr-card p-6 space-y-3 text-sm" data-testid="overview-capabilities">
         <div className="font-display text-2xl font-bold mb-2">Capabilities</div>
-        {['voice', 'sms', 'fax'].map(c => <div key={c} className="flex justify-between"><span className="capitalize text-[#aaa]">{c}</span><span className={caps[c] ? 'text-[#34d399]' : 'text-[#555]'}>{caps[c] ? 'Yes' : 'No'}</span></div>)}
+        {[['voice', 'Voice'], ['sms', 'SMS'], ['fax', 'Fax']].map(([c, l]) => <div key={c} className="flex justify-between"><span className="text-[#aaa]">{l}</span><span className={caps[c] ? 'text-[#34d399]' : 'text-[#555]'} data-testid={`overview-capability-${c}`}>{caps[c] ? 'Yes' : 'No'}</span></div>)}
         <div className="flex justify-between"><span className="text-[#aaa]">SIP domain</span><span className="font-mono text-xs">{num.sipDomain}</span></div>
       </div>
     </div>

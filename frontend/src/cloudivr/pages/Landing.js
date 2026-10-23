@@ -81,6 +81,7 @@ function Features() {
         {FEATURES.map(([Icon, title, text, span, big], i) => (
           <div key={title} className={`civr-card p-7 ${span} ${big ? 'flex flex-col justify-between min-h-[260px]' : ''}`} data-testid={`feature-card-${i}`}>
             <Icon className={`${big ? 'w-10 h-10' : 'w-6 h-6'} text-[#34d399]`} />
+            {big && <IvrSketch />}
             <div className="mt-6">
               <div className={`font-display font-bold ${big ? 'text-4xl' : 'text-2xl'}`}>{title}</div>
               <p className="text-sm text-[#888] mt-2 max-w-lg">{text}</p>
@@ -89,6 +90,25 @@ function Features() {
         ))}
       </div>
     </section>
+  );
+}
+
+// Mini call-flow drawn inside the big IVR feature card.
+function IvrSketch() {
+  const keys = [['1', 'Sales', 'Forward → +1 415…'], ['2', 'Support', 'Sub-menu'], ['3', 'After hours', 'Voicemail']];
+  return (
+    <div className="my-6 flex flex-col sm:flex-row sm:items-center gap-4" data-testid="feature-ivr-sketch">
+      <div className="civr-pill civr-pill-on !text-xs shrink-0">“Thanks for calling…”</div>
+      <div className="hidden sm:block h-px flex-1 max-w-[60px] bg-[#34d399]/40" />
+      <div className="grid gap-2 flex-1">
+        {keys.map(([k, l, a], i) => (
+          <div key={k} className={`flex items-center gap-3 rounded-xl border border-[#222] bg-[#0f0f0f] px-3 py-2 civr-rise civr-d${i + 1}`}>
+            <span className="w-7 h-7 rounded-lg border border-[#34d399]/50 text-[#34d399] font-mono text-sm flex items-center justify-center">{k}</span>
+            <span className="text-sm font-medium">{l}</span><span className="ml-auto text-xs font-mono text-[#777]">{a}</span>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 
