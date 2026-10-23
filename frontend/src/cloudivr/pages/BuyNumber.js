@@ -25,7 +25,7 @@ function SearchForm({ catalog, q, setQ, onSearch, busy }) {
     <form onSubmit={onSearch} className="civr-card p-6 grid md:grid-cols-4 gap-4 items-end" data-testid="buy-search-form">
       <Field label="Country">
         <select className="civr-input" value={q.country} onChange={e => setCountry(e.target.value)} data-testid="buy-country-select">
-          {catalog.countries.map(c => <option key={c.code} value={c.code}>{c.flag} {c.name}</option>)}
+          {catalog.countries.map(c => <option key={c.code} value={c.code}>{`${c.flag} ${c.name}`}</option>)}
         </select>
       </Field>
       <Field label="Number type">

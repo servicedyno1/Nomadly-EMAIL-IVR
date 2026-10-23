@@ -12,22 +12,24 @@ const out = new Set()
 const SKIP_ATTR = new Set(['className', 'data-testid', 'key', 'type', 'href', 'to', 'src', 'id', 'role', 'value', 'name', 'autoComplete', 'inputMode', 'accept', 'target', 'rel', 'dir', 'testid', 'prefix', 'by', 'method', 'tone', 'align', 'mode', 'kind', 'path', 'lang', 'htmlFor', 'style', 'pattern', 'action', 'icon', 'sizes', 'preload'])
 const SKIP_CALL = /^(api|useApi|cp|appPath|require|log|notifyAdmin|localStorage\.\w+|sessionStorage\.\w+|querySelector|querySelectorAll|createIndex|collection|includes|startsWith|endsWith|split|replace|join|getItem|setItem|removeItem|test|match|indexOf|createElement|addEventListener|removeEventListener|getAttribute|setAttribute|hasAttribute|closest|fetch|toLocaleString|toLocaleDateString|padStart|get|set|has|params\.get|find|findOne|updateOne|insertOne|countDocuments|aggregate|distinct|deleteOne|deleteMany|updateMany|findOneAndUpdate|router\.\w+|r\.\w+|res\.\w+|app\.\w+|db\.\w+|crypto\.\w+|downloadFile|navigator\.\w+|setParams|nav|sendMail)$/
 const STATUS = new Set(['active', 'running', 'completed', 'paused', 'scheduled', 'created', 'cancelled', 'failed', 'pending', 'preview', 'renews', 'expires', 'voice', 'sms', 'fax', 'transferred', 'credited', 'waiting', 'suspended', 'expired', 'released', 'collecting', 'answered', 'verification', 'awaiting_payment', 'underpaid', 'activating', 'notCalled', 'calling', 'forward', 'message', 'voicemail', 'submenu', 'transfer', 'missed', 'inbound', 'outbound', 'local', 'mobile', 'national', 'none', 'on', 'off', 'open', 'closed', 'done', 'empty'])
-const KEEP = new Set(['CloudIVR', 'CLOUD', 'IVR', 'SIP', 'SMS', 'OTP', 'USD', 'UDP', 'TCP', 'TLS', 'PDF', 'CSV', 'Telegram', 'Starter', 'Pro', 'Business', 'Zoiper', 'Linphone', 'MicroSIP', 'Google', 'DynoPay'])
-const CLASSY = /(^|\s)(-?[a-z]+:)?-?(w|h|p[xytblr]?|m[xytblr]?|gap|text|bg|border|rounded|flex|grid|items|justify|font|leading|tracking|shrink|grow|min|max|inset|top|left|right|bottom|z|opacity|transition|duration|space|col|row|overflow|truncate|block|inline|hidden|absolute|relative|fixed|sticky|civr|lg|md|sm|xl|hover|focus|animate|ring|shadow|object|aspect|select|cursor|pointer|whitespace|break|divide|order|place|self|content|backdrop|translate|scale|rotate|fill|stroke|underline|uppercase|lowercase|capitalize|italic|sr)(-|$|\s)/
+const KEEP = new Set(['PREVIEW-MODE-DO-NOT-SEND-FUNDS', 'Des numéros qui', ', routent et appellent pour vous.', 'Números que', ', enrutan y llaman por ti.', '{0} Reply in {1}{2}.', 'CloudIVR', 'CLOUD', 'IVR', 'SIP', 'SMS', 'OTP', 'USD', 'UDP', 'TCP', 'TLS', 'PDF', 'CSV', 'Telegram', 'Starter', 'Pro', 'Business', 'Zoiper', 'Linphone', 'MicroSIP', 'Google', 'DynoPay'])
+// A className list: every token looks like a utility class (has - : [ / or is a bare utility word).
+const UTIL = new Set(['flex', 'grid', 'block', 'hidden', 'inline', 'relative', 'absolute', 'fixed', 'sticky', 'truncate', 'underline', 'uppercase', 'lowercase', 'capitalize', 'italic', 'shrink', 'grow', 'border', 'rounded', 'shadow', 'ring', 'transition', 'container', 'contents', 'invisible', 'visible', 'static', 'isolate', 'outline', 'antialiased', 'civr'])
+const isClassList = (s) => s.split(/\s+/).filter(t => !/^\{\d+\}$/.test(t)).every(t => /^!?[a-z0-9]/.test(t) && (/[-:\[\/]/.test(t) || UTIL.has(t)) && !/[A-Z]/.test(t))
 
 function norm(s) { return String(s).replace(/\s+/g, ' ').trim() }
 function keep(s, { single = true } = {}) {
   s = norm(s)
   if (!s || !/[A-Za-z]/.test(s) || s.length > 600) return
   if (KEEP.has(s)) return
+  if (/^\/(month|min|mo|year|SMS)\b/.test(s)) { out.add(s); return }
   if (/^(https?:|\/|#|\.|\$\{|data:|mailto:)/.test(s) || /\.(js|css|png|svg|mp3|json)$/.test(s)) return
-  if (CLASSY.test(s) && !/[.!?]$/.test(s) && !/[A-Z]/.test(s.slice(1))) return
+  if (isClassList(s)) return
   if (!/\s/.test(s)) {
     if (STATUS.has(s)) { out.add(s); return }
-    if (!single || !/^[A-Z][a-zA-Z'’]+[.!?…:]?$/.test(s)) return
+    if (!single || !/^[A-Z][a-zA-Z'’-]+[.!?…:]?$/.test(s)) return
     if (/^[A-Z][a-z]+[A-Z]/.test(s)) return // camelCase identifiers
   }
-  if (/^[a-z0-9_\-]+(\s[a-z0-9_\-]+)*$/.test(s) && /[_\-]/.test(s)) return
   out.add(s)
 }
 
@@ -37,7 +39,7 @@ function calleeName(n) {
   if (n.type === 'MemberExpression') return `${calleeName(n.object)}.${n.property.name || ''}`.replace(/^.*\.(\w+\.\w+)$/, '$1')
   return ''
 }
-function skipByParent(stack) {
+function skipByParent(stack, node) {
   for (let i = stack.length - 1; i >= 0; i--) {
     const p = stack[i]
     if (p.type === 'ImportDeclaration' || p.type === 'ExportAllDeclaration') return true
@@ -48,7 +50,7 @@ function skipByParent(stack) {
       return false
     }
     if (p.type === 'BinaryExpression' && ['===', '!==', '==', '!='].includes(p.operator)) return true
-    if (p.type === 'SwitchCase') return true
+    if (p.type === 'SwitchCase') return (stack[i + 1] || node) === p.test
     if (p.type === 'TaggedTemplateExpression') return true
     if (p.type === 'MemberExpression' && p.computed) return true
     if (['JSXExpressionContainer', 'ReturnStatement', 'ArrowFunctionExpression', 'VariableDeclarator', 'ObjectProperty', 'ArrayExpression', 'ConditionalExpression', 'LogicalExpression', 'NewExpression', 'AssignmentExpression'].includes(p.type)) {
@@ -62,10 +64,10 @@ function skipByParent(stack) {
 function walk(node, stack, file) {
   if (!node || typeof node.type !== 'string') return
   if (node.type === 'JSXText') keep(node.value)
-  else if (node.type === 'StringLiteral' && !skipByParent([...stack, node].slice(0, -1).concat([]))) {
+  else if (node.type === 'StringLiteral' && !skipByParent(stack, node)) {
     const parent = stack[stack.length - 1]
     if (!(parent && parent.type === 'ObjectProperty' && parent.key === node)) keep(node.value)
-  } else if (node.type === 'TemplateLiteral' && !skipByParent(stack)) {
+  } else if (node.type === 'TemplateLiteral' && !skipByParent(stack, node)) {
     const pat = node.quasis.map((q, i) => (q.value.cooked || '') + (i < node.expressions.length ? `{${i}}` : '')).join('')
     const lit = pat.replace(/\{\d+\}/g, '')
     if (/[A-Za-z]{2}/.test(lit) && (/\s/.test(lit.trim()) || /[A-Z]/.test(lit))) keep(pat, { single: false })
@@ -106,7 +108,7 @@ t.categories.forEach(x => keep(x.name)); t.templates.forEach(x => keep(x.name))
 Object.values(t.smart).forEach(s => { keep(s.label); s.hint && keep(s.hint); (s.presets || []).forEach(x => keep(x, { single: false })) })
 for (const m of fs.readFileSync(path.join(ROOT, 'js/tts-service.js'), 'utf8').matchAll(/desc:\s*'([^']+)'/g)) keep(m[1])
 for (const m of fs.readFileSync(path.join(ROOT, 'js/ivr-templates.js'), 'utf8').matchAll(/name:\s*'([^']+)'/g)) keep(m[1])
-keep('Voicemail'); keep('Sales'); keep('Support'); keep('Billing'); keep('Operator'); keep('My phone')
+out.add('{0} new'); keep('Voicemail'); keep('Sales'); keep('Support'); keep('Billing'); keep('Operator'); keep('My phone')
 
 const list = [...out].sort()
 fs.writeFileSync('/app/scripts/civr_strings.json', JSON.stringify(list, null, 1))

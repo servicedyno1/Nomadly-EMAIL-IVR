@@ -68,7 +68,7 @@ function DefaultVoice() {
       <p className="text-sm text-[#888]">Used for every new script and AI voice message so your calls always sound the same.</p>
       {canSave ? <>
         <div className="flex flex-wrap gap-2"><VoiceSelect value={cur.voice} onChange={(x) => setV({ ...cur, voice: x })} voices={voices} testid="settings-voice-select" />
-          <select className="civr-input !w-24" value={cur.speed} onChange={e => setV({ ...cur, speed: Number(e.target.value) })} data-testid="settings-speed-select" aria-label="Speed">{speeds.map(s => <option key={s} value={s}>{s}×</option>)}</select></div>
+          <select className="civr-input !w-24" value={cur.speed} onChange={e => setV({ ...cur, speed: Number(e.target.value) })} data-testid="settings-speed-select" aria-label="Speed">{speeds.map(s => <option key={s} value={s}>{`${s}×`}</option>)}</select></div>
         <button className="civr-btn civr-btn-primary" disabled={busy} onClick={save} data-testid="settings-voice-save-button">{busy && <Loader2 className="w-4 h-4 animate-spin" />}Save voice</button>
       </> : <div className="text-sm text-[#fbbf24]" data-testid="settings-voice-locked">A saved default voice is on the Business plan.</div>}
     </div>

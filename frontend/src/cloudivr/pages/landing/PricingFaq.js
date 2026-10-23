@@ -33,7 +33,7 @@ export function Pricing({ catalog }) {
         <div className="grid md:grid-cols-3 gap-4 mt-14">{plans.map((p, i) => <PlanCard key={p.id} p={p} hot={hasRec ? p.recommended : i === 1} start={start} />)}</div>
         {r && (
           <p className="text-sm text-black/60 mt-8 max-w-3xl" data-testid="pricing-extra-usage">
-            Extra usage is paid from your wallet: minutes over your plan {money(r.overagePerMin)}/min · SMS over your plan {money(r.overagePerSms)} each · calls forwarded to a phone {money(r.forwardingPerMin)}/min. Outbound IVR calls show their price before you start.
+            {`Extra usage is paid from your wallet: minutes over your plan ${money(r.overagePerMin)}/min, SMS over your plan ${money(r.overagePerSms)} each, calls forwarded to a phone ${money(r.forwardingPerMin)}/min. Outbound IVR calls show their price before you start.`}
           </p>
         )}
       </div>

@@ -45,8 +45,8 @@ function TtsCard({ onDone }) {
       <div className="flex items-center gap-2 font-display text-2xl font-bold"><Wand2 className="w-5 h-5 text-[#38bdf8]" />Text to speech</div>
       <Field label="What should the voice say?" hint={`${f.text.length}/1500`}><textarea rows={4} className="civr-input" maxLength={1500} value={f.text} onChange={e => setF({ ...f, text: e.target.value })} placeholder="Thanks for calling. Press 1 for sales, 2 for support." data-testid="audio-tts-text-input" /></Field>
       <div className="grid sm:grid-cols-3 gap-3">
-        <Field label="Voice"><select className="civr-input" value={f.voice} onChange={e => setF({ ...f, voice: e.target.value })} data-testid="audio-tts-voice-select">{(data?.voices || []).map(v => <option key={v.key} value={v.key}>{v.name} · {v.gender}</option>)}</select></Field>
-        <Field label="Speed"><select className="civr-input" value={f.speed} onChange={e => setF({ ...f, speed: Number(e.target.value) })} data-testid="audio-tts-speed-select">{(data?.speeds || [1]).map(s => <option key={s} value={s}>{s}×</option>)}</select></Field>
+        <Field label="Voice"><select className="civr-input" value={f.voice} onChange={e => setF({ ...f, voice: e.target.value })} data-testid="audio-tts-voice-select">{(data?.voices || []).map(v => <option key={v.key} value={v.key}>{`${v.name} · ${v.gender}`}</option>)}</select></Field>
+        <Field label="Speed"><select className="civr-input" value={f.speed} onChange={e => setF({ ...f, speed: Number(e.target.value) })} data-testid="audio-tts-speed-select">{(data?.speeds || [1]).map(s => <option key={s} value={s}>{`${s}×`}</option>)}</select></Field>
         <Field label="Name (optional)"><input className="civr-input" value={f.name} onChange={e => setF({ ...f, name: e.target.value })} data-testid="audio-tts-name-input" /></Field>
       </div>
       <button className="civr-btn civr-btn-primary" disabled={busy || f.text.trim().length < 3} onClick={make} data-testid="audio-tts-create-button">{busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wand2 className="w-4 h-4" />}{busy ? 'Generating…' : 'Create audio'}</button>

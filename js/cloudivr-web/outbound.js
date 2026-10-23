@@ -210,6 +210,8 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
   }))
 
   router.get('/calls/scheduled', h(async (req, res) => {
+    // Preview-mode entries never dial; once their time passes they count as done.
+    await scheduled.updateMany({ chatId: req.webChatId, web: true, status: 'preview', scheduledAt: { $lt: new Date() } }, { $set: { status: 'completed', previewOnly: true } })
     const list = await scheduled.find({ chatId: req.webChatId, web: true }).sort({ scheduledAt: -1 }).limit(30).toArray()
     res.json({ calls: list.map(s => ({ id: s._id, scheduledFor: s.scheduledAt, status: s.status, to: s.ivrObData?.targetNumber, callerId: s.ivrObData?.callerId, templateName: s.ivrObData?.templateName, error: s.error ? strip(s.error) : null })) })
   }))

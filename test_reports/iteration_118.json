@@ -1,0 +1,61 @@
+{
+  "summary": "Tested the 21 bot-parity features plus i18n in CloudIVR web (Node API /api/cloudivr-web, React /cloudivr) in DRY-RUN preview. Backend: new pytest suite test_cloudivr_web_features21.py, 23/23 passing. It covers Quick IVR (transfer/OTP/menu/too_many/unfilled placeholders/schedule+cancel/history/recent/redial/presets/menu-stats), trial (Bob once, validation failure does not burn it, Alice 403), downgrade preview/invalid_plan/is_extra, extras info, test-call/test-sip (Starter 403), IVR templates CRUD, coupons today/check/already-used/invalid, voice prefs (Bob 403), campaign CSV, AI support chat (how-to answer has no escalation, refund escalates to t.me/onarrival1) and isolation/401 checks. Frontend checks run with Playwright: landing language switcher en/fr/es with correct hero titles, choice kept in localStorage, browser locale fr-FR/es-ES/en-US detection all OK. Auth and topbar switchers work across Overview, My numbers, all 10 number tabs, Quick IVR, Campaigns, Inbox, Wallet, Settings and Buy, and switching back to English restores the text. No horizontal overflow at 390px in fr/es on quick-call and settings. Full Quick IVR UI flow works (recent chip, template + placeholders + autofill, unfilled error, >10 error, OTP 5-digit with confirm/reject, menu builder with forward/message/sub-menu, preset save/load/delete, schedule via the shadcn calendar plus cancel, redial). Bob's trial form works, then the empty state shows. Downgrade Business→Pro via UI works (preview shows the features that turn off and 'No refund', confirm dialog, extras follow the plan, billing-extra-of shows on the extra). Upgraded Alice back to Business ($45). Extra-number buy flow works (2→3 of 30). Coupons: today button, invalid error, applied state with line-through, purchase pushes the 'Coupon X applied … You saved $7.50' Inbox notice with no Use-coupon button, daily notice Use-coupon → /buy?coupon= pre-applies the code, re-use → 'You have already used this coupon.' Number tools (route summary, test-call/test-sip preview, fax toggle persists, IVR built-in template → save mine → delete) all work. Campaign in menu mode was created and its CSV downloaded. AI chat in French answers in French with French screen names and shows the Telegram button on 'parler à un humain'; clear works. Regression: hours save, voicemail language/transcribe persist, call notes, private mode mask/unmask, Pro default with Recommended badge, wallet + crypto only.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "daily coupon notice (extras.js announceCoupon)", "issue": "The notice is sent once a day to the accounts that exist when the marker is inserted (webCouponNotices daily:<date>). Accounts registered later that day never get today's notice: a new qa account's Inbox was empty, although GET /coupons/today and the checkout 'today' button still work."},
+      {"endpoint": "POST /numbers/:phone/downgrade + /upgrade", "issue": "Downgrade turns off IVR/recording/voicemail, but upgrading back does not restore them. Alice's +15156445205 now has ivr.enabled=false, recording=false, voicemail.enabled=false after my Business→Pro→Business round trip (I could not tell what was on before). The upgrade also resets planPrice to the base price, dropping any surcharge."},
+      {"endpoint": "GET /calls/scheduled (dry-run)", "issue": "Dry-run 'preview' scheduled calls whose time has passed (e.g. Oct 23 04:17 PM) still show as 'preview' with a cancel button forever. Consider marking past ones done/expired."},
+      {"endpoint": "support.js uiNames()", "issue": "Uses require('../../frontend/src/cloudivr/i18n/<lang>.json'). If the production Node deploy does not ship frontend/src, this silently returns '' and the French/Spanish screen-name hints are lost. Consider copying the json into js/ or loading it from a shared path."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "quick/Trial.js", "issue": "After a successful trial submit, onUsed() → reloadTrial() unmounts TrialCall straight away, so quick-trial-result (the 'Preview mode: …' message) is never visible. The user only sees a short toast, then the 'No number can place IVR calls yet' empty state. Keep the result visible, e.g. delay reloadTrial or show the result in the parent.", "selector": "[data-testid=quick-trial-result]", "priority": "MEDIUM"},
+      {"component": "QuickCall.js Message()", "issue": "The 'Read out with' select shows value={f.voice || 'rachel'} while f.voice is ''. The backend then falls back to the saved default voice (Alice: onyx), so the UI shows Rachel but the call uses Onyx. Initialise f.voice from GET /prefs/voice, or show 'Default (Onyx)'.", "selector": "[data-testid=quick-voice-select]", "priority": "LOW"},
+      {"component": "BillingExtras downgrade toast", "issue": "The toast shows the raw plan key in lowercase: 'Now on pro · $75.00/month'. Use the plan name (Pro).", "selector": "billing-downgrade-confirm-button", "priority": "LOW"},
+      {"component": "Inbox daily coupon notice", "issue": "The 'Use coupon' button (inbox-item-{i}-use-coupon) still shows for accounts that already used the code (Alice). Clicking it leads to checkout with 'You have already used this coupon.' Hide it when /coupons/today used=true.", "selector": "[data-testid$=-use-coupon]", "priority": "LOW"},
+      {"component": "console", "issue": "Repeated React warning 'Cannot infer the option value of complex children' (an <option> has multiple children without a value prop). There are also many '<span> cannot be a child of <tbody>/<tr>' hydration warnings on table pages; these probably come from the visual-edit tooling but are worth checking.", "selector": "select option", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Untranslated English in FR and ES (exact strings)", "issues": [
+        "Landing: 'Local · Toll-free', 'Toll-free', '/min · SMS over your plan', '/min. Outbound IVR calls show their price before you start.'",
+        "Preview banner (app): 'TOP-UPS TOO' (rest of the banner is translated)",
+        "Overview: 'Hi Alice' (greeting), 'Inbox · 1 new' (quick-link card)",
+        "Number Overview tab: 'Test my number' (card title), 'Call my number' becomes 'Appeler my number' / 'Llamar a my number' (partial translation), route summary 'All calls forward to +14155550100.'",
+        "Quick IVR / Campaign ScriptBox template select option: 'Write my own'",
+        "Voicemail tab: 'From my audio library' (option), 'Make a greeting from text', default greeting preview '“The person at … is unavailable. Please leave a message after the tone.”'",
+        "Billing tab: '$120.00/month', '$50.00/month', '$75.00/month' and '$22.50/month' ('/month' suffix), extra card '…for $25.00/month each. They get the same Business features.', 'X of Y used' (e.g. '2 of 30 used')",
+        "Wallet history rows: 'Number purchase · +1…'",
+        "IVR tab default greeting 'Thank you for calling. Please select an option.' (seed/user content, may be acceptable)",
+        "ES Hours tab: 'Horas on/off' (half translated)",
+        "Server-generated Inbox texts ('Coupon X applied: …', "Today's coupon: …") and API error/preview messages ('Preview mode: …', 'Fill in: [Name].', 'Up to 10 numbers…') are English only"
+      ]},
+      {"screen": "Sidebar section label", "issues": ["'CALLING' is translated as 'APPEL EN COURS' (FR, means 'call in progress') and 'LLAMANDO' (ES). Suggest 'APPELS' / 'LLAMADAS'."]},
+      {"screen": "Voicemail language", "issues": ["Greeting languages are English/Français/Português/العربية only, with no Español, even though the app supports Spanish."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_cloudivr_web_features21.py", "/app/test_reports/pytest/pytest_features21.xml"],
+  "action_items": [
+    "Keep quick-trial-result visible after a successful free trial (Trial.js onUsed unmounts it).",
+    "Add the untranslated strings listed in design_issues to fr.json/es.json. Fix the partial 'Appeler my number' and the 'Appel en cours'/'Llamando' nav label.",
+    "Make the Quick IVR 'Read out with' select reflect the saved default voice.",
+    "Send today's coupon notice to accounts created after the daily announcement (e.g. on register/login if there is no notice for today).",
+    "Optionally hide 'Use coupon' when the code is already used, and use the plan name in the downgrade toast.",
+    "Decide whether an upgrade should restore features that the downgrade turned off. Alice's main number now has IVR/recording/voicemail off."
+  ],
+  "critical_code_review_comments": [
+    "support.js loads i18n json from ../../frontend/src at runtime, which is fragile for a backend-only deploy.",
+    "outbound.js schedule check allows >= now+4min although the message says 5 minutes (intentional tolerance, fine).",
+    "Trial claim + rollback on failure is correct (validation errors don't burn the trial; verified).",
+    "Upgrade drops planPrice surcharge (sets base price), while downgrade keeps it. This is inconsistent."
+  ],
+  "updated_files": ["/app/backend/tests/test_cloudivr_web_features21.py"],
+  "success_rate": {"backend": "100% (23/23)", "frontend": "~90% (all flows work; 1 medium UX bug, several low bugs, translation gaps)"},
+  "seed_data_creation": "Registered qa.cpn1792774767@example.com / QaTest#2026x (chatId 5000000000000004), credited $200 in walletOf via mongo, bought dry-run Pro number +19255320511 with coupon NMD10EQA5U5. The coupons pytest also registers a qa.coupon<ts>@example.com account per run. Alice: bought dry-run extra number +13802413146 ($25), created dry-run menu campaign 26a83bb7 'Tone', downgraded then upgraded back to Business ($45 charged; wallet now $117.50). Bob: trial used, then reset (ivrTrialUsed=false, GET /calls/trial available:true verified).",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "The Node backend is supervisor program 'nodejs'. DB_NAME=test; webPrefs _id is the string chatId (Alice '5000000000000001', Bob '5000000000000002'). Bob already redeemed today's coupon NMD10EQA5U5 in an earlier purchase (+16828477790), so use a fresh qa account to test coupon apply. TestTrial in test_cloudivr_web_features21.py consumes Bob's trial: reset afterwards with db.webPrefs.updateOne({_id:'5000000000000002'},{$set:{ivrTrialUsed:false}}). The support-chat test sends 2 real OpenAI messages per run; 4 AI messages were used in total this iteration. Alice wallet is $117.50, which is enough for one more downgrade→upgrade round trip ($45).",
+  "rca of the issue": "Trial result not visible: Trial.js calls onUsed() right after setResult(d). The parent QuickCall then reloads /calls/trial, gets available:false and replaces <TrialCall/> with the empty state, so the component that holds the result is unmounted."
+}

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import { PhoneOutgoing, Loader2, Lock } from 'lucide-react';
@@ -38,13 +38,14 @@ function Recent({ onPick }) {
 }
 
 function Message({ f, set, audios, reloadAudio }) {
-  const { voices } = useVoices();
+  const { voices, def, ready } = useVoices();
+  useEffect(() => { if (ready && !f.voice) set({ voice: def.voice }); }, [ready]); // eslint-disable-line react-hooks/exhaustive-deps
   return (
     <div className="space-y-4">
       <div className="flex gap-2"><Pill on={f.source === 'script'} onClick={() => set({ source: 'script' })} testid="quick-source-script">Script / template</Pill><Pill on={f.source === 'audio'} onClick={() => set({ source: 'audio' })} testid="quick-source-audio">Audio library</Pill></div>
       {f.source === 'script' ? <>
         <ScriptBox value={f.script} onChange={(s) => set({ script: s, ...(s.activeKeys ? { activeKeys: s.activeKeys } : {}) })} onAudio={(a) => { reloadAudio(); set({ source: 'audio', audioId: a.id }); }} testid="quick-script" />
-        <Field label="Read out with" hint="Or make an AI voice file above for the most natural sound."><VoiceSelect value={f.voice || 'rachel'} onChange={(v) => set({ voice: v })} voices={voices} testid="quick-voice-select" /></Field>
+        <Field label="Read out with" hint="Or make an AI voice file above for the most natural sound."><VoiceSelect value={f.voice || def.voice} onChange={(v) => set({ voice: v })} voices={voices} testid="quick-voice-select" /></Field>
       </> : <Field label="Message to play" hint={!audios.length ? <Link to={cp('/app/audio')} className="text-[#34d399]">Create audio first →</Link> : null}>
         <AudioSelect value={f.audioId} onChange={(v) => set({ audioId: v })} audios={audios} by="id" testid="quick-call-audio-select" />
         {f.audioId && <audio controls preload="none" src={playUrl(audios.find(a => a.id === f.audioId)?.audioUrl)} className="h-9 mt-2" data-testid="quick-audio-preview" />}
@@ -63,7 +64,7 @@ function Answer({ f, set, isBiz }) {
         <div className="flex items-center justify-between"><span className="text-sm">Hold music while connecting</span><Toggle checked={f.holdMusic} onChange={(v) => set({ holdMusic: v })} testid="quick-call-hold-music-toggle" /></div>
       </>}
       {f.mode === 'otp' && <div className="space-y-4" data-testid="quick-otp-fields">
-        <Field label="Code length" hint="They get 3 tries. The code shows up in your Inbox."><select className="civr-input !w-40" value={f.otp.length} onChange={e => set({ otp: { ...f.otp, length: Number(e.target.value) } })} data-testid="quick-otp-length">{[4, 5, 6, 8].map(n => <option key={n} value={n}>{n} digits</option>)}</select></Field>
+        <Field label="Code length" hint="They get 3 tries. The code shows up in your Inbox."><select className="civr-input !w-40" value={f.otp.length} onChange={e => set({ otp: { ...f.otp, length: Number(e.target.value) } })} data-testid="quick-otp-length">{[4, 5, 6, 8].map(n => <option key={n} value={n}>{`${n} digits`}</option>)}</select></Field>
         {isBiz ? <div className="grid sm:grid-cols-2 gap-3">
           <Field label="Said after a valid code (optional)"><input className="civr-input" value={f.otp.confirmMsg} onChange={e => set({ otp: { ...f.otp, confirmMsg: e.target.value } })} placeholder="Thank you, your code is confirmed." data-testid="quick-otp-confirm" /></Field>
           <Field label="Said after a wrong code (optional)"><input className="civr-input" value={f.otp.rejectMsg} onChange={e => set({ otp: { ...f.otp, rejectMsg: e.target.value } })} placeholder="That code was not valid." data-testid="quick-otp-reject" /></Field>
@@ -86,6 +87,7 @@ export default function QuickCall() {
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
   const [stamp, setStamp] = useState(0);
+  const [trialShown, setTrialShown] = useState(false);
   const set = (p) => setF(x => ({ ...x, ...p }));
   if (loading) return <Spinner />;
   const caller = numbers.find(n => n.phoneNumber === f.callerId) || numbers[0];
@@ -106,7 +108,7 @@ export default function QuickCall() {
   return (
     <div data-testid="quick-call-page">
       <PageHeader label="Outbound" title="Quick IVR call" sub="Call one or a few people, play a script or recording, then connect them, collect a code or route each key. Billed per minute from your wallet." testid="quick-call-header" />
-      {!numbers.length ? (trial?.available ? <TrialCall onUsed={reloadTrial} /> : (
+      {!numbers.length ? (trial?.available || trialShown ? <TrialCall onUsed={() => { setTrialShown(true); reloadTrial(); }} /> : (
         <Empty icon={PhoneOutgoing} title="No number can place IVR calls yet" sub={all.length ? 'Quick IVR calls need an active number on the Pro plan or higher. Upgrade one in its Billing tab.' : 'Buy a number on the Pro plan or higher to place IVR calls.'} testid="quick-call-empty">
           <Link to={all.length ? cp('/app/numbers') : cp('/app/buy')} className="civr-btn civr-btn-primary" data-testid="quick-call-empty-action">{all.length ? 'My numbers' : 'Buy a number'}</Link>
         </Empty>
@@ -114,7 +116,7 @@ export default function QuickCall() {
         <div className="grid xl:grid-cols-3 gap-4 items-start">
           <form onSubmit={go} className="xl:col-span-2 space-y-4" data-testid="quick-call-form">
             <Section n="1" title="Who to call">
-              <Field label="Call from"><select className="civr-input font-mono" value={caller.phoneNumber} onChange={e => set({ callerId: e.target.value })} data-testid="quick-call-caller-select">{numbers.map(n => <option key={n.phoneNumber} value={n.phoneNumber}>{n.phoneNumber} · {n.planName}</option>)}</select></Field>
+              <Field label="Call from"><select className="civr-input font-mono" value={caller.phoneNumber} onChange={e => set({ callerId: e.target.value })} data-testid="quick-call-caller-select">{numbers.map(n => <option key={n.phoneNumber} value={n.phoneNumber}>{`${n.phoneNumber} · ${n.planName}`}</option>)}</select></Field>
               <Field label="Number(s) to call" hint="With country code. Up to 10, separated by commas.">
                 <input className="civr-input font-mono" required value={f.targets} onChange={e => set({ targets: e.target.value })} placeholder="+14155550100, +14155550101" data-testid="quick-call-to-input" />
                 <Recent onPick={(n) => set({ targets: f.targets.includes(n) ? f.targets : [f.targets, n].filter(Boolean).join(', ') })} />

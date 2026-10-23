@@ -18,7 +18,7 @@ function compile(d) {
   return Object.keys(d).filter(k => /\{\d+\}/.test(k)).map(k => {
     const parts = k.split(/(\{\d+\})/).filter(Boolean);
     const lit = parts.filter(p => !SLOT.test(p)).join('');
-    if (lit.replace(/[^A-Za-z]/g, '').length < 3) return null;
+    if (lit.replace(/[^A-Za-z]/g, '').length < 2) return null;
     return { re: new RegExp(`^${parts.map(p => (SLOT.test(p) ? '([\\s\\S]+?)' : esc(p))).join('')}$`), slots: parts.filter(p => SLOT.test(p)), out: d[k], lit: lit.length };
   }).filter(Boolean).sort((a, b) => b.lit - a.lit);
 }
@@ -30,6 +30,11 @@ function lookup(core) {
   for (const p of patterns) {
     const m = core.match(p.re);
     if (m) return p.slots.reduce((o, s, i) => o.split(s).join(tr(m[i + 1])), p.out);
+  }
+  // "Inbox · 2 new", "Local · Toll-free": translate each part between the dots.
+  if (core.includes(' · ')) {
+    const parts = core.split(' · '), out = parts.map(tr);
+    if (out.some((o, i) => o !== parts[i])) return out.join(' · ');
   }
   return null;
 }

@@ -7,13 +7,13 @@ import { api, useApi, playUrl } from './api';
 export function useVoices() {
   const { data } = useApi('/audio/voices');
   const { data: p } = useApi('/prefs/voice');
-  return { voices: data?.voices || [], speeds: data?.speeds || [1], def: { voice: p?.voice || 'rachel', speed: p?.speed || 1 }, canSave: !!p?.canSave };
+  return { voices: data?.voices || [], speeds: data?.speeds || [1], def: { voice: p?.voice || 'rachel', speed: p?.speed || 1 }, canSave: !!p?.canSave, ready: !!p };
 }
 
 export function VoiceSelect({ value, onChange, voices, testid }) {
   return (
     <select className="civr-input !w-auto max-w-full" value={value} onChange={e => onChange(e.target.value)} data-testid={testid} aria-label="Voice">
-      {voices.map(v => <option key={v.key} value={v.key}>{v.name} · {v.desc}</option>)}
+      {voices.map(v => <option key={v.key} value={v.key}>{`${v.name} · ${v.desc}`}</option>)}
     </select>
   );
 }
@@ -37,7 +37,7 @@ export function VoiceMaker({ text, name, onMade, testid }) {
   return (
     <div className="flex flex-wrap items-center gap-2" data-testid={testid}>
       <VoiceSelect value={v} onChange={setVoice} voices={voices} testid={`${testid}-voice`} />
-      <select className="civr-input !w-24" value={s} onChange={e => setSpeed(Number(e.target.value))} data-testid={`${testid}-speed`} aria-label="Speed">{speeds.map(x => <option key={x} value={x}>{x}×</option>)}</select>
+      <select className="civr-input !w-24" value={s} onChange={e => setSpeed(Number(e.target.value))} data-testid={`${testid}-speed`} aria-label="Speed">{speeds.map(x => <option key={x} value={x}>{`${x}×`}</option>)}</select>
       <button type="button" className="civr-btn civr-btn-ghost civr-btn-sm" onClick={make} disabled={busy} data-testid={`${testid}-make`}>{busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wand2 className="w-4 h-4" />}{busy ? 'Making…' : 'Make AI voice'}</button>
       {made && <audio controls src={playUrl(made.audioUrl)} className="h-9 max-w-full" data-testid={`${testid}-preview`} />}
     </div>

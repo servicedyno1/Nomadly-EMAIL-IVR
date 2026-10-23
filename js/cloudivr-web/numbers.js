@@ -508,10 +508,17 @@ function routes(router, deps) {
     if (!phoneConfig.plans[newPlan] || order.indexOf(newPlan) <= order.indexOf(n.plan)) return bad(res, 400, 'invalid_plan', 'Pick a higher plan than the current one.')
     const q = phoneConfig.computeUpgradeQuote(n, newPlan)
     const charge = round2(q && Number.isFinite(q.chargeAmount) ? q.chargeAmount : phoneConfig.plans[newPlan].price)
-    if (req.body.confirm !== true) return res.json({ quote: { charge, credit: round2(q?.credit || 0), newPrice: phoneConfig.plans[newPlan].price } })
+    if (req.body.confirm !== true) return res.json({ quote: { charge, credit: round2(q?.credit || 0), newPrice: round2(phoneConfig.plans[newPlan].price + Math.max(0, (n.planPrice || phoneConfig.plans[n.plan].price) - phoneConfig.plans[n.plan].price)) } })
     if (!(await w.debit(req.webChatId, charge))) return bad(res, 402, 'insufficient_balance', `The upgrade costs $${charge.toFixed(2)}. Top up your wallet first.`)
-    const newPrice = phoneConfig.plans[newPlan].price
-    await phoneNumbersOf.updateOne({ _id: req.webChatId, 'val.numbers.phoneNumber': n.phoneNumber }, { $set: { 'val.numbers.$.plan': newPlan, 'val.numbers.$.planPrice': newPrice, 'val.numbers.$.sipDisabled': false } })
+    // Keep the number's surcharge (e.g. international) on top of the new plan price, as downgrade does.
+    const surcharge = Math.max(0, round2((n.planPrice || phoneConfig.plans[n.plan].price) - phoneConfig.plans[n.plan].price))
+    const newPrice = round2(phoneConfig.plans[newPlan].price + surcharge)
+    // Switch back on what a downgrade turned off, when the new plan includes it.
+    const set = { 'val.numbers.$.plan': newPlan, 'val.numbers.$.planPrice': newPrice, 'val.numbers.$.sipDisabled': false }
+    const saved = n.downgradeSaved || []
+    for (const x of saved) if (phoneConfig.canAccessFeature(newPlan, x.key)) set[`val.numbers.$.${x.path}`] = x.value
+    set['val.numbers.$.downgradeSaved'] = saved.filter(x => !phoneConfig.canAccessFeature(newPlan, x.key))
+    await phoneNumbersOf.updateOne({ _id: req.webChatId, 'val.numbers.phoneNumber': n.phoneNumber }, { $set: set })
     await phoneNumbersOf.updateOne({ _id: req.webChatId }, { $set: { 'val.numbers.$[s].plan': newPlan } }, { arrayFilters: [{ 's.isSubNumber': true, 's.parentNumber': n.phoneNumber }] }).catch(() => {})
     await phoneTransactions.insertOne({ chatId: req.webChatId, phoneNumber: n.phoneNumber, action: 'upgrade', oldPlan: n.plan, newPlan, oldPrice: n.planPrice, newPrice, amount: charge.toFixed(2), credit: round2(q?.credit || 0).toFixed(2), paymentMethod: 'wallet_usd', channel: 'web', timestamp: new Date().toISOString() })
     await txn(req.webChatId, 'phone-upgrade', charge, { phoneNumber: n.phoneNumber, plan: newPlan })

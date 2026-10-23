@@ -45,7 +45,7 @@ function Upgrade({ num, reload, refreshSummary, plans }) {
   return (
     <div className="civr-card p-6 space-y-6" data-testid="billing-upgrade-card">
       <div className="font-display text-2xl font-bold">Upgrade plan</div>
-      <Field label="New plan"><select className="civr-input" value={plan} onChange={e => { setPlan(e.target.value); setQuote(null); }} data-testid="billing-upgrade-plan-select">{higher.map(p => <option key={p.id} value={p.id}>{p.name} · {money(p.price)}/month</option>)}</select></Field>
+      <Field label="New plan"><select className="civr-input" value={plan} onChange={e => { setPlan(e.target.value); setQuote(null); }} data-testid="billing-upgrade-plan-select">{higher.map(p => <option key={p.id} value={p.id}>{`${p.name} · ${money(p.price)}/month`}</option>)}</select></Field>
       {unlocks(plans, num.plan, plan).length > 0 && (
         <div data-testid="billing-upgrade-unlocks">
           <div className="text-xs text-[#9a9a9a] mb-2">This upgrade unlocks</div>

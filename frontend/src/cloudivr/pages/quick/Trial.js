@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Gift, Loader2, PhoneOutgoing } from 'lucide-react';
 import { api } from '../../api';
 import { Field, ErrorNote } from '../../ui';
 import { ScriptBox, fillScript } from './ScriptBox';
+import { cp } from '../../paths';
 
 // One free Quick IVR call for accounts with no calling number yet (shared demo caller ID, transfer on key 1).
 export function TrialCall({ onUsed }) {
@@ -26,8 +28,11 @@ export function TrialCall({ onUsed }) {
       <ScriptBox value={f.script} onChange={(s) => setF({ ...f, script: s })} testid="quick-trial-script" />
       <Field label="Connect to (when they press 1)"><input className="civr-input font-mono" required value={f.transferTo} onChange={e => setF({ ...f, transferTo: e.target.value })} placeholder="+14155550199" data-testid="quick-trial-transfer-input" /></Field>
       <ErrorNote error={error} testid="quick-trial-error" />
-      {result && <div className="civr-card p-4 text-sm" data-testid="quick-trial-result">{result.dryRun ? result.message : 'Free call started.'}</div>}
-      <button className="civr-btn civr-btn-primary" disabled={busy} data-testid="quick-trial-submit-button">{busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <PhoneOutgoing className="w-4 h-4" />}Place free call</button>
+      {result ? <>
+        <div className="civr-card p-4 text-sm" data-testid="quick-trial-result">{result.dryRun ? result.message : 'Free call started.'}</div>
+        <p className="text-sm text-[#888]">That was your free call. Get a number on the Pro plan or higher to keep calling with your own caller ID.</p>
+        <Link to={cp('/app/buy')} className="civr-btn civr-btn-primary" data-testid="quick-trial-buy-link">Buy a number</Link>
+      </> : <button className="civr-btn civr-btn-primary" disabled={busy} data-testid="quick-trial-submit-button">{busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <PhoneOutgoing className="w-4 h-4" />}Place free call</button>}
     </form>
   );
 }

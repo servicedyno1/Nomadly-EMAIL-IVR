@@ -21,13 +21,13 @@ export function Downgrade({ num, plans, reload, refreshSummary }) {
     setBusy(true);
     try {
       const d = await api(`/numbers/${enc(num.phoneNumber)}/downgrade`, { method: 'POST', body: { plan, confirm } });
-      if (!confirm) setPreview(d.preview); else { toast.success(`Now on ${d.plan} · ${money(d.planPrice)}/month`); setPreview(null); reload(); refreshSummary(); }
+      if (!confirm) setPreview(d.preview); else { toast.success(`Now on ${d.planName} · ${money(d.planPrice)}/month`); setPreview(null); reload(); refreshSummary(); }
     } catch (e) { toast.error(e.message); } finally { setBusy(false); }
   };
   return (
     <div className="civr-card p-6 space-y-5" data-testid="billing-downgrade-card">
       <div className="font-display text-2xl font-bold">Downgrade plan</div>
-      <Field label="Switch to"><select className="civr-input" value={plan} onChange={e => { setPlan(e.target.value); setPreview(null); }} data-testid="billing-downgrade-plan-select">{lower.map(p => <option key={p.id} value={p.id}>{p.name} · {money(p.price)}/month</option>)}</select></Field>
+      <Field label="Switch to"><select className="civr-input" value={plan} onChange={e => { setPlan(e.target.value); setPreview(null); }} data-testid="billing-downgrade-plan-select">{lower.map(p => <option key={p.id} value={p.id}>{`${p.name} · ${money(p.price)}/month`}</option>)}</select></Field>
       {preview && (
         <div className="text-sm space-y-2" data-testid="billing-downgrade-preview">
           <div>New price <span className="font-mono">{money(preview.newPrice)}</span>/month from your next renewal · {preview.minutes[1]} min · {preview.sms[1]} SMS.</div>
@@ -57,8 +57,8 @@ export function ExtraNumbers({ num }) {
   return (
     <div className="civr-card p-6 space-y-4" data-testid="billing-extra-card">
       <div className="flex items-center gap-2 font-display text-2xl font-bold"><Layers className="w-5 h-5 text-[#38bdf8]" />Extra numbers</div>
-      <p className="text-sm text-[#888]">Add more numbers to this plan for {money(data.price)}/month each. They get the same {num.planName} features.</p>
-      <div className="text-sm" data-testid="billing-extra-usage"><span className="font-mono">{data.used}</span> of <span className="font-mono">{data.limit}</span> used</div>
+      <p className="text-sm text-[#888]">{`Add more numbers to this plan for ${money(data.price)}/month each. They get the same ${num.planName} features.`}</p>
+      <div className="text-sm font-mono" data-testid="billing-extra-usage">{`${data.used} of ${data.limit} used`}</div>
       {data.numbers.map((x, i) => <Link key={x.phoneNumber} to={cp(`/app/numbers/${enc(x.phoneNumber)}`)} className="block font-mono text-sm text-[#ddd] hover:text-[#34d399]" data-testid={`billing-extra-row-${i}`}>{pv.phone(x.phoneNumber)} · {x.status}</Link>)}
       {full ? <div className="text-xs text-[#fbbf24]">Limit reached — upgrade this number to add more.</div>
         : <Link to={cp(`/app/buy?extra=${enc(num.phoneNumber)}`)} className="civr-btn civr-btn-ghost civr-btn-sm" data-testid="billing-extra-add-link"><Plus className="w-4 h-4" />Add an extra number</Link>}

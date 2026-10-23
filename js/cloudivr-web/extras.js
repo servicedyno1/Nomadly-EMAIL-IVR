@@ -69,16 +69,24 @@ function routes(router, { db, h, numbersApi, bulkCallService, getTodayCoupons, p
     const f = n.features || {}
     const set = { 'val.numbers.$.plan': newPlan, 'val.numbers.$.planPrice': newPrice }
     if (!can('sipCredentials')) set['val.numbers.$.sipDisabled'] = true
-    if (!can('ivr') && f.ivr?.enabled) set['val.numbers.$.features.ivr.enabled'] = false
-    if (!can('callRecording') && f.recording) set['val.numbers.$.features.recording'] = false
-    if (!can('voicemail') && f.voicemail?.enabled) set['val.numbers.$.features.voicemail.enabled'] = false
-    if (!can('smsToEmail')) set['val.numbers.$.features.smsForwarding.toEmail'] = null
-    if (!can('smsWebhook')) set['val.numbers.$.features.smsForwarding.webhookUrl'] = null
+    // Settings switched off are remembered so a later upgrade can switch them back on.
+    const saved = [...(n.downgradeSaved || [])]
+    const off = (key, path, cur, val) => {
+      if (can(key) || cur === undefined || cur === null || cur === val) return
+      set[`val.numbers.$.${path}`] = val
+      if (!saved.some(x => x.path === path)) saved.push({ key, path, value: cur })
+    }
+    off('ivr', 'features.ivr.enabled', f.ivr?.enabled, false)
+    off('callRecording', 'features.recording', f.recording, false)
+    off('voicemail', 'features.voicemail.enabled', f.voicemail?.enabled, false)
+    off('smsToEmail', 'features.smsForwarding.toEmail', f.smsForwarding?.toEmail, null)
+    off('smsWebhook', 'features.smsForwarding.webhookUrl', f.smsForwarding?.webhookUrl, null)
+    set['val.numbers.$.downgradeSaved'] = saved
     await phoneNumbersOf.updateOne({ _id: req.webChatId, 'val.numbers.phoneNumber': n.phoneNumber }, { $set: set })
     await syncExtras(req.webChatId, n.phoneNumber, newPlan)
     await phoneTransactions.insertOne({ chatId: req.webChatId, phoneNumber: n.phoneNumber, action: 'downgrade', oldPlan: n.plan, newPlan, oldPrice: n.planPrice, newPrice, amount: 0, paymentMethod: 'none', channel: 'web', timestamp: new Date().toISOString() })
     notifyAdmin(`🌐 CloudIVR web: ${n.phoneNumber} downgraded ${cur.name} → ${next.name} by web account ${req.webChatId}`)
-    res.json({ plan: newPlan, planPrice: newPrice, turnedOff: lost })
+    res.json({ plan: newPlan, planName: next.name, planPrice: newPrice, turnedOff: lost })
   }))
   // Extra numbers always carry their main number's plan.
   const syncExtras = (chatId, parent, plan) => phoneNumbersOf.updateOne(
@@ -150,17 +158,24 @@ function routes(router, { db, h, numbersApi, bulkCallService, getTodayCoupons, p
   }))
   // Once a day every web account gets today's code in its Inbox (one process sends it: unique marker per day).
   const notices = db.collection('webCouponNotices')
+  notices.createIndex({ at: 1 }, { expireAfterSeconds: 3 * 86400 }).catch(() => {})
   async function announceCoupon() {
     const c = await todaysCoupon()
     if (!c) return
-    try { await notices.insertOne({ _id: `daily:${today()}`, code: c.code, at: new Date() }) } catch (e) { if (e.code === 11000) return; throw e }
+    // One marker per account per day, so accounts created later in the day get the notice on the next run.
+    const day = today()
     const accounts = await db.collection('webAccounts').find({}, { projection: { _id: 1 } }).toArray()
+    let sent = 0
     for (const a of accounts) {
-      await notify.push(String(a._id), `Today's coupon: ${c.code} — ${c.discount}% off a new number or extra number. Use it at checkout before midnight UTC.`, null, { kind: 'coupon', meta: { coupon: c.code, discount: c.discount } }).catch(() => {})
+      const id = String(a._id)
+      if (c.usedBy.includes(id)) continue
+      try { await notices.insertOne({ _id: `daily:${day}:${id}`, code: c.code, at: new Date() }) } catch (e) { if (e.code === 11000) continue; throw e }
+      await notify.push(id, `Today's coupon: ${c.code} — ${c.discount}% off a new number or extra number. Use it at checkout before midnight UTC.`, null, { kind: 'coupon', meta: { coupon: c.code, discount: c.discount } }).catch(() => {})
+      sent++
     }
-    log(`[CloudIVR-Web] daily coupon ${c.code} sent to ${accounts.length} web account(s)`)
+    if (sent) log(`[CloudIVR-Web] daily coupon ${c.code} sent to ${sent} web account(s)`)
   }
-  const timer = setInterval(() => { announceCoupon().catch(e => log(`[CloudIVR-Web] coupon notice: ${e.message}`)) }, 15 * 60000)
+  const timer = setInterval(() => { announceCoupon().catch(e => log(`[CloudIVR-Web] coupon notice: ${e.message}`)) }, 5 * 60000)
   if (timer.unref) timer.unref()
   setTimeout(() => announceCoupon().catch(() => {}), 20000).unref?.()
 
