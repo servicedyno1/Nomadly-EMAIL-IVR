@@ -165,7 +165,11 @@ async function setCatalog(sizes) { CAT.sizes = sizes; await sizeCatalog.refresh(
     r = await api('GET', '/rdp/availability?region=tor1')
     const tor = r.body.regions && r.body.regions[0]
     const pw = tor && tor.plans.find(p => p.plan === 'power'), st = tor && tor.plans.find(p => p.plan === 'standard')
-    ok('GET /rdp/availability: cpu_type + hardware per plan; a sold-out plan keeps size_slug null', st && st.cpu_type === 'Premium AMD' && st.hardware === 'Premium AMD · NVMe SSD' && st.size_slug === 's-2vcpu-4gb-amd' && pw && pw.in_stock === false && pw.size_slug === null && pw.cpu_type === 'Premium AMD', tor && tor.plans)
+    ok('GET /rdp/availability: cpu_type + hardware per plan; AMD gone → closest-match Premium Intel shown as such', st && st.cpu_type === 'Premium AMD' && st.hardware === 'Premium AMD · NVMe SSD' && st.size_slug === 's-2vcpu-4gb-amd' && st.closest_match === false && pw && pw.in_stock === true && pw.closest_match === true && pw.size_slug === 's-8vcpu-16gb-intel' && pw.cpu_type === 'Premium Intel', tor && tor.plans)
+    await setCatalog(BASE_SIZES().map(s => (/^s-8vcpu-16gb-/.test(s.slug) ? { ...s, regions: s.regions.filter(x => x !== 'tor1') } : s)))
+    r = await api('GET', '/rdp/availability?region=tor1')
+    const pw2 = r.body.regions && r.body.regions[0].plans.find(p => p.plan === 'power')
+    ok('GET /rdp/availability: no AMD and no Premium Intel → sold out, size_slug null', pw2 && pw2.in_stock === false && pw2.size_slug === null && pw2.cpu_type === 'Premium AMD', pw2)
     await setCatalog(BASE_SIZES())
 
     // Reseller-owned servers: list + get read the REAL size
