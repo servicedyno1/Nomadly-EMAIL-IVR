@@ -9,6 +9,8 @@ import IvrTab from './number/IvrTab';
 import LogsTab from './number/LogsTab';
 import BillingTab from './number/BillingTab';
 import { cp } from '../paths';
+import { useShell } from '../Shell';
+import { planFor } from '../PlanFeatures';
 
 const TABS = [
   ['overview', 'Overview', null, OverviewTab], ['forwarding', 'Forwarding', 'callForwarding', ForwardingTab], ['ivr', 'IVR', 'ivr', IvrTab],
@@ -21,6 +23,7 @@ export default function NumberDetail() {
   const [params, setParams] = useSearchParams();
   const nav = useNavigate();
   const { data, error, loading, reload } = useApi(`/numbers/${enc(phone)}`);
+  const { catalog } = useShell();
   const tab = params.get('tab') || 'overview';
   const n = data?.number;
   if (loading && !n) return <Spinner />;
@@ -47,7 +50,7 @@ export default function NumberDetail() {
         ))}
       </div>
       <div data-testid={`number-tabpanel-${tab}`}>
-        {gate && !n.access[gate] ? <Locked feature={label} phone={n.phoneNumber} /> : <Comp num={n} reload={reload} onDeleted={() => nav(cp('/app/numbers'))} />}
+        {gate && !n.access[gate] ? <Locked feature={label} phone={n.phoneNumber} need={planFor(catalog?.plans, gate)?.name} /> : <Comp num={n} reload={reload} onDeleted={() => nav(cp('/app/numbers'))} />}
       </div>
     </div>
   );

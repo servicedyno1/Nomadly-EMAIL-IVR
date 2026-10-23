@@ -7,6 +7,7 @@ import { useShell } from '../Shell';
 import { PageHeader, Field, Spinner, ErrorNote, Label } from '../ui';
 import { cp } from '../paths';
 import Checkout from './buy/Checkout';
+import { PlanFeatures, RecommendedBadge, availablePlans } from '../PlanFeatures';
 
 // The chosen number + plan survive the wallet top-up detour (Wallet links back with ?resume=1).
 const RESUME_KEY = 'civr.buyResume';
@@ -60,13 +61,17 @@ function Results({ res, pick, setPick }) {
 
 function PlanPicker({ plans, value, onChange, surcharge }) {
   return (
-    <div className="grid md:grid-cols-3 gap-4">
-      {plans.filter(p => p.available).map(p => (
-        <button key={p.id} type="button" onClick={() => onChange(p.id)} data-testid={`buy-plan-${p.id}`} className={`civr-card text-left p-6 ${value === p.id ? 'civr-trace' : ''}`}>
-          <div className="flex items-center justify-between"><span className="font-display text-2xl font-bold">{p.name}</span>{value === p.id && <Check className="w-5 h-5 text-[#34d399]" />}</div>
+    <div className="grid md:grid-cols-3 gap-4" data-testid="buy-plan-picker">
+      {availablePlans(plans).map(p => (
+        <button key={p.id} type="button" onClick={() => onChange(p.id)} aria-pressed={value === p.id} data-testid={`buy-plan-${p.id}`} data-selected={value === p.id ? 'true' : 'false'}
+          className={`civr-card text-left p-6 flex flex-col ${value === p.id ? 'civr-trace' : ''}`}>
+          <div className="flex items-center justify-between gap-2 min-h-[28px]">
+            <span className="font-display text-2xl font-bold">{p.name}</span>
+            <span className="flex items-center gap-2">{p.recommended && <RecommendedBadge testid={`buy-plan-${p.id}-recommended`} />}{value === p.id && <Check className="w-5 h-5 text-[#34d399]" />}</span>
+          </div>
           <div className="font-mono text-2xl mt-2">{money(p.price + (surcharge || 0))}<span className="text-xs text-[#9a9a9a]"> /month</span></div>
           <div className="text-xs text-[#a1a1aa] mt-1">{p.minutes} min · {p.sms} SMS included</div>
-          <ul className="mt-4 flex flex-col gap-1 text-xs text-[#bbb]">{p.features.slice(0, 6).map(f => <li key={f}>· {f}</li>)}</ul>
+          <div className="mt-4"><PlanFeatures plan={p} compact testid={`buy-plan-${p.id}-feature`} /></div>
         </button>
       ))}
     </div>
@@ -92,13 +97,15 @@ export default function BuyNumber() {
   const [q, setQ] = useState(saved?.q || { country: 'US', type: 'local', areaCode: '' });
   const [res, setRes] = useState(saved?.res || null);
   const [pick, setPick] = useState(saved?.pick || null);
-  const [plan, setPlan] = useState(saved?.plan || params.get('plan') || 'starter');
+  const [plan, setPlan] = useState(saved?.plan || params.get('plan') || null);
   const [busy, setBusy] = useState('');
   const [error, setError] = useState(null);
   const { data: open } = useApi('/numbers/orders?open=1');
   useEffect(() => { refreshSummary(); }, [refreshSummary]);
   if (!catalog) return <Spinner />;
-  const planObj = catalog.plans.find(p => p.id === plan && p.available) || catalog.plans.find(p => p.available);
+  // Picked plan → the recommended plan (Pro) → the first plan on sale.
+  const avail = (id) => catalog.plans.find(p => p.id === id && p.available);
+  const planObj = avail(plan) || avail(catalog.recommendedPlan) || catalog.plans.find(p => p.available);
   const total = planObj ? planObj.price + (pick?.surcharge || 0) : 0;
   const fromParam = !saved && params.get('plan') && planObj?.id === params.get('plan');
 
@@ -136,6 +143,7 @@ export default function BuyNumber() {
       {pick && (
         <div className="mt-8 civr-rise">
           <Label>2 · Pick a plan</Label>
+          <p className="text-xs text-[#9a9a9a] -mt-1 mb-3" data-testid="buy-plan-help">✓ included · ✗ not on that plan. You can upgrade a number later from its Billing tab.</p>
           <PlanPicker plans={catalog.plans} value={planObj?.id} onChange={setPlan} surcharge={pick.surcharge} />
           <Checkout key={`${pick.phoneNumber}-${summary ? 1 : 0}`} pick={pick} planObj={planObj} total={total} balance={summary?.balance} coins={catalog.coins || []} busy={busy === 'buy'} onPay={buy} onTopUp={topUp} />
         </div>

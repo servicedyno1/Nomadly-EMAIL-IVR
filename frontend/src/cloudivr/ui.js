@@ -48,15 +48,16 @@ export function Empty({ icon: Icon, title, sub, children, testid }) {
   );
 }
 
-export function Locked({ feature, phone }) {
+// `need` = name of the cheapest plan that includes the feature (e.g. "Pro").
+export function Locked({ feature, phone, need }) {
   return (
     <div className="civr-card p-8 flex flex-col md:flex-row md:items-center gap-4" data-testid="feature-locked">
       <Lock className="w-6 h-6 text-[#fbbf24]" />
       <div className="flex-1">
-        <div className="font-semibold">{feature} needs a higher plan</div>
-        <div className="text-sm text-[#888]">Upgrade this number in the Billing tab to unlock it.</div>
+        <div className="font-semibold" data-testid="feature-locked-title">{need ? `${feature} is on the ${need} plan and up` : `${feature} needs a higher plan`}</div>
+        <div className="text-sm text-[#888]">Upgrade this number in its Billing tab to unlock it — you only pay the difference for the days left.</div>
       </div>
-      <Link to={cp(`/app/numbers/${encodeURIComponent(phone)}?tab=billing`)} className="civr-btn civr-btn-ghost civr-btn-sm" data-testid="feature-locked-upgrade-link">See upgrades</Link>
+      <Link to={cp(`/app/numbers/${encodeURIComponent(phone)}?tab=billing`)} className="civr-btn civr-btn-primary civr-btn-sm" data-testid="feature-locked-upgrade-link">Upgrade this number</Link>
     </div>
   );
 }

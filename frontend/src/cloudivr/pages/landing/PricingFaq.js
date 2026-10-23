@@ -1,22 +1,21 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Check, ArrowRight, Plus, MessageCircle } from 'lucide-react';
+import { ArrowRight, Plus, MessageCircle } from 'lucide-react';
 import { usd, money, startPrice } from '../../api';
 import { useCivrAuth } from '../../AuthContext';
 import { cp } from '../../paths';
 import { SectionHead, Slide, coinList, andList } from './kit';
+import { PlanFeatures, RecommendedBadge } from '../../PlanFeatures';
 
 const useStart = () => { const { account } = useCivrAuth(); return (plan) => (account ? cp(`/app/buy${plan ? `?plan=${plan}` : ''}`) : cp(`/signup${plan ? `?plan=${plan}` : ''}`)); };
 
 function PlanCard({ p, hot, start }) {
   return (
     <div className={`${hot ? 'civr-l-card civr-l-dark' : 'civr-l-card-cream'} civr-l-tilt p-8 flex flex-col`} data-testid={`civr-plan-card-${p.id}`}>
-      <div className="flex items-center justify-between"><div className="civr-l-h text-4xl">{p.name}</div>{hot && <span className="text-[10px] font-mono uppercase tracking-widest px-2.5 py-1 rounded-full bg-[#00E3AA] text-[#0A0D0E] font-bold">Recommended</span>}</div>
+      <div className="flex items-center justify-between"><div className="civr-l-h text-4xl">{p.name}</div>{p.recommended && <RecommendedBadge tone="landing" testid={`pricing-recommended-${p.id}`} />}</div>
       <div className="civr-l-h text-6xl mt-6" data-testid={`pricing-price-${p.id}`}>{usd(p.price)}<span className="text-base font-sans normal-case tracking-normal font-medium opacity-60">/mo</span></div>
       <div className={`text-sm mt-2 ${hot ? 'civr-l-muted' : 'text-black/60'}`} data-testid={`pricing-allowance-${p.id}`}>{p.minutes} minutes · {p.sms} SMS included each month</div>
-      <ul className="mt-6 flex flex-col gap-2 text-sm flex-1">
-        {p.features.map(f => <li key={f} className="flex gap-2"><Check className={`w-4 h-4 mt-0.5 shrink-0 ${hot ? 'text-[#00E3AA]' : 'text-[#3434EF]'}`} />{f}</li>)}
-      </ul>
+      <div className="mt-6 flex-1"><PlanFeatures plan={p} tone={hot ? 'dark' : 'cream'} testid={`pricing-feature-${p.id}`} /></div>
       <Link to={start(p.id)} className={`civr-l-btn mt-8 w-full ${hot ? '' : 'civr-l-btn-ink'}`} data-testid={`pricing-choose-${p.id}`}><Slide>Choose {p.name}</Slide></Link>
     </div>
   );
@@ -24,13 +23,14 @@ function PlanCard({ p, hot, start }) {
 
 export function Pricing({ catalog }) {
   const start = useStart();
-  const plans = catalog?.plans || [];
+  const plans = (catalog?.plans || []).filter(p => p.available !== false);
+  const hasRec = plans.some(p => p.recommended);
   const r = catalog?.rates;
   return (
     <section id="pricing" className="civr-l-cream scroll-mt-16 border-t civr-l-rule" data-testid="pricing-section">
       <div className="max-w-7xl mx-auto px-6 md:px-8 py-24">
         <SectionHead n="05" label="Pricing" title="Monthly per number. Cancel any time." sub="Free to sign up. Pay for a number with crypto or from your wallet. Auto-renew keeps it yours — switch it off whenever you like." />
-        <div className="grid md:grid-cols-3 gap-4 mt-14">{plans.map((p, i) => <PlanCard key={p.id} p={p} hot={i === 1} start={start} />)}</div>
+        <div className="grid md:grid-cols-3 gap-4 mt-14">{plans.map((p, i) => <PlanCard key={p.id} p={p} hot={hasRec ? p.recommended : i === 1} start={start} />)}</div>
         {r && (
           <p className="text-sm text-black/60 mt-8 max-w-3xl" data-testid="pricing-extra-usage">
             Extra usage is paid from your wallet: minutes over your plan {money(r.overagePerMin)}/min · SMS over your plan {money(r.overagePerSms)} each · calls forwarded to a phone {money(r.forwardingPerMin)}/min. Outbound IVR calls show their price before you start.

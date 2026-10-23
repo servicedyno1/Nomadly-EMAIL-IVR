@@ -4,6 +4,9 @@
 const crypto = require('crypto')
 const phoneConfig = require('../phone-config')
 const { walletOps, round2, livePayments } = require('./wallet')
+const numberHours = require('../number-hours')
+const vmGreeting = require('../voicemail-greeting')
+const notes = require('./notes')
 
 const TYPE_NAMES = { local: 'Local', toll_free: 'Toll-free', mobile: 'Mobile', national: 'National' }
 const FEATURE_KEYS = ['callForwarding', 'smsToEmail', 'smsWebhook', 'voicemail', 'sipCredentials', 'callRecording', 'ivr', 'ivrOutbound', 'bulkCall', 'otpCollection']
@@ -24,15 +27,54 @@ function countries() {
   })
 }
 
-const catalog = () => ({
-  plans: Object.entries(phoneConfig.plans).map(([id, p]) => ({ id, name: p.name, price: p.price, minutes: p.minutes, sms: p.sms, features: p.features.map(webText), available: phoneConfig.isPlanAvailable(id), access: access(id) })),
-  countries: countries(), typeNames: TYPE_NAMES,
-  rates: { forwardingPerMin: phoneConfig.CALL_FORWARDING_RATE_MIN, overagePerMin: phoneConfig.OVERAGE_RATE_MIN, overagePerSms: phoneConfig.OVERAGE_RATE_SMS },
-  sipDomain: phoneConfig.SIP_DOMAIN, dryRun: dryRun(), livePayments: livePayments(),
-})
+// What each plan gets IN THE WEB APP. The bot's plan copy lists Telegram-only extras (redial button, presets,
+// sub-numbers…), so plan cards use this list instead. `gate` is the engine feature check; null = every plan.
+const WEB_FEATURES = [
+  ['inbox', 'SMS inbox for your texts', null],
+  ['forwarding', 'Call forwarding to any phone', 'callForwarding'],
+  ['hours', 'On/off hours for each number', null],
+  ['notes', 'Call notes', null],
+  ['voicemail', 'Voicemail in 4 languages + transcripts', 'voicemail'],
+  ['browserPhone', 'Browser phone & SIP for softphones', 'sipCredentials'],
+  ['smsEmail', 'SMS to email & webhooks', 'smsToEmail'],
+  ['quickIvr', 'Quick IVR calls', 'ivrOutbound'],
+  ['callMeFirst', 'Call me first — calls through your mobile', 'ivrOutbound'],
+  ['bulk', 'Bulk IVR campaigns with scheduling', 'bulkCall'],
+  ['ivr', 'IVR auto-attendant + key analytics', 'ivr'],
+  ['recording', 'Call recording', 'callRecording'],
+  ['priority', 'Priority support', (plan) => plan === 'business'],
+]
+const webFeatures = (plan) => WEB_FEATURES.map(([key, label, gate]) => ({
+  key, label, included: gate === null ? true : typeof gate === 'function' ? gate(plan) : !!phoneConfig.canAccessFeature(plan, gate),
+}))
+
+// Plan pre-selected on the buy page and badged "Recommended" (Pro unless switched off).
+function recommendedPlan() {
+  const want = String(process.env.CLOUDIVR_RECOMMENDED_PLAN || 'pro')
+  return [want, 'pro', 'business', 'starter'].find(id => phoneConfig.plans[id] && phoneConfig.isPlanAvailable(id)) || null
+}
+
+const catalog = () => {
+  const rec = recommendedPlan()
+  return {
+    plans: Object.entries(phoneConfig.plans).map(([id, p]) => ({ id, name: p.name, price: p.price, minutes: p.minutes, sms: p.sms, features: p.features.map(webText), webFeatures: webFeatures(id), recommended: id === rec, available: phoneConfig.isPlanAvailable(id), access: access(id) })),
+    recommendedPlan: rec,
+    voicemailLanguages: vmGreeting.publicLangs(),
+    countries: countries(), typeNames: TYPE_NAMES,
+    rates: { forwardingPerMin: phoneConfig.CALL_FORWARDING_RATE_MIN, overagePerMin: phoneConfig.OVERAGE_RATE_MIN, overagePerSms: phoneConfig.OVERAGE_RATE_SMS },
+    sipDomain: phoneConfig.SIP_DOMAIN, dryRun: dryRun(), livePayments: livePayments(),
+  }
+}
 
 function access(plan) {
   return Object.fromEntries(FEATURE_KEYS.map(k => [k, !!phoneConfig.canAccessFeature(plan, k)]))
+}
+
+// Web shape of the voicemail settings (the call engine reads customAudioGreetingUrl; older web saves used customGreetingUrl).
+function publicVoicemail(vm) {
+  const v = vm || {}
+  const url = v.customAudioGreetingUrl || v.customGreetingUrl || null
+  return { enabled: !!v.enabled, greetingType: v.greetingType === 'custom' && url ? 'custom' : 'default', customGreetingUrl: url, forwardToEmail: v.forwardToEmail || null, ringTimeout: v.ringTimeout || 25, language: vmGreeting.LANGS[v.language] ? v.language : 'en', transcribe: v.transcribe !== false }
 }
 
 function publicNumber(n) {
@@ -47,7 +89,8 @@ function publicNumber(n) {
     sipUsername: n.telnyxSipUsername || n.sipUsername || null, sipDomain: n.sipDomain || phoneConfig.SIP_DOMAIN,
     features: {
       callForwarding: f.callForwarding || { enabled: false, mode: 'disabled', forwardTo: null, ringTimeout: 25, holdMusic: false },
-      voicemail: f.voicemail || { enabled: false, greetingType: 'default', customGreetingUrl: null, forwardToEmail: null, ringTimeout: 25 },
+      voicemail: publicVoicemail(f.voicemail),
+      hours: f.hours || numberHours.defaultHours(),
       smsForwarding: f.smsForwarding || { toTelegram: true, toEmail: null, webhookUrl: null },
       recording: !!f.recording,
       ivr: f.ivr || { enabled: false, options: {} },
@@ -107,6 +150,7 @@ const publicLog = (l) => ({
   id: String(l._id), type: l.type, direction: l.direction || (String(l.type || '').startsWith('outbound') ? 'outbound' : 'inbound'),
   from: l.from || null, to: l.to || l.phoneNumber || null, phoneNumber: l.phoneNumber || null, duration: l.duration || 0,
   body: l.body || null, recordingUrl: l.recordingUrl || null, digit: l.digitPressed || null, forwardTo: l.forwardTo || null, timestamp: l.timestamp,
+  transcript: l.transcript || null, transcriptStatus: l.transcriptStatus || null,
 })
 
 function routes(router, deps) {
@@ -298,9 +342,17 @@ function routes(router, deps) {
     if (email && !/^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i.test(email)) return bad(res, 400, 'invalid_email', 'Enter a valid email for voicemail delivery.')
     const url = req.body.greetingType === 'custom' ? String(req.body.customGreetingUrl || '') : ''
     if (url && !(await ownAudioUrls(req.webChatId)).has(url)) return bad(res, 400, 'invalid_audio', 'Pick a greeting from your audio library.')
-    const value = { ...(req.num.features?.voicemail || {}), enabled: !!req.body.enabled, greetingType: url ? 'custom' : 'default', customGreetingUrl: url || null, forwardToTelegram: true, forwardToEmail: email || null, ringTimeout: Math.min(60, Math.max(10, parseInt(req.body.ringTimeout, 10) || 25)) }
+    const language = req.body.language === undefined ? (req.num.features?.voicemail?.language || 'en') : String(req.body.language)
+    if (!vmGreeting.LANGS[language]) return bad(res, 400, 'invalid_language', 'Pick English, French, Portuguese or Arabic.')
+    const value = {
+      ...(req.num.features?.voicemail || {}), enabled: !!req.body.enabled, greetingType: url ? 'custom' : 'default',
+      // The call engine plays customAudioGreetingUrl; customGreetingUrl is kept for older readers.
+      customGreetingUrl: url || null, customAudioGreetingUrl: url || null, customGreetingText: null,
+      language, transcribe: req.body.transcribe !== false,
+      forwardToTelegram: true, forwardToEmail: email || null, ringTimeout: Math.min(60, Math.max(10, parseInt(req.body.ringTimeout, 10) || 25)),
+    }
     await setField(req.webChatId, req.num.phoneNumber, 'features.voicemail', value)
-    res.json({ voicemail: value })
+    res.json({ voicemail: publicVoicemail(value) })
   }))
 
   router.patch('/numbers/:phone/sms', withNumber(async (req, res) => {
@@ -318,6 +370,20 @@ function routes(router, deps) {
     if (!gate(req, res, 'callRecording', 'Call recording')) return
     await setField(req.webChatId, req.num.phoneNumber, 'features.recording', !!req.body.enabled)
     res.json({ recording: !!req.body.enabled })
+  }))
+
+  // On/off hours (every plan). Outside the hours the number doesn't ring or forward.
+  router.put('/numbers/:phone/hours', withNumber(async (req, res) => {
+    let value
+    try { value = numberHours.validateHours(req.body) } catch (e) { return bad(res, 400, 'invalid_hours', e.message) }
+    if (value.offAction === 'voicemail' && !phoneConfig.canAccessFeature(req.num.plan, 'voicemail')) value.offAction = 'message'
+    await setField(req.webChatId, req.num.phoneNumber, 'features.hours', value)
+    res.json({ hours: value, openNow: numberHours.isOpen(value) })
+  }))
+
+  router.get('/numbers/:phone/hours', withNumber(async (req, res) => {
+    const hours = req.num.features?.hours || numberHours.defaultHours()
+    res.json({ hours, openNow: numberHours.isOpen(hours) })
   }))
 
   router.put('/numbers/:phone/ivr', withNumber(async (req, res) => {
@@ -346,8 +412,8 @@ function routes(router, deps) {
     if (LOG_TYPES[kind]) q.type = { $in: LOG_TYPES[kind] }
     else if (kind === 'calls') q.type = { $nin: ['sms', 'fax'] }
     else if (kind === 'recordings') q.recordingUrl = { $nin: [null, ''] }
-    const logs = await phoneLogs.find(q).sort({ timestamp: -1 }).limit(100).toArray()
-    res.json({ logs: logs.map(publicLog) })
+    const logs = (await phoneLogs.find(q).sort({ timestamp: -1 }).limit(100).toArray()).map(publicLog)
+    res.json({ logs: await notes.attachNotes(db, req.webChatId, req.num.phoneNumber, logs) })
   }))
 
   router.get('/activity', h(async (req, res) => {
@@ -426,4 +492,4 @@ function routes(router, deps) {
   return { myNumbers, findMine, purchase, pickFromSearch, searchSimilar }
 }
 
-module.exports = { routes, catalog, publicNumber, validateIvr, normPhone, countries, E164 }
+module.exports = { routes, catalog, publicNumber, publicVoicemail, validateIvr, normPhone, countries, E164, webFeatures, recommendedPlan, WEB_FEATURES }

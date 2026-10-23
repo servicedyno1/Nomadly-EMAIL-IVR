@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { toast } from 'sonner';
 import { api, enc, useApi } from '../../api';
 import { Field, Toggle } from '../../ui';
+import { Link } from 'react-router-dom';
+import { cp } from '../../paths';
 
 // Shared save helper for the simple PATCH settings forms.
 export function useSave(num, path, reload) {
@@ -107,6 +109,7 @@ export function SmsTab({ num, reload }) {
     <Card title="SMS delivery" sub="Inbound texts always appear in your inbox. Add email or a webhook too (Pro and up).">
       <Field label="Email copy (optional)"><input className="civr-input" type="email" value={f.toEmail} disabled={!num.access.smsToEmail} onChange={e => setF({ ...f, toEmail: e.target.value })} data-testid="sms-email-input" /></Field>
       <Field label="Webhook URL (optional)" hint="We POST each message as JSON."><input className="civr-input font-mono" value={f.webhookUrl} disabled={!num.access.smsWebhook} onChange={e => setF({ ...f, webhookUrl: e.target.value })} placeholder="https://" data-testid="sms-webhook-input" /></Field>
+      {!num.access.smsToEmail && <div className="text-xs text-[#fbbf24] flex flex-wrap items-center gap-2" data-testid="sms-upgrade-note">Email and webhook delivery are on the Pro plan and up. <Link to={cp(`/app/numbers/${enc(num.phoneNumber)}?tab=billing`)} className="text-[#34d399] underline" data-testid="sms-upgrade-link">Upgrade this number</Link></div>}
       <button className="civr-btn civr-btn-primary" disabled={busy} onClick={() => save(f)} data-testid="sms-save-button">Save SMS settings</button>
     </Card>
   );

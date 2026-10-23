@@ -4,6 +4,7 @@ import { RefreshCw, ArrowUpCircle, Trash2, Loader2 } from 'lucide-react';
 import { api, enc, money, day } from '../../api';
 import { useShell } from '../../Shell';
 import { Field, Toggle } from '../../ui';
+import { PlanFeatures, unlocks } from '../../PlanFeatures';
 
 function Renewal({ num, reload, refreshSummary }) {
   const [busy, setBusy] = useState(false);
@@ -43,7 +44,12 @@ function Upgrade({ num, reload, refreshSummary, plans }) {
     <div className="civr-card p-6 space-y-6" data-testid="billing-upgrade-card">
       <div className="font-display text-2xl font-bold">Upgrade plan</div>
       <Field label="New plan"><select className="civr-input" value={plan} onChange={e => { setPlan(e.target.value); setQuote(null); }} data-testid="billing-upgrade-plan-select">{higher.map(p => <option key={p.id} value={p.id}>{p.name} · {money(p.price)}/month</option>)}</select></Field>
-      <div className="text-xs text-[#888]">{(plans.find(p => p.id === plan)?.features || []).slice(0, 4).join(' · ')}</div>
+      {unlocks(plans, num.plan, plan).length > 0 && (
+        <div data-testid="billing-upgrade-unlocks">
+          <div className="text-xs text-[#9a9a9a] mb-2">This upgrade unlocks</div>
+          <PlanFeatures plan={{ webFeatures: unlocks(plans, num.plan, plan) }} compact testid="billing-upgrade-unlock" />
+        </div>
+      )}
       {quote && <div className="text-sm" data-testid="billing-upgrade-quote">Pay <span className="font-mono">{money(quote.charge)}</span> now{quote.credit > 0 ? ` (includes ${money(quote.credit)} credit for unused days)` : ''}. Then {money(quote.newPrice)}/month.</div>}
       {quote ? <button className="civr-btn civr-btn-primary" disabled={busy} onClick={() => call(true)} data-testid="billing-upgrade-confirm-button">Pay {money(quote.charge)} &amp; upgrade</button>
         : <button className="civr-btn civr-btn-ghost civr-btn-sm" disabled={busy} onClick={() => call(false)} data-testid="billing-upgrade-quote-button"><ArrowUpCircle className="w-4 h-4" />See price</button>}
