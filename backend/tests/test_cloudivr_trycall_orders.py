@@ -11,7 +11,14 @@ def rnd(): return uuid.uuid4().hex[:10]
 def email(): return f"qa.{rnd()}@example.com"
 def fresh_to(): return f"+1415555{random.randint(1000, 9999)}"
 def hdr(ip=None, dev=None):
-    return {"X-Forwarded-For": ip or f"10.77.{random.randint(0,255)}.{random.randint(1,254)}", "X-Civr-Device": dev or f"dev-{rnd()}"}
+    # XFF no longer isolates the network limit (server picks the real client hop); only the device header is per-scenario
+    h = {"X-Civr-Device": dev or f"dev-{rnd()}"}
+    if ip: h["X-Forwarded-For"] = ip
+    return h
+
+def clear_try():
+    mdb.webTryCalls.delete_many({"email": {"$regex": r"^qa\."}})
+    mdb.webTryCodes.delete_many({"email": {"$regex": r"^qa\."}})
 
 def token_for(em, h):
     r = requests.post(f"{API}/public/try/send-code", json={"email": em}, headers=h)
@@ -34,11 +41,11 @@ def bob(): return login("civr.bob@example.com", "BobTest#2026")
 @pytest.fixture(scope="module")
 def alice(): return login("civr.alice@example.com", "AliceTest#2026")
 
-@pytest.fixture(scope="module", autouse=True)
+@pytest.fixture(autouse=True)
 def cleanup():
+    clear_try()  # all scenarios share the real egress IP → reset the per-network counters per test
     yield
-    mdb.webTryCalls.delete_many({"email": {"$regex": r"^qa\."}})
-    mdb.webTryCodes.delete_many({"email": {"$regex": r"^qa\."}})
+    clear_try()
 
 # --- catalog
 def test_catalog():
@@ -97,18 +104,29 @@ def test_daily_limit_device_and_ip():
     h = hdr(dev=dev)
     r = requests.post(f"{API}/public/try/send-code", json={"email": email()}, headers=h)
     assert r.status_code == 429 and r.json()["error"] == "daily_limit"
-    ip = f"10.88.{random.randint(0,255)}.{random.randint(1,254)}"
-    for _ in range(3):
-        h = hdr(ip=ip); tok = token_for(email(), h)
+    clear_try()
+    # network limit: spoofed, different XFF first hops + fresh devices must still count against the real IP
+    for i in range(3):
+        h = hdr(ip=f"10.88.{i}.{random.randint(1,254)}"); tok = token_for(email(), h)
         assert requests.post(f"{API}/public/try/call-me", json={"token": tok, "to": fresh_to()}, headers=h).status_code == 201
-    r = requests.post(f"{API}/public/try/send-code", json={"email": email()}, headers=hdr(ip=ip))
+    ips = {d["ip"] for d in mdb.webTryCalls.find({"email": {"$regex": r"^qa\."}})}
+    assert len(ips) == 1 and not list(ips)[0].startswith("10."), ips
+    r = requests.post(f"{API}/public/try/send-code", json={"email": email()}, headers=hdr(ip="8.8.4.4"))
     assert r.status_code == 429 and r.json()["error"] == "daily_limit"
+    tok = None
 
 def test_invalid_number_and_token():
     h = hdr(); tok = token_for(email(), h)
     for bad in ["4155550123", "+881612345678", "abc"]:
         r = requests.post(f"{API}/public/try/call-me", json={"token": tok, "to": bad}, headers=h)
         assert r.status_code == 400 and r.json()["error"] == "invalid_number", (bad, r.text)
+    for bad in ["4155550123", "14155550123"]:
+        r = requests.post(f"{API}/public/try/browser", json={"token": tok, "to": bad}, headers=h)
+        assert r.status_code == 400 and r.json()["error"] == "invalid_number", (bad, r.text)
+    assert mdb.webTryCalls.count_documents({"email": {"$regex": r"^qa\."}}) == 0
+    to = f"00141555{random.randint(10000, 99999)}"
+    r = requests.post(f"{API}/public/try/call-me", json={"token": tok, "to": to}, headers=h)
+    assert r.status_code == 201 and r.json()["to"] == "+" + to[2:], r.text
     for t in [None, "garbage"]:
         r = requests.post(f"{API}/public/try/call-me", json={"token": t, "to": fresh_to()}, headers=h)
         assert r.status_code == 401 and r.json()["error"] == "verify_email"
@@ -189,6 +207,50 @@ def test_substitution(bob):
         print(d)
         assert d["status"] == "active" and d["assignedNumber"] and d["assignedNumber"] != p and d["substitutedFrom"] == p
         assert p in d["message"] and d["assignedNumber"] in d["message"]
+        release(cid, d["assignedNumber"])
+    finally:
+        mdb.phoneNumbersOf.delete_many({"_id": {"$regex": "^TEST_other_"}})
+
+# --- orders list route (was shadowed by /numbers/:phone)
+def test_orders_list_routes(bob):
+    for q in ["", "?open=1"]:
+        r = bob.get(f"{API}/numbers/orders{q}")
+        assert r.status_code == 200 and isinstance(r.json()["orders"], list), r.text
+
+# --- no double-buy: bought number hidden from search, re-buy → 409
+def test_no_double_buy(bob, alice):
+    bid, aid = chat_id("civr.bob@example.com"), chat_id("civr.alice@example.com")
+    a_nums = search(alice)
+    p = search(bob)[0]["phoneNumber"]
+    r = bob.post(f"{API}/numbers/checkout", json={"phoneNumber": p, "plan": "starter", "method": "wallet"})
+    assert r.status_code == 201, r.text
+    try:
+        assert p not in [n["phoneNumber"] for n in search(bob)]
+        assert p not in [n["phoneNumber"] for n in search(alice)]
+        # self: re-inject into Bob's search cache → already_yours
+        coll = "webSearchCache"
+        hit = {"phoneNumber": p, "region": "", "capabilities": {"voice": True, "sms": False, "fax": False}, "surcharge": 0, "cost": {"monthly": 1, "upfront": 1}}
+        mdb[coll].update_one({"_id": bid}, {"$push": {"results": hit}})
+        r = bob.post(f"{API}/numbers/checkout", json={"phoneNumber": p, "plan": "starter", "method": "wallet"})
+        assert r.status_code == 409 and r.json()["error"] == "already_yours", r.text
+        mdb[coll].update_one({"_id": aid}, {"$push": {"results": hit}})
+        r = alice.post(f"{API}/numbers/checkout", json={"phoneNumber": p, "plan": "starter", "method": "wallet"})
+        assert r.status_code == 409 and r.json()["error"] == "number_taken", r.text
+    finally:
+        release(bid, p); mdb.walletOf.update_one({"_id": bid}, {"$inc": {"usdOut": -50}})
+
+def test_substitution_cheaper(bob):
+    cid = chat_id("civr.bob@example.com")
+    p = search(bob)[0]["phoneNumber"]
+    o = bob.post(f"{API}/numbers/checkout", json={"phoneNumber": p, "plan": "starter", "method": "crypto", "coin": "BTC"}).json()["order"]
+    # make the picked number dearer (+$7 surcharge) so the substitute is cheaper
+    mdb.webNumberOrders.update_one({"_id": o["id"]}, {"$set": {"hit.surcharge": 7}, "$inc": {"price": 7}})
+    mdb.phoneNumbersOf.insert_one({"_id": "TEST_other_" + rnd(), "val": {"numbers": [{"phoneNumber": p, "status": "active"}]}})
+    try:
+        d = bob.post(f"{API}/numbers/orders/{o['id']}/simulate-payment", json={}).json()["order"]
+        print(d)
+        assert d["status"] == "active" and d["assignedNumber"] != p and d["substitutedFrom"] == p
+        assert "difference stays in your wallet" in d["message"], d["message"]
         release(cid, d["assignedNumber"])
     finally:
         mdb.phoneNumbersOf.delete_many({"_id": {"$regex": "^TEST_other_"}})

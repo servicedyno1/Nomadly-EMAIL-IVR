@@ -113,6 +113,7 @@
 .civr .civr-l-key { height: 56px; border-radius: 16px; border: 1px solid rgba(254, 253, 245, .14); font-family: 'JetBrains Mono', monospace; font-size: 20px; color: var(--l-cream); background: rgba(254, 253, 245, .03); transition: background-color .2s ease, color .2s ease, border-color .2s ease, transform .1s ease; }
 .civr .civr-l-key:active { transform: scale(.95); }
 .civr .civr-l-key.lit { background: var(--l-green); color: var(--l-ink); border-color: var(--l-green); box-shadow: 0 0 24px rgba(0, 227, 170, .45); }
+.civr .civr-l-key.lit span { opacity: 1; font-weight: 700; }
 .civr .civr-l-marquee { display: flex; width: max-content; animation: civrMarquee 42s linear infinite; }
 .civr .civr-l-marquee:hover { animation-play-state: paused; }
 @keyframes civrMarquee { to { transform: translateX(-50%); } }

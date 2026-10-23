@@ -1,5 +1,28 @@
 # PRD — Nomadly Cloud IVR + Telegram Bot
 
+## 2026-10-23 (night) — CloudIVR Telnyx-style redesign + free test call + crypto checkout — TESTED on PREVIEW (iteration_116/117, 16/16 pytest) — NOT deployed yet
+- Landing (`pages/Landing.js` + `pages/landing/{Hero,Hero3D,Sections,PricingFaq,TryCall,TryLive,EmailGate,tryApi,kit}.js`): black/cream
+  Telnyx-style sections, bright green accent, live R3F 3D hero. `Hero3D.js` is written with React.createElement (NO JSX) because the dev
+  visual-edits babel plugin injects <span>/x-* props into JSX → R3F errors + CRA overlay blocking clicks.
+- Free test call (`js/cloudivr-web/trycall.js`, public `/public/try/*`): email OTP (6 digits, 10 min, 5 tries), 1 call per email, 3/day per
+  device or network, 1 call per destination per 30 days, number must start with + or 00, 60 s cap, "we call you" demo menu (1/2/3) or browser
+  SIP line (single-use test credential locked to the entered number, never billed). Unanswered call → `no_answer` (email + number freed, still
+  counts toward the daily limit) with a "Try again" panel. REAL call verified 2026-10-23 to owner +13025141000: answered, key 3, normal hangup.
+- Visitor IP (`auth.js clientIp`): hop left of the right-most Cloudflare edge in X-Forwarded-For (CF-Connecting-IP if that hop was dropped),
+  else right-most public hop — spoofed first values ignored (also hardens login/register/forgot lockouts).
+- ID check hidden until after payment (no "ID check" on landing/buy/country select). Web verifications are `hold: true`: never expire,
+  never auto-refund; carrier rejection → `rejected_on_hold` + new verification session (`holdTelnyxPending` in _index.js).
+- Checkout (`orders.js`, `pages/buy/{Checkout,OrderStatus}.js`): wallet or crypto for the exact price, auto-renew ON by default (toggle).
+  Crypto order (`webNumberOrders`) settles when the DynoPay credit lands (30 s poll + on view); taken number → similar one (same country/type/
+  area code, never dearer; cheaper → difference stays in wallet) + on-screen notice + email + admin alert. Underpaid → finish after top-up.
+  Orders routes are mounted BEFORE numbers routes (`/numbers/orders` was shadowed by `/numbers/:phone`). Number purchases take a per-number
+  lock (`webNumberLocks`, TTL 10 min); held numbers are filtered out of search/similar; buying a held number → 409.
+- Sign-out → landing page. Preview flags: `WEB_CLOUDIVR_DRY_RUN=true`; `WEB_TRYCALL_LIVE=false` (set true to place real demo calls + email
+  real codes on preview). Preview crypto checkout returns REAL DynoPay addresses (WEB_DYNO_PAY_API_KEY set) — never send funds; use simulate.
+- Twilio: owner says it is managed on the Nomadly side — no change here. Admin balance overview deferred.
+- Tests: `backend/tests/test_cloudivr_trycall_orders.py` (16). Next: owner verifies on preview → deploy to cloudivr.net + "Save to GitHub" (WITH-WEBIVR);
+  Google Console JS origins (cloudivr.net, www.cloudivr.net, preview hosts).
+
 ## 2026-10-23 (eve) — CloudIVR UI/UX audit → ALL 15 fixes — TESTED (iteration_115, 100%) & LIVE on https://cloudivr.net
 - Audit (5-sec, Fitts, Z/F, 8-pt, Gestalt, narrative arc) presented first; owner: "FIX ALL END TO END".
 - Landing (`pages/Landing.js` + `pages/landing/{Sections,PricingFaq}.js`): one CTA label "Get your number", microcopy

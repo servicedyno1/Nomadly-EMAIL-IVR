@@ -51,9 +51,11 @@ function routes(router, { db, h, voiceService, telnyxApi, getTelnyxResources = (
     const byNet = await calls.countDocuments({ ip: clientIp(req), createdAt: { $gt: since } })
     const byDevice = device ? await calls.countDocuments({ deviceId: device, createdAt: { $gt: since } }) : 0
     if (byNet >= DAILY_LIMIT || byDevice >= DAILY_LIMIT) return [429, 'daily_limit', `This device or network has used today's ${DAILY_LIMIT} free test calls. Try again tomorrow.`]
-    if (to && await calls.findOne({ to, createdAt: { $gt: new Date(Date.now() - 30 * 86400000) } }, { projection: { _id: 1 } })) return [409, 'number_used', 'That phone number already had a free test call this month. Use a different number.']
+    if (to && await calls.findOne({ to, noAnswer: { $ne: true }, createdAt: { $gt: new Date(Date.now() - 30 * 86400000) } }, { projection: { _id: 1 } })) return [409, 'number_used', 'That phone number already had a free test call this month. Use a different number.']
     return null
   }
+  // Unanswered "we call you" demo: frees the email and number for another try (still counts toward the daily limit).
+  const markNoAnswer = (c) => calls.updateOne({ _id: c._id, noAnswer: { $ne: true } }, { $set: { noAnswer: true, email: `${c.email}#noanswer#${c._id}`, triedEmail: c.email } })
   function destination(raw) {
     const s = String(raw || '').trim()
     // Must start with + or 00: guessing the country of a bare number could ring someone abroad.
@@ -168,10 +170,15 @@ function routes(router, { db, h, voiceService, telnyxApi, getTelnyxResources = (
     } else {
       const p = c.callControlId && voiceService.getOutboundIvrPhase ? voiceService.getOutboundIvrPhase(c.callControlId) : null
       phase = !p ? (c.callControlId ? 'ended' : 'ringing') : (['initiated', 'ringing'].includes(p) ? 'ringing' : 'connected')
+      if (phase === 'connected' && !c.answered) await calls.updateOne({ _id: c._id }, { $set: { answered: true } })
       const presses = await db.collection('ivrAnalytics').find({ chatId: c.chatId, direction: 'outbound' }).sort({ timestamp: 1 }).limit(10).toArray()
       digits = presses.map(x => String(x.digit))
     }
     if (age > RING_SECONDS + MAX_SECONDS + 15) phase = 'ended'
+    if (phase === 'ended' && c.kind === 'call_me' && !c.dryRun && !c.answered && !digits.length) {
+      phase = 'no_answer'
+      await markNoAnswer(c)
+    }
     res.json({ id: c._id, kind: c.kind, to: c.to, phase, digits, menu: Object.fromEntries(Object.entries(MENU).map(([k, v]) => [k, v.label])), dryRun: !!c.dryRun })
   }))
 }

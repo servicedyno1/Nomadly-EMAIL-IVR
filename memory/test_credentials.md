@@ -100,5 +100,8 @@
 - Account B: `civr.bob@example.com` / `BobTest#2026` (no numbers, ~$500 test wallet) — use for isolation checks.
 - Re-create/fund: `bash scripts/cloudivr_web_smoke.sh` (registers both, tops wallets up to ≥$300 in the LOCAL DB, buys a dry-run number for A).
 - Preview runs `WEB_CLOUDIVR_DRY_RUN=true`: purchases/calls/SIP are simulated; crypto top-ups are live only when `WEB_DYNO_PAY_API_KEY` is set.
+- Free test call (landing): preview shows the OTP on screen (dry run). `WEB_TRYCALL_LIVE=true` in backend/.env (+ restart nodejs) = real calls
+  and real emailed codes. Limits are per IP: clear `webTryCalls`/`webTryCodes` for qa.* emails between test runs. Owner's real test number
+  +13025141000 is used for 30 days (records ip set to `owner-real-test`).
 - Google sign-in: hidden until `GOOGLE_OAUTH_CLIENT_ID` (owner's own Google app) is set. No Google test identities yet.
 

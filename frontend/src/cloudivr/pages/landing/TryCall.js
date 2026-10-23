@@ -6,8 +6,8 @@ import { CallMeLive, BrowserLive, Keypad } from './TryLive';
 import { savedToken, saveToken, clearToken, startCall } from './tryApi';
 
 const TABS = [
-  ['callme', 'We call your phone', PhoneCall, 'Enter your number. We ring you with a live demo menu — press 1, 2 or 3 and watch each key light up here.', 'civr-callme'],
-  ['browser', 'Call from this browser', Laptop, 'Call any phone from this tab using your microphone — no app needed. Try calling your own mobile.', 'civr-browser'],
+  ['callme', 'We call your phone', PhoneCall, 'Enter your number. We ring you with a live demo menu — press 1, 2 or 3 and watch each key light up here.', 'civr-callme', 'Call me'],
+  ['browser', 'Call from this browser', Laptop, 'Call any phone from this tab using your microphone — no app needed. Try calling your own mobile.', 'civr-browser', 'Browser'],
 ];
 const POINTS = [[MailCheck, 'Confirm your email with a 6-digit code'], [Timer, 'One free call per email, up to 60 seconds'], [ShieldCheck, 'No account, no card, no catch']];
 const E164 = /^\+[1-9]\d{7,14}$/;
@@ -66,9 +66,9 @@ export function TryCall() {
         <div className="lg:col-span-7">
           <div className="civr-l-card p-6 md:p-8" data-testid="try-card">
             {!call && (
-              <div role="tablist" className="flex flex-wrap gap-1 p-1 rounded-full border civr-l-rule mb-6 w-fit max-w-full">
-                {TABS.map(([id, label, Icon]) => (
-                  <button key={id} type="button" role="tab" aria-selected={tab === id} onClick={() => { setTab(id); setError(null); }} className="civr-l-tab inline-flex items-center gap-2" data-testid={id === 'callme' ? 'civr-test-tab-callme' : 'civr-test-tab-browser'}><Icon className="w-4 h-4" />{label}</button>
+              <div role="tablist" className="grid grid-cols-2 sm:inline-flex gap-1 p-1 rounded-full border civr-l-rule mb-6 w-full sm:w-fit">
+                {TABS.map(([id, label, Icon, , , short]) => (
+                  <button key={id} type="button" role="tab" aria-selected={tab === id} onClick={() => { setTab(id); setError(null); }} className="civr-l-tab inline-flex items-center justify-center gap-2 whitespace-nowrap" data-testid={id === 'callme' ? 'civr-test-tab-callme' : 'civr-test-tab-browser'}><Icon className="w-4 h-4" /><span className="sm:hidden">{short}</span><span className="hidden sm:inline">{label}</span></button>
                 ))}
               </div>
             )}

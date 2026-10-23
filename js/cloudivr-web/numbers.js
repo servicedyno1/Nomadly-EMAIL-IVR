@@ -189,8 +189,20 @@ function routes(router, deps) {
   // Account currently holding this number (anyone, including the buyer), or null.
   const holderOf = async (phone) => (await phoneNumbersOf.findOne({ 'val.numbers': { $elemMatch: { phoneNumber: phone, status: { $ne: 'released' } } } }, { projection: { _id: 1 } }))?._id ?? null
 
+  // One buyer at a time per number: the lock closes the gap between the holder check and saving the number
+  // (TTL frees it if the process dies mid-purchase).
+  const locks = db.collection('webNumberLocks')
+  locks.createIndex({ at: 1 }, { expireAfterSeconds: 600 }).catch(() => {})
+  async function purchase(args) {
+    try { await locks.insertOne({ _id: args.phone, chatId: args.chatId, at: new Date() }) } catch (e) {
+      if (e.code === 11000) return { status: 409, body: { error: 'number_taken', message: 'Someone is buying that number right now. Pick another one.' } }
+      throw e
+    }
+    try { return await purchaseLocked(args) } finally { await locks.deleteOne({ _id: args.phone }).catch(() => {}) }
+  }
+
   // Debits the wallet and activates the number → { status, body } (HTTP-style; refunds on failure).
-  async function purchase({ chatId, email, phone, planKey, hit, country, type, areaCode, autoRenew = true, viaOrder = null }) {
+  async function purchaseLocked({ chatId, email, phone, planKey, hit, country, type, areaCode, autoRenew = true, viaOrder = null }) {
     const plan = phoneConfig.plans[planKey]
     if (!plan || !phoneConfig.isPlanAvailable(planKey)) return { status: 400, body: { error: 'invalid_plan', message: 'That plan is not available.' } }
     const holder = await holderOf(phone)

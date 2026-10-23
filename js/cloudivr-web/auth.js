@@ -31,14 +31,18 @@ for (const c of ['173.245.48.0/20', '103.21.244.0/22', '103.22.200.0/22', '103.3
 }
 const isCfEdge = (ip) => { try { return net.isIP(ip) > 0 && CF_EDGE.check(ip, net.isIP(ip) === 6 ? 'ipv6' : 'ipv4') } catch (_) { return false } }
 // Real visitor IP. Left-most X-Forwarded-For entries are whatever the client sent, so they are never trusted:
-// Cloudflare's own header, else the hop just left of the right-most Cloudflare edge, else the right-most public hop.
+// via Cloudflare → the hop just left of its right-most edge hop (CF-Connecting-IP if a proxy dropped that hop);
+// otherwise the right-most public hop.
 const clientIp = (req) => {
-  const cf = String(req.headers['cf-connecting-ip'] || '').trim()
-  if (cf) return cf
   const hops = String(req.headers['x-forwarded-for'] || '').split(',').map(s => s.trim()).filter(Boolean)
+  const cf = String(req.headers['cf-connecting-ip'] || '').trim()
+  if (!hops.length) return cf || String(req.ip || '')
   let i = hops.length - 1
   while (i >= 0 && !isCfEdge(hops[i])) i--
-  if (i >= 0) { while (i > 0 && isCfEdge(hops[i])) i--; return hops[i] }
+  if (i >= 0) {
+    while (i >= 0 && isCfEdge(hops[i])) i--
+    return i >= 0 ? hops[i] : (cf || hops[0])
+  }
   for (let j = hops.length - 1; j >= 0; j--) if (!PRIVATE_IP.test(hops[j])) return hops[j]
   return String(req.ip || '')
 }

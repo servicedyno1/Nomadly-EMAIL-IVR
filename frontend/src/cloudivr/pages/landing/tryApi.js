@@ -41,7 +41,7 @@ export function useCallStatus(id) {
   useEffect(() => {
     let stop = false, t = null;
     const tick = async () => {
-      try { const d = await api(`/public/try/calls/${id}`); if (stop) return; setS(d); if (d.phase === 'ended') return; } catch (_) { /* keep polling */ }
+      try { const d = await api(`/public/try/calls/${id}`); if (stop) return; setS(d); if (['ended', 'no_answer'].includes(d.phase)) return; } catch (_) { /* keep polling */ }
       if (!stop) t = setTimeout(tick, 1500);
     };
     tick();

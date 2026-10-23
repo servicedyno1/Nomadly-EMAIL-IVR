@@ -1,0 +1,33 @@
+{
+  "summary": "Retested all 5 fixes from iteration_116 plus the regression list for CloudIVR web (preview, WEB_CLOUDIVR_DRY_RUN=true). Backend: updated pytest, 16/16 pass. FIX1: /numbers/orders and ?open=1 return {orders:[]}; the buy-open-order-banner shows 'Crypto payment pending for <num> ($50.00) View →' and links to /cloudivr/app/orders/:id. FIX2: a number Bob bought no longer shows in Bob's or Alice's search results; re-buying it gives 409 already_yours (Bob) and 409 number_taken (Alice). Crypto substitution still works, and a cheaper substitute's message says 'difference stays in your wallet'. FIX3: '4155550123' and '14155550123' get 400 invalid_number on call-me and browser, and no call is recorded; '0014155550xxxxx' becomes +1415555xxxxx (201). In the UI, entering 4155550123 shows civr-try-error and the email gate does not open. FIX4: the stored ip is the real egress IP 34.170.12.145 for any spoofed X-Forwarded-For. 3 calls with different XFF values and fresh devices, then a 4th send-code, gives 429 daily_limit. A spoofed CF-Connecting-IP is rejected at Cloudflare's edge (error 1000), so it cannot be abused either. FIX5: no dev overlay, the hero 3D canvas renders (592x580) with no page errors, and buttons work without hiding the overlay. The full free test call UI flow works: CTA → +1 number → email gate → preview code → live view (ringing, key 1 lit) → 'That was CloudIVR' done panel. REGRESSION: wallet checkout with the auto-renew toggle on by default goes to the number page with a toast, and the DB has autoRenew=true. Crypto checkout → order page → open-order banner on /buy → simulate payment → order-success with the assigned number. Logout lands on /cloudivr. Mobile 390px: scrollWidth == clientWidth (390), no horizontal overflow, canvas renders.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /public/try/send-code", "issue": "Limit of 6 codes per IP per hour. Now that the IP is the real client IP, a shared NAT (office or carrier CGNAT) can hit this limit fast. Product decision, not a bug."},
+      {"endpoint": "numbers.purchase()", "issue": "holderOf() check → debit → $push is not atomic. Two buys of the same number at the same moment (different accounts) could both pass the holder check (TOCTOU). It only matters in dry-run or when Telnyx does not reject the second order. To make it safe, use a unique index or a reservation doc."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Landing try card (mobile 390px)", "issues": ["The tab pill ('We call your phone' / 'Call from this browser') wraps onto two lines inside the rounded pill border and looks awkward. Consider full-width stacked tabs or shorter labels on mobile."]},
+      {"screen": "Landing try card, ended state", "issues": ["The lit key '1' sublabel 'FORWARDING' has low contrast on the green highlighted key."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_cloudivr_trycall_orders.py", "/app/test_reports/pytest/pytest_cloudivr_iter117.xml"],
+  "action_items": [
+    "Optional: make number purchase atomic against concurrent buys of the same number (reservation or unique index)",
+    "Optional: polish the mobile try-tab pill wrapping and the contrast of the lit-key sublabel"
+  ],
+  "critical_code_review_comments": [
+    "auth.clientIp trusts CF-Connecting-IP outright. That is fine while all traffic goes through Cloudflare (a spoofed header is rejected at the edge with 1000), but if the origin is ever reachable directly it becomes spoofable again. Only trust it when the hop is a CF edge, or lock the origin down.",
+    "orders.activate charged is computed from hit.surcharge, while purchase() debits the same formula, so they agree. similar() caps substitutes at surcharge <= the picked one, so a dearer substitute is impossible. OK."
+  ],
+  "updated_files": ["/app/backend/tests/test_cloudivr_trycall_orders.py"],
+  "success_rate": {"backend": "100% (16/16)", "frontend": "100%"},
+  "seed_data_creation": "None kept. Bob reset (numbers [] and wallet 500/0); qa.* webTryCalls and webTryCodes deleted; TEST_other_* phoneNumbersOf docs deleted. Cancelled and active test crypto orders remain in webNumberOrders (harmless).",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "The try-call IP is now the real egress IP; XFF spoofing does not isolate tests. The pytest has a function-scoped autouse fixture that deletes qa.* webTryCalls/webTryCodes before and after each test, which works around the 3/day network limit and the 6 codes/hour IP limit. The search cache is in webSearchCache (_id = string chatId) and crypto orders are in webNumberOrders. To test already_yours or number_taken, push a hit into webSearchCache.results, because the bought number is filtered out of search. For a cheaper substitution, $set hit.surcharge and $inc price on the order before simulate-payment. Reset Bob afterwards as described in the request."
+}
