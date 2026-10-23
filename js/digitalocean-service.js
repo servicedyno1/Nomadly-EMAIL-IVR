@@ -234,6 +234,8 @@ const REGION_SURCHARGE = {
   'SG':         [0, 0, 0, 0, 0, 0],
   'AU':         [0, 0, 0, 0, 0, 0],
   'IN':         [0, 0, 0, 0, 0, 0],
+  'CA':         [0, 0, 0, 0, 0, 0],
+  'NL':         [0, 0, 0, 0, 0, 0],
   // 'JP' intentionally omitted — DO has no Japan datacenter.
 }
 
@@ -246,6 +248,8 @@ const REGION_DISPLAY = {
   'SG':         { emoji: '🇸🇬', label: 'Singapore' },
   'AU':         { emoji: '🇦🇺', label: 'Australia' },
   'IN':         { emoji: '🇮🇳', label: 'India' },
+  'CA':         { emoji: '🇨🇦', label: 'Canada (Toronto)' },
+  'NL':         { emoji: '🇳🇱', label: 'Netherlands (Amsterdam)' },
 }
 
 // Customer-facing region slug → DO region slug.
@@ -258,13 +262,19 @@ const REGION_TO_DO_SLUG = {
   'SG':         'sgp1',  // Singapore
   'AU':         'syd1',  // Sydney
   'IN':         'blr1',  // Bangalore
+  'CA':         'tor1',  // Toronto
+  'NL':         'ams3',  // Amsterdam
 }
+// Common reseller spellings → customer region code (same codes the RDP API accepts).
+const REGION_ALIASES = { US: 'US-central', USA: 'US-central', NYC: 'US-central', 'NEW-YORK': 'US-central', SFO: 'US-west', TOR: 'CA', TORONTO: 'CA', AMS: 'NL', AMSTERDAM: 'NL', DE: 'EU', FRA: 'EU', GB: 'UK', LON: 'UK', SGP: 'SG', SYD: 'AU', BLR: 'IN' }
 
 // ─── Pricing ─────────────────────────────────────────────────────────────
 // Live instance records carry the DO slug (fra1); catalog calls use the customer code (EU).
 // Case-insensitive: the reseller API upper-cases region codes (US-EAST → US-east).
 function _customerRegion(regionSlug) {
   if (REGION_TO_DO_SLUG[regionSlug]) return regionSlug
+  const alias = REGION_ALIASES[String(regionSlug || '').trim().toUpperCase()]
+  if (alias) return alias
   const r = String(regionSlug || '').toLowerCase()
   const hit = Object.entries(REGION_TO_DO_SLUG).find(([cust, doSlug]) => cust.toLowerCase() === r || doSlug === r)
   return hit ? hit[0] : regionSlug

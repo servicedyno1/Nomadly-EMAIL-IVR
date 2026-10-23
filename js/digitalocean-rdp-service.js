@@ -86,24 +86,33 @@ function _tierOf(x) {
   return TIER_BY_SLUG.get(x.slug || x.tier_slug) || null
 }
 const _isAmd = (s) => /-amd$/i.test(s.slug) || /\bAMD\b/i.test(s.description || '')
-function _specMatch(t, s, cap) {
-  return _isAmd(s) && s.vcpus === t.vcpu && s.memory === t.ram_gb * 1024 && s.disk >= t.disk_gb
+// Closest match (owner decision 2026-10-23): when NO datacenter in the city has the AMD size, the same-spec
+// Premium Intel (Xeon + NVMe) size is sold instead, labelled clearly. Shared "Regular" CPUs are never used.
+const _isPremiumIntel = (s) => /-intel$/i.test(s.slug)
+const CPU_MATCH = { amd: _isAmd, intel: _isPremiumIntel }
+function _specMatch(t, s, cap, cpu = 'amd') {
+  return CPU_MATCH[cpu](s) && s.vcpus === t.vcpu && s.memory === t.ram_gb * 1024 && s.disk >= t.disk_gb
     && s.price_monthly > 0 && s.price_monthly <= cap + 1e-9
 }
 // AMD sizes for a tier in ONE datacenter, cheapest first: [{ slug, cost }]. cap = max DO $/month.
-function _sizeOptions(t, region, cap) {
+function _sizeOptions(t, region, cap, cpu = 'amd') {
   const r = String(region || '')
-  if (!sizeCatalog.isLoaded()) return t.do_size_slug && !sizeCatalog.isRefused(t.do_size_slug, r) && t.monthly_do_cost <= cap + 1e-9 ? [{ slug: t.do_size_slug, cost: t.monthly_do_cost }] : []
-  return sizeCatalog.sizesAvailableIn(r).filter(s => _specMatch(t, s, cap))
+  if (!sizeCatalog.isLoaded()) return cpu === 'amd' && t.do_size_slug && !sizeCatalog.isRefused(t.do_size_slug, r) && t.monthly_do_cost <= cap + 1e-9 ? [{ slug: t.do_size_slug, cost: t.monthly_do_cost }] : []
+  return sizeCatalog.sizesAvailableIn(r).filter(s => _specMatch(t, s, cap, cpu))
     .sort((a, b) => a.price_monthly - b.price_monthly || (b.slug === t.do_size_slug) - (a.slug === t.do_size_slug) || a.disk - b.disk || a.slug.localeCompare(b.slug))
-    .map(s => ({ slug: s.slug, cost: s.price_monthly }))
+    .map(s => ({ slug: s.slug, cost: s.price_monthly, cpu }))
+}
+// AMD sizes in this datacenter, else the closest-match Premium Intel ones.
+function _anySizeOptions(t, region, cap) {
+  const amd = _sizeOptions(t, region, cap)
+  return amd.length ? amd : _sizeOptions(t, region, cap, 'intel')
 }
 // Ordered AMD size slugs for a tier in ONE datacenter (in-place resize / plan change). Default cap =
 // the tier's own cost, so a resize never lands on a pricier size than the plan is billed at.
 function sizeCandidatesFor(tier, regionSlug, { maxCost } = {}) {
   const t = _tierOf(tier)
   if (!t) return []
-  return _sizeOptions(t, regionSlug, maxCost != null ? maxCost : t.monthly_do_cost).map(o => o.slug)
+  return _anySizeOptions(t, regionSlug, maxCost != null ? maxCost : t.monthly_do_cost).map(o => o.slug)
 }
 // Every (datacenter, AMD size) that can build this tier for a customer who chose `regionInput`:
 // cheapest first; on equal cost the chosen datacenter wins. Default cap = tier cost × 1.15.
@@ -112,22 +121,26 @@ function buildOptions(tier, regionInput, { maxCost } = {}) {
   if (!t || !t.monthly_do_cost) return []
   const region = regionToSlug(regionInput)
   const cap = maxCost != null ? Number(maxCost) : t.monthly_do_cost * MAX_SIZE_COST_FACTOR
-  const out = []
-  ;[region, ...sizeCatalog.sameCityOf(region)].forEach((r, order) => {
-    for (const o of _sizeOptions(t, r, cap)) out.push({ region: r, size: o.slug, cost: o.cost, order })
-  })
-  return out.sort((a, b) => a.cost - b.cost || a.order - b.order)
+  const dcs = [region, ...sizeCatalog.sameCityOf(region)]
+  const collect = (cpu) => {
+    const out = []
+    dcs.forEach((r, order) => { for (const o of _sizeOptions(t, r, cap, cpu)) out.push({ region: r, size: o.slug, cost: o.cost, order, cpu }) })
+    return out.sort((a, b) => a.cost - b.cost || a.order - b.order)
+  }
+  const amd = collect('amd')
+  return amd.length ? amd : collect('intel')
 }
 // Can this plan be built for a customer in `regionInput` right now — where, on what, at what DO cost?
 function quoteFor(product, regionInput) {
   const t = _tierOf(product)
   const region = regionToSlug(regionInput)
-  if (!t) return { region, in_stock: false, build_region: null, size_slug: null, do_cost: null, price_factor: 1, same_city: false }
+  if (!t) return { region, in_stock: false, build_region: null, size_slug: null, do_cost: null, price_factor: 1, same_city: false, closest_match: false }
   const best = buildOptions(t, region)[0] || null
   return {
     region, in_stock: !!best, build_region: best ? best.region : null, size_slug: best ? best.size : null,
     do_cost: best ? best.cost : t.monthly_do_cost, price_factor: best ? Math.round(best.cost / t.monthly_do_cost * 10000) / 10000 : 1,
     same_city: !!best && best.region !== region,
+    closest_match: !!best && best.cpu === 'intel',
   }
 }
 // Display-only product shape for retired tiers (e.g. legacy 'starter' servers still running).
@@ -155,6 +168,8 @@ const REGION_TO_DO = {
   EU: 'fra1', DE: 'fra1', NL: 'ams3', UK: 'lon1', GB: 'lon1',
   US: 'nyc3', USA: 'nyc3', 'US-EAST': 'nyc3', 'US-WEST': 'sfo3',
   CA: 'tor1', IN: 'blr1', SG: 'sgp1', SGP: 'sgp1', AU: 'syd1', SYD: 'syd1',
+  NYC: 'nyc3', 'NEW-YORK': 'nyc3', SFO: 'sfo3', TOR: 'tor1', TORONTO: 'tor1', AMS: 'ams3', AMSTERDAM: 'ams3',
+  FRA: 'fra1', LON: 'lon1', BLR: 'blr1', 'US-CENTRAL': 'nyc3',
 }
 function regionToSlug(region) {
   const r = String(region || '').trim()
@@ -168,7 +183,7 @@ function regionToSlug(region) {
 // gd-2vcpu-8gb = dedicated 2 vCPU / 8 GB / 50 GB (~$0.10/h; a build is ~1 h).
 const BUILD_SIZE = process.env.DO_RDP_BUILD_SIZE || 'gd-2vcpu-8gb'
 // Same 50 GB disk, tried in order when DO reports "Size is not available in this region" (capacity fluctuates).
-// Golden-image BUILD droplet only (admin template prep) — customer RDPs are AMD-only via _sizeOptions.
+// Golden-image BUILD droplet only (admin template prep) — customer RDPs use _sizeOptions (AMD, else closest-match Premium Intel).
 const BUILD_SIZE_FALLBACKS = ['c-4', 'm-2vcpu-16gb', 'm-2vcpu-16gb-intel', 'c-4-intel', 'c2-2vcpu-4gb']
 const BUILD_DISK_GB = 50
 const BUILD_REGION = process.env.DO_RDP_BUILD_REGION || 'nyc3'
@@ -285,10 +300,10 @@ function availability() {
     region: r.code, region_slug: r.regionSlug, label: r.display.label, emoji: r.display.emoji,
     plans: TIERS.map(t => {
       const q = quoteFor(t, r.regionSlug)
-      return { plan: t.slug, name: t.name, in_stock: q.in_stock, build_region: q.build_region, same_city_fallback: q.same_city, size_slug: q.size_slug, price_usd: sellPrice(t, 1, q.do_cost), base_price_usd: sellPrice(t, 1), surcharge_pct: Math.round((q.price_factor - 1) * 1000) / 10 }
+      return { plan: t.slug, name: t.name, in_stock: q.in_stock, build_region: q.build_region, same_city_fallback: q.same_city, closest_match: q.closest_match, size_slug: q.size_slug, price_usd: sellPrice(t, 1, q.do_cost), base_price_usd: sellPrice(t, 1), surcharge_pct: Math.round((q.price_factor - 1) * 1000) / 10 }
     }),
     datacenters: [r.regionSlug, ...sizeCatalog.sameCityOf(r.regionSlug)].map(dc => ({
-      datacenter: dc, plans_in_stock: TIERS.filter(t => _sizeOptions(t, dc, t.monthly_do_cost * MAX_SIZE_COST_FACTOR).length).map(t => t.slug),
+      datacenter: dc, plans_in_stock: TIERS.filter(t => _anySizeOptions(t, dc, t.monthly_do_cost * MAX_SIZE_COST_FACTOR).length).map(t => t.slug),
     })),
   }))
 }
@@ -1283,7 +1298,7 @@ function goldenBuildSites() {
   const out = new Set()
   for (const r of listRegions()) {
     for (const dc of [r.regionSlug, ...sizeCatalog.sameCityOf(r.regionSlug)]) {
-      if (TIERS.some(t => _sizeOptions(t, dc, t.monthly_do_cost * MAX_SIZE_COST_FACTOR).length)) out.add(dc)
+      if (TIERS.some(t => _anySizeOptions(t, dc, t.monthly_do_cost * MAX_SIZE_COST_FACTOR).length)) out.add(dc)
     }
   }
   return [...out]

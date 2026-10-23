@@ -904,3 +904,10 @@ User inherited a fully-set-up Nomadly bot pod pointed at LIVE PRODUCTION. Task b
   /opt/nomadly/shared/app-main/backend.env RESELLER_APPLY_FORM=true (backup .bak.rsapply.<ts>). Smadav/Voodoo/ProShop untouched
   (flag unset → old 💼 Reseller AI-support behaviour). Rollback: `bash /opt/nomadly/deploy.sh app-main rollback`.
 - PENDING: owner "Save to GitHub" (otherwise the next CI deploy of app-main drops this code; the env flag stays).
+
+## 2026-10-23 session (fork)
+- DONE: kernel reboot (6.8.0-147) at 06:56Z, all bots healthy after.
+- DONE: DO regions — VPS Canada/Amsterdam + reseller region aliases; RDP closest-match Premium Intel when AMD sold out in a city (labelled). Deployed 1b58a8b (all 4 bots).
+- DONE: DR — Hosta + BozzMail in 2-min live mirror + hourly archives (sources are standalone → no change streams).
+- DONE: PhoneMonitor parent-down guard. OPEN (owner): Nomadly's main Twilio account inactive since 2026-10-22 00:00Z (Twilio 20003) — 49 Twilio lines affected.
+- Backlog: realtime change streams for Hosta/BozzMail (needs replica-set conversion, ~30s downtime each); Vultr 401 stale key (RDP grace destroy); Contabo invalid_client.

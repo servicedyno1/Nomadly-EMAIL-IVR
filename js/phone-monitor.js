@@ -50,6 +50,21 @@ async function checkTwilioSubaccount(subAccountSid) {
   }
 }
 
+// Is the PARENT Twilio account itself usable? When Twilio deactivates it (error 20003 "is not active")
+// every sub-account poll 401s, so we poll none of them and alert the admin once a day instead.
+async function checkTwilioParent() {
+  if (!TWILIO_ACCOUNT_SID || !TWILIO_AUTH_TOKEN) return { ok: false, reason: 'not configured' };
+  try {
+    const resp = await axios.get(`https://api.twilio.com/2010-04-01/Accounts/${TWILIO_ACCOUNT_SID}.json`, {
+      auth: { username: TWILIO_ACCOUNT_SID, password: TWILIO_AUTH_TOKEN }, timeout: 15000,
+    });
+    return { ok: resp.data.status === 'active', reason: resp.data.status };
+  } catch (err) {
+    if (err.response?.status === 401) return { ok: false, reason: err.response?.data?.message || '401 Unauthorized' };
+    return { ok: true, reason: `unverified: ${err.message}` }; // network blip: poll as usual
+  }
+}
+
 /**
  * Check if a specific Twilio number SID still exists on its sub-account.
  * Uses the sub-account's own credentials (parent-auth returns 401 for
@@ -167,10 +182,21 @@ async function runHealthCheck(bot, db) {
     }
   }
 
-  console.log(`[PhoneMonitor] Checking ${twilioNumbers.length} Twilio subaccounts`);
+  const authFailedEvents = db.collection('phoneMonitorAuthFailed');
+  const today = new Date().toISOString().slice(0, 10);
+  const parent = twilioNumbers.length ? await checkTwilioParent() : { ok: true };
+  if (!parent.ok) {
+    console.log(`[PhoneMonitor] Twilio main account unusable (${parent.reason}) — skipping ${twilioNumbers.length} sub-account checks`);
+    await alertParentDown(bot, authFailedEvents, today, parent.reason, twilioNumbers.length);
+  } else {
+    console.log(`[PhoneMonitor] Checking ${twilioNumbers.length} Twilio subaccounts`);
+  }
 
-  for (const entry of twilioNumbers) {
+  for (const entry of parent.ok ? twilioNumbers : []) {
     const { subAccountSid: sid, chatId, phoneNumber } = entry;
+
+    // Sub-account already reported as 401 today → don't poll (and log) it again until tomorrow.
+    if (await authFailedEvents.findOne({ _id: `${today}:${sid}` })) { totalChecked++; continue; }
 
     // Skip if already fully notified
     const fullyNotified = await suspensionEvents.findOne({
@@ -230,8 +256,9 @@ async function runHealthCheck(bot, db) {
 
   console.log(`[PhoneMonitor] Verifying ${twilioActiveNumbers.length} active Twilio number SIDs on sub-accounts`);
 
-  for (const entry of twilioActiveNumbers) {
+  for (const entry of parent.ok ? twilioActiveNumbers : []) {
     const { chatId, phoneNumber, numberSid, subAccountSid, subAccountToken } = entry;
+    if (authFailedSubs.some(a => a.subAccountSid === subAccountSid) || await authFailedEvents.findOne({ _id: `${today}:${subAccountSid}` })) continue;
 
     // Skip numbers already marked inactive_released
     const doc = allDocs.find(d => d._id === chatId);
@@ -354,8 +381,6 @@ async function runHealthCheck(bot, db) {
   // the sub-account auth token in Twilio console or open a ticket with Twilio.
   if (authFailedSubs.length > 0 && ADMIN_CHAT_ID) {
     try {
-      const authFailedEvents = db.collection('phoneMonitorAuthFailed');
-      const today = new Date().toISOString().slice(0, 10);
       const fresh = [];
       for (const entry of authFailedSubs) {
         const key = `${today}:${entry.subAccountSid}`;
@@ -387,6 +412,24 @@ async function runHealthCheck(bot, db) {
   }
 
   return { checked: totalChecked, suspended: totalSuspended, inactiveReleased: totalInactiveReleased, authFailed: authFailedSubs.length };
+}
+
+// One admin alert per day while the parent Twilio account is down.
+async function alertParentDown(bot, authFailedEvents, today, reason, lines) {
+  const key = `${today}:parent`;
+  try {
+    if (await authFailedEvents.findOne({ _id: key })) return;
+    await authFailedEvents.insertOne({ _id: key, subAccountSid: TWILIO_ACCOUNT_SID, reason, notifiedAt: new Date() });
+    if (!ADMIN_CHAT_ID) return;
+    await bot.sendMessage(ADMIN_CHAT_ID,
+      `🔴 <b>Twilio main account is not active</b>\n\n` +
+      `Twilio rejects the main account (<code>${String(TWILIO_ACCOUNT_SID || '').slice(0, 10)}…</code>): ${reason}\n` +
+      `${lines} customer Twilio line(s) cannot be managed (and may not work) until Twilio re-activates it.\n\n` +
+      `<b>Action:</b> check the Twilio console / billing or contact Twilio support. Sub-account checks are paused until then (this alert repeats daily).`,
+      { parse_mode: 'HTML', disable_web_page_preview: true });
+  } catch (err) {
+    console.error(`[PhoneMonitor] Parent-down admin alert error:`, err.message);
+  }
 }
 
 /**
@@ -538,4 +581,4 @@ function initPhoneMonitor(bot, db) {
   }, CHECK_INTERVAL_MS);
 }
 
-module.exports = { initPhoneMonitor, runHealthCheck };
+module.exports = { initPhoneMonitor, runHealthCheck, checkTwilioParent };

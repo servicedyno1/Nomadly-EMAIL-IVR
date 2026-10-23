@@ -1297,7 +1297,7 @@ function createResellerApi(deps = {}) {
         ...hwFromProduct(p),
         duration_months: p.durationMonths || 1, discount_pct: (p.pricing && p.pricing.discountPct) || 0,
         price_usd: base,
-        ...(isRDP ? { in_stock: p.inStock !== false, out_of_stock: p.inStock === false, surcharge_usd: (p.pricing && p.pricing.regionSurcharge) || 0, same_city_fallback: !!(p.quote && p.quote.same_city) } : {}),
+        ...(isRDP ? { in_stock: p.inStock !== false, out_of_stock: p.inStock === false, surcharge_usd: (p.pricing && p.pricing.regionSurcharge) || 0, same_city_fallback: !!(p.quote && p.quote.same_city), closest_match: !!(p.quote && p.quote.closest_match) } : {}),
         // Linux VPS is a single monthly product bought for a 1/3/6/12-month term via POST /vps { months }.
         // terms[] carries the discounted total per term so storefronts can render a duration picker.
         ...(isRDP || base == null ? {} : { terms: vpsTerms.termsFor(base) }),
@@ -1333,7 +1333,7 @@ function createResellerApi(deps = {}) {
     } catch (_) { return [] }
   }
 
-  // GET /rdp/availability — live RDP stock per region × plan (AMD only, same-city datacenters count).
+  // GET /rdp/availability — live RDP stock per region × plan (AMD, else closest-match Premium Intel; same-city datacenters count).
   async function rdpAvailabilityHandler(req, res) {
     const prov = providerFor(true)
     if (typeof prov.availability !== 'function') return res.status(501).json({ error: 'not_supported', message: 'Live availability is not available for the configured RDP provider.' })
@@ -1370,7 +1370,7 @@ function createResellerApi(deps = {}) {
     if (!pricing) return res.status(400).json({ error: 'unavailable', message: `Plan not available in region ${region}.` })
     if (typeof prov.isProductAvailable === 'function' && !prov.isProductAvailable(planId, region)) {
       const available_regions = await regionsInStock(prov, planId)
-      return res.status(409).json({ error: 'out_of_stock', message: `Plan ${planId} is temporarily out of stock in region ${region}${isRDP ? ' (no AMD capacity in any datacenter of that city)' : ''}. Nothing was charged. ${available_regions.length ? `In stock right now in: ${available_regions.join(', ')}.` : 'Retry later.'}${isRDP ? ' See GET /rdp/availability.' : ' Call GET /vps/plans for what can be ordered right now.'}`, plan_id: planId, region, available_regions })
+      return res.status(409).json({ error: 'out_of_stock', message: `Plan ${planId} is temporarily out of stock in region ${region}${isRDP ? ' (no AMD or Premium Intel capacity in any datacenter of that city)' : ''}. Nothing was charged. ${available_regions.length ? `In stock right now in: ${available_regions.join(', ')}.` : 'Retry later.'}${isRDP ? ' See GET /rdp/availability.' : ' Call GET /vps/plans for what can be ordered right now.'}`, plan_id: planId, region, available_regions })
     }
     // Linux VPS: optional prepaid term (1/3/6/12 months) with a bundle discount. RDP encodes its
     // term in the plan_id (standard-2m etc.), so it is charged at its product price and skips this.
