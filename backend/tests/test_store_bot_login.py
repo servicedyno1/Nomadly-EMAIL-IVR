@@ -13,7 +13,7 @@ import pytest
 
 BASE_URL = os.environ.get(
     "REACT_APP_BACKEND_URL",
-    "https://vault-app-setup-3.preview.emergentagent.com",
+    "https://vault-launch-6.preview.emergentagent.com",
 ).rstrip("/")
 TEST_CHATID = "5346193142"
 
