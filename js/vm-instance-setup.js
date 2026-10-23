@@ -308,7 +308,7 @@ async function fetchAvailableVPSConfigs(telegramId, vpsDetails) {
       specs: { vCPU: p.cpuCores, RAM: p.ramGb, disk: p.diskGb, diskType: p.diskType?.toUpperCase() || 'NVMe' },
       specsStr: providerForOs.formatSpecs(p),
       // Real hardware class of the size it will be built on (RDP: the AMD size quoted for that city right now)
-      hardware: hwType.botLabel(hwType.slugOfProduct(p)),
+      hardware: [hwType.botLabel(hwType.slugOfProduct(p)), p.quote && p.quote.closest_match ? '(closest match — AMD sold out in this city)' : null].filter(Boolean).join(' ') || null,
       // Flag for display
       isRDP: isRDP,
       // DO-RDP: the DO $/month this price was quoted on — the build never uses a pricier size.

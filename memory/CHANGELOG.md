@@ -2358,3 +2358,9 @@ User-approved order: #4 → #7 → #2 → #3 → #5 → #6. Sandbox-verified; pr
   .bak.<ts> + RELEASE patched=, blue/green → -b slots healthy. NEEDS "Save to GitHub" to persist the monitor change.
 - Ops (read-only unless --apply): whm_empty_accounts_audit_2026-10.sh, whm_delete_account_2026-10.js, whm_account_audit.js.
 
+
+## 2026-10-23
+- Kernel reboot of nomadly-prod-ams3 at 06:56Z (owner: "reboot now"; 0 active calls): 6.8.0-146 → 6.8.0-147, reboot-required cleared, all 10 PM2 apps back (0 restarts), 4 bot /health healthy, nginx + public hosts 200.
+- DO stock: Linux VPS gained Canada (tor1) + Netherlands (ams3) regions and reseller aliases (US/NYC/TOR/CA/AMS/NL/DE/FRA/GB/LON…) — previously `region=US|CA|NL` returned 0 plans. RDP: when no datacenter in the city has the AMD size, the same-spec Premium Intel size is sold as a labelled "closest match" (quote.closest_match, API closest_match:true, bot label "(closest match — AMD sold out in this city)"); never Basic. Live now: Toronto + Frankfurt RDP = Premium Intel, NYC (nyc2) / AMS = AMD. Region aliases NYC/TOR/AMS/FRA/LON added to RDP. Tests updated (amd_fallback 90/0, hw_type 56/0).
+- DR: Hosta + BozzMail Mongo added to live (2-min) + hourly backups (see DR_REPLICA_SETUP).
+- PhoneMonitor: ROOT CAUSE of the AUTH_FAILED spam = Nomadly's PARENT Twilio account (AC754fb3ae…) is NOT ACTIVE since ~2026-10-22 00:00Z (Twilio 20003 "status 4 is not active"; BalanceMonitor + Twilio init also 401). Monitor now checks the parent first → if down: no sub polls, 1 log line, 1 admin alert/day; a sub that 401s is not re-polled the same day. Test `js/tests/test_phone_monitor_parent_down_2026-10.js` 6/0. OWNER ACTION: re-activate Twilio account.

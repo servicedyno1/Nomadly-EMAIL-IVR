@@ -93,3 +93,10 @@ RESOLVED 2026-10-20: the 2-min full dumps (~9 TB/month egress) were replaced by 
 - Off-site archive to DO Spaces (hourly compressed dumps) — not yet set up.
 - Telegram alerting — drop `BOT_TOKEN|CHAT_ID` into /opt/dr/conf/alert.conf.
 - DO weekly droplet backups (enable in DO panel) for bare-metal recovery.
+
+## 2026-10-23 — Hosta + BozzMail added
+- `conf/mongo_sources.conf` += `hosta|<DB_URI from prod /opt/hosta/backend/.env>|nameword` and `bozzmail|<MONGO_URL from /opt/bozzmail/repo/backend/.env>|bozzmail` (backup `.bak.20261023T*`).
+- Both Railway sources are STANDALONE (no replica set → no change streams), so the LIVE copy = `mongo_snapshot.sh` re-enabled in cron `*/2` (it skips the 4 tailer-owned bot DBs). Sizes ~6 MB / ~0 → negligible egress. RPO 2 min.
+  (To get realtime like the bots: convert each source to single-node RS (railway_convert.py, ~30 s downtime) + `systemctl enable --now dr-mongo-tail@<name>`.)
+- Hourly PIT (`mongo_local_archive.sh`, keep 24) picks them up automatically from the conf. `monitor_dr.sh` checks `mongo:hosta` / `mongo:bozzmail` freshness (420 s). `compare.sh` now strips any path/query from the source URI.
+- Verified 2026-10-23 07:08Z: snapshot OK, compare hosta 54 colls/2547 docs mismatched=0, bozzmail 2 colls mismatched=0, PIT archives written, restore drill into a scratch DB OK (54 colls), health STATUS OK.
