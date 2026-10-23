@@ -125,6 +125,16 @@ function routes(router, deps) {
   const txn = (chatId, type, amount, metadata) => {
     try { return logTransaction && logTransaction(db, { transactionId: generateTransactionId ? generateTransactionId() : crypto.randomUUID(), chatId, type, amount, currency: 'USD', status: 'completed', metadata: { ...metadata, channel: 'web' } }) } catch (_) { return null }
   }
+  // Drops search hits that some account already holds (the dry-run preview never really buys, so they come back).
+  const unheld = async (found) => {
+    const list = found || []
+    const phones = list.map(n => n.phone_number)
+    if (!phones.length) return list
+    const docs = await phoneNumbersOf.find({ 'val.numbers': { $elemMatch: { phoneNumber: { $in: phones }, status: { $ne: 'released' } } } }, { projection: { 'val.numbers.phoneNumber': 1, 'val.numbers.status': 1 } }).toArray()
+    const held = new Set(docs.flatMap(d => (d.val?.numbers || []).filter(n => n.status !== 'released').map(n => n.phoneNumber)))
+    return list.filter(n => !held.has(n.phone_number))
+  }
+
   // Loads the caller's number into req.num (404 when it isn't theirs).
   const withNumber = (fn) => h(async (req, res) => {
     const num = await findMine(req.webChatId, req.params.phone)
@@ -150,8 +160,8 @@ function routes(router, deps) {
     const verification = await verificationInfo(country, type, `${c.flag} ${c.name}`)
     if (verification.error) return bad(res, 424, 'lookup_failed', verification.error)
     if (verification.required && !verification.supported) return bad(res, 400, 'unsupported', `${c.name} ${TYPE_NAMES[type] || type} numbers can't be ordered online right now. Pick another country or type.`)
-    const found = await telnyxApi.searchNumbers(country, type, areaCode, 12)
-    const results = (found || []).map(n => ({
+    const found = await unheld(await telnyxApi.searchNumbers(country, type, areaCode, 12))
+    const results = found.map(n => ({
       phoneNumber: n.phone_number,
       region: (n.region_information || []).map(r => r.region_name).filter(Boolean).join(', '),
       capabilities: n._capabilities || { voice: true, sms: false, fax: false },
@@ -171,19 +181,24 @@ function routes(router, deps) {
     const hit = cache?.results?.find(r => r.phoneNumber === normPhone(phone))
     return hit ? { hit, country: cache.country, type: cache.type, areaCode: cache.areaCode } : null
   }
-  const searchSimilar = async (country, type, areaCode) => (await telnyxApi.searchNumbers(country, type, areaCode, 6) || []).map(n => ({
+  const searchSimilar = async (country, type, areaCode) => (await unheld(await telnyxApi.searchNumbers(country, type, areaCode, 6))).map(n => ({
     phoneNumber: n.phone_number, capabilities: n._capabilities || { voice: true, sms: false, fax: false },
     surcharge: round2(numberSurcharge(country, type, n)), cost: { monthly: parseFloat(n.cost_information?.monthly_cost) || 0, upfront: parseFloat(n.cost_information?.upfront_cost) || 0 },
   }))
 
-  // True when another account already holds this number (e.g. bought while a crypto payment was confirming).
-  const takenByOther = async (chatId, phone) => !!(await phoneNumbersOf.findOne({ _id: { $ne: chatId }, 'val.numbers': { $elemMatch: { phoneNumber: phone, status: { $ne: 'released' } } } }, { projection: { _id: 1 } }))
+  // Account currently holding this number (anyone, including the buyer), or null.
+  const holderOf = async (phone) => (await phoneNumbersOf.findOne({ 'val.numbers': { $elemMatch: { phoneNumber: phone, status: { $ne: 'released' } } } }, { projection: { _id: 1 } }))?._id ?? null
 
   // Debits the wallet and activates the number → { status, body } (HTTP-style; refunds on failure).
   async function purchase({ chatId, email, phone, planKey, hit, country, type, areaCode, autoRenew = true, viaOrder = null }) {
     const plan = phoneConfig.plans[planKey]
     if (!plan || !phoneConfig.isPlanAvailable(planKey)) return { status: 400, body: { error: 'invalid_plan', message: 'That plan is not available.' } }
-    if (await takenByOther(chatId, phone)) return { status: 409, body: { error: 'number_taken', message: 'Someone just took that number. Pick another one.' } }
+    const holder = await holderOf(phone)
+    if (holder !== null) {
+      return { status: 409, body: String(holder) === String(chatId)
+        ? { error: 'already_yours', message: 'You already have this number. Pick another one.' }
+        : { error: 'number_taken', message: 'Someone just took that number. Pick another one.' } }
+    }
     const c = countries().find(x => x.code === country)
     const ver = await verificationInfo(country, type, `${c.flag} ${c.name}`)
     if (ver.error) return { status: 424, body: { error: 'lookup_failed', message: ver.error } }

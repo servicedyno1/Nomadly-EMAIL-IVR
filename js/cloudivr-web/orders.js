@@ -68,10 +68,12 @@ function routes(router, { db, h, numbersApi, coins = [], createCryptoDeposit, se
         const assigned = r.status === 201 ? r.body.number.phoneNumber : hit.phoneNumber
         const swapped = assigned !== o.phoneNumber
         const status = r.status === 202 ? 'verification' : 'active'
+        const charged = round2(phoneConfig.plans[o.planKey].price + (hit.surcharge || 0))
+        const priceNote = charged < o.price ? `it costs $${charged.toFixed(2)}, so the $${round2(o.price - charged).toFixed(2)} difference stays in your wallet` : 'same price'
         const message = swapped
-          ? `The number you picked (${o.phoneNumber}) was taken by someone else while your crypto payment was confirming, so we gave you ${assigned} instead — same country${o.areaCode ? ' and area code' : ''}, same price.`
+          ? `The number you picked (${o.phoneNumber}) was taken while your crypto payment was confirming, so we gave you ${assigned} instead — same country${o.areaCode ? ' and area code' : ''}, ${priceNote}.`
           : `Payment confirmed — ${assigned} is yours.`
-        await save(o._id, { status, assignedNumber: assigned, substitutedFrom: swapped ? o.phoneNumber : null, message })
+        await save(o._id, { status, assignedNumber: assigned, substitutedFrom: swapped ? o.phoneNumber : null, chargedUsd: charged, message })
         tell(o, `${message}${status === 'verification' ? ' Open Verification to send the details the carrier needs.' : ''}`, swapped ? `Your new CloudIVR number: ${assigned}` : null)
         if (swapped) notifyAdmin(`🌐 CloudIVR web: crypto order ${o._id} — ${o.phoneNumber} was taken, assigned ${assigned}\nweb account: ${o.chatId} (${o.email})`)
         return

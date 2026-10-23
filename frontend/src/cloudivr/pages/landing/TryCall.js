@@ -40,14 +40,13 @@ export function TryCall() {
 
   const begin = async (t) => {
     setBusy(true); setError(null);
-    try { setCall(await startCall(tab, t.token, number.startsWith('+') ? number : `+${number}`)); } catch (e) {
+    try { setCall(await startCall(tab, t.token, number)); } catch (e) {
       if (e.status === 401) { clearToken(); setGate(true); } else setError(e);
     } finally { setBusy(false); }
   };
   const submit = (e) => {
     e.preventDefault();
-    const n = number.startsWith('+') ? number : `+${number}`;
-    if (!E164.test(n)) { setError(new Error('Enter the number with country code, e.g. +14155550100.')); return; }
+    if (!E164.test(number)) { setError(new Error('Start with + and your country code, e.g. +14155550100.')); return; }
     const t = savedToken();
     if (t) begin(t); else { setError(null); setGate(true); }
   };

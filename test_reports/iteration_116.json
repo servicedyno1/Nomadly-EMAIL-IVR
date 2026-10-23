@@ -1,0 +1,49 @@
+{
+  "summary": "Tested the CloudIVR landing redesign, the free test call (OTP, limits, dry-run phases, browser line), checkout (wallet and crypto, auto-renew), crypto orders (simulate, underpaid then finish, cancel, isolation), number substitution and sign-out. Backend pytest: 11 of 13 tests pass (2 fails are real bugs). The UI flows work end-to-end once the dev overlay is hidden: email-gate OTP, then live ringing/connected/ended with key 1 lit, then done and 'Get your number', and reusing the email shows the 'already had its free test call' error. The buy flow shows no ID check, auto-renew is ON by default, the crypto order page works, simulate leads to order-success, and logout goes to /cloudivr. Main problems: (1) on the dev preview the R3F hero throws errors that bring up the CRA runtime overlay, which blocks every click on the landing page; (2) GET /numbers/orders is caught by GET /numbers/:phone and returns 404, so the open-order banner never works; (3) the same account can buy the same number twice; (4) a phone number typed without '+' is turned into a different country's number; (5) the IP limit can be bypassed with a spoofed X-Forwarded-For header.",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "GET /api/cloudivr-web/numbers/orders (and ?open=1)", "issue": "Always returns 404 {error:'not_found', message:'Number not found on your account.'} because numbers.routes registers GET /numbers/:phone BEFORE orders.routes registers GET /numbers/orders (index.js lines 40 and 44). The frontend open-order banner (BuyNumber.js:98 useApi('/numbers/orders?open=1')) never loads. GET /numbers/orders/:id is fine. Fix: register the orders routes before the numbers routes (pass numbersApi lazily), or in GET /numbers/:phone call next() when req.params.phone === 'orders'.", "priority": "HIGH"},
+      {"endpoint": "POST /numbers/checkout and /numbers/buy (numbers.js purchase/takenByOther)", "issue": "The same account can buy the SAME number more than once. Reproduced: search, buy +15632395927, search again (the same number comes back first), buy it again. Bob then held two active +15632395927 entries in phoneNumbersOf. takenByOther() excludes the buyer's own _id, and search results are not filtered against numbers already held in the DB. In dry-run the substitute picker can also pick a number the buyer already owns. Fix: reject the purchase if ANY account (including self) holds the number, and filter held numbers out of /numbers/search and searchSimilar.", "priority": "HIGH"}
+    ],
+    "minor": [
+      {"endpoint": "POST /public/try/call-me, /public/try/browser", "issue": "A number without a leading '+' is not rejected. normPhone adds '+', so '4155550123' becomes '+4155550123' (Switzerland, +41) and the call is accepted (201). A US visitor who types 4155550123 would trigger a call to a different country. The frontend TryCall.js:43/49 does the same. The spec expects 400 invalid_number. Fix: require '+' or '00' on raw input (or default to +1 only for 10-digit input)."},
+      {"endpoint": "trycall limits (auth.js clientIp)", "issue": "clientIp() trusts the first X-Forwarded-For value, which the client controls. Verified: sending X-Forwarded-For: 10.9.9.x was stored as the ip in webTryCodes. This means anyone can bypass the 3/day-per-network limit and the 6 codes/hour-per-IP limit. The device id is also client-supplied, so in practice the only real limit is one call per verified email. Fix: use the right-most trusted proxy hop (app.set('trust proxy', n) and req.ip) or the CF-Connecting-IP header in production."},
+      {"endpoint": "POST /numbers/checkout method=crypto", "issue": "WEB_DYNO_PAY_API_KEY is set in preview, so livePayments() is true and checkout creates a REAL DynoPay BTC address (not 'PREVIEW-MODE-DO-NOT-SEND-FUNDS'), and the order has preview:false. The order page shows the real address and QR next to the 'Preview: simulate payment' button. This is confusing and risky in preview. This explains the test expectation mismatch; confirm it is intended."},
+      {"endpoint": "orders.js activate() substitution message", "issue": "The message always says 'same price', but similar() also allows CHEAPER numbers (surcharge <=), and purchase() charges the substitute's own price. The order.price and the message can then be wrong. Minor."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Hero3D (landing hero R3F scene)", "issue": "On the dev preview the hero scene throws 'R3F: Span is not part of the THREE namespace' and then 'R3F: Cannot set \"x-line-number\"' plus 'Cannot convert undefined or null to object'. The CRA webpack-dev-server runtime-error overlay (iframe#webpack-dev-server-client-overlay) then covers the page and blocks ALL clicks (Playwright: 'iframe intercepts pointer events'). Root cause: the visual-edits babel plugin (frontend/plugins/visual-edits/babel-metadata-plugin.js, enabled in craco dev) (a) wraps dynamic JSX children of lowercase elements in <span style=display:contents> and (b) stamps x-id/x-file-name/x-line-number attributes on lowercase host elements. Inside an R3F <Canvas> these become THREE objects and props, which is invalid. The Boundary catches it, but the dev overlay still shows. A production build (no plugin) is unaffected. I wrapped the dynamic children in <>…</> (this fixed the 'Span' error), but the x-* attribute error remains. Fix: skip the babel metadata plugin for Hero3D.js (e.g. a filename guard in craco babel config), or build the scene with React.createElement / a non-JSX helper file.", "selector": "[data-testid='civr-hero-3d'] canvas", "priority": "HIGH"}
+    ],
+    "integration_issues": [
+      {"flow": "Buy page open-order banner", "issue": "useApi('/numbers/orders?open=1') gets 404 (route shadowing above), so buy-open-order-banner never shows unpaid crypto orders.", "affected_selectors": ["[data-testid='buy-open-order-banner']"]}
+    ],
+    "design_issues": [
+      {"screen": "Landing (desktop 1920 / mobile 390)", "issues": ["No horizontal overflow on either size; the marquee and glow overflow inside clipped containers, which is fine.", "No 'ID check' or 'verification' text anywhere on the public page, the buy page or the country select."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_cloudivr_trycall_orders.py", "/app/test_reports/pytest/pytest_cloudivr_trycall.xml"],
+  "action_items": [
+    "Fix route shadowing: GET /numbers/orders is caught by GET /numbers/:phone (js/cloudivr-web/index.js mount order)",
+    "Block buying a number that ANY account (including the buyer) already holds; filter held numbers out of search and searchSimilar",
+    "Make Hero3D compatible with the dev visual-edits babel plugin (it injects <span> and x-* props into R3F JSX), or exclude that file from the plugin; the dev error overlay blocks the whole landing page in preview",
+    "Reject or normalise try-call numbers without '+' instead of silently prefixing '+' (4155550123 becomes +41 Switzerland), in both the backend and TryCall.js",
+    "Do not trust a client-supplied X-Forwarded-For first hop for the try-call IP limits",
+    "Decide whether preview checkout should create real DynoPay addresses while the simulate button is shown"
+  ],
+  "critical_code_review_comments": [
+    "index.js: the numbers routes are mounted before the orders routes, so parameterised /numbers/:phone GET routes shadow static /numbers/orders",
+    "numbers.js takenByOther(): `_id: {$ne: chatId}` allows self-duplicates",
+    "trycall.js limit(): the IP and device ids both come from client-controlled headers",
+    "orders.js activate(): the 'same price' wording is wrong when a cheaper substitute is chosen; order.price is not updated to the substitute's price",
+    "numbers.js is about 400 lines; fine. The visual-edits plugin is incompatible with R3F, which matters for any future 3D component"
+  ],
+  "updated_files": ["/app/frontend/src/cloudivr/pages/landing/Hero3D.js (wrapped dynamic children of R3F <group> in fragments; this removes the 'Span' error only)", "/app/backend/tests/test_cloudivr_trycall_orders.py (new)"],
+  "success_rate": {"backend": "85% (11/13 pytest; failures = no-'+' number accepted, and GET /numbers/orders 404)", "frontend": "85% (all requested flows work once the dev overlay is hidden; the overlay blocks real preview users)"},
+  "seed_data_creation": "None kept. Test try-calls/codes (qa.*), Bob's test numbers and orders were deleted, and Bob's wallet was reset to usdIn 500 / usdOut 0.",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Use X-Forwarded-For + X-Civr-Device headers per scenario to isolate the try-call limits (the IP is read from the first XFF hop). webAccounts._id is a number (Bob 5000000000000002); phoneNumbersOf and walletOf use the string form. Clean up with db.phoneNumbersOf.updateOne({_id:'5000000000000002'},{$set:{'val.numbers':[]}}). In the UI, hide the dev overlay with page.add_style_tag('#webpack-dev-server-client-overlay{display:none!important}') until Hero3D is fixed. Crypto checkout in preview returns real DynoPay addresses (WEB_DYNO_PAY_API_KEY set). Substitution works: inserting another phoneNumbersOf doc holding the picked number, then simulate-payment, gives assignedNumber != picked, substitutedFrom = picked, and a message naming both.",
+  "rca of the issue": "Hero overlay: the dev-only babel visual-edits plugin rewrites lowercase JSX (adds a <span> wrapper and x-* attrs). R3F treats lowercase JSX as THREE constructors and props, which gives validateInstance and applyProps errors. The error boundary falls back, but the CRA overlay iframe still captures pointer events. Orders 404: Express matches routes in registration order, and numbers.routes (GET /numbers/:phone with the withNumber 404) is registered before orders.routes."
+}

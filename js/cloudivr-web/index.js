@@ -37,11 +37,13 @@ function createCloudIvrWeb(deps) {
     r.use(auth.requireUser)
     notify.routes(r, { h })
     wallet.routes(r, { db, h, coins: deps.coins, createCryptoDeposit: deps.createCryptoDeposit })
-    const numbersApi = numbers.routes(r, { ...deps, db, h })
+    // Orders go first so /numbers/orders is not caught by /numbers/:phone; numbersApi is filled in right after.
+    const numbersApi = {}
+    orders.routes(r, { ...deps, db, h, numbersApi, sendMail })
+    Object.assign(numbersApi, numbers.routes(r, { ...deps, db, h }))
     verification.routes(r, { ...deps, db, h, upload })
     audio.routes(r, { ...deps, db, h, upload })
     calls.routes(r, { ...deps, db, h, numbersApi })
-    orders.routes(r, { ...deps, db, h, numbersApi, sendMail })
     r.get('/dashboard', h(async (req, res) => {
       const id = req.webChatId
       const nums = await numbersApi.myNumbers(id)

@@ -1,4 +1,5 @@
 'use strict'
+const net = require('net')
 // CloudIVR web accounts: email + password (bcrypt), Google sign-in (own OAuth client id), httpOnly JWT cookie sessions,
 // lockout after repeated failures, emailed password reset. Accounts are web-only (not linked to Telegram).
 const crypto = require('crypto')
@@ -21,7 +22,26 @@ const secret = () => {
 }
 const sha = (s) => crypto.createHash('sha256').update(String(s)).digest('hex')
 const normEmail = (e) => String(e || '').trim().toLowerCase()
-const clientIp = (req) => String(req.headers['x-forwarded-for'] || req.ip || '').split(',')[0].trim()
+const PRIVATE_IP = /^(10\.|127\.|169\.254\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\.|::1$|f[cd][0-9a-f]{2}:|fe80:|::ffff:(10|127)\.|::ffff:192\.168\.)/i
+// Cloudflare edge ranges (cloudflare.com/ips). Cloudflare appends the real visitor to X-Forwarded-For just before its own hop.
+const CF_EDGE = new net.BlockList()
+for (const c of ['173.245.48.0/20', '103.21.244.0/22', '103.22.200.0/22', '103.31.4.0/22', '141.101.64.0/18', '108.162.192.0/18', '190.93.240.0/20', '188.114.96.0/20', '197.234.240.0/22', '198.41.128.0/17', '162.158.0.0/15', '104.16.0.0/13', '104.24.0.0/14', '172.64.0.0/13', '131.0.72.0/22', '2400:cb00::/32', '2606:4700::/32', '2803:f800::/32', '2405:b500::/32', '2405:8100::/32', '2a06:98c0::/29', '2c0f:f248::/32']) {
+  const [a, bits] = c.split('/')
+  CF_EDGE.addSubnet(a, Number(bits), a.includes(':') ? 'ipv6' : 'ipv4')
+}
+const isCfEdge = (ip) => { try { return net.isIP(ip) > 0 && CF_EDGE.check(ip, net.isIP(ip) === 6 ? 'ipv6' : 'ipv4') } catch (_) { return false } }
+// Real visitor IP. Left-most X-Forwarded-For entries are whatever the client sent, so they are never trusted:
+// Cloudflare's own header, else the hop just left of the right-most Cloudflare edge, else the right-most public hop.
+const clientIp = (req) => {
+  const cf = String(req.headers['cf-connecting-ip'] || '').trim()
+  if (cf) return cf
+  const hops = String(req.headers['x-forwarded-for'] || '').split(',').map(s => s.trim()).filter(Boolean)
+  let i = hops.length - 1
+  while (i >= 0 && !isCfEdge(hops[i])) i--
+  if (i >= 0) { while (i > 0 && isCfEdge(hops[i])) i--; return hops[i] }
+  for (let j = hops.length - 1; j >= 0; j--) if (!PRIVATE_IP.test(hops[j])) return hops[j]
+  return String(req.ip || '')
+}
 const isHttps = (req) => req.secure || /https/i.test(String(req.headers['x-forwarded-proto'] || '')) || /^https:/i.test(String(req.headers.origin || ''))
 
 function parseCookies(req) {

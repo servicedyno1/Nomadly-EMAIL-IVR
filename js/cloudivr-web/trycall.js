@@ -8,7 +8,8 @@ const phoneConfig = require('../phone-config')
 const { normPhone, E164 } = require('./numbers')
 const { secret, clientIp, sendMail, normEmail, EMAIL_RE } = require('./auth')
 
-const dryRun = () => process.env.WEB_CLOUDIVR_DRY_RUN === 'true'
+// WEB_TRYCALL_LIVE=true places real demo calls (and emails real codes) even on a dry-run preview.
+const dryRun = () => process.env.WEB_CLOUDIVR_DRY_RUN === 'true' && process.env.WEB_TRYCALL_LIVE !== 'true'
 const MAX_SECONDS = 60
 const RING_SECONDS = 30
 const DAILY_LIMIT = 3
@@ -54,8 +55,10 @@ function routes(router, { db, h, voiceService, telnyxApi, getTelnyxResources = (
     return null
   }
   function destination(raw) {
-    const to = normPhone(raw)
-    if (!E164.test(to)) return { err: 'Enter the phone number with country code, e.g. +14155550100.' }
+    const s = String(raw || '').trim()
+    // Must start with + or 00: guessing the country of a bare number could ring someone abroad.
+    const to = /^(\+|00)/.test(s) ? normPhone(s.replace(/^00/, '+')) : ''
+    if (!E164.test(to)) return { err: 'Enter the phone number with + and country code, e.g. +14155550100.' }
     if (phoneConfig.isBlockedPrefix(to) || voiceService.getIvrCallRate(to) > 0.5) return { err: 'Free test calls go to standard mobile and landline numbers only.' }
     return { to }
   }
