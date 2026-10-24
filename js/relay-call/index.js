@@ -256,6 +256,7 @@ async function settle(s, endedAt, cause) {
 
 const list = (chatId, limit = 30) => col.find({ chatId: String(chatId) }, { projection: { lines: { $slice: -1 } } }).sort({ createdAt: -1 }).limit(limit).toArray()
 async function remove(id, chatId) {
+  if (!(await col.findOne({ _id: String(id), chatId: String(chatId) }, { projection: { _id: 1 } }))) return { error: [404, 'not_found', 'Call not found.'] }
   if (sessions.has(String(id)) || await col.findOne({ _id: String(id), status: { $in: OPEN }, ...fresh() }, { projection: { _id: 1 } })) return { error: [409, 'live', 'Hang up before deleting this call.'] }
   const r = await col.deleteOne({ _id: String(id), chatId: String(chatId) })
   return r.deletedCount ? { ok: true } : { error: [404, 'not_found', 'Call not found.'] }

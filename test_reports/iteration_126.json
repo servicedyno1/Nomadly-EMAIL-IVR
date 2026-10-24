@@ -1,0 +1,29 @@
+{
+  "summary": "Retest of the iteration 125 action items for CloudIVR Text calls (preview DRY-RUN). Backend: node js/tests/relay_call_engine.test.js ALL PASS (including the restart-revive, one-live-call-after-restart and sweep bill-once cases); iter125 pytest 24/24 pass; Test2FA::test_totp_2fa passed 3 runs out of 3; new iter126 retest 4/4 pass (keypad order 1,#,2 in GET lines, 409 for a second live call, 409 for deleting a live call, hang up then delete then 404). UI at 1920x800: once the call is Connected the card scrolls into view, relay-input is visible (top 580, bottom 644 of 800) and focused, and the page does not jump on send. Key chips come out 1,#,2. Text size goes up and is saved. A double Enter sends once. The chat button shows. UI at 390x844: relay-to (+447911123456) is on its own row and not cut off. Status and Hang up are on the next row. Text size buttons are in the composer footer next to the keypad toggle, and the size is kept after a reload. relay-input is visible without scrolling (bottom 667, above the bottom nav). The 6 quick phrases are in one row. The chat button is hidden on text-call and shows on /app and /app/wallet. History delete opens the confirm dialog 'Delete this call and its transcript?'; after accepting, the row is removed. i18n ES/FR: pills show English|Español|Français; pricing lines, name hint, 'Completado'/'Terminé' and dates in the app language are all correct.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Composer.js send()", "issue": "The busy guard reads React state, so its value can be stale. Two Enter keydowns sent in the same JS task (synthetic dispatch) both post /say, which gives 2 copies of the message. Separate real key presses (Playwright press x2) send only once, so real users are unlikely to hit this. A useRef guard would make it solid.", "selector": "[data-testid=relay-input]", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Live text call header, mobile 390px", "issues": ["While the 'Reading aloud…' pill (relay-speaking) shows, Hang up wraps onto a third row. The card grows by about 50px and shrinks back each time speaking starts or stops, so the transcript and typing box move. Keep the pill's space reserved, or put it on the status row or inside the transcript."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_cloudivr_iter126_relay_retest.py", "/app/backend/tests/test_cloudivr_iter125_relay_textcalls.py", "/app/js/tests/relay_call_engine.test.js", "/app/test_reports/pytest/iter126.xml"],
+  "action_items": [
+    "Optional: in Composer.js, use a useRef in-flight flag (set synchronously) as well as the busy state, so that sends within the same task cannot double-post.",
+    "Optional: stop the mobile header jumping when the relay-speaking pill toggles."
+  ],
+  "critical_code_review_comments": [
+    "relay-call remove(): sessions.has(id) is checked before the chatId check, so it returns 409 'live' for another account's live call id. This is low risk because ids are UUIDs, but the ownership check should come first.",
+    "Quick phrase taps are silently ignored while a send is in flight (busy). Consider queueing them or showing them as disabled.",
+    "revive() settles dry-run calls right away after a restart. This is fine for preview, but a dry-run call in progress ends without a note to the user."
+  ],
+  "updated_files": ["/app/backend/tests/test_cloudivr_iter126_relay_retest.py"],
+  "success_rate": {"backend": "100%", "frontend": "97% (1 low-priority edge case)"},
+  "seed_data_creation": "Several dry-run text calls added to Alice's history. One old history row was deleted by the delete test, and one call was created and then deleted by the iter126 pytest.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Text-call item ids: relay-to, relay-status, relay-hangup-button, relay-input, relay-send-button, relay-keypad-toggle, relay-key-btn-{1..9,0,star,hash}, relay-text-smaller/bigger, relay-phrase-0..5, relay-history-delete-<id>, text-call-lang-<en|es|fr>, text-call-pricing. Language is in localStorage civr.lang; text size is in civr_relay_text_size. Only one live call per account: hang up when done. Do not run the whole iter124 file; use node ids."
+}

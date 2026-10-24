@@ -1014,3 +1014,17 @@ User inherited a fully-set-up Nomadly bot pod pointed at LIVE PRODUCTION. Task b
 - Owner decisions kept: NGN bank transfer NOT on web (wallet + crypto only); web languages EN/FR/ES.
 - Backlog: Google Calendar keys (owner), signed/expiring URLs for AI call recordings (P2), localize dates in FR/ES recording note (P3),
   first real Telnyx AI call + prod nginx WebSocket headers before deploy (P0 when going live). NOT pushed / NOT deployed.
+
+## 2026-10-24 — CloudIVR growth batch + Text calls (deaf / hard-of-hearing) — TESTED (iteration_124/125/126), preview only
+- Shipped (agent-tested, not user-confirmed): crypto plan upgrade, 2FA (authenticator app OR email code, 8 backup codes,
+  remember browser 30 days, email codes max 1/min, Google-only accounts can email a code to turn 2FA off), referrals ($10/$5),
+  feature suggestions with admin adopt + credit, mobile bottom-nav Inbox + "Suggest a feature" in More, call recording Pro+,
+  backup transfer numbers (forwarding / Quick IVR / campaigns; IVR-menu forward keys also use the number's forwarding backups —
+  owner confirmed), web SIP domain sip.cloudivr.net (bot keeps Speechcue).
+- NEW Text calls (/cloudivr/app/text-call, Pro+ caller number, call rate + $0.03/min, per started minute, transcripts 90 days):
+  user types → Telnyx speak; their speech → Telnyx real-time transcription (Google, interim results, track inbound; Telnyx
+  engine fallback); keypad DTMF for phone menus; quick phrases in EN/ES/FR; text size; flashing border on new speech;
+  history with transcript + delete. Engine js/relay-call/ (heartbeat, restart revive, stale-call sweep, bill-once ledger
+  callRef). Preview DRY-RUN uses a scripted pretend person (js/relay-call/preview.js) — **MOCKED in preview**.
+- Not done yet (owner list): number-compliance paperwork checklist, new logo + "real phone company" redesign
+  (blueprint in /app/design_guidelines.json), first real Telnyx text call test before going live.

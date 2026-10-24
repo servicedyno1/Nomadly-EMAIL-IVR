@@ -27,18 +27,19 @@ export function Composer({ call, maxText = 1000, extra }) {
   const [busy, setBusy] = useState(false);
   const [pad, setPad] = useState(false);
   const input = useRef(null);
+  const sending = useRef(false);
   const live = call.status === 'live';
   useEffect(() => { if (live) input.current?.focus({ preventScroll: true }); }, [live]);
   const send = async (t) => {
     const v = String(t ?? text).trim();
-    if (!v || !live || busy) return;
-    setBusy(true);
-    try { await api(`/relay/calls/${call.id}/say`, { method: 'POST', body: { text: v } }); if (t === undefined) setText(''); } catch (err) { toast.error(err.message); } finally { setBusy(false); }
+    if (!v || !live || sending.current) return;
+    sending.current = true; setBusy(true);
+    try { await api(`/relay/calls/${call.id}/say`, { method: 'POST', body: { text: v } }); if (t === undefined) setText(''); } catch (err) { toast.error(err.message); } finally { sending.current = false; setBusy(false); }
   };
   return (
     <div className="space-y-3" data-testid="relay-composer">
       <div className="flex gap-2 overflow-x-auto sm:flex-wrap pb-1 -mx-1 px-1" data-no-translate>
-        {(PHRASES[call.lang] || PHRASES.en).map((p, i) => <button key={p} type="button" disabled={!live} onClick={() => send(p)} className="civr-pill cursor-pointer !normal-case !tracking-normal !text-sm h-9 shrink-0 disabled:opacity-40" data-testid={`relay-phrase-${i}`}>{p}</button>)}
+        {(PHRASES[call.lang] || PHRASES.en).map((p, i) => <button key={p} type="button" disabled={!live || busy} onClick={() => send(p)} className="civr-pill cursor-pointer !normal-case !tracking-normal !text-sm h-9 shrink-0 disabled:opacity-40" data-testid={`relay-phrase-${i}`}>{p}</button>)}
       </div>
       <form onSubmit={(e) => { e.preventDefault(); send(); }} className="flex gap-2 items-end">
         <textarea ref={input} className="civr-input min-h-[56px] max-h-40 text-lg" rows={2} maxLength={maxText} disabled={!live} value={text} onChange={e => setText(e.target.value)} placeholder={live ? 'Type what they should hear…' : 'You can type once they answer'}

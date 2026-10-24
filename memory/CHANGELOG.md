@@ -2381,3 +2381,13 @@ User-approved order: #4 → #7 → #2 → #3 → #5 → #6. Sandbox-verified; pr
 - NEW `frontend/src/cloudivr/pages/quick/Draft.js` (useDraft + DraftBanner, testids quick-draft-banner/-resume/-discard), wired in QuickCall.js.
 - AuthContext logout clears `civr.quickDraft.*`; Shell.js catch-all route → dashboard. FR/ES strings added.
 - iteration_123: backend 4/4 (needCalendar), frontend 6/6.
+
+## 2026-10-24 — iteration 124 fixes + Text calls (iteration_125/126 green)
+- numbers.js parseBackups: rejects non-phone tokens; splits on , ; newline or space before "+"; PATCH forwarding skips backups when mode=disabled.
+- twofa.js: email code throttle (RESEND_SEC=60; re-login within a minute reuses the code), POST /auth/2fa/disable-code; Security.js "Email me a code" for Google-only email-2FA accounts.
+- ES "Off" → "desactivado"; MobileNav "Suggest a feature" (Settings#suggest auto-scroll); main pb-40 on mobile; dates follow app language (api.js when/day).
+- Text calls: js/relay-call/{index,preview}.js, js/cloudivr-web/relay.js (GET /relay/info, POST/GET /relay/calls, GET /relay/calls/:id, POST say/keys/hangup, DELETE),
+  voice-service webhook hook (client_state "text_relay"), _index.js init; phone-config textRelay (Pro/Business), WEB_FEATURES plan line;
+  UI pages/TextCall.js + pages/textcall/{Setup,Live,Transcript,Composer,History}.js; nav "Text calls"; support chat button hidden on that page on phones.
+- Tests: js/tests/relay_call_engine.test.js (live-mode engine with Telnyx stubbed, restart + sweep), backend/tests/test_cloudivr_iter125_relay_textcalls.py (24),
+  test_cloudivr_iter126_relay_retest.py (4), iter124 file (+TestBackups junk case, TestEmailThrottle, TOTP test de-flaked).

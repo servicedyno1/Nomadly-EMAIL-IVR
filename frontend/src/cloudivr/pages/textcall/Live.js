@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
-import { Copy, Loader2, Minus, PhoneOff, Plus, Volume2 } from 'lucide-react';
+import { Copy, Loader2, Minus, PhoneOff, Plus } from 'lucide-react';
 import { api, money, secs } from '../../api';
 import { Spinner } from '../../ui';
 import { Transcript, TEXT_SIZES } from './Transcript';
@@ -88,7 +88,6 @@ export function LiveCall({ id, onClose }) {
       <div className="flex flex-wrap items-center gap-3">
         <div className="basis-full sm:basis-auto sm:flex-1 min-w-0"><div className="font-mono text-lg truncate" data-testid="relay-to">{call.to}</div><div className="text-xs text-[#a1a1aa]">from {call.callerId} · {money(call.rate)}/min</div></div>
         <Status call={call} />
-        {call.speaking && <span className="civr-pill" data-testid="relay-speaking"><Volume2 className="w-3 h-3" />Reading aloud…</span>}
         {!ended && <button type="button" onClick={hang} disabled={ending} className="civr-btn civr-btn-danger civr-btn-sm ml-auto sm:ml-0" data-testid="relay-hangup-button"><PhoneOff className="w-4 h-4" />Hang up</button>}
       </div>
       <Transcript call={call} sizeIdx={size} flash={flash} />

@@ -107,3 +107,9 @@ Sources: `HOSTING_CAPABILITIES_2026-10.md` (H#) and `RESELLER_FEATURE_REQUESTS_2
 - P0: first real Telnyx AI call on the owner's test number; prod droplet nginx WebSocket Upgrade headers before deploy.
 - P1: verify Coupon countdown banner, Welcome card Telegram channel link, Sip.js central SIP list; end-to-end checkout (wallet + crypto only).
 - P1: AI agent call recordings + Google Calendar appointment booking — full spec in memory/NEXT_TASKS_2026-10-24.md.
+
+## CloudIVR backlog (updated 2026-10-24)
+- P0 before going live: one real Telnyx text call (speak + transcription_start on inbound track + DTMF) and real busy/no-answer backup cascade; prod nginx WebSocket headers for AI agents.
+- P1 (owner list, not started): number-compliance paperwork checklist (easy, step by step); new CloudIVR logo + "clean real phone company" redesign (design_guidelines.json).
+- P1: inbound text calls (answer your own number in the browser in text mode).
+- P2: Google Calendar keys (owner, later); signed/expiring URLs for AI recordings; localize remaining FR/ES recording notes.

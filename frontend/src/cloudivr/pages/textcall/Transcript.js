@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { Hash, Info } from 'lucide-react';
+import { Hash, Info, Volume2 } from 'lucide-react';
 
 const SIZES = ['text-base', 'text-lg', 'text-xl', 'text-2xl'];
 const NOTES = {
@@ -25,12 +25,13 @@ function Line({ l, size }) {
 export function Transcript({ call, sizeIdx, flash }) {
   const box = useRef(null);
   // Scroll only the conversation box (not the page) to the newest words.
-  useEffect(() => { const b = box.current; if (b) b.scrollTop = b.scrollHeight; }, [call.lines.length, call.interim]);
+  useEffect(() => { const b = box.current; if (b) b.scrollTop = b.scrollHeight; }, [call.lines.length, call.interim, call.speaking]);
   const size = SIZES[sizeIdx] || SIZES[1];
   return (
     <div ref={box} role="log" aria-live="polite" aria-label="Conversation" className={`h-[36vh] md:h-[40vh] min-h-[240px] overflow-y-auto space-y-3 p-4 md:p-5 rounded-2xl bg-[#0b0b0c] border transition-colors duration-300 ${flash ? 'border-[#34d399] civr-relay-flash' : 'border-white/10'}`} data-testid="relay-transcript">
       {call.lines.map(l => <Line key={l.n} l={l} size={size} />)}
       {call.interim && <div className="flex justify-start"><div className={`max-w-[85%] rounded-2xl rounded-bl-md px-4 py-2.5 border border-dashed border-[#34d399]/50 text-[#d4d4d8] italic ${size}`} data-testid="relay-interim"><span data-no-translate>{call.interim}</span><span className="civr-pulse not-italic text-[#34d399]"> ●</span></div></div>}
+      {call.speaking && call.status === 'live' && <div className="flex justify-end"><span className="inline-flex items-center gap-1.5 text-xs text-[#34d399]" data-testid="relay-speaking"><Volume2 className="w-3 h-3 civr-pulse" />Reading aloud…</span></div>}
       {!call.lines.some(l => l.who === 'them') && !call.interim && call.status === 'live' && <div className="text-center text-sm text-[#a1a1aa] pt-6" data-testid="relay-waiting">Waiting for them to speak…</div>}
     </div>
   );
