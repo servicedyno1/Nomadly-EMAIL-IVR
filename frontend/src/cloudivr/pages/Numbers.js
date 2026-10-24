@@ -4,11 +4,13 @@ import { Hash, ShoppingCart, ChevronRight } from 'lucide-react';
 import { useApi, day, money, enc } from '../api';
 import { PageHeader, Spinner, ErrorNote, Empty, statusPill } from '../ui';
 import { cp } from '../paths';
+import { usePrivacy } from '../privacy';
 
 const on = (f) => f?.enabled;
 
 export default function Numbers() {
   const { data, error, loading } = useApi('/numbers');
+  const pv = usePrivacy();
   const nums = data?.numbers || [];
   return (
     <div data-testid="numbers-page">
@@ -26,8 +28,8 @@ export default function Numbers() {
             <Link key={n.phoneNumber} to={cp(`/app/numbers/${enc(n.phoneNumber)}`)} className={`civr-card civr-card-link p-6 civr-rise civr-d${(i % 4) + 1}`} data-testid={`number-card-${i}`}>
               <div className="flex items-start justify-between">
                 <div>
-                  <div className="font-mono text-xl" data-testid={`number-card-${i}-phone`}>{n.phoneNumber}</div>
-                  <div className="text-xs text-[#9a9a9a] mt-1">{n.countryName || n.country} · {n.type?.replace('_', '-')}</div>
+                  <div className="font-mono text-xl" data-testid={`number-card-${i}-phone`}>{pv.phone(n.phoneNumber)}</div>
+                  <div className="text-xs text-[#a1a1aa] mt-1">{n.countryName || n.country} · {n.type?.replace('_', '-')}</div>
                 </div>
                 <span className={statusPill(n.status)} data-testid={`number-card-${i}-status`}>{n.status}</span>
               </div>
@@ -35,11 +37,13 @@ export default function Numbers() {
                 <span className="civr-pill">{n.planName} · {money(n.planPrice)}</span>
                 {on(n.features.ivr) && <span className="civr-pill civr-pill-on">IVR</span>}
                 {on(n.features.callForwarding) && <span className="civr-pill civr-pill-on">Forwarding</span>}
+                {on(n.features.hours) && <span className="civr-pill civr-pill-on" data-testid={`number-card-${i}-hours`}>Hours</span>}
                 {on(n.features.voicemail) && <span className="civr-pill civr-pill-on">Voicemail</span>}
                 {n.features.recording && <span className="civr-pill civr-pill-on">Recording</span>}
+                {n.isSubNumber && <span className="civr-pill" data-testid={`number-card-${i}-extra`}>Extra on {pv.phone(n.parentNumber)}</span>}
                 {n.dryRun && <span className="civr-pill civr-pill-warn">Preview</span>}
               </div>
-              <div className="flex items-center justify-between mt-6 text-xs text-[#9a9a9a]">
+              <div className="flex items-center justify-between mt-6 text-xs text-[#a1a1aa]">
                 <span>{n.autoRenew ? 'Renews' : 'Expires'} {day(n.expiresAt)}</span><ChevronRight className="w-4 h-4" />
               </div>
             </Link>

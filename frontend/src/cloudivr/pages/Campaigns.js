@@ -7,9 +7,13 @@ import { PageHeader, Field, Spinner, Empty, AudioSelect, KeyPicker, Toggle, Erro
 import { useCallerNumbers } from './QuickCall';
 import { DateTimePicker } from '../DateTimePicker';
 import { cp } from '../paths';
+import { usePrivacy } from '../privacy';
+import { MenuBuilder, menuToApi } from './quick/MenuBuilder';
+import { ScriptBox } from './quick/ScriptBox';
 
 export function Campaigns() {
   const { data, loading, error } = useApi('/campaigns');
+  const pv = usePrivacy();
   const list = data?.campaigns || [];
   return (
     <div data-testid="campaigns-page">
@@ -21,11 +25,11 @@ export function Campaigns() {
         <div className="space-y-3">
           {list.map((c, i) => (
             <Link key={c.id} to={cp(`/app/campaigns/${c.id}`)} className="civr-card civr-card-link p-6 flex flex-col md:flex-row md:items-center gap-3" data-testid={`campaign-row-${i}`}>
-              <div className="flex-1 min-w-0"><div className="font-semibold truncate">{c.audioName || 'Campaign'}</div><div className="text-xs text-[#9a9a9a] font-mono">{c.callerId} · {when(c.createdAt)}</div></div>
-              <div className="font-mono text-sm text-[#aaa]">{c.stats?.completed || 0}/{c.stats?.total || 0} called</div>
+              <div className="flex-1 min-w-0"><div className="font-semibold truncate">{c.audioName || 'Campaign'}</div><div className="text-xs text-[#a1a1aa] font-mono">{pv.phone(c.callerId)} · {when(c.createdAt)}</div></div>
+              <div className="font-mono text-sm text-[#d4d4d8]">{c.stats?.completed || 0}/{c.stats?.total || 0} called</div>
               <span className={statusPill(c.status)} data-testid={`campaign-row-${i}-status`}>{c.status}</span>
               {c.dryRun && <span className="civr-pill civr-pill-warn">preview</span>}
-              <ChevronRight className="w-4 h-4 text-[#8a8a8a]" />
+              <ChevronRight className="w-4 h-4 text-[#a1a1aa]" />
             </Link>
           ))}
         </div>
@@ -51,7 +55,7 @@ function Estimate({ est }) {
   return (
     <div className="civr-card p-4 text-sm space-y-1" data-testid="campaign-estimate">
       <div><span className="font-mono text-lg">{est.count}</span> valid numbers (max {est.max}) · about <span className="font-mono">{money(est.estimate.total)}</span> for 1 minute each</div>
-      <div className="text-xs text-[#888]">{est.estimate.rateLine}. Wallet needs at least {money(est.minWallet)} to start.</div>
+      <div className="text-xs text-[#a1a1aa]">{est.estimate.rateLine}. Wallet needs at least {money(est.minWallet)} to start.</div>
       {est.estimate.blockedLine && <div className="text-xs text-[#fbbf24]">{est.estimate.blockedLine.replace(/^\W+/, '')}</div>}
       {est.errors?.length > 0 && <div className="text-xs text-[#fb7185]">{est.errors.length} line(s) skipped: {est.errors.slice(0, 3).join(' · ')}</div>}
     </div>
@@ -61,8 +65,9 @@ function Estimate({ est }) {
 export function CampaignNew() {
   const nav = useNavigate();
   const { numbers, loading } = useCallerNumbers('bulkCall');
-  const { data: au } = useApi('/audio');
-  const [f, setF] = useState({ callerId: '', audioId: '', voicemailAudioId: '', leads: '', mode: 'report_only', transferNumber: '', activeKeys: ['1'], concurrency: 5, scheduledFor: '', holdMusic: false });
+  const { data: au, reload: reloadAudio } = useApi('/audio');
+  const [f, setF] = useState({ callerId: '', audioId: '', voicemailAudioId: '', leads: '', mode: 'report_only', transferNumber: '', activeKeys: ['1'], menu: [], concurrency: 5, scheduledFor: '', holdMusic: false });
+  const [script, setScript] = useState(null);
   const [est, setEst] = useState(null);
   const [busy, setBusy] = useState('');
   const [error, setError] = useState(null);
@@ -75,7 +80,7 @@ export function CampaignNew() {
   const create = async (e) => {
     e.preventDefault(); setBusy('create'); setError(null);
     try {
-      const body = { ...f, callerId, scheduledFor: f.scheduledFor ? new Date(f.scheduledFor).toISOString() : null };
+      const body = { ...f, callerId, menu: f.mode === 'menu' ? menuToApi(f.menu) : undefined, scheduledFor: f.scheduledFor ? new Date(f.scheduledFor).toISOString() : null };
       const d = await api('/campaigns', { method: 'POST', body });
       toast.success(d.skipped ? `Campaign saved · ${d.skipped} line(s) skipped` : 'Campaign saved');
       nav(cp(`/app/campaigns/${d.campaign.id}`));
@@ -89,6 +94,8 @@ export function CampaignNew() {
         <div className="civr-card p-6 space-y-6">
           <Field label="Caller ID"><select className="civr-input font-mono" value={callerId} onChange={set('callerId')} data-testid="campaign-caller-select">{numbers.map(n => <option key={n.phoneNumber}>{n.phoneNumber}</option>)}</select></Field>
           <Field label="Message"><AudioSelect value={f.audioId} onChange={set('audioId')} audios={au?.audios} by="id" testid="campaign-audio-select" /></Field>
+          {script ? <div className="border border-[#222] rounded-xl p-4"><ScriptBox value={script} onChange={setScript} onAudio={(a) => { reloadAudio(); setF(x => ({ ...x, audioId: a.id })); setScript(null); }} testid="campaign-script" /></div>
+            : <button type="button" className="civr-btn civr-btn-ghost civr-btn-sm" onClick={() => setScript({ text: '', values: {} })} data-testid="campaign-write-script-button">Write a script with a template instead</button>}
           <Field label="Voicemail drop (optional)" hint="Played when an answering machine picks up."><AudioSelect value={f.voicemailAudioId} onChange={set('voicemailAudioId')} audios={au?.audios} by="id" placeholder="None" testid="campaign-voicemail-audio-select" /></Field>
           <LeadsField value={f.leads} onChange={set('leads')} />
           <button type="button" className="civr-btn civr-btn-ghost civr-btn-sm" disabled={!f.leads.trim() || busy === 'est'} onClick={estimate} data-testid="campaign-estimate-button">{busy === 'est' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Calculator className="w-4 h-4" />}Check numbers &amp; cost</button>
@@ -96,13 +103,13 @@ export function CampaignNew() {
         </div>
         <div className="civr-card p-6 space-y-6 h-fit">
           <Field label="When someone presses a key">
-            <select className="civr-input" value={f.mode} onChange={set('mode')} data-testid="campaign-mode-select"><option value="report_only">Just report it</option><option value="transfer">Transfer the call to me</option></select>
+            <select className="civr-input" value={f.mode} onChange={set('mode')} data-testid="campaign-mode-select"><option value="report_only">Just report it</option><option value="transfer">Transfer the call to me</option><option value="menu">Route each key (menu)</option></select>
           </Field>
           {f.mode === 'transfer' && <Field label="Transfer to"><input className="civr-input font-mono" value={f.transferNumber} onChange={set('transferNumber')} placeholder="+14155550199" data-testid="campaign-transfer-input" /></Field>}
-          <Field label="Keys that count"><KeyPicker value={f.activeKeys} onChange={set('activeKeys')} testid="campaign-keys" /></Field>
+          {f.mode === 'menu' ? <MenuBuilder value={f.menu} onChange={set('menu')} testid="campaign-menu" /> : <Field label="Keys that count"><KeyPicker value={f.activeKeys} onChange={set('activeKeys')} testid="campaign-keys" /></Field>}
           <Field label="Calls at the same time"><input type="number" min={1} max={20} className="civr-input" value={f.concurrency} onChange={set('concurrency')} data-testid="campaign-concurrency-input" /></Field>
           <Field label="Schedule (optional)" hint="Leave empty to start manually."><DateTimePicker value={f.scheduledFor} onChange={set('scheduledFor')} testid="campaign-schedule" /></Field>
-          {f.mode === 'transfer' && <div className="flex items-center justify-between"><span className="text-sm">Hold music during transfer</span><Toggle checked={f.holdMusic} onChange={set('holdMusic')} testid="campaign-hold-music-toggle" /></div>}
+          {f.mode !== 'report_only' && <div className="flex items-center justify-between"><span className="text-sm">Hold music during transfer</span><Toggle checked={f.holdMusic} onChange={set('holdMusic')} testid="campaign-hold-music-toggle" /></div>}
           <ErrorNote error={error} testid="campaign-create-error" />
           <button className="civr-btn civr-btn-primary w-full" disabled={busy === 'create'} data-testid="campaign-create-button">{busy === 'create' && <Loader2 className="w-4 h-4 animate-spin" />}Save campaign</button>
         </div>

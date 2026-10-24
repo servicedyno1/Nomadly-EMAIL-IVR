@@ -7,6 +7,7 @@ const { walletOps, round2, livePayments } = require('./wallet')
 const numberHours = require('../number-hours')
 const vmGreeting = require('../voicemail-greeting')
 const notes = require('./notes')
+const notify = require('./notify')
 
 const TYPE_NAMES = { local: 'Local', toll_free: 'Toll-free', mobile: 'Mobile', national: 'National' }
 const FEATURE_KEYS = ['callForwarding', 'smsToEmail', 'smsWebhook', 'voicemail', 'sipCredentials', 'callRecording', 'ivr', 'ivrOutbound', 'bulkCall', 'otpCollection']
@@ -34,6 +35,7 @@ const WEB_FEATURES = [
   ['forwarding', 'Call forwarding to any phone', 'callForwarding'],
   ['hours', 'On/off hours for each number', null],
   ['notes', 'Call notes', null],
+  ['private', 'Private mode — hide numbers on screen', null],
   ['voicemail', 'Voicemail in 4 languages + transcripts', 'voicemail'],
   ['browserPhone', 'Browser phone & SIP for softphones', 'sipCredentials'],
   ['smsEmail', 'SMS to email & webhooks', 'smsToEmail'],
@@ -77,13 +79,22 @@ function publicVoicemail(vm) {
   return { enabled: !!v.enabled, greetingType: v.greetingType === 'custom' && url ? 'custom' : 'default', customGreetingUrl: url, forwardToEmail: v.forwardToEmail || null, ringTimeout: v.ringTimeout || 25, language: vmGreeting.LANGS[v.language] ? v.language : 'en', transcribe: v.transcribe !== false }
 }
 
+// What callers get right now, and which settings are skipped because another one answers first.
+function routeSummary(n) {
+  try {
+    const r = phoneConfig.getCallRouteSummary(n) || {}
+    return { primary: r.primary?.action || 'missed', forwardTo: r.primary?.forwardTo || null, skipped: r.skippedFeatures || [], brokenIvr: !!r.hasBrokenIvr }
+  } catch (_) { return { primary: 'missed', forwardTo: null, skipped: [] } }
+}
+
 function publicNumber(n) {
   const plan = phoneConfig.plans[n.plan] || {}
   const f = n.features || {}
   return {
     phoneNumber: n.phoneNumber, country: n.country, countryName: n.countryName, type: n.type,
     plan: n.plan, planName: plan.name || n.plan, planPrice: n.planPrice, status: n.status, autoRenew: n.autoRenew !== false,
-    purchaseDate: n.purchaseDate, expiresAt: n.expiresAt, isSubNumber: !!n.isSubNumber, dryRun: !!n.dryRun,
+    purchaseDate: n.purchaseDate, expiresAt: n.expiresAt, isSubNumber: !!n.isSubNumber, parentNumber: n.parentNumber || null, dryRun: !!n.dryRun,
+    routeSummary: routeSummary(n),
     capabilities: n.capabilities || { voice: true, sms: true, fax: false },
     usage: { minutesUsed: n.minutesUsed || 0, minutesIncluded: plan.minutes ?? null, smsUsed: n.smsUsed || 0, smsIncluded: plan.sms ?? null },
     sipUsername: n.telnyxSipUsername || n.sipUsername || null, sipDomain: n.sipDomain || phoneConfig.SIP_DOMAIN,
@@ -92,6 +103,7 @@ function publicNumber(n) {
       voicemail: publicVoicemail(f.voicemail),
       hours: f.hours || numberHours.defaultHours(),
       smsForwarding: f.smsForwarding || { toTelegram: true, toEmail: null, webhookUrl: null },
+      fax: { toInbox: f.faxForwarding?.toTelegram !== false },
       recording: !!f.recording,
       ivr: f.ivr || { enabled: false, options: {} },
     },
@@ -102,6 +114,9 @@ function publicNumber(n) {
 // audioOk(url) → true when the url is one of the account's own library files.
 function validateIvr(body, plan, audioOk = () => true) {
   const ivr = body || {}
+  // Spoken menu language = the web app's language when saved (unset/other = English).
+  const language = vmGreeting.IVR_LANGS.includes(ivr.language) ? ivr.language : 'en'
+  const speech = vmGreeting.ivrSpeech(language)
   const audio = (url, where) => {
     if (!url) return null
     if (!audioOk(url)) throw new Error(`${where}: pick an audio file from your library.`)
@@ -128,7 +143,7 @@ function validateIvr(body, plan, audioOk = () => true) {
         if (depth > 0) throw new Error('Sub-menus can only be one level deep.')
         const sub = o.subMenu || {}
         const subAudio = audio(sub.greetingAudioUrl, `Key ${digit} sub-menu`)
-        out[digit] = { action, label, subMenu: { greetingType: subAudio ? 'audio' : 'text', greeting: String(sub.greeting || 'Please select an option.').slice(0, 1000), greetingAudioUrl: subAudio, options: clean(sub.options, 1) } }
+        out[digit] = { action, label, subMenu: { greetingType: subAudio ? 'audio' : 'text', greeting: String(sub.greeting || speech.sub).slice(0, 1000), greetingAudioUrl: subAudio, options: clean(sub.options, 1) } }
       } else throw new Error(`Key ${digit}: unknown action "${action}".`)
     }
     return out
@@ -139,8 +154,8 @@ function validateIvr(body, plan, audioOk = () => true) {
   return {
     enabled: !!ivr.enabled,
     greetingType: greetingAudioUrl ? 'audio' : 'text',
-    greeting: String(ivr.greeting || 'Thank you for calling. Please select an option.').slice(0, 1000),
-    greetingAudioUrl,
+    greeting: String(ivr.greeting || speech.greeting).slice(0, 1000),
+    greetingAudioUrl, language,
     voice: ivr.voice || null, speed: Number(ivr.speed) || 1,
     options,
   }
@@ -246,7 +261,10 @@ function routes(router, deps) {
   }
 
   // Debits the wallet and activates the number → { status, body } (HTTP-style; refunds on failure).
-  async function purchaseLocked({ chatId, email, phone, planKey, hit, country, type, areaCode, autoRenew = true, viaOrder = null }) {
+  // `sub` = { parentNumber, plan } adds the number to an existing plan (flat extra-number price, parent's plan features).
+  // `coupon` = { code, type, discount } from deps.resolveCoupon (percent off; redeemed only after success).
+  async function purchaseLocked({ chatId, email, phone, planKey, hit, country, type, areaCode, autoRenew = true, viaOrder = null, sub = null, coupon = null }) {
+    if (sub) planKey = sub.plan
     const plan = phoneConfig.plans[planKey]
     if (!plan || !phoneConfig.isPlanAvailable(planKey)) return { status: 400, body: { error: 'invalid_plan', message: 'That plan is not available.' } }
     const holder = await holderOf(phone)
@@ -258,14 +276,15 @@ function routes(router, deps) {
     const c = countries().find(x => x.code === country)
     const ver = await verificationInfo(country, type, `${c.flag} ${c.name}`)
     if (ver.error) return { status: 424, body: { error: 'lookup_failed', message: ver.error } }
-    const price = round2(plan.price + (hit.surcharge || 0))
+    const base = sub ? phoneConfig.SUB_NUMBER_BASE_PRICE : plan.price + (hit.surcharge || 0)
+    const price = round2(base * (1 - (Number(coupon?.discount) || 0) / 100))
     if (!(await w.debit(chatId, price))) return { status: 402, body: { error: 'insufficient_balance', message: `This number costs $${price.toFixed(2)}. Your wallet has $${(await w.balance(chatId)).toFixed(2)} — top up first.` } }
 
     let selected = phone
     try {
       const tr = getTelnyxResources() || {}
       // hold: web verifications never expire or auto-refund — the number waits until the owner finishes.
-      const ctx = { countryCode: country, numberType: type, areaCode, planKey, price, paymentMethod: viaOrder ? 'crypto_order' : 'wallet_usd', refund: { currency: 'usd', amount: price }, capabilities: hit.capabilities, numberCost: hit.cost, countryName: `${c.flag} ${c.name}`, lang: 'en', hold: true }
+      const ctx = { countryCode: country, numberType: type, areaCode, planKey, price, paymentMethod: viaOrder ? 'crypto_order' : 'wallet_usd', refund: { currency: 'usd', amount: price }, capabilities: hit.capabilities, numberCost: hit.cost, countryName: `${c.flag} ${c.name}`, lang: 'en', hold: true, isSubNumber: !!sub }
       let order
       if (!ver.required && dryRun()) order = { id: `dryrun-${crypto.randomUUID().slice(0, 8)}` }
       else order = await paidCheckout(chatId, phone, ctx)
@@ -288,10 +307,10 @@ function routes(router, deps) {
       const expiresAt = new Date(); expiresAt.setMonth(expiresAt.getMonth() + 1)
       const doc = {
         phoneNumber: selected, telnyxOrderId: order.id, provider: 'telnyx', country, countryName: c.name,
-        type, plan: planKey, planPrice: price, purchaseDate: new Date().toISOString(), expiresAt: expiresAt.toISOString(), autoRenew: autoRenew !== false, status: 'active',
+        type, plan: planKey, planPrice: round2(base), purchaseDate: new Date().toISOString(), expiresAt: expiresAt.toISOString(), autoRenew: autoRenew !== false, status: 'active',
         sipUsername, sipPassword, telnyxSipUsername: tUser, telnyxSipPassword: tPass, telnyxCredentialId: tCredId, sipDomain: phoneConfig.SIP_DOMAIN,
         messagingProfileId: caps.sms ? tr.messagingProfileId || null : null, connectionId: tr.sipConnectionId || null, smsUsed: 0, minutesUsed: 0,
-        capabilities: caps, channel: 'web', ...(dryRun() ? { dryRun: true } : {}),
+        capabilities: caps, channel: 'web', ...(dryRun() ? { dryRun: true } : {}), ...(sub ? { isSubNumber: true, parentNumber: sub.parentNumber } : {}),
         features: {
           sms: caps.sms,
           callForwarding: { enabled: false, mode: 'disabled', forwardTo: null, ringTimeout: 25, holdMusic: false },
@@ -301,9 +320,13 @@ function routes(router, deps) {
         },
       }
       await phoneNumbersOf.updateOne({ _id: chatId }, { $push: { 'val.numbers': doc } }, { upsert: true })
-      await phoneTransactions.insertOne({ chatId, phoneNumber: selected, action: 'purchase', plan: planKey, amount: price, paymentMethod: viaOrder ? 'crypto_order' : 'wallet_usd', ...(viaOrder ? { orderRef: viaOrder } : {}), channel: 'web', timestamp: new Date().toISOString() })
+      await phoneTransactions.insertOne({ chatId, phoneNumber: selected, action: sub ? 'purchase_sub' : 'purchase', plan: planKey, amount: price, paymentMethod: viaOrder ? 'crypto_order' : 'wallet_usd', ...(viaOrder ? { orderRef: viaOrder } : {}), ...(sub ? { parentNumber: sub.parentNumber } : {}), ...(coupon ? { coupon: coupon.code, discountPct: coupon.discount } : {}), channel: 'web', timestamp: new Date().toISOString() })
+      if (coupon?.code) {
+        if (deps.redeemCoupon) await Promise.resolve(deps.redeemCoupon(chatId, coupon.code, coupon.type)).catch(() => {})
+        await notify.push(chatId, `Coupon ${coupon.code} applied: ${coupon.discount}% off ${selected}. You saved $${round2(base - price).toFixed(2)}.`, null, { kind: 'coupon', meta: { coupon: coupon.code, discount: coupon.discount, used: true } }).catch(() => {})
+      }
       await txn(chatId, 'phone-number', price, { phoneNumber: selected, plan: planKey, provider: 'telnyx', country })
-      notifyAdmin(`🌐 CloudIVR web purchase${dryRun() ? ' (DRY RUN)' : ''}${viaOrder ? ' · crypto checkout' : ''}\nweb account: ${chatId} (${email})\nnumber: ${selected} (${country})\nplan: ${plan.name} $${price}`)
+      notifyAdmin(`🌐 CloudIVR web purchase${dryRun() ? ' (DRY RUN)' : ''}${viaOrder ? ' · crypto checkout' : ''}\nweb account: ${chatId} (${email})\nnumber: ${selected} (${country})${sub ? `\nextra number on ${sub.parentNumber}` : ''}\nplan: ${plan.name} $${price}${coupon ? ` (coupon ${coupon.code} −${coupon.discount}%)` : ''}`)
       await searchCache.deleteOne({ _id: chatId })
       return { status: 201, body: { number: publicNumber(doc), substitutedFrom: selected !== phone ? phone : null, balance: await w.balance(chatId) } }
     } catch (e) {
@@ -313,10 +336,31 @@ function routes(router, deps) {
     }
   }
 
+  // Same coupon codes as the bot (static, daily, win-back, welcome) → { code, type, discount } or { error, message }.
+  async function checkCoupon(chatId, raw) {
+    const code = String(raw || '').trim().toUpperCase().slice(0, 40)
+    if (!code) return { error: true, message: 'Enter a coupon code.' }
+    const r = deps.resolveCoupon ? await deps.resolveCoupon(code, chatId).catch(() => null) : null
+    if (r?.error === 'already_used') return { error: true, message: 'You have already used this coupon.' }
+    if (!r || !(Number(r.discount) > 0)) return { error: true, message: 'That coupon code is not valid.' }
+    return { code: String(r.code || code).toUpperCase(), type: r.type || 'static', discount: Math.min(90, Number(r.discount)) }
+  }
+  router.post('/coupons/check', h(async (req, res) => {
+    const c = await checkCoupon(req.webChatId, req.body.code)
+    if (c.error) return bad(res, 400, 'invalid_coupon', c.message)
+    const amount = Number(req.body.amount) || 0
+    res.json({ code: c.code, discount: c.discount, ...(amount > 0 ? { newPrice: round2(amount * (1 - c.discount / 100)) } : {}) })
+  }))
+
   router.post('/numbers/buy', h(async (req, res) => {
     const picked = await pickFromSearch(req.webChatId, req.body.phoneNumber)
     if (!picked) return bad(res, 400, 'search_again', 'That number is no longer in your search results. Search again and pick a number.')
-    const r = await purchase({ chatId: req.webChatId, email: req.webUser.email, phone: normPhone(req.body.phoneNumber), planKey: String(req.body.plan || ''), autoRenew: req.body.autoRenew !== false, ...picked })
+    let coupon = null
+    if (req.body.coupon) {
+      coupon = await checkCoupon(req.webChatId, req.body.coupon)
+      if (coupon.error) return bad(res, 400, 'invalid_coupon', coupon.message)
+    }
+    const r = await purchase({ chatId: req.webChatId, email: req.webUser.email, phone: normPhone(req.body.phoneNumber), planKey: String(req.body.plan || ''), autoRenew: req.body.autoRenew !== false, coupon, ...picked })
     res.status(r.status).json(r.body)
   }))
 
@@ -343,7 +387,7 @@ function routes(router, deps) {
     const url = req.body.greetingType === 'custom' ? String(req.body.customGreetingUrl || '') : ''
     if (url && !(await ownAudioUrls(req.webChatId)).has(url)) return bad(res, 400, 'invalid_audio', 'Pick a greeting from your audio library.')
     const language = req.body.language === undefined ? (req.num.features?.voicemail?.language || 'en') : String(req.body.language)
-    if (!vmGreeting.LANGS[language]) return bad(res, 400, 'invalid_language', 'Pick English, French, Portuguese or Arabic.')
+    if (!vmGreeting.LANGS[language]) return bad(res, 400, 'invalid_language', 'Pick English, French, Spanish, Portuguese or Arabic.')
     const value = {
       ...(req.num.features?.voicemail || {}), enabled: !!req.body.enabled, greetingType: url ? 'custom' : 'default',
       // The call engine plays customAudioGreetingUrl; customGreetingUrl is kept for older readers.
@@ -463,13 +507,22 @@ function routes(router, deps) {
   router.post('/numbers/:phone/upgrade', withNumber(async (req, res) => {
     const n = req.num, newPlan = String(req.body.plan || '')
     const order = Object.keys(phoneConfig.plans)
+    if (n.isSubNumber) return bad(res, 400, 'is_extra', 'Extra numbers follow the plan of their main number.')
     if (!phoneConfig.plans[newPlan] || order.indexOf(newPlan) <= order.indexOf(n.plan)) return bad(res, 400, 'invalid_plan', 'Pick a higher plan than the current one.')
     const q = phoneConfig.computeUpgradeQuote(n, newPlan)
     const charge = round2(q && Number.isFinite(q.chargeAmount) ? q.chargeAmount : phoneConfig.plans[newPlan].price)
-    if (req.body.confirm !== true) return res.json({ quote: { charge, credit: round2(q?.credit || 0), newPrice: phoneConfig.plans[newPlan].price } })
+    if (req.body.confirm !== true) return res.json({ quote: { charge, credit: round2(q?.credit || 0), newPrice: round2(phoneConfig.plans[newPlan].price + Math.max(0, (n.planPrice || phoneConfig.plans[n.plan].price) - phoneConfig.plans[n.plan].price)) } })
     if (!(await w.debit(req.webChatId, charge))) return bad(res, 402, 'insufficient_balance', `The upgrade costs $${charge.toFixed(2)}. Top up your wallet first.`)
-    const newPrice = phoneConfig.plans[newPlan].price
-    await phoneNumbersOf.updateOne({ _id: req.webChatId, 'val.numbers.phoneNumber': n.phoneNumber }, { $set: { 'val.numbers.$.plan': newPlan, 'val.numbers.$.planPrice': newPrice, 'val.numbers.$.sipDisabled': false } })
+    // Keep the number's surcharge (e.g. international) on top of the new plan price, as downgrade does.
+    const surcharge = Math.max(0, round2((n.planPrice || phoneConfig.plans[n.plan].price) - phoneConfig.plans[n.plan].price))
+    const newPrice = round2(phoneConfig.plans[newPlan].price + surcharge)
+    // Switch back on what a downgrade turned off, when the new plan includes it.
+    const set = { 'val.numbers.$.plan': newPlan, 'val.numbers.$.planPrice': newPrice, 'val.numbers.$.sipDisabled': false }
+    const saved = n.downgradeSaved || []
+    for (const x of saved) if (phoneConfig.canAccessFeature(newPlan, x.key)) set[`val.numbers.$.${x.path}`] = x.value
+    set['val.numbers.$.downgradeSaved'] = saved.filter(x => !phoneConfig.canAccessFeature(newPlan, x.key))
+    await phoneNumbersOf.updateOne({ _id: req.webChatId, 'val.numbers.phoneNumber': n.phoneNumber }, { $set: set })
+    await phoneNumbersOf.updateOne({ _id: req.webChatId }, { $set: { 'val.numbers.$[s].plan': newPlan } }, { arrayFilters: [{ 's.isSubNumber': true, 's.parentNumber': n.phoneNumber }] }).catch(() => {})
     await phoneTransactions.insertOne({ chatId: req.webChatId, phoneNumber: n.phoneNumber, action: 'upgrade', oldPlan: n.plan, newPlan, oldPrice: n.planPrice, newPrice, amount: charge.toFixed(2), credit: round2(q?.credit || 0).toFixed(2), paymentMethod: 'wallet_usd', channel: 'web', timestamp: new Date().toISOString() })
     await txn(req.webChatId, 'phone-upgrade', charge, { phoneNumber: n.phoneNumber, plan: newPlan })
     res.json({ plan: newPlan, charged: charge, balance: await w.balance(req.webChatId) })
@@ -489,7 +542,7 @@ function routes(router, deps) {
     res.json({ released: true })
   }))
 
-  return { myNumbers, findMine, purchase, pickFromSearch, searchSimilar }
+  return { myNumbers, findMine, purchase, pickFromSearch, searchSimilar, setField, checkCoupon, unheld, ownAudioUrls }
 }
 
-module.exports = { routes, catalog, publicNumber, publicVoicemail, validateIvr, normPhone, countries, E164, webFeatures, recommendedPlan, WEB_FEATURES }
+module.exports = { routes, catalog, routeSummary, publicNumber, publicVoicemail, validateIvr, normPhone, countries, E164, webFeatures, recommendedPlan, WEB_FEATURES }

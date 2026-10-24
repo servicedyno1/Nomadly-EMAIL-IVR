@@ -27,6 +27,15 @@ export async function api(path, { method = 'GET', body, form } = {}) {
 }
 
 export const enc = (s) => encodeURIComponent(s);
+// Saves an API file (e.g. a CSV report) with the session cookie.
+export async function downloadFile(path, name) {
+  const res = await fetch(`${BASE}${path}`, { credentials: 'include' });
+  if (!res.ok) throw new ApiError(res.status, await res.json().catch(() => ({})));
+  const url = URL.createObjectURL(await res.blob());
+  const a = Object.assign(document.createElement('a'), { href: url, download: name });
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
 // Library audio is served by this app's own API host, so playback works on every environment.
 export const playUrl = (u) => { const f = String(u || '').split('/assets/user-audio/')[1]; return f ? `${API_ROOT}/api/assets/user-audio/${f}` : u; };
 export const money = (n) => `$${Number(n || 0).toFixed(2)}`;

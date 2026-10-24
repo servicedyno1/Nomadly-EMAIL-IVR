@@ -8,6 +8,7 @@ import Landing from './pages/Landing';
 import { AuthPage, ForgotPage, ResetPage } from './pages/AuthPages';
 import Shell from './Shell';
 import { cp, IS_CIVR_DOMAIN } from './paths';
+import { LangProvider } from './i18n';
 
 const TITLE = 'CloudIVR — Cloud phone numbers, IVR & SIP';
 
@@ -32,6 +33,7 @@ export default function CloudIvrApp() {
   }, []);
   return (
     <div className="civr" data-testid="cloudivr-app">
+     <LangProvider>
       <CivrAuthProvider>
         <Toaster theme="dark" position="bottom-right" mobileOffset={{ bottom: 88 }} richColors closeButton visibleToasts={3} />
         <Routes>
@@ -45,6 +47,7 @@ export default function CloudIvrApp() {
           <Route path="*" element={<Navigate to={cp()} replace />} />
         </Routes>
       </CivrAuthProvider>
+     </LangProvider>
     </div>
   );
 }

@@ -18,7 +18,7 @@ function Steps({ status }) {
   return (
     <ol className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-6" data-testid="order-steps">
       {STEPS.map((s, i) => (
-        <li key={s} className={`civr-card px-4 py-3 text-xs font-mono uppercase tracking-wider flex items-center gap-2 ${i <= at ? 'text-[#34d399] border-[#34d399]/40' : 'text-[#8a8a8a]'}`} data-testid={`order-step-${i}`}>
+        <li key={s} className={`civr-card px-4 py-3 text-xs font-mono uppercase tracking-wider flex items-center gap-2 ${i <= at ? 'text-[#34d399] border-[#34d399]/40' : 'text-[#a1a1aa]'}`} data-testid={`order-step-${i}`}>
           {i < at || at === 3 ? <Check className="w-4 h-4" /> : i === at ? <span className="w-2 h-2 rounded-full bg-[#34d399] civr-pulse" /> : <span className="w-2 h-2 rounded-full bg-[#333]" />}{s}
         </li>
       ))}
@@ -35,7 +35,7 @@ function Deposit({ o, busy, onCheck, onCancel, onSimulate }) {
         <div className="min-w-0 space-y-4">
           <div><div className="text-xs text-[#a1a1aa]">Send exactly</div><div className="font-mono text-2xl" data-testid="order-deposit-amount">{o.amountCrypto ? `${o.amountCrypto} ${o.coin}` : `${money(o.price)} in ${o.coin}`}</div></div>
           <div><div className="text-xs text-[#a1a1aa]">To address</div>
-            <div className="flex items-center gap-2"><code className="text-sm break-all" data-testid="order-deposit-address">{o.address}</code>{!o.preview && <button onClick={() => copy(o.address)} className="w-11 h-11 shrink-0 flex items-center justify-center text-[#9a9a9a] hover:text-[#34d399]" aria-label="Copy address" data-testid="order-copy-address-btn"><Copy className="w-4 h-4" /></button>}</div>
+            <div className="flex items-center gap-2"><code className="text-sm break-all" data-testid="order-deposit-address">{o.address}</code>{!o.preview && <button onClick={() => copy(o.address)} className="w-11 h-11 shrink-0 flex items-center justify-center text-[#a1a1aa] hover:text-[#34d399]" aria-label="Copy address" data-testid="order-copy-address-btn"><Copy className="w-4 h-4" /></button>}</div>
           </div>
           <p className="text-xs text-[#a1a1aa]">We check for your payment every 15 seconds. You can leave this page — the number activates on its own and you’ll see it in your inbox.</p>
         </div>
@@ -70,7 +70,7 @@ function Outcome({ o, balance, busy, onFinish }) {
   if (o.status === 'underpaid') return (
     <div className="civr-card p-6" data-testid="order-underpaid">
       <div className="flex items-center gap-2 text-[#fbbf24] font-semibold"><AlertTriangle className="w-5 h-5" />Payment came in short</div>
-      <p className="text-sm text-[#a1a1aa] mt-2">{o.message} Wallet balance: <span className="font-mono text-[#ddd]">{money(balance)}</span>.</p>
+      <p className="text-sm text-[#a1a1aa] mt-2">{o.message} Wallet balance: <span className="font-mono text-[#f4f4f5]">{money(balance)}</span>.</p>
       <div className="flex flex-wrap gap-2 mt-6">
         <button className="civr-btn civr-btn-primary" onClick={onFinish} disabled={!!busy || balance < o.price} data-testid="order-finish-btn">{busy === 'finish' && <Loader2 className="w-4 h-4 animate-spin" />}Finish with wallet</button>
         <Link to={cp(`/app/wallet?need=${Math.max(0, o.price - balance).toFixed(2)}`)} className="civr-btn civr-btn-ghost" data-testid="order-add-funds-link">Add funds</Link>

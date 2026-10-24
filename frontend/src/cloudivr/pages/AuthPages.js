@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { LangSwitcher } from '../i18n';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { GoogleOAuthProvider, GoogleLogin } from '@react-oauth/google';
 import { toast } from 'sonner';
@@ -34,7 +35,7 @@ function GoogleButton({ dest, signup }) {
           }}
           onError={() => toast.error('Google sign-in was cancelled or failed.')} />
       </div>
-      <div className="flex items-center gap-4 my-6 text-xs text-[#9a9a9a] font-mono uppercase tracking-widest"><span className="flex-1 h-px bg-[#222]" />or<span className="flex-1 h-px bg-[#222]" /></div>
+      <div className="flex items-center gap-4 my-6 text-xs text-[#a1a1aa] font-mono uppercase tracking-widest"><span className="flex-1 h-px bg-[#222]" />or<span className="flex-1 h-px bg-[#222]" /></div>
     </GoogleOAuthProvider>
   );
 }
@@ -56,7 +57,7 @@ function SidePanel({ signup }) {
           </ol>
         </div>
       ) : <p className="font-display text-5xl font-extrabold leading-[0.95] max-w-md">Your numbers, IVR and campaigns — one dashboard.</p>}
-      <div className="text-xs text-[#9a9a9a] font-mono uppercase tracking-widest">Free to sign up · No contracts</div>
+      <div className="text-xs text-[#a1a1aa] font-mono uppercase tracking-widest">Free to sign up · No contracts</div>
     </div>
   );
 }
@@ -68,8 +69,9 @@ function AuthFrame({ title, sub, children, testid, signup }) {
       <div className="flex flex-col min-h-screen">
         <div className="lg:hidden flex items-center justify-between px-6 h-16 border-b border-[#1a1a1a]">
           <Link to={cp()} className="font-display text-2xl font-extrabold" data-testid="auth-mobile-logo-link">CLOUD<span className="text-[#34d399]">IVR</span></Link>
-          <Link to={cp()} className="flex items-center gap-2 text-sm text-[#a1a1aa] hover:text-white py-3" data-testid="auth-mobile-home-link"><ArrowLeft className="w-4 h-4" />Home</Link>
+          <div className="flex items-center gap-1"><LangSwitcher testid="auth-mobile-lang-switcher" /><Link to={cp()} className="flex items-center gap-2 text-sm text-[#a1a1aa] hover:text-white py-3" data-testid="auth-mobile-home-link"><ArrowLeft className="w-4 h-4" />Home</Link></div>
         </div>
+        <div className="hidden lg:flex justify-end px-8 pt-6"><LangSwitcher testid="auth-lang-switcher" /></div>
         <div className="flex-1 flex items-center justify-center px-6 py-12">
           <div className="w-full max-w-sm civr-rise">
             <h1 className="font-display text-4xl font-extrabold">{title}</h1>
@@ -87,7 +89,7 @@ function PasswordInput({ value, onChange, minLength, autoComplete, testid, toggl
   return (
     <div className="relative">
       <input className="civr-input !pr-12" type={show ? 'text' : 'password'} required minLength={minLength} value={value} onChange={onChange} autoComplete={autoComplete} data-testid={testid} />
-      <button type="button" onClick={() => setShow(s => !s)} className="absolute right-0 top-0 h-full w-11 flex items-center justify-center text-[#9a9a9a] hover:text-white" aria-label={show ? 'Hide password' : 'Show password'} data-testid={toggleTestid}>
+      <button type="button" onClick={() => setShow(s => !s)} className="absolute right-0 top-0 h-full w-11 flex items-center justify-center text-[#a1a1aa] hover:text-white" aria-label={show ? 'Hide password' : 'Show password'} data-testid={toggleTestid}>
         {show ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
       </button>
     </div>

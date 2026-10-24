@@ -3,15 +3,15 @@ import { Loader2, Lock } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { cp } from './paths';
 
-export const Label = ({ children }) => <div className="civr-label mb-2">{children}</div>;
+export const Label = ({ children }) => <div className="civr-label mb-3">{children}</div>;
 
 export function PageHeader({ label, title, sub, children, testid }) {
   return (
     <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between mb-8 civr-rise" data-testid={testid}>
       <div>
         {label && <Label>{label}</Label>}
-        <h1 className="font-display text-4xl sm:text-5xl font-extrabold leading-none">{title}</h1>
-        {sub && <p className="text-sm md:text-base text-[#888] mt-3 max-w-2xl">{sub}</p>}
+        <h1 className="font-display text-4xl sm:text-5xl font-extrabold leading-[1.05] text-[#f3f4f6]">{title}</h1>
+        {sub && <p className="text-sm md:text-base text-[#a1a1aa] mt-3 max-w-2xl">{sub}</p>}
       </div>
       {children && <div className="flex flex-wrap gap-2">{children}</div>}
     </div>
@@ -21,15 +21,15 @@ export function PageHeader({ label, title, sub, children, testid }) {
 export function Field({ label, hint, children }) {
   return (
     <label className="block">
-      <span className="block text-xs font-medium text-[#aaa] mb-1.5">{label}</span>
+      <span className="block text-[13px] font-medium text-[#d4d4d8] mb-1.5">{label}</span>
       {children}
-      {hint && <span className="block text-xs text-[#8a8a8a] mt-1.5">{hint}</span>}
+      {hint && <span className="block text-xs text-[#a1a1aa] mt-1.5">{hint}</span>}
     </label>
   );
 }
 
 export function Spinner({ label = 'Loading…', testid = 'loading-indicator' }) {
-  return <div className="flex items-center gap-2 text-sm text-[#888] py-10" data-testid={testid}><Loader2 className="w-4 h-4 animate-spin" />{label}</div>;
+  return <div className="flex items-center gap-2 text-sm text-[#a1a1aa] py-10" data-testid={testid}><Loader2 className="w-4 h-4 animate-spin" />{label}</div>;
 }
 
 export function ErrorNote({ error, testid = 'error-message' }) {
@@ -40,9 +40,9 @@ export function ErrorNote({ error, testid = 'error-message' }) {
 export function Empty({ icon: Icon, title, sub, children, testid }) {
   return (
     <div className="civr-card p-10 text-center" data-testid={testid}>
-      {Icon && <Icon className="w-8 h-8 mx-auto text-[#8a8a8a] mb-4" />}
+      {Icon && <Icon className="w-8 h-8 mx-auto text-[#a1a1aa] mb-4" />}
       <div className="font-display text-2xl font-bold">{title}</div>
-      {sub && <p className="text-sm text-[#888] mt-2 max-w-md mx-auto">{sub}</p>}
+      {sub && <p className="text-sm text-[#a1a1aa] mt-2 max-w-md mx-auto">{sub}</p>}
       {children && <div className="mt-6 flex justify-center gap-2">{children}</div>}
     </div>
   );
@@ -55,7 +55,7 @@ export function Locked({ feature, phone, need }) {
       <Lock className="w-6 h-6 text-[#fbbf24]" />
       <div className="flex-1">
         <div className="font-semibold" data-testid="feature-locked-title">{need ? `${feature} is on the ${need} plan and up` : `${feature} needs a higher plan`}</div>
-        <div className="text-sm text-[#888]">Upgrade this number in its Billing tab to unlock it — you only pay the difference for the days left.</div>
+        <div className="text-sm text-[#a1a1aa]">Upgrade this number in its Billing tab to unlock it — you only pay the difference for the days left.</div>
       </div>
       <Link to={cp(`/app/numbers/${encodeURIComponent(phone)}?tab=billing`)} className="civr-btn civr-btn-primary civr-btn-sm" data-testid="feature-locked-upgrade-link">Upgrade this number</Link>
     </div>
@@ -96,7 +96,7 @@ export function KeyPicker({ value, onChange, testid }) {
     <div className="flex flex-wrap gap-1.5" data-testid={testid}>
       {keys.map(k => (
         <button key={k} type="button" onClick={() => toggle(k)} data-testid={`${testid}-${k === '*' ? 'star' : k === '#' ? 'hash' : k}`}
-          className={`w-11 h-11 rounded-lg font-mono text-sm border transition-colors ${value.includes(k) ? 'border-[#34d399] text-[#34d399] bg-[#34d399]/10' : 'border-[#2a2a2a] text-[#888] hover:text-white'}`}>{k}</button>
+          className={`w-11 h-11 rounded-lg font-mono text-sm border transition-colors ${value.includes(k) ? 'border-[#34d399] text-[#34d399] bg-[#34d399]/10' : 'border-[#2a2a2a] text-[#a1a1aa] hover:text-white'}`}>{k}</button>
       ))}
     </div>
   );

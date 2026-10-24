@@ -5,6 +5,7 @@ import { money, day, enc, startPrice } from '../../api';
 import { useShell } from '../../Shell';
 import { statusPill } from '../../ui';
 import { cp } from '../../paths';
+import { usePrivacy } from '../../privacy';
 
 // First-run checklist shown until the account owns a number.
 export function GetStarted({ balance }) {
@@ -24,7 +25,7 @@ export function GetStarted({ balance }) {
           const active = i === current;
           return (
             <li key={x.id} className={`flex flex-wrap sm:flex-nowrap items-center gap-4 rounded-xl border p-4 md:p-6 ${active ? 'border-[#34d399]/40 bg-[#34d399]/5' : 'border-[#222]'}`} data-testid={`get-started-step-${x.id}`}>
-              <span className={`w-10 h-10 rounded-full flex items-center justify-center font-mono shrink-0 ${x.done ? 'bg-[#34d399] text-[#04130d]' : active ? 'border border-[#34d399] text-[#34d399]' : 'border border-[#333] text-[#9a9a9a]'}`}>{x.done ? <Check className="w-5 h-5" /> : i + 1}</span>
+              <span className={`w-10 h-10 rounded-full flex items-center justify-center font-mono shrink-0 ${x.done ? 'bg-[#34d399] text-[#04130d]' : active ? 'border border-[#34d399] text-[#34d399]' : 'border border-[#333] text-[#a1a1aa]'}`}>{x.done ? <Check className="w-5 h-5" /> : i + 1}</span>
               <div className="flex-1 min-w-0"><div className={`font-semibold ${x.done ? 'text-[#a1a1aa]' : ''}`}>{x.title}</div><div className="text-sm text-[#a1a1aa] mt-1">{x.sub}</div></div>
               {x.done && <span className="civr-pill civr-pill-on" data-testid={`get-started-${x.id}-done`}>Done</span>}
               {x.to && !x.done && <Link to={x.to} className={`civr-btn w-full sm:w-auto ${active ? 'civr-btn-primary' : 'civr-btn-ghost'}`} data-testid={`get-started-${x.id}-button`}>{x.cta}<ArrowRight className="w-4 h-4" /></Link>}
@@ -38,6 +39,7 @@ export function GetStarted({ balance }) {
 
 // Existing accounts: their numbers with renewal dates + a warning when the wallet can't cover the next renewal.
 export function YourNumbers({ nums, balance }) {
+  const pv = usePrivacy();
   if (!nums) return null;
   const next = nums.filter(n => n.autoRenew && n.status === 'active' && n.expiresAt).sort((a, b) => new Date(a.expiresAt) - new Date(b.expiresAt))[0];
   const shortBy = next ? Math.round(((next.planPrice || 0) - balance) * 100) / 100 : 0;
@@ -47,7 +49,7 @@ export function YourNumbers({ nums, balance }) {
       {shortBy > 0 && (
         <div className="flex flex-col sm:flex-row sm:items-center gap-4 rounded-xl border border-[#fbbf24]/40 bg-[#fbbf24]/5 p-4 my-4" data-testid="dashboard-low-balance-warning">
           <AlertTriangle className="w-5 h-5 text-[#fbbf24] shrink-0" />
-          <div className="flex-1 text-sm">Your wallet ({money(balance)}) won’t cover the next renewal: <span className="font-mono">{next.phoneNumber}</span> renews {day(next.expiresAt)} for {money(next.planPrice)}.</div>
+          <div className="flex-1 text-sm">Your wallet ({money(balance)}) won’t cover the next renewal: <span className="font-mono">{pv.phone(next.phoneNumber)}</span> renews {day(next.expiresAt)} for {money(next.planPrice)}.</div>
           <Link to={cp(`/app/wallet?need=${shortBy}`)} className="civr-btn civr-btn-primary civr-btn-sm" data-testid="dashboard-low-balance-add-funds">Add funds</Link>
         </div>
       )}
@@ -55,14 +57,14 @@ export function YourNumbers({ nums, balance }) {
         {nums.slice(0, 5).map((n, i) => (
           <Link key={n.phoneNumber} to={cp(`/app/numbers/${enc(n.phoneNumber)}`)} className="flex items-center gap-4 py-4 -mx-2 px-2 rounded-lg hover:bg-[#111] transition-colors" data-testid={`dashboard-number-${i}`}>
             <div className="flex-1 min-w-0">
-              <div className="font-mono text-lg truncate">{n.phoneNumber}</div>
-              <div className="text-xs text-[#9a9a9a] mt-1">{n.countryName || n.country} · {n.planName} · {n.autoRenew ? 'renews' : 'expires'} {day(n.expiresAt)}</div>
+              <div className="font-mono text-lg truncate" data-testid={`dashboard-number-${i}-phone`}>{pv.phone(n.phoneNumber)}</div>
+              <div className="text-xs text-[#a1a1aa] mt-1">{n.countryName || n.country} · {n.planName} · {n.autoRenew ? 'renews' : 'expires'} {day(n.expiresAt)}</div>
             </div>
-            <span className={statusPill(n.status)}>{n.status}</span><ChevronRight className="w-4 h-4 text-[#8a8a8a]" />
+            <span className={statusPill(n.status)}>{n.status}</span><ChevronRight className="w-4 h-4 text-[#a1a1aa]" />
           </Link>
         ))}
       </div>
-      {next && shortBy <= 0 && <div className="text-xs text-[#9a9a9a] mt-4" data-testid="dashboard-next-renewal">Next renewal: <span className="font-mono">{next.phoneNumber}</span> on {day(next.expiresAt)} · {money(next.planPrice)} from your wallet</div>}
+      {next && shortBy <= 0 && <div className="text-xs text-[#a1a1aa] mt-4" data-testid="dashboard-next-renewal">Next renewal: <span className="font-mono">{pv.phone(next.phoneNumber)}</span> on {day(next.expiresAt)} · {money(next.planPrice)} from your wallet</div>}
     </div>
   );
 }

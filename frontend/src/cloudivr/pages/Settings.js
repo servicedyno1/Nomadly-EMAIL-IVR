@@ -1,11 +1,14 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { Loader2, LogOut } from 'lucide-react';
+import { Loader2, LogOut, Send, LifeBuoy } from 'lucide-react';
 import { api, day } from '../api';
 import { useCivrAuth } from '../AuthContext';
 import { PageHeader, Field } from '../ui';
+import { LANGS, useLang } from '../i18n';
+import { useVoices, VoiceSelect } from '../VoiceMaker';
 import { cp } from '../paths';
+import { useShell } from '../Shell';
 
 function Profile({ account, setAccount }) {
   const [name, setName] = useState(account.name || '');
@@ -43,6 +46,51 @@ function Password({ account, refresh }) {
   );
 }
 
+function Language() {
+  const { lang, setLang } = useLang();
+  return (
+    <div className="civr-card p-6 space-y-4" data-testid="settings-language-card">
+      <div className="font-display text-2xl font-bold">Language</div>
+      <p className="text-sm text-[#a1a1aa]">The whole app, including the home page. We start with your browser’s language.</p>
+      <div className="flex flex-wrap gap-2" data-no-translate>{LANGS.map(([c, name]) => <button key={c} type="button" onClick={() => setLang(c)} aria-pressed={lang === c} className={`civr-pill cursor-pointer !normal-case !tracking-normal !text-sm h-10 ${lang === c ? 'civr-pill-on' : ''}`} data-testid={`settings-lang-${c}`}>{name}</button>)}</div>
+    </div>
+  );
+}
+
+function DefaultVoice() {
+  const { voices, speeds, def, canSave } = useVoices();
+  const [v, setV] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const cur = v || def;
+  const save = async () => { setBusy(true); try { await api('/prefs/voice', { method: 'PUT', body: cur }); toast.success('Default voice saved'); } catch (e) { toast.error(e.message); } finally { setBusy(false); } };
+  return (
+    <div className="civr-card p-6 space-y-4" data-testid="settings-voice-card">
+      <div className="font-display text-2xl font-bold">Default AI voice</div>
+      <p className="text-sm text-[#a1a1aa]">Used for every new script and AI voice message so your calls always sound the same.</p>
+      {canSave ? <>
+        <div className="flex flex-wrap gap-2"><VoiceSelect value={cur.voice} onChange={(x) => setV({ ...cur, voice: x })} voices={voices} testid="settings-voice-select" />
+          <select className="civr-input !w-24" value={cur.speed} onChange={e => setV({ ...cur, speed: Number(e.target.value) })} data-testid="settings-speed-select" aria-label="Speed">{speeds.map(s => <option key={s} value={s}>{`${s}×`}</option>)}</select></div>
+        <button className="civr-btn civr-btn-primary" disabled={busy} onClick={save} data-testid="settings-voice-save-button">{busy && <Loader2 className="w-4 h-4 animate-spin" />}Save voice</button>
+      </> : <div className="text-sm text-[#fbbf24]" data-testid="settings-voice-locked">A saved default voice is on the Business plan.</div>}
+    </div>
+  );
+}
+
+function Community() {
+  const { catalog } = useShell();
+  if (!catalog?.channelLink && !catalog?.supportLink) return null;
+  return (
+    <div className="civr-card p-6 space-y-4" data-testid="settings-community">
+      <div className="font-display text-2xl font-bold">Community & help</div>
+      <p className="text-sm text-[#a1a1aa]">News, new countries and daily coupons on our Telegram channel. Questions? Our team answers on Telegram.</p>
+      <div className="flex flex-wrap gap-2">
+        {catalog.channelLink && <a href={catalog.channelLink} target="_blank" rel="noopener noreferrer" className="civr-btn civr-btn-ghost civr-btn-sm" data-testid="settings-channel-link"><Send className="w-4 h-4" />Telegram channel</a>}
+        {catalog.supportLink && <a href={catalog.supportLink} target="_blank" rel="noopener noreferrer" className="civr-btn civr-btn-ghost civr-btn-sm" data-testid="settings-support-link"><LifeBuoy className="w-4 h-4" />Message support</a>}
+      </div>
+    </div>
+  );
+}
+
 export default function Settings() {
   const { account, setAccount, refresh, logout } = useCivrAuth();
   const nav = useNavigate();
@@ -51,7 +99,7 @@ export default function Settings() {
       <PageHeader label="Account" title="Settings" sub="This web account is separate from any Telegram bot account." testid="settings-header">
         <button className="civr-btn civr-btn-ghost civr-btn-sm" onClick={async () => { nav(cp(), { replace: true }); await logout(); }} data-testid="settings-logout-button"><LogOut className="w-4 h-4" />Sign out</button>
       </PageHeader>
-      <div className="grid lg:grid-cols-2 gap-4 max-w-5xl"><Profile account={account} setAccount={setAccount} /><Password account={account} refresh={refresh} /></div>
+      <div className="grid lg:grid-cols-2 gap-4 max-w-5xl"><Profile account={account} setAccount={setAccount} /><Password account={account} refresh={refresh} /><Language /><DefaultVoice /><Community /></div>
     </div>
   );
 }

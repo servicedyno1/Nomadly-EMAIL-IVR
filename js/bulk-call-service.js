@@ -1699,6 +1699,7 @@ function getCampaignMapping(callSid) {
 
 module.exports = {
   initBulkCallService,
+  generateReportFile,
   
   registerRoutes,
   recoverRunningCampaigns,

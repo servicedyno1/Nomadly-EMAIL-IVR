@@ -3778,7 +3778,8 @@ async function handleCallAnswered(payload) {
   // 2. IVR — Business plan only (only reached when forwarding is NOT in "always" mode)
   if (ivrConfig?.enabled && canAccessFeature(num.plan, 'ivr') && ivrConfig.options && Object.keys(ivrConfig.options).length > 0) {
     session.phase = 'ivr'
-    const greeting = ivrConfig.greeting || 'Thank you for calling. Please listen to the following options.'
+    const ivrL = vmGreeting.ivrSpeech(ivrConfig.language)
+    const greeting = ivrConfig.greeting || ivrL.fallback
     log(`[Voice] Starting IVR for ${num.phoneNumber}`)
 
     // (#9) Play audio greeting if available, otherwise use TTS
@@ -3795,6 +3796,7 @@ async function handleCallAnswered(payload) {
         maxDigits: 1,
         timeout: 15000,
         validDigits: Object.keys(ivrConfig.options).join(''),
+        language: ivrL.tts,
       })
     }
     return
@@ -3939,6 +3941,7 @@ async function handleGatherEnded(payload) {
   const digits = payload.digits || ''
   const { num, chatId } = session
   const ivrConfig = num.features?.ivr
+  const ivrL = vmGreeting.ivrSpeech(ivrConfig?.language)
 
   // ── 2026-08-03: Multi-layer IVR — resolve option through session.ivrPath ──
   // If session.ivrPath is set, we're inside a sub-menu and the digit resolves
@@ -3958,14 +3961,15 @@ async function handleGatherEnded(payload) {
   if (!digits || !optionsMap?.[digits]) {
     if (!session.ivrRetried) {
       session.ivrRetried = true
-      await _telnyxApi.gatherDTMF(callControlId, 'Sorry, that was not a valid option. Please try again.', {
+      await _telnyxApi.gatherDTMF(callControlId, ivrL.invalid, {
         minDigits: 1,
         maxDigits: 1,
         timeout: 10000,
         validDigits: Object.keys(optionsMap || {}).join('') || '0123456789',
+        language: ivrL.tts,
       })
     } else {
-      await _telnyxApi.speakOnCall(callControlId, 'Goodbye.')
+      await _telnyxApi.speakOnCall(callControlId, ivrL.goodbye, 'female', ivrL.tts)
       setTimeout(() => _telnyxApi.hangupCall(callControlId), 2000)
     }
     return
@@ -3982,9 +3986,7 @@ async function handleGatherEnded(payload) {
     session.ivrRetried = false // reset retry counter for the new menu level
     const sub = option.subMenu || {}
     const validDigits = Object.keys(sub.options || {}).join('') || '0123456789'
-    const greetingText = (sub.greetingType === 'text' || sub.greetingType === 'default')
-      ? (sub.greeting || 'Please select an option.')
-      : (sub.greeting || 'Please select an option.')
+    const greetingText = sub.greeting || ivrL.sub
     try {
       if (sub.greetingType === 'audio' && sub.greetingAudioUrl && _telnyxApi.gatherDTMFWithAudio) {
         await _telnyxApi.gatherDTMFWithAudio(callControlId, sub.greetingAudioUrl, {
@@ -3999,13 +4001,14 @@ async function handleGatherEnded(payload) {
           maxDigits: 1,
           timeout: 10000,
           validDigits,
+          language: ivrL.tts,
         })
       }
       // Notify owner that a caller entered the sub-menu
       _bot?.sendMessage(chatId, `📞 <b>IVR Call — Key ${digits}</b>\nFrom: ${session.from}\n📂 Entering sub-menu <b>${escapeHtml(option.label && option.label.trim() ? option.label.trim() : 'Sub-Menu ' + digits)}</b> (${Object.keys(sub.options || {}).length} options)`, { parse_mode: 'HTML' }).catch(() => {})
     } catch (e) {
       log(`[Voice] Sub-menu gather failed: ${e.message}`)
-      await _telnyxApi.speakOnCall(callControlId, 'An error occurred. Goodbye.')
+      await _telnyxApi.speakOnCall(callControlId, ivrL.error, 'female', ivrL.tts)
       setTimeout(() => _telnyxApi.hangupCall(callControlId), 2000)
     }
     return
@@ -4046,7 +4049,7 @@ async function handleGatherEnded(payload) {
 
     case 'voicemail':
       session.phase = 'voicemail_greeting'
-      await _telnyxApi.speakOnCall(callControlId, 'Please leave a message after the tone.')
+      await _telnyxApi.speakOnCall(callControlId, ivrL.leaveMessage, 'female', ivrL.tts)
       break
 
     case 'message':
@@ -4076,17 +4079,17 @@ async function handleGatherEnded(payload) {
           await _telnyxApi.playbackStart(callControlId, audioUrl)
         } catch (e) {
           log(`[Voice] IVR message audio playback failed, falling back to TTS: ${e.message}`)
-          await _telnyxApi.speakOnCall(callControlId, option.message || 'Thank you for calling.')
+          await _telnyxApi.speakOnCall(callControlId, option.message || ivrL.thanks, 'female', ivrL.tts)
         }
       } else {
-        await _telnyxApi.speakOnCall(callControlId, option.message || 'Thank you for calling.')
+        await _telnyxApi.speakOnCall(callControlId, option.message || ivrL.thanks, 'female', ivrL.tts)
       }
       setTimeout(() => _telnyxApi.hangupCall(callControlId), 8000)
       notifyUser(chatId, num, 'ivr_message', session, { digit: digits, message: option.message })
       break
 
     default:
-      await _telnyxApi.speakOnCall(callControlId, 'Goodbye.')
+      await _telnyxApi.speakOnCall(callControlId, ivrL.goodbye, 'female', ivrL.tts)
       setTimeout(() => _telnyxApi.hangupCall(callControlId), 2000)
   }
 }

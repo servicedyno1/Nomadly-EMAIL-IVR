@@ -24,7 +24,7 @@ import json
 import sys
 
 # Configuration
-BASE_URL = "https://app-vault-launch-1.preview.emergentagent.com"
+BASE_URL = "https://ivr-features-lab.preview.emergentagent.com"
 
 # Test accounts (seeded in LOCAL DB - safe to use)
 GOLD_ACCOUNT = {"username": "goldtest", "pin": "123456"}
