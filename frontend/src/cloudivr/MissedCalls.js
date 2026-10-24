@@ -1,13 +1,15 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { PhoneMissed } from 'lucide-react';
 import { useApi, when } from './api';
 import { usePrivacy } from './privacy';
 import { TextBack } from './QuickReply';
+import { RING_ENDED } from './Incoming';
 
 // Inbox: recent missed callers (7 days) with a one-tap "Text back".
 export function MissedCalls() {
   const pv = usePrivacy();
   const { data, reload } = useApi('/missed-calls');
+  useEffect(() => { window.addEventListener(RING_ENDED, reload); return () => window.removeEventListener(RING_ENDED, reload); }, [reload]);
   const calls = data?.calls || [];
   if (!calls.length) return null;
   return (
@@ -19,7 +21,7 @@ export function MissedCalls() {
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
               <PhoneMissed className="w-4 h-4 text-[#fb7185] shrink-0" />
               <span className="font-mono" data-no-translate data-testid={`inbox-missed-${i}-from`}>{pv.phone(c.from)}</span>
-              <span className="text-xs text-[#a1a1aa]">to <span className="font-mono" data-no-translate>{pv.phone(c.phone)}</span> · {when(c.timestamp)}</span>
+              <span className="text-xs text-[#a1a1aa]" data-testid={`inbox-missed-${i}-to`}>{`Called ${pv.phone(c.phone)} · ${when(c.timestamp)}`}</span>
               {c.type === 'voicemail' && <span className="civr-pill">Voicemail</span>}
             </div>
             <TextBack id={c.id} reply={c.reply} canReply={c.canReply} onDone={reload} testid={`inbox-missed-${i}-reply`} />

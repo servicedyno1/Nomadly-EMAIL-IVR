@@ -36,7 +36,7 @@ function Notes({ num }) {
     <ul className="text-xs text-[#a1a1aa] space-y-2 list-disc pl-4" data-testid="browser-ring-notes">
       {blocked.length > 0 && <li className="text-[#fbbf24]" data-testid="browser-ring-blocked-note">{`Right now ${blocked.join(' and ')}, so calls to this number will not ring in the browser.`}</li>}
       {num.sipUsername
-        ? <li data-testid="browser-ring-voice-note">{`Voice: the browser phone connects by itself while the app is open${here ? ` (${rtc.status === 'ready' ? 'online now' : rtc.msg || 'offline'})` : ''}.`}</li>
+        ? <li data-testid="browser-ring-voice-note"><span>Voice: the browser phone connects by itself while the app is open.</span>{here && <span className={`ml-1 ${rtc.status === 'ready' ? 'text-[#34d399]' : ''}`} data-testid="browser-ring-voice-status">{rtc.status === 'ready' ? 'Online now.' : 'Offline right now.'}</span>}{here && rtc.status !== 'ready' && rtc.msg && <span className="block mt-1">{rtc.msg}</span>}</li>
         : <li data-testid="browser-ring-voice-note">To also answer by voice, create a SIP login in the <Link to={cp(`/app/numbers/${enc(num.phoneNumber)}?tab=sip`)} className="text-[#34d399] underline">SIP tab</Link>.</li>}
       {info && <li>{`Text: same price as text calls — ${money(info.usRate + info.relayRate)}/min US & Canada, ${money(info.intlRate + info.relayRate)}/min international, from your wallet. Not counted in plan minutes.`}</li>}
       <li>{`Rings for ${f.callForwarding?.ringTimeout || 25} seconds. If nobody answers, the call goes to your usual fallback (forwarding when not answered, voicemail, or a missed call).`}</li>

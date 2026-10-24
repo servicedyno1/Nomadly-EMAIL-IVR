@@ -9,6 +9,9 @@ import { useRtc } from './rtc';
 import { every, useRingNotify, useTitleFlash } from './ringAlerts';
 import { QuickReply } from './QuickReply';
 
+// Fired when a ringing call goes away (answered elsewhere, declined, timed out) so lists like the Inbox can refresh.
+export const RING_ENDED = 'civr:ring-ended';
+const ended = () => [1500, 6000].forEach(ms => setTimeout(() => window.dispatchEvent(new Event(RING_ENDED)), ms));
 const same = (a, b) => a.length === b.length && a.every((c, i) => c.id === b[i].id && c.answerMode === b[i].answerMode);
 
 // Calls ringing for this account. Polling also tells the server this tab is open, so new calls ring here.
@@ -28,14 +31,14 @@ function useRinging() {
         gone.current.forEach(id => { if (!ids.has(id)) gone.current.delete(id); });
         if (d.now) setSkew(Date.now() - Date.parse(d.now));
         const next = d.calls.filter(c => !gone.current.has(c.id));
-        setCalls(prev => (same(prev, next) ? prev : next));
+        setCalls(prev => { if (prev.some(c => !ids.has(c.id))) ended(); return same(prev, next) ? prev : next; });
       } catch (_) { /* next tick */ } finally { busy = false; }
     };
     tick();
     const stop = every(2000, tick);
     return () => { alive = false; stop(); };
   }, []);
-  const drop = useCallback((id) => { gone.current.add(id); setCalls(l => l.filter(c => c.id !== id)); }, []);
+  const drop = useCallback((id) => { gone.current.add(id); setCalls(l => l.filter(c => c.id !== id)); ended(); }, []);
   return { calls, skew, drop };
 }
 
@@ -55,7 +58,7 @@ function Caller({ c, more, skew }) {
       <div className="min-w-0">
         <div className="text-xs font-mono uppercase tracking-widest text-[#34d399]" data-testid="incoming-label">{more > 0 ? `Incoming call · ${more} more ringing` : 'Incoming call'}</div>
         <div className="font-mono text-2xl sm:text-3xl font-bold text-white truncate" data-no-translate data-testid="incoming-from">{c.from ? pv.phone(c.from) : '—'}</div>
-        <div className="text-xs sm:text-sm text-[#a1a1aa]">to <span className="font-mono text-[#e4e4e7]" data-no-translate data-testid="incoming-to">{pv.phone(c.phone)}</span></div>
+        <div className="text-xs sm:text-sm text-[#a1a1aa]" data-testid="incoming-to">{`To your number ${pv.phone(c.phone)}`}</div>
         <Countdown c={c} skew={skew} />
       </div>
     </div>
@@ -67,7 +70,7 @@ function Actions({ c, busy, voiceFirst, onText, onVoice, onDecline }) {
   return (
     <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2 md:justify-end shrink-0">
       {!c.rtcOnly && <button type="button" onClick={() => onText()} disabled={!c.canText || !!busy} className={`${voiceFirst ? lo : hi} col-span-2 sm:col-span-1`} data-testid="incoming-text-button">{busy === 'text' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Keyboard className="w-4 h-4" />}Answer as text</button>}
-      <button type="button" onClick={onVoice} disabled={!c.canVoice || !!busy} className={`${voiceFirst ? hi : lo} ${c.rtcOnly ? 'col-span-2 sm:col-span-1' : ''}`} data-testid="incoming-voice-button"><Phone className="w-4 h-4" />Answer with voice</button>
+      <button type="button" onClick={onVoice} disabled={!c.canVoice || !!busy} className={`${voiceFirst ? hi : lo} ${c.rtcOnly ? 'col-span-2 sm:col-span-1' : ''}`} data-testid="incoming-voice-button"><Phone className="w-4 h-4" /><span className="sm:hidden">Voice</span><span className="hidden sm:inline">Answer with voice</span></button>
       <button type="button" onClick={onDecline} disabled={!!busy} className="civr-btn civr-btn-danger" data-testid="incoming-decline-button">{busy === 'decline' ? <Loader2 className="w-4 h-4 animate-spin" /> : <PhoneOff className="w-4 h-4" />}Decline</button>
     </div>
   );
@@ -139,7 +142,7 @@ function IncomingBanner({ c, more, skew, drop, ringing, openPhone }) {
   const voiceNote = waitVoice && !ringing ? (rtc.status === 'error' && rtc.phone === c.phone ? rtc.msg : 'Connecting the browser phone — the call is answered as soon as it reaches this browser…') : '';
 
   return (
-    <div className="fixed inset-x-0 top-0 z-[70] p-2 sm:p-4 pointer-events-none" data-testid="incoming-overlay">
+    <div className="fixed inset-x-0 top-16 z-[70] p-2 sm:px-4 sm:pt-3 pointer-events-none" data-testid="incoming-overlay">
       <div role="alertdialog" aria-live="assertive" aria-label="Incoming call" className="civr-incoming pointer-events-auto mx-auto max-w-4xl rounded-2xl border-2 border-[#34d399] bg-[#04130d] p-4 sm:p-5 shadow-2xl" data-testid="incoming-banner">
         <div className="flex flex-col md:flex-row md:items-center gap-4">
           <Caller c={c} more={more} skew={skew} />

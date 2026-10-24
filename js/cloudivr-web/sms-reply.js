@@ -16,14 +16,30 @@ const dryRun = () => process.env.WEB_CLOUDIVR_DRY_RUN === 'true'
 const bad = (res, status, error, message) => res.status(status).json({ error, message })
 const clean = (t) => String(t || '').replace(/\s+/g, ' ').trim()
 const recent = (l) => Date.now() - new Date(l.timestamp).getTime() < REPLY_DAYS * 86400000
-const canReply = (l) => REPLYABLE.includes(l.type) && !l.reply && E164.test(String(l.from || '')) && recent(l)
-// A missed call counts as texted back when that number texted that caller after it (e.g. "Decline with a message").
+const STALE_CLAIM_MS = 120000
+// A reply that is still "sending" after 2 min (crashed mid-send) no longer blocks a new one.
+const replied = (l) => !!l.reply && !(l.reply.status === 'sending' && Date.now() - new Date(l.reply.at).getTime() > STALE_CLAIM_MS)
+const canReply = (l) => REPLYABLE.includes(l.type) && !replied(l) && E164.test(String(l.from || '')) && recent(l)
+// Which missed call each text answered: Text back stores replyTo (the call's id); "Decline with a text message" is sent
+// around the time that call's log is written, so it belongs to the closest call from that caller within 2 min.
 function markReplied(calls, texts) {
+  const byCall = new Map()
+  for (const t of texts) {
+    if (t.type !== 'sms_out') continue
+    if (t.replyTo) { byCall.set(String(t.replyTo), t); continue }
+    const at = new Date(t.timestamp).getTime()
+    let best = null, gap = STALE_CLAIM_MS + 1
+    for (const l of calls) {
+      if (!REPLYABLE.includes(l.type) || l.phoneNumber !== t.phoneNumber || l.from !== t.to) continue
+      const g = Math.abs(new Date(l.timestamp).getTime() - at)
+      if (g < gap) { gap = g; best = l }
+    }
+    if (best && !byCall.has(String(best._id))) byCall.set(String(best._id), t)
+  }
   return calls.map(l => {
-    if (l.reply || !REPLYABLE.includes(l.type)) return l
-    const t0 = new Date(l.timestamp).getTime() - 120000
-    const t = texts.find(x => x.type === 'sms_out' && x.phoneNumber === l.phoneNumber && x.to === l.from && new Date(x.timestamp).getTime() >= t0)
-    return t ? { ...l, reply: { text: t.body, at: t.timestamp, status: t.status } } : l
+    if (replied(l)) return l
+    const t = byCall.get(String(l._id))
+    return { ...l, reply: t ? { text: t.body, at: t.timestamp, status: t.status } : null }
   })
 }
 const textsTo = (phoneLogs, phones, since) => phoneLogs.find({ phoneNumber: { $in: phones }, type: 'sms_out', timestamp: { $gte: since } }).toArray()
@@ -48,7 +64,7 @@ function createSmsReply({ db, voiceService, log = console.log }) {
   }
 
   // → { log } | { error: [status, code, message] }
-  async function send({ chatId, num, to, text, simulated = false }) {
+  async function send({ chatId, num, to, text, simulated = false, replyTo = null }) {
     const body = clean(text)
     if (!body) return { error: [400, 'empty', 'Type a reply or pick one.'] }
     if (body.length > MAX) return { error: [400, 'too_long', `Keep it to ${MAX} characters (one text).`] }
@@ -61,7 +77,7 @@ function createSmsReply({ db, voiceService, log = console.log }) {
     if (out.error) { if (overage) await w.credit(chatId, overage); return { error: [424, 'sms_failed', out.error] } }
     await voiceService.incrementSmsUsed(chatId, num.phoneNumber)
     if (overage) await phoneTransactions.insertOne({ chatId, phoneNumber: num.phoneNumber, action: 'sms_reply', amount: overage, paymentMethod: 'wallet_usd', channel: 'web', timestamp: new Date().toISOString() })
-    const doc = { phoneNumber: num.phoneNumber, from: num.phoneNumber, to, type: 'sms_out', direction: 'outbound', body, messageId: out.id, status: preview ? 'preview' : 'sent', webReply: true, timestamp: new Date().toISOString() }
+    const doc = { phoneNumber: num.phoneNumber, from: num.phoneNumber, to, type: 'sms_out', direction: 'outbound', body, messageId: out.id, status: preview ? 'preview' : 'sent', webReply: true, ...(replyTo ? { replyTo } : {}), timestamp: new Date().toISOString() }
     await phoneLogs.insertOne(doc)
     log(`[SmsReply] ${num.phoneNumber} → ${to}${preview ? ' (PREVIEW)' : ''}${overage ? ` $${overage}` : ''}`)
     return { log: doc, charge: overage }
@@ -88,13 +104,18 @@ function routes(router, { db, h, numbersApi, smsReply }) {
     const l = await phoneLogs.findOne({ _id })
     const num = l && await numbersApi.findMine(req.webChatId, l.phoneNumber)
     if (!num) return bad(res, 404, 'not_found', 'Call not found.')
-    const [marked] = markReplied([l], await textsTo(phoneLogs, [l.phoneNumber], new Date(new Date(l.timestamp).getTime() - 120000).toISOString()))
+    // Same caller's other calls around then, so a "decline with text" is matched to the right call.
+    const t0 = new Date(l.timestamp).getTime()
+    const near = await phoneLogs.find({ phoneNumber: l.phoneNumber, from: l.from, type: { $in: REPLYABLE }, timestamp: { $gte: new Date(t0 - 2 * STALE_CLAIM_MS).toISOString() } }).toArray()
+    const texts = await textsTo(phoneLogs, [l.phoneNumber], new Date(t0 - STALE_CLAIM_MS).toISOString())
+    const marked = markReplied(near.some(x => String(x._id) === String(_id)) ? near : [...near, l], texts).find(x => String(x._id) === String(_id))
     if (marked.reply) return bad(res, 409, 'already_replied', 'You already texted this caller back.')
     if (!canReply(l)) return bad(res, 400, 'cannot_reply', `You can text back missed callers for ${REPLY_DAYS} days.`)
     // Claim first so two tabs can't both send.
-    const claim = await phoneLogs.updateOne({ _id, reply: { $exists: false } }, { $set: { reply: { status: 'sending', at: new Date().toISOString() } } })
+    const stale = new Date(Date.now() - STALE_CLAIM_MS).toISOString()
+    const claim = await phoneLogs.updateOne({ _id, $or: [{ reply: { $exists: false } }, { reply: null }, { 'reply.status': 'sending', 'reply.at': { $lt: stale } }] }, { $set: { reply: { status: 'sending', at: new Date().toISOString() } } })
     if (!claim.modifiedCount) return bad(res, 409, 'already_replied', 'You already texted this caller back.')
-    const r = await smsReply.send({ chatId: req.webChatId, num, to: l.from, text: req.body?.text })
+    const r = await smsReply.send({ chatId: req.webChatId, num, to: l.from, text: req.body?.text, replyTo: String(_id) })
     if (r.error) { await phoneLogs.updateOne({ _id }, { $unset: { reply: '' } }); return bad(res, ...r.error) }
     const reply = { text: r.log.body, at: r.log.timestamp, status: r.log.status }
     await phoneLogs.updateOne({ _id }, { $set: { reply } })

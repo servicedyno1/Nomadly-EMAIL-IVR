@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { Link } from 'react-router-dom';
 import { Inbox as InboxIcon, CheckCheck, MessageSquare, Voicemail, Wallet, Megaphone, Receipt, Phone, Info, Ticket } from 'lucide-react';
@@ -8,6 +8,7 @@ import { useShell } from '../Shell';
 import { PageHeader, Spinner, Empty, ErrorNote } from '../ui';
 import { usePrivacy } from '../privacy';
 import { MissedCalls } from '../MissedCalls';
+import { RING_ENDED } from '../Incoming';
 
 const KINDS = [['', 'All', InboxIcon], ['sms', 'SMS', MessageSquare], ['voicemail', 'Voicemail', Voicemail], ['call', 'Calls', Phone], ['campaign', 'Campaigns', Megaphone], ['wallet', 'Wallet', Wallet], ['billing', 'Billing', Receipt], ['coupon', 'Coupons', Ticket], ['info', 'Other', Info]];
 const ICON = Object.fromEntries(KINDS.map(([k, , I]) => [k, I]));
@@ -18,6 +19,7 @@ export default function Inbox() {
   const [kind, setKind] = useState('');
   const { data, error, loading, reload } = useApi(`/notifications?limit=100${kind ? `&kind=${kind}` : ''}`);
   const { data: today } = useApi('/coupons/today');
+  useEffect(() => { window.addEventListener(RING_ENDED, reload); return () => window.removeEventListener(RING_ENDED, reload); }, [reload]);
   const markRead = async () => { try { await api('/notifications/read', { method: 'POST' }); toast.success('All caught up'); reload(); refreshSummary(); } catch (e) { toast.error(e.message); } };
   const items = data?.notifications || [];
   return (

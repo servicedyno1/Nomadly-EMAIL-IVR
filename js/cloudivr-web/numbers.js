@@ -18,13 +18,15 @@ const dryRun = () => process.env.WEB_CLOUDIVR_DRY_RUN === 'true'
 const webText = (s) => String(s).replace(/Telegram/g, 'your inbox')
 
 const normPhone = (p) => { const d = String(p || '').replace(/[^\d+]/g, ''); return d ? (d.startsWith('+') ? d : `+${d}`) : '' }
+// Numbers typed to dial (forward-to, backups, IVR forward keys): the bot's auto-correct (10-digit US → +1).
+const dialNorm = require('../backup-numbers').norm
 const bad = (res, status, error, message) => res.status(status).json({ error, message })
 // Up to 4 backup numbers rung in order when the main one is busy or doesn't answer → { list } | { error }.
 function parseBackups(raw, exclude = []) {
   const tokens = (Array.isArray(raw) ? raw : String(raw || '').split(/[,;\n]+|\s+(?=\+)/)).map(t => String(t || '').trim()).filter(Boolean)
   const junk = tokens.find(t => !/^\+?[\d\s().-]+$/.test(t))
   if (junk) return { error: `Backup "${junk.slice(0, 20)}" is not a phone number. Use the country code, e.g. +14155550100.` }
-  const items = tokens.map(normPhone).filter(Boolean)
+  const items = tokens.map(dialNorm).filter(Boolean)
   const list = [...new Set(items)].filter(n => !exclude.includes(n))
   if (list.length > 4) return { error: 'Add up to 4 backup numbers.' }
   for (const n of list) {
@@ -148,7 +150,7 @@ function validateIvr(body, plan, audioOk = () => true) {
       const action = String(o.action || '')
       const label = String(o.label || '').slice(0, 60)
       if (action === 'forward') {
-        const to = normPhone(o.forwardTo)
+        const to = dialNorm(o.forwardTo)
         if (!E164.test(to)) throw new Error(`Key ${digit}: enter the forward number with country code, e.g. +14155550100.`)
         if (phoneConfig.isBlockedPrefix(to)) throw new Error(`Key ${digit}: ${to} is a blocked premium/satellite destination.`)
         out[digit] = { action, forwardTo: to, label }
@@ -389,7 +391,7 @@ function routes(router, deps) {
     if (!gate(req, res, 'callForwarding', 'Call forwarding')) return
     const mode = String(req.body.mode || 'disabled')
     if (!['always', 'busy', 'no_answer', 'disabled'].includes(mode)) return bad(res, 400, 'invalid_mode', 'Pick always, busy, no answer or off.')
-    const to = mode === 'disabled' ? null : normPhone(req.body.forwardTo)
+    const to = mode === 'disabled' ? null : dialNorm(req.body.forwardTo)
     if (mode !== 'disabled') {
       if (!E164.test(to)) return bad(res, 400, 'invalid_number', 'Enter the forward number with country code, e.g. +14155550100.')
       if (phoneConfig.isBlockedPrefix(to)) return bad(res, 400, 'blocked_destination', `${to} is a blocked premium/satellite destination.`)

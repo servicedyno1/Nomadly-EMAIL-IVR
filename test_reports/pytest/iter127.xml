@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="1" skipped="0" tests="16" time="9.131" timestamp="2026-10-24T15:42:20.397329+00:00" hostname="agent-env-d5511678-2993-4903-af2a-7eb0bf550086"><testcase classname="test_cloudivr_iter127_browser_ring_textback.TestBrowserRingSettings" name="test_invalid_values" time="0.736" /><testcase classname="test_cloudivr_iter127_browser_ring_textback.TestBrowserRingSettings" name="test_persist" time="0.331" /><testcase classname="test_cloudivr_iter127_browser_ring_textback.TestBrowserRingSettings" name="test_not_enabled" time="0.214" /><testcase classname="test_cloudivr_iter127_browser_ring_textback.TestIncoming" name="test_get_shape" time="0.041" /><testcase classname="test_cloudivr_iter127_browser_ring_textback.TestIncoming" name="test_simulate_and_list" time="0.173" /><testcase classname="test_cloudivr_iter127_browser_ring_textback.TestIncoming" name="test_invalid_from" time="0.084" /><testcase classname="test_cloudivr_iter127_browser_ring_textback.TestIncoming" name="test_429_after_three" time="0.386" /><testcase classname="test_cloudivr_iter127_browser_ring_textback.TestIncoming" name="test_voice_remember" time="0.270" /><testcase classname="test_cloudivr_iter127_browser_ring_textback.TestIncoming" name="test_bob_isolation" time="0.672" /><testcase classname="test_cloudivr_iter127_browser_ring_textback.TestIncoming" name="test_answer_text_no_charge" time="4.541" /><testcase classname="test_cloudivr_iter127_browser_ring_textback.TestIncoming" name="test_decline_reply_too_long_before_decline" time="0.301" /><testcase classname="test_cloudivr_iter127_browser_ring_textback.TestIncoming" name="test_decline_with_reply" time="0.172" /><testcase classname="test_cloudivr_iter127_browser_ring_textback.TestMissedCalls" name="test_shape" time="0.042" /><testcase classname="test_cloudivr_iter127_browser_ring_textback.TestMissedCalls" name="test_reply_flow" time="0.605" /><testcase classname="test_cloudivr_iter127_browser_ring_textback.TestMissedCalls" name="test_bob_empty" time="0.047" /><testcase classname="test_cloudivr_iter127_browser_ring_textback.TestForwardingBackups" name="test_backups" time="0.418"><failure message="AssertionError: {&#10;    &quot;callForwarding&quot;: {&#10;      &quot;enabled&quot;: true,&#10;      &quot;mode&quot;: &quot;no_answer&quot;,&#10;      &quot;forwardTo&quot;: &quot;+14155550100&quot;,&#10;      &quot;ringTimeout&quot;: 25,&#10;      &quot;holdMusic&quot;: false,&#10;      &quot;backups&quot;: [&#10;        &quot;+4155550102&quot;&#10;      ]&#10;    }&#10;  }&#10;assert ['+4155550102'] == ['+14155550102']&#10;  &#10;  At index 0 diff: '+4155550102' != '+14155550102'&#10;  Use -v to get more diff">E   AssertionError: {
+        "callForwarding": {
+          "enabled": true,
+          "mode": "no_answer",
+          "forwardTo": "+14155550100",
+          "ringTimeout": 25,
+          "holdMusic": false,
+          "backups": [
+            "+4155550102"
+          ]
+        }
+      }
+    assert ['+4155550102'] == ['+14155550102']
+      
+      At index 0 diff: '+4155550102' != '+14155550102'
+      Use -v to get more diff</failure></testcase></testsuite></testsuites>

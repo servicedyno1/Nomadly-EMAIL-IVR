@@ -1,0 +1,48 @@
+{
+  "summary": "First test round for CloudIVR browser ring (incoming calls answered as text/voice), Decline with text, missed-call Text back (Inbox + number Logs), crypto extra number, bot Backup Numbers, FR/ES translations, desktop 1920x800 + mobile 390x844. Backend pytest 16/17 checks passed plus the extra-number test (all assertions passed, only my status-name guess needed fixing: the order status is 'active'). Bot sim + unit tests 14/14. Frontend: every flow listed in the request works end to end. Found 1 real backend bug (web backup/forward numbers: a 10-digit US number becomes +41…), 1 logic issue in markReplied, a few translation gaps and small UX/mobile issues.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "PATCH /api/cloudivr-web/numbers/:phone/forwarding (backups + forwardTo)", "issue": "normPhone only adds a leading '+', so a 10-digit US entry like '4155550102' is saved as '+4155550102' (a Swiss +41 number) and passes the E164 check without any error. The bot's js/backup-numbers.js norm() turns it into +14155550102, so web and bot disagree. Repro: PATCH {mode:'no_answer', forwardTo:'+14155550100', backups:'4155550102'} → backups ['+4155550102']. Fix: in parseBackups (and forwardTo) use the same norm as backup-numbers.js (10 digits → +1, 11 digits starting with 1 → +)."},
+      {"endpoint": "GET /missed-calls, number logs (sms-reply.js markReplied)", "issue": "A missed call counts as 'texted back' when ANY sms_out to that caller has a timestamp >= call time − 120 s, with no upper limit. Seen in testing: (a) declining +14155550123 at 15:36 with no text, then declining again at 15:37 with a text, also marked the 15:36 call 'Texted back: “…”'; (b) a NEW missed call from someone you texted in the last 2 minutes shows as already replied (canReply false, POST gives 409), so a repeat caller can't be texted back. Suggest matching only texts sent after the call, or binding the text to a call id (store replyTo on sms_out)."},
+      {"endpoint": "POST /missed-calls/:id/reply", "issue": "The claim writes reply:{status:'sending'} before sending. If the process crashes mid-send, the row stays 'sending' forever and every later reply gets 409 already_replied. Low risk; consider a stale-claim timeout."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Inbox MissedCalls card + notice list", "issue": "While the Inbox is open, a ring that times out or is declined does not refresh the Inbox. The 'nobody answered' notice and the new missed-call row only show after a reload (useApi('/missed-calls') is fetched once; there is no event from Incoming.js when a ring ends).", "selector": "[data-testid=inbox-missed-calls]", "priority": "LOW"},
+      {"component": "Number Logs TextBack testids", "issue": "number-logs-reply-<i> uses the row index. Sending a reply adds an 'SMS sent' row at the top, so every index shifts and -done ends up on a different row after the refresh. Use the log id in the testid (not user-visible, but makes tests flaky).", "selector": "[data-testid^=number-logs-reply-]", "priority": "LOW"},
+      {"component": "Console", "issue": "React warning 'Cannot infer the option value of complex children. Pass a value prop or use a plain string as children to <option>' on the app pages (probably an <option> whose children are a translated/complex node). The hydration warnings are from the visual-edit wrapper spans, not the app.", "selector": "option", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Incoming banner + Inbox Missed calls (FR/ES)", "issues": ["The word 'to' before the called number is not translated: Incoming.js line 58 'to <span…>' and MissedCalls.js line 22 'to <span…>' (FR shows 'to +14025031429', ES the same). Add 'to' (or a full phrase) to fr.json/es.json."]},
+      {"screen": "Browser ring tab notes (FR/ES)", "issues": ["The first note embeds the English server message '(This line isn’t live on the network yet (preview numbers are simulated), so the browser phone can’t register.)' inside the French/Spanish sentence. There are also nested double brackets in English."]},
+      {"screen": "Number Logs tab on mobile 390px", "issues": ["Text back opens the QuickReply inside the narrow DETAILS table cell (~120px wide): the 4 preset chips wrap into tall bubbles, the table scrolls sideways (number-logs is 406-650px wide inside an overflow-x container) and the input/Send button sit off-screen. It works, but render the reply box full-width under the row on small screens. The document itself has no horizontal overflow."]},
+      {"screen": "Incoming banner on desktop", "issues": ["The fixed banner (z-top) covers the topbar's wallet/Add funds/language controls and the page header for up to 25 s. Acceptable, but consider pushing the content down or making the banner more compact on desktop. On mobile, 'Answer with voice' wraps to 2 lines."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_cloudivr_iter127_browser_ring_textback.py", "/app/backend/tests/bot_backup_numbers_sim.js", "/app/test_reports/pytest/iter127.xml"],
+  "action_items": [
+    "Web forwarding/backups: normalize 10-digit US numbers to +1 (same as js/backup-numbers.js norm) so '4155550102' doesn't become +4155550102",
+    "sms-reply.js markReplied: only treat a text as the reply to the call it followed (add an upper bound / link the reply to the call id), so earlier and later missed calls from the same caller aren't marked 'Texted back' by mistake",
+    "Translate the 'to' before the called number in Incoming.js and MissedCalls.js (fr/es)",
+    "Browser ring notes: don't embed the untranslated English softphone server message in the FR/ES notes; fix the nested brackets",
+    "Inbox: refresh MissedCalls and the notices when a browser ring ends (timeout/decline)",
+    "Mobile Logs: show the QuickReply full width below the row instead of inside the table cell",
+    "Optional: use log ids instead of row indexes in number-logs-reply testids; fix the <option> complex-children warning"
+  ],
+  "critical_code_review_comments": [
+    "sms-reply.js markReplied: the time window is open-ended (any later sms_out matches), see backend minor #2",
+    "numbers.js normPhone is used for forwardTo and backups and only adds '+', which differs from the bot's norm()",
+    "incoming.js decline: reply longer than 160 chars is rejected before the ring is taken (correct). If sending the reply fails, the call is still declined and only replyError is returned (by design; the UI should show replyError)",
+    "Ring entries are kept in memory (relay-call/incoming), so they are lost on a nodejs restart and won't work across several Node instances. Fine for one instance."
+  ],
+  "updated_files": ["/app/backend/tests/test_cloudivr_iter127_browser_ring_textback.py", "/app/backend/tests/bot_backup_numbers_sim.js"],
+  "success_rate": {"backend": "94% (16/17 pytest + extra-number checkout verified; bot 14/14)", "frontend": "~95% (all flows work; translation, mobile and UX polish issues only)"},
+  "seed_data_creation": "Alice got 2 more simulated extra numbers on +14025031429 (+12097071192 from the API test, +14108011769 from the UI test; 4 of 30 used now) and many simulated missed-call and sms_out (status preview) logs from test callers +1415555xxxx. Alice's +14025031429 callCallForwarding was set to disabled at the end; browserRing restored to enabled/ask/en/female/announce. Bot test chat 990107001 was seeded and then deleted. Wallet unchanged at $380.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Login with input[type=password] (there is no auth-password-input testid). The language is in localStorage 'civr.lang'; the topbar-lang-switcher is a <select> (use select_option). Ring via the Browser ring tab or POST /incoming/simulate; a ring lasts ~25 s; only one live text call at a time (hang up via /relay/info live + /relay/calls/:id/hangup). Use a unique pretend caller per test, because markReplied marks calls from a recently texted caller as replied. TestExtraCrypto buys a simulated extra number on every run (Business limit 30), so run with -k 'not Extra' for regressions. In phoneNumbersOf and state, the bot chat _id must be a STRING. Bot backups: drive with state.action='cpCallForwarding' + cpActiveNumber seed (see bot_backup_numbers_sim.js). Quick IVR and bulk transfer backup prompts were NOT tested end to end via the bot (only parse/Skip button unit level).",
+  "rca of the issue": "Backup 10-digit bug: js/cloudivr-web/numbers.js line 20 normPhone = digits → '+'+digits, with no US +1 logic; parseBackups (line 27) maps tokens through it, and E164 /^\\+[1-9]\\d{7,14}$/ accepts '+4155550102'. Text-back over-match: sms-reply.js line 25 uses only a lower bound (x.timestamp >= call.timestamp − 120000)."
+}

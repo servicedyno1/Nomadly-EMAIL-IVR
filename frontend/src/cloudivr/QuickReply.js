@@ -28,14 +28,10 @@ export function QuickReply({ onSend, busy, max = 160, testid, sendLabel = 'Send 
   );
 }
 
-// "Text back" for one missed call (Inbox + number logs). Shows the sent reply once done.
-export function TextBack({ id, reply, canReply, onDone, testid }) {
-  const pv = usePrivacy();
-  const [open, setOpen] = useState(false);
+// Sends the "Text back" SMS for one missed call; `done` = the reply once sent.
+export function useTextBack(id, reply, onDone) {
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(reply);
-  if (done) return <p className="mt-1.5 text-xs text-[#34d399] break-words" data-testid={`${testid}-done`}>{`Texted back: “${pv.text(done.text, 'Message hidden')}”${done.status === 'preview' ? ' (preview — not sent)' : ''}`}</p>;
-  if (!canReply) return null;
   const send = async (text) => {
     setBusy(true);
     try {
@@ -45,6 +41,24 @@ export function TextBack({ id, reply, canReply, onDone, testid }) {
       onDone?.();
     } catch (e) { toast.error(e.message); if (e.code === 'already_replied') onDone?.(); } finally { setBusy(false); }
   };
-  if (!open) return <button type="button" onClick={() => setOpen(true)} className="civr-btn civr-btn-ghost civr-btn-sm mt-2" data-testid={`${testid}-button`}><MessageSquareReply className="w-4 h-4" />Text back</button>;
+  return { busy, done, send };
+}
+
+export function TextBackDone({ reply, testid }) {
+  const pv = usePrivacy();
+  return <p className="mt-1.5 text-xs text-[#34d399] break-words" data-testid={testid}>{`Texted back: “${pv.text(reply.text, 'Message hidden')}”${reply.status === 'preview' ? ' (preview — not sent)' : ''}`}</p>;
+}
+
+export const TextBackButton = ({ onClick, open, testid }) => (
+  <button type="button" onClick={onClick} aria-expanded={open} className="civr-btn civr-btn-ghost civr-btn-sm mt-2" data-testid={testid}><MessageSquareReply className="w-4 h-4" />Text back</button>
+);
+
+// Inbox: "Text back" for one missed call, reply box right under it.
+export function TextBack({ id, reply, canReply, onDone, testid }) {
+  const [open, setOpen] = useState(false);
+  const { busy, done, send } = useTextBack(id, reply, onDone);
+  if (done) return <TextBackDone reply={done} testid={`${testid}-done`} />;
+  if (!canReply) return null;
+  if (!open) return <TextBackButton onClick={() => setOpen(true)} open={false} testid={`${testid}-button`} />;
   return <div className="mt-2 max-w-xl"><QuickReply onSend={send} busy={busy} testid={testid} /></div>;
 }
