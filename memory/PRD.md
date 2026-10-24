@@ -1028,3 +1028,8 @@ User inherited a fully-set-up Nomadly bot pod pointed at LIVE PRODUCTION. Task b
   callRef). Preview DRY-RUN uses a scripted pretend person (js/relay-call/preview.js) — **MOCKED in preview**.
 - Not done yet (owner list): number-compliance paperwork checklist, new logo + "real phone company" redesign
   (blueprint in /app/design_guidelines.json), first real Telnyx text call test before going live.
+
+## 2026-10-24 — NEXT: answer incoming calls in the browser (Voice or Text) — ANALYSED, NOT BUILT
+- **Next agent: start with `memory/NEXT_TASK_BROWSER_ANSWER_TEXT_OR_VOICE.md`** (owner decisions, code facts, design, edge cases, test plan).
+- Owner decisions: opt-in per number; text answer billed like outgoing text calls (call rate + $0.03/min); per-number answer mode (ask / remember voice / remember text);
+  alerts = flashing banner on every page + background notification + flashing tab title (no vibration); unanswered → number's current fallback.

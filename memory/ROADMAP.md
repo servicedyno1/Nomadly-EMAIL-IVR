@@ -113,3 +113,4 @@ Sources: `HOSTING_CAPABILITIES_2026-10.md` (H#) and `RESELLER_FEATURE_REQUESTS_2
 - P1 (owner list, not started): number-compliance paperwork checklist (easy, step by step); new CloudIVR logo + "clean real phone company" redesign (design_guidelines.json).
 - P1: inbound text calls (answer your own number in the browser in text mode).
 - P2: Google Calendar keys (owner, later); signed/expiring URLs for AI recordings; localize remaining FR/ES recording notes.
+- P0 NEXT (owner asked 2026-10-24): browser answering of incoming calls with a Voice or Text choice — spec in memory/NEXT_TASK_BROWSER_ANSWER_TEXT_OR_VOICE.md (not started).
