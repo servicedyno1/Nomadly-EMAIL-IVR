@@ -1,5 +1,5 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
-import { NavLink, Route, Routes, Link, useNavigate } from 'react-router-dom';
+import { NavLink, Navigate, Route, Routes, Link, useNavigate } from 'react-router-dom';
 import { Bell, LogOut, Phone, Plus, LifeBuoy, Eye, EyeOff, Send } from 'lucide-react';
 import { api, money } from './api';
 import { useCivrAuth } from './AuthContext';
@@ -139,6 +139,7 @@ export default function Shell() {
               <Route path="wallet" element={<Wallet />} />
               <Route path="inbox" element={<Inbox />} />
               <Route path="settings" element={<Settings />} />
+              <Route path="*" element={<Navigate to={cp('/app')} replace />} />
             </Routes>
           </main>
         </div>

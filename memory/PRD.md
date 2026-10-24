@@ -1004,3 +1004,13 @@ User inherited a fully-set-up Nomadly bot pod pointed at LIVE PRODUCTION. Task b
 - Bulk campaigns now wait and redial leads when Telnyx line limit is hit (never failed for busy lines).
 - Details, architecture, tests and next steps: `memory/AI_VOICE_AGENT_2026-10-24.md`.
 - **NEXT AGENT → start with `memory/NEXT_TASKS_2026-10-24.md`**: (1) verify coupon countdown banner / Telegram channel welcome card / central SIP list, (2) AI agent Google Calendar appointment booking, (3) playable AI call recordings.
+
+## 2026-10-24 — NEXT_TASKS done + bot-parity confirmed — TESTED (iteration_122/123), preview only
+- Tasks 1-3 of memory/NEXT_TASKS_2026-10-24.md done: coupon banner / channel card / central SIP list verified; AI agent Google Calendar booking
+  (needs owner's GOOGLE_OAUTH_CLIENT_ID/SECRET — owner chose "later", UI shows "not switched on yet"); AI call recordings ($0.02/min, 90 days).
+- iteration_122 fixes verified (iteration_123, 100%): needCalendar lockout, SIP card gaps, MobileNav channel link, per-account channel card.
+- Bot-vs-web gap (21 features) CONFIRMED done; the one missing piece "Resume last draft" on Quick IVR added (pages/quick/Draft.js,
+  per account in localStorage, cleared on call placed / discard / logout). Unknown /cloudivr/app/* paths now redirect to the dashboard.
+- Owner decisions kept: NGN bank transfer NOT on web (wallet + crypto only); web languages EN/FR/ES.
+- Backlog: Google Calendar keys (owner), signed/expiring URLs for AI call recordings (P2), localize dates in FR/ES recording note (P3),
+  first real Telnyx AI call + prod nginx WebSocket headers before deploy (P0 when going live). NOT pushed / NOT deployed.

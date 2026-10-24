@@ -15,6 +15,7 @@ export function CivrAuthProvider({ children }) {
 
   const logout = useCallback(async () => {
     await api('/auth/logout', { method: 'POST' }).catch(() => {});
+    try { Object.keys(localStorage).filter(k => k.startsWith('civr.quickDraft.')).forEach(k => localStorage.removeItem(k)); } catch (_) { /* private mode */ }
     setAccount(null);
   }, []);
 

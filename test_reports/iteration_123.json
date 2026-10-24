@@ -1,0 +1,30 @@
+{
+  "summary": "Re-tested the fixes from iteration_122 plus the new Quick IVR 'Resume last draft' feature. Backend: needCalendar lockout fix, 4/4 pytest pass. Frontend: all 6 items pass at 1920 and 390 widths. Item 1: Ava with booking.enabled=true in the DB and no calendar connected shows the booking toggle OFF and disabled; saving a greeting edit gives PUT 200 and the 'Agent saved' toast; turning booking from off to on still returns 400 calendar_not_connected. Item 2: SIP credential cards and guide boxes have 12-16px gaps and no cards touch. Bob sees sip-page-locked with no credential text. Item 3: mobile-channel-link has href https://t.me/CloudIVRNET and target _blank, and the More menu layout is fine. Item 4: Alice and Bob do not get the channel card. A fresh account gets it, dismissing it survives a reload, the key is civr.channelCard.<id>, and a second fresh account in the same browser still sees it. Item 5: the draft banner shows after leaving the page (in-app navigation) and after a reload. Resume restores the numbers, script and OTP mode, shows the 'Draft restored' toast and hides the banner. Discard removes the draft and it stays gone after a reload. A preview POST /calls/quick (202) clears the draft. Bob does not see Alice's draft. The FR and ES banner texts and the toast are translated. Item 6: the record toggle switches both ways, the Quick IVR side panels (presets, recent calls with redial, key-press stats) render, and the dashboard coupon banner renders.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Router", "issue": "Unknown app paths such as /cloudivr/app/quick (the real route is /app/quick-call) show the shell with an empty content area. There is no 404 or redirect. Pre-existing and minor.", "selector": "main", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": ["/app/backend/tests/test_cloudivr_iter123_needcalendar.py", "/app/test_reports/pytest/pytest_iter123.xml"],
+  "action_items": [
+    "Optional: add a catch-all route under /cloudivr/app/* that shows a not-found state or redirects to the dashboard.",
+    "Optional: clear civr.quickDraft.* from localStorage on logout. The draft holds phone numbers and stays in the browser after sign-out, which matters on shared devices."
+  ],
+  "critical_code_review_comments": [
+    "Draft.js: as soon as the user types into a fresh form without pressing Resume, the banner hides and the old draft is overwritten with the new input. This is reasonable but undocumented, and the old draft is lost without a prompt.",
+    "AgentForm save sends booking.enabled=true when the stored value is true, even though the toggle shows OFF because no calendar is connected. needCalendar allows this on purpose. Expected behavior, noted for clarity.",
+    "The draft banner strings are hardcoded in English and translated by the DOM i18n engine. This works for FR and ES (verified)."
+  ],
+  "updated_files": ["/app/backend/tests/test_cloudivr_iter123_needcalendar.py"],
+  "success_rate": {"backend": "100% (4/4)", "frontend": "100% (6/6 items)"},
+  "seed_data_creation": "Created fresh QA accounts test_qa_ch1_1792844005@example.com and test_qa_ch2_1792844005@example.com (password QaTest#2026xx) in the webAccounts collection. Placed one preview (dry-run) Quick IVR call for Alice to +14155550100; it now appears in Recent calls. Ava's booking.enabled was restored to false, greeting restored to '' and record to true.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "The Quick IVR route is /cloudivr/app/quick-call, not /app/quick. The language switcher [data-testid=topbar-lang-switcher] is a native <select>, so use select_option('fr'/'es'). The AI agents collection is aiAgents in DB 'test'. GET /api/cloudivr-web/calendar returns the calendar status. Every browser_automation run is a fresh context, so localStorage drafts must be created in the same run."
+}

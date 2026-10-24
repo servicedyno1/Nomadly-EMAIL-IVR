@@ -2376,3 +2376,8 @@ User-approved order: #4 → #7 → #2 → #3 → #5 → #6. Sandbox-verified; pr
 - New `js/ai-agent/*`, `js/cloudivr-web/ai.js`, FastAPI WebSocket proxy, AI pages in the CloudIVR web app (EN/FR/ES).
 - `bulk-call-service.js`: Telnyx channel-limit (90041-90043/429, unanswered SIP 403) → lead re-queued + redialed with backoff.
 - Harness `js/tests/test_bulk_line_limit_ai_2026-10.js` 27/27; regression `test_bulk_telnyx_2026-10.js` 48/48. See memory/AI_VOICE_AGENT_2026-10-24.md.
+
+## 2026-10-24 (later) — Quick IVR "Resume last draft" + small fixes
+- NEW `frontend/src/cloudivr/pages/quick/Draft.js` (useDraft + DraftBanner, testids quick-draft-banner/-resume/-discard), wired in QuickCall.js.
+- AuthContext logout clears `civr.quickDraft.*`; Shell.js catch-all route → dashboard. FR/ES strings added.
+- iteration_123: backend 4/4 (needCalendar), frontend 6/6.
