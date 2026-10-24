@@ -1712,5 +1712,7 @@
 "✓ included · ✗ not on that plan. You can upgrade a number later from its Billing tab.": "✓ incluido · ✗ no en ese plan. Puedes actualizar un número más tarde desde su pestaña de Facturación.",
 "Show {0} more": "Mostrar {0} más",
 "key": "tecla",
-"Hide numbers and messages": "Ocultar números y mensajes"
+"Hide numbers and messages": "Ocultar números y mensajes",
+"Private mode on — numbers, contacts and messages are hidden.": "Modo privado activado — números, contactos y mensajes están ocultos.",
+"Show them": "Mostrarlos"
 }

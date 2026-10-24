@@ -1074,3 +1074,12 @@ calls and SIP are simulated; inbound calls use a pretend-call simulator).
   or the next CI deploy of main drops them. Test number +19379800767 KEPT (owner choice).
 
 - 2026-10-24: 6 CloudIVR mascot logo samples generated (parrot, cloud, fox, owl, speech bubble, phone) → /app/memory/logos/. Owner to pick one; not applied to the app yet.
+
+- 2026-10-24 MOBILE UI/UX PASS (web app /cloudivr, NOT deployed — owner will Save to GitHub). Owner choices: phone top bar keeps
+  balance + inbox + browser phone only; language / private mode / sign out moved to bottom-nav More menu (MobileNav.js MoreSettings);
+  data tables become stacked cards below 768px (ui.js useIsPhone) — LogTable (dashboard activity + number logs), Wallet deposits/history,
+  Campaign leads; long lists paginate with "Show N more" (usePaged/ShowMore). New ui.js TabStrip (number detail + AI agents tabs:
+  hidden scrollbar, right-edge fade, active tab kept in view). 44px tap targets (toggle hit area, copy/delete/close/back buttons,
+  filter chips), 16px inputs on phones (no iOS zoom). Private-mode banner now has a "Show them" button. FR/ES short bottom-nav
+  Inbox label ("Messages"/"Mensajes") + new strings translated. Audit script scripts/ops/mobile_audit.py: 0 page overflow on all
+  ~35 screens at 390px. Testing agent iteration_130: frontend 100% (mobile 390 + desktop 1920 regression).

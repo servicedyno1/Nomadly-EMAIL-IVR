@@ -5,10 +5,12 @@ import { NAV_ITEMS, appPath } from './nav';
 import { useShell } from './Shell';
 import { useCivrAuth } from './AuthContext';
 import { usePrivacy } from './privacy';
-import { LangSwitcher } from './i18n';
+import { LangSwitcher, useLang } from './i18n';
 import { cp } from './paths';
 
 const SHORT = { 'nav-dashboard': 'Overview', 'nav-numbers': 'Numbers', 'nav-inbox': 'Inbox', 'nav-wallet': 'Wallet' };
+// Tab labels whose translation is too long for a 5-column phone bar.
+const NARROW = { fr: { 'nav-inbox': 'Messages' }, es: { 'nav-inbox': 'Mensajes' } };
 const MAIN = ['nav-dashboard', 'nav-numbers', 'nav-inbox', 'nav-wallet'].map(id => NAV_ITEMS.find(x => x[3] === id));
 const MORE = NAV_ITEMS.filter(([, , , id]) => !SHORT[id]);
 const tab = (active) => `relative min-w-0 flex flex-col items-center justify-center gap-1 h-16 text-xs font-medium transition-colors ${active ? 'text-[#34d399]' : 'text-[#a1a1aa]'}`;
@@ -40,6 +42,7 @@ export default function MobileNav() {
   const shell = useShell();
   const channelLink = shell?.catalog?.channelLink;
   const unread = shell?.summary?.unread || 0;
+  const { lang } = useLang();
   useEffect(() => { setOpen(false); }, [pathname]);
   useEffect(() => {
     if (!open) return undefined;
@@ -62,11 +65,15 @@ export default function MobileNav() {
         </div>
       )}
       <nav className="lg:hidden fixed bottom-0 inset-x-0 z-40 grid grid-cols-5 bg-[#0a0a0a]/90 backdrop-blur-xl border-t border-white/10 pb-[env(safe-area-inset-bottom)]" data-testid="mobile-bottom-nav">
-        {MAIN.map(([to, , Icon, id]) => (
-          <NavLink key={id} end={to === ''} to={appPath(to)} className={({ isActive }) => tab(isActive && !open)} data-testid={`mobile-${id}`}>
-            <Icon className="w-5 h-5" />{id === 'nav-inbox' && <Badge n={unread} />}<span className="max-w-full truncate px-1">{SHORT[id]}</span>
-          </NavLink>
-        ))}
+        {MAIN.map(([to, , Icon, id]) => {
+          const narrow = NARROW[lang]?.[id];
+          return (
+            <NavLink key={id} end={to === ''} to={appPath(to)} className={({ isActive }) => tab(isActive && !open)} data-testid={`mobile-${id}`}>
+              <Icon className="w-5 h-5" />{id === 'nav-inbox' && <Badge n={unread} />}
+              {narrow ? <span key={lang} className="max-w-full truncate px-1" data-no-translate>{narrow}</span> : <span className="max-w-full truncate px-1">{SHORT[id]}</span>}
+            </NavLink>
+          );
+        })}
         <button type="button" onClick={() => setOpen(o => !o)} aria-expanded={open} className={tab(open || moreActive)} data-testid="mobile-nav-more"><MoreHorizontal className="w-5 h-5" />More</button>
       </nav>
     </>

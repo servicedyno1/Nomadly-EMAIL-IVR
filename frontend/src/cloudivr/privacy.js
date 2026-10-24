@@ -38,11 +38,12 @@ export function PrivacyProvider({ children }) {
 }
 
 export function PrivateBanner() {
-  const { on } = usePrivacy();
+  const { on, toggle } = usePrivacy();
   if (!on) return null;
   return (
-    <div className="flex items-center justify-center gap-2 text-xs text-[#c4b5fd] bg-[#a78bfa]/10 border-b border-[#a78bfa]/30 px-4 py-2 text-center" data-testid="private-mode-banner">
-      <EyeOff className="w-3.5 h-3.5 shrink-0" />Private mode on — numbers, contacts and messages are hidden. Tap the eye again to show them.
+    <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-xs text-[#c4b5fd] bg-[#a78bfa]/10 border-b border-[#a78bfa]/30 px-4 py-1.5 text-center" data-testid="private-mode-banner">
+      <EyeOff className="w-3.5 h-3.5 shrink-0" />Private mode on — numbers, contacts and messages are hidden.
+      <button type="button" onClick={toggle} className="min-h-[32px] px-2 font-semibold underline underline-offset-2 hover:text-white" data-testid="private-mode-banner-show-button">Show them</button>
     </div>
   );
 }
