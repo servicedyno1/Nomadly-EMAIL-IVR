@@ -38,6 +38,7 @@ function createCloudIvrWeb(deps) {
     }))
     trycall.routes(r, { ...deps, db, h })
     support.publicRoutes(r, { db, h, log })
+    ai.publicRoutes(r, { h })
     r.use(auth.requireUser)
     notify.routes(r, { h })
     wallet.routes(r, { db, h, coins: deps.coins, createCryptoDeposit: deps.createCryptoDeposit })

@@ -4800,7 +4800,7 @@ const loadData = async () => {
     .catch(e => log(`[BulkCall] init failed: ${e.message}`))
   // AI voice agents: Telnyx media streams ⇄ OpenAI Realtime (WebSocket upgrades on the main HTTP server).
   try {
-    require('./ai-agent').init({ db, server: earlyServer, walletOf, bot, selfUrl: SELF_URL, voiceService: require('./voice-service.js'), log })
+    require('./ai-agent').init({ db, server: earlyServer, walletOf, bot, selfUrl: SELF_URL, voiceService: require('./voice-service.js'), audioLibraryService, log })
     log('[AIAgent] initialized')
   } catch (e) { log(`[AIAgent] init failed: ${e.message}`) }
   marketplaceService.initMarketplace(db)

@@ -13,7 +13,7 @@ import time
 import sys
 
 # Base URL from frontend/.env
-BASE_URL = "https://ivr-features-lab.preview.emergentagent.com"
+BASE_URL = "https://roadmap-preview-11.preview.emergentagent.com"
 
 # Test credentials
 USERNAME = "nbayftest"

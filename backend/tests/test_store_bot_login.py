@@ -13,7 +13,7 @@ import pytest
 
 BASE_URL = os.environ.get(
     "REACT_APP_BACKEND_URL",
-    "https://ivr-features-lab.preview.emergentagent.com",
+    "https://roadmap-preview-11.preview.emergentagent.com",
 ).rstrip("/")
 TEST_CHATID = "5346193142"
 

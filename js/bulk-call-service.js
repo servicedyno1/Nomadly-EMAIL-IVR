@@ -1105,11 +1105,12 @@ async function fireNextBatch(campaignId) {
       // Calling hours (TCPA): only 8am–9pm in the lead's local time — otherwise the lead waits.
       if (!aiAgent().hours.callableNow(lead.number)) { outsideHours++; continue }
       const { usdBal } = await getBalance(_walletOf, campaign.chatId)
-      const need = aiAgent().committed(campaign.chatId) + aiAgent().leadRate(lead.number)
+      const aiRate = aiAgent().leadRate(lead.number, campaign.aiRecord !== false) // + recording surcharge
+      const need = aiAgent().committed(campaign.chatId) + aiRate
       if (usdBal < need) {
         if (state.activeCalls > 0) break // calls in progress settle first, then we check again
         log(`[BulkCall] Pausing AI campaign ${campaignId}: wallet $${usdBal} can't cover ${lead.number}`)
-        await pauseForWallet(campaign, usdBal, aiAgent().leadRate(lead.number))
+        await pauseForWallet(campaign, usdBal, aiRate)
         return
       }
     }
@@ -1450,7 +1451,7 @@ async function billAiLead(campaign, leadIndex, bill) {
   try {
     const r = await smartWalletDeduct(_walletOf, campaign.chatId, bill.charge, {
       type: 'ai_agent_call', callType: 'AIAgent', destination: lead?.number || null, phoneNumber: campaign.callerId,
-      description: `AI agent campaign ${campaign.callerId} → ${lead?.number || 'unknown'} (${bill.minutesBilled} min × $${bill.rate})`,
+      description: `AI agent campaign ${campaign.callerId} → ${lead?.number || 'unknown'} (${bill.minutesBilled} min × $${bill.rate}${bill.recordingRate ? ` incl. $${bill.recordingRate} recording` : ''})`,
     })
     log(`[BulkCall] AI lead billed $${bill.charge} (${bill.minutesBilled} min) campaign=${campaign.id} lead=${leadIndex} ok=${!!r?.success}`)
     const post = await smartWalletCheck(_walletOf, campaign.chatId, aiAgent().RATE())
@@ -1482,6 +1483,7 @@ async function recalcStats(campaignId) {
     interested: 0,
     callback: 0,
     optedOut: 0,
+    booked: 0,
   }
 
   for (const lead of campaign.leads) {
@@ -1489,6 +1491,7 @@ async function recalcStats(campaignId) {
     stats.completed++
     const o = lead.ai?.outcome
     if (o === 'interested') stats.interested++
+    else if (o === 'booked') stats.booked++
     else if (o === 'callback') stats.callback++
     else if (o === 'opted_out') stats.optedOut++
     if (lead.status === 'skipped') stats.skipped++

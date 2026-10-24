@@ -155,8 +155,8 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
       concurrency: Math.min(20, Math.max(1, parseInt(b.concurrency, 10) || 5)), leads, scheduledFor, provider: 'telnyx',
     })
     if (campaign.error) return bad(res, 400, 'create_failed', campaign.error)
-    if (dryRun()) await db.collection('bulkCallCampaigns').updateOne({ id: campaign.id }, { $set: { dryRun: true } })
-    res.status(201).json({ campaign: publicCampaign({ ...campaign, dryRun: dryRun() }), skipped: errors.length, doNotCall: dnc, rate: ai.RATE() })
+    await db.collection('bulkCallCampaigns').updateOne({ id: campaign.id }, { $set: { aiRecord: agent.record !== false, ...(dryRun() ? { dryRun: true } : {}) } })
+    res.status(201).json({ campaign: publicCampaign({ ...campaign, dryRun: dryRun() }), skipped: errors.length, doNotCall: dnc, rate: ai.RATE(), recordRate: agent.record !== false ? ai.RECORD_RATE() : 0 })
   }
 
   const withCampaign = (fn) => h(async (req, res) => {

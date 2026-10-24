@@ -102,3 +102,12 @@ Goal: every AI call (inbound, campaign, browser test) gets an MP3 recording, wit
 ## Still open from the AI agent work (not part of these 3 tasks)
 - No real Telnyx AI phone call has been made yet. The first live test should use the owner's test number +13025141000.
 - Production droplet nginx must pass the WebSocket `Upgrade` / `Connection` headers before the AI agent can take real calls there.
+
+---
+
+## OWNER DECISIONS (ask_human 2026-10-24, later session) — do NOT re-ask
+- Task 2 calendar: **each customer connects their own Google Calendar**.
+- Booking hours + appointment length: **set on each agent** (defaults 30-min slots, Mon–Fri 9am–5pm, business time zone).
+- Caller confirmation: **no SMS — spoken confirmation only** (agent repeats date/time).
+- Task 3 recording: **per-agent switch, ON by default, opening line adds "this call may be recorded"** when on.
+- Retention: **90 days** (auto-delete). Price: **$0.02 per started minute extra** when recorded (AI call = $0.22/min recorded).

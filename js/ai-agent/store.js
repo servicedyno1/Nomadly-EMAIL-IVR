@@ -2,11 +2,12 @@
 // AI agents (per account), their call records and the do-not-call list.
 const crypto = require('crypto')
 const axios = require('axios')
+const { cleanBooking } = require('./booking')
 
 const VOICES = ['marin', 'cedar', 'alloy', 'ash', 'ballad', 'coral', 'echo', 'sage', 'shimmer', 'verse']
 const LANGS = ['en', 'fr', 'es']
 const LANG_NAMES = { en: 'English', fr: 'French', es: 'Spanish' }
-const OUTCOMES = ['interested', 'not_interested', 'callback', 'message', 'transferred', 'opted_out', 'voicemail', 'no_conversation', 'other']
+const OUTCOMES = ['booked', 'interested', 'not_interested', 'callback', 'message', 'transferred', 'opted_out', 'voicemail', 'no_conversation', 'other']
 const E164 = /^\+[1-9]\d{7,14}$/
 let agents, calls, dnc
 
@@ -31,10 +32,12 @@ function cleanAgent(b) {
     language: LANGS.includes(b.language) ? b.language : 'en', voice: VOICES.includes(b.voice) ? b.voice : 'marin',
     transferTo: transferTo || null, takeMessages: b.takeMessages !== false,
     maxMinutes: Math.min(15, Math.max(1, parseInt(b.maxMinutes, 10) || 5)),
+    record: b.record !== false, booking: cleanBooking(b.booking),
   }
 }
-const FIELDS = ['id', 'name', 'goal', 'businessName', 'greeting', 'knowledge', 'language', 'voice', 'transferTo', 'takeMessages', 'maxMinutes', 'createdAt', 'updatedAt']
-const publicAgent = (a) => Object.fromEntries(FIELDS.map(k => [k, a[k] ?? null]))
+const FIELDS = ['id', 'name', 'goal', 'businessName', 'greeting', 'knowledge', 'language', 'voice', 'transferTo', 'takeMessages', 'maxMinutes', 'record', 'booking', 'createdAt', 'updatedAt']
+// Agents saved before recording/booking existed: recording on (owner default), booking off.
+const publicAgent = (a) => ({ ...Object.fromEntries(FIELDS.map(k => [k, a[k] ?? null])), record: a.record !== false, booking: cleanBooking(a.booking) })
 
 const listAgents = (chatId) => agents.find({ chatId: String(chatId) }).sort({ createdAt: -1 }).limit(50).toArray()
 const getAgent = (id, chatId) => (id ? agents.findOne({ id: String(id), chatId: String(chatId) }) : null)
