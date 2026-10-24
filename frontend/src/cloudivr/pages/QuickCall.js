@@ -4,7 +4,7 @@ import { toast } from 'sonner';
 import { PhoneOutgoing, Loader2, Lock } from 'lucide-react';
 import { api, useApi, playUrl } from '../api';
 import { useShell } from '../Shell';
-import { PageHeader, Field, Spinner, Empty, AudioSelect, KeyPicker, Toggle, ErrorNote } from '../ui';
+import { PageHeader, Field, Spinner, Empty, AudioSelect, KeyPicker, Toggle, ErrorNote, BackupsField } from '../ui';
 import { cp } from '../paths';
 import { usePrivacy } from '../privacy';
 import { DateTimePicker } from '../DateTimePicker';
@@ -13,6 +13,7 @@ import { ScriptBox, fillScript } from './quick/ScriptBox';
 import { MenuBuilder, menuToApi } from './quick/MenuBuilder';
 import { RecentCalls, ScheduledCalls, MenuStats, Presets } from './quick/Side';
 import { TrialCall } from './quick/Trial';
+import { useDraft, DraftBanner } from './quick/Draft';
 
 // Active numbers allowed to place outbound IVR calls for `feature`.
 export function useCallerNumbers(feature) {
@@ -20,13 +21,13 @@ export function useCallerNumbers(feature) {
   return { loading, all: data?.numbers || [], numbers: (data?.numbers || []).filter(n => n.status === 'active' && n.access[feature]) };
 }
 
-const EMPTY = { callerId: '', targets: '', source: 'script', script: { templateKey: '', text: '', values: {} }, audioId: '', voice: '', mode: 'transfer', transferTo: '', activeKeys: ['1'], otp: { length: 6, confirmMsg: '', rejectMsg: '' }, menu: [], holdMusic: false, scheduleAt: '' };
+const EMPTY = { callerId: '', targets: '', source: 'script', script: { templateKey: '', text: '', values: {} }, audioId: '', voice: '', mode: 'transfer', transferTo: '', transferBackups: '', activeKeys: ['1'], otp: { length: 6, confirmMsg: '', rejectMsg: '' }, menu: [], holdMusic: false, scheduleAt: '' };
 const MODES = [['transfer', 'Connect on a key'], ['otp', 'Collect a code (OTP)'], ['menu', 'Route each key']];
 const Pill = ({ on, onClick, children, testid, locked }) => <button type="button" onClick={onClick} className={`civr-pill cursor-pointer !normal-case !tracking-normal !text-sm h-9 ${on ? 'civr-pill-on' : ''}`} data-testid={testid}>{locked && <Lock className="w-3 h-3" />}{children}</button>;
 
 function toBody(f, callerId) {
   const msg = f.source === 'audio' ? { audioId: f.audioId } : { text: fillScript(f.script.text, f.script.values), voice: f.voice || undefined, templateName: f.script.templateName || 'Custom script' };
-  const action = f.mode === 'otp' ? { otp: f.otp } : f.mode === 'menu' ? { menu: menuToApi(f.menu) } : { transferTo: f.transferTo, activeKeys: f.activeKeys };
+  const action = f.mode === 'otp' ? { otp: f.otp } : f.mode === 'menu' ? { menu: menuToApi(f.menu) } : { transferTo: f.transferTo, transferBackups: f.transferBackups, activeKeys: f.activeKeys };
   return { callerId, targets: f.targets, holdMusic: f.holdMusic, mode: f.mode === 'otp' ? 'otp' : 'transfer', ...msg, ...action, ...(f.scheduleAt ? { scheduleAt: new Date(f.scheduleAt).toISOString() } : {}) };
 }
 
@@ -60,6 +61,7 @@ function Answer({ f, set, isBiz }) {
       <div className="flex flex-wrap gap-2">{MODES.map(([m, l]) => <Pill key={m} on={f.mode === m} onClick={() => set({ mode: m })} testid={`quick-mode-${m}`}>{l}</Pill>)}</div>
       {f.mode === 'transfer' && <>
         <Field label="Connect to (when they press a key)"><input className="civr-input font-mono" value={f.transferTo} onChange={e => set({ transferTo: e.target.value })} placeholder="+14155550199" data-testid="quick-call-transfer-input" /></Field>
+        <BackupsField value={f.transferBackups} onChange={(v) => set({ transferBackups: v })} testid="quick-call-backups-input" />
         <Field label="Keys that connect"><KeyPicker value={f.activeKeys} onChange={(v) => set({ activeKeys: v })} testid="quick-call-keys" /></Field>
         <div className="flex items-center justify-between"><span className="text-sm">Hold music while connecting</span><Toggle checked={f.holdMusic} onChange={(v) => set({ holdMusic: v })} testid="quick-call-hold-music-toggle" /></div>
       </>}
@@ -88,6 +90,7 @@ export default function QuickCall() {
   const [error, setError] = useState(null);
   const [stamp, setStamp] = useState(0);
   const [trialShown, setTrialShown] = useState(false);
+  const draft = useDraft(f);
   const set = (p) => setF(x => ({ ...x, ...p }));
   if (loading) return <Spinner />;
   const caller = numbers.find(n => n.phoneNumber === f.callerId) || numbers[0];
@@ -98,7 +101,7 @@ export default function QuickCall() {
     e.preventDefault(); setBusy(true); setError(null); setResult(null);
     try {
       const d = await api('/calls/quick', { method: 'POST', body: toBody(f, caller.phoneNumber) });
-      setResult(d); setStamp(s => s + 1);
+      setResult(d); setStamp(s => s + 1); draft.clear();
       toast.success(d.scheduled ? 'Call scheduled' : d.dryRun ? 'Validated (preview — not dialed)' : 'Calling now');
       refreshSummary();
     } catch (err) { setError(err); } finally { setBusy(false); }
@@ -115,6 +118,7 @@ export default function QuickCall() {
       )) : (
         <div className="grid xl:grid-cols-3 gap-4 items-start">
           <form onSubmit={go} className="xl:col-span-2 space-y-4" data-testid="quick-call-form">
+            <DraftBanner draft={draft} onResume={(d) => { setF({ ...EMPTY, ...d }); toast.success('Draft restored'); }} />
             <Section n="1" title="Who to call">
               <Field label="Call from"><select className="civr-input font-mono" value={caller.phoneNumber} onChange={e => set({ callerId: e.target.value })} data-testid="quick-call-caller-select">{numbers.map(n => <option key={n.phoneNumber} value={n.phoneNumber}>{`${n.phoneNumber} · ${n.planName}`}</option>)}</select></Field>
               <Field label="Number(s) to call" hint="With country code. Up to 10, separated by commas.">

@@ -197,8 +197,8 @@ This opens the Cloud IVR hub with these buttons:
 
 #### Plans & Pricing:
 ${process.env.PHONE_SERVICE_ON === 'true' ? `- <b>Starter — $${process.env.PHONE_STARTER_PRICE || '50'}/mo</b>: ${process.env.STARTER_MINUTES || '100'} INBOUND min + ${process.env.STARTER_SMS || '50'} SMS included/month. Features: Call forwarding, SMS to Telegram. Up to 3 extra numbers.
-- <b>Pro — $${process.env.PHONE_PRO_PRICE || '75'}/mo</b>: ${process.env.PRO_MINUTES || '400'} INBOUND min + ${process.env.PRO_SMS || '200'} SMS included/month. Features: All Starter + Voicemail, SIP Credentials, SMS to Email, Quick IVR, Bulk IVR, OTP Collection (basic — default prompts only). Up to 15 extra numbers.
-- <b>Business — $${process.env.PHONE_BUSINESS_PRICE || '120'}/mo</b>: ${process.env.BUSINESS_MINUTES || '600'} INBOUND min + ${process.env.BUSINESS_SMS || '300'} SMS included/month. Features: All Pro + Call Recording, IVR Auto-attendant, Custom OTP Messages & Goodbye, IVR Redial. Up to 30 extra numbers.
+- <b>Pro — $${process.env.PHONE_PRO_PRICE || '75'}/mo</b>: ${process.env.PRO_MINUTES || '400'} INBOUND min + ${process.env.PRO_SMS || '200'} SMS included/month. Features: All Starter + Voicemail, SIP Credentials, SMS to Email, Quick IVR, Bulk IVR, OTP Collection (basic — default prompts only), Call Recording. Up to 15 extra numbers.
+- <b>Business — $${process.env.PHONE_BUSINESS_PRICE || '120'}/mo</b>: ${process.env.BUSINESS_MINUTES || '600'} INBOUND min + ${process.env.BUSINESS_SMS || '300'} SMS included/month. Features: All Pro + IVR Auto-attendant, Custom OTP Messages & Goodbye, IVR Redial. Up to 30 extra numbers.
 - <b>IMPORTANT — included plan minutes are for INBOUND (received) calls only.</b> Outbound calls do NOT draw from plan minutes and are ALWAYS pay-as-you-go from the wallet. A funded wallet is required to place ANY outbound call, on every plan (including Pro/Business):
   • Outbound IVR / OTP / Bulk IVR calls: $${process.env.BULK_CALL_RATE_PER_MIN || '0.15'}/min + $${process.env.CALL_CONNECTION_FEE || '0.03'} connection fee per call
   • Call forwarding: $${process.env.CALL_FORWARDING_RATE_MIN || '0.50'}/min
@@ -234,7 +234,7 @@ ${process.env.PHONE_SERVICE_ON === 'true' ? `- <b>Starter — $${process.env.PHO
 | OTP Collection (basic) | ❌ | ✅ | ✅ |
 | Custom OTP Messages & Goodbye | ❌ | ❌ | ✅ |
 | IVR Redial | ❌ | ❌ | ✅ |
-| Call Recording | ❌ | ❌ | ✅ |
+| Call Recording | ❌ | ✅ | ✅ |
 | IVR Auto-attendant | ❌ | ❌ | ✅ |
 
 #### Quick IVR Call — How to set up:
@@ -279,7 +279,7 @@ This feature allows you to place an automated IVR call and collect a verificatio
 - 📨 SMS Inbox — Read received SMS messages (with pagination)
 - 🎙️ Voicemail — Enable/disable, set custom greeting, forward to Telegram/Email, set ring time (Pro+)
 - 🔑 SIP Credentials — View SIP username, reveal password, reset credentials, SIP setup guide (Pro+)
-- 🔴 Call Recording — Enable/disable call recording (Business only)
+- 🔴 Call Recording — Enable/disable call recording (Pro and Business)
 - 🤖 IVR / Auto-attendant — Set greeting, add menu options, view analytics (Business only)
 - 📊 Call & SMS Logs — View detailed call and SMS history
 - 🔄 Renew / Change Plan — Renew subscription or upgrade/downgrade plan

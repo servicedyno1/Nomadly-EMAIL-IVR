@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { toast } from 'sonner';
 import { api, enc, useApi } from '../../api';
-import { Field, Toggle } from '../../ui';
+import { Field, Toggle, BackupsField } from '../../ui';
 import { Link } from 'react-router-dom';
 import { cp } from '../../paths';
 import { useShell } from '../../Shell';
@@ -67,7 +67,7 @@ export function OverviewTab({ num, reload }) {
 
 export function ForwardingTab({ num, reload }) {
   const cf = num.features.callForwarding;
-  const [f, setF] = useState({ mode: cf.mode || 'disabled', forwardTo: cf.forwardTo || '', ringTimeout: cf.ringTimeout || 25, holdMusic: !!cf.holdMusic });
+  const [f, setF] = useState({ mode: cf.mode || 'disabled', forwardTo: cf.forwardTo || '', ringTimeout: cf.ringTimeout || 25, holdMusic: !!cf.holdMusic, backups: cf.backups || [] });
   const [save, busy] = useSave(num, 'forwarding', reload);
   return (
     <Card title="Call forwarding" sub="Send calls to any phone. Forwarded minutes bill from your wallet.">
@@ -79,6 +79,7 @@ export function ForwardingTab({ num, reload }) {
       {f.mode !== 'disabled' && <>
         <Field label="Forward to" hint="Include the country code, e.g. +14155550100."><input className="civr-input font-mono" value={f.forwardTo} onChange={e => setF({ ...f, forwardTo: e.target.value })} placeholder="+14155550100" data-testid="forwarding-number-input" /></Field>
         <Field label="Ring time before forwarding (seconds)"><input type="number" min={10} max={60} className="civr-input" value={f.ringTimeout} onChange={e => setF({ ...f, ringTimeout: e.target.value })} data-testid="forwarding-ring-timeout-input" /></Field>
+        {f.mode !== 'disabled' && <BackupsField value={f.backups} onChange={v => setF({ ...f, backups: v })} testid="forwarding-backups-input" />}
         <div className="flex items-center justify-between"><span className="text-sm">Play hold music while connecting</span><Toggle checked={f.holdMusic} onChange={v => setF({ ...f, holdMusic: v })} testid="forwarding-hold-music-toggle" /></div>
       </>}
       <button className="civr-btn civr-btn-primary" disabled={busy} onClick={() => save(f)} data-testid="forwarding-save-button">Save forwarding</button>

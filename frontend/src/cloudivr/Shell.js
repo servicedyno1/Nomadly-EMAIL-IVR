@@ -1,6 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
-import { NavLink, Route, Routes, Link, useNavigate } from 'react-router-dom';
-import { Bell, LogOut, Phone, Plus, LifeBuoy, Eye, EyeOff, Send } from 'lucide-react';
+import { NavLink, Navigate, Route, Routes, Link, useNavigate } from 'react-router-dom';
+import { Bell, LogOut, Phone, Plus, LifeBuoy, Eye, EyeOff, Send, Lightbulb } from 'lucide-react';
 import { api, money } from './api';
 import { useCivrAuth } from './AuthContext';
 import { PreviewBanner } from './ui';
@@ -16,6 +16,7 @@ import OrderStatus from './pages/buy/OrderStatus';
 import Verification from './pages/Verification';
 import AudioLibrary from './pages/AudioLibrary';
 import QuickCall from './pages/QuickCall';
+import TextCall from './pages/TextCall';
 import { Campaigns, CampaignNew } from './pages/Campaigns';
 import CampaignDetail from './pages/CampaignDetail';
 import Wallet from './pages/Wallet';
@@ -26,6 +27,7 @@ import { AiAgents, AiAgentEdit } from './pages/AiAgents';
 import { cp } from './paths';
 import { LangSwitcher, useLang } from './i18n';
 import SupportChat from './SupportChat';
+import AdminSuggestions from './pages/AdminSuggestions';
 
 const ShellCtx = createContext(null);
 export const useShell = () => useContext(ShellCtx);
@@ -58,6 +60,7 @@ function Sidebar({ supportLink, channelLink }) {
       <SideNav />
       <div className="mt-auto pt-6 space-y-1">
         {channelLink && <a href={channelLink} target="_blank" rel="noopener noreferrer" className="civr-nav-link" data-testid="sidebar-channel-link"><Send className="w-4 h-4" />Telegram channel</a>}
+        <Link to={cp('/app/settings#suggest')} className="civr-nav-link" data-testid="sidebar-suggest-link"><Lightbulb className="w-4 h-4" />Suggest a feature</Link>
         {supportLink && <a href={supportLink} target="_blank" rel="noopener noreferrer" className="civr-nav-link" data-testid="sidebar-support-link"><LifeBuoy className="w-4 h-4" />Message support</a>}
       </div>
     </aside>
@@ -119,7 +122,7 @@ export default function Shell() {
           <PreviewBanner show={catalog?.dryRun} livePayments={catalog?.livePayments} />
           <TopBar summary={summary} onPhone={() => setPhoneOpen(o => !o)} />
           <PrivateBanner />
-          <main className="px-4 md:px-8 pt-8 md:pt-10 pb-28 lg:pb-12 max-w-7xl mx-auto" data-testid="app-main">
+          <main className="px-4 md:px-8 pt-8 md:pt-10 pb-40 lg:pb-12 max-w-7xl mx-auto" data-testid="app-main">
             <Routes>
               <Route index element={<Dashboard />} />
               <Route path="numbers" element={<Numbers />} />
@@ -130,6 +133,7 @@ export default function Shell() {
               <Route path="verification" element={<Verification />} />
               <Route path="audio" element={<AudioLibrary />} />
               <Route path="quick-call" element={<QuickCall />} />
+              <Route path="text-call" element={<TextCall />} />
               <Route path="ai-agents" element={<AiAgents />} />
               <Route path="ai-agents/new" element={<AiAgentEdit />} />
               <Route path="ai-agents/:id" element={<AiAgentEdit />} />
@@ -139,6 +143,8 @@ export default function Shell() {
               <Route path="wallet" element={<Wallet />} />
               <Route path="inbox" element={<Inbox />} />
               <Route path="settings" element={<Settings />} />
+              <Route path="admin/suggestions" element={<AdminSuggestions />} />
+              <Route path="*" element={<Navigate to={cp('/app')} replace />} />
             </Routes>
           </main>
         </div>

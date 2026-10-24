@@ -22,7 +22,7 @@ export default function AiAgentTab({ num, reload }) {
     <div className="civr-card p-6 max-w-2xl space-y-6" data-testid="number-ai-tab">
       <div>
         <div className="font-display text-2xl font-bold">AI agent answers this number</div>
-        <p className="text-sm text-[#a1a1aa] mt-1">The agent picks up every call, says it is an AI assistant, answers from your FAQs, takes messages or transfers to you. ${Number(data?.rate || 0.2).toFixed(2)} per started minute from your wallet; if the wallet runs out it says goodbye and hangs up.</p>
+        <p className="text-sm text-[#a1a1aa] mt-1">{`The agent picks up every call, says it is an AI assistant, answers from your FAQs, books appointments, takes messages or transfers to you. $${Number(data?.rate || 0.2).toFixed(2)} per started minute from your wallet (+$${Number(data?.recordRate ?? 0.02).toFixed(2)} when the agent records); if the wallet runs out it says goodbye and hangs up.`}</p>
       </div>
       <div className="flex items-center justify-between"><span className="text-sm">Answer calls with the AI agent</span><Toggle checked={enabled} onChange={setEnabled} testid="number-ai-enabled-toggle" /></div>
       <select className="civr-input" value={agentId} onChange={e => setAgentId(e.target.value)} data-testid="number-ai-agent-select">{agents.map(a => <option key={a.id} value={a.id}>{a.name}{a.businessName ? ` · ${a.businessName}` : ''}</option>)}</select>

@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { MessageCircleQuestion, X, Send, Loader2, LifeBuoy, Trash2 } from 'lucide-react';
 import { api } from './api';
 import { useLang } from './i18n';
@@ -23,6 +24,9 @@ function Bubble({ m, i, link }) {
 // `visitor` = landing page (not signed in): anonymous thread, 10 questions an hour.
 export default function SupportChat({ supportLink, visitor = false }) {
   const { lang } = useLang();
+  const { pathname } = useLocation();
+  // Phones: the text-call screen needs the corner for its Speak button.
+  const show = !visitor && pathname.endsWith('/app/text-call') ? 'hidden lg:flex' : 'flex';
   const [vid] = useState(() => (visitor ? visitorId() : null));
   const base = visitor ? '/public/support/chat' : '/support/chat';
   const q = vid ? `?visitorId=${encodeURIComponent(vid)}` : '';
@@ -51,7 +55,7 @@ export default function SupportChat({ supportLink, visitor = false }) {
   return (
     <>
       <button type="button" onClick={() => setOpen(o => !o)} aria-label="Help assistant" data-testid="support-chat-toggle"
-        className={`fixed z-40 right-4 ${bottom} w-14 h-14 rounded-full bg-[#34d399] text-[#04130d] shadow-lg shadow-[#34d399]/25 flex items-center justify-center hover:scale-105 transition-transform`}>
+        className={`fixed z-40 right-4 ${bottom} w-14 h-14 rounded-full bg-[#34d399] text-[#04130d] shadow-lg shadow-[#34d399]/25 ${show} items-center justify-center hover:scale-105 transition-transform`}>
         {open ? <X className="w-6 h-6" /> : <MessageCircleQuestion className="w-6 h-6" />}
       </button>
       {open && (

@@ -4,6 +4,8 @@ const crypto = require('crypto')
 const axios = require('axios')
 const store = require('./store')
 const { Bridge } = require('./bridge')
+const recorder = require('./recorder')
+const booking = require('./booking')
 const phoneConfig = require('../phone-config')
 const telnyxApi = require('../telnyx-service')
 const { getBalance, smartWalletDeduct } = require('../utils.js')
@@ -24,7 +26,10 @@ const tx = (path, body) => axios.post(`${BASE}${path}`, body, { headers: { Autho
 const txError = (e) => e.response?.data?.errors?.[0]?.detail || e.message
 const wsBase = () => String(deps.selfUrl || process.env.SELF_URL || '').replace(/^http/, 'ws').replace(/\/$/, '')
 const streamParams = (t) => ({ stream_url: `${wsBase()}/ai-agent/stream/${t}`, stream_track: 'inbound_track', stream_bidirectional_mode: 'rtp', stream_bidirectional_codec: 'PCMU' })
-const leadRate = (number) => Math.max(RATE(), deps.voiceService?.getIvrCallRate?.(number) || 0)
+// Recorded calls cost AI_RECORDING_RATE_PER_MIN more per started minute (agents record unless switched off).
+const records = (agent) => agent?.record !== false
+const recRate = (agent) => (records(agent) ? recorder.RECORD_RATE() : 0)
+const leadRate = (number, recorded = false) => Math.max(RATE(), deps.voiceService?.getIvrCallRate?.(number) || 0) + (recorded ? recorder.RECORD_RATE() : 0)
 const esc = (s) => String(s ?? '').replace(/[<>&]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]))
 const hangup = (ccid) => tx(`/calls/${ccid}/actions/hangup`, {}).catch(() => {})
 
@@ -45,9 +50,12 @@ async function tryInbound({ payload, chatId, num }) {
   if (!cfg?.enabled || !phoneConfig.canAccessFeature(num.plan, 'aiAgent')) return false
   const agent = await store.getAgent(cfg.agentId, chatId)
   if (!agent || !process.env.APP_OPEN_API_KEY) return false
+  const rate = RATE() + recRate(agent)
   const { usdBal } = await getBalance(deps.walletOf, chatId)
-  if (usdBal < RATE() + committed(chatId)) { log(`[AIAgent] ${num.phoneNumber}: wallet $${usdBal} < $${RATE()}/min — normal routing`); return false }
-  const s = track(payload.call_control_id, { kind: 'inbound', rate: RATE(), token: newToken(), chatId: String(chatId), agent, number: num.phoneNumber, other: (payload.from || '').replace(/[^+\d]/g, '') })
+  if (usdBal < rate + committed(chatId)) { log(`[AIAgent] ${num.phoneNumber}: wallet $${usdBal} < $${rate}/min — normal routing`); return false }
+  const other = (payload.from || '').replace(/[^+\d]/g, '')
+  const calendar = await booking.forCall(chatId, agent, other).catch(() => null)
+  const s = track(payload.call_control_id, { kind: 'inbound', rate, baseRate: RATE(), recRate: recRate(agent), calendar, token: newToken(), chatId: String(chatId), agent, number: num.phoneNumber, other })
   try {
     await tx(`/calls/${s.ccid}/actions/answer`, streamParams(s.token))
     s.answeredAt = Date.now()
@@ -66,13 +74,14 @@ async function dialLead(campaign, lead) {
   const agent = await store.getAgent(campaign.agentId, campaign.chatId)
   if (!agent) return { error: 'The AI agent for this campaign was deleted.' }
   const token = newToken()
+  const calendar = await booking.forCall(campaign.chatId, agent, lead.number).catch(() => null)
   try {
     const r = await tx('/calls', {
       connection_id: process.env.TELNYX_CALL_CONTROL_APP_ID, to: lead.number, from: campaign.callerId, webhook_url: `${deps.selfUrl}/telnyx/voice-webhook`,
       client_state: CLIENT_STATE, answering_machine_detection: 'detect', timeout_secs: 30, ...streamParams(token),
     })
     const ccid = r.data?.data?.call_control_id
-    track(ccid, { kind: 'outbound', rate: leadRate(lead.number), token, chatId: String(campaign.chatId), agent, number: campaign.callerId, other: lead.number, leadName: lead.name || null, campaignId: campaign.id, leadIndex: lead.index })
+    track(ccid, { kind: 'outbound', rate: leadRate(lead.number, records(agent)), baseRate: leadRate(lead.number), recRate: recRate(agent), calendar, token, chatId: String(campaign.chatId), agent, number: campaign.callerId, other: lead.number, leadName: lead.name || null, campaignId: campaign.id, leadIndex: lead.index })
     return { callControlId: ccid }
   } catch (e) {
     const err = e.response?.data?.errors?.[0]
@@ -119,7 +128,7 @@ function onStream(token, ws) {
   const s = sessions.get(streamTokens.get(token))
   if (!s || s.bridge) return ws.close()
   s.bridge = new Bridge({
-    agent: s.agent, ctx: { direction: s.kind, leadName: s.leadName }, media: ws, log,
+    agent: s.agent, ctx: { direction: s.kind, leadName: s.leadName, callerNumber: s.other, calendar: s.calendar, record: records(s.agent) }, media: ws, log,
     actions: { hangup: (why) => { log(`[AIAgent] hangup ${s.ccid}: ${why}`); hangup(s.ccid) }, transfer: (to) => transfer(s, to) },
   })
   ws.on('message', (m) => { try { s.bridge.onMedia(JSON.parse(m)) } catch (_) { /* bad frame */ } })
@@ -147,10 +156,16 @@ async function finish(s, payload) {
   const aiSecs = s.answeredAt ? Math.round(((s.transferAt || endAt) - s.answeredAt) / 1000) : 0
   const restSecs = s.transferAt ? Math.round((endAt - s.transferAt) / 1000) : 0
   const res = s.bridge?.result || { transcript: [], usage: {} }
-  const sum = res.transcript.length ? await store.summarize(res.transcript, s.agent) : null
+  const [sum, recording] = await Promise.all([
+    res.transcript.length ? store.summarize(res.transcript, s.agent) : null,
+    duration ? saveRecording(s.bridge?.rec, s.chatId) : null,
+  ])
   const machine = res.voicemail || s.answeredBy === 'machine'
-  const outcome = res.optedOut ? 'opted_out' : s.transferredTo ? 'transferred' : machine ? 'voicemail' : res.outcome || (res.message ? 'message' : sum?.outcome) || (duration ? 'no_conversation' : null)
-  const rate = s.rate || (s.kind === 'inbound' ? RATE() : leadRate(s.other))
+  const outcome = res.optedOut ? 'opted_out' : res.booking ? 'booked' : s.transferredTo ? 'transferred' : machine ? 'voicemail' : res.outcome || (res.message ? 'message' : sum?.outcome) || (duration ? 'no_conversation' : null)
+  // The recording surcharge only applies when an MP3 was actually saved.
+  const baseRate = s.baseRate ?? (s.kind === 'inbound' ? RATE() : leadRate(s.other))
+  const recordingRate = recording ? (s.recRate ?? recorder.RECORD_RATE()) : 0
+  const rate = +(baseRate + recordingRate).toFixed(4)
   const fwdRate = (s.transferredTo && deps.voiceService?.getIvrCallRate?.(s.transferredTo)) || 0.15
   const aiMin = duration ? Math.max(1, Math.ceil(aiSecs / 60)) : 0
   const restMin = restSecs > 0 ? Math.ceil(restSecs / 60) : 0
@@ -159,8 +174,9 @@ async function finish(s, payload) {
   const callId = await store.saveCall({
     chatId: s.chatId, agentId: s.agent.id, agentName: s.agent.name, direction: s.kind, number: s.number, other: s.other, leadName: s.leadName || null,
     campaignId: s.campaignId || null, leadIndex: s.leadIndex ?? null, startedAt: s.startedAt, answeredAt: s.answeredAt ? new Date(s.answeredAt) : null, endedAt: new Date(endAt),
-    duration, minutesBilled: aiMin + restMin, charge: duration ? charge : 0, rate, outcome, summary: sum?.summary || null, note: res.note, message: res.message,
+    duration, minutesBilled: aiMin + restMin, charge: duration ? charge : 0, rate, recordingRate, outcome, summary: sum?.summary || null, note: res.note, message: res.message,
     transferredTo: s.transferredTo || null, optedOut: res.optedOut, answeredBy: s.answeredBy || null, hangupCause: payload?.hangup_cause || null, transcript: res.transcript, usage: res.usage,
+    booking: res.booking || null, ...recordingFields(recording),
   })
   log(`[AIAgent] ${s.kind} call ${s.other} ended: ${duration}s, outcome=${outcome}, charge=$${duration ? charge : 0}`)
 
@@ -169,17 +185,32 @@ async function finish(s, payload) {
       campaignId: s.campaignId, leadIndex: s.leadIndex, duration, hangupCause: payload?.hangup_cause || null, sipHangupCause: payload?.sip_hangup_cause || null,
       answeredAt: s.answeredAt ? new Date(s.answeredAt) : null, answeredBy: machine ? 'machine' : (s.answeredBy || null), voicemailDropped: res.voicemail && duration > 5,
       transferred: !!s.transferredTo, transferConnected: !!s.transferredTo && restSecs > 0,
-      ai: { outcome, summary: sum?.summary || null, callId }, aiBilling: duration ? { minutesBilled: aiMin + restMin, charge, rate } : null,
+      ai: { outcome, summary: sum?.summary || null, callId, booking: res.booking ? { day: res.booking.day, time: res.booking.time, start: res.booking.start } : null },
+      aiBilling: duration ? { minutesBilled: aiMin + restMin, charge, rate, recordingRate } : null,
     })
   }
   if (duration && deps.walletOf) {
     await smartWalletDeduct(deps.walletOf, s.chatId, charge, {
       type: 'ai_agent_call', callType: 'AIAgent', destination: s.other, phoneNumber: s.number,
-      description: `AI agent "${s.agent.name}": ${s.other} → ${s.number} (${aiMin} min × $${rate}${restMin ? ` + ${restMin} min transferred` : ''})`,
+      description: `AI agent "${s.agent.name}": ${s.other} → ${s.number} (${aiMin} min × $${rate}${recordingRate ? ` incl. $${recordingRate} recording` : ''}${restMin ? ` + ${restMin} min transferred` : ''})`,
     }).catch(e => log(`[AIAgent] billing error: ${e.message}`))
   }
   const msg = res.message ? `\n✉️ Message${res.message.name ? ` from ${esc(res.message.name)}` : ''}${res.message.callback ? ` (${esc(res.message.callback)})` : ''}: ${esc(res.message.text)}` : ''
-  deps.bot?.sendMessage(s.chatId, `🤖 <b>AI agent call</b> · ${esc(s.agent.name)}\n${esc(s.other)} → ${esc(s.number)} · ${duration}s · ${esc(outcome || 'no answer')}${sum?.summary ? `\n${esc(sum.summary)}` : ''}${msg}${duration ? `\n💳 $${charge.toFixed(2)}` : ''}`, { parse_mode: 'HTML' }).catch(() => {})
+  notice(s.chatId, `🤖 <b>AI agent call</b> · ${esc(s.agent.name)}\n${esc(s.other)} → ${esc(s.number)} · ${duration}s · ${esc(outcome || 'no answer')}${sum?.summary ? `\n${esc(sum.summary)}` : ''}${msg}${bookedLine(res.booking)}${duration ? `\n💳 $${charge.toFixed(2)}` : ''}`, recording)
+}
+
+// MP3 of the call (both sides) in our audio storage → { url, file, seconds, expiresAt } | null. Never blocks settling.
+async function saveRecording(rec, chatId) {
+  if (!rec || !deps.audioLibraryService?.saveBuffer) return null
+  try { return await recorder.save(rec, chatId, deps.audioLibraryService.saveBuffer) } catch (e) { log(`[AIAgent] recording save failed: ${e.message}`); return null }
+}
+const recordingFields = (r) => (r ? { recordingUrl: r.url, recordingFile: r.file, recordingSeconds: r.seconds, recordingExpiresAt: r.expiresAt } : { recordingUrl: null })
+const bookedLine = (b) => (b ? `\n📅 Booked: ${esc(b.day)} at ${esc(b.time)}${b.name ? ` · ${esc(b.name)}` : ''}` : '')
+// Owner's inbox: with the recording attached as playable audio when there is one.
+function notice(chatId, text, recording) {
+  if (!deps.bot) return
+  const p = recording?.url && deps.bot.sendAudio ? deps.bot.sendAudio(chatId, recording.url, { caption: `${text}\n🎧 Recording`, parse_mode: 'HTML' }) : deps.bot.sendMessage(chatId, text, { parse_mode: 'HTML' })
+  Promise.resolve(p).catch(() => {})
 }
 
 // ── Browser test talk (free, capped): the page speaks the same media protocol as Telnyx. ──
@@ -190,7 +221,8 @@ async function createTest(chatId, agentId, as) {
   const used = await store.testSecondsToday(chatId)
   if (used >= TEST_DAILY_SECS - 10) return { error: [429, 'test_limit', 'You have used today’s 15 free test minutes. Try again tomorrow.'] }
   const token = newToken()
-  testTokens.set(token, { chatId: String(chatId), agentId: agent.id, as: as === 'outbound' ? 'outbound' : 'inbound', exp: Date.now() + 60000 })
+  const calendar = await booking.forCall(chatId, agent, null).catch(() => null)
+  testTokens.set(token, { chatId: String(chatId), agentId: agent.id, as: as === 'outbound' ? 'outbound' : 'inbound', calendar, exp: Date.now() + 60000 })
   return { token, maxSeconds: Math.min(TEST_MAX_SECS, TEST_DAILY_SECS - used) }
 }
 
@@ -204,7 +236,7 @@ async function onTest(token, ws) {
   const startedAt = new Date()
   const sendUi = (o) => { if (ws.readyState === 1) ws.send(JSON.stringify(o)) }
   const bridge = new Bridge({
-    agent: { ...agent, maxMinutes: Math.max(0.6, maxSecs / 60) }, ctx: { direction: t.as, leadName: null, test: true }, media: ws, log,
+    agent: { ...agent, maxMinutes: Math.max(0.6, maxSecs / 60) }, ctx: { direction: t.as, leadName: null, test: true, calendar: t.calendar, record: records(agent) }, media: ws, log,
     actions: {
       hangup: () => { sendUi({ event: 'hangup' }); setTimeout(() => ws.close(), 300) },
       transfer: (to) => { sendUi({ event: 'notice', text: `On a real call the person is now connected to ${to}.` }); sendUi({ event: 'hangup' }); setTimeout(() => ws.close(), 300) },
@@ -215,14 +247,15 @@ async function onTest(token, ws) {
     bridge.stop()
     const r = bridge.result
     const duration = Math.round((Date.now() - startedAt) / 1000)
-    const sum = r.transcript.length ? await store.summarize(r.transcript, agent) : null
+    const [sum, recording] = await Promise.all([r.transcript.length ? store.summarize(r.transcript, agent) : null, saveRecording(bridge.rec, t.chatId)])
     await store.saveCall({
       chatId: t.chatId, agentId: agent.id, agentName: agent.name, direction: 'test', testAs: t.as, number: null, other: null, startedAt, answeredAt: startedAt, endedAt: new Date(),
-      duration, minutesBilled: 0, charge: 0, rate: 0, outcome: r.optedOut ? 'opted_out' : r.transferredTo ? 'transferred' : r.outcome || (r.message ? 'message' : sum?.outcome) || 'no_conversation',
+      duration, minutesBilled: 0, charge: 0, rate: 0, recordingRate: 0, outcome: r.optedOut ? 'opted_out' : r.booking ? 'booked' : r.transferredTo ? 'transferred' : r.outcome || (r.message ? 'message' : sum?.outcome) || 'no_conversation',
       summary: sum?.summary || null, note: r.note, message: r.message, transferredTo: r.transferredTo, optedOut: r.optedOut, transcript: r.transcript, usage: r.usage,
+      booking: r.booking || null, ...recordingFields(recording),
     }).catch(e => log(`[AIAgent] test save failed: ${e.message}`))
   })
   bridge.start()
 }
 
-module.exports = { init, committed, RATE, owns, activeCount, tryInbound, dialLead, onWebhook, onStream, createTest, onTest, leadRate }
+module.exports = { init, committed, RATE, RECORD_RATE: recorder.RECORD_RATE, owns, activeCount, tryInbound, dialLead, onWebhook, onStream, createTest, onTest, leadRate, finish, track, sessions }

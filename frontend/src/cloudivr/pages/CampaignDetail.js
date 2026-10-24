@@ -11,7 +11,7 @@ import { usePrivacy } from '../privacy';
 import { outcomeLabel } from './ai/AiCalls';
 
 const STATS = [['total', 'Numbers'], ['completed', 'Called'], ['answered', 'Answered'], ['keyPressed', 'Pressed a key'], ['transferred', 'Transferred'], ['noAnswer', 'No answer']];
-const AI_STATS = [['total', 'Numbers'], ['completed', 'Called'], ['answered', 'Talked'], ['interested', 'Interested'], ['callback', 'Call back'], ['skipped', 'Do-not-call']];
+const AI_STATS = [['total', 'Numbers'], ['completed', 'Called'], ['answered', 'Talked'], ['booked', 'Booked'], ['interested', 'Interested'], ['callback', 'Call back'], ['skipped', 'Do-not-call']];
 const LIVE = ['running', 'scheduled'];
 
 function Waiting({ c }) {
@@ -69,7 +69,7 @@ export default function CampaignDetail() {
       <div className="civr-card p-6 mb-4">
         <div className="flex items-center justify-between mb-3"><span className="text-sm text-[#d4d4d8]">Progress</span><span className="font-mono text-sm" data-testid="campaign-progress">{pct}%</span></div>
         <div className="h-2 rounded-full bg-[#1c1c1c] overflow-hidden"><div className={`h-full bg-[#34d399] transition-[width] duration-700 ${c.status === 'running' ? 'civr-pulse' : ''}`} style={{ width: `${pct}%` }} /></div>
-        <div className="grid grid-cols-3 md:grid-cols-6 gap-4 mt-6">{(isAi ? AI_STATS : STATS).map(([k, l]) => <div key={k} data-testid={`campaign-stat-${k}`}><div className="font-mono text-2xl">{c.stats?.[k] || 0}</div><div className="text-xs text-[#a1a1aa]">{l}</div></div>)}</div>
+        <div className={`grid gap-4 mt-6 ${isAi ? 'grid-cols-4 md:grid-cols-7' : 'grid-cols-3 md:grid-cols-6'}`}>{(isAi ? AI_STATS : STATS).map(([k, l]) => <div key={k} data-testid={`campaign-stat-${k}`}><div className="font-mono text-2xl">{c.stats?.[k] || 0}</div><div className="text-xs text-[#a1a1aa]">{l}</div></div>)}</div>
         <div className="mt-6 flex flex-wrap gap-2"><Controls c={c} act={act} busy={busy} />
           <button className="civr-btn civr-btn-ghost civr-btn-sm" onClick={() => downloadFile(`/campaigns/${id}/report.csv`, `campaign-${String(id).slice(0, 8)}.csv`).catch(e => toast.error(e.message))} data-testid="campaign-report-download-button"><Download className="w-4 h-4" />Download CSV report</button></div>
         <Waiting c={c} />
@@ -80,7 +80,7 @@ export default function CampaignDetail() {
         <table className="civr-table" data-testid="campaign-leads-table">
           <thead><tr><th>Number</th><th>Name</th><th>Status</th><th>{isAi ? 'AI result' : 'Key'}</th><th>Length</th></tr></thead>
           <tbody>{(c.leads || []).map((l, i) => (
-            <tr key={`${l.number}-${i}`} data-testid={`campaign-lead-${i}`}><td className="font-mono text-xs">{pv.phone(l.number)}</td><td>{pv.text(l.name, '•••') || '—'}</td><td><span className={statusPill(l.status)}>{l.status}</span>{l.transferred && <span className="civr-pill civr-pill-on ml-1">transferred</span>}{l.waitingForLine && l.status === 'pending' && <span className="civr-pill civr-pill-warn ml-1" data-testid={`campaign-lead-${i}-waiting-line`}>waiting for a line</span>}</td><td className={isAi ? 'text-xs max-w-xs' : 'font-mono'} data-testid={`campaign-lead-${i}-result`}>{isAi ? (l.ai ? <><span className="civr-pill">{outcomeLabel(l.ai.outcome)}</span>{l.ai.summary && <div className="text-[#a1a1aa] mt-1">{pv.text(l.ai.summary, 'Summary hidden')}</div>}</> : l.hangupCause && l.status === 'skipped' ? l.hangupCause : '—') : (l.digitPressed || '—')}</td><td className="font-mono text-xs">{l.duration ? secs(l.duration) : '—'}</td></tr>
+            <tr key={`${l.number}-${i}`} data-testid={`campaign-lead-${i}`}><td className="font-mono text-xs">{pv.phone(l.number)}</td><td>{pv.text(l.name, '•••') || '—'}</td><td><span className={statusPill(l.status)}>{l.status}</span>{l.transferred && <span className="civr-pill civr-pill-on ml-1">transferred</span>}{l.waitingForLine && l.status === 'pending' && <span className="civr-pill civr-pill-warn ml-1" data-testid={`campaign-lead-${i}-waiting-line`}>waiting for a line</span>}</td><td className={isAi ? 'text-xs max-w-xs' : 'font-mono'} data-testid={`campaign-lead-${i}-result`}>{isAi ? (l.ai ? <><span className="civr-pill">{outcomeLabel(l.ai.outcome)}</span>{l.ai.booking && <div className="text-[#d1fae5] mt-1" data-testid={`campaign-lead-${i}-booking`}>{`Booked ${l.ai.booking.day} at ${l.ai.booking.time}`}</div>}{l.ai.summary && <div className="text-[#a1a1aa] mt-1">{pv.text(l.ai.summary, 'Summary hidden')}</div>}</> : l.hangupCause && l.status === 'skipped' ? l.hangupCause : '—') : (l.digitPressed || '—')}</td><td className="font-mono text-xs">{l.duration ? secs(l.duration) : '—'}</td></tr>
           ))}</tbody>
         </table>
       </div>

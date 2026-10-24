@@ -65,7 +65,7 @@ export function Locked({ feature, phone, need }) {
 export function Toggle({ checked, onChange, testid, disabled }) {
   return (
     <button type="button" role="switch" aria-checked={checked} disabled={disabled} onClick={() => onChange(!checked)} data-testid={testid}
-      className={`relative w-11 h-6 rounded-full transition-colors ${checked ? 'bg-[#34d399]' : 'bg-[#2a2a2a]'} disabled:opacity-40`}>
+      className={`relative w-11 h-6 shrink-0 rounded-full transition-colors ${checked ? 'bg-[#34d399]' : 'bg-[#2a2a2a]'} disabled:opacity-40`}>
       <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform ${checked ? 'translate-x-5' : ''}`} />
     </button>
   );
@@ -103,3 +103,13 @@ export function KeyPicker({ value, onChange, testid }) {
 }
 
 export const statusPill = (s) => (['active', 'running', 'completed', 'credited'].includes(s) ? 'civr-pill civr-pill-on' : ['paused', 'scheduled', 'created', 'waiting', 'collecting'].includes(s) ? 'civr-pill civr-pill-warn' : ['cancelled', 'suspended', 'expired', 'failed', 'released'].includes(s) ? 'civr-pill civr-pill-bad' : 'civr-pill');
+
+// Backup numbers rung in order when the main number is busy or doesn't answer (comma separated, up to 4).
+export function BackupsField({ value, onChange, testid }) {
+  const v = Array.isArray(value) ? value.join(', ') : (value || '');
+  return (
+    <Field label="Backup numbers if busy (optional)" hint="Up to 4, separated by commas. If nobody answers, the next one rings automatically.">
+      <input className="civr-input font-mono" value={v} onChange={e => onChange(e.target.value)} placeholder="+14155550101, +14155550102" data-testid={testid} />
+    </Field>
+  );
+}

@@ -41,8 +41,9 @@ export const playUrl = (u) => { const f = String(u || '').split('/assets/user-au
 export const money = (n) => `$${Number(n || 0).toFixed(2)}`;
 export const usd = (n) => (Number.isInteger(Number(n)) ? `$${Number(n)}` : money(n));
 export const startPrice = (c) => (c?.plans?.length ? usd(Math.min(...c.plans.map(p => p.price))) : null);
-export const when = (d) => (d ? new Date(d).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—');
-export const day = (d) => (d ? new Date(d).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }) : '—');
+const locale = () => (typeof document !== 'undefined' && document.documentElement.lang) || undefined;
+export const when = (d) => (d ? new Date(d).toLocaleString(locale(), { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—');
+export const day = (d) => (d ? new Date(d).toLocaleDateString(locale(), { year: 'numeric', month: 'short', day: 'numeric' }) : '—');
 export const secs = (s) => { const n = Number(s || 0); return n >= 60 ? `${Math.floor(n / 60)}m ${n % 60}s` : `${n}s`; };
 
 // Loads `path` (null = skip); returns { data, error, loading, reload, setData }.

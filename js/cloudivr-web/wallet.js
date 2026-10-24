@@ -27,6 +27,7 @@ function walletOps(db) {
   return { balance, debit, credit }
 }
 
+const CREDITS = { 'referral-reward': 'Referral reward', 'suggestion-reward': 'Free credit · adopted suggestion' }
 const LABEL = { purchase: 'Number purchase', purchase_verification: 'Number purchase (verification)', renew: 'Number renewal', upgrade: 'Plan upgrade', release: 'Number deleted' }
 
 function routes(router, { db, h, coins, createCryptoDeposit }) {
@@ -43,6 +44,7 @@ function routes(router, { db, h, coins, createCryptoDeposit }) {
     const history = [
       ...ptx.filter(t => Number(t.amount) > 0).map(t => ({ id: String(t._id), at: t.timestamp, type: t.action, description: `${LABEL[t.action] || t.action} · ${t.phoneNumber || ''}`, amount: -Math.abs(Number(t.amount) || 0) })),
       ...tx.filter(t => t.type === 'wallet-topup').map(t => ({ id: String(t._id), at: new Date(t.createdAt).toISOString(), type: t.type, description: `Crypto top-up · ${t.metadata?.value || ''} ${t.metadata?.coin || ''}`.trim(), amount: Math.abs(Number(t.amount) || 0) })),
+      ...tx.filter(t => CREDITS[t.type]).map(t => ({ id: String(t._id), at: new Date(t.createdAt).toISOString(), type: t.type, description: CREDITS[t.type], amount: Math.abs(Number(t.amount) || 0) })),
     ].sort((a, b) => String(b.at).localeCompare(String(a.at))).slice(0, 50)
     res.json({
       balance: await w.balance(id), currency: 'USD', minTopup: MIN_TOPUP_USD, coins, history,

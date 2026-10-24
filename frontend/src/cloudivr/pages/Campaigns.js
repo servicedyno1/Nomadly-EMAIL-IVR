@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Megaphone, Plus, Loader2, Calculator, FileUp, ChevronRight } from 'lucide-react';
 import { api, useApi, when, money } from '../api';
-import { PageHeader, Field, Spinner, Empty, AudioSelect, KeyPicker, Toggle, ErrorNote, statusPill } from '../ui';
+import { PageHeader, Field, Spinner, Empty, AudioSelect, KeyPicker, Toggle, ErrorNote, statusPill, BackupsField } from '../ui';
 import { useCallerNumbers } from './QuickCall';
 import { DateTimePicker } from '../DateTimePicker';
 import { cp } from '../paths';
@@ -68,7 +68,7 @@ export function CampaignNew() {
   const [kind, setKind] = useState('audio');
   const { numbers, loading } = useCallerNumbers(kind === 'ai' ? 'aiAgent' : 'bulkCall');
   const { data: au, reload: reloadAudio } = useApi('/audio');
-  const [f, setF] = useState({ callerId: '', audioId: '', voicemailAudioId: '', leads: '', mode: 'report_only', transferNumber: '', activeKeys: ['1'], menu: [], concurrency: 5, scheduledFor: '', holdMusic: false, agentId: '' });
+  const [f, setF] = useState({ callerId: '', audioId: '', voicemailAudioId: '', leads: '', mode: 'report_only', transferNumber: '', transferBackups: '', activeKeys: ['1'], menu: [], concurrency: 5, scheduledFor: '', holdMusic: false, agentId: '' });
   const [script, setScript] = useState(null);
   const [est, setEst] = useState(null);
   const [busy, setBusy] = useState('');
@@ -116,6 +116,7 @@ export function CampaignNew() {
             <select className="civr-input" value={f.mode} onChange={set('mode')} data-testid="campaign-mode-select"><option value="report_only">Just report it</option><option value="transfer">Transfer the call to me</option><option value="menu">Route each key (menu)</option></select>
           </Field>
           {f.mode === 'transfer' && <Field label="Transfer to"><input className="civr-input font-mono" value={f.transferNumber} onChange={set('transferNumber')} placeholder="+14155550199" data-testid="campaign-transfer-input" /></Field>}
+          {f.mode === 'transfer' && <BackupsField value={f.transferBackups} onChange={set('transferBackups')} testid="campaign-backups-input" />}
           {f.mode === 'menu' ? <MenuBuilder value={f.menu} onChange={set('menu')} testid="campaign-menu" /> : <Field label="Keys that count"><KeyPicker value={f.activeKeys} onChange={set('activeKeys')} testid="campaign-keys" /></Field>}
           </>}
           <Field label="Calls at the same time"><input type="number" min={1} max={20} className="civr-input" value={f.concurrency} onChange={set('concurrency')} data-testid="campaign-concurrency-input" /></Field>

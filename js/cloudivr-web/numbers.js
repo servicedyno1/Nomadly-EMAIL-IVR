@@ -8,9 +8,10 @@ const numberHours = require('../number-hours')
 const vmGreeting = require('../voicemail-greeting')
 const notes = require('./notes')
 const notify = require('./notify')
+const referrals = require('./referrals')
 
 const TYPE_NAMES = { local: 'Local', toll_free: 'Toll-free', mobile: 'Mobile', national: 'National' }
-const FEATURE_KEYS = ['callForwarding', 'smsToEmail', 'smsWebhook', 'voicemail', 'sipCredentials', 'callRecording', 'ivr', 'ivrOutbound', 'bulkCall', 'otpCollection', 'aiAgent']
+const FEATURE_KEYS = ['callForwarding', 'smsToEmail', 'smsWebhook', 'voicemail', 'sipCredentials', 'callRecording', 'ivr', 'ivrOutbound', 'bulkCall', 'otpCollection', 'aiAgent', 'textRelay']
 const LOG_TYPES = { sms: ['sms'], voicemail: ['voicemail'], fax: ['fax'] }
 const E164 = /^\+[1-9]\d{7,14}$/
 const dryRun = () => process.env.WEB_CLOUDIVR_DRY_RUN === 'true'
@@ -18,6 +19,20 @@ const webText = (s) => String(s).replace(/Telegram/g, 'your inbox')
 
 const normPhone = (p) => { const d = String(p || '').replace(/[^\d+]/g, ''); return d ? (d.startsWith('+') ? d : `+${d}`) : '' }
 const bad = (res, status, error, message) => res.status(status).json({ error, message })
+// Up to 4 backup numbers rung in order when the main one is busy or doesn't answer → { list } | { error }.
+function parseBackups(raw, exclude = []) {
+  const tokens = (Array.isArray(raw) ? raw : String(raw || '').split(/[,;\n]+|\s+(?=\+)/)).map(t => String(t || '').trim()).filter(Boolean)
+  const junk = tokens.find(t => !/^\+?[\d\s().-]+$/.test(t))
+  if (junk) return { error: `Backup "${junk.slice(0, 20)}" is not a phone number. Use the country code, e.g. +14155550100.` }
+  const items = tokens.map(normPhone).filter(Boolean)
+  const list = [...new Set(items)].filter(n => !exclude.includes(n))
+  if (list.length > 4) return { error: 'Add up to 4 backup numbers.' }
+  for (const n of list) {
+    if (!E164.test(n)) return { error: `Backup ${n}: use the country code, e.g. +14155550100.` }
+    if (phoneConfig.isBlockedPrefix(n)) return { error: `Backup ${n} is a blocked premium/satellite destination.` }
+  }
+  return { list }
+}
 
 // Same Telnyx catalogue the bot shows (US/CA + international, incl. countries that need ID checks).
 function countries() {
@@ -43,6 +58,7 @@ const WEB_FEATURES = [
   ['callMeFirst', 'Call me first — calls through your mobile', 'ivrOutbound'],
   ['bulk', 'Bulk IVR campaigns with scheduling', 'bulkCall'],
   ['aiAgent', 'AI voice agent that answers and calls for you ($0.20/min)', 'aiAgent'],
+  ['textRelay', 'Text calls for deaf & hard-of-hearing users (+$0.03/min)', 'textRelay'],
   ['ivr', 'IVR auto-attendant + key analytics', 'ivr'],
   ['recording', 'Call recording', 'callRecording'],
   ['priority', 'Priority support', (plan) => plan === 'business'],
@@ -65,7 +81,7 @@ const catalog = () => {
     voicemailLanguages: vmGreeting.publicLangs(),
     countries: countries(), typeNames: TYPE_NAMES,
     rates: { forwardingPerMin: phoneConfig.CALL_FORWARDING_RATE_MIN, overagePerMin: phoneConfig.OVERAGE_RATE_MIN, overagePerSms: phoneConfig.OVERAGE_RATE_SMS },
-    sipDomain: phoneConfig.SIP_DOMAIN, dryRun: dryRun(), livePayments: livePayments(),
+    sipDomain: phoneConfig.WEB_SIP_DOMAIN, dryRun: dryRun(), livePayments: livePayments(),
   }
 }
 
@@ -98,9 +114,9 @@ function publicNumber(n) {
     routeSummary: routeSummary(n),
     capabilities: n.capabilities || { voice: true, sms: true, fax: false },
     usage: { minutesUsed: n.minutesUsed || 0, minutesIncluded: plan.minutes ?? null, smsUsed: n.smsUsed || 0, smsIncluded: plan.sms ?? null },
-    sipUsername: n.telnyxSipUsername || n.sipUsername || null, sipDomain: n.sipDomain || phoneConfig.SIP_DOMAIN,
+    sipUsername: n.telnyxSipUsername || n.sipUsername || null, sipDomain: phoneConfig.WEB_SIP_DOMAIN,
     features: {
-      callForwarding: f.callForwarding || { enabled: false, mode: 'disabled', forwardTo: null, ringTimeout: 25, holdMusic: false },
+      callForwarding: { enabled: false, mode: 'disabled', forwardTo: null, ringTimeout: 25, holdMusic: false, backups: [], ...(f.callForwarding || {}) },
       voicemail: publicVoicemail(f.voicemail),
       hours: f.hours || numberHours.defaultHours(),
       smsForwarding: f.smsForwarding || { toTelegram: true, toEmail: null, webhookUrl: null },
@@ -310,7 +326,7 @@ function routes(router, deps) {
       const doc = {
         phoneNumber: selected, telnyxOrderId: order.id, provider: 'telnyx', country, countryName: c.name,
         type, plan: planKey, planPrice: round2(base), purchaseDate: new Date().toISOString(), expiresAt: expiresAt.toISOString(), autoRenew: autoRenew !== false, status: 'active',
-        sipUsername, sipPassword, telnyxSipUsername: tUser, telnyxSipPassword: tPass, telnyxCredentialId: tCredId, sipDomain: phoneConfig.SIP_DOMAIN,
+        sipUsername, sipPassword, telnyxSipUsername: tUser, telnyxSipPassword: tPass, telnyxCredentialId: tCredId, sipDomain: phoneConfig.WEB_SIP_DOMAIN,
         messagingProfileId: caps.sms ? tr.messagingProfileId || null : null, connectionId: tr.sipConnectionId || null, smsUsed: 0, minutesUsed: 0,
         capabilities: caps, channel: 'web', ...(dryRun() ? { dryRun: true } : {}), ...(sub ? { isSubNumber: true, parentNumber: sub.parentNumber } : {}),
         features: {
@@ -328,6 +344,7 @@ function routes(router, deps) {
         await notify.push(chatId, `Coupon ${coupon.code} applied: ${coupon.discount}% off ${selected}. You saved $${round2(base - price).toFixed(2)}.`, null, { kind: 'coupon', meta: { coupon: coupon.code, discount: coupon.discount, used: true } }).catch(() => {})
       }
       await txn(chatId, 'phone-number', price, { phoneNumber: selected, plan: planKey, provider: 'telnyx', country })
+      if (!sub) await referrals.onPurchase(db, chatId, price, log).catch(e => log(`[CloudIVR-Web] referral payout failed: ${e.message}`))
       notifyAdmin(`🌐 CloudIVR web purchase${dryRun() ? ' (DRY RUN)' : ''}${viaOrder ? ' · crypto checkout' : ''}\nweb account: ${chatId} (${email})\nnumber: ${selected} (${country})${sub ? `\nextra number on ${sub.parentNumber}` : ''}\nplan: ${plan.name} $${price}${coupon ? ` (coupon ${coupon.code} −${coupon.discount}%)` : ''}`)
       await searchCache.deleteOne({ _id: chatId })
       return { status: 201, body: { number: publicNumber(doc), substitutedFrom: selected !== phone ? phone : null, balance: await w.balance(chatId) } }
@@ -377,7 +394,9 @@ function routes(router, deps) {
       if (to === req.num.phoneNumber) return bad(res, 400, 'self_forward', 'A number cannot forward to itself.')
     }
     const ringTimeout = Math.min(60, Math.max(10, parseInt(req.body.ringTimeout, 10) || 25))
-    const value = { enabled: mode !== 'disabled', mode, forwardTo: to, ringTimeout, holdMusic: !!req.body.holdMusic }
+    const bk = mode === 'disabled' ? { list: [] } : parseBackups(req.body.backups, [to, req.num.phoneNumber])
+    if (bk.error) return bad(res, 400, 'invalid_backup', bk.error)
+    const value = { enabled: mode !== 'disabled', mode, forwardTo: to, ringTimeout, holdMusic: !!req.body.holdMusic, backups: bk.list }
     await setField(req.webChatId, req.num.phoneNumber, 'features.callForwarding', value)
     res.json({ callForwarding: value })
   }))
@@ -471,7 +490,7 @@ function routes(router, deps) {
   router.get('/numbers/:phone/sip', withNumber(async (req, res) => {
     if (!gate(req, res, 'sipCredentials', 'SIP credentials')) return
     const n = req.num
-    res.json({ username: n.telnyxSipUsername || n.sipUsername, password: n.telnyxSipPassword || n.sipPassword, domain: n.sipDomain || phoneConfig.SIP_DOMAIN, port: 5060, transport: 'UDP/TCP/TLS', live: !!n.telnyxSipUsername })
+    res.json({ username: n.telnyxSipUsername || n.sipUsername, password: n.telnyxSipPassword || n.sipPassword, domain: phoneConfig.WEB_SIP_DOMAIN, port: 5060, transport: 'UDP/TCP/TLS', live: !!n.telnyxSipUsername })
   }))
 
   router.post('/numbers/:phone/sip/reset', withNumber(async (req, res) => {
@@ -485,7 +504,7 @@ function routes(router, deps) {
       if (n.telnyxCredentialId) await telnyxApi.deleteSIPCredential(n.telnyxCredentialId).catch(() => {})
     }
     await phoneNumbersOf.updateOne({ _id: req.webChatId, 'val.numbers.phoneNumber': n.phoneNumber }, { $set: { 'val.numbers.$.sipUsername': user, 'val.numbers.$.sipPassword': pass, 'val.numbers.$.telnyxSipUsername': dryRun() ? n.telnyxSipUsername || null : user, 'val.numbers.$.telnyxSipPassword': dryRun() ? n.telnyxSipPassword || null : pass, 'val.numbers.$.telnyxCredentialId': credId || n.telnyxCredentialId || null } })
-    res.json({ username: user, password: pass, domain: n.sipDomain || phoneConfig.SIP_DOMAIN })
+    res.json({ username: user, password: pass, domain: phoneConfig.WEB_SIP_DOMAIN })
   }))
 
   router.post('/numbers/:phone/auto-renew', withNumber(async (req, res) => {
@@ -506,28 +525,42 @@ function routes(router, deps) {
     res.json({ expiresAt: base.toISOString(), balance: await w.balance(req.webChatId) })
   }))
 
-  router.post('/numbers/:phone/upgrade', withNumber(async (req, res) => {
-    const n = req.num, newPlan = String(req.body.plan || '')
+  // Price to move `n` up to `newPlan` now → { charge, credit, newPrice } or { error } (HTTP-style).
+  function upgradeQuote(n, newPlan) {
     const order = Object.keys(phoneConfig.plans)
-    if (n.isSubNumber) return bad(res, 400, 'is_extra', 'Extra numbers follow the plan of their main number.')
-    if (!phoneConfig.plans[newPlan] || order.indexOf(newPlan) <= order.indexOf(n.plan)) return bad(res, 400, 'invalid_plan', 'Pick a higher plan than the current one.')
+    if (n.isSubNumber) return { error: { status: 400, error: 'is_extra', message: 'Extra numbers follow the plan of their main number.' } }
+    if (!phoneConfig.plans[newPlan] || order.indexOf(newPlan) <= order.indexOf(n.plan)) return { error: { status: 400, error: 'invalid_plan', message: 'Pick a higher plan than the current one.' } }
     const q = phoneConfig.computeUpgradeQuote(n, newPlan)
-    const charge = round2(q && Number.isFinite(q.chargeAmount) ? q.chargeAmount : phoneConfig.plans[newPlan].price)
-    if (req.body.confirm !== true) return res.json({ quote: { charge, credit: round2(q?.credit || 0), newPrice: round2(phoneConfig.plans[newPlan].price + Math.max(0, (n.planPrice || phoneConfig.plans[n.plan].price) - phoneConfig.plans[n.plan].price)) } })
-    if (!(await w.debit(req.webChatId, charge))) return bad(res, 402, 'insufficient_balance', `The upgrade costs $${charge.toFixed(2)}. Top up your wallet first.`)
     // Keep the number's surcharge (e.g. international) on top of the new plan price, as downgrade does.
     const surcharge = Math.max(0, round2((n.planPrice || phoneConfig.plans[n.plan].price) - phoneConfig.plans[n.plan].price))
-    const newPrice = round2(phoneConfig.plans[newPlan].price + surcharge)
+    return { charge: round2(q && Number.isFinite(q.chargeAmount) ? q.chargeAmount : phoneConfig.plans[newPlan].price), credit: round2(q?.credit || 0), newPrice: round2(phoneConfig.plans[newPlan].price + surcharge) }
+  }
+
+  // Charges the wallet and switches the plan → { status, body }. viaOrder = crypto order ref that paid for it.
+  async function upgradeNumber(chatId, n, newPlan, viaOrder = null) {
+    const q = upgradeQuote(n, newPlan)
+    if (q.error) return { status: q.error.status, body: { error: q.error.error, message: q.error.message } }
+    if (!(await w.debit(chatId, q.charge))) return { status: 402, body: { error: 'insufficient_balance', message: `The upgrade costs $${q.charge.toFixed(2)}. Top up your wallet first.` } }
     // Switch back on what a downgrade turned off, when the new plan includes it.
-    const set = { 'val.numbers.$.plan': newPlan, 'val.numbers.$.planPrice': newPrice, 'val.numbers.$.sipDisabled': false }
+    const set = { 'val.numbers.$.plan': newPlan, 'val.numbers.$.planPrice': q.newPrice, 'val.numbers.$.sipDisabled': false }
     const saved = n.downgradeSaved || []
     for (const x of saved) if (phoneConfig.canAccessFeature(newPlan, x.key)) set[`val.numbers.$.${x.path}`] = x.value
     set['val.numbers.$.downgradeSaved'] = saved.filter(x => !phoneConfig.canAccessFeature(newPlan, x.key))
-    await phoneNumbersOf.updateOne({ _id: req.webChatId, 'val.numbers.phoneNumber': n.phoneNumber }, { $set: set })
-    await phoneNumbersOf.updateOne({ _id: req.webChatId }, { $set: { 'val.numbers.$[s].plan': newPlan } }, { arrayFilters: [{ 's.isSubNumber': true, 's.parentNumber': n.phoneNumber }] }).catch(() => {})
-    await phoneTransactions.insertOne({ chatId: req.webChatId, phoneNumber: n.phoneNumber, action: 'upgrade', oldPlan: n.plan, newPlan, oldPrice: n.planPrice, newPrice, amount: charge.toFixed(2), credit: round2(q?.credit || 0).toFixed(2), paymentMethod: 'wallet_usd', channel: 'web', timestamp: new Date().toISOString() })
-    await txn(req.webChatId, 'phone-upgrade', charge, { phoneNumber: n.phoneNumber, plan: newPlan })
-    res.json({ plan: newPlan, charged: charge, balance: await w.balance(req.webChatId) })
+    await phoneNumbersOf.updateOne({ _id: chatId, 'val.numbers.phoneNumber': n.phoneNumber }, { $set: set })
+    await phoneNumbersOf.updateOne({ _id: chatId }, { $set: { 'val.numbers.$[s].plan': newPlan } }, { arrayFilters: [{ 's.isSubNumber': true, 's.parentNumber': n.phoneNumber }] }).catch(() => {})
+    await phoneTransactions.insertOne({ chatId, phoneNumber: n.phoneNumber, action: 'upgrade', oldPlan: n.plan, newPlan, oldPrice: n.planPrice, newPrice: q.newPrice, amount: q.charge.toFixed(2), credit: q.credit.toFixed(2), paymentMethod: viaOrder ? 'crypto_order' : 'wallet_usd', ...(viaOrder ? { orderRef: viaOrder } : {}), channel: 'web', timestamp: new Date().toISOString() })
+    await txn(chatId, 'phone-upgrade', q.charge, { phoneNumber: n.phoneNumber, plan: newPlan })
+    if (viaOrder) notifyAdmin(`🌐 CloudIVR web: ${n.phoneNumber} upgraded ${phoneConfig.plans[n.plan]?.name} → ${phoneConfig.plans[newPlan].name} · crypto checkout $${q.charge}\nweb account: ${chatId}`)
+    return { status: 200, body: { plan: newPlan, charged: q.charge, balance: await w.balance(chatId) } }
+  }
+
+  router.post('/numbers/:phone/upgrade', withNumber(async (req, res) => {
+    const newPlan = String(req.body.plan || '')
+    const q = upgradeQuote(req.num, newPlan)
+    if (q.error) return bad(res, q.error.status, q.error.error, q.error.message)
+    if (req.body.confirm !== true) return res.json({ quote: q })
+    const r = await upgradeNumber(req.webChatId, req.num, newPlan)
+    res.status(r.status).json(r.body)
   }))
 
   router.delete('/numbers/:phone', withNumber(async (req, res) => {
@@ -544,7 +577,7 @@ function routes(router, deps) {
     res.json({ released: true })
   }))
 
-  return { myNumbers, findMine, purchase, pickFromSearch, searchSimilar, setField, checkCoupon, unheld, ownAudioUrls }
+  return { myNumbers, findMine, purchase, pickFromSearch, searchSimilar, setField, checkCoupon, unheld, ownAudioUrls, upgradeQuote, upgradeNumber }
 }
 
-module.exports = { routes, catalog, routeSummary, publicNumber, publicVoicemail, validateIvr, normPhone, countries, E164, webFeatures, recommendedPlan, WEB_FEATURES }
+module.exports = { parseBackups, routes, catalog, routeSummary, publicNumber, publicVoicemail, validateIvr, normPhone, countries, E164, webFeatures, recommendedPlan, WEB_FEATURES }

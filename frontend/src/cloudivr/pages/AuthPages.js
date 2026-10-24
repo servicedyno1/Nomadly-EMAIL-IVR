@@ -8,6 +8,7 @@ import { api } from '../api';
 import { useCivrAuth } from '../AuthContext';
 import { Field, ErrorNote } from '../ui';
 import { cp } from '../paths';
+import { TwoFactorStep, RememberBox, useRefCode } from './auth/TwoFactorStep';
 
 const NEXT_STEPS = ['Add funds with crypto', 'Pick a number and plan', 'Choose what callers hear'];
 
@@ -21,7 +22,7 @@ function usePlanParam() {
 // REMINDER: Google sign-in uses the owner's own OAuth client id (GOOGLE_OAUTH_CLIENT_ID, served by /auth/config).
 // REMINDER: DO NOT HARDCODE THE URL, OR ADD ANY FALLBACKS OR REDIRECT URLS, THIS BREAKS THE AUTH
 // One Tap: Google's small "Continue as …" prompt appears on its own for visitors already signed in to Google.
-function GoogleButton({ dest, signup }) {
+function GoogleButton({ dest, signup, refCode, onMfa }) {
   const { config, setAccount } = useCivrAuth();
   const nav = useNavigate();
   if (!config?.googleClientId) return null;
@@ -31,7 +32,7 @@ function GoogleButton({ dest, signup }) {
         <GoogleLogin theme="filled_black" shape="pill" width="320" text="continue_with"
           context={signup ? 'signup' : 'signin'} useOneTap use_fedcm_for_prompt cancel_on_tap_outside={false}
           onSuccess={async (r) => {
-            try { const d = await api('/auth/google', { method: 'POST', body: { credential: r.credential } }); setAccount(d.account); nav(dest); } catch (e) { toast.error(e.message); }
+            try { const d = await api('/auth/google', { method: 'POST', body: { credential: r.credential, ref: refCode || undefined } }); if (d.twoFactor) { onMfa(d.twoFactor); return; } setAccount(d.account); nav(dest); } catch (e) { toast.error(e.message); }
           }}
           onError={() => toast.error('Google sign-in was cancelled or failed.')} />
       </div>
@@ -101,28 +102,36 @@ export function AuthPage({ mode }) {
   const { setAccount } = useCivrAuth();
   const nav = useNavigate();
   const { plan, q, dest } = usePlanParam();
+  const [params] = useSearchParams();
+  const refCode = useRefCode(params);
   const [f, setF] = useState({ name: '', email: '', password: '' });
+  const [remember, setRemember] = useState(false);
+  const [mfa, setMfa] = useState(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
+  const done = (d) => { if (signup) { try { localStorage.removeItem('civr.ref'); } catch (_) { /* private mode */ } } setAccount(d.account); nav(dest); };
   const submit = async (e) => {
     e.preventDefault(); setBusy(true); setError(null);
     try {
-      const d = await api(signup ? '/auth/register' : '/auth/login', { method: 'POST', body: f });
-      setAccount(d.account); nav(dest);
+      const d = await api(signup ? '/auth/register' : '/auth/login', { method: 'POST', body: { ...f, remember, ...(signup && refCode ? { ref: refCode } : {}) } });
+      if (d.twoFactor) setMfa(d.twoFactor); else done(d);
     } catch (err) { setError(err); } finally { setBusy(false); }
   };
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
   return (
     <AuthFrame signup={signup} testid={signup ? 'signup-page' : 'login-page'} title={signup ? 'Create your free account' : 'Welcome back'}
       sub={signup ? 'Free to create. Next you add funds with crypto and pick a number.' : 'Sign in to manage your numbers.'}>
+      {mfa ? <TwoFactorStep mfa={mfa} remember={remember} onDone={done} onBack={() => setMfa(null)} /> : <>
       {plan && <div className="flex items-center gap-2 text-sm text-[#34d399] mb-6" data-testid="auth-chosen-plan"><Check className="w-4 h-4" /><span><span className="capitalize">{plan}</span> plan picked — you’ll choose your number next.</span></div>}
-      <GoogleButton dest={dest} signup={signup} />
+      {signup && refCode && <div className="flex items-center gap-2 text-sm text-[#34d399] mb-6" data-testid="auth-referral-note"><Check className="w-4 h-4" />A friend invited you — you get a welcome credit after your first number.</div>}
+      <GoogleButton dest={dest} signup={signup} refCode={refCode} onMfa={setMfa} />
       <form onSubmit={submit} className="space-y-4">
         {signup && <Field label="Name (optional)"><input className="civr-input" value={f.name} onChange={set('name')} placeholder="Jane Doe" autoComplete="name" data-testid="auth-name-input" /></Field>}
         <Field label="Email"><input className="civr-input" type="email" required value={f.email} onChange={set('email')} placeholder="you@company.com" autoComplete="email" data-testid="auth-email-input" /></Field>
         <Field label="Password" hint={signup ? 'At least 8 characters.' : null}>
           <PasswordInput value={f.password} onChange={set('password')} minLength={signup ? 8 : 1} autoComplete={signup ? 'new-password' : 'current-password'} testid="auth-password-input" toggleTestid="auth-password-toggle" />
         </Field>
+        <RememberBox checked={remember} onChange={setRemember} />
         <ErrorNote error={error} testid="auth-error" />
         <button className="civr-btn civr-btn-primary w-full" disabled={busy} data-testid="auth-submit-button">{busy && <Loader2 className="w-4 h-4 animate-spin" />}{signup ? 'Create free account' : 'Sign in'}</button>
       </form>
@@ -130,6 +139,7 @@ export function AuthPage({ mode }) {
         {signup ? <Link to={cp(`/login${q}`)} className="hover:text-[#34d399] py-2" data-testid="auth-switch-link">Have an account? Sign in</Link>
           : <><Link to={cp(`/signup${q}`)} className="hover:text-[#34d399] py-2" data-testid="auth-switch-link">Create account</Link><Link to={cp('/forgot')} className="hover:text-[#34d399] py-2" data-testid="auth-forgot-link">Forgot password?</Link></>}
       </div>
+      </>}
     </AuthFrame>
   );
 }
@@ -163,7 +173,11 @@ export function ResetPage() {
   const [error, setError] = useState(null);
   const submit = async (e) => {
     e.preventDefault(); setError(null);
-    try { const d = await api('/auth/reset', { method: 'POST', body: { token: params.get('token'), password } }); setAccount(d.account); toast.success('Password updated'); nav(cp('/app')); } catch (err) { setError(err); }
+    try {
+      const d = await api('/auth/reset', { method: 'POST', body: { token: params.get('token'), password } });
+      if (d.signIn) { toast.success('Password updated — sign in with your new password and your code'); nav(cp('/login')); return; }
+      setAccount(d.account); toast.success('Password updated'); nav(cp('/app'));
+    } catch (err) { setError(err); }
   };
   return (
     <AuthFrame testid="reset-page" title="Choose a new password">

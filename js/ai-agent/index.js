@@ -6,12 +6,18 @@ const WebSocket = require('ws')
 const store = require('./store')
 const hours = require('./hours')
 const calls = require('./calls')
+const gcal = require('./gcal')
+const booking = require('./booking')
+const recorder = require('./recorder')
 
 const PATH = /^(?:\/api)?\/(ai-agent\/stream|cloudivr-web\/ai-agents\/test)\/([A-Za-z0-9_-]{16,64})(?:[/?]|$)/
 
 function init({ db, server, ...deps }) {
   store.init(db)
+  gcal.init(db)
   calls.init(deps)
+  recorder.setDb(db)
+  recorder.startSweep(db, deps.log || console.log)
   if (!server) return
   const wss = new WebSocket.Server({ noServer: true, perMessageDeflate: false })
   server.on('upgrade', (req, socket, head) => {
@@ -22,6 +28,6 @@ function init({ db, server, ...deps }) {
 }
 
 module.exports = {
-  init, store, hours, RATE: calls.RATE, leadRate: calls.leadRate, committed: calls.committed, owns: calls.owns, activeCount: calls.activeCount,
+  init, store, hours, gcal, booking, recorder, RATE: calls.RATE, RECORD_RATE: calls.RECORD_RATE, leadRate: calls.leadRate, committed: calls.committed, owns: calls.owns, activeCount: calls.activeCount,
   onWebhook: calls.onWebhook, tryInbound: calls.tryInbound, dialLead: calls.dialLead, createTest: calls.createTest,
 }

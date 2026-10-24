@@ -30,6 +30,8 @@ if (!process.env.PHONE_STARTER_PRICE || !process.env.PHONE_PRO_PRICE || !process
   console.warn(`[phone-config] ⚠️ One or more PHONE_*_PRICE env vars missing; using current public defaults: starter=$${PHONE_STARTER_PRICE} pro=$${PHONE_PRO_PRICE} business=$${PHONE_BUSINESS_PRICE}`)
 }
 const SIP_DOMAIN = process.env.SIP_DOMAIN || 'sip.speechcue.com'
+// CloudIVR web accounts register on their own brand domain (same Telnyx SIP edge as SIP_DOMAIN).
+const WEB_SIP_DOMAIN = process.env.CLOUDIVR_SIP_DOMAIN || 'sip.cloudivr.net'
 const CALL_PAGE_URL = process.env.CALL_PAGE_URL || 'https://speechcue.com/call'
 
 // ── Configurable plan minutes & SMS from .env ──
@@ -404,31 +406,31 @@ usAreaCodes.forEach(a => { areaByLabel[`${a.city} (${a.code})`] = a.code })
 // ── Plans ──
 const plans = {
   starter: { name: 'Starter', price: PHONE_STARTER_PRICE, minutes: STARTER_MINUTES, sms: STARTER_SMS, features: ['Call forwarding to any number', 'SMS forwarded to Telegram', `Add up to ${SUB_NUMBER_LIMITS.starter} extra numbers`] },
-  pro: { name: 'Pro', price: PHONE_PRO_PRICE, minutes: PRO_MINUTES, sms: PRO_SMS, features: ['All Starter features', 'Voicemail with custom greetings', 'SIP credentials for softphones', 'SMS to Telegram & Email', 'Webhook integrations', 'Quick IVR Call', 'Bulk IVR Campaign', 'OTP Collection', `Add up to ${SUB_NUMBER_LIMITS.pro} extra numbers`] },
-  business: { name: 'Business', price: PHONE_BUSINESS_PRICE, minutes: BUSINESS_MINUTES, sms: BUSINESS_SMS, features: ['All Pro features', 'Call Recording & Analytics', 'IVR Auto-Attendant', 'Quick IVR Presets & Recent Calls', 'IVR Redial Button', 'Call Scheduling', 'Custom OTP Messages', 'Consistent TTS Voice', 'Priority Support', `Add up to ${SUB_NUMBER_LIMITS.business} extra numbers`] },
+  pro: { name: 'Pro', price: PHONE_PRO_PRICE, minutes: PRO_MINUTES, sms: PRO_SMS, features: ['All Starter features', 'Voicemail with custom greetings', 'SIP credentials for softphones', 'SMS to Telegram & Email', 'Webhook integrations', 'Quick IVR Call', 'Bulk IVR Campaign', 'OTP Collection', 'Call Recording', `Add up to ${SUB_NUMBER_LIMITS.pro} extra numbers`] },
+  business: { name: 'Business', price: PHONE_BUSINESS_PRICE, minutes: BUSINESS_MINUTES, sms: BUSINESS_SMS, features: ['All Pro features', 'IVR Call Analytics', 'IVR Auto-Attendant', 'Quick IVR Presets & Recent Calls', 'IVR Redial Button', 'Call Scheduling', 'Custom OTP Messages', 'Consistent TTS Voice', 'Priority Support', `Add up to ${SUB_NUMBER_LIMITS.business} extra numbers`] },
 }
 
 // Language-specific plan features
 const plansI18n = {
   en: {
     starter: { features: ['Call forwarding to any number', 'SMS forwarded to Telegram', `Add up to ${SUB_NUMBER_LIMITS.starter} extra numbers`] },
-    pro: { features: ['All Starter features', 'Voicemail with custom greetings', 'SIP credentials for softphones', 'SMS to Telegram & Email', 'Webhook integrations', 'Quick IVR Call', 'Bulk IVR Campaign', 'OTP Collection', `Add up to ${SUB_NUMBER_LIMITS.pro} extra numbers`] },
-    business: { features: ['All Pro features', 'Call Recording & Analytics', 'IVR Auto-Attendant', 'Quick IVR Presets & Recent Calls', 'IVR Redial Button', 'Call Scheduling', 'Custom OTP Messages', 'Consistent TTS Voice', 'Priority Support', `Add up to ${SUB_NUMBER_LIMITS.business} extra numbers`] },
+    pro: { features: ['All Starter features', 'Voicemail with custom greetings', 'SIP credentials for softphones', 'SMS to Telegram & Email', 'Webhook integrations', 'Quick IVR Call', 'Bulk IVR Campaign', 'OTP Collection', 'Call Recording', `Add up to ${SUB_NUMBER_LIMITS.pro} extra numbers`] },
+    business: { features: ['All Pro features', 'IVR Call Analytics', 'IVR Auto-Attendant', 'Quick IVR Presets & Recent Calls', 'IVR Redial Button', 'Call Scheduling', 'Custom OTP Messages', 'Consistent TTS Voice', 'Priority Support', `Add up to ${SUB_NUMBER_LIMITS.business} extra numbers`] },
   },
   fr: {
     starter: { features: ['Transfert d\'appels vers n\'importe quel numéro', 'SMS vers Telegram', `Jusqu'à ${SUB_NUMBER_LIMITS.starter} numéros supplémentaires`] },
-    pro: { features: ['Toutes fonctions Starter', 'Messagerie vocale personnalisée', 'Identifiants SIP pour softphones', 'SMS vers Telegram & Email', 'Intégrations Webhook', 'Appel IVR rapide', 'Campagne IVR en masse', 'Collecte OTP', `Jusqu'à ${SUB_NUMBER_LIMITS.pro} numéros supplémentaires`] },
-    business: { features: ['Toutes fonctions Pro', 'Enregistrement & Analytiques', 'Standard automatique IVR', 'Préréglages IVR & Appels récents', 'Bouton de rappel IVR', 'Planification d\'appels', 'Messages OTP personnalisés', 'Voix TTS cohérente', 'Support prioritaire', `Jusqu'à ${SUB_NUMBER_LIMITS.business} numéros supplémentaires`] },
+    pro: { features: ['Toutes fonctions Starter', 'Messagerie vocale personnalisée', 'Identifiants SIP pour softphones', 'SMS vers Telegram & Email', 'Intégrations Webhook', 'Appel IVR rapide', 'Campagne IVR en masse', 'Collecte OTP', 'Enregistrement d\'appels', `Jusqu'à ${SUB_NUMBER_LIMITS.pro} numéros supplémentaires`] },
+    business: { features: ['Toutes fonctions Pro', 'Analytiques SVI', 'Standard automatique IVR', 'Préréglages IVR & Appels récents', 'Bouton de rappel IVR', 'Planification d\'appels', 'Messages OTP personnalisés', 'Voix TTS cohérente', 'Support prioritaire', `Jusqu'à ${SUB_NUMBER_LIMITS.business} numéros supplémentaires`] },
   },
   zh: {
     starter: { features: ['呼叫转移至任何号码', '短信转发至Telegram', `添加最多 ${SUB_NUMBER_LIMITS.starter} 个号码`] },
-    pro: { features: ['所有入门版功能', '自定义语音信箱', 'SIP 软电话凭据', '短信转Telegram和邮箱', 'Webhook集成', '快速IVR呼叫', '批量IVR活动', 'OTP收集', `添加最多 ${SUB_NUMBER_LIMITS.pro} 个号码`] },
-    business: { features: ['所有专业版功能', '通话录音与分析', 'IVR自动应答', 'IVR预设与最近通话', 'IVR重拨按钮', '通话调度', '自定义OTP消息', '一致TTS语音', '优先支持', `添加最多 ${SUB_NUMBER_LIMITS.business} 个号码`] },
+    pro: { features: ['所有入门版功能', '自定义语音信箱', 'SIP 软电话凭据', '短信转Telegram和邮箱', 'Webhook集成', '快速IVR呼叫', '批量IVR活动', 'OTP收集', '通话录音', `添加最多 ${SUB_NUMBER_LIMITS.pro} 个号码`] },
+    business: { features: ['所有专业版功能', 'IVR 通话分析', 'IVR自动应答', 'IVR预设与最近通话', 'IVR重拨按钮', '通话调度', '自定义OTP消息', '一致TTS语音', '优先支持', `添加最多 ${SUB_NUMBER_LIMITS.business} 个号码`] },
   },
   hi: {
     starter: { features: ['किसी भी नंबर पर कॉल फ़ॉरवर्डिंग', 'SMS से Telegram', `${SUB_NUMBER_LIMITS.starter} अतिरिक्त नंबर तक`] },
-    pro: { features: ['सभी स्टार्टर सुविधाएँ', 'कस्टम वॉइसमेल', 'सॉफ्टफ़ोन के लिए SIP क्रेडेंशियल्स', 'SMS से Telegram और Email', 'Webhook इंटीग्रेशन', 'त्वरित IVR कॉल', 'बल्क IVR अभियान', 'OTP संग्रह', `${SUB_NUMBER_LIMITS.pro} अतिरिक्त नंबर तक`] },
-    business: { features: ['सभी Pro सुविधाएँ', 'कॉल रिकॉर्डिंग और Analytics', 'IVR ऑटो-अटेंडेंट', 'IVR प्रीसेट और हाल की कॉलें', 'IVR रीडायल बटन', 'कॉल शेड्यूलिंग', 'कस्टम OTP संदेश', 'सुसंगत TTS आवाज़', 'प्राथमिकता समर्थन', `${SUB_NUMBER_LIMITS.business} अतिरिक्त नंबर तक`] },
+    pro: { features: ['सभी स्टार्टर सुविधाएँ', 'कस्टम वॉइसमेल', 'सॉफ्टफ़ोन के लिए SIP क्रेडेंशियल्स', 'SMS से Telegram और Email', 'Webhook इंटीग्रेशन', 'त्वरित IVR कॉल', 'बल्क IVR अभियान', 'OTP संग्रह', 'कॉल रिकॉर्डिंग', `${SUB_NUMBER_LIMITS.pro} अतिरिक्त नंबर तक`] },
+    business: { features: ['सभी Pro सुविधाएँ', 'IVR कॉल Analytics', 'IVR ऑटो-अटेंडेंट', 'IVR प्रीसेट और हाल की कॉलें', 'IVR रीडायल बटन', 'कॉल शेड्यूलिंग', 'कस्टम OTP संदेश', 'सुसंगत TTS आवाज़', 'प्राथमिकता समर्थन', `${SUB_NUMBER_LIMITS.business} अतिरिक्त नंबर तक`] },
   },
 }
 
@@ -449,6 +451,7 @@ const planFeatureAccess = {
     ivrRedial: false,
     otpCustomMessages: false,
     aiAgent: false,
+    textRelay: false,
   },
   pro: {
     callForwarding: true,
@@ -457,7 +460,7 @@ const planFeatureAccess = {
     smsWebhook: true,
     voicemail: true,
     sipCredentials: true,
-    callRecording: false,
+    callRecording: true,
     ivr: false,
     ivrOutbound: true,
     bulkCall: true,
@@ -465,6 +468,7 @@ const planFeatureAccess = {
     ivrRedial: false,
     otpCustomMessages: false,
     aiAgent: true,
+    textRelay: true,
   },
   business: {
     callForwarding: true,
@@ -481,6 +485,7 @@ const planFeatureAccess = {
     ivrRedial: true,
     otpCustomMessages: true,
     aiAgent: true,
+    textRelay: true,
   },
 }
 
@@ -489,8 +494,8 @@ const canAccessFeature = (planKey, feature) => {
 }
 
 const upgradeMessage = (feature, currentPlan, lang) => {
-  const needed = (feature === 'callRecording' || feature === 'ivr' || feature === 'ivrRedial' || feature === 'otpCustomMessages') ? 'Business'
-    : (feature === 'ivrOutbound' || feature === 'bulkCall' || feature === 'otpCollection') ? 'Pro'
+  const needed = (feature === 'ivr' || feature === 'ivrRedial' || feature === 'otpCustomMessages') ? 'Business'
+    : (feature === 'ivrOutbound' || feature === 'bulkCall' || feature === 'otpCollection' || feature === 'callRecording') ? 'Pro'
     : 'Pro'
   // Detect "current plan already meets the required tier" — happens when the
   // gate fires for a non-plan reason (e.g. legacy `sipDisabled` flag stuck
@@ -3594,6 +3599,7 @@ module.exports = {
   PHONE_PRO_PRICE,
   PHONE_BUSINESS_PRICE,
   SIP_DOMAIN,
+  WEB_SIP_DOMAIN,
   getSipDomainForNumber,
   OVERAGE_RATE_SMS,
   OVERAGE_RATE_MIN,

@@ -13,8 +13,8 @@ import { DncList } from './ai/DncList';
 const LANG_NAME = { en: 'English', fr: 'French', es: 'Spanish' };
 const TABS = [['agents', 'Agents'], ['calls', 'Call history'], ['dnc', 'Do-not-call list']];
 
-function PlanNote({ canUse, rate }) {
-  if (canUse) return <div className="text-sm text-[#a1a1aa] mb-6" data-testid="ai-agents-rate-note">Real calls bill ${Number(rate || 0.2).toFixed(2)} per started minute from your wallet. Browser tests are free.</div>;
+function PlanNote({ canUse, rate, recordRate }) {
+  if (canUse) return <div className="text-sm text-[#a1a1aa] mb-6" data-testid="ai-agents-rate-note">{`Real calls bill $${Number(rate || 0.2).toFixed(2)} per started minute from your wallet, +$${Number(recordRate ?? 0.02).toFixed(2)} when the agent records. Browser tests are free.`}</div>;
   return (
     <div className="civr-card p-6 mb-6 flex flex-col md:flex-row md:items-center gap-4" data-testid="ai-agents-plan-note">
       <Lock className="w-6 h-6 text-[#fbbf24]" />
@@ -49,7 +49,7 @@ export function AiAgents() {
       <PageHeader label="Calling" title="AI voice agents" sub="An AI that answers your number or calls your leads, in English, French or Spanish — with natural, fast conversation." testid="ai-agents-header">
         <Link to={cp('/app/ai-agents/new')} className="civr-btn civr-btn-primary" data-testid="ai-agents-new-button"><Plus className="w-4 h-4" />New agent</Link>
       </PageHeader>
-      {data && <PlanNote canUse={data.canUse} rate={data.rate} />}
+      {data && <PlanNote canUse={data.canUse} rate={data.rate} recordRate={data.recordRate} />}
       <div className="flex gap-1 overflow-x-auto border-b border-[#1f1f1f] mb-6" role="tablist">
         {TABS.map(([id, name]) => <button key={id} role="tab" aria-selected={tab === id} onClick={() => setParams({ tab: id }, { replace: true })} data-testid={`ai-tab-${id}`} className={`px-4 py-3 text-sm font-medium border-b-2 -mb-px transition-colors shrink-0 ${tab === id ? 'border-[#34d399] text-[#34d399]' : 'border-transparent text-[#a1a1aa] hover:text-white'}`}>{name}</button>)}
       </div>
@@ -73,7 +73,7 @@ export function AiAgentEdit() {
       <ErrorNote error={error} />
       {!isNew && loading && !agent ? <Spinner /> : agent && (
         <div className="grid lg:grid-cols-5 gap-4 items-start">
-          <div className="lg:col-span-3"><AgentForm key={agent.id || 'new'} initial={agent} voices={list?.voices} onSaved={(a) => (isNew ? nav(cp(`/app/ai-agents/${a.id}`), { replace: true }) : setData({ agent: a }))} onDeleted={() => nav(cp('/app/ai-agents'))} /></div>
+          <div className="lg:col-span-3"><AgentForm key={agent.id || 'new'} initial={agent} voices={list?.voices} recordRate={list?.recordRate} recordingDays={list?.recordingDays} onSaved={(a) => (isNew ? nav(cp(`/app/ai-agents/${a.id}`), { replace: true }) : setData({ agent: a }))} onDeleted={() => nav(cp('/app/ai-agents'))} /></div>
           <div className="lg:col-span-2 space-y-4">{isNew ? <div className="civr-card p-6 text-sm text-[#a1a1aa]" data-testid="ai-agent-save-first-note">Save the agent, then talk to it here in your browser before it takes real calls.</div> : <><TestTalk agent={agent} /><AiCalls agentId={agent.id} /></>}</div>
         </div>
       )}

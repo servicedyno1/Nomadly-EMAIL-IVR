@@ -9,6 +9,7 @@ const axios = require('axios')
 const nodemailer = require('nodemailer')
 const { WEB_ID_BASE } = require('./notify')
 const { appPathPrefix } = require('./domain-guard')
+const { createTwoFactor } = require('./twofa')
 
 const COOKIE = 'civr_session'
 const SESSION_DAYS = 7
@@ -57,16 +58,18 @@ function parseCookies(req) {
   return out
 }
 
-function setSession(req, res, acc) {
-  const token = jwt.sign({ sub: acc._id, v: acc.tokenVersion || 0 }, secret(), { expiresIn: `${SESSION_DAYS}d` })
+function setSession(req, res, acc, days = SESSION_DAYS) {
+  const token = jwt.sign({ sub: acc._id, v: acc.tokenVersion || 0 }, secret(), { expiresIn: `${days}d` })
   const secure = isHttps(req)
-  res.setHeader('Set-Cookie', `${COOKIE}=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${SESSION_DAYS * 86400}${secure ? '; Secure' : ''}`)
+  res.setHeader('Set-Cookie', `${COOKIE}=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${days * 86400}${secure ? '; Secure' : ''}`)
 }
 function clearSession(req, res) {
   res.setHeader('Set-Cookie', `${COOKIE}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0${isHttps(req) ? '; Secure' : ''}`)
 }
 
-const publicAccount = (a) => ({ id: String(a._id), email: a.email, name: a.name || '', hasPassword: !!a.passwordHash, google: !!a.googleSub, createdAt: a.createdAt })
+const adminEmails = () => String(process.env.CLOUDIVR_ADMIN_EMAILS || '').toLowerCase().split(',').map(s => s.trim()).filter(Boolean)
+const isAdmin = (a) => !!a?.email && adminEmails().includes(String(a.email).toLowerCase())
+const publicAccount = (a) => ({ id: String(a._id), email: a.email, name: a.name || '', hasPassword: !!a.passwordHash, google: !!a.googleSub, createdAt: a.createdAt, twoFactor: a.twoFactor?.method || null, admin: isAdmin(a) })
 
 let mailer = null
 function sendMail(to, subject, html, attachments) {
@@ -97,9 +100,19 @@ function createAuth(db, { log = console.log } = {}) {
     return WEB_ID_BASE + Number(doc.seq)
   }
 
-  async function createAccount({ email, name, passwordHash = null, googleSub = null }) {
+  // Referral code from a share link → referrer's id (never yourself; same network only allowed in preview).
+  async function referrerFor(ref, ip) {
+    const code = String(ref || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 16)
+    if (!code) return null
+    const r = await accounts.findOne({ refCode: code }, { projection: { _id: 1, lastIp: 1, signupIp: 1, disabled: 1 } })
+    if (!r || r.disabled) return null
+    if (process.env.WEB_CLOUDIVR_DRY_RUN !== 'true' && ip && (r.lastIp === ip || r.signupIp === ip)) return null
+    return r._id
+  }
+
+  async function createAccount({ email, name, passwordHash = null, googleSub = null, referredBy = null, ip = null }) {
     const _id = await nextChatId()
-    const acc = { _id, email, name: String(name || '').trim().slice(0, 80), passwordHash, ...(googleSub ? { googleSub } : {}), tokenVersion: 0, createdAt: new Date(), lastLoginAt: new Date() }
+    const acc = { _id, email, name: String(name || '').trim().slice(0, 80), passwordHash, ...(googleSub ? { googleSub } : {}), ...(referredBy ? { referredBy } : {}), signupIp: ip, lastIp: ip, tokenVersion: 0, createdAt: new Date(), lastLoginAt: new Date() }
     await accounts.insertOne(acc)
     await db.collection('walletOf').updateOne({ _id: String(_id) }, { $setOnInsert: { usdIn: 0, usdOut: 0 } }, { upsert: true })
     await db.collection('state').updateOne({ _id: String(_id) }, { $setOnInsert: { userLanguage: 'en', webAccount: true } }, { upsert: true })
@@ -136,7 +149,10 @@ function createAuth(db, { log = console.log } = {}) {
     } catch (_) { return res.status(401).json({ error: 'session_expired' }) }
   }
 
+  const mfa = createTwoFactor({ db, secret, sendMail, setSession, publicAccount, lockState, recordFailure, isHttps, parseCookies, log })
+
   function routes(router, h) {
+    mfa.routes(router, h, requireUser)
     router.get('/auth/config', (req, res) => res.json({ googleClientId: process.env.GOOGLE_OAUTH_CLIENT_ID || null, brand: process.env.CHAT_BOT_BRAND || 'Nomadly' }))
 
     router.post('/auth/register', h(async (req, res) => {
@@ -147,8 +163,9 @@ function createAuth(db, { log = console.log } = {}) {
       if (await lockState(ipKey)) return res.status(429).json({ error: 'too_many_attempts', message: 'Too many sign-ups from this network. Try again later.' })
       if (await accounts.findOne({ email })) return res.status(409).json({ error: 'email_taken', message: 'An account with this email already exists. Sign in instead.' })
       await recordFailure(ipKey, 15) // counts sign-ups per IP (15 per 15 min)
-      const acc = await createAccount({ email, name: req.body.name, passwordHash: await bcrypt.hash(password, 12) })
-      setSession(req, res, acc)
+      const ip = clientIp(req)
+      const acc = await createAccount({ email, name: req.body.name, passwordHash: await bcrypt.hash(password, 12), referredBy: await referrerFor(req.body.ref, ip), ip })
+      setSession(req, res, acc, req.body.remember ? 30 : SESSION_DAYS)
       res.status(201).json({ account: publicAccount(acc) })
     }))
 
@@ -165,9 +182,8 @@ function createAuth(db, { log = console.log } = {}) {
         return res.status(401).json({ error: 'invalid_credentials', message: acc && !acc.passwordHash ? 'This account uses Google sign-in. Continue with Google or reset your password.' : 'Wrong email or password.' })
       }
       await attempts.deleteMany({ _id: { $in: [key, emailKey] } })
-      await accounts.updateOne({ _id: acc._id }, { $set: { lastLoginAt: new Date() } })
-      setSession(req, res, acc)
-      res.json({ account: publicAccount(acc) })
+      await accounts.updateOne({ _id: acc._id }, { $set: { lastLoginAt: new Date(), lastIp: clientIp(req) } })
+      return mfa.finishLogin(req, res, acc, { remember: !!req.body.remember })
     }))
 
     router.post('/auth/google', h(async (req, res) => {
@@ -181,11 +197,10 @@ function createAuth(db, { log = console.log } = {}) {
       const email = normEmail(info.email)
       let acc = await accounts.findOne({ googleSub: info.sub }) || await accounts.findOne({ email })
       if (acc && !acc.googleSub) await accounts.updateOne({ _id: acc._id }, { $set: { googleSub: info.sub } })
-      if (!acc) acc = await createAccount({ email, name: info.name, googleSub: info.sub })
+      if (!acc) acc = await createAccount({ email, name: info.name, googleSub: info.sub, referredBy: await referrerFor(req.body.ref, clientIp(req)), ip: clientIp(req) })
       if (acc.disabled) return res.status(403).json({ error: 'disabled' })
-      await accounts.updateOne({ _id: acc._id }, { $set: { lastLoginAt: new Date() } })
-      setSession(req, res, acc)
-      res.json({ account: publicAccount({ ...acc, googleSub: info.sub }) })
+      await accounts.updateOne({ _id: acc._id }, { $set: { lastLoginAt: new Date(), lastIp: clientIp(req) } })
+      return mfa.finishLogin(req, res, { ...acc, googleSub: info.sub }, { remember: !!req.body.remember })
     }))
 
     router.post('/auth/logout', (req, res) => { clearSession(req, res); res.json({ ok: true }) })
@@ -215,6 +230,8 @@ function createAuth(db, { log = console.log } = {}) {
       if (!doc) return res.status(400).json({ error: 'invalid_token', message: 'This reset link is invalid or expired. Request a new one.' })
       await accounts.updateOne({ _id: doc.chatId }, { $set: { passwordHash: await bcrypt.hash(password, 12) }, $inc: { tokenVersion: 1 } })
       const acc = await accounts.findOne({ _id: doc.chatId })
+      // With two-step sign-in on, a reset link alone never signs you in.
+      if (acc.twoFactor?.method) return res.json({ ok: true, signIn: true })
       setSession(req, res, acc)
       res.json({ account: publicAccount(acc) })
     }))
@@ -240,4 +257,4 @@ function createAuth(db, { log = console.log } = {}) {
   return { requireUser, routes }
 }
 
-module.exports = { createAuth, parseCookies, COOKIE, secret, clientIp, sendMail, normEmail, EMAIL_RE }
+module.exports = { createAuth, parseCookies, COOKIE, secret, clientIp, sendMail, normEmail, EMAIL_RE, isAdmin }

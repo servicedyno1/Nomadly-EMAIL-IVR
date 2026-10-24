@@ -24,7 +24,7 @@ function Guide({ domain }) {
         <li>Server / domain: <code className="text-[#34d399]" data-testid="sip-guide-domain" data-no-translate>{domain}</code>, port 5060 (UDP or TCP) or 5061 for TLS.</li>
         <li>Save. When the account shows “Registered”, you can call out and answer calls to that number.</li>
       </ol>
-      <div className="space-y-3">
+      <div className="flex flex-col gap-3">
         {APPS.map(([app, how]) => <div key={app} className="rounded-xl border border-[#262626] p-4" data-testid={`sip-guide-${app.toLowerCase()}`}><div className="font-semibold text-sm" data-no-translate>{app}</div><div className="text-sm text-[#a1a1aa] mt-1">{how}</div></div>)}
       </div>
       <p className="text-xs text-[#a1a1aa]">Calls you make from a softphone bill from your wallet at the outbound rate. Keep your password private.</p>
@@ -67,7 +67,7 @@ export default function SipPage() {
         </Empty>
       ) : (
         <div className="grid xl:grid-cols-3 gap-6 items-start">
-          <div className="xl:col-span-2 space-y-4">
+          <div className="xl:col-span-2 flex flex-col gap-4">
             {withSip.map((n, i) => <SipCredentials key={n.phoneNumber} num={n} prefix={`sip-page-${i}`} heading={pv.phone(n.phoneNumber)} className="" />)}
             <LockedList nums={nums.filter(n => !n.access?.sipCredentials)} />
           </div>
