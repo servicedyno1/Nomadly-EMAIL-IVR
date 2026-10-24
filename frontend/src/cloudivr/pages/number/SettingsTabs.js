@@ -25,7 +25,7 @@ export function useSave(num, path, reload) {
   return [save, busy];
 }
 
-const Card = ({ title, sub, children }) => (
+export const Card = ({ title, sub, children }) => (
   <div className="civr-card p-6 max-w-2xl">
     <div className="font-display text-2xl font-bold">{title}</div>
     {sub && <p className="text-sm text-[#a1a1aa] mt-1 mb-6">{sub}</p>}

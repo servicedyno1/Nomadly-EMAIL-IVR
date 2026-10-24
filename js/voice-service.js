@@ -8,6 +8,7 @@ const { getBalance, smartWalletDeduct, smartWalletCheck, forceWalletDebit } = re
 const dialGuard = require('./dial-rate-guard.js')
 const callSessionStore = require('./call-session-store.js')
 const numberHours = require('./number-hours.js')
+const browserRing = require('./relay-call/incoming') // CloudIVR web "Ring me in the browser" (ringing banner + online map)
 const vmGreeting = require('./voicemail-greeting.js')
 // CloudIVR web accounts (reserved chatId range): voicemail is kept, transcribed and emailed. Loaded lazily (see _webVoicemail).
 let _webVoicemailDeliver = null
@@ -1791,6 +1792,7 @@ async function handleBridgeTransferAnswered(payload) {
 
   transfer.phase = 'bridged'
   transfer.bridgeTime = Date.now()
+  if (transfer.type === 'sip_ring') browserRing.removeByCcid(transfer.originalCallControlId) // answered by voice
 
   // LEAK sweeper coverage (2026-08-07): record a durable pending-bill row for this Telnyx
   // bridge/transfer leg, keyed by the EXACT callRef handleBridgeTransferHangup bills under
@@ -1834,6 +1836,111 @@ async function handleBridgeTransferAnswered(payload) {
     _bot?.sendMessage(chatId, msg, { parse_mode: 'HTML' }).catch(() => {})
   }
   return true
+}
+
+// Nobody picked up an unanswered ring (SIP device, or the web app's "Ring me in the browser"): answer the waiting
+// caller, then forward (no answer / busy) → voicemail → missed. `t` = { vmConfig, fwdConfig, num, chatId, fromNumber,
+// unanswered, type } (the SIP ring transfer record, or the browser-ring context saved on the session).
+async function noAnswerFallback(originalCcid, t, hangupCause) {
+  const origSession = activeCalls[originalCcid]
+  if (!origSession) return
+  const via = t.type === 'sip_ring' ? 'SIP' : 'Browser ring'
+  // If the original inbound was never answered (unanswered ring), answer it now for the fallback
+  if (t.unanswered) {
+    try {
+      await _telnyxApi.answerCall(originalCcid)
+      t.unanswered = false
+      log(`[Voice] ${via} no answer → answered original call for fallback`)
+      // Small delay to let Telnyx process the answer before issuing speak/playback
+      await new Promise(r => setTimeout(r, 500))
+    } catch (e) {
+      log(`[Voice] Failed to answer original call for fallback: ${e.message} — hanging up`)
+      await _telnyxApi.hangupCall(originalCcid).catch(() => {})
+      notifyUser(t.chatId, t.num, 'missed', origSession)
+      return
+    }
+  }
+
+  const vm = t.vmConfig
+  const fwd = t.fwdConfig
+
+  // Try forwarding based on mode (no_answer OR busy when the ring reports busy / was declined)
+  const sipHangupCause = hangupCause || ''
+  const isSipBusy = sipHangupCause === 'USER_BUSY' || sipHangupCause === 'BUSY'
+  const shouldForwardAfterSip = (fwd?.enabled && fwd.forwardTo && fwd.mode === 'no_answer')
+    || (fwd?.enabled && fwd.forwardTo && fwd.mode === 'busy' && isSipBusy)
+  if (shouldForwardAfterSip) {
+    origSession.phase = 'forwarding'
+    origSession.forwardingRate = CALL_FORWARDING_RATE_MIN
+    const modeLabel = fwd.mode === 'busy' ? `${via} busy` : `${via} no answer`
+    log(`[Voice] ${modeLabel} → forwarding to ${fwd.forwardTo}`)
+    await playHoldMusicAndTransfer(originalCcid, fwd.forwardTo, t.fromNumber, fwd)
+  }
+  // Try voicemail (if configured and plan allows)
+  else if (vm?.enabled && canAccessFeature(t.num.plan, 'voicemail')) {
+    origSession.phase = 'voicemail_greeting'
+    log(`[Voice] ${via} no answer → playing voicemail for ${t.num.phoneNumber}`)
+    await playVoicemailGreeting(originalCcid, t.num, vm)
+  }
+  // No forwarding or voicemail — missed call
+  else {
+    origSession.phase = 'missed'
+    log(`[Voice] ${via} no answer → missed call for ${t.num.phoneNumber}`)
+    await _telnyxApi.speakOnCall(originalCcid, 'The person you are calling is currently unavailable. Please try again later.')
+    setTimeout(() => _telnyxApi.hangupCall(originalCcid), 4000)
+    notifyUser(t.chatId, t.num, 'missed', origSession)
+  }
+}
+
+// The web app rang (no SIP device on the number) but nobody took the call, or the owner declined it → the
+// number's usual fallback. A decline counts as busy (so "forward when busy" applies too).
+async function browserNoAnswer(ccid, cause) {
+  const s = activeCalls[ccid]
+  if (!s || s.phase !== 'ringing_browser' || !s._browserRing || isCallEnded(ccid)) return false
+  browserRing.removeByCcid(ccid)
+  s.phase = 'browser_fallback'
+  s._fallbackRouting = true // handleCallAnswered must not route this call a second time
+  log(`[Voice] Browser ring ${cause} for ${s.to} — running the number's fallback`)
+  await noAnswerFallback(ccid, s._browserRing, cause === 'declined' ? 'USER_BUSY' : 'timeout')
+  return true
+}
+
+// Owner answers a ringing inbound call AS TEXT from the web app: hand the still-unanswered call over to the text
+// relay engine. Atomic (first tab/device wins). Text calls bill like outgoing text calls (call rate + relay fee),
+// so the plan-minute timer stops here. → { ccid, from, to, chatId } or null when it was already answered / ended.
+function takeInboundForText(ccid, chatId) {
+  const s = activeCalls[ccid]
+  if (!s || String(s.chatId) !== String(chatId) || s._hangupProcessed || isCallEnded(ccid)) return null
+  const ring = s.sipRingCallControlId
+  const sipRing = ring ? activeBridgeTransfers[ring] : null
+  const ok = (s.phase === 'ringing_browser' && s._browserRing?.unanswered) || (s.phase === 'ringing_sip' && sipRing?.unanswered && sipRing.phase !== 'bridged')
+  if (!ok) return null
+  s.phase = 'taken_text'
+  if (s._limitTimer) clearInterval(s._limitTimer)
+  if (sipRing) {
+    delete activeBridgeTransfers[ring] // first, so the ring leg's hangup does not run the no-answer fallback
+    _telnyxApi.hangupCall(ring).catch(() => {})
+  }
+  browserRing.removeByCcid(ccid)
+  const out = { ccid, from: s.from, to: s.to, chatId: String(s.chatId) }
+  delete activeCalls[ccid]
+  log(`[Voice] Inbound ${s.from} → ${s.to} taken as a text call by the web app`)
+  return out
+}
+
+// Owner declines a ringing call in the web app → run the fallback now (voicemail / forwarding / missed).
+async function declineBrowserRing(ccid, chatId) {
+  const s = activeCalls[ccid]
+  browserRing.removeByCcid(ccid)
+  if (!s || String(s.chatId) !== String(chatId)) return false
+  if (s.phase === 'ringing_browser') return browserNoAnswer(ccid, 'declined')
+  const ring = s.sipRingCallControlId
+  if (s.phase === 'ringing_sip' && ring && activeBridgeTransfers[ring] && activeBridgeTransfers[ring].phase !== 'bridged') {
+    log(`[Voice] Browser ring declined for ${s.to} — ending the SIP ring (fallback follows)`)
+    await _telnyxApi.hangupCall(ring).catch(() => {}) // handleBridgeTransferHangup runs the fallback
+    return true
+  }
+  return false
 }
 
 // When either leg of a bridge transfer hangs up, clean up and ensure other leg disconnects
@@ -1907,55 +2014,8 @@ async function handleBridgeTransferHangup(payload) {
   if (transfer.phase !== 'bridged') {
     // Special handling for SIP ring: DON'T hang up original leg — fall through to voicemail/forwarding/missed
     if (transfer.type === 'sip_ring') {
-      const origSession = activeCalls[transfer.originalCallControlId]
-      if (origSession) {
-        // If original inbound was never answered (unanswered SIP ring), answer it now for fallback
-        if (transfer.unanswered) {
-          try {
-            await _telnyxApi.answerCall(transfer.originalCallControlId)
-            transfer.unanswered = false
-            log(`[Voice] SIP no answer → answered original call for fallback`)
-            // Small delay to let Telnyx process the answer before issuing speak/playback
-            await new Promise(r => setTimeout(r, 500))
-          } catch (e) {
-            log(`[Voice] Failed to answer original call for fallback: ${e.message} — hanging up`)
-            await _telnyxApi.hangupCall(transfer.originalCallControlId).catch(() => {})
-            notifyUser(transfer.chatId, transfer.num, 'missed', origSession)
-            delete activeBridgeTransfers[callControlId]
-            return true
-          }
-        }
-
-        const vm = transfer.vmConfig
-        const fwd = transfer.fwdConfig
-
-        // Try forwarding based on mode (no_answer OR busy when SIP reports busy)
-        const sipHangupCause = hangupCause || ''
-        const isSipBusy = sipHangupCause === 'USER_BUSY' || sipHangupCause === 'BUSY'
-        const shouldForwardAfterSip = (fwd?.enabled && fwd.forwardTo && fwd.mode === 'no_answer')
-          || (fwd?.enabled && fwd.forwardTo && fwd.mode === 'busy' && isSipBusy)
-        if (shouldForwardAfterSip) {
-          origSession.phase = 'forwarding'
-          origSession.forwardingRate = CALL_FORWARDING_RATE_MIN
-          const modeLabel = fwd.mode === 'busy' ? 'SIP busy' : 'SIP no answer'
-          log(`[Voice] ${modeLabel} → forwarding to ${fwd.forwardTo}`)
-          await playHoldMusicAndTransfer(transfer.originalCallControlId, fwd.forwardTo, transfer.fromNumber, fwd)
-        }
-        // Try voicemail (if configured and plan allows)
-        else if (vm?.enabled && canAccessFeature(transfer.num.plan, 'voicemail')) {
-          origSession.phase = 'voicemail_greeting'
-          log(`[Voice] SIP no answer → playing voicemail for ${transfer.num.phoneNumber}`)
-          await playVoicemailGreeting(transfer.originalCallControlId, transfer.num, vm)
-        }
-        // No forwarding or voicemail — missed call
-        else {
-          origSession.phase = 'missed'
-          log(`[Voice] SIP no answer → missed call for ${transfer.num.phoneNumber}`)
-          await _telnyxApi.speakOnCall(transfer.originalCallControlId, 'The person you are calling is currently unavailable. Please try again later.')
-          setTimeout(() => _telnyxApi.hangupCall(transfer.originalCallControlId), 4000)
-          notifyUser(transfer.chatId, transfer.num, 'missed', origSession)
-        }
-      }
+      browserRing.removeByCcid(transfer.originalCallControlId)
+      await noAnswerFallback(transfer.originalCallControlId, transfer, hangupCause)
       delete activeBridgeTransfers[callControlId]
       return true
     }
@@ -2485,6 +2545,27 @@ async function handleCallInitiated(payload) {
   const hasIvr = ivrConfig?.enabled && canAccessFeature(num.plan, 'ivr') && ivrConfig.options && Object.keys(ivrConfig.options).length > 0
   const hasForwardAlways = fwdConfig?.enabled && fwdConfig.forwardTo && fwdConfig.mode === 'always'
 
+  // ── BROWSER RING (CloudIVR web "Ring me in the browser", Pro+) ──
+  // While the owner has the web app open, a big ringing banner offers: answer as text (relay engine), answer by voice
+  // (browser phone, through the SIP ring below) or decline. Same exclusions as the SIP ring. No tab open → unchanged.
+  const brCfg = num.features?.browserRing
+  if (brCfg?.enabled && canAccessFeature(num.plan, 'textRelay') && !hasIvr && !hasForwardAlways && !sessionRef.offHours && browserRing.isOnline(chatId)) {
+    const ringSecs = fwdConfig?.ringTimeout || 25
+    if (hasSip) {
+      // The SIP ring below keeps the caller ringing and runs the fallback on timeout; the banner is an extra alert.
+      browserRing.add({ chatId, phone: to, from, ccid: callControlId, timeoutMs: ringSecs * 1000 })
+    } else {
+      sessionRef.phase = 'ringing_browser'
+      sessionRef._browserRing = { vmConfig: num.features?.voicemail, fwdConfig, num, chatId, fromNumber: to, unanswered: true, type: 'browser_ring' }
+      browserRing.add({ chatId, phone: to, from, ccid: callControlId, timeoutMs: ringSecs * 1000, onTimeout: () => browserNoAnswer(callControlId, 'timeout').catch(e => log(`[Voice] browser ring fallback error: ${e.message}`)) })
+      log(`[Voice] Ringing the web app (unanswered) for ${num.phoneNumber} (timeout: ${ringSecs}s)`)
+      const lang = await _getUserLang(chatId)
+      const msg = _trans('vs.incomingCall', lang, formatPhone(from), formatPhone(to))
+      if (msg) _bot?.sendMessage(chatId, msg, { parse_mode: 'HTML' }).catch(() => {})
+      return // Don't answer — the web app decides, or the timer falls back
+    }
+  }
+
   // Only do unanswered SIP ring if: has SIP, no IVR, no forward-always (those need answered call), and the number is not off
   if (hasSip && !hasIvr && !hasForwardAlways && !sessionRef.offHours) {
     sessionRef.phase = 'ringing_sip'
@@ -2531,6 +2612,7 @@ async function handleCallInitiated(payload) {
       log(`[Voice] Failed to ring SIP device: ${e.message} — answering and routing normally`)
     }
     // If SIP ring failed, fall through to normal answer + routing
+    browserRing.removeByCcid(callControlId)
   }
 
   // Answer the call — for non-SIP numbers, or SIP ring failed, or IVR/forwarding-always
@@ -3721,6 +3803,14 @@ async function handleCallAnswered(payload) {
   }
 
   const { num, chatId, to, from } = session
+  // Browser-ring fallback routes the call itself (noAnswerFallback) — only start recording here.
+  if (session._fallbackRouting) {
+    if (session.recordingEnabled && !session.isRecording) {
+      await _telnyxApi.startRecording(callControlId, 'single').catch(() => {})
+      session.isRecording = true
+    }
+    return
+  }
   log(`[Voice] handleCallAnswered: chatId=${chatId} to=${to} from=${from} phase=${session.phase} hasFwd=${!!num.features?.callForwarding?.enabled}(${num.features?.callForwarding?.mode || 'n/a'}→${num.features?.callForwarding?.forwardTo || 'n/a'}) hasIvr=${!!num.features?.ivr?.enabled} hasVm=${!!num.features?.voicemail?.enabled}`)
 
   // Outbound SIP calls: skip inbound feature routing (IVR, forwarding, voicemail)
@@ -4321,6 +4411,10 @@ async function handleCallHangup(payload) {
     }
   }
 
+  // Caller hung up while the web app was ringing → drop the banner; it was a missed call.
+  browserRing.removeByCcid(callControlId)
+  if (session.phase === 'ringing_browser') { session.phase = 'missed'; session._neverAnswered = true } // never answered → never billed
+
   // Prevent duplicate hangup processing (Telnyx can fire multiple hangup events for transferred calls)
   if (session._hangupProcessed) return
   session._hangupProcessed = true
@@ -4328,7 +4422,7 @@ async function handleCallHangup(payload) {
   const payloadDuration = payload.duration_secs || 0
   // Telnyx doesn't always include duration_secs for credential connection calls
   // Calculate from session start time as fallback
-  const duration = payloadDuration > 0 ? payloadDuration : Math.floor((Date.now() - session.startedAt.getTime()) / 1000)
+  const duration = session._neverAnswered ? 0 : payloadDuration > 0 ? payloadDuration : Math.floor((Date.now() - session.startedAt.getTime()) / 1000)
   const hangupCause = payload.hangup_cause || payload.sip_hangup_cause || 'unknown'
   const hangupSource = payload.hangup_source || 'unknown'
   const { chatId, num, from, to } = session
@@ -4842,6 +4936,7 @@ async function initiateOutboundIvrCall(params) {
     isTrial: isTrial || false,
     holdMusic: holdMusic || false,
     transferBackups: transferBackups.length ? transferBackups : null,
+    transferBackupsAll: transferBackups.length ? [...transferBackups] : null, // untouched copy (transferBackups is consumed while dialing) — for Redial
     phase: 'initiated',
     digitPressed: null,
     startTime: Date.now(),
@@ -5338,6 +5433,7 @@ async function handleOutboundIvrHangup(payload) {
     callerId: session.callerId,
     targetNumber: session.targetNumber,
     ivrNumber: session.ivrNumber,
+    transferBackups: session.menu ? [] : (session.transferBackupsAll || []),
     audioUrl: session.audioUrl,
     activeKeys: session.activeKeys,
     templateName: session.templateName,
@@ -5635,6 +5731,9 @@ module.exports = {
   recordOutboundMenuPress,
   getOutboundMenuAnalytics,
   initiateOutboundIvrCall,
+  // CloudIVR web "Ring me in the browser": answer a ringing inbound call as text / decline it
+  takeInboundForText,
+  declineBrowserRing,
   // CloudIVR web demo line: current phase of an outbound IVR call (null once it has ended)
   getOutboundIvrPhase: (callControlId) => outboundIvrCalls[callControlId]?.phase || null,
   // Bulk recovery: hang up an orphaned Telnyx leg before re-dialling its lead

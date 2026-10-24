@@ -86,7 +86,7 @@ export function LiveCall({ id, onClose }) {
   return (
     <div ref={card} className="civr-card p-4 md:p-6 space-y-4 civr-rise scroll-mt-20" data-testid="relay-live">
       <div className="flex flex-wrap items-center gap-3">
-        <div className="basis-full sm:basis-auto sm:flex-1 min-w-0"><div className="font-mono text-lg truncate" data-testid="relay-to">{call.to}</div><div className="text-xs text-[#a1a1aa]">from {call.callerId} · {money(call.rate)}/min</div></div>
+        <div className="basis-full sm:basis-auto sm:flex-1 min-w-0"><div className="font-mono text-lg truncate" data-testid="relay-to">{call.to}</div><div className="text-xs text-[#a1a1aa]" data-testid="relay-direction">{call.direction === 'inbound' ? `Incoming call to ${call.callerId}` : `from ${call.callerId}`} · {money(call.rate)}/min</div></div>
         <Status call={call} />
         {!ended && <button type="button" onClick={hang} disabled={ending} className="civr-btn civr-btn-danger civr-btn-sm ml-auto sm:ml-0" data-testid="relay-hangup-button"><PhoneOff className="w-4 h-4" />Hang up</button>}
       </div>

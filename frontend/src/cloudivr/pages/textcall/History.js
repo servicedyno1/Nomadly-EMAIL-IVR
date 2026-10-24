@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { toast } from 'sonner';
-import { ChevronDown, Trash2 } from 'lucide-react';
+import { ChevronDown, PhoneIncoming, Trash2 } from 'lucide-react';
 import { api, useApi, money, secs, when } from '../../api';
 import { usePrivacy } from '../../privacy';
 import { ask } from '../../i18n';
@@ -26,6 +26,7 @@ function Row({ c, onDeleted, onOpenLive }) {
           <ChevronDown className={`w-4 h-4 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
           <span className="font-mono truncate">{pv.phone(c.to)}</span><span className="text-xs text-[#a1a1aa] hidden sm:inline">{when(c.createdAt)}</span>
         </button>
+        {c.direction === 'inbound' && <span className="civr-pill" data-testid={`relay-history-incoming-${c.id}`}><PhoneIncoming className="w-3 h-3" />Incoming</span>}
         <span className={`civr-pill ${tone}`}>{label}</span>
         <span className="text-xs text-[#a1a1aa] font-mono w-24 text-right">{secs(c.duration)} · {c.dryRun ? '$0' : money(c.charge)}</span>
         {!live && <button type="button" onClick={del} className="text-[#a1a1aa] hover:text-[#fb7185] p-1" aria-label="Delete call" data-testid={`relay-history-delete-${c.id}`}><Trash2 className="w-4 h-4" /></button>}

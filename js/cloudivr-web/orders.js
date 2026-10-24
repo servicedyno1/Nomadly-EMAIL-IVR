@@ -13,8 +13,12 @@ const MAX_AGE_MS = 7 * 86400000
 const OPEN = ['awaiting_payment', 'underpaid']
 const bad = (res, status, error, message) => res.status(status).json({ error, message })
 
+// USD the wallet must hold to finish the order (extras/upgrades may deposit more than they cost: crypto minimum).
+const needOf = (o) => (o.kind === 'extra' || o.kind === 'upgrade') ? (o.charge || o.price) : o.price
+
 const publicOrder = (o) => ({
   id: o._id, kind: o.kind || 'number', charge: o.charge || o.price, phoneNumber: o.phoneNumber, plan: o.planKey, planName: phoneConfig.plans[o.planKey]?.name || o.planKey, price: o.price,
+  parentNumber: o.parentNumber || null,
   coin: o.coin, address: o.address, amountCrypto: o.amountCrypto || null, autoRenew: o.autoRenew !== false, status: o.status,
   paidUsd: o.paidUsd || 0, assignedNumber: o.assignedNumber || null, substitutedFrom: o.substitutedFrom || null,
   message: o.message || null, dryRun: !!o.dryRun, preview: o.provider === 'preview', createdAt: o.createdAt, updatedAt: o.updatedAt,
@@ -73,11 +77,35 @@ function routes(router, { db, h, numbersApi, coins = [], createCryptoDeposit, se
     tell(o, `We could not upgrade ${o.phoneNumber}: ${r.body.message} Your payment is in your CloudIVR wallet.`)
   }
 
+  // Extra number on a plan: re-check the main number (still yours, active, room left) when the payment lands.
+  async function extraParent(o) {
+    const parent = await numbersApi.findMine(o.chatId, o.parentNumber)
+    if (!parent || parent.isSubNumber) return { error: `${o.parentNumber} is no longer on your account, so the extra number was not added.` }
+    if (parent.status !== 'active') return { error: `${o.parentNumber} is not active, so the extra number was not added.` }
+    const used = (await numbersApi.myNumbers(o.chatId)).filter(n => n.isSubNumber && n.parentNumber === parent.phoneNumber).length
+    const limit = phoneConfig.getSubNumberLimit(parent.plan)
+    if (used >= limit) return { error: `${o.parentNumber} already has ${limit} extra numbers — the most its plan allows.` }
+    return { parent }
+  }
+
   async function activate(o) {
     if (o.kind === 'upgrade') return activateUpgrade(o)
-    if ((await w.balance(o.chatId)) < o.price) {
-      const short = round2(o.price - (await w.balance(o.chatId)))
-      const message = `We received $${(o.paidUsd || 0).toFixed(2)} of $${o.price.toFixed(2)}. It is in your wallet — add $${short.toFixed(2)} more, then press Finish.`
+    const extra = o.kind === 'extra'
+    let sub = null
+    if (extra) {
+      const p = await extraParent(o)
+      if (p.error) {
+        const message = `${p.error} Your payment is in your wallet.`
+        await save(o._id, { status: 'failed', message })
+        tell(o, `We could not add the extra number ${o.phoneNumber}: ${message}`, 'Your CloudIVR payment is in your wallet')
+        return
+      }
+      sub = { parentNumber: p.parent.phoneNumber, plan: p.parent.plan }
+    }
+    const need = needOf(o)
+    if ((await w.balance(o.chatId)) < need) {
+      const short = round2(need - (await w.balance(o.chatId)))
+      const message = `We received $${(o.paidUsd || 0).toFixed(2)} of $${need.toFixed(2)}. It is in your wallet — add $${short.toFixed(2)} more, then press Finish.`
       await save(o._id, { status: 'underpaid', message })
       tell(o, `Your payment for ${o.phoneNumber} came in short. ${message}`)
       return
@@ -86,16 +114,17 @@ function routes(router, { db, h, numbersApi, coins = [], createCryptoDeposit, se
     let loaded = false
     for (let i = 0; i < list.length; i++) {
       const hit = list[i]
-      const r = await numbersApi.purchase({ chatId: o.chatId, email: o.email, phone: hit.phoneNumber, planKey: o.planKey, hit, country: o.country, type: o.type, areaCode: o.areaCode, autoRenew: o.autoRenew, coupon: o.coupon || null, viaOrder: o._id })
+      const r = await numbersApi.purchase({ chatId: o.chatId, email: o.email, phone: hit.phoneNumber, planKey: sub ? sub.plan : o.planKey, hit, country: o.country, type: o.type, areaCode: o.areaCode, autoRenew: o.autoRenew, coupon: o.coupon || null, viaOrder: o._id, sub })
       if (r.status === 201 || r.status === 202) {
         const assigned = r.status === 201 ? r.body.number.phoneNumber : hit.phoneNumber
         const swapped = assigned !== o.phoneNumber
         const status = r.status === 202 ? 'verification' : 'active'
-        const charged = round2(phoneConfig.plans[o.planKey].price + (hit.surcharge || 0))
+        const charged = extra ? round2(o.charge) : round2(phoneConfig.plans[o.planKey].price + (hit.surcharge || 0))
         const priceNote = charged < o.price ? `it costs $${charged.toFixed(2)}, so the $${round2(o.price - charged).toFixed(2)} difference stays in your wallet` : 'same price'
+        const leftover = extra && o.price > charged ? ` The $${round2(o.price - charged).toFixed(2)} left over stays in your wallet.` : ''
         const message = swapped
-          ? `The number you picked (${o.phoneNumber}) was taken while your crypto payment was confirming, so we gave you ${assigned} instead — same country${o.areaCode ? ' and area code' : ''}, ${priceNote}.`
-          : `Payment confirmed — ${assigned} is yours.`
+          ? `The number you picked (${o.phoneNumber}) was taken while your crypto payment was confirming, so we gave you ${assigned} instead — same country${o.areaCode ? ' and area code' : ''}, ${extra ? `same price.${leftover}` : priceNote}${extra ? '' : '.'}`
+          : extra ? `Payment confirmed — ${assigned} is now an extra number on ${sub.parentNumber}.${leftover}` : `Payment confirmed — ${assigned} is yours.`
         await save(o._id, { status, assignedNumber: assigned, substitutedFrom: swapped ? o.phoneNumber : null, chargedUsd: charged, message })
         tell(o, `${message}${status === 'verification' ? ' Open Verification to send the details the carrier needs.' : ''}`, swapped ? `Your new CloudIVR number: ${assigned}` : null)
         if (swapped) notifyAdmin(`🌐 CloudIVR web: crypto order ${o._id} — ${o.phoneNumber} was taken, assigned ${assigned}\nweb account: ${o.chatId} (${o.email})`)
@@ -187,6 +216,44 @@ function routes(router, { db, h, numbersApi, coins = [], createCryptoDeposit, se
     res.status(201).json({ order: publicOrder(doc) })
   }))
 
+  // Crypto for an extra number on a plan: flat extra-number price (coupon off), deposit at least the minimum
+  // top-up — anything over the price stays in the wallet. The number is added once the payment confirms.
+  router.post('/numbers/:phone/extra-checkout', h(async (req, res) => {
+    const chatId = req.webChatId
+    const n = await numbersApi.findMine(chatId, req.params.phone)
+    if (!n) return bad(res, 404, 'not_found', 'Number not found on your account.')
+    if (n.isSubNumber) return bad(res, 400, 'is_extra', 'This is already an extra number. Add extras from its main number.')
+    if (n.status !== 'active') return bad(res, 400, 'not_active', 'The main number must be active to add extra numbers.')
+    const limit = phoneConfig.getSubNumberLimit(n.plan)
+    const used = (await numbersApi.myNumbers(chatId)).filter(x => x.isSubNumber && x.parentNumber === n.phoneNumber).length
+    if (used >= limit) return bad(res, 400, 'limit_reached', `The ${phoneConfig.plans[n.plan]?.name || n.plan} plan allows ${limit} extra numbers. Upgrade the main number to add more.`)
+    const picked = await numbersApi.pickFromSearch(chatId, req.body.phoneNumber)
+    if (!picked) return bad(res, 400, 'search_again', 'That number is no longer in your search results. Search again and pick a number.')
+    let coupon = null
+    if (req.body.coupon) {
+      coupon = await numbersApi.checkCoupon(chatId, req.body.coupon)
+      if (coupon.error) return bad(res, 400, 'invalid_coupon', coupon.message)
+    }
+    const coin = String(req.body.coin || '')
+    if (!coins.includes(coin)) return bad(res, 400, 'invalid_coin', `Pick one of: ${coins.join(', ')}.`)
+    const charge = round2(phoneConfig.SUB_NUMBER_BASE_PRICE * (1 - (coupon ? coupon.discount : 0) / 100))
+    const price = round2(Math.max(charge, MIN_TOPUP_USD))
+    const dep = !livePayments()
+      ? { ref: `dry-${crypto.randomUUID().slice(0, 12)}`, address: 'PREVIEW-MODE-DO-NOT-SEND-FUNDS', amountCrypto: null, provider: 'preview' }
+      : await createCryptoDeposit(chatId, price, coin)
+    if (!dep || !dep.address) return bad(res, 424, 'deposit_unavailable', 'The crypto payment service did not return an address. Try again or pick another coin.')
+    const now = new Date()
+    const doc = {
+      _id: dep.ref, kind: 'extra', chatId, email: req.webUser.email, phoneNumber: picked.hit.phoneNumber, parentNumber: n.phoneNumber, hit: picked.hit,
+      country: picked.country, type: picked.type, areaCode: picked.areaCode, planKey: n.plan, price, charge, autoRenew: req.body.autoRenew !== false, coupon, coin,
+      address: dep.address, amountCrypto: dep.amountCrypto || null, provider: dep.provider, status: 'awaiting_payment', dryRun: dryRun(), createdAt: now, updatedAt: now,
+    }
+    await orders.insertOne(doc)
+    await db.collection('webDeposits').insertOne({ chatId, ref: dep.ref, amountUsd: price, coin, address: dep.address, amountCrypto: dep.amountCrypto || null, provider: dep.provider, forNumber: doc.phoneNumber, forExtraOn: n.phoneNumber, createdAt: now })
+    log(`[CloudIVR-Web] crypto extra-number order ${dep.ref} ${doc.phoneNumber} on ${n.phoneNumber} $${price} ${coin} for ${chatId}`)
+    res.status(201).json({ order: publicOrder(doc) })
+  }))
+
   router.get('/numbers/orders', h(async (req, res) => {
     const q = { chatId: req.webChatId, ...(req.query.open ? { status: { $in: OPEN } } : {}) }
     res.json({ orders: (await orders.find(q).sort({ createdAt: -1 }).limit(10).toArray()).map(publicOrder) })
@@ -204,7 +271,7 @@ function routes(router, { db, h, numbersApi, coins = [], createCryptoDeposit, se
     if (!o) return bad(res, 404, 'not_found', 'Order not found.')
     if (o.status !== 'underpaid') return bad(res, 400, 'not_underpaid', 'This order is not waiting for the rest of a payment.')
     const bal = await w.balance(req.webChatId)
-    if (o.kind !== 'upgrade' && bal < o.price) return bad(res, 402, 'insufficient_balance', `Your wallet has $${bal.toFixed(2)} — add $${round2(o.price - bal).toFixed(2)} more to finish.`)
+    if (o.kind !== 'upgrade' && bal < needOf(o)) return bad(res, 402, 'insufficient_balance', `Your wallet has $${bal.toFixed(2)} — add $${round2(needOf(o) - bal).toFixed(2)} more to finish.`)
     await settle(o)
     res.json({ order: publicOrder(await orders.findOne({ _id: o._id })), balance: await w.balance(req.webChatId) })
   }))

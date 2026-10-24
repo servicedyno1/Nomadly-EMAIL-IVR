@@ -625,6 +625,7 @@ const { initNewUserConversion } = require('./new-user-conversion.js')
 const { initLifecycleDiet } = require('./lifecycle-diet.js')
 const callBillingReconciler = require('./call-billing-reconciler.js')
 const dialGuard = require('./dial-rate-guard.js')
+const backupNums = require('./backup-numbers.js') // backup numbers (forwarding / IVR transfer), same rules as CloudIVR web
 
 // ── New UX Enhancement Utilities ──
 const { generateTransactionId, logTransaction, updateTransactionStatus, getUserTransactions } = require('./transaction-id.js')
@@ -945,6 +946,7 @@ function _bulkPreviewText(bulkData, lang) {
     `🎵 Audio: <b>${_bulkEsc(bulkData.audioName || 'Selected')}</b>`,
     `📊 Mode: <b>${bulkData.mode === 'transfer' ? '🔗 Transfer + Report' : '📊 Report Only'}</b>`,
     bulkData.menu ? `🔀 Menu: <b>${Object.keys(bulkData.menu).length} key(s)</b>\n${_obMenuSummary(bulkData.menu, lang)}` : (bulkData.transferNumber ? `🔗 Transfer to: <b>${bulkData.transferNumber}</b>` : null),
+    !bulkData.menu && bulkData.mode === 'transfer' ? backupNums.summaryLine(lang, bulkData.transferBackups) : null,
     `⚡ Concurrency: <b>${bulkData.concurrency || 10}</b>`,
     bulkData.menu ? null : `🔘 Active keys: <b>${(bulkData.activeKeys || ['1']).join(', ')}</b>`,
     _bulkIsTwilio(bulkData) ? null : `📭 Voicemail: <b>${bulkData.voicemailAudioUrl ? `Leave "${_bulkEsc(bulkData.voicemailAudioName || 'message')}" after the beep` : 'Hang up'}</b>`,
@@ -7142,6 +7144,7 @@ Tap a button below to change. Changes sync to your phone on next app open.`
         callerId: lastCall.callerId,
         targetNumber: lastCall.targetNumber,
         ivrNumber: lastCall.ivrNumber,
+        transferBackups: lastCall.transferBackups || [],
         audioUrl: lastCall.audioUrl,
         activeKeys: lastCall.activeKeys,
         templateName: lastCall.templateName,
@@ -10244,6 +10247,7 @@ bot?.on('message', msg => {
     cpCallForwarding: 'cpCallForwarding',
     cpEnterForwardNumber: 'cpEnterForwardNumber',
     cpConfirmForward: 'cpConfirmForward',
+    cpForwardBackups: 'cpForwardBackups',
     cpForwardingConflictResolve: 'cpForwardingConflictResolve',
     cpSmsSettings: 'cpSmsSettings',
     cpEnterEmail: 'cpEnterEmail',
@@ -10329,6 +10333,7 @@ bot?.on('message', msg => {
     ivrObSelectTemplate: 'ivrObSelectTemplate',
     ivrObFillPlaceholder: 'ivrObFillPlaceholder',
     ivrObEnterIvrNumber: 'ivrObEnterIvrNumber',
+    ivrObEnterBackups: 'ivrObEnterBackups',
     ivrObSelectProvider: 'ivrObSelectProvider',
     ivrObSelectVoice: 'ivrObSelectVoice',
     ivrObSelectSpeed: 'ivrObSelectSpeed',
@@ -10362,6 +10367,7 @@ bot?.on('message', msg => {
     bulkNameAudio: 'bulkNameAudio',
     bulkSelectMode: 'bulkSelectMode',
     bulkEnterTransfer: 'bulkEnterTransfer',
+    bulkEnterBackups: 'bulkEnterBackups',
     bulkSelectKeys: 'bulkSelectKeys',
     bulkEnterCustomKeys: 'bulkEnterCustomKeys',
     bulkSetConcurrency: 'bulkSetConcurrency',
@@ -26243,6 +26249,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
         voiceSpeed: preset.voiceSpeed,
         holdMusic: preset.holdMusic,
         ivrNumber: preset.ivrNumber || null,
+        transferBackups: Array.isArray(preset.transferBackups) ? preset.transferBackups : [],
         menu: preset.menu || null,
         isTrial: false,
         fromPreset: true,
@@ -26900,6 +26907,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     if (message === '🔗 Transfer') {
       ivrObData.ivrMode = 'transfer'
       ivrObData.menu = null
+      ivrObData.transferBackups = []
       await saveInfo('ivrObData', ivrObData)
       await set(state, chatId, 'action', a.ivrObEnterIvrNumber)
       return send(chatId, trans('t.cp_75'), k.of([['🔀 Route each key (menu)'], ['↩️ Back']]))
@@ -26917,6 +26925,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
 
       ivrObData.ivrMode = 'otp_collect'
       ivrObData.ivrNumber = null // no transfer number for OTP mode
+      ivrObData.transferBackups = []
       ivrObData.otpLength = 6
       ivrObData.otpMaxAttempts = 3
       await saveInfo('ivrObData', ivrObData)
@@ -27067,7 +27076,29 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
         hi: `❌ <b>सेल्फ-कॉल कॉन्फ्लिक्ट</b>\n\n<b>${phoneConfig.formatPhone(clean)}</b> पर ट्रांसफर नहीं कर सकते — यह वही नंबर है जिससे आप कॉल कर रहे हैं।\n\n📞 एक <b>अलग</b> नंबर दर्ज करें:`,
       }[lang] || `❌ <b>Self-call conflict</b>\n\nYou cannot transfer to <b>${phoneConfig.formatPhone(clean)}</b> — that's the same number you're calling from.\n\nEnter a <b>different</b> number:`), { parse_mode: 'HTML', ...k.of([['🔀 Route each key (menu)'], ['↩️ Back']]) })
     }
+    ivrObData.transferBackups = []
     await saveInfo('ivrObData', ivrObData)
+    await set(state, chatId, 'action', a.ivrObEnterBackups)
+    return send(chatId, backupNums.transferPrompt(lang, clean), { parse_mode: 'HTML', ...k.of([[backupNums.btn('skip', lang)], ['↩️ Back']]) })
+  }
+
+  // Quick IVR — optional backup numbers for the transfer (busy / no answer → next one, like the web app)
+  if (action === a.ivrObEnterBackups) {
+    if (message === 'Cancel' || isCancelPress(message)) return goto.submenu5()
+    const ivrObData = info?.ivrObData || {}
+    if (isBackPress(message)) {
+      await set(state, chatId, 'action', a.ivrObEnterIvrNumber)
+      return send(chatId, trans('t.cp_75'), k.of([['🔀 Route each key (menu)'], ['↩️ Back']]))
+    }
+    let list = []
+    if (!backupNums.isBtn('skip', message)) {
+      const r = backupNums.parse(message, [ivrObData.ivrNumber, ivrObData.callerId], lang)
+      if (r.error) return send(chatId, r.error, { parse_mode: 'HTML', ...k.of([[backupNums.btn('skip', lang)], ['↩️ Back']]) })
+      list = r.list
+    }
+    ivrObData.transferBackups = list
+    await saveInfo('ivrObData', ivrObData)
+    if (list.length) send(chatId, backupNums.saved(lang, list), { parse_mode: 'HTML' })
     await set(state, chatId, 'action', a.ivrObSelectProvider)
     const ttsService = require('./tts-service.js')
     const providerBtns = ttsService.getProviderButtons().map(b => [b])
@@ -27105,6 +27136,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
         bulkData.menu = draft.menu
         bulkData.mode = 'transfer'
         bulkData.transferNumber = _obFirstForward(draft.menu)
+        bulkData.transferBackups = []
         bulkData.activeKeys = Object.keys(draft.menu)
         await saveInfo('bulkData', bulkData)
         await saveInfo('ivrMenuDraft', null)
@@ -27115,6 +27147,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       ivrObData.menu = draft.menu
       ivrObData.activeKeys = Object.keys(draft.menu)
       ivrObData.ivrNumber = _obFirstForward(draft.menu)
+      ivrObData.transferBackups = []
       await saveInfo('ivrObData', ivrObData)
       await saveInfo('ivrMenuDraft', null)
       await set(state, chatId, 'action', a.ivrObSelectProvider)
@@ -27695,6 +27728,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
         callerId: ivrObData.callerId,
         targetNumber: ivrObData.targetNumber,
         ivrNumber: ivrObData.ivrNumber,
+        transferBackups: ivrObData.menu ? [] : (ivrObData.transferBackups || []),
         menu: ivrObData.menu || null,
         audioUrl: ivrObData.audioUrl,
         activeKeys: ivrObData.menu ? Object.keys(ivrObData.menu) : ivrObData.activeKeys,
@@ -27730,7 +27764,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
           send(chatId, trans('t.cp_119', batchCount, batchTargets.length, target))
           await voiceService.initiateOutboundIvrCall({
             chatId, callerId: ivrObData.callerId, targetNumber: target,
-            ivrNumber: ivrObData.ivrNumber, menu: ivrObData.menu || null, audioUrl: ivrObData.audioUrl,
+            ivrNumber: ivrObData.ivrNumber, transferBackups: ivrObData.menu ? [] : (ivrObData.transferBackups || []), menu: ivrObData.menu || null, audioUrl: ivrObData.audioUrl,
             activeKeys: ivrObData.menu ? Object.keys(ivrObData.menu) : ivrObData.activeKeys, templateName: ivrObData.templateName,
             placeholderValues: ivrObData.placeholderValues, voiceName: ivrObData.voiceName,
             isTrial: false, holdMusic: ivrObData.holdMusic || false,
@@ -27800,6 +27834,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       voiceSpeed: ivrObData.voiceSpeed,
       holdMusic: ivrObData.holdMusic,
       ivrNumber: ivrObData.ivrNumber || null,
+      transferBackups: ivrObData.menu ? [] : (ivrObData.transferBackups || []),
       menu: ivrObData.menu || null,
       savedAt: new Date().toISOString(),
     })
@@ -28235,6 +28270,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     if (message === '🔗 Transfer + Report') {
       bulkData.mode = 'transfer'
       bulkData.menu = null
+      bulkData.transferBackups = []
       await saveInfo('bulkData', bulkData)
       await set(state, chatId, 'action', a.bulkEnterTransfer)
       const _presetsWithMenu = (Array.isArray(info?.ivrPresets) ? info.ivrPresets : []).filter(p => p && p.menu && Object.keys(p.menu).length)
@@ -28246,6 +28282,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     if (message === '📊 Report Only') {
       bulkData.mode = 'report_only'
       bulkData.transferNumber = null
+      bulkData.transferBackups = []
       await saveInfo('bulkData', bulkData)
       await set(state, chatId, 'action', a.bulkSelectKeys)
       return send(chatId, trans('t.cp_152'), k.of([['1 only'], ['1 and 2'], ['1, 2, and 3'], ['0-9 (any key)'], ['✍️ Custom keys'], ['↩️ Back']]))
@@ -28297,9 +28334,34 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     }
     const bulkData = info?.bulkData || {}
     bulkData.transferNumber = clean
+    bulkData.transferBackups = []
     await saveInfo('bulkData', bulkData)
+    await set(state, chatId, 'action', a.bulkEnterBackups)
+    return send(chatId, backupNums.transferPrompt(lang, clean), { parse_mode: 'HTML', ...k.of([[backupNums.btn('skip', lang)], ['↩️ Back']]) })
+  }
+
+  // ── Bulk IVR: optional backup numbers for the transfer (busy / no answer → next one, like the web app) ──
+  if (action === a.bulkEnterBackups) {
+    const bulkData = info?.bulkData || {}
+    if (isBackPress(message)) {
+      await set(state, chatId, 'action', a.bulkEnterTransfer)
+      const _presetsWithMenu = (Array.isArray(info?.ivrPresets) ? info.ivrPresets : []).filter(p => p && p.menu && Object.keys(p.menu).length)
+      const _rows = [['🔀 Route each key (menu)']]
+      if (_presetsWithMenu.length) _rows.push(['⭐ Use a saved menu'])
+      _rows.push(['↩️ Back'])
+      return send(chatId, trans('t.cp_151'), k.of(_rows))
+    }
+    let list = []
+    if (!backupNums.isBtn('skip', message)) {
+      const r = backupNums.parse(message, [bulkData.transferNumber, bulkData.callerId], lang)
+      if (r.error) return send(chatId, r.error, { parse_mode: 'HTML', ...k.of([[backupNums.btn('skip', lang)], ['↩️ Back']]) })
+      list = r.list
+    }
+    bulkData.transferBackups = list
+    await saveInfo('bulkData', bulkData)
+    if (list.length) send(chatId, backupNums.saved(lang, list), { parse_mode: 'HTML' })
     await set(state, chatId, 'action', a.bulkSelectKeys)
-    return send(chatId, trans('t.cp_156', clean), k.of([['1 only'], ['1 and 2'], ['1, 2, and 3'], ['0-9 (any key)'], ['✍️ Custom keys'], ['↩️ Back']]))
+    return send(chatId, trans('t.cp_156', bulkData.transferNumber), k.of([['1 only'], ['1 and 2'], ['1, 2, and 3'], ['0-9 (any key)'], ['✍️ Custom keys'], ['↩️ Back']]))
   }
 
   // ── Bulk IVR: reuse a saved preset's menu (Phase 2 — Preset Menu Reuse) ──
@@ -28325,6 +28387,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     bulkData.mode = 'transfer'
     bulkData.menu = preset.menu
     bulkData.transferNumber = _obFirstForward(preset.menu)
+    bulkData.transferBackups = []
     bulkData.activeKeys = Object.keys(preset.menu)
     await saveInfo('bulkData', bulkData)
     await set(state, chatId, 'action', a.bulkSetConcurrency)
@@ -28859,6 +28922,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
           audioName: bulkData.audioName,
           mode: bulkData.mode,
           transferNumber: bulkData.transferNumber,
+          transferBackups: bulkData.menu ? [] : (bulkData.transferBackups || []),
           menu: bulkData.menu || null,
           activeKeys: bulkData.menu ? Object.keys(bulkData.menu) : (bulkData.activeKeys || ['1']),
           concurrency: bulkData.concurrency || 10,
@@ -28922,6 +28986,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
         audioName: bulkData.audioName,
         mode: bulkData.mode,
         transferNumber: bulkData.transferNumber,
+        transferBackups: bulkData.menu ? [] : (bulkData.transferBackups || []),
         menu: bulkData.menu || null,
         activeKeys: bulkData.menu ? Object.keys(bulkData.menu) : (bulkData.activeKeys || ['1']),
         concurrency: bulkData.concurrency || 10,
@@ -30722,7 +30787,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       try { const { usdBal } = await getBalance(walletOf, chatId); walletBal = usdBal } catch (e) { /* noop */ }
       const holdLabel = fwd.holdMusic ? pc.holdMusicOn : pc.holdMusicOff
       const btns = fwd.enabled
-        ? [[pc.alwaysForward], [pc.forwardBusy], [pc.forwardNoAnswer], [holdLabel], ['📲 Change Forward-To Number'], [pc.disableForwarding]]
+        ? [[pc.alwaysForward], [pc.forwardBusy], [pc.forwardNoAnswer], [holdLabel], ['📲 Change Forward-To Number'], [backupNums.btn('manage', info?.userLanguage || 'en')], [pc.disableForwarding]]
         : [[pc.alwaysForward], [pc.forwardBusy], [pc.forwardNoAnswer]]
       const preview = phoneConfig.formatCallFlowPreview(num, info?.userLanguage || 'en')
       // audit #22 — surface the forwarding wallet floor HERE with a pre-filled
@@ -31308,6 +31373,44 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     return send(chatId, phoneConfig.getMsg(info?.userLanguage).proceedOrBack)
   }
 
+  // ━━━ CALL FORWARDING → BACKUP NUMBERS (up to 4, rung in order on busy / no answer) ━━━
+  if (action === a.cpForwardBackups) {
+    const pc = phoneConfig.getBtn(info?.userLanguage || 'en')
+    const _bl = info?.userLanguage || 'en'
+    const num = info?.cpActiveNumber
+    if (num && (!num.features || typeof num.features !== 'object')) num.features = {}
+    if (!num) return goto.submenu5()
+    const fwd = num.features?.callForwarding || {}
+    const showFwdMenu = async (prefix) => {
+      await set(state, chatId, 'action', a.cpCallForwarding)
+      let walletBal = 0
+      try { const { usdBal } = await getBalance(walletOf, chatId); walletBal = usdBal } catch (e) { /* noop */ }
+      const f = num.features.callForwarding || {}
+      const holdLabel = f.holdMusic ? pc.holdMusicOn : pc.holdMusicOff
+      const btns = f.enabled
+        ? [[pc.alwaysForward], [pc.forwardBusy], [pc.forwardNoAnswer], [holdLabel], ['📲 Change Forward-To Number'], [backupNums.btn('manage', _bl)], [pc.disableForwarding]]
+        : [[pc.alwaysForward], [pc.forwardBusy], [pc.forwardNoAnswer]]
+      return send(chatId, `${prefix ? prefix + '\n\n' : ''}${cpTxt.forwardingStatus(num.phoneNumber, f, walletBal)}`, k.of(btns))
+    }
+    if (isBackPress(message) || message === pc.back) return showFwdMenu()
+    if (!fwd.enabled || !fwd.forwardTo) {
+      await set(state, chatId, 'action', a.cpManageNumber)
+      send(chatId, backupNums.needsForwarding(_bl))
+      return showManageScreen(chatId, num)
+    }
+    let list = []
+    if (!backupNums.isBtn('clear', message)) {
+      const r = backupNums.parse(message, [fwd.forwardTo, num.phoneNumber], _bl)
+      if (r.error) return send(chatId, r.error, k.of((fwd.backups || []).length ? [[backupNums.btn('clear', _bl)], [pc.back]] : [[pc.back]]))
+      list = r.list
+    }
+    const value = { ...fwd, backups: list }
+    await updatePhoneNumberFeature(phoneNumbersOf, chatId, num.phoneNumber, 'callForwarding', value)
+    num.features.callForwarding = value
+    await saveInfo('cpActiveNumber', num)
+    return showFwdMenu(backupNums.saved(_bl, list))
+  }
+
   // ━━━ CALL FORWARDING ━━━
   if (action === a.cpCallForwarding) {
     const pc = phoneConfig.getBtn(info?.userLanguage || 'en')
@@ -31338,8 +31441,17 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       let walletBal = 0
       try { const { usdBal } = await getBalance(walletOf, chatId); walletBal = usdBal } catch (e) { /* noop */ }
       const holdLabel = newState ? pc.holdMusicOn : pc.holdMusicOff
-      const btns = [[pc.alwaysForward], [pc.forwardBusy], [pc.forwardNoAnswer], [holdLabel], ['📲 Change Forward-To Number'], [pc.disableForwarding]]
+      const btns = [[pc.alwaysForward], [pc.forwardBusy], [pc.forwardNoAnswer], [holdLabel], ['📲 Change Forward-To Number'], [backupNums.btn('manage', info?.userLanguage || 'en')], [pc.disableForwarding]]
       return send(chatId, cpTxt.forwardingStatus(num.phoneNumber, num.features.callForwarding, walletBal), k.of(btns))
+    }
+    // ── Backup numbers: rung in order when the forward-to number is busy / doesn't answer (same as the web app) ──
+    if (backupNums.isBtn('manage', message)) {
+      const _bl = info?.userLanguage || 'en'
+      const fwd = num.features?.callForwarding || {}
+      if (!fwd.enabled || !fwd.forwardTo) return send(chatId, backupNums.needsForwarding(_bl))
+      await set(state, chatId, 'action', a.cpForwardBackups)
+      const rows = (fwd.backups || []).length ? [[backupNums.btn('clear', _bl)], [pc.back]] : [[pc.back]]
+      return send(chatId, backupNums.forwardingPrompt(_bl, fwd.forwardTo, fwd.backups || []), k.of(rows))
     }
     let mode = null
     if (message === pc.alwaysForward) mode = 'always'
@@ -31382,7 +31494,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       try { const { usdBal } = await getBalance(walletOf, chatId); walletBal = usdBal } catch (e) { /* noop */ }
       const holdLabel = fwd.holdMusic ? pc.holdMusicOn : pc.holdMusicOff
       const btns = fwd.enabled
-        ? [[pc.alwaysForward], [pc.forwardBusy], [pc.forwardNoAnswer], [holdLabel], ['📲 Change Forward-To Number'], [pc.disableForwarding]]
+        ? [[pc.alwaysForward], [pc.forwardBusy], [pc.forwardNoAnswer], [holdLabel], ['📲 Change Forward-To Number'], [backupNums.btn('manage', info?.userLanguage || 'en')], [pc.disableForwarding]]
         : [[pc.alwaysForward], [pc.forwardBusy], [pc.forwardNoAnswer]]
       return send(chatId, cpTxt.forwardingStatus(num.phoneNumber, fwd, walletBal), k.of(btns))
     }
@@ -31449,7 +31561,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       const fwd = num.features?.callForwarding || {}
       const holdLabel = fwd.holdMusic ? pc.holdMusicOn : pc.holdMusicOff
       const btns = fwd.enabled
-        ? [[pc.alwaysForward], [pc.forwardBusy], [pc.forwardNoAnswer], [holdLabel], ['📲 Change Forward-To Number'], [pc.disableForwarding]]
+        ? [[pc.alwaysForward], [pc.forwardBusy], [pc.forwardNoAnswer], [holdLabel], ['📲 Change Forward-To Number'], [backupNums.btn('manage', info?.userLanguage || 'en')], [pc.disableForwarding]]
         : [[pc.alwaysForward], [pc.forwardBusy], [pc.forwardNoAnswer]]
       return send(chatId, cpTxt.forwardingStatus(num.phoneNumber, fwd, walletBal), k.of(btns))
     }
@@ -31473,8 +31585,9 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     }
     const mode = info?.cpForwardMode || 'always'
     const existingFwd = num.features?.callForwarding || {}
-    await updatePhoneNumberFeature(phoneNumbersOf, chatId, num.phoneNumber, 'callForwarding', { enabled: true, mode, forwardTo, ringTimeout: 25, holdMusic: existingFwd.holdMusic || false })
-    num.features.callForwarding = { enabled: true, mode, forwardTo, ringTimeout: 25, holdMusic: existingFwd.holdMusic || false }
+    const keptBackups = (existingFwd.backups || []).filter(n => n !== forwardTo && n !== num.phoneNumber)
+    await updatePhoneNumberFeature(phoneNumbersOf, chatId, num.phoneNumber, 'callForwarding', { enabled: true, mode, forwardTo, ringTimeout: 25, holdMusic: existingFwd.holdMusic || false, backups: keptBackups })
+    num.features.callForwarding = { enabled: true, mode, forwardTo, ringTimeout: 25, holdMusic: existingFwd.holdMusic || false, backups: keptBackups }
     await saveInfo('cpActiveNumber', num)
     const modeLabel = mode === 'always' ? 'Always Forward' : mode === 'busy' ? 'Forward When Busy' : 'Forward If No Answer'
     send(chatId, cpTxt.forwardingUpdated(num.phoneNumber, forwardTo, modeLabel, walletBal), { parse_mode: 'HTML' })
@@ -48860,6 +48973,7 @@ app.get('/apidoc', (req, res) => {
 app.get('/:id', async (req, res) => {
   const id = req?.params?.id
   if (id === '') return res.json({ message: 'Salam', from: req.hostname })
+  if (id === 'civr-ring-sw.js') return res.sendFile(require('path').join(__dirname, '..', 'frontend', 'build', id)) // CloudIVR ringing notifications (phones)
 
   // ── Panel domain guard: NEVER run shortener on panel.hostbay.io ──
   const panelDom = (process.env.PANEL_DOMAIN || '')
@@ -52083,7 +52197,7 @@ const startServer = async () => {
 
           const result = await voiceService.initiateOutboundIvrCall({
             chatId, callerId: ivrObData.callerId, targetNumber: ivrObData.targetNumber,
-            ivrNumber: ivrObData.ivrNumber, audioUrl: ivrObData.audioUrl,
+            ivrNumber: ivrObData.ivrNumber, transferBackups: ivrObData.menu ? [] : (ivrObData.transferBackups || []), audioUrl: ivrObData.audioUrl,
             activeKeys: ivrObData.activeKeys, templateName: ivrObData.templateName,
             placeholderValues: ivrObData.placeholderValues, voiceName: ivrObData.voiceName,
             isTrial: false, holdMusic: ivrObData.holdMusic || false,
