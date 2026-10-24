@@ -60,30 +60,39 @@ function Ended({ call, onClose }) {
   );
 }
 
+function TextSize({ resize }) {
+  return (
+    <div className="flex items-center gap-1" role="group" aria-label="Text size">
+      <button type="button" onClick={() => resize(-1)} className="civr-btn civr-btn-ghost civr-btn-sm !px-2" aria-label="Smaller text" data-testid="relay-text-smaller"><Minus className="w-4 h-4" /></button>
+      <span className="text-xs text-[#a1a1aa] w-7 text-center">Aa</span>
+      <button type="button" onClick={() => resize(1)} className="civr-btn civr-btn-ghost civr-btn-sm !px-2" aria-label="Bigger text" data-testid="relay-text-bigger"><Plus className="w-4 h-4" /></button>
+    </div>
+  );
+}
+
 export function LiveCall({ id, onClose }) {
   const [call, setCall] = useRelayCall(id);
   const flash = useFlash(call);
+  const card = useRef(null);
   const [size, setSize] = useState(() => Number(localStorage.getItem(SIZE_KEY) ?? 1));
   const [ending, setEnding] = useState(false);
+  const live = call?.status === 'live';
+  // When they answer, fit the whole call screen (conversation + typing box) in view.
+  useEffect(() => { if (live) card.current?.scrollIntoView({ block: 'start', behavior: 'smooth' }); }, [live]);
   const resize = (d) => setSize(s => { const n = Math.min(TEXT_SIZES - 1, Math.max(0, s + d)); localStorage.setItem(SIZE_KEY, String(n)); return n; });
   const hang = async () => { setEnding(true); try { const d = await api(`/relay/calls/${id}/hangup`, { method: 'POST', body: {} }); setCall(d.call); } catch (err) { toast.error(err.message); } finally { setEnding(false); } };
   if (!call) return <div className="civr-card p-6"><Spinner label="Connecting…" /></div>;
   const ended = call.status === 'ended';
   return (
-    <div className="civr-card p-4 md:p-6 space-y-4 civr-rise" data-testid="relay-live">
+    <div ref={card} className="civr-card p-4 md:p-6 space-y-4 civr-rise scroll-mt-20" data-testid="relay-live">
       <div className="flex flex-wrap items-center gap-3">
-        <div className="flex-1 min-w-0"><div className="font-mono text-lg truncate" data-testid="relay-to">{call.to}</div><div className="text-xs text-[#a1a1aa]">from {call.callerId} · {money(call.rate)}/min</div></div>
+        <div className="basis-full sm:basis-auto sm:flex-1 min-w-0"><div className="font-mono text-lg truncate" data-testid="relay-to">{call.to}</div><div className="text-xs text-[#a1a1aa]">from {call.callerId} · {money(call.rate)}/min</div></div>
         <Status call={call} />
         {call.speaking && <span className="civr-pill" data-testid="relay-speaking"><Volume2 className="w-3 h-3" />Reading aloud…</span>}
-        <div className="flex items-center gap-1" aria-label="Text size">
-          <button type="button" onClick={() => resize(-1)} className="civr-btn civr-btn-ghost civr-btn-sm !px-2" aria-label="Smaller text" data-testid="relay-text-smaller"><Minus className="w-4 h-4" /></button>
-          <span className="text-xs text-[#a1a1aa] w-8 text-center">Aa</span>
-          <button type="button" onClick={() => resize(1)} className="civr-btn civr-btn-ghost civr-btn-sm !px-2" aria-label="Bigger text" data-testid="relay-text-bigger"><Plus className="w-4 h-4" /></button>
-        </div>
-        {!ended && <button type="button" onClick={hang} disabled={ending} className="civr-btn civr-btn-danger civr-btn-sm" data-testid="relay-hangup-button"><PhoneOff className="w-4 h-4" />Hang up</button>}
+        {!ended && <button type="button" onClick={hang} disabled={ending} className="civr-btn civr-btn-danger civr-btn-sm ml-auto sm:ml-0" data-testid="relay-hangup-button"><PhoneOff className="w-4 h-4" />Hang up</button>}
       </div>
       <Transcript call={call} sizeIdx={size} flash={flash} />
-      {ended ? <Ended call={call} onClose={onClose} /> : <Composer call={call} />}
+      {ended ? <Ended call={call} onClose={onClose} /> : <Composer call={call} extra={<TextSize resize={resize} />} />}
     </div>
   );
 }

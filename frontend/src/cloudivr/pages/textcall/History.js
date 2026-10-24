@@ -3,6 +3,7 @@ import { toast } from 'sonner';
 import { ChevronDown, Trash2 } from 'lucide-react';
 import { api, useApi, money, secs, when } from '../../api';
 import { usePrivacy } from '../../privacy';
+import { ask } from '../../i18n';
 import { Transcript } from './Transcript';
 
 const OUTCOME = { completed: ['Completed', 'civr-pill-on'], no_answer: ['No answer', 'civr-pill-warn'], busy: ['Busy', 'civr-pill-warn'], cancelled: ['Cancelled', ''], out_of_funds: ['Balance ran out', 'civr-pill-bad'], ended: ['Ended', ''] };
@@ -16,7 +17,7 @@ function Row({ c, onDeleted, onOpenLive }) {
     if (open) return setOpen(null);
     try { setOpen((await api(`/relay/calls/${c.id}`)).call); } catch (err) { toast.error(err.message); }
   };
-  const del = async () => { if (!window.confirm('Delete this call and its transcript?')) return; try { await api(`/relay/calls/${c.id}`, { method: 'DELETE' }); onDeleted(); } catch (err) { toast.error(err.message); } };
+  const del = async () => { if (!ask('Delete this call and its transcript?')) return; try { await api(`/relay/calls/${c.id}`, { method: 'DELETE' }); onDeleted(); } catch (err) { toast.error(err.message); } };
   const [label, tone] = live ? ['Live', 'civr-pill-on'] : OUTCOME[c.outcome] || OUTCOME.ended;
   return (
     <li className="py-3" data-testid={`relay-history-${c.id}`}>

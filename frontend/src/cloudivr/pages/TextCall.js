@@ -21,8 +21,10 @@ function HowItWorks({ info }) {
           <div><div className="font-semibold text-sm">{i + 1}. {t}</div><div className="text-xs text-[#a1a1aa] mt-0.5">{s}</div></div></div>
       ))}
       {info && <div className="border-t border-white/10 pt-4 text-xs text-[#a1a1aa] space-y-1" data-testid="text-call-pricing">
-        <div><b className="text-[#f4f4f5] font-mono">{money(info.usRate + info.relayRate)}/min</b> US &amp; Canada · <b className="text-[#f4f4f5] font-mono">{money(info.intlRate + info.relayRate)}/min</b> international</div>
-        <div>Includes the {money(info.relayRate)}/min text relay. Included on Pro and Business numbers. Transcripts are kept 90 days.</div>
+        <div>{`US & Canada: ${money(info.usRate + info.relayRate)}/min`}</div>
+        <div>{`International: ${money(info.intlRate + info.relayRate)}/min`}</div>
+        <div>{`Includes ${money(info.relayRate)}/min for the text relay.`}</div>
+        <div>Included on Pro and Business numbers. Transcripts are kept 90 days.</div>
       </div>}
     </aside>
   );

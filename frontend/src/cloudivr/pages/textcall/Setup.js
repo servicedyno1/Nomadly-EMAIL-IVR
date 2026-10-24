@@ -45,16 +45,16 @@ export function Setup({ info, onStarted }) {
         <Field label="Call from"><select className="civr-input font-mono" value={callerId} onChange={set('callerId')} data-testid="text-call-caller-select">{numbers.map(n => <option key={n.phoneNumber} value={n.phoneNumber}>{n.phoneNumber}</option>)}</select></Field>
         <Field label="Number to call" hint="With country code, e.g. +14155550100."><input className="civr-input font-mono text-lg" required inputMode="tel" value={f.to} onChange={set('to')} placeholder="+14155550100" data-testid="text-call-to-input" /></Field>
       </div>
-      <Field label="They speak"><Choice value={f.lang} options={LANGS} onChange={set('lang')} testid="text-call-lang" /></Field>
+      <Field label="They speak"><div data-no-translate><Choice value={f.lang} options={LANGS} onChange={set('lang')} testid="text-call-lang" /></div></Field>
       <Field label="Voice that reads your messages"><Choice value={f.voice} options={[['female', 'Female'], ['male', 'Male']]} onChange={set('voice')} testid="text-call-voice" /></Field>
       <div className="grid md:grid-cols-2 gap-5 items-end">
-        <Field label="Your name (optional)" hint="Read in the opening message."><input className="civr-input" maxLength={40} value={f.name} onChange={set('name')} placeholder="Maria" data-testid="text-call-name-input" /></Field>
+        <Field label="Your name (optional)" hint="Read aloud in the greeting."><input className="civr-input" maxLength={40} value={f.name} onChange={set('name')} placeholder="Maria" data-testid="text-call-name-input" /></Field>
         <label className="flex items-center justify-between gap-3 civr-card !bg-[#0f0f0f] px-4 h-[68px]"><span className="text-sm"><span className="block font-medium">Tell them it’s a typed call</span><span className="text-xs text-[#a1a1aa]">So they speak clearly and wait for your reply.</span></span><Toggle checked={f.announce} onChange={set('announce')} testid="text-call-announce-toggle" /></label>
       </div>
       <ErrorNote error={err} testid="text-call-error" />
       <div className="flex flex-wrap items-center gap-4">
         <button className="civr-btn civr-btn-primary h-12 px-6 text-base" disabled={busy} data-testid="text-call-start-button">{busy ? <Loader2 className="w-5 h-5 animate-spin" /> : <PhoneCall className="w-5 h-5" />}Start text call</button>
-        {info && <span className="text-xs text-[#a1a1aa]" data-testid="text-call-rate-hint">From {money(info.usRate + info.relayRate)}/min, billed per started minute.</span>}
+        {info && <span className="text-xs text-[#a1a1aa]" data-testid="text-call-rate-hint">{`From ${money(info.usRate + info.relayRate)}/min, billed per started minute.`}</span>}
       </div>
     </form>
   );

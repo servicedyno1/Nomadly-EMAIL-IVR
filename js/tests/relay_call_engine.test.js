@@ -62,6 +62,33 @@ axios.post = async (url, body) => { sent.push({ url, body }); return { data: { d
   const d2 = await db.collection('relayCalls').findOne({ _id: r2.id }); assert.strictEqual(d2.outcome, 'busy'); assert.strictEqual(d2.charge, 0); ok('busy → no charge')
   assert.strictEqual((await relay.list('42')).length, 2); assert.strictEqual((await relay.remove(r2.id, '42')).ok, true); ok('history list + delete')
 
+  // Restart mid-call: a fresh copy of the module picks the call up from Mongo on the next webhook, then bills it.
+  const r3 = await relay.start({ chatId: '42', callerId: '+15550000001', to: '+14155550126', callRate: 0.15 })
+  await relay.onWebhook('call.answered', { call_control_id: 'v3:test-ccid' })
+  for (const k of Object.keys(require.cache)) if (k.includes('/relay-call/')) delete require.cache[k]
+  await new Promise(r => setTimeout(r, 300)) // let the answered write land
+  await db.collection('relayCalls').updateOne({ _id: r3.id }, { $set: { answeredAt: new Date(Date.now() - 61000) } })
+  const relay2 = require('../relay-call')
+  relay2.init({ db, walletOf, selfUrl: 'https://example.test', log: () => {} })
+  assert((await relay2.liveFor('42'))?._id === r3.id); ok('after restart the live call is still found (no second call allowed)')
+  assert.strictEqual((await relay2.start({ chatId: '42', callerId: '+15550000001', to: '+14155550127', callRate: 0.15 })).error[0], 409); ok('restart: still one live call')
+  await relay2.onWebhook('call.transcription', { call_control_id: 'v3:test-ccid', transcription_data: { transcript: 'still here', is_final: true } })
+  assert.deepStrictEqual((await relay2.find(r3.id, '42')).lines.filter(l => l.who === 'them').map(l => l.text), ['still here']); ok('restart: transcription keeps flowing')
+  assert((await relay2.say(r3.id, '42', 'ok')).line); ok('restart: typing works')
+  const before = (await walletOf.findOne({ _id: '42' })).usdOut
+  await relay2.onWebhook('call.hangup', { call_control_id: 'v3:test-ccid', hangup_cause: 'normal_clearing' })
+  const d3 = await db.collection('relayCalls').findOne({ _id: r3.id })
+  assert.strictEqual(d3.status, 'ended'); assert(Math.abs((await walletOf.findOne({ _id: '42' })).usdOut - before - d3.charge) < 1e-9 && d3.charge > 0); ok('restart: hangup billed')
+
+  // Orphan (no heartbeat for minutes): sweep hangs up and bills up to the last sign of life.
+  const t0 = Date.now() - 10 * 60000
+  await db.collection('relayCalls').insertOne({ _id: 'orphan-1', chatId: '42', callerId: '+15550000001', to: '+14155550128', ccid: 'v3:orphan', status: 'live', lines: [], rate: 0.18, relayRate: 0.03, createdAt: new Date(t0), answeredAt: new Date(t0), beatAt: new Date(t0 + 150000), expiresAt: new Date(Date.now() + 86400000) })
+  const b2 = (await walletOf.findOne({ _id: '42' })).usdOut
+  await relay2.sweep()
+  const o = await db.collection('relayCalls').findOne({ _id: 'orphan-1' })
+  assert.strictEqual(o.status, 'ended'); assert.strictEqual(o.minutes, 3); assert(sent.some(x => x.url.includes('/calls/v3:orphan/actions/hangup'))); ok('sweep: stale call hung up, 3 min billed (to last heartbeat)')
+  assert(Math.abs((await walletOf.findOne({ _id: '42' })).usdOut - b2 - 0.54) < 1e-9); await relay2.sweep(); assert(Math.abs((await walletOf.findOne({ _id: '42' })).usdOut - b2 - 0.54) < 1e-9); ok('sweep bills once')
+
   await db.dropDatabase(); await client.close()
   console.log('ALL PASS'); process.exit(0)
 })().catch(e => { console.error('FAIL', e); process.exit(1) })

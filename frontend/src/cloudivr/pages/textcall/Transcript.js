@@ -23,15 +23,15 @@ function Line({ l, size }) {
 
 // The conversation, newest at the bottom; their live words show as a growing grey line.
 export function Transcript({ call, sizeIdx, flash }) {
-  const end = useRef(null);
-  useEffect(() => { end.current?.scrollIntoView({ block: 'end', behavior: 'smooth' }); }, [call.lines.length, call.interim]);
+  const box = useRef(null);
+  // Scroll only the conversation box (not the page) to the newest words.
+  useEffect(() => { const b = box.current; if (b) b.scrollTop = b.scrollHeight; }, [call.lines.length, call.interim]);
   const size = SIZES[sizeIdx] || SIZES[1];
   return (
-    <div role="log" aria-live="polite" aria-label="Conversation" className={`h-[46vh] min-h-[280px] overflow-y-auto space-y-3 p-4 md:p-5 rounded-2xl bg-[#0b0b0c] border transition-colors duration-300 ${flash ? 'border-[#34d399] civr-relay-flash' : 'border-white/10'}`} data-testid="relay-transcript">
+    <div ref={box} role="log" aria-live="polite" aria-label="Conversation" className={`h-[36vh] md:h-[40vh] min-h-[240px] overflow-y-auto space-y-3 p-4 md:p-5 rounded-2xl bg-[#0b0b0c] border transition-colors duration-300 ${flash ? 'border-[#34d399] civr-relay-flash' : 'border-white/10'}`} data-testid="relay-transcript">
       {call.lines.map(l => <Line key={l.n} l={l} size={size} />)}
       {call.interim && <div className="flex justify-start"><div className={`max-w-[85%] rounded-2xl rounded-bl-md px-4 py-2.5 border border-dashed border-[#34d399]/50 text-[#d4d4d8] italic ${size}`} data-testid="relay-interim"><span data-no-translate>{call.interim}</span><span className="civr-pulse not-italic text-[#34d399]"> ●</span></div></div>}
       {!call.lines.some(l => l.who === 'them') && !call.interim && call.status === 'live' && <div className="text-center text-sm text-[#a1a1aa] pt-6" data-testid="relay-waiting">Waiting for them to speak…</div>}
-      <div ref={end} />
     </div>
   );
 }

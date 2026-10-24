@@ -161,13 +161,14 @@ class Test2FA:
         r = s.post(f'{API}/auth/2fa/setup', json={'method': 'totp'})
         sec = r.json()['secret']
         assert r.json()['otpauthUrl'].startswith('otpauth://totp/')
-        r = s.post(f'{API}/auth/2fa/enable', json={'method': 'totp', 'code': totp(sec)})
+        c0 = totp(sec)
+        r = s.post(f'{API}/auth/2fa/enable', json={'method': 'totp', 'code': c0})
         assert r.status_code == 200, r.text
         assert s.get(f'{API}/auth/2fa').json()['method'] == 'totp'
         s2, r = login(email, QA_PW)
         ch = r.json()['twoFactor']['challenge']
         # same step as enable reused → rejected (replay); next step accepted
-        assert s2.post(f'{API}/auth/2fa/verify', json={'challenge': ch, 'code': totp(sec)}).status_code == 400
+        assert s2.post(f'{API}/auth/2fa/verify', json={'challenge': ch, 'code': c0}).status_code == 400
         assert s2.post(f'{API}/auth/2fa/verify', json={'challenge': ch, 'code': totp(sec, 1)}).status_code == 200
 
     def test_bad_challenge(self):

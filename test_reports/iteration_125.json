@@ -1,0 +1,43 @@
+{
+  "summary": "Iteration 125: tested FIX 1-5 and the new Text calls (relay) feature, backend and UI, at 1920x800 and 390x844. Backend: new pytest file test_cloudivr_iter125_relay_textcalls.py has 24 tests and all 24 pass. They cover relay info/auth, invalid_caller, plan_upgrade_required, invalid_number, same_number, already_live, not_connected, empty, keys, hangup, history, delete 409/200/404, cross-account 404, cancel before answer, parallel start (only one live call) and invalid_backup on forwarding, quick call and campaign. Regression: iter124 Test2FA/TestBackups/TestEmailThrottle/TestSip 8/8 pass (test_totp_2fa failed once because of a 30 s TOTP step boundary, then passed 3/3). smoke_2fa_web.js passes. relay_call_engine.test.js ALL PASS (covers 402). UI: FIX 1 ('12ab' error, then Off and Save succeeds), FIX 3 (ES 'desactivado'), FIX 4 (mobile More menu has Text calls and Suggest a feature, the suggest card scrolls into view, the chat button no longer overlaps the last Settings card) and FIX 5 (no twofa-disable-send-code for a password account) all work. The text call flow works end to end: setup with Pro/Business callers, rate hint, pricing, Ringing then Connected, intro note, interim then final reply, Enter and Speak, Spanish phrases, keypad chips, text size that persists after reload, resume after leaving the page, hang up, 'Preview — not billed', copy transcript, New text call, history expand and delete with confirm. Plan cards on the landing page show textRelay included for Pro and Business, not Starter. Issues: (1) on mobile the live call header shrinks the called number to '+…'; (2) keypad presses are sent as parallel requests and can arrive out of order (pressed 1 then #, stored '#','1'), which matters for real DTMF; (3) small i18n leftovers.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /relay/calls/:id/keys (client usage)", "issue": "Each keypad press is a separate un-awaited request from Composer.js Keypad.press, so presses can arrive out of order. Reproduced: tapping 1 then # quickly was stored as lines n5='#', n6='1'. In LIVE mode this would send the DTMF digits in the wrong order to a phone menu. Fix: queue/serialize presses on the client (or attach a client sequence number)."},
+      {"endpoint": "relay engine (js/relay-call/index.js)", "issue": "Live sessions are kept only in memory. If the node service restarts during a call: (a) the Mongo doc stays 'ringing'/'live' forever (no sweep on init); (b) in LIVE mode the later call.hangup webhook takes the !s branch and marks it ended WITHOUT billing, so minutes are unbilled; (c) the user loses the live view. Consider a startup sweep (mark stale non-ended docs as ended and hang up their ccid) and billing from answeredAt in the !s hangup path."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Live call header (mobile 390px)", "issue": "The called number (relay-to) is truncated to '+…' and the line 'from +19786001640 · $0.18/min' wraps over 3 lines, because the flex-1 min-w-0 block is squeezed by the status pill, the 'Reading aloud…' pill, the text size buttons and Hang up all sharing one flex-wrap row. Put the number/from block on its own full-width row on small screens (e.g. basis-full sm:basis-auto).", "selector": "[data-testid='relay-to']", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Text call live (1920x800 and mobile)", "issues": ["When the call connects, the composer (relay-input) is below the fold. At 1920x800 the page header plus the 46vh transcript push it under the viewport. On mobile the user has to scroll down to type, and the transcript then scrolls out of view. Suggest auto-focusing / scrolling relay-input into view when the status becomes live, and a shorter transcript height or a sticky composer on mobile.", "On mobile, once you scroll, the floating support chat button (support-chat-toggle, x318-374) can sit over the Speak button (x301-357). Consider hiding the chat button on the live call screen.", "Deleting a history item uses the native window.confirm instead of the app's styled confirm dialog."]},
+      {"screen": "Text calls i18n (ES/FR)", "issues": ["Language pills are only half translated: ES shows 'Inglés | Español | Français' and FR shows 'Anglais | Español | Français'. Either keep all three as native names or translate all three.", "ES pricing still has 'international' (should be 'internacional') and 'Incluye el $0.03/min texto relay' (a half translation).", "FR pricing still shows 'US & Canada'.", "Name hint 'Read in the opening message' became 'Leer en el mensaje inicial' / 'Lire dans le message d’ouverture', which is awkward (meaning: 'read aloud in the greeting').", "The ES history outcome pill is lowercase 'completado' (FR is 'Terminé'). History dates are not localized ('Oct 24, 01:16 PM')."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_cloudivr_iter125_relay_textcalls.py", "/app/backend/tests/test_cloudivr_iter124_2fa_referral_upgrade.py", "/app/test_reports/pytest/pytest_iter125.xml", "/app/js/tests/relay_call_engine.test.js", "/app/js/tests/smoke_2fa_web.js"],
+  "action_items": [
+    "Mobile live call header: give the relay-to/from block its own full-width row under sm so the called number is not truncated to '+…'.",
+    "Serialize keypad presses in Composer.js (await each POST /keys in a promise chain) so the DTMF order is kept.",
+    "When the call becomes live, scroll relay-input into view and focus it; on mobile consider a sticky composer or a shorter transcript, and hide the floating chat button on the live call screen.",
+    "Fix the i18n leftovers on the Text calls page (language pill names, 'international', 'texto relay', 'US & Canada', the name hint wording, lowercase 'completado').",
+    "Optional hardening: add a startup sweep for orphaned relayCalls docs and bill unanswered-session hangups after a restart in LIVE mode."
+  ],
+  "critical_code_review_comments": [
+    "relay-call/index.js: sessions Map is in-memory only, so state is lost on restart (see backend minor issue). The MAX_MINUTES timer and the wallet watcher are also lost.",
+    "Composer.js: Enter-to-send does not check `busy` or e.nativeEvent.isComposing, so a fast double Enter or IME input can send twice or too early.",
+    "Composer.js Keypad: requests are not awaited or queued (order bug above).",
+    "relay.js POST /relay/calls: only callerId and to are validated. lang, voice and name are cleaned in the engine (good). No Pydantic-like schema, but the inputs are coerced safely.",
+    "History delete uses window.confirm (not the app's styled dialog)."
+  ],
+  "updated_files": ["/app/backend/tests/test_cloudivr_iter125_relay_textcalls.py (new)"],
+  "success_rate": {"backend": "100% (24/24 new + 8/8 iter124 subset; 1 flaky TOTP-step test)", "frontend": "~92% (all flows work; 1 mobile layout bug, 1 keypad ordering bug, i18n leftovers)"},
+  "flaky_tests": ["test_cloudivr_iter124_2fa_referral_upgrade.py::Test2FA::test_totp_2fa: failed 1 of 4 runs (~25%) because the 'same step reused' assertion breaks when a 30 s TOTP step boundary falls between enable and login. This is a test design issue, not an app bug."],
+  "seed_data_creation": "Created a few dry-run text calls for Alice (some deleted; 1-2 remain in history). test_campaign_junk inserts and removes a temporary ivrAudioFiles doc (id TEST_xxxx). Left Alice's Pro number forwarding Off.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run: pytest /app/backend/tests/test_cloudivr_iter125_relay_textcalls.py (safe: no wallet changes, hangs up its calls). For iter124, run only Test2FA/TestBackups/TestEmailThrottle/TestSip by node id. Only one live text call per account: the module fixture hangs up a stale live call. Language is stored in localStorage 'civr.lang'. Mobile More menu: mobile-nav-more → mobile-nav-text-call / mobile-suggest-link. Login form testids: auth-email-input, auth-password-input, auth-submit-button. Next round: retest the mobile header (relay-to visible), keypad order (tap 1,# quickly → '1','#') and i18n strings.",
+  "rca of the issue": "Keypad order: Keypad.press() calls api() without awaiting or queueing. Two quick taps open two HTTP requests that can reach Express in any order, and relay.dtmf adds the line on arrival. Mobile header: a single flex-wrap row where the min-w-0 flex-1 block gets the leftover width after the pills and buttons, so the truncate class collapses the number to '+…'."
+}

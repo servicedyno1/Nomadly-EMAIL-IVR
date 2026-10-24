@@ -9,7 +9,7 @@ const fail = (res, r) => bad(res, ...r.error)
 
 function routes(router, { h, numbersApi, voiceService }) {
   router.get('/relay/info', h(async (req, res) => {
-    const live = relay.liveFor(req.webChatId)
+    const live = await relay.liveFor(req.webChatId)
     res.json({ relayRate: relay.RELAY_RATE(), usRate: voiceService.getIvrCallRate('+14155550100'), intlRate: voiceService.getIvrCallRate('+442071234567'), live: live ? live._id : null, maxText: relay.MAX_TEXT })
   }))
 
