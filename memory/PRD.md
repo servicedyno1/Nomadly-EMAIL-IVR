@@ -1072,3 +1072,5 @@ calls and SIP are simulated; inbound calls use a pretend-call simulator).
 - Cosmetic fix: rtc.js adds "+" to digits-only SIP caller IDs (browser-phone-only banner showed 18778570205).
 - Both DEPLOYED to droplet app-main (release 20261024T165123Z-f1edc30, workspace tarball deploy). Owner must "Save to GitHub"
   or the next CI deploy of main drops them. Test number +19379800767 KEPT (owner choice).
+
+- 2026-10-24: 6 CloudIVR mascot logo samples generated (parrot, cloud, fox, owl, speech bubble, phone) → /app/memory/logos/. Owner to pick one; not applied to the app yet.
