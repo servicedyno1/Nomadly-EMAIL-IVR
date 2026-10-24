@@ -28,13 +28,13 @@ function Row({ c, i }) {
   const Icon = DIR[c.direction] || PhoneIncoming;
   return (
     <div className="civr-card p-5" data-testid={`ai-call-row-${i}`}>
-      <button className="w-full flex flex-col md:flex-row md:items-center gap-3 text-left" onClick={() => setOpen(o => !o)} data-testid={`ai-call-row-${i}-toggle`}>
+      <button className="w-full flex items-center gap-3 text-left" onClick={() => setOpen(o => !o)} data-testid={`ai-call-row-${i}-toggle`}>
         <Icon className="w-4 h-4 text-[#34d399] shrink-0" />
         <div className="flex-1 min-w-0">
           <div className="font-semibold truncate">{c.direction === 'test' ? `Browser test · ${c.agentName}` : `${pv.phone(c.other)} · ${c.agentName}`}</div>
           <div className="text-xs text-[#a1a1aa]">{when(c.startedAt)} · {secs(c.duration)}{c.charge ? ` · ${money(c.charge)}` : ' · free'}</div>
         </div>
-        <span className={OUTCOME[c.outcome] || 'civr-pill'} data-testid={`ai-call-row-${i}-outcome`}>{outcomeLabel(c.outcome)}</span>
+        <span className={`${OUTCOME[c.outcome] || 'civr-pill'} shrink-0`} data-testid={`ai-call-row-${i}-outcome`}>{outcomeLabel(c.outcome)}</span>
         {open ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
       </button>
       {c.summary && <p className="text-sm text-[#d4d4d8] mt-3" data-testid={`ai-call-row-${i}-summary`}>{pv.text(c.summary, 'Summary hidden')}</p>}

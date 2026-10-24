@@ -2,7 +2,7 @@ import React, { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Bot, Clock, Ban } from 'lucide-react';
 import { useApi } from '../../api';
-import { Field } from '../../ui';
+import { Field, Spinner } from '../../ui';
 import { cp } from '../../paths';
 
 // Campaign type switch: a recorded message or an AI agent that has a real conversation with each lead.
@@ -26,7 +26,8 @@ export function AiCampaignFields({ agentId, onChange }) {
   const agents = data?.agents || [];
   const first = agents[0]?.id;
   useEffect(() => { if (!agentId && first) onChange(first); }, [agentId, first, onChange]);
-  if (data && !agents.length) return <div className="text-sm text-[#a1a1aa]" data-testid="campaign-ai-no-agents">You have no AI agent yet. <Link to={cp('/app/ai-agents/new')} className="text-[#34d399] underline" data-testid="campaign-ai-create-agent-link">Create one</Link> first.</div>;
+  if (!data) return <Spinner label="Loading your agents…" testid="campaign-ai-agents-loading" />;
+  if (!agents.length) return <div className="text-sm text-[#a1a1aa]" data-testid="campaign-ai-no-agents">You have no AI agent yet. <Link to={cp('/app/ai-agents/new')} className="text-[#34d399] underline" data-testid="campaign-ai-create-agent-link">Create one</Link> first.</div>;
   return (
     <div className="space-y-4">
       <Field label="AI agent"><select className="civr-input" value={agentId || ''} onChange={e => onChange(e.target.value)} data-testid="campaign-ai-agent-select">{agents.map(a => <option key={a.id} value={a.id}>{a.name}{a.businessName ? ` · ${a.businessName}` : ''}</option>)}</select></Field>

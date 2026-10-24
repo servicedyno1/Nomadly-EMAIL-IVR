@@ -102,3 +102,8 @@ Sources: `HOSTING_CAPABILITIES_2026-10.md` (H#) and `RESELLER_FEATURE_REQUESTS_2
 - P2: Off-site copy of DR PIT archives to DO Spaces (3-2-1).
 - P2: Telegram alerts for DR problems (just add `BOT_TOKEN|CHAT_ID` to /opt/dr/conf/alert.conf on dr-replica-ams3).
 - P2: Provider Status Board in admin panel (Telnyx, DO, ConnectReseller, Brevo).
+
+## AI Voice Agent follow-ups (2026-10-24)
+- P0: first real Telnyx AI call on the owner's test number; prod droplet nginx WebSocket Upgrade headers before deploy.
+- P1: verify Coupon countdown banner, Welcome card Telegram channel link, Sip.js central SIP list; end-to-end checkout (wallet + crypto only).
+- P2: AI agent call recordings; appointment booking to Google Calendar.

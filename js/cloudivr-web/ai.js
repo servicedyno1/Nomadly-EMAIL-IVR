@@ -60,7 +60,11 @@ function routes(router, { h, numbersApi }) {
     await s.addDnc(req.webChatId, n, 'manual')
     res.status(201).json({ number: n })
   }))
-  router.delete('/ai-dnc/:number', h(async (req, res) => { await s.removeDnc(req.webChatId, req.params.number); res.json({ removed: true }) }))
+  router.delete('/ai-dnc/:number', h(async (req, res) => {
+    const r = await s.removeDnc(req.webChatId, req.params.number)
+    if (!r.deletedCount) return bad(res, 404, 'not_found', 'That number is not on your do-not-call list.')
+    res.json({ removed: true })
+  }))
 
   router.put('/numbers/:phone/ai-agent', h(async (req, res) => {
     const num = await numbersApi.findMine(req.webChatId, req.params.phone)

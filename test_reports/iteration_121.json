@@ -1,0 +1,38 @@
+{
+  "summary": "AI voice agent testing (preview DRY-RUN). Backend: new pytest file test_cloudivr_ai_agents.py, 22/22 passed after a nodejs restart. Covered: list (rate 0.2, voices, canUse Alice true / Bob false), CRUD with validation (name, goal >= 10, E.164 transfer) and owner isolation (Bob gets 404 on GET/PUT/DELETE/test), the test token ({path, maxSeconds <= 180}), number assignment (Alice Business 200 + GET shows features.aiAgent/access.aiAgent + the agent's numbers list; invalid_agent 400; Bob Starter 403 plan_upgrade_required; other owner's number 404), DNC CRUD (invalid 400, owner isolated), ai-calls list (no transcript) + detail (transcript; Bob 404), AI campaign (mode ai, audioName 'AI agent: <name>', agentName, doNotCall=1, rate 0.2; start returns 202 dryRun; invalid agent 400; Bob 403), audio campaign regression 201, and public catalog aiAgent (starter false, pro/business true). WebSocket proxy: the node script against wss://<host>/api/cloudivr-web/ai-agents/test/<token> got real agent + caller transcripts, and the call was saved with a summary and outcome 'interested'. Engine harness test_bulk_line_limit_ai_2026-10.js passed 27/27. Frontend (Playwright): everything requested works. Nav, page, tabs, rate note and rows; the new-agent form with goal and transfer validation errors, save, navigate to /ai-agents/<id>, persisted language/voice/max minutes, TestTalk (start sends POST /test; headless Chromium's fake mic actually connected and the agent greeted live in Spanish), and delete with confirm. Call-history expand shows transcript + summary. DNC: invalid toast, add row, remove row. Number AI tab: toggle + select + save, the pill changes to 'AI agent is answering' and persists after reload, then restored. Bob: plan note + upgrade link, and feature-locked on the number tab. Campaign kind switch hides audio/mode; the AI campaign saves to detail with the 'AI agent conversation · <name>' label and the interested/skipped stats. FR/ES translate heading, tabs, rate note, nav, form, TestTalk and campaign kind/rules. Mobile 390: no horizontal overflow on the 8 views checked.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "Node process (env)", "issue": "On arrival, nodejs had been started at 08:52 but js/cloudivr-web/numbers.js was modified at 08:54, so GET /numbers/:phone had no features.aiAgent (1 test failed). The tester ran 'sudo supervisorctl restart nodejs' and the test passed. Always restart nodejs after the last js/ edit."},
+      {"endpoint": "DELETE /api/cloudivr-web/ai-dnc/:number", "issue": "Returns 200 {removed:true} even when the number is not on the list (no 404). Cosmetic."},
+      {"endpoint": "ai-agent/calls.js onTest close handler", "issue": "If the agent is deleted while a browser test is live, the test call is still saved for the deleted agentId (orphan history row). Acceptable, but note it."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "AiCampaignFields / AiAgentTab", "issue": "While /ai-agents is loading, the agent <select> renders empty (data is null → no spinner). It fills in once loaded. Minor: a user who clicks fast sees an empty dropdown.", "selector": "[data-testid=campaign-ai-agent-select]", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "AI call history (mobile 390)", "issues": ["Outcome pill (ai-call-row-N-outcome) stretches to full width and the expand chevron drops to its own line. Keep the pill inline/auto-width."]},
+      {"screen": "Spanish translation", "issues": ["Uses 'AI' instead of the Spanish 'IA' ('Agentes de voz AI', 'Agente AI', 'Conversación con agente AI'). FR correctly uses 'IA'.", "Outcome pills ('no conversation', 'interested') remain in English in ES."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_cloudivr_ai_agents.py", "/app/test_reports/pytest/pytest_ai_agents.xml"],
+  "action_items": [
+    "Optional: show a spinner (not an empty select) while /ai-agents loads in AiCampaignFields and AiAgentTab",
+    "Optional: on mobile, keep the AI call row outcome pill auto-width",
+    "Optional: in ES use 'IA' and translate the outcome labels"
+  ],
+  "critical_code_review_comments": [
+    "store.updateAgent runs a full cleanAgent on PUT, so a partial PUT (e.g. only {name}) fails goal validation. The UI always sends the full object, so this is fine, but the API is not PATCH-friendly.",
+    "PUT /numbers/:phone/ai-agent with enabled=false and a stale/unknown agentId returns 400 invalid_agent, so a user cannot simply disable it if the stored agent is gone. Delete-agent clears numbers, so this is low risk.",
+    "AI campaign DNC count runs one findOne per lead (sequential awaits). With MAX_BULK_LEADS this could be slow; use a single $in query."
+  ],
+  "updated_files": ["/app/backend/tests/test_cloudivr_ai_agents.py"],
+  "success_rate": {"backend": "100% (22/22 after nodejs restart)", "frontend": "100% of requested flows"},
+  "seed_data_creation": "No permanent seed data. Temporary TEST_ agents were created and deleted. DNC test numbers were removed. Alice's +15156445205 aiAgent was restored to {enabled:false, agentId:null}. 7 test campaigns (AI + audio, dry-run) were created and then cancelled (they stay in the list as cancelled). Ava was untouched. Browser test calls were added to Alice's AI call history (2 TEST_UI_Agent rows + 1 Ava row from the WS script).",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run pytest backend/tests/test_cloudivr_ai_agents.py (22 tests, self-cleaning). Ava id 31a5880e-0781-4f1f-a69f-3e6c0f9c6238. Alice Business number +15156445205, Bob Starter +19565971129. Headless Chromium has a fake microphone, so clicking ai-test-start-button opens a REAL OpenAI realtime session (costs money; the agent greets). The WS node script was run once (real OpenAI usage). Real OpenAI usage this iteration: 1 WS script talk (25s), 3 short browser test talks, plus their summaries. The campaign agent <select> loads async: wait for an option before select_option."
+}

@@ -2371,3 +2371,8 @@ User-approved order: #4 → #7 → #2 → #3 → #5 → #6. Sandbox-verified; pr
 - i18n: `scripts/civr_i18n_extract.js` → `scripts/civr_strings.json` (persistent, was /tmp) → `scripts/civr_i18n_translate.py` (owner OpenAI key, keeps existing) → `frontend/src/cloudivr/i18n/{fr,es}.json` (1199 strings). Extractor fixed (class-list detection, switch-case returns, hyphen words, "/month" suffixes); engine translates " · "-separated parts and 2-letter patterns ("Hi {0}"). Hero title rendered per language.
 - Mobile: grid children min-width 0, buttons wrap ≤640px, voice/menu selects max-w-full, active number tab scrolls into view.
 - Tests: iteration_118 (backend 23/23, all flows) + iteration_119 (9/9 retest). pytest: backend/tests/test_cloudivr_web_features21.py, test_cloudivr_web_retest119.py.
+
+## 2026-10-24 — AI Voice Agent + line-limit redial (preview, tested iteration_121)
+- New `js/ai-agent/*`, `js/cloudivr-web/ai.js`, FastAPI WebSocket proxy, AI pages in the CloudIVR web app (EN/FR/ES).
+- `bulk-call-service.js`: Telnyx channel-limit (90041-90043/429, unanswered SIP 403) → lead re-queued + redialed with backoff.
+- Harness `js/tests/test_bulk_line_limit_ai_2026-10.js` 27/27; regression `test_bulk_telnyx_2026-10.js` 48/48. See memory/AI_VOICE_AGENT_2026-10-24.md.

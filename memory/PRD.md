@@ -998,3 +998,8 @@ User inherited a fully-set-up Nomadly bot pod pointed at LIVE PRODUCTION. Task b
 - Re-translate after UI text changes: `node scripts/civr_i18n_extract.js && python3 scripts/civr_i18n_translate.py`.
 - NOT pushed / NOT deployed: owner uses "Save to GitHub" when ready (main redeploys all 4 bots; js/voice-service.js is the live call engine).
 - Backlog: localized default IVR greeting prefill (LOW), React "option complex children" dev warning (LOW), Telegram-style per-language voicemail greeting for Spanish (voicemail languages are EN/FR/PT/AR only).
+
+## 2026-10-24 — AI Voice Agent (Telnyx media streams ⇄ OpenAI Realtime) + Telnyx line-limit redial — TESTED (iteration_121), preview only
+- Inbound receptionist + outbound AI campaigns, $0.20/started minute from wallet, Pro+ only, goodbye+hangup when wallet empty, DNC list, 8am–9pm lead-local calling, transcripts + summaries, free browser test talk.
+- Bulk campaigns now wait and redial leads when Telnyx line limit is hit (never failed for busy lines).
+- Details, architecture, tests and next steps: `memory/AI_VOICE_AGENT_2026-10-24.md`.
