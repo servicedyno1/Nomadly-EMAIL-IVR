@@ -16,6 +16,7 @@ function init({ db, server, ...deps }) {
   store.init(db)
   gcal.init(db)
   calls.init(deps)
+  recorder.setDb(db)
   recorder.startSweep(db, deps.log || console.log)
   if (!server) return
   const wss = new WebSocket.Server({ noServer: true, perMessageDeflate: false })

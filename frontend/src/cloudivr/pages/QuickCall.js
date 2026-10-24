@@ -13,6 +13,7 @@ import { ScriptBox, fillScript } from './quick/ScriptBox';
 import { MenuBuilder, menuToApi } from './quick/MenuBuilder';
 import { RecentCalls, ScheduledCalls, MenuStats, Presets } from './quick/Side';
 import { TrialCall } from './quick/Trial';
+import { useDraft, DraftBanner } from './quick/Draft';
 
 // Active numbers allowed to place outbound IVR calls for `feature`.
 export function useCallerNumbers(feature) {
@@ -88,6 +89,7 @@ export default function QuickCall() {
   const [error, setError] = useState(null);
   const [stamp, setStamp] = useState(0);
   const [trialShown, setTrialShown] = useState(false);
+  const draft = useDraft(f);
   const set = (p) => setF(x => ({ ...x, ...p }));
   if (loading) return <Spinner />;
   const caller = numbers.find(n => n.phoneNumber === f.callerId) || numbers[0];
@@ -98,7 +100,7 @@ export default function QuickCall() {
     e.preventDefault(); setBusy(true); setError(null); setResult(null);
     try {
       const d = await api('/calls/quick', { method: 'POST', body: toBody(f, caller.phoneNumber) });
-      setResult(d); setStamp(s => s + 1);
+      setResult(d); setStamp(s => s + 1); draft.clear();
       toast.success(d.scheduled ? 'Call scheduled' : d.dryRun ? 'Validated (preview — not dialed)' : 'Calling now');
       refreshSummary();
     } catch (err) { setError(err); } finally { setBusy(false); }
@@ -115,6 +117,7 @@ export default function QuickCall() {
       )) : (
         <div className="grid xl:grid-cols-3 gap-4 items-start">
           <form onSubmit={go} className="xl:col-span-2 space-y-4" data-testid="quick-call-form">
+            <DraftBanner draft={draft} onResume={(d) => { setF({ ...EMPTY, ...d }); toast.success('Draft restored'); }} />
             <Section n="1" title="Who to call">
               <Field label="Call from"><select className="civr-input font-mono" value={caller.phoneNumber} onChange={e => set({ callerId: e.target.value })} data-testid="quick-call-caller-select">{numbers.map(n => <option key={n.phoneNumber} value={n.phoneNumber}>{`${n.phoneNumber} · ${n.planName}`}</option>)}</select></Field>
               <Field label="Number(s) to call" hint="With country code. Up to 10, separated by commas.">

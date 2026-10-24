@@ -4,6 +4,7 @@
 // placed where the phone plays it (right after what is already queued) and cut back on barge-in / clear.
 const fs = require('fs')
 const path = require('path')
+const crypto = require('crypto')
 const { spawn } = require('child_process')
 
 const HZ = 8000 // μ-law: 1 byte per sample → 8 bytes per ms
@@ -82,13 +83,30 @@ function encodeMp3(pcm) {
   })
 }
 
+let _db = null
+const setDb = (db) => { _db = db }
+
+// The audio library names files <chatId>_<12 chars>; call recordings hold callers' voices, so they get a
+// 128-bit random name (the link is as hard to guess as a signed URL) — on disk and in the redeploy backup.
+function hardenName(saved, chatId) {
+  const file = `${chatId}_aicall_${crypto.randomBytes(16).toString('hex')}.mp3`
+  fs.renameSync(path.join(AUDIO_DIR, saved.filename), path.join(AUDIO_DIR, file))
+  const url = String(saved.audioUrl).replace(saved.filename, file)
+  return { file, url }
+}
+
 // Saves the call's MP3 in the audio storage voicemails use → { url, file, seconds, expiresAt } | null.
 async function save(rec, chatId, saveBuffer) {
   if (!rec || !saveBuffer) return null
   const buf = await rec.toMp3()
   if (!buf?.length) return null
   const saved = await saveBuffer(buf, chatId, 'ai-call.mp3', 'audio/mpeg')
-  return { url: saved.audioUrl, file: saved.filename, seconds: rec.seconds, expiresAt: new Date(Date.now() + RETENTION_DAYS() * 86400000) }
+  let out = { file: saved.filename, url: saved.audioUrl }
+  try {
+    out = hardenName(saved, chatId)
+    if (_db) await _db.collection('ivrAudioStore').updateOne({ filename: saved.filename }, { $set: { filename: out.file, audioUrl: out.url, source: 'aiCallRecording' } })
+  } catch (e) { console.log(`[AIAgent] recording rename failed (kept ${saved.filename}): ${e.message}`) }
+  return { url: out.url, file: out.file, seconds: rec.seconds, expiresAt: new Date(Date.now() + RETENTION_DAYS() * 86400000) }
 }
 
 // Deletes recordings past their keep date (file on disk + the redeploy backup copy), keeps the call record.
@@ -115,4 +133,4 @@ function startSweep(db, log) {
   if (first.unref) first.unref()
 }
 
-module.exports = { Recorder, encodeMp3, save, sweep, startSweep, RECORD_RATE, RETENTION_DAYS, ULAW, AUDIO_DIR }
+module.exports = { Recorder, encodeMp3, save, sweep, startSweep, setDb, RECORD_RATE, RETENTION_DAYS, ULAW, AUDIO_DIR }

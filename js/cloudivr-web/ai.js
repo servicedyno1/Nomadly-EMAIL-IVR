@@ -35,9 +35,10 @@ function publicRoutes(router, { h }) {
 function routes(router, { h, numbersApi }) {
   const s = ai.store
   const gcal = ai.gcal
-  // Bookings need a connected calendar; agents can still be saved with booking off.
+  // Turning bookings ON needs a connected calendar. An agent that already had bookings on stays saveable after a
+  // disconnect/revoke (calls simply skip booking until the calendar is connected again).
   const needCalendar = async (req, res) => {
-    if (!req.body?.booking?.enabled || await gcal.isConnected(req.webChatId)) return false
+    if (!req.body?.booking?.enabled || req.agent?.booking?.enabled || await gcal.isConnected(req.webChatId)) return false
     bad(res, 400, 'calendar_not_connected', 'Connect your Google Calendar before turning on bookings.')
     return true
   }

@@ -1,0 +1,44 @@
+{
+  "summary": "Tested all 3 tasks from NEXT_TASKS_2026-10-24 for CloudIVR web (preview, DRY-RUN) at 1920px and 390px. Backend: new pytest suite (19/19 pass) covers coupon/today, calendar status/connect 503/slots 400/callback 302 expired, enabling booking blocked with 400 calendar_not_connected (agent unchanged), custom booking settings saved, invalid timeZone -> America/New_York and slotMinutes 7 -> 30, record toggle saved, recordRate 0.02/recordingDays 90/record:true, MP3 returns 200 audio/mpeg, transcript first line has 'This call may be recorded', and Bob gets 404 on Alice's call/agent/slots. Sandbox unit suite js/tests/test_ai_booking_recording_2026-10.js: 65/65 pass. Frontend: coupon banner works (code NMD108XZJUA, countdown ticks every second, Use it -> /buy?coupon=... and checkout auto-applies 10%: $50 -> $45; no purchase made). FR/ES work, no overflow at 390. Channel card: Alice and Bob don't see it, the sidebar link goes to https://t.me/CloudIVRNET with target _blank, and a new QA account sees the card (join href/target correct, FR/ES ok). Dismiss hides it and it stays hidden after reload. SIP page: Alice sees both numbers with credentials, sip.speechcue.com, reveal, copy and reset. Bob sees only the locked list with Upgrade (no leak). FR/ES ok, 390 ok. Agent page: Record calls row and hint ok. Toggle starts ON; turning it OFF and saving persists after reload, then turned back ON. Book appointments section, disabled toggle and unavailable note ok in EN/FR/ES. Call history: headphones icon, <audio> plays (readyState 4, 26s), 'kept until Jan 22, 2027' and transcript ok. AI campaign created (preview, not started): kind text has '+$0.02 recorded' and campaign-stat-booked is present. Fixed one UI bug (squished toggle switches).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "PUT /api/cloudivr-web/ai-agents/:id (needCalendar guard)", "issue": "Code-review bug (cannot be run now: needs a connected calendar). needCalendar blocks ANY save whose body has booking.enabled=true while the calendar is not connected. If an agent had booking ON and the owner disconnects, or Google revokes access / keys are removed, AgentForm still sends f.booking.enabled=true. The booking toggle is then disabled (disabled={!connected}), so the owner cannot turn it off and cannot save any other edit (greeting, record, etc.): every save returns 400 'Connect your Google Calendar before turning on bookings'. Fix: only block when enabled goes from false to true (compare req.agent.booking.enabled), and/or in the frontend send enabled: b.enabled && connected, and/or set booking.enabled=false on all agents in gcal.disconnect/markRevoked."},
+      {"endpoint": "GET /api/assets/user-audio/<chatId>_<11hex>.mp3", "issue": "Call recordings (caller voice/PII) are served without login. The URL only has the chatId plus 11 hex characters (about 44 bits). Consider signed or expiring URLs, or a login-protected proxy for ai-call recordings."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "ui.js Toggle (agent form Record calls / Book appointments / Take messages)", "issue": "Toggle had no shrink-0, so next to long hint text the switch was squished: 18-20px wide at 390px (knob outside the track) and 41px at desktop. FIXED by testing agent (added shrink-0); now 44px at all widths.", "selector": "[data-testid=ai-agent-record-toggle]", "priority": "MEDIUM (fixed)"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "SIP page (/app/sip)", "issues": ["The credential cards are stacked with 0px gap. Each SipCredentials card is rendered inside an inline <span> wrapper, so the parent's space-y-4 margin has no effect on inline elements. The Zoiper/Linphone/MicroSIP guide boxes also touch (0px gap) under space-y-3. Fix: use 'flex flex-col gap-4' / 'flex flex-col gap-3' instead of space-y-*."]},
+      {"screen": "New campaign (AI kind)", "issues": ["The 'AI agent' label sits directly under the Caller ID select with no spacing. The right column has extra empty space above 'Calls at the same time'."]},
+      {"screen": "Mobile nav", "issues": ["The Telegram channel link (sidebar-channel-link) only exists in the desktop Sidebar. MobileNav has no channel link, so accounts older than 30 days on mobile cannot reach the channel."]},
+      {"screen": "Call history recording note FR/ES", "issues": ["The date in 'conservé jusqu'au Jan 22, 2027' is not localized: day() uses the browser locale, not the app language."]},
+      {"screen": "BookingFields (only visible once connected)", "issues": ["SlotPreview uses the native <input type=date> and the booking hours use native <input type=time>, while the project already has a DateTimePicker component used elsewhere (campaign schedule)."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_cloudivr_booking_recording.py", "/app/test_reports/pytest/pytest_booking_recording.xml", "/app/js/tests/test_ai_booking_recording_2026-10.js"],
+  "action_items": [
+    "Fix the needCalendar lock-out: an agent with booking.enabled=true and a disconnected/revoked calendar can never be saved, because the toggle is disabled and the PUT returns 400.",
+    "SIP page: replace space-y-* with flex flex-col gap-* (cards and guide boxes currently touch, because of the inline span wrapper).",
+    "Add the Telegram channel link to MobileNav ('More' menu).",
+    "Consider protecting AI call recording URLs (auth or signed/expiring links).",
+    "Frontend bundle was built with an old REACT_APP_BACKEND_URL: the audio src and API go to roadmap-preview-11.preview.emergentagent.com while frontend/.env says 4ea97153-... Both route to this pod so it works, but restart the frontend so the bundle uses the current .env.",
+    "Optional: dismiss key 'civr.channelCard' in localStorage is shared by every account in the browser; make it per account (e.g. civr.channelCard.<accountId>)."
+  ],
+  "critical_code_review_comments": [
+    "ai.js needCalendar: a stale booking.enabled=true blocks every save once the calendar link is gone (see backend minor #1).",
+    "Banners.js CouponBanner: after the countdown hits 0 the banner hides but does not refetch the next day's coupon until reload (acceptable).",
+    "Banners.js ChannelCard: the dismiss flag is global per browser, not per account.",
+    "PUT /ai-agents/:id is a full replace (missing name -> 400 'Give the agent a name.'). Fine for the UI, but partial updates via API are not supported."
+  ],
+  "updated_files": ["/app/frontend/src/cloudivr/ui.js (Toggle: added shrink-0)", "/app/backend/tests/test_cloudivr_booking_recording.py (new)"],
+  "success_rate": {"backend": "100% (19/19 pytest + 65/65 sandbox unit)", "frontend": "~95% (all requested flows pass; 1 toggle layout bug fixed, minor spacing issues remain)"},
+  "seed_data_creation": "New QA account qa.chan1792841801@example.com / QaTest#2026x (channel card dismissed). AI campaign 943560f6-0318-4946-af51-883b91139447 on Alice (Ava, +19786001640, lead +14155550100, status created, not started). Ava restored: record=true, booking defaults (off, 30min, Mon-Fri 09-17, America/New_York).",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run pytest backend/tests/test_cloudivr_booking_recording.py (it restores Ava at the end). The sandbox unit test needs mongod on 127.0.0.1:27999 (mongod --port 27999 --dbpath /tmp/sbx27999 --fork). Google OAuth keys are not set, so the connected-calendar UI is untested in the browser. Many logins seem to invalidate older Alice sessions (curl cookie went not_signed_in after several browser logins), so log in fresh per test. Do not start AI test talks or coupon purchases."
+}

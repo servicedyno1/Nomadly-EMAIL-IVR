@@ -34,15 +34,17 @@ export function CouponBanner() {
   );
 }
 
-const DISMISS = 'civr.channelCard';
-// One-time welcome card pointing new accounts (first 30 days) to the Telegram channel.
+const dismissKey = (account) => `civr.channelCard.${account?.id || 'me'}`;
+// One-time welcome card pointing new accounts (first 30 days) to the Telegram channel; dismissal is per account.
 export function ChannelCard() {
   const { catalog } = useShell();
   const { account } = useCivrAuth();
-  const [hidden, setHidden] = useState(() => { try { return localStorage.getItem(DISMISS) === '1'; } catch (_) { return false; } });
+  const DISMISS = dismissKey(account);
+  const [closed, setClosed] = useState(null); // key closed in this session (the account loads after the first render)
+  const hidden = closed === DISMISS || (() => { try { return localStorage.getItem(DISMISS) === '1'; } catch (_) { return false; } })();
   const isNew = account?.createdAt && Date.now() - new Date(account.createdAt).getTime() < 30 * 86400000;
   if (hidden || !isNew || !catalog?.channelLink) return null;
-  const close = () => { try { localStorage.setItem(DISMISS, '1'); } catch (_) { /* private mode */ } setHidden(true); };
+  const close = () => { try { localStorage.setItem(DISMISS, '1'); } catch (_) { /* private mode */ } setClosed(DISMISS); };
   return (
     <div className="civr-card civr-rise p-5 sm:p-6 mb-6 flex items-start sm:items-center gap-4" data-testid="dashboard-channel-card">
       <div className="w-11 h-11 rounded-xl bg-[#38bdf8]/15 flex items-center justify-center shrink-0"><Send className="w-5 h-5 text-[#38bdf8]" /></div>

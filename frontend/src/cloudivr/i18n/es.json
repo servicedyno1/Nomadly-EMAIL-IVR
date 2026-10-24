@@ -1397,5 +1397,9 @@
 "opted out": "dado de baja",
 "other": "otro",
 "skipped": "omitido",
-"booked": "reservado"
+"booked": "reservado",
+"Resume last draft": "Retomar el último borrador",
+"You left a call setup here without placing it.": "Dejaste una llamada preparada aquí sin realizarla.",
+"Discard": "Descartar",
+"Draft restored": "Borrador restaurado"
 }

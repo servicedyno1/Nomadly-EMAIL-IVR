@@ -1389,5 +1389,9 @@
  "— or pay with crypto instead",
  "“{0}” loaded — add the forward numbers, then Save IVR",
  "…or pick audio",
- "✓ included · ✗ not on that plan. You can upgrade a number later from its Billing tab."
+ "✓ included · ✗ not on that plan. You can upgrade a number later from its Billing tab.",
+ "Resume last draft",
+ "You left a call setup here without placing it.",
+ "Discard",
+ "Draft restored"
 ]

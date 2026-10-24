@@ -1397,5 +1397,9 @@
 "opted out": "désinscrit",
 "other": "autre",
 "skipped": "ignoré",
-"booked": "réservé"
+"booked": "réservé",
+"Resume last draft": "Reprendre le dernier brouillon",
+"You left a call setup here without placing it.": "Vous avez laissé un appel préparé ici sans le lancer.",
+"Discard": "Ignorer",
+"Draft restored": "Brouillon restauré"
 }

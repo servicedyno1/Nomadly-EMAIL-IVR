@@ -94,6 +94,8 @@ async function disconnect(chatId) {
   if (!l) return false
   try { await http.post(REVOKE_URL, form({ token: unseal(l.refreshToken) }), FORM) } catch (_) { /* already revoked */ }
   await links.deleteOne({ chatId })
+  // The owner chose to disconnect: bookings go off on every agent (turned back on after reconnecting).
+  await agents?.updateMany({ chatId, 'booking.enabled': true }, { $set: { 'booking.enabled': false } }).catch(() => {})
   return true
 }
 
