@@ -1,0 +1,22 @@
+{
+  "summary": "Retest of the iter128 fixes (CloudIVR web, dry run). Backend: 20/20 pytest pass (iter127 and iter128 suites, -k 'not Extra'). FIX D works: GET /missed-calls gives the right reply/canReply with the caller-filtered sms_out lookup, and POST /missed-calls/:id/reply gives 200 and then 409 on repeat. FIX A works: while ringing, the overlay top is 97px on desktop 1920x800 with the PREVIEW strip on screen (header 33-97) and 64px when scrolled. On mobile 390x844 it is 113px at the top and 64px when scrolled, and goes back to 113 when you scroll back up. elementFromPoint finds topbar-balance, lang-switcher, inbox, softphone and logout as OK in all 6 checks. No sideways overflow (390/390). FIX B works: after Decline, a new Missed call row appears as number-logs-row-0 in 2.1 s. After the 25 s timeout (the banner went away at 24.1 s), the row appears 1.6 s later, with no reload. FIX C works: after switching to FR, all 8 Missed calls rows and all 8 notice dates show '24 oct., 16:13'. No AM/PM is left over, and the 'A appelé le' line is translated. Back in EN they show 'Oct 24, 04:13 PM'. Regression OK: Inbox Text back shows done 'TEST_ iter129 inbox (preview — not sent)'. Decline with preset 0 shows the Texted back line on the new row. Answer as text opens /app/text-call with Connected and a Hang up button. After Hang up the button is gone, relay/calls status is ended and /incoming has no calls.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": ["/app/backend/tests/test_cloudivr_iter127_browser_ring_textback.py", "/app/backend/tests/test_cloudivr_iter128_textback_norm.py", "/app/test_reports/pytest/pytest_iter129.xml"],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Incoming.js useBelowTopBar only measures on mount, scroll and resize. If the header moves for another reason while a call is ringing, the top is out of date until the next scroll or resize. Examples: the PREVIEW strip shows up after catalog loads on a fresh page that already has a ringing call, or the strip text wraps after a language switch. Optional: add a ResizeObserver on the header and its parent, or measure again when catalog.dryRun changes. Not seen in testing.",
+    "sms-reply.js textsTo is now filtered by `to: {$in: callers}`. This needs sms_out.to and the call's `from` to be in the same E.164 format, which they are now after the iter128 normalisation."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "seed_data_creation": "Pretend missed calls from unique +1415xxxxxxx callers on +14025031429, one TEST_ iter129 inbox preview reply, one decline-with-preset reply, and one ended text call (+14158746770). The language is back to en and there is no live text call.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "App routes are /cloudivr/app/... (for example /cloudivr/app/numbers/%2B14025031429?tab=logs and /cloudivr/app/inbox). Log in at /cloudivr/login with input[type=email] and input[type=password], then press Enter. Ring with an in-page fetch POST /api/cloudivr-web/incoming/simulate. The language select is [data-testid=topbar-lang-switcher] (use select_option). In browser_automation, keep screenshot paths as plain strings with no f-string braces.",
+  "test_credentials": "civr.alice@example.com / AliceTest#2026"
+}

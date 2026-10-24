@@ -39,7 +39,8 @@ export function RtcProvider({ children }) {
       rtc.on('telnyx.notification', (n) => {
         if (n.type !== 'callUpdate') return;
         const inbound = n.call.direction === 'inbound';
-        const peer = inbound ? n.call.options?.remoteCallerNumber : n.call.options?.destinationNumber;
+        const raw = inbound ? n.call.options?.remoteCallerNumber : n.call.options?.destinationNumber;
+        const peer = /^\d{8,15}$/.test(raw || '') ? `+${raw}` : raw;
         setCall(['hangup', 'destroy'].includes(n.call.state) ? null : { ref: n.call, state: n.call.state, inbound, peer });
       });
       rtc.connect();

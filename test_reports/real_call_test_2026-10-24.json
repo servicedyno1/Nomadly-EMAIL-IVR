@@ -1,0 +1,75 @@
+{
+  "started": "2026-10-24T16:44:41Z",
+  "caller": "+18778570205",
+  "tests": {
+    "text_answer": {
+      "dial": true,
+      "banner": true,
+      "banner_after_s": 1.7,
+      "banner_from": "+18778570205",
+      "connected": true,
+      "call_id": "2b008a62-4f19-422a-8c47-d76acb8f0351",
+      "caller_spoke": {
+        "data": {
+          "result": "ok"
+        }
+      },
+      "caller_words_seen_as_text": [
+        "Hello, this is the Cloud IVR automatic test caller. I am checking that answering by Textworks today."
+      ],
+      "my_line_sent": true,
+      "notes": [
+        "intro"
+      ],
+      "ended": {
+        "status": "ended",
+        "outcome": "completed",
+        "duration": 23,
+        "charge": 0.18,
+        "direction": "inbound"
+      },
+      "caller_leg_alive_after_hangup": false
+    },
+    "voice_answer": {
+      "browser_phone_online": true,
+      "dial": true,
+      "banner": true,
+      "voice_button_enabled": true,
+      "browser_call_active": true,
+      "softphone_status": "Call active",
+      "browser_call_ended_after_caller_hangup": true
+    },
+    "fallback_and_text_back": {
+      "dial": true,
+      "banner": true,
+      "banner_gone_after_s": 27.1,
+      "caller_hung_up_by_fallback": true,
+      "missed_call_logged": {
+        "id": "6adce1aed09cc8c52b1908b4",
+        "phone": "+19379800767",
+        "from": "+18778570205",
+        "type": "missed",
+        "timestamp": "2026-10-24T16:49:50.798Z",
+        "reply": null,
+        "canReply": true
+      },
+      "text_back": {
+        "reply": {
+          "text": "Sorry I missed your call. This is an automated CloudIVR test.",
+          "at": "2026-10-24T16:50:04.863Z",
+          "status": "sent"
+        },
+        "charge": 0
+      }
+    },
+    "decline_with_text": {
+      "dial": true,
+      "banner": true,
+      "toasts": [
+        "Declined \u2014 text sent to the caller"
+      ],
+      "caller_hung_up_by_fallback": true
+    }
+  },
+  "finished": "2026-10-24T16:53:54Z"
+}

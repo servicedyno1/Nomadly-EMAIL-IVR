@@ -1060,3 +1060,15 @@ calls and SIP are simulated; inbound calls use a pretend-call simulator).
     Live.js "Incoming call to …", History.js "Incoming" badge, cloudivr.css civr-incoming animations.
 - 2026-10-24 ~15:07Z: owner asked to push → all of the above DEPLOYED to the droplet (app-main, release 20261024T150711Z-33f7fa7)
   WITHOUT a testing round. Owner must "Save to GitHub" so the next auto-deploy keeps it. Testing all 3 features is still P0.
+
+- 2026-10-24 ~16:45Z LIVE REAL-CALL TEST on Pro number +19379800767 (account e2e-ring-test-20261024@cloudivr.net, caller TELNYX_DEFAULT_ANI)
+  via scripts/ops/real_call_test/real_call_browser.py (+ run_some.py to re-run single tests). Report: test_reports/real_call_test_2026-10-24.json,
+  screenshots test_reports/real_call/. ALL PASS: answer as text (banner 2-3 s, caller speech → text, typed reply spoken, billed $0.18),
+  answer with voice (browser call active, ends when caller hangs up), fallback (banner gone ~30 s → missed call logged → quick text-back sent),
+  decline with a text message.
+- BUG FOUND + FIXED (prod): text calls never showed the caller's words. Telnyx Google engine sent only interim (or no) transcription
+  events. js/relay-call/index.js now starts the Telnyx engine first (Google = fallback) and promotes an interim that is never
+  finalised to a line after 2.5 s. Unit test js/tests/relay_call_engine.test.js updated (24/24 PASS).
+- Cosmetic fix: rtc.js adds "+" to digits-only SIP caller IDs (browser-phone-only banner showed 18778570205).
+- Both DEPLOYED to droplet app-main (release 20261024T165123Z-f1edc30, workspace tarball deploy). Owner must "Save to GitHub"
+  or the next CI deploy of main drops them. Test number +19379800767 KEPT (owner choice).

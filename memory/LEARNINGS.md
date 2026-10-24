@@ -21,3 +21,6 @@
 - A process started against the standalone keeps working after conversion (driver stays in Single topology) — that is NOT proof
   the new URL works; restart (blue/green reactivation) to prove it.
 - mongosh: `db._foo` is NOT a collection (underscore props are internal) → use `db.getCollection('_foo')`.
+- Telnyx transcription_start with transcription_engine=Google (interim_results) produced NO final events on our calls
+  (2026-10-24 live probe); transcription_engine=Telnyx sends clean finals: payload.transcription_data {is_final:true, transcript,
+  transcription_track}. Per-call webhook_url receives call.transcription events.
