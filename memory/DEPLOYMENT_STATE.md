@@ -233,3 +233,14 @@ The new layout differs from the old in-place `/opt/nomadly/app-main` checkout. O
   assumed. Owner now saves to GitHub **main** → CI builds main head for app-main (and Sync main → WhiteLabel redeploys wl/voodoo/proshop;
   CloudIVR stays off there via CLOUDIVR_WEB_ON). Workspace HEAD contains origin/main 2ce6d39e → the save is a fast-forward.
 - 14:12Z prod app-main backend.env: appended `GOOGLE_OAUTH_CLIENT_ID` (same client as preview; backup `.bak.google.<ts>`), app-main-a restarted at 0 calls → "Continue with Google" shows on cloudivr.net/login, GSI loads with no origin error.
+
+## 2026-10-24 ~15:07Z — Crypto extra numbers + bot backup numbers + browser answering LIVE (workspace tarball deploy, UNTESTED code)
+- Owner asked to push the latest workspace code. `bash scripts/deploy_workspace_to_droplet.sh app-main` twice:
+  15:03Z release `20261024T150328Z-33f7fa7` (:5100 app-main-b, frontend rebuilt), then 15:07Z `20261024T150711Z-33f7fa7`
+  (:5000 app-main-a) after a one-line fix: `js/_index.js` shortener `app.get('/:id')` now serves `frontend/build/civr-ring-sw.js`
+  (it was caught as a short link → 404). Cloudflare had cached that 404 (max-age 4h) → purged the URL on zone cloudivr.net.
+  Health OK, 0 live calls at both flips. Previous releases kept for rollback (`bash /opt/nomadly/deploy.sh app-main rollback`).
+- Verified live: /health healthy, https://cloudivr.net 200, /cloudivr-web/incoming 401 (route exists), civr-ring-sw.js 200 JS,
+  bundle contains "Browser ring". NOT verified live: any of the 3 new features end-to-end (no testing round yet).
+- Browser ringing only kicks in for numbers whose owner switches it on (none yet), so inbound call routing is unchanged until then.
+- ⚠️ Not on GitHub yet → owner must "Save to GitHub" (WITH-WEBIVR branch is what deploy.yml builds) or the next auto-deploy rolls this back.

@@ -1,3 +1,6 @@
+## 2026-10-24 ~15:07Z — DEPLOYED to droplet app-main (workspace tarball, untested code) — see DEPLOYMENT_STATE.md
+- Also: shortener /:id now serves frontend/build/civr-ring-sw.js (phone notifications); CF cache purged for that URL.
+
 ## 2026-10-24 (session 2) — Crypto extra numbers, bot backup numbers, browser answering (Voice/Text) — BUILT, NOT TESTED
 - Crypto checkout for extra numbers on web CloudIVR (js/cloudivr-web/extras.js, orders.js, numbers.js; BuyNumber.js, BillingExtras.js).
 - Telegram bot backup numbers like the web (js/backup-numbers.js, _index.js, voice-service.js).

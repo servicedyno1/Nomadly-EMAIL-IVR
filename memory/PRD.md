@@ -1058,3 +1058,5 @@ calls and SIP are simulated; inbound calls use a pretend-call simulator).
     toggle, answer mode, text-answer language/voice/announce, alerts permission, notes, preview "Ring me now"),
     Softphone.js now uses useRtc() context, TextCall.js opens the call passed in location.state.liveId,
     Live.js "Incoming call to …", History.js "Incoming" badge, cloudivr.css civr-incoming animations.
+- 2026-10-24 ~15:07Z: owner asked to push → all of the above DEPLOYED to the droplet (app-main, release 20261024T150711Z-33f7fa7)
+  WITHOUT a testing round. Owner must "Save to GitHub" so the next auto-deploy keeps it. Testing all 3 features is still P0.

@@ -48959,6 +48959,7 @@ app.get('/apidoc', (req, res) => {
 app.get('/:id', async (req, res) => {
   const id = req?.params?.id
   if (id === '') return res.json({ message: 'Salam', from: req.hostname })
+  if (id === 'civr-ring-sw.js') return res.sendFile(require('path').join(__dirname, '..', 'frontend', 'build', id)) // CloudIVR ringing notifications (phones)
 
   // ── Panel domain guard: NEVER run shortener on panel.hostbay.io ──
   const panelDom = (process.env.PANEL_DOMAIN || '')
