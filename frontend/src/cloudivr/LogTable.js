@@ -3,13 +3,14 @@ import { PhoneIncoming, PhoneOutgoing, PhoneMissed, Voicemail, MessageSquare, Mi
 import { when, secs } from './api';
 import { usePrivacy } from './privacy';
 import { NoteCell, canNote } from './CallNote';
+import { TextBack } from './QuickReply';
 
 const LABEL = {
   missed: ['Missed call', PhoneMissed, '#fb7185'], voicemail: ['Voicemail', Voicemail, '#a78bfa'], forwarded: ['Forwarded call', PhoneIncoming, '#34d399'],
   forward_failed: ['Forward failed', PhoneMissed, '#fbbf24'], call_recording: ['Recorded call', Mic, '#38bdf8'], outbound_ivr: ['Quick IVR call', PhoneOutgoing, '#38bdf8'],
   outbound_ivr_bulk: ['Campaign call', PhoneOutgoing, '#22d3ee'], ivr_transfer_leg: ['IVR transfer', PhoneIncoming, '#34d399'], sms: ['SMS', MessageSquare, '#34d399'],
   fax: ['Fax', Printer, '#888'], outbound_sip: ['Browser / SIP call', PhoneOutgoing, '#38bdf8'], BulkIVR: ['Campaign charge', PhoneOutgoing, '#888'],
-  off_hours: ['Call outside hours', Clock, '#fbbf24'],
+  off_hours: ['Call outside hours', Clock, '#fbbf24'], sms_out: ['SMS sent', MessageSquare, '#38bdf8'],
 };
 const labelOf = (t) => LABEL[t] || [String(t || 'Event').replace(/_/g, ' '), PhoneIncoming, '#888'];
 const TRANSCRIPT_HINT = { empty: 'No speech detected', failed: 'Couldn’t transcribe this message', too_large: 'Too long to transcribe' };
@@ -44,6 +45,7 @@ export function LogTable({ logs, showNumber = false, testid = 'log-table', noteP
                   {l.digit && <span className="civr-pill civr-pill-on ml-1">key {l.digit}</span>}
                   {l.recordingUrl && <audio controls preload="none" src={l.recordingUrl} className="h-8 mt-1" data-testid={`${testid}-recording-${i}`} />}
                   <Transcript l={l} i={i} testid={testid} />
+                  {notePhone && (l.canReply || l.reply) && <TextBack id={l.id} reply={l.reply} canReply={l.canReply} onDone={onNotesChange} testid={`${testid}-reply-${i}`} />}
                   {notePhone && canNote(l) && <NoteCell log={l} phone={notePhone} onSaved={onNotesChange} testid={`${testid}-note-${i}`} />}
                 </td>
                 <td className="text-xs text-[#a1a1aa] whitespace-nowrap">{when(l.timestamp)}</td>

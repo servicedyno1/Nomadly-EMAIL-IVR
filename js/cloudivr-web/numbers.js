@@ -12,7 +12,7 @@ const referrals = require('./referrals')
 
 const TYPE_NAMES = { local: 'Local', toll_free: 'Toll-free', mobile: 'Mobile', national: 'National' }
 const FEATURE_KEYS = ['callForwarding', 'smsToEmail', 'smsWebhook', 'voicemail', 'sipCredentials', 'callRecording', 'ivr', 'ivrOutbound', 'bulkCall', 'otpCollection', 'aiAgent', 'textRelay']
-const LOG_TYPES = { sms: ['sms'], voicemail: ['voicemail'], fax: ['fax'] }
+const LOG_TYPES = { sms: ['sms', 'sms_out'], voicemail: ['voicemail'], fax: ['fax'] }
 const E164 = /^\+[1-9]\d{7,14}$/
 const dryRun = () => process.env.WEB_CLOUDIVR_DRY_RUN === 'true'
 const webText = (s) => String(s).replace(/Telegram/g, 'your inbox')
@@ -180,11 +180,12 @@ function validateIvr(body, plan, audioOk = () => true) {
   }
 }
 
+const smsReplyMod = require('./sms-reply')
 const publicLog = (l) => ({
   id: String(l._id), type: l.type, direction: l.direction || (String(l.type || '').startsWith('outbound') ? 'outbound' : 'inbound'),
   from: l.from || null, to: l.to || l.phoneNumber || null, phoneNumber: l.phoneNumber || null, duration: l.duration || 0,
   body: l.body || null, recordingUrl: l.recordingUrl || null, digit: l.digitPressed || null, forwardTo: l.forwardTo || null, timestamp: l.timestamp,
-  transcript: l.transcript || null, transcriptStatus: l.transcriptStatus || null,
+  transcript: l.transcript || null, transcriptStatus: l.transcriptStatus || null, reply: l.reply || null, canReply: smsReplyMod.canReply(l),
 })
 
 function routes(router, deps) {
@@ -493,9 +494,11 @@ function routes(router, deps) {
     const kind = String(req.query.kind || 'all')
     const q = { phoneNumber: req.num.phoneNumber }
     if (LOG_TYPES[kind]) q.type = { $in: LOG_TYPES[kind] }
-    else if (kind === 'calls') q.type = { $nin: ['sms', 'fax'] }
+    else if (kind === 'calls') q.type = { $nin: ['sms', 'sms_out', 'fax'] }
     else if (kind === 'recordings') q.recordingUrl = { $nin: [null, ''] }
-    const logs = (await phoneLogs.find(q).sort({ timestamp: -1 }).limit(100).toArray()).map(publicLog)
+    const rows = await phoneLogs.find(q).sort({ timestamp: -1 }).limit(100).toArray()
+    const texts = rows.some(l => smsReplyMod.canReply(l)) ? await phoneLogs.find({ phoneNumber: req.num.phoneNumber, type: 'sms_out', timestamp: { $gte: new Date(Date.now() - 8 * 86400000).toISOString() } }).toArray() : []
+    const logs = smsReplyMod.markReplied(rows, texts).map(publicLog)
     res.json({ logs: await notes.attachNotes(db, req.webChatId, req.num.phoneNumber, logs) })
   }))
 
