@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Gift, Copy, Lightbulb, Loader2, Inbox as InboxIcon } from 'lucide-react';
 import { api, useApi, money, day } from '../../api';
@@ -29,12 +29,14 @@ export function Suggest({ admin }) {
   const { data, reload } = useApi('/suggestions');
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
+  const { hash } = useLocation();
+  useEffect(() => { if (hash === '#suggest') setTimeout(() => document.getElementById('suggest')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 300); }, [hash]);
   const send = async (e) => {
     e.preventDefault(); setBusy(true);
     try { await api('/suggestions', { method: 'POST', body: { text } }); setText(''); toast.success('Thanks! We read every idea.'); reload(); } catch (err) { toast.error(err.message); } finally { setBusy(false); }
   };
   return (
-    <form onSubmit={send} className="civr-card p-6 space-y-4" id="suggest" data-testid="settings-suggest-card">
+    <form onSubmit={send} className="civr-card p-6 space-y-4 scroll-mt-28" id="suggest" data-testid="settings-suggest-card">
       <div className="flex items-center gap-3"><Lightbulb className="w-6 h-6 text-[#fbbf24]" /><div className="font-display text-2xl font-bold">Suggest a feature</div></div>
       <p className="text-sm text-[#a1a1aa]">Tell us what would make CloudIVR better. If we build your idea, you get <b className="text-[#f4f4f5]">{money(data?.rewardUsd || 10)}</b> free credit.</p>
       <textarea className="civr-input min-h-[96px]" required minLength={10} maxLength={2000} value={text} onChange={e => setText(e.target.value)} placeholder="I'd love to be able to…" data-testid="suggest-text-input" />

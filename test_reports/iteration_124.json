@@ -1,0 +1,39 @@
+{
+  "summary": "Iteration 124 - CloudIVR web: SIP domain, Pro call recording, crypto plan upgrade, 2FA (email + TOTP + backup codes + remember 30 days), referrals, feature suggestions with admin adopt, mobile bottom nav Inbox, backup transfer numbers (forwarding / Quick IVR / campaign), FR/ES and regression. Backend: new pytest file with 14 tests, all pass (run twice). The node 2FA smoke harness also passes. Frontend: Playwright at 1920x800 and 390x844 covered every flow in the request, and they all work. Found 3 minor issues (no critical ones). Code review of the voice-service failover found no logic bug that breaks sessions without backups; there are 2 minor review notes.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "PATCH /api/cloudivr-web/numbers/:phone/forwarding", "issue": "parseBackups is checked even when mode='disabled'. Example: {mode:'disabled', backups:'12ab'} returns 400 invalid_backup. In the UI, once a bad backup has been typed, choosing 'Off' and pressing Save fails: the backups field is hidden but its value is still in the form state and still gets sent. Reproduced in the UI and with the API. Fix: skip parseBackups when mode==='disabled' (or clear f.backups in the UI when mode becomes disabled)."},
+      {"endpoint": "POST /campaigns, /calls/quick, PATCH forwarding (parseBackups)", "issue": "Backup input with no digits (e.g. 'bad') is silently dropped by normPhone. The campaign is created with transferBackups=[] and status 201, with no error. Input with some digits ('12ab', 'zz9') gives a 400 as expected. Suggest returning 400 for any token that is not a phone number."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Settings > Two-step sign-in (ES)", "issues": ["The status pill shows the English word 'off' in Spanish. French shows 'désactivé'. A translation key is missing for es."]},
+      {"screen": "Mobile 390 - More menu", "issues": ["The 'Suggest a feature' link is in the desktop sidebar ([sidebar-suggest-link]) but not in the mobile More menu (nice-to-have). The floating support chat button covers the bottom of the referral/suggest cards on mobile Settings."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_cloudivr_iter124_2fa_referral_upgrade.py", "/app/test_reports/pytest/pytest_iter124.xml", "/app/js/tests/smoke_2fa_web.js"],
+  "action_items": [
+    "Forwarding PATCH: don't check backups when mode is disabled (or clear the backups state on the client), so 'Off' can always be saved",
+    "parseBackups: reject tokens that are not phone numbers instead of silently dropping them",
+    "Add the es translation for the 2FA 'Off' status pill",
+    "Optional: add 'Suggest a feature' to the mobile More menu"
+  ],
+  "critical_code_review_comments": [
+    "voice-service failover: sessions without backups behave as before. failoverNativeTransfer returns false when transferBackups is null; failoverBridge returns false when nextBackup is null, then falls through to the old hang-up + notify path; useHoldMusic only changes when backups are present. Backups are copied into new arrays (filter/map), so shift() never changes the stored config or the campaign doc.",
+    "playHoldMusicAndTransfer line ~4062 (inbound IVR menu option forward) passes num.features.callForwarding as config. When the number has forwarding backups (even with forwarding mode set to a different trigger), an IVR 'press X to forward to option.forwardTo' will (a) be forced onto the hold-music bridge path and (b) fail over to the call-forwarding backups, not only option.forwardTo. Confirm this is intended.",
+    "failoverNativeTransfer relies on Telnyx keeping the lead's leg up after a failed native transfer. If the parent-leg hangup webhook arrives after the transfer-leg hangup, transferCall runs on a dead leg. The error is caught and logged, so it is harmless, but it is worth a live check on a real busy/no-answer transfer.",
+    "2FA: an email-code account gets a new code emailed on every correct-password login (only /resend is rate-limited). Consider throttling. The Google-only disable path needs a login code, but there is no endpoint to send an email code for disable.",
+    "Referral payout and suggestion adopt are idempotent (findOneAndUpdate guards). Verified: a second purchase pays nothing more, and adopting again returns 409."
+  ],
+  "updated_files": ["/app/backend/tests/test_cloudivr_iter124_2fa_referral_upgrade.py"],
+  "success_rate": {"backend": "100% (14/14 pytest + node 2FA smoke)", "frontend": "100% of requested flows pass; 3 minor issues"},
+  "seed_data_creation": "Fresh QA accounts qa.it124.*@example.com, qa.it124ui.*@example.com and qa.it124ref.*@example.com (password QaTest#2026x), all with 2FA turned off at the end. Referred QA accounts were funded in walletOf (usdIn) and bought dry-run Starter numbers. Side effect: Alice's wallet grew by +$30 in real referral rewards (3 referred friends bought numbers), and referral stats now show rewarded=3. Two TEST_ suggestions were adopted with $7 and $3 credit to QA accounts. A temporary TEST audio doc and 2 test campaigns were deleted from Mongo. Alice's +15674050075 went Pro→Business→Pro 3 times via a simulated crypto upgrade and was restored to Pro, forwarding disabled, recording off.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "API base <REACT_APP_BACKEND_URL>/api/cloudivr-web; UI base /cloudivr. Quick IVR route is /cloudivr/app/quick-call. Buy flow: buy-search-button > buy-result-0 > buy-plan-starter > button 'Pay $X & activate'. Running the iter124 pytest file again re-runs the upgrade+downgrade cycle and gives Alice another +$10 referral (the module name matches any -k filter containing '2fa'). Alice has no audio in her library; to test campaigns, insert an ivrAudioFiles doc {id, chatId:'5000000000000001', audioUrl} and delete it afterwards.",
+  "rca of the issue": "Forwarding 'Off' fails to save: numbers.js PATCH /forwarding calls parseBackups(req.body.backups) before it looks at mode. SettingsTabs only hides the BackupsField when mode is disabled; it still sends the f.backups state. Repro: Forwarding tab > type '12ab' in backups > Save (error) > choose Off > Save, which shows the error 'Backup +12: use the country code'."
+}

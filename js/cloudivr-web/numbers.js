@@ -11,7 +11,7 @@ const notify = require('./notify')
 const referrals = require('./referrals')
 
 const TYPE_NAMES = { local: 'Local', toll_free: 'Toll-free', mobile: 'Mobile', national: 'National' }
-const FEATURE_KEYS = ['callForwarding', 'smsToEmail', 'smsWebhook', 'voicemail', 'sipCredentials', 'callRecording', 'ivr', 'ivrOutbound', 'bulkCall', 'otpCollection', 'aiAgent']
+const FEATURE_KEYS = ['callForwarding', 'smsToEmail', 'smsWebhook', 'voicemail', 'sipCredentials', 'callRecording', 'ivr', 'ivrOutbound', 'bulkCall', 'otpCollection', 'aiAgent', 'textRelay']
 const LOG_TYPES = { sms: ['sms'], voicemail: ['voicemail'], fax: ['fax'] }
 const E164 = /^\+[1-9]\d{7,14}$/
 const dryRun = () => process.env.WEB_CLOUDIVR_DRY_RUN === 'true'
@@ -21,7 +21,10 @@ const normPhone = (p) => { const d = String(p || '').replace(/[^\d+]/g, ''); ret
 const bad = (res, status, error, message) => res.status(status).json({ error, message })
 // Up to 4 backup numbers rung in order when the main one is busy or doesn't answer → { list } | { error }.
 function parseBackups(raw, exclude = []) {
-  const items = (Array.isArray(raw) ? raw : String(raw || '').split(/[\s,;]+/)).map(normPhone).filter(Boolean)
+  const tokens = (Array.isArray(raw) ? raw : String(raw || '').split(/[,;\n]+|\s+(?=\+)/)).map(t => String(t || '').trim()).filter(Boolean)
+  const junk = tokens.find(t => !/^\+?[\d\s().-]+$/.test(t))
+  if (junk) return { error: `Backup "${junk.slice(0, 20)}" is not a phone number. Use the country code, e.g. +14155550100.` }
+  const items = tokens.map(normPhone).filter(Boolean)
   const list = [...new Set(items)].filter(n => !exclude.includes(n))
   if (list.length > 4) return { error: 'Add up to 4 backup numbers.' }
   for (const n of list) {
@@ -55,6 +58,7 @@ const WEB_FEATURES = [
   ['callMeFirst', 'Call me first — calls through your mobile', 'ivrOutbound'],
   ['bulk', 'Bulk IVR campaigns with scheduling', 'bulkCall'],
   ['aiAgent', 'AI voice agent that answers and calls for you ($0.20/min)', 'aiAgent'],
+  ['textRelay', 'Text calls for deaf & hard-of-hearing users (+$0.03/min)', 'textRelay'],
   ['ivr', 'IVR auto-attendant + key analytics', 'ivr'],
   ['recording', 'Call recording', 'callRecording'],
   ['priority', 'Priority support', (plan) => plan === 'business'],
@@ -390,9 +394,9 @@ function routes(router, deps) {
       if (to === req.num.phoneNumber) return bad(res, 400, 'self_forward', 'A number cannot forward to itself.')
     }
     const ringTimeout = Math.min(60, Math.max(10, parseInt(req.body.ringTimeout, 10) || 25))
-    const bk = parseBackups(req.body.backups, [to, req.num.phoneNumber])
+    const bk = mode === 'disabled' ? { list: [] } : parseBackups(req.body.backups, [to, req.num.phoneNumber])
     if (bk.error) return bad(res, 400, 'invalid_backup', bk.error)
-    const value = { enabled: mode !== 'disabled', mode, forwardTo: to, ringTimeout, holdMusic: !!req.body.holdMusic, backups: mode === 'disabled' ? [] : bk.list }
+    const value = { enabled: mode !== 'disabled', mode, forwardTo: to, ringTimeout, holdMusic: !!req.body.holdMusic, backups: bk.list }
     await setField(req.webChatId, req.num.phoneNumber, 'features.callForwarding', value)
     res.json({ callForwarding: value })
   }))

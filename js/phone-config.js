@@ -451,6 +451,7 @@ const planFeatureAccess = {
     ivrRedial: false,
     otpCustomMessages: false,
     aiAgent: false,
+    textRelay: false,
   },
   pro: {
     callForwarding: true,
@@ -467,6 +468,7 @@ const planFeatureAccess = {
     ivrRedial: false,
     otpCustomMessages: false,
     aiAgent: true,
+    textRelay: true,
   },
   business: {
     callForwarding: true,
@@ -483,6 +485,7 @@ const planFeatureAccess = {
     ivrRedial: true,
     otpCustomMessages: true,
     aiAgent: true,
+    textRelay: true,
   },
 }
 

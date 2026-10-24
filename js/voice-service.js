@@ -2048,6 +2048,9 @@ async function handleVoiceWebhook(req, res) {
     // AI agent calls (OpenAI Realtime over a Telnyx media stream) are handled entirely by js/ai-agent.
     const aiAgent = require('./ai-agent')
     if (callControlId && aiAgent.owns(callControlId, payload)) { await aiAgent.onWebhook(eventType, payload); return }
+    // Text calls for deaf / hard-of-hearing users (typed → speech, speech → live text) are handled by js/relay-call.
+    const relayCall = require('./relay-call')
+    if (callControlId && relayCall.owns(callControlId, payload)) { await relayCall.onWebhook(eventType, payload); return }
 
     // Read-through: if this call's session isn't in local memory (e.g. it began on the OLD slot
     // during a blue/green drain that exceeded the 30-min cap), restore it from Mongo so the

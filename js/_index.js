@@ -4803,6 +4803,7 @@ const loadData = async () => {
     require('./ai-agent').init({ db, server: earlyServer, walletOf, bot, selfUrl: SELF_URL, voiceService: require('./voice-service.js'), audioLibraryService, log })
     log('[AIAgent] initialized')
   } catch (e) { log(`[AIAgent] init failed: ${e.message}`) }
+  try { require('./relay-call').init({ db, walletOf, bot, selfUrl: SELF_URL, log }) } catch (e) { log(`[Relay] init failed: ${e.message}`) }
   marketplaceService.initMarketplace(db)
   depositFunnel.initDepositFunnel(db)
 

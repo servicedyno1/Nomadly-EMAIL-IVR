@@ -37,15 +37,17 @@ function Setup({ method, onEnabled, onCancel }) {
   );
 }
 
-function TurnOff({ hasPassword, reload }) {
+function TurnOff({ hasPassword, method, reload }) {
   const [v, setV] = useState('');
   const [busy, setBusy] = useState(false);
   const off = async (e) => { e.preventDefault(); setBusy(true); try { await api('/auth/2fa/disable', { method: 'POST', body: hasPassword ? { password: v } : { code: v } }); toast.success('Two-step sign-in turned off'); reload(); } catch (err) { toast.error(err.message); } finally { setBusy(false); } };
+  const sendCode = async () => { try { const d = await api('/auth/2fa/disable-code', { method: 'POST', body: {} }); toast.success(d.previewCode ? `Preview mode — code ${d.previewCode}` : 'Code sent to your email'); } catch (err) { toast.error(err.message); } };
   const forget = async () => { try { await api('/auth/2fa/forget-browsers', { method: 'POST', body: {} }); toast.success('Remembered browsers will ask for a code again'); } catch (err) { toast.error(err.message); } };
   return (
     <form onSubmit={off} className="space-y-3">
       <div className="flex flex-col sm:flex-row gap-2"><input type={hasPassword ? 'password' : 'text'} className="civr-input sm:!w-56" required value={v} onChange={e => setV(e.target.value)} placeholder={hasPassword ? 'Your password' : 'Current code'} data-testid="twofa-disable-input" />
-        <button className="civr-btn civr-btn-danger civr-btn-sm" disabled={busy} data-testid="twofa-disable-button">Turn off</button></div>
+        <button className="civr-btn civr-btn-danger civr-btn-sm" disabled={busy} data-testid="twofa-disable-button">Turn off</button>
+        {!hasPassword && method === 'email' && <button type="button" onClick={sendCode} className="civr-btn civr-btn-ghost civr-btn-sm" data-testid="twofa-disable-send-code">Email me a code</button>}</div>
       <button type="button" onClick={forget} className="text-xs text-[#a1a1aa] hover:text-[#34d399]" data-testid="twofa-forget-browsers">Forget all remembered browsers</button>
     </form>
   );
@@ -62,7 +64,7 @@ export function Security({ account, refresh }) {
         {data && <span className={`civr-pill ${data.enabled ? 'civr-pill-on' : ''}`} data-testid="twofa-status">{data.enabled ? `On · ${data.method === 'totp' ? 'authenticator app' : 'email code'}` : 'Off'}</span>}</div>
       <p className="text-sm text-[#a1a1aa]">After your password we ask for a 6-digit code, so nobody else can get into your numbers and wallet. Tick “Remember this browser for 30 days” when you sign in to skip the code on your own device.</p>
       {codes ? <BackupCodes codes={codes} onClose={() => setCodes(null)} />
-        : data?.enabled ? <><div className="text-xs text-[#a1a1aa]" data-testid="twofa-details">On since {day(data.enabledAt)} · {data.backupCodesLeft} backup codes left</div><TurnOff hasPassword={account.hasPassword} reload={() => { reload(); refresh(); }} /></>
+        : data?.enabled ? <><div className="text-xs text-[#a1a1aa]" data-testid="twofa-details">On since {day(data.enabledAt)} · {data.backupCodesLeft} backup codes left</div><TurnOff hasPassword={account.hasPassword} method={data.method} reload={() => { reload(); refresh(); }} /></>
         : method ? <Setup method={method} onEnabled={onEnabled} onCancel={() => setMethod(null)} />
         : <div className="grid sm:grid-cols-2 gap-3">
           <button type="button" onClick={() => setMethod('totp')} className="civr-card p-4 text-left flex gap-3 hover:border-[#34d399]/50" data-testid="twofa-choose-totp"><Smartphone className="w-5 h-5 text-[#34d399] shrink-0" /><div><div className="font-semibold">Authenticator app</div><div className="text-xs text-[#a1a1aa] mt-1">Most secure. Works offline.</div></div></button>

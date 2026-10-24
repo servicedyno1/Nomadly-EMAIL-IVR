@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { NavLink, useLocation } from 'react-router-dom';
-import { MoreHorizontal, Send } from 'lucide-react';
+import { Link, NavLink, useLocation } from 'react-router-dom';
+import { Lightbulb, MoreHorizontal, Send } from 'lucide-react';
 import { NAV_ITEMS, appPath } from './nav';
 import { useShell } from './Shell';
 
@@ -29,6 +29,7 @@ export default function MobileNav() {
             <NavLink key={id} to={appPath(to)} className={({ isActive }) => `civr-nav-link ${isActive ? 'active' : ''}`} data-testid={`mobile-${id}`}><Icon className="w-4 h-4" />{label}</NavLink>
           ))}
           {channelLink && <a href={channelLink} target="_blank" rel="noopener noreferrer" className="civr-nav-link" data-testid="mobile-channel-link"><Send className="w-4 h-4" />Telegram channel</a>}
+          <Link to={appPath('settings#suggest')} className="civr-nav-link" data-testid="mobile-suggest-link"><Lightbulb className="w-4 h-4" />Suggest a feature</Link>
         </div>
       )}
       <nav className="lg:hidden fixed bottom-0 inset-x-0 z-40 grid grid-cols-5 bg-[#0a0a0a]/90 backdrop-blur-xl border-t border-white/10 pb-[env(safe-area-inset-bottom)]" data-testid="mobile-bottom-nav">

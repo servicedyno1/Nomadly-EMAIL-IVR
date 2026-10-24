@@ -16,6 +16,7 @@ import OrderStatus from './pages/buy/OrderStatus';
 import Verification from './pages/Verification';
 import AudioLibrary from './pages/AudioLibrary';
 import QuickCall from './pages/QuickCall';
+import TextCall from './pages/TextCall';
 import { Campaigns, CampaignNew } from './pages/Campaigns';
 import CampaignDetail from './pages/CampaignDetail';
 import Wallet from './pages/Wallet';
@@ -121,7 +122,7 @@ export default function Shell() {
           <PreviewBanner show={catalog?.dryRun} livePayments={catalog?.livePayments} />
           <TopBar summary={summary} onPhone={() => setPhoneOpen(o => !o)} />
           <PrivateBanner />
-          <main className="px-4 md:px-8 pt-8 md:pt-10 pb-28 lg:pb-12 max-w-7xl mx-auto" data-testid="app-main">
+          <main className="px-4 md:px-8 pt-8 md:pt-10 pb-40 lg:pb-12 max-w-7xl mx-auto" data-testid="app-main">
             <Routes>
               <Route index element={<Dashboard />} />
               <Route path="numbers" element={<Numbers />} />
@@ -132,6 +133,7 @@ export default function Shell() {
               <Route path="verification" element={<Verification />} />
               <Route path="audio" element={<AudioLibrary />} />
               <Route path="quick-call" element={<QuickCall />} />
+              <Route path="text-call" element={<TextCall />} />
               <Route path="ai-agents" element={<AiAgents />} />
               <Route path="ai-agents/new" element={<AiAgentEdit />} />
               <Route path="ai-agents/:id" element={<AiAgentEdit />} />

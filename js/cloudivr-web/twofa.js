@@ -9,6 +9,7 @@ const TRUST_DAYS = 30
 const CHALLENGE_MIN = 10
 const EMAIL_CODE_MIN = 10
 const MAX_TRIES = 5
+const RESEND_SEC = 60
 const B32 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567'
 const dryRun = () => process.env.WEB_CLOUDIVR_DRY_RUN === 'true'
 const sha = (s) => crypto.createHash('sha256').update(String(s)).digest('hex')
@@ -79,13 +80,16 @@ function createTwoFactor({ db, secret, sendMail, setSession, publicAccount, lock
     addCookie(res, cookie(req, TRUST_COOKIE, t, TRUST_DAYS))
   }
 
-  // Emails a fresh 6-digit code for `purpose` (login | setup). Preview mode also returns it (no real email needed).
+  // Emails a 6-digit code for `purpose` (login | setup), at most one per minute → { sent, code (preview mode only) }.
   async function emailCode(acc, purpose) {
+    const id = `${purpose}|${acc._id}`
+    const prev = await codes.findOne({ _id: id })
+    if (prev?.sentAt && Date.now() - prev.sentAt < RESEND_SEC * 1000 && prev.expiresAt > new Date() && prev.tries < MAX_TRIES) return { sent: false, code: prev.preview || null }
     const code = String(crypto.randomInt(0, 1000000)).padStart(6, '0')
-    await codes.updateOne({ _id: `${purpose}|${acc._id}` }, { $set: { codeHash: sha(code), tries: 0, expiresAt: new Date(Date.now() + EMAIL_CODE_MIN * 60000) } }, { upsert: true })
+    await codes.updateOne({ _id: id }, { $set: { codeHash: sha(code), tries: 0, sentAt: new Date(), expiresAt: new Date(Date.now() + EMAIL_CODE_MIN * 60000), preview: dryRun() ? code : null } }, { upsert: true })
     sendMail(acc.email, `Your ${brand()} CloudIVR code: ${code}`, `<p>Your CloudIVR sign-in code is</p><p style="font-size:28px;font-weight:bold;letter-spacing:4px">${code}</p><p>It works for ${EMAIL_CODE_MIN} minutes. If you did not try to sign in, change your password.</p>`)
       .catch(e => log(`[CloudIVR-Web] 2FA email failed: ${e.message}`))
-    return dryRun() ? code : null
+    return { sent: true, code: dryRun() ? code : null }
   }
   async function emailCodeOk(acc, purpose, code) {
     const id = `${purpose}|${acc._id}`
@@ -117,7 +121,7 @@ function createTwoFactor({ db, secret, sendMail, setSession, publicAccount, lock
       return res.status(status).json({ account: publicAccount(acc) })
     }
     const challenge = jwt.sign({ sub: acc._id, typ: 'mfa', r: !!remember }, secret(), { expiresIn: `${CHALLENGE_MIN}m` })
-    const previewCode = acc.twoFactor.method === 'email' ? await emailCode(acc, 'login') : null
+    const previewCode = acc.twoFactor.method === 'email' ? (await emailCode(acc, 'login')).code : null
     const [u, d] = acc.email.split('@')
     res.json({ twoFactor: { method: acc.twoFactor.method, challenge, emailHint: `${u.slice(0, 2)}•••@${d}`, ...(previewCode ? { previewCode } : {}) } })
   }
@@ -152,10 +156,17 @@ function createTwoFactor({ db, secret, sendMail, setSession, publicAccount, lock
     router.post('/auth/2fa/resend', h(async (req, res) => {
       const ch = await fromChallenge(req.body.challenge)
       if (!ch || ch.acc.twoFactor.method !== 'email') return bad(res, 400, 'not_email', 'There is no email code to resend.')
-      const doc = await codes.findOne({ _id: `login|${ch.acc._id}` })
-      if (doc && doc.expiresAt - Date.now() > (EMAIL_CODE_MIN * 60 - 30) * 1000) return bad(res, 429, 'slow_down', 'Wait 30 seconds before asking for another code.')
-      const previewCode = await emailCode(ch.acc, 'login')
-      res.json({ sent: true, ...(previewCode ? { previewCode } : {}) })
+      const r = await emailCode(ch.acc, 'login')
+      if (!r.sent) return bad(res, 429, 'slow_down', 'Wait a minute before asking for another code.')
+      res.json({ sent: true, ...(r.code ? { previewCode: r.code } : {}) })
+    }))
+
+    // Email-code accounts without a password (Google sign-in) need a fresh code to turn 2FA off.
+    router.post('/auth/2fa/disable-code', requireUser, h(async (req, res) => {
+      if (req.webUser.twoFactor?.method !== 'email') return bad(res, 400, 'not_email', 'There is no email code to send.')
+      const r = await emailCode(req.webUser, 'login')
+      if (!r.sent) return bad(res, 429, 'slow_down', 'Wait a minute before asking for another code.')
+      res.json({ sent: true, ...(r.code ? { previewCode: r.code } : {}) })
     }))
 
     router.get('/auth/2fa', requireUser, (req, res) => {
@@ -174,7 +185,7 @@ function createTwoFactor({ db, secret, sendMail, setSession, publicAccount, lock
         return res.json({ method, secret: secretB32, otpauthUrl: `otpauth://totp/${label}?secret=${secretB32}&issuer=CloudIVR&algorithm=SHA1&digits=6&period=30` })
       }
       if (method === 'email') {
-        const previewCode = await emailCode(acc, 'setup')
+        const previewCode = (await emailCode(acc, 'setup')).code
         return res.json({ method, sentTo: acc.email, ...(previewCode ? { previewCode } : {}) })
       }
       bad(res, 400, 'invalid_method', 'Pick authenticator app or email.')
