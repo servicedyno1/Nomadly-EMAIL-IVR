@@ -10,7 +10,7 @@ const notes = require('./notes')
 const notify = require('./notify')
 
 const TYPE_NAMES = { local: 'Local', toll_free: 'Toll-free', mobile: 'Mobile', national: 'National' }
-const FEATURE_KEYS = ['callForwarding', 'smsToEmail', 'smsWebhook', 'voicemail', 'sipCredentials', 'callRecording', 'ivr', 'ivrOutbound', 'bulkCall', 'otpCollection']
+const FEATURE_KEYS = ['callForwarding', 'smsToEmail', 'smsWebhook', 'voicemail', 'sipCredentials', 'callRecording', 'ivr', 'ivrOutbound', 'bulkCall', 'otpCollection', 'aiAgent']
 const LOG_TYPES = { sms: ['sms'], voicemail: ['voicemail'], fax: ['fax'] }
 const E164 = /^\+[1-9]\d{7,14}$/
 const dryRun = () => process.env.WEB_CLOUDIVR_DRY_RUN === 'true'
@@ -42,6 +42,7 @@ const WEB_FEATURES = [
   ['quickIvr', 'Quick IVR calls', 'ivrOutbound'],
   ['callMeFirst', 'Call me first — calls through your mobile', 'ivrOutbound'],
   ['bulk', 'Bulk IVR campaigns with scheduling', 'bulkCall'],
+  ['aiAgent', 'AI voice agent that answers and calls for you ($0.20/min)', 'aiAgent'],
   ['ivr', 'IVR auto-attendant + key analytics', 'ivr'],
   ['recording', 'Call recording', 'callRecording'],
   ['priority', 'Priority support', (plan) => plan === 'business'],
@@ -106,6 +107,7 @@ function publicNumber(n) {
       fax: { toInbox: f.faxForwarding?.toTelegram !== false },
       recording: !!f.recording,
       ivr: f.ivr || { enabled: false, options: {} },
+      aiAgent: f.aiAgent || { enabled: false, agentId: null },
     },
     access: access(n.plan),
   }

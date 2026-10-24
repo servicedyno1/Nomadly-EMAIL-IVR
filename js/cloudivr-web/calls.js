@@ -14,7 +14,9 @@ const publicCampaign = (c, withLeads = false) => ({
   id: c.id, callerId: c.callerId, audioName: c.audioName, mode: c.menu ? 'menu' : c.mode, menu: c.menu || null, transferNumber: c.transferNumber, activeKeys: c.activeKeys,
   concurrency: c.concurrency, status: c.status, stats: c.stats, scheduledFor: c.scheduledFor, startedAt: c.startedAt, completedAt: c.completedAt,
   createdAt: c.createdAt, cancelledReason: c.cancelledReason || null, pausedReason: c.pausedReason || null, dryRun: !!c.dryRun,
-  ...(withLeads ? { leads: (c.leads || []).slice(0, 500).map(l => ({ number: l.number, name: l.name, status: l.status, digitPressed: l.digitPressed, transferred: !!l.transferred, duration: l.duration || 0, hangupCause: l.hangupCause || null })) } : {}),
+  agentId: c.agentId || null, agentName: c.agentName || null, waitingForHours: !!c.waitingForHours,
+  waitingForLine: (c.leads || []).some(l => l.status === 'pending' && l.waitingForLine),
+  ...(withLeads ? { leads: (c.leads || []).slice(0, 500).map(l => ({ number: l.number, name: l.name, status: l.status, digitPressed: l.digitPressed, transferred: !!l.transferred, duration: l.duration || 0, hangupCause: l.hangupCause || null, waitingForLine: !!l.waitingForLine, ai: l.ai || null })) } : {}),
 })
 
 function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, bulkCallService, log = console.log }) {
@@ -88,6 +90,7 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
 
   router.post('/campaigns', h(async (req, res) => {
     const chatId = req.webChatId, b = req.body
+    if (b.mode === 'ai') return createAiCampaign(req, res)
     const c = await caller(chatId, b.callerId, 'bulkCall', 'Bulk IVR campaigns')
     if (c.err) return bad(res, ...c.err)
     const audio = await ownAudio(chatId, b.audioId)
@@ -126,6 +129,35 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
     if (dryRun()) await db.collection('bulkCallCampaigns').updateOne({ id: campaign.id }, { $set: { dryRun: true } })
     res.status(201).json({ campaign: publicCampaign({ ...campaign, dryRun: dryRun() }), skipped: errors.length })
   }))
+
+  // AI agent campaign: the agent talks to every lead (8am–9pm lead's local time, do-not-call list skipped).
+  async function createAiCampaign(req, res) {
+    const chatId = req.webChatId, b = req.body
+    const c = await caller(chatId, b.callerId, 'aiAgent', 'AI agent campaigns')
+    if (c.err) return bad(res, ...c.err)
+    const ai = require('../ai-agent')
+    const agent = await ai.store.getAgent(b.agentId, chatId)
+    if (!agent) return bad(res, 400, 'invalid_agent', 'Pick one of your AI agents.')
+    const { leads, errors } = bulkCallService.parseLeadsFile(String(b.leads || ''))
+    if (!leads.length) return bad(res, 400, 'no_leads', errors[0] || 'Add at least one number to call (one per line, optional ",name").')
+    if (leads.length > bulkCallService.MAX_BULK_LEADS) return bad(res, 400, 'too_many_leads', `Maximum ${bulkCallService.MAX_BULK_LEADS} numbers per campaign.`)
+    let scheduledFor = null
+    if (b.scheduledFor) {
+      const d = new Date(b.scheduledFor)
+      if (isNaN(d.getTime()) || d.getTime() < Date.now() + 60000 || d.getTime() > Date.now() + 30 * 86400000) return bad(res, 400, 'invalid_schedule', 'Schedule between 1 minute and 30 days from now.')
+      scheduledFor = d
+    }
+    if (dryRun() && scheduledFor) return bad(res, 400, 'dry_run', 'Scheduling is turned off in preview mode — calls would be dialed for real.')
+    let dnc = 0
+    for (const l of leads) if (await ai.store.onDnc(chatId, l.number)) dnc++
+    const campaign = await bulkCallService.createCampaign({
+      chatId, callerId: c.n.phoneNumber, audioUrl: null, audioName: `AI agent: ${agent.name}`, mode: 'ai', agentId: agent.id, agentName: agent.name,
+      concurrency: Math.min(20, Math.max(1, parseInt(b.concurrency, 10) || 5)), leads, scheduledFor, provider: 'telnyx',
+    })
+    if (campaign.error) return bad(res, 400, 'create_failed', campaign.error)
+    if (dryRun()) await db.collection('bulkCallCampaigns').updateOne({ id: campaign.id }, { $set: { dryRun: true } })
+    res.status(201).json({ campaign: publicCampaign({ ...campaign, dryRun: dryRun() }), skipped: errors.length, doNotCall: dnc, rate: ai.RATE() })
+  }
 
   const withCampaign = (fn) => h(async (req, res) => {
     const c = await bulkCallService.getCampaign(String(req.params.id))

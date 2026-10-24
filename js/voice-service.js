@@ -2037,6 +2037,10 @@ async function handleVoiceWebhook(req, res) {
 
     const callControlId = payload?.call_control_id
 
+    // AI agent calls (OpenAI Realtime over a Telnyx media stream) are handled entirely by js/ai-agent.
+    const aiAgent = require('./ai-agent')
+    if (callControlId && aiAgent.owns(callControlId, payload)) { await aiAgent.onWebhook(eventType, payload); return }
+
     // Read-through: if this call's session isn't in local memory (e.g. it began on the OLD slot
     // during a blue/green drain that exceeded the 30-min cap), restore it from Mongo so the
     // webhook is handled here instead of hitting a "session expired" dead-end. Gated on a
@@ -2348,6 +2352,11 @@ async function handleCallInitiated(payload) {
       await _telnyxApi.hangupCall(callControlId).catch(() => {})
     }
     return
+  }
+
+  // ── AI agent answers (Pro+, billed per started minute from the wallet; plan minutes untouched) ──
+  if (num.features?.aiAgent?.enabled) {
+    try { if (await require('./ai-agent').tryInbound({ payload, chatId, num })) return } catch (e) { log(`[AIAgent] inbound error: ${e.message}`) }
   }
 
   // ── CHECK: Inbound minutes limit reached? → Try overage billing ──
@@ -4815,7 +4824,7 @@ async function initiateOutboundIvrCall(params) {
   const result = await _telnyxApi.createOutboundCall(callerId, targetNumber, webhookUrl, undefined, amdOpts)
 
   if (result.error) {
-    return { error: result.error }
+    return { error: result.error, lineLimit: _telnyxApi.isLineLimitError?.(result) || false }
   }
 
   // Store outbound IVR session
@@ -5295,6 +5304,7 @@ async function handleOutboundIvrHangup(payload) {
         digitPressed: session.digitPressed,
         duration,
         hangupCause,
+        sipHangupCause: payload.sip_hangup_cause || null,
         transferred,
         transferConnected,
         answeredBy: session.answeredBy || null,
