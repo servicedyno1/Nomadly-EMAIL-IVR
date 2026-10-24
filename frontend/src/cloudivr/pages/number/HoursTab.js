@@ -61,7 +61,7 @@ export default function HoursTab({ num, reload }) {
         <div>
           <div className="flex items-center justify-between gap-2 mb-1">
             <span className="text-xs font-medium text-[#d4d4d8]">Opening hours</span>
-            <button type="button" className="text-xs text-[#34d399] hover:underline py-2" disabled={!f.days.mon?.on} onClick={copyMonday} data-testid="hours-copy-monday-button">Copy Monday to all open days</button>
+            <button type="button" className="text-xs text-[#34d399] hover:underline min-h-[40px]" disabled={!f.days.mon?.on} onClick={copyMonday} data-testid="hours-copy-monday-button">Copy Monday to all open days</button>
           </div>
           {DAYS.map(([id, label]) => <DayRow key={id} id={id} label={label} d={f.days[id]} onChange={d => setDay(id, d)} />)}
         </div>

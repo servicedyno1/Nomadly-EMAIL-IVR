@@ -1709,5 +1709,8 @@
 "— or pay with crypto instead": "— ou payez en crypto à la place",
 "“{0}” loaded — add the forward numbers, then Save IVR": "« {0} » chargé — ajoutez les numéros de renvoi, puis Enregistrez le SVI",
 "…or pick audio": "…ou choisissez un audio",
-"✓ included · ✗ not on that plan. You can upgrade a number later from its Billing tab.": "✓ inclus · ✗ non disponible sur ce forfait. Vous pouvez mettre à niveau un numéro plus tard depuis son onglet Facturation."
+"✓ included · ✗ not on that plan. You can upgrade a number later from its Billing tab.": "✓ inclus · ✗ non disponible sur ce forfait. Vous pouvez mettre à niveau un numéro plus tard depuis son onglet Facturation.",
+"Show {0} more": "Afficher {0} de plus",
+"key": "touche",
+"Hide numbers and messages": "Masquer les numéros et les messages"
 }

@@ -2,7 +2,7 @@ import React from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Bot, Plus, ArrowLeft, ChevronRight, Lock } from 'lucide-react';
 import { useApi } from '../api';
-import { PageHeader, Spinner, Empty, ErrorNote } from '../ui';
+import { PageHeader, Spinner, Empty, ErrorNote, TabStrip } from '../ui';
 import { cp } from '../paths';
 import { usePrivacy } from '../privacy';
 import { AgentForm, EMPTY_AGENT } from './ai/AgentForm';
@@ -50,9 +50,9 @@ export function AiAgents() {
         <Link to={cp('/app/ai-agents/new')} className="civr-btn civr-btn-primary" data-testid="ai-agents-new-button"><Plus className="w-4 h-4" />New agent</Link>
       </PageHeader>
       {data && <PlanNote canUse={data.canUse} rate={data.rate} recordRate={data.recordRate} />}
-      <div className="flex gap-1 overflow-x-auto border-b border-[#1f1f1f] mb-6" role="tablist">
+      <TabStrip active={tab} className="mb-6" testid="ai-tabstrip">
         {TABS.map(([id, name]) => <button key={id} role="tab" aria-selected={tab === id} onClick={() => setParams({ tab: id }, { replace: true })} data-testid={`ai-tab-${id}`} className={`px-4 py-3 text-sm font-medium border-b-2 -mb-px transition-colors shrink-0 ${tab === id ? 'border-[#34d399] text-[#34d399]' : 'border-transparent text-[#a1a1aa] hover:text-white'}`}>{name}</button>)}
-      </div>
+      </TabStrip>
       <ErrorNote error={error} />
       {tab === 'calls' ? <AiCalls /> : tab === 'dnc' ? <DncList /> : loading && !data ? <Spinner /> : <AgentRows agents={data?.agents || []} />}
     </div>
@@ -68,7 +68,7 @@ export function AiAgentEdit() {
   const agent = isNew ? EMPTY_AGENT : data?.agent;
   return (
     <div data-testid="ai-agent-edit-page">
-      <Link to={cp('/app/ai-agents')} className="inline-flex items-center gap-2 text-sm text-[#a1a1aa] hover:text-[#34d399] mb-6" data-testid="ai-agent-back-link"><ArrowLeft className="w-4 h-4" />All agents</Link>
+      <Link to={cp('/app/ai-agents')} className="inline-flex items-center gap-2 min-h-[44px] text-sm text-[#a1a1aa] hover:text-[#34d399] mb-3" data-testid="ai-agent-back-link"><ArrowLeft className="w-4 h-4" />All agents</Link>
       <PageHeader label="AI agent" title={isNew ? 'New agent' : agent?.name || 'Agent'} testid="ai-agent-edit-header" />
       <ErrorNote error={error} />
       {!isNew && loading && !agent ? <Spinner /> : agent && (

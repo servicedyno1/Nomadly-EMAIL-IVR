@@ -1,8 +1,8 @@
-import React, { useEffect, useRef } from 'react';
+import React from 'react';
 import { useNavigate, useParams, useSearchParams, Link } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { useApi, enc, day } from '../api';
-import { Spinner, ErrorNote, Locked, statusPill } from '../ui';
+import { Spinner, ErrorNote, Locked, statusPill, TabStrip } from '../ui';
 import { OverviewTab, ForwardingTab, VoicemailTab, SmsTab, RecordingTab } from './number/SettingsTabs';
 import SipTab from './number/SipTab';
 import IvrTab from './number/IvrTab';
@@ -31,19 +31,12 @@ export default function NumberDetail() {
   const pv = usePrivacy();
   const tab = params.get('tab') || 'overview';
   const n = data?.number;
-  const strip = useRef(null);
-  const hasNum = !!n;
-  // Mobile: keep the active tab visible in the scrolling tab strip (horizontal only).
-  useEffect(() => {
-    const s = strip.current, el = s?.querySelector('[aria-selected="true"]');
-    if (el) s.scrollLeft += el.getBoundingClientRect().left - s.getBoundingClientRect().left - 16;
-  }, [tab, hasNum]);
   if (loading && !n) return <Spinner />;
   if (error) return <ErrorNote error={error} />;
   const [, label, gate, Comp] = TABS.find(t => t[0] === tab) || TABS[0];
   return (
     <div data-testid="number-detail-page">
-      <Link to={cp('/app/numbers')} className="inline-flex items-center gap-2 text-sm text-[#a1a1aa] hover:text-[#34d399] mb-6" data-testid="number-detail-back-link"><ArrowLeft className="w-4 h-4" />All numbers</Link>
+      <Link to={cp('/app/numbers')} className="inline-flex items-center gap-2 min-h-[44px] text-sm text-[#a1a1aa] hover:text-[#34d399] mb-3" data-testid="number-detail-back-link"><ArrowLeft className="w-4 h-4" />All numbers</Link>
       <div className="flex flex-col md:flex-row md:items-end gap-4 justify-between mb-8 civr-rise">
         <div>
           <div className="civr-label">{n.countryName || n.country} · {n.type?.replace('_', '-')} · {n.planName}</div>
@@ -55,12 +48,12 @@ export default function NumberDetail() {
           {n.dryRun && <span className="civr-pill civr-pill-warn">preview</span>}
         </div>
       </div>
-      <div ref={strip} className="flex gap-1 overflow-x-auto border-b border-[#1f1f1f] mb-8" role="tablist">
+      <TabStrip active={tab} testid="number-tabstrip">
         {TABS.map(([id, name]) => (
           <button key={id} role="tab" aria-selected={tab === id} onClick={() => setParams({ tab: id }, { replace: true })} data-testid={`number-tab-${id}`}
             className={`px-4 py-3 text-sm font-medium border-b-2 -mb-px transition-colors shrink-0 ${tab === id ? 'border-[#34d399] text-[#34d399]' : 'border-transparent text-[#a1a1aa] hover:text-white'}`}>{name}</button>
         ))}
-      </div>
+      </TabStrip>
       <div data-testid={`number-tabpanel-${tab}`}>
         {gate && !n.access[gate] ? <Locked feature={label} phone={n.phoneNumber} need={planFor(catalog?.plans, gate)?.name} /> : <Comp num={n} reload={reload} onDeleted={() => nav(cp('/app/numbers'))} />}
       </div>

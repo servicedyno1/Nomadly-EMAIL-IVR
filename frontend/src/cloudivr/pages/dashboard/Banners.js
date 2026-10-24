@@ -53,7 +53,7 @@ export function ChannelCard() {
         <div className="text-sm text-[#a1a1aa] mt-1">Join our Telegram channel for new countries, features, daily coupons and service updates.</div>
         <a href={catalog.channelLink} target="_blank" rel="noopener noreferrer" onClick={close} className="civr-btn civr-btn-ghost civr-btn-sm mt-3" data-testid="dashboard-channel-join"><Send className="w-4 h-4" />Join the channel</a>
       </div>
-      <button type="button" onClick={close} className="p-2 rounded-lg text-[#a1a1aa] hover:text-white hover:bg-white/5 shrink-0" aria-label="Dismiss" data-testid="dashboard-channel-dismiss"><X className="w-4 h-4" /></button>
+      <button type="button" onClick={close} className="w-11 h-11 -mt-2 -mr-2 flex items-center justify-center rounded-lg text-[#a1a1aa] hover:text-white hover:bg-white/5 shrink-0" aria-label="Dismiss" data-testid="dashboard-channel-dismiss"><X className="w-4 h-4" /></button>
     </div>
   );
 }

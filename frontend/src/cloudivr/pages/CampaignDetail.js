@@ -5,7 +5,7 @@ import { toast } from 'sonner';
 import { ArrowLeft, Play, Pause, RotateCcw, XCircle, Download } from 'lucide-react';
 import { api, useApi, when, secs, downloadFile } from '../api';
 import { useShell } from '../Shell';
-import { Spinner, ErrorNote, statusPill } from '../ui';
+import { Spinner, ErrorNote, statusPill, ShowMore, useIsPhone, usePaged } from '../ui';
 import { cp } from '../paths';
 import { usePrivacy } from '../privacy';
 import { outcomeLabel } from './ai/AiCalls';
@@ -30,6 +30,64 @@ function Controls({ c, act, busy }) {
     </div>
   );
 }
+
+function LeadStatus({ l, i }) {
+  return (
+    <>
+      <span className={statusPill(l.status)}>{l.status}</span>
+      {l.transferred && <span className="civr-pill civr-pill-on ml-1">transferred</span>}
+      {l.waitingForLine && l.status === 'pending' && <span className="civr-pill civr-pill-warn ml-1" data-testid={`campaign-lead-${i}-waiting-line`}>waiting for a line</span>}
+    </>
+  );
+}
+
+function LeadResult({ l, i, isAi }) {
+  const pv = usePrivacy();
+  if (!isAi) return l.digitPressed || '—';
+  if (!l.ai) return l.hangupCause && l.status === 'skipped' ? l.hangupCause : '—';
+  return (
+    <>
+      <span className="civr-pill">{outcomeLabel(l.ai.outcome)}</span>
+      {l.ai.booking && <div className="text-[#d1fae5] mt-1" data-testid={`campaign-lead-${i}-booking`}>{`Booked ${l.ai.booking.day} at ${l.ai.booking.time}`}</div>}
+      {l.ai.summary && <div className="text-[#a1a1aa] mt-1">{pv.text(l.ai.summary, 'Summary hidden')}</div>}
+    </>
+  );
+}
+
+// Phones: one stacked card per number.
+function LeadCard({ l, i, isAi }) {
+  const pv = usePrivacy();
+  return (
+    <li className="py-3 first:pt-0 last:pb-0" data-testid={`campaign-lead-${i}`}>
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0"><div className="font-mono text-sm break-all">{pv.phone(l.number)}</div>{l.name && <div className="text-xs text-[#a1a1aa] mt-0.5">{pv.text(l.name, '•••')}</div>}</div>
+        {l.duration ? <span className="font-mono text-xs text-[#a1a1aa] shrink-0 pt-0.5">{secs(l.duration)}</span> : null}
+      </div>
+      <div className="flex flex-wrap items-center gap-y-1 mt-2"><LeadStatus l={l} i={i} /></div>
+      <div className="text-xs mt-2"><span className="text-[#a1a1aa] mr-2">{isAi ? 'AI result' : 'Key'}</span><span className={isAi ? '' : 'font-mono'} data-testid={`campaign-lead-${i}-result`}><LeadResult l={l} i={i} isAi={isAi} /></span></div>
+    </li>
+  );
+}
+
+function Leads({ leads, isAi }) {
+  const pv = usePrivacy();
+  const phone = useIsPhone();
+  const { shown, rest, more } = usePaged(leads, 50);
+  return (
+    <>
+      {phone ? <ul className="divide-y divide-[#1f1f1f]" data-testid="campaign-leads-table">{shown.map((l, i) => <LeadCard key={`${l.number}-${i}`} l={l} i={i} isAi={isAi} />)}</ul> : (
+        <table className="civr-table" data-testid="campaign-leads-table">
+          <thead><tr><th>Number</th><th>Name</th><th>Status</th><th>{isAi ? 'AI result' : 'Key'}</th><th>Length</th></tr></thead>
+          <tbody>{shown.map((l, i) => (
+            <tr key={`${l.number}-${i}`} data-testid={`campaign-lead-${i}`}><td className="font-mono text-xs">{pv.phone(l.number)}</td><td>{pv.text(l.name, '•••') || '—'}</td><td><LeadStatus l={l} i={i} /></td><td className={isAi ? 'text-xs max-w-xs' : 'font-mono'} data-testid={`campaign-lead-${i}-result`}><LeadResult l={l} i={i} isAi={isAi} /></td><td className="font-mono text-xs">{l.duration ? secs(l.duration) : '—'}</td></tr>
+          ))}</tbody>
+        </table>
+      )}
+      <ShowMore rest={rest} onClick={more} testid="campaign-leads-show-more" />
+    </>
+  );
+}
+
 
 export default function CampaignDetail() {
   const { id } = useParams();
@@ -57,7 +115,7 @@ export default function CampaignDetail() {
   const pct = c.stats?.total ? Math.round(((c.stats.completed || 0) / c.stats.total) * 100) : 0;
   return (
     <div data-testid="campaign-detail-page">
-      <Link to={cp('/app/campaigns')} className="inline-flex items-center gap-2 text-sm text-[#a1a1aa] hover:text-[#34d399] mb-6" data-testid="campaign-back-link"><ArrowLeft className="w-4 h-4" />All campaigns</Link>
+      <Link to={cp('/app/campaigns')} className="inline-flex items-center gap-2 min-h-[44px] text-sm text-[#a1a1aa] hover:text-[#34d399] mb-3" data-testid="campaign-back-link"><ArrowLeft className="w-4 h-4" />All campaigns</Link>
       <div className="flex flex-col md:flex-row md:items-end gap-4 justify-between mb-8">
         <div>
           <div className="civr-label">{isAi ? `AI agent conversation · ${c.agentName || ''}` : `${c.mode === 'menu' ? 'Menu' : c.mode === 'transfer' ? `Transfer to ${pv.phone(c.transferNumber)}` : 'Report key presses'} · keys ${c.activeKeys?.join(' ')}`}</div>
@@ -75,14 +133,9 @@ export default function CampaignDetail() {
         <Waiting c={c} />
         {(c.cancelledReason || c.pausedReason) && <div className="text-xs text-[#a1a1aa] mt-3" data-testid="campaign-reason">{c.cancelledReason || c.pausedReason}</div>}
       </div>
-      <div className="civr-card p-6 overflow-x-auto">
+      <div className="civr-card p-5 sm:p-6 overflow-x-auto">
         <div className="font-display text-2xl font-bold mb-3">Numbers</div>
-        <table className="civr-table" data-testid="campaign-leads-table">
-          <thead><tr><th>Number</th><th>Name</th><th>Status</th><th>{isAi ? 'AI result' : 'Key'}</th><th>Length</th></tr></thead>
-          <tbody>{(c.leads || []).map((l, i) => (
-            <tr key={`${l.number}-${i}`} data-testid={`campaign-lead-${i}`}><td className="font-mono text-xs">{pv.phone(l.number)}</td><td>{pv.text(l.name, '•••') || '—'}</td><td><span className={statusPill(l.status)}>{l.status}</span>{l.transferred && <span className="civr-pill civr-pill-on ml-1">transferred</span>}{l.waitingForLine && l.status === 'pending' && <span className="civr-pill civr-pill-warn ml-1" data-testid={`campaign-lead-${i}-waiting-line`}>waiting for a line</span>}</td><td className={isAi ? 'text-xs max-w-xs' : 'font-mono'} data-testid={`campaign-lead-${i}-result`}>{isAi ? (l.ai ? <><span className="civr-pill">{outcomeLabel(l.ai.outcome)}</span>{l.ai.booking && <div className="text-[#d1fae5] mt-1" data-testid={`campaign-lead-${i}-booking`}>{`Booked ${l.ai.booking.day} at ${l.ai.booking.time}`}</div>}{l.ai.summary && <div className="text-[#a1a1aa] mt-1">{pv.text(l.ai.summary, 'Summary hidden')}</div>}</> : l.hangupCause && l.status === 'skipped' ? l.hangupCause : '—') : (l.digitPressed || '—')}</td><td className="font-mono text-xs">{l.duration ? secs(l.duration) : '—'}</td></tr>
-          ))}</tbody>
-        </table>
+        <Leads leads={c.leads} isAi={isAi} />
       </div>
     </div>
   );
