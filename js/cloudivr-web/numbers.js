@@ -387,7 +387,7 @@ function routes(router, deps) {
     const url = req.body.greetingType === 'custom' ? String(req.body.customGreetingUrl || '') : ''
     if (url && !(await ownAudioUrls(req.webChatId)).has(url)) return bad(res, 400, 'invalid_audio', 'Pick a greeting from your audio library.')
     const language = req.body.language === undefined ? (req.num.features?.voicemail?.language || 'en') : String(req.body.language)
-    if (!vmGreeting.LANGS[language]) return bad(res, 400, 'invalid_language', 'Pick English, French, Portuguese or Arabic.')
+    if (!vmGreeting.LANGS[language]) return bad(res, 400, 'invalid_language', 'Pick English, French, Spanish, Portuguese or Arabic.')
     const value = {
       ...(req.num.features?.voicemail || {}), enabled: !!req.body.enabled, greetingType: url ? 'custom' : 'default',
       // The call engine plays customAudioGreetingUrl; customGreetingUrl is kept for older readers.

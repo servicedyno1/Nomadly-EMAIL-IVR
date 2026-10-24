@@ -40,7 +40,7 @@ function LockedList({ nums }) {
       <div className="flex items-center gap-2 font-semibold"><Lock className="w-4 h-4 text-[#fbbf24]" />SIP needs the Pro plan or higher</div>
       {nums.map((n, i) => (
         <div key={n.phoneNumber} className="flex items-center justify-between gap-3 py-2 border-t border-[#262626]" data-testid={`sip-page-locked-${i}`}>
-          <span className="font-mono text-sm">{pv.phone(n.phoneNumber)} · {n.planName}</span>
+          <span className="min-w-0"><span className="block font-mono text-sm truncate">{pv.phone(n.phoneNumber)}</span><span className="block text-xs text-[#a1a1aa] mt-0.5">{n.planName}</span></span>
           <Link to={cp(`/app/numbers/${enc(n.phoneNumber)}?tab=billing`)} className="civr-btn civr-btn-ghost civr-btn-sm" data-testid={`sip-page-upgrade-${i}`}>Upgrade</Link>
         </div>
       ))}

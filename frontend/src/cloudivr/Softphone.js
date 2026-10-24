@@ -52,7 +52,7 @@ function useRtc() {
 
 export default function Softphone({ open, onClose }) {
   const pv = usePrivacy();
-  const [nums, setNums] = useState([]);
+  const [nums, setNums] = useState(null);
   const [sel, setSel] = useState('');
   const [dest, setDest] = useState('');
   const [cmf, setCmf] = useState(false);
@@ -68,7 +68,7 @@ export default function Softphone({ open, onClose }) {
     api('/calls/callback').then(d => setMyPhone(p => p || d.myPhone || '')).catch(() => {});
   }, [open]);
   useEffect(() => { if (call) setLast({ peer: call.peer, direction: call.inbound ? 'inbound' : 'outbound' }); }, [call]);
-  const selNum = nums.find(n => n.phoneNumber === sel);
+  const selNum = nums?.find(n => n.phoneNumber === sel);
   const cmfAllowed = !!selNum?.access?.ivrOutbound;
   const viaMobile = cmf && cmfAllowed;
   const press = (k) => (call ? call.ref.dtmf(k) : setDest(d => d + k));
@@ -86,7 +86,9 @@ export default function Softphone({ open, onClose }) {
     <div className={`fixed bottom-24 lg:bottom-4 right-4 left-4 sm:left-auto z-50 sm:w-[340px] max-h-[calc(100dvh-7rem)] lg:max-h-[calc(100dvh-2rem)] overflow-y-auto civr-card p-6 shadow-2xl transition-[opacity,transform] duration-200 ${open ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4 pointer-events-none'}`} data-testid="softphone-panel">
       <audio id="civr-remote-audio" autoPlay />
       <div className="flex items-center justify-between mb-4"><span className="font-display text-xl font-bold">Browser phone</span><button onClick={onClose} className="p-1 text-[#a1a1aa] hover:text-white" data-testid="softphone-close-button" aria-label="Close"><X className="w-4 h-4" /></button></div>
-      {!nums.length ? (
+      {!nums ? (
+        <div className="flex items-center gap-2 text-sm text-[#a1a1aa] py-6" data-testid="softphone-loading"><Loader2 className="w-4 h-4 animate-spin" />Loading…</div>
+      ) : !nums.length ? (
         <div data-testid="softphone-no-numbers">
           <p className="text-sm text-[#a1a1aa]">Calling from the browser needs an active number on the Pro plan or higher.</p>
           <Link to={cp('/app/numbers')} onClick={onClose} className="civr-btn civr-btn-ghost civr-btn-sm mt-4" data-testid="softphone-upgrade-link">Upgrade a number</Link>

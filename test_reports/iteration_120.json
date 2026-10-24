@@ -1,0 +1,45 @@
+{
+  "summary": "Iteration 120 tested the CloudIVR web owner requests in preview DRY-RUN. Backend: new pytest file test_cloudivr_web_iter120.py, 13/13 passed (catalog support/channel links, voicemailLanguages includes es, visitor chat GET/POST/DELETE, invalid_visitor 400, empty 400, real price answer, 429 slow_down rate limit using fake docs, PUT /prefs/lang fr/es/en relocalizes default IVR greeting + sub-menu greeting, custom greeting kept, invalid_lang 400, PUT ivr with language es uses the ES default greeting, voicemail language es saved and persisted, coupons/today used flag (Alice true, fresh account false, expires 23:59 UTC), SIP gated for Bob/Starter). Frontend (Playwright, desktop 1920 + mobile 390, en/fr/es): language switcher bug FIXED. On landing, auth and topbar, elementFromPoint at the globe, the name and the chevron all return the opacity-0 <select>. A real mouse click on the globe opened the native list (shown in the screenshot) and select_option fr/es translates the page. Mobile pill shows EN/FR/ES. Landing visitor AI chat: price answer lists $50/$75/$120; 'talk to a human' shows support-chat-human-link-0 → https://t.me/CloudIVRhelp; the thread is still there after reload. Footer, sidebar and Settings community links are correct. Fresh qa account: the welcome channel card shows and dismiss stays hidden after reload. The coupon banner countdown ticks, and 'Use it' goes to /buy?coupon=CODE; at checkout NMD10EQA5U5 is applied with 10% off ($75 → $67.50). Alice/Bob have no coupon banner. SIP page: Alice has 4 credential cards; reveal, copy (clipboard verified), reset with confirm (new creds), private mode masks username+password, guide shows sip.speechcue.com + Zoiper/Linphone/MicroSIP, and open browser phone works. Bob sees sip-page-locked with both Starter numbers and Upgrade links → billing tab. mobile-nav-sip is in the More menu. Number Overview tab shows overview-sip-credentials-card. All SIP tab elements are present, and sip-tab-all-link → /app/sip. Voicemail language list is EN/FR/ES/PT/AR; ES sample shows, PATCH language es works and persists. IVR tab: localized default greeting after reload in FR/ES; built-in template localized (FR Ventes/Support, ES Ventas/Soporte); Save sends language; note text is localized. Regression OK: Quick IVR transfer preview, Billing downgrade preview, Inbox, Wallet, Overview. No horizontal overflow on any checked page (desktop and mobile ES). Inputs are 44px.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "PATCH /api/cloudivr-web/numbers/:phone/voicemail", "issue": "invalid_language error message still says 'Pick English, French, Portuguese or Arabic.' — Spanish missing (numbers.js:390)."},
+      {"endpoint": "PUT /api/cloudivr-web/prefs/lang", "issue": "relocalizeIvr only swaps greetings; built-in English option labels (e.g. 'Sales') stay English after a language switch. This only matters if labels are ever spoken or shown to callers."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "IvrTab (pages/number/IvrTab.js)", "issue": "If the user switches the app language while the IVR tab is open, the greeting textarea keeps the old-language text. Local state is set once from num.features.ivr; the number is not reloaded after PUT /prefs/lang. Example: EN → FR without reload still shows 'Thank you for calling…'. Clicking Save IVR then sends the English greeting with language 'fr' and overwrites the French greeting the server just localized. Fix: reload the number (or re-init g/list) when lang changes, or translate default greetings client-side on lang change.", "selector": "[data-testid=ivr-greeting-text-input]", "priority": "MEDIUM"},
+      {"component": "Softphone panel", "issue": "On the first open, the panel briefly shows the 'needs an active number on the Pro plan or higher' empty state while /numbers is loading (seen once for Alice on Business; fine on the second run). Add a loading state instead of the empty state while nums is null.", "selector": "[data-testid=softphone-no-numbers]", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Mobile bottom nav", "issues": ["Labels are 11px (target ≥12px); FR/ES labels fit without overflow (Accueil/Numéros/Acheter/Portefeuille/Plus, Resumen/Números/Comprar/Billetera/Más)."]},
+      {"screen": "Voicemail tab", "issues": ["'Voicemail on' toggle row sits directly against the 'Greeting' label with no vertical gap; the 'Greeting language' label also sits tight under the greeting select."]},
+      {"screen": "Settings (mobile)", "issues": ["Default AI voice card: the speed select and the 'Save voice' button stack with no gap."]},
+      {"screen": "Billing tab (Business)", "issues": ["The 'You're on the top plan.' card is a large, mostly empty box next to Renewal."]},
+      {"screen": "SIP page locked (mobile)", "issues": ["Number + plan text wraps awkwardly next to the Upgrade buttons ('+19565971129 · / Starter')."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_cloudivr_web_iter120.py", "/app/test_reports/pytest/pytest_iter120.xml"],
+  "action_items": [
+    "IvrTab: re-sync greeting/options state when the app language changes (reload the number after PUT /prefs/lang), so Save does not overwrite the server-localized greeting with stale-language text",
+    "numbers.js:390 — add Spanish to the invalid_language message",
+    "Softphone: show a loading state instead of the 'needs Pro' empty state while /numbers loads",
+    "Minor spacing polish: Voicemail tab toggle/label gaps, Settings voice speed select vs Save button gap; consider 12px bottom-nav labels"
+  ],
+  "critical_code_review_comments": [
+    "support.js visitor rate limit is per IP (all visitors behind one NAT/office share 10/hour) — acceptable but worth documenting; the limit is checked before the AI call, so no credits are spent on 429.",
+    "Shell.js sends PUT /prefs/lang on every Shell mount (several times per session); the server short-circuits when lang is unchanged (updated:0), so the only cost is redundant requests.",
+    "The welcome channel card is dismissed via localStorage 'civr.channelCard', which is per browser, not per account: a dismissal on a shared browser hides it for other new accounts too.",
+    "The console shows React 'span cannot be a child of tr/tbody' hydration warnings, caused by the platform visual-edit wrapper spans (data-ve-dynamic) around LogTable rows, not app code."
+  ],
+  "updated_files": ["/app/backend/tests/test_cloudivr_web_iter120.py"],
+  "success_rate": {"backend": "100% (13/13)", "frontend": "~95% (all requested flows work; 1 medium stale-state bug in IvrTab after a live language switch)"},
+  "test_credentials": "From /app/memory/test_credentials.md: Alice civr.alice@example.com / AliceTest#2026, Bob civr.bob@example.com / BobTest#2026. Fresh accounts registered: qa.iter120.*@example.com, qa.iter120ui2478@example.com, qa.iter120co2178@example.com (password QaTest#2026x).",
+  "seed_data_creation": "Fresh qa.iter120* accounts were created. Fake rate-limit docs (qa-limit-0001) and the visitor chat threads were deleted. Alice's SIP credentials were reset (dry-run) on her 4th SIP number on the SIP page (index 3).",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Real OpenAI messages used: 3 (1 backend price question, 2 landing UI). State restored: Alice IVR disabled with language 'en' and EN default greeting; voicemail language 'en'; webPrefs.lang 'en' for Alice and Bob; Bob ivrTrialUsed false (features21 was not run); webVisitorChats test docs removed. Server sees egress IP 34.170.12.145 for visitor rate limit. Today's coupon in preview was NMD10EQA5U5 (10%).",
+  "rca of the issue": "IvrTab stale greeting: useState(ivr.greeting || tr(DEF_GREETING)) runs only on mount. Shell's lang effect PUTs /prefs/lang and the server relocalizes features.ivr, but NumberDetail does not refetch and IvrTab does not watch lang. The note text is translated, but the textarea value and options stay as they were. Repro: Alice → number +15156445205 IVR tab in English → switch topbar language to Français → the textarea still shows 'Thank you for calling. Please select an option.' → Save IVR would store the English text with language 'fr'."
+}

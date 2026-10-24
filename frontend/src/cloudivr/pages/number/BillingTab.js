@@ -34,7 +34,7 @@ function Upgrade({ num, reload, refreshSummary, plans }) {
   const [plan, setPlan] = useState(higher[0]?.id || '');
   const [quote, setQuote] = useState(null);
   const [busy, setBusy] = useState(false);
-  if (!higher.length) return <div className="civr-card p-6 text-sm text-[#a1a1aa]" data-testid="billing-top-plan">You’re on the top plan.</div>;
+  if (!higher.length) return <div className="civr-card p-6 h-fit" data-testid="billing-top-plan"><div className="font-display text-2xl font-bold">Upgrade</div><p className="text-sm text-[#a1a1aa] mt-1">You’re on the top plan.</p></div>;
   const call = async (confirm) => {
     setBusy(true);
     try {

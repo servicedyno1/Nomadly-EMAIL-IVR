@@ -6,7 +6,7 @@ import { NAV_ITEMS, appPath } from './nav';
 const SHORT = { 'nav-dashboard': 'Overview', 'nav-numbers': 'Numbers', 'nav-buy': 'Buy', 'nav-wallet': 'Wallet' };
 const MAIN = NAV_ITEMS.filter(([, , , id]) => SHORT[id]);
 const MORE = NAV_ITEMS.filter(([, , , id]) => !SHORT[id]);
-const tab = (active) => `min-w-0 flex flex-col items-center justify-center gap-1 h-16 text-[11px] font-medium transition-colors ${active ? 'text-[#34d399]' : 'text-[#a1a1aa]'}`;
+const tab = (active) => `min-w-0 flex flex-col items-center justify-center gap-1 h-16 text-xs font-medium transition-colors ${active ? 'text-[#34d399]' : 'text-[#a1a1aa]'}`;
 
 // Phone-sized screens: bottom tab bar with the four main pages + a "More" menu for the rest.
 export default function MobileNav() {

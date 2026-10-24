@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Plus, Trash2, BarChart3 } from 'lucide-react';
 import { useApi, enc } from '../../api';
@@ -9,8 +9,14 @@ import { useSave } from './SettingsTabs';
 import { cp } from '../../paths';
 import { LANGS, tr, useLang } from '../../i18n';
 
-const DEF_GREETING = 'Thank you for calling. Please select an option.';
-const DEF_SUB = 'Please select an option.';
+// Built-in IVR texts per language (same as js/voicemail-greeting.js).
+const DEFAULTS = {
+  en: { greeting: 'Thank you for calling. Please select an option.', fallback: 'Thank you for calling. Please listen to the following options.', sub: 'Please select an option.' },
+  fr: { greeting: 'Merci de votre appel. Veuillez choisir une option.', fallback: 'Merci de votre appel. Veuillez écouter les options suivantes.', sub: 'Veuillez choisir une option.' },
+  es: { greeting: 'Gracias por llamar. Por favor, seleccione una opción.', fallback: 'Gracias por llamar. Por favor, escuche las siguientes opciones.', sub: 'Por favor, seleccione una opción.' },
+};
+const defOf = (lang) => DEFAULTS[lang] || DEFAULTS.en;
+const isDef = (text, keys) => !String(text || '').trim() || Object.values(DEFAULTS).some(d => keys.some(k => d[k] === String(text).trim()));
 
 const ACTIONS = [['forward', 'Forward to a phone'], ['message', 'Play a message'], ['voicemail', 'Take a voicemail'], ['submenu', 'Open a sub-menu']];
 const DIGITS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'];
@@ -72,8 +78,9 @@ function LeafRow({ o, onChange, onRemove, used, audios, prefix, onAudio }) {
 }
 
 function TopRow({ o, onChange, onRemove, used, audios, prefix, onAudio }) {
+  const { lang } = useLang();
   const set = (patch) => onChange({ ...o, ...patch });
-  const sub = o.subMenu || { greeting: tr(DEF_SUB), options: [] };
+  const sub = o.subMenu || { greeting: defOf(lang).sub, options: [] };
   const sp = `${prefix}-sub`;
   return (
     <div className="border border-[#222] rounded-xl p-4 space-y-3" data-testid={prefix}>
@@ -114,8 +121,14 @@ export default function IvrTab({ num, reload }) {
   const { data, reload: reloadAudio } = useApi('/audio');
   const audios = data?.audios || [];
   const [enabled, setEnabled] = useState(!!ivr.enabled);
-  const [g, setG] = useState({ greeting: ivr.greeting || tr(DEF_GREETING), greetingAudioUrl: ivr.greetingAudioUrl || null });
+  const [g, setG] = useState({ greeting: ivr.greeting || defOf(lang).greeting, greetingAudioUrl: ivr.greetingAudioUrl || null });
   const [list, setList] = useState(toList(ivr.options));
+  // On a language switch, greetings still on a built-in default follow the new language; custom text stays.
+  useEffect(() => {
+    const d = defOf(lang);
+    setG(x => (isDef(x.greeting, ['greeting', 'fallback']) && x.greeting !== d.greeting ? { ...x, greeting: d.greeting } : x));
+    setList(l => l.map(o => (o.subMenu && isDef(o.subMenu.greeting, ['sub']) && o.subMenu.greeting !== d.sub ? { ...o, subMenu: { ...o.subMenu, greeting: d.sub } } : o)));
+  }, [lang]);
   const [save, busy] = useSave(num, 'ivr', reload);
   const current = () => ({ greeting: g.greeting, greetingAudioUrl: g.greetingAudioUrl || null, options: toObj(list) });
   const submit = () => save({ enabled, ...current(), language: lang }, 'PUT');
