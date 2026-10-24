@@ -1,13 +1,17 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { Keyboard, Loader2, Phone, PhoneIncoming, PhoneOff } from 'lucide-react';
+import { Keyboard, Loader2, MessageSquareReply, Phone, PhoneIncoming, PhoneOff } from 'lucide-react';
 import { api, money } from './api';
 import { cp } from './paths';
 import { usePrivacy } from './privacy';
 import { useRtc } from './rtc';
 import { every, useRingNotify, useTitleFlash } from './ringAlerts';
+import { QuickReply } from './QuickReply';
 
+// Fired when a ringing call goes away (answered elsewhere, declined, timed out) so lists like the Inbox can refresh.
+export const RING_ENDED = 'civr:ring-ended';
+const ended = () => [1500, 6000].forEach(ms => setTimeout(() => window.dispatchEvent(new Event(RING_ENDED)), ms));
 const same = (a, b) => a.length === b.length && a.every((c, i) => c.id === b[i].id && c.answerMode === b[i].answerMode);
 
 // Calls ringing for this account. Polling also tells the server this tab is open, so new calls ring here.
@@ -27,15 +31,28 @@ function useRinging() {
         gone.current.forEach(id => { if (!ids.has(id)) gone.current.delete(id); });
         if (d.now) setSkew(Date.now() - Date.parse(d.now));
         const next = d.calls.filter(c => !gone.current.has(c.id));
-        setCalls(prev => (same(prev, next) ? prev : next));
+        setCalls(prev => { if (prev.some(c => !ids.has(c.id))) ended(); return same(prev, next) ? prev : next; });
       } catch (_) { /* next tick */ } finally { busy = false; }
     };
     tick();
     const stop = every(2000, tick);
     return () => { alive = false; stop(); };
   }, []);
-  const drop = useCallback((id) => { gone.current.add(id); setCalls(l => l.filter(c => c.id !== id)); }, []);
+  const drop = useCallback((id) => { gone.current.add(id); setCalls(l => l.filter(c => c.id !== id)); ended(); }, []);
   return { calls, skew, drop };
+}
+
+// The banner sits just under the top bar (lower while the preview strip above it is still on screen).
+function useBelowTopBar() {
+  const [top, setTop] = useState(64);
+  useEffect(() => {
+    const measure = () => setTop(Math.max(0, Math.round(document.querySelector('[data-civr-topbar]')?.getBoundingClientRect().bottom ?? 64)));
+    measure();
+    window.addEventListener('scroll', measure, { passive: true });
+    window.addEventListener('resize', measure);
+    return () => { window.removeEventListener('scroll', measure); window.removeEventListener('resize', measure); };
+  }, []);
+  return top;
 }
 
 function Countdown({ c, skew }) {
@@ -54,7 +71,7 @@ function Caller({ c, more, skew }) {
       <div className="min-w-0">
         <div className="text-xs font-mono uppercase tracking-widest text-[#34d399]" data-testid="incoming-label">{more > 0 ? `Incoming call · ${more} more ringing` : 'Incoming call'}</div>
         <div className="font-mono text-2xl sm:text-3xl font-bold text-white truncate" data-no-translate data-testid="incoming-from">{c.from ? pv.phone(c.from) : '—'}</div>
-        <div className="text-xs sm:text-sm text-[#a1a1aa]">to <span className="font-mono text-[#e4e4e7]" data-no-translate data-testid="incoming-to">{pv.phone(c.phone)}</span></div>
+        <div className="text-xs sm:text-sm text-[#a1a1aa]" data-testid="incoming-to">{`To your number ${pv.phone(c.phone)}`}</div>
         <Countdown c={c} skew={skew} />
       </div>
     </div>
@@ -66,19 +83,20 @@ function Actions({ c, busy, voiceFirst, onText, onVoice, onDecline }) {
   return (
     <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2 md:justify-end shrink-0">
       {!c.rtcOnly && <button type="button" onClick={() => onText()} disabled={!c.canText || !!busy} className={`${voiceFirst ? lo : hi} col-span-2 sm:col-span-1`} data-testid="incoming-text-button">{busy === 'text' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Keyboard className="w-4 h-4" />}Answer as text</button>}
-      <button type="button" onClick={onVoice} disabled={!c.canVoice || !!busy} className={`${voiceFirst ? hi : lo} ${c.rtcOnly ? 'col-span-2 sm:col-span-1' : ''}`} data-testid="incoming-voice-button"><Phone className="w-4 h-4" />Answer with voice</button>
+      <button type="button" onClick={onVoice} disabled={!c.canVoice || !!busy} className={`${voiceFirst ? hi : lo} ${c.rtcOnly ? 'col-span-2 sm:col-span-1' : ''}`} data-testid="incoming-voice-button"><Phone className="w-4 h-4" /><span className="sm:hidden">Voice</span><span className="hidden sm:inline">Answer with voice</span></button>
       <button type="button" onClick={onDecline} disabled={!!busy} className="civr-btn civr-btn-danger" data-testid="incoming-decline-button">{busy === 'decline' ? <Loader2 className="w-4 h-4 animate-spin" /> : <PhoneOff className="w-4 h-4" />}Decline</button>
     </div>
   );
 }
 
-function Footer({ c, remember, setRemember, auto, cancelAuto, note }) {
+function Footer({ c, remember, setRemember, auto, cancelAuto, note, onMessage }) {
   const voiceHint = c.canVoice ? '' : c.simulated ? 'Preview calls can only be answered as text.' : 'To answer by voice, create a SIP login for this number (SIP tab).';
   return (
     <div className="mt-4 pt-3 border-t border-white/10 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-[#a1a1aa]">
       {!c.rtcOnly && <label className="inline-flex items-center gap-2 cursor-pointer text-[#e4e4e7]"><input type="checkbox" className="accent-[#34d399] w-4 h-4" checked={remember} onChange={e => setRemember(e.target.checked)} data-testid="incoming-remember-checkbox" />Remember for this number</label>}
       {c.canText && !c.rtcOnly && <span data-testid="incoming-text-rate">{`Text answer: ${money(c.textRate)}/min from your wallet`}</span>}
       {voiceHint && <span data-testid="incoming-voice-hint">{voiceHint}</span>}
+      {!c.rtcOnly && <button type="button" onClick={onMessage} className="inline-flex items-center gap-1.5 underline text-[#e4e4e7] hover:text-white" data-testid="incoming-decline-message-button"><MessageSquareReply className="w-3.5 h-3.5" />Decline with a text message</button>}
       {auto !== null && <span className="inline-flex items-center gap-2 text-[#34d399] font-medium" data-testid="incoming-auto-text">{`Answering as text in ${auto}s…`}<button type="button" onClick={cancelAuto} className="underline text-[#f4f4f5]" data-testid="incoming-auto-cancel-button">Cancel</button></span>}
       {note && <span className="basis-full text-[#fbbf24]" data-testid="incoming-error">{note}</span>}
     </div>
@@ -94,6 +112,8 @@ function IncomingBanner({ c, more, skew, drop, ringing, openPhone }) {
   const [err, setErr] = useState('');
   const [auto, setAuto] = useState(c.answerMode === 'text' && c.canText ? 3 : null);
   const [waitVoice, setWaitVoice] = useState(false);
+  const [msgOpen, setMsgOpen] = useState(false);
+  const top = useBelowTopBar();
 
   const text = async (keep = remember) => {
     setAuto(null); setBusy('text'); setErr('');
@@ -115,10 +135,16 @@ function IncomingBanner({ c, more, skew, drop, ringing, openPhone }) {
     if (rtc.phone !== c.phone || rtc.status !== 'ready') rtc.connect(c.phone);
     setWaitVoice(true);
   };
-  const decline = async () => {
+  // reply = "Decline with a text message": the caller also gets this SMS.
+  const decline = async (reply = '') => {
     setAuto(null); setBusy('decline');
     if (c.rtcOnly) { ringing?.ref.hangup(); drop(c.id); return; }
-    try { await api(`/incoming/${c.id}/decline`, { method: 'POST', body: {} }); toast('Declined — the call goes to your usual fallback'); } catch (e) { toast.error(e.message); }
+    try {
+      const d = await api(`/incoming/${c.id}/decline`, { method: 'POST', body: reply ? { reply } : {} });
+      if (d.replyError) toast.error(d.replyError);
+      else if (d.reply) toast.success(d.reply.status === 'preview' ? 'Declined — text saved (preview, not sent)' : 'Declined — text sent to the caller');
+      else toast('Declined — the call goes to your usual fallback');
+    } catch (e) { toast.error(e.message); }
     drop(c.id);
   };
   useEffect(() => {
@@ -130,13 +156,14 @@ function IncomingBanner({ c, more, skew, drop, ringing, openPhone }) {
   const voiceNote = waitVoice && !ringing ? (rtc.status === 'error' && rtc.phone === c.phone ? rtc.msg : 'Connecting the browser phone — the call is answered as soon as it reaches this browser…') : '';
 
   return (
-    <div className="fixed inset-x-0 top-0 z-[70] p-2 sm:p-4 pointer-events-none" data-testid="incoming-overlay">
+    <div className="fixed inset-x-0 z-[70] p-2 sm:px-4 sm:pt-3 pointer-events-none" style={{ top }} data-testid="incoming-overlay">
       <div role="alertdialog" aria-live="assertive" aria-label="Incoming call" className="civr-incoming pointer-events-auto mx-auto max-w-4xl rounded-2xl border-2 border-[#34d399] bg-[#04130d] p-4 sm:p-5 shadow-2xl" data-testid="incoming-banner">
         <div className="flex flex-col md:flex-row md:items-center gap-4">
           <Caller c={c} more={more} skew={skew} />
-          <Actions c={c} busy={busy} voiceFirst={c.answerMode === 'voice' || c.rtcOnly} onText={text} onVoice={voice} onDecline={decline} />
+          <Actions c={c} busy={busy} voiceFirst={c.answerMode === 'voice' || c.rtcOnly} onText={text} onVoice={voice} onDecline={() => decline()} />
         </div>
-        <Footer c={c} remember={remember} setRemember={setRemember} auto={auto} cancelAuto={() => setAuto(null)} note={err || voiceNote} />
+        <Footer c={c} remember={remember} setRemember={setRemember} auto={auto} cancelAuto={() => setAuto(null)} note={err || voiceNote} onMessage={() => { setAuto(null); setMsgOpen(o => !o); }} />
+        {msgOpen && <div className="mt-3" data-testid="incoming-message-box"><QuickReply onSend={decline} busy={busy === 'decline'} sendLabel="Decline & send" testid="incoming-message" /></div>}
       </div>
     </div>
   );

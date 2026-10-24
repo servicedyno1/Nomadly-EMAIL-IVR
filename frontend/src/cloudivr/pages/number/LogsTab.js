@@ -1,12 +1,14 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { enc, useApi } from '../../api';
 import { LogTable } from '../../LogTable';
+import { RING_ENDED } from '../../Incoming';
 
 const KINDS = [['all', 'All'], ['calls', 'Calls'], ['sms', 'SMS'], ['voicemail', 'Voicemail'], ['recordings', 'Recordings']];
 
 export default function LogsTab({ num }) {
   const [kind, setKind] = useState('all');
   const { data, loading, reload } = useApi(`/numbers/${enc(num.phoneNumber)}/logs?kind=${kind}`);
+  useEffect(() => { window.addEventListener(RING_ENDED, reload); return () => window.removeEventListener(RING_ENDED, reload); }, [reload]);
   return (
     <div className="civr-card p-6">
       <div className="flex flex-wrap gap-2 mb-4">

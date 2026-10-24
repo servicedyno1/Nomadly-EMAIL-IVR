@@ -12,19 +12,21 @@ const referrals = require('./referrals')
 
 const TYPE_NAMES = { local: 'Local', toll_free: 'Toll-free', mobile: 'Mobile', national: 'National' }
 const FEATURE_KEYS = ['callForwarding', 'smsToEmail', 'smsWebhook', 'voicemail', 'sipCredentials', 'callRecording', 'ivr', 'ivrOutbound', 'bulkCall', 'otpCollection', 'aiAgent', 'textRelay']
-const LOG_TYPES = { sms: ['sms'], voicemail: ['voicemail'], fax: ['fax'] }
+const LOG_TYPES = { sms: ['sms', 'sms_out'], voicemail: ['voicemail'], fax: ['fax'] }
 const E164 = /^\+[1-9]\d{7,14}$/
 const dryRun = () => process.env.WEB_CLOUDIVR_DRY_RUN === 'true'
 const webText = (s) => String(s).replace(/Telegram/g, 'your inbox')
 
 const normPhone = (p) => { const d = String(p || '').replace(/[^\d+]/g, ''); return d ? (d.startsWith('+') ? d : `+${d}`) : '' }
+// Numbers typed to dial (forward-to, backups, IVR forward keys): the bot's auto-correct (10-digit US → +1).
+const dialNorm = require('../backup-numbers').norm
 const bad = (res, status, error, message) => res.status(status).json({ error, message })
 // Up to 4 backup numbers rung in order when the main one is busy or doesn't answer → { list } | { error }.
 function parseBackups(raw, exclude = []) {
   const tokens = (Array.isArray(raw) ? raw : String(raw || '').split(/[,;\n]+|\s+(?=\+)/)).map(t => String(t || '').trim()).filter(Boolean)
   const junk = tokens.find(t => !/^\+?[\d\s().-]+$/.test(t))
   if (junk) return { error: `Backup "${junk.slice(0, 20)}" is not a phone number. Use the country code, e.g. +14155550100.` }
-  const items = tokens.map(normPhone).filter(Boolean)
+  const items = tokens.map(dialNorm).filter(Boolean)
   const list = [...new Set(items)].filter(n => !exclude.includes(n))
   if (list.length > 4) return { error: 'Add up to 4 backup numbers.' }
   for (const n of list) {
@@ -148,7 +150,7 @@ function validateIvr(body, plan, audioOk = () => true) {
       const action = String(o.action || '')
       const label = String(o.label || '').slice(0, 60)
       if (action === 'forward') {
-        const to = normPhone(o.forwardTo)
+        const to = dialNorm(o.forwardTo)
         if (!E164.test(to)) throw new Error(`Key ${digit}: enter the forward number with country code, e.g. +14155550100.`)
         if (phoneConfig.isBlockedPrefix(to)) throw new Error(`Key ${digit}: ${to} is a blocked premium/satellite destination.`)
         out[digit] = { action, forwardTo: to, label }
@@ -180,11 +182,12 @@ function validateIvr(body, plan, audioOk = () => true) {
   }
 }
 
+const smsReplyMod = require('./sms-reply')
 const publicLog = (l) => ({
   id: String(l._id), type: l.type, direction: l.direction || (String(l.type || '').startsWith('outbound') ? 'outbound' : 'inbound'),
   from: l.from || null, to: l.to || l.phoneNumber || null, phoneNumber: l.phoneNumber || null, duration: l.duration || 0,
   body: l.body || null, recordingUrl: l.recordingUrl || null, digit: l.digitPressed || null, forwardTo: l.forwardTo || null, timestamp: l.timestamp,
-  transcript: l.transcript || null, transcriptStatus: l.transcriptStatus || null,
+  transcript: l.transcript || null, transcriptStatus: l.transcriptStatus || null, reply: l.reply || null, canReply: smsReplyMod.canReply(l),
 })
 
 function routes(router, deps) {
@@ -388,7 +391,7 @@ function routes(router, deps) {
     if (!gate(req, res, 'callForwarding', 'Call forwarding')) return
     const mode = String(req.body.mode || 'disabled')
     if (!['always', 'busy', 'no_answer', 'disabled'].includes(mode)) return bad(res, 400, 'invalid_mode', 'Pick always, busy, no answer or off.')
-    const to = mode === 'disabled' ? null : normPhone(req.body.forwardTo)
+    const to = mode === 'disabled' ? null : dialNorm(req.body.forwardTo)
     if (mode !== 'disabled') {
       if (!E164.test(to)) return bad(res, 400, 'invalid_number', 'Enter the forward number with country code, e.g. +14155550100.')
       if (phoneConfig.isBlockedPrefix(to)) return bad(res, 400, 'blocked_destination', `${to} is a blocked premium/satellite destination.`)
@@ -493,9 +496,11 @@ function routes(router, deps) {
     const kind = String(req.query.kind || 'all')
     const q = { phoneNumber: req.num.phoneNumber }
     if (LOG_TYPES[kind]) q.type = { $in: LOG_TYPES[kind] }
-    else if (kind === 'calls') q.type = { $nin: ['sms', 'fax'] }
+    else if (kind === 'calls') q.type = { $nin: ['sms', 'sms_out', 'fax'] }
     else if (kind === 'recordings') q.recordingUrl = { $nin: [null, ''] }
-    const logs = (await phoneLogs.find(q).sort({ timestamp: -1 }).limit(100).toArray()).map(publicLog)
+    const rows = await phoneLogs.find(q).sort({ timestamp: -1 }).limit(100).toArray()
+    const texts = rows.some(l => smsReplyMod.canReply(l)) ? await phoneLogs.find({ phoneNumber: req.num.phoneNumber, type: 'sms_out', timestamp: { $gte: new Date(Date.now() - 8 * 86400000).toISOString() } }).toArray() : []
+    const logs = smsReplyMod.markReplied(rows, texts).map(publicLog)
     res.json({ logs: await notes.attachNotes(db, req.webChatId, req.num.phoneNumber, logs) })
   }))
 

@@ -33,7 +33,7 @@ axios.post = async (url, body) => { sent.push({ url, body }); return { data: { d
   const intro = sent.find(x => x.url.endsWith('/speak'))
   assert(intro.body.payload.startsWith('Hola. Esta es una llamada escrita de Maria')); assert.strictEqual(intro.body.language, 'es-MX'); assert.strictEqual(intro.body.voice, 'male'); ok('Spanish intro with name + male voice')
   const tr = sent.find(x => x.url.endsWith('/transcription_start'))
-  assert.strictEqual(tr.body.transcription_engine_config.language, 'es'); assert.strictEqual(tr.body.transcription_tracks, 'inbound'); assert.strictEqual(tr.body.transcription_engine_config.interim_results, true); ok('transcription_start (Google, es, interim, inbound)')
+  assert.strictEqual(tr.body.transcription_engine, 'Telnyx'); assert.strictEqual(tr.body.transcription_engine_config.language, 'es'); assert.strictEqual(tr.body.transcription_tracks, 'inbound'); ok('transcription_start (Telnyx engine, es, inbound)')
 
   await relay.onWebhook('call.transcription', { call_control_id: 'v3:test-ccid', transcription_data: { transcript: 'Hola quién', is_final: false } })
   let v = relay.view(await relay.find(r.id, '42'))
@@ -41,6 +41,10 @@ axios.post = async (url, body) => { sent.push({ url, body }); return { data: { d
   await relay.onWebhook('call.transcription', { call_control_id: 'v3:test-ccid', transcription_data: { transcript: 'Hola, ¿quién habla?', is_final: true } })
   v = relay.view(await relay.find(r.id, '42'))
   assert.strictEqual(v.interim, ''); assert.deepStrictEqual(v.lines.filter(l => l.who === 'them').map(l => l.text), ['Hola, ¿quién habla?']); ok('final text becomes a line')
+  await relay.onWebhook('call.transcription', { call_control_id: 'v3:test-ccid', transcription_data: { transcript: 'sin final', is_final: false } })
+  await new Promise(r => setTimeout(r, 2700))
+  v = relay.view(await relay.find(r.id, '42'))
+  assert.strictEqual(v.interim, ''); assert.deepStrictEqual(v.lines.filter(l => l.who === 'them').map(l => l.text), ['Hola, ¿quién habla?', 'sin final']); ok('unfinalised interim becomes a line after a pause')
 
   const s1 = await relay.say(r.id, '42', '  Soy   Maria  ')
   assert.strictEqual(s1.line.text, 'Soy Maria'); assert.strictEqual(sent.filter(x => x.url.endsWith('/speak')).pop().body.payload, 'Soy Maria'); ok('typed text spoken (trimmed)')

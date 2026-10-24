@@ -7,6 +7,7 @@ const relay = require('../relay-call')
 const ringing = require('../relay-call/incoming')
 const notify = require('./notify')
 const { normPhone, E164 } = require('./numbers')
+const { clean, MAX } = require('./sms-reply')
 
 const dryRun = () => process.env.WEB_CLOUDIVR_DRY_RUN === 'true'
 const bad = (res, status, error, message) => res.status(status).json({ error, message })
@@ -24,7 +25,7 @@ function fallbackText(n, declined) {
   return 'a missed call'
 }
 
-function routes(router, { h, numbersApi, voiceService, log = console.log }) {
+function routes(router, { db, h, numbersApi, voiceService, smsReply, log = console.log }) {
   const callRate = (from) => voiceService.getIvrCallRate(from)
   const canVoiceOn = (n, r) => !!n && !r.simulated && !!n.telnyxSipUsername && phoneConfig.canAccessFeature(n.plan, 'sipCredentials') && !n.sipDisabled
 
@@ -40,10 +41,12 @@ function routes(router, { h, numbersApi, voiceService, log = console.log }) {
   }
   const saveMode = (chatId, n, mode) => numbersApi.setField(chatId, n.phoneNumber, 'features.browserRing', { ...settingsOf(n), answerMode: mode })
 
-  // Preview banner call that nobody took (or was declined): tell the owner what a live number would have done.
+  // Preview banner call that nobody took (or was declined): tell the owner what a live number would have done, and log
+  // it as a missed call (so "Text back" can be tried from the Inbox / Logs).
   async function previewFallback(r, why) {
     const n = await numbersApi.findMine(r.chatId, r.phone)
     const declined = why === 'declined'
+    await db.collection('phoneLogs').insertOne({ phoneNumber: r.phone, from: r.from, type: 'missed', duration: 0, recordingUrl: null, simulated: true, timestamp: new Date().toISOString() }).catch(() => {})
     await notify.push(r.chatId, `Preview: browser call from ${r.from} to ${r.phone} — ${declined ? 'you declined it' : 'nobody answered'}. On a live number it would be ${fallbackText(n, declined)}.`, null, { kind: 'call' }).catch(() => {})
   }
 
@@ -109,13 +112,23 @@ function routes(router, { h, numbersApi, voiceService, log = console.log }) {
     res.json({ canVoice, message: canVoice ? 'Answer in the browser phone.' : r.simulated ? 'Preview calls can only be answered as text — preview numbers are not live on the network.' : 'Answering by voice needs live SIP logins on this number (Pro and up) and the browser phone connected.' })
   }))
 
+  // Optional `reply`: "Decline with a message" — the caller also gets this text from the number.
   router.post('/incoming/:id/decline', h(async (req, res) => {
     const chatId = req.webChatId
+    const text = clean(req.body?.reply)
+    if (text.length > MAX) return bad(res, 400, 'too_long', `Keep the reply to ${MAX} characters (one text).`)
     const r = ringing.take(req.params.id, chatId)
     if (!r) return bad(res, 409, 'not_ringing', GONE)
     if (r.simulated) await previewFallback(r, 'declined')
     else await voiceService.declineBrowserRing(r.ccid, chatId)
-    res.json({ declined: true })
+    let reply = null, replyError = null
+    if (text) {
+      const n = await numbersApi.findMine(chatId, r.phone)
+      const out = n ? await smsReply.send({ chatId, num: n, to: r.from, text, simulated: r.simulated }) : { error: [404, 'not_found', 'Number not found.'] }
+      if (out.error) replyError = out.error[2]
+      else reply = { text: out.log.body, at: out.log.timestamp, status: out.log.status }
+    }
+    res.json({ declined: true, reply, replyError })
   }))
 }
 

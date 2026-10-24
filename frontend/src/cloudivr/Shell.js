@@ -83,7 +83,7 @@ function TopBar({ summary, onPhone }) {
   const { account, logout } = useCivrAuth();
   const nav = useNavigate();
   return (
-    <header className="civr-glass sticky top-0 z-30 flex items-center gap-1 sm:gap-2 px-4 md:px-8 h-16">
+    <header className="civr-glass sticky top-0 z-30 flex items-center gap-1 sm:gap-2 px-4 md:px-8 h-16" data-civr-topbar>
       <Link to={cp('/app')} className="font-display text-xl sm:text-2xl font-extrabold tracking-tight mr-auto lg:hidden" data-testid="topbar-logo">CLOUD<span className="text-[#34d399]">IVR</span></Link>
       <div className="hidden lg:block mr-auto text-sm text-[#a1a1aa]" data-testid="topbar-greeting">Signed in as <span className="text-[#f4f4f5]">{account?.email}</span></div>
       <Link to={cp('/app/wallet')} className="civr-pill civr-pill-on !text-sm !normal-case !tracking-normal h-9" data-testid="topbar-balance">{money(summary?.balance)}</Link>

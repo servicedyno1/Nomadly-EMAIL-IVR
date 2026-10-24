@@ -211,10 +211,11 @@ async function answered(s) {
     if (!s.dryRun) tx(`/calls/${s.ccid}/actions/speak`, { payload: intro, voice: s.voice, language: L.tts, command_id: crypto.randomUUID() }).catch(e => { s.speaking--; log(`[Relay] intro failed: ${txError(e)}`) })
   }
   if (s.dryRun) return
-  const cfg = { transcription_engine: 'Google', transcription_engine_config: { transcription_engine: 'Google', language: L.stt, interim_results: true }, transcription_tracks: 'inbound' }
+  // Telnyx engine first: live-tested to send final segments; Google (interim-only on our calls) is the fallback.
+  const cfg = { transcription_engine: 'Telnyx', transcription_engine_config: { transcription_engine: 'Telnyx', language: L.stt }, transcription_tracks: 'inbound' }
   try { await tx(`/calls/${s.ccid}/actions/transcription_start`, cfg) } catch (e) {
-    log(`[Relay] Google transcription failed (${txError(e)}) — trying Telnyx engine`)
-    await tx(`/calls/${s.ccid}/actions/transcription_start`, { transcription_engine: 'Telnyx', transcription_engine_config: { transcription_engine: 'Telnyx', language: L.stt }, transcription_tracks: 'inbound' })
+    log(`[Relay] Telnyx transcription failed (${txError(e)}) — trying Google engine`)
+    await tx(`/calls/${s.ccid}/actions/transcription_start`, { transcription_engine: 'Google', transcription_engine_config: { transcription_engine: 'Google', language: L.stt, interim_results: true }, transcription_tracks: 'inbound' })
       .catch(e2 => { log(`[Relay] transcription failed ${s.ccid}: ${txError(e2)}`); addLine(s, 'note', 'no_transcription') })
   }
 }
@@ -222,7 +223,9 @@ async function answered(s) {
 // Speech of the other person: interim text replaces the live line, final text becomes a message.
 function onText(s, text, final) {
   const t = String(text || '').trim()
-  if (!final) { s.interim = t; return }
+  clearTimeout(s.interimTimer)
+  // An interim the engine never finalises still becomes a message after a short pause.
+  if (!final) { s.interim = t; if (t) s.interimTimer = setTimeout(() => onText(s, s.interim, true), 2500); return }
   s.interim = ''
   if (t) addLine(s, 'them', t)
 }
@@ -262,7 +265,7 @@ async function finish(s, payload) {
   if (s.done) return
   s.done = true
   sessions.delete(s._id); byCcid.delete(s.ccid)
-  clearInterval(s.walletTimer); clearTimeout(s.maxTimer); preview.stop(s)
+  clearInterval(s.walletTimer); clearTimeout(s.maxTimer); clearTimeout(s.interimTimer); preview.stop(s)
   await settle(s, new Date(), payload?.hangup_cause || null)
 }
 
