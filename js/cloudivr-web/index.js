@@ -20,6 +20,7 @@ const ai = require('./ai')
 const referrals = require('./referrals')
 const suggestions = require('./suggestions')
 const relay = require('./relay')
+const incoming = require('./incoming')
 const { sendMail } = require('./auth')
 
 function createCloudIvrWeb(deps) {
@@ -60,6 +61,7 @@ function createCloudIvrWeb(deps) {
     referrals.routes(r, { db, h })
     suggestions.routes(r, { ...deps, db, h })
     relay.routes(r, { ...deps, h, numbersApi })
+    incoming.routes(r, { ...deps, h, numbersApi })
     r.get('/dashboard', h(async (req, res) => {
       const id = req.webChatId
       const nums = await numbersApi.myNumbers(id)

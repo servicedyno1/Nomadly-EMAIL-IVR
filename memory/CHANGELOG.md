@@ -1,3 +1,11 @@
+## 2026-10-24 (session 2) — Crypto extra numbers, bot backup numbers, browser answering (Voice/Text) — BUILT, NOT TESTED
+- Crypto checkout for extra numbers on web CloudIVR (js/cloudivr-web/extras.js, orders.js, numbers.js; BuyNumber.js, BillingExtras.js).
+- Telegram bot backup numbers like the web (js/backup-numbers.js, _index.js, voice-service.js).
+- Answer incoming calls in the browser: backend (relay-call/incoming.js, cloudivr-web/incoming.js, answerInbound, voice-service
+  browser-ring stage) curl-verified in preview; frontend rtc.js, Incoming.js, ringAlerts.js, BrowserRingTab.js,
+  public/civr-ring-sw.js + Softphone/TextCall/Live/History/Shell/NumberDetail/SettingsTabs/cloudivr.css edits (compiles).
+- Pending: combined testing-agent round, i18n strings, unit tests. Preview is DRY-RUN (MOCKED calls/numbers/SIP).
+
 ## 2026-10-22 — Cleared leftover "default domain" data (state.preferredShortenerDomain) on all 4 live bots
 - Field no longer read/written by any live code (verified 0 refs in all 4 live releases). `$unset` on `state` with
   per-DB JSON backup first: test (Nomadly) 93 docs (28 were full URLs — self-heal junk), smadav 4, voodoo 2, proshop 0;
@@ -720,7 +728,7 @@ last_error: "Wrong response from the webhook: 404 Not Found"
 ### Operational restoration
 - Called Telegram `setWebhook` to put the prod bot back on Railway:  
   `https://nomadly-email-ivr-production.up.railway.app/telegram/webhook` — verified `last_error: none, pending_update_count: 0`.
-- Local nodejs restarted cleanly; logs show `[Webhooks] SKIP_WEBHOOK_SYNC=true — preserving existing Telegram webhook (NOT overwriting)` and `📡 Existing webhook (left untouched): https://roadmap-preview-11.preview.emergentagent.com/api/telegram/webhook` (the dev bot's webhook is preserved, even though it points at a dead preview pod — that's fine, we'll re-point it on demand if needed for dev testing).
+- Local nodejs restarted cleanly; logs show `[Webhooks] SKIP_WEBHOOK_SYNC=true — preserving existing Telegram webhook (NOT overwriting)` and `📡 Existing webhook (left untouched): https://vault-setup-29.preview.emergentagent.com/api/telegram/webhook` (the dev bot's webhook is preserved, even though it points at a dead preview pod — that's fine, we'll re-point it on demand if needed for dev testing).
 
 ### Tests
 - `/app/backend/tests/test_webhook_isolation.js` — 3 cases (the SKIP_WEBHOOK_SYNC guard comes before `bot.setWebHook` in source order; the setup-nodejs.sh `SKIP_SELF_URL_UPDATE` gate is wired correctly and sits BEFORE the sed rewrite; `.env` is in dev mode with the safety flag set). All pass.

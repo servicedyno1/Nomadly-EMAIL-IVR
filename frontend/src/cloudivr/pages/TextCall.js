@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { Ear, Keyboard, PhoneCall } from 'lucide-react';
 import { useApi, money } from '../api';
 import { PageHeader } from '../ui';
@@ -34,7 +35,10 @@ export default function TextCall() {
   const { data: info } = useApi('/relay/info');
   const [callId, setCallId] = useState(null);
   const [round, setRound] = useState(0);
+  const { state } = useLocation();
   useEffect(() => { if (info?.live) setCallId(info.live); }, [info?.live]);
+  // Answered from the ringing banner ("Answer as text").
+  useEffect(() => { if (state?.liveId) setCallId(state.liveId); }, [state?.liveId]);
   return (
     <div data-testid="text-call-page">
       <PageHeader label="Calling" title="Text calls" sub="For deaf and hard-of-hearing callers: you type and they hear a voice; they talk and you read their words live." testid="text-call-header" />

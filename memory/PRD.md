@@ -1029,7 +1029,32 @@ User inherited a fully-set-up Nomadly bot pod pointed at LIVE PRODUCTION. Task b
 - Not done yet (owner list): number-compliance paperwork checklist, new logo + "real phone company" redesign
   (blueprint in /app/design_guidelines.json), first real Telnyx text call test before going live.
 
-## 2026-10-24 — NEXT: answer incoming calls in the browser (Voice or Text) — ANALYSED, NOT BUILT
+## 2026-10-24 — Answer incoming calls in the browser (Voice or Text) — BUILT, NOT YET TESTED (see status block below)
 - **Next agent: start with `memory/NEXT_TASK_BROWSER_ANSWER_TEXT_OR_VOICE.md`** (owner decisions, code facts, design, edge cases, test plan).
 - Owner decisions: opt-in per number; text answer billed like outgoing text calls (call rate + $0.03/min); per-number answer mode (ask / remember voice / remember text);
   alerts = flashing banner on every page + background notification + flashing tab title (no vibration); unanswered → number's current fallback.
+
+## 2026-10-24 (session 2) — 3 owner features BUILT, combined test round still PENDING
+Owner asked: (1) buy an extra number on web CloudIVR with crypto, (2) bot users can set backup numbers like the web,
+(3) answer incoming calls in the browser by Voice or Text. Owner rule: "Complete building all three features first, then test
+everything together." All 3 are coded; NONE has been through the testing agent yet. Preview is DRY-RUN (**MOCKED**: numbers,
+calls and SIP are simulated; inbound calls use a pretend-call simulator).
+- Crypto extra numbers: js/cloudivr-web/{numbers,extras,orders}.js + frontend pages/BuyNumber.js, pages/number/BillingExtras.js
+  (curl-checked by previous agent with civr.alice; dev route POST /api/cloudivr-web/extras/simulate).
+- Bot backup numbers (Call Forwarding, single IVR transfer, bulk campaign): js/backup-numbers.js (new), js/_index.js menus/texts,
+  js/voice-service.js hooks. Syntax-checked only.
+- Browser answering:
+  - Backend (curl-verified this session: PATCH browser-ring → simulate → answer as text → live preview relay with pretend caller
+    → hangup → ended/outcome completed): js/relay-call/incoming.js (ringing + online map), js/cloudivr-web/incoming.js
+    (GET /incoming {calls, now}, POST /incoming/simulate (dry-run), /:id/text, /:id/voice, /:id/decline; each call carries
+    fallback text), js/relay-call/index.js answerInbound + introIn, js/voice-service.js browser-ring stage, takeInboundForText,
+    declineBrowserRing, browserNoAnswer → noAnswerFallback, PATCH /numbers/:phone/browser-ring (Pro+ textRelay gate).
+  - Frontend (compiles; NOT yet screenshot/tested): frontend/src/cloudivr/rtc.js (RtcProvider — browser phone lifted to app
+    context + auto-connect for numbers with browser ring on & a SIP login; owner chose auto-connect), Incoming.js (banner on every
+    page: Answer as text / Answer with voice / Decline, Remember checkbox, countdown + fallback, 3 s auto-answer when mode=text,
+    voice pre-highlighted when mode=voice, rtc-only banner if the browser phone rings without a server entry), ringAlerts.js
+    (worker-timer polling so background tabs keep polling every 2 s, flashing tab title, desktop/phone notification incl.
+    service-worker fallback public/civr-ring-sw.js), pages/number/BrowserRingTab.js (new "Browser ring" tab gated textRelay:
+    toggle, answer mode, text-answer language/voice/announce, alerts permission, notes, preview "Ring me now"),
+    Softphone.js now uses useRtc() context, TextCall.js opens the call passed in location.state.liveId,
+    Live.js "Incoming call to …", History.js "Incoming" badge, cloudivr.css civr-incoming animations.

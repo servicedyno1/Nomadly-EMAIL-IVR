@@ -113,4 +113,7 @@ Sources: `HOSTING_CAPABILITIES_2026-10.md` (H#) and `RESELLER_FEATURE_REQUESTS_2
 - P1 (owner list, not started): number-compliance paperwork checklist (easy, step by step); new CloudIVR logo + "clean real phone company" redesign (design_guidelines.json).
 - P1: inbound text calls (answer your own number in the browser in text mode).
 - P2: Google Calendar keys (owner, later); signed/expiring URLs for AI recordings; localize remaining FR/ES recording notes.
-- P0 NEXT (owner asked 2026-10-24): browser answering of incoming calls with a Voice or Text choice — spec in memory/NEXT_TASK_BROWSER_ANSWER_TEXT_OR_VOICE.md (not started).
+- P0 NEXT: TEST ALL 3 built features together (testing agent): crypto extra numbers (web), bot backup numbers, browser answering
+  (Voice/Text) — all built 2026-10-24 session 2, none tested yet. Then i18n extract/translate for new strings + node unit tests
+  (memory/NEXT_TASK_BROWSER_ANSWER_TEXT_OR_VOICE.md §6).
+- P0 before going live: one real inbound call on a live Pro number (text answer, voice answer via browser phone, fallback when ignored).

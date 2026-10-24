@@ -16,9 +16,9 @@ const MAX_MINUTES = 120
 const STALE_MS = 3 * 60000 // no heartbeat this long → nobody is running the call any more
 const OPEN = ['ringing', 'live']
 const LANGS = {
-  en: { tts: 'en-US', stt: 'en', intro: (who) => `Hello. This is a typed call from ${who}, placed through CloudIVR. The caller is deaf or hard of hearing. They type, and a computer voice reads their words to you. Please speak normally and pause when you finish. Your words appear as text for them.`, outOfFunds: 'The caller’s balance has run out. Goodbye.' },
-  es: { tts: 'es-MX', stt: 'es', intro: (who) => `Hola. Esta es una llamada escrita de ${who}, hecha con CloudIVR. La persona que llama es sorda o tiene dificultades auditivas. Escribe y una voz de computadora le lee sus palabras. Por favor hable con normalidad y haga una pausa al terminar. Sus palabras le aparecen como texto.`, outOfFunds: 'El saldo de la persona que llama se agotó. Adiós.' },
-  fr: { tts: 'fr-FR', stt: 'fr', intro: (who) => `Bonjour. Ceci est un appel écrit de ${who}, passé avec CloudIVR. La personne qui appelle est sourde ou malentendante. Elle tape ses mots et une voix de synthèse vous les lit. Parlez normalement et faites une pause quand vous avez fini. Vos paroles s’affichent pour elle en texte.`, outOfFunds: 'Le solde de la personne qui appelle est épuisé. Au revoir.' },
+  en: { tts: 'en-US', stt: 'en', intro: (who) => `Hello. This is a typed call from ${who}, placed through CloudIVR. The caller is deaf or hard of hearing. They type, and a computer voice reads their words to you. Please speak normally and pause when you finish. Your words appear as text for them.`, introIn: (who) => `Hello, you have reached ${who}. This call is answered by text through CloudIVR: the person you called is deaf or hard of hearing. They type, and a computer voice reads their words to you. Please speak normally and pause when you finish. Your words appear as text for them.`, outOfFunds: 'The caller’s balance has run out. Goodbye.' },
+  es: { tts: 'es-MX', stt: 'es', intro: (who) => `Hola. Esta es una llamada escrita de ${who}, hecha con CloudIVR. La persona que llama es sorda o tiene dificultades auditivas. Escribe y una voz de computadora le lee sus palabras. Por favor hable con normalidad y haga una pausa al terminar. Sus palabras le aparecen como texto.`, introIn: (who) => `Hola, se ha comunicado con ${who}. Esta llamada se contesta por texto con CloudIVR: la persona a la que llamó es sorda o tiene dificultades auditivas. Escribe y una voz de computadora le lee sus palabras. Por favor hable con normalidad y haga una pausa al terminar. Sus palabras le aparecen como texto.`, outOfFunds: 'El saldo de la persona que llama se agotó. Adiós.' },
+  fr: { tts: 'fr-FR', stt: 'fr', intro: (who) => `Bonjour. Ceci est un appel écrit de ${who}, passé avec CloudIVR. La personne qui appelle est sourde ou malentendante. Elle tape ses mots et une voix de synthèse vous les lit. Parlez normalement et faites une pause quand vous avez fini. Vos paroles s’affichent pour elle en texte.`, introIn: (who) => `Bonjour, vous êtes bien au ${who}. Cet appel est pris par écrit avec CloudIVR : la personne que vous appelez est sourde ou malentendante. Elle tape ses mots et une voix de synthèse vous les lit. Parlez normalement et faites une pause quand vous avez fini. Vos paroles s’affichent pour elle en texte.`, outOfFunds: 'Le solde de la personne qui appelle est épuisé. Au revoir.' },
 }
 let deps = {}
 let col = null
@@ -70,7 +70,7 @@ async function liveSession(id, chatId) {
 
 // Client view of a call: live state from memory, finished calls from Mongo.
 const view = (s) => ({
-  id: s._id, callerId: s.callerId, to: s.to, name: s.name || '', lang: s.lang, voice: s.voice, status: s.status, outcome: s.outcome || null,
+  id: s._id, direction: s.direction || 'outbound', callerId: s.callerId, to: s.to, name: s.name || '', lang: s.lang, voice: s.voice, status: s.status, outcome: s.outcome || null,
   lines: (s.lines || []).slice(-500), interim: s.interim || '', speaking: (s.speaking || 0) > 0, createdAt: s.createdAt, answeredAt: s.answeredAt || null,
   endedAt: s.endedAt || null, duration: s.answeredAt ? Math.round(((s.endedAt ? new Date(s.endedAt).getTime() : Date.now()) - new Date(s.answeredAt).getTime()) / 1000) : 0,
   rate: s.rate, charge: s.charge ?? null, dryRun: !!s.dryRun,
@@ -91,12 +91,12 @@ function addLine(s, who, text) {
 // → { id } | { error: [status, code, message] }
 async function start({ chatId, callerId, to, name, lang, voice, announce, callRate }) {
   if (await liveFor(chatId)) return { error: [409, 'already_live', 'You already have a text call going. Hang it up first.'] }
-  const rate = +(callRate + RELAY_RATE()).toFixed(4)
-  const { usdBal } = await getBalance(deps.walletOf, chatId)
-  if (usdBal < rate) return { error: [402, 'insufficient_balance', `A text call costs $${rate.toFixed(2)}/min. Your balance is $${usdBal.toFixed(2)} — top up first.`] }
+  const q = await quote(chatId, callRate)
+  if (q.error) return q
+  const rate = q.rate
   const now = new Date()
   const s = {
-    _id: crypto.randomUUID(), chatId: String(chatId), callerId, to, name: String(name || '').trim().slice(0, 40), lang: LANGS[lang] ? lang : 'en', voice: voice === 'male' ? 'male' : 'female',
+    _id: crypto.randomUUID(), direction: 'outbound', chatId: String(chatId), callerId, to, name: String(name || '').trim().slice(0, 40), lang: LANGS[lang] ? lang : 'en', voice: voice === 'male' ? 'male' : 'female',
     announce: announce !== false, status: 'ringing', lines: [], interim: '', speaking: 0, rate, callRate, relayRate: RELAY_RATE(), dryRun: dryRun(), createdAt: now, beatAt: now,
     expiresAt: new Date(now.getTime() + KEEP_DAYS * 86400000),
   }
@@ -118,6 +118,48 @@ async function start({ chatId, callerId, to, name, lang, voice, announce, callRa
   if (s.dryRun) preview.ring(s, { answered, onText, finish, addLine })
   return { id: s._id }
 }
+
+// Per-minute price of a text call (call rate + relay fee) and whether the wallet covers the first minute.
+async function quote(chatId, callRate) {
+  const rate = +(callRate + RELAY_RATE()).toFixed(4)
+  const { usdBal } = await getBalance(deps.walletOf, chatId)
+  if (usdBal < rate) return { rate, error: [402, 'insufficient_balance', `A text call costs $${rate.toFixed(2)}/min. Your balance is $${usdBal.toFixed(2)} — top up first.`] }
+  return { rate }
+}
+
+// Answers a ringing inbound call AS TEXT (web app "Ring me in the browser"). voice-service has already released the
+// call (takeInboundForText). `from` = the caller (shown as the other person), `to` = the CloudIVR number.
+// simulated = preview banner call (nothing on Telnyx). → { id } | { error: [status, code, message] }
+async function answerInbound({ chatId, ccid, from, to, lang, voice, announce, callRate, simulated = false }) {
+  if (await liveFor(chatId)) return { error: [409, 'already_live', 'You already have a text call going. Hang it up first.'] }
+  const q = await quote(chatId, callRate)
+  if (q.error) return q
+  const now = new Date()
+  const s = {
+    _id: crypto.randomUUID(), direction: 'inbound', chatId: String(chatId), callerId: to, to: from, name: '', lang: LANGS[lang] ? lang : 'en', voice: voice === 'male' ? 'male' : 'female',
+    announce: announce !== false, status: 'ringing', lines: [], interim: '', speaking: 0, rate: q.rate, callRate, relayRate: RELAY_RATE(), dryRun: dryRun() || !!simulated,
+    simulated: !!simulated, createdAt: now, beatAt: now, expiresAt: new Date(now.getTime() + KEEP_DAYS * 86400000),
+  }
+  if (!s.dryRun) {
+    s.ccid = ccid
+    byCcid.set(ccid, s._id) // before answering, so call.answered routes here
+    try { await tx(`/calls/${ccid}/actions/answer`, { client_state: CLIENT_STATE, command_id: crypto.randomUUID() }) } catch (e) {
+      byCcid.delete(ccid)
+      log(`[Relay] answer inbound ${from} → ${to} failed: ${txError(e)}`)
+      return { error: [409, 'not_ringing', 'This call was already answered or ended.'] }
+    }
+  }
+  sessions.set(s._id, s)
+  const { speaking, interim, ...doc } = s // eslint-disable-line no-unused-vars
+  await col.insertOne(doc)
+  log(`[Relay] inbound text call ${from} → ${to} answered by ${chatId}${s.dryRun ? ' (PREVIEW)' : ''}`)
+  s.maxTimer = setTimeout(() => hangup(s._id, s.chatId, 'max_length'), MAX_MINUTES * 60000)
+  if (s.dryRun) preview.ringIn(s, { answered, onText })
+  // call.answered normally follows the answer command; if it never arrives, start the relay anyway.
+  else later(s, 5000, () => answered(s).catch(() => {}))
+  return { id: s._id }
+}
+const later = (s, ms, fn) => { const t = setTimeout(() => { if (!s.done) fn() }, ms); if (t.unref) t.unref() }
 
 // Typed text → spoken to the other person (queued by Telnyx in order).
 async function say(id, chatId, text) {
@@ -165,7 +207,8 @@ async function answered(s) {
   if (s.announce) {
     s.speaking++
     addLine(s, 'note', 'intro')
-    if (!s.dryRun) tx(`/calls/${s.ccid}/actions/speak`, { payload: L.intro(s.name || spokenNumber(s.callerId)), voice: s.voice, language: L.tts, command_id: crypto.randomUUID() }).catch(e => { s.speaking--; log(`[Relay] intro failed: ${txError(e)}`) })
+    const intro = s.direction === 'inbound' ? L.introIn(spokenNumber(s.callerId)) : L.intro(s.name || spokenNumber(s.callerId))
+    if (!s.dryRun) tx(`/calls/${s.ccid}/actions/speak`, { payload: intro, voice: s.voice, language: L.tts, command_id: crypto.randomUUID() }).catch(e => { s.speaking--; log(`[Relay] intro failed: ${txError(e)}`) })
   }
   if (s.dryRun) return
   const cfg = { transcription_engine: 'Google', transcription_engine_config: { transcription_engine: 'Google', language: L.stt, interim_results: true }, transcription_tracks: 'inbound' }
@@ -247,11 +290,12 @@ async function settle(s, endedAt, cause) {
   if (charge > 0 && deps.walletOf) {
     await smartWalletDeduct(deps.walletOf, s.chatId, charge, {
       type: 'text_relay_call', callType: 'TextRelay', destination: s.to, phoneNumber: s.callerId, callRef: `relay:${s._id}`,
-      description: `Text call ${s.callerId} → ${s.to} (${minutes} min × $${s.rate} incl. $${s.relayRate} text relay)`,
+      description: `Text call ${s.direction === 'inbound' ? `(incoming) ${s.to} → ${s.callerId}` : `${s.callerId} → ${s.to}`} (${minutes} min × $${s.rate} incl. $${s.relayRate} text relay)`,
     }).catch(e => log(`[Relay] billing error: ${e.message}`))
   }
   log(`[Relay] text call ${s.to} ended: ${duration}s, ${outcome}, $${charge}`)
-  if (deps.bot && answeredAt) Promise.resolve(deps.bot.sendMessage(s.chatId, `⌨️ <b>Text call</b> ${s.callerId} → ${s.to} · ${Math.floor(duration / 60)}m ${duration % 60}s${charge ? ` · $${charge.toFixed(2)}` : ''}`, { parse_mode: 'HTML' })).catch(() => {})
+  const route = s.direction === 'inbound' ? `incoming ${s.to} → ${s.callerId}` : `${s.callerId} → ${s.to}`
+  if (deps.bot && answeredAt) Promise.resolve(deps.bot.sendMessage(s.chatId, `⌨️ <b>Text call</b> ${route} · ${Math.floor(duration / 60)}m ${duration % 60}s${charge ? ` · $${charge.toFixed(2)}` : ''}`, { parse_mode: 'HTML' })).catch(() => {})
 }
 
 const list = (chatId, limit = 30) => col.find({ chatId: String(chatId) }, { projection: { lines: { $slice: -1 } } }).sort({ createdAt: -1 }).limit(limit).toArray()
@@ -262,4 +306,4 @@ async function remove(id, chatId) {
   return r.deletedCount ? { ok: true } : { error: [404, 'not_found', 'Call not found.'] }
 }
 
-module.exports = { init, owns, onWebhook, start, say, dtmf, hangup, find, view, list, remove, liveFor, sweep, RELAY_RATE, LANGS, MAX_TEXT }
+module.exports = { init, owns, onWebhook, start, answerInbound, quote, say, dtmf, hangup, find, view, list, remove, liveFor, sweep, RELAY_RATE, LANGS, MAX_TEXT }

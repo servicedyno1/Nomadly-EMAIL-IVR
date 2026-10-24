@@ -6,6 +6,8 @@ import { useCivrAuth } from './AuthContext';
 import { PreviewBanner } from './ui';
 import { PrivacyProvider, PrivateBanner, usePrivacy } from './privacy';
 import Softphone from './Softphone';
+import { RtcProvider } from './rtc';
+import { IncomingCalls } from './Incoming';
 import MobileNav from './MobileNav';
 import { NAV, appPath } from './nav';
 import Dashboard from './pages/Dashboard';
@@ -103,6 +105,7 @@ export default function Shell() {
   const [catalog, setCatalog] = useState(null);
   const [phoneOpen, setPhoneOpen] = useState(false);
   const refreshSummary = useCallback(() => api('/dashboard').then(setSummary).catch(() => {}), []);
+  const openPhone = useCallback(() => setPhoneOpen(true), []);
   const { lang } = useLang();
   // Spoken IVR menus follow the app language (server swaps default greetings too).
   useEffect(() => { api('/prefs/lang', { method: 'PUT', body: { lang } }).catch(() => {}); }, [lang]);
@@ -114,8 +117,10 @@ export default function Shell() {
   }, [refreshSummary]);
 
   return (
-    <ShellCtx.Provider value={{ summary, refreshSummary, catalog, openPhone: () => setPhoneOpen(true) }}>
+    <ShellCtx.Provider value={{ summary, refreshSummary, catalog, openPhone }}>
      <PrivacyProvider>
+     <RtcProvider>
+      <IncomingCalls openPhone={openPhone} />
       <div className="lg:flex">
         <Sidebar supportLink={catalog?.supportLink} channelLink={catalog?.channelLink} />
         <div className="flex-1 min-w-0">
@@ -152,6 +157,7 @@ export default function Shell() {
       <MobileNav />
       <Softphone open={phoneOpen} onClose={() => setPhoneOpen(false)} />
       <SupportChat supportLink={catalog?.supportLink} />
+     </RtcProvider>
      </PrivacyProvider>
     </ShellCtx.Provider>
   );

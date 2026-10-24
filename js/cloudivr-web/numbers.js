@@ -124,6 +124,7 @@ function publicNumber(n) {
       recording: !!f.recording,
       ivr: f.ivr || { enabled: false, options: {} },
       aiAgent: f.aiAgent || { enabled: false, agentId: null },
+      browserRing: { enabled: false, answerMode: 'ask', lang: 'en', voice: 'female', announce: true, ...(f.browserRing || {}) },
     },
     access: access(n.plan),
   }
@@ -399,6 +400,23 @@ function routes(router, deps) {
     const value = { enabled: mode !== 'disabled', mode, forwardTo: to, ringTimeout, holdMusic: !!req.body.holdMusic, backups: bk.list }
     await setField(req.webChatId, req.num.phoneNumber, 'features.callForwarding', value)
     res.json({ callForwarding: value })
+  }))
+
+  // "Ring me in the browser" (Pro+, same plans as text calls): inbound calls ring the open web app, which answers
+  // them as text or by voice (browser phone). answerMode = what happens when it rings; lang/voice/announce = the
+  // text-call defaults used when answering as text.
+  router.patch('/numbers/:phone/browser-ring', withNumber(async (req, res) => {
+    if (!gate(req, res, 'textRelay', 'Ringing in the browser')) return
+    const b = req.body || {}, cur = req.num.features?.browserRing || {}
+    const answerMode = String(b.answerMode ?? cur.answerMode ?? 'ask')
+    if (!['ask', 'voice', 'text'].includes(answerMode)) return bad(res, 400, 'invalid_mode', 'Pick ask each time, always voice or always text.')
+    const lang = String(b.lang ?? cur.lang ?? 'en')
+    if (!['en', 'es', 'fr'].includes(lang)) return bad(res, 400, 'invalid_lang', 'Pick English, Spanish or French.')
+    const voice = String(b.voice ?? cur.voice ?? 'female')
+    if (!['female', 'male'].includes(voice)) return bad(res, 400, 'invalid_voice', 'Pick a female or male voice.')
+    const value = { enabled: !!(b.enabled ?? cur.enabled), answerMode, lang, voice, announce: (b.announce ?? cur.announce) !== false }
+    await setField(req.webChatId, req.num.phoneNumber, 'features.browserRing', value)
+    res.json({ browserRing: value })
   }))
 
   router.patch('/numbers/:phone/voicemail', withNumber(async (req, res) => {

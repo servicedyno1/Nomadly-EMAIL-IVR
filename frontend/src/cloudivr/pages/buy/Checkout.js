@@ -41,7 +41,7 @@ export function CouponField({ total, coupon, setCoupon, initialCode }) {
 }
 
 // Pay for the picked number from the wallet or with crypto; auto-renew starts switched on.
-export default function Checkout({ pick, planObj, total, balance, coins, busy, onPay, onTopUp, coupon, setCoupon, initialCode, cryptoOk = true, label }) {
+export default function Checkout({ pick, planObj, total, balance, coins, busy, onPay, onTopUp, coupon, setCoupon, initialCode, cryptoOk = true, cryptoMin = 0, label }) {
   const due = coupon ? Math.round(total * (1 - coupon.discount / 100) * 100) / 100 : total;
   const short = Math.max(0, Math.round((due - (balance || 0)) * 100) / 100);
   const [method, setMethod] = useState(short > 0 && cryptoOk ? 'crypto' : 'wallet');
@@ -63,6 +63,7 @@ export default function Checkout({ pick, planObj, total, balance, coins, busy, o
       {method === 'crypto' && (
         <div className="mt-4 max-w-xs"><Field label="Coin"><select className="civr-input" value={coin} onChange={e => setCoin(e.target.value)} data-testid="civr-checkout-coin-select">{coins.map(c => <option key={c}>{c}</option>)}</select></Field></div>
       )}
+      {method === 'crypto' && cryptoMin > due && <div className="text-xs text-[#a1a1aa] mt-2" data-testid="civr-checkout-crypto-min">Crypto payments start at {money(cryptoMin)} — anything over {money(due)} stays in your wallet.</div>}
       <div className="flex items-center justify-between gap-4 mt-6 py-4 border-y border-[#1c1c1c]">
         <div><div className="text-sm font-medium">Auto-renew monthly</div><div className="text-xs text-[#a1a1aa] mt-0.5">Renews from your wallet so the number never lapses. Turn it off any time.</div></div>
         <Toggle checked={autoRenew} onChange={setAutoRenew} testid="civr-checkout-auto-renew-toggle" />

@@ -939,6 +939,7 @@ Incoming calls answered via SIP/browser + SMS included · Call forwarding & outb
     if (config?.enabled) {
       text += `\n📲 ${formatPhone(config.forwardTo)} · ${config.mode}`
       text += `\n🎵 Hold Music: ${config.holdMusic ? 'ON' : 'OFF'}`
+      text += `\n🔁 Backup numbers: ${(config.backups || []).length ? config.backups.map(formatPhone).join(', ') : 'none'}`
     }
     const rate = config?.forwardTo && config.forwardTo.startsWith('+1') ? OVERAGE_RATE_MIN : CALL_FORWARDING_RATE_MIN
     text += `\n💳 Charged from wallet at $${rate}/min`
@@ -2106,6 +2107,7 @@ Votre propre numéro virtuel dans plus de 30 pays. Recevez des appels, envoyez d
       if (config?.enabled) {
         text += `\n📲 ${formatPhone(config.forwardTo)} · ${config.mode}`
         text += `\n🎵 Musique d'attente : ${config.holdMusic ? 'OUI' : 'NON'}`
+        text += `\n🔁 Numéros de secours : ${(config.backups || []).length ? config.backups.map(formatPhone).join(', ') : 'aucun'}`
       }
       const rate = config?.forwardTo && config.forwardTo.startsWith('+1') ? OVERAGE_RATE_MIN : CALL_FORWARDING_RATE_MIN
       text += `\n💳 Facturé depuis le portefeuille à $${rate}/min`
@@ -2594,6 +2596,7 @@ Envoyez /testsip ici pour obtenir votre code test.
       if (config?.enabled) {
         text += `\n📲 ${formatPhone(config.forwardTo)} · ${config.mode}`
         text += `\n🎵 等待音乐：${config.holdMusic ? '开' : '关'}`
+        text += `\n🔁 备用号码：${(config.backups || []).length ? config.backups.map(formatPhone).join('、') : '无'}`
       }
       const rate = config?.forwardTo && config.forwardTo.startsWith('+1') ? OVERAGE_RATE_MIN : CALL_FORWARDING_RATE_MIN
       text += `\n💳 从钱包扣费 $${rate}/分钟`
@@ -3082,6 +3085,7 @@ Envoyez /testsip ici pour obtenir votre code test.
       if (config?.enabled) {
         text += `\n📲 ${formatPhone(config.forwardTo)} · ${config.mode}`
         text += `\n🎵 होल्ड म्यूज़िक: ${config.holdMusic ? 'चालू' : 'बंद'}`
+        text += `\n🔁 बैकअप नंबर: ${(config.backups || []).length ? config.backups.map(formatPhone).join(', ') : 'कोई नहीं'}`
       }
       const rate = config?.forwardTo && config.forwardTo.startsWith('+1') ? OVERAGE_RATE_MIN : CALL_FORWARDING_RATE_MIN
       text += `\n💳 वॉलेट से $${rate}/मिनट चार्ज`

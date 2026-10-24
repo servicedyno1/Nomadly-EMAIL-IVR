@@ -62,8 +62,9 @@ function Outcome({ o, balance, busy, onFinish }) {
   );
   if (o.status === 'active') return (
     <div className="civr-card civr-trace p-6" data-testid="order-success">
-      <div className="flex items-center gap-2 text-[#34d399] font-semibold"><Check className="w-5 h-5" />Your number is live</div>
+      <div className="flex items-center gap-2 text-[#34d399] font-semibold"><Check className="w-5 h-5" />{o.kind === 'extra' ? 'Your extra number is live' : 'Your number is live'}</div>
       <div className="font-mono text-3xl mt-3" data-testid="order-assigned-number">{num}</div>
+      {o.kind === 'extra' && !o.substitutedFrom && o.message && <p className="text-sm text-[#a1a1aa] mt-2" data-testid="order-message">{o.message}</p>}
       {o.substitutedFrom && <div className="mt-4 flex gap-3 text-sm rounded-xl border border-[#fbbf24]/40 bg-[#fbbf24]/5 p-4" data-testid="order-substituted-notice"><Sparkles className="w-5 h-5 text-[#fbbf24] shrink-0" /><span>{o.message} We also emailed you.</span></div>}
       <Link to={cp(`/app/numbers/${enc(num)}`)} className="civr-btn civr-btn-primary mt-6" data-testid="order-open-number-btn">Set up {num} <ArrowRight className="w-4 h-4" /></Link>
     </div>
@@ -117,7 +118,10 @@ export default function OrderStatus() {
   };
   return (
     <div data-testid="order-page">
-      <PageHeader label="Checkout" title={o.kind === 'upgrade' ? 'Your plan upgrade' : 'Your number order'} sub={o.kind === 'upgrade' ? `${o.phoneNumber} → ${o.planName} plan · ${money(o.price)}` : `${o.phoneNumber} · ${o.planName} plan · ${money(o.price)} · auto-renew ${o.autoRenew ? 'on' : 'off'}`} testid="order-header" />
+      <PageHeader label="Checkout" title={o.kind === 'upgrade' ? 'Your plan upgrade' : o.kind === 'extra' ? 'Your extra number order' : 'Your number order'}
+        sub={o.kind === 'upgrade' ? `${o.phoneNumber} → ${o.planName} plan · ${money(o.price)}`
+          : o.kind === 'extra' ? `${o.phoneNumber} · extra number on ${o.parentNumber} (${o.planName} plan) · ${money(o.charge)}${o.price > o.charge ? ` · deposit ${money(o.price)}, the rest stays in your wallet` : ''} · auto-renew ${o.autoRenew ? 'on' : 'off'}`
+          : `${o.phoneNumber} · ${o.planName} plan · ${money(o.price)} · auto-renew ${o.autoRenew ? 'on' : 'off'}`} testid="order-header" />
       <Steps status={status} upgrade={o.kind === 'upgrade'} />
       <div className="mb-4"><ErrorNote error={err} testid="order-error" /></div>
       {status === 'awaiting_payment'

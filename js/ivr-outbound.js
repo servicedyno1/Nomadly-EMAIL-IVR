@@ -356,6 +356,9 @@ function formatCallPreview(data) {
     lines.push(`🔄 Max Attempts: <b>${data.otpMaxAttempts || 3}</b>`)
   } else {
     lines.push(`⚡ Transfer to: <b>${data.ivrNumber}</b>`)
+    if (!data.menu && Array.isArray(data.transferBackups) && data.transferBackups.length) {
+      lines.push(`🔁 Backups if busy / no answer: <b>${data.transferBackups.join(', ')}</b>`)
+    }
   }
 
   if (data.templateName) {

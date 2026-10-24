@@ -1,6 +1,11 @@
 # NEXT TASK — Answer incoming calls in the browser: choose Voice or Text (2026-10-24)
 
-Status: **ANALYSED + OWNER DECISIONS TAKEN, NOTHING IMPLEMENTED YET.** Next agent: build it, test it (testing agent), update PRD/CHANGELOG/ROADMAP.
+Status (2026-10-24 session 2): **BACKEND + FRONTEND BUILT, NOT TESTED.** Backend simulate→text→hangup flow curl-verified; frontend
+compiles. Next agent: (1) restart `nodejs` if routes 404 (Node does NOT hot-reload), (2) one smoke screenshot (login civr.alice →
+Numbers → number → "Browser ring" tab → toggle on → Save → "Ring me now" → banner → Answer as text → Text calls page live),
+(3) testing agent for ALL 3 features together (crypto extra numbers, bot backup numbers, browser answering) at 1920x800 + 390x844,
+(4) i18n: `node scripts/civr_i18n_extract.js && python3 scripts/civr_i18n_translate.py`, (5) node unit tests from §6, (6) docs.
+Files built: see PRD.md "2026-10-24 (session 2)". Owner extra decision: browser phone auto-connects for numbers with browser ring on.
 Preview is DRY-RUN (numbers are not live → real inbound calls cannot happen in preview; build a simulator, see §6).
 
 ## 1. Owner request (verbatim)

@@ -126,7 +126,9 @@ export default function BuyNumber() {
     setBusy('buy'); setError(null);
     try {
       const d = extraOf
-        ? await api(`/numbers/${enc(extraOf)}/extra`, { method: 'POST', body: { phoneNumber: pick.phoneNumber, coupon: coupon?.code, autoRenew } })
+        ? method === 'crypto'
+          ? await api(`/numbers/${enc(extraOf)}/extra-checkout`, { method: 'POST', body: { phoneNumber: pick.phoneNumber, coin, coupon: coupon?.code, autoRenew } })
+          : await api(`/numbers/${enc(extraOf)}/extra`, { method: 'POST', body: { phoneNumber: pick.phoneNumber, coupon: coupon?.code, autoRenew } })
         : await api('/numbers/checkout', { method: 'POST', body: { phoneNumber: pick.phoneNumber, plan: planObj.id, method, coin, autoRenew, coupon: coupon?.code } });
       sessionStorage.removeItem(RESUME_KEY);
       refreshSummary();
@@ -140,7 +142,7 @@ export default function BuyNumber() {
 
   return (
     <div data-testid="buy-page">
-      {extraOf ? <PageHeader label="Extra number" title="Add an extra number" sub={`Shares the plan of ${pv.phone(extraOf)} — ${money(extra?.price || 25)}/month from your wallet, same features.${extra ? ` ${extra.used} of ${extra.limit} used.` : ''}`} testid="buy-header" />
+      {extraOf ? <PageHeader label="Extra number" title="Add an extra number" sub={`Shares the plan of ${pv.phone(extraOf)} — ${money(extra?.price || 25)}/month, pay from your wallet or with crypto, same features.${extra ? ` ${extra.used} of ${extra.limit} used.` : ''}`} testid="buy-header" />
         : <PageHeader label="Buy" title="Get a new number" sub={`${catalog.countries.length} countries. Pay with crypto or your wallet, renews monthly.`} testid="buy-header" />}
       {open?.orders?.[0] && <OpenOrder order={open.orders[0]} />}
       {saved?.pick && <div className="civr-card p-4 mb-4 text-sm flex items-center gap-2" data-testid="buy-resume-note"><Check className="w-4 h-4 text-[#34d399]" />Welcome back — {saved.pick.phoneNumber} and the {planObj?.name} plan are still selected below.</div>}
@@ -156,7 +158,7 @@ export default function BuyNumber() {
           <PlanPicker plans={catalog.plans} value={planObj?.id} onChange={setPlan} surcharge={pick.surcharge} />
           </>}
           <Checkout key={`${pick.phoneNumber}-${summary ? 1 : 0}`} pick={pick} planObj={planObj} total={total} balance={summary?.balance} coins={catalog.coins || []} busy={busy === 'buy'} onPay={buy} onTopUp={topUp}
-            coupon={coupon} setCoupon={setCoupon} initialCode={params.get('coupon') || ''} cryptoOk={!extraOf} label={extraOf ? `Extra number on ${pv.phone(extraOf)} · monthly` : null} />
+            coupon={coupon} setCoupon={setCoupon} initialCode={params.get('coupon') || ''} cryptoMin={extraOf ? catalog.minTopup : 0} label={extraOf ? `Extra number on ${pv.phone(extraOf)} · monthly` : null} />
         </div>
       )}
     </div>

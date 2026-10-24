@@ -1,8 +1,8 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { TelnyxRTC } from '@telnyx/webrtc';
+import React, { useEffect, useState } from 'react';
 import { X, Phone, PhoneOff, Delete, Loader2, Smartphone } from 'lucide-react';
 import { toast } from 'sonner';
-import { api, enc } from './api';
+import { api } from './api';
+import { useRtc } from './rtc';
 import { Link } from 'react-router-dom';
 import { cp } from './paths';
 import { usePrivacy } from './privacy';
@@ -10,45 +10,6 @@ import { CallMeFirst, CallNoteBox } from './SoftphoneExtras';
 
 const KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '*', '0', '#'];
 const STATUS = { idle: 'Offline', connecting: 'Connecting…', ready: 'Online', error: 'Not connected' };
-// SDK errors can carry carrier wording — show our own text instead.
-const friendly = (e) => {
-  const detail = `${e?.error?.message || e?.message || ''}`;
-  const code = e?.error?.code ?? e?.code;
-  if (code === -32001 || /login incorrect|auth|forbidden|unauthor|credential/i.test(detail)) return 'The line’s SIP login was rejected. Create new SIP credentials in the number’s SIP tab, then connect again.';
-  return 'Could not connect the browser phone. Check your internet connection and microphone permission, then try again.';
-};
-
-// Registers the selected number's SIP line in the browser and places/answers calls.
-function useRtc() {
-  const client = useRef(null);
-  const [status, setStatus] = useState('idle');
-  const [call, setCall] = useState(null);
-  const [msg, setMsg] = useState('');
-  useEffect(() => () => client.current?.disconnect(), []);
-  const connect = async (phone) => {
-    setMsg(''); setStatus('connecting');
-    try {
-      const c = await api(`/numbers/${enc(phone)}/sip`);
-      if (!c.live) { setStatus('error'); setMsg('This line isn’t live on the network yet (preview numbers are simulated), so the browser phone can’t register.'); return; }
-      client.current?.disconnect();
-      const rtc = new TelnyxRTC({ login: c.username, password: c.password });
-      rtc.remoteElement = 'civr-remote-audio';
-      rtc.on('telnyx.ready', () => setStatus('ready'));
-      rtc.on('telnyx.error', (e) => { setStatus('error'); setMsg(friendly(e)); });
-      rtc.on('telnyx.socket.close', () => setStatus(s => (s === 'ready' ? 'idle' : s)));
-      rtc.on('telnyx.notification', (n) => {
-        if (n.type !== 'callUpdate') return;
-        const inbound = n.call.direction === 'inbound';
-        const peer = inbound ? n.call.options?.remoteCallerNumber : n.call.options?.destinationNumber;
-        setCall(['hangup', 'destroy'].includes(n.call.state) ? null : { ref: n.call, state: n.call.state, inbound, peer });
-      });
-      rtc.connect();
-      client.current = rtc;
-    } catch (e) { setStatus('error'); setMsg(e.status ? e.message : friendly(e)); }
-  };
-  const dial = (dest, from) => client.current?.newCall({ destinationNumber: dest, callerNumber: from, audio: true, video: false });
-  return { status, call, msg, connect, dial };
-}
 
 export default function Softphone({ open, onClose }) {
   const pv = usePrivacy();
@@ -60,13 +21,16 @@ export default function Softphone({ open, onClose }) {
   const [busy, setBusy] = useState(false);
   const [info, setInfo] = useState(null);
   const [last, setLast] = useState(null); // current / last call, for notes
-  const { status, call, msg, connect, dial } = useRtc();
+  const { status: rtcStatus, call, msg: rtcMsg, connect, dial, phone: rtcPhone } = useRtc();
+  const here = rtcPhone === sel; // the browser line is registered for the selected number
+  const status = here ? rtcStatus : 'idle';
+  const msg = here ? rtcMsg : '';
   useEffect(() => {
     if (!open) return;
     // Browser calls need SIP; "Call me first" needs outbound IVR — both are Pro and up.
-    api('/numbers').then(d => { const l = d.numbers.filter(n => n.status === 'active' && (n.access.sipCredentials || n.access.ivrOutbound)); setNums(l); setSel(s => s || l[0]?.phoneNumber || ''); }).catch(() => {});
+    api('/numbers').then(d => { const l = d.numbers.filter(n => n.status === 'active' && (n.access.sipCredentials || n.access.ivrOutbound)); setNums(l); setSel(s => s || (l.some(n => n.phoneNumber === rtcPhone) ? rtcPhone : l[0]?.phoneNumber) || ''); }).catch(() => {});
     api('/calls/callback').then(d => setMyPhone(p => p || d.myPhone || '')).catch(() => {});
-  }, [open]);
+  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (call) setLast({ peer: call.peer, direction: call.inbound ? 'inbound' : 'outbound' }); }, [call]);
   const selNum = nums?.find(n => n.phoneNumber === sel);
   const cmfAllowed = !!selNum?.access?.ivrOutbound;
@@ -84,7 +48,6 @@ export default function Softphone({ open, onClose }) {
 
   return (
     <div className={`fixed bottom-24 lg:bottom-4 right-4 left-4 sm:left-auto z-50 sm:w-[340px] max-h-[calc(100dvh-7rem)] lg:max-h-[calc(100dvh-2rem)] overflow-y-auto civr-card p-6 shadow-2xl transition-[opacity,transform] duration-200 ${open ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4 pointer-events-none'}`} data-testid="softphone-panel">
-      <audio id="civr-remote-audio" autoPlay />
       <div className="flex items-center justify-between mb-4"><span className="font-display text-xl font-bold">Browser phone</span><button onClick={onClose} className="p-1 text-[#a1a1aa] hover:text-white" data-testid="softphone-close-button" aria-label="Close"><X className="w-4 h-4" /></button></div>
       {!nums ? (
         <div className="flex items-center gap-2 text-sm text-[#a1a1aa] py-6" data-testid="softphone-loading"><Loader2 className="w-4 h-4 animate-spin" />Loading…</div>
