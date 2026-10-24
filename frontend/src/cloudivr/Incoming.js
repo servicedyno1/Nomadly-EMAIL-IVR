@@ -42,6 +42,19 @@ function useRinging() {
   return { calls, skew, drop };
 }
 
+// The banner sits just under the top bar (lower while the preview strip above it is still on screen).
+function useBelowTopBar() {
+  const [top, setTop] = useState(64);
+  useEffect(() => {
+    const measure = () => setTop(Math.max(0, Math.round(document.querySelector('[data-civr-topbar]')?.getBoundingClientRect().bottom ?? 64)));
+    measure();
+    window.addEventListener('scroll', measure, { passive: true });
+    window.addEventListener('resize', measure);
+    return () => { window.removeEventListener('scroll', measure); window.removeEventListener('resize', measure); };
+  }, []);
+  return top;
+}
+
 function Countdown({ c, skew }) {
   const [now, setNow] = useState(Date.now());
   useEffect(() => { const t = setInterval(() => setNow(Date.now()), 500); return () => clearInterval(t); }, []);
@@ -100,6 +113,7 @@ function IncomingBanner({ c, more, skew, drop, ringing, openPhone }) {
   const [auto, setAuto] = useState(c.answerMode === 'text' && c.canText ? 3 : null);
   const [waitVoice, setWaitVoice] = useState(false);
   const [msgOpen, setMsgOpen] = useState(false);
+  const top = useBelowTopBar();
 
   const text = async (keep = remember) => {
     setAuto(null); setBusy('text'); setErr('');
@@ -142,7 +156,7 @@ function IncomingBanner({ c, more, skew, drop, ringing, openPhone }) {
   const voiceNote = waitVoice && !ringing ? (rtc.status === 'error' && rtc.phone === c.phone ? rtc.msg : 'Connecting the browser phone — the call is answered as soon as it reaches this browser…') : '';
 
   return (
-    <div className="fixed inset-x-0 top-16 z-[70] p-2 sm:px-4 sm:pt-3 pointer-events-none" data-testid="incoming-overlay">
+    <div className="fixed inset-x-0 z-[70] p-2 sm:px-4 sm:pt-3 pointer-events-none" style={{ top }} data-testid="incoming-overlay">
       <div role="alertdialog" aria-live="assertive" aria-label="Incoming call" className="civr-incoming pointer-events-auto mx-auto max-w-4xl rounded-2xl border-2 border-[#34d399] bg-[#04130d] p-4 sm:p-5 shadow-2xl" data-testid="incoming-banner">
         <div className="flex flex-col md:flex-row md:items-center gap-4">
           <Caller c={c} more={more} skew={skew} />

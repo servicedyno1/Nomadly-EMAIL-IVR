@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useLayoutEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useLayoutEffect, useReducer, useState } from 'react';
 import { Globe, ChevronDown } from 'lucide-react';
 import { setDictionary, tr } from './engine';
 
@@ -20,6 +20,13 @@ const early = LOADERS[initial] ? LOADERS[initial]() : null;
 const LangCtx = createContext({ lang: 'en', setLang: () => {} });
 export const useLang = () => useContext(LangCtx);
 export const ask = (msg) => window.confirm(tr(msg));
+// Re-renders after the new page language is applied, so dates formatted with the page language follow it.
+export function useLangTick() {
+  const { lang } = useLang();
+  const [, tick] = useReducer(n => n + 1, 0);
+  useEffect(() => { tick(); }, [lang]);
+  return lang;
+}
 
 export function LangProvider({ children }) {
   const [lang, setLangState] = useState(initial);

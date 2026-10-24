@@ -42,7 +42,7 @@ function markReplied(calls, texts) {
     return { ...l, reply: t ? { text: t.body, at: t.timestamp, status: t.status } : null }
   })
 }
-const textsTo = (phoneLogs, phones, since) => phoneLogs.find({ phoneNumber: { $in: phones }, type: 'sms_out', timestamp: { $gte: since } }).toArray()
+const textsTo = (phoneLogs, phones, since, callers) => phoneLogs.find({ phoneNumber: { $in: phones }, type: 'sms_out', timestamp: { $gte: since }, ...(callers ? { to: { $in: callers } } : {}) }).toArray()
 // Telnyx refuses unregistered US long codes (10DLC) and unverified toll-free numbers.
 const NOT_REGISTERED = /10dlc|not registered|campaign|unverified|toll.?free verification|40010|40011|40012|40013/i
 
@@ -94,7 +94,7 @@ function routes(router, { db, h, numbersApi, smsReply }) {
     const phones = (await numbersApi.myNumbers(req.webChatId)).map(n => n.phoneNumber)
     const since = new Date(Date.now() - REPLY_DAYS * 86400000).toISOString()
     const rows = phones.length ? await phoneLogs.find({ phoneNumber: { $in: phones }, type: { $in: REPLYABLE }, timestamp: { $gte: since } }).sort({ timestamp: -1 }).limit(30).toArray() : []
-    const texts = rows.length ? await textsTo(phoneLogs, phones, since) : []
+    const texts = rows.length ? await textsTo(phoneLogs, phones, since, [...new Set(rows.map(r => r.from))]) : []
     res.json({ calls: markReplied(rows, texts).map(view), maxLength: MAX, overageRate: phoneConfig.OVERAGE_RATE_SMS })
   }))
 
@@ -107,7 +107,7 @@ function routes(router, { db, h, numbersApi, smsReply }) {
     // Same caller's other calls around then, so a "decline with text" is matched to the right call.
     const t0 = new Date(l.timestamp).getTime()
     const near = await phoneLogs.find({ phoneNumber: l.phoneNumber, from: l.from, type: { $in: REPLYABLE }, timestamp: { $gte: new Date(t0 - 2 * STALE_CLAIM_MS).toISOString() } }).toArray()
-    const texts = await textsTo(phoneLogs, [l.phoneNumber], new Date(t0 - STALE_CLAIM_MS).toISOString())
+    const texts = await textsTo(phoneLogs, [l.phoneNumber], new Date(t0 - STALE_CLAIM_MS).toISOString(), [l.from])
     const marked = markReplied(near.some(x => String(x._id) === String(_id)) ? near : [...near, l], texts).find(x => String(x._id) === String(_id))
     if (marked.reply) return bad(res, 409, 'already_replied', 'You already texted this caller back.')
     if (!canReply(l)) return bad(res, 400, 'cannot_reply', `You can text back missed callers for ${REPLY_DAYS} days.`)

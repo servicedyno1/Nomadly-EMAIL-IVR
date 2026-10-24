@@ -4,10 +4,12 @@ import { useApi, when } from './api';
 import { usePrivacy } from './privacy';
 import { TextBack } from './QuickReply';
 import { RING_ENDED } from './Incoming';
+import { useLangTick } from './i18n';
 
 // Inbox: recent missed callers (7 days) with a one-tap "Text back".
 export function MissedCalls() {
   const pv = usePrivacy();
+  useLangTick();
   const { data, reload } = useApi('/missed-calls');
   useEffect(() => { window.addEventListener(RING_ENDED, reload); return () => window.removeEventListener(RING_ENDED, reload); }, [reload]);
   const calls = data?.calls || [];

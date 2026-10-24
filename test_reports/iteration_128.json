@@ -1,0 +1,39 @@
+{
+  "summary": "Retest of iter127 fixes (CloudIVR web, dry-run). Backend: 20/20 pytest pass (iter127 suite -k 'not Extra' + new iter128 file) and the bot backups sim gives 14/14. FIX1 (forwardTo/backups/IVR forward normalisation) passes. FIX2 (each text belongs to one missed call) passes: decline+text matches only its own call, Text back on the 1st call gives 200, a 2nd reply gives 409, and a new call from the same caller can still be replied to. FIX3 (Inbox refreshes by itself) passes for both Decline (~1.5 s) and the 25 s ring timeout; the Missed calls card and the notices both update. FIX4 (Logs Text back) passes: the new testids work, the reply box opens in a full-width row under the table row, the done text is right, and on 390px the input and send button are on screen with no overflow. FIX5 (FR/ES) passes for the 'to your number' line, the 'Called…' line, the 'Text back' button, the countdown, and the browser ring notes (the server message is now its own translated line). FIX6 is only partly fixed: the voice button says 'Voice' / 'Voz' on mobile and 'Answer with voice' on desktop, and there is no sideways overflow at 390px. But the banner still covers the top bar in the preview, because the PREVIEW strip pushes the header down (desktop header 33-97px, mobile 49-113px) while the banner is pinned at top-16 (64px). On mobile all top bar buttons are covered while it rings. Regression all OK: settings save, Ring me now, Answer as text, live text call, hang up (live=None), auto-answer 3 s with Cancel, decline with a text preset, Inbox Text back, softphone panel, Billing extra link to the buy page (nothing bought).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/cloudivr-web/missed-calls", "issue": "textsTo() loads every sms_out of the last 7 days for all the user's numbers with no limit or filter on caller (rows are limited to 30). This gets slow for accounts that send a lot of texts. Filter by to: {$in: rows.map(r => r.from)}."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Incoming.js ringing banner", "issue": "The banner uses a fixed top-16 (64px), but when the PREVIEW strip is shown (catalog.dryRun) the header sits lower: 33-97px on desktop, 49-113px on mobile. On mobile 390x844, elementFromPoint shows topbar-balance, lang-switcher, private-mode, inbox, softphone and logout ALL covered by incoming-banner while ringing. On desktop the banner overlaps the bottom ~20px of the header; the button centres are still clickable. Fix: place the banner below the real header bottom (measure the header, add the strip height, or render it inside the content column under the header).", "selector": "[data-testid=incoming-overlay]", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [
+      {"flow": "Number Logs tab while a ring ends", "issue": "The Logs tab does not listen for RING_ENDED, so a declined or timed-out ring does not show in number-logs until the page is reloaded (Inbox does refresh). Optional consistency fix.", "affected_selectors": ["[data-testid=number-logs-row-0]"]}
+    ],
+    "design_issues": [
+      {"screen": "Inbox Missed calls after a language switch", "issues": ["Dates already on screen keep the old language's format until the list reloads (FR showed 'Oct 24, 03:52 PM' for old rows next to '24 oct., 15:53' for the new one). when() output is not re-rendered when the language changes."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_cloudivr_iter128_textback_norm.py", "/app/backend/tests/test_cloudivr_iter127_browser_ring_textback.py", "/app/backend/tests/bot_backup_numbers_sim.js", "/app/test_reports/pytest/pytest_iter128.xml"],
+  "action_items": [
+    "Place the ringing banner below the actual header bottom when the PREVIEW strip is shown (mobile top bar fully covered now)",
+    "Optional: refresh the number Logs tab on RING_ENDED",
+    "Optional: re-render dates in the Missed calls list / notices when the language changes",
+    "Optional: limit the sms_out query in GET /missed-calls to the listed callers"
+  ],
+  "critical_code_review_comments": [
+    "sms-reply.js markReplied: a 'decline with text' that is closest to a call already claimed by another text is dropped instead of moving to the next closest call. Rare and acceptable.",
+    "STALE_CLAIM_MS: replied() and the claim filter both allow a new reply after 2 min stuck in 'sending' (code review OK).",
+    "Incoming.js: `top-16` is hardcoded and ignores the PreviewBanner height."
+  ],
+  "updated_files": ["/app/backend/tests/test_cloudivr_iter128_textback_norm.py"],
+  "success_rate": {"backend": "100%", "frontend": "95%"},
+  "seed_data_creation": "Pretend missed calls from unique callers +1312555xxxx, +1312556xxxx, +1646555-7xxxx, +1718555-6xxxx, +1929555xxxx on +14025031429 with TEST_ preview replies. Forwarding was restored to disabled, IVR was restored to its previous value, browser-ring answerMode was restored to 'ask', the language is back to en, and there is no live text call.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run pytest test_cloudivr_iter127_browser_ring_textback.py test_cloudivr_iter128_textback_norm.py -k 'not Extra'. Ring via in-page fetch POST /api/cloudivr-web/incoming/simulate (cookie auth, credentials:'include'). To check top bar clickability, use elementFromPoint on the topbar-* testids while incoming-banner is shown; on mobile they are covered because of the PREVIEW strip. Number tabs: ?tab=browser|logs|billing.",
+  "test_credentials": "civr.alice@example.com / AliceTest#2026, civr.bob@example.com / BobTest#2026 (memory/test_credentials.md has the vault/setup info)"
+}

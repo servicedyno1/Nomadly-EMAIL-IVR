@@ -9,6 +9,7 @@ import { PageHeader, Spinner, Empty, ErrorNote } from '../ui';
 import { usePrivacy } from '../privacy';
 import { MissedCalls } from '../MissedCalls';
 import { RING_ENDED } from '../Incoming';
+import { useLangTick } from '../i18n';
 
 const KINDS = [['', 'All', InboxIcon], ['sms', 'SMS', MessageSquare], ['voicemail', 'Voicemail', Voicemail], ['call', 'Calls', Phone], ['campaign', 'Campaigns', Megaphone], ['wallet', 'Wallet', Wallet], ['billing', 'Billing', Receipt], ['coupon', 'Coupons', Ticket], ['info', 'Other', Info]];
 const ICON = Object.fromEntries(KINDS.map(([k, , I]) => [k, I]));
@@ -16,6 +17,7 @@ const ICON = Object.fromEntries(KINDS.map(([k, , I]) => [k, I]));
 export default function Inbox() {
   const { refreshSummary } = useShell();
   const pv = usePrivacy();
+  useLangTick();
   const [kind, setKind] = useState('');
   const { data, error, loading, reload } = useApi(`/notifications?limit=100${kind ? `&kind=${kind}` : ''}`);
   const { data: today } = useApi('/coupons/today');
