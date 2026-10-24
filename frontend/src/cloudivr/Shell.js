@@ -1,6 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { NavLink, Navigate, Route, Routes, Link, useNavigate } from 'react-router-dom';
-import { Bell, LogOut, Phone, Plus, LifeBuoy, Eye, EyeOff, Send } from 'lucide-react';
+import { Bell, LogOut, Phone, Plus, LifeBuoy, Eye, EyeOff, Send, Lightbulb } from 'lucide-react';
 import { api, money } from './api';
 import { useCivrAuth } from './AuthContext';
 import { PreviewBanner } from './ui';
@@ -26,6 +26,7 @@ import { AiAgents, AiAgentEdit } from './pages/AiAgents';
 import { cp } from './paths';
 import { LangSwitcher, useLang } from './i18n';
 import SupportChat from './SupportChat';
+import AdminSuggestions from './pages/AdminSuggestions';
 
 const ShellCtx = createContext(null);
 export const useShell = () => useContext(ShellCtx);
@@ -58,6 +59,7 @@ function Sidebar({ supportLink, channelLink }) {
       <SideNav />
       <div className="mt-auto pt-6 space-y-1">
         {channelLink && <a href={channelLink} target="_blank" rel="noopener noreferrer" className="civr-nav-link" data-testid="sidebar-channel-link"><Send className="w-4 h-4" />Telegram channel</a>}
+        <Link to={cp('/app/settings#suggest')} className="civr-nav-link" data-testid="sidebar-suggest-link"><Lightbulb className="w-4 h-4" />Suggest a feature</Link>
         {supportLink && <a href={supportLink} target="_blank" rel="noopener noreferrer" className="civr-nav-link" data-testid="sidebar-support-link"><LifeBuoy className="w-4 h-4" />Message support</a>}
       </div>
     </aside>
@@ -139,6 +141,7 @@ export default function Shell() {
               <Route path="wallet" element={<Wallet />} />
               <Route path="inbox" element={<Inbox />} />
               <Route path="settings" element={<Settings />} />
+              <Route path="admin/suggestions" element={<AdminSuggestions />} />
               <Route path="*" element={<Navigate to={cp('/app')} replace />} />
             </Routes>
           </main>

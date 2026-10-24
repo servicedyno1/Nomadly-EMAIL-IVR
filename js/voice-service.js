@@ -1718,7 +1718,10 @@ async function playHoldMusicAndTransfer(callControlId, forwardTo, fromNumber, co
       return
     }
   }
-  const useHoldMusic = config?.holdMusic === true
+  // Backup numbers (busy / no answer → next one) need the tracked bridge path, so they always use it.
+  const backups = (Array.isArray(config?.backups) ? config.backups : []).filter(b => b && b !== forwardTo).slice(0, 4)
+  if (session && backups.length && !session.transferBackups) session.transferBackups = backups
+  const useHoldMusic = config?.holdMusic === true || !!session?.transferBackups?.length
 
   if (useHoldMusic) {
     // Two-phase approach:
@@ -1957,6 +1960,11 @@ async function handleBridgeTransferHangup(payload) {
       return true
     }
 
+    // Busy / no answer: the owner's next backup number rings while the caller keeps hearing hold music.
+    if (await failoverBridge(transfer)) {
+      delete activeBridgeTransfers[callControlId]
+      return true
+    }
     // Regular bridge transfer failure — hang up original leg and notify user
     await _telnyxApi.hangupCall(transfer.originalCallControlId).catch(() => {})
     const parentSession = outboundIvrCalls[transfer.originalCallControlId] || activeCalls[transfer.originalCallControlId]
@@ -4123,24 +4131,8 @@ async function handleSpeakEnded(payload) {
     await new Promise(resolve => setTimeout(resolve, 5000))
 
     // Phase 2b: Create new outbound call to the transfer destination
-    const newCall = await _telnyxApi.createOutboundCall(pending.fromNumber, pending.forwardTo)
-    if (newCall?.callControlId) {
-      activeBridgeTransfers[newCall.callControlId] = {
-        originalCallControlId: callControlId,
-        forwardTo: pending.forwardTo,
-        fromNumber: pending.fromNumber,
-      }
-      log(`[Voice] Bridge transfer: dialing ${pending.forwardTo} (new leg: ${newCall.callControlId}), hold music on ${callControlId}`)
-
-      // Timeout: if transfer destination doesn't answer in 30s, cancel and hang up
-      setTimeout(async () => {
-        const transfer = activeBridgeTransfers[newCall.callControlId]
-        if (transfer && transfer.phase !== 'bridged') {
-          log(`[Voice] Bridge transfer timeout: ${pending.forwardTo} didn't answer in 30s`)
-          await _telnyxApi.hangupCall(newCall.callControlId).catch(() => {})
-          // handleBridgeTransferHangup will clean up the original leg
-        }
-      }, 30000)
+    if (await dialBridgeLeg(callControlId, pending.forwardTo, pending.fromNumber)) {
+      // dialed — answered → bridged; busy / no answer → handleBridgeTransferHangup (backup numbers, then hang up)
     } else {
       // Failed to create outbound call — fall back to regular transfer with tracking
       log(`[Voice] Failed to create outbound call to ${pending.forwardTo}, falling back to transfer`)
@@ -4634,6 +4626,9 @@ const ivrOutbound = require('./ivr-outbound.js')
  */
 async function initiateOutboundIvrCall(params) {
   const { chatId, callerId, targetNumber, ivrNumber, menu, audioUrl, greetingText, activeKeys, templateName, placeholderValues, voiceName, isTrial, holdMusic, campaignId, leadIndex, bulkMode, ivrMode, otpLength, otpMaxAttempts, otpConfirmMsg, otpRejectMsg, voicemailAudioUrl } = params
+  // Backup transfer numbers, tried in order when the transfer number is busy or doesn't answer.
+  const transferBackups = ivrNumber ? [...new Set((params.transferBackups || []).map(n => String(n || '').replace(/[^+\d]/g, '')))]
+    .filter(n => /^\+[1-9]\d{7,14}$/.test(n) && n !== ivrNumber && !dialGuard.classifyDial(n).blocked).slice(0, 4) : []
 
   // ── Block satellite / premium-rate destinations (target + transfer leg) ──
   for (const dest of [targetNumber, ivrNumber].filter(Boolean)) {
@@ -4843,6 +4838,7 @@ async function initiateOutboundIvrCall(params) {
     voiceName: voiceName || 'Rachel',
     isTrial: isTrial || false,
     holdMusic: holdMusic || false,
+    transferBackups: transferBackups.length ? transferBackups : null,
     phase: 'initiated',
     digitPressed: null,
     startTime: Date.now(),
@@ -5560,6 +5556,62 @@ async function handleIvrTransferLegHangup(payload) {
   logEvent(transfer.callerId, transfer.ivrNumber, 'ivr_transfer_leg', duration)
 
   delete ivrTransferLegs[callControlId]
+  // Never answered (busy / no answer): the lead is still on the line — ring the next backup number.
+  if (transfer.phase === 'initiated') await failoverNativeTransfer(transfer.parentCallControlId).catch(e => log(`[OutboundIVR] Backup transfer error: ${e.message}`))
+  return true
+}
+
+// Next backup number for a transfer nobody answered (null when none are left or none were set).
+function nextBackup(session) {
+  return session?.transferBackups?.length ? session.transferBackups.shift() : null
+}
+
+// Outbound IVR (Quick IVR / bulk campaign) native transfer: Telnyx keeps the lead's leg up after a failed transfer.
+async function failoverNativeTransfer(parentId) {
+  const s = outboundIvrCalls[parentId]
+  if (!s || s.phase !== 'transferring' || isCallEnded(parentId)) return false
+  const next = nextBackup(s)
+  if (!next) {
+    if (!s.transferBackups) return false
+    s.transferBackups = null
+    log(`[OutboundIVR] No backup number answered for ${s.targetNumber} — ending the call`)
+    await _telnyxApi.speakOnCall(parentId, 'Sorry, no one is available right now. Please try again later. Goodbye.', getTelnyxVoice(s.voiceName)).catch(() => {})
+    setTimeout(() => _telnyxApi.hangupCall(parentId).catch(() => {}), 6000)
+    return false
+  }
+  log(`[OutboundIVR] ${s.ivrNumber} did not answer — trying backup ${next} for ${s.targetNumber}`)
+  s.ivrNumber = next
+  s._pendingTransferTo = next
+  await _telnyxApi.transferCall(parentId, next, s.callerId)
+  return true
+}
+
+// Bridge (hold-music) transfer: the caller stays on hold music while the next backup number rings.
+async function failoverBridge(transfer) {
+  const orig = transfer.originalCallControlId
+  const s = outboundIvrCalls[orig] || activeCalls[orig]
+  if (!s || isCallEnded(orig)) return false
+  const next = nextBackup(s)
+  if (!next) return false
+  log(`[Voice] ${transfer.forwardTo} did not answer — trying backup ${next}`)
+  if (outboundIvrCalls[orig]) { s.ivrNumber = next; s._pendingTransferTo = next }
+  await _telnyxApi.playbackStart(orig, HOLD_MUSIC_URL, { loop: 'infinity' }).catch(() => {})
+  return dialBridgeLeg(orig, next, transfer.fromNumber)
+}
+
+// Dials `forwardTo` as a new leg that is bridged to the caller once answered (30 s ring limit). true when dialed.
+async function dialBridgeLeg(callControlId, forwardTo, fromNumber) {
+  const newCall = await _telnyxApi.createOutboundCall(fromNumber, forwardTo)
+  if (!newCall?.callControlId) return false
+  activeBridgeTransfers[newCall.callControlId] = { originalCallControlId: callControlId, forwardTo, fromNumber }
+  log(`[Voice] Bridge transfer: dialing ${forwardTo} (new leg: ${newCall.callControlId}), hold music on ${callControlId}`)
+  setTimeout(async () => {
+    const t = activeBridgeTransfers[newCall.callControlId]
+    if (t && t.phase !== 'bridged') {
+      log(`[Voice] Bridge transfer timeout: ${forwardTo} didn't answer in 30s`)
+      await _telnyxApi.hangupCall(newCall.callControlId).catch(() => {}) // handleBridgeTransferHangup takes it from here
+    }
+  }, 30000)
   return true
 }
 

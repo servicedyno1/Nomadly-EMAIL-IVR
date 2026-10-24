@@ -6,6 +6,7 @@ import { useShell } from '../../Shell';
 import { Field, Toggle } from '../../ui';
 import { PlanFeatures, unlocks } from '../../PlanFeatures';
 import { Downgrade, ExtraNumbers } from './BillingExtras';
+import { UpgradePay } from './UpgradePay';
 import { ask } from '../../i18n';
 
 function Renewal({ num, reload, refreshSummary }) {
@@ -28,7 +29,7 @@ function Renewal({ num, reload, refreshSummary }) {
   );
 }
 
-function Upgrade({ num, reload, refreshSummary, plans }) {
+function Upgrade({ num, reload, refreshSummary, plans, coins }) {
   const order = plans.map(p => p.id);
   const higher = plans.filter(p => p.available && order.indexOf(p.id) > order.indexOf(num.plan));
   const [plan, setPlan] = useState(higher[0]?.id || '');
@@ -53,7 +54,7 @@ function Upgrade({ num, reload, refreshSummary, plans }) {
         </div>
       )}
       {quote && <div className="text-sm" data-testid="billing-upgrade-quote">Pay <span className="font-mono">{money(quote.charge)}</span> now{quote.credit > 0 ? ` (includes ${money(quote.credit)} credit for unused days)` : ''}. Then {money(quote.newPrice)}/month.</div>}
-      {quote ? <button className="civr-btn civr-btn-primary" disabled={busy} onClick={() => call(true)} data-testid="billing-upgrade-confirm-button">Pay {money(quote.charge)} &amp; upgrade</button>
+      {quote ? <UpgradePay num={num} plan={plan} quote={quote} coins={coins} busy={busy} onWallet={() => call(true)} />
         : <button className="civr-btn civr-btn-ghost civr-btn-sm" disabled={busy} onClick={() => call(false)} data-testid="billing-upgrade-quote-button"><ArrowUpCircle className="w-4 h-4" />See price</button>}
     </div>
   );
@@ -81,7 +82,7 @@ export default function BillingTab({ num, reload, onDeleted }) {
   return (
     <div className="grid lg:grid-cols-2 gap-4">
       <Renewal num={num} reload={reload} refreshSummary={refreshSummary} />
-      {catalog && !num.isSubNumber && <Upgrade num={num} reload={reload} refreshSummary={refreshSummary} plans={catalog.plans} />}
+      {catalog && !num.isSubNumber && <Upgrade num={num} reload={reload} refreshSummary={refreshSummary} plans={catalog.plans} coins={catalog.coins || []} />}
       {catalog && <Downgrade num={num} reload={reload} refreshSummary={refreshSummary} plans={catalog.plans} />}
       <ExtraNumbers num={num} />
       <Danger num={num} onDeleted={onDeleted} refreshSummary={refreshSummary} />

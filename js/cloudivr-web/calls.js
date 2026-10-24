@@ -2,7 +2,7 @@
 // Outbound IVR: one-off Quick IVR calls and Bulk IVR campaigns, run by the bot's voice + bulk-call engines.
 const phoneConfig = require('../phone-config')
 const { walletOps } = require('./wallet')
-const { normPhone, E164 } = require('./numbers')
+const { normPhone, E164, parseBackups } = require('./numbers')
 const { spokenNumber } = require('../voicemail-greeting')
 const { cleanMenu, firstForward } = require('./outbound')
 
@@ -11,7 +11,7 @@ const QUICK_MIN_WALLET = 1
 const KEYS = /^[0-9*#]$/
 
 const publicCampaign = (c, withLeads = false) => ({
-  id: c.id, callerId: c.callerId, audioName: c.audioName, mode: c.menu ? 'menu' : c.mode, menu: c.menu || null, transferNumber: c.transferNumber, activeKeys: c.activeKeys,
+  id: c.id, callerId: c.callerId, audioName: c.audioName, mode: c.menu ? 'menu' : c.mode, menu: c.menu || null, transferNumber: c.transferNumber, transferBackups: c.transferBackups || [], activeKeys: c.activeKeys,
   concurrency: c.concurrency, status: c.status, stats: c.stats, scheduledFor: c.scheduledFor, startedAt: c.startedAt, completedAt: c.completedAt,
   createdAt: c.createdAt, cancelledReason: c.cancelledReason || null, pausedReason: c.pausedReason || null, dryRun: !!c.dryRun,
   agentId: c.agentId || null, agentName: c.agentName || null, waitingForHours: !!c.waitingForHours,
@@ -113,6 +113,8 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
       if (t.err) return bad(res, 400, 'invalid_transfer', t.err)
       transferNumber = t.to
     }
+    const bk = mode === 'transfer' ? parseBackups(b.transferBackups, [transferNumber, c.n.phoneNumber]) : { list: [] }
+    if (bk.error) return bad(res, 400, 'invalid_backup', bk.error)
     let scheduledFor = null
     if (b.scheduledFor) {
       const d = new Date(b.scheduledFor)
@@ -121,7 +123,7 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
     }
     if (dryRun() && scheduledFor) return bad(res, 400, 'dry_run', 'Scheduling is turned off in preview mode — calls would be dialed for real.')
     const campaign = await bulkCallService.createCampaign({
-      chatId, callerId: c.n.phoneNumber, audioUrl: audio.audioUrl, audioName: audio.name, mode, transferNumber, menu,
+      chatId, callerId: c.n.phoneNumber, audioUrl: audio.audioUrl, audioName: audio.name, mode, transferNumber, transferBackups: bk.list, menu,
       activeKeys, concurrency: Math.min(20, Math.max(1, parseInt(b.concurrency, 10) || 5)), holdMusic: !!b.holdMusic,
       leads, scheduledFor, provider: 'telnyx', voicemailAudioUrl: vm?.audioUrl || null, voicemailAudioName: vm?.name || null,
     })

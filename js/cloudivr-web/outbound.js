@@ -6,7 +6,7 @@ const crypto = require('crypto')
 const phoneConfig = require('../phone-config')
 const ivrOb = require('../ivr-outbound')
 const { walletOps } = require('./wallet')
-const { normPhone, E164 } = require('./numbers')
+const { normPhone, E164, parseBackups } = require('./numbers')
 
 const dryRun = () => process.env.WEB_CLOUDIVR_DRY_RUN === 'true'
 const MAX_TARGETS = 10
@@ -120,7 +120,7 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
     const voiceKey = String(b.voice || (await getPrefs(chatId)).ttsVoice || '').toLowerCase()
     const voiceName = text && ttsService?.ALL_VOICES?.[voiceKey] ? voiceKey : null
     const mode = b.mode === 'otp' ? 'otp' : 'transfer'
-    let menu = null, transferTo = null, otp = null, activeKeys = ['1']
+    let menu = null, transferTo = null, otp = null, activeKeys = ['1'], transferBackups = []
     if (mode === 'otp') {
       if (trial) return { err: [400, 'trial_transfer_only', 'The free call uses transfer mode.'] }
       if (!phoneConfig.canAccessFeature(caller.plan, 'otpCollection')) return { err: [403, 'plan_upgrade_required', 'OTP collection needs the Pro plan or higher on the caller number.'] }
@@ -137,12 +137,15 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
       if (!E164.test(transferTo)) return { err: [400, 'invalid_transfer', 'Enter the transfer number with country code, e.g. +14155550100.'] }
       if (phoneConfig.isBlockedPrefix(transferTo)) return { err: [400, 'invalid_transfer', `${transferTo} is a blocked premium/satellite destination.`] }
       if (transferTo === callerId) return { err: [400, 'invalid_transfer', 'The transfer number must differ from the caller ID.'] }
+      const bk = parseBackups(b.transferBackups, [transferTo, callerId])
+      if (bk.error) return { err: [400, 'invalid_backup', bk.error] }
+      transferBackups = bk.list
       if (!trial) activeKeys = [...new Set((Array.isArray(b.activeKeys) ? b.activeKeys : ['1']).map(String))].filter(k => KEYS.test(k))
       if (!activeKeys.length) activeKeys = ['1']
     }
     return {
       cfg: {
-        callerId, callerPlan: caller?.plan || null, targets, mode, menu, transferTo, otp, activeKeys, holdMusic: !!b.holdMusic && !trial,
+        callerId, callerPlan: caller?.plan || null, targets, mode, menu, transferTo, transferBackups, otp, activeKeys, holdMusic: !!b.holdMusic && !trial,
         audioId: audio?.id || null, audioUrl: audio?.audioUrl || null, text, voiceName, templateName: String(b.templateName || audio?.name || 'Custom script').slice(0, 80),
       },
     }
@@ -150,7 +153,7 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
 
   const rateOf = (cfg) => Math.max(...cfg.targets.map(t => voiceService.getIvrCallRate(t)), cfg.transferTo ? voiceService.getIvrCallRate(cfg.transferTo) : 0)
   const engineParams = (chatId, cfg, to, trial) => ({
-    chatId, callerId: cfg.callerId, targetNumber: to, ivrNumber: cfg.menu ? firstForward(cfg.menu) : cfg.transferTo, menu: cfg.menu,
+    chatId, callerId: cfg.callerId, targetNumber: to, ivrNumber: cfg.menu ? firstForward(cfg.menu) : cfg.transferTo, transferBackups: cfg.menu ? [] : (cfg.transferBackups || []), menu: cfg.menu,
     audioUrl: cfg.audioUrl, greetingText: cfg.audioUrl ? null : cfg.text, voiceName: cfg.voiceName || undefined, activeKeys: cfg.activeKeys, templateName: cfg.templateName,
     holdMusic: cfg.holdMusic, provider: 'telnyx', isTrial: !!trial, ivrMode: cfg.mode === 'otp' ? 'otp_collect' : 'transfer',
     otpLength: cfg.otp?.length || 6, otpMaxAttempts: 3, otpConfirmMsg: cfg.otp?.confirmMsg || null, otpRejectMsg: cfg.otp?.rejectMsg || null,

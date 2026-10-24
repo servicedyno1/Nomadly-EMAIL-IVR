@@ -699,7 +699,7 @@ function parseLeadsFile(content) {
  * Create a new campaign
  */
 async function createCampaign(params) {
-  const { chatId, callerId, audioUrl, audioName, mode, transferNumber, menu, activeKeys, concurrency, holdMusic, leads, twilioSubAccountSid, twilioSubAccountToken, scheduledFor, provider, voicemailAudioUrl, voicemailAudioName, agentId, agentName } = params
+  const { chatId, callerId, audioUrl, audioName, mode, transferNumber, transferBackups, menu, activeKeys, concurrency, holdMusic, leads, twilioSubAccountSid, twilioSubAccountToken, scheduledFor, provider, voicemailAudioUrl, voicemailAudioName, agentId, agentName } = params
 
   // ━━━ Enforce max lead limit ━━━
   if (leads.length > MAX_BULK_LEADS) {
@@ -724,6 +724,7 @@ async function createCampaign(params) {
     agentId: mode === 'ai' ? agentId : null,
     agentName: mode === 'ai' ? (agentName || null) : null,
     transferNumber: transferNumber || null,
+    transferBackups: Array.isArray(transferBackups) && transferNumber ? transferBackups.slice(0, 4) : [],
     menu: menu || null,
     activeKeys: activeKeys || ['1'],
     concurrency: Math.min(concurrency || 10, 20),
@@ -1018,6 +1019,7 @@ function dialTelnyx(campaign, lead) {
     callerId: campaign.callerId,
     targetNumber: lead.number,
     ivrNumber: isTransfer ? (campaign.transferNumber || null) : null,
+    transferBackups: isTransfer ? (campaign.transferBackups || []) : [],
     menu: campaign.menu || null,
     audioUrl,
     activeKeys: campaign.activeKeys || ['1'],

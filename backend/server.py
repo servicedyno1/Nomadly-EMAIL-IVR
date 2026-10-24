@@ -228,16 +228,17 @@ async def proxy_to_nodejs(request: Request, path: str):
             headers=headers,
         )
         
-        response_headers = dict(response.headers)
-        response_headers.pop("transfer-encoding", None)
-        response_headers.pop("content-encoding", None)
-        response_headers.pop("content-length", None)
-        
-        return Response(
+        skip = {"transfer-encoding", "content-encoding", "content-length", "set-cookie"}
+        response_headers = {k: v for k, v in response.headers.items() if k.lower() not in skip}
+        out = Response(
             content=response.content,
             status_code=response.status_code,
             headers=response_headers,
         )
+        # Each cookie needs its own Set-Cookie header (a dict would merge them into one broken cookie).
+        for cookie in response.headers.get_list("set-cookie"):
+            out.raw_headers.append((b"set-cookie", cookie.encode("latin-1")))
+        return out
     except httpx.ConnectError:
         logger.error(f"Cannot connect to Node.js server at {NODEJS_URL}/{path}")
         return Response(content='{"error":"Node.js server unavailable"}', status_code=502, media_type="application/json")
