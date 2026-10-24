@@ -106,4 +106,4 @@ Sources: `HOSTING_CAPABILITIES_2026-10.md` (H#) and `RESELLER_FEATURE_REQUESTS_2
 ## AI Voice Agent follow-ups (2026-10-24)
 - P0: first real Telnyx AI call on the owner's test number; prod droplet nginx WebSocket Upgrade headers before deploy.
 - P1: verify Coupon countdown banner, Welcome card Telegram channel link, Sip.js central SIP list; end-to-end checkout (wallet + crypto only).
-- P2: AI agent call recordings; appointment booking to Google Calendar.
+- P1: AI agent call recordings + Google Calendar appointment booking — full spec in memory/NEXT_TASKS_2026-10-24.md.

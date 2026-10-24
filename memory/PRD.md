@@ -1003,3 +1003,4 @@ User inherited a fully-set-up Nomadly bot pod pointed at LIVE PRODUCTION. Task b
 - Inbound receptionist + outbound AI campaigns, $0.20/started minute from wallet, Pro+ only, goodbye+hangup when wallet empty, DNC list, 8am–9pm lead-local calling, transcripts + summaries, free browser test talk.
 - Bulk campaigns now wait and redial leads when Telnyx line limit is hit (never failed for busy lines).
 - Details, architecture, tests and next steps: `memory/AI_VOICE_AGENT_2026-10-24.md`.
+- **NEXT AGENT → start with `memory/NEXT_TASKS_2026-10-24.md`**: (1) verify coupon countdown banner / Telegram channel welcome card / central SIP list, (2) AI agent Google Calendar appointment booking, (3) playable AI call recordings.
