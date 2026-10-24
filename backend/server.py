@@ -1,4 +1,5 @@
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, WebSocket
+import websockets
 from fastapi.responses import Response, JSONResponse, FileResponse, RedirectResponse
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
@@ -247,6 +248,50 @@ async def proxy_to_nodejs(request: Request, path: str):
         logger.error(f"Proxy error for {path}: {str(e)}")
         import json as _json
         return Response(content=_json.dumps({"error": str(e)}), status_code=502, media_type="application/json")
+
+
+# ============================================================
+# WEBSOCKET PROXY: AI voice agent media streams (Telnyx) + browser test talks → Node.js :5000
+# ============================================================
+WS_PATHS = ("ai-agent/stream/", "cloudivr-web/ai-agents/test/")
+
+
+@app.websocket("/api/{path:path}")
+async def ws_proxy_to_nodejs(ws: WebSocket, path: str):
+    if not path.startswith(WS_PATHS):
+        await ws.close(code=1008)
+        return
+    await ws.accept()
+    try:
+        async with websockets.connect(f"ws://127.0.0.1:5000/{path}", max_size=None, ping_interval=None, compression=None, open_timeout=10) as up:
+            async def client_to_node():
+                while True:
+                    m = await ws.receive()
+                    if m["type"] == "websocket.disconnect":
+                        return
+                    if m.get("text") is not None:
+                        await up.send(m["text"])
+                    elif m.get("bytes") is not None:
+                        await up.send(m["bytes"])
+
+            async def node_to_client():
+                async for m in up:
+                    if isinstance(m, bytes):
+                        await ws.send_bytes(m)
+                    else:
+                        await ws.send_text(m)
+
+            tasks = [asyncio.create_task(client_to_node()), asyncio.create_task(node_to_client())]
+            _, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
+            for t in pending:
+                t.cancel()
+    except Exception as e:
+        logger.info(f"WS proxy closed for {path[:40]}: {e}")
+    finally:
+        try:
+            await ws.close()
+        except Exception:
+            pass
 
 
 app.add_middleware(

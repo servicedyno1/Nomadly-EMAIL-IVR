@@ -22,6 +22,7 @@ import Wallet from './pages/Wallet';
 import Inbox from './pages/Inbox';
 import Settings from './pages/Settings';
 import SipPage from './pages/Sip';
+import { AiAgents, AiAgentEdit } from './pages/AiAgents';
 import { cp } from './paths';
 import { LangSwitcher, useLang } from './i18n';
 import SupportChat from './SupportChat';
@@ -129,6 +130,9 @@ export default function Shell() {
               <Route path="verification" element={<Verification />} />
               <Route path="audio" element={<AudioLibrary />} />
               <Route path="quick-call" element={<QuickCall />} />
+              <Route path="ai-agents" element={<AiAgents />} />
+              <Route path="ai-agents/new" element={<AiAgentEdit />} />
+              <Route path="ai-agents/:id" element={<AiAgentEdit />} />
               <Route path="campaigns" element={<Campaigns />} />
               <Route path="campaigns/new" element={<CampaignNew />} />
               <Route path="campaigns/:id" element={<CampaignDetail />} />

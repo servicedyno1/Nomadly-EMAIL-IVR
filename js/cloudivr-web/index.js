@@ -16,6 +16,7 @@ const notes = require('./notes')
 const outbound = require('./outbound')
 const extras = require('./extras')
 const support = require('./support')
+const ai = require('./ai')
 const { sendMail } = require('./auth')
 
 function createCloudIvrWeb(deps) {
@@ -49,6 +50,7 @@ function createCloudIvrWeb(deps) {
     outbound.routes(r, { ...deps, db, h, numbersApi })
     calls.routes(r, { ...deps, db, h, numbersApi })
     notes.routes(r, { db, h, numbersApi })
+    ai.routes(r, { h, numbersApi })
     extras.routes(r, { ...deps, db, h, numbersApi })
     support.routes(r, { ...deps, db, h, numbersApi })
     r.get('/dashboard', h(async (req, res) => {

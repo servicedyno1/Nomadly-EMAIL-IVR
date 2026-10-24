@@ -743,8 +743,16 @@ async function createOutboundCall(from, to, webhookUrl, connectionId, options = 
   } catch (e) {
     const errDetail = e.response?.data?.errors?.[0]?.detail || e.message
     log(`[Telnyx] createOutboundCall error (${from} → ${to}): ${errDetail}`)
-    return { error: errDetail }
+    return { error: errDetail, code: e.response?.data?.errors?.[0]?.code || null, status: e.response?.status || null }
   }
+}
+
+// Telnyx refused the dial only because every line is busy (user/profile/connection channel limit, or dials-per-second).
+const LINE_LIMIT_CODES = ['90041', '90042', '90043', '90103']
+function isLineLimitError(r) {
+  if (!r) return false
+  return LINE_LIMIT_CODES.includes(String(r.code || '')) || r.status === 429 ||
+    /channel limit|concurrent call|too many (active|concurrent|simultaneous) calls|dials? per second/i.test(String(r.error || ''))
 }
 
 // ── Call Control: Play audio file on call ──
@@ -1007,6 +1015,7 @@ module.exports = {
   gatherStop,
   playbackStart,
   createOutboundCall,
+  isLineLimitError,
   bridgeCalls,
   initializeTelnyxResources,
   getTelnyxResources,

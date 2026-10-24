@@ -9,13 +9,14 @@ import IvrTab from './number/IvrTab';
 import LogsTab from './number/LogsTab';
 import BillingTab from './number/BillingTab';
 import HoursTab from './number/HoursTab';
+import AiAgentTab from './number/AiAgentTab';
 import { cp } from '../paths';
 import { useShell } from '../Shell';
 import { planFor } from '../PlanFeatures';
 import { usePrivacy } from '../privacy';
 
 const TABS = [
-  ['overview', 'Overview', null, OverviewTab], ['forwarding', 'Forwarding', 'callForwarding', ForwardingTab], ['hours', 'Hours', null, HoursTab], ['ivr', 'IVR', 'ivr', IvrTab],
+  ['overview', 'Overview', null, OverviewTab], ['forwarding', 'Forwarding', 'callForwarding', ForwardingTab], ['hours', 'Hours', null, HoursTab], ['ivr', 'IVR', 'ivr', IvrTab], ['ai', 'AI agent', 'aiAgent', AiAgentTab],
   ['voicemail', 'Voicemail', 'voicemail', VoicemailTab], ['sms', 'SMS', null, SmsTab], ['sip', 'SIP', 'sipCredentials', SipTab],
   ['recording', 'Recording', 'callRecording', RecordingTab], ['logs', 'Logs', null, LogsTab], ['billing', 'Billing', null, BillingTab],
 ];

@@ -26,6 +26,13 @@ const campaignProvider = (c) => (c && c.provider) || 'twilio'
 const INFLIGHT_STATUSES = ['calling', 'ringing', 'answered']
 const TELNYX_NO_ANSWER_CAUSES = ['timeout', 'no_answer', 'originator_cancel', 'normal_clearing', 'recovery_on_timer_expire']
 const TELNYX_BUSY_CAUSES = ['busy', 'user_busy', 'call_rejected']
+// Line limit: Telnyx refused the dial because every line is in use → the lead waits and is redialed (never failed).
+const LINE_RETRY_MIN_MS = parseInt(process.env.BULK_LINE_RETRY_MIN_MS || '5000', 10)
+const LINE_RETRY_MAX_MS = parseInt(process.env.BULK_LINE_RETRY_MAX_MS || '60000', 10)
+const LINE_403_MAX_RETRIES = 30 // a SIP 403 on hangup can also be a real carrier block, so that case has a safety valve
+const HOURS_RECHECK_MS = 10 * 60000 // AI campaigns: leads outside 8am–9pm local time are rechecked every 10 min
+const isAiCampaign = (c) => c?.mode === 'ai'
+const aiAgent = () => require('./ai-agent')
 const TWILIO_UPGRADE_NOTICE = `⚠️ <b>Number Being Upgraded</b>\n\n` +
   `This campaign's caller ID is being moved to our new calling network, so it can't dial right now. ` +
   `Nothing was dialed or charged.\n\nStart a new campaign from your new number, or tap 💬 Support.`
@@ -692,7 +699,7 @@ function parseLeadsFile(content) {
  * Create a new campaign
  */
 async function createCampaign(params) {
-  const { chatId, callerId, audioUrl, audioName, mode, transferNumber, menu, activeKeys, concurrency, holdMusic, leads, twilioSubAccountSid, twilioSubAccountToken, scheduledFor, provider, voicemailAudioUrl, voicemailAudioName } = params
+  const { chatId, callerId, audioUrl, audioName, mode, transferNumber, menu, activeKeys, concurrency, holdMusic, leads, twilioSubAccountSid, twilioSubAccountToken, scheduledFor, provider, voicemailAudioUrl, voicemailAudioName, agentId, agentName } = params
 
   // ━━━ Enforce max lead limit ━━━
   if (leads.length > MAX_BULK_LEADS) {
@@ -713,7 +720,9 @@ async function createCampaign(params) {
     callerId,
     audioUrl,
     audioName: audioName || 'Custom Audio',
-    mode: mode || 'report_only', // 'transfer' or 'report_only'
+    mode: mode || 'report_only', // 'transfer' | 'report_only' | 'ai' (an AI voice agent talks to each lead)
+    agentId: mode === 'ai' ? agentId : null,
+    agentName: mode === 'ai' ? (agentName || null) : null,
     transferNumber: transferNumber || null,
     menu: menu || null,
     activeKeys: activeKeys || ['1'],
@@ -1022,6 +1031,34 @@ function dialTelnyx(campaign, lead) {
   })
 }
 
+// Runs fireNextBatch again after `ms` (one pending timer per campaign).
+function retryLater(campaignId, ms) {
+  const st = activeCampaigns[campaignId]
+  if (!st) return
+  if (st.retryTimer) {
+    if (st.retryAt <= Date.now() + ms) return
+    clearTimeout(st.retryTimer) // a sooner retry wins
+  }
+  st.retryAt = Date.now() + ms
+  st.retryTimer = setTimeout(() => {
+    st.retryTimer = null
+    fireNextBatch(campaignId).catch(e => log(`[BulkCall] retry batch error ${campaignId}: ${e.message}`))
+  }, ms)
+  if (st.retryTimer.unref) st.retryTimer.unref()
+}
+
+// All lines busy: put the lead back in the queue and try again with backoff (5s → 60s).
+async function requeueForLines(campaignId, leadIndex, extra = {}) {
+  await _collection.updateOne({ id: campaignId }, {
+    $set: { [`leads.${leadIndex}.status`]: 'pending', [`leads.${leadIndex}.startedAt`]: null, [`leads.${leadIndex}.callSid`]: null, [`leads.${leadIndex}.waitingForLine`]: true, lineLimitAt: new Date(), ...extra },
+    $inc: { [`leads.${leadIndex}.lineRetries`]: 1 },
+  })
+  const st = activeCampaigns[campaignId]
+  if (!st) return
+  st.lineBackoff = Math.min(LINE_RETRY_MAX_MS, st.lineBackoff ? st.lineBackoff * 2 : LINE_RETRY_MIN_MS)
+  retryLater(campaignId, st.lineBackoff)
+}
+
 /**
  * Fire the next batch of calls up to concurrency limit via Twilio
  */
@@ -1039,23 +1076,43 @@ async function fireNextBatch(campaignId) {
 
   // Find pending leads
   const pendingLeads = campaign.leads.filter(l => l.status === 'pending')
+  const isAi = isAiCampaign(campaign)
+  const minRate = isAi ? aiAgent().RATE() : BULK_CALL_RATE
 
   // ━━━ PER-BATCH CREDIT CHECK: Pause campaign if wallet exhausted (bulk calls use wallet only) ━━━
   if (pendingLeads.length > 0 && _walletOf) {
     try {
-      const walletCheck = await smartWalletCheck(_walletOf, campaign.chatId, BULK_CALL_RATE)
+      const walletCheck = await smartWalletCheck(_walletOf, campaign.chatId, minRate)
       if (!walletCheck.sufficient) {
         // No credits — pause campaign
         log(`[BulkCall] Pausing campaign ${campaignId}: insufficient funds`)
-        await pauseForWallet(campaign, walletCheck.usdBal, BULK_CALL_RATE)
+        await pauseForWallet(campaign, walletCheck.usdBal, minRate)
         return
       }
     } catch (e) { log(`[BulkCall] Per-batch credit check error: ${e.message}`) }
   }
 
-  let fired = 0
+  let fired = 0, outsideHours = 0
   for (const lead of pendingLeads) {
     if (state.paused || state.activeCalls >= campaign.concurrency) break
+    if (isAi) {
+      // Do-not-call list: never dialed, never billed.
+      if (await aiAgent().store.onDnc(campaign.chatId, lead.number)) {
+        await _collection.updateOne({ id: campaignId, [`leads.${lead.index}.status`]: 'pending' }, { $set: { [`leads.${lead.index}.status`]: 'skipped', [`leads.${lead.index}.hangupCause`]: 'On your do-not-call list', [`leads.${lead.index}.completedAt`]: new Date() } })
+        await recalcStats(campaignId)
+        continue
+      }
+      // Calling hours (TCPA): only 8am–9pm in the lead's local time — otherwise the lead waits.
+      if (!aiAgent().hours.callableNow(lead.number)) { outsideHours++; continue }
+      const { usdBal } = await getBalance(_walletOf, campaign.chatId)
+      const need = aiAgent().committed(campaign.chatId) + aiAgent().leadRate(lead.number)
+      if (usdBal < need) {
+        if (state.activeCalls > 0) break // calls in progress settle first, then we check again
+        log(`[BulkCall] Pausing AI campaign ${campaignId}: wallet $${usdBal} can't cover ${lead.number}`)
+        await pauseForWallet(campaign, usdBal, aiAgent().leadRate(lead.number))
+        return
+      }
+    }
     if (isTelnyx) {
       await telnyxDialSlot()
       if (state.paused || state.activeCalls >= campaign.concurrency) break
@@ -1068,8 +1125,15 @@ async function fireNextBatch(campaignId) {
     fired++
 
     try {
-      const result = isTelnyx ? await dialTelnyx(campaign, lead) : await dialTwilio(campaign, lead, SELF_URL)
+      const result = isAi ? await aiAgent().dialLead(campaign, lead) : isTelnyx ? await dialTelnyx(campaign, lead) : await dialTwilio(campaign, lead, SELF_URL)
 
+      if (result.error && isTelnyx && result.lineLimit) {
+        // Every line is in use (account concurrent-call limit) → lead goes back in the queue, retried shortly.
+        state.activeCalls--
+        log(`[BulkCall] Line limit reached — ${lead.number} re-queued (campaign ${campaignId}): ${result.error}`)
+        await requeueForLines(campaignId, lead.index)
+        break
+      }
       if (result.error) {
         state.activeCalls--
         // Provider account / caller ID suspended or out of funds → end the whole campaign now (no further dials, no charge).
@@ -1101,6 +1165,8 @@ async function fireNextBatch(campaignId) {
       } else {
         // Map callSid (Twilio) / callControlId (Telnyx) to campaign
         const sid = result.callSid || result.callControlId
+        state.lineBackoff = 0
+        if (lead.waitingForLine) await updateLeadResult(campaignId, lead.index, { waitingForLine: false })
         callToCampaign[sid] = { campaignId, leadIndex: lead.index }
         await _collection.updateOne(
           { id: campaignId, [`leads.${lead.index}.status`]: { $in: INFLIGHT_STATUSES } },
@@ -1119,6 +1185,13 @@ async function fireNextBatch(campaignId) {
       await recalcStats(campaignId)
       await checkCampaignCompletion(campaignId)
     }
+  }
+
+  // AI campaigns: some leads are outside calling hours → look again later (campaign keeps running).
+  if (isAi) {
+    const waiting = outsideHours > 0 && fired === 0 && state.activeCalls === 0
+    if (!!campaign.waitingForHours !== waiting) await _collection.updateOne({ id: campaignId }, { $set: { waitingForHours: waiting } })
+    if (outsideHours > 0) retryLater(campaignId, HOURS_RECHECK_MS)
   }
 
   // Check if all done (in case all calls failed immediately)
@@ -1213,6 +1286,16 @@ async function onCallComplete(callControlId, r = {}) {
 
   const answered = !!r.answeredAt
   const cause = String(r.hangupCause || '').toLowerCase()
+  // SIP 403 before any answer = usually Telnyx's channel limit (D1/D2/D3) → wait for a free line and redial.
+  const lead = campaign.leads[leadIndex]
+  if (!answered && String(r.sipHangupCause || '') === '403' && (lead.lineRetries || 0) < LINE_403_MAX_RETRIES && INFLIGHT_STATUSES.includes(lead.status)) {
+    const state = activeCampaigns[campaignId]
+    if (state) state.activeCalls = Math.max(0, state.activeCalls - 1)
+    delete callToCampaign[callControlId]
+    log(`[BulkCall] ${lead.number} refused with SIP 403 (line limit) — re-queued (campaign ${campaignId}, retry ${(lead.lineRetries || 0) + 1})`)
+    await requeueForLines(campaignId, leadIndex)
+    return
+  }
   const digitPressed = r.digitPressed || null
   let finalStatus
   if (answered && r.answeredBy === 'machine' && !digitPressed) finalStatus = 'voicemail'
@@ -1231,6 +1314,8 @@ async function onCallComplete(callControlId, r = {}) {
     answeredBy: r.answeredBy || null,
     answeredAt: r.answeredAt || null,
     voicemailDropped: finalStatus === 'voicemail' && !!r.voicemailDropped,
+    ai: r.ai || null,
+    aiBilling: r.aiBilling || null,
   })
 }
 
@@ -1253,6 +1338,7 @@ async function finalizeLead(campaign, leadIndex, callSid, res) {
   if (res.answeredBy) set[`${p}.answeredBy`] = res.answeredBy
   if (res.answeredAt) set[`${p}.answeredAt`] = res.answeredAt
   if (res.voicemailDropped) set[`${p}.voicemailDropped`] = true
+  if (res.ai) set[`${p}.ai`] = res.ai
   const filter = { id: campaignId, [`${p}.status`]: { $in: INFLIGHT_STATUSES } }
   // NOTE: {$in:[null, sid]} on an array path always matches (Mongo also probes field "0" of each
   // element, which is missing ⇒ null), so match the sid exactly or a genuinely null/absent callSid.
@@ -1267,7 +1353,8 @@ async function finalizeLead(campaign, leadIndex, callSid, res) {
   if (state) state.activeCalls = Math.max(0, state.activeCalls - 1)
   if (callSid) delete callToCampaign[callSid]
 
-  await billLead(campaign, leadIndex, res.finalStatus, res.duration)
+  if (isAiCampaign(campaign)) await billAiLead(campaign, leadIndex, res.aiBilling)
+  else await billLead(campaign, leadIndex, res.finalStatus, res.duration)
 
   await recalcStats(campaignId)
   await sendProgressUpdate(campaignId, leadIndex, {
@@ -1356,6 +1443,22 @@ async function billLead(campaign, leadIndex, finalStatus, duration) {
   }
 }
 
+// AI campaign lead: $0.20 per started minute of conversation (higher-cost destinations bill their IVR rate). Unanswered = free.
+async function billAiLead(campaign, leadIndex, bill) {
+  const lead = campaign.leads[leadIndex]
+  if (!bill || !(bill.charge > 0) || !_walletOf) return
+  try {
+    const r = await smartWalletDeduct(_walletOf, campaign.chatId, bill.charge, {
+      type: 'ai_agent_call', callType: 'AIAgent', destination: lead?.number || null, phoneNumber: campaign.callerId,
+      description: `AI agent campaign ${campaign.callerId} → ${lead?.number || 'unknown'} (${bill.minutesBilled} min × $${bill.rate})`,
+    })
+    log(`[BulkCall] AI lead billed $${bill.charge} (${bill.minutesBilled} min) campaign=${campaign.id} lead=${leadIndex} ok=${!!r?.success}`)
+    const post = await smartWalletCheck(_walletOf, campaign.chatId, aiAgent().RATE())
+    const st = activeCampaigns[campaign.id]
+    if (!post.sufficient && st && !st.paused) await pauseForWallet(campaign, post.usdBal, aiAgent().RATE(), 'Campaign Auto-Paused — Wallet Depleted')
+  } catch (e) { log(`[BulkCall] AI billing error campaign=${campaign.id} lead=${leadIndex}: ${e.message}`) }
+}
+
 /**
  * Recalculate campaign stats from lead results
  */
@@ -1375,12 +1478,21 @@ async function recalcStats(campaignId) {
     hungUp: 0,
     voicemail: 0,
     voicemailLeft: 0,
+    skipped: 0,
+    interested: 0,
+    callback: 0,
+    optedOut: 0,
   }
 
   for (const lead of campaign.leads) {
     if (lead.status === 'pending' || lead.status === 'calling' || lead.status === 'ringing') continue
     stats.completed++
-    if (lead.status === 'no_answer') stats.noAnswer++
+    const o = lead.ai?.outcome
+    if (o === 'interested') stats.interested++
+    else if (o === 'callback') stats.callback++
+    else if (o === 'opted_out') stats.optedOut++
+    if (lead.status === 'skipped') stats.skipped++
+    else if (lead.status === 'no_answer') stats.noAnswer++
     else if (lead.status === 'busy') stats.busy++
     else if (lead.status === 'failed') stats.failed++
     else if (lead.status === 'voicemail') { stats.voicemail++; if (lead.voicemailDropped) stats.voicemailLeft++ }
@@ -1416,6 +1528,7 @@ async function sendProgressUpdate(campaignId, leadIndex, result) {
   else if (result.status === 'busy') { icon = '📵'; statusText = 'Busy' }
   else if (result.status === 'failed') { icon = '❌'; statusText = `Failed: ${sanitizeHangupCause(result.hangupCause)}` }
   else if (result.status === 'voicemail') { icon = '📭'; statusText = result.voicemailDropped ? 'Voicemail — message left' : 'Voicemail — hung up' }
+  else if (lead?.ai?.outcome) { icon = '🤖'; statusText = `AI: ${lead.ai.outcome.replace(/_/g, ' ')}${lead.ai.summary ? ` — ${escHtml(lead.ai.summary.slice(0, 160))}` : ''}` }
   else if (result.digitPressed) {
     icon = '🔘'
     statusText = `Pressed ${result.digitPressed}`
@@ -1725,6 +1838,7 @@ module.exports = {
   getCampaignMapping,
   callToCampaign,
   activeCampaigns,
+  fireNextBatch,
   BULK_CALL_RATE,
   MAX_BULK_LEADS,
   BULK_CALL_MIN_WALLET,
