@@ -16,6 +16,17 @@ const KINDS = [['', 'All', InboxIcon], ['sms', 'SMS', MessageSquare], ['voicemai
 const ICON = Object.fromEntries(KINDS.map(([k, , I]) => [k, I]));
 const NAME = Object.fromEntries(KINDS.map(([k, l]) => [k, l]));
 
+// One-tap filter; a small badge shows how many unread items it holds.
+function FilterPill({ k, label, on, count, onPick }) {
+  const id = k || 'all';
+  return (
+    <button onClick={() => onPick(k)} className={`civr-pill cursor-pointer ${on ? 'civr-pill-on' : ''}`} data-testid={`inbox-filter-${id}`}>
+      {label}
+      {count > 0 && <span className="civr-pill-count" data-testid={`inbox-filter-${id}-count`} data-no-translate>{count > 99 ? '99+' : count}</span>}
+    </button>
+  );
+}
+
 export default function Inbox() {
   const { refreshSummary } = useShell();
   const pv = usePrivacy();
@@ -24,17 +35,24 @@ export default function Inbox() {
   const { data, error, loading, reload } = useApi(`/notifications?limit=100${kind ? `&kind=${kind}` : ''}`);
   const { data: today } = useApi('/coupons/today');
   useEffect(() => { window.addEventListener(RING_ENDED, reload); return () => window.removeEventListener(RING_ENDED, reload); }, [reload]);
-  const markRead = async () => { try { await api('/notifications/read', { method: 'POST' }); toast.success('All caught up'); reload(); refreshSummary(); } catch (e) { toast.error(e.message); } };
+  const markRead = async () => {
+    try {
+      await api('/notifications/read', { method: 'POST', body: kind ? { kind } : {} });
+      toast.success(kind ? `${NAME[kind]} marked as read` : 'All caught up');
+      reload(); refreshSummary();
+    } catch (e) { toast.error(e.message); }
+  };
   const items = data?.notifications || [];
+  const unreadOf = (k) => (k ? data?.unreadByKind?.[k] : data?.unread) || 0;
   const s = useSearch(items, n => [n.text, n.kind, NAME[n.kind], n.meta?.coupon]);
   return (
     <div data-testid="inbox-page">
       <PageHeader label="Inbox" title="Inbox" sub="Texts, voicemails, call alerts, campaign reports and wallet updates for your numbers." testid="inbox-header">
-        <button className="civr-btn civr-btn-ghost civr-btn-sm" onClick={markRead} disabled={!data?.unread} data-testid="inbox-mark-read-button"><CheckCheck className="w-4 h-4" />Mark all read{data?.unread ? ` (${data.unread})` : ''}</button>
+        <button className="civr-btn civr-btn-ghost civr-btn-sm" onClick={markRead} disabled={!unreadOf(kind)} data-testid="inbox-mark-read-button"><CheckCheck className="w-4 h-4" />{kind ? 'Mark these as read' : 'Mark all read'}{unreadOf(kind) ? <span data-testid="inbox-mark-read-count"> ({unreadOf(kind)})</span> : null}</button>
       </PageHeader>
       <div className="flex flex-col lg:flex-row lg:items-center gap-3 mb-6">
         <SearchBox s={s} placeholder="Search messages" testid="inbox-search" className="lg:w-72 shrink-0" />
-        <div className="flex flex-wrap gap-2">{KINDS.map(([k, l]) => <button key={k || 'all'} onClick={() => setKind(k)} className={`civr-pill cursor-pointer ${kind === k ? 'civr-pill-on' : ''}`} data-testid={`inbox-filter-${k || 'all'}`}>{l}</button>)}</div>
+        <div className="flex flex-wrap gap-2">{KINDS.map(([k, l]) => <FilterPill key={k || 'all'} k={k} label={l} on={kind === k} count={unreadOf(k)} onPick={setKind} />)}</div>
       </div>
       {(kind === '' || kind === 'call') && <MissedCalls />}
       <ErrorNote error={error} />

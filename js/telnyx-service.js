@@ -494,9 +494,9 @@ async function speakOnCall(callControlId, text, voice = 'female', language = 'en
 }
 
 // ── Call Control: Record Start ──
-async function startRecording(callControlId, channels = 'single', format = 'mp3') {
+async function startRecording(callControlId, channels = 'single', format = 'mp3', { playBeep = false } = {}) {
   try {
-    const body = { channels, format }
+    const body = { channels, format, ...(playBeep ? { play_beep: true } : {}) }
     const res = await axios.post(`${BASE}/calls/${callControlId}/actions/record_start`, body, { headers: headers() })
     return res.data?.data || null
   } catch (e) {

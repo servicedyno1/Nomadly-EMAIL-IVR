@@ -24,7 +24,7 @@ const telnyxStub = new Proxy({
   async createOutboundCall(from, to) { const id = `v3:leg-${++seq}`; calls.push(['dial', from, to, id]); return { callControlId: id } },
   async answerCall(id) { calls.push(['answer', id]); return {} },
   async hangupCall(id) { calls.push(['hangup', id]); return {} },
-  async startRecording(id) { calls.push(['record', id]); return {} },
+  async startRecording(id, ch, fmt, opts) { calls.push(['record', id, opts || null]); return {} },
 }, { get: (t, k) => t[k] || (async (...a) => { calls.push([String(k), ...a]); return {} }) })
 const sent = []
 const botStub = new Proxy({}, { get: (t, k) => async (chatId, x, opts) => { sent.push({ m: String(k), chatId: String(chatId), x: String(x), caption: opts?.caption }); return {} } })
@@ -48,7 +48,7 @@ const hook = (event_type, payload) => voice.handleVoiceWebhook({ body: { data: {
   ok('V00', 'setup: call reaches the voicemail greeting', /^voicemail/.test(voice.activeCalls?.[cc]?.phase || ''), `phase=${voice.activeCalls?.[cc]?.phase}`)
   await hook('call.speak.ended', { call_control_id: cc })
   await waitFor(() => voice.activeCalls?.[cc]?.phase === 'voicemail_recording')
-  ok('V01', 'recording starts after the greeting', calls.some(c => c[0] === 'record' && c[1] === cc), `phase=${voice.activeCalls?.[cc]?.phase}`)
+  ok('V01', 'recording starts after the greeting, with the promised beep', calls.some(c => c[0] === 'record' && c[1] === cc && c[2]?.playBeep === true), JSON.stringify(calls.filter(c => c[0] === 'record')))
   await hook('call.hangup', { call_control_id: cc, hangup_cause: 'normal_clearing', duration_secs: 30 })
   ok('V02', 'session removed from live calls at hangup', !voice.activeCalls?.[cc])
   await hook('call.recording.saved', { call_control_id: cc, recording_urls: { mp3: 'https://rec.invalid/vm1.mp3' }, duration_secs: 21 })
@@ -67,6 +67,32 @@ const hook = (event_type, payload) => voice.handleVoiceWebhook({ body: { data: {
   await hook('call.recording.saved', { call_control_id: cc2, recording_urls: { mp3: 'https://rec.invalid/none.mp3' }, duration_secs: 3 })
   await sleep(200)
   ok('V06', 'recording.saved for an ended call that was not recording is ignored', !(await phoneLogs.findOne({ recordingUrl: 'https://rec.invalid/none.mp3' })))
+
+  // ── 2b. SIP device rings unanswered → voicemail: the greeting plays ONCE (the call.answered from the fallback
+  //        must not route the call again) and recording starts after it ──
+  await phoneNumbersOf.updateOne({ _id: chat }, { $set: { 'val.numbers.0.sipUsername': 'gencredSANDBOX', 'val.numbers.0.telnyxSipUsername': 'gencredSANDBOX' } })
+  const cc4 = 'v3:inbound-sip-vm-4'
+  calls.length = 0
+  await hook('call.initiated', { call_control_id: cc4, direction: 'incoming', from: caller, to: num, connection_id: 'x' })
+  await waitFor(() => calls.some(c => c[0] === 'dial' && /^sip:/.test(c[2])))
+  const sipLeg = calls.find(c => c[0] === 'dial' && /^sip:/.test(c[2]))
+  ok('S00', 'setup: the SIP device rings first', !!sipLeg, JSON.stringify(calls.slice(0, 6)))
+  if (sipLeg) {
+    await hook('call.hangup', { call_control_id: sipLeg[3], hangup_cause: 'normal_clearing', duration_secs: 0 })
+    await waitFor(() => calls.some(c => c[0] === 'answer' && c[1] === cc4))
+    await hook('call.answered', { call_control_id: cc4, from: caller, to: num })
+    await sleep(900)
+    const greetings = calls.filter(c => (c[0] === 'speakOnCall' || c[0] === 'playbackStart') && c[1] === cc4 && !/ringback/i.test(String(c[2])))
+    ok('S01', 'voicemail greeting plays exactly once after the unanswered SIP ring', greetings.length === 1, JSON.stringify(greetings))
+    ok('S02', 'call is in the voicemail greeting (not re-routed)', voice.activeCalls?.[cc4]?.phase === 'voicemail_greeting', `phase=${voice.activeCalls?.[cc4]?.phase}`)
+    await hook('call.speak.ended', { call_control_id: cc4 })
+    await waitFor(() => calls.some(c => c[0] === 'record' && c[1] === cc4))
+    ok('S03', 'recording starts only after that single greeting, with a beep', calls.filter(c => c[0] === 'record' && c[1] === cc4).length === 1 && calls.find(c => c[0] === 'record' && c[1] === cc4)?.[2]?.playBeep === true)
+    await hook('call.hangup', { call_control_id: cc4, hangup_cause: 'normal_clearing', duration_secs: 25 })
+    await hook('call.recording.saved', { call_control_id: cc4, recording_urls: { mp3: 'https://rec.invalid/vm4.mp3' }, duration_secs: 12 })
+    ok('S04', 'that voicemail is saved too', await waitFor(async () => !!(await phoneLogs.findOne({ recordingUrl: 'https://rec.invalid/vm4.mp3' }))))
+  }
+  await phoneNumbersOf.updateOne({ _id: chat }, { $unset: { 'val.numbers.0.sipUsername': '', 'val.numbers.0.telnyxSipUsername': '' } })
 
   // ── 3. Ring group: the answered call is logged as forwarded to the phone that answered ──
   await phoneNumbersOf.updateOne({ _id: chat }, { $set: { 'val.numbers.0.features.ringGroup': { enabled: true, members: ['+14155550201', '+14155550202'], ringTimeout: 20, fallback: 'message', message: 'x' }, 'val.numbers.0.features.voicemail.enabled': false } })

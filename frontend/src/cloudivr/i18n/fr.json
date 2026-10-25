@@ -2173,5 +2173,7 @@
 "“{0}” loaded — add the forward numbers, then Save keypad menu": "« {0} » chargé — ajoutez les numéros de renvoi, puis enregistrez le menu à touches",
 "…or pick audio": "…ou choisissez un audio",
 "⚡ {0}: {1} Text from {2} to {3} {4}": "⚡ {0} : {1} SMS de {2} à {3} {4}",
-"✓ included · ✗ not on that plan. You can upgrade a number later from its Billing tab.": "✓ inclus · ✗ non disponible sur ce forfait. Vous pouvez mettre à niveau un numéro plus tard depuis son onglet Facturation."
+"✓ included · ✗ not on that plan. You can upgrade a number later from its Billing tab.": "✓ inclus · ✗ non disponible sur ce forfait. Vous pouvez mettre à niveau un numéro plus tard depuis son onglet Facturation.",
+"Mark these as read": "Marquer comme lus",
+"{0} marked as read": "{0} : marqué comme lu"
 }
