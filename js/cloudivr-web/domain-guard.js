@@ -6,6 +6,7 @@
 //   (the SPA fallback also keeps the URL shortener's /:id route from running on this host).
 // Unset env → no guard (other hosts are never affected).
 const fs = require('fs')
+const seo = require('./seo')
 
 const normHost = (h) => String(h || '').split(',')[0].trim().toLowerCase().split(':')[0]
 const parseDomain = (v) => String(v || '').trim().toLowerCase()
@@ -22,33 +23,19 @@ function appPathPrefix(base, domain = process.env.CLOUDIVR_WEB_DOMAIN) {
   return apex && parseDomain(base) === apex ? '' : '/cloudivr'
 }
 
-// The shared build's index.html is titled for the hosting panel; on the CloudIVR domain swap in CloudIVR's
-// title + description so tabs, search results and link previews show the right brand.
-const countryCount = () => { try { return require('./numbers').countries().length } catch (_) { return 0 } }
-const brandHead = () => {
-  const n = countryCount()
-  return [
-    '<title>CloudIVR — Virtual phone numbers, IVR &amp; AI voice agents</title>',
-    `<meta name="description" content="Virtual phone numbers${n ? ` in ${n} countries` : ''} with call forwarding, voicemail, an SMS inbox, keypad menus (IVR), bulk IVR campaigns and AI voice agents. Pay with crypto." />`,
-    '<meta property="og:title" content="CloudIVR — Virtual phone numbers, IVR &amp; AI voice agents" />',
-    '<meta property="og:description" content="Phone numbers that answer, route and call for you — keypad menus (IVR), campaigns and AI voice agents. Pay with crypto, run it from your browser." />',
-    '<meta property="og:type" content="website" />',
-    '<meta name="theme-color" content="#0a0a0a" />',
-    '<link rel="icon" type="image/png" href="/civr/brand/parrot-icon-48.png" />',
-    '<link rel="apple-touch-icon" href="/civr/brand/apple-touch-icon.png" />',
-  ].join('')
-}
-const brandHtml = (html) => {
-  const BRAND_HEAD = brandHead()
-  const out = html.replace(/<meta name="description"[^>]*>/i, '').replace(/<meta name="theme-color"[^>]*>/i, '')
-  if (/<title>[^<]*<\/title>/i.test(out)) return out.replace(/<title>[^<]*<\/title>/i, BRAND_HEAD)
-  return out.includes('</head>') ? out.replace('</head>', `${BRAND_HEAD}</head>`) : out
-}
-let cachedIndex = { file: '', mtime: 0, html: '' }
-function brandedIndex(file) {
+// The shared build's index.html is titled for the hosting panel. On the CloudIVR domain we swap in
+// CloudIVR's title/description, Open Graph + Twitter cards, JSON-LD structured data and a crawlable
+// <noscript> overview so browser tabs, search results, link previews and AI assistants (ChatGPT,
+// Claude, Perplexity…) show the right brand and can read the product without running JS. See ./seo.js.
+const brandHtml = (html) => seo.injectIndex(html, '/')
+let cachedRaw = { file: '', mtime: 0, html: '' }
+function rawIndex(file) {
   const mtime = fs.statSync(file).mtimeMs
-  if (cachedIndex.file !== file || cachedIndex.mtime !== mtime) cachedIndex = { file, mtime, html: brandHtml(fs.readFileSync(file, 'utf8')) }
-  return cachedIndex.html
+  if (cachedRaw.file !== file || cachedRaw.mtime !== mtime) cachedRaw = { file, mtime, html: fs.readFileSync(file, 'utf8') }
+  return cachedRaw.html
+}
+function brandedIndex(file, pathname = '/') {
+  return seo.injectIndex(rawIndex(file), pathname)
 }
 
 function createCloudIvrDomainGuard({ domain = process.env.CLOUDIVR_WEB_DOMAIN, buildIndex } = {}) {
@@ -66,6 +53,13 @@ function createCloudIvrDomainGuard({ domain = process.env.CLOUDIVR_WEB_DOMAIN, b
       res.set('Cache-Control', 'public, max-age=3600')
       return res.redirect(isRead ? 301 : 308, `https://${apex}${url}`)
     }
+    // ── SEO + AI-assistant discoverability files (served only on the CloudIVR domain) ──
+    if (isRead) {
+      if (p === '/robots.txt') { res.set('Cache-Control', 'public, max-age=86400'); return res.type('text/plain; charset=utf-8').send(seo.robotsTxt()) }
+      if (p === '/sitemap.xml') { res.set('Cache-Control', 'public, max-age=86400'); return res.type('application/xml; charset=utf-8').send(seo.sitemapXml()) }
+      if (p === '/llms.txt') { res.set('Cache-Control', 'public, max-age=86400'); return res.type('text/plain; charset=utf-8').send(seo.llmsTxt()) }
+      if (p === '/llms-full.txt') { res.set('Cache-Control', 'public, max-age=86400'); return res.type('text/plain; charset=utf-8').send(seo.llmsFullTxt()) }
+    }
     if (PASS_EXACT.has(p) || PASS_PREFIXES.some(x => p.startsWith(x)) || STATIC_EXT.test(p)) return next()
     if (!isRead) return next()
     if (p === '/cloudivr' || p.startsWith('/cloudivr/')) {
@@ -74,7 +68,7 @@ function createCloudIvrDomainGuard({ domain = process.env.CLOUDIVR_WEB_DOMAIN, b
     }
     if (buildIndex && fs.existsSync(buildIndex)) {
       res.set('Cache-Control', 'no-cache')
-      return res.type('html').send(brandedIndex(buildIndex))
+      return res.type('html').send(brandedIndex(buildIndex, p))
     }
     return next()
   }
