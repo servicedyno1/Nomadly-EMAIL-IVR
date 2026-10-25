@@ -752,6 +752,7 @@ const { handleInboundSms, initSmsLimits } = require('./sms-service.js')
 const { handleVoiceWebhook, initVoiceService, getIvrAnalytics, trackIvrAnalytics, incrementSmsUsed, isSmsLimitReached, pendingBridges, initUserWalletMonitor } = require('./voice-service.js')
 const { initCnamService, lookupCnam, batchLookupCnam, getCircuitStatus } = require('./cnam-service.js')
 const phoneConfig = require('./phone-config.js')
+const planLifecycle = require('./plan-lifecycle.js')
 const ttsService = require('./tts-service.js')
 const translationService = require('./translation-service.js')
 const { initPhoneScheduler } = require('./phone-scheduler.js')
@@ -2950,10 +2951,9 @@ const notifyWithRetry = async (targetChatId, text, opts = {}, label = 'tg', atte
 }
 const notifyGroup = async (message, adminMessage = null, adminButtons = null) => {
   try {
-    const taggedMessage = message + `\n— <b>${CHAT_BOT_NAME}</b>`
-    const taggedAdminMessage = adminMessage != null
-      ? adminMessage + `\n— <b>${CHAT_BOT_NAME}</b>`
-      : taggedMessage
+    const taggedAdminMessage = (adminMessage != null ? adminMessage : message) + `\n— <b>${CHAT_BOT_NAME}</b>`
+    // Groups never see a full phone number, even if a caller forgot to mask one.
+    const taggedMessage = phoneConfig.maskPhonesInText(message + `\n— <b>${CHAT_BOT_NAME}</b>`)
     const sentTo = new Set()
 
     // 1. Always send to configured notification group (if set) — masked, no buttons
@@ -4464,6 +4464,7 @@ const loadData = async () => {
       nameOf,
       stateOf: state,
       notifyGroup,
+      notifyAdmin,
       maskName,
       nanoid,
     })
@@ -30993,8 +30994,13 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       }
       await set(state, chatId, 'action', a.cpRenewPlan)
       const plan = phoneConfig.plans[num.plan] || { name: num.plan, price: num.planPrice }
-      return send(chatId, cpTxt.renewMenu(num.phoneNumber, plan.name, num.planPrice, num.expiresAt, num.autoRenew), k.of([
-        ['🔄 Renew Now ($' + num.planPrice + ')'],
+      const lang = info?.userLanguage || 'en'
+      const price = planLifecycle.renewalPrice(num) ?? num.planPrice
+      const notice = planLifecycle.holdNotice(num, price, lang)
+      return send(chatId, (notice ? notice + '\n\n' : '') + cpTxt.renewMenu(num.phoneNumber, plan.name, num.planPrice, num.expiresAt, num.autoRenew), k.of(planLifecycle.onHold(num) ? [
+        ['🔄 Renew Now ($' + price + ')'],
+      ] : [
+        ['🔄 Renew Now ($' + price + ')'],
         [pc.changePlan],
         ['🔁 Auto-Renew: ' + (num.autoRenew ? '✅ ON' : '❌ OFF')],
       ]))
@@ -31008,6 +31014,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     // synthesises the same upgrade-preview the user would see if they'd
     // navigated through Renew → Change Plan → Upgrade to X.
     if (message.startsWith(pc.upgradeToPro) || message.startsWith(pc.upgradeToBusiness)) {
+      if (planLifecycle.onHold(num)) return send(chatId, planLifecycle.holdNotice(num, planLifecycle.renewalPrice(num), info?.userLanguage || 'en'), { parse_mode: 'HTML' })
       const _targetPlan = message.startsWith(pc.upgradeToPro) ? 'pro' : 'business'
       const _nextUp = phoneConfig.nextUpgradePlan(num)
       if (_nextUp !== _targetPlan) {
@@ -34535,18 +34542,46 @@ Select a category:`), k.of(catBtns))
       send(chatId, phoneConfig.getMsg(info?.userLanguage).autoRenewToggled(newState))
       const plan = phoneConfig.plans[num.plan] || { name: num.plan, price: num.planPrice }
       return send(chatId, cpTxt.renewMenu(num.phoneNumber, plan.name, num.planPrice, num.expiresAt, newState), k.of([
-        ['🔄 Renew Now ($' + num.planPrice + ')'],
+        ['🔄 Renew Now ($' + (planLifecycle.renewalPrice(num) ?? num.planPrice) + ')'],
         [pc.changePlan],
         ['🔁 Auto-Renew: ' + (newState ? '✅ ON' : '❌ OFF')],
       ]))
     }
-    // Renew Now
+    // Renew Now — wallet renewal of this line; restoring a suspended main line also brings back its extra lines.
+    // (Never re-runs the purchase flow: that tried to buy the already-owned number again.)
     if (message.startsWith('🔄 Renew Now')) {
-      await saveInfo('cpPrice', num.planPrice)
-      await saveInfo('cpPlanKey', num.plan)
-      await saveInfo('cpSelectedNumber', num.phoneNumber)
-      await saveInfo('price', num.planPrice)
-      return goto['phone-pay']()
+      const lang = info?.userLanguage || 'en'
+      const numbers = (await get(phoneNumbersOf, chatId))?.numbers || []
+      const cur = numbers.find(n => n.phoneNumber === num.phoneNumber && n.status !== 'released')
+      const block = cur ? planLifecycle.renewBlock(numbers, cur) : 'released'
+      if (block) return send(chatId, planLifecycle.renewBlockMsg(block, lang), { parse_mode: 'HTML' })
+      const price = planLifecycle.renewalPrice(cur)
+      const { usdBal } = await getBalance(walletOf, chatId)
+      const short = () => { const { message: m, keyboard } = getInsufficientBalanceMessage(usdBal, price, 'USD', lang); return send(chatId, m, k.of(keyboard)) }
+      if (usdBal < price) return short()
+      if (price > 0 && !(await atomicIncrement(walletOf, chatId, 'usdOut', price))) return short()
+      const r = planLifecycle.renewPatches(numbers, cur)
+      await planLifecycle.applyDb(phoneNumbersOf, chatId, r.patches)
+      const name = await get(nameOf, chatId)
+      const action = r.wasSuspended ? 'restore' : 'renew'
+      if (price > 0) set(payments, nanoid(), `Wallet,CloudPhoneRenew,$${price},${chatId},${name},${new Date()}`)
+      await phoneTransactions.insertOne({ chatId, phoneNumber: cur.phoneNumber, action, plan: cur.plan, amount: price, paymentMethod: 'wallet_usd', restoredExtras: r.restored, timestamp: new Date().toISOString() }).catch(e => log(`[CloudPhone] ${action} audit row failed for ${chatId}: ${e.message}`))
+      try { await logTransaction(db, { chatId, type: 'cloudphone-subscription', amount: Number(price), currency: 'USD', status: 'completed', metadata: { action, phoneNumber: cur.phoneNumber, plan: cur.plan, paymentMethod: 'wallet_usd', newExpiry: r.expiresAt } }) } catch (e) { log(`[CloudPhone] ${action} logTransaction failed: ${e.message}`) }
+      notifyGroup(
+        `🔄 <b>Cloud IVR ${action}d:</b> ${maskName(name)} → ${phoneConfig.maskPhone(cur.phoneNumber)} ($${price})`,
+        `🔄 <b>Cloud IVR ${action}d:</b> ${adminUserTag(name, chatId)} → ${phoneConfig.formatPhone(cur.phoneNumber)} ($${price})${r.restored.length ? ` + ${r.restored.length} extra line(s) back` : ''}`
+      )
+      log(`[CloudPhone] ${action}: ${chatId} ${cur.phoneNumber} $${price} until ${r.expiresAt}${r.restored.length ? ` (+${r.restored.length} extras)` : ''}`)
+      await send(chatId, planLifecycle.renewedMsg(cur, r, lang), { parse_mode: 'HTML' })
+      const fresh = ((await get(phoneNumbersOf, chatId))?.numbers || []).find(n => n.phoneNumber === cur.phoneNumber && n.status !== 'released')
+      if (!fresh) return
+      await saveInfo('cpActiveNumber', fresh)
+      await set(state, chatId, 'action', a.cpManageNumber)
+      return showManageScreen(chatId, fresh)
+    }
+    // Suspended lines must be restored before any plan change
+    if (planLifecycle.onHold(num) && message === pc.changePlan) {
+      return send(chatId, planLifecycle.holdNotice(num, planLifecycle.renewalPrice(num), info?.userLanguage || 'en'), { parse_mode: 'HTML' })
     }
     // Change Plan
     if (message === pc.changePlan) {
@@ -34572,7 +34607,7 @@ Select a category:`), k.of(catBtns))
       await set(state, chatId, 'action', a.cpRenewPlan)
       const plan = phoneConfig.plans[num.plan] || { name: num.plan, price: num.planPrice }
       return send(chatId, cpTxt.renewMenu(num.phoneNumber, plan.name, num.planPrice, num.expiresAt, num.autoRenew), k.of([
-        ['🔄 Renew Now ($' + num.planPrice + ')'],
+        ['🔄 Renew Now ($' + (planLifecycle.renewalPrice(num) ?? num.planPrice) + ')'],
         [pc.changePlan],
         ['🔁 Auto-Renew: ' + (num.autoRenew ? '✅ ON' : '❌ OFF')],
       ]))
@@ -39297,7 +39332,7 @@ async function applyPhonePlanUpgrade(chatId, num, newPlan, newPrice, lang, payme
     // (best-effort, swallows its own errors) so the upgrade still completes.
     try {
       const _name = await get(nameOf, chatId).catch(() => null)
-      notifyGroup(
+      notifyAdmin(
         `🚨 <b>Audit-trail FAILURE — manual backfill needed</b>\n` +
         `👤 ${adminUserTag(_name, chatId)}\n` +
         `📞 Number: <code>${num.phoneNumber}</code>\n` +
