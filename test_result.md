@@ -9,6 +9,21 @@
 #====================================================================================================
 
 #====================================================================================================
+# CURRENT TASK (2026-10-25b) — CloudIVR: stale-tab update fix (bug) + 3CX features REPORT-ONLY test round (preview)
+#====================================================================================================
+current_task_2026_10_25_update_banner_and_3cx: |
+  Bug (owner): "the text trigger feature isn't appearing on production". RCA (prod nginx logs): prod release 6c52894b
+  (live ~15:58Z) DOES contain Text Triggers; the owner's tab was loaded 14:44Z (old bundle main.691d7aa2.js, 0 "Text Triggers")
+  and never reloaded — SPA page changes never re-download code. Fix (frontend only): src/cloudivr/update.js —
+  UpdateWatcher (CloudIvrApp) re-reads cp('/app') HTML every 5 min / on focus / on page change (≥60 s apart), compares
+  /static/js/main.<hash>.js with the running one; newer → UpdateBanner in Shell ("A new version of CloudIVR is ready."
+  Refresh now / Later) + auto-reload on the next pathname change when no unsaved form (guard.anyDirty) and no browser-phone
+  call (rtc.call); at most one auto-reload per build per tab (sessionStorage civr.updateReloadedFor). Dev builds have no hash
+  → QA simulates with sessionStorage civr.devRunningBuild / civr.devLatestBuild. FR/ES strings added.
+  3CX features (Text Triggers, Ring groups, AI summaries, Call-event webhooks, Install app): owner rule = simulated only,
+  REPORT problems, do NOT change code. Brief: memory/CLOUDIVR_3CX_FEATURES_2026-06.md.
+
+#====================================================================================================
 # CURRENT TASK (2026-10-24c) — CloudIVR: Task 1 checks + AI call recordings + Google Calendar booking (preview only)
 #====================================================================================================
 current_task_2026_10_24_ai_booking_recording: |

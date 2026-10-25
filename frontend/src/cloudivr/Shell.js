@@ -33,6 +33,7 @@ import SupportChat from './SupportChat';
 import AdminSuggestions from './pages/AdminSuggestions';
 import Help from './pages/Help';
 import { CrashGuard, CrashProbe, OfflineBanner } from './safety';
+import { UpdateBanner } from './update';
 import { UnsavedGuard, confirmLeave } from './guard';
 import { Shortcuts, helpFor } from './shortcuts';
 
@@ -138,6 +139,7 @@ export default function Shell() {
         <div className="flex-1 min-w-0">
           <PreviewBanner show={catalog?.dryRun} livePayments={catalog?.livePayments} />
           <OfflineBanner />
+          <UpdateBanner />
           <TopBar summary={summary} onPhone={() => setPhoneOpen(o => !o)} />
           <PrivateBanner />
           <main className="px-4 md:px-8 pt-8 md:pt-10 pb-40 lg:pb-12 max-w-7xl mx-auto" data-testid="app-main">
