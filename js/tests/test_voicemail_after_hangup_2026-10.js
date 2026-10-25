@@ -94,6 +94,28 @@ const hook = (event_type, payload) => voice.handleVoiceWebhook({ body: { data: {
   }
   await phoneNumbersOf.updateOne({ _id: chat }, { $unset: { 'val.numbers.0.sipUsername': '', 'val.numbers.0.telnyxSipUsername': '' } })
 
+  // ── 2c. Call recording ON (Business) → voicemail: the greeting-only call recording is stopped and dropped, the voicemail
+  //        gets its own recording with the beep, and is logged once with the voicemail file ──
+  await phoneNumbersOf.updateOne({ _id: chat }, { $set: { 'val.numbers.0.plan': 'business', 'val.numbers.0.features.recording': true } })
+  const cc5 = 'v3:inbound-rec-vm-5'
+  calls.length = 0
+  await hook('call.initiated', { call_control_id: cc5, direction: 'incoming', from: '+14155550555', to: num, connection_id: 'x' })
+  await hook('call.answered', { call_control_id: cc5, from: '+14155550555', to: num })
+  await waitFor(() => voice.activeCalls?.[cc5]?.phase === 'voicemail_greeting')
+  ok('C00', 'setup: call recording started at answer', calls.some(c => c[0] === 'record' && c[1] === cc5 && !c[2]?.playBeep), JSON.stringify(calls.filter(c => c[1] === cc5).map(c => c[0])))
+  await hook('call.speak.ended', { call_control_id: cc5 })
+  await waitFor(() => calls.some(c => c[0] === 'record' && c[1] === cc5 && c[2]?.playBeep))
+  const i5stop = calls.findIndex(c => c[0] === 'stopRecording' && c[1] === cc5), i5beep = calls.findIndex(c => c[0] === 'record' && c[1] === cc5 && c[2]?.playBeep)
+  ok('C01', 'greeting-only call recording stopped before the voicemail recording (with beep) starts', i5stop >= 0 && i5beep > i5stop, JSON.stringify(calls.filter(c => c[1] === cc5)))
+  await hook('call.recording.saved', { call_control_id: cc5, recording_urls: { mp3: 'https://rec.invalid/greeting-only.mp3' }, duration_secs: 8 })
+  await hook('call.hangup', { call_control_id: cc5, hangup_cause: 'normal_clearing', duration_secs: 30 })
+  await hook('call.recording.saved', { call_control_id: cc5, recording_urls: { mp3: 'https://rec.invalid/vm5.mp3' }, duration_secs: 15 })
+  await waitFor(async () => !!(await phoneLogs.findOne({ recordingUrl: 'https://rec.invalid/vm5.mp3' })))
+  const v5 = await phoneLogs.find({ from: '+14155550555' }).toArray()
+  ok('C02', 'only the voicemail is logged (greeting-only file dropped)', v5.length === 1 && v5[0].type === 'voicemail' && v5[0].recordingUrl === 'https://rec.invalid/vm5.mp3', JSON.stringify(v5))
+  ok('C03', 'greeting-only file was not sent to the owner', !sent.some(s => /greeting-only/.test(s.x)))
+  await phoneNumbersOf.updateOne({ _id: chat }, { $set: { 'val.numbers.0.plan': 'pro', 'val.numbers.0.features.recording': false } })
+
   // ── 3. Ring group: the answered call is logged as forwarded to the phone that answered ──
   await phoneNumbersOf.updateOne({ _id: chat }, { $set: { 'val.numbers.0.features.ringGroup': { enabled: true, members: ['+14155550201', '+14155550202'], ringTimeout: 20, fallback: 'message', message: 'x' }, 'val.numbers.0.features.voicemail.enabled': false } })
   const cc3 = 'v3:inbound-rg-3'

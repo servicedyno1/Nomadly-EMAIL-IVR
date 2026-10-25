@@ -260,3 +260,8 @@ The new layout differs from the old in-place `/opt/nomadly/app-main` checkout. O
 - Voicemail-after-hangup fix, promo exclusion for web accounts (auto-promo, admin broadcast, marketplace, /gift5all, reset-keyboards,
   notify.js backstop), AI call outcome prompt. Signatures still enforced after each restart. Old promo rows deleted on prod (4).
 - ⚠️ Still not on GitHub → owner must "Save to GitHub"; then add TELNYX_PUBLIC_KEY to wl / voodoo / proshop backend.env.
+
+## 2026-10-25 19:41–20:00Z
+- TELNYX_PUBLIC_KEY in ALL brand envs (app-main, app-wl, app-voodoo, app-proshop); backups backend.env.bak.telnyxsig.<ts>.
+- Workspace deploy 291899e → app-main-b :5100 (voicemail single greeting + beep, Inbox badges). ⚠️ Save to GitHub again for brands.
+

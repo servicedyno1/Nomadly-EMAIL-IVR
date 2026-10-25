@@ -1245,3 +1245,14 @@ calls and SIP are simulated; inbound calls use a pretend-call simulator).
   js/tests/test_voicemail_after_hangup_2026-10.js 9/9 (fails 6/9 without the fix). Same fix covers call recordings.
 - AI call outcome labels: summary prompt now defines each outcome (a simple answered question → "other", not "no_conversation").
 - Minor (not fixed): the voicemail recording includes the second half of the greeting ("Please leave a message after the tone").
+
+## 2026-10-25 ~19:30–20:05Z — cleaner voicemails, brands protected, Inbox unread badges
+- VOICEMAIL: unanswered SIP/phone-app ring → noAnswerFallback answered and handleCallAnswered routed AGAIN → greeting twice,
+  second recorded. Fixed (origSession._fallbackRouting). Voicemail recording starts with Telnyx play_beep (voicemail only).
+  Call recording ON → greeting-only call recording stopped + dropped (_dropNextRecording). Sandbox test 18/18.
+- BRANDS: TELNYX_PUBLIC_KEY added to wl/voodoo/proshop (scripts/ops/enable_telnyx_sig_brand.sh: 0 live calls, forged → 403,
+  real signed leg accepted). ALL 4 brands enforce Telnyx signatures.
+- INBOX: unreadByKind in GET /notifications; POST /notifications/read {kind}; filter pills show unread badges (99+ cap);
+  "Mark these as read (n)" per filter. fr/es. iteration_140 + own checks (390px, fr, es, topbar 36→19).
+- Deployed to app-main 20261025T195841Z-291899e. Brands get voicemail/inbox changes after the next "Save to GitHub".
+

@@ -4341,6 +4341,12 @@ async function handleSpeakEnded(payload) {
   if (session.phase === 'voicemail_greeting') {
     session.phase = 'voicemail_recording'
     log(`[Voice] Starting voicemail recording for ${session.num.phoneNumber}`)
+    // Call recording ON: nobody answered, so that recording holds only the greeting — stop it (its file is dropped) so the
+    // voicemail gets its own recording with the beep instead of a rejected second record_start.
+    if (session.isRecording) {
+      session._dropNextRecording = true
+      await _telnyxApi.stopRecording(callControlId).catch(() => {})
+    }
     await _telnyxApi.startRecording(callControlId, 'single', 'mp3', { playBeep: true }) // the greeting promises "the tone"
 
     setTimeout(async () => {
@@ -4361,6 +4367,7 @@ async function handleRecordingSaved(payload) {
   const callControlId = payload.call_control_id
   const session = activeCalls[callControlId] || _endedRecordingSessions.get(callControlId)
   if (!session) return
+  if (session._dropNextRecording) { session._dropNextRecording = false; return } // greeting-only call recording (see voicemail start)
   _endedRecordingSessions.delete(callControlId)
 
   const recordingUrl = payload.recording_urls?.mp3 || payload.public_recording_urls?.mp3 || payload.recording_urls?.wav
