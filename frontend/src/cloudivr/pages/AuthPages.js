@@ -55,7 +55,7 @@ function SidePanel({ signup }) {
           <ol className="mt-6 flex flex-col gap-6" data-testid="auth-next-steps">
             {NEXT_STEPS.map((s, i) => (
               <li key={s} className="flex items-center gap-4 font-display text-3xl font-bold">
-                <span className="w-10 h-10 rounded-full border border-[#34d399]/50 text-[#34d399] font-mono text-base flex items-center justify-center shrink-0">{i + 1}</span>{s}
+                <span className="w-10 h-10 rounded-full border border-[#818cf8]/50 text-[#818cf8] font-mono text-base flex items-center justify-center shrink-0">{i + 1}</span>{s}
               </li>
             ))}
           </ol>
@@ -126,8 +126,8 @@ export function AuthPage({ mode }) {
     <AuthFrame signup={signup} testid={signup ? 'signup-page' : 'login-page'} title={signup ? 'Create your free account' : 'Welcome back'}
       sub={signup ? 'Free to create. Next you pick a number and pay with crypto or your wallet.' : 'Sign in to manage your numbers.'}>
       {mfa ? <TwoFactorStep mfa={mfa} remember={remember} onDone={done} onBack={() => setMfa(null)} /> : <>
-      {plan && <div className="flex items-center gap-2 text-sm text-[#34d399] mb-6" data-testid="auth-chosen-plan"><Check className="w-4 h-4" /><span><span className="capitalize">{plan}</span> plan picked — you’ll choose your number next.</span></div>}
-      {signup && refCode && <div className="flex items-center gap-2 text-sm text-[#34d399] mb-6" data-testid="auth-referral-note"><Check className="w-4 h-4" />A friend invited you — you get a welcome credit after your first number.</div>}
+      {plan && <div className="flex items-center gap-2 text-sm text-[#818cf8] mb-6" data-testid="auth-chosen-plan"><Check className="w-4 h-4" /><span><span className="capitalize">{plan}</span> plan picked — you’ll choose your number next.</span></div>}
+      {signup && refCode && <div className="flex items-center gap-2 text-sm text-[#818cf8] mb-6" data-testid="auth-referral-note"><Check className="w-4 h-4" />A friend invited you — you get a welcome credit after your first number.</div>}
       <GoogleButton dest={dest} signup={signup} refCode={refCode} onMfa={setMfa} />
       <form onSubmit={submit} className="space-y-4">
         {signup && <Field label="Name (optional)"><input className="civr-input" value={f.name} onChange={set('name')} placeholder="Jane Doe" autoComplete="name" data-testid="auth-name-input" /></Field>}
@@ -140,8 +140,8 @@ export function AuthPage({ mode }) {
         <button className="civr-btn civr-btn-primary w-full" disabled={busy} data-testid="auth-submit-button">{busy && <Loader2 className="w-4 h-4 animate-spin" />}{signup ? 'Create free account' : 'Sign in'}</button>
       </form>
       <div className="flex justify-between text-sm mt-6 text-[#a1a1aa]">
-        {signup ? <Link to={cp(`/login${q}`)} className="hover:text-[#34d399] py-2" data-testid="auth-switch-link">Have an account? Sign in</Link>
-          : <><Link to={cp(`/signup${q}`)} className="hover:text-[#34d399] py-2" data-testid="auth-switch-link">Create account</Link><Link to={cp('/forgot')} className="hover:text-[#34d399] py-2" data-testid="auth-forgot-link">Forgot password?</Link></>}
+        {signup ? <Link to={cp(`/login${q}`)} className="hover:text-[#818cf8] py-2" data-testid="auth-switch-link">Have an account? Sign in</Link>
+          : <><Link to={cp(`/signup${q}`)} className="hover:text-[#818cf8] py-2" data-testid="auth-switch-link">Create account</Link><Link to={cp('/forgot')} className="hover:text-[#818cf8] py-2" data-testid="auth-forgot-link">Forgot password?</Link></>}
       </div>
       </>}
     </AuthFrame>
@@ -164,7 +164,7 @@ export function ForgotPage() {
           <button className="civr-btn civr-btn-primary w-full" disabled={busy} data-testid="forgot-submit-button">Send reset link</button>
         </form>
       )}
-      <Link to={cp('/login')} className="block text-sm text-[#a1a1aa] hover:text-[#34d399] mt-6 py-2" data-testid="forgot-back-link">Back to sign in</Link>
+      <Link to={cp('/login')} className="block text-sm text-[#a1a1aa] hover:text-[#818cf8] mt-6 py-2" data-testid="forgot-back-link">Back to sign in</Link>
     </AuthFrame>
   );
 }

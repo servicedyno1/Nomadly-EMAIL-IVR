@@ -12,12 +12,12 @@ const useStart = () => { const { account } = useCivrAuth(); return (plan) => (ac
 
 function PlanCard({ p, hot, start }) {
   return (
-    <div className={`${hot ? 'civr-l-card civr-l-dark' : 'civr-l-card-cream'} civr-l-tilt p-8 flex flex-col`} data-testid={`civr-plan-card-${p.id}`}>
-      <div className="flex items-center justify-between"><div className="civr-l-h text-4xl">{p.name}</div>{p.recommended && <RecommendedBadge tone="landing" testid={`pricing-recommended-${p.id}`} />}</div>
-      <div className="civr-l-h text-6xl mt-6" data-testid={`pricing-price-${p.id}`}>{usd(p.price)}<span className="text-base font-sans normal-case tracking-normal font-medium opacity-60">/mo</span></div>
-      <div className={`text-sm mt-2 ${hot ? 'civr-l-muted' : 'text-black/60'}`} data-testid={`pricing-allowance-${p.id}`}>{`${p.minutes} incoming minutes · ${p.sms} SMS included each month`}</div>
-      <div className="mt-6 flex-1"><PlanFeatures plan={p} tone={hot ? 'dark' : 'cream'} testid={`pricing-feature-${p.id}`} /></div>
-      <Link to={start(p.id)} className={`civr-l-btn mt-8 w-full ${hot ? '' : 'civr-l-btn-ink'}`} data-testid={`pricing-choose-${p.id}`}><Slide>Choose {p.name}</Slide></Link>
+    <div className={`civr-l-card-cream p-8 flex flex-col ${hot ? '!border-[#6366f1] ring-1 ring-[#6366f1] shadow-[0_24px_48px_-24px_rgba(79,70,229,.35)]' : ''}`} data-testid={`civr-plan-card-${p.id}`}>
+      <div className="flex items-center justify-between gap-2"><div className="text-lg font-semibold text-slate-900">{p.name}</div>{p.recommended && <RecommendedBadge tone="landing" testid={`pricing-recommended-${p.id}`} />}</div>
+      <div className="civr-l-h text-5xl text-slate-900 mt-6" data-testid={`pricing-price-${p.id}`}>{usd(p.price)}<span className="text-base font-medium tracking-normal text-slate-500">/mo</span></div>
+      <div className="text-sm text-slate-500 mt-2" data-testid={`pricing-allowance-${p.id}`}>{`${p.minutes} incoming minutes · ${p.sms} SMS included each month`}</div>
+      <div className="mt-6 pt-6 border-t civr-l-rule flex-1"><PlanFeatures plan={p} tone="cream" testid={`pricing-feature-${p.id}`} /></div>
+      <Link to={start(p.id)} className={`civr-l-btn mt-8 w-full ${hot ? '' : 'civr-l-btn-ghost'}`} data-testid={`pricing-choose-${p.id}`}><Slide>Choose {p.name}</Slide></Link>
     </div>
   );
 }
@@ -30,10 +30,10 @@ export function Pricing({ catalog }) {
   return (
     <section id="pricing" className="civr-l-cream scroll-mt-16 border-t civr-l-rule" data-testid="pricing-section">
       <div className="max-w-7xl mx-auto px-6 md:px-8 py-24">
-        <SectionHead n="05" label="Pricing" title="Monthly per number. Cancel any time." sub="Free to sign up. Pay for a number with crypto or from your wallet. Auto-renew keeps it yours — switch it off whenever you like." />
-        <div className="grid md:grid-cols-3 gap-4 mt-14">{plans.map((p, i) => <PlanCard key={p.id} p={p} hot={hasRec ? p.recommended : i === 1} start={start} />)}</div>
+        <SectionHead label="Pricing" title="Monthly per number. Cancel any time." sub="Free to sign up. Pay for a number with crypto or from your wallet. Auto-renew keeps it yours — switch it off whenever you like." />
+        <div className="grid md:grid-cols-3 gap-4 mt-12 items-stretch">{plans.map((p, i) => <PlanCard key={p.id} p={p} hot={hasRec ? p.recommended : i === 1} start={start} />)}</div>
         {r && (
-          <p className="text-sm text-black/60 mt-8 max-w-3xl" data-testid="pricing-extra-usage">
+          <p className="text-sm text-slate-500 mt-8 max-w-3xl" data-testid="pricing-extra-usage">
             {`Extra usage is paid from your wallet: incoming minutes over your plan ${money(r.overagePerMin)}/min, SMS over your plan ${money(r.overagePerSms)} each, calls forwarded to a phone ${money(r.forwardingPerMin)}/min. Outgoing calls — browser phone, softphone, IVR and AI agent calls — are billed per minute from your wallet and show their price before you start. Extra numbers cost from ${usd(catalog?.extraNumber?.price || 25)}/month each and share the plan's minutes and SMS.`}
           </p>
         )}
@@ -67,14 +67,14 @@ export function faqItems(c) {
 
 export function Faq({ catalog }) {
   return (
-    <section id="faq" className="civr-l-dark scroll-mt-16" data-testid="faq-section">
+    <section id="faq" className="civr-l-cream civr-l-soft scroll-mt-16 border-t civr-l-rule" data-testid="faq-section">
       <div className="max-w-7xl mx-auto px-6 md:px-8 py-24 grid lg:grid-cols-12 gap-12">
-        <div className="lg:col-span-4"><SectionHead n="06" label="FAQ" title="Questions before you buy" /></div>
+        <div className="lg:col-span-4"><SectionHead label="FAQ" title="Questions before you buy" /></div>
         <div className="lg:col-span-8 border-t civr-l-rule" data-testid="faq-list">
           {faqItems(catalog).map(([q, a], i) => (
             <details key={q} className="border-b civr-l-rule group" data-testid={`faq-item-${i}`}>
-              <summary className="flex items-center justify-between gap-4 cursor-pointer py-6 min-h-[56px] text-lg font-semibold hover:text-[#00E3AA] transition-colors" data-testid={`faq-question-${i}`}>{q}<Plus className="civr-faq-chevron w-5 h-5 shrink-0" /></summary>
-              <p className="pb-6 text-sm civr-l-muted max-w-2xl" data-testid={`faq-answer-${i}`}>{a}</p>
+              <summary className="flex items-center justify-between gap-4 cursor-pointer py-6 min-h-[56px] text-base md:text-lg font-semibold text-slate-900 hover:text-[#4f46e5] transition-colors" data-testid={`faq-question-${i}`}>{q}<Plus className="civr-faq-chevron w-5 h-5 shrink-0 text-slate-400" /></summary>
+              <p className="pb-6 text-sm text-slate-600 max-w-2xl" data-testid={`faq-answer-${i}`}>{a}</p>
             </details>
           ))}
         </div>
@@ -87,15 +87,18 @@ export function FinalCta({ catalog }) {
   const start = useStart();
   const from = startPrice(catalog);
   return (
-    <section className="bg-[#00E3AA] text-[#0A0D0E] relative overflow-hidden" data-testid="final-cta">
-      <div className="max-w-7xl mx-auto px-6 md:px-8 py-20 md:py-24 flex flex-col md:flex-row md:items-end gap-8">
-        <div className="flex-1">
-          <h2 className="civr-l-h text-5xl sm:text-6xl lg:text-7xl max-w-3xl">Your number could be answering calls in minutes.</h2>
-          <p className="text-base mt-5 font-medium opacity-70">Free to sign up{from ? ` · Numbers from ${from}/month` : ''} · No contracts</p>
-        </div>
-        <div className="flex flex-wrap gap-3">
-          <a href="#try" className="civr-l-btn civr-l-btn-ghost !border-[#0A0D0E] hover:!bg-[#0A0D0E]/10 hover:!text-[#0A0D0E]" data-testid="final-cta-try-button"><Slide>Try a free call</Slide></a>
-          <Link to={start()} className="civr-l-btn civr-l-btn-ink" data-testid="final-cta-button"><Slide>Get your number</Slide><ArrowRight className="w-4 h-4" /></Link>
+    <section className="civr-l-cream py-24" data-testid="final-cta">
+      <div className="max-w-7xl mx-auto px-6 md:px-8">
+        <div className="civr-l-dark relative overflow-hidden rounded-3xl px-8 py-16 md:px-16 flex flex-col md:flex-row md:items-end gap-8">
+          <div className="absolute inset-0 civr-l-gridbg opacity-60" />
+          <div className="relative flex-1">
+            <h2 className="civr-l-h text-3xl sm:text-4xl lg:text-5xl max-w-2xl">Your number could be answering calls in minutes.</h2>
+            <p className="text-base mt-4 civr-l-muted">Free to sign up{from ? ` · Numbers from ${from}/month` : ''} · No contracts</p>
+          </div>
+          <div className="relative flex flex-wrap gap-3">
+            <a href="#try" className="civr-l-btn civr-l-btn-ghost" data-testid="final-cta-try-button"><Slide>Try a free call</Slide></a>
+            <Link to={start()} className="civr-l-btn" data-testid="final-cta-button"><Slide>Get your number</Slide><ArrowRight className="w-4 h-4" /></Link>
+          </div>
         </div>
       </div>
     </section>
@@ -104,13 +107,13 @@ export function FinalCta({ catalog }) {
 
 export function Footer({ catalog }) {
   const links = [['#coverage', 'Coverage', 'coverage'], ['#try', 'Free test call', 'try'], ['#pricing', 'Pricing', 'pricing'], ['#faq', 'FAQ', 'faq']];
-  const link = 'text-sm civr-l-muted hover:text-[#00E3AA] py-3 transition-colors';
+  const link = 'text-sm text-slate-500 hover:text-[#4f46e5] py-3 transition-colors';
   return (
-    <footer className="civr-l-dark border-t civr-l-rule" data-testid="landing-footer">
+    <footer className="civr-l-cream border-t civr-l-rule" data-testid="landing-footer">
       <div className="max-w-7xl mx-auto px-6 md:px-8 py-12 flex flex-col md:flex-row md:items-center gap-6">
         <div className="mr-auto">
-          <div className="font-display text-3xl font-extrabold flex items-center gap-2.5" data-testid="landing-footer-logo"><Wordmark accent="#00E3AA" iconClass="w-10 h-10" /></div>
-          <div className="text-xs civr-l-muted mt-2" data-testid="footer-copyright">© {new Date().getFullYear()} CloudIVR · Virtual numbers, IVR, SIP and AI voice agents</div>
+          <div className="font-display text-2xl font-extrabold text-slate-900 flex items-center gap-2" data-testid="landing-footer-logo"><Wordmark accent="#059669" iconClass="w-8 h-8" /></div>
+          <div className="text-xs text-slate-500 mt-2" data-testid="footer-copyright">© {new Date().getFullYear()} CloudIVR · Virtual numbers, IVR, SIP and AI voice agents</div>
         </div>
         <nav className="flex flex-wrap items-center gap-x-6">
           {links.map(([href, label, id]) => <a key={id} href={href} className={link} data-testid={`footer-link-${id}`}>{label}</a>)}

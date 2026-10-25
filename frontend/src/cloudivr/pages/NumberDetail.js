@@ -19,10 +19,13 @@ import { planFor } from '../PlanFeatures';
 import { usePrivacy } from '../privacy';
 import { confirmLeave } from '../guard';
 
+// Tabs grouped (overview · what callers get · messages · account); a thin divider separates each group.
 const TABS = [
-  ['overview', 'Overview', null, OverviewTab], ['forwarding', 'Forwarding', 'callForwarding', ForwardingTab], ['ringgroup', 'Ring group', 'ringGroup', RingGroupTab], ['browser', 'Browser ring', 'textRelay', BrowserRingTab], ['hours', 'Hours', null, HoursTab], ['ivr', 'Keypad menu', 'ivr', IvrTab], ['ai', 'AI voice agent', 'aiAgent', AiAgentTab],
-  ['voicemail', 'Voicemail', 'voicemail', VoicemailTab], ['sms', 'SMS', null, SmsTab], ['triggers', 'Text Triggers', 'textTriggers', TextTriggersTab], ['sip', 'SIP', 'sipCredentials', SipTab],
-  ['recording', 'Recording', 'callRecording', RecordingTab], ['logs', 'Logs', null, LogsTab], ['billing', 'Billing', null, BillingTab],
+  ['overview', 'Overview', null, OverviewTab, 0],
+  ['forwarding', 'Forwarding', 'callForwarding', ForwardingTab, 1], ['ringgroup', 'Ring group', 'ringGroup', RingGroupTab, 1], ['browser', 'Browser ring', 'textRelay', BrowserRingTab, 1], ['hours', 'Hours', null, HoursTab, 1], ['ivr', 'Keypad menu', 'ivr', IvrTab, 1], ['ai', 'AI voice agent', 'aiAgent', AiAgentTab, 1],
+  ['voicemail', 'Voicemail', 'voicemail', VoicemailTab, 1], ['recording', 'Recording', 'callRecording', RecordingTab, 1],
+  ['sms', 'SMS', null, SmsTab, 2], ['triggers', 'Text Triggers', 'textTriggers', TextTriggersTab, 2],
+  ['sip', 'SIP', 'sipCredentials', SipTab, 3], ['logs', 'Logs', null, LogsTab, 3], ['billing', 'Billing', null, BillingTab, 3],
 ];
 
 export default function NumberDetail() {
@@ -39,7 +42,7 @@ export default function NumberDetail() {
   const [, label, gate, Comp] = TABS.find(t => t[0] === tab) || TABS[0];
   return (
     <div data-testid="number-detail-page">
-      <Link to={cp('/app/numbers')} className="inline-flex items-center gap-2 min-h-[44px] text-sm text-[#a1a1aa] hover:text-[#34d399] mb-3" data-testid="number-detail-back-link"><ArrowLeft className="w-4 h-4" />All numbers</Link>
+      <Link to={cp('/app/numbers')} className="inline-flex items-center gap-2 min-h-[44px] text-sm text-[#a1a1aa] hover:text-[#818cf8] mb-3" data-testid="number-detail-back-link"><ArrowLeft className="w-4 h-4" />All numbers</Link>
       <div className="flex flex-col md:flex-row md:items-end gap-4 justify-between mb-8 civr-rise">
         <div>
           <div className="civr-label">{n.countryName || n.country} · {n.type?.replace('_', '-')} · {n.planName}</div>
@@ -52,9 +55,12 @@ export default function NumberDetail() {
         </div>
       </div>
       <TabStrip active={tab} testid="number-tabstrip">
-        {TABS.map(([id, name]) => (
-          <button key={id} role="tab" aria-selected={tab === id} onClick={async () => { if (id !== tab && await confirmLeave()) setParams({ tab: id }, { replace: true }); }} data-testid={`number-tab-${id}`}
-            className={`px-3 py-3 text-sm font-medium border-b-2 -mb-px transition-colors shrink-0 ${tab === id ? 'border-[#34d399] text-[#34d399]' : 'border-transparent text-[#a1a1aa] hover:text-white'}`}>{name}</button>
+        {TABS.map(([id, name, , , g], i) => (
+          <React.Fragment key={id}>
+          {i > 0 && g !== TABS[i - 1][4] && <span aria-hidden="true" className="w-px h-5 self-center bg-[#2a2a2a] mx-2 shrink-0" data-testid={`number-tab-divider-${g}`} />}
+          <button role="tab" aria-selected={tab === id} onClick={async () => { if (id !== tab && await confirmLeave()) setParams({ tab: id }, { replace: true }); }} data-testid={`number-tab-${id}`}
+            className={`px-3 py-3 text-sm font-medium border-b-2 -mb-px transition-colors shrink-0 ${tab === id ? 'border-[#818cf8] text-[#818cf8]' : 'border-transparent text-[#a1a1aa] hover:text-white'}`}>{name}</button>
+          </React.Fragment>
         ))}
       </TabStrip>
       <div data-testid={`number-tabpanel-${tab}`}>

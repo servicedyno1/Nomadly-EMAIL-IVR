@@ -6,9 +6,9 @@ import { Field, Toggle } from '../../ui';
 function Option({ on, onClick, icon: Icon, title, sub, testid }) {
   return (
     <button type="button" onClick={onClick} aria-pressed={on} className={`civr-card text-left p-4 flex gap-4 items-start ${on ? 'civr-trace' : ''}`} data-testid={testid}>
-      <Icon className={`w-5 h-5 mt-0.5 shrink-0 ${on ? 'text-[#34d399]' : 'text-[#a1a1aa]'}`} />
+      <Icon className={`w-5 h-5 mt-0.5 shrink-0 ${on ? 'text-[#818cf8]' : 'text-[#a1a1aa]'}`} />
       <div className="flex-1"><div className="font-semibold">{title}</div><div className="text-xs text-[#a1a1aa] mt-1">{sub}</div></div>
-      {on && <Check className="w-4 h-4 text-[#34d399] shrink-0" />}
+      {on && <Check className="w-4 h-4 text-[#818cf8] shrink-0" />}
     </button>
   );
 }
@@ -27,7 +27,7 @@ export function CouponField({ total, coupon, setCoupon, initialCode }) {
   useEffect(() => { if (initialCode && !coupon && !tried.current) { tried.current = true; apply(initialCode); } });
   const today = data?.coupon && !data.coupon.used ? data.coupon : null;
   if (coupon) return (
-    <div className="flex items-center gap-2 text-sm text-[#34d399] mt-4" data-testid="checkout-coupon-applied"><Ticket className="w-4 h-4" /><span className="font-mono">{coupon.code}</span> · {coupon.discount}% off
+    <div className="flex items-center gap-2 text-sm text-[#818cf8] mt-4" data-testid="checkout-coupon-applied"><Ticket className="w-4 h-4" /><span className="font-mono">{coupon.code}</span> · {coupon.discount}% off
       <button type="button" onClick={() => setCoupon(null)} className="p-1 text-[#a1a1aa] hover:text-white" aria-label="Remove coupon" data-testid="checkout-coupon-remove"><X className="w-3.5 h-3.5" /></button></div>
   );
   return (
@@ -35,7 +35,7 @@ export function CouponField({ total, coupon, setCoupon, initialCode }) {
       <div className="flex gap-2 max-w-sm"><input className="civr-input font-mono uppercase !h-10" value={code} onChange={e => setCode(e.target.value)} placeholder="Coupon code" data-testid="checkout-coupon-input" />
         <button type="button" className="civr-btn civr-btn-ghost civr-btn-sm" disabled={busy || !code.trim()} onClick={() => apply(code)} data-testid="checkout-coupon-apply">{busy ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Apply'}</button></div>
       {err && <div className="text-xs text-[#fb7185]" data-testid="checkout-coupon-error">{err}</div>}
-      {today && <button type="button" onClick={() => apply(today.code)} className="text-xs text-[#34d399] flex items-center gap-1.5" data-testid="checkout-coupon-today"><Ticket className="w-3.5 h-3.5" />Today’s coupon <span className="font-mono">{today.code}</span> · {today.discount}% off — tap to use</button>}
+      {today && <button type="button" onClick={() => apply(today.code)} className="text-xs text-[#818cf8] flex items-center gap-1.5" data-testid="checkout-coupon-today"><Ticket className="w-3.5 h-3.5" />Today’s coupon <span className="font-mono">{today.code}</span> · {today.discount}% off — tap to use</button>}
     </div>
   );
 }

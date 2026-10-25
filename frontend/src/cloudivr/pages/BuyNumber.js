@@ -48,7 +48,7 @@ function Results({ res, pick, setPick }) {
       {res.numbers.map((n, i) => (
         <button key={n.phoneNumber} type="button" onClick={() => setPick(n)} data-testid={`buy-result-${i}`}
           className={`civr-card text-left p-4 ${pick?.phoneNumber === n.phoneNumber ? 'civr-trace' : ''}`}>
-          <div className="flex items-center justify-between"><span className="font-mono text-lg">{n.phoneNumber}</span>{pick?.phoneNumber === n.phoneNumber && <Check className="w-4 h-4 text-[#34d399]" />}</div>
+          <div className="flex items-center justify-between"><span className="font-mono text-lg">{n.phoneNumber}</span>{pick?.phoneNumber === n.phoneNumber && <Check className="w-4 h-4 text-[#818cf8]" />}</div>
           <div className="text-xs text-[#a1a1aa] mt-1 truncate">{n.region || 'Any region'}</div>
           <div className="flex gap-2 mt-4">
             {n.capabilities.voice && <span className="civr-pill">voice</span>}{n.capabilities.sms && <span className="civr-pill">sms</span>}{n.capabilities.fax && <span className="civr-pill">fax</span>}
@@ -68,7 +68,7 @@ function PlanPicker({ plans, value, onChange, surcharge }) {
           className={`civr-card text-left p-6 flex flex-col ${value === p.id ? 'civr-trace' : ''}`}>
           <div className="flex items-center justify-between gap-2 min-h-[28px]">
             <span className="font-display text-2xl font-bold">{p.name}</span>
-            <span className="flex items-center gap-2">{p.recommended && <RecommendedBadge testid={`buy-plan-${p.id}-recommended`} />}{value === p.id && <Check className="w-5 h-5 text-[#34d399]" />}</span>
+            <span className="flex items-center gap-2">{p.recommended && <RecommendedBadge testid={`buy-plan-${p.id}-recommended`} />}{value === p.id && <Check className="w-5 h-5 text-[#818cf8]" />}</span>
           </div>
           <div className="font-mono text-2xl mt-2">{money(p.price + (surcharge || 0))}<span className="text-xs text-[#a1a1aa]"> /month</span></div>
           <div className="text-xs text-[#a1a1aa] mt-1">{p.minutes} min · {p.sms} SMS included</div>
@@ -85,7 +85,7 @@ function OpenOrder({ order }) {
     <Link to={cp(`/app/orders/${enc(order.id)}`)} className="civr-card civr-card-link p-4 mb-4 text-sm flex items-center gap-3" data-testid="buy-open-order-banner">
       <Clock className="w-4 h-4 text-[#fbbf24] shrink-0" />
       <span className="flex-1">Crypto payment {order.status === 'underpaid' ? 'came in short' : 'pending'} for <span className="font-mono">{order.phoneNumber}</span> ({money(order.price)})</span>
-      <span className="text-[#34d399]">View →</span>
+      <span className="text-[#818cf8]">View →</span>
     </Link>
   );
 }
@@ -145,15 +145,16 @@ export default function BuyNumber() {
       {extraOf ? <PageHeader label="Extra number" title="Add an extra number" sub={`Shares the plan of ${pv.phone(extraOf)} — ${money(extra?.price || 25)}/month, same features, and uses its minutes and SMS. Pay from your wallet or with crypto.${extra ? ` ${extra.used} of ${extra.limit} used.` : ''}`} testid="buy-header" />
         : <PageHeader label="Buy" title="Get a new number" sub={`${catalog.countries.length} countries. Pay with crypto or your wallet, renews monthly.`} testid="buy-header" />}
       {open?.orders?.[0] && <OpenOrder order={open.orders[0]} />}
-      {saved?.pick && <div className="civr-card p-4 mb-4 text-sm flex items-center gap-2" data-testid="buy-resume-note"><Check className="w-4 h-4 text-[#34d399]" />Welcome back — {saved.pick.phoneNumber} and the {planObj?.name} plan are still selected below.</div>}
-      {fromParam && <div className="text-sm text-[#34d399] mb-4 flex items-center gap-2" data-testid="buy-plan-hint"><Check className="w-4 h-4" />{planObj.name} plan picked — search for a number below.</div>}
+      {saved?.pick && <div className="civr-card p-4 mb-4 text-sm flex items-center gap-2" data-testid="buy-resume-note"><Check className="w-4 h-4 text-[#818cf8]" />Welcome back — {saved.pick.phoneNumber} and the {planObj?.name} plan are still selected below.</div>}
+      {fromParam && <div className="text-sm text-[#818cf8] mb-4 flex items-center gap-2" data-testid="buy-plan-hint"><Check className="w-4 h-4" />{planObj.name} plan picked — search for a number below.</div>}
+      <Label>1 · Find a number</Label>
       <SearchForm catalog={catalog} q={q} setQ={setQ} onSearch={search} busy={busy === 'search'} />
       <div className="mt-4"><ErrorNote error={error} testid="buy-error" /></div>
-      {res && <div className="mt-8"><Label>1 · Pick a number</Label><Results res={res} pick={pick} setPick={setPick} /></div>}
+      {res && <div className="mt-8"><Label>2 · Pick a number</Label><Results res={res} pick={pick} setPick={setPick} /></div>}
       {pick && (
         <div className="mt-8 civr-rise">
           {!extraOf && <>
-          <Label>2 · Pick a plan</Label>
+          <Label>3 · Pick a plan and pay</Label>
           <p className="text-xs text-[#a1a1aa] -mt-1 mb-3" data-testid="buy-plan-help">✓ included · ✗ not on that plan. You can upgrade a number later from its Billing tab.</p>
           <PlanPicker plans={catalog.plans} value={planObj?.id} onChange={setPlan} surcharge={pick.surcharge} />
           </>}

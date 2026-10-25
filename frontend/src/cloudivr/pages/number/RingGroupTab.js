@@ -62,7 +62,7 @@ export default function RingGroupTab({ num, reload }) {
   };
   return (
     <Card title="Ring group" sub="Ring several phones at once — your mobile, a colleague, the front desk. Whoever answers first gets the caller." bind={u.bind}>
-      <div className="flex items-center justify-between"><span className="text-sm flex items-center gap-2"><Users className="w-4 h-4 text-[#34d399]" />Ring all these phones for every call</span><Toggle checked={f.enabled} onChange={v => setF({ ...f, enabled: v })} testid="ring-group-enabled-toggle" /></div>
+      <div className="flex items-center justify-between"><span className="text-sm flex items-center gap-2"><Users className="w-4 h-4 text-[#818cf8]" />Ring all these phones for every call</span><Toggle checked={f.enabled} onChange={v => setF({ ...f, enabled: v })} testid="ring-group-enabled-toggle" /></div>
       {ai && f.enabled && <OneAnswerNote testid="ring-group-ai-note">Your AI voice agent answers this number first. The ring group only runs if the agent can’t take the call.</OneAnswerNote>}
       {f.enabled && !ai && <p className="text-xs text-[#a1a1aa]" data-testid="ring-group-priority-note">While it’s on, every call rings the group — forwarding and the keypad menu are skipped. Your Hours schedule still applies.</p>}
       <Members list={f.members} onChange={v => setF({ ...f, members: v })} />

@@ -1,17 +1,16 @@
 import React from 'react';
 
 // Shared building blocks for the landing page.
-export const ART = { callflow: '/civr/callflow.webp', campaign: '/civr/campaign.webp', globe: '/civr/globe.webp' };
 
 // Button label that slides up to a copy of itself on hover.
 export const Slide = ({ children }) => <span className="civr-l-slide"><span>{children}</span><span aria-hidden="true">{children}</span></span>;
 
-export function SectionHead({ n, label, title, sub, testid }) {
+export function SectionHead({ label, title, sub, testid }) {
   return (
     <div className="max-w-3xl" data-testid={testid}>
-      <div className="civr-l-eyebrow">[ {n} ] {label}</div>
-      <h2 className="civr-l-h text-4xl sm:text-5xl lg:text-6xl mt-5">{title}</h2>
-      {sub && <p className="text-base md:text-lg civr-l-muted mt-5 max-w-2xl">{sub}</p>}
+      <div className="civr-l-eyebrow">{label}</div>
+      <h2 className="civr-l-h text-3xl sm:text-4xl lg:text-5xl mt-4">{title}</h2>
+      {sub && <p className="text-base md:text-lg civr-l-muted mt-4 max-w-2xl">{sub}</p>}
     </div>
   );
 }

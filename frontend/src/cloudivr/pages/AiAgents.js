@@ -35,7 +35,7 @@ function AgentRows({ agents }) {
       <NoMatches s={s} testid="ai-agents-no-matches" />
       {s.list.map((a, i) => (
         <Link key={a.id} to={cp(`/app/ai-agents/${a.id}`)} className="civr-card civr-card-link p-6 flex items-center gap-4" data-testid={`ai-agent-row-${i}`}>
-          <div className="w-11 h-11 rounded-full bg-[#34d399]/15 flex items-center justify-center"><Bot className="w-5 h-5 text-[#34d399]" /></div>
+          <div className="w-11 h-11 rounded-full bg-[#818cf8]/15 flex items-center justify-center"><Bot className="w-5 h-5 text-[#818cf8]" /></div>
           <div className="flex-1 min-w-0"><div className="font-semibold truncate">{a.name}{a.businessName ? ` · ${a.businessName}` : ''}</div><div className="text-xs text-[#a1a1aa]"><span className="capitalize">{a.voice}</span> · {LANG_NAME[a.language] || a.language} · {a.numbers.length ? `answers ${a.numbers.map(n => pv.phone(n)).join(', ')}` : 'not on a number yet'}</div></div>
           <ChevronRight className="w-4 h-4 text-[#a1a1aa]" />
         </Link>
@@ -55,7 +55,7 @@ export function AiAgents() {
       </PageHeader>
       {data && <PlanNote canUse={data.canUse} rate={data.rate} recordRate={data.recordRate} />}
       <TabStrip active={tab} className="mb-6" testid="ai-tabstrip">
-        {TABS.map(([id, name]) => <button key={id} role="tab" aria-selected={tab === id} onClick={() => setParams({ tab: id }, { replace: true })} data-testid={`ai-tab-${id}`} className={`px-4 py-3 text-sm font-medium border-b-2 -mb-px transition-colors shrink-0 ${tab === id ? 'border-[#34d399] text-[#34d399]' : 'border-transparent text-[#a1a1aa] hover:text-white'}`}>{name}</button>)}
+        {TABS.map(([id, name]) => <button key={id} role="tab" aria-selected={tab === id} onClick={() => setParams({ tab: id }, { replace: true })} data-testid={`ai-tab-${id}`} className={`px-4 py-3 text-sm font-medium border-b-2 -mb-px transition-colors shrink-0 ${tab === id ? 'border-[#818cf8] text-[#818cf8]' : 'border-transparent text-[#a1a1aa] hover:text-white'}`}>{name}</button>)}
       </TabStrip>
       <ErrorNote error={error} />
       {tab === 'calls' ? <AiCalls /> : tab === 'dnc' ? <DncList /> : loading && !data ? <Spinner /> : <AgentRows agents={data?.agents || []} />}
@@ -72,7 +72,7 @@ export function AiAgentEdit() {
   const agent = isNew ? EMPTY_AGENT : data?.agent;
   return (
     <div data-testid="ai-agent-edit-page">
-      <Link to={cp('/app/ai-agents')} className="inline-flex items-center gap-2 min-h-[44px] text-sm text-[#a1a1aa] hover:text-[#34d399] mb-3" data-testid="ai-agent-back-link"><ArrowLeft className="w-4 h-4" />All agents</Link>
+      <Link to={cp('/app/ai-agents')} className="inline-flex items-center gap-2 min-h-[44px] text-sm text-[#a1a1aa] hover:text-[#818cf8] mb-3" data-testid="ai-agent-back-link"><ArrowLeft className="w-4 h-4" />All agents</Link>
       <PageHeader label="AI agent" title={isNew ? 'New agent' : agent?.name || 'Agent'} testid="ai-agent-edit-header" />
       <ErrorNote error={error} />
       {!isNew && loading && !agent ? <Spinner /> : agent && (

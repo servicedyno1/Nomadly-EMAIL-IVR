@@ -117,7 +117,7 @@ export function Locked({ feature, phone, need }) {
 export function Toggle({ checked, onChange, testid, disabled }) {
   return (
     <button type="button" role="switch" aria-checked={checked} disabled={disabled} onClick={() => onChange(!checked)} data-testid={testid}
-      className={`relative w-11 h-6 shrink-0 rounded-full transition-colors before:absolute before:content-[''] before:-inset-x-1 before:-inset-y-2.5 ${checked ? 'bg-[#34d399]' : 'bg-[#2a2a2a]'} disabled:opacity-40`}>
+      className={`relative w-11 h-6 shrink-0 rounded-full transition-colors before:absolute before:content-[''] before:-inset-x-1 before:-inset-y-2.5 ${checked ? 'bg-[#818cf8]' : 'bg-[#2a2a2a]'} disabled:opacity-40`}>
       <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform ${checked ? 'translate-x-5' : ''}`} />
     </button>
   );
@@ -148,13 +148,13 @@ export function KeyPicker({ value, onChange, testid }) {
     <div className="flex flex-wrap gap-1.5" data-testid={testid}>
       {keys.map(k => (
         <button key={k} type="button" onClick={() => toggle(k)} data-testid={`${testid}-${k === '*' ? 'star' : k === '#' ? 'hash' : k}`}
-          className={`w-11 h-11 rounded-lg font-mono text-sm border transition-colors ${value.includes(k) ? 'border-[#34d399] text-[#34d399] bg-[#34d399]/10' : 'border-[#2a2a2a] text-[#a1a1aa] hover:text-white'}`}>{k}</button>
+          className={`w-11 h-11 rounded-lg font-mono text-sm border transition-colors ${value.includes(k) ? 'border-[#818cf8] text-[#818cf8] bg-[#818cf8]/10' : 'border-[#2a2a2a] text-[#a1a1aa] hover:text-white'}`}>{k}</button>
       ))}
     </div>
   );
 }
 
-export const statusPill = (s) => (['active', 'running', 'completed', 'credited'].includes(s) ? 'civr-pill civr-pill-on' : ['paused', 'scheduled', 'created', 'waiting', 'collecting'].includes(s) ? 'civr-pill civr-pill-warn' : ['cancelled', 'suspended', 'expired', 'failed', 'released'].includes(s) ? 'civr-pill civr-pill-bad' : 'civr-pill');
+export const statusPill = (s) => (['active', 'running', 'completed', 'credited'].includes(s) ? 'civr-pill civr-pill-ok' : ['paused', 'scheduled', 'created', 'waiting', 'collecting'].includes(s) ? 'civr-pill civr-pill-warn' : ['cancelled', 'suspended', 'expired', 'failed', 'released'].includes(s) ? 'civr-pill civr-pill-bad' : 'civr-pill');
 
 // Backup numbers rung in order when the main number is busy or doesn't answer (comma separated, up to 4).
 export function BackupsField({ value, onChange, testid }) {

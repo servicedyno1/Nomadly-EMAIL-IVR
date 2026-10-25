@@ -10,7 +10,7 @@ export const REPLIES = [
   'In a meeting. I’ll call you back later.',
   'I’m deaf or hard of hearing — please text me instead.',
 ];
-const CHIP = 'rounded-full border border-white/15 px-3 py-1.5 text-xs text-left text-[#e4e4e7] hover:border-[#34d399] hover:text-white transition-colors disabled:opacity-40';
+const CHIP = 'rounded-full border border-white/15 px-3 py-1.5 text-xs text-left text-[#e4e4e7] hover:border-[#818cf8] hover:text-white transition-colors disabled:opacity-40';
 
 // Ready-made replies (one tap sends) + a short custom text (one SMS).
 export function QuickReply({ onSend, busy, max = 160, testid, sendLabel = 'Send text' }) {
@@ -46,7 +46,7 @@ export function useTextBack(id, reply, onDone) {
 
 export function TextBackDone({ reply, testid }) {
   const pv = usePrivacy();
-  return <p className="mt-1.5 text-xs text-[#34d399] break-words" data-testid={testid}>{`Texted back: “${pv.text(reply.text, 'Message hidden')}”${reply.status === 'preview' ? ' (preview — not sent)' : ''}`}</p>;
+  return <p className="mt-1.5 text-xs text-[#818cf8] break-words" data-testid={testid}>{`Texted back: “${pv.text(reply.text, 'Message hidden')}”${reply.status === 'preview' ? ' (preview — not sent)' : ''}`}</p>;
 }
 
 export const TextBackButton = ({ onClick, open, testid }) => (

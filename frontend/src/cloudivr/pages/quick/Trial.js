@@ -22,7 +22,7 @@ export function TrialCall({ onUsed }) {
   };
   return (
     <form onSubmit={go} className="civr-card p-6 max-w-2xl space-y-6" data-testid="quick-trial-form">
-      <div className="flex items-start gap-3"><Gift className="w-6 h-6 text-[#34d399] shrink-0" />
+      <div className="flex items-start gap-3"><Gift className="w-6 h-6 text-[#818cf8] shrink-0" />
         <div><div className="font-display text-2xl font-bold">Try one call free</div><p className="text-sm text-[#a1a1aa] mt-1">You don’t have a calling number yet, so your first Quick IVR call is on us. It shows our demo caller ID and connects on key 1.</p></div></div>
       <Field label="Number to call" hint="With country code, e.g. +14155550100."><input className="civr-input font-mono" required value={f.to} onChange={e => setF({ ...f, to: e.target.value })} placeholder="+14155550100" data-testid="quick-trial-to-input" /></Field>
       <ScriptBox value={f.script} onChange={(s) => setF({ ...f, script: s })} testid="quick-trial-script" />

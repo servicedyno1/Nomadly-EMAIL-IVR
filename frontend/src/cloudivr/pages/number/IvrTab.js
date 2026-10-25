@@ -89,7 +89,7 @@ function TopRow({ o, onChange, onRemove, used, audios, prefix, onAudio }) {
       <RowHead o={o} set={set} onRemove={onRemove} used={used} depth={0} prefix={prefix} />
       <ActionFields o={o} set={set} audios={audios} prefix={prefix} onAudio={onAudio} />
       {o.action === 'submenu' && (
-        <div className="pl-4 border-l-2 border-[#34d399]/30 space-y-3">
+        <div className="pl-4 border-l-2 border-[#818cf8]/30 space-y-3">
           <Greeting g={sub} set={(p) => set({ subMenu: { ...sub, ...p } })} audios={audios} prefix={sp} label="Sub-menu greeting" onAudio={onAudio} />
           <OptionList list={sub.options || []} setList={(l) => set({ subMenu: { ...sub, options: l } })} prefix={sp}
             render={(so, i, u, ch, rm) => <LeafRow key={i} o={so} used={u} onChange={ch} onRemove={rm} audios={audios} prefix={`${sp}-option-${i}`} onAudio={onAudio} />} />
@@ -148,7 +148,7 @@ export default function IvrTab({ num, reload }) {
         {num.features.aiAgent?.enabled && <OneAnswerNote testid="ivr-ai-agent-note">Your AI voice agent answers this number now. Turning the keypad menu on and saving switches the AI voice agent off — a number uses one or the other.</OneAnswerNote>}
         <Greeting g={g} set={(p) => setG({ ...g, ...p })} audios={audios} prefix="ivr" onAudio={reloadAudio} />
         <p className="text-xs text-[#a1a1aa] -mt-3" data-testid="ivr-language-note">{`Callers hear typed text in ${langName}, the app's language. Change the app language to change it.`}</p>
-        {!audios.length && <div className="text-xs text-[#a1a1aa]">Want your own recordings? <Link to={cp('/app/audio')} className="text-[#34d399]" data-testid="ivr-audio-library-link">Open the audio library</Link>.</div>}
+        {!audios.length && <div className="text-xs text-[#a1a1aa]">Want your own recordings? <Link to={cp('/app/audio')} className="text-[#818cf8]" data-testid="ivr-audio-library-link">Open the audio library</Link>.</div>}
         <OptionList list={list} setList={setList} prefix="ivr"
           render={(o, i, u, ch, rm) => <TopRow key={i} o={o} used={u} onChange={ch} onRemove={rm} audios={audios} prefix={`ivr-option-${i}`} onAudio={reloadAudio} />} />
         <SaveRow dirty={u.dirty} testid="ivr-unsaved-pill"><button className="civr-btn civr-btn-primary" disabled={busy} onClick={submit} data-testid="ivr-save-button">Save keypad menu</button></SaveRow>

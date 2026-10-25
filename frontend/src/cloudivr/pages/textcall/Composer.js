@@ -47,7 +47,7 @@ export function Composer({ call, maxText = 1000, extra }) {
         <button className="civr-btn civr-btn-primary h-14 px-5 shrink-0" disabled={!live || busy || !text.trim()} data-testid="relay-send-button">{busy ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}<span className="hidden sm:inline">Speak</span></button>
       </form>
       <div className="flex items-center justify-between gap-3">
-        <button type="button" onClick={() => setPad(p => !p)} disabled={!live} className="inline-flex items-center gap-1.5 text-sm text-[#a1a1aa] hover:text-[#34d399] disabled:opacity-40" aria-expanded={pad} data-testid="relay-keypad-toggle"><Grid3x3 className="w-4 h-4" />{pad ? 'Hide keypad' : 'Keypad for phone menus'}</button>
+        <button type="button" onClick={() => setPad(p => !p)} disabled={!live} className="inline-flex items-center gap-1.5 text-sm text-[#a1a1aa] hover:text-[#818cf8] disabled:opacity-40" aria-expanded={pad} data-testid="relay-keypad-toggle"><Grid3x3 className="w-4 h-4" />{pad ? 'Hide keypad' : 'Keypad for phone menus'}</button>
         {extra}
       </div>
       {pad && live && <Keypad id={call.id} />}

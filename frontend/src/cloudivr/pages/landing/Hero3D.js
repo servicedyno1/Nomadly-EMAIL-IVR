@@ -7,8 +7,8 @@ import * as THREE from 'three';
 // Written with createElement (no JSX): the dev visual-edits babel plugin adds <span> wrappers and x-* props to JSX,
 // which are invalid inside an R3F <Canvas> and trigger the dev error overlay.
 const h = React.createElement;
-const GREEN = '#00E3AA';
-const BLUE = '#3434EF';
+const GREEN = '#6366f1';
+const BLUE = '#8b5cf6';
 const CREAM = '#FEFDF5';
 const ORIGIN = new THREE.Vector3(0, 0, 0);
 

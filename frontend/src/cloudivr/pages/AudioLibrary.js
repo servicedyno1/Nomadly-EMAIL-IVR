@@ -23,7 +23,7 @@ function UploadCard({ onDone }) {
   };
   return (
     <div className="civr-card p-6 space-y-4" data-testid="audio-upload-card">
-      <div className="flex items-center gap-2 font-display text-2xl font-bold"><Upload className="w-5 h-5 text-[#34d399]" />Upload</div>
+      <div className="flex items-center gap-2 font-display text-2xl font-bold"><Upload className="w-5 h-5 text-[#818cf8]" />Upload</div>
       <input ref={ref} type="file" accept="audio/*,.mp3,.wav,.ogg,.m4a" className="hidden" onChange={pick} data-testid="audio-upload-file-input" />
       <button type="button" className="civr-btn civr-btn-ghost w-full" disabled={busy} onClick={() => ref.current?.click()} data-testid="audio-upload-choose-button"><Music className="w-4 h-4" /><span className="truncate">{file ? file.name : 'Choose audio file'}</span></button>
       <Field label="Name"><input className="civr-input" value={name} onChange={e => setName(e.target.value)} placeholder="Main greeting" data-testid="audio-upload-name-input" /></Field>
@@ -68,7 +68,7 @@ function AudioRow({ a, i, reload, hide }) {
     <div className="civr-card p-4 flex flex-col md:flex-row md:items-center gap-3" data-testid={`audio-row-${i}`}>
       <div className="md:w-56 min-w-0">
         {edit !== null ? (
-          <div className="flex gap-1"><input className="civr-input !h-9" value={edit} onChange={e => setEdit(e.target.value)} data-testid={`audio-row-${i}-rename-input`} /><button onClick={rename} className="p-2 text-[#34d399]" data-testid={`audio-row-${i}-rename-save`}><Check className="w-4 h-4" /></button><button onClick={() => setEdit(null)} className="p-2 text-[#a1a1aa]" data-testid={`audio-row-${i}-rename-cancel`}><X className="w-4 h-4" /></button></div>
+          <div className="flex gap-1"><input className="civr-input !h-9" value={edit} onChange={e => setEdit(e.target.value)} data-testid={`audio-row-${i}-rename-input`} /><button onClick={rename} className="p-2 text-[#818cf8]" data-testid={`audio-row-${i}-rename-save`}><Check className="w-4 h-4" /></button><button onClick={() => setEdit(null)} className="p-2 text-[#a1a1aa]" data-testid={`audio-row-${i}-rename-cancel`}><X className="w-4 h-4" /></button></div>
         ) : <div className="font-semibold truncate" data-testid={`audio-row-${i}-name`}>{a.name}</div>}
         <div className="text-xs text-[#a1a1aa] mt-0.5">{a.source === 'tts' ? 'Text to speech' : 'Upload'} · {day(a.createdAt)}</div>
       </div>

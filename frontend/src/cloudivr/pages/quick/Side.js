@@ -88,7 +88,7 @@ export function Presets({ onLoad, current, stamp }) {
     <Box icon={Bookmark} title="Presets" testid="quick-presets">
       {list.map((p, i) => (
         <div key={p.id} className="flex items-center gap-2 py-1.5" data-testid={`quick-preset-row-${i}`}>
-          <button type="button" className="flex-1 text-left text-sm hover:text-[#34d399] truncate" onClick={() => onLoad(p)} data-testid={`quick-preset-load-${i}`}>{p.name}</button>
+          <button type="button" className="flex-1 text-left text-sm hover:text-[#818cf8] truncate" onClick={() => onLoad(p)} data-testid={`quick-preset-load-${i}`}>{p.name}</button>
           <button type="button" className="p-1.5 text-[#a1a1aa] hover:text-[#fb7185]" onClick={() => del(p.id)} aria-label="Delete preset" data-testid={`quick-preset-delete-${i}`}><Trash2 className="w-3.5 h-3.5" /></button>
         </div>
       ))}

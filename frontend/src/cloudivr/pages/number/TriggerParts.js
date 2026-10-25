@@ -28,7 +28,7 @@ function Cond({ label, hint, checked, onChange, testid, children }) {
 
 function AgentPick({ r, set, data, t }) {
   if (!data.canAi) return <div className="text-xs text-[#fbbf24]" data-testid={`${t}-ai-locked`}>AI agent call backs are on the Business plan.</div>;
-  if (!data.agents.length) return <div className="text-xs text-[#a1a1aa]" data-testid={`${t}-ai-none`}>No AI agents yet. <Link to={cp('/app/ai-agents')} className="text-[#34d399] underline">Create one</Link>, then pick it here.</div>;
+  if (!data.agents.length) return <div className="text-xs text-[#a1a1aa]" data-testid={`${t}-ai-none`}>No AI agents yet. <Link to={cp('/app/ai-agents')} className="text-[#818cf8] underline">Create one</Link>, then pick it here.</div>;
   return (
     <Field label="Which AI agent calls">
       <select className="civr-input" value={r.agentId || ''} onChange={e => set({ agentId: e.target.value })} data-testid={`${t}-agent-select`}>
@@ -46,7 +46,7 @@ export function RuleCard({ r, i, n, set, move, remove, data }) {
     <div className={`border rounded-2xl p-5 space-y-5 transition-colors ${r.enabled ? 'border-[#2a2a2a] bg-[#0e0e0e]' : 'border-[#1a1a1a] opacity-70'}`} data-testid={t}>
       <div className="flex flex-wrap items-center gap-3">
         <span className="font-mono text-xs text-[#a1a1aa]">{String(i + 1).padStart(2, '0')}</span>
-        <span className="flex items-center gap-2 font-semibold"><Icon className="w-4 h-4 text-[#34d399]" />{name}</span>
+        <span className="flex items-center gap-2 font-semibold"><Icon className="w-4 h-4 text-[#818cf8]" />{name}</span>
         <div className="ml-auto flex items-center gap-1">
           <button type="button" className="civr-btn civr-btn-ghost civr-btn-sm !px-2" disabled={i === 0} onClick={() => move(-1)} aria-label="Move up" data-testid={`${t}-up`}><ArrowUp className="w-4 h-4" /></button>
           <button type="button" className="civr-btn civr-btn-ghost civr-btn-sm !px-2" disabled={i === n - 1} onClick={() => move(1)} aria-label="Move down" data-testid={`${t}-down`}><ArrowDown className="w-4 h-4" /></button>
@@ -58,7 +58,7 @@ export function RuleCard({ r, i, n, set, move, remove, data }) {
       <div className="grid grid-cols-1 min-[480px]:grid-cols-3 gap-1.5" role="radiogroup">
         {ACTIONS.map(([k, label, I]) => (
           <button key={k} type="button" role="radio" aria-checked={r.action === k} onClick={() => set({ action: k })} data-testid={`${t}-action-${k}`}
-            className={`flex flex-row items-center min-[480px]:flex-col min-[480px]:items-start gap-2 min-[480px]:gap-1 min-w-0 rounded-xl border px-3 py-2.5 min-[480px]:py-2 text-left text-xs transition-colors ${r.action === k ? 'border-[#34d399] bg-[#34d399]/10 text-[#34d399]' : 'border-[#232323] text-[#a1a1aa] hover:text-white'}`}><I className="w-4 h-4 shrink-0" /><span className="min-w-0 break-words">{label}</span></button>
+            className={`flex flex-row items-center min-[480px]:flex-col min-[480px]:items-start gap-2 min-[480px]:gap-1 min-w-0 rounded-xl border px-3 py-2.5 min-[480px]:py-2 text-left text-xs transition-colors ${r.action === k ? 'border-[#818cf8] bg-[#818cf8]/10 text-[#818cf8]' : 'border-[#232323] text-[#a1a1aa] hover:text-white'}`}><I className="w-4 h-4 shrink-0" /><span className="min-w-0 break-words">{label}</span></button>
         ))}
       </div>
       {r.action === 'message' && (

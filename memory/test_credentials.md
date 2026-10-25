@@ -173,4 +173,6 @@
   `746dbcba-5c13-43ff-8d39-6dea530f66bb`, wallet $305. Bob = Starter `+13362969163`, $450.
   Carol = `civr.carol@example.com` / `CarolTest#2026` — ONE Pro number `+15703399558`, no Business line (use for "AI campaign with no
   eligible number"), $300 minus the Pro price. All three back-dated 45 days (no welcome card). Panel `wpapps01`/`246810` re-seeded.
+- 2026-10-25 (late) pod b3710235…: dev flags appended to backend/.env (CLOUDIVR_WEB_ON, WEB_CLOUDIVR_DRY_RUN, WEB_TRYCALL_LIVE=false,
+  TWILIO_ENABLED=false). Fresh DB: Alice = Business dry-run `+13313039039`, $380. Bob = no numbers, $500. (Carol not re-created.)
 

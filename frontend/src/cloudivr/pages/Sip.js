@@ -21,7 +21,7 @@ function Guide({ domain }) {
       <ol className="space-y-3 text-sm text-[#d4d4d8] list-decimal pl-5">
         <li>Install a softphone on your computer or phone (Zoiper, Linphone or MicroSIP are free).</li>
         <li>Add a SIP account with the username and password of the number you want to use.</li>
-        <li>Server / domain: <code className="text-[#34d399]" data-testid="sip-guide-domain" data-no-translate>{domain}</code>, port 5060 (UDP or TCP) or 5061 for TLS.</li>
+        <li>Server / domain: <code className="text-[#818cf8]" data-testid="sip-guide-domain" data-no-translate>{domain}</code>, port 5060 (UDP or TCP) or 5061 for TLS.</li>
         <li>Save. When the account shows “Registered”, you can call out and answer calls to that number.</li>
       </ol>
       <div className="flex flex-col gap-3">

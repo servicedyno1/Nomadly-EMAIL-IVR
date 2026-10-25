@@ -24,8 +24,8 @@ export function GetStarted({ balance }) {
         {steps.map((x, i) => {
           const active = i === current;
           return (
-            <li key={x.id} className={`flex flex-wrap sm:flex-nowrap items-center gap-4 rounded-xl border p-4 md:p-6 ${active ? 'border-[#34d399]/40 bg-[#34d399]/5' : 'border-[#222]'}`} data-testid={`get-started-step-${x.id}`}>
-              <span className={`w-10 h-10 rounded-full flex items-center justify-center font-mono shrink-0 ${x.done ? 'bg-[#34d399] text-[#04130d]' : active ? 'border border-[#34d399] text-[#34d399]' : 'border border-[#333] text-[#a1a1aa]'}`}>{x.done ? <Check className="w-5 h-5" /> : i + 1}</span>
+            <li key={x.id} className={`flex flex-wrap sm:flex-nowrap items-center gap-4 rounded-xl border p-4 md:p-6 ${active ? 'border-[#818cf8]/40 bg-[#818cf8]/5' : 'border-[#222]'}`} data-testid={`get-started-step-${x.id}`}>
+              <span className={`w-10 h-10 rounded-full flex items-center justify-center font-mono shrink-0 ${x.done ? 'bg-[#6366f1] text-white' : active ? 'border border-[#818cf8] text-[#818cf8]' : 'border border-[#333] text-[#a1a1aa]'}`}>{x.done ? <Check className="w-5 h-5" /> : i + 1}</span>
               <div className="flex-1 min-w-0"><div className={`font-semibold ${x.done ? 'text-[#a1a1aa]' : ''}`}>{x.title}</div><div className="text-sm text-[#a1a1aa] mt-1">{x.sub}</div></div>
               {x.done && <span className="civr-pill civr-pill-on" data-testid={`get-started-${x.id}-done`}>Done</span>}
               {x.to && !x.done && <Link to={x.to} className={`civr-btn w-full sm:w-auto ${active ? 'civr-btn-primary' : 'civr-btn-ghost'}`} data-testid={`get-started-${x.id}-button`}>{x.cta}<ArrowRight className="w-4 h-4" /></Link>}
@@ -44,8 +44,8 @@ export function YourNumbers({ nums, balance }) {
   const next = nums.filter(n => n.autoRenew && n.status === 'active' && n.expiresAt).sort((a, b) => new Date(a.expiresAt) - new Date(b.expiresAt))[0];
   const shortBy = next ? Math.round(((next.planPrice || 0) - balance) * 100) / 100 : 0;
   return (
-    <div className="civr-card p-6 mt-6" data-testid="dashboard-your-numbers">
-      <div className="flex items-center justify-between mb-2"><div className="font-display text-2xl font-bold">Your numbers</div><Link to={cp('/app/numbers')} className="text-sm text-[#a1a1aa] hover:text-[#34d399] py-2" data-testid="dashboard-all-numbers-link">All numbers</Link></div>
+    <div className="civr-card p-6" data-testid="dashboard-your-numbers">
+      <div className="flex items-center justify-between mb-2"><div className="font-display text-2xl font-bold">Your numbers</div><Link to={cp('/app/numbers')} className="text-sm text-[#a1a1aa] hover:text-[#818cf8] py-2" data-testid="dashboard-all-numbers-link">All numbers</Link></div>
       {shortBy > 0 && (
         <div className="flex flex-col sm:flex-row sm:items-center gap-4 rounded-xl border border-[#fbbf24]/40 bg-[#fbbf24]/5 p-4 my-4" data-testid="dashboard-low-balance-warning">
           <AlertTriangle className="w-5 h-5 text-[#fbbf24] shrink-0" />

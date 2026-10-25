@@ -20,9 +20,9 @@ export const availablePlans = (plans) => byPrice(plans).filter(p => p.available)
 // What a plan includes (✓) and leaves out (✗). `tone`: 'app' (dark app UI), 'dark' / 'cream' (landing cards).
 export function PlanFeatures({ plan, tone = 'app', compact = false, testid }) {
   const list = plan?.webFeatures || [];
-  const on = { app: 'text-[#34d399]', dark: 'text-[#00E3AA]', cream: 'text-[#3434EF]' }[tone];
-  const offText = { app: 'text-[#a1a1aa]', dark: 'text-white/35', cream: 'text-black/35' }[tone];
-  const onText = { app: 'text-[#d4d4d8]', dark: '', cream: '' }[tone];
+  const on = { app: 'text-[#818cf8]', dark: 'text-[#6366f1]', cream: 'text-[#4f46e5]' }[tone];
+  const offText = { app: 'text-[#a1a1aa]', dark: 'text-white/35', cream: 'text-slate-400' }[tone];
+  const onText = { app: 'text-[#d4d4d8]', dark: '', cream: 'text-slate-700' }[tone];
   return (
     <ul className={`flex flex-col ${compact ? 'gap-1 text-xs' : 'gap-2 text-sm'}`} data-testid={testid}>
       {list.map(f => (
@@ -36,6 +36,6 @@ export function PlanFeatures({ plan, tone = 'app', compact = false, testid }) {
 }
 
 export function RecommendedBadge({ tone = 'app', testid }) {
-  const cls = tone === 'app' ? 'bg-[#34d399] text-[#04130d]' : 'bg-[#00E3AA] text-[#0A0D0E]';
-  return <span className={`text-xs font-mono uppercase tracking-widest px-2.5 py-1 rounded-full font-bold ${cls}`} data-testid={testid}>Recommended</span>;
+  const cls = tone === 'app' ? 'bg-[#6366f1] text-white font-mono uppercase tracking-widest font-bold' : 'border border-indigo-200 bg-indigo-50 text-[#4338ca] font-semibold';
+  return <span className={`text-xs px-2.5 py-1 rounded-full ${cls}`} data-testid={testid}>Recommended</span>;
 }

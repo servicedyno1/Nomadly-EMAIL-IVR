@@ -115,7 +115,7 @@ export default function CampaignDetail() {
   const pct = c.stats?.total ? Math.round(((c.stats.completed || 0) / c.stats.total) * 100) : 0;
   return (
     <div data-testid="campaign-detail-page">
-      <Link to={cp('/app/campaigns')} className="inline-flex items-center gap-2 min-h-[44px] text-sm text-[#a1a1aa] hover:text-[#34d399] mb-3" data-testid="campaign-back-link"><ArrowLeft className="w-4 h-4" />All campaigns</Link>
+      <Link to={cp('/app/campaigns')} className="inline-flex items-center gap-2 min-h-[44px] text-sm text-[#a1a1aa] hover:text-[#818cf8] mb-3" data-testid="campaign-back-link"><ArrowLeft className="w-4 h-4" />All campaigns</Link>
       <div className="flex flex-col md:flex-row md:items-end gap-4 justify-between mb-8">
         <div>
           <div className="civr-label">{isAi ? `AI agent conversation · ${c.agentName || ''}` : `${c.mode === 'menu' ? 'Menu' : c.mode === 'transfer' ? `Transfer to ${pv.phone(c.transferNumber)}` : 'Report key presses'} · keys ${c.activeKeys?.join(' ')}`}</div>
@@ -126,7 +126,7 @@ export default function CampaignDetail() {
       </div>
       <div className="civr-card p-6 mb-4">
         <div className="flex items-center justify-between mb-3"><span className="text-sm text-[#d4d4d8]">Progress</span><span className="font-mono text-sm" data-testid="campaign-progress">{pct}%</span></div>
-        <div className="h-2 rounded-full bg-[#1c1c1c] overflow-hidden"><div className={`h-full bg-[#34d399] transition-[width] duration-700 ${c.status === 'running' ? 'civr-pulse' : ''}`} style={{ width: `${pct}%` }} /></div>
+        <div className="h-2 rounded-full bg-[#1c1c1c] overflow-hidden"><div className={`h-full bg-[#818cf8] transition-[width] duration-700 ${c.status === 'running' ? 'civr-pulse' : ''}`} style={{ width: `${pct}%` }} /></div>
         <div className={`grid gap-4 mt-6 ${isAi ? 'grid-cols-4 md:grid-cols-7' : 'grid-cols-3 md:grid-cols-6'}`}>{(isAi ? AI_STATS : STATS).map(([k, l]) => <div key={k} data-testid={`campaign-stat-${k}`}><div className="font-mono text-2xl">{c.stats?.[k] || 0}</div><div className="text-xs text-[#a1a1aa]">{l}</div></div>)}</div>
         <div className="mt-6 flex flex-wrap gap-2"><Controls c={c} act={act} busy={busy} />
           <button className="civr-btn civr-btn-ghost civr-btn-sm" onClick={() => downloadFile(`/campaigns/${id}/report.csv`, `campaign-${String(id).slice(0, 8)}.csv`).catch(e => toast.error(e.message))} data-testid="campaign-report-download-button"><Download className="w-4 h-4" />Download CSV report</button></div>

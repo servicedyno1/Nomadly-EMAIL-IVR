@@ -36,10 +36,10 @@ function Row({ c, i }) {
   return (
     <div className="civr-card p-5" data-testid={`ai-call-row-${i}`}>
       <button className="w-full flex items-center gap-3 text-left" onClick={() => setOpen(o => !o)} data-testid={`ai-call-row-${i}-toggle`}>
-        <Icon className="w-4 h-4 text-[#34d399] shrink-0" />
+        <Icon className="w-4 h-4 text-[#818cf8] shrink-0" />
         <div className="flex-1 min-w-0">
           <div className="font-semibold truncate">{c.direction === 'test' ? `Browser test · ${c.agentName}` : `${pv.phone(c.other)} · ${c.agentName}`}</div>
-          <div className="text-xs text-[#a1a1aa] flex items-center gap-1.5">{when(c.startedAt)} · {secs(c.duration)}{c.charge ? ` · ${money(c.charge)}` : ' · free'}{c.recordingUrl && <Headphones className="w-3.5 h-3.5 text-[#34d399]" aria-label="Recorded" data-testid={`ai-call-row-${i}-recorded`} />}</div>
+          <div className="text-xs text-[#a1a1aa] flex items-center gap-1.5">{when(c.startedAt)} · {secs(c.duration)}{c.charge ? ` · ${money(c.charge)}` : ' · free'}{c.recordingUrl && <Headphones className="w-3.5 h-3.5 text-[#818cf8]" aria-label="Recorded" data-testid={`ai-call-row-${i}-recorded`} />}</div>
         </div>
         <span className={`${OUTCOME[c.outcome] || 'civr-pill'} shrink-0`} data-testid={`ai-call-row-${i}-outcome`}>{outcomeLabel(c.outcome)}</span>
         {open ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
@@ -47,9 +47,9 @@ function Row({ c, i }) {
       {c.summary && <p className="text-sm text-[#d4d4d8] mt-3" data-testid={`ai-call-row-${i}-summary`}>{pv.text(c.summary, 'Summary hidden')}</p>}
       {c.booking && (
         <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-[#d1fae5]" data-testid={`ai-call-row-${i}-booking`}>
-          <span className="inline-flex items-center gap-2"><CalendarCheck className="w-4 h-4 text-[#34d399]" />{`Booked ${c.booking.day} at ${c.booking.time}`}</span>
+          <span className="inline-flex items-center gap-2"><CalendarCheck className="w-4 h-4 text-[#818cf8]" />{`Booked ${c.booking.day} at ${c.booking.time}`}</span>
           {c.booking.name && <span className="text-[#a1a1aa]" data-no-translate>{pv.text(c.booking.name, '•••')}</span>}
-          {c.booking.link && <a href={c.booking.link} target="_blank" rel="noopener noreferrer" className="text-[#34d399] underline underline-offset-2" data-testid={`ai-call-row-${i}-booking-link`}>Open in Google Calendar</a>}
+          {c.booking.link && <a href={c.booking.link} target="_blank" rel="noopener noreferrer" className="text-[#818cf8] underline underline-offset-2" data-testid={`ai-call-row-${i}-booking-link`}>Open in Google Calendar</a>}
         </div>
       )}
       {open && <Transcript id={c.id} />}

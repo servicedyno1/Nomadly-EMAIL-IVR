@@ -22,7 +22,7 @@ function DepositCard({ dep }) {
         <div className="min-w-0 space-y-4">
           <div><div className="text-xs text-[#a1a1aa]">Send exactly</div><div className="font-mono text-2xl" data-testid="wallet-deposit-amount">{dep.amountCrypto ? `${dep.amountCrypto} ${dep.coin}` : `${money(dep.amountUsd)} in ${dep.coin}`}</div></div>
           <div><div className="text-xs text-[#a1a1aa]">To address</div>
-            <div className="flex items-center gap-2"><code className="text-sm break-all" data-testid="wallet-deposit-address">{dep.address}</code>{!preview && <button onClick={() => copy(dep.address)} className="w-11 h-11 shrink-0 flex items-center justify-center text-[#a1a1aa] hover:text-[#34d399]" aria-label="Copy address" data-testid="wallet-deposit-copy-button"><Copy className="w-4 h-4" /></button>}</div>
+            <div className="flex items-center gap-2"><code className="text-sm break-all" data-testid="wallet-deposit-address">{dep.address}</code>{!preview && <button onClick={() => copy(dep.address)} className="w-11 h-11 shrink-0 flex items-center justify-center text-[#a1a1aa] hover:text-[#818cf8]" aria-label="Copy address" data-testid="wallet-deposit-copy-button"><Copy className="w-4 h-4" /></button>}</div>
           </div>
           <p className="text-xs text-[#a1a1aa]">{dep.note}</p>
           {!preview && <p className="text-xs text-[#a1a1aa]" data-testid="wallet-deposit-polling-note">We check for your payment every 20 seconds while this page is open.</p>}
@@ -35,7 +35,7 @@ function DepositCard({ dep }) {
 function NeedBanner({ need, forNum }) {
   return (
     <div className="civr-card civr-trace p-4 md:p-6 mb-6 flex flex-col sm:flex-row sm:items-center gap-4" data-testid="wallet-resume-banner">
-      <Info className="w-5 h-5 text-[#34d399] shrink-0" />
+      <Info className="w-5 h-5 text-[#818cf8] shrink-0" />
       <div className="flex-1 text-sm">Add at least <span className="font-mono">{money(need)}</span> {forNum ? <>to buy <span className="font-mono">{forNum}</span></> : 'to cover your next renewal'}. Your balance updates here once the network confirms the deposit.</div>
       {forNum && <Link to={cp(`/app/buy?resume=1${new URLSearchParams(window.location.search).get('extra') ? `&extra=${encodeURIComponent(new URLSearchParams(window.location.search).get('extra'))}` : ''}`)} className="civr-btn civr-btn-ghost civr-btn-sm" data-testid="wallet-resume-link">Back to your number</Link>}
     </div>
@@ -94,13 +94,13 @@ function History({ list }) {
     <ul className="divide-y divide-[#1f1f1f]" data-testid="wallet-history-table">{list.map((h, i) => (
       <li key={h.id} className={CARD_ROW} data-testid={`wallet-history-${i}`}>
         <div className="min-w-0"><div className="text-sm text-[#e4e4e7] break-words">{h.description}</div><div className="text-xs text-[#a1a1aa] mt-0.5">{when(h.at)}</div></div>
-        <span className={`font-mono shrink-0 ${h.amount > 0 ? 'text-[#34d399]' : ''}`}>{signed(h)}</span>
+        <span className={`font-mono shrink-0 ${h.amount > 0 ? 'text-[#818cf8]' : ''}`}>{signed(h)}</span>
       </li>
     ))}</ul>
   );
   return (
     <table className="civr-table" data-testid="wallet-history-table"><thead><tr><th>What</th><th>Amount</th><th>When</th></tr></thead>
-      <tbody>{list.map((h, i) => <tr key={h.id} data-testid={`wallet-history-${i}`}><td className="text-xs">{h.description}</td><td className={`font-mono ${h.amount > 0 ? 'text-[#34d399]' : ''}`}>{signed(h)}</td><td className="text-xs text-[#a1a1aa]">{when(h.at)}</td></tr>)}</tbody></table>
+      <tbody>{list.map((h, i) => <tr key={h.id} data-testid={`wallet-history-${i}`}><td className="text-xs">{h.description}</td><td className={`font-mono ${h.amount > 0 ? 'text-[#818cf8]' : ''}`}>{signed(h)}</td><td className="text-xs text-[#a1a1aa]">{when(h.at)}</td></tr>)}</tbody></table>
   );
 }
 
@@ -142,7 +142,7 @@ export default function Wallet() {
       {need > 0 && <NeedBanner need={need} forNum={forNum} />}
       <div className="grid lg:grid-cols-3 gap-4">
         <div className="civr-card p-6 flex flex-col justify-between" data-testid="wallet-balance-card">
-          <div className="flex items-center justify-between"><span className="civr-label">Balance</span><WalletIcon className="w-5 h-5 text-[#34d399]" /></div>
+          <div className="flex items-center justify-between"><span className="civr-label">Balance</span><WalletIcon className="w-5 h-5 text-[#818cf8]" /></div>
           <div className="font-mono text-5xl mt-6" data-testid="wallet-balance">{money(data.balance)}</div>
           <div className="text-xs text-[#a1a1aa] mt-2">USD · credited once the network confirms your deposit</div>
         </div>

@@ -46,7 +46,7 @@ export function ConfirmHost() {
     <div className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center p-4 bg-black/70 backdrop-blur-sm" onMouseDown={(e) => { if (e.target === e.currentTarget) close(false); }} data-testid="confirm-dialog-backdrop">
       <div ref={box} role="alertdialog" aria-modal="true" aria-labelledby="civr-confirm-msg" className="civr-card !bg-[#111] w-full max-w-md p-6 civr-rise shadow-2xl shadow-black/60" data-testid="confirm-dialog">
         <div className="flex gap-3">
-          <Icon className={`w-5 h-5 shrink-0 mt-0.5 ${req.danger ? 'text-[#fb7185]' : 'text-[#34d399]'}`} />
+          <Icon className={`w-5 h-5 shrink-0 mt-0.5 ${req.danger ? 'text-[#fb7185]' : 'text-[#818cf8]'}`} />
           <div className="min-w-0">
             {req.title && <div className="font-semibold text-[#f3f4f6] mb-1" data-testid="confirm-dialog-title">{req.title}</div>}
             <p id="civr-confirm-msg" className="text-sm leading-relaxed text-[#d4d4d8]" data-testid="confirm-dialog-message">{req.message}</p>

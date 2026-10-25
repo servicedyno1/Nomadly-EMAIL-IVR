@@ -45,7 +45,7 @@ function Meter({ label, used, total, testid }) {
   return (
     <div data-testid={testid}>
       <div className="flex justify-between text-sm"><span className="text-[#d4d4d8]">{label}</span><span className="font-mono">{used} / {unlimited ? '∞' : total}</span></div>
-      <div className="h-2 rounded-full bg-[#1c1c1c] mt-2 overflow-hidden"><div className="h-full bg-[#34d399] rounded-full transition-[width] duration-700" style={{ width: `${pct}%` }} /></div>
+      <div className="h-2 rounded-full bg-[#1c1c1c] mt-2 overflow-hidden"><div className="h-full bg-[#818cf8] rounded-full transition-[width] duration-700" style={{ width: `${pct}%` }} /></div>
     </div>
   );
 }
@@ -65,7 +65,7 @@ export function OverviewTab({ num, reload }) {
       </div>
       <div className="civr-card p-6 space-y-3 text-sm" data-testid="overview-capabilities">
         <div className="font-display text-2xl font-bold mb-2">Capabilities</div>
-        {[['voice', 'Voice'], ['sms', 'SMS'], ['fax', 'Fax']].map(([c, l]) => <div key={c} className="flex justify-between"><span className="text-[#d4d4d8]">{l}</span><span className={caps[c] ? 'text-[#34d399]' : 'text-[#a1a1aa]'} data-testid={`overview-capability-${c}`}>{caps[c] ? 'Yes' : 'No'}</span></div>)}
+        {[['voice', 'Voice'], ['sms', 'SMS'], ['fax', 'Fax']].map(([c, l]) => <div key={c} className="flex justify-between"><span className="text-[#d4d4d8]">{l}</span><span className={caps[c] ? 'text-[#818cf8]' : 'text-[#a1a1aa]'} data-testid={`overview-capability-${c}`}>{caps[c] ? 'Yes' : 'No'}</span></div>)}
         <div className="flex justify-between"><span className="text-[#d4d4d8]">SIP domain</span><span className="font-mono text-xs">{num.sipDomain}</span></div>
       </div>
     </div>
@@ -168,7 +168,7 @@ function SmsCard({ num, reload }) {
     <Card title="SMS delivery" sub="Inbound texts always appear in your inbox. Add email or a webhook too (Pro and up)." bind={u.bind}>
       <Field label="Email copy (optional)"><input className="civr-input" type="email" value={f.toEmail} disabled={!num.access.smsToEmail} onChange={e => setF({ ...f, toEmail: e.target.value })} data-testid="sms-email-input" /></Field>
       <Field label="Webhook URL (optional)" hint="We POST each message as JSON."><input className="civr-input font-mono" value={f.webhookUrl} disabled={!num.access.smsWebhook} onChange={e => setF({ ...f, webhookUrl: e.target.value })} placeholder="https://" data-testid="sms-webhook-input" /></Field>
-      {!num.access.smsToEmail && <div className="text-xs text-[#fbbf24] flex flex-wrap items-center gap-2" data-testid="sms-upgrade-note">Email and webhook delivery are on the Pro plan and up. <Link to={cp(`/app/numbers/${enc(num.phoneNumber)}?tab=billing`)} className="text-[#34d399] underline" data-testid="sms-upgrade-link">Upgrade this number</Link></div>}
+      {!num.access.smsToEmail && <div className="text-xs text-[#fbbf24] flex flex-wrap items-center gap-2" data-testid="sms-upgrade-note">Email and webhook delivery are on the Pro plan and up. <Link to={cp(`/app/numbers/${enc(num.phoneNumber)}?tab=billing`)} className="text-[#818cf8] underline" data-testid="sms-upgrade-link">Upgrade this number</Link></div>}
       <SaveRow dirty={u.dirty} testid="sms-unsaved-pill"><button className="civr-btn civr-btn-primary" disabled={busy} onClick={async () => { if (await save(f)) u.reset(); }} data-testid="sms-save-button">Save SMS settings</button></SaveRow>
     </Card>
   );

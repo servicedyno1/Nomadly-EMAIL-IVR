@@ -17,8 +17,8 @@ function Article({ a, prefix, open, onToggle }) {
   const id = `${prefix}-${a.id}`;
   return (
     <div className="border-b border-[#1f1f1f] last:border-0" data-testid={id}>
-      <button type="button" aria-expanded={open} aria-controls={`${id}-body`} onClick={onToggle} className="w-full flex items-center justify-between gap-4 py-4 min-h-[52px] text-left font-semibold text-[#f3f4f6] hover:text-[#34d399] transition-colors" data-testid={`${id}-toggle`}>
-        <span>{a.q}</span><ChevronDown className={`w-4 h-4 shrink-0 transition-transform ${open ? 'rotate-180 text-[#34d399]' : 'text-[#a1a1aa]'}`} />
+      <button type="button" aria-expanded={open} aria-controls={`${id}-body`} onClick={onToggle} className="w-full flex items-center justify-between gap-4 py-4 min-h-[52px] text-left font-semibold text-[#f3f4f6] hover:text-[#818cf8] transition-colors" data-testid={`${id}-toggle`}>
+        <span>{a.q}</span><ChevronDown className={`w-4 h-4 shrink-0 transition-transform ${open ? 'rotate-180 text-[#818cf8]' : 'text-[#a1a1aa]'}`} />
       </button>
       {open && (
         <div id={`${id}-body`} className="pb-5 space-y-4 civr-rise" data-testid={`${id}-body`}>
@@ -85,7 +85,7 @@ export default function Help() {
           </> : <>
             {!!here.length && (
               <Section title={`For this page: ${TOPIC_NAMES[topic] || topic}`} items={here} prefix="page" testid="help-for-page" {...common}>
-                <button type="button" onClick={() => setParams({}, { replace: true })} className="text-xs text-[#a1a1aa] hover:text-[#34d399] inline-flex items-center gap-1 min-h-[36px]" data-testid="help-clear-topic"><X className="w-3.5 h-3.5" />Show all topics</button>
+                <button type="button" onClick={() => setParams({}, { replace: true })} className="text-xs text-[#a1a1aa] hover:text-[#818cf8] inline-flex items-center gap-1 min-h-[36px]" data-testid="help-clear-topic"><X className="w-3.5 h-3.5" />Show all topics</button>
               </Section>
             )}
             {GROUPS.map(([g, name]) => <Section key={g} title={name} items={all.filter(a => a.group === g)} prefix="help-article" testid={`help-group-${g}`} {...common} />)}

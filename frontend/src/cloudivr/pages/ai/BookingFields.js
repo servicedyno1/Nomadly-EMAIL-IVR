@@ -59,8 +59,8 @@ function Connection({ cal, reload }) {
   }
   if (cal.connected) {
     return (
-      <div className="flex flex-wrap items-center gap-3 rounded-xl border border-[#34d399]/30 bg-[#34d399]/5 px-4 py-3" data-testid="ai-agent-calendar-connected">
-        <CalendarCheck className="w-4 h-4 text-[#34d399] shrink-0" />
+      <div className="flex flex-wrap items-center gap-3 rounded-xl border border-[#818cf8]/30 bg-[#818cf8]/5 px-4 py-3" data-testid="ai-agent-calendar-connected">
+        <CalendarCheck className="w-4 h-4 text-[#818cf8] shrink-0" />
         <span className="text-sm flex-1 min-w-0 truncate">Connected to Google Calendar · <span className="font-mono" data-no-translate data-testid="ai-agent-calendar-email">{cal.email}</span></span>
         <button type="button" className="civr-btn civr-btn-ghost civr-btn-sm" onClick={disconnect} data-testid="ai-agent-calendar-disconnect-button"><Unlink className="w-4 h-4" />Disconnect</button>
       </div>
@@ -140,7 +140,7 @@ export function BookingFields({ f, set }) {
           <div className="sm:col-span-2">
             <span className="block text-[13px] font-medium text-[#d4d4d8] mb-1.5">Days callers can book</span>
             <div className="flex flex-wrap gap-2" role="group">
-              {DAYS.map(([d, label]) => <button key={d} type="button" aria-pressed={b.days.includes(d)} onClick={() => toggleDay(d)} data-testid={`ai-agent-booking-day-${d}`} className={`min-w-[52px] h-11 px-3 rounded-xl border text-sm font-medium transition-colors ${b.days.includes(d) ? 'border-[#34d399] bg-[#34d399]/10 text-[#34d399]' : 'border-[#2a2a2a] text-[#a1a1aa] hover:border-[#3a3a3a]'}`}>{label}</button>)}
+              {DAYS.map(([d, label]) => <button key={d} type="button" aria-pressed={b.days.includes(d)} onClick={() => toggleDay(d)} data-testid={`ai-agent-booking-day-${d}`} className={`min-w-[52px] h-11 px-3 rounded-xl border text-sm font-medium transition-colors ${b.days.includes(d) ? 'border-[#818cf8] bg-[#818cf8]/10 text-[#818cf8]' : 'border-[#2a2a2a] text-[#a1a1aa] hover:border-[#3a3a3a]'}`}>{label}</button>)}
             </div>
           </div>
           <Field label="From"><input type="time" step={900} className="civr-input" value={b.start} onChange={e => setB({ start: e.target.value })} data-testid="ai-agent-booking-start-input" /></Field>

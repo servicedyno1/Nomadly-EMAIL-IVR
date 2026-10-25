@@ -19,8 +19,8 @@ function Steps({ status, upgrade }) {
   return (
     <ol className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-6" data-testid="order-steps">
       {(upgrade ? UPGRADE_STEPS : STEPS).map((s, i) => (
-        <li key={s} className={`civr-card px-4 py-3 text-xs font-mono uppercase tracking-wider flex items-center gap-2 ${i <= at ? 'text-[#34d399] border-[#34d399]/40' : 'text-[#a1a1aa]'}`} data-testid={`order-step-${i}`}>
-          {i < at || at === 3 ? <Check className="w-4 h-4" /> : i === at ? <span className="w-2 h-2 rounded-full bg-[#34d399] civr-pulse" /> : <span className="w-2 h-2 rounded-full bg-[#333]" />}{s}
+        <li key={s} className={`civr-card px-4 py-3 text-xs font-mono uppercase tracking-wider flex items-center gap-2 ${i <= at ? 'text-[#818cf8] border-[#818cf8]/40' : 'text-[#a1a1aa]'}`} data-testid={`order-step-${i}`}>
+          {i < at || at === 3 ? <Check className="w-4 h-4" /> : i === at ? <span className="w-2 h-2 rounded-full bg-[#818cf8] civr-pulse" /> : <span className="w-2 h-2 rounded-full bg-[#333]" />}{s}
         </li>
       ))}
     </ol>
@@ -36,7 +36,7 @@ function Deposit({ o, busy, onCheck, onCancel, onSimulate }) {
         <div className="min-w-0 space-y-4">
           <div><div className="text-xs text-[#a1a1aa]">Send exactly</div><div className="font-mono text-2xl" data-testid="order-deposit-amount">{o.amountCrypto ? `${o.amountCrypto} ${o.coin}` : `${money(o.price)} in ${o.coin}`}</div></div>
           <div><div className="text-xs text-[#a1a1aa]">To address</div>
-            <div className="flex items-center gap-2"><code className="text-sm break-all" data-testid="order-deposit-address">{o.address}</code>{!o.preview && <button onClick={() => copy(o.address)} className="w-11 h-11 shrink-0 flex items-center justify-center text-[#a1a1aa] hover:text-[#34d399]" aria-label="Copy address" data-testid="order-copy-address-btn"><Copy className="w-4 h-4" /></button>}</div>
+            <div className="flex items-center gap-2"><code className="text-sm break-all" data-testid="order-deposit-address">{o.address}</code>{!o.preview && <button onClick={() => copy(o.address)} className="w-11 h-11 shrink-0 flex items-center justify-center text-[#a1a1aa] hover:text-[#818cf8]" aria-label="Copy address" data-testid="order-copy-address-btn"><Copy className="w-4 h-4" /></button>}</div>
           </div>
           <p className="text-xs text-[#a1a1aa]">We check for your payment every 15 seconds. You can leave this page — the number activates on its own and you’ll see it in your inbox.</p>
         </div>
@@ -54,7 +54,7 @@ function Outcome({ o, balance, busy, onFinish }) {
   const num = o.assignedNumber || o.phoneNumber;
   if (o.status === 'active' && o.kind === 'upgrade') return (
     <div className="civr-card civr-trace p-6" data-testid="order-upgrade-success">
-      <div className="flex items-center gap-2 text-[#34d399] font-semibold"><Check className="w-5 h-5" />Plan upgraded</div>
+      <div className="flex items-center gap-2 text-[#818cf8] font-semibold"><Check className="w-5 h-5" />Plan upgraded</div>
       <div className="font-mono text-3xl mt-3">{num}</div>
       <p className="text-sm text-[#a1a1aa] mt-2" data-testid="order-message">{o.message}</p>
       <Link to={cp(`/app/numbers/${enc(num)}`)} className="civr-btn civr-btn-primary mt-6" data-testid="order-open-number-btn">Open {num} <ArrowRight className="w-4 h-4" /></Link>
@@ -62,7 +62,7 @@ function Outcome({ o, balance, busy, onFinish }) {
   );
   if (o.status === 'active') return (
     <div className="civr-card civr-trace p-6" data-testid="order-success">
-      <div className="flex items-center gap-2 text-[#34d399] font-semibold"><Check className="w-5 h-5" />{o.kind === 'extra' ? 'Your extra number is live' : 'Your number is live'}</div>
+      <div className="flex items-center gap-2 text-[#818cf8] font-semibold"><Check className="w-5 h-5" />{o.kind === 'extra' ? 'Your extra number is live' : 'Your number is live'}</div>
       <div className="font-mono text-3xl mt-3" data-testid="order-assigned-number">{num}</div>
       {o.kind === 'extra' && !o.substitutedFrom && o.message && <p className="text-sm text-[#a1a1aa] mt-2" data-testid="order-message">{o.message}</p>}
       {o.substitutedFrom && <div className="mt-4 flex gap-3 text-sm rounded-xl border border-[#fbbf24]/40 bg-[#fbbf24]/5 p-4" data-testid="order-substituted-notice"><Sparkles className="w-5 h-5 text-[#fbbf24] shrink-0" /><span>{o.message} We also emailed you.</span></div>}
@@ -71,7 +71,7 @@ function Outcome({ o, balance, busy, onFinish }) {
   );
   if (o.status === 'verification') return (
     <div className="civr-card civr-trace p-6" data-testid="order-verification">
-      <div className="flex items-center gap-2 font-semibold"><ShieldCheck className="w-5 h-5 text-[#34d399]" />Payment received — one last step</div>
+      <div className="flex items-center gap-2 font-semibold"><ShieldCheck className="w-5 h-5 text-[#818cf8]" />Payment received — one last step</div>
       <p className="text-sm text-[#a1a1aa] mt-2">The carrier needs a few details before {num} goes live. Your number is held for you until you finish — no rush.</p>
       {o.substitutedFrom && <p className="text-sm text-[#fbbf24] mt-3" data-testid="order-substituted-notice">{o.message}</p>}
       <Link to={cp('/app/verification')} className="civr-btn civr-btn-primary mt-6" data-testid="order-verification-link">Continue <ArrowRight className="w-4 h-4" /></Link>

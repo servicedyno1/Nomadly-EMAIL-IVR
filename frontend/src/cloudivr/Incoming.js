@@ -67,9 +67,9 @@ function Caller({ c, more, skew }) {
   const pv = usePrivacy();
   return (
     <div className="flex items-center gap-4 min-w-0 flex-1">
-      <span className="civr-incoming-ring w-12 h-12 sm:w-14 sm:h-14 shrink-0 rounded-full bg-[#34d399] text-[#04130d] flex items-center justify-center"><PhoneIncoming className="w-6 h-6" /></span>
+      <span className="civr-incoming-ring w-12 h-12 sm:w-14 sm:h-14 shrink-0 rounded-full bg-[#6366f1] text-white flex items-center justify-center"><PhoneIncoming className="w-6 h-6" /></span>
       <div className="min-w-0">
-        <div className="text-xs font-mono uppercase tracking-widest text-[#34d399]" data-testid="incoming-label">{more > 0 ? `Incoming call · ${more} more ringing` : 'Incoming call'}</div>
+        <div className="text-xs font-mono uppercase tracking-widest text-[#818cf8]" data-testid="incoming-label">{more > 0 ? `Incoming call · ${more} more ringing` : 'Incoming call'}</div>
         <div className="font-mono text-2xl sm:text-3xl font-bold text-white truncate" data-no-translate data-testid="incoming-from">{c.from ? pv.phone(c.from) : '—'}</div>
         <div className="text-xs sm:text-sm text-[#a1a1aa]" data-testid="incoming-to">{`To your number ${pv.phone(c.phone)}`}</div>
         <Countdown c={c} skew={skew} />
@@ -93,11 +93,11 @@ function Footer({ c, remember, setRemember, auto, cancelAuto, note, onMessage })
   const voiceHint = c.canVoice ? '' : c.simulated ? 'Preview calls can only be answered as text.' : 'To answer by voice, create a SIP login for this number (SIP tab).';
   return (
     <div className="mt-4 pt-3 border-t border-white/10 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-[#a1a1aa]">
-      {!c.rtcOnly && <label className="inline-flex items-center gap-2 cursor-pointer text-[#e4e4e7]"><input type="checkbox" className="accent-[#34d399] w-4 h-4" checked={remember} onChange={e => setRemember(e.target.checked)} data-testid="incoming-remember-checkbox" />Remember for this number</label>}
+      {!c.rtcOnly && <label className="inline-flex items-center gap-2 cursor-pointer text-[#e4e4e7]"><input type="checkbox" className="accent-[#818cf8] w-4 h-4" checked={remember} onChange={e => setRemember(e.target.checked)} data-testid="incoming-remember-checkbox" />Remember for this number</label>}
       {c.canText && !c.rtcOnly && <span data-testid="incoming-text-rate">{`Text answer: ${money(c.textRate)}/min from your wallet`}</span>}
       {voiceHint && <span data-testid="incoming-voice-hint">{voiceHint}</span>}
       {!c.rtcOnly && <button type="button" onClick={onMessage} className="inline-flex items-center gap-1.5 underline text-[#e4e4e7] hover:text-white" data-testid="incoming-decline-message-button"><MessageSquareReply className="w-3.5 h-3.5" />Decline with a text message</button>}
-      {auto !== null && <span className="inline-flex items-center gap-2 text-[#34d399] font-medium" data-testid="incoming-auto-text">{`Answering as text in ${auto}s…`}<button type="button" onClick={cancelAuto} className="underline text-[#f4f4f5]" data-testid="incoming-auto-cancel-button">Cancel</button></span>}
+      {auto !== null && <span className="inline-flex items-center gap-2 text-[#818cf8] font-medium" data-testid="incoming-auto-text">{`Answering as text in ${auto}s…`}<button type="button" onClick={cancelAuto} className="underline text-[#f4f4f5]" data-testid="incoming-auto-cancel-button">Cancel</button></span>}
       {note && <span className="basis-full text-[#fbbf24]" data-testid="incoming-error">{note}</span>}
     </div>
   );
@@ -157,7 +157,7 @@ function IncomingBanner({ c, more, skew, drop, ringing, openPhone }) {
 
   return (
     <div className="fixed inset-x-0 z-[70] p-2 sm:px-4 sm:pt-3 pointer-events-none" style={{ top }} data-testid="incoming-overlay">
-      <div role="alertdialog" aria-live="assertive" aria-label="Incoming call" className="civr-incoming pointer-events-auto mx-auto max-w-4xl rounded-2xl border-2 border-[#34d399] bg-[#04130d] p-4 sm:p-5 shadow-2xl" data-testid="incoming-banner">
+      <div role="alertdialog" aria-live="assertive" aria-label="Incoming call" className="civr-incoming pointer-events-auto mx-auto max-w-4xl rounded-2xl border-2 border-[#818cf8] bg-[#0e0e16] p-4 sm:p-5 shadow-2xl" data-testid="incoming-banner">
         <div className="flex flex-col md:flex-row md:items-center gap-4">
           <Caller c={c} more={more} skew={skew} />
           <Actions c={c} busy={busy} voiceFirst={c.answerMode === 'voice' || c.rtcOnly} onText={text} onVoice={voice} onDecline={() => decline()} />

@@ -8,9 +8,9 @@ import { ShowMore, useIsPhone, usePaged } from './ui';
 import { AiSummaryCell } from './AiSummary';
 
 const LABEL = {
-  missed: ['Missed call', PhoneMissed, '#fb7185'], voicemail: ['Voicemail', Voicemail, '#a78bfa'], forwarded: ['Forwarded call', PhoneIncoming, '#34d399'],
+  missed: ['Missed call', PhoneMissed, '#fb7185'], voicemail: ['Voicemail', Voicemail, '#a78bfa'], forwarded: ['Forwarded call', PhoneIncoming, '#818cf8'],
   forward_failed: ['Forward failed', PhoneMissed, '#fbbf24'], call_recording: ['Recorded call', Mic, '#38bdf8'], outbound_ivr: ['Quick IVR call', PhoneOutgoing, '#38bdf8'],
-  outbound_ivr_bulk: ['Campaign call', PhoneOutgoing, '#22d3ee'], ivr_transfer_leg: ['IVR transfer', PhoneIncoming, '#34d399'], sms: ['SMS', MessageSquare, '#34d399'],
+  outbound_ivr_bulk: ['Campaign call', PhoneOutgoing, '#22d3ee'], ivr_transfer_leg: ['IVR transfer', PhoneIncoming, '#818cf8'], sms: ['SMS', MessageSquare, '#818cf8'],
   fax: ['Fax', Printer, '#888'], outbound_sip: ['Browser / SIP call', PhoneOutgoing, '#38bdf8'], BulkIVR: ['Campaign charge', PhoneOutgoing, '#888'],
   off_hours: ['Call outside hours', Clock, '#fbbf24'], sms_out: ['SMS sent', MessageSquare, '#38bdf8'],
 };
