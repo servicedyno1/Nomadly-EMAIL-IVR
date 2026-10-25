@@ -53,7 +53,7 @@ t('appPathPrefix: own domain → "", shared host → /cloudivr', () => {
   assert.strictEqual(appPathPrefix('https://cloudivr.net', 'cloudivr.net'), '')
   assert.strictEqual(appPathPrefix('https://www.cloudivr.net/', 'cloudivr.net'), '')
   assert.strictEqual(appPathPrefix('https://2.speechcue.com', 'cloudivr.net'), '/cloudivr')
-  assert.strictEqual(appPathPrefix('https://vault-setup-29.preview.emergentagent.com', ''), '/cloudivr')
+  assert.strictEqual(appPathPrefix('https://subscription-check-20.preview.emergentagent.com', ''), '/cloudivr')
 })
 
 t('served index is CloudIVR-branded (no hosting-panel title/description)', () => {

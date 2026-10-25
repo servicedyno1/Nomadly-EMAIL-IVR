@@ -1,5 +1,9 @@
 # PRD — Nomadly Cloud IVR + Telegram Bot
 
+## 2026-06 — Paid plans / subscription & expiry audit — REPORTED (no code changed), awaiting owner pick
+- 17 findings (5 high, 8 medium, 4 low). Top: VPS auto-renew works only once (_autoRenewAttempted never reset), CloudIVR SMS double-counted, phone scheduler overwrites whole val, wrong upgrade-credit date field, membership re-buy wipes remaining days.
+- Full report: **memory/PLAN_EXPIRY_AUDIT_2026-06.md**
+
 ## 2026-10-24 (later) — Bot vs web gap audit — REPORTED, awaiting owner's pick
 - 21 bot features missing on web (most already supported by the shared call engine → UI + route work only). Top: OTP collection,
   per-key outbound menu, script templates/type-a-script, campaign CSV report, "what callers get" routing summary, inbound IVR templates.
