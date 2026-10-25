@@ -36,6 +36,56 @@ function isOrphan(numbers, n) {
   return !!n.formerSubNumberOf && !n._orphanHandledAt
 }
 
+// ── Shared allowance: a main line and its extra lines draw on ONE pool of the main line's plan minutes / SMS ──
+const lineGroup = (numbers, n) => {
+  const main = n.isSubNumber ? (numbers || []).find(x => x.phoneNumber === n.parentNumber && !x.isSubNumber && x.status !== 'released') : n
+  if (!main) return { main: n, lines: [n] }
+  return { main, lines: [main, ...(numbers || []).filter(x => x.isSubNumber && x.parentNumber === main.phoneNumber && x.status !== 'released' && x !== main)] }
+}
+// Unknown plan → 0 (overage billing applies); 'Unlimited' → Infinity.
+function planLimit(planKey, field) {
+  const p = phoneConfig.plans[planKey]
+  if (!p) return 0
+  const v = p[field]
+  if (v === 'Unlimited' || v == null) return Infinity
+  const x = Number(v)
+  return Number.isFinite(x) ? x : Infinity
+}
+function poolUsage(numbers, n) {
+  const { main, lines } = lineGroup(numbers, n)
+  const sum = (f) => lines.reduce((s, x) => s + (Number(x[f]) || 0), 0)
+  return { main, lines, minutesUsed: sum('minutesUsed'), smsUsed: sum('smsUsed'), minuteLimit: planLimit(main.plan, 'minutes'), smsLimit: planLimit(main.plan, 'sms') }
+}
+
+// ── Usage cycle = the month that ends at the main line's expiresAt. Counters (and 80/100% alert flags) of the
+// whole group reset once per cycle, whatever day of the month the plan was bought or renewed. ──
+const USAGE_RESET = { smsUsed: 0, minutesUsed: 0, _smsAlert80: false, _smsAlert100: false, _minAlert80: false, _minAlert100: false, _smsLimitNotified: false, _minLimitNotified: false }
+function usageResetPatches(numbers, main, now = new Date()) {
+  if (!main || main.isSubNumber || main.status !== 'active') return []
+  const start = new Date(main.expiresAt)
+  if (isNaN(start.getTime())) return []
+  start.setMonth(start.getMonth() - 1)
+  if (start > now) return []
+  const last = main._usageResetAt ? new Date(main._usageResetAt) : null
+  // First sight of a line (pre-existing data): start tracking from now without wiping the current counters.
+  if (!last) return [{ phoneNumber: main.phoneNumber, set: { _usageResetAt: now.toISOString() } }]
+  if (last >= start) return []
+  return lineGroup(numbers, main).lines.map(x => ({ phoneNumber: x.phoneNumber, set: x === main ? { ...USAGE_RESET, _usageResetAt: now.toISOString() } : { ...USAGE_RESET } }))
+}
+
+// Monthly price of `n` moved to `newPlan`, keeping its per-number surcharge (same rule as the web app).
+function priceOnPlan(n, newPlan) {
+  const cur = phoneConfig.plans[n.plan], next = phoneConfig.plans[newPlan]
+  if (!next) return null
+  const surcharge = cur ? Math.max(0, round2((Number(n.planPrice) || cur.price) - cur.price)) : (Number(n.numberSurcharge) || 0)
+  return round2(next.price + surcharge)
+}
+
+// Extra lines always carry their main line's plan.
+const syncExtrasPlan = (col, chatId, parentNumber, plan) => col.updateOne(
+  { _id: chatId }, { $set: { 'val.numbers.$[s].plan': plan } }, { arrayFilters: [{ 's.isSubNumber': true, 's.parentNumber': parentNumber }] },
+).catch(() => {})
+
 const onHold = (n) => n.status === 'suspended' && !!n._holdUntil
 const holdOver = (n, now = new Date()) => onHold(n) && new Date(n._holdUntil) <= now
 const hold = (now, reason) => ({
@@ -79,7 +129,9 @@ function renewPatches(numbers, n, now = new Date()) {
   const until = new Date(Math.max(now.getTime(), exp.getTime() || 0))
   until.setMonth(until.getMonth() + 1)
   const clear = { _suspendedAt: null, _holdUntil: null, _suspendReason: null, _graceUntil: null, _reminder3Sent: false, _reminder1Sent: false }
-  const set = { ...clear, status: 'active', expiresAt: until.toISOString(), ...(lapsed ? { minutesUsed: 0, smsUsed: 0 } : {}) }
+  // A lapsed main line starts a fresh usage cycle now for its whole group; an extra line rides its main line's cycle.
+  const freshCycle = lapsed && !n.isSubNumber
+  const set = { ...clear, status: 'active', expiresAt: until.toISOString(), ...(freshCycle ? { ...USAGE_RESET, _usageResetAt: now.toISOString() } : {}) }
   const price = renewalPrice(n)
   if (!n.isSubNumber && price > 0 && Number(n.planPrice) !== price) set.planPrice = price
   const patches = [{ phoneNumber: n.phoneNumber, set }]
@@ -91,6 +143,7 @@ function renewPatches(numbers, n, now = new Date()) {
       else waiting.push({ phoneNumber: x.phoneNumber, price: renewalPrice(x), holdUntil: x._holdUntil })
     }
   }
+  if (freshCycle) for (const x of extrasOf(numbers, n)) patches.push({ phoneNumber: x.phoneNumber, set: { ...USAGE_RESET } })
   return { patches, price, restored, waiting, expiresAt: set.expiresAt, wasSuspended: n.status === 'suspended' }
 }
 
@@ -174,6 +227,7 @@ function renewedMsg(n, r, lang) {
 
 module.exports = {
   HOLD_DAYS, isInternalTest, canonicalPrice, renewalPrice, mainOf, extrasOf, isOrphan, onHold, holdOver,
+  lineGroup, planLimit, poolUsage, USAGE_RESET, usageResetPatches, priceOnPlan, syncExtrasPlan,
   suspendPlan, orphanToMain, releasePatch, renewBlock, renewPatches, applyLocal, applyDb,
   planSuspendedMsg, orphanSuspendedMsg, releasedAfterHoldMsg, renewBlockMsg, holdNotice, renewedMsg,
 }

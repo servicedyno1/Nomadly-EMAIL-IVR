@@ -6,7 +6,7 @@ import time
 import pytest
 import requests
 
-BASE = os.environ.get("REACT_APP_BACKEND_URL", "https://vault-setup-29.preview.emergentagent.com").rstrip("/")
+BASE = os.environ.get("REACT_APP_BACKEND_URL", "https://subscription-check-20.preview.emergentagent.com").rstrip("/")
 
 # Read secrets from backend .env directly (test only)
 def _load_env():

@@ -33,7 +33,8 @@ function routes(router, { db, h, numbersApi, bulkCallService, getTodayCoupons, p
   router.get('/numbers/:phone/extra', withNumber(async (req, res) => {
     const n = req.num
     const list = n.isSubNumber ? [] : await subsOf(req.webChatId, n.phoneNumber)
-    res.json({ allowed: !n.isSubNumber, limit: phoneConfig.getSubNumberLimit(n.plan), used: list.length, price: phoneConfig.SUB_NUMBER_BASE_PRICE, numbers: list.map(publicNumber) })
+    const group = [n, ...list]
+    res.json({ allowed: !n.isSubNumber, limit: phoneConfig.getSubNumberLimit(n.plan), used: list.length, price: phoneConfig.SUB_NUMBER_BASE_PRICE, numbers: list.map(x => publicNumber(x, group)) })
   }))
   router.post('/numbers/:phone/extra', withNumber(async (req, res) => {
     const n = req.num, chatId = req.webChatId

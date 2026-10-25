@@ -1661,60 +1661,9 @@ async function pollTelnyxPendingOrders() {
   return { checked }
 }
 
-// ── Get pool-wide minutes used for a number (parent + all sub-numbers sharing the plan) ──
-function getPoolMinutesUsed(numbers, num) {
-  if (num.isSubNumber && num.parentNumber) {
-    // This is a sub-number: find parent + all siblings
-    const parent = numbers.find(n => n.phoneNumber === num.parentNumber && !n.isSubNumber)
-    const siblings = numbers.filter(n => n.isSubNumber && n.parentNumber === num.parentNumber)
-    return (parent?.minutesUsed || 0) + siblings.reduce((sum, n) => sum + (n.minutesUsed || 0), 0)
-  }
-  // This is a parent: own + all sub-numbers under it
-  const subs = numbers.filter(n => n.isSubNumber && n.parentNumber === num.phoneNumber)
-  return (num.minutesUsed || 0) + subs.reduce((sum, n) => sum + (n.minutesUsed || 0), 0)
-}
-
-// ── Normalize plan limit values: 'Unlimited' / null / undefined / non-numeric → Infinity ──
-// FIX (Feb 2026): phoneConfig.plans.business.minutes is the LITERAL STRING 'Unlimited' (used for display).
-// Without normalization, getPool*Limit returned 'Unlimited' (string), which propagated NaN through
-// arithmetic in computeDialTimeLimit → invalid <Dial timeLimit="NaN"> in TwiML.
-function _normalizePlanLimit(val) {
-  if (val == null || val === 'Unlimited') return Infinity
-  if (typeof val === 'number') return Number.isFinite(val) ? val : Infinity
-  if (typeof val === 'string') {
-    const n = parseInt(val, 10)
-    return Number.isFinite(n) ? n : Infinity
-  }
-  return Infinity
-}
-
-// ── Get the plan limit for a number (sub-numbers use parent's plan) ──
-function getPoolMinuteLimit(numbers, num) {
-  if (num.isSubNumber && num.parentNumber) {
-    const parent = numbers.find(n => n.phoneNumber === num.parentNumber && !n.isSubNumber)
-    return _normalizePlanLimit(phoneConfig.plans[parent?.plan || num.plan]?.minutes)
-  }
-  return _normalizePlanLimit(phoneConfig.plans[num.plan]?.minutes)
-}
-
-// ── Get pool-wide SMS used (parent + sub-numbers) ──
-function getPoolSmsUsed(numbers, num) {
-  if (num.isSubNumber && num.parentNumber) {
-    const parent = numbers.find(n => n.phoneNumber === num.parentNumber && !n.isSubNumber)
-    const siblings = numbers.filter(n => n.isSubNumber && n.parentNumber === num.parentNumber)
-    return (parent?.smsUsed || 0) + siblings.reduce((sum, n) => sum + (n.smsUsed || 0), 0)
-  }
-  const subs = numbers.filter(n => n.isSubNumber && n.parentNumber === num.phoneNumber)
-  return (num.smsUsed || 0) + subs.reduce((sum, n) => sum + (n.smsUsed || 0), 0)
-}
-
-function getPoolSmsLimit(numbers, num) {
-  if (num.isSubNumber && num.parentNumber) {
-    const parent = numbers.find(n => n.phoneNumber === num.parentNumber && !n.isSubNumber)
-    return _normalizePlanLimit(phoneConfig.plans[parent?.plan || num.plan]?.sms)
-  }
-  return _normalizePlanLimit(phoneConfig.plans[num.plan]?.sms)
-}
+// ── Shared allowance (main line + its extra lines, main line's plan) — one rule for Telnyx and Twilio ──
+const getPoolMinutesUsed = (numbers, num) => planLifecycle.poolUsage(numbers, num).minutesUsed
+const getPoolMinuteLimit = (numbers, num) => planLifecycle.poolUsage(numbers, num).minuteLimit
 
 /**
  * Compute the max time limit (in seconds) a call should be allowed to run,
@@ -4493,8 +4442,6 @@ const loadData = async () => {
     log('[WhmAccountDigest] Initialized')
   })
 
-  // Initialize Hosting Upgrade Credit Nudge (daily DM 2 days before window closes)
-  await safeInitCron('HostingUpgradeNudge', () => require('./hosting-upgrade-nudge').init({ bot, db }))
 
   // Initialize Protection Enforcer — ensure all domains have anti-red worker protection
   await safeInitCron('ProtectionEnforcer', () => {
@@ -5884,45 +5831,7 @@ async function sendRemindersForExpiringPackages() {
       console.error('Error in bot plan reminders:', e.message)
     }
 
-    // ── VPS Plans: 3-day expiry reminder (handled by checkVPSPlansExpiryandPayment now) ──
-    // Keeping this for backward compat with legacy nested records
-    try {
-      const allVps = await vpsPlansOf.find({
-        'status': { $in: ['RUNNING', 'running'] },
-        'end_time': { $exists: true }
-      }).toArray()
-      for (const entry of allVps) {
-        const chatId = entry.chatId
-        if (!chatId) continue
-        const expiresAt = entry.end_time
-        if (!expiresAt) continue
-
-        const msLeft = new Date(expiresAt).getTime() - now.getTime()
-        const daysLeft = msLeft / (1000 * 60 * 60 * 24)
-
-        if (daysLeft > 2.9 && daysLeft <= 3.1 && !entry._reminder3DaySent) {
-          const userState = await state.findOne({ _id: String(chatId) })
-          const lang = userState?.userLanguage ?? 'en'
-          const name = entry.name || entry.label || 'VPS'
-          const expiryDate = new Date(expiresAt).toLocaleDateString()
-
-          const msgs = {
-            en: `🖥️ <b>VPS Expiring Soon</b>\n\n${name} expires in <b>3 days</b> (${expiryDate}).\nRenew to avoid service interruption.`,
-            fr: `🖥️ <b>VPS bientôt expiré</b>\n\n${name} expire dans <b>3 jours</b> (${expiryDate}).\nRenouvelez pour éviter l'interruption.`,
-            hi: `🖥️ <b>VPS जल्द समाप्त</b>\n\n${name} <b>3 दिनों</b> में समाप्त (${expiryDate}).\nनवीनीकरण करें।`,
-            zh: `🖥️ <b>VPS即将到期</b>\n\n${name} 将在 <b>3天</b> 后到期 (${expiryDate})。\n请续订。`,
-          }
-          send(chatId, msgs[lang] || msgs.en, { parse_mode: 'HTML' })
-          await vpsPlansOf.updateOne(
-            { _id: entry._id },
-            { $set: { _reminder3DaySent: true } }
-          )
-          log(`[Reminders] 3-day VPS reminder sent to ${chatId} for ${name}`)
-        }
-      }
-    } catch (e) {
-      console.error('Error in VPS reminders:', e.message)
-    }
+    // VPS/RDP 3-day reminder: sent only by the VPS expiry scheduler (vps-expiry-scheduler.js, Phase 4).
 
   } catch (error) {
     console.error('Error sending reminders:', error)
@@ -12623,11 +12532,8 @@ Enter new value:`), bc)
       if (!plans || plans.length === 0) {
         return send(chatId, trans('t.dom_2'), k.of([[user.hostingDomainsRedirect], ['↩️ Back']]))
       }
-      const { getPlanPrice } = require('./hosting-scheduler')
-      const { getBestUpgradeQuote } = require('./hosting-upgrade-credit')
       let text = trans('t.myHostingPlansHeader') + '\n\n'
       const planButtons = []
-      const creditCtas = [] // dedicated 🎁 deep-link buttons for plans with an active credit window
       for (const p of plans) {
         const expiry = p.expiryDate ? trans('t.fmtDate', p.expiryDate) : '—'
         const isExpired = p.expiryDate && new Date(p.expiryDate) < new Date()
@@ -12645,23 +12551,10 @@ Enter new value:`), bc)
           }
         }
 
-        // Loyalty credit nudge — surface only when within 14 days of cycle start
-        try {
-          const oldPrice = getPlanPrice(p)
-          const best = getBestUpgradeQuote({ planDoc: p, oldPrice })
-          if (best && best.quote.creditApplied > 0) {
-            const deadlineStr = best.deadlineDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-            const daysLeft = Math.max(1, Math.ceil(best.daysRemaining))
-            row += `\n   🎁 $${best.quote.creditApplied.toFixed(2)} upgrade credit — expires ${deadlineStr} (${daysLeft}d left)`
-            creditCtas.push([`🎁 Use $${best.quote.creditApplied.toFixed(2)} credit on ${p.domain}`])
-          }
-        } catch (_) { /* nudge is best-effort; never block the list */ }
-
         text += row + '\n\n'
         planButtons.push([`🔍 ${p.domain}`])
       }
-      // Surface credit CTAs at the TOP so they're the first thing thumbs reach
-      const buttons = [...creditCtas, ...planButtons, ['↩️ Back']]
+      const buttons = [...planButtons, ['↩️ Back']]
       send(chatId, text, k.of(buttons))
     },
 
@@ -12734,29 +12627,10 @@ Enter new value:`), bc)
         text += `\n\n` + trans('t.planViewMultiHostUpsell')
       }
 
-      // 🎁 Loyalty credit nudge — visible only inside the 14-day window
-      let creditCta = null
-      try {
-        const { getPlanPrice } = require('./hosting-scheduler')
-        const { getBestUpgradeQuote } = require('./hosting-upgrade-credit')
-        const oldPrice = getPlanPrice(plan)
-        const best = getBestUpgradeQuote({ planDoc: plan, oldPrice })
-        if (best && best.quote.creditApplied > 0) {
-          const deadlineStr = best.deadlineDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-          const daysLeft = Math.max(1, Math.ceil(best.daysRemaining))
-          text += `\n\n🎁 <b>You have a $${best.quote.creditApplied.toFixed(2)} upgrade credit!</b>\n`
-            + `Apply it to <b>${best.target.name}</b> and pay just $${best.quote.chargeAmount.toFixed(2)} (list $${best.quote.originalPrice.toFixed(2)}).\n`
-            + `<i>Use it before ${deadlineStr} (${daysLeft}d left).</i>`
-          creditCta = `🎁 Use $${best.quote.creditApplied.toFixed(2)} credit by ${deadlineStr}`
-        }
-      } catch (_) { /* nudge is best-effort; never block plan view */ }
-
       const buttons = [[user.revealCredentials]]
-      // Show the credit-CTA first when active so it's the most tappable target
-      if (creditCta) buttons.push([creditCta])
       const planLowercase = (plan.plan || '').toLowerCase()
       const hasUpgradePath = planLowercase.includes('week') || (planLowercase.includes('premium') && !planLowercase.includes('week'))
-      if (hasUpgradePath && !creditCta) buttons.push([user.upgradeHostingPlan])
+      if (hasUpgradePath) buttons.push([user.upgradeHostingPlan])
       // Visitor Captcha (Gold-only feature) — show locked button for non-Gold users
       const isGoldPlan = /Golden Anti-Red HostPanel/i.test(plan.plan || '')
       buttons.push([isGoldPlan ? user.manageVisitorCaptcha : user.manageVisitorCaptchaLocked])
@@ -13541,14 +13415,18 @@ Enter new value:`), bc)
 
       const priceUsd = price
       if (usdBal < priceUsd) { return _showBalanceWall(usdBal, priceUsd) }
+      // Overdraft-safe debit: a concurrent spend can still make it fail after the balance check above.
+      if (!(await atomicIncrement(walletOf, chatId, 'usdOut', priceUsd))) {
+        const { usdBal: nowBal } = await getBalance(walletOf, chatId)
+        return _showBalanceWall(nowBal, priceUsd)
+      }
       set(payments, nanoid(), `Wallet,Plan,${plan},$${priceUsd},${chatId},${name},${new Date()}`)
-      await atomicIncrement(walletOf, chatId, 'usdOut', priceUsd)
       _finalizeWalletPurchase()
       checkAndNotifyTierUpgrade(preSpend)
 
       const { usdBal: usd } = await getBalance(walletOf, chatId)
       sendAndReact(chatId, purchaseDoneLine(info?.userLanguage || 'en', usd), '🎉', trans('o'))
-      subscribePlan(planEndingTime, freeDomainNamesAvailableFor, planOf, chatId, plan, bot, lang, freeValidationsAvailableFor)
+      subscribePlan(planEndingTime, freeDomainNamesAvailableFor, planOf, chatId, plan, bot, lang, freeValidationsAvailableFor, state)
       notifyGroup(
         `💎 <b>New Subscription!</b>\nUser ${maskName(name)} just upgraded to the <b>${plan} Plan</b> — unlocking unlimited URL shortening + ${(freeValidationsOf[plan] || 0).toLocaleString()} phone validations with owner names.\nDon't miss out — /start`,
         `💎 <b>New Subscription (Wallet)</b>\n👤 User: ${adminUserTag(name, chatId)}\n📦 Plan: <b>${plan}</b>\n💵 Price: <b>$${priceUsd}</b>\n💳 Payment: Wallet USD`
@@ -16587,7 +16465,7 @@ All verified numbers generated during sourcing.`))
   // My Hosting Plans — select a plan to view
   if (action === a.myHostingPlans) {
     if (isBackPress(message)) return goto.submenu3()
-    // 🎁 Loyalty-credit deep-link from the list — "🎁 Use $X.XX credit on <domain>"
+    // Old "🎁 Use $X.XX credit on <domain>" buttons (credit offer removed 2026-06) still open the upgrade menu.
     if (typeof message === 'string' && message.startsWith('🎁 Use $')) {
       const m = message.match(/^🎁 Use \$[\d.]+ credit on (.+)$/)
       if (m) {
@@ -16614,7 +16492,7 @@ All verified numbers generated during sourcing.`))
       // Re-route through the standard upgrade handler below by replaying user.upgradeHostingPlan
       message = user.upgradeHostingPlan
     }
-    // 🎁 Loyalty-credit deep-link from plan details — "🎁 Use $X.XX credit by <date>"
+    // Old "🎁 Use $X.XX credit by <date>" buttons (credit offer removed 2026-06) still open the upgrade menu.
     if (typeof message === 'string' && message.startsWith('🎁 Use $') && message.includes(' credit by ')) {
       message = user.upgradeHostingPlan
     }
@@ -16790,7 +16668,6 @@ All verified numbers generated during sourcing.`))
 
       const currentPlan = (plan.plan || '').toLowerCase()
       const { getPlanPrice } = require('./hosting-scheduler')
-      const { computeUpgradeQuote, getCreditWindowDays } = require('./hosting-upgrade-credit')
       const currentPrice = getPlanPrice(plan)
       const { usdBal } = await getBalance(walletOf, chatId)
       const ngnTestRate = await usdToNgn(1)
@@ -16838,42 +16715,28 @@ All verified numbers generated during sourcing.`))
         return send(chatId, trans('t.host_25'), k.of([[user.backToMyHostingPlans]]))
       }
 
-      // Compute 50% prorated credit for each upgrade option (within 14-day window)
+      // Expiry date stays; the full monthly price difference is charged now (hosting-plan-change.botUpgradeQuote).
+      const { botUpgradeQuote } = require('./hosting-plan-change')
+      let keepsExpiry = false
       for (const opt of upgradeOptions) {
-        const quote = computeUpgradeQuote({
-          planDoc: plan,
-          oldPrice: currentPrice,
-          newPrice: opt.price,
-        })
-        opt.originalPrice = quote.originalPrice
-        opt.creditApplied = quote.creditApplied
-        opt.chargeAmount = quote.chargeAmount
-        opt.creditEligible = quote.eligible
+        const q = botUpgradeQuote(plan, { currentPrice, newPrice: opt.price })
+        opt.originalPrice = opt.price
+        opt.chargeAmount = q.charge
+        opt.keepsExpiry = q.keepsExpiry
+        keepsExpiry = q.keepsExpiry
       }
 
       let text = trans('t.upgradeModalHeader') + '\n\n'
         + `<b>${trans('t.currentLabel')}</b> ${plan.plan} — $${currentPrice}\n`
         + `<b>${trans('t.domainLabel')}</b> ${domain}\n`
         + `<b>${trans('t.walletBalanceLabel')}</b> $${usdBal.toFixed(2)}\n\n`
+        + (keepsExpiry ? trans('t.upgradeModalKeepsExpiry', plan.expiryDate) + '\n\n' : '')
         + trans('t.upgradeModalChooseHint') + '\n\n'
-
-      // Surface credit banner if at least one option is eligible
-      const anyEligible = upgradeOptions.some(o => o.creditEligible && o.creditApplied > 0)
-      if (anyEligible) {
-        const windowDays = getCreditWindowDays(plan.plan)
-        text += `🎁 <b>Loyalty Credit:</b> 50% of your current plan price ($${(currentPrice * 0.5).toFixed(2)}) is credited toward your upgrade — available within ${windowDays} days of your latest renewal.\n\n`
-      }
 
       const buttons = []
       for (const opt of upgradeOptions) {
         const isGold = opt.key === 'goldenCpanel'
-        // Header line: show original price struck-through-style + final price when credit applies
-        if (opt.creditEligible && opt.creditApplied > 0) {
-          text += `<b>${opt.name} — <s>$${opt.originalPrice.toFixed(2)}</s> $${opt.chargeAmount.toFixed(2)}</b>\n`
-          text += `🎁 <i>Credit: -$${opt.creditApplied.toFixed(2)}</i>\n`
-        } else {
-          text += `<b>${opt.name} — $${opt.originalPrice.toFixed(2)}</b>\n`
-        }
+        text += `<b>${opt.name} — $${opt.chargeAmount.toFixed(2)}</b>${opt.keepsExpiry ? ` <i>($${opt.price.toFixed(2)}/mo)</i>` : ''}\n`
         if (isGold) {
           text += `• 📦 ${opt.storage}\n`
             + `• 🌐 ${opt.bandwidth}\n`
@@ -18068,27 +17931,28 @@ All verified numbers generated during sourcing.`))
     if (selected) {
       const domain = info?.selectedHostingDomain
       if (!domain) return goto.myHostingPlans()
+      const acct = await cpanelAccounts.findOne({ chatId: String(chatId), domain, deleted: { $ne: true } })
+      if (!acct) return send(chatId, trans('t.planNotFound'), k.of([[user.backToMyHostingPlans]]))
 
-      const originalPrice = (typeof selected.originalPrice === 'number') ? selected.originalPrice : selected.price
-      const creditApplied = (typeof selected.creditApplied === 'number') ? selected.creditApplied : 0
-      const upgradePrice = (typeof selected.chargeAmount === 'number') ? selected.chargeAmount : selected.price
+      const { getPlanPrice } = require('./hosting-scheduler')
+      const q = require('./hosting-plan-change').botUpgradeQuote(acct, { currentPrice: getPlanPrice(acct), newPrice: selected.price })
+      selected.chargeAmount = q.charge
+      selected.keepsExpiry = q.keepsExpiry
+      const originalPrice = selected.price
+      const upgradePrice = q.charge
       const { usdBal } = await getBalance(walletOf, chatId)
 
       const canPay = usdBal >= upgradePrice
-      // Same renewal price + fresh 30-day term the payment step saves.
-      const renewalPrice = require('./hosting-scheduler').getPlanPrice(selected.name)
-      const nextRenewal = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+      // Renews at the new plan's price; the expiry date stays (or a fresh 30-day term if the old one had ended).
+      const renewalPrice = getPlanPrice(selected.name)
 
       let text = trans('t.upgradeConfirmTitle') + '\n\n'
         + trans('t.upgradeConfirmTo', selected.name) + '\n'
         + trans('t.upgradeConfirmListPrice', originalPrice.toFixed(2)) + '\n'
-      if (creditApplied > 0) {
-        text += trans('t.upgradeConfirmCredit', creditApplied.toFixed(2)) + '\n'
-      }
       text += trans('t.upgradeConfirmYouPay', upgradePrice.toFixed(2)) + '\n'
         + `<b>${trans('t.walletBalanceLabel')}</b> $${usdBal.toFixed(2)}\n\n`
       if (renewalPrice > 0) text += trans('t.upgradeConfirmRenewsAt', renewalPrice.toFixed(2), 30) + '\n'
-      text += trans('t.upgradeConfirmNextRenewal', nextRenewal, 30) + '\n\n'
+      text += (q.keepsExpiry ? trans('t.upgradeConfirmKeepsExpiry', q.expiresAt) : trans('t.upgradeConfirmNextRenewal', q.expiresAt, 30)) + '\n\n'
       text += canPay ? trans('t.renewModalConfirmHint') : trans('t.renewModalInsufficient')
 
       saveInfo('selectedUpgrade', selected)
@@ -18124,16 +17988,22 @@ All verified numbers generated during sourcing.`))
       const selected = info?.selectedUpgrade
       if (!selected) return goto.myHostingPlans()
 
-      const originalPrice = (typeof selected.originalPrice === 'number') ? selected.originalPrice : selected.price
-      const creditApplied = (typeof selected.creditApplied === 'number') ? selected.creditApplied : 0
-      const upgradePrice = (typeof selected.chargeAmount === 'number') ? selected.chargeAmount : selected.price
+      // Re-quote on the fresh record: never charge an amount other than the one just shown.
+      const { getPlanPrice } = require('./hosting-scheduler')
+      const q = require('./hosting-plan-change').botUpgradeQuote(plan, { currentPrice: getPlanPrice(plan), newPrice: selected.price })
+      if (q.charge !== selected.chargeAmount || q.keepsExpiry !== !!selected.keepsExpiry) {
+        await set(state, chatId, 'action', a.viewHostingPlan)
+        return send(chatId, trans('t.upgradeQuoteChanged'), k.of([[user.upgradeHostingPlan], [user.backToMyHostingPlans]]))
+      }
+      const originalPrice = selected.price
+      const upgradePrice = q.charge
       const { usdBal } = await getBalance(walletOf, chatId)
 
       if (usdBal < upgradePrice) return send(chatId, trans('t.host_28', usdBal.toFixed(2), upgradePrice.toFixed(2)), k.of([[trans('u.deposit')], [user.backToMyHostingPlans]]))
 
       try {
         // Overdraft-safe debit — a concurrent spend can make it fail even after the balance check above.
-        const upgradeDebited = await atomicIncrement(walletOf, chatId, 'usdOut', upgradePrice)
+        const upgradeDebited = upgradePrice > 0 ? await atomicIncrement(walletOf, chatId, 'usdOut', upgradePrice) : true
         if (!upgradeDebited) return send(chatId, trans('t.host_28', usdBal.toFixed(2), upgradePrice.toFixed(2)), k.of([[trans('u.deposit')], [user.backToMyHostingPlans]]))
 
         const whm = require('./whm-service')
@@ -18181,25 +18051,24 @@ All verified numbers generated during sourcing.`))
           return send(chatId, trans('t.upgradeFailServer', whmErrText, upgradePrice.toFixed(2), user.getSupport), k.of([[user.backToMyHostingPlans]]))
         }
 
-        // 3. Update cpanelAccounts with new plan + new 30-day expiry
-        //    Also clear suspended/deleted flags so the account is fully active.
+        // 3. Update cpanelAccounts with the new plan. The expiry date stays (user choice 2026-06) unless the term had
+        //    already ended (then a fresh 30-day term). Auto-renew keeps the customer's own setting.
         //    BILLING FIX (2026-10): renewals use the price-locked renewalPriceUsd, so it MUST move to the
         //    new plan's current price — before, a bot upgrade kept renewing at the OLD plan's price.
         const upgradedAt = new Date()
-        const newExpiry = new Date(upgradedAt.getTime() + 30 * 24 * 60 * 60 * 1000)
-        const newRenewalPrice = require('./hosting-scheduler').getPlanPrice(selected.name)
+        const newExpiry = q.expiresAt
+        const newRenewalPrice = getPlanPrice(selected.name)
         await cpanelAccounts.updateOne(
           { _id: plan._id },
           {
             $set: {
               plan: selected.name,
-              expiryDate: newExpiry,
-              autoRenew: true,
+              ...(q.keepsExpiry ? {} : { expiryDate: newExpiry }),
               suspended: false,
               upgradedAt,
               upgradedFrom: plan.plan,
               upgradeOriginalPrice: originalPrice,
-              upgradeCreditApplied: creditApplied,
+              upgradeCreditApplied: 0,
               upgradeChargedAmount: upgradePrice,
               planChangedAt: upgradedAt,
               ...(newRenewalPrice > 0 ? { renewalPriceUsd: newRenewalPrice } : {}),
@@ -18210,14 +18079,13 @@ All verified numbers generated during sourcing.`))
               deletedAt: '',
               cancelledByUser: '',
               deletedBy: '',
-              expiryNotified: '',
-              expiryUserNotified: '',
+              ...(q.keepsExpiry ? {} : { expiryNotified: '', expiryUserNotified: '' }),
             },
-            // Plan-change history (reseller API GET …/plan-changes): bot upgrades start a fresh 30-day term.
+            // Plan-change history (reseller API GET …/plan-changes).
             $push: {
               planChangeHistory: {
                 id: require('crypto').randomUUID(), at: upgradedAt, status: 'completed', from: plan.plan, to: selected.name,
-                direction: 'upgrade', billing: 'new_term', charged_usd: upgradePrice, loyalty_credit_usd: creditApplied,
+                direction: 'upgrade', billing: q.keepsExpiry ? 'price_difference' : 'new_term', charged_usd: upgradePrice, loyalty_credit_usd: 0,
                 list_price_usd: originalPrice, previous_expires_at: plan.expiryDate || null, expires_at: newExpiry,
                 renewal_price_usd: newRenewalPrice > 0 ? newRenewalPrice : null, via: 'bot',
               },
@@ -18227,8 +18095,7 @@ All verified numbers generated during sourcing.`))
 
         const { usdBal: newUsdBal } = await getBalance(walletOf, chatId)
 
-        const creditNote = creditApplied > 0 ? ` (list $${originalPrice.toFixed(2)} − credit $${creditApplied.toFixed(2)})` : ''
-        log(`[Hosting] Plan upgraded for ${chatId}: ${plan.plan} → ${selected.name} ($${upgradePrice.toFixed(2)})${creditNote}`)
+        log(`[Hosting] Plan upgraded for ${chatId}: ${plan.plan} → ${selected.name} ($${upgradePrice.toFixed(2)}, ${q.keepsExpiry ? 'expiry kept' : 'new 30-day term'})`)
         require('./reseller-activity').record(db, { ownerChatId: chatId, resourceType: 'hosting', resourceId: plan._id, action: 'plan_change', actor: 'bot', details: { from_plan: plan.plan, to_plan: selected.name, charged_usd: upgradePrice, expires_at: newExpiry.toISOString() } })
 
         try {
@@ -18245,22 +18112,18 @@ All verified numbers generated during sourcing.`))
         } catch (_) { /* noop */ }
 
         const _upgName = await get(nameOf, chatId)
-        const adminCreditLine = creditApplied > 0 ? `\nList: $${originalPrice.toFixed(2)} · Credit: -$${creditApplied.toFixed(2)}` : ''
-        send(TELEGRAM_ADMIN_CHAT_ID, `⬆️ <b>Hosting Upgrade</b>\nUser: @${_upgName || chatId} (${chatId})\nDomain: ${domain}\n${plan.plan} → ${selected.name}${adminCreditLine}\nCharged: $${upgradePrice.toFixed(2)}`, { parse_mode: 'HTML' })
+        send(TELEGRAM_ADMIN_CHAT_ID, `⬆️ <b>Hosting Upgrade</b>\nUser: @${_upgName || chatId} (${chatId})\nDomain: ${domain}\n${plan.plan} → ${selected.name}\nCharged: $${upgradePrice.toFixed(2)} (${q.keepsExpiry ? 'price difference, expiry kept' : 'new 30-day term'})`, { parse_mode: 'HTML' })
 
         set(payments, nanoid(), `Wallet,HostingUpgrade,${domain},$${upgradePrice.toFixed(2)},${chatId},${new Date()}`)
-        await logTransaction(db, { chatId, type: 'hosting-upgrade', amount: Number(upgradePrice.toFixed(2)), currency: 'USD', status: 'completed', metadata: { domain, cpUser: plan.cpUser, fromPlan: plan.plan, toPlan: selected.name, listPrice: originalPrice, creditApplied, paymentMethod: 'wallet_usd' } })
+        await logTransaction(db, { chatId, type: 'hosting-upgrade', amount: Number(upgradePrice.toFixed(2)), currency: 'USD', status: 'completed', metadata: { domain, cpUser: plan.cpUser, fromPlan: plan.plan, toPlan: selected.name, listPrice: originalPrice, keepsExpiry: q.keepsExpiry, paymentMethod: 'wallet_usd' } })
 
         let summary = trans('t.upgradeSuccessTitle') + '\n\n'
           + trans('t.upgradeSuccessOldPlan', plan.plan) + '\n'
           + trans('t.upgradeSuccessNewPlan', selected.name) + '\n'
           + `<b>${trans('t.domainLabel')}</b> ${domain}\n`
           + trans('t.upgradeConfirmListPrice', originalPrice.toFixed(2)) + '\n'
-        if (creditApplied > 0) {
-          summary += trans('t.upgradeConfirmCredit', creditApplied.toFixed(2)) + '\n'
-        }
         summary += `<b>${trans('t.chargedLabel')}</b> $${upgradePrice.toFixed(2)}\n`
-          + trans('t.upgradeSuccessNewExpiry', newExpiry) + '\n'
+          + (q.keepsExpiry ? trans('t.upgradeConfirmKeepsExpiry', newExpiry) : trans('t.upgradeSuccessNewExpiry', newExpiry)) + '\n'
           + (newRenewalPrice > 0 ? trans('t.upgradeConfirmRenewsAt', newRenewalPrice.toFixed(2), 30) + '\n' : '')
           + `<b>${trans('t.remainingBalanceLabel')}</b> $${newUsdBal.toFixed(2)}\n\n`
           + trans('t.upgradeSuccessFooter', selected.key)
@@ -30394,7 +30257,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     try { const { usdBal } = await getBalance(walletOf, chatId); walletBal = usdBal } catch (e) { /* noop */ }
 
     let upgradeMsg = `⬆️ <b>Upgrade Preview</b>\n\n`
-    upgradeMsg += `${oldPlan.charAt(0).toUpperCase() + oldPlan.slice(1)} → <b>${newPlan.charAt(0).toUpperCase() + newPlan.slice(1)}</b> ($${newPrice}/mo)\n\n`
+    upgradeMsg += `${oldPlan.charAt(0).toUpperCase() + oldPlan.slice(1)} → <b>${newPlan.charAt(0).toUpperCase() + newPlan.slice(1)}</b> ($${planLifecycle.priceOnPlan(num, newPlan) ?? newPrice}/mo)\n\n`
     if (gainedFeatures.length > 0) {
       upgradeMsg += `<b>New features you'll unlock:</b>\n${gainedFeatures.join('\n')}\n\n`
     }
@@ -30405,20 +30268,9 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       upgradeMsg += `💰 <b>Upgrade cost: $${chargeAmount.toFixed(2)}</b>\n`
       upgradeMsg += `   ├ New plan: $${newPrice}/mo\n`
       if (eligibleForCredit && credit > 0) {
-        // ── #4 fix: time-based proration message ──
-        const basis = quote.prorationBasis || ''
-        if (basis === 'expiry_date' || basis === 'purchase_date') {
-          const rDays = Number.isFinite(quote.remainingDays) ? quote.remainingDays : null
-          const cycle = quote.billingCycleDays || 30
-          upgradeMsg += `   └ Prorated credit (${rDays}/${cycle} days unused on ${oldPlan}): -$${credit.toFixed(2)}\n`
-        } else {
-          upgradeMsg += `   └ Credit (${oldPlan}): -$${credit.toFixed(2)}\n`
-        }
+        upgradeMsg += `   └ 14-day upgrade credit (25% of ${oldPlan}): -$${credit.toFixed(2)}\n`
       } else {
-        const ageNote = ageDays === null || ageDays === Infinity
-          ? `plan age unknown`
-          : `plan ${ageDays}d old, no remaining days to prorate`
-        upgradeMsg += `   └ <i>No credit applied — ${ageNote}</i>\n`
+        upgradeMsg += `   └ <i>No credit — the 14-day upgrade credit ended (number ${ageDays}d old)</i>\n`
       }
       upgradeMsg += `👛 Wallet: $${walletBal.toFixed(2)}\n\n`
     }
@@ -34648,7 +34500,13 @@ Select a category:`), k.of(catBtns))
             send(chatId, trans('t.sms_1', chargeAmount.toFixed(2), walletBal.toFixed(2)))
             return
           }
-          await atomicIncrement(walletOf, chatId, 'usdOut', chargeAmount)
+          // Overdraft-safe debit: a concurrent spend can still make it fail after the balance check above.
+          const charged = await atomicIncrement(walletOf, chatId, 'usdOut', chargeAmount)
+          if (!charged) {
+            const { usdBal: nowBal } = await getBalance(walletOf, chatId)
+            send(chatId, trans('t.sms_1', chargeAmount.toFixed(2), nowBal.toFixed(2)))
+            return
+          }
         }
 
         // Apply the plan change
@@ -34673,12 +34531,13 @@ Select a category:`), k.of(catBtns))
     if (message === '✅ Confirm Change' && info?.cpPendingPlan) {
       const newPlan = info.cpPendingPlan
       const oldPlan = num.plan
-      const newPrice = phoneConfig.plans[newPlan].price
+      const newPrice = planLifecycle.priceOnPlan(num, newPlan) ?? phoneConfig.plans[newPlan].price
 
-      // For downgrades: no refund, change takes effect immediately
+      // For downgrades: no refund, change takes effect immediately (extra lines follow the main line's plan)
 
       await updatePhoneNumberField(phoneNumbersOf, chatId, num.phoneNumber, 'plan', newPlan)
       await updatePhoneNumberField(phoneNumbersOf, chatId, num.phoneNumber, 'planPrice', newPrice)
+      await planLifecycle.syncExtrasPlan(phoneNumbersOf, chatId, num.phoneNumber, newPlan)
       num.plan = newPlan
       num.planPrice = newPrice
 
@@ -34768,7 +34627,7 @@ Select a category:`), k.of(catBtns))
       const newPlanSms = phoneConfig.plans[newPlan]?.sms || 0
 
       let warningMsg = `⚠️ <b>Downgrade Warning</b>\n\n`
-      warningMsg += `${oldPlan.charAt(0).toUpperCase() + oldPlan.slice(1)} → <b>${newPlan.charAt(0).toUpperCase() + newPlan.slice(1)}</b> ($${newPrice}/mo)\n\n`
+      warningMsg += `${oldPlan.charAt(0).toUpperCase() + oldPlan.slice(1)} → <b>${newPlan.charAt(0).toUpperCase() + newPlan.slice(1)}</b> ($${planLifecycle.priceOnPlan(num, newPlan) ?? newPrice}/mo)\n\n`
       warningMsg += `<b>Features you will lose:</b>\n${lostFeatures.join('\n')}\n\n`
       warningMsg += `<b>Limits change:</b>\n`
       warningMsg += `📞 Minutes: ${oldPlanMinutes} → ${newPlanMinutes}\n`
@@ -34816,7 +34675,7 @@ Select a category:`), k.of(catBtns))
     try { const { usdBal } = await getBalance(walletOf, chatId); walletBal = usdBal } catch (e) { /* noop */ }
 
     let upgradeMsg = `⬆️ <b>Upgrade Preview</b>\n\n`
-    upgradeMsg += `${oldPlan.charAt(0).toUpperCase() + oldPlan.slice(1)} → <b>${newPlan.charAt(0).toUpperCase() + newPlan.slice(1)}</b> ($${newPrice}/mo)\n\n`
+    upgradeMsg += `${oldPlan.charAt(0).toUpperCase() + oldPlan.slice(1)} → <b>${newPlan.charAt(0).toUpperCase() + newPlan.slice(1)}</b> ($${planLifecycle.priceOnPlan(num, newPlan) ?? newPrice}/mo)\n\n`
     if (gainedFeatures.length > 0) {
       upgradeMsg += `<b>New features you'll unlock:</b>\n${gainedFeatures.join('\n')}\n\n`
     }
@@ -34827,20 +34686,9 @@ Select a category:`), k.of(catBtns))
       upgradeMsg += `💰 <b>Upgrade cost: $${chargeAmount.toFixed(2)}</b>\n`
       upgradeMsg += `   ├ New plan: $${newPrice}/mo\n`
       if (eligibleForCredit && credit > 0) {
-        // ── #4 fix: time-based proration message ──
-        const basis = quote.prorationBasis || ''
-        if (basis === 'expiry_date' || basis === 'purchase_date') {
-          const rDays = Number.isFinite(quote.remainingDays) ? quote.remainingDays : null
-          const cycle = quote.billingCycleDays || 30
-          upgradeMsg += `   └ Prorated credit (${rDays}/${cycle} days unused on ${oldPlan}): -$${credit.toFixed(2)}\n`
-        } else {
-          upgradeMsg += `   └ Credit (${oldPlan}): -$${credit.toFixed(2)}\n`
-        }
+        upgradeMsg += `   └ 14-day upgrade credit (25% of ${oldPlan}): -$${credit.toFixed(2)}\n`
       } else {
-        const ageNote = ageDays === null || ageDays === Infinity
-          ? `plan age unknown`
-          : `plan ${ageDays}d old, no remaining days to prorate`
-        upgradeMsg += `   └ <i>No credit applied — ${ageNote}</i>\n`
+        upgradeMsg += `   └ <i>No credit — the 14-day upgrade credit ended (number ${ageDays}d old)</i>\n`
       }
       upgradeMsg += `👛 Wallet: $${walletBal.toFixed(2)}\n\n`
     }
@@ -35410,10 +35258,10 @@ Select a category:`), k.of(catBtns))
     if (subscribedPlan) {
       const rawTime = await get(planEndingTime, chatId)
       const timeEnd = new Date(rawTime)
-      const MAX_REASONABLE_MS = 31 * 86400 * 1000
+      // Re-purchases stack, so a valid expiry can be months out; only a corrupt value (> 5 years) is flagged.
+      const MAX_REASONABLE_MS = 5 * 366 * 86400 * 1000
       if (rawTime > Date.now() + MAX_REASONABLE_MS) {
-        log(`[viewPlan] Anomalous planEndingTime for chatId ${chatId}: ${timeEnd.toISOString()} — auto-expiring`)
-        set(planEndingTime, chatId, 0)
+        log(`[viewPlan] Anomalous planEndingTime for chatId ${chatId}: ${timeEnd.toISOString()} — shown as expired, left for admin review`)
         sections.push(`📦 <b>Bot Plan:</b> ${subscribedPlan} — ❌ Expired`)
       } else if (await isSubscribed(chatId)) {
         const daysLeft = Math.ceil((rawTime - Date.now()) / 86400000)
@@ -37431,12 +37279,10 @@ async function isSubscribed(chatId) {
   const time = await get(planEndingTime, chatId)
   if (!time || time <= Date.now()) return false
 
-  // Sanity check: no plan should be valid more than 31 days from now
-  const MAX_REASONABLE_MS = 31 * 86400 * 1000
+  // Sanity check for corrupt values only — re-purchases stack, so a valid expiry can be months out. Never wiped.
+  const MAX_REASONABLE_MS = 5 * 366 * 86400 * 1000
   if (time > Date.now() + MAX_REASONABLE_MS) {
-    log(`[isSubscribed] Anomalous planEndingTime for chatId ${chatId}: ${new Date(time).toISOString()} — treating as expired`)
-    // Auto-fix: expire the corrupted plan
-    set(planEndingTime, chatId, 0)
+    log(`[isSubscribed] Anomalous planEndingTime for chatId ${chatId}: ${new Date(time).toISOString()} — treating as expired, left for admin review`)
     return false
   }
 
@@ -38319,476 +38165,16 @@ async function reconcileContaboBillingDrift() {
 }
 
 async function checkVPSPlansExpiryandPayment() {
-  // ── DEV-SAFETY GUARD ──────────────────────────────────────────────────
-  // This scheduler MUTATES production data: it deducts customer wallets for
-  // auto-renewals and DELETES live VPS/RDP instances at expiry. The dev pod
-  // shares the production MONGO_URL, so without this guard a dev/sandbox
-  // instance would charge real wallets and destroy real customers' servers
-  // every 5 minutes. SKIP_WEBHOOK_SYNC=true marks non-production environments.
-  if (process.env.SKIP_WEBHOOK_SYNC === 'true') {
-    return
-  }
-
-  // Guard: Ensure database is initialized before proceeding
+  // DEV-SAFETY GUARD: this scheduler charges wallets and deletes live servers — never on a dev/sandbox pod.
+  if (process.env.SKIP_WEBHOOK_SYNC === 'true') return
   if (!vpsPlansOf || typeof vpsPlansOf.find !== 'function') {
     console.log('[VPS Scheduler] Database not ready yet, skipping check')
     return
   }
-
-  // ── PAYG provider helper ──────────────────────────────────────────────
-  // DigitalOcean / Vultr / Azure bill us per-hour and have NO "scheduled
-  // cancel" — calling cancelInstance destroys the VM instantly. For these,
-  // we MUST wait until end_time (Phase 2) to destroy, otherwise customers
-  // lose 24h of paid time. For Contabo, the T-24h / T-5h pre-emptive
-  // cancels are still needed because Contabo pre-bills the next period
-  // ~4 days before expiry.
-  const { detectProviderByInstanceId: _detectByPrefix, getProviderForRecord: _providerForRecord } = require('./vps-provider')
-  function _isPAYGProvider(vpsPlan) {
-    const name = _detectByPrefix(vpsPlan.contaboInstanceId)
-      || (vpsPlan.provider || '').toLowerCase()
-    return name === 'vultr' || name === 'digitalocean' || name === 'digitalocean-rdp' || name === 'azure'
-  }
-  // DigitalOcean Windows-RDP has its own 2-day grace lifecycle (Phase 2-RDP below).
-  // DO bills powered-off droplets hourly, so an un-renewed RDP box must be DESTROYED
-  // after a 2-day grace period (not just powered off). This scheduler OWNS that lifecycle
-  // (it can notify the user); the RDP-service processExpiries() sweep is only a safety net.
-  const rdpGrace = require('./rdp-grace-lifecycle')
-  const resellerWebhooks = require('./reseller-webhooks')
-  const _isDoRdp = (vpsPlan) => rdpGrace.isDigitalOceanRdp(vpsPlan)
-  // DigitalOcean Linux VPS runs the SAME 2-day grace lifecycle as DO-RDP: DO bills powered-off
-  // droplets hourly, so an un-renewed box is powered OFF at end_time, held for the grace window,
-  // then DESTROYED. _isGraceManaged = every DO box this scheduler drives through that flow.
-  const VPS_GRACE_DAYS = Math.max(0, Number(process.env.VPS_GRACE_DAYS || 2))
-  const _isDoVps = (vpsPlan) => {
-    if (_isDoRdp(vpsPlan)) return false
-    if (String(vpsPlan.provider || '').toLowerCase() === 'digitalocean') return true
-    return _detectByPrefix(vpsPlan.contaboInstanceId || vpsPlan.instanceId || vpsPlan.vpsId) === 'digitalocean'
-  }
-  const _isGraceManaged = (vpsPlan) => _isDoRdp(vpsPlan) || _isDoVps(vpsPlan)
-  // Push a VPS lifecycle event to the owner's reseller webhook (no-op for ordinary bot users).
-  const _notifyResellerVps = (vpsPlan, event, reason) => {
-    require('./reseller-activity').record(db, { ownerChatId: vpsPlan.chatId, resourceType: vpsPlan.isRDP ? 'rdp' : 'vps', resourceId: vpsPlan.vpsId || vpsPlan._id, action: event.endsWith('.deleted') ? 'delete' : 'suspend', actor: 'system', details: { reason: reason || null } })
-    try {
-      resellerWebhooks.emit(db, {
-        chatId: vpsPlan.chatId, event,
-        instanceId: vpsPlan.vpsId || vpsPlan._id,
-        payload: { plan: vpsPlan.plan || null, region: vpsPlan.region || null, reason: reason || null },
-        log,
-      }).catch(() => {})
-    } catch (_) { /* best-effort */ }
-  }
-  // Renewal length = the prepaid period the customer bought (DO RDP: 1/2/3 months; everything else monthly).
-  // Providers that enforce their own expiry (DO-RDP sweep on doRdpServers.expires_at) must be told about
-  // the renewal too, otherwise they power the server off even though the bot record was extended.
-  const _renewalMonths = (vpsPlan) => Math.max(1, Number(vpsPlan.durationMonths) || 1)
-  async function _syncProviderRenewal(vpsPlan, months) {
-    try {
-      const provider = _providerForRecord(vpsPlan)
-      if (!vpsPlan.contaboInstanceId || typeof provider.renewInstance !== 'function') return
-      await provider.renewInstance(vpsPlan.contaboInstanceId, months)
-    } catch (e) { log(`[VPS Scheduler] provider renewInstance failed for ${vpsPlan.vpsId}: ${e.message}`) }
-  }
-
-  const now = new Date()
-  const oneDayFromNow = new Date(now.getTime() + 1 * 24 * 60 * 60 * 1000)
-  const threeDaysFromNow = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000)
-
-  try {
-    // ═══════════════════════════════════════════════════════════════
-    // Phase 1: AUTO-RENEW — 1 day before expiry (end_time within next 24h)
-    // Uses smartWalletDeduct (USD → NGN fallback, atomic)
-    // ═══════════════════════════════════════════════════════════════
-    const dueForRenewal = await vpsPlansOf.find({
-      'end_time': { $lte: oneDayFromNow, $gt: now },
-      'status': { $in: ['RUNNING', 'running'] },
-      '_autoRenewAttempted': { $ne: true },
-      // In-place plan change (resize) running → renew on the next hourly run, at the NEW plan price.
-      'planChange.status': { $nin: ['running', 'reconciling'] },
-    }).toArray()
-
-    for (const vpsPlan of dueForRenewal) {
-      const { chatId, _id, vpsId, label, autoRenewable, contaboInstanceId } = vpsPlan
-      // RDP: re-priced on live AMD stock in its city (base … +15%); everything else renews at planPrice.
-      const planPrice = await vpsRenewalPrice(vpsPlan)
-      const info = await state.findOne({ _id: String(chatId) })
-      const lang = info?.userLanguage || 'en'
-      const displayName = label || vpsPlan.name || (isRdpRecord(vpsPlan) ? 'RDP' : 'VPS')
-      const expiryDate = new Date(vpsPlan.end_time).toLocaleDateString()
-
-      if (!autoRenewable) {
-        // Auto-renew disabled — mark as pending cancellation, warn user
-        await vpsPlansOf.updateOne({ _id }, { $set: { status: 'PENDING_CANCELLATION', _autoRenewAttempted: true } })
-        try { send(chatId, asKind(translation('t.util_1', lang, displayName, expiryDate), isRdpRecord(vpsPlan))) } catch (notifErr) { log(`[VPS Scheduler] notify failed: ${notifErr.message}`) }
-        log(`[VPS Scheduler] ${displayName} marked PENDING_CANCELLATION for ${chatId} — auto-renew disabled`)
-        // Reseller webhook: PAYG box keeps running until end_time, so this is the grace window
-        // (deletion happens in Phase 2 at end_time). Non-PAYG is cancelled immediately below.
-        // DO VPS + DO-RDP are grace-managed: they emit their own vps./rdp.grace_start from the
-        // Phase 2-DO lifecycle (at end_time, when powered off) — suppress the Phase-1 emit here.
-        if (_isPAYGProvider(vpsPlan) && !_isGraceManaged(vpsPlan)) _notifyResellerVps(vpsPlan, 'vps.grace_start', 'auto_renew_disabled')
-        // ── BUG-B FIX: cancel on Contabo IMMEDIATELY (24h before expiry) ──
-        // Contabo bills monthly contracts in advance; waiting until the 5h
-        // pre-emptive cancel (Phase 1.5) was too late and caused €30+ leak
-        // charges (cancelDate landed one period later instead of at end_time).
-        //
-        // PAYG providers (DO / Vultr / Azure) bill hourly and `cancelInstance`
-        // is destructive — skip the early-cancel here. Phase 2 (at end_time)
-        // performs the actual destroy. This preserves the customer's full
-        // paid period; the PAYG cost we eat is ≤24h ($0.20-$4).
-        if (!vpsPlan._contaboCancelledEarly && !_isPAYGProvider(vpsPlan)) {
-          try {
-            const cancelResult = await deleteVPSinstance(chatId, vpsId)
-            if (cancelResult && cancelResult.success) {
-              await vpsPlansOf.updateOne({ _id }, { $set: { _contaboCancelledEarly: true, status: 'CANCELLED', cancelledAt: new Date(), cancelReason: 'auto_renew_disabled', contaboCancelDate: cancelResult.cancelDate } })
-              log(`[VPS Scheduler] EARLY CANCEL on Contabo for ${displayName} (auto-renew off) — cancelDate=${cancelResult.cancelDate}`)
-            } else {
-              log(`[VPS Scheduler] EARLY CANCEL non-success for ${displayName}: ${(cancelResult && cancelResult.error) || 'unknown'}`)
-            }
-          } catch (cancelErr) {
-            log(`[VPS Scheduler] EARLY CANCEL crash for ${displayName}: ${cancelErr.message}`)
-          }
-        }
-        continue
-      }
-
-      // Try to charge wallet: USD first, then NGN
-      const deductResult = await smartWalletDeduct(walletOf, chatId, Number(planPrice))
-
-      if (deductResult.success) {
-        // Renew for the period the customer prepaid (1 month, or 2/3 for DO RDP) + tell the provider
-        const renewMonths = _renewalMonths(vpsPlan)
-        const newEnd = new Date(vpsPlan.end_time)
-        newEnd.setMonth(newEnd.getMonth() + renewMonths)
-
-        await vpsPlansOf.updateOne({ _id }, {
-          $set: { end_time: newEnd, status: 'RUNNING', _autoRenewAttempted: true, _reminder3DaySent: false, _reminder1DaySent: false, ...(planPrice !== Number(vpsPlan.planPrice) ? { planPrice } : {}) }
-        })
-        await _syncProviderRenewal(vpsPlan, renewMonths)
-        const currSymbol = deductResult.currency === 'ngn' ? '₦' : '$'
-        const chargedDisplay = deductResult.currency === 'ngn'
-          ? `₦${Number(deductResult.chargedNgn).toFixed(2)} (≈ $${planPrice})`
-          : `$${planPrice}`
-        set(payments, nanoid(), `Wallet,VPSAutoRenew,${renewMonths === 1 ? 'Monthly' : `${renewMonths} Months`},$${planPrice},${chatId},${new Date()},${deductResult.currency}`)
-
-        const { usdBal: usd } = await getBalance(walletOf, chatId)
-        try { send(chatId, asKind(translation('t.util_2', lang, displayName, chargedDisplay, deductResult.currency.toUpperCase(), newEnd.toLocaleDateString(), usd.toFixed(2), '0.00'), isRdpRecord(vpsPlan))) } catch (notifErr) { log(`[VPS Scheduler] notify failed: ${notifErr.message}`) }
-        log(`[VPS Scheduler] Auto-renewed ${displayName} for ${chatId}, charged ${deductResult.currency} $${planPrice}`)
-      } else {
-        // Both USD and NGN failed — mark pending cancellation
-        await vpsPlansOf.updateOne({ _id }, { $set: { status: 'PENDING_CANCELLATION', _autoRenewAttempted: true } })
-        const { usdBal } = deductResult
-        try { send(chatId, asKind(translation('t.util_3', lang, displayName, (usdBal || 0).toFixed(2), planPrice, expiryDate), isRdpRecord(vpsPlan))) } catch (notifErr) { log(`[VPS Scheduler] notify failed: ${notifErr.message}`) }
-        send(TELEGRAM_ADMIN_CHAT_ID, `⚠️ <b>VPS Renewal Failed</b>\nUser: ${adminUserTag(await get(nameOf, chatId), chatId)}\nVPS: ${displayName}\nPrice: $${planPrice}\nBalance: $${(usdBal || 0).toFixed(2)}`, adminMsgOpts({ chatId }))
-        log(`[VPS Scheduler] ${displayName} PENDING_CANCELLATION for ${chatId} — balance insufficient ($${usdBal || 0} < $${planPrice})`)
-        // Reseller webhook: PAYG box keeps running until end_time → grace window begins (Phase 2
-        // destroys at end_time). Gives the storefront a window to renew via POST /vps/:id/renew.
-        // DO VPS + DO-RDP are grace-managed and emit their own grace_start from Phase 2-DO.
-        if (_isPAYGProvider(vpsPlan) && !_isGraceManaged(vpsPlan)) _notifyResellerVps(vpsPlan, 'vps.grace_start', 'insufficient_funds')
-        // ── BUG-B FIX (extended): cancel on Contabo IMMEDIATELY at wallet-fail.
-        // Contabo pre-bills the next period ~4 days BEFORE end_time, which is
-        // earlier than the old Phase 1.5 trigger (T-5h) — so without this we
-        // get charged for the next month before the safety net fires.
-        // Phase 1.5 is kept as a redundant retry for any record this misses.
-        //
-        // PAYG providers (DO / Vultr / Azure): skip here too — Phase 2 will
-        // destroy at end_time, honouring the customer's paid period.
-        if (!vpsPlan._contaboCancelledEarly && !_isPAYGProvider(vpsPlan)) {
-          try {
-            const cancelResult = await deleteVPSinstance(chatId, vpsId)
-            if (cancelResult && cancelResult.success) {
-              await vpsPlansOf.updateOne({ _id }, { $set: { _contaboCancelledEarly: true, status: 'CANCELLED', cancelledAt: new Date(), cancelReason: 'wallet_deduct_failed', contaboCancelDate: cancelResult.cancelDate } })
-              log(`[VPS Scheduler] EARLY CANCEL on Contabo for ${displayName} (wallet fail) — cancelDate=${cancelResult.cancelDate}`)
-            } else {
-              log(`[VPS Scheduler] EARLY CANCEL (wallet fail) non-success for ${displayName}: ${(cancelResult && cancelResult.error) || 'unknown'} — Phase 1.5 will retry`)
-            }
-          } catch (cancelErr) {
-            log(`[VPS Scheduler] EARLY CANCEL (wallet fail) crash for ${displayName}: ${cancelErr.message} — Phase 1.5 will retry`)
-          }
-        }
-      }
-    }
-
-    // ═══════════════════════════════════════════════════════════════
-    // Phase 1.5: PRE-EMPTIVE CONTABO CANCELLATION — 5 hours before expiry
-    // If auto-renew failed (PENDING_CANCELLATION) and expiry is within 5 hours,
-    // cancel on Contabo NOW to prevent their auto-billing/renewal.
-    //
-    // PAYG providers (DO / Vultr / Azure) are excluded — their cancel is
-    // destructive and Phase 2 (at end_time) handles them safely.
-    // ═══════════════════════════════════════════════════════════════
-    const fiveHoursFromNow = new Date(now.getTime() + 5 * 60 * 60 * 1000)
-    const urgentCancellations = await vpsPlansOf.find({
-      'end_time': { $lte: fiveHoursFromNow, $gt: now },
-      'status': 'PENDING_CANCELLATION',
-      '_contaboCancelledEarly': { $ne: true }
-    }).toArray()
-
-    for (const vpsPlan of urgentCancellations) {
-      if (_isPAYGProvider(vpsPlan)) continue // Phase 2 handles these at end_time
-      const { chatId, _id, vpsId, label, contaboInstanceId, planPrice } = vpsPlan
-      const displayName = label || vpsPlan.name || (isRdpRecord(vpsPlan) ? 'RDP' : 'VPS')
-      const hoursLeft = ((new Date(vpsPlan.end_time).getTime() - now.getTime()) / (1000 * 60 * 60)).toFixed(1)
-      const _info = await state.findOne({ _id: String(chatId) })
-      const lang = _info?.userLanguage || 'en'
-
-      try {
-        // Cancel on Contabo early to prevent their auto-renewal billing
-        const cancelResult = await deleteVPSinstance(chatId, vpsId)
-        if (cancelResult.success) {
-          await vpsPlansOf.updateOne({ _id }, { $set: { _contaboCancelledEarly: true, status: 'CANCELLED', cancelledAt: new Date(), cancelReason: 'pre_emptive_no_payment' } })
-          try { send(chatId, asKind(translation('t.util_4', lang, displayName), isRdpRecord(vpsPlan))) } catch (notifErr) { log(`[VPS Scheduler] notify failed: ${notifErr.message}`) }
-          bot?.sendMessage(TELEGRAM_ADMIN_CHAT_ID, `🛑 <b>VPS Pre-emptive Cancel</b>\nUser: ${adminUserTag(await get(nameOf, chatId), chatId)}\nVPS: ${displayName}\nContabo ID: ${contaboInstanceId || vpsId}\nHours before expiry: ${hoursLeft}h\nPrice: $${planPrice}/mo\n\n✅ Cancelled on Contabo to prevent their billing.`, adminMsgOpts({ chatId })).catch(() => {})
-          log(`[VPS Scheduler] PRE-EMPTIVE CANCEL: ${displayName} for ${chatId} — ${hoursLeft}h before expiry`)
-        } else {
-          // Cancel failed — alert admin urgently
-          bot?.sendMessage(TELEGRAM_ADMIN_CHAT_ID,
-            `🚨🚨 <b>URGENT: VPS Cancel FAILED — ${hoursLeft}h to Contabo billing!</b>\nUser: ${adminUserTag(await get(nameOf, chatId), chatId)}\nVPS: ${displayName}\nContabo ID: ${contaboInstanceId || vpsId}\nError: ${cancelResult.error}\n\n⚠️ <b>MANUAL ACTION REQUIRED on Contabo dashboard to prevent billing!</b>`,
-            adminMsgOpts({ chatId })
-          ).catch(err => {
-            log(`[VPS] CRITICAL: Failed to notify admin about VPS cancel failure for ${chatId}: ${err.message}`)
-          })
-          log(`[VPS Scheduler] PRE-EMPTIVE CANCEL FAILED: ${displayName} — ${cancelResult.error}`)
-        }
-      } catch (err) {
-        bot?.sendMessage(TELEGRAM_ADMIN_CHAT_ID,
-          `🚨🚨 <b>URGENT: VPS Cancel CRASH — ${hoursLeft}h to Contabo billing!</b>\nUser: ${adminUserTag(await get(nameOf, chatId), chatId)}\nVPS: ${displayName}\nContabo ID: ${contaboInstanceId || vpsId}\nError: ${err.message}\n\n⚠️ <b>MANUAL ACTION REQUIRED!</b>`,
-          adminMsgOpts({ chatId })
-        ).catch(notifyErr => {
-          log(`[VPS] CRITICAL: Failed to notify admin about VPS cancel crash for ${chatId}: ${notifyErr.message}`)
-        })
-        log(`[VPS Scheduler] PRE-EMPTIVE CANCEL CRASH: ${displayName} — ${err.message}`)
-      }
-    }
-
-    // ═══════════════════════════════════════════════════════════════
-    // Phase 1.6: ESCALATING ADMIN NOTIFICATIONS — 24h countdown for unpaid VPS
-    // Notify admin at 24h, 12h, 6h, 3h, 1h before expiry for PENDING_CANCELLATION
-    // ═══════════════════════════════════════════════════════════════
-    const pendingVps = await vpsPlansOf.find({
-      'end_time': { $lte: oneDayFromNow, $gt: fiveHoursFromNow },
-      'status': 'PENDING_CANCELLATION'
-    }).toArray()
-
-    for (const vpsPlan of pendingVps) {
-      const { chatId, _id, label, contaboInstanceId, planPrice, end_time } = vpsPlan
-      const displayName = label || vpsPlan.name || (isRdpRecord(vpsPlan) ? 'RDP' : 'VPS')
-      const hoursLeft = (new Date(end_time).getTime() - now.getTime()) / (1000 * 60 * 60)
-      const notifySent = vpsPlan._adminNotifyHistory || []
-
-      // Determine which notification tier to send
-      const tiers = [
-        { hours: 24, key: '24h', emoji: '⏰' },
-        { hours: 12, key: '12h', emoji: '⚠️' },
-        { hours: 6,  key: '6h',  emoji: '🚨' },
-      ]
-
-      for (const tier of tiers) {
-        if (hoursLeft <= tier.hours && !notifySent.includes(tier.key)) {
-          const { usdBal } = await getBalance(walletOf, chatId)
-          const shortfall = (planPrice - usdBal).toFixed(2)
-          bot?.sendMessage(TELEGRAM_ADMIN_CHAT_ID,
-            `${tier.emoji} <b>VPS Renewal Alert — ${tier.key} remaining</b>\n` +
-            `\nUser: ${adminUserTag(await get(nameOf, chatId), chatId)}\nVPS: ${displayName}\nContabo ID: ${contaboInstanceId || vpsPlan.vpsId}\n` +
-            `Price: $${planPrice}/mo\nUser balance: $${usdBal.toFixed(2)} (short: $${shortfall})\n` +
-            `Expires: ${new Date(end_time).toLocaleString()}\n` +
-            `\n${hoursLeft <= 6 ? '🛑 <b>Will be auto-cancelled on Contabo at 5h mark if unpaid!</b>' : '💡 User has been notified. No action needed yet.'}`,
-            adminMsgOpts({ chatId })
-          ).catch(() => {})
-          await vpsPlansOf.updateOne({ _id }, { $push: { _adminNotifyHistory: tier.key } })
-          log(`[VPS Scheduler] Admin ${tier.key} notification for ${displayName} (${chatId}) — ${hoursLeft.toFixed(1)}h left`)
-          break // only send one notification per cycle
-        }
-      }
-    }
-
-    // ═══════════════════════════════════════════════════════════════
-    // Phase 2-DO: DigitalOcean VPS + Windows-RDP 2-day grace lifecycle (OWNER).
-    // For digitalocean / digitalocean-rdp records this scheduler is the single owner of the
-    // expiry → power-off → 2-day-grace → DESTROY flow (with Telegram notices).
-    // Phase 2 + Phase 3 below skip these DO records so they never double-handle
-    // (or 0-grace-destroy) these. The RDP-service processExpiries() sweep only
-    // fires as a defensive safety net if this cycle is missed.
-    // ═══════════════════════════════════════════════════════════════
-    try {
-      const rdpSvc = require('./digitalocean-rdp-service')
-      const rdpCandidates = await vpsPlansOf.find({
-        status: { $nin: ['CANCELLED', 'DESTROYED', 'destroyed', 'DELETED'] },
-        $or: [
-          { provider: 'digitalocean-rdp' },
-          { provider: 'digitalocean' },
-          { contaboInstanceId: { $regex: '^rdp-', $options: 'i' } },
-          { contaboInstanceId: { $regex: '^do-', $options: 'i' } },
-        ],
-      }).toArray()
-      for (const vpsPlan of rdpCandidates) {
-        if (!_isGraceManaged(vpsPlan)) continue
-        const isRdpBox = _isDoRdp(vpsPlan)
-        const graceDays = isRdpBox ? rdpGrace.GRACE_DAYS : VPS_GRACE_DAYS
-        const decision = rdpGrace.decideRdpGrace(vpsPlan, { now, graceDays })
-        if (decision.action === 'none' || decision.action === 'wait') continue
-        const info = await state.findOne({ _id: String(vpsPlan.chatId) })
-        const lang = info?.userLanguage || 'en'
-        const provider = _providerForRecord(vpsPlan)
-        await rdpGrace.applyRdpGrace(vpsPlan, decision, {
-          now,
-          product: isRdpBox ? 'rdp' : 'vps',
-          msgKeys: isRdpBox
-            ? { graceStart: 't.rdpGraceStart', graceReminder: 't.rdpGraceReminder', deletedAfterGrace: 't.rdpDeletedAfterGrace' }
-            : { graceStart: 't.vpsGraceStart', graceReminder: 't.vpsGraceReminder', deletedAfterGrace: 't.vpsDeletedAfterGrace' },
-          powerOff: (inst) => (provider && typeof provider.stopInstance === 'function') ? provider.stopInstance(inst) : Promise.resolve(),
-          destroy: (cid, vid) => deleteVPSinstance(cid, vid),
-          updatePlan: (planId, set) => vpsPlansOf.updateOne({ _id: planId }, { $set: set }),
-          mirrorGrace: isRdpBox ? ((inst, fields) => (typeof rdpSvc.markGrace === 'function') ? rdpSvc.markGrace(inst, fields) : Promise.resolve()) : null,
-          mirrorDestroy: isRdpBox ? ((inst) => (typeof rdpSvc.markGraceDestroy === 'function') ? rdpSvc.markGraceDestroy(inst) : Promise.resolve()) : null,
-          notifyUser: (cid, key, args) => { try { send(cid, translation(key, lang, ...(args || []))) } catch (e) { log(`[DO Grace] notify failed: ${e.message}`) } },
-          notifyReseller: (event, payload) => { try { resellerWebhooks.emit(db, { chatId: vpsPlan.chatId, event, instanceId: vpsPlan.vpsId || vpsPlan._id, payload, log }).catch(() => {}) } catch (_) { /* noop */ } },
-          notifyAdmin: (text) => { try { send(TELEGRAM_ADMIN_CHAT_ID, text, adminMsgOpts({ chatId: vpsPlan.chatId })) } catch (_) { /* noop */ } },
-          log,
-        })
-      }
-    } catch (rdpErr) {
-      log(`[RDP Grace] pass error: ${rdpErr.message}`)
-    }
-
-    // ═══════════════════════════════════════════════════════════════
-    // Phase 2: DELETE on Contabo — VPS past deadline with failed renewal
-    // PENDING_CANCELLATION + end_time <= now → cancel on Contabo + mark CANCELLED
-    // ═══════════════════════════════════════════════════════════════
-    const pastDeadline = await vpsPlansOf.find({
-      'end_time': { $lte: now },
-      'status': 'PENDING_CANCELLATION'
-    }).toArray()
-
-    for (const vpsPlan of pastDeadline) {
-      if (_isGraceManaged(vpsPlan)) continue // DigitalOcean VPS+RDP are handled by the Phase 2-DO grace lifecycle (2-day grace, not 0-grace destroy)
-      const { chatId, _id, vpsId, label, contaboInstanceId, planPrice, lastDeleteAlertAt, deleteRetryCount } = vpsPlan
-      const displayName = label || vpsPlan.name || (isRdpRecord(vpsPlan) ? 'RDP' : 'VPS')
-      const info = await state.findOne({ _id: String(chatId) })
-      const lang = info?.userLanguage || 'en'
-
-      try {
-        // Delete from Contabo to prevent their billing
-        const deleteResult = await deleteVPSinstance(chatId, vpsId)
-        if (deleteResult.success) {
-          await vpsPlansOf.updateOne({ _id }, { $set: { status: 'CANCELLED', cancelledAt: new Date(), cancelReason: deleteResult.alreadyGone ? 'auto_renewal_failed_already_gone' : 'auto_renewal_failed' } })
-          // Reseller webhook: the box was permanently deleted at end_time after an unrenewed grace.
-          _notifyResellerVps(vpsPlan, 'vps.deleted', deleteResult.alreadyGone ? 'already_gone' : 'auto_renewal_failed')
-          try { send(chatId, asKind(translation('t.util_5', lang, displayName), isRdpRecord(vpsPlan))) } catch (notifErr) { log(`[VPS Scheduler] notify failed: ${notifErr.message}`) }
-          // Only alert admin on ACTIVE deletions (skip idempotent no-ops:
-          // the instance was already gone on the provider — nothing new).
-          if (!deleteResult.alreadyGone) {
-            send(TELEGRAM_ADMIN_CHAT_ID, `🗑️ <b>VPS Auto-Deleted</b>\nUser: ${adminUserTag(await get(nameOf, chatId), chatId)}\nVPS: ${displayName}\nReason: Renewal failed, deadline passed\nPrice was: $${planPrice}/mo`, adminMsgOpts({ chatId }))
-          }
-          log(`[VPS Scheduler] DELETED ${displayName} on Contabo for ${chatId} — deadline passed${deleteResult.alreadyGone ? ' (already gone)' : ''}`)
-        } else {
-          // Delete failed — retry next cycle. Admin alert is throttled to
-          // avoid the spam pattern seen 2026-02 with vmi3508080 (43× same
-          // alert in a day). Alert at attempt 1, then only every 6 hours,
-          // and stop entirely after 10 retries (manual intervention needed).
-          const retries = (deleteRetryCount || 0) + 1
-          const lastAlertAgeMs = lastDeleteAlertAt ? (Date.now() - new Date(lastDeleteAlertAt).getTime()) : Infinity
-          const shouldAlert = retries === 1 || (retries <= 10 && lastAlertAgeMs >= 6 * 3600 * 1000)
-          await vpsPlansOf.updateOne(
-            { _id },
-            {
-              $set: { deleteRetryCount: retries, lastDeleteError: deleteResult.error, ...(shouldAlert ? { lastDeleteAlertAt: new Date() } : {}) },
-            }
-          )
-          log(`[VPS Scheduler] ERROR: Failed to delete ${displayName} on Contabo (attempt ${retries}): ${deleteResult.error}${shouldAlert ? '' : ' — admin alert throttled'}`)
-          if (shouldAlert) {
-            send(TELEGRAM_ADMIN_CHAT_ID, `🚨 <b>VPS DELETE FAILED</b> ${retries === 1 ? '' : `(retry ${retries})`}\nUser: ${adminUserTag(await get(nameOf, chatId), chatId)}\nVPS: ${displayName} (vpsId: ${vpsId})\nInstance ID: ${contaboInstanceId}\nError: ${deleteResult.error}\n\n⚠️ Manual deletion required to prevent provider billing! ${retries >= 10 ? '\n\n🛑 Auto-retries exhausted — no further alerts on this instance.' : `(next alert in ≥6h)`}`, adminMsgOpts({ chatId }))
-          }
-        }
-      } catch (err) {
-        log(`[VPS Scheduler] CRASH deleting ${displayName}: ${err.message}`)
-        // Crash path — also throttle to prevent unbounded alerts on
-        // repeatable exceptions (e.g. transient Contabo 500s).
-        const retries = (deleteRetryCount || 0) + 1
-        const lastAlertAgeMs = lastDeleteAlertAt ? (Date.now() - new Date(lastDeleteAlertAt).getTime()) : Infinity
-        const shouldAlert = retries === 1 || (retries <= 10 && lastAlertAgeMs >= 6 * 3600 * 1000)
-        await vpsPlansOf.updateOne(
-          { _id },
-          { $set: { deleteRetryCount: retries, lastDeleteError: err.message, ...(shouldAlert ? { lastDeleteAlertAt: new Date() } : {}) } }
-        )
-        if (shouldAlert) {
-          send(TELEGRAM_ADMIN_CHAT_ID, `🚨 <b>VPS Delete Crash</b> ${retries === 1 ? '' : `(retry ${retries})`}\nUser: ${adminUserTag(await get(nameOf, chatId), chatId)}\nVPS: ${displayName}\nError: ${err.message}${retries >= 10 ? '\n\n🛑 Auto-retries exhausted.' : ''}`, adminMsgOpts({ chatId }))
-        }
-      }
-    }
-
-    // ═══════════════════════════════════════════════════════════════
-    // Phase 3: Also handle any VPS that are RUNNING but past expiry
-    // (edge case: old records before this update, or missed scheduler runs)
-    // ═══════════════════════════════════════════════════════════════
-    const staleExpired = await vpsPlansOf.find({
-      'end_time': { $lte: now },
-      'status': { $in: ['RUNNING', 'running'] },
-      '_autoRenewAttempted': { $ne: true }
-    }).toArray()
-
-    for (const vpsPlan of staleExpired) {
-      if (_isGraceManaged(vpsPlan)) continue // DigitalOcean VPS+RDP enter the Phase 2-DO grace lifecycle instead of PENDING_CANCELLATION
-      const { chatId, _id, planPrice, vpsId, label, autoRenewable } = vpsPlan
-      const displayName = label || vpsPlan.name || (isRdpRecord(vpsPlan) ? 'RDP' : 'VPS')
-      const info = await state.findOne({ _id: String(chatId) })
-      const lang = info?.userLanguage || 'en'
-
-      // Try one last renewal attempt
-      if (autoRenewable) {
-        const deductResult = await smartWalletDeduct(walletOf, chatId, Number(planPrice))
-        if (deductResult.success) {
-          const newEnd = new Date(now)
-          newEnd.setMonth(newEnd.getMonth() + 1)
-          await vpsPlansOf.updateOne({ _id }, {
-            $set: { end_time: newEnd, status: 'RUNNING', _autoRenewAttempted: true, _reminder3DaySent: false, _reminder1DaySent: false }
-          })
-          const chargedDisplay = deductResult.currency === 'ngn'
-            ? `₦${Number(deductResult.chargedNgn).toFixed(2)} (≈ $${planPrice})`
-            : `$${planPrice}`
-          set(payments, nanoid(), `Wallet,VPSAutoRenew,Monthly,$${planPrice},${chatId},${new Date()},${deductResult.currency}`)
-          const { usdBal: usd } = await getBalance(walletOf, chatId)
-          try { send(chatId, asKind(translation('t.util_6', lang, displayName, chargedDisplay, newEnd.toLocaleDateString(), usd.toFixed(2), '0.00'), isRdpRecord(vpsPlan))) } catch (notifErr) { log(`[VPS Scheduler] notify failed: ${notifErr.message}`) }
-          log(`[VPS Scheduler] Late auto-renewed ${displayName} for ${chatId}`)
-          continue
-        }
-      }
-      // Failed or auto-renew off — mark pending cancellation (will be deleted next cycle)
-      await vpsPlansOf.updateOne({ _id }, { $set: { status: 'PENDING_CANCELLATION', _autoRenewAttempted: true } })
-      const { usdBal } = await getBalance(walletOf, chatId)
-      try { send(chatId, asKind(translation('t.util_7', lang, displayName, (usdBal).toFixed(2)), isRdpRecord(vpsPlan))) } catch (notifErr) { log(`[VPS Scheduler] notify failed: ${notifErr.message}`) }
-      log(`[VPS Scheduler] ${displayName} marked PENDING_CANCELLATION (stale) for ${chatId}`)
-    }
-
-    // ═══════════════════════════════════════════════════════════════
-    // Phase 4: Pre-expiry reminders with wallet balance info
-    // ═══════════════════════════════════════════════════════════════
-    const soonExpiring = await vpsPlansOf.find({
-      'end_time': { $lte: threeDaysFromNow, $gt: oneDayFromNow },
-      'status': { $in: ['RUNNING', 'running'] }
-    }).toArray()
-
-    for (const vpsPlan of soonExpiring) {
-      const { chatId, _id, label, end_time, planPrice } = vpsPlan
-      const displayName = label || vpsPlan.name || (isRdpRecord(vpsPlan) ? 'RDP' : 'VPS')
-      const msLeft = new Date(end_time).getTime() - now.getTime()
-      const daysLeft = msLeft / (1000 * 60 * 60 * 24)
-      const expiryDate = new Date(end_time).toLocaleDateString()
-      const _info = await state.findOne({ _id: String(chatId) })
-      const lang = _info?.userLanguage || 'en'
-
-      // 3-day reminder
-      if (daysLeft > 2.5 && daysLeft <= 3.1 && !vpsPlan._reminder3DaySent) {
-        const planPrice = await vpsRenewalPrice(vpsPlan)
-        const { usdBal } = await getBalance(walletOf, chatId)
-        const sufficient = usdBal >= planPrice
-        const statusIcon = sufficient ? '✅' : '⚠️'
-        try { send(chatId, asKind(translation('t.util_8', lang, displayName, expiryDate, planPrice, usdBal.toFixed(2), statusIcon, sufficient ? 'Auto-renewal will be attempted 1 day before expiry.' : 'Insufficient balance — top up or renew manually to keep your server!'), isRdpRecord(vpsPlan))) } catch (notifErr) { log(`[VPS Scheduler] notify failed: ${notifErr.message}`) }
-        await vpsPlansOf.updateOne({ _id }, { $set: { _reminder3DaySent: true } })
-        log(`[VPS Scheduler] 3-day reminder sent to ${chatId} for ${displayName}`)
-      }
-    }
-  } catch (error) {
-    console.error('[VPS Scheduler] Error:', error.message || error)
-  }
+  return require('./vps-expiry-scheduler').runVpsExpiryCheck({
+    vpsPlansOf, state, walletOf, payments, nameOf, db, bot, send, translation, asKind, isRdpRecord, vpsRenewalPrice,
+    deleteVPSinstance, smartWalletDeduct, getBalance, set, get, nanoid, adminUserTag, adminMsgOpts, adminChatId: TELEGRAM_ADMIN_CHAT_ID, log,
+  })
 }
 
 // Customer wording (2026-10-14): an RDP (Windows) order/server is never called a "VPS". Swaps the
@@ -39283,8 +38669,11 @@ async function auditCryptoTx(chatId, type, amount, metadata, psp) {
 async function applyPhonePlanUpgrade(chatId, num, newPlan, newPrice, lang, paymentMethod, upgradeData) {
   const oldPlan = num.plan
   const oldPrice = num.planPrice
+  // Renewal price = new plan + the number's surcharge (same as the web app); extra lines move to the new plan.
+  newPrice = planLifecycle.priceOnPlan(num, newPlan) ?? newPrice
   await updatePhoneNumberField(phoneNumbersOf, chatId, num.phoneNumber, 'plan', newPlan)
   await updatePhoneNumberField(phoneNumbersOf, chatId, num.phoneNumber, 'planPrice', newPrice)
+  await planLifecycle.syncExtrasPlan(phoneNumbersOf, chatId, num.phoneNumber, newPlan)
   num.plan = newPlan
   num.planPrice = newPrice
 
@@ -39945,7 +39334,7 @@ const bankApis = {
     }
 
     // Subscribe Plan
-    subscribePlan(planEndingTime, freeDomainNamesAvailableFor, planOf, chatId, plan, bot, lang, freeValidationsAvailableFor)
+    subscribePlan(planEndingTime, freeDomainNamesAvailableFor, planOf, chatId, plan, bot, lang, freeValidationsAvailableFor, state)
     notifyGroup(
       `💎 <b>New Subscription!</b>\nUser ${maskName(name)} just upgraded to the <b>${plan} Plan</b> — unlocking unlimited URL shortening + ${(freeValidationsOf[plan] || 0).toLocaleString()} phone validations.\nDon't miss out — /start`,
       `💎 <b>New Subscription (Bank)</b>\n👤 User: ${adminUserTag(name, chatId)}\n📦 Plan: <b>${plan}</b>\n💵 Paid: <b>$${usdIn}</b> (₦${ngnIn})\n💳 Payment: Bank NGN`
@@ -41029,7 +40418,7 @@ app.get('/crypto-pay-plan', auth, async (req, res) => {
   }
 
   // Subscribe Plan
-  subscribePlan(planEndingTime, freeDomainNamesAvailableFor, planOf, chatId, plan, bot, lang, freeValidationsAvailableFor)
+  subscribePlan(planEndingTime, freeDomainNamesAvailableFor, planOf, chatId, plan, bot, lang, freeValidationsAvailableFor, state)
 
   // ── Universal-ledger audit (Apr-30-2026 sweep) ──
   // Previously the BlockBee bot-plan subscription webhook wrote NO row to
@@ -46325,7 +45714,7 @@ app.post('/dynopay/crypto-pay-plan', authDyno, async (req, res) => {
   }
 
   // Subscribe Plan
-  subscribePlan(planEndingTime, freeDomainNamesAvailableFor, planOf, chatId, plan, bot, lang, freeValidationsAvailableFor)
+  subscribePlan(planEndingTime, freeDomainNamesAvailableFor, planOf, chatId, plan, bot, lang, freeValidationsAvailableFor, state)
   await auditCryptoTx(chatId, 'plan-subscription', price, { plan, coin, value, ref, payment_id: id }, 'dynopay')
   notifyGroup(
     `💎 <b>New Subscription!</b>\nUser ${maskName(name)} just upgraded to the <b>${plan} Plan</b> — unlocking unlimited URL shortening + ${(freeValidationsOf[plan] || 0).toLocaleString()} phone validations.\nDon't miss out — /start`,
@@ -49463,7 +48852,7 @@ app.post('/twilio/voice-webhook', async (req, res) => {
       try {
         const { usdBal } = await getBalance(walletOf, chatId)
         const isUSCA = (From || '').replace(/[^+\d]/g, '').startsWith('+1')
-        const rate = isUSCA ? parseFloat(process.env.OVERAGE_RATE_MIN || '0.04') : parseFloat(process.env.CALL_FORWARDING_RATE_MIN || '0.50')
+        const rate = isUSCA ? phoneConfig.OVERAGE_RATE_MIN : parseFloat(process.env.CALL_FORWARDING_RATE_MIN || '0.50')
         if (usdBal >= rate) {
           // Wallet has balance — allow call with overage
           log(`[Twilio] Plan exhausted (${poolMinutesUsed}/${minuteLimit}), wallet $${usdBal.toFixed(2)} — allowing overage at $${rate}/min`)
@@ -49628,7 +49017,7 @@ app.post('/twilio/voice-webhook', async (req, res) => {
 
       // ── Real-time billing: compute timeLimit based on plan minutes + wallet overage ──
       const isUSCA_sip = (From || '').replace(/[^+\d]/g, '').startsWith('+1')
-      const overageRate_sip = isUSCA_sip ? parseFloat(process.env.OVERAGE_RATE_MIN || '0.04') : parseFloat(process.env.CALL_FORWARDING_RATE_MIN || '0.50')
+      const overageRate_sip = isUSCA_sip ? phoneConfig.OVERAGE_RATE_MIN : parseFloat(process.env.CALL_FORWARDING_RATE_MIN || '0.50')
       const { usdBal: sipWalletBal } = await getBalance(walletOf, chatId)
       const planRemaining_sip = minuteLimit === Infinity ? 240 : Math.max(0, minuteLimit - poolMinutesUsed)
       const sipTimeLimit = computeDialTimeLimit('inbound', { planMinutesRemaining: planRemaining_sip, walletBalance: sipWalletBal, ratePerMinute: overageRate_sip })
@@ -51301,7 +50690,7 @@ app.post('/twilio/sip-voice', async (req, res) => {
       // Place the outbound PSTN call through Twilio with proper caller ID
       // ── Real-time billing: compute timeLimit for bridge (wallet-only) ──
       const isUSCA_bridge = (bridge.destination || '').replace(/[^+\d]/g, '').startsWith('+1')
-      const bridgeRate = isUSCA_bridge ? parseFloat(process.env.OVERAGE_RATE_MIN || '0.04') : parseFloat(process.env.CALL_FORWARDING_RATE_MIN || '0.50')
+      const bridgeRate = isUSCA_bridge ? phoneConfig.OVERAGE_RATE_MIN : parseFloat(process.env.CALL_FORWARDING_RATE_MIN || '0.50')
       let bridgeTimeLimit = 14400
       try {
         const { usdBal: bridgeWallet } = await getBalance(walletOf, bridge.chatId)
@@ -51525,10 +50914,10 @@ app.post('/twilio/sms-webhook', async (req, res) => {
       const match = numbers.find(n => n.phoneNumber === To && n.provider === 'twilio' && n.status === 'active')
       if (match) {
         const chatId = String(user._id) // Ensure string for consistency
-        const OVERAGE_SMS_RATE = parseFloat(process.env.OVERAGE_RATE_SMS || '0.02')
+        const OVERAGE_SMS_RATE = phoneConfig.OVERAGE_RATE_SMS
 
         // ── CHECK: SMS limit reached? → Try overage billing ──
-        if (isSmsLimitReached(match)) {
+        if (isSmsLimitReached(match, numbers)) {
           let overageAllowed = false
           try {
             const { usdBal } = await getBalance(walletOf, chatId)

@@ -428,7 +428,7 @@ Sub-menu:
 ### 🛡️🔥 Anti-Red Hosting
 From main menu → tap <b>🛡️🔥 Anti-Red Hosting</b>
 Plans (three DISTINCT plans — see the CANONICAL PRICING TABLE; never say "$${process.env.PREMIUM_ANTIRED_CPANEL_PRICE || '75'}/week"):
-${process.env.HOSTING_TRIAL_PLAN_ON === 'true' ? '- 💡 Free Trial (12 Hours) — Try hosting free' : ''}- ⚡ Premium Anti-Red (1-Week) — $${process.env.PREMIUM_ANTIRED_WEEKLY_PRICE || '30'}/week (weekly billing; NO full hosting panel)
+${process.env.HOSTING_TRIAL_PLAN_ON === 'true' ? '- 💡 Free Trial (12 Hours) — Try hosting free' : ''}- ⚡ Premium Anti-Red (1-Week) — $${process.env.PREMIUM_ANTIRED_WEEKLY_PRICE || '30'}/week (weekly billing; includes HostPanel for files, databases & email — fewer tools than the monthly plans)
 - 🔷 Premium Anti-Red HostPanel (30 Days) — $${process.env.PREMIUM_ANTIRED_CPANEL_PRICE || '75'}/month (monthly; includes the full hosting panel/cPanel)
 - 👑 Golden Anti-Red HostPanel (30 Days) — $${process.env.GOLDEN_ANTIRED_CPANEL_PRICE || '100'}/month (monthly; full panel + captcha & honeypot toggles)
 After choosing a plan → Register new domain or use existing → Enter email → Get cPanel credentials

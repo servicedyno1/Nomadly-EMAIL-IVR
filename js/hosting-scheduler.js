@@ -26,7 +26,7 @@ const ACTIVITY_OF_EVENT = {
   'hosting.deleted': 'delete',
 }
 
-const PREMIUM_ANTIRED_WEEKLY_PRICE = parseFloat(process.env.PREMIUM_ANTIRED_WEEKLY_PRICE) || 50
+const PREMIUM_ANTIRED_WEEKLY_PRICE = parseFloat(process.env.PREMIUM_ANTIRED_WEEKLY_PRICE) || 30
 const PREMIUM_ANTIRED_CPANEL_PRICE = parseFloat(process.env.PREMIUM_ANTIRED_CPANEL_PRICE) || 75
 const GOLDEN_ANTIRED_CPANEL_PRICE = parseFloat(process.env.GOLDEN_ANTIRED_CPANEL_PRICE) || 100
 
@@ -266,18 +266,32 @@ function initScheduler(deps) {
         // All plans can auto-renew if the user has it enabled
         const isAutoRenew = account.autoRenew !== false
 
+        // ── Case 0: 3-day reminder (same policy as every paid product: 3 days + 1 day before expiry) ──
+        // Keyed on the expiry it was sent for, so every new term re-arms it with no flag reset needed.
+        const daysLeft = (expiry.getTime() - now.getTime()) / 86400000
+        if (daysLeft > 2 && daysLeft <= 3 && !account.deleted && account.expiry3dNotifiedFor !== expiry.toISOString()) {
+          const price = getRenewalCharge(account).priceUsd
+          const lang = await getUserLang(chatId)
+          const tt = (key, ...args) => translation(`t.${key}`, lang, ...args)
+          notify(chatId,
+            tt('schedExpiryWarningTitle') + '\n\n'
+            + tt('schedExpiry3dBody', plan, domain, tt('fmtDate', expiry)) + '\n\n'
+            + `${isAutoRenew ? tt('schedRenewTextOnPrice', price) : tt('schedRenewTextOff', GRACE_PERIOD_HOURS)}\n\n`
+            + tt('schedRenewTextWalletHint') + '\n'
+            + tt('schedRenewTextToggleHint', domain)
+          )
+          await cpanelAccounts.updateOne({ _id: account._id }, { $set: { expiry3dNotifiedFor: expiry.toISOString() } })
+          notified++
+          log(`[HostingScheduler] 3-day reminder sent to ${chatId} — ${domain} (${plan})`)
+        }
+
         // ── Case 1: Expiring within 24h — send advance notification ──
         if (expiry > now && expiry <= in24h && !account.expiryNotified) {
           const price = getRenewalCharge(account).priceUsd
           const lang = await getUserLang(chatId)
           const tt = (key, ...args) => translation(`t.${key}`, lang, ...args)
 
-          let renewText
-          if (isAutoRenew) {
-            renewText = `Your wallet will be auto-charged <b>$${price}</b> on expiry.`
-          } else {
-            renewText = tt('schedRenewTextOff', GRACE_PERIOD_HOURS)
-          }
+          const renewText = isAutoRenew ? tt('schedRenewTextOnPrice', price) : tt('schedRenewTextOff', GRACE_PERIOD_HOURS)
 
           notify(chatId,
             tt('schedExpiryWarningTitle') + '\n\n'
