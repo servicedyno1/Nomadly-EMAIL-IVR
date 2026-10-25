@@ -16465,7 +16465,7 @@ All verified numbers generated during sourcing.`))
   // My Hosting Plans — select a plan to view
   if (action === a.myHostingPlans) {
     if (isBackPress(message)) return goto.submenu3()
-    // 🎁 Loyalty-credit deep-link from the list — "🎁 Use $X.XX credit on <domain>"
+    // Old "🎁 Use $X.XX credit on <domain>" buttons (credit offer removed 2026-06) still open the upgrade menu.
     if (typeof message === 'string' && message.startsWith('🎁 Use $')) {
       const m = message.match(/^🎁 Use \$[\d.]+ credit on (.+)$/)
       if (m) {
@@ -16492,7 +16492,7 @@ All verified numbers generated during sourcing.`))
       // Re-route through the standard upgrade handler below by replaying user.upgradeHostingPlan
       message = user.upgradeHostingPlan
     }
-    // 🎁 Loyalty-credit deep-link from plan details — "🎁 Use $X.XX credit by <date>"
+    // Old "🎁 Use $X.XX credit by <date>" buttons (credit offer removed 2026-06) still open the upgrade menu.
     if (typeof message === 'string' && message.startsWith('🎁 Use $') && message.includes(' credit by ')) {
       message = user.upgradeHostingPlan
     }
@@ -35258,8 +35258,8 @@ Select a category:`), k.of(catBtns))
     if (subscribedPlan) {
       const rawTime = await get(planEndingTime, chatId)
       const timeEnd = new Date(rawTime)
-      // Re-purchases stack, so a valid expiry can be months out; only a corrupt value (> 400 days) is flagged.
-      const MAX_REASONABLE_MS = 400 * 86400 * 1000
+      // Re-purchases stack, so a valid expiry can be months out; only a corrupt value (> 5 years) is flagged.
+      const MAX_REASONABLE_MS = 5 * 366 * 86400 * 1000
       if (rawTime > Date.now() + MAX_REASONABLE_MS) {
         log(`[viewPlan] Anomalous planEndingTime for chatId ${chatId}: ${timeEnd.toISOString()} — shown as expired, left for admin review`)
         sections.push(`📦 <b>Bot Plan:</b> ${subscribedPlan} — ❌ Expired`)
@@ -37280,7 +37280,7 @@ async function isSubscribed(chatId) {
   if (!time || time <= Date.now()) return false
 
   // Sanity check for corrupt values only — re-purchases stack, so a valid expiry can be months out. Never wiped.
-  const MAX_REASONABLE_MS = 400 * 86400 * 1000
+  const MAX_REASONABLE_MS = 5 * 366 * 86400 * 1000
   if (time > Date.now() + MAX_REASONABLE_MS) {
     log(`[isSubscribed] Anomalous planEndingTime for chatId ${chatId}: ${new Date(time).toISOString()} — treating as expired, left for admin review`)
     return false

@@ -970,8 +970,8 @@ const subscribePlan = async (planEndingTime, freeDomainNamesAvailableFor, planOf
   const now = Date.now()
   const current = Number(await get(planEndingTime, chatId)) || 0
   const endTime = Math.max(current, now) + duration
-  set(planOf, chatId, plan)
-  set(planEndingTime, chatId, endTime)
+  await set(planOf, chatId, plan)
+  await set(planEndingTime, chatId, endTime)
   // New term → re-arm the 3-day / 1-day reminders; a window the term already starts inside (e.g. a Daily plan)
   // is marked done so no "expires tomorrow" message arrives minutes after paying.
   if (stateOf) {

@@ -1,0 +1,45 @@
+{
+  "summary": "Backend-only (Node) testing of the plan-expiry audit fixes with simulated providers and throwaway Mongo DBs, plus one quick CloudIVR web API/UI check. P0 DigitalOcean VPS/RDP auto-renew is fixed: VPS and RDP (1/2/3-month terms) renew once per cycle on cycles 1, 2 and 3. A 200-day run every 3 hours gave the right number of charges (VPS 7, RDP-1mo 7, RDP-2mo 4), with no power-off and no destroy. Three runs at the same moment (Promise.all) charge once. If the wallet is short, the box goes to grace, a top-up renews it once and powers it back on (VPS via startInstance, RDP via renewInstance(inst, months)), and it is never destroyed afterwards. If the wallet stays short, or auto-renew is OFF, the box is still destroyed after grace. Also verified: manual renewVPSPlan, reseller renew field clears, CloudIVR shared pool and limits, flags set on the main line, usage reset, safe per-field saving (Twilio sub-account field and a number added mid-run both survive), long-lapsed auto-renew is charged once with expiry = now + 1 month, $pull cleanup, upgrade quote at 0/14/15 days, hosting botUpgradeQuote and the pay step, membership stacking and reminder flags, hosting 3-day reminder, i18n keys and copy/defaults. Web API returns shared usage (12/600 min, 5/300 SMS, shared=true) for both the main and extra line. The Overview meters and the shared note render on both lines. 149 new assertions in total, 149 pass. The existing regression suites still pass, except the known env-dependent test_pool_minute_limit_fix failure.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "_index.js isSubscribed/viewPlan + utils.subscribePlan", "issue": "Membership stacking has no upper bound. If someone stacks more than about 13 Monthly purchases, planEndingTime goes past the 400-day sanity cap and isSubscribed() returns false even though they paid. Cap the stacked expiry in subscribePlan, or base the sanity check on the purchase history."},
+      {"endpoint": "phone-config.js manageNumber (bot manage screen)", "issue": "This re-implements the pool sum instead of calling planLifecycle.poolUsage (DRY). It also differs: it counts RELEASED extra lines and uses the extra line's own plan before the main line's. The bot display can therefore disagree with what voice/sms-service enforce. Use poolUsage."},
+      {"endpoint": "phone-scheduler.js initPhoneScheduler", "issue": "The daily runPricingReconciler (0:30 cron) is the one job NOT gated by live() / SKIP_WEBHOOK_SYNC. It only sends admin alerts, but this breaks the 'all scheduler jobs skipped' claim."},
+      {"endpoint": "_index.js myHostingPlans / viewHostingPlan handlers (~16468, ~16495)", "issue": "Dead '🎁 Use $… credit' deep-link handlers and the unused lang key upgradeConfirmCredit ('Loyalty Credit') are still in the code. No such text is produced any more, so this is harmless cleanup only."},
+      {"endpoint": "Hosting bot upgrade, weekly plan", "issue": "Edge case to confirm with the user: a Premium Weekly ($30) account with 1-6 days left that upgrades to HostPanel ($75) pays $45 and keeps its weekly expiry, then renews at $75/30d. This matches the spec literally (full monthly difference whatever the days left) but may surprise weekly customers."},
+      {"endpoint": "utils.subscribePlan", "issue": "set(planOf…) and set(planEndingTime…) are not awaited (pre-existing), and the call sites don't await subscribePlan either. It works in tests, but errors are swallowed."}
+    ]
+  },
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/js/tests/test_vps_autorenew_extended_2026-06.js",
+    "/app/js/tests/test_vps_manual_renew_2026-06.js",
+    "/app/js/tests/test_cloudivr_shared_pool_2026-06.js",
+    "/app/js/tests/test_upgrade_membership_reminders_2026-06.js"
+  ],
+  "action_items": [
+    "Optional: cap stacked membership expiry (or relax the 400-day isSubscribed cap) so heavy stackers are not locked out",
+    "Optional: make phone-config manageNumber use planLifecycle.poolUsage (exclude released extras, use main plan limits)",
+    "Optional: gate runPricingReconciler with live() for consistency",
+    "Optional: remove dead '🎁 Use $' handlers and the unused upgradeConfirmCredit key"
+  ],
+  "critical_code_review_comments": [
+    "vps-expiry-scheduler renewFromWallet claim (end_time match + _renewLockUntil) works under concurrency in both Phase 1 and Phase 1.1",
+    "Phase 1 ignores the legacy _autoRenewAttempted:true flag (verified: a plan with the stale flag is still renewed), so the P0 root cause is gone",
+    "manageNumber duplicates the pool logic (DRY) with different semantics, see minor issues",
+    "applyPhonePlanUpgrade wallet path checks the atomicIncrement result before applying; charge is the base plan price minus credit (surcharge kept only on renewal price)"
+  ],
+  "updated_files": [
+    "/app/js/tests/test_vps_autorenew_extended_2026-06.js",
+    "/app/js/tests/test_vps_manual_renew_2026-06.js",
+    "/app/js/tests/test_cloudivr_shared_pool_2026-06.js",
+    "/app/js/tests/test_upgrade_membership_reminders_2026-06.js"
+  ],
+  "success_rate": {"backend": "100% (149/149 new assertions; existing suites pass except the known env-dependent test_pool_minute_limit_fix 9/10)", "frontend": "100% (quick Overview meter check)"},
+  "seed_data_creation": "Temporarily added a dry-run extra line +13375550199 (_t1Seed) under Alice (chatId 5000000000000001) and +5 min/+2 sms on her main line in DB 'test'. Both were removed/reverted after the check. All simulations used throwaway DBs that were dropped afterwards.",
+  "test_credentials": "civr.alice@example.com / AliceTest#2026 (from /app/memory/test_credentials.md)",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run the new tests with `node /app/js/tests/<file>`. They use mongodb://localhost:27017 throwaway DBs and fake providers only. SKIP_WEBHOOK_SYNC=true on this pod, so call the scheduler functions directly. The latest nodejs restart in nodejs.out.log has no [HostingUpgradeNudge] line."
+}

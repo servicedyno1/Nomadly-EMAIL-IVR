@@ -1101,3 +1101,17 @@ calls and SIP are simulated; inbound calls use a pretend-call simulator).
   adminSubPurchase group copy masked; audit-trail failure → admin; notifyGroup masks any phone in group text
   (phoneConfig.maskPhonesInText). Tests: tests/test_plan_lifecycle_2026-10.js 33/33, test_phone_scheduler_no_leak 19/19,
   grace_fix / maskPhone / admin_unmasked pass. NOT yet verified: web renew route over HTTP, bot Renew Now live, BillingTab UI.
+
+- 2026-06 PAID PLANS / EXPIRY FIXES (audit items 1-17, PLAN_EXPIRY_AUDIT_2026-06.md) — code only, preview; owner deploys.
+  P0 DigitalOcean VPS/RDP: auto-renew now works every cycle (js/vps-expiry-scheduler.js, moved out of _index.js; per-term
+  claim + _renewLockUntil = no double charge; retries when wallet is topped up, incl. during DO grace → box powered back on).
+  Manual renew extends by durationMonths and powers a DO VPS back on in grace. VPS/RDP auto-renew default stays OFF.
+  CloudIVR: extra lines share the main line's minutes+SMS (plan-lifecycle.poolUsage, enforced + shown on web & bot); no
+  nightly double counting; scheduler saves per-field (no stale overwrite); one usage reset per paid month; dev-pod guard;
+  long-lapsed auto-renew charges once. Phone upgrade = 25% of current plan price if number ≤14 days old; extras follow plan.
+  Hosting bot upgrade: expiry kept + FULL monthly price difference (term ended → full price, new 30 days); auto-renew
+  setting kept; 50% loyalty credit offer + HostingUpgradeNudge cron removed. Reseller API plan change unchanged (days-left).
+  Membership re-buy stacks on the active expiry; Daily buyers no longer get an instant "expires tomorrow"; plans never wiped
+  (sanity cap 5 years). Hosting gets a 3-day reminder (grace lengths unchanged). Plan-card copy matches real features.
+  Defaults: weekly hosting $30, trial OFF, overage $0.15/min $0.02/SMS. Tests: iteration_131 (149/149) + tests/*_2026-06*.js.
+  Open: weekly→monthly hosting upgrade keeps the weekly expiry ($45 now, then $75/30d) — confirm with owner.

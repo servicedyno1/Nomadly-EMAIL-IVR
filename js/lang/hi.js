@@ -1871,7 +1871,6 @@ upgradeModalChooseHint: 'अपना नया प्लान चुनें:
 upgradeConfirmTitle: '<b>⬆️ अपग्रेड की पुष्टि करें</b>',
 upgradeConfirmTo: name => `<b>अपग्रेड करें:</b> ${name}`,
 upgradeConfirmListPrice: price => `<b>सूची मूल्य:</b> $${price}`,
-upgradeConfirmCredit: amount => `<b>🎁 लॉयल्टी क्रेडिट:</b> -$${amount}`,
 upgradeConfirmYouPay: amount => `<b>आप भुगतान करेंगे:</b> $${amount}`,
 upgradeConfirmRenewsAt: (price, days) => `<b>🔁 रिन्यूअल मूल्य:</b> हर ${days} दिन में $${price}`,
 upgradeConfirmNextRenewal: (date, days) => `<b>📅 अगला रिन्यूअल:</b> ${new Date(date).toLocaleDateString('hi-IN', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })} — आज से नई ${days}-दिन की अवधि शुरू होती है`,

@@ -2,7 +2,7 @@
 
 Scope: every paid plan — CloudIVR (Starter/Pro/Business + extra lines), Anti-Red Hosting (Weekly/Premium/Golden + trial),
 VPS/RDP (Contabo, DigitalOcean Linux, DigitalOcean RDP, reseller API), Bot Membership (Daily/Weekly/Monthly), reseller domain auto-renew.
-Report only — no code was changed. Risk: 🔴 High · 🟠 Medium · 🟡 Low.
+STATUS 2026-06: items 1-17 FIXED in code (preview, tested iteration_131) — see PRD.md. Original report below. Risk: 🔴 High · 🟠 Medium · 🟡 Low.
 
 ## 🔴 High
 

@@ -65,6 +65,7 @@ function initPhoneScheduler(deps) {
   // stored plan tier) and pings admin. Catches Apr-30-style audit-trail
   // holes and silent grandfathered prices within 24h instead of weeks.
   schedule.scheduleJob('30 0 * * *', async () => {
+    if (!live()) return
     log('[PhoneScheduler] Running daily pricing reconciliation...')
     await runPricingReconciler()
   })

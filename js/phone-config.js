@@ -811,24 +811,12 @@ Incoming calls answered via SIP/browser + SMS included · Call forwarding & outb
   },
 
   manageNumber: (n, subCount, subLimit, allNumbers) => {
-    const plan = plans[n.plan] || (n.isSubNumber && n.parentNumber ? plans[allNumbers?.find(p => p.phoneNumber === n.parentNumber)?.plan] : null)
-    const minLimit = plan?.minutes === 'Unlimited' ? 'Unlimited' : (plan?.minutes || 0)
-    const smsLimit = plan?.sms || 0
-    // Pool usage: parent + all sub-numbers sharing the plan
-    let minUsed = n.minutesUsed || 0
-    let smsUsed = n.smsUsed || 0
-    if (allNumbers && allNumbers.length > 0) {
-      if (n.isSubNumber && n.parentNumber) {
-        const parent = allNumbers.find(p => p.phoneNumber === n.parentNumber && !p.isSubNumber)
-        const siblings = allNumbers.filter(s => s.isSubNumber && s.parentNumber === n.parentNumber)
-        minUsed = (parent?.minutesUsed || 0) + siblings.reduce((sum, s) => sum + (s.minutesUsed || 0), 0)
-        smsUsed = (parent?.smsUsed || 0) + siblings.reduce((sum, s) => sum + (s.smsUsed || 0), 0)
-      } else {
-        const subs = allNumbers.filter(s => s.isSubNumber && s.parentNumber === n.phoneNumber)
-        minUsed = (n.minutesUsed || 0) + subs.reduce((sum, s) => sum + (s.minutesUsed || 0), 0)
-        smsUsed = (n.smsUsed || 0) + subs.reduce((sum, s) => sum + (s.smsUsed || 0), 0)
-      }
-    }
+    // Same shared allowance the call/SMS limits enforce: main line + its extra lines, main line's plan.
+    const pool = require('./plan-lifecycle.js').poolUsage(allNumbers && allNumbers.length ? allNumbers : [n], n)
+    const minLimit = pool.minuteLimit === Infinity ? 'Unlimited' : pool.minuteLimit
+    const smsLimit = pool.smsLimit === Infinity ? 0 : pool.smsLimit
+    const minUsed = pool.minutesUsed
+    const smsUsed = pool.smsUsed
     const minDisplay = minLimit === 'Unlimited' ? `${minUsed} (Unlimited)` : `${minUsed} / ${minLimit}`
     const smsDisplay = `${smsUsed} / ${smsLimit}`
     const minWarning = minLimit !== 'Unlimited' && minUsed >= minLimit ? `\n💰 <b>Overage active</b> — $${OVERAGE_RATE_MIN}/min from wallet` : ''
@@ -1988,23 +1976,11 @@ Votre propre numéro virtuel dans plus de 30 pays. Recevez des appels, envoyez d
       return text
     },
     manageNumber: (n, subCount, subLimit, allNumbers) => {
-      const plan = plans[n.plan] || (n.isSubNumber && n.parentNumber ? plans[allNumbers?.find(p => p.phoneNumber === n.parentNumber)?.plan] : null)
-      const minLimit = plan?.minutes === 'Unlimited' ? 'Illimité' : (plan?.minutes || 0)
-      const smsLimit = plan?.sms || 0
-      let minUsed = n.minutesUsed || 0
-      let smsUsed = n.smsUsed || 0
-      if (allNumbers && allNumbers.length > 0) {
-        if (n.isSubNumber && n.parentNumber) {
-          const parent = allNumbers.find(p => p.phoneNumber === n.parentNumber && !p.isSubNumber)
-          const siblings = allNumbers.filter(s => s.isSubNumber && s.parentNumber === n.parentNumber)
-          minUsed = (parent?.minutesUsed || 0) + siblings.reduce((sum, s) => sum + (s.minutesUsed || 0), 0)
-          smsUsed = (parent?.smsUsed || 0) + siblings.reduce((sum, s) => sum + (s.smsUsed || 0), 0)
-        } else {
-          const subs = allNumbers.filter(s => s.isSubNumber && s.parentNumber === n.phoneNumber)
-          minUsed = (n.minutesUsed || 0) + subs.reduce((sum, s) => sum + (s.minutesUsed || 0), 0)
-          smsUsed = (n.smsUsed || 0) + subs.reduce((sum, s) => sum + (s.smsUsed || 0), 0)
-        }
-      }
+      const pool = require('./plan-lifecycle.js').poolUsage(allNumbers && allNumbers.length ? allNumbers : [n], n)
+      const minLimit = pool.minuteLimit === Infinity ? 'Illimité' : pool.minuteLimit
+      const smsLimit = pool.smsLimit === Infinity ? 0 : pool.smsLimit
+      const minUsed = pool.minutesUsed
+      const smsUsed = pool.smsUsed
       const minDisplay = minLimit === 'Illimité' ? `${minUsed} (Illimité)` : `${minUsed} / ${minLimit}`
       const smsDisplay = `${smsUsed} / ${smsLimit}`
       const minWarning = minLimit !== 'Illimité' && minUsed >= minLimit ? `\n💰 <b>Dépassement actif</b> — $${OVERAGE_RATE_MIN}/min depuis le portefeuille` : ''
@@ -2029,7 +2005,7 @@ Votre propre numéro virtuel dans plus de 30 pays. Recevez des appels, envoyez d
       }
       if (n.isSubNumber && n.parentNumber) text += `\n🔗 Parent : ${formatPhone(n.parentNumber)}`
       if (hasVoice) text += `\n📞 Minutes entrantes : ${minDisplay}${minWarning}`
-      if (hasSms) text += `\n📩 SMS entrants : ${smsDisplay} (réception seule)${smsWarning}`
+      if (hasSms) text += `\n📩 SMS du forfait : ${smsDisplay} (reçus + réponses web, partagés avec les numéros ajoutés)${smsWarning}`
       if (hasFax) text += `\n📠 Fax : Inclus — fax entrants transférés vers Telegram`
       if (hasVoice) text += `\n💳 Appels sortants facturés depuis le portefeuille`
       const caps = []
@@ -2477,23 +2453,11 @@ Envoyez /testsip ici pour obtenir votre code test.
       return text
     },
     manageNumber: (n, subCount, subLimit, allNumbers) => {
-      const plan = plans[n.plan] || (n.isSubNumber && n.parentNumber ? plans[allNumbers?.find(p => p.phoneNumber === n.parentNumber)?.plan] : null)
-      const minLimit = plan?.minutes === 'Unlimited' ? '无限' : (plan?.minutes || 0)
-      const smsLimit = plan?.sms || 0
-      let minUsed = n.minutesUsed || 0
-      let smsUsed = n.smsUsed || 0
-      if (allNumbers && allNumbers.length > 0) {
-        if (n.isSubNumber && n.parentNumber) {
-          const parent = allNumbers.find(p => p.phoneNumber === n.parentNumber && !p.isSubNumber)
-          const siblings = allNumbers.filter(s => s.isSubNumber && s.parentNumber === n.parentNumber)
-          minUsed = (parent?.minutesUsed || 0) + siblings.reduce((sum, s) => sum + (s.minutesUsed || 0), 0)
-          smsUsed = (parent?.smsUsed || 0) + siblings.reduce((sum, s) => sum + (s.smsUsed || 0), 0)
-        } else {
-          const subs = allNumbers.filter(s => s.isSubNumber && s.parentNumber === n.phoneNumber)
-          minUsed = (n.minutesUsed || 0) + subs.reduce((sum, s) => sum + (s.minutesUsed || 0), 0)
-          smsUsed = (n.smsUsed || 0) + subs.reduce((sum, s) => sum + (s.smsUsed || 0), 0)
-        }
-      }
+      const pool = require('./plan-lifecycle.js').poolUsage(allNumbers && allNumbers.length ? allNumbers : [n], n)
+      const minLimit = pool.minuteLimit === Infinity ? '无限' : pool.minuteLimit
+      const smsLimit = pool.smsLimit === Infinity ? 0 : pool.smsLimit
+      const minUsed = pool.minutesUsed
+      const smsUsed = pool.smsUsed
       const minDisplay = minLimit === '无限' ? `${minUsed}（无限）` : `${minUsed} / ${minLimit}`
       const smsDisplay = `${smsUsed} / ${smsLimit}`
       const minWarning = minLimit !== '无限' && minUsed >= minLimit ? `\n💰 <b>超额计费中</b> — $${OVERAGE_RATE_MIN}/分钟（从钱包扣费）` : ''
@@ -2518,7 +2482,7 @@ Envoyez /testsip ici pour obtenir votre code test.
       }
       if (n.isSubNumber && n.parentNumber) text += `\n🔗 主号码：${formatPhone(n.parentNumber)}`
       if (hasVoice) text += `\n📞 来电分钟：${minDisplay}${minWarning}`
-      if (hasSms) text += `\n📩 来电短信：${smsDisplay}（仅接收）${smsWarning}`
+      if (hasSms) text += `\n📩 套餐短信：${smsDisplay}（收到的短信 + 网页回复，与附加号码共享）${smsWarning}`
       if (hasFax) text += `\n📠 传真：已包含 — 来电传真转发到 Telegram`
       if (hasVoice) text += `\n💳 外呼通话从钱包扣费`
       const caps = []
@@ -2966,23 +2930,11 @@ Envoyez /testsip ici pour obtenir votre code test.
       return text
     },
     manageNumber: (n, subCount, subLimit, allNumbers) => {
-      const plan = plans[n.plan] || (n.isSubNumber && n.parentNumber ? plans[allNumbers?.find(p => p.phoneNumber === n.parentNumber)?.plan] : null)
-      const minLimit = plan?.minutes === 'Unlimited' ? 'असीमित' : (plan?.minutes || 0)
-      const smsLimit = plan?.sms || 0
-      let minUsed = n.minutesUsed || 0
-      let smsUsed = n.smsUsed || 0
-      if (allNumbers && allNumbers.length > 0) {
-        if (n.isSubNumber && n.parentNumber) {
-          const parent = allNumbers.find(p => p.phoneNumber === n.parentNumber && !p.isSubNumber)
-          const siblings = allNumbers.filter(s => s.isSubNumber && s.parentNumber === n.parentNumber)
-          minUsed = (parent?.minutesUsed || 0) + siblings.reduce((sum, s) => sum + (s.minutesUsed || 0), 0)
-          smsUsed = (parent?.smsUsed || 0) + siblings.reduce((sum, s) => sum + (s.smsUsed || 0), 0)
-        } else {
-          const subs = allNumbers.filter(s => s.isSubNumber && s.parentNumber === n.phoneNumber)
-          minUsed = (n.minutesUsed || 0) + subs.reduce((sum, s) => sum + (s.minutesUsed || 0), 0)
-          smsUsed = (n.smsUsed || 0) + subs.reduce((sum, s) => sum + (s.smsUsed || 0), 0)
-        }
-      }
+      const pool = require('./plan-lifecycle.js').poolUsage(allNumbers && allNumbers.length ? allNumbers : [n], n)
+      const minLimit = pool.minuteLimit === Infinity ? 'असीमित' : pool.minuteLimit
+      const smsLimit = pool.smsLimit === Infinity ? 0 : pool.smsLimit
+      const minUsed = pool.minutesUsed
+      const smsUsed = pool.smsUsed
       const minDisplay = minLimit === 'असीमित' ? `${minUsed} (असीमित)` : `${minUsed} / ${minLimit}`
       const smsDisplay = `${smsUsed} / ${smsLimit}`
       const minWarning = minLimit !== 'असीमित' && minUsed >= minLimit ? `\n💰 <b>अतिरिक्त शुल्क सक्रिय</b> — $${OVERAGE_RATE_MIN}/मिनट (वॉलेट से)` : ''
@@ -3007,7 +2959,7 @@ Envoyez /testsip ici pour obtenir votre code test.
       }
       if (n.isSubNumber && n.parentNumber) text += `\n🔗 मुख्य नंबर: ${formatPhone(n.parentNumber)}`
       if (hasVoice) text += `\n📞 इनबाउंड मिनट: ${minDisplay}${minWarning}`
-      if (hasSms) text += `\n📩 इनबाउंड SMS: ${smsDisplay} (केवल प्राप्ति)${smsWarning}`
+      if (hasSms) text += `\n📩 प्लान SMS: ${smsDisplay} (प्राप्त + वेब जवाब, अतिरिक्त नंबरों के साथ साझा)${smsWarning}`
       if (hasFax) text += `\n📠 फैक्स: शामिल — इनबाउंड फैक्स Telegram पर फ़ॉरवर्ड`
       if (hasVoice) text += `\n💳 आउटबाउंड कॉल वॉलेट से चार्ज`
       const caps = []
