@@ -28,7 +28,7 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
     const n = await numbersApi.findMine(chatId, phone)
     if (!n || n.status !== 'active') return { err: [400, 'invalid_caller', 'Pick one of your active numbers as caller ID.'] }
     if (n.provider !== 'telnyx') return { err: [400, 'invalid_caller', 'This number cannot place outbound IVR calls.'] }
-    if (!phoneConfig.canAccessFeature(n.plan, feature)) return { err: [403, 'plan_upgrade_required', `${label} needs the Pro plan or higher on the caller number.`] }
+    if (!phoneConfig.canAccessFeature(n.plan, feature)) return { err: [403, 'plan_upgrade_required', phoneConfig.canAccessFeature('pro', feature) ? `${label} needs the Pro plan or higher on the caller number.` : `${label} need the Business plan on the caller number.`] }
     return { n }
   }
   async function ownAudio(chatId, id) {

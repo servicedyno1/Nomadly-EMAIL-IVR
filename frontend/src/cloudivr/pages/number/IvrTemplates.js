@@ -11,7 +11,7 @@ export function IvrTemplates({ current, onApply }) {
     try { await api('/ivr/templates', { method: 'POST', body: { name, ivr: current() } }); toast.success('Saved to My templates'); setName(''); reload(); } catch (e) { toast.error(e.message); }
   };
   const del = async (id) => { try { await api(`/ivr/templates/${id}`, { method: 'DELETE' }); reload(); } catch (e) { toast.error(e.message); } };
-  const use = (t) => { onApply(t.config); toast.success(`“${t.name}” loaded — add the forward numbers, then Save IVR`); };
+  const use = (t) => { onApply(t.config); toast.success(`“${t.name}” loaded — add the forward numbers, then Save keypad menu`); };
   const row = (t, i, mine) => (
     <div key={t.id} className="flex items-center gap-2 py-1.5" data-testid={`ivr-template-${mine ? 'mine' : 'builtin'}-${i}`}>
       <button type="button" className="flex-1 min-h-[40px] text-left text-sm hover:text-[#34d399] truncate" onClick={() => use(t)} data-testid={`ivr-template-${mine ? 'mine' : 'builtin'}-${i}-use`}>{t.name}</button>

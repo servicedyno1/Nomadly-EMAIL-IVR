@@ -98,7 +98,7 @@ const comingSoonFeatures = {
   business: [
     `${BUSINESS_MINUTES === 'Unlimited' ? 'Unlimited' : BUSINESS_MINUTES} inbound minutes + ${BUSINESS_SMS} SMS`,
     'All Pro features included',
-    'IVR Auto-Attendant with AI voice',
+    'IVR Auto-Attendant (callers press keys)',
     'IVR Call Analytics',
     'Quick IVR Presets & Recent Calls',
     'IVR Redial Button',
@@ -470,7 +470,7 @@ const planFeatureAccess = {
     otpCollection: true,
     ivrRedial: false,
     otpCustomMessages: false,
-    aiAgent: true,
+    aiAgent: false,
     textRelay: true,
   },
   business: {
@@ -497,7 +497,7 @@ const canAccessFeature = (planKey, feature) => {
 }
 
 const upgradeMessage = (feature, currentPlan, lang) => {
-  const needed = (feature === 'ivr' || feature === 'ivrRedial' || feature === 'otpCustomMessages') ? 'Business'
+  const needed = (feature === 'ivr' || feature === 'ivrRedial' || feature === 'otpCustomMessages' || feature === 'aiAgent') ? 'Business'
     : (feature === 'ivrOutbound' || feature === 'bulkCall' || feature === 'otpCollection' || feature === 'callRecording') ? 'Pro'
     : 'Pro'
   // Detect "current plan already meets the required tier" — happens when the

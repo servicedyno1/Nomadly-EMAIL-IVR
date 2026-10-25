@@ -60,10 +60,10 @@ const WEB_FEATURES = [
   ['quickIvr', 'Quick IVR calls', 'ivrOutbound'],
   ['callMeFirst', 'Call me first — calls through your mobile', 'ivrOutbound'],
   ['bulk', 'Bulk IVR campaigns with scheduling', 'bulkCall'],
-  ['aiAgent', () => `AI voice agent that answers and calls for you ($${Number(require('../ai-agent').RATE()).toFixed(2)}/min)`, 'aiAgent'],
   ['textRelay', () => `Text calls for deaf & hard-of-hearing users (+$${Number(require('../relay-call').RELAY_RATE()).toFixed(2)}/min)`, 'textRelay'],
-  ['ivr', 'IVR auto-attendant + key analytics', 'ivr'],
   ['recording', 'Call recording', 'callRecording'],
+  ['ivr', 'Keypad menu (IVR) — callers press a key, with key analytics', 'ivr'],
+  ['aiAgent', () => `AI voice agent — talks with callers, books and takes messages ($${Number(require('../ai-agent').RATE()).toFixed(2)}/min)`, 'aiAgent'],
   ['priority', 'Priority support', (plan) => plan === 'business'],
 ]
 const webFeatures = (plan) => WEB_FEATURES.map(([key, label, gate]) => ({
@@ -83,7 +83,7 @@ const catalog = () => {
     recommendedPlan: rec,
     voicemailLanguages: vmGreeting.publicLangs(),
     countries: countries(), typeNames: TYPE_NAMES,
-    rates: { forwardingPerMin: phoneConfig.CALL_FORWARDING_RATE_MIN, overagePerMin: phoneConfig.OVERAGE_RATE_MIN, overagePerSms: phoneConfig.OVERAGE_RATE_SMS },
+    rates: { forwardingPerMin: phoneConfig.CALL_FORWARDING_RATE_MIN, overagePerMin: phoneConfig.OVERAGE_RATE_MIN, overagePerSms: phoneConfig.OVERAGE_RATE_SMS, aiAgentPerMin: require('../ai-agent').RATE() },
     sipDomain: phoneConfig.WEB_SIP_DOMAIN, dryRun: dryRun(), livePayments: livePayments(),
     extraNumber: { price: phoneConfig.SUB_NUMBER_BASE_PRICE, limits: Object.fromEntries(Object.keys(phoneConfig.plans).map(id => [id, phoneConfig.getSubNumberLimit(id)])) },
   }
@@ -102,6 +102,7 @@ function publicVoicemail(vm) {
 
 // What callers get right now, and which settings are skipped because another one answers first.
 function routeSummary(n) {
+  if (n.features?.aiAgent?.enabled && phoneConfig.canAccessFeature(n.plan, 'aiAgent')) return { primary: 'ai_agent', forwardTo: null, skipped: [], brokenIvr: false }
   try {
     const r = phoneConfig.getCallRouteSummary(n) || {}
     return { primary: r.primary?.action || 'missed', forwardTo: r.primary?.forwardTo || null, skipped: r.skippedFeatures || [], brokenIvr: !!r.hasBrokenIvr }
@@ -208,6 +209,10 @@ function routes(router, deps) {
   const myNumbers = async (chatId) => ((await phoneNumbersOf.findOne({ _id: chatId }))?.val?.numbers || []).filter(n => n.status !== 'released')
   const findMine = async (chatId, phone) => (await myNumbers(chatId)).find(n => n.phoneNumber === normPhone(phone)) || null
   const setField = (chatId, phone, path, value) => phoneNumbersOf.updateOne({ _id: chatId, 'val.numbers.phoneNumber': phone }, { $set: { [`val.numbers.$.${path}`]: value } })
+  // One answers a number: where both were on, the AI agent already took every call, so the keypad menu goes off.
+  const both = { 'features.aiAgent.enabled': true, 'features.ivr.enabled': true }
+  phoneNumbersOf.updateMany({ 'val.numbers': { $elemMatch: both } }, { $set: { 'val.numbers.$[n].features.ivr.enabled': false } }, { arrayFilters: [{ 'n.features.aiAgent.enabled': true, 'n.features.ivr.enabled': true }] })
+    .then(r => r.modifiedCount && log(`[CloudIVR] keypad menu switched off on ${r.modifiedCount} account(s) where the AI agent also answered`)).catch(() => {})
   const ownAudioUrls = async (chatId) => new Set((await audioLibraryService.listAudios(chatId)).map(a => a.audioUrl))
   const txn = (chatId, type, amount, metadata) => {
     try { return logTransaction && logTransaction(db, { transactionId: generateTransactionId ? generateTransactionId() : crypto.randomUUID(), chatId, type, amount, currency: 'USD', status: 'completed', metadata: { ...metadata, channel: 'web' } }) } catch (_) { return null }
@@ -479,12 +484,16 @@ function routes(router, deps) {
   }))
 
   router.put('/numbers/:phone/ivr', withNumber(async (req, res) => {
-    if (!gate(req, res, 'ivr', 'The IVR auto-attendant')) return
+    if (!gate(req, res, 'ivr', 'The keypad menu')) return
     const urls = await ownAudioUrls(req.webChatId)
     let value
     try { value = validateIvr(req.body, req.num.plan, (u) => urls.has(u)) } catch (e) { return bad(res, 400, 'invalid_ivr', e.message) }
     await setField(req.webChatId, req.num.phoneNumber, 'features.ivr', value)
-    res.json({ ivr: value })
+    // One answers a number: the keypad menu going on switches the AI voice agent off.
+    const ai = req.num.features?.aiAgent
+    const aiAgentTurnedOff = !!(value.enabled && ai?.enabled)
+    if (aiAgentTurnedOff) await setField(req.webChatId, req.num.phoneNumber, 'features.aiAgent', { ...ai, enabled: false })
+    res.json({ ivr: value, aiAgentTurnedOff })
   }))
 
   router.get('/numbers/:phone/ivr/analytics', withNumber(async (req, res) => {

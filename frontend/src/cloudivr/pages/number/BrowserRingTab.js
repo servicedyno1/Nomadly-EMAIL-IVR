@@ -30,7 +30,7 @@ function Notes({ num }) {
   const rtc = useRtc();
   const f = num.features;
   const { data: info } = useApi('/relay/info');
-  const blocked = [f.ivr?.enabled && 'an IVR menu is on', f.callForwarding?.enabled && f.callForwarding.mode === 'always' && 'calls are always forwarded'].filter(Boolean);
+  const blocked = [f.aiAgent?.enabled && num.access?.aiAgent && 'the AI voice agent answers calls', f.ivr?.enabled && 'the keypad menu is on', f.callForwarding?.enabled && f.callForwarding.mode === 'always' && 'calls are always forwarded'].filter(Boolean);
   const here = rtc.phone === num.phoneNumber;
   return (
     <ul className="text-xs text-[#a1a1aa] space-y-2 list-disc pl-4" data-testid="browser-ring-notes">
@@ -40,7 +40,7 @@ function Notes({ num }) {
         : <li data-testid="browser-ring-voice-note">To also answer by voice, create a SIP login in the <Link to={cp(`/app/numbers/${enc(num.phoneNumber)}?tab=sip`)} className="text-[#34d399] underline">SIP tab</Link>.</li>}
       {info && <li>{`Text: same price as text calls — ${money(info.usRate + info.relayRate)}/min US & Canada, ${money(info.intlRate + info.relayRate)}/min international, from your wallet. Not counted in plan minutes.`}</li>}
       <li>{`Rings for ${f.callForwarding?.ringTimeout || 25} seconds. If nobody answers, the call goes to your usual fallback (forwarding when not answered, voicemail, or a missed call).`}</li>
-      <li>Only rings while CloudIVR is open in a browser tab. IVR menus, always-forward and closed hours skip the browser.</li>
+      <li>Only rings while CloudIVR is open in a browser tab. The AI voice agent, keypad menus, always-forward and closed hours skip the browser.</li>
     </ul>
   );
 }

@@ -1136,3 +1136,32 @@ calls and SIP are simulated; inbound calls use a pretend-call simulator).
   Bot has no Spanish language (Spanish = website only, per owner). Helper scripts: memory/copy_fix_{web,bot,bot2}.py.
   Tests: testing agent frontend pass (report not written — credits ran out mid-run), node checks, test_cloudivr_hours_vm_notes
   31/31 (stale Pro-recording assertion updated). test_promo_pipeline 4 failures = hosting/lead env prices null in bare shell (pre-existing).
+
+- 2026-06 KEYPAD MENU vs AI VOICE AGENT — NO OVERLAP. ⚠️ CODE DONE, NOT TESTED (session paused by owner).
+  Owner's choices: (1) only one can answer a number (turning one on turns the other off, with a clear notice);
+  (2) AI voice agent is now BUSINESS-ONLY (Pro customers who use it lose it; the owner accepted this);
+  (3) names on the web: "Keypad menu (IVR)" and "AI voice agent". The bot has no AI agent, so its "IVR / Auto-attendant"
+  wording was left alone, except the Business list line 'IVR Auto-Attendant with AI voice' → '(callers press keys)'.
+  Backend: phone-config pro.aiAgent=false + upgradeMessage aiAgent→Business; cloudivr-web/numbers.js WEB_FEATURES
+  relabelled/reordered (recording, ivr, aiAgent last), catalog.rates.aiAgentPerMin, routeSummary primary 'ai_agent',
+  PUT /numbers/:phone/ivr switches the AI agent off (returns aiAgentTurnedOff), startup updateMany switches the keypad menu off
+  on numbers that had both on (the AI agent already took those calls); cloudivr-web/ai.js PUT /numbers/:phone/ai-agent
+  switches the keypad menu off (returns ivrTurnedOff) + "needs the Business plan" message; calls.js caller() plan name
+  is now dynamic; support.js knowledge explains the difference; domain-guard meta says keypad menus (IVR).
+  Frontend: NumberDetail tabs 'Keypad menu' / 'AI voice agent'; IvrTab + AiAgentTab show OneAnswerNote (in RouteSummary.js);
+  RouteSummary handles ai_agent; BrowserRingTab blockers; Dashboard/Widgets/AiAgents PlanNote/AiCampaignFields copy;
+  Campaigns.js empty state keeps the kind switch (before, picking "AI" with no eligible number hid the switch);
+  landing Hero/Sections/PricingFaq (new FAQ "What's the difference between the keypad menu and an AI voice agent?").
+  i18n: 39 new FR/ES keys via memory/copy_fix_ivr_ai.py (fr/es.json now key-sorted, 1784 keys, valid JSON).
+  Checks so far: node --check OK on all edited backend files, nodejs restarted, frontend "Compiled successfully".
+  NEXT AGENT TODO:
+   1. Update the stale tests for the new rule: backend/tests/test_cloudivr_ai_agents.py line ~230 expects inc("pro") True →
+      now False; the line ~41 helper already uses a Business number. Check js/tests/test_bulk_line_limit_ai_2026-10.js still passes.
+   2. Curl: GET /api/cloudivr-web/public/catalog → Pro webFeatures aiAgent included=false, Business true, rates.aiAgentPerMin.
+      As Alice (Business, civr.alice@example.com / AliceTest#2026): PUT /numbers/<phone>/ai-agent {enabled:true, agentId}
+      while the keypad menu is on → ivrTurnedOff true and features.ivr.enabled false; PUT /numbers/<phone>/ivr enabled
+      → aiAgentTurnedOff true. As Bob (Starter) → 403 "needs the Business plan". Restore Alice's settings afterwards.
+   3. testing_agent (frontend): number tabs renamed, both notices, route summary "Your AI voice agent answers every call",
+      AI Agents page Business note, New campaign → AI kind with no Business number shows the empty state AND the kind
+      switch, landing cards/FAQ in EN/FR/ES, plan cards (Pro no longer lists the AI voice agent as included).
+   4. Then finish and tell the owner that existing Pro numbers with the AI agent on now fall back to normal call handling.

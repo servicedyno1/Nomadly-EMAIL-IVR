@@ -227,4 +227,4 @@ class TestCatalog:
         d = requests.get(f"{API}/public/catalog").json()
         plans = {p["id"]: p for p in d["plans"]}
         inc = lambda pid: next(f for f in plans[pid]["webFeatures"] if f["key"] == "aiAgent")["included"]
-        assert inc("starter") is False and inc("pro") is True and inc("business") is True
+        assert inc("starter") is False and inc("pro") is False and inc("business") is True

@@ -123,13 +123,17 @@ function routes(router, { h, numbersApi }) {
   router.put('/numbers/:phone/ai-agent', h(async (req, res) => {
     const num = await numbersApi.findMine(req.webChatId, req.params.phone)
     if (!num) return bad(res, 404, 'not_found', 'Number not found on your account.')
-    if (!phoneConfig.canAccessFeature(num.plan, 'aiAgent')) return bad(res, 403, 'plan_upgrade_required', 'The AI agent needs the Pro plan or higher on this number.')
+    if (!phoneConfig.canAccessFeature(num.plan, 'aiAgent')) return bad(res, 403, 'plan_upgrade_required', 'The AI voice agent needs the Business plan on this number.')
     const enabled = !!req.body?.enabled
     const agentId = req.body?.agentId ? String(req.body.agentId) : null
     if ((enabled || agentId) && !(await s.getAgent(agentId, req.webChatId))) return bad(res, 400, 'invalid_agent', 'Pick one of your AI agents.')
     const value = { enabled, agentId }
     await numbersApi.setField(req.webChatId, num.phoneNumber, 'features.aiAgent', value)
-    res.json({ aiAgent: value })
+    // One answers a number: the AI voice agent going on switches the keypad menu off.
+    const ivr = num.features?.ivr
+    const ivrTurnedOff = !!(enabled && ivr?.enabled)
+    if (ivrTurnedOff) await numbersApi.setField(req.webChatId, num.phoneNumber, 'features.ivr', { ...ivr, enabled: false })
+    res.json({ aiAgent: value, ivrTurnedOff })
   }))
 }
 

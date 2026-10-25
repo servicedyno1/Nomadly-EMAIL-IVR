@@ -29,9 +29,9 @@ const brandHead = () => {
   const n = countryCount()
   return [
     '<title>CloudIVR — Virtual phone numbers, IVR &amp; AI voice agents</title>',
-    `<meta name="description" content="Virtual phone numbers${n ? ` in ${n} countries` : ''} with call forwarding, voicemail, an SMS inbox, IVR menus, bulk IVR campaigns and AI voice agents. Pay with crypto." />`,
+    `<meta name="description" content="Virtual phone numbers${n ? ` in ${n} countries` : ''} with call forwarding, voicemail, an SMS inbox, keypad menus (IVR), bulk IVR campaigns and AI voice agents. Pay with crypto." />`,
     '<meta property="og:title" content="CloudIVR — Virtual phone numbers, IVR &amp; AI voice agents" />',
-    '<meta property="og:description" content="Phone numbers that answer, route and call for you — IVR menus, campaigns and AI voice agents. Pay with crypto, run it from your browser." />',
+    '<meta property="og:description" content="Phone numbers that answer, route and call for you — keypad menus (IVR), campaigns and AI voice agents. Pay with crypto, run it from your browser." />',
     '<meta property="og:type" content="website" />',
     '<meta name="theme-color" content="#0a0a0a" />',
     '<link rel="icon" type="image/png" href="/civr/brand/parrot-icon-48.png" />',

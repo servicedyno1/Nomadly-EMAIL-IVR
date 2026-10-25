@@ -44,7 +44,7 @@ function track(ccid, s) {
 }
 function forget(s) { sessions.delete(s.ccid); streamTokens.delete(s.token); clearInterval(s.walletTimer) }
 
-// Inbound: the number's AI agent answers (Pro+, wallet covers a minute). false → route the call normally.
+// Inbound: the number's AI agent answers (Business, wallet covers a minute). false → route the call normally.
 async function tryInbound({ payload, chatId, num }) {
   const cfg = num.features?.aiAgent
   if (!cfg?.enabled || !phoneConfig.canAccessFeature(num.plan, 'aiAgent')) return false
