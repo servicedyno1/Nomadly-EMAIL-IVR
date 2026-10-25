@@ -3,6 +3,7 @@
 // phoneNumbersOf so the existing call engine (forwarding, IVR, voicemail, recording, SIP, renewals) serves them.
 const crypto = require('crypto')
 const phoneConfig = require('../phone-config')
+const lifecycle = require('../plan-lifecycle')
 const { walletOps, round2, livePayments } = require('./wallet')
 const numberHours = require('../number-hours')
 const vmGreeting = require('../voicemail-greeting')
@@ -112,6 +113,7 @@ function publicNumber(n) {
   return {
     phoneNumber: n.phoneNumber, country: n.country, countryName: n.countryName, type: n.type,
     plan: n.plan, planName: plan.name || n.plan, planPrice: n.planPrice, status: n.status, autoRenew: n.autoRenew !== false,
+    renewalPrice: lifecycle.renewalPrice(n), holdUntil: lifecycle.onHold(n) ? n._holdUntil : null, suspendReason: lifecycle.onHold(n) ? n._suspendReason || null : null,
     purchaseDate: n.purchaseDate, expiresAt: n.expiresAt, isSubNumber: !!n.isSubNumber, parentNumber: n.parentNumber || null, dryRun: !!n.dryRun,
     routeSummary: routeSummary(n),
     capabilities: n.capabilities || { voice: true, sms: true, fax: false },
@@ -329,7 +331,7 @@ function routes(router, deps) {
       const expiresAt = new Date(); expiresAt.setMonth(expiresAt.getMonth() + 1)
       const doc = {
         phoneNumber: selected, telnyxOrderId: order.id, provider: 'telnyx', country, countryName: c.name,
-        type, plan: planKey, planPrice: round2(base), purchaseDate: new Date().toISOString(), expiresAt: expiresAt.toISOString(), autoRenew: autoRenew !== false, status: 'active',
+        type, plan: planKey, planPrice: round2(base), ...(!sub && hit.surcharge ? { numberSurcharge: round2(hit.surcharge) } : {}), purchaseDate: new Date().toISOString(), expiresAt: expiresAt.toISOString(), autoRenew: autoRenew !== false, status: 'active',
         sipUsername, sipPassword, telnyxSipUsername: tUser, telnyxSipPassword: tPass, telnyxCredentialId: tCredId, sipDomain: phoneConfig.WEB_SIP_DOMAIN,
         messagingProfileId: caps.sms ? tr.messagingProfileId || null : null, connectionId: tr.sipConnectionId || null, smsUsed: 0, minutesUsed: 0,
         capabilities: caps, channel: 'web', ...(dryRun() ? { dryRun: true } : {}), ...(sub ? { isSubNumber: true, parentNumber: sub.parentNumber } : {}),
@@ -535,23 +537,28 @@ function routes(router, deps) {
     res.json({ autoRenew: !!req.body.enabled })
   }))
 
+  // Wallet renewal; restoring a suspended main line also brings back its extra lines (see plan-lifecycle.js).
   router.post('/numbers/:phone/renew', withNumber(async (req, res) => {
-    const n = req.num, price = round2(n.planPrice || phoneConfig.plans[n.plan]?.price)
-    if (!(await w.debit(req.webChatId, price))) return bad(res, 402, 'insufficient_balance', `Renewal costs $${price.toFixed(2)}. Top up your wallet first.`)
-    const lapsed = new Date(n.expiresAt || 0).getTime() <= Date.now()
-    const base = new Date(Math.max(Date.now(), new Date(n.expiresAt || Date.now()).getTime()))
-    base.setMonth(base.getMonth() + 1)
-    // Early renewal only adds a month; the monthly allowance resets when a lapsed number starts a new cycle.
-    await phoneNumbersOf.updateOne({ _id: req.webChatId, 'val.numbers.phoneNumber': n.phoneNumber }, { $set: { 'val.numbers.$.expiresAt': base.toISOString(), 'val.numbers.$.status': 'active', ...(lapsed ? { 'val.numbers.$.minutesUsed': 0, 'val.numbers.$.smsUsed': 0 } : {}) } })
-    await phoneTransactions.insertOne({ chatId: req.webChatId, phoneNumber: n.phoneNumber, action: 'renew', plan: n.plan, amount: price, paymentMethod: 'wallet_usd', channel: 'web', timestamp: new Date().toISOString() })
-    await txn(req.webChatId, 'phone-renewal', price, { phoneNumber: n.phoneNumber, plan: n.plan })
-    res.json({ expiresAt: base.toISOString(), balance: await w.balance(req.webChatId) })
+    const numbers = (await phoneNumbersOf.findOne({ _id: req.webChatId }))?.val?.numbers || []
+    const n = numbers.find(x => x.phoneNumber === req.num.phoneNumber && x.status !== 'released') || req.num
+    const block = lifecycle.renewBlock(numbers, n)
+    if (block === 'main_line_suspended') return bad(res, 409, block, 'This extra line comes back when its main line is restored. Renew the main line first.')
+    if (block) return bad(res, 409, block, block === 'released' ? 'This number has been released and can no longer be renewed.' : 'We could not work out the renewal price for this line. Please contact support.')
+    const price = round2(lifecycle.renewalPrice(n))
+    if (price > 0 && !(await w.debit(req.webChatId, price))) return bad(res, 402, 'insufficient_balance', `Renewal costs $${price.toFixed(2)}. Top up your wallet first.`)
+    const r = lifecycle.renewPatches(numbers, n)
+    await lifecycle.applyDb(phoneNumbersOf, req.webChatId, r.patches)
+    const action = r.wasSuspended ? 'restore' : 'renew'
+    await phoneTransactions.insertOne({ chatId: req.webChatId, phoneNumber: n.phoneNumber, action, plan: n.plan, amount: price, paymentMethod: 'wallet_usd', channel: 'web', restoredExtras: r.restored, timestamp: new Date().toISOString() })
+    await txn(req.webChatId, 'phone-renewal', price, { phoneNumber: n.phoneNumber, plan: n.plan, action })
+    res.json({ expiresAt: r.expiresAt, price, restored: r.restored, waiting: r.waiting, balance: await w.balance(req.webChatId) })
   }))
 
   // Price to move `n` up to `newPlan` now → { charge, credit, newPrice } or { error } (HTTP-style).
   function upgradeQuote(n, newPlan) {
     const order = Object.keys(phoneConfig.plans)
     if (n.isSubNumber) return { error: { status: 400, error: 'is_extra', message: 'Extra numbers follow the plan of their main number.' } }
+    if (lifecycle.onHold(n)) return { error: { status: 409, error: 'suspended', message: 'Restore this number first (Renew now), then change its plan.' } }
     if (!phoneConfig.plans[newPlan] || order.indexOf(newPlan) <= order.indexOf(n.plan)) return { error: { status: 400, error: 'invalid_plan', message: 'Pick a higher plan than the current one.' } }
     const q = phoneConfig.computeUpgradeQuote(n, newPlan)
     // Keep the number's surcharge (e.g. international) on top of the new plan price, as downgrade does.

@@ -57,6 +57,7 @@ function routes(router, { db, h, numbersApi, bulkCallService, getTodayCoupons, p
     const n = req.num, newPlan = String(req.body.plan || '')
     const order = Object.keys(phoneConfig.plans)
     if (n.isSubNumber) return bad(res, 400, 'is_extra', 'Extra numbers follow the plan of their main number.')
+    if (n.status === 'suspended' && n._holdUntil) return bad(res, 409, 'suspended', 'Restore this number first (Renew now), then change its plan.')
     if (!phoneConfig.plans[newPlan] || !phoneConfig.isPlanAvailable(newPlan) || order.indexOf(newPlan) >= order.indexOf(n.plan)) return bad(res, 400, 'invalid_plan', 'Pick a lower plan than the current one.')
     const cur = phoneConfig.plans[n.plan], next = phoneConfig.plans[newPlan]
     const surcharge = Math.max(0, round2((n.planPrice || cur.price) - cur.price))

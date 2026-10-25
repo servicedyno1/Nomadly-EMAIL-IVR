@@ -11,6 +11,7 @@ const phoneConfig = require('./phone-config.js')
 const telnyxApi = require('./telnyx-service.js')
 const twilioService = require('./twilio-service.js')
 const { translation } = require('./translation.js')
+const lifecycle = require('./plan-lifecycle.js')
 
 const TELNYX_API_KEY = process.env.TELNYX_API_KEY
 const TELNYX_BASE = 'https://api.telnyx.com/v2'
@@ -29,6 +30,7 @@ let _payments = null
 let _nameOf = null
 let _stateOf = null
 let _notifyGroup = null
+let _notifyAdmin = null
 let _maskName = null
 let _nanoid = null
 let _db = null
@@ -44,6 +46,8 @@ function initPhoneScheduler(deps) {
   _nameOf = deps.nameOf
   _stateOf = deps.stateOf
   _notifyGroup = deps.notifyGroup
+  // Internal alerts (pricing, safety, ops) go to the admin chat only — never to groups.
+  _notifyAdmin = deps.notifyAdmin || null
   _maskName = deps.maskName
   _nanoid = deps.nanoid
 
@@ -114,6 +118,8 @@ async function runExpiryCheck() {
       for (let i = 0; i < numbers.length; i++) {
         const num = numbers[i]
         if (num.status !== 'active' && num.status !== 'suspended') continue
+        // Internal test lines (e.g. the live-call test number) never expire on their own.
+        if (lifecycle.isInternalTest(num)) continue
 
         // ── Twilio paused (TWILIO_ENABLED=false — account suspended) ──
         // Dead Twilio numbers are HELD for migration to Telnyx: no renewal
@@ -122,6 +128,41 @@ async function runExpiryCheck() {
         // expiry. Flip TWILIO_ENABLED back to true and normal processing resumes.
         if (num.provider === 'twilio' && !phoneConfig.isTwilioEnabled()) {
           heldForMigration++
+          continue
+        }
+
+        // ── Suspended plan on hold: no reminders or renewals; released for good once the hold ends ──
+        if (lifecycle.onHold(num)) {
+          if (lifecycle.holdOver(num, now)) {
+            await releaseFromProvider(num, user.val, chatId)
+            lifecycle.applyLocal(numbers, [lifecycle.releasePatch(num)])
+            modified = true
+            suspended++
+            sendToUser(chatId, lifecycle.releasedAfterHoldMsg(num, await _getUserLang(chatId)))
+            const name = await get(_nameOf, chatId).catch(() => null)
+            _notifyGroup?.(
+              `📤 <b>Released after ${lifecycle.HOLD_DAYS}-day hold:</b> ${_maskName?.(name) || ''} lost ${maskPhone(num.phoneNumber)}`,
+              `📤 <b>Released after ${lifecycle.HOLD_DAYS}-day hold:</b> ${_maskName?.(name) || ''} <code>${chatId}</code> lost ${formatPhone(num.phoneNumber)}`
+            )
+            log(`[PhoneScheduler] Hold ended, released: ${chatId} ${num.phoneNumber}`)
+          }
+          continue
+        }
+
+        // ── Line lost its main line → suspended; restorable as a main line at the plan price ──
+        if (lifecycle.isOrphan(numbers, num)) {
+          const fromPrice = num.planPrice
+          lifecycle.applyLocal(numbers, lifecycle.orphanToMain(num, now))
+          modified = true
+          suspended++
+          const price = lifecycle.renewalPrice(num)
+          sendToUser(chatId, lifecycle.orphanSuspendedMsg(num, price, await _getUserLang(chatId)))
+          const name = await get(_nameOf, chatId).catch(() => null)
+          _notifyGroup?.(
+            `⏸️ <b>Main line ended — extra line suspended:</b> ${_maskName?.(name) || ''} ${maskPhone(num.phoneNumber)}. Restores as a main line for $${price}.`,
+            `⏸️ <b>Main line ended — extra line suspended:</b> ${_maskName?.(name) || ''} <code>${chatId}</code> ${formatPhone(num.phoneNumber)} (was extra of ${formatPhone(num.formerSubNumberOf || '')}, $${fromPrice}). Restores as a ${num.plan} main line for $${price}; hold until ${num._holdUntil.slice(0, 16)} UTC.`
+          )
+          log(`[PhoneScheduler] Orphan extra line suspended: ${chatId} ${num.phoneNumber} ($${fromPrice} → restore $${price})`)
           continue
         }
 
@@ -221,8 +262,7 @@ async function runExpiryCheck() {
               if (freshN && new Date(freshN.expiresAt) > new Date()) {
                 log(`[PhoneScheduler] ABORT release for ${num.phoneNumber}: fresh DB shows expiresAt in future (${freshN.expiresAt}, status ${freshN.status})`)
                 const name = await get(_nameOf, chatId).catch(() => null)
-                _notifyGroup?.(
-                  `🛡️ <b>Release ABORTED (safety):</b> ${_maskName?.(name) || ''} <code>${chatId}</code> ${maskPhone(num.phoneNumber)} appeared expired locally but DB shows future expiresAt (${freshN.expiresAt}). Likely race with another pod — kept the number.`,
+                _notifyAdmin?.(
                   `🛡️ <b>Release ABORTED (safety):</b> ${_maskName?.(name) || ''} <code>${chatId}</code> ${formatPhone(num.phoneNumber)} appeared expired locally but DB shows future expiresAt (${freshN.expiresAt}). Likely race with another pod — kept the number.`
                 )
                 numbers[i] = freshN
@@ -245,16 +285,20 @@ async function runExpiryCheck() {
                   const userLang = await _getUserLang(chatId)
                   sendToUser(chatId, buildGracePeriodMsg(num, shortfall, graceDeadline, userLang))
                   const name = await get(_nameOf, chatId).catch(() => null)
-                  _notifyGroup?.(
-                    `⏳ <b>Grace Period Started:</b> ${_maskName?.(name) || ''} <code>${chatId}</code> ${maskPhone(num.phoneNumber)} — insufficient funds ($${(result.usdBal || 0).toFixed(2)} / $${result.needed || num.planPrice} needed). 24h grace until ${graceDeadline.toISOString().slice(0, 16)} UTC.`,
+                  _notifyAdmin?.(
                     `⏳ <b>Grace Period Started:</b> ${_maskName?.(name) || ''} <code>${chatId}</code> ${formatPhone(num.phoneNumber)} — insufficient funds ($${(result.usdBal || 0).toFixed(2)} / $${result.needed || num.planPrice} needed). 24h grace until ${graceDeadline.toISOString().slice(0, 16)} UTC.`
                   )
                   log(`[PhoneScheduler] Grace period started for ${num.phoneNumber}: deposit $${shortfall.toFixed(2)} by ${graceDeadline.toISOString()}`)
                 } else if (!graceExpired) {
                   // ── Still within grace period — skip, wait for next check ──
                   log(`[PhoneScheduler] ${num.phoneNumber} still in grace period (until ${graceUntil.toISOString()}), skipping release`)
+                } else if (!num.isSubNumber) {
+                  // ── Grace period expired — main line + extras suspended and held ──
+                  await suspendMainLine(chatId, numbers, num, 'grace ended, insufficient balance')
+                  modified = true
+                  suspended++
                 } else {
-                  // ── Grace period expired — release from provider ──
+                  // ── Grace period expired (extra line) — release from provider ──
                   numbers[i].status = 'released'
                   numbers[i]._reminder3Sent = false
                   numbers[i]._reminder1Sent = false
@@ -279,14 +323,18 @@ async function runExpiryCheck() {
               // Do NOT release the number — the issue is operational, not
               // a payment failure. Alert admin and leave the number active.
               const name = await get(_nameOf, chatId).catch(() => null)
-              _notifyGroup?.(
-                `⚠️ <b>Auto-Renew Deferred (no release):</b> ${_maskName?.(name) || ''} <code>${chatId}</code> ${maskPhone(num.phoneNumber)} — outcome=<code>${outcome}</code>. Number kept active for manual review.`,
+              _notifyAdmin?.(
                 `⚠️ <b>Auto-Renew Deferred (no release):</b> ${_maskName?.(name) || ''} <code>${chatId}</code> ${formatPhone(num.phoneNumber)} — outcome=<code>${outcome}</code>. Number kept active for manual review.`
               )
               log(`[PhoneScheduler] Auto-renew deferred for ${num.phoneNumber}: outcome=${outcome} — number NOT released`)
             }
+          } else if (!num.isSubNumber) {
+            // No auto-renew — main line + extras suspended and held for a restore
+            await suspendMainLine(chatId, numbers, num, 'no auto-renew')
+            modified = true
+            suspended++
           } else {
-            // No auto-renew — release from provider immediately
+            // No auto-renew (extra line) — release from provider immediately
             numbers[i].status = 'released'
             numbers[i]._reminder3Sent = false
             numbers[i]._reminder1Sent = false
@@ -311,10 +359,26 @@ async function runExpiryCheck() {
       }
     }
 
-    log(`[PhoneScheduler] Expiry check complete: ${remindersSent} reminders, ${autoRenewed} auto-renewed, ${suspended} released${heldForMigration ? `, ${heldForMigration} Twilio held for migration (TWILIO_ENABLED=false)` : ''}`)
+    log(`[PhoneScheduler] Expiry check complete: ${remindersSent} reminders, ${autoRenewed} auto-renewed, ${suspended} suspended/released${heldForMigration ? `, ${heldForMigration} Twilio held for migration (TWILIO_ENABLED=false)` : ''}`)
   } catch (e) {
     log(`[PhoneScheduler] Expiry check error: ${e.message}`)
   }
+}
+
+// Main line's plan ended → suspend it with its extra lines (held HOLD_DAYS) and tell the owner how to restore.
+async function suspendMainLine(chatId, numbers, num, why) {
+  const patches = lifecycle.suspendPlan(numbers, num)
+  lifecycle.applyLocal(numbers, patches)
+  const extras = patches.slice(1).map(p => numbers.find(x => x.phoneNumber === p.phoneNumber))
+  const price = lifecycle.renewalPrice(num)
+  sendToUser(chatId, lifecycle.planSuspendedMsg(num, extras, price, await _getUserLang(chatId)))
+  const name = await get(_nameOf, chatId).catch(() => null)
+  const more = extras.length ? ` (+${extras.length} extra line${extras.length > 1 ? 's' : ''})` : ''
+  _notifyGroup?.(
+    `⏸️ <b>Plan expired — suspended:</b> ${_maskName?.(name) || ''} ${maskPhone(num.phoneNumber)}${more} · ${why}. ${lifecycle.HOLD_DAYS}-day hold to restore.`,
+    `⏸️ <b>Plan expired — suspended:</b> ${_maskName?.(name) || ''} <code>${chatId}</code> ${formatPhone(num.phoneNumber)}${extras.length ? ` + ${extras.map(e => formatPhone(e.phoneNumber)).join(', ')}` : ''} · ${why}. Hold until ${num._holdUntil.slice(0, 16)} UTC, restore $${price}.`
+  )
+  log(`[PhoneScheduler] Plan expired, suspended (${why}): ${chatId} ${num.phoneNumber}${extras.length ? ` + ${extras.length} extra` : ''}`)
 }
 
 // Release number from provider (Telnyx or Twilio) to stop billing.
@@ -356,7 +420,7 @@ async function releaseFromProvider(num, userData, chatId) {
               } }
             )
             log(`[PhoneScheduler] Persisted rotated sub-account token for chatId ${chatId} sub ${subSid}`)
-            _notifyGroup?.(`🔑 <b>Twilio sub-token rotated</b> for <code>${chatId}</code> sub <code>${subSid}</code> — auto-refreshed in DB on release path.`)
+            _notifyAdmin?.(`🔑 <b>Twilio sub-token rotated</b> for <code>${chatId}</code> sub <code>${subSid}</code> — auto-refreshed in DB on release path.`)
           } catch (persistErr) {
             log(`[PhoneScheduler] FAILED to persist rotated token for ${chatId}: ${persistErr.message}`)
           }
@@ -402,7 +466,7 @@ async function attemptAutoRenew(chatId, num, index, numbers) {
     // unless the number is explicitly grandfathered.
     const storedPrice = Number(num.planPrice)
     const planTier = (num.plan || '').toLowerCase()
-    const canonicalPlanPrice = phoneConfig.plans?.[planTier]?.price
+    const canonicalPlanPrice = lifecycle.canonicalPrice(num) ?? undefined
     const isSub = !!num.isSubNumber
     const isGrandfathered = num.grandfathered === true
     let price = storedPrice
@@ -412,12 +476,7 @@ async function attemptAutoRenew(chatId, num, index, numbers) {
       // to catch corrupt zeros / nulls.
       if (!Number.isFinite(storedPrice) || storedPrice < phoneConfig.SUB_NUMBER_BASE_PRICE) {
         const fixed = phoneConfig.SUB_NUMBER_BASE_PRICE
-        _notifyGroup?.(
-          `⚠️ <b>Sub-number planPrice anomaly</b>\n` +
-          `👤 chat=<code>${chatId}</code>\n` +
-          `📞 ${maskPhone(num.phoneNumber)}\n` +
-          `💰 stored=$${storedPrice} → using min $${fixed} for renewal\n` +
-          `<i>Verify the parent provisioning. Auto-renew continues.</i>`,
+        _notifyAdmin?.(
           `⚠️ <b>Sub-number planPrice anomaly</b>\n` +
           `👤 chat=<code>${chatId}</code>\n` +
           `📞 ${num.phoneNumber}\n` +
@@ -429,12 +488,7 @@ async function attemptAutoRenew(chatId, num, index, numbers) {
     } else if (Number.isFinite(canonicalPlanPrice) && storedPrice !== canonicalPlanPrice && !isGrandfathered) {
       // Parent number with mismatched price — alert + self-heal + charge canonical
       const name = await get(_nameOf, chatId).catch(() => null)
-      _notifyGroup?.(
-        `🚨 <b>PlanPrice MISMATCH — corrected at renewal</b>\n` +
-        `👤 ${_maskName?.(name) || ''} <code>${chatId}</code>\n` +
-        `📞 ${maskPhone(num.phoneNumber)} · plan=<b>${planTier}</b>\n` +
-        `💰 stored=$${storedPrice} → charged canonical <b>$${canonicalPlanPrice}</b>\n` +
-        `<i>phoneNumbersOf.planPrice has been self-healed. If this was an intentional grandfather, set <code>grandfathered:true</code> on the number doc.</i>`,
+      _notifyAdmin?.(
         `🚨 <b>PlanPrice MISMATCH — corrected at renewal</b>\n` +
         `👤 ${_maskName?.(name) || ''} <code>${chatId}</code>\n` +
         `📞 ${num.phoneNumber} · plan=<b>${planTier}</b>\n` +
@@ -458,12 +512,7 @@ async function attemptAutoRenew(chatId, num, index, numbers) {
       num.planPrice = canonicalPlanPrice
     } else if (!Number.isFinite(storedPrice) || storedPrice <= 0) {
       // No canonical match and stored is broken — alert and abort
-      _notifyGroup?.(
-        `🚨 <b>Auto-renew ABORTED — invalid planPrice</b>\n` +
-        `👤 chat=<code>${chatId}</code>\n` +
-        `📞 ${maskPhone(num.phoneNumber)} · plan=<b>${planTier}</b>\n` +
-        `💰 stored=<code>${storedPrice}</code> · canonical=<code>${canonicalPlanPrice}</code>\n` +
-        `<i>Renewal blocked. Manual admin action required.</i>`,
+      _notifyAdmin?.(
         `🚨 <b>Auto-renew ABORTED — invalid planPrice</b>\n` +
         `👤 chat=<code>${chatId}</code>\n` +
         `📞 ${num.phoneNumber} · plan=<b>${planTier}</b>\n` +
@@ -787,13 +836,23 @@ Wallet Balance: $${balance.toFixed(2)}
 Renewal Cost: ${priceText}${lowBal ? `
 
 ⚠️ Insufficient balance! Deposit at least $${(price - balance).toFixed(2)} to renew.
-If not renewed, your number will be <b>permanently deleted</b> and cannot be recovered.` : ''}${num.autoRenew && !lowBal ? `
+${num.isSubNumber ? 'If not renewed, your number will be <b>permanently deleted</b> and cannot be recovered.' : `If not renewed, this number and its extra lines will be <b>suspended</b>. You'll then have ${lifecycle.HOLD_DAYS} days to restore them before they are released for good.`}` : ''}${num.autoRenew && !lowBal ? `
 
 ✅ Your number will auto-renew from your wallet.` : ''}`
 }
 
 function buildFinalWarningMsg(num, plan, balance) {
   const price = num.planPrice
+  if (!num.isSubNumber) return `🚨 <b>FINAL Renewal Warning</b>
+
+Your number ${formatPhone(num.phoneNumber)} expires <b>TOMORROW</b> (${shortDate(num.expiresAt)}).
+
+If not renewed:
+• The number and all its extra lines are <b>suspended</b>
+• Calls, SMS forwarding & SIP stop
+• After ${lifecycle.HOLD_DAYS} days without a restore, they are <b>released for good</b>
+
+Wallet: $${balance.toFixed(2)} | Need: $${price}`
   return `🚨 <b>FINAL Renewal Warning</b>
 
 Your number ${formatPhone(num.phoneNumber)} expires <b>TOMORROW</b> (${shortDate(num.expiresAt)}).
@@ -811,46 +870,59 @@ Wallet: $${balance.toFixed(2)} | Need: $${price}`
 function buildGracePeriodMsg(num, shortfall, graceDeadline, lang) {
   const plan = plans[num.plan] || { name: num.plan }
   const deadlineStr = graceDeadline.toISOString().replace('T', ' ').slice(0, 16) + ' UTC'
+  const H = lifecycle.HOLD_DAYS
+  // Main lines are suspended (with their extra lines) and held for a restore; extra lines are released.
+  const after = num.isSubNumber ? {
+    en: 'After that, the number will be <b>permanently released</b> and cannot be recovered.',
+    fr: 'Après quoi, le numéro sera <b>définitivement libéré</b>.',
+    zh: '逾期号码将被<b>永久释放</b>，无法恢复。',
+    hi: 'उसके बाद नंबर <b>स्थायी रूप से रिलीज़</b> हो जाएगा।',
+  } : {
+    en: `After that, the number and its extra lines are <b>suspended</b>, and released for good if not restored within ${H} days.`,
+    fr: `Après quoi, le numéro et ses lignes supplémentaires sont <b>suspendus</b>, puis libérés définitivement s'ils ne sont pas rétablis sous ${H} jours.`,
+    zh: `逾期号码及其附加号码将被<b>暂停</b>，${H} 天内未恢复将被永久释放。`,
+    hi: `उसके बाद नंबर और उसकी अतिरिक्त लाइनें <b>निलंबित</b> होंगी, और ${H} दिनों में बहाल न होने पर स्थायी रूप से रिलीज़ होंगी।`,
+  }
   const msgs = {
-    en: `⏳ <b>URGENT: Your number is about to be released</b>
+    en: `⏳ <b>URGENT: Your number is about to be ${num.isSubNumber ? 'released' : 'suspended'}</b>
 
 📞 ${formatPhone(num.phoneNumber)} (${plan.name} Plan)
 
 Auto-renewal failed — your wallet is <b>$${shortfall.toFixed(2)} short</b>.
 
-You have <b>24 hours</b> (until ${deadlineStr}) to deposit funds. After that, the number will be <b>permanently released</b> and cannot be recovered.
+You have <b>24 hours</b> (until ${deadlineStr}) to deposit funds. ${after.en}
 
 👉 Tap /start → 💰 Deposit to add funds now.
 
 Your number stays active during this grace period — calls and SMS continue working.`,
 
-    fr: `⏳ <b>URGENT : Votre numéro va être libéré</b>
+    fr: `⏳ <b>URGENT : Votre numéro va être ${num.isSubNumber ? 'libéré' : 'suspendu'}</b>
 
 📞 ${formatPhone(num.phoneNumber)} (Forfait ${plan.name})
 
 Le renouvellement automatique a échoué — il manque <b>$${shortfall.toFixed(2)}</b> dans votre portefeuille.
 
-Vous avez <b>24 heures</b> (jusqu'au ${deadlineStr}) pour déposer des fonds. Après quoi, le numéro sera <b>définitivement libéré</b>.
+Vous avez <b>24 heures</b> (jusqu'au ${deadlineStr}) pour déposer des fonds. ${after.fr}
 
 👉 Tapez /start → 💰 Dépôt pour recharger maintenant.`,
 
-    zh: `⏳ <b>紧急：您的号码即将被释放</b>
+    zh: `⏳ <b>紧急：您的号码即将被${num.isSubNumber ? '释放' : '暂停'}</b>
 
 📞 ${formatPhone(num.phoneNumber)} (${plan.name} 套餐)
 
 自动续费失败 — 钱包余额不足 <b>$${shortfall.toFixed(2)}</b>。
 
-您有 <b>24小时</b>（截止 ${deadlineStr}）充值。逾期号码将被<b>永久释放</b>，无法恢复。
+您有 <b>24小时</b>（截止 ${deadlineStr}）充值。${after.zh}
 
 👉 点击 /start → 💰 充值 立即充值。`,
 
-    hi: `⏳ <b>अर्जेंट: आपका नंबर रिलीज़ होने वाला है</b>
+    hi: `⏳ <b>अर्जेंट: आपका नंबर ${num.isSubNumber ? 'रिलीज़' : 'निलंबित'} होने वाला है</b>
 
 📞 ${formatPhone(num.phoneNumber)} (${plan.name} प्लान)
 
 ऑटो-रिन्यूअल विफल — वॉलेट में <b>$${shortfall.toFixed(2)}</b> कम है।
 
-फंड जमा करने के लिए <b>24 घंटे</b> (${deadlineStr} तक) हैं। उसके बाद नंबर <b>स्थायी रूप से रिलीज़</b> हो जाएगा।
+फंड जमा करने के लिए <b>24 घंटे</b> (${deadlineStr} तक) हैं। ${after.hi}
 
 👉 /start → 💰 जमा करें पर टैप करें।`,
   }
@@ -933,13 +1005,14 @@ function sendToUser(chatId, text) {
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // Walks every active phoneNumbersOf entry and verifies that the stored
 // planPrice matches the canonical price for the stored plan tier. Any
-// drift is reported to the admin group as a single digest message.
+// drift is reported to the admin chat only (never groups) as a single digest message.
 //
 // Recognised exceptions:
 //   - isSubNumber:true      → variable pricing (≥ SUB_NUMBER_BASE_PRICE)
 //   - grandfathered:true    → explicit admin opt-out (e.g. comped customer)
+//   - e2eTest/internalTest  → our own free live-call test lines
 //
-// Output: one notifyGroup() digest per run, with up to 30 anomalies inline
+// Output: one admin digest per run, with up to 30 anomalies inline
 // and a count of any overflow. Runs daily at 0:30 UTC.
 async function runPricingReconciler() {
   try {
@@ -954,9 +1027,10 @@ async function runPricingReconciler() {
         if (!n || typeof n !== 'object') continue
         if (n.status && n.status !== 'active' && n.status !== 'suspended') continue
         scanned++
+        if (lifecycle.isInternalTest(n)) continue
         const planTier = (n.plan || '').toLowerCase()
         const stored = Number(n.planPrice)
-        const canonical = phoneConfig.plans?.[planTier]?.price
+        const canonical = lifecycle.canonicalPrice(n) ?? undefined
         const isSub = !!n.isSubNumber
         const grandfathered = n.grandfathered === true
         if (grandfathered) continue
@@ -980,7 +1054,8 @@ async function runPricingReconciler() {
       `• <code>${a.chatId}</code> ${a.phone} · ${a.plan}${a.isSub ? ' (sub)' : ''} · stored=$${a.stored} → canonical=$${a.canonical} <i>(${a.reason})</i>`
     )
     const overflow = anomalies.length > 30 ? `\n…and ${anomalies.length - 30} more` : ''
-    _notifyGroup?.(
+    // Admin chat only: this report lists full numbers and user IDs.
+    _notifyAdmin?.(
       `🧾 <b>Daily pricing reconciler</b>\n` +
       `Scanned: <b>${scanned}</b> active number(s)\n` +
       `Anomalies: <b>${anomalies.length}</b>\n\n` +
@@ -1075,8 +1150,7 @@ async function runInactiveReleasedCleanup() {
 
         // Notify admin
         const name = await get(_nameOf, chatId).catch(() => null)
-        _notifyGroup?.(
-          `🗑️ <b>Inactive number auto-removed:</b> ${_maskName?.(name) || ''} <code>${chatId}</code> ${maskPhone(num.phoneNumber)} — was inactive_released since ${num._inactiveSince}`,
+        _notifyAdmin?.(
           `🗑️ <b>Inactive number auto-removed:</b> ${_maskName?.(name) || ''} <code>${chatId}</code> ${formatPhone(num.phoneNumber)} — was inactive_released since ${num._inactiveSince}`
         )
 

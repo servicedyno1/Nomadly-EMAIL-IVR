@@ -815,7 +815,7 @@ Incoming calls answered via SIP/browser + SMS included · Call forwarding & outb
 • Softphone: Download Zoiper/Ooma, enter SIP credentials
 • Minutes & SMS shared with parent number's plan pool`,
 
-  adminSubPurchase: (name, number, parentNumber, price, paymentMethod) => `➕ <b>Sub-Number Added</b>\n👤 ${name}\n📞 ${formatPhone(number)} → ${formatPhone(parentNumber)}\n💰 $${price} · ${paymentMethod}`,
+  adminSubPurchase: (name, number, parentNumber, price, paymentMethod) => `➕ <b>Sub-Number Added</b>\n👤 ${name}\n📞 ${maskPhone(number)} → ${maskPhone(parentNumber)}\n💰 $${price} · ${paymentMethod}`,
   adminSubPurchasePrivate: (name, number, parentNumber, price, paymentMethod) => `➕ <b>Sub-Number Added</b>\n👤 ${name}\n📞 New: ${formatPhone(number)}\n🔗 Parent: ${formatPhone(parentNumber)}\n💰 $${price}/mo · ${paymentMethod}`,
   
   // Sub-number flow messages
@@ -1334,6 +1334,14 @@ function maskPhone(num) {
   // Default international-style layout
   const masked = digits.slice(3, -2).replace(/\d/g, '•')
   return (hasPlus ? '+' : '') + `${head} ${masked} ${tail}`.replace(/\s+/g, ' ')
+}
+
+// Last-line guard for group broadcasts: masks every phone number in free text
+// ("+" followed by 7-15 digits, optionally spaced/bracketed, or a bare 11-digit +1 number).
+function maskPhonesInText(text) {
+  return String(text ?? '')
+    .replace(/\+\d[\d ()\-]{5,20}\d/g, m => { const d = m.replace(/\D/g, '').length; return d >= 7 && d <= 15 ? maskPhone(m) : m })
+    .replace(/(?<![\d/=.:-])1\d{10}(?![\d/])/g, m => maskPhone('+' + m))
 }
 
 function formatDuration(seconds) {
@@ -2089,7 +2097,7 @@ Votre propre numéro virtuel dans plus de 30 pays. Recevez des appels, envoyez d
     subNumberLimitReached: (plan, limit) => `⚠️ Vous avez atteint la limite de numéros ajoutés pour le forfait <b>${plan}</b> (${limit} numéros).\n\nPassez à un forfait supérieur pour plus de numéros.`,
     subNumberOrderSummary: (number, country, parentNumber, price, parentPlan) => `📋 <b>Commande Numéro Supplémentaire</b>\n\n📞 Nouveau : ${formatPhone(number)} · ${country}\n🔗 Ajouté à : ${formatPhone(parentNumber)} (Forfait ${parentPlan})\n💰 Prix : <b>$${typeof price === 'number' ? price.toFixed(2) : price}/mois</b>\n\n⚡ Partage les minutes & SMS du forfait parent\n🔑 Identifiants SIP propres inclus`,
     subActivated: (number, parentNumber, price, sipUser, sipDomain, expiry) => `🎉 <b>Numéro Supplémentaire Ajouté !</b>\n\n📞 Numéro : ${formatPhone(number)}\n🔗 Lié à : ${formatPhone(parentNumber)}\n💰 Prix : $${typeof price === 'number' ? price.toFixed(2) : price}/mois\n📅 Renouvellement : ${expiry}\n\n━━━ <b>Identifiants SIP</b> ━━━\n🌐 Serveur : ${sipDomain}\n👤 Utilisateur : ${sipUser}\n🔑 Mot de passe : ●●●●●●●● (utilisez 🔑 Identifiants SIP pour révéler)\n📡 Port : 5060 (UDP/TCP) | 5061 (TLS)\n\n━━━ <b>Configuration Rapide</b> ━━━\n• Navigateur : <a href="${CALL_PAGE_URL}">${CALL_PAGE_URL.replace('https://', '')}</a>\n• Softphone : Zoiper/Ooma avec identifiants SIP\n• Minutes & SMS partagés avec le forfait parent`,
-    adminSubPurchase: (name, number, parentNumber, price, paymentMethod) => `➕ <b>Numéro Ajouté</b>\n👤 ${name}\n📞 ${formatPhone(number)} → ${formatPhone(parentNumber)}\n💰 $${price} · ${paymentMethod}`,
+    adminSubPurchase: (name, number, parentNumber, price, paymentMethod) => `➕ <b>Numéro Ajouté</b>\n👤 ${name}\n📞 ${maskPhone(number)} → ${maskPhone(parentNumber)}\n💰 $${price} · ${paymentMethod}`,
     adminSubPurchasePrivate: (name, number, parentNumber, price, paymentMethod) => `➕ <b>Numéro Ajouté</b>\n👤 ${name}\n📞 Nouveau : ${formatPhone(number)}\n🔗 Parent : ${formatPhone(parentNumber)}\n💰 $${price}/mois · ${paymentMethod}`,
     
     // Sub-number flow messages
@@ -2578,7 +2586,7 @@ Envoyez /testsip ici pour obtenir votre code test.
     subNumberLimitReached: (plan, limit) => `⚠️ 您已达到 <b>${plan}</b> 套餐的附加号码上限（${limit} 个）。\n\n升级到更高套餐以获取更多号码。`,
     subNumberOrderSummary: (number, country, parentNumber, price, parentPlan) => `📋 <b>附加号码订单</b>\n\n📞 新号码：${formatPhone(number)} · ${country}\n🔗 添加到：${formatPhone(parentNumber)}（${parentPlan} 套餐）\n💰 价格：<b>$${typeof price === 'number' ? price.toFixed(2) : price}/月</b>\n\n⚡ 共享主号码的通话分钟和短信\n🔑 独立 SIP 凭据`,
     subActivated: (number, parentNumber, price, sipUser, sipDomain, expiry) => `🎉 <b>附加号码已添加！</b>\n\n📞 号码：${formatPhone(number)}\n🔗 关联到：${formatPhone(parentNumber)}\n💰 价格：$${typeof price === 'number' ? price.toFixed(2) : price}/月\n📅 续费：${expiry}\n\n━━━ <b>SIP 凭据</b> ━━━\n🌐 服务器：${sipDomain}\n👤 用户名：${sipUser}\n🔑 密码：●●●●●●●●（使用 🔑 SIP 凭据 查看）\n📡 端口：5060 (UDP/TCP) | 5061 (TLS)\n\n━━━ <b>快速设置</b> ━━━\n• 浏览器：<a href="${CALL_PAGE_URL}">${CALL_PAGE_URL.replace('https://', '')}</a>\n• 软电话：使用 Zoiper/Ooma 配置 SIP\n• 分钟和短信与主号码共享`,
-    adminSubPurchase: (name, number, parentNumber, price, paymentMethod) => `➕ <b>附加号码</b>\n👤 ${name}\n📞 ${formatPhone(number)} → ${formatPhone(parentNumber)}\n💰 $${price} · ${paymentMethod}`,
+    adminSubPurchase: (name, number, parentNumber, price, paymentMethod) => `➕ <b>附加号码</b>\n👤 ${name}\n📞 ${maskPhone(number)} → ${maskPhone(parentNumber)}\n💰 $${price} · ${paymentMethod}`,
     adminSubPurchasePrivate: (name, number, parentNumber, price, paymentMethod) => `➕ <b>附加号码</b>\n👤 ${name}\n📞 新：${formatPhone(number)}\n🔗 主：${formatPhone(parentNumber)}\n💰 $${price}/月 · ${paymentMethod}`,
     
     // Sub-number flow messages
@@ -3067,7 +3075,7 @@ Envoyez /testsip ici pour obtenir votre code test.
     subNumberLimitReached: (plan, limit) => `⚠️ आपने <b>${plan}</b> प्लान की अतिरिक्त नंबर सीमा (${limit} नंबर) पूरी कर ली है।\n\nअधिक नंबरों के लिए उच्च प्लान में अपग्रेड करें।`,
     subNumberOrderSummary: (number, country, parentNumber, price, parentPlan) => `📋 <b>अतिरिक्त नंबर ऑर्डर</b>\n\n📞 नया: ${formatPhone(number)} · ${country}\n🔗 जोड़ा गया: ${formatPhone(parentNumber)} (${parentPlan} प्लान)\n💰 मूल्य: <b>$${typeof price === 'number' ? price.toFixed(2) : price}/माह</b>\n\n⚡ मुख्य प्लान के मिनट और SMS साझा\n🔑 अपने SIP क्रेडेंशियल्स शामिल`,
     subActivated: (number, parentNumber, price, sipUser, sipDomain, expiry) => `🎉 <b>अतिरिक्त नंबर जोड़ा गया!</b>\n\n📞 नंबर: ${formatPhone(number)}\n🔗 जुड़ा हुआ: ${formatPhone(parentNumber)}\n💰 मूल्य: $${typeof price === 'number' ? price.toFixed(2) : price}/माह\n📅 नवीनीकरण: ${expiry}\n\n━━━ <b>SIP क्रेडेंशियल्स</b> ━━━\n🌐 सर्वर: ${sipDomain}\n👤 उपयोगकर्ता: ${sipUser}\n🔑 पासवर्ड: ●●●●●●●● (देखने के लिए 🔑 SIP क्रेडेंशियल्स उपयोग करें)\n📡 पोर्ट: 5060 (UDP/TCP) | 5061 (TLS)\n\n━━━ <b>त्वरित सेटअप</b> ━━━\n• ब्राउज़र: <a href="${CALL_PAGE_URL}">${CALL_PAGE_URL.replace('https://', '')}</a>\n• सॉफ्टफ़ोन: Zoiper/Ooma में SIP सेट करें\n• मिनट और SMS मुख्य नंबर के साथ साझा`,
-    adminSubPurchase: (name, number, parentNumber, price, paymentMethod) => `➕ <b>अतिरिक्त नंबर</b>\n👤 ${name}\n📞 ${formatPhone(number)} → ${formatPhone(parentNumber)}\n💰 $${price} · ${paymentMethod}`,
+    adminSubPurchase: (name, number, parentNumber, price, paymentMethod) => `➕ <b>अतिरिक्त नंबर</b>\n👤 ${name}\n📞 ${maskPhone(number)} → ${maskPhone(parentNumber)}\n💰 $${price} · ${paymentMethod}`,
     adminSubPurchasePrivate: (name, number, parentNumber, price, paymentMethod) => `➕ <b>अतिरिक्त नंबर</b>\n👤 ${name}\n📞 नया: ${formatPhone(number)}\n🔗 मुख्य: ${formatPhone(parentNumber)}\n💰 $${price}/माह · ${paymentMethod}`,
     
     // Sub-number flow messages
@@ -3595,6 +3603,7 @@ module.exports = {
   areaByLabel,
   formatPhone,
   maskPhone,
+  maskPhonesInText,
   formatDuration,
   shortDate,
   generateSipUsername,

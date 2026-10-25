@@ -1714,5 +1714,18 @@
 "key": "touche",
 "Hide numbers and messages": "Masquer les numéros et les messages",
 "Private mode on — numbers, contacts and messages are hidden.": "Mode privé activé — numéros, contacts et messages sont cachés.",
-"Show them": "Les afficher"
+"Show them": "Les afficher",
+"Restore {0} for {1}?": "Rétablir {0} pour {1} ?",
+"Restored — paid until {0}": "Rétabli — payé jusqu'au {0}",
+"Extra lines back on: {0}": "Lignes supplémentaires réactivées : {0}",
+"Still suspended (their paid month ended): {0} — renew each one too.": "Toujours suspendues (mois payé terminé) : {0} — renouvelez-les aussi.",
+"Restore for {0}": "Rétablir pour {0}",
+"Suspended — calls and texts are stopped": "Suspendu — appels et SMS coupés",
+"This extra line comes back when its main line {0} is restored. Released for good on {1} if not restored.": "Cette ligne supplémentaire revient quand sa ligne principale {0} est rétablie. Libérée définitivement le {1} si elle n'est pas rétablie.",
+"Pay {0} by {1} to restore it and its extra lines. After that it is released for good.": "Payez {0} avant le {1} pour le rétablir avec ses lignes supplémentaires. Ensuite, il est libéré définitivement.",
+"Pay {0} by {1} to restore it. After that it is released for good.": "Payez {0} avant le {1} pour le rétablir. Ensuite, il est libéré définitivement.",
+"This extra line comes back when its main line is restored. Renew the main line first.": "Cette ligne supplémentaire revient quand sa ligne principale est rétablie. Renouvelez d'abord la ligne principale.",
+"This number has been released and can no longer be renewed.": "Ce numéro a été libéré et ne peut plus être renouvelé.",
+"Restore this number first (Renew now), then change its plan.": "Rétablissez d'abord ce numéro (Renouveler maintenant), puis changez son forfait.",
+"This number is suspended. Renew it to send texts again.": "Ce numéro est suspendu. Renouvelez-le pour envoyer à nouveau des SMS."
 }

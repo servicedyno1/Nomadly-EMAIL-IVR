@@ -79,7 +79,7 @@ const findCalls = (src) => {
 }
 
 const calls = findCalls(SRC)
-it(`found ≥9 _notifyGroup calls (got ${calls.length})`, calls.length >= 9)
+it(`found ≥6 _notifyGroup calls (got ${calls.length})`, calls.length >= 6)
 
 let leaks = 0
 for (const c of calls) {
@@ -112,32 +112,19 @@ it(
   'expected maskPhone in destructuring from phone-config.js'
 )
 
-// Spot-check known fix sites (line numbers within tolerance ±5)
-const expectedSites = [
-  { tag: 'Release ABORTED (safety)', mustHave: 'maskPhone(num.phoneNumber)' },
-  { tag: 'Grace Period Started', mustHave: 'maskPhone(num.phoneNumber)' },
-  { tag: 'Grace Expired + Released', mustHave: 'maskPhone(num.phoneNumber)' },
-  { tag: 'Auto-Renew Deferred (no release)', mustHave: 'maskPhone(num.phoneNumber)' },
-  { tag: 'Expired + Released:', mustHave: 'maskPhone(num.phoneNumber)' },
-  { tag: 'Sub-number planPrice anomaly', mustHave: 'maskPhone(num.phoneNumber)' },
-  { tag: 'PlanPrice MISMATCH', mustHave: 'maskPhone(num.phoneNumber)' },
-  { tag: 'Auto-renew ABORTED — invalid planPrice', mustHave: 'maskPhone(num.phoneNumber)' },
-  { tag: 'Auto-Renewed:', mustHave: 'maskPhone(num.phoneNumber)' },
-]
-for (const e of expectedSites) {
-  it(
-    `notification "${e.tag}" uses maskPhone in public arg`,
-    SRC.includes(e.tag) && (() => {
-      // find call near this tag
-      const idx = SRC.indexOf(e.tag)
-      if (idx < 0) return false
-      // search the preceding 800 chars for _notifyGroup?.( … and verify maskPhone is in the public-arg portion
-      const windowStart = Math.max(0, idx - 800)
-      const window = SRC.slice(windowStart, idx + 400)
-      return window.includes('maskPhone(num.phoneNumber)')
-    })(),
-  )
+// Public feed posts (group + admin) must mask the number in the group arg.
+const groupSites = ['Grace Expired + Released', 'Expired + Released:', 'Auto-Renewed:', 'Plan expired — suspended:', 'Released after ', 'Main line ended — extra line suspended:']
+for (const tag of groupSites) {
+  const c = calls.find(x => x.body.includes(tag))
+  it(`group post "${tag}" masks the number in its group arg`, !!c && /maskPhone\s*\(/.test(c.args[0] || ''))
 }
+
+// Internal reports (2026-10 owner decision): admin chat only — never a _notifyGroup call.
+const adminOnly = ['Release ABORTED (safety)', 'Grace Period Started', 'Auto-Renew Deferred (no release)', 'Sub-number planPrice anomaly', 'PlanPrice MISMATCH', 'Auto-renew ABORTED — invalid planPrice', 'Daily pricing reconciler', 'Twilio sub-token rotated', 'Inactive number auto-removed']
+for (const tag of adminOnly) {
+  it(`internal report "${tag}" goes to admin only`, SRC.includes(tag) && !calls.some(x => x.body.includes(tag)))
+}
+it('admin-only reports use _notifyAdmin', (SRC.match(/_notifyAdmin\?\.\(/g) || []).length >= adminOnly.length)
 
 console.log(`\n═══ ${pass} passed, ${fail} failed ═══`)
 process.exit(fail === 0 ? 0 : 1)

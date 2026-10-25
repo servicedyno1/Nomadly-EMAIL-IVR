@@ -1083,3 +1083,17 @@ calls and SIP are simulated; inbound calls use a pretend-call simulator).
   filter chips), 16px inputs on phones (no iOS zoom). Private-mode banner now has a "Show them" button. FR/ES short bottom-nav
   Inbox label ("Messages"/"Mensajes") + new strings translated. Audit script scripts/ops/mobile_audit.py: 0 page overflow on all
   ~35 screens at 390px. Testing agent iteration_130: frontend 100% (mobile 390 + desktop 1920 regression).
+
+- 2026-10-24 PLAN LIFECYCLE + GROUP PRIVACY (code only — owner will Save to GitHub; NOT deployed). Owner rules:
+  main line's plan expires → main + ALL extra lines suspended together (calls/SMS stop), held 7 days; restore = pay the
+  plan price ($75 Pro) → main back on + extras with paid time left free; extras whose month ended pay $25 each; after the
+  hold everything is released for good. Orphans (extra whose main is gone, or the Oct-22 migration's standalone former
+  extras e.g. 1185070608's +1844… at $25) → suspended, restorable as a $75 Pro main line. e2eTest/internalTest lines
+  (+19379800767) are free, never expire, skipped by the pricing check. New js/plan-lifecycle.js (pure patches + 4-lang
+  messages); phone-scheduler uses it (hold release, orphan sweep, suspendMainLine). Bot "Renew Now" now a wallet renewal
+  (old path re-ran the purchase flow on an owned number). Web POST /numbers/:phone/renew uses lifecycle; publicNumber adds
+  renewalPrice/holdUntil/suspendReason; BillingTab shows hold notice + "Restore for $X"; plan changes blocked while held;
+  sms-reply blocks suspended numbers. Privacy: pricing reconciler + all internal scheduler alerts → notifyAdmin only;
+  adminSubPurchase group copy masked; audit-trail failure → admin; notifyGroup masks any phone in group text
+  (phoneConfig.maskPhonesInText). Tests: tests/test_plan_lifecycle_2026-10.js 33/33, test_phone_scheduler_no_leak 19/19,
+  grace_fix / maskPhone / admin_unmasked pass. NOT yet verified: web renew route over HTTP, bot Renew Now live, BillingTab UI.
