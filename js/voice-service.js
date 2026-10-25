@@ -118,6 +118,11 @@ function isCallEnded(callControlId) {
   return _endedCalls.has(callControlId)
 }
 
+// Telnyx sends call.recording.saved AFTER call.hangup when the caller hangs up mid-recording (the usual end of a voicemail),
+// so the ended session is kept here for a few minutes to deliver the voicemail / call recording.
+const _endedRecordingSessions = new Map()
+const ENDED_RECORDING_TTL_MS = 10 * 60_000
+
 // ── Voice mapping: TTS voice → Twilio Polly voice & Telnyx voice gender ──
 // Used as the FALLBACK voice for Twilio say() when a matching-voice audio clip
 // isn't available. ElevenLabs voices are mapped by GENDER so the fallback at least
@@ -4351,8 +4356,9 @@ async function handleSpeakEnded(payload) {
 
 async function handleRecordingSaved(payload) {
   const callControlId = payload.call_control_id
-  const session = activeCalls[callControlId]
+  const session = activeCalls[callControlId] || _endedRecordingSessions.get(callControlId)
   if (!session) return
+  _endedRecordingSessions.delete(callControlId)
 
   const recordingUrl = payload.recording_urls?.mp3 || payload.public_recording_urls?.mp3 || payload.recording_urls?.wav
   const duration = payload.duration_secs || 0
@@ -4615,6 +4621,8 @@ async function handleCallHangup(payload) {
     const msg = _trans('t.vs_missedCall', langMissed, formatPhone(to), formatPhone(from), time) || `📞 <b>Missed Call</b>\n\n📞 To: ${formatPhone(to)}\n👤 From: ${formatPhone(from)}\n🕐 ${time}`
     _bot.sendMessage(chatId, msg, { parse_mode: 'HTML' }).catch(() => {})
     logEvent(to, from, 'missed', 0)
+  } else if (session.phase === 'bridged' && session.ringGroupAnsweredBy) {
+    logEvent(to, from, 'forwarded', duration, null, session.ringGroupAnsweredBy)
   } else if (session.phase === 'voicemail_recording' || session.phase === 'voicemail_greeting') {
     // Voicemail call — billing already happened above; send notification with plan usage
     const overageLine = billingInfo.overageCharge > 0
@@ -4644,6 +4652,10 @@ async function handleCallHangup(payload) {
   }
 
   // Cleanup
+  if (session.phase === 'voicemail_recording' || session.isRecording) {
+    _endedRecordingSessions.set(callControlId, session)
+    setTimeout(() => _endedRecordingSessions.delete(callControlId), ENDED_RECORDING_TTL_MS).unref?.()
+  }
   delete activeCalls[callControlId]
 }
 
@@ -4684,7 +4696,7 @@ async function notifyUser(chatId, num, type, session, extra = {}) {
   if (msg) _bot.sendMessage(chatId, msg, { parse_mode: 'HTML' }).catch(() => {})
 }
 
-function logEvent(to, from, type, duration, recordingUrl) {
+function logEvent(to, from, type, duration, recordingUrl, forwardTo) {
   if (!_phoneLogs) return
   _phoneLogs.insertOne({
     phoneNumber: to,
@@ -4692,6 +4704,7 @@ function logEvent(to, from, type, duration, recordingUrl) {
     type,
     duration: duration || 0,
     recordingUrl: recordingUrl || null,
+    ...(forwardTo ? { forwardTo } : {}),
     timestamp: new Date().toISOString(),
   }).catch(e => log(`[Voice] Log error: ${e.message}`))
 }

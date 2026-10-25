@@ -23,7 +23,9 @@ function validate(body = {}, num) {
   }
   const enabled = !!body.enabled
   if (enabled && members.length < 2) throw new Error('Add at least 2 phones to ring at once (for one phone, use Forwarding).')
-  const ringTimeout = Math.min(60, Math.max(10, parseInt(body.ringTimeout, 10) || 25))
+  const rawTimeout = body.ringTimeout
+  const ringTimeout = rawTimeout === undefined || rawTimeout === null || rawTimeout === '' ? 25 : Number(rawTimeout)
+  if (!Number.isInteger(ringTimeout) || ringTimeout < 10 || ringTimeout > 60) throw new Error('Ring time must be a whole number between 10 and 60 seconds.')
   let fallback = FALLBACKS.includes(body.fallback) ? body.fallback : 'voicemail'
   if (fallback === 'voicemail' && !phoneConfig.canAccessFeature(num.plan, 'voicemail')) throw new Error('Voicemail needs the Pro plan or higher.')
   let fallbackTo = null

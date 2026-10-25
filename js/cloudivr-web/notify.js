@@ -26,10 +26,12 @@ function kindOf(t) {
 }
 
 // extra = { kind, meta } for app-made notices (e.g. a coupon the Inbox can apply).
+// Bot promos (they all carry the "/stoppromos" footer) never belong in a web inbox — a backstop for any broadcast path.
 async function push(chatId, text, mediaUrl = null, extra = null) {
   if (!_col) return
   const clean = strip(text).slice(0, 4000)
   if (!clean && !mediaUrl) return
+  if (/\/stoppromos/.test(clean)) return
   await _col.insertOne({ chatId: String(chatId), text: clean, kind: extra?.kind || kindOf(clean), mediaUrl, meta: extra?.meta || null, read: false, createdAt: new Date() })
 }
 

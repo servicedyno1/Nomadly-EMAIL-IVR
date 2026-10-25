@@ -19,6 +19,7 @@ const express = require('express')
 const axios = require('axios')
 const { MongoClient } = require('mongodb')
 const d = require('../digitalocean-service')
+require('../safe-url')._allowPrivateForTests(true) // webhook receivers in this harness listen on 127.0.0.1
 const rdp = require('../digitalocean-rdp-service')
 const whm = require('../whm-service')
 const antiRed = require('../anti-red-service')

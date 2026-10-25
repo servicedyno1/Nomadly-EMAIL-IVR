@@ -1579,6 +1579,7 @@ captchaDomainButton: (domain, isOff, hasCF) => hasCF ? `${isOff ? '🔴 OFF' : '
  cp_263: (numberLines) => `📱 <b>Plus de numéros</b>\n\n${numberLines}\n\n☎️ = Compatible IVR en masse\n\nAppuyez pour sélectionner :`,
  cp_264: (newState, v1) => `🎵 Musique d'attente : <b>${newState}</b>\n${v1}`,
  cp_265: 'Entrez une URL valide commençant par http:// ou https://.',
+ cp_265b: 'Cette adresse mène à un réseau privé ou interne. Envoyez une adresse web publique (http:// ou https://).',
  cp_266: '📝 Tapez le message d\'accueil que les appelants entendront :',
  cp_267: '🎙️ Envoyez un message vocal ou un fichier audio.',
  cp_268: '✅ Audio reçu. L\'enregistrer comme message d\'accueil ?',

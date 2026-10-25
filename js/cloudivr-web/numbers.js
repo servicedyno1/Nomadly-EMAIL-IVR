@@ -10,6 +10,7 @@ const vmGreeting = require('../voicemail-greeting')
 const notes = require('./notes')
 const notify = require('./notify')
 const referrals = require('./referrals')
+const safeUrl = require('../safe-url')
 
 const TYPE_NAMES = { local: 'Local', toll_free: 'Toll-free', mobile: 'Mobile', national: 'National' }
 const FEATURE_KEYS = ['callForwarding', 'smsToEmail', 'smsWebhook', 'voicemail', 'sipCredentials', 'callRecording', 'ivr', 'ivrOutbound', 'bulkCall', 'otpCollection', 'aiAgent', 'textRelay', 'ringGroup', 'textTriggers', 'aiSummary']
@@ -203,7 +204,9 @@ const publicLog = (l) => ({
   from: l.from || null, to: l.to || l.phoneNumber || null, phoneNumber: l.phoneNumber || null, duration: l.duration || 0,
   body: l.body || null, recordingUrl: l.recordingUrl || null, digit: l.digitPressed || null, forwardTo: l.forwardTo || null, timestamp: l.timestamp,
   transcript: l.transcript || null, transcriptStatus: l.transcriptStatus || null, reply: l.reply || null, canReply: smsReplyMod.canReply(l),
-  aiSummary: l.aiSummary ? { status: l.aiSummary.status, summary: l.aiSummary.summary || null, sentiment: l.aiSummary.sentiment || null, mood: l.aiSummary.mood || null, actionItems: l.aiSummary.actionItems || [], charge: l.aiSummary.charge || 0, detail: l.aiSummary.detail || null } : null,
+  aiSummary: !l.aiSummary ? null : require('./ai-summary').isStale(l.aiSummary)
+    ? { status: 'failed', summary: null, sentiment: null, mood: null, actionItems: [], charge: 0, detail: 'The last summary did not finish. You can run it again.' }
+    : { status: l.aiSummary.status, summary: l.aiSummary.summary || null, sentiment: l.aiSummary.sentiment || null, mood: l.aiSummary.mood || null, actionItems: l.aiSummary.actionItems || [], charge: l.aiSummary.charge || 0, detail: l.aiSummary.detail || null },
   canSummarize: ['voicemail', 'call_recording'].includes(l.type) && !!(l.transcript || l.recordingUrl),
 })
 
@@ -468,6 +471,7 @@ function routes(router, deps) {
     if (hook && !phoneConfig.canAccessFeature(req.num.plan, 'smsWebhook')) return bad(res, 403, 'plan_upgrade_required', 'SMS webhooks need the Pro plan or higher.')
     if (email && !/^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i.test(email)) return bad(res, 400, 'invalid_email', 'Enter a valid email.')
     if (hook && !/^https:\/\/[^\s]{4,500}$/i.test(hook)) return bad(res, 400, 'invalid_webhook', 'Webhook URL must start with https://')
+    if (hook && !(await safeUrl.checkUrl(hook)).ok) return bad(res, 400, 'private_webhook', 'That address leads to a private or internal network. Use a public web address that starts with https://')
     const value = { toTelegram: true, toEmail: email || null, webhookUrl: hook || null }
     await setField(req.webChatId, req.num.phoneNumber, 'features.smsForwarding', value)
     res.json({ smsForwarding: value })

@@ -1562,6 +1562,7 @@ captchaDomainButton: (domain, isOff, hasCF) => hasCF ? `${isOff ? '🔴 关闭' 
  cp_263: (numberLines) => `📱 <b>更多号码</b>\n\n${numberLines}\n\n☎️ = 支持批量 IVR\n\n点击选择：`,
  cp_264: (newState, v1) => `🎵 等待音乐：<b>${newState}</b>\n${v1}`,
  cp_265: '请输入以 http:// 或 https:// 开头的有效 URL。',
+ cp_265b: '该地址指向私有或内部网络。请发送公开的网址（http:// 或 https://）。',
  cp_266: '📝 请输入来电者将听到的问候语：',
  cp_267: '🎙️ 请发送语音消息或音频文件。',
  cp_268: '✅ 已收到音频。保存为问候语？',

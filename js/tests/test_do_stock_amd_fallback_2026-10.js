@@ -51,6 +51,7 @@ stubAxios.create = (defaults = {}) => ({
 require.cache[axiosPath].exports = stubAxios
 
 const sizeCatalog = require('../do-size-catalog')
+require('../safe-url')._allowPrivateForTests(true) // webhook receivers in this harness listen on 127.0.0.1
 const rdp = require('../digitalocean-rdp-service')
 const vps = require('../digitalocean-service')
 const vmSetup = require('../vm-instance-setup')

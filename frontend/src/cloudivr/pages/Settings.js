@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Loader2, LogOut, Send, LifeBuoy } from 'lucide-react';
 import { api, day } from '../api';
@@ -98,9 +98,38 @@ function Community() {
   );
 }
 
+// /app/settings#webhooks or #install (links from "What's new") scroll to that card — and keep it in place while the cards
+// above it finish loading (the page grows under it), until it stops moving or the user scrolls.
+function useHashScroll() {
+  const { hash } = useLocation();
+  useEffect(() => {
+    if (!hash) return undefined;
+    const id = `settings-${hash.slice(1)}`; // only the loaded card has this id (not its loading placeholder)
+    let lastTop = null, lastH = null, still = 0, ticks = 0;
+    const t = setInterval(() => {
+      ticks += 1;
+      const el = document.getElementById(id);
+      const h = document.documentElement.scrollHeight;
+      if (el) {
+        const top = Math.round(el.getBoundingClientRect().top + window.scrollY);
+        const busy = document.querySelector('[data-testid="settings-page"] [data-testid="loading-indicator"]');
+        if (top !== lastTop || h !== lastH) { lastTop = top; lastH = h; still = 0; el.scrollIntoView({ block: 'start' }); } else if (!busy) still += 1;
+      }
+      if (still >= 10 || ticks > 60) clearInterval(t); // settled for ~1.5 s with nothing loading, or 9 s cap
+    }, 150);
+    const stop = () => clearInterval(t);
+    const opts = { passive: true };
+    window.addEventListener('wheel', stop, opts);
+    window.addEventListener('touchstart', stop, opts);
+    window.addEventListener('keydown', stop);
+    return () => { clearInterval(t); window.removeEventListener('wheel', stop, opts); window.removeEventListener('touchstart', stop, opts); window.removeEventListener('keydown', stop); };
+  }, [hash]);
+}
+
 export default function Settings() {
   const { account, setAccount, refresh, logout } = useCivrAuth();
   const nav = useNavigate();
+  useHashScroll();
   return (
     <div data-testid="settings-page">
       <PageHeader label="Account" title="Settings" sub="This web account is separate from any Telegram bot account." testid="settings-header">

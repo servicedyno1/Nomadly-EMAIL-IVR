@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
-import { Toaster } from 'sonner';
+import { Toaster, toast } from 'sonner';
 import './cloudivr.css';
 import { CivrAuthProvider, useCivrAuth } from './AuthContext';
 import { Spinner } from './ui';
@@ -14,6 +14,15 @@ import { PageTitle } from './PageTitle';
 import { ConfirmHost } from './confirm';
 import { CrashGuard } from './safety';
 import { registerPwa } from './pwa';
+import { UpdateWatcher } from './update';
+
+// The same error twice in a row (e.g. pressing Save again) replaces the first one instead of stacking up.
+if (!toast.error.civrDedupe) {
+  const base = toast.error;
+  const dedupe = (msg, opts) => base(msg, typeof msg === 'string' ? { id: `err:${msg}`, ...opts } : opts);
+  dedupe.civrDedupe = true;
+  toast.error = dedupe;
+}
 
 // Last line of defence: a crash outside the signed-in shell (landing, sign-in) shows a recovery card.
 function Guarded({ children }) {
@@ -46,8 +55,10 @@ export default function CloudIvrApp() {
      <LangProvider>
       <PageTitle />
       <CivrAuthProvider>
-        <Toaster theme="dark" position="bottom-right" mobileOffset={{ bottom: 88 }} richColors closeButton visibleToasts={3} />
+        {/* Above the round help button (desktop 24 px + 56 px, phones 88 px + 56 px above the bottom bar). */}
+        <Toaster theme="dark" position="bottom-right" offset={{ bottom: 92, right: 16 }} mobileOffset={{ bottom: 'calc(9.75rem + env(safe-area-inset-bottom))' }} richColors closeButton visibleToasts={3} />
         <ConfirmHost />
+        <UpdateWatcher />
         <Guarded>
         <Routes>
           <Route index element={<Landing />} />

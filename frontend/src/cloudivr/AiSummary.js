@@ -16,7 +16,7 @@ function Done({ s, id }) {
       <div className="flex flex-wrap items-center gap-1.5">
         <Sparkles className="w-3.5 h-3.5 text-[#a78bfa]" />
         <span className={cls} data-testid={`${id}-sentiment`}>{label}</span>
-        {s.mood && <span className="civr-pill" data-testid={`${id}-mood`} dir="auto">{s.mood}</span>}
+        {s.mood && !pv.on && <span className="civr-pill" data-testid={`${id}-mood`} dir="auto">{s.mood}</span>}
       </div>
       <p className="text-[#e4e4e7] break-words" dir="auto" data-testid={`${id}-text`}>{pv.on ? 'Summary hidden' : s.summary}</p>
       {!pv.on && s.actionItems?.length > 0 && <ul className="list-disc pl-4 text-[#a1a1aa] space-y-0.5" data-testid={`${id}-actions`}>{s.actionItems.map((a, k) => <li key={k} dir="auto">{a}</li>)}</ul>}
@@ -26,7 +26,7 @@ function Done({ s, id }) {
 
 // AI summary + mood of a voicemail / recorded call, or a "Summarize" button (number logs, plan with AI summaries).
 export function AiSummaryCell({ l, i, testid, phone, canRun }) {
-  const { catalog } = useShell() || {};
+  const { catalog, refreshSummary } = useShell() || {};
   const [s, setS] = useState(l.aiSummary);
   const [busy, setBusy] = useState(false);
   const id = `${testid}-ai-summary-${i}`;
@@ -36,7 +36,7 @@ export function AiSummaryCell({ l, i, testid, phone, canRun }) {
   const rate = catalog?.rates?.aiSummaryPerMin ?? 0.1;
   const run = async () => {
     setBusy(true);
-    try { const d = await api(`/numbers/${enc(phone)}/logs/${enc(l.id)}/summarize`, { method: 'POST' }); setS(d.aiSummary); if (d.aiSummary?.status === 'done') toast.success('Summary ready'); } catch (e) { toast.error(e.message); } finally { setBusy(false); }
+    try { const d = await api(`/numbers/${enc(phone)}/logs/${enc(l.id)}/summarize`, { method: 'POST' }); setS(d.aiSummary); if (d.aiSummary?.status === 'done') { toast.success('Summary ready'); refreshSummary?.(); } } catch (e) { toast.error(e.message); } finally { setBusy(false); }
   };
   return (
     <div className="mt-1.5 flex flex-col items-start gap-1">

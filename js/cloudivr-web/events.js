@@ -4,6 +4,7 @@
 const crypto = require('crypto')
 const axios = require('axios')
 const notify = require('./notify')
+const safeUrl = require('../safe-url')
 
 const EVENTS = {
   'call.started': 'Call started',
@@ -24,15 +25,10 @@ const owners = new Map() // phone → { at, chatId }
 const newSecret = () => `whsec_${crypto.randomBytes(18).toString('base64url')}`
 const sign = (secret, raw) => crypto.createHmac('sha256', secret).update(raw).digest('hex')
 
-// Blocks private / loopback / metadata hosts (the URL is typed by the user).
-function publicHost(u) {
-  try {
-    const host = new URL(u).hostname.toLowerCase()
-    if (host === 'localhost' || host.endsWith('.local') || host.endsWith('.internal')) return false
-    if (/^(127\.|10\.|0\.|169\.254\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(host) || host === '[::1]' || /^\[?(fc|fd|fe80)/.test(host)) return false
-    return true
-  } catch (_) { return false }
-}
+// The URL is typed by the user, so it must never lead back into our own network (loopback, private LANs, cloud
+// metadata, IPv4-mapped IPv6 …). Checked with DNS when saved and again on every delivery (see js/safe-url.js).
+const publicHost = (u) => safeUrl.quickCheck(u).ok
+const checkHookUrl = (u) => safeUrl.checkUrl(u)
 
 async function hookOf(chatId) {
   const c = cache.get(chatId)
@@ -48,13 +44,17 @@ async function deliver(chatId, hook, type, data, { test = false } = {}) {
   const started = Date.now()
   let status = 0, error = null
   try {
+    safeUrl.assertSendable(hook.url)
     const r = await axios.post(hook.url, raw, {
       headers: { 'Content-Type': 'application/json', 'User-Agent': 'CloudIVR-Webhooks/1', 'X-CloudIVR-Event': type, 'X-CloudIVR-Signature': sign(hook.secret, raw) },
-      timeout: TIMEOUT_MS, maxRedirects: 0, validateStatus: () => true,
+      timeout: TIMEOUT_MS, validateStatus: () => true,
+      ...safeUrl.sendOptions(),
     })
     status = r.status
     if (status >= 300) error = `HTTP ${status}`
-  } catch (e) { error = String(e.code || e.message).slice(0, 120) }
+  } catch (e) {
+    error = e.code === 'EBLOCKED' ? 'Blocked: private or internal address' : String(e.code || e.message).slice(0, 120)
+  }
   const ok = status >= 200 && status < 300
   await db.collection('webhookDeliveries').insertOne({ chatId, eventId: event.id, type, test, ok, status, error, ms: Date.now() - started, at: new Date() }).catch(() => {})
   if (!ok) log(`[Webhooks] ${type} → ${hook.url} failed for ${chatId}: ${error}`)
@@ -109,13 +109,16 @@ function routes(router, deps) {
   }))
 
   router.put('/webhooks', h(async (req, res) => {
-    const url = String(req.body.url || '').trim()
-    const events = [...new Set((Array.isArray(req.body.events) ? req.body.events : []).map(String))].filter(e => EVENTS[e])
-    const enabled = !!req.body.enabled
-    if (url && (!URL_RE.test(url) || !publicHost(url))) return bad(res, 400, 'invalid_url', 'Use a public web address that starts with https://')
+    const body = req.body || {}
+    const cur = await load(req.webChatId)
+    const url = String(body.url || '').trim()
+    // No `events` in the request keeps the saved choice (an API client changing only the URL must not wipe it).
+    const events = Array.isArray(body.events) ? [...new Set(body.events.map(String))].filter(e => EVENTS[e]) : (cur?.events || Object.keys(EVENTS))
+    const enabled = !!body.enabled
+    if (url && !URL_RE.test(url)) return bad(res, 400, 'invalid_url', 'Use a public web address that starts with https://')
+    if (url && !(await checkHookUrl(url)).ok) return bad(res, 400, 'private_url', 'That address leads to a private or internal network. Use a public web address that starts with https://')
     if (enabled && !url) return bad(res, 400, 'invalid_url', 'Paste the URL that should receive events, or switch the feed off.')
     if (enabled && !events.length) return bad(res, 400, 'no_events', 'Pick at least one event to send.')
-    const cur = await load(req.webChatId)
     const webhook = { enabled, url, events, secret: cur?.secret || newSecret(), updatedAt: new Date() }
     await prefs.updateOne({ _id: req.webChatId }, { $set: { webhook } }, { upsert: true })
     cache.delete(req.webChatId)
@@ -134,10 +137,14 @@ function routes(router, deps) {
   router.post('/webhooks/test', h(async (req, res) => {
     const cur = await load(req.webChatId)
     if (!cur?.url) return bad(res, 400, 'no_webhook', 'Save a webhook URL first.')
-    const type = EVENTS[req.body.type] ? String(req.body.type) : 'call.ended'
+    const want = (req.body || {}).type
+    const type = EVENTS[want] ? String(want) : 'call.ended'
     const r = await deliver(req.webChatId, cur, type, SAMPLE[type], { test: true })
     res.json({ ok: r.ok, status: r.status, error: r.error, event: r.event })
   }))
 }
 
-module.exports = { routes, emit, emitForNumber, EVENTS, sign, publicHost }
+// Test harnesses deliver to a local receiver; production code never calls this.
+const _allowPrivateForTests = (on = true) => safeUrl._allowPrivateForTests(on)
+
+module.exports = { routes, emit, emitForNumber, EVENTS, sign, publicHost, checkHookUrl, _allowPrivateForTests }

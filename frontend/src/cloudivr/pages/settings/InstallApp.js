@@ -19,7 +19,7 @@ export function InstallApp() {
   const { canInstall, installed, ios, install } = usePwa();
   const go = async () => { if (await install()) toast.success('CloudIVR is on your home screen'); };
   return (
-    <div className="civr-card p-6 space-y-4" data-testid="settings-install-card">
+    <div id="settings-install" className="civr-card p-6 space-y-4 scroll-mt-24" data-testid="settings-install-card">
       <div className="flex items-center gap-3">
         <img src={BRAND.notifyIcon} alt="" className="w-12 h-12 rounded-xl" />
         <div><div className="font-display text-2xl font-bold flex items-center gap-2"><Smartphone className="w-5 h-5 text-[#34d399]" />Install the app</div><p className="text-sm text-[#a1a1aa]">Open CloudIVR from your home screen, full screen like a normal app.</p></div>

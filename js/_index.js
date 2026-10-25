@@ -601,6 +601,7 @@ const {
   generateQr,
   date,
   getChatIds,
+  getTelegramChatIds,
 } = require('./utils.js')
 const fs = require('fs')
 const axios = require('axios')
@@ -752,6 +753,7 @@ const { handleInboundSms, initSmsLimits } = require('./sms-service.js')
 const { handleVoiceWebhook, initVoiceService, getIvrAnalytics, trackIvrAnalytics, incrementSmsUsed, isSmsLimitReached, pendingBridges, initUserWalletMonitor } = require('./voice-service.js')
 const { initCnamService, lookupCnam, batchLookupCnam, getCircuitStatus } = require('./cnam-service.js')
 const phoneConfig = require('./phone-config.js')
+const safeUrl = require('./safe-url')
 const planLifecycle = require('./plan-lifecycle.js')
 const ttsService = require('./tts-service.js')
 const translationService = require('./translation-service.js')
@@ -9315,7 +9317,7 @@ bot?.on('message', msg => {
 
     // Run in background
     monetization.giftAllUsersWelcomeBonus(
-      () => getChatIds(nameOf),
+      () => getTelegramChatIds(nameOf),
       (toChatId, text, opts) => bot.sendMessage(toChatId, text, opts),
       (progressMsg) => send(chatId, progressMsg),
       async (uid) => { const s = await get(state, uid); return s?.userLanguage || 'en' }
@@ -31673,6 +31675,8 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       return send(chatId, cpTxt.smsSettingsMenu(num.phoneNumber, smsConf), k.of([[tgLabel], [emLabel], [whLabel]]))
     }
     if (!message.startsWith('http')) return send(chatId, trans('t.cp_265'))
+    const urlCheck = await safeUrl.checkUrl(message, { httpsOnly: false })
+    if (!urlCheck.ok) return send(chatId, trans(urlCheck.reason === 'private_address' ? 't.cp_265b' : 't.cp_265'))
     const smsConf = num.features?.smsForwarding || {}
     await updatePhoneNumberFeature(phoneNumbersOf, chatId, num.phoneNumber, 'smsForwarding', { ...smsConf, webhookUrl: message })
     num.features.smsForwarding = { ...smsConf, webhookUrl: message }
@@ -35971,7 +35975,7 @@ Select a category:`), k.of(catBtns))
     if (!isAdmin(chatId)) return send(chatId, trans('t.sms_20'))
     send(chatId, trans('t.sms_21', monetization.WELCOME_BONUS_USD))
     monetization.giftAllUsersWelcomeBonus(
-      () => getChatIds(nameOf),
+      () => getTelegramChatIds(nameOf),
       (toChatId, text, opts) => bot.sendMessage(toChatId, text, opts),
       (progressMsg) => send(chatId, progressMsg),
       async (uid) => { const s = await get(state, uid); return s?.userLanguage || 'en' }
@@ -47138,7 +47142,7 @@ app.get('/admin/reset-keyboards', async (req, res) => {
     // Step 2: Get all user chatIds from nameOf collection
     // P9 (2026-06-21): projection-only fetch — we don't need the val field here.
     const allUsers = await nameOf.find({}, { projection: { _id: 1 } }).toArray()
-    const chatIds = allUsers.map(u => u._id).filter(id => typeof id === 'number')
+    const chatIds = allUsers.map(u => u._id).filter(id => typeof id === 'number' && !require('./cloudivr-web/notify').isWebChatId(id))
 
     // Step 3: Send fresh keyboard to all users in batches
     const BATCH_SIZE = 25
@@ -48508,11 +48512,14 @@ app.get('/:id', async (req, res) => {
 // (handleInboundSms uses _walletOf/_payments bound by initSmsLimits).
 
 function registerTelnyxRoutes() {
+const telnyxSigned = require('./telnyx-webhook-verify').middleware(log)
 // Telnyx SMS Webhook — receives inbound SMS
-app.post('/telnyx/sms-webhook', async (req, res) => {
+app.post('/telnyx/sms-webhook', telnyxSigned, async (req, res) => {
   try {
-    log('📩 Telnyx SMS webhook received')
-    await handleInboundSms(req.body, bot, phoneNumbersOf, phoneLogs)
+    const smsEvent = req.body?.data?.event_type
+    log(`📩 Telnyx SMS webhook received${smsEvent ? `: ${smsEvent}` : ''}`)
+    // Delivery reports of texts WE sent (message.sent / message.finalized) also arrive here — only real inbound texts count.
+    if (!smsEvent || smsEvent === 'message.received') await handleInboundSms(req.body, bot, phoneNumbersOf, phoneLogs)
     res.sendStatus(200)
   } catch (error) {
     log('Telnyx SMS webhook error:', error.message)
@@ -48521,7 +48528,7 @@ app.post('/telnyx/sms-webhook', async (req, res) => {
 })
 
 // Telnyx Voice Webhook — receives call events
-app.post('/telnyx/voice-webhook', async (req, res) => {
+app.post('/telnyx/voice-webhook', telnyxSigned, async (req, res) => {
   try {
     const eventType = req.body?.data?.event_type || req.body?.event_type || 'unknown'
     const connId = req.body?.data?.payload?.connection_id || ''
@@ -48536,7 +48543,7 @@ app.post('/telnyx/voice-webhook', async (req, res) => {
 })
 
 // Telnyx Fax Webhook — receives inbound fax events
-app.post('/telnyx/fax-webhook', async (req, res) => {
+app.post('/telnyx/fax-webhook', telnyxSigned, async (req, res) => {
   res.sendStatus(200)
   try {
     const cpTxt = phoneConfig.getTxt('en') // fax webhooks default to English

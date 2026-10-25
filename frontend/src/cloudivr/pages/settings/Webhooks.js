@@ -11,15 +11,21 @@ const copy = (t) => navigator.clipboard?.writeText(t).then(() => toast.success('
 function Secret({ secret, onRotate }) {
   const [show, setShow] = useState(false);
   if (!secret) return null;
+  // A plain <div>, not <Field>: Field renders a <label>, and a label re-sends each click to its first button (the eye),
+  // so the secret flipped twice and looked dead. The secret gets its own line on phones so it stays readable.
   return (
-    <Field label="Signing secret" hint="Each request has an X-CloudIVR-Signature header: the HMAC-SHA256 of the raw body with this secret.">
-      <div className="flex flex-wrap items-center gap-2">
-        <code className="civr-input font-mono text-xs !w-auto flex-1 min-w-0 truncate" data-testid="webhooks-secret">{show ? secret : `${secret.slice(0, 8)}••••••••••••`}</code>
-        <button type="button" className="civr-btn civr-btn-ghost civr-btn-sm !px-2" onClick={() => setShow(s => !s)} aria-label={show ? 'Hide secret' : 'Show secret'} data-testid="webhooks-secret-toggle">{show ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}</button>
-        <button type="button" className="civr-btn civr-btn-ghost civr-btn-sm !px-2" onClick={() => copy(secret)} aria-label="Copy secret" data-testid="webhooks-secret-copy"><Copy className="w-4 h-4" /></button>
-        <button type="button" className="civr-btn civr-btn-ghost civr-btn-sm" onClick={onRotate} data-testid="webhooks-secret-rotate"><RefreshCw className="w-4 h-4" />New secret</button>
+    <div data-testid="webhooks-secret-row">
+      <span className="block text-[13px] font-medium text-[#d4d4d8] mb-1.5">Signing secret</span>
+      <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+        <code className="civr-input font-mono text-xs flex-1 min-w-0 !h-auto min-h-[44px] !py-3 break-all select-all" data-testid="webhooks-secret">{show ? secret : `${secret.slice(0, 8)}••••••••••••`}</code>
+        <div className="flex items-center gap-2 shrink-0">
+          <button type="button" className="civr-btn civr-btn-ghost civr-btn-sm !px-2" onClick={() => setShow(s => !s)} aria-label={show ? 'Hide secret' : 'Show secret'} aria-pressed={show} data-testid="webhooks-secret-toggle">{show ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}</button>
+          <button type="button" className="civr-btn civr-btn-ghost civr-btn-sm !px-2" onClick={() => copy(secret)} aria-label="Copy secret" data-testid="webhooks-secret-copy"><Copy className="w-4 h-4" /></button>
+          <button type="button" className="civr-btn civr-btn-ghost civr-btn-sm" onClick={onRotate} data-testid="webhooks-secret-rotate"><RefreshCw className="w-4 h-4" />New secret</button>
+        </div>
       </div>
-    </Field>
+      <span className="block text-xs text-[#a1a1aa] mt-1.5">Each request has an X-CloudIVR-Signature header: the HMAC-SHA256 of the raw body with this secret.</span>
+    </div>
   );
 }
 
@@ -49,7 +55,7 @@ function Form({ data, reload }) {
   const test = () => run('test', async () => { const d = await api('/webhooks/test', { method: 'POST', body: { type: f.events[0] || 'call.ended' } }); d.ok ? toast.success(`Test event delivered (${d.status})`) : toast.error(`Your URL answered: ${d.error}`); reload(); });
   const rotate = async () => { if (await ask('Make a new signing secret? Requests signed with the old one stop matching right away.', { ok: 'Make new secret' })) run('rotate', async () => { await api('/webhooks/secret', { method: 'POST' }); toast.success('New secret ready'); reload(); }); };
   return (
-    <div className="civr-card p-6 space-y-6 lg:col-span-2" data-testid="settings-webhooks-card" {...u.bind}>
+    <div id="settings-webhooks" className="civr-card p-6 space-y-6 lg:col-span-2 scroll-mt-24" data-testid="settings-webhooks-card" {...u.bind}>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <div className="flex items-center gap-2 font-display text-2xl font-bold"><Webhook className="w-5 h-5 text-[#34d399]" />Call events (webhooks & Zapier)</div>
@@ -76,6 +82,6 @@ function Form({ data, reload }) {
 
 export function Webhooks() {
   const { data, reload } = useApi('/webhooks');
-  if (!data) return <div className="civr-card p-6 lg:col-span-2"><Spinner /></div>;
+  if (!data) return <div className="civr-card p-6 lg:col-span-2" data-testid="settings-webhooks-loading"><Spinner /></div>;
   return <Form key={String(data.webhook.updatedAt)} data={data} reload={reload} />;
 }

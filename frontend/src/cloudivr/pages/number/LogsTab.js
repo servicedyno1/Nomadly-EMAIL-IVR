@@ -7,6 +7,7 @@ import { useSave } from './SettingsTabs';
 import { LogTable, labelOf } from '../../LogTable';
 import { RING_ENDED } from '../../Incoming';
 import { useSearch, SearchBox, NoMatches } from '../../search';
+import { usePrivacy } from '../../privacy';
 
 const KINDS = [['all', 'All'], ['calls', 'Calls'], ['sms', 'SMS'], ['voicemail', 'Voicemail'], ['recordings', 'Recordings']];
 
@@ -30,7 +31,11 @@ function AiSummaryBar({ num, reload }) {
 export default function LogsTab({ num, reload: reloadNum }) {
   const [kind, setKind] = useState('all');
   const { data, loading, reload } = useApi(`/numbers/${enc(num.phoneNumber)}/logs?kind=${kind}`);
-  const s = useSearch(data?.logs, l => [labelOf(l.type)[0], l.from, l.to, l.forwardTo, l.body, l.transcript, l.aiSummary?.summary, l.aiSummary?.mood, l.note?.text, l.digit ? `key ${l.digit}` : '']);
+  const pv = usePrivacy();
+  // Private mode: search only what is on screen (masked numbers, no texts/transcripts/summaries/notes) so a match can't reveal hidden words.
+  const s = useSearch(data?.logs, l => (pv.on
+    ? [labelOf(l.type)[0], pv.phone(l.from), pv.phone(l.to), pv.phone(l.forwardTo), l.digit ? `key ${l.digit}` : '']
+    : [labelOf(l.type)[0], l.from, l.to, l.forwardTo, l.body, l.transcript, l.aiSummary?.summary, l.aiSummary?.mood, l.note?.text, l.digit ? `key ${l.digit}` : '']));
   useEffect(() => { window.addEventListener(RING_ENDED, reload); return () => window.removeEventListener(RING_ENDED, reload); }, [reload]);
   return (
     <div className="civr-card p-6">
