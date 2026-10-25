@@ -1,0 +1,38 @@
+{
+  "summary": "Frontend-only check of the CloudIVR Parrot logo/branding rollout. Tested the landing nav and footer, signup and login at desktop 1920 and mobile 390, the dashboard sidebar and mobile topbar after logging in as Alice, the head tags (favicon, apple-touch-icon, theme-color), all brand asset URLs, broken images and console errors. All requested checks pass. Only finding: a small layout issue on the mobile landing nav.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Landing nav at 390px", "issues": ["The 'Sign in' link wraps onto two lines ('Sign' / 'in') because the logo, the EN switcher and the START button leave it too little room. Fix: add whitespace-nowrap to the Sign in link, or shrink the gap / logo icon on very small screens."]}
+    ]
+  },
+  "verified": [
+    "Landing nav (civr-nav-logo): parrot-icon-128 loads (naturalWidth 128), text CLOUDIVR, IVR colour rgb(0,227,170) = #00E3AA, clicking it stays on /cloudivr",
+    "Footer (landing-footer-logo): icon (40px, loaded) + CLOUDIVR with IVR in #00E3AA",
+    "Signup desktop: auth-mascot visible, naturalWidth 560, animation civr-parrot-float, placed above auth-next-steps (mascot bottom 515 < steps top 605); auth-logo-link shows icon + text and links to /cloudivr",
+    "Login desktop: mascot loads and floats; clicking auth-logo-link goes to /cloudivr",
+    "Mobile 390 login/signup: auth-mobile-logo-link visible (icon 32px + CLOUDIVR, 44px tall), mascot hidden, no horizontal overflow (0)",
+    "Dashboard desktop: sidebar-logo shows icon + CLOUDIVR, href /cloudivr/app",
+    "Dashboard 390: topbar-logo is 113x44 on one row with the balance, inbox and softphone buttons, all inside 390px, no overflow",
+    "Head on landing, login, signup and dashboard: exactly one link[rel=icon] -> /civr/brand/parrot-icon-48.png, one apple-touch-icon -> /civr/brand/apple-touch-icon.png, one meta theme-color #0a0a0a. After leaving /cloudivr the previous theme-color #000000 comes back.",
+    "Asset URLs all return 200 with image content types: parrot-icon-48.png, apple-touch-icon.png, parrot-icon-128.png, icon-192.png (image/png); parrot-mark.webp (image/webp)",
+    "No broken images on landing, signup, login or dashboard"
+  ],
+  "test_report_links": [],
+  "action_items": [
+    "Optional: add whitespace-nowrap to the landing mobile nav 'Sign in' link so it does not wrap at 390px"
+  ],
+  "critical_code_review_comments": [
+    "The only console errors are 401s from GET /api/cloudivr-web/auth/me when logged out. They existed before this change and are expected, but they show up as console errors on every public page. Consider returning 200 {user:null} for anonymous visitors.",
+    "The Wordmark img uses alt='' with aria-hidden and the text sits next to it, which is correct for accessibility."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (skipped)", "frontend": "100%"},
+  "test_credentials": "civr.alice@example.com / AliceTest#2026 worked",
+  "seed_data_creation": "none",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "The branding lives in frontend/src/cloudivr/Brand.js (Wordmark, applyBrandHead). index.html has no favicon link of its own, so after leaving /cloudivr there is no icon link, which is expected. The 401 on auth/me is the normal logged-out session probe."
+}

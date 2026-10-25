@@ -1115,3 +1115,11 @@ calls and SIP are simulated; inbound calls use a pretend-call simulator).
   (sanity cap 5 years). Hosting gets a 3-day reminder (grace lengths unchanged). Plan-card copy matches real features.
   Defaults: weekly hosting $30, trial OFF, overage $0.15/min $0.02/SMS. Tests: iteration_131 (149/149) + tests/*_2026-06*.js.
   Open: weekly→monthly hosting upgrade keeps the weekly expiry ($45 now, then $75/30d) — confirm with owner.
+
+- 2026-06 CLOUDIVR LOGO APPLIED (web /cloudivr, preview only). Owner picked my recommendation: Parrot Talker recoloured to the
+  app palette (emerald #34d399 body, sky #38bdf8 voice bubble/wing tips, amber #fbbf24 beak/text bubble) on the dark theme.
+  Assets: frontend/public/civr/brand/ (parrot-icon-128/48.png, parrot-mark.webp, apple-touch-icon.png, icon-192.png); masters
+  in memory/logos/emerald/. src/cloudivr/Brand.js: Wordmark (icon + real CLOUDIVR text) used in sidebar, mobile topbar,
+  login/signup (+ floating mascot on the desktop side panel), landing nav + footer (#00E3AA accent kept on landing);
+  applyBrandHead sets tab icon / apple-touch-icon / theme-color on CloudIVR pages only (hosting panel untouched); ring
+  notifications use icon-192. Tested iteration_132 (frontend 100%); landing 390px "Sign in" wrap fixed.
