@@ -1,9 +1,10 @@
 import React, { useRef, useState } from 'react';
-import { ask } from '../i18n';
 import { toast } from 'sonner';
 import { Music, Upload, Wand2, Trash2, Pencil, Loader2, Check, X } from 'lucide-react';
 import { api, useApi, day, playUrl } from '../api';
 import { PageHeader, Field, Spinner, ErrorNote, Empty } from '../ui';
+import { undoable } from '../undo';
+import { useSearch, SearchBox, NoMatches } from '../search';
 
 function UploadCard({ onDone }) {
   const [name, setName] = useState('');
@@ -54,10 +55,15 @@ function TtsCard({ onDone }) {
   );
 }
 
-function AudioRow({ a, i, reload }) {
+function AudioRow({ a, i, reload, hide }) {
   const [edit, setEdit] = useState(null);
   const rename = async () => { try { await api(`/audio/${a.id}`, { method: 'PATCH', body: { name: edit } }); setEdit(null); reload(); } catch (e) { toast.error(e.message); } };
-  const remove = async () => { if (!ask(`Delete “${a.name}”? Numbers using it fall back to the default greeting.`)) return; try { await api(`/audio/${a.id}`, { method: 'DELETE' }); toast.success('Deleted'); reload(); } catch (e) { toast.error(e.message); } };
+  const remove = () => undoable('Audio deleted', {
+    description: 'Numbers using it go back to the standard greeting.',
+    hide: () => hide(a.id),
+    restore: reload,
+    run: async () => { await api(`/audio/${a.id}`, { method: 'DELETE' }); reload(); },
+  });
   return (
     <div className="civr-card p-4 flex flex-col md:flex-row md:items-center gap-3" data-testid={`audio-row-${i}`}>
       <div className="md:w-56 min-w-0">
@@ -76,15 +82,21 @@ function AudioRow({ a, i, reload }) {
 }
 
 export default function AudioLibrary() {
-  const { data, error, loading, reload } = useApi('/audio');
+  const { data, error, loading, reload, setData } = useApi('/audio');
   const audios = data?.audios || [];
+  const s = useSearch(audios, a => [a.name, a.source === 'tts' ? 'Text to speech' : 'Upload']);
+  const hide = (id) => setData(d => ({ ...d, audios: (d?.audios || []).filter(x => x.id !== id) }));
   return (
     <div data-testid="audio-page">
       <PageHeader label="Audio" title="Audio library" sub="Greetings, IVR prompts and campaign messages. Upload your own or type it and pick a voice." testid="audio-header" />
       <div className="grid lg:grid-cols-3 gap-4"><UploadCard onDone={reload} /><TtsCard onDone={reload} /></div>
       <div className="mt-8 space-y-3">
         <ErrorNote error={error} />
-        {loading && !data ? <Spinner /> : !audios.length ? <Empty icon={Music} title="No audio yet" sub="Your first upload or voice message shows up here." testid="audio-empty" /> : audios.map((a, i) => <AudioRow key={a.id} a={a} i={i} reload={reload} />)}
+        {loading && !data ? <Spinner /> : !audios.length ? <Empty icon={Music} title="No audio yet" sub="Your first upload or voice message shows up here." testid="audio-empty" /> : <>
+          <SearchBox s={s} placeholder="Search audio" testid="audio-search" className="max-w-md" />
+          <NoMatches s={s} testid="audio-no-matches" />
+          {s.list.map((a, i) => <AudioRow key={a.id} a={a} i={i} reload={reload} hide={hide} />)}
+        </>}
       </div>
     </div>
   );

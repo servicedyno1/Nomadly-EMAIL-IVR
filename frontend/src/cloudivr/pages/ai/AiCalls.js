@@ -3,6 +3,7 @@ import { ChevronDown, ChevronUp, PhoneIncoming, PhoneOutgoing, Mic, CalendarChec
 import { useApi, when, secs, money, day, playUrl } from '../../api';
 import { Spinner, Empty, ErrorNote } from '../../ui';
 import { usePrivacy } from '../../privacy';
+import { useSearch, SearchBox, NoMatches } from '../../search';
 
 const OUTCOME = { booked: 'civr-pill civr-pill-on', interested: 'civr-pill civr-pill-on', callback: 'civr-pill civr-pill-warn', transferred: 'civr-pill civr-pill-on', message: 'civr-pill civr-pill-warn', opted_out: 'civr-pill civr-pill-bad', not_interested: 'civr-pill civr-pill-bad' };
 export const outcomeLabel = (o) => String(o || 'no answer').replace(/_/g, ' ');
@@ -59,12 +60,17 @@ function Row({ c, i }) {
 // Every AI conversation: summary, outcome, cost and the full transcript.
 export function AiCalls({ agentId }) {
   const { data, loading, error } = useApi(`/ai-calls?limit=50${agentId ? `&agentId=${agentId}` : ''}`);
-  if (loading && !data) return <Spinner />;
   const list = data?.calls || [];
+  const s = useSearch(list, c => [c.other, c.agentName, c.summary, outcomeLabel(c.outcome), c.direction === 'test' ? 'Browser test' : c.direction]);
+  if (loading && !data) return <Spinner />;
   return (
     <div className="space-y-3" data-testid="ai-calls-list">
       <ErrorNote error={error} />
-      {!list.length ? <Empty icon={Mic} title="No AI calls yet" sub="Calls your agents answer or make, and your browser tests, show up here with a summary and transcript." testid="ai-calls-empty" /> : list.map((c, i) => <Row key={c.id} c={c} i={i} />)}
+      {!list.length ? <Empty icon={Mic} title="No AI calls yet" sub="Calls your agents answer or make, and your browser tests, show up here with a summary and transcript." testid="ai-calls-empty" /> : <>
+        <SearchBox s={s} placeholder="Search calls" testid="ai-calls-search" />
+        <NoMatches s={s} testid="ai-calls-no-matches" />
+        {s.list.map((c, i) => <Row key={c.id} c={c} i={i} />)}
+      </>}
     </div>
   );
 }

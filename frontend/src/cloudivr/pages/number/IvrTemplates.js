@@ -2,15 +2,20 @@ import React, { useState } from 'react';
 import { toast } from 'sonner';
 import { LayoutTemplate, Save, Trash2 } from 'lucide-react';
 import { api, useApi } from '../../api';
+import { undoable } from '../../undo';
 
 // Start from a built-in business menu or one of your saved menus; save the current menu as a template.
 export function IvrTemplates({ current, onApply }) {
-  const { data, reload } = useApi('/ivr/templates');
+  const { data, reload, setData } = useApi('/ivr/templates');
   const [name, setName] = useState('');
   const save = async () => {
     try { await api('/ivr/templates', { method: 'POST', body: { name, ivr: current() } }); toast.success('Saved to My templates'); setName(''); reload(); } catch (e) { toast.error(e.message); }
   };
-  const del = async (id) => { try { await api(`/ivr/templates/${id}`, { method: 'DELETE' }); reload(); } catch (e) { toast.error(e.message); } };
+  const del = (id) => undoable('Template deleted', {
+    hide: () => setData(d => ({ ...d, mine: (d?.mine || []).filter(x => x.id !== id) })),
+    restore: reload,
+    run: async () => { await api(`/ivr/templates/${id}`, { method: 'DELETE' }); reload(); },
+  });
   const use = (t) => { onApply(t.config); toast.success(`“${t.name}” loaded — add the forward numbers, then Save keypad menu`); };
   const row = (t, i, mine) => (
     <div key={t.id} className="flex items-center gap-2 py-1.5" data-testid={`ivr-template-${mine ? 'mine' : 'builtin'}-${i}`}>

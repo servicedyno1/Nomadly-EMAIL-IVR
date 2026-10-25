@@ -7,6 +7,7 @@ import { useCivrAuth } from './AuthContext';
 import { usePrivacy } from './privacy';
 import { LangSwitcher, useLang } from './i18n';
 import { cp } from './paths';
+import { confirmLeave } from './guard';
 
 const SHORT = { 'nav-dashboard': 'Overview', 'nav-numbers': 'Numbers', 'nav-inbox': 'Inbox', 'nav-wallet': 'Wallet' };
 // Tab labels whose translation is too long for a 5-column phone bar.
@@ -30,7 +31,7 @@ function MoreSettings() {
         <span className="flex items-center gap-3 text-left"><EyeIcon className={`w-4 h-4 shrink-0 ${on ? 'text-[#c4b5fd]' : ''}`} /><span>Private mode<span className="block text-xs font-normal text-[#a1a1aa]">Hide numbers and messages</span></span></span>
         <span className={`relative w-11 h-6 shrink-0 rounded-full transition-colors ${on ? 'bg-[#a78bfa]' : 'bg-[#2a2a2a]'}`}><span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform ${on ? 'translate-x-5' : ''}`} /></span>
       </button>
-      <button type="button" onClick={async () => { nav(cp(), { replace: true }); await logout(); }} className="civr-nav-link w-full !text-[#fb7185]" data-testid="mobile-logout-button"><LogOut className="w-4 h-4" />Sign out</button>
+      <button type="button" onClick={async () => { if (!(await confirmLeave())) return; nav(cp(), { replace: true }); await logout(); }} className="civr-nav-link w-full !text-[#fb7185]" data-testid="mobile-logout-button"><LogOut className="w-4 h-4" />Sign out</button>
     </div>
   );
 }

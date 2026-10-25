@@ -47,7 +47,7 @@ export function SipCredentials({ num, prefix = 'sip', heading, className = 'lg:c
   const [busy, setBusy] = useState(false);
   const reveal = async () => { try { setCreds(await api(`/numbers/${enc(num.phoneNumber)}/sip`)); } catch (e) { toast.error(e.message); } };
   const reset = async () => {
-    if (!ask('Create new SIP credentials? Softphones using the old ones will stop working.')) return;
+    if (!(await ask('Create new SIP credentials? Softphones using the old ones will stop working.', { danger: true, ok: 'Create new credentials' }))) return;
     setBusy(true);
     try { const c = await api(`/numbers/${enc(num.phoneNumber)}/sip/reset`, { method: 'POST' }); setCreds({ ...creds, ...c }); toast.success('New SIP credentials ready'); } catch (e) { toast.error(e.message); } finally { setBusy(false); }
   };

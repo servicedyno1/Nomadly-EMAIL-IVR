@@ -1,6 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
-import { NavLink, Navigate, Route, Routes, Link, useNavigate } from 'react-router-dom';
-import { Bell, LogOut, Phone, Plus, LifeBuoy, Eye, EyeOff, Send, Lightbulb } from 'lucide-react';
+import { NavLink, Navigate, Route, Routes, Link, useLocation, useNavigate } from 'react-router-dom';
+import { Bell, LogOut, Phone, Plus, LifeBuoy, Eye, EyeOff, Send, Lightbulb, HelpCircle } from 'lucide-react';
 import { api, money } from './api';
 import { useCivrAuth } from './AuthContext';
 import { PreviewBanner } from './ui';
@@ -31,6 +31,10 @@ import { cp } from './paths';
 import { LangSwitcher, useLang } from './i18n';
 import SupportChat from './SupportChat';
 import AdminSuggestions from './pages/AdminSuggestions';
+import Help from './pages/Help';
+import { CrashGuard, CrashProbe, OfflineBanner } from './safety';
+import { UnsavedGuard, confirmLeave } from './guard';
+import { Shortcuts, helpFor } from './shortcuts';
 
 const ShellCtx = createContext(null);
 export const useShell = () => useContext(ShellCtx);
@@ -84,6 +88,7 @@ function PrivateButton({ className = '' }) {
 function TopBar({ summary, onPhone }) {
   const { account, logout } = useCivrAuth();
   const nav = useNavigate();
+  const { pathname, search } = useLocation();
   return (
     <header className="civr-glass sticky top-0 z-30 flex items-center gap-1 sm:gap-2 px-4 md:px-8 h-16" data-civr-topbar>
       <Link to={cp('/app')} className="font-display text-xl sm:text-2xl font-extrabold tracking-tight mr-auto lg:hidden min-h-[44px] flex items-center gap-2" data-testid="topbar-logo"><Wordmark iconClass="w-8 h-8" /></Link>
@@ -92,12 +97,13 @@ function TopBar({ summary, onPhone }) {
       <Link to={cp('/app/wallet')} className="civr-btn civr-btn-ghost civr-btn-sm !hidden md:!inline-flex" data-testid="topbar-add-funds-button"><Plus className="w-4 h-4" />Add funds</Link>
       <LangSwitcher testid="topbar-lang-switcher" className="hidden lg:inline-flex" />
       <PrivateButton className="hidden lg:flex" />
+      <Link to={helpFor(pathname, search)} className={`${ICON_BTN} hidden sm:flex`} data-testid="topbar-help-button" aria-label="Help for this page" title="Help for this page (?)"><HelpCircle className="w-5 h-5" /></Link>
       <Link to={cp('/app/inbox')} className={ICON_BTN} data-testid="topbar-inbox-button" aria-label="Inbox">
         <Bell className="w-5 h-5" />
         {summary?.unread > 0 && <span className="absolute top-1 right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-[#34d399] text-[#04130d] text-[11px] font-bold flex items-center justify-center" data-testid="topbar-unread-count">{summary.unread > 99 ? '99+' : summary.unread}</span>}
       </Link>
       <button onClick={onPhone} className={ICON_BTN} data-testid="topbar-softphone-button" aria-label="Browser phone"><Phone className="w-5 h-5" /></button>
-      <button onClick={async () => { nav(cp(), { replace: true }); await logout(); }} className={`${ICON_BTN} hidden lg:flex`} data-testid="topbar-logout-button" aria-label="Sign out"><LogOut className="w-5 h-5" /></button>
+      <button onClick={async () => { if (!(await confirmLeave())) return; nav(cp(), { replace: true }); await logout(); }} className={`${ICON_BTN} hidden lg:flex`} data-testid="topbar-logout-button" aria-label="Sign out"><LogOut className="w-5 h-5" /></button>
     </header>
   );
 }
@@ -108,6 +114,8 @@ export default function Shell() {
   const [phoneOpen, setPhoneOpen] = useState(false);
   const refreshSummary = useCallback(() => api('/dashboard').then(setSummary).catch(() => {}), []);
   const openPhone = useCallback(() => setPhoneOpen(true), []);
+  const closePhone = useCallback(() => setPhoneOpen(false), []);
+  const { pathname } = useLocation();
   const { lang } = useLang();
   // Spoken IVR menus follow the app language (server swaps default greetings too).
   useEffect(() => { api('/prefs/lang', { method: 'PUT', body: { lang } }).catch(() => {}); }, [lang]);
@@ -123,13 +131,18 @@ export default function Shell() {
      <PrivacyProvider>
      <RtcProvider>
       <IncomingCalls openPhone={openPhone} />
+      <UnsavedGuard />
+      <Shortcuts onEscape={closePhone} />
       <div className="lg:flex">
         <Sidebar supportLink={catalog?.supportLink} channelLink={catalog?.channelLink} />
         <div className="flex-1 min-w-0">
           <PreviewBanner show={catalog?.dryRun} livePayments={catalog?.livePayments} />
+          <OfflineBanner />
           <TopBar summary={summary} onPhone={() => setPhoneOpen(o => !o)} />
           <PrivateBanner />
           <main className="px-4 md:px-8 pt-8 md:pt-10 pb-40 lg:pb-12 max-w-7xl mx-auto" data-testid="app-main">
+           <CrashGuard inApp resetKey={pathname} supportLink={catalog?.supportLink}>
+            <CrashProbe />
             <Routes>
               <Route index element={<Dashboard />} />
               <Route path="numbers" element={<Numbers />} />
@@ -151,13 +164,15 @@ export default function Shell() {
               <Route path="inbox" element={<Inbox />} />
               <Route path="settings" element={<Settings />} />
               <Route path="admin/suggestions" element={<AdminSuggestions />} />
+              <Route path="help" element={<Help />} />
               <Route path="*" element={<Navigate to={cp('/app')} replace />} />
             </Routes>
+           </CrashGuard>
           </main>
         </div>
       </div>
       <MobileNav />
-      <Softphone open={phoneOpen} onClose={() => setPhoneOpen(false)} />
+      <Softphone open={phoneOpen} onClose={closePhone} />
       <SupportChat supportLink={catalog?.supportLink} />
      </RtcProvider>
      </PrivacyProvider>

@@ -152,8 +152,10 @@ const okDials = (to) => dials.filter(d => d.to === to && !d.refused)
   const starter = { phoneNumber: numB, plan: 'starter', status: 'active', features: { aiAgent: { enabled: true, agentId: agentB.id } } }
   ok('IN-01', 'Starter plan number: AI agent does not answer (normal routing)', (await ai.tryInbound({ payload: { call_control_id: 'in-1', from: '+14155550111' }, chatId: B, num: starter })) === false, '')
   const pro = { ...starter, plan: 'pro' }
-  const answered = await ai.tryInbound({ payload: { call_control_id: 'in-2', from: '+14155550111' }, chatId: B, num: pro })
-  ok('IN-02', 'Pro plan number: AI agent answers with a bidirectional media stream', answered === true && axiosCalls.some(c => c.url.includes('/calls/in-2/actions/answer') && c.body.stream_bidirectional_mode === 'rtp'), '')
+  ok('IN-01b', 'Pro plan number: AI agent does not answer (AI voice agent is Business-only)', (await ai.tryInbound({ payload: { call_control_id: 'in-1b', from: '+14155550111' }, chatId: B, num: pro })) === false && !axiosCalls.some(c => c.url.includes('/calls/in-1b/')), '')
+  const business = { ...starter, plan: 'business' }
+  const answered = await ai.tryInbound({ payload: { call_control_id: 'in-2', from: '+14155550111' }, chatId: B, num: business })
+  ok('IN-02', 'Business plan number: AI agent answers with a bidirectional media stream', answered === true && axiosCalls.some(c => c.url.includes('/calls/in-2/actions/answer') && c.body.stream_bidirectional_mode === 'rtp'), '')
   ok('IN-03', 'live AI call is owned by the AI module (webhooks routed to it)', ai.owns('in-2', {}), '')
   const realNow = Date.now
   Date.now = () => realNow() + 61000
@@ -164,7 +166,7 @@ const okDials = (to) => dials.filter(d => d.to === to && !d.refused)
   const call = await db.collection('aiCalls').findOne({ chatId: B, direction: 'inbound' })
   ok('IN-05', 'AI call record saved with minutes + charge', call && call.minutesBilled === 2 && call.charge === 0.4, call ? `${call.minutesBilled}/${call.charge}` : 'none')
   await walletOf.updateOne({ _id: B }, { $set: { usdIn: 0.1, usdOut: 0 } })
-  ok('IN-06', 'wallet under $0.20 → AI agent does not answer', (await ai.tryInbound({ payload: { call_control_id: 'in-3', from: '+14155550111' }, chatId: B, num: pro })) === false, '')
+  ok('IN-06', 'wallet under $0.20 → AI agent does not answer', (await ai.tryInbound({ payload: { call_control_id: 'in-3', from: '+14155550111' }, chatId: B, num: business })) === false, '')
 
   console.log('\n| Journey | Check | Result | Detail |\n|---|---|---|---|')
   for (const r of results) console.log(`| ${r.id} | ${r.name} | ${r.pass ? 'PASS' : 'FAIL'} | ${r.detail} |`)

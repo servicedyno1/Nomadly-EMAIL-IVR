@@ -8,6 +8,7 @@ import { useShell } from '../../Shell';
 import { RouteSummary, TestNumber } from './RouteSummary';
 import { SipCredentials } from './SipTab';
 import { VoiceMaker } from '../../VoiceMaker';
+import { useUnsaved, SaveRow } from '../../guard';
 
 const VM_TEMPLATES = [
   ['Standard', 'Hi, you have reached [Name]. I can’t take your call right now. Please leave a message after the tone.'],
@@ -16,17 +17,22 @@ const VM_TEMPLATES = [
 ];
 
 // Shared save helper for the simple PATCH settings forms.
+// okText (optional): the success message, or a function of the server reply — e.g. to say what else the save switched off.
 export function useSave(num, path, reload) {
   const [busy, setBusy] = useState(false);
-  const save = async (body, method = 'PATCH') => {
+  const save = async (body, method = 'PATCH', okText) => {
     setBusy(true);
-    try { await api(`/numbers/${enc(num.phoneNumber)}/${path}`, { method, body }); toast.success('Saved'); reload(); return true; } catch (e) { toast.error(e.message); return false; } finally { setBusy(false); }
+    try {
+      const res = await api(`/numbers/${enc(num.phoneNumber)}/${path}`, { method, body });
+      toast.success((typeof okText === 'function' ? okText(res) : okText) || 'Saved');
+      reload(); return true;
+    } catch (e) { toast.error(e.message); return false; } finally { setBusy(false); }
   };
   return [save, busy];
 }
 
-export const Card = ({ title, sub, children }) => (
-  <div className="civr-card p-6 max-w-2xl">
+export const Card = ({ title, sub, children, bind }) => (
+  <div className="civr-card p-6 max-w-2xl" {...bind}>
     <div className="font-display text-2xl font-bold">{title}</div>
     {sub && <p className="text-sm text-[#a1a1aa] mt-1 mb-6">{sub}</p>}
     <div className="space-y-6">{children}</div>
@@ -70,8 +76,9 @@ export function ForwardingTab({ num, reload }) {
   const cf = num.features.callForwarding;
   const [f, setF] = useState({ mode: cf.mode || 'disabled', forwardTo: cf.forwardTo || '', ringTimeout: cf.ringTimeout || 25, holdMusic: !!cf.holdMusic, backups: cf.backups || [] });
   const [save, busy] = useSave(num, 'forwarding', reload);
+  const u = useUnsaved(f);
   return (
-    <Card title="Call forwarding" sub="Send calls to any phone. Forwarded minutes bill from your wallet.">
+    <Card title="Call forwarding" sub="Send calls to any phone. Forwarded minutes bill from your wallet." bind={u.bind}>
       <Field label="When to forward">
         <select className="civr-input" value={f.mode} onChange={e => setF({ ...f, mode: e.target.value })} data-testid="forwarding-mode-select">
           <option value="disabled">Off</option><option value="always">Always</option><option value="busy">When busy</option><option value="no_answer">When not answered</option>
@@ -83,7 +90,7 @@ export function ForwardingTab({ num, reload }) {
         {f.mode !== 'disabled' && <BackupsField value={f.backups} onChange={v => setF({ ...f, backups: v })} testid="forwarding-backups-input" />}
         <div className="flex items-center justify-between"><span className="text-sm">Play hold music while connecting</span><Toggle checked={f.holdMusic} onChange={v => setF({ ...f, holdMusic: v })} testid="forwarding-hold-music-toggle" /></div>
       </>}
-      <button className="civr-btn civr-btn-primary" disabled={busy} onClick={() => save(f)} data-testid="forwarding-save-button">Save forwarding</button>
+      <SaveRow dirty={u.dirty} testid="forwarding-unsaved-pill"><button className="civr-btn civr-btn-primary" disabled={busy} onClick={async () => { if (await save(f)) u.reset(); }} data-testid="forwarding-save-button">Save forwarding</button></SaveRow>
     </Card>
   );
 }
@@ -96,9 +103,10 @@ export function VoicemailTab({ num, reload }) {
   const langs = catalog?.voicemailLanguages || [{ code: 'en', label: 'English' }];
   const [f, setF] = useState({ enabled: !!vm.enabled, greetingType: vm.greetingType === 'custom' ? 'custom' : 'default', customGreetingUrl: vm.customGreetingUrl || '', forwardToEmail: vm.forwardToEmail || '', ringTimeout: vm.ringTimeout || 25, language: vm.language || 'en', transcribe: vm.transcribe !== false });
   const [save, busy] = useSave(num, 'voicemail', reload);
+  const u = useUnsaved(f);
   const sample = langs.find(l => l.code === f.language)?.sample;
   return (
-    <Card title="Voicemail" sub="Unanswered callers can leave a message. Recordings land in your inbox.">
+    <Card title="Voicemail" sub="Unanswered callers can leave a message. Recordings land in your inbox." bind={u.bind}>
       <div className="flex items-center justify-between"><span className="text-sm">Voicemail on</span><Toggle checked={f.enabled} onChange={v => setF({ ...f, enabled: v })} testid="voicemail-enabled-toggle" /></div>
       <Field label="Greeting">
         <select className="civr-input" value={f.greetingType} onChange={e => setF({ ...f, greetingType: e.target.value })} data-testid="voicemail-greeting-type-select">
@@ -131,7 +139,7 @@ export function VoicemailTab({ num, reload }) {
         <div><div className="text-sm">Transcribe voicemails</div><div className="text-xs text-[#a1a1aa] mt-1">The message as text in your inbox, email and call logs.</div></div>
         <Toggle checked={f.transcribe} onChange={v => setF({ ...f, transcribe: v })} testid="voicemail-transcribe-toggle" />
       </div>
-      <button className="civr-btn civr-btn-primary" disabled={busy} onClick={() => save(f)} data-testid="voicemail-save-button">Save voicemail</button>
+      <SaveRow dirty={u.dirty} testid="voicemail-unsaved-pill"><button className="civr-btn civr-btn-primary" disabled={busy} onClick={async () => { if (await save(f)) u.reset(); }} data-testid="voicemail-save-button">Save voicemail</button></SaveRow>
     </Card>
   );
 }
@@ -154,13 +162,14 @@ function SmsCard({ num, reload }) {
   const s = num.features.smsForwarding;
   const [f, setF] = useState({ toEmail: s.toEmail || '', webhookUrl: s.webhookUrl || '' });
   const [save, busy] = useSave(num, 'sms', reload);
+  const u = useUnsaved(f);
   if (!num.capabilities?.sms) return <Card title="SMS" sub="This number can’t receive text messages." />;
   return (
-    <Card title="SMS delivery" sub="Inbound texts always appear in your inbox. Add email or a webhook too (Pro and up).">
+    <Card title="SMS delivery" sub="Inbound texts always appear in your inbox. Add email or a webhook too (Pro and up)." bind={u.bind}>
       <Field label="Email copy (optional)"><input className="civr-input" type="email" value={f.toEmail} disabled={!num.access.smsToEmail} onChange={e => setF({ ...f, toEmail: e.target.value })} data-testid="sms-email-input" /></Field>
       <Field label="Webhook URL (optional)" hint="We POST each message as JSON."><input className="civr-input font-mono" value={f.webhookUrl} disabled={!num.access.smsWebhook} onChange={e => setF({ ...f, webhookUrl: e.target.value })} placeholder="https://" data-testid="sms-webhook-input" /></Field>
       {!num.access.smsToEmail && <div className="text-xs text-[#fbbf24] flex flex-wrap items-center gap-2" data-testid="sms-upgrade-note">Email and webhook delivery are on the Pro plan and up. <Link to={cp(`/app/numbers/${enc(num.phoneNumber)}?tab=billing`)} className="text-[#34d399] underline" data-testid="sms-upgrade-link">Upgrade this number</Link></div>}
-      <button className="civr-btn civr-btn-primary" disabled={busy} onClick={() => save(f)} data-testid="sms-save-button">Save SMS settings</button>
+      <SaveRow dirty={u.dirty} testid="sms-unsaved-pill"><button className="civr-btn civr-btn-primary" disabled={busy} onClick={async () => { if (await save(f)) u.reset(); }} data-testid="sms-save-button">Save SMS settings</button></SaveRow>
     </Card>
   );
 }

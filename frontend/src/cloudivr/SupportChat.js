@@ -1,8 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { useLocation } from 'react-router-dom';
-import { MessageCircleQuestion, X, Send, Loader2, LifeBuoy, Trash2 } from 'lucide-react';
+import { Link, useLocation } from 'react-router-dom';
+import { MessageCircleQuestion, X, Send, Loader2, LifeBuoy, Trash2, BookOpen } from 'lucide-react';
 import { api } from './api';
-import { useLang } from './i18n';
+import { ask, useLang } from './i18n';
+import { pageOf } from './pages/help/topics';
+import { OPEN_HELP_CHAT } from './shortcuts';
+import { appPath } from './nav';
 
 const VKEY = 'civr.visitor';
 // Anonymous id for the landing-page chat thread (kept in this browser).
@@ -24,7 +27,7 @@ function Bubble({ m, i, link }) {
 // `visitor` = landing page (not signed in): anonymous thread, 10 questions an hour.
 export default function SupportChat({ supportLink, visitor = false }) {
   const { lang } = useLang();
-  const { pathname } = useLocation();
+  const { pathname, search } = useLocation();
   // Phones: the text-call screen needs the corner for its Speak button.
   const show = !visitor && pathname.endsWith('/app/text-call') ? 'hidden lg:flex' : 'flex';
   const [vid] = useState(() => (visitor ? visitorId() : null));
@@ -39,17 +42,33 @@ export default function SupportChat({ supportLink, visitor = false }) {
   useEffect(() => { if (supportLink) setLink(supportLink); }, [supportLink]);
   useEffect(() => { if (open && msgs === null) api(`${base}${q}`).then(d => { setMsgs(d.messages); if (d.supportLink) setLink(d.supportLink); }).catch(() => setMsgs([])); }, [open, msgs, base, q]);
   useEffect(() => { end.current?.scrollIntoView({ block: 'end' }); }, [msgs, busy]);
+  // The Help center's "Ask the help assistant" button opens this panel.
+  useEffect(() => {
+    if (visitor) return undefined;
+    const o = () => setOpen(true);
+    window.addEventListener(OPEN_HELP_CHAT, o);
+    return () => window.removeEventListener(OPEN_HELP_CHAT, o);
+  }, [visitor]);
+  useEffect(() => {
+    if (!open) return undefined;
+    const k = (e) => { if (e.key === 'Escape' && !e.defaultPrevented) setOpen(false); };
+    window.addEventListener('keydown', k);
+    return () => window.removeEventListener('keydown', k);
+  }, [open]);
   const send = async (e) => {
     e.preventDefault();
     const t = text.trim(); if (!t || busy) return;
     setText(''); setBusy(true); setMsgs(m => [...(m || []), { role: 'user', content: t }]);
     try {
-      const d = await api(base, { method: 'POST', body: { message: t, lang, ...(vid ? { visitorId: vid } : {}) } });
+      const d = await api(base, { method: 'POST', body: { message: t, lang, ...(vid ? { visitorId: vid } : { page: pageOf(pathname, search).label }) } });
       if (d.supportLink) setLink(d.supportLink);
       setMsgs(m => [...m, { role: 'assistant', content: d.reply || d.message, escalate: d.escalate }]);
     } catch (err) { setMsgs(m => [...m, { role: 'assistant', content: err.message, escalate: true }]); } finally { setBusy(false); }
   };
-  const clear = async () => { await api(`${base}${q}`, { method: 'DELETE' }).catch(() => {}); setMsgs([]); };
+  const clear = async () => {
+    if (!(await ask('Clear this chat? Your questions and the answers are deleted.', { danger: true, ok: 'Clear chat' }))) return;
+    await api(`${base}${q}`, { method: 'DELETE' }).catch(() => {}); setMsgs([]);
+  };
   const bottom = visitor ? 'bottom-[calc(1.5rem+env(safe-area-inset-bottom))]' : 'bottom-[calc(5.5rem+env(safe-area-inset-bottom))] lg:bottom-6';
   const panelBottom = visitor ? 'bottom-[calc(6rem+env(safe-area-inset-bottom))]' : 'bottom-[calc(10rem+env(safe-area-inset-bottom))] lg:bottom-24';
   return (
@@ -62,10 +81,11 @@ export default function SupportChat({ supportLink, visitor = false }) {
         <div className={`fixed z-50 right-4 left-4 sm:left-auto sm:w-[400px] ${panelBottom} h-[min(560px,65vh)] civr-card !bg-[#0f0f0f] shadow-2xl shadow-black/60 flex flex-col civr-rise text-[#f3f4f6]`} data-testid="support-chat-panel">
           <div className="flex items-center gap-2 px-4 h-14 border-b border-[#262626]">
             <MessageCircleQuestion className="w-5 h-5 text-[#34d399]" /><div className="font-semibold flex-1">Help assistant</div>
+            {!visitor && <Link to={appPath('help')} onClick={() => setOpen(false)} className="p-2 rounded-lg text-[#a1a1aa] hover:text-white hover:bg-white/5" aria-label="Help center" title="Help center" data-testid="support-chat-help-link"><BookOpen className="w-4 h-4" /></Link>}
             <button type="button" onClick={clear} className="p-2 rounded-lg text-[#a1a1aa] hover:text-white hover:bg-white/5" aria-label="Clear chat" data-testid="support-chat-clear"><Trash2 className="w-4 h-4" /></button>
           </div>
           <div className="flex-1 overflow-y-auto p-4 space-y-3" data-testid="support-chat-messages">
-            {msgs === null ? <Loader2 className="w-4 h-4 animate-spin text-[#a1a1aa]" /> : !msgs.length && <div className="text-sm text-[#a1a1aa] leading-relaxed" data-testid="support-chat-empty">{visitor ? 'Ask anything about plans, prices, countries or how CloudIVR works. I answer instantly, and a person can take over if needed.' : 'Ask anything about numbers, IVR, campaigns, billing or SIP. I answer instantly, and a person can take over if needed.'}</div>}
+            {msgs === null ? <Loader2 className="w-4 h-4 animate-spin text-[#a1a1aa]" /> : !msgs.length && <div className="text-sm text-[#a1a1aa] leading-relaxed" data-testid="support-chat-empty">{visitor ? 'Ask anything about plans, prices, countries or how CloudIVR works. I answer instantly, and a person can take over if needed.' : 'Ask anything about numbers, IVR, campaigns, billing or SIP. I answer instantly, and a person can take over if needed.'}{!visitor && <Link to={appPath('help')} onClick={() => setOpen(false)} className="block mt-3 text-[#34d399] hover:underline" data-testid="support-chat-browse-help">Browse help articles</Link>}</div>}
             {(msgs || []).map((m, i) => <Bubble key={i} m={m} i={i} link={link} />)}
             {busy && <div className="text-sm text-[#a1a1aa] flex items-center gap-2" data-testid="support-chat-typing"><Loader2 className="w-4 h-4 animate-spin" />Thinking…</div>}
             <div ref={end} />

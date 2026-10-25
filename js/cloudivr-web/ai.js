@@ -51,7 +51,8 @@ function routes(router, { h, numbersApi }) {
 
   router.get('/ai-agents', h(async (req, res) => {
     const [list, nums] = await Promise.all([s.listAgents(req.webChatId), numbersApi.myNumbers(req.webChatId)])
-    const usedBy = (id) => nums.filter(n => n.features?.aiAgent?.enabled && n.features.aiAgent.agentId === id).map(n => n.phoneNumber)
+    // Only lines whose plan has the AI voice agent (Business) — an old Pro line with the switch left on no longer uses it.
+    const usedBy = (id) => nums.filter(n => n.features?.aiAgent?.enabled && n.features.aiAgent.agentId === id && phoneConfig.canAccessFeature(n.plan, 'aiAgent')).map(n => n.phoneNumber)
     res.json({
       agents: list.map(a => ({ ...s.publicAgent(a), numbers: usedBy(a.id) })), rate: ai.RATE(), recordRate: ai.RECORD_RATE(), recordingDays: ai.recorder.RETENTION_DAYS(), voices: s.VOICES,
       canUse: nums.some(n => n.status === 'active' && phoneConfig.canAccessFeature(n.plan, 'aiAgent')), testDailyMinutes: 15,

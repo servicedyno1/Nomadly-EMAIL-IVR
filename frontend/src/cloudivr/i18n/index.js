@@ -19,7 +19,8 @@ const initial = detectLang();
 const early = LOADERS[initial] ? LOADERS[initial]() : null;
 const LangCtx = createContext({ lang: 'en', setLang: () => {} });
 export const useLang = () => useContext(LangCtx);
-export const ask = (msg) => window.confirm(tr(msg));
+// Styled confirm dialog (confirm.js); kept here so pages keep importing it from i18n.
+export { ask } from '../confirm';
 // Re-renders after the new page language is applied, so dates formatted with the page language follow it.
 export function useLangTick() {
   const { lang } = useLang();

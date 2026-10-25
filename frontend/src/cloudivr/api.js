@@ -6,21 +6,46 @@ import { IS_CIVR_DOMAIN } from './paths';
 const API_ROOT = IS_CIVR_DOMAIN ? '' : (process.env.REACT_APP_BACKEND_URL || '');
 const BASE = `${API_ROOT}/api/cloudivr-web`;
 
+// What went wrong + what to do, when the server sent no message of its own (proxy errors, restarts, limits).
+function fallbackMessage(status) {
+  if (status === 401) return 'Please sign in again.';
+  if (status === 403) return 'You don’t have access to this.';
+  if (status === 404) return 'We couldn’t find that. It may have been deleted — go back and refresh the page.';
+  if (status === 413) return 'That file is too big. Try a smaller one.';
+  if (status === 429) return 'Too many tries in a short time. Wait a minute, then try again.';
+  if (status === 500) return 'Something went wrong on our side. Please try again — if it keeps happening, message support.';
+  if (status > 500) return 'CloudIVR is busy or restarting. Wait a minute, then try again.';
+  return `Request failed (${status}). Please try again.`;
+}
+
 export class ApiError extends Error {
   constructor(status, body) {
-    super(body?.message || (status === 401 ? 'Please sign in again.' : `Request failed (${status})`));
+    super(body?.message || fallbackMessage(status));
     this.status = status;
     this.code = body?.error;
   }
 }
 
+// fetch() only throws when the request never reached the server (offline, DNS, connection reset).
+const networkError = () => new ApiError(0, {
+  error: 'network',
+  message: typeof navigator !== 'undefined' && navigator.onLine === false
+    ? 'You’re offline. Check your internet connection, then try again.'
+    : 'Can’t reach CloudIVR right now. Check your connection, then try again.',
+});
+
 export async function api(path, { method = 'GET', body, form } = {}) {
-  const res = await fetch(`${BASE}${path}`, {
-    method,
-    credentials: 'include',
-    headers: body ? { 'Content-Type': 'application/json' } : undefined,
-    body: form || (body ? JSON.stringify(body) : undefined),
-  });
+  let res;
+  try {
+    res = await fetch(`${BASE}${path}`, {
+      method,
+      credentials: 'include',
+      headers: body ? { 'Content-Type': 'application/json' } : undefined,
+      body: form || (body ? JSON.stringify(body) : undefined),
+      // Deletes waiting behind an Undo toast are sent while the tab closes (see undo.js).
+      keepalive: method === 'DELETE',
+    });
+  } catch (_) { throw networkError(); }
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new ApiError(res.status, data);
   return data;
@@ -29,7 +54,8 @@ export async function api(path, { method = 'GET', body, form } = {}) {
 export const enc = (s) => encodeURIComponent(s);
 // Saves an API file (e.g. a CSV report) with the session cookie.
 export async function downloadFile(path, name) {
-  const res = await fetch(`${BASE}${path}`, { credentials: 'include' });
+  let res;
+  try { res = await fetch(`${BASE}${path}`, { credentials: 'include' }); } catch (_) { throw networkError(); }
   if (!res.ok) throw new ApiError(res.status, await res.json().catch(() => ({})));
   const url = URL.createObjectURL(await res.blob());
   const a = Object.assign(document.createElement('a'), { href: url, download: name });

@@ -50,7 +50,7 @@ function Connection({ cal, reload }) {
     } catch (e) { toast.error(e.message); setBusy(false); }
   };
   const disconnect = async () => {
-    if (!ask('Disconnect Google Calendar? Your agents stop booking appointments until you connect it again.')) return;
+    if (!(await ask('Disconnect Google Calendar? Your agents stop booking appointments until you connect it again.', { danger: true, ok: 'Disconnect' }))) return;
     try { await api('/calendar', { method: 'DELETE' }); toast.success('Google Calendar disconnected'); reload(); } catch (e) { toast.error(e.message); }
   };
   if (!cal) return null;

@@ -42,7 +42,8 @@ export function Pricing({ catalog }) {
   );
 }
 
-function faqItems(c) {
+// Also used by the in-app Help centre.
+export function faqItems(c) {
   const from = startPrice(c);
   const r = c?.rates;
   const ivr = andList((c?.plans || []).filter(p => p.access?.ivr).map(p => p.name)) || 'Business';
@@ -52,7 +53,9 @@ function faqItems(c) {
     ['Can I try it before I pay?', 'Yes. Confirm your email with a 6-digit code and take one free test call of up to 60 seconds — we ring your phone with a demo menu, or you call from your browser. No account needed.'],
     ['Is the account really free?', `Yes. Creating an account costs nothing. You only pay when you buy a number${from ? ` (from ${from}/month)` : ''}, plus any extra usage.`],
     ['How do I pay?', `Pay for a number directly with ${coinList(c) || 'crypto'}, or top up your CloudIVR wallet (from ${usd(c?.minTopup || 10)}) and pay from it. Renewals and calls are paid from the wallet.`],
-    ['Which plan has the keypad menu (IVR)?', `The keypad menu is on the ${ivr} plan, and AI voice agents on the ${ai} plan. Pro adds voicemail, the browser phone and SIP, call recording, Quick IVR calls, Bulk IVR campaigns and text calls; Starter covers call forwarding and the SMS inbox.`],
+    ['Which plan has the keypad menu (IVR)?', ivr === ai
+      ? `The keypad menu and AI voice agents are on the ${ivr} plan. Pro adds voicemail, the browser phone and SIP, call recording, Quick IVR calls, Bulk IVR campaigns and text calls; Starter covers call forwarding and the SMS inbox.`
+      : `The keypad menu is on the ${ivr} plan, and AI voice agents on the ${ai} plan. Pro adds voicemail, the browser phone and SIP, call recording, Quick IVR calls, Bulk IVR campaigns and text calls; Starter covers call forwarding and the SMS inbox.`],
     ['What’s the difference between the keypad menu and an AI voice agent?', `The keypad menu plays your greeting and callers press a key to reach the right person, message or voicemail — it uses your plan minutes. An AI voice agent talks with callers instead: it answers questions, books appointments and takes messages, billed ${money(r?.aiAgentPerMin ?? 0.2)}/min from your wallet. Each number uses one or the other.`],
     ['What if I go over my minutes or SMS?', r ? `Extra incoming minutes cost ${money(r.overagePerMin)} each and extra SMS ${money(r.overagePerSms)} each, paid from your wallet.` : 'Extra usage is paid from your wallet at a small per-minute and per-SMS rate.'],
     ['Are outgoing calls included in my minutes?', 'No. Plan minutes cover incoming calls you answer. Outgoing calls — browser phone, softphone, Quick IVR, campaigns and AI agent calls — and forwarded calls are billed per minute from your wallet, and the price shows before you call.'],
