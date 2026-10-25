@@ -1,0 +1,47 @@
+{
+  "summary": "Frontend-only test of the CloudIVR UX heuristics work, run with Playwright as Alice at 1920x800 and 390x844. Areas covered: Help center, contextual help, keyboard shortcuts, search on 8 lists, the unsaved-changes guard on 13 forms, undo on deletes, confirm dialogs, crash screen, offline banner, FR/ES translations and regression checks. All requested checks that could run passed. One minor issue: spacing on the Help page, seen only in preview. No functional bugs found.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Help center (/app/help), preview only", "issues": ["The 'space-y-10' gap between the search box and the help-group-* sections, and between the groups, is 0px. Each <Section> is wrapped in the visual editor's <span data-ve-dynamic style='display:contents'>, so the space-y margin lands on the span and has no effect. Group labels like 'GETTING STARTED' sit right under the search box and under the previous card. Production builds should be fine, but using 'flex flex-col gap-10' instead of space-y would make it robust. The same thing happens on the DNC tab (ai-dnc-page uses space-y-4, so the add form and the empty card touch)."]},
+      {"screen": "Browser phone (softphone-panel)", "issues": ["When closed the panel only gets opacity-0 and pointer-events-none. Its buttons and inputs can still be reached with Tab and screen readers. Consider inert/aria-hidden or visibility:hidden when closed. Minor accessibility issue that existed before this work."]}
+    ]
+  },
+  "passed_checks": [
+    "Help center: nav-help opens /app/help; all 7 groups have articles (4/7/6/2/3/3/8); keypad toggle shows the body and link; help-search filters ('voicemail' gives 7/33); help-no-matches and its clear button work; help-contact-card opens support-chat-panel; help-shortcuts-card shows on desktop and is hidden on mobile",
+    "Contextual help: topbar-help-button on the ivr tab links to help?topic=keypad. help-for-page is titled 'For this page: Keypad menu' and holds page-keypad and page-one-answers. help-clear-topic removes the section",
+    "Shortcuts: '/' focuses numbers-search and logs-search. '?' goes to help?topic=numbers (or topic=ai on the agent edit page). Typing '?/' inside an input does not trigger them. Esc closes the confirm dialog, the chat panel and the browser phone. '?' while a form is dirty asks first",
+    "Search: numbers ('858' gives 1/2 showing only +18582696527, 'Business' gives 1/2), inbox, campaigns, audio, ai-agents ('Ava' gives 1/1), ai-dnc (phone-style query '415 555 0177' matches) and logs all show the count, the × clear button and the no-matches card, and Esc clears them",
+    "ai-calls-search was skipped because Alice has no AI calls, so the search is not rendered",
+    "Unsaved guard: opening forwarding, hours, ivr, voicemail, sms, browser, ai, the agent form, settings or campaign new does NOT show the pill or ask before leaving",
+    "Unsaved guard: after an edit the pill shows on all 13 forms and leaving asks first. Checked: forwarding, hours, ivr, voicemail, sms, browser-ring, number-ai, ai-agent, settings-profile, settings-password, campaign (on both of Alice's numbers where relevant)",
+    "Confirm dialog: 'Stay and save' has focus by default; Cancel keeps the edit; Esc closes it; OK leaves the page and the edit is thrown away. After Save the pill goes away and switching tabs no longer asks. Forwarding mode was put back to 'disabled'",
+    "Undo on audio: delete hides the row, the toast reads 'Audio deleted' with an 'Undo' button, Undo brings the row back, and it is still there after a reload",
+    "Undo on DNC: remove, then Undo, brings the entry back and it survives a reload. Removing again and waiting 7s really deletes it (gone after reload)",
+    "Help assistant: 'Clear chat' asks first, Cancel keeps the messages, Esc in that dialog leaves the panel open. support-chat-help-link goes to /app/help and closes the panel",
+    "Crash screen: crashTest=1 shows crash-screen with retry, home and details while the sidebar still works. Moving to another page via the sidebar clears it; crash-home-link goes to /app",
+    "Offline: offline-banner appears when the browser goes offline; coming back online hides it and shows a 'Back online' toast",
+    "French and Spanish: the Help center title, articles and search placeholder, the numbers placeholder, the pill text, the confirm dialog buttons and message, and the undo toast ('Annuler' / 'Deshacer') are all translated. Help search finds articles by French and Spanish words ('messagerie', 'buzón'). Switched back to English",
+    "Regression: dashboard loads; number tabs switch without asking when nothing was edited; agent delete asks first (Cancel focused) and Esc cancels; agent save shows the 'Agent saved' toast; on mobile, More then Help center works and topbar-help-button is hidden; no horizontal overflow at 390px on help, inbox, numbers, logs, audio and ai-agents"
+  ],
+  "test_report_links": [],
+  "action_items": [
+    "Optional: on the Help page and the DNC tab, replace space-y-* with 'flex flex-col gap-*' so the section gaps survive the preview's display:contents wrappers",
+    "Optional: make the closed softphone-panel inert or aria-hidden"
+  ],
+  "critical_code_review_comments": [
+    "guard.js: confirmLeave() clears ALL dirty entries when the user chooses Leave. That is fine for a single form, but a form that stays mounted (for example a modal) would lose its dirty state.",
+    "useUnsaved: the starting values are captured on the first click or keydown anywhere inside the bound card. Correct, but a slow data load that changes the values after that first click could count as an edit. It did not happen in testing.",
+    "confirm.js: if a second ask() comes in while a dialog is open it is answered 'no'. This is documented and acceptable.",
+    "The help-article-keypad-link goes to 'My numbers', not straight to a number's Keypad tab. Acceptable, since the article cannot know which number the user means."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (frontend only)", "frontend": "100% of executed checks (1 preview-only spacing issue)"},
+  "test_credentials": "civr.alice@example.com / AliceTest#2026 (from /app/memory/test_credentials.md)",
+  "seed_data_creation": "Created a text-to-speech audio 'TEST_undo audio' in Alice's Audio library (left in place). The DNC numbers used in testing (+14155550177/0188/0199) were all removed. Forwarding settings were put back to 'disabled'.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Use wait_until='domcontentloaded'. topbar-lang-switcher is a hidden <select> (use select_option). softphone-panel is always in the DOM; check its 'opacity-100' class to see if it is open. Find sonner toasts with [data-sonner-toast] and pick the right one by its text, not by .last. Forwarding on +18582696527 is mode 'disabled', so the ring-timeout input is hidden until the mode changes. Alice has no AI calls, so ai-calls-search is not rendered."
+}

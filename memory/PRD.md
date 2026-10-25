@@ -1165,3 +1165,27 @@ calls and SIP are simulated; inbound calls use a pretend-call simulator).
       AI Agents page Business note, New campaign → AI kind with no Business number shows the empty state AND the kind
       switch, landing cards/FAQ in EN/FR/ES, plan cards (Pro no longer lists the AI voice agent as included).
    4. Then finish and tell the owner that existing Pro numbers with the AI agent on now fall back to normal call handling.
+
+  ✅ UPDATE (next session): all 4 steps done — backend tests fixed, curls OK, testing agent iteration_133 frontend 10/10.
+
+- 2026-06 CLOUDIVR UX HEURISTICS (Nielsen's 10) — web /cloudivr, preview only. Owner picked ALL: crash screen + offline
+  banner, unsaved-changes warning, search on lists, Help center (own page in the sidebar + '?' help links), confirm/undo on
+  every delete, basic keyboard shortcuts.
+  New modules (src/cloudivr): confirm.js (styled ask(), ConfirmHost in CloudIvrApp; i18n `ask` re-exports it), undo.js
+  (undoable(): hide now, DELETE after 6 s or on tab close, Undo restores), guard.js (useUnsaved(value) + bind/reset,
+  UnsavedGuard in Shell intercepts in-app links/beforeunload, confirmLeave() also used by number tabs, '?' and sign-out,
+  SaveRow/UnsavedPill), safety.js (CrashGuard in Shell main + top level, ?crashTest=1 in dev builds, OfflineBanner),
+  search.js (useSearch: matches English data AND the translated text, phone digits ignore spaces/+; SearchBox with x/y count,
+  × clear, Esc clears; NoMatches card), shortcuts.js ('/' focuses the page search, '?' help for this page, Esc closes the
+  browser phone; dialogs/chat handle their own Esc), pages/Help.js + pages/help/topics.js (26 articles in 6 groups + landing
+  FAQ as "Plans and prices"; ?topic= shows "For this page: …"; "Still stuck?" opens the help assistant; shortcuts card).
+  Wired: nav "Help center" (Account group / phone More menu), topbar '?' (hidden < 640px), search on My numbers, Inbox,
+  Campaigns, Audio library, AI agents, AI call history, Do-not-call list, number Logs; unsaved guard on Forwarding, Voicemail,
+  SMS, Hours, Keypad menu, Browser ring, number AI agent tab, agent form, Settings profile + password, New campaign; Undo on
+  audio delete + text-call history delete (plus earlier: IVR templates, DNC, quick presets/scheduled); help-assistant Clear chat
+  now confirms, has a Help center link, Esc closes, sends the current screen label (support.js `page`, sanitised ≤80 chars);
+  api.js plain-language fallback errors (401/403/404/413/429/5xx/offline). Closed browser phone is inert/aria-hidden.
+  i18n: 149 new FR/ES keys via scripts/civr_i18n_fill_missing.py (keeps every existing key — the stock
+  civr_i18n_translate.py DROPS keys the extractor no longer sees; do not run it as-is). fr/es.json now ~1935 keys.
+  Tests: testing agent iteration_134 frontend 100% (desktop + 390px, EN/FR/ES). Testing agent left a TTS audio
+  "TEST_undo audio" in Alice's library.

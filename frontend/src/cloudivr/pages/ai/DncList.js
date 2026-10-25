@@ -24,7 +24,7 @@ export function DncList() {
   const list = data?.numbers || [];
   const s = useSearch(list, d => [d.number, d.reason === 'manual' ? 'added by you' : d.reason]);
   return (
-    <div className="space-y-4" data-testid="ai-dnc-page">
+    <div className="flex flex-col gap-4" data-testid="ai-dnc-page">
       <form onSubmit={add} className="civr-card p-6 flex flex-col sm:flex-row gap-2">
         <input className="civr-input font-mono flex-1" value={num} onChange={e => setNum(e.target.value)} placeholder="+14155550100" data-testid="ai-dnc-number-input" />
         <button className="civr-btn civr-btn-primary" disabled={!num.trim()} data-testid="ai-dnc-add-button"><Plus className="w-4 h-4" />Add number</button>

@@ -74,7 +74,7 @@ export default function Help() {
     <div data-testid="help-page">
       <PageHeader label="Help" title="Help center" sub="Short answers to common questions. Search, or open a topic below." testid="help-header" />
       <div className="grid lg:grid-cols-3 gap-6 items-start">
-        <div className="lg:col-span-2 space-y-10">
+        <div className="lg:col-span-2 flex flex-col gap-10">
           <SearchBox s={s} placeholder="Search help articles" testid="help-search" />
           {s.active ? <>
             <NoMatches s={s} testid="help-no-matches" />
