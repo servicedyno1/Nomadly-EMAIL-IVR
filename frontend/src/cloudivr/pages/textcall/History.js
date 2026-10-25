@@ -22,14 +22,14 @@ function Row({ c, onDeleted, onOpenLive }) {
   return (
     <li className="py-3" data-testid={`relay-history-${c.id}`}>
       <div className="flex flex-wrap items-center gap-3">
-        <button type="button" onClick={toggle} className="flex-1 min-w-0 text-left flex items-center gap-3" aria-expanded={!!open} data-testid={`relay-history-open-${c.id}`}>
+        <button type="button" onClick={toggle} className="flex-1 min-w-0 min-h-[44px] text-left flex items-center gap-3" aria-expanded={!!open} data-testid={`relay-history-open-${c.id}`}>
           <ChevronDown className={`w-4 h-4 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
           <span className="font-mono truncate">{pv.phone(c.to)}</span><span className="text-xs text-[#a1a1aa] hidden sm:inline">{when(c.createdAt)}</span>
         </button>
         {c.direction === 'inbound' && <span className="civr-pill" data-testid={`relay-history-incoming-${c.id}`}><PhoneIncoming className="w-3 h-3" />Incoming</span>}
         <span className={`civr-pill ${tone}`}>{label}</span>
         <span className="text-xs text-[#a1a1aa] font-mono w-24 text-right">{secs(c.duration)} · {c.dryRun ? '$0' : money(c.charge)}</span>
-        {!live && <button type="button" onClick={del} className="text-[#a1a1aa] hover:text-[#fb7185] p-1" aria-label="Delete call" data-testid={`relay-history-delete-${c.id}`}><Trash2 className="w-4 h-4" /></button>}
+        {!live && <button type="button" onClick={del} className="w-10 h-10 -my-2 flex items-center justify-center rounded-md text-[#a1a1aa] hover:text-[#fb7185] hover:bg-white/5" aria-label="Delete call" data-testid={`relay-history-delete-${c.id}`}><Trash2 className="w-4 h-4" /></button>}
       </div>
       {open && <div className="mt-3"><Transcript call={open} sizeIdx={0} flash={false} /></div>}
     </li>

@@ -59,7 +59,7 @@ export function ExtraNumbers({ num }) {
       <div className="flex items-center gap-2 font-display text-2xl font-bold"><Layers className="w-5 h-5 text-[#38bdf8]" />Extra numbers</div>
       <p className="text-sm text-[#a1a1aa]">{`Add more numbers to this plan for ${money(data.price)}/month each. They get the same ${num.planName} features.`}</p>
       <div className="text-sm font-mono" data-testid="billing-extra-usage">{`${data.used} of ${data.limit} used`}</div>
-      {data.numbers.map((x, i) => <Link key={x.phoneNumber} to={cp(`/app/numbers/${enc(x.phoneNumber)}`)} className="block font-mono text-sm text-[#f4f4f5] hover:text-[#34d399]" data-testid={`billing-extra-row-${i}`}>{pv.phone(x.phoneNumber)} · {x.status}</Link>)}
+      {data.numbers.map((x, i) => <Link key={x.phoneNumber} to={cp(`/app/numbers/${enc(x.phoneNumber)}`)} className="flex items-center min-h-[40px] font-mono text-sm text-[#f4f4f5] hover:text-[#34d399]" data-testid={`billing-extra-row-${i}`}>{pv.phone(x.phoneNumber)} · {x.status}</Link>)}
       {full ? <div className="text-xs text-[#fbbf24]">Limit reached — upgrade this number to add more.</div>
         : <Link to={cp(`/app/buy?extra=${enc(num.phoneNumber)}`)} className="civr-btn civr-btn-ghost civr-btn-sm" data-testid="billing-extra-add-link"><Plus className="w-4 h-4" />Add an extra number</Link>}
     </div>

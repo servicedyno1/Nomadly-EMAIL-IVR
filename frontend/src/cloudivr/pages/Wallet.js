@@ -5,7 +5,7 @@ import QRCode from 'react-qr-code';
 import { Wallet as WalletIcon, Copy, Loader2, RefreshCw, AlertTriangle, Info } from 'lucide-react';
 import { api, useApi, money, when } from '../api';
 import { useShell } from '../Shell';
-import { PageHeader, Field, Spinner, ErrorNote, statusPill } from '../ui';
+import { PageHeader, Field, Spinner, ErrorNote, statusPill, useIsPhone } from '../ui';
 import { cp } from '../paths';
 
 const copy = (v) => navigator.clipboard?.writeText(v).then(() => toast.success('Copied'));
@@ -68,22 +68,52 @@ function TopUp({ coins, min, initial, onCreated }) {
   );
 }
 
+const depStatus = (d) => (d.address === 'PREVIEW-MODE-DO-NOT-SEND-FUNDS' ? 'preview' : d.status);
+const signed = (h) => `${h.amount > 0 ? '+' : '−'}${money(Math.abs(h.amount))}`;
+const CARD_ROW = 'py-3 first:pt-0 last:pb-0 flex items-start justify-between gap-3';
+
+function Deposits({ list }) {
+  const phone = useIsPhone();
+  if (phone) return (
+    <ul className="divide-y divide-[#1f1f1f]" data-testid="wallet-deposits-table">{list.map((d, i) => (
+      <li key={d.ref} className={CARD_ROW} data-testid={`wallet-deposit-${i}`}>
+        <div className="min-w-0"><div className="font-mono">{money(d.amountUsd)} <span className="text-xs text-[#a1a1aa]">{d.coin}</span></div><div className="text-xs text-[#a1a1aa] mt-0.5">{when(d.createdAt)}</div></div>
+        <span className={`${statusPill(d.status)} shrink-0`}>{depStatus(d)}</span>
+      </li>
+    ))}</ul>
+  );
+  return (
+    <table className="civr-table" data-testid="wallet-deposits-table"><thead><tr><th>Amount</th><th>Coin</th><th>Status</th><th>When</th></tr></thead>
+      <tbody>{list.map((d, i) => <tr key={d.ref} data-testid={`wallet-deposit-${i}`}><td className="font-mono">{money(d.amountUsd)}</td><td>{d.coin}</td><td><span className={statusPill(d.status)}>{depStatus(d)}</span></td><td className="text-xs text-[#a1a1aa]">{when(d.createdAt)}</td></tr>)}</tbody></table>
+  );
+}
+
+function History({ list }) {
+  const phone = useIsPhone();
+  if (phone) return (
+    <ul className="divide-y divide-[#1f1f1f]" data-testid="wallet-history-table">{list.map((h, i) => (
+      <li key={h.id} className={CARD_ROW} data-testid={`wallet-history-${i}`}>
+        <div className="min-w-0"><div className="text-sm text-[#e4e4e7] break-words">{h.description}</div><div className="text-xs text-[#a1a1aa] mt-0.5">{when(h.at)}</div></div>
+        <span className={`font-mono shrink-0 ${h.amount > 0 ? 'text-[#34d399]' : ''}`}>{signed(h)}</span>
+      </li>
+    ))}</ul>
+  );
+  return (
+    <table className="civr-table" data-testid="wallet-history-table"><thead><tr><th>What</th><th>Amount</th><th>When</th></tr></thead>
+      <tbody>{list.map((h, i) => <tr key={h.id} data-testid={`wallet-history-${i}`}><td className="text-xs">{h.description}</td><td className={`font-mono ${h.amount > 0 ? 'text-[#34d399]' : ''}`}>{signed(h)}</td><td className="text-xs text-[#a1a1aa]">{when(h.at)}</td></tr>)}</tbody></table>
+  );
+}
+
 function Tables({ data }) {
   return (
     <div className="grid lg:grid-cols-2 gap-4 mt-6">
-      <div className="civr-card p-6 overflow-x-auto">
+      <div className="civr-card p-5 sm:p-6 overflow-x-auto">
         <div className="font-display text-2xl font-bold mb-4">Deposits</div>
-        {!data.deposits.length ? <div className="text-sm text-[#a1a1aa] py-6" data-testid="wallet-deposits-empty">No deposits yet.</div> : (
-          <table className="civr-table" data-testid="wallet-deposits-table"><thead><tr><th>Amount</th><th>Coin</th><th>Status</th><th>When</th></tr></thead>
-            <tbody>{data.deposits.map((d, i) => <tr key={d.ref} data-testid={`wallet-deposit-${i}`}><td className="font-mono">{money(d.amountUsd)}</td><td>{d.coin}</td><td><span className={statusPill(d.status)}>{d.address === 'PREVIEW-MODE-DO-NOT-SEND-FUNDS' ? 'preview' : d.status}</span></td><td className="text-xs text-[#a1a1aa]">{when(d.createdAt)}</td></tr>)}</tbody></table>
-        )}
+        {!data.deposits.length ? <div className="text-sm text-[#a1a1aa] py-6" data-testid="wallet-deposits-empty">No deposits yet.</div> : <Deposits list={data.deposits} />}
       </div>
-      <div className="civr-card p-6 overflow-x-auto">
+      <div className="civr-card p-5 sm:p-6 overflow-x-auto">
         <div className="font-display text-2xl font-bold mb-4">History</div>
-        {!data.history.length ? <div className="text-sm text-[#a1a1aa] py-6" data-testid="wallet-history-empty">No transactions yet.</div> : (
-          <table className="civr-table" data-testid="wallet-history-table"><thead><tr><th>What</th><th>Amount</th><th>When</th></tr></thead>
-            <tbody>{data.history.map((h, i) => <tr key={h.id} data-testid={`wallet-history-${i}`}><td className="text-xs">{h.description}</td><td className={`font-mono ${h.amount > 0 ? 'text-[#34d399]' : ''}`}>{h.amount > 0 ? '+' : '−'}{money(Math.abs(h.amount))}</td><td className="text-xs text-[#a1a1aa]">{when(h.at)}</td></tr>)}</tbody></table>
-        )}
+        {!data.history.length ? <div className="text-sm text-[#a1a1aa] py-6" data-testid="wallet-history-empty">No transactions yet.</div> : <History list={data.history} />}
       </div>
     </div>
   );

@@ -34,7 +34,7 @@ import AdminSuggestions from './pages/AdminSuggestions';
 const ShellCtx = createContext(null);
 export const useShell = () => useContext(ShellCtx);
 
-const ICON_BTN = 'relative w-11 h-11 flex items-center justify-center rounded-full hover:bg-[#151515] transition-colors';
+const ICON_BTN = 'relative w-11 h-11 shrink-0 flex items-center justify-center rounded-full hover:bg-[#151515] transition-colors';
 
 function SideNav() {
   return (
@@ -69,33 +69,34 @@ function Sidebar({ supportLink, channelLink }) {
   );
 }
 
-function PrivateButton() {
+function PrivateButton({ className = '' }) {
   const { on, toggle } = usePrivacy();
   const Icon = on ? EyeOff : Eye;
   const tip = on ? 'Private mode on — tap to show numbers and messages' : 'Private mode — hide numbers and messages';
   return (
     <button onClick={toggle} aria-pressed={on} aria-label={tip} title={tip} data-testid="topbar-private-mode-button" data-private={on ? 'on' : 'off'}
-      className={`${ICON_BTN} ${on ? 'text-[#c4b5fd] bg-[#a78bfa]/15 hover:bg-[#a78bfa]/25' : ''}`}><Icon className="w-5 h-5" /></button>
+      className={`${ICON_BTN} ${className} ${on ? 'text-[#c4b5fd] bg-[#a78bfa]/15 hover:bg-[#a78bfa]/25' : ''}`}><Icon className="w-5 h-5" /></button>
   );
 }
 
+// Phones keep only balance, inbox and the browser phone here; language, private mode and sign-out live in the More menu.
 function TopBar({ summary, onPhone }) {
   const { account, logout } = useCivrAuth();
   const nav = useNavigate();
   return (
     <header className="civr-glass sticky top-0 z-30 flex items-center gap-1 sm:gap-2 px-4 md:px-8 h-16" data-civr-topbar>
-      <Link to={cp('/app')} className="font-display text-xl sm:text-2xl font-extrabold tracking-tight mr-auto lg:hidden" data-testid="topbar-logo">CLOUD<span className="text-[#34d399]">IVR</span></Link>
+      <Link to={cp('/app')} className="font-display text-xl sm:text-2xl font-extrabold tracking-tight mr-auto lg:hidden min-h-[44px] flex items-center" data-testid="topbar-logo">CLOUD<span className="text-[#34d399]">IVR</span></Link>
       <div className="hidden lg:block mr-auto text-sm text-[#a1a1aa]" data-testid="topbar-greeting">Signed in as <span className="text-[#f4f4f5]">{account?.email}</span></div>
-      <Link to={cp('/app/wallet')} className="civr-pill civr-pill-on !text-sm !normal-case !tracking-normal h-9" data-testid="topbar-balance">{money(summary?.balance)}</Link>
+      <Link to={cp('/app/wallet')} className="civr-pill civr-pill-on !text-sm !normal-case !tracking-normal h-10 shrink-0 !px-3.5" data-testid="topbar-balance">{money(summary?.balance)}</Link>
       <Link to={cp('/app/wallet')} className="civr-btn civr-btn-ghost civr-btn-sm !hidden md:!inline-flex" data-testid="topbar-add-funds-button"><Plus className="w-4 h-4" />Add funds</Link>
-      <LangSwitcher testid="topbar-lang-switcher" />
-      <PrivateButton />
+      <LangSwitcher testid="topbar-lang-switcher" className="hidden lg:inline-flex" />
+      <PrivateButton className="hidden lg:flex" />
       <Link to={cp('/app/inbox')} className={ICON_BTN} data-testid="topbar-inbox-button" aria-label="Inbox">
         <Bell className="w-5 h-5" />
-        {summary?.unread > 0 && <span className="absolute top-1 right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-[#34d399] text-[#04130d] text-[11px] font-bold flex items-center justify-center" data-testid="topbar-unread-count">{summary.unread}</span>}
+        {summary?.unread > 0 && <span className="absolute top-1 right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-[#34d399] text-[#04130d] text-[11px] font-bold flex items-center justify-center" data-testid="topbar-unread-count">{summary.unread > 99 ? '99+' : summary.unread}</span>}
       </Link>
       <button onClick={onPhone} className={ICON_BTN} data-testid="topbar-softphone-button" aria-label="Browser phone"><Phone className="w-5 h-5" /></button>
-      <button onClick={async () => { nav(cp(), { replace: true }); await logout(); }} className={ICON_BTN} data-testid="topbar-logout-button" aria-label="Sign out"><LogOut className="w-5 h-5" /></button>
+      <button onClick={async () => { nav(cp(), { replace: true }); await logout(); }} className={`${ICON_BTN} hidden lg:flex`} data-testid="topbar-logout-button" aria-label="Sign out"><LogOut className="w-5 h-5" /></button>
     </header>
   );
 }

@@ -14,7 +14,7 @@ export function IvrTemplates({ current, onApply }) {
   const use = (t) => { onApply(t.config); toast.success(`“${t.name}” loaded — add the forward numbers, then Save IVR`); };
   const row = (t, i, mine) => (
     <div key={t.id} className="flex items-center gap-2 py-1.5" data-testid={`ivr-template-${mine ? 'mine' : 'builtin'}-${i}`}>
-      <button type="button" className="flex-1 text-left text-sm hover:text-[#34d399] truncate" onClick={() => use(t)} data-testid={`ivr-template-${mine ? 'mine' : 'builtin'}-${i}-use`}>{t.name}</button>
+      <button type="button" className="flex-1 min-h-[40px] text-left text-sm hover:text-[#34d399] truncate" onClick={() => use(t)} data-testid={`ivr-template-${mine ? 'mine' : 'builtin'}-${i}-use`}>{t.name}</button>
       {mine && <button type="button" className="p-1.5 text-[#a1a1aa] hover:text-[#fb7185]" onClick={() => del(t.id)} aria-label="Delete template" data-testid={`ivr-template-mine-${i}-delete`}><Trash2 className="w-3.5 h-3.5" /></button>}
     </div>
   );

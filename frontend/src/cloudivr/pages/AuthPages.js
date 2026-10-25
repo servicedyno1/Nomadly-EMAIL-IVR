@@ -69,7 +69,7 @@ function AuthFrame({ title, sub, children, testid, signup }) {
       <SidePanel signup={signup} />
       <div className="flex flex-col min-h-screen">
         <div className="lg:hidden flex items-center justify-between px-6 h-16 border-b border-[#1a1a1a]">
-          <Link to={cp()} className="font-display text-2xl font-extrabold" data-testid="auth-mobile-logo-link">CLOUD<span className="text-[#34d399]">IVR</span></Link>
+          <Link to={cp()} className="font-display text-2xl font-extrabold min-h-[44px] flex items-center" data-testid="auth-mobile-logo-link">CLOUD<span className="text-[#34d399]">IVR</span></Link>
           <div className="flex items-center gap-1"><LangSwitcher testid="auth-mobile-lang-switcher" /><Link to={cp()} className="flex items-center gap-2 text-sm text-[#a1a1aa] hover:text-white py-3" data-testid="auth-mobile-home-link"><ArrowLeft className="w-4 h-4" />Home</Link></div>
         </div>
         <div className="hidden lg:flex justify-end px-8 pt-6"><LangSwitcher testid="auth-lang-switcher" /></div>

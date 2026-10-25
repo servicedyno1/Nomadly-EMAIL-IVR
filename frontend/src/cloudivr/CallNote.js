@@ -42,9 +42,9 @@ export function NoteCell({ log: l, phone, onSaved, testid }) {
     <div className="mt-2 flex items-start gap-2 rounded-lg bg-[#fbbf24]/5 border border-[#fbbf24]/20 px-2.5 py-2" data-testid={testid}>
       <StickyNote className="w-3.5 h-3.5 text-[#fbbf24] shrink-0 mt-0.5" />
       <span className="flex-1 whitespace-pre-line break-words text-[#f4f4f5]" data-testid={`${testid}-text`}>{pv.text(note.text, 'Note hidden')}</span>
-      <button onClick={start} className="text-[#a1a1aa] hover:text-white shrink-0" aria-label="Edit note" data-testid={`${testid}-edit-button`}><Pencil className="w-3.5 h-3.5" /></button>
+      <button onClick={start} className="w-9 h-9 -my-2 flex items-center justify-center rounded-md text-[#a1a1aa] hover:text-white shrink-0" aria-label="Edit note" data-testid={`${testid}-edit-button`}><Pencil className="w-3.5 h-3.5" /></button>
     </div>
   ) : (
-    <button onClick={start} className="mt-1 inline-flex items-center gap-1 text-[#a1a1aa] hover:text-[#34d399] py-1" data-testid={`${testid}-add-button`}><StickyNote className="w-3.5 h-3.5" />Add note</button>
+    <button onClick={start} className="inline-flex items-center gap-1 min-h-[40px] text-[#a1a1aa] hover:text-[#34d399]" data-testid={`${testid}-add-button`}><StickyNote className="w-3.5 h-3.5" />Add note</button>
   );
 }

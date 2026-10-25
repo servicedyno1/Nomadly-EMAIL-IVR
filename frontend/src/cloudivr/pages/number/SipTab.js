@@ -35,7 +35,7 @@ function Row({ k, v, id, secret }) {
     <div className="flex items-center justify-between gap-3 py-3">
       <span className="text-sm text-[#a1a1aa] shrink-0">{k}</span>
       <span className="flex items-center gap-1.5 min-w-0"><code className="text-sm text-[#f3f4f6] truncate" data-testid={id} data-no-translate>{v}</code>
-        {v && !secret && <button type="button" onClick={() => copy(v)} className="p-1.5 rounded-md text-[#a1a1aa] hover:text-[#34d399] hover:bg-white/5 shrink-0" aria-label={`Copy ${k}`} data-testid={`${id}-copy`}><Copy className="w-3.5 h-3.5" /></button>}</span>
+        {v && !secret && <button type="button" onClick={() => copy(v)} className="w-10 h-10 -my-2 flex items-center justify-center rounded-md text-[#a1a1aa] hover:text-[#34d399] hover:bg-white/5 shrink-0" aria-label={`Copy ${k}`} data-testid={`${id}-copy`}><Copy className="w-3.5 h-3.5" /></button>}</span>
     </div>
   );
 }

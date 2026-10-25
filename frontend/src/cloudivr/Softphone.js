@@ -48,7 +48,7 @@ export default function Softphone({ open, onClose }) {
 
   return (
     <div className={`fixed bottom-24 lg:bottom-4 right-4 left-4 sm:left-auto z-50 sm:w-[340px] max-h-[calc(100dvh-7rem)] lg:max-h-[calc(100dvh-2rem)] overflow-y-auto civr-card p-6 shadow-2xl transition-[opacity,transform] duration-200 ${open ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4 pointer-events-none'}`} data-testid="softphone-panel">
-      <div className="flex items-center justify-between mb-4"><span className="font-display text-xl font-bold">Browser phone</span><button onClick={onClose} className="p-1 text-[#a1a1aa] hover:text-white" data-testid="softphone-close-button" aria-label="Close"><X className="w-4 h-4" /></button></div>
+      <div className="flex items-center justify-between mb-4"><span className="font-display text-xl font-bold">Browser phone</span><button onClick={onClose} className="w-11 h-11 -mr-3 flex items-center justify-center rounded-full text-[#a1a1aa] hover:text-white hover:bg-white/5" data-testid="softphone-close-button" aria-label="Close"><X className="w-5 h-5" /></button></div>
       {!nums ? (
         <div className="flex items-center gap-2 text-sm text-[#a1a1aa] py-6" data-testid="softphone-loading"><Loader2 className="w-4 h-4 animate-spin" />Loading…</div>
       ) : !nums.length ? (
@@ -68,7 +68,7 @@ export default function Softphone({ open, onClose }) {
             {!viaMobile && msg && <span className="block text-[#a1a1aa] mt-1">{msg}</span>}
             {info && <span className={`block mt-1 ${info.ok ? 'text-[#34d399]' : 'text-[#fb7185]'}`} data-testid="softphone-callback-result">{info.text}</span>}
           </div>
-          <div className="flex items-center gap-2 mb-3"><input className={`civr-input font-mono ${pv.input}`} inputMode="tel" autoComplete="off" value={dest} onChange={e => setDest(e.target.value)} placeholder="+14155550100" aria-label="Number to call" data-testid="softphone-destination-input" /><button onClick={() => setDest(d => d.slice(0, -1))} className="p-2 text-[#a1a1aa]" data-testid="softphone-backspace-button" aria-label="Delete digit"><Delete className="w-4 h-4" /></button></div>
+          <div className="flex items-center gap-2 mb-3"><input className={`civr-input font-mono ${pv.input}`} inputMode="tel" autoComplete="off" value={dest} onChange={e => setDest(e.target.value)} placeholder="+14155550100" aria-label="Number to call" data-testid="softphone-destination-input" /><button onClick={() => setDest(d => d.slice(0, -1))} className="w-11 h-11 shrink-0 flex items-center justify-center rounded-full text-[#a1a1aa] hover:text-white hover:bg-white/5" data-testid="softphone-backspace-button" aria-label="Delete digit"><Delete className="w-4 h-4" /></button></div>
           <div className="grid grid-cols-3 gap-2 mb-4">{KEYS.map(k => <button key={k} className="civr-key" onClick={() => press(k)} data-testid={`softphone-key-${k === '*' ? 'star' : k === '#' ? 'hash' : k}`}>{k}</button>)}</div>
           {call ? (
             <div className="flex gap-2">
