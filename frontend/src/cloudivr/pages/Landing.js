@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useApi } from '../api';
 import { useCivrAuth } from '../AuthContext';
 import { cp } from '../paths';
+import { Wordmark } from '../Brand';
 import { Hero } from './landing/Hero';
 import { Coverage, Features, HowItWorks } from './landing/Sections';
 import { TryCall } from './landing/TryCall';
@@ -25,7 +26,7 @@ function Nav() {
   return (
     <header className="fixed top-0 inset-x-0 z-50 backdrop-blur-xl bg-[#0A0D0E]/80 border-b border-white/10 text-[#FEFDF5]" data-testid="civr-nav">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-8 h-16 flex items-center gap-3 sm:gap-6">
-        <Link to={cp()} className="font-display text-2xl font-extrabold tracking-tight mr-auto min-h-[44px] flex items-center" data-testid="civr-nav-logo">CLOUD<span className="text-[#00E3AA]">IVR</span></Link>
+        <Link to={cp()} className="font-display text-2xl font-extrabold tracking-tight mr-auto min-h-[44px] flex items-center gap-2" data-testid="civr-nav-logo"><Wordmark accent="#00E3AA" iconClass="w-8 h-8" /></Link>
         <nav className="hidden lg:flex items-center gap-7">
           {LANDING_LINKS.map(([href, label, id]) => <a key={id} href={href} className="text-sm text-[#FEFDF5]/70 hover:text-[#00E3AA] py-3 transition-colors" data-testid={`landing-nav-${id}`}>{label}</a>)}
         </nav>

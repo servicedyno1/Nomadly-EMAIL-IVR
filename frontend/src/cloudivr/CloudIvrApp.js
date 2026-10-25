@@ -9,6 +9,7 @@ import { AuthPage, ForgotPage, ResetPage } from './pages/AuthPages';
 import Shell from './Shell';
 import { cp, IS_CIVR_DOMAIN } from './paths';
 import { LangProvider } from './i18n';
+import { applyBrandHead } from './Brand';
 
 const TITLE = 'CloudIVR — Cloud phone numbers, IVR & SIP';
 
@@ -29,7 +30,8 @@ export default function CloudIvrApp() {
   useEffect(() => {
     const prev = document.title;
     document.title = TITLE;
-    return () => { document.title = prev; };
+    const restoreHead = applyBrandHead();
+    return () => { document.title = prev; restoreHead(); };
   }, []);
   return (
     <div className="civr" data-testid="cloudivr-app">

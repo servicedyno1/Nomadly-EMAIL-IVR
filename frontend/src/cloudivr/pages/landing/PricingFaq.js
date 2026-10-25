@@ -4,6 +4,7 @@ import { ArrowRight, Plus, MessageCircle, Send } from 'lucide-react';
 import { usd, money, startPrice } from '../../api';
 import { useCivrAuth } from '../../AuthContext';
 import { cp } from '../../paths';
+import { Wordmark } from '../../Brand';
 import { SectionHead, Slide, coinList, andList } from './kit';
 import { PlanFeatures, RecommendedBadge } from '../../PlanFeatures';
 
@@ -100,7 +101,7 @@ export function Footer({ catalog }) {
     <footer className="civr-l-dark border-t civr-l-rule" data-testid="landing-footer">
       <div className="max-w-7xl mx-auto px-6 md:px-8 py-12 flex flex-col md:flex-row md:items-center gap-6">
         <div className="mr-auto">
-          <div className="font-display text-3xl font-extrabold">CLOUD<span className="text-[#00E3AA]">IVR</span></div>
+          <div className="font-display text-3xl font-extrabold flex items-center gap-2.5" data-testid="landing-footer-logo"><Wordmark accent="#00E3AA" iconClass="w-10 h-10" /></div>
           <div className="text-xs civr-l-muted mt-2" data-testid="footer-copyright">© {new Date().getFullYear()} CloudIVR · Virtual numbers, IVR and SIP</div>
         </div>
         <nav className="flex flex-wrap items-center gap-x-6">

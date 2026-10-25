@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { tr } from './i18n';
+import { BRAND } from './Brand';
 
 // Background tabs throttle page timers (down to once a minute); a worker's timer keeps the ring check every ~2 s.
 export function every(ms, fn) {
@@ -13,7 +14,7 @@ export function every(ms, fn) {
 
 const canNotify = () => typeof window !== 'undefined' && 'Notification' in window;
 export const notifyState = () => (canNotify() ? Notification.permission : 'unsupported');
-const OPTS = (body, tag) => ({ body, tag, requireInteraction: true, icon: '/favicon.ico' });
+const OPTS = (body, tag) => ({ body, tag, requireInteraction: true, icon: BRAND.notifyIcon });
 // Phones only show page notifications through a service worker.
 async function worker() {
   if (!navigator.serviceWorker) return null;

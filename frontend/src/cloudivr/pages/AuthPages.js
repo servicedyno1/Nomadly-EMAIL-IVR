@@ -8,6 +8,7 @@ import { api } from '../api';
 import { useCivrAuth } from '../AuthContext';
 import { Field, ErrorNote } from '../ui';
 import { cp } from '../paths';
+import { BRAND, Wordmark } from '../Brand';
 import { TwoFactorStep, RememberBox, useRefCode } from './auth/TwoFactorStep';
 
 const NEXT_STEPS = ['Add funds with crypto', 'Pick a number and plan', 'Choose what callers hear'];
@@ -45,7 +46,9 @@ function SidePanel({ signup }) {
   return (
     <div className="hidden lg:flex relative flex-col justify-between p-12 border-r border-[#1a1a1a] overflow-hidden">
       <div className="civr-grain" />
-      <Link to={cp()} className="font-display text-3xl font-extrabold" data-testid="auth-logo-link">CLOUD<span className="text-[#34d399]">IVR</span></Link>
+      <Link to={cp()} className="font-display text-3xl font-extrabold flex items-center gap-2.5 self-start" data-testid="auth-logo-link"><Wordmark iconClass="w-10 h-10" /></Link>
+      <div>
+      <img src={BRAND.mark} alt="CloudIVR parrot mascot talking by voice and text" className="w-56 xl:w-64 mb-10 civr-parrot-float" data-testid="auth-mascot" />
       {signup ? (
         <div>
           <div className="civr-label">What happens next</div>
@@ -58,6 +61,7 @@ function SidePanel({ signup }) {
           </ol>
         </div>
       ) : <p className="font-display text-5xl font-extrabold leading-[0.95] max-w-md">Your numbers, IVR and campaigns — one dashboard.</p>}
+      </div>
       <div className="text-xs text-[#a1a1aa] font-mono uppercase tracking-widest">Free to sign up · No contracts</div>
     </div>
   );
@@ -69,7 +73,7 @@ function AuthFrame({ title, sub, children, testid, signup }) {
       <SidePanel signup={signup} />
       <div className="flex flex-col min-h-screen">
         <div className="lg:hidden flex items-center justify-between px-6 h-16 border-b border-[#1a1a1a]">
-          <Link to={cp()} className="font-display text-2xl font-extrabold min-h-[44px] flex items-center" data-testid="auth-mobile-logo-link">CLOUD<span className="text-[#34d399]">IVR</span></Link>
+          <Link to={cp()} className="font-display text-2xl font-extrabold min-h-[44px] flex items-center gap-2" data-testid="auth-mobile-logo-link"><Wordmark iconClass="w-8 h-8" /></Link>
           <div className="flex items-center gap-1"><LangSwitcher testid="auth-mobile-lang-switcher" /><Link to={cp()} className="flex items-center gap-2 text-sm text-[#a1a1aa] hover:text-white py-3" data-testid="auth-mobile-home-link"><ArrowLeft className="w-4 h-4" />Home</Link></div>
         </div>
         <div className="hidden lg:flex justify-end px-8 pt-6"><LangSwitcher testid="auth-lang-switcher" /></div>

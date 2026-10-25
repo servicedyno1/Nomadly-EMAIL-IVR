@@ -9,6 +9,7 @@ import Softphone from './Softphone';
 import { RtcProvider } from './rtc';
 import { IncomingCalls } from './Incoming';
 import MobileNav from './MobileNav';
+import { Wordmark } from './Brand';
 import { NAV, appPath } from './nav';
 import Dashboard from './pages/Dashboard';
 import Numbers from './pages/Numbers';
@@ -58,7 +59,7 @@ function SideNav() {
 function Sidebar({ supportLink, channelLink }) {
   return (
     <aside className="hidden lg:flex lg:flex-col w-64 shrink-0 h-screen sticky top-0 border-r border-[#1a1a1a] px-4 py-6 overflow-y-auto">
-      <Link to={cp('/app')} className="font-display text-3xl font-extrabold tracking-tight px-3 mb-8" data-testid="sidebar-logo">CLOUD<span className="text-[#34d399]">IVR</span></Link>
+      <Link to={cp('/app')} className="font-display text-3xl font-extrabold tracking-tight px-3 mb-8 flex items-center gap-2.5" data-testid="sidebar-logo"><Wordmark iconClass="w-10 h-10" /></Link>
       <SideNav />
       <div className="mt-auto pt-6 space-y-1">
         {channelLink && <a href={channelLink} target="_blank" rel="noopener noreferrer" className="civr-nav-link" data-testid="sidebar-channel-link"><Send className="w-4 h-4" />Telegram channel</a>}
@@ -85,7 +86,7 @@ function TopBar({ summary, onPhone }) {
   const nav = useNavigate();
   return (
     <header className="civr-glass sticky top-0 z-30 flex items-center gap-1 sm:gap-2 px-4 md:px-8 h-16" data-civr-topbar>
-      <Link to={cp('/app')} className="font-display text-xl sm:text-2xl font-extrabold tracking-tight mr-auto lg:hidden min-h-[44px] flex items-center" data-testid="topbar-logo">CLOUD<span className="text-[#34d399]">IVR</span></Link>
+      <Link to={cp('/app')} className="font-display text-xl sm:text-2xl font-extrabold tracking-tight mr-auto lg:hidden min-h-[44px] flex items-center gap-2" data-testid="topbar-logo"><Wordmark iconClass="w-8 h-8" /></Link>
       <div className="hidden lg:block mr-auto text-sm text-[#a1a1aa]" data-testid="topbar-greeting">Signed in as <span className="text-[#f4f4f5]">{account?.email}</span></div>
       <Link to={cp('/app/wallet')} className="civr-pill civr-pill-on !text-sm !normal-case !tracking-normal h-10 shrink-0 !px-3.5" data-testid="topbar-balance">{money(summary?.balance)}</Link>
       <Link to={cp('/app/wallet')} className="civr-btn civr-btn-ghost civr-btn-sm !hidden md:!inline-flex" data-testid="topbar-add-funds-button"><Plus className="w-4 h-4" />Add funds</Link>
