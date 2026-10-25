@@ -98,17 +98,29 @@ function Community() {
   );
 }
 
-// /app/settings#webhooks or #install (links from "What's new") scroll to that card once it has rendered.
+// /app/settings#webhooks or #install (links from "What's new") scroll to that card — and keep it in place while the cards
+// above it finish loading (the page grows under it), until it stops moving or the user scrolls.
 function useHashScroll() {
   const { hash } = useLocation();
   useEffect(() => {
     if (!hash) return undefined;
-    let n = 0;
+    const id = `settings-${hash.slice(1)}`;
+    let last = null, still = 0, ticks = 0;
     const t = setInterval(() => {
-      const el = document.getElementById(`settings-${hash.slice(1)}`);
-      if (el || ++n > 20) { clearInterval(t); el?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+      ticks += 1;
+      const el = document.getElementById(id);
+      if (el) {
+        const top = Math.round(el.getBoundingClientRect().top + window.scrollY);
+        if (top !== last) { last = top; still = 0; el.scrollIntoView({ block: 'start' }); } else still += 1;
+      }
+      if (still >= 4 || ticks > 40) clearInterval(t);
     }, 150);
-    return () => clearInterval(t);
+    const stop = () => clearInterval(t);
+    const opts = { passive: true };
+    window.addEventListener('wheel', stop, opts);
+    window.addEventListener('touchstart', stop, opts);
+    window.addEventListener('keydown', stop);
+    return () => { clearInterval(t); window.removeEventListener('wheel', stop, opts); window.removeEventListener('touchstart', stop, opts); window.removeEventListener('keydown', stop); };
   }, [hash]);
 }
 

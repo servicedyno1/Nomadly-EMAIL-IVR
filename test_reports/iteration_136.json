@@ -1,0 +1,61 @@
+{
+  "summary": "Iteration 136: checked the round-2 fixes for the iteration_135 findings. Backend: pytest 83/83 passed (new test_cloudivr_iter136_ssrf_fixes.py with 22 tests, plus the 3cx edge_cases and features_pod suites). Node unit check of safe-url.js: 24/24. Regression harnesses gave the expected results: 16/16, 48/48, 61/61 and 99/100 (the one failure, 'bot auto-renew charges the re-checked price', is the known older failure). UI was tested with Playwright at 1920, 1366, 1024 and 390 px. PASS: 1, 1b, 1c, 1d, 1e, 2 (eye toggle and 390 layout), 3a, 3b, 3c, 3d, 3e, 3f, 3g, 4 (desktop, FR/ES, 390, keyboard, close methods, Help re-open, Show-me links), 5. Problems found: (a) loading /cloudivr/app/settings#webhooks directly does not scroll to the card; (b) a brand-new account created today does see the What's New card; plus 4 low-severity issues.",
+  "item_results": {
+    "1": "PASS - all 13 private targets return 400 with the exact message; http:// is refused; httpbin.org and hooks.zapier.com save (200)",
+    "1b": "PASS - with a private hook written straight into Mongo, /webhooks/test returns {ok:false,error:'Blocked: private or internal address'} and the red pill shows in Recent deliveries; a test event to httpbin returns 200 and ok:true",
+    "1c": "PASS - private URL gives 400 private_webhook; httpbin gives 200; clearing gives 200",
+    "1d": "PASS - checkUrl blocks 19 bad targets (the requested list plus extras), allows httpbin.org, 8.8.8.8, [2606:4700:4700::1111] and zapier; assertSendable throws EBLOCKED",
+    "1e": "PASS - 16/16, 48/48, 61/61, 99/100 (known older failure only)",
+    "2": "PASS for the toggle - real mouse clicks reveal the full whsec_ secret and hide it again; clicking or double-clicking the secret text does not toggle it; at 390 px the secret has its own full-width line, the buttons sit below it, and scrollWidth is 390. FAIL for the hash scroll - see the first ui bug",
+    "3a": "PASS - empty text/plain body does not return 500",
+    "3b": "PASS - API: 5, 90, 12.5 and 'abc' give 400 with the message; 10 and 60 give 200 and are stored. UI: hint 'Between 10 and 60 seconds.' shows; typing 5 then Save shows an error toast and nothing is saved",
+    "3c": "PASS - the stuck row shows 'The last summary did not finish. You can run it again.' with 'Summarize · $0.10'. One real Summarize call completed (summary and mood shown). Balance is $304.90 before and after (refund + new charge = no net change), and the top bar matches the API. Because the balance did not move, the live top-bar refresh could not be told apart from no refresh; refreshSummary() is called in the code",
+    "3d": "PASS - private mode hides the mood pill (sentiment pill stays) and shows 'Summary hidden'; searching plumbing, Friday, Dental or 'call me' finds no rows; searching the last 4 digits (0188, 8449) still finds rows; with private mode off, matches come back",
+    "3e": "PASS - after an edit the unsaved note appears and the Try button is disabled; after Save both go back to normal; the Try card says tries are not listed under Recent runs; moving rules up/down keeps each card's action, message, agent and keyword; FR at 390 px: tiles stay inside their borders",
+    "3f": "PASS - desktop: toast bottom is 988 and help button top is 1000; 390 px: toast bottom is 688 and help button top is 700; pressing Save 3 times gives 1 toast",
+    "3g": "PASS - 1920 with Triggers or Logs active: scrollLeft 0, Overview fully visible; 1366 with Logs active and 1024 with Billing active: the strip scrolls and the left fade shows (opacity 1)",
+    "4": "PASS - the card appears within about 1.2 s with role=dialog and 5 items/go buttons; focus starts on 'Got it'; Tab stays inside the card; Esc, the close button, a backdrop click and 'Got it' all set the key to '2026-10-25'; it does not come back on reload; the Help button re-opens it; triggers/ringgroup/summary go to +16692098449 with the right ?tab, webhooks/install go to settings and scroll there; FR (Nouveautés/Voir/Compris) and ES (Novedades/Ver/Entendido) are fully translated; at 390 px it fits with no overflow and the buttons sit under the text",
+    "4b": "PASS for Bob (created 2026-09-10): he sees the card and Show me goes to his Starter number's triggers tab. ISSUE for new accounts: an account created today (2026-10-25T17:44Z) DOES see the card - see the integration issue",
+    "5": "PASS - the update banner appears with the two sessionStorage keys; the keys were removed afterwards"
+  },
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Settings hash scroll (pages/Settings.js)", "issue": "Opening /cloudivr/app/settings#webhooks directly does not reach the Call events card. The page always stops at scrollY=712, leaving the card top 953 px down a 1080 px viewport (desktop) and 2344 px down at 390 px. Cause: scrollIntoView runs once, as soon as #settings-webhooks exists, while the cards above are still loading and the page is short, so the scroll is cut short and never redone. In-app navigation from What's New 'Show me' does work (card top at 306 px).", "selector": "#settings-webhooks", "priority": "MEDIUM"},
+      {"component": "Top bar at 1024px", "issue": "Page overflows sideways at 1024 width (scrollWidth 1040). The logout button [data-testid=topbar-logout-button] is partly off-screen.", "selector": "[data-testid=topbar-logout-button]", "priority": "LOW"},
+      {"component": "WhatsNew 'Show me' link", "issue": "Once in 9 clicks, 'Show me' for summary went to /cloudivr/app/numbers instead of ?tab=logs. numberLink() falls back to /app/numbers while numbers is still null, or [] after a failed fetch. Not reproduced on 4 retries.", "selector": "[data-testid=whats-new-go-summary]", "priority": "LOW"}
+    ],
+    "integration_issues": [
+      {"flow": "What's New for new accounts", "issue": "RELEASE.since is set to a future date (2026-10-26) instead of the release time. Every account that signs up before that date - including one created minutes ago on 2026-10-25 - sees 'What's new', on top of the new-user onboarding. This goes against the stated intent that for new accounts these features are simply part of the app.", "affected_selectors": ["[data-testid=whats-new-card]"]}
+    ],
+    "design_issues": [
+      {"screen": "Text Triggers action tiles, FR at 390px", "issues": ["'Rappel automatique' breaks in the middle of the word ('automatiq' / 'ue'). It stays inside the border but looks broken; use hyphens:auto with lang=fr, or a smaller font or a single-column layout on narrow screens"]},
+      {"screen": "What's New at 390px", "issues": ["The card opens scrolled to the bottom: focusing 'Got it' scrolls the card's own scroll area, so the title and first items start out of view. Use focus({preventScroll:true})"]},
+      {"screen": "Number tab strip at 1920 with Billing active", "issues": ["Overview is cut by 15 px, but only because Billing has to be visible; acceptable, mentioned for completeness"]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_cloudivr_iter136_ssrf_fixes.py", "/app/tests/safe_url_unit_iter136.js", "/app/backend/tests/test_cloudivr_3cx_edge_cases.py", "/app/backend/tests/test_cloudivr_3cx_features_pod.py", "/app/test_reports/pytest/iter136.xml"],
+  "action_items": [
+    "Settings.js hash scroll: scroll again once the cards have loaded (e.g. scroll after the webhooks/data fetch finishes, or retry until the target's position stops moving) so a direct load of #webhooks lands on the card",
+    "WhatsNew.js: set RELEASE.since to the release/deploy time (<= now, e.g. 2026-10-25T00:00:00Z), or use a timestamp from the server or build, so brand-new sign-ups do not see the card",
+    "Top bar at 1024px: stop the overflow (hide 'Signed in as', compact the buttons) so the logout button is fully visible",
+    "WhatsNew 'Show me': wait for /numbers before navigating (or disable the buttons until it has loaded) to avoid the /app/numbers fallback",
+    "WhatsNew: focus 'Got it' with {preventScroll:true} so the mobile card opens at the top",
+    "FR trigger tiles at 390px: avoid breaking words mid-word"
+  ],
+  "critical_code_review_comments": [
+    "safe-url.js: covers IPv4-mapped/translated IPv6, NAT64, CGNAT and single-label names; checks every DNS answer when saving and again at connect time through safeLookup on all three senders (events, SMS forward, reseller). Looks solid. Note: checkUrl accepts names that do not resolve right now (by design), so the connect-time check is the real protection; it is in place",
+    "Bot SMS-forward (cp_265b) and the reseller webhook still allow http:// to public hosts (httpsOnly:false). This is consistent with the old behaviour, but http to a public host is still allowed",
+    "WhatsNew: the numbers list is fetched once per mount and the fallback uses the same path whether the fetch is still loading or has failed"
+  ],
+  "updated_files": ["/app/backend/tests/test_cloudivr_iter136_ssrf_fixes.py (new)", "/app/tests/safe_url_unit_iter136.js (new)"],
+  "success_rate": {"backend": "100% (83/83 pytest, 24/24 unit, harnesses as expected)", "frontend": "~90% (all requested checks pass except the #webhooks hash scroll on direct load and the new-account What's New rule)"},
+  "seed_data_creation": "Added a phoneLogs row for +16692098449 (seed:'iter136-stuck', from +14155550177, Oakwood Dental voicemail); it is now summarised (one real OpenAI call, net wallet change $0). Registered a new account civr.wn.1094615772@example.com / WnTest#2026 (chatId 5000000000000003, nothing spent).",
+  "cleanup_done": "Alice: webhook disabled with URL https://httpbin.org/post and the secret rotated (the planted whsec_x was replaced); SMS webhook cleared; triggers OFF and rule order restored (callback, message, ai); ring group OFF; AI auto summaries OFF (cleanup_alice_3cx_state.py). Update-banner sessionStorage keys removed. Browser localStorage was per-test-context.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "The app polls often, so use domcontentloaded plus explicit waits. Set localStorage civr.whatsNew.5000000000000001='2026-10-25' before each test. The private-mode toggle is [data-testid=topbar-private-mode-button] (data-private on/off). The trigger rule keywords input only shows when the keyword switch is on; use trigger-N-message-input or the selected radio to tell rules apart. The webhook delivery list shows the last 20 entries. To check the #webhooks hash scroll, measure #settings-webhooks top after a direct page load."
+}

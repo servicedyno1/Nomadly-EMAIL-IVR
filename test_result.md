@@ -22,6 +22,22 @@ current_task_2026_10_25_update_banner_and_3cx: |
   → QA simulates with sessionStorage civr.devRunningBuild / civr.devLatestBuild. FR/ES strings added.
   3CX features (Text Triggers, Ring groups, AI summaries, Call-event webhooks, Install app): owner rule = simulated only,
   REPORT problems, do NOT change code. Brief: memory/CLOUDIVR_3CX_FEATURES_2026-06.md.
+current_task_2026_10_25_fixes_round2: |
+  Owner approved building the iteration_135 findings + a What's New popup, then deploy to production.
+  1 Webhook SSRF: NEW js/safe-url.js (checkUrl w/ DNS at save, assertSendable + guarded agent lookup + redirect re-check at
+    every send). Applied to call events (events.js PUT/test/deliver), SMS-forward webhook (sms-service.js send, web
+    PATCH /numbers/:phone/sms save, bot cpEnterWebhook save + lang cp_265b) and reseller webhooks (reseller-webhooks.js
+    deliver/_post, reseller-api PUT /account/webhook). Test harnesses with 127.0.0.1 receivers call
+    require('../safe-url')._allowPrivateForTests(true) (code-level, never env).
+  2 Webhooks.js signing secret: <div> instead of <Field>(<label>) → eye works; secret own line on phones, selectable.
+  3 Small: /webhooks/test null-safe body; ring-group ringTimeout outside 10–60 → 400 + UI check/hint; AI summary stuck
+    'working' >10 min reclaimable (refunds the stuck charge first) and shown as "did not finish, run again"; top-bar
+    balance refresh after Summarize; private mode hides mood pill + Logs/AI-calls search skip hidden text; Try a text
+    disabled + note while triggers have unsaved edits; RuleCard stable keys; toasts above help FAB + identical errors
+    dedupe; TabStrip scrolls minimally (first tab no longer clipped) + left fade; FR action tile wraps.
+    Ring-group "flush spacing" = preview-only (visual-edits babel plugin wraps {children} in display:contents span; prod OK).
+  4 What's New: src/cloudivr/WhatsNew.js (Shell) — once per account per RELEASE.id for accounts created before
+    RELEASE.since; "Show me" deep links (number tab with the feature / settings#webhooks / #install); Help → "What's new".
 
 #====================================================================================================
 # CURRENT TASK (2026-10-24c) — CloudIVR: Task 1 checks + AI call recordings + Google Calendar booking (preview only)

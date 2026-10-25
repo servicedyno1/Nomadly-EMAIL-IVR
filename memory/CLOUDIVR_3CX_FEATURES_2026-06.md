@@ -45,6 +45,7 @@ Next step unchanged: run `testing_agent` (both, report-only) with the brief belo
   voicemail 6ade2df3f74a7e050f46a259 (now summarised). Bob Starter +18482549748. Tester left triggers/ring group/AI summaries/webhook OFF.
 - New tests by tester: backend/tests/test_cloudivr_3cx_features_pod.py (26/26), test_cloudivr_3cx_edge_cases.py (19/23 — the 4 findings),
   cleanup_alice_3cx_state.py.
+- ✅ 2026-10-25 later: owner approved → ALL fixed + verified (iteration_136/137); details in memory/TASKS_2026-10-25.md.
 - PROBLEMS FOUND (owner must approve before fixing):
   1. HIGH  events.js publicHost(): regex on hostname only → SSRF. Accepted: https://[::ffff:127.0.0.1]/x, [::ffff:a9fe:a9fe] (metadata),
      [::], 100.64.0.1, DNS names resolving to private IPs (localtest.me). deliver() never re-checks. Fix: dns.lookup(all) + block private/

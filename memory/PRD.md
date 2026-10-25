@@ -4,7 +4,7 @@
 - 17 findings (5 high, 8 medium, 4 low). Top: VPS auto-renew works only once (_autoRenewAttempted never reset), CloudIVR SMS double-counted, phone scheduler overwrites whole val, wrong upgrade-credit date field, membership re-buy wipes remaining days.
 - Full report: **memory/PLAN_EXPIRY_AUDIT_2026-06.md**
 
-## 2026-10-24 (later) — Bot vs web gap audit — REPORTED, awaiting owner's pick
+## 2026-10-24 (later) — Bot vs web gap audit — ✅ ALL 21 DONE (iteration_118/119, confirmed iteration_122/123; heading corrected 2026-10-25)
 - 21 bot features missing on web (most already supported by the shared call engine → UI + route work only). Top: OTP collection,
   per-key outbound menu, script templates/type-a-script, campaign CSV report, "what callers get" routing summary, inbound IVR templates.
 - Full table + suggested order: **memory/CLOUDIVR_BOT_WEB_GAP_AUDIT_2026-10-24.md**.
@@ -1195,6 +1195,10 @@ calls and SIP are simulated; inbound calls use a pretend-call simulator).
   AI summaries + caller mood for voicemails & recorded calls ($0.10/min), Ring groups (several phones at once; fallback voicemail /
   backup number / message), Call-event webhook feed for CRMs/Zapier (5 signed events), installable app (PWA). FR/ES strings added.
   Full map, test plan and 3CX backlog: memory/CLOUDIVR_3CX_FEATURES_2026-06.md. NEXT: run testing_agent on the new screens.
+
+## 2026-10-25 (fork 3, later) — Owner task list: webhook SSRF fix, secret button, 13 small fixes, What's New popup — TESTED (iteration_136/137)
+- Status of all 6 owner tasks (incl. "bot gaps = already done" and the pending REAL-CALL checklist): **memory/TASKS_2026-10-25.md**.
+- New: js/safe-url.js (shared webhook guard, save + every send), frontend/src/cloudivr/WhatsNew.js, update.js.
 
 ## 2026-10-25 (fork 3) — "Text Triggers not on production" RCA + update banner + 3CX test round (iteration_135)
 - RCA: prod (cloudivr.net, release 6c52894b, CI from main) HAS Text Triggers; owner's tab was loaded 14:44Z before the 15:58Z deploy

@@ -55,10 +55,10 @@ export function RuleCard({ r, i, n, set, move, remove, data }) {
         </div>
       </div>
       <p className="text-xs text-[#a1a1aa] -mt-2">{what}</p>
-      <div className="grid grid-cols-3 gap-1.5" role="radiogroup">
+      <div className="grid grid-cols-1 min-[480px]:grid-cols-3 gap-1.5" role="radiogroup">
         {ACTIONS.map(([k, label, I]) => (
           <button key={k} type="button" role="radio" aria-checked={r.action === k} onClick={() => set({ action: k })} data-testid={`${t}-action-${k}`}
-            className={`flex flex-col items-start gap-1 min-w-0 rounded-xl border px-2 sm:px-3 py-2 text-left text-xs transition-colors ${r.action === k ? 'border-[#34d399] bg-[#34d399]/10 text-[#34d399]' : 'border-[#232323] text-[#a1a1aa] hover:text-white'}`}><I className="w-4 h-4 shrink-0" /><span className="max-w-full [overflow-wrap:anywhere] hyphens-auto">{label}</span></button>
+            className={`flex flex-row items-center min-[480px]:flex-col min-[480px]:items-start gap-2 min-[480px]:gap-1 min-w-0 rounded-xl border px-3 py-2.5 min-[480px]:py-2 text-left text-xs transition-colors ${r.action === k ? 'border-[#34d399] bg-[#34d399]/10 text-[#34d399]' : 'border-[#232323] text-[#a1a1aa] hover:text-white'}`}><I className="w-4 h-4 shrink-0" /><span className="min-w-0 break-words">{label}</span></button>
         ))}
       </div>
       {r.action === 'message' && (

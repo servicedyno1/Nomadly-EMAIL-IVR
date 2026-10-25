@@ -11,7 +11,7 @@ import { cp } from './paths';
 // Accounts created on/after `since` never see it: for them these features are simply part of the app.
 export const RELEASE = {
   id: '2026-10-25',
-  since: '2026-10-26T00:00:00Z',
+  since: '2026-10-25T18:00:00Z', // ≈ when this release went live; accounts created after it never see this card
   items: [
     { key: 'triggers', Icon: Zap, title: 'Text Triggers', body: 'A text to your number can start a call automatically — a call back to you, a recorded message or your AI agent.', feature: 'textTriggers', tab: 'triggers', plan: 'Pro plan and up' },
     { key: 'ringgroup', Icon: Users, title: 'Ring groups', body: 'Ring up to 5 phones at once — the first one to answer gets the caller.', feature: 'ringGroup', tab: 'ringgroup', plan: 'Pro plan and up' },
@@ -42,6 +42,12 @@ export function WhatsNew() {
   const [open, setOpen] = useState(false);
   const [numbers, setNumbers] = useState(null);
   const box = useRef(null);
+  const loading = useRef(null);
+  // One /numbers fetch per open; "Show me" waits for it so it never falls back to the list just because it was quick.
+  const loadNumbers = useCallback(() => {
+    if (!loading.current) loading.current = api('/numbers').then(d => d.numbers || [], () => { loading.current = null; return []; });
+    return loading.current;
+  }, []);
   const key = seenKey(account);
   const onCall = !!rtc?.call;
 
@@ -59,7 +65,7 @@ export function WhatsNew() {
     return () => window.removeEventListener(OPEN_EVENT, show);
   }, []);
 
-  useEffect(() => { if (open && numbers === null) api('/numbers').then(d => setNumbers(d.numbers || []), () => setNumbers([])); }, [open, numbers]);
+  useEffect(() => { if (open && numbers === null) loadNumbers().then(setNumbers); }, [open, numbers, loadNumbers]);
 
   const close = useCallback(() => { write(key, RELEASE.id); setOpen(false); }, [key]);
 
@@ -67,7 +73,7 @@ export function WhatsNew() {
   useEffect(() => {
     if (!open) return undefined;
     const prev = document.activeElement;
-    box.current?.querySelector('[data-testid="whats-new-dismiss"]')?.focus();
+    box.current?.querySelector('[data-testid="whats-new-dismiss"]')?.focus({ preventScroll: true }); // card opens at its top on phones
     const onKey = (e) => {
       if (e.key === 'Escape') { e.preventDefault(); close(); return; }
       if (e.key !== 'Tab' || !box.current) return;
@@ -80,7 +86,12 @@ export function WhatsNew() {
   }, [open, close]);
 
   if (!open) return null;
-  const go = (it) => { close(); nav(it.to ? cp(it.to) : numberLink(numbers, it)); };
+  const go = async (it) => {
+    if (it.to) { close(); nav(cp(it.to)); return; }
+    const list = numbers ?? await loadNumbers();
+    close();
+    nav(numberLink(list, it));
+  };
   return (
     <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-4 bg-black/70 backdrop-blur-sm" onMouseDown={(e) => { if (e.target === e.currentTarget) close(); }} data-testid="whats-new-backdrop">
       <div ref={box} role="dialog" aria-modal="true" aria-labelledby="whats-new-title" className="civr-card !bg-[#111] w-full max-w-xl max-h-[calc(100dvh-2rem)] overflow-y-auto p-6 sm:p-7 civr-rise shadow-2xl shadow-black/60" data-testid="whats-new-card">
