@@ -24,15 +24,23 @@ function appPathPrefix(base, domain = process.env.CLOUDIVR_WEB_DOMAIN) {
 
 // The shared build's index.html is titled for the hosting panel; on the CloudIVR domain swap in CloudIVR's
 // title + description so tabs, search results and link previews show the right brand.
-const BRAND_HEAD = [
-  '<title>CloudIVR — Virtual phone numbers, IVR &amp; SIP</title>',
-  '<meta name="description" content="Virtual numbers in 17 countries with call forwarding, voicemail, SMS, IVR menus and outbound IVR campaigns. Pay with crypto." />',
-  '<meta property="og:title" content="CloudIVR — Virtual phone numbers, IVR &amp; SIP" />',
-  '<meta property="og:description" content="Phone numbers that answer, route and call for you. Pay with crypto, run it from your browser." />',
-  '<meta property="og:type" content="website" />',
-].join('')
+const countryCount = () => { try { return require('./numbers').countries().length } catch (_) { return 0 } }
+const brandHead = () => {
+  const n = countryCount()
+  return [
+    '<title>CloudIVR — Virtual phone numbers, IVR &amp; AI voice agents</title>',
+    `<meta name="description" content="Virtual phone numbers${n ? ` in ${n} countries` : ''} with call forwarding, voicemail, an SMS inbox, IVR menus, bulk IVR campaigns and AI voice agents. Pay with crypto." />`,
+    '<meta property="og:title" content="CloudIVR — Virtual phone numbers, IVR &amp; AI voice agents" />',
+    '<meta property="og:description" content="Phone numbers that answer, route and call for you — IVR menus, campaigns and AI voice agents. Pay with crypto, run it from your browser." />',
+    '<meta property="og:type" content="website" />',
+    '<meta name="theme-color" content="#0a0a0a" />',
+    '<link rel="icon" type="image/png" href="/civr/brand/parrot-icon-48.png" />',
+    '<link rel="apple-touch-icon" href="/civr/brand/apple-touch-icon.png" />',
+  ].join('')
+}
 const brandHtml = (html) => {
-  const out = html.replace(/<meta name="description"[^>]*>/i, '')
+  const BRAND_HEAD = brandHead()
+  const out = html.replace(/<meta name="description"[^>]*>/i, '').replace(/<meta name="theme-color"[^>]*>/i, '')
   if (/<title>[^<]*<\/title>/i.test(out)) return out.replace(/<title>[^<]*<\/title>/i, BRAND_HEAD)
   return out.includes('</head>') ? out.replace('</head>', `${BRAND_HEAD}</head>`) : out
 }

@@ -1,10 +1,11 @@
 // French promo copy — same structure as en.js.
+const { CLOUD_COUNTRY_COUNT: N } = require('../phone-config')
 module.exports = {
   cloudphone: {
-    hooks: ['Donnez une vraie ligne téléphonique à votre activité', 'Un numéro local dans 30+ pays, actif en 60 secondes'],
+    hooks: ['Donnez une vraie ligne téléphonique à votre activité', `Un numéro dans ${N} pays, la plupart actifs en quelques minutes`],
     cross: ['Vous avez des leads ? Appelez-les', 'Vos leads ont besoin d\'un numéro qui sonne'],
     lines: p => [
-      'Numéros virtuels dans 30+ pays — sans SIM, sans engagement',
+      `Numéros virtuels dans ${N} pays — sans SIM, sans engagement`,
       'Menu IVR, messagerie, SMS vers Telegram, SIP pour softphones',
       `Starter : ${p.phoneStarterMin} min + ${p.phoneStarterSms} SMS par mois`,
     ],

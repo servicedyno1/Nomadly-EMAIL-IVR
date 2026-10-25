@@ -11,7 +11,7 @@ import { cp } from '../paths';
 import { BRAND, Wordmark } from '../Brand';
 import { TwoFactorStep, RememberBox, useRefCode } from './auth/TwoFactorStep';
 
-const NEXT_STEPS = ['Add funds with crypto', 'Pick a number and plan', 'Choose what callers hear'];
+const NEXT_STEPS = ['Pick a number and plan', 'Pay with crypto or your wallet', 'Choose what callers hear'];
 
 // Plan picked on the pricing section (?plan=pro) — kept through sign-up so Buy opens with it selected.
 function usePlanParam() {
@@ -60,7 +60,7 @@ function SidePanel({ signup }) {
             ))}
           </ol>
         </div>
-      ) : <p className="font-display text-5xl font-extrabold leading-[0.95] max-w-md">Your numbers, IVR and campaigns — one dashboard.</p>}
+      ) : <p className="font-display text-5xl font-extrabold leading-[0.95] max-w-md">Your numbers, IVR, campaigns and AI agents — one dashboard.</p>}
       </div>
       <div className="text-xs text-[#a1a1aa] font-mono uppercase tracking-widest">Free to sign up · No contracts</div>
     </div>
@@ -124,7 +124,7 @@ export function AuthPage({ mode }) {
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
   return (
     <AuthFrame signup={signup} testid={signup ? 'signup-page' : 'login-page'} title={signup ? 'Create your free account' : 'Welcome back'}
-      sub={signup ? 'Free to create. Next you add funds with crypto and pick a number.' : 'Sign in to manage your numbers.'}>
+      sub={signup ? 'Free to create. Next you pick a number and pay with crypto or your wallet.' : 'Sign in to manage your numbers.'}>
       {mfa ? <TwoFactorStep mfa={mfa} remember={remember} onDone={done} onBack={() => setMfa(null)} /> : <>
       {plan && <div className="flex items-center gap-2 text-sm text-[#34d399] mb-6" data-testid="auth-chosen-plan"><Check className="w-4 h-4" /><span><span className="capitalize">{plan}</span> plan picked — you’ll choose your number next.</span></div>}
       {signup && refCode && <div className="flex items-center gap-2 text-sm text-[#34d399] mb-6" data-testid="auth-referral-note"><Check className="w-4 h-4" />A friend invited you — you get a welcome credit after your first number.</div>}

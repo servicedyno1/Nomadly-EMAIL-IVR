@@ -1,0 +1,897 @@
+## CallNote.js
+34: civr-btn civr-btn-primary civr-btn-sm
+35: civr-btn civr-btn-ghost civr-btn-sm
+## CloudIvrApp.js
+14: CloudIVR — Cloud phone numbers, IVR & SIP
+43:  element={<AuthPage mode=
+## DateTimePicker.js
+22: Not scheduled
+## Incoming.js
+63: ${left}s left, then it is ${c.fallback || 'your usual fallback'}
+72: Incoming call · ${more} more ringing
+73: font-mono text-2xl sm:text-3xl font-bold text-white truncate
+74: To your number ${pv.phone(c.phone)}
+82: civr-btn civr-btn-primary
+86: Answer with voice
+93: Preview calls can only be answered as text.
+93: To answer by voice, create a SIP login for this number (SIP tab).
+96: Remember for this number
+97: Text answer: ${money(c.textRate)}/min from your wallet
+99: Decline with a text message
+100: >{`Answering as text in ${auto}s…`}<button type=
+145: Declined — text saved (preview, not sent)
+145: Declined — text sent to the caller
+146: Declined — the call goes to your usual fallback
+166: ><QuickReply onSend={decline} busy={busy === 'decline'} sendLabel=
+## LogTable.js
+17: Couldn’t transcribe this message
+40: civr-pill civr-pill-on ml-1
+43: } /> : <TextBackButton onClick={() => r.setOpen(o => !o)} open={r.open} testid={
+95:  (the number the rows belong to) turns on per-row call notes + missed-call "Text back"; 
+99: No activity yet.
+## MissedCalls.js
+19: Missed calls
+19: Text a caller back within 7 days
+19: font-display text-xl font-bold
+## MobileNav.js
+28:  />Language</span><LangSwitcher testid=
+30: Private mode
+30: Hide numbers and messages
+56: lg:hidden fixed inset-0 z-40 bg-black/60
+58: lg:hidden fixed inset-x-4 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-50 civr-card p-2 civr-rise max-h-[calc(100dvh-9rem)] overflow-y-auto overscroll-contain
+62: Telegram channel
+63: Suggest a feature
+## PlanFeatures.js
+9:  plan adds on top of the 
+## QuickReply.js
+8: Sorry I missed your call. I’ll call you back soon.
+9: Can’t talk right now — please text me.
+10: In a meeting. I’ll call you back later.
+11: I’m deaf or hard of hearing — please text me instead.
+21: >{REPLIES.map((r, i) => <button key={r} type=
+26: ${text.length}/${max} · uses 1 text from your plan
+40: Reply saved (preview — not sent)
+49: Texted back: “${pv.text(reply.text, 'Message hidden')}”${reply.status === 'preview' ? ' (preview — not sent)' : ''}
+## Shell.js
+65: Telegram channel
+66: Suggest a feature
+67: Message support
+76: Private mode on — tap to show numbers and messages
+76: Private mode — hide numbers and messages
+90: Signed in as
+92: civr-btn civr-btn-ghost civr-btn-sm !hidden md:!inline-flex
+100: ${ICON_BTN} hidden lg:flex
+## Softphone.js
+43: Ringing your mobile now — answer and press 1 to connect. Both calls bill about $${Number(d.rate).toFixed(2)}/min after your plan minutes.
+44: Validated (preview — not dialed)
+51: Browser phone
+51: font-display text-xl font-bold
+56: Calling from the browser needs an active number on the Pro plan or higher.
+57: Upgrade a number
+57: civr-btn civr-btn-ghost civr-btn-sm mt-4
+62: civr-input !h-9 font-mono text-xs
+63: civr-btn civr-btn-ghost civr-btn-sm
+67: Rings your mobile first — no browser connection needed.
+71: civr-input font-mono ${pv.input}
+75: civr-btn civr-btn-primary flex-1
+76: civr-btn civr-btn-danger flex-1
+79: civr-btn civr-btn-primary w-full
+## SoftphoneExtras.js
+15: Call me first
+16: We ring your mobile, then connect the call
+16: Needs the Pro plan or higher on this number
+21: civr-input !h-9 font-mono text-xs mt-3 ${pv.input}
+35: Note saved — you’ll find it in this number’s Logs tab
+41: Notes for this call
+43: civr-btn civr-btn-ghost civr-btn-sm w-full mt-2
+## SupportChat.js
+18: Message a person on Telegram
+18: civr-btn civr-btn-ghost civr-btn-sm mt-2
+64: Help assistant
+68: : !msgs.length &&
+68: Ask anything about plans, prices, countries or how CloudIVR works. I answer instantly, and a person can take over if needed.
+68: Ask anything about numbers, IVR, campaigns, billing or SIP. I answer instantly, and a person can take over if needed.
+## VoiceMaker.js
+15: civr-input !w-auto max-w-full
+34: AI voice ready — saved to your audio library
+41: civr-btn civr-btn-ghost civr-btn-sm
+## pages/AdminSuggestions.js
+22: Adopt & credit
+22: civr-btn civr-btn-primary civr-btn-sm
+23: civr-btn civr-btn-ghost civr-btn-sm
+35: Adopt an idea to send the customer free credit and a thank-you in their Inbox.
+36: >{['new', 'adopted', 'declined'].map(s => <button key={s} type=
+36: civr-pill cursor-pointer h-9 ${status === s ? 'civr-pill-on' : ''}
+38: New ideas from customers show up here.
+## pages/AiAgents.js
+17: Real calls bill $${Number(rate || 0.2).toFixed(2)} per started minute from your wallet, +$${Number(recordRate ?? 0.02).toFixed(2)} when the agent records. Browser tests are free.
+21: AI agents answer and call on the Pro plan and up
+21: You can build and test agents now. To use one on real calls, put a number on Pro or Business.
+22: civr-btn civr-btn-primary civr-btn-sm
+29: Create an agent
+29: Create an agent, give it a script and FAQs, then talk to it right here in your browser.
+49: An AI that answers your number or calls your leads, in English, French or Spanish — with natural, fast conversation.
+50: civr-btn civr-btn-primary
+57: : tab === 'dnc' ?
+57: : loading && !data ?
+72:  title={isNew ? 'New agent' : agent?.name || 'Agent'} testid=
+77: Save the agent, then talk to it here in your browser before it takes real calls.
+## pages/AudioLibrary.js
+15: Audio files must be under 10 MB.
+27: civr-btn civr-btn-ghost w-full
+29: civr-btn civr-btn-primary w-full
+30: MP3, WAV, OGG, M4A · up to 10 MB. Converted for phone playback.
+45: Text to speech
+46: What should the voice say?
+52: civr-btn civr-btn-primary
+60: Delete “${a.name}”? Numbers using it fall back to the default greeting.
+83: Greetings, IVR prompts and campaign messages. Upload your own or type it and pick a voice.
+87: : !audios.length ?
+87: Your first upload or voice message shows up here.
+## pages/AuthPages.js
+38: Google sign-in was cancelled or failed.
+51: CloudIVR parrot mascot talking by voice and text
+54: What happens next
+63: Your numbers, IVR and campaigns — one dashboard.
+63: font-display text-5xl font-extrabold leading-[0.95] max-w-md
+65: Free to sign up · No contracts
+81: w-full max-w-sm civr-rise
+82: font-display text-4xl font-extrabold
+127: Free to create. Next you add funds with crypto and pick a number.
+127: Sign in to manage your numbers.
+129: plan picked — you’ll choose your number next.
+130: A friend invited you — you get a welcome credit after your first number.
+134:  required value={f.email} onChange={set('email')} placeholder=
+140: civr-btn civr-btn-primary w-full
+143: Have an account? Sign in
+144: Create account
+144: Forgot password?
+160: We’ll email you a link that works for 30 minutes.
+163:  required value={email} onChange={e => setEmail(e.target.value)} autoComplete=
+164: Send reset link
+167: Back to sign in
+182: Password updated — sign in with your new password and your code
+193: Save password
+## pages/BuyNumber.js
+39: civr-btn civr-btn-primary
+45: No numbers available for that search. Try another area code or type.
+50: civr-card text-left p-4 ${pick?.phoneNumber === n.phoneNumber ? 'civr-trace' : ''}
+70: font-display text-2xl font-bold
+136: Paid — one last step for this number
+137: ${d.substitutedFrom} was just taken, so you got ${d.number.phoneNumber} instead — same price.
+145:  sub={`Shares the plan of ${pv.phone(extraOf)} — ${money(extra?.price || 25)}/month, pay from your wallet or with crypto, same features.${extra ? ` ${extra.used} of ${extra.limit} used.` : ''}`} testid=
+146:  sub={`${catalog.countries.length} countries. Pay with crypto or your wallet, renews monthly.`} testid=
+151: ><ErrorNote error={error} testid=
+152: 1 · Pick a number
+156: 2 · Pick a plan
+157: ✓ included · ✗ not on that plan. You can upgrade a number later from its Billing tab.
+161: Extra number on ${pv.phone(extraOf)} · monthly
+## pages/CampaignDetail.js
+19: All your lines are busy — waiting numbers are redialed automatically as soon as a line frees up.
+19: Waiting for calling hours — the remaining numbers are called between 8am and 9pm their local time.
+38: civr-pill civr-pill-on ml-1
+39: waiting for a line
+39: civr-pill civr-pill-warn ml-1
+63: font-mono text-sm break-all
+102: Cancel this campaign? No more numbers are dialed. Calls still ringing or playing the message end now; calls already transferred to you keep going.
+118: All campaigns
+121: AI agent conversation · ${c.agentName || ''}
+121:  : 'Report key presses'} · keys ${c.activeKeys?.join(' ')}
+122: font-display text-4xl sm:text-5xl font-extrabold mt-2
+132: Download CSV report
+132: civr-btn civr-btn-ghost civr-btn-sm
+137: font-display text-2xl font-bold mb-3
+## pages/Campaigns.js
+21: Call a list of numbers, play your message, report key presses or transfer interested callers to you.
+22: New campaign
+22: civr-btn civr-btn-primary
+25: : !list.length ?
+25: Paste your numbers, pick a message and go.
+46: One per line, with country code. Optional name after a comma: +14155550100,Jane
+47: civr-input font-mono text-xs
+49: Load .txt / .csv
+49: civr-btn civr-btn-ghost civr-btn-sm mt-2
+58: for 1 minute each
+78: No number can run campaigns
+78: Bulk IVR needs an active number on the Pro plan or higher.
+82: ); try { setEst(await api(
+90: Campaign saved · ${d.skipped} line(s) skipped
+91: ${d.doNotCall} number(s) are on your do-not-call list and will be skipped
+104: ><AudioSelect value={f.audioId} onChange={set('audioId')} audios={au?.audios} by=
+106: Write a script with a template instead
+106: civr-btn civr-btn-ghost civr-btn-sm
+107: Voicemail drop (optional)
+107: Played when an answering machine picks up.
+115: When someone presses a key
+116: Just report it
+116: Transfer the call to me
+116: Route each key (menu)
+116: >Just report it</option><option value=
+116: >Transfer the call to me</option><option value=
+119:  && <BackupsField value={f.transferBackups} onChange={set(
+120:  ? <MenuBuilder value={f.menu} onChange={set(
+120: )} testid="campaign-menu" /> : <Field label="Keys that count"><KeyPicker value={f.activeKeys} onChange={set(
+123: Leave empty to start manually.
+124: Hold music during transfer
+126: civr-btn civr-btn-primary w-full
+## pages/Dashboard.js
+15: civr-card ${to ? 'civr-card-link' : ''} p-6 h-full civr-rise ${delay}
+26: ><Stat icon={Wallet} label=
+37: Play a message, transfer on key press
+38: SMS, voicemail and call alerts
+58:  title={`Hi ${account?.name?.split(' ')[0] || 'there'}`} sub={fresh ? 'Three quick steps and your number is live.' : 'Your numbers, wallet and live activity at a glance.'} testid=
+59: Buy a number
+59: civr-btn civr-btn-primary
+66: Finish your number verification
+66: Your payment is held until the carrier gets your details.
+76: Recent activity
+76: font-display text-2xl font-bold mb-4
+## pages/Inbox.js
+29: Texts, voicemails, call alerts, campaign reports and wallet updates for your numbers.
+30: civr-btn civr-btn-ghost civr-btn-sm
+35: : !items.length ?
+35: When someone texts or calls your numbers, it shows up here.
+45: civr-btn civr-btn-ghost civr-btn-sm mt-2
+## pages/Landing.js
+36: Open dashboard
+39: Get your number
+## pages/NumberDetail.js
+43: font-mono text-4xl sm:text-5xl mt-2
+## pages/Numbers.js
+17: Tap a number to set up forwarding, IVR, voicemail, SMS and SIP.
+18: Buy a number
+18: civr-btn civr-btn-primary
+22: Pick a country, choose a number and a plan — it’s live in under a minute.
+23: Buy your first number
+28: civr-card civr-card-link p-6 civr-rise civr-d${(i % 4) + 1}
+## pages/QuickCall.js
+38: >{data.numbers.map((n, i) => <button key={n} type=
+46: Script / template
+46: Audio library
+46: ><Pill on={f.source === 'script'} onClick={() => set({ source: 'script' })} testid=
+46: >Script / template</Pill><Pill on={f.source === 'audio'} onClick={() => set({ source: 'audio' })} testid=
+49: Or make an AI voice file above for the most natural sound.
+50: Create audio first →
+63: Connect to (when they press a key)
+65: ><KeyPicker value={f.activeKeys} onChange={(v) => set({ activeKeys: v })} testid=
+66: Hold music while connecting
+66: >Hold music while connecting</span><Toggle checked={f.holdMusic} onChange={(v) => set({ holdMusic: v })} testid=
+69: They get 3 tries. The code shows up in your Inbox.
+71: Said after a valid code (optional)
+72: Said after a wrong code (optional)
+73: Custom confirm / reject messages are on the Business plan.
+80: font-display text-xl font-bold
+105: Validated (preview — not dialed)
+113: Call one or a few people, play a script or recording, then connect them, collect a code or route each key. Billed per minute from your wallet.
+115: No number can place IVR calls yet
+115: Quick IVR calls need an active number on the Pro plan or higher. Upgrade one in its Billing tab.
+115: Buy a number on the Pro plan or higher to place IVR calls.
+124: With country code. Up to 10, separated by commas.
+125:  required value={f.targets} onChange={e => set({ targets: e.target.value })} placeholder=
+132: 5 minutes to 24 hours from now. Leave empty to call now.
+133: Calls start right away. Scheduling, presets and redial are on the Business plan.
+136: civr-btn civr-btn-primary
+## pages/Settings.js
+21: font-display text-2xl font-bold
+26: Google linked
+27: password set
+29: civr-btn civr-btn-primary
+56: The whole app, including the home page. We start with your browser’s language.
+57:  data-no-translate>{LANGS.map(([c, name]) => <button key={c} type=
+57: civr-pill cursor-pointer !normal-case !tracking-normal !text-sm h-10 ${lang === c ? 'civr-pill-on' : ''}
+70: Default AI voice
+71: Used for every new script and AI voice message so your calls always sound the same.
+73: ><VoiceSelect value={cur.voice} onChange={(x) => setV({ ...cur, voice: x })} voices={voices} testid=
+76: A saved default voice is on the Business plan.
+86: Community & help
+87: News, new countries and daily coupons on our Telegram channel. Questions? Our team answers on Telegram.
+89: Telegram channel
+89: civr-btn civr-btn-ghost civr-btn-sm
+90: Message support
+101: This web account is separate from any Telegram bot account.
+## pages/Sip.js
+12: Settings → Accounts → Add account → "Yes, I have a SIP account". Put the username, password and server, then Next.
+13: Use a SIP account → enter username, password and domain, transport UDP. Tap Login.
+14: Menu → Add account. SIP server and domain = the server, username + password, then Save.
+20: Set up a softphone
+20: font-display text-2xl font-bold
+22: Install a softphone on your computer or phone (Zoiper, Linphone or MicroSIP are free).
+23: Add a SIP account with the username and password of the number you want to use.
+24: Server / domain:
+24: , port 5060 (UDP or TCP) or 5061 for TLS.
+25: Save. When the account shows “Registered”, you can call out and answer calls to that number.
+30: Calls you make from a softphone bill from your wallet at the outbound rate. Keep your password private.
+40: SIP needs the Pro plan or higher
+43: block font-mono text-sm truncate
+44: civr-btn civr-btn-ghost civr-btn-sm
+61: Log in to any softphone with these details to call and answer on your numbers.
+62: Open browser phone
+62: civr-btn civr-btn-primary
+65: Buy a number on the Pro plan or higher to get SIP credentials.
+66: Buy a number
+## pages/TextCall.js
+11: Pick your CloudIVR number and the number to call. We tell them it is a typed call.
+12: A clear voice reads every message to them. Quick phrases and a keypad for phone menus are one tap away.
+13: What they say shows up as live text while they talk — in English, Spanish or French.
+19: How it works
+27: Includes ${money(info.relayRate)}/min for the text relay.
+28: Included on Pro and Business numbers. Transcripts are kept 90 days.
+44: For deaf and hard-of-hearing callers: you type and they hear a voice; they talk and you read their words live.
+## pages/Verification.js
+14: Submitted verifications
+14: font-display text-xl font-bold mb-3
+34: , form: payload }) : await api(
+44: The carrier needs a few details before this number goes live. Your number is held for you with no time limit — if the carrier asks for changes, you can send corrected details here.
+46: Buy a number
+46:  && <Empty icon={ShieldCheck} title="Nothing to verify" sub="If a number you buy needs details for the carrier, the steps show up here." testid="verification-empty"><Link to={cp(
+46: civr-btn civr-btn-primary
+49: civr-pill civr-pill-on font-mono
+51: Preview — nothing sent to the carrier
+51: civr-pill civr-pill-warn mt-4
+54: civr-btn civr-btn-ghost civr-btn-sm
+60: Upload document (PDF, JPG, PNG · 10 MB)
+60: civr-btn civr-btn-ghost civr-btn-sm mt-3
+63: ><ErrorNote error={err} testid=
+## pages/Wallet.js
+19: Preview mode — this is not a real address. Do not send funds.
+23: Send exactly
+28: We check for your payment every 20 seconds while this page is open.
+39: Add at least
+39: to cover your next renewal
+40: Back to your number
+40: civr-btn civr-btn-ghost civr-btn-sm
+53: Enter an amount between $${min} and $10,000.
+59: Add funds with crypto
+59: font-display text-2xl font-bold
+60: >{PRESETS.map(p => <button type=
+60: civr-pill civr-preset cursor-pointer ${Number(amount) === p ? 'civr-pill-on' : ''}
+66: civr-btn civr-btn-primary
+111: font-display text-2xl font-bold mb-4
+112: No deposits yet.
+116: No transactions yet.
+139: Numbers, renewals, forwarded minutes and IVR calls are paid from here.
+147: USD · credited once the network confirms your deposit
+## pages/ai/AgentForm.js
+24: The agent switches if the caller speaks another language.
+37: Transfer to a human (optional)
+37: When the caller asks for a person or is ready to go ahead.
+39: Take messages (name, callback number, message)
+39: >Take messages (name, callback number, message)</span><Toggle checked={!!f.takeMessages} onChange={v => set('takeMessages', v)} testid=
+41: Record calls
+41: The agent says “this call may be recorded” when it answers. +$${Number(recordRate).toFixed(2)} per started minute · kept ${recordingDays} days, then deleted.
+62: Delete this agent? Numbers using it go back to normal call handling.
+68: What the agent does, how it talks and what it should find out.
+68: Friendly receptionist. Answer questions, book cleanings and get the caller's name and preferred time.
+69: Said right after the agent introduces itself as an AI assistant.
+69: How can I help you today?
+70: Prices, hours, policies — the agent only uses what is here.
+70:  rows={6} ph={'Q: Are you open Saturday? A: No, Monday–Friday 9am–5pm.\nCleaning: $90.'} testid=
+75: civr-btn civr-btn-primary
+## pages/ai/AiCalls.js
+21: Recording · kept until ${day(c.recordingExpiresAt)}
+23: The recording was deleted after 90 days.
+26: No words were exchanged.
+40: Browser test · ${c.agentName}
+51: Open in Google Calendar
+67: Calls your agents answer or make, and your browser tests, show up here with a summary and transcript.
+## pages/ai/AiCampaignFields.js
+18: Play audio, count key presses or transfer.
+19: Your AI agent talks with each lead · $0.20/min (+$0.02 recorded).
+30: You have no AI agent yet.
+35: Calls only between 8am and 9pm in each lead's local time — others wait and are called when their window opens.
+36: Numbers on your do-not-call list are skipped; anyone who asks not to be called again is added to it.
+37: The agent says it is an AI, leaves a short voicemail on answering machines and bills $0.20 per started minute (+$0.02 when the agent records). Unanswered calls are free. Agents with bookings on add appointments to your Google Calendar.
+## pages/ai/BookingFields.js
+15: Google Calendar was not connected — access was not allowed.
+16: Tick the calendar permission on the Google screen so the agent can book appointments.
+17: The connection took too long. Please try again.
+18: Google did not give lasting access. Please try again.
+19: Google Calendar could not be connected. Please try again.
+36: Google Calendar connected
+53: Disconnect Google Calendar? Your agents stop booking appointments until you connect it again.
+54: Google Calendar disconnected
+58: Google Calendar booking is not switched on yet. It will appear here as soon as it is available.
+64: Connected to Google Calendar ·
+65: civr-btn civr-btn-ghost civr-btn-sm
+71: Google access was removed. Connect the calendar again.
+72: Connect your own Google Calendar. The agent only looks at when you are busy and adds the appointments it books. Save your changes first — Google brings you back here.
+73: civr-btn civr-btn-primary civr-btn-sm
+78: What would the agent offer on this day?
+90: Check the free times the agent would offer
+100: }{next ? ` Next free day: ${next.day}.` : 
+101: Times in ${res.timeZone} · ${res.minutes}-minute appointments · uses the saved settings
+122: Book appointments
+123: During the call the agent checks your free times, books the caller in and repeats the date and time back.
+141: Days callers can book
+148: Booking hours are in this time zone. Callers in other zones also hear their own local time.
+153: Save the agent to check which free times it would offer.
+## pages/ai/DncList.js
+22: civr-input font-mono flex-1
+23: civr-btn civr-btn-primary
+25: : !list.length ?
+25: AI campaigns skip these numbers. Anyone who asks the agent not to call again is added here automatically.
+26: civr-card divide-y divide-[#1f1f1f]
+31: civr-btn civr-btn-ghost civr-btn-sm
+## pages/ai/TestTalk.js
+45: Allow the microphone to talk to your agent.
+50: font-display text-2xl font-bold
+51: Free test in your browser — use your microphone. Up to 3 minutes per talk, 15 minutes a day.
+54: As a caller ringing your number
+54: As a lead the agent calls
+54: >As a caller ringing your number</option><option value=
+58: civr-btn civr-btn-primary
+59: civr-pill civr-pill-on civr-pulse
+62: Talk ended — the summary is in Call history.
+## pages/auth/TwoFactorStep.js
+27: Open your authenticator app and type the 6-digit code for CloudIVR.
+27: We emailed a 6-digit code to ${mfa.emailHint}.
+29: Preview mode — your code is
+30: Lost your phone? Type one of your backup codes instead.
+31: civr-input font-mono text-lg tracking-[0.3em]
+31:  autoFocus required value={code} onChange={e => setCode(e.target.value)} placeholder=
+37: civr-btn civr-btn-primary w-full
+39: Use another account
+40: Send a new code
+46: Remember this browser for 30 days
+## pages/buy/Checkout.js
+35: civr-input font-mono uppercase !h-10
+36: civr-btn civr-btn-ghost civr-btn-sm
+38: Today’s coupon
+58: )} icon={WalletIcon} title="Pay from wallet" sub={`Balance ${money(balance)}${short > 0 ? ` · ${money(short)} short` : 
+59: Send the exact price — the number activates once the network confirms.
+60: Extra numbers are paid from the wallet. Short? Add funds with crypto first.
+68: Auto-renew monthly
+68: Renews from your wallet so the number never lapses. Turn it off any time.
+71:  — or pay with crypto instead
+75: civr-btn civr-btn-primary
+## pages/buy/OrderStatus.js
+33: Preview mode — not a real address. Do not send funds.
+37: Send exactly
+41: We check for your payment every 15 seconds. You can leave this page — the number activates on its own and you’ll see it in your inbox.
+45: civr-btn civr-btn-ghost civr-btn-sm
+47: Cancel order
+47: civr-btn civr-btn-danger civr-btn-sm ml-auto
+57: Plan upgraded
+60: civr-btn civr-btn-primary mt-6
+65: Your extra number is live
+74: Payment received — one last step
+82: Payment came in short
+85: civr-btn civr-btn-primary
+92: We could not finish this order
+94: Pick another number
+94: civr-btn civr-btn-ghost mt-6
+123:  ? `${o.phoneNumber} · extra number on ${o.parentNumber} (${o.planName} plan) · ${money(o.charge)}${o.price > o.charge ? ` · deposit ${money(o.price)}, the rest stays in your wallet` : 
+126: ><ErrorNote error={err} testid=
+## pages/dashboard/Banners.js
+26: Today's coupon: ${c.discount}% off a new number
+32: civr-btn civr-btn-primary civr-btn-sm self-start sm:self-auto
+52: Welcome to CloudIVR
+53: Join our Telegram channel for new countries, features, daily coupons and service updates.
+54: Join the channel
+## pages/dashboard/Widgets.js
+15: , sub: balance > 0 ? `Wallet ready · ${money(balance)}` : 
+17: Forwarding, voicemail or an IVR menu — set it on your number once it’s live.
+31: civr-btn w-full sm:w-auto ${active ? 'civr-btn-primary' : 'civr-btn-ghost'}
+48: Your numbers
+48: font-display text-2xl font-bold
+53: civr-btn civr-btn-primary civr-btn-sm
+60: font-mono text-lg truncate
+67: Next renewal:
+## pages/landing/EmailGate.js
+28: We sent it to
+28: . It expires in 10 minutes.
+28: text-sm civr-l-muted mt-2
+28: We send a 6-digit code to stop abuse. One free 60-second call per email.
+39: Use a different email
+## pages/landing/Hero.js
+11: , routent et appellent pour vous.
+11: , enrutan y llaman por ti.
+26: w-full h-full object-contain civr-l-float mix-blend-screen
+72: civr-l-dark relative overflow-hidden pt-24 md:pt-28
+73: absolute inset-0 civr-l-gridbg opacity-70
+78: Cloud numbers · IVR · SIP
+79: civr-l-h text-5xl sm:text-6xl lg:text-7xl mt-6 civr-rise civr-d1
+80: text-base md:text-lg civr-l-muted mt-6 max-w-xl civr-rise civr-d2
+84: Try a free call
+85: Get your number
+85: civr-l-btn civr-l-btn-ghost
+87: text-sm civr-l-muted mt-5 civr-rise civr-d4
+87:  · Numbers from ${from}/month
+89: lg:col-span-6 relative h-[340px] sm:h-[440px] lg:h-[580px] civr-rise civr-d2
+## pages/landing/PricingFaq.js
+16: >{p.name}</div>{p.recommended && <RecommendedBadge tone=
+20: civr-l-btn mt-8 w-full ${hot ? '' : 'civr-l-btn-ink'}
+33: Monthly per number. Cancel any time.
+33: Free to sign up. Pay for a number with crypto or from your wallet. Auto-renew keeps it yours — switch it off whenever you like.
+37: Extra usage is paid from your wallet: minutes over your plan ${money(r.overagePerMin)}/min, SMS over your plan ${money(r.overagePerSms)} each, calls forwarded to a phone ${money(r.forwardingPerMin)}/min. Outbound IVR calls show their price before you start.
+50: Can I try it before I pay?
+50: Yes. Confirm your email with a 6-digit code and take one free test call of up to 60 seconds — we ring your phone with a demo menu, or you call from your browser. No account needed.
+51: Is the account really free?
+51: Yes. Creating an account costs nothing. You only pay when you buy a number${from ? 
+51:  : ''}, plus any extra usage.
+52: , `Pay for a number directly with ${coinList(c) || 
+53: Which plan has the IVR auto-attendant?
+53: The ${ivr} plan. Pro includes Quick IVR calls and Bulk IVR campaigns; Starter covers call forwarding and SMS.
+54: What if I go over my minutes or SMS?
+54: Extra minutes cost ${money(r.overagePerMin)} each and extra SMS ${money(r.overagePerSms)} each, paid from your wallet.
+54: Extra usage is paid from your wallet at a small per-minute and per-SMS rate.
+55: Yes. Plans are month to month. Auto-renew is on by default so your number never lapses — turn it off in the number’s Billing tab and it simply won’t renew, or delete the number any time.
+56: Is this the same account as the Telegram bot?
+56: No. CloudIVR web accounts are separate from Telegram bot accounts, so sign up here with your email.
+85: Your number could be answering calls in minutes.
+86: text-base mt-5 font-medium opacity-70
+86:  · Numbers from ${from}/month
+89: Try a free call
+90: Get your number
+90: civr-l-btn civr-l-btn-ink
+105: text-xs civr-l-muted mt-2
+110: Telegram channel
+111: Support on Telegram
+## pages/landing/Sections.js
+27: civr-l-cream scroll-mt-16
+29:  title={`Local numbers in ${list.length || 17} countries.`} sub=
+30: Voice · SMS · SIP on one line
+30: lg:col-span-4 text-sm civr-l-muted lg:text-right font-mono uppercase tracking-wider
+37: text-xs civr-l-muted mt-2 font-mono uppercase tracking-wider truncate
+56: civr-l-float w-full max-h-[300px] object-contain my-4 select-none pointer-events-none
+58: mt-auto pt-6 relative z-10
+71: One number. A full phone system behind it.
+71: Every card shows which plans include it, so you know exactly what you're paying for.
+73: Press 1 for sales, 2 for support. Greetings from text-to-speech or your own audio, one sub-menu deep.
+74: Paste leads, pick a message, watch answers and key presses live. Pause or cancel any time.
+75: Always, when busy or on no answer — to any phone worldwide.
+76: Custom greetings, recordings in your inbox and email.
+77: Call and answer from your browser tab on your number's SIP line.
+78: Inbound texts land in your inbox. Email and webhook delivery on Pro and up.
+87: Email and password or Google. No card, no contract.
+88: Choose a country, number type and plan. Auto-renew is on so it never lapses — switch it off any time.
+89: Pay with crypto or wallet
+89: ${coinList(catalog) || 'Crypto'}, or your CloudIVR wallet (top-ups from ${usd(catalog?.minTopup || 10)}). Most numbers are live in about a minute.
+94: Sign up to ringing in three steps.
+100: text-sm civr-l-muted mt-3
+## pages/landing/TryCall.js
+9: Enter your number. We ring you with a live demo menu — press 1, 2 or 3 and watch each key light up here.
+10: Call any phone from this tab using your microphone — no app needed. Try calling your own mobile.
+12: Confirm your email with a 6-digit code
+12: One free call per email, up to 60 seconds
+19: text-sm civr-l-muted min-h-[40px]
+21: block text-xs font-mono uppercase tracking-widest civr-l-muted mb-2
+49: Start with + and your country code, e.g. +14155550100.
+56: civr-l-dark relative overflow-hidden scroll-mt-16
+57: absolute inset-0 civr-l-gridbg opacity-50
+61: Take CloudIVR for a 60-second spin — on your own phone or right here in the browser.
+## pages/landing/TryLive.js
+39: Free test call
+41: Preview · simulated
+51: That was CloudIVR.
+51: Get your own number with this menu in a few minutes.
+53: Get your number
+58: Your phone is ringing — pick up to hear the demo menu.
+58: Press 1, 2 or 3 on your phone. Each key you press lights up here.
+58: Nobody picked up, so this didn’t use your free call. Press Try again when your phone is handy.
+63: Your free call is still waiting for you.
+99: You are live. Talk, or tap keys to send tones.
+99: Allow microphone access if your browser asks.
+## pages/landing/kit.js
+7: ><span>{children}</span><span aria-hidden=
+19: BTC, LTC, ETH, USDT and more
+22: ${s.slice(0, 4).join(', ')} and more
+## pages/number/AiAgentTab.js
+20: Create an agent
+20: Give it a script and FAQs, test it in your browser, then let it answer this number.
+24: AI agent answers this number
+24: font-display text-2xl font-bold
+25: The agent picks up every call, says it is an AI assistant, answers from your FAQs, books appointments, takes messages or transfers to you. $${Number(data?.rate || 0.2).toFixed(2)} per started minute from your wallet (+$${Number(data?.recordRate ?? 0.02).toFixed(2)} when the agent records); if the wa
+27: Answer calls with the AI agent
+27: >Answer calls with the AI agent</span><Toggle checked={enabled} onChange={setEnabled} testid=
+30: civr-btn civr-btn-primary
+31: Edit or test the agent
+## pages/number/BillingExtras.js
+14: p.available && order.indexOf(p.id)
+20: Switch plans now? There is no refund for this month, and the features listed turn off right away.
+24: Now on ${d.planName} · ${money(d.planPrice)}/month
+29: Downgrade plan
+29: font-display text-2xl font-bold
+35: preview.extraLimit &&
+36: No refund for the current month.
+40: See what changes
+40: civr-btn civr-btn-ghost civr-btn-sm
+51: Extra number
+52: This number is an extra on
+52: and follows that number’s plan.
+59: Extra numbers
+60: Add more numbers to this plan for ${money(data.price)}/month each. They get the same ${num.planName} features.
+63: Limit reached — upgrade this number to add more.
+64: Add an extra number
+## pages/number/BillingTab.js
+23: Restored — paid until ${day(d.expiresAt)}
+23: Renewed until ${day(d.expiresAt)}
+24: Extra lines back on: ${d.restored.join(', ')}
+25: Still suspended (their paid month ended): ${d.waiting.map(w => w.phoneNumber).join(', ')} — renew each one too.
+32: font-display text-2xl font-bold
+36: Auto-renew from wallet
+36: >Auto-renew from wallet</span><Toggle checked={num.autoRenew} onChange={auto} testid=
+37: civr-btn civr-btn-sm ${held ? 'civr-btn-primary' : 'civr-btn-ghost'}
+37: Restore for ${money(price)}
+48: Suspended — calls and texts are stopped
+51: This extra line comes back when its main line ${num.parentNumber} is restored. Released for good on ${day(num.holdUntil)} if not restored.
+52: Pay ${money(price)} by ${day(num.holdUntil)} to restore it${num.suspendReason === 'plan_expired' ? ' and its extra lines' : ''}. After that it is released for good.
+65: You’re on the top plan.
+75: Upgrade plan
+79: This upgrade unlocks
+83:  (includes ${money(quote.credit)} credit for unused days)
+85: civr-btn civr-btn-ghost civr-btn-sm
+99: Delete number
+100: The number goes back to the carrier and can’t be recovered. No refund for the current month.
+## pages/number/BrowserRingTab.js
+13: Ask each time: voice or text
+13: Always text (answers by itself)
+15: Alerts on — calls show a notification when this tab is in the background.
+15: Alerts are blocked in this browser’s site settings.
+15: Allow alerts so a call reaches you when this tab is in the background.
+23: Allow alerts
+23: civr-btn civr-btn-ghost civr-btn-sm
+33: calls are always forwarded
+37: Right now ${blocked.join(' and ')}, so calls to this number will not ring in the browser.
+39: Voice: the browser phone connects by itself while the app is open.
+40: To also answer by voice, create a SIP login in the
+41: Text: same price as text calls — ${money(info.usRate + info.relayRate)}/min US & Canada, ${money(info.intlRate + info.relayRate)}/min international, from your wallet. Not counted in plan minutes.
+42: Rings for ${f.callForwarding?.ringTimeout || 25} seconds. If nobody answers, the call goes to your usual fallback (forwarding when not answered, voicemail, or a missed call).
+43: Only rings while CloudIVR is open in a browser tab. IVR menus, always-forward and closed hours skip the browser.
+57: Try it with a pretend call (preview)
+60: civr-btn civr-btn-ghost shrink-0
+62: Switch ringing on and save first.
+78: While CloudIVR is open, calls to this number ring here with a big banner on every page. Answer by typing (text call) or by voice.
+79: Ring me in the browser
+79: >Ring me in the browser</span><Toggle checked={f.enabled} onChange={turn} testid=
+85: >Female</option><option value=
+88: Tell the caller it is a typed call
+88: A short spoken note when you answer as text.
+93: civr-btn civr-btn-primary
+## pages/number/HoursTab.js
+24: Closed all day
+45: Schedule off — always rings
+50: On/off hours
+50: font-display text-2xl font-bold
+53: Outside these hours your number doesn’t ring or forward. Callers go to voicemail or hear a short closed message.
+55: Use a weekly schedule
+55: >Use a weekly schedule</span><Toggle checked={f.enabled} onChange={v => setF({ ...f, enabled: v })} testid=
+63: Opening hours
+64: Copy Monday to all open days
+71: Play a closed message, then hang up
+74: Closed message (optional)
+74: ${f.offMessage.length}/500 · Leave empty for the standard message in your voicemail language (Voicemail tab).
+77: civr-btn civr-btn-primary
+## pages/number/IvrTab.js
+14: Thank you for calling. Please select an option.
+14: Thank you for calling. Please listen to the following options.
+15: Merci de votre appel. Veuillez choisir une option.
+15: Merci de votre appel. Veuillez écouter les options suivantes.
+15: Veuillez choisir une option.
+16: Gracias por llamar. Por favor, seleccione una opción.
+16: Gracias por llamar. Por favor, escuche las siguientes opciones.
+16: Por favor, seleccione una opción.
+31: ]].map(([m, l]) => <button key={m} type="button" onClick={() => set({ mode: m, greetingAudioUrl: m === 
+65: civr-btn civr-btn-ghost civr-btn-sm
+106: Last 30 days
+107: No key presses yet.
+140: Callers hear the greeting, then press a key.
+140: font-display text-2xl font-bold
+144: Callers hear typed text in ${langName}, the app's language. Change the app language to change it.
+145: Want your own recordings?
+145: Open the audio library
+148: civr-btn civr-btn-primary
+## pages/number/IvrTemplates.js
+14: “${t.name}” loaded — add the forward numbers, then Save IVR
+24: Business menus
+26: My templates
+28: civr-btn civr-btn-ghost civr-btn-sm
+29: Saves the menu below so you can reuse it on any number.
+## pages/number/LogsTab.js
+16: civr-pill cursor-pointer ${kind === k ? 'civr-pill-on' : ''}
+## pages/number/RouteSummary.js
+11: All calls forward to ${ph(r.forwardTo)}.
+12: Calls ring here first and forward to ${ph(r.forwardTo)} when busy.
+13: Calls ring here first and forward to ${ph(r.forwardTo)} when not answered.
+14: Callers hear your IVR menu first.
+15: Calls ring your softphone / browser phone.
+16: Callers go straight to voicemail.
+17: Nothing is set up — callers hear “this number is unavailable”.
+33: What callers get now
+35: Your IVR is on but has no keys yet — add options in the IVR tab or turn it off.
+39: These are switched on but never run, because forwarding answers every call first.
+41: civr-btn civr-btn-ghost civr-btn-sm
+41: Now forwarding only when not answered
+60: Test my number
+61: We call this number from our test line so you hear exactly what callers get. Up to 5 tests a day.
+## pages/number/SettingsTabs.js
+13: Hi, you have reached [Name]. I can’t take your call right now. Please leave a message after the tone.
+14: Thank you for calling [Business]. All of our team members are busy. Please leave your name, number and a short message and we will call you back.
+15: Thanks for calling [Business]. We are closed right now. Please leave a message and we will return your call on the next business day.
+30: font-display text-2xl font-bold
+58: Shared allowance — totals include your main number and all its extra numbers.
+61: Capabilities
+61: font-display text-2xl font-bold mb-2
+74: Send calls to any phone. Forwarded minutes bill from your wallet.
+77: When not answered
+77: >Off</option><option value=
+77: >Always</option><option value=
+77: >When busy</option><option value=
+81: Include the country code, e.g. +14155550100.
+82: Ring time before forwarding (seconds)
+84: Play hold music while connecting
+84: >Play hold music while connecting</span><Toggle checked={f.holdMusic} onChange={v => setF({ ...f, holdMusic: v })} testid=
+86: Save forwarding
+86: civr-btn civr-btn-primary
+101: Unanswered callers can leave a message. Recordings land in your inbox.
+102: Voicemail on
+102: >Voicemail on</span><Toggle checked={f.enabled} onChange={v => setF({ ...f, enabled: v })} testid=
+105: Standard greeting
+105: From my audio library
+105: >Standard greeting</option><option value=
+108: Your own audio plays as recorded. The language is still used for the after-hours message.
+108: Also used for the after-hours message (Hours tab).
+115: Add audio in the Audio library first.
+122: Make a greeting from text
+123: >{VM_TEMPLATES.map(([l, t], i) => <button key={l} type=
+126: Replace [Name] / [Business] before making the voice. The new audio is picked as your greeting — press Save voicemail.
+128: Also email voicemails to (optional)
+129: Ring time before voicemail (seconds)
+131: Transcribe voicemails
+131: The message as text in your inbox, email and call logs.
+134: Save voicemail
+143: This number can receive faxes. Each fax arrives in your Inbox as a PDF.
+144: Send faxes to my Inbox
+144: >Send faxes to my Inbox</span><Toggle checked={num.features.fax?.toInbox !== false} disabled={busy} onChange={v => save({ toInbox: v })} testid=
+157: This number can’t receive text messages.
+159: Inbound texts always appear in your inbox. Add email or a webhook too (Pro and up).
+161: We POST each message as JSON.
+162: Email and webhook delivery are on the Pro plan and up.
+162: Upgrade this number
+163: Save SMS settings
+171: Record inbound calls. Recordings show up in the Logs tab.
+172: Record calls
+172: >Record calls</span><Toggle checked={num.features.recording} disabled={busy} onChange={v => save({ enabled: v })} testid=
+## pages/number/SipTab.js
+25: Test outbound SIP
+25: font-display text-2xl font-bold
+26: Checks that calls from your softphone reach us with these credentials. Free — the test call is hung up before it rings anyone.
+27: civr-btn civr-btn-ghost civr-btn-sm
+27: Waiting for your call… ${left}s
+50: Create new SIP credentials? Softphones using the old ones will stop working.
+61: Use these in any softphone (Zoiper, Linphone, MicroSIP) to call and receive calls on this number.
+71: Show password
+72: New credentials
+82: Browser phone
+83: Call from this tab with this number’s SIP line.
+84: civr-btn civr-btn-primary
+95: All your numbers’ SIP logins and a setup guide:
+95: SIP & softphones
+## pages/number/UpgradePay.js
+19: civr-btn civr-btn-primary
+23: civr-btn civr-btn-ghost flex-1
+26: Crypto payments start at $10 — anything over the upgrade price stays in your wallet.
+## pages/quick/Draft.js
+30: Resume last draft
+31: You left a call setup here without placing it.
+33: civr-btn civr-btn-primary civr-btn-sm
+34: civr-btn civr-btn-ghost civr-btn-sm
+## pages/quick/MenuBuilder.js
+22: Text to read out, then hang up
+40: civr-btn civr-btn-ghost civr-btn-sm
+## pages/quick/ScriptBox.js
+29: All templates
+30: Write my own
+32: Script (what the caller hears)
+32: Use [Name]-style placeholders for details you fill in below.
+37: Fill in the placeholders
+38: civr-btn civr-btn-ghost civr-btn-sm
+## pages/quick/Side.js
+19: Calling again · ${d.started} call(s)
+24: Your Quick IVR calls show up here.
+27: font-mono text-xs truncate
+30: civr-btn civr-btn-ghost civr-btn-sm
+88: Saves this setup — everything except the numbers to call.
+## pages/quick/Trial.js
+20: Validated (preview — not dialed)
+26: Try one call free
+26: You don’t have a calling number yet, so your first Quick IVR call is on us. It shows our demo caller ID and connects on key 1.
+26: font-display text-2xl font-bold
+27: With country code, e.g. +14155550100.
+27:  required value={f.to} onChange={e => setF({ ...f, to: e.target.value })} placeholder=
+29: Connect to (when they press 1)
+29:  required value={f.transferTo} onChange={e => setF({ ...f, transferTo: e.target.value })} placeholder=
+33: That was your free call. Get a number on the Pro plan or higher to keep calling with your own caller ID.
+34: Buy a number
+34: civr-btn civr-btn-primary
+## pages/settings/Rewards.js
+16: Invite friends, earn credit
+16: font-display text-2xl font-bold
+17: Share your link. When a friend buys their first number you get
+17: in your wallet and they get
+18: civr-input font-mono text-xs
+19: civr-btn civr-btn-primary civr-btn-sm shrink-0
+36: Thanks! We read every idea.
+40: Suggest a feature
+41: Tell us what would make CloudIVR better. If we build your idea, you get
+41: free credit.
+42:  required minLength={10} maxLength={2000} value={text} onChange={e => setText(e.target.value)} placeholder=
+44: civr-btn civr-btn-primary civr-btn-sm
+45: Suggestions inbox (owner)
+45: civr-btn civr-btn-ghost civr-btn-sm
+49: civr-pill shrink-0 ${s.status === 'adopted' ? 'civr-pill-on' : ''}
+## pages/settings/Security.js
+13: Two-step sign-in is on. Save these backup codes somewhere safe — each one works once if you lose your phone or email.
+15: civr-btn civr-btn-ghost civr-btn-sm
+16: I saved them
+16: civr-btn civr-btn-primary civr-btn-sm
+27:  />}{method === 'totp' ? 'Show QR code' : 'Email me a code'}</button><button type=
+32: 1. Scan this with Google Authenticator, Microsoft Authenticator or Authy.
+32: 2. Or type this key:
+32: 3. Enter the 6-digit code it shows.
+32: ><div>1. Scan this with Google Authenticator, Microsoft Authenticator or Authy.</div><div>2. Or type this key: <button type=
+33: We sent a 6-digit code to
+34:  required value={code} onChange={e => setCode(e.target.value)} placeholder=
+35:  />}Turn on</button><button type=
+44: , body: {} }); toast.success(d.previewCode ? `Preview mode — code ${d.previewCode}` : 
+49: civr-btn civr-btn-danger civr-btn-sm
+50: Email me a code
+51: Forget all remembered browsers
+63: Two-step sign-in
+63: font-display text-2xl font-bold
+64: On · ${data.method === 'totp' ? 'authenticator app' : 'email code'}
+65: After your password we ask for a 6-digit code, so nobody else can get into your numbers and wallet. Tick “Remember this browser for 30 days” when you sign in to skip the code on your own device.
+70: Authenticator app
+70: Most secure. Works offline.
+71: Code by email
+71: We email a code each time you sign in.
+## pages/textcall/Composer.js
+7: Could you repeat that, please?
+7: Please speak a little slower.
+8: Un momento, estoy escribiendo.
+8: ¿Puede repetirlo, por favor?
+8: Hable un poco más despacio, por favor.
+9: Pouvez-vous répéter, s’il vous plaît ?
+9: Parlez un peu plus lentement, s’il vous plaît.
+45: civr-input min-h-[56px] max-h-40 text-lg
+45: Type what they should hear…
+45: You can type once they answer
+## pages/textcall/History.js
+20: Delete this call and its transcript?
+44: Recent text calls
+44: Kept 90 days
+44: font-display text-2xl font-bold
+## pages/textcall/Live.js
+57: Copy transcript
+58: New text call
+87: civr-card p-4 md:p-6 space-y-4 civr-rise scroll-mt-20
+89: font-mono text-lg truncate
+89: Incoming call to ${call.callerId}
+## pages/textcall/Setup.js
+29: Buy a number
+29: Text calls go out from your own CloudIVR number.
+46: With country code, e.g. +14155550100.
+46: civr-input font-mono text-lg
+48: ><div data-no-translate><Choice value={f.lang} options={LANGS} onChange={set('lang')} testid=
+49: Voice that reads your messages
+51: Read aloud in the greeting.
+52: Tell them it’s a typed call
+52: So they speak clearly and wait for your reply.
+52: >So they speak clearly and wait for your reply.</span></span><Toggle checked={f.announce} onChange={set('announce')} testid=
+57: From ${money(info.usRate + info.relayRate)}/min, billed per started minute.
+## pages/textcall/Transcript.js
+6: We told them this is a typed call.
+7: Your balance ran out, so the call is ending.
+8: Live text is not available on this call right now.
+34: Reading aloud…
+35: l.who === 'them') && !call.interim && call.status === 'live' &&
+35: Waiting for them to speak…
+## ui.js
+88: font-display text-2xl font-bold
+101: ${feature} is on the ${need} plan and up
+101: ${feature} needs a higher plan
+102: Upgrade this number in its Billing tab to unlock it — you only pay the difference for the days left.
+104: Upgrade this number
+104: civr-btn civr-btn-primary civr-btn-sm
+155: Backup numbers if busy (optional)
+155: Up to 4, separated by commas. If nobody answers, the next one rings automatically.

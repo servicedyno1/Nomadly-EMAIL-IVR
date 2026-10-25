@@ -352,7 +352,7 @@ This flow has NO file upload — do NOT ask the user about file formats.
 5. Bulk IVR Templates (📝 Use IVR Template) also use TTS and behave like Quick IVR — if a template's audio fails, try a different voice.
 If a customer still hears silence AFTER re-uploading a fresh MP3, escalate — the audio-proxy or the campaign's stored audioUrl needs manual inspection.
 
-<b>C) IVR Auto-attendant / Voicemail greetings (Business plan)</b> — uploaded via 📞 Cloud IVR + SIP → 📋 My Plans → number → 🤖 IVR — same audio rules as (B). Re-upload if silent.
+<b>C) IVR Auto-attendant (Business plan) / Voicemail greetings (Pro and Business)</b> — uploaded via 📞 Cloud IVR + SIP → 📋 My Plans → number → 🤖 IVR — same audio rules as (B). Re-upload if silent.
 
 ### "Bulk IVR — calls failing with 'Account not authorized to call' or hitting the wrong country"
 → This used to happen when a bare 10-digit US number (e.g. <code>4065067340</code>) was pasted without <code>+1</code> — the parser turned it into <code>+4065067340</code> (Romania +40), and Twilio rejected the call as unauthorized geo. <b>Fixed Feb 2026</b>: bare 10-digit numbers now auto-prepend <code>+1</code>, and <code>1XXXXXXXXXX</code> auto-gets <code>+</code>. If the user is still seeing "Account not authorized" errors after the fix:

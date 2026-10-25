@@ -1,5 +1,5 @@
 import React from 'react';
-import { Workflow, PhoneForwarded, Voicemail, MessageSquare, Megaphone, Headphones, UserPlus, Hash, Wallet } from 'lucide-react';
+import { Workflow, PhoneForwarded, Voicemail, MessageSquare, Megaphone, Headphones, UserPlus, Hash, Wallet, Bot, Captions } from 'lucide-react';
 import { usd } from '../../api';
 import { ART, SectionHead, coinList, planBadge } from './kit';
 
@@ -26,8 +26,8 @@ export function Coverage({ catalog }) {
   return (
     <section id="coverage" className="civr-l-cream scroll-mt-16" data-testid="coverage-section">
       <div className="max-w-7xl mx-auto px-6 md:px-8 pt-24 pb-12 grid lg:grid-cols-12 gap-8 items-end">
-        <div className="lg:col-span-8"><SectionHead n="01" label="Coverage" title={`Local numbers in ${list.length || 17} countries.`} sub="Local, toll-free and mobile numbers. Pick a country, pay, and your number is ready to route calls." /></div>
-        <p className="lg:col-span-4 text-sm civr-l-muted lg:text-right font-mono uppercase tracking-wider">Voice · SMS · SIP on one line</p>
+        <div className="lg:col-span-8"><SectionHead n="01" label="Coverage" title={`Phone numbers in ${list.length || 17} countries.`} sub="Local, toll-free and mobile numbers. Pick a country and pay — most numbers are ready in about a minute; a few countries ask for ID details first." /></div>
+        <p className="lg:col-span-4 text-sm civr-l-muted lg:text-right font-mono uppercase tracking-wider">Voice and SIP on every number · SMS on most</p>
       </div>
       {list.length > 0 && <Marquee list={list} />}
       <div className="max-w-7xl mx-auto px-6 md:px-8 py-16 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3" data-testid="coverage-grid">
@@ -71,11 +71,13 @@ export function Features({ catalog }) {
         <SectionHead n="03" label="What you get" title="One number. A full phone system behind it." sub="Every card shows which plans include it, so you know exactly what you're paying for." />
         <div className="grid grid-cols-1 md:grid-cols-12 gap-4 mt-14">
           <FeatureCard icon={Workflow} title="Visual IVR builder" text="Press 1 for sales, 2 for support. Greetings from text-to-speech or your own audio, one sub-menu deep." k="ivr" plans={plans} dark img={ART.callflow} className="md:col-span-7 md:row-span-2 min-h-[520px]" testid="feature-card-0" />
-          <FeatureCard icon={Megaphone} title="Bulk IVR campaigns" text="Paste leads, pick a message, watch answers and key presses live. Pause or cancel any time." k="bulkCall" plans={plans} img={ART.campaign} className="md:col-span-5" testid="feature-card-1" />
-          <FeatureCard icon={PhoneForwarded} title="Call forwarding" text="Always, when busy or on no answer — to any phone worldwide." k="callForwarding" plans={plans} dark className="md:col-span-5" testid="feature-card-2" />
-          <FeatureCard icon={Voicemail} title="Voicemail" text="Custom greetings, recordings in your inbox and email." k="voicemail" plans={plans} className="md:col-span-4" testid="feature-card-3" />
-          <FeatureCard icon={Headphones} title="Browser phone" text="Call and answer from your browser tab on your number's SIP line." k="sipCredentials" plans={plans} className="md:col-span-4" testid="feature-card-4" />
-          <FeatureCard icon={MessageSquare} title="SMS inbox" text="Inbound texts land in your inbox. Email and webhook delivery on Pro and up." plans={plans} className="md:col-span-4" testid="feature-card-5" />
+          <FeatureCard icon={Megaphone} title="Bulk IVR campaigns" text="Paste leads, pick a message or an AI agent, watch answers and key presses live. Schedule, pause or cancel any time." k="bulkCall" plans={plans} img={ART.campaign} className="md:col-span-5" testid="feature-card-1" />
+          <FeatureCard icon={PhoneForwarded} title="Call forwarding" text="Always, when busy or on no answer — to any phone worldwide, with up to 4 backup numbers. Billed per minute from your wallet." k="callForwarding" plans={plans} dark className="md:col-span-5" testid="feature-card-2" />
+          <FeatureCard icon={Voicemail} title="Voicemail" text={`Greetings in ${catalog?.voicemailLanguages?.length || 5} languages or your own audio. Recordings and transcripts land in your inbox and email.`} k="voicemail" plans={plans} className="md:col-span-4" testid="feature-card-3" />
+          <FeatureCard icon={Headphones} title="Browser phone" text="Call and answer in your browser tab — by voice or by typing — or log in from any SIP softphone." k="sipCredentials" plans={plans} className="md:col-span-4" testid="feature-card-4" />
+          <FeatureCard icon={MessageSquare} title="SMS inbox" text="Read and reply to texts in your inbox. Email and webhook delivery on Pro and up." plans={plans} className="md:col-span-4" testid="feature-card-5" />
+          <FeatureCard icon={Bot} title="AI voice agents" text="An AI that answers your number or calls your leads in English, French or Spanish — it answers FAQs, books appointments, takes messages or transfers to you." k="aiAgent" plans={plans} dark className="md:col-span-7" testid="feature-card-6" />
+          <FeatureCard icon={Captions} title="Text calls" text="For deaf and hard-of-hearing callers: you type and they hear a voice; they talk and you read their words live." k="textRelay" plans={plans} className="md:col-span-5" testid="feature-card-7" />
         </div>
       </div>
     </section>

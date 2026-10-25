@@ -2526,7 +2526,7 @@ const l = {
 ━━━━━━━━━━━━━━━━━━━━━━
 
 📞 <b>Cloud IVR + SIP</b>
-Numéros virtuels dans 30+ pays
+Numéros virtuels dans ${require('../phone-config').CLOUD_COUNTRY_COUNT} pays
 Standard auto · SMS · Messagerie vocale · SIP
 Campagnes IVR rapide et en masse
 

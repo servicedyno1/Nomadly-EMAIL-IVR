@@ -2509,7 +2509,7 @@ const l = {
 ━━━━━━━━━━━━━━━━━━━━━━
 
 📞 <b>Cloud IVR + SIP</b>
-30+ 国家虚拟号码
+${require('../phone-config').CLOUD_COUNTRY_COUNT} 个国家虚拟号码
 IVR 自动应答 · 短信 · 语音信箱 · SIP
 快速IVR和批量IVR活动
 

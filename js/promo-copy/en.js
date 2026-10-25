@@ -1,11 +1,12 @@
 // English promo copy — structured, short, price-free (prices are injected from
 // promo-prices.js so ads always match checkout). Sentence case, no fake proof.
+const { CLOUD_COUNTRY_COUNT: N } = require('../phone-config')
 module.exports = {
   cloudphone: {
-    hooks: ['Give your business a real phone line', 'A local number in 30+ countries, live in 60 seconds'],
+    hooks: ['Give your business a real phone line', `A phone number in ${N} countries, most live in minutes`],
     cross: ['Got leads? Now call them', 'Your leads need a number that rings'],
     lines: p => [
-      'Virtual numbers in 30+ countries — no SIM, no contract',
+      `Virtual numbers in ${N} countries — no SIM, no contract`,
       'IVR menu, voicemail, SMS to Telegram, SIP for softphones',
       `Starter includes ${p.phoneStarterMin} min + ${p.phoneStarterSms} SMS a month`,
     ],

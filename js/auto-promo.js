@@ -30,7 +30,7 @@ const LANG_NAMES = { en: 'English', fr: 'French', zh: 'Chinese (Simplified)', hi
 const SERVICE_CONTEXT = {
   cloudphone: {
     services: 'Cloud IVR + SIP — virtual phone numbers',
-    details: ['Virtual phone numbers in 30+ countries, no SIM, no contract', 'IVR menu, voicemail, SMS forwarded to Telegram', 'SIP credentials for softphones, call forwarding anywhere', 'Active in about a minute'],
+    details: [`Virtual phone numbers in ${require('./phone-config').CLOUD_COUNTRY_COUNT} countries, no SIM, no contract`, 'IVR menu, voicemail, SMS forwarded to Telegram', 'SIP credentials for softphones, call forwarding anywhere', 'Most numbers are active in minutes; a few countries need ID details first'],
   },
   antired_hosting: {
     services: 'Anti-Red Hosting — DMCA-ignored offshore cPanel hosting',

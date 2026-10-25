@@ -1,10 +1,11 @@
 // Chinese (Simplified) promo copy — same structure as en.js.
+const { CLOUD_COUNTRY_COUNT: N } = require('../phone-config')
 module.exports = {
   cloudphone: {
-    hooks: ['给您的业务一条真正的电话线', '30+ 国家的本地号码，60 秒开通'],
+    hooks: ['给您的业务一条真正的电话线', `${N} 个国家的电话号码，大多数几分钟内开通`],
     cross: ['有线索了？现在就打给他们', '您的线索需要一个能接通的号码'],
     lines: p => [
-      '30+ 国家虚拟号码 — 无需 SIM 卡，无合约',
+      `${N} 个国家虚拟号码 — 无需 SIM 卡，无合约`,
       'IVR 菜单、语音信箱、短信转发到 Telegram、SIP 软电话',
       `Starter 每月含 ${p.phoneStarterMin} 分钟 + ${p.phoneStarterSms} 条短信`,
     ],

@@ -28959,7 +28959,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     if (types.includes('mobile')) typeBtns.push([pc.mobileNumber])
     if (types.includes('national')) typeBtns.push([pc.nationalNumber])
     if (types.includes('toll_free')) typeBtns.push([pc.tollFreeNumber])
-    return send(chatId, cpTxt.selectType(message), k.of(typeBtns))
+    return send(chatId, cpTxt.selectType(message, types), k.of(typeBtns))
   }
 
   // ── BUY FLOW: Select Type ──
@@ -30986,7 +30986,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     if (types.includes('mobile')) typeBtns.push([pc.mobileNumber])
     if (types.includes('national')) typeBtns.push([pc.nationalNumber])
     if (types.includes('toll_free')) typeBtns.push([pc.tollFreeNumber])
-    return send(chatId, cpTxt.selectType(message), k.of(typeBtns))
+    return send(chatId, cpTxt.selectType(message, types), k.of(typeBtns))
   }
 
   // ━━━ SUB-NUMBER: Select Type ━━━

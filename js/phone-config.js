@@ -385,6 +385,8 @@ const _twilioMoreCountries = [
   { code: 'TH', name: '🇹🇭 Thailand', provider: 'twilio', types: ['toll_free', 'mobile'] },
 ]
 const moreCountries = isTwilioEnabled() ? _twilioMoreCountries : (_telnyxIntlOn ? _telnyxIntlMore : [])
+// Countries the bot actually sells numbers in (used in the hub / welcome copy instead of a fixed "30+").
+const CLOUD_COUNTRY_COUNT = new Set([...allCountries, ...moreCountries].map(c => c.code)).size
 
 // US popular area codes
 const usAreaCodes = [
@@ -624,21 +626,21 @@ planByButton[btn.businessPlan] = 'business'
 const txt = {
   hubWelcome: `📞 <b>Cloud IVR</b> <i>by Speechcue</i>
 
-Virtual numbers in 30+ countries · Active in 2 minutes
+Virtual numbers in ${CLOUD_COUNTRY_COUNT} countries · Most are live in minutes
 
 📞 Call forwarding · 💬 SMS to Telegram · 🌐 Browser calls · 🤖 IVR · 🔗 SIP
 
-Plans from <b>$${PHONE_STARTER_PRICE}/mo</b> (${plans.starter.minutes} inbound min + ${plans.starter.sms} SMS included — incoming calls answered via SIP/browser · call forwarding & outbound billed from wallet)
+Plans from <b>$${PHONE_STARTER_PRICE}/mo</b> (${plans.starter.minutes} incoming min + ${plans.starter.sms} SMS included — minutes cover calls you answer on SIP/browser · call forwarding & outgoing calls are billed from your wallet)
 
 New? Tap <b>❓ How It Works</b>`,
 
   howItWorks: `📞 <b>Cloud IVR — How It Works</b>
 
-Virtual phone numbers in 30+ countries, managed from Telegram.
+Virtual phone numbers in ${CLOUD_COUNTRY_COUNT} countries, managed from Telegram.
 
 <b>🚀 Quick Start:</b>
 1. Choose Plan → Pick Country → Select Number
-2. Pay from wallet → Active immediately
+2. Pay from wallet → most numbers go live right away (a few countries need ID details first)
 
 <b>📞 Features:</b>
 • Forward calls to any phone
@@ -650,21 +652,21 @@ Virtual phone numbers in 30+ countries, managed from Telegram.
 • Custom voicemail
 
 <b>💰 Billing:</b>
-Incoming calls answered via SIP/browser + SMS included · Call forwarding & outbound charged from wallet
+Incoming calls you answer on SIP/browser + received SMS are included · Call forwarding & outgoing calls are charged from your wallet
 
 <b>📋 Plans:</b>
 💡 Starter $${PHONE_STARTER_PRICE}/mo — ${plans.starter.minutes} inbound min · Forwarding + SMS
-⭐ Pro $${PHONE_PRO_PRICE}/mo — ${plans.pro.minutes} inbound min · + Voicemail, SIP, IVR
-👑 Business $${PHONE_BUSINESS_PRICE}/mo — ${BUSINESS_MINUTES} inbound min · + Recording, Auto-attendant
+⭐ Pro $${PHONE_PRO_PRICE}/mo — ${plans.pro.minutes} inbound min · + Voicemail, SIP, Call recording, Quick & Bulk IVR, OTP
+👑 Business $${PHONE_BUSINESS_PRICE}/mo — ${BUSINESS_MINUTES} inbound min · + Auto-attendant, IVR redial, Quick IVR scheduling, Priority support
 
 🧪 Try SIP free — tap <b>🧪 Test SIP Free</b>`,
 
   selectCountry: '📍 Select country for your new phone number:',
 
-  selectType: (country) => `📱 Select number type for <b>${country}</b>:
-
-<b>📍 Local</b> — Geographic number with area code
-<b>🆓 Toll-Free</b> — 800/888/877 prefix, nationwide`,
+  selectType: (country, types = ['local', 'toll_free']) => {
+    const d = { local: '<b>📍 Local</b> — geographic number with an area code', mobile: '<b>📱 Mobile</b> — number from the mobile range', national: '<b>🌐 National</b> — nationwide number, no area code', toll_free: '<b>📞 Toll-Free</b> — free for callers, nationwide' }
+    return `📱 Select number type for <b>${country}</b>:\n\n${types.map(t => d[t]).filter(Boolean).join('\n')}`
+  },
 
   selectArea: '🏙️ Select area or enter your preferred area code:',
   enterAreaCode: 'Enter area code (e.g. 415):',
@@ -1819,7 +1821,7 @@ const txtI18n = {
   fr: {
     hubWelcome: `📞 <b>Cloud IVR</b> <i>par Speechcue</i>
 
-Obtenez un numéro virtuel dans plus de 30 pays — en moins de 2 minutes.
+Obtenez un numéro virtuel dans ${CLOUD_COUNTRY_COUNT} pays — la plupart sont actifs en quelques minutes.
 
 📞 Transférez les appels vers votre vrai téléphone
 💬 Recevez les SMS directement dans Telegram
@@ -1834,12 +1836,12 @@ Nouveau ? Appuyez sur <b>❓ Comment ça marche</b> pour un guide complet.`,
 
     howItWorks: `📞 <b>Cloud IVR — Comment ça marche</b>
 
-Votre propre numéro virtuel dans plus de 30 pays. Recevez des appels, envoyez des SMS, créez des menus IVR — tout depuis Telegram.
+Votre propre numéro virtuel dans ${CLOUD_COUNTRY_COUNT} pays. Recevez des appels et des SMS, créez des menus IVR — tout depuis Telegram.
 
 <b>🚀 Pour commencer :</b>
 1. Appuyez sur <b>🛒 Choisir un Forfait</b> → choisissez un pays → sélectionnez un numéro
 2. Payez depuis votre portefeuille (crypto, banque ou carte)
-3. Votre numéro est actif immédiatement
+3. La plupart des numéros sont actifs immédiatement (certains pays demandent des informations d’identité)
 
 <b>📞 Ce que vous pouvez faire :</b>
 • <b>Transférer les appels</b> vers votre vrai téléphone
@@ -1852,14 +1854,14 @@ Votre propre numéro virtuel dans plus de 30 pays. Recevez des appels, envoyez d
 • <b>🎙️ Messagerie vocale</b> — messages personnalisés, livrés sur Telegram/Email
 
 <b>💰 Facturation :</b>
-• <b>Entrant</b> — appels & SMS inclus dans le forfait
+• <b>Entrant</b> — appels répondus (SIP/navigateur) & SMS reçus inclus dans le forfait
 • <b>Sortant</b> — appels & transferts facturés par minute depuis le portefeuille
 • Renouvellement mensuel. Auto-renouvellement disponible.
 
 <b>📋 Forfaits :</b>
 💡 <b>Starter $${PHONE_STARTER_PRICE}/mois</b> — ${plans.starter.minutes} min, transfert + SMS vers Telegram
-⭐ <b>Pro $${PHONE_PRO_PRICE}/mois</b> — ${plans.pro.minutes} min, + messagerie, SIP, IVR, OTP
-👑 <b>Business $${PHONE_BUSINESS_PRICE}/mois</b> — ${BUSINESS_MINUTES} min, + enregistrement, standard auto
+⭐ <b>Pro $${PHONE_PRO_PRICE}/mois</b> — ${plans.pro.minutes} min, + messagerie vocale, SIP, enregistrement des appels, IVR rapide & en masse, OTP
+👑 <b>Business $${PHONE_BUSINESS_PRICE}/mois</b> — ${BUSINESS_MINUTES} min, + standard automatique, rappel IVR, planification IVR rapide, support prioritaire
 
 🧪 Essayez SIP gratuitement — appuyez sur <b>🧪 Tester SIP Gratuit</b>`,
 
@@ -1907,7 +1909,10 @@ Votre propre numéro virtuel dans plus de 30 pays. Recevez des appels, envoyez d
     bulkRunning: 'La campagne est en cours ! Vous verrez les mises à jour ici.\n\nAppuyez sur <b>🛑 Arrêter</b> pour annuler.',
     bulkCancelled: '🛑 <b>Campagne annulée.</b>\n\nLes appels actifs se termineront, aucun nouvel appel ne sera lancé.',
     // ── Phone number selection & management ──
-    selectType: (country) => `📱 Sélectionnez le type de numéro pour <b>${country}</b> :\n\n<b>📍 Local</b> — Numéro géographique avec indicatif régional\n<b>🆓 Sans frais</b> — Préfixe 800/888/877, national`,
+    selectType: (country, types = ['local', 'toll_free']) => {
+      const d = { local: '<b>📍 Local</b> — numéro géographique avec indicatif régional', mobile: '<b>📱 Mobile</b> — numéro de la plage mobile', national: '<b>🌐 National</b> — numéro national, sans indicatif régional', toll_free: '<b>📞 Gratuit</b> — gratuit pour l’appelant, national' }
+      return `📱 Sélectionnez le type de numéro pour <b>${country}</b> :\n\n${types.map(t => d[t]).filter(Boolean).join('\n')}`
+    },
     selectArea: '🏙️ Sélectionnez la zone ou entrez votre indicatif régional :',
     enterAreaCode: 'Entrez l\'indicatif régional (ex : 415) :',
     showNumbers: (location, numbers) => {
@@ -2296,7 +2301,7 @@ Envoyez /testsip ici pour obtenir votre code test.
   zh: {
     hubWelcome: `📞 <b>Cloud IVR</b> <i>由 Speechcue 提供</i>
 
-在30多个国家获取虚拟号码 — 不到2分钟。
+在 ${CLOUD_COUNTRY_COUNT} 个国家获取虚拟号码 — 大多数号码几分钟内即可开通。
 
 📞 将来电转接到您的真实手机
 💬 在 Telegram 中直接接收短信
@@ -2311,12 +2316,12 @@ Envoyez /testsip ici pour obtenir votre code test.
 
     howItWorks: `📞 <b>Cloud IVR — 使用说明</b>
 
-在30多个国家拥有您的虚拟号码。接听电话、发送短信、创建IVR菜单 — 全部通过Telegram管理。
+在 ${CLOUD_COUNTRY_COUNT} 个国家拥有您的虚拟号码。接听电话和短信、创建IVR菜单 — 全部通过Telegram管理。
 
 <b>🚀 开始使用：</b>
 1. 点击 <b>🛒 选择套餐</b> → 选择国家 → 选择号码
 2. 从钱包支付（加密货币、银行或卡）
-3. 号码立即激活
+3. 大多数号码立即激活（部分国家需要先提交身份信息）
 
 <b>📞 功能：</b>
 • <b>来电转接</b> — 转到您的真实手机
@@ -2329,14 +2334,14 @@ Envoyez /testsip ici pour obtenir votre code test.
 • <b>🎙️ 语音信箱</b> — 自定义问候语，发送到Telegram/Email
 
 <b>💰 计费：</b>
-• <b>来电</b> — 通话和短信包含在套餐中
+• <b>来电</b> — 通过 SIP/浏览器接听的通话和收到的短信包含在套餐中
 • <b>外呼</b> — 按分钟从钱包扣费
 • 按月续费。可设置自动续费。
 
 <b>📋 套餐：</b>
 💡 <b>入门 $${PHONE_STARTER_PRICE}/月</b> — ${plans.starter.minutes}分钟，转接 + 短信到Telegram
-⭐ <b>专业 $${PHONE_PRO_PRICE}/月</b> — ${plans.pro.minutes}分钟，+ 语音信箱、SIP、IVR、OTP
-👑 <b>商务 $${PHONE_BUSINESS_PRICE}/月</b> — ${BUSINESS_MINUTES}分钟，+ 录音、自动应答、调度
+⭐ <b>专业 $${PHONE_PRO_PRICE}/月</b> — ${plans.pro.minutes}分钟，+ 语音信箱、SIP、通话录音、快速及批量IVR、OTP
+👑 <b>商务 $${PHONE_BUSINESS_PRICE}/月</b> — ${BUSINESS_MINUTES}分钟，+ 自动应答、IVR重拨、快速IVR定时、优先支持
 
 🧪 免费试用SIP通话 — 点击 <b>🧪 免费测试 SIP</b>`,
 
@@ -2384,7 +2389,10 @@ Envoyez /testsip ici pour obtenir votre code test.
     bulkRunning: '活动正在运行！您将看到进度更新。\n\n点击 <b>🛑 停止</b> 取消。',
     bulkCancelled: '🛑 <b>活动已取消。</b>\n\n进行中的通话将完成，不会发起新通话。',
     // ── 电话号码选择与管理 ──
-    selectType: (country) => `📱 选择 <b>${country}</b> 的号码类型：\n\n<b>📍 本地</b> — 带区号的地理号码\n<b>🆓 免费</b> — 800/888/877 前缀，全国通用`,
+    selectType: (country, types = ['local', 'toll_free']) => {
+      const d = { local: '<b>📍 本地</b> — 带区号的地理号码', mobile: '<b>📱 手机</b> — 手机号段号码', national: '<b>🌐 全国</b> — 全国通用号码，无区号', toll_free: '<b>📞 免费</b> — 来电方免费，全国通用' }
+      return `📱 选择 <b>${country}</b> 的号码类型：\n\n${types.map(t => d[t]).filter(Boolean).join('\n')}`
+    },
     selectArea: '🏙️ 选择地区或输入区号：',
     enterAreaCode: '输入区号（如 415）：',
     showNumbers: (location, numbers) => {
@@ -2773,7 +2781,7 @@ Envoyez /testsip ici pour obtenir votre code test.
   hi: {
     hubWelcome: `📞 <b>Cloud IVR</b> <i>Speechcue द्वारा</i>
 
-30 से अधिक देशों में वर्चुअल नंबर प्राप्त करें — 2 मिनट से भी कम में।
+${CLOUD_COUNTRY_COUNT} देशों में वर्चुअल नंबर प्राप्त करें — ज़्यादातर नंबर कुछ ही मिनटों में चालू।
 
 📞 कॉल अपने असली फ़ोन पर फ़ॉरवर्ड करें
 💬 टेलीग्राम में सीधे SMS प्राप्त करें
@@ -2788,12 +2796,12 @@ Envoyez /testsip ici pour obtenir votre code test.
 
     howItWorks: `📞 <b>Cloud IVR — कैसे काम करता है</b>
 
-30+ देशों में अपना वर्चुअल फ़ोन नंबर। कॉल प्राप्त करें, SMS भेजें, IVR मेनू बनाएं — सब Telegram से।
+${CLOUD_COUNTRY_COUNT} देशों में अपना वर्चुअल फ़ोन नंबर। कॉल और SMS प्राप्त करें, IVR मेनू बनाएं — सब Telegram से।
 
 <b>🚀 शुरू करें:</b>
 1. <b>🛒 प्लान चुनें</b> दबाएं → देश चुनें → नंबर चुनें
 2. वॉलेट से भुगतान करें (क्रिप्टो, बैंक या कार्ड)
-3. नंबर तुरंत सक्रिय
+3. ज़्यादातर नंबर तुरंत सक्रिय (कुछ देशों में पहले पहचान विवरण चाहिए)
 
 <b>📞 क्या कर सकते हैं:</b>
 • <b>कॉल फ़ॉरवर्ड</b> — अपने असली फ़ोन पर
@@ -2806,14 +2814,14 @@ Envoyez /testsip ici pour obtenir votre code test.
 • <b>🎙️ वॉइसमेल</b> — कस्टम ग्रीटिंग, Telegram/Email पर डिलीवरी
 
 <b>💰 बिलिंग:</b>
-• <b>इनबाउंड</b> — कॉल और SMS प्लान में शामिल
+• <b>इनबाउंड</b> — SIP/ब्राउज़र पर उठाई गई कॉल और प्राप्त SMS प्लान में शामिल
 • <b>आउटबाउंड</b> — वॉलेट से प्रति मिनट चार्ज
 • मासिक नवीनीकरण। ऑटो-रिन्यू उपलब्ध।
 
 <b>📋 प्लान:</b>
 💡 <b>स्टार्टर $${PHONE_STARTER_PRICE}/माह</b> — ${plans.starter.minutes} मिनट, फ़ॉरवर्डिंग + SMS
-⭐ <b>प्रो $${PHONE_PRO_PRICE}/माह</b> — ${plans.pro.minutes} मिनट, + वॉइसमेल, SIP, IVR, OTP
-👑 <b>बिज़नेस $${PHONE_BUSINESS_PRICE}/माह</b> — ${BUSINESS_MINUTES} मिनट, + रिकॉर्डिंग, ऑटो-अटेंडेंट
+⭐ <b>प्रो $${PHONE_PRO_PRICE}/माह</b> — ${plans.pro.minutes} मिनट, + वॉइसमेल, SIP, कॉल रिकॉर्डिंग, त्वरित व बल्क IVR, OTP
+👑 <b>बिज़नेस $${PHONE_BUSINESS_PRICE}/माह</b> — ${BUSINESS_MINUTES} मिनट, + ऑटो-अटेंडेंट, IVR रीडायल, त्वरित IVR शेड्यूलिंग, प्राथमिकता सपोर्ट
 
 🧪 मुफ्त SIP ट्राई करें — <b>🧪 SIP मुफ्त टेस्ट</b> दबाएं`,
 
@@ -2861,7 +2869,10 @@ Envoyez /testsip ici pour obtenir votre code test.
     bulkRunning: 'अभियान चल रहा है! आपको यहाँ अपडेट दिखेंगे।\n\n<b>🛑 रोकें</b> पर टैप करें।',
     bulkCancelled: '🛑 <b>अभियान रद्द।</b>\n\nसक्रिय कॉल पूरे होंगे, नए कॉल नहीं होंगे।',
     // ── फ़ोन नंबर चयन और प्रबंधन ──
-    selectType: (country) => `📱 <b>${country}</b> के लिए नंबर प्रकार चुनें:\n\n<b>📍 लोकल</b> — एरिया कोड वाला भौगोलिक नंबर\n<b>🆓 टोल-फ्री</b> — 800/888/877 प्रीफिक्स, राष्ट्रीय`,
+    selectType: (country, types = ['local', 'toll_free']) => {
+      const d = { local: '<b>📍 लोकल</b> — एरिया कोड वाला भौगोलिक नंबर', mobile: '<b>📱 मोबाइल</b> — मोबाइल रेंज का नंबर', national: '<b>🌐 नेशनल</b> — पूरे देश का नंबर, बिना एरिया कोड', toll_free: '<b>📞 टोल-फ्री</b> — कॉल करने वाले के लिए मुफ्त, राष्ट्रीय' }
+      return `📱 <b>${country}</b> के लिए नंबर प्रकार चुनें:\n\n${types.map(t => d[t]).filter(Boolean).join('\n')}`
+    },
     selectArea: '🏙️ क्षेत्र चुनें या अपना एरिया कोड दर्ज करें:',
     enterAreaCode: 'एरिया कोड दर्ज करें (जैसे 415):',
     showNumbers: (location, numbers) => {
@@ -3498,6 +3509,7 @@ module.exports = {
   isTwilioEnabled,
   isTelnyxIntlEnabled,
   telnyxIntlCountries,
+  CLOUD_COUNTRY_COUNT,
   telnyxIntlMore: _telnyxIntlMore,
   isHeldTwilioNumber,
   twilioUpgradeHoldMsg,

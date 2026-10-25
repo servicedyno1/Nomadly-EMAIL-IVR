@@ -80,7 +80,9 @@ function Upgrade({ num, reload, refreshSummary, plans, coins }) {
           <PlanFeatures plan={{ webFeatures: unlocks(plans, num.plan, plan) }} compact testid="billing-upgrade-unlock" />
         </div>
       )}
-      {quote && <div className="text-sm" data-testid="billing-upgrade-quote">Pay <span className="font-mono">{money(quote.charge)}</span> now{quote.credit > 0 ? ` (includes ${money(quote.credit)} credit for unused days)` : ''}. Then {money(quote.newPrice)}/month.</div>}
+      {quote && <div className="text-sm" data-testid="billing-upgrade-quote">{quote.credit > 0
+        ? `Pay ${money(quote.charge)} now — includes a ${money(quote.credit)} upgrade credit (25% of your current plan, for upgrading within 14 days of buying). Then ${money(quote.newPrice)}/month — your renewal date stays the same.`
+        : `Pay ${money(quote.charge)} now. Then ${money(quote.newPrice)}/month — your renewal date stays the same.`}</div>}
       {quote ? <UpgradePay num={num} plan={plan} quote={quote} coins={coins} busy={busy} onWallet={() => call(true)} />
         : <button className="civr-btn civr-btn-ghost civr-btn-sm" disabled={busy} onClick={() => call(false)} data-testid="billing-upgrade-quote-button"><ArrowUpCircle className="w-4 h-4" />See price</button>}
     </div>
