@@ -9,6 +9,7 @@ import { useShell } from '../../Shell';
 import { useRtc } from '../../rtc';
 import { askNotify, notifyState } from '../../ringAlerts';
 import { Card, useSave } from './SettingsTabs';
+import { useUnsaved, SaveRow } from '../../guard';
 
 const MODES = [['ask', 'Ask each time: voice or text'], ['voice', 'Always voice'], ['text', 'Always text (answers by itself)']];
 const LANGS = [['en', 'English'], ['es', 'Spanish'], ['fr', 'French']];
@@ -70,12 +71,13 @@ export default function BrowserRingTab({ num, reload }) {
   const rtc = useRtc();
   const [f, setF] = useState({ enabled: !!br.enabled, answerMode: br.answerMode || 'ask', lang: br.lang || 'en', voice: br.voice || 'female', announce: br.announce !== false });
   const [save, busy] = useSave(num, 'browser-ring', reload);
+  const u = useUnsaved(f);
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
   const turn = (v) => { setF({ ...f, enabled: v }); if (v) askNotify(); };
-  const submit = async () => { if (await save(f)) rtc.autoConnect(); };
+  const submit = async () => { if (await save(f)) { u.reset(); rtc.autoConnect(); } };
   return (
     <div className="space-y-4">
-      <Card title="Ring me in the browser" sub="While CloudIVR is open, calls to this number ring here with a big banner on every page. Answer by typing (text call) or by voice.">
+      <Card bind={u.bind} title="Ring me in the browser" sub="While CloudIVR is open, calls to this number ring here with a big banner on every page. Answer by typing (text call) or by voice.">
         <div className="flex items-center justify-between gap-4"><span className="text-sm">Ring me in the browser</span><Toggle checked={f.enabled} onChange={turn} testid="browser-ring-enabled-toggle" /></div>
         <Field label="When it rings">
           <select className="civr-input" value={f.answerMode} onChange={set('answerMode')} data-testid="browser-ring-mode-select">{MODES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select>
@@ -90,7 +92,7 @@ export default function BrowserRingTab({ num, reload }) {
         </div>
         <Alerts />
         <Notes num={num} />
-        <button className="civr-btn civr-btn-primary" disabled={busy} onClick={submit} data-testid="browser-ring-save-button">Save</button>
+        <SaveRow dirty={u.dirty} testid="browser-ring-unsaved-pill"><button className="civr-btn civr-btn-primary" disabled={busy} onClick={submit} data-testid="browser-ring-save-button">Save</button></SaveRow>
       </Card>
       {catalog?.dryRun && <div className="max-w-2xl"><TryIt num={num} saved={!!br.enabled} /></div>}
     </div>

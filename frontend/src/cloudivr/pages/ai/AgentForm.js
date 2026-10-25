@@ -5,6 +5,7 @@ import { api } from '../../api';
 import { ask } from '../../i18n';
 import { Field, Toggle, ErrorNote } from '../../ui';
 import { BookingFields, browserZone } from './BookingFields';
+import { useUnsaved, UnsavedPill } from '../../guard';
 
 const LANGS = [['en', 'English'], ['fr', 'French'], ['es', 'Spanish']];
 export const EMPTY_AGENT = {
@@ -50,20 +51,21 @@ export function AgentForm({ initial, voices, recordRate, recordingDays, onSaved,
   const [f, setF] = useState({ ...EMPTY_AGENT, ...initial, transferTo: initial?.transferTo || '', record: initial?.record !== false, booking: { ...EMPTY_AGENT.booking, ...(initial?.booking || {}) } });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
+  const u = useUnsaved(f);
   const set = (k, v) => setF(x => ({ ...x, [k]: v }));
   const save = async (e) => {
     e.preventDefault(); setBusy(true); setError(null);
     try {
       const d = await api(f.id ? `/ai-agents/${f.id}` : '/ai-agents', { method: f.id ? 'PUT' : 'POST', body: f });
-      toast.success('Agent saved'); onSaved(d.agent);
+      u.reset(); toast.success('Agent saved'); onSaved(d.agent);
     } catch (err) { setError(err); } finally { setBusy(false); }
   };
   const remove = async () => {
-    if (!ask('Delete this agent? Numbers using it go back to normal call handling.')) return;
-    try { await api(`/ai-agents/${f.id}`, { method: 'DELETE' }); toast.success('Agent deleted'); onDeleted(); } catch (err) { toast.error(err.message); }
+    if (!(await ask('Delete this agent? Numbers using it go back to normal call handling.', { danger: true, ok: 'Delete agent' }))) return;
+    try { await api(`/ai-agents/${f.id}`, { method: 'DELETE' }); toast.success('Agent deleted'); u.reset(); onDeleted(); } catch (err) { toast.error(err.message); }
   };
   return (
-    <form onSubmit={save} className="civr-card p-6 space-y-6" data-testid="ai-agent-form">
+    <form onSubmit={save} className="civr-card p-6 space-y-6" data-testid="ai-agent-form" {...u.bind}>
       <Basics f={f} set={set} voices={voices} />
       <Field label="Personality & script" hint="What the agent does, how it talks and what it should find out."><Text f={f} set={set} k="goal" rows={5} ph="Friendly receptionist. Answer questions, book cleanings and get the caller's name and preferred time." testid="ai-agent-goal-input" /></Field>
       <Field label="Opening line (optional)" hint="Said right after the agent introduces itself as an AI assistant."><Text f={f} set={set} k="greeting" ph="How can I help you today?" testid="ai-agent-greeting-input" /></Field>
@@ -74,6 +76,7 @@ export function AgentForm({ initial, voices, recordRate, recordingDays, onSaved,
       <div className="flex flex-wrap gap-2">
         <button className="civr-btn civr-btn-primary" disabled={busy} data-testid="ai-agent-save-button">{busy && <Loader2 className="w-4 h-4 animate-spin" />}Save agent</button>
         {f.id && <button type="button" className="civr-btn civr-btn-danger" onClick={remove} data-testid="ai-agent-delete-button"><Trash2 className="w-4 h-4" />Delete</button>}
+        <UnsavedPill show={u.dirty} testid="ai-agent-unsaved-pill" />
       </div>
     </form>
   );

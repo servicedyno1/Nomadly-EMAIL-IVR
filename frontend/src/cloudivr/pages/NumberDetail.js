@@ -15,6 +15,7 @@ import { cp } from '../paths';
 import { useShell } from '../Shell';
 import { planFor } from '../PlanFeatures';
 import { usePrivacy } from '../privacy';
+import { confirmLeave } from '../guard';
 
 const TABS = [
   ['overview', 'Overview', null, OverviewTab], ['forwarding', 'Forwarding', 'callForwarding', ForwardingTab], ['browser', 'Browser ring', 'textRelay', BrowserRingTab], ['hours', 'Hours', null, HoursTab], ['ivr', 'Keypad menu', 'ivr', IvrTab], ['ai', 'AI voice agent', 'aiAgent', AiAgentTab],
@@ -50,7 +51,7 @@ export default function NumberDetail() {
       </div>
       <TabStrip active={tab} testid="number-tabstrip">
         {TABS.map(([id, name]) => (
-          <button key={id} role="tab" aria-selected={tab === id} onClick={() => setParams({ tab: id }, { replace: true })} data-testid={`number-tab-${id}`}
+          <button key={id} role="tab" aria-selected={tab === id} onClick={async () => { if (id !== tab && await confirmLeave()) setParams({ tab: id }, { replace: true }); }} data-testid={`number-tab-${id}`}
             className={`px-3 py-3 text-sm font-medium border-b-2 -mb-px transition-colors shrink-0 ${tab === id ? 'border-[#34d399] text-[#34d399]' : 'border-transparent text-[#a1a1aa] hover:text-white'}`}>{name}</button>
         ))}
       </TabStrip>

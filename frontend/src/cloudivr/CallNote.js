@@ -24,7 +24,7 @@ export function NoteCell({ log: l, phone, onSaved, testid }) {
   const save = () => run(() => (note
     ? api(`/notes/${enc(note.id)}`, { method: 'PATCH', body: { text } })
     : api(`/numbers/${enc(phone)}/notes`, { method: 'POST', body: { text, logId: l.id, peer: l.direction === 'outbound' ? l.to : l.from, direction: l.direction, callAt: l.timestamp } })), 'Note saved');
-  const remove = () => { if (ask('Delete this note?')) run(() => api(`/notes/${enc(note.id)}`, { method: 'DELETE' }), 'Note deleted'); };
+  const remove = async () => { if (await ask('Delete this note?', { danger: true, ok: 'Delete' })) run(() => api(`/notes/${enc(note.id)}`, { method: 'DELETE' }), 'Note deleted'); };
 
   if (open) {
     return (

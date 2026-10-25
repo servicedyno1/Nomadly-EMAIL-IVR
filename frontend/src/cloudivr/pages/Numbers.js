@@ -5,6 +5,7 @@ import { useApi, day, money, enc } from '../api';
 import { PageHeader, Spinner, ErrorNote, Empty, statusPill } from '../ui';
 import { cp } from '../paths';
 import { usePrivacy } from '../privacy';
+import { useSearch, SearchBox, NoMatches } from '../search';
 
 const on = (f) => f?.enabled;
 
@@ -12,6 +13,7 @@ export default function Numbers() {
   const { data, error, loading } = useApi('/numbers');
   const pv = usePrivacy();
   const nums = data?.numbers || [];
+  const s = useSearch(nums, n => [n.phoneNumber, n.countryName, n.country, n.planName, n.status, n.type?.replace('_', '-'), n.isSubNumber ? 'Extra' : '']);
   return (
     <div data-testid="numbers-page">
       <PageHeader label="Numbers" title="My numbers" sub="Tap a number to set up forwarding, IVR, voicemail, SMS and SIP." testid="numbers-header">
@@ -23,8 +25,11 @@ export default function Numbers() {
           <Link to={cp('/app/buy')} className="civr-btn civr-btn-primary" data-testid="numbers-empty-buy-button">Buy your first number</Link>
         </Empty>
       ) : (
+        <>
+        <SearchBox s={s} placeholder="Search numbers" testid="numbers-search" className="mb-4 max-w-md" />
+        <NoMatches s={s} testid="numbers-no-matches" />
         <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {nums.map((n, i) => (
+          {s.list.map((n, i) => (
             <Link key={n.phoneNumber} to={cp(`/app/numbers/${enc(n.phoneNumber)}`)} className={`civr-card civr-card-link p-6 civr-rise civr-d${(i % 4) + 1}`} data-testid={`number-card-${i}`}>
               <div className="flex items-start justify-between">
                 <div>
@@ -49,6 +54,7 @@ export default function Numbers() {
             </Link>
           ))}
         </div>
+        </>
       )}
     </div>
   );

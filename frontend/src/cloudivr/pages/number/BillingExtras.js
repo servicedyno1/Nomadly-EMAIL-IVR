@@ -17,7 +17,7 @@ export function Downgrade({ num, plans, reload, refreshSummary }) {
   const [busy, setBusy] = useState(false);
   if (!lower.length || num.isSubNumber) return null;
   const call = async (confirm) => {
-    if (confirm && !ask('Switch plans now? There is no refund for this month, and the features listed turn off right away.')) return;
+    if (confirm && !(await ask('Switch plans now? There is no refund for this month, and the features listed turn off right away.', { danger: true, ok: 'Switch plan' }))) return;
     setBusy(true);
     try {
       const d = await api(`/numbers/${enc(num.phoneNumber)}/downgrade`, { method: 'POST', body: { plan, confirm } });

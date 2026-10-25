@@ -11,11 +11,14 @@ import { usePrivacy } from '../privacy';
 import { MenuBuilder, menuToApi } from './quick/MenuBuilder';
 import { ScriptBox } from './quick/ScriptBox';
 import { CampaignKind, AiCampaignFields } from './ai/AiCampaignFields';
+import { useSearch, SearchBox, NoMatches } from '../search';
+import { useUnsaved, UnsavedPill } from '../guard';
 
 export function Campaigns() {
   const { data, loading, error } = useApi('/campaigns');
   const pv = usePrivacy();
   const list = data?.campaigns || [];
+  const s = useSearch(list, c => [c.audioName || 'Campaign', c.callerId, c.status, c.mode === 'ai' ? 'AI voice agent' : '']);
   return (
     <div data-testid="campaigns-page">
       <PageHeader label="Outbound" title="Bulk IVR campaigns" sub="Call a list of numbers, play your message, report key presses or transfer interested callers to you." testid="campaigns-header">
@@ -24,7 +27,9 @@ export function Campaigns() {
       <ErrorNote error={error} />
       {loading && !data ? <Spinner /> : !list.length ? <Empty icon={Megaphone} title="No campaigns yet" sub="Paste your numbers, pick a message and go." testid="campaigns-empty" /> : (
         <div className="space-y-3">
-          {list.map((c, i) => (
+          <SearchBox s={s} placeholder="Search campaigns" testid="campaigns-search" className="max-w-md" />
+          <NoMatches s={s} testid="campaigns-no-matches" />
+          {s.list.map((c, i) => (
             <Link key={c.id} to={cp(`/app/campaigns/${c.id}`)} className="civr-card civr-card-link p-6 flex flex-col md:flex-row md:items-center gap-3" data-testid={`campaign-row-${i}`}>
               <div className="flex-1 min-w-0"><div className="font-semibold truncate">{c.audioName || 'Campaign'}</div><div className="text-xs text-[#a1a1aa] font-mono">{pv.phone(c.callerId)} · {when(c.createdAt)}</div></div>
               <div className="font-mono text-sm text-[#d4d4d8]">{c.stats?.completed || 0}/{c.stats?.total || 0} called</div>
@@ -73,6 +78,7 @@ export function CampaignNew() {
   const [est, setEst] = useState(null);
   const [busy, setBusy] = useState('');
   const [error, setError] = useState(null);
+  const u = useUnsaved({ f, kind, script });
   const set = (k) => (v) => setF({ ...f, [k]: v?.target ? v.target.value : v });
   if (loading) return <Spinner />;
   if (!numbers.length) return (
@@ -95,6 +101,7 @@ export function CampaignNew() {
       const d = await api('/campaigns', { method: 'POST', body });
       toast.success(d.skipped ? `Campaign saved · ${d.skipped} line(s) skipped` : 'Campaign saved');
       if (d.doNotCall) toast.message(`${d.doNotCall} number(s) are on your do-not-call list and will be skipped`);
+      u.reset();
       nav(cp(`/app/campaigns/${d.campaign.id}`));
     } catch (err) { setError(err); } finally { setBusy(''); }
   };
@@ -103,7 +110,7 @@ export function CampaignNew() {
     <div data-testid="campaign-new-page">
       <PageHeader label="Campaigns" title="New campaign" testid="campaign-new-header" />
       <CampaignKind value={kind} onChange={setKind} />
-      <form onSubmit={create} className="grid lg:grid-cols-2 gap-4">
+      <form onSubmit={create} className="grid lg:grid-cols-2 gap-4" {...u.bind}>
         <div className="civr-card p-6 space-y-6">
           <Field label="Caller ID"><select className="civr-input font-mono" value={callerId} onChange={set('callerId')} data-testid="campaign-caller-select">{numbers.map(n => <option key={n.phoneNumber}>{n.phoneNumber}</option>)}</select></Field>
           {isAi ? <AiCampaignFields agentId={f.agentId} onChange={set('agentId')} /> : <>
@@ -130,6 +137,7 @@ export function CampaignNew() {
           {!isAi && f.mode !== 'report_only' && <div className="flex items-center justify-between"><span className="text-sm">Hold music during transfer</span><Toggle checked={f.holdMusic} onChange={set('holdMusic')} testid="campaign-hold-music-toggle" /></div>}
           <ErrorNote error={error} testid="campaign-create-error" />
           <button className="civr-btn civr-btn-primary w-full" disabled={busy === 'create'} data-testid="campaign-create-button">{busy === 'create' && <Loader2 className="w-4 h-4 animate-spin" />}Save campaign</button>
+          <UnsavedPill show={u.dirty} testid="campaign-unsaved-pill" />
         </div>
       </form>
     </div>

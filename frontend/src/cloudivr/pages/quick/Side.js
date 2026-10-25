@@ -3,6 +3,7 @@ import { toast } from 'sonner';
 import { History, RotateCcw, CalendarClock, X, BarChart3, Bookmark, Trash2 } from 'lucide-react';
 import { api, useApi, when } from '../../api';
 import { usePrivacy } from '../../privacy';
+import { undoable } from '../../undo';
 
 const Box = ({ icon: Icon, title, children, testid }) => (
   <div className="civr-card p-5" data-testid={testid}>
@@ -35,9 +36,13 @@ export function RecentCalls({ isBiz, onDone, stamp }) {
 }
 
 export function ScheduledCalls({ stamp }) {
-  const { data, reload } = useApi(`/calls/scheduled?s=${stamp}`);
+  const { data, reload, setData } = useApi(`/calls/scheduled?s=${stamp}`);
   const pv = usePrivacy();
-  const cancel = async (id) => { try { await api(`/calls/scheduled/${id}`, { method: 'DELETE' }); toast.success('Scheduled call cancelled'); reload(); } catch (e) { toast.error(e.message); } };
+  const cancel = (id) => undoable('Scheduled call cancelled', {
+    hide: () => setData(d => ({ ...d, calls: (d?.calls || []).filter(x => x.id !== id) })),
+    restore: reload,
+    run: async () => { await api(`/calls/scheduled/${id}`, { method: 'DELETE' }); reload(); },
+  });
   const list = (data?.calls || []).slice(0, 6);
   if (!list.length) return null;
   return (
@@ -68,12 +73,16 @@ export function MenuStats() {
 }
 
 export function Presets({ onLoad, current, stamp }) {
-  const { data, reload } = useApi(`/calls/presets?s=${stamp}`);
+  const { data, reload, setData } = useApi(`/calls/presets?s=${stamp}`);
   const [name, setName] = React.useState('');
   const save = async () => {
     try { await api('/calls/presets', { method: 'POST', body: { name, setup: current() } }); toast.success('Preset saved'); setName(''); reload(); } catch (e) { toast.error(e.message); }
   };
-  const del = async (id) => { try { await api(`/calls/presets/${id}`, { method: 'DELETE' }); reload(); } catch (e) { toast.error(e.message); } };
+  const del = (id) => undoable('Preset deleted', {
+    hide: () => setData(d => ({ ...d, presets: (d?.presets || []).filter(x => x.id !== id) })),
+    restore: reload,
+    run: async () => { await api(`/calls/presets/${id}`, { method: 'DELETE' }); reload(); },
+  });
   const list = data?.presets || [];
   return (
     <Box icon={Bookmark} title="Presets" testid="quick-presets">

@@ -1,0 +1,45 @@
+{
+  "summary": "Frontend-only UI test of 'Keypad menu (IVR) vs AI voice agent: no overlap' in CloudIVR web (dry-run preview). All 10 requested scenarios were run with Playwright. Every flow works: tab names, one-answer notes, switch-off in both directions (saved on the server and shown after reload), Pro plan gates, AI agents plan note, the campaign kind switch staying visible in empty states (Carol/Bob), landing feature cards/FAQ/plan cards, in-app buy plan cards, FR/ES translations, and 390px mobile with no horizontal overflow. One spec gap: after saving, the toast only says 'Saved'. It never tells the user the other feature was switched off. Final state checked: +18582696527 has the keypad menu ON and the AI agent OFF.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "number/SettingsTabs.js useSave (used by AiAgentTab + IvrTab)", "issue": "Spec #2/#3 asks for a notice/toast saying the keypad menu (or the AI voice agent) was switched off. The backend returns ivrTurnedOff / aiAgentTurnedOff, but the frontend ignores them (grep finds no 'TurnedOff' in frontend/src) and always shows the generic toast 'Saved'. The only sign is the amber note on the other tab.", "selector": "[data-sonner-toast]", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [
+      {"flow": "AI agents list (Alice)", "issue": "ai-agent-row-0 still says 'answers +13465372632' (the legacy Pro number with the AI flag ON), but that number no longer gets the AI agent (its route summary says softphone ring). This is misleading. The list should leave out numbers whose plan has no aiAgent, or mark them as 'needs Business'.", "affected_selectors": ["[data-testid='ai-agent-row-0']"]}
+    ],
+    "design_issues": [
+      {"screen": "Landing FAQ item 3 (EN/FR/ES)", "issues": ["Repeated wording: 'The keypad menu is on the Business plan, and AI voice agents on the Business plan.' Simplify to 'The keypad menu and AI voice agents are on the Business plan.' Fix in fr/es too."]},
+      {"screen": "ES translations", "issues": ["AI voice agent tab subtitle: 'asistente AI' / 'FAQs' should read 'asistente de IA' / 'preguntas frecuentes'", "AI agents page subtitle: 'Un IA que responde...' should read 'Una IA'"]},
+      {"screen": "Mobile 390px number detail", "issues": ["The floating help/chat button (bottom-right) covers the end of the amber number-ai-ivr-note text while scrolling (minor)"]}
+    ]
+  },
+  "passed_tests": [
+    "1 Business number tabs read 'Keypad menu' / 'AI voice agent'; route summary says 'Callers hear your keypad menu first.'",
+    "2 AI tab: note visible, agent 'Ava · Sunrise Dental' preselected, toggle ON + save -> pill 'AI voice agent is answering'; IVR tab toggle OFF + ivr-ai-agent-note visible; route summary 'Your AI voice agent answers every call...'",
+    "3 Reverse: IVR toggle ON + 'Save keypad menu' -> AI pill 'Normal call handling', number-ai-ivr-note visible again, route back to keypad menu",
+    "4 Pro +13465372632: AI tab and Keypad menu tab both show the Business plan gate (no toggle/picker/builder); route summary 'Calls ring your softphone / browser phone.' (not AI)",
+    "5 Carol: ai-agents-plan-note + ai-agents-upgrade-link (/cloudivr/app/numbers); Bob also sees the plan note; Alice: ai-agent-row-0 = Ava, no plan note",
+    "6 Carol campaigns/new: campaign-kind visible; AI kind -> campaign-new-empty (Business plan text) with campaign-kind still visible; back to audio -> campaign-caller-select lists +15703399558",
+    "7 Bob: empty state for both kinds, campaign-kind stays visible",
+    "8 Landing: hero/feature cards use the new names; FAQ Q/A present ('Each number uses one or the other', $0.20/min); landing + in-app buy plan cards: Pro ivr/aiAgent struck through, Business included",
+    "9 FR/ES: tab names, both notes, status pills, route summary, campaign kind + empty state, AI agents plan note, landing FAQ Q3/Q4, hero, feature cards, plan features all translated",
+    "10 Mobile 390x844: number detail AI/IVR tabs with notes and Carol's campaign empty state: scrollWidth=390, no overflow"
+  ],
+  "test_report_links": [],
+  "action_items": [
+    "Show a specific toast when the save response has ivrTurnedOff (AI tab), e.g. 'Saved — keypad menu switched off', and when it has aiAgentTurnedOff (IVR tab), e.g. 'Saved — AI voice agent switched off' (EN/FR/ES). useSave needs to return/expose the response.",
+    "AI agents list: don't show 'answers <number>' for numbers whose plan has no AI agent access (legacy Pro flag)",
+    "Copy fixes: FAQ item 3 repeated wording (EN/FR/ES); ES 'asistente AI', 'FAQs', 'Un IA'"
+  ],
+  "critical_code_review_comments": [
+    "SettingsTabs.useSave discards the API response, so neither tab can use the ivrTurnedOff / aiAgentTurnedOff flags",
+    "AiAgentTab keeps the toggle in local useState and does not re-sync with num.features.aiAgent after reload(). It works today because tab switches remount the component, but a reload while the tab stays mounted can leave the toggle out of date."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "not tested (frontend only)", "frontend": "~95% (all 10 scenarios pass; 1 spec gap: no specific switch-off toast)"},
+  "seed_data_creation": "None. Toggled AI/IVR on Alice's +18582696527 several times and restored it to keypad menu ON / AI agent OFF (checked). Searched for numbers on the buy page; nothing bought.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "CloudIVR UI at /cloudivr. Alice Business +18582696527 (IVR ON, AI OFF), Pro +13465372632 (legacy AI flag ON), Carol Pro +15703399558, Bob Starter. Landing lang select testid landing-lang-switcher, in-app desktop topbar-lang-switcher, mobile mobile-lang-switcher. FAQ answers are collapsed: use text_content, not inner_text."
+}

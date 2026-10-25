@@ -11,6 +11,14 @@ import { cp, IS_CIVR_DOMAIN } from './paths';
 import { LangProvider } from './i18n';
 import { applyBrandHead } from './Brand';
 import { PageTitle } from './PageTitle';
+import { ConfirmHost } from './confirm';
+import { CrashGuard } from './safety';
+
+// Last line of defence: a crash outside the signed-in shell (landing, sign-in) shows a recovery card.
+function Guarded({ children }) {
+  const { pathname } = useLocation();
+  return <CrashGuard resetKey={pathname}>{children}</CrashGuard>;
+}
 
 function Protected({ children }) {
   const { account } = useCivrAuth();
@@ -37,6 +45,8 @@ export default function CloudIvrApp() {
       <PageTitle />
       <CivrAuthProvider>
         <Toaster theme="dark" position="bottom-right" mobileOffset={{ bottom: 88 }} richColors closeButton visibleToasts={3} />
+        <ConfirmHost />
+        <Guarded>
         <Routes>
           <Route index element={<Landing />} />
           <Route path="login" element={<AuthPage mode="login" />} />
@@ -47,6 +57,7 @@ export default function CloudIvrApp() {
           {IS_CIVR_DOMAIN && <Route path="cloudivr/*" element={<LegacyPrefixRedirect />} />}
           <Route path="*" element={<Navigate to={cp()} replace />} />
         </Routes>
+        </Guarded>
       </CivrAuthProvider>
      </LangProvider>
     </div>

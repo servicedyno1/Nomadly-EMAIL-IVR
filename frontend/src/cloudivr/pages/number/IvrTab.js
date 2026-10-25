@@ -7,6 +7,7 @@ import { VoiceMaker } from '../../VoiceMaker';
 import { IvrTemplates } from './IvrTemplates';
 import { useSave } from './SettingsTabs';
 import { OneAnswerNote } from './RouteSummary';
+import { useUnsaved, SaveRow } from '../../guard';
 import { cp } from '../../paths';
 import { LANGS, tr, useLang } from '../../i18n';
 
@@ -122,6 +123,8 @@ export default function IvrTab({ num, reload }) {
   const { data, reload: reloadAudio } = useApi('/audio');
   const audios = data?.audios || [];
   const [enabled, setEnabled] = useState(!!ivr.enabled);
+  // Keep the switch in step with the saved value (the AI voice agent tab can switch the keypad menu off).
+  useEffect(() => { setEnabled(!!ivr.enabled); }, [ivr.enabled]);
   const [g, setG] = useState({ greeting: ivr.greeting || defOf(lang).greeting, greetingAudioUrl: ivr.greetingAudioUrl || null });
   const [list, setList] = useState(toList(ivr.options));
   // On a language switch, greetings still on a built-in default follow the new language; custom text stays.
@@ -131,11 +134,12 @@ export default function IvrTab({ num, reload }) {
     setList(l => l.map(o => (o.subMenu && isDef(o.subMenu.greeting, ['sub']) && o.subMenu.greeting !== d.sub ? { ...o, subMenu: { ...o.subMenu, greeting: d.sub } } : o)));
   }, [lang]);
   const [save, busy] = useSave(num, 'ivr', reload);
+  const u = useUnsaved({ enabled, g, list });
   const current = () => ({ greeting: g.greeting, greetingAudioUrl: g.greetingAudioUrl || null, options: toObj(list) });
-  const submit = () => save({ enabled, ...current(), language: lang }, 'PUT');
+  const submit = async () => { if (await save({ enabled, ...current(), language: lang }, 'PUT', (r) => (r?.aiAgentTurnedOff ? 'Saved. The AI voice agent is now off on this number.' : 'Saved'))) u.reset(); };
   const apply = (c) => { setG({ greeting: tr(c.greeting || ''), greetingAudioUrl: c.greetingAudioUrl || null }); setList(toList(locOpts(c.options))); };
   return (
-    <div className="grid lg:grid-cols-3 gap-4">
+    <div className="grid lg:grid-cols-3 gap-4" {...u.bind}>
       <div className="civr-card p-6 lg:col-span-2 space-y-6" data-testid="ivr-builder">
         <div className="flex items-center justify-between">
           <div><div className="font-display text-2xl font-bold">Keypad menu (IVR)</div><p className="text-sm text-[#a1a1aa]">Callers hear the greeting, then press a key.</p></div>
@@ -147,7 +151,7 @@ export default function IvrTab({ num, reload }) {
         {!audios.length && <div className="text-xs text-[#a1a1aa]">Want your own recordings? <Link to={cp('/app/audio')} className="text-[#34d399]" data-testid="ivr-audio-library-link">Open the audio library</Link>.</div>}
         <OptionList list={list} setList={setList} prefix="ivr"
           render={(o, i, u, ch, rm) => <TopRow key={i} o={o} used={u} onChange={ch} onRemove={rm} audios={audios} prefix={`ivr-option-${i}`} onAudio={reloadAudio} />} />
-        <button className="civr-btn civr-btn-primary" disabled={busy} onClick={submit} data-testid="ivr-save-button">Save keypad menu</button>
+        <SaveRow dirty={u.dirty} testid="ivr-unsaved-pill"><button className="civr-btn civr-btn-primary" disabled={busy} onClick={submit} data-testid="ivr-save-button">Save keypad menu</button></SaveRow>
       </div>
       <div className="space-y-4"><IvrTemplates current={current} onApply={apply} /><Analytics num={num} /></div>
     </div>

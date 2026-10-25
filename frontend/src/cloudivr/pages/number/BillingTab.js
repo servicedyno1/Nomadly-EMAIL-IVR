@@ -16,7 +16,7 @@ function Renewal({ num, reload, refreshSummary }) {
   const held = num.status === 'suspended' && !!num.holdUntil;
   const waitsForMain = held && num.isSubNumber;
   const renew = async () => {
-    if (!ask(`${held ? 'Restore' : 'Renew'} ${num.phoneNumber} for ${money(price)}?`)) return;
+    if (!(await ask(`${held ? 'Restore' : 'Renew'} ${num.phoneNumber} for ${money(price)}?`, { ok: held ? 'Restore' : 'Renew' }))) return;
     setBusy(true);
     try {
       const d = await api(`${path}/renew`, { method: 'POST' });

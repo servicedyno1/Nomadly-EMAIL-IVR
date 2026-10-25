@@ -30,7 +30,7 @@ function createCloudIvrWeb(deps) {
   const h = (fn) => async (req, res, next) => {
     try { await fn(req, res, next) } catch (e) {
       log(`[CloudIVR-Web] ${req.method} ${req.path} failed: ${e.stack || e.message}`)
-      if (!res.headersSent) res.status(500).json({ error: 'server_error', message: 'Something went wrong. Please try again.' })
+      if (!res.headersSent) res.status(500).json({ error: 'server_error', message: 'Something went wrong on our side. Please try again — if it keeps happening, message support.' })
     }
   }
 
@@ -98,7 +98,7 @@ function createCloudIvrWeb(deps) {
   router.use((err, req, res, _next) => {
     if (err instanceof multer.MulterError) return res.status(400).json({ error: 'upload_failed', message: err.code === 'LIMIT_FILE_SIZE' ? 'Files must be under 10 MB.' : 'Upload failed.' })
     log(`[CloudIVR-Web] unhandled: ${err.message}`)
-    res.status(500).json({ error: 'server_error', message: 'Something went wrong. Please try again.' })
+    res.status(500).json({ error: 'server_error', message: 'Something went wrong on our side. Please try again — if it keeps happening, message support.' })
   })
   return router
 }

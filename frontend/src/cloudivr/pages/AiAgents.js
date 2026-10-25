@@ -9,6 +9,7 @@ import { AgentForm, EMPTY_AGENT } from './ai/AgentForm';
 import { TestTalk } from './ai/TestTalk';
 import { AiCalls } from './ai/AiCalls';
 import { DncList } from './ai/DncList';
+import { useSearch, SearchBox, NoMatches } from '../search';
 
 const LANG_NAME = { en: 'English', fr: 'French', es: 'Spanish' };
 const TABS = [['agents', 'Agents'], ['calls', 'Call history'], ['dnc', 'Do-not-call list']];
@@ -26,10 +27,13 @@ function PlanNote({ canUse, rate, recordRate }) {
 
 function AgentRows({ agents }) {
   const pv = usePrivacy();
+  const s = useSearch(agents, a => [a.name, a.businessName, a.voice, LANG_NAME[a.language], ...a.numbers]);
   if (!agents.length) return <Empty icon={Bot} title="No AI agents yet" sub="Create an agent, give it a script and FAQs, then talk to it right here in your browser." testid="ai-agents-empty"><Link to={cp('/app/ai-agents/new')} className="civr-btn civr-btn-primary" data-testid="ai-agents-empty-create-button"><Plus className="w-4 h-4" />Create an agent</Link></Empty>;
   return (
     <div className="space-y-3">
-      {agents.map((a, i) => (
+      <SearchBox s={s} placeholder="Search agents" testid="ai-agents-search" className="max-w-md" />
+      <NoMatches s={s} testid="ai-agents-no-matches" />
+      {s.list.map((a, i) => (
         <Link key={a.id} to={cp(`/app/ai-agents/${a.id}`)} className="civr-card civr-card-link p-6 flex items-center gap-4" data-testid={`ai-agent-row-${i}`}>
           <div className="w-11 h-11 rounded-full bg-[#34d399]/15 flex items-center justify-center"><Bot className="w-5 h-5 text-[#34d399]" /></div>
           <div className="flex-1 min-w-0"><div className="font-semibold truncate">{a.name}{a.businessName ? ` · ${a.businessName}` : ''}</div><div className="text-xs text-[#a1a1aa]"><span className="capitalize">{a.voice}</span> · {LANG_NAME[a.language] || a.language} · {a.numbers.length ? `answers ${a.numbers.map(n => pv.phone(n)).join(', ')}` : 'not on a number yet'}</div></div>

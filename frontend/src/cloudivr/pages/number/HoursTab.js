@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { api, enc } from '../../api';
 import { Field, Toggle } from '../../ui';
+import { useUnsaved, SaveRow } from '../../guard';
 
 const DAYS = [['mon', 'Mon'], ['tue', 'Tue'], ['wed', 'Wed'], ['thu', 'Thu'], ['fri', 'Fri'], ['sat', 'Sat'], ['sun', 'Sun']];
 const browserZone = () => { try { return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'; } catch (_) { return 'UTC'; } };
@@ -31,6 +32,7 @@ export default function HoursTab({ num, reload }) {
   const [f, setF] = useState(() => initial(saved));
   const [openNow, setOpenNow] = useState(null);
   const [busy, setBusy] = useState(false);
+  const u = useUnsaved(f);
   const path = `/numbers/${enc(num.phoneNumber)}/hours`;
   useEffect(() => { api(path).then(d => setOpenNow(d.openNow)).catch(() => {}); }, [path]);
   const zones = useMemo(() => [...new Set(['UTC', f.timezone, ...ALL_ZONES])], [f.timezone]);
@@ -40,12 +42,12 @@ export default function HoursTab({ num, reload }) {
   const copyMonday = () => setF(x => ({ ...x, days: Object.fromEntries(Object.entries(x.days).map(([k, d]) => [k, d.on ? { ...d, start: x.days.mon.start, end: x.days.mon.end } : d])) }));
   const save = async () => {
     setBusy(true);
-    try { const d = await api(path, { method: 'PUT', body: { ...f, offAction } }); setOpenNow(d.openNow); toast.success('Hours saved'); reload(); } catch (e) { toast.error(e.message); } finally { setBusy(false); }
+    try { const d = await api(path, { method: 'PUT', body: { ...f, offAction } }); setOpenNow(d.openNow); toast.success('Hours saved'); u.reset(); reload(); } catch (e) { toast.error(e.message); } finally { setBusy(false); }
   };
   const status = !saved.enabled ? ['Schedule off — always rings', 'civr-pill'] : openNow ? ['Open now', 'civr-pill civr-pill-on'] : ['Closed now', 'civr-pill civr-pill-warn'];
 
   return (
-    <div className="civr-card p-6 max-w-2xl" data-testid="hours-card">
+    <div className="civr-card p-6 max-w-2xl" data-testid="hours-card" {...u.bind}>
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="font-display text-2xl font-bold">On/off hours</div>
         {openNow !== null && <span className={status[1]} data-testid="hours-status-pill">{status[0]}</span>}
@@ -74,7 +76,7 @@ export default function HoursTab({ num, reload }) {
         <Field label="Closed message (optional)" hint={`${f.offMessage.length}/500 · Leave empty for the standard message in your voicemail language (Voicemail tab).`}>
           <textarea rows={3} maxLength={500} className="civr-input" value={f.offMessage} onChange={e => setF({ ...f, offMessage: e.target.value })} placeholder="Thanks for calling. We’re closed right now — please call back between 9am and 5pm." data-testid="hours-off-message-input" />
         </Field>
-        <button className="civr-btn civr-btn-primary" disabled={busy} onClick={save} data-testid="hours-save-button">Save hours</button>
+        <SaveRow dirty={u.dirty} testid="hours-unsaved-pill"><button className="civr-btn civr-btn-primary" disabled={busy} onClick={save} data-testid="hours-save-button">Save hours</button></SaveRow>
       </div>
     </div>
   );

@@ -11,13 +11,15 @@ import { cp } from '../paths';
 import { useShell } from '../Shell';
 import { Security } from './settings/Security';
 import { Referral, Suggest } from './settings/Rewards';
+import { useUnsaved, SaveRow } from '../guard';
 
 function Profile({ account, setAccount }) {
   const [name, setName] = useState(account.name || '');
   const [busy, setBusy] = useState(false);
-  const save = async (e) => { e.preventDefault(); setBusy(true); try { const d = await api('/auth/profile', { method: 'PATCH', body: { name } }); setAccount(d.account); toast.success('Profile saved'); } catch (err) { toast.error(err.message); } finally { setBusy(false); } };
+  const u = useUnsaved(name);
+  const save = async (e) => { e.preventDefault(); setBusy(true); try { const d = await api('/auth/profile', { method: 'PATCH', body: { name } }); setAccount(d.account); u.reset(); toast.success('Profile saved'); } catch (err) { toast.error(err.message); } finally { setBusy(false); } };
   return (
-    <form onSubmit={save} className="civr-card p-6 space-y-6" data-testid="settings-profile-form">
+    <form onSubmit={save} className="civr-card p-6 space-y-6" data-testid="settings-profile-form" {...u.bind}>
       <div className="font-display text-2xl font-bold">Profile</div>
       <Field label="Email"><input className="civr-input" value={account.email} disabled data-testid="settings-email" /></Field>
       <Field label="Name"><input className="civr-input" value={name} onChange={e => setName(e.target.value)} data-testid="settings-name-input" /></Field>
@@ -26,7 +28,7 @@ function Profile({ account, setAccount }) {
         {account.google && <span className="civr-pill civr-pill-on" data-testid="settings-google-linked">Google linked</span>}
         {account.hasPassword && <span className="civr-pill" data-testid="settings-password-set">password set</span>}
       </div>
-      <button className="civr-btn civr-btn-primary" disabled={busy} data-testid="settings-profile-save-button">{busy && <Loader2 className="w-4 h-4 animate-spin" />}Save profile</button>
+      <SaveRow dirty={u.dirty} testid="settings-profile-unsaved-pill"><button className="civr-btn civr-btn-primary" disabled={busy} data-testid="settings-profile-save-button">{busy && <Loader2 className="w-4 h-4 animate-spin" />}Save profile</button></SaveRow>
     </form>
   );
 }
@@ -34,16 +36,17 @@ function Profile({ account, setAccount }) {
 function Password({ account, refresh }) {
   const [f, setF] = useState({ currentPassword: '', newPassword: '' });
   const [busy, setBusy] = useState(false);
+  const u = useUnsaved(f);
   const save = async (e) => {
     e.preventDefault(); setBusy(true);
-    try { await api('/auth/change-password', { method: 'POST', body: f }); toast.success('Password updated — other sessions were signed out'); setF({ currentPassword: '', newPassword: '' }); refresh(); } catch (err) { toast.error(err.message); } finally { setBusy(false); }
+    try { await api('/auth/change-password', { method: 'POST', body: f }); toast.success('Password updated — other sessions were signed out'); setF({ currentPassword: '', newPassword: '' }); u.reset(); refresh(); } catch (err) { toast.error(err.message); } finally { setBusy(false); }
   };
   return (
-    <form onSubmit={save} className="civr-card p-6 space-y-6" data-testid="settings-password-form">
+    <form onSubmit={save} className="civr-card p-6 space-y-6" data-testid="settings-password-form" {...u.bind}>
       <div className="font-display text-2xl font-bold">{account.hasPassword ? 'Change password' : 'Set a password'}</div>
       {account.hasPassword && <Field label="Current password"><input type="password" required className="civr-input" value={f.currentPassword} onChange={e => setF({ ...f, currentPassword: e.target.value })} data-testid="settings-current-password-input" /></Field>}
       <Field label="New password" hint="At least 8 characters."><input type="password" required minLength={8} className="civr-input" value={f.newPassword} onChange={e => setF({ ...f, newPassword: e.target.value })} data-testid="settings-new-password-input" /></Field>
-      <button className="civr-btn civr-btn-primary" disabled={busy} data-testid="settings-password-save-button">{busy && <Loader2 className="w-4 h-4 animate-spin" />}Save password</button>
+      <SaveRow dirty={u.dirty} testid="settings-password-unsaved-pill"><button className="civr-btn civr-btn-primary" disabled={busy} data-testid="settings-password-save-button">{busy && <Loader2 className="w-4 h-4 animate-spin" />}Save password</button></SaveRow>
     </form>
   );
 }
