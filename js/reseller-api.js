@@ -1818,8 +1818,8 @@ function createResellerApi(deps = {}) {
         // Mirror onto vpsPlansOf: back to good standing + clear every grace/cancel field so
         // neither the bot scheduler nor the VPS/RDP-service sweep destroys the box.
         await col('vpsPlansOf').updateOne({ _id: rec._id }, {
-          $set: { status: 'RUNNING', end_time: newExpiry, renewed_at: new Date(), ...(renewalQuote ? { lastRenewalPriceUsd: priceUsd } : {}) },
-          $unset: { expired_at: '', grace_until: '', _graceReminderSent: '', cancelReason: '', cancelledAt: '', deleteRetryCount: '', lastDeleteError: '', lastDeleteAlertAt: '' },
+          $set: { status: 'RUNNING', end_time: newExpiry, renewed_at: new Date(), _autoRenewAttempted: false, _reminder3DaySent: false, ...(renewalQuote ? { lastRenewalPriceUsd: priceUsd } : {}) },
+          $unset: { expired_at: '', grace_until: '', _graceReminderSent: '', cancelReason: '', cancelledAt: '', deleteRetryCount: '', lastDeleteError: '', lastDeleteAlertAt: '', lastDeleteAttemptAt: '', _renewLockUntil: '', _adminNotifyHistory: '' },
         })
         return { success: true, id: rec.vpsId || rec._id, months, plan: planName, expires_at: newExpiry.toISOString(), ...pricingInfo }
       },

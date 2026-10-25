@@ -90,18 +90,19 @@ const comingSoonFeatures = {
     'SIP credentials for softphones',
     'SMS to Telegram & Email',
     'Webhook integrations',
-    'Quick IVR Call & Bulk IVR Campaign',
+    'Quick IVR Call & Bulk IVR Campaign (start now or schedule)',
     'OTP Collection via IVR',
+    'Call Recording',
     `➕ Add up to ${SUB_NUMBER_LIMITS.pro} extra numbers`,
   ],
   business: [
     `${BUSINESS_MINUTES === 'Unlimited' ? 'Unlimited' : BUSINESS_MINUTES} inbound minutes + ${BUSINESS_SMS} SMS`,
     'All Pro features included',
     'IVR Auto-Attendant with AI voice',
-    'Call Recording & Analytics',
+    'IVR Call Analytics',
     'Quick IVR Presets & Recent Calls',
     'IVR Redial Button',
-    'Call Scheduling',
+    'Quick IVR Call Scheduling',
     'Custom OTP Messages & Goodbye',
     'Consistent TTS Voice/Speed',
     'Priority Support',
@@ -406,31 +407,31 @@ usAreaCodes.forEach(a => { areaByLabel[`${a.city} (${a.code})`] = a.code })
 // ── Plans ──
 const plans = {
   starter: { name: 'Starter', price: PHONE_STARTER_PRICE, minutes: STARTER_MINUTES, sms: STARTER_SMS, features: ['Call forwarding to any number', 'SMS forwarded to Telegram', `Add up to ${SUB_NUMBER_LIMITS.starter} extra numbers`] },
-  pro: { name: 'Pro', price: PHONE_PRO_PRICE, minutes: PRO_MINUTES, sms: PRO_SMS, features: ['All Starter features', 'Voicemail with custom greetings', 'SIP credentials for softphones', 'SMS to Telegram & Email', 'Webhook integrations', 'Quick IVR Call', 'Bulk IVR Campaign', 'OTP Collection', 'Call Recording', `Add up to ${SUB_NUMBER_LIMITS.pro} extra numbers`] },
-  business: { name: 'Business', price: PHONE_BUSINESS_PRICE, minutes: BUSINESS_MINUTES, sms: BUSINESS_SMS, features: ['All Pro features', 'IVR Call Analytics', 'IVR Auto-Attendant', 'Quick IVR Presets & Recent Calls', 'IVR Redial Button', 'Call Scheduling', 'Custom OTP Messages', 'Consistent TTS Voice', 'Priority Support', `Add up to ${SUB_NUMBER_LIMITS.business} extra numbers`] },
+  pro: { name: 'Pro', price: PHONE_PRO_PRICE, minutes: PRO_MINUTES, sms: PRO_SMS, features: ['All Starter features', 'Voicemail with custom greetings', 'SIP credentials for softphones', 'SMS to Telegram & Email', 'Webhook integrations', 'Quick IVR Call', 'Bulk IVR Campaign (start now or schedule)', 'OTP Collection', 'Call Recording', `Add up to ${SUB_NUMBER_LIMITS.pro} extra numbers`] },
+  business: { name: 'Business', price: PHONE_BUSINESS_PRICE, minutes: BUSINESS_MINUTES, sms: BUSINESS_SMS, features: ['All Pro features', 'IVR Call Analytics', 'IVR Auto-Attendant', 'Quick IVR Presets & Recent Calls', 'IVR Redial Button', 'Quick IVR Call Scheduling', 'Custom OTP Messages', 'Consistent TTS Voice', 'Priority Support', `Add up to ${SUB_NUMBER_LIMITS.business} extra numbers`] },
 }
 
 // Language-specific plan features
 const plansI18n = {
   en: {
     starter: { features: ['Call forwarding to any number', 'SMS forwarded to Telegram', `Add up to ${SUB_NUMBER_LIMITS.starter} extra numbers`] },
-    pro: { features: ['All Starter features', 'Voicemail with custom greetings', 'SIP credentials for softphones', 'SMS to Telegram & Email', 'Webhook integrations', 'Quick IVR Call', 'Bulk IVR Campaign', 'OTP Collection', 'Call Recording', `Add up to ${SUB_NUMBER_LIMITS.pro} extra numbers`] },
-    business: { features: ['All Pro features', 'IVR Call Analytics', 'IVR Auto-Attendant', 'Quick IVR Presets & Recent Calls', 'IVR Redial Button', 'Call Scheduling', 'Custom OTP Messages', 'Consistent TTS Voice', 'Priority Support', `Add up to ${SUB_NUMBER_LIMITS.business} extra numbers`] },
+    pro: { features: ['All Starter features', 'Voicemail with custom greetings', 'SIP credentials for softphones', 'SMS to Telegram & Email', 'Webhook integrations', 'Quick IVR Call', 'Bulk IVR Campaign (start now or schedule)', 'OTP Collection', 'Call Recording', `Add up to ${SUB_NUMBER_LIMITS.pro} extra numbers`] },
+    business: { features: ['All Pro features', 'IVR Call Analytics', 'IVR Auto-Attendant', 'Quick IVR Presets & Recent Calls', 'IVR Redial Button', 'Quick IVR Call Scheduling', 'Custom OTP Messages', 'Consistent TTS Voice', 'Priority Support', `Add up to ${SUB_NUMBER_LIMITS.business} extra numbers`] },
   },
   fr: {
     starter: { features: ['Transfert d\'appels vers n\'importe quel numéro', 'SMS vers Telegram', `Jusqu'à ${SUB_NUMBER_LIMITS.starter} numéros supplémentaires`] },
-    pro: { features: ['Toutes fonctions Starter', 'Messagerie vocale personnalisée', 'Identifiants SIP pour softphones', 'SMS vers Telegram & Email', 'Intégrations Webhook', 'Appel IVR rapide', 'Campagne IVR en masse', 'Collecte OTP', 'Enregistrement d\'appels', `Jusqu'à ${SUB_NUMBER_LIMITS.pro} numéros supplémentaires`] },
-    business: { features: ['Toutes fonctions Pro', 'Analytiques SVI', 'Standard automatique IVR', 'Préréglages IVR & Appels récents', 'Bouton de rappel IVR', 'Planification d\'appels', 'Messages OTP personnalisés', 'Voix TTS cohérente', 'Support prioritaire', `Jusqu'à ${SUB_NUMBER_LIMITS.business} numéros supplémentaires`] },
+    pro: { features: ['Toutes fonctions Starter', 'Messagerie vocale personnalisée', 'Identifiants SIP pour softphones', 'SMS vers Telegram & Email', 'Intégrations Webhook', 'Appel IVR rapide', 'Campagne IVR en masse (immédiate ou planifiée)', 'Collecte OTP', 'Enregistrement d\'appels', `Jusqu'à ${SUB_NUMBER_LIMITS.pro} numéros supplémentaires`] },
+    business: { features: ['Toutes fonctions Pro', 'Analytiques SVI', 'Standard automatique IVR', 'Préréglages IVR & Appels récents', 'Bouton de rappel IVR', 'Planification des appels IVR rapides', 'Messages OTP personnalisés', 'Voix TTS cohérente', 'Support prioritaire', `Jusqu'à ${SUB_NUMBER_LIMITS.business} numéros supplémentaires`] },
   },
   zh: {
     starter: { features: ['呼叫转移至任何号码', '短信转发至Telegram', `添加最多 ${SUB_NUMBER_LIMITS.starter} 个号码`] },
-    pro: { features: ['所有入门版功能', '自定义语音信箱', 'SIP 软电话凭据', '短信转Telegram和邮箱', 'Webhook集成', '快速IVR呼叫', '批量IVR活动', 'OTP收集', '通话录音', `添加最多 ${SUB_NUMBER_LIMITS.pro} 个号码`] },
-    business: { features: ['所有专业版功能', 'IVR 通话分析', 'IVR自动应答', 'IVR预设与最近通话', 'IVR重拨按钮', '通话调度', '自定义OTP消息', '一致TTS语音', '优先支持', `添加最多 ${SUB_NUMBER_LIMITS.business} 个号码`] },
+    pro: { features: ['所有入门版功能', '自定义语音信箱', 'SIP 软电话凭据', '短信转Telegram和邮箱', 'Webhook集成', '快速IVR呼叫', '批量IVR活动（立即或定时）', 'OTP收集', '通话录音', `添加最多 ${SUB_NUMBER_LIMITS.pro} 个号码`] },
+    business: { features: ['所有专业版功能', 'IVR 通话分析', 'IVR自动应答', 'IVR预设与最近通话', 'IVR重拨按钮', '快速IVR呼叫定时', '自定义OTP消息', '一致TTS语音', '优先支持', `添加最多 ${SUB_NUMBER_LIMITS.business} 个号码`] },
   },
   hi: {
     starter: { features: ['किसी भी नंबर पर कॉल फ़ॉरवर्डिंग', 'SMS से Telegram', `${SUB_NUMBER_LIMITS.starter} अतिरिक्त नंबर तक`] },
-    pro: { features: ['सभी स्टार्टर सुविधाएँ', 'कस्टम वॉइसमेल', 'सॉफ्टफ़ोन के लिए SIP क्रेडेंशियल्स', 'SMS से Telegram और Email', 'Webhook इंटीग्रेशन', 'त्वरित IVR कॉल', 'बल्क IVR अभियान', 'OTP संग्रह', 'कॉल रिकॉर्डिंग', `${SUB_NUMBER_LIMITS.pro} अतिरिक्त नंबर तक`] },
-    business: { features: ['सभी Pro सुविधाएँ', 'IVR कॉल Analytics', 'IVR ऑटो-अटेंडेंट', 'IVR प्रीसेट और हाल की कॉलें', 'IVR रीडायल बटन', 'कॉल शेड्यूलिंग', 'कस्टम OTP संदेश', 'सुसंगत TTS आवाज़', 'प्राथमिकता समर्थन', `${SUB_NUMBER_LIMITS.business} अतिरिक्त नंबर तक`] },
+    pro: { features: ['सभी स्टार्टर सुविधाएँ', 'कस्टम वॉइसमेल', 'सॉफ्टफ़ोन के लिए SIP क्रेडेंशियल्स', 'SMS से Telegram और Email', 'Webhook इंटीग्रेशन', 'त्वरित IVR कॉल', 'बल्क IVR अभियान (अभी या शेड्यूल)', 'OTP संग्रह', 'कॉल रिकॉर्डिंग', `${SUB_NUMBER_LIMITS.pro} अतिरिक्त नंबर तक`] },
+    business: { features: ['सभी Pro सुविधाएँ', 'IVR कॉल Analytics', 'IVR ऑटो-अटेंडेंट', 'IVR प्रीसेट और हाल की कॉलें', 'IVR रीडायल बटन', 'त्वरित IVR कॉल शेड्यूलिंग', 'कस्टम OTP संदेश', 'सुसंगत TTS आवाज़', 'प्राथमिकता समर्थन', `${SUB_NUMBER_LIMITS.business} अतिरिक्त नंबर तक`] },
   },
 }
 
@@ -562,27 +563,13 @@ const upgradeMessage = (feature, currentPlan, lang) => {
 // ── One-tap plan upgrades ──
 // Maps the natural next-tier upgrade. Business has no next tier (top plan).
 const NEXT_PLAN = { starter: 'pro', pro: 'business' }
-const PLAN_UPGRADE_CREDIT_PCT = 0.25      // (legacy) cap used as a fallback if dates are missing
-const PLAN_UPGRADE_CREDIT_AGE_DAYS = 14   // (legacy) max age for the legacy flat-25% credit
-const PLAN_BILLING_CYCLE_DAYS = 30        // assumed plan billing cycle for proration
+const PLAN_UPGRADE_CREDIT_PCT = 0.25      // 14-day upgrade credit: 25% of the current plan's price
+const PLAN_UPGRADE_CREDIT_AGE_DAYS = 14   // ...when the upgrade happens within 14 days of buying the number
+const PLAN_BILLING_CYCLE_DAYS = 30
 
-// computeUpgradeQuote — pure helper used by both the Manage-screen one-tap
-// button label AND the upgrade-preview confirmation screen so the two never
-// disagree.
-//
-// FIX (Railway log issue #4 — EIN_5050 / 8541381736 abandoned upgrade because
-//      they were charged the full $120 instead of $120 - prorated_unused_starter)
-//
-// Proration rule:
-//   credit = oldPrice × (remainingDays / PLAN_BILLING_CYCLE_DAYS)
-//   chargeAmount = max(0, newPrice - credit)
-//
-// `remainingDays` is derived from the most reliable of (in order):
-//   1. num.expiryDate / num.planEndingTime
-//   2. PLAN_BILLING_CYCLE_DAYS - ageDays(num.purchaseDate)
-// If neither is available we fall back to the legacy 25% / 14-day rule so we
-// never over-credit users who lack timestamps.
-//
+// computeUpgradeQuote — the ONE upgrade price used by the Manage-screen button, the upgrade preview, the day-12
+// nudge and the web app. Rule (as on the plan cards): upgrade within 14 days of buying the number → 25% of the
+// current plan's price is credited; after that the full new-plan price. The expiry date does not change.
 // Returns null if either plan key is unknown.
 function computeUpgradeQuote(num, newPlanKey) {
   if (!num || !newPlanKey) return null
@@ -594,57 +581,25 @@ function computeUpgradeQuote(num, newPlanKey) {
   const newPrice = Number(newPlanObj.price) || 0
 
   const purchaseDate = num.purchaseDate ? new Date(num.purchaseDate) : null
-  const expiryDate = num.expiryDate
-    ? new Date(num.expiryDate)
-    : (num.planEndingTime ? new Date(num.planEndingTime) : null)
-  const now = Date.now()
-
   const ageDays = (purchaseDate && !isNaN(purchaseDate.getTime()))
-    ? Math.floor((now - purchaseDate.getTime()) / 86400000)
+    ? Math.floor((Date.now() - purchaseDate.getTime()) / 86400000)
     : null
-
-  let remainingDays = null
-  if (expiryDate && !isNaN(expiryDate.getTime())) {
-    remainingDays = Math.max(0, Math.ceil((expiryDate.getTime() - now) / 86400000))
-  } else if (ageDays !== null) {
-    remainingDays = Math.max(0, PLAN_BILLING_CYCLE_DAYS - ageDays)
-  }
-
-  // ── PRIMARY: time-based proration ──
-  let credit = 0
-  let prorationBasis = 'legacy_25pct'
-  if (remainingDays !== null && remainingDays > 0) {
-    credit = parseFloat(((oldPrice * remainingDays) / PLAN_BILLING_CYCLE_DAYS).toFixed(2))
-    prorationBasis = expiryDate ? 'expiry_date' : 'purchase_date'
-  } else if (ageDays !== null && ageDays <= PLAN_UPGRADE_CREDIT_AGE_DAYS) {
-    // ── FALLBACK 1: legacy flat 25% within first 14 days when we couldn't
-    //                compute a per-day proration (shouldn't normally happen).
-    credit = parseFloat((oldPrice * PLAN_UPGRADE_CREDIT_PCT).toFixed(2))
-    prorationBasis = 'legacy_25pct_fallback'
-  } else if (ageDays === null) {
-    // ── FALLBACK 2: no timestamps at all → give the user the benefit of the
-    //                doubt and apply the legacy 25% credit once.
-    credit = parseFloat((oldPrice * PLAN_UPGRADE_CREDIT_PCT).toFixed(2))
-    prorationBasis = 'no_timestamps'
-  }
-
-  // Safety: credit can never exceed the old plan's price.
-  if (credit > oldPrice) credit = oldPrice
-
-  const eligibleForCredit = credit > 0
+  // No purchase date at all → benefit of the doubt, credit once.
+  const eligibleForCredit = ageDays === null || ageDays <= PLAN_UPGRADE_CREDIT_AGE_DAYS
+  const credit = eligibleForCredit ? Math.min(oldPrice, parseFloat((oldPrice * PLAN_UPGRADE_CREDIT_PCT).toFixed(2))) : 0
   const chargeAmount = Math.max(0, parseFloat((newPrice - credit).toFixed(2)))
 
   return {
     oldPlanKey, newPlanKey,
     oldPrice, newPrice,
     ageDays: ageDays === null ? Infinity : ageDays,
-    remainingDays,
+    remainingDays: null,
     eligibleForCredit,
     credit, chargeAmount,
     creditAgeLimitDays: PLAN_UPGRADE_CREDIT_AGE_DAYS,
     creditPct: PLAN_UPGRADE_CREDIT_PCT,
     billingCycleDays: PLAN_BILLING_CYCLE_DAYS,
-    prorationBasis,
+    prorationBasis: eligibleForCredit ? (ageDays === null ? 'no_timestamps' : 'upgrade_credit_25pct') : 'none',
   }
 }
 
@@ -738,13 +693,13 @@ Incoming calls answered via SIP/browser + SMS included · Call forwarding & outb
   selectPlan: (number) => {
     let text = `✅ Selected: <b>${formatPhone(number)}</b>\n\n📋 Choose your plan:\n\n`
     if (PHONE_STARTER_ON) {
-      text += `<b>💡 Starter — $${PHONE_STARTER_PRICE}/mo</b>\n📞 ${plans.starter.minutes} inbound min · 📩 ${plans.starter.sms} SMS · Forwarding · Up to ${SUB_NUMBER_LIMITS.starter} extra numbers\n<b>🎙 IVR / SIP softphone:</b> ❌ <i>not included</i>\n🛡️ <i>14-day upgrade credit — get 25% off Pro/Business if you upgrade within 14 days</i>\n\n`
+      text += `<b>💡 Starter — $${PHONE_STARTER_PRICE}/mo</b>\n📞 ${plans.starter.minutes} inbound min · 📩 ${plans.starter.sms} SMS · Forwarding · Up to ${SUB_NUMBER_LIMITS.starter} extra numbers\n<b>🎙 IVR / SIP softphone:</b> ❌ <i>not included</i>\n🛡️ <i>14-day upgrade credit — 25% of your Starter price comes off Pro/Business if you upgrade within 14 days</i>\n\n`
     }
     if (PHONE_PRO_ON) {
-      text += `<b>⭐ Pro — $${PHONE_PRO_PRICE}/mo</b>\n📞 ${plans.pro.minutes} inbound min · 📩 ${plans.pro.sms} SMS · All Starter + Voicemail · SIP · Webhooks · IVR\n<b>🎙 IVR / SIP softphone:</b> ✅ <i>Quick IVR + Bulk IVR + OTP</i>\n🛡️ <i>14-day upgrade credit — get 25% off Business if you upgrade within 14 days</i>\n\n`
+      text += `<b>⭐ Pro — $${PHONE_PRO_PRICE}/mo</b>\n📞 ${plans.pro.minutes} inbound min · 📩 ${plans.pro.sms} SMS · All Starter + Voicemail · SIP · Webhooks · Call Recording\n<b>🎙 IVR / SIP softphone:</b> ✅ <i>Quick IVR + Bulk IVR (schedulable) + OTP</i>\n🛡️ <i>14-day upgrade credit — 25% of your Pro price comes off Business if you upgrade within 14 days</i>\n\n`
     }
     if (PHONE_BUSINESS_ON) {
-      text += `<b>👑 Business — $${PHONE_BUSINESS_PRICE}/mo</b>\n📞 ${plans.business.minutes} inbound min · 📩 ${plans.business.sms} SMS · All Pro + Recording · Auto-Attendant · Priority Support\n<b>🎙 IVR / SIP softphone:</b> ✅ <i>Pro + Auto-Attendant + Recording</i>\n\n`
+      text += `<b>👑 Business — $${PHONE_BUSINESS_PRICE}/mo</b>\n📞 ${plans.business.minutes} inbound min · 📩 ${plans.business.sms} SMS · All Pro + Auto-Attendant · IVR Redial · Quick IVR Scheduling · Priority Support\n<b>🎙 IVR / SIP softphone:</b> ✅ <i>Pro + Auto-Attendant (IVR menu) + Redial</i>\n\n`
     }
     text += `<i>📞 Included minutes cover incoming calls you answer via SIP/browser. Call forwarding to another phone & all outbound calls (incl. IVR/OTP) are billed from your wallet.</i>\n<i>⚠️ Need IVR (Quick IVR Call, Bulk IVR Campaign, OTP, Auto-Attendant)? Choose Pro or Business — Starter does <b>not</b> include IVR.</i>`
     return text
@@ -756,9 +711,9 @@ Incoming calls answered via SIP/browser + SMS included · Call forwarding & outb
       ? `\n\n<i>⚠️ Starter does <b>not</b> include IVR (Quick IVR Call, Bulk IVR Campaign, OTP, Auto-Attendant) or SIP softphone credentials. Need IVR? Pick Pro or Business instead.</i>`
       : ''
     const creditLine = planKey === 'starter'
-      ? `\n<i>🛡️ 14-day upgrade credit — get 25% off if you upgrade to Pro/Business within 14 days</i>`
+      ? `\n<i>🛡️ 14-day upgrade credit — 25% of your Starter price comes off Pro/Business if you upgrade within 14 days</i>`
       : planKey === 'pro'
-      ? `\n<i>🛡️ 14-day upgrade credit — get 25% off if you upgrade to Business within 14 days</i>`
+      ? `\n<i>🛡️ 14-day upgrade credit — 25% of your Pro price comes off Business if you upgrade within 14 days</i>`
       : ''
     return `📋 <b>Order Summary</b>\n\n📞 ${formatPhone(number)} · ${country}\n📦 ${plan.name} — $${price}/mo\n📩 ${plan.sms} SMS · 📞 ${plan.minutes} inbound min\n\n💰 Total: <b>$${price}</b> (first month)\n\n<i>📞 Included minutes cover incoming calls answered via SIP/browser. Call forwarding to another phone & all outbound (incl. IVR/OTP) are billed from your wallet.</i>${creditLine}${ivrLine}`
   },
@@ -901,7 +856,7 @@ Incoming calls answered via SIP/browser + SMS included · Call forwarding & outb
     }
     if (n.isSubNumber && n.parentNumber) text += `\n🔗 Parent: ${formatPhone(n.parentNumber)}`
     if (hasVoice) text += `\n📞 Inbound Minutes: ${minDisplay}${minWarning}`
-    if (hasSms) text += `\n📩 Inbound SMS: ${smsDisplay} (receive only)${smsWarning}`
+    if (hasSms) text += `\n📩 Plan SMS: ${smsDisplay} (received texts + web replies, shared with extra lines)${smsWarning}`
     if (hasFax) text += `\n📠 Fax: Included — inbound faxes forwarded to Telegram`
     if (hasVoice) text += `\n💳 Outbound calls charged from wallet`
 

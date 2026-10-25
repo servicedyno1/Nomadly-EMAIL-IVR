@@ -3,6 +3,7 @@
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 const { log } = require('console')
 const { get, set, setFields, atomicIncrement } = require('./db.js')
+const planLifecycle = require('./plan-lifecycle.js')
 const { formatPhone, formatDuration, canAccessFeature, plans, OVERAGE_RATE_MIN, OVERAGE_RATE_SMS, CALL_FORWARDING_RATE_MIN, CALL_CONNECTION_FEE, escapeHtml, isTwilioEnabled } = require('./phone-config.js')
 const { getBalance, smartWalletDeduct, smartWalletCheck, forceWalletDebit } = require('./utils.js')
 const dialGuard = require('./dial-rate-guard.js')
@@ -1412,17 +1413,16 @@ function getSmsLimit(planKey) {
   return plan.sms || 0
 }
 
-function isMinuteLimitReached(num) {
-  const limit = getMinuteLimit(num.plan)
-  if (limit === Infinity) return false
-  const used = num.minutesUsed || 0
-  return used >= limit
+// Limits are ONE shared allowance for a main line and its extra lines (main line's plan). Pass the owner's
+// numbers array; without it only `num` itself is counted.
+function isMinuteLimitReached(num, numbers) {
+  const u = planLifecycle.poolUsage(numbers || [num], num)
+  return u.minuteLimit !== Infinity && u.minutesUsed >= u.minuteLimit
 }
 
-function isSmsLimitReached(num) {
-  const limit = getSmsLimit(num.plan)
-  const used = num.smsUsed || 0
-  return used >= limit
+function isSmsLimitReached(num, numbers) {
+  const u = planLifecycle.poolUsage(numbers || [num], num)
+  return u.smsUsed >= u.smsLimit
 }
 
 // Atomically increment minutesUsed for a phone number in DB
@@ -1437,19 +1437,20 @@ async function incrementMinutesUsed(chatId, phoneNumber, minutes) {
       { $inc: { 'val.numbers.$.minutesUsed': minutes } }
     )
 
-    // Read back updated state for billing calculations
+    // Read back updated state for billing calculations — shared allowance of the main line + its extra lines
     const userData = await get(_phoneNumbersOf, chatId)
     const numbers = userData?.numbers || []
     const num = numbers.find(n => n.phoneNumber === phoneNumber)
     if (!num) return { used: 0, limit: 0, overageMinutes: 0 }
 
-    const used = num.minutesUsed || 0
-    const limit = getMinuteLimit(num.plan)
+    const pool = planLifecycle.poolUsage(numbers, num)
+    const used = pool.minutesUsed
+    const limit = pool.minuteLimit
 
-    if (limit !== Infinity && used >= limit && !num._minLimitNotified) {
-      // Atomically set the notification flag — no array overwrite
+    if (limit !== Infinity && used >= limit && !pool.main._minLimitNotified) {
+      // Atomically set the notification flag (on the main line) — no array overwrite
       await _phoneNumbersOf.updateOne(
-        { _id: chatId, 'val.numbers.phoneNumber': phoneNumber },
+        { _id: chatId, 'val.numbers.phoneNumber': pool.main.phoneNumber },
         { $set: { 'val.numbers.$._minLimitNotified': true } }
       )
       const lang = await _getUserLang(chatId)
@@ -1645,20 +1646,21 @@ async function incrementSmsUsed(chatId, phoneNumber) {
       { $inc: { 'val.numbers.$.smsUsed': 1 } }
     )
 
-    // Read back to check limits
+    // Read back to check limits — shared allowance of the main line + its extra lines
     const userData = await get(_phoneNumbersOf, chatId)
     const numbers = userData?.numbers || []
     const num = numbers.find(n => n.phoneNumber === phoneNumber)
     if (!num) return
 
-    const limit = getSmsLimit(num.plan)
-    const used = num.smsUsed || 0
-    if (used >= limit && !num._smsLimitNotified) {
+    const pool = planLifecycle.poolUsage(numbers, num)
+    const limit = pool.smsLimit
+    const used = pool.smsUsed
+    if (used >= limit && !pool.main._smsLimitNotified) {
       await _phoneNumbersOf.updateOne(
-        { _id: chatId, 'val.numbers.phoneNumber': phoneNumber },
+        { _id: chatId, 'val.numbers.phoneNumber': pool.main.phoneNumber },
         { $set: { 'val.numbers.$._smsLimitNotified': true } }
       )
-      const msg = `⚠️ <b>Plan SMS Exhausted</b>\n\n📞 ${formatPhone(phoneNumber)}\nUsed: <b>${used}/${limit}</b> inbound SMS this cycle.\n\nOverage billing is now active at <b>$${OVERAGE_RATE_SMS}/SMS</b> from your wallet. Service pauses if wallet is empty. Top up or upgrade your plan.`
+      const msg = `⚠️ <b>Plan SMS Exhausted</b>\n\n📞 ${formatPhone(phoneNumber)}\nUsed: <b>${used}/${limit}</b> plan SMS this cycle (received texts + web replies, shared with your extra lines).\n\nOverage billing is now active at <b>$${OVERAGE_RATE_SMS}/SMS</b> from your wallet. Service pauses if wallet is empty. Top up or upgrade your plan.`
       _bot?.sendMessage(chatId, msg, { parse_mode: 'HTML' }).catch(() => {})
     }
   } catch (e) {
@@ -2388,7 +2390,7 @@ async function handleCallInitiated(payload) {
   // with direction='incoming'. We answer and apply IVR/forwarding/voicemail.
 
   // Lookup number owner — get FRESH data from DB
-  const { chatId, num } = await findNumberOwner(to)
+  const { chatId, num, numbers: ownerNumbers } = await findNumberOwner(to)
   if (!chatId || !num) {
     log(`[Voice] ⚠️ ORPHANED NUMBER: No owner found for ${to} — inbound call from ${from} rejected. Number may need cleanup.`)
     // Reject BEFORE answering. A robocaller/scanner flooding an orphaned or
@@ -2431,7 +2433,7 @@ async function handleCallInitiated(payload) {
   }
 
   // ── CHECK: Inbound minutes limit reached? → Try overage billing ──
-  if (isMinuteLimitReached(num)) {
+  if (isMinuteLimitReached(num, ownerNumbers)) {
     const inboundRate = getCallRate(from) // Rate based on caller's country
     let overageAllowed = false
     if (_walletOf) {
@@ -2445,7 +2447,8 @@ async function handleCallInitiated(payload) {
     }
     if (!overageAllowed) {
       const inboundRate = getCallRate(from)
-      log(`[Voice] Minutes limit reached for ${to} (${num.minutesUsed || 0}/${getMinuteLimit(num.plan)}), no wallet balance — rejecting call`)
+      const _pool = planLifecycle.poolUsage(ownerNumbers, num)
+      log(`[Voice] Minutes limit reached for ${to} (${_pool.minutesUsed}/${_pool.minuteLimit} shared), no wallet balance — rejecting call`)
       try {
         await _telnyxApi.answerCall(callControlId)
         await _telnyxApi.speakOnCall(callControlId, 'Your inbound minutes limit has been reached and wallet balance is insufficient. Please top up your wallet or upgrade your plan.')
@@ -2476,7 +2479,8 @@ async function handleCallInitiated(payload) {
 
   // ── MID-CALL LIMIT MONITOR ──
   // All call types: plan minutes first, then overage at destination-based rate
-  const minuteLimit = getMinuteLimit(num.plan)
+  const _callPool = planLifecycle.poolUsage(ownerNumbers, num)
+  const minuteLimit = _callPool.minuteLimit
   const sessionRef = activeCalls[callControlId]
   sessionRef._limitTimer = setInterval(async () => {
     const sess = activeCalls[callControlId]
@@ -2494,7 +2498,7 @@ async function handleCallInitiated(payload) {
 
     // Check plan minutes + overage
     if (minuteLimit !== Infinity) {
-      const projectedTotal = (num.minutesUsed || 0) + elapsedMin
+      const projectedTotal = _callPool.minutesUsed + elapsedMin
       if (projectedTotal >= minuteLimit) {
         let canContinue = false
         if (_walletOf) {
@@ -4576,7 +4580,7 @@ async function findNumberOwner(phoneNumber) {
       const numbers = user.val?.numbers || []
       for (const num of numbers) {
         if (num.phoneNumber?.replace(/[^+\d]/g, '') === clean && (num.status === 'active' || num.status === 'suspended')) {
-          return { chatId: user._id, num }
+          return { chatId: user._id, num, numbers }
         }
       }
     }

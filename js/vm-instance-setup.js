@@ -1795,7 +1795,7 @@ async function upgradeVPSDiskType(telegramId, vpsDetails) {
 
 /**
  * OLD: renewVPSPlan(telegramId, subscriptionId) → { success, data }
- * NEW: Extends the end_time in MongoDB by 1 month. Contabo handles its own billing.
+ * NEW: Extends end_time by the prepaid period (durationMonths, default 1). Contabo handles its own billing.
  */
 async function renewVPSPlan(telegramId, subscriptionId) {
   try {
@@ -1804,9 +1804,12 @@ async function renewVPSPlan(telegramId, subscriptionId) {
     const record = await _vpsPlansOf.findOne({ vpsId: String(subscriptionId) })
     if (!record) return { error: 'VPS record not found' }
 
-    const currentEnd = new Date(record.end_time)
-    const newEnd = new Date(currentEnd)
-    newEnd.setMonth(newEnd.getMonth() + 1)
+    // Extend by the prepaid period the renewal price covers (DO RDP 1/2/3 months; others 1), from the later of
+    // the current expiry and now (a box renewed during its grace period does not lose the new term's days).
+    const months = Math.max(1, Number(record.durationMonths) || 1)
+    const newEnd = new Date(Math.max(new Date(record.end_time).getTime() || 0, Date.now()))
+    newEnd.setMonth(newEnd.getMonth() + months)
+    const wasInGrace = String(record.status) === 'EXPIRED_GRACE' || !!record.grace_until || !!record.expired_at
 
     const wasEarlyCancelled = !!record._contaboCancelledEarly
     const update = {
@@ -1827,6 +1830,9 @@ async function renewVPSPlan(telegramId, subscriptionId) {
     unset.deleteRetryCount = ''
     unset.lastDeleteError = ''
     unset.lastDeleteAlertAt = ''
+    unset.lastDeleteAttemptAt = ''
+    unset._renewLockUntil = ''
+    unset._adminNotifyHistory = ''
 
     // If the plan was previously cancelled-early on Contabo (e.g. wallet
     // deduct failed at T-24h and we proactively cancelled), this manual
@@ -1855,14 +1861,17 @@ async function renewVPSPlan(telegramId, subscriptionId) {
     // DigitalOcean-RDP: tell the provider to power the box back on + clear its
     // own doRdpServers grace fields (svc.renewInstance handles both). Other
     // providers manage renewal on their side / via the scheduler.
+    // DigitalOcean Linux VPS renewed during its grace period was powered off at expiry → power it back on.
     try {
-      if (vpsProvider.detectProviderByInstanceId(record.contaboInstanceId) === 'digitalocean-rdp') {
+      const provName = vpsProvider.detectProviderByInstanceId(record.contaboInstanceId)
+      if (provName === 'digitalocean-rdp') {
         const prov = vpsProvider.getProviderForRecord(record)
-        if (prov && typeof prov.renewInstance === 'function') {
-          await prov.renewInstance(record.contaboInstanceId, Math.max(1, Number(record.durationMonths) || 1))
-        }
+        if (prov && typeof prov.renewInstance === 'function') await prov.renewInstance(record.contaboInstanceId, months)
+      } else if (provName === 'digitalocean' && wasInGrace) {
+        const prov = vpsProvider.getProviderForRecord(record)
+        if (prov && typeof prov.startInstance === 'function') await prov.startInstance(record.contaboInstanceId)
       }
-    } catch (e) { console.log(`[VPS] DO-RDP provider renew sync failed for ${subscriptionId}: ${e.message}`) }
+    } catch (e) { console.log(`[VPS] DO provider renew sync failed for ${subscriptionId}: ${e.message}`) }
 
     return {
       success: true,

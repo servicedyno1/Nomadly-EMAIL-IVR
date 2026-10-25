@@ -72,7 +72,8 @@ function createSmsReply({ db, voiceService, log = console.log }) {
     if (num.capabilities?.sms === false) return { error: [400, 'no_sms', 'This number can’t send texts.'] }
     if (num.status !== 'active') return { error: [409, 'not_active', 'This number is suspended. Renew it to send texts again.'] }
     const preview = simulated || dryRun() || !!num.dryRun
-    const overage = voiceService.isSmsLimitReached(num) ? phoneConfig.OVERAGE_RATE_SMS : 0
+    const ownerNumbers = (await db.collection('phoneNumbersOf').findOne({ _id: chatId }))?.val?.numbers || [num]
+    const overage = voiceService.isSmsLimitReached(num, ownerNumbers) ? phoneConfig.OVERAGE_RATE_SMS : 0
     if (overage && !(await w.debit(chatId, overage))) return { error: [402, 'insufficient_balance', `Your plan texts are used up; each extra text costs $${overage.toFixed(2)}. Top up first.`] }
     const out = preview ? { id: `preview-${crypto.randomUUID()}` } : await deliver(num.phoneNumber, to, body)
     if (out.error) { if (overage) await w.credit(chatId, overage); return { error: [424, 'sms_failed', out.error] } }

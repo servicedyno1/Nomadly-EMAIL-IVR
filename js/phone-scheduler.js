@@ -2,7 +2,6 @@
 // Cloud Phone Scheduler — Expiry, Renewal & Usage Tracking
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 const schedule = require('node-schedule')
-const axios = require('axios')
 const { log } = require('console')
 const { get, set, atomicIncrement } = require('./db.js')
 const { getBalance, smartWalletDeduct } = require('./utils.js')
@@ -12,14 +11,6 @@ const telnyxApi = require('./telnyx-service.js')
 const twilioService = require('./twilio-service.js')
 const { translation } = require('./translation.js')
 const lifecycle = require('./plan-lifecycle.js')
-
-const TELNYX_API_KEY = process.env.TELNYX_API_KEY
-const TELNYX_BASE = 'https://api.telnyx.com/v2'
-
-const telnyxHeaders = () => ({
-  'Authorization': `Bearer ${TELNYX_API_KEY}`,
-  'Content-Type': 'application/json'
-})
 
 let _bot = null
 let _phoneNumbersOf = null
@@ -51,22 +42,22 @@ function initPhoneScheduler(deps) {
   _maskName = deps.maskName
   _nanoid = deps.nanoid
 
-  // ── Hourly: Check expiry, send reminders, auto-renew ──
+  // Dev-pod safety switch (same as hosting / VPS): these jobs charge wallets and release real numbers.
+  const live = () => process.env.SKIP_WEBHOOK_SYNC !== 'true'
+
+  // ── Hourly: Check expiry, send reminders, auto-renew, then start new usage cycles ──
   schedule.scheduleJob('0 * * * *', async () => {
+    if (!live()) return
     log('[PhoneScheduler] Running hourly expiry check...')
     await runExpiryCheck()
-  })
-
-  // ── Daily at 3:00 AM UTC: Pull usage from Telnyx CDR ──
-  schedule.scheduleJob('0 3 * * *', async () => {
-    log('[PhoneScheduler] Running daily usage tracking...')
-    await runUsageTracking()
-  })
-
-  // ── Daily at 0:05 AM UTC: Reset monthly counters on billing date ──
-  schedule.scheduleJob('5 0 * * *', async () => {
-    log('[PhoneScheduler] Running monthly counter reset check...')
     await runMonthlyReset()
+  })
+
+  // ── Daily at 3:00 AM UTC: 80% / 100% usage alerts (usage itself is counted live per call / SMS) ──
+  schedule.scheduleJob('0 3 * * *', async () => {
+    if (!live()) return
+    log('[PhoneScheduler] Running daily usage alerts...')
+    await runUsageTracking()
   })
 
   // ── Daily at 0:30 AM UTC: Pricing reconciliation ──
@@ -82,11 +73,12 @@ function initPhoneScheduler(deps) {
   // Numbers silently released by the provider (detected by phone-monitor)
   // get a 48h grace window. After that, this job cleans them up.
   schedule.scheduleJob('0 */6 * * *', async () => {
+    if (!live()) return
     log('[PhoneScheduler] Running inactive-released cleanup...')
     await runInactiveReleasedCleanup()
   })
 
-  log('[PhoneScheduler] Scheduled: expiry check (hourly), usage tracking (daily 3AM), monthly reset (daily 0:05AM), pricing reconciler (daily 0:30AM), inactive-released cleanup (every 6h)')
+  log(`[PhoneScheduler] Scheduled: expiry check + usage-cycle reset (hourly), usage alerts (daily 3AM), pricing reconciler (daily 0:30AM), inactive-released cleanup (every 6h)${live() ? '' : ' — PAUSED on this pod (SKIP_WEBHOOK_SYNC=true)'}`)
 }
 
 async function _getUserLang(chatId) {
@@ -101,6 +93,22 @@ async function _getUserLang(chatId) {
 // EXPIRY CHECK — Reminders + Auto-Renew
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
+// Write back only the fields this run changed, number by number — never the whole val (a stale copy undid
+// concurrent edits and wiped the saved Twilio sub-account login / addresses).
+async function persistChanges(chatId, before, numbers) {
+  const patches = []
+  for (const n of numbers) {
+    const old = before.find(b => b.phoneNumber === n.phoneNumber && b.status !== 'released')
+    if (!old) continue
+    const set = {}
+    for (const k of new Set([...Object.keys(old), ...Object.keys(n)])) {
+      if (JSON.stringify(n[k]) !== JSON.stringify(old[k])) set[k] = n[k] === undefined ? null : n[k]
+    }
+    if (Object.keys(set).length) patches.push({ phoneNumber: n.phoneNumber, set })
+  }
+  if (patches.length) await lifecycle.applyDb(_phoneNumbersOf, chatId, patches)
+}
+
 async function runExpiryCheck() {
   try {
     const allUsers = await _phoneNumbersOf.find({}).toArray()
@@ -113,6 +121,7 @@ async function runExpiryCheck() {
     for (const user of allUsers) {
       const chatId = user._id
       const numbers = user.val?.numbers || []
+      const before = JSON.parse(JSON.stringify(numbers))
       let modified = false
 
       for (let i = 0; i < numbers.length; i++) {
@@ -354,9 +363,7 @@ async function runExpiryCheck() {
         }
       }
 
-      if (modified) {
-        await set(_phoneNumbersOf, chatId, { numbers })
-      }
+      if (modified) await persistChanges(chatId, before, numbers)
     }
 
     log(`[PhoneScheduler] Expiry check complete: ${remindersSent} reminders, ${autoRenewed} auto-renewed, ${suspended} suspended/released${heldForMigration ? `, ${heldForMigration} Twilio held for migration (TWILIO_ENABLED=false)` : ''}`)
@@ -544,9 +551,11 @@ async function attemptAutoRenew(chatId, num, index, numbers) {
       return { outcome: 'insufficient_funds', usdBal: result.usdBal || 0, needed: price }
     }
 
-    // Wallet charged — extend expiry
+    // Wallet charged — extend expiry one month from the old expiry; if that is still in the past (number held for
+    // months, e.g. Twilio paused), from now — otherwise every hourly run would charge again until it caught up.
     const newExpiry = new Date(num.expiresAt)
     newExpiry.setMonth(newExpiry.getMonth() + 1)
+    if (!(newExpiry > new Date())) { newExpiry.setTime(Date.now()); newExpiry.setMonth(newExpiry.getMonth() + 1) }
 
     // ━━━ LAYER 2: Atomic claim — only extend if expiresAt is still the old value ━━━
     // Prevents double-charge when two pods both pass Layer 1 within milliseconds
@@ -568,8 +577,6 @@ async function attemptAutoRenew(chatId, num, index, numbers) {
         $set: {
           'val.numbers.$.expiresAt': newExpiry.toISOString(),
           'val.numbers.$.status': 'active',
-          'val.numbers.$.smsUsed': 0,
-          'val.numbers.$.minutesUsed': 0,
           'val.numbers.$._reminder3Sent': false,
           'val.numbers.$._reminder1Sent': false,
           'val.numbers.$._graceUntil': null,
@@ -586,8 +593,6 @@ async function attemptAutoRenew(chatId, num, index, numbers) {
 
     numbers[index].expiresAt = newExpiry.toISOString()
     numbers[index].status = 'active'
-    numbers[index].smsUsed = 0
-    numbers[index].minutesUsed = 0
     numbers[index]._reminder3Sent = false
     numbers[index]._reminder1Sent = false
     numbers[index]._graceUntil = null
@@ -637,181 +642,68 @@ async function attemptAutoRenew(chatId, num, index, numbers) {
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 async function runUsageTracking() {
+  // Usage is counted live (every call minute and SMS, see voice-service / sms-service); this job only sends the
+  // 80% / 100% alerts on each main line's SHARED allowance (main line + extra lines). It used to re-add yesterday's
+  // SMS and the last 100 Telnyx calls on top of the live count, so customers hit their limit at about half.
   try {
-    if (!TELNYX_API_KEY) return log('[PhoneScheduler] No TELNYX_API_KEY, skipping usage tracking')
-
     const allUsers = await _phoneNumbersOf.find({}).toArray()
-    const yesterday = new Date()
-    yesterday.setDate(yesterday.getDate() - 1)
-    const startDate = yesterday.toISOString().split('T')[0] + 'T00:00:00Z'
-    const endDate = yesterday.toISOString().split('T')[0] + 'T23:59:59Z'
-
-    let totalCallsTracked = 0
-    let totalSmsTracked = 0
-
+    let alerts = 0
     for (const user of allUsers) {
       const chatId = user._id
       const numbers = user.val?.numbers || []
-      let modified = false
-
-      // Resolve user language once per user for localised usage alerts.
-      let userLang = 'en'
-      try {
-        const userState = await _stateOf?.findOne?.({ _id: String(chatId) })
-        userLang = userState?.userLanguage || 'en'
-      } catch (_) { /* fallback to en */ }
-
-      for (let i = 0; i < numbers.length; i++) {
-        const num = numbers[i]
-        if (num.status !== 'active') continue
-        const cleanNumber = num.phoneNumber.replace(/[^+\d]/g, '')
-
-        // ── Pull Call Events ──
-        try {
-          const callRes = await axios.get(`${TELNYX_BASE}/call_events`, {
-            headers: telnyxHeaders(),
-            params: {
-              'filter[call_leg_id][exists]': true,
-              'filter[type]': 'call.hangup',
-              'page[size]': 100,
-            }
-          })
-          const callEvents = callRes.data?.data || []
-          // Filter for this number and count duration
-          const relevantCalls = callEvents.filter(e => {
-            const payload = e.payload || {}
-            const to = (payload.to || '').replace(/[^+\d]/g, '')
-            const from = (payload.from || '').replace(/[^+\d]/g, '')
-            return to === cleanNumber || from === cleanNumber
-          })
-
-          if (relevantCalls.length > 0) {
-            let totalDurationSec = 0
-            for (const call of relevantCalls) {
-              const dur = call.payload?.duration_secs || call.payload?.duration || 0
-              totalDurationSec += dur
-            }
-            const totalMinutes = Math.ceil(totalDurationSec / 60)
-            numbers[i].minutesUsed = (numbers[i].minutesUsed || 0) + totalMinutes
-            modified = true
-            totalCallsTracked += relevantCalls.length
-          }
-        } catch (e) {
-          // Call events API may not be available for all accounts
-          log(`[PhoneScheduler] Call CDR fetch error for ${cleanNumber}: ${e.response?.status || e.message}`)
+      let userLang = null
+      for (const num of numbers) {
+        if (num.status !== 'active' || num.isSubNumber || lifecycle.isInternalTest(num)) continue
+        const u = lifecycle.poolUsage(numbers, num)
+        const flags = {}
+        const check = (type, used, limit, k80, k100) => {
+          if (!(limit > 0) || limit === Infinity) return
+          const percent = Math.round((used / limit) * 100)
+          if (percent >= 100 && !num[k100]) flags[k100] = { type, used, limit, percent, full: true }
+          else if (percent >= 80 && percent < 100 && !num[k80]) flags[k80] = { type, used, limit, percent, full: false }
         }
-
-        // ── Pull SMS usage from our own logs (more reliable than Telnyx CDR) ──
-        try {
-          const smsCount = await _phoneLogs?.countDocuments({
-            phoneNumber: cleanNumber,
-            type: 'sms',
-            timestamp: { $gte: startDate, $lte: endDate }
-          }) || 0
-
-          if (smsCount > 0) {
-            numbers[i].smsUsed = (numbers[i].smsUsed || 0) + smsCount
-            modified = true
-            totalSmsTracked += smsCount
-          }
-        } catch (e) {
-          log(`[PhoneScheduler] SMS log count error for ${cleanNumber}: ${e.message}`)
+        check('SMS', u.smsUsed, u.smsLimit, '_smsAlert80', '_smsAlert100')
+        check('Minutes', u.minutesUsed, u.minuteLimit, '_minAlert80', '_minAlert100')
+        if (!Object.keys(flags).length) continue
+        userLang = userLang || await _getUserLang(chatId)
+        for (const a of Object.values(flags)) {
+          sendToUser(chatId, a.full ? buildUsageLimitMsg(num, a.type, a.used, a.limit, userLang) : buildUsageAlertMsg(num, a.type, a.used, a.limit, a.percent, userLang))
+          alerts++
         }
-
-        // ── Check usage limits & send alerts ──
-        const plan = plans[num.plan]
-        if (plan) {
-          const smsLimit = plan.sms
-          const smsUsed = numbers[i].smsUsed || 0
-          const smsPercent = Math.round((smsUsed / smsLimit) * 100)
-
-          // 80% SMS usage alert
-          if (smsPercent >= 80 && smsPercent < 100 && !numbers[i]._smsAlert80) {
-            sendToUser(chatId, buildUsageAlertMsg(num, 'SMS', smsUsed, smsLimit, smsPercent, userLang))
-            numbers[i]._smsAlert80 = true
-            modified = true
-          }
-          // 100% SMS usage alert
-          if (smsPercent >= 100 && !numbers[i]._smsAlert100) {
-            sendToUser(chatId, buildUsageLimitMsg(num, 'SMS', smsUsed, smsLimit, userLang))
-            numbers[i]._smsAlert100 = true
-            modified = true
-          }
-
-          // Minutes alert (skip for unlimited)
-          if (plan.minutes !== 'Unlimited') {
-            const minLimit = plan.minutes
-            const minUsed = numbers[i].minutesUsed || 0
-            const minPercent = Math.round((minUsed / minLimit) * 100)
-
-            if (minPercent >= 80 && minPercent < 100 && !numbers[i]._minAlert80) {
-              sendToUser(chatId, buildUsageAlertMsg(num, 'Minutes', minUsed, minLimit, minPercent, userLang))
-              numbers[i]._minAlert80 = true
-              modified = true
-            }
-            if (minPercent >= 100 && !numbers[i]._minAlert100) {
-              sendToUser(chatId, buildUsageLimitMsg(num, 'Minutes', minUsed, minLimit, userLang))
-              numbers[i]._minAlert100 = true
-              modified = true
-            }
-          }
-        }
-      }
-
-      if (modified) {
-        await set(_phoneNumbersOf, chatId, { numbers })
+        await lifecycle.applyDb(_phoneNumbersOf, chatId, [{ phoneNumber: num.phoneNumber, set: Object.fromEntries(Object.keys(flags).map(k => [k, true])) }])
       }
     }
-
-    log(`[PhoneScheduler] Usage tracking complete: ${totalCallsTracked} calls, ${totalSmsTracked} SMS tracked`)
+    log(`[PhoneScheduler] Usage alerts complete: ${alerts} sent`)
   } catch (e) {
     log(`[PhoneScheduler] Usage tracking error: ${e.message}`)
   }
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// MONTHLY RESET — Reset counters on billing date
+// USAGE CYCLE RESET — one reset per paid month of each main line
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 async function runMonthlyReset() {
+  // A main line's usage cycle is the month that ends at its expiresAt. When a new cycle starts (renewal), the
+  // shared counters and alert flags of the main line AND its extra lines reset together — no more skipped months
+  // for numbers bought on the 29th–31st, and no second reset when the renewal day drifted.
   try {
     const allUsers = await _phoneNumbersOf.find({}).toArray()
-    const today = new Date()
-    const todayDay = today.getDate()
+    const now = new Date()
     let resetCount = 0
-
     for (const user of allUsers) {
-      const chatId = user._id
       const numbers = user.val?.numbers || []
-      let modified = false
-
-      for (let i = 0; i < numbers.length; i++) {
-        const num = numbers[i]
-        if (num.status !== 'active') continue
-
-        // Reset on purchase anniversary day
-        const purchaseDay = new Date(num.purchaseDate).getDate()
-        if (todayDay === purchaseDay) {
-          numbers[i].smsUsed = 0
-          numbers[i].minutesUsed = 0
-          numbers[i]._smsAlert80 = false
-          numbers[i]._smsAlert100 = false
-          numbers[i]._minAlert80 = false
-          numbers[i]._minAlert100 = false
-          numbers[i]._smsLimitNotified = false
-          numbers[i]._minLimitNotified = false
-          modified = true
+      for (const num of numbers) {
+        const patches = lifecycle.usageResetPatches(numbers, num, now)
+        if (!patches.length) continue
+        await lifecycle.applyDb(_phoneNumbersOf, user._id, patches)
+        if ('smsUsed' in patches[0].set) {
           resetCount++
-          log(`[PhoneScheduler] Monthly reset: ${chatId} ${num.phoneNumber}`)
+          log(`[PhoneScheduler] Usage cycle reset: ${user._id} ${num.phoneNumber}${patches.length > 1 ? ` (+${patches.length - 1} extra)` : ''}`)
         }
       }
-
-      if (modified) {
-        await set(_phoneNumbersOf, chatId, { numbers })
-      }
     }
-
-    log(`[PhoneScheduler] Monthly reset complete: ${resetCount} numbers reset`)
+    if (resetCount) log(`[PhoneScheduler] Usage cycle reset complete: ${resetCount} plans reset`)
   } catch (e) {
     log(`[PhoneScheduler] Monthly reset error: ${e.message}`)
   }
@@ -1108,14 +1000,10 @@ async function runInactiveReleasedCleanup() {
 
       if (toRemove.length === 0) continue
 
-      // Remove from array (iterate in reverse to keep indices stable)
-      const updatedNumbers = numbers.filter((n, idx) =>
-        !toRemove.some(r => r.index === idx)
-      )
-
+      // Atomic $pull of just these entries — never rewrite the numbers array from a stale copy.
       await _phoneNumbersOf.updateOne(
         { _id: chatId },
-        { $set: { 'val.numbers': updatedNumbers } }
+        { $pull: { 'val.numbers': { $or: toRemove.map(r => ({ phoneNumber: r.num.phoneNumber, status: 'inactive_released', _inactiveSince: r.num._inactiveSince })) } } }
       )
 
       for (const { num } of toRemove) {

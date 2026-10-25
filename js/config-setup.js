@@ -209,11 +209,13 @@ setDefault('SMS_APP_LINK', 'https://play.google.com/store');
 setDefault('PERCENT_INCREASE_DOMAIN', '0.25');
 
 // Hosting config
-setDefault('PREMIUM_ANTIRED_WEEKLY_PRICE', '50');
+setDefault('PREMIUM_ANTIRED_WEEKLY_PRICE', '30');
 setDefault('GOLDEN_ANTIRED_CPANEL_PRICE', '100');
 setDefault('PREMIUM_ANTIRED_CPANEL_PRICE', '75');
 setDefault('VPS_HOURLY_PLAN_MINIMUM_AMOUNT_PAYABLE', '1.00');
-setDefault('HOSTING_TRIAL_PLAN_ON', 'true');
+setDefault('HOSTING_TRIAL_PLAN_ON', 'false');
+setDefault('OVERAGE_RATE_MIN', '0.15');
+setDefault('OVERAGE_RATE_SMS', '0.02');
 setDefault('OFFSHORE_HOSTING_ON', 'false');
 
 // Admin config (use defaults if not set)

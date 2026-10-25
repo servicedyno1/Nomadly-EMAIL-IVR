@@ -107,8 +107,11 @@ function routeSummary(n) {
   } catch (_) { return { primary: 'missed', forwardTo: null, skipped: [] } }
 }
 
-function publicNumber(n) {
+// `numbers` = the owner's lines, so usage shows the shared allowance of the main line + its extra lines.
+function publicNumber(n, numbers) {
   const plan = phoneConfig.plans[n.plan] || {}
+  const pool = lifecycle.poolUsage(numbers || [n], n)
+  const poolPlan = phoneConfig.plans[pool.main.plan] || plan
   const f = n.features || {}
   return {
     phoneNumber: n.phoneNumber, country: n.country, countryName: n.countryName, type: n.type,
@@ -117,7 +120,7 @@ function publicNumber(n) {
     purchaseDate: n.purchaseDate, expiresAt: n.expiresAt, isSubNumber: !!n.isSubNumber, parentNumber: n.parentNumber || null, dryRun: !!n.dryRun,
     routeSummary: routeSummary(n),
     capabilities: n.capabilities || { voice: true, sms: true, fax: false },
-    usage: { minutesUsed: n.minutesUsed || 0, minutesIncluded: plan.minutes ?? null, smsUsed: n.smsUsed || 0, smsIncluded: plan.sms ?? null },
+    usage: { minutesUsed: pool.minutesUsed, minutesIncluded: poolPlan.minutes ?? null, smsUsed: pool.smsUsed, smsIncluded: poolPlan.sms ?? null, shared: pool.lines.length > 1 },
     sipUsername: n.telnyxSipUsername || n.sipUsername || null, sipDomain: phoneConfig.WEB_SIP_DOMAIN,
     features: {
       callForwarding: { enabled: false, mode: 'disabled', forwardTo: null, ringTimeout: 25, holdMusic: false, backups: [], ...(f.callForwarding || {}) },
@@ -255,8 +258,8 @@ function routes(router, deps) {
     res.json({ numbers: results.map(({ cost, ...r }) => r) })
   }))
 
-  router.get('/numbers', h(async (req, res) => res.json({ numbers: (await myNumbers(req.webChatId)).map(publicNumber) })))
-  router.get('/numbers/:phone', withNumber(async (req, res) => res.json({ number: publicNumber(req.num) })))
+  router.get('/numbers', h(async (req, res) => res.json({ numbers: (await myNumbers(req.webChatId)).map((n, _, all) => publicNumber(n, all)) })))
+  router.get('/numbers/:phone', withNumber(async (req, res) => res.json({ number: publicNumber(req.num, (await phoneNumbersOf.findOne({ _id: req.webChatId }))?.val?.numbers) })))
 
   // Picked number from the account's last search (null when it is no longer there).
   const pickFromSearch = async (chatId, phone) => {

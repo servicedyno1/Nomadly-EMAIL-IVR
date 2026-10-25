@@ -129,6 +129,7 @@ async function handleInboundSms(webhookData, bot, phoneNumbersOf, phoneLogs) {
     const allUsers = await phoneNumbersOf.find({}).toArray()
     let ownerChatId = null
     let numberConfig = null
+    let ownerNumbers = []
 
     for (const user of allUsers) {
       const nums = user.val?.numbers || []
@@ -136,6 +137,7 @@ async function handleInboundSms(webhookData, bot, phoneNumbersOf, phoneLogs) {
       if (found) {
         ownerChatId = user._id
         numberConfig = found
+        ownerNumbers = nums
         break
       }
     }
@@ -150,7 +152,7 @@ async function handleInboundSms(webhookData, bot, phoneNumbersOf, phoneLogs) {
     }
 
     // ── CHECK: Inbound SMS limit reached? → Try overage billing ──
-    if (_isSmsLimitReached && _isSmsLimitReached(numberConfig)) {
+    if (_isSmsLimitReached && _isSmsLimitReached(numberConfig, ownerNumbers)) {
       let overageAllowed = false
       if (_walletOf) {
         try {

@@ -123,4 +123,15 @@ function weeklyRenewBlock(acct, { durationDays, periods = 1, now = new Date() } 
   return null
 }
 
-module.exports = { hostingPlanOptions, hostingQuote, weeklyRenewBlock, planIdOf, HostingPlanChangeError, WEEKLY_RENEW_WINDOW_DAYS }
+// Telegram-bot upgrade (2026-06): the expiry date stays and the FULL monthly price difference is charged now
+// (new plan price − what the account pays today). A term that already ended has no expiry to keep → the full
+// new price buys a fresh term from today.
+function botUpgradeQuote(acct, { currentPrice, newPrice, durationDays = 30, now = new Date() } = {}) {
+  const exp = acct && acct.expiryDate ? new Date(acct.expiryDate) : null
+  if (!exp || isNaN(exp.getTime()) || exp <= now) {
+    return { keepsExpiry: false, charge: round2(Number(newPrice) || 0), expiresAt: new Date(now.getTime() + durationDays * DAY_MS) }
+  }
+  return { keepsExpiry: true, charge: Math.max(0, round2((Number(newPrice) || 0) - (Number(currentPrice) || 0))), expiresAt: exp }
+}
+
+module.exports = { hostingPlanOptions, hostingQuote, weeklyRenewBlock, botUpgradeQuote, planIdOf, HostingPlanChangeError, WEEKLY_RENEW_WINDOW_DAYS }

@@ -959,16 +959,25 @@ const getBalance = async (walletOf, chatId) => {
   return { usdBal }
 }
 
-const subscribePlan = async (planEndingTime, freeDomainNamesAvailableFor, planOf, chatId, plan, bot, lang, freeValidationsAvailableFor) => {
+const subscribePlan = async (planEndingTime, freeDomainNamesAvailableFor, planOf, chatId, plan, bot, lang, freeValidationsAvailableFor, stateOf) => {
   const duration = timeOf[plan]
   if (!duration) {
     console.error(`[subscribePlan] Invalid plan type "${plan}" for chatId ${chatId} — aborting subscription`)
     return
   }
 
-  const endTime = Date.now() + duration
+  // Buying while a plan is still active adds the new period on top of the current expiry (no paid days lost).
+  const now = Date.now()
+  const current = Number(await get(planEndingTime, chatId)) || 0
+  const endTime = Math.max(current, now) + duration
   set(planOf, chatId, plan)
   set(planEndingTime, chatId, endTime)
+  // New term → re-arm the 3-day / 1-day reminders; a window the term already starts inside (e.g. a Daily plan)
+  // is marked done so no "expires tomorrow" message arrives minutes after paying.
+  if (stateOf) {
+    const left = endTime - now
+    await stateOf.updateOne({ _id: String(chatId) }, { $set: { 'reminders.botPlan3DayReminderSent': left <= 3.1 * 86400000, 'reminders.botPlan1DayReminderSent': left <= 1.1 * 86400000, 'reminders.botPlanExpiredSent': false } }, { upsert: true }).catch(() => {})
+  }
   // Free domains removed - no longer granted with subscription
   // set(freeDomainNamesAvailableFor, chatId, freeDomainsOf[plan])
   if (freeValidationsAvailableFor) {

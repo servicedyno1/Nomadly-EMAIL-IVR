@@ -55,6 +55,7 @@ export function OverviewTab({ num, reload }) {
         <div className="font-display text-2xl font-bold">This month</div>
         <Meter label="Inbound minutes" used={num.usage.minutesUsed} total={num.usage.minutesIncluded} testid="overview-minutes-meter" />
         <Meter label="SMS" used={num.usage.smsUsed} total={num.usage.smsIncluded} testid="overview-sms-meter" />
+        {num.usage.shared && <div className="text-xs text-[#a1a1aa]" data-testid="overview-usage-shared-note">Shared allowance — totals include your main number and all its extra numbers.</div>}
       </div>
       <div className="civr-card p-6 space-y-3 text-sm" data-testid="overview-capabilities">
         <div className="font-display text-2xl font-bold mb-2">Capabilities</div>
