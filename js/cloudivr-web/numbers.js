@@ -12,7 +12,7 @@ const notify = require('./notify')
 const referrals = require('./referrals')
 
 const TYPE_NAMES = { local: 'Local', toll_free: 'Toll-free', mobile: 'Mobile', national: 'National' }
-const FEATURE_KEYS = ['callForwarding', 'smsToEmail', 'smsWebhook', 'voicemail', 'sipCredentials', 'callRecording', 'ivr', 'ivrOutbound', 'bulkCall', 'otpCollection', 'aiAgent', 'textRelay']
+const FEATURE_KEYS = ['callForwarding', 'smsToEmail', 'smsWebhook', 'voicemail', 'sipCredentials', 'callRecording', 'ivr', 'ivrOutbound', 'bulkCall', 'otpCollection', 'aiAgent', 'textRelay', 'ringGroup', 'textTriggers', 'aiSummary']
 const LOG_TYPES = { sms: ['sms', 'sms_out'], voicemail: ['voicemail'], fax: ['fax'] }
 const E164 = /^\+[1-9]\d{7,14}$/
 const dryRun = () => process.env.WEB_CLOUDIVR_DRY_RUN === 'true'
@@ -62,6 +62,9 @@ const WEB_FEATURES = [
   ['bulk', 'Bulk IVR campaigns with scheduling', 'bulkCall'],
   ['textRelay', () => `Text calls for deaf & hard-of-hearing users (+$${Number(require('../relay-call').RELAY_RATE()).toFixed(2)}/min)`, 'textRelay'],
   ['recording', 'Call recording', 'callRecording'],
+  ['ringGroup', 'Ring groups — ring several phones at once', 'ringGroup'],
+  ['textTriggers', 'Text Triggers — a text starts a callback, a spoken reply or an AI call', 'textTriggers'],
+  ['aiSummary', () => `AI summaries & caller mood for voicemails and recorded calls ($${Number(require('./ai-summary').RATE()).toFixed(2)}/min)`, 'aiSummary'],
   ['ivr', 'Keypad menu (IVR) — callers press a key, with key analytics', 'ivr'],
   ['aiAgent', () => `AI voice agent — talks with callers, books and takes messages ($${Number(require('../ai-agent').RATE()).toFixed(2)}/min)`, 'aiAgent'],
   ['priority', 'Priority support', (plan) => plan === 'business'],
@@ -83,7 +86,7 @@ const catalog = () => {
     recommendedPlan: rec,
     voicemailLanguages: vmGreeting.publicLangs(),
     countries: countries(), typeNames: TYPE_NAMES,
-    rates: { forwardingPerMin: phoneConfig.CALL_FORWARDING_RATE_MIN, overagePerMin: phoneConfig.OVERAGE_RATE_MIN, overagePerSms: phoneConfig.OVERAGE_RATE_SMS, aiAgentPerMin: require('../ai-agent').RATE() },
+    rates: { forwardingPerMin: phoneConfig.CALL_FORWARDING_RATE_MIN, overagePerMin: phoneConfig.OVERAGE_RATE_MIN, overagePerSms: phoneConfig.OVERAGE_RATE_SMS, aiAgentPerMin: require('../ai-agent').RATE(), aiSummaryPerMin: require('./ai-summary').RATE() },
     sipDomain: phoneConfig.WEB_SIP_DOMAIN, dryRun: dryRun(), livePayments: livePayments(),
     extraNumber: { price: phoneConfig.SUB_NUMBER_BASE_PRICE, limits: Object.fromEntries(Object.keys(phoneConfig.plans).map(id => [id, phoneConfig.getSubNumberLimit(id)])) },
   }
@@ -103,6 +106,8 @@ function publicVoicemail(vm) {
 // What callers get right now, and which settings are skipped because another one answers first.
 function routeSummary(n) {
   if (n.features?.aiAgent?.enabled && phoneConfig.canAccessFeature(n.plan, 'aiAgent')) return { primary: 'ai_agent', forwardTo: null, skipped: [], brokenIvr: false }
+  const rg = n.features?.ringGroup
+  if (rg?.enabled && rg.members?.length && phoneConfig.canAccessFeature(n.plan, 'ringGroup')) return { primary: 'ring_group', forwardTo: null, members: rg.members, skipped: [], brokenIvr: false }
   try {
     const r = phoneConfig.getCallRouteSummary(n) || {}
     return { primary: r.primary?.action || 'missed', forwardTo: r.primary?.forwardTo || null, skipped: r.skippedFeatures || [], brokenIvr: !!r.hasBrokenIvr }
@@ -134,6 +139,9 @@ function publicNumber(n, numbers) {
       ivr: f.ivr || { enabled: false, options: {} },
       aiAgent: f.aiAgent || { enabled: false, agentId: null },
       browserRing: { enabled: false, answerMode: 'ask', lang: 'en', voice: 'female', announce: true, ...(f.browserRing || {}) },
+      ringGroup: { ...require('./ring-group').defaults(), ...(f.ringGroup || {}) },
+      textTriggers: { enabled: !!f.textTriggers?.enabled, count: (f.textTriggers?.rules || []).length },
+      aiSummary: { enabled: !!f.aiSummary?.enabled },
     },
     access: access(n.plan),
   }
@@ -195,6 +203,8 @@ const publicLog = (l) => ({
   from: l.from || null, to: l.to || l.phoneNumber || null, phoneNumber: l.phoneNumber || null, duration: l.duration || 0,
   body: l.body || null, recordingUrl: l.recordingUrl || null, digit: l.digitPressed || null, forwardTo: l.forwardTo || null, timestamp: l.timestamp,
   transcript: l.transcript || null, transcriptStatus: l.transcriptStatus || null, reply: l.reply || null, canReply: smsReplyMod.canReply(l),
+  aiSummary: l.aiSummary ? { status: l.aiSummary.status, summary: l.aiSummary.summary || null, sentiment: l.aiSummary.sentiment || null, mood: l.aiSummary.mood || null, actionItems: l.aiSummary.actionItems || [], charge: l.aiSummary.charge || 0, detail: l.aiSummary.detail || null } : null,
+  canSummarize: ['voicemail', 'call_recording'].includes(l.type) && !!(l.transcript || l.recordingUrl),
 })
 
 function routes(router, deps) {
@@ -333,7 +343,7 @@ function routes(router, deps) {
       let sipUsername = phoneConfig.generateSipUsername(), sipPassword = phoneConfig.generateSipPassword()
       let tUser = null, tPass = null, tCredId = null
       if (!dryRun() && tr.sipConnectionId) {
-        const cred = await telnyxApi.createSIPCredential(tr.sipConnectionId, sipUsername, sipPassword)
+        const cred = await telnyxApi.createSIPCredential(tr.sipConnectionId, sipUsername, sipPassword, selected)
         if (cred?.sip_username) { tUser = sipUsername = cred.sip_username; tPass = sipPassword = cred.sip_password || sipPassword; tCredId = cred.id || null }
       }
       const caps = { voice: true, sms: !!hit.capabilities.sms, fax: !!hit.capabilities.fax }
@@ -536,7 +546,7 @@ function routes(router, deps) {
     const n = req.num, tr = getTelnyxResources() || {}
     let user = phoneConfig.generateSipUsername(), pass = phoneConfig.generateSipPassword(), credId = null
     if (!dryRun() && tr.sipConnectionId) {
-      const cred = await telnyxApi.createSIPCredential(tr.sipConnectionId, user, pass)
+      const cred = await telnyxApi.createSIPCredential(tr.sipConnectionId, user, pass, n.phoneNumber)
       if (!cred?.sip_username) return bad(res, 424, 'sip_reset_failed', 'Could not create new SIP credentials. Your current ones still work.')
       user = cred.sip_username; pass = cred.sip_password || pass; credId = cred.id || null
       if (n.telnyxCredentialId) await telnyxApi.deleteSIPCredential(n.telnyxCredentialId).catch(() => {})

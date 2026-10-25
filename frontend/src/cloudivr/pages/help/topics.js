@@ -20,10 +20,10 @@ const PAGES = [
 ];
 const TABS = {
   overview: 'Overview', forwarding: 'Forwarding', browser: 'Browser ring', hours: 'Hours', ivr: 'Keypad menu', ai: 'AI voice agent',
-  voicemail: 'Voicemail', sms: 'SMS', sip: 'SIP', recording: 'Recording', logs: 'Logs', billing: 'Billing',
+  voicemail: 'Voicemail', sms: 'SMS', sip: 'SIP', recording: 'Recording', logs: 'Logs', billing: 'Billing', ringgroup: 'Ring group', triggers: 'Text Triggers',
 };
 // Number-page tabs → help page key, so "help for this page" opens the right articles.
-const TAB_TOPIC = { forwarding: 'forwarding', hours: 'hours', ivr: 'keypad', ai: 'ai', voicemail: 'voicemail', sip: 'sip', billing: 'billing', browser: 'browser', recording: 'recording' };
+const TAB_TOPIC = { forwarding: 'forwarding', hours: 'hours', ivr: 'keypad', ai: 'ai', voicemail: 'voicemail', sip: 'sip', billing: 'billing', browser: 'browser', recording: 'recording', ringgroup: 'ringgroup', triggers: 'triggers', logs: 'logs' };
 
 // → { key, topic, label } for the current screen; label is plain English for the assistant, e.g. "Number details — Keypad menu tab".
 export function pageOf(pathname = '', search = '') {
@@ -50,7 +50,7 @@ export const TOPIC_NAMES = {
   overview: 'Overview', number: 'Number details', numbers: 'My numbers', sip: 'SIP & softphones', buy: 'Buy a number', verification: 'Verification',
   audio: 'Audio library', 'quick-call': 'Quick IVR call', 'text-call': 'Text calls', ai: 'AI voice agents', campaigns: 'Campaigns', wallet: 'Wallet',
   inbox: 'Inbox', settings: 'Settings', forwarding: 'Forwarding', hours: 'Hours', keypad: 'Keypad menu', voicemail: 'Voicemail', billing: 'Billing',
-  browser: 'Browser ring', recording: 'Recording',
+  browser: 'Browser ring', recording: 'Recording', ringgroup: 'Ring group', triggers: 'Text Triggers', logs: 'Logs',
 };
 
 // { id, group, topics: page/tab keys it belongs to, q, a, to: [path under /app, button label] }
@@ -66,6 +66,9 @@ export const ARTICLES = [
   { id: 'one-answers', group: 'numbers', topics: ['keypad', 'ai', 'number'], q: 'Can a number use a keypad menu and an AI voice agent together?', a: 'No. A number uses one or the other. Turning one on switches the other off, and the tab warns you before you save.', to: ['numbers', 'My numbers'] },
   { id: 'voicemail', group: 'numbers', topics: ['voicemail', 'number', 'inbox'], q: 'How do I set up voicemail?', a: 'Open your number, then the Voicemail tab (Pro plan and up). Pick the greeting language or record your own greeting. New messages arrive in your Inbox with a written transcript.', to: ['numbers', 'My numbers'] },
   { id: 'recording', group: 'numbers', topics: ['recording', 'number'], q: 'How do I record calls?', a: 'Open your number, then the Recording tab (Pro plan and up), and turn recording on. Recordings appear in the number’s Logs and in your Inbox.', to: ['numbers', 'My numbers'] },
+  { id: 'ring-group', group: 'numbers', topics: ['ringgroup', 'forwarding', 'number'], q: 'How do I ring several phones at once?', a: 'Open your number, then the Ring group tab (Pro plan and up). Add up to 5 phones and switch it on. Every call rings them all at the same time and the first to answer gets the caller. Choose what happens when nobody answers: voicemail, one backup number, or a short message.', to: ['numbers', 'My numbers'] },
+  { id: 'text-triggers', group: 'numbers', topics: ['triggers', 'number', 'inbox'], q: 'What are Text Triggers?', a: 'Text Triggers start a call when a text arrives on your number (Pro plan and up). Auto Callback rings your phone first and reads you the text — press 1 to call them back. Text-to-Call message calls the person who texted and reads your message. AI agent calls them back uses your AI voice agent (Business). Each trigger can run only on a keyword, only during business hours and once per sender per hour. Use “Try a text” to check your setup without dialing.', to: ['numbers', 'My numbers'] },
+  { id: 'ai-summaries', group: 'numbers', topics: ['logs', 'voicemail', 'recording', 'number'], q: 'How do AI summaries and caller mood work?', a: 'Open your number, then the Logs tab (Pro plan and up). Switch on AI summaries to get a short summary, the caller’s mood and follow-ups for every new voicemail and recorded call, or tap Summarize on any one. It costs a small per-minute fee from your wallet; if nothing can be summarised you are not charged.', to: ['numbers', 'My numbers'] },
   { id: 'extra-numbers', group: 'numbers', topics: ['billing', 'number', 'numbers'], q: 'How do I add an extra number?', a: 'Open your main number, then Billing → Extra numbers. Search and buy. Extra numbers share the main number’s plan, minutes and SMS.', to: ['numbers', 'My numbers'] },
 
   { id: 'browser-phone', group: 'calling', topics: ['overview', 'browser', 'number'], q: 'Can I make and answer calls in my browser?', a: 'Yes. The phone icon in the top bar opens the browser phone. To answer incoming calls in the browser, open your number and turn on the Browser ring tab.', to: ['numbers', 'My numbers'] },
@@ -83,6 +86,8 @@ export const ARTICLES = [
   { id: 'change-plan', group: 'billing', topics: ['billing', 'number'], q: 'How do I change my plan?', a: 'Open the number, then the Billing tab. Upgrading keeps your renewal date. Moving to a smaller plan happens right away, with no refund for the current month.', to: ['numbers', 'My numbers'] },
 
   { id: 'private-mode', group: 'account', topics: ['overview', 'inbox', 'settings'], q: 'How do I hide numbers on screen?', a: 'Turn on Private mode with the eye button in the top bar (on phones: More → Private mode). Numbers and messages stay hidden until you turn it off.', to: ['', 'Go to Overview'] },
+  { id: 'webhooks', group: 'account', topics: ['settings'], q: 'How do I send call events to my CRM or Zapier?', a: 'Open Settings → Call events (webhooks & Zapier). Paste a URL that starts with https:// — for Zapier use “Webhooks by Zapier” → Catch Hook. Pick the events (call started, call ended, voicemail left, text received, AI summary ready), save and send a test event. Each event is signed so your server can check it came from us.', to: ['settings', 'Open Settings'] },
+  { id: 'install-app', group: 'account', topics: ['settings', 'overview'], q: 'Can I install CloudIVR on my phone?', a: 'Yes. On Android (Chrome) open Settings → Install the app and tap Install. On iPhone, open CloudIVR in Safari, tap Share, then Add to Home Screen. It opens full screen like a normal app.', to: ['settings', 'Open Settings'] },
   { id: 'language', group: 'account', topics: ['settings'], q: 'How do I change the language?', a: 'Use the language menu in the top bar (on phones: More → Language) or Settings. Spoken keypad menus follow the app language.', to: ['settings', 'Open Settings'] },
   { id: 'undo', group: 'account', topics: ['overview', 'campaigns', 'ai', 'quick-call'], q: 'I deleted something by mistake', a: 'Quick deletes show an Undo button for a few seconds. Bigger actions ask you to confirm first, and we warn you before you leave a page with unsaved changes. If something is already gone, message support and we will help.', to: null },
 ];

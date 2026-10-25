@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#0a0a0a" />
+  <title>CloudIVR — offline</title>
+  <style>
+    html, body { margin: 0; height: 100%; background: #0a0a0a; color: #f3f4f6; font-family: system-ui, -apple-system, sans-serif; }
+    main { min-height: 100%; display: flex; flex-direction: column; justify-content: center; padding: 32px; box-sizing: border-box; max-width: 32rem; }
+    img { width: 64px; height: 64px; border-radius: 16px; }
+    h1 { font-size: 28px; margin: 24px 0 8px; }
+    p { color: #a1a1aa; line-height: 1.5; margin: 0 0 24px; }
+    button { align-self: flex-start; background: #34d399; color: #04130d; border: 0; border-radius: 999px; padding: 12px 22px; font-weight: 600; font-size: 15px; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <main>
+    <img src="/civr/brand/icon-192.png" alt="" />
+    <h1>You’re offline</h1>
+    <p>CloudIVR needs the internet to show your numbers, calls and messages. Your numbers keep working — calls still forward and voicemail still records.</p>
+    <button onclick="location.reload()">Try again</button>
+  </main>
+</body>
+</html>

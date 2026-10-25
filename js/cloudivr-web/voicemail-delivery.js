@@ -50,6 +50,7 @@ function createVoicemailDelivery(deps) {
       } catch (e) { log(`[VoicemailWeb] email to ${vm.forwardToEmail} failed: ${e.message}`) }
     }
     log(`[VoicemailWeb] delivered voicemail ${from} → ${to} (${duration || 0}s, transcript=${tr.status}, emailed=${!!emailed})`)
+    require('./events').emit(chatId, 'voicemail.left', { number: to, from, duration: duration || 0, transcript: tr.text || null, recordingUrl: audioUrl })
     return { audioUrl, transcript: tr.text || null, transcriptStatus: tr.status, emailed: !!emailed }
   }
 }

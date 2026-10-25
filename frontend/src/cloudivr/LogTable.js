@@ -5,6 +5,7 @@ import { usePrivacy } from './privacy';
 import { NoteCell, canNote } from './CallNote';
 import { QuickReply, TextBackButton, TextBackDone, useTextBack } from './QuickReply';
 import { ShowMore, useIsPhone, usePaged } from './ui';
+import { AiSummaryCell } from './AiSummary';
 
 const LABEL = {
   missed: ['Missed call', PhoneMissed, '#fb7185'], voicemail: ['Voicemail', Voicemail, '#a78bfa'], forwarded: ['Forwarded call', PhoneIncoming, '#34d399'],
@@ -32,7 +33,7 @@ function useRowReply(l, onDone) {
 }
 
 // Message text, pressed key, recording, transcript, text-back and note for one log entry.
-function Details({ l, i, testid, notePhone, onNotesChange, r, rid }) {
+function Details({ l, i, testid, notePhone, onNotesChange, r, rid, summarize }) {
   const pv = usePrivacy();
   return (
     <>
@@ -40,13 +41,14 @@ function Details({ l, i, testid, notePhone, onNotesChange, r, rid }) {
       {l.digit && <span className="civr-pill civr-pill-on ml-1">key {l.digit}</span>}
       {l.recordingUrl && <audio controls preload="none" src={l.recordingUrl} className="h-8 mt-1 max-w-full" data-testid={`${testid}-recording-${i}`} />}
       <Transcript l={l} i={i} testid={testid} />
+      <AiSummaryCell l={l} i={i} testid={testid} phone={notePhone} canRun={summarize} />
       {notePhone && r.show && (r.done ? <TextBackDone reply={r.done} testid={`${rid}-done`} /> : <TextBackButton onClick={() => r.setOpen(o => !o)} open={r.open} testid={`${rid}-button`} />)}
       {notePhone && canNote(l) && <NoteCell log={l} phone={notePhone} onSaved={onNotesChange} testid={`${testid}-note-${i}`} />}
     </>
   );
 }
 
-function LogRow({ l, i, cols, showNumber, testid, notePhone, onNotesChange }) {
+function LogRow({ l, i, cols, showNumber, testid, notePhone, onNotesChange, summarize }) {
   const pv = usePrivacy();
   const [name, Icon, color] = labelOf(l.type);
   const r = useRowReply(l, onNotesChange);
@@ -59,7 +61,7 @@ function LogRow({ l, i, cols, showNumber, testid, notePhone, onNotesChange }) {
         <td className="font-mono text-xs" data-testid={`${testid}-from-${i}`}>{pv.phone(l.from) || '—'}</td>
         <td className="font-mono text-xs" data-testid={`${testid}-to-${i}`}>{pv.phone(l.forwardTo || l.to) || '—'}</td>
         <td className="font-mono text-xs">{l.duration ? secs(l.duration) : '—'}</td>
-        <td className="text-xs max-w-xs"><Details l={l} i={i} testid={testid} notePhone={notePhone} onNotesChange={onNotesChange} r={r} rid={rid} /></td>
+        <td className="text-xs max-w-xs"><Details l={l} i={i} testid={testid} notePhone={notePhone} onNotesChange={onNotesChange} r={r} rid={rid} summarize={summarize} /></td>
         <td className="text-xs text-[#a1a1aa] whitespace-nowrap">{when(l.timestamp)}</td>
       </tr>
       {notePhone && r.open && !r.done && <tr><td colSpan={cols}><div className="sticky left-0 w-[min(36rem,calc(100vw-5rem))]"><QuickReply onSend={r.send} busy={r.busy} testid={rid} /></div></td></tr>}
@@ -68,7 +70,7 @@ function LogRow({ l, i, cols, showNumber, testid, notePhone, onNotesChange }) {
 }
 
 // Phones: one stacked card per entry — nothing scrolls sideways.
-function LogCard({ l, i, showNumber, testid, notePhone, onNotesChange }) {
+function LogCard({ l, i, showNumber, testid, notePhone, onNotesChange, summarize }) {
   const pv = usePrivacy();
   const [name, Icon, color] = labelOf(l.type);
   const r = useRowReply(l, onNotesChange);
@@ -86,18 +88,19 @@ function LogCard({ l, i, showNumber, testid, notePhone, onNotesChange }) {
         {cell('To', pv.phone(l.forwardTo || l.to) || '—', `${testid}-to-${i}`)}
         {l.duration ? cell('Length', secs(l.duration)) : null}
       </div>
-      <div className="text-xs mt-1.5 flex flex-col items-start gap-1"><Details l={l} i={i} testid={testid} notePhone={notePhone} onNotesChange={onNotesChange} r={r} rid={rid} /></div>
+      <div className="text-xs mt-1.5 flex flex-col items-start gap-1"><Details l={l} i={i} testid={testid} notePhone={notePhone} onNotesChange={onNotesChange} r={r} rid={rid} summarize={summarize} /></div>
       {notePhone && r.open && !r.done && <div className="mt-3"><QuickReply onSend={r.send} busy={r.busy} testid={rid} /></div>}
     </li>
   );
 }
 
 // `notePhone` (the number the rows belong to) turns on per-row call notes + missed-call "Text back"; `onNotesChange` reloads the rows.
-export function LogTable({ logs, showNumber = false, testid = 'log-table', notePhone, onNotesChange, pageSize = 20, resetKey }) {
+// `summarize` = the number's plan has AI summaries (shows the per-row Summarize button).
+export function LogTable({ logs, showNumber = false, testid = 'log-table', notePhone, onNotesChange, pageSize = 20, resetKey, summarize = false }) {
   const phone = useIsPhone();
   const { shown, rest, more } = usePaged(logs, pageSize, resetKey);
   if (!logs?.length) return <div className="text-sm text-[#a1a1aa] py-8 text-center" data-testid={`${testid}-empty`}>No activity yet.</div>;
-  const common = { showNumber, testid, notePhone, onNotesChange };
+  const common = { showNumber, testid, notePhone, onNotesChange, summarize };
   return (
     <>
       {phone ? (

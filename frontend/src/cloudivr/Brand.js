@@ -1,4 +1,5 @@
 import React from 'react';
+import { IS_CIVR_DOMAIN } from './paths';
 
 export const BRAND = {
   icon: '/civr/brand/parrot-icon-128.png',
@@ -22,6 +23,12 @@ const HEAD = [
   ['link', { rel: 'icon', type: 'image/png', href: BRAND.favicon }],
   ['link', { rel: 'apple-touch-icon', href: BRAND.touchIcon }],
   ['meta', { name: 'theme-color', content: '#0a0a0a' }],
+  // Installable app (Add to Home Screen): the manifest matches where the app is mounted (own domain or /cloudivr).
+  ['link', { rel: 'manifest', href: IS_CIVR_DOMAIN ? '/civr/manifest.webmanifest' : '/civr/manifest-prefixed.webmanifest' }],
+  ['meta', { name: 'apple-mobile-web-app-capable', content: 'yes' }],
+  ['meta', { name: 'mobile-web-app-capable', content: 'yes' }],
+  ['meta', { name: 'apple-mobile-web-app-title', content: 'CloudIVR' }],
+  ['meta', { name: 'apple-mobile-web-app-status-bar-style', content: 'black-translucent' }],
 ];
 
 // CloudIVR tab icon / home-screen icon while its pages are open; the previous tags come back on leave.

@@ -81,7 +81,7 @@ async function dialLead(campaign, lead) {
       client_state: CLIENT_STATE, answering_machine_detection: 'detect', timeout_secs: 30, ...streamParams(token),
     })
     const ccid = r.data?.data?.call_control_id
-    track(ccid, { kind: 'outbound', rate: leadRate(lead.number, records(agent)), baseRate: leadRate(lead.number), recRate: recRate(agent), calendar, token, chatId: String(campaign.chatId), agent, number: campaign.callerId, other: lead.number, leadName: lead.name || null, campaignId: campaign.id, leadIndex: lead.index })
+    track(ccid, { kind: 'outbound', rate: leadRate(lead.number, records(agent)), baseRate: leadRate(lead.number), recRate: recRate(agent), calendar, token, chatId: String(campaign.chatId), agent, number: campaign.callerId, other: lead.number, leadName: lead.name || null, campaignId: campaign.id, leadIndex: lead.index, reason: lead.reason || null })
     return { callControlId: ccid }
   } catch (e) {
     const err = e.response?.data?.errors?.[0]
@@ -128,7 +128,7 @@ function onStream(token, ws) {
   const s = sessions.get(streamTokens.get(token))
   if (!s || s.bridge) return ws.close()
   s.bridge = new Bridge({
-    agent: s.agent, ctx: { direction: s.kind, leadName: s.leadName, callerNumber: s.other, calendar: s.calendar, record: records(s.agent) }, media: ws, log,
+    agent: s.agent, ctx: { direction: s.kind, leadName: s.leadName, callerNumber: s.other, calendar: s.calendar, record: records(s.agent), reason: s.reason || null }, media: ws, log,
     actions: { hangup: (why) => { log(`[AIAgent] hangup ${s.ccid}: ${why}`); hangup(s.ccid) }, transfer: (to) => transfer(s, to) },
   })
   ws.on('message', (m) => { try { s.bridge.onMedia(JSON.parse(m)) } catch (_) { /* bad frame */ } })
@@ -180,7 +180,9 @@ async function finish(s, payload) {
   })
   log(`[AIAgent] ${s.kind} call ${s.other} ended: ${duration}s, outcome=${outcome}, charge=$${duration ? charge : 0}`)
 
-  if (s.kind === 'outbound') {
+  require('../cloudivr-web/events').emit(s.chatId, 'call.ended', { number: s.number, from: s.kind === 'inbound' ? s.other : s.number, to: s.kind === 'inbound' ? s.number : s.other, direction: s.kind, duration, outcome: `ai_${outcome || 'no_answer'}`, summary: sum?.summary || null, agent: s.agent.name, callId: s.ccid })
+  // Campaign leads settle in the campaign; one-off outbound calls (Text Triggers) bill here like inbound ones.
+  if (s.kind === 'outbound' && s.campaignId) {
     return require('../bulk-call-service').onCallComplete(s.ccid, {
       campaignId: s.campaignId, leadIndex: s.leadIndex, duration, hangupCause: payload?.hangup_cause || null, sipHangupCause: payload?.sip_hangup_cause || null,
       answeredAt: s.answeredAt ? new Date(s.answeredAt) : null, answeredBy: machine ? 'machine' : (s.answeredBy || null), voicemailDropped: res.voicemail && duration > 5,
