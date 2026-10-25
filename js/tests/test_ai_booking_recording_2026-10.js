@@ -279,6 +279,7 @@ const gFail = (status, data) => { throw Object.assign(new Error(`HTTP ${status}`
   {
     store.init(db)
     await audioLib.initAudioLibrary(db)
+    recorder.setDb(db) // production: ai-agent/index.js init() → recorder.setDb(db) (renames the redeploy backup)
     const walletOf = db.collection('walletOf')
     const chatId = '5000000000000099'
     await walletOf.insertOne({ _id: chatId, usdIn: 50, usdOut: 0 })

@@ -13,7 +13,6 @@ BASE_URL = BASE_URL.rstrip('/')
 API = f"{BASE_URL}/api/cloudivr-web"
 ALICE = {"email": "civr.alice@example.com", "password": "AliceTest#2026"}
 BOB = {"email": "civr.bob@example.com", "password": "BobTest#2026"}
-BOB_NUMBER = "+19565971129"
 
 
 def login(creds):
@@ -41,6 +40,39 @@ def alice_business_number(alice):
         if n.get("plan") == "business" and n.get("status") == "active":
             return n["phoneNumber"]
     pytest.skip("no business number for alice")
+
+
+def _number_on_plan(session, plan):
+    for n in session.get(f"{API}/numbers").json()["numbers"]:
+        if n.get("plan") == plan and n.get("status") == "active":
+            return n["phoneNumber"]
+    return None
+
+
+@pytest.fixture(scope="module")
+def bob_number(bob):
+    # Bob's number is bought fresh on every preview pod, so look it up instead of hard-coding it.
+    p = _number_on_plan(bob, "starter")
+    if not p:
+        pytest.skip("no starter number for bob")
+    return p
+
+
+@pytest.fixture(scope="module")
+def alice_pro_number(alice):
+    p = _number_on_plan(alice, "pro")
+    if not p:
+        pytest.skip("no pro number for alice")
+    return p
+
+
+def _num(session, phone):
+    g = session.get(f"{API}/numbers/{requests.utils.quote(phone)}").json()
+    return g.get("number", g)
+
+
+IVR_BODY = {"enabled": True, "greeting": "TEST menu. Press 1 for sales.",
+            "options": {"1": {"action": "forward", "forwardTo": "+14155550101", "label": "Sales"}}}
 
 
 @pytest.fixture(scope="module")
@@ -128,32 +160,90 @@ class TestCrud:
 class TestNumberAssign:
     def test_assign_and_unassign(self, alice, test_agent, alice_business_number):
         p = alice_business_number
-        orig = alice.get(f"{API}/numbers/{p}").json()
-        orig_ai = (orig.get("number", orig).get("features") or {}).get("aiAgent")
-        r = alice.put(f"{API}/numbers/{p}/ai-agent", json={"enabled": True, "agentId": test_agent["id"]})
-        assert r.status_code == 200, r.text
-        assert r.json()["aiAgent"] == {"enabled": True, "agentId": test_agent["id"]}
-        g = alice.get(f"{API}/numbers/{p}").json()
-        n = g.get("number", g)
-        assert n["features"]["aiAgent"]["agentId"] == test_agent["id"]
-        assert "aiAgent" in n.get("access", {}), n.get("access")
-        lst = alice.get(f"{API}/ai-agents").json()["agents"]
-        assert p in next(a for a in lst if a["id"] == test_agent["id"])["numbers"]
-        # restore
-        body = orig_ai if orig_ai and orig_ai.get("agentId") else {"enabled": False, "agentId": None}
-        assert alice.put(f"{API}/numbers/{p}/ai-agent", json=body).status_code == 200
+        orig = _num(alice, p)
+        orig_ai = (orig.get("features") or {}).get("aiAgent")
+        orig_ivr = (orig.get("features") or {}).get("ivr")
+        try:
+            r = alice.put(f"{API}/numbers/{p}/ai-agent", json={"enabled": True, "agentId": test_agent["id"]})
+            assert r.status_code == 200, r.text
+            assert r.json()["aiAgent"] == {"enabled": True, "agentId": test_agent["id"]}
+            n = _num(alice, p)
+            assert n["features"]["aiAgent"]["agentId"] == test_agent["id"]
+            assert "aiAgent" in n.get("access", {}), n.get("access")
+            lst = alice.get(f"{API}/ai-agents").json()["agents"]
+            assert p in next(a for a in lst if a["id"] == test_agent["id"])["numbers"]
+        finally:
+            body = orig_ai if orig_ai and orig_ai.get("agentId") else {"enabled": False, "agentId": None}
+            assert alice.put(f"{API}/numbers/{p}/ai-agent", json=body).status_code == 200
+            if orig_ivr and orig_ivr.get("enabled"):
+                assert alice.put(f"{API}/numbers/{p}/ivr", json=orig_ivr).status_code == 200
 
     def test_invalid_agent(self, alice, alice_business_number):
         r = alice.put(f"{API}/numbers/{alice_business_number}/ai-agent", json={"enabled": True, "agentId": "nope"})
         assert r.status_code == 400 and r.json()["error"] == "invalid_agent"
 
-    def test_bob_starter_locked(self, bob):
-        r = bob.put(f"{API}/numbers/{BOB_NUMBER}/ai-agent", json={"enabled": True, "agentId": "x"})
+    def test_bob_starter_locked(self, bob, bob_number):
+        r = bob.put(f"{API}/numbers/{bob_number}/ai-agent", json={"enabled": True, "agentId": "x"})
         assert r.status_code == 403 and r.json()["error"] == "plan_upgrade_required"
+        assert "Business" in r.json()["message"]
+
+    def test_pro_locked(self, alice, alice_pro_number):
+        # The AI voice agent is Business-only now: a Pro number can no longer switch it on.
+        r = alice.put(f"{API}/numbers/{alice_pro_number}/ai-agent", json={"enabled": True, "agentId": "x"})
+        assert r.status_code == 403 and r.json()["error"] == "plan_upgrade_required"
+        assert "Business" in r.json()["message"]
+        n = _num(alice, alice_pro_number)
+        assert n["access"]["aiAgent"] is False
+        assert n["routeSummary"]["primary"] != "ai_agent"
 
     def test_not_mine(self, bob, alice_business_number):
         r = bob.put(f"{API}/numbers/{alice_business_number}/ai-agent", json={"enabled": False})
         assert r.status_code == 404
+
+
+# --- only one answers a number: keypad menu (IVR) vs AI voice agent
+class TestOneAnswers:
+    def test_switches_each_other_off(self, alice, test_agent, alice_business_number):
+        p = alice_business_number
+        orig = _num(alice, p)
+        orig_ai = orig["features"]["aiAgent"]
+        orig_ivr = orig["features"]["ivr"]
+        try:
+            # keypad menu on (AI off) → turning the AI agent on switches the keypad menu off
+            assert alice.put(f"{API}/numbers/{p}/ai-agent", json={"enabled": False, "agentId": None}).status_code == 200
+            r = alice.put(f"{API}/numbers/{p}/ivr", json=IVR_BODY)
+            assert r.status_code == 200, r.text
+            assert r.json()["aiAgentTurnedOff"] is False
+            r = alice.put(f"{API}/numbers/{p}/ai-agent", json={"enabled": True, "agentId": test_agent["id"]})
+            assert r.status_code == 200, r.text
+            assert r.json()["ivrTurnedOff"] is True
+            n = _num(alice, p)
+            assert n["features"]["ivr"]["enabled"] is False
+            assert n["features"]["aiAgent"]["enabled"] is True
+            assert n["routeSummary"]["primary"] == "ai_agent"
+
+            # AI agent on → turning the keypad menu on switches the AI agent off
+            r = alice.put(f"{API}/numbers/{p}/ivr", json=IVR_BODY)
+            assert r.status_code == 200, r.text
+            assert r.json()["aiAgentTurnedOff"] is True
+            n = _num(alice, p)
+            assert n["features"]["ivr"]["enabled"] is True
+            assert n["features"]["aiAgent"]["enabled"] is False
+            assert n["features"]["aiAgent"]["agentId"] == test_agent["id"]  # agent choice is kept, only switched off
+            assert n["routeSummary"]["primary"] != "ai_agent"
+
+            # Switching the AI agent OFF never touches the keypad menu
+            r = alice.put(f"{API}/numbers/{p}/ai-agent", json={"enabled": False, "agentId": test_agent["id"]})
+            assert r.status_code == 200 and r.json()["ivrTurnedOff"] is False
+            assert _num(alice, p)["features"]["ivr"]["enabled"] is True
+        finally:
+            alice.put(f"{API}/numbers/{p}/ai-agent", json={"enabled": False, "agentId": None})
+            if orig_ivr.get("enabled"):
+                alice.put(f"{API}/numbers/{p}/ivr", json=orig_ivr)
+            else:
+                alice.put(f"{API}/numbers/{p}/ivr", json={**IVR_BODY, "enabled": False})
+            if orig_ai.get("enabled") and orig_ai.get("agentId"):
+                alice.put(f"{API}/numbers/{p}/ai-agent", json=orig_ai)
 
 
 # --- do-not-call
@@ -173,7 +263,8 @@ class TestDnc:
 class TestCalls:
     def test_calls(self, alice, bob):
         calls = alice.get(f"{API}/ai-calls").json()["calls"]
-        assert len(calls) >= 2
+        if not calls:
+            pytest.skip("no AI calls yet on this preview DB (a browser test talk creates one)")
         assert "transcript" not in calls[0]
         c = alice.get(f"{API}/ai-calls/{calls[0]['id']}")
         assert c.status_code == 200
@@ -207,8 +298,8 @@ class TestCampaigns:
         r = alice.post(f"{API}/campaigns", json={"mode": "ai", "agentId": "bad", "callerId": alice_business_number, "leads": "+14155550178"})
         assert r.status_code == 400 and r.json()["error"] == "invalid_agent"
 
-    def test_ai_campaign_bob(self, bob):
-        r = bob.post(f"{API}/campaigns", json={"mode": "ai", "agentId": "x", "callerId": BOB_NUMBER, "leads": "+14155550178"})
+    def test_ai_campaign_bob(self, bob, bob_number):
+        r = bob.post(f"{API}/campaigns", json={"mode": "ai", "agentId": "x", "callerId": bob_number, "leads": "+14155550178"})
         assert r.status_code == 403, r.text
 
     def test_audio_campaign_regression(self, alice, alice_business_number):
@@ -228,3 +319,5 @@ class TestCatalog:
         plans = {p["id"]: p for p in d["plans"]}
         inc = lambda pid: next(f for f in plans[pid]["webFeatures"] if f["key"] == "aiAgent")["included"]
         assert inc("starter") is False and inc("pro") is False and inc("business") is True
+        rate = d["rates"]["aiAgentPerMin"]
+        assert isinstance(rate, (int, float)) and rate > 0
