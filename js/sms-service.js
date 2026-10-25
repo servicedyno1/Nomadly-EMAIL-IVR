@@ -6,6 +6,7 @@
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 const axios = require('axios')
 const { log } = require('console')
+const safeUrl = require('./safe-url')
 const { formatPhone, plans, OVERAGE_RATE_SMS } = require('./phone-config')
 const { atomicIncrement } = require('./db.js')
 const { getBalance, smartWalletDeduct } = require('./utils.js')
@@ -94,16 +95,18 @@ async function forwardSmsToWebhook(webhookUrl, from, to, body) {
   if (!webhookUrl) return
 
   try {
+    // Customer-typed URL: never let it reach our own network (checked here on every send + at connect time).
+    safeUrl.assertSendable(webhookUrl, { httpsOnly: false })
     await axios.post(webhookUrl, {
       from: from,
       to: to,
       body: body,
       direction: 'inbound',
       timestamp: new Date().toISOString(),
-    }, { timeout: 5000 })
+    }, { timeout: 5000, ...safeUrl.sendOptions({ follow: true }) })
     log(`SMS forwarded to webhook=${webhookUrl} from=${from}`)
   } catch (e) {
-    log('forwardSmsToWebhook error:', e.message)
+    log('forwardSmsToWebhook error:', e.code === 'EBLOCKED' ? `blocked private/internal URL ${webhookUrl}` : e.message)
   }
 }
 

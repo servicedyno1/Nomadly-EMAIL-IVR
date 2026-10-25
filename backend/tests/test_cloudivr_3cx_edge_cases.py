@@ -26,6 +26,9 @@ def alice():
     'https://[::1]/x', 'https://169.254.169.254/latest', 'https://192.168.1.1/x', 'https://172.16.0.1/x',
     'https://2130706433/x', 'https://0x7f000001/x', 'https://0.0.0.0/x', 'https://localtest.me/x',
     'https://127.0.0.1.nip.io/x', 'ftp://example.com/x', 'https://user:pw@10.0.0.5/x',
+    # 2026-10-25 bypasses found in iteration_135 (IPv4-mapped IPv6, unspecified, CGNAT, NAT64, single-label names)
+    'https://[::ffff:127.0.0.1]/x', 'https://[::ffff:a9fe:a9fe]/latest', 'https://[::]/x', 'https://100.64.0.1/x',
+    'https://[64:ff9b::7f00:1]/x', 'https://[fd00::1]/x', 'https://mongodb/x', 'https://metadata.google.internal/x',
 ])
 def test_webhook_url_refused(alice, url):
     r = alice.put(f"{API}/webhooks", json={'enabled': False, 'url': url, 'events': EV})
@@ -33,15 +36,28 @@ def test_webhook_url_refused(alice, url):
     assert r.status_code == 400, f"{url} accepted: {r.status_code}"
 
 
-# Ring time bounds 10–60 s
-@pytest.mark.parametrize('t', [5, 90])
+# Ring time bounds 10–60 s: out of range is refused with a clear message (no silent clamping since 2026-10-25)
+@pytest.mark.parametrize('t', [5, 90, 12.5, 'abc'])
 def test_ring_timeout_bounds(alice, t):
     u = f"{API}/numbers/{enc(BIZ)}/ring-group"
     r = alice.put(u, json={'enabled': False, 'members': ['+14155550101', '+14155550102'], 'ringTimeout': t, 'fallback': 'hangup'})
     print(t, r.status_code, r.text[:300])
-    if r.status_code == 200:
-        got = r.json()['ringGroup'].get('ringTimeout')
-        assert 10 <= got <= 60, f"ringTimeout {t} stored as {got}"
+    assert r.status_code == 400, f"ringTimeout {t} accepted: {r.status_code}"
+    assert '10 and 60' in r.json().get('message', '')
+
+
+@pytest.mark.parametrize('t', [10, 60])
+def test_ring_timeout_edges_ok(alice, t):
+    u = f"{API}/numbers/{enc(BIZ)}/ring-group"
+    r = alice.put(u, json={'enabled': False, 'members': ['+14155550101', '+14155550102'], 'ringTimeout': t, 'fallback': 'message'})
+    assert r.status_code == 200, r.text
+    assert r.json()['ringGroup']['ringTimeout'] == t
+
+
+def test_webhook_test_without_body_is_not_500(alice):
+    r = alice.post(f"{API}/webhooks/test", data='', headers={'Content-Type': 'text/plain'})
+    print(r.status_code, r.text[:200])
+    assert r.status_code in (200, 400), r.text
 
 
 def test_ring_group_duplicate_members(alice):

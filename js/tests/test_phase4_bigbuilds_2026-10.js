@@ -109,6 +109,7 @@ const express = require('express')
 const axios = require('axios')
 const { MongoClient } = require('mongodb')
 const wp = require('../wordpress-installer')
+require('../safe-url')._allowPrivateForTests(true) // webhook receivers in this harness listen on 127.0.0.1
 const apps = require('../hosting-apps')
 const analytics = require('../reseller-shortener-analytics')
 const cpAuth = require('../cpanel-auth')

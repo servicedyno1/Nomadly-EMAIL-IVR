@@ -58,7 +58,7 @@ export function RuleCard({ r, i, n, set, move, remove, data }) {
       <div className="grid grid-cols-3 gap-1.5" role="radiogroup">
         {ACTIONS.map(([k, label, I]) => (
           <button key={k} type="button" role="radio" aria-checked={r.action === k} onClick={() => set({ action: k })} data-testid={`${t}-action-${k}`}
-            className={`flex flex-col items-start gap-1 rounded-xl border px-3 py-2 text-left text-xs transition-colors ${r.action === k ? 'border-[#34d399] bg-[#34d399]/10 text-[#34d399]' : 'border-[#232323] text-[#a1a1aa] hover:text-white'}`}><I className="w-4 h-4" />{label}</button>
+            className={`flex flex-col items-start gap-1 min-w-0 rounded-xl border px-2 sm:px-3 py-2 text-left text-xs transition-colors ${r.action === k ? 'border-[#34d399] bg-[#34d399]/10 text-[#34d399]' : 'border-[#232323] text-[#a1a1aa] hover:text-white'}`}><I className="w-4 h-4 shrink-0" /><span className="max-w-full [overflow-wrap:anywhere] hyphens-auto">{label}</span></button>
         ))}
       </div>
       {r.action === 'message' && (
@@ -82,7 +82,7 @@ export function RuleCard({ r, i, n, set, move, remove, data }) {
 const RESULT = { match: ['Runs', 'civr-pill civr-pill-on'], no_keyword: ['No keyword', 'civr-pill'], closed: ['Outside hours', 'civr-pill civr-pill-warn'], off: ['Off', 'civr-pill'], earlier_rule: ['Earlier trigger runs', 'civr-pill'] };
 
 // Sample text → which trigger would run. Never dials.
-export function TryText({ num }) {
+export function TryText({ num, dirty = false }) {
   const [f, setF] = useState({ from: '+14155550123', text: '' });
   const [busy, setBusy] = useState(false);
   const [out, setOut] = useState(null);
@@ -93,10 +93,11 @@ export function TryText({ num }) {
   return (
     <div className="civr-card p-6 space-y-4" data-testid="triggers-try-card">
       <div className="flex items-center gap-2 font-display text-xl font-bold"><FlaskConical className="w-5 h-5 text-[#38bdf8]" />Try a text</div>
-      <p className="text-sm text-[#a1a1aa]">See which saved trigger a text would start. Nothing is dialed.</p>
+      <p className="text-sm text-[#a1a1aa]">See which saved trigger a text would start. Nothing is dialed, and tries are not listed under Recent runs.</p>
       <Field label="From"><input className="civr-input font-mono" value={f.from} onChange={e => setF({ ...f, from: e.target.value })} data-testid="triggers-try-from-input" /></Field>
       <Field label="Text"><textarea rows={2} className="civr-input" value={f.text} onChange={e => setF({ ...f, text: e.target.value })} placeholder="Hi, can you call me back?" data-testid="triggers-try-text-input" /></Field>
-      <button className="civr-btn civr-btn-ghost civr-btn-sm" disabled={busy} onClick={go} data-testid="triggers-try-button">{busy && <Loader2 className="w-4 h-4 animate-spin" />}Try it</button>
+      {dirty && <div className="text-xs text-[#fbbf24]" data-testid="triggers-try-unsaved-note">You have unsaved changes. Save your triggers first — Try a text checks the saved ones.</div>}
+      <button className="civr-btn civr-btn-ghost civr-btn-sm" disabled={busy || dirty} title={dirty ? 'Save first' : undefined} onClick={go} data-testid="triggers-try-button">{busy && <Loader2 className="w-4 h-4 animate-spin" />}Try it</button>
       {out && (
         <div className="space-y-2 text-sm" data-testid="triggers-try-result">
           {!out.enabled && <div className="text-xs text-[#fbbf24]" data-testid="triggers-try-off-note">Text Triggers are switched off — real texts start nothing until you turn them on.</div>}

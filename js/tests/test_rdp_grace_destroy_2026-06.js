@@ -53,6 +53,7 @@ process.env.DO_RDP_GOLDEN_AUTOSYNC = 'false'
 process.env.RDP_GRACE_DAYS = '3'
 
 const grace = require('../rdp-grace-lifecycle.js')
+require('../safe-url')._allowPrivateForTests(true) // webhook receivers in this harness listen on 127.0.0.1
 const svc = require('../digitalocean-rdp-service.js')
 Object.assign(svc._timing, { offPoll: 20, actionPoll: 20 })
 const { translation } = require('../translation.js')

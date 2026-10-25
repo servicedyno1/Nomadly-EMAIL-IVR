@@ -34,6 +34,7 @@ import AdminSuggestions from './pages/AdminSuggestions';
 import Help from './pages/Help';
 import { CrashGuard, CrashProbe, OfflineBanner } from './safety';
 import { UpdateBanner } from './update';
+import { WhatsNew } from './WhatsNew';
 import { UnsavedGuard, confirmLeave } from './guard';
 import { Shortcuts, helpFor } from './shortcuts';
 
@@ -176,6 +177,7 @@ export default function Shell() {
       <MobileNav />
       <Softphone open={phoneOpen} onClose={closePhone} />
       <SupportChat supportLink={catalog?.supportLink} />
+      <WhatsNew />
      </RtcProvider>
      </PrivacyProvider>
     </ShellCtx.Provider>

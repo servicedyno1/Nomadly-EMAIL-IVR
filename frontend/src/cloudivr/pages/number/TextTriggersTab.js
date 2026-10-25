@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { Zap, Plus, Loader2 } from 'lucide-react';
 import { api, enc, useApi } from '../../api';
@@ -7,14 +7,18 @@ import { useUnsaved, SaveRow } from '../../guard';
 import { RuleCard, TryText, RunsList, ACTIONS } from './TriggerParts';
 
 const MAX = 5;
-const fromSaved = (r) => ({ ...r, keywords: (r.keywords || []).join(', '), message: r.message || '', agentId: r.agentId || '' });
-const blank = (action) => ({ id: '', enabled: true, action, keywordOnly: false, keywords: '', businessHoursOnly: false, oncePerHour: true, message: '', agentId: '' });
+// `_k` = stable React key while editing (the server ignores it), so reordering never mixes up a card's state.
+let seq = 0;
+const key = () => `k${++seq}`;
+const fromSaved = (r) => ({ ...r, _k: key(), keywords: (r.keywords || []).join(', '), message: r.message || '', agentId: r.agentId || '' });
+const blank = (action) => ({ _k: key(), id: '', enabled: true, action, keywordOnly: false, keywords: '', businessHoursOnly: false, oncePerHour: true, message: '', agentId: '' });
 
-function Editor({ num, data, reload }) {
+function Editor({ num, data, reload, onDirty }) {
   const saved = data.textTriggers;
   const [f, setF] = useState(() => ({ enabled: !!saved.enabled, myPhone: saved.myPhone || '', rules: (saved.rules || []).map(fromSaved) }));
   const [busy, setBusy] = useState(false);
   const u = useUnsaved(f);
+  useEffect(() => { onDirty?.(u.dirty); }, [u.dirty, onDirty]);
   const setRule = (i, patch) => setF(x => ({ ...x, rules: x.rules.map((r, j) => (j === i ? { ...r, ...patch } : r)) }));
   const move = (i, d) => setF(x => { const rules = [...x.rules]; [rules[i], rules[i + d]] = [rules[i + d], rules[i]]; return { ...x, rules }; });
   const remove = (i) => setF(x => ({ ...x, rules: x.rules.filter((_, j) => j !== i) }));
@@ -42,7 +46,7 @@ function Editor({ num, data, reload }) {
       </Field>
       <div className="space-y-3" data-testid="triggers-list">
         {!f.rules.length && <div className="text-sm text-[#a1a1aa] border border-dashed border-[#2a2a2a] rounded-2xl p-6 text-center" data-testid="triggers-empty">No triggers yet. Add one below.</div>}
-        {f.rules.map((r, i) => <RuleCard key={i} r={r} i={i} n={f.rules.length} data={data} set={(p) => setRule(i, p)} move={(d) => move(i, d)} remove={() => remove(i)} />)}
+        {f.rules.map((r, i) => <RuleCard key={r._k || i} r={r} i={i} n={f.rules.length} data={data} set={(p) => setRule(i, p)} move={(d) => move(i, d)} remove={() => remove(i)} />)}
       </div>
       {f.rules.length < MAX && (
         <div className="flex flex-wrap gap-2" data-testid="triggers-add-row">
@@ -57,13 +61,14 @@ function Editor({ num, data, reload }) {
 
 export default function TextTriggersTab({ num }) {
   const { data, error, loading, reload } = useApi(`/numbers/${enc(num.phoneNumber)}/text-triggers`);
+  const [dirty, setDirty] = useState(false);
   if (loading && !data) return <Spinner />;
   if (error) return <ErrorNote error={error} />;
   if (!num.capabilities?.sms) return <div className="civr-card p-6 text-sm text-[#a1a1aa]" data-testid="triggers-no-sms">This number can’t receive text messages, so Text Triggers can’t run on it.</div>;
   return (
     <div className="grid xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] gap-4 items-start">
-      <Editor key={JSON.stringify(data.textTriggers)} num={num} data={data} reload={reload} />
-      <div className="space-y-4"><TryText num={num} /><RunsList runs={data.runs} /></div>
+      <Editor key={JSON.stringify(data.textTriggers)} num={num} data={data} reload={reload} onDirty={setDirty} />
+      <div className="space-y-4"><TryText num={num} dirty={dirty} /><RunsList runs={data.runs} /></div>
     </div>
   );
 }

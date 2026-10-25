@@ -60,6 +60,7 @@ const express = require('express')
 const axios = require('axios')
 const { MongoClient } = require('mongodb')
 const webhooks = require('../reseller-webhooks')
+require('../safe-url')._allowPrivateForTests(true) // webhook receivers in this harness listen on 127.0.0.1
 const alerts = require('../reseller-alerts')
 const terms = require('../hosting-terms')
 const dar = require('../domain-auto-renew')

@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Loader2, LogOut, Send, LifeBuoy } from 'lucide-react';
 import { api, day } from '../api';
@@ -98,9 +98,24 @@ function Community() {
   );
 }
 
+// /app/settings#webhooks or #install (links from "What's new") scroll to that card once it has rendered.
+function useHashScroll() {
+  const { hash } = useLocation();
+  useEffect(() => {
+    if (!hash) return undefined;
+    let n = 0;
+    const t = setInterval(() => {
+      const el = document.getElementById(`settings-${hash.slice(1)}`);
+      if (el || ++n > 20) { clearInterval(t); el?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+    }, 150);
+    return () => clearInterval(t);
+  }, [hash]);
+}
+
 export default function Settings() {
   const { account, setAccount, refresh, logout } = useCivrAuth();
   const nav = useNavigate();
+  useHashScroll();
   return (
     <div data-testid="settings-page">
       <PageHeader label="Account" title="Settings" sub="This web account is separate from any Telegram bot account." testid="settings-header">

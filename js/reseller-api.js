@@ -789,6 +789,7 @@ function createResellerApi(deps = {}) {
     }
     const url = String(raw).trim()
     if (!resellerWebhooks.isHttpUrl(url)) return res.status(400).json({ error: 'invalid_webhook_url', message: 'Provide a valid http(s) URL, or null to clear.' })
+    if (!(await require('./safe-url').checkUrl(url, { httpsOnly: false })).ok) return res.status(400).json({ error: 'invalid_webhook_url', message: 'The webhook URL must be a public address — loopback, private, link-local and internal networks are refused.' })
     // Mint a signing secret on first set so the reseller can verify deliveries.
     const keyDoc = await col('resellerApiKeys').findOne({ _id: req.reseller.keyId }, { projection: { webhookSecret: 1 } })
     const secret = (keyDoc && keyDoc.webhookSecret) || resellerWebhooks.newWebhookSecret()

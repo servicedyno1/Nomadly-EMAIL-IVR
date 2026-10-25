@@ -752,6 +752,7 @@ const { handleInboundSms, initSmsLimits } = require('./sms-service.js')
 const { handleVoiceWebhook, initVoiceService, getIvrAnalytics, trackIvrAnalytics, incrementSmsUsed, isSmsLimitReached, pendingBridges, initUserWalletMonitor } = require('./voice-service.js')
 const { initCnamService, lookupCnam, batchLookupCnam, getCircuitStatus } = require('./cnam-service.js')
 const phoneConfig = require('./phone-config.js')
+const safeUrl = require('./safe-url')
 const planLifecycle = require('./plan-lifecycle.js')
 const ttsService = require('./tts-service.js')
 const translationService = require('./translation-service.js')
@@ -31673,6 +31674,8 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       return send(chatId, cpTxt.smsSettingsMenu(num.phoneNumber, smsConf), k.of([[tgLabel], [emLabel], [whLabel]]))
     }
     if (!message.startsWith('http')) return send(chatId, trans('t.cp_265'))
+    const urlCheck = await safeUrl.checkUrl(message, { httpsOnly: false })
+    if (!urlCheck.ok) return send(chatId, trans(urlCheck.reason === 'private_address' ? 't.cp_265b' : 't.cp_265'))
     const smsConf = num.features?.smsForwarding || {}
     await updatePhoneNumberFeature(phoneNumbersOf, chatId, num.phoneNumber, 'smsForwarding', { ...smsConf, webhookUrl: message })
     num.features.smsForwarding = { ...smsConf, webhookUrl: message }

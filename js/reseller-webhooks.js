@@ -75,11 +75,14 @@ function _signature(secret, raw) {
 
 // POST once. Never throws — returns the axios response (validateStatus off).
 // axios is resolved lazily so tests that stub the axios module still reach it.
+// The reseller types this URL, so connections go through js/safe-url.js (refuses our own / private networks at connect
+// time and on every redirect hop).
 function _post(url, raw, extraHeaders) {
   return require('axios')({
     method: 'POST', url, data: raw, timeout: TIMEOUT_MS,
     headers: { 'Content-Type': 'application/json', 'User-Agent': 'Nomadly-Reseller-Webhook/1', ...(extraHeaders || {}) },
     validateStatus: () => true,
+    ...require('./safe-url').sendOptions({ follow: true }),
   })
 }
 
@@ -88,6 +91,8 @@ function _post(url, raw, extraHeaders) {
 // "sha256=<hex>") so the receiver can verify the event came from us — this defends
 // against a spoofed *.deleted that would otherwise kill a real customer's service.
 async function deliver(url, body, secret) {
+  // Re-checked on every delivery (IP-literal hosts skip DNS, so the connect-time guard alone would miss them).
+  try { require('./safe-url').assertSendable(url, { httpsOnly: false }) } catch (e) { return { ok: false, error: e.code === 'EBLOCKED' ? 'blocked: private or internal address' : 'invalid webhook URL', attempts: 0 } }
   const raw = typeof body === 'string' ? body : JSON.stringify(body)
   const headers = {}
   if (secret) { headers['X-Nomadly-Signature'] = _signature(secret, raw); headers['X-Nomadly-Signature-Version'] = 'v1' }

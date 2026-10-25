@@ -41,7 +41,7 @@ const legsTo = (to) => dials.filter(d => d.to === to).map(d => d.id)
   const walletOf = db.collection('walletOf'), phoneNumbersOf = db.collection('phoneNumbersOf'), phoneLogs = db.collection('phoneLogs')
   voice.initVoiceService({ bot: botStub, phoneNumbersOf, phoneLogs, telnyxApi: telnyxStub, walletOf, translation, selfUrl: 'https://sandbox.invalid', state: db.collection('state') })
 
-  // Webhook receiver (events.publicHost blocks loopback, so the stored hook is written straight to the DB).
+  // Webhook receiver (production deliveries refuse loopback, so the harness flips events._allowPrivateForTests and writes the hook straight to the DB).
   const got = []
   const srv = http.createServer((req, res) => { let b = ''; req.on('data', c => { b += c }); req.on('end', () => { got.push({ headers: req.headers, body: b }); res.end('ok') }) })
   await new Promise(r => srv.listen(0, '127.0.0.1', r))
@@ -55,6 +55,7 @@ const legsTo = (to) => dials.filter(d => d.to === to).map(d => d.id)
   const secret = 'whsec_test'
   await db.collection('webPrefs').insertOne({ _id: chat, webhook: { enabled: true, url: `http://127.0.0.1:${port}/hook`, secret, events: Object.keys(events.EVENTS) } })
   events.routes({ get() {}, put() {}, post() {} }, { db, h: (f) => f })
+  events._allowPrivateForTests(true) // the receiver is on 127.0.0.1, which production deliveries refuse
 
   // ── RG1: answered → every member rings at once; first answer bridged, the others stop ──
   const in1 = 'v3:inbound-1'

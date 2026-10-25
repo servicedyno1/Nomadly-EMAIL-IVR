@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { toast } from 'sonner';
 import { Users, Plus, X, Loader2 } from 'lucide-react';
 import { Field, Toggle } from '../../ui';
 import { useUnsaved, SaveRow } from '../../guard';
@@ -54,14 +55,18 @@ export default function RingGroupTab({ num, reload }) {
   const u = useUnsaved(f);
   const ai = num.routeSummary?.primary === 'ai_agent';
   const okText = (res) => (res.skipped?.length ? `Ring group on — ${res.skipped.map(s => SKIP_NAMES[s] || s).join(', ')} won’t run while it’s on` : f.enabled ? 'Ring group on' : 'Ring group saved (off)');
-  const submit = async () => { if (await save({ ...f, members: f.members.filter(m => m.trim()) }, 'PUT', okText)) u.reset(); };
+  const submit = async () => {
+    const t = Number(f.ringTimeout);
+    if (!Number.isInteger(t) || t < 10 || t > 60) { toast.error('Ring time must be a whole number between 10 and 60 seconds.', { id: 'ring-group-timeout' }); return; }
+    if (await save({ ...f, ringTimeout: t, members: f.members.filter(m => m.trim()) }, 'PUT', okText)) u.reset();
+  };
   return (
     <Card title="Ring group" sub="Ring several phones at once — your mobile, a colleague, the front desk. Whoever answers first gets the caller." bind={u.bind}>
       <div className="flex items-center justify-between"><span className="text-sm flex items-center gap-2"><Users className="w-4 h-4 text-[#34d399]" />Ring all these phones for every call</span><Toggle checked={f.enabled} onChange={v => setF({ ...f, enabled: v })} testid="ring-group-enabled-toggle" /></div>
       {ai && f.enabled && <OneAnswerNote testid="ring-group-ai-note">Your AI voice agent answers this number first. The ring group only runs if the agent can’t take the call.</OneAnswerNote>}
       {f.enabled && !ai && <p className="text-xs text-[#a1a1aa]" data-testid="ring-group-priority-note">While it’s on, every call rings the group — forwarding and the keypad menu are skipped. Your Hours schedule still applies.</p>}
       <Members list={f.members} onChange={v => setF({ ...f, members: v })} />
-      <Field label="Ring for (seconds)"><input type="number" min={10} max={60} className="civr-input" value={f.ringTimeout} onChange={e => setF({ ...f, ringTimeout: e.target.value })} data-testid="ring-group-timeout-input" /></Field>
+      <Field label="Ring for (seconds)" hint="Between 10 and 60 seconds."><input type="number" min={10} max={60} step={1} className="civr-input" value={f.ringTimeout} onChange={e => setF({ ...f, ringTimeout: e.target.value })} data-testid="ring-group-timeout-input" /></Field>
       <Fallback f={f} setF={setF} hasVm={hasVm} />
       <p className="text-xs text-[#a1a1aa]">The answered phone bills like a forwarded call from your wallet. Phones that only ring are free.</p>
       <SaveRow dirty={u.dirty} testid="ring-group-unsaved-pill"><button className="civr-btn civr-btn-primary" disabled={busy} onClick={submit} data-testid="ring-group-save-button">{busy && <Loader2 className="w-4 h-4 animate-spin" />}Save ring group</button></SaveRow>

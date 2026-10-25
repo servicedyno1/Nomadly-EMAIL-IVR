@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { ArrowRight, ChevronDown, Keyboard, LifeBuoy, MessageCircleQuestion, X } from 'lucide-react';
+import { ArrowRight, ChevronDown, Gift, Keyboard, LifeBuoy, MessageCircleQuestion, X } from 'lucide-react';
 import { PageHeader } from '../ui';
 import { appPath } from '../nav';
 import { useShell } from '../Shell';
 import { useSearch, SearchBox, NoMatches } from '../search';
 import { openHelpChat, SHORTCUTS } from '../shortcuts';
+import { openWhatsNew } from '../WhatsNew';
 import { ARTICLES, GROUPS, TOPIC_NAMES } from './help/topics';
 import { faqItems } from './landing/PricingFaq';
 
@@ -72,7 +73,9 @@ export default function Help() {
   const common = { open, toggle };
   return (
     <div data-testid="help-page">
-      <PageHeader label="Help" title="Help center" sub="Short answers to common questions. Search, or open a topic below." testid="help-header" />
+      <PageHeader label="Help" title="Help center" sub="Short answers to common questions. Search, or open a topic below." testid="help-header">
+        <button type="button" className="civr-btn civr-btn-ghost civr-btn-sm" onClick={openWhatsNew} data-testid="help-whats-new-button"><Gift className="w-4 h-4" />What’s new</button>
+      </PageHeader>
       <div className="grid lg:grid-cols-3 gap-6 items-start">
         <div className="lg:col-span-2 flex flex-col gap-10">
           <SearchBox s={s} placeholder="Search help articles" testid="help-search" />

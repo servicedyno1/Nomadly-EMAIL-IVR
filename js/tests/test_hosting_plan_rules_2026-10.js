@@ -22,6 +22,7 @@ const express = require('express')
 const axios = require('axios')
 const { MongoClient } = require('mongodb')
 const whm = require('../whm-service')
+require('../safe-url')._allowPrivateForTests(true) // webhook receivers in this harness listen on 127.0.0.1
 const antiRed = require('../anti-red-service')
 const hpc = require('../hosting-plan-change')
 const pc = require('../do-plan-change')

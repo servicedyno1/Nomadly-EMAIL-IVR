@@ -47,21 +47,35 @@ async function analyse(text, kind) {
   }
 }
 
+// A 'working' summary older than this never finished (e.g. the server restarted) — it may be run again.
+const STALE_MS = 10 * 60 * 1000
+const staleWorking = () => ({ 'aiSummary.status': 'working', 'aiSummary.at': { $lt: new Date(Date.now() - STALE_MS) } })
+const isStale = (s) => s?.status === 'working' && Date.now() - new Date(s.at || 0).getTime() > STALE_MS
+
 function createSummarizer({ db, logTransaction, generateTransactionId, log = console.log }) {
   const phoneLogs = db.collection('phoneLogs')
   const w = walletOps(db)
   const set = (id, aiSummary, extra = {}) => phoneLogs.updateOne({ _id: id }, { $set: { aiSummary, ...extra } })
 
-  // One log entry → its aiSummary. Claims the row first so two runs never bill twice.
+  // One log entry → its aiSummary. Claims the row first so two runs never bill twice. A run that never finished (server
+  // restarted mid-way) is reclaimable after STALE_MS; if it had already charged the wallet, that charge is refunded first.
   return async function summarize(chatId, l, { auto = false } = {}) {
-    const claim = await phoneLogs.updateOne({ _id: l._id, $or: [{ aiSummary: { $exists: false } }, { 'aiSummary.status': { $in: ['failed', 'no_funds', 'empty'] } }] }, { $set: { aiSummary: { status: 'working', at: new Date() } } })
-    if (!claim.modifiedCount) return (await phoneLogs.findOne({ _id: l._id }))?.aiSummary || null
+    const r = await phoneLogs.findOneAndUpdate(
+      { _id: l._id, $or: [{ aiSummary: { $exists: false } }, { 'aiSummary.status': { $in: ['failed', 'no_funds', 'empty'] } }, staleWorking()] },
+      { $set: { aiSummary: { status: 'working', at: new Date() } } },
+      { returnDocument: 'before', includeResultMetadata: true },
+    )
+    const prev = r?.value
+    if (!prev) return (await phoneLogs.findOne({ _id: l._id }))?.aiSummary || null
+    const stuck = prev.aiSummary?.status === 'working' ? Number(prev.aiSummary.charged) || 0 : 0
+    if (stuck > 0) { await w.credit(chatId, stuck); log(`[AISummary] refunded $${stuck} of an unfinished run on ${l._id}`) }
     const minutes = minutesOf(l), charge = priceOf(l)
     if (!(await w.debit(chatId, charge))) {
       const s = { status: 'no_funds', charge, minutes, auto, at: new Date() }
       await set(l._id, s)
       return s
     }
+    await phoneLogs.updateOne({ _id: l._id, 'aiSummary.status': 'working' }, { $set: { 'aiSummary.charged': charge } })
     const refund = async (status, detail) => { await w.credit(chatId, charge); const s = { status, detail, charge: 0, minutes, auto, at: new Date() }; await set(l._id, s); return s }
     let text = l.transcript || null
     if (!text) {
@@ -99,7 +113,7 @@ function startSweep(db, summarize, log) {
           const cfg = n.features?.aiSummary
           if (!cfg?.enabled || n.status !== 'active' || !phoneConfig.canAccessFeature(n.plan, 'aiSummary')) continue
           const since = new Date(Math.max(Date.now() - WINDOW_MS, new Date(cfg.enabledAt || 0).getTime())).toISOString()
-          const rows = await db.collection('phoneLogs').find({ phoneNumber: n.phoneNumber, type: { $in: KINDS }, aiSummary: { $exists: false }, timestamp: { $gte: since } }).limit(10).toArray()
+          const rows = await db.collection('phoneLogs').find({ phoneNumber: n.phoneNumber, type: { $in: KINDS }, $or: [{ aiSummary: { $exists: false } }, staleWorking()], timestamp: { $gte: since } }).limit(10).toArray()
           for (const l of rows.filter(eligible)) await summarize(String(d._id), l, { auto: true }).catch(e => log(`[AISummary] auto error: ${e.message}`))
         }
       }
@@ -145,4 +159,4 @@ function routes(router, deps) {
   }))
 }
 
-module.exports = { routes, createSummarizer, startSweep, analyse, RATE, priceOf, minutesOf, eligible, KINDS }
+module.exports = { routes, createSummarizer, startSweep, analyse, RATE, priceOf, minutesOf, eligible, KINDS, STALE_MS, isStale }

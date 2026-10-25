@@ -29,21 +29,27 @@ export function ShowMore({ rest, onClick, testid = 'show-more-button' }) {
   return <button type="button" onClick={onClick} className="civr-btn civr-btn-ghost civr-btn-sm w-full mt-4" data-testid={testid}>{`Show ${rest} more`}</button>;
 }
 
-// Scrolling tab row: keeps the active tab in view; a right-edge fade hints at more tabs until the end is reached.
+// Scrolling tab row: scrolls only as far as needed to show the active tab (so the first tab isn't clipped when the row
+// barely overflows); edge fades hint at more tabs on the left / right.
 export function TabStrip({ active, children, className = 'mb-8', testid }) {
   const ref = useRef(null);
   const [end, setEnd] = useState(true);
+  const [start, setStart] = useState(true);
   const { ver } = useLang() || {};
-  const check = useCallback(() => { const s = ref.current; if (s) setEnd(s.scrollLeft + s.clientWidth >= s.scrollWidth - 4); }, []);
+  const check = useCallback(() => { const s = ref.current; if (s) { setEnd(s.scrollLeft + s.clientWidth >= s.scrollWidth - 4); setStart(s.scrollLeft <= 4); } }, []);
   useEffect(() => {
     const s = ref.current, el = s?.querySelector('[aria-selected="true"]');
-    if (el) s.scrollLeft += el.getBoundingClientRect().left - s.getBoundingClientRect().left - 16;
+    if (s && el) {
+      const sb = s.getBoundingClientRect(), eb = el.getBoundingClientRect(), pad = 24;
+      if (eb.left < sb.left) s.scrollLeft -= sb.left - eb.left + pad;
+      else if (eb.right > sb.right) s.scrollLeft += eb.right - sb.right + pad;
+    }
     check();
     window.addEventListener('resize', check);
     return () => window.removeEventListener('resize', check);
   }, [active, check, ver]);
   return (
-    <div className={`civr-tabstrip ${end ? 'at-end' : ''} ${className}`}>
+    <div className={`civr-tabstrip ${end ? 'at-end' : ''} ${start ? 'at-start' : ''} ${className}`}>
       <div ref={ref} onScroll={check} className="civr-scroll-x flex gap-1 overflow-x-auto border-b border-[#1f1f1f]" role="tablist" data-testid={testid}>{children}</div>
     </div>
   );

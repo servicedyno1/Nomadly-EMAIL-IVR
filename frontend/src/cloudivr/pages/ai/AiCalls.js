@@ -61,7 +61,10 @@ function Row({ c, i }) {
 export function AiCalls({ agentId }) {
   const { data, loading, error } = useApi(`/ai-calls?limit=50${agentId ? `&agentId=${agentId}` : ''}`);
   const list = data?.calls || [];
-  const s = useSearch(list, c => [c.other, c.agentName, c.summary, outcomeLabel(c.outcome), c.direction === 'test' ? 'Browser test' : c.direction]);
+  const pv = usePrivacy();
+  const s = useSearch(list, c => (pv.on
+    ? [pv.phone(c.other), c.agentName, outcomeLabel(c.outcome), c.direction === 'test' ? 'Browser test' : c.direction]
+    : [c.other, c.agentName, c.summary, outcomeLabel(c.outcome), c.direction === 'test' ? 'Browser test' : c.direction]));
   if (loading && !data) return <Spinner />;
   return (
     <div className="space-y-3" data-testid="ai-calls-list">

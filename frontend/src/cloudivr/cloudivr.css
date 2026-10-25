@@ -97,6 +97,8 @@
 .civr .civr-tabstrip { position: relative; }
 .civr .civr-tabstrip::after { content: ''; position: absolute; top: 0; right: 0; bottom: 1px; width: 64px; background: linear-gradient(to right, rgba(10, 10, 10, 0), var(--c-bg) 75%); pointer-events: none; transition: opacity .2s ease; }
 .civr .civr-tabstrip.at-end::after { opacity: 0; }
+.civr .civr-tabstrip::before { content: ''; position: absolute; top: 0; left: 0; bottom: 1px; width: 48px; background: linear-gradient(to left, rgba(10, 10, 10, 0), var(--c-bg) 75%); pointer-events: none; transition: opacity .2s ease; z-index: 1; }
+.civr .civr-tabstrip.at-start::before { opacity: 0; }
 
 /* ── Landing (Telnyx-style: ink / cream sections, electric green) ── */
 .civr .civr-l { --l-ink: #0A0D0E; --l-ink-2: #14181B; --l-cream: #FEFDF5; --l-cream-2: #F5F4EC; --l-green: #00E3AA; --l-green-h: #00C795; --l-blue: #3434EF; overflow-x: clip; }
