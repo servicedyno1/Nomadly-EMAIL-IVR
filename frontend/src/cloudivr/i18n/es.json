@@ -2173,5 +2173,7 @@
 "“{0}” loaded — add the forward numbers, then Save keypad menu": "“{0}” cargado — agrega los números de desvío y luego guarda el menú de teclas",
 "…or pick audio": "…o elige audio",
 "⚡ {0}: {1} Text from {2} to {3} {4}": "⚡ {0}: {1} Texto de {2} a {3} {4}",
-"✓ included · ✗ not on that plan. You can upgrade a number later from its Billing tab.": "✓ incluido · ✗ no en ese plan. Puedes actualizar un número más tarde desde su pestaña de Facturación."
+"✓ included · ✗ not on that plan. You can upgrade a number later from its Billing tab.": "✓ incluido · ✗ no en ese plan. Puedes actualizar un número más tarde desde su pestaña de Facturación.",
+"Mark these as read": "Marcar como leídos",
+"{0} marked as read": "{0}: marcado como leído"
 }

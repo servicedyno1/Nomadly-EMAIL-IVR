@@ -68,18 +68,27 @@ function attach(bot) {
   }
 }
 
+const unreadCounts = async (chatId) => {
+  const rows = await _col.aggregate([{ $match: { chatId, read: false } }, { $group: { _id: '$kind', n: { $sum: 1 } } }]).toArray()
+  const unreadByKind = Object.fromEntries(rows.map(r => [r._id || 'info', r.n]))
+  return { unread: rows.reduce((a, r) => a + r.n, 0), unreadByKind }
+}
+
 function routes(router, { h }) {
   router.get('/notifications', h(async (req, res) => {
     const q = { chatId: req.webChatId, ...(req.query.kind ? { kind: String(req.query.kind) } : {}) }
-    const [items, unread] = await Promise.all([
+    const [items, counts] = await Promise.all([
       _col.find(q).sort({ createdAt: -1 }).limit(Math.min(200, parseInt(req.query.limit, 10) || 50)).toArray(),
-      _col.countDocuments({ chatId: req.webChatId, read: false }),
+      unreadCounts(req.webChatId),
     ])
-    res.json({ unread, notifications: items.map(n => ({ id: String(n._id), text: n.text, kind: n.kind, mediaUrl: n.mediaUrl, meta: n.meta || null, read: n.read, createdAt: n.createdAt })) })
+    res.json({ ...counts, notifications: items.map(n => ({ id: String(n._id), text: n.text, kind: n.kind, mediaUrl: n.mediaUrl, meta: n.meta || null, read: n.read, createdAt: n.createdAt })) })
   }))
+  // body { kind } marks only that filter's items read; no kind = everything.
   router.post('/notifications/read', h(async (req, res) => {
-    await _col.updateMany({ chatId: req.webChatId, read: false }, { $set: { read: true } })
-    res.json({ unread: 0 })
+    const kind = req.body?.kind
+    if (kind != null && (typeof kind !== 'string' || !/^[a-z_]{1,20}$/.test(kind))) return res.status(400).json({ error: 'bad_kind' })
+    const r = await _col.updateMany({ chatId: req.webChatId, read: false, ...(kind ? { kind } : {}) }, { $set: { read: true } })
+    res.json({ marked: r.modifiedCount, ...(await unreadCounts(req.webChatId)) })
   }))
 }
 
