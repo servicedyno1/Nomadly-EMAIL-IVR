@@ -1230,3 +1230,18 @@ calls and SIP are simulated; inbound calls use a pretend-call simulator).
   app-main (TELNYX_PUBLIC_KEY); pass-through in dry-run preview / when the key is missing. Unit js/tests/telnyx_webhook_verify.test.js 13/13.
 - Still pending from the real-call checklist: 2c AI agent call-back, 2e AI summary of a real recorded call, 2f call-event webhook
   with a real call (webhook.site), and TELNYX_PUBLIC_KEY on wl/voodoo/proshop.
+
+## 2026-10-25 ~19:00–19:20Z — web inbox promo leak fixed + remaining live call checks (all deployed to app-main)
+- USER BUG: bot promo ("TODAY 10% OFF… Fill your dialer… /stoppromos") reached CloudIVR web inboxes. Bot-wide sends now skip
+  web ids (>= 5e15): auto-promo getAllChatIds, admin broadcast, marketplace new-listing broadcast, /gift5all (utils.getTelegramChatIds).
+  Backstop: cloudivr-web/notify.js push() drops any text with the /stoppromos footer. Old promo rows deleted (prod 4, preview 1) with
+  scripts/ops/clear_web_promos.js. Tests: js/tests/test_promo_skips_web_accounts_2026-10.js (ALL PASS), iteration_138 (100%).
+- LIVE (prod, real Telnyx): 2e AI summary of a real voicemail (transcript + summary + mood + action items, $0.10) and 2f call-event
+  webhook (call.started, call.ended, voicemail.left, ai_summary.ready, all X-CloudIVR-Signature valid) PASS; 2c AI agent calls a
+  texter back — real 2-way conversation (35 s, $0.20, nginx WebSocket OK) PASS. Test number +19379800767 back on Pro; test wallet
+  got +$10 test credit (now ~$10.41). Temp line released, temp Telnyx app deleted.
+- BUG FOUND LIVE + FIXED: voicemails were LOST when the caller hung up (Telnyx sends call.recording.saved after call.hangup and the
+  session was already deleted) → voice-service keeps ended recording sessions 10 min (_endedRecordingSessions). Sandbox test
+  js/tests/test_voicemail_after_hangup_2026-10.js 9/9 (fails 6/9 without the fix). Same fix covers call recordings.
+- AI call outcome labels: summary prompt now defines each outcome (a simple answered question → "other", not "no_conversation").
+- Minor (not fixed): the voicemail recording includes the second half of the greeting ("Please leave a message after the tone").

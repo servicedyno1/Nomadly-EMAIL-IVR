@@ -1,0 +1,39 @@
+{
+  "summary": "Tested the fix that keeps bot promos out of CloudIVR web accounts, the promo cleanup script, the SMS webhook event filter, the Telnyx signature pass-through in preview, voicemail saved after hangup, and PUT /webhooks keeping events. Every requested check passed: the promo node test printed ALL PASS (7 Telegram sends, 0 web), clear_web_promos found 0, telnyx verify passed 13/13, voicemail-after-hangup 9/9, bulk cancel 10/10, bulk telnyx 48/48, bulk line-limit 28/28, and pytest 54/54 (47 regression + 7 new). Alice's Inbox at 1920x800 and 390x800 has no promo rows, and missed-call, SMS, voicemail, wallet and coupon alerts still show. The code review found two remaining paths that still reach web accounts: the marketplace listing broadcast and the admin /gift5all broadcast. Neither filters isWebChatId.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "js/utils.js broadcastNewListing (~line 820, called from _index.js ~20987)", "issue": "Marketplace 'new listing' broadcast uses getChatIds(nameOf) with NO isWebChatId filter. Web ids are string _ids in nameOf ('5000000000000001'...), so every new marketplace listing is sent to all web accounts. The notify.js shim turns sendPhoto/sendMessage into webNotifications rows, so it lands in web Inboxes (kind 'info'/'other'). This is the same kind of leak the user reported."},
+      {"endpoint": "_index.js admin /gift5all (~9318 and ~35976) -> monetization-engine giftAllUsersWelcomeBonus", "issue": "getChatIds(nameOf) is unfiltered, so web accounts get the $5 'Welcome Gift from Nomadly' wallet credit plus a bot-branded message in their Inbox. This is a money-plus-marketing broadcast reaching web accounts. Decide whether web accounts should be excluded (probably yes, since the message is bot-branded)."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_cloudivr_iter138_promo_sms_webhooks.py",
+    "/app/backend/tests/restore_alice_iter138.py",
+    "/app/test_reports/pytest/pytest_iter138.xml"
+  ],
+  "action_items": [
+    "Add a .filter(id => !isWebChatId(id)) in utils.js broadcastNewListing (after getChatIds), or better, make getChatIds take an option to exclude web ids and use it for all marketing broadcasts.",
+    "Exclude web ids from the /gift5all getChatIds callback (both call sites in _index.js), or document that it is intentional.",
+    "Optional hardening: add the isWebChatId guard inside sendPromoToUser (auto-promo) and in cart-abandonment sendNudge, new-user-conversion (welcome offer, browse follow-up) and monetization runWinBackCampaign. These are not reachable from web today, because web ids are strings and win-back filters $type number, and the cart/conversion hooks live only in bot message handlers. A central guard would stop future leaks."
+  ],
+  "critical_code_review_comments": [
+    "Paths reviewed and SAFE for web ids: auto-promo getAllChatIds (filtered); the resurrection scan only flips promoOptOut flags and sends nothing, and its recipients still go through getAllChatIds; channel posts go to the Telegram channel, not users; previewPromo is admin-only to the admin chat; admin sendMessageToAllUsers is filtered; monetization win-back uses state _id $type number, so string web ids are excluded; /reset-keyboards filters typeof number; cart-abandonment and new-user-conversion are triggered only from bot message handlers; hosting-upgrade-nudge iterates cpanel accounts.",
+    "Fragility: several broadcast paths are safe only because web ids happen to be strings. If a web id were ever stored as a number, win-back and reset-keyboards would leak. A single choke point (for example in notify.js attach, dropping texts that contain '/stoppromos', or a shared getMarketingChatIds) would be more robust.",
+    "The SMS webhook treats a missing event_type as inbound (the `!smsEvent ||` branch). That fits legacy payloads, but any unsigned malformed post on prod is blocked only by the signature middleware."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_cloudivr_iter138_promo_sms_webhooks.py",
+    "/app/backend/tests/restore_alice_iter138.py"
+  ],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "seed_data_creation": "Sent test inbound SMS to +16692098449 (body 'please call me TEST_in_xxxx'). This created an SMS log, a Text Trigger 'preview' run and Inbox rows. Alice was restored afterwards: Text Triggers off, ring group off, ai-summary off, webhook secret rotated, webhook URL/events restored.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Node backend lives in /app/js (supervisor 'nodejs'). Web ids are STRING _ids >= '5000000000000000' in nameOf/state/walletOf. Run the regression with: pytest tests/test_cloudivr_iter138_promo_sms_webhooks.py tests/test_cloudivr_3cx_features_pod.py tests/test_cloudivr_iter136_ssrf_fixes.py, then python3 tests/restore_alice_iter138.py. Webhook event names include 'call.ended' and 'voicemail.left'. There is no GET ring-group route. A 'What's new' modal shows on first Inbox load; close it with the 'Got it' button."
+}

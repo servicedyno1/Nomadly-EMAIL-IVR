@@ -4,7 +4,7 @@ const assert = require('assert')
 const { MongoClient } = require('mongodb')
 for (const k of ['OPENAI_API_KEY', 'OPEN_API_KEY', 'APP_OPEN_API_KEY', 'TELEGRAM_ADMIN_CHAT_ID']) delete process.env[k]
 const ap = require('../auto-promo.js')
-const { sendMessageToAllUsers } = require('../utils.js')
+const { sendMessageToAllUsers, broadcastNewListing, getTelegramChatIds } = require('../utils.js')
 const { isWebChatId } = require('../cloudivr-web/notify')
 
 const TG = Array.from({ length: 16 }, (_, i) => String(100000001 + i))
@@ -37,6 +37,15 @@ const WEB = ['5000000000000001', 5000000000000002, '5000000000000003']
   const got = sent.filter(s => s.text === 'Admin announcement').map(s => s.chatId)
   assert.deepStrictEqual([...got].sort(), [...TG].sort(), `admin broadcast reached exactly the Telegram users (got ${got.length})`)
   console.log(`PASS admin broadcast: ${got.length}/${TG.length} Telegram users, 0 web accounts`)
+
+  sent.length = 0
+  await broadcastNewListing(bot, { _id: 'p1', title: 'Test item', description: 'd', price: 5, category: 'misc', sellerId: TG[0] }, db.collection('nameOf'), db)
+  const listing = sent.filter(s => /New Listing/.test(s.text || '')).map(s => s.chatId)
+  assert.deepStrictEqual([...listing].sort(), TG.slice(1).sort(), `marketplace listing reached the Telegram users except the seller (got ${listing.length})`)
+  console.log(`PASS marketplace listing: ${listing.length} Telegram users, 0 web accounts`)
+  const tg = await getTelegramChatIds(db.collection('nameOf'))
+  assert.ok(tg.length === TG.length && !tg.some(isWebChatId), 'getTelegramChatIds (used by /gift5all) drops web accounts')
+  console.log('PASS getTelegramChatIds (gift5all): web accounts excluded')
 
   await db.dropDatabase()
   await client.close()

@@ -601,6 +601,7 @@ const {
   generateQr,
   date,
   getChatIds,
+  getTelegramChatIds,
 } = require('./utils.js')
 const fs = require('fs')
 const axios = require('axios')
@@ -9316,7 +9317,7 @@ bot?.on('message', msg => {
 
     // Run in background
     monetization.giftAllUsersWelcomeBonus(
-      () => getChatIds(nameOf),
+      () => getTelegramChatIds(nameOf),
       (toChatId, text, opts) => bot.sendMessage(toChatId, text, opts),
       (progressMsg) => send(chatId, progressMsg),
       async (uid) => { const s = await get(state, uid); return s?.userLanguage || 'en' }
@@ -35974,7 +35975,7 @@ Select a category:`), k.of(catBtns))
     if (!isAdmin(chatId)) return send(chatId, trans('t.sms_20'))
     send(chatId, trans('t.sms_21', monetization.WELCOME_BONUS_USD))
     monetization.giftAllUsersWelcomeBonus(
-      () => getChatIds(nameOf),
+      () => getTelegramChatIds(nameOf),
       (toChatId, text, opts) => bot.sendMessage(toChatId, text, opts),
       (progressMsg) => send(chatId, progressMsg),
       async (uid) => { const s = await get(state, uid); return s?.userLanguage || 'en' }

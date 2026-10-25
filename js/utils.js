@@ -49,6 +49,8 @@ const getChatIds = async nameOf => {
   if (!ans) return []
   return ans.map(a => a._id)
 }
+// Bot-wide sends (promos, announcements, marketplace listings, gifts) are for Telegram users — never CloudIVR web accounts.
+const getTelegramChatIds = async nameOf => (await getChatIds(nameOf)).filter(id => !require('./cloudivr-web/notify').isWebChatId(id))
 
 function isValidUrl(url) {
   try {
@@ -532,8 +534,7 @@ function isPermanentTelegramError(error) {
 
 const sendMessageToAllUsers = async (bot, message, method, nameOf, myChatId, db, opts = {}) => {
   try {
-    // Admin broadcasts are bot announcements — CloudIVR web accounts are not Telegram users.
-    const chatIds = (await getChatIds(nameOf)).filter(id => !require('./cloudivr-web/notify').isWebChatId(id))
+    const chatIds = await getTelegramChatIds(nameOf)
     
     if (chatIds.length === 0) {
       bot.sendMessage(myChatId, 'No users found to broadcast to.')
@@ -819,7 +820,7 @@ const getBroadcastStats = async (nameOf) => {
  */
 const broadcastNewListing = async (bot, product, nameOf, db) => {
   try {
-    let chatIds = await getChatIds(nameOf)
+    let chatIds = await getTelegramChatIds(nameOf)
     if (!chatIds.length) return
 
     // Exclude the seller themselves
@@ -1172,6 +1173,7 @@ module.exports = {
   broadcastNewListing,
   getBroadcastStats,
   getChatIds,
+  getTelegramChatIds,
   planGetNewDomain,
   planCheckExistingDomain,
   removeProtocolFromDomain,
