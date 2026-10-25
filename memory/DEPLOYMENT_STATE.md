@@ -255,3 +255,8 @@ The new layout differs from the old in-place `/opt/nomadly/app-main` checkout. O
 - wl / voodoo / proshop do NOT have TELNYX_PUBLIC_KEY yet → their Telnyx webhooks are still unsigned-accepted (same Telnyx account
   → same key; append it to each brand backend.env once their branch has the new code).
 - ⚠️ Not on GitHub yet → owner must "Save to GitHub" or the next CI deploy rolls all of this back.
+
+## 2026-10-25 19:03–19:24Z — 4 more workspace tarball deploys (app-main), last ACTIVE 20261025T192427Z-a984c82 on :5100 (app-main-b)
+- Voicemail-after-hangup fix, promo exclusion for web accounts (auto-promo, admin broadcast, marketplace, /gift5all, reset-keyboards,
+  notify.js backstop), AI call outcome prompt. Signatures still enforced after each restart. Old promo rows deleted on prod (4).
+- ⚠️ Still not on GitHub → owner must "Save to GitHub"; then add TELNYX_PUBLIC_KEY to wl / voodoo / proshop backend.env.

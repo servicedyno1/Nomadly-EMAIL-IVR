@@ -1,0 +1,29 @@
+{
+  "summary": "Short backend retest of web-inbox promo leak follow-ups. All pass: test_promo_skips_web_accounts 4 PASS + ALL PASS (auto-promo, admin broadcast, marketplace broadcastNewListing, getTelegramChatIds/gift5all). New notify.js backstop test 3/3 PASS (promo '/stoppromos' via sendMessage, sendPhoto caption and HTML-wrapped text to a web id -> 0 webNotifications rows; Missed Call + voicemail still create rows with correct kinds; Telegram ids still forwarded to Telegram). Regression pytest 54/54, voicemail_after_hangup 9/9, telnyx_webhook_verify 13/13. Alice restored (all 200).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /admin/reset-keyboards (js/_index.js ~47130)", "issue": "Uses nameOf.find + typeof number filter (not getTelegramChatIds), so web ids get t.welcome 'Thank you for choosing ... Please choose an option below' + keyboard pushed into web inboxes when an admin runs it. Not a promo (no /stoppromos so backstop doesn't catch it). Suggest filter !isWebChatId."},
+      {"endpoint": "restore_alice_iter138.py", "issue": "Final 'rg now' debug line GETs /numbers/:n/ring-group which has no GET route (returns HTML 404). Restore itself works; cosmetic."}
+    ]
+  },
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/js/tests/test_promo_skips_web_accounts_2026-10.js",
+    "/app/js/tests/test_notify_stoppromos_backstop_2026-10.js",
+    "/app/test_reports/pytest/pytest_iter139.xml"
+  ],
+  "action_items": [
+    "Optional: exclude web ids in /admin/reset-keyboards (js/_index.js ~47131) via isWebChatId or getTelegramChatIds"
+  ],
+  "critical_code_review_comments": [
+    "Both /gift5all sites (9320, 35978) and broadcastNewListing (utils 823) and sendMessageToAllUsers (537) use getTelegramChatIds; remaining plain getChatIds(nameOf) is only getBroadcastStats (count only, no sends) — OK.",
+    "getTelegramChatIds does require('./cloudivr-web/notify') inside the filter callback per id — cached by Node so fine, but could hoist."
+  ],
+  "updated_files": ["/app/js/tests/test_notify_stoppromos_backstop_2026-10.js"],
+  "success_rate": {"backend": "100%", "frontend": "skipped"},
+  "seed_data_creation": "none",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run node js/tests/test_notify_stoppromos_backstop_2026-10.js (no DB needed) and test_promo_skips_web_accounts_2026-10.js (needs MONGO_URL). Run restore_alice_iter138.py with REACT_APP_BACKEND_URL exported after pytest suites."
+}

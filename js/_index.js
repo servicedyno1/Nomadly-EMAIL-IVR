@@ -47128,7 +47128,7 @@ app.get('/admin/reset-keyboards', async (req, res) => {
     // Step 2: Get all user chatIds from nameOf collection
     // P9 (2026-06-21): projection-only fetch — we don't need the val field here.
     const allUsers = await nameOf.find({}, { projection: { _id: 1 } }).toArray()
-    const chatIds = allUsers.map(u => u._id).filter(id => typeof id === 'number')
+    const chatIds = allUsers.map(u => u._id).filter(id => typeof id === 'number' && !require('./cloudivr-web/notify').isWebChatId(id))
 
     // Step 3: Send fresh keyboard to all users in batches
     const BATCH_SIZE = 25
