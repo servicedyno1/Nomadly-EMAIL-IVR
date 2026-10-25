@@ -51,7 +51,7 @@ export default function NumberDetail() {
       <TabStrip active={tab} testid="number-tabstrip">
         {TABS.map(([id, name]) => (
           <button key={id} role="tab" aria-selected={tab === id} onClick={() => setParams({ tab: id }, { replace: true })} data-testid={`number-tab-${id}`}
-            className={`px-4 py-3 text-sm font-medium border-b-2 -mb-px transition-colors shrink-0 ${tab === id ? 'border-[#34d399] text-[#34d399]' : 'border-transparent text-[#a1a1aa] hover:text-white'}`}>{name}</button>
+            className={`px-3 py-3 text-sm font-medium border-b-2 -mb-px transition-colors shrink-0 ${tab === id ? 'border-[#34d399] text-[#34d399]' : 'border-transparent text-[#a1a1aa] hover:text-white'}`}>{name}</button>
         ))}
       </TabStrip>
       <div data-testid={`number-tabpanel-${tab}`}>

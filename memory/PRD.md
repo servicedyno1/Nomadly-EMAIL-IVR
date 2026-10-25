@@ -1123,3 +1123,16 @@ calls and SIP are simulated; inbound calls use a pretend-call simulator).
   login/signup (+ floating mascot on the desktop side panel), landing nav + footer (#00E3AA accent kept on landing);
   applyBrandHead sets tab icon / apple-touch-icon / theme-color on CloudIVR pages only (hosting panel untouched); ring
   notifications use icon-192. Tested iteration_132 (frontend 100%); landing 390px "Sign in" wrap fixed.
+
+- 2026-06 CLOUDIVR COPY + PAGE-TITLE AUDIT (web /cloudivr EN/FR/ES + bot EN/FR, hi/zh kept in sync; preview only).
+  Country coverage now uses the LIVE count everywhere (web: catalog.countries.length = 17 Telnyx-only; bot:
+  phone-config CLOUD_COUNTRY_COUNT from the bot's own country list) — all "30+ countries" / "live in 60 seconds" claims removed
+  (landing, hero, domain-guard <title>/meta, bot hub/selectType, promo-copy en/fr/hi/zh, monetization-engine, new-user-conversion,
+  auto-promo SERVICE_CONTEXT). Plan copy matches entitlements (Pro = recording, no IVR; Business = IVR). Landing: AI voice
+  agents + Text calls cards, outgoing-call billing note, extra-number FAQ (3/15/30 shared minutes/SMS).
+  Tab titles: src/cloudivr/PageTitle.js → "Page name · CloudIVR" per route, translated via tr(); landing keeps
+  "CloudIVR — Virtual phone numbers, IVR & AI voice agents". LangProvider exposes `ver` (bumps after a dictionary loads) so
+  titles/TabStrip re-measure on language switch. NumberDetail tabs px-3 so French fits at 1920px. FR FAQ uses "SVI".
+  Bot has no Spanish language (Spanish = website only, per owner). Helper scripts: memory/copy_fix_{web,bot,bot2}.py.
+  Tests: testing agent frontend pass (report not written — credits ran out mid-run), node checks, test_cloudivr_hours_vm_notes
+  31/31 (stale Pro-recording assertion updated). test_promo_pipeline 4 failures = hosting/lead env prices null in bare shell (pre-existing).

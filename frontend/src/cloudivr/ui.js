@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Loader2, Lock } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { cp } from './paths';
+import { useLang } from './i18n';
 
 // True on phone-sized screens (below Tailwind's md breakpoint); follows rotation/resizes.
 export function useIsPhone(query = '(max-width: 767px)') {
@@ -32,6 +33,7 @@ export function ShowMore({ rest, onClick, testid = 'show-more-button' }) {
 export function TabStrip({ active, children, className = 'mb-8', testid }) {
   const ref = useRef(null);
   const [end, setEnd] = useState(true);
+  const { ver } = useLang() || {};
   const check = useCallback(() => { const s = ref.current; if (s) setEnd(s.scrollLeft + s.clientWidth >= s.scrollWidth - 4); }, []);
   useEffect(() => {
     const s = ref.current, el = s?.querySelector('[aria-selected="true"]');
@@ -39,7 +41,7 @@ export function TabStrip({ active, children, className = 'mb-8', testid }) {
     check();
     window.addEventListener('resize', check);
     return () => window.removeEventListener('resize', check);
-  }, [active, check]);
+  }, [active, check, ver]);
   return (
     <div className={`civr-tabstrip ${end ? 'at-end' : ''} ${className}`}>
       <div ref={ref} onScroll={check} className="civr-scroll-x flex gap-1 overflow-x-auto border-b border-[#1f1f1f]" role="tablist" data-testid={testid}>{children}</div>
