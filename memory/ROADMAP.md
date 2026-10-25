@@ -117,3 +117,10 @@ Sources: `HOSTING_CAPABILITIES_2026-10.md` (H#) and `RESELLER_FEATURE_REQUESTS_2
   (Voice/Text) — all built 2026-10-24 session 2, none tested yet. Then i18n extract/translate for new strings + node unit tests
   (memory/NEXT_TASK_BROWSER_ANSWER_TEXT_OR_VOICE.md §6).
 - P0 before going live: one real inbound call on a live Pro number (text answer, voice answer via browser phone, fallback when ignored).
+
+## CloudIVR 3CX parity (updated 2026-06) — see memory/CLOUDIVR_3CX_FEATURES_2026-06.md
+- P0 NEXT: testing_agent on Text Triggers, Ring group, Logs AI summaries, Settings webhooks + Install app (EN/FR/ES, 390px); fix findings.
+- P0 before live: real Auto Callback / Text-to-Call / AI call back from a real SMS; real ring-group call; real recorded-call summary.
+- P1: call queues; team accounts / extensions; live wallboard + call reports; webhook retries + CRM connectors (HubSpot, Pipedrive).
+- P2: browser-phone transfer/conference/park; WhatsApp + 2-way SMS inbox; supervisor whisper/barge; PWA push notifications; speech analytics.
+- P3: holiday calendars, music-on-hold upload, caller-ID/VIP routing, number porting.

@@ -2402,3 +2402,13 @@ User-approved order: #4 → #7 → #2 → #3 → #5 → #6. Sandbox-verified; pr
   UI pages/TextCall.js + pages/textcall/{Setup,Live,Transcript,Composer,History}.js; nav "Text calls"; support chat button hidden on that page on phones.
 - Tests: js/tests/relay_call_engine.test.js (live-mode engine with Telnyx stubbed, restart + sweep), backend/tests/test_cloudivr_iter125_relay_textcalls.py (24),
   test_cloudivr_iter126_relay_retest.py (4), iter124 file (+TestBackups junk case, TestEmailThrottle, TOTP test de-flaked).
+
+## 2026-06 — CloudIVR 3CX-gap features (preview only)
+- Text Triggers: number tab + `/numbers/:phone/text-triggers` (GET/PUT/test), sms-service hook, `textTriggerRuns` log.
+- Ring groups: number tab + `/numbers/:phone/ring-group`; voice-service simultaneous ring, first answer wins, per-group fallback.
+- AI summaries + mood: Logs tab toggle + per-row Summarize; `/ai-summary`, `/logs/:id/summarize`, 30 s auto sweep, $0.10/min, refunds.
+- Call-event feed: Settings card; `/webhooks` (GET/PUT/secret/test), HMAC-signed call.started, call.ended, voicemail.left,
+  sms.received, ai_summary.ready; `webhookDeliveries` log.
+- PWA: manifests, 512/maskable icons, offline page, service worker offline fallback, Settings "Install the app".
+- `messageOnly` outbound IVR calls; one-off outbound AI calls bill directly; plan keys ringGroup/textTriggers/aiSummary (Pro+).
+- Tests: js/tests/test_ring_group_triggers_2026-06.js 16/16; bulk + SIP suites still green. Details: CLOUDIVR_3CX_FEATURES_2026-06.md.

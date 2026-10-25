@@ -1189,3 +1189,16 @@ calls and SIP are simulated; inbound calls use a pretend-call simulator).
   civr_i18n_translate.py DROPS keys the extractor no longer sees; do not run it as-is). fr/es.json now ~1935 keys.
   Tests: testing agent iteration_134 frontend 100% (desktop + 390px, EN/FR/ES). Testing agent left a TTS audio
   "TEST_undo audio" in Alice's library.
+
+- 2026-06 CLOUDIVR 3CX-GAP FEATURES — BUILT, curl + sandbox-tested, UI NOT yet tested by the testing agent (owner paused).
+  Text Triggers (Auto Callback / Text-to-Call message / AI agent calls them back; keyword, business hours, once per sender per hour),
+  AI summaries + caller mood for voicemails & recorded calls ($0.10/min), Ring groups (several phones at once; fallback voicemail /
+  backup number / message), Call-event webhook feed for CRMs/Zapier (5 signed events), installable app (PWA). FR/ES strings added.
+  Full map, test plan and 3CX backlog: memory/CLOUDIVR_3CX_FEATURES_2026-06.md. NEXT: run testing_agent on the new screens.
+
+## 2026-06 (fork 2) — 3CX features testing: STILL PENDING
+- Owner paused again before the testing agent ran. No code changed. Owner rules for testing: simulated calls/texts only,
+  report problems first and fix only after approval, no setup re-run needed.
+- Prepared a fresh voicemail row for the manual Summarize test. Full status + next steps in `memory/CLOUDIVR_3CX_FEATURES_2026-06.md`
+  ("Session 2 (fork) progress").
+
