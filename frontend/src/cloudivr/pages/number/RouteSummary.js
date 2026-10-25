@@ -4,14 +4,18 @@ import { Compass, AlertTriangle, PhoneIncoming, Loader2 } from 'lucide-react';
 import { api, enc } from '../../api';
 import { usePrivacy } from '../../privacy';
 
-const SKIP = { ivr: 'IVR menu', sip_ring: 'Softphone / SIP ring', voicemail: 'Voicemail' };
+const SKIP = { ivr: 'Keypad menu', sip_ring: 'Softphone / SIP ring', voicemail: 'Voicemail' };
+
+// Shown on the Keypad menu / AI voice agent tabs while the other one answers this number.
+export const OneAnswerNote = ({ children, testid }) => <div className="text-sm text-[#fbbf24] flex gap-2" data-testid={testid}><AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />{children}</div>;
 
 function headline(r, ph) {
   switch (r.primary) {
+    case 'ai_agent': return 'Your AI voice agent answers every call. If your wallet runs low, calls follow your other settings.';
     case 'forward_always': return `All calls forward to ${ph(r.forwardTo)}.`;
     case 'forward_busy': return `Calls ring here first and forward to ${ph(r.forwardTo)} when busy.`;
     case 'forward_no_answer': return `Calls ring here first and forward to ${ph(r.forwardTo)} when not answered.`;
-    case 'ivr': return 'Callers hear your IVR menu first.';
+    case 'ivr': return 'Callers hear your keypad menu first.';
     case 'sip_ring': return 'Calls ring your softphone / browser phone.';
     case 'voicemail': return 'Callers go straight to voicemail.';
     default: return 'Nothing is set up — callers hear “this number is unavailable”.';
@@ -32,7 +36,7 @@ export function RouteSummary({ num, reload }) {
     <div className="civr-card p-6 lg:col-span-2 space-y-4" data-testid="route-summary">
       <div className="flex items-center gap-2 font-display text-2xl font-bold"><Compass className="w-5 h-5 text-[#34d399]" />What callers get now</div>
       <p className="text-sm text-[#f4f4f5]" data-testid="route-summary-primary">{headline(r, pv.phone)}</p>
-      {r.brokenIvr && <div className="text-sm text-[#fbbf24] flex gap-2" data-testid="route-summary-broken-ivr"><AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />Your IVR is on but has no keys yet — add options in the IVR tab or turn it off.</div>}
+      {r.brokenIvr && <div className="text-sm text-[#fbbf24] flex gap-2" data-testid="route-summary-broken-ivr"><AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />Your keypad menu is on but has no keys yet — add options in the Keypad menu tab or turn it off.</div>}
       {r.skipped?.length > 0 && (
         <div className="space-y-3" data-testid="route-summary-skipped">
           <div className="flex flex-wrap gap-1.5">{r.skipped.map(s => <span key={s} className="civr-pill civr-pill-warn" data-testid={`route-summary-skipped-${s}`}>{SKIP[s] || s} · skipped</span>)}</div>

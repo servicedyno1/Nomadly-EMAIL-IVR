@@ -18,7 +18,7 @@ function PlanNote({ canUse, rate, recordRate }) {
   return (
     <div className="civr-card p-6 mb-6 flex flex-col md:flex-row md:items-center gap-4" data-testid="ai-agents-plan-note">
       <Lock className="w-6 h-6 text-[#fbbf24]" />
-      <div className="flex-1"><div className="font-semibold">AI agents answer and call on the Pro plan and up</div><div className="text-sm text-[#a1a1aa]">You can build and test agents now. To use one on real calls, put a number on Pro or Business.</div></div>
+      <div className="flex-1"><div className="font-semibold">AI voice agents answer and call on the Business plan</div><div className="text-sm text-[#a1a1aa]">You can build and test agents now. To use one on real calls, put a number on the Business plan.</div></div>
       <Link to={cp('/app/numbers')} className="civr-btn civr-btn-primary civr-btn-sm" data-testid="ai-agents-upgrade-link">My numbers</Link>
     </div>
   );

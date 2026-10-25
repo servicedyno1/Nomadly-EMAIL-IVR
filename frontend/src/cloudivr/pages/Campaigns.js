@@ -75,7 +75,13 @@ export function CampaignNew() {
   const [error, setError] = useState(null);
   const set = (k) => (v) => setF({ ...f, [k]: v?.target ? v.target.value : v });
   if (loading) return <Spinner />;
-  if (!numbers.length) return <Empty icon={Megaphone} title="No number can run campaigns" sub="Bulk IVR needs an active number on the Pro plan or higher." testid="campaign-new-empty"><Link to={cp('/app/numbers')} className="civr-btn civr-btn-primary" data-testid="campaign-new-empty-action">My numbers</Link></Empty>;
+  if (!numbers.length) return (
+    <div data-testid="campaign-new-page">
+      <PageHeader label="Campaigns" title="New campaign" testid="campaign-new-header" />
+      <CampaignKind value={kind} onChange={setKind} />
+      <Empty icon={Megaphone} title={kind === 'ai' ? 'No number can run AI voice agent campaigns' : 'No number can run campaigns'} sub={kind === 'ai' ? 'AI voice agent campaigns need an active number on the Business plan.' : 'Bulk IVR needs an active number on the Pro plan or higher.'} testid="campaign-new-empty"><Link to={cp('/app/numbers')} className="civr-btn civr-btn-primary" data-testid="campaign-new-empty-action">My numbers</Link></Empty>
+    </div>
+  );
   const callerId = numbers.some(n => n.phoneNumber === f.callerId) ? f.callerId : numbers[0].phoneNumber;
   const isAi = kind === 'ai';
 

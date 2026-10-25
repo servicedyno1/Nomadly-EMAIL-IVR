@@ -33,7 +33,7 @@ function Stats({ s }) {
 }
 
 function QuickActions({ unread }) {
-  const items = [[cp('/app/numbers'), Workflow, 'Set up an IVR menu', 'Open a number → IVR tab', 'quick-action-ivr'],
+  const items = [[cp('/app/numbers'), Workflow, 'Set up a keypad menu', 'Open a number → Keypad menu tab', 'quick-action-ivr'],
     [cp('/app/quick-call'), PhoneOutgoing, 'Place a Quick IVR call', 'Play a message, transfer on key press', 'quick-action-quick-call'],
     [cp('/app/inbox'), Bell, `Inbox${unread ? ` · ${unread} new` : ''}`, 'SMS, voicemail and call alerts', 'quick-action-inbox']];
   return (

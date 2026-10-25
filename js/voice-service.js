@@ -2427,7 +2427,7 @@ async function handleCallInitiated(payload) {
     return
   }
 
-  // ── AI agent answers (Pro+, billed per started minute from the wallet; plan minutes untouched) ──
+  // ── AI agent answers (Business, billed per started minute from the wallet; plan minutes untouched) ──
   if (num.features?.aiAgent?.enabled) {
     try { if (await require('./ai-agent').tryInbound({ payload, chatId, num })) return } catch (e) { log(`[AIAgent] inbound error: ${e.message}`) }
   }

@@ -6,6 +6,7 @@ import { Field, Toggle, AudioSelect } from '../../ui';
 import { VoiceMaker } from '../../VoiceMaker';
 import { IvrTemplates } from './IvrTemplates';
 import { useSave } from './SettingsTabs';
+import { OneAnswerNote } from './RouteSummary';
 import { cp } from '../../paths';
 import { LANGS, tr, useLang } from '../../i18n';
 
@@ -137,15 +138,16 @@ export default function IvrTab({ num, reload }) {
     <div className="grid lg:grid-cols-3 gap-4">
       <div className="civr-card p-6 lg:col-span-2 space-y-6" data-testid="ivr-builder">
         <div className="flex items-center justify-between">
-          <div><div className="font-display text-2xl font-bold">IVR menu</div><p className="text-sm text-[#a1a1aa]">Callers hear the greeting, then press a key.</p></div>
+          <div><div className="font-display text-2xl font-bold">Keypad menu (IVR)</div><p className="text-sm text-[#a1a1aa]">Callers hear the greeting, then press a key.</p></div>
           <Toggle checked={enabled} onChange={setEnabled} testid="ivr-enabled-toggle" />
         </div>
+        {num.features.aiAgent?.enabled && <OneAnswerNote testid="ivr-ai-agent-note">Your AI voice agent answers this number now. Turning the keypad menu on and saving switches the AI voice agent off — a number uses one or the other.</OneAnswerNote>}
         <Greeting g={g} set={(p) => setG({ ...g, ...p })} audios={audios} prefix="ivr" onAudio={reloadAudio} />
         <p className="text-xs text-[#a1a1aa] -mt-3" data-testid="ivr-language-note">{`Callers hear typed text in ${langName}, the app's language. Change the app language to change it.`}</p>
         {!audios.length && <div className="text-xs text-[#a1a1aa]">Want your own recordings? <Link to={cp('/app/audio')} className="text-[#34d399]" data-testid="ivr-audio-library-link">Open the audio library</Link>.</div>}
         <OptionList list={list} setList={setList} prefix="ivr"
           render={(o, i, u, ch, rm) => <TopRow key={i} o={o} used={u} onChange={ch} onRemove={rm} audios={audios} prefix={`ivr-option-${i}`} onAudio={reloadAudio} />} />
-        <button className="civr-btn civr-btn-primary" disabled={busy} onClick={submit} data-testid="ivr-save-button">Save IVR</button>
+        <button className="civr-btn civr-btn-primary" disabled={busy} onClick={submit} data-testid="ivr-save-button">Save keypad menu</button>
       </div>
       <div className="space-y-4"><IvrTemplates current={current} onApply={apply} /><Analytics num={num} /></div>
     </div>

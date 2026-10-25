@@ -78,7 +78,7 @@ export function Hero({ catalog }) {
           <div className="civr-l-eyebrow civr-rise"><span className="civr-l-dot" />Cloud numbers · IVR · AI agents</div>
           <h1 className="civr-l-h text-5xl sm:text-6xl lg:text-7xl mt-6 civr-rise civr-d1" data-testid="hero-title" data-no-translate>{t[0]}<span className="text-[#00E3AA]">{t[1]}</span>{t[2]}</h1>
           <p className="text-base md:text-lg civr-l-muted mt-6 max-w-xl civr-rise civr-d2" data-testid="hero-subtitle">
-            {`Virtual numbers in ${n} countries with call forwarding, voicemail, an SMS inbox, a press-1 auto-attendant, bulk IVR campaigns and AI voice agents. Call from your browser and pay with crypto or your wallet.`}
+            {`Virtual numbers in ${n} countries with call forwarding, voicemail, an SMS inbox, a keypad menu (IVR), bulk IVR campaigns and AI voice agents. Call from your browser and pay with crypto or your wallet.`}
           </p>
           <div className="flex flex-wrap gap-3 mt-8 civr-rise civr-d3">
             <a href="#try" className="civr-l-btn" data-testid="civr-hero-cta-test-btn"><PhoneCall className="w-4 h-4" /><Slide>Try a free call</Slide></a>

@@ -16,7 +16,7 @@ export function CampaignKind({ value, onChange }) {
   return (
     <div className="flex flex-col sm:flex-row gap-2 mb-4" data-testid="campaign-kind">
       {opt('audio', 'Recorded message', 'Play audio, count key presses or transfer.', 'campaign-kind-audio')}
-      {opt('ai', 'AI agent conversation', 'Your AI agent talks with each lead · $0.20/min (+$0.02 recorded).', 'campaign-kind-ai')}
+      {opt('ai', 'AI voice agent conversation', 'Business plan · your AI voice agent talks with each lead · $0.20/min (+$0.02 recorded).', 'campaign-kind-ai')}
     </div>
   );
 }

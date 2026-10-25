@@ -14,7 +14,7 @@ export function GetStarted({ balance }) {
   const steps = [
     { id: 'funds', done: balance > 0, title: 'Add funds with crypto', sub: balance > 0 ? `Wallet ready · ${money(balance)}` : 'Numbers, renewals and calls are paid from your wallet.', to: cp('/app/wallet'), cta: 'Add funds' },
     { id: 'buy', done: false, title: 'Pick your first number', sub: `${catalog?.countries?.length || 17} countries${from ? ` · from ${from}/month` : ''}.`, to: cp('/app/buy'), cta: 'Buy a number' },
-    { id: 'setup', done: false, title: 'Choose what callers hear', sub: 'Forwarding, voicemail or an IVR menu — set it on your number once it’s live.' },
+    { id: 'setup', done: false, title: 'Choose what callers hear', sub: 'Forwarding, voicemail or a keypad menu — set it on your number once it’s live.' },
   ];
   const current = steps.findIndex(x => !x.done);
   return (
