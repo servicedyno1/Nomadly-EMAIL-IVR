@@ -3,6 +3,7 @@
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 const axios = require('axios')
 const { log } = require('console')
+const sipLogins = require('./sip-logins')
 
 const TELNYX_API_KEY = process.env.TELNYX_API_KEY
 const BASE = 'https://api.telnyx.com/v2'
@@ -211,8 +212,47 @@ async function getSIPConnection(connectionId) {
   }
 }
 
+// Settings copied from the main SIP connection onto a per-number short login (everything except the login itself).
+const SHORT_LOGIN_CLONE = ['webhook_event_url', 'webhook_event_failover_url', 'webhook_api_version', 'webhook_timeout_secs', 'sip_uri_calling_preference',
+  'anchorsite_override', 'encrypted_media', 'default_on_hold_comfort_noise_enabled', 'dtmf_type', 'encode_contact_header_enabled',
+  'onnet_t38_passthrough_enabled', 'rtcp_settings', 'inbound', 'outbound', 'ios_push_credential_id', 'android_push_credential_id']
+
+// ── Short SIP login: a credential connection for one number (10-char username, 12-char password) ──
+// Returns the same shape as a telephony credential ({ id, sip_username, sip_password }) so callers store it unchanged.
+async function createShortSipLogin(mainConnectionId, phoneNumber) {
+  const main = mainConnectionId ? await getSIPConnection(mainConnectionId) : null
+  if (!main) return null
+  const base = {}
+  for (const k of SHORT_LOGIN_CLONE) if (main[k] !== undefined && main[k] !== null) base[k] = main[k]
+  if (phoneNumber) base.outbound = { ...(main.outbound || {}), ani_override: phoneNumber, ani_override_type: 'always' }
+  const tag = String(phoneNumber || '').replace(/\D/g, '').slice(-12)
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const user = sipLogins.shortUser(), pass = sipLogins.shortPass()
+    try {
+      const res = await axios.post(`${BASE}/credential_connections`, { ...base, active: true, connection_name: `civr-${tag}-${user}`, user_name: user, password: pass }, { headers: headers() })
+      const c = res.data?.data
+      if (c?.id) {
+        sipLogins.remember(c.id, user)
+        log(`[Telnyx] Short SIP login ${user} created for ${phoneNumber || 'number'} (connection ${c.id})`)
+        return { id: String(c.id), sip_username: user, sip_password: pass, connection_id: String(c.id), kind: 'connection' }
+      }
+    } catch (e) {
+      const detail = JSON.stringify(e.response?.data?.errors || e.message)
+      log(`[Telnyx] createShortSipLogin attempt ${attempt + 1} failed: ${detail}`)
+      if (!/user.?name|taken|exist|unique/i.test(detail)) break
+    }
+  }
+  return null
+}
+
 // ── Create SIP Credential (username/password for a connection) ──
-async function createSIPCredential(connectionId, username, password) {
+// With SIP_SHORT_LOGINS=true a short per-number login is made first; the long telephony credential is the fallback.
+async function createSIPCredential(connectionId, username, password, phoneNumber) {
+  if (sipLogins.enabled()) {
+    const short = await createShortSipLogin(connectionId, phoneNumber)
+    if (short) return short
+    log('[Telnyx] Short SIP login unavailable — falling back to a telephony credential')
+  }
   try {
     const body = {
       connection_id: connectionId,
@@ -250,6 +290,17 @@ async function listSIPCredentials(connectionId) {
 
 // ── Delete SIP Credential ──
 async function deleteSIPCredential(credentialId) {
+  if (sipLogins.isConnectionId(credentialId)) {
+    try {
+      await axios.delete(`${BASE}/credential_connections/${credentialId}`, { headers: headers() })
+      sipLogins.forget(credentialId)
+      log(`[Telnyx] Deleted short SIP login connection: ${credentialId}`)
+      return true
+    } catch (e) {
+      log(`[Telnyx] delete short SIP login error: ${e.response?.data?.errors?.[0]?.detail || e.message}`)
+      return false
+    }
+  }
   try {
     await axios.delete(`${BASE}/telephony_credentials/${credentialId}`, { headers: headers() })
     log(`[Telnyx] Deleted SIP credential: ${credentialId}`)
@@ -995,6 +1046,7 @@ module.exports = {
   createSIPConnection,
   getSIPConnection,
   createSIPCredential,
+  createShortSipLogin,
   listSIPCredentials,
   deleteSIPCredential,
   createMessagingProfile,

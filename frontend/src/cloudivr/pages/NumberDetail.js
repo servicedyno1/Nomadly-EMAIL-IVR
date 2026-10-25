@@ -11,6 +11,8 @@ import BillingTab from './number/BillingTab';
 import HoursTab from './number/HoursTab';
 import AiAgentTab from './number/AiAgentTab';
 import BrowserRingTab from './number/BrowserRingTab';
+import RingGroupTab from './number/RingGroupTab';
+import TextTriggersTab from './number/TextTriggersTab';
 import { cp } from '../paths';
 import { useShell } from '../Shell';
 import { planFor } from '../PlanFeatures';
@@ -18,8 +20,8 @@ import { usePrivacy } from '../privacy';
 import { confirmLeave } from '../guard';
 
 const TABS = [
-  ['overview', 'Overview', null, OverviewTab], ['forwarding', 'Forwarding', 'callForwarding', ForwardingTab], ['browser', 'Browser ring', 'textRelay', BrowserRingTab], ['hours', 'Hours', null, HoursTab], ['ivr', 'Keypad menu', 'ivr', IvrTab], ['ai', 'AI voice agent', 'aiAgent', AiAgentTab],
-  ['voicemail', 'Voicemail', 'voicemail', VoicemailTab], ['sms', 'SMS', null, SmsTab], ['sip', 'SIP', 'sipCredentials', SipTab],
+  ['overview', 'Overview', null, OverviewTab], ['forwarding', 'Forwarding', 'callForwarding', ForwardingTab], ['ringgroup', 'Ring group', 'ringGroup', RingGroupTab], ['browser', 'Browser ring', 'textRelay', BrowserRingTab], ['hours', 'Hours', null, HoursTab], ['ivr', 'Keypad menu', 'ivr', IvrTab], ['ai', 'AI voice agent', 'aiAgent', AiAgentTab],
+  ['voicemail', 'Voicemail', 'voicemail', VoicemailTab], ['sms', 'SMS', null, SmsTab], ['triggers', 'Text Triggers', 'textTriggers', TextTriggersTab], ['sip', 'SIP', 'sipCredentials', SipTab],
   ['recording', 'Recording', 'callRecording', RecordingTab], ['logs', 'Logs', null, LogsTab], ['billing', 'Billing', null, BillingTab],
 ];
 

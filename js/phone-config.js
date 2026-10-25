@@ -455,6 +455,9 @@ const planFeatureAccess = {
     otpCustomMessages: false,
     aiAgent: false,
     textRelay: false,
+    ringGroup: false,
+    textTriggers: false,
+    aiSummary: false,
   },
   pro: {
     callForwarding: true,
@@ -472,6 +475,9 @@ const planFeatureAccess = {
     otpCustomMessages: false,
     aiAgent: false,
     textRelay: true,
+    ringGroup: true,
+    textTriggers: true,
+    aiSummary: true,
   },
   business: {
     callForwarding: true,
@@ -489,6 +495,9 @@ const planFeatureAccess = {
     otpCustomMessages: true,
     aiAgent: true,
     textRelay: true,
+    ringGroup: true,
+    textTriggers: true,
+    aiSummary: true,
   },
 }
 
@@ -1014,7 +1023,7 @@ Incoming calls you answer on SIP/browser + received SMS are included · Call for
   testOutboundSip: {
     listening: (phone, sipUser) => `📤 <b>Outbound SIP Test — listening for 90s</b>\n\n📞 Number: <code>${phone}</code>\n🔑 SIP user: <code>${sipUser}</code>\n\nFrom your softphone, dial <b>any number</b> within the next 90 seconds — your own mobile is ideal.\n\n💡 The call will be intercepted safely: <b>no wallet charges</b>, <b>no PSTN leg</b> will be placed. We just verify your softphone's outbound path reaches our servers with the correct SIP credentials.\n\nResult will appear here as soon as your call arrives.`,
     success: (phone, sipUser, provider, destination, elapsedSec) => `✅ <b>Outbound SIP verified</b>\n\nYour softphone successfully placed an outbound call.\n\n📞 Number: <code>${phone}</code>\n🔑 SIP user: <code>${sipUser}</code>\n🌐 Provider: <code>${provider}</code>\n📍 You dialed: <code>${destination}</code>\n⏱️ Latency to our servers: ${elapsedSec}s\n\n💡 The call was intercepted — no wallet charges, no PSTN leg placed. Your outbound SIP path is working end-to-end.`,
-    timeout: (phone) => `❌ <b>No outbound SIP call detected</b> on <code>${phone}</code> in 90 seconds.\n\nLikely causes:\n• <b>SIP 403 Forbidden on register</b> — long <code>gencred…</code> usernames (49 chars) get truncated by some dialers. Copy-paste from 🔑 SIP Credentials; don't retype. Also make sure the domain <code>sip.speechcue.com</code> is in the <i>Domain / SIP Server</i> field, NOT appended to the username.\n• Softphone not registered — check the registration/status light in Linphone/Zoiper/MicroSIP\n• Wrong SIP credentials — verify username + password via <b>🔑 SIP Credentials</b>\n• Firewall blocking UDP 5060 / SIP traffic\n• <b>Predictive / auto-dialer</b> (Ecsow, DialFire, X-Lite) or PBX (3CX / FreePBX) misconfigured as user/extension instead of SIP TRUNK — see /sipguide\n\nOnce you see "Registered" in your softphone, run the test again.`,
+    timeout: (phone) => `❌ <b>No outbound SIP call detected</b> on <code>${phone}</code> in 90 seconds.\n\nLikely causes:\n• <b>SIP 403 Forbidden on register</b> — a mistyped username or password, or one cut short by the dialer. Copy-paste from 🔑 SIP Credentials; don't retype. Also make sure the domain <code>sip.speechcue.com</code> is in the <i>Domain / SIP Server</i> field, NOT appended to the username.\n• Softphone not registered — check the registration/status light in Linphone/Zoiper/MicroSIP\n• Wrong SIP credentials — verify username + password via <b>🔑 SIP Credentials</b>\n• Firewall blocking UDP 5060 / SIP traffic\n• <b>Predictive / auto-dialer</b> (Ecsow, DialFire, X-Lite) or PBX (3CX / FreePBX) misconfigured as user/extension instead of SIP TRUNK — see /sipguide\n\nOnce you see "Registered" in your softphone, run the test again.`,
     throttled: (max) => `⏳ You've already run ${max} outbound SIP tests on this number in the last 24 hours. Try again later.`,
     inactive: (phone) => `❌ Number <code>${phone}</code> is not active — outbound SIP testing is only available for active numbers.`,
     noSipConfigured: (phone) => `❌ No SIP credentials on <code>${phone}</code>. Set up SIP first via <b>🔑 SIP Credentials</b>, then retry.`,
@@ -1037,15 +1046,15 @@ Use a single-line softphone (one device per credential):
 <b>Setup steps</b>
 1. Install the app
 2. Add Account → SIP / VoIP
-3. Username + Password from 🔑 SIP Credentials — <b>copy-paste, don't retype</b> (usernames are 49 chars)
+3. Username + Password from 🔑 SIP Credentials — <b>copy-paste, don't retype</b>
 4. Domain / SIP Server: <code>${domain}</code> — put this in the <i>Domain</i> field ONLY, do NOT append it to the username
 5. Port 5060 (UDP/TCP) or 5061 (TLS) · DTMF: RFC 2833 · Codec: G.711μ
 6. Save and make a test call
 
 ⚠️ <b>Getting "403 Forbidden" / registration failed?</b>
 The three usual causes:
-1. <b>Username got truncated</b> — most SIP dialers accept 50+ char usernames but some old builds truncate. Copy-paste the full <code>gencred…</code> string exactly.
-2. <b>Domain in the wrong field</b> — the username is JUST <code>gencred…</code>. Do NOT enter <code>gencred…@${domain}</code> in the username box. The <code>@${domain}</code> part belongs in the "Domain / SIP Server" field.
+1. <b>Username got truncated</b> — some old dialers cut long usernames short. Copy-paste the full username exactly.
+2. <b>Domain in the wrong field</b> — the username box holds ONLY the username. Do NOT enter <code>username@${domain}</code> there. The <code>@${domain}</code> part belongs in the "Domain / SIP Server" field.
 3. <b>Wrong password</b> — passwords are case-sensitive hex. Tap 🔄 Reset Password if unsure and copy-paste the fresh one.
 
 ⚠️ <b>Using Ecsow, DialFire, X-Lite, or another predictive / auto-dialer?</b>
@@ -1059,7 +1068,7 @@ Don't add the SIP credential as a "user / extension" — a PBX answers the call 
 2. Main Trunk No.: your ${(process.env.CHAT_BOT_BRAND || 'Nomadly')} number (e.g. <code>+18882437690</code>)
 3. Registrar / Server / Outbound Proxy: <code>${domain}</code> · Port <code>5060</code>
 4. Authentication: <b>Register/Account based</b>
-   Username + Auth ID: your <code>gencred…</code> SIP username
+   Username + Auth ID: your SIP username
    Password: your SIP password
 5. Save → Inbound Rules → New Inbound Rule → <b>Route to your extension</b> (NOT voicemail)
 6. Outbound Rules → match your extensions, route via this trunk
@@ -1323,17 +1332,15 @@ function shortDate(dateStr) {
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
+// Short SIP login seed (10 chars, e.g. cvk3x9p2qa). With SIP_SHORT_LOGINS on it is replaced by the real short login;
+// otherwise Telnyx answers with its own long gencred… username.
 function generateSipUsername() {
-  // Random seed for Telnyx API — actual sip_username comes from Telnyx response
-  const crypto = require('crypto')
-  return 'test_' + crypto.randomBytes(8).toString('hex')
+  return require('./sip-logins.js').shortUser()
 }
 
+// 12 chars with upper, lower and digits (also meets Twilio's 12+ / mixed-case rule).
 function generateSipPassword() {
-  // Must meet Twilio's requirements: 12+ chars, at least one number, uppercase, lowercase
-  const crypto = require('crypto')
-  const base = crypto.randomBytes(6).toString('base64').replace(/[^a-zA-Z0-9]/g, '')
-  return base + 'Aa1' + crypto.randomBytes(4).toString('hex')
+  return require('./sip-logins.js').shortPass()
 }
 
 // ── Multilingual UI messages for Cloud IVR ──
@@ -2174,7 +2181,7 @@ N'ajoutez pas l'identifiant SIP comme "utilisateur / extension" — un PBX répo
 2. Main Trunk No. : votre numéro ${(process.env.CHAT_BOT_BRAND || 'Nomadly')} (ex. <code>+18882437690</code>)
 3. Registrar / Serveur / Outbound Proxy : <code>${domain}</code> · Port <code>5060</code>
 4. Authentification : <b>Register/Account based</b>
-   Username + Auth ID : votre identifiant SIP <code>gencred…</code>
+   Username + Auth ID : votre identifiant SIP
    Mot de passe : votre mot de passe SIP
 5. Enregistrer → Inbound Rules → New Inbound Rule → <b>Router vers votre extension</b> (PAS messagerie)
 6. Outbound Rules → routez vos extensions via ce trunk
@@ -2654,7 +2661,7 @@ Envoyez /testsip ici pour obtenir votre code test.
 2. Main Trunk No.：您的 ${(process.env.CHAT_BOT_BRAND || 'Nomadly')} 号码（如 <code>+18882437690</code>）
 3. Registrar / 服务器 / Outbound Proxy：<code>${domain}</code> · 端口 <code>5060</code>
 4. 认证：<b>Register/Account based</b>
-   Username + Auth ID：您的 <code>gencred…</code> SIP 用户名
+   Username + Auth ID：您的 SIP 用户名
    密码：您的 SIP 密码
 5. 保存 → Inbound Rules → New Inbound Rule → <b>路由到您的分机</b>（而非语音信箱）
 6. Outbound Rules → 将分机路由通过此中继
@@ -3134,7 +3141,7 @@ SIP क्रेडेंशियल को "user / extension" के रूप
 2. Main Trunk No.: आपका ${(process.env.CHAT_BOT_BRAND || 'Nomadly')} नंबर (जैसे <code>+18882437690</code>)
 3. Registrar / Server / Outbound Proxy: <code>${domain}</code> · पोर्ट <code>5060</code>
 4. प्रमाणीकरण: <b>Register/Account based</b>
-   Username + Auth ID: आपका <code>gencred…</code> SIP उपयोगकर्ता नाम
+   Username + Auth ID: आपका SIP उपयोगकर्ता नाम
    पासवर्ड: आपका SIP पासवर्ड
 5. सेव → Inbound Rules → New Inbound Rule → <b>अपने एक्सटेंशन पर रूट करें</b> (वॉइसमेल पर नहीं)
 6. Outbound Rules → अपने एक्सटेंशन को इस ट्रंक के माध्यम से रूट करें

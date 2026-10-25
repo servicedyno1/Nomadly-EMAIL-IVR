@@ -37,6 +37,7 @@ function instructions(agent, ctx) {
   return [
     `You are ${agent.name}, an AI phone assistant for ${agent.businessName || 'a business'}. ${who}`,
     `# Your goal\n${agent.goal}`,
+    ctx.reason ? `# Why you are calling\n${ctx.reason}` : '',
     agent.knowledge ? `# What you know (use only this; never invent prices, policies or facts)\n${agent.knowledge}` : '# Facts\nDo not invent prices, policies or facts. If you do not know, say someone will follow up.',
     '# Rules',
     '- This is a phone call: keep each reply to one or two short sentences and ask one question at a time.',

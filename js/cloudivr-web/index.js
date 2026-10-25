@@ -22,6 +22,10 @@ const suggestions = require('./suggestions')
 const relay = require('./relay')
 const incoming = require('./incoming')
 const smsReplyMod = require('./sms-reply')
+const textTriggers = require('./text-triggers')
+const ringGroup = require('./ring-group')
+const webhooks = require('./events')
+const aiSummary = require('./ai-summary')
 const { sendMail } = require('./auth')
 
 function createCloudIvrWeb(deps) {
@@ -65,6 +69,10 @@ function createCloudIvrWeb(deps) {
     const smsReply = smsReplyMod.createSmsReply({ db, voiceService: deps.voiceService, log })
     smsReplyMod.routes(r, { db, h, numbersApi, smsReply })
     incoming.routes(r, { ...deps, db, h, numbersApi, smsReply })
+    textTriggers.routes(r, { ...deps, db, h, numbersApi })
+    ringGroup.routes(r, { h, numbersApi })
+    webhooks.routes(r, { db, h, log })
+    aiSummary.routes(r, { ...deps, db, h, numbersApi })
     r.get('/dashboard', h(async (req, res) => {
       const id = req.webChatId
       const nums = await numbersApi.myNumbers(id)

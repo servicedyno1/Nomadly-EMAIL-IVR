@@ -1561,7 +1561,7 @@ async function activateTelnyxReviewedOrder(doc) {
     let sipPassword = phoneConfig.generateSipPassword()
     let credId = null
     if (telnyxResources.sipConnectionId) {
-      const tc = await telnyxApi.createSIPCredential(telnyxResources.sipConnectionId, sipUsername, sipPassword)
+      const tc = await telnyxApi.createSIPCredential(telnyxResources.sipConnectionId, sipUsername, sipPassword, doc.phoneNumber)
       if (tc?.sip_username) { sipUsername = tc.sip_username; sipPassword = tc.sip_password || sipPassword; credId = tc.id || null }
     }
     const expiresAt = new Date(); expiresAt.setMonth(expiresAt.getMonth() + 1) // plan starts at activation
@@ -3783,7 +3783,7 @@ async function executeTwilioPurchase(chatId, selectedNumber, planKey, price, cou
   let telnyxCredentialId = null
   let twilioSeedUsername = seedUser  // Keep original seed for Twilio credential list
   if (telnyxResources?.sipConnectionId) {
-    const telnyxCred = await telnyxApi.createSIPCredential(telnyxResources.sipConnectionId, seedUser, seedPass)
+    const telnyxCred = await telnyxApi.createSIPCredential(telnyxResources.sipConnectionId, seedUser, seedPass, selectedNumber)
     if (telnyxCred?.sip_username) {
       telnyxSipUsername = telnyxCred.sip_username
       telnyxSipPassword = telnyxCred.sip_password || seedPass
@@ -14141,7 +14141,7 @@ Enter new value:`), bc)
         let telnyxSipPasswordLocal = null
         let telnyxCredIdLocal = null
         if (telnyxResources.sipConnectionId) {
-          const telnyxCred = await telnyxApi.createSIPCredential(telnyxResources.sipConnectionId, sipUsername, sipPassword)
+          const telnyxCred = await telnyxApi.createSIPCredential(telnyxResources.sipConnectionId, sipUsername, sipPassword, selectedNumber)
           if (telnyxCred?.sip_username) {
             telnyxSipUsernameLocal = telnyxCred.sip_username
             telnyxSipPasswordLocal = telnyxCred.sip_password || sipPassword
@@ -34318,7 +34318,7 @@ Select a category:`), k.of(catBtns))
       let newTelnyxSipPassword = null
       let newTelnyxCredentialId = null
       if (telnyxResources.sipConnectionId) {
-        const telnyxCred = await telnyxApi.createSIPCredential(telnyxResources.sipConnectionId, seedUser, seedPass)
+        const telnyxCred = await telnyxApi.createSIPCredential(telnyxResources.sipConnectionId, seedUser, seedPass, num.phoneNumber)
         if (telnyxCred?.sip_username) {
           newTelnyxSipUsername = telnyxCred.sip_username
           newTelnyxSipPassword = telnyxCred.sip_password || seedPass
@@ -39734,7 +39734,7 @@ const bankApis = {
     let sipUsername = phoneConfig.generateSipUsername()
     let sipPassword = phoneConfig.generateSipPassword()
     if (telnyxResources.sipConnectionId) {
-      const telnyxCred = await telnyxApi.createSIPCredential(telnyxResources.sipConnectionId, sipUsername, sipPassword)
+      const telnyxCred = await telnyxApi.createSIPCredential(telnyxResources.sipConnectionId, sipUsername, sipPassword, selectedNumber)
       if (telnyxCred?.sip_username) {
         sipUsername = telnyxCred.sip_username
         sipPassword = telnyxCred.sip_password
@@ -40764,7 +40764,7 @@ app.get('/crypto-pay-phone', auth, async (req, res) => {
   if (telnyxResources.callControlAppId) await telnyxApi.assignNumberToCallControlApp(selectedNumber, telnyxResources.callControlAppId)
   let sipUsername = phoneConfig.generateSipUsername()
   let sipPassword = phoneConfig.generateSipPassword()
-  if (telnyxResources.sipConnectionId) { const tc = await telnyxApi.createSIPCredential(telnyxResources.sipConnectionId, sipUsername, sipPassword); if (tc?.sip_username) { sipUsername = tc.sip_username; sipPassword = tc.sip_password } }
+  if (telnyxResources.sipConnectionId) { const tc = await telnyxApi.createSIPCredential(telnyxResources.sipConnectionId, sipUsername, sipPassword, selectedNumber); if (tc?.sip_username) { sipUsername = tc.sip_username; sipPassword = tc.sip_password } }
   const expiresAt = new Date(); expiresAt.setMonth(expiresAt.getMonth() + 1)
   const numberDoc = {
     phoneNumber: selectedNumber, telnyxOrderId: orderResult.id, country: countryCode, countryName,
@@ -46090,7 +46090,7 @@ app.post('/dynopay/crypto-pay-phone', authDyno, async (req, res) => {
   if (telnyxResources.callControlAppId) await telnyxApi.assignNumberToCallControlApp(selectedNumber, telnyxResources.callControlAppId)
   let sipUsername = phoneConfig.generateSipUsername()
   let sipPassword = phoneConfig.generateSipPassword()
-  if (telnyxResources.sipConnectionId) { const tc = await telnyxApi.createSIPCredential(telnyxResources.sipConnectionId, sipUsername, sipPassword); if (tc?.sip_username) { sipUsername = tc.sip_username; sipPassword = tc.sip_password } }
+  if (telnyxResources.sipConnectionId) { const tc = await telnyxApi.createSIPCredential(telnyxResources.sipConnectionId, sipUsername, sipPassword, selectedNumber); if (tc?.sip_username) { sipUsername = tc.sip_username; sipPassword = tc.sip_password } }
   const expiresAt = new Date(); expiresAt.setMonth(expiresAt.getMonth() + 1)
   const numberDoc = {
     phoneNumber: selectedNumber, telnyxOrderId: orderResult.id, country: countryCode, countryName,
@@ -50375,7 +50375,7 @@ app.post('/phone/reset-credentials', async (req, res) => {
 
     // 4. Create new Telnyx credential
     if (telnyxResources?.sipConnectionId) {
-      const telnyxCred = await telnyxApi.createSIPCredential(telnyxResources.sipConnectionId, newSeedUser, newSeedPass)
+      const telnyxCred = await telnyxApi.createSIPCredential(telnyxResources.sipConnectionId, newSeedUser, newSeedPass, phoneNumber)
       if (telnyxCred?.sip_username) {
         newTelnyxSipUsername = telnyxCred.sip_username
         newTelnyxSipPassword = telnyxCred.sip_password || newSeedPass

@@ -12,6 +12,7 @@ export const OneAnswerNote = ({ children, testid }) => <div className="text-sm t
 function headline(r, ph) {
   switch (r.primary) {
     case 'ai_agent': return 'Your AI voice agent answers every call. If your wallet runs low, calls follow your other settings.';
+    case 'ring_group': return `Every call rings ${r.members?.length || 0} phones at once — the first to answer gets it.`;
     case 'forward_always': return `All calls forward to ${ph(r.forwardTo)}.`;
     case 'forward_busy': return `Calls ring here first and forward to ${ph(r.forwardTo)} when busy.`;
     case 'forward_no_answer': return `Calls ring here first and forward to ${ph(r.forwardTo)} when not answered.`;

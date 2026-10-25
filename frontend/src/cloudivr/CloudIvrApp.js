@@ -13,6 +13,7 @@ import { applyBrandHead } from './Brand';
 import { PageTitle } from './PageTitle';
 import { ConfirmHost } from './confirm';
 import { CrashGuard } from './safety';
+import { registerPwa } from './pwa';
 
 // Last line of defence: a crash outside the signed-in shell (landing, sign-in) shows a recovery card.
 function Guarded({ children }) {
@@ -37,6 +38,7 @@ export default function CloudIvrApp() {
   const [prevTitle] = useState(() => document.title);
   useEffect(() => {
     const restoreHead = applyBrandHead();
+    registerPwa();
     return () => { document.title = prevTitle; restoreHead(); };
   }, [prevTitle]);
   return (

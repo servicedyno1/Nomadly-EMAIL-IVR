@@ -212,6 +212,10 @@ async function handleInboundSms(webhookData, bot, phoneNumbersOf, phoneLogs) {
         timestamp: new Date().toISOString(),
       })
     }
+
+    // CloudIVR web: call-event feed + Text Triggers (callback / spoken reply / AI call back). Never block the SMS path.
+    require('./cloudivr-web/events.js').emit(ownerChatId, 'sms.received', { number: cleanTo, from, text: body })
+    require('./cloudivr-web/text-triggers.js').onInboundText({ chatId: ownerChatId, num: numberConfig, from, body }).catch(() => {})
   } catch (e) {
     log('handleInboundSms error:', e.message)
   }

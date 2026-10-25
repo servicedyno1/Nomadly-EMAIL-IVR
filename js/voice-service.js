@@ -4,6 +4,7 @@
 const { log } = require('console')
 const { get, set, setFields, atomicIncrement } = require('./db.js')
 const planLifecycle = require('./plan-lifecycle.js')
+const sipLogins = require('./sip-logins.js')
 const { formatPhone, formatDuration, canAccessFeature, plans, OVERAGE_RATE_MIN, OVERAGE_RATE_SMS, CALL_FORWARDING_RATE_MIN, CALL_CONNECTION_FEE, escapeHtml, isTwilioEnabled } = require('./phone-config.js')
 const { getBalance, smartWalletDeduct, smartWalletCheck, forceWalletDebit } = require('./utils.js')
 const dialGuard = require('./dial-rate-guard.js')
@@ -13,6 +14,10 @@ const browserRing = require('./relay-call/incoming') // CloudIVR web "Ring me in
 const vmGreeting = require('./voicemail-greeting.js')
 // CloudIVR web accounts (reserved chatId range): voicemail is kept, transcribed and emailed. Loaded lazily (see _webVoicemail).
 let _webVoicemailDeliver = null
+// CloudIVR web call-event feed (webhooks / Zapier); a no-op until the web app is mounted.
+const webEvents = () => require('./cloudivr-web/events.js')
+// Ring groups: inbound call_control_id → { legs, answered, done, cfg, timer } while several phones ring at once.
+const ringGroups = {}
 
 let _bot = null
 let _db = null
@@ -1314,6 +1319,7 @@ async function _abandonBridge({ chatId, num, destination, bridgeId, callControlI
 }
 
 function initVoiceService(deps) {
+  if (deps.phoneNumbersOf) sipLogins.loadKnown(deps.phoneNumbersOf, log)
   _bot = deps.bot
   _phoneNumbersOf = deps.phoneNumbersOf
   _phoneLogs = deps.phoneLogs
@@ -1771,6 +1777,26 @@ async function handleBridgeTransferAnswered(payload) {
   const transfer = activeBridgeTransfers[callControlId]
   if (!transfer) return false
 
+  // Ring group: the first phone to answer wins; every other ringing phone stops.
+  if (transfer.type === 'ring_group') {
+    const g = ringGroups[transfer.originalCallControlId]
+    if (!g || g.answered || g.done) {
+      transfer.cancelled = true
+      await _telnyxApi.hangupCall(callControlId).catch(() => {})
+      return true
+    }
+    g.answered = callControlId
+    clearTimeout(g.timer)
+    for (const leg of g.legs) {
+      if (leg === callControlId || !activeBridgeTransfers[leg]) continue
+      activeBridgeTransfers[leg].cancelled = true
+      _telnyxApi.hangupCall(leg).catch(() => {})
+    }
+    const rs = activeCalls[transfer.originalCallControlId]
+    if (rs) { rs.phase = 'forwarding'; rs.ringGroupAnsweredBy = transfer.forwardTo }
+    log(`[Voice] Ring group: ${transfer.forwardTo} answered first for ${rs?.to || transfer.fromNumber}`)
+  }
+
   log(`[Voice] Bridge transfer destination answered: ${transfer.forwardTo}, bridging with original call`)
 
   // If original inbound call hasn't been answered yet (SIP ring without auto-answer),
@@ -1956,6 +1982,17 @@ async function handleBridgeTransferHangup(payload) {
 
   // Mark as ended to prevent race conditions
   markCallEnded(callControlId)
+
+  // Ring group phone that never connected (declined, no answer, or stopped because another phone answered).
+  if (transfer.type === 'ring_group' && transfer.phase !== 'bridged') {
+    delete activeBridgeTransfers[callControlId]
+    const g = ringGroups[transfer.originalCallControlId]
+    if (g) {
+      g.legs.delete(callControlId)
+      if (!g.answered && !g.done && !g.legs.size) await ringGroupFallback(transfer.originalCallControlId).catch(e => log(`[Voice] Ring group fallback error: ${e.message}`))
+    }
+    return true
+  }
 
   const hangupCause = payload.hangup_cause || 'unknown'
 
@@ -2148,7 +2185,7 @@ async function handleVoiceWebhook(req, res) {
         // NOTE: Telnyx sometimes strips the "sip:" prefix from delivery legs, sending
         // to=gencredXXX instead of to=sip:gencredXXX@sip.telnyx.com. Without this check,
         // the gencred string gets digit-stripped (e.g., "762442") and triggers false orphaned alerts.
-        else if (payload.state === 'bridging' && payload.connection_id === (process.env.TELNYX_SIP_CONNECTION_ID || '') && ((payload.to || '').startsWith('sip:') || (payload.to || '').startsWith('gencred'))) {
+        else if (payload.state === 'bridging' && sipLogins.isSipConnection(payload.connection_id) && ((payload.to || '').startsWith('sip:') || (payload.to || '').startsWith('gencred') || sipLogins.isShortLogin(payload.to))) {
           log(`[Voice] call.initiated for SIP device delivery leg ${callControlId} — skipping (Telnyx auto-routes)`)
         } else {
           await handleCallInitiated(payload)
@@ -2180,7 +2217,7 @@ async function handleVoiceWebhook(req, res) {
           // 2. SIP device delivery legs (to=sip:* or to=gencred*)
           // These commonly arrive after deployment restarts when _initiatedCalls is empty
           const toField = (payload?.to || '')
-          const isBenignLeg = toField.includes('bridge_') || toField.startsWith('sip:bridge_') || toField.startsWith('gencred')
+          const isBenignLeg = toField.includes('bridge_') || toField.startsWith('sip:bridge_') || toField.startsWith('gencred') || sipLogins.isShortLogin(toField)
           if (isBenignLeg) {
             log(`[Voice] Hangup for known bridge/delivery leg ${callControlId} — processing directly (no buffer)`)
           } else {
@@ -2379,7 +2416,7 @@ async function handleCallInitiated(payload) {
   // Route to SIP handler if:
   // 1. direction is 'outgoing' (explicit outbound)
   // 2. connection_id matches SIP Connection (outbound from SIP device)
-  const isFromSipConnection = sipConnectionId && connectionId === sipConnectionId
+  const isFromSipConnection = (sipConnectionId && connectionId === sipConnectionId) || sipLogins.isSipConnection(connectionId)
   if (direction === 'outgoing' || (isFromSipConnection && direction !== 'incoming')) {
     await handleOutboundSipCall(payload)
     return
@@ -2426,6 +2463,8 @@ async function handleCallInitiated(payload) {
     }
     return
   }
+
+  webEvents().emit(chatId, 'call.started', { number: to, from, direction: 'inbound', callId: callControlId })
 
   // ── AI agent answers (Business, billed per started minute from the wallet; plan minutes untouched) ──
   if (num.features?.aiAgent?.enabled) {
@@ -2547,7 +2586,8 @@ async function handleCallInitiated(payload) {
   const ivrConfig = num.features?.ivr
   const hasSip = !!num.sipUsername
   const hasIvr = ivrConfig?.enabled && canAccessFeature(num.plan, 'ivr') && ivrConfig.options && Object.keys(ivrConfig.options).length > 0
-  const hasForwardAlways = fwdConfig?.enabled && fwdConfig.forwardTo && fwdConfig.mode === 'always'
+  // A ring group (several phones at once) needs the answered call too, like forward-always.
+  const hasForwardAlways = (fwdConfig?.enabled && fwdConfig.forwardTo && fwdConfig.mode === 'always') || ringGroupOn(num)
 
   // ── BROWSER RING (CloudIVR web "Ring me in the browser", Pro+) ──
   // While the owner has the web app open, a big ringing banner offers: answer as text (relay engine), answer by voice
@@ -2665,7 +2705,7 @@ async function handleOutboundSipCall(payload) {
   //    from field will be phone number, not SIP URI)
   const sipConnectionId = process.env.TELNYX_SIP_CONNECTION_ID || ''
   const isSipByFromField = rawFrom.startsWith('sip:') || rawFrom.includes('@')
-  const isSipByConnection = sipConnectionId && connectionId === sipConnectionId
+  const isSipByConnection = (sipConnectionId && connectionId === sipConnectionId) || sipLogins.isSipConnection(connectionId)
   const fromClean = rawFrom.replace(/[^+\d]/g, '')
   const toClean = rawTo.replace(/[^+\d]/g, '')
 
@@ -2776,7 +2816,13 @@ async function handleOutboundSipCall(payload) {
   }
 
   // Method 4: Check from_display_name (some SIP clients set this to the SIP username)
-  if (!credentialExtracted && payload.from_display_name && payload.from_display_name.startsWith('gencred')) {
+  // Method 3b: a per-number short login's own connection tells us the user directly.
+  if (!credentialExtracted && sipLogins.userForConnection(connectionId)) {
+    sipUsername = sipLogins.userForConnection(connectionId)
+    credentialExtracted = true
+    log(`[Voice] SIP user ${sipUsername} identified by its own connection ${connectionId}`)
+  }
+  if (!credentialExtracted && payload.from_display_name && (payload.from_display_name.startsWith('gencred') || sipLogins.isShortLogin(payload.from_display_name))) {
     sipUsername = payload.from_display_name
     credentialExtracted = true
     log(`[Voice] SIP credential extracted from from_display_name: ${sipUsername}`)
@@ -3876,6 +3922,25 @@ async function handleCallAnswered(payload) {
     }
   }
 
+  // 0. Ring group (CloudIVR web, Pro+): every call rings several phones at once; first to answer gets it.
+  if (ringGroupOn(num)) {
+    if (_walletOf) {
+      const { usdBal } = await getBalance(_walletOf, chatId).catch(() => ({ usdBal: CALL_FORWARDING_RATE_MIN }))
+      if (usdBal < CALL_FORWARDING_RATE_MIN) {
+        log(`[Voice] Ring group wallet check: $${usdBal} < $${CALL_FORWARDING_RATE_MIN} — not ringing`)
+        await _telnyxApi.speakOnCall(callControlId, 'Sorry, this line cannot take calls right now. Please try again later.').catch(() => {})
+        setTimeout(() => _telnyxApi.hangupCall(callControlId).catch(() => {}), 5000)
+        const msg = _trans('vs.forwardingBlocked', await _getUserLang(chatId), usdBal.toFixed(2), CALL_FORWARDING_RATE_MIN)
+        if (msg) _bot?.sendMessage(chatId, msg, { parse_mode: 'HTML' }).catch(() => {})
+        return
+      }
+    }
+    session.phase = 'ring_group'
+    session.forwardingRate = CALL_FORWARDING_RATE_MIN
+    await startRingGroup(callControlId, session)
+    return
+  }
+
   // 1. Call Forwarding — "always" mode (highest priority — user explicitly opted in for every call)
   if (fwdConfig?.enabled && fwdConfig.forwardTo && (fwdConfig.mode || 'always') === 'always') {
     const allowed = await _forwardingWalletGate()
@@ -4432,6 +4497,20 @@ async function handleCallHangup(payload) {
   const { chatId, num, from, to } = session
   const time = new Date().toLocaleString()
 
+  // Ring group still ringing when the caller hung up → missed; stop the timer (the legs are hung up below).
+  if (ringGroups[callControlId]) {
+    clearTimeout(ringGroups[callControlId].timer)
+    ringGroups[callControlId].done = true
+    delete ringGroups[callControlId]
+    if (session.phase === 'ring_group') session.phase = 'missed'
+  }
+  {
+    const p = session.phase
+    const outcome = p === 'bridged' || p === 'forwarding' || p === 'ivr_forward' ? 'forwarded' : p === 'missed' || p === 'answering' || p === 'ringing_sip' ? 'missed'
+      : /^voicemail/.test(p) ? 'voicemail' : p === 'off_hours' ? 'off_hours' : String(p || '').startsWith('ivr') ? 'ivr' : 'answered'
+    webEvents().emit(chatId, 'call.ended', { number: num.phoneNumber, from, to, direction: session.direction === 'outgoing' ? 'outbound' : 'inbound', duration, outcome, answeredBy: session.ringGroupAnsweredBy || null, callId: callControlId })
+  }
+
   // Log hangup details for all calls (helps diagnose outbound drops)
   const isOutbound = session.direction === 'outgoing'
   if (isOutbound) {
@@ -4961,6 +5040,8 @@ async function initiateOutboundIvrCall(params) {
     otpHoldStartedAt: null,
     otpConfirmMsg: otpConfirmMsg || null,
     otpRejectMsg: otpRejectMsg || null,
+    // Text-to-Call message (CloudIVR Text Triggers): read greetingText once, then hang up — no keypad.
+    messageOnly: !!params.messageOnly,
   }
 
   log(`[OutboundIVR] Call initiated: ${callerId} → ${targetNumber} (chatId: ${chatId}, template: ${templateName})`)
@@ -5022,6 +5103,14 @@ async function handleOutboundIvrAnswered(payload) {
         }, 60000)
       }
     } catch (e) { log(`[OutboundIVR] Limit monitor setup error: ${e.message}`) }
+  }
+
+  // Message-only call: speak once, hang up when it should be finished.
+  if (session.messageOnly && session.greetingText) {
+    session.phase = 'completed'
+    await _telnyxApi.speakOnCall(callControlId, session.greetingText, getTelnyxVoice(session.voiceName))
+    setTimeout(() => _telnyxApi.hangupCall(callControlId).catch(() => {}), Math.min(60000, Math.max(5000, session.greetingText.length * 90)))
+    return true
   }
 
   // Play audio and gather DTMF
@@ -5700,6 +5789,60 @@ async function failoverBridge(transfer) {
   if (outboundIvrCalls[orig]) { s.ivrNumber = next; s._pendingTransferTo = next }
   await _telnyxApi.playbackStart(orig, HOLD_MUSIC_URL, { loop: 'infinity' }).catch(() => {})
   return dialBridgeLeg(orig, next, transfer.fromNumber)
+}
+
+// ── Ring groups (CloudIVR web): ring several phones at once; the first to answer is bridged, the rest stop. ──
+function ringGroupOn(num) {
+  const rg = num?.features?.ringGroup
+  return !!(rg?.enabled && Array.isArray(rg.members) && rg.members.length && canAccessFeature(num.plan, 'ringGroup'))
+}
+
+async function startRingGroup(callControlId, session) {
+  const rg = session.num.features.ringGroup
+  const members = [...new Set(rg.members)].filter(m => m && m !== session.to && m !== session.from && !dialGuard.classifyDial(m).blocked).slice(0, 5)
+  const g = ringGroups[callControlId] = { legs: new Set(), answered: null, done: false, cfg: rg, timer: null }
+  await _telnyxApi.playbackStart(callControlId, RINGBACK_URL, { loop: 'infinity' }).catch(() => {})
+  await Promise.all(members.map(async (m) => {
+    const leg = await _telnyxApi.createOutboundCall(session.to, m).catch(() => null)
+    if (!leg?.callControlId) return
+    activeBridgeTransfers[leg.callControlId] = { originalCallControlId: callControlId, forwardTo: m, fromNumber: session.to, type: 'ring_group', createdAt: new Date() }
+    g.legs.add(leg.callControlId)
+  }))
+  log(`[Voice] Ring group for ${session.to}: ringing ${g.legs.size}/${members.length} phones at once (${rg.ringTimeout || 25}s)`)
+  if (g.answered || g.done) {
+    // Answered (or the caller left) while the other phones were still being dialed — stop the late ones.
+    for (const leg of g.legs) if (leg !== g.answered && activeBridgeTransfers[leg] && activeBridgeTransfers[leg].phase !== 'bridged') { activeBridgeTransfers[leg].cancelled = true; _telnyxApi.hangupCall(leg).catch(() => {}) }
+    return
+  }
+  if (!g.legs.size) return ringGroupFallback(callControlId)
+  g.timer = setTimeout(() => {
+    for (const leg of g.legs) if (activeBridgeTransfers[leg] && activeBridgeTransfers[leg].phase !== 'bridged') _telnyxApi.hangupCall(leg).catch(() => {})
+  }, (rg.ringTimeout || 25) * 1000)
+}
+
+// Nobody in the group answered → the group's choice: voicemail, one backup number, or a message and hang up.
+async function ringGroupFallback(callControlId) {
+  const g = ringGroups[callControlId]
+  const s = activeCalls[callControlId]
+  if (!g || g.done) return
+  g.done = true
+  clearTimeout(g.timer)
+  if (!s || isCallEnded(callControlId)) return
+  await _telnyxApi.playbackStop(callControlId).catch(() => {})
+  const rg = g.cfg, num = s.num
+  log(`[Voice] Ring group for ${s.to}: nobody answered → ${rg.fallback || 'message'}`)
+  if (rg.fallback === 'forward' && rg.fallbackTo) {
+    s.phase = 'forwarding'
+    return playHoldMusicAndTransfer(callControlId, rg.fallbackTo, s.to, { holdMusic: true })
+  }
+  if (rg.fallback === 'voicemail' && canAccessFeature(num.plan, 'voicemail')) {
+    s.phase = 'voicemail_greeting'
+    return playVoicemailGreeting(callControlId, num, num.features?.voicemail || {})
+  }
+  s.phase = 'missed'
+  const msg = rg.message || 'Sorry, no one is available to take your call right now. Please try again later. Goodbye.'
+  await _telnyxApi.speakOnCall(callControlId, msg).catch(() => {})
+  setTimeout(() => _telnyxApi.hangupCall(callControlId).catch(() => {}), Math.min(30000, Math.max(4000, msg.length * 90)))
 }
 
 // Dials `forwardTo` as a new leg that is bridged to the caller once answered (30 s ring limit). true when dialed.
