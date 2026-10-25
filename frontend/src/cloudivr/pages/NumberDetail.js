@@ -57,9 +57,9 @@ export default function NumberDetail() {
       <TabStrip active={tab} testid="number-tabstrip">
         {TABS.map(([id, name, , , g], i) => (
           <React.Fragment key={id}>
-          {i > 0 && g !== TABS[i - 1][4] && <span aria-hidden="true" className="w-px h-5 self-center bg-[#2a2a2a] mx-2 shrink-0" data-testid={`number-tab-divider-${g}`} />}
+          {i > 0 && g !== TABS[i - 1][4] && <span aria-hidden="true" className="w-px h-5 self-center bg-[#2a2a2a] mx-1 shrink-0" data-testid={`number-tab-divider-${g}`} />}
           <button role="tab" aria-selected={tab === id} onClick={async () => { if (id !== tab && await confirmLeave()) setParams({ tab: id }, { replace: true }); }} data-testid={`number-tab-${id}`}
-            className={`px-3 py-3 text-sm font-medium border-b-2 -mb-px transition-colors shrink-0 ${tab === id ? 'border-[#818cf8] text-[#818cf8]' : 'border-transparent text-[#a1a1aa] hover:text-white'}`}>{name}</button>
+            className={`px-2.5 py-3 text-sm font-medium border-b-2 -mb-px transition-colors shrink-0 ${tab === id ? 'border-[#818cf8] text-[#818cf8]' : 'border-transparent text-[#a1a1aa] hover:text-white'}`}>{name}</button>
           </React.Fragment>
         ))}
       </TabStrip>

@@ -1,5 +1,17 @@
 # PRD — Nomadly Cloud IVR + Telegram Bot
 
+## 2026-10-25 (late) — CloudIVR landing redesign + app UI fixes (Phase 1) — TESTED (iteration_140, frontend 100%), NOT deployed (owner reviews preview first)
+- Landing is now light (white/slate, indigo #6366f1/#4f46e5 accent, green parrot + green "IVR" wordmark kept). AI mock-up images (had
+  garbled text) replaced by coded product mocks in `pages/landing/Mockups.js` (AppMock in hero, IvrMock / CampaignMock / AiMock in features).
+  All sections kept; duplicate country marquee removed. Final CTA = rounded dark panel. Email gate modal light.
+- Signed-in app stays DARK (owner choice). Fixes: white text on indigo badges (was dark-green text), success statuses green (`civr-pill-ok`),
+  one icon colour on dashboard stats, dashboard "Your numbers" + "Quick actions" side by side, sidebar "Support" group, Buy step labels
+  1/2/3, number tabs grouped with dividers (all 14 fit at desktop), mobile unread badge indigo.
+- Preview dev flags appended to backend/.env: CLOUDIVR_WEB_ON, WEB_CLOUDIVR_DRY_RUN, WEB_TRYCALL_LIVE=false, TWILIO_ENABLED=false.
+- Next: Phase 2 (remaining app screens: campaigns, inbox, wallet, audio, logs + empty/loading/error states), Phase 3 (accessibility,
+  tokens). Owner must "Save to GitHub" before any deploy.
+
+
 ## 2026-06 — Paid plans / subscription & expiry audit — REPORTED (no code changed), awaiting owner pick
 - 17 findings (5 high, 8 medium, 4 low). Top: VPS auto-renew works only once (_autoRenewAttempted never reset), CloudIVR SMS double-counted, phone scheduler overwrites whole val, wrong upgrade-credit date field, membership re-buy wipes remaining days.
 - Full report: **memory/PLAN_EXPIRY_AUDIT_2026-06.md**

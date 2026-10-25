@@ -1,0 +1,30 @@
+{
+  "summary": "Frontend-only testing of the light landing redesign and the dark signed-in screens (Playwright, 1920 desktop + 390 mobile). All requested checks passed. Landing: every section is light (white/slate-50); the only large dark areas are the coded app mocks and the rounded final CTA panel (slate-900). The nav (white/80 with blur) has logo, 5 links, language switcher, Sign in and Get your number. Hero title is correct; buy CTA goes to /cloudivr/signup; the test CTA scrolls to #try. hero-app-mock and hero-live-ivr-card are visible on desktop, and the card is hidden at 390. Stats read 17 / 60 s / $50 / 8. The coverage grid has 17 countries. The marquee is gone. Free test call: tabs switch; an invalid number shows civr-try-error; +14155550100 opens the light email gate (white card) → preview code → verify → civr-callme-live with timer, keypad and the 'Preview · simulated' tag. Feature cards 0-7 are present, with the IVR/campaign/AI mocks. how-step-1..3 are present. Pricing is $50/$75/$120 with the Pro recommended badge and ring, and choose links go to /signup?plan=<id>. FAQ items expand. Final CTA and footer links work. At 390 there is no horizontal overflow (scrollWidth=390) and the hero CTAs stack. Signed-in app (Alice) stays dark (rgb(10,10,10)). All 5 stat icons use the same indigo #818cf8. Your numbers is on the left and Quick actions (3 links) on the right. The active pill uses civr-pill-ok (green #34d399). The recent activity card is below. The sidebar has Numbers/Calling/Account plus the Support group with Suggest a feature (→ /app/settings#suggest). The topbar unread badge is indigo #6366f1 with white text. Buy: step labels 1/2/3 show; a dry-run wallet purchase (Starter $50) worked and redirected to the number detail page; I then deleted the test number. Number detail: tab order and dividers 1/2/3 are correct, and all 14 tabs open their panels. Help centre renders the FAQ articles (it uses faqItems().slice(2) on purpose). No React page errors; the only console errors are expected 401s from the signed-out session check on the landing page.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Landing features", "issues": ["Bulk IVR campaigns card (feature-card-1, md:col-span-5) is much shorter than the IVR card next to it, leaving a large empty area under the campaign mock. Consider aligning the mock to the bottom or adding content."]},
+      {"screen": "Landing hero mock (390px)", "issues": ["The wallet stat in the coded app mock is cut off as '$128…' at mobile width (cosmetic)."]},
+      {"screen": "Number detail tab strip (1920px)", "issues": ["At desktop width the 14 tabs plus dividers overflow the max-width container: 'Logs' is faded and 'Billing' is hidden until you scroll the strip sideways. Consider wrapping or tightening the padding so all tabs fit on desktop."]},
+      {"screen": "Mobile nav", "issues": ["mobile-inbox-unread badge is still red (#ef4444) while the topbar badge is now indigo. Only matters if they should match."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Optional: make all number-detail tabs fit at 1920px without sideways scrolling (Billing is hidden right now)",
+    "Optional: balance the height of the Bulk campaigns feature card",
+    "Optional: decide whether the mobile inbox unread badge should be indigo like the topbar badge"
+  ],
+  "critical_code_review_comments": [
+    "Landing Nav sets a `scrolled` state, but the header class does not use it (it is only used for the sticky CTA). That is fine, but the template literal in className is redundant.",
+    "Wordmark accent is hardcoded as #059669 in two places (Nav and Footer); consider a shared constant."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (skipped)", "frontend": "100%"},
+  "seed_data_creation": "Bought one dry-run Starter number on Alice and then deleted it. This took $50 from Alice's wallet ($380 → $330). Created one free-trial email of the form qa.<rand>@example.com.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Landing is light; the signed-in app is dark. Use wait_until='domcontentloaded'. The coverage-grid children are wrapped in a display:contents <span> added by the visual-edit tooling, so `coverage-grid > div` matches 0. Use `[data-testid=coverage-grid] [data-testid^=coverage-]` instead (17 items). The login submit button is found with get_by_role('button', name='Sign in'). Alice's wallet is now $330."
+}

@@ -16,7 +16,7 @@ const MAIN = ['nav-dashboard', 'nav-numbers', 'nav-inbox', 'nav-wallet'].map(id 
 const MORE = NAV_ITEMS.filter(([, , , id]) => !SHORT[id]);
 const tab = (active) => `relative min-w-0 flex flex-col items-center justify-center gap-1 h-16 text-xs font-medium transition-colors ${active ? 'text-[#818cf8]' : 'text-[#a1a1aa]'}`;
 
-const Badge = ({ n }) => (n > 0 ? <span className="absolute top-2 left-1/2 ml-1.5 min-w-[18px] h-[18px] px-1 rounded-full bg-[#ef4444] text-white text-[11px] font-bold flex items-center justify-center" data-testid="mobile-inbox-unread">{n > 99 ? '99+' : n}</span> : null);
+const Badge = ({ n }) => (n > 0 ? <span className="absolute top-2 left-1/2 ml-1.5 min-w-[18px] h-[18px] px-1 rounded-full bg-[#6366f1] text-white text-[11px] font-bold flex items-center justify-center" data-testid="mobile-inbox-unread">{n > 99 ? '99+' : n}</span> : null);
 
 // Language, private mode and sign-out (kept out of the slim phone top bar).
 function MoreSettings() {

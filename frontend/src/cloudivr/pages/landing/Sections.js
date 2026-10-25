@@ -42,7 +42,7 @@ function FeatureCard({ icon: Icon, title, text, k, plans, mock, className = '', 
       <div className="flex items-start justify-between gap-4"><span className="w-10 h-10 rounded-xl bg-indigo-50 text-[#4f46e5] grid place-items-center"><Icon className="w-5 h-5" /></span><Badge plans={plans} k={k} /></div>
       <div className="text-xl font-semibold text-slate-900 mt-6">{title}</div>
       <p className="text-sm text-slate-600 mt-2 max-w-md">{text}</p>
-      {mock && <div className="mt-8 -mb-2">{mock}</div>}
+      {mock && <div className="mt-auto pt-8 -mb-2">{mock}</div>}
     </div>
   );
 }

@@ -87,7 +87,7 @@ export function AppMock() {
             </div>
           </div>
           <div className="grid grid-cols-4 gap-2 mt-4">
-            {STATS.map(([l, v]) => <Box key={l} className="p-2.5 min-w-0"><div className="text-[9px] uppercase tracking-[.1em] text-[#a1a1aa] truncate">{l}</div><div className="font-mono text-sm sm:text-base mt-1 truncate">{v}</div></Box>)}
+            {STATS.map(([l, v]) => <Box key={l} className="p-2 sm:p-2.5 min-w-0"><div className="text-[9px] uppercase tracking-[.1em] text-[#a1a1aa] truncate">{l}</div><div className="font-mono text-xs sm:text-base mt-1 truncate">{v}</div></Box>)}
           </div>
           <div className="grid md:grid-cols-5 gap-2 mt-2">
             <div className="md:col-span-3"><MockNumbers /></div>
@@ -128,6 +128,8 @@ export function IvrMock() {
   );
 }
 
+const RESULTS = [['+1 415 555 0143', 'Answered · pressed 1', true], ['+1 212 555 0178', 'Answered · listened', true], ['+1 305 555 0121', 'No answer · retry 10:30', false]];
+
 export function CampaignMock() {
   const stats = [['Called', '1,240'], ['Answered', '812'], ['Pressed 1', '214']];
   return (
@@ -139,6 +141,9 @@ export function CampaignMock() {
         <div className="mt-3 h-1.5 rounded-full bg-[#262626] overflow-hidden"><div className="h-full w-[68%] rounded-full bg-[#6366f1]" /></div>
         <div className="flex justify-between text-[10px] text-[#a1a1aa] mt-1.5 font-mono"><span>68% done</span><span>Pause · Cancel</span></div>
         <div className="grid grid-cols-3 gap-2 mt-3">{stats.map(([l, v]) => <Box key={l} className="p-2 min-w-0"><div className="text-[9px] uppercase tracking-[.1em] text-[#a1a1aa] truncate">{l}</div><div className="font-mono text-sm mt-0.5">{v}</div></Box>)}</div>
+        <div className="mt-3 divide-y divide-white/[.06]">
+          {RESULTS.map(([n, s, ok]) => <div key={n} className="flex items-center gap-2 py-2"><span className={`w-1.5 h-1.5 rounded-full shrink-0 ${ok ? 'bg-[#34d399]' : 'bg-[#71717a]'}`} /><span className="font-mono text-[11px] truncate">{n}</span><span className="ml-auto text-[10px] text-[#a1a1aa] truncate">{s}</span></div>)}
+        </div>
       </div>
     </MockFrame>
   );
