@@ -10,6 +10,7 @@ const fs = require('fs')
 const path = require('path')
 const BROADCAST_CONFIG = require('./broadcast-config.js')
 const promoCopy = require('./promo-copy')
+const { isWebChatId } = require('./cloudivr-web/notify')
 const { getPromoPrices } = require('./promo-prices.js')
 
 // OpenAI — optional (graceful fallback if missing)
@@ -350,12 +351,13 @@ function initAutoPromo(bot, db, nameOf, stateCol, lifecycleDiet = null) {
     }
   }
 
+  // Bot marketing is for Telegram users only — CloudIVR web accounts (reserved id range) never get promos.
   async function getAllChatIds() {
     try {
       const users = await nameOf.find({}).project({ _id: 1 }).toArray()
       return users
         .map(u => u._id)
-        .filter(id => id != null && (typeof id === 'string' || typeof id === 'number'))
+        .filter(id => id != null && (typeof id === 'string' || typeof id === 'number') && !isWebChatId(id))
         .map(id => String(id))
     } catch (error) {
       log(`[AutoPromo] Error fetching chat IDs: ${error.message}`)

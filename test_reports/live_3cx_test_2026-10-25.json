@@ -102,6 +102,89 @@
    ],
    "pass": true,
    "note": "18:43Z, signatures ENFORCED: real SMS accepted + processed; rule skipped because test wallet $0.91 < $1 minimum (guard works)"
+  },
+  "ai_summary_and_call_event_feed": {
+   "feed_bin": "4b3d8ff7-a9f7-459e-b550-6031e6953a08",
+   "wallet_before": 0.91,
+   "caller": "v3:lFWqsO_mM3Ygvz55QFdSXhYPCIlkR9Y8p4tbdeaJAL_1P_XO0s7g1w",
+   "answered_after_s": 4.5,
+   "call_secs": 43.9,
+   "voicemail_logged": true,
+   "transcript": "Person at 1-937-980-0767 is unavailable. Please leave a message after the tone. Hi, this is John Carter from Acme Plumbing. I am calling about my order number 4521. The delivery is two days late and I am not happy about it. Please call me back tomorrow at 3pm on 555-0199. Thanks. For more informatio",
+   "ai_summary": {
+    "status": "done",
+    "summary": "John Carter from Acme Plumbing called about order number 4521, which is two days late. He requests a callback tomorrow at 3pm on 555-0199.",
+    "sentiment": "negative",
+    "mood": "frustrated",
+    "actionItems": [
+     "Call John Carter back tomorrow at 3pm on 555-0199",
+     "Check the status of order number 4521",
+     "Apologize for the delay and provide an update"
+    ],
+    "charge": 0.1,
+    "detail": null
+   },
+   "summary_after_s": 11.1,
+   "wallet_after": 0.81,
+   "events_received": [
+    "call.started",
+    "call.ended",
+    "voicemail.left",
+    "ai_summary.ready"
+   ],
+   "signatures_valid": [
+    true,
+    true,
+    true,
+    true
+   ],
+   "pass": true
+  },
+  "text_trigger_ai_agent_callback": {
+   "plan": {
+    "plan": "business",
+    "matched": 1,
+    "modified": 1
+   },
+   "credit": {
+    "credited": 5
+   },
+   "agent": "b78ca394-57de-4328-b777-e39adedee8fb",
+   "wallet_before": 10.61,
+   "sms": "4031a174-783f-43da-a5d6-015ccc3bf106",
+   "agent_called_texter": true,
+   "call_from": "+19379800767",
+   "ai_call": {
+    "direction": "outbound",
+    "status": null,
+    "outcome": "no_conversation",
+    "duration": 35,
+    "cost": null,
+    "charged": null,
+    "summary": "The caller inquired about the opening time on Monday, and the agent confirmed it is 9 am. The caller was satisfied and ended the call.",
+    "other": "+12347208193",
+    "number": "+19379800767"
+   },
+   "transcript": "[{\"role\": \"agent\", \"text\": \"Hi, this is Live test agent, an AI assistant calling for CloudIVR Test Shop. Hi, this is the CloudIVR Test Shop assistant calling you back about your text.\", \"at\": \"2026-10-25T19:10:04.270Z\"}, {\"role\": \"caller\", \"text\": \"Hello?\", \"at\": \"2026-10-25T19:10:08.915Z\"}, {\"role\": \"agent\", \"text\": \"Hi, I\\u2019m calling back about your question. Our opening hours are Monday to Friday, 9 am to 5 pm. Does that help?\", \"at\": \"2026-10-25T19:10:09.407Z\"}, {\"role\": \"caller\", \"text\": \"Hi, yes, I texted you. What time do you open on Monday?\", \"at\": \"2026-10-25T19:10:23.224Z\"}, {\"role\": \"agent\", \"text\": \"We open at 9 am on Monday. Would you like to know anything else?\", \"at\": \"2026-10-25T19:10:23.397Z\"}, {\"role\": \"agent\", \"text\": \"You're welcome! If you have any other questions, feel free to ask.\", \"at\": \"2026-10-25T19:10:37.257Z\"}, {\"role\": \"caller\", \"text\": \"Great, thank you.",
+   "runs_top": [
+    {
+     "id": "e63b88f4-e3d5-4131-810e-cc5027f7aef5",
+     "action": "ai",
+     "from": "+12347208193",
+     "body": "Hi, what are your opening hours?",
+     "status": "started",
+     "detail": "Live test agent is calling +12347208193.",
+     "dryRun": false,
+     "at": "2026-10-25T19:10:01.258Z"
+    }
+   ],
+   "wallet_after": 10.41,
+   "plan_back": {
+    "plan": "pro",
+    "matched": 1,
+    "modified": 1
+   },
+   "pass": true
   }
  },
  "signature_enforcement": {
@@ -116,11 +199,10 @@
   "real_traffic_refused": 0
  },
  "cleanup": {
-  "at": "2026-10-25T18:44:56Z",
+  "at": "2026-10-25T19:12:39Z",
   "released": [
-   "+12347208193",
-   "+17196219822"
+   "+12347208193"
   ],
-  "app": "3078677843605980334"
+  "app": "3078700393316746944"
  }
 }

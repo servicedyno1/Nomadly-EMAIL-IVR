@@ -128,6 +128,8 @@ def setup():
     if state.get('A'):
         log('already set up', state)
         return
+    count = int(sys.argv[2]) if len(sys.argv) > 2 else 2
+    state.clear()
     state['bin'] = new_bin()
     hook = f"https://webhook.site/{state['bin']}"
     app = tx('POST', '/call_control_applications', {'application_name': 'CIVR live test (temp)', 'webhook_event_url': hook, 'webhook_api_version': '2'})
@@ -135,7 +137,7 @@ def setup():
     log('temp app', state['app'], hook)
     q = 'filter[country_code]=US&filter[phone_number_type]=local&filter[features][]=voice&filter[features][]=sms&filter[limit]=10'
     found = tx('GET', f'/available_phone_numbers?{q}')['data']
-    picks = [n['phone_number'] for n in found if n['cost_information']['monthly_cost'].startswith('1.')][:2]
+    picks = [n['phone_number'] for n in found if n['cost_information']['monthly_cost'].startswith('1.')][:count]
     order = tx('POST', '/number_orders', {'phone_numbers': [{'phone_number': p} for p in picks], 'connection_id': state['app'], 'messaging_profile_id': MSG})
     oid = order['data']['id']
     for _ in range(30):
@@ -145,7 +147,8 @@ def setup():
         time.sleep(3)
     log('order', o['status'], picks)
     assert o['status'] == 'success', o
-    state['A'], state['B'] = picks
+    state['A'] = picks[0]
+    state['B'] = picks[-1]
     state['ids'] = {}
     for p in picks:
         for _ in range(10):
@@ -333,6 +336,147 @@ def message():
     log('RESULT', json.dumps(res, default=str)[:900])
 
 
+def droplet(*args):
+    """Runs e2e_account_tool.js on the droplet (test account only) → parsed RESULT."""
+    import subprocess
+    key, host = '/root/.ssh/nomadly_droplet', f"root@{ENV['DROPLET_IP']}"
+    app_dir = '/opt/nomadly/current/app-main'
+    subprocess.run(['scp', '-q', '-i', key, f'{HERE}/e2e_account_tool.js', f'{host}:{app_dir}/e2e_tool_tmp.js'], check=True)
+    out = subprocess.run(['ssh', '-n', '-i', key, host, f'cd {app_dir} && node e2e_tool_tmp.js {" ".join(args)}; rm -f e2e_tool_tmp.js'], capture_output=True, text=True).stdout
+    line = next((l for l in out.splitlines() if l.startswith('RESULT=')), 'RESULT={}')
+    log('droplet', args, line)
+    return json.loads(line[7:])
+
+
+def bin_requests(uuid):
+    st, d, _ = http('GET', f'https://webhook.site/token/{uuid}/requests?sorting=oldest&per_page=100', None, {'Accept': 'application/json'})
+    return d.get('data', [])
+
+
+def summary_feed():
+    """2e + 2f: one real call that leaves a voicemail → AI summary + signed call-event webhooks."""
+    import hmac, hashlib
+    cookie = web_login()
+    q = urllib.parse.quote(TEST_NUM)
+    feed = new_bin()
+    res = {'feed_bin': feed}
+    st, d, _ = web('PUT', '/webhooks', {'url': f'https://webhook.site/{feed}', 'enabled': True, 'events': ['call.started', 'call.ended', 'voicemail.left', 'sms.received', 'ai_summary.ready']}, cookie)
+    log('webhooks PUT', st)
+    secret = d.get('webhook', {}).get('secret')
+    log('browser-ring off', web('PATCH', f'/numbers/{q}/browser-ring', {'enabled': False}, cookie)[0])
+    log('voicemail on', web('PATCH', f'/numbers/{q}/voicemail', {'enabled': True, 'ringTimeout': 10, 'transcribe': True, 'language': 'en'}, cookie)[0])
+    log('ai-summary on', web('PATCH', f'/numbers/{q}/ai-summary', {'enabled': True}, cookie)[0])
+    st, w0, _ = web('GET', '/wallet', None, cookie)
+    res['wallet_before'] = w0.get('balance')
+    r = tx('POST', '/calls', {'connection_id': APP, 'to': TEST_NUM, 'from': ANI, 'webhook_url': f'https://webhook.site/{feed}', 'timeout_secs': 60})
+    caller = r.get('data', {}).get('call_control_id')
+    res['caller'] = caller
+    t0 = time.time()
+    answered = None
+    while time.time() - t0 < 40 and not answered:
+        answered = next((x for x in bin_requests(feed) if '"call.answered"' in (x.get('content') or '') and caller in (x.get('content') or '')), None)
+        time.sleep(1)
+    res['answered_after_s'] = answered and round(time.time() - t0, 1)
+    log('platform answered', bool(answered), res['answered_after_s'])
+    time.sleep(16)
+    msg = ('Hi, this is John Carter from Acme Plumbing. I am calling about my order number 4521, the delivery is two days late '
+           'and I am not happy about it. Please call me back tomorrow at 3 pm on 555 0199. Thanks.')
+    tx('POST', f'/calls/{caller}/actions/speak', {'payload': msg, 'voice': 'male', 'language': 'en-US'})
+    time.sleep(22)
+    hang(caller)
+    res['call_secs'] = round(time.time() - t0, 1)
+    vm = None
+    t1 = time.time()
+    while time.time() - t1 < 150:
+        st, d, _ = web('GET', f'/numbers/{q}/logs', None, cookie)
+        vm = next((l for l in (d.get('logs') or []) if l.get('type') == 'voicemail' and l.get('from') == ANI), None)
+        if vm and (vm.get('aiSummary') or {}).get('status') in ('done', 'failed', 'no_funds', 'empty'):
+            break
+        time.sleep(5)
+    res['voicemail_logged'] = bool(vm)
+    res['transcript'] = vm and (vm.get('transcript') or '')[:300]
+    res['ai_summary'] = vm and vm.get('aiSummary')
+    res['summary_after_s'] = round(time.time() - t1, 1)
+    time.sleep(5)
+    st, w1, _ = web('GET', '/wallet', None, cookie)
+    res['wallet_after'] = w1.get('balance')
+    got, sig_ok = [], []
+    for x in bin_requests(feed):
+        body = x.get('content') or ''
+        h = {k.lower(): (v[0] if isinstance(v, list) else v) for k, v in (x.get('headers') or {}).items()}
+        if 'x-cloudivr-signature' not in h:
+            continue
+        try:
+            ev = json.loads(body).get('type') or json.loads(body).get('event')
+        except Exception:
+            ev = None
+        got.append(ev)
+        want = h['x-cloudivr-signature']
+        calc = hmac.new(secret.encode(), body.encode(), hashlib.sha256).hexdigest()
+        sig_ok.append(want.endswith(calc))
+    res['events_received'] = got
+    res['signatures_valid'] = sig_ok
+    log('restore', web('PUT', '/webhooks', {'url': f'https://webhook.site/{feed}', 'enabled': False}, cookie)[0],
+        web('PATCH', f'/numbers/{q}/ai-summary', {'enabled': False}, cookie)[0],
+        web('PATCH', f'/numbers/{q}/voicemail', {'enabled': False}, cookie)[0],
+        web('PATCH', f'/numbers/{q}/browser-ring', {'enabled': True}, cookie)[0])
+    res['pass'] = bool(vm and (vm.get('aiSummary') or {}).get('status') == 'done' and {'call.started', 'call.ended', 'voicemail.left', 'ai_summary.ready'} <= set(got) and sig_ok and all(sig_ok))
+    report['tests']['ai_summary_and_call_event_feed'] = res
+    save()
+    log('RESULT', json.dumps(res, default=str)[:1800])
+
+
+def ai_callback():
+    """2c: a real text → the AI agent calls the texter (line B) back and talks."""
+    cookie = web_login()
+    q = urllib.parse.quote(TEST_NUM)
+    res = {'plan': droplet('plan', 'business', CHAT_ID, TEST_NUM), 'credit': droplet('credit', '5', CHAT_ID)}
+    st, d, _ = web('POST', '/ai-agents', {'name': 'Live test agent', 'businessName': 'CloudIVR Test Shop', 'goal': 'Call back people who texted the shop. Ask how you can help, answer in one or two short sentences, then say goodbye.',
+                                         'greeting': 'Hi, this is the CloudIVR Test Shop assistant calling you back about your text.', 'knowledge': 'Open Monday to Friday, 9 am to 5 pm.', 'maxMinutes': 1, 'record': False}, cookie)
+    agent = d.get('agent', {}).get('id')
+    res['agent'] = agent
+    log('agent', st, agent)
+    rule = {'id': 'live-ai-01', 'enabled': True, 'action': 'ai', 'agentId': agent, 'keywordOnly': False, 'keywords': [], 'businessHoursOnly': False, 'oncePerHour': False}
+    st, d, _ = web('PUT', f'/numbers/{q}/text-triggers', {'enabled': True, 'myPhone': None, 'rules': [rule]}, cookie)
+    log('triggers', st, json.dumps(d)[:200])
+    st, w0, _ = web('GET', '/wallet', None, cookie)
+    res['wallet_before'] = w0.get('balance')
+    before = seen_ids()
+    sms = send_text('Hi, what are your opening hours?')
+    res['sms'] = sms.get('data', {}).get('id') or sms.get('errors')
+    b = wait_leg(state['B'], before, 60)
+    res['agent_called_texter'] = bool(b)
+    res['call_from'] = b and b.get('from')
+    log('B rang', bool(b), res['call_from'])
+    if b:
+        answer(b['call_control_id'])
+        tx('POST', f"/calls/{b['call_control_id']}/actions/speak", {'payload': 'Hello?', 'voice': 'female', 'language': 'en-US'})
+        time.sleep(10)
+        tx('POST', f"/calls/{b['call_control_id']}/actions/speak", {'payload': 'Hi. Yes, I texted you. What time do you open on Monday?', 'voice': 'female', 'language': 'en-US'})
+        time.sleep(16)
+        tx('POST', f"/calls/{b['call_control_id']}/actions/speak", {'payload': 'Great, thank you. Goodbye.', 'voice': 'female', 'language': 'en-US'})
+        time.sleep(8)
+        hang(b['call_control_id'])
+    time.sleep(12)
+    st, d, _ = web('GET', '/ai-calls?limit=3', None, cookie)
+    call = next((c for c in d.get('calls', []) if c.get('agentId') == agent), None)
+    if call:
+        st, full, _ = web('GET', f"/ai-calls/{call['id']}", None, cookie)
+        call = full.get('call', call)
+    res['ai_call'] = call and {k: call.get(k) for k in ('direction', 'status', 'outcome', 'duration', 'cost', 'charged', 'summary', 'other', 'number')}
+    res['transcript'] = call and json.dumps(call.get('transcript'))[:900]
+    res['runs_top'] = runs(cookie)[:1]
+    st, w1, _ = web('GET', '/wallet', None, cookie)
+    res['wallet_after'] = w1.get('balance')
+    log('restore triggers', web('PUT', f'/numbers/{q}/text-triggers', {'enabled': False, 'myPhone': None, 'rules': []}, cookie)[0],
+        'delete agent', web('DELETE', f'/ai-agents/{agent}', None, cookie)[0])
+    res['plan_back'] = droplet('plan', 'pro', CHAT_ID, TEST_NUM)
+    res['pass'] = bool(b and call and (call.get('duration') or 0) > 5 and call.get('transcript'))
+    report['tests']['text_trigger_ai_agent_callback'] = res
+    save()
+    log('RESULT', json.dumps(res, default=str)[:2000])
+
+
 def cleanup():
     cookie = web_login()
     set_ring_group(cookie, False)
@@ -348,4 +492,4 @@ def cleanup():
 
 if __name__ == '__main__':
     import urllib.parse
-    {'setup': setup, 'ring_answer': ring_answer, 'ring_noanswer': ring_noanswer, 'callback': callback, 'message': message, 'cleanup': cleanup}[sys.argv[1]]()
+    {'setup': setup, 'ring_answer': ring_answer, 'ring_noanswer': ring_noanswer, 'callback': callback, 'message': message, 'summary_feed': summary_feed, 'ai_callback': ai_callback, 'cleanup': cleanup}[sys.argv[1]]()

@@ -532,7 +532,8 @@ function isPermanentTelegramError(error) {
 
 const sendMessageToAllUsers = async (bot, message, method, nameOf, myChatId, db, opts = {}) => {
   try {
-    const chatIds = await getChatIds(nameOf)
+    // Admin broadcasts are bot announcements — CloudIVR web accounts are not Telegram users.
+    const chatIds = (await getChatIds(nameOf)).filter(id => !require('./cloudivr-web/notify').isWebChatId(id))
     
     if (chatIds.length === 0) {
       bot.sendMessage(myChatId, 'No users found to broadcast to.')

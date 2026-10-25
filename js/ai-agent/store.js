@@ -8,6 +8,7 @@ const VOICES = ['marin', 'cedar', 'alloy', 'ash', 'ballad', 'coral', 'echo', 'sa
 const LANGS = ['en', 'fr', 'es']
 const LANG_NAMES = { en: 'English', fr: 'French', es: 'Spanish' }
 const OUTCOMES = ['booked', 'interested', 'not_interested', 'callback', 'message', 'transferred', 'opted_out', 'voicemail', 'no_conversation', 'other']
+const OUTCOME_HELP = 'Meanings: booked = an appointment was made; interested = wants to buy or go ahead; not_interested = said no or declined an offer; callback = asked to be called back later; message = left a message for the owner; transferred = handed to a person; opted_out = asked not to be called again; voicemail = reached an answering machine; no_conversation = the other side never really spoke; other = anything else, e.g. a question that was simply answered.'
 const E164 = /^\+[1-9]\d{7,14}$/
 let agents, calls, dnc
 
@@ -80,7 +81,7 @@ async function summarize(transcript, agent) {
     const r = await axios.post('https://api.openai.com/v1/chat/completions', {
       model: process.env.AI_AGENT_SUMMARY_MODEL || 'gpt-4.1-mini', temperature: 0.2, response_format: { type: 'json_object' },
       messages: [
-        { role: 'system', content: `Summarise this phone call for the business owner in 1-3 short sentences, written in ${LANG_NAMES[agent?.language] || 'English'}. Include names, callback times or requests. Then classify the outcome as exactly one of: ${OUTCOMES.join(', ')}. Reply as JSON {"summary": "...", "outcome": "..."}.` },
+        { role: 'system', content: `Summarise this phone call for the business owner in 1-3 short sentences, written in ${LANG_NAMES[agent?.language] || 'English'}. Include names, callback times or requests. Then classify the outcome as exactly one of: ${OUTCOMES.join(', ')}. ${OUTCOME_HELP} Reply as JSON {"summary": "...", "outcome": "..."}.` },
         { role: 'user', content: text },
       ],
     }, { headers: { Authorization: `Bearer ${process.env.APP_OPEN_API_KEY}` }, timeout: 30000 })

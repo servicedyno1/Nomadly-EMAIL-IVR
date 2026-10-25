@@ -118,6 +118,11 @@ function isCallEnded(callControlId) {
   return _endedCalls.has(callControlId)
 }
 
+// Telnyx sends call.recording.saved AFTER call.hangup when the caller hangs up mid-recording (the usual end of a voicemail),
+// so the ended session is kept here for a few minutes to deliver the voicemail / call recording.
+const _endedRecordingSessions = new Map()
+const ENDED_RECORDING_TTL_MS = 10 * 60_000
+
 // ── Voice mapping: TTS voice → Twilio Polly voice & Telnyx voice gender ──
 // Used as the FALLBACK voice for Twilio say() when a matching-voice audio clip
 // isn't available. ElevenLabs voices are mapped by GENDER so the fallback at least
@@ -4351,8 +4356,9 @@ async function handleSpeakEnded(payload) {
 
 async function handleRecordingSaved(payload) {
   const callControlId = payload.call_control_id
-  const session = activeCalls[callControlId]
+  const session = activeCalls[callControlId] || _endedRecordingSessions.get(callControlId)
   if (!session) return
+  _endedRecordingSessions.delete(callControlId)
 
   const recordingUrl = payload.recording_urls?.mp3 || payload.public_recording_urls?.mp3 || payload.recording_urls?.wav
   const duration = payload.duration_secs || 0
@@ -4646,6 +4652,10 @@ async function handleCallHangup(payload) {
   }
 
   // Cleanup
+  if (session.phase === 'voicemail_recording' || session.isRecording) {
+    _endedRecordingSessions.set(callControlId, session)
+    setTimeout(() => _endedRecordingSessions.delete(callControlId), ENDED_RECORDING_TTL_MS).unref?.()
+  }
   delete activeCalls[callControlId]
 }
 
