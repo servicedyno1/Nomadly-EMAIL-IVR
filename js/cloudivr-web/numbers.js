@@ -49,25 +49,25 @@ function countries() {
 // What each plan gets IN THE WEB APP. The bot's plan copy lists Telegram-only extras (redial button, presets,
 // sub-numbers…), so plan cards use this list instead. `gate` is the engine feature check; null = every plan.
 const WEB_FEATURES = [
-  ['inbox', 'SMS inbox for your texts', null],
+  ['inbox', 'SMS inbox — read texts and reply', null],
   ['forwarding', 'Call forwarding to any phone', 'callForwarding'],
   ['hours', 'On/off hours for each number', null],
   ['notes', 'Call notes', null],
   ['private', 'Private mode — hide numbers on screen', null],
-  ['voicemail', 'Voicemail in 4 languages + transcripts', 'voicemail'],
+  ['voicemail', () => `Voicemail in ${vmGreeting.LANG_CODES.length} languages + transcripts`, 'voicemail'],
   ['browserPhone', 'Browser phone & SIP for softphones', 'sipCredentials'],
   ['smsEmail', 'SMS to email & webhooks', 'smsToEmail'],
   ['quickIvr', 'Quick IVR calls', 'ivrOutbound'],
   ['callMeFirst', 'Call me first — calls through your mobile', 'ivrOutbound'],
   ['bulk', 'Bulk IVR campaigns with scheduling', 'bulkCall'],
-  ['aiAgent', 'AI voice agent that answers and calls for you ($0.20/min)', 'aiAgent'],
-  ['textRelay', 'Text calls for deaf & hard-of-hearing users (+$0.03/min)', 'textRelay'],
+  ['aiAgent', () => `AI voice agent that answers and calls for you ($${Number(require('../ai-agent').RATE()).toFixed(2)}/min)`, 'aiAgent'],
+  ['textRelay', () => `Text calls for deaf & hard-of-hearing users (+$${Number(require('../relay-call').RELAY_RATE()).toFixed(2)}/min)`, 'textRelay'],
   ['ivr', 'IVR auto-attendant + key analytics', 'ivr'],
   ['recording', 'Call recording', 'callRecording'],
   ['priority', 'Priority support', (plan) => plan === 'business'],
 ]
 const webFeatures = (plan) => WEB_FEATURES.map(([key, label, gate]) => ({
-  key, label, included: gate === null ? true : typeof gate === 'function' ? gate(plan) : !!phoneConfig.canAccessFeature(plan, gate),
+  key, label: typeof label === 'function' ? label() : label, included: gate === null ? true : typeof gate === 'function' ? gate(plan) : !!phoneConfig.canAccessFeature(plan, gate),
 }))
 
 // Plan pre-selected on the buy page and badged "Recommended" (Pro unless switched off).
@@ -85,6 +85,7 @@ const catalog = () => {
     countries: countries(), typeNames: TYPE_NAMES,
     rates: { forwardingPerMin: phoneConfig.CALL_FORWARDING_RATE_MIN, overagePerMin: phoneConfig.OVERAGE_RATE_MIN, overagePerSms: phoneConfig.OVERAGE_RATE_SMS },
     sipDomain: phoneConfig.WEB_SIP_DOMAIN, dryRun: dryRun(), livePayments: livePayments(),
+    extraNumber: { price: phoneConfig.SUB_NUMBER_BASE_PRICE, limits: Object.fromEntries(Object.keys(phoneConfig.plans).map(id => [id, phoneConfig.getSubNumberLimit(id)])) },
   }
 }
 

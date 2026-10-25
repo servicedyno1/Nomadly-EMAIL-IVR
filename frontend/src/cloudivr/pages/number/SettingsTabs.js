@@ -168,7 +168,7 @@ function SmsCard({ num, reload }) {
 export function RecordingTab({ num, reload }) {
   const [save, busy] = useSave(num, 'recording', reload);
   return (
-    <Card title="Call recording" sub="Record inbound calls. Recordings show up in the Logs tab.">
+    <Card title="Call recording" sub="Record incoming calls and calls you make from the browser phone or a softphone. Recordings show up in the Logs tab.">
       <div className="flex items-center justify-between"><span className="text-sm">Record calls</span><Toggle checked={num.features.recording} disabled={busy} onChange={v => save({ enabled: v })} testid="recording-toggle" /></div>
     </Card>
   );

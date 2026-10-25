@@ -4,6 +4,7 @@ import { ArrowRight, Plus, MessageCircle, Send } from 'lucide-react';
 import { usd, money, startPrice } from '../../api';
 import { useCivrAuth } from '../../AuthContext';
 import { cp } from '../../paths';
+import { Wordmark } from '../../Brand';
 import { SectionHead, Slide, coinList, andList } from './kit';
 import { PlanFeatures, RecommendedBadge } from '../../PlanFeatures';
 
@@ -14,7 +15,7 @@ function PlanCard({ p, hot, start }) {
     <div className={`${hot ? 'civr-l-card civr-l-dark' : 'civr-l-card-cream'} civr-l-tilt p-8 flex flex-col`} data-testid={`civr-plan-card-${p.id}`}>
       <div className="flex items-center justify-between"><div className="civr-l-h text-4xl">{p.name}</div>{p.recommended && <RecommendedBadge tone="landing" testid={`pricing-recommended-${p.id}`} />}</div>
       <div className="civr-l-h text-6xl mt-6" data-testid={`pricing-price-${p.id}`}>{usd(p.price)}<span className="text-base font-sans normal-case tracking-normal font-medium opacity-60">/mo</span></div>
-      <div className={`text-sm mt-2 ${hot ? 'civr-l-muted' : 'text-black/60'}`} data-testid={`pricing-allowance-${p.id}`}>{p.minutes} minutes · {p.sms} SMS included each month</div>
+      <div className={`text-sm mt-2 ${hot ? 'civr-l-muted' : 'text-black/60'}`} data-testid={`pricing-allowance-${p.id}`}>{`${p.minutes} incoming minutes · ${p.sms} SMS included each month`}</div>
       <div className="mt-6 flex-1"><PlanFeatures plan={p} tone={hot ? 'dark' : 'cream'} testid={`pricing-feature-${p.id}`} /></div>
       <Link to={start(p.id)} className={`civr-l-btn mt-8 w-full ${hot ? '' : 'civr-l-btn-ink'}`} data-testid={`pricing-choose-${p.id}`}><Slide>Choose {p.name}</Slide></Link>
     </div>
@@ -33,7 +34,7 @@ export function Pricing({ catalog }) {
         <div className="grid md:grid-cols-3 gap-4 mt-14">{plans.map((p, i) => <PlanCard key={p.id} p={p} hot={hasRec ? p.recommended : i === 1} start={start} />)}</div>
         {r && (
           <p className="text-sm text-black/60 mt-8 max-w-3xl" data-testid="pricing-extra-usage">
-            {`Extra usage is paid from your wallet: minutes over your plan ${money(r.overagePerMin)}/min, SMS over your plan ${money(r.overagePerSms)} each, calls forwarded to a phone ${money(r.forwardingPerMin)}/min. Outbound IVR calls show their price before you start.`}
+            {`Extra usage is paid from your wallet: incoming minutes over your plan ${money(r.overagePerMin)}/min, SMS over your plan ${money(r.overagePerSms)} each, calls forwarded to a phone ${money(r.forwardingPerMin)}/min. Outgoing calls — browser phone, softphone, IVR and AI agent calls — are billed per minute from your wallet and show their price before you start. Extra numbers cost from ${usd(catalog?.extraNumber?.price || 25)}/month each and share the plan's minutes and SMS.`}
           </p>
         )}
       </div>
@@ -45,12 +46,15 @@ function faqItems(c) {
   const from = startPrice(c);
   const r = c?.rates;
   const ivr = andList((c?.plans || []).filter(p => p.access?.ivr).map(p => p.name)) || 'Business';
+  const ex = c?.extraNumber;
   return [
     ['Can I try it before I pay?', 'Yes. Confirm your email with a 6-digit code and take one free test call of up to 60 seconds — we ring your phone with a demo menu, or you call from your browser. No account needed.'],
     ['Is the account really free?', `Yes. Creating an account costs nothing. You only pay when you buy a number${from ? ` (from ${from}/month)` : ''}, plus any extra usage.`],
     ['How do I pay?', `Pay for a number directly with ${coinList(c) || 'crypto'}, or top up your CloudIVR wallet (from ${usd(c?.minTopup || 10)}) and pay from it. Renewals and calls are paid from the wallet.`],
-    ['Which plan has the IVR auto-attendant?', `The ${ivr} plan. Pro includes Quick IVR calls and Bulk IVR campaigns; Starter covers call forwarding and SMS.`],
-    ['What if I go over my minutes or SMS?', r ? `Extra minutes cost ${money(r.overagePerMin)} each and extra SMS ${money(r.overagePerSms)} each, paid from your wallet.` : 'Extra usage is paid from your wallet at a small per-minute and per-SMS rate.'],
+    ['Which plan has the IVR auto-attendant?', `The ${ivr} plan. Pro adds voicemail, the browser phone and SIP, call recording, Quick IVR calls, Bulk IVR campaigns, AI voice agents and text calls; Starter covers call forwarding and the SMS inbox.`],
+    ['What if I go over my minutes or SMS?', r ? `Extra incoming minutes cost ${money(r.overagePerMin)} each and extra SMS ${money(r.overagePerSms)} each, paid from your wallet.` : 'Extra usage is paid from your wallet at a small per-minute and per-SMS rate.'],
+    ['Are outgoing calls included in my minutes?', 'No. Plan minutes cover incoming calls you answer. Outgoing calls — browser phone, softphone, Quick IVR, campaigns and AI agent calls — and forwarded calls are billed per minute from your wallet, and the price shows before you call.'],
+    ...(ex ? [['Can I put several numbers on one plan?', `Yes. Add extra numbers to a main number from ${usd(ex.price)}/month each — up to ${ex.limits.starter} on Starter, ${ex.limits.pro} on Pro and ${ex.limits.business} on Business. They share its minutes and SMS and get the same features.`]] : []),
     ['Can I cancel?', 'Yes. Plans are month to month. Auto-renew is on by default so your number never lapses — turn it off in the number’s Billing tab and it simply won’t renew, or delete the number any time.'],
     ['Is this the same account as the Telegram bot?', 'No. CloudIVR web accounts are separate from Telegram bot accounts, so sign up here with your email.'],
   ];
@@ -100,8 +104,8 @@ export function Footer({ catalog }) {
     <footer className="civr-l-dark border-t civr-l-rule" data-testid="landing-footer">
       <div className="max-w-7xl mx-auto px-6 md:px-8 py-12 flex flex-col md:flex-row md:items-center gap-6">
         <div className="mr-auto">
-          <div className="font-display text-3xl font-extrabold">CLOUD<span className="text-[#00E3AA]">IVR</span></div>
-          <div className="text-xs civr-l-muted mt-2" data-testid="footer-copyright">© {new Date().getFullYear()} CloudIVR · Virtual numbers, IVR and SIP</div>
+          <div className="font-display text-3xl font-extrabold flex items-center gap-2.5" data-testid="landing-footer-logo"><Wordmark accent="#00E3AA" iconClass="w-10 h-10" /></div>
+          <div className="text-xs civr-l-muted mt-2" data-testid="footer-copyright">© {new Date().getFullYear()} CloudIVR · Virtual numbers, IVR, SIP and AI voice agents</div>
         </div>
         <nav className="flex flex-wrap items-center gap-x-6">
           {links.map(([href, label, id]) => <a key={id} href={href} className={link} data-testid={`footer-link-${id}`}>{label}</a>)}

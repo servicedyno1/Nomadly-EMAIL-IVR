@@ -157,3 +157,10 @@
 .civr .civr-l-cream .civr-l-dark .civr-l-rule { border-color: rgba(254, 253, 245, .12); }
 .civr .civr-l-cream .civr-l-dark .civr-l-eyebrow { color: var(--l-green); }
 .civr .civr-secure { -webkit-text-security: disc; text-security: disc; }
+
+/* Parrot brand mark */
+@keyframes civr-parrot-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+.civr .civr-parrot-float { animation: civr-parrot-float 4.5s ease-in-out infinite; }
+.civr .civr-logo-icon { transition: transform .25s ease; }
+.civr a:hover > .civr-logo-icon { transform: rotate(-8deg) scale(1.06); }
+@media (prefers-reduced-motion: reduce) { .civr .civr-parrot-float { animation: none; } .civr a:hover > .civr-logo-icon { transform: none; } }

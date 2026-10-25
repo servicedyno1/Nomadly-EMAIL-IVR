@@ -31,18 +31,19 @@ export function useLangTick() {
 export function LangProvider({ children }) {
   const [lang, setLangState] = useState(initial);
   const [ready, setReady] = useState(initial === 'en');
+  const [ver, setVer] = useState(0);
   useLayoutEffect(() => {
     let live = true;
     document.documentElement.lang = lang;
-    if (lang === 'en') { setDictionary(null); setReady(true); return undefined; }
+    if (lang === 'en') { setDictionary(null); setReady(true); setVer(v => v + 1); return undefined; }
     const timer = setTimeout(() => live && setReady(true), 2500);
-    ((lang === initial && early) || LOADERS[lang]()).then(m => { if (live) { setDictionary(m.default || m); setReady(true); } }).catch(() => live && setReady(true));
+    ((lang === initial && early) || LOADERS[lang]()).then(m => { if (live) { setDictionary(m.default || m); setReady(true); setVer(v => v + 1); } }).catch(() => live && setReady(true));
     return () => { live = false; clearTimeout(timer); };
   }, [lang]);
   useEffect(() => () => setDictionary(null), []);
   const setLang = (l) => { try { localStorage.setItem(KEY, l); } catch (_) { /* ignore */ } setLangState(l); };
   return (
-    <LangCtx.Provider value={{ lang, setLang }}>
+    <LangCtx.Provider value={{ lang, setLang, ver }}>
       <div style={ready ? undefined : { visibility: 'hidden' }}>{children}</div>
     </LangCtx.Provider>
   );

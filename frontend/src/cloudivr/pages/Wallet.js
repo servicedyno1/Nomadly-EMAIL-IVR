@@ -136,7 +136,7 @@ export default function Wallet() {
   const refresh = () => { reload(); refreshSummary(); };
   return (
     <div data-testid="wallet-page">
-      <PageHeader label="Wallet" title="Wallet" sub="Numbers, renewals, forwarded minutes and IVR calls are paid from here." testid="wallet-header">
+      <PageHeader label="Wallet" title="Wallet" sub="Numbers, renewals, extra minutes and SMS, forwarded calls, IVR calls, AI agent calls and text calls are paid from here." testid="wallet-header">
         <button className="civr-btn civr-btn-ghost civr-btn-sm" onClick={refresh} data-testid="wallet-refresh-button"><RefreshCw className="w-4 h-4" />Check now</button>
       </PageHeader>
       {need > 0 && <NeedBanner need={need} forNum={forNum} />}

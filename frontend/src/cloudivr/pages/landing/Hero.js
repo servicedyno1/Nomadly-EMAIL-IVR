@@ -75,10 +75,10 @@ export function Hero({ catalog }) {
       <div className="civr-l-glow w-[380px] h-[380px] bg-[#3434EF]/20 right-1/3 bottom-0" />
       <div className="relative max-w-7xl mx-auto px-6 md:px-8 grid lg:grid-cols-12 gap-6 lg:gap-8 items-center pb-12 md:pb-16">
         <div className="lg:col-span-6 relative z-10 pt-8">
-          <div className="civr-l-eyebrow civr-rise"><span className="civr-l-dot" />Cloud numbers · IVR · SIP</div>
+          <div className="civr-l-eyebrow civr-rise"><span className="civr-l-dot" />Cloud numbers · IVR · AI agents</div>
           <h1 className="civr-l-h text-5xl sm:text-6xl lg:text-7xl mt-6 civr-rise civr-d1" data-testid="hero-title" data-no-translate>{t[0]}<span className="text-[#00E3AA]">{t[1]}</span>{t[2]}</h1>
           <p className="text-base md:text-lg civr-l-muted mt-6 max-w-xl civr-rise civr-d2" data-testid="hero-subtitle">
-            Virtual numbers in {n} countries with forwarding, voicemail, SMS, a press-1 auto-attendant and outbound IVR campaigns. Pay with crypto or your wallet, and run it all from the browser.
+            {`Virtual numbers in ${n} countries with call forwarding, voicemail, an SMS inbox, a press-1 auto-attendant, bulk IVR campaigns and AI voice agents. Call from your browser and pay with crypto or your wallet.`}
           </p>
           <div className="flex flex-wrap gap-3 mt-8 civr-rise civr-d3">
             <a href="#try" className="civr-l-btn" data-testid="civr-hero-cta-test-btn"><PhoneCall className="w-4 h-4" /><Slide>Try a free call</Slide></a>

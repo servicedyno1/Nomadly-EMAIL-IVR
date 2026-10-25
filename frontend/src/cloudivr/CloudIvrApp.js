@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { Toaster } from 'sonner';
 import './cloudivr.css';
@@ -9,8 +9,8 @@ import { AuthPage, ForgotPage, ResetPage } from './pages/AuthPages';
 import Shell from './Shell';
 import { cp, IS_CIVR_DOMAIN } from './paths';
 import { LangProvider } from './i18n';
-
-const TITLE = 'CloudIVR — Cloud phone numbers, IVR & SIP';
+import { applyBrandHead } from './Brand';
+import { PageTitle } from './PageTitle';
 
 function Protected({ children }) {
   const { account } = useCivrAuth();
@@ -26,14 +26,15 @@ function LegacyPrefixRedirect() {
 }
 
 export default function CloudIvrApp() {
+  const [prevTitle] = useState(() => document.title);
   useEffect(() => {
-    const prev = document.title;
-    document.title = TITLE;
-    return () => { document.title = prev; };
-  }, []);
+    const restoreHead = applyBrandHead();
+    return () => { document.title = prevTitle; restoreHead(); };
+  }, [prevTitle]);
   return (
     <div className="civr" data-testid="cloudivr-app">
      <LangProvider>
+      <PageTitle />
       <CivrAuthProvider>
         <Toaster theme="dark" position="bottom-right" mobileOffset={{ bottom: 88 }} richColors closeButton visibleToasts={3} />
         <Routes>

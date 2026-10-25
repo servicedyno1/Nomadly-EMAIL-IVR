@@ -185,10 +185,10 @@ const BROWSE_FOLLOWUP_MESSAGES = {
     hi: `🌐 <b>ये डोमेन हमेशा उपलब्ध नहीं रहेंगे!</b>\n\nपूर्ण DNS प्रबंधन के साथ बुलेटप्रूफ डोमेन, होस्टिंग प्लान के साथ मुफ्त।\n\n🔥 डोमेन <b>$30</b> से शुरू। कुछ प्रीमियम नाम तेज़ी से बिकते हैं!\n\n👇 /start → 🌐 बुलेटप्रूफ डोमेन`,
   },
   cloudphone: {
-    en: `📞 <b>About your Cloud IVR + SIP</b>\n\nReal numbers in 30+ countries — calls, SMS, IVR, SIP, voicemail.  Plans from <b>$50/mo</b> with minutes & SMS included.  Free IVR test call available if you haven't tried it.\n\nOpen /start when you want — reply <code>mute</code> to stop these.`,
-    fr: `📞 <b>Votre numéro virtuel vous attend !</b>\n\nObtenez un vrai numéro dans 30+ pays — appels, SMS, IVR, messagerie vocale, SIP.\n\n🔥 Forfaits dès <b>$50/mois</b> avec minutes et SMS inclus.\n🆓 Vous n'avez pas encore essayé l'appel IVR gratuit ? Faites-le maintenant !\n\n👇 Tapez /start → 📞 Cloud IVR + SIP`,
-    zh: `📞 <b>您的虚拟号码在等着您!</b>\n\n在30多个国家获取真实号码——通话、短信、IVR、语音信箱、SIP。\n\n🔥 套餐低至 <b>$50/月</b>,含通话分钟数和短信。\n🆓 还没试过免费IVR测试通话?现在就体验!\n\n👇 输入 /start → 📞 云IVR + SIP`,
-    hi: `📞 <b>आपका वर्चुअल नंबर इंतज़ार कर रहा है!</b>\n\n30+ देशों में असली नंबर पाएं — कॉल, SMS, IVR, वॉइसमेल, SIP।\n\n🔥 <b>$50/माह</b> से प्लान, मिनट्स और SMS शामिल।\n🆓 अभी तक मुफ्त IVR टेस्ट कॉल नहीं किया? अभी करें!\n\n👇 /start → 📞 क्लाउड IVR + SIP`,
+    en: `📞 <b>About your Cloud IVR + SIP</b>\n\nReal numbers in ${require('./phone-config').CLOUD_COUNTRY_COUNT} countries — calls, SMS, IVR, SIP, voicemail.  Plans from <b>$50/mo</b> with minutes & SMS included.  Free IVR test call available if you haven't tried it.\n\nOpen /start when you want — reply <code>mute</code> to stop these.`,
+    fr: `📞 <b>Votre numéro virtuel vous attend !</b>\n\nObtenez un vrai numéro dans ${require('./phone-config').CLOUD_COUNTRY_COUNT} pays — appels, SMS, IVR, messagerie vocale, SIP.\n\n🔥 Forfaits dès <b>$50/mois</b> avec minutes et SMS inclus.\n🆓 Vous n'avez pas encore essayé l'appel IVR gratuit ? Faites-le maintenant !\n\n👇 Tapez /start → 📞 Cloud IVR + SIP`,
+    zh: `📞 <b>您的虚拟号码在等着您!</b>\n\n在 ${require('./phone-config').CLOUD_COUNTRY_COUNT} 个国家获取真实号码——通话、短信、IVR、语音信箱、SIP。\n\n🔥 套餐低至 <b>$50/月</b>,含通话分钟数和短信。\n🆓 还没试过免费IVR测试通话?现在就体验!\n\n👇 输入 /start → 📞 云IVR + SIP`,
+    hi: `📞 <b>आपका वर्चुअल नंबर इंतज़ार कर रहा है!</b>\n\n${require('./phone-config').CLOUD_COUNTRY_COUNT} देशों में असली नंबर पाएं — कॉल, SMS, IVR, वॉइसमेल, SIP।\n\n🔥 <b>$50/माह</b> से प्लान, मिनट्स और SMS शामिल।\n🆓 अभी तक मुफ्त IVR टेस्ट कॉल नहीं किया? अभी करें!\n\n👇 /start → 📞 क्लाउड IVR + SIP`,
   },
   digitalproducts: {
     en: `📦 <b>The digital product you were checking out</b>\n\nVerified accounts (Twilio, Telnyx, AWS, Google Cloud), instant delivery, escrow-protected.  We also added USDT-TRC20 payment with no fees.\n\nOpen /start when you're ready to resume — reply <code>mute</code> to stop these.`,

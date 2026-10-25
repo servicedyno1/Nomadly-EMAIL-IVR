@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Loader2, Lock } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { cp } from './paths';
+import { useLang } from './i18n';
 
 // True on phone-sized screens (below Tailwind's md breakpoint); follows rotation/resizes.
 export function useIsPhone(query = '(max-width: 767px)') {
@@ -32,6 +33,7 @@ export function ShowMore({ rest, onClick, testid = 'show-more-button' }) {
 export function TabStrip({ active, children, className = 'mb-8', testid }) {
   const ref = useRef(null);
   const [end, setEnd] = useState(true);
+  const { ver } = useLang() || {};
   const check = useCallback(() => { const s = ref.current; if (s) setEnd(s.scrollLeft + s.clientWidth >= s.scrollWidth - 4); }, []);
   useEffect(() => {
     const s = ref.current, el = s?.querySelector('[aria-selected="true"]');
@@ -39,7 +41,7 @@ export function TabStrip({ active, children, className = 'mb-8', testid }) {
     check();
     window.addEventListener('resize', check);
     return () => window.removeEventListener('resize', check);
-  }, [active, check]);
+  }, [active, check, ver]);
   return (
     <div className={`civr-tabstrip ${end ? 'at-end' : ''} ${className}`}>
       <div ref={ref} onScroll={check} className="civr-scroll-x flex gap-1 overflow-x-auto border-b border-[#1f1f1f]" role="tablist" data-testid={testid}>{children}</div>
@@ -99,7 +101,7 @@ export function Locked({ feature, phone, need }) {
       <Lock className="w-6 h-6 text-[#fbbf24]" />
       <div className="flex-1">
         <div className="font-semibold" data-testid="feature-locked-title">{need ? `${feature} is on the ${need} plan and up` : `${feature} needs a higher plan`}</div>
-        <div className="text-sm text-[#a1a1aa]">Upgrade this number in its Billing tab to unlock it — you only pay the difference for the days left.</div>
+        <div className="text-sm text-[#a1a1aa]">Upgrade this number in its Billing tab to unlock it — your renewal date stays the same, and within 14 days of buying 25% of your current plan price comes off.</div>
       </div>
       <Link to={cp(`/app/numbers/${encodeURIComponent(phone)}?tab=billing`)} className="civr-btn civr-btn-primary civr-btn-sm" data-testid="feature-locked-upgrade-link">Upgrade this number</Link>
     </div>

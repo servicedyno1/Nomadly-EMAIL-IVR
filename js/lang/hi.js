@@ -2517,7 +2517,7 @@ const l = {
 ━━━━━━━━━━━━━━━━━━━━━━
 
 📞 <b>Cloud IVR + SIP</b>
-30+ देशों में वर्चुअल नंबर
+${require('../phone-config').CLOUD_COUNTRY_COUNT} देशों में वर्चुअल नंबर
 IVR ऑटो-अटेंडेंट · SMS · वॉइसमेल · SIP
 क्विक IVR और बल्क IVR अभियान
 

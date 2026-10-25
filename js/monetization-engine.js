@@ -92,7 +92,7 @@ const UPSELL_MESSAGES = {
 
     noPhonePlanYet: () =>
       `📞 <b>Try Cloud Phone — Your Virtual Number Awaits!</b>\n\n` +
-      `Get a real phone number in 30+ countries with:\n` +
+      `Get a real phone number in ${require('./phone-config').CLOUD_COUNTRY_COUNT} countries with:\n` +
       `├ 📱 Call & SMS capability\n` +
       `├ 🔀 Call forwarding to your phone\n` +
       `├ 🎙️ IVR auto-attendant\n` +
@@ -116,7 +116,7 @@ const UPSELL_MESSAGES = {
     smsLimitHit: () => `📱 <b>Limite SMS atteinte !</b>\n\nAjoutez des fonds pour continuer ($0.02/SMS) ou passez au forfait supérieur.`,
     minuteLimitHit: () => `📞 <b>Minutes épuisées !</b>\n\nAjoutez des fonds pour continuer ($${OVERAGE_RATE_MIN}/min) ou passez au forfait supérieur.`,
     domainLimitHit: (planType) => `🌐 <b>Limite de domaines gratuits atteinte !</b>\n\nVotre forfait ${planType} a atteint sa limite. Achetez des domaines individuels ou passez au forfait supérieur.`,
-    noPhonePlanYet: () => `📞 <b>Essayez Cloud Phone !</b>\n\nNuméros virtuels dans 30+ pays. À partir de <b>$${PHONE_STARTER_PRICE}/mois</b>.`,
+    noPhonePlanYet: () => `📞 <b>Essayez Cloud Phone !</b>\n\nNuméros virtuels dans ${require('./phone-config').CLOUD_COUNTRY_COUNT} pays. À partir de <b>$${PHONE_STARTER_PRICE}/mois</b>.`,
   },
   zh: {
     linksExhausted: () => `🔥 <b>免费链接已用完！</b>\n\n升级即可获得无限链接+免费域名+点击分析。\n\n💰 方案从 <b>$${PRICE_DAILY}/天</b> 起`,
@@ -124,7 +124,7 @@ const UPSELL_MESSAGES = {
     smsLimitHit: () => `📱 <b>短信额度已用完！</b>\n\n充值钱包继续发送（$0.02/条）或升级套餐。`,
     minuteLimitHit: () => `📞 <b>通话分钟已用完！</b>\n\n充值钱包继续通话（$${OVERAGE_RATE_MIN}/分钟）或升级套餐。`,
     domainLimitHit: (planType) => `🌐 <b>免费域名额度已达上限！</b>\n\n升级套餐获取更多免费域名。`,
-    noPhonePlanYet: () => `📞 <b>试试云电话！</b>\n\n30+国家虚拟号码。方案从 <b>$${PHONE_STARTER_PRICE}/月</b> 起。`,
+    noPhonePlanYet: () => `📞 <b>试试云电话！</b>\n\n${require('./phone-config').CLOUD_COUNTRY_COUNT} 个国家虚拟号码。方案从 <b>$${PHONE_STARTER_PRICE}/月</b> 起。`,
   },
   hi: {
     linksExhausted: () => `🔥 <b>आपके मुफ्त लिंक समाप्त हो गए!</b>\n\nअपग्रेड करें — असीमित लिंक + मुफ्त डोमेन + एनालिटिक्स।\n\n💰 प्लान <b>$${PRICE_DAILY}/दिन</b> से शुरू`,
@@ -132,7 +132,7 @@ const UPSELL_MESSAGES = {
     smsLimitHit: () => `📱 <b>SMS सीमा पूरी हो गई!</b>\n\nवॉलेट में पैसे डालें ($0.02/SMS) या प्लान अपग्रेड करें।`,
     minuteLimitHit: () => `📞 <b>कॉल मिनट समाप्त!</b>\n\nवॉलेट में पैसे डालें ($${OVERAGE_RATE_MIN}/मिनट) या प्लान अपग्रेड करें।`,
     domainLimitHit: (planType) => `🌐 <b>मुफ्त डोमेन सीमा पूरी!</b>\n\nअधिक मुफ्त डोमेन के लिए प्लान अपग्रेड करें।`,
-    noPhonePlanYet: () => `📞 <b>Cloud Phone आज़माएं!</b>\n\n30+ देशों में वर्चुअल नंबर। <b>$${PHONE_STARTER_PRICE}/माह</b> से।`,
+    noPhonePlanYet: () => `📞 <b>Cloud Phone आज़माएं!</b>\n\n${require('./phone-config').CLOUD_COUNTRY_COUNT} देशों में वर्चुअल नंबर। <b>$${PHONE_STARTER_PRICE}/माह</b> से।`,
   },
 }
 
