@@ -110,14 +110,15 @@ function routes(router, deps) {
 
   router.put('/webhooks', h(async (req, res) => {
     const body = req.body || {}
+    const cur = await load(req.webChatId)
     const url = String(body.url || '').trim()
-    const events = [...new Set((Array.isArray(body.events) ? body.events : []).map(String))].filter(e => EVENTS[e])
+    // No `events` in the request keeps the saved choice (an API client changing only the URL must not wipe it).
+    const events = Array.isArray(body.events) ? [...new Set(body.events.map(String))].filter(e => EVENTS[e]) : (cur?.events || Object.keys(EVENTS))
     const enabled = !!body.enabled
     if (url && !URL_RE.test(url)) return bad(res, 400, 'invalid_url', 'Use a public web address that starts with https://')
     if (url && !(await checkHookUrl(url)).ok) return bad(res, 400, 'private_url', 'That address leads to a private or internal network. Use a public web address that starts with https://')
     if (enabled && !url) return bad(res, 400, 'invalid_url', 'Paste the URL that should receive events, or switch the feed off.')
     if (enabled && !events.length) return bad(res, 400, 'no_events', 'Pick at least one event to send.')
-    const cur = await load(req.webChatId)
     const webhook = { enabled, url, events, secret: cur?.secret || newSecret(), updatedAt: new Date() }
     await prefs.updateOne({ _id: req.webChatId }, { $set: { webhook } }, { upsert: true })
     cache.delete(req.webChatId)

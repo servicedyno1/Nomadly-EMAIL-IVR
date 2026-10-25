@@ -1,0 +1,126 @@
+{
+ "tests": {
+  "ring_group_first_answer_wins": {
+   "caller": "v3:R7Rz8cuqnVCIKNHhbH7TNdSw2--i3FrAIoJujCYTk6hKPl7j1nAelQ",
+   "A_rang_after_s": 5.9,
+   "A_from": "+19379800767",
+   "B_rang": true,
+   "A_alive": true,
+   "B_alive_after_A_answered": false,
+   "caller_alive": true,
+   "B_events": [
+    "call.initiated",
+    "call.hangup"
+   ],
+   "B_hangup_cause": "originator_cancel",
+   "caller_alive_after_A_hangup": false,
+   "log_top": "[{\"id\": \"6ade4dbeac19a2c204686ec9\", \"type\": \"forwarded\", \"direction\": \"inbound\", \"from\": \"+18778570205\", \"to\": \"+19379800767\", \"phoneNumber\": \"+19379800767\", \"duration\": 20, \"body\": null, \"recordingUrl\": null, \"digit\": null, \"forwardTo\": \"+12347208193\", \"timestamp\": \"2026-10-25T18:43:10.035Z\", \"transcript\": null, \"transcriptStatus\": null, \"reply\": null, \"canReply\": false, \"aiSummary\": null, \"canSummarize\": false}, {\"id\": \"6ade4bf3225bca594a5f2222\", \"type\": \"forwarded\", \"direction\": \"inbound\", \"from\": \"+18778570205\", \"to\": \"+19379800767\", \"phoneNumber\": \"+19379800767\", \"duration\": 19, \"body\": null, \"recordingUrl\": null, \"digit\": null, \"forwardTo\": \"+12347208193\", \"timestamp\": \"2026-10-25T18:3",
+   "pass": true,
+   "note": "re-run 18:35Z (log row forwarded \u2192 +12347208193, 19 s) and 18:42Z with signatures ENFORCED: PASS"
+  },
+  "ring_group_no_answer_fallback": {
+   "caller": "v3:eJ0iGPrDLvbwGCuJkHGANfEbJXTIrlQPiLtzAO11mo5Uo5aRqeeCPA",
+   "A_rang": true,
+   "B_rang": true,
+   "legs_stopped_after_s": 13.3,
+   "caller_alive_during_fallback": true,
+   "caller_alive_after_fallback_s12": false,
+   "log_top": "[{\"id\": \"6ade4996617af8bb3a3d886f\", \"type\": \"missed\", \"direction\": \"inbound\", \"from\": \"+18778570205\", \"to\": \"+19379800767\", \"phoneNumber\": \"+19379800767\", \"duration\": 0, \"body\": null, \"recordingUrl\": null, \"digit\": null, \"forwardTo\": null, \"timestamp\": \"2026-10-25T18:25:26.163Z\", \"transcript\": null, \"transcriptStatus\": null, \"reply\": null, \"canReply\": true, \"aiSummary\": null, \"canSummarize\": false}, {\"id\": \"6adce1bcd09cc8c52b1908b5\", \"type\": \"sms_out\", \"direction\": \"outbound\", \"from\": \"+19379800767\", \"to\": \"+18778570205\", \"phoneNumber\": \"+19379800767\", \"duration\": 0, \"body\": \"Sorry I missed your call. This is an automated CloudIVR test.\", \"recordingUrl\": null, \"digit\": null, \"forwardTo\": nul",
+   "missed_calls_top": "{\"calls\": [{\"id\": \"6ade4996617af8bb3a3d886f\", \"phone\": \"+19379800767\", \"from\": \"+18778570205\", \"type\": \"missed\", \"timestamp\": \"2026-10-25T18:25:26.163Z\", \"reply\": null, \"canReply\": true}, {\"id\": \"6adce1aed09cc8c52b1908b4\", \"phone\": \"+19379800767\", \"from\": \"+18778570205\", \"type\": \"missed\", \"timestamp\": \"2026-10-24T16:49:50.798Z\", \"reply\": {\"text\": \"Sorry I missed your call. This is an automated Clo",
+   "pass": true
+  },
+  "text_trigger_auto_callback": {
+   "wallet_before": 1.81,
+   "sms": "4031a174-5117-4222-8c3e-2a72f987e5ac",
+   "owner_phone_rang": true,
+   "owner_call_from": "+19379800767",
+   "texter_rang_after_press_1": true,
+   "texter_call_from": "+19379800767",
+   "owner_alive": true,
+   "texter_alive": true,
+   "events": [
+    "call.initiated",
+    "call.answered",
+    "call.initiated",
+    "call.answered"
+   ],
+   "bridged": false,
+   "runs_top": [
+    {
+     "id": "6c38df9e-8a11-42be-9769-4d83c30bcc5c",
+     "action": "callback",
+     "from": "+17196219822",
+     "body": "Hi, live test of Auto Callback, please call me back",
+     "status": "started",
+     "detail": "Ringing +12347208193 \u2014 press 1 to reach +17196219822.",
+     "dryRun": false,
+     "at": "2026-10-25T18:27:15.592Z"
+    },
+    {
+     "id": "b799385f-dc65-41fa-a4dd-147531490887",
+     "action": "callback",
+     "from": "+17196219822",
+     "body": "Hi, live test of Auto Callback, please call me back",
+     "status": "started",
+     "detail": "Ringing +12347208193 \u2014 press 1 to reach +17196219822.",
+     "dryRun": false,
+     "at": "2026-10-25T18:27:15.014Z"
+    }
+   ],
+   "wallet_after": 1.36,
+   "pass": true
+  },
+  "text_trigger_text_to_call_message": {
+   "at": "2026-10-25T18:34Z",
+   "texter_rang": true,
+   "call_from": "+19379800767",
+   "events": [
+    "call.initiated",
+    "call.answered",
+    "call.hangup"
+   ],
+   "hangup_cause": "normal_clearing",
+   "single_run": true,
+   "note": "message.finalized ignored after fix; one run only",
+   "pass": true
+  },
+  "signed_sms_low_wallet_guard": {
+   "sms": "4031a174-5fd7-4dc0-aad5-67e851161d22",
+   "texter_rang": false,
+   "call_from": null,
+   "runs_top": [
+    {
+     "id": "016b2dce-0640-404d-a43a-b2c2cf5a0a63",
+     "action": "message",
+     "from": "+17196219822",
+     "body": "Hello, live test of the text to call message",
+     "status": "skipped",
+     "detail": "Wallet $0.91 is too low (needs about $1.00).",
+     "dryRun": false,
+     "at": "2026-10-25T18:43:21.658Z"
+    }
+   ],
+   "pass": true,
+   "note": "18:43Z, signatures ENFORCED: real SMS accepted + processed; rule skipped because test wallet $0.91 < $1 minimum (guard works)"
+  }
+ },
+ "signature_enforcement": {
+  "at": "2026-10-25T18:40Z",
+  "offline_key_check": "25/25 captured Telnyx webhooks valid, forged rejected",
+  "forged_posts": {
+   "sms": 403,
+   "voice": 403,
+   "fax": 403,
+   "bad_sig": 403
+  },
+  "real_traffic_refused": 0
+ },
+ "cleanup": {
+  "at": "2026-10-25T18:44:56Z",
+  "released": [
+   "+12347208193",
+   "+17196219822"
+  ],
+  "app": "3078677843605980334"
+ }
+}

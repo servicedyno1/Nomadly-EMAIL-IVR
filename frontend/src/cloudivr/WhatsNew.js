@@ -67,7 +67,8 @@ export function WhatsNew() {
 
   useEffect(() => { if (open && numbers === null) loadNumbers().then(setNumbers); }, [open, numbers, loadNumbers]);
 
-  const close = useCallback(() => { write(key, RELEASE.id); setOpen(false); }, [key]);
+  // Closing forgets the numbers list, so a later re-open (Help → What's new) links to the numbers as they are then.
+  const close = useCallback(() => { write(key, RELEASE.id); setOpen(false); loading.current = null; setNumbers(null); }, [key]);
 
   // Keyboard: focus "Got it", Esc closes, Tab stays inside the card.
   useEffect(() => {

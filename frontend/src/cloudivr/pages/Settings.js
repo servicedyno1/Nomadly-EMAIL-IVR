@@ -104,16 +104,18 @@ function useHashScroll() {
   const { hash } = useLocation();
   useEffect(() => {
     if (!hash) return undefined;
-    const id = `settings-${hash.slice(1)}`;
-    let last = null, still = 0, ticks = 0;
+    const id = `settings-${hash.slice(1)}`; // only the loaded card has this id (not its loading placeholder)
+    let lastTop = null, lastH = null, still = 0, ticks = 0;
     const t = setInterval(() => {
       ticks += 1;
       const el = document.getElementById(id);
+      const h = document.documentElement.scrollHeight;
       if (el) {
         const top = Math.round(el.getBoundingClientRect().top + window.scrollY);
-        if (top !== last) { last = top; still = 0; el.scrollIntoView({ block: 'start' }); } else still += 1;
+        const busy = document.querySelector('[data-testid="settings-page"] [data-testid="loading-indicator"]');
+        if (top !== lastTop || h !== lastH) { lastTop = top; lastH = h; still = 0; el.scrollIntoView({ block: 'start' }); } else if (!busy) still += 1;
       }
-      if (still >= 4 || ticks > 40) clearInterval(t);
+      if (still >= 10 || ticks > 60) clearInterval(t); // settled for ~1.5 s with nothing loading, or 9 s cap
     }, 150);
     const stop = () => clearInterval(t);
     const opts = { passive: true };

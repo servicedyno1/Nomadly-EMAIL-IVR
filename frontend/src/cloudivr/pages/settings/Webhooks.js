@@ -82,6 +82,6 @@ function Form({ data, reload }) {
 
 export function Webhooks() {
   const { data, reload } = useApi('/webhooks');
-  if (!data) return <div id="settings-webhooks" className="civr-card p-6 lg:col-span-2 scroll-mt-24"><Spinner /></div>;
+  if (!data) return <div className="civr-card p-6 lg:col-span-2" data-testid="settings-webhooks-loading"><Spinner /></div>;
   return <Form key={String(data.webhook.updatedAt)} data={data} reload={reload} />;
 }

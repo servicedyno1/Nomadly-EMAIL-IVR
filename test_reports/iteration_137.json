@@ -1,0 +1,44 @@
+{
+  "summary": "Short retest of the 6 follow-ups from iteration_136 plus a smoke test, run on preview (dry-run) from 17:51 to 18:04 UTC on 2026-10-25. Production was not touched. F2, F3, F4, F5, F6 and the smoke tests pass. F1 passes on a normal network, but it fails every time when the browser cache is disabled and the network is slow.",
+  "results": {
+    "F1": "PARTIAL. Direct load of settings#webhooks or #install with a warm cache, at latency 0/400/800/1500 ms: card top = 96 px at 390x800 (both hashes). At 1920x1080: #install top = 105 px. #webhooks top = 306 px with scrollY = 1359 = max scroll. The webhooks card is the last card, so the page cannot scroll it any higher; we accept this. The tops stayed the same for 7 s. A wheel scroll or the Home key stops the following: scrollY stayed 0 for 4 s. 'Show me' from What's New lands on the card (96 px at 390; 306 / 105 px on desktop). FAIL with cache disabled (CDP Network.setCacheDisabled) + latency 700 or 1200 ms + 3.2 Mbps: 8 of 8 tries ended at scrollY = 540 with #webhooks top = 1125 px (desktop) or 2516 px (390x800), i.e. off screen.",
+    "F2": "PASS. Ran at 18:01 UTC, after the 18:00Z cutoff. Registered civr.wn2.195918157@example.com (id 5000000000000004, createdAt 2026-10-25T18:01:02Z) and signed in through the UI. The What's New card did not appear (0 after 5 s and after a reload), and localStorage civr.whatsNew.5000000000000004 was set to '2026-10-25'. Alice and Bob, with their keys cleared, saw the card once; after 'Got it' + reload they did not see it again.",
+    "F3": "PASS. Alice and Bob at 1024/1280/1440 wide: scrollWidth equals the viewport width each time. At 1024 the greeting truncates with an ellipsis (107 px wide, text needs 237 px). The logout button sits at 948-992 px, the hit-test lands on it, and clicking it signs out to /cloudivr. No truncation at 1280 or 1440.",
+    "F4": "PASS 9/9. summary, triggers and ringgroup, 3 times each, clicked right after the card appeared (latency 0 x5, 1500 ms x3, 2000 ms x1). Every try went to /cloudivr/app/numbers/%2B16692098449?tab=logs (or tab=triggers / tab=ringgroup). No fallback to /cloudivr/app/numbers.",
+    "F5": "PASS at 390x800. The card's scrollTop is 0 (scrollHeight 1006 > clientHeight 766), the title is at top 67 px (visible), and focus is on whats-new-dismiss.",
+    "F6": "PASS. At 390 and 479 px in FR and ES: 1 column, icon beside the label, every label on 1 line, no broken words. At 480, 768 and 1366 px: 3 columns. Minor: at exactly 480 px in FR, 'Text-to-Call' wraps at its hyphens (a normal break point, not mid-word).",
+    "SMOKE": "PASS. (a) PUT /webhooks with https://[::ffff:127.0.0.1]/x returns 400 private_url; with https://httpbin.org/post (enabled:false) returns 200. (b) The eye button reveals the full secret with one click. (c) The update banner appears with the dev sessionStorage keys ('A new version of CloudIVR is ready.' with Refresh now / Later); keys removed afterwards. (d) pytest: 83 passed in 16 s."
+  },
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "PUT /api/cloudivr-web/webhooks", "issue": "If the body has no 'events', the saved events list becomes [], so the user's chosen events are wiped silently. Consider keeping the existing events when the field is missing."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Settings useHashScroll (pages/Settings.js)", "issue": "The hook stops after 4 still ticks (600 ms). On a cold or slow load, the #settings-webhooks spinner placeholder (Webhooks.js line 85) sits still at the bottom of a short page for more than 600 ms. The hook stops, then the cards above load and push the card off screen.", "selector": "[data-testid=settings-webhooks-card]", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Top bar at 1024 px", "issues": ["The greeting shrinks to 'Signed in as ci…', which tells the user almost nothing. Consider showing only the email, or hiding the greeting below about 1150 px."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_cloudivr_3cx_edge_cases.py", "/app/backend/tests/test_cloudivr_3cx_features_pod.py", "/app/backend/tests/test_cloudivr_iter136_ssrf_fixes.py", "/app/test_reports/pytest/iter137.xml"],
+  "action_items": [
+    "F1: only count still ticks once the real card has rendered, i.e. the element has data-testid settings-<hash>-card, or the spinner placeholder gets a different id. Keep following until no card in the settings grid is still loading (or until the page height stops changing), with the 6 s cap and the wheel/touch/key stop.",
+    "Test hygiene: test_cloudivr_3cx_features_pod.py leaves Alice's ring group enabled (TestRingGroup) and AI summary on (TestAiSummary). test_cloudivr_iter136_ssrf_fixes.py writes webhook secret 'whsec_x' directly to the DB and leaves it there. Add teardown that restores ring group off, aiSummary off and a normal secret."
+  ],
+  "critical_code_review_comments": [
+    "Settings.js useHashScroll: 'still >= 4' measures the placeholder, not the loaded card, and nothing waits for the cards above it to load. This is the root cause of the F1 cold-load failure.",
+    "WhatsNew.js: a failed loadNumbers() resolves to [], so 'Show me' falls back to /app/numbers. That is fine, but the promise is cached for the whole lifetime of the component (loading.current is never reset after a success), so the numbers list can be stale if the card is reopened later through openWhatsNew."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100% (83/83 pytest + 2 smoke curls)", "frontend": "92% (F2-F6 + smoke pass; F1 fails on cold/slow loads)"},
+  "seed_data_creation": "Created account civr.wn2.195918157@example.com / WnTest#2026 (id 5000000000000004) for F2.",
+  "test_credentials": "Alice civr.alice@example.com / AliceTest#2026; Bob civr.bob@example.com / BobTest#2026; WN civr.wn2.195918157@example.com / WnTest#2026",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Alice left tidy: webhook disabled at https://httpbin.org/post with all 5 events; secret rotated after pytest left 'whsec_x'; ring group OFF (members kept); textTriggers OFF; aiSummary OFF; whatsNew key '2026-10-25'; civr.lang 'en'. To reproduce F1: CDP Network.setCacheDisabled true + emulateNetworkConditions latency 700 ms, download 400000, then goto /cloudivr/app/settings#webhooks and wait 12 s.",
+  "rca of the issue": "F1: Webhooks() renders <div id='settings-webhooks'><Spinner/></div> while /webhooks loads. useHashScroll scrolls that placeholder to max scroll (507 px) and sees it still for 4 x 150 ms, so it stops. The other cards (Referral, Security, etc.) then load, the page grows to 1359 px max scroll, scroll anchoring moves scrollY only to 540, and the real card ends up at 1125 px. With a warm cache everything loads in the same tick, which is why it passes then. Fix: ignore the placeholder (no id on the spinner, or require data-testid *-card) and/or reset 'still' while the page height keeps changing."
+}

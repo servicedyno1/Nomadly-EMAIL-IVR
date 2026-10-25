@@ -48497,11 +48497,14 @@ app.get('/:id', async (req, res) => {
 // (handleInboundSms uses _walletOf/_payments bound by initSmsLimits).
 
 function registerTelnyxRoutes() {
+const telnyxSigned = require('./telnyx-webhook-verify').middleware(log)
 // Telnyx SMS Webhook — receives inbound SMS
-app.post('/telnyx/sms-webhook', async (req, res) => {
+app.post('/telnyx/sms-webhook', telnyxSigned, async (req, res) => {
   try {
-    log('📩 Telnyx SMS webhook received')
-    await handleInboundSms(req.body, bot, phoneNumbersOf, phoneLogs)
+    const smsEvent = req.body?.data?.event_type
+    log(`📩 Telnyx SMS webhook received${smsEvent ? `: ${smsEvent}` : ''}`)
+    // Delivery reports of texts WE sent (message.sent / message.finalized) also arrive here — only real inbound texts count.
+    if (!smsEvent || smsEvent === 'message.received') await handleInboundSms(req.body, bot, phoneNumbersOf, phoneLogs)
     res.sendStatus(200)
   } catch (error) {
     log('Telnyx SMS webhook error:', error.message)
@@ -48510,7 +48513,7 @@ app.post('/telnyx/sms-webhook', async (req, res) => {
 })
 
 // Telnyx Voice Webhook — receives call events
-app.post('/telnyx/voice-webhook', async (req, res) => {
+app.post('/telnyx/voice-webhook', telnyxSigned, async (req, res) => {
   try {
     const eventType = req.body?.data?.event_type || req.body?.event_type || 'unknown'
     const connId = req.body?.data?.payload?.connection_id || ''
@@ -48525,7 +48528,7 @@ app.post('/telnyx/voice-webhook', async (req, res) => {
 })
 
 // Telnyx Fax Webhook — receives inbound fax events
-app.post('/telnyx/fax-webhook', async (req, res) => {
+app.post('/telnyx/fax-webhook', telnyxSigned, async (req, res) => {
   res.sendStatus(200)
   try {
     const cpTxt = phoneConfig.getTxt('en') // fax webhooks default to English

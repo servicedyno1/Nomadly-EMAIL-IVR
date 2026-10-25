@@ -244,3 +244,14 @@ The new layout differs from the old in-place `/opt/nomadly/app-main` checkout. O
   bundle contains "Browser ring". NOT verified live: any of the 3 new features end-to-end (no testing round yet).
 - Browser ringing only kicks in for numbers whose owner switches it on (none yet), so inbound call routing is unchanged until then.
 - ⚠️ Not on GitHub yet → owner must "Save to GitHub" (WITH-WEBIVR branch is what deploy.yml builds) or the next auto-deploy rolls this back.
+
+## 2026-10-25 18:12–18:41Z — 3 workspace tarball deploys (app-main) + Telnyx webhook signatures ENFORCED
+- 18:12Z release 20261025T181212Z-0303c16 (:5100 b): update banner, What's New, SSRF guard, secret button, small fixes, Settings deep-link scroll fix.
+- 18:32Z release 20261025T183213Z-0303c16 (:5000 a): SMS webhook ignores delivery reports (only message.received), ring-group answered calls logged.
+- 18:40Z release 20261025T184021Z-0303c16 (:5100 b, ACTIVE): js/telnyx-webhook-verify.js live. Prod backend.env got TELNYX_PUBLIC_KEY
+  (backup backend.env.bak.telnyxsig.<ts>). Boot log "[TelnyxSig] Telnyx webhook signatures enforced". Forged POSTs to
+  /telnyx/{sms,voice,fax}-webhook → 403; real calls + SMS verified after. ROLLBACK if Telnyx ever rotates the key: remove the
+  TELNYX_PUBLIC_KEY line (or set the new one) and `pm2 restart <active slot> --update-env` at 0 live calls.
+- wl / voodoo / proshop do NOT have TELNYX_PUBLIC_KEY yet → their Telnyx webhooks are still unsigned-accepted (same Telnyx account
+  → same key; append it to each brand backend.env once their branch has the new code).
+- ⚠️ Not on GitHub yet → owner must "Save to GitHub" or the next CI deploy rolls all of this back.

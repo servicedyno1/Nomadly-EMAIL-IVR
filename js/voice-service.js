@@ -4615,6 +4615,8 @@ async function handleCallHangup(payload) {
     const msg = _trans('t.vs_missedCall', langMissed, formatPhone(to), formatPhone(from), time) || `📞 <b>Missed Call</b>\n\n📞 To: ${formatPhone(to)}\n👤 From: ${formatPhone(from)}\n🕐 ${time}`
     _bot.sendMessage(chatId, msg, { parse_mode: 'HTML' }).catch(() => {})
     logEvent(to, from, 'missed', 0)
+  } else if (session.phase === 'bridged' && session.ringGroupAnsweredBy) {
+    logEvent(to, from, 'forwarded', duration, null, session.ringGroupAnsweredBy)
   } else if (session.phase === 'voicemail_recording' || session.phase === 'voicemail_greeting') {
     // Voicemail call — billing already happened above; send notification with plan usage
     const overageLine = billingInfo.overageCharge > 0
@@ -4684,7 +4686,7 @@ async function notifyUser(chatId, num, type, session, extra = {}) {
   if (msg) _bot.sendMessage(chatId, msg, { parse_mode: 'HTML' }).catch(() => {})
 }
 
-function logEvent(to, from, type, duration, recordingUrl) {
+function logEvent(to, from, type, duration, recordingUrl, forwardTo) {
   if (!_phoneLogs) return
   _phoneLogs.insertOne({
     phoneNumber: to,
@@ -4692,6 +4694,7 @@ function logEvent(to, from, type, duration, recordingUrl) {
     type,
     duration: duration || 0,
     recordingUrl: recordingUrl || null,
+    ...(forwardTo ? { forwardTo } : {}),
     timestamp: new Date().toISOString(),
   }).catch(e => log(`[Voice] Log error: ${e.message}`))
 }

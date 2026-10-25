@@ -1215,3 +1215,18 @@ calls and SIP are simulated; inbound calls use a pretend-call simulator).
 - Prepared a fresh voicemail row for the manual Summarize test. Full status + next steps in `memory/CLOUDIVR_3CX_FEATURES_2026-06.md`
   ("Session 2 (fork) progress").
 
+
+## 2026-10-25 (fork) — deploy + live real-call checks + Telnyx webhook signatures
+- Settings #webhooks/#install deep link scroll fixed for slow/uncached loads (spinner placeholder has no id; hook waits until no
+  loading-indicator in settings-page and 10 still ticks). Self-tested at 390/1366/1920 with CDP cache-off + 700–1200 ms latency.
+- PUT /webhooks without `events` keeps the saved events (no silent wipe).
+- LIVE real calls on cloudivr.net (2 temporary Telnyx lines, released afterwards): ring group first-answer-wins, ring group
+  no-answer fallback, Auto Callback (real SMS → owner rings → DTMF 1 → texter bridged), Text-to-Call message — ALL PASS.
+  Report test_reports/live_3cx_test_2026-10-25.json, script scripts/ops/real_call_test/live_3cx_test.py.
+- Bugs found by the live run, fixed + deployed: (1) Telnyx delivery reports (message.finalized) were handled as inbound texts →
+  duplicate Text Trigger runs/charges and duplicate forwards; now only message.received. (2) answered ring-group calls were missing
+  from Logs → logged as 'forwarded' with forwardTo = answering phone.
+- SECURITY: Telnyx Ed25519 webhook signature check (js/telnyx-webhook-verify.js) on sms/voice/fax webhooks; enforced on prod
+  app-main (TELNYX_PUBLIC_KEY); pass-through in dry-run preview / when the key is missing. Unit js/tests/telnyx_webhook_verify.test.js 13/13.
+- Still pending from the real-call checklist: 2c AI agent call-back, 2e AI summary of a real recorded call, 2f call-event webhook
+  with a real call (webhook.site), and TELNYX_PUBLIC_KEY on wl/voodoo/proshop.
