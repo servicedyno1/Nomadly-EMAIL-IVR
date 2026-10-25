@@ -1,0 +1,81 @@
+{
+  "summary": "PART A (new-version detector, the reported bug fix): A1–A8 ALL PASS. PART B (3CX features, REPORT-ONLY, no product code changed): backend 26/26 adapted regression tests pass + 21/23 edge-case tests (2 real findings); UI flows for Text Triggers, Ring group, AI summaries (1 real OpenAI summarize, $0.10), Webhooks, Install app, Bob plan-gating, FR/ES and 390px all exercised. 13 problems found: 1 HIGH (webhook SSRF bypass), 1 MEDIUM functional (Show-secret eye button does nothing), rest LOW/design.",
+  "part_a_results": {
+    "A1": "PASS – no [data-testid=app-update-banner] without keys (dashboard, numbers, settings)",
+    "A2": "PASS – banner appears <5 s under the yellow preview banner: 'A new version of CloudIVR is ready.' + 'Refresh now' + 'Later'",
+    "A3": "PASS – click My numbers → one full reload (marker undefined), lands on /cloudivr/app/numbers, civr.updateReloadedFor='bbb222'",
+    "A4": "PASS – next nav (Wallet) no reload (marker stays 2), banner still shown",
+    "A5": "PASS – Later hides banner and it stays hidden across Inbox/Settings/Overview; Refresh now does a full reload (marker cleared)",
+    "A6": "PASS – dirty Forwarding form + Refresh now → styled confirm 'You have unsaved changes. Leave without saving them?' (Stay and save / Leave without saving); Stay keeps page+edit, Leave reloads and the edit is discarded",
+    "A7": "PASS – FR 'Une nouvelle version de CloudIVR est prête.' / 'Actualiser maintenant' / 'Plus tard'; ES 'Hay una nueva versión de CloudIVR lista.' / 'Actualizar ahora' / 'Más tarde'; 390px: banner wraps to 2 lines, scrollWidth 390 = no overflow",
+    "A8": "PASS – all 3 sessionStorage keys removed"
+  },
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "PUT /api/cloudivr-web/webhooks (+ POST /webhooks/test, live event delivery)", "issue": "SSRF guard bypass. publicHost() in js/cloudivr-web/events.js only regex-checks the hostname string. Accepted (200): https://[::ffff:127.0.0.1]/x, https://[::ffff:a9fe:a9fe]/latest (= 169.254.169.254 cloud metadata), https://[::]/x, https://100.64.0.1/x, and DNS names that resolve to private IPs (https://localtest.me/x → 127.0.0.1). No DNS resolution check at save or at delivery (DNS rebinding). 'Send a test event' then POSTs from the production server and shows the user the HTTP status. Expected 400 'Use a public web address…'. Fix: resolve host (dns.lookup all) and reject private/loopback/link-local/CGNAT/ULA/IPv4-mapped ranges at save AND at deliver time (axios custom lookup / agent), normalise ::ffff: addresses.", "priority": "HIGH"}
+    ],
+    "minor": [
+      {"endpoint": "POST /api/cloudivr-web/webhooks/test", "issue": "Without a JSON body → 500 'TypeError: Cannot read properties of undefined (reading 'type')' (events.js line 137 req.body.type). UI always sends a body so users unaffected; use (req.body || {}).type."},
+      {"endpoint": "PUT /api/cloudivr-web/numbers/:phone/ring-group", "issue": "ringTimeout 5 or 90 silently clamped to 10/60 (ring-group.js line 26) — no 400, UI shows normal success toast, user never learns the value changed."},
+      {"endpoint": "ai-summary.js summarize/sweep", "issue": "Claim filter only re-claims failed/no_funds/empty. If the process restarts while a row is 'working', it stays 'working' forever → UI shows 'AI summary on the way…' permanently and the Summarize button never returns. Add a staleness timeout (e.g. working older than 5 min is reclaimable)."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Settings → Call events → Signing secret (pages/settings/Webhooks.js Secret)", "issue": "Eye 'Show secret' button does nothing with a real mouse/touch click; clicking the masked secret text toggles it instead (so trying to select/copy it manually – the hint in the 'Copy failed' toast – flips the mask). RCA: Secret is wrapped in <Field>, which renders a <label> (ui.js line 69). The click toggles show, then label activation re-dispatches a click to its first labelable descendant (the eye button) → toggles back. Verified: click log ['svg','webhooks-secret-toggle'] for one click; JS el.click() works. Fix: render the secret row in a <div> (not Field/label).", "selector": "[data-testid=webhooks-secret-toggle]", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [
+      {"flow": "Logs → Summarize · $0.10", "issue": "Wallet debited correctly ($305.00 → $304.90) but top-bar balance keeps showing $305.00 until reload/next 30 s poll. Refresh shell summary after a successful summarize.", "affected_selectors": ["[data-testid=topbar-balance]"]},
+      {"flow": "Private mode + AI summary", "issue": "Summary text and action items hidden correctly, but the free-text mood pill (e.g. 'professional') still shows, and Logs search still matches hidden transcript/summary text (search 'Friday' narrows to the hidden voicemail row, leaking content by inference).", "affected_selectors": ["[data-testid$=-mood]", "[data-testid=logs-search]"]},
+      {"flow": "Text Triggers → Try a text", "issue": "Evaluates SAVED rules only; with unsaved edits on screen the result doesn't match what the user sees and there is no 'save first' hint (Webhooks disables its test button while dirty – inconsistent). Also Try-a-text runs are excluded from 'Recent runs' by design (test:{$ne:true}); only real/simulated inbound texts appear there.", "affected_selectors": ["[data-testid=triggers-try-button]", "[data-testid=triggers-runs-list]"]}
+    ],
+    "design_issues": [
+      {"screen": "Settings 390px (FR/ES/EN)", "issues": ["Signing secret <code> box shrinks to 'wh…' (unreadable) because eye/copy/'Nouveau secret' buttons share the row; put the secret on its own line on mobile."]},
+      {"screen": "Global toasts", "issues": ["Sonner toasts at bottom-right overlap the floating help/chat FAB; repeated validation saves stack up to 3 error toasts."]},
+      {"screen": "Number detail tab strip (desktop 1920)", "issues": ["First tab is clipped at the left edge ('verview' instead of 'Overview') on every number tab page."]},
+      {"screen": "Ring group card", "issues": ["Priority note sits flush against the 'Phones that ring together' label and the 'Up to 5 phones…' hint is flush against 'Ring for (seconds)' – missing vertical gap."]},
+      {"screen": "Text Triggers 390px FR", "issues": ["Selected action tile 'Rappel automatique' text touches/overflows the tile border."]}
+    ]
+  },
+  "part_b_passed": [
+    "B1: all 3 actions add; keyword toggle+keywords (saved lower-cased 'call, urgent'); business-hours hint ('Your Hours tab schedule is off, so this always counts as open.'); once-per-hour toggle; reorder up/down keeps agent selection; delete; master toggle; Save toast 'Text Triggers saved and on'; persisted after reload. Validation toasts: callback w/o phone, message w/o text, AI w/o agent, keyword-only w/o keywords; >5 rules (API 400, UI hides add-row at 5); unknown agent and myPhone = number itself refused. Try a text pills (1 · Runs / 2 · Earlier trigger runs, No keyword, Off). Recent runs show 'Preview' + 'Skipped (Already ran … in the last hour)' for simulated inbound SMS. Pro +14179247738 AI action shows 'AI agent call backs are on the Business plan.'; API refuses AI on Pro. Bob → Locked card.",
+    "B2: ≥2 phones enforced ('Add at least 2 phones…'), max 5 (Add button hides), remove disabled at 1, forward fallback empty/duplicate refused, voicemail/forward/message fallbacks save, toast 'Ring group on — the keypad menu won't run while it's on', Overview 'Every call rings 3 phones at once — the first to answer gets it.', duplicate members / own number refused. Bob → Locked. (Voicemail-disabled option not reachable: Business and Pro both include voicemail, Starter is locked.)",
+    "B3: ai-summary-bar + auto toggle PATCH works (toast 'Auto summaries off'); 'Summarize · $0.10' on the seeded voicemail; ONE OpenAI call → card Neutral / professional / summary mentions $340 and Friday / 3 action items; $0.10 debited; re-summarize returns cached result (no second charge/LLM call). Search 'Friday' finds it; private mode shows 'Summary hidden'. Bob → ai-summary-locked.",
+    "B4: http, 127.0.0.1, 10.0.0.5, localhost, [::1], 169.254.169.254, 192.168/172.16, decimal/hex IP, 0.0.0.0, ftp refused; 5 event pills; copy works; rotate asks confirm and changes the secret; test event to httpbin 200 OK; Recent deliveries lists it (with 'test' pill). Bob sees his own empty card (isolation OK).",
+    "B5: install-hint variant rendered in desktop Chromium; <link rel=manifest href=/civr/manifest-prefixed.webmanifest> → 200 JSON (id /cloudivr/app, start_url /cloudivr/app?source=pwa, scope /cloudivr/). SW /civr-ring-sw.js is network-first (won't block update detection).",
+    "B6: no untranslated strings found on triggers/ringgroup/logs/overview/settings in FR and ES; at 390px no page-level horizontal overflow on any of them (tab strip scrolls internally)."
+  ],
+  "test_report_links": [
+    "/app/backend/tests/test_cloudivr_3cx_features_pod.py",
+    "/app/backend/tests/test_cloudivr_3cx_edge_cases.py",
+    "/app/backend/tests/cleanup_alice_3cx_state.py",
+    "/app/test_reports/pytest/pytest_3cx.xml",
+    "/app/test_reports/pytest/pytest_3cx_edge.xml"
+  ],
+  "action_items": [
+    "HIGH: harden webhook URL guard in js/cloudivr-web/events.js (IPv4-mapped IPv6, ::, 100.64/10, DNS-resolved private IPs, re-check at delivery time).",
+    "MEDIUM: Webhooks.js Secret row – replace <Field> (label) wrapper with a div so the eye button toggles and the secret text is selectable.",
+    "LOW: POST /webhooks/test null-safe req.body; ring-group ringTimeout out of range → 400 or UI min/max feedback; reclaim stale 'working' AI summaries.",
+    "LOW: refresh top-bar balance after Summarize; private mode should hide mood pill and skip hidden text in Logs search; Try-a-text 'save first' hint when dirty.",
+    "DESIGN: mobile secret field width, toast vs FAB overlap, clipped first number tab, Ring group card spacing, FR action tile overflow."
+  ],
+  "critical_code_review_comments": [
+    "events.js publicHost(): string regex only; no DNS resolution; does not cover ::ffff:*, ::, 100.64/10, 198.18/15; deliver() doesn't re-validate → SSRF.",
+    "ui.js Field renders <label>; any Field that wraps buttons (Webhooks Secret) suffers double-click activation – audit other Field usages with buttons inside.",
+    "update.js is solid: once-per-build reload guard, dirty/call guard, 60 s throttle, dev-only sessionStorage simulation ignored in prod builds.",
+    "TextTriggersTab RuleCard uses key={i}; fine today because fully controlled, but local state added later would follow the index on reorder."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_cloudivr_3cx_features_pod.py (new – copy of old suite adapted to this pod's numbers + seed/teardown fixture)",
+    "/app/backend/tests/test_cloudivr_3cx_edge_cases.py (new)",
+    "/app/backend/tests/cleanup_alice_3cx_state.py (new)",
+    "No product code changed (owner rule)."
+  ],
+  "success_rate": {"backend": "45/49 checks pass (26/26 regression, 19/23 edge incl. 4 SSRF/500 findings)", "frontend": "Part A 100% (8/8); Part B ~85% (1 functional UI bug + minor issues)"},
+  "seed_data_creation": "Simulated inbound SMS via /api/telnyx/sms-webhook from random +1415555xxxx senders (creates SMS log rows + 'preview'/'skipped' trigger runs on +16692098449). Webhook test deliveries to httpbin.org. One AI summary stored on phoneLogs 6ade2df3f74a7e050f46a259 (charged $0.10 to Alice test wallet → $304.90).",
+  "final_state_left": "Alice +16692098449: keypad menu ON (route 'ivr'), Text Triggers OFF (3 rules kept: callback kw 'call, urgent' / message / AI Ava, myPhone +14155550111), ring group OFF (members kept), AI summaries auto OFF, forwarding disabled. +14179247738: triggers OFF, ring group OFF, AI summaries OFF. Webhook disabled (URL https://httpbin.org/post, all 5 events). Language EN, sessionStorage update keys removed. Bob untouched.",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Use test_cloudivr_3cx_features_pod.py (seeds triggers+webhook in a module fixture and switches them off after) and test_cloudivr_3cx_edge_cases.py; run cleanup_alice_3cx_state.py after. The seeded voicemail 6ade2df3f74a7e050f46a259 is now summarised – Summarize button no longer appears on it (insert a new voicemail row to retest). Playwright: use domcontentloaded + explicit waits (dashboard/incoming polling). Webhooks show-secret bug only reproduces with real pointer clicks (page.locator.click), not el.click().",
+  "rca of the issue": "Reported bug (Text Triggers not visible on prod): stale SPA tab; fix verified A1–A8. Show-secret bug: <label> activation re-dispatches click to first labelable descendant (the eye button) → state toggles twice. SSRF: hostname regex blocklist without IP normalisation/DNS resolution."
+}

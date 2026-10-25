@@ -109,6 +109,9 @@
   Startup alerts: Telnyx $6.66 (warn), EdenAI $4.47 (warn), Twilio 401 (known). Owner choice: preview SIMULATED; DEV bot moved here.
   Fresh local DB: Alice = Business `+16692098449` (dryRun, keypad menu ON), wallet $380. Bob = Starter `+18482549748` (dryRun), $450.
   Both back-dated 45 days. No Carol / AI agent / call history this time. Panel `wpapps01`/`246810` re-seeded; UI logins verified.
+  Later same session (3CX test round, iteration_135): Alice also has Pro `+14179247738`, AI agent **Ava** id
+  `7a5fcad8-2523-4366-8267-2b30a3183f1d`, voicemail log `6ade2df3f74a7e050f46a259` (summarised), wallet ~$304.90. Tester left Alice's
+  Text Triggers / ring group / AI summaries / webhook OFF (rules kept). SSH keys restored via `scripts/restore_infra_keys.sh` (read-only prod checks).
 
 ## Environment notes
 - Linkly (Shortit "Random" link provider since 2026-10-22): `LINKLY_API_KEY` (secret, in vault + all 4 droplet

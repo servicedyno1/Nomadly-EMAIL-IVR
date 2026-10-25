@@ -37,6 +37,26 @@ Done in this session (no code changed):
   `settings-webhooks-card` / `webhooks-*`, `settings-install-card` / `install-*`.
 Next step unchanged: run `testing_agent` (both, report-only) with the brief below, show the owner the problem list, fix after approval.
 
+## Session 3 (2026-10-25, fresh pod) — TESTED (iteration_135), REPORT-ONLY, fixes await owner approval
+- These features ARE LIVE on production (cloudivr.net release 20261025T155540Z-6c52894, CI deploy from main ~15:58Z).
+  Owner saw no Text Triggers tab because his tab was loaded 14:44Z (old bundle) and never reloaded → new
+  `src/cloudivr/update.js` (UpdateWatcher + UpdateBanner) — A1–A8 all PASS. NOT deployed yet (needs Save to GitHub → main).
+- Fixtures on this pod: Alice Business +16692098449 (keypad menu ON), Pro +14179247738, agent Ava 7a5fcad8-2523-4366-8267-2b30a3183f1d,
+  voicemail 6ade2df3f74a7e050f46a259 (now summarised). Bob Starter +18482549748. Tester left triggers/ring group/AI summaries/webhook OFF.
+- New tests by tester: backend/tests/test_cloudivr_3cx_features_pod.py (26/26), test_cloudivr_3cx_edge_cases.py (19/23 — the 4 findings),
+  cleanup_alice_3cx_state.py.
+- PROBLEMS FOUND (owner must approve before fixing):
+  1. HIGH  events.js publicHost(): regex on hostname only → SSRF. Accepted: https://[::ffff:127.0.0.1]/x, [::ffff:a9fe:a9fe] (metadata),
+     [::], 100.64.0.1, DNS names resolving to private IPs (localtest.me). deliver() never re-checks. Fix: dns.lookup(all) + block private/
+     loopback/link-local/CGNAT/ULA/IPv4-mapped at save AND delivery (custom lookup), normalise ::ffff:.
+  2. MEDIUM Webhooks.js signing-secret eye button does nothing on real clicks (wrapped in <Field> = <label> → click re-dispatched to the
+     first button → toggles twice). Use a <div>. Audit other Field usages that wrap buttons.
+  3. LOW  POST /webhooks/test without body → 500 (req.body.type). 4. LOW ring-group ringTimeout 5/90 silently clamped to 10/60.
+  5. LOW  ai-summary row stuck 'working' forever after a restart (no stale reclaim). 6. LOW top-bar balance not refreshed after Summarize.
+  7. LOW  private mode still shows the mood pill + Logs search matches hidden text. 8. LOW Try-a-text uses SAVED rules, no "save first" hint.
+  9–13 DESIGN: 390px secret box shrinks to "wh…"; toasts overlap help FAB; first number tab clipped ('verview') at 1920; Ring group card
+     spacing; FR "Rappel automatique" tile overflow at 390px.
+
 ## NEXT AGENT — do this first
 1. Run `testing_agent` (frontend + backend) with Alice (`civr.alice@example.com` / `AliceTest#2026`, Business `+18582696527`,
    Pro `+13465372632`) and Bob (Starter — every new tab must show the Locked upgrade card). Cover:

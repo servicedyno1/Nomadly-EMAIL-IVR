@@ -1196,6 +1196,15 @@ calls and SIP are simulated; inbound calls use a pretend-call simulator).
   backup number / message), Call-event webhook feed for CRMs/Zapier (5 signed events), installable app (PWA). FR/ES strings added.
   Full map, test plan and 3CX backlog: memory/CLOUDIVR_3CX_FEATURES_2026-06.md. NEXT: run testing_agent on the new screens.
 
+## 2026-10-25 (fork 3) — "Text Triggers not on production" RCA + update banner + 3CX test round (iteration_135)
+- RCA: prod (cloudivr.net, release 6c52894b, CI from main) HAS Text Triggers; owner's tab was loaded 14:44Z before the 15:58Z deploy
+  and an SPA never reloads itself → old UI. Fix: frontend/src/cloudivr/update.js (UpdateWatcher in CloudIvrApp, UpdateBanner in Shell):
+  compares /static/js/main.<hash>.js of the running page with a fresh cp('/app') HTML (5 min / focus / page change, ≥60 s apart),
+  shows "A new version of CloudIVR is ready" (Refresh now / Later) and auto-reloads once per build on the next page change when no
+  unsaved form and no browser-phone call. FR/ES added. Tested A1–A8 PASS. NOT deployed — owner: Save to GitHub (main) → CI deploy.
+- 3CX features tested report-only: 13 findings (1 HIGH webhook SSRF, 1 MEDIUM show-secret button) — list in
+  memory/CLOUDIVR_3CX_FEATURES_2026-06.md "Session 3". Awaiting owner approval to fix.
+
 ## 2026-06 (fork 2) — 3CX features testing: STILL PENDING
 - Owner paused again before the testing agent ran. No code changed. Owner rules for testing: simulated calls/texts only,
   report problems first and fix only after approval, no setup re-run needed.
