@@ -1362,3 +1362,10 @@ calls and SIP are simulated; inbound calls use a pretend-call simulator).
 - Fixed 2 stale assertions in js/tests/test_cloudivr_hours_vm_notes_2026-10.js (Pro has IVR; redial/presets are web features) → 31/31.
   Emails 38/38, off-hours forward 14/14, eslint src/cloudivr 0 errors. Removed pod-generated frontend/yarn.lock (deploy uses npm).
 - Next: after owner saves, verify CI deploy-main → app-main RELEASE sha = new main, /health, cloudivr.net Hours + cookie banner.
+
+## 2026-10-26 — PROD check: onarrival21@gmail.com (web chatId 5000000000000002) text reply — DELIVERED
+- 12:30:27Z "Text back" from toll-free +18333753298 → +19379800767 (our E2E test number, the missed call from the SIP live test):
+  Telnyx 4031a178… status delivered, no errors; received inbound 12:30:28Z. On-net Telnyx→Telnyx, so no carrier filtering.
+- Telnyx account has 0 toll-free verification requests (+18333753298 unverified; 10DLC does not apply to toll-free). Texts to
+  real US mobiles will likely be refused (unverified toll-free, Telnyx 40329). App marks 'sent' on API accept and ignores
+  message.finalized (js/_index.js ~48526), so a later carrier block would still show as sent. NOT_REGISTERED regex lacks 40329.
