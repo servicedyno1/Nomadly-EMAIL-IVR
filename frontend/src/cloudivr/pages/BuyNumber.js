@@ -22,7 +22,7 @@ function SearchForm({ catalog, q, setQ, onSearch, busy }) {
   const setCountry = (code) => { const c = catalog.countries.find(x => x.code === code); setQ({ country: code, type: c.types[0], areaCode: '' }); };
   const local = ['US', 'CA'].includes(q.country) && q.type === 'local';
   return (
-    <form onSubmit={onSearch} className="civr-card p-6 grid md:grid-cols-4 gap-4 items-end" data-testid="buy-search-form">
+    <form onSubmit={onSearch} className="civr-card p-6 grid sm:grid-cols-2 xl:grid-cols-4 gap-4 items-end" data-testid="buy-search-form">
       <Field label="Country">
         <select className="civr-input" value={q.country} onChange={e => setCountry(e.target.value)} data-testid="buy-country-select">
           {catalog.countries.map(c => <option key={c.code} value={c.code}>{`${c.flag} ${c.name}`}</option>)}

@@ -20,6 +20,7 @@ import OrderStatus from './pages/buy/OrderStatus';
 import Verification from './pages/Verification';
 import AudioLibrary from './pages/AudioLibrary';
 import QuickCall from './pages/QuickCall';
+import Contacts from './pages/Contacts';
 import TextCall from './pages/TextCall';
 import { Campaigns, CampaignNew } from './pages/Campaigns';
 import CampaignDetail from './pages/CampaignDetail';
@@ -168,6 +169,7 @@ export default function Shell() {
               <Route path="orders/:id" element={<OrderStatus />} />
               <Route path="verification" element={<Verification />} />
               <Route path="audio" element={<AudioLibrary />} />
+              <Route path="contacts" element={<Contacts />} />
               <Route path="quick-call" element={<QuickCall />} />
               <Route path="text-call" element={<TextCall />} />
               <Route path="ai-agents" element={<AiAgents />} />

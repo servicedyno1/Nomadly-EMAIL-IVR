@@ -28011,18 +28011,21 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     }
     const escHtml = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
     let content = ''
-    // Handle file upload
+    let fileName = ''
+    // Handle file upload: Excel (.xlsx) or text (.txt/.csv); the phone + name columns are found automatically.
     if (msg.document) {
       const fname = String(msg.document.file_name || '').toLowerCase()
       const mime = String(msg.document.mime_type || '').toLowerCase()
       const textLike = /\.(txt|csv|tsv|text|lst)$/.test(fname) || mime.startsWith('text/') || mime === 'application/csv'
-      if (fname && !textLike) {
+      const sheet = /\.(xlsx|xlsm)$/.test(fname) || mime.includes('spreadsheetml')
+      if (fname && !textLike && !sheet) {
         return send(chatId, trans('t.cp_134b', escHtml(msg.document.file_name || 'file')), k.of([['↩️ Back']]))
       }
       try {
         const fileLink = await bot.getFileLink(msg.document.file_id)
-        const response = await require('axios').get(fileLink, { responseType: 'text', timeout: 15000 })
-        content = typeof response.data === 'string' ? response.data : JSON.stringify(response.data)
+        const response = await require('axios').get(fileLink, { responseType: 'arraybuffer', timeout: 15000, maxContentLength: 10 * 1024 * 1024 })
+        content = Buffer.from(response.data)
+        fileName = msg.document.file_name || ''
       } catch (e) {
         return send(chatId, trans('t.cp_134', e.message), k.of([['↩️ Back']]))
       }
@@ -28030,9 +28033,9 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       content = message
     }
 
-    if (!content.trim()) return send(chatId, trans('t.cp_135'), k.of([['↩️ Back']]))
+    if (!(Buffer.isBuffer(content) ? content.length : content.trim())) return send(chatId, trans('t.cp_135'), k.of([['↩️ Back']]))
 
-    const { leads, errors, binary } = bulkCallService.parseLeadsFile(content)
+    const { leads, errors, binary, columns } = bulkCallService.parseLeadsFile(content, fileName)
     if (binary) return send(chatId, trans('t.cp_134b', escHtml(msg.document?.file_name || 'file')), k.of([['↩️ Back']]))
     if (leads.length === 0) {
       const errMsg = errors.length > 0 ? `\n\nErrors:\n${errors.slice(0, 5).join('\n')}` : ''
@@ -28054,7 +28057,8 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     const estCost = leadsEst.total.toFixed(2)
     const preview = leads.slice(0, 5).map(l => `  ${l.number}${l.name ? ' — ' + escHtml(l.name) : ''}`).join('\n')
     const more = leads.length > 5 ? `\n  ... and ${leads.length - 5} more` : ''
-    const errNote = (errors.length > 0 ? `\n⚠️ ${errors.length} invalid lines skipped` : '') +
+    const errNote = (columns?.phone ? `\n${trans('t.cp_138cols', escHtml(columns.phone), columns.name ? escHtml(columns.name) : '')}` : '') +
+      (errors.length > 0 ? `\n⚠️ ${errors.length} invalid lines skipped` : '') +
       (leadsEst.intl ? `\n🌍 ${leadsEst.intl} international lead${leadsEst.intl === 1 ? '' : 's'} — ${leadsEst.rateLine}` : '') +
       (leadsEst.blockedLine ? `\n${leadsEst.blockedLine}` : '')
 

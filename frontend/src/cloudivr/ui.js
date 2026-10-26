@@ -61,7 +61,7 @@ export const Label = ({ children }) => <div className="civr-label mb-3">{childre
 export function PageHeader({ label, title, sub, children, testid }) {
   return (
     <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between mb-8 civr-rise" data-testid={testid}>
-      <div>
+      <div className="min-w-0">
         {label && <Label>{label}</Label>}
         <h1 className="font-display text-4xl sm:text-5xl font-extrabold leading-[1.05] text-[#f3f4f6]">{title}</h1>
         {sub && <p className="text-sm md:text-base text-[#a1a1aa] mt-3 max-w-2xl">{sub}</p>}

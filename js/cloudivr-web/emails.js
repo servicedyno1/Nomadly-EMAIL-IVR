@@ -114,7 +114,7 @@ function createEmails(db, { log = console.log } = {}) {
     const c = await db.collection('bulkCallCampaigns').findOne({ id })
     const s = c.stats || {}
     return {
-      id, name: c.agentName || c.audioName || 'Campaign', callerId: c.callerId, cancelled: c.status === 'cancelled', mode: c.mode,
+      id, name: c.name || c.agentName || c.audioName || 'Campaign', callerId: c.callerId, cancelled: c.status === 'cancelled', mode: c.mode,
       duration: c.startedAt && c.completedAt ? Math.round((new Date(c.completedAt) - new Date(c.startedAt)) / 1000) : 0,
       stats: s, rate: s.total ? Math.round(((s.answered || 0) / s.total) * 100) : 0, notDialed: (c.leads || []).filter(l => l.notCalled).length,
     }

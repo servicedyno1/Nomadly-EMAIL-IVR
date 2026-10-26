@@ -13,12 +13,14 @@ const { get } = require('./db.js')
 const { translation } = require('./translation.js')
 const { isTwilioEnabled } = require('./phone-config.js')
 const dialGuard = require('./dial-rate-guard.js')
+const contactsImport = require('./contacts-import.js')
 
 // ━━━ Bulk Call Pricing & Limits ━━━
 const BULK_CALL_RATE       = parseFloat(process.env.BULK_CALL_RATE_PER_MIN || '0.15')   // $/min — charged whether answered or not
 const MAX_BULK_LEADS       = parseInt(process.env.BULK_CALL_MAX_LEADS || '500', 10)      // max leads per campaign
 const BULK_CALL_MIN_WALLET = parseFloat(process.env.BULK_CALL_MIN_WALLET || '20')        // minimum wallet balance to launch
 const TELNYX_DIAL_GAP_MS   = parseInt(process.env.BULK_TELNYX_DIAL_GAP_MS || '1000', 10) // account-wide Telnyx dial pacing (CPS)
+const VM_MAX_CALL_SEC      = parseInt(process.env.BULK_VM_MAX_CALL_SEC || '60', 10)      // voicemail-drop campaigns: max call length
 const STUCK_LEAD_MAX_MIN   = parseInt(process.env.BULK_STUCK_LEAD_MAX_MIN || '20', 10)   // in-flight lead with no completion → swept
 
 // Legacy campaigns (pre-Telnyx) carry no provider field — they are Twilio campaigns.
@@ -629,70 +631,17 @@ async function sweepStuckLeads() {
   return swept
 }
 
-/**
- * Parse a leads file (CSV or TXT)
- * Supports: one number per line, or CSV with number,name columns
- * @param {string} content - File content
- * @returns {{ leads: Array<{number, name}>, errors: string[] }}
- */
-// 2026-10-01 (@jameswalker3646): a binary upload (xlsx/pdf/audio) read as text yielded
-// garbage "leads" whose names contained "<" → Telegram HTML parse error → user saw nothing.
-function looksBinary(content) {
-  const sample = String(content || '').slice(0, 4000)
-  if (!sample) return false
-  if (sample.includes('\u0000') || sample.includes('\uFFFD')) return true
-  // eslint-disable-next-line no-control-regex
-  const bad = (sample.match(/[^\x09\x0A\x0D\x20-\x7E\u00A0-\uFFFC]/g) || []).length
-  return bad >= 8 && bad / sample.length > 0.1
-}
-
-function parseLeadsFile(content) {
-  if (looksBinary(content)) return { leads: [], errors: ['File is not plain text (binary/spreadsheet/audio). Upload a .txt or .csv file.'], binary: true }
-  const lines = content.split(/\r?\n/).map(l => l.trim()).filter(l => l && !l.startsWith('#'))
-  const leads = []
-  const errors = []
-  const seen = new Set()
-
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i]
-    let number = ''
-    let name = null
-
-    // Try CSV (comma or semicolon separated)
-    if (line.includes(',') || line.includes(';')) {
-      const parts = line.split(/[,;]/).map(p => p.trim())
-      number = parts[0]
-      name = parts[1] || null
-    } else {
-      number = line
-    }
-
-    // Clean the number
-    number = number.replace(/["'\s]/g, '')
-    // NANP fix (2026-02 @blacknmilds): a bare 10-digit US/Canada number pasted
-    // without "+" was becoming "+4065067340" — which E.164 parses as Romania
-    // (+40), not US (+1). Every call then failed with Twilio "Account not
-    // authorized to call…" geo-permissions. Prepend +1 for 10-digit input.
-    number = number.replace(/[^\d+]/g, '')
-    if (!number.startsWith('+')) {
-      if (/^\d{10}$/.test(number)) number = '+1' + number           // NANP 10-digit
-      else if (/^1\d{10}$/.test(number)) number = '+' + number      // NANP 1-prefixed
-      else number = '+' + number.replace(/^0+/, '')
-    }
-    number = number.replace(/[^+\d]/g, '')
-
-    if (!number.match(/^\+\d{8,15}$/)) {
-      errors.push(`Line ${i + 1}: Invalid number "${lines[i].substring(0, 30).replace(/[<>&]/g, '')}"`)
-      continue
-    }
-
-    if (seen.has(number)) continue // skip duplicates
-    seen.add(number)
-    const cleanName = name ? name.replace(/[^\x20-\x7E\u00A0-\uFFFC]/g, '').trim().slice(0, 60) : ''
-    leads.push({ number, name: cleanName || null })
+// Leads from a pasted list or an uploaded file (.xlsx / .csv / .txt). The phone and name columns are found from the
+// headers (Phone, Mobile, Name, First name…) or the cell contents; see contacts-import.js.
+// 2026-10-01 (@jameswalker3646): unreadable binary uploads (pdf/audio/old .xls) return { binary: true } so the bot
+// answers with a clear message instead of garbage "leads".
+function parseLeadsFile(content, fileName) {
+  try {
+    return contactsImport.parseLeads(Buffer.isBuffer(content) ? content : String(content || ''), fileName)
+  } catch (e) {
+    if (!e.code) throw e
+    return { leads: [], errors: [e.message], binary: true, columns: null }
   }
-
-  return { leads, errors }
 }
 
 /**
@@ -720,6 +669,7 @@ async function createCampaign(params) {
     callerId,
     audioUrl,
     audioName: audioName || 'Custom Audio',
+    name: String(params.name || '').trim().slice(0, 80) || null,
     mode: mode || 'report_only', // 'transfer' | 'report_only' | 'ai' (an AI voice agent talks to each lead)
     agentId: mode === 'ai' ? agentId : null,
     agentName: mode === 'ai' ? (agentName || null) : null,
@@ -1026,6 +976,8 @@ function dialTelnyx(campaign, lead) {
     templateName: campaign.audioName,
     holdMusic: !!campaign.holdMusic,
     voicemailAudioUrl: /^https?:\/\//i.test(campaign.voicemailAudioUrl || '') ? campaign.voicemailAudioUrl : null,
+    // Voicemail-drop campaigns: no call runs past BULK_VM_MAX_CALL_SEC (default 60 s) unless connected to the owner.
+    maxCallSec: campaign.voicemailAudioUrl ? VM_MAX_CALL_SEC : null,
     campaignId: campaign.id,
     leadIndex: lead.index,
     bulkMode: isTransfer ? 'transfer' : 'report_only',

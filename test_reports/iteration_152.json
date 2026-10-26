@@ -1,0 +1,28 @@
+{
+  "summary": "Frontend-only retest of the iteration_151 findings, run with Playwright measurements (Alice + Bob, preview, nothing paid, upgraded, bought or deleted). (1) PageHeader buttons PASS. At 768, 820, 1024 and 1180: numbers-buy-button, sip-page-open-phone, ai-agents-new-button and campaigns-new-button are each 42px tall, and wallet-refresh-button, inbox-mark-read-button and help-whats-new-button are each 36px. All sit on one line, right-aligned, while the long subtitles wrap. At 390 they all sit under the h1 with no horizontal scroll. EXCEPTION: buy-search-button on /app/buy is still 51px (label on two lines) at 768, 820 and 1024. It is not in a PageHeader: it sits in the 4-column search form in BuyNumber.js, where the column is about 152px wide. It is 42px at 390 and 1180. (2) Help layout PASS. At 768, 1024 and 1180 the help-contact-card and help-shortcuts-card sit side by side below the articles. At 1280 and 1440 they are in the right column. help-open-assistant-button and help-support-link are 42px (one line) at every width. (3) Billing upgrade pay row PASS (Bob +19103709316, Business, See price). The wallet button, coin select and crypto button are all exactly 44px and fully inside billing-upgrade-card at 360, 390, 768, 1024, 1180, 1440, 1920 and 2560, with no horizontal scroll. (4) Wallet at 1024 PASS. The date cells are whitespace-nowrap and the tables scroll inside their overflow-x-auto wrappers (table 349px inside a 302px wrapper), with no page horizontal scroll. (5) Regression PASS. overflow_audit.js ran on /app, /app/numbers, /app/numbers/%2B17377031678?tab=billing, /app/wallet, /app/help and /app/settings at 360, 1024 and 1920. Result: 0 horizontal scroll, 0 spills, 0 off-screen elements, 0 tall buttons, 0 squashed icons. New minor finding: at 1024 the Wallet balance figure ($360.00, text-5xl mono) breaks onto two lines ('$360.0' / '0') in the narrow balance card.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "BuyNumber.js SearchForm", "issue": "'Search numbers' button breaks onto two lines (51px tall) at 768-1024. Cause: the form uses md:grid-cols-4, so each column is about 152px. Fix: use md:grid-cols-2 lg:grid-cols-4 (or xl:grid-cols-4), or add whitespace-nowrap to the button and let the grid size it.", "selector": "[data-testid=buy-search-button]", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Wallet at 1024 (Wallet.js line 167)", "issues": ["The wallet-balance figure (font-mono text-5xl) breaks in the middle of the number ('$360.0' / '0') because wallet-balance-card is only about 224px wide at 1024. Larger balances will be worse. Use text-4xl xl:text-5xl plus whitespace-nowrap, or a clamp() font size."]}
+    ]
+  },
+  "test_report_links": ["/app/tests/overflow_audit.js"],
+  "action_items": [
+    "BuyNumber.js: stop the 'Search numbers' button breaking onto two lines at 768-1024 (change the grid breakpoints or add nowrap)",
+    "Wallet.js: make the wallet-balance figure smaller at lg widths, or nowrap, so '$360.00' does not break at 1024"
+  ],
+  "critical_code_review_comments": [
+    "ui.js PageHeader: the left block <div> still has no min-w-0 (the review note said it was added). It works now because the subtitle has max-w-2xl, but add min-w-0 so long unbroken titles cannot push the actions out.",
+    "Help.js aside reports computed position 'sticky' even below xl (it was seen at 768). This is harmless in the stacked layout, but check that no other class sets sticky."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A", "frontend": "96% (all 5 retest items pass; 1 leftover button on Buy at 768-1024 plus 1 new minor wallet balance wrap)"},
+  "seed_data_creation": "None",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Log in through /cloudivr/login (auth-email-input, auth-password-input, auth-submit-button) after setting localStorage civr.consent. /app/tests/overflow_audit.js is a page.evaluate function; read it with open(). Billing: Bob /app/numbers/%2B19103709316?tab=billing -> billing-upgrade-plan-select 'business' -> billing-upgrade-quote-button. Never click billing-upgrade-confirm-button or billing-upgrade-crypto-button. Only the two LOW items above remain."
+}

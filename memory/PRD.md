@@ -1,5 +1,22 @@
 # PRD — Nomadly Cloud IVR + Telegram Bot
 
+## 2026-10-26 (night, 19:50Z) — CloudIVR web: crypto button spill + responsive pass (phone → 2560) — TESTED (iteration_151/152), deploying
+- Owner bug: Billing tab → Upgrade → "Pay with crypto" spilled out of the card (1024–1440). RCA: `.civr-btn` had
+  `white-space: nowrap` above 640px, so in UpgradePay's `grid sm:grid-cols-2` the coin select + nowrap button were wider
+  than the column. Fixes: UpgradePay = flex-wrap row (wallet flex-[1_1_15rem], coin+crypto flex-[1_1_16rem], 44px);
+  BillingTab = left column stack (Renewal/Downgrade/Extra) + Upgrade right, `items-start` (no stretched empty Renewal).
+- Global (cloudivr.css): `.civr-btn` wraps its label at every width (min-height 42 / sm 36, max-width 100%, svg
+  shrink-0); `.civr-card` min-width 0 + overflow-wrap break-word. PageHeader actions `md:shrink-0` (no 2-line header
+  buttons at tablet), Help side cards below articles until xl, Buy search form `sm:grid-cols-2 xl:grid-cols-4`, wallet
+  balance `text-4xl xl:text-5xl nowrap`, wallet tables in overflow-x-auto + nowrap dates.
+- Phone top bar: px-3, logo text sr-only below 380px (Wordmark `textClass`) → no cut-off phone button at 360.
+- Large monitors: app <main> max-w 1280 → 1440 (≥1600) → 1640 (≥1800) → 1880 (≥2300); Numbers + Buy results 4 cols ≥1800;
+  Settings grid widens. Landing/SIP marketing pages unchanged.
+- Verified: overflow audit 29 pages × 6–10 widths = 0 spills / 0 h-scroll (testing agent helper /app/tests/overflow_audit.js).
+- Owner pressed Save to GitHub at 19:18 (origin/main f84a101c, CI deployed it) → GitHub and server in sync; this release
+  (188bc1c, superset) deployed via workspace script — owner should Save to GitHub again afterwards.
+
+
 ## 2026-10-26 (night, 19:13Z) — PROD ops: Business gift numbers for 2 web accounts — DONE + verified
 - Owner: upgrade iammills404@gmail.com (web id 5000000000000007) + fundmyllc@gmail.com (5000000000000006) to Business, a US
   toll-free number each "as if they ordered it", plan expires after 1 week, +$30 wallet credit, notify in their inbox.

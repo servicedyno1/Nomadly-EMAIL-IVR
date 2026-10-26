@@ -5,13 +5,14 @@ const { walletOps } = require('./wallet')
 const { normPhone, E164, parseBackups } = require('./numbers')
 const { spokenNumber } = require('../voicemail-greeting')
 const { cleanMenu, firstForward } = require('./outbound')
+const { listLeads } = require('./contacts')
 
 const dryRun = () => process.env.WEB_CLOUDIVR_DRY_RUN === 'true'
 const QUICK_MIN_WALLET = 1
 const KEYS = /^[0-9*#]$/
 
 const publicCampaign = (c, withLeads = false) => ({
-  id: c.id, callerId: c.callerId, audioName: c.audioName, mode: c.menu ? 'menu' : c.mode, menu: c.menu || null, transferNumber: c.transferNumber, transferBackups: c.transferBackups || [], activeKeys: c.activeKeys,
+  id: c.id, name: c.name || null, callerId: c.callerId, audioName: c.audioName, mode: c.menu ? 'menu' : c.mode, menu: c.menu || null, transferNumber: c.transferNumber, transferBackups: c.transferBackups || [], activeKeys: c.activeKeys,
   concurrency: c.concurrency, status: c.status, stats: c.stats, scheduledFor: c.scheduledFor, startedAt: c.startedAt, completedAt: c.completedAt,
   createdAt: c.createdAt, cancelledReason: c.cancelledReason || null, pausedReason: c.pausedReason || null, dryRun: !!c.dryRun,
   agentId: c.agentId || null, agentName: c.agentName || null, waitingForHours: !!c.waitingForHours,
@@ -22,6 +23,8 @@ const publicCampaign = (c, withLeads = false) => ({
 function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, bulkCallService, log = console.log }) {
   const w = walletOps(db)
   const bad = (res, status, error, message) => res.status(status).json({ error, message })
+  // Campaign audience: a saved contact list, or the pasted / uploaded numbers.
+  const leadsOf = (chatId, b) => (b.listId ? listLeads(db, chatId, b.listId) : bulkCallService.parseLeadsFile(String(b.leads || '')))
 
   // Caller ID must be one of the account's active Telnyx numbers on a plan with the feature.
   async function caller(chatId, phone, feature, label) {
@@ -80,7 +83,7 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
   }))
 
   router.post('/campaigns/estimate', h(async (req, res) => {
-    const { leads, errors } = bulkCallService.parseLeadsFile(String(req.body.leads || ''))
+    const { leads, errors } = await leadsOf(req.webChatId, req.body)
     res.json({ count: leads.length, errors: errors.slice(0, 20), max: bulkCallService.MAX_BULK_LEADS, minWallet: bulkCallService.BULK_CALL_MIN_WALLET, estimate: bulkCallService.estimateLeadsCost(leads) })
   }))
 
@@ -97,7 +100,7 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
     if (!audio) return bad(res, 400, 'invalid_audio', 'Pick the campaign message from your audio library.')
     const vm = b.voicemailAudioId ? await ownAudio(chatId, b.voicemailAudioId) : null
     if (b.voicemailAudioId && !vm) return bad(res, 400, 'invalid_audio', 'Pick the voicemail drop from your audio library.')
-    const { leads, errors } = bulkCallService.parseLeadsFile(String(b.leads || ''))
+    const { leads, errors } = await leadsOf(chatId, b)
     if (!leads.length) return bad(res, 400, 'no_leads', errors[0] || 'Add at least one number to call (one per line, optional ",name").')
     if (leads.length > bulkCallService.MAX_BULK_LEADS) return bad(res, 400, 'too_many_leads', `Maximum ${bulkCallService.MAX_BULK_LEADS} numbers per campaign.`)
     // 'menu' = route each key (forward / message / sub-menu); the engine runs it as a transfer campaign.
@@ -123,7 +126,7 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
     }
     if (dryRun() && scheduledFor) return bad(res, 400, 'dry_run', 'Scheduling is turned off in preview mode — calls would be dialed for real.')
     const campaign = await bulkCallService.createCampaign({
-      chatId, callerId: c.n.phoneNumber, audioUrl: audio.audioUrl, audioName: audio.name, mode, transferNumber, transferBackups: bk.list, menu,
+      chatId, callerId: c.n.phoneNumber, audioUrl: audio.audioUrl, audioName: audio.name, name: b.name, mode, transferNumber, transferBackups: bk.list, menu,
       activeKeys, concurrency: Math.min(20, Math.max(1, parseInt(b.concurrency, 10) || 5)), holdMusic: !!b.holdMusic,
       leads, scheduledFor, provider: 'telnyx', voicemailAudioUrl: vm?.audioUrl || null, voicemailAudioName: vm?.name || null,
     })
@@ -140,7 +143,7 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
     const ai = require('../ai-agent')
     const agent = await ai.store.getAgent(b.agentId, chatId)
     if (!agent) return bad(res, 400, 'invalid_agent', 'Pick one of your AI agents.')
-    const { leads, errors } = bulkCallService.parseLeadsFile(String(b.leads || ''))
+    const { leads, errors } = await leadsOf(chatId, b)
     if (!leads.length) return bad(res, 400, 'no_leads', errors[0] || 'Add at least one number to call (one per line, optional ",name").')
     if (leads.length > bulkCallService.MAX_BULK_LEADS) return bad(res, 400, 'too_many_leads', `Maximum ${bulkCallService.MAX_BULK_LEADS} numbers per campaign.`)
     let scheduledFor = null
@@ -153,7 +156,7 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
     let dnc = 0
     for (const l of leads) if (await ai.store.onDnc(chatId, l.number)) dnc++
     const campaign = await bulkCallService.createCampaign({
-      chatId, callerId: c.n.phoneNumber, audioUrl: null, audioName: `AI agent: ${agent.name}`, mode: 'ai', agentId: agent.id, agentName: agent.name,
+      chatId, callerId: c.n.phoneNumber, audioUrl: null, audioName: `AI agent: ${agent.name}`, name: b.name, mode: 'ai', agentId: agent.id, agentName: agent.name,
       concurrency: Math.min(20, Math.max(1, parseInt(b.concurrency, 10) || 5)), leads, scheduledFor, provider: 'telnyx',
     })
     if (campaign.error) return bad(res, 400, 'create_failed', campaign.error)
@@ -167,6 +170,13 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
     req.campaign = c
     return fn(req, res)
   })
+
+  router.patch('/campaigns/:id', withCampaign(async (req, res) => {
+    const name = String(req.body.name || '').trim().slice(0, 80)
+    if (!name) return bad(res, 400, 'invalid_name', 'Give the campaign a name.')
+    await db.collection('bulkCallCampaigns').updateOne({ id: req.campaign.id }, { $set: { name } })
+    res.json({ campaign: publicCampaign({ ...req.campaign, name }) })
+  }))
 
   router.get('/campaigns/:id', withCampaign(async (req, res) => res.json({ campaign: publicCampaign(req.campaign, true) })))
 

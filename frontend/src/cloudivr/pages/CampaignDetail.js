@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { ask } from '../i18n';
 import { Link, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
-import { ArrowLeft, Play, Pause, RotateCcw, XCircle, Download } from 'lucide-react';
+import { ArrowLeft, Play, Pause, RotateCcw, XCircle, Download, Pencil, Check, Loader2 } from 'lucide-react';
 import { api, useApi, when, secs, downloadFile } from '../api';
 import { useShell } from '../Shell';
 import { SkeletonPage, ErrorNote, statusPill, ShowMore, useIsPhone, usePaged } from '../ui';
@@ -13,6 +13,30 @@ import { outcomeLabel } from './ai/AiCalls';
 const STATS = [['total', 'Numbers'], ['completed', 'Called'], ['answered', 'Answered'], ['keyPressed', 'Pressed a key'], ['transferred', 'Transferred'], ['noAnswer', 'No answer']];
 const AI_STATS = [['total', 'Numbers'], ['completed', 'Called'], ['answered', 'Talked'], ['booked', 'Booked'], ['interested', 'Interested'], ['callback', 'Call back'], ['skipped', 'Do-not-call']];
 const LIVE = ['running', 'scheduled'];
+
+// Title with a Rename button (any status — the name is only a label).
+function CampaignName({ c, onSaved }) {
+  const [edit, setEdit] = useState(false);
+  const [name, setName] = useState('');
+  const [busy, setBusy] = useState(false);
+  const save = async (e) => {
+    e.preventDefault(); setBusy(true);
+    try { const d = await api(`/campaigns/${c.id}`, { method: 'PATCH', body: { name } }); onSaved(d.campaign.name); setEdit(false); toast.success('Campaign renamed'); } catch (err) { toast.error(err.message); } finally { setBusy(false); }
+  };
+  if (edit) return (
+    <form onSubmit={save} className="flex flex-wrap items-center gap-2 mt-2" data-testid="campaign-rename-form">
+      <input autoFocus maxLength={80} className="civr-input !h-12 text-lg font-semibold sm:w-96" value={name} onChange={e => setName(e.target.value)} aria-label="Campaign name" data-testid="campaign-rename-input" />
+      <button className="civr-btn civr-btn-primary civr-btn-sm" disabled={busy || !name.trim()} data-testid="campaign-rename-save">{busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}Save</button>
+      <button type="button" className="civr-btn civr-btn-ghost civr-btn-sm" onClick={() => setEdit(false)} data-testid="campaign-rename-cancel">Cancel</button>
+    </form>
+  );
+  return (
+    <div className="flex flex-wrap items-center gap-3 mt-2">
+      <h1 className="font-display text-4xl sm:text-5xl font-extrabold min-w-0 break-words" data-testid="campaign-title">{c.name || c.audioName || 'Campaign'}</h1>
+      <button type="button" className="civr-btn civr-btn-ghost civr-btn-sm" onClick={() => { setName(c.name || c.audioName || ''); setEdit(true); }} data-testid="campaign-rename-button"><Pencil className="w-4 h-4" />Rename</button>
+    </div>
+  );
+}
 
 function Waiting({ c }) {
   if (c.status !== 'running' || (!c.waitingForHours && !c.waitingForLine)) return null;
@@ -120,7 +144,7 @@ export default function CampaignDetail() {
       <div className="flex flex-col md:flex-row md:items-end gap-4 justify-between mb-8">
         <div>
           <div className="civr-label">{isAi ? `AI agent conversation · ${c.agentName || ''}` : `${c.mode === 'menu' ? 'Menu' : c.mode === 'transfer' ? `Transfer to ${pv.phone(c.transferNumber)}` : 'Report key presses'} · keys ${c.activeKeys?.join(' ')}`}</div>
-          <h1 className="font-display text-4xl sm:text-5xl font-extrabold mt-2" data-testid="campaign-title">{c.audioName || 'Campaign'}</h1>
+          <CampaignName c={c} onSaved={(name) => setData(p => ({ campaign: { ...p.campaign, name } }))} />
           <div className="text-sm text-[#a1a1aa] font-mono mt-1">from {pv.phone(c.callerId)} · created {when(c.createdAt)}{c.scheduledFor ? ` · scheduled ${when(c.scheduledFor)}` : ''}</div>
         </div>
         <div className="flex items-center gap-2"><span className={statusPill(c.status)} data-testid="campaign-status">{c.status}</span>{c.dryRun && <span className="civr-pill civr-pill-warn">preview</span>}</div>

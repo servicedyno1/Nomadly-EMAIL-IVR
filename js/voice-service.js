@@ -5117,6 +5117,7 @@ async function initiateOutboundIvrCall(params) {
     leadIndex: leadIndex != null ? leadIndex : null,
     bulkMode: bulkMode || null, // 'transfer' | 'report_only'
     voicemailAudioUrl: voicemailAudioUrl || null, // bulk voicemail drop clip (null → hang up on machine)
+    maxCallMs: params.maxCallSec > 0 ? params.maxCallSec * 1000 : null,
     voicemailDropped: false,
     answeredBy: null, // AMD result: 'human', 'machine', 'not_sure', null
     // OTP Collection fields (Business plan)
@@ -5163,6 +5164,16 @@ async function handleOutboundIvrAnswered(payload) {
   session.phase = 'playing'
   session.answerTime = Date.now()
   log(`[OutboundIVR] Answered: ${session.targetNumber} — playing IVR audio`)
+
+  // Bulk campaigns with a voicemail drop: hard cap per call (default 60 s) unless the lead was connected to the owner.
+  if (session.maxCallMs) {
+    session._capTimer = setTimeout(() => {
+      const s = outboundIvrCalls[callControlId]
+      if (!s || isCallEnded(callControlId) || ['transferring', 'bridged'].includes(s.phase)) return
+      log(`[OutboundIVR] Max call length ${Math.round(s.maxCallMs / 1000)}s reached on ${s.targetNumber} (campaign ${s.campaignId}) — hanging up`)
+      _telnyxApi.hangupCall(callControlId).catch(() => {})
+    }, session.maxCallMs)
+  }
 
   // ── MID-CALL WALLET MONITOR for outbound IVR ──
   // Outbound IVR charges wallet at flat IVR rate (plan minutes are for inbound only)

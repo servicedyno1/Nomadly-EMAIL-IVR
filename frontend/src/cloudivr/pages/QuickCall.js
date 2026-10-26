@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { PhoneOutgoing, Loader2, Lock } from 'lucide-react';
 import { api, useApi, playUrl } from '../api';
@@ -101,7 +101,9 @@ export default function QuickCall() {
   const { numbers, all, loading } = useCallerNumbers('ivrOutbound');
   const { data: au, reload: reloadAudio } = useApi('/audio');
   const { data: trial, reload: reloadTrial, stale: trialStale } = useApi('/calls/trial');
-  const [f, setF] = useState(EMPTY);
+  const [params] = useSearchParams();
+  // Contacts → "Set up IVR call" opens this page with ?to=<number>&from=<caller>.
+  const [f, setF] = useState(() => ({ ...EMPTY, targets: params.get('to') || '', callerId: params.get('from') || '' }));
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
