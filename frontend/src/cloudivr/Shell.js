@@ -8,6 +8,7 @@ import { PrivacyProvider, PrivateBanner, usePrivacy } from './privacy';
 import Softphone from './Softphone';
 import { RtcProvider } from './rtc';
 import { IncomingCalls } from './Incoming';
+import { UpgradeHost } from './Upgrade';
 import MobileNav from './MobileNav';
 import { Wordmark } from './Brand';
 import { NAV, appPath } from './nav';
@@ -143,6 +144,7 @@ export default function Shell() {
      <PrivacyProvider>
      <RtcProvider>
       <IncomingCalls openPhone={openPhone} />
+      <UpgradeHost />
       <UnsavedGuard />
       <Shortcuts onEscape={closePhone} />
       <Palette openPhone={openPhone} />

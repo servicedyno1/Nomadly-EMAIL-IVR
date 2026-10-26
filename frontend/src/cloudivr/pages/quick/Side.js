@@ -1,10 +1,11 @@
 import React from 'react';
 import { toast } from 'sonner';
-import { History, RotateCcw, CalendarClock, X, BarChart3, Bookmark, Trash2 } from 'lucide-react';
+import { History, RotateCcw, CalendarClock, X, BarChart3, Bookmark, Trash2, Lock } from 'lucide-react';
 import { api, useApi, when } from '../../api';
 import { usePrivacy } from '../../privacy';
 import { undoable } from '../../undo';
 import { Skel } from '../../ui';
+import { PlanLock, showUpgrade } from '../../Upgrade';
 
 const Box = ({ icon: Icon, title, children, testid, loading }) => (
   <div className="civr-card p-6" data-testid={testid} aria-busy={loading || undefined}>
@@ -14,13 +15,19 @@ const Box = ({ icon: Icon, title, children, testid, loading }) => (
 );
 const none = (t) => <div className="text-sm text-[#a1a1aa]">{t}</div>;
 
-export function RecentCalls({ bizNumbers, onDone, stamp }) {
+export function RecentCalls({ callers, onDone, stamp }) {
   const { data, reload } = useApi(`/calls/history?s=${stamp}`);
   const pv = usePrivacy();
   const redial = async (id) => {
     try { const d = await api(`/calls/history/${id}/redial`, { method: 'POST' }); toast.success(d.dryRun ? d.message : `Calling again · ${d.started} call(s)`); reload(); onDone(); } catch (e) { toast.error(e.message); }
   };
   const list = data?.calls || [];
+  const btn = (c, i) => {
+    const n = !c.trial && callers.find(x => x.phoneNumber === c.callerId);
+    if (!n) return null;
+    if (n.access?.ivrRedial) return <button type="button" className="civr-btn civr-btn-ghost civr-btn-sm" onClick={() => redial(c.id)} data-testid={`quick-history-redial-${i}`}><RotateCcw className="w-3.5 h-3.5" />Redial</button>;
+    return <button type="button" className="civr-btn civr-btn-ghost civr-btn-sm opacity-70" onClick={() => showUpgrade({ feature: 'Redial', need: 'business', phone: n.phoneNumber })} data-testid={`quick-history-redial-locked-${i}`}><Lock className="w-3.5 h-3.5 text-[#fbbf24]" />Redial</button>;
+  };
   return (
     <Box icon={History} title="Recent calls" testid="quick-history" loading={!data}>
       {!list.length ? none('Your Quick IVR calls show up here.') : list.slice(0, 6).map((c, i) => (
@@ -29,7 +36,7 @@ export function RecentCalls({ bizNumbers, onDone, stamp }) {
             <div className="font-mono text-xs truncate">{c.targets.map(t => pv.phone(t)).join(', ')}</div>
             <div className="text-xs text-[#a1a1aa]">{when(c.at)} · {c.mode === 'otp' ? 'Code' : c.hasMenu ? 'Menu' : 'Transfer'}{c.dryRun ? ' · preview' : ''}{c.trial ? ' · free trial' : ''}</div>
           </div>
-          {bizNumbers.includes(c.callerId) && !c.trial && <button type="button" className="civr-btn civr-btn-ghost civr-btn-sm" onClick={() => redial(c.id)} data-testid={`quick-history-redial-${i}`}><RotateCcw className="w-3.5 h-3.5" />Redial</button>}
+          {btn(c, i)}
         </div>
       ))}
     </Box>
@@ -73,9 +80,10 @@ export function MenuStats() {
   );
 }
 
-export function Presets({ onLoad, current, stamp }) {
+export function Presets({ onLoad, current, stamp, locked, phone }) {
   const { data, reload, setData } = useApi(`/calls/presets?s=${stamp}`);
   const [name, setName] = React.useState('');
+  const upsell = () => showUpgrade({ feature: 'Saved call presets', need: 'business', phone });
   const save = async () => {
     try { await api('/calls/presets', { method: 'POST', body: { name, setup: current() } }); toast.success('Preset saved'); setName(''); reload(); } catch (e) { toast.error(e.message); }
   };
@@ -86,16 +94,18 @@ export function Presets({ onLoad, current, stamp }) {
   });
   const list = data?.presets || [];
   return (
-    <Box icon={Bookmark} title="Presets" testid="quick-presets">
+    <Box icon={Bookmark} title={<span className="flex flex-wrap items-center gap-2">Presets{locked && <PlanLock feature="Saved call presets" phone={phone} testid="quick-presets-lock" />}</span>} testid="quick-presets">
       {list.map((p, i) => (
         <div key={p.id} className="flex items-center gap-2 py-1.5" data-testid={`quick-preset-row-${i}`}>
-          <button type="button" className="flex-1 text-left text-sm hover:text-[#818cf8] truncate" onClick={() => onLoad(p)} data-testid={`quick-preset-load-${i}`}>{p.name}</button>
+          <button type="button" className={`flex-1 text-left text-sm truncate ${locked ? 'text-[#71717a]' : 'hover:text-[#818cf8]'}`} onClick={() => (locked ? upsell() : onLoad(p))} data-testid={`quick-preset-load-${i}`}>{p.name}</button>
           <button type="button" className="p-1.5 text-[#a1a1aa] hover:text-[#fb7185]" onClick={() => del(p.id)} aria-label="Delete preset" data-testid={`quick-preset-delete-${i}`}><Trash2 className="w-3.5 h-3.5" /></button>
         </div>
       ))}
-      <div className="flex gap-2 mt-2"><input className="civr-input !h-10" value={name} onChange={e => setName(e.target.value)} placeholder="Preset name" data-testid="quick-preset-name-input" />
-        <button type="button" className="civr-btn civr-btn-ghost civr-btn-sm" disabled={!name.trim()} onClick={save} data-testid="quick-preset-save-button">Save</button></div>
-      <p className="text-xs text-[#a1a1aa] mt-2">Saves this setup — everything except the numbers to call.</p>
+      {locked ? <button type="button" onClick={upsell} className="w-full text-left text-xs text-[#a1a1aa] border border-dashed border-[#fbbf24]/30 rounded-xl p-3 hover:border-[#fbbf24]/60 transition-colors" data-testid="quick-presets-locked">Save a whole call setup and reuse it in one tap — on the Business plan.</button> : <>
+        <div className="flex gap-2 mt-2"><input className="civr-input !h-10" value={name} onChange={e => setName(e.target.value)} placeholder="Preset name" data-testid="quick-preset-name-input" />
+          <button type="button" className="civr-btn civr-btn-ghost civr-btn-sm" disabled={!name.trim()} onClick={save} data-testid="quick-preset-save-button">Save</button></div>
+        <p className="text-xs text-[#a1a1aa] mt-2">Saves this setup — everything except the numbers to call.</p>
+      </>}
     </Box>
   );
 }

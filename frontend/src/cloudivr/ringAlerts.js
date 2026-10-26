@@ -45,24 +45,24 @@ async function show(title, body, tag) {
 const closeAll = (p) => Promise.resolve(p).then(n => n?.close()).catch(() => {});
 
 // Desktop / phone notification for each ringing call while the tab is in the background.
-export function useRingNotify(calls, describe) {
+export function useRingNotify(calls, describe, title = 'Incoming call') {
   const open = useRef(new Map());
   useEffect(() => {
     const ids = new Set(calls.map(c => c.id));
     open.current.forEach((p, id) => { if (!ids.has(id)) { closeAll(p); open.current.delete(id); } });
     if (!canNotify() || Notification.permission !== 'granted' || !document.hidden) return;
-    calls.forEach(c => { if (!open.current.has(c.id)) open.current.set(c.id, show(tr('Incoming call'), describe(c), `civr-ring-${c.id}`).catch(() => null)); });
-  }, [calls, describe]);
+    calls.forEach(c => { if (!open.current.has(c.id)) open.current.set(c.id, show(tr(title), describe(c), `civr-ring-${c.id}`).catch(() => null)); });
+  }, [calls, describe, title]);
   useEffect(() => { const m = open.current; return () => m.forEach(closeAll); }, []);
 }
 
-// Flashes the tab title while a call rings.
-export function useTitleFlash(on) {
+// Flashes the tab title while a call rings (or a code waits).
+export function useTitleFlash(on, text = 'Incoming call…', icon = '📞') {
   useEffect(() => {
     if (!on) return undefined;
-    const orig = document.title, alt = `📞 ${tr('Incoming call…')}`;
+    const orig = document.title, alt = `${icon} ${tr(text)}`;
     let flip = false;
     const t = setInterval(() => { flip = !flip; document.title = flip ? alt : orig; }, 1000);
     return () => { clearInterval(t); document.title = orig; };
-  }, [on]);
+  }, [on, text, icon]);
 }

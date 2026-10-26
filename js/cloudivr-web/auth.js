@@ -72,14 +72,14 @@ const isAdmin = (a) => !!a?.email && adminEmails().includes(String(a.email).toLo
 const publicAccount = (a) => ({ id: String(a._id), email: a.email, name: a.name || '', hasPassword: !!a.passwordHash, google: !!a.googleSub, createdAt: a.createdAt, twoFactor: a.twoFactor?.method || null, admin: isAdmin(a) })
 
 let mailer = null
-function sendMail(to, subject, html, attachments) {
+function sendMail(to, subject, html, attachments, extra) {
   if (!process.env.MAIL_DOMAIN) return Promise.resolve(false)
   if (!mailer) {
     const port = Number(process.env.MAIL_PORT) || 2525
     mailer = nodemailer.createTransport({ host: process.env.MAIL_DOMAIN, port, secure: port === 465, requireTLS: port !== 465, connectionTimeout: 15000, greetingTimeout: 10000, socketTimeout: 20000, auth: { user: process.env.MAIL_AUTH_USER, pass: process.env.MAIL_AUTH_PASSWORD } })
   }
   const brand = process.env.CHAT_BOT_BRAND || 'Nomadly'
-  return mailer.sendMail({ from: `${brand} CloudIVR <${process.env.MAIL_SENDER}>`, to, subject, html, ...(attachments ? { attachments } : {}) }).then(() => true)
+  return mailer.sendMail({ from: `${brand} CloudIVR <${process.env.MAIL_SENDER}>`, to, subject, html, ...(attachments ? { attachments } : {}), ...(extra || {}) }).then(() => true)
 }
 
 function createAuth(db, { log = console.log } = {}) {

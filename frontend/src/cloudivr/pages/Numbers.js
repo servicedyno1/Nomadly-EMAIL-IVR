@@ -75,7 +75,7 @@ export default function Numbers() {
   const onSaved = (d) => { if (d?.number) setData(x => ({ ...x, numbers: (x?.numbers || []).map(n => (n.phoneNumber === d.number.phoneNumber ? d.number : n)) })); };
   return (
     <div data-testid="numbers-page">
-      <PageHeader label="Numbers" title="My numbers" sub="Switch forwarding, the keypad menu or hours right here; tap a number for everything else." testid="numbers-header">
+      <PageHeader label="Numbers" title="My numbers" sub="Each number answers your callers. Switch forwarding, the keypad menu or hours on and off here, or open a number for everything else." testid="numbers-header">
         <Link to={cp('/app/buy')} className="civr-btn civr-btn-primary" data-testid="numbers-buy-button"><ShoppingCart className="w-4 h-4" />Buy a number</Link>
       </PageHeader>
       <ErrorNote error={error} />

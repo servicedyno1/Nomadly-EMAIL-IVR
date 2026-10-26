@@ -89,7 +89,7 @@ function files(dir) {
 }
 
 for (const f of [...files(UI), ...files(API)]) {
-  if (/domain-guard|voicemail-delivery/.test(f)) continue
+  if (/domain-guard|voicemail-delivery|email-(copy|templates|layout)/.test(f)) continue // emails are written in all three languages
   const src = fs.readFileSync(f, 'utf8')
   const ast = parser.parse(src, { sourceType: 'module', plugins: ['jsx', 'optionalChaining', 'nullishCoalescingOperator'], errorRecovery: true })
   walk(ast.program, [], f)

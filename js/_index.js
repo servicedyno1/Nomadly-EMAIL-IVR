@@ -7004,6 +7004,12 @@ Tap a button below to change. Changes sync to your phone on next app open.`
       try { await bot.answerCallbackQuery(query.id) } catch (e) { /* ignore */ }
       const info = await state.findOne({ _id: String(chatId) })
       const ivrObData = info?.ivrObData || {}
+      // Presets are a Business feature (by the caller number's current plan)
+      const _pUser = await get(phoneNumbersOf, chatId)
+      const _pPlan = (_pUser?.numbers || []).find(n => n.phoneNumber === ivrObData.callerId)?.plan || 'starter'
+      if (!phoneConfig.canAccessFeature(_pPlan, 'ivrPresets')) {
+        return bot.sendMessage(chatId, phoneConfig.upgradeMessage('ivrPresets', _pPlan, info?.userLanguage), { parse_mode: 'HTML' }).catch(() => {})
+      }
       // Save current call config as preset — ask for name
       await set(state, chatId, 'action', 'ivrObPresetName')
       try {
@@ -7035,7 +7041,7 @@ Tap a button below to change. Changes sync to your phone on next app open.`
       const userData = await get(phoneNumbersOf, chatId)
       const callerNum = (userData?.numbers || []).find(n => n.phoneNumber === lastCall.callerId)
       if (!callerNum || !phoneConfig.canAccessFeature(callerNum.plan, 'ivrRedial')) {
-        return bot.sendMessage(chatId, phoneConfig.getUpgradeMessage(callerNum?.plan || 'starter', 'ivrRedial', info?.lang), { parse_mode: 'HTML' }).catch(() => {})
+        return bot.sendMessage(chatId, phoneConfig.upgradeMessage('ivrRedial', callerNum?.plan || 'starter', _ivrLang), { parse_mode: 'HTML' }).catch(() => {})
       }
 
       // Edit original message to show redial was triggered
@@ -25779,13 +25785,16 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       let menuText = `📢 <b>Quick IVR Call</b>\n\nCall a single number with an automated IVR message.\n` + walletHint
       const menuRows = []
 
+      // Presets are Business-only: Pro accounts see them listed but locked (with the upgrade hint).
+      const presetsOn = eligibleNumbers.some(n => phoneConfig.canAccessFeature(n.plan, 'ivrPresets'))
       if (presets.length > 0) {
-        menuText += `\n💾 <b>Saved Presets:</b>\n`
+        menuText += `\n💾 <b>Saved Presets:</b>${presetsOn ? '' : ' 🔒 <i>Business plan</i>'}\n`
         presets.forEach((p, i) => {
           menuText += `${i + 1}. ${p.name} (${p.templateName || 'Custom'})\n`
-          menuRows.push([`💾 ${p.name}`])
+          if (presetsOn) menuRows.push([`💾 ${p.name}`])
         })
       }
+      if (!presetsOn) menuText += `\n🔒 <i>Saved presets and scheduled calls are on the Business plan — upgrade a number via 🔄 Renew / Change Plan.</i>\n`
 
       if (recentCalls.length > 0) {
         menuText += `\n📋 <b>Recent:</b>\n`
@@ -26089,6 +26098,10 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       const userData = await get(phoneNumbersOf, chatId)
       const callerNum = (userData?.numbers || []).find(n => n.phoneNumber === preset.callerId && n.status === 'active')
       const currentPlan = callerNum?.plan || 'starter'
+
+      if (!phoneConfig.canAccessFeature(currentPlan, 'ivrPresets')) {
+        return send(chatId, phoneConfig.upgradeMessage('ivrPresets', currentPlan, info?.userLanguage), k.of([['📞 New Call'], ['↩️ Back']]))
+      }
 
       // Block OTP Collection presets if user's current plan doesn't allow it
       if (preset.ivrMode === 'otp_collect' && !phoneConfig.canAccessFeature(currentPlan, 'otpCollection')) {
@@ -27494,9 +27507,15 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       const ivrObData = info?.ivrObData || {}
       return send(chatId, trans('t.cp_113'), k.of([['✅ Confirm'], ['🎤 Change Voice'], [ivrObData.holdMusic ? '🎵 Hold Music: ON' : '🔇 Hold Music: OFF']]))
     }
-    // ── Schedule Call (#10) ──
+    // ── Schedule Call (#10) — Business plan (button stays visible on Pro and explains the upgrade) ──
+    const _schedPlan = async () => ((await get(phoneNumbersOf, chatId))?.numbers || []).find(n => n.phoneNumber === info?.ivrObData?.callerId)?.plan || 'starter'
+    if (message === '🕐 Schedule' || message.match(/^(\d+)\s*min/i)) {
+      const plan = info?.ivrObData?.isTrial ? 'starter' : await _schedPlan()
+      if (!phoneConfig.canAccessFeature(plan, 'ivrSchedule')) {
+        return send(chatId, phoneConfig.upgradeMessage('ivrSchedule', plan, info?.userLanguage), k.of([['/yes'], ['/cancel']]))
+      }
+    }
     if (message === '🕐 Schedule') {
-      const ivrObData = info?.ivrObData || {}
       return send(chatId, trans('t.cp_114'), k.of([['5 min', '15 min', '30 min'], ['60 min', '120 min'], ['↩️ Back']]))
     }
     // Handle schedule time entry
@@ -27643,7 +27662,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       }
 
       // ── Offer to save preset (#1 Quick Dial Presets) ──
-      if (!ivrObData.isTrial && !ivrObData.fromPreset) {
+      if (!ivrObData.isTrial && !ivrObData.fromPreset && phoneConfig.canAccessFeature(callerNumber?.plan, 'ivrPresets')) {
         const presets = info?.ivrPresets || []
         if (presets.length < 10) {
           bot?.sendMessage(chatId, trans('t.cp_120'), {
@@ -30767,7 +30786,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
       ))
     }
 
-    // IVR / Auto-attendant — Business only
+    // IVR / Auto-attendant — Pro and Business
     // Match both raw label and the "(skipped)" badged variant.
     if (message === pc.ivrAutoAttendant || (typeof message === 'string' && message.startsWith(pc.ivrAutoAttendant))) {
       if (!phoneConfig.canAccessFeature(num.plan, 'ivr')) {
@@ -32228,7 +32247,7 @@ Professional templates for voicemail, customer support, financial institutions, 
     return send(chatId, phoneConfig.getMsg(info?.userLanguage).selectOption)
   }
 
-  // ━━━ IVR / AUTO-ATTENDANT (Business) ━━━
+  // ━━━ IVR / AUTO-ATTENDANT (Pro and Business) ━━━
   if (action === a.cpIvr) {
     const pc = phoneConfig.getBtn(info?.userLanguage || 'en')
     const num = info?.cpActiveNumber
@@ -48895,7 +48914,7 @@ app.post('/twilio/voice-webhook', async (req, res) => {
       }
     }
 
-    // ━━━ PRIORITY 0: IVR Auto-Attendant (Business plan) ━━━
+    // ━━━ PRIORITY 0: IVR Auto-Attendant (Pro and Business plans) ━━━
     // Skip auto-attendant on self-call transfer legs (From === To).
     // This happens when an outbound IVR call transfers to the caller's own
     // number — the transfer leg should ring through (SIP/forward/voicemail),

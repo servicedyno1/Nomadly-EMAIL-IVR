@@ -10,6 +10,7 @@ import { TestTalk } from './ai/TestTalk';
 import { AiCalls } from './ai/AiCalls';
 import { DncList } from './ai/DncList';
 import { useSearch, SearchBox, NoMatches } from '../search';
+import { showUpgrade } from '../Upgrade';
 
 const LANG_NAME = { en: 'English', fr: 'French', es: 'Spanish' };
 const TABS = [['agents', 'Agents'], ['calls', 'Call history'], ['dnc', 'Do-not-call list']];
@@ -20,7 +21,7 @@ function PlanNote({ canUse, rate, recordRate }) {
     <div className="civr-card p-6 mb-6 flex flex-col md:flex-row md:items-center gap-4" data-testid="ai-agents-plan-note">
       <Lock className="w-6 h-6 text-[#fbbf24]" />
       <div className="flex-1"><div className="font-semibold">AI voice agents answer and call on the Business plan</div><div className="text-sm text-[#a1a1aa]">You can build and test agents now. To use one on real calls, put a number on the Business plan.</div></div>
-      <Link to={cp('/app/numbers')} className="civr-btn civr-btn-primary civr-btn-sm" data-testid="ai-agents-upgrade-link">My numbers</Link>
+      <button type="button" onClick={() => showUpgrade({ feature: 'AI voice agents on real calls', need: 'business' })} className="civr-btn civr-btn-primary civr-btn-sm" data-testid="ai-agents-upgrade-link">See what Business adds</button>
     </div>
   );
 }

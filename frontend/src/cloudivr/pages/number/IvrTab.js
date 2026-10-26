@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Plus, Trash2, BarChart3 } from 'lucide-react';
 import { useApi, enc } from '../../api';
-import { Field, InstantToggle, AudioSelect } from '../../ui';
+import { InstantToggle, AudioSelect } from '../../ui';
 import { VoiceMaker } from '../../VoiceMaker';
 import { IvrTemplates } from './IvrTemplates';
 import { useSave } from './SettingsTabs';
@@ -140,7 +140,7 @@ export default function IvrTab({ num, reload }) {
     <div className="grid lg:grid-cols-3 gap-4" {...u.bind}>
       <div className="civr-card p-6 lg:col-span-2 space-y-6" data-testid="ivr-builder">
         <div className="flex items-center justify-between">
-          <div><div className="font-display text-2xl font-bold">Keypad menu (IVR)</div><p className="text-sm text-[#a1a1aa]">Callers hear the greeting, then press a key.</p></div>
+          <div><div className="font-display text-2xl font-bold">Keypad menu (IVR)</div><p className="text-sm text-[#a1a1aa]">For people who call this number: they hear your greeting, then press a key to reach the right place.</p></div>
           <InstantToggle num={num} feature="ivr" label="Keypad menu" checked={enabled} reload={reload} testid="ivr-enabled-toggle" />
         </div>
         {num.features.aiAgent?.enabled && <OneAnswerNote testid="ivr-ai-agent-note">Your AI voice agent answers this number now. Turning the keypad menu on switches the AI voice agent off — a number uses one or the other.</OneAnswerNote>}

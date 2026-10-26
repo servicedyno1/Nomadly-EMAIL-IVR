@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { Hash, Info, Volume2 } from 'lucide-react';
+import { Hash, Info, Keyboard, Volume2 } from 'lucide-react';
 
 const SIZES = ['text-base', 'text-lg', 'text-xl', 'text-2xl'];
 const NOTES = {
@@ -32,6 +32,7 @@ export function Transcript({ call, sizeIdx, flash }) {
       {call.lines.map(l => <Line key={l.n} l={l} size={size} />)}
       {call.interim && <div className="flex justify-start"><div className={`max-w-[85%] rounded-2xl rounded-bl-md px-4 py-2.5 border border-dashed border-[#818cf8]/50 text-[#d4d4d8] italic ${size}`} data-testid="relay-interim"><span data-no-translate>{call.interim}</span><span className="civr-pulse not-italic text-[#818cf8]"> ●</span></div></div>}
       {call.speaking && call.status === 'live' && <div className="flex justify-end"><span className="inline-flex items-center gap-1.5 text-xs text-[#818cf8]" data-testid="relay-speaking"><Volume2 className="w-3 h-3 civr-pulse" />Reading aloud…</span></div>}
+      {call.typing && !call.speaking && call.status === 'live' && <div className="flex justify-end"><span className="inline-flex items-center gap-1.5 text-xs text-[#a1a1aa]" data-testid="relay-typing"><Keyboard className="w-3 h-3 civr-pulse" />They hear soft typing</span></div>}
       {!call.lines.some(l => l.who === 'them') && !call.interim && call.status === 'live' && <div className="text-center text-sm text-[#a1a1aa] pt-6" data-testid="relay-waiting">Waiting for them to speak…</div>}
     </div>
   );

@@ -10,19 +10,28 @@ const SIZE_KEY = 'civr_relay_text_size';
 const OUTCOME = { completed: 'Call ended', no_answer: 'No answer', busy: 'The line was busy', cancelled: 'Call cancelled', out_of_funds: 'Ended — balance ran out', ended: 'Call ended' };
 const clock = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 
-// Polls the call (~1 s) while it is going; returns the latest state.
+// Long-polls the call while it is going: the server answers as soon as anything changes (new words, a line, speaking).
 function useRelayCall(id) {
   const [call, setCall] = useState(null);
   useEffect(() => {
-    let stop = false, t;
+    let stop = false, t, sig = '';
     const tick = async () => {
-      try { const d = await api(`/relay/calls/${id}`); if (stop) return; setCall(d.call); if (d.call.status === 'ended') return; } catch (_) { /* retry */ }
-      if (!stop) t = setTimeout(tick, 900);
+      let wait = 150;
+      try { const d = await api(`/relay/calls/${id}${sig ? `?since=${sig}` : ''}`); if (stop) return; sig = d.call.sig || ''; setCall(d.call); if (d.call.status === 'ended') return; } catch (_) { wait = 1500; }
+      if (!stop) t = setTimeout(tick, wait);
     };
     tick();
     return () => { stop = true; clearTimeout(t); };
   }, [id]);
   return [call, setCall];
+}
+
+// Seconds since they answered, ticking locally (the call view only refreshes when something changes).
+function useDuration(call) {
+  const [now, setNow] = useState(Date.now());
+  const live = call?.status === 'live';
+  useEffect(() => { if (!live) return undefined; const t = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(t); }, [live]);
+  return live && call.answeredAt ? Math.max(0, Math.round((now - new Date(call.answeredAt).getTime()) / 1000)) : call?.duration || 0;
 }
 
 // Flashes the conversation border (and buzzes phones) when they start talking or a new line lands.
@@ -44,8 +53,9 @@ function useFlash(call) {
 }
 
 function Status({ call }) {
+  const secsLive = useDuration(call);
   if (call.status === 'ringing') return <span className="civr-pill civr-pill-warn" data-testid="relay-status"><Loader2 className="w-3 h-3 animate-spin" />Ringing…</span>;
-  if (call.status === 'live') return <span className="civr-pill civr-pill-on" data-testid="relay-status"><span className="civr-pulse">●</span>Connected · <span className="font-mono">{clock(call.duration)}</span></span>;
+  if (call.status === 'live') return <span className="civr-pill civr-pill-on" data-testid="relay-status"><span className="civr-pulse">●</span>Connected · <span className="font-mono">{clock(secsLive)}</span></span>;
   return <span className="civr-pill" data-testid="relay-status">{OUTCOME[call.outcome] || 'Call ended'}</span>;
 }
 

@@ -33,8 +33,8 @@ function Stats({ s }) {
 }
 
 function QuickActions({ unread }) {
-  const items = [[cp('/app/numbers'), Workflow, 'Set up a keypad menu', 'Open a number → Keypad menu tab', 'quick-action-ivr'],
-    [cp('/app/quick-call'), PhoneOutgoing, 'Place a Quick IVR call', 'Play a message, transfer on key press', 'quick-action-quick-call'],
+  const items = [[cp('/app/numbers'), Workflow, 'Set up a keypad menu', 'Greet callers and let them press a key', 'quick-action-ivr'],
+    [cp('/app/quick-call'), PhoneOutgoing, 'Place a Quick IVR call', 'We call up to 10 people with your message', 'quick-action-quick-call'],
     [cp('/app/inbox'), Bell, `Inbox${unread ? ` · ${unread} new` : ''}`, 'SMS, voicemail and call alerts', 'quick-action-inbox']];
   return (
     <div className="flex flex-col gap-4" data-testid="dashboard-quick-actions">

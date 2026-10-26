@@ -16,10 +16,16 @@ const MAX_MINUTES = 120
 const STALE_MS = 3 * 60000 // no heartbeat this long → nobody is running the call any more
 const OPEN = ['ringing', 'live']
 const LANGS = {
-  en: { tts: 'en-US', stt: 'en', intro: (who) => `Hello. This is a typed call from ${who}, placed through CloudIVR. The caller is deaf or hard of hearing. They type, and a computer voice reads their words to you. Please speak normally and pause when you finish. Your words appear as text for them.`, introIn: (who) => `Hello, you have reached ${who}. This call is answered by text through CloudIVR: the person you called is deaf or hard of hearing. They type, and a computer voice reads their words to you. Please speak normally and pause when you finish. Your words appear as text for them.`, outOfFunds: 'The caller’s balance has run out. Goodbye.' },
-  es: { tts: 'es-MX', stt: 'es', intro: (who) => `Hola. Esta es una llamada escrita de ${who}, hecha con CloudIVR. La persona que llama es sorda o tiene dificultades auditivas. Escribe y una voz de computadora le lee sus palabras. Por favor hable con normalidad y haga una pausa al terminar. Sus palabras le aparecen como texto.`, introIn: (who) => `Hola, se ha comunicado con ${who}. Esta llamada se contesta por texto con CloudIVR: la persona a la que llamó es sorda o tiene dificultades auditivas. Escribe y una voz de computadora le lee sus palabras. Por favor hable con normalidad y haga una pausa al terminar. Sus palabras le aparecen como texto.`, outOfFunds: 'El saldo de la persona que llama se agotó. Adiós.' },
-  fr: { tts: 'fr-FR', stt: 'fr', intro: (who) => `Bonjour. Ceci est un appel écrit de ${who}, passé avec CloudIVR. La personne qui appelle est sourde ou malentendante. Elle tape ses mots et une voix de synthèse vous les lit. Parlez normalement et faites une pause quand vous avez fini. Vos paroles s’affichent pour elle en texte.`, introIn: (who) => `Bonjour, vous êtes bien au ${who}. Cet appel est pris par écrit avec CloudIVR : la personne que vous appelez est sourde ou malentendante. Elle tape ses mots et une voix de synthèse vous les lit. Parlez normalement et faites une pause quand vous avez fini. Vos paroles s’affichent pour elle en texte.`, outOfFunds: 'Le solde de la personne qui appelle est épuisé. Au revoir.' },
+  en: { tts: 'en-US', stt: 'en', intro: (who) => `Hello, this is a text call from ${who} through CloudIVR. The caller is deaf or hard of hearing: they type, a voice reads it to you, and what you say shows up as text for them. Please speak normally and pause when you finish.`, introIn: (who) => `Hello, you have reached ${who}. The person you called is deaf or hard of hearing and answers by text through CloudIVR: they type, a voice reads it to you, and what you say shows up as text for them. Please speak normally and pause when you finish.`, outOfFunds: 'The caller’s balance has run out. Goodbye.' },
+  es: { tts: 'es-MX', stt: 'es', intro: (who) => `Hola, esta es una llamada de texto de ${who} con CloudIVR. La persona que llama es sorda o tiene dificultades auditivas: escribe, una voz se lo lee y lo que usted dice le aparece como texto. Hable con normalidad y haga una pausa al terminar.`, introIn: (who) => `Hola, se ha comunicado con ${who}. La persona a la que llamó es sorda o tiene dificultades auditivas y contesta por texto con CloudIVR: escribe, una voz se lo lee y lo que usted dice le aparece como texto. Hable con normalidad y haga una pausa al terminar.`, outOfFunds: 'El saldo de la persona que llama se agotó. Adiós.' },
+  fr: { tts: 'fr-FR', stt: 'fr', intro: (who) => `Bonjour, ceci est un appel texte de ${who} avec CloudIVR. La personne qui appelle est sourde ou malentendante : elle écrit, une voix vous le lit et vos paroles s’affichent pour elle en texte. Parlez normalement et faites une pause quand vous avez fini.`, introIn: (who) => `Bonjour, vous êtes bien au ${who}. La personne que vous appelez est sourde ou malentendante et répond par écrit avec CloudIVR : elle écrit, une voix vous le lit et vos paroles s’affichent pour elle en texte. Parlez normalement et faites une pause quand vous avez fini.`, outOfFunds: 'Le solde de la personne qui appelle est épuisé. Au revoir.' },
 }
+// Natural (neural) voices read the typed text; the basic Telnyx voice is the fallback if Telnyx refuses them.
+const VOICES = { en: { female: 'AWS.Polly.Joanna-Neural', male: 'AWS.Polly.Matthew-Neural' }, es: { female: 'AWS.Polly.Mia-Neural', male: 'AWS.Polly.Andres-Neural' }, fr: { female: 'AWS.Polly.Lea-Neural', male: 'AWS.Polly.Remi-Neural' } }
+const natural = () => process.env.TEXT_RELAY_NATURAL_VOICE !== 'false'
+const TYPING_IDLE_MS = 3500 // typing sound stops this long after the last keystroke ping
+const INTERIM_FINAL_MS = 1400 // an interim caption the engine never finalises becomes a message after this pause
+const WAIT_MAX_MS = 8000 // long-poll: GET /relay/calls/:id?since= waits this long for something new
 let deps = {}
 let col = null
 const sessions = new Map() // relay id → live call
@@ -69,12 +75,22 @@ async function liveSession(id, chatId) {
 }
 
 // Client view of a call: live state from memory, finished calls from Mongo.
+// Changes whenever something on the call screen would change (long-poll compares it).
+const sig = (s) => crypto.createHash('sha1').update([s.status, (s.lines || []).length, s.interim || '', (s.speaking || 0) > 0, !!s.typingOn, !!s.done].join('|')).digest('hex').slice(0, 12)
 const view = (s) => ({
-  id: s._id, direction: s.direction || 'outbound', callerId: s.callerId, to: s.to, name: s.name || '', lang: s.lang, voice: s.voice, status: s.status, outcome: s.outcome || null,
+  id: s._id, sig: sig(s), typing: !!s.typingOn, direction: s.direction || 'outbound', callerId: s.callerId, to: s.to, name: s.name || '', lang: s.lang, voice: s.voice, status: s.status, outcome: s.outcome || null,
   lines: (s.lines || []).slice(-500), interim: s.interim || '', speaking: (s.speaking || 0) > 0, createdAt: s.createdAt, answeredAt: s.answeredAt || null,
   endedAt: s.endedAt || null, duration: s.answeredAt ? Math.round(((s.endedAt ? new Date(s.endedAt).getTime() : Date.now()) - new Date(s.answeredAt).getTime()) / 1000) : 0,
   rate: s.rate, charge: s.charge ?? null, dryRun: !!s.dryRun,
 })
+// Long-poll: resolves as soon as the live call changes (new words, a new line, speaking, ended) or after `ms`.
+async function waitChange(s, since, ms = WAIT_MAX_MS) {
+  if (!sessions.has(s._id)) return s
+  const until = Date.now() + Math.min(ms, WAIT_MAX_MS)
+  while (!s.done && sig(s) === since && Date.now() < until) await new Promise(r => setTimeout(r, 100))
+  return s.done ? (await col.findOne({ _id: s._id })) || s : s
+}
+
 async function find(id, chatId) {
   const s = sessions.get(String(id))
   if (s) return s.chatId === String(chatId) ? s : null
@@ -161,6 +177,48 @@ async function answerInbound({ chatId, ccid, from, to, lang, voice, announce, ca
 }
 const later = (s, ms, fn) => { const t = setTimeout(() => { if (!s.done) fn() }, ms); if (t.unref) t.unref() }
 
+// One spoken message: natural voice first, the basic voice if Telnyx refuses it (remembered for the call).
+async function speakOut(s, payload) {
+  const v = natural() && !s.basicVoice ? VOICES[s.lang]?.[s.voice] : null
+  if (v) {
+    try { return await tx(`/calls/${s.ccid}/actions/speak`, { payload, voice: v, service_level: 'premium', command_id: crypto.randomUUID() }) } catch (e) {
+      if (e.response?.status === 404 || e.response?.status === 422 && /not active|ended|no longer/i.test(txError(e))) throw e
+      s.basicVoice = true
+      log(`[Relay] natural voice ${v} refused (${txError(e)}) — basic voice for this call`)
+    }
+  }
+  return tx(`/calls/${s.ccid}/actions/speak`, { payload, voice: s.voice, language: LANGS[s.lang].tts, command_id: crypto.randomUUID() })
+}
+
+// Soft keyboard sound for the other person while the user types, so the line never sounds dead.
+const typingUrl = () => `${deps.selfUrl}/assets/typing-soft.mp3?v=1`
+function startTyping(s) {
+  if (s.typingOn || s.speaking > 0 || s.status !== 'live') return
+  s.typingOn = true
+  if (!s.dryRun) tx(`/calls/${s.ccid}/actions/playback_start`, { audio_url: typingUrl(), loop: 'infinity', command_id: crypto.randomUUID() }).catch(e => { s.typingOn = false; log(`[Relay] typing sound failed: ${txError(e)}`) })
+}
+async function stopTyping(s) {
+  clearTimeout(s.typingTimer)
+  if (!s.typingOn) return
+  s.typingOn = false
+  if (!s.dryRun) await tx(`/calls/${s.ccid}/actions/playback_stop`, { stop: 'all' }).catch(() => {})
+}
+async function typing(id, chatId, on = true) {
+  const s = await liveSession(id, chatId)
+  if (!s || s.status !== 'live') return { error: [409, 'not_connected', 'The call is not connected.'] }
+  if (!on) { await stopTyping(s); return { typing: false } }
+  s.typingAt = Date.now()
+  startTyping(s)
+  clearTimeout(s.typingTimer)
+  s.typingTimer = setTimeout(() => stopTyping(s), TYPING_IDLE_MS)
+  if (s.typingTimer.unref) s.typingTimer.unref()
+  return { typing: !!s.typingOn }
+}
+const spokeOne = (s) => {
+  s.speaking = Math.max(0, s.speaking - 1)
+  if (!s.speaking && Date.now() - (s.typingAt || 0) < TYPING_IDLE_MS) startTyping(s)
+}
+
 // Typed text → spoken to the other person (queued by Telnyx in order).
 async function say(id, chatId, text) {
   const s = await liveSession(id, chatId)
@@ -170,9 +228,10 @@ async function say(id, chatId, text) {
   if (!t) return { error: [400, 'empty', 'Type something to say.'] }
   const line = addLine(s, 'me', t)
   s.speaking++
-  if (s.dryRun) preview.reply(s, t, { onText, spoke: () => { s.speaking = Math.max(0, s.speaking - 1) } })
+  await stopTyping(s)
+  if (s.dryRun) preview.reply(s, t, { onText, spoke: () => spokeOne(s) })
   else {
-    try { await tx(`/calls/${s.ccid}/actions/speak`, { payload: t, voice: s.voice, language: LANGS[s.lang].tts, command_id: crypto.randomUUID() }) } catch (e) { s.speaking = Math.max(0, s.speaking - 1); log(`[Relay] speak failed ${s.ccid}: ${txError(e)}`); return { error: [502, 'speak_failed', 'That message could not be read out. Try again.'] } }
+    try { await speakOut(s, t) } catch (e) { s.speaking = Math.max(0, s.speaking - 1); log(`[Relay] speak failed ${s.ccid}: ${txError(e)}`); return { error: [502, 'speak_failed', 'That message could not be read out. Try again.'] } }
   }
   return { line }
 }
@@ -208,7 +267,7 @@ async function answered(s) {
     s.speaking++
     addLine(s, 'note', 'intro')
     const intro = s.direction === 'inbound' ? L.introIn(spokenNumber(s.callerId)) : L.intro(s.name || spokenNumber(s.callerId))
-    if (!s.dryRun) tx(`/calls/${s.ccid}/actions/speak`, { payload: intro, voice: s.voice, language: L.tts, command_id: crypto.randomUUID() }).catch(e => { s.speaking--; log(`[Relay] intro failed: ${txError(e)}`) })
+    if (!s.dryRun) speakOut(s, intro).catch(e => { s.speaking--; log(`[Relay] intro failed: ${txError(e)}`) })
   }
   if (s.dryRun) return
   // Telnyx engine first: live-tested to send final segments; Google (interim-only on our calls) is the fallback.
@@ -225,7 +284,7 @@ function onText(s, text, final) {
   const t = String(text || '').trim()
   clearTimeout(s.interimTimer)
   // An interim the engine never finalises still becomes a message after a short pause.
-  if (!final) { s.interim = t; if (t) s.interimTimer = setTimeout(() => onText(s, s.interim, true), 2500); return }
+  if (!final) { s.interim = t; if (t) s.interimTimer = setTimeout(() => onText(s, s.interim, true), INTERIM_FINAL_MS); return }
   s.interim = ''
   if (t) addLine(s, 'them', t)
 }
@@ -240,7 +299,7 @@ function watchWallet(s) {
       if (usdBal < mins * s.rate && !s.wrapping) {
         s.wrapping = true
         addLine(s, 'note', 'out_of_funds')
-        if (!s.dryRun) await tx(`/calls/${s.ccid}/actions/speak`, { payload: LANGS[s.lang].outOfFunds, voice: s.voice, language: LANGS[s.lang].tts }).catch(() => {})
+        if (!s.dryRun) { await stopTyping(s); await speakOut(s, LANGS[s.lang].outOfFunds).catch(() => {}) }
         setTimeout(() => hangup(s._id, s.chatId, 'out_of_funds'), 8000)
       }
     } catch (_) { /* keep the call */ }
@@ -256,7 +315,7 @@ async function onWebhook(eventType, payload) {
   }
   if (eventType === 'call.answered') await answered(s)
   else if (eventType === 'call.transcription') { const d = payload.transcription_data || {}; onText(s, d.transcript, d.is_final !== false) }
-  else if (eventType === 'call.speak.ended') s.speaking = Math.max(0, s.speaking - 1)
+  else if (eventType === 'call.speak.ended') spokeOne(s)
   else if (eventType === 'call.hangup') await finish(s, payload).catch(e => log(`[Relay] finish error: ${e.stack || e.message}`))
 }
 
@@ -265,7 +324,7 @@ async function finish(s, payload) {
   if (s.done) return
   s.done = true
   sessions.delete(s._id); byCcid.delete(s.ccid)
-  clearInterval(s.walletTimer); clearTimeout(s.maxTimer); clearTimeout(s.interimTimer); preview.stop(s)
+  clearInterval(s.walletTimer); clearTimeout(s.maxTimer); clearTimeout(s.interimTimer); clearTimeout(s.typingTimer); s.typingOn = false; preview.stop(s)
   await settle(s, new Date(), payload?.hangup_cause || null)
 }
 
@@ -309,4 +368,4 @@ async function remove(id, chatId) {
   return r.deletedCount ? { ok: true } : { error: [404, 'not_found', 'Call not found.'] }
 }
 
-module.exports = { init, owns, onWebhook, start, answerInbound, quote, say, dtmf, hangup, find, view, list, remove, liveFor, sweep, RELAY_RATE, LANGS, MAX_TEXT }
+module.exports = { init, owns, onWebhook, start, answerInbound, quote, say, typing, dtmf, hangup, find, view, waitChange, list, remove, liveFor, sweep, RELAY_RATE, LANGS, MAX_TEXT, VOICES }

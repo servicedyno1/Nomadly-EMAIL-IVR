@@ -165,7 +165,7 @@ function routes(router, deps) {
   const withNumber = (fn) => h(async (req, res) => {
     const num = await numbersApi.findMine(req.webChatId, req.params.phone)
     if (!num) return bad(res, 404, 'not_found', 'Number not found on your account.')
-    if (!phoneConfig.canAccessFeature(num.plan, 'textTriggers')) return bad(res, 403, 'plan_upgrade_required', 'Text Triggers need the Pro plan or higher on this number.')
+    if (!phoneConfig.canAccessFeature(num.plan, 'textTriggers')) return bad(res, 403, 'plan_upgrade_required', 'Text Triggers need the Business plan on this number.')
     req.num = num
     return fn(req, res)
   })

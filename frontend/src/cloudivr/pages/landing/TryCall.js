@@ -56,7 +56,7 @@ export function TryCall() {
     <section id="try" className="civr-l-cream civr-l-soft relative scroll-mt-16 border-t civr-l-rule" data-testid="try-section">
       <div className="relative max-w-7xl mx-auto px-6 md:px-8 py-24 grid lg:grid-cols-12 gap-12 items-start">
         <div className="lg:col-span-5">
-          <SectionHead label="Free test call" title="Hear it before you buy." sub="Take CloudIVR for a 60-second spin — on your own phone or right here in the browser." />
+          <SectionHead label="Free test call" title="Don’t take our word for it. Call it." sub="A free 60-second test call — on your own phone or right here in your browser. No card needed." />
           <ul className="mt-8 grid gap-4">
             {POINTS.map(([Icon, t], i) => <Reveal as="li" key={t} delay={150 + i * 100} className="flex items-center gap-4" data-testid={`try-point-${i}`}><span className="w-10 h-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center shrink-0"><Icon className="w-5 h-5 text-[#4f46e5]" /></span><span className="text-sm text-slate-700">{t}</span></Reveal>)}
           </ul>

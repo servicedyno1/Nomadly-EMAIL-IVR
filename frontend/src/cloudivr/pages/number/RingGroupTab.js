@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { toast } from 'sonner';
 import { Users, Plus, X, Loader2 } from 'lucide-react';
-import { Field, Toggle } from '../../ui';
+import { Field, InstantToggle } from '../../ui';
 import { useUnsaved, SaveRow } from '../../guard';
 import { Card, useSave } from './SettingsTabs';
 import { OneAnswerNote } from './RouteSummary';

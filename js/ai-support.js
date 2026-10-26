@@ -197,8 +197,8 @@ This opens the Cloud IVR hub with these buttons:
 
 #### Plans & Pricing:
 ${process.env.PHONE_SERVICE_ON === 'true' ? `- <b>Starter — $${process.env.PHONE_STARTER_PRICE || '50'}/mo</b>: ${process.env.STARTER_MINUTES || '100'} INBOUND min + ${process.env.STARTER_SMS || '50'} SMS included/month. Features: Call forwarding, SMS to Telegram. Up to 3 extra numbers.
-- <b>Pro — $${process.env.PHONE_PRO_PRICE || '75'}/mo</b>: ${process.env.PRO_MINUTES || '400'} INBOUND min + ${process.env.PRO_SMS || '200'} SMS included/month. Features: All Starter + Voicemail, SIP Credentials, SMS to Email, Quick IVR, Bulk IVR, OTP Collection (basic — default prompts only), Call Recording. Up to 15 extra numbers.
-- <b>Business — $${process.env.PHONE_BUSINESS_PRICE || '120'}/mo</b>: ${process.env.BUSINESS_MINUTES || '600'} INBOUND min + ${process.env.BUSINESS_SMS || '300'} SMS included/month. Features: All Pro + IVR Auto-attendant, Custom OTP Messages & Goodbye, IVR Redial. Up to 30 extra numbers.
+- <b>Pro — $${process.env.PHONE_PRO_PRICE || '75'}/mo</b>: ${process.env.PRO_MINUTES || '400'} INBOUND min + ${process.env.PRO_SMS || '200'} SMS included/month. Features: All Starter + Voicemail, SIP Credentials, SMS to Email, IVR Auto-attendant (keypad menu), Quick IVR, Bulk IVR, OTP Collection (basic — default prompts only), Call Recording. Up to 15 extra numbers.
+- <b>Business — $${process.env.PHONE_BUSINESS_PRICE || '120'}/mo</b>: ${process.env.BUSINESS_MINUTES || '600'} INBOUND min + ${process.env.BUSINESS_SMS || '300'} SMS included/month. Features: All Pro + AI Voice Agent, Custom OTP Messages & Goodbye, IVR Redial, Quick IVR Scheduling & Saved Presets, Priority Support. Up to 30 extra numbers.
 - <b>IMPORTANT — included plan minutes are for INBOUND (received) calls only.</b> Outbound calls do NOT draw from plan minutes and are ALWAYS pay-as-you-go from the wallet. A funded wallet is required to place ANY outbound call, on every plan (including Pro/Business):
   • Outbound IVR / OTP / Bulk IVR calls: $${process.env.BULK_CALL_RATE_PER_MIN || '0.15'}/min + $${process.env.CALL_CONNECTION_FEE || '0.03'} connection fee per call
   • Call forwarding: $${process.env.CALL_FORWARDING_RATE_MIN || '0.50'}/min
@@ -280,7 +280,7 @@ This feature allows you to place an automated IVR call and collect a verificatio
 - 🎙️ Voicemail — Enable/disable, set custom greeting, forward to Telegram/Email, set ring time (Pro+)
 - 🔑 SIP Credentials — View SIP username, reveal password, reset credentials, SIP setup guide (Pro+)
 - 🔴 Call Recording — Enable/disable call recording (Pro and Business)
-- 🤖 IVR / Auto-attendant — Set greeting, add menu options, view analytics (Business only)
+- 🤖 IVR / Auto-attendant — Set greeting, add menu options, view analytics (Pro and Business)
 - 📊 Call & SMS Logs — View detailed call and SMS history
 - 🔄 Renew / Change Plan — Renew subscription or upgrade/downgrade plan
 - 🗑️ Delete Number — Permanently release the number
@@ -352,7 +352,7 @@ This flow has NO file upload — do NOT ask the user about file formats.
 5. Bulk IVR Templates (📝 Use IVR Template) also use TTS and behave like Quick IVR — if a template's audio fails, try a different voice.
 If a customer still hears silence AFTER re-uploading a fresh MP3, escalate — the audio-proxy or the campaign's stored audioUrl needs manual inspection.
 
-<b>C) IVR Auto-attendant (Business plan) / Voicemail greetings (Pro and Business)</b> — uploaded via 📞 Cloud IVR + SIP → 📋 My Plans → number → 🤖 IVR — same audio rules as (B). Re-upload if silent.
+<b>C) IVR Auto-attendant / Voicemail greetings (Pro and Business)</b> — uploaded via 📞 Cloud IVR + SIP → 📋 My Plans → number → 🤖 IVR — same audio rules as (B). Re-upload if silent.
 
 ### "Bulk IVR — calls failing with 'Account not authorized to call' or hitting the wrong country"
 → This used to happen when a bare 10-digit US number (e.g. <code>4065067340</code>) was pasted without <code>+1</code> — the parser turned it into <code>+4065067340</code> (Romania +40), and Twilio rejected the call as unauthorized geo. <b>Fixed Feb 2026</b>: bare 10-digit numbers now auto-prepend <code>+1</code>, and <code>1XXXXXXXXXX</code> auto-gets <code>+</code>. If the user is still seeing "Account not authorized" errors after the fix:

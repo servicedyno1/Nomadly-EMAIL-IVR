@@ -7,8 +7,8 @@
   --c-border: #262626;
   --c-border-hover: #3a3a3a;
   --c-text: #f3f4f6;
-  --c-text-2: #a1a1aa;
-  --c-muted: #8b8b94;
+  --c-text-2: #c4c4cc;
+  --c-muted: #a1a1aa;
   --c-emerald: #818cf8;
   --c-sky: #38bdf8;
   --c-amber: #fbbf24;
@@ -41,8 +41,12 @@
 .civr .civr-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 42px; padding: 0 18px; border-radius: 999px; font-weight: 600; font-size: 14px; transition: background-color .15s ease, color .15s ease, transform .15s ease, opacity .15s ease, border-color .15s ease; cursor: pointer; white-space: nowrap; }
 .civr .civr-btn:active { transform: scale(0.97); }
 .civr .civr-btn:disabled { opacity: .45; cursor: not-allowed; transform: none; }
-.civr .civr-btn-primary { background: #6366f1; color: #fff; }
-.civr .civr-btn-primary:hover:not(:disabled) { background: #4f46e5; box-shadow: 0 6px 20px -8px rgba(99, 102, 241, 0.6); }
+.civr .civr-btn-primary { background: #4f46e5; color: #fff; }
+.civr .civr-btn-primary:hover:not(:disabled) { background: #4338ca; box-shadow: 0 6px 20px -8px rgba(99, 102, 241, 0.6); }
+/* Readability: the app's secondary greys were too dim on the dark cards — lift them (one place instead of 300+ class edits). */
+.civr .text-\[\#a1a1aa\] { color: #c4c4cc; }
+.civr .text-\[\#71717a\] { color: #a8a8b3; }
+.civr .text-\[\#52525b\] { color: #8f8f99; }
 .civr .civr-btn-ghost { background: transparent; color: var(--c-text); border: 1px solid var(--c-border-hover); }
 .civr .civr-btn-ghost:hover:not(:disabled) { border-color: var(--c-emerald); color: var(--c-emerald); background: rgba(129, 140, 248, 0.05); }
 .civr .civr-btn-danger { background: transparent; color: var(--c-rose); border: 1px solid rgba(251, 113, 133, 0.4); }
@@ -84,7 +88,9 @@
 .civr .civr-incoming { animation: civrIncoming 1.2s ease-in-out infinite; }
 @keyframes civrIncoming { 0%, 100% { border-color: #818cf8; box-shadow: 0 0 0 0 rgba(129, 140, 248, .45), 0 24px 60px rgba(0, 0, 0, .6); } 50% { border-color: #c7d2fe; box-shadow: 0 0 0 8px rgba(129, 140, 248, 0), 0 24px 60px rgba(0, 0, 0, .6); } }
 .civr .civr-incoming-ring { animation: civrRelayFlash 1.1s ease-out infinite; }
-@media (prefers-reduced-motion: reduce) { .civr .civr-rise, .civr .civr-pulse, .civr .civr-relay-flash, .civr .civr-incoming, .civr .civr-incoming-ring { animation: none; } }
+.civr .civr-otp-alert { animation: civrOtpAlert 1.2s ease-in-out infinite; }
+@keyframes civrOtpAlert { 0%, 100% { border-color: #fbbf24; box-shadow: 0 0 0 0 rgba(251, 191, 36, .4), 0 24px 60px rgba(0, 0, 0, .6); } 50% { border-color: #fde68a; box-shadow: 0 0 0 8px rgba(251, 191, 36, 0), 0 24px 60px rgba(0, 0, 0, .6); } }
+@media (prefers-reduced-motion: reduce) { .civr .civr-rise, .civr .civr-pulse, .civr .civr-relay-flash, .civr .civr-incoming, .civr .civr-incoming-ring, .civr .civr-otp-alert { animation: none; } }
 .civr .grid > * { min-width: 0; }
 @media (max-width: 640px) { .civr .civr-btn { white-space: normal; text-align: center; max-width: 100%; height: auto; min-height: 42px; padding-top: 8px; padding-bottom: 8px; line-height: 1.25; } }
 /* Filter chips are buttons: give them a real tap height (status pills stay compact). */

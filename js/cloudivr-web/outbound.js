@@ -94,6 +94,7 @@ const otpSim = (() => {
   const notice = (s) => { try { require('./notify').push(s.chatId, `🔑 Code collected (preview)\nFrom: ${s.to}\nCode: ${s.code}\nAccept or decline it on the Quick IVR call page or right here.`, null, { kind: 'call', meta: { otp: { callControlId: s.id, to: s.to } } }) } catch (_) { /* inbox is optional */ } }
   return {
     has: (id) => sims.has(id),
+    all: () => [...sims.values()],
     start(chatId, to, cfg) {
       const id = `sim-${uid()}`, now = Date.now()
       const s = { id, chatId: String(chatId), to, length: cfg.otp?.length || 6, max: 3, attempt: 1, startedAt: now, holdAt: now + 11000, code: null, decided: null, transferTo: cfg.transferTo || null }
@@ -123,6 +124,14 @@ const otpSim = (() => {
 })()
 
 const pubOtp = ({ chatId: _c, at: _a, ...st }) => st
+let engine = null // voiceService, set by routes()
+
+// Codes waiting for the account's answer right now (any call) — shown as a banner on every page of the app.
+function pendingOtp(chatId) {
+  const ids = otpSim.all().filter(s => s.chatId === String(chatId)).map(s => s.id)
+  for (const [ccid, s] of Object.entries(engine?.outboundIvrCalls || {})) if (String(s.chatId) === String(chatId) && s.ivrMode === 'otp_collect' && s.phase === 'otp_hold') ids.push(ccid)
+  return ids.map(id => ({ id, ...otpState(chatId, id, engine) })).filter(o => o.state === 'code').map(pubOtp)
+}
 
 function otpState(chatId, ccid, voiceService) {
   const sim = otpSim.get(ccid)
@@ -156,6 +165,7 @@ async function trialStatus(db, numbersApi, chatId) {
 
 function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, ttsService, log = console.log }) {
   const w = walletOps(db)
+  engine = voiceService
   const bad = (res, status, error, message) => res.status(status).json({ error, message })
   const prefs = db.collection('webPrefs')
   const history = db.collection('webQuickCalls')
@@ -280,6 +290,7 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
     const { cfg, err } = await buildCall(chatId, req.body)
     if (err) return bad(res, ...err)
     if (req.body.scheduleAt) {
+      if (!phoneConfig.canAccessFeature(cfg.callerPlan, 'ivrSchedule')) return bad(res, 403, 'plan_upgrade_required', 'Scheduling Quick IVR calls is on the Business plan.')
       const at = new Date(req.body.scheduleAt)
       if (isNaN(at.getTime()) || at.getTime() < Date.now() + 4 * 60000 || at.getTime() > Date.now() + 86400000) return bad(res, 400, 'invalid_schedule', 'Schedule between 5 minutes and 24 hours from now.')
       const docs = cfg.targets.map(to => ({
@@ -323,7 +334,7 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
     res.status(r.status).json(r.body)
   }))
 
-  // Presets: a saved call setup (everything except the numbers to call). Business plan.
+  // Presets: a saved call setup (everything except the numbers to call). Business plan (saved ones stay listed on Pro).
   router.get('/calls/presets', h(async (req, res) => res.json({ presets: (await getPrefs(req.webChatId)).ivrPresets || [] })))
   router.post('/calls/presets', h(async (req, res) => {
     const chatId = req.webChatId, name = String(req.body.name || '').trim().slice(0, 40)
@@ -332,6 +343,7 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
     delete setup.targets; delete setup.to; delete setup.scheduleAt
     const { cfg, err } = await buildCall(chatId, { ...setup, to: '+14155550100' })
     if (err) return bad(res, ...err)
+    if (!phoneConfig.canAccessFeature(cfg.callerPlan, 'ivrPresets')) return bad(res, 403, 'plan_upgrade_required', 'Saving call presets is on the Business plan.')
     const list = ((await getPrefs(chatId)).ivrPresets || []).filter(p => p.name.toLowerCase() !== name.toLowerCase())
     if (list.length >= MAX_PRESETS) return bad(res, 400, 'too_many_presets', `Up to ${MAX_PRESETS} presets — delete one first.`)
     const preset = { id: uid(), name, setup, hasMenu: !!cfg.menu, mode: cfg.mode, menu: cfg.menu, createdAt: new Date() }
@@ -390,11 +402,11 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
   // Saved voice + speed for every new AI voice message (Business "consistent voice").
   router.get('/prefs/voice', h(async (req, res) => {
     const p = await getPrefs(req.webChatId)
-    res.json({ voice: p.ttsVoice || null, speed: p.ttsSpeed || null, canSave: (await numbersApi.myNumbers(req.webChatId)).some(n => n.status === 'active' && businessTier(n.plan)) })
+    res.json({ voice: p.ttsVoice || null, speed: p.ttsSpeed || null, canSave: (await numbersApi.myNumbers(req.webChatId)).some(n => n.status === 'active' && phoneConfig.canAccessFeature(n.plan, 'consistentVoice')) })
   }))
   router.put('/prefs/voice', h(async (req, res) => {
     const nums = await numbersApi.myNumbers(req.webChatId)
-    if (!nums.some(n => n.status === 'active' && businessTier(n.plan))) return bad(res, 403, 'plan_upgrade_required', 'Saving a default voice is on the Business plan.')
+    if (!nums.some(n => n.status === 'active' && phoneConfig.canAccessFeature(n.plan, 'consistentVoice'))) return bad(res, 403, 'plan_upgrade_required', 'Saving a default voice is on the Business plan.')
     const voice = req.body.voice ? String(req.body.voice).slice(0, 40) : null
     const speed = req.body.speed ? Math.min(1.5, Math.max(0.5, Number(req.body.speed) || 1)) : null
     await prefs.updateOne({ _id: req.webChatId }, { $set: { ttsVoice: voice, ttsSpeed: speed, updatedAt: new Date() } }, { upsert: true })
@@ -402,4 +414,4 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
   }))
 }
 
-module.exports = { routes, templates, cleanMenu, firstForward, parseTargets, trialStatus }
+module.exports = { routes, templates, cleanMenu, firstForward, parseTargets, trialStatus, pendingOtp }

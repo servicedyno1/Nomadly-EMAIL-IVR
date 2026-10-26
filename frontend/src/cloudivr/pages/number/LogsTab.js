@@ -9,6 +9,7 @@ import { LogTable, labelOf } from '../../LogTable';
 import { RING_ENDED } from '../../Incoming';
 import { useSearch, SearchBox, NoMatches } from '../../search';
 import { usePrivacy } from '../../privacy';
+import { LockedNote } from '../../Upgrade';
 
 const KINDS = [['all', 'All'], ['calls', 'Calls'], ['sms', 'SMS'], ['voicemail', 'Voicemail'], ['recordings', 'Recordings']];
 
@@ -17,7 +18,7 @@ function AiSummaryBar({ num, reload }) {
   const { catalog } = useShell() || {};
   const [save, busy] = useSave(num, 'ai-summary', reload);
   const rate = Number(catalog?.rates?.aiSummaryPerMin ?? 0.1).toFixed(2);
-  if (!num.access?.aiSummary) return <div className="text-xs text-[#a1a1aa] mb-4" data-testid="ai-summary-locked">AI summaries and caller mood for voicemails and recorded calls are on the Pro plan and up.</div>;
+  if (!num.access?.aiSummary) return <div className="mb-4"><LockedNote text="AI summaries and caller mood for voicemails and recorded calls are on the Pro plan and up." feature="AI summaries" need="pro" phone={num.phoneNumber} testid="ai-summary-locked" /></div>;
   return (
     <div className="flex items-start justify-between gap-4 rounded-xl border border-[#818cf8]/25 bg-[#818cf8]/5 p-4 mb-4" data-testid="ai-summary-bar">
       <div>

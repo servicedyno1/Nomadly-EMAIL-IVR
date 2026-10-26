@@ -8,15 +8,18 @@ import { usePrivacy } from './privacy';
 import { useRtc } from './rtc';
 import { every, useRingNotify, useTitleFlash } from './ringAlerts';
 import { QuickReply } from './QuickReply';
+import { OtpAlerts } from './OtpAlert';
 
 // Fired when a ringing call goes away (answered elsewhere, declined, timed out) so lists like the Inbox can refresh.
 export const RING_ENDED = 'civr:ring-ended';
 const ended = () => [1500, 6000].forEach(ms => setTimeout(() => window.dispatchEvent(new Event(RING_ENDED)), ms));
 const same = (a, b) => a.length === b.length && a.every((c, i) => c.id === b[i].id && c.answerMode === b[i].answerMode);
+const sameOtp = (a, b) => a.length === b.length && a.every((o, i) => o.id === b[i].id && o.attempt === b[i].attempt);
 
-// Calls ringing for this account. Polling also tells the server this tab is open, so new calls ring here.
+// Calls ringing for this account (+ codes waiting for an answer). Polling also tells the server this tab is open, so new calls ring here.
 function useRinging() {
   const [calls, setCalls] = useState([]);
+  const [otp, setOtp] = useState([]);
   const [skew, setSkew] = useState(0);
   const gone = useRef(new Set());
   useEffect(() => {
@@ -32,6 +35,7 @@ function useRinging() {
         if (d.now) setSkew(Date.now() - Date.parse(d.now));
         const next = d.calls.filter(c => !gone.current.has(c.id));
         setCalls(prev => { if (prev.some(c => !ids.has(c.id))) ended(); return same(prev, next) ? prev : next; });
+        setOtp(prev => (sameOtp(prev, d.otp || []) ? prev : d.otp || []));
       } catch (_) { /* next tick */ } finally { busy = false; }
     };
     tick();
@@ -39,7 +43,7 @@ function useRinging() {
     return () => { alive = false; stop(); };
   }, []);
   const drop = useCallback((id) => { gone.current.add(id); setCalls(l => l.filter(c => c.id !== id)); ended(); }, []);
-  return { calls, skew, drop };
+  return { calls, otp, skew, drop };
 }
 
 // The banner sits just under the top bar (lower while the preview strip above it is still on screen).
@@ -95,6 +99,7 @@ function Footer({ c, remember, setRemember, auto, cancelAuto, note, onMessage })
     <div className="mt-4 pt-3 border-t border-white/10 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-[#a1a1aa]">
       {!c.rtcOnly && <label className="inline-flex items-center gap-2 cursor-pointer text-[#e4e4e7]"><input type="checkbox" className="accent-[#818cf8] w-4 h-4" checked={remember} onChange={e => setRemember(e.target.checked)} data-testid="incoming-remember-checkbox" />Remember for this number</label>}
       {c.canText && !c.rtcOnly && <span data-testid="incoming-text-rate">{`Text answer: ${money(c.textRate)}/min from your wallet`}</span>}
+      {!c.canText && !c.rtcOnly && <span data-testid="incoming-text-locked">Answering as text is on the Business plan.</span>}
       {voiceHint && <span data-testid="incoming-voice-hint">{voiceHint}</span>}
       {!c.rtcOnly && <button type="button" onClick={onMessage} className="inline-flex items-center gap-1.5 underline text-[#e4e4e7] hover:text-white" data-testid="incoming-decline-message-button"><MessageSquareReply className="w-3.5 h-3.5" />Decline with a text message</button>}
       {auto !== null && <span className="inline-flex items-center gap-2 text-[#818cf8] font-medium" data-testid="incoming-auto-text">{`Answering as text in ${auto}s…`}<button type="button" onClick={cancelAuto} className="underline text-[#f4f4f5]" data-testid="incoming-auto-cancel-button">Cancel</button></span>}
@@ -113,7 +118,6 @@ function IncomingBanner({ c, more, skew, drop, ringing, openPhone }) {
   const [auto, setAuto] = useState(c.answerMode === 'text' && c.canText ? 3 : null);
   const [waitVoice, setWaitVoice] = useState(false);
   const [msgOpen, setMsgOpen] = useState(false);
-  const top = useBelowTopBar();
 
   const text = async (keep = remember) => {
     setAuto(null); setBusy('text'); setErr('');
@@ -156,8 +160,7 @@ function IncomingBanner({ c, more, skew, drop, ringing, openPhone }) {
   const voiceNote = waitVoice && !ringing ? (rtc.status === 'error' && rtc.phone === c.phone ? rtc.msg : 'Connecting the browser phone — the call is answered as soon as it reaches this browser…') : '';
 
   return (
-    <div className="fixed inset-x-0 z-[70] p-2 sm:px-4 sm:pt-3 pointer-events-none" style={{ top }} data-testid="incoming-overlay">
-      <div role="alertdialog" aria-live="assertive" aria-label="Incoming call" className="civr-incoming pointer-events-auto mx-auto max-w-4xl rounded-2xl border-2 border-[#818cf8] bg-[#0e0e16] p-4 sm:p-5 shadow-2xl" data-testid="incoming-banner">
+      <div role="alertdialog" aria-live="assertive" aria-label="Incoming call" className="civr-incoming pointer-events-auto mx-auto w-full max-w-4xl rounded-2xl border-2 border-[#818cf8] bg-[#0e0e16] p-4 sm:p-5 shadow-2xl" data-testid="incoming-banner">
         <div className="flex flex-col md:flex-row md:items-center gap-4">
           <Caller c={c} more={more} skew={skew} />
           <Actions c={c} busy={busy} voiceFirst={c.answerMode === 'voice' || c.rtcOnly} onText={text} onVoice={voice} onDecline={() => decline()} />
@@ -165,13 +168,13 @@ function IncomingBanner({ c, more, skew, drop, ringing, openPhone }) {
         <Footer c={c} remember={remember} setRemember={setRemember} auto={auto} cancelAuto={() => setAuto(null)} note={err || voiceNote} onMessage={() => { setAuto(null); setMsgOpen(o => !o); }} />
         {msgOpen && <div className="mt-3" data-testid="incoming-message-box"><QuickReply onSend={decline} busy={busy === 'decline'} sendLabel="Decline & send" testid="incoming-message" /></div>}
       </div>
-    </div>
   );
 }
 
-// Big ringing banner on every page while a call rings for one of the account's numbers.
+// Big banners on every page while a call rings for one of the account's numbers or a collected code waits for an answer.
 export function IncomingCalls({ openPhone }) {
-  const { calls, skew, drop } = useRinging();
+  const { calls, otp, skew, drop } = useRinging();
+  const top = useBelowTopBar();
   const rtc = useRtc();
   const pv = usePrivacy();
   const ringing = rtc.call?.inbound && rtc.call.state === 'ringing' ? rtc.call : null;
@@ -179,7 +182,12 @@ export function IncomingCalls({ openPhone }) {
   const describe = useCallback((c) => `${pv.phone(c.from)} → ${pv.phone(c.phone)}`, [pv]);
   useTitleFlash(list.length > 0);
   useRingNotify(list, describe);
-  if (!list.length) return null;
+  if (!list.length && !otp.length) return null;
   const c = list[0];
-  return <IncomingBanner key={c.id} c={c} more={list.length - 1} skew={skew} drop={drop} ringing={ringing && (c.rtcOnly || rtc.phone === c.phone) ? ringing : null} openPhone={openPhone} />;
+  return (
+    <div className="fixed inset-x-0 z-[70] p-2 sm:px-4 sm:pt-3 pointer-events-none flex flex-col gap-2" style={{ top }} data-testid="incoming-overlay">
+      <OtpAlerts list={otp} />
+      {c && <IncomingBanner key={c.id} c={c} more={list.length - 1} skew={skew} drop={drop} ringing={ringing && (c.rtcOnly || rtc.phone === c.phone) ? ringing : null} openPhone={openPhone} />}
+    </div>
+  );
 }

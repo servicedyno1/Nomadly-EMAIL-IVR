@@ -1,6 +1,5 @@
 import React from 'react';
 import { Workflow, PhoneForwarded, Voicemail, MessageSquare, Megaphone, Headphones, UserPlus, Hash, Wallet, Bot, Captions } from 'lucide-react';
-import { usd } from '../../api';
 import { SectionHead, coinList, planBadge, Reveal } from './kit';
 import { IvrMock, OutboundMock, AiMock } from './Mockups';
 import { ForwardingMock, VoicemailMock, SmsMock, BrowserPhoneMock, TextCallMock } from './MockupsLive';
@@ -14,7 +13,7 @@ export function Coverage({ catalog }) {
     <section id="coverage" className="civr-l-cream scroll-mt-16" data-testid="coverage-section">
       <div className="max-w-7xl mx-auto px-6 md:px-8 py-24">
         <div className="grid lg:grid-cols-12 gap-8 items-end">
-          <div className="lg:col-span-8"><SectionHead label="Coverage" title={`Phone numbers in ${list.length || 17} countries.`} sub="Local, toll-free and mobile numbers. Pick a country and pay — most numbers are ready in about a minute; a few countries ask for ID details first." /></div>
+          <div className="lg:col-span-8"><SectionHead label="Coverage" title={`Local presence in ${list.length || 17} countries.`} sub="Local, mobile and toll-free numbers your customers recognise — and pick up. Most go live in about a minute; a few countries ask for a quick ID check first." /></div>
           <p className="lg:col-span-4 text-sm civr-l-muted lg:text-right">Voice and SIP on every number · SMS on most</p>
         </div>
         <div className="mt-12 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4" data-testid="coverage-grid">
@@ -37,11 +36,12 @@ function Badge({ plans, k }) {
   return <span className={`shrink-0 text-xs font-medium px-2.5 py-1 rounded-full border ${every ? 'border-slate-200 bg-slate-50 text-slate-600' : 'border-indigo-200 bg-indigo-50 text-[#4338ca]'}`}>{b}</span>;
 }
 
-function FeatureCard({ icon: Icon, title, text, k, plans, mock, className = '', testid, delay = 0 }) {
+function FeatureCard({ icon: Icon, kicker, title, text, k, plans, mock, className = '', testid, delay = 0 }) {
   return (
     <Reveal delay={delay} className={`civr-l-card-cream p-6 md:p-8 flex flex-col overflow-hidden ${className}`} data-testid={testid}>
       <div className="flex items-start justify-between gap-4"><span className="w-10 h-10 rounded-xl bg-indigo-50 text-[#4f46e5] grid place-items-center"><Icon className="w-5 h-5" /></span><Badge plans={plans} k={k} /></div>
-      <div className="text-xl font-semibold text-slate-900 mt-6">{title}</div>
+      {kicker && <div className="text-xs font-semibold uppercase tracking-wider text-[#4f46e5] mt-6" data-testid={`${testid}-kicker`}>{kicker}</div>}
+      <div className={`text-xl font-semibold text-slate-900 ${kicker ? 'mt-2' : 'mt-6'}`}>{title}</div>
       <p className="text-sm text-slate-600 mt-2 max-w-md">{text}</p>
       {mock && <div className="mt-auto pt-8 -mb-2">{mock}</div>}
     </Reveal>
@@ -54,16 +54,16 @@ export function Features({ catalog }) {
   return (
     <section id="features" className="civr-l-cream scroll-mt-16 border-t civr-l-rule" data-testid="features-section">
       <div className="max-w-7xl mx-auto px-6 md:px-8 py-24">
-        <SectionHead label="What you get" title="One number. A full phone system behind it." sub="Every card shows which plans include it, so you know exactly what you're paying for." />
+        <SectionHead label="The platform" title="Inbound, outbound and AI. One number runs it all." sub="Answer every caller, call every lead and keep every text and voicemail in one inbox. Each card shows the plan that unlocks it." />
         <div className="grid grid-cols-1 md:grid-cols-12 gap-4 mt-12">
-          <FeatureCard icon={Workflow} title="Keypad menu (IVR)" text="Callers press 1 for sales, 2 for support. Greetings from text-to-speech or your own audio, one sub-menu deep. Uses your plan minutes." k="ivr" plans={plans} mock={<IvrMock />} className="md:col-span-7" testid="feature-card-0" />
-          <FeatureCard icon={Megaphone} title="Quick IVR & Bulk IVR calls" text="Call one person or a whole list. They hear your script or recording, then press 1 to reach you, enter a code or pick from a menu. Quick IVR for a few numbers, Bulk IVR campaigns for thousands — with live answers and key presses. Your first Quick IVR call is free once you sign up." k="ivrOutbound" plans={plans} mock={<OutboundMock />} className="md:col-span-5" testid="feature-card-1" delay={80} />
-          <FeatureCard icon={PhoneForwarded} title="Call forwarding" text="Always, when busy or on no answer — to any phone worldwide, with up to 4 backup numbers. Billed per minute from your wallet." k="callForwarding" plans={plans} mock={<ForwardingMock />} className={small} testid="feature-card-2" />
-          <FeatureCard icon={Voicemail} title="Voicemail" text={`Greetings in ${catalog?.voicemailLanguages?.length || 5} languages or your own audio. Recordings and transcripts land in your inbox and email.`} k="voicemail" plans={plans} mock={<VoicemailMock />} className={small} testid="feature-card-3" delay={80} />
-          <FeatureCard icon={Headphones} title="Browser phone" text="Call and answer in your browser tab — by voice or by typing — or log in from any SIP softphone." k="sipCredentials" plans={plans} mock={<BrowserPhoneMock />} className={small} testid="feature-card-4" delay={160} />
-          <FeatureCard icon={MessageSquare} title="SMS inbox" text="Read and reply to texts right in your inbox. Email and webhook delivery on Pro and up." plans={plans} mock={<SmsMock />} className={small} testid="feature-card-5" delay={240} />
-          <FeatureCard icon={Captions} title="Text calls" text="For deaf and hard-of-hearing callers: you type and they hear a voice; they talk and you read their words live." k="textRelay" plans={plans} mock={<TextCallMock />} className="md:col-span-7" testid="feature-card-7" />
-          <FeatureCard icon={Bot} title="AI voice agents" text="Unlike the keypad menu, it holds a real conversation in English, French or Spanish — answers questions, books appointments, takes messages or transfers to you. Billed per minute from your wallet." k="aiAgent" plans={plans} mock={<AiMock />} className="md:col-span-5" testid="feature-card-6" delay={80} />
+          <FeatureCard icon={Workflow} kicker="Inbound" title="Keypad menu (IVR)" text="Sound like a big company from day one. Callers hear your greeting and press 1 for sales, 2 for support or 3 for voicemail — routed in under a second. Start from a template, use a natural AI voice or your own recording, and see which keys people press. Uses your plan minutes." k="ivr" plans={plans} mock={<IvrMock />} className="md:col-span-7" testid="feature-card-0" />
+          <FeatureCard icon={Megaphone} kicker="Outbound" title="Quick IVR & Bulk IVR campaigns" text="Put your outreach on autopilot. We call your list, play your script, then connect everyone who presses 1, collect a code you accept or decline, or route each key. Quick IVR reaches up to 10 people right now; Bulk IVR works through whole lists with live results. Your first Quick IVR call is on us." k="ivrOutbound" plans={plans} mock={<OutboundMock />} className="md:col-span-5" testid="feature-card-1" delay={80} />
+          <FeatureCard icon={PhoneForwarded} kicker="Inbound" title="Call forwarding" text="Never miss a deal. Ring any phone worldwide — always, when you’re busy or when you don’t pick up — with up to 4 backup numbers. Billed per minute from your wallet." k="callForwarding" plans={plans} mock={<ForwardingMock />} className={small} testid="feature-card-2" />
+          <FeatureCard icon={Voicemail} kicker="Inbound" title="Voicemail" text={`Greetings in ${catalog?.voicemailLanguages?.length || 5} languages or your own audio. Every message lands in your inbox and email, transcribed so you can read it in seconds.`} k="voicemail" plans={plans} mock={<VoicemailMock />} className={small} testid="feature-card-3" delay={80} />
+          <FeatureCard icon={Headphones} kicker="Anywhere" title="Browser phone" text="Make and take calls from any browser tab, or sign in from a SIP softphone or desk phone. Your office goes wherever you go." k="sipCredentials" plans={plans} mock={<BrowserPhoneMock />} className={small} testid="feature-card-4" delay={160} />
+          <FeatureCard icon={MessageSquare} kicker="Messaging" title="SMS inbox" text="Read and reply to every text in one inbox. Push them to email or your own system with webhooks on Pro and up." plans={plans} mock={<SmsMock />} className={small} testid="feature-card-5" delay={240} />
+          <FeatureCard icon={Captions} kicker="Accessibility" title="Text calls" text="Built for deaf and hard-of-hearing callers: you type, and a natural voice speaks each sentence the moment you finish it; they talk, and you read their words live. Soft typing sounds keep the line from going quiet." k="textRelay" plans={plans} mock={<TextCallMock />} className="md:col-span-7" testid="feature-card-7" />
+          <FeatureCard icon={Bot} kicker="Inbound & outbound" title="AI voice agents" text="Your best rep on every line, 24/7. It talks naturally in English, French or Spanish — answers questions, books appointments, takes messages and passes hot calls to you. Point it at your leads and it calls them too. Billed per minute from your wallet." k="aiAgent" plans={plans} mock={<AiMock />} className="md:col-span-5" testid="feature-card-6" delay={80} />
         </div>
       </div>
     </section>
@@ -72,14 +72,14 @@ export function Features({ catalog }) {
 
 export function HowItWorks({ catalog }) {
   const steps = [
-    [UserPlus, 'Create a free account', 'Email and password or Google. No card, no contract.'],
-    [Hash, 'Pick a number and plan', 'Choose a country, number type and plan. Auto-renew is on so it never lapses — switch it off any time.'],
-    [Wallet, 'Pay your way', `Credit or debit card, crypto (${coinList(catalog) || 'BTC, ETH, USDT and more'}) or your CloudIVR wallet. Most numbers are live in about a minute.`],
+    [UserPlus, 'Create your free account', 'Email or Google. No card, no contract, no setup fee.'],
+    [Hash, 'Pick a number and a plan', 'Choose a country and a local, mobile or toll-free number. Then decide what callers get: forwarding, voicemail, a keypad menu or an AI voice agent.'],
+    [Wallet, 'Pay and go live', `Crypto (${coinList(catalog) || 'BTC, ETH, USDT and more'}) or your CloudIVR wallet — cards are coming soon. Most numbers ring in about a minute.`],
   ];
   return (
     <section id="how" className="civr-l-cream civr-l-soft scroll-mt-16 border-t civr-l-rule" data-testid="how-section">
       <div className="max-w-7xl mx-auto px-6 md:px-8 py-24">
-        <SectionHead label="How it works" title="Sign up to ringing in three steps." />
+        <SectionHead label="How it works" title="From sign-up to ringing in minutes." />
         <ol className="grid md:grid-cols-3 gap-4 mt-12">
           {steps.map(([Icon, t, s], i) => (
             <Reveal as="li" key={t} delay={i * 120} className="civr-l-card-cream p-6 md:p-8" data-testid={`how-step-${i + 1}`}>

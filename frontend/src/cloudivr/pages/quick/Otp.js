@@ -35,7 +35,7 @@ function useLeft(until) {
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 }
 
-function Decide({ st, ccid, onState, t }) {
+export function Decide({ st, ccid, onState, t }) {
   const [busy, setBusy] = useState('');
   const left = useLeft(st.holdEndsAt);
   const triesLeft = st.maxAttempts - st.attempt;

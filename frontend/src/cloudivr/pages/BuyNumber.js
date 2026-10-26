@@ -72,7 +72,7 @@ function PlanPicker({ plans, value, onChange, surcharge }) {
           </div>
           <div className="font-mono text-2xl mt-2">{money(p.price + (surcharge || 0))}<span className="text-xs text-[#a1a1aa]"> /month</span></div>
           <div className="text-xs text-[#a1a1aa] mt-1">{p.minutes} min · {p.sms} SMS included</div>
-          <div className="mt-4"><PlanFeatures plan={p} compact testid={`buy-plan-${p.id}-feature`} /></div>
+          <div className="mt-4"><PlanFeatures plan={p} plans={plans} compact testid={`buy-plan-${p.id}-feature`} /></div>
         </button>
       ))}
     </div>
@@ -155,7 +155,7 @@ export default function BuyNumber() {
         <div className="mt-8 civr-rise">
           {!extraOf && <>
           <Label>3 · Pick a plan and pay</Label>
-          <p className="text-xs text-[#a1a1aa] -mt-1 mb-3" data-testid="buy-plan-help">✓ included · ✗ not on that plan. You can upgrade a number later from its Billing tab.</p>
+          <p className="text-xs text-[#a1a1aa] -mt-1 mb-3" data-testid="buy-plan-help">Each plan includes everything in the one before it. You can upgrade a number later from its Billing tab.</p>
           <PlanPicker plans={catalog.plans} value={planObj?.id} onChange={setPlan} surcharge={pick.surcharge} />
           </>}
           <Checkout key={`${pick.phoneNumber}-${summary ? 1 : 0}`} pick={pick} planObj={planObj} total={total} balance={summary?.balance} coins={catalog.coins || []} busy={busy === 'buy'} onPay={buy} onTopUp={topUp}
