@@ -2877,5 +2877,7 @@
 "The carrier didn’t deliver this text.": "L’opérateur n’a pas distribué ce SMS.",
 "Your text from {0} to {1} wasn’t delivered. {2} You weren’t charged for it.": "Votre SMS de {0} vers {1} n’a pas été distribué. {2} Il ne vous a pas été facturé.",
 "Refund · text not delivered": "Remboursement · SMS non distribué",
-"Extra text": "SMS supplémentaire"
+"Extra text": "SMS supplémentaire",
+"Texted back: “{0}”": "SMS envoyé : « {0} »",
+"You replied: “{0}”": "Vous avez répondu : « {0} »"
 }

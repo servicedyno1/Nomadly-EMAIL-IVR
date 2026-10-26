@@ -64,7 +64,7 @@ export function TextBackDone({ reply, testid }) {
   const pv = usePrivacy();
   return (
     <>
-      <p className="mt-1.5 text-xs text-[#818cf8] break-words" data-testid={testid}>{`Texted back: “${pv.text(reply.text, 'Message hidden')}”${reply.status === 'preview' ? ' (preview — not sent)' : ''}`}</p>
+      <p className="mt-1.5 text-xs text-[#818cf8] break-words" data-testid={testid}>{`Texted back: “${pv.text(reply.text, 'Message hidden')}”`}{reply.status === 'preview' ? ' (preview — not sent)' : null}</p>
       <SmsStatus status={reply.status} reason={reply.reason} testid={`${testid}-status`} />
     </>
   );

@@ -2877,5 +2877,7 @@
 "The carrier didn’t deliver this text.": "El operador no entregó este SMS.",
 "Your text from {0} to {1} wasn’t delivered. {2} You weren’t charged for it.": "Tu SMS de {0} a {1} no se entregó. {2} No se te cobró.",
 "Refund · text not delivered": "Reembolso · SMS no entregado",
-"Extra text": "SMS adicional"
+"Extra text": "SMS adicional",
+"Texted back: “{0}”": "SMS enviado: “{0}”",
+"You replied: “{0}”": "Respondiste: “{0}”"
 }

@@ -89,7 +89,7 @@ async function applyDeliveryReport({ db, notify, log = console.log }, payload) {
   const r = await phoneLogs.findOneAndUpdate({ messageId: payload.id, type: 'sms_out', webReply: true, status: { $in: ['sent', 'unconfirmed'] } }, { $set: set })
   const doc = r && r.value !== undefined ? r.value : r
   if (!doc) return null
-  const copy = (path) => ({ [`${path}.status`]: status, ...(reason ? { [`${path}.reason`]: reason } : {}) })
+  const copy = (path) => ({ [`${path}.status`]: status, ...(reason ? { [`${path}.reason`]: reason, [`${path}.code`]: String(err.code || '') } : {}) })
   if (oid(doc.replyTo)) await phoneLogs.updateOne({ _id: oid(doc.replyTo) }, { $set: copy('reply') })
   if (oid(doc.inboxId)) await db.collection('webNotifications').updateOne({ _id: oid(doc.inboxId) }, { $set: copy('meta.reply') })
   log(`[SmsReply] ${doc.from} → ${doc.to} ${status}${reason ? ` (code ${err.code || '?'})` : ''}`)

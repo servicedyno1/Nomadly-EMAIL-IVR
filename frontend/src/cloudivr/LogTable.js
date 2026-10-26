@@ -40,7 +40,7 @@ function Details({ l, i, testid, notePhone, onNotesChange, r, rid, summarize }) 
   const pv = usePrivacy();
   return (
     <>
-      {l.body && <span className="text-[#e4e4e7] break-words" data-testid={`${testid}-body-${i}`}>{pv.text(l.body, 'Message hidden')}</span>}
+      {l.body && <span className="block text-[#e4e4e7] break-words" data-testid={`${testid}-body-${i}`}>{pv.text(l.body, 'Message hidden')}</span>}
       {l.type === 'sms_out' && <SmsStatus status={l.smsStatus} reason={l.smsReason} testid={`${testid}-sms-status-${i}`} />}
       {l.digit && <span className="civr-pill civr-pill-on ml-1">key {l.digit}</span>}
       {l.recordingUrl && <audio controls preload="none" src={l.recordingUrl} className="h-8 mt-1 max-w-full" data-testid={`${testid}-recording-${i}`} />}

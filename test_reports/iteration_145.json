@@ -1,0 +1,37 @@
+{
+  "summary": "CloudIVR web SMS delivery reports (Telnyx message.finalized). Backend: new pytest (9/9 pass) reseeds via /tmp/seed_sms_delivery_preview.js, posts 3 unsigned webhooks to /api/telnyx/sms-webhook, verifies logs smsStatus/smsReason, missed-call reply.status/reason, /missed-calls, /notifications alerts (kind sms, canReply false, exact text), seeded inbox item meta.reply failed+STOP reason, wallet 'Refund · text not delivered' +$0.05 and balance +0.05, smsUsed given back by 2, duplicate/contradicting reports are no-ops (no 2nd refund/alert, delivered stays delivered), unknown id + malformed payload -> 200. Frontend (Alice): Logs tab desktop table + 390px cards show 'SMS sent'+green Delivered, 2x 'SMS not delivered' amber with plain reasons, missed calls show Texted back + Delivered / Not delivered: toll-free reason; no horizontal overflow at 390px. Inbox: Missed calls card correct, SMS item shows 'You replied' + STOP reason, 2 unread alerts under SMS filter with no Reply button, tapping opens /app/numbers/%2B13313039039?tab=logs and marks read. FR/ES: all requested strings translate (Distribué/Entregado, Non distribué : …/No entregado: …, SMS non distribué/SMS no entregado, alert texts, wallet Remboursement/Reembolso rows). Switched back to EN. Regression: inbox Reply on preview -> toast 'Reply saved (preview — not sent)', '(preview — not sent)' suffix, no status badge, log row 'SMS sent' with no badge, no page errors. One i18n bug found (below).",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "i18n engine + TextBackDone (QuickReply.js) / Inbox SmsReply", "issue": "In FR/ES, 'Texted back: “…”' (Logs rows + Inbox Missed calls) and 'You replied: “…”' (Inbox SMS item) stay in ENGLISH whenever the reply is not a preview (status sent/delivered/failed). The keys are 'Texted back: “{0}”{1}' / 'You replied: “{0}”{1}' and engine.js compile() turns every slot into ([\\s\\S]+?) which needs >=1 char, so an empty {1} (no ' (preview — not sent)' suffix) never matches. Preview replies translate fine ('Vous avez répondu : « … » (aperçu — non envoyé)'). This now hits every real (non-preview) text, i.e. all production texts.", "selector": "[data-testid$='-done'], [data-testid='inbox-item-{i}-reply-done']", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Number > Logs (desktop table)", "issues": ["Preview sms_out row (no SmsStatus line) renders body and 'Add note' inline touching: 'TEST_ preview reply delivery checkAdd note' — needs a line break/gap like the other rows"]},
+      {"screen": "Inbox SMS item", "issues": ["Item whose reply failed because recipient replied STOP still offers 'Reply again' — any new reply will fail again; consider hiding it or warning"]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_cloudivr_sms_delivery.py", "/app/test_reports/pytest/pytest_sms_delivery.xml"],
+  "action_items": [
+    "Fix untranslated 'Texted back: “…”' / 'You replied: “…”' for non-preview replies: either add plain keys 'Texted back: “{0}”' and 'You replied: “{0}”' to fr.json/es.json, or render the preview suffix as a separate text node, or allow an empty trailing slot in engine.js compile() (([\\s\\S]*?) for slots) — check for side effects if changing the engine",
+    "Add spacing between sms body and 'Add note' in LogTable Details when there is no SmsStatus line (preview rows)",
+    "Optional: hide/warn 'Reply again' when last reply failed with opted-out (40300)"
+  ],
+  "critical_code_review_comments": [
+    "sms-reply.js applyDeliveryReport: idempotency relies on status filter {$in:['sent','unconfirmed']} in findOneAndUpdate — good; refund tx uses deterministic _id smsref-<logId> — good.",
+    "giveBack: refund insert .catch(()=>{}) swallows errors silently after wallet already credited — log it at least.",
+    "smsDelivery uses an in-process 3 s setTimeout with unref — a backend restart within those 3 s loses the report (Telnyx already got 200). Acceptable but consider retry/queue.",
+    "Webhook payload with to[] of multiple recipients only reads to[0] — fine for 1:1 texts."
+  ],
+  "updated_files": ["/app/backend/tests/test_cloudivr_sms_delivery.py"],
+  "success_rate": {"backend": "100% (9/9)", "frontend": "95% (all requested checks pass; 1 i18n gap in pre-existing reply-prefix strings)"},
+  "test_credentials": "civr.alice@example.com / AliceTest#2026 (from /app/memory/test_credentials.md + review request)",
+  "seed_data_creation": "Reseeded+replayed delivery reports once via pytest fixture (Alice wallet +0.05, now $330.10). Sent one preview inbox reply 'TEST_ preview reply delivery check' to +14155550177. Opened one alert (now read).",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run pytest /app/backend/tests/test_cloudivr_sms_delivery.py (reseeds via /tmp/seed_sms_delivery_preview.js — that file is in /tmp, may vanish on new pod). Frontend base: /cloudivr/login; wait_for_url must use '**/cloudivr/app**' (host contains 'app-vault'). Cookie banner: click [data-testid=cookie-allow-all]. Language buttons: [data-testid=settings-lang-fr|es|en] on /cloudivr/app/settings.",
+  "rca of the issue": "i18n: engine.js compile() builds RegExp with ([\\s\\S]+?) per slot; key 'Texted back: “{0}”{1}' is rendered with {1}='' for non-preview replies -> regex requires >=1 char after the closing quote -> no match -> English shown. Repro: switch to FR, open Number Logs, missed call row with delivered/failed reply."
+}

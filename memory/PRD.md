@@ -1369,3 +1369,24 @@ calls and SIP are simulated; inbound calls use a pretend-call simulator).
 - Telnyx account has 0 toll-free verification requests (+18333753298 unverified; 10DLC does not apply to toll-free). Texts to
   real US mobiles will likely be refused (unverified toll-free, Telnyx 40329). App marks 'sent' on API accept and ignores
   message.finalized (js/_index.js ~48526), so a later carrier block would still show as sent. NOT_REGISTERED regex lacks 40329.
+
+## 2026-10-26 — Web text delivery results (Telnyx delivery reports) — TESTED (iteration_145 + unit 10/10), preview only
+- Owner choices: an undelivered text is NOT charged (plan text given back + extra-text charge refunded); customer sees it on the
+  text + an Inbox alert (no email).
+- Telnyx `message.finalized` on /telnyx/sms-webhook → `cloudivrWeb.smsDelivery` (3 s delay so the send route has saved its
+  copies) → `sms-reply.applyDeliveryReport`: phoneLogs sms_out (webReply, status sent/unconfirmed → delivered | unconfirmed |
+  failed + smsReason/smsErrorCode), copies on the answered missed call (`reply.status/reason/code`) and inbox item
+  (`meta.reply.*`). Failed → `giveBack` (smsUsed −1 if > 0, wallet credit of doc.charge + transactions `sms-refund`
+  `_id smsref-<logId>`, wallet row "Refund · text not delivered") + notify.push kind sms, meta.smsFailed (no Reply button).
+  Duplicate reports are no-ops (status filter). send() now stores chatId, charge, inboxId on the text.
+- `reasonOf(code)` plain reasons: 40329/40330 toll-free approval, 40010/40019 10DLC, 40300 STOP, 40001/40012/40301/40310/40319
+  landline/can't receive, spam (40002/3/15/17, 40322), carrier limits (40011/16/18/20), else "The carrier didn’t deliver this
+  text." Also used for errors refused at send time (old regex wrongly called 40011–40013 "not registered").
+- UI: `SmsStatus` (QuickReply.js) Sent / Delivered / Not delivered: reason on Logs rows ("SMS not delivered" amber label),
+  Text back replies, Inbox replies; "Reply again" hidden after a STOP failure; delayed reload ~6 s after sending.
+  i18n fix: "Texted back: “{0}”" / "You replied: “{0}”" now separate from the preview suffix (empty {1} never matched).
+  Wallet LABEL sms_reply → "Extra text". fr/es added.
+- Tests: js/tests/test_sms_delivery_2026-10.js (sandbox mongod :27999) 10/10; backend/tests/test_cloudivr_sms_delivery.py.
+  Preview replay: `node /tmp/seed_sms_delivery_preview.js` + POST message.finalized payloads (ids seed-ok/seed-tf/seed-stop).
+- PROD facts: +18333753298 (onarrival21) toll-free is unverified (0 toll-free verification requests on the Telnyx account).
+- Live after "Save to GitHub" (app-main only; WhiteLabel auto-sync paused). app-main went to release 20261026T122832Z-5ce0744 at 12:29Z.

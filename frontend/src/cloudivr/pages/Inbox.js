@@ -47,12 +47,13 @@ function SmsReply({ n, i, pv, onReplied, reload }) {
     } catch (e) { toast.error(e.message); } finally { setBusy(false); }
   };
   const r = n.meta?.reply;
+  const optedOut = r?.status === 'failed' && r.code === '40300';
   return (
     <div className="relative z-10 mt-2 max-w-xl" data-testid={t}>
-      {r && !open && <p className="text-xs text-[#818cf8] break-words" data-testid={`${t}-done`}>{`You replied: “${pv.text(r.text, 'Message hidden')}”${r.status === 'preview' ? ' (preview — not sent)' : ''}`}</p>}
+      {r && !open && <p className="text-xs text-[#818cf8] break-words" data-testid={`${t}-done`}>{`You replied: “${pv.text(r.text, 'Message hidden')}”`}{r.status === 'preview' ? ' (preview — not sent)' : null}</p>}
       {r && !open && <SmsStatus status={r.status} reason={r.reason} testid={`${t}-status`} />}
       {open ? <div className="mt-2"><QuickReply onSend={send} busy={busy} presets={SMS_REPLIES} autoFocus testid={`${t}-box`} /><button type="button" className="text-xs text-[#a1a1aa] hover:text-white mt-1" onClick={() => setOpen(false)} data-testid={`${t}-cancel`}>Cancel</button></div>
-        : <button type="button" onClick={() => setOpen(true)} className={`civr-btn civr-btn-ghost civr-btn-sm ${r ? 'mt-1.5' : ''}`} data-testid={`${t}-button`}><MessageSquareReply className="w-4 h-4" />{r ? 'Reply again' : 'Reply'}</button>}
+        : !optedOut && <button type="button" onClick={() => setOpen(true)} className={`civr-btn civr-btn-ghost civr-btn-sm ${r ? 'mt-1.5' : ''}`} data-testid={`${t}-button`}><MessageSquareReply className="w-4 h-4" />{r ? 'Reply again' : 'Reply'}</button>}
     </div>
   );
 }
