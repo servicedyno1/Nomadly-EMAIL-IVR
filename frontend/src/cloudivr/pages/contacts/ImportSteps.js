@@ -23,8 +23,8 @@ export function MatchColumns({ parsed, roles, setRoles, hasHeader, setHasHeader,
       <div className="flex flex-col gap-2" data-testid="contacts-import-columns">
         {parsed.columns.map((c, i) => (
           <div key={c.index} className="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_14rem] items-center gap-2 sm:gap-4 rounded-xl border border-[#222] bg-[#111113] px-4 py-3" data-testid={`contacts-import-column-${i}`}>
-            <div className="font-medium truncate" title={label(i)}>{label(i)}</div>
-            <div className="text-xs text-[#a1a1aa] font-mono truncate" title={c.samples.join(', ')}>{c.samples.slice(0, 2).join(' · ') || '—'}</div>
+            <div className="font-medium truncate" title={label(i)} data-no-translate>{label(i)}</div>
+            <div className="text-xs text-[#a1a1aa] font-mono truncate" title={c.samples.join(', ')} data-no-translate>{c.samples.slice(0, 2).join(' · ') || '—'}</div>
             <select className={`civr-input !h-10 text-sm ${roles[i] === 'phone' ? '!border-[#818cf8]/60' : ''}`} value={roles[i]} onChange={e => setRoles(roles.map((r, k) => (k === i ? e.target.value : r)))} aria-label={`What ${label(i)} holds`} data-testid={`contacts-import-role-select-${i}`}>
               {parsed.roles.map(r => <option key={r} value={r}>{ROLE_LABELS[r]}</option>)}
             </select>
@@ -37,7 +37,7 @@ export function MatchColumns({ parsed, roles, setRoles, hasHeader, setHasHeader,
         <div className="civr-scroll-x overflow-x-auto rounded-xl border border-[#1f1f1f]" data-testid="contacts-import-preview">
           <table className="text-xs w-full min-w-max">
             <thead><tr>{parsed.columns.map((c, i) => <th key={c.index} className={`text-left font-medium px-3 py-2 bg-[#141416] whitespace-nowrap ${ROLE_TONE[roles[i]] || 'text-[#d4d4d8]'}`}>{ROLE_LABELS[roles[i]]}</th>)}</tr></thead>
-            <tbody>{rows.map((r, k) => <tr key={k} className="border-t border-[#1a1a1a]">{parsed.columns.map((c, i) => <td key={c.index} className={`px-3 py-2 whitespace-nowrap max-w-[14rem] truncate ${roles[i] === 'skip' ? 'text-[#52525b]' : 'text-[#d4d4d8]'}`}>{r[i] || ''}</td>)}</tr>)}</tbody>
+            <tbody data-no-translate>{rows.map((r, k) => <tr key={k} className="border-t border-[#1a1a1a]">{parsed.columns.map((c, i) => <td key={c.index} className={`px-3 py-2 whitespace-nowrap max-w-[14rem] truncate ${roles[i] === 'skip' ? 'text-[#52525b]' : 'text-[#d4d4d8]'}`}>{r[i] || ''}</td>)}</tr>)}</tbody>
           </table>
         </div>
         <div className="text-xs text-[#a1a1aa] mt-2">{`${parsed.rows.toLocaleString()} rows in ${parsed.fileName}`}</div>

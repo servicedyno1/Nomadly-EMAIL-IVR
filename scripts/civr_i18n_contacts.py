@@ -1,6 +1,11 @@
 # FR/ES strings for Contacts, smart upload, campaign names and the voicemail-drop call limit (adds only missing keys).
 import json
 T = [
+ ("1 row without a valid number left out", "1 ligne sans numéro valide ignorée", "1 fila sin número válido omitida"),
+ ("{0} rows without a valid number skipped", "{0} lignes sans numéro valide ignorées", "{0} filas sin número válido omitidas"),
+ ("1 row without a valid number skipped", "1 ligne sans numéro valide ignorée", "1 fila sin número válido omitida"),
+ ("You already have a list called “{0}”.", "Vous avez déjà une liste nommée « {0} ».", "Ya tienes una lista llamada «{0}»."),
+ ("This upload was already imported.", "Cet import a déjà été effectué.", "Esta subida ya se importó."),
  ("Contacts", "Contacts", "Contactos"),
  ("Phone", "Téléphone", "Teléfono"),
  ("Company", "Entreprise", "Empresa"),

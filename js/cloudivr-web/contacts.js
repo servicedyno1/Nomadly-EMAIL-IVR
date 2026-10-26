@@ -58,9 +58,16 @@ function routes(router, { db, h, upload }) {
     if (!want.length) return []
     return (await listsCol(db).find({ chatId, _id: { $in: want } }, { projection: { _id: 1 } }).toArray()).map(l => l._id)
   }
-  const newList = async (chatId, name) => {
-    const clean = str(name, 60)
+  // Manual lists must have a new name; imports get "Name (2)", "Name (3)"… instead.
+  const newList = async (chatId, name, { suffix = false } = {}) => {
+    let clean = str(name, 60)
     if (!clean) throw new Error('Give the list a name.')
+    const taken = new Set((await listsCol(db).find({ chatId }, { projection: { name: 1 } }).toArray()).map(l => l.name.toLowerCase()))
+    if (taken.has(clean.toLowerCase())) {
+      if (!suffix) throw new Error(`You already have a list called “${clean}”.`)
+      const base = clean.slice(0, 54)
+      for (let k = 2; taken.has(clean.toLowerCase()); k++) clean = `${base} (${k})`
+    }
     if (await listsCol(db).countDocuments({ chatId }) >= MAX_LISTS) throw new Error(`You can have up to ${MAX_LISTS} lists.`)
     const doc = { _id: crypto.randomUUID(), chatId, name: clean, createdAt: new Date(), updatedAt: new Date() }
     await listsCol(db).insertOne(doc)
@@ -151,12 +158,14 @@ function routes(router, { db, h, upload }) {
     const duplicates = req.body.duplicates === 'update' ? 'update' : 'skip'
     const fresh = p.records.filter(r => !p.existing.has(r.phone))
     if (await contactsCol(db).countDocuments({ chatId }) + fresh.length > MAX_CONTACTS) return bad(res, 400, 'too_many_contacts', `You can save up to ${MAX_CONTACTS.toLocaleString('en-US')} contacts.`)
+    // Claim the upload first so a double-click can't import it twice.
+    if (!(await importsCol(db).deleteOne({ _id: p.imp._id, chatId })).deletedCount) return bad(res, 409, 'import_done', 'This upload was already imported.')
     let list
     if (req.body.listId) {
       list = await listsCol(db).findOne({ _id: String(req.body.listId), chatId })
       if (!list) return bad(res, 404, 'not_found', 'List not found.')
     } else {
-      try { list = await newList(chatId, req.body.listName || p.imp.fileName.replace(/\.[a-z0-9]+$/i, '')) } catch (e) { return bad(res, 400, 'invalid_list', e.message) }
+      try { list = await newList(chatId, req.body.listName || p.imp.fileName.replace(/\.[a-z0-9]+$/i, ''), { suffix: true }) } catch (e) { return bad(res, 400, 'invalid_list', e.message) }
     }
     const now = new Date()
     const ops = p.records.map(r => {
@@ -176,7 +185,6 @@ function routes(router, { db, h, upload }) {
     for (let i = 0; i < ops.length; i += 1000) {
       try { await contactsCol(db).bulkWrite(ops.slice(i, i + 1000), { ordered: false }) } catch (e) { failed += e.writeErrors?.length || e.result?.getWriteErrors?.().length || 0; if (!e.writeErrors && !e.result) throw e }
     }
-    await importsCol(db).deleteOne({ _id: p.imp._id })
     const count = await contactsCol(db).countDocuments({ chatId, listIds: list._id })
     res.status(201).json({
       list: publicList(list, count), created: fresh.length - failed, updated: duplicates === 'update' ? p.existing.size : 0,

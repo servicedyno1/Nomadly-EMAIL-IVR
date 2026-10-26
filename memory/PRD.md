@@ -1,5 +1,10 @@
 # PRD — Nomadly Cloud IVR + Telegram Bot
 
+## 2026-10-26 (21:00Z) — Contacts tab + smart Excel/CSV import (web + bot) + 60s voicemail-drop cap + campaign rename — TESTED (iteration_153), DEPLOYED
+- DEPLOYED via scripts/deploy_workspace_to_droplet.sh app-main → release 20261026T205955Z-cd42dc5 on :5100 (app-main-b), WS_DEPLOY_EXIT=0,
+  health 200, cloudivr.net / /login /sip /terms /app/contacts 200, /api/cloudivr-web/contacts 401 unauthenticated (expected).
+- ⚠️ Owner must "Save to GitHub" (main) or the next CI deploy rolls this release back.
+
 ## 2026-10-26 (night, 19:50Z) — CloudIVR web: crypto button spill + responsive pass (phone → 2560) — TESTED (iteration_151/152), deploying
 - Owner bug: Billing tab → Upgrade → "Pay with crypto" spilled out of the card (1024–1440). RCA: `.civr-btn` had
   `white-space: nowrap` above 640px, so in UpgradePay's `grid sm:grid-cols-2` the coin select + nowrap button were wider

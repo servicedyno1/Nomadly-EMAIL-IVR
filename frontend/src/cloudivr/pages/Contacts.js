@@ -31,13 +31,13 @@ function Row({ c, i, onOpen, pv }) {
   return (
     <button type="button" onClick={() => onOpen(c.id)} className="w-full text-left grid grid-cols-[auto_minmax(0,1fr)_auto] md:grid-cols-[auto_minmax(0,1.3fr)_minmax(0,1fr)_minmax(0,1.2fr)_minmax(0,1fr)_auto] items-center gap-3 md:gap-4 px-4 py-3 hover:bg-white/[0.03] transition-colors border-t border-[#1a1a1a] first:border-t-0" data-testid={`contact-row-${i}`}>
       <Avatar name={c.name} phone={c.phone} />
-      <div className="min-w-0">
+      <div className="min-w-0" data-no-translate={c.name ? true : undefined}>
         <div className="font-medium truncate" data-testid={`contact-row-${i}-name`}>{c.name || <span className="text-[#a1a1aa]">No name</span>}</div>
         <div className="md:hidden text-xs text-[#a1a1aa] font-mono truncate">{pv.phone(c.phone)}{c.company ? <span className="font-sans"> · {c.company}</span> : null}</div>
       </div>
       <div className="hidden md:block font-mono text-sm text-[#d4d4d8] truncate" data-testid={`contact-row-${i}-phone`}>{pv.phone(c.phone)}</div>
       <div className="hidden md:block text-sm text-[#a1a1aa] truncate">{pv.text(c.email) || '—'}</div>
-      <div className="hidden md:block text-sm text-[#a1a1aa] truncate">{c.company || '—'}</div>
+      <div className="hidden md:block text-sm text-[#a1a1aa] truncate" data-no-translate>{c.company || '—'}</div>
       <ChevronRight className="w-4 h-4 text-[#52525b]" />
     </button>
   );
@@ -88,7 +88,7 @@ export default function Contacts() {
         </Empty>
       ) : (
         <div className="grid lg:grid-cols-[16rem_minmax(0,1fr)] xl:grid-cols-[18rem_minmax(0,1fr)] gap-4 items-start">
-          <ListsNav lists={lists} total={ld?.total || 0} active={listId} onPick={pick} onCreated={(l) => { reloadLists(); pick(l.id); }} />
+          <ListsNav lists={lists} total={ld?.total || 0} active={listId} onPick={pick} onCreated={(l) => { reloadLists().then(() => pick(l.id)); }} />
           <div className="min-w-0 space-y-4">
             <div className="flex flex-col md:flex-row md:items-center gap-3">
               <div className="min-w-0 flex-1">

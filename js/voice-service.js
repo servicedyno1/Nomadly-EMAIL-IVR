@@ -5502,6 +5502,7 @@ async function handleOutboundIvrHangup(payload) {
 
   // Clean up mid-call limit timer
   if (session._limitTimer) clearInterval(session._limitTimer)
+  if (session._capTimer) clearTimeout(session._capTimer)
   if (session._vmTimer) clearTimeout(session._vmTimer)
 
   // Use tracked answerTime for accurate duration (Telnyx reports 0 for bridged/transferred calls)

@@ -1,0 +1,39 @@
+{
+  "summary": "Tested CloudIVR Contacts, smart import, campaigns from a saved list, campaign rename and the voicemail-drop 60 s cap. Backend: 10/10 new pytest tests pass (lists CRUD; contacts CRUD, 409 on a duplicate phone, Bob blocked from Alice's data with 404, server-side search; parse/check/import of the xlsx with every column matched correctly; invalid row 5 '12' reported; update into an existing list and skip into a new list; paste via JSON {text}; .xls refused with 400 unsupported_file; leads-file; campaign estimate/create with listId; PATCH rename, where an empty name gives 400 invalid_name and Bob gets 404). Existing unit test js/tests/test_contacts_import_2026-10.js: 8/8 pass. New harness js/tests/test_vm_cap_harness.js: 5/5 pass. It drives handleVoiceWebhook call.answered with a fake Telnyx API: the timer is set when maxCallMs is set, the call is hung up after the cap while playing, it is not hung up when transferring or bridged, and there is no timer without maxCallMs. Frontend (Playwright, desktop 1920 + mobile 390): every requested flow works with no page errors. Only small i18n and wording issues were found.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /contacts/import (listName) and POST /contacts/lists", "issue": "Duplicate list names are allowed. Importing the same file twice into 'A new list' creates two lists both called 'contacts_sample'."},
+      {"endpoint": "POST /contacts/import", "issue": "'updated' is set to existing.size even when no field actually changed. Two requests sent at the same time with the same importId could each create a list, because the import is only deleted at the end."},
+      {"endpoint": "js/voice-service.js handleOutboundIvrAnswered", "issue": "session._capTimer is never cleared when the call ends. It is harmless because the timer checks the session and isCallEnded first, but it should be cleared next to _limitTimer during cleanup."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "ImportDialog done summary", "issue": "Plural is wrong: '1 rows without a valid number left out'. Campaigns.js has the same problem: '1 row(s) without a valid number skipped'.", "selector": "[data-testid='contacts-import-done-summary'], [data-testid='campaign-leads-file-note']", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Contacts import Match step (French)", "issues": ["The auto-translator changes the user's own spreadsheet column names: the 'Company' header shows as 'Entreprise'. 'Notes' and 'E-mail' could be changed the same way. Add data-no-translate to the column header label (ImportSteps.js line 26), the sample cells and the preview tbody. Contact names and companies in the table and panel should get it too."]},
+      {"screen": "Contacts lists", "issues": ["After creating a list with contacts-new-list-save, the view stays on All contacts instead of opening the new empty list. This is a small UX nit."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_cloudivr_contacts.py", "/app/js/tests/test_vm_cap_harness.js", "/app/js/tests/test_contacts_import_2026-10.js", "/app/test_reports/pytest/contacts_results.xml"],
+  "action_items": [
+    "Add data-no-translate to user data in the import Match step (column header labels, samples, preview cells) and to contact name/company/notes text, so FR/ES do not translate the user's data",
+    "Fix the singular/plural wording for 'rows without a valid number' in ImportDialog.js and Campaigns.js",
+    "Optional: clear session._capTimer on call end. Optional: stop duplicate list names, or add a number to the name, when an import creates a new list"
+  ],
+  "critical_code_review_comments": [
+    "contacts.js: routes check that the account owns each list and contact (chatId) everywhere. Search input is regex-escaped. 409 for a duplicate is correct. The MAX_* limits are enforced. Good.",
+    "calls.js leadsOf: listLeads limits results to the user's own chatId, so Bob gets count 0 for Alice's list. Correct.",
+    "bulk-call-service.js: maxCallSec checks campaign.voicemailAudioUrl for any value, while voicemailAudioUrl is only passed on when it is http(s). This is harmless but inconsistent.",
+    "contacts-import.js is solid: .xls and binary files refused, NANP handling, quoted CSV, header detection."
+  ],
+  "updated_files": ["/app/backend/tests/test_cloudivr_contacts.py", "/app/js/tests/test_vm_cap_harness.js"],
+  "success_rate": {"backend": "100%", "frontend": "100% of requested flows (2 minor i18n/wording issues)"},
+  "seed_data_creation": "Uploaded audio TEST_tone (id 00ae083c-...) into Alice's audio library. Created campaigns 'QA Renamed Campaign' and 'TEST_renamed', both now cancelled. Removed the test lists and contacts afterwards. Alice is back to only list 't1' with 3 contacts, and Jane Doe's notes are restored to 'VIP <b>'.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Login through page.request.post('/api/cloudivr-web/auth/login') shares cookies with the browser context. Language is set with localStorage 'civr.lang' = fr/es/en. The import destination has pills contacts-import-dest-new and contacts-import-dest-existing, and the list select only appears with 'existing' (or when opened from a list). The GET /audio response key is 'audios'. Bob's login works on this pod. Run: REACT_APP_BACKEND_URL=... pytest backend/tests/test_cloudivr_contacts.py; node js/tests/test_vm_cap_harness.js"
+}

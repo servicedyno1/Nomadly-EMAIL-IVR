@@ -42,7 +42,7 @@ function Done({ result, onView, onClose }) {
     <div className="text-center py-6 space-y-4" data-testid="contacts-import-done">
       <CheckCircle2 className="w-12 h-12 text-[#818cf8] mx-auto" />
       <div className="font-display text-2xl font-bold">{`Saved to “${r.list.name}”`}</div>
-      <div className="text-sm text-[#a1a1aa]" data-testid="contacts-import-done-summary">{[`${r.created} added`, r.updated ? `${r.updated} updated` : null, r.skipped ? `${r.skipped} already saved, kept as they were` : null, r.invalid ? `${r.invalid} rows without a valid number left out` : null].filter(Boolean).join(' · ')}</div>
+      <div className="text-sm text-[#a1a1aa]" data-testid="contacts-import-done-summary">{[`${r.created} added`, r.updated ? `${r.updated} updated` : null, r.skipped ? `${r.skipped} already saved, kept as they were` : null, r.invalid === 1 ? '1 row without a valid number left out' : r.invalid ? `${r.invalid} rows without a valid number left out` : null].filter(Boolean).join(' · ')}</div>
       <div className="flex flex-wrap justify-center gap-2 pt-2">
         <button type="button" className="civr-btn civr-btn-primary" onClick={onView} data-testid="contacts-import-view-list">View the list</button>
         <Link to={cp(`/app/campaigns/new?list=${enc(r.list.id)}`)} onClick={onClose} className="civr-btn civr-btn-ghost" data-testid="contacts-import-start-campaign"><Megaphone className="w-4 h-4" />Start a campaign</Link>
