@@ -1,0 +1,35 @@
+{
+  "summary": "Tested the CloudIVR Live calls features end to end in preview dry-run, against the backend API and the UI. Backend: 15/15 pytest pass. Covered GET /campaigns/live (shape, pipeline counts, upcoming sort order, newest-first feed with in-flight calls first, daily-limit flags, 401 when signed out, isolation from Bob/Carol), GET /campaigns/:id live/feed/areas/nextRun (another account gets 404), repeat and dailyLimit checks (invalid_repeat, invalid_daily_limit for 0/10001/2.5, scheduling refused with dry_run), weekly repeat create (seriesId==id, runNumber 1, doNotCall=1 for a Bulk IVR campaign), stop-repeat (ok, a second call gives 400, a non-repeating campaign gives 400), multi-number /ai-dnc (added 2 / invalid 1, legacy {number}, 400, list, delete) and dashboard liveCampaigns. Frontend: everything requested works: Live nav item with green dot (gone for an account with nothing running), Live page tiles, cards, pipeline, stats and daily-limit note, pause, resume preview toast, Stop confirm dialog, name link, feed results, Coming up list, empty state; campaign detail run plan, next-run link, stop-repeat confirm then toast then pill hidden then next run cancelled, pipeline, run stats, Do-not-call stat, live feed, top areas; new campaign form (repeat select + hint, daily limit) creating a campaign with 'Repeats every week' and '0 / 50 calls today'; campaign list repeat pills and Watch live button; Do-not-call page multi-add toast, rows, remove with undo, and the same list under the AI agents tab; FR/ES translations; 390px phone: no horizontal overflow, feed shown as a stacked list, More menu Live item and dot. Found 3 minor issues and no blockers.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/cloudivr-web/campaigns/:id/stop-repeat (bulk-call-service.stopRepeat)", "issue": "Upcoming runs are cancelled BEFORE updateMany({status in created/scheduled/running/paused}) sets repeat:null, so the cancelled next run keeps repeat:'daily'. Verified: after stop-repeat, seed-live-next = {status:'cancelled', cancelledReason:'Repeat stopped', repeat:'daily'}. Opening that cancelled run shows the 'Repeats every day' pill and the 'Stop repeating' button (DetailLive renders on c.repeat only), and the campaign list still shows a repeat pill for it. Fix: clear repeat on the whole series (include 'cancelled'), or run the updateMany before cancelling."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Live page 'Coming up' list (FR/ES)", "issues": ["The upcoming item subtitle stays in English: 'Repeats every day' (e.g. '27 oct, 21:31 · 15 números · Repeats every day'). The same label in the campaign card pill is translated ('Se repite cada día' / 'Se répète chaque jour')."]},
+      {"screen": "Campaign detail stats vs pipeline (data consistency)", "issues": ["The stat cards and the 'x of y called' line use stats.completed/answered (8 called, 4 answered), while the pipeline shows Done 7 and the Live summary counts answered only for finished calls (3 for that campaign). With the seed this is because seed stats() counts the in-flight 'answered' lead. Please confirm the real engine never increments stats.completed while a call is still talking; if it does, the numbers on the same card disagree."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_cloudivr_live.py", "/app/test_reports/pytest/pytest_live.xml"],
+  "action_items": [
+    "stopRepeat: also set repeat:null on the runs it cancels (or run the updateMany first) so cancelled runs don't show the 'Repeats every day' pill or the 'Stop repeating' button",
+    "Translate the 'Repeats every day/week' subtitle in the Live page 'Coming up' items (fr/es)"
+  ],
+  "critical_code_review_comments": [
+    "campaign-live.js GET /campaigns/live loads at most 60 docs sorted by createdAt desc (running/paused/scheduled + finished today). An account with many scheduled or old campaigns could miss an older running campaign in the summary. Consider separate queries for active and today's campaigns.",
+    "The Live endpoint sends the full leads array of up to 60 campaigns through Mongo on every 5s poll. Consider a projection or limiting leads for big campaigns (MAX_BULK_LEADS) to save load.",
+    "areasOf counts keyPressed for in-flight calls but answered only for finished ones. Small mismatch; the '1 pressed a key' label can be higher than answered for a moment.",
+    "Spanish 'Llamando' is used for the Ringing phase ('Sonando' would be clearer)."
+  ],
+  "updated_files": ["/app/backend/tests/test_cloudivr_live.py"],
+  "success_rate": {"backend": "100% (15/15)", "frontend": "~97% (all requested flows pass; 1 minor i18n gap)"},
+  "seed_data_creation": "Ran scripts/seed_civr_live_demo.js (re-seeded at the end, so the demo is fresh: seed-live-running repeat daily, seed-live-limited running, seed-live-next scheduled). The test campaigns I created (TEST_live_campaign, TEST_stop_repeat, TEST_norepeat, TEST_weekly_ui) were deleted from local Mongo. DNC numbers I added (+14155550111/2/3, +14155550121/2, +14155550131) were all removed. Already on Alice's DNC list (not mine): +13055550142, +14155550199. The campaign 'Live test repeat' (status created) was there before I started and was left alone.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run `node scripts/seed_civr_live_demo.js` before testing (my UI test paused seed-live-limited and stopped the repeat on seed-live-running; I re-seeded afterwards). Bob (civr.bob@example.com / BobTest#2026) works as the isolation account and gets the Live empty state. The language is stored in localStorage 'civr.lang' (en/fr/es). The AI agents route is /cloudivr/app/ai-agents (Do-not-call list tab). The cookie banner needs a 'Deny' click at desktop size.",
+  "rca of the issue": "stopRepeat order: cancelCampaign(u.id) sets status 'cancelled' first, then updateMany filters status in [created, scheduled, running, paused], so the cancelled runs are skipped and keep repeat:'daily'."
+}

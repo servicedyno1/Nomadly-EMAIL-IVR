@@ -171,6 +171,8 @@
   SALES_DASHBOARD_PASSWORD of /opt/nomadly/shared/app-voodoo/backend.env (set 2026-10-14; not written here — this file is in git).
 
 ## CloudIVR web app (preview, local DB) — 2026-10-23
+- 2026-10-26 Live page demo data: `cd /app && node scripts/seed_civr_live_demo.js` seeds 3 dryRun campaigns for Alice (seed-live-running,
+  seed-live-limited, seed-live-next); `--clean` removes them. Re-run ~20s after any `nodejs` restart (startup recovery resets in-flight demo leads).
 - URL: `{REACT_APP_BACKEND_URL}/cloudivr` (login `/cloudivr/login`). Web-only accounts, separate from Telegram users.
 - 2026-10-26 (e2e pass) pod setup-vault-app: Alice = Business dry-run `+17377031678` (~$380 → spent by tests), Bob = **Starter** `+19103709316`
   ($450), Carol = `civr.carol@example.com` / `CarolTest#2026` **Pro** `+15512619698` ($225). Dev-only env added: `CLOUDIVR_SUPPORT_LINK`,

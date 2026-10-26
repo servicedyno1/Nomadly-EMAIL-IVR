@@ -1,5 +1,22 @@
 # PRD — Nomadly Cloud IVR + Telegram Bot
 
+## 2026-10-26 (21:40Z) — CloudIVR Live page + call feed + top areas + repeat/daily limit + DNC for every campaign — TESTED (iteration_154 + harness 15/15), DEPLOYED
+- Owner shared a "Dynamo RVM" operations screenshot and picked: Live calls page (new "Live" menu item, green dot while calling),
+  live call feed per campaign (Waiting → Ringing → Talking → Done strip), top areas (state/province from area code, country from calling code),
+  repeat campaigns (daily/weekly) + daily call limit, do-not-call list applied to EVERY campaign (Bulk IVR + AI, web + Telegram bot).
+- Backend: `js/cloudivr-web/campaign-live.js` (GET /campaigns/live, liveView/feedOf/areasOf), `js/cloudivr-web/areas.js`, `js/campaign-schedule.js`
+  (nextRunAt DST-safe in owner tz, nextRunDoc, reserveDailySlot atomic, refundDailySlot). bulk-call-service: repeat series (seriesId, runNumber,
+  autoRun, nextRunId — the launch of a run creates the next one; a due run waits while the previous run is still calling), stopRepeat,
+  dailyLimit (dailyCount {day,n}, waitingForDailyLimit, recheck ≤10 min, stale-recovery exempt), DNC check for all campaigns, and
+  **dryRun campaigns never dial** (fireNextBatch guard). calls.js: runPlan validation, POST /campaigns/:id/stop-repeat, detail adds live/feed/areas/nextRun.
+  /ai-dnc POST takes several numbers; dashboard has liveCampaigns.
+- Frontend: pages/Live.js, pages/campaign/LiveParts.js + DetailLive.js, pages/DoNotCall.js (/app/do-not-call), campaign form Repeat + Daily call limit,
+  row pills, "Watch live" button, help articles, FR/ES (scripts/civr_i18n_live.py).
+- Preview demo data: `node scripts/seed_civr_live_demo.js` (Alice; `--clean` removes). Harness: js/tests/test_live_repeat_2026-10.js.
+- DEPLOYED via workspace script → release 20261026T214006Z-b881d29 on :5100, WS_DEPLOY_EXIT=0, health 200, /app/live + /app/do-not-call 200, API 401 unauthenticated.
+- ⚠️ Owner must "Save to GitHub" (main) or the next CI deploy rolls this release back.
+- Backlog ideas: add-to-DNC button on feed rows; repeat runs re-reading a saved contact list; city-level area names.
+
 ## 2026-10-26 (21:00Z) — Contacts tab + smart Excel/CSV import (web + bot) + 60s voicemail-drop cap + campaign rename — TESTED (iteration_153), DEPLOYED
 - DEPLOYED via scripts/deploy_workspace_to_droplet.sh app-main → release 20261026T205955Z-cd42dc5 on :5100 (app-main-b), WS_DEPLOY_EXIT=0,
   health 200, cloudivr.net / /login /sip /terms /app/contacts 200, /api/cloudivr-web/contacts 401 unauthenticated (expected).

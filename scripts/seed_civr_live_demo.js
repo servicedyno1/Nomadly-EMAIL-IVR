@@ -10,7 +10,7 @@ const lead = (i, number, name, extra = {}) => ({ index: i, number, name, status:
 const stats = (leads) => {
   const s = { total: leads.length, completed: 0, answered: 0, keyPressed: 0, transferred: 0, noAnswer: 0, busy: 0, failed: 0, hungUp: 0, voicemail: 0, voicemailLeft: 0, skipped: 0 }
   for (const l of leads) {
-    if (['pending', 'calling', 'ringing'].includes(l.status)) continue
+    if (['pending', 'calling', 'ringing', 'answered'].includes(l.status)) continue
     s.completed++
     if (l.status === 'skipped') s.skipped++
     else if (l.status === 'no_answer') s.noAnswer++

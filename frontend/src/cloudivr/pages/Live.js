@@ -70,7 +70,7 @@ function LiveCampaign({ c, i, onDone }) {
             <span className={statusPill(c.status)} data-testid={`live-campaign-${i}-status`}>{c.status}</span>
             {c.repeat && <span className="civr-pill civr-pill-on"><Repeat className="w-3 h-3" />{repeatLabel(c.repeat)}</span>}
           </div>
-          <div className="text-xs text-[#a1a1aa] font-mono mt-1">{`${c.stats?.completed || 0} of ${c.stats?.total || 0} called · ${pct(c)}%`}{c.dailyLimit ? ` · ${c.callsToday || 0} / ${c.dailyLimit} today` : ''}</div>
+          <div className="text-xs text-[#a1a1aa] font-mono mt-1">{[`${c.stats?.completed || 0} of ${c.stats?.total || 0} called`, `${pct(c)}%`, c.dailyLimit ? `${c.callsToday || 0} / ${c.dailyLimit} today` : null].filter(Boolean).join(' · ')}</div>
         </div>
         <CardActions c={c} i={i} onDone={onDone} />
       </div>
@@ -96,7 +96,7 @@ function Upcoming({ list }) {
             <CalendarClock className="w-4 h-4 text-[#818cf8] shrink-0" />
             <div className="min-w-0 flex-1">
               <div className="text-sm font-medium truncate">{c.name || c.audioName || 'Campaign'}</div>
-              <div className="text-xs text-[#a1a1aa]">{`${when(c.scheduledFor)} · ${c.stats?.total || 0} numbers`}{c.repeat ? ` · ${repeatLabel(c.repeat)}` : ''}</div>
+              <div className="text-xs text-[#a1a1aa]">{[when(c.scheduledFor), `${c.stats?.total || 0} numbers`, repeatLabel(c.repeat)].filter(Boolean).join(' · ')}</div>
             </div>
             <ChevronRight className="w-4 h-4 text-[#a1a1aa] shrink-0" />
           </Link>

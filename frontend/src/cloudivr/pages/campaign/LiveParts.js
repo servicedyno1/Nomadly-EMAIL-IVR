@@ -137,7 +137,7 @@ export function TopAreas({ areas, isAi, testid }) {
                 <div className="absolute inset-y-0 left-0 rounded-full bg-[#34d399]" style={{ width: `${a.numbers ? (a.answered / a.numbers) * 100 : 0}%` }} />
               </div>
             </div>
-            <div className="text-xs text-[#a1a1aa] mt-1.5">{`${a.numbers} ${a.numbers === 1 ? 'number' : 'numbers'} · ${a.called} called · ${a.answered} answered`}{isAi ? (a.interested ? ` · ${a.interested} interested` : '') : (a.keyPressed ? ` · ${a.keyPressed} pressed a key` : '')}</div>
+            <div className="text-xs text-[#a1a1aa] mt-1.5">{[`${a.numbers} ${a.numbers === 1 ? 'number' : 'numbers'}`, `${a.called} called`, `${a.answered} answered`, isAi ? (a.interested ? `${a.interested} interested` : null) : (a.keyPressed ? `${a.keyPressed} pressed a key` : null)].filter(Boolean).join(' · ')}</div>
           </li>
         );
       })}

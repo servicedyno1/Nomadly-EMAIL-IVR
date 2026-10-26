@@ -787,9 +787,9 @@ async function stopRepeat(campaignId) {
   const c = await _collection.findOne({ id: campaignId })
   if (!c?.repeat) return { error: 'This campaign does not repeat.' }
   const seriesId = c.seriesId || c.id
+  await _collection.updateMany({ seriesId }, { $set: { repeat: null } })
   const upcoming = await _collection.find({ seriesId, autoRun: true, status: 'scheduled' }, { projection: { id: 1 } }).toArray()
   for (const u of upcoming) await cancelCampaign(u.id, 'Repeat stopped', { sendReport: false })
-  await _collection.updateMany({ seriesId, status: { $in: ['created', 'scheduled', 'running', 'paused'] } }, { $set: { repeat: null } })
   log(`[BulkSchedule] series ${seriesId}: repeat stopped (${upcoming.length} upcoming run(s) cancelled)`)
   return { success: true, cancelledRuns: upcoming.length }
 }
