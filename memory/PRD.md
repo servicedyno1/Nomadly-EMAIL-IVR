@@ -1,5 +1,13 @@
 # PRD — Nomadly Cloud IVR + Telegram Bot
 
+## 2026-10-26 (22:40Z) — Language switcher fix (all 6 places) — SELF-TESTED, NOT DEPLOYED
+- Owner: tapping "English" on the landing page didn't drop the other languages down. The switcher was an invisible native <select>
+  over a pill, and some browsers/webviews never open it. `i18n/index.js` LangSwitcher is now a real menu (Radix DropdownMenu, modal=false,
+  tones landing/app): trigger `data-testid={testid}`, menu `{testid}-menu`, items `{testid}-option-{en|fr|es}` (no more select_option in tests).
+- Same component everywhere → fixed on landing nav, /sip nav, login/sign-up (desktop + mobile), app top bar, app mobile "More" sheet.
+  Verified: opens, picks, closes on pick/Escape/outside click, menu flips up above the mobile More sheet. No other hidden-select pattern in the app.
+
+
 ## 2026-10-26 (22:35Z) — Landing page redesigned CLEAN (pure white + near-black ink, no purple, no checker grid) — TESTED (iteration_155), NOT DEPLOYED (owner reviews in preview first)
 - Owner rejected the deep-purple cm.com hero ("we need our landing page as clean as this. we don't need the checkers or deep purple color").
   Choices: pure white hero · near-black ink buttons/highlights · product tabs with REAL dashboard screenshots · review before deploy.

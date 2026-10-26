@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useLayoutEffect, useReducer, useState } from 'react';
-import { Globe, ChevronDown } from 'lucide-react';
+import { Globe, ChevronDown, Check } from 'lucide-react';
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '../../components/ui/dropdown-menu';
 import { setDictionary, tr } from './engine';
 
 export { tr };
@@ -50,19 +51,32 @@ export function LangProvider({ children }) {
   );
 }
 
-// The native <select> covers the whole pill, so a tap on the globe, the name or the arrow opens the list.
+// A real menu (not a hidden native <select>, which some browsers never open): tap the pill, pick a language.
+const TONES = {
+  landing: { pill: 'text-slate-600 hover:text-slate-900 hover:bg-slate-100 data-[state=open]:bg-slate-100 data-[state=open]:text-slate-900 focus-visible:ring-slate-900/30', menu: 'bg-white text-slate-900 border-slate-200 shadow-[0_20px_50px_-20px_rgba(15,23,42,.35)]', item: 'focus:bg-slate-100 focus:text-slate-900', on: 'text-slate-900' },
+  app: { pill: 'text-[#d4d4d8] hover:text-white hover:bg-white/5 data-[state=open]:bg-white/5 data-[state=open]:text-white focus-visible:ring-[#818cf8]/50', menu: 'bg-[#141414] text-[#e4e4e7] border-[#262626] shadow-[0_20px_50px_-20px_rgba(0,0,0,.8)]', item: 'focus:bg-white/5 focus:text-white', on: 'text-[#818cf8]' },
+};
+
 export function LangSwitcher({ testid = 'lang-switcher', className = '', tone = 'app' }) {
   const { lang, setLang } = useLang();
-  const color = tone === 'landing' ? 'text-slate-600 hover:text-slate-900 hover:bg-slate-100' : 'text-[#d4d4d8] hover:text-white hover:bg-white/5';
+  const t = TONES[tone] || TONES.app;
   const name = (LANGS.find(([c]) => c === lang) || LANGS[0])[1];
   return (
-    <div className={`relative inline-flex items-center gap-1.5 h-11 px-2.5 rounded-full transition-colors focus-within:ring-2 focus-within:ring-[#818cf8]/50 ${color} ${className}`} data-no-translate title="Language">
-      <Globe className="w-4 h-4 shrink-0" />
-      <span className="text-sm font-medium hidden sm:inline">{name}</span><span className="text-sm font-semibold uppercase sm:hidden">{lang}</span>
-      <ChevronDown className="w-3.5 h-3.5 opacity-70" />
-      <select value={lang} onChange={e => setLang(e.target.value)} aria-label="Language" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" data-testid={testid}>
-        {LANGS.map(([c, n]) => <option key={c} value={c} className={tone === 'landing' ? 'bg-white text-slate-900' : 'bg-[#111] text-white'}>{n}</option>)}
-      </select>
-    </div>
+    <DropdownMenu modal={false}>
+      <DropdownMenuTrigger asChild>
+        <button type="button" aria-label={`Language: ${name}`} title="Language" className={`group inline-flex items-center gap-1.5 h-11 px-2.5 rounded-full transition-colors outline-none focus-visible:ring-2 ${t.pill} ${className}`} data-no-translate data-testid={testid}>
+          <Globe className="w-4 h-4 shrink-0" />
+          <span className="text-sm font-medium hidden sm:inline">{name}</span><span className="text-sm font-semibold uppercase sm:hidden">{lang}</span>
+          <ChevronDown className="w-3.5 h-3.5 opacity-70 transition-transform duration-200 group-data-[state=open]:rotate-180" />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" sideOffset={8} className={`z-[100] min-w-[11rem] rounded-xl p-1.5 font-['DM_Sans',sans-serif] ${t.menu}`} data-no-translate data-testid={`${testid}-menu`}>
+        {LANGS.map(([c, n]) => (
+          <DropdownMenuItem key={c} onSelect={() => setLang(c)} aria-current={c === lang ? 'true' : undefined} className={`min-h-[40px] rounded-lg px-3 text-sm font-medium cursor-pointer ${t.item}`} data-testid={`${testid}-option-${c}`}>
+            <span className="flex-1">{n}</span>{c === lang && <Check className={`w-4 h-4 ${t.on}`} />}
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
