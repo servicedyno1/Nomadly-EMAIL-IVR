@@ -80,6 +80,7 @@ export default function CloudIvrApp() {
           <Route path="signup" element={<AuthPage mode="signup" />} />
           <Route path="forgot" element={<ForgotPage />} />
           <Route path="reset-password" element={<ResetPage />} />
+          <Route path="help" element={<Navigate to={cp('/app/help')} replace />} />
           <Route path="app/*" element={<Protected><Shell /></Protected>} />
           {IS_CIVR_DOMAIN && <Route path="cloudivr/*" element={<LegacyPrefixRedirect />} />}
           <Route path="*" element={<Navigate to={cp()} replace />} />

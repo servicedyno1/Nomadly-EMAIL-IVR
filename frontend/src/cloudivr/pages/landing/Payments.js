@@ -12,15 +12,15 @@ const CARDS = [
 const COIN = { BTC: ['#f7931a', '₿', 'Bitcoin'], ETH: ['#627eea', 'Ξ', 'Ethereum'], USDT: ['#26a17b', '₮', 'Tether'], LTC: ['#345d9d', 'Ł', 'Litecoin'], DOGE: ['#c2a633', 'Ð', 'Dogecoin'], BCH: ['#0ac18e', 'B', 'Bitcoin Cash'], TRON: ['#eb0029', 'T', 'TRON'] };
 const DEFAULT_COINS = ['BTC', 'ETH', 'USDT', 'LTC'];
 
-const Chip = ({ title, children, testid }) => <span title={title} className="h-9 px-3 rounded-lg border border-slate-200 bg-white inline-flex items-center gap-1.5 shadow-[0_1px_1px_rgba(15,23,42,.04)]" data-testid={testid}>{children}</span>;
+const Chip = ({ title, children, testid, translate }) => <span title={title} className="h-9 px-3 rounded-lg border border-slate-200 bg-white inline-flex items-center gap-1.5 shadow-[0_1px_1px_rgba(15,23,42,.04)]" data-testid={testid} data-no-translate={translate ? undefined : ''}>{children}</span>;
 
 export function PaymentMethods({ catalog, label = 'Accepted payment methods', className = '', testid = 'payment-methods' }) {
   const coins = [...new Set((catalog?.coins?.length ? catalog.coins : DEFAULT_COINS).map(c => c.replace(/\s*\(.*\)/, '')))].filter(c => COIN[c]);
   return (
     <div className={className} data-testid={testid}>
       {label && <div className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-3">{label}</div>}
-      <div className="flex flex-wrap items-center gap-2" data-no-translate>
-        {CARDS.map(([id, title, mark]) => <Chip key={id} title={title} testid={`${testid}-${id}`}>{mark}</Chip>)}
+      <div className="flex flex-wrap items-center gap-2">
+        {CARDS.map(([id, title, mark]) => <Chip key={id} title={title} testid={`${testid}-${id}`} translate={id === 'debit'}>{mark}</Chip>)}
         {coins.map(c => { const [bg, g, name] = COIN[c]; return <Chip key={c} title={name} testid={`${testid}-${c.toLowerCase()}`}><span className="w-5 h-5 rounded-full text-white text-[11px] font-bold grid place-items-center" style={{ background: bg }}>{g}</span><span className="text-[11px] font-semibold text-slate-700">{c}</span></Chip>; })}
       </div>
     </div>

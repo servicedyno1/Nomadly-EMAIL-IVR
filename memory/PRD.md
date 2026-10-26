@@ -1,5 +1,21 @@
 # PRD — Nomadly Cloud IVR + Telegram Bot
 
+## 2026-10-26 (night) — CloudIVR web E2E pass + anomaly fixes — TESTED (iteration_150: backend 25/25 + 19/19, frontend all flows), DEPLOYED to droplet app-main
+- Owner: "test the cloudIVR end to end and fix any anomalies or bugs" → scope web app only, deploy right after testing.
+- Legacy backend/tests/test_cloudivr_*.py broad run (139 F / 91 E) = STALE fixtures (hardcoded numbers/agent IDs/coupon dates/tmp seed
+  scripts from older pods) — not product bugs. Current-pod suites: test_cloudivr_e2e_iter150.py + test_cloudivr_flows_iter150b.py
+  (run cleanup_iter150b.py after).
+- Fixes: /cloudivr/help → redirect to /app/help (SSR noindex); text-call header "Outgoing call from {0}" (+FR/ES); landing "Debit"
+  chip translatable (brand chips stay data-no-translate); ES "AI" → "IA" everywhere (89 strings); help kbd chip no-wrap; <option>
+  value props (Wallet, Campaigns); Tailwind ambiguous duration-[1400ms] → [transition-duration:1400ms].
+- DEPLOYED 2026-10-26 19:00Z via scripts/deploy_workspace_to_droplet.sh app-main → release 20261026T185940Z-290f000 on :5000
+  (app-main-a), health OK, cloudivr.net /, /sip, /login, /terms, /help all 200. Includes the SIP funnel (/sip).
+  ⚠️ Owner must "Save to GitHub" (main) or the next CI deploy rebuilds origin/main a54926f2 and rolls this back.
+- Prod finding (not changed): CLOUDIVR_SUPPORT_LINK is NOT set in prod app-main backend.env → every "Message support" button on
+  cloudivr.net is hidden. Owner to supply the real CloudIVR support Telegram link.
+- Backlog: dry-run campaign start keeps "Start calling" enabled (preview-only); TTS uses real credits on preview; private mode
+  doesn't hide top-bar balance; Quick IVR shows VoiceMaker + "Read out with" pickers (intended alt paths).
+
 ## 2026-10-26 (eve) — CloudIVR SIP sales funnel at cloudivr.net/sip — TESTED (iteration_147/148/149, frontend 100%, SEO 5/5), NOT deployed
 - Owner: "https://sip.cloudivr.net/ is not displaying anything — turn this page into a sales funnel". RCA: sip.cloudivr.net is
   the SIP REGISTRATION host (A → Telnyx 192.76.120.10 = sip.telnyx.com; js/phone-config.js WEB_SIP_DOMAIN) — every customer

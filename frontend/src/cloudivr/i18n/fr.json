@@ -986,6 +986,7 @@
 "Incoming": "Entrant",
 "Incoming call": "Appel entrant",
 "Incoming call to {0}": "Appel entrant vers {0}",
+"Outgoing call from {0}": "Appel sortant depuis {0}",
 "Incoming call · {0} more ringing": "Appel entrant · {0} autres sonnent",
 "Incoming calls get answered, outgoing calls run on autopilot, and every text and voicemail lands in one inbox. Each card shows which plans include it.": "Les appels entrants sont répondus, les appels sortants sont automatisés, et chaque SMS et message vocal arrive dans une seule boîte de réception. Chaque carte indique quels forfaits l’incluent.",
 "Incoming call…": "Appel entrant…",

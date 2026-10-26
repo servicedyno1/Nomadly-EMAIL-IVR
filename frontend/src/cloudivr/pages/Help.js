@@ -57,7 +57,7 @@ function ShortcutList() {
     <div className="civr-card p-6 hidden md:block" data-testid="help-shortcuts-card">
       <div className="flex items-center gap-2 font-display text-2xl font-bold mb-4"><Keyboard className="w-5 h-5 text-[#38bdf8]" />Keyboard shortcuts</div>
       <div className="space-y-3">
-        {SHORTCUTS.map(([k, d]) => <div key={k} className="flex items-center gap-3 text-sm text-[#d4d4d8]"><kbd className="min-w-[2.25rem] h-7 px-2 inline-flex items-center justify-center rounded-md border border-[#2a2a2a] bg-[#151515] font-mono text-xs text-[#f3f4f6]" data-no-translate>{k}</kbd>{d}</div>)}
+        {SHORTCUTS.map(([k, d]) => <div key={k} className="flex items-center gap-3 text-sm text-[#d4d4d8]"><kbd className="min-w-[2.25rem] h-7 px-2 shrink-0 whitespace-nowrap inline-flex items-center justify-center rounded-md border border-[#2a2a2a] bg-[#151515] font-mono text-xs text-[#f3f4f6]" data-no-translate>{k}</kbd>{d}</div>)}
       </div>
     </div>
   );

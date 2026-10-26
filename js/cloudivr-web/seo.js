@@ -176,7 +176,7 @@ function metaFor(pathname) {
       desc: sipDesc(),
     },
   }
-  const indexable = !(p.startsWith('/app') || p.startsWith('/reset-password'))
+  const indexable = !(p.startsWith('/app') || p.startsWith('/reset-password') || p === '/help')
   const meta = pages[p] || pages['/']
   return { ...meta, path: p === '/' ? '/' : p, url: `${CANONICAL}${p === '/' ? '/' : p}`, indexable }
 }

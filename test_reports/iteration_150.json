@@ -1,0 +1,44 @@
+{
+  "summary": "CloudIVR web app (preview, dry-run): tested the flows iteration 150 did not cover. Backend: new pytest file test_cloudivr_flows_iter150b.py passes 19/19 (logout ends the session, profile name round-trip, language preference, change-password with a wrong current password -> 400, 2FA status, audio TTS create/rename/delete, campaign create/start (202 in preview)/detail, Bob gated with 403, campaign isolation, quick-call dry run (202) and bad number -> 400, inbox lists, AI agent CRUD and canUse for Alice/Carol, wallet crypto deposit in dry run plus invalid amount/coin). Frontend (Playwright, 1920x1080 and 390x844): every requested flow works, with no product console errors and no unexpected failed requests. That covers logout/relogin and the /app redirect; settings (name, EN/FR/ES, wrong-password toast, 2FA QR + wrong code + cancel, support link t.me/CloudIVRhelp); the audio library; a campaign through to its detail page; quick call (inline error and history); inbox filters; AI agents (Alice CRUD, Carol upsell); wallet deposit; text call; landing, SIP funnel and terms links/CTAs/anchors/FR/ES; the cookie banner; private mode and the command palette; mobile. No critical bugs. Only minor anomalies, listed below.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/cloudivr-web/campaigns/:id/start (dry run)", "issue": "Returns 202 'Preview mode: the campaign is saved but no numbers were dialed', but the status stays 'created' and the 'Start calling' button stays enabled. Users can press Start again and again with no visible state change. Consider a 'preview' status or disabling the button after the preview start."},
+      {"endpoint": "POST /api/cloudivr-web/audio/tts", "issue": "Not a bug, just a note: TTS is live (ElevenLabs/OpenAI credits used) even when WEB_CLOUDIVR_DRY_RUN=true. Every QA run uses real TTS credits."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Routing /cloudivr/help", "issue": "/cloudivr/help is not a route. The catch-all sends it to the landing page (both signed in and signed out). The help center is only at /cloudivr/app/help and needs a login. The review request expects /cloudivr/help to be a public page, so add a route or redirect to app/help.", "selector": "CloudIvrApp.js Route path='*'", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Inbox", "issues": ["There is no 'Unread' filter. Filters are all/sms/voicemail/call/campaign/wallet/billing/coupon/info; unread is only a mark-read button. Alice has no SMS threads, so opening a thread and replying could not be tested in the UI."]},
+      {"screen": "Text calls (FR/ES)", "issues": ["The 'from +1...' label in the live call header is not translated. The quick phrases ('Could you repeat that, please?', 'Thank you, goodbye.') stay in English; this may be intended because they are spoken to the callee."]},
+      {"screen": "Landing footer (FR/ES)", "issues": ["The 'Debit' payment chip is not translated."]},
+      {"screen": "Landing ES copy", "issues": ["The hero and footer say 'agentes de voz AI', while the app nav says 'Agentes de voz IA'. The wording is inconsistent."]},
+      {"screen": "Help center shortcuts card", "issues": ["The 'Ctrl K / ⌘ K' kbd chip wraps onto two lines at 1920px."]},
+      {"screen": "Quick IVR call", "issues": ["Two voice pickers appear one after the other (the ScriptBox voice + speed and 'Read out with'), both showing Onyx. This is redundant and confusing."]},
+      {"screen": "Private mode", "issues": ["Private mode hides numbers and messages but the top-bar wallet balance ($360.00) stays visible. This may be intended."]},
+      {"screen": "Wallet", "issues": ["The balance card is very tall with the amount vertically centred, leaving a lot of empty space (cosmetic)."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_cloudivr_flows_iter150b.py", "/app/backend/tests/cleanup_iter150b.py", "/app/test_reports/pytest/iter150b.xml"],
+  "action_items": [
+    "Optional: add /cloudivr/help as a public route, or redirect it to /cloudivr/app/help",
+    "Optional: in dry run, show a 'preview' state or disable 'Start calling' after the preview start on the campaign detail page",
+    "Optional: translate the text-call 'from' label and the 'Debit' footer chip; use 'IA' consistently in ES",
+    "Optional: remove the duplicate voice picker on Quick IVR call; stop the shortcut kbd chip from wrapping"
+  ],
+  "critical_code_review_comments": [
+    "Security.js (2FA) hardcodes English strings ('Turn on', 'Show QR code', 'On since'). They render translated in FR only because of the DOM dictionary; keep i18n keys in sync.",
+    "Dry-run text calls stay 'live' for up to MAX_MINUTES=120 unless hung up: the server-side simulation keeps sending heartbeats. A QA call left open reconnects on every visit to /app/text-call. Consider a shorter max length in dry run."
+  ],
+  "updated_files": ["/app/backend/tests/test_cloudivr_flows_iter150b.py", "/app/backend/tests/cleanup_iter150b.py"],
+  "success_rate": {"backend": "100% (19/19)", "frontend": "100% of requested flows functional; only minor/cosmetic issues"},
+  "seed_data_creation": "Created and then cleaned up as Alice: TEST_ audio clips (deleted), TEST AI agents (deleted), dry-run campaigns (cancelled with cleanup_iter150b.py, which cancels ALL of Alice's 'created' campaigns, including leftovers from earlier QA runs), and 1 dry-run text call (hung up). Left behind: dry-run webDeposits rows ($25 BTC x3-4, $30 LTC) in 'waiting'/'preview' status and dry-run quick-call history rows. Alice's name was changed and restored; language reset to EN; private mode turned off; 2FA left Off; no passwords changed.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Iteration 150 (backend test_cloudivr_e2e_iter150.py 25/25) and this run (test_cloudivr_flows_iter150b.py 19/19) together cover the web app. Run python backend/tests/cleanup_iter150b.py after the flow tests. In preview, campaign start and quick call return 202. The audio list key is 'audios'. Quick call needs transferTo in transfer mode. Set localStorage civr.consent to skip the cookie banner. The mobile 'mobile-more-settings' testid is the settings container in the More menu (clicking its centre toggles private mode), not a link.",
+  "test_credentials": "From /app/memory/test_credentials.md: Alice/Bob/Carol logins all worked."
+}
