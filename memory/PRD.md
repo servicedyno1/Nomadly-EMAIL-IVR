@@ -1,5 +1,23 @@
 # PRD — Nomadly Cloud IVR + Telegram Bot
 
+## 2026-10-26 (night, 19:13Z) — PROD ops: Business gift numbers for 2 web accounts — DONE + verified
+- Owner: upgrade iammills404@gmail.com (web id 5000000000000007) + fundmyllc@gmail.com (5000000000000006) to Business, a US
+  toll-free number each "as if they ordered it", plan expires after 1 week, +$30 wallet credit, notify in their inbox.
+  Choices: free gift (no wallet debit), real Telnyx purchase, auto-renew OFF, in-app Inbox notice only (no email).
+- Script `scripts/ops/civr_gift_number.js` (copy at droplet /root/civr_gift_number.js, log /opt/nomadly/logs/civr_gift_2026-10-26.log):
+  same records as numbers.js purchaseLocked but $0 (phoneTransactions action purchase, amount 0, paymentMethod gift,
+  gift tag `business-week-2026-10-26`), no referral payout (both referred by 5000000000000002 — first-purchase reward
+  left for a real purchase), "number live" email pre-marked in webEmailLog, transactions `admin-credit` $30
+  (`gift-credit-<id>-<tag>`), 2 webNotifications (billing + wallet). Idempotent.
+- Numbers: +18334120472 (iammills404, SIP cvs778p29j) and +18777553674 (fundmyllc, SIP cv5thamw4q). Telnyx active, on the
+  Call Control App, messaging profile set. Expire 2026-11-02 ~19:13Z, autoRenew false → normal pause/hold after that.
+  Telnyx cost $1 upfront + $1/mo each (balance 11.55 → 9.12).
+- Code: web wallet history now labels `admin-credit` rows "Credit from CloudIVR" (js/cloudivr-web/wallet.js). Redeployed
+  workspace → release 20261026T191309Z-e9324ac (restart loaded 21 short SIP logins incl. the 2 new ones).
+  ⚠️ Still needs owner "Save to GitHub" or the next CI deploy reverts the workspace releases.
+- Seen in passing: fundmyllc's inbox has an older bot notice "Free IVR Trial Call Complete! … that's Nomadly" (bot brand
+  name in a CloudIVR inbox) — not changed.
+
 ## 2026-10-26 (night) — CloudIVR web E2E pass + anomaly fixes — TESTED (iteration_150: backend 25/25 + 19/19, frontend all flows), DEPLOYED to droplet app-main
 - Owner: "test the cloudIVR end to end and fix any anomalies or bugs" → scope web app only, deploy right after testing.
 - Legacy backend/tests/test_cloudivr_*.py broad run (139 F / 91 E) = STALE fixtures (hardcoded numbers/agent IDs/coupon dates/tmp seed

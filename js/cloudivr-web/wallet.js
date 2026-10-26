@@ -27,7 +27,7 @@ function walletOps(db) {
   return { balance, debit, credit }
 }
 
-const CREDITS = { 'referral-reward': 'Referral reward', 'suggestion-reward': 'Free credit · adopted suggestion', 'sms-refund': 'Refund · text not delivered' }
+const CREDITS = { 'admin-credit': 'Credit from CloudIVR', 'referral-reward': 'Referral reward', 'suggestion-reward': 'Free credit · adopted suggestion', 'sms-refund': 'Refund · text not delivered' }
 const LABEL = { purchase: 'Number purchase', purchase_verification: 'Number purchase (verification)', renew: 'Number renewal', upgrade: 'Plan upgrade', release: 'Number deleted', sms_reply: 'Extra text' }
 
 function routes(router, { db, h, coins, createCryptoDeposit }) {
