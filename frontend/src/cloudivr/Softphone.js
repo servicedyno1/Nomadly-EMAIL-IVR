@@ -11,6 +11,8 @@ import { CallMeFirst, CallNoteBox } from './SoftphoneExtras';
 const KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '*', '0', '#'];
 const STATUS = { idle: 'Offline', connecting: 'Connecting…', ready: 'Online', error: 'Not connected' };
 
+export const DIAL_FROM = 'civr:dial-from';
+
 export default function Softphone({ open, onClose }) {
   const pv = usePrivacy();
   const [nums, setNums] = useState(null);
@@ -32,6 +34,8 @@ export default function Softphone({ open, onClose }) {
     api('/calls/callback').then(d => setMyPhone(p => p || d.myPhone || '')).catch(() => {});
   }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (call) setLast({ peer: call.peer, direction: call.inbound ? 'inbound' : 'outbound' }); }, [call]);
+  // "Call from this number" on a number card picks that line before the phone opens.
+  useEffect(() => { const on = (e) => { if (e.detail?.from) setSel(e.detail.from); }; window.addEventListener(DIAL_FROM, on); return () => window.removeEventListener(DIAL_FROM, on); }, []);
   const selNum = nums?.find(n => n.phoneNumber === sel);
   const cmfAllowed = !!selNum?.access?.ivrOutbound;
   const viaMobile = cmf && cmfAllowed;

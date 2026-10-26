@@ -5,20 +5,20 @@ import { usd, money, startPrice } from '../../api';
 import { useCivrAuth } from '../../AuthContext';
 import { cp } from '../../paths';
 import { Wordmark } from '../../Brand';
-import { SectionHead, Slide, coinList, andList } from './kit';
+import { SectionHead, Slide, coinList, andList, Reveal } from './kit';
 import { PlanFeatures, RecommendedBadge } from '../../PlanFeatures';
 
 const useStart = () => { const { account } = useCivrAuth(); return (plan) => (account ? cp(`/app/buy${plan ? `?plan=${plan}` : ''}`) : cp(`/signup${plan ? `?plan=${plan}` : ''}`)); };
 
-function PlanCard({ p, hot, start }) {
+function PlanCard({ p, hot, start, delay }) {
   return (
-    <div className={`civr-l-card-cream p-8 flex flex-col ${hot ? '!border-[#6366f1] ring-1 ring-[#6366f1] shadow-[0_24px_48px_-24px_rgba(79,70,229,.35)]' : ''}`} data-testid={`civr-plan-card-${p.id}`}>
+    <Reveal delay={delay} className={`civr-l-card-cream p-8 flex flex-col ${hot ? '!border-[#6366f1] ring-1 ring-[#6366f1] shadow-[0_24px_48px_-24px_rgba(79,70,229,.35)]' : ''}`} data-testid={`civr-plan-card-${p.id}`}>
       <div className="flex items-center justify-between gap-2"><div className="text-lg font-semibold text-slate-900">{p.name}</div>{p.recommended && <RecommendedBadge tone="landing" testid={`pricing-recommended-${p.id}`} />}</div>
       <div className="civr-l-h text-5xl text-slate-900 mt-6" data-testid={`pricing-price-${p.id}`}>{usd(p.price)}<span className="text-base font-medium tracking-normal text-slate-500">/mo</span></div>
       <div className="text-sm text-slate-500 mt-2" data-testid={`pricing-allowance-${p.id}`}>{`${p.minutes} incoming minutes · ${p.sms} SMS included each month`}</div>
       <div className="mt-6 pt-6 border-t civr-l-rule flex-1"><PlanFeatures plan={p} tone="cream" testid={`pricing-feature-${p.id}`} /></div>
       <Link to={start(p.id)} className={`civr-l-btn mt-8 w-full ${hot ? '' : 'civr-l-btn-ghost'}`} data-testid={`pricing-choose-${p.id}`}><Slide>Choose {p.name}</Slide></Link>
-    </div>
+    </Reveal>
   );
 }
 
@@ -31,7 +31,7 @@ export function Pricing({ catalog }) {
     <section id="pricing" className="civr-l-cream scroll-mt-16 border-t civr-l-rule" data-testid="pricing-section">
       <div className="max-w-7xl mx-auto px-6 md:px-8 py-24">
         <SectionHead label="Pricing" title="Monthly per number. Cancel any time." sub="Free to sign up. Pay for a number with crypto or from your wallet. Auto-renew keeps it yours — switch it off whenever you like." />
-        <div className="grid md:grid-cols-3 gap-4 mt-12 items-stretch">{plans.map((p, i) => <PlanCard key={p.id} p={p} hot={hasRec ? p.recommended : i === 1} start={start} />)}</div>
+        <div className="grid md:grid-cols-3 gap-4 mt-12 items-stretch">{plans.map((p, i) => <PlanCard key={p.id} p={p} hot={hasRec ? p.recommended : i === 1} start={start} delay={i * 120} />)}</div>
         {r && (
           <p className="text-sm text-slate-500 mt-8 max-w-3xl" data-testid="pricing-extra-usage">
             {`Extra usage is paid from your wallet: incoming minutes over your plan ${money(r.overagePerMin)}/min, SMS over your plan ${money(r.overagePerSms)} each, calls forwarded to a phone ${money(r.forwardingPerMin)}/min. Outgoing calls — browser phone, softphone, IVR and AI agent calls — are billed per minute from your wallet and show their price before you start. Extra numbers cost from ${usd(catalog?.extraNumber?.price || 25)}/month each and share the plan's minutes and SMS.`}
@@ -50,7 +50,7 @@ export function faqItems(c) {
   const ai = andList((c?.plans || []).filter(p => p.access?.aiAgent).map(p => p.name)) || 'Business';
   const ex = c?.extraNumber;
   return [
-    ['Can I try it before I pay?', 'Yes. Confirm your email with a 6-digit code and take one free test call of up to 60 seconds — we ring your phone with a demo menu, or you call from your browser. No account needed.'],
+    ['Can I try it before I pay?', 'Yes, twice. Without an account: confirm your email with a 6-digit code and take one free test call of up to 60 seconds — we ring your phone with a demo menu, or you call from your browser. After you sign up: place one free Quick IVR call from our number — it plays your script to anyone you choose and connects them to you when they press 1.'],
     ['Is the account really free?', `Yes. Creating an account costs nothing. You only pay when you buy a number${from ? ` (from ${from}/month)` : ''}, plus any extra usage.`],
     ['How do I pay?', `Pay for a number directly with ${coinList(c) || 'crypto'}, or top up your CloudIVR wallet (from ${usd(c?.minTopup || 10)}) and pay from it. Renewals and calls are paid from the wallet.`],
     ['Which plan has the keypad menu (IVR)?', ivr === ai
@@ -72,10 +72,10 @@ export function Faq({ catalog }) {
         <div className="lg:col-span-4"><SectionHead label="FAQ" title="Questions before you buy" /></div>
         <div className="lg:col-span-8 border-t civr-l-rule" data-testid="faq-list">
           {faqItems(catalog).map(([q, a], i) => (
-            <details key={q} className="border-b civr-l-rule group" data-testid={`faq-item-${i}`}>
+            <Reveal as="details" key={q} delay={Math.min(i, 6) * 60} className="border-b civr-l-rule group" data-testid={`faq-item-${i}`}>
               <summary className="flex items-center justify-between gap-4 cursor-pointer py-6 min-h-[56px] text-base md:text-lg font-semibold text-slate-900 hover:text-[#4f46e5] transition-colors" data-testid={`faq-question-${i}`}>{q}<Plus className="civr-faq-chevron w-5 h-5 shrink-0 text-slate-400" /></summary>
               <p className="pb-6 text-sm text-slate-600 max-w-2xl" data-testid={`faq-answer-${i}`}>{a}</p>
-            </details>
+            </Reveal>
           ))}
         </div>
       </div>
@@ -89,7 +89,7 @@ export function FinalCta({ catalog }) {
   return (
     <section className="civr-l-cream py-24" data-testid="final-cta">
       <div className="max-w-7xl mx-auto px-6 md:px-8">
-        <div className="civr-l-dark relative overflow-hidden rounded-3xl px-8 py-16 md:px-16 flex flex-col md:flex-row md:items-end gap-8">
+        <Reveal className="civr-l-dark relative overflow-hidden rounded-3xl px-8 py-16 md:px-16 flex flex-col md:flex-row md:items-end gap-8">
           <div className="absolute inset-0 civr-l-gridbg opacity-60" />
           <div className="relative flex-1">
             <h2 className="civr-l-h text-3xl sm:text-4xl lg:text-5xl max-w-2xl">Your number could be answering calls in minutes.</h2>
@@ -99,7 +99,7 @@ export function FinalCta({ catalog }) {
             <a href="#try" className="civr-l-btn civr-l-btn-ghost" data-testid="final-cta-try-button"><Slide>Try a free call</Slide></a>
             <Link to={start()} className="civr-l-btn" data-testid="final-cta-button"><Slide>Get your number</Slide><ArrowRight className="w-4 h-4" /></Link>
           </div>
-        </div>
+        </Reveal>
       </div>
     </section>
   );
@@ -116,7 +116,8 @@ export function Footer({ catalog }) {
           <div className="text-xs text-slate-500 mt-2" data-testid="footer-copyright">© {new Date().getFullYear()} CloudIVR · Virtual numbers, IVR, SIP and AI voice agents</div>
         </div>
         <nav className="flex flex-wrap items-center gap-x-6">
-          {links.map(([href, label, id]) => <a key={id} href={href} className={link} data-testid={`footer-link-${id}`}>{label}</a>)}
+          {links.map(([href, label, id]) => <a key={id} href={`${cp()}${href}`} className={link} data-testid={`footer-link-${id}`}>{label}</a>)}
+          <Link to={cp('/terms')} className={link} data-testid="footer-link-terms">Terms of Service</Link>
           <Link to={cp('/login')} className={link} data-testid="footer-link-signin">Sign in</Link>
           {catalog?.channelLink && <a href={catalog.channelLink} target="_blank" rel="noopener noreferrer" className={`${link} flex items-center gap-2`} data-testid="footer-channel-link"><Send className="w-4 h-4" />Telegram channel</a>}
           {catalog?.supportLink && <a href={catalog.supportLink} target="_blank" rel="noopener noreferrer" className={`${link} flex items-center gap-2`} data-testid="footer-support-link"><MessageCircle className="w-4 h-4" />Support on Telegram</a>}

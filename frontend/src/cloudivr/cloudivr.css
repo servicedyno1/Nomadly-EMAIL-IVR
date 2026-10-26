@@ -172,6 +172,27 @@
 .civr .civr-l-cream .civr-l-dark .civr-l-eyebrow { color: #a5b4fc; }
 .civr .civr-secure { -webkit-text-security: disc; text-security: disc; }
 
+/* Scroll reveal + page fade (landing) */
+.civr .civr-reveal { opacity: 0; transform: translateY(22px); transition: opacity .7s cubic-bezier(.2, .7, .2, 1), transform .7s cubic-bezier(.2, .7, .2, 1); }
+.civr .civr-reveal.in { opacity: 1; transform: none; }
+.civr .civr-page { animation: civrPage .35s ease-out both; }
+@keyframes civrPage { from { opacity: 0; } to { opacity: 1; } }
+/* Living mock-ups */
+.civr .civr-eq { display: inline-flex; align-items: flex-end; gap: 2px; height: 14px; }
+.civr .civr-eq > i { width: 3px; border-radius: 2px; background: currentColor; height: 30%; animation: civrEq 1s ease-in-out infinite; }
+.civr .civr-eq > i:nth-child(2) { animation-delay: .15s; } .civr .civr-eq > i:nth-child(3) { animation-delay: .3s; } .civr .civr-eq > i:nth-child(4) { animation-delay: .45s; } .civr .civr-eq > i:nth-child(5) { animation-delay: .6s; }
+@keyframes civrEq { 0%, 100% { height: 30%; } 50% { height: 100%; } }
+.civr .civr-eq.still > i { animation: none; }
+.civr .civr-wave { display: flex; align-items: center; gap: 2px; height: 28px; }
+.civr .civr-wave > i { flex: 1; min-width: 2px; border-radius: 2px; background: currentColor; height: 20%; animation: civrWave 1.3s ease-in-out infinite; }
+@keyframes civrWave { 0%, 100% { height: 20%; } 50% { height: 100%; } }
+.civr .civr-wave.still > i { animation: none; height: 20%; }
+.civr .civr-caret::after { content: ''; display: inline-block; width: 1px; height: 1em; margin-left: 1px; background: currentColor; vertical-align: -2px; animation: civrPulse 1s steps(2) infinite; }
+.civr .civr-ringing { animation: civrShake .5s ease-in-out infinite; }
+@keyframes civrShake { 0%, 100% { transform: rotate(0); } 25% { transform: rotate(-8deg); } 75% { transform: rotate(8deg); } }
+.civr .civr-pop { animation: civrRise .4s cubic-bezier(.2, .7, .2, 1) both; }
+@media (prefers-reduced-motion: reduce) { .civr .civr-reveal { opacity: 1; transform: none; transition: none; } .civr .civr-page, .civr .civr-eq > i, .civr .civr-wave > i, .civr .civr-caret::after, .civr .civr-ringing, .civr .civr-pop { animation: none; } }
+
 /* Parrot brand mark */
 @keyframes civr-parrot-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
 .civr .civr-parrot-float { animation: civr-parrot-float 4.5s ease-in-out infinite; }
@@ -191,3 +212,16 @@
 .civr .space-y-8 > [data-ve-dynamic] > * + *, .civr .space-y-8 > * + [data-ve-dynamic] > :first-child { margin-top: 2rem; }
 .civr .space-y-10 > [data-ve-dynamic] > * + *, .civr .space-y-10 > * + [data-ve-dynamic] > :first-child { margin-top: 2.5rem; }
 .civr .divide-y > [data-ve-dynamic] > * + *, .civr .divide-y > * + [data-ve-dynamic] > :first-child { border-top: 1px solid #1f1f1f; }
+/* Text call card: laptop screen + their phone in light 3D, a dotted line carries voice → and ← text. */
+.civr .civr-tc-stage { perspective: 1100px; }
+@media (min-width: 640px) {
+  .civr .civr-tc-screen { transform: rotateY(7deg) rotateX(2deg); transform-origin: left center; transition: transform .6s ease; }
+  .civr .civr-tc-phone { transform: rotateY(-14deg) translateZ(30px); animation: civrTcFloat 5s ease-in-out infinite; }
+  .civr .civr-tc-stage:hover .civr-tc-screen { transform: rotateY(3deg); }
+}
+@keyframes civrTcFloat { 0%, 100% { transform: rotateY(-14deg) translateZ(30px) translateY(0); } 50% { transform: rotateY(-14deg) translateZ(30px) translateY(-6px); } }
+.civr .civr-tc-flow { width: 100%; height: 2px; background-image: linear-gradient(90deg, currentColor 50%, transparent 0); background-size: 8px 2px; opacity: .25; transition: opacity .3s; }
+.civr .civr-tc-flow.on { opacity: 1; animation: civrTcFlow .6s linear infinite; }
+.civr .civr-tc-flow.rev.on { animation-direction: reverse; }
+@keyframes civrTcFlow { to { background-position: 8px 0; } }
+@media (prefers-reduced-motion: reduce) { .civr .civr-tc-phone, .civr .civr-tc-flow.on { animation: none; } }

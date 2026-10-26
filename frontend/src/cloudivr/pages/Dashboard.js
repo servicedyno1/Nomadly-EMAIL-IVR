@@ -8,7 +8,7 @@ import { PageHeader, SkeletonPage } from '../ui';
 import { LogTable } from '../LogTable';
 import { cp } from '../paths';
 import { GetStarted, YourNumbers } from './dashboard/Widgets';
-import { CouponBanner, ChannelCard } from './dashboard/Banners';
+import { CouponBanner, ChannelCard, TrialCard } from './dashboard/Banners';
 
 function Stat({ icon: Icon, label, value, to, testid, delay }) {
   const body = (
@@ -58,6 +58,7 @@ export default function Dashboard() {
       <PageHeader label="Overview" title={`Hi ${account?.name?.split(' ')[0] || 'there'}`} sub={fresh ? 'Three quick steps and your number is live.' : 'Your numbers, wallet and live activity at a glance.'} testid="dashboard-header">
         {s && !fresh && <Link to={cp('/app/buy')} className="civr-btn civr-btn-primary" data-testid="dashboard-buy-number-button"><ShoppingCart className="w-4 h-4" />Buy a number</Link>}
       </PageHeader>
+      <TrialCard />
       <ChannelCard />
       <CouponBanner />
       {s?.pendingVerification > 0 && (

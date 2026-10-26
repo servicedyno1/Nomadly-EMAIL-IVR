@@ -62,7 +62,7 @@ function SidePanel({ signup }) {
         </div>
       ) : <p className="font-display text-5xl font-extrabold leading-[0.95] max-w-md">Your numbers, IVR, campaigns and AI agents — one dashboard.</p>}
       </div>
-      <div className="text-xs text-[#a1a1aa] font-mono uppercase tracking-widest">Free to sign up · No contracts</div>
+      <div className="text-xs text-[#a1a1aa] font-mono uppercase tracking-widest">Free to sign up · First Quick IVR call free · No contracts</div>
     </div>
   );
 }
@@ -139,6 +139,7 @@ export function AuthPage({ mode }) {
         <ErrorNote error={error} testid="auth-error" />
         <button className="civr-btn civr-btn-primary w-full" disabled={busy} data-testid="auth-submit-button">{busy && <Loader2 className="w-4 h-4 animate-spin" />}{signup ? 'Create free account' : 'Sign in'}</button>
       </form>
+      {signup && <p className="text-xs text-[#a1a1aa] mt-4" data-testid="auth-terms-note">By creating an account you agree to the <Link to={cp('/terms')} target="_blank" className="text-[#818cf8] hover:underline" data-testid="auth-terms-link">Terms of Service</Link>.</p>}
       <div className="flex justify-between text-sm mt-6 text-[#a1a1aa]">
         {signup ? <Link to={cp(`/login${q}`)} className="hover:text-[#818cf8] py-2" data-testid="auth-switch-link">Have an account? Sign in</Link>
           : <><Link to={cp(`/signup${q}`)} className="hover:text-[#818cf8] py-2" data-testid="auth-switch-link">Create account</Link><Link to={cp('/forgot')} className="hover:text-[#818cf8] py-2" data-testid="auth-forgot-link">Forgot password?</Link></>}

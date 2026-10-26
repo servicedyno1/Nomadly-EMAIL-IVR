@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Loader2, PhoneCall, Laptop, MailCheck, Timer, ShieldCheck } from 'lucide-react';
-import { SectionHead, Slide } from './kit';
+import { SectionHead, Slide, Reveal } from './kit';
 import EmailGate from './EmailGate';
 import { CallMeLive, BrowserLive, Keypad } from './TryLive';
 import { savedToken, saveToken, clearToken, startCall } from './tryApi';
@@ -58,10 +58,10 @@ export function TryCall() {
         <div className="lg:col-span-5">
           <SectionHead label="Free test call" title="Hear it before you buy." sub="Take CloudIVR for a 60-second spin — on your own phone or right here in the browser." />
           <ul className="mt-8 grid gap-4">
-            {POINTS.map(([Icon, t], i) => <li key={t} className="flex items-center gap-4" data-testid={`try-point-${i}`}><span className="w-10 h-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center shrink-0"><Icon className="w-5 h-5 text-[#4f46e5]" /></span><span className="text-sm text-slate-700">{t}</span></li>)}
+            {POINTS.map(([Icon, t], i) => <Reveal as="li" key={t} delay={150 + i * 100} className="flex items-center gap-4" data-testid={`try-point-${i}`}><span className="w-10 h-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center shrink-0"><Icon className="w-5 h-5 text-[#4f46e5]" /></span><span className="text-sm text-slate-700">{t}</span></Reveal>)}
           </ul>
         </div>
-        <div className="lg:col-span-7">
+        <Reveal delay={120} className="lg:col-span-7">
           <div className="civr-l-card-cream p-6 md:p-8" data-testid="try-card">
             {!call && (
               <div role="tablist" className="grid grid-cols-2 sm:inline-flex gap-1 p-1 rounded-xl border civr-l-rule bg-slate-50 mb-6 w-full sm:w-fit">
@@ -74,7 +74,7 @@ export function TryCall() {
               : <TryForm tab={tab} to={to} setTo={setTo} busy={busy} onSubmit={submit} />}
             {error && !call && <div className="mt-4 text-sm text-rose-700 border border-rose-200 bg-rose-50 rounded-xl px-4 py-3" data-testid="civr-try-error">{error.message}</div>}
           </div>
-        </div>
+        </Reveal>
       </div>
       <EmailGate open={gate} onClose={() => setGate(false)} onVerified={verified} />
     </section>

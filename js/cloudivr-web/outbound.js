@@ -76,6 +76,22 @@ function parseTargets(b) {
   return list
 }
 
+// Free-call status. Like the bot, it is used up only once someone answers (the call engine then sets state
+// ivrTrialUsed_<id>); a started free call is held for TRIAL_HOLD_MS so it can't run twice at once.
+const TRIAL_HOLD_MS = 5 * 60000
+async function trialStatus(db, numbersApi, chatId) {
+  const [p, st, nums] = await Promise.all([
+    db.collection('webPrefs').findOne({ _id: chatId }),
+    db.collection('state').findOne({ _id: `ivrTrialUsed_${chatId}` }),
+    numbersApi.myNumbers(chatId),
+  ])
+  const hasCaller = nums.some(n => n.status === 'active' && n.provider === 'telnyx' && phoneConfig.canAccessFeature(n.plan, 'ivrOutbound'))
+  const used = !!p?.ivrTrialUsed || st?.val === true
+  const heldUntil = p?.ivrTrialPendingAt ? new Date(p.ivrTrialPendingAt).getTime() + TRIAL_HOLD_MS : 0
+  const inProgress = !used && heldUntil > Date.now()
+  return { available: !used && !hasCaller, used, inProgress, retryAt: inProgress ? new Date(heldUntil) : null, callerId: ivrOb.TRIAL_CALLER_ID }
+}
+
 function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, ttsService, log = console.log }) {
   const w = walletOps(db)
   const bad = (res, status, error, message) => res.status(status).json({ error, message })
@@ -85,7 +101,6 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
   history.createIndex({ chatId: 1, at: -1 }).catch(() => {})
   const getPrefs = async (chatId) => (await prefs.findOne({ _id: chatId })) || {}
   const businessTier = (plan) => phoneConfig.canAccessFeature(plan, 'ivrRedial') // Business-only outbound extras
-  const eligible = async (chatId) => (await numbersApi.myNumbers(chatId)).filter(n => n.status === 'active' && n.provider === 'telnyx' && phoneConfig.canAccessFeature(n.plan, 'ivrOutbound'))
 
   // Validates a call request → { cfg } or { err: [status, code, message] }. `trial` uses the shared demo caller ID.
   async function buildCall(chatId, b, { trial = false } = {}) {
@@ -268,19 +283,23 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
 
   router.get('/calls/menu-stats', h(async (req, res) => res.json(await voiceService.getOutboundMenuAnalytics(String(req.webChatId), 30))))
 
-  // One free trial call for accounts without a calling number yet (same offer as the bot's "Quick IVR Call — 1 Free").
-  const trialAvailable = async (chatId) => !(await getPrefs(chatId)).ivrTrialUsed && !(await eligible(chatId)).length
-  router.get('/calls/trial', h(async (req, res) => res.json({ available: await trialAvailable(req.webChatId) })))
+  // One free Quick IVR call from our shared number for accounts without a calling number (the bot's "Quick IVR Call — 1 Free").
+  const busyMsg = 'Your free call is still going. If nobody answered, you can try again in a few minutes.'
+  router.get('/calls/trial', h(async (req, res) => res.json(await trialStatus(db, numbersApi, req.webChatId))))
   router.post('/calls/trial', h(async (req, res) => {
     const chatId = req.webChatId
-    if (!(await trialAvailable(chatId))) return bad(res, 403, 'trial_used', 'The free trial call is for accounts without a calling number, once.')
+    const t = await trialStatus(db, numbersApi, chatId)
+    if (!t.available) return bad(res, 403, 'trial_used', 'The free Quick IVR call is for accounts without a calling number, once.')
+    if (t.inProgress) return bad(res, 409, 'trial_in_progress', busyMsg)
     const { cfg, err } = await buildCall(chatId, req.body, { trial: true })
     if (err) return bad(res, ...err)
-    const claim = await prefs.updateOne({ _id: chatId, ivrTrialUsed: { $ne: true } }, { $set: { ivrTrialUsed: true, ivrTrialAt: new Date() } }, { upsert: true }).catch(() => ({ modifiedCount: 0, upsertedCount: 0 }))
-    if (!claim.modifiedCount && !claim.upsertedCount) return bad(res, 403, 'trial_used', 'The free trial call was already used.')
+    const now = new Date()
+    const claim = await prefs.updateOne({ _id: chatId, ivrTrialUsed: { $ne: true }, $or: [{ ivrTrialPendingAt: null }, { ivrTrialPendingAt: { $lt: new Date(now - TRIAL_HOLD_MS) } }] }, { $set: { ivrTrialPendingAt: now } }, { upsert: true }).catch(() => ({ modifiedCount: 0, upsertedCount: 0 }))
+    if (!claim.modifiedCount && !claim.upsertedCount) return bad(res, 409, 'trial_in_progress', busyMsg)
     const r = await run(chatId, req.body, cfg, { trial: true })
-    if (r.status >= 400) await prefs.updateOne({ _id: chatId }, { $set: { ivrTrialUsed: false } })
-    res.status(r.status).json(r.body)
+    if (r.status >= 400) await prefs.updateOne({ _id: chatId }, { $unset: { ivrTrialPendingAt: '' } })
+    else if (dryRun()) await prefs.updateOne({ _id: chatId }, { $set: { ivrTrialUsed: true, ivrTrialAt: now }, $unset: { ivrTrialPendingAt: '' } })
+    res.status(r.status).json({ ...r.body, trial: await trialStatus(db, numbersApi, chatId) })
   }))
 
   // Saved voice + speed for every new AI voice message (Business "consistent voice").
@@ -298,4 +317,4 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
   }))
 }
 
-module.exports = { routes, templates, cleanMenu, firstForward, parseTargets }
+module.exports = { routes, templates, cleanMenu, firstForward, parseTargets, trialStatus }

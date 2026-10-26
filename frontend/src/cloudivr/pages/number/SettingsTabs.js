@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { toast } from 'sonner';
 import { api, enc, useApi } from '../../api';
-import { Field, Toggle, BackupsField } from '../../ui';
+import { Field, Toggle, BackupsField, InstantToggle } from '../../ui';
 import { Link } from 'react-router-dom';
 import { cp } from '../../paths';
 import { useShell } from '../../Shell';
@@ -101,13 +101,13 @@ export function VoicemailTab({ num, reload }) {
   const { catalog } = useShell();
   const [script, setScript] = useState('');
   const langs = catalog?.voicemailLanguages || [{ code: 'en', label: 'English' }];
-  const [f, setF] = useState({ enabled: !!vm.enabled, greetingType: vm.greetingType === 'custom' ? 'custom' : 'default', customGreetingUrl: vm.customGreetingUrl || '', forwardToEmail: vm.forwardToEmail || '', ringTimeout: vm.ringTimeout || 25, language: vm.language || 'en', transcribe: vm.transcribe !== false });
+  const [f, setF] = useState({ greetingType: vm.greetingType === 'custom' ? 'custom' : 'default', customGreetingUrl: vm.customGreetingUrl || '', forwardToEmail: vm.forwardToEmail || '', ringTimeout: vm.ringTimeout || 25, language: vm.language || 'en' });
   const [save, busy] = useSave(num, 'voicemail', reload);
   const u = useUnsaved(f);
   const sample = langs.find(l => l.code === f.language)?.sample;
   return (
     <Card title="Voicemail" sub="Unanswered callers can leave a message. Recordings land in your inbox." bind={u.bind}>
-      <div className="flex items-center justify-between"><span className="text-sm">Voicemail on</span><Toggle checked={f.enabled} onChange={v => setF({ ...f, enabled: v })} testid="voicemail-enabled-toggle" /></div>
+      <div className="flex items-center justify-between"><span className="text-sm">Voicemail on</span><InstantToggle num={num} feature="voicemail" label="Voicemail" checked={!!vm.enabled} reload={reload} testid="voicemail-enabled-toggle" /></div>
       <Field label="Greeting">
         <select className="civr-input" value={f.greetingType} onChange={e => setF({ ...f, greetingType: e.target.value })} data-testid="voicemail-greeting-type-select">
           <option value="default">Standard greeting</option><option value="custom">From my audio library</option>
@@ -137,9 +137,9 @@ export function VoicemailTab({ num, reload }) {
       <Field label="Ring time before voicemail (seconds)"><input type="number" min={10} max={60} className="civr-input" value={f.ringTimeout} onChange={e => setF({ ...f, ringTimeout: e.target.value })} data-testid="voicemail-ring-timeout-input" /></Field>
       <div className="flex items-start justify-between gap-4">
         <div><div className="text-sm">Transcribe voicemails</div><div className="text-xs text-[#a1a1aa] mt-1">The message as text in your inbox, email and call logs.</div></div>
-        <Toggle checked={f.transcribe} onChange={v => setF({ ...f, transcribe: v })} testid="voicemail-transcribe-toggle" />
+        <InstantToggle num={num} feature="transcribe" label="Voicemail transcripts" checked={vm.transcribe !== false} reload={reload} testid="voicemail-transcribe-toggle" />
       </div>
-      <SaveRow dirty={u.dirty} testid="voicemail-unsaved-pill"><button className="civr-btn civr-btn-primary" disabled={busy} onClick={async () => { if (await save(f)) u.reset(); }} data-testid="voicemail-save-button">Save voicemail</button></SaveRow>
+      <SaveRow dirty={u.dirty} testid="voicemail-unsaved-pill"><button className="civr-btn civr-btn-primary" disabled={busy} onClick={async () => { if (await save({ ...f, enabled: !!vm.enabled, transcribe: vm.transcribe !== false })) u.reset(); }} data-testid="voicemail-save-button">Save voicemail</button></SaveRow>
     </Card>
   );
 }
@@ -175,10 +175,9 @@ function SmsCard({ num, reload }) {
 }
 
 export function RecordingTab({ num, reload }) {
-  const [save, busy] = useSave(num, 'recording', reload);
   return (
     <Card title="Call recording" sub="Record incoming calls and calls you make from the browser phone or a softphone. Recordings show up in the Logs tab.">
-      <div className="flex items-center justify-between"><span className="text-sm">Record calls</span><Toggle checked={num.features.recording} disabled={busy} onChange={v => save({ enabled: v })} testid="recording-toggle" /></div>
+      <div className="flex items-center justify-between"><span className="text-sm">Record calls</span><InstantToggle num={num} feature="recording" label="Call recording" checked={!!num.features.recording} reload={reload} testid="recording-toggle" /></div>
     </Card>
   );
 }

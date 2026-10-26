@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Plus, Trash2, BarChart3 } from 'lucide-react';
 import { useApi, enc } from '../../api';
-import { Field, Toggle, AudioSelect } from '../../ui';
+import { Field, InstantToggle, AudioSelect } from '../../ui';
 import { VoiceMaker } from '../../VoiceMaker';
 import { IvrTemplates } from './IvrTemplates';
 import { useSave } from './SettingsTabs';
@@ -122,9 +122,7 @@ export default function IvrTab({ num, reload }) {
   const ivr = num.features.ivr || {};
   const { data, reload: reloadAudio } = useApi('/audio');
   const audios = data?.audios || [];
-  const [enabled, setEnabled] = useState(!!ivr.enabled);
-  // Keep the switch in step with the saved value (the AI voice agent tab can switch the keypad menu off).
-  useEffect(() => { setEnabled(!!ivr.enabled); }, [ivr.enabled]);
+  const enabled = !!ivr.enabled;
   const [g, setG] = useState({ greeting: ivr.greeting || defOf(lang).greeting, greetingAudioUrl: ivr.greetingAudioUrl || null });
   const [list, setList] = useState(toList(ivr.options));
   // On a language switch, greetings still on a built-in default follow the new language; custom text stays.
@@ -134,18 +132,18 @@ export default function IvrTab({ num, reload }) {
     setList(l => l.map(o => (o.subMenu && isDef(o.subMenu.greeting, ['sub']) && o.subMenu.greeting !== d.sub ? { ...o, subMenu: { ...o.subMenu, greeting: d.sub } } : o)));
   }, [lang]);
   const [save, busy] = useSave(num, 'ivr', reload);
-  const u = useUnsaved({ enabled, g, list });
+  const u = useUnsaved({ g, list });
   const current = () => ({ greeting: g.greeting, greetingAudioUrl: g.greetingAudioUrl || null, options: toObj(list) });
-  const submit = async () => { if (await save({ enabled, ...current(), language: lang }, 'PUT', (r) => (r?.aiAgentTurnedOff ? 'Saved. The AI voice agent is now off on this number.' : 'Saved'))) u.reset(); };
+  const submit = async () => { if (await save({ enabled, ...current(), language: lang }, 'PUT', (r) => (r?.aiAgentTurnedOff ? 'Saved. The AI voice agent is now off on this number.' : enabled ? 'Saved' : 'Saved — flip the switch above to turn the menu on'))) u.reset(); };
   const apply = (c) => { setG({ greeting: tr(c.greeting || ''), greetingAudioUrl: c.greetingAudioUrl || null }); setList(toList(locOpts(c.options))); };
   return (
     <div className="grid lg:grid-cols-3 gap-4" {...u.bind}>
       <div className="civr-card p-6 lg:col-span-2 space-y-6" data-testid="ivr-builder">
         <div className="flex items-center justify-between">
           <div><div className="font-display text-2xl font-bold">Keypad menu (IVR)</div><p className="text-sm text-[#a1a1aa]">Callers hear the greeting, then press a key.</p></div>
-          <Toggle checked={enabled} onChange={setEnabled} testid="ivr-enabled-toggle" />
+          <InstantToggle num={num} feature="ivr" label="Keypad menu" checked={enabled} reload={reload} testid="ivr-enabled-toggle" />
         </div>
-        {num.features.aiAgent?.enabled && <OneAnswerNote testid="ivr-ai-agent-note">Your AI voice agent answers this number now. Turning the keypad menu on and saving switches the AI voice agent off — a number uses one or the other.</OneAnswerNote>}
+        {num.features.aiAgent?.enabled && <OneAnswerNote testid="ivr-ai-agent-note">Your AI voice agent answers this number now. Turning the keypad menu on switches the AI voice agent off — a number uses one or the other.</OneAnswerNote>}
         <Greeting g={g} set={(p) => setG({ ...g, ...p })} audios={audios} prefix="ivr" onAudio={reloadAudio} />
         <p className="text-xs text-[#a1a1aa] -mt-3" data-testid="ivr-language-note">{`Callers hear typed text in ${langName}, the app's language. Change the app language to change it.`}</p>
         {!audios.length && <div className="text-xs text-[#a1a1aa]">Want your own recordings? <Link to={cp('/app/audio')} className="text-[#818cf8]" data-testid="ivr-audio-library-link">Open the audio library</Link>.</div>}

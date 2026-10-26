@@ -140,6 +140,10 @@ function metaFor(pathname) {
       title: `Reset your password · ${BRAND}`,
       desc: `Reset the password for your ${BRAND} account.`,
     },
+    '/terms': {
+      title: `Terms of Service · ${BRAND}`,
+      desc: `The rules for using ${BRAND}: accounts, phone numbers, plans and wallet payments, free calls, acceptable use, recordings and AI features.`,
+    },
   }
   const indexable = !(p.startsWith('/app') || p.startsWith('/reset-password'))
   const meta = pages[p] || pages['/']
@@ -431,6 +435,7 @@ function sitemapXml() {
     { loc: `${CANONICAL}/`, priority: '1.0', changefreq: 'weekly' },
     { loc: `${CANONICAL}/signup`, priority: '0.8', changefreq: 'monthly' },
     { loc: `${CANONICAL}/login`, priority: '0.5', changefreq: 'monthly' },
+    { loc: `${CANONICAL}/terms`, priority: '0.3', changefreq: 'yearly' },
   ]
   const body = urls.map((u) =>
     `  <url><loc>${u.loc}</loc><lastmod>${today}</lastmod><changefreq>${u.changefreq}</changefreq><priority>${u.priority}</priority></url>`

@@ -1,7 +1,9 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Loader2, Lock, RotateCcw } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { toast } from 'sonner';
 import { cp } from './paths';
+import { api, enc } from './api';
 import { useLang } from './i18n';
 
 // True on phone-sized screens (below Tailwind's md breakpoint); follows rotation/resizes.
@@ -165,6 +167,30 @@ export function Toggle({ checked, onChange, testid, disabled }) {
       <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform ${checked ? 'translate-x-5' : ''}`} />
     </button>
   );
+}
+
+// Saves the moment it is flipped (PATCH /numbers/:phone/switch) and offers Undo in the toast. `onSaved(reply)` gets the
+// server reply (fresh `number`, aiAgentTurnedOff / ivrTurnedOff) before `reload` runs.
+export function useSwitch({ num, feature, checked, label, reload, onSaved }) {
+  const [opt, setOpt] = useState(null);
+  const [busy, setBusy] = useState(false);
+  useEffect(() => { setOpt(null); }, [checked]);
+  const flip = async (v, undo) => {
+    setOpt(v); setBusy(true);
+    try {
+      const d = await api(`/numbers/${enc(num.phoneNumber)}/switch`, { method: 'PATCH', body: { feature, enabled: v } });
+      onSaved?.(d);
+      const extra = d.aiAgentTurnedOff ? ' · AI voice agent switched off' : d.ivrTurnedOff ? ' · keypad menu switched off' : '';
+      toast.success(`${label} ${v ? 'on' : 'off'}${extra}`, { id: `switch:${num.phoneNumber}:${feature}`, ...(undo ? {} : { action: { label: 'Undo', onClick: () => flip(!v, true) } }) });
+      reload?.();
+    } catch (e) { setOpt(null); toast.error(e.message); } finally { setBusy(false); }
+  };
+  return { value: opt ?? checked, busy, flip: (v) => flip(v, false) };
+}
+
+export function InstantToggle({ testid, disabled, ...rest }) {
+  const s = useSwitch(rest);
+  return <Toggle checked={s.value} disabled={disabled || s.busy} onChange={s.flip} testid={testid} />;
 }
 
 export function PreviewBanner({ show, livePayments }) {

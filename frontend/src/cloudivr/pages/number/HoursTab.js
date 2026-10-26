@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { api, enc } from '../../api';
-import { Field, Toggle } from '../../ui';
+import { Field, Toggle, InstantToggle } from '../../ui';
 import { useUnsaved, SaveRow } from '../../guard';
 
 const DAYS = [['mon', 'Mon'], ['tue', 'Tue'], ['wed', 'Wed'], ['thu', 'Thu'], ['fri', 'Fri'], ['sat', 'Sat'], ['sun', 'Sun']];
@@ -42,8 +42,9 @@ export default function HoursTab({ num, reload }) {
   const copyMonday = () => setF(x => ({ ...x, days: Object.fromEntries(Object.entries(x.days).map(([k, d]) => [k, d.on ? { ...d, start: x.days.mon.start, end: x.days.mon.end } : d])) }));
   const save = async () => {
     setBusy(true);
-    try { const d = await api(path, { method: 'PUT', body: { ...f, offAction } }); setOpenNow(d.openNow); toast.success('Hours saved'); u.reset(); reload(); } catch (e) { toast.error(e.message); } finally { setBusy(false); }
+    try { const d = await api(path, { method: 'PUT', body: { ...f, enabled: !!saved.enabled, offAction } }); setOpenNow(d.openNow); toast.success('Hours saved'); u.reset(); reload(); } catch (e) { toast.error(e.message); } finally { setBusy(false); }
   };
+  const onSwitched = (d) => { if (d?.number?.features?.hours) api(path).then(x => setOpenNow(x.openNow)).catch(() => {}); };
   const status = !saved.enabled ? ['Schedule off — always rings', 'civr-pill'] : openNow ? ['Open now', 'civr-pill civr-pill-on'] : ['Closed now', 'civr-pill civr-pill-warn'];
 
   return (
@@ -54,7 +55,7 @@ export default function HoursTab({ num, reload }) {
       </div>
       <p className="text-sm text-[#a1a1aa] mt-1 mb-6">Outside these hours your number doesn’t ring or forward. Callers go to voicemail or hear a short closed message.</p>
       <div className="space-y-6">
-        <div className="flex items-center justify-between gap-4"><span className="text-sm">Use a weekly schedule</span><Toggle checked={f.enabled} onChange={v => setF({ ...f, enabled: v })} testid="hours-enabled-toggle" /></div>
+        <div className="flex items-center justify-between gap-4"><span className="text-sm">Use a weekly schedule</span><InstantToggle num={num} feature="hours" label="Weekly schedule" checked={!!saved.enabled} reload={reload} onSaved={onSwitched} testid="hours-enabled-toggle" /></div>
         <Field label="Time zone">
           <select className="civr-input" value={f.timezone} onChange={e => setF({ ...f, timezone: e.target.value })} data-testid="hours-timezone-select">
             {zones.map(z => <option key={z} value={z}>{z.replace(/_/g, ' ')}</option>)}

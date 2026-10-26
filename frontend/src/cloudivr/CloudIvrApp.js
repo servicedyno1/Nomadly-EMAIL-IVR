@@ -5,6 +5,7 @@ import './cloudivr.css';
 import { CivrAuthProvider, useCivrAuth } from './AuthContext';
 import { Spinner } from './ui';
 import Landing from './pages/Landing';
+import Terms from './pages/Terms';
 import { AuthPage, ForgotPage, ResetPage } from './pages/AuthPages';
 import Shell from './Shell';
 import { cp, IS_CIVR_DOMAIN } from './paths';
@@ -28,6 +29,13 @@ if (!toast.error.civrDedupe) {
 function Guarded({ children }) {
   const { pathname } = useLocation();
   return <CrashGuard resetKey={pathname}>{children}</CrashGuard>;
+}
+
+// Soft cross-fade between the landing, sign-in and sign-up pages (the signed-in app keeps its layout steady).
+function PageFade({ children }) {
+  const { pathname } = useLocation();
+  const inApp = /(^|\/)app(\/|$)/.test(pathname);
+  return <div key={inApp ? 'app' : pathname} className={inApp ? undefined : 'civr-page'}>{children}</div>;
 }
 
 function Protected({ children }) {
@@ -60,8 +68,10 @@ export default function CloudIvrApp() {
         <ConfirmHost />
         <UpdateWatcher />
         <Guarded>
+        <PageFade>
         <Routes>
           <Route index element={<Landing />} />
+          <Route path="terms" element={<Terms />} />
           <Route path="login" element={<AuthPage mode="login" />} />
           <Route path="signup" element={<AuthPage mode="signup" />} />
           <Route path="forgot" element={<ForgotPage />} />
@@ -70,6 +80,7 @@ export default function CloudIvrApp() {
           {IS_CIVR_DOMAIN && <Route path="cloudivr/*" element={<LegacyPrefixRedirect />} />}
           <Route path="*" element={<Navigate to={cp()} replace />} />
         </Routes>
+        </PageFade>
         </Guarded>
       </CivrAuthProvider>
      </LangProvider>

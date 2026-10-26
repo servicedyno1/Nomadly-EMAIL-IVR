@@ -2,6 +2,7 @@
 // Web accounts reuse the bot's engine with a reserved chatId range (above Telegram's 52-bit user-id space).
 // Every bot send to such an id is captured here as an in-app notification instead of hitting Telegram.
 const WEB_ID_BASE = 5e15
+const { ObjectId } = require('mongodb')
 const isWebChatId = (id) => { const n = Number(id); return Number.isFinite(n) && n >= WEB_ID_BASE && n < Number.MAX_SAFE_INTEGER }
 
 let _col = null
@@ -74,21 +75,61 @@ const unreadCounts = async (chatId) => {
   return { unread: rows.reduce((a, r) => a + r.n, 0), unreadByKind }
 }
 
-function routes(router, { h }) {
+const PHONE_RE = /\+?\d[\d\s().-]{6,}\d/g
+const digits = (s) => String(s || '').replace(/\D/g, '')
+// Where an item leads when tapped: the number's logs (texts, voicemails, calls) or billing, the wallet, campaigns.
+function linkOf(n, mine) {
+  const found = (n.meta?.to && mine.find(p => digits(p) === digits(n.meta.to)))
+    || mine.find(p => (String(n.text).match(PHONE_RE) || []).some(t => digits(t) === digits(p)))
+  const num = (tab) => (found ? `/app/numbers/${encodeURIComponent(found)}?tab=${tab}` : '/app/numbers')
+  switch (n.kind) {
+    case 'sms': case 'voicemail': case 'call': return num('logs')
+    case 'billing': return num('billing')
+    case 'wallet': return '/app/wallet'
+    case 'campaign': return n.meta?.campaignId ? `/app/campaigns/${n.meta.campaignId}` : '/app/campaigns'
+    default: return null
+  }
+}
+
+const oid = (s) => { try { return new ObjectId(String(s)) } catch (_) { return null } }
+
+function routes(router, { h, numbersApi, smsReply }) {
   router.get('/notifications', h(async (req, res) => {
     const q = { chatId: req.webChatId, ...(req.query.kind ? { kind: String(req.query.kind) } : {}) }
-    const [items, counts] = await Promise.all([
+    const [items, counts, nums] = await Promise.all([
       _col.find(q).sort({ createdAt: -1 }).limit(Math.min(200, parseInt(req.query.limit, 10) || 50)).toArray(),
       unreadCounts(req.webChatId),
+      numbersApi.myNumbers(req.webChatId).catch(() => []),
     ])
-    res.json({ ...counts, notifications: items.map(n => ({ id: String(n._id), text: n.text, kind: n.kind, mediaUrl: n.mediaUrl, meta: n.meta || null, read: n.read, createdAt: n.createdAt })) })
+    const mine = nums.map(n => n.phoneNumber)
+    res.json({ ...counts, notifications: items.map(n => ({ id: String(n._id), text: n.text, kind: n.kind, mediaUrl: n.mediaUrl, meta: n.meta || null, read: n.read, createdAt: n.createdAt, link: linkOf(n, mine), canReply: n.kind === 'sms' && !!n.meta?.from && !!n.meta?.to })) })
   }))
-  // body { kind } marks only that filter's items read; no kind = everything.
+  // body { id } marks one item read; { kind } marks only that filter's items read; nothing = everything.
   router.post('/notifications/read', h(async (req, res) => {
-    const kind = req.body?.kind
+    const { kind, id } = req.body || {}
+    if (id != null) {
+      const _id = oid(id)
+      if (!_id) return res.status(404).json({ error: 'not_found', message: 'Message not found.' })
+      const r = await _col.updateOne({ _id, chatId: req.webChatId }, { $set: { read: true } })
+      return res.json({ marked: r.modifiedCount, ...(await unreadCounts(req.webChatId)) })
+    }
     if (kind != null && (typeof kind !== 'string' || !/^[a-z_]{1,20}$/.test(kind))) return res.status(400).json({ error: 'bad_kind' })
     const r = await _col.updateMany({ chatId: req.webChatId, read: false, ...(kind ? { kind } : {}) }, { $set: { read: true } })
     res.json({ marked: r.modifiedCount, ...(await unreadCounts(req.webChatId)) })
+  }))
+  // Reply to a text right from the inbox: one SMS from the number that received it back to the sender.
+  router.post('/notifications/:id/reply', h(async (req, res) => {
+    const _id = oid(req.params.id)
+    const n = _id && await _col.findOne({ _id, chatId: req.webChatId })
+    if (!n) return res.status(404).json({ error: 'not_found', message: 'Message not found.' })
+    if (n.kind !== 'sms' || !n.meta?.from || !n.meta?.to) return res.status(400).json({ error: 'cannot_reply', message: 'This message can’t be answered from here. Open the number’s Logs tab.' })
+    const num = await numbersApi.findMine(req.webChatId, n.meta.to)
+    if (!num) return res.status(404).json({ error: 'not_found', message: 'That number is no longer on your account.' })
+    const r = await smsReply.send({ chatId: req.webChatId, num, to: n.meta.from, text: req.body?.text })
+    if (r.error) return res.status(r.error[0]).json({ error: r.error[1], message: r.error[2] })
+    const reply = { text: r.log.body, at: r.log.timestamp, status: r.log.status }
+    await _col.updateOne({ _id }, { $set: { 'meta.reply': reply, read: true } })
+    res.json({ reply, charge: r.charge })
   }))
 }
 

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { Link } from 'react-router-dom';
-import { Inbox as InboxIcon, CheckCheck, MessageSquare, Voicemail, Wallet, Megaphone, Receipt, Phone, Info, Ticket } from 'lucide-react';
+import { Inbox as InboxIcon, CheckCheck, MessageSquare, Voicemail, Wallet, Megaphone, Receipt, Phone, Info, Ticket, MessageSquareReply, ChevronRight } from 'lucide-react';
 import { cp } from '../paths';
 import { api, useApi, when, playUrl } from '../api';
 import { useShell } from '../Shell';
@@ -11,11 +11,13 @@ import { MissedCalls } from '../MissedCalls';
 import { RING_ENDED } from '../Incoming';
 import { useLangTick } from '../i18n';
 import { useSearch, SearchBox, NoMatches } from '../search';
+import { QuickReply, SMS_REPLIES } from '../QuickReply';
 
 const KINDS = [['', 'All', InboxIcon], ['sms', 'SMS', MessageSquare], ['voicemail', 'Voicemail', Voicemail], ['call', 'Calls', Phone], ['campaign', 'Campaigns', Megaphone], ['wallet', 'Wallet', Wallet], ['billing', 'Billing', Receipt], ['coupon', 'Coupons', Ticket], ['info', 'Other', Info]];
 const ICON = Object.fromEntries(KINDS.map(([k, , I]) => [k, I]));
 const NAME = Object.fromEntries(KINDS.map(([k, l]) => [k, l]));
 const lower = (s) => (s === 'SMS' ? s : s.toLowerCase());
+const OPENS = { sms: 'Open texts', voicemail: 'Open voicemails', call: 'Open call log', billing: 'Open billing', wallet: 'Open wallet', campaign: 'Open campaigns' };
 
 // One-tap filter; a small badge shows how many unread items it holds.
 function FilterPill({ k, label, on, count, onPick }) {
@@ -28,12 +30,35 @@ function FilterPill({ k, label, on, count, onPick }) {
   );
 }
 
+// Answer a text right under it: one SMS from the number that received it back to the sender.
+function SmsReply({ n, i, pv, onReplied }) {
+  const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const t = `inbox-item-${i}-reply`;
+  const send = async (text) => {
+    setBusy(true);
+    try {
+      const d = await api(`/notifications/${n.id}/reply`, { method: 'POST', body: { text } });
+      toast.success(d.reply.status === 'preview' ? 'Reply saved (preview — not sent)' : 'Text sent');
+      onReplied(n.id, d.reply); setOpen(false);
+    } catch (e) { toast.error(e.message); } finally { setBusy(false); }
+  };
+  const r = n.meta?.reply;
+  return (
+    <div className="relative z-10 mt-2 max-w-xl" data-testid={t}>
+      {r && !open && <p className="text-xs text-[#818cf8] break-words" data-testid={`${t}-done`}>{`You replied: “${pv.text(r.text, 'Message hidden')}”${r.status === 'preview' ? ' (preview — not sent)' : ''}`}</p>}
+      {open ? <div className="mt-2"><QuickReply onSend={send} busy={busy} presets={SMS_REPLIES} autoFocus testid={`${t}-box`} /><button type="button" className="text-xs text-[#a1a1aa] hover:text-white mt-1" onClick={() => setOpen(false)} data-testid={`${t}-cancel`}>Cancel</button></div>
+        : <button type="button" onClick={() => setOpen(true)} className={`civr-btn civr-btn-ghost civr-btn-sm ${r ? 'mt-1.5' : ''}`} data-testid={`${t}-button`}><MessageSquareReply className="w-4 h-4" />{r ? 'Reply again' : 'Reply'}</button>}
+    </div>
+  );
+}
+
 export default function Inbox() {
   const { refreshSummary } = useShell();
   const pv = usePrivacy();
   useLangTick();
   const [kind, setKind] = useState('');
-  const { data, error, loading, reload, stale } = useApi(`/notifications?limit=100${kind ? `&kind=${kind}` : ''}`);
+  const { data, error, loading, reload, stale, setData } = useApi(`/notifications?limit=100${kind ? `&kind=${kind}` : ''}`);
   const { data: today } = useApi('/coupons/today');
   useEffect(() => { window.addEventListener(RING_ENDED, reload); return () => window.removeEventListener(RING_ENDED, reload); }, [reload]);
   const markRead = async () => {
@@ -43,12 +68,21 @@ export default function Inbox() {
       reload(); refreshSummary();
     } catch (e) { toast.error(e.message); }
   };
+  const patch = (id, fn) => setData(d => (d ? { ...d, notifications: d.notifications.map(x => (x.id === id ? fn(x) : x)) } : d));
+  // Opening an item marks it read on the way out (the link itself navigates).
+  const openItem = (n) => {
+    if (n.read) return;
+    patch(n.id, x => ({ ...x, read: true }));
+    setData(d => (d ? { ...d, unread: Math.max(0, (d.unread || 0) - 1), unreadByKind: { ...d.unreadByKind, [n.kind]: Math.max(0, (d.unreadByKind?.[n.kind] || 0) - 1) } } : d));
+    api('/notifications/read', { method: 'POST', body: { id: n.id } }).then(refreshSummary).catch(() => {});
+  };
+  const onReplied = (id, reply) => { patch(id, x => ({ ...x, read: true, meta: { ...(x.meta || {}), reply } })); refreshSummary(); };
   const items = data?.notifications || [];
   const unreadOf = (k) => (k ? data?.unreadByKind?.[k] : data?.unread) || 0;
   const s = useSearch(items, n => [n.text, n.kind, NAME[n.kind], n.meta?.coupon]);
   return (
     <div data-testid="inbox-page">
-      <PageHeader label="Inbox" title="Inbox" sub="Texts, voicemails, call alerts, campaign reports and wallet updates for your numbers." testid="inbox-header">
+      <PageHeader label="Inbox" title="Inbox" sub="Texts, voicemails, call alerts, campaign reports and wallet updates for your numbers. Tap one to open it where it happened." testid="inbox-header">
         <button className="civr-btn civr-btn-ghost civr-btn-sm" onClick={markRead} disabled={!unreadOf(kind)} data-testid="inbox-mark-read-button"><CheckCheck className="w-4 h-4" />{kind ? 'Mark these as read' : 'Mark all read'}{unreadOf(kind) ? <span data-testid="inbox-mark-read-count"> ({unreadOf(kind)})</span> : null}</button>
       </PageHeader>
       <div className="flex flex-col lg:flex-row lg:items-center gap-3 mb-6">
@@ -71,13 +105,18 @@ export default function Inbox() {
           {s.list.map((n, i) => {
             const Icon = ICON[n.kind] || Info;
             return (
-              <div key={n.id} className={`civr-card p-4 flex gap-4 ${n.read ? '' : 'border-[#818cf8]/40'}`} data-testid={`inbox-item-${i}`}>
+              <div key={n.id} className={`civr-card relative p-4 flex gap-4 ${n.read ? '' : 'border-[#818cf8]/40'} ${n.link ? 'civr-card-link' : ''}`} data-testid={`inbox-item-${i}`}>
+                {n.link && <Link to={cp(n.link)} onClick={() => openItem(n)} className="absolute inset-0 rounded-[14px]" aria-label={OPENS[n.kind] || 'Open'} data-testid={`inbox-item-${i}-open`} />}
                 <Icon className={`w-5 h-5 shrink-0 mt-0.5 ${n.read ? 'text-[#a1a1aa]' : 'text-[#818cf8]'}`} />
                 <div className="flex-1 min-w-0">
                   <div className="text-sm whitespace-pre-line break-words text-[#f4f4f5]" data-testid={`inbox-item-${i}-text`}>{pv.text(n.text, 'Message hidden')}</div>
-                  {n.mediaUrl && /\.(mp3|wav|ogg)(\?|$)/i.test(n.mediaUrl) && <audio controls preload="none" src={playUrl(n.mediaUrl)} className="h-9 mt-2" data-testid={`inbox-item-${i}-audio`} />}
-                  {n.meta?.coupon && !n.meta.used && !(today?.coupon?.used && today.coupon.code === n.meta.coupon) && <Link to={cp(`/app/buy?coupon=${encodeURIComponent(n.meta.coupon)}`)} className="civr-btn civr-btn-ghost civr-btn-sm mt-2" data-testid={`inbox-item-${i}-use-coupon`}><Ticket className="w-4 h-4" />Use coupon {n.meta.coupon}</Link>}
-                  <div className="text-xs text-[#a1a1aa] mt-2">{when(n.createdAt)}</div>
+                  {n.mediaUrl && /\.(mp3|wav|ogg)(\?|$)/i.test(n.mediaUrl) && <audio controls preload="none" src={playUrl(n.mediaUrl)} className="relative z-10 h-9 mt-2" data-testid={`inbox-item-${i}-audio`} />}
+                  {n.meta?.coupon && !n.meta.used && !(today?.coupon?.used && today.coupon.code === n.meta.coupon) && <Link to={cp(`/app/buy?coupon=${encodeURIComponent(n.meta.coupon)}`)} className="relative z-10 civr-btn civr-btn-ghost civr-btn-sm mt-2" data-testid={`inbox-item-${i}-use-coupon`}><Ticket className="w-4 h-4" />Use coupon {n.meta.coupon}</Link>}
+                  {n.canReply && <SmsReply n={n} i={i} pv={pv} onReplied={onReplied} />}
+                  <div className="flex items-center gap-3 text-xs text-[#a1a1aa] mt-2">
+                    <span>{when(n.createdAt)}</span>
+                    {n.link && <span className="inline-flex items-center gap-0.5 text-[#818cf8]/80" data-testid={`inbox-item-${i}-open-hint`}>{OPENS[n.kind] || 'Open'}<ChevronRight className="w-3 h-3" /></span>}
+                  </div>
                 </div>
                 {!n.read && <span className="w-2 h-2 rounded-full bg-[#818cf8] mt-2 shrink-0" data-testid={`inbox-item-${i}-unread`} />}
               </div>

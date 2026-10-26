@@ -4,7 +4,7 @@ import { ArrowRight, PhoneCall, PhoneIncoming, CornerDownRight, Check } from 'lu
 import { startPrice } from '../../api';
 import { useCivrAuth } from '../../AuthContext';
 import { cp } from '../../paths';
-import { Slide } from './kit';
+import { Slide, CountUp } from './kit';
 import { AppMock } from './Mockups';
 import { useLang } from '../../i18n';
 
@@ -36,7 +36,7 @@ function StatStrip({ catalog }) {
       <div className="max-w-7xl mx-auto px-6 md:px-8 grid grid-cols-2 md:grid-cols-4">
         {stats.map(([v, l], i) => (
           <div key={l} className={`py-6 md:py-8 ${i % 2 ? 'pl-6' : ''} ${i > 0 ? 'md:pl-8 md:border-l civr-l-rule' : ''} ${i > 1 ? 'border-t md:border-t-0 civr-l-rule' : ''}`} data-testid={`hero-stat-${i}`}>
-            <div className="civr-l-h text-3xl md:text-4xl text-slate-900">{v}</div>
+            <div className="civr-l-h text-3xl md:text-4xl text-slate-900"><CountUp value={v} /></div>
             <div className="text-sm text-slate-500 mt-1">{l}</div>
           </div>
         ))}

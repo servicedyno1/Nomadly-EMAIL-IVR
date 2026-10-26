@@ -1,6 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { NavLink, Navigate, Route, Routes, Link, useLocation, useNavigate } from 'react-router-dom';
-import { Bell, LogOut, Phone, Plus, LifeBuoy, Eye, EyeOff, Send, Lightbulb, HelpCircle } from 'lucide-react';
+import { Bell, LogOut, Phone, Plus, LifeBuoy, Eye, EyeOff, Send, Lightbulb, HelpCircle, Search } from 'lucide-react';
 import { api, money } from './api';
 import { useCivrAuth } from './AuthContext';
 import { PreviewBanner } from './ui';
@@ -37,11 +37,18 @@ import { UpdateBanner } from './update';
 import { WhatsNew } from './WhatsNew';
 import { UnsavedGuard, confirmLeave } from './guard';
 import { Shortcuts, helpFor } from './shortcuts';
+import { Palette, openPalette, isMac } from './Palette';
 
 const ShellCtx = createContext(null);
 export const useShell = () => useContext(ShellCtx);
 
 const ICON_BTN = 'relative w-11 h-11 shrink-0 flex items-center justify-center rounded-full hover:bg-[#151515] transition-colors';
+
+export function FreeBadge() {
+  const shell = useContext(ShellCtx);
+  if (!shell?.summary?.ivrTrial) return null;
+  return <span className="ml-auto text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#6366f1] text-white" data-testid="nav-quick-call-free-badge">1 free</span>;
+}
 
 function SideNav() {
   return (
@@ -52,7 +59,7 @@ function SideNav() {
           <div className="flex flex-col gap-1">
             {items.map(([to, label, Icon, id]) => (
               <NavLink key={id} end={to === ''} to={appPath(to)} className={({ isActive }) => `civr-nav-link ${isActive ? 'active' : ''}`} data-testid={id}>
-                <Icon className="w-4 h-4" />{label}
+                <Icon className="w-4 h-4" />{label}{id === 'nav-quick-call' && <FreeBadge />}
               </NavLink>
             ))}
           </div>
@@ -101,6 +108,7 @@ function TopBar({ summary, onPhone }) {
       <Link to={cp('/app/wallet')} className="civr-btn civr-btn-ghost civr-btn-sm !hidden md:!inline-flex" data-testid="topbar-add-funds-button"><Plus className="w-4 h-4" />Add funds</Link>
       <LangSwitcher testid="topbar-lang-switcher" className="hidden lg:inline-flex" />
       <PrivateButton className="hidden lg:flex" />
+      <button type="button" onClick={openPalette} className={ICON_BTN} data-testid="topbar-search-button" aria-label="Jump to a number, page or action" title={`Jump to… (${isMac ? '⌘' : 'Ctrl'} K)`}><Search className="w-5 h-5" /></button>
       <Link to={helpFor(pathname, search)} className={`${ICON_BTN} hidden sm:flex`} data-testid="topbar-help-button" aria-label="Help for this page" title="Help for this page (?)"><HelpCircle className="w-5 h-5" /></Link>
       <Link to={cp('/app/inbox')} className={ICON_BTN} data-testid="topbar-inbox-button" aria-label="Inbox">
         <Bell className="w-5 h-5" />
@@ -137,6 +145,7 @@ export default function Shell() {
       <IncomingCalls openPhone={openPhone} />
       <UnsavedGuard />
       <Shortcuts onEscape={closePhone} />
+      <Palette openPhone={openPhone} />
       <div className="lg:flex">
         <Sidebar supportLink={catalog?.supportLink} channelLink={catalog?.channelLink} />
         <div className="flex-1 min-w-0">

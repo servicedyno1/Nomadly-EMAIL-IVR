@@ -3,7 +3,7 @@ import { toast } from 'sonner';
 import { Link } from 'react-router-dom';
 import { BellRing, Loader2 } from 'lucide-react';
 import { api, enc, money, useApi } from '../../api';
-import { Field, Toggle } from '../../ui';
+import { Field, Toggle, InstantToggle } from '../../ui';
 import { cp } from '../../paths';
 import { useShell } from '../../Shell';
 import { useRtc } from '../../rtc';
@@ -60,7 +60,7 @@ function TryIt({ num, saved }) {
         <input className="civr-input font-mono" value={from} onChange={e => setFrom(e.target.value)} aria-label="Pretend caller" data-testid="browser-ring-try-from-input" />
         <button type="button" className="civr-btn civr-btn-ghost shrink-0" disabled={busy || !saved} onClick={ring} data-testid="browser-ring-try-button">{busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <BellRing className="w-4 h-4" />}Ring me now</button>
       </div>
-      {!saved && <p className="text-xs text-[#a1a1aa]">Switch ringing on and save first.</p>}
+      {!saved && <p className="text-xs text-[#a1a1aa]">Switch ringing on first.</p>}
     </div>
   );
 }
@@ -69,16 +69,16 @@ export default function BrowserRingTab({ num, reload }) {
   const br = num.features.browserRing;
   const { catalog } = useShell();
   const rtc = useRtc();
-  const [f, setF] = useState({ enabled: !!br.enabled, answerMode: br.answerMode || 'ask', lang: br.lang || 'en', voice: br.voice || 'female', announce: br.announce !== false });
+  const [f, setF] = useState({ answerMode: br.answerMode || 'ask', lang: br.lang || 'en', voice: br.voice || 'female', announce: br.announce !== false });
   const [save, busy] = useSave(num, 'browser-ring', reload);
   const u = useUnsaved(f);
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
-  const turn = (v) => { setF({ ...f, enabled: v }); if (v) askNotify(); };
-  const submit = async () => { if (await save(f)) { u.reset(); rtc.autoConnect(); } };
+  const switched = (d) => { if (d?.enabled) { askNotify(); rtc.autoConnect(); } };
+  const submit = async () => { if (await save({ ...f, enabled: !!br.enabled })) { u.reset(); rtc.autoConnect(); } };
   return (
     <div className="space-y-4">
       <Card bind={u.bind} title="Ring me in the browser" sub="While CloudIVR is open, calls to this number ring here with a big banner on every page. Answer by typing (text call) or by voice.">
-        <div className="flex items-center justify-between gap-4"><span className="text-sm">Ring me in the browser</span><Toggle checked={f.enabled} onChange={turn} testid="browser-ring-enabled-toggle" /></div>
+        <div className="flex items-center justify-between gap-4"><span className="text-sm">Ring me in the browser</span><InstantToggle num={num} feature="browserRing" label="Browser ring" checked={!!br.enabled} reload={reload} onSaved={switched} testid="browser-ring-enabled-toggle" /></div>
         <Field label="When it rings">
           <select className="civr-input" value={f.answerMode} onChange={set('answerMode')} data-testid="browser-ring-mode-select">{MODES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select>
         </Field>

@@ -49,7 +49,6 @@ function createCloudIvrWeb(deps) {
     support.publicRoutes(r, { db, h, log })
     ai.publicRoutes(r, { h })
     r.use(auth.requireUser)
-    notify.routes(r, { h })
     wallet.routes(r, { db, h, coins: deps.coins, createCryptoDeposit: deps.createCryptoDeposit })
     // Orders go first so /numbers/orders is not caught by /numbers/:phone; numbersApi is filled in right after.
     const numbersApi = {}
@@ -68,6 +67,7 @@ function createCloudIvrWeb(deps) {
     relay.routes(r, { ...deps, h, numbersApi })
     const smsReply = smsReplyMod.createSmsReply({ db, voiceService: deps.voiceService, log })
     smsReplyMod.routes(r, { db, h, numbersApi, smsReply })
+    notify.routes(r, { h, numbersApi, smsReply })
     incoming.routes(r, { ...deps, db, h, numbersApi, smsReply })
     textTriggers.routes(r, { ...deps, db, h, numbersApi })
     ringGroup.routes(r, { h, numbersApi })
@@ -76,15 +76,16 @@ function createCloudIvrWeb(deps) {
     r.get('/dashboard', h(async (req, res) => {
       const id = req.webChatId
       const nums = await numbersApi.myNumbers(id)
-      const [balance, unread, campaigns, pendingVerification] = await Promise.all([
+      const [balance, unread, campaigns, pendingVerification, trial] = await Promise.all([
         wallet.walletOps(db).balance(id),
         db.collection('webNotifications').countDocuments({ chatId: id, read: false }),
         db.collection('bulkCallCampaigns').countDocuments({ chatId: id, status: { $in: ['running', 'paused', 'scheduled'] } }),
         db.collection('telnyxRegSessions').countDocuments({ chatId: id, status: 'collecting' }),
+        outbound.trialStatus(db, numbersApi, id).catch(() => ({ available: false })),
       ])
       const soon = Date.now() + 7 * 86400000
       res.json({
-        balance, unread, activeCampaigns: campaigns, pendingVerification,
+        balance, unread, activeCampaigns: campaigns, pendingVerification, ivrTrial: !!trial.available,
         numbers: { total: nums.length, active: nums.filter(n => n.status === 'active').length, expiringSoon: nums.filter(n => n.expiresAt && new Date(n.expiresAt).getTime() < soon).length },
         minutesUsed: nums.reduce((s, n) => s + (n.minutesUsed || 0), 0), smsUsed: nums.reduce((s, n) => s + (n.smsUsed || 0), 0),
       })

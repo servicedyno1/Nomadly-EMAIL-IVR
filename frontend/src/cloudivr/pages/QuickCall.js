@@ -83,7 +83,7 @@ export default function QuickCall() {
   const { refreshSummary } = useShell();
   const { numbers, all, loading } = useCallerNumbers('ivrOutbound');
   const { data: au, reload: reloadAudio } = useApi('/audio');
-  const { data: trial, reload: reloadTrial } = useApi('/calls/trial');
+  const { data: trial, reload: reloadTrial, stale: trialStale } = useApi('/calls/trial');
   const [f, setF] = useState(EMPTY);
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState(null);
@@ -92,7 +92,7 @@ export default function QuickCall() {
   const [trialShown, setTrialShown] = useState(false);
   const draft = useDraft(f);
   const set = (p) => setF(x => ({ ...x, ...p }));
-  if (loading) return <SkeletonPage cards={2} rows={0} />;
+  if (loading || (!numbers.length && trialStale)) return <SkeletonPage cards={2} rows={0} />;
   const caller = numbers.find(n => n.phoneNumber === f.callerId) || numbers[0];
   const isBiz = caller?.plan === 'business';
   const audios = au?.audios || [];
@@ -111,7 +111,7 @@ export default function QuickCall() {
   return (
     <div data-testid="quick-call-page">
       <PageHeader label="Outbound" title="Quick IVR call" sub="Call one or a few people, play a script or recording, then connect them, collect a code or route each key. Billed per minute from your wallet." testid="quick-call-header" />
-      {!numbers.length ? (trial?.available || trialShown ? <TrialCall onUsed={() => { setTrialShown(true); reloadTrial(); }} /> : (
+      {!numbers.length ? (trial?.available || trialShown ? <TrialCall status={trial} onUsed={() => { setTrialShown(true); reloadTrial(); refreshSummary(); }} /> : (
         <Empty icon={PhoneOutgoing} title="No number can place IVR calls yet" sub={all.length ? 'Quick IVR calls need an active number on the Pro plan or higher. Upgrade one in its Billing tab.' : 'Buy a number on the Pro plan or higher to place IVR calls.'} testid="quick-call-empty">
           <Link to={all.length ? cp('/app/numbers') : cp('/app/buy')} className="civr-btn civr-btn-primary" data-testid="quick-call-empty-action">{all.length ? 'My numbers' : 'Buy a number'}</Link>
         </Empty>

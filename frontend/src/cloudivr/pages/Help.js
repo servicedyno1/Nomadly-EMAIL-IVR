@@ -9,6 +9,7 @@ import { openHelpChat, SHORTCUTS } from '../shortcuts';
 import { openWhatsNew } from '../WhatsNew';
 import { ARTICLES, GROUPS, TOPIC_NAMES } from './help/topics';
 import { faqItems } from './landing/PricingFaq';
+import { cp } from '../paths';
 
 // Landing FAQ answers about plans and prices (the first two are for visitors only).
 const faqArticles = (catalog) => faqItems(catalog).slice(2).map(([q, a], i) => ({ id: `faq-${i}`, group: 'plans', topics: ['billing', 'buy', 'wallet'], q, a, to: null }));
@@ -46,6 +47,7 @@ function Contact({ supportLink }) {
       <p className="text-sm text-[#a1a1aa]">The help assistant answers right away, in your language. A person from our team can take over on Telegram.</p>
       <button type="button" className="civr-btn civr-btn-primary w-full" onClick={openHelpChat} data-testid="help-open-assistant-button"><MessageCircleQuestion className="w-4 h-4" />Ask the help assistant</button>
       {supportLink && <a href={supportLink} target="_blank" rel="noopener noreferrer" className="civr-btn civr-btn-ghost w-full" data-testid="help-support-link"><LifeBuoy className="w-4 h-4" />Message support</a>}
+      <Link to={cp('/terms')} target="_blank" className="block text-center text-sm text-[#a1a1aa] hover:text-[#818cf8] py-2" data-testid="help-terms-link">Terms of Service</Link>
     </div>
   );
 }

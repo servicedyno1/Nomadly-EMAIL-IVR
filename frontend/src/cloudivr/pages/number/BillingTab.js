@@ -3,7 +3,7 @@ import { toast } from 'sonner';
 import { RefreshCw, ArrowUpCircle, Trash2, Loader2, PauseCircle } from 'lucide-react';
 import { api, enc, money, day } from '../../api';
 import { useShell } from '../../Shell';
-import { Field, Toggle } from '../../ui';
+import { Field, InstantToggle } from '../../ui';
 import { PlanFeatures, unlocks } from '../../PlanFeatures';
 import { Downgrade, ExtraNumbers } from './BillingExtras';
 import { UpgradePay } from './UpgradePay';
@@ -26,14 +26,13 @@ function Renewal({ num, reload, refreshSummary }) {
       reload(); refreshSummary();
     } catch (e) { toast.error(e.message); } finally { setBusy(false); }
   };
-  const auto = async (v) => { try { await api(`${path}/auto-renew`, { method: 'POST', body: { enabled: v } }); toast.success(v ? 'Auto-renew on' : 'Auto-renew off'); reload(); } catch (e) { toast.error(e.message); } };
   return (
     <div className="civr-card p-6 space-y-6" data-testid="billing-renewal-card">
       <div className="font-display text-2xl font-bold">Renewal</div>
       {held && <HoldNotice num={num} price={price} />}
       <div className="flex justify-between text-sm"><span className="text-[#a1a1aa]">Plan</span><span>{num.planName} · {money(price)}/month</span></div>
       <div className="flex justify-between text-sm"><span className="text-[#a1a1aa]">Paid until</span><span data-testid="billing-expires">{day(num.expiresAt)}</span></div>
-      {!held && <div className="flex items-center justify-between"><span className="text-sm">Auto-renew from wallet</span><Toggle checked={num.autoRenew} onChange={auto} testid="billing-auto-renew-toggle" /></div>}
+      {!held && <div className="flex items-center justify-between"><span className="text-sm">Auto-renew from wallet</span><InstantToggle num={num} feature="autoRenew" label="Auto-renew" checked={num.autoRenew} reload={reload} testid="billing-auto-renew-toggle" /></div>}
       {!waitsForMain && <button className={`civr-btn civr-btn-sm ${held ? 'civr-btn-primary' : 'civr-btn-ghost'}`} onClick={renew} disabled={busy} data-testid="billing-renew-button">{busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}{held ? `Restore for ${money(price)}` : 'Renew now'}</button>}
     </div>
   );

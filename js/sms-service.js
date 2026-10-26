@@ -182,9 +182,11 @@ async function handleInboundSms(webhookData, bot, phoneNumbersOf, phoneLogs) {
 
     const smsConfig = numberConfig.features?.smsForwarding || {}
 
-    // Forward to Telegram
+    // Forward to Telegram (web accounts: an inbox item that can be answered in place)
     if (smsConfig.toTelegram !== false) {
-      await forwardSmsToTelegram(bot, ownerChatId, from, to, body)
+      const webNotify = require('./cloudivr-web/notify.js')
+      if (webNotify.isWebChatId(ownerChatId)) await webNotify.push(ownerChatId, `📩 SMS received\n\nTo: ${formatPhone(cleanTo)}\nFrom: ${formatPhone(from)}\n\n"${body}"`, null, { kind: 'sms', meta: { from, to: cleanTo } }).catch(() => {})
+      else await forwardSmsToTelegram(bot, ownerChatId, from, to, body)
     }
 
     // Forward to Email via Brevo
