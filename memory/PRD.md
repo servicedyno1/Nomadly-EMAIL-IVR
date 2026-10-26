@@ -1,5 +1,13 @@
 # PRD — Nomadly Cloud IVR + Telegram Bot
 
+## 2026-10-26 (22:45Z) — PROD ops: +$20 wallet credit for iammills404@gmail.com — DONE + verified
+- Web account 5000000000000007 ("La"): wallet $0.00 → $20.00. Txn `admin-credit-5000000000000007-support-20-2026-10-26`
+  (type admin-credit → "Credit from CloudIVR" in wallet history) + in-app Inbox notice (owner choice). Re-run says "already credited".
+- Script `scripts/ops/civr_wallet_credit.js <email> <amount> <tag> [--notify] [--go]` (dry-run default, idempotent per tag, max $500);
+  copy at droplet /root/civr_wallet_credit.js, log /opt/nomadly/logs/civr_wallet_credit_2026-10-26.log.
+- Noticed: live app-main release is 20261026T223808Z-87d5de2 = workspace HEAD → the clean landing page + language menu fix are already live (CI deploy).
+
+
 ## 2026-10-26 (22:40Z) — Language switcher fix (all 6 places) — SELF-TESTED, NOT DEPLOYED
 - Owner: tapping "English" on the landing page didn't drop the other languages down. The switcher was an invisible native <select>
   over a pill, and some browsers/webviews never open it. `i18n/index.js` LangSwitcher is now a real menu (Radix DropdownMenu, modal=false,
