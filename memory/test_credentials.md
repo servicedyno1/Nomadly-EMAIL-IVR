@@ -172,6 +172,9 @@
 
 ## CloudIVR web app (preview, local DB) — 2026-10-23
 - URL: `{REACT_APP_BACKEND_URL}/cloudivr` (login `/cloudivr/login`). Web-only accounts, separate from Telegram users.
+- 2026-10-26 (e2e pass) pod setup-vault-app: Alice = Business dry-run `+17377031678` (~$380 → spent by tests), Bob = **Starter** `+19103709316`
+  ($450), Carol = `civr.carol@example.com` / `CarolTest#2026` **Pro** `+15512619698` ($225). Dev-only env added: `CLOUDIVR_SUPPORT_LINK`,
+  `WEB_APP_URL`. Sign-up is rate-limited per network — clear `db.webLoginAttempts` between QA runs.
 - Account A: `civr.alice@example.com` / `AliceTest#2026` (owns dry-run US number, Business plan, ~$380 test wallet)
 - Account B: `civr.bob@example.com` / `BobTest#2026` (no numbers, ~$500 test wallet) — use for isolation checks.
 - 2026-10-23 (3rd) pod: Alice = `+15156445205` (Business, $380) with 6 seeded log rows (`phoneLogs.seed='civr-features-2026-10'`:
