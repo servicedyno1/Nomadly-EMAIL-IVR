@@ -87,7 +87,7 @@ export default function Numbers() {
         <>
         <SearchBox s={s} placeholder="Search numbers" testid="numbers-search" className="mb-4 max-w-md" />
         <NoMatches s={s} testid="numbers-no-matches" />
-        <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-4">
+        <div className="grid md:grid-cols-2 xl:grid-cols-3 min-[1800px]:grid-cols-4 gap-4">
           {s.list.map((n, i) => <NumberCard key={n.phoneNumber} n={n} i={i} pv={pv} onSaved={onSaved} />)}
         </div>
         </>

@@ -101,8 +101,8 @@ function TopBar({ summary, onPhone }) {
   const nav = useNavigate();
   const { pathname, search } = useLocation();
   return (
-    <header className="civr-glass sticky top-0 z-30 flex items-center gap-1 sm:gap-2 px-4 md:px-8 h-16" data-civr-topbar>
-      <Link to={cp('/app')} className="font-display text-xl sm:text-2xl font-extrabold tracking-tight mr-auto lg:hidden min-h-[44px] flex items-center gap-2" data-testid="topbar-logo"><Wordmark iconClass="w-8 h-8" /></Link>
+    <header className="civr-glass sticky top-0 z-30 flex items-center gap-0.5 min-[400px]:gap-1 sm:gap-2 px-3 sm:px-4 md:px-8 h-16" data-civr-topbar>
+      <Link to={cp('/app')} className="font-display text-xl sm:text-2xl font-extrabold tracking-tight mr-auto lg:hidden min-h-[44px] min-w-0 flex items-center gap-2" aria-label="CloudIVR home" data-testid="topbar-logo"><Wordmark iconClass="w-8 h-8" textClass="max-[379px]:sr-only" /></Link>
       <div className="hidden lg:block xl:hidden mr-auto" aria-hidden="true" />
       <div className="hidden xl:block mr-auto min-w-0 truncate text-sm text-[#a1a1aa]" title={account?.email} data-testid="topbar-greeting">Signed in as <span className="text-[#f4f4f5]">{account?.email}</span></div>
       <Link to={cp('/app/wallet')} className="civr-pill civr-pill-on !text-sm !normal-case !tracking-normal h-10 shrink-0 !px-3.5" data-testid="topbar-balance">{money(summary?.balance)}</Link>
@@ -156,7 +156,7 @@ export default function Shell() {
           <UpdateBanner />
           <TopBar summary={summary} onPhone={() => setPhoneOpen(o => !o)} />
           <PrivateBanner />
-          <main className="px-4 md:px-8 pt-8 md:pt-10 pb-40 lg:pb-12 max-w-7xl mx-auto" data-testid="app-main">
+          <main className="px-4 md:px-8 min-[1800px]:px-12 pt-8 md:pt-10 pb-40 lg:pb-12 max-w-7xl min-[1600px]:max-w-[1440px] min-[1800px]:max-w-[1640px] min-[2300px]:max-w-[1880px] mx-auto" data-testid="app-main">
            <CrashGuard inApp resetKey={pathname} supportLink={catalog?.supportLink}>
             <CrashProbe />
             <Routes>

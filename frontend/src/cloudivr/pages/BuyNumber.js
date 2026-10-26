@@ -44,7 +44,7 @@ function SearchForm({ catalog, q, setQ, onSearch, busy }) {
 function Results({ res, pick, setPick }) {
   if (!res.numbers.length) return <div className="civr-card p-6 text-sm text-[#a1a1aa]" data-testid="buy-no-results">No numbers available for that search. Try another area code or type.</div>;
   return (
-    <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4" data-testid="buy-results">
+    <div className="grid sm:grid-cols-2 lg:grid-cols-3 min-[1800px]:grid-cols-4 gap-4" data-testid="buy-results">
       {res.numbers.map((n, i) => (
         <button key={n.phoneNumber} type="button" onClick={() => setPick(n)} data-testid={`buy-result-${i}`}
           className={`civr-card text-left p-4 ${pick?.phoneNumber === n.phoneNumber ? 'civr-trace' : ''}`}>

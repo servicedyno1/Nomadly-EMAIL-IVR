@@ -27,7 +27,7 @@
 .civr ::selection { background: rgba(129, 140, 248, 0.35); color: #fff; }
 .civr .font-display { font-family: 'Barlow Condensed', sans-serif; letter-spacing: 0; line-height: 1.1; }
 .civr .font-mono, .civr code { font-family: 'JetBrains Mono', monospace; }
-.civr .civr-card { background: var(--c-card); border: 1px solid var(--c-border); border-radius: 14px; transition: border-color .2s ease, background-color .2s ease, transform .2s ease; }
+.civr .civr-card { min-width: 0; overflow-wrap: break-word; background: var(--c-card); border: 1px solid var(--c-border); border-radius: 14px; transition: border-color .2s ease, background-color .2s ease, transform .2s ease; }
 .civr .civr-card:hover { border-color: var(--c-border-hover); }
 .civr .civr-card-link:hover { background: var(--c-card-hover); transform: translateY(-2px); }
 .civr .civr-label { font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: var(--c-emerald); }
@@ -38,7 +38,9 @@
 .civr .civr-input:focus { outline: none; border-color: var(--c-emerald); box-shadow: 0 0 0 3px rgba(129, 140, 248, 0.2); }
 .civr .civr-input::placeholder { color: var(--c-muted); }
 .civr select.civr-input { appearance: none; background-image: linear-gradient(45deg, transparent 50%, #a1a1aa 50%), linear-gradient(135deg, #a1a1aa 50%, transparent 50%); background-position: calc(100% - 16px) 19px, calc(100% - 11px) 19px; background-size: 5px 5px; background-repeat: no-repeat; padding-right: 30px; }
-.civr .civr-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 42px; padding: 0 18px; border-radius: 999px; font-weight: 600; font-size: 14px; transition: background-color .15s ease, color .15s ease, transform .15s ease, opacity .15s ease, border-color .15s ease; cursor: pointer; white-space: nowrap; }
+.civr .civr-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 42px; max-width: 100%; padding: 8px 18px; border-radius: 999px; font-weight: 600; font-size: 14px; line-height: 1.25; text-align: center; transition: background-color .15s ease, color .15s ease, transform .15s ease, opacity .15s ease, border-color .15s ease; cursor: pointer; }
+/* Labels wrap inside the pill instead of spilling out of a narrow card; icons never squash. */
+.civr .civr-btn > svg { flex-shrink: 0; }
 .civr .civr-btn:active { transform: scale(0.97); }
 .civr .civr-btn:disabled { opacity: .45; cursor: not-allowed; transform: none; }
 .civr .civr-btn-primary { background: #4f46e5; color: #fff; }
@@ -51,7 +53,7 @@
 .civr .civr-btn-ghost:hover:not(:disabled) { border-color: var(--c-emerald); color: var(--c-emerald); background: rgba(129, 140, 248, 0.05); }
 .civr .civr-btn-danger { background: transparent; color: var(--c-rose); border: 1px solid rgba(251, 113, 133, 0.4); }
 .civr .civr-btn-danger:hover:not(:disabled) { background: rgba(251, 113, 133, 0.1); }
-.civr .civr-btn-sm { height: 36px; padding: 0 14px; font-size: 13px; }
+.civr .civr-btn-sm { min-height: 36px; padding: 6px 14px; font-size: 13px; }
 .civr .civr-pill { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 500; line-height: 1.4; font-family: 'DM Sans', sans-serif; border: 1px solid var(--c-border-hover); color: #d4d4d8; transition: background-color .15s ease, border-color .15s ease, color .15s ease; }
 .civr .civr-skel { border-radius: 8px; background: linear-gradient(90deg, #1c1c1c 25%, #262626 50%, #1c1c1c 75%); background-size: 200% 100%; animation: civr-skel 1.4s ease-in-out infinite; }
 @keyframes civr-skel { from { background-position: 200% 0; } to { background-position: -200% 0; } }
@@ -82,7 +84,7 @@
 .civr summary::-webkit-details-marker { display: none; }
 .civr .civr-faq-chevron { transition: transform .2s ease; }
 .civr details[open] .civr-faq-chevron { transform: rotate(180deg); }
-@media (pointer: coarse) { .civr .civr-btn-sm { height: 44px; padding: 0 16px; } }
+@media (pointer: coarse) { .civr .civr-btn-sm { min-height: 44px; padding: 8px 16px; } }
 @keyframes civrRelayFlash { 0% { box-shadow: 0 0 0 0 rgba(129, 140, 248, .55); } 100% { box-shadow: 0 0 0 14px rgba(129, 140, 248, 0); } }
 .civr .civr-relay-flash { animation: civrRelayFlash .9s ease-out; }
 .civr .civr-incoming { animation: civrIncoming 1.2s ease-in-out infinite; }
@@ -92,7 +94,6 @@
 @keyframes civrOtpAlert { 0%, 100% { border-color: #fbbf24; box-shadow: 0 0 0 0 rgba(251, 191, 36, .4), 0 24px 60px rgba(0, 0, 0, .6); } 50% { border-color: #fde68a; box-shadow: 0 0 0 8px rgba(251, 191, 36, 0), 0 24px 60px rgba(0, 0, 0, .6); } }
 @media (prefers-reduced-motion: reduce) { .civr .civr-rise, .civr .civr-pulse, .civr .civr-relay-flash, .civr .civr-incoming, .civr .civr-incoming-ring, .civr .civr-otp-alert { animation: none; } }
 .civr .grid > * { min-width: 0; }
-@media (max-width: 640px) { .civr .civr-btn { white-space: normal; text-align: center; max-width: 100%; height: auto; min-height: 42px; padding-top: 8px; padding-bottom: 8px; line-height: 1.25; } }
 /* Filter chips are buttons: give them a real tap height (status pills stay compact). */
 .civr button.civr-pill { min-height: 36px; padding-left: 14px; padding-right: 14px; cursor: pointer; }
 .civr .civr-pill-count { min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px; display: inline-flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 600; line-height: 1; background: #6366f1; color: #fff; font-variant-numeric: tabular-nums; }

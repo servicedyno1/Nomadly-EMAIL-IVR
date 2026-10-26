@@ -88,8 +88,8 @@ function Deposits({ list }) {
     ))}</ul>
   );
   return (
-    <table className="civr-table" data-testid="wallet-deposits-table"><thead><tr><th>Amount</th><th>Coin</th><th>Status</th><th>When</th></tr></thead>
-      <tbody>{list.map((d, i) => <tr key={d.ref} data-testid={`wallet-deposit-${i}`}><td className="font-mono">{money(d.amountUsd)}</td><td>{d.coin}</td><td><span className={statusPill(d.status)}>{depStatus(d)}</span></td><td className="text-xs text-[#a1a1aa]">{when(d.createdAt)}</td></tr>)}</tbody></table>
+    <div className="overflow-x-auto -mx-1 px-1"><table className="civr-table" data-testid="wallet-deposits-table"><thead><tr><th>Amount</th><th>Coin</th><th>Status</th><th>When</th></tr></thead>
+      <tbody>{list.map((d, i) => <tr key={d.ref} data-testid={`wallet-deposit-${i}`}><td className="font-mono">{money(d.amountUsd)}</td><td>{d.coin}</td><td><span className={statusPill(d.status)}>{depStatus(d)}</span></td><td className="text-xs text-[#a1a1aa]">{when(d.createdAt)}</td></tr>)}</tbody></table></div>
   );
 }
 
@@ -104,8 +104,8 @@ function History({ list }) {
     ))}</ul>
   );
   return (
-    <table className="civr-table" data-testid="wallet-history-table"><thead><tr><th>What</th><th>Amount</th><th>When</th></tr></thead>
-      <tbody>{list.map((h, i) => <tr key={h.id} data-testid={`wallet-history-${i}`}><td className="text-xs">{h.description}</td><td className={`font-mono ${h.amount > 0 ? 'text-[#34d399]' : ''}`}>{signed(h)}</td><td className="text-xs text-[#a1a1aa]">{when(h.at)}</td></tr>)}</tbody></table>
+    <div className="overflow-x-auto -mx-1 px-1"><table className="civr-table" data-testid="wallet-history-table"><thead><tr><th>What</th><th>Amount</th><th>When</th></tr></thead>
+      <tbody>{list.map((h, i) => <tr key={h.id} data-testid={`wallet-history-${i}`}><td className="text-xs">{h.description}</td><td className={`font-mono whitespace-nowrap ${h.amount > 0 ? 'text-[#34d399]' : ''}`}>{signed(h)}</td><td className="text-xs text-[#a1a1aa]">{when(h.at)}</td></tr>)}</tbody></table></div>
   );
 }
 
