@@ -66,7 +66,7 @@ export function PageHeader({ label, title, sub, children, testid }) {
         <h1 className="font-display text-4xl sm:text-5xl font-extrabold leading-[1.05] text-[#f3f4f6]">{title}</h1>
         {sub && <p className="text-sm md:text-base text-[#a1a1aa] mt-3 max-w-2xl">{sub}</p>}
       </div>
-      {children && <div className="flex flex-wrap gap-2">{children}</div>}
+      {children && <div className="flex flex-wrap gap-2 md:shrink-0 md:justify-end">{children}</div>}
     </div>
   );
 }

@@ -1,0 +1,32 @@
+{
+  "summary": "Frontend-only layout check of the CloudIVR web app (preview, dry run). I used Playwright measurements plus screenshots, logged in as Alice and Bob. REPORTED BUG IS FIXED: on Bob's +19103709316 Billing tab, after 'See price' for both Business and Pro, billing-upgrade-pay, the wallet button, the coin select and the crypto button all sit inside billing-upgrade-card. There is no horizontal page scroll at 360/390/768/820/1024/1180/1280/1440/1920/2560. The row splits onto two lines (wallet button on top, coin select + crypto button below) at 360, 390, 1024, 1180, 1280 and 1440, and stays on one line at 768, 820, 1920 and 2560. Renewal and Extra numbers stack in the left column (Renewal is 272px tall, no longer stretched). Upgrade is on the right and Delete number spans the full width. Whole-app overflow check: an in-page measurement script ran on 15 app pages + 14 number tabs for Bob, and the same 15 pages + 14 tabs for Alice, at 360/390/768/1024/1280/1920/2560. It found 0 elements spilling out of cards, 0 elements off-screen, 0 pages with horizontal scroll and 0 squashed icons. It did find one regression from the global button change: page-header action buttons now break onto two lines at tablet widths (768-1024). Top bar is correct: below 380px only the parrot icon shows (wordmark text is screen-reader only) and logo, balance, search, inbox and phone all fit at 360/375/379. At 380 and up the CLOUDIVR wordmark shows. Large screens are correct: max-width is 1280 at 1280 and 1440, 1440 at 1600, 1640 at 1800 and 1880 at 2300 and 2560. Numbers and Buy grids have 3 columns at up to 1600 and 4 at 1800 and up. The Settings grid widens from 960 to 1024, 1152 and 1280. Upgrade lock pop-up (Bob, Keypad menu tab -> 'See what Pro adds') fits at 360x640 (scrolls inside), 390x844, 820x1180 and 1920x1080, and 'Not now' closes it. Buy checkout (search, pick the first result, plan picker, payment section) has no overflow at 360 to 2560. Wallet tables stay inside their cards. Nothing was paid, upgraded, bought or deleted.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "PageHeader action buttons (ui.js PageHeader)", "issue": "Regression from the global button change (white-space: nowrap was removed at all widths). At 768-1024 the actions box in PageHeader shrinks next to the long subtitle, so short labels break onto two lines and the pill grows to 47-51px tall. Affected: 'Buy a number' (numbers-buy-button, 126px wide), 'Open phone' (sip-page-open-phone), the buy search button (buy-search-button), 'New agent' (ai-agents-new-button), 'New campaign' (campaigns-new-button), 'Check now' (wallet-refresh-button), 'Mark all read' (inbox-mark-read-button). Cause: in PageHeader the line `{children && <div className=\"flex flex-wrap gap-2\">` has no shrink-0. Suggested fix: add `md:shrink-0` to that box (or `whitespace-nowrap` on header buttons). The same happens on Help at 1024: help-open-assistant-button and help-support-link wrap in the narrow 'Still stuck?' side card.", "selector": "[data-testid=numbers-buy-button], [data-testid=wallet-refresh-button], etc.", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Billing upgrade pay row (UpgradePay.js)", "issues": ["When the row splits, the wallet button is 42px tall but the coin select and crypto button are 44px. The `min-h-[44px]` class has no effect because `.civr .civr-btn { min-height:42px }` has higher specificity. Use `!min-h-[44px]` or remove the class so the heights match."]},
+      {"screen": "Wallet at 1024 (Deposits/History side by side)", "issues": ["The tables do not spill, but the 'When' column squeezes to 4 lines ('Oct / 26, / 06:52 / PM') because the cards are ~340px wide. Consider whitespace-nowrap on date cells (the overflow-x-auto wrapper would then scroll), or stacking the two cards until xl."]},
+      {"screen": "Mobile 390 billing", "issues": ["The floating support button covers the right end of the 'Pay $107.50 from wallet' button while scrolling. This floating button behaves the same on every page, so it is low priority."]}
+    ]
+  },
+  "test_report_links": ["/app/tests/overflow_audit.js"],
+  "action_items": [
+    "PageHeader (ui.js line 69): add md:shrink-0 to the actions box (or whitespace-nowrap on header buttons) so header buttons stay on one line at 768-1024",
+    "Optional: make the billing pay-row button heights match (42 vs 44px) using !min-h-[44px]",
+    "Optional: stop the Wallet date cells wrapping at 1024 (nowrap + use the existing overflow-x-auto scroll)"
+  ],
+  "critical_code_review_comments": [
+    "cloudivr.css: removing `white-space: nowrap` at all widths fixes spills, but any civr-btn inside a flex parent can now shrink and break its label. Consider `flex-shrink:0` on header buttons, or limiting wrapping to buttons that actually overflow.",
+    "UpgradePay.js: the `min-h-[44px]` Tailwind classes are overridden by `.civr .civr-btn` (0-2-0 specificity), so they have no effect."
+  ],
+  "updated_files": ["/app/tests/overflow_audit.js (new, test helper only)"],
+  "success_rate": {"backend": "not tested (frontend only)", "frontend": "~95% (reported bug and 6 of 7 requested checks pass; 1 medium regression in header buttons at tablet widths)"},
+  "seed_data_creation": "none",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Log in through /cloudivr/login (auth-email-input, auth-password-input, auth-submit-button) after setting localStorage civr.consent. /app/tests/overflow_audit.js is a page.evaluate() function that returns hscroll, spills (element outside its .civr-card), offscreen, tall (civr-btn >50px, or >44px for -sm) and squashed icons. Read it with open() inside browser_automation. The lock pop-up opens from number-tab-ivr -> feature-locked-upgrade-link -> upgrade-dialog (upgrade-dialog-cancel closes it). Never click billing-upgrade-confirm-button or billing-upgrade-crypto-button.",
+  "rca of the issue": "Header buttons wrapping: the global .civr-btn lost `white-space:nowrap`. In PageHeader the actions box is a flex item with the default flex-shrink:1, next to a subtitle capped at max-w-2xl. Between md and lg it shrinks below the button's natural width, so the label wraps. Reproduce: /cloudivr/app/numbers at 768 or 1024 wide; 'Buy a number' shows on two lines (h=51)."
+}

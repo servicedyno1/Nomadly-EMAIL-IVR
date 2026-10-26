@@ -78,8 +78,8 @@ export default function Help() {
       <PageHeader label="Help" title="Help center" sub="Short answers to common questions. Search, or open a topic below." testid="help-header">
         <button type="button" className="civr-btn civr-btn-ghost civr-btn-sm" onClick={openWhatsNew} data-testid="help-whats-new-button"><Gift className="w-4 h-4" />What’s new</button>
       </PageHeader>
-      <div className="grid lg:grid-cols-3 gap-6 items-start">
-        <div className="lg:col-span-2 flex flex-col gap-10">
+      <div className="grid xl:grid-cols-3 gap-6 items-start">
+        <div className="xl:col-span-2 flex flex-col gap-10">
           <SearchBox s={s} placeholder="Search help articles" testid="help-search" />
           {s.active ? <>
             <NoMatches s={s} testid="help-no-matches" />
@@ -93,7 +93,7 @@ export default function Help() {
             {GROUPS.map(([g, name]) => <Section key={g} title={name} items={all.filter(a => a.group === g)} prefix="help-article" testid={`help-group-${g}`} {...common} />)}
           </>}
         </div>
-        <aside className="space-y-4 lg:sticky lg:top-24"><Contact supportLink={catalog?.supportLink} /><ShortcutList /></aside>
+        <aside className="grid md:grid-cols-2 xl:grid-cols-1 gap-4 items-start xl:sticky xl:top-24"><Contact supportLink={catalog?.supportLink} /><ShortcutList /></aside>
       </div>
     </div>
   );
