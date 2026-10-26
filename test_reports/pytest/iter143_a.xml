@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="1" skipped="0" tests="15" time="4.314" timestamp="2026-10-26T11:02:34.633657+00:00" hostname="agent-env-b3710235-0844-4b45-b6a0-59a93bd9f530"><testcase classname="backend.tests.test_cloudivr_iter143_emails_plan_gating.TestPlanGating" name="test_schedule_from_pro_403" time="0.891" /><testcase classname="backend.tests.test_cloudivr_iter143_emails_plan_gating.TestPlanGating" name="test_schedule_from_business_ok" time="0.128" /><testcase classname="backend.tests.test_cloudivr_iter143_emails_plan_gating.TestPlanGating" name="test_preset_pro_403_business_ok" time="0.241" /><testcase classname="backend.tests.test_cloudivr_iter143_emails_plan_gating.TestPlanGating" name="test_pro_immediate_quick_call_allowed" time="0.049"><failure message="AssertionError: {&#10;    &quot;dryRun&quot;: true,&#10;    &quot;rate&quot;: 0.15,&#10;    &quot;count&quot;: 1,&#10;    &quot;callId&quot;: &quot;24ec4985-2b87-4e3e-a7ed-e5f584190962&quot;,&#10;    &quot;results&quot;: [&#10;      {&#10;        &quot;to&quot;: &quot;+14155550123&quot;,&#10;        &quot;ok&quot;: true,&#10;        &quot;preview&quot;: true,&#10;        &quot;callControlId&quot;: &quot;sim-62e88024-0514-439e-97c7-3671605efead&quot;&#10;      }&#10;    ],&#10;    &quot;mode&quot;: &quot;otp&quot;,&#10;    &quot;message&quot;: &quot;Preview mode: 1 call(s) validated (ask for a 6-digit code) but not dialed. A simulated call below lets you try Accept / Decline.&quot;&#10;  }&#10;assert 202 in (200, 201)&#10; +  where 202 = &lt;Response [202]&gt;.status_code">backend/tests/test_cloudivr_iter143_emails_plan_gating.py:59: in test_pro_immediate_quick_call_allowed
+    assert r.status_code in (200, 201), r.text
+E   AssertionError: {
+E       "dryRun": true,
+E       "rate": 0.15,
+E       "count": 1,
+E       "callId": "24ec4985-2b87-4e3e-a7ed-e5f584190962",
+E       "results": [
+E         {
+E           "to": "+14155550123",
+E           "ok": true,
+E           "preview": true,
+E           "callControlId": "sim-62e88024-0514-439e-97c7-3671605efead"
+E         }
+E       ],
+E       "mode": "otp",
+E       "message": "Preview mode: 1 call(s) validated (ask for a 6-digit code) but not dialed. A simulated call below lets you try Accept / Decline."
+E     }
+E   assert 202 in (200, 201)
+E    +  where 202 = &lt;Response [202]&gt;.status_code</failure></testcase><testcase classname="backend.tests.test_cloudivr_iter143_emails_plan_gating.TestPlanGating" name="test_prefs_voice_put" time="0.077" /><testcase classname="backend.tests.test_cloudivr_iter143_emails_plan_gating.TestPlanGating" name="test_relay_from_pro_403" time="0.074" /><testcase classname="backend.tests.test_cloudivr_iter143_emails_plan_gating.TestPlanGating" name="test_text_triggers_gating" time="0.185" /><testcase classname="backend.tests.test_cloudivr_iter143_emails_plan_gating.TestEmailApi" name="test_prefs_get" time="0.034" /><testcase classname="backend.tests.test_cloudivr_iter143_emails_plan_gating.TestEmailApi" name="test_prefs_put_validation_and_persist" time="0.382" /><testcase classname="backend.tests.test_cloudivr_iter143_emails_plan_gating.TestEmailApi" name="test_previews_all_types[en]" time="0.585" /><testcase classname="backend.tests.test_cloudivr_iter143_emails_plan_gating.TestEmailApi" name="test_previews_all_types[fr]" time="0.475" /><testcase classname="backend.tests.test_cloudivr_iter143_emails_plan_gating.TestEmailApi" name="test_previews_all_types[es]" time="0.516" /><testcase classname="backend.tests.test_cloudivr_iter143_emails_plan_gating.TestEmailApi" name="test_preview_language_words" time="0.058" /><testcase classname="backend.tests.test_cloudivr_iter143_emails_plan_gating.TestEmailApi" name="test_preview_unknown_and_unauth" time="0.096" /><testcase classname="backend.tests.test_cloudivr_iter143_emails_plan_gating.TestEmailApi" name="test_unsubscribe_link_flow" time="0.407" /></testsuite></testsuites>

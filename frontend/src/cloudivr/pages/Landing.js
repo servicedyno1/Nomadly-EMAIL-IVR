@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { LogIn } from 'lucide-react';
 import { useApi } from '../api';
 import { useCivrAuth } from '../AuthContext';
 import { cp } from '../paths';
@@ -35,8 +36,8 @@ function Nav() {
         {account
           ? <Link to={cp('/app')} className="civr-l-btn civr-l-btn-sm" data-testid="landing-open-dashboard"><Slide><span className="sm:hidden">Dashboard</span><span className="hidden sm:inline">Open dashboard</span></Slide></Link>
           : <>
-              <Link to={cp('/login')} className="text-sm font-medium text-slate-700 hover:text-slate-900 px-1 py-3 whitespace-nowrap transition-colors" data-testid="civr-nav-login-btn">Sign in</Link>
-              <Link to={cp('/signup')} className="civr-l-btn civr-l-btn-sm" data-testid="civr-nav-signup-btn"><Slide><span className="sm:hidden">Start</span><span className="hidden sm:inline">Get your number</span></Slide></Link>
+              <Link to={cp('/login')} aria-label="Sign in" className="text-sm font-medium text-slate-700 hover:text-slate-900 px-1 py-3 min-h-[44px] flex items-center whitespace-nowrap transition-colors" data-testid="civr-nav-login-btn"><LogIn className="w-5 h-5 sm:hidden" aria-hidden="true" /><span className="hidden sm:inline">Sign in</span></Link>
+              <Link to={cp('/signup')} className="civr-l-btn civr-l-btn-sm whitespace-nowrap" data-testid="civr-nav-signup-btn"><Slide><span className="sm:hidden">Start</span><span className="hidden sm:inline">Get your number</span></Slide></Link>
             </>}
       </div>
     </header>

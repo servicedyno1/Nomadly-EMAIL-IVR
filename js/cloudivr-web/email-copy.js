@@ -380,10 +380,10 @@ const es = {
   },
   walletEmpty: {
     subject: () => 'Llamadas en pausa — tu billetera está vacía',
-    preheader: () => 'Recarga desde $10 y todo sigue donde lo dejaste.',
+    preheader: () => 'Recarga desde 10 $ y todo sigue donde lo dejaste.',
     eyebrow: 'Billetera vacía', title: () => 'Tus llamadas están en espera.',
     intro: (d, f) => `Tu billetera bajó a ${f.usd(d.balance)}, que no cubre las llamadas salientes. Las llamadas Quick IVR, las campañas y las llamadas desviadas están en pausa hasta que recargues.`,
-    points: ['Recarga desde $10 con cripto en segundos', 'Las campañas en pausa se reanudan con un toque', 'Tus números y configuración siguen a salvo'],
+    points: ['Recarga desde 10 $ con cripto en segundos', 'Las campañas en pausa se reanudan con un toque', 'Tus números y configuración siguen a salvo'],
     cta: () => 'Recargar ahora',
   },
   campaignDone: {

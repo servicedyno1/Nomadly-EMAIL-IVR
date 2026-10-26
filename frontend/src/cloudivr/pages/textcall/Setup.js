@@ -8,6 +8,7 @@ import { cp } from '../../paths';
 import { useCallerNumbers } from '../QuickCall';
 import { useShell } from '../../Shell';
 import { planFor } from '../../PlanFeatures';
+import { LockedNote } from '../../Upgrade';
 
 const LANGS = [['en', 'English'], ['es', 'Español'], ['fr', 'Français']];
 const PREFS = 'civr.relayPrefs';
@@ -31,7 +32,11 @@ export function Setup({ info, onStarted }) {
   if (loading) return <SkeletonCard lines={4} />;
   if (!all.length) return <Empty icon={Captions} title="Get a number first" sub="Text calls go out from your own CloudIVR number." testid="text-call-no-number"><Link to={cp('/app/buy')} className="civr-btn civr-btn-primary" data-testid="text-call-buy-link">Buy a number</Link></Empty>;
   if (!numbers.length) return <Locked feature="Text calls" phone={all[0].phoneNumber} need={planFor(catalog?.plans, 'textRelay')?.name || 'Business'} />;
-  const callerId = numbers.some(n => n.phoneNumber === f.callerId) ? f.callerId : numbers[0].phoneNumber;
+  // Every active number is listed; ones whose plan has no text calls show the plan and open the upgrade pop-up.
+  const active = all.filter(n => n.status === 'active');
+  const need = planFor(catalog?.plans, 'textRelay')?.name || 'Business';
+  const callerId = active.some(n => n.phoneNumber === f.callerId) ? f.callerId : numbers[0].phoneNumber;
+  const locked = !numbers.some(n => n.phoneNumber === callerId);
   const start = async (e) => {
     e.preventDefault(); setBusy(true); setErr(null);
     try {
@@ -45,7 +50,8 @@ export function Setup({ info, onStarted }) {
   return (
     <form onSubmit={start} className="civr-card p-6 md:p-8 space-y-6 civr-rise" data-testid="text-call-setup">
       <div className="grid md:grid-cols-2 gap-5">
-        <Field label="Call from"><select className="civr-input font-mono" value={callerId} onChange={set('callerId')} data-testid="text-call-caller-select">{numbers.map(n => <option key={n.phoneNumber} value={n.phoneNumber}>{n.phoneNumber}</option>)}</select></Field>
+        <Field label="Call from"><select className="civr-input font-mono" value={callerId} onChange={set('callerId')} data-testid="text-call-caller-select">{active.map(n => <option key={n.phoneNumber} value={n.phoneNumber}>{numbers.includes(n) ? n.phoneNumber : `${n.phoneNumber} · ${need} plan`}</option>)}</select>
+          {locked && <div className="mt-2"><LockedNote text={`Text calls are on the ${need} plan.`} feature="Text calls" need={need} phone={callerId} testid="text-call-caller-lock" /></div>}</Field>
         <Field label="Number to call" hint="With country code, e.g. +14155550100."><input className="civr-input font-mono text-lg" required inputMode="tel" value={f.to} onChange={set('to')} placeholder="+14155550100" data-testid="text-call-to-input" /></Field>
       </div>
       <Field label="They speak"><div data-no-translate><Choice value={f.lang} options={LANGS} onChange={set('lang')} testid="text-call-lang" /></div></Field>
@@ -56,7 +62,7 @@ export function Setup({ info, onStarted }) {
       </div>
       <ErrorNote error={err} testid="text-call-error" />
       <div className="flex flex-wrap items-center gap-4">
-        <button className="civr-btn civr-btn-primary h-12 px-6 text-base" disabled={busy} data-testid="text-call-start-button">{busy ? <Loader2 className="w-5 h-5 animate-spin" /> : <PhoneCall className="w-5 h-5" />}Start text call</button>
+        <button className="civr-btn civr-btn-primary h-12 px-6 text-base" disabled={busy || locked} data-testid="text-call-start-button">{busy ? <Loader2 className="w-5 h-5 animate-spin" /> : <PhoneCall className="w-5 h-5" />}Start text call</button>
         {info && <span className="text-xs text-[#a1a1aa]" data-testid="text-call-rate-hint">{`From ${money(info.usRate + info.relayRate)}/min, billed per started minute.`}</span>}
       </div>
     </form>

@@ -1,0 +1,46 @@
+{
+  "summary": "Iteration 143: full test of plan gating / upgrade pop-up, landing + in-app plan cards ('Everything in X, plus:'), new email system (prefs, previews x14 types x3 langs, engine scanner, test/rate-limit, unsubscribe), readability scan, sidebar crash crawl, ESLint and the node email harness. Backend: 16/16 pytest pass (after fixing 2 test-script issues on my side), node harness 38/38, ESLint 0 errors (15 warnings). Frontend: all core flows work; found 1 mobile header overflow on FR/ES landing, 1 upgrade-dialog loading race, untranslated 'Starter includes:' on FR/ES, Text calls page hides Pro numbers instead of showing them locked, and a stale legend on the Buy page.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "email copy (fr)", "issue": "FR money format is US style: subject '$50.00 sont arrivés sur votre portefeuille CloudIVR', body 'sous $10.00'. French readers expect '50,00 $'. Cosmetic."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Landing top nav, mobile 390, FR/ES", "issue": "Sign-up CTA [civr-nav-signup-btn] runs past the right edge of the screen and gets cut off: FR right edge is 446px, ES is 423px, on a 390px screen. The page doesn't scroll sideways (scrollWidth is 390) because the header clips it, so the button shows only as 'Dém…' / 'Inic…'. EN fits.", "selector": "[data-testid=civr-nav-signup-btn]", "priority": "MEDIUM"},
+      {"component": "Upgrade dialog (Upgrade.js Dialog)", "issue": "useCandidates() fetches /numbers each time the dialog opens. Until that returns, nums=[], so the main button reads 'Buy a Business number' and go() sends the user to /app/buy?plan=business instead of the number's billing tab. I saw this text right after opening the dialog. A fast click goes to the wrong page. Fix: use the numbers from the shell/cache, or disable the button while loading.", "selector": "[data-testid=upgrade-dialog-go]", "priority": "MEDIUM"},
+      {"component": "Text calls page /app/text-call", "issue": "The caller list only holds Business numbers (useCallerNumbers('textRelay')), so the Pro and Starter numbers don't appear at all, with no lock pill or upgrade pop-up. A Locked card appears only when the account has no Business number. This doesn't follow the request to keep locked features visible with a pop-up.", "selector": "[data-testid=text-call-caller-select]", "priority": "LOW"},
+      {"component": "Landing pricing FR/ES", "issue": "Starter heading stays English ('Starter includes:') in FR and ES. Pro and Business are translated ('Tout dans Starter, plus :' / 'Todo en Starter, más:').", "selector": "[data-testid=pricing-feature-starter-heading]", "priority": "LOW"}
+    ],
+    "integration_issues": [
+      {"flow": "Settings > Email notifications low balance", "issue": "Entering 0 or 5000 never reaches the API. The input's own min=1/max=1000 check blocks the form, so the user sees the browser tooltip ('Value must be ≥ 1') and not the error toast 'Pick an alert amount between $1 and $1,000.'. The value 5000 also stays in the box. The API itself correctly returns 400 with that message.", "affected_selectors": ["[data-testid=email-low-balance-input]", "[data-testid=email-low-balance-save]"]}
+    ],
+    "design_issues": [
+      {"screen": "Landing hero mobile FR", "issues": ["The eyebrow pill text 'Numéros virtuels · SVI entrant & sortant · Agents vocaux IA' wraps to 2 lines inside a 1-line rounded pill, so the text overlaps the pill's border"]},
+      {"screen": "Buy a number, plan picker", "issues": ["The legend '✓ included · ✗ not on that plan' is out of date: the cards now list only what each plan adds, and no ✗ items are ever shown"]},
+      {"screen": "Settings > Email notifications", "issues": ["All card text (labels, toasts, example names) is hard-coded English, unlike the rest of the app's i18n"]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_cloudivr_iter143_emails_plan_gating.py", "/app/test_reports/pytest/iter143_a.xml", "/app/test_reports/pytest/iter143_b.xml", "/app/js/tests/test_cloudivr_emails_2026-10.js"],
+  "action_items": [
+    "Fix the FR/ES mobile landing header overflow: shorten the CTA label or hide the login text below about 400px",
+    "Upgrade dialog: don't show the 'Buy a <plan> number' fallback or allow navigation while /numbers is still loading",
+    "Text calls page: list Pro/Starter numbers with a lock that opens showUpgrade({feature:'Text calls', need:'business', phone})",
+    "Translate 'Starter includes:' for FR/ES",
+    "EmailPrefs low-balance: drop the native min/max (or add noValidate) so the API error toast shows, or show your own inline error",
+    "Remove or replace the '✗ not on that plan' legend on the Buy page",
+    "Optional: localise money format in FR/ES emails; i18n for the Email notifications card"
+  ],
+  "critical_code_review_comments": [
+    "Upgrade.js: the dialog's /numbers request runs on every open. Reuse shell data to avoid the label/route race.",
+    "emails.js walletLevels runs only every 5th tick (about 5 min), so walletEmpty/lowBalance can take up to about 5 min. Confirmed: walletEmpty (fr) arrived after about 5 min for the new QA account. That's fine, just worth documenting.",
+    "Test emails are recorded even when the group is switched off (by design, and the harness checks it)."
+  ],
+  "updated_files": ["/app/backend/tests/test_cloudivr_iter143_emails_plan_gating.py"],
+  "success_rate": {"backend": "100% (16/16 pytest + 38/38 node harness)", "frontend": "~88% (core flows pass; 2 medium + 3 low UI issues)"},
+  "seed_data_creation": "Registered qa.mail7135863@example.com / QaTest#2026x (lang fr). Bought dry-run number +13525312446 for it via crypto checkout + simulate-payment, then released it. Alice was left unchanged: 3 numbers, all email switches ON, lowBalanceAt 10, no presets, scheduled preview call cancelled.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Verified working: landing pricing headings and feature lists (EN desktop/mobile, FR/ES no crash); Buy page plan cards; Pro number (+13313039077): IVR tab usable, locks on triggers and ai tabs, Text Triggers locked card opens the upgrade dialog with title, price and 'Business also gives you'; Not now, Esc and backdrop all close it; go button routes to ?tab=billing&plan=business. Starter number: 8 tab locks pointing to Pro. Business number: no locks. Quick IVR: Pro shows schedule and preset locks that open the pop-up, Business shows the date picker and preset input. Backend gates: schedule/preset/relay/text-triggers 403 from Pro, 200/201 from Business; prefs/voice PUT 200. Email: prefs GET/PUT with validation, 14 types x en/fr/es render with no undefined/NaN, 404 for unknown type, 401 when logged out, unsubscribe GET/POST/tampered works, engine sends welcome (en), then topup, numberLive and walletEmpty in fr with no duplicates, test email limited to 10 per hour (11th returns 429). Sidebar crawl: no crash screens. Cmd/K palette and inbox OK. Low-contrast scan of dashboard/numbers/settings/wallet found nothing below 4:1. The correct text call route is /app/text-call (not text-calls). A preview login glob '**/app**' matches the host name 'app-vault'; use '**/cloudivr/app**'."
+}

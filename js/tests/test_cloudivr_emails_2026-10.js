@@ -77,7 +77,7 @@ async function main() {
   it('two missed calls → one grouped email', (await sent.findOne({ type: 'missed' })).subject.includes('2 appels manqués'), (await sent.findOne({ type: 'missed' })).subject)
   it('voicemail already emailed to the account address (forwardToEmail) is skipped', (await mine(b, 'voicemail')).length === 0)
   const fr = await sent.findOne({ type: 'topup', chatId: a })
-  it('A (French) gets French emails', fr.lang === 'fr' && fr.subject.startsWith('$50.00 sont arrivés'), fr.subject)
+  it('A (French) gets French emails with French money format', fr.lang === 'fr' && /^50,00\s\$ sont arrivés/.test(fr.subject), fr.subject)
   it('preview mode stores the HTML and does not send', fr.ok === 'preview' && fr.html.includes('<html lang="fr"'))
   const camp = await sent.findOne({ _id: 'campaign:camp-1' })
   it('campaign name is escaped in the HTML', !camp.html.includes('<b>offer</b>') && camp.html.includes('&lt;b&gt;offer'))

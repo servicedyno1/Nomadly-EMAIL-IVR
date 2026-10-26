@@ -17,7 +17,7 @@ const STATUS = { sent: 'civr-pill civr-pill-ok', preview: 'civr-pill civr-pill-w
 function Switches({ prefs, setPrefs }) {
   const flip = async (k, label, v) => {
     setPrefs({ ...prefs, [k]: v });
-    try { const d = await api('/prefs/email', { method: 'PUT', body: { [k]: v } }); setPrefs(d.prefs); toast.success(`${label} ${v ? 'on' : 'off'}`); } catch (e) { setPrefs(prefs); toast.error(e.message); }
+    try { const d = await api('/prefs/email', { method: 'PUT', body: { [k]: v } }); setPrefs(d.prefs); toast.success(`${label} ${v ? 'turned on' : 'turned off'}`); } catch (e) { setPrefs(prefs); toast.error(e.message); }
   };
   return (
     <div className="divide-y divide-[#1a1a1a]" data-testid="email-prefs-switches">
@@ -36,7 +36,7 @@ function LowBalance({ prefs, setPrefs }) {
   const [busy, setBusy] = useState(false);
   const save = async (e) => { e.preventDefault(); setBusy(true); try { const d = await api('/prefs/email', { method: 'PUT', body: { lowBalanceAt: Number(v) } }); setPrefs(d.prefs); toast.success('Low-balance alert saved'); } catch (err) { toast.error(err.message); } finally { setBusy(false); } };
   return (
-    <form onSubmit={save} className="flex flex-wrap items-end gap-2" data-testid="email-low-balance-form">
+    <form onSubmit={save} noValidate className="flex flex-wrap items-end gap-2" data-testid="email-low-balance-form">
       <label className="flex-1 min-w-[180px]"><span className="block text-[13px] font-medium text-[#d4d4d8] mb-1.5">Warn me when my wallet drops below</span>
         <div className="relative"><span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#a1a1aa]">$</span><input type="number" min={1} max={1000} step="1" required className="civr-input !pl-7 font-mono" value={v} onChange={e => setV(e.target.value)} data-testid="email-low-balance-input" /></div>
       </label>

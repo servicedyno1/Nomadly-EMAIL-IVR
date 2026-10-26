@@ -57,7 +57,7 @@ export function Hero({ catalog }) {
       <div className="absolute inset-0 pointer-events-none" style={{ background: 'radial-gradient(50% 45% at 85% 20%, rgba(99,102,241,.10), transparent 70%)' }} />
       <div className="relative max-w-7xl mx-auto px-6 md:px-8 grid lg:grid-cols-12 gap-16 lg:gap-12 items-center pb-24">
         <div className="lg:col-span-5 relative z-10">
-          <div className="inline-flex items-center gap-2 h-8 px-3 rounded-full border border-slate-200 bg-white text-sm text-slate-600 civr-rise" data-testid="hero-eyebrow"><span className="civr-l-dot" />Virtual numbers · Inbound & outbound IVR · AI voice agents</div>
+          <div className="inline-flex items-center gap-2 min-h-8 py-1 px-3 rounded-2xl sm:rounded-full border border-slate-200 bg-white text-sm text-slate-600 civr-rise" data-testid="hero-eyebrow"><span className="civr-l-dot" />Virtual numbers · Inbound & outbound IVR · AI voice agents</div>
           <h1 className="civr-l-h text-4xl sm:text-5xl lg:text-6xl mt-6 civr-rise civr-d1 text-slate-900" data-testid="hero-title" data-no-translate>{t[0]}<span className="text-[#4f46e5]">{t[1]}</span>{t[2]}</h1>
           <p className="text-base md:text-lg text-slate-600 mt-6 max-w-xl civr-rise civr-d2" data-testid="hero-subtitle">
             {`Get a virtual number in ${n} countries that never lets a call slip: a keypad menu or an AI voice agent picks up, routes, records and takes messages. Then flip it around — Quick IVR and Bulk IVR campaigns call your list, play your message, connect hot leads and collect codes while you work.`}

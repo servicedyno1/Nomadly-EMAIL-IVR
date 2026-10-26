@@ -14,7 +14,7 @@ const P = (text) => L.p(L.esc(text))
 function fmt(lang) {
   const loc = LOCALE[lang] || LOCALE.en
   return {
-    usd: (n) => `$${(Math.round(Number(n || 0) * 100) / 100).toFixed(2)}`,
+    usd: (n) => new Intl.NumberFormat(loc, { style: 'currency', currency: 'USD', currencyDisplay: 'narrowSymbol' }).format(Math.round(Number(n || 0) * 100) / 100),
     date: (x) => new Date(x).toLocaleDateString(loc, { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' }),
     short: (x) => new Date(x).toLocaleDateString(loc, { day: 'numeric', month: 'short', timeZone: 'UTC' }),
     dt: (x) => `${new Date(x).toLocaleString(loc, { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit', timeZone: 'UTC' })} UTC`,

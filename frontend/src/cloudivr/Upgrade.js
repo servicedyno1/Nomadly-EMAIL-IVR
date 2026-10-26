@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Lock, ArrowUpCircle } from 'lucide-react';
+import { Lock, ArrowUpCircle, Loader2 } from 'lucide-react';
 import { useApi, enc, usd } from './api';
 import { useShell } from './Shell';
 import { PlanFeatures, unlocks } from './PlanFeatures';
@@ -17,13 +17,13 @@ const planOf = (plans, need) => (plans || []).find(p => p.id === need || p.name 
 function useCandidates(plan, plans, enabled) {
   const { data } = useApi(enabled ? '/numbers' : null);
   const order = (plans || []).map(p => p.id);
-  return (data?.numbers || []).filter(n => n.status === 'active' && !n.isSubNumber && order.indexOf(n.plan) < order.indexOf(plan?.id));
+  return { loading: !data, nums: (data?.numbers || []).filter(n => n.status === 'active' && !n.isSubNumber && order.indexOf(n.plan) < order.indexOf(plan?.id)) };
 }
 
 function Dialog({ req, plan, plans, onClose }) {
   const nav = useNavigate();
   const box = useRef(null);
-  const nums = useCandidates(plan, plans, true);
+  const { nums, loading } = useCandidates(plan, plans, true);
   const [pick, setPick] = useState(req.phone || '');
   const phone = nums.some(n => n.phoneNumber === pick) ? pick : nums[0]?.phoneNumber;
   const from = nums.find(n => n.phoneNumber === phone)?.plan || (plans || [])[0]?.id;
@@ -44,7 +44,7 @@ function Dialog({ req, plan, plans, onClose }) {
         <select className="civr-input font-mono" value={phone} onChange={e => setPick(e.target.value)} data-testid="upgrade-dialog-number-select">{nums.map(n => <option key={n.phoneNumber} value={n.phoneNumber}>{`${n.phoneNumber} · ${n.planName}`}</option>)}</select></label>}
       <div className="mt-6 flex flex-col-reverse sm:flex-row sm:justify-end gap-2">
         <button type="button" className="civr-btn civr-btn-ghost" onClick={onClose} data-testid="upgrade-dialog-cancel">Not now</button>
-        <button type="button" className="civr-btn civr-btn-primary" onClick={go} data-testid="upgrade-dialog-go"><ArrowUpCircle className="w-4 h-4" />{phone ? `Upgrade ${phone}` : `Buy a ${plan.name} number`}</button>
+        <button type="button" className="civr-btn civr-btn-primary" onClick={go} disabled={loading} aria-busy={loading} data-testid="upgrade-dialog-go">{loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowUpCircle className="w-4 h-4" />}{loading ? 'Checking your numbers…' : phone ? `Upgrade ${phone}` : `Buy a ${plan.name} number`}</button>
       </div>
     </div>
   );

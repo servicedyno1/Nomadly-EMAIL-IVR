@@ -1311,3 +1311,14 @@ calls and SIP are simulated; inbound calls use a pretend-call simulator).
   "Mark these as read (n)" per filter. fr/es. iteration_140 + own checks (390px, fr, es, topbar 36→19).
 - Deployed to app-main 20261025T195841Z-291899e. Brands get voicemail/inbox changes after the next "Save to GitHub".
 
+
+## 2026-10-26 (fork 4) — re-check of iteration_143 findings, sample emails, pre-launch check
+- Re-checked all 7 iteration_143 items in the preview (FR/ES, 390 + 1920): mobile landing CTA fits (FR right 379px, ES 374px, no
+  overflow), hero eyebrow wraps inside its box, "Starter comprend :" / "Starter incluye:", upgrade dialog waits for /numbers
+  ("Checking your numbers…"), Text calls lists Pro numbers as "· forfait Business" with lock + pop-up (start disabled),
+  Buy page ✗ legend gone, low-balance 0 → API toast. Money in FR/ES emails is local style (50,00 $) — confirmed.
+- Fixed: Email-switch toasts were English-only ("Weekly summary on") → "{0} turned on/off" + fr/es ("Résumé hebdomadaire : activé").
+- New ops script scripts/ops/send_sample_emails.js (NODE_PATH=js/node_modules node scripts/ops/send_sample_emails.js <to> [chatId]
+  [--langs=en] [--extra=fr:topup]). Sent 18 samples to moxxcompany@gmail.com (14 types EN + topup/weekly FR+ES), all accepted by SMTP.
+- Node email harness 38/38. deployment_agent flags (.env in .gitignore, CORS_ORIGINS, no nodejs supervisor block) are for Emergent
+  hosting only — prod is GitHub main → CI → DO droplet (PM2), so not blockers. Go live = Save to GitHub (main).
