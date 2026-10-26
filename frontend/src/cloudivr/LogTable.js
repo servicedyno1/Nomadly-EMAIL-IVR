@@ -1,20 +1,22 @@
 import React, { useState } from 'react';
-import { PhoneIncoming, PhoneOutgoing, PhoneMissed, Voicemail, MessageSquare, Mic, Printer, Clock } from 'lucide-react';
+import { PhoneIncoming, PhoneOutgoing, PhoneMissed, Voicemail, MessageSquare, Mic, Printer, Clock, Activity } from 'lucide-react';
 import { when, secs } from './api';
 import { usePrivacy } from './privacy';
 import { NoteCell, canNote } from './CallNote';
 import { QuickReply, TextBackButton, TextBackDone, useTextBack } from './QuickReply';
-import { ShowMore, useIsPhone, usePaged } from './ui';
+import { ShowMore, useIsPhone, usePaged, Empty } from './ui';
 import { AiSummaryCell } from './AiSummary';
 
+// One accent for normal events; colour only where something needs attention (missed = rose, failed / outside hours = amber).
+const A = '#818cf8', N = '#a1a1aa';
 const LABEL = {
-  missed: ['Missed call', PhoneMissed, '#fb7185'], voicemail: ['Voicemail', Voicemail, '#a78bfa'], forwarded: ['Forwarded call', PhoneIncoming, '#818cf8'],
-  forward_failed: ['Forward failed', PhoneMissed, '#fbbf24'], call_recording: ['Recorded call', Mic, '#38bdf8'], outbound_ivr: ['Quick IVR call', PhoneOutgoing, '#38bdf8'],
-  outbound_ivr_bulk: ['Campaign call', PhoneOutgoing, '#22d3ee'], ivr_transfer_leg: ['IVR transfer', PhoneIncoming, '#818cf8'], sms: ['SMS', MessageSquare, '#818cf8'],
-  fax: ['Fax', Printer, '#888'], outbound_sip: ['Browser / SIP call', PhoneOutgoing, '#38bdf8'], BulkIVR: ['Campaign charge', PhoneOutgoing, '#888'],
-  off_hours: ['Call outside hours', Clock, '#fbbf24'], sms_out: ['SMS sent', MessageSquare, '#38bdf8'],
+  missed: ['Missed call', PhoneMissed, '#fb7185'], voicemail: ['Voicemail', Voicemail, A], forwarded: ['Forwarded call', PhoneIncoming, A],
+  forward_failed: ['Forward failed', PhoneMissed, '#fbbf24'], call_recording: ['Recorded call', Mic, A], outbound_ivr: ['Quick IVR call', PhoneOutgoing, A],
+  outbound_ivr_bulk: ['Campaign call', PhoneOutgoing, A], ivr_transfer_leg: ['IVR transfer', PhoneIncoming, A], sms: ['SMS', MessageSquare, A],
+  fax: ['Fax', Printer, N], outbound_sip: ['Browser / SIP call', PhoneOutgoing, A], BulkIVR: ['Campaign charge', PhoneOutgoing, N],
+  off_hours: ['Call outside hours', Clock, '#fbbf24'], sms_out: ['SMS sent', MessageSquare, A],
 };
-export const labelOf = (t) => LABEL[t] || [String(t || 'Event').replace(/_/g, ' '), PhoneIncoming, '#888'];
+export const labelOf = (t) => LABEL[t] || [String(t || 'Event').replace(/_/g, ' '), PhoneIncoming, N];
 const TRANSCRIPT_HINT = { empty: 'No speech detected', failed: 'Couldn’t transcribe this message', too_large: 'Too long to transcribe' };
 
 function Transcript({ l, i, testid }) {
@@ -95,11 +97,11 @@ function LogCard({ l, i, showNumber, testid, notePhone, onNotesChange, summarize
 }
 
 // `notePhone` (the number the rows belong to) turns on per-row call notes + missed-call "Text back"; `onNotesChange` reloads the rows.
-// `summarize` = the number's plan has AI summaries (shows the per-row Summarize button).
-export function LogTable({ logs, showNumber = false, testid = 'log-table', notePhone, onNotesChange, pageSize = 20, resetKey, summarize = false }) {
+// `summarize` = the number's plan has AI summaries (shows the per-row Summarize button). `emptyTitle`/`emptyAction` customise the empty state.
+export function LogTable({ logs, showNumber = false, testid = 'log-table', notePhone, onNotesChange, pageSize = 20, resetKey, summarize = false, emptyTitle = 'No activity yet', emptyAction }) {
   const phone = useIsPhone();
   const { shown, rest, more } = usePaged(logs, pageSize, resetKey);
-  if (!logs?.length) return <div className="text-sm text-[#a1a1aa] py-8 text-center" data-testid={`${testid}-empty`}>No activity yet.</div>;
+  if (!logs?.length) return <Empty bare icon={Activity} title={emptyTitle} sub="Calls, texts and voicemails show up here as they happen." testid={`${testid}-empty`}>{emptyAction}</Empty>;
   const common = { showNumber, testid, notePhone, onNotesChange, summarize };
   return (
     <>

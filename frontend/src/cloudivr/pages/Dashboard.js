@@ -4,7 +4,7 @@ import { Wallet, Hash, Clock, MessageSquare, Megaphone, Bell, ShieldCheck, Arrow
 import { useApi, money } from '../api';
 import { useShell } from '../Shell';
 import { useCivrAuth } from '../AuthContext';
-import { PageHeader, Spinner } from '../ui';
+import { PageHeader, SkeletonPage } from '../ui';
 import { LogTable } from '../LogTable';
 import { cp } from '../paths';
 import { GetStarted, YourNumbers } from './dashboard/Widgets';
@@ -67,7 +67,7 @@ export default function Dashboard() {
           <ArrowRight className="w-4 h-4" />
         </Link>
       )}
-      {!s ? <Spinner /> : fresh ? <GetStarted balance={s.balance} /> : (
+      {!s ? <SkeletonPage header={false} cards={3} rows={3} /> : fresh ? <GetStarted balance={s.balance} /> : (
         <>
           <Stats s={s} />
           <div className="grid lg:grid-cols-12 gap-6 mt-6 items-start">
@@ -76,7 +76,7 @@ export default function Dashboard() {
           </div>
           <div className="civr-card p-6 mt-6">
             <div className="font-display text-2xl font-bold mb-4">Recent activity</div>
-            <LogTable logs={act?.logs} showNumber testid="dashboard-activity" />
+            <LogTable logs={act?.logs} showNumber testid="dashboard-activity" emptyAction={<Link to={cp('/app/numbers')} className="civr-btn civr-btn-ghost civr-btn-sm" data-testid="dashboard-activity-empty-action">Test one of your numbers</Link>} />
           </div>
         </>
       )}

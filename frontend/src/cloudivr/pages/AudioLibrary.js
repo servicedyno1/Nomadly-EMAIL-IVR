@@ -2,7 +2,7 @@ import React, { useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { Music, Upload, Wand2, Trash2, Pencil, Loader2, Check, X } from 'lucide-react';
 import { api, useApi, day, playUrl } from '../api';
-import { PageHeader, Field, Spinner, ErrorNote, Empty } from '../ui';
+import { PageHeader, Field, SkeletonRows, ErrorNote, Empty } from '../ui';
 import { undoable } from '../undo';
 import { useSearch, SearchBox, NoMatches } from '../search';
 
@@ -43,7 +43,7 @@ function TtsCard({ onDone }) {
   };
   return (
     <div className="civr-card p-6 space-y-4 lg:col-span-2" data-testid="audio-tts-card">
-      <div className="flex items-center gap-2 font-display text-2xl font-bold"><Wand2 className="w-5 h-5 text-[#38bdf8]" />Text to speech</div>
+      <div className="flex items-center gap-2 font-display text-2xl font-bold"><Wand2 className="w-5 h-5 text-[#818cf8]" />Text to speech</div>
       <Field label="What should the voice say?" hint={`${f.text.length}/1500`}><textarea rows={4} className="civr-input" maxLength={1500} value={f.text} onChange={e => setF({ ...f, text: e.target.value })} placeholder="Thanks for calling. Press 1 for sales, 2 for support." data-testid="audio-tts-text-input" /></Field>
       <div className="grid sm:grid-cols-3 gap-3">
         <Field label="Voice"><select className="civr-input" value={f.voice} onChange={e => setF({ ...f, voice: e.target.value })} data-testid="audio-tts-voice-select">{(data?.voices || []).map(v => <option key={v.key} value={v.key}>{`${v.name} · ${v.gender}`}</option>)}</select></Field>
@@ -90,9 +90,14 @@ export default function AudioLibrary() {
     <div data-testid="audio-page">
       <PageHeader label="Audio" title="Audio library" sub="Greetings, IVR prompts and campaign messages. Upload your own or type it and pick a voice." testid="audio-header" />
       <div className="grid lg:grid-cols-3 gap-4"><UploadCard onDone={reload} /><TtsCard onDone={reload} /></div>
-      <div className="mt-8 space-y-3">
-        <ErrorNote error={error} />
-        {loading && !data ? <Spinner /> : !audios.length ? <Empty icon={Music} title="No audio yet" sub="Your first upload or voice message shows up here." testid="audio-empty" /> : <>
+      <div className="mt-8 flex flex-col gap-2">
+        <ErrorNote error={error} onRetry={reload} />
+        {loading && !data ? <SkeletonRows rows={3} /> : !audios.length ? (
+          <Empty icon={Music} title="No audio yet" sub="Type a message and pick a voice, or upload your own recording. It shows up here, ready for greetings, menus and campaigns." testid="audio-empty">
+            <button type="button" className="civr-btn civr-btn-primary" onClick={() => { const el = document.querySelector('[data-testid="audio-tts-text-input"]'); el?.scrollIntoView({ behavior: 'smooth', block: 'center' }); el?.focus({ preventScroll: true }); }} data-testid="audio-empty-tts-button"><Wand2 className="w-4 h-4" />Write a voice message</button>
+            <button type="button" className="civr-btn civr-btn-ghost" onClick={() => document.querySelector('[data-testid="audio-upload-choose-button"]')?.click()} data-testid="audio-empty-upload-button"><Upload className="w-4 h-4" />Upload a file</button>
+          </Empty>
+        ) : <>
           <SearchBox s={s} placeholder="Search audio" testid="audio-search" className="max-w-md" />
           <NoMatches s={s} testid="audio-no-matches" />
           {s.list.map((a, i) => <AudioRow key={a.id} a={a} i={i} reload={reload} hide={hide} />)}

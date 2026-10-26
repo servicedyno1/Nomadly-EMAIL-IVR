@@ -12,9 +12,9 @@ function Done({ s, id }) {
   const pv = usePrivacy();
   const [label, cls] = MOOD[s.sentiment] || MOOD.neutral;
   return (
-    <div className="mt-1.5 rounded-lg border border-[#a78bfa]/30 bg-[#a78bfa]/5 p-2.5 space-y-1.5 w-full" data-testid={id}>
+    <div className="mt-1.5 rounded-lg border border-[#818cf8]/30 bg-[#818cf8]/5 p-2.5 space-y-1.5 w-full" data-testid={id}>
       <div className="flex flex-wrap items-center gap-1.5">
-        <Sparkles className="w-3.5 h-3.5 text-[#a78bfa]" />
+        <Sparkles className="w-3.5 h-3.5 text-[#818cf8]" />
         <span className={cls} data-testid={`${id}-sentiment`}>{label}</span>
         {s.mood && !pv.on && <span className="civr-pill" data-testid={`${id}-mood`} dir="auto">{s.mood}</span>}
       </div>
@@ -41,7 +41,7 @@ export function AiSummaryCell({ l, i, testid, phone, canRun }) {
   return (
     <div className="mt-1.5 flex flex-col items-start gap-1">
       <button type="button" className="civr-btn civr-btn-ghost civr-btn-sm !min-h-[32px] !text-xs" disabled={busy} onClick={run} data-testid={`${id}-button`}>
-        {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5 text-[#a78bfa]" />}{`Summarize · $${summaryPrice(l, rate).toFixed(2)}`}
+        {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5 text-[#818cf8]" />}{`Summarize · $${summaryPrice(l, rate).toFixed(2)}`}
       </button>
       {s?.status === 'no_funds' && <span className="text-[#fbbf24]" data-testid={`${id}-no-funds`}>Not summarised — wallet too low.</span>}
       {(s?.status === 'failed' || s?.status === 'empty') && s.detail && <span className="text-[#a1a1aa]" data-testid={`${id}-failed`}>{s.detail}</span>}

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { toast } from 'sonner';
 import { Webhook, Loader2, Copy, RefreshCw, Send, Eye, EyeOff } from 'lucide-react';
 import { api, useApi, when } from '../../api';
-import { Field, Toggle, Spinner } from '../../ui';
+import { Field, Toggle, SkeletonCard } from '../../ui';
 import { useUnsaved, SaveRow } from '../../guard';
 import { ask } from '../../confirm';
 
@@ -82,6 +82,6 @@ function Form({ data, reload }) {
 
 export function Webhooks() {
   const { data, reload } = useApi('/webhooks');
-  if (!data) return <div className="civr-card p-6 lg:col-span-2" data-testid="settings-webhooks-loading"><Spinner /></div>;
+  if (!data) return <SkeletonCard lines={3} className="lg:col-span-2" testid="settings-webhooks-loading" />;
   return <Form key={String(data.webhook.updatedAt)} data={data} reload={reload} />;
 }

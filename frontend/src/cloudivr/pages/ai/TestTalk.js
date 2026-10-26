@@ -14,7 +14,7 @@ function Bubble({ t, i }) {
   const me = t.role === 'caller';
   return (
     <div className={`flex ${me ? 'justify-end' : 'justify-start'} civr-rise`} data-testid={`ai-test-line-${i}`}>
-      <div className={`max-w-[85%] rounded-2xl px-4 py-2 text-sm ${me ? 'bg-[#818cf8]/15 text-[#d1fae5]' : 'bg-[#1a1a1a] text-[#e4e4e7]'}`}>
+      <div className={`max-w-[85%] rounded-2xl px-4 py-2 text-sm ${me ? 'bg-[#818cf8]/15 text-[#e0e7ff]' : 'bg-[#1a1a1a] text-[#e4e4e7]'}`}>
         <div className="text-[10px] font-mono uppercase tracking-wider opacity-60 mb-0.5">{me ? 'You' : 'Agent'}</div>{t.text}
       </div>
     </div>

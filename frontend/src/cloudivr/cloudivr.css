@@ -49,6 +49,9 @@
 .civr .civr-btn-danger:hover:not(:disabled) { background: rgba(251, 113, 133, 0.1); }
 .civr .civr-btn-sm { height: 36px; padding: 0 14px; font-size: 13px; }
 .civr .civr-pill { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 500; line-height: 1.4; font-family: 'DM Sans', sans-serif; border: 1px solid var(--c-border-hover); color: #d4d4d8; transition: background-color .15s ease, border-color .15s ease, color .15s ease; }
+.civr .civr-skel { border-radius: 8px; background: linear-gradient(90deg, #1c1c1c 25%, #262626 50%, #1c1c1c 75%); background-size: 200% 100%; animation: civr-skel 1.4s ease-in-out infinite; }
+@keyframes civr-skel { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+@media (prefers-reduced-motion: reduce) { .civr .civr-skel { animation: none; } }
 .civr .civr-pill-ok { color: #34d399; border-color: rgba(52, 211, 153, 0.4); background: rgba(52, 211, 153, 0.08); }
 .civr .civr-pill-on { color: var(--c-emerald); border-color: rgba(129, 140, 248, 0.4); background: rgba(129, 140, 248, 0.08); }
 .civr .civr-pill-warn { color: var(--c-amber); border-color: rgba(251, 191, 36, 0.4); background: rgba(251, 191, 36, 0.08); }

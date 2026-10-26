@@ -4,11 +4,12 @@ import { History, RotateCcw, CalendarClock, X, BarChart3, Bookmark, Trash2 } fro
 import { api, useApi, when } from '../../api';
 import { usePrivacy } from '../../privacy';
 import { undoable } from '../../undo';
+import { Skel } from '../../ui';
 
-const Box = ({ icon: Icon, title, children, testid }) => (
-  <div className="civr-card p-5" data-testid={testid}>
-    <div className="flex items-center gap-2 font-display text-xl font-bold mb-3"><Icon className="w-4 h-4 text-[#38bdf8]" />{title}</div>
-    {children}
+const Box = ({ icon: Icon, title, children, testid, loading }) => (
+  <div className="civr-card p-6" data-testid={testid} aria-busy={loading || undefined}>
+    <div className="flex items-center gap-2 font-display text-xl font-bold mb-4"><Icon className="w-4 h-4 text-[#818cf8]" />{title}</div>
+    {loading ? <div className="flex flex-col gap-3"><Skel className="h-3.5 w-3/4" /><Skel className="h-3.5 w-1/2" /><Skel className="h-3.5 w-2/3" /></div> : children}
   </div>
 );
 const none = (t) => <div className="text-sm text-[#a1a1aa]">{t}</div>;
@@ -21,9 +22,9 @@ export function RecentCalls({ isBiz, onDone, stamp }) {
   };
   const list = data?.calls || [];
   return (
-    <Box icon={History} title="Recent calls" testid="quick-history">
+    <Box icon={History} title="Recent calls" testid="quick-history" loading={!data}>
       {!list.length ? none('Your Quick IVR calls show up here.') : list.slice(0, 6).map((c, i) => (
-        <div key={c.id} className="flex items-center gap-2 py-2 border-b border-[#1c1c1c] last:border-0" data-testid={`quick-history-row-${i}`}>
+        <div key={c.id} className="flex items-center gap-2 py-2 border-b border-[#1f1f1f] last:border-0" data-testid={`quick-history-row-${i}`}>
           <div className="flex-1 min-w-0">
             <div className="font-mono text-xs truncate">{c.targets.map(t => pv.phone(t)).join(', ')}</div>
             <div className="text-xs text-[#a1a1aa]">{when(c.at)} · {c.mode === 'otp' ? 'Code' : c.hasMenu ? 'Menu' : 'Transfer'}{c.dryRun ? ' · preview' : ''}{c.trial ? ' · free trial' : ''}</div>
@@ -48,7 +49,7 @@ export function ScheduledCalls({ stamp }) {
   return (
     <Box icon={CalendarClock} title="Scheduled" testid="quick-scheduled">
       {list.map((c, i) => (
-        <div key={c.id} className="flex items-center gap-2 py-2 border-b border-[#1c1c1c] last:border-0" data-testid={`quick-scheduled-row-${i}`}>
+        <div key={c.id} className="flex items-center gap-2 py-2 border-b border-[#1f1f1f] last:border-0" data-testid={`quick-scheduled-row-${i}`}>
           <div className="flex-1 min-w-0"><div className="font-mono text-xs">{pv.phone(c.to)}</div><div className="text-xs text-[#a1a1aa]">{when(c.scheduledFor)} · {c.status}</div></div>
           {['pending', 'preview'].includes(c.status) && <button type="button" className="p-2 text-[#a1a1aa] hover:text-[#fb7185]" onClick={() => cancel(c.id)} aria-label="Cancel scheduled call" data-testid={`quick-scheduled-cancel-${i}`}><X className="w-4 h-4" /></button>}
         </div>
@@ -61,11 +62,11 @@ export function MenuStats() {
   const { data } = useApi('/calls/menu-stats');
   const rows = data?.keyBreakdown || [];
   return (
-    <Box icon={BarChart3} title="Key presses · 30 days" testid="quick-menu-stats">
+    <Box icon={BarChart3} title="Key presses · 30 days" testid="quick-menu-stats" loading={!data}>
       {!rows.length ? none('No key presses yet.') : rows.map((k, i) => (
         <div key={i} className="mb-2" data-testid={`quick-menu-stats-row-${i}`}>
           <div className="flex justify-between text-sm"><span>Key {k.digit} · {k.action}</span><span className="font-mono">{k.count} · {k.percent}%</span></div>
-          <div className="h-1.5 bg-[#1c1c1c] rounded-full mt-1"><div className="h-full bg-[#38bdf8] rounded-full" style={{ width: `${k.percent}%` }} /></div>
+          <div className="h-1.5 bg-[#262626] rounded-full mt-1"><div className="h-full bg-[#818cf8] rounded-full" style={{ width: `${k.percent}%` }} /></div>
         </div>
       ))}
     </Box>

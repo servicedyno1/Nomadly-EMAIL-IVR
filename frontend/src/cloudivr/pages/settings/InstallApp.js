@@ -8,8 +8,8 @@ function IosSteps() {
   return (
     <ol className="space-y-2 text-sm" data-testid="install-ios-steps">
       <li className="flex items-center gap-2"><span className="font-mono text-xs text-[#a1a1aa]">1</span>Open CloudIVR in Safari.</li>
-      <li className="flex items-center gap-2"><span className="font-mono text-xs text-[#a1a1aa]">2</span>Tap <Share className="w-4 h-4 text-[#38bdf8]" aria-label="Share" /> Share.</li>
-      <li className="flex items-center gap-2"><span className="font-mono text-xs text-[#a1a1aa]">3</span>Tap <SquarePlus className="w-4 h-4 text-[#38bdf8]" aria-label="Add" /> Add to Home Screen.</li>
+      <li className="flex items-center gap-2"><span className="font-mono text-xs text-[#a1a1aa]">2</span>Tap <Share className="w-4 h-4 text-[#818cf8]" aria-label="Share" /> Share.</li>
+      <li className="flex items-center gap-2"><span className="font-mono text-xs text-[#a1a1aa]">3</span>Tap <SquarePlus className="w-4 h-4 text-[#818cf8]" aria-label="Add" /> Add to Home Screen.</li>
     </ol>
   );
 }

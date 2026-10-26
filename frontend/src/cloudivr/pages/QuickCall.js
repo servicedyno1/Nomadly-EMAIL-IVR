@@ -4,7 +4,7 @@ import { toast } from 'sonner';
 import { PhoneOutgoing, Loader2, Lock } from 'lucide-react';
 import { api, useApi, playUrl } from '../api';
 import { useShell } from '../Shell';
-import { PageHeader, Field, Spinner, Empty, AudioSelect, KeyPicker, Toggle, ErrorNote, BackupsField } from '../ui';
+import { PageHeader, Field, SkeletonPage, Empty, AudioSelect, KeyPicker, Toggle, ErrorNote, BackupsField } from '../ui';
 import { cp } from '../paths';
 import { usePrivacy } from '../privacy';
 import { DateTimePicker } from '../DateTimePicker';
@@ -92,7 +92,7 @@ export default function QuickCall() {
   const [trialShown, setTrialShown] = useState(false);
   const draft = useDraft(f);
   const set = (p) => setF(x => ({ ...x, ...p }));
-  if (loading) return <Spinner />;
+  if (loading) return <SkeletonPage cards={2} rows={0} />;
   const caller = numbers.find(n => n.phoneNumber === f.callerId) || numbers[0];
   const isBiz = caller?.plan === 'business';
   const audios = au?.audios || [];

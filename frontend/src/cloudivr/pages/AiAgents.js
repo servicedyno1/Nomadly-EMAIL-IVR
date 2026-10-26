@@ -2,7 +2,7 @@ import React from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Bot, Plus, ArrowLeft, ChevronRight, Lock } from 'lucide-react';
 import { useApi } from '../api';
-import { PageHeader, Spinner, Empty, ErrorNote, TabStrip } from '../ui';
+import { PageHeader, SkeletonRows, SkeletonPage, Empty, ErrorNote, TabStrip } from '../ui';
 import { cp } from '../paths';
 import { usePrivacy } from '../privacy';
 import { AgentForm, EMPTY_AGENT } from './ai/AgentForm';
@@ -30,11 +30,11 @@ function AgentRows({ agents }) {
   const s = useSearch(agents, a => [a.name, a.businessName, a.voice, LANG_NAME[a.language], ...a.numbers]);
   if (!agents.length) return <Empty icon={Bot} title="No AI agents yet" sub="Create an agent, give it a script and FAQs, then talk to it right here in your browser." testid="ai-agents-empty"><Link to={cp('/app/ai-agents/new')} className="civr-btn civr-btn-primary" data-testid="ai-agents-empty-create-button"><Plus className="w-4 h-4" />Create an agent</Link></Empty>;
   return (
-    <div className="space-y-3">
+    <div className="flex flex-col gap-4">
       <SearchBox s={s} placeholder="Search agents" testid="ai-agents-search" className="max-w-md" />
       <NoMatches s={s} testid="ai-agents-no-matches" />
       {s.list.map((a, i) => (
-        <Link key={a.id} to={cp(`/app/ai-agents/${a.id}`)} className="civr-card civr-card-link p-6 flex items-center gap-4" data-testid={`ai-agent-row-${i}`}>
+        <Link key={a.id} to={cp(`/app/ai-agents/${a.id}`)} className="civr-card civr-card-link p-4 sm:p-6 flex items-center gap-4" data-testid={`ai-agent-row-${i}`}>
           <div className="w-11 h-11 rounded-full bg-[#818cf8]/15 flex items-center justify-center"><Bot className="w-5 h-5 text-[#818cf8]" /></div>
           <div className="flex-1 min-w-0"><div className="font-semibold truncate">{a.name}{a.businessName ? ` · ${a.businessName}` : ''}</div><div className="text-xs text-[#a1a1aa]"><span className="capitalize">{a.voice}</span> · {LANG_NAME[a.language] || a.language} · {a.numbers.length ? `answers ${a.numbers.map(n => pv.phone(n)).join(', ')}` : 'not on a number yet'}</div></div>
           <ChevronRight className="w-4 h-4 text-[#a1a1aa]" />
@@ -47,7 +47,7 @@ function AgentRows({ agents }) {
 export function AiAgents() {
   const [params, setParams] = useSearchParams();
   const tab = params.get('tab') || 'agents';
-  const { data, loading, error } = useApi('/ai-agents');
+  const { data, loading, error, reload } = useApi('/ai-agents');
   return (
     <div data-testid="ai-agents-page">
       <PageHeader label="Calling" title="AI voice agents" sub="An AI that answers your number or calls your leads, in English, French or Spanish — with natural, fast conversation." testid="ai-agents-header">
@@ -57,8 +57,8 @@ export function AiAgents() {
       <TabStrip active={tab} className="mb-6" testid="ai-tabstrip">
         {TABS.map(([id, name]) => <button key={id} role="tab" aria-selected={tab === id} onClick={() => setParams({ tab: id }, { replace: true })} data-testid={`ai-tab-${id}`} className={`px-4 py-3 text-sm font-medium border-b-2 -mb-px transition-colors shrink-0 ${tab === id ? 'border-[#818cf8] text-[#818cf8]' : 'border-transparent text-[#a1a1aa] hover:text-white'}`}>{name}</button>)}
       </TabStrip>
-      <ErrorNote error={error} />
-      {tab === 'calls' ? <AiCalls /> : tab === 'dnc' ? <DncList /> : loading && !data ? <Spinner /> : <AgentRows agents={data?.agents || []} />}
+      <ErrorNote error={error} onRetry={reload} className="mb-4" />
+      {tab === 'calls' ? <AiCalls /> : tab === 'dnc' ? <DncList /> : loading && !data ? <SkeletonRows rows={3} /> : <AgentRows agents={data?.agents || []} />}
     </div>
   );
 }
@@ -75,7 +75,7 @@ export function AiAgentEdit() {
       <Link to={cp('/app/ai-agents')} className="inline-flex items-center gap-2 min-h-[44px] text-sm text-[#a1a1aa] hover:text-[#818cf8] mb-3" data-testid="ai-agent-back-link"><ArrowLeft className="w-4 h-4" />All agents</Link>
       <PageHeader label="AI agent" title={isNew ? 'New agent' : agent?.name || 'Agent'} testid="ai-agent-edit-header" />
       <ErrorNote error={error} />
-      {!isNew && loading && !agent ? <Spinner /> : agent && (
+      {!isNew && loading && !agent ? <SkeletonPage header={false} cards={2} rows={0} /> : agent && (
         <div className="grid lg:grid-cols-5 gap-4 items-start">
           <div className="lg:col-span-3"><AgentForm key={agent.id || 'new'} initial={agent} voices={list?.voices} recordRate={list?.recordRate} recordingDays={list?.recordingDays} onSaved={(a) => (isNew ? nav(cp(`/app/ai-agents/${a.id}`), { replace: true }) : setData({ agent: a }))} onDeleted={() => nav(cp('/app/ai-agents'))} /></div>
           <div className="lg:col-span-2 space-y-4">{isNew ? <div className="civr-card p-6 text-sm text-[#a1a1aa]" data-testid="ai-agent-save-first-note">Save the agent, then talk to it here in your browser before it takes real calls.</div> : <><TestTalk agent={agent} /><AiCalls agentId={agent.id} /></>}</div>

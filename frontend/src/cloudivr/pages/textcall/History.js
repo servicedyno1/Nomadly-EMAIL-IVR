@@ -6,7 +6,7 @@ import { usePrivacy } from '../../privacy';
 import { undoable } from '../../undo';
 import { Transcript } from './Transcript';
 
-const OUTCOME = { completed: ['Completed', 'civr-pill-on'], no_answer: ['No answer', 'civr-pill-warn'], busy: ['Busy', 'civr-pill-warn'], cancelled: ['Cancelled', ''], out_of_funds: ['Balance ran out', 'civr-pill-bad'], ended: ['Ended', ''] };
+const OUTCOME = { completed: ['Completed', 'civr-pill-ok'], no_answer: ['No answer', 'civr-pill-warn'], busy: ['Busy', 'civr-pill-warn'], cancelled: ['Cancelled', ''], out_of_funds: ['Balance ran out', 'civr-pill-bad'], ended: ['Ended', ''] };
 
 function Row({ c, onDelete, onOpenLive }) {
   const pv = usePrivacy();
@@ -47,7 +47,7 @@ export function History({ onOpenLive }) {
   return (
     <section className="civr-card p-6 mt-6" data-testid="relay-history">
       <div className="flex items-baseline justify-between"><div className="font-display text-2xl font-bold">Recent text calls</div><div className="text-xs text-[#a1a1aa]">Kept 90 days</div></div>
-      <ul className="divide-y divide-white/10 mt-2">{data.calls.map(c => <Row key={c.id} c={c} onDelete={remove} onOpenLive={onOpenLive} />)}</ul>
+      <ul className="divide-y divide-[#1f1f1f] mt-2">{data.calls.map(c => <Row key={c.id} c={c} onDelete={remove} onOpenLive={onOpenLive} />)}</ul>
     </section>
   );
 }

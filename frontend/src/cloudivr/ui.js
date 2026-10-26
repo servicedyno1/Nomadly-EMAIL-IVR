@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Loader2, Lock } from 'lucide-react';
+import { Loader2, Lock, RotateCcw } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { cp } from './paths';
 import { useLang } from './i18n';
@@ -81,21 +81,65 @@ export function Field({ label, hint, children }) {
 }
 
 export function Spinner({ label = 'Loading…', testid = 'loading-indicator' }) {
-  return <div className="flex items-center gap-2 text-sm text-[#a1a1aa] py-10" data-testid={testid}><Loader2 className="w-4 h-4 animate-spin" />{label}</div>;
+  return <div className="flex items-center gap-2 text-sm text-[#a1a1aa] py-10" aria-busy="true" data-testid={testid}><Loader2 className="w-4 h-4 animate-spin" />{label}</div>;
 }
 
-export function ErrorNote({ error, testid = 'error-message' }) {
+// `onRetry` adds a "Try again" button (pass the page's reload).
+export function ErrorNote({ error, testid = 'error-message', onRetry, className = '' }) {
   if (!error) return null;
-  return <div className="text-sm text-[#fb7185] border border-[#fb7185]/30 bg-[#fb7185]/5 rounded-xl px-4 py-3" data-testid={testid}>{error.message || String(error)}</div>;
+  return (
+    <div className={`flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-[#fb7185] border border-[#fb7185]/30 bg-[#fb7185]/5 rounded-xl px-4 py-3 ${className}`} role="alert" data-testid={testid}>
+      <span className="flex-1 min-w-0">{error.message || String(error)}</span>
+      {onRetry && <button type="button" onClick={onRetry} className="civr-btn civr-btn-ghost civr-btn-sm" data-testid={`${testid}-retry-button`}><RotateCcw className="w-4 h-4" />Try again</button>}
+    </div>
+  );
 }
 
-export function Empty({ icon: Icon, title, sub, children, testid }) {
+// Empty state: short line + next-step button(s) as children. `bare` drops the card (for use inside another card).
+export function Empty({ icon: Icon, title, sub, children, testid, bare = false }) {
   return (
-    <div className="civr-card p-10 text-center" data-testid={testid}>
-      {Icon && <Icon className="w-8 h-8 mx-auto text-[#a1a1aa] mb-4" />}
-      <div className="font-display text-2xl font-bold">{title}</div>
+    <div className={`${bare ? 'py-10' : 'civr-card p-10'} text-center civr-rise`} data-testid={testid}>
+      {Icon && <span className="w-12 h-12 mx-auto mb-4 rounded-2xl bg-[#818cf8]/10 text-[#818cf8] flex items-center justify-center"><Icon className="w-6 h-6" /></span>}
+      <div className={`font-display font-bold ${bare ? 'text-xl' : 'text-2xl'}`}>{title}</div>
       {sub && <p className="text-sm text-[#a1a1aa] mt-2 max-w-md mx-auto">{sub}</p>}
-      {children && <div className="mt-6 flex justify-center gap-2">{children}</div>}
+      {children && <div className="mt-6 flex flex-wrap justify-center gap-2">{children}</div>}
+    </div>
+  );
+}
+
+// Grey placeholder shapes while a list or page loads (keeps testid "loading-indicator" like Spinner).
+export const Skel = ({ className = '' }) => <span className={`civr-skel block ${className}`} />;
+
+export function SkeletonRows({ rows = 4, card = true, testid = 'loading-indicator' }) {
+  return (
+    <div className={card ? 'civr-card p-6' : ''} aria-busy="true" aria-label="Loading" data-testid={testid}>
+      <div className="flex flex-col gap-6">{Array.from({ length: rows }, (_, i) => (
+        <div key={i} className="flex items-center gap-4">
+          <Skel className="w-10 h-10 rounded-xl shrink-0" />
+          <div className="flex-1 flex flex-col gap-2"><Skel className="h-3.5 w-2/5" /><Skel className="h-3 w-1/4" /></div>
+          <Skel className="h-6 w-16 rounded-full hidden sm:block" />
+        </div>
+      ))}</div>
+    </div>
+  );
+}
+
+export function SkeletonCard({ lines = 3, className = '', testid = 'loading-indicator' }) {
+  return (
+    <div className={`civr-card p-6 flex flex-col gap-4 ${className}`} aria-busy="true" aria-label="Loading" data-testid={testid}>
+      <Skel className="h-6 w-40" />
+      {Array.from({ length: lines }, (_, i) => <Skel key={i} className={`h-3.5 ${['w-full', 'w-5/6', 'w-2/3', 'w-1/2'][i % 4]}`} />)}
+    </div>
+  );
+}
+
+// Full-page placeholder: header, a row of cards, then a list.
+export function SkeletonPage({ cards = 3, rows = 3, header = true, testid = 'loading-indicator' }) {
+  return (
+    <div aria-busy="true" aria-label="Loading" data-testid={testid}>
+      {header && <div className="mb-8 space-y-3"><Skel className="h-3 w-24" /><Skel className="h-10 w-72 max-w-full" /><Skel className="h-4 w-[28rem] max-w-full" /></div>}
+      {cards > 0 && <div className="grid lg:grid-cols-3 gap-4 mb-4">{Array.from({ length: cards }, (_, i) => <SkeletonCard key={i} lines={2} testid={`skeleton-card-${i}`} />)}</div>}
+      {rows > 0 && <SkeletonRows rows={rows} testid="skeleton-rows" />}
     </div>
   );
 }

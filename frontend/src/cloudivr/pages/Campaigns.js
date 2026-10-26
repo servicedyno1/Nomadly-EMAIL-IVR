@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Megaphone, Plus, Loader2, Calculator, FileUp, ChevronRight } from 'lucide-react';
 import { api, useApi, when, money } from '../api';
-import { PageHeader, Field, Spinner, Empty, AudioSelect, KeyPicker, Toggle, ErrorNote, statusPill, BackupsField } from '../ui';
+import { PageHeader, Field, SkeletonRows, SkeletonPage, Empty, AudioSelect, KeyPicker, Toggle, ErrorNote, statusPill, BackupsField } from '../ui';
 import { useCallerNumbers } from './QuickCall';
 import { DateTimePicker } from '../DateTimePicker';
 import { cp } from '../paths';
@@ -15,7 +15,7 @@ import { useSearch, SearchBox, NoMatches } from '../search';
 import { useUnsaved, UnsavedPill } from '../guard';
 
 export function Campaigns() {
-  const { data, loading, error } = useApi('/campaigns');
+  const { data, loading, error, reload } = useApi('/campaigns');
   const pv = usePrivacy();
   const list = data?.campaigns || [];
   const s = useSearch(list, c => [c.audioName || 'Campaign', c.callerId, c.status, c.mode === 'ai' ? 'AI voice agent' : '']);
@@ -24,13 +24,17 @@ export function Campaigns() {
       <PageHeader label="Outbound" title="Bulk IVR campaigns" sub="Call a list of numbers, play your message, report key presses or transfer interested callers to you." testid="campaigns-header">
         <Link to={cp('/app/campaigns/new')} className="civr-btn civr-btn-primary" data-testid="campaigns-new-button"><Plus className="w-4 h-4" />New campaign</Link>
       </PageHeader>
-      <ErrorNote error={error} />
-      {loading && !data ? <Spinner /> : !list.length ? <Empty icon={Megaphone} title="No campaigns yet" sub="Paste your numbers, pick a message and go." testid="campaigns-empty" /> : (
-        <div className="space-y-3">
+      <ErrorNote error={error} onRetry={reload} className="mb-4" />
+      {loading && !data ? <SkeletonRows rows={3} /> : !list.length ? (
+        <Empty icon={Megaphone} title="No campaigns yet" sub="Paste your numbers, pick a message and go. You see every answer and key press live." testid="campaigns-empty">
+          <Link to={cp('/app/campaigns/new')} className="civr-btn civr-btn-primary" data-testid="campaigns-empty-create-button"><Plus className="w-4 h-4" />Create your first campaign</Link>
+        </Empty>
+      ) : (
+        <div className="flex flex-col gap-4">
           <SearchBox s={s} placeholder="Search campaigns" testid="campaigns-search" className="max-w-md" />
           <NoMatches s={s} testid="campaigns-no-matches" />
           {s.list.map((c, i) => (
-            <Link key={c.id} to={cp(`/app/campaigns/${c.id}`)} className="civr-card civr-card-link p-6 flex flex-col md:flex-row md:items-center gap-3" data-testid={`campaign-row-${i}`}>
+            <Link key={c.id} to={cp(`/app/campaigns/${c.id}`)} className="civr-card civr-card-link p-4 sm:p-6 flex flex-col md:flex-row md:items-center gap-3" data-testid={`campaign-row-${i}`}>
               <div className="flex-1 min-w-0"><div className="font-semibold truncate">{c.audioName || 'Campaign'}</div><div className="text-xs text-[#a1a1aa] font-mono">{pv.phone(c.callerId)} · {when(c.createdAt)}</div></div>
               <div className="font-mono text-sm text-[#d4d4d8]">{c.stats?.completed || 0}/{c.stats?.total || 0} called</div>
               <span className={statusPill(c.status)} data-testid={`campaign-row-${i}-status`}>{c.status}</span>
@@ -80,7 +84,7 @@ export function CampaignNew() {
   const [error, setError] = useState(null);
   const u = useUnsaved({ f, kind, script });
   const set = (k) => (v) => setF({ ...f, [k]: v?.target ? v.target.value : v });
-  if (loading) return <Spinner />;
+  if (loading) return <SkeletonPage cards={2} rows={0} />;
   if (!numbers.length) return (
     <div data-testid="campaign-new-page">
       <PageHeader label="Campaigns" title="New campaign" testid="campaign-new-header" />
@@ -115,7 +119,7 @@ export function CampaignNew() {
           <Field label="Caller ID"><select className="civr-input font-mono" value={callerId} onChange={set('callerId')} data-testid="campaign-caller-select">{numbers.map(n => <option key={n.phoneNumber}>{n.phoneNumber}</option>)}</select></Field>
           {isAi ? <AiCampaignFields agentId={f.agentId} onChange={set('agentId')} /> : <>
           <Field label="Message"><AudioSelect value={f.audioId} onChange={set('audioId')} audios={au?.audios} by="id" testid="campaign-audio-select" /></Field>
-          {script ? <div className="border border-[#222] rounded-xl p-4"><ScriptBox value={script} onChange={setScript} onAudio={(a) => { reloadAudio(); setF(x => ({ ...x, audioId: a.id })); setScript(null); }} testid="campaign-script" /></div>
+          {script ? <div className="border border-[#262626] rounded-xl p-4"><ScriptBox value={script} onChange={setScript} onAudio={(a) => { reloadAudio(); setF(x => ({ ...x, audioId: a.id })); setScript(null); }} testid="campaign-script" /></div>
             : <button type="button" className="civr-btn civr-btn-ghost civr-btn-sm" onClick={() => setScript({ text: '', values: {} })} data-testid="campaign-write-script-button">Write a script with a template instead</button>}
           <Field label="Voicemail drop (optional)" hint="Played when an answering machine picks up."><AudioSelect value={f.voicemailAudioId} onChange={set('voicemailAudioId')} audios={au?.audios} by="id" placeholder="None" testid="campaign-voicemail-audio-select" /></Field>
           </>}

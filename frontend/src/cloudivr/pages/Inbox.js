@@ -5,7 +5,7 @@ import { Inbox as InboxIcon, CheckCheck, MessageSquare, Voicemail, Wallet, Megap
 import { cp } from '../paths';
 import { api, useApi, when, playUrl } from '../api';
 import { useShell } from '../Shell';
-import { PageHeader, Spinner, Empty, ErrorNote } from '../ui';
+import { PageHeader, SkeletonRows, Empty, ErrorNote } from '../ui';
 import { usePrivacy } from '../privacy';
 import { MissedCalls } from '../MissedCalls';
 import { RING_ENDED } from '../Incoming';
@@ -55,9 +55,17 @@ export default function Inbox() {
         <div className="flex flex-wrap gap-2">{KINDS.map(([k, l]) => <FilterPill key={k || 'all'} k={k} label={l} on={kind === k} count={unreadOf(k)} onPick={setKind} />)}</div>
       </div>
       {(kind === '' || kind === 'call') && <MissedCalls />}
-      <ErrorNote error={error} />
-      {loading && !data ? <Spinner /> : !items.length ? <Empty icon={InboxIcon} title="Nothing here yet" sub="When someone texts or calls your numbers, it shows up here." testid="inbox-empty" /> : (
-        <div className="space-y-2">
+      <ErrorNote error={error} onRetry={reload} className="mb-4" />
+      {loading && !data ? <SkeletonRows rows={5} /> : !items.length ? (kind ? (
+        <Empty icon={ICON[kind] || InboxIcon} title={`No ${NAME[kind].toLowerCase()} updates yet`} sub="Nothing of this kind has arrived. Everything else is still in All." testid="inbox-empty">
+          <button type="button" className="civr-btn civr-btn-ghost" onClick={() => setKind('')} data-testid="inbox-empty-show-all-button">Show everything</button>
+        </Empty>
+      ) : (
+        <Empty icon={InboxIcon} title="Nothing here yet" sub="When someone texts or calls your numbers, it shows up here. Call one of your numbers to see it work." testid="inbox-empty">
+          <Link to={cp('/app/numbers')} className="civr-btn civr-btn-primary" data-testid="inbox-empty-numbers-link">Open my numbers</Link>
+        </Empty>
+      )) : (
+        <div className="flex flex-col gap-2">
           <NoMatches s={s} testid="inbox-no-matches" />
           {s.list.map((n, i) => {
             const Icon = ICON[n.kind] || Info;

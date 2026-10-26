@@ -4,12 +4,13 @@ import { toast } from 'sonner';
 import { Gift, Copy, Lightbulb, Loader2, Inbox as InboxIcon } from 'lucide-react';
 import { api, useApi, money, day } from '../../api';
 import { cp } from '../../paths';
+import { SkeletonCard } from '../../ui';
 
 const copy = (v) => navigator.clipboard?.writeText(v).then(() => toast.success('Link copied'));
 
 export function Referral() {
   const { data } = useApi('/referrals');
-  if (!data) return null;
+  if (!data) return <SkeletonCard lines={3} testid="settings-referral-loading" />;
   const link = `${window.location.origin}${cp('/signup')}?ref=${data.code}`;
   return (
     <div className="civr-card p-6 space-y-4" data-testid="settings-referral-card">

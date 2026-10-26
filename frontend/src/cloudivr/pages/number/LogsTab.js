@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Sparkles } from 'lucide-react';
 import { enc, useApi } from '../../api';
-import { Toggle } from '../../ui';
+import { Toggle, SkeletonRows } from '../../ui';
 import { useShell } from '../../Shell';
 import { useSave } from './SettingsTabs';
 import { LogTable, labelOf } from '../../LogTable';
@@ -18,9 +19,9 @@ function AiSummaryBar({ num, reload }) {
   const rate = Number(catalog?.rates?.aiSummaryPerMin ?? 0.1).toFixed(2);
   if (!num.access?.aiSummary) return <div className="text-xs text-[#a1a1aa] mb-4" data-testid="ai-summary-locked">AI summaries and caller mood for voicemails and recorded calls are on the Pro plan and up.</div>;
   return (
-    <div className="flex items-start justify-between gap-4 rounded-xl border border-[#a78bfa]/25 bg-[#a78bfa]/5 p-4 mb-4" data-testid="ai-summary-bar">
+    <div className="flex items-start justify-between gap-4 rounded-xl border border-[#818cf8]/25 bg-[#818cf8]/5 p-4 mb-4" data-testid="ai-summary-bar">
       <div>
-        <div className="text-sm font-medium flex items-center gap-2"><Sparkles className="w-4 h-4 text-[#a78bfa]" />AI summaries & caller mood</div>
+        <div className="text-sm font-medium flex items-center gap-2"><Sparkles className="w-4 h-4 text-[#818cf8]" />AI summaries & caller mood</div>
         <div className="text-xs text-[#a1a1aa] mt-1">{`Summarise new voicemails and recorded calls automatically — $${rate}/min from your wallet (per started minute). Or tap Summarize on any one below.`}</div>
       </div>
       <Toggle checked={!!num.features.aiSummary?.enabled} disabled={busy} onChange={v => save({ enabled: v }, 'PATCH', v ? 'Auto summaries on' : 'Auto summaries off')} testid="ai-summary-auto-toggle" />
@@ -30,6 +31,7 @@ function AiSummaryBar({ num, reload }) {
 
 export default function LogsTab({ num, reload: reloadNum }) {
   const [kind, setKind] = useState('all');
+  const [, setParams] = useSearchParams();
   const { data, loading, reload } = useApi(`/numbers/${enc(num.phoneNumber)}/logs?kind=${kind}`);
   const pv = usePrivacy();
   // Private mode: search only what is on screen (masked numbers, no texts/transcripts/summaries/notes) so a match can't reveal hidden words.
@@ -48,9 +50,13 @@ export default function LogsTab({ num, reload: reloadNum }) {
         </div>
         <SearchBox s={s} placeholder="Search this log" testid="logs-search" className="lg:w-72" />
       </div>
-      {loading && !data ? <div className="text-sm text-[#a1a1aa] py-6">Loading…</div>
+      {loading && !data ? <SkeletonRows rows={4} card={false} />
         : s.active && !s.list.length ? <NoMatches s={s} testid="logs-no-matches" />
-          : <LogTable logs={s.list} testid="number-logs" notePhone={num.phoneNumber} onNotesChange={reload} resetKey={`${kind}|${s.q}`} summarize={!!num.access?.aiSummary} />}
+          : <LogTable logs={s.list} testid="number-logs" notePhone={num.phoneNumber} onNotesChange={reload} resetKey={`${kind}|${s.q}`} summarize={!!num.access?.aiSummary}
+            emptyTitle={kind === 'all' ? 'No activity yet' : `No ${KINDS.find(k => k[0] === kind)[1].toLowerCase()} yet`}
+            emptyAction={kind === 'all'
+              ? <button type="button" className="civr-btn civr-btn-ghost civr-btn-sm" onClick={() => setParams({ tab: 'overview' }, { replace: true })} data-testid="number-logs-empty-test-button">Test my number</button>
+              : <button type="button" className="civr-btn civr-btn-ghost civr-btn-sm" onClick={() => setKind('all')} data-testid="number-logs-empty-show-all-button">Show all activity</button>} />}
     </div>
   );
 }
