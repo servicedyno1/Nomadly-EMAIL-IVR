@@ -265,3 +265,21 @@ The new layout differs from the old in-place `/opt/nomadly/app-main` checkout. O
 - TELNYX_PUBLIC_KEY in ALL brand envs (app-main, app-wl, app-voodoo, app-proshop); backups backend.env.bak.telnyxsig.<ts>.
 - Workspace deploy 291899e → app-main-b :5100 (voicemail single greeting + beep, Inbox badges). ⚠️ Save to GitHub again for brands.
 
+
+## 2026-10-26 23:44–23:46Z — Audio player fix LIVE (workspace tarball deploy, app-main)
+- Owner: "push code to server for main branch using ssh credentials in .env". Droplet key from backend/.env DROPLET_SSH_KEY_B64 →
+  /root/.ssh/nomadly_droplet. Live before = 20261026T225919Z-5b0cd14 (GitHub main, = workspace base). Delta = js/_index.js
+  (/api/assets → /assets rewrite) + frontend/src/cloudivr/api.js (playUrl ?v=2) only; package.json unchanged.
+- `bash scripts/deploy_workspace_to_droplet.sh app-main` → release 20261026T234433Z-cd345a7 on app-main-a :5000 (frontend rebuilt,
+  health OK, 0 live calls at flip, app-main-b stopped). Rollback: `bash /opt/nomadly/deploy.sh app-main rollback`.
+- Verified live: cloudivr.net + 2.speechcue.com /api/assets/brand/nomadly/logo.png → image/png (was text/html); missing audio →
+  404 text/plain; bundle main.596e9f67.js has playUrl ?v=2; iammills404 (webChatId 5000000000000007) 4 clips → 200 audio/mpeg ~50.6 s
+  (restored from ivrAudioStore on first GET). Clean boot, TelnyxSig enforced.
+- ⚠️ Not on GitHub yet → owner must "Save to GitHub" (main) or the next CI deploy rolls this back.
+- 🔴 FOUND (read-only, NOT fixed yet): bulk voicemail drop has NEVER worked in prod — 8 voicemail-drop campaigns (3 users, 749 leads,
+  ~374 answered) → 0 voicemails left; 0 call.machine.* webhooks for calls dialed with answering_machine_detection=detect_beep
+  (voice-service.js ~5087), while 'detect' calls get call.machine.detection.ended (71 in active log). Flow needs detection.ended=machine
+  → startVoicemailWait → greeting.ended/20 s fallback → playVoicemailDrop. Result: machine-answered calls just play the IVR prompt
+  until the 60 s cap (24 cap hang-ups on iammills404's running campaign cf4effbb "GWP"; 61 s calls billed as 2 min).
+  Proposed: AMD 'greeting_end' (or 'detect') + accept greeting.ended without a prior detection event + don't let the cap cut a
+  playing clip; verify with ONE real call to the owner's phone before deploying.

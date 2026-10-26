@@ -1,4 +1,5 @@
-## 2026-10-26 (late) — BUG: CloudIVR web audio players dead on cloudivr.net (0:00 / 0:00) — FIXED + TESTED on preview, NOT deployed
+## 2026-10-26 (late) — BUG: CloudIVR web audio players dead on cloudivr.net (0:00 / 0:00) — FIXED, TESTED, DEPLOYED 23:46Z (release 20261026T234433Z-cd345a7)
+- 🔴 Found after deploy (NOT fixed): bulk voicemail drop never fires in prod (0 of 749 leads; detect_beep calls get no call.machine.* webhooks) — see DEPLOYMENT_STATE.md
 - Report: web user iammills404@gmail.com uploaded a 50 s voicemail clip 3× ("B", "vm.mpeg", "vm"); Audio library players
   showed 0:00 / 0:00 with a greyed play button.
 - RCA: playUrl() → /api/assets/user-audio/<file>. Droplet nginx passes /api through; Node's generic /api strip runs after the
