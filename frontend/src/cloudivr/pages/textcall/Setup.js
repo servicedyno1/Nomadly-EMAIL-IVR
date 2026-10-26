@@ -9,10 +9,11 @@ import { useCallerNumbers } from '../QuickCall';
 import { useShell } from '../../Shell';
 import { planFor } from '../../PlanFeatures';
 import { LockedNote } from '../../Upgrade';
+import { recall, remember } from '../../consent';
 
 const LANGS = [['en', 'English'], ['es', 'Español'], ['fr', 'Français']];
 const PREFS = 'civr.relayPrefs';
-const load = () => { try { return JSON.parse(localStorage.getItem(PREFS) || '{}'); } catch (_) { return {}; } };
+const load = () => { try { return JSON.parse(recall(PREFS) || '{}'); } catch (_) { return {}; } };
 
 function Choice({ value, options, onChange, testid }) {
   return (
@@ -42,7 +43,7 @@ export function Setup({ info, onStarted }) {
     try {
       const { to, ...prefs } = f;
       const d = await api('/relay/calls', { method: 'POST', body: { ...f, callerId } });
-      localStorage.setItem(PREFS, JSON.stringify({ ...prefs, callerId }));
+      remember('preferences', PREFS, JSON.stringify({ ...prefs, callerId }));
       toast.success('Calling…');
       onStarted(d.call.id);
     } catch (x) { setErr(x); } finally { setBusy(false); }

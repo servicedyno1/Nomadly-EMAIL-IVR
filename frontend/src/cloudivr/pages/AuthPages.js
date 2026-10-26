@@ -8,6 +8,7 @@ import { api } from '../api';
 import { useCivrAuth } from '../AuthContext';
 import { Field, ErrorNote } from '../ui';
 import { cp } from '../paths';
+import { forget } from '../consent';
 import { BRAND, Wordmark } from '../Brand';
 import { TwoFactorStep, RememberBox, useRefCode } from './auth/TwoFactorStep';
 
@@ -113,7 +114,7 @@ export function AuthPage({ mode }) {
   const [mfa, setMfa] = useState(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
-  const done = (d) => { if (signup) { try { localStorage.removeItem('civr.ref'); } catch (_) { /* private mode */ } } setAccount(d.account); nav(dest); };
+  const done = (d) => { if (signup) forget('civr.ref'); setAccount(d.account); nav(dest); };
   const submit = async (e) => {
     e.preventDefault(); setBusy(true); setError(null);
     try {

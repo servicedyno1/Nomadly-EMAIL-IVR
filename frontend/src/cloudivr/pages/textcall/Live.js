@@ -5,6 +5,7 @@ import { api, money, secs } from '../../api';
 import { Spinner } from '../../ui';
 import { Transcript, TEXT_SIZES } from './Transcript';
 import { Composer } from './Composer';
+import { recall, remember } from '../../consent';
 
 const SIZE_KEY = 'civr_relay_text_size';
 const OUTCOME = { completed: 'Call ended', no_answer: 'No answer', busy: 'The line was busy', cancelled: 'Call cancelled', out_of_funds: 'Ended — balance ran out', ended: 'Call ended' };
@@ -84,12 +85,12 @@ export function LiveCall({ id, onClose }) {
   const [call, setCall] = useRelayCall(id);
   const flash = useFlash(call);
   const card = useRef(null);
-  const [size, setSize] = useState(() => Number(localStorage.getItem(SIZE_KEY) ?? 1));
+  const [size, setSize] = useState(() => Number(recall(SIZE_KEY) ?? 1));
   const [ending, setEnding] = useState(false);
   const live = call?.status === 'live';
   // When they answer, fit the whole call screen (conversation + typing box) in view.
   useEffect(() => { if (live) card.current?.scrollIntoView({ block: 'start', behavior: 'smooth' }); }, [live]);
-  const resize = (d) => setSize(s => { const n = Math.min(TEXT_SIZES - 1, Math.max(0, s + d)); localStorage.setItem(SIZE_KEY, String(n)); return n; });
+  const resize = (d) => setSize(s => { const n = Math.min(TEXT_SIZES - 1, Math.max(0, s + d)); remember('preferences', SIZE_KEY, String(n)); return n; });
   const hang = async () => { setEnding(true); try { const d = await api(`/relay/calls/${id}/hangup`, { method: 'POST', body: {} }); setCall(d.call); } catch (err) { toast.error(err.message); } finally { setEnding(false); } };
   if (!call) return <div className="civr-card p-6"><Spinner label="Connecting…" /></div>;
   const ended = call.status === 'ended';

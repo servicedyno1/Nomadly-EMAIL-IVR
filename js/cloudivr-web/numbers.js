@@ -23,14 +23,14 @@ const normPhone = (p) => { const d = String(p || '').replace(/[^\d+]/g, ''); ret
 // Numbers typed to dial (forward-to, backups, IVR forward keys): the bot's auto-correct (10-digit US → +1).
 const dialNorm = require('../backup-numbers').norm
 const bad = (res, status, error, message) => res.status(status).json({ error, message })
-// Up to 4 backup numbers rung in order when the main one is busy or doesn't answer → { list } | { error }.
-function parseBackups(raw, exclude = []) {
+// Up to `max` backup numbers rung in order when the main one is busy or doesn't answer → { list } | { error }.
+function parseBackups(raw, exclude = [], max = 4) {
   const tokens = (Array.isArray(raw) ? raw : String(raw || '').split(/[,;\n]+|\s+(?=\+)/)).map(t => String(t || '').trim()).filter(Boolean)
   const junk = tokens.find(t => !/^\+?[\d\s().-]+$/.test(t))
   if (junk) return { error: `Backup "${junk.slice(0, 20)}" is not a phone number. Use the country code, e.g. +14155550100.` }
   const items = tokens.map(dialNorm).filter(Boolean)
   const list = [...new Set(items)].filter(n => !exclude.includes(n))
-  if (list.length > 4) return { error: 'Add up to 4 backup numbers.' }
+  if (list.length > max) return { error: `Add up to ${max} backup numbers.` }
   for (const n of list) {
     if (!E164.test(n)) return { error: `Backup ${n}: use the country code, e.g. +14155550100.` }
     if (phoneConfig.isBlockedPrefix(n)) return { error: `Backup ${n} is a blocked premium/satellite destination.` }
@@ -491,7 +491,8 @@ function routes(router, deps) {
   const SWITCHES = {
     callForwarding: { gate: ['callForwarding', 'Call forwarding'], need: (f) => (E164.test(String(f.callForwarding?.forwardTo || '')) ? null : 'Set a forward-to number in the Forwarding tab first.') },
     ivr: { gate: ['ivr', 'The keypad menu'], need: (f) => (Object.keys(f.ivr?.options || {}).length ? null : 'Add at least one menu key in the Keypad menu tab first.') },
-    hours: { need: (f) => (numberHours.DAYS.some(d => f.hours?.days?.[d]?.on) ? null : 'Turn on at least one day in the Hours tab first.') },
+    // Never-saved hours = the default Mon–Fri 09:00–17:00 the Hours tab shows.
+    hours: { need: (f) => (numberHours.DAYS.some(d => (f.hours || numberHours.defaultHours()).days?.[d]?.on) ? null : 'Turn on at least one day in the Hours tab first.') },
     voicemail: { gate: ['voicemail', 'Voicemail'] },
     transcribe: { gate: ['voicemail', 'Voicemail'] },
     recording: { gate: ['callRecording', 'Call recording'] },
@@ -530,11 +531,15 @@ function routes(router, deps) {
     res.json({ feature, enabled, ...extra, number: publicNumber(all.find(x => x.phoneNumber === phone) || req.num, all) })
   }))
 
-  // On/off hours (every plan). Outside the hours the number doesn't ring or forward.
+  // On/off hours (every plan). Outside the hours the number doesn't ring: voicemail, a closed message or up to 5 backup numbers.
   router.put('/numbers/:phone/hours', withNumber(async (req, res) => {
     let value
     try { value = numberHours.validateHours(req.body) } catch (e) { return bad(res, 400, 'invalid_hours', e.message) }
     if (value.offAction === 'voicemail' && !phoneConfig.canAccessFeature(req.num.plan, 'voicemail')) value.offAction = 'message'
+    const bk = parseBackups(req.body.offForward, [req.num.phoneNumber], 5)
+    if (bk.error) return bad(res, 400, 'invalid_backup', bk.error)
+    if (value.offAction === 'forward' && !bk.list.length) return bad(res, 400, 'no_backup', 'Add at least one backup number to forward to.')
+    value.offForward = bk.list
     await setField(req.webChatId, req.num.phoneNumber, 'features.hours', value)
     res.json({ hours: value, openNow: numberHours.isOpen(value) })
   }))

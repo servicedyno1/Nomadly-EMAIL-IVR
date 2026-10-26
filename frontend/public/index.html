@@ -139,6 +139,17 @@
                     }),
                     (e.__SV = 1));
             })(document, window.posthog || []);
+            // CloudIVR pages: no analytics cookies, capture or session replay until the visitor allows "Statistics"
+            // in the cookie banner (src/cloudivr/consent.js, key civr.consent).
+            var civrNoStats = (function () {
+                try {
+                    var host = location.hostname.toLowerCase().replace(/^www\./, "");
+                    var doms = ("cloudivr.net,%REACT_APP_CLOUDIVR_DOMAINS%").toLowerCase().split(",").map(function (d) { return d.trim().replace(/^https?:\/\//, "").replace(/\/.*$/, "").replace(/^www\./, ""); });
+                    if (location.pathname.indexOf("/cloudivr") !== 0 && doms.indexOf(host) === -1) return false;
+                    var c = JSON.parse(localStorage.getItem("civr.consent") || "null");
+                    return !(c && c.statistics);
+                } catch (e) { return true; }
+            })();
             posthog.init("phc_xAvL2Iq4tFmANRE7kzbKwaSqp1HJjN7x48s3vr0CMjs", {
                 api_host: "https://us.i.posthog.com",
                 person_profiles: "identified_only", // or 'always' to create profiles for anonymous users as well,
@@ -146,6 +157,9 @@
                     recordCrossOriginIframes: true,
                     capturePerformance: false,
                 },
+                opt_out_capturing_by_default: civrNoStats,
+                persistence: civrNoStats ? "memory" : "localStorage+cookie",
+                disable_session_recording: civrNoStats,
             });
         </script>
     </body>

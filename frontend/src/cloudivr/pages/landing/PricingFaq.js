@@ -8,6 +8,7 @@ import { Wordmark } from '../../Brand';
 import { SectionHead, Slide, coinList, andList, Reveal } from './kit';
 import { PlanFeatures, RecommendedBadge } from '../../PlanFeatures';
 import { PaymentMethods } from './Payments';
+import { openCookieSettings } from '../../consent';
 
 const useStart = () => { const { account } = useCivrAuth(); return (plan) => (account ? cp(`/app/buy${plan ? `?plan=${plan}` : ''}`) : cp(`/signup${plan ? `?plan=${plan}` : ''}`)); };
 
@@ -120,6 +121,7 @@ export function Footer({ catalog }) {
         <nav className="flex flex-wrap items-center gap-x-6">
           {links.map(([href, label, id]) => <a key={id} href={`${cp()}${href}`} className={link} data-testid={`footer-link-${id}`}>{label}</a>)}
           <Link to={cp('/terms')} className={link} data-testid="footer-link-terms">Terms of Service</Link>
+          <button type="button" onClick={openCookieSettings} className={`${link} text-left`} data-testid="footer-link-cookies">Cookie settings</button>
           <Link to={cp('/login')} className={link} data-testid="footer-link-signin">Sign in</Link>
           {catalog?.channelLink && <a href={catalog.channelLink} target="_blank" rel="noopener noreferrer" className={`${link} flex items-center gap-2`} data-testid="footer-channel-link"><Send className="w-4 h-4" />Telegram channel</a>}
           {catalog?.supportLink && <a href={catalog.supportLink} target="_blank" rel="noopener noreferrer" className={`${link} flex items-center gap-2`} data-testid="footer-support-link"><MessageCircle className="w-4 h-4" />Support on Telegram</a>}

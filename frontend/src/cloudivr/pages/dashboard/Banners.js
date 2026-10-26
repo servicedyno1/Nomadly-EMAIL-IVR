@@ -5,6 +5,7 @@ import { useApi } from '../../api';
 import { useShell } from '../../Shell';
 import { useCivrAuth } from '../../AuthContext';
 import { cp } from '../../paths';
+import { recall, remember } from '../../consent';
 
 const pad = (n) => String(n).padStart(2, '0');
 const hms = (ms) => { const s = Math.max(0, Math.floor(ms / 1000)); return `${pad(Math.floor(s / 3600))}:${pad(Math.floor((s % 3600) / 60))}:${pad(s % 60)}`; };
@@ -41,10 +42,10 @@ export function ChannelCard() {
   const { account } = useCivrAuth();
   const DISMISS = dismissKey(account);
   const [closed, setClosed] = useState(null); // key closed in this session (the account loads after the first render)
-  const hidden = closed === DISMISS || (() => { try { return localStorage.getItem(DISMISS) === '1'; } catch (_) { return false; } })();
+  const hidden = closed === DISMISS || recall(DISMISS) === '1';
   const isNew = account?.createdAt && Date.now() - new Date(account.createdAt).getTime() < 30 * 86400000;
   if (hidden || !isNew || !catalog?.channelLink) return null;
-  const close = () => { try { localStorage.setItem(DISMISS, '1'); } catch (_) { /* private mode */ } setClosed(DISMISS); };
+  const close = () => { remember('preferences', DISMISS, '1'); setClosed(DISMISS); };
   return (
     <div className="civr-card civr-rise p-5 sm:p-6 mb-6 flex items-start sm:items-center gap-4" data-testid="dashboard-channel-card">
       <div className="w-11 h-11 rounded-xl bg-[#38bdf8]/15 flex items-center justify-center shrink-0"><Send className="w-5 h-5 text-[#38bdf8]" /></div>

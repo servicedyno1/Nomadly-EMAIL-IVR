@@ -16,6 +16,7 @@ import { ConfirmHost } from './confirm';
 import { CrashGuard } from './safety';
 import { registerPwa } from './pwa';
 import { UpdateWatcher } from './update';
+import { CookieBanner } from './CookieBanner';
 
 // The same error twice in a row (e.g. pressing Save again) replaces the first one instead of stacking up.
 if (!toast.error.civrDedupe) {
@@ -67,6 +68,7 @@ export default function CloudIvrApp() {
         <Toaster theme="dark" position="bottom-right" offset={{ bottom: 92, right: 16 }} mobileOffset={{ bottom: 'calc(9.75rem + env(safe-area-inset-bottom))' }} richColors closeButton visibleToasts={3} />
         <ConfirmHost />
         <UpdateWatcher />
+        <CookieBanner />
         <Guarded>
         <PageFade>
         <Routes>

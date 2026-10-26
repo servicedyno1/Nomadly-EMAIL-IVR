@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { Loader2, LogOut, Send, LifeBuoy } from 'lucide-react';
+import { Loader2, LogOut, Send, LifeBuoy, Cookie } from 'lucide-react';
 import { api, day } from '../api';
 import { useCivrAuth } from '../AuthContext';
 import { PageHeader, Field } from '../ui';
@@ -10,6 +10,7 @@ import { useVoices, VoiceSelect } from '../VoiceMaker';
 import { cp } from '../paths';
 import { useShell } from '../Shell';
 import { LockedNote } from '../Upgrade';
+import { openCookieSettings } from '../consent';
 import { Security } from './settings/Security';
 import { Referral, Suggest } from './settings/Rewards';
 import { Webhooks } from './settings/Webhooks';
@@ -62,6 +63,10 @@ function Language() {
       <div className="font-display text-2xl font-bold">Language</div>
       <p className="text-sm text-[#a1a1aa]">The whole app, including the home page. We start with your browser’s language.</p>
       <div className="flex flex-wrap gap-2" data-no-translate>{LANGS.map(([c, name]) => <button key={c} type="button" onClick={() => setLang(c)} aria-pressed={lang === c} className={`civr-pill cursor-pointer !normal-case !tracking-normal !text-sm h-10 ${lang === c ? 'civr-pill-on' : ''}`} data-testid={`settings-lang-${c}`}>{name}</button>)}</div>
+      <div className="border-t border-[#1a1a1a] pt-4 flex flex-wrap items-center justify-between gap-3">
+        <span className="text-sm text-[#a1a1aa]">Choose which optional cookies this browser keeps.</span>
+        <button type="button" className="civr-btn civr-btn-ghost civr-btn-sm" onClick={openCookieSettings} data-testid="settings-cookie-settings-button"><Cookie className="w-4 h-4" />Cookie settings</button>
+      </div>
     </div>
   );
 }

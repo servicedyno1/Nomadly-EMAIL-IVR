@@ -3,6 +3,7 @@ import { toast } from 'sonner';
 import { Grid3x3, Send } from 'lucide-react';
 import { api } from '../../api';
 import { Toggle } from '../../ui';
+import { recall, remember } from '../../consent';
 
 const PHRASES = {
   en: ['One moment, I’m typing.', 'Could you repeat that, please?', 'Please speak a little slower.', 'Yes.', 'No.', 'Thank you, goodbye.'],
@@ -22,8 +23,8 @@ export function readySentences(v) {
 }
 
 function useFlag(key, def) {
-  const [v, setV] = useState(() => (localStorage.getItem(key) ?? String(def)) === 'true');
-  return [v, (x) => { localStorage.setItem(key, String(x)); setV(x); }];
+  const [v, setV] = useState(() => (recall(key) ?? String(def)) === 'true');
+  return [v, (x) => { remember('preferences', key, String(x)); setV(x); }];
 }
 
 function Keypad({ id }) {

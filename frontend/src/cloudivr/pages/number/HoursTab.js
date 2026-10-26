@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { api, enc } from '../../api';
-import { Field, Toggle, InstantToggle } from '../../ui';
+import { Field, Toggle } from '../../ui';
 import { useUnsaved, SaveRow } from '../../guard';
 
 const DAYS = [['mon', 'Mon'], ['tue', 'Tue'], ['wed', 'Wed'], ['thu', 'Thu'], ['fri', 'Fri'], ['sat', 'Sat'], ['sun', 'Sun']];
@@ -9,7 +9,7 @@ const browserZone = () => { try { return Intl.DateTimeFormat().resolvedOptions()
 const ALL_ZONES = (() => { try { return Intl.supportedValuesOf('timeZone'); } catch (_) { return []; } })();
 
 // A schedule that was never switched on starts in the browser's time zone.
-const initial = (h) => ({ ...h, timezone: !h.enabled && h.timezone === 'UTC' ? browserZone() : h.timezone, days: { ...h.days }, offMessage: h.offMessage || '' });
+const initial = (h) => ({ ...h, timezone: !h.enabled && h.timezone === 'UTC' ? browserZone() : h.timezone, days: { ...h.days }, offMessage: h.offMessage || '', offForward: (h.offForward || []).join(', ') });
 
 function DayRow({ id, label, d, onChange }) {
   return (
@@ -27,6 +27,14 @@ function DayRow({ id, label, d, onChange }) {
   );
 }
 
+function OffForward({ value, onChange, hasVm }) {
+  return (
+    <Field label="Backup numbers" hint={`Up to 5, separated by commas. They ring one after another, about 20 seconds each. If nobody answers, callers ${hasVm ? 'go to voicemail' : 'hear the closed message'}. Forwarded minutes bill from your wallet.`}>
+      <input className="civr-input font-mono" value={value} onChange={e => onChange(e.target.value)} placeholder="+14155550101, +14155550102" data-testid="hours-off-forward-input" />
+    </Field>
+  );
+}
+
 export default function HoursTab({ num, reload }) {
   const saved = num.features.hours;
   const [f, setF] = useState(() => initial(saved));
@@ -37,14 +45,14 @@ export default function HoursTab({ num, reload }) {
   useEffect(() => { api(path).then(d => setOpenNow(d.openNow)).catch(() => {}); }, [path]);
   const zones = useMemo(() => [...new Set(['UTC', f.timezone, ...ALL_ZONES])], [f.timezone]);
   const hasVm = !!num.access?.voicemail;
-  const offAction = hasVm ? f.offAction : 'message';
+  const offAction = !hasVm && f.offAction === 'voicemail' ? 'message' : f.offAction;
   const setDay = (id, d) => setF(x => ({ ...x, days: { ...x.days, [id]: d } }));
   const copyMonday = () => setF(x => ({ ...x, days: Object.fromEntries(Object.entries(x.days).map(([k, d]) => [k, d.on ? { ...d, start: x.days.mon.start, end: x.days.mon.end } : d])) }));
-  const save = async () => {
+  // Saves exactly what the page shows (days, time zone, off action), with the schedule on or off.
+  const put = async (enabled, msg) => {
     setBusy(true);
-    try { const d = await api(path, { method: 'PUT', body: { ...f, enabled: !!saved.enabled, offAction } }); setOpenNow(d.openNow); toast.success('Hours saved'); u.reset(); reload(); } catch (e) { toast.error(e.message); } finally { setBusy(false); }
+    try { const d = await api(path, { method: 'PUT', body: { ...f, enabled, offAction } }); setOpenNow(d.openNow); toast.success(msg); u.reset(); reload(); } catch (e) { toast.error(e.message); } finally { setBusy(false); }
   };
-  const onSwitched = (d) => { if (d?.number?.features?.hours) api(path).then(x => setOpenNow(x.openNow)).catch(() => {}); };
   const status = !saved.enabled ? ['Schedule off — always rings', 'civr-pill'] : openNow ? ['Open now', 'civr-pill civr-pill-on'] : ['Closed now', 'civr-pill civr-pill-warn'];
 
   return (
@@ -53,9 +61,9 @@ export default function HoursTab({ num, reload }) {
         <div className="font-display text-2xl font-bold">On/off hours</div>
         {openNow !== null && <span className={status[1]} data-testid="hours-status-pill">{status[0]}</span>}
       </div>
-      <p className="text-sm text-[#a1a1aa] mt-1 mb-6">Outside these hours your number doesn’t ring or forward. Callers go to voicemail or hear a short closed message.</p>
+      <p className="text-sm text-[#a1a1aa] mt-1 mb-6">Outside these hours your number doesn’t ring. Callers go to voicemail, hear a short closed message, or are forwarded to your backup numbers.</p>
       <div className="space-y-6">
-        <div className="flex items-center justify-between gap-4"><span className="text-sm">Use a weekly schedule</span><InstantToggle num={num} feature="hours" label="Weekly schedule" checked={!!saved.enabled} reload={reload} onSaved={onSwitched} testid="hours-enabled-toggle" /></div>
+        <div className="flex items-center justify-between gap-4"><span className="text-sm">Use a weekly schedule</span><Toggle checked={!!saved.enabled} disabled={busy} onChange={v => put(v, v ? 'Weekly schedule turned on' : 'Weekly schedule turned off')} testid="hours-enabled-toggle" /></div>
         <Field label="Time zone">
           <select className="civr-input" value={f.timezone} onChange={e => setF({ ...f, timezone: e.target.value })} data-testid="hours-timezone-select">
             {zones.map(z => <option key={z} value={z}>{z.replace(/_/g, ' ')}</option>)}
@@ -72,12 +80,14 @@ export default function HoursTab({ num, reload }) {
           <select className="civr-input" value={offAction} onChange={e => setF({ ...f, offAction: e.target.value })} data-testid="hours-off-action-select">
             <option value="voicemail" disabled={!hasVm}>Send callers to voicemail{hasVm ? '' : ' (Pro plan and up)'}</option>
             <option value="message">Play a closed message, then hang up</option>
+            <option value="forward">Forward to backup numbers</option>
           </select>
         </Field>
+        {offAction === 'forward' && <OffForward value={f.offForward} onChange={v => setF({ ...f, offForward: v })} hasVm={hasVm} />}
         <Field label="Closed message (optional)" hint={`${f.offMessage.length}/500 · Leave empty for the standard message in your voicemail language (Voicemail tab).`}>
           <textarea rows={3} maxLength={500} className="civr-input" value={f.offMessage} onChange={e => setF({ ...f, offMessage: e.target.value })} placeholder="Thanks for calling. We’re closed right now — please call back between 9am and 5pm." data-testid="hours-off-message-input" />
         </Field>
-        <SaveRow dirty={u.dirty} testid="hours-unsaved-pill"><button className="civr-btn civr-btn-primary" disabled={busy} onClick={save} data-testid="hours-save-button">Save hours</button></SaveRow>
+        <SaveRow dirty={u.dirty} testid="hours-unsaved-pill"><button className="civr-btn civr-btn-primary" disabled={busy} onClick={() => put(!!saved.enabled, 'Hours saved')} data-testid="hours-save-button">Save hours</button></SaveRow>
       </div>
     </div>
   );

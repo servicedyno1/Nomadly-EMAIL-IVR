@@ -3,6 +3,7 @@ import { toast } from 'sonner';
 import { Loader2, ShieldCheck, Smartphone, Mail } from 'lucide-react';
 import { api } from '../../api';
 import { Field, ErrorNote } from '../../ui';
+import { recall, remember } from '../../consent';
 
 // Second sign-in step: 6-digit code from the authenticator app or email (or a backup code).
 export function TwoFactorStep({ mfa, remember: rememberInit, onDone, onBack }) {
@@ -52,9 +53,9 @@ export function RememberBox({ checked, onChange }) {
   );
 }
 
-// Referral code from a share link (?ref=CODE) is kept until the account is created.
+// Referral code from a share link (?ref=CODE) is kept until the account is created (on this device only with marketing consent).
 export function useRefCode(params) {
   const fromUrl = (params.get('ref') || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 16);
-  if (fromUrl) { try { localStorage.setItem('civr.ref', fromUrl); } catch (_) { /* private mode */ } }
-  try { return fromUrl || localStorage.getItem('civr.ref') || ''; } catch (_) { return fromUrl; }
+  if (fromUrl) remember('marketing', 'civr.ref', fromUrl);
+  return fromUrl || recall('civr.ref') || '';
 }

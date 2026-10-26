@@ -2072,6 +2072,16 @@ async function handleBridgeTransferHangup(payload) {
       delete activeBridgeTransfers[callControlId]
       return true
     }
+    // Off-hours forward: none of the backup numbers answered → voicemail or the closed message instead of hanging up.
+    const offS = activeCalls[transfer.originalCallControlId]
+    if (offS?.offHoursFallback && !isCallEnded(transfer.originalCallControlId)) {
+      offS.offHoursFallback = false
+      offS.offHoursTried = true
+      offS.bridgeRingSecs = null
+      await offHoursEnd(transfer.originalCallControlId, offS).catch(e => log(`[Voice] Off-hours fallback error: ${e.message}`))
+      delete activeBridgeTransfers[callControlId]
+      return true
+    }
     // Regular bridge transfer failure — hang up original leg and notify user
     await _telnyxApi.hangupCall(transfer.originalCallControlId).catch(() => {})
     const parentSession = outboundIvrCalls[transfer.originalCallControlId] || activeCalls[transfer.originalCallControlId]
@@ -2520,7 +2530,7 @@ async function handleCallInitiated(payload) {
     startedAt: new Date(),
     phase: 'answering',
     recordingEnabled: num.features?.recording === true && canAccessFeature(num.plan, 'callRecording'),
-    // On/off hours (CloudIVR web): outside the hours the number doesn't ring or forward — see routeOffHours.
+    // On/off hours (CloudIVR web): outside the hours the number doesn't ring (voicemail / message / backups) — see routeOffHours.
     offHours: !!(num.features?.hours?.enabled && !numberHours.isOpen(num.features.hours)),
   }
 
@@ -3815,18 +3825,41 @@ async function playVoicemailGreeting(callControlId, num, vm = {}, say = null) {
 }
 
 // ── On/off hours ──
-// Outside a number's hours nothing rings or forwards: the caller gets voicemail (plans with voicemail, unless the
-// owner chose "message") or the closed message, then the call ends. Only numbers with hours switched on get here.
+// Outside a number's hours nothing rings: the backup numbers are tried one after another (offAction 'forward', ~20 s
+// each), else the caller gets voicemail (plans with voicemail, unless the owner chose "message") or the closed message.
+// Only numbers with hours switched on get here.
+const OFF_HOURS_RING_SECS = 20
 async function routeOffHours(callControlId, session) {
+  const { num, chatId, to, from } = session
+  const hrs = num.features?.hours || {}
+  const fwd = hrs.offAction === 'forward' ? [...new Set(hrs.offForward || [])].filter(n => n && n !== to && n !== from && !dialGuard.classifyDial(n).blocked).slice(0, 5) : []
+  if (fwd.length && _walletOf) {
+    const { usdBal } = await getBalance(_walletOf, chatId).catch(() => ({ usdBal: CALL_FORWARDING_RATE_MIN }))
+    if (usdBal < CALL_FORWARDING_RATE_MIN) { log(`[Voice] Off-hours forward wallet check: $${usdBal} < $${CALL_FORWARDING_RATE_MIN} — not forwarding`); fwd.length = 0 }
+  }
+  if (!fwd.length) return offHoursEnd(callControlId, session)
+  log(`[Voice] ${to} is OFF (outside hours, tz=${hrs.timezone}) — forwarding ${from} to ${fwd.join(' → ')}`)
+  logEvent(to, from, 'off_hours', 0)
+  _bot?.sendMessage(chatId, `📴 <b>Call outside your hours</b>\n\n📞 To: ${formatPhone(to)}\n👤 From: ${formatPhone(from)}\nForwarding to your backup numbers.`, { parse_mode: 'HTML' }).catch(() => {})
+  session.phase = 'forwarding'
+  session.forwardingRate = CALL_FORWARDING_RATE_MIN
+  session.offHoursFallback = true // nobody answers → offHoursEnd (see handleBridgeTransferHangup)
+  session.bridgeRingSecs = OFF_HOURS_RING_SECS
+  await playHoldMusicAndTransfer(callControlId, fwd[0], to, { holdMusic: true, backups: fwd.slice(1) })
+}
+
+// Voicemail or the closed message (also after none of the off-hours backup numbers answered).
+async function offHoursEnd(callControlId, session) {
   const { num, chatId, to, from } = session
   const hrs = num.features?.hours || {}
   const vm = num.features?.voicemail || {}
   const lang = vm.language || 'en'
   const toVoicemail = hrs.offAction !== 'message' && canAccessFeature(num.plan, 'voicemail')
-  log(`[Voice] ${to} is OFF (outside hours, tz=${hrs.timezone}) — ${toVoicemail ? 'voicemail' : 'closed message'} for ${from}`)
-  logEvent(to, from, 'off_hours', 0)
+  const tried = session.offHoursTried
+  log(`[Voice] ${to} is OFF (outside hours, tz=${hrs.timezone}) — ${toVoicemail ? 'voicemail' : 'closed message'} for ${from}${tried ? ' (no backup number answered)' : ''}`)
+  if (!tried) logEvent(to, from, 'off_hours', 0)
   const what = toVoicemail ? 'They were offered voicemail.' : 'They heard your closed message.'
-  _bot?.sendMessage(chatId, `📴 <b>Call outside your hours</b>\n\n📞 To: ${formatPhone(to)}\n👤 From: ${formatPhone(from)}\n${what}`, { parse_mode: 'HTML' }).catch(() => {})
+  _bot?.sendMessage(chatId, `📴 <b>Call outside your hours</b>\n\n📞 To: ${formatPhone(to)}\n👤 From: ${formatPhone(from)}\n${tried ? 'None of your backup numbers answered. ' : ''}${what}`, { parse_mode: 'HTML' }).catch(() => {})
   if (toVoicemail) {
     session.phase = 'voicemail_greeting'
     const custom = String(hrs.offMessage || '').trim()
@@ -5868,19 +5901,21 @@ async function ringGroupFallback(callControlId) {
   setTimeout(() => _telnyxApi.hangupCall(callControlId).catch(() => {}), Math.min(30000, Math.max(4000, msg.length * 90)))
 }
 
-// Dials `forwardTo` as a new leg that is bridged to the caller once answered (30 s ring limit). true when dialed.
+// Dials `forwardTo` as a new leg that is bridged to the caller once answered (30 s ring limit, or the session's
+// bridgeRingSecs). true when dialed.
 async function dialBridgeLeg(callControlId, forwardTo, fromNumber) {
   const newCall = await _telnyxApi.createOutboundCall(fromNumber, forwardTo)
   if (!newCall?.callControlId) return false
   activeBridgeTransfers[newCall.callControlId] = { originalCallControlId: callControlId, forwardTo, fromNumber }
+  const ringSecs = activeCalls[callControlId]?.bridgeRingSecs || 30
   log(`[Voice] Bridge transfer: dialing ${forwardTo} (new leg: ${newCall.callControlId}), hold music on ${callControlId}`)
   setTimeout(async () => {
     const t = activeBridgeTransfers[newCall.callControlId]
     if (t && t.phase !== 'bridged') {
-      log(`[Voice] Bridge transfer timeout: ${forwardTo} didn't answer in 30s`)
+      log(`[Voice] Bridge transfer timeout: ${forwardTo} didn't answer in ${ringSecs}s`)
       await _telnyxApi.hangupCall(newCall.callControlId).catch(() => {}) // handleBridgeTransferHangup takes it from here
     }
-  }, 30000)
+  }, ringSecs * 1000)
   return true
 }
 
