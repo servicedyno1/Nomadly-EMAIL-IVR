@@ -178,3 +178,16 @@
 .civr .civr-logo-icon { transition: transform .25s ease; }
 .civr a:hover > .civr-logo-icon { transform: rotate(-8deg) scale(1.06); }
 @media (prefers-reduced-motion: reduce) { .civr .civr-parrot-float { animation: none; } .civr a:hover > .civr-logo-icon { transform: none; } }
+
+/* Preview dev server only: dynamic JSX children are wrapped in <span data-ve-dynamic style="display:contents">, which breaks space-y / divide-y. Restore them (inert in production builds). */
+.civr .space-y-1 > [data-ve-dynamic] > * + *, .civr .space-y-1 > * + [data-ve-dynamic] > :first-child { margin-top: .25rem; }
+.civr .space-y-1\.5 > [data-ve-dynamic] > * + *, .civr .space-y-1\.5 > * + [data-ve-dynamic] > :first-child { margin-top: .375rem; }
+.civr .space-y-2 > [data-ve-dynamic] > * + *, .civr .space-y-2 > * + [data-ve-dynamic] > :first-child { margin-top: .5rem; }
+.civr .space-y-2\.5 > [data-ve-dynamic] > * + *, .civr .space-y-2\.5 > * + [data-ve-dynamic] > :first-child { margin-top: .625rem; }
+.civr .space-y-3 > [data-ve-dynamic] > * + *, .civr .space-y-3 > * + [data-ve-dynamic] > :first-child { margin-top: .75rem; }
+.civr .space-y-4 > [data-ve-dynamic] > * + *, .civr .space-y-4 > * + [data-ve-dynamic] > :first-child { margin-top: 1rem; }
+.civr .space-y-5 > [data-ve-dynamic] > * + *, .civr .space-y-5 > * + [data-ve-dynamic] > :first-child { margin-top: 1.25rem; }
+.civr .space-y-6 > [data-ve-dynamic] > * + *, .civr .space-y-6 > * + [data-ve-dynamic] > :first-child { margin-top: 1.5rem; }
+.civr .space-y-8 > [data-ve-dynamic] > * + *, .civr .space-y-8 > * + [data-ve-dynamic] > :first-child { margin-top: 2rem; }
+.civr .space-y-10 > [data-ve-dynamic] > * + *, .civr .space-y-10 > * + [data-ve-dynamic] > :first-child { margin-top: 2.5rem; }
+.civr .divide-y > [data-ve-dynamic] > * + *, .civr .divide-y > * + [data-ve-dynamic] > :first-child { border-top: 1px solid #1f1f1f; }

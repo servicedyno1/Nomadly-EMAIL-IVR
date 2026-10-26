@@ -15,6 +15,7 @@ import { useSearch, SearchBox, NoMatches } from '../search';
 const KINDS = [['', 'All', InboxIcon], ['sms', 'SMS', MessageSquare], ['voicemail', 'Voicemail', Voicemail], ['call', 'Calls', Phone], ['campaign', 'Campaigns', Megaphone], ['wallet', 'Wallet', Wallet], ['billing', 'Billing', Receipt], ['coupon', 'Coupons', Ticket], ['info', 'Other', Info]];
 const ICON = Object.fromEntries(KINDS.map(([k, , I]) => [k, I]));
 const NAME = Object.fromEntries(KINDS.map(([k, l]) => [k, l]));
+const lower = (s) => (s === 'SMS' ? s : s.toLowerCase());
 
 // One-tap filter; a small badge shows how many unread items it holds.
 function FilterPill({ k, label, on, count, onPick }) {
@@ -32,7 +33,7 @@ export default function Inbox() {
   const pv = usePrivacy();
   useLangTick();
   const [kind, setKind] = useState('');
-  const { data, error, loading, reload } = useApi(`/notifications?limit=100${kind ? `&kind=${kind}` : ''}`);
+  const { data, error, loading, reload, stale } = useApi(`/notifications?limit=100${kind ? `&kind=${kind}` : ''}`);
   const { data: today } = useApi('/coupons/today');
   useEffect(() => { window.addEventListener(RING_ENDED, reload); return () => window.removeEventListener(RING_ENDED, reload); }, [reload]);
   const markRead = async () => {
@@ -56,8 +57,8 @@ export default function Inbox() {
       </div>
       {(kind === '' || kind === 'call') && <MissedCalls />}
       <ErrorNote error={error} onRetry={reload} className="mb-4" />
-      {loading && !data ? <SkeletonRows rows={5} /> : !items.length ? (kind ? (
-        <Empty icon={ICON[kind] || InboxIcon} title={`No ${NAME[kind].toLowerCase()} updates yet`} sub="Nothing of this kind has arrived. Everything else is still in All." testid="inbox-empty">
+      {error && !data ? null : (loading && !data) || stale ? <SkeletonRows rows={5} /> : !items.length ? (kind ? (
+        <Empty icon={ICON[kind] || InboxIcon} title={`No ${lower(NAME[kind])} updates yet`} sub="Nothing of this kind has arrived. Everything else is still in All." testid="inbox-empty">
           <button type="button" className="civr-btn civr-btn-ghost" onClick={() => setKind('')} data-testid="inbox-empty-show-all-button">Show everything</button>
         </Empty>
       ) : (

@@ -25,7 +25,7 @@ export function Campaigns() {
         <Link to={cp('/app/campaigns/new')} className="civr-btn civr-btn-primary" data-testid="campaigns-new-button"><Plus className="w-4 h-4" />New campaign</Link>
       </PageHeader>
       <ErrorNote error={error} onRetry={reload} className="mb-4" />
-      {loading && !data ? <SkeletonRows rows={3} /> : !list.length ? (
+      {error && !data ? null : loading && !data ? <SkeletonRows rows={3} /> : !list.length ? (
         <Empty icon={Megaphone} title="No campaigns yet" sub="Paste your numbers, pick a message and go. You see every answer and key press live." testid="campaigns-empty">
           <Link to={cp('/app/campaigns/new')} className="civr-btn civr-btn-primary" data-testid="campaigns-empty-create-button"><Plus className="w-4 h-4" />Create your first campaign</Link>
         </Empty>

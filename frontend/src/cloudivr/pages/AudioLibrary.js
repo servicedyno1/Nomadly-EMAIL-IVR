@@ -92,7 +92,7 @@ export default function AudioLibrary() {
       <div className="grid lg:grid-cols-3 gap-4"><UploadCard onDone={reload} /><TtsCard onDone={reload} /></div>
       <div className="mt-8 flex flex-col gap-2">
         <ErrorNote error={error} onRetry={reload} />
-        {loading && !data ? <SkeletonRows rows={3} /> : !audios.length ? (
+        {error && !data ? null : loading && !data ? <SkeletonRows rows={3} /> : !audios.length ? (
           <Empty icon={Music} title="No audio yet" sub="Type a message and pick a voice, or upload your own recording. It shows up here, ready for greetings, menus and campaigns." testid="audio-empty">
             <button type="button" className="civr-btn civr-btn-primary" onClick={() => { const el = document.querySelector('[data-testid="audio-tts-text-input"]'); el?.scrollIntoView({ behavior: 'smooth', block: 'center' }); el?.focus({ preventScroll: true }); }} data-testid="audio-empty-tts-button"><Wand2 className="w-4 h-4" />Write a voice message</button>
             <button type="button" className="civr-btn civr-btn-ghost" onClick={() => document.querySelector('[data-testid="audio-upload-choose-button"]')?.click()} data-testid="audio-empty-upload-button"><Upload className="w-4 h-4" />Upload a file</button>

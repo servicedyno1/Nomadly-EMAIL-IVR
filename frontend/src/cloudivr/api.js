@@ -77,11 +77,13 @@ export function useApi(path) {
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(!!path);
+  const [loadedPath, setLoadedPath] = useState(null);
   const reload = useCallback(async () => {
     if (!path) return null;
     setLoading(true);
-    try { const d = await api(path); setData(d); setError(null); return d; } catch (e) { setError(e); return null; } finally { setLoading(false); }
+    try { const d = await api(path); setData(d); setError(null); return d; } catch (e) { setError(e); return null; } finally { setLoading(false); setLoadedPath(path); }
   }, [path]);
   useEffect(() => { reload(); }, [reload]);
-  return { data, error, loading, reload, setData };
+  // `stale` = the data on hand belongs to a previous path (e.g. another filter) and the new one is still loading.
+  return { data, error, loading, reload, setData, stale: !!path && loadedPath !== path };
 }

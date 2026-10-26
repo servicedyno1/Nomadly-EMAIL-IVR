@@ -1,0 +1,53 @@
+{
+  "summary": "Phase 2 frontend test (empty/loading/error states and colours) on campaigns, inbox, wallet, audio, number logs, dashboard, AI agents (agents/calls/DNC), Quick IVR call, Text calls and Settings, using Bob (empty account) and Alice (populated), at 1920 and 390px. Every requested empty state, next-step button and focus/navigation target works. Grey placeholder blocks appear inside aria-busy containers while slowed APIs load, with no overlap, and real content replaces them. Error + 'Try again' works on campaigns, audio and wallet. Settings placeholder cards and the #webhooks hash scroll work. Palette is clean (indigo, plus rose/amber/green only where intended). No horizontal overflow at 390px. Issues found: (1) on an API error, campaigns and audio show the error AND the 'No ... yet' empty state at the same time; (2) when switching inbox filters, the old list stays on screen under the new chip with no loading cue; (3) several cards using space-y-* have 0px gaps on preview, so items touch (Quick IVR call sections, Settings Change password / Two-step / Default AI voice / Install app); (4) copy says 'sms' instead of 'SMS'.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Campaigns.js / AudioLibrary.js error state", "issue": "When GET /campaigns or /audio fails, ErrorNote shows and the empty state ('No campaigns yet' / 'No audio yet' with create buttons) also shows below it. The empty check is `!list.length` and does not look at `error`. This wrongly tells the user they have no data. Wallet handles it correctly (error only).", "selector": "[data-testid=error-message] + [data-testid=campaigns-empty]", "priority": "MEDIUM"},
+      {"component": "Inbox.js filter switch", "issue": "useApi path changes with the filter (&kind=sms), but the condition is `loading && !data`. The previous filter's items stay visible under the newly selected chip until the new response arrives, with no placeholder or spinner. With a 3s delay on mobile, the SMS chip showed Bob's coupon items. Show placeholders or an inline spinner while `loading` is true after the path changes, or clear the data when the path changes.", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Quick IVR call (Section component, QuickCall.js line ~80, uses space-y-4)", "issues": ["Measured 0px gap between the section heading '1 Who to call', the 'Call from' field and 'Number(s) to call'. Same in section 2 between the voice select row and 'Read out with'."]},
+      {"screen": "Settings", "issues": ["settings-password-form: 0px between the 'Change password' heading and 'Current password' (Profile card next to it has a gap)", "settings-security-card: 0px between the description and the Authenticator/Email option tiles", "settings-voice-card: 0px between the selects and 'Save voice'", "settings-install-card: 0px between the icon/title row and the body text", "All use space-y-* and collapse on preview because of the display:contents wrapper. Switch them to flex flex-col gap-*."]},
+      {"screen": "Inbox / Number logs copy", "issues": ["Empty titles say 'No sms updates yet' / 'No sms yet'. Should be 'SMS'.", "The 'No sms yet' log empty state reuses the generic sub-line 'Calls, texts and voicemails show up here...'"]}
+    ]
+  },
+  "passed_tests": [
+    "Bob campaigns-empty -> campaigns-empty-create-button -> /cloudivr/app/campaigns/new",
+    "Bob audio-empty: audio-empty-tts-button focuses audio-tts-text-input; audio-empty-upload-button opens the file chooser",
+    "Bob wallet-deposits-empty-add-button focuses wallet-amount-input; wallet-history-empty-buy-link -> /cloudivr/app/buy",
+    "Bob inbox: All not empty (2 coupons); inbox-filter-sms -> inbox-empty 'No sms updates yet'; inbox-empty-show-all-button returns to All",
+    "Bob AI: ai-agents-empty-create-button; ai-calls-empty + ai-calls-empty-action (href ?tab=agents); ai-dnc-empty-add-button focuses ai-dnc-number-input",
+    "Bob Quick IVR call shows the 'Try one call free' trial card (trial available); Text calls shows text-call-no-number + text-call-buy-link",
+    "Alice number logs: number-logs-empty; logs-filter-sms -> 'No sms yet' + show-all button returns to 'No activity yet'; number-logs-empty-test-button -> tab=overview",
+    "Alice dashboard-activity-empty-action -> /cloudivr/app/numbers",
+    "Loading placeholders (4s delay): campaigns 12, inbox 20, wallet 31 (wallet-topup/deposits/history-loading), audio 12, ai-agents 12 civr-skel blocks, all inside aria-busy containers; 0 overlapping blocks; content replaces them",
+    "Quick call side boxes quick-history / quick-menu-stats show placeholders, then content",
+    "Settings settings-referral-loading / settings-webhooks-loading placeholders, then cards; #webhooks scrolls settings-webhooks-card into view (last card, page at bottom)",
+    "Error state: 500 on campaigns/audio/wallet -> error-message 'Something went wrong...' + error-message-retry-button 'Try again'; clicking it clears the error and shows the content",
+    "Alice inbox shows 8 items; wallet balance $330 + history rows; Quick IVR call form + Presets/Recent calls/Key presses",
+    "Colour code review: no sky/cyan/teal/mint in the listed files; LogTable icons use indigo, missed=#fb7185, forward_failed/off_hours=#fbbf24; civr-pill-ok=#34d399; wallet credits use text-[#34d399]",
+    "390px: campaigns, inbox, wallet, audio have scrollWidth == clientWidth during loading and after load"
+  ],
+  "not_verified": [
+    "Alice on this pod has no campaigns, audio or AI agents, and no wallet credits (only debits). Populated campaign rows/pills, audio rows, agent cards and the green credit amount could not be seen in the UI (verified in code only)."
+  ],
+  "test_report_links": [],
+  "action_items": [
+    "Campaigns.js and AudioLibrary.js (and any other list using the same pattern): don't render Empty when `error` is set and data is null, e.g. `error && !data ? null : ...`",
+    "Inbox.js: show SkeletonRows or an inline spinner while `loading` is true after a filter change, instead of the stale list",
+    "Replace space-y-* with flex flex-col gap-* in the QuickCall Section component and the Settings Change password, Two-step, Default AI voice and Install app cards",
+    "Copy: 'sms' -> 'SMS' in inbox and log empty titles"
+  ],
+  "critical_code_review_comments": [
+    "useApi runs twice in dev StrictMode, so a 'fail once' route mock is hidden by the second successful request. To test error states, fail every request until you click retry.",
+    "useApi keeps old data across path changes, which is the root cause of the stale inbox filter list."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (skipped)", "frontend": "~90% (all requested flows pass; 2 state-logic bugs + spacing/copy issues)"},
+  "seed_data_creation": "None. No payments or TTS were triggered.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Login: fill auth-email-input and input[type=password], then get_by_role('button', name='Sign in'), then wait_for_url('**/cloudivr/app**'). Note '**/app**' alone matches the hostname 'app-vault'. Use wait_until='domcontentloaded'. For error-state tests, fail every GET until retry is clicked (StrictMode double fetch). In route-delay handlers, wrap route.continue_() in try/except. On this pod Alice has number +13313039039, $330, 8 inbox items, no campaigns/audio/agents/logs. Bob has $500, 2 coupon inbox items and a Quick IVR trial available."
+}

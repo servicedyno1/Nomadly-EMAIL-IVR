@@ -98,10 +98,10 @@ function LogCard({ l, i, showNumber, testid, notePhone, onNotesChange, summarize
 
 // `notePhone` (the number the rows belong to) turns on per-row call notes + missed-call "Text back"; `onNotesChange` reloads the rows.
 // `summarize` = the number's plan has AI summaries (shows the per-row Summarize button). `emptyTitle`/`emptyAction` customise the empty state.
-export function LogTable({ logs, showNumber = false, testid = 'log-table', notePhone, onNotesChange, pageSize = 20, resetKey, summarize = false, emptyTitle = 'No activity yet', emptyAction }) {
+export function LogTable({ logs, showNumber = false, testid = 'log-table', notePhone, onNotesChange, pageSize = 20, resetKey, summarize = false, emptyTitle = 'No activity yet', emptySub = 'Calls, texts and voicemails show up here as they happen.', emptyAction }) {
   const phone = useIsPhone();
   const { shown, rest, more } = usePaged(logs, pageSize, resetKey);
-  if (!logs?.length) return <Empty bare icon={Activity} title={emptyTitle} sub="Calls, texts and voicemails show up here as they happen." testid={`${testid}-empty`}>{emptyAction}</Empty>;
+  if (!logs?.length) return <Empty bare icon={Activity} title={emptyTitle} sub={emptySub} testid={`${testid}-empty`}>{emptyAction}</Empty>;
   const common = { showNumber, testid, notePhone, onNotesChange, summarize };
   return (
     <>

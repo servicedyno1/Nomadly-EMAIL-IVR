@@ -58,7 +58,7 @@ export function AiAgents() {
         {TABS.map(([id, name]) => <button key={id} role="tab" aria-selected={tab === id} onClick={() => setParams({ tab: id }, { replace: true })} data-testid={`ai-tab-${id}`} className={`px-4 py-3 text-sm font-medium border-b-2 -mb-px transition-colors shrink-0 ${tab === id ? 'border-[#818cf8] text-[#818cf8]' : 'border-transparent text-[#a1a1aa] hover:text-white'}`}>{name}</button>)}
       </TabStrip>
       <ErrorNote error={error} onRetry={reload} className="mb-4" />
-      {tab === 'calls' ? <AiCalls /> : tab === 'dnc' ? <DncList /> : loading && !data ? <SkeletonRows rows={3} /> : <AgentRows agents={data?.agents || []} />}
+      {tab === 'calls' ? <AiCalls /> : tab === 'dnc' ? <DncList /> : error && !data ? null : loading && !data ? <SkeletonRows rows={3} /> : <AgentRows agents={data?.agents || []} />}
     </div>
   );
 }

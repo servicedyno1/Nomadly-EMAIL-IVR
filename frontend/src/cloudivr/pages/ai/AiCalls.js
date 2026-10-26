@@ -71,7 +71,7 @@ export function AiCalls({ agentId }) {
   return (
     <div className="flex flex-col gap-4" data-testid="ai-calls-list">
       <ErrorNote error={error} onRetry={reload} />
-      {!list.length ? (
+      {error && !data ? null : !list.length ? (
         <Empty icon={Mic} title="No AI calls yet" sub={agentId ? 'Talk to this agent above. Tests and real calls show up here with a summary and transcript.' : 'Calls your agents answer or make, and your browser tests, show up here with a summary and transcript.'} testid="ai-calls-empty">
           {!agentId && <Link to={cp('/app/ai-agents?tab=agents')} className="civr-btn civr-btn-ghost" data-testid="ai-calls-empty-action">Test an agent in your browser</Link>}
         </Empty>

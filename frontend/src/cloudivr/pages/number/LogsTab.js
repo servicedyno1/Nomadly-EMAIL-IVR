@@ -32,7 +32,7 @@ function AiSummaryBar({ num, reload }) {
 export default function LogsTab({ num, reload: reloadNum }) {
   const [kind, setKind] = useState('all');
   const [, setParams] = useSearchParams();
-  const { data, loading, reload } = useApi(`/numbers/${enc(num.phoneNumber)}/logs?kind=${kind}`);
+  const { data, loading, reload, stale } = useApi(`/numbers/${enc(num.phoneNumber)}/logs?kind=${kind}`);
   const pv = usePrivacy();
   // Private mode: search only what is on screen (masked numbers, no texts/transcripts/summaries/notes) so a match can't reveal hidden words.
   const s = useSearch(data?.logs, l => (pv.on
@@ -50,10 +50,11 @@ export default function LogsTab({ num, reload: reloadNum }) {
         </div>
         <SearchBox s={s} placeholder="Search this log" testid="logs-search" className="lg:w-72" />
       </div>
-      {loading && !data ? <SkeletonRows rows={4} card={false} />
+      {(loading && !data) || stale ? <SkeletonRows rows={4} card={false} />
         : s.active && !s.list.length ? <NoMatches s={s} testid="logs-no-matches" />
           : <LogTable logs={s.list} testid="number-logs" notePhone={num.phoneNumber} onNotesChange={reload} resetKey={`${kind}|${s.q}`} summarize={!!num.access?.aiSummary}
-            emptyTitle={kind === 'all' ? 'No activity yet' : `No ${KINDS.find(k => k[0] === kind)[1].toLowerCase()} yet`}
+            emptyTitle={kind === 'all' ? 'No activity yet' : `No ${kind === 'sms' ? 'SMS' : KINDS.find(k => k[0] === kind)[1].toLowerCase()} yet`}
+            emptySub={kind === 'all' ? undefined : 'Nothing of this kind on this number yet. Everything else is under All.'}
             emptyAction={kind === 'all'
               ? <button type="button" className="civr-btn civr-btn-ghost civr-btn-sm" onClick={() => setParams({ tab: 'overview' }, { replace: true })} data-testid="number-logs-empty-test-button">Test my number</button>
               : <button type="button" className="civr-btn civr-btn-ghost civr-btn-sm" onClick={() => setKind('all')} data-testid="number-logs-empty-show-all-button">Show all activity</button>} />}
