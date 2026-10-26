@@ -6,6 +6,8 @@ const { normPhone, E164, parseBackups } = require('./numbers')
 const { spokenNumber } = require('../voicemail-greeting')
 const { cleanMenu, firstForward } = require('./outbound')
 const { listLeads } = require('./contacts')
+const live = require('./campaign-live')
+const sched = require('../campaign-schedule')
 
 const dryRun = () => process.env.WEB_CLOUDIVR_DRY_RUN === 'true'
 const QUICK_MIN_WALLET = 1
@@ -17,6 +19,8 @@ const publicCampaign = (c, withLeads = false) => ({
   createdAt: c.createdAt, cancelledReason: c.cancelledReason || null, pausedReason: c.pausedReason || null, dryRun: !!c.dryRun,
   agentId: c.agentId || null, agentName: c.agentName || null, waitingForHours: !!c.waitingForHours,
   waitingForLine: (c.leads || []).some(l => l.status === 'pending' && l.waitingForLine),
+  repeat: c.repeat || null, runNumber: c.runNumber || null, seriesId: c.seriesId || null, autoRun: !!c.autoRun, nextRunId: c.nextRunId || null,
+  dailyLimit: c.dailyLimit || null, callsToday: c.dailyLimit ? sched.callsToday(c) : null, waitingForDailyLimit: !!c.waitingForDailyLimit,
   ...(withLeads ? { leads: (c.leads || []).slice(0, 500).map(l => ({ number: l.number, name: l.name, status: l.status, digitPressed: l.digitPressed, transferred: !!l.transferred, duration: l.duration || 0, hangupCause: l.hangupCause || null, waitingForLine: !!l.waitingForLine, ai: l.ai || null })) } : {}),
 })
 
@@ -49,6 +53,25 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
     if (to === num) return { err: 'The transfer number must differ from the caller ID.' }
     return { to }
   }
+  // Start time, repeat (daily / weekly) and daily call limit of a new campaign.
+  function runPlan(b) {
+    let scheduledFor = null
+    if (b.scheduledFor) {
+      const d = new Date(b.scheduledFor)
+      if (isNaN(d.getTime()) || d.getTime() < Date.now() + 60000 || d.getTime() > Date.now() + 30 * 86400000) return { err: [400, 'invalid_schedule', 'Schedule between 1 minute and 30 days from now.'] }
+      scheduledFor = d
+    }
+    if (dryRun() && scheduledFor) return { err: [400, 'dry_run', 'Scheduling is turned off in preview mode — calls would be dialed for real.'] }
+    const repeat = b.repeat ? String(b.repeat) : null
+    if (repeat && !sched.REPEATS.includes(repeat)) return { err: [400, 'invalid_repeat', 'Pick how often the campaign repeats: every day or every week.'] }
+    let dailyLimit = null
+    if (b.dailyLimit !== undefined && b.dailyLimit !== null && b.dailyLimit !== '') {
+      dailyLimit = Number(b.dailyLimit)
+      if (!Number.isInteger(dailyLimit) || dailyLimit < 1 || dailyLimit > 10000) return { err: [400, 'invalid_daily_limit', 'The daily call limit must be a whole number from 1 to 10,000.'] }
+    }
+    return { scheduledFor, repeat, dailyLimit, tz: b.tz ? String(b.tz).slice(0, 64) : null }
+  }
+  const dncCount = (chatId, leads) => require('../ai-agent').store.countDnc(chatId, leads.map(l => l.number)).catch(() => 0)
 
   // Quick IVR calls live in outbound.js. Call me first: we ring the owner's own phone from their CloudIVR number; pressing 1 connects them to `to`, who
   // sees the CloudIVR number. Runs on the outbound IVR engine; both legs bill per minute (plan minutes first).
@@ -90,6 +113,7 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
   router.get('/campaigns', h(async (req, res) => {
     res.json({ campaigns: (await bulkCallService.getUserCampaigns(req.webChatId, 50)).map(c => publicCampaign(c)) })
   }))
+  live.routes(router, { db, h, voiceService, publicCampaign })
 
   router.post('/campaigns', h(async (req, res) => {
     const chatId = req.webChatId, b = req.body
@@ -118,21 +142,16 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
     }
     const bk = mode === 'transfer' ? parseBackups(b.transferBackups, [transferNumber, c.n.phoneNumber]) : { list: [] }
     if (bk.error) return bad(res, 400, 'invalid_backup', bk.error)
-    let scheduledFor = null
-    if (b.scheduledFor) {
-      const d = new Date(b.scheduledFor)
-      if (isNaN(d.getTime()) || d.getTime() < Date.now() + 60000 || d.getTime() > Date.now() + 30 * 86400000) return bad(res, 400, 'invalid_schedule', 'Schedule between 1 minute and 30 days from now.')
-      scheduledFor = d
-    }
-    if (dryRun() && scheduledFor) return bad(res, 400, 'dry_run', 'Scheduling is turned off in preview mode — calls would be dialed for real.')
+    const plan = runPlan(b)
+    if (plan.err) return bad(res, ...plan.err)
     const campaign = await bulkCallService.createCampaign({
       chatId, callerId: c.n.phoneNumber, audioUrl: audio.audioUrl, audioName: audio.name, name: b.name, mode, transferNumber, transferBackups: bk.list, menu,
       activeKeys, concurrency: Math.min(20, Math.max(1, parseInt(b.concurrency, 10) || 5)), holdMusic: !!b.holdMusic,
-      leads, scheduledFor, provider: 'telnyx', voicemailAudioUrl: vm?.audioUrl || null, voicemailAudioName: vm?.name || null,
+      leads, scheduledFor: plan.scheduledFor, repeat: plan.repeat, dailyLimit: plan.dailyLimit, tz: plan.tz, provider: 'telnyx', voicemailAudioUrl: vm?.audioUrl || null, voicemailAudioName: vm?.name || null,
     })
     if (campaign.error) return bad(res, 400, 'create_failed', campaign.error)
     if (dryRun()) await db.collection('bulkCallCampaigns').updateOne({ id: campaign.id }, { $set: { dryRun: true } })
-    res.status(201).json({ campaign: publicCampaign({ ...campaign, dryRun: dryRun() }), skipped: errors.length })
+    res.status(201).json({ campaign: publicCampaign({ ...campaign, dryRun: dryRun() }), skipped: errors.length, doNotCall: await dncCount(chatId, leads) })
   }))
 
   // AI agent campaign: the agent talks to every lead (8am–9pm lead's local time, do-not-call list skipped).
@@ -146,18 +165,12 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
     const { leads, errors } = await leadsOf(chatId, b)
     if (!leads.length) return bad(res, 400, 'no_leads', errors[0] || 'Add at least one number to call (one per line, optional ",name").')
     if (leads.length > bulkCallService.MAX_BULK_LEADS) return bad(res, 400, 'too_many_leads', `Maximum ${bulkCallService.MAX_BULK_LEADS} numbers per campaign.`)
-    let scheduledFor = null
-    if (b.scheduledFor) {
-      const d = new Date(b.scheduledFor)
-      if (isNaN(d.getTime()) || d.getTime() < Date.now() + 60000 || d.getTime() > Date.now() + 30 * 86400000) return bad(res, 400, 'invalid_schedule', 'Schedule between 1 minute and 30 days from now.')
-      scheduledFor = d
-    }
-    if (dryRun() && scheduledFor) return bad(res, 400, 'dry_run', 'Scheduling is turned off in preview mode — calls would be dialed for real.')
-    let dnc = 0
-    for (const l of leads) if (await ai.store.onDnc(chatId, l.number)) dnc++
+    const plan = runPlan(b)
+    if (plan.err) return bad(res, ...plan.err)
+    const dnc = await dncCount(chatId, leads)
     const campaign = await bulkCallService.createCampaign({
       chatId, callerId: c.n.phoneNumber, audioUrl: null, audioName: `AI agent: ${agent.name}`, name: b.name, mode: 'ai', agentId: agent.id, agentName: agent.name,
-      concurrency: Math.min(20, Math.max(1, parseInt(b.concurrency, 10) || 5)), leads, scheduledFor, provider: 'telnyx',
+      concurrency: Math.min(20, Math.max(1, parseInt(b.concurrency, 10) || 5)), leads, scheduledFor: plan.scheduledFor, repeat: plan.repeat, dailyLimit: plan.dailyLimit, tz: plan.tz, provider: 'telnyx',
     })
     if (campaign.error) return bad(res, 400, 'create_failed', campaign.error)
     await db.collection('bulkCallCampaigns').updateOne({ id: campaign.id }, { $set: { aiRecord: agent.record !== false, ...(dryRun() ? { dryRun: true } : {}) } })
@@ -178,7 +191,17 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
     res.json({ campaign: publicCampaign({ ...req.campaign, name }) })
   }))
 
-  router.get('/campaigns/:id', withCampaign(async (req, res) => res.json({ campaign: publicCampaign(req.campaign, true) })))
+  router.get('/campaigns/:id', withCampaign(async (req, res) => {
+    const c = req.campaign
+    const nextRun = c.nextRunId ? await db.collection('bulkCallCampaigns').findOne({ id: c.nextRunId, chatId: c.chatId }, { projection: { _id: 0, id: 1, scheduledFor: 1, status: 1 } }) : null
+    res.json({ campaign: { ...publicCampaign(c, true), live: live.liveView(c, voiceService), feed: live.feedOf([c], voiceService, 25), areas: live.areasOf(c), nextRun } })
+  }))
+
+  router.post('/campaigns/:id/stop-repeat', withCampaign(async (req, res) => {
+    const r = await bulkCallService.stopRepeat(req.campaign.id)
+    if (r?.error) return bad(res, 400, 'stop_repeat_failed', r.error)
+    res.json({ ok: true, cancelledRuns: r.cancelledRuns, campaign: publicCampaign(await bulkCallService.getCampaign(req.campaign.id)) })
+  }))
 
   // A saved campaign that never started needs the feature on the caller's plan now (running ones finish after a downgrade).
   router.post('/campaigns/:id/start', withCampaign(async (req, res) => {

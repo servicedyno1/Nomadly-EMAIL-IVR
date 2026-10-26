@@ -93,16 +93,17 @@ function createCloudIvrWeb(deps) {
     r.get('/dashboard', h(async (req, res) => {
       const id = req.webChatId
       const nums = await numbersApi.myNumbers(id)
-      const [balance, unread, campaigns, pendingVerification, trial] = await Promise.all([
+      const [balance, unread, campaigns, pendingVerification, trial, liveCampaigns] = await Promise.all([
         wallet.walletOps(db).balance(id),
         db.collection('webNotifications').countDocuments({ chatId: id, read: false }),
         db.collection('bulkCallCampaigns').countDocuments({ chatId: id, status: { $in: ['running', 'paused', 'scheduled'] } }),
         db.collection('telnyxRegSessions').countDocuments({ chatId: id, status: 'collecting' }),
         outbound.trialStatus(db, numbersApi, id).catch(() => ({ available: false })),
+        db.collection('bulkCallCampaigns').countDocuments({ chatId: id, status: 'running' }),
       ])
       const soon = Date.now() + 7 * 86400000
       res.json({
-        balance, unread, activeCampaigns: campaigns, pendingVerification, ivrTrial: !!trial.available,
+        balance, unread, activeCampaigns: campaigns, liveCampaigns, pendingVerification, ivrTrial: !!trial.available,
         numbers: { total: nums.length, active: nums.filter(n => n.status === 'active').length, expiringSoon: nums.filter(n => n.expiresAt && new Date(n.expiresAt).getTime() < soon).length },
         minutesUsed: nums.reduce((s, n) => s + (n.minutesUsed || 0), 0), smsUsed: nums.reduce((s, n) => s + (n.smsUsed || 0), 0),
       })

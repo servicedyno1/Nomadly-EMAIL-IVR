@@ -72,6 +72,7 @@ const addDnc = (chatId, number, reason = 'manual') => dnc.updateOne({ chatId: St
 const removeDnc = (chatId, number) => dnc.deleteOne({ chatId: String(chatId), number: normPhone(number) })
 const listDnc = (chatId) => dnc.find({ chatId: String(chatId) }, { projection: { _id: 0, number: 1, reason: 1, createdAt: 1 } }).sort({ createdAt: -1 }).limit(1000).toArray()
 const onDnc = async (chatId, number) => !!(await dnc.findOne({ chatId: String(chatId), number: normPhone(number) }))
+const countDnc = (chatId, numbers) => dnc.countDocuments({ chatId: String(chatId), number: { $in: [...new Set(numbers.map(normPhone))] } })
 
 // { summary, outcome } for the owner, from the transcript (owner's OpenAI key).
 async function summarize(transcript, agent) {
@@ -95,5 +96,5 @@ async function summarize(transcript, agent) {
 
 module.exports = {
   init, VOICES, LANGS, LANG_NAMES, OUTCOMES, normPhone, cleanAgent, publicAgent, listAgents, getAgent, createAgent, updateAgent, deleteAgent,
-  saveCall, listCalls, getCall, testSecondsToday, addDnc, removeDnc, listDnc, onDnc, summarize,
+  saveCall, listCalls, getCall, testSecondsToday, addDnc, removeDnc, listDnc, onDnc, countDnc, summarize,
 }

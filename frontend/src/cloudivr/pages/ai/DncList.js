@@ -7,14 +7,20 @@ import { usePrivacy } from '../../privacy';
 import { undoable } from '../../undo';
 import { useSearch, SearchBox, NoMatches } from '../../search';
 
-// Numbers AI campaigns never call. People who ask the agent to stop calling are added automatically.
+// Numbers no campaign ever calls. People who ask the AI agent to stop calling are added automatically.
 export function DncList() {
   const { data, loading, reload, setData } = useApi('/ai-dnc');
   const [num, setNum] = useState('');
   const pv = usePrivacy();
   const add = async (e) => {
     e.preventDefault();
-    try { await api('/ai-dnc', { method: 'POST', body: { number: num } }); setNum(''); toast.success('Added to do-not-call'); reload(); } catch (err) { toast.error(err.message); }
+    try {
+      const d = await api('/ai-dnc', { method: 'POST', body: { numbers: num } });
+      setNum('');
+      toast.success(d.added > 1 ? `${d.added} numbers added to do-not-call` : 'Added to do-not-call');
+      if (d.invalid) toast.message(d.invalid === 1 ? '1 entry skipped — not a valid number' : `${d.invalid} entries skipped — not valid numbers`);
+      reload();
+    } catch (err) { toast.error(err.message); }
   };
   const remove = (n) => undoable('Removed from the do-not-call list', {
     hide: () => setData(d => ({ ...d, numbers: (d?.numbers || []).filter(x => x.number !== n) })),
@@ -25,12 +31,15 @@ export function DncList() {
   const s = useSearch(list, d => [d.number, d.reason === 'manual' ? 'added by you' : d.reason]);
   return (
     <div className="flex flex-col gap-4" data-testid="ai-dnc-page">
-      <form onSubmit={add} className="civr-card p-6 flex flex-col sm:flex-row gap-2">
-        <input className="civr-input font-mono flex-1" value={num} onChange={e => setNum(e.target.value)} placeholder="+14155550100" data-testid="ai-dnc-number-input" />
-        <button className="civr-btn civr-btn-primary" disabled={!num.trim()} data-testid="ai-dnc-add-button"><Plus className="w-4 h-4" />Add number</button>
+      <form onSubmit={add} className="civr-card p-6 flex flex-col gap-2">
+        <div className="flex flex-col sm:flex-row gap-2">
+          <input className="civr-input font-mono flex-1" value={num} onChange={e => setNum(e.target.value)} placeholder="+14155550100, +14155550101" aria-label="Numbers to add" data-testid="ai-dnc-number-input" />
+          <button className="civr-btn civr-btn-primary" disabled={!num.trim()} data-testid="ai-dnc-add-button"><Plus className="w-4 h-4" />Add</button>
+        </div>
+        <span className="text-xs text-[#a1a1aa]">With country code. Add several at once by separating them with commas or spaces.</span>
       </form>
       {loading && !data ? <SkeletonRows rows={2} /> : !list.length ? (
-        <Empty icon={Ban} title="Nobody on the list" sub="AI campaigns skip these numbers. Anyone who asks the agent not to call again is added here automatically." testid="ai-dnc-empty">
+        <Empty icon={Ban} title="Nobody on the list" sub="Every campaign skips these numbers — Bulk IVR and AI voice agent. Anyone who asks the agent not to call again is added here automatically." testid="ai-dnc-empty">
           <button type="button" className="civr-btn civr-btn-ghost" onClick={() => { const el = document.querySelector('[data-testid="ai-dnc-number-input"]'); el?.scrollIntoView({ behavior: 'smooth', block: 'center' }); el?.focus({ preventScroll: true }); }} data-testid="ai-dnc-empty-add-button"><Plus className="w-4 h-4" />Add a number</button>
         </Empty>
       ) : (

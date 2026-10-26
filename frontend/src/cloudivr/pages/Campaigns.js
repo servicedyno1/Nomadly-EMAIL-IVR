@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
-import { Megaphone, Plus, Loader2, Calculator, FileUp, ChevronRight, Pause, Play, Contact } from 'lucide-react';
+import { Megaphone, Plus, Loader2, Calculator, FileUp, ChevronRight, Pause, Play, Contact, Repeat, Radio } from 'lucide-react';
 import { api, useApi, when, money } from '../api';
 import { PageHeader, Field, SkeletonRows, SkeletonPage, Empty, AudioSelect, KeyPicker, Toggle, ErrorNote, statusPill, BackupsField } from '../ui';
 import { useCallerNumbers } from './QuickCall';
@@ -45,6 +45,8 @@ function CampaignRow({ c, i, pv, onChange }) {
       <div className="flex flex-col md:flex-row md:items-center gap-3">
         <div className="flex-1 min-w-0"><div className="font-semibold truncate" data-testid={`campaign-row-${i}-name`}>{c.name || c.audioName || 'Campaign'}</div><div className="text-xs text-[#a1a1aa] font-mono">{pv.phone(c.callerId)} · {when(c.createdAt)}</div></div>
         <div className="font-mono text-sm text-[#d4d4d8]" data-testid={`campaign-row-${i}-progress-text`}>{c.stats?.completed || 0}/{c.stats?.total || 0} called</div>
+        {c.repeat && <span className="civr-pill civr-pill-on" data-testid={`campaign-row-${i}-repeat`}><Repeat className="w-3 h-3" />{c.repeat === 'weekly' ? 'weekly' : 'daily'}{c.runNumber > 1 ? ` · run ${c.runNumber}` : ''}</span>}
+        {c.waitingForDailyLimit && c.status === 'running' && <span className="civr-pill civr-pill-warn" data-testid={`campaign-row-${i}-daily-limit`}>daily limit reached</span>}
         <span className={statusPill(c.status)} data-testid={`campaign-row-${i}-status`}>{c.status}</span>
         {c.dryRun && <span className="civr-pill civr-pill-warn">preview</span>}
         <RowAction c={c} i={i} onChange={onChange} />
@@ -71,6 +73,7 @@ export function Campaigns() {
   return (
     <div data-testid="campaigns-page">
       <PageHeader label="Outbound" title="Bulk IVR campaigns" sub="Automated calls to a whole list: play your message, see who answered and what they pressed, and connect interested people to you." testid="campaigns-header">
+        {running && <Link to={cp('/app/live')} className="civr-btn civr-btn-ghost" data-testid="campaigns-live-button"><Radio className="w-4 h-4 text-[#34d399]" />Watch live</Link>}
         <Link to={cp('/app/campaigns/new')} className="civr-btn civr-btn-primary" data-testid="campaigns-new-button"><Plus className="w-4 h-4" />New campaign</Link>
       </PageHeader>
       <ErrorNote error={error} onRetry={reload} className="mb-4" />
@@ -165,6 +168,24 @@ function Estimate({ est }) {
   );
 }
 
+const TZ = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+
+// Repeat every day / week + daily call limit.
+function RunPlanFields({ f, set }) {
+  return (
+    <>
+      <Field label="Repeat" hint={f.repeat ? 'Calls the same numbers again at the same time. A new run starts only after the previous one has finished.' : 'Run once, or call the same list again every day or every week.'}>
+        <select className="civr-input" value={f.repeat} onChange={set('repeat')} data-testid="campaign-repeat-select">
+          <option value="">Don’t repeat</option><option value="daily">Every day</option><option value="weekly">Every week</option>
+        </select>
+      </Field>
+      <Field label="Daily call limit (optional)" hint="Stops dialing for the day after this many calls and carries on after midnight your time. Leave empty for no limit.">
+        <input type="number" min={1} max={10000} className="civr-input" value={f.dailyLimit} onChange={set('dailyLimit')} placeholder="No limit" data-testid="campaign-daily-limit-input" />
+      </Field>
+    </>
+  );
+}
+
 export function CampaignNew() {
   const nav = useNavigate();
   const [kind, setKind] = useState('audio');
@@ -174,7 +195,7 @@ export function CampaignNew() {
   const { data: au, reload: reloadAudio } = useApi('/audio');
   const [params] = useSearchParams();
   // Contacts → "Start a campaign" opens this page with ?list=<id>.
-  const [f, setF] = useState(() => ({ name: '', callerId: '', audioId: '', voicemailAudioId: '', leads: '', source: params.get('list') ? 'list' : 'numbers', listId: params.get('list') || '', mode: 'report_only', transferNumber: '', transferBackups: '', activeKeys: ['1'], menu: [], concurrency: 5, scheduledFor: '', holdMusic: false, agentId: '' }));
+  const [f, setF] = useState(() => ({ name: '', callerId: '', audioId: '', voicemailAudioId: '', leads: '', source: params.get('list') ? 'list' : 'numbers', listId: params.get('list') || '', mode: 'report_only', transferNumber: '', transferBackups: '', activeKeys: ['1'], menu: [], concurrency: 5, scheduledFor: '', holdMusic: false, agentId: '', repeat: '', dailyLimit: '' }));
   const [script, setScript] = useState(null);
   const [est, setEst] = useState(null);
   const [busy, setBusy] = useState('');
@@ -203,8 +224,9 @@ export function CampaignNew() {
     e.preventDefault(); setBusy('create'); setError(null);
     try {
       const scheduledFor = f.scheduledFor ? new Date(f.scheduledFor).toISOString() : null;
-      const body = isAi ? { mode: 'ai', name: f.name, agentId: f.agentId, callerId, ...audience, concurrency: f.concurrency, scheduledFor }
-        : { ...f, ...audience, source: undefined, callerId, menu: f.mode === 'menu' ? menuToApi(f.menu) : undefined, scheduledFor };
+      const plan = { repeat: f.repeat || null, dailyLimit: f.dailyLimit === '' ? null : Number(f.dailyLimit), tz: TZ };
+      const body = isAi ? { mode: 'ai', name: f.name, agentId: f.agentId, callerId, ...audience, concurrency: f.concurrency, scheduledFor, ...plan }
+        : { ...f, ...audience, source: undefined, callerId, menu: f.mode === 'menu' ? menuToApi(f.menu) : undefined, scheduledFor, ...plan };
       const d = await api('/campaigns', { method: 'POST', body });
       toast.success(d.skipped ? `Campaign saved · ${d.skipped} line(s) skipped` : 'Campaign saved');
       if (d.doNotCall) toast.message(`${d.doNotCall} number(s) are on your do-not-call list and will be skipped`);
@@ -241,7 +263,8 @@ export function CampaignNew() {
           {f.mode === 'menu' ? <MenuBuilder value={f.menu} onChange={set('menu')} testid="campaign-menu" /> : <Field label="Keys that count"><KeyPicker value={f.activeKeys} onChange={set('activeKeys')} testid="campaign-keys" /></Field>}
           </>}
           <Field label="Calls at the same time"><input type="number" min={1} max={20} className="civr-input" value={f.concurrency} onChange={set('concurrency')} data-testid="campaign-concurrency-input" /></Field>
-          <Field label="Schedule (optional)" hint="Leave empty to start manually."><DateTimePicker value={f.scheduledFor} onChange={set('scheduledFor')} testid="campaign-schedule" /></Field>
+          <Field label="Schedule (optional)" hint={f.repeat ? 'First run. Leave empty to start it yourself — the next runs follow at the same time.' : 'Leave empty to start manually.'}><DateTimePicker value={f.scheduledFor} onChange={set('scheduledFor')} testid="campaign-schedule" /></Field>
+          <RunPlanFields f={f} set={set} />
           {!isAi && f.mode !== 'report_only' && <div className="flex items-center justify-between"><span className="text-sm">Hold music during transfer</span><Toggle checked={f.holdMusic} onChange={set('holdMusic')} testid="campaign-hold-music-toggle" /></div>}
           <ErrorNote error={error} testid="campaign-create-error" />
           <button className="civr-btn civr-btn-primary w-full" disabled={busy === 'create'} data-testid="campaign-create-button">{busy === 'create' && <Loader2 className="w-4 h-4 animate-spin" />}Save campaign</button>

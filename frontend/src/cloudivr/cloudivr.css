@@ -72,6 +72,11 @@
 @keyframes civrRise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
 .civr .civr-pulse { animation: civrPulse 1.6s ease-in-out infinite; }
 @keyframes civrPulse { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
+.civr .civr-live-dot { box-shadow: 0 0 0 0 rgba(52, 211, 153, .55); animation: civrLiveDot 1.8s ease-out infinite; }
+@keyframes civrLiveDot { 0% { box-shadow: 0 0 0 0 rgba(52, 211, 153, .55); } 100% { box-shadow: 0 0 0 8px rgba(52, 211, 153, 0); } }
+.civr .civr-live-ring { animation: civrLiveRing 1.8s ease-out infinite; }
+@keyframes civrLiveRing { 0% { box-shadow: 0 0 0 0 currentColor; } 100% { box-shadow: 0 0 0 10px transparent; } }
+@media (prefers-reduced-motion: reduce) { .civr .civr-live-dot, .civr .civr-live-ring { animation: none; } }
 .civr .civr-prompt b { color: #fff; } .civr .civr-prompt code { color: var(--c-emerald); }
 .civr table.civr-table { width: 100%; border-collapse: collapse; font-size: 13px; }
 .civr .civr-table th { text-align: left; font-family: 'DM Sans', sans-serif; font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--c-text-2); padding: 12px; border-bottom: 1px solid var(--c-border); font-weight: 600; white-space: nowrap; }

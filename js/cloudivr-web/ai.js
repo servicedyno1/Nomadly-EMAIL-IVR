@@ -109,11 +109,14 @@ function routes(router, { h, numbersApi }) {
   }))
 
   router.get('/ai-dnc', h(async (req, res) => res.json({ numbers: await s.listDnc(req.webChatId) })))
+  // One number, or several separated by commas, spaces or new lines.
   router.post('/ai-dnc', h(async (req, res) => {
-    const n = s.normPhone(req.body?.number)
-    if (!/^\+[1-9]\d{7,14}$/.test(n)) return bad(res, 400, 'invalid_number', 'Enter the number with country code, e.g. +14155550100.')
-    await s.addDnc(req.webChatId, n, 'manual')
-    res.status(201).json({ number: n })
+    const raw = [].concat(req.body?.numbers ?? req.body?.number ?? []).join(' ')
+    const parts = [...new Set(raw.split(/[\s,;]+/).filter(Boolean).map(s.normPhone))].slice(0, 1000)
+    const valid = parts.filter(n => /^\+[1-9]\d{7,14}$/.test(n))
+    if (!valid.length) return bad(res, 400, 'invalid_number', 'Enter the number with country code, e.g. +14155550100.')
+    for (const n of valid) await s.addDnc(req.webChatId, n, 'manual')
+    res.status(201).json({ number: valid[0], added: valid.length, invalid: parts.length - valid.length })
   }))
   router.delete('/ai-dnc/:number', h(async (req, res) => {
     const r = await s.removeDnc(req.webChatId, req.params.number)

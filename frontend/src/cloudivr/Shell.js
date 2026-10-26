@@ -24,6 +24,8 @@ import Contacts from './pages/Contacts';
 import TextCall from './pages/TextCall';
 import { Campaigns, CampaignNew } from './pages/Campaigns';
 import CampaignDetail from './pages/CampaignDetail';
+import Live from './pages/Live';
+import DoNotCall from './pages/DoNotCall';
 import Wallet from './pages/Wallet';
 import Inbox from './pages/Inbox';
 import Settings from './pages/Settings';
@@ -52,6 +54,13 @@ export function FreeBadge() {
   return <span className="ml-auto text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#6366f1] text-white" data-testid="nav-quick-call-free-badge">1 free</span>;
 }
 
+// Green dot on "Live" while a campaign is calling.
+export function LiveDot({ testid = 'nav-live-dot' }) {
+  const shell = useContext(ShellCtx);
+  if (!(shell?.summary?.liveCampaigns > 0)) return null;
+  return <span className="ml-auto w-2 h-2 rounded-full bg-[#34d399] civr-live-dot" role="img" aria-label="Calling now" title="Calling now" data-testid={testid} />;
+}
+
 function SideNav() {
   return (
     <nav className="flex flex-col gap-6" data-testid="nav-header">
@@ -61,7 +70,7 @@ function SideNav() {
           <div className="flex flex-col gap-1">
             {items.map(([to, label, Icon, id]) => (
               <NavLink key={id} end={to === ''} to={appPath(to)} className={({ isActive }) => `civr-nav-link ${isActive ? 'active' : ''}`} data-testid={id}>
-                <Icon className="w-4 h-4" />{label}{id === 'nav-quick-call' && <FreeBadge />}
+                <Icon className="w-4 h-4" />{label}{id === 'nav-quick-call' && <FreeBadge />}{id === 'nav-live' && <LiveDot />}
               </NavLink>
             ))}
           </div>
@@ -178,6 +187,8 @@ export default function Shell() {
               <Route path="campaigns" element={<Campaigns />} />
               <Route path="campaigns/new" element={<CampaignNew />} />
               <Route path="campaigns/:id" element={<CampaignDetail />} />
+              <Route path="live" element={<Live />} />
+              <Route path="do-not-call" element={<DoNotCall />} />
               <Route path="wallet" element={<Wallet />} />
               <Route path="inbox" element={<Inbox />} />
               <Route path="settings" element={<Settings />} />

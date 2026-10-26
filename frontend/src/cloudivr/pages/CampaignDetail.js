@@ -9,6 +9,7 @@ import { SkeletonPage, ErrorNote, statusPill, ShowMore, useIsPhone, usePaged } f
 import { cp } from '../paths';
 import { usePrivacy } from '../privacy';
 import { outcomeLabel } from './ai/AiCalls';
+import { RunPlan, LiveNow, FeedAndAreas } from './campaign/DetailLive';
 
 const STATS = [['total', 'Numbers'], ['completed', 'Called'], ['answered', 'Answered'], ['keyPressed', 'Pressed a key'], ['transferred', 'Transferred'], ['noAnswer', 'No answer']];
 const AI_STATS = [['total', 'Numbers'], ['completed', 'Called'], ['answered', 'Talked'], ['booked', 'Booked'], ['interested', 'Interested'], ['callback', 'Call back'], ['skipped', 'Do-not-call']];
@@ -39,8 +40,10 @@ function CampaignName({ c, onSaved }) {
 }
 
 function Waiting({ c }) {
-  if (c.status !== 'running' || (!c.waitingForHours && !c.waitingForLine)) return null;
-  return <div className="text-xs text-[#fbbf24] mt-3" data-testid="campaign-waiting-note">{c.waitingForLine ? 'All your lines are busy — waiting numbers are redialed automatically as soon as a line frees up.' : 'Waiting for calling hours — the remaining numbers are called between 8am and 9pm their local time.'}</div>;
+  if (c.status !== 'running' || (!c.waitingForHours && !c.waitingForLine && !c.waitingForDailyLimit)) return null;
+  const text = c.waitingForDailyLimit ? 'Today’s call limit is reached — the remaining numbers are called after midnight your time.'
+    : c.waitingForLine ? 'All your lines are busy — waiting numbers are redialed automatically as soon as a line frees up.' : 'Waiting for calling hours — the remaining numbers are called between 8am and 9pm their local time.';
+  return <div className="text-xs text-[#fbbf24] mt-3" data-testid="campaign-waiting-note">{text}</div>;
 }
 
 function Controls({ c, act, busy }) {
@@ -138,6 +141,7 @@ export default function CampaignDetail() {
   if (error && !c) return <div data-testid="campaign-detail-page">{back}<ErrorNote error={error} onRetry={reload} /></div>;
   const isAi = c.mode === 'ai';
   const pct = c.stats?.total ? Math.round(((c.stats.completed || 0) / c.stats.total) * 100) : 0;
+  const stats = isAi ? AI_STATS : c.stats?.skipped ? [...STATS, ['skipped', 'Do-not-call']] : STATS;
   return (
     <div data-testid="campaign-detail-page">
       {back}
@@ -146,18 +150,21 @@ export default function CampaignDetail() {
           <div className="civr-label">{isAi ? `AI agent conversation · ${c.agentName || ''}` : `${c.mode === 'menu' ? 'Menu' : c.mode === 'transfer' ? `Transfer to ${pv.phone(c.transferNumber)}` : 'Report key presses'} · keys ${c.activeKeys?.join(' ')}`}</div>
           <CampaignName c={c} onSaved={(name) => setData(p => ({ campaign: { ...p.campaign, name } }))} />
           <div className="text-sm text-[#a1a1aa] font-mono mt-1">from {pv.phone(c.callerId)} · created {when(c.createdAt)}{c.scheduledFor ? ` · scheduled ${when(c.scheduledFor)}` : ''}</div>
+          <RunPlan c={c} onChanged={reload} />
         </div>
         <div className="flex items-center gap-2"><span className={statusPill(c.status)} data-testid="campaign-status">{c.status}</span>{c.dryRun && <span className="civr-pill civr-pill-warn">preview</span>}</div>
       </div>
       <div className="civr-card p-6 mb-4">
         <div className="flex items-center justify-between mb-3"><span className="text-sm text-[#d4d4d8]">Progress</span><span className="font-mono text-sm" data-testid="campaign-progress">{pct}%</span></div>
         <div className="h-2 rounded-full bg-[#262626] overflow-hidden"><div className={`h-full bg-[#818cf8] transition-[width] duration-700 ${c.status === 'running' ? 'civr-pulse' : ''}`} style={{ width: `${pct}%` }} /></div>
-        <div className={`grid gap-4 mt-6 ${isAi ? 'grid-cols-4 md:grid-cols-7' : 'grid-cols-3 md:grid-cols-6'}`}>{(isAi ? AI_STATS : STATS).map(([k, l]) => <div key={k} data-testid={`campaign-stat-${k}`}><div className="font-mono text-2xl">{c.stats?.[k] || 0}</div><div className="text-xs text-[#a1a1aa]">{l}</div></div>)}</div>
+        <LiveNow c={c} />
+        <div className={`grid gap-4 mt-6 ${stats.length > 6 ? 'grid-cols-4 md:grid-cols-7' : 'grid-cols-3 md:grid-cols-6'}`}>{stats.map(([k, l]) => <div key={k} data-testid={`campaign-stat-${k}`}><div className="font-mono text-2xl">{c.stats?.[k] || 0}</div><div className="text-xs text-[#a1a1aa]">{l}</div></div>)}</div>
         <div className="mt-6 flex flex-wrap gap-2"><Controls c={c} act={act} busy={busy} />
           <button className="civr-btn civr-btn-ghost civr-btn-sm" onClick={() => downloadFile(`/campaigns/${id}/report.csv`, `campaign-${String(id).slice(0, 8)}.csv`).catch(e => toast.error(e.message))} data-testid="campaign-report-download-button"><Download className="w-4 h-4" />Download CSV report</button></div>
         <Waiting c={c} />
         {(c.cancelledReason || c.pausedReason) && <div className="text-xs text-[#a1a1aa] mt-3" data-testid="campaign-reason">{c.cancelledReason || c.pausedReason}</div>}
       </div>
+      <FeedAndAreas c={c} isAi={isAi} />
       <div className="civr-card p-5 sm:p-6 overflow-x-auto">
         <div className="font-display text-2xl font-bold mb-3">Numbers</div>
         <Leads leads={c.leads} isAi={isAi} />

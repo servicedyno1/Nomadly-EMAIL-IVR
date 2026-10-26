@@ -14,6 +14,7 @@ const { translation } = require('./translation.js')
 const { isTwilioEnabled } = require('./phone-config.js')
 const dialGuard = require('./dial-rate-guard.js')
 const contactsImport = require('./contacts-import.js')
+const sched = require('./campaign-schedule.js')
 
 // ━━━ Bulk Call Pricing & Limits ━━━
 const BULK_CALL_RATE       = parseFloat(process.env.BULK_CALL_RATE_PER_MIN || '0.15')   // $/min — charged whether answered or not
@@ -35,6 +36,8 @@ const LINE_403_MAX_RETRIES = 30 // a SIP 403 on hangup can also be a real carrie
 const HOURS_RECHECK_MS = 10 * 60000 // AI campaigns: leads outside 8am–9pm local time are rechecked every 10 min
 const isAiCampaign = (c) => c?.mode === 'ai'
 const aiAgent = () => require('./ai-agent')
+// The account's do-not-call list applies to every campaign (false if the list isn't loaded in this process).
+const onDnc = (chatId, number) => aiAgent().store.onDnc(chatId, number).catch(() => false)
 const TWILIO_UPGRADE_NOTICE = `⚠️ <b>Number Being Upgraded</b>\n\n` +
   `This campaign's caller ID is being moved to our new calling network, so it can't dial right now. ` +
   `Nothing was dialed or charged.\n\nStart a new campaign from your new number, or tap 💬 Support.`
@@ -406,7 +409,7 @@ async function recoverRunningCampaigns() {
     const hoursSinceActivity = lastActivity ? (Date.now() - lastActivity.getTime()) / (1000 * 60 * 60) : Infinity
     const hoursSinceStart = campaign.startedAt ? (Date.now() - new Date(campaign.startedAt).getTime()) / (1000 * 60 * 60) : Infinity
 
-    if (hoursSinceActivity > STALE_CAMPAIGN_HOURS && hoursSinceStart > STALE_CAMPAIGN_HOURS) {
+    if (hoursSinceActivity > STALE_CAMPAIGN_HOURS && hoursSinceStart > STALE_CAMPAIGN_HOURS && !campaign.waitingForDailyLimit) {
       await _collection.updateOne({ id: campaignId }, {
         $set: { status: 'cancelled', completedAt: new Date(), cancelledReason: `Recovery cleanup: stale campaign (${Math.round(hoursSinceActivity)}h since last activity)` }
       })
@@ -648,7 +651,7 @@ function parseLeadsFile(content, fileName) {
  * Create a new campaign
  */
 async function createCampaign(params) {
-  const { chatId, callerId, audioUrl, audioName, mode, transferNumber, transferBackups, menu, activeKeys, concurrency, holdMusic, leads, twilioSubAccountSid, twilioSubAccountToken, scheduledFor, provider, voicemailAudioUrl, voicemailAudioName, agentId, agentName } = params
+  const { chatId, callerId, audioUrl, audioName, mode, transferNumber, transferBackups, menu, activeKeys, concurrency, holdMusic, leads, twilioSubAccountSid, twilioSubAccountToken, scheduledFor, provider, voicemailAudioUrl, voicemailAudioName, agentId, agentName, repeat, dailyLimit, tz } = params
 
   // ━━━ Enforce max lead limit ━━━
   if (leads.length > MAX_BULK_LEADS) {
@@ -717,7 +720,12 @@ async function createCampaign(params) {
     startedAt: null,
     completedAt: null,
     createdAt: new Date(),
+    // Repeat runs + daily call limit (web app); tz = owner's time zone for "same time" / "per day".
+    repeat: sched.REPEATS.includes(repeat) ? repeat : null,
+    dailyLimit: dailyLimit > 0 ? Math.floor(dailyLimit) : null,
+    tz: tz ? sched.zoneOf(tz) : null,
   }
+  if (campaign.repeat) { campaign.seriesId = campaign.id; campaign.runNumber = 1 }
 
   if (schedAt) campaign.status = 'scheduled'
 
@@ -738,9 +746,17 @@ async function launchDueScheduledCampaigns() {
   const now = new Date()
   const due = await _collection.find({ status: 'scheduled', scheduledFor: { $lte: now } }).limit(20).toArray()
   for (const c of due) {
+    // Repeat run while the previous run is still calling → that run finishes first; this one moves to the next slot.
+    if (c.seriesId && await _collection.findOne({ seriesId: c.seriesId, id: { $ne: c.id }, status: { $in: ['running', 'paused'] } }, { projection: { id: 1 } })) {
+      const next = sched.nextRunAt(c)
+      await _collection.updateOne({ id: c.id, status: 'scheduled' }, { $set: { scheduledFor: next, lastSkippedAt: new Date() } })
+      log(`[BulkSchedule] ${c.id}: previous run still calling — moved to ${next.toISOString()}`)
+      continue
+    }
     // Atomic claim — only the winner flips 'scheduled' -> 'created' and proceeds.
     const claim = await _collection.updateOne({ id: c.id, status: 'scheduled' }, { $set: { status: 'created', claimedAt: new Date() } })
     if (!claim || claim.modifiedCount !== 1) continue
+    if (c.repeat) await spawnNextRun(c).catch(e => log(`[BulkSchedule] next run for ${c.id} failed: ${e.message}`))
     const leadCount = (c.stats && c.stats.total) || (Array.isArray(c.leads) ? c.leads.length : 0)
     try {
       const r = await startCampaign(c.id)
@@ -752,6 +768,30 @@ async function launchDueScheduledCampaigns() {
     }
   }
   return launched
+}
+
+// Repeating campaign: schedules its next run once (the launch of a run creates the one after it).
+async function spawnNextRun(c) {
+  if (!c.repeat) return null
+  const id = crypto.randomUUID()
+  const r = await _collection.updateOne({ id: c.id, nextRunId: { $exists: false } }, { $set: { nextRunId: id } })
+  if (r.modifiedCount !== 1) return null
+  const at = sched.nextRunAt(c)
+  await _collection.insertOne(sched.nextRunDoc(c, id, at))
+  log(`[BulkSchedule] ${c.id}: next ${c.repeat} run ${id} at ${at.toISOString()}`)
+  return id
+}
+
+// Stop repeating: no more runs are made and upcoming auto-made runs are cancelled. Runs calling now keep going.
+async function stopRepeat(campaignId) {
+  const c = await _collection.findOne({ id: campaignId })
+  if (!c?.repeat) return { error: 'This campaign does not repeat.' }
+  const seriesId = c.seriesId || c.id
+  const upcoming = await _collection.find({ seriesId, autoRun: true, status: 'scheduled' }, { projection: { id: 1 } }).toArray()
+  for (const u of upcoming) await cancelCampaign(u.id, 'Repeat stopped', { sendReport: false })
+  await _collection.updateMany({ seriesId, status: { $in: ['created', 'scheduled', 'running', 'paused'] } }, { $set: { repeat: null } })
+  log(`[BulkSchedule] series ${seriesId}: repeat stopped (${upcoming.length} upcoming run(s) cancelled)`)
+  return { success: true, cancelledRuns: upcoming.length }
 }
 
 /**
@@ -894,6 +934,7 @@ async function startCampaign(campaignId) {
   await _collection.updateOne({ id: campaignId }, { $set: { status: 'running', startedAt: new Date() } })
   campaign.status = 'running'
   campaign.startedAt = new Date()
+  if (campaign.repeat) await spawnNextRun(campaign).catch(e => log(`[BulkSchedule] next run for ${campaignId} failed: ${e.message}`))
 
   // Initialize in-memory state
   activeCampaigns[campaignId] = {
@@ -1007,6 +1048,7 @@ async function requeueForLines(campaignId, leadIndex, extra = {}) {
     $set: { [`leads.${leadIndex}.status`]: 'pending', [`leads.${leadIndex}.startedAt`]: null, [`leads.${leadIndex}.callSid`]: null, [`leads.${leadIndex}.waitingForLine`]: true, lineLimitAt: new Date(), ...extra },
     $inc: { [`leads.${leadIndex}.lineRetries`]: 1 },
   })
+  await sched.refundDailySlot(_collection, campaignId)
   const st = activeCampaigns[campaignId]
   if (!st) return
   st.lineBackoff = Math.min(LINE_RETRY_MAX_MS, st.lineBackoff ? st.lineBackoff * 2 : LINE_RETRY_MIN_MS)
@@ -1021,7 +1063,8 @@ async function fireNextBatch(campaignId) {
   if (!state || state.paused) return
 
   const campaign = await _collection.findOne({ id: campaignId })
-  if (!campaign || campaign.status !== 'running') return
+  // Preview (dry-run) campaigns never place real calls, even after a restart's recovery.
+  if (!campaign || campaign.status !== 'running' || campaign.dryRun) return
 
   if (campaign.concurrency - state.activeCalls <= 0) return
 
@@ -1046,16 +1089,16 @@ async function fireNextBatch(campaignId) {
     } catch (e) { log(`[BulkCall] Per-batch credit check error: ${e.message}`) }
   }
 
-  let fired = 0, outsideHours = 0
+  let fired = 0, outsideHours = 0, limitHit = false
   for (const lead of pendingLeads) {
     if (state.paused || state.activeCalls >= campaign.concurrency) break
+    // Do-not-call list (every campaign): never dialed, never billed.
+    if (await onDnc(campaign.chatId, lead.number)) {
+      await _collection.updateOne({ id: campaignId, [`leads.${lead.index}.status`]: 'pending' }, { $set: { [`leads.${lead.index}.status`]: 'skipped', [`leads.${lead.index}.hangupCause`]: 'On your do-not-call list', [`leads.${lead.index}.completedAt`]: new Date() } })
+      await recalcStats(campaignId)
+      continue
+    }
     if (isAi) {
-      // Do-not-call list: never dialed, never billed.
-      if (await aiAgent().store.onDnc(campaign.chatId, lead.number)) {
-        await _collection.updateOne({ id: campaignId, [`leads.${lead.index}.status`]: 'pending' }, { $set: { [`leads.${lead.index}.status`]: 'skipped', [`leads.${lead.index}.hangupCause`]: 'On your do-not-call list', [`leads.${lead.index}.completedAt`]: new Date() } })
-        await recalcStats(campaignId)
-        continue
-      }
       // Calling hours (TCPA): only 8am–9pm in the lead's local time — otherwise the lead waits.
       if (!aiAgent().hours.callableNow(lead.number)) { outsideHours++; continue }
       const { usdBal } = await getBalance(_walletOf, campaign.chatId)
@@ -1072,9 +1115,12 @@ async function fireNextBatch(campaignId) {
       await telnyxDialSlot()
       if (state.paused || state.activeCalls >= campaign.concurrency) break
     }
+    // Daily call limit: today's calls used up → the rest wait for tomorrow (owner's time zone).
+    if (campaign.dailyLimit && !(await sched.reserveDailySlot(_collection, campaign))) { limitHit = true; break }
     state.activeCalls++
     if (!(await claimLead(campaignId, lead.index))) {
       state.activeCalls--
+      if (campaign.dailyLimit) await sched.refundDailySlot(_collection, campaignId)
       continue
     }
     fired++
@@ -1094,12 +1140,14 @@ async function fireNextBatch(campaignId) {
         // Provider account / caller ID suspended or out of funds → end the whole campaign now (no further dials, no charge).
         if (isProviderSuspended(result)) {
           await updateLeadResult(campaignId, lead.index, { status: 'pending', startedAt: null })
+          await sched.refundDailySlot(_collection, campaignId)
           await endCampaignProviderSuspended(campaignId, lead.number)
           return
         }
         // Wallet can't cover this lead's (destination) rate → pause instead of failing the lead.
         if (/^Insufficient wallet balance/i.test(String(result.error))) {
           await updateLeadResult(campaignId, lead.index, { status: 'pending', startedAt: null })
+          await sched.refundDailySlot(_collection, campaignId)
           const { usdBal } = await getBalance(_walletOf, campaign.chatId)
           log(`[BulkCall] Pausing campaign ${campaignId}: wallet can't cover ${lead.number} at $${leadRate(lead.number)}/min`)
           await pauseForWallet(campaign, usdBal, leadRate(lead.number))
@@ -1147,6 +1195,11 @@ async function fireNextBatch(campaignId) {
     const waiting = outsideHours > 0 && fired === 0 && state.activeCalls === 0
     if (!!campaign.waitingForHours !== waiting) await _collection.updateOne({ id: campaignId }, { $set: { waitingForHours: waiting } })
     if (outsideHours > 0) retryLater(campaignId, HOURS_RECHECK_MS)
+  }
+
+  if (campaign.dailyLimit) {
+    if (!!campaign.waitingForDailyLimit !== limitHit) await _collection.updateOne({ id: campaignId }, { $set: { waitingForDailyLimit: limitHit } })
+    if (limitHit) retryLater(campaignId, Math.min(sched.msToNextDay(campaign.tz) + 5000, HOURS_RECHECK_MS))
   }
 
   // Check if all done (in case all calls failed immediately)
@@ -1777,6 +1830,8 @@ module.exports = {
   createCampaign,
   startCampaign,
   launchDueScheduledCampaigns,
+  spawnNextRun,
+  stopRepeat,
   onDigitReceived,
   onCallStatusUpdate,
   onCallComplete,
