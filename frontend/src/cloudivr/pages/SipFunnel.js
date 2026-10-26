@@ -69,6 +69,8 @@ function StickyCta({ catalog }) {
 // Sales page for SIP buyers (cloudivr.net/sip). The SIP server itself (sip.cloudivr.net) stays a phone-only address.
 export default function SipFunnel() {
   const { data: catalog } = useApi('/public/catalog');
+  // Arriving from another page (e.g. the landing footer) should start at the hero, not the old scroll position.
+  useEffect(() => { if (!window.location.hash) window.scrollTo(0, 0); }, []);
   return (
     <div className="civr-l pb-20 md:pb-0" data-testid="sip-funnel-page">
       <Nav />

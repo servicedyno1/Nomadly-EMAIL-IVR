@@ -1,0 +1,36 @@
+{
+  "summary": "E2E test of new CloudIVR SIP sales funnel /cloudivr/sip (desktop 1920, mobile 390, en/fr/es), signed-out signup funnel, signed-in Alice funnel, landing footer regression, SEO node tests, and catalog pytest. Every requested feature works. Found 1 minor UX bug: when you arrive from another page you land at the old scroll position instead of the top.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "SipFunnel route change", "issue": "If you click the landing footer 'SIP & softphones' (a React Router Link), /cloudivr/sip opens with the previous scroll position (scrollY≈5039), so the user sees the final CTA/footer instead of the hero. Terms.js already has a scroll-to-top on mount; SipFunnel has none. The SIP nav logo going back to /cloudivr likely does the same.", "selector": "[data-testid='footer-link-sip']", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "verified": [
+    "Title 'SIP phone numbers · CloudIVR', hero title/subtitle (17 countries)/price note, softphone mock server sip.cloudivr.net, status cycles Registered/Ringing",
+    "Hero CTAs + nav links (apps/how/plans/faq/See plans) scroll to sections (top at nav offset 64px); logo href /cloudivr",
+    "Apps section 4 cards, connection card server/port/username, browser note; Copy -> 'Server copied' toast, clipboard = sip.cloudivr.net",
+    "Plans live prices $50/$75/$120, allowances, sip data-included false/true/true, voicemail/aiAgent ticks correct, extra 3/15/30, 'Best for SIP' only on Pro, compare table expands (24 rows) with highlighted sip row",
+    "FAQ 9 items, q0/q1 correct answers; final CTA Choose Pro -> /cloudivr/signup?plan=pro, Compare plans -> #plans",
+    "Signed-out: Choose Pro -> signup?plan=pro (chosen plan note) -> new account -> /cloudivr/app/buy?plan=pro with 'Pro plan picked' hint; starter/business hrefs correct",
+    "Signed-in Alice: sip-nav-dashboard shown, plan hrefs /cloudivr/app/buy?plan=<id>, Business -> Buy with 'Business plan picked'",
+    "Mobile 390: no horizontal overflow, sticky bar shown after scrolling ('Pro · $75/mo', Get started -> signup?plan=pro); hidden on desktop",
+    "i18n fr/es: hero, sections, plan cards, compare table, FAQ answers, CTAs and doc title translated; switching back to en works",
+    "Landing /cloudivr regression: sections/pricing/FAQ render; footer-link-sip -> /cloudivr/sip",
+    "SEO node tests: sip_page_seo 5/5, seo_2026-09 8/8, domain_guard 18/18"
+  ],
+  "test_report_links": ["/app/backend/tests/test_cloudivr_sip_funnel_catalog.py", "/app/test_reports/pytest/sip_funnel.xml", "/app/js/tests/test_cloudivr_sip_page_seo_2026-10.js"],
+  "action_items": ["Add scroll-to-top on mount in SipFunnel (e.g. useEffect(() => { if (!window.location.hash) window.scrollTo(0,0); }, []) like Terms.js), or add a global ScrollToTop on pathname change for CloudIVR routes"],
+  "critical_code_review_comments": [
+    "SipFunnel has no scroll reset on route entry (see ui_bugs)",
+    "Stat strip '$75' counts up, so a mid-animation screenshot can show e.g. '$73'. It settles correctly; this is cosmetic only"
+  ],
+  "updated_files": ["/app/backend/tests/test_cloudivr_sip_funnel_catalog.py"],
+  "success_rate": {"backend": "100%", "frontend": "97% (1 minor scroll-position bug)"},
+  "seed_data_creation": "New sign-up account created: qa.sipfunnel1793027826@example.com / QaTest#2026x (no purchase)",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "SIP funnel fully tested in iteration_147. Cookie banner: click data-testid=cookie-deny. Buy page plan preselect is shown by data-testid=buy-plan-hint (the plan picker only appears after you pick a number). Only open issue: scroll position when you navigate in via a client-side Link."
+}
