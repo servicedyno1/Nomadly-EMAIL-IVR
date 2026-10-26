@@ -50,17 +50,17 @@ export function Hero({ catalog }) {
   const from = startPrice(catalog);
   const n = catalog?.countries?.length || 17;
   const t = TITLE[useLang().lang] || TITLE.en;
-  const trust = ['Live in minutes', 'No contracts', 'Crypto & wallet payments'];
+  const trust = ['Live in minutes', 'Browser phone on every plan', 'No contracts', 'Crypto & wallet payments'];
   return (
     <section className="civr-l-cream relative overflow-hidden pt-32 md:pt-40" data-testid="civr-hero">
       <div className="absolute inset-0 civr-l-gridbg civr-l-mask" />
       <div className="absolute inset-0 pointer-events-none" style={{ background: 'radial-gradient(50% 45% at 85% 20%, rgba(99,102,241,.10), transparent 70%)' }} />
       <div className="relative max-w-7xl mx-auto px-6 md:px-8 grid lg:grid-cols-12 gap-16 lg:gap-12 items-center pb-24">
         <div className="lg:col-span-5 relative z-10">
-          <div className="inline-flex items-center gap-2 min-h-8 py-1 px-3 rounded-2xl sm:rounded-full border border-slate-200 bg-white text-sm text-slate-600 civr-rise" data-testid="hero-eyebrow"><span className="civr-l-dot" />Virtual numbers · Inbound & outbound IVR · AI voice agents</div>
+          <div className="inline-flex items-center gap-2 min-h-8 py-1 px-3 rounded-2xl sm:rounded-full border border-slate-200 bg-white text-sm text-slate-600 civr-rise" data-testid="hero-eyebrow"><span className="civr-l-dot" />Virtual numbers · Browser phone · IVR & AI voice agents · Campaigns</div>
           <h1 className="civr-l-h text-4xl sm:text-5xl lg:text-6xl mt-6 civr-rise civr-d1 text-slate-900" data-testid="hero-title" data-no-translate>{t[0]}<span className="text-[#4f46e5]">{t[1]}</span>{t[2]}</h1>
           <p className="text-base md:text-lg text-slate-600 mt-6 max-w-xl civr-rise civr-d2" data-testid="hero-subtitle">
-            {`Get a virtual number in ${n} countries that never lets a call slip: a keypad menu or an AI voice agent picks up, routes, records and takes messages. Then flip it around — Quick IVR and Bulk IVR campaigns call your list, play your message, connect hot leads and collect codes while you work.`}
+            {`Get a number in ${n} countries and run your whole phone line from the browser: a keypad menu or an AI voice agent answers and routes every call, the browser phone lets you call from any tab, and texts, voicemails and recordings land in one inbox. Then flip it around — Quick IVR and Bulk IVR campaigns call your list, connect hot leads and collect codes while you work.`}
           </p>
           <div className="flex flex-wrap gap-3 mt-8 civr-rise civr-d3">
             <Link to={account ? cp('/app/buy') : cp('/signup')} className="civr-l-btn" data-testid="civr-hero-cta-buy-btn"><Slide>Get your number</Slide><ArrowRight className="w-4 h-4" /></Link>

@@ -34564,45 +34564,20 @@ Select a category:`), k.of(catBtns))
       num.plan = newPlan
       num.planPrice = newPrice
 
-      // Auto-disable features the new plan doesn't support
+      // Switch off what the new plan doesn't include — settings are kept (downgradeSaved) and come back on upgrade.
+      // Running campaigns and scheduled calls are not touched; they finish as planned.
       const downgradeNotices = []
-      if (!phoneConfig.canAccessFeature(newPlan, 'sipCredentials') && !num.sipDisabled) {
-        await updatePhoneNumberField(phoneNumbersOf, chatId, num.phoneNumber, 'sipDisabled', true)
-        num.sipDisabled = true
-        downgradeNotices.push('🔑 SIP Credentials have been disabled')
-      }
-      if (!phoneConfig.canAccessFeature(newPlan, 'ivr') && num.features?.ivr?.enabled) {
-        await updatePhoneNumberFeature(phoneNumbersOf, chatId, num.phoneNumber, 'ivr', { enabled: false })
-        num.features = num.features || {}
-        num.features.ivr = { enabled: false }
-        downgradeNotices.push('🤖 IVR / Auto-attendant has been disabled')
-      }
-      if (!phoneConfig.canAccessFeature(newPlan, 'callRecording') && num.features?.recording === true) {
-        await updatePhoneNumberFeature(phoneNumbersOf, chatId, num.phoneNumber, 'recording', false)
-        num.features = num.features || {}
-        num.features.recording = false
-        downgradeNotices.push('🔴 Call Recording has been disabled')
-      }
-      if (!phoneConfig.canAccessFeature(newPlan, 'voicemail') && num.features?.voicemail?.enabled) {
-        await updatePhoneNumberFeature(phoneNumbersOf, chatId, num.phoneNumber, 'voicemail', { enabled: false })
-        num.features = num.features || {}
-        num.features.voicemail = { enabled: false }
-        downgradeNotices.push('🎙️ Voicemail has been disabled')
-      }
-      if (!phoneConfig.canAccessFeature(newPlan, 'smsToEmail') && num.features?.smsForwarding?.toEmail) {
-        const smsConf = num.features?.smsForwarding || {}
-        smsConf.toEmail = null
-        smsConf.webhookUrl = null
-        await updatePhoneNumberFeature(phoneNumbersOf, chatId, num.phoneNumber, 'smsForwarding', smsConf)
-        num.features.smsForwarding = smsConf
-        downgradeNotices.push('📧 SMS to Email & Webhook have been disabled')
-      }
-
-      // Re-enable SIP if upgrading to a plan that supports it
-      if (phoneConfig.canAccessFeature(newPlan, 'sipCredentials') && num.sipDisabled) {
-        await updatePhoneNumberField(phoneNumbersOf, chatId, num.phoneNumber, 'sipDisabled', false)
-        num.sipDisabled = false
-      }
+      const hadSip = phoneConfig.canAccessFeature(oldPlan, 'sipCredentials') && !num.sipDisabled
+      const dg = planLifecycle.downgradePatch(num, newPlan)
+      await phoneNumbersOf.updateOne({ _id: chatId, 'val.numbers.phoneNumber': num.phoneNumber }, { $set: { ...planLifecycle.numberSet(dg.set), 'val.numbers.$.updatedAt': new Date().toISOString() } })
+      const freshNum = (await phoneNumbersOf.findOne({ _id: chatId }))?.val?.numbers?.find(x => x.phoneNumber === num.phoneNumber)
+      if (freshNum) Object.assign(num, freshNum)
+      if (hadSip && dg.set.sipDisabled) downgradeNotices.push('🔑 SIP Credentials have been disabled')
+      if (dg.off.includes('ivr')) downgradeNotices.push('🤖 IVR / Auto-attendant has been disabled')
+      if (dg.off.includes('callRecording')) downgradeNotices.push('🔴 Call Recording has been disabled')
+      if (dg.off.includes('voicemail')) downgradeNotices.push('🎙️ Voicemail has been disabled')
+      if (dg.off.includes('smsToEmail') || dg.off.includes('smsWebhook')) downgradeNotices.push('📧 SMS to Email & Webhook have been disabled')
+      if (downgradeNotices.length) downgradeNotices.push('💾 Your settings are saved — they switch back on if you upgrade again.')
 
       await saveInfo('cpActiveNumber', num)
       await saveInfo('cpPendingPlan', null)
@@ -37412,7 +37387,7 @@ const formatLinks = (links, t) => {
     if (d.analytics && d.analytics.available === false) {
       const label = (t && typeof t.analyticsNotAvailable === 'function')
         ? t.analyticsNotAvailable(d.analytics.provider)
-        : `📊 analytics not available (${d.analytics.provider})`
+        : '📊 analytics not available'
       return `${label} → ${d.shorter} → ${d.url}`
     }
     return `${d.clicks} ${d.clicks === 1 ? 'click' : 'clicks'} → ${d.shorter} → ${d.url}`
@@ -38700,11 +38675,11 @@ async function applyPhonePlanUpgrade(chatId, num, newPlan, newPrice, lang, payme
   num.plan = newPlan
   num.planPrice = newPrice
 
-  // Re-enable SIP if upgrading to a plan that supports it
-  if (phoneConfig.canAccessFeature(newPlan, 'sipCredentials') && num.sipDisabled) {
-    await updatePhoneNumberField(phoneNumbersOf, chatId, num.phoneNumber, 'sipDisabled', false)
-    num.sipDisabled = false
-  }
+  // Re-enable SIP and switch back on what a downgrade turned off, when the new plan includes it
+  const upg = planLifecycle.upgradePatch(num, newPlan)
+  await phoneNumbersOf.updateOne({ _id: chatId, 'val.numbers.phoneNumber': num.phoneNumber }, { $set: planLifecycle.numberSet(upg) })
+  const freshUpg = (await phoneNumbersOf.findOne({ _id: chatId }))?.val?.numbers?.find(x => x.phoneNumber === num.phoneNumber)
+  if (freshUpg) Object.assign(num, freshUpg)
 
   const info = await state.findOne({ _id: String(chatId) })
   await set(state, chatId, 'cpActiveNumber', num)

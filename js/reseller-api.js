@@ -2913,7 +2913,7 @@ function createResellerApi(deps = {}) {
     // Live registrar renewal is wired for OpenProvider only (same path as auto-renew). Others 501.
     const registrar = await domainAutoRenew.registrarOf(getDb(), owned)
     if (!domainAutoRenew.isOpenProvider(registrar)) {
-      return res.status(501).json({ error: 'not_supported', message: `On-demand renewal is only available for OpenProvider domains. This domain is registered via ${registrar || 'another registrar'} — renew it at that registrar.` })
+      return res.status(501).json({ error: 'not_supported', message: 'On-demand renewal is not available for this domain yet. Contact support to renew it.' })
     }
     const years = Math.min(10, Math.max(1, parseInt(req.body?.years ?? req.body?.period, 10) || 1))
     const quote = await opService.getRenewPrice(domain)
@@ -2971,7 +2971,7 @@ function createResellerApi(deps = {}) {
     else return res.status(400).json({ error: 'invalid_body', message: 'Optional body { "enabled": true|false }; omit to toggle.' })
     const registrar = await domainAutoRenew.registrarOf(getDb(), owned)
     if (enabled && !domainAutoRenew.isOpenProvider(registrar)) {
-      return res.status(501).json({ error: 'auto_renew_not_supported', domain, registrar: registrar || null, auto_renew: false, message: `Auto-renew is available for OpenProvider-registered domains only for now${registrar ? ` (this domain is registered with ${registrar})` : ''}. Renew it at the registrar or via the Telegram bot.` })
+      return res.status(501).json({ error: 'auto_renew_not_supported', domain, registrar: registrar || null, auto_renew: false, message: 'Auto-renew is not available for this domain yet. Renew it via the Telegram bot or contact support.' })
     }
     const set = { autoRenew: enabled, autoRenewUpdatedAt: new Date() }
     if (enabled) {

@@ -392,7 +392,7 @@ async function recoverRunningCampaigns() {
       log(`[BulkCall] Recovery: Campaign ${campaignId} (user ${campaign.chatId}) — BLOCKED (no sub-account)`)
       _bot?.sendMessage(campaign.chatId,
         `🚫 <b>Campaign Cancelled After Restart</b>\n\n` +
-        `Your Bulk IVR campaign could not be resumed because it requires a Twilio-powered number.\n` +
+        `Your Bulk IVR campaign could not be resumed because its caller number no longer supports Bulk IVR.\n` +
         `${pendingLeads.length} leads were not dialed.`,
         { parse_mode: 'HTML' }
       ).catch(() => {})
@@ -853,10 +853,10 @@ async function startCampaign(campaignId) {
     log(`[BulkCall] BLOCKED campaign ${campaignId}: no twilioSubAccountSid — would use main Twilio account`)
     await _collection.updateOne({ id: campaignId }, { $set: { status: 'cancelled', cancelledReason: 'No Twilio sub-account — bulk IVR requires an owned Twilio number' } })
     _bot?.sendMessage(campaign.chatId,
-      `🚫 <b>Campaign Blocked</b>\n\nBulk IVR campaigns require a Twilio-powered Cloud IVR number.\nYour current number does not support Bulk IVR.\n\nPurchase a ☎️ Bulk IVR capable number to use this feature.`,
+      `🚫 <b>Campaign Blocked</b>\n\nYour current number does not support Bulk IVR.\n\nPurchase a ☎️ Bulk IVR capable number to use this feature.`,
       { parse_mode: 'HTML' }
     ).catch(() => {})
-    return { error: 'Bulk IVR requires a Twilio-powered number with a sub-account. Campaign blocked.' }
+    return { error: 'This number does not support Bulk IVR. Campaign blocked.' }
   }
 
   // ━━━ PRE-CAMPAIGN CREDIT CHECK: Bulk calls charge $BULK_CALL_RATE/min from wallet (plan minutes NOT used) ━━━

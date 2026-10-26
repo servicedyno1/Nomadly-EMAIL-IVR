@@ -63,17 +63,17 @@ const FEATURES = [
   ['Call forwarding', 'Ring any phone number, with backup destinations and hold music.'],
   ['SMS inbox', 'Receive and reply to texts in-app, with automatic replies and text triggers.'],
   ['Voicemail', 'Custom greetings, transcription and delivery to your email.'],
-  ['Browser phone & SIP', 'Make and take calls from the built-in browser phone (no install) or connect a SIP app or desk phone.'],
+  ['Browser phone on every plan', 'Make and take calls in any browser tab with the built-in browser phone — nothing to install. Pro and up also connect SIP apps and desk phones.'],
   ['Call recording', 'Record calls and play them back from your logs.'],
   ['Quick IVR calls & Bulk IVR campaigns', 'Automated outbound calls to up to 10 people at once or a whole list: play your message, then connect them on a key press, collect a code (OTP) or route each key.'],
   ['Ring groups, Text Triggers & text calls', 'Ring several phones at once, start a callback from an incoming text, or call by typing — a natural voice speaks for you and their words appear as live text.'],
   ['Logs, analytics & AI summaries', 'Searchable call and message history with AI-written call summaries.'],
-  ['Wallet & auto-renew', 'Fund a wallet by card or crypto; numbers auto-renew and usage is billed from the wallet.'],
+  ['Wallet & auto-renew', 'Fund a wallet with crypto (cards coming soon); numbers auto-renew and usage is billed from the wallet.'],
 ]
 
 const HOW = [
   ['Sign up free', 'Create a CloudIVR account with your email — no charge to start.'],
-  ['Choose a number', 'Pick a country and number type, search live availability, and buy by card, crypto or from your wallet.'],
+  ['Choose a number', 'Pick a country and number type, search live availability, and pay with crypto or from your wallet.'],
   ['Set it up', 'Add a greeting, a keypad menu or an AI voice agent, call forwarding and voicemail.'],
   ['Start using it', 'Answer in the browser phone or a SIP app, forward to your phone, and manage SMS, voicemail, recordings, logs and campaigns from the dashboard.'],
 ]
@@ -91,7 +91,7 @@ function faqs() {
     ['Is CloudIVR free to start?',
       `Yes. Creating a CloudIVR account is free. You only pay when you buy a phone number${fromTxt}, plus any usage beyond your plan's included minutes and SMS.`],
     ['How do I pay?',
-      `Pay by credit or debit card, with crypto, or top up your CloudIVR wallet (from ${minTopup}) and pay from it. Renewals and call charges come out of your wallet.`],
+      `Pay with crypto, or top up your CloudIVR wallet (from ${minTopup}) and pay from it. Renewals and call charges come out of your wallet. Card payments are coming soon.`],
     ['What is a keypad menu (IVR)?',
       `An IVR is a phone keypad menu: callers hear your greeting and press a key to reach the right person, hear a message or leave voicemail. It runs on your plan's included minutes. The keypad menu is on the ${ivrPlans} plan.`],
     ['What can an AI voice agent do?',
@@ -99,7 +99,7 @@ function faqs() {
     ['Are outgoing calls included in my minutes?',
       'No. Plan minutes cover incoming calls you answer. Outgoing calls — the browser phone, SIP, Quick IVR calls, campaigns and AI agent calls — and forwarded calls are billed per minute from your wallet, and the price is shown before you call.'],
     ['Can I use my number from a browser or a SIP app?',
-      'Yes. Use the built-in browser phone with no app to install, connect a SIP app or desk phone, or simply forward calls to any phone number.'],
+      'Yes. Every plan includes the built-in browser phone — make and take calls in any browser tab, nothing to install — and call forwarding to any phone. Pro and up also connect SIP apps and desk phones.'],
     ['Which countries can I get a number in?',
       countries
         ? `Numbers are available in ${countries} countries, including the US and Canada, plus international local, mobile and toll-free numbers.`
@@ -115,7 +115,7 @@ function tagline() {
   const c = cat()
   const start = startPrice(c)
   const countries = c && c.countryCount ? ` in ${c.countryCount} countries` : ''
-  return `Virtual phone numbers${countries} with keypad menus (IVR), AI voice agents, call forwarding, voicemail and an SMS inbox. Free to start${start != null ? `, numbers from ${usd(start)}/month` : ''}. Pay with crypto, run it from your browser.`
+  return `Virtual phone numbers${countries} with a browser phone, keypad menus (IVR), AI voice agents, call forwarding, voicemail, call recording, an SMS inbox and outbound IVR campaigns. Free to start${start != null ? `, numbers from ${usd(start)}/month` : ''}. Pay with crypto, run your whole phone system from the browser.`
 }
 
 // ── Per-page <head> metadata ─────────────────────────────────────────────────
@@ -134,7 +134,7 @@ function metaFor(pathname) {
     },
     '/signup': {
       title: `Create your ${BRAND} account`,
-      desc: `Get a virtual phone number with keypad menus (IVR), voicemail, an SMS inbox and AI voice agents. Free to sign up; pay by card or crypto.${fromTxt}`,
+      desc: `Get a virtual phone number with keypad menus (IVR), voicemail, an SMS inbox and AI voice agents. Free to sign up; pay with crypto or your wallet.${fromTxt}`,
     },
     '/forgot': {
       title: `Reset your password · ${BRAND}`,
@@ -285,11 +285,11 @@ function bodyNoscript() {
     if (r.aiAgentPerMin != null) usage.push(`AI voice agent ${perMin(r.aiAgentPerMin)}/min`)
     pricingHtml =
       `<h2>Pricing</h2>` +
-      `<p>Free to sign up. Plans are billed monthly per number — pay by card, crypto or from your CloudIVR wallet (top up from ${esc(minTopup)}). Auto-renew keeps your number; cancel any time. No contracts.</p>` +
+      `<p>Free to sign up. Plans are billed monthly per number — pay with crypto or from your CloudIVR wallet (top up from ${esc(minTopup)}; cards coming soon). Auto-renew keeps your number; cancel any time. No contracts.</p>` +
       `<ul>${rows}</ul>` +
       (usage.length ? `<p>Usage beyond your plan is billed from your wallet: ${esc(usage.join(', '))}. Outgoing calls show their price before you dial.${extra ? ` Extra numbers cost from ${esc(extra)}/month each and share a plan's minutes and SMS.` : ''}</p>` : '')
   } else {
-    pricingHtml = `<h2>Pricing</h2><p>Free to sign up. Numbers are billed monthly per number and paid by card, crypto or from your CloudIVR wallet. Auto-renew keeps your number; cancel any time.</p>`
+    pricingHtml = `<h2>Pricing</h2><p>Free to sign up. Numbers are billed monthly per number and paid with crypto or from your CloudIVR wallet. Auto-renew keeps your number; cancel any time.</p>`
   }
 
   const html =
@@ -404,7 +404,7 @@ function llmsFullTxt() {
   HOW.forEach(([t, d], i) => lines.push(`${i + 1}. **${t}.** ${d}`))
   lines.push('')
   lines.push('## Pricing')
-  lines.push(`Creating an account is free. Each number is billed monthly on the plan you choose and paid by card or crypto, or from a CloudIVR wallet you top up (from ${minTopup}). Numbers auto-renew and can be cancelled any time. There are no contracts.`, '')
+  lines.push(`Creating an account is free. Each number is billed monthly on the plan you choose and paid with crypto or from a CloudIVR wallet you top up (from ${minTopup}); card payments are coming soon. Numbers auto-renew and can be cancelled any time. There are no contracts.`, '')
   if (c && c.plans && c.plans.length) {
     c.plans.forEach((p) => {
       const feats = (p.webFeatures || []).filter((f) => f.included).map((f) => f.label)

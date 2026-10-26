@@ -170,7 +170,11 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
 
   router.get('/campaigns/:id', withCampaign(async (req, res) => res.json({ campaign: publicCampaign(req.campaign, true) })))
 
+  // A saved campaign that never started needs the feature on the caller's plan now (running ones finish after a downgrade).
   router.post('/campaigns/:id/start', withCampaign(async (req, res) => {
+    const ai = req.campaign.mode === 'ai'
+    const c = await caller(req.webChatId, req.campaign.callerId, ai ? 'aiAgent' : 'bulkCall', ai ? 'AI agent campaigns' : 'Bulk IVR campaigns')
+    if (c.err) return bad(res, ...c.err)
     if (req.campaign.dryRun || dryRun()) return res.status(202).json({ dryRun: true, message: 'Preview mode: the campaign is saved but no numbers were dialed.' })
     const r = await bulkCallService.startCampaign(req.campaign.id)
     if (r?.error) return bad(res, r.lowBalance ? 402 : 400, 'start_failed', String(r.error).replace(/<[^>]+>/g, ''))

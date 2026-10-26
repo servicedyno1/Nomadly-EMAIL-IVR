@@ -38,6 +38,7 @@ function LockedList({ nums }) {
   return (
     <div className="civr-card p-6 space-y-3" data-testid="sip-page-locked">
       <div className="flex items-center gap-2 font-semibold"><Lock className="w-4 h-4 text-[#fbbf24]" />SIP needs the Pro plan or higher</div>
+      <p className="text-xs text-[#a1a1aa]" data-testid="sip-page-locked-browser-note">These numbers still make and take calls in the browser phone — open it from the phone icon in the top bar.</p>
       {nums.map((n, i) => (
         <div key={n.phoneNumber} className="flex items-center justify-between gap-3 py-2 border-t border-[#262626]" data-testid={`sip-page-locked-${i}`}>
           <span className="min-w-0"><span className="block font-mono text-sm truncate">{pv.phone(n.phoneNumber)}</span><span className="block text-xs text-[#a1a1aa] mt-0.5">{n.planName}</span></span>
@@ -56,10 +57,11 @@ export default function SipPage() {
   if (loading && !data) return <Spinner />;
   const nums = (data?.numbers || []).filter(n => n.status !== 'released');
   const withSip = nums.filter(n => n.access?.sipCredentials);
+  const canPhone = nums.some(n => n.status === 'active' && n.access?.browserPhone);
   return (
     <div data-testid="sip-page">
       <PageHeader label="Numbers" title="SIP & softphones" sub="Log in to any softphone with these details to call and answer on your numbers." testid="sip-header">
-        {withSip.length > 0 && <button type="button" className="civr-btn civr-btn-primary" onClick={openPhone} data-testid="sip-page-open-phone"><Phone className="w-4 h-4" />Open browser phone</button>}
+        {canPhone && <button type="button" className="civr-btn civr-btn-primary" onClick={openPhone} data-testid="sip-page-open-phone"><Phone className="w-4 h-4" />Open browser phone</button>}
       </PageHeader>
       {!nums.length ? (
         <Empty icon={KeyRound} title="No numbers yet" sub="Buy a number on the Pro plan or higher to get SIP credentials." testid="sip-page-empty">

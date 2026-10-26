@@ -4,6 +4,7 @@
 const fs = require('fs')
 const crypto = require('crypto')
 const phoneConfig = require('../phone-config')
+const lifecycle = require('../plan-lifecycle')
 const ivrTpl = require('../ivr-templates')
 const vmGreeting = require('../voicemail-greeting')
 const notify = require('./notify')
@@ -65,28 +66,18 @@ function routes(router, { db, h, numbersApi, bulkCallService, getTodayCoupons, p
     const newPrice = round2(next.price + surcharge)
     const was = new Set(webFeatures(n.plan).filter(f => f.included).map(f => f.key))
     const lost = webFeatures(newPlan).filter(f => !f.included && was.has(f.key)).map(f => f.label)
-    const extras = (await subsOf(req.webChatId, n.phoneNumber)).length
-    const preview = { plan: newPlan, planName: next.name, newPrice, lost, minutes: [cur.minutes, next.minutes], sms: [cur.sms, next.sms], extras, extraLimit: phoneConfig.getSubNumberLimit(newPlan) }
+    const subs = await subsOf(req.webChatId, n.phoneNumber)
+    // SIP apps / desk phones are signed out (new logins); the browser phone keeps working on every plan.
+    const sipSignOut = phoneConfig.canAccessFeature(n.plan, 'sipCredentials') && !phoneConfig.canAccessFeature(newPlan, 'sipCredentials')
+    const preview = { plan: newPlan, planName: next.name, newPrice, lost, minutes: [cur.minutes, next.minutes], sms: [cur.sms, next.sms], extras: subs.length, extraLimit: phoneConfig.getSubNumberLimit(newPlan), sipSignOut, settingsKept: true }
     if (req.body.confirm !== true) return res.json({ preview })
-    const can = (k) => phoneConfig.canAccessFeature(newPlan, k)
-    const f = n.features || {}
-    const set = { 'val.numbers.$.plan': newPlan, 'val.numbers.$.planPrice': newPrice }
-    if (!can('sipCredentials')) set['val.numbers.$.sipDisabled'] = true
-    // Settings switched off are remembered so a later upgrade can switch them back on.
-    const saved = [...(n.downgradeSaved || [])]
-    const off = (key, path, cur, val) => {
-      if (can(key) || cur === undefined || cur === null || cur === val) return
-      set[`val.numbers.$.${path}`] = val
-      if (!saved.some(x => x.path === path)) saved.push({ key, path, value: cur })
-    }
-    off('ivr', 'features.ivr.enabled', f.ivr?.enabled, false)
-    off('callRecording', 'features.recording', f.recording, false)
-    off('voicemail', 'features.voicemail.enabled', f.voicemail?.enabled, false)
-    off('smsToEmail', 'features.smsForwarding.toEmail', f.smsForwarding?.toEmail, null)
-    off('smsWebhook', 'features.smsForwarding.webhookUrl', f.smsForwarding?.webhookUrl, null)
-    set['val.numbers.$.downgradeSaved'] = saved
-    await phoneNumbersOf.updateOne({ _id: req.webChatId, 'val.numbers.phoneNumber': n.phoneNumber }, { $set: set })
+    // Settings switched off are remembered so a later upgrade can switch them back on. Running campaigns and
+    // scheduled calls are not touched — they finish as planned.
+    const { set } = lifecycle.downgradePatch(n, newPlan)
+    await phoneNumbersOf.updateOne({ _id: req.webChatId, 'val.numbers.phoneNumber': n.phoneNumber }, { $set: lifecycle.numberSet({ plan: newPlan, planPrice: newPrice, ...set }) })
     await syncExtras(req.webChatId, n.phoneNumber, newPlan)
+    if (sipSignOut) Promise.all([n, ...subs.filter(x => x.status !== 'released')].map(x => numbersApi.rotateSip(req.webChatId, x)))
+      .catch(e => log(`[CloudIVR-Web] SIP sign-out after downgrade failed for ${n.phoneNumber}: ${e.message}`))
     await phoneTransactions.insertOne({ chatId: req.webChatId, phoneNumber: n.phoneNumber, action: 'downgrade', oldPlan: n.plan, newPlan, oldPrice: n.planPrice, newPrice, amount: 0, paymentMethod: 'none', channel: 'web', timestamp: new Date().toISOString() })
     notifyAdmin(`🌐 CloudIVR web: ${n.phoneNumber} downgraded ${cur.name} → ${next.name} by web account ${req.webChatId}`)
     res.json({ plan: newPlan, planName: next.name, planPrice: newPrice, turnedOff: lost })

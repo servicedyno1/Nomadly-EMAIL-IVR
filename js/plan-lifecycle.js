@@ -86,6 +86,42 @@ const syncExtrasPlan = (col, chatId, parentNumber, plan) => col.updateOne(
   { _id: chatId }, { $set: { 'val.numbers.$[s].plan': plan } }, { arrayFilters: [{ 's.isSubNumber': true, 's.parentNumber': parentNumber }] },
 ).catch(() => {})
 
+// Moving down: settings the new plan can't use are switched off but remembered (downgradeSaved) so a later upgrade
+// brings them back. Features the call engine checks by plan (AI agent, ring group, Text Triggers…) just stop working.
+const DOWNGRADE_OFF = [
+  ['ivr', 'features.ivr.enabled', (f) => f.ivr?.enabled, false],
+  ['callRecording', 'features.recording', (f) => f.recording, false],
+  ['voicemail', 'features.voicemail.enabled', (f) => f.voicemail?.enabled, false],
+  ['smsToEmail', 'features.smsForwarding.toEmail', (f) => f.smsForwarding?.toEmail, null],
+  ['smsWebhook', 'features.smsForwarding.webhookUrl', (f) => f.smsForwarding?.webhookUrl, null],
+]
+// → { set: { path: value } relative to the number, off: [feature keys switched off] }
+function downgradePatch(n, newPlan) {
+  const can = (k) => phoneConfig.canAccessFeature(newPlan, k)
+  const f = n.features || {}
+  const set = {}, off = [], saved = [...(n.downgradeSaved || [])]
+  if (!can('sipCredentials')) set.sipDisabled = true
+  for (const [key, path, read, val] of DOWNGRADE_OFF) {
+    const cur = read(f)
+    if (can(key) || cur === undefined || cur === null || cur === val) continue
+    set[path] = val
+    off.push(key)
+    if (!saved.some(x => x.path === path)) saved.push({ key, path, value: cur })
+  }
+  set.downgradeSaved = saved
+  return { set, off }
+}
+// Moving up: switch back on what a downgrade turned off, when the new plan includes it.
+function upgradePatch(n, newPlan) {
+  const can = (k) => phoneConfig.canAccessFeature(newPlan, k)
+  const set = can('sipCredentials') ? { sipDisabled: false } : {}
+  const saved = n.downgradeSaved || []
+  for (const x of saved) if (can(x.key)) set[x.path] = x.value
+  set.downgradeSaved = saved.filter(x => !can(x.key))
+  return set
+}
+const numberSet = (patch) => Object.fromEntries(Object.entries(patch).map(([k, v]) => [`val.numbers.$.${k}`, v]))
+
 const onHold = (n) => n.status === 'suspended' && !!n._holdUntil
 const holdOver = (n, now = new Date()) => onHold(n) && new Date(n._holdUntil) <= now
 const hold = (now, reason) => ({
@@ -228,6 +264,6 @@ function renewedMsg(n, r, lang) {
 module.exports = {
   HOLD_DAYS, isInternalTest, canonicalPrice, renewalPrice, mainOf, extrasOf, isOrphan, onHold, holdOver,
   lineGroup, planLimit, poolUsage, USAGE_RESET, usageResetPatches, priceOnPlan, syncExtrasPlan,
-  suspendPlan, orphanToMain, releasePatch, renewBlock, renewPatches, applyLocal, applyDb,
+  downgradePatch, upgradePatch, numberSet, suspendPlan, orphanToMain, releasePatch, renewBlock, renewPatches, applyLocal, applyDb,
   planSuspendedMsg, orphanSuspendedMsg, releasedAfterHoldMsg, renewBlockMsg, holdNotice, renewedMsg,
 }

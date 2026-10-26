@@ -3,6 +3,7 @@
 // Every bot send to such an id is captured here as an in-app notification instead of hitting Telegram.
 const WEB_ID_BASE = 5e15
 const { ObjectId } = require('mongodb')
+const { scrubProviderNames } = require('../sanitize-provider')
 const isWebChatId = (id) => { const n = Number(id); return Number.isFinite(n) && n >= WEB_ID_BASE && n < Number.MAX_SAFE_INTEGER }
 
 let _col = null
@@ -30,10 +31,13 @@ function kindOf(t) {
 // Bot promos (they all carry the "/stoppromos" footer) never belong in a web inbox — a backstop for any broadcast path.
 async function push(chatId, text, mediaUrl = null, extra = null) {
   if (!_col) return
-  const clean = strip(text).slice(0, 4000)
-  if (!clean && !mediaUrl) return
-  if (/\/stoppromos/.test(clean)) return
-  await _col.insertOne({ chatId: String(chatId), text: clean, kind: extra?.kind || kindOf(clean), mediaUrl, meta: extra?.meta || null, read: false, createdAt: new Date() })
+  const raw = strip(text).slice(0, 4000)
+  if (!raw && !mediaUrl) return
+  if (/\/stoppromos/.test(raw)) return
+  // Engine notices never name the carrier; a forwarded text keeps the sender's own words.
+  const kind = extra?.kind || kindOf(raw)
+  const clean = kind === 'sms' ? raw : scrubProviderNames(raw)
+  await _col.insertOne({ chatId: String(chatId), text: clean, kind, mediaUrl, meta: extra?.meta || null, read: false, createdAt: new Date() })
 }
 
 const FAKE = (chatId) => Promise.resolve({ message_id: 0, chat: { id: chatId }, web: true })

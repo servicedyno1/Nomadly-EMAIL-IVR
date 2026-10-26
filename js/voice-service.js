@@ -11,6 +11,7 @@ const dialGuard = require('./dial-rate-guard.js')
 const callSessionStore = require('./call-session-store.js')
 const numberHours = require('./number-hours.js')
 const browserRing = require('./relay-call/incoming') // CloudIVR web "Ring me in the browser" (ringing banner + online map)
+const browserCallKey = require('./browser-call-key.js')
 const vmGreeting = require('./voicemail-greeting.js')
 // CloudIVR web accounts (reserved chatId range): voicemail is kept, transcribed and emailed. Loaded lazily (see _webVoicemail).
 let _webVoicemailDeliver = null
@@ -2398,6 +2399,23 @@ function handleCallBridged(payload) {
   }
 }
 
+// Desk phones / softphone apps ring only on plans with SIP. On browser-phone plans (Starter) the line rings only while the
+// owner's CloudIVR tab is open with "Ring me in the browser" on.
+function sipRingable(num, chatId) {
+  if (!num?.sipUsername) return false
+  if (canAccessFeature(num.plan, 'sipCredentials')) return true
+  return canAccessFeature(num.plan, 'browserPhone') && !!num.features?.browserRing?.enabled && browserRing.isOnline(chatId)
+}
+// "Phone apps are not on your plan" notice — at most once per 10 minutes per account (apps retry fast).
+const _sipPlanNotices = new Map()
+function _sipPlanNotice(chatId) {
+  const k = String(chatId), now = Date.now()
+  if (now - (_sipPlanNotices.get(k) || 0) < 10 * 60000) return false
+  _sipPlanNotices.set(k, now)
+  return true
+}
+
+
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // CALL INITIATED — Answer or reject based on limits
 // Also handles OUTBOUND SIP calls (Twilio bridge)
@@ -2602,7 +2620,7 @@ async function handleCallInitiated(payload) {
   // If SIP device doesn't answer → answer + voicemail/forwarding/missed fallback.
   const fwdConfig = num.features?.callForwarding
   const ivrConfig = num.features?.ivr
-  const hasSip = !!num.sipUsername
+  const hasSip = sipRingable(num, chatId)
   const hasIvr = ivrConfig?.enabled && canAccessFeature(num.plan, 'ivr') && ivrConfig.options && Object.keys(ivrConfig.options).length > 0
   // A ring group (several phones at once) needs the answered call too, like forward-always.
   const hasForwardAlways = (fwdConfig?.enabled && fwdConfig.forwardTo && fwdConfig.mode === 'always') || ringGroupOn(num)
@@ -3194,6 +3212,21 @@ async function handleOutboundSipCall(payload) {
   }
   // Identification succeeded — clear any prior unidentified-failure state for this credential.
   if (credentialExtracted && sipUsername) _clearUnidentifiedFailure(sipUsername)
+
+  // ── PLAN GATE: SIP apps and desk phones need a plan with SIP; the CloudIVR browser phone (signed header) works on
+  // browser-phone plans (Starter). Free test credentials are not numbers on a plan. ──
+  if (!lookupResult.isTestCall && !canAccessFeature(num.plan, 'sipCredentials')) {
+    const fromBrowser = canAccessFeature(num.plan, 'browserPhone') && browserCallKey.valid(num.phoneNumber, browserCallKey.fromPayload(payload))
+    if (!fromBrowser) {
+      log(`[Voice] Outbound SIP: ${num.phoneNumber} (plan ${num.plan}) has no SIP apps and the call is not from the browser phone — rejecting`)
+      try { await _telnyxApi.hangupCall(callControlId) } catch (e) { log(`[Voice] Reject error: ${e.message}`) }
+      if (_sipPlanNotice(chatId)) {
+        const msg = _trans('vs.sipPlanBlocked', await _getUserLang(chatId), formatPhone(num.phoneNumber), formatPhone(destination))
+        if (msg) _bot?.sendMessage(chatId, msg, { parse_mode: 'HTML' }).catch(() => {})
+      }
+      return
+    }
+  }
 
   // ── TEST OUTBOUND SIP HOOK ──
   // If this user has an active "Test Outbound SIP" session, short-circuit the call:
@@ -4054,7 +4087,7 @@ async function handleCallAnswered(payload) {
       session.forwardingRate = CALL_FORWARDING_RATE_MIN
       const ringTime = (fwdConfig.ringTimeout || 25) * 1000
       // Play ringback tone to caller during the wait (prevents silence)
-      if (!num.sipUsername) {
+      if (!sipRingable(num, chatId)) {
         _telnyxApi.playbackStart(callControlId, RINGBACK_URL, { loop: 'infinity' }).catch(e => {
           log(`[Voice] Ringback playback during no-answer wait failed: ${e.message}`)
         })
@@ -4074,7 +4107,7 @@ async function handleCallAnswered(payload) {
 
   // 4. Ring SIP device — only reached when call was already answered (IVR/fwd-busy/no_answer fallthrough or SIP ring failed in handleCallInitiated)
   // Primary unanswered SIP ring is handled in handleCallInitiated
-  if (num.sipUsername && session.phase !== 'ringing_sip') {
+  if (sipRingable(num, chatId) && session.phase !== 'ringing_sip') {
     session.phase = 'ringing_sip'
     const sipUser = num.telnyxSipUsername || num.sipUsername
     const sipUri = `sip:${sipUser}@sip.telnyx.com`
@@ -4967,7 +5000,7 @@ async function initiateOutboundIvrCall(params) {
     // ━━━ SECURITY: Block non-trial Twilio calls without sub-account credentials ━━━
     if (!params.twilioSubAccountSid || !params.twilioSubAccountToken) {
       log(`[OutboundIVR] SECURITY BLOCK: Twilio call rejected — missing sub-account credentials for chatId ${chatId}`)
-      return { error: 'Twilio calls require sub-account credentials. Cannot use main account.' }
+      return { error: 'This number cannot place calls right now. Please contact support.' }
     }
     const crypto = require('crypto')
     const sessionId = crypto.randomUUID()

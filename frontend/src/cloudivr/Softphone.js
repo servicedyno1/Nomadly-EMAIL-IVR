@@ -29,8 +29,8 @@ export default function Softphone({ open, onClose }) {
   const msg = here ? rtcMsg : '';
   useEffect(() => {
     if (!open) return;
-    // Browser calls need SIP; "Call me first" needs outbound IVR — both are Pro and up.
-    api('/numbers').then(d => { const l = d.numbers.filter(n => n.status === 'active' && (n.access.sipCredentials || n.access.ivrOutbound)); setNums(l); setSel(s => s || (l.some(n => n.phoneNumber === rtcPhone) ? rtcPhone : l[0]?.phoneNumber) || ''); }).catch(() => {});
+    // The browser phone works on every plan; "Call me first" needs outbound IVR (Pro and up).
+    api('/numbers').then(d => { const l = d.numbers.filter(n => n.status === 'active' && (n.access.browserPhone || n.access.ivrOutbound)); setNums(l); setSel(s => s || (l.some(n => n.phoneNumber === rtcPhone) ? rtcPhone : l[0]?.phoneNumber) || ''); }).catch(() => {});
     api('/calls/callback').then(d => setMyPhone(p => p || d.myPhone || '')).catch(() => {});
   }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (call) setLast({ peer: call.peer, direction: call.inbound ? 'inbound' : 'outbound' }); }, [call]);
@@ -57,14 +57,14 @@ export default function Softphone({ open, onClose }) {
         <div className="flex items-center gap-2 text-sm text-[#a1a1aa] py-6" data-testid="softphone-loading"><Loader2 className="w-4 h-4 animate-spin" />Loading…</div>
       ) : !nums.length ? (
         <div data-testid="softphone-no-numbers">
-          <p className="text-sm text-[#a1a1aa]">Calling from the browser needs an active number on the Pro plan or higher.</p>
-          <Link to={cp('/app/numbers')} onClick={onClose} className="civr-btn civr-btn-ghost civr-btn-sm mt-4" data-testid="softphone-upgrade-link">Upgrade a number</Link>
+          <p className="text-sm text-[#a1a1aa]">Calling from the browser needs an active number. Every plan includes the browser phone.</p>
+          <Link to={cp('/app/buy')} onClick={onClose} className="civr-btn civr-btn-ghost civr-btn-sm mt-4" data-testid="softphone-upgrade-link">Get a number</Link>
         </div>
       ) : (
         <>
           <div className="flex gap-2 mb-3">
             <select className="civr-input !h-9 font-mono text-xs" value={sel} onChange={e => { setSel(e.target.value); setInfo(null); }} data-testid="softphone-number-select">{nums.map(n => <option key={n.phoneNumber} value={n.phoneNumber}>{pv.phone(n.phoneNumber)}</option>)}</select>
-            {!viaMobile && <button className="civr-btn civr-btn-ghost civr-btn-sm" disabled={status === 'connecting' || !selNum?.access?.sipCredentials} onClick={() => connect(sel)} data-testid="softphone-connect-button">{status === 'connecting' ? <Loader2 className="w-4 h-4 animate-spin" /> : status === 'ready' ? 'Online' : 'Connect'}</button>}
+            {!viaMobile && <button className="civr-btn civr-btn-ghost civr-btn-sm" disabled={status === 'connecting' || !selNum?.access?.browserPhone} onClick={() => connect(sel)} data-testid="softphone-connect-button">{status === 'connecting' ? <Loader2 className="w-4 h-4 animate-spin" /> : status === 'ready' ? 'Online' : 'Connect'}</button>}
           </div>
           <CallMeFirst on={cmf} onChange={v => { setCmf(v); setInfo(null); }} myPhone={myPhone} setMyPhone={setMyPhone} allowed={cmfAllowed} />
           <div className="text-xs mb-3" data-testid="softphone-status">

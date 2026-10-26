@@ -11,9 +11,10 @@ const notes = require('./notes')
 const notify = require('./notify')
 const referrals = require('./referrals')
 const safeUrl = require('../safe-url')
+const browserCallKey = require('../browser-call-key')
 
 const TYPE_NAMES = { local: 'Local', toll_free: 'Toll-free', mobile: 'Mobile', national: 'National' }
-const FEATURE_KEYS = ['callForwarding', 'smsToEmail', 'smsWebhook', 'voicemail', 'sipCredentials', 'callRecording', 'ivr', 'ivrOutbound', 'bulkCall', 'otpCollection', 'aiAgent', 'textRelay', 'ringGroup', 'textTriggers', 'aiSummary', 'browserRing', 'ivrRedial', 'otpCustomMessages', 'ivrSchedule', 'ivrPresets', 'consistentVoice']
+const FEATURE_KEYS = ['callForwarding', 'smsToEmail', 'smsWebhook', 'voicemail', 'sipCredentials', 'browserPhone', 'callRecording', 'ivr', 'ivrOutbound', 'bulkCall', 'otpCollection', 'aiAgent', 'textRelay', 'ringGroup', 'textTriggers', 'aiSummary', 'browserRing', 'ivrRedial', 'otpCustomMessages', 'ivrSchedule', 'ivrPresets', 'consistentVoice']
 const LOG_TYPES = { sms: ['sms', 'sms_out'], voicemail: ['voicemail'], fax: ['fax'] }
 const E164 = /^\+[1-9]\d{7,14}$/
 const dryRun = () => process.env.WEB_CLOUDIVR_DRY_RUN === 'true'
@@ -55,11 +56,12 @@ function countries() {
 const WEB_FEATURES = [
   ['inbox', 'SMS inbox — read texts and reply', null],
   ['forwarding', 'Call forwarding to any phone', 'callForwarding'],
+  ['browserPhone', 'Browser phone — make and take calls in any browser tab', 'browserPhone'],
   ['hours', 'On/off hours for each number', null],
   ['notes', 'Call notes', null],
   ['private', 'Private mode — hide numbers on screen', null],
   ['voicemail', () => `Voicemail in ${vmGreeting.LANG_CODES.length} languages + transcripts`, 'voicemail'],
-  ['browserPhone', 'Browser phone & SIP for softphones', 'sipCredentials'],
+  ['sip', 'SIP logins for desk phones and softphone apps', 'sipCredentials'],
   ['smsEmail', 'SMS to email & webhooks', 'smsToEmail'],
   ['ivr', 'Keypad menu (IVR) for incoming calls — press 1 for sales, with key stats', 'ivr'],
   ['quickIvr', 'Quick IVR — automated calls to up to 10 people', 'ivrOutbound'],
@@ -596,24 +598,34 @@ function routes(router, deps) {
     res.json({ logs: logs.map(publicLog) })
   }))
 
+  // ?browser=1 = the built-in browser phone (every plan); without it = SIP apps / desk phones (plans with SIP).
+  // browserKey = the signed header the browser phone adds to its calls (needed on plans without SIP apps).
   router.get('/numbers/:phone/sip', withNumber(async (req, res) => {
-    if (!gate(req, res, 'sipCredentials', 'SIP credentials')) return
-    const n = req.num
-    res.json({ username: n.telnyxSipUsername || n.sipUsername, password: n.telnyxSipPassword || n.sipPassword, domain: phoneConfig.WEB_SIP_DOMAIN, port: 5060, transport: 'UDP/TCP/TLS', live: !!n.telnyxSipUsername })
+    const n = req.num, sip = phoneConfig.canAccessFeature(n.plan, 'sipCredentials')
+    if (!sip && !(req.query.browser && phoneConfig.canAccessFeature(n.plan, 'browserPhone'))) return gate(req, res, 'sipCredentials', 'SIP credentials')
+    res.json({ username: n.telnyxSipUsername || n.sipUsername, password: n.telnyxSipPassword || n.sipPassword, domain: phoneConfig.WEB_SIP_DOMAIN, port: 5060, transport: 'UDP/TCP/TLS', live: !!n.telnyxSipUsername, browserOnly: !sip, browserKey: browserCallKey.mint(n.phoneNumber) })
   }))
 
-  router.post('/numbers/:phone/sip/reset', withNumber(async (req, res) => {
-    if (!gate(req, res, 'sipCredentials', 'SIP credentials')) return
-    const n = req.num, tr = getTelnyxResources() || {}
+  // New SIP login for a number (devices on the old one stop working) → { username, password } or null if the network refused.
+  async function rotateSip(chatId, n) {
+    const tr = getTelnyxResources() || {}
     let user = phoneConfig.generateSipUsername(), pass = phoneConfig.generateSipPassword(), credId = null
-    if (!dryRun() && tr.sipConnectionId) {
+    if (!dryRun() && !n.dryRun && tr.sipConnectionId) {
       const cred = await telnyxApi.createSIPCredential(tr.sipConnectionId, user, pass, n.phoneNumber)
-      if (!cred?.sip_username) return bad(res, 424, 'sip_reset_failed', 'Could not create new SIP credentials. Your current ones still work.')
+      if (!cred?.sip_username) return null
       user = cred.sip_username; pass = cred.sip_password || pass; credId = cred.id || null
       if (n.telnyxCredentialId) await telnyxApi.deleteSIPCredential(n.telnyxCredentialId).catch(() => {})
     }
-    await phoneNumbersOf.updateOne({ _id: req.webChatId, 'val.numbers.phoneNumber': n.phoneNumber }, { $set: { 'val.numbers.$.sipUsername': user, 'val.numbers.$.sipPassword': pass, 'val.numbers.$.telnyxSipUsername': dryRun() ? n.telnyxSipUsername || null : user, 'val.numbers.$.telnyxSipPassword': dryRun() ? n.telnyxSipPassword || null : pass, 'val.numbers.$.telnyxCredentialId': credId || n.telnyxCredentialId || null } })
-    res.json({ username: user, password: pass, domain: phoneConfig.WEB_SIP_DOMAIN })
+    const live = !dryRun() && !n.dryRun
+    await phoneNumbersOf.updateOne({ _id: chatId, 'val.numbers.phoneNumber': n.phoneNumber }, { $set: { 'val.numbers.$.sipUsername': user, 'val.numbers.$.sipPassword': pass, 'val.numbers.$.telnyxSipUsername': live ? user : n.telnyxSipUsername || null, 'val.numbers.$.telnyxSipPassword': live ? pass : n.telnyxSipPassword || null, 'val.numbers.$.telnyxCredentialId': credId || n.telnyxCredentialId || null } })
+    return { username: user, password: pass }
+  }
+
+  router.post('/numbers/:phone/sip/reset', withNumber(async (req, res) => {
+    if (!gate(req, res, 'sipCredentials', 'SIP credentials')) return
+    const c = await rotateSip(req.webChatId, req.num)
+    if (!c) return bad(res, 424, 'sip_reset_failed', 'Could not create new SIP credentials. Your current ones still work.')
+    res.json({ ...c, domain: phoneConfig.WEB_SIP_DOMAIN })
   }))
 
   router.post('/numbers/:phone/auto-renew', withNumber(async (req, res) => {
@@ -656,10 +668,7 @@ function routes(router, deps) {
     if (q.error) return { status: q.error.status, body: { error: q.error.error, message: q.error.message } }
     if (!(await w.debit(chatId, q.charge))) return { status: 402, body: { error: 'insufficient_balance', message: `The upgrade costs $${q.charge.toFixed(2)}. Top up your wallet first.` } }
     // Switch back on what a downgrade turned off, when the new plan includes it.
-    const set = { 'val.numbers.$.plan': newPlan, 'val.numbers.$.planPrice': q.newPrice, 'val.numbers.$.sipDisabled': false }
-    const saved = n.downgradeSaved || []
-    for (const x of saved) if (phoneConfig.canAccessFeature(newPlan, x.key)) set[`val.numbers.$.${x.path}`] = x.value
-    set['val.numbers.$.downgradeSaved'] = saved.filter(x => !phoneConfig.canAccessFeature(newPlan, x.key))
+    const set = lifecycle.numberSet({ plan: newPlan, planPrice: q.newPrice, ...lifecycle.upgradePatch(n, newPlan) })
     await phoneNumbersOf.updateOne({ _id: chatId, 'val.numbers.phoneNumber': n.phoneNumber }, { $set: set })
     await phoneNumbersOf.updateOne({ _id: chatId }, { $set: { 'val.numbers.$[s].plan': newPlan } }, { arrayFilters: [{ 's.isSubNumber': true, 's.parentNumber': n.phoneNumber }] }).catch(() => {})
     await phoneTransactions.insertOne({ chatId, phoneNumber: n.phoneNumber, action: 'upgrade', oldPlan: n.plan, newPlan, oldPrice: n.planPrice, newPrice: q.newPrice, amount: q.charge.toFixed(2), credit: q.credit.toFixed(2), paymentMethod: viaOrder ? 'crypto_order' : 'wallet_usd', ...(viaOrder ? { orderRef: viaOrder } : {}), channel: 'web', timestamp: new Date().toISOString() })
@@ -691,7 +700,7 @@ function routes(router, deps) {
     res.json({ released: true })
   }))
 
-  return { myNumbers, findMine, purchase, pickFromSearch, searchSimilar, setField, checkCoupon, unheld, ownAudioUrls, upgradeQuote, upgradeNumber }
+  return { myNumbers, findMine, purchase, pickFromSearch, searchSimilar, setField, checkCoupon, unheld, ownAudioUrls, upgradeQuote, upgradeNumber, rotateSip }
 }
 
 module.exports = { parseBackups, routes, catalog, routeSummary, publicNumber, publicVoicemail, validateIvr, normPhone, countries, E164, webFeatures, recommendedPlan, WEB_FEATURES }

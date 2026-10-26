@@ -28,6 +28,16 @@ const webhooks = require('./events')
 const aiSummary = require('./ai-summary')
 const { sendMail } = require('./auth')
 const { createEmails } = require('./emails')
+const { scrubProviderNames } = require('../sanitize-provider')
+
+// API messages (top level, and per-call errors in results / calls lists) never name the carrier or registrar.
+const MSG_KEYS = ['message', 'error', 'detail']
+function scrubBody(b) {
+  if (!b || typeof b !== 'object' || Array.isArray(b)) return b
+  for (const k of MSG_KEYS) if (typeof b[k] === 'string') b[k] = scrubProviderNames(b[k])
+  for (const list of [b.results, b.calls]) if (Array.isArray(list)) for (const x of list) if (x && typeof x.error === 'string') x.error = scrubProviderNames(x.error)
+  return b
+}
 
 function createCloudIvrWeb(deps) {
   const { getDb, log = console.log } = deps
@@ -104,6 +114,11 @@ function createCloudIvrWeb(deps) {
   const bootTimer = setInterval(() => { if (boot()) clearInterval(bootTimer) }, 5000)
   if (bootTimer.unref) bootTimer.unref()
   const router = express.Router()
+  router.use((req, res, next) => {
+    const json = res.json.bind(res)
+    res.json = (body) => json(scrubBody(body))
+    next()
+  })
   router.use((req, res, next) => {
     boot()
     if (!ready) return res.status(503).json({ error: 'starting', message: 'Service is starting. Try again in a moment.' })

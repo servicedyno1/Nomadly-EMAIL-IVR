@@ -32,7 +32,9 @@ export function Downgrade({ num, plans, reload, refreshSummary }) {
         <div className="text-sm space-y-2" data-testid="billing-downgrade-preview">
           <div>New price <span className="font-mono">{money(preview.newPrice)}</span>/month from your next renewal · {preview.minutes[1]} min · {preview.sms[1]} SMS.</div>
           {preview.lost.length > 0 && <div className="text-[#fbbf24]" data-testid="billing-downgrade-lost">Turns off now: {preview.lost.join(', ')}.</div>}
+          {preview.sipSignOut && <div className="text-[#fbbf24]" data-testid="billing-downgrade-sip-note">Desk phones and softphone apps signed in to this number are signed out. The browser phone keeps working.</div>}
           {preview.extras > preview.extraLimit && <div className="text-[#fbbf24]">You have {preview.extras} extra numbers; the new plan allows {preview.extraLimit}. They keep working but you can’t add more.</div>}
+          <div className="text-xs text-[#a1a1aa]" data-testid="billing-downgrade-kept-note">Your settings are saved and switch back on if you upgrade again. Campaigns and scheduled calls already running finish as planned.</div>
           <div className="text-xs text-[#a1a1aa]">No refund for the current month.</div>
         </div>
       )}

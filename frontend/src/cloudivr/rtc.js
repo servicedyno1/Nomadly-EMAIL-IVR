@@ -6,7 +6,7 @@ import { api, enc } from './api';
 const friendly = (e) => {
   const detail = `${e?.error?.message || e?.message || ''}`;
   const code = e?.error?.code ?? e?.code;
-  if (code === -32001 || /login incorrect|auth|forbidden|unauthor|credential/i.test(detail)) return 'The line’s SIP login was rejected. Create new SIP credentials in the number’s SIP tab, then connect again.';
+  if (code === -32001 || /login incorrect|auth|forbidden|unauthor|credential/i.test(detail)) return 'The browser phone could not sign in to this line. Press Connect to try again — if it keeps failing, message support.';
   return 'Could not connect the browser phone. Check your internet connection and microphone permission, then try again.';
 };
 const NOT_LIVE = 'This line isn’t live on the network yet (preview numbers are simulated), so the browser phone can’t register.';
@@ -18,6 +18,7 @@ export const useRtc = () => useContext(RtcCtx);
 export function RtcProvider({ children }) {
   const client = useRef(null);
   const line = useRef('');
+  const key = useRef(null); // signed header the browser phone adds to every call it places
   const [status, setStatus] = useState('idle');
   const [call, setCall] = useState(null);
   const [msg, setMsg] = useState('');
@@ -28,7 +29,8 @@ export function RtcProvider({ children }) {
   const connect = useCallback(async (p, { quiet = false } = {}) => {
     setMsg(''); setStatus('connecting'); setPhone(p); line.current = p;
     try {
-      const c = await api(`/numbers/${enc(p)}/sip`);
+      const c = await api(`/numbers/${enc(p)}/sip?browser=1`);
+      key.current = c.browserKey || null;
       if (!c.live) { setStatus(quiet ? 'idle' : 'error'); setMsg(NOT_LIVE); return; }
       client.current?.disconnect();
       const rtc = new TelnyxRTC({ login: c.username, password: c.password });
@@ -51,12 +53,18 @@ export function RtcProvider({ children }) {
   // Numbers with "Ring me in the browser" on keep the browser phone online while the app is open.
   const autoConnect = useCallback(async () => {
     const d = await api('/numbers').catch(() => null);
-    const n = d?.numbers?.find(x => x.status === 'active' && x.features?.browserRing?.enabled && x.access?.sipCredentials && x.sipUsername);
+    const n = d?.numbers?.find(x => x.status === 'active' && x.features?.browserRing?.enabled && x.access?.browserPhone && x.sipUsername);
     if (n && line.current !== n.phoneNumber) connect(n.phoneNumber, { quiet: true });
   }, [connect]);
   useEffect(() => { autoConnect(); }, [autoConnect]);
 
-  const dial = (dest, from) => client.current?.newCall({ destinationNumber: dest, callerNumber: from, audio: true, video: false });
+  const dial = async (dest, from) => {
+    if (key.current && Date.parse(key.current.expiresAt) - Date.now() < 3600000) {
+      key.current = (await api(`/numbers/${enc(line.current)}/sip?browser=1`).catch(() => null))?.browserKey || key.current;
+    }
+    const k = key.current;
+    return client.current?.newCall({ destinationNumber: dest, callerNumber: from, audio: true, video: false, ...(k ? { customHeaders: [{ name: k.name, value: k.value }] } : {}) });
+  };
   return (
     <RtcCtx.Provider value={{ status, call, msg, phone, connect, dial, autoConnect }}>
       <audio id="civr-remote-audio" autoPlay />

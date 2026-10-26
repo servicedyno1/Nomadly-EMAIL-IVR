@@ -28,7 +28,7 @@ function fallbackText(n, declined) {
 
 function routes(router, { db, h, numbersApi, voiceService, smsReply, log = console.log }) {
   const callRate = (from) => voiceService.getIvrCallRate(from)
-  const canVoiceOn = (n, r) => !!n && !r.simulated && !!n.telnyxSipUsername && phoneConfig.canAccessFeature(n.plan, 'sipCredentials') && !n.sipDisabled
+  const canVoiceOn = (n, r) => !!n && !r.simulated && !!n.telnyxSipUsername && phoneConfig.canAccessFeature(n.plan, 'browserPhone')
 
   const publicRing = async (chatId, r) => {
     const n = await numbersApi.findMine(chatId, r.phone)
@@ -62,7 +62,7 @@ function routes(router, { db, h, numbersApi, voiceService, smsReply, log = conso
     const chatId = req.webChatId
     const n = await numbersApi.findMine(chatId, req.body?.phone)
     if (!n || n.status !== 'active') return bad(res, 400, 'invalid_number', 'Pick one of your active numbers.')
-    if (!phoneConfig.canAccessFeature(n.plan, 'browserRing')) return bad(res, 403, 'plan_upgrade_required', 'Ringing in the browser needs the Pro plan or higher on this number.')
+    if (!phoneConfig.canAccessFeature(n.plan, 'browserRing')) return bad(res, 403, 'plan_upgrade_required', 'Ringing in the browser is not available on this number.')
     if (!settingsOf(n).enabled) return bad(res, 400, 'not_enabled', 'Switch on "Ring me in the browser" for this number and save first.')
     if (ringing.list(chatId).length >= 3) return bad(res, 429, 'too_many', 'Answer or decline the calls already ringing first.')
     const from = normPhone(req.body?.from || '+14155550123')
@@ -110,7 +110,7 @@ function routes(router, { db, h, numbersApi, voiceService, smsReply, log = conso
     const n = await numbersApi.findMine(chatId, r.phone)
     if (req.body?.remember && n) await saveMode(chatId, n, 'voice')
     const canVoice = canVoiceOn(n, r)
-    res.json({ canVoice, message: canVoice ? 'Answer in the browser phone.' : r.simulated ? 'Preview calls can only be answered as text — preview numbers are not live on the network.' : 'Answering by voice needs live SIP logins on this number (Pro and up) and the browser phone connected.' })
+    res.json({ canVoice, message: canVoice ? 'Answer in the browser phone.' : r.simulated ? 'Preview calls can only be answered as text — preview numbers are not live on the network.' : 'Answering by voice needs this number live on the network and the browser phone connected.' })
   }))
 
   // Optional `reply`: "Decline with a message" — the caller also gets this text from the number.
