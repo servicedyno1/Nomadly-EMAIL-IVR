@@ -147,6 +147,15 @@ earlyApp.use(express.json({
   verify: (req, _res, buf) => { if (buf && buf.length) req.rawBody = buf },
 }))
 earlyApp.use(express.urlencoded({ extended: true, limit: '50mb' }))
+// Browser audio players (CloudIVR web: Audio library, Quick IVR, voice maker, Inbox, AI calls) load files as
+// /api/assets/... . Emergent's ingress strips /api, but on the droplet nginx passes it through and the generic /api
+// strip (`const app = earlyApp` further down) runs AFTER the /assets handlers below — so production answered with the
+// SPA HTML instead of the audio (players stuck at 0:00 / 0:00, users re-uploading the same clip). Fix: 2026-10-26,
+// web user iammills404@gmail.com. Rewrite only this prefix, before the static + restore handlers.
+earlyApp.use((req, res, next) => {
+  if (req.url.startsWith('/api/assets/')) req.url = req.url.slice(4)
+  next()
+})
 earlyApp.use('/assets', express.static(require('path').join(__dirname, 'assets')))
 
 // ── Fallback middleware for /assets/user-audio/ — Restore from MongoDB if file missing from ephemeral disk ──
