@@ -1,5 +1,22 @@
 # PRD — Nomadly Cloud IVR + Telegram Bot
 
+## 2026-10-26 — CloudIVR web Quick IVR free call + OTP code collection + cards "Coming soon" + Terms — TESTED (iteration_142: backend 20/20, frontend all flows), NOT deployed
+- Built (previous fork): free Quick IVR call for accounts with no number (`pages/quick/Trial.js`, `/calls/trial`), OTP code collection with
+  Accept / Decline / Hang up on the Quick IVR page and in the Inbox (`pages/quick/Otp.js`, `/calls/otp/:ccid`, preview = simulated `sim-` calls),
+  plan gating like the bot (Starter: no Quick IVR; Pro: OTP, no custom messages / redial; Business: all), Terms page (`/cloudivr/terms`),
+  landing combined Quick & Bulk IVR card, payments show cards + crypto with cards "Coming soon" (landing, wallet, checkout).
+- This round: OTP Inbox items link to /app/quick-call ("Open Quick IVR call"); each code try keeps its own Inbox item (owner choice) but only the
+  newest item per call shows the live panel (older ones say "An earlier try"); free-call subtitle/title fixed; overview trial card mentions codes;
+  Redial only on rows made from a Business number; Pro locked notes de-duplicated; `/calls/otp` no longer returns chatId/at; Terms headings
+  translate (number + title split) and open scrolled to top; failed filter load no longer leaves the old list under the error (useApi);
+  OTP Inbox text + new strings translated FR/ES; FR grammar fixes.
+- Verified: Cmd/K palette, number quick switches persist, Inbox SMS inline reply, Inbox filter placeholders, 390px no overflow.
+- Seeded on this pod: Alice Pro `+13313039077` + Starter `+13313039088` (copies). Tests: `backend/tests/test_cloudivr_quick_otp_trial.py`,
+  `backend/tests/test_cloudivr_iter142_otp_inbox_gating.py`.
+- Backlog: P1 bot-side OTP text localisation for real calls (bot sends English); P2 fix ESLint config (`no-unassigned-vars` key error);
+  P2 Phase 3 (accessibility, tokens). Owner must "Save to GitHub" before any deploy.
+
+
 ## 2026-10-25 (late) — CloudIVR landing redesign + app UI fixes (Phase 1) — TESTED (iteration_140, frontend 100%), NOT deployed (owner reviews preview first)
 - Landing is now light (white/slate, indigo #6366f1/#4f46e5 accent, green parrot + green "IVR" wordmark kept). AI mock-up images (had
   garbled text) replaced by coded product mocks in `pages/landing/Mockups.js` (AppMock in hero, IvrMock / CampaignMock / AiMock in features).

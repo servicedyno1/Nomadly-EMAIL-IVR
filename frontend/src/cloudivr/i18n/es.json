@@ -209,6 +209,7 @@
 "An AI that answers your number or calls your leads, in English, French or Spanish — with natural, fast conversation.": "Una IA que responde tu número o llama a tus prospectos, en inglés, francés o español — con conversación natural y rápida.",
 "An IVR is a phone keypad menu: callers hear your greeting and press a key to reach the right person, hear a message or leave voicemail. It runs on your plan's included minutes. The keypad menu is on the {0} plan.": "Un IVR es un menú de teclas telefónicas: los llamantes escuchan tu saludo y presionan una tecla para comunicarse con la persona correcta, escuchar un mensaje o dejar buzón de voz. Funciona con los minutos incluidos en tu plan. El menú de teclas está en el plan {0}.",
 "An account with this email already exists. Sign in instead.": "Ya existe una cuenta con este email. Inicia sesión en su lugar.",
+"An earlier try. The newest code for this call is above.": "Un intento anterior. El código más reciente de esta llamada está más arriba.",
 "Answer": "Responder",
 "Answer as text": "Responder por texto",
 "Answer calls with the AI agent": "Responde llamadas con el agente IA",
@@ -595,7 +596,7 @@
 "Decline": "Rechazar",
 "Decline & send": "Rechazar y enviar",
 "Decline with a text message": "Rechazar con un mensaje de texto",
-"Decline · ask again ({0} left)": "Rechazar · preguntar de nuevo ({0} restantes)",
+"Decline · ask again ({0} left)": "Rechazar · preguntar de nuevo (quedan {0})",
 "Decline · end call": "Rechazar · terminar llamada",
 "Declined": "rechazado",
 "Declined — asking for the code again": "Rechazado — solicitando el código otra vez",
@@ -2643,5 +2644,7 @@
 "← text": "← texto",
 "⚡ {0}: {1} Text from {2} to {3} {4}": "⚡ {0}: {1} Texto de {2} a {3} {4}",
 "✓ included · ✗ not on that plan. You can upgrade a number later from its Billing tab.": "✓ incluido · ✗ no en ese plan. Puedes actualizar un número más tarde desde su pestaña de Facturación.",
-"🔑 Code collected (preview) From: {0} Code: {1} Accept or decline it on the Quick IVR call page or right here.": "🔑 Código recibido (vista previa) De: {0} Código: {1} Acéptalo o recházalo en la página de Llamada IVR rápida o aquí mismo."
+"🔑 Code collected (preview)\nFrom: {0}\nCode: {1}\nAccept or decline it on the Quick IVR call page or right here.": "🔑 Código recibido (vista previa)\nDe: {0}\nCódigo: {1}\nAcéptalo o recházalo en la página de Llamada IVR rápida o aquí mismo.",
+"🔑 Code collected (preview) From: {0} Code: {1} Accept or decline it on the Quick IVR call page or right here.": "🔑 Código recibido (vista previa) De: {0} Código: {1} Acéptalo o recházalo en la página de Llamada IVR rápida o aquí mismo.",
+"🔑 OTP Collected\n\n📞 Target: {0}\n🔢 Code: {1}\n\n⏳ Caller is on hold. Approve or reject:": "🔑 Código recibido\n\n📞 Destinatario: {0}\n🔢 Código: {1}\n\n⏳ La persona está en espera. Acepta o rechaza:"
 }

@@ -209,6 +209,7 @@
 "An AI that answers your number or calls your leads, in English, French or Spanish — with natural, fast conversation.": "Une IA qui répond à votre numéro ou appelle vos prospects, en anglais, français ou espagnol — avec une conversation naturelle et rapide.",
 "An IVR is a phone keypad menu: callers hear your greeting and press a key to reach the right person, hear a message or leave voicemail. It runs on your plan's included minutes. The keypad menu is on the {0} plan.": "Un SVI est un menu téléphonique à touches : les appelants entendent votre message d’accueil et appuient sur une touche pour joindre la bonne personne, écouter un message ou laisser un message vocal. Il utilise les minutes incluses dans votre forfait. Le menu à touches est inclus dans le forfait {0}.",
 "An account with this email already exists. Sign in instead.": "Un compte avec cet email existe déjà. Connectez-vous plutôt.",
+"An earlier try. The newest code for this call is above.": "Un essai précédent. Le code le plus récent de cet appel est plus haut.",
 "Answer": "Répondre",
 "Answer as text": "Répondre par texte",
 "Answer calls with the AI agent": "Répondez aux appels avec l'agent IA",
@@ -581,7 +582,7 @@
 "Current password": "Mot de passe actuel",
 "Current password is wrong.": "Le mot de passe actuel est incorrect.",
 "Custom OTP Messages": "Messages OTP personnalisés",
-"Custom accept / decline messages are on the Business plan.": "Messages personnalisés d’acceptation / refus sont disponibles dans le forfait Business.",
+"Custom accept / decline messages are on the Business plan.": "Les messages personnalisés d’acceptation / refus sont disponibles dans le forfait Business.",
 "Custom confirm / reject messages are on the Business plan.": "Les messages personnalisés de confirmation / rejet sont disponibles dans le forfait Business.",
 "Custom greetings, transcription and delivery to your email.": "Messages d’accueil personnalisés, transcription et envoi à votre email.",
 "Custom script": "Script personnalisé",
@@ -595,7 +596,7 @@
 "Decline": "Refuser",
 "Decline & send": "Refuser & envoyer",
 "Decline with a text message": "Refuser avec un message texte",
-"Decline · ask again ({0} left)": "Refuser · redemander ({0} restants)",
+"Decline · ask again ({0} left)": "Refuser · redemander (encore {0})",
 "Decline · end call": "Refuser · terminer l’appel",
 "Declined": "Refusé",
 "Declined — asking for the code again": "Refusé — redemande du code",
@@ -2643,5 +2644,7 @@
 "← text": "← texte",
 "⚡ {0}: {1} Text from {2} to {3} {4}": "⚡ {0} : {1} SMS de {2} à {3} {4}",
 "✓ included · ✗ not on that plan. You can upgrade a number later from its Billing tab.": "✓ inclus · ✗ non disponible sur ce forfait. Vous pouvez mettre à niveau un numéro plus tard depuis son onglet Facturation.",
-"🔑 Code collected (preview) From: {0} Code: {1} Accept or decline it on the Quick IVR call page or right here.": "🔑 Code collecté (aperçu) De : {0} Code : {1} Acceptez-le ou refusez-le sur la page Appel SVI rapide ou ici même."
+"🔑 Code collected (preview)\nFrom: {0}\nCode: {1}\nAccept or decline it on the Quick IVR call page or right here.": "🔑 Code reçu (aperçu)\nDe : {0}\nCode : {1}\nAcceptez-le ou refusez-le sur la page Appel SVI rapide ou ici même.",
+"🔑 Code collected (preview) From: {0} Code: {1} Accept or decline it on the Quick IVR call page or right here.": "🔑 Code collecté (aperçu) De : {0} Code : {1} Acceptez-le ou refusez-le sur la page Appel SVI rapide ou ici même.",
+"🔑 OTP Collected\n\n📞 Target: {0}\n🔢 Code: {1}\n\n⏳ Caller is on hold. Approve or reject:": "🔑 Code reçu\n\n📞 Destinataire : {0}\n🔢 Code : {1}\n\n⏳ La personne est en attente. Acceptez ou refusez :"
 }

@@ -1,0 +1,41 @@
+{
+  "summary": "CloudIVR web iter142: verified all 8 fixes and areas A–K. Backend: regression test_cloudivr_quick_otp_trial.py 12/12 passed; new test_cloudivr_iter142_otp_inbox_gating.py 8/8 passed (Starter caller refused with 403, pubOtp drops chatId/at on GET and POST, OTP inbox link /app/quick-call, a decline creates a new try-2 item (intended), accept, 400/409/404). Frontend (Playwright, 1920 and 390): Inbox OTP panel Accept/Decline/Hang up works, link and hint OK and clicking the item goes to Quick IVR; free-call subtitle and title change; overview trial card text; Redial shows only on Business-caller rows; Pro locked notes are different; heading opacity is 1; Starter number not in the caller select; landing combined card (switches to Bulk view) and Text calls visual render with no broken images; card payments disabled and shown as Coming soon in Wallet and Checkout, crypto and wallet work; Terms is linked from the footer and Help; FR/ES translations; no horizontal overflow at 390px; Cmd/K palette; Numbers quick switch persists after reload; SMS inline reply; Inbox filter placeholders and error state. Found 4 minor issues, none blocking.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "notify.js OTP push text", "issue": "The Inbox text '🔑 Code collected (preview) / From / Code / Accept or decline it…' is built on the server in English and has no fr/es keys, so it stays English when the app is in FR or ES."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Terms.js headings and contents list", "issue": "In FR/ES the section headings and 'On this page' links stay English or come out half-translated (e.g. '1. About these terms', '4. Plans, wallet et payments'). Cause: the text is built as `${i + 1}. ${s.title}`, so the combined string is not in fr/es.json, even though the 'About these terms' keys exist. Body paragraphs translate fine. Fix: render the number and the title as separate nodes, e.g. {`${i + 1}. `}<span>{s.title}</span>.", "selector": "[data-testid^=terms-contents-], h2", "priority": "LOW"},
+      {"component": "Terms route scroll", "issue": "Clicking the landing footer 'Terms of Service' opens /cloudivr/terms still scrolled to the bottom (scrollY=3610) because the SPA route change keeps the old scroll position. Add scrollTo(0,0) on route change, or on Terms mount when there is no hash.", "selector": "[data-testid=footer-link-terms]", "priority": "LOW"},
+      {"component": "Inbox OTP item vs live panel", "issue": "Each try gets its own item, but every item for the same callControlId shows the live OtpLive panel. Older items therefore show the latest try's code (e.g. text 'Code: 967969' while the panel shows 454511 and 'Try 2 of 3'). This can confuse users. Option: show the live panel only on the newest item per ccid, or show a 'try N, superseded' note on older ones.", "selector": "[data-testid=inbox-item-N-otp]", "priority": "LOW"},
+      {"component": "Inbox filter error state", "issue": "When fetching a new filter fails (simulated 500 on Campaigns), the error note shows, but the previous filter's list (SMS and call items) stays underneath while the Campaigns filter is selected. The empty state is correctly not shown. Hide the stale list on error, or label it.", "selector": "[data-testid=inbox-filter-campaign]", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "fr.json line 584", "issues": ["'Messages personnalisés d’acceptation / refus sont disponibles…' is missing the article 'Les' at the start."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_cloudivr_iter142_otp_inbox_gating.py", "/app/backend/tests/test_cloudivr_quick_otp_trial.py", "/app/test_reports/pytest/iter142_otp.xml"],
+  "action_items": [
+    "Terms.js: render the section number and title separately so FR/ES translations match",
+    "Scroll to the top when navigating to /cloudivr/terms (or on any SPA route change without a hash)",
+    "Optional: translate the server OTP Inbox text (or build it from i18n keys on the client)",
+    "Optional: show the live OTP panel only on the newest Inbox item per call",
+    "Optional: hide the stale list when an Inbox filter fetch fails",
+    "Fix the FR grammar in the custom-messages locked note"
+  ],
+  "critical_code_review_comments": [
+    "pubOtp destructuring strips chatId/at correctly for both sim and real paths; the GET and POST /calls/otp responses were checked",
+    "Starter gating is done server-side in buildCall (ivrOutbound and otpCollection checks) and the client filters the caller select with useCallerNumbers('ivrOutbound'): good defence in depth"
+  ],
+  "updated_files": ["/app/backend/tests/test_cloudivr_iter142_otp_inbox_gating.py"],
+  "success_rate": {"backend": "100% (20/20)", "frontend": "~95% (all requested flows pass; 4 minor UX/i18n issues)"},
+  "seed_data_creation": "Seeded 1 SMS item in test.webNotifications for Alice (chatId 5000000000000001, from +14155550177, replied 'TEST_ thanks, will call back'). Several simulated OTP calls and Inbox items on Alice. Pro +13313039077 forwarding set and then reset to disabled. QA free call used once and then RESET (available again).",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Login: wait for [data-testid=dashboard-page]; password input is input[type=password]. Quick-call POST returns 202 in dry-run. Number switches need their prerequisites first (forwardTo, IVR keys, hours days); otherwise a toast explains why. To test toggles, PATCH /numbers/:phone/forwarding {mode:'always',forwardTo}. The Inbox item overlay link intercepts clicks (by design). Inbox filter id for campaigns is 'campaign'. Language select: [data-testid=topbar-lang-switcher].",
+  "test_credentials": "Alice civr.alice@example.com / AliceTest#2026; QA qa.trial1793002485@example.com / QaTest#2026x (from /app/memory/test_credentials.md)"
+}

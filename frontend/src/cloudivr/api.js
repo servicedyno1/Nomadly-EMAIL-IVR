@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { IS_CIVR_DOMAIN } from './paths';
 
 // Same-origin on CloudIVR's own domain and when REACT_APP_BACKEND_URL is unset (production droplet build:
@@ -78,10 +78,12 @@ export function useApi(path) {
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(!!path);
   const [loadedPath, setLoadedPath] = useState(null);
+  const dataPath = useRef(null);
   const reload = useCallback(async () => {
     if (!path) return null;
     setLoading(true);
-    try { const d = await api(path); setData(d); setError(null); return d; } catch (e) { setError(e); return null; } finally { setLoading(false); setLoadedPath(path); }
+    // A failed load for a new path drops the old path's data, so an error never sits on top of another filter's list.
+    try { const d = await api(path); setData(d); dataPath.current = path; setError(null); return d; } catch (e) { setError(e); if (dataPath.current !== path) setData(null); return null; } finally { setLoading(false); setLoadedPath(path); }
   }, [path]);
   useEffect(() => { reload(); }, [reload]);
   // `stale` = the data on hand belongs to a previous path (e.g. another filter) and the new one is still loading.

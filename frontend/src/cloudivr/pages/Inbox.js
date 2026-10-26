@@ -106,6 +106,8 @@ export default function Inbox() {
           <NoMatches s={s} testid="inbox-no-matches" />
           {s.list.map((n, i) => {
             const Icon = ICON[n.kind] || Info;
+            const ccid = n.meta?.otp?.callControlId;
+            const newestTry = ccid && !s.list.slice(0, i).some(x => x.meta?.otp?.callControlId === ccid);
             return (
               <div key={n.id} className={`civr-card relative p-4 flex gap-4 ${n.read ? '' : 'border-[#818cf8]/40'} ${n.link ? 'civr-card-link' : ''}`} data-testid={`inbox-item-${i}`}>
                 {n.link && <Link to={cp(n.link)} onClick={() => openItem(n)} className="absolute inset-0 rounded-[14px]" aria-label={opens(n)} data-testid={`inbox-item-${i}-open`} />}
@@ -115,7 +117,8 @@ export default function Inbox() {
                   {n.mediaUrl && /\.(mp3|wav|ogg)(\?|$)/i.test(n.mediaUrl) && <audio controls preload="none" src={playUrl(n.mediaUrl)} className="relative z-10 h-9 mt-2" data-testid={`inbox-item-${i}-audio`} />}
                   {n.meta?.coupon && !n.meta.used && !(today?.coupon?.used && today.coupon.code === n.meta.coupon) && <Link to={cp(`/app/buy?coupon=${encodeURIComponent(n.meta.coupon)}`)} className="relative z-10 civr-btn civr-btn-ghost civr-btn-sm mt-2" data-testid={`inbox-item-${i}-use-coupon`}><Ticket className="w-4 h-4" />Use coupon {n.meta.coupon}</Link>}
                   {n.canReply && <SmsReply n={n} i={i} pv={pv} onReplied={onReplied} />}
-                  {n.meta?.otp?.callControlId && Date.now() - new Date(n.createdAt).getTime() < 15 * 60000 && <OtpLive ccid={n.meta.otp.callControlId} compact testid={`inbox-item-${i}-otp`} />}
+                  {ccid && Date.now() - new Date(n.createdAt).getTime() < 15 * 60000 && (newestTry ? <OtpLive ccid={ccid} compact testid={`inbox-item-${i}-otp`} />
+                    : <p className="text-xs text-[#a1a1aa] mt-2" data-testid={`inbox-item-${i}-otp-superseded`}>An earlier try. The newest code for this call is above.</p>)}
                   <div className="flex items-center gap-3 text-xs text-[#a1a1aa] mt-2">
                     <span>{when(n.createdAt)}</span>
                     {n.link && <span className="inline-flex items-center gap-0.5 text-[#818cf8]/80" data-testid={`inbox-item-${i}-open-hint`}>{opens(n)}<ChevronRight className="w-3 h-3" /></span>}

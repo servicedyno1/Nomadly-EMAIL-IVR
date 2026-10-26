@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { useApi } from '../api';
@@ -24,7 +24,7 @@ function Contents() {
     <nav className="lg:sticky lg:top-24" aria-label="On this page" data-testid="terms-contents">
       <div className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-3">On this page</div>
       <ol className="flex flex-col gap-1 text-sm">
-        {TERMS.map((s, i) => <li key={s.id}><a href={`#${s.id}`} className="block py-1.5 text-slate-600 hover:text-[#4f46e5] transition-colors" data-testid={`terms-contents-${s.id}`}>{`${i + 1}. ${s.title}`}</a></li>)}
+        {TERMS.map((s, i) => <li key={s.id}><a href={`#${s.id}`} className="block py-1.5 text-slate-600 hover:text-[#4f46e5] transition-colors" data-testid={`terms-contents-${s.id}`}>{`${i + 1}. `}<span>{s.title}</span></a></li>)}
       </ol>
     </nav>
   );
@@ -33,7 +33,7 @@ function Contents() {
 function Section({ s, i, supportLink }) {
   return (
     <section id={s.id} className="scroll-mt-24 py-8 border-t border-slate-200 first:border-t-0 first:pt-0" data-testid={`terms-section-${s.id}`}>
-      <h2 className="text-xl md:text-2xl font-semibold text-slate-900">{`${i + 1}. ${s.title}`}</h2>
+      <h2 className="text-xl md:text-2xl font-semibold text-slate-900">{`${i + 1}. `}<span>{s.title}</span></h2>
       <div className="mt-4 space-y-3 text-[15px] leading-relaxed text-slate-600">
         {s.body.map((p) => <p key={p}>{p}</p>)}
         {s.list && <ul className="list-disc pl-5 space-y-2">{s.list.map((p) => <li key={p}>{p}</li>)}</ul>}
@@ -45,6 +45,7 @@ function Section({ s, i, supportLink }) {
 
 export default function Terms() {
   const { data: catalog } = useApi('/public/catalog');
+  useEffect(() => { if (!window.location.hash) window.scrollTo(0, 0); }, []);
   return (
     <div className="civr-l min-h-screen" data-testid="terms-page">
       <Header />
