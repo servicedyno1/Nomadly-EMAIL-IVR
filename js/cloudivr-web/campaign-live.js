@@ -78,6 +78,22 @@ function areasOf(c, limit = 8) {
   return Object.values(by).sort((x, y) => y.numbers - x.numbers || y.answered - x.answered).slice(0, limit)
 }
 
+// Calls today + calls ringing / talking right now, per state / country (the Live page map).
+function mapOf(docs, dayStart) {
+  const by = {}
+  for (const c of docs) {
+    for (const l of c.leads || []) {
+      const live = INFLIGHT.includes(l.status)
+      const today = isDone(l) && l.status !== 'skipped' && ms(l.completedAt) >= dayStart
+      if (!live && !today) continue
+      const a = by[areaOf(l.number)] ||= { area: areaOf(l.number), calls: 0, answered: 0, live: 0 }
+      if (live) a.live++
+      if (today) { a.calls++; if (isAnswered(l)) a.answered++ }
+    }
+  }
+  return Object.values(by).sort((x, y) => y.calls + y.live - (x.calls + x.live))
+}
+
 function routes(router, { db, h, voiceService, publicCampaign }) {
   const coll = db.collection('bulkCallCampaigns')
   // Everything calling now, today's totals, the latest calls and what is coming up.
@@ -100,8 +116,9 @@ function routes(router, { db, h, voiceService, publicCampaign }) {
       campaigns,
       upcoming: docs.filter(c => c.status === 'scheduled').sort((a, b) => ms(a.scheduledFor) - ms(b.scheduledFor)).slice(0, 10).map(c => publicCampaign(c)),
       feed: feedOf(docs.filter(c => c.status !== 'scheduled'), voiceService, 20, now),
+      map: mapOf(docs.filter(c => c.status !== 'scheduled'), dayStart),
     })
   }))
 }
 
-module.exports = { routes, liveView, feedOf, areasOf, isAnswered }
+module.exports = { routes, liveView, feedOf, areasOf, mapOf, isAnswered }

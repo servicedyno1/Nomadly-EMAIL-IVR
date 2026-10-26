@@ -1,59 +1,27 @@
-import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { LogIn } from 'lucide-react';
+import React from 'react';
 import { useApi } from '../api';
-import { useCivrAuth } from '../AuthContext';
-import { cp } from '../paths';
-import { Wordmark } from '../Brand';
 import { Hero } from './landing/Hero';
-import { Coverage, Features, HowItWorks } from './landing/Sections';
+import { Coverage, HowItWorks, Facts, Statement } from './landing/Sections';
+import { Platform } from './landing/Platform';
 import { TryCall } from './landing/TryCall';
 import { Pricing, Faq, FinalCta, Footer } from './landing/PricingFaq';
-import { Slide } from './landing/kit';
-import { LangSwitcher } from '../i18n';
+import { LandingNav } from './landing/Nav';
 import SupportChat from '../SupportChat';
 
-export const LANDING_LINKS = [['#coverage', 'Coverage', 'coverage'], ['#try', 'Free test call', 'try'], ['#features', 'Features', 'features'], ['#pricing', 'Pricing', 'pricing'], ['#faq', 'FAQ', 'faq']];
-
-function Nav() {
-  const { account } = useCivrAuth();
-  const [scrolled, setScrolled] = useState(false);
-  useEffect(() => {
-    const on = () => setScrolled(window.scrollY > 300);
-    on();
-    window.addEventListener('scroll', on, { passive: true });
-    return () => window.removeEventListener('scroll', on);
-  }, []);
-  return (
-    <header className="fixed top-0 inset-x-0 z-50 backdrop-blur-xl bg-white/80 border-b border-slate-200/80 text-slate-900" data-testid="civr-nav">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-8 h-16 flex items-center gap-3 sm:gap-6">
-        <Link to={cp()} className="font-display text-2xl font-extrabold tracking-tight mr-auto min-h-[44px] flex items-center gap-2" data-testid="civr-nav-logo"><Wordmark accent="#059669" iconClass="w-7 h-7 sm:w-8 sm:h-8" /></Link>
-        <nav className="hidden lg:flex items-center gap-8">
-          {LANDING_LINKS.map(([href, label, id]) => <a key={id} href={href} className="text-sm font-medium text-slate-600 hover:text-slate-900 py-3 transition-colors" data-testid={`landing-nav-${id}`}>{label}</a>)}
-        </nav>
-        {scrolled && <a href="#try" className="hidden md:inline-flex items-center gap-2 text-sm font-semibold text-[#4f46e5] civr-rise" data-testid="civr-nav-sticky-cta"><span className="civr-l-dot" />Free call</a>}
-        <LangSwitcher tone="landing" testid="landing-lang-switcher" />
-        {account
-          ? <Link to={cp('/app')} className="civr-l-btn civr-l-btn-sm" data-testid="landing-open-dashboard"><Slide><span className="sm:hidden">Dashboard</span><span className="hidden sm:inline">Open dashboard</span></Slide></Link>
-          : <>
-              <Link to={cp('/login')} aria-label="Sign in" className="text-sm font-medium text-slate-700 hover:text-slate-900 px-1 py-3 min-h-[44px] flex items-center whitespace-nowrap transition-colors" data-testid="civr-nav-login-btn"><LogIn className="w-5 h-5 sm:hidden" aria-hidden="true" /><span className="hidden sm:inline">Sign in</span></Link>
-              <Link to={cp('/signup')} className="civr-l-btn civr-l-btn-sm whitespace-nowrap" data-testid="civr-nav-signup-btn"><Slide><span className="sm:hidden">Start</span><span className="hidden sm:inline">Get your number</span></Slide></Link>
-            </>}
-      </div>
-    </header>
-  );
-}
+export { LANDING_LINKS } from './landing/Nav';
 
 export default function Landing() {
   const { data: catalog } = useApi('/public/catalog');
   return (
     <div className="civr-l" data-testid="landing-page">
-      <Nav />
+      <LandingNav catalog={catalog} />
       <main>
         <Hero catalog={catalog} />
-        <Coverage catalog={catalog} />
+        <Facts catalog={catalog} />
+        <Statement />
+        <Platform catalog={catalog} />
         <TryCall />
-        <Features catalog={catalog} />
+        <Coverage catalog={catalog} />
         <HowItWorks catalog={catalog} />
         <Pricing catalog={catalog} />
         <Faq catalog={catalog} />

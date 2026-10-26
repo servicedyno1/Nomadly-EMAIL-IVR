@@ -1,46 +1,28 @@
-import React, { useEffect, useState } from 'react';
+import React, { Suspense, lazy, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, PhoneCall, PhoneIncoming, CornerDownRight, Check } from 'lucide-react';
+import { ArrowRight, PhoneCall, Check } from 'lucide-react';
 import { startPrice } from '../../api';
 import { useCivrAuth } from '../../AuthContext';
 import { cp } from '../../paths';
-import { Slide, CountUp } from './kit';
-import { AppMock } from './Mockups';
+import { Slide, useInView, reducedMotion } from './kit';
+import { HeroTabs } from './HeroTabs';
 import { useLang } from '../../i18n';
+
+const Hero3D = lazy(() => import('./Hero3D'));
 
 // Whole-sentence titles so the highlighted word lands in the right place in every language.
 const TITLE = { en: ['Every call ', 'answered', '. Every lead called.'], fr: ['Chaque appel ', 'décroché', '. Chaque prospect rappelé.'], es: ['Cada llamada ', 'atendida', '. Cada cliente, llamado.'] };
 
-const EVENTS = [[PhoneIncoming, 'Incoming call', '+1 415 555 0182'], [CornerDownRight, 'Pressed 1 → Sales', 'forwarded in 0.4 s'], [PhoneIncoming, 'Incoming call', '+44 20 7946 0958'], [CornerDownRight, 'Pressed 3 → Voicemail', 'sent to your inbox']];
+const webgl = () => { try { const c = document.createElement('canvas'); return !!(c.getContext('webgl2') || c.getContext('webgl')); } catch (_) { return false; } };
 
-// Small event chip on the product shot.
-function LiveCallCard() {
-  const [i, setI] = useState(0);
-  useEffect(() => { const t = setInterval(() => setI(x => (x + 1) % EVENTS.length), 2600); return () => clearInterval(t); }, []);
-  const [Icon, title, sub] = EVENTS[i];
+// The 3D call hub behind the headline (tablet and up, motion allowed); it stops rendering once scrolled away.
+function Scene() {
+  const [ok, setOk] = useState(false);
+  const [ref, inView] = useInView({ once: false, threshold: 0 });
+  useEffect(() => { setOk(!reducedMotion() && window.matchMedia('(min-width: 768px)').matches && webgl()); }, []);
   return (
-    <div className="hidden sm:block absolute right-6 -bottom-10 w-60 rounded-xl border border-slate-200 bg-white shadow-[0_16px_40px_-16px_rgba(15,23,42,.3)] p-4" data-testid="hero-live-ivr-card">
-      <div className="flex items-center gap-2 text-xs font-semibold text-slate-500"><span className="civr-l-dot" />Live IVR</div>
-      <div key={i} className="flex items-start gap-3 mt-3 civr-rise">
-        <span className="w-8 h-8 rounded-lg bg-indigo-50 text-[#4f46e5] grid place-items-center shrink-0"><Icon className="w-4 h-4" /></span>
-        <div className="min-w-0"><div className="text-sm font-semibold text-slate-900">{title}</div><div className="text-xs font-mono text-slate-500 mt-0.5 truncate">{sub}</div></div>
-      </div>
-    </div>
-  );
-}
-
-function StatStrip({ catalog }) {
-  const stats = [[catalog?.countries?.length || 17, 'Countries'], ['60 s', 'Free test call'], [startPrice(catalog) || '$50', 'From / month'], ['24/7', 'Always answering']];
-  return (
-    <div className="relative border-t civr-l-rule bg-white" data-testid="hero-stats">
-      <div className="max-w-7xl mx-auto px-6 md:px-8 grid grid-cols-2 md:grid-cols-4">
-        {stats.map(([v, l], i) => (
-          <div key={l} className={`py-6 md:py-8 ${i % 2 ? 'pl-6' : ''} ${i > 0 ? 'md:pl-8 md:border-l civr-l-rule' : ''} ${i > 1 ? 'border-t md:border-t-0 civr-l-rule' : ''}`} data-testid={`hero-stat-${i}`}>
-            <div className="civr-l-h text-3xl md:text-4xl text-slate-900"><CountUp value={v} /></div>
-            <div className="text-sm text-slate-500 mt-1">{l}</div>
-          </div>
-        ))}
-      </div>
+    <div ref={ref} className="civr-l-scene absolute inset-x-0 top-0 h-[640px] md:h-[760px] pointer-events-none" aria-hidden="true" data-testid="hero-3d">
+      {ok && <Suspense fallback={null}><Hero3D paused={!inView} /></Suspense>}
     </div>
   );
 }
@@ -52,31 +34,27 @@ export function Hero({ catalog }) {
   const t = TITLE[useLang().lang] || TITLE.en;
   const trust = ['Live in minutes', 'Browser phone on every plan', 'No contracts', 'Crypto & wallet payments'];
   return (
-    <section className="civr-l-cream relative overflow-hidden pt-32 md:pt-40" data-testid="civr-hero">
-      <div className="absolute inset-0 civr-l-gridbg civr-l-mask" />
-      <div className="absolute inset-0 pointer-events-none" style={{ background: 'radial-gradient(50% 45% at 85% 20%, rgba(99,102,241,.10), transparent 70%)' }} />
-      <div className="relative max-w-7xl mx-auto px-6 md:px-8 grid lg:grid-cols-12 gap-16 lg:gap-12 items-center pb-24">
-        <div className="lg:col-span-5 relative z-10">
-          <div className="inline-flex items-center gap-2 min-h-8 py-1 px-3 rounded-2xl sm:rounded-full border border-slate-200 bg-white text-sm text-slate-600 civr-rise" data-testid="hero-eyebrow"><span className="civr-l-dot" />Virtual numbers · Browser phone · IVR & AI voice agents · Campaigns</div>
-          <h1 className="civr-l-h text-4xl sm:text-5xl lg:text-6xl mt-6 civr-rise civr-d1 text-slate-900" data-testid="hero-title" data-no-translate>{t[0]}<span className="text-[#4f46e5]">{t[1]}</span>{t[2]}</h1>
-          <p className="text-base md:text-lg text-slate-600 mt-6 max-w-xl civr-rise civr-d2" data-testid="hero-subtitle">
-            {`Get a number in ${n} countries and run your whole phone line from the browser: a keypad menu or an AI voice agent answers and routes every call, the browser phone lets you call from any tab, and texts, voicemails and recordings land in one inbox. Then flip it around — Quick IVR and Bulk IVR campaigns call your list, connect hot leads and collect codes while you work.`}
-          </p>
-          <div className="flex flex-wrap gap-3 mt-8 civr-rise civr-d3">
-            <Link to={account ? cp('/app/buy') : cp('/signup')} className="civr-l-btn" data-testid="civr-hero-cta-buy-btn"><Slide>Get your number</Slide><ArrowRight className="w-4 h-4" /></Link>
-            <a href="#try" className="civr-l-btn civr-l-btn-ghost" data-testid="civr-hero-cta-test-btn"><PhoneCall className="w-4 h-4" /><Slide>Try a free call</Slide></a>
-          </div>
-          <div className="flex flex-wrap items-center gap-x-6 gap-y-2 mt-8 civr-rise civr-d4" data-testid="hero-microcopy">
-            {trust.map(x => <span key={x} className="inline-flex items-center gap-2 text-sm text-slate-600"><Check className="w-4 h-4 text-[#4f46e5]" />{x}</span>)}
-          </div>
-          <p className="text-sm text-slate-500 mt-4 civr-rise civr-d4" data-testid="hero-price-note">Free to sign up{from ? ` · Numbers from ${from}/month` : ''}</p>
+    <section className="civr-l-purple relative overflow-hidden pt-32 md:pt-40" data-testid="civr-hero">
+      <div className="absolute inset-0 civr-l-gridbg civr-l-mask opacity-70" />
+      <span className="civr-l-glow w-[520px] h-[520px] -left-40 top-10 bg-[#7c3aed]/35" />
+      <span className="civr-l-glow w-[460px] h-[460px] -right-32 top-40 bg-[#0ea5e9]/20" />
+      <Scene />
+      <div className="relative max-w-4xl mx-auto px-6 text-center">
+        <div className="civr-l-kicker civr-rise" data-testid="hero-eyebrow">Virtual numbers · IVR · AI voice agents · Campaigns</div>
+        <h1 className="civr-l-h text-4xl sm:text-5xl lg:text-7xl mt-6 civr-rise civr-d1 text-white civr-l-shadow" data-testid="hero-title" data-no-translate>{t[0]}<span className="civr-l-hl">{t[1]}</span>{t[2]}</h1>
+        <p className="text-base md:text-lg text-[#cbd5e1] mt-6 max-w-2xl mx-auto civr-rise civr-d2" data-testid="hero-subtitle">
+          {`Get a number in ${n} countries and run your whole phone line from the browser. A keypad menu or an AI voice agent answers every call, texts and voicemails land in one inbox — and campaigns call your list and connect the hot leads to you.`}
+        </p>
+        <div className="flex flex-wrap justify-center gap-3 mt-9 civr-rise civr-d3">
+          <Link to={account ? cp('/app/buy') : cp('/signup')} className="civr-l-pill civr-l-pill-light" data-testid="civr-hero-cta-buy-btn"><Slide>Get your number</Slide><ArrowRight className="w-4 h-4" /></Link>
+          <a href="#try" className="civr-l-pill civr-l-pill-line" data-testid="civr-hero-cta-test-btn"><PhoneCall className="w-4 h-4" /><Slide>Try a free call</Slide></a>
         </div>
-        <div className="lg:col-span-7 relative civr-rise civr-d2">
-          <AppMock />
-          <LiveCallCard />
+        <div className="flex flex-wrap justify-center items-center gap-x-6 gap-y-2 mt-8 civr-rise civr-d4" data-testid="hero-microcopy">
+          {trust.map(x => <span key={x} className="inline-flex items-center gap-2 text-sm text-[#e2e8f0]"><Check className="w-4 h-4 text-[#7dd3fc]" />{x}</span>)}
         </div>
+        <p className="text-sm text-[#a5b4fc] mt-4 civr-rise civr-d4" data-testid="hero-price-note">Free to sign up{from ? ` · Numbers from ${from}/month` : ''}</p>
       </div>
-      <StatStrip catalog={catalog} />
+      <HeroTabs />
     </section>
   );
 }

@@ -9,6 +9,7 @@ import { SectionHead, Slide, coinList, andList, Reveal } from './kit';
 import { PlanFeatures, RecommendedBadge } from '../../PlanFeatures';
 import { PaymentMethods } from './Payments';
 import { openCookieSettings } from '../../consent';
+import { PRODUCTS, USE_CASES, goTo, hrefOf } from './menu';
 
 // Plan button target: signed-in → Buy with the plan picked, otherwise sign-up keeps it (?plan=pro). Also used by the SIP page.
 export const useStart = () => { const { account } = useCivrAuth(); return (plan) => (account ? cp(`/app/buy${plan ? `?plan=${plan}` : ''}`) : cp(`/signup${plan ? `?plan=${plan}` : ''}`)); };
@@ -92,15 +93,18 @@ export function FinalCta({ catalog }) {
   return (
     <section className="civr-l-cream py-24" data-testid="final-cta">
       <div className="max-w-7xl mx-auto px-6 md:px-8">
-        <Reveal className="civr-l-dark relative overflow-hidden rounded-3xl px-8 py-16 md:px-16 flex flex-col md:flex-row md:items-end gap-8">
-          <div className="absolute inset-0 civr-l-gridbg opacity-60" />
-          <div className="relative flex-1">
-            <h2 className="civr-l-h text-3xl sm:text-4xl lg:text-5xl max-w-2xl">Stop missing calls. Start closing them.</h2>
-            <p className="text-base mt-4 civr-l-muted">Your number can be answering — and calling — in minutes. Free to sign up{from ? ` · Numbers from ${from}/month` : ''} · No contracts</p>
-          </div>
-          <div className="relative flex flex-wrap gap-3">
-            <a href="#try" className="civr-l-btn civr-l-btn-ghost" data-testid="final-cta-try-button"><Slide>Try a free call</Slide></a>
-            <Link to={start()} className="civr-l-btn" data-testid="final-cta-button"><Slide>Get your number</Slide><ArrowRight className="w-4 h-4" /></Link>
+        <Reveal className="civr-l-purple relative overflow-hidden rounded-[28px] px-8 py-16 md:px-16 md:py-20 text-center">
+          <div className="absolute inset-0 civr-l-gridbg civr-l-mask opacity-70" />
+          <span className="civr-l-glow w-96 h-96 -left-24 -top-24 bg-[#7c3aed]/40" />
+          <span className="civr-l-glow w-80 h-80 -right-20 -bottom-24 bg-[#0ea5e9]/25" />
+          <div className="relative">
+            <div className="civr-l-kicker">Ready when you are</div>
+            <h2 className="civr-l-h text-3xl sm:text-4xl lg:text-5xl text-white max-w-3xl mx-auto mt-4">Stop missing calls. <span className="civr-l-hl">Start closing them.</span></h2>
+            <p className="text-base mt-5 text-[#cbd5e1]">Your number can be answering — and calling — in minutes. Free to sign up{from ? ` · Numbers from ${from}/month` : ''} · No contracts</p>
+            <div className="flex flex-wrap justify-center gap-3 mt-9">
+              <Link to={start()} className="civr-l-pill civr-l-pill-light" data-testid="final-cta-button"><Slide>Get your number</Slide><ArrowRight className="w-4 h-4" /></Link>
+              <a href="#try" className="civr-l-pill civr-l-pill-line" data-testid="final-cta-try-button"><Slide>Try a free call</Slide></a>
+            </div>
           </div>
         </Reveal>
       </div>
@@ -108,26 +112,47 @@ export function FinalCta({ catalog }) {
   );
 }
 
+const fLink = 'text-sm text-[#a1a1c2] hover:text-white transition-colors py-1.5 text-left';
+
+function FooterCol({ title, children, testid }) {
+  return <div data-testid={testid}><div className="text-xs font-semibold uppercase tracking-[.14em] text-white mb-4">{title}</div><div className="flex flex-col">{children}</div></div>;
+}
+
+// Mega footer (cm.com style). Product links open the matching platform tab; on other pages they go back to the landing page.
 export function Footer({ catalog }) {
-  const links = [['#coverage', 'Coverage', 'coverage'], ['#try', 'Free test call', 'try'], ['#pricing', 'Pricing', 'pricing'], ['#faq', 'FAQ', 'faq']];
-  const link = 'text-sm text-slate-500 hover:text-[#4f46e5] py-3 transition-colors';
+  const base = cp();
+  const menuLinks = (items, id) => items.map(([k, , t, , target]) => <a key={k} href={hrefOf(base, target)} onClick={(e) => goTo(target, e)} className={fLink} data-testid={`footer-${id}-${k}`}>{t}</a>);
   return (
-    <footer className="civr-l-cream border-t civr-l-rule" data-testid="landing-footer">
-      <div className="max-w-7xl mx-auto px-6 md:px-8 py-12 flex flex-col md:flex-row md:items-center gap-6">
-        <div className="mr-auto">
-          <div className="font-display text-2xl font-extrabold text-slate-900 flex items-center gap-2" data-testid="landing-footer-logo"><Wordmark accent="#059669" iconClass="w-8 h-8" /></div>
-          <div className="text-xs text-slate-500 mt-2" data-testid="footer-copyright">© {new Date().getFullYear()} CloudIVR · Virtual numbers, inbound & outbound IVR, SIP and AI voice agents</div>
-          <PaymentMethods catalog={catalog} label="We accept" className="mt-6" testid="footer-payment-methods" />
+    <footer className="bg-[#0b051d] text-white" data-testid="landing-footer">
+      <div className="max-w-7xl mx-auto px-6 md:px-8 pt-16 pb-10">
+        <div className="grid gap-12 lg:grid-cols-12">
+          <div className="lg:col-span-4">
+            <div className="font-display text-2xl font-extrabold flex items-center gap-2" data-testid="landing-footer-logo"><Wordmark accent="#7dd3fc" iconClass="w-8 h-8" /></div>
+            <p className="text-sm text-[#a1a1c2] mt-4 max-w-xs">Virtual numbers, inbound & outbound IVR, SIP and AI voice agents — run from your browser.</p>
+            <div className="flex flex-wrap gap-3 mt-6">
+              <Link to={cp('/signup')} className="civr-l-pill civr-l-pill-light civr-l-pill-sm" data-testid="footer-cta-signup">Get your number</Link>
+              <Link to={cp('/login')} className="civr-l-pill civr-l-pill-line civr-l-pill-sm" data-testid="footer-link-signin">Sign in</Link>
+            </div>
+          </div>
+          <div className="lg:col-span-8 grid grid-cols-2 md:grid-cols-4 gap-8">
+            <FooterCol title="Product" testid="footer-col-product">{menuLinks(PRODUCTS, 'product')}</FooterCol>
+            <FooterCol title="Use cases" testid="footer-col-usecases">{menuLinks(USE_CASES, 'usecase')}</FooterCol>
+            <FooterCol title="CloudIVR" testid="footer-col-company">
+              {[['#coverage', 'Coverage', 'coverage'], ['#try', 'Free test call', 'try'], ['#pricing', 'Pricing', 'pricing'], ['#faq', 'FAQ', 'faq']].map(([h, l, id]) => <a key={id} href={`${base}${h}`} onClick={(e) => goTo(h, e)} className={fLink} data-testid={`footer-link-${id}`}>{l}</a>)}
+              <Link to={cp('/sip')} className={fLink} data-testid="footer-link-sip">SIP & softphones</Link>
+            </FooterCol>
+            <FooterCol title="Support & legal" testid="footer-col-support">
+              {catalog?.supportLink && <a href={catalog.supportLink} target="_blank" rel="noopener noreferrer" className={`${fLink} flex items-center gap-2`} data-testid="footer-support-link"><MessageCircle className="w-4 h-4" />Support on Telegram</a>}
+              {catalog?.channelLink && <a href={catalog.channelLink} target="_blank" rel="noopener noreferrer" className={`${fLink} flex items-center gap-2`} data-testid="footer-channel-link"><Send className="w-4 h-4" />Telegram channel</a>}
+              <Link to={cp('/terms')} className={fLink} data-testid="footer-link-terms">Terms of Service</Link>
+              <button type="button" onClick={openCookieSettings} className={fLink} data-testid="footer-link-cookies">Cookie settings</button>
+            </FooterCol>
+          </div>
         </div>
-        <nav className="flex flex-wrap items-center gap-x-6">
-          {links.map(([href, label, id]) => <a key={id} href={`${cp()}${href}`} className={link} data-testid={`footer-link-${id}`}>{label}</a>)}
-          <Link to={cp('/sip')} className={link} data-testid="footer-link-sip">SIP & softphones</Link>
-          <Link to={cp('/terms')} className={link} data-testid="footer-link-terms">Terms of Service</Link>
-          <button type="button" onClick={openCookieSettings} className={`${link} text-left`} data-testid="footer-link-cookies">Cookie settings</button>
-          <Link to={cp('/login')} className={link} data-testid="footer-link-signin">Sign in</Link>
-          {catalog?.channelLink && <a href={catalog.channelLink} target="_blank" rel="noopener noreferrer" className={`${link} flex items-center gap-2`} data-testid="footer-channel-link"><Send className="w-4 h-4" />Telegram channel</a>}
-          {catalog?.supportLink && <a href={catalog.supportLink} target="_blank" rel="noopener noreferrer" className={`${link} flex items-center gap-2`} data-testid="footer-support-link"><MessageCircle className="w-4 h-4" />Support on Telegram</a>}
-        </nav>
+        <div className="mt-14 pt-8 border-t border-white/10 flex flex-col md:flex-row md:items-end gap-6 justify-between">
+          <PaymentMethods catalog={catalog} label="We accept" testid="footer-payment-methods" />
+          <div className="text-xs text-[#8b8bab]" data-testid="footer-copyright">© {new Date().getFullYear()} CloudIVR · Virtual numbers, inbound & outbound IVR, SIP and AI voice agents</div>
+        </div>
       </div>
     </footer>
   );

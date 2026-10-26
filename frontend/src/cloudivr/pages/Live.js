@@ -8,6 +8,7 @@ import { PageHeader, SkeletonPage, Empty, ErrorNote, statusPill } from '../ui';
 import { cp } from '../paths';
 import { useShell } from '../Shell';
 import { Pipeline, RunStats, CallFeed, repeatLabel } from './campaign/LiveParts';
+import { LiveMap } from './campaign/LiveMap';
 
 const TZ = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
 const pct = (c) => (c.stats?.total ? Math.round(((c.stats.completed || 0) / c.stats.total) * 100) : 0);
@@ -126,6 +127,7 @@ export default function Live() {
     <div data-testid="live-page">
       {header}
       <Summary s={data.summary} />
+      <LiveMap map={data.map} />
       <div className="flex flex-col gap-4 mb-6">
         {campaigns.length ? campaigns.map((c, i) => <LiveCampaign key={c.id} c={c} i={i} onDone={onDone} />) : (
           <Empty icon={Radio} title="Nothing is calling right now" sub="Start a campaign and watch every call here as it rings, connects and finishes." testid="live-empty">

@@ -1,10 +1,54 @@
 import React from 'react';
-import { Workflow, PhoneForwarded, Voicemail, MessageSquare, Megaphone, Headphones, UserPlus, Hash, Wallet, Bot, Captions } from 'lucide-react';
-import { SectionHead, coinList, planBadge, Reveal } from './kit';
-import { IvrMock, OutboundMock, AiMock } from './Mockups';
-import { ForwardingMock, VoicemailMock, SmsMock, BrowserPhoneMock, TextCallMock } from './MockupsLive';
+import { UserPlus, Hash, Wallet, Globe2, Timer, Tag, Languages, Clock3, Coins, ArrowRight } from 'lucide-react';
+import { SectionHead, coinList, planBadge, Reveal, CountUp } from './kit';
+import { startPrice } from '../../api';
 
 export { coinList, andList, planBadge } from './kit';
+
+// Real facts from the live catalogue (no made-up customers), cm.com stats-row style.
+export function Facts({ catalog }) {
+  const coins = new Set((catalog?.coins || []).map(c => c.replace(/\s*\(.*\)/, ''))).size;
+  const items = [
+    [Globe2, String(catalog?.countries?.length || 17), 'Countries with local, mobile or toll-free numbers'],
+    [Timer, '60 s', 'Free test call — no account, no card'],
+    [Tag, startPrice(catalog) || '$50', 'Numbers from, per month — no contracts'],
+    [Languages, '3', 'AI agent languages: English, French and Spanish'],
+    [Clock3, '24/7', 'Your menu or AI agent always answers'],
+    ...(coins ? [[Coins, String(coins), 'Cryptocurrencies accepted, plus your wallet']] : []),
+  ];
+  return (
+    <section className="civr-l-cream" data-testid="facts-section">
+      <div className="max-w-7xl mx-auto px-6 md:px-8 pb-20 md:pb-24 pt-4">
+        <Reveal className="civr-l-eyebrow" data-testid="facts-label">CloudIVR at a glance</Reveal>
+        <div className={`grid grid-cols-2 md:grid-cols-3 ${items.length > 5 ? 'lg:grid-cols-6' : 'lg:grid-cols-5'} border-t civr-l-rule mt-6`} data-testid="hero-stats">
+          {items.map(([Icon, v, l], i) => (
+            <Reveal key={l} delay={i * 70} className={`py-8 pr-4 ${i ? 'lg:pl-6 lg:border-l civr-l-rule' : ''}`} data-testid={`hero-stat-${i}`}>
+              <Icon className="w-5 h-5 text-[#5b21b6]" />
+              <div className="civr-l-h text-3xl md:text-4xl text-slate-900 mt-4"><CountUp value={v} /></div>
+              <div className="text-sm text-slate-500 mt-2 max-w-[14rem]">{l}</div>
+            </Reveal>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// The big statement, cm.com "every conversation" style.
+export function Statement() {
+  return (
+    <section className="civr-l-cream border-t civr-l-rule" data-testid="statement-section">
+      <div className="max-w-5xl mx-auto px-6 md:px-8 py-20 md:py-28">
+        <Reveal><p className="civr-l-h text-2xl sm:text-3xl lg:text-[2.75rem] text-slate-900 !leading-[1.2]" data-testid="statement-text">Your callers don’t see a menu, a voicemail box, a campaign and an AI agent. <span className="text-[#7c3aed]">They see one phone line — yours.</span></p></Reveal>
+        <Reveal delay={120}><p className="text-base md:text-lg text-slate-600 mt-8 max-w-3xl">So CloudIVR runs all of it on one number. Every call, key press, text, voicemail and recording lands in the same account, and you watch your campaigns live — from the first ring to the hot lead you’re connected to.</p></Reveal>
+        <Reveal delay={200} className="mt-8 flex flex-wrap items-center gap-x-8 gap-y-4">
+          <p className="font-semibold text-slate-900">Answer every call. Call every lead. Miss nothing.</p>
+          <a href="#features" className="inline-flex items-center gap-2 text-sm font-semibold text-[#5b21b6] hover:text-[#4c1d95] group" data-testid="statement-explore-link">Explore the platform<ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" /></a>
+        </Reveal>
+      </div>
+    </section>
+  );
+}
 
 export function Coverage({ catalog }) {
   const list = catalog?.countries || [];
@@ -29,45 +73,11 @@ export function Coverage({ catalog }) {
   );
 }
 
-function Badge({ plans, k }) {
+export function Badge({ plans, k }) {
   const b = planBadge(plans, k);
   if (!b) return null;
   const every = b === 'Every plan';
   return <span className={`shrink-0 text-xs font-medium px-2.5 py-1 rounded-full border ${every ? 'border-slate-200 bg-slate-50 text-slate-600' : 'border-indigo-200 bg-indigo-50 text-[#4338ca]'}`}>{b}</span>;
-}
-
-function FeatureCard({ icon: Icon, kicker, title, text, k, plans, mock, className = '', testid, delay = 0 }) {
-  return (
-    <Reveal delay={delay} className={`civr-l-card-cream p-6 md:p-8 flex flex-col overflow-hidden ${className}`} data-testid={testid}>
-      <div className="flex items-start justify-between gap-4"><span className="w-10 h-10 rounded-xl bg-indigo-50 text-[#4f46e5] grid place-items-center"><Icon className="w-5 h-5" /></span><Badge plans={plans} k={k} /></div>
-      {kicker && <div className="text-xs font-semibold uppercase tracking-wider text-[#4f46e5] mt-6" data-testid={`${testid}-kicker`}>{kicker}</div>}
-      <div className={`text-xl font-semibold text-slate-900 ${kicker ? 'mt-2' : 'mt-6'}`}>{title}</div>
-      <p className="text-sm text-slate-600 mt-2 max-w-md">{text}</p>
-      {mock && <div className="mt-auto pt-8 -mb-2">{mock}</div>}
-    </Reveal>
-  );
-}
-
-export function Features({ catalog }) {
-  const plans = catalog?.plans;
-  const small = 'md:col-span-6 lg:col-span-3';
-  return (
-    <section id="features" className="civr-l-cream scroll-mt-16 border-t civr-l-rule" data-testid="features-section">
-      <div className="max-w-7xl mx-auto px-6 md:px-8 py-24">
-        <SectionHead label="The platform" title="Inbound, outbound and AI. One number runs it all." sub="Answer every caller, call every lead and keep every text and voicemail in one inbox. Each card shows the plan that unlocks it." />
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-4 mt-12">
-          <FeatureCard icon={Workflow} kicker="Inbound" title="Keypad menu (IVR)" text="Sound like a big company from day one. Callers hear your greeting and press 1 for sales, 2 for support or 3 for voicemail — routed in under a second. Start from a template, use a natural AI voice or your own recording, and see which keys people press. Uses your plan minutes." k="ivr" plans={plans} mock={<IvrMock />} className="md:col-span-7" testid="feature-card-0" />
-          <FeatureCard icon={Megaphone} kicker="Outbound" title="Quick IVR & Bulk IVR campaigns" text="Put your outreach on autopilot. We call your list, play your script, then connect everyone who presses 1, collect a code you accept or decline, or route each key. Quick IVR reaches up to 10 people right now; Bulk IVR works through whole lists with live results. Your first Quick IVR call is on us." k="ivrOutbound" plans={plans} mock={<OutboundMock />} className="md:col-span-5" testid="feature-card-1" delay={80} />
-          <FeatureCard icon={PhoneForwarded} kicker="Inbound" title="Call forwarding" text="Never miss a deal. Ring any phone worldwide — always, when you’re busy or when you don’t pick up — with up to 4 backup numbers. Billed per minute from your wallet." k="callForwarding" plans={plans} mock={<ForwardingMock />} className={small} testid="feature-card-2" />
-          <FeatureCard icon={Voicemail} kicker="Inbound" title="Voicemail" text={`Greetings in ${catalog?.voicemailLanguages?.length || 5} languages or your own audio. Every message lands in your inbox and email, transcribed so you can read it in seconds.`} k="voicemail" plans={plans} mock={<VoicemailMock />} className={small} testid="feature-card-3" delay={80} />
-          <FeatureCard icon={Headphones} kicker="Anywhere" title="Browser phone" text="Make and take calls from any browser tab on every plan — nothing to install. On Pro and up, also sign in from a SIP softphone or desk phone. Your office goes wherever you go." k="browserPhone" plans={plans} mock={<BrowserPhoneMock />} className={small} testid="feature-card-4" delay={160} />
-          <FeatureCard icon={MessageSquare} kicker="Messaging" title="SMS inbox" text="Read and reply to every text in one inbox. Push them to email or your own system with webhooks on Pro and up." plans={plans} mock={<SmsMock />} className={small} testid="feature-card-5" delay={240} />
-          <FeatureCard icon={Captions} kicker="Accessibility" title="Text calls" text="Built for deaf and hard-of-hearing callers: you type, and a natural voice speaks each sentence the moment you finish it; they talk, and you read their words live. Soft typing sounds keep the line from going quiet." k="textRelay" plans={plans} mock={<TextCallMock />} className="md:col-span-7" testid="feature-card-7" />
-          <FeatureCard icon={Bot} kicker="Inbound & outbound" title="AI voice agents" text="Your best rep on every line, 24/7. It talks naturally in English, French or Spanish — answers questions, books appointments, takes messages and passes hot calls to you. Point it at your leads and it calls them too. Billed per minute from your wallet." k="aiAgent" plans={plans} mock={<AiMock />} className="md:col-span-5" testid="feature-card-6" delay={80} />
-        </div>
-      </div>
-    </section>
-  );
 }
 
 export function HowItWorks({ catalog }) {

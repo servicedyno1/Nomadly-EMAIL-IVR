@@ -1,141 +1,180 @@
 {
-  "project_name": "CloudIVR",
-  "archetype": "SWISS TELECOM & CLEAN REAL PHONE COMPANY",
-  "emotional_tone": "Professional, authoritative, friction-free, dependable enterprise cloud communications",
-  "theme_mode": "Light mode primary for app and landing pages, with refined dark executive accents for high-contrast clarity",
+  "project_name": "CloudIVR Marketing & Live Operations Platform",
+  "archetype": "Architectural Tech / Expressive Purple Hybrid",
+  "theme_strategy": {
+    "landing_hero": "Deep Imperial Purple & Violet Glass (#0b051d to #1e0b36 with glowing #818cf8 highlights)",
+    "landing_body": "Clean Swiss Light (#ffffff & #f8fafc with #0f172a typography)",
+    "live_dashboard": "Dark Command Center Obsidian (#0a0a0a with #141414 cards, #34d399 emerald, #818cf8 indigo, #fbbf24 amber)"
+  },
   "typography": {
-    "heading_font": "Plus Jakarta Sans",
-    "heading_google_import": "https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap",
-    "body_font": "Inter, sans-serif",
+    "heading_font": "DM Sans, sans-serif",
+    "body_font": "DM Sans, sans-serif",
     "mono_font": "JetBrains Mono, monospace",
-    "font_rules": {
-      "H1": "text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight leading-tight",
-      "H2": "text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight",
-      "H3": "text-xl sm:text-2xl font-semibold tracking-tight",
-      "H4": "text-lg sm:text-xl font-semibold",
-      "Body": "text-base leading-relaxed text-slate-600 dark:text-slate-300",
-      "Labels_Overlines": "text-xs font-bold uppercase tracking-widest text-teal-600 dark:text-teal-400"
+    "scale": {
+      "hero_h1": "text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight leading-[1.1]",
+      "section_h2": "text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight text-slate-900 dark:text-white",
+      "subsection_h3": "text-xl sm:text-2xl font-semibold tracking-tight",
+      "card_h4": "text-lg sm:text-xl font-semibold text-slate-900 dark:text-slate-100",
+      "body_lg": "text-lg text-slate-600 dark:text-slate-300 leading-relaxed",
+      "body_base": "text-base text-slate-600 dark:text-slate-400 leading-normal",
+      "caption_mono": "text-xs font-mono uppercase tracking-[0.2em] text-indigo-400"
     }
   },
-  "color_system": {
-    "palette_name": "Swiss Corporate Cyan & Slate",
-    "primary": "#0F172A",
-    "primary_light": "#1E293B",
-    "accent_telecom": "#0284C7",
-    "accent_telecom_hover": "#0369A1",
-    "accent_teal": "#0D9488",
-    "accent_teal_light": "#CCFBF1",
-    "bg_light": "#F8FAFC",
-    "card_light": "#FFFFFF",
-    "card_border_light": "#E2E8F0",
-    "text_main_light": "#0F172A",
-    "text_muted_light": "#64748B",
-    "bg_dark_executive": "#0B0F19",
-    "card_dark_executive": "#111827",
-    "border_dark_executive": "#1F2937"
-  },
-  "palette_mapping_table": [
-    {
-      "old_hex_or_class": "#0a0a0a / --c-bg",
-      "new_hex_or_class": "#F8FAFC",
-      "context": "Main application background (Light corporate canvas)"
+  "colors": {
+    "purple_hero": {
+      "bg_start": "#0b051d",
+      "bg_via": "#190a38",
+      "bg_end": "#290c4c",
+      "accent_glow": "#818cf8",
+      "pill_blue": "#38bdf8",
+      "card_bg": "rgba(255, 255, 255, 0.05)",
+      "card_border": "rgba(255, 255, 255, 0.12)",
+      "text_primary": "#ffffff",
+      "text_secondary": "#cbd5e1"
     },
-    {
-      "old_hex_or_class": "#141414 / --c-card",
-      "new_hex_or_class": "#FFFFFF",
-      "context": "Main card surface background"
+    "light_sections": {
+      "bg_primary": "#ffffff",
+      "bg_secondary": "#f8fafc",
+      "border": "#e2e8f0",
+      "text_primary": "#0f172a",
+      "text_secondary": "#475569",
+      "accent_primary": "#4f46e5",
+      "accent_hover": "#4338ca"
     },
-    {
-      "old_hex_or_class": "#1a1a1a / --c-card-hover",
-      "new_hex_or_class": "#F1F5F9",
-      "context": "Card hover state background"
-    },
-    {
-      "old_hex_or_class": "#262626 / --c-border",
-      "new_hex_or_class": "#E2E8F0",
-      "context": "Standard container & divider borders"
-    },
-    {
-      "old_hex_or_class": "#3a3a3a / --c-border-hover",
-      "new_hex_or_class": "#CBD5E1",
-      "context": "Hovered container border"
-    },
-    {
-      "old_hex_or_class": "#f3f4f6 / --c-text",
-      "new_hex_or_class": "#0F172A",
-      "context": "Primary heading and body text"
-    },
-    {
-      "old_hex_or_class": "#a1a1aa / --c-text-2",
-      "new_hex_or_class": "#475569",
-      "context": "Secondary text and descriptions"
-    },
-    {
-      "old_hex_or_class": "#8b8b94 / --c-muted",
-      "new_hex_or_class": "#64748B",
-      "context": "Placeholder text and muted labels"
-    },
-    {
-      "old_hex_or_class": "#34d399 / --c-emerald (Mint AI Green)",
-      "new_hex_or_class": "#0284C7 (Corporate Telecom Blue) / #0D9488 (Teal)",
-      "context": "Primary action buttons, active tabs, call CTAs, status indicators"
-    },
-    {
-      "old_hex_or_class": "#0A0D0E / --l-ink (Landing Dark)",
-      "new_hex_or_class": "#0F172A",
-      "context": "Landing dark hero/executive background"
-    },
-    {
-      "old_hex_or_class": "#FEFDF5 / --l-cream (Landing Cream)",
-      "new_hex_or_class": "#FFFFFF",
-      "context": "Landing light content section background"
-    },
-    {
-      "old_hex_or_class": "#00E3AA / --l-green (Neon Glow Green)",
-      "new_hex_or_class": "#0284C7",
-      "context": "Landing CTA buttons and highlight accents"
-    },
-    {
-      "old_hex_or_class": "civr-trace (Neon Glow Shadow)",
-      "new_hex_or_class": "shadow-sm border border-sky-200 shadow-sky-100",
-      "context": "Replaced sci-fi glow with clean crisp enterprise elevation"
+    "live_dashboard_dark": {
+      "bg_app": "#0a0a0a",
+      "card_bg": "#141414",
+      "card_hover": "#1a1a1a",
+      "border": "#222222",
+      "status_emerald": "#34d399",
+      "status_sky": "#38bdf8",
+      "status_amber": "#fbbf24",
+      "status_rose": "#fb7185",
+      "map_shaded_low": "#1e1b4b",
+      "map_shaded_mid": "#3730a3",
+      "map_shaded_high": "#4f46e5",
+      "map_dot_pulse": "#38bdf8",
+      "map_active_ring": "#34d399"
     }
-  ],
-  "logo_concept": {
-    "brand_name": "CloudIVR",
-    "concept_description": "A precision telecommunications mark combining a solid rounded rectangular call-signal shield with twin crisp wave arcs and an integrated cloud node, paired with bold geometric typography in Plus Jakarta Sans.",
-    "inline_svg_code": "<svg width='160' height='36' viewBox='0 0 160 36' fill='none' xmlns='http://www.w3.org/2000/svg' data-testid='cloudivr-logo-svg'><rect x='2' y='2' width='32' height='32' rx='8' fill='#0284C7'/><path d='M12 18C12 15.2386 14.2386 13 17 13C19.3198 13 21.2581 14.5802 21.8217 16.7324C22.2857 16.2657 22.919 15.9783 23.619 15.9783C25.042 15.9783 26.1957 17.132 26.1957 18.555C26.1957 18.8358 26.1508 19.1061 26.0677 19.3589C26.6186 19.7226 27 20.352 27 21.0652C27 22.189 26.089 23 24.9652 23H17C14.2386 23 12 20.7614 12 18Z' fill='white'/><path d='M23.5 10.5C26.5 12.5 28 15 28 18' stroke='white' stroke-width='2' stroke-linecap='round'/><path d='M8.5 10.5C5.5 12.5 4 15 4 18' stroke='white' stroke-width='2' stroke-linecap='round'/><text x='42' y='24' font-family='Plus Jakarta Sans, sans-serif' font-weight='800' font-size='20' fill='#0F172A' letter-spacing='-0.5'>Cloud<tspan fill='#0284C7'>IVR</tspan></text></svg>",
-    "image_prompt": "Clean minimalist telecom logo icon, cloud combined with soundwave, solid sky blue icon on white background, vector graphic, flat modern tech style"
   },
-  "landing_hero_replacement": {
-    "action": "Replace Three.js 3D globe (Hero3D.js) with a high-fidelity interactive Live Softphone & Call Routing Control Panel Mockup, framed beside a professional enterprise call center support agent photo.",
-    "hero_mockup_structure": "A sleek 2-column hero: Left side has crisp headline 'Enterprise Virtual Phone Numbers & Smart IVR in 17 Countries', trust badges (99.99% Uptime, Carrier Grade, Instant Provisioning), search box for country numbers, and primary 'Get Started' button. Right side features an interactive browser softphone card with active call waveform, incoming call notification simulation, country flag dropdown selector, and real support photo overlay."
+  "spacing_and_layout": {
+    "hero_padding": "pt-28 pb-32 md:pt-36 md:pb-48 px-4 sm:px-6 lg:px-8",
+    "section_padding": "py-20 md:py-28 px-4 sm:px-6 lg:px-8",
+    "container_max_width": "max-w-7xl mx-auto",
+    "grid_bento": "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-6 lg:gap-8",
+    "card_padding": "p-6 sm:p-8"
   },
-  "media_assets": {
-    "hero_support_agent_image": "https://images.unsplash.com/photo-1626863905121-3b0c0ed7b94c?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDk1Nzh8MHwxfHNlYXJjaHwxfHxjdXN0b21lciUyMHN1cHBvcnQlMjBwaG9uZSUyMGFnZW50JTIwb2ZmaWNlfGVufDB8fHx8MTc5Mjg0NDYyMXww&ixlib=rb-4.1.0&q=85",
-    "hero_office_desk_phone": "https://images.unsplash.com/photo-1587560699334-bea93391dcef?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDk1Nzh8MHwxfHNlYXJjaHw0fHxjdXN0b21lciUyMHN1cHBvcnQlMjBwaG9uZSUyMGFnZW50JTIwb2ZmaWNlfGVufDB8fHx8MTc5Mjg0NDYyMXww&ixlib=rb-4.1.0&q=85",
-    "team_agent_headset": "https://images.unsplash.com/photo-1766066014237-00645c74e9c6?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDk1Nzh8MHwxfHNlYXJjaHwzfHxjdXN0b21lciUyMHN1cHBvcnQlMjBwaG9uZSUyMGFnZW50JTIwb2ZmaWNlfGVufDB8fHx8MTc5Mjg0NDYyMXww&ixlib=rb-4.1.0&q=85"
+  "landing_page_structure": {
+    "navigation_header": {
+      "style": "Sticky header with backdrop-blur-xl bg-[#0b051d]/80 border-b border-white/10 z-50",
+      "brand": "CloudIVR logo mark with glowing violet gradient + bold title + 17 Countries badge",
+      "mega_dropdowns": {
+        "products": [
+          {"title": "Virtual Numbers", "desc": "Local & Toll-Free in 17 countries with instant SIP / Webhook routing", "icon": "Phone"},
+          {"title": "Interactive Keypad IVR", "desc": "Visual tree builder, DTMF press-1 routing & audio prompts", "icon": "Cpu"},
+          {"title": "AI Voice Agents", "desc": "Human-grade AI phone agents in EN/FR/ES with real-time speech", "icon": "Bot"},
+          {"title": "Campaigns & Bulk IVR", "desc": "Outbound blast campaigns, call queueing & live delivery reporting", "icon": "Send"},
+          {"title": "SMS & Voicemail Inbox", "desc": "Two-way text messaging, voicemail transcription & audio playback", "icon": "Mail"}
+        ],
+        "use_cases": [
+          {"title": "eCommerce & Logistics", "desc": "Delivery confirmation calls & IVR order tracking", "icon": "ShoppingBag"},
+          {"title": "Customer Support", "desc": "Smart queueing, browser softphone & live transfers", "icon": "Headphones"},
+          {"title": "Lead Outreach", "desc": "Bulk automated phone qualification campaigns", "icon": "BarChart3"},
+          {"title": "Global Hotlines", "desc": "Local presence phone numbers in US, UK, FR, DE, ES, CA & more", "icon": "Globe"}
+        ]
+      },
+      "cta": "Get your number pill button (indigo to violet gradient)"
+    },
+    "hero_section": {
+      "eyebrow": "BEHIND EVERY CALL — CLOUD PHONE INFRASTRUCTURE",
+      "headline": "Virtual Numbers, IVR & AI Phone Agents for Global Business",
+      "subheadline": "Instant phone numbers in 17 countries, visual keypad IVR menus, outbound phone campaigns, and AI voice agents in EN, FR & ES.",
+      "ctas": [
+        {"text": "Get your number", "type": "primary_gradient"},
+        {"text": "Free test call (60s)", "type": "secondary_glass", "scroll_target": "#free-test-call"}
+      ],
+      "3d_integration": "Interactive R3F canvas (Hero3D.js) floating subtly in background with glowing signal hubs, orbiting phone nodes, and mouse-follow rotation",
+      "tabbed_app_preview": {
+        "overlap_behavior": "Overlaps purple hero into white section with relative -mb-32 md:-mb-44 z-20 shadow-2xl rounded-2xl border border-white/20 bg-slate-900/90 backdrop-blur-xl p-4 sm:p-6",
+        "tabs": ["Numbers", "IVR & AI agents", "Campaigns", "Inbox"],
+        "content_previews": "Live animated mockups for each tab with interactive toggles and data visualization"
+      }
+    },
+    "real_facts_strip": {
+      "style": "bg-slate-900 text-white py-12 border-y border-slate-800",
+      "facts": [
+        {"metric": "17", "label": "Countries with local numbers", "suffix": ""},
+        {"metric": "60", "label": "Seconds free test call", "suffix": "s"},
+        {"metric": "3", "label": "AI Voice languages (EN, FR, ES)", "suffix": ""},
+        {"metric": "24/7", "label": "High availability uptime", "suffix": ""},
+        {"metric": "$1.99", "label": "Starting price / mo", "suffix": ""}
+      ]
+    },
+    "platform_tabs_section": {
+      "pattern": "cm.com 'The Platform' pattern",
+      "features": [
+        "Interactive Keypad IVR",
+        "Outbound Call Campaigns",
+        "AI Voice Agents",
+        "Smart Call Forwarding",
+        "Browser Softphone",
+        "SMS & Voicemail Inbox"
+      ]
+    },
+    "interactive_sections": [
+      "Free Test Call Widget",
+      "Coverage Grid (17 Country Flags & Rates)",
+      "How It Works (3 Steps)",
+      "Pricing Catalog (Starter, Pro, Business)",
+      "FAQ Accordion"
+    ],
+    "mega_footer": {
+      "style": "bg-slate-950 text-slate-400 py-16 border-t border-slate-800",
+      "columns": ["Product", "Use Cases", "Company & Legal", "Support & Payments"]
+    }
   },
-  "component_styles_redesign": {
-    "civr-card": "bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm hover:border-slate-300 dark:hover:border-slate-700 transition-all duration-200",
-    "civr-btn-primary": "bg-sky-600 hover:bg-sky-700 active:bg-sky-800 text-white font-semibold rounded-lg shadow-sm px-5 py-2.5 transition-all text-sm",
-    "civr-btn-ghost": "bg-white hover:bg-slate-100 text-slate-700 dark:text-slate-200 border border-slate-300 dark:border-slate-700 font-semibold rounded-lg px-4 py-2 text-sm",
-    "civr-input": "bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-100 rounded-lg h-11 px-3.5 focus:border-sky-600 focus:ring-2 focus:ring-sky-100 dark:focus:ring-sky-950 transition-all text-sm",
-    "civr-pill-on": "bg-sky-50 text-sky-700 border border-sky-200 dark:bg-sky-950/50 dark:text-sky-300 dark:border-sky-800 font-medium text-xs px-2.5 py-1 rounded-full",
-    "civr-glass": "bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 shadow-xs"
+  "live_page_map_spec": {
+    "page_route": "/app/live",
+    "container_style": "bg-[#141414] border border-[#222222] rounded-xl p-6 shadow-xl text-white mb-8",
+    "map_visuals": {
+      "projection": "US Interactive State Map (SVG map with shaded paths based on call density)",
+      "shading_scale": {
+        "zero_calls": "#1a1a24",
+        "low_calls": "#241b40",
+        "mid_calls": "#3b206e",
+        "high_calls": "#581c87",
+        "peak_calls": "#6d28d9"
+      },
+      "live_dots": "Glowing cyan (#38bdf8) and emerald (#34d399) pulsing call nodes positioned on state centroids with CSS ping animation representing active ringing/talking calls",
+      "tooltip": "Hover card showing state name, today's call volume, answer rate %, and currently ringing count",
+      "legend": "Color gradient bar for call intensity + pulsing dots indicator for live active calls"
+    },
+    "outside_us_panel": "Side/Bottom widget listing Canada provinces and international live traffic summary",
+    "dashboard_position": "Sits directly above the live call feed table and campaign pipeline queues"
   },
-  "instructions_to_main_agent": [
-    "1. Replace Google Font import in cloudivr.css with Plus Jakarta Sans and Inter.",
-    "2. Update CSS variables in cloudivr.css to map dark background variables to light corporate background (#F8FAFC, #FFFFFF, #E2E8F0) and green accent (#34d399) to enterprise sky blue (#0284C7).",
-    "3. Update cloudivr.css component rules (civr-card, civr-btn-primary, civr-input, civr-pill, civr-glass) removing heavy glows, dark fills, and 3D trace effects.",
-    "4. Modify Landing.js and Hero.js: Replace 3D globe (Hero3D) with clean 2-column hero featuring interactive phone simulator card and real stock photo asset from media_assets.",
-    "5. Ensure ALL data-testid attributes across all components and buttons remain 100% intact.",
-    "6. Verify i18n support, routes under /cloudivr, softphone modal, wallet payments, and mobile nav bar render cleanly without text contrast or overlap issues."
-  ],
+  "motion_and_interactions": {
+    "smooth_scroll": "Lenis smooth scrolling engine enabled on marketing landing page",
+    "scroll_reveal": "Framer Motion staggered opacity & y-axis entrance (y: 20 -> 0)",
+    "counter_animation": "CountUp animation on statistics and metrics",
+    "hover_states": "All buttons include transform scale-105 / -translate-y-0.5 with high contrast hover text",
+    "reduced_motion": "Supported via prefers-reduced-motion CSS query"
+  },
+  "testing_attributes": {
+    "rule": "ALL interactive components, navigation links, buttons, tabs, inputs, and map elements MUST include data-testid in kebab-case",
+    "examples": [
+      "data-testid=\"nav-products-dropdown\"",
+      "data-testid=\"hero-get-number-btn\"",
+      "data-testid=\"hero-tab-ivr\"",
+      "data-testid=\"free-test-call-submit\"",
+      "data-testid=\"live-map-state-ca\"",
+      "data-testid=\"pricing-plan-pro-buy\""
+    ]
+  },
   "UNIVERSAL GUIDELINES FOR MAIN AGENT": [
-    "Never use dark background gradients or neon glows for enterprise telecom interfaces.",
-    "Ensure all text meets WCAG AA contrast (4.5:1 ratio for normal text).",
-    "Maintain responsive grid layouts with direct children alignment and subgrid support where applicable.",
-    "Ensure all interactive elements include data-testid attributes."
+    "Never use generic centered layouts or flat white template designs for the hero section.",
+    "Ensure contrast meets APCA/WCAG standards on both dark purple hero and light body sections.",
+    "Do NOT use transparent backgrounds for floating dropdown menus or sticky header nav bar.",
+    "Keep text strings complete to allow seamless DOM translation (EN/FR/ES).",
+    "Add explicit data-testid attributes to all key interactive elements."
   ]
 }

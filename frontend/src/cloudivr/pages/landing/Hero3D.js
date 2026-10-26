@@ -102,8 +102,8 @@ function Scene() {
     h(Sparkles, { count: 70, scale: [9, 6, 6], size: 2.2, speed: 0.35, color: GREEN, opacity: 0.55 }));
 }
 
-export default function Hero3D() {
-  return h(Canvas, { dpr: [1, 1.75], camera: { position: [0, 0, 7.4], fov: 45 }, gl: { antialias: true, alpha: true, powerPreference: 'high-performance' } },
+export default function Hero3D({ paused = false }) {
+  return h(Canvas, { frameloop: paused ? 'never' : 'always', dpr: [1, 1.75], camera: { position: [0, 0, 7.4], fov: 45 }, gl: { antialias: true, alpha: true, powerPreference: 'high-performance' } },
     h('ambientLight', { intensity: 0.5 }),
     h('pointLight', { position: [4, 3, 5], intensity: 45, color: GREEN }),
     h('pointLight', { position: [-5, -2, 3], intensity: 30, color: BLUE }),
