@@ -1,0 +1,25 @@
+{
+  "summary": "Retest of the SipFunnel scroll-to-top fix plus a light smoke test (desktop 1920x1080, signed out, nothing purchased). FIXED: landing /cloudivr (cookie denied) -> scroll to bottom (scrollY 7930) -> click footer-link-sip -> /cloudivr/sip opens at scrollY 0 with sip-hero at top 0. Logo from the SIP page bottom -> /cloudivr opens at scrollY 5513 out of 9010 (old position kept; noted only, landing not changed). Hero CTA sip-hero-cta-plans scrolls to #plans correctly (plans top 64px). In-page hash change works. ISSUE: loading /cloudivr/sip#plans directly in a fresh browser stays at scrollY 0 (seen twice, still 0 after waiting 6s), so the plans section is not in view. A direct load of #faq did scroll (scrollY 4420). Smoke test OK: hero, plans Starter $50 / Pro $75 / Business $120, 9 FAQ items.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "SipFunnel direct hash load", "issue": "Opening /cloudivr/sip#plans directly (fresh load) leaves the page at the top instead of at the plans section. The browser jumps to the hash before SipPlans is rendered (the route loads late and the plans depend on the catalog fetch), and nothing scrolls to it afterwards. The new scrollTo(0,0) is correctly skipped when there is a hash, so the fix did not cause this; hash handling was simply never there. #faq happened to work in a later load.", "selector": "[data-testid='sip-plans-section']", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [
+    "SipFunnel: handle direct hash loads, e.g. useEffect(() => { const h = window.location.hash; if (h) document.getElementById(h.slice(1))?.scrollIntoView(); }, [catalog]) (or a short retry or timeout until the element exists), so /cloudivr/sip#plans and #faq reliably land on their sections.",
+    "Optional: the landing /cloudivr also keeps the old scroll position when reached by client-side link (the SIP logo landed at 5513px). Consider the same scroll-to-top on mount when there is no hash, or a global ScrollToTop on pathname change."
+  ],
+  "critical_code_review_comments": [
+    "Console errors on /cloudivr/sip are only 'cannot be a child of' hydration warnings about <span data-ve-dynamic> wrappers inside the CompareTable <table>. These come from the preview visual-editor wrapper, not app code. There are also 401s from the signed-out auth check, which is expected. No app console errors."
+  ],
+  "updated_files": ["/app/test_reports/iteration_148.json"],
+  "success_rate": {"backend": "N/A (skipped)", "frontend": "86% (6/7 checks; direct #plans hash load failed)"},
+  "seed_data_creation": "None",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Scroll-to-top fix confirmed working (footer-link-sip -> scrollY 0). Remaining: direct-load hash on /cloudivr/sip#plans. To verify, open a FRESH page at /cloudivr/sip#plans, wait about 3s and check that sip-plans-section's rect top is about 0-100. Landing /cloudivr scroll restore is only a note."
+}

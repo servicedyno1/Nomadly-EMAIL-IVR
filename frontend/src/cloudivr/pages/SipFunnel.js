@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, LogIn } from 'lucide-react';
 import { useApi, usd } from '../api';
@@ -31,7 +31,7 @@ function Nav() {
   return (
     <header className="fixed top-0 inset-x-0 z-50 backdrop-blur-xl bg-white/80 border-b border-slate-200/80 text-slate-900" data-testid="sip-nav">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-8 h-16 flex items-center gap-3 sm:gap-6">
-        <Link to={cp()} className="font-display text-2xl font-extrabold tracking-tight mr-auto min-h-[44px] flex items-center gap-2" data-testid="sip-nav-logo"><Wordmark accent="#059669" iconClass="w-7 h-7 sm:w-8 sm:h-8" /></Link>
+        <Link to={cp()} onClick={() => window.scrollTo(0, 0)} className="font-display text-2xl font-extrabold tracking-tight mr-auto min-h-[44px] flex items-center gap-2" data-testid="sip-nav-logo"><Wordmark accent="#059669" iconClass="w-7 h-7 sm:w-8 sm:h-8" /></Link>
         <nav className="hidden lg:flex items-center gap-8">
           {LINKS.map(([href, label, id]) => <a key={id} href={href} className="text-sm font-medium text-slate-600 hover:text-slate-900 py-3 transition-colors" data-testid={`sip-nav-${id}`}>{label}</a>)}
         </nav>
@@ -68,9 +68,19 @@ function StickyCta({ catalog }) {
 
 // Sales page for SIP buyers (cloudivr.net/sip). The SIP server itself (sip.cloudivr.net) stays a phone-only address.
 export default function SipFunnel() {
-  const { data: catalog } = useApi('/public/catalog');
+  const { data: catalog, loading } = useApi('/public/catalog');
   // Arriving from another page (e.g. the landing footer) should start at the hero, not the old scroll position.
   useEffect(() => { if (!window.location.hash) window.scrollTo(0, 0); }, []);
+  // Direct links like /sip#plans: the browser jumps before live prices render and push sections down,
+  // so land on the section once the catalogue has loaded (or failed) and the layout has settled. Once only.
+  const landed = useRef(false);
+  useEffect(() => {
+    const id = decodeURIComponent(window.location.hash.slice(1));
+    if (!id || loading || landed.current) return undefined;
+    landed.current = true;
+    const t = setTimeout(() => document.getElementById(id)?.scrollIntoView(), 80);
+    return () => clearTimeout(t);
+  }, [loading]);
   return (
     <div className="civr-l pb-20 md:pb-0" data-testid="sip-funnel-page">
       <Nav />
