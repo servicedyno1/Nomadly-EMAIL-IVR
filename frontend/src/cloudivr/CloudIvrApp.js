@@ -6,6 +6,7 @@ import { CivrAuthProvider, useCivrAuth } from './AuthContext';
 import { Spinner } from './ui';
 import Landing from './pages/Landing';
 import Terms from './pages/Terms';
+import SipFunnel from './pages/SipFunnel';
 import { AuthPage, ForgotPage, ResetPage } from './pages/AuthPages';
 import Shell from './Shell';
 import { cp, IS_CIVR_DOMAIN } from './paths';
@@ -74,6 +75,7 @@ export default function CloudIvrApp() {
         <Routes>
           <Route index element={<Landing />} />
           <Route path="terms" element={<Terms />} />
+          <Route path="sip" element={<SipFunnel />} />
           <Route path="login" element={<AuthPage mode="login" />} />
           <Route path="signup" element={<AuthPage mode="signup" />} />
           <Route path="forgot" element={<ForgotPage />} />

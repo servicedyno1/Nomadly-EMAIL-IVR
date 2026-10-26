@@ -10,7 +10,8 @@ import { PlanFeatures, RecommendedBadge } from '../../PlanFeatures';
 import { PaymentMethods } from './Payments';
 import { openCookieSettings } from '../../consent';
 
-const useStart = () => { const { account } = useCivrAuth(); return (plan) => (account ? cp(`/app/buy${plan ? `?plan=${plan}` : ''}`) : cp(`/signup${plan ? `?plan=${plan}` : ''}`)); };
+// Plan button target: signed-in → Buy with the plan picked, otherwise sign-up keeps it (?plan=pro). Also used by the SIP page.
+export const useStart = () => { const { account } = useCivrAuth(); return (plan) => (account ? cp(`/app/buy${plan ? `?plan=${plan}` : ''}`) : cp(`/signup${plan ? `?plan=${plan}` : ''}`)); };
 
 function PlanCard({ p, plans, hot, start, delay }) {
   return (
@@ -120,6 +121,7 @@ export function Footer({ catalog }) {
         </div>
         <nav className="flex flex-wrap items-center gap-x-6">
           {links.map(([href, label, id]) => <a key={id} href={`${cp()}${href}`} className={link} data-testid={`footer-link-${id}`}>{label}</a>)}
+          <Link to={cp('/sip')} className={link} data-testid="footer-link-sip">SIP & softphones</Link>
           <Link to={cp('/terms')} className={link} data-testid="footer-link-terms">Terms of Service</Link>
           <button type="button" onClick={openCookieSettings} className={`${link} text-left`} data-testid="footer-link-cookies">Cookie settings</button>
           <Link to={cp('/login')} className={link} data-testid="footer-link-signin">Sign in</Link>

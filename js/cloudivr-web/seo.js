@@ -118,6 +118,33 @@ function tagline() {
   return `Virtual phone numbers${countries} with a browser phone, keypad menus (IVR), AI voice agents, call forwarding, voicemail, call recording, an SMS inbox and outbound IVR campaigns. Free to start${start != null ? `, numbers from ${usd(start)}/month` : ''}. Pay with crypto, run your whole phone system from the browser.`
 }
 
+// ── SIP sales page (/sip) — the SIP server itself (sip.<domain>) is a phone-only address, never a web page ──
+const sipServer = () => { try { return require('../phone-config').WEB_SIP_DOMAIN || `sip.${DOMAIN}` } catch (_) { return `sip.${DOMAIN}` } }
+const sipPlansOf = (c) => (c && c.plans ? c.plans.filter((p) => p.access && p.access.sipCredentials).sort((a, b) => a.price - b.price) : [])
+
+function sipDesc() {
+  const sp = sipPlansOf(cat())
+  const from = sp.length ? ` SIP logins from ${usd(sp[0].price)}/month.` : ''
+  return `Put a real phone number on Zoiper, MicroSIP, Linphone or any SIP desk phone. Server ${sipServer()}, port 5060 (UDP/TCP) or 5061 (TLS), with voicemail, a keypad menu, call recording and an SMS inbox built in.${from} No contracts.`
+}
+
+function sipFaqs() {
+  const c = cat()
+  const sp = sipPlansOf(c)
+  const server = sipServer()
+  const names = andList(sp.map((p) => p.name)) || 'the Pro plan and up'
+  const from = sp.length ? `, from ${usd(sp[0].price)}/month` : ''
+  const basic = c && c.plans ? c.plans.filter((p) => !(p.access && p.access.sipCredentials)).sort((a, b) => a.price - b.price)[0] : null
+  return [
+    [`Why doesn't ${server} open in my browser?`,
+      `Because it isn't a website. ${server} is the server address your phone app connects to, so a browser has nothing to show there. Type it into your softphone or desk phone as the SIP server or domain.`],
+    ['Which plan do I need for SIP?', `SIP logins come with ${names}${from}.${basic ? ` ${basic.name} includes the browser phone and call forwarding, but no SIP logins.` : ''}`],
+    ['Which apps and phones work?', 'Any softphone or desk phone that takes a standard SIP account. Zoiper, MicroSIP and Linphone are free and take a minute to set up.'],
+    ['What do I enter in my app?', `Server or domain: ${server}. Port 5060 over UDP or TCP, or 5061 for TLS. Your username and password are on the number's SIP tab in your dashboard.`],
+    ['What do calls cost?', 'Incoming calls use your plan minutes. Outgoing calls from a softphone are billed per minute from your wallet.'],
+  ]
+}
+
 // ── Per-page <head> metadata ─────────────────────────────────────────────────
 function metaFor(pathname) {
   const p = (String(pathname || '/').split('?')[0].replace(/\/+$/, '') || '/')
@@ -143,6 +170,10 @@ function metaFor(pathname) {
     '/terms': {
       title: `Terms of Service · ${BRAND}`,
       desc: `The rules for using ${BRAND}: accounts, phone numbers, plans and wallet payments, free calls, acceptable use, recordings and AI features.`,
+    },
+    '/sip': {
+      title: `SIP Phone Numbers for Softphones & Desk Phones · ${BRAND}`,
+      desc: sipDesc(),
     },
   }
   const indexable = !(p.startsWith('/app') || p.startsWith('/reset-password'))
@@ -205,12 +236,13 @@ function jsonLd(pathname) {
   }
   nodes.push(app)
 
-  // FAQ only on the home page (where the FAQ actually renders).
-  if (m.path === '/') {
+  // FAQ only where the FAQ actually renders: the home page and the SIP page.
+  const faqList = m.path === '/' ? faqs() : m.path === '/sip' ? sipFaqs() : null
+  if (faqList) {
     nodes.push({
       '@type': 'FAQPage',
-      '@id': `${CANONICAL}/#faq`,
-      mainEntity: faqs().map(([q, a]) => ({
+      '@id': `${m.url}#faq`,
+      mainEntity: faqList.map(([q, a]) => ({
         '@type': 'Question',
         name: q,
         acceptedAnswer: { '@type': 'Answer', text: a },
@@ -374,6 +406,7 @@ function llmsTxt() {
     '',
     '## Key pages',
     `- [Home](${CANONICAL}/): product overview, live demo call, features, pricing and FAQ`,
+    `- [SIP numbers](${CANONICAL}/sip): use a CloudIVR number on any SIP softphone or desk phone — setup, plans and FAQ`,
     `- [Sign up](${CANONICAL}/signup): create a free account and get a number`,
     `- [Sign in](${CANONICAL}/login): access the dashboard`,
     '',
@@ -433,6 +466,7 @@ function sitemapXml() {
   const today = new Date().toISOString().slice(0, 10)
   const urls = [
     { loc: `${CANONICAL}/`, priority: '1.0', changefreq: 'weekly' },
+    { loc: `${CANONICAL}/sip`, priority: '0.9', changefreq: 'weekly' },
     { loc: `${CANONICAL}/signup`, priority: '0.8', changefreq: 'monthly' },
     { loc: `${CANONICAL}/login`, priority: '0.5', changefreq: 'monthly' },
     { loc: `${CANONICAL}/terms`, priority: '0.3', changefreq: 'yearly' },
@@ -447,5 +481,5 @@ module.exports = {
   CANONICAL, DOMAIN, OG_IMAGE,
   injectIndex, headTags, bodyNoscript,
   robotsTxt, llmsTxt, llmsFullTxt, sitemapXml,
-  faqs, tagline, // exported for tests
+  faqs, sipFaqs, tagline, // exported for tests
 }
