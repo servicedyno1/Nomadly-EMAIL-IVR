@@ -1,5 +1,17 @@
 # PRD — Nomadly Cloud IVR + Telegram Bot
 
+## 2026-10-26 (22:52Z) — PROD ops: replacement RDP for @Loaded4 (911434986) — DONE + verified
+- Old: vpsPlansOf rdp-1aef405b (Pro pro-1m, ws2022, New York nyc3→nyc2, paid $112 TXN-20261014-F5411, Oct 14 → Nov 14 14:34:53Z);
+  DO droplet 609043954 deleted outside the bot 2026-10-25 (reconcileVanished → DELETED/destroyed). Owner: same config, same end date,
+  bot alert with credentials as a normal order, public group post kept.
+- New: `POST /admin/comp-vps` (no wallet debit, comp:true, compReason `replace-rdp-1aef405b-droplet-deleted-2026-10-25`) →
+  rdp-32b659b5-2848-480e-b475-97884f88f3e2 "nomadly-kmnmhg", 142.93.205.104, nyc1 (same city), s-4vcpu-8gb-amd, golden ws2022,
+  active in 111 s, password_confirmed, 3389 open. Bot DM "RDP [nomadly-kmnmhg] is active!" + credentials, TXN-20261026-BC3C0 ($0 vps).
+- `js/ops/rdp_replace_finalize.js` set vpsPlansOf.end_time + doRdpServers.expires_at = 2026-11-14T14:34:53.584Z (start_time = Oct 14),
+  autoRenewable false, links replacesInstanceId ↔ replacedBy. Inspect: `js/ops/rdp_replace_inspect.js <user>`. Request body
+  js/ops/rdp_replace_loaded4_2026-10-26.json; logs /opt/nomadly/logs/rdp_replace_loaded4_2026-10-26.{json,log}. DO cost ~$35 to Nov 14.
+
+
 ## 2026-10-26 (22:45Z) — PROD ops: +$20 wallet credit for iammills404@gmail.com — DONE + verified
 - Web account 5000000000000007 ("La"): wallet $0.00 → $20.00. Txn `admin-credit-5000000000000007-support-20-2026-10-26`
   (type admin-credit → "Credit from CloudIVR" in wallet history) + in-app Inbox notice (owner choice). Re-run says "already credited".

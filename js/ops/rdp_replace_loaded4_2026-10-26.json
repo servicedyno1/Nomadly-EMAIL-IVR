@@ -1,0 +1,22 @@
+{
+  "chatId": "911434986",
+  "count": 1,
+  "compReason": "replace-rdp-1aef405b-droplet-deleted-2026-10-25",
+  "vpsDetails": {
+    "isRDP": true,
+    "os": { "id": "ws2022", "name": "🖥 RDP", "value": "win", "osType": "Windows", "isRDP": true, "pricePerMonth": 0 },
+    "country": "🇺🇸 United States (New York)",
+    "region": "nyc3",
+    "regionName": "🇺🇸 United States (New York)",
+    "zone": "nyc3",
+    "zoneName": "🇺🇸 United States (New York)",
+    "diskType": "nvme",
+    "diskTypeId": "nvme",
+    "config": { "_id": "pro-1m", "name": "Pro — Windows RDP", "cpuCores": 4, "ramGb": 8, "diskGb": 160, "diskType": "nvme", "isRDP": true, "maxDoCost": 56 },
+    "plan": "Monthly",
+    "durationMonths": 1,
+    "productId": "pro-1m",
+    "plantotalPrice": 112,
+    "totalPrice": 0
+  }
+}
