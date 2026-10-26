@@ -37,6 +37,7 @@ function routes(router, { db, h, numbersApi, voiceService, smsReply, log = conso
       id: r.id, phone: r.phone, from: r.from, startedAt: r.startedAt, timeoutAt: r.timeoutAt, simulated: r.simulated,
       answerMode: br.answerMode, lang: br.lang, voice: br.voice, announce: br.announce !== false,
       canText: !!n && phoneConfig.canAccessFeature(n.plan, 'textRelay'), canVoice: canVoiceOn(n, r),
+      sipApps: !!n && phoneConfig.canAccessFeature(n.plan, 'sipCredentials'),
       textRate: +(callRate(r.from) + relay.RELAY_RATE()).toFixed(4), fallback: fallbackText(n, false),
     }
   }

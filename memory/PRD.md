@@ -1390,3 +1390,16 @@ calls and SIP are simulated; inbound calls use a pretend-call simulator).
   Preview replay: `node /tmp/seed_sms_delivery_preview.js` + POST message.finalized payloads (ids seed-ok/seed-tf/seed-stop).
 - PROD facts: +18333753298 (onarrival21) toll-free is unverified (0 toll-free verification requests on the Telnyx account).
 - Live after "Save to GitHub" (app-main only; WhiteLabel auto-sync paused). app-main went to release 20261026T122832Z-5ce0744 at 12:29Z.
+
+
+## 2026-10-26 (fork 6) — Starter copy fixes + LIVE (direct droplet deploy, app-main only)
+- Starter browser phone / SIP block / downgrade keep-settings / provider-name scrub / landing copy: iteration_146 100%.
+- Copy fixes from iteration_146 (owner choice "Answer in your browser, upgrade for desk phones"):
+  RouteSummary sip_ring on plans without sipCredentials → "Calls ring your browser phone. Desk phones and SIP apps are on a
+  higher plan." (+ skipped pill "Browser ring"); Incoming banner: ring payload has `sipApps`; hints no longer contradict
+  (Starter preview → "Preview calls only show how the banner looks…", Starter live not-on-network → browser + upgrade note);
+  fr "/mo" → "/mois". fr/es added. Self-tested (EN/FR, 1920 + 390), test_starter_browser_phone 20/20, hours_vm_notes 31/31.
+- Handoff's "deployment blockers" (.gitignore .env, CORS_ORIGINS, supervisor block) are Emergent-hosting only → NOT changed again.
+- DEPLOYED 14:11Z via scripts/deploy_workspace_to_droplet.sh app-main → release 20261026T141118Z-b428ce1 on :5000 (app-main-a),
+  /health healthy, 0 restarts, cloudivr.net serves the new bundle. Rollback: `bash /opt/nomadly/deploy.sh app-main rollback`.
+- PENDING (owner): "Save to GitHub" (main) or the next CI deploy of app-main drops this release. WhiteLabel brands untouched.

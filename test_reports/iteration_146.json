@@ -1,0 +1,42 @@
+{
+  "summary": "Tested the Starter browser phone, the SIP gate, downgrade with saved settings, the upgrade restore and the landing copy. Unit tests: 6/6 suites pass (20, 31, 10, 33, 8, 66). New pytest suites: 13/13 pass (7 API gate/catalog/leak + 6 downgrade->campaign start 403->upgrade lifecycle). UI (Playwright): landing EN/FR/ES at 1920x800 and 390x844 has the new hero eyebrow, subtitle, trust chip, feature-card-4 'Every plan', plan cards and FAQ. FR/ES are translated with no English left in the hero or plan cards, and nothing overflows. The in-app buy page plan cards are correct. The softphone panel lists the Starter number and Connect is enabled; it then shows the 'isn't live on the network yet' message, which is expected. On the Starter number the Browser ring tab is unlocked and Save + 'Ring me now' shows the incoming banner. The SIP tab is locked with the upgrade note. The /sip page shows the open-phone button and the locked browser note. The downgrade preview UI on Pro shows the lost list incl. SIP, the SIP note and the kept-settings note. No provider names leak in /numbers, /numbers/:phone, /sip?browser=1, /public/catalog or the landing body.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Landing hero (desktop 1920 + mobile 390, EN)", "issues": ["The eyebrow pill wraps to 2 lines ('Campaigns' on line 2) at 1920 width. It still looks fine, but you could shorten it or allow a wider pill.", "The EN mobile hero subtitle is very long (~8 lines on 390px). The FR one is ~12 lines and pushes the CTAs below the fold."]},
+      {"screen": "Number Overview (Starter)", "issues": ["The 'What callers get now' card says 'Calls ring your softphone / browser phone.' on Starter, where softphone apps are not allowed. Starter should say browser phone only."]},
+      {"screen": "Incoming call banner (Starter, preview)", "issues": ["It shows 'Answering as text is on the Business plan.' and 'Preview calls can only be answered as text.' together. On Starter in preview the user cannot answer at all. Copy only, preview only."]},
+      {"screen": "Landing pricing FR", "issues": ["'/mo' is translated as '/mo' in fr.json (ES uses '/mes'). FR should be '/mois'. This was there before this session."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_cloudivr_starter_browser_phone.py",
+    "/app/backend/tests/test_cloudivr_downgrade_upgrade_flow.py",
+    "/app/test_reports/pytest/pytest_starter_browser.xml",
+    "/app/test_reports/pytest/pytest_downgrade_flow.xml"
+  ],
+  "action_items": [
+    "Optional: on Starter numbers, change the Overview 'What callers get now' text to 'Calls ring your browser phone'.",
+    "Optional: fr.json '/mo' -> '/mois'.",
+    "Optional: on Starter preview, word the incoming banner hints so they don't contradict each other."
+  ],
+  "critical_code_review_comments": [
+    "Soft enforcement (low): a Starter user can read username/password from GET /sip?browser=1 and type them into Zoiper or a desk phone. Inbound calls then ring every registered endpoint whenever browserRing is on and the tab is online (sipRingable). Outbound calls are refused unless the INVITE carries X-Civr-Browser, but that 24h key is also readable from the same API, and some softphones let you add custom headers. This is fine for the stated goal. If stricter enforcement is ever needed, use a separate browser-only credential, or token login via the WebRTC JWT.",
+    "The /campaigns/:id/start plan gate is correct. resume/pause/cancel are not gated, which matches the requirement that running/paused campaigns finish.",
+    "downgradePatch does not list aiAgent, but the AI agent is gated at runtime (ai-agent/calls.js canAccessFeature), so this is OK."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_cloudivr_starter_browser_phone.py",
+    "/app/backend/tests/test_cloudivr_downgrade_upgrade_flow.py"
+  ],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "seed_data_creation": "Downgraded +13313039077 Pro -> Starter and upgraded it back to Pro (the upgrade charged ~$62.50 test wallet: 330.15 -> 267.65). After the test, +13313039077 is Pro with sipDisabled false, IVR cleared (enabled:false, options:{}) and recording off. Created and cancelled one TEST campaign (report_only) on +13313039077. Uploaded and then deleted audio TEST_tone. Switched Browser ring ON for Starter +13313039088.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Login: civr.alice@example.com / AliceTest#2026. App pages poll, so Playwright must use wait_until='domcontentloaded' (networkidle times out). Language is in localStorage key 'civr.lang'. Password input has no testid; use input[type=password]. Buy page plan cards (buy-plan-*) only appear after search + choosing a result. Re-running test_cloudivr_downgrade_upgrade_flow.py costs ~$62 of the test wallet per run."
+}

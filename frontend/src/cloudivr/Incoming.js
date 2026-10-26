@@ -94,7 +94,10 @@ function Actions({ c, busy, voiceFirst, onText, onVoice, onDecline }) {
 }
 
 function Footer({ c, remember, setRemember, auto, cancelAuto, note, onMessage }) {
-  const voiceHint = c.canVoice ? '' : c.simulated ? 'Preview calls can only be answered as text.' : 'To answer by voice, create a SIP login for this number (SIP tab).';
+  const voiceHint = c.canVoice ? ''
+    : c.simulated ? (c.canText ? 'Preview calls can only be answered as text.' : 'Preview calls only show how the banner looks. Real calls can be answered by voice in your browser.')
+    : c.sipApps ? 'To answer by voice, create a SIP login for this number (SIP tab).'
+    : 'Answer by voice in your browser once this number is live on the network. Desk phones and SIP apps are on a higher plan.';
   return (
     <div className="mt-4 pt-3 border-t border-white/10 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-[#a1a1aa]">
       {!c.rtcOnly && <label className="inline-flex items-center gap-2 cursor-pointer text-[#e4e4e7]"><input type="checkbox" className="accent-[#818cf8] w-4 h-4" checked={remember} onChange={e => setRemember(e.target.checked)} data-testid="incoming-remember-checkbox" />Remember for this number</label>}
