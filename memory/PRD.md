@@ -1,5 +1,20 @@
 # PRD — Nomadly Cloud IVR + Telegram Bot
 
+## 2026-10-26 (22:35Z) — Landing page redesigned CLEAN (pure white + near-black ink, no purple, no checker grid) — TESTED (iteration_155), NOT DEPLOYED (owner reviews in preview first)
+- Owner rejected the deep-purple cm.com hero ("we need our landing page as clean as this. we don't need the checkers or deep purple color").
+  Choices: pure white hero · near-black ink buttons/highlights · product tabs with REAL dashboard screenshots · review before deploy.
+- Hero.js: centered white hero (eyebrow pill w/ live dot, H1 with light-grey underline mark, ink + outline pills, trust list). 3D scene removed
+  (Hero3D.js, PhoneMock.js, MockupsMore.js deleted). HeroTabs.js: Dashboard / Keypad menus / Campaigns / Live map tabs, auto-advance 7s,
+  arrow keys move focus, light browser frame + url pill, images `/civr/shots/app-{overview,ivr,campaigns,map}.webp`.
+- Screenshots: `node scripts/capture_landing_shots.js <previewUrl> /tmp/shots` (SHOT_NUMBER=<Alice business number>, run
+  seed_civr_live_demo.js first) — logs in as Alice, hides preview banners/badges/chat, swaps numbers to +1415555xxxx and email to maya@northwind.co.
+- Ink restyle: cloudivr.css landing tokens (--l-accent = ink, .civr-l-pill-ink/-outline, white .civr-l-navbar, .civr-l-frame), Nav (white,
+  light featured cards), Platform/Sections/PricingFaq (final CTA light grey box, light footer), TryCall/TryLive/EmailGate, PlanFeatures cream tone,
+  CookieBanner (ink buttons), SupportChat visitor accents neutral, LangSwitcher light options. FR/ES strings added for new tab labels/captions.
+- Side effect: /cloudivr/sip shares .civr-l-btn → its buttons are now ink pills; its hero still has the old grid + purple highlight (out of scope).
+- design_guidelines.json rewritten for the clean ink aesthetic.
+
+
 ## 2026-10-26 (21:40Z) — CloudIVR Live page + call feed + top areas + repeat/daily limit + DNC for every campaign — TESTED (iteration_154 + harness 15/15), DEPLOYED
 - Owner shared a "Dynamo RVM" operations screenshot and picked: Live calls page (new "Live" menu item, green dot while calling),
   live call feed per campaign (Waiting → Ringing → Talking → Done strip), top areas (state/province from area code, country from calling code),

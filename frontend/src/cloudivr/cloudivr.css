@@ -201,7 +201,7 @@
 .civr .civr-l-pill-sm { height: 40px; padding: 0 18px; font-size: 14px; }
 .civr .civr-l-navbar { background: rgba(255, 255, 255, .92); -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px); border-bottom: 1px solid transparent; transition: border-color .3s ease, box-shadow .3s ease; }
 .civr .civr-l-navbar.scrolled { border-bottom-color: var(--l-line); box-shadow: 0 10px 30px -26px rgba(15, 23, 42, .35); }
-.civr .civr-l-navlink { display: inline-flex; align-items: center; gap: 4px; height: 40px; padding: 0 12px; border-radius: 999px; font-size: 14px; font-weight: 500; color: #334155; transition: color .2s ease, background-color .2s ease; }
+.civr .civr-l-navlink { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; height: 40px; padding: 0 12px; border-radius: 999px; font-size: 14px; font-weight: 500; color: #334155; transition: color .2s ease, background-color .2s ease; }
 .civr .civr-l-navlink:hover, .civr .civr-l-navlink.on { color: var(--l-ink); background: #f1f5f9; }
 .civr .civr-l-menu { background: #fff; color: var(--l-ink); border-radius: 20px; box-shadow: 0 30px 70px -30px rgba(15, 23, 42, .35), 0 0 0 1px var(--l-line); animation: civrMenu .22s cubic-bezier(.2, .7, .2, 1) both; transform-origin: top center; }
 @keyframes civrMenu { from { opacity: 0; transform: translateY(-8px) scale(.985); } to { opacity: 1; transform: none; } }

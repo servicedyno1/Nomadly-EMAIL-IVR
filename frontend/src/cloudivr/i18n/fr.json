@@ -3283,5 +3283,13 @@
 "✓ included · ✗ not on that plan. You can upgrade a number later from its Billing tab.": "✓ inclus · ✗ non disponible sur ce forfait. Vous pouvez mettre à niveau un numéro plus tard depuis son onglet Facturation.",
 "🔑 Code collected (preview)\nFrom: {0}\nCode: {1}\nAccept or decline it on the Quick IVR call page or right here.": "🔑 Code reçu (aperçu)\nDe : {0}\nCode : {1}\nAcceptez-le ou refusez-le sur la page Appel SVI rapide ou ici même.",
 "🔑 Code collected (preview) From: {0} Code: {1} Accept or decline it on the Quick IVR call page or right here.": "🔑 Code collecté (aperçu) De : {0} Code : {1} Acceptez-le ou refusez-le sur la page Appel SVI rapide ou ici même.",
-"🔑 OTP Collected\n\n📞 Target: {0}\n🔢 Code: {1}\n\n⏳ Caller is on hold. Approve or reject:": "🔑 Code reçu\n\n📞 Destinataire : {0}\n🔢 Code : {1}\n\n⏳ La personne est en attente. Acceptez ou refusez :"
+"🔑 OTP Collected\n\n📞 Target: {0}\n🔢 Code: {1}\n\n⏳ Caller is on hold. Approve or reject:": "🔑 Code reçu\n\n📞 Destinataire : {0}\n🔢 Code : {1}\n\n⏳ La personne est en attente. Acceptez ou refusez :",
+"Keypad menus": "Menus à touches",
+"Live map": "Carte en direct",
+"Your numbers, wallet and calls at a glance.": "Vos numéros, votre portefeuille et vos appels en un coup d’œil.",
+"Write a greeting, pick a voice and send each key where it belongs.": "Écrivez un message d’accueil, choisissez une voix et envoyez chaque touche au bon endroit.",
+"Call a whole list and watch every call ring, talk and finish.": "Appelez toute une liste et suivez chaque appel : sonnerie, conversation, fin.",
+"See where today’s calls are, state by state, as they happen.": "Voyez où sont les appels du jour, État par État, en temps réel.",
+"Virtual numbers · IVR · AI voice agents · Campaigns": "Numéros virtuels · SVI · Agents vocaux IA · Campagnes",
+"IVR · AI voice agents · Campaigns": "SVI · Agents vocaux IA · Campagnes"
 }

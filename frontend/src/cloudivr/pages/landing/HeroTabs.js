@@ -41,7 +41,13 @@ export function HeroTabs() {
     return () => clearTimeout(t);
   }, [run, i]);
   const pick = (k) => { setAuto(false); setI((k + TABS.length) % TABS.length); };
-  const keys = (e) => { if (e.key === 'ArrowRight') pick(i + 1); if (e.key === 'ArrowLeft') pick(i - 1); };
+  const keys = (e) => {
+    const d = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0;
+    if (!d) return;
+    const k = (i + d + TABS.length) % TABS.length;
+    pick(k);
+    e.currentTarget.querySelectorAll('[role="tab"]')[k]?.focus();
+  };
   return (
     <div ref={ref} className="relative mt-16 md:mt-20 pb-20 md:pb-28" data-testid="hero-preview">
       <div className="max-w-6xl mx-auto px-4 sm:px-6">

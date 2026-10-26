@@ -48,7 +48,7 @@ function MegaPanel({ which, catalog, onPick }) {
 function MobileMenu({ catalog, onClose, account }) {
   useEffect(() => { const o = document.body.style.overflow; document.body.style.overflow = 'hidden'; return () => { document.body.style.overflow = o; }; }, []);
   return (
-    <div className="lg:hidden fixed inset-x-0 top-16 bottom-0 z-40 bg-white text-slate-900 overflow-y-auto civr-l-swap" data-testid="landing-mobile-menu">
+    <div className="lg:hidden fixed inset-x-0 top-16 bottom-0 z-[45] bg-white text-slate-900 overflow-y-auto civr-l-swap" data-testid="landing-mobile-menu">
       <div className="px-4 sm:px-6 py-6 flex flex-col gap-8">
         {MENUS.map(([id, label, items]) => (
           <div key={id}>
@@ -96,7 +96,7 @@ export function LandingNav({ catalog }) {
           ))}
           {LANDING_LINKS.map(([href, label, id]) => <a key={id} href={href} onMouseEnter={() => hover(null)} onClick={(e) => goTo(href, e)} className="civr-l-navlink" data-testid={`landing-nav-${id}`}>{label}</a>)}
         </nav>
-        {scrolled > 300 && <a href="#try" onClick={(e) => goTo('#try', e)} className="hidden xl:inline-flex items-center gap-2 text-sm font-semibold text-slate-900 hover:text-slate-600 transition-colors civr-rise" data-testid="civr-nav-sticky-cta"><PhoneCall className="w-4 h-4" />Free call</a>}
+        {scrolled > 300 && <a href="#try" onClick={(e) => goTo('#try', e)} className="hidden xl:inline-flex items-center gap-2 whitespace-nowrap text-sm font-semibold text-slate-900 hover:text-slate-600 transition-colors civr-rise" data-testid="civr-nav-sticky-cta"><PhoneCall className="w-4 h-4" />Free call</a>}
         <LangSwitcher testid="landing-lang-switcher" tone="landing" />
         {account
           ? <Link to={cp('/app')} className="civr-l-pill civr-l-pill-ink civr-l-pill-sm" data-testid="landing-open-dashboard"><Slide><span className="sm:hidden">Dashboard</span><span className="hidden sm:inline">Open dashboard</span></Slide></Link>

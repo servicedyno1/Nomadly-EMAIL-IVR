@@ -15,7 +15,7 @@ function Switch({ id, label, on, locked, onChange }) {
     <label className="inline-flex items-center gap-3 cursor-pointer select-none" data-testid={`cookie-${id}-switch`}>
       <span className="text-[15px] font-semibold text-slate-900">{label}</span>
       <button type="button" role="switch" aria-checked={on} aria-label={label} disabled={locked} onClick={() => onChange(!on)} data-testid={`cookie-${id}-toggle`}
-        className={`relative w-12 h-7 rounded-full transition-colors duration-200 ${on ? 'bg-[#4f46e5]' : 'bg-slate-800'} ${locked ? 'opacity-70 cursor-not-allowed' : ''}`}>
+        className={`relative w-12 h-7 rounded-full transition-colors duration-200 ${on ? 'bg-[#0f172a]' : 'bg-slate-800'} ${locked ? 'opacity-70 cursor-not-allowed' : ''}`}>
         <span className={`absolute top-1 left-1 w-5 h-5 rounded-full bg-white shadow transition-transform duration-200 ${on ? 'translate-x-5' : ''}`} />
       </button>
     </label>
@@ -34,9 +34,9 @@ function Buttons({ choose, pick }) {
   const cls = 'h-12 w-full rounded-lg text-[15px] font-bold transition-colors duration-200';
   return (
     <div className="flex flex-col gap-2.5 lg:w-64 shrink-0">
-      <button type="button" className={`${cls} bg-[#4f46e5] text-white hover:bg-[#4338ca]`} onClick={() => choose({ preferences: true, statistics: true, marketing: true })} data-testid="cookie-allow-all">Allow all</button>
-      <button type="button" className={`${cls} border-2 border-[#4f46e5] text-slate-900 hover:bg-indigo-50`} onClick={() => choose(pick)} data-testid="cookie-allow-selection">Allow selection</button>
-      <button type="button" className={`${cls} border-2 border-[#4f46e5] text-slate-900 hover:bg-indigo-50`} onClick={() => choose({})} data-testid="cookie-deny">Deny</button>
+      <button type="button" className={`${cls} bg-[#0f172a] text-white hover:bg-black`} onClick={() => choose({ preferences: true, statistics: true, marketing: true })} data-testid="cookie-allow-all">Allow all</button>
+      <button type="button" className={`${cls} border-2 border-[#0f172a] text-slate-900 hover:bg-slate-100`} onClick={() => choose(pick)} data-testid="cookie-allow-selection">Allow selection</button>
+      <button type="button" className={`${cls} border-2 border-[#0f172a] text-slate-900 hover:bg-slate-100`} onClick={() => choose({})} data-testid="cookie-deny">Deny</button>
     </div>
   );
 }
@@ -62,7 +62,7 @@ export function CookieBanner() {
         </div>
         <div className="mt-6 pt-5 border-t border-slate-200 flex flex-wrap items-center gap-x-8 gap-y-4">
           {GROUPS.map(([id, label]) => <Switch key={id} id={id} label={label} on={id === 'necessary' || !!pick[id]} locked={id === 'necessary'} onChange={v => setPick(p => ({ ...p, [id]: v }))} />)}
-          <button type="button" onClick={() => setMore(m => !m)} aria-expanded={more} className="ml-auto inline-flex items-center gap-1 text-[15px] font-semibold text-[#4f46e5] hover:underline" data-testid="cookie-details-toggle">{more ? 'Hide details' : 'Show details'}<ChevronRight className={`w-4 h-4 transition-transform duration-200 ${more ? 'rotate-90' : ''}`} /></button>
+          <button type="button" onClick={() => setMore(m => !m)} aria-expanded={more} className="ml-auto inline-flex items-center gap-1 text-[15px] font-semibold text-[#0f172a] hover:underline" data-testid="cookie-details-toggle">{more ? 'Hide details' : 'Show details'}<ChevronRight className={`w-4 h-4 transition-transform duration-200 ${more ? 'rotate-90' : ''}`} /></button>
         </div>
         {more && <Details />}
       </section>

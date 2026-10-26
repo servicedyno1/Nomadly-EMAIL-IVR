@@ -1,0 +1,40 @@
+{
+  "summary": "I tested the frontend only, on the /cloudivr landing redesign (white background, near-black 'ink' buttons), on desktop (1920x1080) and mobile (390x844), plus a quick check of /cloudivr/sip. Every requested flow works. Hero: pure white background, centred heading, ink 'Get your number' button goes to /cloudivr/signup, outline 'Try a free call' button scrolls to #try. Product tabs: all 4 switch the screenshot, caption, URL pill and scene wrapper correctly; they auto-advance after about 7s and stop once a tab is clicked; Left/Right arrows change the selected tab; all 4 .webp screenshots load at 2160px wide. Nav: Products and Use cases menus open on hover and click and close on Escape; their featured cards are light grey with dark text; Coverage/Pricing/FAQ links scroll to the right sections; EN/FR/ES switching works. Rest of page: no civr-l-purple, civr-l-gridbg or civr-l-glow classes anywhere; feature tabs show a dark icon when selected; the free test call tabs show a black pill when selected; an invalid number shows civr-try-error; the Pro plan has the dark ring and black 'Recommended' badge; FAQ answers expand; the final call-to-action box and footer are light grey; the footer cookie link opens cookie settings; the chat button is dark and opens the panel. Mobile: no horizontal overflow (page width 390 = viewport width); product tabs scroll sideways; screenshot frame fits; hamburger menu is readable and its links work. No JS errors. Purple is still visible in two places: the cookie banner and the inside of the chat panel.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "HeroTabs keyboard nav", "issue": "Arrow keys change the selected tab but keyboard focus stays on the old tab, which now has tabIndex=-1. Arrow keys still work afterwards because the keydown handler is on the tablist. WAI-ARIA tabs expect focus to follow the selection.", "selector": "[data-testid=hero-tabs]", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Cookie banner (shows on first visit and from footer Cookie settings)", "issues": ["Leftover indigo #4f46e5: the Allow all button background, the Allow selection and Deny button borders, the Necessary toggle and the 'Show details' link. It is the first thing a new visitor sees over the white hero."]},
+      {"screen": "Support chat panel on landing", "issues": ["The button is now ink, but the panel itself is still a dark (black) theme with an indigo help icon and indigo send button. It clashes with the white landing page."]},
+      {"screen": "Language select (landing-lang-switcher)", "issues": ["The native <select> dropdown options open with a dark/black background and white text on the white nav. They are readable but off-theme."]},
+      {"screen": "Hero tabs in FR/ES", "issues": ["Tab labels (Dashboard, Keypad menus, Campaigns, Live map) and captions stay in English after switching to FR/ES, while the hero title is translated."]},
+      {"screen": "Mobile hero eyebrow (390px)", "issues": ["The eyebrow pill wraps onto 2 lines and the green dot sits off-centre to the left. Consider shorter text on mobile."]},
+      {"screen": "Mobile menu", "issues": ["The floating chat button (support-chat-toggle) sits on top of the open mobile menu and covers item descriptions."]},
+      {"screen": "/cloudivr/sip (out of scope, smoke only)", "issues": ["The page loads and its buttons are ink pills. The hero still has a purple 'any SIP phone' highlight and a faint grid/checker background with a violet glow."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Restyle the cookie banner (cookie-allow-all, cookie-allow-selection, cookie-deny, the toggles and Show details) from indigo #4f46e5 to ink/slate so it matches the landing page",
+    "Optional: give the support chat panel a light theme on the landing page (white background, ink send button) instead of dark + indigo",
+    "Optional: in HeroTabs pick(), move focus to the newly selected tab button on Arrow keys (roving tabindex)",
+    "Optional: translate the HeroTabs labels and captions for FR/ES",
+    "Optional: remove the purple highlight and grid background on the /cloudivr/sip hero for consistency"
+  ],
+  "critical_code_review_comments": [
+    "HeroTabs.js: keys() calls pick() but never calls .focus() on the new tab, which breaks the roving-tabindex pattern",
+    "HeroTabs.js: TABS labels and captions are hard-coded English strings and do not go through the i18n mechanism",
+    "cloudivr.css still defines .civr-l-gridbg with an rgba(99,102,241) grid, so it is still available for other pages such as SIP",
+    "Purple (#6366f1 / #818cf8) is used only inside the dark Platform mockups (feature-ivr-mock etc.), which is expected per the request"
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (skipped)", "frontend": "95%"},
+  "seed_data_creation": "None",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Iteration 155 covered only the landing redesign. All requested landing testids worked. A computed-style scan for purple, run after scrolling the whole page, found it only inside feature-ivr-mock (expected), plus the cookie banner (#4f46e5) and the chat panel internals. Mobile at 390px has no horizontal overflow. Dismiss the cookie banner with cookie-deny first. The FAQ uses <details>/<summary>, so aria-expanded is absent and that is fine.",
+  "test_credentials": "Not needed (public landing page)"
+}

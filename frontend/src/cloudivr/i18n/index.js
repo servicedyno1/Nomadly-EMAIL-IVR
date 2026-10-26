@@ -61,7 +61,7 @@ export function LangSwitcher({ testid = 'lang-switcher', className = '', tone = 
       <span className="text-sm font-medium hidden sm:inline">{name}</span><span className="text-sm font-semibold uppercase sm:hidden">{lang}</span>
       <ChevronDown className="w-3.5 h-3.5 opacity-70" />
       <select value={lang} onChange={e => setLang(e.target.value)} aria-label="Language" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" data-testid={testid}>
-        {LANGS.map(([c, n]) => <option key={c} value={c} className="bg-[#111] text-white">{n}</option>)}
+        {LANGS.map(([c, n]) => <option key={c} value={c} className={tone === 'landing' ? 'bg-white text-slate-900' : 'bg-[#111] text-white'}>{n}</option>)}
       </select>
     </div>
   );
