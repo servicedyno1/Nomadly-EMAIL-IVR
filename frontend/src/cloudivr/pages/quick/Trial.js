@@ -57,7 +57,7 @@ export function TrialCall({ status, onUsed }) {
     <form onSubmit={go} className="civr-card p-6 md:p-8 max-w-3xl space-y-6 !border-[#818cf8]/40" data-testid="quick-trial-form">
       <div className="flex items-start gap-4">
         <span className="w-11 h-11 rounded-xl bg-[#818cf8]/15 grid place-items-center shrink-0"><Gift className="w-5 h-5 text-[#818cf8]" /></span>
-        <div><div className="font-display text-2xl font-bold">Your first Quick IVR call is free</div><p className="text-sm text-[#a1a1aa] mt-1">No number or wallet needed. The call shows our shared demo caller ID, not yours.</p></div>
+        <div><div className="font-display text-2xl font-bold" data-testid="quick-trial-title">{result ? 'Your free Quick IVR call' : 'Your first Quick IVR call is free'}</div><p className="text-sm text-[#a1a1aa] mt-1">No number or wallet needed. The call shows our shared demo caller ID, not yours.</p></div>
       </div>
       <HowItWorks callerId={status?.callerId} />
       {result ? <Done result={result} /> : <>

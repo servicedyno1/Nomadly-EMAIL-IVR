@@ -117,6 +117,8 @@
 - QA account with NO numbers (free-call eligible): `qa.trial1793002485@example.com` / `QaTest#2026x` (webChatId `5000000000000003`, DB `test`).
 - Reset its free call: `mongosh test --eval 'db.webPrefs.updateOne({_id:"5000000000000003"},{$set:{ivrTrialUsed:false},$unset:{ivrTrialPendingAt:""}}); db.state.deleteOne({_id:"ivrTrialUsed_5000000000000003"})'`
 - Preview OTP calls are SIMULATED (callControlId `sim-…`): ringing → playing → code after ~11 s; Accept / Decline / Hang up on the Quick IVR page or Inbox.
+- Alice (current pod) numbers: Business `+13313039039`, Pro `+13313039077` (seeded copy), Starter `+13313039088` (seeded copy — Quick IVR/OTP refused with 403 plan_upgrade_required).
+- Bob login (`civr.bob@example.com` / `BobTest#2026`) was rejected on this pod (2026-10-26) — use Alice / the QA account instead.
 
 ## Environment notes
 - Linkly (Shortit "Random" link provider since 2026-10-22): `LINKLY_API_KEY` (secret, in vault + all 4 droplet

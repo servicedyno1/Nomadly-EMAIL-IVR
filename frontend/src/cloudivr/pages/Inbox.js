@@ -19,6 +19,7 @@ const ICON = Object.fromEntries(KINDS.map(([k, , I]) => [k, I]));
 const NAME = Object.fromEntries(KINDS.map(([k, l]) => [k, l]));
 const lower = (s) => (s === 'SMS' ? s : s.toLowerCase());
 const OPENS = { sms: 'Open texts', voicemail: 'Open voicemails', call: 'Open call log', billing: 'Open billing', wallet: 'Open wallet', campaign: 'Open campaigns' };
+const opens = (n) => (n.meta?.otp ? 'Open Quick IVR call' : OPENS[n.kind] || 'Open');
 
 // One-tap filter; a small badge shows how many unread items it holds.
 function FilterPill({ k, label, on, count, onPick }) {
@@ -107,7 +108,7 @@ export default function Inbox() {
             const Icon = ICON[n.kind] || Info;
             return (
               <div key={n.id} className={`civr-card relative p-4 flex gap-4 ${n.read ? '' : 'border-[#818cf8]/40'} ${n.link ? 'civr-card-link' : ''}`} data-testid={`inbox-item-${i}`}>
-                {n.link && <Link to={cp(n.link)} onClick={() => openItem(n)} className="absolute inset-0 rounded-[14px]" aria-label={OPENS[n.kind] || 'Open'} data-testid={`inbox-item-${i}-open`} />}
+                {n.link && <Link to={cp(n.link)} onClick={() => openItem(n)} className="absolute inset-0 rounded-[14px]" aria-label={opens(n)} data-testid={`inbox-item-${i}-open`} />}
                 <Icon className={`w-5 h-5 shrink-0 mt-0.5 ${n.read ? 'text-[#a1a1aa]' : 'text-[#818cf8]'}`} />
                 <div className="flex-1 min-w-0">
                   <div className="text-sm whitespace-pre-line break-words text-[#f4f4f5]" data-testid={`inbox-item-${i}-text`}>{pv.text(n.text, 'Message hidden')}</div>
@@ -117,7 +118,7 @@ export default function Inbox() {
                   {n.meta?.otp?.callControlId && Date.now() - new Date(n.createdAt).getTime() < 15 * 60000 && <OtpLive ccid={n.meta.otp.callControlId} compact testid={`inbox-item-${i}-otp`} />}
                   <div className="flex items-center gap-3 text-xs text-[#a1a1aa] mt-2">
                     <span>{when(n.createdAt)}</span>
-                    {n.link && <span className="inline-flex items-center gap-0.5 text-[#818cf8]/80" data-testid={`inbox-item-${i}-open-hint`}>{OPENS[n.kind] || 'Open'}<ChevronRight className="w-3 h-3" /></span>}
+                    {n.link && <span className="inline-flex items-center gap-0.5 text-[#818cf8]/80" data-testid={`inbox-item-${i}-open-hint`}>{opens(n)}<ChevronRight className="w-3 h-3" /></span>}
                   </div>
                 </div>
                 {!n.read && <span className="w-2 h-2 rounded-full bg-[#818cf8] mt-2 shrink-0" data-testid={`inbox-item-${i}-unread`} />}

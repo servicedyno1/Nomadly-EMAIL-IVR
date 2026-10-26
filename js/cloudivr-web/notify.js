@@ -87,6 +87,7 @@ function linkOf(n, mine) {
   const found = (n.meta?.to && mine.find(p => digits(p) === digits(n.meta.to)))
     || mine.find(p => (String(n.text).match(PHONE_RE) || []).some(t => digits(t) === digits(p)))
   const num = (tab) => (found ? `/app/numbers/${encodeURIComponent(found)}?tab=${tab}` : '/app/numbers')
+  if (n.meta?.otp) return '/app/quick-call'
   switch (n.kind) {
     case 'sms': case 'voicemail': case 'call': return num('logs')
     case 'billing': return num('billing')

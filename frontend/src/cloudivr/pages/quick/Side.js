@@ -14,7 +14,7 @@ const Box = ({ icon: Icon, title, children, testid, loading }) => (
 );
 const none = (t) => <div className="text-sm text-[#a1a1aa]">{t}</div>;
 
-export function RecentCalls({ isBiz, onDone, stamp }) {
+export function RecentCalls({ bizNumbers, onDone, stamp }) {
   const { data, reload } = useApi(`/calls/history?s=${stamp}`);
   const pv = usePrivacy();
   const redial = async (id) => {
@@ -29,7 +29,7 @@ export function RecentCalls({ isBiz, onDone, stamp }) {
             <div className="font-mono text-xs truncate">{c.targets.map(t => pv.phone(t)).join(', ')}</div>
             <div className="text-xs text-[#a1a1aa]">{when(c.at)} · {c.mode === 'otp' ? 'Code' : c.hasMenu ? 'Menu' : 'Transfer'}{c.dryRun ? ' · preview' : ''}{c.trial ? ' · free trial' : ''}</div>
           </div>
-          {isBiz && !c.trial && <button type="button" className="civr-btn civr-btn-ghost civr-btn-sm" onClick={() => redial(c.id)} data-testid={`quick-history-redial-${i}`}><RotateCcw className="w-3.5 h-3.5" />Redial</button>}
+          {bizNumbers.includes(c.callerId) && !c.trial && <button type="button" className="civr-btn civr-btn-ghost civr-btn-sm" onClick={() => redial(c.id)} data-testid={`quick-history-redial-${i}`}><RotateCcw className="w-3.5 h-3.5" />Redial</button>}
         </div>
       ))}
     </Box>

@@ -122,6 +122,8 @@ const otpSim = (() => {
   }
 })()
 
+const pubOtp = ({ chatId: _c, at: _a, ...st }) => st
+
 function otpState(chatId, ccid, voiceService) {
   const sim = otpSim.get(ccid)
   if (sim) {
@@ -350,7 +352,7 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
   router.get('/calls/otp/:ccid', h(async (req, res) => {
     const st = otpState(req.webChatId, String(req.params.ccid), voiceService)
     if (!st) return bad(res, 404, 'not_found', 'That call is not available any more.')
-    res.json(st)
+    res.json(pubOtp(st))
   }))
   router.post('/calls/otp/:ccid', h(async (req, res) => {
     const ccid = String(req.params.ccid), action = String(req.body?.action || '')
@@ -363,7 +365,7 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
       const r = await voiceService.resolveOtp(ccid, action)
       if (r?.error) return bad(res, 409, 'not_waiting', 'This call is not waiting for your answer any more.')
     }
-    res.json(otpState(req.webChatId, ccid, voiceService))
+    res.json(pubOtp(otpState(req.webChatId, ccid, voiceService)))
   }))
 
   // One free Quick IVR call from our shared number for accounts without a calling number (the bot's "Quick IVR Call — 1 Free").

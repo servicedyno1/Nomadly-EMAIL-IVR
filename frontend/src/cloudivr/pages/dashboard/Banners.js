@@ -67,7 +67,7 @@ export function TrialCard() {
       <div className="w-11 h-11 rounded-xl bg-[#818cf8]/15 flex items-center justify-center shrink-0"><Gift className="w-5 h-5 text-[#818cf8]" /></div>
       <div className="flex-1 min-w-0">
         <div className="font-semibold text-base">Your first Quick IVR call is free</div>
-        <div className="text-sm text-[#a1a1aa] mt-1">Call any phone from our number: they hear your message and press 1 to reach you. No number or wallet needed.</div>
+        <div className="text-sm text-[#a1a1aa] mt-1">Call any phone from our number: they hear your message, then press 1 to reach you or type a code you accept or decline. No number or wallet needed.</div>
       </div>
       <Link to={cp('/app/quick-call')} className="civr-btn civr-btn-primary civr-btn-sm self-start sm:self-auto" data-testid="dashboard-trial-cta"><PhoneOutgoing className="w-4 h-4" />Try it free</Link>
     </div>

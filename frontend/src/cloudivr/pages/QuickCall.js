@@ -113,7 +113,7 @@ export default function QuickCall() {
 
   return (
     <div data-testid="quick-call-page">
-      <PageHeader label="Outbound" title="Quick IVR call" sub="Call one or a few people, play a script or recording, then connect them, collect a code or route each key. Billed per minute from your wallet." testid="quick-call-header" />
+      <PageHeader label="Outbound" title="Quick IVR call" sub={numbers.length ? 'Call one or a few people, play a script or recording, then connect them, collect a code or route each key. Billed per minute from your wallet.' : 'Call one person from our number for free: play your script, then connect them on key 1 or collect a code you accept or decline.'} testid="quick-call-header" />
       {!numbers.length ? (trial?.available || trialShown ? <TrialCall status={trial} onUsed={() => { setTrialShown(true); reloadTrial(); refreshSummary(); }} /> : (
         <Empty icon={PhoneOutgoing} title="No number can place IVR calls yet" sub={all.length ? 'Quick IVR calls need an active number on the Pro plan or higher. Upgrade one in its Billing tab.' : 'Buy a number on the Pro plan or higher to place IVR calls.'} testid="quick-call-empty">
           <Link to={all.length ? cp('/app/numbers') : cp('/app/buy')} className="civr-btn civr-btn-primary" data-testid="quick-call-empty-action">{all.length ? 'My numbers' : 'Buy a number'}</Link>
@@ -133,7 +133,7 @@ export default function QuickCall() {
             <Section n="3" title="When they press a key"><Answer f={f} set={set} isBiz={isBiz} /></Section>
             <Section n="4" title="When to call">
               <Field label="Schedule (optional)" hint="5 minutes to 24 hours from now. Leave empty to call now."><DateTimePicker value={f.scheduleAt} onChange={(v) => set({ scheduleAt: v })} maxDays={1} testid="quick-schedule" /></Field>
-              {!isBiz && <div className="text-xs text-[#a1a1aa]" data-testid="quick-redial-locked">Redial and custom accept / decline messages are on the Business plan.</div>}
+              {!isBiz && <div className="text-xs text-[#a1a1aa]" data-testid="quick-redial-locked">Redial is on the Business plan.</div>}
               <ErrorNote error={error} testid="quick-call-error" />
               {result && <div className="civr-card p-4 text-sm" data-testid="quick-call-result">{result.message || (result.scheduled ? `Scheduled ${result.scheduled} call(s).` : `Started ${result.started} call(s) · about $${Number(result.rate).toFixed(2)}/min.`)}</div>}
               {result?.mode === 'otp' && (result.results || []).filter(r => r.callControlId).map((r, i) => <OtpLive key={r.callControlId} ccid={r.callControlId} testid={`quick-otp-live-${i}`} />)}
@@ -143,7 +143,7 @@ export default function QuickCall() {
           <div className="space-y-4">
             <Presets stamp={stamp} onLoad={loadPreset} current={() => ({ ...toBody({ ...f, scheduleAt: '' }, caller.phoneNumber), targets: undefined, ui: { ...f, targets: '', scheduleAt: '' } })} />
             <ScheduledCalls stamp={stamp} />
-            <RecentCalls isBiz={isBiz} stamp={stamp} onDone={() => setStamp(s => s + 1)} />
+            <RecentCalls bizNumbers={numbers.filter(n => n.plan === 'business').map(n => n.phoneNumber)} stamp={stamp} onDone={() => setStamp(s => s + 1)} />
             <MenuStats />
           </div>
         </div>
