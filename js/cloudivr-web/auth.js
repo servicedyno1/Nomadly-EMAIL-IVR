@@ -72,7 +72,18 @@ const isAdmin = (a) => !!a?.email && adminEmails().includes(String(a.email).toLo
 const publicAccount = (a) => ({ id: String(a._id), email: a.email, name: a.name || '', hasPassword: !!a.passwordHash, google: !!a.googleSub, createdAt: a.createdAt, twoFactor: a.twoFactor?.method || null, admin: isAdmin(a) })
 
 let mailer = null
+// cloudivr.net mails go out from its own Brevo-authenticated address (CLOUDIVR_MAIL_SENDER) through the Brevo API.
+function sendViaBrevo(sender, to, subject, html, attachments, extra) {
+  const body = {
+    sender: { name: 'CloudIVR', email: sender }, to: [{ email: to }], subject, htmlContent: html,
+    ...(attachments?.length ? { attachment: attachments.map(a => ({ name: a.filename, content: Buffer.from(a.content).toString('base64') })) } : {}),
+    ...(extra?.headers ? { headers: extra.headers } : {}),
+  }
+  return axios.post('https://api.brevo.com/v3/smtp/email', body, { headers: { 'api-key': process.env.BREVO_API_KEY }, timeout: 20000 }).then(() => true)
+}
 function sendMail(to, subject, html, attachments, extra) {
+  const own = process.env.CLOUDIVR_MAIL_SENDER
+  if (own && process.env.BREVO_API_KEY) return sendViaBrevo(own, to, subject, html, attachments, extra)
   if (!process.env.MAIL_DOMAIN) return Promise.resolve(false)
   if (!mailer) {
     const port = Number(process.env.MAIL_PORT) || 2525

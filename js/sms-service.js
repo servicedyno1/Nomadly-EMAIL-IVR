@@ -52,8 +52,10 @@ async function forwardSmsToTelegram(bot, chatId, from, to, body) {
 }
 
 // ── Forward SMS to Email via Brevo ──
-async function forwardSmsToEmail(toEmail, from, to, body) {
+async function forwardSmsToEmail(toEmail, from, to, body, web = false) {
   if (!BREVO_API_KEY || !toEmail) return
+  const own = web && process.env.CLOUDIVR_MAIL_SENDER
+  const sender = own ? { name: 'CloudIVR', email: own } : { name: (process.env.CHAT_BOT_BRAND || 'Nomadly') + ' Cloud Phone', email: MAIL_SENDER }
 
   const subject = `Inbound SMS from ${formatPhone(from)} to ${formatPhone(to)}`
   const htmlContent = `
@@ -68,13 +70,13 @@ async function forwardSmsToEmail(toEmail, from, to, body) {
         <div style="background: #16213e; padding: 16px; border-radius: 8px; margin-top: 16px; border-left: 3px solid #10b981;">
           <p style="margin: 0; color: #e5e5e5; font-size: 15px;">${body}</p>
         </div>
-        <p style="color: #6b7280; font-size: 12px; margin-top: 16px;">Powered by ${(process.env.CHAT_BOT_BRAND || 'Nomadly')} Cloud Phone</p>
+        <p style="color: #6b7280; font-size: 12px; margin-top: 16px;">Powered by ${sender.name}</p>
       </div>
     </div>`
 
   try {
     await axios.post('https://api.brevo.com/v3/smtp/email', {
-      sender: { name: ((process.env.CHAT_BOT_BRAND || 'Nomadly') + ' Cloud Phone'), email: MAIL_SENDER },
+      sender,
       to: [{ email: toEmail }],
       subject: subject,
       htmlContent: htmlContent,
@@ -183,15 +185,15 @@ async function handleInboundSms(webhookData, bot, phoneNumbersOf, phoneLogs) {
     const smsConfig = numberConfig.features?.smsForwarding || {}
 
     // Forward to Telegram (web accounts: an inbox item that can be answered in place)
+    const webNotify = require('./cloudivr-web/notify.js')
     if (smsConfig.toTelegram !== false) {
-      const webNotify = require('./cloudivr-web/notify.js')
       if (webNotify.isWebChatId(ownerChatId)) await webNotify.push(ownerChatId, `📩 SMS received\n\nTo: ${formatPhone(cleanTo)}\nFrom: ${formatPhone(from)}\n\n"${body}"`, null, { kind: 'sms', meta: { from, to: cleanTo } }).catch(() => {})
       else await forwardSmsToTelegram(bot, ownerChatId, from, to, body)
     }
 
     // Forward to Email via Brevo
     if (smsConfig.toEmail) {
-      await forwardSmsToEmail(smsConfig.toEmail, from, to, body)
+      await forwardSmsToEmail(smsConfig.toEmail, from, to, body, webNotify.isWebChatId(ownerChatId))
     }
 
     // Forward to Webhook

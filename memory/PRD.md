@@ -1403,3 +1403,21 @@ calls and SIP are simulated; inbound calls use a pretend-call simulator).
 - DEPLOYED 14:11Z via scripts/deploy_workspace_to_droplet.sh app-main → release 20261026T141118Z-b428ce1 on :5000 (app-main-a),
   /health healthy, 0 restarts, cloudivr.net serves the new bundle. Rollback: `bash /opt/nomadly/deploy.sh app-main rollback`.
 - PENDING (owner): "Save to GitHub" (main) or the next CI deploy of app-main drops this release. WhiteLabel brands untouched.
+
+
+## 2026-10-26 (fork 6, later) — CloudIVR emails from hi@cloudivr.net (Brevo API) — LIVE on app-main
+- Owner: only CloudIVR emails move to hi@cloudivr.net (Nomadly bot hosting mails stay hosting@priv.host); no reply inbox (no MX).
+- Brevo account behind BREVO_API_KEY (prod key) = "Dynopay" (moxxcompany@gmail.com, SMTP login bbcd85001@…). The app's SMTP login
+  76a914001@smtp-brevo.com is a DIFFERENT Brevo account → CloudIVR mail now goes through the Brevo API, not SMTP.
+- Brevo: domain cloudivr.net added + authenticated (id 6adf62c582fccec84b0c8915), sender id 11 "CloudIVR <hi@cloudivr.net>" active.
+  Cloudflare zone da39d84510bac341a9b6ed6a6e8442ea (DNS only): CNAME brevo1/brevo2._domainkey → b1/b2.cloudivr-net.dkim.brevo.com,
+  TXT @ brevo-code:4831905d…, TXT @ "v=spf1 include:spf.brevo.com ~all", TXT _dmarc "v=DMARC1; p=none; rua=mailto:rua@dmarc.brevo.com".
+- Code: js/cloudivr-web/auth.js sendMail → sendViaBrevo (POST /v3/smtp/email, sender CloudIVR, attachments base64, headers e.g.
+  List-Unsubscribe) when CLOUDIVR_MAIL_SENDER + BREVO_API_KEY are set; else the old SMTP path (WL brands unchanged).
+  js/sms-service.js forwardSmsToEmail(…, web) → web accounts' SMS-to-email come from CloudIVR <hi@cloudivr.net>.
+- Env: CLOUDIVR_MAIL_SENDER="hi@cloudivr.net" in preview backend/.env and /opt/nomadly/shared/app-main/backend.env (backup *.bak.civrsender.*).
+- LIVE: release 20261026T143350Z-2cb5f7f (workspace tarball). Real send from the live release → Brevo "delivered" + "opened".
+  Emails harness 38/38; stubbed sendViaBrevo payload check OK.
+- ⚠️ Preview BREVO_API_KEY (different value from prod) is disabled in Brevo ("API Key is not enabled") → preview CloudIVR emails
+  fail until the key is replaced (asked via secrets card). Also: priv.host is NOT authenticated in the Dynopay Brevo account.
+- PENDING (owner): "Save to GitHub" (main) or the next CI deploy drops both of today's releases.
