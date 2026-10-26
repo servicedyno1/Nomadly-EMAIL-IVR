@@ -23,7 +23,7 @@ export function Facts({ catalog }) {
         <div className={`grid grid-cols-2 md:grid-cols-3 ${items.length > 5 ? 'lg:grid-cols-6' : 'lg:grid-cols-5'} border-t civr-l-rule mt-6`} data-testid="hero-stats">
           {items.map(([Icon, v, l], i) => (
             <Reveal key={l} delay={i * 70} className={`py-8 pr-4 ${i ? 'lg:pl-6 lg:border-l civr-l-rule' : ''}`} data-testid={`hero-stat-${i}`}>
-              <Icon className="w-5 h-5 text-[#5b21b6]" />
+              <Icon className="w-5 h-5 text-slate-900" />
               <div className="civr-l-h text-3xl md:text-4xl text-slate-900 mt-4"><CountUp value={v} /></div>
               <div className="text-sm text-slate-500 mt-2 max-w-[14rem]">{l}</div>
             </Reveal>
@@ -39,11 +39,11 @@ export function Statement() {
   return (
     <section className="civr-l-cream border-t civr-l-rule" data-testid="statement-section">
       <div className="max-w-5xl mx-auto px-6 md:px-8 py-20 md:py-28">
-        <Reveal><p className="civr-l-h text-2xl sm:text-3xl lg:text-[2.75rem] text-slate-900 !leading-[1.2]" data-testid="statement-text">Your callers don’t see a menu, a voicemail box, a campaign and an AI agent. <span className="text-[#7c3aed]">They see one phone line — yours.</span></p></Reveal>
+        <Reveal><p className="civr-l-h text-2xl sm:text-3xl lg:text-[2.75rem] text-slate-900 !leading-[1.2]" data-testid="statement-text">Your callers don’t see a menu, a voicemail box, a campaign and an AI agent. <span className="text-slate-400">They see one phone line — yours.</span></p></Reveal>
         <Reveal delay={120}><p className="text-base md:text-lg text-slate-600 mt-8 max-w-3xl">So CloudIVR runs all of it on one number. Every call, key press, text, voicemail and recording lands in the same account, and you watch your campaigns live — from the first ring to the hot lead you’re connected to.</p></Reveal>
         <Reveal delay={200} className="mt-8 flex flex-wrap items-center gap-x-8 gap-y-4">
           <p className="font-semibold text-slate-900">Answer every call. Call every lead. Miss nothing.</p>
-          <a href="#features" className="inline-flex items-center gap-2 text-sm font-semibold text-[#5b21b6] hover:text-[#4c1d95] group" data-testid="statement-explore-link">Explore the platform<ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" /></a>
+          <a href="#features" className="inline-flex items-center gap-2 text-sm font-semibold text-slate-900 hover:text-slate-600 transition-colors group" data-testid="statement-explore-link">Explore the platform<ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" /></a>
         </Reveal>
       </div>
     </section>
@@ -77,7 +77,7 @@ export function Badge({ plans, k }) {
   const b = planBadge(plans, k);
   if (!b) return null;
   const every = b === 'Every plan';
-  return <span className={`shrink-0 text-xs font-medium px-2.5 py-1 rounded-full border ${every ? 'border-slate-200 bg-slate-50 text-slate-600' : 'border-indigo-200 bg-indigo-50 text-[#4338ca]'}`}>{b}</span>;
+  return <span className={`shrink-0 text-xs font-medium px-2.5 py-1 rounded-full border ${every ? 'border-slate-200 bg-slate-50 text-slate-600' : 'border-slate-900 bg-slate-900 text-white'}`}>{b}</span>;
 }
 
 export function HowItWorks({ catalog }) {
@@ -93,7 +93,7 @@ export function HowItWorks({ catalog }) {
         <ol className="grid md:grid-cols-3 gap-4 mt-12">
           {steps.map(([Icon, t, s], i) => (
             <Reveal as="li" key={t} delay={i * 120} className="civr-l-card-cream p-6 md:p-8" data-testid={`how-step-${i + 1}`}>
-              <div className="flex items-center justify-between"><span className="w-8 h-8 rounded-full bg-[#4f46e5] text-white text-sm font-semibold grid place-items-center">{i + 1}</span><Icon className="w-5 h-5 text-slate-400" /></div>
+              <div className="flex items-center justify-between"><span className="w-8 h-8 rounded-full bg-slate-900 text-white text-sm font-semibold grid place-items-center">{i + 1}</span><Icon className="w-5 h-5 text-slate-400" /></div>
               <div className="text-xl font-semibold text-slate-900 mt-6">{t}</div>
               <p className="text-sm text-slate-600 mt-2">{s}</p>
             </Reveal>

@@ -58,7 +58,7 @@ export function TryCall() {
         <div className="lg:col-span-5">
           <SectionHead label="Free test call" title="Don’t take our word for it. Call it." sub="A free 60-second test call — on your own phone or right here in your browser. No card needed." />
           <ul className="mt-8 grid gap-4">
-            {POINTS.map(([Icon, t], i) => <Reveal as="li" key={t} delay={150 + i * 100} className="flex items-center gap-4" data-testid={`try-point-${i}`}><span className="w-10 h-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center shrink-0"><Icon className="w-5 h-5 text-[#4f46e5]" /></span><span className="text-sm text-slate-700">{t}</span></Reveal>)}
+            {POINTS.map(([Icon, t], i) => <Reveal as="li" key={t} delay={150 + i * 100} className="flex items-center gap-4" data-testid={`try-point-${i}`}><span className="w-10 h-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center shrink-0"><Icon className="w-5 h-5 text-slate-900" /></span><span className="text-sm text-slate-700">{t}</span></Reveal>)}
           </ul>
         </div>
         <Reveal delay={120} className="lg:col-span-7">

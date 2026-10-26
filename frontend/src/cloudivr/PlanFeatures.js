@@ -23,7 +23,7 @@ export function PlanFeatures({ plan, plans, tone = 'app', compact = false, testi
   const ladder = plans ? byPrice(plans.filter(p => p.available !== false)) : null;
   const prev = ladder ? ladder[ladder.findIndex(p => p.id === plan?.id) - 1] : null;
   const list = prev ? unlocks(plans, prev.id, plan.id) : (plan?.webFeatures || []).filter(f => !ladder || f.included);
-  const on = { app: 'text-[#818cf8]', dark: 'text-[#6366f1]', cream: 'text-[#4f46e5]' }[tone];
+  const on = { app: 'text-[#818cf8]', dark: 'text-[#6366f1]', cream: 'text-slate-900' }[tone];
   const offText = { app: 'text-[#a1a1aa]', dark: 'text-white/35', cream: 'text-slate-400' }[tone];
   const onText = { app: 'text-[#d4d4d8]', dark: '', cream: 'text-slate-700' }[tone];
   const head = { app: 'text-[#e4e4e7]', dark: 'text-white', cream: 'text-slate-900' }[tone];
@@ -41,6 +41,6 @@ export function PlanFeatures({ plan, plans, tone = 'app', compact = false, testi
 }
 
 export function RecommendedBadge({ tone = 'app', testid }) {
-  const cls = tone === 'app' ? 'bg-[#6366f1] text-white font-mono uppercase tracking-widest font-bold' : 'border border-indigo-200 bg-indigo-50 text-[#4338ca] font-semibold';
+  const cls = tone === 'app' ? 'bg-[#6366f1] text-white font-mono uppercase tracking-widest font-bold' : 'border border-slate-900 bg-slate-900 text-white font-semibold';
   return <span className={`text-xs px-2.5 py-1 rounded-full ${cls}`} data-testid={testid}>Recommended</span>;
 }

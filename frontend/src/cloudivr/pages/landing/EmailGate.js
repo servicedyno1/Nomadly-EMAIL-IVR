@@ -36,7 +36,7 @@ export default function EmailGate({ open, onClose, onVerified }) {
             <input inputMode="numeric" autoComplete="one-time-code" autoFocus maxLength={6} className="civr-l-input text-center !text-2xl tracking-[0.5em]" placeholder="••••••" value={code} onChange={e => setCode(e.target.value.replace(/\D/g, ''))} data-testid="civr-email-gate-code-input" />
             {preview && <div className="text-xs font-mono text-amber-700" data-testid="civr-email-gate-preview-code">Preview mode — your code is {preview}</div>}
             <button className="civr-l-btn w-full" disabled={busy || code.length !== 6} data-testid="civr-email-gate-submit-btn">{busy && <Loader2 className="w-4 h-4 animate-spin" />}Verify &amp; start call</button>
-            <button type="button" className="text-sm civr-l-muted hover:text-[#4f46e5] w-full py-2" onClick={() => setStep('email')} data-testid="civr-email-gate-change-email">Use a different email</button>
+            <button type="button" className="text-sm civr-l-muted hover:text-slate-900 w-full py-2" onClick={() => setStep('email')} data-testid="civr-email-gate-change-email">Use a different email</button>
           </form>
         )}
         {error && <div className="mt-4 text-sm text-rose-700 border border-rose-200 bg-rose-50 rounded-xl px-4 py-3" data-testid="civr-email-gate-error">{error.message}</div>}

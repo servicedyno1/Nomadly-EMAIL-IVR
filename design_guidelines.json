@@ -1,137 +1,60 @@
 {
-  "project_name": "CloudIVR Marketing & Live Operations Platform",
-  "archetype": "Architectural Tech / Expressive Purple Hybrid",
+  "project_name": "CloudIVR Marketing Landing & Live Operations Platform",
+  "archetype": "Clean Editorial Swiss & High-Contrast Ink (cm.com style)",
   "theme_strategy": {
-    "landing_hero": "Deep Imperial Purple & Violet Glass (#0b051d to #1e0b36 with glowing #818cf8 highlights)",
-    "landing_body": "Clean Swiss Light (#ffffff & #f8fafc with #0f172a typography)",
+    "landing_hero": "Pure White (#ffffff) background, near-black ink typography (#0f172a / #000000), crisp dark buttons",
+    "landing_body": "Minimalist White & Light Slate (#ffffff & #f8fafc) alternating sections, zero checker patterns, zero purple gradients",
     "live_dashboard": "Dark Command Center Obsidian (#0a0a0a with #141414 cards, #34d399 emerald, #818cf8 indigo, #fbbf24 amber)"
+  },
+  "palette_tokens": {
+    "ink": "#0f172a",
+    "ink_hover": "#1e293b",
+    "paper": "#ffffff",
+    "paper_alt": "#f8fafc",
+    "line": "#e2e8f0",
+    "line_dark": "#cbd5e1",
+    "muted": "#64748b",
+    "accent_live_dot": "#10b981"
   },
   "typography": {
     "heading_font": "DM Sans, sans-serif",
     "body_font": "DM Sans, sans-serif",
     "mono_font": "JetBrains Mono, monospace",
-    "scale": {
-      "hero_h1": "text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight leading-[1.1]",
-      "section_h2": "text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight text-slate-900 dark:text-white",
-      "subsection_h3": "text-xl sm:text-2xl font-semibold tracking-tight",
-      "card_h4": "text-lg sm:text-xl font-semibold text-slate-900 dark:text-slate-100",
-      "body_lg": "text-lg text-slate-600 dark:text-slate-300 leading-relaxed",
-      "body_base": "text-base text-slate-600 dark:text-slate-400 leading-normal",
-      "caption_mono": "text-xs font-mono uppercase tracking-[0.2em] text-indigo-400"
-    }
+    "h1": "text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight text-slate-900 leading-[1.1] text-center",
+    "h2": "text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight text-slate-900 text-center",
+    "body": "text-base sm:text-lg text-slate-600 leading-relaxed"
   },
-  "colors": {
-    "purple_hero": {
-      "bg_start": "#0b051d",
-      "bg_via": "#190a38",
-      "bg_end": "#290c4c",
-      "accent_glow": "#818cf8",
-      "pill_blue": "#38bdf8",
-      "card_bg": "rgba(255, 255, 255, 0.05)",
-      "card_border": "rgba(255, 255, 255, 0.12)",
-      "text_primary": "#ffffff",
-      "text_secondary": "#cbd5e1"
-    },
-    "light_sections": {
-      "bg_primary": "#ffffff",
-      "bg_secondary": "#f8fafc",
-      "border": "#e2e8f0",
-      "text_primary": "#0f172a",
-      "text_secondary": "#475569",
-      "accent_primary": "#4f46e5",
-      "accent_hover": "#4338ca"
-    },
-    "live_dashboard_dark": {
-      "bg_app": "#0a0a0a",
-      "card_bg": "#141414",
-      "card_hover": "#1a1a1a",
-      "border": "#222222",
-      "status_emerald": "#34d399",
-      "status_sky": "#38bdf8",
-      "status_amber": "#fbbf24",
-      "status_rose": "#fb7185",
-      "map_shaded_low": "#1e1b4b",
-      "map_shaded_mid": "#3730a3",
-      "map_shaded_high": "#4f46e5",
-      "map_dot_pulse": "#38bdf8",
-      "map_active_ring": "#34d399"
-    }
-  },
-  "spacing_and_layout": {
-    "hero_padding": "pt-28 pb-32 md:pt-36 md:pb-48 px-4 sm:px-6 lg:px-8",
-    "section_padding": "py-20 md:py-28 px-4 sm:px-6 lg:px-8",
-    "container_max_width": "max-w-7xl mx-auto",
-    "grid_bento": "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-6 lg:gap-8",
-    "card_padding": "p-6 sm:p-8"
+  "component_styles": {
+    "button_primary": "bg-slate-900 text-white hover:bg-slate-800 rounded-full px-6 py-3 font-medium transition-all shadow-sm",
+    "button_secondary": "bg-white text-slate-900 border border-slate-300 hover:bg-slate-50 rounded-full px-6 py-3 font-medium transition-all",
+    "nav_bar": "sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-slate-200 text-slate-900",
+    "tab_bar": "bg-slate-100 p-1.5 rounded-full border border-slate-200 inline-flex gap-2",
+    "browser_frame": "rounded-xl border border-slate-200 bg-white shadow-2xl overflow-hidden"
   },
   "landing_page_structure": {
-    "navigation_header": {
-      "style": "Sticky header with backdrop-blur-xl bg-[#0b051d]/80 border-b border-white/10 z-50",
-      "brand": "CloudIVR logo mark with glowing violet gradient + bold title + 17 Countries badge",
-      "mega_dropdowns": {
-        "products": [
-          {"title": "Virtual Numbers", "desc": "Local & Toll-Free in 17 countries with instant SIP / Webhook routing", "icon": "Phone"},
-          {"title": "Interactive Keypad IVR", "desc": "Visual tree builder, DTMF press-1 routing & audio prompts", "icon": "Cpu"},
-          {"title": "AI Voice Agents", "desc": "Human-grade AI phone agents in EN/FR/ES with real-time speech", "icon": "Bot"},
-          {"title": "Campaigns & Bulk IVR", "desc": "Outbound blast campaigns, call queueing & live delivery reporting", "icon": "Send"},
-          {"title": "SMS & Voicemail Inbox", "desc": "Two-way text messaging, voicemail transcription & audio playback", "icon": "Mail"}
-        ],
-        "use_cases": [
-          {"title": "eCommerce & Logistics", "desc": "Delivery confirmation calls & IVR order tracking", "icon": "ShoppingBag"},
-          {"title": "Customer Support", "desc": "Smart queueing, browser softphone & live transfers", "icon": "Headphones"},
-          {"title": "Lead Outreach", "desc": "Bulk automated phone qualification campaigns", "icon": "BarChart3"},
-          {"title": "Global Hotlines", "desc": "Local presence phone numbers in US, UK, FR, DE, ES, CA & more", "icon": "Globe"}
-        ]
-      },
-      "cta": "Get your number pill button (indigo to violet gradient)"
-    },
-    "hero_section": {
+    "sticky_nav": "Logo + Products & Use Cases mega dropdowns + Coverage, Pricing, FAQ + EN/FR/ES language switcher + Sign in + Get your number CTA",
+    "centered_hero": {
       "eyebrow": "BEHIND EVERY CALL — CLOUD PHONE INFRASTRUCTURE",
-      "headline": "Virtual Numbers, IVR & AI Phone Agents for Global Business",
-      "subheadline": "Instant phone numbers in 17 countries, visual keypad IVR menus, outbound phone campaigns, and AI voice agents in EN, FR & ES.",
-      "ctas": [
-        {"text": "Get your number", "type": "primary_gradient"},
-        {"text": "Free test call (60s)", "type": "secondary_glass", "scroll_target": "#free-test-call"}
-      ],
-      "3d_integration": "Interactive R3F canvas (Hero3D.js) floating subtly in background with glowing signal hubs, orbiting phone nodes, and mouse-follow rotation",
-      "tabbed_app_preview": {
-        "overlap_behavior": "Overlaps purple hero into white section with relative -mb-32 md:-mb-44 z-20 shadow-2xl rounded-2xl border border-white/20 bg-slate-900/90 backdrop-blur-xl p-4 sm:p-6",
-        "tabs": ["Numbers", "IVR & AI agents", "Campaigns", "Inbox"],
-        "content_previews": "Live animated mockups for each tab with interactive toggles and data visualization"
-      }
+      "h1": "Every call answered. Every lead called.",
+      "subheadline": "Instant phone numbers in 17 countries, visual keypad IVR menus, outbound phone campaigns, and AI voice agents.",
+      "ctas": ["Get your number (Primary Ink)", "Try a free call (Secondary Outline)"],
+      "trust_checklist": ["Instant 60s setup", "No credit card needed", "$1.99/mo starting price"]
     },
-    "real_facts_strip": {
-      "style": "bg-slate-900 text-white py-12 border-y border-slate-800",
-      "facts": [
-        {"metric": "17", "label": "Countries with local numbers", "suffix": ""},
-        {"metric": "60", "label": "Seconds free test call", "suffix": "s"},
-        {"metric": "3", "label": "AI Voice languages (EN, FR, ES)", "suffix": ""},
-        {"metric": "24/7", "label": "High availability uptime", "suffix": ""},
-        {"metric": "$1.99", "label": "Starting price / mo", "suffix": ""}
-      ]
+    "product_tabs": {
+      "tabs": ["Dashboard", "Keypad menus", "Campaigns", "Live map"],
+      "behavior": "Auto-advancing progress bar showing dark UI screenshots (#0a0a0a) inside a clean light browser-window frame"
     },
-    "platform_tabs_section": {
-      "pattern": "cm.com 'The Platform' pattern",
-      "features": [
-        "Interactive Keypad IVR",
-        "Outbound Call Campaigns",
-        "AI Voice Agents",
-        "Smart Call Forwarding",
-        "Browser Softphone",
-        "SMS & Voicemail Inbox"
-      ]
-    },
-    "interactive_sections": [
-      "Free Test Call Widget",
-      "Coverage Grid (17 Country Flags & Rates)",
-      "How It Works (3 Steps)",
+    "sections": [
+      "Facts Strip (Key metrics on light background)",
+      "Statement / Vision Block",
+      "The Platform (Interactive feature picker with mockups)",
+      "Free 60-second Test Call Widget",
+      "Coverage Grid (17 countries with pricing & capabilities)",
+      "How It Works (3 step walkthrough)",
       "Pricing Catalog (Starter, Pro, Business)",
-      "FAQ Accordion"
-    ],
-    "mega_footer": {
-      "style": "bg-slate-950 text-slate-400 py-16 border-t border-slate-800",
-      "columns": ["Product", "Use Cases", "Company & Legal", "Support & Payments"]
-    }
+      "FAQ Accordion",
+      "Final CTA Banner & Clean Multi-column Footer"
+    ]
   },
   "live_page_map_spec": {
     "page_route": "/app/live",
@@ -152,29 +75,27 @@
     "outside_us_panel": "Side/Bottom widget listing Canada provinces and international live traffic summary",
     "dashboard_position": "Sits directly above the live call feed table and campaign pipeline queues"
   },
-  "motion_and_interactions": {
-    "smooth_scroll": "Lenis smooth scrolling engine enabled on marketing landing page",
-    "scroll_reveal": "Framer Motion staggered opacity & y-axis entrance (y: 20 -> 0)",
-    "counter_animation": "CountUp animation on statistics and metrics",
-    "hover_states": "All buttons include transform scale-105 / -translate-y-0.5 with high contrast hover text",
-    "reduced_motion": "Supported via prefers-reduced-motion CSS query"
+  "live_dashboard": {
+    "theme": "Dark Command Center Obsidian (#0a0a0a with #141414 cards, #34d399 emerald, #818cf8 indigo, #fbbf24 amber)"
   },
+  "motion_and_interactions": {
+    "smooth_scroll": "Lenis smooth scrolling engine on marketing pages",
+    "scroll_reveal": "Framer motion staggered entrance (y: 16 -> 0, opacity: 0 -> 1)",
+    "reduced_motion": "Full support via prefers-reduced-motion"
+  },
+  "explicit_do_not_list": [
+    "NO deep purple or violet backgrounds/gradients anywhere on the landing page.",
+    "NO grid, mesh, or checkerboard background pattern overlays.",
+    "NO colored background glow blobs or heavy gradients.",
+    "NO fully transparent backgrounds for header nav or dropdown menus."
+  ],
   "testing_attributes": {
-    "rule": "ALL interactive components, navigation links, buttons, tabs, inputs, and map elements MUST include data-testid in kebab-case",
-    "examples": [
-      "data-testid=\"nav-products-dropdown\"",
-      "data-testid=\"hero-get-number-btn\"",
-      "data-testid=\"hero-tab-ivr\"",
-      "data-testid=\"free-test-call-submit\"",
-      "data-testid=\"live-map-state-ca\"",
-      "data-testid=\"pricing-plan-pro-buy\""
-    ]
+    "rule": "All interactive elements, buttons, inputs, tabs, and nav links MUST include data-testid in kebab-case."
   },
   "UNIVERSAL GUIDELINES FOR MAIN AGENT": [
-    "Never use generic centered layouts or flat white template designs for the hero section.",
-    "Ensure contrast meets APCA/WCAG standards on both dark purple hero and light body sections.",
-    "Do NOT use transparent backgrounds for floating dropdown menus or sticky header nav bar.",
-    "Keep text strings complete to allow seamless DOM translation (EN/FR/ES).",
-    "Add explicit data-testid attributes to all key interactive elements."
+    "Maintain high contrast ink-on-paper aesthetic inspired by cm.com.",
+    "Keep landing page background pure white (#ffffff) with light slate (#f8fafc) section highlights.",
+    "Ensure dark screenshots are framed inside light browser containers.",
+    "Include data-testid on all interactive elements."
   ]
 }

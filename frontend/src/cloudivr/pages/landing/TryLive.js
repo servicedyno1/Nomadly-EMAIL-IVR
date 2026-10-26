@@ -27,7 +27,7 @@ function Ring({ left, max }) {
   const r = 52, c = 2 * Math.PI * r;
   return (
     <div className="relative w-36 h-36 shrink-0" data-testid="civr-try-timer">
-      <svg viewBox="0 0 120 120" className="w-full h-full -rotate-90"><circle cx="60" cy="60" r={r} fill="none" stroke="#e2e8f0" strokeWidth="6" /><circle cx="60" cy="60" r={r} fill="none" stroke="#6366f1" strokeWidth="6" strokeLinecap="round" strokeDasharray={c} strokeDashoffset={c * (1 - left / max)} style={{ transition: 'stroke-dashoffset .3s linear' }} /></svg>
+      <svg viewBox="0 0 120 120" className="w-full h-full -rotate-90"><circle cx="60" cy="60" r={r} fill="none" stroke="#e2e8f0" strokeWidth="6" /><circle cx="60" cy="60" r={r} fill="none" stroke="#0f172a" strokeWidth="6" strokeLinecap="round" strokeDasharray={c} strokeDashoffset={c * (1 - left / max)} style={{ transition: 'stroke-dashoffset .3s linear' }} /></svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center"><span className="civr-l-h text-5xl text-slate-900" data-testid="civr-try-seconds-left">{left}</span><span className="text-xs civr-l-muted">seconds</span></div>
     </div>
   );
@@ -39,7 +39,7 @@ function Header({ to, phase, dryRun, testid }) {
       <div><div className="civr-l-eyebrow !text-xs">Free test call</div><div className="font-mono text-2xl text-slate-900 mt-1" data-testid={`${testid}-number`}>{to}</div></div>
       <div className="flex flex-wrap gap-2">
         {dryRun && <span className="text-xs font-medium px-2.5 py-1 rounded-full border border-amber-300 bg-amber-50 text-amber-700" data-testid="civr-try-preview-pill">Preview · simulated</span>}
-        <span className={`text-xs font-medium px-2.5 py-1 rounded-full border flex items-center gap-2 ${OVER.includes(phase) ? 'border-slate-200 bg-slate-50 text-slate-500' : 'border-indigo-200 bg-indigo-50 text-[#4338ca]'}`} data-testid={`${testid}-phase`}>{!OVER.includes(phase) && <span className="civr-l-dot" />}{PHASE[phase] || phase}</span>
+        <span className={`text-xs font-medium px-2.5 py-1 rounded-full border flex items-center gap-2 ${OVER.includes(phase) ? 'border-slate-200 bg-slate-50 text-slate-500' : 'border-slate-300 bg-white text-slate-900'}`} data-testid={`${testid}-phase`}>{!OVER.includes(phase) && <span className="civr-l-dot" />}{PHASE[phase] || phase}</span>
       </div>
     </div>
   );

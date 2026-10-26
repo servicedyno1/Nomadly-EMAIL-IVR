@@ -74,7 +74,7 @@ export default function SupportChat({ supportLink, visitor = false }) {
   return (
     <>
       <button type="button" onClick={() => setOpen(o => !o)} aria-label="Help assistant" data-testid="support-chat-toggle"
-        className={`fixed z-40 right-4 ${bottom} w-14 h-14 rounded-full bg-[#6366f1] text-white shadow-lg shadow-[#818cf8]/25 ${show} items-center justify-center hover:scale-105 transition-transform`}>
+        className={`fixed z-40 right-4 ${bottom} w-14 h-14 rounded-full ${visitor ? 'bg-[#0f172a] shadow-slate-900/25' : 'bg-[#6366f1] shadow-[#818cf8]/25'} text-white shadow-lg ${show} items-center justify-center hover:scale-105 transition-transform`}>
         {open ? <X className="w-6 h-6" /> : <MessageCircleQuestion className="w-6 h-6" />}
       </button>
       {open && (

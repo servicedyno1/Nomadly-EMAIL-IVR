@@ -53,10 +53,10 @@ export function Platform({ catalog }) {
           <div id="platform-panel" role="tabpanel" aria-label={title} className="lg:col-span-8 min-w-0" data-testid="platform-panel">
             <div key={sel} className="civr-l-swap civr-l-card-cream p-6 md:p-8 overflow-hidden">
               <div className="flex items-start justify-between gap-4">
-                <span className="w-11 h-11 rounded-xl bg-[#f5f3ff] text-[#5b21b6] grid place-items-center"><Icon className="w-5 h-5" /></span>
+                <span className="w-11 h-11 rounded-xl bg-slate-100 text-slate-900 grid place-items-center"><Icon className="w-5 h-5" /></span>
                 <Badge plans={catalog?.plans} k={k} />
               </div>
-              <div className="text-xs font-semibold uppercase tracking-wider text-[#5b21b6] mt-6" data-testid="platform-panel-kicker">{kicker}</div>
+              <div className="text-xs font-semibold uppercase tracking-wider text-slate-500 mt-6" data-testid="platform-panel-kicker">{kicker}</div>
               <h3 className="civr-l-h text-2xl sm:text-3xl text-slate-900 mt-2" data-testid="platform-panel-title">{title}</h3>
               <p className="text-sm md:text-base text-slate-600 mt-3 max-w-2xl">{text}</p>
               <div className="mt-8"><Mock /></div>

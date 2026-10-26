@@ -16,7 +16,7 @@ export const useStart = () => { const { account } = useCivrAuth(); return (plan)
 
 function PlanCard({ p, plans, hot, start, delay }) {
   return (
-    <Reveal delay={delay} className={`civr-l-card-cream p-8 flex flex-col ${hot ? '!border-[#6366f1] ring-1 ring-[#6366f1] shadow-[0_24px_48px_-24px_rgba(79,70,229,.35)]' : ''}`} data-testid={`civr-plan-card-${p.id}`}>
+    <Reveal delay={delay} className={`civr-l-card-cream p-8 flex flex-col ${hot ? '!border-slate-900 ring-1 ring-slate-900 shadow-[0_24px_48px_-28px_rgba(15,23,42,.35)]' : ''}`} data-testid={`civr-plan-card-${p.id}`}>
       <div className="flex items-center justify-between gap-2"><div className="text-lg font-semibold text-slate-900">{p.name}</div>{p.recommended && <RecommendedBadge tone="landing" testid={`pricing-recommended-${p.id}`} />}</div>
       <div className="civr-l-h text-5xl text-slate-900 mt-6" data-testid={`pricing-price-${p.id}`}>{usd(p.price)}<span className="text-base font-medium tracking-normal text-slate-500">/mo</span></div>
       <div className="text-sm text-slate-500 mt-2" data-testid={`pricing-allowance-${p.id}`}>{`${p.minutes} incoming minutes · ${p.sms} SMS included each month`}</div>
@@ -77,7 +77,7 @@ export function Faq({ catalog }) {
         <div className="lg:col-span-8 border-t civr-l-rule" data-testid="faq-list">
           {faqItems(catalog).map(([q, a], i) => (
             <Reveal as="details" key={q} delay={Math.min(i, 6) * 60} className="border-b civr-l-rule group" data-testid={`faq-item-${i}`}>
-              <summary className="flex items-center justify-between gap-4 cursor-pointer py-6 min-h-[56px] text-base md:text-lg font-semibold text-slate-900 hover:text-[#4f46e5] transition-colors" data-testid={`faq-question-${i}`}>{q}<Plus className="civr-faq-chevron w-5 h-5 shrink-0 text-slate-400" /></summary>
+              <summary className="flex items-center justify-between gap-4 cursor-pointer py-6 min-h-[56px] text-base md:text-lg font-semibold text-slate-900 hover:text-slate-600 transition-colors" data-testid={`faq-question-${i}`}>{q}<Plus className="civr-faq-chevron w-5 h-5 shrink-0 text-slate-400" /></summary>
               <p className="pb-6 text-sm text-slate-600 max-w-2xl" data-testid={`faq-answer-${i}`}>{a}</p>
             </Reveal>
           ))}
@@ -93,17 +93,14 @@ export function FinalCta({ catalog }) {
   return (
     <section className="civr-l-cream py-24" data-testid="final-cta">
       <div className="max-w-7xl mx-auto px-6 md:px-8">
-        <Reveal className="civr-l-purple relative overflow-hidden rounded-[28px] px-8 py-16 md:px-16 md:py-20 text-center">
-          <div className="absolute inset-0 civr-l-gridbg civr-l-mask opacity-70" />
-          <span className="civr-l-glow w-96 h-96 -left-24 -top-24 bg-[#7c3aed]/40" />
-          <span className="civr-l-glow w-80 h-80 -right-20 -bottom-24 bg-[#0ea5e9]/25" />
+        <Reveal className="relative overflow-hidden rounded-[28px] border civr-l-rule bg-slate-50 px-8 py-16 md:px-16 md:py-20 text-center">
           <div className="relative">
-            <div className="civr-l-kicker">Ready when you are</div>
-            <h2 className="civr-l-h text-3xl sm:text-4xl lg:text-5xl text-white max-w-3xl mx-auto mt-4">Stop missing calls. <span className="civr-l-hl">Start closing them.</span></h2>
-            <p className="text-base mt-5 text-[#cbd5e1]">Your number can be answering — and calling — in minutes. Free to sign up{from ? ` · Numbers from ${from}/month` : ''} · No contracts</p>
+            <div className="civr-l-eyebrow">Ready when you are</div>
+            <h2 className="civr-l-h text-3xl sm:text-4xl lg:text-5xl text-slate-950 max-w-3xl mx-auto mt-4">Stop missing calls. <span className="text-slate-400">Start closing them.</span></h2>
+            <p className="text-base mt-5 text-slate-600">Your number can be answering — and calling — in minutes. Free to sign up{from ? ` · Numbers from ${from}/month` : ''} · No contracts</p>
             <div className="flex flex-wrap justify-center gap-3 mt-9">
-              <Link to={start()} className="civr-l-pill civr-l-pill-light" data-testid="final-cta-button"><Slide>Get your number</Slide><ArrowRight className="w-4 h-4" /></Link>
-              <a href="#try" className="civr-l-pill civr-l-pill-line" data-testid="final-cta-try-button"><Slide>Try a free call</Slide></a>
+              <Link to={start()} className="civr-l-pill civr-l-pill-ink" data-testid="final-cta-button"><Slide>Get your number</Slide><ArrowRight className="w-4 h-4" /></Link>
+              <a href="#try" className="civr-l-pill civr-l-pill-outline" data-testid="final-cta-try-button"><Slide>Try a free call</Slide></a>
             </div>
           </div>
         </Reveal>
@@ -112,10 +109,10 @@ export function FinalCta({ catalog }) {
   );
 }
 
-const fLink = 'text-sm text-[#a1a1c2] hover:text-white transition-colors py-1.5 text-left';
+const fLink = 'text-sm text-slate-600 hover:text-slate-950 transition-colors py-1.5 text-left';
 
 function FooterCol({ title, children, testid }) {
-  return <div data-testid={testid}><div className="text-xs font-semibold uppercase tracking-[.14em] text-white mb-4">{title}</div><div className="flex flex-col">{children}</div></div>;
+  return <div data-testid={testid}><div className="text-xs font-semibold uppercase tracking-[.14em] text-slate-900 mb-4">{title}</div><div className="flex flex-col">{children}</div></div>;
 }
 
 // Mega footer (cm.com style). Product links open the matching platform tab; on other pages they go back to the landing page.
@@ -123,15 +120,15 @@ export function Footer({ catalog }) {
   const base = cp();
   const menuLinks = (items, id) => items.map(([k, , t, , target]) => <a key={k} href={hrefOf(base, target)} onClick={(e) => goTo(target, e)} className={fLink} data-testid={`footer-${id}-${k}`}>{t}</a>);
   return (
-    <footer className="bg-[#0b051d] text-white" data-testid="landing-footer">
+    <footer className="bg-slate-50 text-slate-900 border-t border-slate-200" data-testid="landing-footer">
       <div className="max-w-7xl mx-auto px-6 md:px-8 pt-16 pb-10">
         <div className="grid gap-12 lg:grid-cols-12">
           <div className="lg:col-span-4">
-            <div className="font-display text-2xl font-extrabold flex items-center gap-2" data-testid="landing-footer-logo"><Wordmark accent="#7dd3fc" iconClass="w-8 h-8" /></div>
-            <p className="text-sm text-[#a1a1c2] mt-4 max-w-xs">Virtual numbers, inbound & outbound IVR, SIP and AI voice agents — run from your browser.</p>
+            <div className="font-display text-2xl font-extrabold flex items-center gap-2" data-testid="landing-footer-logo"><Wordmark accent="#059669" iconClass="w-8 h-8" /></div>
+            <p className="text-sm text-slate-600 mt-4 max-w-xs">Virtual numbers, inbound & outbound IVR, SIP and AI voice agents — run from your browser.</p>
             <div className="flex flex-wrap gap-3 mt-6">
-              <Link to={cp('/signup')} className="civr-l-pill civr-l-pill-light civr-l-pill-sm" data-testid="footer-cta-signup">Get your number</Link>
-              <Link to={cp('/login')} className="civr-l-pill civr-l-pill-line civr-l-pill-sm" data-testid="footer-link-signin">Sign in</Link>
+              <Link to={cp('/signup')} className="civr-l-pill civr-l-pill-ink civr-l-pill-sm" data-testid="footer-cta-signup">Get your number</Link>
+              <Link to={cp('/login')} className="civr-l-pill civr-l-pill-outline civr-l-pill-sm" data-testid="footer-link-signin">Sign in</Link>
             </div>
           </div>
           <div className="lg:col-span-8 grid grid-cols-2 md:grid-cols-4 gap-8">
@@ -149,9 +146,9 @@ export function Footer({ catalog }) {
             </FooterCol>
           </div>
         </div>
-        <div className="mt-14 pt-8 border-t border-white/10 flex flex-col md:flex-row md:items-end gap-6 justify-between">
+        <div className="mt-14 pt-8 border-t border-slate-200 flex flex-col md:flex-row md:items-end gap-6 justify-between">
           <PaymentMethods catalog={catalog} label="We accept" testid="footer-payment-methods" />
-          <div className="text-xs text-[#8b8bab]" data-testid="footer-copyright">© {new Date().getFullYear()} CloudIVR · Virtual numbers, inbound & outbound IVR, SIP and AI voice agents</div>
+          <div className="text-xs text-slate-500" data-testid="footer-copyright">© {new Date().getFullYear()} CloudIVR · Virtual numbers, inbound & outbound IVR, SIP and AI voice agents</div>
         </div>
       </div>
     </footer>
