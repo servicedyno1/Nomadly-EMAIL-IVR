@@ -1,3 +1,9 @@
+## 2026-10-26 (eve) — CloudIVR SIP sales funnel (cloudivr.net/sip) + fresh-pod vault setup — TESTED on preview, NOT deployed
+- sip.cloudivr.net stays the SIP registration host (Telnyx IP) — explained on the new page + FAQ; NOT repointed.
+- New /sip funnel page (hero/softphone mock, apps + connection card, 3 steps, plan comparison, FAQ, CTAs, sticky mobile CTA),
+  FR/ES strings, landing footer link, server SEO for /sip (title, FAQ JSON-LD, sitemap, llms.txt). iteration_147–149 pass.
+
+
 ## 2026-10-24 ~15:07Z — DEPLOYED to droplet app-main (workspace tarball, untested code) — see DEPLOYMENT_STATE.md
 - Also: shortener /:id now serves frontend/build/civr-ring-sw.js (phone notifications); CF cache purged for that URL.
 

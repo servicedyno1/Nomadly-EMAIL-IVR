@@ -17,6 +17,16 @@
 - Dev Telegram bot is `@Nomadlytestbot` (`TELEGRAM_BOT_TOKEN_DEV`). Because `SKIP_WEBHOOK_SYNC=true`, the bot does NOT
   auto-repoint its webhook — on a fresh pod call Telegram `setWebhook` for the DEV token only, with
   `<REACT_APP_BACKEND_URL>/api/telegram/webhook`. NEVER touch `TELEGRAM_BOT_TOKEN_PROD` (@NomadlyBot → 2.speechcue.com).
+- ✅ 2026-10-26 re-setup (fresh pod, `/app` populated by platform, no `.env` files): pod
+  `https://setup-vault-app.preview.emergentagent.com` (UUID alias `a792a8d1-6141-4bf0-b8de-5ef146484714.preview.emergentagent.com`
+  → same pod, verified via access-log marker). Vault → 275-line `backend/.env` (dev mode, local Mongo) + appended dev-only flags
+  `WEB_CLOUDIVR_DRY_RUN=true TWILIO_ENABLED=false CLOUDIVR_WEB_ON=true WEB_TRYCALL_LIVE=false CLOUDIVR_CHANNEL_LINK`. apt
+  ffmpeg/whois/netcat installed. Owner choices: preview SIMULATED; DEV bot webhook moved from old `vault-app-61` pod → this pod.
+  Seeds: panel `wpapps01`/`246810`; CloudIVR Alice (Business dry-run +17377031678, $380), Bob ($500, no numbers), QA trial
+  `qa.trial1793002485@example.com` / `QaTest#2026x`; testing-agent sign-up `qa.sipfunnel1793027826@example.com` / `QaTest#2026x`.
+  Egress IP `35.225.230.28`: ConnectReseller whitelist FAILS (401 / "Login failed" — stale CR creds, known). Alerts: EdenAI $4.43,
+  Twilio 401 (known). Untracked root + frontend `yarn.lock` deleted after install.
+
 - ⚠️ 2026-10-20 re-setup (pod `https://setup-vault-app.preview.emergentagent.com`, egress IP `34.170.12.145`, CR whitelist PASSED):
   upstream `webpack-dev-server` 6.1.0 + `webpack-dev-middleware` 8.4/8.5 (released 2026-10-17/18) break `yarn start`
   ("Can't import the named export 'Logger' … webpack-dev-middleware/client/utils/log.js"). Local-only workaround (no tracked

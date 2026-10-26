@@ -1,5 +1,21 @@
 # PRD — Nomadly Cloud IVR + Telegram Bot
 
+## 2026-10-26 (eve) — CloudIVR SIP sales funnel at cloudivr.net/sip — TESTED (iteration_147/148/149, frontend 100%, SEO 5/5), NOT deployed
+- Owner: "https://sip.cloudivr.net/ is not displaying anything — turn this page into a sales funnel". RCA: sip.cloudivr.net is
+  the SIP REGISTRATION host (A → Telnyx 192.76.120.10 = sip.telnyx.com; js/phone-config.js WEB_SIP_DOMAIN) — every customer
+  softphone/desk phone uses it, so it can never serve a web page without breaking calling. NOT changed. Owner skipped the
+  follow-up → recommended: funnel lives at cloudivr.net/sip; main CTA = pick plan → /signup?plan=<id> → /app/buy?plan=<id>;
+  sections = works-with-your-app, plan comparison, FAQ (no support-chat button).
+- Frontend: pages/SipFunnel.js (nav, hash-landing + scroll-to-top, mobile sticky CTA) + pages/sip/{Hero,Sections,Plans,shared}.js
+  (animated softphone mock, benefits, Zoiper/MicroSIP/Linphone/desk phones + connection card w/ Copy + "why it doesn't open in
+  a browser" note, 3 steps, live-catalog plan cards — Pro "Best for SIP", Starter "No SIP" — + "Compare every feature" table,
+  9 SIP FAQs, final CTA). Route `sip` in CloudIvrApp.js, PageTitle 'SIP phone numbers', landing Footer link "SIP & softphones"
+  (footer-link-sip), `useStart` exported from landing/PricingFaq.js. FR/ES: +89 keys each via scripts/civr_i18n_sip_page.py.
+- Server SEO (js/cloudivr-web/seo.js): /sip title/description/canonical, SIP FAQPage JSON-LD (`/sip#faq`), sitemap + llms.txt.
+  Tests: js/tests/test_cloudivr_sip_page_seo_2026-10.js (5/5), backend/tests/test_cloudivr_sip_funnel_catalog.py (testing agent).
+- Goes live on cloudivr.net after the owner taps "Save to GitHub" (main → droplet deploy workflow).
+
+
 ## 2026-10-26 (pm) — CloudIVR upgrade locks + plan text + bold landing copy + 14 emails — BUILT on preview, testing in progress, NOT deployed
 - Plan gating (bot + web): Pro now has the Keypad menu (IVR) + key analytics; Quick IVR scheduling, saved presets, one saved
   voice, Text Triggers and text calls (deaf / hard-of-hearing) are Business-only (`phone-config.js` planFeatureAccess:

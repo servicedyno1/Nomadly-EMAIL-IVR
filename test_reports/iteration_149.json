@@ -1,0 +1,14 @@
+{
+  "summary": "Retest of SipFunnel hash and scroll fixes, frontend only, desktop 1920x1080, a fresh browser context for each load, nothing purchased. FIXED: a direct load of /cloudivr/sip#plans in 3 of 3 fresh contexts lands with sip-plans-section top at 64.1px (scrollY 3066). The Starter $50, Pro $75 and Business $120 cards are visible. Direct #faq load: top 63.8 (scrollY 4420). Direct #apps load: top 63.6 (scrollY 1538). No hijack: after the #plans load, scrolling to the top stayed at scrollY 0 after 5s, and a manual wheel to 3000 stayed at 3000 after 3s. Regression OK: landing bottom (scrollY 7930) -> footer-link-sip -> /cloudivr/sip at scrollY 0 with sip-hero visible. New: from the SIP page bottom (scrollY 5039), sip-nav-logo -> /cloudivr at scrollY 0.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": ["The hash-landing effect sets landed.current=true before the timeout and clears the timeout on cleanup. If loading were ever false on the first render (for example a cached useApi response) and React StrictMode double-invoked the effect, the scroll would be skipped. This was not seen in the preview. Setting landed inside the timeout callback would make it robust."],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A", "frontend": "100%"},
+  "seed_data_creation": "None",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "SipFunnel scroll behaviour is fully verified: hash landing (#plans, #faq, #apps), footer-link-sip opening at the top, the logo opening at the top, and no scroll hijacking. The cookie banner covers the lower part of the viewport until it is dismissed."
+}

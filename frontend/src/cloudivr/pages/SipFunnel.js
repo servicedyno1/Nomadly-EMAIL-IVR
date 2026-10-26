@@ -77,8 +77,7 @@ export default function SipFunnel() {
   useEffect(() => {
     const id = decodeURIComponent(window.location.hash.slice(1));
     if (!id || loading || landed.current) return undefined;
-    landed.current = true;
-    const t = setTimeout(() => document.getElementById(id)?.scrollIntoView(), 80);
+    const t = setTimeout(() => { landed.current = true; document.getElementById(id)?.scrollIntoView(); }, 80);
     return () => clearTimeout(t);
   }, [loading]);
   return (
