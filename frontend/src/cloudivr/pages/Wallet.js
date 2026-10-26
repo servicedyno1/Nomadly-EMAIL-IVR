@@ -65,7 +65,7 @@ function TopUp({ coins, min, initial, onCreated }) {
       <div className="flex flex-wrap gap-2">{PRESETS.map(p => <button type="button" key={p} onClick={() => setAmount(p)} className={`civr-pill civr-preset cursor-pointer ${Number(amount) === p ? 'civr-pill-on' : ''}`} data-testid={`wallet-preset-${p}`}>${p}</button>)}</div>
       <div className="grid sm:grid-cols-2 gap-4">
         <Field label={`Amount (USD, min $${min})`}><input type="number" min={min} max={10000} step="1" className="civr-input font-mono" value={amount} onChange={e => setAmount(e.target.value)} data-testid="wallet-amount-input" /></Field>
-        <Field label="Coin"><select className="civr-input" value={coin} onChange={e => setCoin(e.target.value)} data-testid="wallet-coin-select">{coins.map(c => <option key={c}>{c}</option>)}</select></Field>
+        <Field label="Coin"><select className="civr-input" value={coin} onChange={e => setCoin(e.target.value)} data-testid="wallet-coin-select">{coins.map(c => <option key={c} value={c}>{c}</option>)}</select></Field>
       </div>
       <ErrorNote error={error} testid="wallet-topup-error" />
       <button className="civr-btn civr-btn-primary" disabled={busy} data-testid="wallet-topup-button">{busy && <Loader2 className="w-4 h-4 animate-spin" />}Get payment address</button>

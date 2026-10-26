@@ -163,7 +163,7 @@ export function CampaignNew() {
       <CampaignKind value={kind} onChange={setKind} aiLocked={aiLocked} />
       <form onSubmit={create} className="grid lg:grid-cols-2 gap-4" {...u.bind}>
         <div className="civr-card p-6 space-y-6">
-          <Field label="Caller ID"><select className="civr-input font-mono" value={callerId} onChange={set('callerId')} data-testid="campaign-caller-select">{numbers.map(n => <option key={n.phoneNumber}>{n.phoneNumber}</option>)}</select></Field>
+          <Field label="Caller ID"><select className="civr-input font-mono" value={callerId} onChange={set('callerId')} data-testid="campaign-caller-select">{numbers.map(n => <option key={n.phoneNumber} value={n.phoneNumber}>{n.phoneNumber}</option>)}</select></Field>
           {isAi ? <AiCampaignFields agentId={f.agentId} onChange={set('agentId')} /> : <>
           <Field label="Message"><AudioSelect value={f.audioId} onChange={set('audioId')} audios={au?.audios} by="id" testid="campaign-audio-select" /></Field>
           {script ? <div className="border border-[#262626] rounded-xl p-4"><ScriptBox value={script} onChange={setScript} onAudio={(a) => { reloadAudio(); setF(x => ({ ...x, audioId: a.id })); setScript(null); }} testid="campaign-script" /></div>

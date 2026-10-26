@@ -144,7 +144,7 @@ function CampaignBody({ inView }) {
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0"><div className="text-xs font-semibold truncate">Spring renewals</div><div className="text-[10px] text-[#a1a1aa]">1,820 leads · recorded message</div></div><Pill ok>Running</Pill>
       </div>
-      <div className="mt-3 h-1.5 rounded-full bg-[#262626] overflow-hidden"><div className="h-full rounded-full bg-[#6366f1] transition-[width] duration-[1400ms] ease-out" style={{ width: inView ? '68%' : '0%' }} /></div>
+      <div className="mt-3 h-1.5 rounded-full bg-[#262626] overflow-hidden"><div className="h-full rounded-full bg-[#6366f1] transition-[width] [transition-duration:1400ms] ease-out" style={{ width: inView ? '68%' : '0%' }} /></div>
       <div className="flex justify-between text-[10px] text-[#a1a1aa] mt-1.5 font-mono"><span>{inView ? '68' : '0'}% done</span><span>Pause · Cancel</span></div>
       <div className="grid grid-cols-3 gap-2 mt-3">{stats.map(([l, v]) => <Box key={l} className="p-2 min-w-0"><div className="text-[9px] uppercase tracking-[.1em] text-[#a1a1aa] truncate">{l}</div><div className="font-mono text-sm mt-0.5">{inView ? <CountUp value={v} duration={1400} /> : '0'}</div></Box>)}</div>
       <div className="mt-3 divide-y divide-white/[.06]">
