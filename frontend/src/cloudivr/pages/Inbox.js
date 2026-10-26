@@ -11,7 +11,7 @@ import { MissedCalls } from '../MissedCalls';
 import { RING_ENDED } from '../Incoming';
 import { useLangTick } from '../i18n';
 import { useSearch, SearchBox, NoMatches } from '../search';
-import { QuickReply, SMS_REPLIES } from '../QuickReply';
+import { QuickReply, SMS_REPLIES, SmsStatus } from '../QuickReply';
 import { OtpLive } from './quick/Otp';
 
 const KINDS = [['', 'All', InboxIcon], ['sms', 'SMS', MessageSquare], ['voicemail', 'Voicemail', Voicemail], ['call', 'Calls', Phone], ['campaign', 'Campaigns', Megaphone], ['wallet', 'Wallet', Wallet], ['billing', 'Billing', Receipt], ['coupon', 'Coupons', Ticket], ['info', 'Other', Info]];
@@ -33,7 +33,7 @@ function FilterPill({ k, label, on, count, onPick }) {
 }
 
 // Answer a text right under it: one SMS from the number that received it back to the sender.
-function SmsReply({ n, i, pv, onReplied }) {
+function SmsReply({ n, i, pv, onReplied, reload }) {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const t = `inbox-item-${i}-reply`;
@@ -43,12 +43,14 @@ function SmsReply({ n, i, pv, onReplied }) {
       const d = await api(`/notifications/${n.id}/reply`, { method: 'POST', body: { text } });
       toast.success(d.reply.status === 'preview' ? 'Reply saved (preview — not sent)' : 'Text sent');
       onReplied(n.id, d.reply); setOpen(false);
+      if (d.reply.status === 'sent') setTimeout(reload, 6000);
     } catch (e) { toast.error(e.message); } finally { setBusy(false); }
   };
   const r = n.meta?.reply;
   return (
     <div className="relative z-10 mt-2 max-w-xl" data-testid={t}>
       {r && !open && <p className="text-xs text-[#818cf8] break-words" data-testid={`${t}-done`}>{`You replied: “${pv.text(r.text, 'Message hidden')}”${r.status === 'preview' ? ' (preview — not sent)' : ''}`}</p>}
+      {r && !open && <SmsStatus status={r.status} reason={r.reason} testid={`${t}-status`} />}
       {open ? <div className="mt-2"><QuickReply onSend={send} busy={busy} presets={SMS_REPLIES} autoFocus testid={`${t}-box`} /><button type="button" className="text-xs text-[#a1a1aa] hover:text-white mt-1" onClick={() => setOpen(false)} data-testid={`${t}-cancel`}>Cancel</button></div>
         : <button type="button" onClick={() => setOpen(true)} className={`civr-btn civr-btn-ghost civr-btn-sm ${r ? 'mt-1.5' : ''}`} data-testid={`${t}-button`}><MessageSquareReply className="w-4 h-4" />{r ? 'Reply again' : 'Reply'}</button>}
     </div>
@@ -116,7 +118,7 @@ export default function Inbox() {
                   <div className="text-sm whitespace-pre-line break-words text-[#f4f4f5]" data-testid={`inbox-item-${i}-text`}>{pv.text(n.text, 'Message hidden')}</div>
                   {n.mediaUrl && /\.(mp3|wav|ogg)(\?|$)/i.test(n.mediaUrl) && <audio controls preload="none" src={playUrl(n.mediaUrl)} className="relative z-10 h-9 mt-2" data-testid={`inbox-item-${i}-audio`} />}
                   {n.meta?.coupon && !n.meta.used && !(today?.coupon?.used && today.coupon.code === n.meta.coupon) && <Link to={cp(`/app/buy?coupon=${encodeURIComponent(n.meta.coupon)}`)} className="relative z-10 civr-btn civr-btn-ghost civr-btn-sm mt-2" data-testid={`inbox-item-${i}-use-coupon`}><Ticket className="w-4 h-4" />Use coupon {n.meta.coupon}</Link>}
-                  {n.canReply && <SmsReply n={n} i={i} pv={pv} onReplied={onReplied} />}
+                  {n.canReply && <SmsReply n={n} i={i} pv={pv} onReplied={onReplied} reload={reload} />}
                   {ccid && Date.now() - new Date(n.createdAt).getTime() < 15 * 60000 && (newestTry ? <OtpLive ccid={ccid} compact testid={`inbox-item-${i}-otp`} />
                     : <p className="text-xs text-[#a1a1aa] mt-2" data-testid={`inbox-item-${i}-otp-superseded`}>An earlier try. The newest code for this call is above.</p>)}
                   <div className="flex items-center gap-3 text-xs text-[#a1a1aa] mt-2">

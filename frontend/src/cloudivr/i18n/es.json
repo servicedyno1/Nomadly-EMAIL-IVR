@@ -2863,5 +2863,19 @@
 "Remember the referral link that brought you here, so the friend who invited you gets their reward when you sign up.": "Recuerdan el enlace de referido que te trajo aquí, para que el amigo que te invitó reciba su recompensa cuando te registres.",
 "Choose which optional cookies this browser keeps.": "Elige qué cookies opcionales guarda este navegador.",
 "Cookie settings": "Configuración de cookies",
-"Keep you signed in and secure, remember your language, private mode, unsaved drafts and your support chat, and store this choice. Always on.": "Mantienen tu sesión iniciada y segura, recuerdan tu idioma, el modo privado, los borradores sin guardar y tu chat con soporte, y guardan esta elección. Siempre activas."
+"Keep you signed in and secure, remember your language, private mode, unsaved drafts and your support chat, and store this choice. Always on.": "Mantienen tu sesión iniciada y segura, recuerdan tu idioma, el modo privado, los borradores sin guardar y tu chat con soporte, y guardan esta elección. Siempre activas.",
+"Delivered": "Entregado",
+"Sent": "Enviado",
+"Not delivered: {0}": "No entregado: {0}",
+"SMS not delivered": "SMS no entregado",
+"This toll-free number needs texting approval before its texts can reach mobile phones.": "Este número gratuito necesita aprobación para enviar SMS antes de que sus mensajes lleguen a los móviles.",
+"This number needs business texting registration (10DLC) before its texts can reach US mobile phones.": "Este número necesita el registro de SMS empresariales (10DLC) antes de que sus mensajes lleguen a los móviles de EE. UU.",
+"This person has opted out of your texts (they replied STOP).": "Esta persona se dio de baja de tus SMS (respondió STOP).",
+"This number can’t receive texts. It may be a landline.": "Este número no puede recibir SMS. Puede ser un teléfono fijo.",
+"The carrier blocked this text as spam.": "El operador bloqueó este SMS como spam.",
+"The carrier is limiting texts from this number right now. Try again later.": "El operador está limitando los SMS de este número por ahora. Inténtalo más tarde.",
+"The carrier didn’t deliver this text.": "El operador no entregó este SMS.",
+"Your text from {0} to {1} wasn’t delivered. {2} You weren’t charged for it.": "Tu SMS de {0} a {1} no se entregó. {2} No se te cobró.",
+"Refund · text not delivered": "Reembolso · SMS no entregado",
+"Extra text": "SMS adicional"
 }

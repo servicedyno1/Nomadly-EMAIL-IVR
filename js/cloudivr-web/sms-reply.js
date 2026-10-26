@@ -39,12 +39,66 @@ function markReplied(calls, texts) {
   return calls.map(l => {
     if (replied(l)) return l
     const t = byCall.get(String(l._id))
-    return { ...l, reply: t ? { text: t.body, at: t.timestamp, status: t.status } : null }
+    return { ...l, reply: t ? { text: t.body, at: t.timestamp, status: t.status, reason: t.smsReason || null } : null }
   })
 }
 const textsTo = (phoneLogs, phones, since, callers) => phoneLogs.find({ phoneNumber: { $in: phones }, type: 'sms_out', timestamp: { $gte: since }, ...(callers ? { to: { $in: callers } } : {}) }).toArray()
-// Telnyx refuses unregistered US long codes (10DLC) and unverified toll-free numbers.
-const NOT_REGISTERED = /10dlc|not registered|campaign|unverified|toll.?free verification|40010|40011|40012|40013/i
+// Plain reasons for Telnyx error codes (refused at send time, or reported later by message.finalized).
+const TOLL_FREE = 'This toll-free number needs texting approval before its texts can reach mobile phones.'
+const TEN_DLC = 'This number needs business texting registration (10DLC) before its texts can reach US mobile phones.'
+const REASONS = [
+  [['40329', '40330'], TOLL_FREE],
+  [['40010', '40019'], TEN_DLC],
+  [['40300'], 'This person has opted out of your texts (they replied STOP).'],
+  [['40001', '40012', '40301', '40310', '40319'], 'This number can’t receive texts. It may be a landline.'],
+  [['40002', '40003', '40015', '40017', '40322'], 'The carrier blocked this text as spam.'],
+  [['40011', '40016', '40018', '40020'], 'The carrier is limiting texts from this number right now. Try again later.'],
+]
+const NOT_DELIVERED = 'The carrier didn’t deliver this text.'
+function reasonOf(code, words = '') {
+  const hit = REASONS.find(([codes]) => codes.includes(String(code || '')))
+  if (hit) return hit[1]
+  if (/toll.?free/i.test(words) && /verif|provision/i.test(words)) return TOLL_FREE
+  if (/10dlc|not registered/i.test(words)) return TEN_DLC
+  return null
+}
+const FINAL = { delivered: 'delivered', delivery_unconfirmed: 'unconfirmed', sending_failed: 'failed', delivery_failed: 'failed', expired: 'failed' }
+const oid = (s) => { try { return new ObjectId(String(s)) } catch (_) { return null } }
+
+// A text that was not delivered is given back: one plan text, plus the extra-text charge (if any) back to the wallet.
+async function giveBack(db, doc) {
+  const chatId = doc.chatId != null ? String(doc.chatId) : (await db.collection('phoneNumbersOf').findOne({ 'val.numbers.phoneNumber': doc.phoneNumber }, { projection: { _id: 1 } }))?._id
+  if (chatId == null) return null
+  await db.collection('phoneNumbersOf').updateOne({ _id: chatId, 'val.numbers': { $elemMatch: { phoneNumber: doc.phoneNumber, smsUsed: { $gt: 0 } } } }, { $inc: { 'val.numbers.$.smsUsed': -1 } })
+  if (doc.charge > 0) {
+    await walletOps(db).credit(chatId, doc.charge)
+    await db.collection('transactions').insertOne({ _id: `smsref-${doc._id}`, chatId: String(chatId), type: 'sms-refund', amount: doc.charge, currency: 'USD', status: 'completed', metadata: { phoneNumber: doc.phoneNumber, to: doc.to, channel: 'web' }, createdAt: new Date(), updatedAt: new Date() }).catch(() => {})
+  }
+  return chatId
+}
+
+// Telnyx message.finalized for a text sent from the web app → its real status on the text (and on the call / inbox
+// item it answered). Not delivered → given back + an Inbox alert with the reason. Duplicate reports change nothing.
+async function applyDeliveryReport({ db, notify, log = console.log }, payload) {
+  const status = FINAL[(payload?.to || [])[0]?.status]
+  if (!payload?.id || !status) return null
+  const err = (payload.errors || [])[0] || {}
+  const reason = status === 'failed' ? (reasonOf(err.code, `${err.title || ''} ${err.detail || ''}`) || NOT_DELIVERED) : null
+  const phoneLogs = db.collection('phoneLogs')
+  const set = { status, finalizedAt: new Date().toISOString(), ...(reason ? { smsReason: reason, smsErrorCode: String(err.code || '') } : {}) }
+  const r = await phoneLogs.findOneAndUpdate({ messageId: payload.id, type: 'sms_out', webReply: true, status: { $in: ['sent', 'unconfirmed'] } }, { $set: set })
+  const doc = r && r.value !== undefined ? r.value : r
+  if (!doc) return null
+  const copy = (path) => ({ [`${path}.status`]: status, ...(reason ? { [`${path}.reason`]: reason } : {}) })
+  if (oid(doc.replyTo)) await phoneLogs.updateOne({ _id: oid(doc.replyTo) }, { $set: copy('reply') })
+  if (oid(doc.inboxId)) await db.collection('webNotifications').updateOne({ _id: oid(doc.inboxId) }, { $set: copy('meta.reply') })
+  log(`[SmsReply] ${doc.from} → ${doc.to} ${status}${reason ? ` (code ${err.code || '?'})` : ''}`)
+  if (status === 'failed') {
+    const chatId = await giveBack(db, doc)
+    if (chatId != null) await notify.push(chatId, `Your text from ${doc.from} to ${doc.to} wasn’t delivered. ${reason} You weren’t charged for it.`, null, { kind: 'sms', meta: { smsFailed: { phone: doc.phoneNumber, to: doc.to, code: String(err.code || '') } } }).catch(() => {})
+  }
+  return { status, reason }
+}
 
 function createSmsReply({ db, voiceService, log = console.log }) {
   const phoneLogs = db.collection('phoneLogs')
@@ -59,12 +113,12 @@ function createSmsReply({ db, voiceService, log = console.log }) {
     } catch (e) {
       const err = e.response?.data?.errors?.[0] || {}
       log(`[SmsReply] ${from} → ${to} failed: ${err.code || ''} ${err.detail || e.message}`)
-      return { error: NOT_REGISTERED.test(`${err.code} ${err.title} ${err.detail}`) ? 'This number isn’t registered for business texting yet (US numbers need 10DLC registration), so texts can’t be sent from it.' : 'The text couldn’t be sent right now. Try again in a minute.' }
+      return { error: reasonOf(err.code, `${err.title || ''} ${err.detail || ''}`) || 'The text couldn’t be sent right now. Try again in a minute.' }
     }
   }
 
   // → { log } | { error: [status, code, message] }
-  async function send({ chatId, num, to, text, simulated = false, replyTo = null }) {
+  async function send({ chatId, num, to, text, simulated = false, replyTo = null, inboxId = null }) {
     const body = clean(text)
     if (!body) return { error: [400, 'empty', 'Type a reply or pick one.'] }
     if (body.length > MAX) return { error: [400, 'too_long', `Keep it to ${MAX} characters (one text).`] }
@@ -79,7 +133,7 @@ function createSmsReply({ db, voiceService, log = console.log }) {
     if (out.error) { if (overage) await w.credit(chatId, overage); return { error: [424, 'sms_failed', out.error] } }
     await voiceService.incrementSmsUsed(chatId, num.phoneNumber)
     if (overage) await phoneTransactions.insertOne({ chatId, phoneNumber: num.phoneNumber, action: 'sms_reply', amount: overage, paymentMethod: 'wallet_usd', channel: 'web', timestamp: new Date().toISOString() })
-    const doc = { phoneNumber: num.phoneNumber, from: num.phoneNumber, to, type: 'sms_out', direction: 'outbound', body, messageId: out.id, status: preview ? 'preview' : 'sent', webReply: true, ...(replyTo ? { replyTo } : {}), timestamp: new Date().toISOString() }
+    const doc = { chatId: String(chatId), phoneNumber: num.phoneNumber, from: num.phoneNumber, to, type: 'sms_out', direction: 'outbound', body, messageId: out.id, status: preview ? 'preview' : 'sent', webReply: true, ...(overage ? { charge: overage } : {}), ...(replyTo ? { replyTo } : {}), ...(inboxId ? { inboxId: String(inboxId) } : {}), timestamp: new Date().toISOString() }
     await phoneLogs.insertOne(doc)
     log(`[SmsReply] ${num.phoneNumber} → ${to}${preview ? ' (PREVIEW)' : ''}${overage ? ` $${overage}` : ''}`)
     return { log: doc, charge: overage }
@@ -125,4 +179,4 @@ function routes(router, { db, h, numbersApi, smsReply }) {
   }))
 }
 
-module.exports = { createSmsReply, routes, canReply, markReplied, clean, MAX }
+module.exports = { createSmsReply, routes, canReply, markReplied, clean, MAX, applyDeliveryReport, reasonOf }

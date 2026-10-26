@@ -48525,6 +48525,7 @@ app.post('/telnyx/sms-webhook', telnyxSigned, async (req, res) => {
     log(`📩 Telnyx SMS webhook received${smsEvent ? `: ${smsEvent}` : ''}`)
     // Delivery reports of texts WE sent (message.sent / message.finalized) also arrive here — only real inbound texts count.
     if (!smsEvent || smsEvent === 'message.received') await handleInboundSms(req.body, bot, phoneNumbersOf, phoneLogs)
+    else if (smsEvent === 'message.finalized') cloudivrWeb.smsDelivery(db, req.body.data.payload, log)
     res.sendStatus(200)
   } catch (error) {
     log('Telnyx SMS webhook error:', error.message)

@@ -131,7 +131,7 @@ function routes(router, { h, numbersApi, smsReply }) {
     if (n.kind !== 'sms' || !n.meta?.from || !n.meta?.to) return res.status(400).json({ error: 'cannot_reply', message: 'This message can’t be answered from here. Open the number’s Logs tab.' })
     const num = await numbersApi.findMine(req.webChatId, n.meta.to)
     if (!num) return res.status(404).json({ error: 'not_found', message: 'That number is no longer on your account.' })
-    const r = await smsReply.send({ chatId: req.webChatId, num, to: n.meta.from, text: req.body?.text })
+    const r = await smsReply.send({ chatId: req.webChatId, num, to: n.meta.from, text: req.body?.text, inboxId: String(_id) })
     if (r.error) return res.status(r.error[0]).json({ error: r.error[1], message: r.error[2] })
     const reply = { text: r.log.body, at: r.log.timestamp, status: r.log.status }
     await _col.updateOne({ _id }, { $set: { 'meta.reply': reply, read: true } })

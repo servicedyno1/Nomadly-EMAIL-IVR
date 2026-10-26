@@ -211,6 +211,7 @@ const publicLog = (l) => ({
   from: l.from || null, to: l.to || l.phoneNumber || null, phoneNumber: l.phoneNumber || null, duration: l.duration || 0,
   body: l.body || null, recordingUrl: l.recordingUrl || null, digit: l.digitPressed || null, forwardTo: l.forwardTo || null, timestamp: l.timestamp,
   transcript: l.transcript || null, transcriptStatus: l.transcriptStatus || null, reply: l.reply || null, canReply: smsReplyMod.canReply(l),
+  smsStatus: l.type === 'sms_out' ? (l.status || 'sent') : null, smsReason: l.smsReason || null,
   aiSummary: !l.aiSummary ? null : require('./ai-summary').isStale(l.aiSummary)
     ? { status: 'failed', summary: null, sentiment: null, mood: null, actionItems: [], charge: 0, detail: 'The last summary did not finish. You can run it again.' }
     : { status: l.aiSummary.status, summary: l.aiSummary.summary || null, sentiment: l.aiSummary.sentiment || null, mood: l.aiSummary.mood || null, actionItems: l.aiSummary.actionItems || [], charge: l.aiSummary.charge || 0, detail: l.aiSummary.detail || null },

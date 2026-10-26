@@ -3,7 +3,7 @@ import { PhoneIncoming, PhoneOutgoing, PhoneMissed, Voicemail, MessageSquare, Mi
 import { when, secs } from './api';
 import { usePrivacy } from './privacy';
 import { NoteCell, canNote } from './CallNote';
-import { QuickReply, TextBackButton, TextBackDone, useTextBack } from './QuickReply';
+import { QuickReply, TextBackButton, TextBackDone, useTextBack, SmsStatus } from './QuickReply';
 import { ShowMore, useIsPhone, usePaged, Empty } from './ui';
 import { AiSummaryCell } from './AiSummary';
 
@@ -14,9 +14,10 @@ const LABEL = {
   forward_failed: ['Forward failed', PhoneMissed, '#fbbf24'], call_recording: ['Recorded call', Mic, A], outbound_ivr: ['Quick IVR call', PhoneOutgoing, A],
   outbound_ivr_bulk: ['Campaign call', PhoneOutgoing, A], ivr_transfer_leg: ['IVR transfer', PhoneIncoming, A], sms: ['SMS', MessageSquare, A],
   fax: ['Fax', Printer, N], outbound_sip: ['Browser / SIP call', PhoneOutgoing, A], BulkIVR: ['Campaign charge', PhoneOutgoing, N],
-  off_hours: ['Call outside hours', Clock, '#fbbf24'], sms_out: ['SMS sent', MessageSquare, A],
+  off_hours: ['Call outside hours', Clock, '#fbbf24'], sms_out: ['SMS sent', MessageSquare, A], sms_failed: ['SMS not delivered', MessageSquare, '#fbbf24'],
 };
 export const labelOf = (t) => LABEL[t] || [String(t || 'Event').replace(/_/g, ' '), PhoneIncoming, N];
+const rowLabel = (l) => labelOf(l.type === 'sms_out' && l.smsStatus === 'failed' ? 'sms_failed' : l.type);
 const TRANSCRIPT_HINT = { empty: 'No speech detected', failed: 'Couldn’t transcribe this message', too_large: 'Too long to transcribe' };
 
 function Transcript({ l, i, testid }) {
@@ -30,7 +31,7 @@ function Transcript({ l, i, testid }) {
 function useRowReply(l, onDone) {
   const [open, setOpen] = useState(false);
   const tb = useTextBack(l.id, l.reply, onDone);
-  const done = tb.done || l.reply || null;
+  const done = l.reply || tb.done || null;
   return { ...tb, done, open, setOpen, show: !!done || l.canReply };
 }
 
@@ -40,6 +41,7 @@ function Details({ l, i, testid, notePhone, onNotesChange, r, rid, summarize }) 
   return (
     <>
       {l.body && <span className="text-[#e4e4e7] break-words" data-testid={`${testid}-body-${i}`}>{pv.text(l.body, 'Message hidden')}</span>}
+      {l.type === 'sms_out' && <SmsStatus status={l.smsStatus} reason={l.smsReason} testid={`${testid}-sms-status-${i}`} />}
       {l.digit && <span className="civr-pill civr-pill-on ml-1">key {l.digit}</span>}
       {l.recordingUrl && <audio controls preload="none" src={l.recordingUrl} className="h-8 mt-1 max-w-full" data-testid={`${testid}-recording-${i}`} />}
       <Transcript l={l} i={i} testid={testid} />
@@ -52,7 +54,7 @@ function Details({ l, i, testid, notePhone, onNotesChange, r, rid, summarize }) 
 
 function LogRow({ l, i, cols, showNumber, testid, notePhone, onNotesChange, summarize }) {
   const pv = usePrivacy();
-  const [name, Icon, color] = labelOf(l.type);
+  const [name, Icon, color] = rowLabel(l);
   const r = useRowReply(l, onNotesChange);
   const rid = `${testid}-reply-${l.id}`;
   return (
@@ -74,7 +76,7 @@ function LogRow({ l, i, cols, showNumber, testid, notePhone, onNotesChange, summ
 // Phones: one stacked card per entry — nothing scrolls sideways.
 function LogCard({ l, i, showNumber, testid, notePhone, onNotesChange, summarize }) {
   const pv = usePrivacy();
-  const [name, Icon, color] = labelOf(l.type);
+  const [name, Icon, color] = rowLabel(l);
   const r = useRowReply(l, onNotesChange);
   const rid = `${testid}-reply-${l.id}`;
   const cell = (k, v, id) => <><span className="text-[#a1a1aa]">{k}</span><span className="font-mono text-[#e4e4e7] break-all" data-testid={id}>{v}</span></>;

@@ -117,4 +117,10 @@ function createCloudIvrWeb(deps) {
   return router
 }
 
-module.exports = { createCloudIvrWeb, notify, makeDownloader: verification.makeDownloader }
+// Telnyx message.finalized → status of a web-sent text. Handled 3 s later so the send route has saved its copies first.
+function smsDelivery(db, payload, log = console.log) {
+  const t = setTimeout(() => smsReplyMod.applyDeliveryReport({ db, notify, log }, payload).catch(e => log(`[SmsReply] delivery report failed: ${e.message}`)), 3000)
+  if (t.unref) t.unref()
+}
+
+module.exports = { createCloudIvrWeb, notify, makeDownloader: verification.makeDownloader, smsDelivery }

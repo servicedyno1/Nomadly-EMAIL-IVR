@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { toast } from 'sonner';
-import { Loader2, MessageSquareReply, Send } from 'lucide-react';
+import { Loader2, MessageSquareReply, Send, Check, CheckCheck, AlertTriangle } from 'lucide-react';
 import { api } from './api';
 import { usePrivacy } from './privacy';
 
@@ -34,7 +34,7 @@ export function QuickReply({ onSend, busy, max = 160, testid, sendLabel = 'Send 
   );
 }
 
-// Sends the "Text back" SMS for one missed call; `done` = the reply once sent.
+// Sends the "Text back" SMS for one missed call; `done` = the reply once sent. A second reload ~6 s later picks up the delivery result.
 export function useTextBack(id, reply, onDone) {
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(reply);
@@ -45,14 +45,29 @@ export function useTextBack(id, reply, onDone) {
       setDone(d.reply);
       toast.success(d.reply.status === 'preview' ? 'Reply saved (preview — not sent)' : 'Text sent');
       onDone?.();
+      if (d.reply.status === 'sent' && onDone) setTimeout(onDone, 6000);
     } catch (e) { toast.error(e.message); if (e.code === 'already_replied') onDone?.(); } finally { setBusy(false); }
   };
   return { busy, done, send };
 }
 
+// What happened to a text we sent (from the carrier's delivery report): Sent → Delivered, or Not delivered + why.
+export function SmsStatus({ status, reason, testid }) {
+  const row = 'flex items-start gap-1 mt-1 text-[11px]';
+  if (status === 'delivered') return <span className={`${row} text-[#34d399]`} data-testid={testid}><CheckCheck className="w-3.5 h-3.5 shrink-0" />Delivered</span>;
+  if (status === 'failed') return <span className={`${row} text-[#fbbf24]`} data-testid={testid}><AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-px" /><span>{`Not delivered: ${reason || 'The carrier didn’t deliver this text.'}`}</span></span>;
+  if (status === 'sent' || status === 'unconfirmed') return <span className={`${row} text-[#a1a1aa]`} data-testid={testid}><Check className="w-3.5 h-3.5 shrink-0" />Sent</span>;
+  return null;
+}
+
 export function TextBackDone({ reply, testid }) {
   const pv = usePrivacy();
-  return <p className="mt-1.5 text-xs text-[#818cf8] break-words" data-testid={testid}>{`Texted back: “${pv.text(reply.text, 'Message hidden')}”${reply.status === 'preview' ? ' (preview — not sent)' : ''}`}</p>;
+  return (
+    <>
+      <p className="mt-1.5 text-xs text-[#818cf8] break-words" data-testid={testid}>{`Texted back: “${pv.text(reply.text, 'Message hidden')}”${reply.status === 'preview' ? ' (preview — not sent)' : ''}`}</p>
+      <SmsStatus status={reply.status} reason={reply.reason} testid={`${testid}-status`} />
+    </>
+  );
 }
 
 export const TextBackButton = ({ onClick, open, testid }) => (
@@ -63,7 +78,7 @@ export const TextBackButton = ({ onClick, open, testid }) => (
 export function TextBack({ id, reply, canReply, onDone, testid }) {
   const [open, setOpen] = useState(false);
   const { busy, done, send } = useTextBack(id, reply, onDone);
-  if (done) return <TextBackDone reply={done} testid={`${testid}-done`} />;
+  if (reply || done) return <TextBackDone reply={reply || done} testid={`${testid}-done`} />;
   if (!canReply) return null;
   if (!open) return <TextBackButton onClick={() => setOpen(true)} open={false} testid={`${testid}-button`} />;
   return <div className="mt-2 max-w-xl"><QuickReply onSend={send} busy={busy} testid={testid} /></div>;
