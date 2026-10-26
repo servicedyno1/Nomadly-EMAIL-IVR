@@ -15,7 +15,7 @@ export function CivrAuthProvider({ children }) {
 
   const logout = useCallback(async () => {
     await api('/auth/logout', { method: 'POST' }).catch(() => {});
-    try { Object.keys(localStorage).filter(k => k.startsWith('civr.quickDraft.') || k === 'civr.relayPrefs').forEach(k => localStorage.removeItem(k)); } catch (_) { /* private mode */ }
+    try { for (const s of [localStorage, sessionStorage]) Object.keys(s).filter(k => k.startsWith('civr.quickDraft.') || k === 'civr.relayPrefs').forEach(k => s.removeItem(k)); } catch (_) { /* private mode */ }
     setAccount(null);
   }, []);
 

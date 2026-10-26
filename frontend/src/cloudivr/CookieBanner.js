@@ -4,7 +4,7 @@ import { BRAND } from './Brand';
 import { OPTIONAL, readConsent, saveConsent, onOpenCookieSettings } from './consent';
 
 const GROUPS = [
-  ['necessary', 'Necessary', 'Keep you signed in and secure, remember your language, private mode and unsaved drafts, and store this choice. Always on.'],
+  ['necessary', 'Necessary', 'Keep you signed in and secure, remember your language, private mode, unsaved drafts and your support chat, and store this choice. Always on.'],
   ['preferences', 'Preferences', 'Remember display choices on this device: your text-call setup and text size, and tips you closed.'],
   ['statistics', 'Statistics', 'Anonymous usage analytics and session replays that show us where the site is confusing. What you type into forms is hidden from these replays.'],
   ['marketing', 'Marketing', 'Remember the referral link that brought you here, so the friend who invited you gets their reward when you sign up.'],

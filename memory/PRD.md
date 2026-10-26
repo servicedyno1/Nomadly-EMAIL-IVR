@@ -1322,3 +1322,43 @@ calls and SIP are simulated; inbound calls use a pretend-call simulator).
   [--langs=en] [--extra=fr:topup]). Sent 18 samples to moxxcompany@gmail.com (14 types EN + topup/weekly FR+ES), all accepted by SMTP.
 - Node email harness 38/38. deployment_agent flags (.env in .gitignore, CORS_ORIGINS, no nodejs supervisor block) are for Emergent
   hosting only — prod is GitHub main → CI → DO droplet (PM2), so not blockers. Go live = Save to GitHub (main).
+
+## 2026-10-26 (fork 4, later) — Hours switch fix, off-hours forwarding, cookie banner, short SIP logins LIVE — TESTED (iteration_144)
+- BUG (user): "Use a weekly schedule" said "Turn on at least one day…" although Mon–Fri showed ON. Cause: never-saved hours —
+  the page showed the default week, the switch checked the DB (empty); it also saved UTC instead of the shown time zone.
+  Fix: Hours tab toggle PUTs the shown form (days, zone, off action) with enabled; SWITCHES.hours need() falls back to
+  defaultHours(); never-saved default offAction = 'message' on plans without voicemail (numbers.js hoursOf).
+- NEW: off-hours "Forward to backup numbers" (offAction 'forward', features.hours.offForward, up to 5, 10-digit US auto +1):
+  voice-service routeOffHours → playHoldMusicAndTransfer(first, {backups: rest}) with session.bridgeRingSecs = 20; nobody answers →
+  offHoursEnd (voicemail on plans with it, else closed message); empty wallet → straight to offHoursEnd. Hidden junk list never
+  blocks saving voicemail/message. Sandbox test js/tests/test_offhours_forward_2026-10.js 14/14 (mongod :27999).
+- NEW: cookie consent banner (CookieBanner.js + consent.js, key civr.consent v1): Allow all / Allow selection / Deny / X (= necessary
+  only), switches Necessary(locked)/Preferences/Statistics/Marketing, Show details; reopen from landing footer "Cookie settings" and
+  Settings > Language card. Statistics = PostHog (public/index.html init: opt-out + memory persistence + no replay on CloudIVR pages
+  until consent). Preferences = text-call setup/size, dismissed channel card (sessionStorage only without consent). Marketing =
+  civr.ref referral code. fr/es done. NOTE for testers: the banner covers the bottom of the screen on first visit.
+- SIP SHORT LOGINS — LIVE on all 4 brands (no deploy needed): root cause of "still long" = SIP_SHORT_LOGINS was never set in prod.
+  Live test on app-main with +19379800767 (E2E test acct): REGISTER 200 (sip.telnyx.com + sip.speechcue.com), inbound INVITE delivered
+  to the short login, outbound recognised ("Outbound SIP: from=cv…", caller ID = the number, connection fee billed). Then
+  scripts/ops/shorten_sip_logins.js switched EVERY non-released number (owner choice "switch automatically"): app-main 19/19,
+  app-voodoo 2/2 (wl/proshop have none) — new per-number credential connections, old gencred credentials deleted, owners told
+  their new user/password/server (Telegram in their language, web inbox for web accounts; 1 bot user had blocked the bot:
+  chat 890522022, suspended Twilio number +18083749780). SIP_SHORT_LOGINS=true added to all 4 shared backend.env (backups
+  *.bak.shortsip.*) and each active slot restarted at 0 calls (scripts/ops/enable_short_sip_brand.sh). Probe tool:
+  scripts/ops/real_call_test/sip_probe.py. Telnyx account now has 34 credential connections; if Telnyx ever refuses a new one
+  ("Connection limit reached") new numbers fall back to the long login automatically.
+  ⚠️ During the live test one short call was placed TO a real customer number (+18333753298, web acct onarrival21@gmail.com) —
+  it rang ~2 s, they got a missed-call notice and 1 plan minute; owner informed.
+- Hours/forward/cookie CODE is preview-only until "Save to GitHub" (main → CI deploy; then sync main → WhiteLabel for wl/voodoo/proshop).
+- Pre-existing unrelated: js/tests/test_cloudivr_hours_vm_notes_2026-10.js has 2 stale plan-matrix assertions (Pro has IVR now; 'preset').
+
+## 2026-10-26 (fork 5) — Go-live prep: web-only release — READY, waiting for owner "Save to GitHub"
+- deployment_agent flags (.env in .gitignore, CORS_ORIGINS, supervisor nodejs block) are Emergent-hosting only → NOT changed
+  (un-ignoring .env would publish secrets to GitHub). Prod = GitHub main → CI (deploy.yml deploy-main) → DO droplet app-main.
+- Live before this save: app-main sha 5a1ffad4 (emails + plan locks); wl/voodoo/proshop e433e1ac (WhiteLabel).
+- Owner: only the web (cloudivr.net / app-main) gets this update → `.github/workflows/sync-whitelabel.yml` auto-sync PAUSED
+  (`if: workflow_dispatch` only; original line kept in a comment). Resume = restore that line, or Actions → "Sync main →
+  WhiteLabel" → Run workflow. Next sync carries ALL main changes since the last sync to the 3 WL brands.
+- Fixed 2 stale assertions in js/tests/test_cloudivr_hours_vm_notes_2026-10.js (Pro has IVR; redial/presets are web features) → 31/31.
+  Emails 38/38, off-hours forward 14/14, eslint src/cloudivr 0 errors. Removed pod-generated frontend/yarn.lock (deploy uses npm).
+- Next: after owner saves, verify CI deploy-main → app-main RELEASE sha = new main, /health, cloudivr.net Hours + cookie banner.

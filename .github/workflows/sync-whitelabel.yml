@@ -46,8 +46,9 @@ concurrency:
 jobs:
   sync:
     name: Sync main → WhiteLabel
-    # Manual runs always go; automatic runs unless WL_AUTO_SYNC is set to 'false'.
-    if: ${{ github.event_name == 'workflow_dispatch' || vars.WL_AUTO_SYNC != 'false' }}
+    # PAUSED 2026-10-26 (owner: web-only release) — manual runs only. To resume auto-sync restore:
+    # if: ${{ github.event_name == 'workflow_dispatch' || vars.WL_AUTO_SYNC != 'false' }}
+    if: ${{ github.event_name == 'workflow_dispatch' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:

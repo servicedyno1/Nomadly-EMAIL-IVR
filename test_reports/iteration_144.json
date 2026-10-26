@@ -1,0 +1,46 @@
+{
+  "summary": "Tested the CloudIVR Hours toggle fix, off-hours forwarding to backup numbers (API and UI), the cookie consent banner (desktop, mobile, FR/ES, effects on PostHog and storage, reopening it) and FR/ES strings, plus a regression pass. Everything requested works. Backend: 14 of 14 new pytest tests pass, and the sandbox voice test js/tests/test_offhours_forward_2026-10.js passes 14 of 14 (run on a temporary mongod on port 27999). To reproduce the never-saved case, features.hours was removed from +13313039088 in Mongo before the UI tests. Found 2 minor UX/code issues and no blockers.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "PUT /api/cloudivr-web/numbers/{phone}/hours", "issue": "offForward is checked even when offAction is 'voicemail' or 'message'. If the user types junk (e.g. 'abc') in Backup numbers, switches to Voicemail or Closed message and clicks Save, they get 'Backup \"abc\" is not a phone number…' about a field that is now hidden (confirmed by API: 400 invalid_backup with offAction=message). Fix: only run parseBackups when offAction==='forward' (otherwise keep or clear the list), or send offForward from the UI only in forward mode."},
+      {"endpoint": "GET /api/cloudivr-web/numbers/{phone}/hours (never saved)", "issue": "defaultHours() returns offAction 'voicemail' even for a Starter number (+13313039088), which has no voicemail. PUT later changes it to 'message'. Cosmetic: the first view of a never-saved Starter number may preselect a voicemail option that the plan does not have."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Cookie banner", "issues": ["Looks good. Desktop: logo left, text middle, 3 stacked buttons right, switches row below. Mobile 390: scrollWidth 390, buttons 332px full width, the X is reachable, and the card scrolls when details are open (960/715). Nit: the off switches are dark navy on the white card; they are readable but stand out more than the 'on' pill."]}
+    ]
+  },
+  "passed_items": [
+    "Hours tab on never-saved +13313039088: the toggle turns ON with toast 'Weekly schedule turned on', pill shows 'Open now'. A Saturday ON change and the Europe/London time zone were kept after reload. Toggling OFF shows 'Weekly schedule turned off'.",
+    "Numbers list card switch number-card-2-switch-hours turns on for a never-saved number (toast 'Hours on' with Undo, no 'Turn on at least one day' error) and turns off again.",
+    "Forward UI on Pro +13313039077: 6 numbers gives 'Add up to 5 backup numbers.', empty gives 'Add at least one backup number to forward to.', 'abc' gives the 'not a phone number' error. '+14155550101, 4155550102' saves ('Hours saved'); after reload the select is still forward and the input shows '+14155550101, +14155550102'. The Pro hint mentions voicemail; the Starter hint mentions the closed message. Voicemail and message actions still save.",
+    "API: offForward as a string or array is normalized and deduped, the number itself is excluded, only-self gives no_backup, 5 numbers OK / 6 rejected, GET returns the list. PATCH switch hours works on never-saved hours and gives 400 not_configured when all days are off. Unauthenticated request gets 401.",
+    "Cookie banner: all data-testids present. The Necessary switch is disabled and on. Details expand to 4 categories and the link changes to 'Hide details'. X and Deny store all optional=false; Allow all stores all true; Allow selection stores the chosen switches; stored object has v:1, necessary:true and at. The banner does not return on reload, /cloudivr/login, /cloudivr/signup or the app.",
+    "PostHog: with no consent or after Deny, has_opted_out_capturing()=true and there are 0 ph_ cookies or localStorage keys. After Allow all or statistics only it is false and ph_ storage is present.",
+    "Referral: with marketing off, civr.ref goes to sessionStorage only; with marketing on, it goes to localStorage. The 'A friend invited you' note shows in both cases.",
+    "Reopening: the footer 'Cookie settings' link and Settings 'Cookie settings' / 'Paramètres des cookies' / 'Configuración de cookies' reopen the banner with the saved switches already set; a new choice replaces the old one.",
+    "FR/ES: banner title, text, buttons, switches and details are translated. Hours strings (off-action options, backup hint, toggle toasts 'Planning hebdomadaire activé/désactivé', 'Horario semanal activado/desactivado') are translated. Email notification toasts read 'Résumé hebdomadaire : activé/désactivé' and 'Resumen semanal: activado/desactivado'.",
+    "Regression: login, Settings (all cards incl. Email notifications), Numbers list, Forwarding tab and the landing page pricing load with no page errors or crash screens."
+  ],
+  "test_report_links": ["/app/backend/tests/test_cloudivr_iter144_hours_offforward.py", "/app/test_reports/pytest/pytest_iter144.xml", "/app/js/tests/test_offhours_forward_2026-10.js"],
+  "action_items": [
+    "(minor) PUT /numbers/:phone/hours: skip or ignore offForward validation unless offAction==='forward', so junk in the hidden backup field does not block saving voicemail or message.",
+    "(minor) Base the never-saved default offAction on the plan (use 'message' when the plan has no voicemail), or let the frontend adjust it.",
+    "(nit) AuthContext sign-out removes civr.relayPrefs from localStorage only. When preferences are off it lives in sessionStorage, so it survives sign-out in the same tab. Also clear sessionStorage keys (civr.relayPrefs, civr_relay_*, civr.channelCard.*)."
+  ],
+  "critical_code_review_comments": [
+    "numbers.js PUT /hours: parseBackups always runs on req.body.offForward, so a non-forward save can fail on a hidden field (see action item).",
+    "consent.js: remember/recall/move logic is correct. WhatsNew.js and SupportChat.js still write localStorage directly. That is acceptable as 'necessary' (seen version, chat visitor id), but the Necessary description could mention the support chat id."
+  ],
+  "updated_files": ["/app/backend/tests/test_cloudivr_iter144_hours_offforward.py"],
+  "success_rate": {"backend": "100% (14/14 pytest + 14/14 sandbox node test)", "frontend": "100% of requested flows"},
+  "seed_data_creation": "None. To reproduce the never-saved case, features.hours on +13313039088 was removed in Mongo (test DB, chatId 5000000000000001); it is now saved again (offAction message, schedule OFF). State is restored: +13313039077 forward with 5 backups, schedule OFF; +13313039039 voicemail, schedule OFF.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Use the civr.consent localStorage key to skip the banner. Do not remove sonner toast DOM nodes manually from Playwright: it crashes React (insertBefore NotFoundError), which is a test artifact. To recreate a never-saved Hours state, $unset features.hours for the number in phoneNumbersOf (DB 'test'). The sandbox voice test needs: mongod --port 27999 --dbpath /tmp/mdb27999 --fork.",
+  "test_credentials": "civr.alice@example.com / AliceTest#2026 (from /app/memory/test_credentials.md and the request)"
+}

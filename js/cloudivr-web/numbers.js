@@ -38,6 +38,9 @@ function parseBackups(raw, exclude = [], max = 4) {
   return { list }
 }
 
+// Saved hours, or the default Mon–Fri schedule (closed message instead of voicemail on plans without voicemail).
+const hoursOf = (n) => n.features?.hours || { ...numberHours.defaultHours(), offAction: phoneConfig.canAccessFeature(n.plan, 'voicemail') ? 'voicemail' : 'message' }
+
 // Same Telnyx catalogue the bot shows (US/CA + international, incl. countries that need ID checks).
 function countries() {
   const intl = phoneConfig.isTelnyxIntlEnabled() ? [...phoneConfig.telnyxIntlCountries, ...phoneConfig.telnyxIntlMore] : []
@@ -137,7 +140,7 @@ function publicNumber(n, numbers) {
     features: {
       callForwarding: { enabled: false, mode: 'disabled', forwardTo: null, ringTimeout: 25, holdMusic: false, backups: [], ...(f.callForwarding || {}) },
       voicemail: publicVoicemail(f.voicemail),
-      hours: f.hours || numberHours.defaultHours(),
+      hours: hoursOf(n),
       smsForwarding: f.smsForwarding || { toTelegram: true, toEmail: null, webhookUrl: null },
       fax: { toInbox: f.faxForwarding?.toTelegram !== false },
       recording: !!f.recording,
@@ -537,15 +540,16 @@ function routes(router, deps) {
     try { value = numberHours.validateHours(req.body) } catch (e) { return bad(res, 400, 'invalid_hours', e.message) }
     if (value.offAction === 'voicemail' && !phoneConfig.canAccessFeature(req.num.plan, 'voicemail')) value.offAction = 'message'
     const bk = parseBackups(req.body.offForward, [req.num.phoneNumber], 5)
-    if (bk.error) return bad(res, 400, 'invalid_backup', bk.error)
+    if (value.offAction === 'forward' && bk.error) return bad(res, 400, 'invalid_backup', bk.error)
     if (value.offAction === 'forward' && !bk.list.length) return bad(res, 400, 'no_backup', 'Add at least one backup number to forward to.')
-    value.offForward = bk.list
+    // Other off actions keep the list for later; a half-typed (hidden) list never blocks saving them.
+    value.offForward = bk.error ? (req.num.features?.hours?.offForward || []) : bk.list
     await setField(req.webChatId, req.num.phoneNumber, 'features.hours', value)
     res.json({ hours: value, openNow: numberHours.isOpen(value) })
   }))
 
   router.get('/numbers/:phone/hours', withNumber(async (req, res) => {
-    const hours = req.num.features?.hours || numberHours.defaultHours()
+    const hours = hoursOf(req.num)
     res.json({ hours, openNow: numberHours.isOpen(hours) })
   }))
 
