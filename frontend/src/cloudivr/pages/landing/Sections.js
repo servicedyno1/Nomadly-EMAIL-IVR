@@ -74,7 +74,7 @@ export function HowItWorks({ catalog }) {
   const steps = [
     [UserPlus, 'Create a free account', 'Email and password or Google. No card, no contract.'],
     [Hash, 'Pick a number and plan', 'Choose a country, number type and plan. Auto-renew is on so it never lapses — switch it off any time.'],
-    [Wallet, 'Pay with crypto or wallet', `${coinList(catalog) || 'Crypto'}, or your CloudIVR wallet (top-ups from ${usd(catalog?.minTopup || 10)}). Most numbers are live in about a minute.`],
+    [Wallet, 'Pay your way', `Credit or debit card, crypto (${coinList(catalog) || 'BTC, ETH, USDT and more'}) or your CloudIVR wallet. Most numbers are live in about a minute.`],
   ];
   return (
     <section id="how" className="civr-l-cream civr-l-soft scroll-mt-16 border-t civr-l-rule" data-testid="how-section">

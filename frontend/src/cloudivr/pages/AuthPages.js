@@ -11,7 +11,7 @@ import { cp } from '../paths';
 import { BRAND, Wordmark } from '../Brand';
 import { TwoFactorStep, RememberBox, useRefCode } from './auth/TwoFactorStep';
 
-const NEXT_STEPS = ['Pick a number and plan', 'Pay with crypto or your wallet', 'Choose what callers hear'];
+const NEXT_STEPS = ['Pick a number and plan', 'Pay by card, crypto or wallet', 'Choose what callers hear'];
 
 // Plan picked on the pricing section (?plan=pro) — kept through sign-up so Buy opens with it selected.
 function usePlanParam() {
@@ -124,7 +124,7 @@ export function AuthPage({ mode }) {
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
   return (
     <AuthFrame signup={signup} testid={signup ? 'signup-page' : 'login-page'} title={signup ? 'Create your free account' : 'Welcome back'}
-      sub={signup ? 'Free to create. Next you pick a number and pay with crypto or your wallet.' : 'Sign in to manage your numbers.'}>
+      sub={signup ? 'Free to create. Next you pick a number and choose how to pay.' : 'Sign in to manage your numbers.'}>
       {mfa ? <TwoFactorStep mfa={mfa} remember={remember} onDone={done} onBack={() => setMfa(null)} /> : <>
       {plan && <div className="flex items-center gap-2 text-sm text-[#818cf8] mb-6" data-testid="auth-chosen-plan"><Check className="w-4 h-4" /><span><span className="capitalize">{plan}</span> plan picked — you’ll choose your number next.</span></div>}
       {signup && refCode && <div className="flex items-center gap-2 text-sm text-[#818cf8] mb-6" data-testid="auth-referral-note"><Check className="w-4 h-4" />A friend invited you — you get a welcome credit after your first number.</div>}

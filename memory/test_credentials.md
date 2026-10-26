@@ -113,6 +113,11 @@
   `7a5fcad8-2523-4366-8267-2b30a3183f1d`, voicemail log `6ade2df3f74a7e050f46a259` (summarised), wallet ~$304.90. Tester left Alice's
   Text Triggers / ring group / AI summaries / webhook OFF (rules kept). SSH keys restored via `scripts/restore_infra_keys.sh` (read-only prod checks).
 
+## CloudIVR free Quick IVR call (2026-10-26)
+- QA account with NO numbers (free-call eligible): `qa.trial1793002485@example.com` / `QaTest#2026x` (webChatId `5000000000000003`, DB `test`).
+- Reset its free call: `mongosh test --eval 'db.webPrefs.updateOne({_id:"5000000000000003"},{$set:{ivrTrialUsed:false},$unset:{ivrTrialPendingAt:""}}); db.state.deleteOne({_id:"ivrTrialUsed_5000000000000003"})'`
+- Preview OTP calls are SIMULATED (callControlId `sim-…`): ringing → playing → code after ~11 s; Accept / Decline / Hang up on the Quick IVR page or Inbox.
+
 ## Environment notes
 - Linkly (Shortit "Random" link provider since 2026-10-22): `LINKLY_API_KEY` (secret, in vault + all 4 droplet
   backend.env), `LINKLY_WORKSPACE_ID="414714"`. FREE plan = 100 links total across ALL bots — tests must create as few

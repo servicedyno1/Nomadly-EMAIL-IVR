@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Wallet as WalletIcon, Bitcoin, Loader2, Check, Ticket, X } from 'lucide-react';
+import { Wallet as WalletIcon, Bitcoin, Loader2, Check, Ticket, X, CreditCard } from 'lucide-react';
 import { api, money, useApi } from '../../api';
 import { Field, Toggle } from '../../ui';
 
@@ -10,6 +10,16 @@ function Option({ on, onClick, icon: Icon, title, sub, testid }) {
       <div className="flex-1"><div className="font-semibold">{title}</div><div className="text-xs text-[#a1a1aa] mt-1">{sub}</div></div>
       {on && <Check className="w-4 h-4 text-[#818cf8] shrink-0" />}
     </button>
+  );
+}
+
+// Card payments are not switched on yet: shown, but disabled, wherever you can pay.
+export function CardComingSoon({ testid = 'card-coming-soon', className = '' }) {
+  return (
+    <div aria-disabled="true" className={`civr-card p-4 flex gap-4 items-start opacity-70 cursor-not-allowed ${className}`} data-testid={testid}>
+      <CreditCard className="w-5 h-5 mt-0.5 shrink-0 text-[#a1a1aa]" />
+      <div className="flex-1"><div className="font-semibold flex flex-wrap items-center gap-2">Credit / debit card<span className="civr-pill !text-[10px]" data-testid={`${testid}-badge`}>Coming soon</span></div><div className="text-xs text-[#a1a1aa] mt-1">Visa, Mastercard and more — available soon.</div></div>
+    </div>
   );
 }
 
@@ -54,10 +64,11 @@ export default function Checkout({ pick, planObj, total, balance, coins, busy, o
         <div className="flex-1"><div className="font-mono text-xl" data-testid="buy-summary-number">{pick.phoneNumber}</div><div className="text-sm text-[#a1a1aa]">{label || `${planObj?.name} plan · monthly`}</div></div>
         <div className="text-right">{coupon && <div className="font-mono text-sm text-[#a1a1aa] line-through" data-testid="buy-total-before">{money(total)}</div>}<div className="font-mono text-3xl" data-testid="buy-total">{money(due)}</div>{coupon && <div className="text-xs text-[#a1a1aa]">first month · then {money(total)}/month</div>}</div>
       </div>
-      <div className="grid sm:grid-cols-2 gap-3 mt-6">
+      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3 mt-6">
         <Option on={method === 'wallet'} onClick={() => setMethod('wallet')} icon={WalletIcon} title="Pay from wallet" sub={`Balance ${money(balance)}${short > 0 ? ` · ${money(short)} short` : ' · activates instantly'}`} testid="civr-checkout-wallet-option" />
         {cryptoOk ? <Option on={method === 'crypto'} onClick={() => setMethod('crypto')} icon={Bitcoin} title="Pay with crypto" sub="Send the exact price — the number activates once the network confirms." testid="civr-checkout-crypto-option" />
           : <div className="civr-card p-4 text-xs text-[#a1a1aa] flex gap-3"><Bitcoin className="w-5 h-5 shrink-0 text-[#a1a1aa]" />Crypto isn’t available for this payment. Pay from your wallet — short? Add funds with crypto first.</div>}
+        <CardComingSoon testid="civr-checkout-card-option" />
       </div>
       {setCoupon && <CouponField total={total} coupon={coupon} setCoupon={setCoupon} initialCode={initialCode} />}
       {method === 'crypto' && (

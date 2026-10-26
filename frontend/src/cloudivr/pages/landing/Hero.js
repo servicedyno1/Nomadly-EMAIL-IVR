@@ -50,7 +50,7 @@ export function Hero({ catalog }) {
   const from = startPrice(catalog);
   const n = catalog?.countries?.length || 17;
   const t = TITLE[useLang().lang] || TITLE.en;
-  const trust = ['No contracts', 'Pay with crypto', 'Live in minutes'];
+  const trust = ['No contracts', 'Cards & crypto accepted', 'Live in minutes'];
   return (
     <section className="civr-l-cream relative overflow-hidden pt-32 md:pt-40" data-testid="civr-hero">
       <div className="absolute inset-0 civr-l-gridbg civr-l-mask" />

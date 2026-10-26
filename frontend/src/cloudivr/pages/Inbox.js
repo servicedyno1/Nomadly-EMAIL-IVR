@@ -12,6 +12,7 @@ import { RING_ENDED } from '../Incoming';
 import { useLangTick } from '../i18n';
 import { useSearch, SearchBox, NoMatches } from '../search';
 import { QuickReply, SMS_REPLIES } from '../QuickReply';
+import { OtpLive } from './quick/Otp';
 
 const KINDS = [['', 'All', InboxIcon], ['sms', 'SMS', MessageSquare], ['voicemail', 'Voicemail', Voicemail], ['call', 'Calls', Phone], ['campaign', 'Campaigns', Megaphone], ['wallet', 'Wallet', Wallet], ['billing', 'Billing', Receipt], ['coupon', 'Coupons', Ticket], ['info', 'Other', Info]];
 const ICON = Object.fromEntries(KINDS.map(([k, , I]) => [k, I]));
@@ -113,6 +114,7 @@ export default function Inbox() {
                   {n.mediaUrl && /\.(mp3|wav|ogg)(\?|$)/i.test(n.mediaUrl) && <audio controls preload="none" src={playUrl(n.mediaUrl)} className="relative z-10 h-9 mt-2" data-testid={`inbox-item-${i}-audio`} />}
                   {n.meta?.coupon && !n.meta.used && !(today?.coupon?.used && today.coupon.code === n.meta.coupon) && <Link to={cp(`/app/buy?coupon=${encodeURIComponent(n.meta.coupon)}`)} className="relative z-10 civr-btn civr-btn-ghost civr-btn-sm mt-2" data-testid={`inbox-item-${i}-use-coupon`}><Ticket className="w-4 h-4" />Use coupon {n.meta.coupon}</Link>}
                   {n.canReply && <SmsReply n={n} i={i} pv={pv} onReplied={onReplied} />}
+                  {n.meta?.otp?.callControlId && Date.now() - new Date(n.createdAt).getTime() < 15 * 60000 && <OtpLive ccid={n.meta.otp.callControlId} compact testid={`inbox-item-${i}-otp`} />}
                   <div className="flex items-center gap-3 text-xs text-[#a1a1aa] mt-2">
                     <span>{when(n.createdAt)}</span>
                     {n.link && <span className="inline-flex items-center gap-0.5 text-[#818cf8]/80" data-testid={`inbox-item-${i}-open-hint`}>{OPENS[n.kind] || 'Open'}<ChevronRight className="w-3 h-3" /></span>}

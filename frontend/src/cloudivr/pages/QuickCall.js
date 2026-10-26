@@ -14,6 +14,7 @@ import { MenuBuilder, menuToApi } from './quick/MenuBuilder';
 import { RecentCalls, ScheduledCalls, MenuStats, Presets } from './quick/Side';
 import { TrialCall } from './quick/Trial';
 import { useDraft, DraftBanner } from './quick/Draft';
+import { OtpLive, OtpHowTo } from './quick/Otp';
 
 // Active numbers allowed to place outbound IVR calls for `feature`.
 export function useCallerNumbers(feature) {
@@ -27,7 +28,7 @@ const Pill = ({ on, onClick, children, testid, locked }) => <button type="button
 
 function toBody(f, callerId) {
   const msg = f.source === 'audio' ? { audioId: f.audioId } : { text: fillScript(f.script.text, f.script.values), voice: f.voice || undefined, templateName: f.script.templateName || 'Custom script' };
-  const action = f.mode === 'otp' ? { otp: f.otp } : f.mode === 'menu' ? { menu: menuToApi(f.menu) } : { transferTo: f.transferTo, transferBackups: f.transferBackups, activeKeys: f.activeKeys };
+  const action = f.mode === 'otp' ? { otp: f.otp, transferTo: f.transferTo } : f.mode === 'menu' ? { menu: menuToApi(f.menu) } : { transferTo: f.transferTo, transferBackups: f.transferBackups, activeKeys: f.activeKeys };
   return { callerId, targets: f.targets, holdMusic: f.holdMusic, mode: f.mode === 'otp' ? 'otp' : 'transfer', ...msg, ...action, ...(f.scheduleAt ? { scheduleAt: new Date(f.scheduleAt).toISOString() } : {}) };
 }
 
@@ -66,11 +67,13 @@ function Answer({ f, set, isBiz }) {
         <div className="flex items-center justify-between"><span className="text-sm">Hold music while connecting</span><Toggle checked={f.holdMusic} onChange={(v) => set({ holdMusic: v })} testid="quick-call-hold-music-toggle" /></div>
       </>}
       {f.mode === 'otp' && <div className="space-y-4" data-testid="quick-otp-fields">
-        <Field label="Code length" hint="They get 3 tries. The code shows up in your Inbox."><select className="civr-input !w-40" value={f.otp.length} onChange={e => set({ otp: { ...f.otp, length: Number(e.target.value) } })} data-testid="quick-otp-length">{[4, 5, 6, 8].map(n => <option key={n} value={n}>{`${n} digits`}</option>)}</select></Field>
+        <OtpHowTo />
+        <Field label="Code length" hint="They get 3 tries."><select className="civr-input !w-40" value={f.otp.length} onChange={e => set({ otp: { ...f.otp, length: Number(e.target.value) } })} data-testid="quick-otp-length">{[4, 5, 6, 8].map(n => <option key={n} value={n}>{`${n} digits`}</option>)}</select></Field>
         {isBiz ? <div className="grid sm:grid-cols-2 gap-3">
           <Field label="Said after a valid code (optional)"><input className="civr-input" value={f.otp.confirmMsg} onChange={e => set({ otp: { ...f.otp, confirmMsg: e.target.value } })} placeholder="Thank you, your code is confirmed." data-testid="quick-otp-confirm" /></Field>
           <Field label="Said after a wrong code (optional)"><input className="civr-input" value={f.otp.rejectMsg} onChange={e => set({ otp: { ...f.otp, rejectMsg: e.target.value } })} placeholder="That code was not valid." data-testid="quick-otp-reject" /></Field>
-        </div> : <div className="text-xs text-[#a1a1aa]">Custom confirm / reject messages are on the Business plan.</div>}
+        </div> : <div className="text-xs text-[#a1a1aa]" data-testid="quick-otp-custom-locked">Custom accept / decline messages are on the Business plan.</div>}
+        <Field label="Connect them after you accept (optional)" hint="Leave empty to end the call after the confirmation."><input className="civr-input font-mono" value={f.transferTo} onChange={e => set({ transferTo: e.target.value })} placeholder="+14155550199" data-testid="quick-otp-connect-input" /></Field>
       </div>}
       {f.mode === 'menu' && <MenuBuilder value={f.menu} onChange={(v) => set({ menu: v })} testid="quick-menu" />}
     </div>
@@ -129,15 +132,16 @@ export default function QuickCall() {
             <Section n="2" title="What they hear"><Message f={f} set={set} audios={audios} reloadAudio={reloadAudio} /></Section>
             <Section n="3" title="When they press a key"><Answer f={f} set={set} isBiz={isBiz} /></Section>
             <Section n="4" title="When to call">
-              {isBiz ? <Field label="Schedule (optional)" hint="5 minutes to 24 hours from now. Leave empty to call now."><DateTimePicker value={f.scheduleAt} onChange={(v) => set({ scheduleAt: v })} maxDays={1} testid="quick-schedule" /></Field>
-                : <div className="text-sm text-[#a1a1aa]" data-testid="quick-schedule-locked">Calls start right away. Scheduling, presets and redial are on the Business plan.</div>}
+              <Field label="Schedule (optional)" hint="5 minutes to 24 hours from now. Leave empty to call now."><DateTimePicker value={f.scheduleAt} onChange={(v) => set({ scheduleAt: v })} maxDays={1} testid="quick-schedule" /></Field>
+              {!isBiz && <div className="text-xs text-[#a1a1aa]" data-testid="quick-redial-locked">Redial and custom accept / decline messages are on the Business plan.</div>}
               <ErrorNote error={error} testid="quick-call-error" />
               {result && <div className="civr-card p-4 text-sm" data-testid="quick-call-result">{result.message || (result.scheduled ? `Scheduled ${result.scheduled} call(s).` : `Started ${result.started} call(s) · about $${Number(result.rate).toFixed(2)}/min.`)}</div>}
+              {result?.mode === 'otp' && (result.results || []).filter(r => r.callControlId).map((r, i) => <OtpLive key={r.callControlId} ccid={r.callControlId} testid={`quick-otp-live-${i}`} />)}
               <button className="civr-btn civr-btn-primary" disabled={busy} data-testid="quick-call-submit-button">{busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <PhoneOutgoing className="w-4 h-4" />}{f.scheduleAt ? 'Schedule call' : 'Place call'}</button>
             </Section>
           </form>
           <div className="space-y-4">
-            {isBiz && <Presets stamp={stamp} onLoad={loadPreset} current={() => ({ ...toBody({ ...f, scheduleAt: '' }, caller.phoneNumber), targets: undefined, ui: { ...f, targets: '', scheduleAt: '' } })} />}
+            <Presets stamp={stamp} onLoad={loadPreset} current={() => ({ ...toBody({ ...f, scheduleAt: '' }, caller.phoneNumber), targets: undefined, ui: { ...f, targets: '', scheduleAt: '' } })} />
             <ScheduledCalls stamp={stamp} />
             <RecentCalls isBiz={isBiz} stamp={stamp} onDone={() => setStamp(s => s + 1)} />
             <MenuStats />

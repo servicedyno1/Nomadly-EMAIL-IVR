@@ -2,7 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import QRCode from 'react-qr-code';
-import { Wallet as WalletIcon, Copy, Loader2, RefreshCw, AlertTriangle, Info, Coins, Receipt, Plus } from 'lucide-react';
+import { Wallet as WalletIcon, Copy, Loader2, RefreshCw, AlertTriangle, Info, Coins, Receipt, Plus, Check } from 'lucide-react';
+import { CardComingSoon } from './buy/Checkout';
 import { api, useApi, money, when } from '../api';
 import { useShell } from '../Shell';
 import { PageHeader, Field, SkeletonCard, SkeletonRows, Empty, ErrorNote, statusPill, useIsPhone } from '../ui';
@@ -56,7 +57,11 @@ function TopUp({ coins, min, initial, onCreated }) {
   };
   return (
     <form onSubmit={go} noValidate className="civr-card p-6 space-y-6" data-testid="wallet-topup-form">
-      <div className="font-display text-2xl font-bold">Add funds with crypto</div>
+      <div className="font-display text-2xl font-bold">Add funds</div>
+      <div className="grid sm:grid-cols-2 gap-3" data-testid="wallet-pay-methods">
+        <div className="civr-card civr-trace p-4 flex gap-4 items-start" data-testid="wallet-method-crypto"><Coins className="w-5 h-5 mt-0.5 shrink-0 text-[#818cf8]" /><div className="flex-1"><div className="font-semibold">Crypto</div><div className="text-xs text-[#a1a1aa] mt-1">{`${coins.map(c => c.replace(/\s*\(.*\)/, '')).filter((c, i, a) => a.indexOf(c) === i).slice(0, 4).join(', ')} and more`}</div></div><Check className="w-4 h-4 text-[#818cf8] shrink-0" /></div>
+        <CardComingSoon testid="wallet-method-card" />
+      </div>
       <div className="flex flex-wrap gap-2">{PRESETS.map(p => <button type="button" key={p} onClick={() => setAmount(p)} className={`civr-pill civr-preset cursor-pointer ${Number(amount) === p ? 'civr-pill-on' : ''}`} data-testid={`wallet-preset-${p}`}>${p}</button>)}</div>
       <div className="grid sm:grid-cols-2 gap-4">
         <Field label={`Amount (USD, min $${min})`}><input type="number" min={min} max={10000} step="1" className="civr-input font-mono" value={amount} onChange={e => setAmount(e.target.value)} data-testid="wallet-amount-input" /></Field>

@@ -7,6 +7,7 @@ import { cp } from '../../paths';
 import { Wordmark } from '../../Brand';
 import { SectionHead, Slide, coinList, andList, Reveal } from './kit';
 import { PlanFeatures, RecommendedBadge } from '../../PlanFeatures';
+import { PaymentMethods } from './Payments';
 
 const useStart = () => { const { account } = useCivrAuth(); return (plan) => (account ? cp(`/app/buy${plan ? `?plan=${plan}` : ''}`) : cp(`/signup${plan ? `?plan=${plan}` : ''}`)); };
 
@@ -30,13 +31,14 @@ export function Pricing({ catalog }) {
   return (
     <section id="pricing" className="civr-l-cream scroll-mt-16 border-t civr-l-rule" data-testid="pricing-section">
       <div className="max-w-7xl mx-auto px-6 md:px-8 py-24">
-        <SectionHead label="Pricing" title="Monthly per number. Cancel any time." sub="Free to sign up. Pay for a number with crypto or from your wallet. Auto-renew keeps it yours — switch it off whenever you like." />
+        <SectionHead label="Pricing" title="Monthly per number. Cancel any time." sub="Free to sign up. Pay by card, crypto or from your wallet. Auto-renew keeps it yours — switch it off whenever you like." />
         <div className="grid md:grid-cols-3 gap-4 mt-12 items-stretch">{plans.map((p, i) => <PlanCard key={p.id} p={p} hot={hasRec ? p.recommended : i === 1} start={start} delay={i * 120} />)}</div>
         {r && (
           <p className="text-sm text-slate-500 mt-8 max-w-3xl" data-testid="pricing-extra-usage">
             {`Extra usage is paid from your wallet: incoming minutes over your plan ${money(r.overagePerMin)}/min, SMS over your plan ${money(r.overagePerSms)} each, calls forwarded to a phone ${money(r.forwardingPerMin)}/min. Outgoing calls — browser phone, softphone, IVR and AI agent calls — are billed per minute from your wallet and show their price before you start. Extra numbers cost from ${usd(catalog?.extraNumber?.price || 25)}/month each and share the plan's minutes and SMS.`}
           </p>
         )}
+        <PaymentMethods catalog={catalog} className="mt-10 pt-8 border-t civr-l-rule" testid="pricing-payment-methods" />
       </div>
     </section>
   );
@@ -52,7 +54,7 @@ export function faqItems(c) {
   return [
     ['Can I try it before I pay?', 'Yes, twice. Without an account: confirm your email with a 6-digit code and take one free test call of up to 60 seconds — we ring your phone with a demo menu, or you call from your browser. After you sign up: place one free Quick IVR call from our number — it plays your script to anyone you choose and connects them to you when they press 1.'],
     ['Is the account really free?', `Yes. Creating an account costs nothing. You only pay when you buy a number${from ? ` (from ${from}/month)` : ''}, plus any extra usage.`],
-    ['How do I pay?', `Pay for a number directly with ${coinList(c) || 'crypto'}, or top up your CloudIVR wallet (from ${usd(c?.minTopup || 10)}) and pay from it. Renewals and calls are paid from the wallet.`],
+    ['How do I pay?', `By credit or debit card, with crypto (${coinList(c) || 'BTC, ETH, USDT and more'}), or from your CloudIVR wallet (top-ups from ${usd(c?.minTopup || 10)}). Renewals and calls are paid from the wallet. Card payments are being switched on — until then they show as “coming soon” in the app.`],
     ['Which plan has the keypad menu (IVR)?', ivr === ai
       ? `The keypad menu and AI voice agents are on the ${ivr} plan. Pro adds voicemail, the browser phone and SIP, call recording, Quick IVR calls, Bulk IVR campaigns and text calls; Starter covers call forwarding and the SMS inbox.`
       : `The keypad menu is on the ${ivr} plan, and AI voice agents on the ${ai} plan. Pro adds voicemail, the browser phone and SIP, call recording, Quick IVR calls, Bulk IVR campaigns and text calls; Starter covers call forwarding and the SMS inbox.`],
@@ -114,6 +116,7 @@ export function Footer({ catalog }) {
         <div className="mr-auto">
           <div className="font-display text-2xl font-extrabold text-slate-900 flex items-center gap-2" data-testid="landing-footer-logo"><Wordmark accent="#059669" iconClass="w-8 h-8" /></div>
           <div className="text-xs text-slate-500 mt-2" data-testid="footer-copyright">© {new Date().getFullYear()} CloudIVR · Virtual numbers, IVR, SIP and AI voice agents</div>
+          <PaymentMethods catalog={catalog} label="We accept" className="mt-6" testid="footer-payment-methods" />
         </div>
         <nav className="flex flex-wrap items-center gap-x-6">
           {links.map(([href, label, id]) => <a key={id} href={`${cp()}${href}`} className={link} data-testid={`footer-link-${id}`}>{label}</a>)}

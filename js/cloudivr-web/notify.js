@@ -52,7 +52,12 @@ function attach(bot) {
       return FAKE(chatId)
     }
   }
-  wrap('sendMessage', (id, text) => { push(id, text).catch(() => {}) })
+  // "Code collected" prompts carry the bot's Confirm / Reject buttons → keep the call id so the Inbox can show Accept / Decline.
+  const otpExtra = (opts) => {
+    const cb = (opts?.reply_markup?.inline_keyboard || []).flat().map(b => b?.callback_data || '').find(d => d.startsWith('otp_confirm:'))
+    return cb ? { kind: 'call', meta: { otp: { callControlId: cb.slice('otp_confirm:'.length) } } } : null
+  }
+  wrap('sendMessage', (id, text, opts) => { push(id, text, null, otpExtra(opts)).catch(() => {}) })
   for (const m of MEDIA) {
     wrap(m, (id, file, opts) => {
       const url = typeof file === 'string' && /^https?:\/\//.test(file) ? file : null
