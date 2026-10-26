@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { toast } from 'sonner';
 import { Ban, Plus, X } from 'lucide-react';
 import { api, useApi, day } from '../../api';
-import { Spinner, Empty } from '../../ui';
+import { SkeletonRows, Empty } from '../../ui';
 import { usePrivacy } from '../../privacy';
 import { undoable } from '../../undo';
 import { useSearch, SearchBox, NoMatches } from '../../search';
@@ -29,7 +29,11 @@ export function DncList() {
         <input className="civr-input font-mono flex-1" value={num} onChange={e => setNum(e.target.value)} placeholder="+14155550100" data-testid="ai-dnc-number-input" />
         <button className="civr-btn civr-btn-primary" disabled={!num.trim()} data-testid="ai-dnc-add-button"><Plus className="w-4 h-4" />Add number</button>
       </form>
-      {loading && !data ? <Spinner /> : !list.length ? <Empty icon={Ban} title="Nobody on the list" sub="AI campaigns skip these numbers. Anyone who asks the agent not to call again is added here automatically." testid="ai-dnc-empty" /> : (
+      {loading && !data ? <SkeletonRows rows={2} /> : !list.length ? (
+        <Empty icon={Ban} title="Nobody on the list" sub="AI campaigns skip these numbers. Anyone who asks the agent not to call again is added here automatically." testid="ai-dnc-empty">
+          <button type="button" className="civr-btn civr-btn-ghost" onClick={() => { const el = document.querySelector('[data-testid="ai-dnc-number-input"]'); el?.scrollIntoView({ behavior: 'smooth', block: 'center' }); el?.focus({ preventScroll: true }); }} data-testid="ai-dnc-empty-add-button"><Plus className="w-4 h-4" />Add a number</button>
+        </Empty>
+      ) : (
         <>
         <SearchBox s={s} placeholder="Search the list" testid="ai-dnc-search" className="max-w-md" />
         <NoMatches s={s} testid="ai-dnc-no-matches" />

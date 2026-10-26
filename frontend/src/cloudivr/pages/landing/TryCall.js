@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Loader2, PhoneCall, Laptop, MailCheck, Timer, ShieldCheck } from 'lucide-react';
-import { SectionHead, Slide } from './kit';
+import { SectionHead, Slide, Reveal } from './kit';
 import EmailGate from './EmailGate';
 import { CallMeLive, BrowserLive, Keypad } from './TryLive';
 import { savedToken, saveToken, clearToken, startCall } from './tryApi';
@@ -18,7 +18,7 @@ function TryForm({ tab, to, setTo, busy, onSubmit }) {
     <form onSubmit={onSubmit} noValidate data-testid={`${id}-form`}>
       <p className="text-sm civr-l-muted min-h-[40px]">{text}</p>
       <label className="block mt-6">
-        <span className="block text-xs font-mono uppercase tracking-widest civr-l-muted mb-2">{tab === 'callme' ? 'Your phone number' : 'Number to call'}</span>
+        <span className="block text-sm font-medium text-slate-700 mb-2">{tab === 'callme' ? 'Your phone number' : 'Number to call'}</span>
         <input className="civr-l-input" type="tel" inputMode="tel" placeholder="+14155550100" value={to} onChange={e => setTo(e.target.value)} data-testid={tab === 'callme' ? 'civr-callme-phone-input' : 'civr-browser-phone-input'} />
       </label>
       <button className="civr-l-btn w-full mt-4" disabled={busy} data-testid={tab === 'callme' ? 'civr-callme-start-btn' : 'civr-browser-call-btn'}>
@@ -53,20 +53,18 @@ export function TryCall() {
   const verified = (d) => { saveToken(d.token, d.email); setGate(false); begin(d); };
 
   return (
-    <section id="try" className="civr-l-dark relative overflow-hidden scroll-mt-16" data-testid="try-section">
-      <div className="absolute inset-0 civr-l-gridbg opacity-50" />
-      <div className="civr-l-glow w-[460px] h-[460px] bg-[#00E3AA]/10 -left-40 bottom-0" />
+    <section id="try" className="civr-l-cream civr-l-soft relative scroll-mt-16 border-t civr-l-rule" data-testid="try-section">
       <div className="relative max-w-7xl mx-auto px-6 md:px-8 py-24 grid lg:grid-cols-12 gap-12 items-start">
         <div className="lg:col-span-5">
-          <SectionHead n="02" label="Free test call" title="Hear it before you buy." sub="Take CloudIVR for a 60-second spin — on your own phone or right here in the browser." />
-          <ul className="mt-10 grid gap-5">
-            {POINTS.map(([Icon, t], i) => <li key={t} className="flex items-center gap-4" data-testid={`try-point-${i}`}><span className="w-11 h-11 rounded-full border civr-l-rule flex items-center justify-center shrink-0"><Icon className="w-5 h-5 text-[#00E3AA]" /></span><span className="text-sm">{t}</span></li>)}
+          <SectionHead label="Free test call" title="Hear it before you buy." sub="Take CloudIVR for a 60-second spin — on your own phone or right here in the browser." />
+          <ul className="mt-8 grid gap-4">
+            {POINTS.map(([Icon, t], i) => <Reveal as="li" key={t} delay={150 + i * 100} className="flex items-center gap-4" data-testid={`try-point-${i}`}><span className="w-10 h-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center shrink-0"><Icon className="w-5 h-5 text-[#4f46e5]" /></span><span className="text-sm text-slate-700">{t}</span></Reveal>)}
           </ul>
         </div>
-        <div className="lg:col-span-7">
-          <div className="civr-l-card p-6 md:p-8" data-testid="try-card">
+        <Reveal delay={120} className="lg:col-span-7">
+          <div className="civr-l-card-cream p-6 md:p-8" data-testid="try-card">
             {!call && (
-              <div role="tablist" className="grid grid-cols-2 sm:inline-flex gap-1 p-1 rounded-full border civr-l-rule mb-6 w-full sm:w-fit">
+              <div role="tablist" className="grid grid-cols-2 sm:inline-flex gap-1 p-1 rounded-xl border civr-l-rule bg-slate-50 mb-6 w-full sm:w-fit">
                 {TABS.map(([id, label, Icon, , , short]) => (
                   <button key={id} type="button" role="tab" aria-selected={tab === id} onClick={() => { setTab(id); setError(null); }} className="civr-l-tab inline-flex items-center justify-center gap-2 whitespace-nowrap" data-testid={id === 'callme' ? 'civr-test-tab-callme' : 'civr-test-tab-browser'}><Icon className="w-4 h-4" /><span className="sm:hidden">{short}</span><span className="hidden sm:inline">{label}</span></button>
                 ))}
@@ -74,9 +72,9 @@ export function TryCall() {
             )}
             {call ? (call.kind === 'browser' ? <BrowserLive call={call} onReset={() => setCall(null)} /> : <CallMeLive call={call} onReset={() => setCall(null)} />)
               : <TryForm tab={tab} to={to} setTo={setTo} busy={busy} onSubmit={submit} />}
-            {error && !call && <div className="mt-4 text-sm text-[#fb7185] border border-[#fb7185]/30 bg-[#fb7185]/10 rounded-xl px-4 py-3" data-testid="civr-try-error">{error.message}</div>}
+            {error && !call && <div className="mt-4 text-sm text-rose-700 border border-rose-200 bg-rose-50 rounded-xl px-4 py-3" data-testid="civr-try-error">{error.message}</div>}
           </div>
-        </div>
+        </Reveal>
       </div>
       <EmailGate open={gate} onClose={() => setGate(false)} onVerified={verified} />
     </section>

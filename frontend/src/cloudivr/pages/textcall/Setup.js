@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Captions, Loader2, PhoneCall } from 'lucide-react';
 import { api, money } from '../../api';
-import { Field, Spinner, Empty, Locked, Toggle, ErrorNote } from '../../ui';
+import { Field, SkeletonCard, Empty, Locked, Toggle, ErrorNote } from '../../ui';
 import { cp } from '../../paths';
 import { useCallerNumbers } from '../QuickCall';
 
@@ -25,7 +25,7 @@ export function Setup({ info, onStarted }) {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
   const set = (k) => (v) => setF(p => ({ ...p, [k]: v?.target ? v.target.value : v }));
-  if (loading) return <Spinner />;
+  if (loading) return <SkeletonCard lines={4} />;
   if (!all.length) return <Empty icon={Captions} title="Get a number first" sub="Text calls go out from your own CloudIVR number." testid="text-call-no-number"><Link to={cp('/app/buy')} className="civr-btn civr-btn-primary" data-testid="text-call-buy-link">Buy a number</Link></Empty>;
   if (!numbers.length) return <Locked feature="Text calls" phone={all[0].phoneNumber} need="Pro" />;
   const callerId = numbers.some(n => n.phoneNumber === f.callerId) ? f.callerId : numbers[0].phoneNumber;

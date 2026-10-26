@@ -19,13 +19,13 @@ export function IvrTemplates({ current, onApply }) {
   const use = (t) => { onApply(t.config); toast.success(`“${t.name}” loaded — add the forward numbers, then Save keypad menu`); };
   const row = (t, i, mine) => (
     <div key={t.id} className="flex items-center gap-2 py-1.5" data-testid={`ivr-template-${mine ? 'mine' : 'builtin'}-${i}`}>
-      <button type="button" className="flex-1 min-h-[40px] text-left text-sm hover:text-[#34d399] truncate" onClick={() => use(t)} data-testid={`ivr-template-${mine ? 'mine' : 'builtin'}-${i}-use`}>{t.name}</button>
+      <button type="button" className="flex-1 min-h-[40px] text-left text-sm hover:text-[#818cf8] truncate" onClick={() => use(t)} data-testid={`ivr-template-${mine ? 'mine' : 'builtin'}-${i}-use`}>{t.name}</button>
       {mine && <button type="button" className="p-1.5 text-[#a1a1aa] hover:text-[#fb7185]" onClick={() => del(t.id)} aria-label="Delete template" data-testid={`ivr-template-mine-${i}-delete`}><Trash2 className="w-3.5 h-3.5" /></button>}
     </div>
   );
   return (
     <div className="civr-card p-6" data-testid="ivr-templates">
-      <div className="flex items-center gap-2 font-display text-2xl font-bold mb-3"><LayoutTemplate className="w-5 h-5 text-[#34d399]" />Templates</div>
+      <div className="flex items-center gap-2 font-display text-2xl font-bold mb-3"><LayoutTemplate className="w-5 h-5 text-[#818cf8]" />Templates</div>
       <div className="text-xs text-[#a1a1aa] mb-1">Business menus</div>
       {(data?.builtin || []).map((t, i) => row(t, i, false))}
       {data?.mine?.length > 0 && <><div className="text-xs text-[#a1a1aa] mt-4 mb-1">My templates</div>{data.mine.map((t, i) => row(t, i, true))}</>}

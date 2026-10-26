@@ -18,10 +18,10 @@ function HowItWorks({ info }) {
     <aside className="civr-card p-6 space-y-5 h-fit" data-testid="text-call-how">
       <div className="civr-label">How it works</div>
       {STEPS.map(([Icon, t, s], i) => (
-        <div key={t} className="flex gap-3"><div className="w-9 h-9 shrink-0 rounded-xl bg-[#34d399]/10 text-[#34d399] flex items-center justify-center"><Icon className="w-4 h-4" /></div>
+        <div key={t} className="flex gap-3"><div className="w-9 h-9 shrink-0 rounded-xl bg-[#818cf8]/10 text-[#818cf8] flex items-center justify-center"><Icon className="w-4 h-4" /></div>
           <div><div className="font-semibold text-sm">{i + 1}. {t}</div><div className="text-xs text-[#a1a1aa] mt-0.5">{s}</div></div></div>
       ))}
-      {info && <div className="border-t border-white/10 pt-4 text-xs text-[#a1a1aa] space-y-1" data-testid="text-call-pricing">
+      {info && <div className="border-t border-[#1f1f1f] pt-4 text-xs text-[#a1a1aa] space-y-1" data-testid="text-call-pricing">
         <div>{`US & Canada: ${money(info.usRate + info.relayRate)}/min`}</div>
         <div>{`International: ${money(info.intlRate + info.relayRate)}/min`}</div>
         <div>{`Includes ${money(info.relayRate)}/min for the text relay.`}</div>

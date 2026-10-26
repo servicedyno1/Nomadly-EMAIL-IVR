@@ -27,8 +27,8 @@ function Ring({ left, max }) {
   const r = 52, c = 2 * Math.PI * r;
   return (
     <div className="relative w-36 h-36 shrink-0" data-testid="civr-try-timer">
-      <svg viewBox="0 0 120 120" className="w-full h-full -rotate-90"><circle cx="60" cy="60" r={r} fill="none" stroke="rgba(254,253,245,.12)" strokeWidth="6" /><circle cx="60" cy="60" r={r} fill="none" stroke="#00E3AA" strokeWidth="6" strokeLinecap="round" strokeDasharray={c} strokeDashoffset={c * (1 - left / max)} style={{ transition: 'stroke-dashoffset .3s linear' }} /></svg>
-      <div className="absolute inset-0 flex flex-col items-center justify-center"><span className="civr-l-h text-5xl" data-testid="civr-try-seconds-left">{left}</span><span className="text-xs font-mono uppercase tracking-widest civr-l-muted">seconds</span></div>
+      <svg viewBox="0 0 120 120" className="w-full h-full -rotate-90"><circle cx="60" cy="60" r={r} fill="none" stroke="#e2e8f0" strokeWidth="6" /><circle cx="60" cy="60" r={r} fill="none" stroke="#6366f1" strokeWidth="6" strokeLinecap="round" strokeDasharray={c} strokeDashoffset={c * (1 - left / max)} style={{ transition: 'stroke-dashoffset .3s linear' }} /></svg>
+      <div className="absolute inset-0 flex flex-col items-center justify-center"><span className="civr-l-h text-5xl text-slate-900" data-testid="civr-try-seconds-left">{left}</span><span className="text-xs civr-l-muted">seconds</span></div>
     </div>
   );
 }
@@ -36,10 +36,10 @@ function Ring({ left, max }) {
 function Header({ to, phase, dryRun, testid }) {
   return (
     <div className="flex flex-wrap items-start justify-between gap-3">
-      <div><div className="civr-l-eyebrow !text-xs">Free test call</div><div className="font-mono text-2xl mt-1" data-testid={`${testid}-number`}>{to}</div></div>
+      <div><div className="civr-l-eyebrow !text-xs">Free test call</div><div className="font-mono text-2xl text-slate-900 mt-1" data-testid={`${testid}-number`}>{to}</div></div>
       <div className="flex flex-wrap gap-2">
-        {dryRun && <span className="text-xs font-mono uppercase tracking-widest px-2.5 py-1 rounded-full border border-[#fbbf24]/50 text-[#fbbf24]" data-testid="civr-try-preview-pill">Preview · simulated</span>}
-        <span className={`text-xs font-mono uppercase tracking-widest px-2.5 py-1 rounded-full border flex items-center gap-2 ${OVER.includes(phase) ? 'border-white/20 text-white/60' : 'border-[#00E3AA]/50 text-[#00E3AA]'}`} data-testid={`${testid}-phase`}>{!OVER.includes(phase) && <span className="civr-l-dot" />}{PHASE[phase] || phase}</span>
+        {dryRun && <span className="text-xs font-medium px-2.5 py-1 rounded-full border border-amber-300 bg-amber-50 text-amber-700" data-testid="civr-try-preview-pill">Preview · simulated</span>}
+        <span className={`text-xs font-medium px-2.5 py-1 rounded-full border flex items-center gap-2 ${OVER.includes(phase) ? 'border-slate-200 bg-slate-50 text-slate-500' : 'border-indigo-200 bg-indigo-50 text-[#4338ca]'}`} data-testid={`${testid}-phase`}>{!OVER.includes(phase) && <span className="civr-l-dot" />}{PHASE[phase] || phase}</span>
       </div>
     </div>
   );
@@ -48,7 +48,7 @@ function Header({ to, phase, dryRun, testid }) {
 function Done({ onReset }) {
   return (
     <div className="mt-6 pt-6 border-t civr-l-rule flex flex-col sm:flex-row sm:items-center gap-4" data-testid="civr-try-done">
-      <div className="flex-1"><div className="civr-l-h text-3xl">That was CloudIVR.</div><p className="text-sm civr-l-muted mt-1">Get your own number with this menu in a few minutes.</p></div>
+      <div className="flex-1"><div className="civr-l-h text-2xl text-slate-900">That was CloudIVR.</div><p className="text-sm civr-l-muted mt-1">Get your own number with this menu in a few minutes.</p></div>
       <button type="button" onClick={onReset} className="civr-l-btn civr-l-btn-ghost civr-l-btn-sm" data-testid="civr-try-reset-btn"><RotateCcw className="w-4 h-4" />Back</button>
       <Link to={cp('/signup')} className="civr-l-btn civr-l-btn-sm" data-testid="civr-try-get-number-btn"><Slide>Get your number</Slide><ArrowRight className="w-4 h-4" /></Link>
     </div>
@@ -60,7 +60,7 @@ const CALLME_HINT = { ringing: 'Your phone is ringing — pick up to hear the de
 function NoAnswer({ onReset }) {
   return (
     <div className="mt-6 pt-6 border-t civr-l-rule flex flex-col sm:flex-row sm:items-center gap-4" data-testid="civr-try-no-answer">
-      <div className="flex-1"><div className="civr-l-h text-3xl">Missed it?</div><p className="text-sm civr-l-muted mt-1">Your free call is still waiting for you.</p></div>
+      <div className="flex-1"><div className="civr-l-h text-2xl text-slate-900">Missed it?</div><p className="text-sm civr-l-muted mt-1">Your free call is still waiting for you.</p></div>
       <button type="button" onClick={onReset} className="civr-l-btn civr-l-btn-sm" data-testid="civr-try-again-btn"><RotateCcw className="w-4 h-4" /><Slide>Try again</Slide></button>
     </div>
   );

@@ -21,7 +21,7 @@ function Row({ r, set, remove, used, depth, testid }) {
       {r.action === 'forward' && <input className="civr-input font-mono" value={r.forwardTo || ''} onChange={e => set({ forwardTo: e.target.value })} placeholder="+14155550100" data-testid={`${testid}-forward`} />}
       {r.action === 'message' && <input className="civr-input" value={r.message || ''} onChange={e => set({ message: e.target.value })} placeholder="Text to read out, then hang up" data-testid={`${testid}-message`} />}
       {r.action === 'submenu' && (
-        <div className="pl-3 border-l-2 border-[#34d399]/30 space-y-2">
+        <div className="pl-3 border-l-2 border-[#818cf8]/30 space-y-2">
           <input className="civr-input" value={r.greeting || ''} onChange={e => set({ greeting: e.target.value })} placeholder="Sub-menu prompt, e.g. Press 1 for English" data-testid={`${testid}-greeting`} />
           <MenuBuilder value={r.options || []} onChange={(o) => set({ options: o })} depth={1} testid={`${testid}-sub`} />
         </div>

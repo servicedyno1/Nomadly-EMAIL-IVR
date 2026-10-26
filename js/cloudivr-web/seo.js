@@ -68,12 +68,12 @@ const FEATURES = [
   ['Quick calls & bulk IVR campaigns', 'Place a single outbound IVR call or run an automated campaign to many numbers.'],
   ['Ring groups & text calls', 'Ring several people at once, or trigger a call from a text.'],
   ['Logs, analytics & AI summaries', 'Searchable call and message history with AI-written call summaries.'],
-  ['Crypto wallet & auto-renew', 'Fund a wallet with crypto; numbers auto-renew and usage is billed from the wallet.'],
+  ['Wallet & auto-renew', 'Fund a wallet by card or crypto; numbers auto-renew and usage is billed from the wallet.'],
 ]
 
 const HOW = [
   ['Sign up free', 'Create a CloudIVR account with your email — no charge to start.'],
-  ['Choose a number', 'Pick a country and number type, search live availability, and buy with crypto or from your wallet.'],
+  ['Choose a number', 'Pick a country and number type, search live availability, and buy by card, crypto or from your wallet.'],
   ['Set it up', 'Add a greeting, a keypad menu or an AI voice agent, call forwarding and voicemail.'],
   ['Start using it', 'Answer in the browser phone or a SIP app, forward to your phone, and manage SMS, voicemail, recordings, logs and campaigns from the dashboard.'],
 ]
@@ -91,7 +91,7 @@ function faqs() {
     ['Is CloudIVR free to start?',
       `Yes. Creating a CloudIVR account is free. You only pay when you buy a phone number${fromTxt}, plus any usage beyond your plan's included minutes and SMS.`],
     ['How do I pay?',
-      `Pay for a number directly with crypto, or top up your CloudIVR wallet (from ${minTopup}) and pay from it. Renewals and call charges come out of your wallet.`],
+      `Pay by credit or debit card, with crypto, or top up your CloudIVR wallet (from ${minTopup}) and pay from it. Renewals and call charges come out of your wallet.`],
     ['What is a keypad menu (IVR)?',
       `An IVR is a phone keypad menu: callers hear your greeting and press a key to reach the right person, hear a message or leave voicemail. It runs on your plan's included minutes. The keypad menu is on the ${ivrPlans} plan.`],
     ['What can an AI voice agent do?',
@@ -134,11 +134,15 @@ function metaFor(pathname) {
     },
     '/signup': {
       title: `Create your ${BRAND} account`,
-      desc: `Get a virtual phone number with keypad menus (IVR), voicemail, an SMS inbox and AI voice agents. Free to sign up; pay with crypto.${fromTxt}`,
+      desc: `Get a virtual phone number with keypad menus (IVR), voicemail, an SMS inbox and AI voice agents. Free to sign up; pay by card or crypto.${fromTxt}`,
     },
     '/forgot': {
       title: `Reset your password · ${BRAND}`,
       desc: `Reset the password for your ${BRAND} account.`,
+    },
+    '/terms': {
+      title: `Terms of Service · ${BRAND}`,
+      desc: `The rules for using ${BRAND}: accounts, phone numbers, plans and wallet payments, free calls, acceptable use, recordings and AI features.`,
     },
   }
   const indexable = !(p.startsWith('/app') || p.startsWith('/reset-password'))
@@ -281,11 +285,11 @@ function bodyNoscript() {
     if (r.aiAgentPerMin != null) usage.push(`AI voice agent ${perMin(r.aiAgentPerMin)}/min`)
     pricingHtml =
       `<h2>Pricing</h2>` +
-      `<p>Free to sign up. Plans are billed monthly per number — pay with crypto or from your CloudIVR wallet (top up from ${esc(minTopup)}). Auto-renew keeps your number; cancel any time. No contracts.</p>` +
+      `<p>Free to sign up. Plans are billed monthly per number — pay by card, crypto or from your CloudIVR wallet (top up from ${esc(minTopup)}). Auto-renew keeps your number; cancel any time. No contracts.</p>` +
       `<ul>${rows}</ul>` +
       (usage.length ? `<p>Usage beyond your plan is billed from your wallet: ${esc(usage.join(', '))}. Outgoing calls show their price before you dial.${extra ? ` Extra numbers cost from ${esc(extra)}/month each and share a plan's minutes and SMS.` : ''}</p>` : '')
   } else {
-    pricingHtml = `<h2>Pricing</h2><p>Free to sign up. Numbers are billed monthly per number and paid with crypto or from your CloudIVR wallet. Auto-renew keeps your number; cancel any time.</p>`
+    pricingHtml = `<h2>Pricing</h2><p>Free to sign up. Numbers are billed monthly per number and paid by card, crypto or from your CloudIVR wallet. Auto-renew keeps your number; cancel any time.</p>`
   }
 
   const html =
@@ -400,7 +404,7 @@ function llmsFullTxt() {
   HOW.forEach(([t, d], i) => lines.push(`${i + 1}. **${t}.** ${d}`))
   lines.push('')
   lines.push('## Pricing')
-  lines.push(`Creating an account is free. Each number is billed monthly on the plan you choose and paid with crypto, or from a CloudIVR wallet you top up (from ${minTopup}). Numbers auto-renew and can be cancelled any time. There are no contracts.`, '')
+  lines.push(`Creating an account is free. Each number is billed monthly on the plan you choose and paid by card or crypto, or from a CloudIVR wallet you top up (from ${minTopup}). Numbers auto-renew and can be cancelled any time. There are no contracts.`, '')
   if (c && c.plans && c.plans.length) {
     c.plans.forEach((p) => {
       const feats = (p.webFeatures || []).filter((f) => f.included).map((f) => f.label)
@@ -431,6 +435,7 @@ function sitemapXml() {
     { loc: `${CANONICAL}/`, priority: '1.0', changefreq: 'weekly' },
     { loc: `${CANONICAL}/signup`, priority: '0.8', changefreq: 'monthly' },
     { loc: `${CANONICAL}/login`, priority: '0.5', changefreq: 'monthly' },
+    { loc: `${CANONICAL}/terms`, priority: '0.3', changefreq: 'yearly' },
   ]
   const body = urls.map((u) =>
     `  <url><loc>${u.loc}</loc><lastmod>${today}</lastmod><changefreq>${u.changefreq}</changefreq><priority>${u.priority}</priority></url>`

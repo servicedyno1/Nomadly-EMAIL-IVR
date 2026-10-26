@@ -4,7 +4,7 @@ import { toast } from 'sonner';
 import { PhoneOutgoing, Loader2, Lock } from 'lucide-react';
 import { api, useApi, playUrl } from '../api';
 import { useShell } from '../Shell';
-import { PageHeader, Field, Spinner, Empty, AudioSelect, KeyPicker, Toggle, ErrorNote, BackupsField } from '../ui';
+import { PageHeader, Field, SkeletonPage, Empty, AudioSelect, KeyPicker, Toggle, ErrorNote, BackupsField } from '../ui';
 import { cp } from '../paths';
 import { usePrivacy } from '../privacy';
 import { DateTimePicker } from '../DateTimePicker';
@@ -14,6 +14,7 @@ import { MenuBuilder, menuToApi } from './quick/MenuBuilder';
 import { RecentCalls, ScheduledCalls, MenuStats, Presets } from './quick/Side';
 import { TrialCall } from './quick/Trial';
 import { useDraft, DraftBanner } from './quick/Draft';
+import { OtpLive, OtpHowTo } from './quick/Otp';
 
 // Active numbers allowed to place outbound IVR calls for `feature`.
 export function useCallerNumbers(feature) {
@@ -27,7 +28,7 @@ const Pill = ({ on, onClick, children, testid, locked }) => <button type="button
 
 function toBody(f, callerId) {
   const msg = f.source === 'audio' ? { audioId: f.audioId } : { text: fillScript(f.script.text, f.script.values), voice: f.voice || undefined, templateName: f.script.templateName || 'Custom script' };
-  const action = f.mode === 'otp' ? { otp: f.otp } : f.mode === 'menu' ? { menu: menuToApi(f.menu) } : { transferTo: f.transferTo, transferBackups: f.transferBackups, activeKeys: f.activeKeys };
+  const action = f.mode === 'otp' ? { otp: f.otp, transferTo: f.transferTo } : f.mode === 'menu' ? { menu: menuToApi(f.menu) } : { transferTo: f.transferTo, transferBackups: f.transferBackups, activeKeys: f.activeKeys };
   return { callerId, targets: f.targets, holdMusic: f.holdMusic, mode: f.mode === 'otp' ? 'otp' : 'transfer', ...msg, ...action, ...(f.scheduleAt ? { scheduleAt: new Date(f.scheduleAt).toISOString() } : {}) };
 }
 
@@ -47,7 +48,7 @@ function Message({ f, set, audios, reloadAudio }) {
       {f.source === 'script' ? <>
         <ScriptBox value={f.script} onChange={(s) => set({ script: s, ...(s.activeKeys ? { activeKeys: s.activeKeys } : {}) })} onAudio={(a) => { reloadAudio(); set({ source: 'audio', audioId: a.id }); }} testid="quick-script" />
         <Field label="Read out with" hint="Or make an AI voice file above for the most natural sound."><VoiceSelect value={f.voice || def.voice} onChange={(v) => set({ voice: v })} voices={voices} testid="quick-voice-select" /></Field>
-      </> : <Field label="Message to play" hint={!audios.length ? <Link to={cp('/app/audio')} className="text-[#34d399]">Create audio first →</Link> : null}>
+      </> : <Field label="Message to play" hint={!audios.length ? <Link to={cp('/app/audio')} className="text-[#818cf8]">Create audio first →</Link> : null}>
         <AudioSelect value={f.audioId} onChange={(v) => set({ audioId: v })} audios={audios} by="id" testid="quick-call-audio-select" />
         {f.audioId && <audio controls preload="none" src={playUrl(audios.find(a => a.id === f.audioId)?.audioUrl)} className="h-9 mt-2" data-testid="quick-audio-preview" />}
       </Field>}
@@ -66,24 +67,26 @@ function Answer({ f, set, isBiz }) {
         <div className="flex items-center justify-between"><span className="text-sm">Hold music while connecting</span><Toggle checked={f.holdMusic} onChange={(v) => set({ holdMusic: v })} testid="quick-call-hold-music-toggle" /></div>
       </>}
       {f.mode === 'otp' && <div className="space-y-4" data-testid="quick-otp-fields">
-        <Field label="Code length" hint="They get 3 tries. The code shows up in your Inbox."><select className="civr-input !w-40" value={f.otp.length} onChange={e => set({ otp: { ...f.otp, length: Number(e.target.value) } })} data-testid="quick-otp-length">{[4, 5, 6, 8].map(n => <option key={n} value={n}>{`${n} digits`}</option>)}</select></Field>
+        <OtpHowTo />
+        <Field label="Code length" hint="They get 3 tries."><select className="civr-input !w-40" value={f.otp.length} onChange={e => set({ otp: { ...f.otp, length: Number(e.target.value) } })} data-testid="quick-otp-length">{[4, 5, 6, 8].map(n => <option key={n} value={n}>{`${n} digits`}</option>)}</select></Field>
         {isBiz ? <div className="grid sm:grid-cols-2 gap-3">
           <Field label="Said after a valid code (optional)"><input className="civr-input" value={f.otp.confirmMsg} onChange={e => set({ otp: { ...f.otp, confirmMsg: e.target.value } })} placeholder="Thank you, your code is confirmed." data-testid="quick-otp-confirm" /></Field>
           <Field label="Said after a wrong code (optional)"><input className="civr-input" value={f.otp.rejectMsg} onChange={e => set({ otp: { ...f.otp, rejectMsg: e.target.value } })} placeholder="That code was not valid." data-testid="quick-otp-reject" /></Field>
-        </div> : <div className="text-xs text-[#a1a1aa]">Custom confirm / reject messages are on the Business plan.</div>}
+        </div> : <div className="text-xs text-[#a1a1aa]" data-testid="quick-otp-custom-locked">Custom accept / decline messages are on the Business plan.</div>}
+        <Field label="Connect them after you accept (optional)" hint="Leave empty to end the call after the confirmation."><input className="civr-input font-mono" value={f.transferTo} onChange={e => set({ transferTo: e.target.value })} placeholder="+14155550199" data-testid="quick-otp-connect-input" /></Field>
       </div>}
       {f.mode === 'menu' && <MenuBuilder value={f.menu} onChange={(v) => set({ menu: v })} testid="quick-menu" />}
     </div>
   );
 }
 
-const Section = ({ n, title, children }) => <div className="civr-card p-6 space-y-4"><div className="font-display text-xl font-bold"><span className="text-[#34d399] font-mono mr-2">{n}</span>{title}</div>{children}</div>;
+const Section = ({ n, title, children }) => <div className="civr-card p-6 space-y-4"><div className="font-display text-xl font-bold"><span className="text-[#818cf8] font-mono mr-2">{n}</span>{title}</div>{children}</div>;
 
 export default function QuickCall() {
   const { refreshSummary } = useShell();
   const { numbers, all, loading } = useCallerNumbers('ivrOutbound');
   const { data: au, reload: reloadAudio } = useApi('/audio');
-  const { data: trial, reload: reloadTrial } = useApi('/calls/trial');
+  const { data: trial, reload: reloadTrial, stale: trialStale } = useApi('/calls/trial');
   const [f, setF] = useState(EMPTY);
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState(null);
@@ -92,7 +95,7 @@ export default function QuickCall() {
   const [trialShown, setTrialShown] = useState(false);
   const draft = useDraft(f);
   const set = (p) => setF(x => ({ ...x, ...p }));
-  if (loading) return <Spinner />;
+  if (loading || (!numbers.length && trialStale)) return <SkeletonPage cards={2} rows={0} />;
   const caller = numbers.find(n => n.phoneNumber === f.callerId) || numbers[0];
   const isBiz = caller?.plan === 'business';
   const audios = au?.audios || [];
@@ -110,8 +113,8 @@ export default function QuickCall() {
 
   return (
     <div data-testid="quick-call-page">
-      <PageHeader label="Outbound" title="Quick IVR call" sub="Call one or a few people, play a script or recording, then connect them, collect a code or route each key. Billed per minute from your wallet." testid="quick-call-header" />
-      {!numbers.length ? (trial?.available || trialShown ? <TrialCall onUsed={() => { setTrialShown(true); reloadTrial(); }} /> : (
+      <PageHeader label="Outbound" title="Quick IVR call" sub={numbers.length ? 'Call one or a few people, play a script or recording, then connect them, collect a code or route each key. Billed per minute from your wallet.' : 'Call one person from our number for free: play your script, then connect them on key 1 or collect a code you accept or decline.'} testid="quick-call-header" />
+      {!numbers.length ? (trial?.available || trialShown ? <TrialCall status={trial} onUsed={() => { setTrialShown(true); reloadTrial(); refreshSummary(); }} /> : (
         <Empty icon={PhoneOutgoing} title="No number can place IVR calls yet" sub={all.length ? 'Quick IVR calls need an active number on the Pro plan or higher. Upgrade one in its Billing tab.' : 'Buy a number on the Pro plan or higher to place IVR calls.'} testid="quick-call-empty">
           <Link to={all.length ? cp('/app/numbers') : cp('/app/buy')} className="civr-btn civr-btn-primary" data-testid="quick-call-empty-action">{all.length ? 'My numbers' : 'Buy a number'}</Link>
         </Empty>
@@ -129,17 +132,18 @@ export default function QuickCall() {
             <Section n="2" title="What they hear"><Message f={f} set={set} audios={audios} reloadAudio={reloadAudio} /></Section>
             <Section n="3" title="When they press a key"><Answer f={f} set={set} isBiz={isBiz} /></Section>
             <Section n="4" title="When to call">
-              {isBiz ? <Field label="Schedule (optional)" hint="5 minutes to 24 hours from now. Leave empty to call now."><DateTimePicker value={f.scheduleAt} onChange={(v) => set({ scheduleAt: v })} maxDays={1} testid="quick-schedule" /></Field>
-                : <div className="text-sm text-[#a1a1aa]" data-testid="quick-schedule-locked">Calls start right away. Scheduling, presets and redial are on the Business plan.</div>}
+              <Field label="Schedule (optional)" hint="5 minutes to 24 hours from now. Leave empty to call now."><DateTimePicker value={f.scheduleAt} onChange={(v) => set({ scheduleAt: v })} maxDays={1} testid="quick-schedule" /></Field>
+              {!isBiz && <div className="text-xs text-[#a1a1aa]" data-testid="quick-redial-locked">Redial is on the Business plan.</div>}
               <ErrorNote error={error} testid="quick-call-error" />
               {result && <div className="civr-card p-4 text-sm" data-testid="quick-call-result">{result.message || (result.scheduled ? `Scheduled ${result.scheduled} call(s).` : `Started ${result.started} call(s) · about $${Number(result.rate).toFixed(2)}/min.`)}</div>}
+              {result?.mode === 'otp' && (result.results || []).filter(r => r.callControlId).map((r, i) => <OtpLive key={r.callControlId} ccid={r.callControlId} testid={`quick-otp-live-${i}`} />)}
               <button className="civr-btn civr-btn-primary" disabled={busy} data-testid="quick-call-submit-button">{busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <PhoneOutgoing className="w-4 h-4" />}{f.scheduleAt ? 'Schedule call' : 'Place call'}</button>
             </Section>
           </form>
           <div className="space-y-4">
-            {isBiz && <Presets stamp={stamp} onLoad={loadPreset} current={() => ({ ...toBody({ ...f, scheduleAt: '' }, caller.phoneNumber), targets: undefined, ui: { ...f, targets: '', scheduleAt: '' } })} />}
+            <Presets stamp={stamp} onLoad={loadPreset} current={() => ({ ...toBody({ ...f, scheduleAt: '' }, caller.phoneNumber), targets: undefined, ui: { ...f, targets: '', scheduleAt: '' } })} />
             <ScheduledCalls stamp={stamp} />
-            <RecentCalls isBiz={isBiz} stamp={stamp} onDone={() => setStamp(s => s + 1)} />
+            <RecentCalls bizNumbers={numbers.filter(n => n.plan === 'business').map(n => n.phoneNumber)} stamp={stamp} onDone={() => setStamp(s => s + 1)} />
             <MenuStats />
           </div>
         </div>

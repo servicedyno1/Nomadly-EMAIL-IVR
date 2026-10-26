@@ -17,7 +17,7 @@ function visitorId() {
 function Bubble({ m, i, link }) {
   return (
     <div className={m.role === 'user' ? 'flex flex-col items-end' : ''} data-testid={`support-chat-msg-${i}`}>
-      <div className={`text-sm leading-relaxed whitespace-pre-line rounded-2xl px-3.5 py-2.5 max-w-[85%] ${m.role === 'user' ? 'bg-[#34d399]/15 text-[#e6fff5]' : 'bg-[#1c1c1c] text-[#e4e4e7]'}`} data-no-translate>{m.content}</div>
+      <div className={`text-sm leading-relaxed whitespace-pre-line rounded-2xl px-3.5 py-2.5 max-w-[85%] ${m.role === 'user' ? 'bg-[#818cf8]/15 text-[#e6fff5]' : 'bg-[#1c1c1c] text-[#e4e4e7]'}`} data-no-translate>{m.content}</div>
       {m.escalate && link && <a href={link} target="_blank" rel="noopener noreferrer" className="civr-btn civr-btn-ghost civr-btn-sm mt-2" data-testid={`support-chat-human-link-${i}`}><LifeBuoy className="w-4 h-4" />Message a person on Telegram</a>}
     </div>
   );
@@ -74,18 +74,18 @@ export default function SupportChat({ supportLink, visitor = false }) {
   return (
     <>
       <button type="button" onClick={() => setOpen(o => !o)} aria-label="Help assistant" data-testid="support-chat-toggle"
-        className={`fixed z-40 right-4 ${bottom} w-14 h-14 rounded-full bg-[#34d399] text-[#04130d] shadow-lg shadow-[#34d399]/25 ${show} items-center justify-center hover:scale-105 transition-transform`}>
+        className={`fixed z-40 right-4 ${bottom} w-14 h-14 rounded-full bg-[#6366f1] text-white shadow-lg shadow-[#818cf8]/25 ${show} items-center justify-center hover:scale-105 transition-transform`}>
         {open ? <X className="w-6 h-6" /> : <MessageCircleQuestion className="w-6 h-6" />}
       </button>
       {open && (
         <div className={`fixed z-50 right-4 left-4 sm:left-auto sm:w-[400px] ${panelBottom} h-[min(560px,65vh)] civr-card !bg-[#0f0f0f] shadow-2xl shadow-black/60 flex flex-col civr-rise text-[#f3f4f6]`} data-testid="support-chat-panel">
           <div className="flex items-center gap-2 px-4 h-14 border-b border-[#262626]">
-            <MessageCircleQuestion className="w-5 h-5 text-[#34d399]" /><div className="font-semibold flex-1">Help assistant</div>
+            <MessageCircleQuestion className="w-5 h-5 text-[#818cf8]" /><div className="font-semibold flex-1">Help assistant</div>
             {!visitor && <Link to={appPath('help')} onClick={() => setOpen(false)} className="p-2 rounded-lg text-[#a1a1aa] hover:text-white hover:bg-white/5" aria-label="Help center" title="Help center" data-testid="support-chat-help-link"><BookOpen className="w-4 h-4" /></Link>}
             <button type="button" onClick={clear} className="p-2 rounded-lg text-[#a1a1aa] hover:text-white hover:bg-white/5" aria-label="Clear chat" data-testid="support-chat-clear"><Trash2 className="w-4 h-4" /></button>
           </div>
           <div className="flex-1 overflow-y-auto p-4 space-y-3" data-testid="support-chat-messages">
-            {msgs === null ? <Loader2 className="w-4 h-4 animate-spin text-[#a1a1aa]" /> : !msgs.length && <div className="text-sm text-[#a1a1aa] leading-relaxed" data-testid="support-chat-empty">{visitor ? 'Ask anything about plans, prices, countries or how CloudIVR works. I answer instantly, and a person can take over if needed.' : 'Ask anything about numbers, IVR, campaigns, billing or SIP. I answer instantly, and a person can take over if needed.'}{!visitor && <Link to={appPath('help')} onClick={() => setOpen(false)} className="block mt-3 text-[#34d399] hover:underline" data-testid="support-chat-browse-help">Browse help articles</Link>}</div>}
+            {msgs === null ? <Loader2 className="w-4 h-4 animate-spin text-[#a1a1aa]" /> : !msgs.length && <div className="text-sm text-[#a1a1aa] leading-relaxed" data-testid="support-chat-empty">{visitor ? 'Ask anything about plans, prices, countries or how CloudIVR works. I answer instantly, and a person can take over if needed.' : 'Ask anything about numbers, IVR, campaigns, billing or SIP. I answer instantly, and a person can take over if needed.'}{!visitor && <Link to={appPath('help')} onClick={() => setOpen(false)} className="block mt-3 text-[#818cf8] hover:underline" data-testid="support-chat-browse-help">Browse help articles</Link>}</div>}
             {(msgs || []).map((m, i) => <Bubble key={i} m={m} i={i} link={link} />)}
             {busy && <div className="text-sm text-[#a1a1aa] flex items-center gap-2" data-testid="support-chat-typing"><Loader2 className="w-4 h-4 animate-spin" />Thinking…</div>}
             <div ref={end} />

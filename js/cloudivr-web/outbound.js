@@ -76,6 +76,84 @@ function parseTargets(b) {
   return list
 }
 
+// ── Code collection (OTP) state for the app ───────────────────────────────────────────────────────────────
+// Engine phases → one plain state the screens show; the last state is kept a while after the call is gone.
+const PHASE = { initiated: 'calling', ringing: 'calling', otp_gathering: 'waiting_code', otp_hold: 'code', otp_confirmed: 'accepted', otp_failed: 'declined', otp_hungup: 'hung_up', otp_timeout: 'timeout', ended: 'ended', completed: 'ended' }
+const OTP_HOLD_MS = 90000
+const lastOtp = new Map()
+function remember(ccid, st) {
+  lastOtp.set(ccid, { ...st, at: Date.now() })
+  for (const [k, v] of lastOtp) if (Date.now() - v.at > 30 * 60000) lastOtp.delete(k)
+  return st
+}
+
+// Preview (dry-run) stand-in: rings, plays, then "collects" a code after ~11 s; Decline asks again.
+const otpSim = (() => {
+  const sims = new Map()
+  const code = (n) => Array.from({ length: n }, () => Math.floor(Math.random() * 10)).join('')
+  const notice = (s) => { try { require('./notify').push(s.chatId, `🔑 Code collected (preview)\nFrom: ${s.to}\nCode: ${s.code}\nAccept or decline it on the Quick IVR call page or right here.`, null, { kind: 'call', meta: { otp: { callControlId: s.id, to: s.to } } }) } catch (_) { /* inbox is optional */ } }
+  return {
+    has: (id) => sims.has(id),
+    start(chatId, to, cfg) {
+      const id = `sim-${uid()}`, now = Date.now()
+      const s = { id, chatId: String(chatId), to, length: cfg.otp?.length || 6, max: 3, attempt: 1, startedAt: now, holdAt: now + 11000, code: null, decided: null, transferTo: cfg.transferTo || null }
+      s.code = code(s.length)
+      sims.set(id, s)
+      setTimeout(() => notice(s), 11000).unref?.()
+      for (const [k, v] of sims) if (now - v.startedAt > 30 * 60000) sims.delete(k)
+      return id
+    },
+    get(id) { return sims.get(id) },
+    phase(s) {
+      const now = Date.now()
+      if (s.decided) return s.decided
+      if (now < s.startedAt + 3000) return 'calling'
+      if (now < s.startedAt + 7000) return 'playing'
+      if (now < s.holdAt) return 'waiting_code'
+      return now < s.holdAt + OTP_HOLD_MS ? 'code' : 'timeout'
+    },
+    decide(id, action) {
+      const s = sims.get(id)
+      if (action === 'accept') s.decided = 'accepted'
+      else if (action === 'hangup') s.decided = 'hung_up'
+      else if (s.attempt < s.max) { s.attempt += 1; s.holdAt = Date.now() + 6000; s.code = code(s.length); setTimeout(() => notice(s), 6000).unref?.() }
+      else s.decided = 'declined'
+    },
+  }
+})()
+
+const pubOtp = ({ chatId: _c, at: _a, ...st }) => st
+
+function otpState(chatId, ccid, voiceService) {
+  const sim = otpSim.get(ccid)
+  if (sim) {
+    if (sim.chatId !== String(chatId)) return null
+    const state = otpSim.phase(sim)
+    return { state, to: sim.to, code: state === 'code' || state === 'accepted' ? sim.code : null, length: sim.length, attempt: sim.attempt, maxAttempts: sim.max, holdEndsAt: state === 'code' ? new Date(sim.holdAt + OTP_HOLD_MS) : null, connectTo: sim.transferTo, preview: true }
+  }
+  const s = voiceService.outboundIvrCalls[ccid]
+  if (!s) { const last = lastOtp.get(ccid); return last && last.chatId === String(chatId) ? { ...last, state: ['accepted', 'declined', 'hung_up', 'timeout'].includes(last.state) ? last.state : 'ended', holdEndsAt: null } : null }
+  if (String(s.chatId) !== String(chatId) || s.ivrMode !== 'otp_collect') return null
+  const state = PHASE[s.phase] || 'playing'
+  return remember(ccid, { chatId: String(chatId), state, to: s.targetNumber, code: state === 'code' || state === 'accepted' ? s.otpDigits : null, length: s.otpLength || 6, attempt: s.otpAttempt || 1, maxAttempts: s.otpMaxAttempts || 3, holdEndsAt: state === 'code' && s.otpHoldStartedAt ? new Date(s.otpHoldStartedAt + OTP_HOLD_MS) : null, connectTo: s.ivrNumber || null, preview: false })
+}
+
+// Free-call status. Like the bot, it is used up only once someone answers (the call engine then sets state
+// ivrTrialUsed_<id>); a started free call is held for TRIAL_HOLD_MS so it can't run twice at once.
+const TRIAL_HOLD_MS = 5 * 60000
+async function trialStatus(db, numbersApi, chatId) {
+  const [p, st, nums] = await Promise.all([
+    db.collection('webPrefs').findOne({ _id: chatId }),
+    db.collection('state').findOne({ _id: `ivrTrialUsed_${chatId}` }),
+    numbersApi.myNumbers(chatId),
+  ])
+  const hasCaller = nums.some(n => n.status === 'active' && n.provider === 'telnyx' && phoneConfig.canAccessFeature(n.plan, 'ivrOutbound'))
+  const used = !!p?.ivrTrialUsed || st?.val === true
+  const heldUntil = p?.ivrTrialPendingAt ? new Date(p.ivrTrialPendingAt).getTime() + TRIAL_HOLD_MS : 0
+  const inProgress = !used && heldUntil > Date.now()
+  return { available: !used && !hasCaller, used, inProgress, retryAt: inProgress ? new Date(heldUntil) : null, callerId: ivrOb.TRIAL_CALLER_ID }
+}
+
 function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, ttsService, log = console.log }) {
   const w = walletOps(db)
   const bad = (res, status, error, message) => res.status(status).json({ error, message })
@@ -85,7 +163,6 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
   history.createIndex({ chatId: 1, at: -1 }).catch(() => {})
   const getPrefs = async (chatId) => (await prefs.findOne({ _id: chatId })) || {}
   const businessTier = (plan) => phoneConfig.canAccessFeature(plan, 'ivrRedial') // Business-only outbound extras
-  const eligible = async (chatId) => (await numbersApi.myNumbers(chatId)).filter(n => n.status === 'active' && n.provider === 'telnyx' && phoneConfig.canAccessFeature(n.plan, 'ivrOutbound'))
 
   // Validates a call request → { cfg } or { err: [status, code, message] }. `trial` uses the shared demo caller ID.
   async function buildCall(chatId, b, { trial = false } = {}) {
@@ -122,12 +199,17 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
     const mode = b.mode === 'otp' ? 'otp' : 'transfer'
     let menu = null, transferTo = null, otp = null, activeKeys = ['1'], transferBackups = []
     if (mode === 'otp') {
-      if (trial) return { err: [400, 'trial_transfer_only', 'The free call uses transfer mode.'] }
-      if (!phoneConfig.canAccessFeature(caller.plan, 'otpCollection')) return { err: [403, 'plan_upgrade_required', 'OTP collection needs the Pro plan or higher on the caller number.'] }
+      if (!trial && !phoneConfig.canAccessFeature(caller.plan, 'otpCollection')) return { err: [403, 'plan_upgrade_required', 'OTP collection needs the Pro plan or higher on the caller number.'] }
       const length = parseInt(b.otp?.length, 10) || 6
       if (length < 4 || length > 10) return { err: [400, 'invalid_otp_length', 'Codes can be 4 to 10 digits.'] }
-      const custom = phoneConfig.canAccessFeature(caller.plan, 'otpCustomMessages')
+      const custom = !trial && phoneConfig.canAccessFeature(caller.plan, 'otpCustomMessages')
       otp = { length, confirmMsg: custom ? String(b.otp?.confirmMsg || '').trim().slice(0, 300) || null : null, rejectMsg: custom ? String(b.otp?.rejectMsg || '').trim().slice(0, 300) || null : null }
+      if (String(b.transferTo || '').trim()) {
+        transferTo = normPhone(b.transferTo)
+        if (!E164.test(transferTo)) return { err: [400, 'invalid_transfer', 'Enter the number to connect with country code, e.g. +14155550100.'] }
+        if (phoneConfig.isBlockedPrefix(transferTo)) return { err: [400, 'invalid_transfer', `${transferTo} is a blocked premium/satellite destination.`] }
+        if (transferTo === callerId) return { err: [400, 'invalid_transfer', 'The number to connect must differ from the caller ID.'] }
+      }
     } else if (b.menu && Object.keys(b.menu).length) {
       if (trial) return { err: [400, 'trial_transfer_only', 'The free call transfers on key 1.'] }
       try { menu = cleanMenu(b.menu, callerId) } catch (e) { return { err: [400, 'invalid_menu', e.message] } }
@@ -153,7 +235,7 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
 
   const rateOf = (cfg) => Math.max(...cfg.targets.map(t => voiceService.getIvrCallRate(t)), cfg.transferTo ? voiceService.getIvrCallRate(cfg.transferTo) : 0)
   const engineParams = (chatId, cfg, to, trial) => ({
-    chatId, callerId: cfg.callerId, targetNumber: to, ivrNumber: cfg.menu ? firstForward(cfg.menu) : cfg.transferTo, transferBackups: cfg.menu ? [] : (cfg.transferBackups || []), menu: cfg.menu,
+    chatId, callerId: cfg.callerId, targetNumber: to, ivrNumber: cfg.menu ? firstForward(cfg.menu) : cfg.transferTo || null, transferBackups: cfg.menu || cfg.mode === 'otp' ? [] : (cfg.transferBackups || []), menu: cfg.menu,
     audioUrl: cfg.audioUrl, greetingText: cfg.audioUrl ? null : cfg.text, voiceName: cfg.voiceName || undefined, activeKeys: cfg.activeKeys, templateName: cfg.templateName,
     holdMusic: cfg.holdMusic, provider: 'telnyx', isTrial: !!trial, ivrMode: cfg.mode === 'otp' ? 'otp_collect' : 'transfer',
     otpLength: cfg.otp?.length || 6, otpMaxAttempts: 3, otpConfirmMsg: cfg.otp?.confirmMsg || null, otpRejectMsg: cfg.otp?.rejectMsg || null,
@@ -169,22 +251,22 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
     }
     const doc = { _id: uid(), chatId, at: new Date(), body: { ...body, scheduleAt: undefined }, cfg, trial, dryRun: dryRun() }
     if (dryRun()) {
-      doc.results = cfg.targets.map(to => ({ to, ok: true, preview: true }))
+      doc.results = cfg.targets.map(to => ({ to, ok: true, preview: true, callControlId: cfg.mode === 'otp' ? otpSim.start(chatId, to, cfg) : null }))
       await history.insertOne(doc)
       const what = cfg.mode === 'otp' ? `ask for a ${cfg.otp.length}-digit code` : cfg.menu ? `route keys ${Object.keys(cfg.menu).join(', ')}` : `transfer to ${cfg.transferTo} on key ${cfg.activeKeys.join('/')}`
-      return { status: 202, body: { dryRun: true, rate, count: cfg.targets.length, callId: doc._id, message: `Preview mode: ${cfg.targets.length} call(s) validated (${what}) but not dialed.` } }
+      return { status: 202, body: { dryRun: true, rate, count: cfg.targets.length, callId: doc._id, results: doc.results, mode: cfg.mode, message: `Preview mode: ${cfg.targets.length} call(s) validated (${what}) but not dialed.${cfg.mode === 'otp' ? ' A simulated call below lets you try Accept / Decline.' : ''}` } }
     }
     const results = []
     for (const to of cfg.targets) {
       const r = await voiceService.initiateOutboundIvrCall(engineParams(chatId, cfg, to, trial)).catch(e => ({ error: e.message }))
-      results.push({ to, ok: !r?.error, error: r?.error ? strip(r.error) : null })
+      results.push({ to, ok: !r?.error, error: r?.error ? strip(r.error) : null, callControlId: r?.callControlId || null })
     }
     doc.results = results
     await history.insertOne(doc)
     log(`[CloudIVR-Web] quick IVR ${cfg.callerId} → ${cfg.targets.join(',')} (${cfg.mode}${cfg.menu ? '+menu' : ''}) by ${chatId}`)
     const ok = results.filter(r => r.ok).length
     if (!ok) return { status: 424, body: { error: 'call_failed', message: results[0]?.error || 'The call could not be started.', results } }
-    return { status: 201, body: { started: ok, results, rate, callId: doc._id } }
+    return { status: 201, body: { started: ok, results, rate, callId: doc._id, mode: cfg.mode } }
   }
 
   router.get('/outbound/templates', (req, res) => res.json(templates()))
@@ -198,7 +280,6 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
     const { cfg, err } = await buildCall(chatId, req.body)
     if (err) return bad(res, ...err)
     if (req.body.scheduleAt) {
-      if (!businessTier(cfg.callerPlan)) return bad(res, 403, 'plan_upgrade_required', 'Scheduling calls is on the Business plan.')
       const at = new Date(req.body.scheduleAt)
       if (isNaN(at.getTime()) || at.getTime() < Date.now() + 4 * 60000 || at.getTime() > Date.now() + 86400000) return bad(res, 400, 'invalid_schedule', 'Schedule between 5 minutes and 24 hours from now.')
       const docs = cfg.targets.map(to => ({
@@ -251,7 +332,6 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
     delete setup.targets; delete setup.to; delete setup.scheduleAt
     const { cfg, err } = await buildCall(chatId, { ...setup, to: '+14155550100' })
     if (err) return bad(res, ...err)
-    if (!businessTier(cfg.callerPlan)) return bad(res, 403, 'plan_upgrade_required', 'Saved presets are on the Business plan.')
     const list = ((await getPrefs(chatId)).ivrPresets || []).filter(p => p.name.toLowerCase() !== name.toLowerCase())
     if (list.length >= MAX_PRESETS) return bad(res, 400, 'too_many_presets', `Up to ${MAX_PRESETS} presets — delete one first.`)
     const preset = { id: uid(), name, setup, hasMenu: !!cfg.menu, mode: cfg.mode, menu: cfg.menu, createdAt: new Date() }
@@ -268,19 +348,43 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
 
   router.get('/calls/menu-stats', h(async (req, res) => res.json(await voiceService.getOutboundMenuAnalytics(String(req.webChatId), 30))))
 
-  // One free trial call for accounts without a calling number yet (same offer as the bot's "Quick IVR Call — 1 Free").
-  const trialAvailable = async (chatId) => !(await getPrefs(chatId)).ivrTrialUsed && !(await eligible(chatId)).length
-  router.get('/calls/trial', h(async (req, res) => res.json({ available: await trialAvailable(req.webChatId) })))
+  // Code collection: live state of a call and the Accept / Decline / Hang up decision (bot: Confirm / Reject / Hang up).
+  router.get('/calls/otp/:ccid', h(async (req, res) => {
+    const st = otpState(req.webChatId, String(req.params.ccid), voiceService)
+    if (!st) return bad(res, 404, 'not_found', 'That call is not available any more.')
+    res.json(pubOtp(st))
+  }))
+  router.post('/calls/otp/:ccid', h(async (req, res) => {
+    const ccid = String(req.params.ccid), action = String(req.body?.action || '')
+    if (!['accept', 'decline', 'hangup'].includes(action)) return bad(res, 400, 'invalid_action', 'Choose accept, decline or hang up.')
+    const st = otpState(req.webChatId, ccid, voiceService)
+    if (!st) return bad(res, 404, 'not_found', 'That call is not available any more.')
+    if (st.state !== 'code') return bad(res, 409, 'not_waiting', 'This call is not waiting for your answer any more.')
+    if (otpSim.has(ccid)) otpSim.decide(ccid, action)
+    else {
+      const r = await voiceService.resolveOtp(ccid, action)
+      if (r?.error) return bad(res, 409, 'not_waiting', 'This call is not waiting for your answer any more.')
+    }
+    res.json(pubOtp(otpState(req.webChatId, ccid, voiceService)))
+  }))
+
+  // One free Quick IVR call from our shared number for accounts without a calling number (the bot's "Quick IVR Call — 1 Free").
+  const busyMsg = 'Your free call is still going. If nobody answered, you can try again in a few minutes.'
+  router.get('/calls/trial', h(async (req, res) => res.json(await trialStatus(db, numbersApi, req.webChatId))))
   router.post('/calls/trial', h(async (req, res) => {
     const chatId = req.webChatId
-    if (!(await trialAvailable(chatId))) return bad(res, 403, 'trial_used', 'The free trial call is for accounts without a calling number, once.')
+    const t = await trialStatus(db, numbersApi, chatId)
+    if (!t.available) return bad(res, 403, 'trial_used', 'The free Quick IVR call is for accounts without a calling number, once.')
+    if (t.inProgress) return bad(res, 409, 'trial_in_progress', busyMsg)
     const { cfg, err } = await buildCall(chatId, req.body, { trial: true })
     if (err) return bad(res, ...err)
-    const claim = await prefs.updateOne({ _id: chatId, ivrTrialUsed: { $ne: true } }, { $set: { ivrTrialUsed: true, ivrTrialAt: new Date() } }, { upsert: true }).catch(() => ({ modifiedCount: 0, upsertedCount: 0 }))
-    if (!claim.modifiedCount && !claim.upsertedCount) return bad(res, 403, 'trial_used', 'The free trial call was already used.')
+    const now = new Date()
+    const claim = await prefs.updateOne({ _id: chatId, ivrTrialUsed: { $ne: true }, $or: [{ ivrTrialPendingAt: null }, { ivrTrialPendingAt: { $lt: new Date(now - TRIAL_HOLD_MS) } }] }, { $set: { ivrTrialPendingAt: now } }, { upsert: true }).catch(() => ({ modifiedCount: 0, upsertedCount: 0 }))
+    if (!claim.modifiedCount && !claim.upsertedCount) return bad(res, 409, 'trial_in_progress', busyMsg)
     const r = await run(chatId, req.body, cfg, { trial: true })
-    if (r.status >= 400) await prefs.updateOne({ _id: chatId }, { $set: { ivrTrialUsed: false } })
-    res.status(r.status).json(r.body)
+    if (r.status >= 400) await prefs.updateOne({ _id: chatId }, { $unset: { ivrTrialPendingAt: '' } })
+    else if (dryRun()) await prefs.updateOne({ _id: chatId }, { $set: { ivrTrialUsed: true, ivrTrialAt: now }, $unset: { ivrTrialPendingAt: '' } })
+    res.status(r.status).json({ ...r.body, trial: await trialStatus(db, numbersApi, chatId) })
   }))
 
   // Saved voice + speed for every new AI voice message (Business "consistent voice").
@@ -298,4 +402,4 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
   }))
 }
 
-module.exports = { routes, templates, cleanMenu, firstForward, parseTargets }
+module.exports = { routes, templates, cleanMenu, firstForward, parseTargets, trialStatus }

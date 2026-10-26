@@ -483,6 +483,49 @@ function routes(router, deps) {
     res.json({ recording: !!req.body.enabled })
   }))
 
+  // One switch per feature, saved at once (number cards and the tab toggles): flips `enabled`, keeps every other setting.
+  const SWITCHES = {
+    callForwarding: { gate: ['callForwarding', 'Call forwarding'], need: (f) => (E164.test(String(f.callForwarding?.forwardTo || '')) ? null : 'Set a forward-to number in the Forwarding tab first.') },
+    ivr: { gate: ['ivr', 'The keypad menu'], need: (f) => (Object.keys(f.ivr?.options || {}).length ? null : 'Add at least one menu key in the Keypad menu tab first.') },
+    hours: { need: (f) => (numberHours.DAYS.some(d => f.hours?.days?.[d]?.on) ? null : 'Turn on at least one day in the Hours tab first.') },
+    voicemail: { gate: ['voicemail', 'Voicemail'] },
+    transcribe: { gate: ['voicemail', 'Voicemail'] },
+    recording: { gate: ['callRecording', 'Call recording'] },
+    browserRing: { gate: ['textRelay', 'Ringing in the browser'] },
+    ringGroup: { gate: ['ringGroup', 'Ring groups'], need: (f) => ((f.ringGroup?.members || []).length ? null : 'Add at least one phone in the Ring group tab first.') },
+    textTriggers: { gate: ['textTriggers', 'Text Triggers'], need: (f) => ((f.textTriggers?.rules || []).length ? null : 'Add a trigger in the Text Triggers tab first.') },
+    aiAgent: { gate: ['aiAgent', 'The AI voice agent'], need: (f) => (f.aiAgent?.agentId ? null : 'Pick an AI agent in the AI voice agent tab first.') },
+    autoRenew: {},
+  }
+  router.patch('/numbers/:phone/switch', withNumber(async (req, res) => {
+    const feature = String(req.body?.feature || '')
+    const sw = SWITCHES[feature]
+    if (!sw) return bad(res, 400, 'unknown_switch', 'Unknown switch.')
+    if (sw.gate && !gate(req, res, ...sw.gate)) return
+    const enabled = !!req.body?.enabled
+    const f = req.num.features || {}
+    const why = enabled && sw.need ? sw.need(f) : null
+    if (why) return bad(res, 400, 'not_configured', why)
+    const phone = req.num.phoneNumber, id = req.webChatId
+    const extra = {}
+    if (feature === 'autoRenew') await setField(id, phone, 'autoRenew', enabled)
+    else if (feature === 'recording') await setField(id, phone, 'features.recording', enabled)
+    else if (feature === 'transcribe') await setField(id, phone, 'features.voicemail', { ...(f.voicemail || {}), transcribe: enabled })
+    else if (feature === 'hours') await setField(id, phone, 'features.hours', { ...numberHours.defaultHours(), ...(f.hours || {}), enabled })
+    else if (feature === 'callForwarding') {
+      const cf = f.callForwarding || {}
+      const live = cf.mode && cf.mode !== 'disabled' ? cf.mode : null
+      await setField(id, phone, 'features.callForwarding', enabled ? { ...cf, enabled: true, mode: live || cf.lastMode || 'always' } : { ...cf, enabled: false, mode: 'disabled', lastMode: live || cf.lastMode || 'always' })
+    } else {
+      await setField(id, phone, `features.${feature}`, { ...(f[feature] || {}), enabled })
+      // One answers a number: the keypad menu and the AI voice agent are never both on.
+      if (enabled && feature === 'ivr' && f.aiAgent?.enabled) { await setField(id, phone, 'features.aiAgent', { ...f.aiAgent, enabled: false }); extra.aiAgentTurnedOff = true }
+      if (enabled && feature === 'aiAgent' && f.ivr?.enabled) { await setField(id, phone, 'features.ivr', { ...f.ivr, enabled: false }); extra.ivrTurnedOff = true }
+    }
+    const all = (await phoneNumbersOf.findOne({ _id: id }))?.val?.numbers || []
+    res.json({ feature, enabled, ...extra, number: publicNumber(all.find(x => x.phoneNumber === phone) || req.num, all) })
+  }))
+
   // On/off hours (every plan). Outside the hours the number doesn't ring or forward.
   router.put('/numbers/:phone/hours', withNumber(async (req, res) => {
     let value

@@ -107,7 +107,7 @@ export function WhatsNew() {
         <ul className="mt-5 space-y-2.5" data-testid="whats-new-list">
           {RELEASE.items.map(it => (
             <li key={it.key} className="flex items-start gap-3 rounded-xl border border-[#1f1f1f] bg-[#0c0c0c] p-3.5" data-testid={`whats-new-item-${it.key}`}>
-              <div className="w-9 h-9 rounded-lg bg-[#34d399]/10 flex items-center justify-center shrink-0"><it.Icon className="w-4 h-4 text-[#34d399]" /></div>
+              <div className="w-9 h-9 rounded-lg bg-[#818cf8]/10 flex items-center justify-center shrink-0"><it.Icon className="w-4 h-4 text-[#818cf8]" /></div>
               <div className="flex-1 min-w-0 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
                 <div className="flex-1 min-w-0">
                   <div className="font-semibold text-sm flex flex-wrap items-center gap-x-2 gap-y-1">{it.title}{it.plan && <span className="civr-pill !text-[11px] !py-0">{it.plan}</span>}</div>

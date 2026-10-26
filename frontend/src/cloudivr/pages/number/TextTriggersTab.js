@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { Zap, Plus, Loader2 } from 'lucide-react';
 import { api, enc, useApi } from '../../api';
-import { Field, Toggle, Spinner, ErrorNote } from '../../ui';
+import { Field, InstantToggle, Spinner, ErrorNote } from '../../ui';
 import { useUnsaved, SaveRow } from '../../guard';
 import { RuleCard, TryText, RunsList, ACTIONS } from './TriggerParts';
 
@@ -15,19 +15,20 @@ const blank = (action) => ({ _k: key(), id: '', enabled: true, action, keywordOn
 
 function Editor({ num, data, reload, onDirty }) {
   const saved = data.textTriggers;
-  const [f, setF] = useState(() => ({ enabled: !!saved.enabled, myPhone: saved.myPhone || '', rules: (saved.rules || []).map(fromSaved) }));
+  const [f, setF] = useState(() => ({ myPhone: saved.myPhone || '', rules: (saved.rules || []).map(fromSaved) }));
   const [busy, setBusy] = useState(false);
   const u = useUnsaved(f);
+  const on = !!saved.enabled;
   useEffect(() => { onDirty?.(u.dirty); }, [u.dirty, onDirty]);
   const setRule = (i, patch) => setF(x => ({ ...x, rules: x.rules.map((r, j) => (j === i ? { ...r, ...patch } : r)) }));
   const move = (i, d) => setF(x => { const rules = [...x.rules]; [rules[i], rules[i + d]] = [rules[i + d], rules[i]]; return { ...x, rules }; });
   const remove = (i) => setF(x => ({ ...x, rules: x.rules.filter((_, j) => j !== i) }));
-  const add = (action) => setF(x => ({ ...x, enabled: x.rules.length ? x.enabled : true, rules: [...x.rules, blank(action)] }));
+  const add = (action) => setF(x => ({ ...x, rules: [...x.rules, blank(action)] }));
   const save = async () => {
     setBusy(true);
     try {
-      await api(`/numbers/${enc(num.phoneNumber)}/text-triggers`, { method: 'PUT', body: f });
-      toast.success(f.enabled ? 'Text Triggers saved and on' : 'Text Triggers saved (off)');
+      await api(`/numbers/${enc(num.phoneNumber)}/text-triggers`, { method: 'PUT', body: { ...f, enabled: on } });
+      toast.success(on ? 'Text Triggers saved' : 'Text Triggers saved — flip the switch above to turn them on');
       u.reset(); reload();
     } catch (e) { toast.error(e.message); } finally { setBusy(false); }
   };
@@ -36,10 +37,10 @@ function Editor({ num, data, reload, onDirty }) {
     <div className="civr-card p-6 space-y-6" data-testid="triggers-card" {...u.bind}>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <div className="flex items-center gap-2 font-display text-2xl font-bold"><Zap className="w-5 h-5 text-[#34d399]" />Text Triggers</div>
+          <div className="flex items-center gap-2 font-display text-2xl font-bold"><Zap className="w-5 h-5 text-[#818cf8]" />Text Triggers</div>
           <p className="text-sm text-[#a1a1aa] mt-1 max-w-xl">When a text arrives on this number, start a call automatically. Triggers are checked from top to bottom — the first one that matches runs.</p>
         </div>
-        <div className="flex items-center gap-3"><span className="text-sm">{f.enabled ? 'On' : 'Off'}</span><Toggle checked={f.enabled} onChange={v => setF({ ...f, enabled: v })} testid="triggers-enabled-toggle" /></div>
+        <div className="flex items-center gap-3"><span className="text-sm">{on ? 'On' : 'Off'}</span><InstantToggle num={num} feature="textTriggers" label="Text Triggers" checked={on} reload={reload} testid="triggers-enabled-toggle" /></div>
       </div>
       <Field label="Your phone" hint={needsPhone ? 'Auto Callback rings this phone first, then connects you to the person who texted.' : 'Used by Auto Callback. Include the country code.'}>
         <input className="civr-input font-mono" value={f.myPhone} onChange={e => setF({ ...f, myPhone: e.target.value })} placeholder="+14155550100" data-testid="triggers-my-phone-input" />
@@ -67,7 +68,7 @@ export default function TextTriggersTab({ num }) {
   if (!num.capabilities?.sms) return <div className="civr-card p-6 text-sm text-[#a1a1aa]" data-testid="triggers-no-sms">This number can’t receive text messages, so Text Triggers can’t run on it.</div>;
   return (
     <div className="grid xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] gap-4 items-start">
-      <Editor key={JSON.stringify(data.textTriggers)} num={num} data={data} reload={reload} onDirty={setDirty} />
+      <Editor key={JSON.stringify({ ...data.textTriggers, enabled: undefined })} num={num} data={data} reload={reload} onDirty={setDirty} />
       <div className="space-y-4"><TryText num={num} dirty={dirty} /><RunsList runs={data.runs} /></div>
     </div>
   );

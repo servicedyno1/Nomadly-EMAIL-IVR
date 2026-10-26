@@ -6,7 +6,7 @@ import { confirmLeave } from './guard';
 
 export const OPEN_HELP_CHAT = 'civr:open-help-chat';
 export const openHelpChat = () => window.dispatchEvent(new Event(OPEN_HELP_CHAT));
-export const SHORTCUTS = [['/', 'Jump to the search box on this page'], ['?', 'Open help for this page'], ['Esc', 'Close a dialog, a menu or the browser phone']];
+export const SHORTCUTS = [['Ctrl K / ⌘ K', 'Jump to any number, page or action'], ['/', 'Jump to the search box on this page'], ['?', 'Open help for this page'], ['Esc', 'Close a dialog, a menu or the browser phone']];
 
 // Help center link for the screen the user is on (opens the articles for that page first).
 export function helpFor(pathname, search) {

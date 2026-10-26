@@ -1,9 +1,9 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { Megaphone, Plus, Loader2, Calculator, FileUp, ChevronRight } from 'lucide-react';
+import { Megaphone, Plus, Loader2, Calculator, FileUp, ChevronRight, Pause, Play } from 'lucide-react';
 import { api, useApi, when, money } from '../api';
-import { PageHeader, Field, Spinner, Empty, AudioSelect, KeyPicker, Toggle, ErrorNote, statusPill, BackupsField } from '../ui';
+import { PageHeader, Field, SkeletonRows, SkeletonPage, Empty, AudioSelect, KeyPicker, Toggle, ErrorNote, statusPill, BackupsField } from '../ui';
 import { useCallerNumbers } from './QuickCall';
 import { DateTimePicker } from '../DateTimePicker';
 import { cp } from '../paths';
@@ -13,31 +13,73 @@ import { ScriptBox } from './quick/ScriptBox';
 import { CampaignKind, AiCampaignFields } from './ai/AiCampaignFields';
 import { useSearch, SearchBox, NoMatches } from '../search';
 import { useUnsaved, UnsavedPill } from '../guard';
+import { TrialLink } from './dashboard/Banners';
+
+const pct = (c) => (c.stats?.total ? Math.round(((c.stats.completed || 0) / c.stats.total) * 100) : 0);
+
+// Pause / Resume right on the row (Cancel stays on the detail page — it needs a confirmation).
+function RowAction({ c, i, onChange }) {
+  const [busy, setBusy] = useState(false);
+  const action = c.status === 'running' ? 'pause' : c.status === 'paused' ? 'resume' : null;
+  if (!action) return null;
+  const run = async (e) => {
+    e.preventDefault(); e.stopPropagation(); setBusy(true);
+    try {
+      const d = await api(`/campaigns/${c.id}/${action}`, { method: 'POST' });
+      if (d.dryRun) toast.message(d.message); else toast.success(action === 'pause' ? 'Campaign paused' : 'Campaign resumed');
+      if (d.campaign) onChange(d.campaign);
+    } catch (err) { toast.error(err.message); } finally { setBusy(false); }
+  };
+  const Icon = action === 'pause' ? Pause : Play;
+  return <button type="button" className={`civr-btn civr-btn-sm relative z-10 ${action === 'resume' ? 'civr-btn-primary' : 'civr-btn-ghost'}`} disabled={busy} onClick={run} data-testid={`campaign-row-${i}-${action}`}>{busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Icon className="w-4 h-4" />}{action === 'pause' ? 'Pause' : 'Resume'}</button>;
+}
+
+function CampaignRow({ c, i, pv, onChange }) {
+  const live = ['running', 'paused', 'scheduled', 'created'].includes(c.status);
+  return (
+    <div className="civr-card civr-card-link relative p-4 sm:p-6" data-testid={`campaign-row-${i}`}>
+      <Link to={cp(`/app/campaigns/${c.id}`)} className="absolute inset-0 rounded-[14px]" aria-label={`Open campaign ${c.audioName || ''}`} data-testid={`campaign-row-${i}-link`} />
+      <div className="flex flex-col md:flex-row md:items-center gap-3">
+        <div className="flex-1 min-w-0"><div className="font-semibold truncate">{c.audioName || 'Campaign'}</div><div className="text-xs text-[#a1a1aa] font-mono">{pv.phone(c.callerId)} · {when(c.createdAt)}</div></div>
+        <div className="font-mono text-sm text-[#d4d4d8]" data-testid={`campaign-row-${i}-progress-text`}>{c.stats?.completed || 0}/{c.stats?.total || 0} called</div>
+        <span className={statusPill(c.status)} data-testid={`campaign-row-${i}-status`}>{c.status}</span>
+        {c.dryRun && <span className="civr-pill civr-pill-warn">preview</span>}
+        <RowAction c={c} i={i} onChange={onChange} />
+        <ChevronRight className="w-4 h-4 text-[#a1a1aa] hidden md:block" />
+      </div>
+      {live && (
+        <div className="mt-4 h-1.5 rounded-full bg-[#262626] overflow-hidden" role="progressbar" aria-valuenow={pct(c)} aria-valuemin={0} aria-valuemax={100} aria-label="Calls made" data-testid={`campaign-row-${i}-progress`}>
+          <div className={`h-full rounded-full transition-[width] duration-700 ${c.status === 'running' ? 'bg-[#6366f1]' : 'bg-[#52525b]'}`} style={{ width: `${pct(c)}%` }} />
+        </div>
+      )}
+    </div>
+  );
+}
 
 export function Campaigns() {
-  const { data, loading, error } = useApi('/campaigns');
+  const { data, loading, error, reload, setData } = useApi('/campaigns');
   const pv = usePrivacy();
   const list = data?.campaigns || [];
   const s = useSearch(list, c => [c.audioName || 'Campaign', c.callerId, c.status, c.mode === 'ai' ? 'AI voice agent' : '']);
+  const onChange = (c) => setData(x => ({ ...x, campaigns: (x?.campaigns || []).map(k => (k.id === c.id ? c : k)) }));
+  // Live numbers while something is dialing.
+  const running = list.some(c => c.status === 'running');
+  useEffect(() => { if (!running) return undefined; const t = setInterval(reload, 8000); return () => clearInterval(t); }, [running, reload]);
   return (
     <div data-testid="campaigns-page">
       <PageHeader label="Outbound" title="Bulk IVR campaigns" sub="Call a list of numbers, play your message, report key presses or transfer interested callers to you." testid="campaigns-header">
         <Link to={cp('/app/campaigns/new')} className="civr-btn civr-btn-primary" data-testid="campaigns-new-button"><Plus className="w-4 h-4" />New campaign</Link>
       </PageHeader>
-      <ErrorNote error={error} />
-      {loading && !data ? <Spinner /> : !list.length ? <Empty icon={Megaphone} title="No campaigns yet" sub="Paste your numbers, pick a message and go." testid="campaigns-empty" /> : (
-        <div className="space-y-3">
+      <ErrorNote error={error} onRetry={reload} className="mb-4" />
+      {error && !data ? null : loading && !data ? <SkeletonRows rows={3} /> : !list.length ? (
+        <Empty icon={Megaphone} title="No campaigns yet" sub="Paste your numbers, pick a message and go. You see every answer and key press live." testid="campaigns-empty">
+          <Link to={cp('/app/campaigns/new')} className="civr-btn civr-btn-primary" data-testid="campaigns-empty-create-button"><Plus className="w-4 h-4" />Create your first campaign</Link>
+        </Empty>
+      ) : (
+        <div className="flex flex-col gap-4">
           <SearchBox s={s} placeholder="Search campaigns" testid="campaigns-search" className="max-w-md" />
           <NoMatches s={s} testid="campaigns-no-matches" />
-          {s.list.map((c, i) => (
-            <Link key={c.id} to={cp(`/app/campaigns/${c.id}`)} className="civr-card civr-card-link p-6 flex flex-col md:flex-row md:items-center gap-3" data-testid={`campaign-row-${i}`}>
-              <div className="flex-1 min-w-0"><div className="font-semibold truncate">{c.audioName || 'Campaign'}</div><div className="text-xs text-[#a1a1aa] font-mono">{pv.phone(c.callerId)} · {when(c.createdAt)}</div></div>
-              <div className="font-mono text-sm text-[#d4d4d8]">{c.stats?.completed || 0}/{c.stats?.total || 0} called</div>
-              <span className={statusPill(c.status)} data-testid={`campaign-row-${i}-status`}>{c.status}</span>
-              {c.dryRun && <span className="civr-pill civr-pill-warn">preview</span>}
-              <ChevronRight className="w-4 h-4 text-[#a1a1aa]" />
-            </Link>
-          ))}
+          {s.list.map((c, i) => <CampaignRow key={c.id} c={c} i={i} pv={pv} onChange={onChange} />)}
         </div>
       )}
     </div>
@@ -80,12 +122,12 @@ export function CampaignNew() {
   const [error, setError] = useState(null);
   const u = useUnsaved({ f, kind, script });
   const set = (k) => (v) => setF({ ...f, [k]: v?.target ? v.target.value : v });
-  if (loading) return <Spinner />;
+  if (loading) return <SkeletonPage cards={2} rows={0} />;
   if (!numbers.length) return (
     <div data-testid="campaign-new-page">
       <PageHeader label="Campaigns" title="New campaign" testid="campaign-new-header" />
       <CampaignKind value={kind} onChange={setKind} />
-      <Empty icon={Megaphone} title={kind === 'ai' ? 'No number can run AI voice agent campaigns' : 'No number can run campaigns'} sub={kind === 'ai' ? 'AI voice agent campaigns need an active number on the Business plan.' : 'Bulk IVR needs an active number on the Pro plan or higher.'} testid="campaign-new-empty"><Link to={cp('/app/numbers')} className="civr-btn civr-btn-primary" data-testid="campaign-new-empty-action">My numbers</Link></Empty>
+      <Empty icon={Megaphone} title={kind === 'ai' ? 'No number can run AI voice agent campaigns' : 'No number can run campaigns'} sub={kind === 'ai' ? 'AI voice agent campaigns need an active number on the Business plan.' : 'Bulk IVR needs an active number on the Pro plan or higher.'} testid="campaign-new-empty"><Link to={cp('/app/numbers')} className="civr-btn civr-btn-primary" data-testid="campaign-new-empty-action">My numbers</Link>{kind !== 'ai' && <TrialLink testid="campaign-new-trial-link" />}</Empty>
     </div>
   );
   const callerId = numbers.some(n => n.phoneNumber === f.callerId) ? f.callerId : numbers[0].phoneNumber;
@@ -115,7 +157,7 @@ export function CampaignNew() {
           <Field label="Caller ID"><select className="civr-input font-mono" value={callerId} onChange={set('callerId')} data-testid="campaign-caller-select">{numbers.map(n => <option key={n.phoneNumber}>{n.phoneNumber}</option>)}</select></Field>
           {isAi ? <AiCampaignFields agentId={f.agentId} onChange={set('agentId')} /> : <>
           <Field label="Message"><AudioSelect value={f.audioId} onChange={set('audioId')} audios={au?.audios} by="id" testid="campaign-audio-select" /></Field>
-          {script ? <div className="border border-[#222] rounded-xl p-4"><ScriptBox value={script} onChange={setScript} onAudio={(a) => { reloadAudio(); setF(x => ({ ...x, audioId: a.id })); setScript(null); }} testid="campaign-script" /></div>
+          {script ? <div className="border border-[#262626] rounded-xl p-4"><ScriptBox value={script} onChange={setScript} onAudio={(a) => { reloadAudio(); setF(x => ({ ...x, audioId: a.id })); setScript(null); }} testid="campaign-script" /></div>
             : <button type="button" className="civr-btn civr-btn-ghost civr-btn-sm" onClick={() => setScript({ text: '', values: {} })} data-testid="campaign-write-script-button">Write a script with a template instead</button>}
           <Field label="Voicemail drop (optional)" hint="Played when an answering machine picks up."><AudioSelect value={f.voicemailAudioId} onChange={set('voicemailAudioId')} audios={au?.audios} by="id" placeholder="None" testid="campaign-voicemail-audio-select" /></Field>
           </>}

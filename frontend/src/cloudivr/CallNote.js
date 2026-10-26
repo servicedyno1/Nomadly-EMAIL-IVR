@@ -45,6 +45,6 @@ export function NoteCell({ log: l, phone, onSaved, testid }) {
       <button onClick={start} className="w-9 h-9 -my-2 flex items-center justify-center rounded-md text-[#a1a1aa] hover:text-white shrink-0" aria-label="Edit note" data-testid={`${testid}-edit-button`}><Pencil className="w-3.5 h-3.5" /></button>
     </div>
   ) : (
-    <button onClick={start} className="inline-flex items-center gap-1 min-h-[40px] text-[#a1a1aa] hover:text-[#34d399]" data-testid={`${testid}-add-button`}><StickyNote className="w-3.5 h-3.5" />Add note</button>
+    <button onClick={start} className="inline-flex items-center gap-1 min-h-[40px] text-[#a1a1aa] hover:text-[#818cf8]" data-testid={`${testid}-add-button`}><StickyNote className="w-3.5 h-3.5" />Add note</button>
   );
 }

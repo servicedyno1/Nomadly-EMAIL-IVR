@@ -102,7 +102,7 @@ export function UpdateBanner() {
     window.location.reload();
   };
   return (
-    <div role="status" aria-live="polite" className="text-sm text-[#a7f3d0] bg-[#34d399]/10 border-b border-[#34d399]/30 px-4 py-2 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-center" data-testid="app-update-banner">
+    <div role="status" aria-live="polite" className="text-sm text-[#c7d2fe] bg-[#818cf8]/10 border-b border-[#818cf8]/30 px-4 py-2 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-center" data-testid="app-update-banner">
       <span className="flex items-center gap-2"><RefreshCw className="w-4 h-4 shrink-0" />A new version of CloudIVR is ready.</span>
       <span className="flex items-center gap-1">
         <button type="button" onClick={refresh} className="civr-btn civr-btn-primary civr-btn-sm" data-testid="app-update-refresh-button">Refresh now</button>

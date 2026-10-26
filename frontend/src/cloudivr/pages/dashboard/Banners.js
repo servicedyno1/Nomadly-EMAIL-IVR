@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Ticket, Send, X } from 'lucide-react';
+import { Ticket, Send, X, Gift, PhoneOutgoing } from 'lucide-react';
 import { useApi } from '../../api';
 import { useShell } from '../../Shell';
 import { useCivrAuth } from '../../AuthContext';
@@ -20,13 +20,13 @@ export function CouponBanner() {
   const left = new Date(c.expiresAt).getTime() - now;
   if (left <= 0) return null;
   return (
-    <div className="civr-card civr-rise p-5 sm:p-6 mb-6 flex flex-col sm:flex-row sm:items-center gap-4 !border-[#34d399]/40 bg-gradient-to-r from-[#34d399]/10 to-transparent" data-testid="dashboard-coupon-banner">
-      <div className="w-11 h-11 rounded-xl bg-[#34d399]/15 flex items-center justify-center shrink-0"><Ticket className="w-5 h-5 text-[#34d399]" /></div>
+    <div className="civr-card civr-rise p-5 sm:p-6 mb-6 flex flex-col sm:flex-row sm:items-center gap-4 !border-[#818cf8]/40 bg-gradient-to-r from-[#818cf8]/10 to-transparent" data-testid="dashboard-coupon-banner">
+      <div className="w-11 h-11 rounded-xl bg-[#818cf8]/15 flex items-center justify-center shrink-0"><Ticket className="w-5 h-5 text-[#818cf8]" /></div>
       <div className="flex-1 min-w-0">
         <div className="font-semibold text-base">{`Today's coupon: ${c.discount}% off a new number`}</div>
         <div className="text-sm text-[#a1a1aa] mt-1 flex flex-wrap items-center gap-x-2">
           <span>Code</span><span className="font-mono text-[#f3f4f6]" data-testid="dashboard-coupon-code" data-no-translate>{c.code}</span>
-          <span>·</span><span>Ends in</span><span className="font-mono text-[#34d399] tabular-nums" data-testid="dashboard-coupon-countdown">{hms(left)}</span>
+          <span>·</span><span>Ends in</span><span className="font-mono text-[#818cf8] tabular-nums" data-testid="dashboard-coupon-countdown">{hms(left)}</span>
         </div>
       </div>
       <Link to={cp(`/app/buy?coupon=${encodeURIComponent(c.code)}`)} className="civr-btn civr-btn-primary civr-btn-sm self-start sm:self-auto" data-testid="dashboard-coupon-use">Use it</Link>
@@ -56,4 +56,26 @@ export function ChannelCard() {
       <button type="button" onClick={close} className="w-11 h-11 -mt-2 -mr-2 flex items-center justify-center rounded-lg text-[#a1a1aa] hover:text-white hover:bg-white/5 shrink-0" aria-label="Dismiss" data-testid="dashboard-channel-dismiss"><X className="w-4 h-4" /></button>
     </div>
   );
+}
+
+// Accounts without a calling number get one free Quick IVR call from our number (same offer as the bot).
+export function TrialCard() {
+  const shell = useShell();
+  if (!shell?.summary?.ivrTrial) return null;
+  return (
+    <div className="civr-card civr-rise p-5 sm:p-6 mb-6 flex flex-col sm:flex-row sm:items-center gap-4 !border-[#818cf8]/40 bg-gradient-to-r from-[#818cf8]/10 to-transparent" data-testid="dashboard-trial-card">
+      <div className="w-11 h-11 rounded-xl bg-[#818cf8]/15 flex items-center justify-center shrink-0"><Gift className="w-5 h-5 text-[#818cf8]" /></div>
+      <div className="flex-1 min-w-0">
+        <div className="font-semibold text-base">Your first Quick IVR call is free</div>
+        <div className="text-sm text-[#a1a1aa] mt-1">Call any phone from our number: they hear your message, then press 1 to reach you or type a code you accept or decline. No number or wallet needed.</div>
+      </div>
+      <Link to={cp('/app/quick-call')} className="civr-btn civr-btn-primary civr-btn-sm self-start sm:self-auto" data-testid="dashboard-trial-cta"><PhoneOutgoing className="w-4 h-4" />Try it free</Link>
+    </div>
+  );
+}
+
+export function TrialLink({ testid }) {
+  const shell = useShell();
+  if (!shell?.summary?.ivrTrial) return null;
+  return <Link to={cp('/app/quick-call')} className="civr-btn civr-btn-ghost" data-testid={testid}><Gift className="w-4 h-4" />Try a free Quick IVR call</Link>;
 }

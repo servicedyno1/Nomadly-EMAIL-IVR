@@ -25,7 +25,7 @@ export function DraftBanner({ draft, onResume }) {
   const resume = () => { const { savedAt, ...rest } = d; onResume(rest); };
   return (
     <div className="civr-card civr-rise p-4 flex flex-wrap items-center gap-3" data-testid="quick-draft-banner">
-      <div className="w-9 h-9 rounded-lg bg-[#34d399]/10 flex items-center justify-center shrink-0"><RotateCcw className="w-4 h-4 text-[#34d399]" /></div>
+      <div className="w-9 h-9 rounded-lg bg-[#818cf8]/10 flex items-center justify-center shrink-0"><RotateCcw className="w-4 h-4 text-[#818cf8]" /></div>
       <div className="flex-1 min-w-[12rem] text-sm">
         <div className="font-semibold">Resume last draft</div>
         <div className="text-[#a1a1aa]">You left a call setup here without placing it.</div>

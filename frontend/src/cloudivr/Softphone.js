@@ -11,6 +11,8 @@ import { CallMeFirst, CallNoteBox } from './SoftphoneExtras';
 const KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '*', '0', '#'];
 const STATUS = { idle: 'Offline', connecting: 'Connecting…', ready: 'Online', error: 'Not connected' };
 
+export const DIAL_FROM = 'civr:dial-from';
+
 export default function Softphone({ open, onClose }) {
   const pv = usePrivacy();
   const [nums, setNums] = useState(null);
@@ -32,6 +34,8 @@ export default function Softphone({ open, onClose }) {
     api('/calls/callback').then(d => setMyPhone(p => p || d.myPhone || '')).catch(() => {});
   }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (call) setLast({ peer: call.peer, direction: call.inbound ? 'inbound' : 'outbound' }); }, [call]);
+  // "Call from this number" on a number card picks that line before the phone opens.
+  useEffect(() => { const on = (e) => { if (e.detail?.from) setSel(e.detail.from); }; window.addEventListener(DIAL_FROM, on); return () => window.removeEventListener(DIAL_FROM, on); }, []);
   const selNum = nums?.find(n => n.phoneNumber === sel);
   const cmfAllowed = !!selNum?.access?.ivrOutbound;
   const viaMobile = cmf && cmfAllowed;
@@ -64,9 +68,9 @@ export default function Softphone({ open, onClose }) {
           </div>
           <CallMeFirst on={cmf} onChange={v => { setCmf(v); setInfo(null); }} myPhone={myPhone} setMyPhone={setMyPhone} allowed={cmfAllowed} />
           <div className="text-xs mb-3" data-testid="softphone-status">
-            {viaMobile ? <span className="text-[#a1a1aa]">Rings your mobile first — no browser connection needed.</span> : <span className={status === 'ready' ? 'text-[#34d399]' : status === 'error' ? 'text-[#fb7185]' : 'text-[#a1a1aa]'}>{call ? `Call ${call.state}` : STATUS[status]}</span>}
+            {viaMobile ? <span className="text-[#a1a1aa]">Rings your mobile first — no browser connection needed.</span> : <span className={status === 'ready' ? 'text-[#818cf8]' : status === 'error' ? 'text-[#fb7185]' : 'text-[#a1a1aa]'}>{call ? `Call ${call.state}` : STATUS[status]}</span>}
             {!viaMobile && msg && <span className="block text-[#a1a1aa] mt-1">{msg}</span>}
-            {info && <span className={`block mt-1 ${info.ok ? 'text-[#34d399]' : 'text-[#fb7185]'}`} data-testid="softphone-callback-result">{info.text}</span>}
+            {info && <span className={`block mt-1 ${info.ok ? 'text-[#818cf8]' : 'text-[#fb7185]'}`} data-testid="softphone-callback-result">{info.text}</span>}
           </div>
           <div className="flex items-center gap-2 mb-3"><input className={`civr-input font-mono ${pv.input}`} inputMode="tel" autoComplete="off" value={dest} onChange={e => setDest(e.target.value)} placeholder="+14155550100" aria-label="Number to call" data-testid="softphone-destination-input" /><button onClick={() => setDest(d => d.slice(0, -1))} className="w-11 h-11 shrink-0 flex items-center justify-center rounded-full text-[#a1a1aa] hover:text-white hover:bg-white/5" data-testid="softphone-backspace-button" aria-label="Delete digit"><Delete className="w-4 h-4" /></button></div>
           <div className="grid grid-cols-3 gap-2 mb-4">{KEYS.map(k => <button key={k} className="civr-key" onClick={() => press(k)} data-testid={`softphone-key-${k === '*' ? 'star' : k === '#' ? 'hash' : k}`}>{k}</button>)}</div>

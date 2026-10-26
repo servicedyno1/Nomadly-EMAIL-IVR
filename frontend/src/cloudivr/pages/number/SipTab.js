@@ -35,7 +35,7 @@ function Row({ k, v, id, secret }) {
     <div className="flex items-center justify-between gap-3 py-3">
       <span className="text-sm text-[#a1a1aa] shrink-0">{k}</span>
       <span className="flex items-center gap-1.5 min-w-0"><code className="text-sm text-[#f3f4f6] truncate" data-testid={id} data-no-translate>{v}</code>
-        {v && !secret && <button type="button" onClick={() => copy(v)} className="w-10 h-10 -my-2 flex items-center justify-center rounded-md text-[#a1a1aa] hover:text-[#34d399] hover:bg-white/5 shrink-0" aria-label={`Copy ${k}`} data-testid={`${id}-copy`}><Copy className="w-3.5 h-3.5" /></button>}</span>
+        {v && !secret && <button type="button" onClick={() => copy(v)} className="w-10 h-10 -my-2 flex items-center justify-center rounded-md text-[#a1a1aa] hover:text-[#818cf8] hover:bg-white/5 shrink-0" aria-label={`Copy ${k}`} data-testid={`${id}-copy`}><Copy className="w-3.5 h-3.5" /></button>}</span>
     </div>
   );
 }
@@ -55,7 +55,7 @@ export function SipCredentials({ num, prefix = 'sip', heading, className = 'lg:c
   return (
     <div className={`civr-card p-6 ${className}`} data-testid={`${prefix}-credentials-card`}>
       <div className="flex items-start gap-3">
-        <KeyRound className="w-5 h-5 text-[#34d399] mt-1 shrink-0" />
+        <KeyRound className="w-5 h-5 text-[#818cf8] mt-1 shrink-0" />
         <div className="min-w-0">
           <div className="font-display text-2xl font-bold">{heading || 'SIP credentials'}</div>
           <p className="text-sm text-[#a1a1aa] mt-1">Use these in any softphone (Zoiper, Linphone, MicroSIP) to call and receive calls on this number.</p>
@@ -92,7 +92,7 @@ export default function SipTab({ num }) {
       <SipCredentials num={num} />
       <BrowserPhoneCard />
       <TestOutbound num={num} />
-      <div className="lg:col-span-3 text-sm text-[#a1a1aa]">All your numbers’ SIP logins and a setup guide: <Link to={cp('/app/sip')} className="text-[#34d399] hover:underline" data-testid="sip-tab-all-link">SIP & softphones</Link></div>
+      <div className="lg:col-span-3 text-sm text-[#a1a1aa]">All your numbers’ SIP logins and a setup guide: <Link to={cp('/app/sip')} className="text-[#818cf8] hover:underline" data-testid="sip-tab-all-link">SIP & softphones</Link></div>
     </div>
   );
 }

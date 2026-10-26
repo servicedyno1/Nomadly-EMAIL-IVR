@@ -112,7 +112,7 @@ function useHashScroll() {
       const h = document.documentElement.scrollHeight;
       if (el) {
         const top = Math.round(el.getBoundingClientRect().top + window.scrollY);
-        const busy = document.querySelector('[data-testid="settings-page"] [data-testid="loading-indicator"]');
+        const busy = document.querySelector('[data-testid="settings-page"] [aria-busy="true"]');
         if (top !== lastTop || h !== lastH) { lastTop = top; lastH = h; still = 0; el.scrollIntoView({ block: 'start' }); } else if (!busy) still += 1;
       }
       if (still >= 10 || ticks > 60) clearInterval(t); // settled for ~1.5 s with nothing loading, or 9 s cap

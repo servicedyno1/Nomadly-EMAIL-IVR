@@ -2,7 +2,7 @@ import React, { useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { Music, Upload, Wand2, Trash2, Pencil, Loader2, Check, X } from 'lucide-react';
 import { api, useApi, day, playUrl } from '../api';
-import { PageHeader, Field, Spinner, ErrorNote, Empty } from '../ui';
+import { PageHeader, Field, SkeletonRows, ErrorNote, Empty } from '../ui';
 import { undoable } from '../undo';
 import { useSearch, SearchBox, NoMatches } from '../search';
 
@@ -23,7 +23,7 @@ function UploadCard({ onDone }) {
   };
   return (
     <div className="civr-card p-6 space-y-4" data-testid="audio-upload-card">
-      <div className="flex items-center gap-2 font-display text-2xl font-bold"><Upload className="w-5 h-5 text-[#34d399]" />Upload</div>
+      <div className="flex items-center gap-2 font-display text-2xl font-bold"><Upload className="w-5 h-5 text-[#818cf8]" />Upload</div>
       <input ref={ref} type="file" accept="audio/*,.mp3,.wav,.ogg,.m4a" className="hidden" onChange={pick} data-testid="audio-upload-file-input" />
       <button type="button" className="civr-btn civr-btn-ghost w-full" disabled={busy} onClick={() => ref.current?.click()} data-testid="audio-upload-choose-button"><Music className="w-4 h-4" /><span className="truncate">{file ? file.name : 'Choose audio file'}</span></button>
       <Field label="Name"><input className="civr-input" value={name} onChange={e => setName(e.target.value)} placeholder="Main greeting" data-testid="audio-upload-name-input" /></Field>
@@ -43,7 +43,7 @@ function TtsCard({ onDone }) {
   };
   return (
     <div className="civr-card p-6 space-y-4 lg:col-span-2" data-testid="audio-tts-card">
-      <div className="flex items-center gap-2 font-display text-2xl font-bold"><Wand2 className="w-5 h-5 text-[#38bdf8]" />Text to speech</div>
+      <div className="flex items-center gap-2 font-display text-2xl font-bold"><Wand2 className="w-5 h-5 text-[#818cf8]" />Text to speech</div>
       <Field label="What should the voice say?" hint={`${f.text.length}/1500`}><textarea rows={4} className="civr-input" maxLength={1500} value={f.text} onChange={e => setF({ ...f, text: e.target.value })} placeholder="Thanks for calling. Press 1 for sales, 2 for support." data-testid="audio-tts-text-input" /></Field>
       <div className="grid sm:grid-cols-3 gap-3">
         <Field label="Voice"><select className="civr-input" value={f.voice} onChange={e => setF({ ...f, voice: e.target.value })} data-testid="audio-tts-voice-select">{(data?.voices || []).map(v => <option key={v.key} value={v.key}>{`${v.name} · ${v.gender}`}</option>)}</select></Field>
@@ -68,7 +68,7 @@ function AudioRow({ a, i, reload, hide }) {
     <div className="civr-card p-4 flex flex-col md:flex-row md:items-center gap-3" data-testid={`audio-row-${i}`}>
       <div className="md:w-56 min-w-0">
         {edit !== null ? (
-          <div className="flex gap-1"><input className="civr-input !h-9" value={edit} onChange={e => setEdit(e.target.value)} data-testid={`audio-row-${i}-rename-input`} /><button onClick={rename} className="p-2 text-[#34d399]" data-testid={`audio-row-${i}-rename-save`}><Check className="w-4 h-4" /></button><button onClick={() => setEdit(null)} className="p-2 text-[#a1a1aa]" data-testid={`audio-row-${i}-rename-cancel`}><X className="w-4 h-4" /></button></div>
+          <div className="flex gap-1"><input className="civr-input !h-9" value={edit} onChange={e => setEdit(e.target.value)} data-testid={`audio-row-${i}-rename-input`} /><button onClick={rename} className="p-2 text-[#818cf8]" data-testid={`audio-row-${i}-rename-save`}><Check className="w-4 h-4" /></button><button onClick={() => setEdit(null)} className="p-2 text-[#a1a1aa]" data-testid={`audio-row-${i}-rename-cancel`}><X className="w-4 h-4" /></button></div>
         ) : <div className="font-semibold truncate" data-testid={`audio-row-${i}-name`}>{a.name}</div>}
         <div className="text-xs text-[#a1a1aa] mt-0.5">{a.source === 'tts' ? 'Text to speech' : 'Upload'} · {day(a.createdAt)}</div>
       </div>
@@ -90,9 +90,14 @@ export default function AudioLibrary() {
     <div data-testid="audio-page">
       <PageHeader label="Audio" title="Audio library" sub="Greetings, IVR prompts and campaign messages. Upload your own or type it and pick a voice." testid="audio-header" />
       <div className="grid lg:grid-cols-3 gap-4"><UploadCard onDone={reload} /><TtsCard onDone={reload} /></div>
-      <div className="mt-8 space-y-3">
-        <ErrorNote error={error} />
-        {loading && !data ? <Spinner /> : !audios.length ? <Empty icon={Music} title="No audio yet" sub="Your first upload or voice message shows up here." testid="audio-empty" /> : <>
+      <div className="mt-8 flex flex-col gap-2">
+        <ErrorNote error={error} onRetry={reload} />
+        {error && !data ? null : loading && !data ? <SkeletonRows rows={3} /> : !audios.length ? (
+          <Empty icon={Music} title="No audio yet" sub="Type a message and pick a voice, or upload your own recording. It shows up here, ready for greetings, menus and campaigns." testid="audio-empty">
+            <button type="button" className="civr-btn civr-btn-primary" onClick={() => { const el = document.querySelector('[data-testid="audio-tts-text-input"]'); el?.scrollIntoView({ behavior: 'smooth', block: 'center' }); el?.focus({ preventScroll: true }); }} data-testid="audio-empty-tts-button"><Wand2 className="w-4 h-4" />Write a voice message</button>
+            <button type="button" className="civr-btn civr-btn-ghost" onClick={() => document.querySelector('[data-testid="audio-upload-choose-button"]')?.click()} data-testid="audio-empty-upload-button"><Upload className="w-4 h-4" />Upload a file</button>
+          </Empty>
+        ) : <>
           <SearchBox s={s} placeholder="Search audio" testid="audio-search" className="max-w-md" />
           <NoMatches s={s} testid="audio-no-matches" />
           {s.list.map((a, i) => <AudioRow key={a.id} a={a} i={i} reload={reload} hide={hide} />)}

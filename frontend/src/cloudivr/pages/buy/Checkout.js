@@ -1,15 +1,25 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Wallet as WalletIcon, Bitcoin, Loader2, Check, Ticket, X } from 'lucide-react';
+import { Wallet as WalletIcon, Bitcoin, Loader2, Check, Ticket, X, CreditCard } from 'lucide-react';
 import { api, money, useApi } from '../../api';
 import { Field, Toggle } from '../../ui';
 
 function Option({ on, onClick, icon: Icon, title, sub, testid }) {
   return (
     <button type="button" onClick={onClick} aria-pressed={on} className={`civr-card text-left p-4 flex gap-4 items-start ${on ? 'civr-trace' : ''}`} data-testid={testid}>
-      <Icon className={`w-5 h-5 mt-0.5 shrink-0 ${on ? 'text-[#34d399]' : 'text-[#a1a1aa]'}`} />
+      <Icon className={`w-5 h-5 mt-0.5 shrink-0 ${on ? 'text-[#818cf8]' : 'text-[#a1a1aa]'}`} />
       <div className="flex-1"><div className="font-semibold">{title}</div><div className="text-xs text-[#a1a1aa] mt-1">{sub}</div></div>
-      {on && <Check className="w-4 h-4 text-[#34d399] shrink-0" />}
+      {on && <Check className="w-4 h-4 text-[#818cf8] shrink-0" />}
     </button>
+  );
+}
+
+// Card payments are not switched on yet: shown, but disabled, wherever you can pay.
+export function CardComingSoon({ testid = 'card-coming-soon', className = '' }) {
+  return (
+    <div aria-disabled="true" className={`civr-card p-4 flex gap-4 items-start opacity-70 cursor-not-allowed ${className}`} data-testid={testid}>
+      <CreditCard className="w-5 h-5 mt-0.5 shrink-0 text-[#a1a1aa]" />
+      <div className="flex-1"><div className="font-semibold flex flex-wrap items-center gap-2">Credit / debit card<span className="civr-pill !text-[10px]" data-testid={`${testid}-badge`}>Coming soon</span></div><div className="text-xs text-[#a1a1aa] mt-1">Visa, Mastercard and more — available soon.</div></div>
+    </div>
   );
 }
 
@@ -27,7 +37,7 @@ export function CouponField({ total, coupon, setCoupon, initialCode }) {
   useEffect(() => { if (initialCode && !coupon && !tried.current) { tried.current = true; apply(initialCode); } });
   const today = data?.coupon && !data.coupon.used ? data.coupon : null;
   if (coupon) return (
-    <div className="flex items-center gap-2 text-sm text-[#34d399] mt-4" data-testid="checkout-coupon-applied"><Ticket className="w-4 h-4" /><span className="font-mono">{coupon.code}</span> · {coupon.discount}% off
+    <div className="flex items-center gap-2 text-sm text-[#818cf8] mt-4" data-testid="checkout-coupon-applied"><Ticket className="w-4 h-4" /><span className="font-mono">{coupon.code}</span> · {coupon.discount}% off
       <button type="button" onClick={() => setCoupon(null)} className="p-1 text-[#a1a1aa] hover:text-white" aria-label="Remove coupon" data-testid="checkout-coupon-remove"><X className="w-3.5 h-3.5" /></button></div>
   );
   return (
@@ -35,7 +45,7 @@ export function CouponField({ total, coupon, setCoupon, initialCode }) {
       <div className="flex gap-2 max-w-sm"><input className="civr-input font-mono uppercase !h-10" value={code} onChange={e => setCode(e.target.value)} placeholder="Coupon code" data-testid="checkout-coupon-input" />
         <button type="button" className="civr-btn civr-btn-ghost civr-btn-sm" disabled={busy || !code.trim()} onClick={() => apply(code)} data-testid="checkout-coupon-apply">{busy ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Apply'}</button></div>
       {err && <div className="text-xs text-[#fb7185]" data-testid="checkout-coupon-error">{err}</div>}
-      {today && <button type="button" onClick={() => apply(today.code)} className="text-xs text-[#34d399] flex items-center gap-1.5" data-testid="checkout-coupon-today"><Ticket className="w-3.5 h-3.5" />Today’s coupon <span className="font-mono">{today.code}</span> · {today.discount}% off — tap to use</button>}
+      {today && <button type="button" onClick={() => apply(today.code)} className="text-xs text-[#818cf8] flex items-center gap-1.5" data-testid="checkout-coupon-today"><Ticket className="w-3.5 h-3.5" />Today’s coupon <span className="font-mono">{today.code}</span> · {today.discount}% off — tap to use</button>}
     </div>
   );
 }
@@ -54,10 +64,11 @@ export default function Checkout({ pick, planObj, total, balance, coins, busy, o
         <div className="flex-1"><div className="font-mono text-xl" data-testid="buy-summary-number">{pick.phoneNumber}</div><div className="text-sm text-[#a1a1aa]">{label || `${planObj?.name} plan · monthly`}</div></div>
         <div className="text-right">{coupon && <div className="font-mono text-sm text-[#a1a1aa] line-through" data-testid="buy-total-before">{money(total)}</div>}<div className="font-mono text-3xl" data-testid="buy-total">{money(due)}</div>{coupon && <div className="text-xs text-[#a1a1aa]">first month · then {money(total)}/month</div>}</div>
       </div>
-      <div className="grid sm:grid-cols-2 gap-3 mt-6">
+      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3 mt-6">
         <Option on={method === 'wallet'} onClick={() => setMethod('wallet')} icon={WalletIcon} title="Pay from wallet" sub={`Balance ${money(balance)}${short > 0 ? ` · ${money(short)} short` : ' · activates instantly'}`} testid="civr-checkout-wallet-option" />
         {cryptoOk ? <Option on={method === 'crypto'} onClick={() => setMethod('crypto')} icon={Bitcoin} title="Pay with crypto" sub="Send the exact price — the number activates once the network confirms." testid="civr-checkout-crypto-option" />
           : <div className="civr-card p-4 text-xs text-[#a1a1aa] flex gap-3"><Bitcoin className="w-5 h-5 shrink-0 text-[#a1a1aa]" />Crypto isn’t available for this payment. Pay from your wallet — short? Add funds with crypto first.</div>}
+        <CardComingSoon testid="civr-checkout-card-option" />
       </div>
       {setCoupon && <CouponField total={total} coupon={coupon} setCoupon={setCoupon} initialCode={initialCode} />}
       {method === 'crypto' && (

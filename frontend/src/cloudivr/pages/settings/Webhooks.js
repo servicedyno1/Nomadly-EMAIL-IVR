@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { toast } from 'sonner';
 import { Webhook, Loader2, Copy, RefreshCw, Send, Eye, EyeOff } from 'lucide-react';
 import { api, useApi, when } from '../../api';
-import { Field, Toggle, Spinner } from '../../ui';
+import { Field, Toggle, SkeletonCard } from '../../ui';
 import { useUnsaved, SaveRow } from '../../guard';
 import { ask } from '../../confirm';
 
@@ -58,7 +58,7 @@ function Form({ data, reload }) {
     <div id="settings-webhooks" className="civr-card p-6 space-y-6 lg:col-span-2 scroll-mt-24" data-testid="settings-webhooks-card" {...u.bind}>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <div className="flex items-center gap-2 font-display text-2xl font-bold"><Webhook className="w-5 h-5 text-[#34d399]" />Call events (webhooks & Zapier)</div>
+          <div className="flex items-center gap-2 font-display text-2xl font-bold"><Webhook className="w-5 h-5 text-[#818cf8]" />Call events (webhooks & Zapier)</div>
           <p className="text-sm text-[#a1a1aa] mt-1 max-w-2xl">Send calls, voicemails and texts to your CRM as they happen. For Zapier, create a Zap with “Webhooks by Zapier” → Catch Hook and paste its URL here.</p>
         </div>
         <Toggle checked={f.enabled} onChange={v => setF({ ...f, enabled: v })} testid="webhooks-enabled-toggle" />
@@ -82,6 +82,6 @@ function Form({ data, reload }) {
 
 export function Webhooks() {
   const { data, reload } = useApi('/webhooks');
-  if (!data) return <div className="civr-card p-6 lg:col-span-2" data-testid="settings-webhooks-loading"><Spinner /></div>;
+  if (!data) return <SkeletonCard lines={3} className="lg:col-span-2" testid="settings-webhooks-loading" />;
   return <Form key={String(data.webhook.updatedAt)} data={data} reload={reload} />;
 }

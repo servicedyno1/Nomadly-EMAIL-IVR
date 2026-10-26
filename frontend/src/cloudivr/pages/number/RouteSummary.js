@@ -35,7 +35,7 @@ export function RouteSummary({ num, reload }) {
   };
   return (
     <div className="civr-card p-6 lg:col-span-2 space-y-4" data-testid="route-summary">
-      <div className="flex items-center gap-2 font-display text-2xl font-bold"><Compass className="w-5 h-5 text-[#34d399]" />What callers get now</div>
+      <div className="flex items-center gap-2 font-display text-2xl font-bold"><Compass className="w-5 h-5 text-[#818cf8]" />What callers get now</div>
       <p className="text-sm text-[#f4f4f5]" data-testid="route-summary-primary">{headline(r, pv.phone)}</p>
       {r.brokenIvr && <div className="text-sm text-[#fbbf24] flex gap-2" data-testid="route-summary-broken-ivr"><AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />Your keypad menu is on but has no keys yet — add options in the Keypad menu tab or turn it off.</div>}
       {r.skipped?.length > 0 && (

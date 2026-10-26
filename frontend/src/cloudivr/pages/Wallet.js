@@ -2,10 +2,11 @@ import React, { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import QRCode from 'react-qr-code';
-import { Wallet as WalletIcon, Copy, Loader2, RefreshCw, AlertTriangle, Info } from 'lucide-react';
+import { Wallet as WalletIcon, Copy, Loader2, RefreshCw, AlertTriangle, Info, Coins, Receipt, Plus, Check } from 'lucide-react';
+import { CardComingSoon } from './buy/Checkout';
 import { api, useApi, money, when } from '../api';
 import { useShell } from '../Shell';
-import { PageHeader, Field, Spinner, ErrorNote, statusPill, useIsPhone } from '../ui';
+import { PageHeader, Field, SkeletonCard, SkeletonRows, Empty, ErrorNote, statusPill, useIsPhone } from '../ui';
 import { cp } from '../paths';
 
 const copy = (v) => navigator.clipboard?.writeText(v).then(() => toast.success('Copied'));
@@ -22,7 +23,7 @@ function DepositCard({ dep }) {
         <div className="min-w-0 space-y-4">
           <div><div className="text-xs text-[#a1a1aa]">Send exactly</div><div className="font-mono text-2xl" data-testid="wallet-deposit-amount">{dep.amountCrypto ? `${dep.amountCrypto} ${dep.coin}` : `${money(dep.amountUsd)} in ${dep.coin}`}</div></div>
           <div><div className="text-xs text-[#a1a1aa]">To address</div>
-            <div className="flex items-center gap-2"><code className="text-sm break-all" data-testid="wallet-deposit-address">{dep.address}</code>{!preview && <button onClick={() => copy(dep.address)} className="w-11 h-11 shrink-0 flex items-center justify-center text-[#a1a1aa] hover:text-[#34d399]" aria-label="Copy address" data-testid="wallet-deposit-copy-button"><Copy className="w-4 h-4" /></button>}</div>
+            <div className="flex items-center gap-2"><code className="text-sm break-all" data-testid="wallet-deposit-address">{dep.address}</code>{!preview && <button onClick={() => copy(dep.address)} className="w-11 h-11 shrink-0 flex items-center justify-center text-[#a1a1aa] hover:text-[#818cf8]" aria-label="Copy address" data-testid="wallet-deposit-copy-button"><Copy className="w-4 h-4" /></button>}</div>
           </div>
           <p className="text-xs text-[#a1a1aa]">{dep.note}</p>
           {!preview && <p className="text-xs text-[#a1a1aa]" data-testid="wallet-deposit-polling-note">We check for your payment every 20 seconds while this page is open.</p>}
@@ -35,7 +36,7 @@ function DepositCard({ dep }) {
 function NeedBanner({ need, forNum }) {
   return (
     <div className="civr-card civr-trace p-4 md:p-6 mb-6 flex flex-col sm:flex-row sm:items-center gap-4" data-testid="wallet-resume-banner">
-      <Info className="w-5 h-5 text-[#34d399] shrink-0" />
+      <Info className="w-5 h-5 text-[#818cf8] shrink-0" />
       <div className="flex-1 text-sm">Add at least <span className="font-mono">{money(need)}</span> {forNum ? <>to buy <span className="font-mono">{forNum}</span></> : 'to cover your next renewal'}. Your balance updates here once the network confirms the deposit.</div>
       {forNum && <Link to={cp(`/app/buy?resume=1${new URLSearchParams(window.location.search).get('extra') ? `&extra=${encodeURIComponent(new URLSearchParams(window.location.search).get('extra'))}` : ''}`)} className="civr-btn civr-btn-ghost civr-btn-sm" data-testid="wallet-resume-link">Back to your number</Link>}
     </div>
@@ -56,7 +57,11 @@ function TopUp({ coins, min, initial, onCreated }) {
   };
   return (
     <form onSubmit={go} noValidate className="civr-card p-6 space-y-6" data-testid="wallet-topup-form">
-      <div className="font-display text-2xl font-bold">Add funds with crypto</div>
+      <div className="font-display text-2xl font-bold">Add funds</div>
+      <div className="grid sm:grid-cols-2 gap-3" data-testid="wallet-pay-methods">
+        <div className="civr-card civr-trace p-4 flex gap-4 items-start" data-testid="wallet-method-crypto"><Coins className="w-5 h-5 mt-0.5 shrink-0 text-[#818cf8]" /><div className="flex-1"><div className="font-semibold">Crypto</div><div className="text-xs text-[#a1a1aa] mt-1">{`${coins.map(c => c.replace(/\s*\(.*\)/, '')).filter((c, i, a) => a.indexOf(c) === i).slice(0, 4).join(', ')} and more`}</div></div><Check className="w-4 h-4 text-[#818cf8] shrink-0" /></div>
+        <CardComingSoon testid="wallet-method-card" />
+      </div>
       <div className="flex flex-wrap gap-2">{PRESETS.map(p => <button type="button" key={p} onClick={() => setAmount(p)} className={`civr-pill civr-preset cursor-pointer ${Number(amount) === p ? 'civr-pill-on' : ''}`} data-testid={`wallet-preset-${p}`}>${p}</button>)}</div>
       <div className="grid sm:grid-cols-2 gap-4">
         <Field label={`Amount (USD, min $${min})`}><input type="number" min={min} max={10000} step="1" className="civr-input font-mono" value={amount} onChange={e => setAmount(e.target.value)} data-testid="wallet-amount-input" /></Field>
@@ -109,11 +114,19 @@ function Tables({ data }) {
     <div className="grid lg:grid-cols-2 gap-4 mt-6">
       <div className="civr-card p-5 sm:p-6 overflow-x-auto">
         <div className="font-display text-2xl font-bold mb-4">Deposits</div>
-        {!data.deposits.length ? <div className="text-sm text-[#a1a1aa] py-6" data-testid="wallet-deposits-empty">No deposits yet.</div> : <Deposits list={data.deposits} />}
+        {!data.deposits.length ? (
+          <Empty bare icon={Coins} title="No deposits yet" sub="Your crypto top-ups and their status show up here." testid="wallet-deposits-empty">
+            <button type="button" className="civr-btn civr-btn-ghost civr-btn-sm" onClick={() => { const el = document.querySelector('[data-testid="wallet-amount-input"]'); el?.scrollIntoView({ behavior: 'smooth', block: 'center' }); el?.focus({ preventScroll: true }); }} data-testid="wallet-deposits-empty-add-button"><Plus className="w-4 h-4" />Add funds</button>
+          </Empty>
+        ) : <Deposits list={data.deposits} />}
       </div>
       <div className="civr-card p-5 sm:p-6 overflow-x-auto">
         <div className="font-display text-2xl font-bold mb-4">History</div>
-        {!data.history.length ? <div className="text-sm text-[#a1a1aa] py-6" data-testid="wallet-history-empty">No transactions yet.</div> : <History list={data.history} />}
+        {!data.history.length ? (
+          <Empty bare icon={Receipt} title="No transactions yet" sub="Number purchases, renewals and call charges show up here." testid="wallet-history-empty">
+            <Link to={cp('/app/buy')} className="civr-btn civr-btn-ghost civr-btn-sm" data-testid="wallet-history-empty-buy-link">Buy a number</Link>
+          </Empty>
+        ) : <History list={data.history} />}
       </div>
     </div>
   );
@@ -131,18 +144,26 @@ export default function Wallet() {
     const t = setInterval(() => { reload(); refreshSummary(); }, POLL_MS);
     return () => clearInterval(t);
   }, [dep, reload, refreshSummary]);
-  if (loading && !data) return <Spinner />;
-  if (error) return <ErrorNote error={error} />;
   const refresh = () => { reload(); refreshSummary(); };
+  const header = (
+    <PageHeader label="Wallet" title="Wallet" sub="Numbers, renewals, extra minutes and SMS, forwarded calls, IVR calls, AI agent calls and text calls are paid from here." testid="wallet-header">
+      <button className="civr-btn civr-btn-ghost civr-btn-sm" onClick={refresh} data-testid="wallet-refresh-button"><RefreshCw className="w-4 h-4" />Check now</button>
+    </PageHeader>
+  );
+  if (loading && !data) return (
+    <div>{header}
+      <div className="grid lg:grid-cols-3 gap-4"><SkeletonCard lines={2} /><SkeletonCard lines={3} className="lg:col-span-2" testid="wallet-topup-loading" /></div>
+      <div className="grid lg:grid-cols-2 gap-4 mt-6"><SkeletonRows rows={3} testid="wallet-deposits-loading" /><SkeletonRows rows={3} testid="wallet-history-loading" /></div>
+    </div>
+  );
+  if (error && !data) return <div data-testid="wallet-page">{header}<ErrorNote error={error} onRetry={reload} /></div>;
   return (
     <div data-testid="wallet-page">
-      <PageHeader label="Wallet" title="Wallet" sub="Numbers, renewals, extra minutes and SMS, forwarded calls, IVR calls, AI agent calls and text calls are paid from here." testid="wallet-header">
-        <button className="civr-btn civr-btn-ghost civr-btn-sm" onClick={refresh} data-testid="wallet-refresh-button"><RefreshCw className="w-4 h-4" />Check now</button>
-      </PageHeader>
+      {header}
       {need > 0 && <NeedBanner need={need} forNum={forNum} />}
       <div className="grid lg:grid-cols-3 gap-4">
         <div className="civr-card p-6 flex flex-col justify-between" data-testid="wallet-balance-card">
-          <div className="flex items-center justify-between"><span className="civr-label">Balance</span><WalletIcon className="w-5 h-5 text-[#34d399]" /></div>
+          <div className="flex items-center justify-between"><span className="civr-label">Balance</span><WalletIcon className="w-5 h-5 text-[#818cf8]" /></div>
           <div className="font-mono text-5xl mt-6" data-testid="wallet-balance">{money(data.balance)}</div>
           <div className="text-xs text-[#a1a1aa] mt-2">USD · credited once the network confirms your deposit</div>
         </div>

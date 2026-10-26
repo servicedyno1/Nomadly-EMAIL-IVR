@@ -50,21 +50,22 @@ function Fallback({ f, setF, hasVm }) {
 export default function RingGroupTab({ num, reload }) {
   const rg = num.features.ringGroup;
   const hasVm = !!num.access?.voicemail;
-  const [f, setF] = useState(() => ({ enabled: !!rg.enabled, members: rg.members?.length ? rg.members : ['', ''], ringTimeout: rg.ringTimeout || 25, fallback: hasVm || rg.fallback !== 'voicemail' ? rg.fallback : 'message', fallbackTo: rg.fallbackTo || '', message: rg.message || '' }));
+  const [f, setF] = useState(() => ({ members: rg.members?.length ? rg.members : ['', ''], ringTimeout: rg.ringTimeout || 25, fallback: hasVm || rg.fallback !== 'voicemail' ? rg.fallback : 'message', fallbackTo: rg.fallbackTo || '', message: rg.message || '' }));
   const [save, busy] = useSave(num, 'ring-group', reload);
   const u = useUnsaved(f);
   const ai = num.routeSummary?.primary === 'ai_agent';
-  const okText = (res) => (res.skipped?.length ? `Ring group on — ${res.skipped.map(s => SKIP_NAMES[s] || s).join(', ')} won’t run while it’s on` : f.enabled ? 'Ring group on' : 'Ring group saved (off)');
+  const on = !!rg.enabled;
+  const okText = (res) => (res.skipped?.length ? `Ring group saved — ${res.skipped.map(s => SKIP_NAMES[s] || s).join(', ')} won’t run while it’s on` : on ? 'Ring group saved' : 'Ring group saved — flip the switch above to turn it on');
   const submit = async () => {
     const t = Number(f.ringTimeout);
     if (!Number.isInteger(t) || t < 10 || t > 60) { toast.error('Ring time must be a whole number between 10 and 60 seconds.', { id: 'ring-group-timeout' }); return; }
-    if (await save({ ...f, ringTimeout: t, members: f.members.filter(m => m.trim()) }, 'PUT', okText)) u.reset();
+    if (await save({ ...f, enabled: on, ringTimeout: t, members: f.members.filter(m => m.trim()) }, 'PUT', okText)) u.reset();
   };
   return (
     <Card title="Ring group" sub="Ring several phones at once — your mobile, a colleague, the front desk. Whoever answers first gets the caller." bind={u.bind}>
-      <div className="flex items-center justify-between"><span className="text-sm flex items-center gap-2"><Users className="w-4 h-4 text-[#34d399]" />Ring all these phones for every call</span><Toggle checked={f.enabled} onChange={v => setF({ ...f, enabled: v })} testid="ring-group-enabled-toggle" /></div>
-      {ai && f.enabled && <OneAnswerNote testid="ring-group-ai-note">Your AI voice agent answers this number first. The ring group only runs if the agent can’t take the call.</OneAnswerNote>}
-      {f.enabled && !ai && <p className="text-xs text-[#a1a1aa]" data-testid="ring-group-priority-note">While it’s on, every call rings the group — forwarding and the keypad menu are skipped. Your Hours schedule still applies.</p>}
+      <div className="flex items-center justify-between"><span className="text-sm flex items-center gap-2"><Users className="w-4 h-4 text-[#818cf8]" />Ring all these phones for every call</span><InstantToggle num={num} feature="ringGroup" label="Ring group" checked={on} reload={reload} testid="ring-group-enabled-toggle" /></div>
+      {ai && on && <OneAnswerNote testid="ring-group-ai-note">Your AI voice agent answers this number first. The ring group only runs if the agent can’t take the call.</OneAnswerNote>}
+      {on && !ai && <p className="text-xs text-[#a1a1aa]" data-testid="ring-group-priority-note">While it’s on, every call rings the group — forwarding and the keypad menu are skipped. Your Hours schedule still applies.</p>}
       <Members list={f.members} onChange={v => setF({ ...f, members: v })} />
       <Field label="Ring for (seconds)" hint="Between 10 and 60 seconds."><input type="number" min={10} max={60} step={1} className="civr-input" value={f.ringTimeout} onChange={e => setF({ ...f, ringTimeout: e.target.value })} data-testid="ring-group-timeout-input" /></Field>
       <Fallback f={f} setF={setF} hasVm={hasVm} />
