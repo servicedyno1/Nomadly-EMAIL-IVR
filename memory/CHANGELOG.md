@@ -1,3 +1,18 @@
+## 2026-10-26 (late) — BUG: CloudIVR web audio players dead on cloudivr.net (0:00 / 0:00) — FIXED + TESTED on preview, NOT deployed
+- Report: web user iammills404@gmail.com uploaded a 50 s voicemail clip 3× ("B", "vm.mpeg", "vm"); Audio library players
+  showed 0:00 / 0:00 with a greyed play button.
+- RCA: playUrl() → /api/assets/user-audio/<file>. Droplet nginx passes /api through; Node's generic /api strip runs after the
+  earlyApp '/assets' static + [AudioRestore] handlers → prod served the SPA HTML (200, max-age=14400, CF-cacheable .mp3 URL).
+  Verified live read-only: cloudivr.net/api/assets/brand/nomadly/logo.png → text/html. Telnyx playback (SELF_URL, no /api) unaffected.
+  Affected players: Audio library, voice maker preview, Quick IVR preview, Inbox media, AI call recordings.
+- Fix: js/_index.js early rewrite /api/assets/* → /assets/*; frontend playUrl() adds ?v=2 (bypasses cached HTML, no CF purge needed).
+- Tests: js/tests/test_api_assets_prefix_2026-10.js 8/8; backend/tests/test_cloudivr_audio_playback_api_prefix.py (iteration_156:
+  backend 17/17, frontend 100%).
+- Open (owner decision): voicemail-drop calls are capped at 60 s from ANSWER (BULK_VM_MAX_CALL_SEC) — with the ≤20 s beep wait a
+  50 s clip is usually cut off. Testing-agent notes (not changed): >10 MB returns error code upload_failed (multer) not too_big;
+  upload duration stored as 0; preload="none" shows 0:00 / 0:00 until play.
+
+
 ## 2026-10-26 (eve) — CloudIVR SIP sales funnel (cloudivr.net/sip) + fresh-pod vault setup — TESTED on preview, NOT deployed
 - sip.cloudivr.net stays the SIP registration host (Telnyx IP) — explained on the new page + FAQ; NOT repointed.
 - New /sip funnel page (hero/softphone mock, apps + connection card, 3 steps, plan comparison, FAQ, CTAs, sticky mobile CTA),

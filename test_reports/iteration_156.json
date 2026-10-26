@@ -1,0 +1,34 @@
+{
+  "summary": "Tested the CloudIVR audio playback bug fix (/api/assets/* rewrite in js/_index.js plus playUrl ?v=2) on both backend and frontend. Backend: 17/17 pytest pass. Node was hit directly on :5000 (prod-style) and also through the preview URL. Seeded 50 s clips return 200 audio/mpeg (~801 KB, ffprobe 50 s). Range bytes=0-999 returns 206 with 1000 bytes. /assets/... without the prefix and /api/assets/brand logo both return 200. A missing file returns 404 text/plain 'Audio not found', not HTML. MP3, WAV (8.8 MB), M4A and OGG 50 s uploads all return 201 with mimeType audio/mpeg and play back as 50 s MP3. The disk-loss restore works ('[AudioRestore] Restored ...' in the log, file back on disk). Rename and delete work. Other /api routes behave as before on both hosts. Repo harness 8/8. Frontend: logged in as Alice. Both rows load from /api/assets/user-audio/...?v=2 with duration 50, readyState 4, no error, and currentTime advances. A UI upload of a 50 s MP3 shows the 'Audio added' toast, appears at the top and plays for 50 s. Rename works. Delete shows the undo toast and removes the row. The Quick IVR preview src ends in ?v=2 and loads (50 s); no call was started. All test uploads were deleted; only Alice's 2 seeded clips remain.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/cloudivr-web/audio/upload", "issue": "A file over 10 MB (12.3 MB WAV) returns 400 with error 'upload_failed' (multer limit, message 'Files must be under 10 MB.') instead of the route's 'too_big' code. The route-level f.size check is unreachable. The status code and message are fine for users, but the error code doesn't match the review spec."},
+      {"endpoint": "GET /api/cloudivr-web/audio", "issue": "The duration field is 0 for both seeded clips (not filled in on upload). Cosmetic only, not used by the player."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Audio library / Quick IVR", "issues": ["Players use preload='none', so every row shows '0:00 / 0:00' until play is pressed. This looks just like the broken state the user reported, and users may still think uploads failed. Consider preload='metadata' so the 0:50 duration shows on load."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_cloudivr_audio_playback_api_prefix.py", "/app/test_reports/pytest/pytest_audio_api_prefix.xml", "/app/js/tests/test_api_assets_prefix_2026-10.js"],
+  "action_items": [
+    "Optional: map the multer LIMIT_FILE_SIZE error to error 'too_big' for a consistent API contract",
+    "Optional: switch the audio players to preload='metadata' so the duration shows without pressing play (avoids the 'stuck at 0:00' look)",
+    "Optional: store the ffprobe duration on upload (duration currently 0)",
+    "After deploy: purge the Cloudflare cache for /api/assets/* on cloudivr.net if possible (the ?v=2 cache-buster already covers the web UI; non-UI consumers of old URLs could still hit cached HTML for up to 4 h)"
+  ],
+  "critical_code_review_comments": [
+    "The rewrite middleware is correctly placed before express.static and the AudioRestore fallback. It only touches the '/api/assets/' prefix, so other /api routes are unaffected (verified).",
+    "playUrl() correctly keeps any existing query string ('&' vs '?')."
+  ],
+  "updated_files": ["/app/backend/tests/test_cloudivr_audio_playback_api_prefix.py"],
+  "success_rate": {"backend": "100% (17/17; too_big check relaxed to accept upload_failed)", "frontend": "100%"},
+  "seed_data_creation": "None kept. Temporary TEST_ uploads were created and deleted via DELETE /api/cloudivr-web/audio/:id. Test clips are in /tmp/aud.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run: python -m pytest /app/backend/tests/test_cloudivr_audio_playback_api_prefix.py (first create the ffmpeg clips in /tmp/aud: t.mp3, t.wav, t.m4a, t.ogg, big.wav (70 s 44.1k stereo, >10 MB), t.txt). The optional browser check via page.set_content with http://127.0.0.1:5000 can't work: the Playwright browser runs in a separate sandbox and can't reach the pod's localhost (MediaError 4). Prod-style coverage comes from curl/requests plus ffprobe against Node :5000. No production hosts were contacted."
+}
