@@ -9,7 +9,7 @@ import { History } from './textcall/History';
 
 const STEPS = [
   [PhoneCall, 'Call any phone', 'Pick your CloudIVR number and the number to call. We tell them it is a typed call.'],
-  [Keyboard, 'You type', 'A clear voice reads every message to them. Quick phrases and a keypad for phone menus are one tap away.'],
+  [Keyboard, 'You type', 'A natural voice reads each sentence as you finish it, and they hear soft typing while you write. Quick phrases and a keypad for phone menus are one tap away.'],
   [Ear, 'You read their words', 'What they say shows up as live text while they talk — in English, Spanish or French.'],
 ];
 
@@ -25,7 +25,7 @@ function HowItWorks({ info }) {
         <div>{`US & Canada: ${money(info.usRate + info.relayRate)}/min`}</div>
         <div>{`International: ${money(info.intlRate + info.relayRate)}/min`}</div>
         <div>{`Includes ${money(info.relayRate)}/min for the text relay.`}</div>
-        <div>Included on Pro and Business numbers. Transcripts are kept 90 days.</div>
+        <div>Included on Business numbers. Transcripts are kept 90 days.</div>
       </div>}
     </aside>
   );

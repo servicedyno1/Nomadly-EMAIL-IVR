@@ -52,6 +52,7 @@ export async function api(path, { method = 'GET', body, form } = {}) {
 }
 
 export const enc = (s) => encodeURIComponent(s);
+export const apiUrl = (path) => `${BASE}${path}`;
 // Saves an API file (e.g. a CSV report) with the session cookie.
 export async function downloadFile(path, name) {
   let res;

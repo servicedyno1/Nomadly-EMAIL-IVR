@@ -9,7 +9,7 @@ import { AppMock } from './Mockups';
 import { useLang } from '../../i18n';
 
 // Whole-sentence titles so the highlighted word lands in the right place in every language.
-const TITLE = { en: ['Numbers that ', 'answer', ', route & call for you.'], fr: ['Des numéros qui ', 'répondent', ', routent et appellent pour vous.'], es: ['Números que ', 'contestan', ', enrutan y llaman por ti.'] };
+const TITLE = { en: ['Every call ', 'answered', '. Every lead called.'], fr: ['Chaque appel ', 'décroché', '. Chaque prospect rappelé.'], es: ['Cada llamada ', 'atendida', '. Cada cliente, llamado.'] };
 
 const EVENTS = [[PhoneIncoming, 'Incoming call', '+1 415 555 0182'], [CornerDownRight, 'Pressed 1 → Sales', 'forwarded in 0.4 s'], [PhoneIncoming, 'Incoming call', '+44 20 7946 0958'], [CornerDownRight, 'Pressed 3 → Voicemail', 'sent to your inbox']];
 
@@ -30,7 +30,7 @@ function LiveCallCard() {
 }
 
 function StatStrip({ catalog }) {
-  const stats = [[catalog?.countries?.length || 17, 'Countries'], ['60 s', 'Free test call'], [startPrice(catalog) || '$50', 'From / month'], [(catalog?.coins || []).length || 8, 'Coins accepted']];
+  const stats = [[catalog?.countries?.length || 17, 'Countries'], ['60 s', 'Free test call'], [startPrice(catalog) || '$50', 'From / month'], ['24/7', 'Always answering']];
   return (
     <div className="relative border-t civr-l-rule bg-white" data-testid="hero-stats">
       <div className="max-w-7xl mx-auto px-6 md:px-8 grid grid-cols-2 md:grid-cols-4">
@@ -50,17 +50,17 @@ export function Hero({ catalog }) {
   const from = startPrice(catalog);
   const n = catalog?.countries?.length || 17;
   const t = TITLE[useLang().lang] || TITLE.en;
-  const trust = ['No contracts', 'Cards & crypto accepted', 'Live in minutes'];
+  const trust = ['Live in minutes', 'No contracts', 'Crypto & wallet payments'];
   return (
     <section className="civr-l-cream relative overflow-hidden pt-32 md:pt-40" data-testid="civr-hero">
       <div className="absolute inset-0 civr-l-gridbg civr-l-mask" />
       <div className="absolute inset-0 pointer-events-none" style={{ background: 'radial-gradient(50% 45% at 85% 20%, rgba(99,102,241,.10), transparent 70%)' }} />
       <div className="relative max-w-7xl mx-auto px-6 md:px-8 grid lg:grid-cols-12 gap-16 lg:gap-12 items-center pb-24">
         <div className="lg:col-span-5 relative z-10">
-          <div className="inline-flex items-center gap-2 h-8 px-3 rounded-full border border-slate-200 bg-white text-sm text-slate-600 civr-rise" data-testid="hero-eyebrow"><span className="civr-l-dot" />Cloud numbers · IVR · AI agents</div>
+          <div className="inline-flex items-center gap-2 h-8 px-3 rounded-full border border-slate-200 bg-white text-sm text-slate-600 civr-rise" data-testid="hero-eyebrow"><span className="civr-l-dot" />Virtual numbers · Inbound & outbound IVR · AI voice agents</div>
           <h1 className="civr-l-h text-4xl sm:text-5xl lg:text-6xl mt-6 civr-rise civr-d1 text-slate-900" data-testid="hero-title" data-no-translate>{t[0]}<span className="text-[#4f46e5]">{t[1]}</span>{t[2]}</h1>
           <p className="text-base md:text-lg text-slate-600 mt-6 max-w-xl civr-rise civr-d2" data-testid="hero-subtitle">
-            {`Virtual numbers in ${n} countries with call forwarding, voicemail, an SMS inbox, a keypad menu (IVR), bulk campaigns and AI voice agents. Call from your browser and pay with crypto.`}
+            {`Get a virtual number in ${n} countries that never lets a call slip: a keypad menu or an AI voice agent picks up, routes, records and takes messages. Then flip it around — Quick IVR and Bulk IVR campaigns call your list, play your message, connect hot leads and collect codes while you work.`}
           </p>
           <div className="flex flex-wrap gap-3 mt-8 civr-rise civr-d3">
             <Link to={account ? cp('/app/buy') : cp('/signup')} className="civr-l-btn" data-testid="civr-hero-cta-buy-btn"><Slide>Get your number</Slide><ArrowRight className="w-4 h-4" /></Link>

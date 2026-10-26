@@ -13,7 +13,7 @@ const referrals = require('./referrals')
 const safeUrl = require('../safe-url')
 
 const TYPE_NAMES = { local: 'Local', toll_free: 'Toll-free', mobile: 'Mobile', national: 'National' }
-const FEATURE_KEYS = ['callForwarding', 'smsToEmail', 'smsWebhook', 'voicemail', 'sipCredentials', 'callRecording', 'ivr', 'ivrOutbound', 'bulkCall', 'otpCollection', 'aiAgent', 'textRelay', 'ringGroup', 'textTriggers', 'aiSummary']
+const FEATURE_KEYS = ['callForwarding', 'smsToEmail', 'smsWebhook', 'voicemail', 'sipCredentials', 'callRecording', 'ivr', 'ivrOutbound', 'bulkCall', 'otpCollection', 'aiAgent', 'textRelay', 'ringGroup', 'textTriggers', 'aiSummary', 'browserRing', 'ivrRedial', 'otpCustomMessages', 'ivrSchedule', 'ivrPresets', 'consistentVoice']
 const LOG_TYPES = { sms: ['sms', 'sms_out'], voicemail: ['voicemail'], fax: ['fax'] }
 const E164 = /^\+[1-9]\d{7,14}$/
 const dryRun = () => process.env.WEB_CLOUDIVR_DRY_RUN === 'true'
@@ -58,15 +58,19 @@ const WEB_FEATURES = [
   ['voicemail', () => `Voicemail in ${vmGreeting.LANG_CODES.length} languages + transcripts`, 'voicemail'],
   ['browserPhone', 'Browser phone & SIP for softphones', 'sipCredentials'],
   ['smsEmail', 'SMS to email & webhooks', 'smsToEmail'],
-  ['quickIvr', 'Quick IVR calls', 'ivrOutbound'],
+  ['ivr', 'Keypad menu (IVR) for incoming calls — press 1 for sales, with key stats', 'ivr'],
+  ['quickIvr', 'Quick IVR — automated calls to up to 10 people', 'ivrOutbound'],
   ['callMeFirst', 'Call me first — calls through your mobile', 'ivrOutbound'],
-  ['bulk', 'Bulk IVR campaigns with scheduling', 'bulkCall'],
-  ['textRelay', () => `Text calls for deaf & hard-of-hearing users (+$${Number(require('../relay-call').RELAY_RATE()).toFixed(2)}/min)`, 'textRelay'],
+  ['bulk', 'Bulk IVR campaigns — automated calls to a whole list', 'bulkCall'],
+  ['otp', 'Code collection (OTP) with Accept / Decline', 'otpCollection'],
   ['recording', 'Call recording', 'callRecording'],
   ['ringGroup', 'Ring groups — ring several phones at once', 'ringGroup'],
-  ['textTriggers', 'Text Triggers — a text starts a callback, a spoken reply or an AI call', 'textTriggers'],
   ['aiSummary', () => `AI summaries & caller mood for voicemails and recorded calls ($${Number(require('./ai-summary').RATE()).toFixed(2)}/min)`, 'aiSummary'],
-  ['ivr', 'Keypad menu (IVR) — callers press a key, with key analytics', 'ivr'],
+  ['redial', 'Redial and your own accept / decline messages for codes', 'ivrRedial'],
+  ['schedulePresets', 'Quick IVR scheduling and saved call presets', 'ivrSchedule'],
+  ['defaultVoice', 'One saved AI voice for all your calls', 'consistentVoice'],
+  ['textRelay', () => `Text calls for deaf & hard-of-hearing users (+$${Number(require('../relay-call').RELAY_RATE()).toFixed(2)}/min)`, 'textRelay'],
+  ['textTriggers', 'Text Triggers — a text starts a callback, a spoken reply or an AI call', 'textTriggers'],
   ['aiAgent', () => `AI voice agent — talks with callers, books and takes messages ($${Number(require('../ai-agent').RATE()).toFixed(2)}/min)`, 'aiAgent'],
   ['priority', 'Priority support', (plan) => plan === 'business'],
 ]
@@ -429,13 +433,13 @@ function routes(router, deps) {
     res.json({ callForwarding: value })
   }))
 
-  // "Ring me in the browser" (Pro+, same plans as text calls): inbound calls ring the open web app, which answers
-  // them as text or by voice (browser phone). answerMode = what happens when it rings; lang/voice/announce = the
-  // text-call defaults used when answering as text.
+  // "Ring me in the browser" (Pro+): inbound calls ring the open web app, which answers them by voice (browser phone)
+  // or, on plans with text calls (Business), as text. answerMode = what happens when it rings; lang/voice/announce =
+  // the text-call defaults used when answering as text.
   router.patch('/numbers/:phone/browser-ring', withNumber(async (req, res) => {
-    if (!gate(req, res, 'textRelay', 'Ringing in the browser')) return
+    if (!gate(req, res, 'browserRing', 'Ringing in the browser')) return
     const b = req.body || {}, cur = req.num.features?.browserRing || {}
-    const answerMode = String(b.answerMode ?? cur.answerMode ?? 'ask')
+    const answerMode = phoneConfig.canAccessFeature(req.num.plan, 'textRelay') ? String(b.answerMode ?? cur.answerMode ?? 'ask') : 'voice'
     if (!['ask', 'voice', 'text'].includes(answerMode)) return bad(res, 400, 'invalid_mode', 'Pick ask each time, always voice or always text.')
     const lang = String(b.lang ?? cur.lang ?? 'en')
     if (!['en', 'es', 'fr'].includes(lang)) return bad(res, 400, 'invalid_lang', 'Pick English, Spanish or French.')
@@ -491,7 +495,7 @@ function routes(router, deps) {
     voicemail: { gate: ['voicemail', 'Voicemail'] },
     transcribe: { gate: ['voicemail', 'Voicemail'] },
     recording: { gate: ['callRecording', 'Call recording'] },
-    browserRing: { gate: ['textRelay', 'Ringing in the browser'] },
+    browserRing: { gate: ['browserRing', 'Ringing in the browser'] },
     ringGroup: { gate: ['ringGroup', 'Ring groups'], need: (f) => ((f.ringGroup?.members || []).length ? null : 'Add at least one phone in the Ring group tab first.') },
     textTriggers: { gate: ['textTriggers', 'Text Triggers'], need: (f) => ((f.textTriggers?.rules || []).length ? null : 'Add a trigger in the Text Triggers tab first.') },
     aiAgent: { gate: ['aiAgent', 'The AI voice agent'], need: (f) => (f.aiAgent?.agentId ? null : 'Pick an AI agent in the AI voice agent tab first.') },

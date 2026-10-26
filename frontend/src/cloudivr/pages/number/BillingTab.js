@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { RefreshCw, ArrowUpCircle, Trash2, Loader2, PauseCircle } from 'lucide-react';
 import { api, enc, money, day } from '../../api';
@@ -58,7 +59,8 @@ function HoldNotice({ num, price }) {
 function Upgrade({ num, reload, refreshSummary, plans, coins }) {
   const order = plans.map(p => p.id);
   const higher = plans.filter(p => p.available && order.indexOf(p.id) > order.indexOf(num.plan));
-  const [plan, setPlan] = useState(higher[0]?.id || '');
+  const [params] = useSearchParams();
+  const [plan, setPlan] = useState((higher.find(p => p.id === params.get('plan')) || higher[0])?.id || '');
   const [quote, setQuote] = useState(null);
   const [busy, setBusy] = useState(false);
   if (!higher.length) return <div className="civr-card p-6 h-fit" data-testid="billing-top-plan"><div className="font-display text-2xl font-bold">Upgrade</div><p className="text-sm text-[#a1a1aa] mt-1">You’re on the top plan.</p></div>;

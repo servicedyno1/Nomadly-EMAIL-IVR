@@ -9,10 +9,12 @@ import { LANGS, useLang } from '../i18n';
 import { useVoices, VoiceSelect } from '../VoiceMaker';
 import { cp } from '../paths';
 import { useShell } from '../Shell';
+import { LockedNote } from '../Upgrade';
 import { Security } from './settings/Security';
 import { Referral, Suggest } from './settings/Rewards';
 import { Webhooks } from './settings/Webhooks';
 import { InstallApp } from './settings/InstallApp';
+import { EmailPrefs } from './settings/EmailPrefs';
 import { useUnsaved, SaveRow } from '../guard';
 
 function Profile({ account, setAccount }) {
@@ -78,7 +80,10 @@ function DefaultVoice() {
         <div className="flex flex-wrap gap-2"><VoiceSelect value={cur.voice} onChange={(x) => setV({ ...cur, voice: x })} voices={voices} testid="settings-voice-select" />
           <select className="civr-input !w-24" value={cur.speed} onChange={e => setV({ ...cur, speed: Number(e.target.value) })} data-testid="settings-speed-select" aria-label="Speed">{speeds.map(s => <option key={s} value={s}>{`${s}×`}</option>)}</select></div>
         <button className="civr-btn civr-btn-primary" disabled={busy} onClick={save} data-testid="settings-voice-save-button">{busy && <Loader2 className="w-4 h-4 animate-spin" />}Save voice</button>
-      </> : <div className="text-sm text-[#fbbf24]" data-testid="settings-voice-locked">A saved default voice is on the Business plan.</div>}
+      </> : <div className="space-y-3" data-testid="settings-voice-locked">
+        <div className="flex flex-wrap gap-2 opacity-50 pointer-events-none" aria-hidden="true"><VoiceSelect value={cur.voice} onChange={() => {}} voices={voices} testid="settings-voice-select-locked" /></div>
+        <LockedNote text="Keep one voice for every call and message on the Business plan." feature="A saved default voice" testid="settings-voice-lock" />
+      </div>}
     </div>
   );
 }
@@ -135,7 +140,7 @@ export default function Settings() {
       <PageHeader label="Account" title="Settings" sub="This web account is separate from any Telegram bot account." testid="settings-header">
         <button className="civr-btn civr-btn-ghost civr-btn-sm" onClick={async () => { nav(cp(), { replace: true }); await logout(); }} data-testid="settings-logout-button"><LogOut className="w-4 h-4" />Sign out</button>
       </PageHeader>
-      <div className="grid lg:grid-cols-2 gap-4 max-w-5xl"><Profile account={account} setAccount={setAccount} /><Password account={account} refresh={refresh} /><Security account={account} refresh={refresh} /><Referral /><Suggest admin={account.admin} /><Language /><DefaultVoice /><InstallApp /><Community /><Webhooks /></div>
+      <div className="grid lg:grid-cols-2 gap-4 max-w-5xl"><Profile account={account} setAccount={setAccount} /><Password account={account} refresh={refresh} /><Security account={account} refresh={refresh} /><Referral /><Suggest admin={account.admin} /><Language /><DefaultVoice /><EmailPrefs /><InstallApp /><Community /><Webhooks /></div>
     </div>
   );
 }

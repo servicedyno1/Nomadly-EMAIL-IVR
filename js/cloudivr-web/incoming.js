@@ -8,6 +8,7 @@ const ringing = require('../relay-call/incoming')
 const notify = require('./notify')
 const { normPhone, E164 } = require('./numbers')
 const { clean, MAX } = require('./sms-reply')
+const { pendingOtp } = require('./outbound')
 
 const dryRun = () => process.env.WEB_CLOUDIVR_DRY_RUN === 'true'
 const bad = (res, status, error, message) => res.status(status).json({ error, message })
@@ -53,7 +54,7 @@ function routes(router, { db, h, numbersApi, voiceService, smsReply, log = conso
   router.get('/incoming', h(async (req, res) => {
     ringing.seen(req.webChatId)
     const calls = await Promise.all(ringing.list(req.webChatId).map(r => publicRing(req.webChatId, r)))
-    res.json({ calls, pollMs: 2000, now: new Date() })
+    res.json({ calls, otp: pendingOtp(req.webChatId), pollMs: 2000, now: new Date() })
   }))
 
   router.post('/incoming/simulate', h(async (req, res) => {
@@ -61,7 +62,7 @@ function routes(router, { db, h, numbersApi, voiceService, smsReply, log = conso
     const chatId = req.webChatId
     const n = await numbersApi.findMine(chatId, req.body?.phone)
     if (!n || n.status !== 'active') return bad(res, 400, 'invalid_number', 'Pick one of your active numbers.')
-    if (!phoneConfig.canAccessFeature(n.plan, 'textRelay')) return bad(res, 403, 'plan_upgrade_required', 'Ringing in the browser needs the Pro plan or higher on this number.')
+    if (!phoneConfig.canAccessFeature(n.plan, 'browserRing')) return bad(res, 403, 'plan_upgrade_required', 'Ringing in the browser needs the Pro plan or higher on this number.')
     if (!settingsOf(n).enabled) return bad(res, 400, 'not_enabled', 'Switch on "Ring me in the browser" for this number and save first.')
     if (ringing.list(chatId).length >= 3) return bad(res, 429, 'too_many', 'Answer or decline the calls already ringing first.')
     const from = normPhone(req.body?.from || '+14155550123')
@@ -78,7 +79,7 @@ function routes(router, { db, h, numbersApi, voiceService, smsReply, log = conso
     const r = ringing.get(req.params.id, chatId)
     if (!r) return bad(res, 409, 'not_ringing', GONE)
     const n = await numbersApi.findMine(chatId, r.phone)
-    if (!n || !phoneConfig.canAccessFeature(n.plan, 'textRelay')) return bad(res, 403, 'plan_upgrade_required', 'Answering as text needs the Pro plan or higher on this number.')
+    if (!n || !phoneConfig.canAccessFeature(n.plan, 'textRelay')) return bad(res, 403, 'plan_upgrade_required', 'Answering as text needs the Business plan on this number.')
     const br = settingsOf(n)
     const opts = {
       lang: relay.LANGS[b.lang] ? b.lang : (relay.LANGS[br.lang] ? br.lang : 'en'),

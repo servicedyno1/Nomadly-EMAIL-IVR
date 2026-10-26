@@ -27,6 +27,7 @@ const ringGroup = require('./ring-group')
 const webhooks = require('./events')
 const aiSummary = require('./ai-summary')
 const { sendMail } = require('./auth')
+const { createEmails } = require('./emails')
 
 function createCloudIvrWeb(deps) {
   const { getDb, log = console.log } = deps
@@ -47,6 +48,9 @@ function createCloudIvrWeb(deps) {
     }))
     trycall.routes(r, { ...deps, db, h })
     support.publicRoutes(r, { db, h, log })
+    const emails = createEmails(db, { log })
+    emails.publicRoutes(r, { h })
+    emails.start()
     ai.publicRoutes(r, { h })
     r.use(auth.requireUser)
     wallet.routes(r, { db, h, coins: deps.coins, createCryptoDeposit: deps.createCryptoDeposit })
@@ -73,6 +77,7 @@ function createCloudIvrWeb(deps) {
     ringGroup.routes(r, { h, numbersApi })
     webhooks.routes(r, { db, h, log })
     aiSummary.routes(r, { ...deps, db, h, numbersApi })
+    emails.routes(r, { h })
     r.get('/dashboard', h(async (req, res) => {
       const id = req.webChatId
       const nums = await numbersApi.myNumbers(id)

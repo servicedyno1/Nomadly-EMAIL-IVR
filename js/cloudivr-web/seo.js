@@ -58,15 +58,15 @@ const plansWith = (c, key) => (c && c.plans ? c.plans.filter((p) => p.access && 
 // ── Marketing facts (single source for head, noscript, llms.txt) ─────────────
 const FEATURES = [
   ['Virtual phone numbers', 'Local, mobile and toll-free numbers across the US, Canada and many international countries.'],
-  ['Keypad menus (IVR)', 'Play a custom greeting and let callers press a key to reach the right person, hear a message or leave voicemail.'],
+  ['Keypad menus (IVR) for incoming calls', 'Callers hear your greeting and press a key to reach the right person, hear a message or leave voicemail, with key-press stats.'],
   ['AI voice agents', 'A natural-sounding agent that answers calls, qualifies callers, answers questions, books appointments and takes messages.'],
   ['Call forwarding', 'Ring any phone number, with backup destinations and hold music.'],
   ['SMS inbox', 'Receive and reply to texts in-app, with automatic replies and text triggers.'],
   ['Voicemail', 'Custom greetings, transcription and delivery to your email.'],
   ['Browser phone & SIP', 'Make and take calls from the built-in browser phone (no install) or connect a SIP app or desk phone.'],
   ['Call recording', 'Record calls and play them back from your logs.'],
-  ['Quick calls & bulk IVR campaigns', 'Place a single outbound IVR call or run an automated campaign to many numbers.'],
-  ['Ring groups & text calls', 'Ring several people at once, or trigger a call from a text.'],
+  ['Quick IVR calls & Bulk IVR campaigns', 'Automated outbound calls to up to 10 people at once or a whole list: play your message, then connect them on a key press, collect a code (OTP) or route each key.'],
+  ['Ring groups, Text Triggers & text calls', 'Ring several phones at once, start a callback from an incoming text, or call by typing — a natural voice speaks for you and their words appear as live text.'],
   ['Logs, analytics & AI summaries', 'Searchable call and message history with AI-written call summaries.'],
   ['Wallet & auto-renew', 'Fund a wallet by card or crypto; numbers auto-renew and usage is billed from the wallet.'],
 ]
@@ -396,7 +396,7 @@ function llmsFullTxt() {
   const lines = []
   lines.push(`# ${BRAND} — full overview`, '', `> ${tagline()}`, '')
   lines.push(`## What ${BRAND} is`,
-    `${BRAND} turns a virtual phone number into a complete cloud phone system that you set up and run from your web browser — no hardware and no app to install. It is aimed at businesses and individuals who want a professional phone presence: an auto-attendant keypad menu or an AI voice agent to answer calls, call forwarding, voicemail, an SMS inbox, call recording, and outbound calling/campaigns. Accounts are funded with cryptocurrency.`, '')
+    `${BRAND} turns a virtual phone number into a complete cloud phone system that you set up and run from your web browser — no hardware and no app to install. It is aimed at businesses and individuals who want a professional phone presence: an auto-attendant keypad menu or an AI voice agent to answer calls, call forwarding, voicemail, an SMS inbox, call recording, and automated outbound calls and campaigns. Accounts are paid by card or crypto, or from a prepaid wallet.`, '')
   lines.push('## Features')
   FEATURES.forEach(([t, d]) => lines.push(`- **${t}** — ${d}`))
   lines.push('')

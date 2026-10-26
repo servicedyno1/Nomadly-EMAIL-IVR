@@ -15,6 +15,8 @@ import { RecentCalls, ScheduledCalls, MenuStats, Presets } from './quick/Side';
 import { TrialCall } from './quick/Trial';
 import { useDraft, DraftBanner } from './quick/Draft';
 import { OtpLive, OtpHowTo } from './quick/Otp';
+import { PlanLock, LockedNote, showUpgrade } from '../Upgrade';
+import { planFor } from '../PlanFeatures';
 
 // Active numbers allowed to place outbound IVR calls for `feature`.
 export function useCallerNumbers(feature) {
@@ -56,7 +58,22 @@ function Message({ f, set, audios, reloadAudio }) {
   );
 }
 
-function Answer({ f, set, isBiz }) {
+// Business-only "your own accept / decline messages": shown read-only with the upgrade pill on other plans.
+function OtpMessages({ f, set, can, phone }) {
+  const feature = 'Your own accept / decline messages';
+  const box = (k, label, ph, testid) => <Field label={label}><input className="civr-input" readOnly={!can} value={can ? f.otp[k] : ''} onChange={e => set({ otp: { ...f.otp, [k]: e.target.value } })} placeholder={ph} data-testid={testid} /></Field>;
+  return (
+    <div className="space-y-2" data-testid={can ? 'quick-otp-custom' : 'quick-otp-custom-locked'}>
+      {!can && <div className="flex flex-wrap items-center gap-2 text-sm">{feature}<PlanLock feature={feature} phone={phone} testid="quick-otp-custom-lock" /></div>}
+      <div className={`grid sm:grid-cols-2 gap-3 ${can ? '' : 'opacity-50 cursor-pointer [&_input]:pointer-events-none'}`} onClick={can ? undefined : () => showUpgrade({ feature, need: 'business', phone })}>
+        {box('confirmMsg', 'Said after a valid code (optional)', 'Thank you, your code is confirmed.', can ? 'quick-otp-confirm' : 'quick-otp-confirm-locked')}
+        {box('rejectMsg', 'Said after a wrong code (optional)', 'That code was not valid.', can ? 'quick-otp-reject' : 'quick-otp-reject-locked')}
+      </div>
+    </div>
+  );
+}
+
+function Answer({ f, set, can, phone }) {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap gap-2">{MODES.map(([m, l]) => <Pill key={m} on={f.mode === m} onClick={() => set({ mode: m })} testid={`quick-mode-${m}`}>{l}</Pill>)}</div>
@@ -69,10 +86,7 @@ function Answer({ f, set, isBiz }) {
       {f.mode === 'otp' && <div className="space-y-4" data-testid="quick-otp-fields">
         <OtpHowTo />
         <Field label="Code length" hint="They get 3 tries."><select className="civr-input !w-40" value={f.otp.length} onChange={e => set({ otp: { ...f.otp, length: Number(e.target.value) } })} data-testid="quick-otp-length">{[4, 5, 6, 8].map(n => <option key={n} value={n}>{`${n} digits`}</option>)}</select></Field>
-        {isBiz ? <div className="grid sm:grid-cols-2 gap-3">
-          <Field label="Said after a valid code (optional)"><input className="civr-input" value={f.otp.confirmMsg} onChange={e => set({ otp: { ...f.otp, confirmMsg: e.target.value } })} placeholder="Thank you, your code is confirmed." data-testid="quick-otp-confirm" /></Field>
-          <Field label="Said after a wrong code (optional)"><input className="civr-input" value={f.otp.rejectMsg} onChange={e => set({ otp: { ...f.otp, rejectMsg: e.target.value } })} placeholder="That code was not valid." data-testid="quick-otp-reject" /></Field>
-        </div> : <div className="text-xs text-[#a1a1aa]" data-testid="quick-otp-custom-locked">Custom accept / decline messages are on the Business plan.</div>}
+        <OtpMessages f={f} set={set} can={!!can.otpCustomMessages} phone={phone} />
         <Field label="Connect them after you accept (optional)" hint="Leave empty to end the call after the confirmation."><input className="civr-input font-mono" value={f.transferTo} onChange={e => set({ transferTo: e.target.value })} placeholder="+14155550199" data-testid="quick-otp-connect-input" /></Field>
       </div>}
       {f.mode === 'menu' && <MenuBuilder value={f.menu} onChange={(v) => set({ menu: v })} testid="quick-menu" />}
@@ -83,7 +97,7 @@ function Answer({ f, set, isBiz }) {
 const Section = ({ n, title, children }) => <div className="civr-card p-6 space-y-4"><div className="font-display text-xl font-bold"><span className="text-[#818cf8] font-mono mr-2">{n}</span>{title}</div>{children}</div>;
 
 export default function QuickCall() {
-  const { refreshSummary } = useShell();
+  const { refreshSummary, catalog } = useShell();
   const { numbers, all, loading } = useCallerNumbers('ivrOutbound');
   const { data: au, reload: reloadAudio } = useApi('/audio');
   const { data: trial, reload: reloadTrial, stale: trialStale } = useApi('/calls/trial');
@@ -97,13 +111,14 @@ export default function QuickCall() {
   const set = (p) => setF(x => ({ ...x, ...p }));
   if (loading || (!numbers.length && trialStale)) return <SkeletonPage cards={2} rows={0} />;
   const caller = numbers.find(n => n.phoneNumber === f.callerId) || numbers[0];
-  const isBiz = caller?.plan === 'business';
+  const can = caller?.access || {};
   const audios = au?.audios || [];
+  const scheduleAt = can.ivrSchedule ? f.scheduleAt : '';
 
   const go = async (e) => {
     e.preventDefault(); setBusy(true); setError(null); setResult(null);
     try {
-      const d = await api('/calls/quick', { method: 'POST', body: toBody(f, caller.phoneNumber) });
+      const d = await api('/calls/quick', { method: 'POST', body: toBody({ ...f, scheduleAt }, caller.phoneNumber) });
       setResult(d); setStamp(s => s + 1); draft.clear();
       toast.success(d.scheduled ? 'Call scheduled' : d.dryRun ? 'Validated (preview — not dialed)' : 'Calling now');
       refreshSummary();
@@ -113,10 +128,11 @@ export default function QuickCall() {
 
   return (
     <div data-testid="quick-call-page">
-      <PageHeader label="Outbound" title="Quick IVR call" sub={numbers.length ? 'Call one or a few people, play a script or recording, then connect them, collect a code or route each key. Billed per minute from your wallet.' : 'Call one person from our number for free: play your script, then connect them on key 1 or collect a code you accept or decline.'} testid="quick-call-header" />
+      <PageHeader label="Outbound" title="Quick IVR call" sub={numbers.length ? 'Automated calls to up to 10 people: they hear your script or recording, then press a key to reach you, type a code you accept or decline, or pick from a menu. Billed per minute from your wallet.' : 'Call one person from our number for free: play your script, then connect them on key 1 or collect a code you accept or decline.'} testid="quick-call-header" />
       {!numbers.length ? (trial?.available || trialShown ? <TrialCall status={trial} onUsed={() => { setTrialShown(true); reloadTrial(); refreshSummary(); }} /> : (
         <Empty icon={PhoneOutgoing} title="No number can place IVR calls yet" sub={all.length ? 'Quick IVR calls need an active number on the Pro plan or higher. Upgrade one in its Billing tab.' : 'Buy a number on the Pro plan or higher to place IVR calls.'} testid="quick-call-empty">
-          <Link to={all.length ? cp('/app/numbers') : cp('/app/buy')} className="civr-btn civr-btn-primary" data-testid="quick-call-empty-action">{all.length ? 'My numbers' : 'Buy a number'}</Link>
+          {all.length ? <button type="button" onClick={() => showUpgrade({ feature: 'Quick IVR calls', need: planFor(catalog?.plans, 'ivrOutbound')?.id || 'pro' })} className="civr-btn civr-btn-primary" data-testid="quick-call-empty-action">See what you get</button>
+            : <Link to={cp('/app/buy')} className="civr-btn civr-btn-primary" data-testid="quick-call-empty-action">Buy a number</Link>}
         </Empty>
       )) : (
         <div className="grid xl:grid-cols-3 gap-4 items-start">
@@ -130,20 +146,21 @@ export default function QuickCall() {
               </Field>
             </Section>
             <Section n="2" title="What they hear"><Message f={f} set={set} audios={audios} reloadAudio={reloadAudio} /></Section>
-            <Section n="3" title="When they press a key"><Answer f={f} set={set} isBiz={isBiz} /></Section>
+            <Section n="3" title="When they press a key"><Answer f={f} set={set} can={can} phone={caller.phoneNumber} /></Section>
             <Section n="4" title="When to call">
-              <Field label="Schedule (optional)" hint="5 minutes to 24 hours from now. Leave empty to call now."><DateTimePicker value={f.scheduleAt} onChange={(v) => set({ scheduleAt: v })} maxDays={1} testid="quick-schedule" /></Field>
-              {!isBiz && <div className="text-xs text-[#a1a1aa]" data-testid="quick-redial-locked">Redial is on the Business plan.</div>}
+              <Field label="Schedule (optional)" hint={can.ivrSchedule ? '5 minutes to 24 hours from now. Leave empty to call now.' : null}>{can.ivrSchedule
+                ? <DateTimePicker value={f.scheduleAt} onChange={(v) => set({ scheduleAt: v })} maxDays={1} testid="quick-schedule" />
+                : <LockedNote text="Schedule calls from 5 minutes to 24 hours ahead." feature="Scheduling Quick IVR calls" phone={caller.phoneNumber} testid="quick-schedule-locked" />}</Field>
               <ErrorNote error={error} testid="quick-call-error" />
               {result && <div className="civr-card p-4 text-sm" data-testid="quick-call-result">{result.message || (result.scheduled ? `Scheduled ${result.scheduled} call(s).` : `Started ${result.started} call(s) · about $${Number(result.rate).toFixed(2)}/min.`)}</div>}
               {result?.mode === 'otp' && (result.results || []).filter(r => r.callControlId).map((r, i) => <OtpLive key={r.callControlId} ccid={r.callControlId} testid={`quick-otp-live-${i}`} />)}
-              <button className="civr-btn civr-btn-primary" disabled={busy} data-testid="quick-call-submit-button">{busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <PhoneOutgoing className="w-4 h-4" />}{f.scheduleAt ? 'Schedule call' : 'Place call'}</button>
+              <button className="civr-btn civr-btn-primary" disabled={busy} data-testid="quick-call-submit-button">{busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <PhoneOutgoing className="w-4 h-4" />}{scheduleAt ? 'Schedule call' : 'Place call'}</button>
             </Section>
           </form>
           <div className="space-y-4">
-            <Presets stamp={stamp} onLoad={loadPreset} current={() => ({ ...toBody({ ...f, scheduleAt: '' }, caller.phoneNumber), targets: undefined, ui: { ...f, targets: '', scheduleAt: '' } })} />
+            <Presets stamp={stamp} onLoad={loadPreset} locked={!can.ivrPresets} phone={caller.phoneNumber} current={() => ({ ...toBody({ ...f, scheduleAt: '' }, caller.phoneNumber), targets: undefined, ui: { ...f, targets: '', scheduleAt: '' } })} />
             <ScheduledCalls stamp={stamp} />
-            <RecentCalls bizNumbers={numbers.filter(n => n.plan === 'business').map(n => n.phoneNumber)} stamp={stamp} onDone={() => setStamp(s => s + 1)} />
+            <RecentCalls callers={numbers} stamp={stamp} onDone={() => setStamp(s => s + 1)} />
             <MenuStats />
           </div>
         </div>

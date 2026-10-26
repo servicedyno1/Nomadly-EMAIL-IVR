@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate, useParams, useSearchParams, Link } from 'react-router-dom';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Lock } from 'lucide-react';
 import { useApi, enc, day } from '../api';
 import { Spinner, ErrorNote, Locked, statusPill, TabStrip } from '../ui';
 import { OverviewTab, ForwardingTab, VoicemailTab, SmsTab, RecordingTab } from './number/SettingsTabs';
@@ -22,7 +22,7 @@ import { confirmLeave } from '../guard';
 // Tabs grouped (overview · what callers get · messages · account); a thin divider separates each group.
 const TABS = [
   ['overview', 'Overview', null, OverviewTab, 0],
-  ['forwarding', 'Forwarding', 'callForwarding', ForwardingTab, 1], ['ringgroup', 'Ring group', 'ringGroup', RingGroupTab, 1], ['browser', 'Browser ring', 'textRelay', BrowserRingTab, 1], ['hours', 'Hours', null, HoursTab, 1], ['ivr', 'Keypad menu', 'ivr', IvrTab, 1], ['ai', 'AI voice agent', 'aiAgent', AiAgentTab, 1],
+  ['forwarding', 'Forwarding', 'callForwarding', ForwardingTab, 1], ['ringgroup', 'Ring group', 'ringGroup', RingGroupTab, 1], ['browser', 'Browser ring', 'browserRing', BrowserRingTab, 1], ['hours', 'Hours', null, HoursTab, 1], ['ivr', 'Keypad menu', 'ivr', IvrTab, 1], ['ai', 'AI voice agent', 'aiAgent', AiAgentTab, 1],
   ['voicemail', 'Voicemail', 'voicemail', VoicemailTab, 1], ['recording', 'Recording', 'callRecording', RecordingTab, 1],
   ['sms', 'SMS', null, SmsTab, 2], ['triggers', 'Text Triggers', 'textTriggers', TextTriggersTab, 2],
   ['sip', 'SIP', 'sipCredentials', SipTab, 3], ['logs', 'Logs', null, LogsTab, 3], ['billing', 'Billing', null, BillingTab, 3],
@@ -55,11 +55,11 @@ export default function NumberDetail() {
         </div>
       </div>
       <TabStrip active={tab} testid="number-tabstrip">
-        {TABS.map(([id, name, , , g], i) => (
+        {TABS.map(([id, name, gate, , g], i) => (
           <React.Fragment key={id}>
           {i > 0 && g !== TABS[i - 1][4] && <span aria-hidden="true" className="w-px h-5 self-center bg-[#2a2a2a] mx-1 shrink-0" data-testid={`number-tab-divider-${g}`} />}
           <button role="tab" aria-selected={tab === id} onClick={async () => { if (id !== tab && await confirmLeave()) setParams({ tab: id }, { replace: true }); }} data-testid={`number-tab-${id}`}
-            className={`px-2.5 py-3 text-sm font-medium border-b-2 -mb-px transition-colors shrink-0 ${tab === id ? 'border-[#818cf8] text-[#818cf8]' : 'border-transparent text-[#a1a1aa] hover:text-white'}`}>{name}</button>
+            className={`inline-flex items-center gap-1 px-2.5 py-3 text-sm font-medium border-b-2 -mb-px transition-colors shrink-0 ${tab === id ? 'border-[#818cf8] text-[#818cf8]' : 'border-transparent text-[#a1a1aa] hover:text-white'}`}>{name}{gate && !n.access[gate] && <Lock className="w-3 h-3 text-[#fbbf24]" aria-label="Needs a higher plan" data-testid={`number-tab-${id}-lock`} />}</button>
           </React.Fragment>
         ))}
       </TabStrip>

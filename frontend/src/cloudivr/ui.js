@@ -1,10 +1,9 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Loader2, Lock, RotateCcw } from 'lucide-react';
-import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
-import { cp } from './paths';
 import { api, enc } from './api';
 import { useLang } from './i18n';
+import { showUpgrade } from './Upgrade';
 
 // True on phone-sized screens (below Tailwind's md breakpoint); follows rotation/resizes.
 export function useIsPhone(query = '(max-width: 767px)') {
@@ -153,9 +152,9 @@ export function Locked({ feature, phone, need }) {
       <Lock className="w-6 h-6 text-[#fbbf24]" />
       <div className="flex-1">
         <div className="font-semibold" data-testid="feature-locked-title">{need ? `${feature} is on the ${need} plan and up` : `${feature} needs a higher plan`}</div>
-        <div className="text-sm text-[#a1a1aa]">Upgrade this number in its Billing tab to unlock it — your renewal date stays the same, and within 14 days of buying 25% of your current plan price comes off.</div>
+        <div className="text-sm text-[#a1a1aa]">Upgrade this number to unlock it — your renewal date stays the same, and within 14 days of buying 25% of your current plan price comes off.</div>
       </div>
-      <Link to={cp(`/app/numbers/${encodeURIComponent(phone)}?tab=billing`)} className="civr-btn civr-btn-primary civr-btn-sm" data-testid="feature-locked-upgrade-link">Upgrade this number</Link>
+      <button type="button" onClick={() => showUpgrade({ feature, need, phone })} className="civr-btn civr-btn-primary civr-btn-sm" data-testid="feature-locked-upgrade-link">{need ? `See what ${need} adds` : 'See plans'}</button>
     </div>
   );
 }

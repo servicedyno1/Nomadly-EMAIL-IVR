@@ -17,14 +17,19 @@ export function unlocks(plans, fromId, toId) {
 
 export const availablePlans = (plans) => byPrice(plans).filter(p => p.available);
 
-// What a plan includes (✓) and leaves out (✗). `tone`: 'app' (dark app UI), 'dark' / 'cream' (landing cards).
-export function PlanFeatures({ plan, tone = 'app', compact = false, testid }) {
-  const list = plan?.webFeatures || [];
+// What a plan includes (✓) and leaves out (✗). With `plans`, a plan card lists only what it adds over the next cheaper
+// plan ("Everything in Starter, plus:"). `tone`: 'app' (dark app UI), 'dark' / 'cream' (landing cards).
+export function PlanFeatures({ plan, plans, tone = 'app', compact = false, testid }) {
+  const ladder = plans ? byPrice(plans.filter(p => p.available !== false)) : null;
+  const prev = ladder ? ladder[ladder.findIndex(p => p.id === plan?.id) - 1] : null;
+  const list = prev ? unlocks(plans, prev.id, plan.id) : (plan?.webFeatures || []).filter(f => !ladder || f.included);
   const on = { app: 'text-[#818cf8]', dark: 'text-[#6366f1]', cream: 'text-[#4f46e5]' }[tone];
   const offText = { app: 'text-[#a1a1aa]', dark: 'text-white/35', cream: 'text-slate-400' }[tone];
   const onText = { app: 'text-[#d4d4d8]', dark: '', cream: 'text-slate-700' }[tone];
+  const head = { app: 'text-[#e4e4e7]', dark: 'text-white', cream: 'text-slate-900' }[tone];
   return (
     <ul className={`flex flex-col ${compact ? 'gap-1 text-xs' : 'gap-2 text-sm'}`} data-testid={testid}>
+      {ladder && <li className={`font-semibold ${head} ${compact ? 'mb-0.5' : 'mb-1'}`} data-testid={`${testid}-heading`}>{prev ? `Everything in ${prev.name}, plus:` : `${plan.name} includes:`}</li>}
       {list.map(f => (
         <li key={f.key} className={`flex gap-2 ${f.included ? onText : `${offText} line-through decoration-1`}`} data-testid={`${testid}-${f.key}`} data-included={f.included ? 'true' : 'false'}>
           {f.included ? <Check className={`w-4 h-4 mt-0.5 shrink-0 ${on}`} /> : <X className="w-4 h-4 mt-0.5 shrink-0 opacity-60" />}

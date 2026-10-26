@@ -1704,7 +1704,7 @@ captchaDomainButton: (domain, isOff, hasCF) => hasCF ? `${isOff ? '🔴 关闭' 
  cp_77: '🔑 <b>OTP 收集模式</b>\n\n验证码应为几位数？\n\n💡 验证码提示会自动添加在脚本之后 — 无需手动包含。\n\n<i>默认：6 位</i>',
  cp_78: '请选择一种模式：',
  cp_79: '📋 <b>选择呼叫模式</b>\n\n🔗 <b>转接</b> — 目标按键后，将其接通到您的号码\n🔑 <b>OTP 收集</b> — 按键后，系统自动提示目标输入验证码 — 并通过 Telegram 发送给您\n\n两种模式都会提供完整结果报告。',
- cp_8: (buyPlansHeader, price, minutes, sms, starter, v5, v6, v7, pro, v9, v10, v11, business) => `${buyPlansHeader}\n\n💡 <b>Starter</b> — $${price}/月\n📞 ${minutes} 分钟 + 📩 ${sms} 条短信 · 呼叫转移 · 最多 ${starter} 个号码\n\n⭐ <b>Pro</b> — $${v5}/月\n📞 ${v6} 分钟 + 📩 ${v7} 条短信 · 包含 Starter 全部功能 + 语音信箱 · SIP · Webhooks · IVR · 最多 ${pro} 个号码\n\n👑 <b>Business</b> — $${v9}/月\n📞 ${v10} 分钟 + 📩 ${v11} 条短信 · 包含 Pro 全部功能 + 通话录音 · 自动话务员 · OTP · 优先支持 · 最多 ${business} 个号码\n\n<i>💳 呼出通话从钱包扣费</i>`,
+ cp_8: (buyPlansHeader, price, minutes, sms, starter, v5, v6, v7, pro, v9, v10, v11, business) => `${buyPlansHeader}\n\n💡 <b>Starter</b> — $${price}/月\n📞 ${minutes} 分钟 + 📩 ${sms} 条短信 · 呼叫转移 · 最多 ${starter} 个号码\n\n⭐ <b>Pro</b> — $${v5}/月\n📞 ${v6} 分钟 + 📩 ${v7} 条短信 · 包含 Starter 全部功能 + 语音信箱 · SIP · Webhooks · 通话录音 · 自动话务员 · 快速及批量IVR · OTP · 最多 ${pro} 个号码\n\n👑 <b>Business</b> — $${v9}/月\n📞 ${v10} 分钟 + 📩 ${v11} 条短信 · 包含 Pro 全部功能 + AI语音助手 · IVR重拨 · 自定义OTP消息 · 优先支持 · 最多 ${business} 个号码\n\n<i>💳 呼出通话从钱包扣费</i>`,
  cp_80: '请输入有效的位数（1-10）：',
  cp_81: (length) => `✅ OTP 长度：<b>${length} 位</b>（最多 3 次尝试）\n\n✍️ <b>自定义来电者提示语</b>\n\n是否要自定义来电者在验证后听到的内容？\n\n<b>默认确认：</b><i>"您的验证码已成功验证。谢谢，再见。"</i>\n<b>默认拒绝：</b><i>"已达到最大验证尝试次数。再见。"</i>`,
  cp_82: (length) => `✅ OTP 长度：<b>${length} 位</b>（最多 3 次尝试）\n\n🎙 <b>选择语音提供商</b>\n\n请选择您的 TTS 引擎：`,

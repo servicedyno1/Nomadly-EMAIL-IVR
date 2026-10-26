@@ -6,6 +6,8 @@ import { api, money } from '../../api';
 import { Field, SkeletonCard, Empty, Locked, Toggle, ErrorNote } from '../../ui';
 import { cp } from '../../paths';
 import { useCallerNumbers } from '../QuickCall';
+import { useShell } from '../../Shell';
+import { planFor } from '../../PlanFeatures';
 
 const LANGS = [['en', 'English'], ['es', 'Español'], ['fr', 'Français']];
 const PREFS = 'civr.relayPrefs';
@@ -21,13 +23,14 @@ function Choice({ value, options, onChange, testid }) {
 
 export function Setup({ info, onStarted }) {
   const { numbers, all, loading } = useCallerNumbers('textRelay');
+  const { catalog } = useShell();
   const [f, setF] = useState(() => ({ callerId: '', to: '', lang: 'en', voice: 'female', name: '', announce: true, ...load() }));
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
   const set = (k) => (v) => setF(p => ({ ...p, [k]: v?.target ? v.target.value : v }));
   if (loading) return <SkeletonCard lines={4} />;
   if (!all.length) return <Empty icon={Captions} title="Get a number first" sub="Text calls go out from your own CloudIVR number." testid="text-call-no-number"><Link to={cp('/app/buy')} className="civr-btn civr-btn-primary" data-testid="text-call-buy-link">Buy a number</Link></Empty>;
-  if (!numbers.length) return <Locked feature="Text calls" phone={all[0].phoneNumber} need="Pro" />;
+  if (!numbers.length) return <Locked feature="Text calls" phone={all[0].phoneNumber} need={planFor(catalog?.plans, 'textRelay')?.name || 'Business'} />;
   const callerId = numbers.some(n => n.phoneNumber === f.callerId) ? f.callerId : numbers[0].phoneNumber;
   const start = async (e) => {
     e.preventDefault(); setBusy(true); setErr(null);

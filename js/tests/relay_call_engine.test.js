@@ -31,7 +31,7 @@ axios.post = async (url, body) => { sent.push({ url, body }); return { data: { d
 
   await relay.onWebhook('call.answered', { call_control_id: 'v3:test-ccid' })
   const intro = sent.find(x => x.url.endsWith('/speak'))
-  assert(intro.body.payload.startsWith('Hola. Esta es una llamada escrita de Maria')); assert.strictEqual(intro.body.language, 'es-MX'); assert.strictEqual(intro.body.voice, 'male'); ok('Spanish intro with name + male voice')
+  assert(intro.body.payload.startsWith('Hola, esta es una llamada de texto de Maria')); assert.strictEqual(intro.body.voice, 'AWS.Polly.Andres-Neural'); assert.strictEqual(intro.body.service_level, 'premium'); ok('Spanish intro with name + natural male voice')
   const tr = sent.find(x => x.url.endsWith('/transcription_start'))
   assert.strictEqual(tr.body.transcription_engine, 'Telnyx'); assert.strictEqual(tr.body.transcription_engine_config.language, 'es'); assert.strictEqual(tr.body.transcription_tracks, 'inbound'); ok('transcription_start (Telnyx engine, es, inbound)')
 
@@ -42,12 +42,41 @@ axios.post = async (url, body) => { sent.push({ url, body }); return { data: { d
   v = relay.view(await relay.find(r.id, '42'))
   assert.strictEqual(v.interim, ''); assert.deepStrictEqual(v.lines.filter(l => l.who === 'them').map(l => l.text), ['Hola, ¿quién habla?']); ok('final text becomes a line')
   await relay.onWebhook('call.transcription', { call_control_id: 'v3:test-ccid', transcription_data: { transcript: 'sin final', is_final: false } })
-  await new Promise(r => setTimeout(r, 2700))
+  await new Promise(r => setTimeout(r, 1600))
   v = relay.view(await relay.find(r.id, '42'))
   assert.strictEqual(v.interim, ''); assert.deepStrictEqual(v.lines.filter(l => l.who === 'them').map(l => l.text), ['Hola, ¿quién habla?', 'sin final']); ok('unfinalised interim becomes a line after a pause')
 
+  // Long-poll: returns at once when the screen is out of date, waits for the next change otherwise.
+  const live0 = await relay.find(r.id, '42'), sig0 = relay.view(live0).sig
+  const w0 = Date.now(); assert.strictEqual(relay.view(await relay.waitChange(live0, 'stale')).sig, sig0); assert(Date.now() - w0 < 50); ok('waitChange returns at once for an old sig')
+  setTimeout(() => relay.onWebhook('call.transcription', { call_control_id: 'v3:test-ccid', transcription_data: { transcript: 'hola otra vez', is_final: false } }), 300)
+  const w1 = Date.now(); const changed = relay.view(await relay.waitChange(live0, sig0)); const waited = Date.now() - w1
+  assert(waited >= 250 && waited < 1500, `waited ${waited}`); assert.strictEqual(changed.interim, 'hola otra vez'); assert.notStrictEqual(changed.sig, sig0); ok('waitChange wakes up on new words')
+  await relay.onWebhook('call.transcription', { call_control_id: 'v3:test-ccid', transcription_data: { transcript: 'hola otra vez', is_final: true } })
+
+  // Typing sound: starts on the first ping (nothing speaking), stops before the message is spoken.
+  await relay.onWebhook('call.speak.ended', { call_control_id: 'v3:test-ccid' }) // the intro
+  const tp = await relay.typing(r.id, '42'); assert.strictEqual(tp.typing, true)
+  const play = sent.filter(x => x.url.endsWith('/playback_start')).pop(); assert(play.body.audio_url.endsWith('/assets/typing-soft.mp3?v=1')); assert.strictEqual(play.body.loop, 'infinity'); ok('typing ping starts the soft typing loop')
+  assert.strictEqual(relay.view(await relay.find(r.id, '42')).typing, true); ok('view shows typing')
+  const sentBefore = sent.length
   const s1 = await relay.say(r.id, '42', '  Soy   Maria  ')
+  const after = sent.slice(sentBefore).map(x => x.url.split('/').pop())
+  assert.deepStrictEqual(after, ['playback_stop', 'speak']); ok('typing sound stopped, then the message spoken')
   assert.strictEqual(s1.line.text, 'Soy Maria'); assert.strictEqual(sent.filter(x => x.url.endsWith('/speak')).pop().body.payload, 'Soy Maria'); ok('typed text spoken (trimmed)')
+  const n0 = sent.filter(x => x.url.endsWith('/playback_start')).length
+  await relay.typing(r.id, '42'); assert.strictEqual(sent.filter(x => x.url.endsWith('/playback_start')).length, n0); ok('no typing sound while a message is being spoken')
+  await relay.onWebhook('call.speak.ended', { call_control_id: 'v3:test-ccid' })
+  assert.strictEqual(sent.filter(x => x.url.endsWith('/playback_start')).length, n0 + 1); ok('typing sound resumes after speech if they are still typing')
+  assert.strictEqual((await relay.typing(r.id, '42', false)).typing, false); assert.strictEqual(sent[sent.length - 1].url.split('/').pop(), 'playback_stop'); ok('typing off stops the sound')
+
+  // Natural voice refused by Telnyx → basic voice for the rest of the call.
+  const realPost = axios.post
+  axios.post = async (url, body) => { if (url.endsWith('/speak') && body.voice?.startsWith('AWS.')) { const e = new Error('bad voice'); e.response = { status: 400, data: { errors: [{ detail: 'Invalid voice' }] } }; throw e } return realPost(url, body) }
+  await relay.say(r.id, '42', 'Gracias')
+  axios.post = realPost
+  const basic = sent.filter(x => x.url.endsWith('/speak')).pop().body; assert.strictEqual(basic.voice, 'male'); assert.strictEqual(basic.language, 'es-MX'); assert.strictEqual(basic.payload, 'Gracias'); ok('falls back to the basic voice')
+  await relay.say(r.id, '42', 'Adiós'); assert.strictEqual(sent.filter(x => x.url.endsWith('/speak')).pop().body.voice, 'male'); ok('basic voice remembered for the call')
   assert.strictEqual((await relay.say(r.id, '99', 'x')).error[0], 404); ok('other account cannot type')
   assert.strictEqual((await relay.dtmf(r.id, '42', '1a#')).ok, true); assert.strictEqual(sent.find(x => x.url.endsWith('/send_dtmf')).body.digits, '1#'); ok('keypad sends DTMF')
   assert(await relay.find(r.id, '42') && !(await relay.find(r.id, '99'))); ok('find() is account-scoped')

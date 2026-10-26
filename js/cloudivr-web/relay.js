@@ -17,7 +17,7 @@ function routes(router, { h, numbersApi, voiceService }) {
     const chatId = req.webChatId, b = req.body
     const n = await numbersApi.findMine(chatId, b.callerId)
     if (!n || n.status !== 'active' || n.provider !== 'telnyx') return bad(res, 400, 'invalid_caller', 'Pick one of your active numbers to call from.')
-    if (!phoneConfig.canAccessFeature(n.plan, 'textRelay')) return bad(res, 403, 'plan_upgrade_required', 'Text calls need the Pro plan or higher on the number you call from.')
+    if (!phoneConfig.canAccessFeature(n.plan, 'textRelay')) return bad(res, 403, 'plan_upgrade_required', 'Text calls need the Business plan on the number you call from.')
     const to = normPhone(b.to)
     if (!E164.test(to)) return bad(res, 400, 'invalid_number', 'Enter the number to call with country code, e.g. +14155550100.')
     if (phoneConfig.isBlockedPrefix(to)) return bad(res, 400, 'blocked_destination', `${to} is a blocked premium/satellite destination.`)
@@ -38,7 +38,15 @@ function routes(router, { h, numbersApi, voiceService }) {
     req.relayCall = c
     return fn(req, res)
   })
-  router.get('/relay/calls/:id', withCall(async (req, res) => res.json({ call: relay.view(req.relayCall) })))
+  // ?since=<sig from the last view> waits (up to 8 s) until something changes, so new words show up at once.
+  router.get('/relay/calls/:id', withCall(async (req, res) => {
+    const since = String(req.query.since || '').slice(0, 20)
+    res.json({ call: relay.view(since ? await relay.waitChange(req.relayCall, since) : req.relayCall) })
+  }))
+  router.post('/relay/calls/:id/typing', withCall(async (req, res) => {
+    const r = await relay.typing(req.params.id, req.webChatId, req.body?.on !== false)
+    r.error ? fail(res, r) : res.json(r)
+  }))
   router.post('/relay/calls/:id/say', withCall(async (req, res) => {
     const r = await relay.say(req.params.id, req.webChatId, req.body.text)
     r.error ? fail(res, r) : res.json(r)

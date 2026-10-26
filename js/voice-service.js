@@ -2597,11 +2597,11 @@ async function handleCallInitiated(payload) {
   // A ring group (several phones at once) needs the answered call too, like forward-always.
   const hasForwardAlways = (fwdConfig?.enabled && fwdConfig.forwardTo && fwdConfig.mode === 'always') || ringGroupOn(num)
 
-  // ── BROWSER RING (CloudIVR web "Ring me in the browser", Pro+) ──
+  // ── BROWSER RING (CloudIVR web "Ring me in the browser", Pro+; answering as text needs Business) ──
   // While the owner has the web app open, a big ringing banner offers: answer as text (relay engine), answer by voice
   // (browser phone, through the SIP ring below) or decline. Same exclusions as the SIP ring. No tab open → unchanged.
   const brCfg = num.features?.browserRing
-  if (brCfg?.enabled && canAccessFeature(num.plan, 'textRelay') && !hasIvr && !hasForwardAlways && !sessionRef.offHours && browserRing.isOnline(chatId)) {
+  if (brCfg?.enabled && canAccessFeature(num.plan, 'browserRing') && !hasIvr && !hasForwardAlways && !sessionRef.offHours && browserRing.isOnline(chatId)) {
     const ringSecs = fwdConfig?.ringTimeout || 25
     if (hasSip) {
       // The SIP ring below keeps the caller ringing and runs the fallback on timeout; the banner is an extra alert.
@@ -3962,7 +3962,7 @@ async function handleCallAnswered(payload) {
     return
   }
 
-  // 2. IVR — Business plan only (only reached when forwarding is NOT in "always" mode)
+  // 2. IVR — Pro and Business plans (only reached when forwarding is NOT in "always" mode)
   if (ivrConfig?.enabled && canAccessFeature(num.plan, 'ivr') && ivrConfig.options && Object.keys(ivrConfig.options).length > 0) {
     session.phase = 'ivr'
     const ivrL = vmGreeting.ivrSpeech(ivrConfig.language)

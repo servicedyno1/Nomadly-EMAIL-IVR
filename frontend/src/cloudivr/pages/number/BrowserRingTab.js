@@ -10,6 +10,7 @@ import { useRtc } from '../../rtc';
 import { askNotify, notifyState } from '../../ringAlerts';
 import { Card, useSave } from './SettingsTabs';
 import { useUnsaved, SaveRow } from '../../guard';
+import { LockedNote } from '../../Upgrade';
 
 const MODES = [['ask', 'Ask each time: voice or text'], ['voice', 'Always voice'], ['text', 'Always text (answers by itself)']];
 const LANGS = [['en', 'English'], ['es', 'Spanish'], ['fr', 'French']];
@@ -39,7 +40,7 @@ function Notes({ num }) {
       {num.sipUsername
         ? <li data-testid="browser-ring-voice-note"><span>Voice: the browser phone connects by itself while the app is open.</span>{here && <span className={`ml-1 ${rtc.status === 'ready' ? 'text-[#818cf8]' : ''}`} data-testid="browser-ring-voice-status">{rtc.status === 'ready' ? 'Online now.' : 'Offline right now.'}</span>}{here && rtc.status !== 'ready' && rtc.msg && <span className="block mt-1">{rtc.msg}</span>}</li>
         : <li data-testid="browser-ring-voice-note">To also answer by voice, create a SIP login in the <Link to={cp(`/app/numbers/${enc(num.phoneNumber)}?tab=sip`)} className="text-[#818cf8] underline">SIP tab</Link>.</li>}
-      {info && <li>{`Text: same price as text calls — ${money(info.usRate + info.relayRate)}/min US & Canada, ${money(info.intlRate + info.relayRate)}/min international, from your wallet. Not counted in plan minutes.`}</li>}
+      {info && num.access?.textRelay && <li>{`Text: same price as text calls — ${money(info.usRate + info.relayRate)}/min US & Canada, ${money(info.intlRate + info.relayRate)}/min international, from your wallet. Not counted in plan minutes.`}</li>}
       <li>{`Rings for ${f.callForwarding?.ringTimeout || 25} seconds. If nobody answers, the call goes to your usual fallback (forwarding when not answered, voicemail, or a missed call).`}</li>
       <li>Only rings while CloudIVR is open in a browser tab. The AI voice agent, keypad menus, always-forward and closed hours skip the browser.</li>
     </ul>
@@ -67,9 +68,10 @@ function TryIt({ num, saved }) {
 
 export default function BrowserRingTab({ num, reload }) {
   const br = num.features.browserRing;
+  const canText = !!num.access?.textRelay;
   const { catalog } = useShell();
   const rtc = useRtc();
-  const [f, setF] = useState({ answerMode: br.answerMode || 'ask', lang: br.lang || 'en', voice: br.voice || 'female', announce: br.announce !== false });
+  const [f, setF] = useState({ answerMode: canText ? br.answerMode || 'ask' : 'voice', lang: br.lang || 'en', voice: br.voice || 'female', announce: br.announce !== false });
   const [save, busy] = useSave(num, 'browser-ring', reload);
   const u = useUnsaved(f);
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
@@ -80,8 +82,9 @@ export default function BrowserRingTab({ num, reload }) {
       <Card bind={u.bind} title="Ring me in the browser" sub="While CloudIVR is open, calls to this number ring here with a big banner on every page. Answer by typing (text call) or by voice.">
         <div className="flex items-center justify-between gap-4"><span className="text-sm">Ring me in the browser</span><InstantToggle num={num} feature="browserRing" label="Browser ring" checked={!!br.enabled} reload={reload} onSaved={switched} testid="browser-ring-enabled-toggle" /></div>
         <Field label="When it rings">
-          <select className="civr-input" value={f.answerMode} onChange={set('answerMode')} data-testid="browser-ring-mode-select">{MODES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select>
+          <select className="civr-input" value={f.answerMode} onChange={set('answerMode')} data-testid="browser-ring-mode-select">{MODES.map(([v, l]) => <option key={v} value={v} disabled={!canText && v !== 'voice'}>{!canText && v !== 'voice' ? `${l} · Business` : l}</option>)}</select>
         </Field>
+        {canText ? <>
         <div className="grid sm:grid-cols-2 gap-4">
           <Field label="Text answer: language"><select className="civr-input" value={f.lang} onChange={set('lang')} data-testid="browser-ring-lang-select">{LANGS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></Field>
           <Field label="Text answer: voice"><select className="civr-input" value={f.voice} onChange={set('voice')} data-testid="browser-ring-voice-select"><option value="female">Female</option><option value="male">Male</option></select></Field>
@@ -90,6 +93,7 @@ export default function BrowserRingTab({ num, reload }) {
           <div><div className="text-sm">Tell the caller it is a typed call</div><div className="text-xs text-[#a1a1aa] mt-1">A short spoken note when you answer as text.</div></div>
           <Toggle checked={f.announce} onChange={v => setF({ ...f, announce: v })} testid="browser-ring-announce-toggle" />
         </div>
+        </> : <LockedNote text="Answering calls by typing (text call) is on the Business plan. You can answer by voice now." feature="Answering calls as text" phone={num.phoneNumber} testid="browser-ring-text-locked" />}
         <Alerts />
         <Notes num={num} />
         <SaveRow dirty={u.dirty} testid="browser-ring-unsaved-pill"><button className="civr-btn civr-btn-primary" disabled={busy} onClick={submit} data-testid="browser-ring-save-button">Save</button></SaveRow>

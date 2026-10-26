@@ -1,5 +1,31 @@
 # PRD — Nomadly Cloud IVR + Telegram Bot
 
+## 2026-10-26 (pm) — CloudIVR upgrade locks + plan text + bold landing copy + 14 emails — BUILT on preview, testing in progress, NOT deployed
+- Plan gating (bot + web): Pro now has the Keypad menu (IVR) + key analytics; Quick IVR scheduling, saved presets, one saved
+  voice, Text Triggers and text calls (deaf / hard-of-hearing) are Business-only (`phone-config.js` planFeatureAccess:
+  browserRing/ivrSchedule/ivrPresets/consistentVoice keys). Locked features stay visible: `<PlanLock>` / `LockedNote` /
+  `showUpgrade()` (frontend `Upgrade.js`) open a short "X is on the Business plan" pop-up → upgrade the number or buy one.
+- Plan cards: "Everything in Starter, plus:" / "Everything in Pro, plus:" (`PlanFeatures.js` with `plans`). Landing copy
+  rewritten bold / sales-driven. In-app text colours lifted (`cloudivr.css`). Frontend ESLint config repaired
+  (`frontend/eslint.config.js`, run `cd frontend && npx eslint src`). Fixed landing crash (PricingFaq PlanCard used an
+  undefined `catalog`).
+- Emails (`js/cloudivr-web/emails.js` engine, `email-templates.js`, `email-copy.js` EN/FR/ES, `email-layout.js`): welcome,
+  number live, renewal receipt (renew/restore/auto_renew), plan upgrade, renewal reminder (3 days; auto-ok / top-up needed /
+  auto-renew off), renewal failed (grace), number paused, top-up received, low balance (user amount, default $10), wallet
+  empty (< $0.50), campaign report, new voicemail, missed calls (grouped per number), weekly summary (Mondays 08:00 UTC via
+  node-schedule). A 1-minute scanner reads accounts / transactions / phoneTransactions / bulkCallCampaigns / phoneLogs /
+  number states / wallet levels; webEmailLog `_id` = one key per event (never twice). First run sets a watermark
+  (webEmailState.scanner) so old records never email. Language = webPrefs.lang. Optional emails (weekly, campaign reports,
+  voicemail, missed calls) have Settings switches + signed one-click stop link (GET asks, POST stops; List-Unsubscribe
+  headers). Receipts / renewals / wallet alerts always send. Links: WEB_APP_URL or https://CLOUDIVR_WEB_DOMAIN.
+- Settings → "Email notifications" card (`pages/settings/EmailPrefs.js`, `#emails`): switches, low-balance amount, example
+  picker → Open preview (`/emails/preview/:type?lang=`) and "Email me a test" (`/emails/test`, 10/hour), recent emails
+  (`/emails/log`). Admin: POST `/admin/emails/weekly` runs the weekly summary now.
+- Preview (WEB_CLOUDIVR_DRY_RUN=true): emails are RECORDED in webEmailLog with their HTML, NOT sent (WEB_EMAILS_LIVE=true
+  sends for real). Added WEB_APP_URL=<preview URL> to dev backend/.env. Node backend has NO hot reload:
+  `sudo supervisorctl restart nodejs` after js/ changes.
+- Tests: `node js/tests/test_cloudivr_emails_2026-10.js` (38/38).
+
 ## 2026-10-26 — CloudIVR web Quick IVR free call + OTP code collection + cards "Coming soon" + Terms — TESTED (iteration_142: backend 20/20, frontend all flows), NOT deployed
 - Built (previous fork): free Quick IVR call for accounts with no number (`pages/quick/Trial.js`, `/calls/trial`), OTP code collection with
   Accept / Decline / Hang up on the Quick IVR page and in the Inbox (`pages/quick/Otp.js`, `/calls/otp/:ccid`, preview = simulated `sim-` calls),

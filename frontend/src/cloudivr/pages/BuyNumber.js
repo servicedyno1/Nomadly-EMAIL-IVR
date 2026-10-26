@@ -72,7 +72,7 @@ function PlanPicker({ plans, value, onChange, surcharge }) {
           </div>
           <div className="font-mono text-2xl mt-2">{money(p.price + (surcharge || 0))}<span className="text-xs text-[#a1a1aa]"> /month</span></div>
           <div className="text-xs text-[#a1a1aa] mt-1">{p.minutes} min · {p.sms} SMS included</div>
-          <div className="mt-4"><PlanFeatures plan={p} compact testid={`buy-plan-${p.id}-feature`} /></div>
+          <div className="mt-4"><PlanFeatures plan={p} plans={plans} compact testid={`buy-plan-${p.id}-feature`} /></div>
         </button>
       ))}
     </div>
