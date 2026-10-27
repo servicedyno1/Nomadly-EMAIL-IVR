@@ -1,0 +1,62 @@
+{
+  "summary": "Tested the CloudIVR landing 2026 Phase 1 upgrade end to end on the preview: backend catalog and stats (pytest, 5 of 5 pass), the landing page on desktop 1920x800 and mobile 390x844, the login cookie banner, /cloudivr/sip and the in-app Help centre (as Alice). Every feature in the request works. Found 3 problems: (1) French mode leaves many new strings in English and breaks the Hear it transcript with word-by-word partial translations; (2) the signup page still says 'Pay by card, crypto or wallet'; (3) on the preview, Cache-Control on /public/stats is overwritten by the ingress (environment only, not an app bug).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/cloudivr-web/public/stats", "issue": "On the public preview URL, Cache-Control comes back as 'no-store, no-cache, must-revalidate' because Cloudflare/ingress rewrites it on every response (the static mp3 gets it too). The app itself sends 'public, max-age=3600' (checked on localhost:8001). Environment only, no app fix needed."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "HearIt transcript (FR/ES)", "issue": "Each word of the transcript is a separate <span class='w'>, so the DOM translator translates single words and produces mixed text such as 'Thanks for en appel Northwind Dental. Press 1 to book...'. The audio is in English, so the transcript words container should carry data-no-translate (or have a real per-language transcript).", "selector": "[data-testid=hear-it-transcript] .w", "priority": "HIGH"},
+      {"component": "Signup page NEXT_STEPS (AuthPages.js line 15)", "issue": "Still says 'Pay by card, crypto or wallet', which claims cards are accepted today. Breaks the payments-consistency requirement.", "selector": "frontend/src/cloudivr/pages/AuthPages.js NEXT_STEPS", "priority": "HIGH"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Landing in Français (FR i18n missing keys)", "issues": [
+        "hear-it-title 'Hear a 30-second call' and the hear-it-sub fragments 'key press · AI agent books a slot · handover to a person. Made with CloudIVR’s own voices.' stay in English; so do 'Ringing the front desk…' and 'Caller presses 1'",
+        "hero-price-note fragment 'Pay with crypto or your wallet (cards coming soon)'",
+        "proof-strip: 'Live from the platform', 'Calls handled on the platform'",
+        "usecases-section: almost all of it ('Who it’s for', 'Pick your situation...', tile titles and bodies, 'See how it works')",
+        "trust-section: heading and 4 point titles ('Built for calling you can stand behind.', 'Consent is yours to hold', 'Opt-outs are honoured everywhere', 'An AI that says it’s an AI', 'Recording stays your call')",
+        "plan-compare: 'Swipe the table sideways to see every plan.', 'Extra numbers on the plan', 'Text calls for deaf & hard-of-hearing users'",
+        "pricing / usage-rates: 'No surprises. Every per-use price, up front.', 'Pay with', 'Paid from', and every rate-row label",
+        "FAQ: 'What happens if the AI agent can’t help?' and 'Do you scrub numbers or enforce quiet hours?' (the ID-check FAQ is translated)",
+        "ES probably has the same gaps (not checked)"
+      ]}
+    ]
+  },
+  "passed_checks": [
+    "Desktop and mobile: no page overflow (scrollWidth equals viewport width; the wide elements are inside the compare-table scroll wrapper)",
+    "First paint (catalog delayed 3 s): data-catalog='snapshot' first, then 'live'; plan cards $50/$75/$120 and 17 coverage chips shown immediately; hero-stat-0..2 show '17' / '60 s' / '$50' right away (never 0)",
+    "Hear it: mp3 served (206, audio/mpeg, 245,997 bytes); play advances time; words get 'said'/'now'; Wave gets 'on' only while playing; pause works; show-transcript opens without playing; seek to 50% gives 0:15; ArrowRight/ArrowLeft move ±5 s; ended state shows 'That was 30 seconds of CloudIVR' with the replay icon",
+    "Section order: hero, facts, statement, usecases, features, trust, try, coverage, how, pricing, faq, final-cta",
+    "Use cases: 6 tiles, sales tile is dark (rgb 15,23,42); the sales link selects the campaigns tab ('Quick IVR & Bulk IVR campaigns'); the agency link scrolls to #coverage; the telegram link goes to /cloudivr/signup",
+    "Trust: 6 points, data note, disclaimer and the 4 links with correct hrefs; trust-link-cookies opens the Manage panel",
+    "Proof strip shows 2/1/1/17 with 'Real figures · updated daily · last Oct 27'; no testimonials element",
+    "Payments: the pricing and footer groups have the same structure (wallet + 7 coins now; 5 card chips inside the soon group with a 'Coming soon' badge); hero-price-note, how-step-3 and faq-answer-2 all say cards are coming soon",
+    "Compare table: heads, prices and 'Most popular' correct; minutes/sms/extra rows correct; 9 feature rows by default, 24 when expanded (compare-row-aiAgent present), collapses back; Pro link is /cloudivr/signup?plan=pro; on mobile it scrolls sideways with a sticky first column and shows the swipe hint",
+    "Usage rates: all 8 rows match the spec",
+    "FAQ: the 3 new questions are present and the ID-check answer lists the instant and ID-check countries; details open and close",
+    "Coverage: US/CA/PR/CO show the instant chip, the other 13 the ID-check chip; subtitle says '4 countries go live in about a minute'",
+    "Cookie bar: compact bar, Manage panel with 4 switches (necessary disabled and on), details toggle, back button, allow-selection/deny/allow-all save civr.consent, footer-link-cookies reopens in Manage mode; also works on /cloudivr/login",
+    "Mobile sticky bar: hidden at the top; at 2200 it shows and body gets data-civr-sticky=1; buy link /cloudivr/signup; try button scrolls to #try and the bar hides there and over final-cta and the footer; cookie bar bottom (772) is above the sticky bar top (775); chat bubble sits above; on desktop it is display:none",
+    "Regression: nav mega-menus open; FR switch translates the cookie buttons (Gérer/Refuser/Tout autoriser) and the sticky button (Essayer un appel); /cloudivr/sip renders; Help centre as Alice lists the 3 new FAQs"
+  ],
+  "test_report_links": ["/app/backend/tests/test_civr_landing_2026_public.py", "/app/test_reports/pytest/pytest_civr_landing_2026.xml"],
+  "action_items": [
+    "Add data-no-translate to the HearIt transcript text (word spans and sys lines), or ship per-language transcripts; translate the HearIt title and subtitle",
+    "Add FR (and ES) i18n entries for all new landing strings: use cases, trust, proof strip, compare table extras, usage-rate labels, 'Pay with' / 'Paid from', the hero price-note fragment and the 2 untranslated objection FAQs",
+    "Change the signup NEXT_STEPS 'Pay by card, crypto or wallet' to crypto/wallet with cards coming soon"
+  ],
+  "critical_code_review_comments": [
+    "HearIt: preload='none' together with seeking before play works in Chromium (the position is kept), but Safari/iOS may ignore currentTime before metadata loads; consider preload='metadata'",
+    "public-stats floor(): parseInt('0') || ... falls through to the special '0' check. This works but is hard to read."
+  ],
+  "updated_files": ["/app/backend/tests/test_civr_landing_2026_public.py"],
+  "success_rate": {"backend": "100%", "frontend": "92%"},
+  "seed_data_creation": "none",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Landing at /cloudivr. Hear-line testids are menu-4, tone-72, agent-78, caller-124, agent-161, caller-193, agent-207, ring-255, human-268. Answers inside closed <details> elements return no innerText; read textContent instead. To find untranslated strings, run a TreeWalker over landing-page text nodes after switching to FR. The preview ingress forces Cache-Control: no-store on every response."
+}

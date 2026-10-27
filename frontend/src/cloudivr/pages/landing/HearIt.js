@@ -92,7 +92,7 @@ export function HearIt({ className = '' }) {
       </div>
       {err && <p className="px-5 pb-3 text-xs text-rose-700" data-testid="hear-it-error">{err}</p>}
       {open && (
-        <div ref={box} className="civr-l-transcript border-t civr-l-rule px-4 md:px-5 py-3" aria-live="off" data-testid="hear-it-transcript">
+        <div ref={box} className="civr-l-transcript border-t civr-l-rule px-4 md:px-5 py-3" aria-live="off" data-no-translate data-testid="hear-it-transcript">
           {SAMPLE_SEGMENTS.map((s, i) => <Line key={s.start} seg={s} t={t} active={i === activeIdx} lineRef={i === activeIdx ? activeRef : null} />)}
         </div>
       )}

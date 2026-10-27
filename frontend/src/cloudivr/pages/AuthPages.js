@@ -12,7 +12,7 @@ import { BRAND, Wordmark } from '../Brand';
 import { TwoFactorStep, RememberBox, useRefCode } from './auth/TwoFactorStep';
 import { GoogleButton } from './auth/GoogleButton';
 
-const NEXT_STEPS = ['Pick a number and plan', 'Pay by card, crypto or wallet', 'Choose what callers hear'];
+const NEXT_STEPS = ['Pick a number and plan', 'Pay with crypto or your wallet (cards coming soon)', 'Choose what callers hear'];
 
 // Plan picked on the pricing section (?plan=pro) — kept through sign-up so Buy opens with it selected.
 function usePlanParam() {

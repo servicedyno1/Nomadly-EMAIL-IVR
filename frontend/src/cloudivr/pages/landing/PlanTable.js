@@ -14,7 +14,7 @@ export function PlanCompare({ catalog, start }) {
   const [all, setAll] = useState(false);
   if (plans.length < 2) return null;
   const top = plans[plans.length - 1];
-  const rows = (top.webFeatures || []).map(f => [f.key, f.label.replace(/\s*\(.*\)$/, ''), plans.map(p => !!(p.webFeatures || []).find(x => x.key === f.key)?.included)]);
+  const rows = (top.webFeatures || []).map(f => [f.key, f.label, plans.map(p => !!(p.webFeatures || []).find(x => x.key === f.key)?.included)]);
   const shown = all ? rows : rows.slice(0, SHOW_FIRST);
   const ex = catalog?.extraNumber;
   return (
@@ -82,7 +82,7 @@ export function UsageRates({ catalog }) {
       <div className="mt-6 overflow-x-auto rounded-2xl border civr-l-rule bg-white">
         <table className="civr-l-table" data-testid="usage-rates-table">
           <thead><tr><th scope="col">What</th><th scope="col">Price</th><th scope="col">Paid from</th></tr></thead>
-          <tbody>{rows.map(([id, what, price, from]) => <tr key={id} data-testid={`rate-${id}`}><td className="text-slate-700">{what}</td><td className="font-semibold text-slate-900 whitespace-nowrap" data-no-translate>{price}</td><td className="text-slate-500 whitespace-nowrap">{from}</td></tr>)}</tbody>
+          <tbody>{rows.map(([id, what, price, from]) => <tr key={id} data-testid={`rate-${id}`}><td className="text-slate-700">{what}</td><td className="font-semibold text-slate-900 whitespace-nowrap">{price}</td><td className="text-slate-500 whitespace-nowrap">{from}</td></tr>)}</tbody>
         </table>
       </div>
     </Reveal>
