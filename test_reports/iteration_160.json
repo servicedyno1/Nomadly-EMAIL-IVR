@@ -1,0 +1,29 @@
+{
+  "summary": "Retested CloudIVR landing follow-up (ID-check removal, Trust card removal, 20 AI agent languages). Everything requested works. Backend: 26/26 pytest pass (public catalog: 17 countries, no 'verify' field; AI agent POST/PUT/GET for every language code; 'ja' kept; 'xx' falls back to 'en'; seo.headTags('/') JSON-LD has SoftwareApplication, FAQPage and Organization, no 'ID check', and it parses as valid JSON). Frontend EN at 1920 width: 17 coverage cards with flag, name and number types only, and no coverage-XX-idcheck or -instant testids. The coverage subtitle has no ID/contact-details/carrier-review text. 'ID check', 'identity', 'verified' and 'Verified accounts' do not appear anywhere in the page text. FAQ has no ID-check question and still includes 'What happens if the AI agent can’t help?' and 'Do you scrub numbers…'. Trust has 5 cards (trust-point-0..4), none of them the removed one. hero-stats shows '20 | AI agent languages — it switches when your caller does'. The Platform AI tab and the Products menu AI item both say '20 languages'. FR/ES: stats, platform panel, menu item, trust cards and FAQ are all translated, with no ID-check wording. Mobile 390: no horizontal overflow (scrollWidth 390); the coverage and trust grids fit. App (Alice): the ai-agents header says '20 languages'; the language select lists the 20 requested languages; an agent saved with German persists (select shows 'de' after save) and the list row shows 'Marin · German'. In the FR app the row shows 'Allemand' and the options are translated; ES options are translated too.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Landing coverage grid at 390px (2 columns)", "issues": ["Long country names are truncated with an ellipsis: 'United Kin…', 'Netherlan…', 'New Zeala…', 'Czech Rep…'. The cards no longer have chips, so there is room to let names wrap to 2 lines (drop `truncate`) or use 1 column under 400px."]},
+      {"screen": "Landing Trust grid at 1920px", "issues": ["5 cards in a 3-column grid leave the second row with 2 cards and an empty slot on the right. Optional: centre the last row or use a 5-up / 2+3 layout."]},
+      {"screen": "AI agent form in FR/ES", "issues": ["The language options are sorted by their English name, so the translated list is out of alphabetical order (FR: Arabe, Chinois, Tchèque, Néerlandais…). Optional: sort with localeCompare on the translated label.", "The 'FAQ & informations' placeholder ('Q: Are you open Saturday?…') stays in English in FR (minor, probably pre-existing)."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_civr_ai_languages_noidcheck.py", "/app/backend/tests/test_civr_landing_2026_public.py", "/app/test_reports/pytest/pytest_results.xml"],
+  "action_items": [
+    "Optional: let coverage country names wrap on mobile instead of truncating",
+    "Optional: sort the AI language select by translated name in FR/ES",
+    "Cleanup: remove the dead i18n keys in fr.json/es.json that still say 'English, French or Spanish' (e.g. 'AI agent languages: English, French and Spanish', 'A step up from the keypad menu…'); no source file references them any more"
+  ],
+  "critical_code_review_comments": [
+    "js/ai-agent/languages.js is the single source of truth (bridge OPENING, booking LOCALE, store LANGS), and it falls back to en correctly. frontend/src/cloudivr/pages/ai/languages.js duplicates the code list by hand, so the two can drift. Consider exposing the list from the API (e.g. in GET /ai-agents next to voices) or adding a test that compares them.",
+    "js/cloudivr-web/numbers.js:45 comment still mentions 'countries that need ID checks' (internal only, harmless)."
+  ],
+  "updated_files": ["/app/backend/tests/test_civr_ai_languages_noidcheck.py"],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "seed_data_creation": "TEST_ agents were created and then deleted (API fixture teardown plus manual cleanup of 'TEST_German UI').",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "seo.js only serves on the custom domain, so on preview the SEO is checked through node (s.headTags('/') then process.exit, because requiring seo.js otherwise hangs). In the app, networkidle never settles: use domcontentloaded plus wait_for_selector. Logging in through fetch('/api/cloudivr-web/auth/login') inside the page works. The app language switcher testid is topbar-lang-switcher; the landing one is landing-lang-switcher."
+}

@@ -23,9 +23,9 @@ export function Trust() {
           <div className="lg:col-span-8"><SectionHead label="Trust & compliance" title="Built for calling you can stand behind." sub="Outbound campaigns, recordings and AI agents come with rules. Here is what CloudIVR does about them — today, not someday." /></div>
           <Reveal delay={120} className="lg:col-span-4 flex items-center gap-3 text-sm text-slate-600 lg:justify-end" data-testid="trust-data-note"><Lock className="w-4 h-4 text-slate-900 shrink-0" />We don’t sell your data. Logs, recordings and transcripts stay in your account.</Reveal>
         </div>
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4 mt-12" data-testid="trust-grid">
+        <div className="grid md:grid-cols-2 lg:grid-cols-6 gap-4 mt-12" data-testid="trust-grid">
           {POINTS.map(([Icon, title, text], i) => (
-            <Reveal key={title} delay={i * 80} className="civr-l-card-cream p-6 md:p-7" data-testid={`trust-point-${i}`}>
+            <Reveal key={title} delay={i * 80} className={`civr-l-card-cream p-6 md:p-7 ${i < 3 ? 'lg:col-span-2' : 'lg:col-span-3'} ${i === POINTS.length - 1 && POINTS.length % 2 ? 'md:col-span-2' : ''}`} data-testid={`trust-point-${i}`}>
               <span className="w-10 h-10 rounded-xl bg-slate-100 text-slate-900 grid place-items-center"><Icon className="w-5 h-5" /></span>
               <div className="text-lg font-semibold text-slate-900 mt-5">{title}</div>
               <p className="text-sm text-slate-600 mt-2 leading-relaxed">{text}</p>

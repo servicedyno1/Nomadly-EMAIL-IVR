@@ -27,6 +27,7 @@ S = {
     "Russian": ("Russe", "Ruso"),
     "Turkish": ("Turc", "Turco"),
     "Vietnamese": ("Vietnamien", "Vietnamita"),
+    "Q: Are you open Saturday? A: No, Monday–Friday 9am–5pm.\nCleaning: $90.": ("Q : Êtes-vous ouverts le samedi ? R : Non, du lundi au vendredi de 9 h à 17 h.\nDétartrage : 90 $.", "P: ¿Abren los sábados? R: No, de lunes a viernes de 9 a 17 h.\nLimpieza: 90 $."),
 }
 
 

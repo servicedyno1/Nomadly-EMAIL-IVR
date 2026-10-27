@@ -1,5 +1,16 @@
 # PRD — Nomadly Cloud IVR + Telegram Bot
 
+## 2026-10-27 (14:20Z) — Landing: ID-check mentions removed + AI agent 20 languages — TESTED (iteration_160 100% + design follow-ups fixed), NOT DEPLOYED
+- Owner: remove ID-check indication on landing numbers, remove Trust card "Verified accounts, verified numbers", AI agent > 3 languages.
+  Choices: ~20 major languages; FAQ "Which countries need an ID check…" also removed (no ID-check wording anywhere on the landing; buyers see it after paying, as before).
+- Landing: Coverage cards = flag + name + types (chips + ID subtitle gone; flag stacks above the name on phones so names don't cut off); Trust = 5 cards
+  (lg 3+2 layout); FAQ/in-app Help + seo.js objectionFaqs drop the ID-check Q (FAQPage now 11). Public catalog `countries[]` no longer has `verify`
+  (phone-config still has it internally); snapshot regenerated.
+- AI agent: new `js/ai-agent/languages.js` = 20 languages (en es fr pt de it nl ar hi zh ja ko ru tr pl he ro cs vi id) with name, booking locale and the
+  fixed opening lines (AI disclosure, recording notice, first question, "one moment" filler) in each language; store/bridge/booking use it. Frontend
+  `pages/ai/languages.js` (same codes) → form select (sorted by translated name) + agents list. Copy "20 languages" on landing facts/platform/menu,
+  AI agents page header, seo FEATURES. FR/ES via `scripts/civr_i18n_ai_languages.py`.
+
 ## 2026-10-27 (10:10Z) — cloudivr.net landing page 2026 audit + Phase 1 upgrade — TESTED (iteration_159, all features pass; 3 follow-ups fixed), NOT DEPLOYED (owner reviews preview first)
 - Approved plan (plan mode): hear-it audio sample, instant first paint, trust & compliance block, real proof strip, one payment story, plan comparison +
   usage-rate tables, use-case bento, compact cookie bar + mobile sticky CTA, 3 objection FAQs, structured data. Visual system unchanged (cream/ink, DM Sans).

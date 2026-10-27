@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { toast } from 'sonner';
 import { Loader2, Trash2 } from 'lucide-react';
 import { api } from '../../api';
-import { ask } from '../../i18n';
+import { ask, tr, useLangTick } from '../../i18n';
 import { Field, Toggle, ErrorNote } from '../../ui';
 import { BookingFields, browserZone } from './BookingFields';
 import { useUnsaved, UnsavedPill } from '../../guard';
@@ -18,12 +18,14 @@ const Text = ({ f, set, k, rows, ph, testid }) => rows
   : <input className="civr-input" value={f[k] || ''} onChange={e => set(k, e.target.value)} placeholder={ph} data-testid={testid} />;
 
 function Basics({ f, set, voices }) {
+  const lang = useLangTick();
+  const langs = [...AI_LANGS].sort((a, b) => tr(a[1]).localeCompare(tr(b[1]), lang));
   return (
     <div className="grid sm:grid-cols-2 gap-4">
       <Field label="Agent name"><Text f={f} set={set} k="name" ph="Ava" testid="ai-agent-name-input" /></Field>
       <Field label="Business name"><Text f={f} set={set} k="businessName" ph="Sunrise Dental" testid="ai-agent-business-input" /></Field>
       <Field label="Language" hint="The agent switches if the caller speaks another language.">
-        <select className="civr-input" value={f.language} onChange={e => set('language', e.target.value)} data-testid="ai-agent-language-select">{AI_LANGS.map(([c, n]) => <option key={c} value={c}>{n}</option>)}</select>
+        <select className="civr-input" value={f.language} onChange={e => set('language', e.target.value)} data-testid="ai-agent-language-select">{langs.map(([c, n]) => <option key={c} value={c}>{n}</option>)}</select>
       </Field>
       <Field label="Voice">
         <select className="civr-input capitalize" value={f.voice} onChange={e => set('voice', e.target.value)} data-testid="ai-agent-voice-select">{(voices || []).map(v => <option key={v} value={v}>{v}</option>)}</select>
