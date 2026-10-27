@@ -57,16 +57,12 @@ function cat() {
 
 const startPrice = (c) => (c && c.plans && c.plans.length ? Math.min(...c.plans.map((p) => Number(p.price) || 0)) : null)
 const plansWith = (c, key) => (c && c.plans ? c.plans.filter((p) => p.access && p.access[key]).map((p) => p.name) : [])
-const verifyCountries = () => { try { return require('./numbers').countries().filter((c) => c.verify).map((c) => c.name) } catch (_) { return [] } }
 
 // Objection FAQs — what the platform does today when things don't go to plan. Shared with the landing page copy.
 function objectionFaqs() {
-  const v = verifyCountries()
   return [
     ['What happens if the AI agent can’t help?',
       'It never pretends to be human and never asks for card numbers, passwords or one-time codes. When a caller wants a person, the agent transfers the call to the number you set — or, if you have not set one, offers to take a message with a name, callback number and the message, which lands in your inbox. On a keypad menu, callers can always reach voicemail. Anyone who asks not to be called again is removed from the list and the call ends politely.'],
-    ['Which countries need an ID check and how long does it take?',
-      `US, Canada, Puerto Rico and Colombia numbers go live in about a minute. ${v.length ? `${andList(v)} ask` : 'Some countries ask'} for contact details, an address and sometimes an ID before the number activates — telecom regulation, not us. You pay first and the number is held for you while you fill in the details (about 2 minutes); the carrier then reviews them, usually within a few hours and up to 3 business days. Your plan starts when the number is active, and you get a full refund if it is not approved.`],
     ['Do you scrub numbers or enforce quiet hours?',
       'Your do-not-call list is enforced on every campaign — Bulk IVR and AI agent, web and Telegram bot: numbers on it are never dialed and never billed. We do not check public Do-Not-Call registries for you and we do not enforce quiet hours automatically: you schedule each campaign, set a daily call limit and repeat it daily or weekly, and you are responsible for calling only people who have agreed to hear from you, at reasonable hours where they live.'],
   ]
@@ -76,7 +72,7 @@ function objectionFaqs() {
 const FEATURES = [
   ['Virtual phone numbers', 'Local, mobile and toll-free numbers across the US, Canada and many international countries.'],
   ['Keypad menus (IVR) for incoming calls', 'Callers hear your greeting and press a key to reach the right person, hear a message or leave voicemail, with key-press stats.'],
-  ['AI voice agents', 'A natural-sounding agent that answers calls, qualifies callers, answers questions, books appointments and takes messages.'],
+  ['AI voice agents', 'A natural-sounding agent that answers calls, qualifies callers, answers questions, books appointments and takes messages — in 20 languages, switching when the caller does.'],
   ['Call forwarding', 'Ring any phone number, with backup destinations and hold music.'],
   ['SMS inbox', 'Receive and reply to texts in-app, with automatic replies and text triggers.'],
   ['Voicemail', 'Custom greetings, transcription and delivery to your email.'],

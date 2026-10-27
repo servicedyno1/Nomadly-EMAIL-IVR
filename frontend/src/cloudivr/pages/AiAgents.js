@@ -11,8 +11,8 @@ import { AiCalls } from './ai/AiCalls';
 import { DncList } from './ai/DncList';
 import { useSearch, SearchBox, NoMatches } from '../search';
 import { showUpgrade } from '../Upgrade';
+import { AI_LANG_NAME as LANG_NAME } from './ai/languages';
 
-const LANG_NAME = { en: 'English', fr: 'French', es: 'Spanish' };
 const TABS = [['agents', 'Agents'], ['calls', 'Call history'], ['dnc', 'Do-not-call list']];
 
 function PlanNote({ canUse, rate, recordRate }) {
@@ -51,7 +51,7 @@ export function AiAgents() {
   const { data, loading, error, reload } = useApi('/ai-agents');
   return (
     <div data-testid="ai-agents-page">
-      <PageHeader label="Calling" title="AI voice agents" sub="An AI that answers your number or calls your leads, in English, French or Spanish — with natural, fast conversation." testid="ai-agents-header">
+      <PageHeader label="Calling" title="AI voice agents" sub="An AI that answers your number or calls your leads, in 20 languages — with natural, fast conversation." testid="ai-agents-header">
         <Link to={cp('/app/ai-agents/new')} className="civr-btn civr-btn-primary" data-testid="ai-agents-new-button"><Plus className="w-4 h-4" />New agent</Link>
       </PageHeader>
       {data && <PlanNote canUse={data.canUse} rate={data.rate} recordRate={data.recordRate} />}

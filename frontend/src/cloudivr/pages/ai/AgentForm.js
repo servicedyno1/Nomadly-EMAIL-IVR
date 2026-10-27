@@ -6,8 +6,8 @@ import { ask } from '../../i18n';
 import { Field, Toggle, ErrorNote } from '../../ui';
 import { BookingFields, browserZone } from './BookingFields';
 import { useUnsaved, UnsavedPill } from '../../guard';
+import { AI_LANGS } from './languages';
 
-const LANGS = [['en', 'English'], ['fr', 'French'], ['es', 'Spanish']];
 export const EMPTY_AGENT = {
   name: '', businessName: '', language: 'en', voice: 'marin', goal: '', greeting: '', knowledge: '', transferTo: '', takeMessages: true, maxMinutes: 5, record: true,
   booking: { enabled: false, calendarId: 'primary', calendarName: null, slotMinutes: 30, days: [1, 2, 3, 4, 5], start: '09:00', end: '17:00', timeZone: browserZone() },
@@ -23,7 +23,7 @@ function Basics({ f, set, voices }) {
       <Field label="Agent name"><Text f={f} set={set} k="name" ph="Ava" testid="ai-agent-name-input" /></Field>
       <Field label="Business name"><Text f={f} set={set} k="businessName" ph="Sunrise Dental" testid="ai-agent-business-input" /></Field>
       <Field label="Language" hint="The agent switches if the caller speaks another language.">
-        <select className="civr-input" value={f.language} onChange={e => set('language', e.target.value)} data-testid="ai-agent-language-select">{LANGS.map(([c, n]) => <option key={c} value={c}>{n}</option>)}</select>
+        <select className="civr-input" value={f.language} onChange={e => set('language', e.target.value)} data-testid="ai-agent-language-select">{AI_LANGS.map(([c, n]) => <option key={c} value={c}>{n}</option>)}</select>
       </Field>
       <Field label="Voice">
         <select className="civr-input capitalize" value={f.voice} onChange={e => set('voice', e.target.value)} data-testid="ai-agent-voice-select">{(voices || []).map(v => <option key={v} value={v}>{v}</option>)}</select>

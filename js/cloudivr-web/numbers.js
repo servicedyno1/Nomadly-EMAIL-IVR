@@ -47,8 +47,7 @@ function countries() {
   const intl = phoneConfig.isTelnyxIntlEnabled() ? [...phoneConfig.telnyxIntlCountries, ...phoneConfig.telnyxIntlMore] : []
   return [...phoneConfig.countries, ...intl].filter(c => c.provider === 'telnyx').map(c => {
     const i = c.name.indexOf(' ')
-    // verify = the carrier collects contact details / an ID before the number goes live (telnyx-regulatory.js).
-    return { code: c.code, flag: c.name.slice(0, i), name: c.name.slice(i + 1), types: c.types || ['local', 'toll_free'], verify: !!c.verify }
+    return { code: c.code, flag: c.name.slice(0, i), name: c.name.slice(i + 1), types: c.types || ['local', 'toll_free'] }
   })
 }
 

@@ -1,17 +1,16 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { ShieldCheck, PhoneOff, Bot, Disc3, BadgeCheck, Fingerprint, Lock, ArrowRight } from 'lucide-react';
+import { ShieldCheck, PhoneOff, Bot, Disc3, Fingerprint, Lock, ArrowRight } from 'lucide-react';
 import { SectionHead, Reveal } from './kit';
 import { cp } from '../../paths';
 import { openCookieSettings } from '../../consent';
 
-// Says only what the platform does today (terms, do-not-call engine, AI agent rules, carrier verification). Not legal advice.
+// Says only what the platform does today (terms, do-not-call engine, AI agent rules). Not legal advice.
 const POINTS = [
   [ShieldCheck, 'Consent is yours to hold', 'Automated, pre-recorded and AI calls need the consent the law requires. Before any campaign runs you confirm you have it — and that you may contact everyone on your list. It’s in our terms, and we enforce them.'],
   [PhoneOff, 'Opt-outs are honoured everywhere', 'Your do-not-call list applies to every campaign — Bulk IVR and AI, web and Telegram bot. Numbers on it are never dialled and never billed. Tell the AI agent “don’t call me again” and it apologises, removes you and ends the call.'],
   [Bot, 'An AI that says it’s an AI', 'The agent never claims to be human — ask, and it says so. It never asks for card numbers, passwords or one-time codes, and it passes callers to a person on request or takes a message.'],
   [Disc3, 'Recording stays your call', 'Some places need everyone on a call to agree before it’s recorded. Recording, voicemail, transcripts and AI summaries are off until you switch them on — and when you do, telling callers is on you. Our terms spell it out.'],
-  [BadgeCheck, 'Verified accounts, verified numbers', 'Email confirmation and optional two-step sign-in on every account. Where a country’s regulator requires it, contact details, an address or an ID are collected before the number goes live — and the carrier can say no.'],
   [Fingerprint, 'Your caller ID is yours', 'Campaigns dial from your own CloudIVR number, never a spoofed one. Code collection is only for verifying your own customers, and accounts that break the rules are stopped — campaigns included.'],
 ];
 const LINKS = [['/terms#use', 'Acceptable use', 'use'], ['/terms#recordings', 'Recordings & AI', 'recordings'], ['/terms#privacy', 'Your data', 'privacy'], ['/terms', 'Terms of Service', 'terms']];

@@ -13,7 +13,7 @@ const LEAD_MINUTES = 30 // no bookings sooner than this
 const MAX_DAYS_AHEAD = 60
 const LOOK_AHEAD_DAYS = 14 // when a day is full, suggest the next open day within this window
 const MAX_OFFER = 8
-const LOCALE = { en: 'en-US', fr: 'fr-FR', es: 'es-ES' }
+const { LOCALE } = require('./languages')
 
 const validZone = (z) => typeof z === 'string' && z.length < 64 && DateTime.now().setZone(z).isValid
 const DEFAULT = { enabled: false, calendarId: 'primary', calendarName: null, slotMinutes: 30, days: [1, 2, 3, 4, 5], start: '09:00', end: '17:00', timeZone: 'America/New_York' }

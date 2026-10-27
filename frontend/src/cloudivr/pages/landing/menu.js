@@ -4,7 +4,7 @@ import { Hash, Workflow, Bot, Megaphone, Headphones, Inbox, TrendingUp, LifeBuoy
 export const PRODUCTS = [
   ['numbers', Hash, 'Virtual numbers', 'Local, mobile and toll-free numbers your customers recognise — and pick up.', '#coverage'],
   ['ivr', Workflow, 'Keypad menu (IVR)', 'Press 1 for sales, 2 for support — every caller routed in under a second.', 'ivr'],
-  ['ai', Bot, 'AI voice agents', 'Talks with callers in English, French or Spanish, books visits and calls your leads.', 'ai'],
+  ['ai', Bot, 'AI voice agents', 'Talks with callers in 20 languages, books visits and calls your leads.', 'ai'],
   ['campaigns', Megaphone, 'Quick & Bulk IVR campaigns', 'Call a whole list, watch it live and connect everyone who presses 1.', 'campaigns'],
   ['phone', Headphones, 'Browser phone & SIP', 'Call from any browser tab, or sign in from a softphone or desk phone.', 'phone'],
   ['inbox', Inbox, 'SMS & voicemail inbox', 'Every text and transcribed voicemail in one inbox.', 'sms'],

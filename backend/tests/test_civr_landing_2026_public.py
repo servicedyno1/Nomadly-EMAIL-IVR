@@ -14,17 +14,13 @@ def catalog():
     return r.json()
 
 
-# Catalog: verify flags, rates, cardPayments
+# Catalog: no ID-check flags on the public catalogue, rates, cardPayments
 class TestCatalog:
-    def test_countries_verify_flags(self, catalog):
+    def test_countries_have_no_verify_flags(self, catalog):
         cs = {c.get('code') or c.get('iso'): c for c in catalog['countries']}
         assert len(cs) == 17
         for c in catalog['countries']:
-            assert isinstance(c.get('verify'), bool), c
-        assert cs['US']['verify'] is False
-        assert cs['GB']['verify'] is True
-        instant = sorted(k for k, v in cs.items() if not v['verify'])
-        assert instant == sorted(['US', 'CA', 'PR', 'CO'])
+            assert 'verify' not in c, c
 
     def test_rates(self, catalog):
         assert catalog['rates']['outboundPerMinUsCa'] == 0.15

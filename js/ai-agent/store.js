@@ -3,10 +3,9 @@
 const crypto = require('crypto')
 const axios = require('axios')
 const { cleanBooking } = require('./booking')
+const { LANGS, LANG_NAMES } = require('./languages')
 
 const VOICES = ['marin', 'cedar', 'alloy', 'ash', 'ballad', 'coral', 'echo', 'sage', 'shimmer', 'verse']
-const LANGS = ['en', 'fr', 'es']
-const LANG_NAMES = { en: 'English', fr: 'French', es: 'Spanish' }
 const OUTCOMES = ['booked', 'interested', 'not_interested', 'callback', 'message', 'transferred', 'opted_out', 'voicemail', 'no_conversation', 'other']
 const OUTCOME_HELP = 'Meanings: booked = an appointment was made; interested = wants to buy or go ahead; not_interested = said no or declined an offer; callback = asked to be called back later; message = left a message for the owner; transferred = handed to a person; opted_out = asked not to be called again; voicemail = reached an answering machine; no_conversation = the other side never really spoke; other = anything else, e.g. a question that was simply answered.'
 const E164 = /^\+[1-9]\d{7,14}$/

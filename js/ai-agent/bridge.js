@@ -2,15 +2,10 @@
 // One live AI conversation: phone audio in the Telnyx media-stream protocol (μ-law 8 kHz) ⇄ OpenAI Realtime speech-to-speech.
 // The phone side is a Telnyx stream or the browser tester; `actions` does hangup/transfer for that side.
 const WebSocket = require('ws')
-const { LANG_NAMES } = require('./store')
+const { LANG_NAMES, LANGUAGES: OPENING } = require('./languages')
 const { Recorder } = require('./recorder')
 
 const MODEL = () => process.env.AI_AGENT_MODEL || 'gpt-realtime-mini'
-const OPENING = {
-  en: { in: (n, b) => `Thanks for calling${b ? ` ${b}` : ''}. I'm ${n}, an AI assistant.`, out: (n, b) => `Hi, this is ${n}, an AI assistant calling${b ? ` for ${b}` : ''}.`, askIn: 'How can I help you today?', askOut: 'Do you have a minute?', rec: 'This call may be recorded.', wait: 'One moment while I check.' },
-  fr: { in: (n, b) => `Merci d'avoir appelé${b ? ` ${b}` : ''}. Je suis ${n}, un assistant IA.`, out: (n, b) => `Bonjour, ici ${n}, un assistant IA qui appelle${b ? ` de la part de ${b}` : ''}.`, askIn: 'Comment puis-je vous aider ?', askOut: 'Avez-vous une minute ?', rec: 'Cet appel peut être enregistré.', wait: 'Un instant, je vérifie.' },
-  es: { in: (n, b) => `Gracias por llamar${b ? ` a ${b}` : ''}. Soy ${n}, un asistente de IA.`, out: (n, b) => `Hola, soy ${n}, un asistente de IA que llama${b ? ` de parte de ${b}` : ''}.`, askIn: '¿En qué puedo ayudarle?', askOut: '¿Tiene un minuto?', rec: 'Esta llamada puede ser grabada.', wait: 'Un momento, lo reviso.' },
-}
 
 // The AI disclosure (and the recording notice when the call is recorded) always opens the call and cannot be interrupted.
 function opening(agent, direction, recorded = false) {
@@ -41,7 +36,7 @@ function instructions(agent, ctx) {
     agent.knowledge ? `# What you know (use only this; never invent prices, policies or facts)\n${agent.knowledge}` : '# Facts\nDo not invent prices, policies or facts. If you do not know, say someone will follow up.',
     '# Rules',
     '- This is a phone call: keep each reply to one or two short sentences and ask one question at a time.',
-    `- Speak ${LANG_NAMES[agent.language] || 'English'}. If the person clearly speaks another language, switch to it.`,
+    `- Speak ${LANG_NAMES[agent.language] || 'English'}. If the person clearly speaks another language, switch to it and keep using it.`,
     '- Never claim to be human. If asked, say you are an AI assistant.',
     '- Never ask for card numbers, passwords or one-time codes.',
     '- If the person asks not to be called again or to be removed from the list, apologise, call opt_out, then say goodbye.',
