@@ -1,0 +1,33 @@
+{
+  "summary": "Checked the 3 fixes from iteration 161 plus regression. FIX 1 (bridge.js speech_started while waiting for hello): at first the old behaviour was still there because the running nodejs process (started 21:07:08) was older than the bridge.js fix (saved 21:21:55, commit a9f0ebaa), so the note that Node had been restarted was wrong. After `supervisorctl restart nodejs` the same repro (waitForHello:true, q.ulaw 4.85 s starting at 0.5 s) logged '[AIAgent] opening after hello', and the opening transcript (10.6 s) came after the caller transcript (9.7 s). No agent audio overlapped the caller. With 6 s of silence the log showed 'opening after no hello' and the opening came once at about 5.3 s (4 s timer plus latency). With waitForHello:false the opening came first (1.3 s). The next turn began 'Hi Alex, ...', a short greeting back with no second self-introduction. FIX 2: FR and ES placeholder and script-guide example now keep the fallback ({lead_name|à vous} / {lead_name|qué tal}); EN is unchanged. FIX 3: ai-test-outbound-note ends with 'Tests use the saved settings.' (FR and ES translated). It reflects the SAVED waitForHello: an unsaved toggle does not change it, and after saving and reloading it changes. Regression: pytest test_ai_agent_first_message.py 13/13 passed and node test_ai_opening_unit.js 13/13 passed.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "Deployment / process state", "issue": "nodejs had not been restarted after the bridge.js fix (process start 21:07:08, file mtime 21:21:55). The testing agent restarted it. js/ has no hot reload, so restart nodejs after every js/ change."},
+      {"endpoint": "OpenAI Realtime behaviour (known, unchanged)", "issue": "With empty FAQs the model still says things like 'We are open on Saturdays' / 'We do have openings on Saturday', which are invented facts. In the early-question waitForHello run, the agent gave the opening after the caller's question and then waited, so the question was not answered within the 16 s window. This is expected by design (opening, then listen), but in a real call the lead has to repeat the question."}
+    ]
+  },
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_ai_agent_first_message.py",
+    "/app/backend/tests/test_ai_opening_unit.js",
+    "/app/backend/tests/ws_live.sh",
+    "/app/backend/tests/ws_hello_early.js",
+    "/app/test_reports/pytest/ai_first_message_162.xml"
+  ],
+  "action_items": [
+    "Always restart nodejs (sudo supervisorctl restart nodejs) after editing js/ files before handing off for testing",
+    "Optional: the model still invents facts when FAQs are empty (known model-compliance issue)"
+  ],
+  "critical_code_review_comments": [
+    "bridge.js: the speech_started branch now clears helloTimer and sets a 10 s 'long hello' safety timer while waiting. speech_stopped opens the call. This looks correct.",
+    "The 10 s safety timer is hardcoded, while HELLO_WAIT_MS comes from env. Consider an env or constant for consistency (minor)."
+  ],
+  "updated_files": ["/app/backend/tests/ws_hello_early.js (copy of the 0.5 s-offset WS client; run: WSJS=backend/tests/ws_hello_early.js bash backend/tests/ws_live.sh true 16)"],
+  "success_rate": {"backend": "100% (26/26 automated + 3/3 live WS after nodejs restart)", "frontend": "100% (placeholder FR/ES, guide example FR/ES/EN, outbound note EN/FR/ES + saved-value behaviour)"},
+  "seed_data_creation": "Temporary agents from ws_live.sh were auto-deleted. TEST_NoteAgent (e6896039...) was created for the UI check and deleted. A pre-existing 'Ava' agent was left as is.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Live OpenAI usage this iteration was about 58 s (4 runs). The cumulative daily usage is about 2 min of a 15 min cap. Export REACT_APP_BACKEND_URL from frontend/.env before running pytest. The script guide must be opened via ai-script-guide-toggle before ai-script-guide-example is visible. The language picker has options at topbar-lang-switcher-option-{fr|es|en}.",
+  "rca of the issue": "The first re-run of FIX 1 still showed 'opening after no hello' because the running Node process predated the fix. Mitigation: restart nodejs. After that the fix works as intended."
+}
