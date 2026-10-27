@@ -6,6 +6,7 @@ const store = require('./store')
 const { Bridge } = require('./bridge')
 const recorder = require('./recorder')
 const booking = require('./booking')
+const { SAMPLE_LEAD } = require('./opening')
 const phoneConfig = require('../phone-config')
 const telnyxApi = require('../telnyx-service')
 const { getBalance, smartWalletDeduct } = require('../utils.js')
@@ -238,7 +239,7 @@ async function onTest(token, ws) {
   const startedAt = new Date()
   const sendUi = (o) => { if (ws.readyState === 1) ws.send(JSON.stringify(o)) }
   const bridge = new Bridge({
-    agent: { ...agent, maxMinutes: Math.max(0.6, maxSecs / 60) }, ctx: { direction: t.as, leadName: null, test: true, calendar: t.calendar, record: records(agent) }, media: ws, log,
+    agent: { ...agent, maxMinutes: Math.max(0.6, maxSecs / 60) }, ctx: { direction: t.as, leadName: t.as === 'outbound' ? SAMPLE_LEAD : null, test: true, calendar: t.calendar, record: records(agent) }, media: ws, log,
     actions: {
       hangup: () => { sendUi({ event: 'hangup' }); setTimeout(() => ws.close(), 300) },
       transfer: (to) => { sendUi({ event: 'notice', text: `On a real call the person is now connected to ${to}.` }); sendUi({ event: 'hangup' }); setTimeout(() => ws.close(), 300) },

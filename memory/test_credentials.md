@@ -210,3 +210,8 @@
 - 2026-10-25 (late) pod b3710235…: dev flags appended to backend/.env (CLOUDIVR_WEB_ON, WEB_CLOUDIVR_DRY_RUN, WEB_TRYCALL_LIVE=false,
   TWILIO_ENABLED=false). Fresh DB: Alice = Business dry-run `+13313039039`, $380. Bob = no numbers, $500. (Carol not re-created.)
 
+- ✅ 2026-10-27 re-setup (pod `https://c4ea8f4e-6caa-4734-adf8-0f01a828b5c7.preview.emergentagent.com`): code copied from GitHub main, vault
+  unlocked (252 lines) + dev-only flags appended (WEB_CLOUDIVR_DRY_RUN=true etc.), setup-nodejs.sh run. Local DB seeded:
+  Alice `civr.alice@example.com` / `AliceTest#2026` ($380 after a dry-run Business number `+13346972125`), Bob `civr.bob@example.com` /
+  `BobTest#2026` ($500). Alice has AI agent "Ava · Sunrise Dental". Production read-only access: SSH droplet key from
+  `DROPLET_SSH_KEY_B64` → `/root/.ssh/nomadly_droplet`, prod Mongo only via scripts run ON the droplet.

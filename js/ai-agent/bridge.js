@@ -4,14 +4,13 @@
 const WebSocket = require('ws')
 const { LANG_NAMES, LANGUAGES: OPENING } = require('./languages')
 const { Recorder } = require('./recorder')
+const { opening, prepare } = require('./opening')
 
 const MODEL = () => process.env.AI_AGENT_MODEL || 'gpt-realtime-mini'
-
-// The AI disclosure (and the recording notice when the call is recorded) always opens the call and cannot be interrupted.
-function opening(agent, direction, recorded = false) {
-  const o = OPENING[agent.language] || OPENING.en, out = direction === 'outbound'
-  return `${out ? o.out(agent.name, agent.businessName) : o.in(agent.name, agent.businessName)}${recorded ? ` ${o.rec}` : ''} ${agent.greeting || (out ? o.askOut : o.askIn)}`
-}
+// "Wait for them to say hello": if nobody speaks this long after the call connects, the agent opens anyway.
+const HELLO_WAIT_MS = () => parseInt(process.env.AI_AGENT_HELLO_WAIT_MS || '4000', 10)
+// The opening (owner's first message or the standard one, always with the AI disclosure and — when recorded — the
+// recording notice) is spoken first and cannot be interrupted.
 
 function bookingRules(cal) {
   if (!cal) return ''
@@ -29,12 +28,16 @@ function bookingRules(cal) {
 
 function instructions(agent, ctx) {
   const who = ctx.direction === 'outbound' ? `You are calling ${ctx.leadName || 'a contact'} on behalf of the business.` : 'You are answering an incoming phone call for the business.'
+  const opened = opening(agent, ctx.direction, !!ctx.record, ctx.leadName)
+  const knowledge = agent.knowledge ? prepare(agent.knowledge, agent, ctx.leadName) : ''
   return [
     `You are ${agent.name}, an AI phone assistant for ${agent.businessName || 'a business'}. ${who}`,
-    `# Your goal\n${agent.goal}`,
+    `# How the call started\nThe call has already been opened for you with exactly these words: "${opened}"\nYou have already greeted and introduced yourself; never greet or introduce yourself again. Do not repeat the AI or recording notice. Continue from the person's reply. If your script below starts with a greeting or an introduction, skip that part and go on from what comes after it.`,
+    `# Your goal\n${prepare(agent.goal, agent, ctx.leadName)}`,
     ctx.reason ? `# Why you are calling\n${ctx.reason}` : '',
-    agent.knowledge ? `# What you know (use only this; never invent prices, policies or facts)\n${agent.knowledge}` : '# Facts\nDo not invent prices, policies or facts. If you do not know, say someone will follow up.',
+    knowledge ? `# What you know (use only this; never invent prices, policies or facts)\n${knowledge}` : '# Facts\nDo not invent prices, policies or facts. If you do not know, say someone will follow up.',
     '# Rules',
+    '- Speak naturally. Never read stage directions, notes or anything written in brackets aloud.',
     '- This is a phone call: keep each reply to one or two short sentences and ask one question at a time.',
     `- Speak ${LANG_NAMES[agent.language] || 'English'}. If the person clearly speaks another language, switch to it and keep using it.`,
     '- Never claim to be human. If asked, say you are an AI assistant.',
@@ -68,7 +71,7 @@ function tools(agent, ctx = {}) {
   return t
 }
 
-const vad = (interrupt) => ({ type: 'semantic_vad', eagerness: 'auto', create_response: true, interrupt_response: interrupt })
+const vad = (interrupt, respond = true) => ({ type: 'semantic_vad', eagerness: 'auto', create_response: respond, interrupt_response: interrupt })
 
 class Bridge {
   constructor({ agent, ctx, media, actions, log = console.log }) {
@@ -81,19 +84,33 @@ class Bridge {
     this.closed = false
     this.interruptible = false
     this.ending = null // 'hangup' | 'transfer' once the last words are queued
+    // Outbound + "wait for them to say hello": stay quiet until the person speaks (or HELLO_WAIT_MS of silence).
+    this.waitHello = ctx.direction === 'outbound' && agent.waitForHello === true
+    this.opened = false
   }
 
   start() {
     this.ai = new WebSocket(`wss://api.openai.com/v1/realtime?model=${MODEL()}`, { headers: { Authorization: `Bearer ${process.env.APP_OPEN_API_KEY}` } })
     this.ai.on('open', () => this.send({ type: 'session.update', session: {
       type: 'realtime', instructions: instructions(this.agent, this.ctx), output_modalities: ['audio'], tools: tools(this.agent, this.ctx), tool_choice: 'auto',
-      audio: { input: { format: { type: 'audio/pcmu' }, transcription: { model: 'gpt-4o-mini-transcribe' }, turn_detection: vad(false) }, output: { format: { type: 'audio/pcmu' }, voice: this.agent.voice } },
+      audio: { input: { format: { type: 'audio/pcmu' }, transcription: { model: 'gpt-4o-mini-transcribe' }, turn_detection: vad(false, !this.waitHello) }, output: { format: { type: 'audio/pcmu' }, voice: this.agent.voice } },
     } }))
     this.ai.on('message', (m) => { try { this.onAi(JSON.parse(m)) } catch (e) { this.log(`[AIAgent] event error: ${e.message}`) } })
     this.ai.on('close', () => { if (!this.closed) this.actions.hangup('ai_closed') })
     this.ai.on('error', (e) => this.log(`[AIAgent] OpenAI socket error: ${e.message}`))
     const max = this.agent.maxMinutes * 60000
     this.timers = [setTimeout(() => this.wrapUp('The call time limit is reached.'), Math.max(30000, max - 25000)), setTimeout(() => this.actions.hangup('max_duration'), max + 5000)]
+  }
+
+  // Speaks the opening once (right away, or after the person's "Hello?" when waiting for it).
+  open(why) {
+    if (this.opened || this.closed) return
+    this.opened = true
+    clearTimeout(this.helloTimer)
+    if (why) this.log(`[AIAgent] opening after ${why}`)
+    // From now on the person's turns get answers again (they were held back only while waiting for "Hello?").
+    if (this.waitHello) this.send({ type: 'session.update', session: { type: 'realtime', audio: { input: { turn_detection: vad(false) } } } })
+    this.createResponse({ instructions: `Start the call now. Say exactly this, then stop and listen: "${opening(this.agent, this.ctx.direction, !!this.rec, this.ctx.leadName)}"`, tool_choice: 'none' })
   }
 
   send(o) { if (this.ai?.readyState === WebSocket.OPEN) this.ai.send(JSON.stringify(o)) }
@@ -143,7 +160,11 @@ class Bridge {
       case 'session.updated':
         if (this.greeted) break
         this.greeted = true
-        this.createResponse({ instructions: `Start the call now. Say exactly this, then stop and listen: "${opening(this.agent, this.ctx.direction, !!this.rec)}"`, tool_choice: 'none' })
+        if (this.waitHello) this.helloTimer = setTimeout(() => this.open('no hello'), HELLO_WAIT_MS())
+        else this.open()
+        break
+      case 'input_audio_buffer.speech_stopped':
+        if (this.waitHello && !this.opened) this.open('hello')
         break
       case 'response.created': this.creating = false; this.responding = true; break
       case 'response.output_audio.delta':
@@ -255,6 +276,8 @@ class Bridge {
     if (this.closed || this.ending) return
     this.result.voicemail = true
     this.ending = 'hangup'
+    this.opened = true
+    clearTimeout(this.helloTimer)
     this.toPhone({ event: 'clear' })
     this.rec?.cut()
     this.send({ type: 'response.cancel' })
@@ -264,6 +287,7 @@ class Bridge {
   stop() {
     if (this.closed) return
     this.closed = true
+    clearTimeout(this.helloTimer)
     for (const t of this.timers || []) clearTimeout(t)
     try { this.ai?.close() } catch (_) { /* ignore */ }
   }

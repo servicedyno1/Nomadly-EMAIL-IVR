@@ -58,6 +58,7 @@ export function TestTalk({ agent }) {
           : <button className="civr-btn civr-btn-primary" onClick={start} disabled={state === 'connecting'} data-testid="ai-test-start-button">{state === 'connecting' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Mic className="w-4 h-4" />}Start talking</button>}
         {state === 'live' && <span className="civr-pill civr-pill-on civr-pulse" data-testid="ai-test-live-pill">live</span>}
       </div>
+      {as === 'outbound' && <p className="text-xs text-[#a1a1aa] mt-3" data-testid="ai-test-outbound-note">{agent.waitForHello ? 'You play the lead “Alex”. Say “Hello?” first — the agent waits for you, like on a real call.' : 'You play the lead “Alex”. The agent speaks first, like when someone picks up.'}</p>}
       {lines.length > 0 && <div className="mt-5 space-y-2 max-h-80 overflow-y-auto" data-testid="ai-test-transcript">{lines.map((t, i) => <Bubble key={i} t={t} i={i} />)}</div>}
       {state === 'ended' && <p className="text-xs text-[#a1a1aa] mt-3" data-testid="ai-test-ended-note">Talk ended — the summary is in Call history.</p>}
     </div>

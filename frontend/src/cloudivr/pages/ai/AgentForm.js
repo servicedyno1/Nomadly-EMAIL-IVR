@@ -7,9 +7,10 @@ import { Field, Toggle, ErrorNote } from '../../ui';
 import { BookingFields, browserZone } from './BookingFields';
 import { useUnsaved, UnsavedPill } from '../../guard';
 import { AI_LANGS } from './languages';
+import { OpeningPreview, ScriptGuide } from './OpeningPreview';
 
 export const EMPTY_AGENT = {
-  name: '', businessName: '', language: 'en', voice: 'marin', goal: '', greeting: '', knowledge: '', transferTo: '', takeMessages: true, maxMinutes: 5, record: true,
+  name: '', businessName: '', language: 'en', voice: 'marin', goal: '', greeting: '', firstMessage: '', waitForHello: false, knowledge: '', transferTo: '', takeMessages: true, maxMinutes: 5, record: true,
   booking: { enabled: false, calendarId: 'primary', calendarName: null, slotMinutes: 30, days: [1, 2, 3, 4, 5], start: '09:00', end: '17:00', timeZone: browserZone() },
 };
 
@@ -69,8 +70,14 @@ export function AgentForm({ initial, voices, recordRate, recordingDays, onSaved,
   return (
     <form onSubmit={save} className="civr-card p-6 space-y-6" data-testid="ai-agent-form" {...u.bind}>
       <Basics f={f} set={set} voices={voices} />
-      <Field label="Personality & script" hint="What the agent does, how it talks and what it should find out."><Text f={f} set={set} k="goal" rows={5} ph="Friendly receptionist. Answer questions, book cleanings and get the caller's name and preferred time." testid="ai-agent-goal-input" /></Field>
-      <Field label="Opening line (optional)" hint="Said right after the agent introduces itself as an AI assistant."><Text f={f} set={set} k="greeting" ph="How can I help you today?" testid="ai-agent-greeting-input" /></Field>
+      <Field label="First message (optional)" hint="The exact words that open every call. Use {name}, {business} and {lead_name} (or {lead_name|there} for leads without a name). Leave empty for the standard opening."><Text f={f} set={set} k="firstMessage" rows={2} ph="Hi {lead_name|there}, this is {name} from {business}. Do you have a minute?" testid="ai-agent-first-message-input" /></Field>
+      <div className="flex items-center justify-between gap-4" data-testid="ai-agent-wait-hello-row">
+        <span className="text-sm">Wait for them to say hello<span className="block text-xs text-[#a1a1aa] mt-0.5">On calls to leads, the agent stays quiet until the person answers (“Hello?”), then speaks. If nobody says anything for 4 seconds, it starts anyway.</span></span>
+        <Toggle checked={!!f.waitForHello} onChange={v => set('waitForHello', v)} testid="ai-agent-wait-hello-toggle" />
+      </div>
+      <OpeningPreview f={f} />
+      <Field label="Personality & script" hint="What the agent does after the first message, how it talks and what it should find out."><Text f={f} set={set} k="goal" rows={5} ph="Friendly receptionist. Answer questions, book cleanings and get the caller's name and preferred time." testid="ai-agent-goal-input" /></Field>
+      <ScriptGuide />
       <Field label="FAQs & facts" hint="Prices, hours, policies — the agent only uses what is here."><Text f={f} set={set} k="knowledge" rows={6} ph={'Q: Are you open Saturday? A: No, Monday–Friday 9am–5pm.\nCleaning: $90.'} testid="ai-agent-knowledge-input" /></Field>
       <Actions f={f} set={set} recordRate={recordRate} recordingDays={recordingDays} />
       <BookingFields f={f} set={set} />

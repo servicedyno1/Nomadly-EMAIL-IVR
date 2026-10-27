@@ -63,6 +63,18 @@ function routes(router, { h, numbersApi }) {
     if (await needCalendar(req, res)) return
     try { res.status(201).json({ agent: s.publicAgent(await s.createAgent(req.webChatId, req.body || {})) }) } catch (e) { bad(res, 400, 'invalid_agent', e.message) }
   }))
+  // What the agent will say first, for the form preview (unsaved values; {lead_name} = a sample name).
+  router.post('/ai-agents/opening-preview', h(async (req, res) => {
+    const b = req.body || {}
+    const str = (v, n) => String(v ?? '').trim().slice(0, n)
+    const a = { name: str(b.name, 40) || 'Ava', businessName: str(b.businessName, 60), language: s.LANGS.includes(b.language) ? b.language : 'en', firstMessage: str(b.firstMessage, 500), greeting: str(b.greeting, 300) }
+    const recorded = b.record !== false
+    const sample = ai.opening.SAMPLE_LEAD
+    const inbound = ai.opening.openingInfo(a, 'inbound', recorded)
+    const outbound = ai.opening.openingInfo(a, 'outbound', recorded, sample)
+    const noName = ai.opening.openingInfo(a, 'outbound', recorded, null)
+    res.json({ inbound, outbound, outboundNoName: noName.text !== outbound.text ? noName.text : null, sampleLead: sample })
+  }))
   router.get('/ai-agents/:id', withAgent(async (req, res) => res.json({ agent: s.publicAgent(req.agent), rate: ai.RATE(), recordRate: ai.RECORD_RATE(), recordingDays: ai.recorder.RETENTION_DAYS(), voices: s.VOICES })))
   router.put('/ai-agents/:id', withAgent(async (req, res) => {
     if (await needCalendar(req, res)) return

@@ -9,6 +9,7 @@ const calls = require('./calls')
 const gcal = require('./gcal')
 const booking = require('./booking')
 const recorder = require('./recorder')
+const openingLib = require('./opening')
 
 const PATH = /^(?:\/api)?\/(ai-agent\/stream|cloudivr-web\/ai-agents\/test)\/([A-Za-z0-9_-]{16,64})(?:[/?]|$)/
 
@@ -28,6 +29,6 @@ function init({ db, server, ...deps }) {
 }
 
 module.exports = {
-  init, store, hours, gcal, booking, recorder, RATE: calls.RATE, RECORD_RATE: calls.RECORD_RATE, leadRate: calls.leadRate, committed: calls.committed, owns: calls.owns, activeCount: calls.activeCount,
+  init, store, hours, gcal, booking, recorder, opening: openingLib, RATE: calls.RATE, RECORD_RATE: calls.RECORD_RATE, leadRate: calls.leadRate, committed: calls.committed, owns: calls.owns, activeCount: calls.activeCount,
   onWebhook: calls.onWebhook, tryInbound: calls.tryInbound, dialLead: calls.dialLead, createTest: calls.createTest,
 }

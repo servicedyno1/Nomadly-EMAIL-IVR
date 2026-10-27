@@ -28,16 +28,17 @@ function cleanAgent(b) {
   const transferTo = normPhone(b.transferTo)
   if (transferTo && !E164.test(transferTo)) throw new Error('Enter the transfer number with country code, e.g. +14155550100.')
   return {
-    name, goal, businessName: str(b.businessName, 60), greeting: str(b.greeting, 300), knowledge: str(b.knowledge, 6000),
+    name, goal, businessName: str(b.businessName, 60), greeting: str(b.greeting, 300), firstMessage: str(b.firstMessage, 500), knowledge: str(b.knowledge, 6000),
+    waitForHello: b.waitForHello === true,
     language: LANGS.includes(b.language) ? b.language : 'en', voice: VOICES.includes(b.voice) ? b.voice : 'marin',
     transferTo: transferTo || null, takeMessages: b.takeMessages !== false,
     maxMinutes: Math.min(15, Math.max(1, parseInt(b.maxMinutes, 10) || 5)),
     record: b.record !== false, booking: cleanBooking(b.booking),
   }
 }
-const FIELDS = ['id', 'name', 'goal', 'businessName', 'greeting', 'knowledge', 'language', 'voice', 'transferTo', 'takeMessages', 'maxMinutes', 'record', 'booking', 'createdAt', 'updatedAt']
+const FIELDS = ['id', 'name', 'goal', 'businessName', 'greeting', 'firstMessage', 'waitForHello', 'knowledge', 'language', 'voice', 'transferTo', 'takeMessages', 'maxMinutes', 'record', 'booking', 'createdAt', 'updatedAt']
 // Agents saved before recording/booking existed: recording on (owner default), booking off.
-const publicAgent = (a) => ({ ...Object.fromEntries(FIELDS.map(k => [k, a[k] ?? null])), record: a.record !== false, booking: cleanBooking(a.booking) })
+const publicAgent = (a) => ({ ...Object.fromEntries(FIELDS.map(k => [k, a[k] ?? null])), firstMessage: a.firstMessage || '', waitForHello: a.waitForHello === true, record: a.record !== false, booking: cleanBooking(a.booking) })
 
 const listAgents = (chatId) => agents.find({ chatId: String(chatId) }).sort({ createdAt: -1 }).limit(50).toArray()
 const getAgent = (id, chatId) => (id ? agents.findOne({ id: String(id), chatId: String(chatId) }) : null)
