@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { LangSwitcher } from '../i18n';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { GoogleOAuthProvider, GoogleLogin } from '@react-oauth/google';
 import { toast } from 'sonner';
 import { Loader2, Eye, EyeOff, ArrowLeft, Check } from 'lucide-react';
 import { api } from '../api';
@@ -11,6 +10,7 @@ import { cp } from '../paths';
 import { forget } from '../consent';
 import { BRAND, Wordmark } from '../Brand';
 import { TwoFactorStep, RememberBox, useRefCode } from './auth/TwoFactorStep';
+import { GoogleButton } from './auth/GoogleButton';
 
 const NEXT_STEPS = ['Pick a number and plan', 'Pay by card, crypto or wallet', 'Choose what callers hear'];
 
@@ -19,28 +19,6 @@ function usePlanParam() {
   const [params] = useSearchParams();
   const plan = (params.get('plan') || '').toLowerCase().replace(/[^a-z]/g, '');
   return { plan, q: plan ? `?plan=${plan}` : '', dest: plan ? cp(`/app/buy?plan=${plan}`) : cp('/app') };
-}
-
-// REMINDER: Google sign-in uses the owner's own OAuth client id (GOOGLE_OAUTH_CLIENT_ID, served by /auth/config).
-// REMINDER: DO NOT HARDCODE THE URL, OR ADD ANY FALLBACKS OR REDIRECT URLS, THIS BREAKS THE AUTH
-// One Tap: Google's small "Continue as …" prompt appears on its own for visitors already signed in to Google.
-function GoogleButton({ dest, signup, refCode, onMfa }) {
-  const { config, setAccount } = useCivrAuth();
-  const nav = useNavigate();
-  if (!config?.googleClientId) return null;
-  return (
-    <GoogleOAuthProvider clientId={config.googleClientId}>
-      <div className="flex justify-center" data-testid="google-signin-button">
-        <GoogleLogin theme="filled_black" shape="pill" width="320" text="continue_with"
-          context={signup ? 'signup' : 'signin'} useOneTap use_fedcm_for_prompt cancel_on_tap_outside={false}
-          onSuccess={async (r) => {
-            try { const d = await api('/auth/google', { method: 'POST', body: { credential: r.credential, ref: refCode || undefined } }); if (d.twoFactor) { onMfa(d.twoFactor); return; } setAccount(d.account); nav(dest); } catch (e) { toast.error(e.message); }
-          }}
-          onError={() => toast.error('Google sign-in was cancelled or failed.')} />
-      </div>
-      <div className="flex items-center gap-4 my-6 text-xs text-[#a1a1aa] font-mono uppercase tracking-widest"><span className="flex-1 h-px bg-[#222]" />or<span className="flex-1 h-px bg-[#222]" /></div>
-    </GoogleOAuthProvider>
-  );
 }
 
 function SidePanel({ signup }) {

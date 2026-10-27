@@ -25,7 +25,10 @@ const apexOf = (v) => String(v || '').trim().toLowerCase()
 const DOMAIN = apexOf(process.env.CLOUDIVR_WEB_DOMAIN) || 'cloudivr.net'
 const CANONICAL = (process.env.CLOUDIVR_CANONICAL_URL || `https://${DOMAIN}`).replace(/\/+$/, '')
 const BRAND = 'CloudIVR'
-const OG_IMAGE = `${CANONICAL}/civr/brand/og-cover.png`
+// Link-preview card (Telegram / WhatsApp / X): small JPEG so WhatsApp shows it too. Re-render: node scripts/promo-banners/render.js
+const OG_IMAGE = `${CANONICAL}/civr/brand/og-share.jpg`
+// What Telegram / WhatsApp show under the title when the home page is shared.
+const SHARE_DESC = 'Reach out: Quick IVR and Bulk IVR campaigns call your list, play your message, connect interested leads and collect codes.'
 const LOGO = `${CANONICAL}/civr/brand/icon-512.png`
 
 // ── Formatting helpers ──────────────────────────────────────────────────────
@@ -154,6 +157,7 @@ function metaFor(pathname) {
     '/': {
       title: `${BRAND} — Virtual Phone Numbers, IVR & AI Voice Agents`,
       desc: tagline(),
+      share: SHARE_DESC,
     },
     '/login': {
       title: `Sign in · ${BRAND}`,
@@ -258,6 +262,8 @@ function jsonLd(pathname) {
 function headTags(pathname) {
   const m = metaFor(pathname)
   const robots = m.indexable ? 'index, follow, max-image-preview:large, max-snippet:-1' : 'noindex, follow'
+  const share = m.share || m.desc
+  const authPage = m.path === '/login' || m.path === '/signup'
   return [
     `<title>${esc(m.title)}</title>`,
     `<meta name="description" content="${esc(m.desc)}" />`,
@@ -270,9 +276,11 @@ function headTags(pathname) {
     `<meta property="og:site_name" content="${BRAND}" />`,
     `<meta property="og:type" content="website" />`,
     `<meta property="og:title" content="${esc(m.title)}" />`,
-    `<meta property="og:description" content="${esc(m.desc)}" />`,
+    `<meta property="og:description" content="${esc(share)}" />`,
     `<meta property="og:url" content="${esc(m.url)}" />`,
     `<meta property="og:image" content="${OG_IMAGE}" />`,
+    `<meta property="og:image:secure_url" content="${OG_IMAGE}" />`,
+    `<meta property="og:image:type" content="image/jpeg" />`,
     `<meta property="og:image:width" content="1200" />`,
     `<meta property="og:image:height" content="630" />`,
     `<meta property="og:image:alt" content="${BRAND} — virtual phone numbers, IVR and AI voice agents" />`,
@@ -280,11 +288,13 @@ function headTags(pathname) {
     // Twitter
     `<meta name="twitter:card" content="summary_large_image" />`,
     `<meta name="twitter:title" content="${esc(m.title)}" />`,
-    `<meta name="twitter:description" content="${esc(m.desc)}" />`,
+    `<meta name="twitter:description" content="${esc(share)}" />`,
     `<meta name="twitter:image" content="${OG_IMAGE}" />`,
     // Icons (brand)
     `<link rel="icon" type="image/png" href="/civr/brand/parrot-icon-48.png" />`,
     `<link rel="apple-touch-icon" href="/civr/brand/apple-touch-icon.png" />`,
+    // Sign-in pages: fetch Google's sign-in script while the app boots, so the Google button paints at once.
+    ...(authPage ? ['<link rel="preconnect" href="https://accounts.google.com" />', '<link rel="preload" as="script" href="https://accounts.google.com/gsi/client" />'] : []),
     // AI-readable overview
     `<link rel="alternate" type="text/markdown" href="${CANONICAL}/llms.txt" title="${BRAND} — overview for AI assistants" />`,
     // JSON-LD structured data
