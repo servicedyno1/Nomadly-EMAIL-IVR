@@ -1017,7 +1017,8 @@ function dialTelnyx(campaign, lead) {
     templateName: campaign.audioName,
     holdMusic: !!campaign.holdMusic,
     voicemailAudioUrl: /^https?:\/\//i.test(campaign.voicemailAudioUrl || '') ? campaign.voicemailAudioUrl : null,
-    // Voicemail-drop campaigns: no call runs past BULK_VM_MAX_CALL_SEC (default 60 s) unless connected to the owner.
+    // Voicemail-drop campaigns: no call runs past BULK_VM_MAX_CALL_SEC (default 60 s, hung up ~3 s early so it bills as 1 min)
+    // unless connected to the owner or a voicemail message is being left (voice-service CAP_EXEMPT_PHASES).
     maxCallSec: campaign.voicemailAudioUrl ? VM_MAX_CALL_SEC : null,
     campaignId: campaign.id,
     leadIndex: lead.index,
@@ -1662,7 +1663,7 @@ async function sendFinalReport(campaignId) {
  * Generate a detailed CSV report file
  */
 async function generateReportFile(campaign) {
-  const lines = ['Number,Name,Status,Key Pressed,Duration (s),Transferred,Transfer Connected,Hangup Cause,Answered By']
+  const lines = ['Number,Name,Status,Key Pressed,Duration (s),Transferred,Transfer Connected,Hangup Cause,Answered By,Voicemail Left']
 
   for (const lead of campaign.leads) {
     lines.push([
@@ -1675,6 +1676,7 @@ async function generateReportFile(campaign) {
       lead.transferConnected ? 'Yes' : 'No',
       lead.hangupCause ? sanitizeHangupCause(lead.hangupCause) : '',
       lead.answeredBy ? `${lead.answeredBy}${lead.voicemailDropped ? ' (message left)' : ''}` : '',
+      lead.voicemailDropped ? 'Yes' : 'No',
     ].join(','))
   }
 

@@ -1,5 +1,22 @@
 # PRD — Nomadly Cloud IVR + Telegram Bot
 
+## 2026-10-27 (00:12Z) — Bulk IVR voicemail drop FIXED (greeting_end AMD) + cap/billing + "messages left" visibility — REAL CALL PASS, DEPLOYED
+- RCA (prod 10-22→26): AMD 'detect_beep' → Telnyx sent NO call.machine.* webhooks → 0 of 749 voicemail-drop leads got a message; calls hit the 60 s cap (61 s billed as 2 min).
+- voice-service.js: voicemail-drop campaigns dial with AMD `greeting_end` (env BULK_VM_AMD_MODE overrides); call.machine.greeting.ended WITHOUT a machine result
+  (or after not_sure) stops the prompt and plays the clip at once (never when AMD said human / a key was pressed); beep-wait fallback 30 s.
+  Per-call cap (BULK_VM_MAX_CALL_SEC 60) now fires 3 s early (BULK_VM_CAP_MARGIN_SEC) so prompt-only calls bill 1 min; exempt phases voicemail_wait/voicemail_playing
+  (+ transferring/bridged) and the cap timer is cleared when the clip starts → a started message always plays to the end (safety stop VM_MAX_PLAY_MS 180 s).
+  Billing = real time used (per started minute) — a 78 s voicemail call bills 2 min.
+- Visibility: campaign detail stats Voicemail + Messages left, lead pill "message left", campaign list/Live "N messages left", "Voicemail drop: <clip>" line,
+  CSV "Voicemail Left" column (bot + web), campaign-done email "Messages left" (EN/FR/ES), form hint updated.
+- Harness js/tests/test_bulk_telnyx_2026-10.js 56/56 (new P5-14..21: greeting.ended w/o machine, human not dropped, not_sure, cap skips playing clips, cap still ends prompt-only, billing); edge 17/17.
+- REAL CALL (preview, real Telnyx) 2026-10-27 00:07Z → owner +13025141000: answered 27.2 → machine 29.8 → greeting.ended 31.6 → clip 31.9 → full 52.2 s played →
+  app hung up 25.3 (58 s, 1 min $0.15; old cap point 24.2 passed). Report test_reports/real_vm_drop_test_2026-10-27.json. Temp caller +18778570205 removed, DRY_RUN restored.
+- DEPLOYED workspace → release 20261027T001111Z-24a45fd on :5100 (app-main-b), WS_DEPLOY_EXIT=0, health 200, 0 live calls at flip. No BULK_VM_* overrides on prod.
+- ⚠️ Owner must "Save to GitHub" (main) or the next CI deploy rolls this back. Owner to listen to the test voicemail (first words → "Thank you, and goodbye.").
+- Note: greeting_end decides "greeting over" on silence/beep; a mailbox greeting with a long pause could start the clip a little early (watch real campaign results).
+
+
 ## 2026-10-26 (22:52Z) — PROD ops: replacement RDP for @Loaded4 (911434986) — DONE + verified
 - Old: vpsPlansOf rdp-1aef405b (Pro pro-1m, ws2022, New York nyc3→nyc2, paid $112 TXN-20261014-F5411, Oct 14 → Nov 14 14:34:53Z);
   DO droplet 609043954 deleted outside the bot 2026-10-25 (reconcileVanished → DELETED/destroyed). Owner: same config, same end date,

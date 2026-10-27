@@ -21,7 +21,8 @@ const publicCampaign = (c, withLeads = false) => ({
   waitingForLine: (c.leads || []).some(l => l.status === 'pending' && l.waitingForLine),
   repeat: c.repeat || null, runNumber: c.runNumber || null, seriesId: c.seriesId || null, autoRun: !!c.autoRun, nextRunId: c.nextRunId || null,
   dailyLimit: c.dailyLimit || null, callsToday: c.dailyLimit ? sched.callsToday(c) : null, waitingForDailyLimit: !!c.waitingForDailyLimit,
-  ...(withLeads ? { leads: (c.leads || []).slice(0, 500).map(l => ({ number: l.number, name: l.name, status: l.status, digitPressed: l.digitPressed, transferred: !!l.transferred, duration: l.duration || 0, hangupCause: l.hangupCause || null, waitingForLine: !!l.waitingForLine, ai: l.ai || null })) } : {}),
+  voicemailAudioName: c.voicemailAudioUrl ? (c.voicemailAudioName || 'Voicemail message') : null,
+  ...(withLeads ? { leads: (c.leads || []).slice(0, 500).map(l => ({ number: l.number, name: l.name, status: l.status, digitPressed: l.digitPressed, transferred: !!l.transferred, duration: l.duration || 0, hangupCause: l.hangupCause || null, waitingForLine: !!l.waitingForLine, voicemailDropped: !!l.voicemailDropped, ai: l.ai || null })) } : {}),
 })
 
 function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, bulkCallService, log = console.log }) {

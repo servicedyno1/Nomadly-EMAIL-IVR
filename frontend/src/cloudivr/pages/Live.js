@@ -71,7 +71,7 @@ function LiveCampaign({ c, i, onDone }) {
             <span className={statusPill(c.status)} data-testid={`live-campaign-${i}-status`}>{c.status}</span>
             {c.repeat && <span className="civr-pill civr-pill-on"><Repeat className="w-3 h-3" />{repeatLabel(c.repeat)}</span>}
           </div>
-          <div className="text-xs text-[#a1a1aa] font-mono mt-1">{[`${c.stats?.completed || 0} of ${c.stats?.total || 0} called`, `${pct(c)}%`, c.dailyLimit ? `${c.callsToday || 0} / ${c.dailyLimit} today` : null].filter(Boolean).join(' · ')}</div>
+          <div className="text-xs text-[#a1a1aa] font-mono mt-1">{[`${c.stats?.completed || 0} of ${c.stats?.total || 0} called`, `${pct(c)}%`, c.voicemailAudioName ? `${c.stats?.voicemailLeft || 0} ${c.stats?.voicemailLeft === 1 ? 'message' : 'messages'} left` : null, c.dailyLimit ? `${c.callsToday || 0} / ${c.dailyLimit} today` : null].filter(Boolean).join(' · ')}</div>
         </div>
         <CardActions c={c} i={i} onDone={onDone} />
       </div>

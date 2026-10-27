@@ -3291,5 +3291,11 @@
 "Call a whole list and watch every call ring, talk and finish.": "Appelez toute une liste et suivez chaque appel : sonnerie, conversation, fin.",
 "See where today’s calls are, state by state, as they happen.": "Voyez où sont les appels du jour, État par État, en temps réel.",
 "Virtual numbers · IVR · AI voice agents · Campaigns": "Numéros virtuels · SVI · Agents vocaux IA · Campagnes",
-"IVR · AI voice agents · Campaigns": "SVI · Agents vocaux IA · Campagnes"
+"IVR · AI voice agents · Campaigns": "SVI · Agents vocaux IA · Campagnes",
+"Messages left": "Messages déposés",
+"message left": "message déposé",
+"Voicemail drop: {0}": "Message vocal : {0}",
+"{0} messages left": "{0} messages déposés",
+"{0} message left": "{0} message déposé",
+"Played when an answering machine picks up, right after its greeting ends. Calls end just before 1 minute unless the person is connected to you — a voicemail message that has started always plays to the end.": "Lu quand un répondeur décroche, juste après la fin de son annonce. Les appels se terminent juste avant 1 minute sauf si la personne est mise en relation avec vous — un message vocal déjà commencé est toujours lu jusqu’au bout."
 }

@@ -290,7 +290,7 @@ function createEmails(db, { log = console.log } = {}) {
       case 'topup': return { amount: 50, balance: Math.max(balance, 50) }
       case 'lowBalance': return { balance: 6.4, threshold: (await profile(chatId)).email.lowBalanceAt, next: { phone, expiresAt: n.expiresAt, price } }
       case 'walletEmpty': return { balance: 0.12 }
-      case 'campaignDone': return { id: 'sample', name: 'Spring offer', callerId: phone, cancelled: false, mode: 'transfer', duration: 1460, rate: 47, notDialed: 0, stats: { total: 250, answered: 118, keyPressed: 64, transferred: 21, noAnswer: 96, hungUp: 12, voicemail: 9, busy: 6, failed: 9 } }
+      case 'campaignDone': return { id: 'sample', name: 'Spring offer', callerId: phone, cancelled: false, mode: 'transfer', duration: 1460, rate: 47, notDialed: 0, stats: { total: 250, answered: 118, keyPressed: 64, transferred: 21, noAnswer: 96, hungUp: 12, voicemail: 9, voicemailLeft: 7, busy: 6, failed: 9 } }
       case 'voicemail': return { from: '+14155550122', to: phone, duration: 38, transcript: 'Hi, it’s Dana from Lakeside Realty — calling about the listing on Elm Street. Call me back when you get a minute.' }
       case 'missed': return { to: phone, calls: [{ from: '+14155550122', at: at(-20 * 60000) }, { from: '+447700900123', at: at(-5 * 60000) }] }
       case 'weekly': return weeklyFor(chatId, list.length ? list : [n])

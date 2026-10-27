@@ -2303,8 +2303,9 @@ async function handleVoiceWebhook(req, res) {
         break
       }
       case 'call.machine.greeting.ended':
-        // detect_beep: voicemail greeting finished (beep heard) → drop the message now
-        await playVoicemailDrop(payload.call_control_id, `greeting ${payload.result || 'ended'}`)
+        // greeting_end: mailbox greeting finished (beep or silence) → drop the message now
+        log(`[Voice] AMD greeting ended: ${payload.result || 'ended'} for callControlId=${payload.call_control_id}`)
+        await playVoicemailDrop(payload.call_control_id, `greeting ${payload.result || 'ended'}`, { fromGreeting: true })
         break
       case 'fax.received':
       case 'fax.receiving.started':
@@ -2322,11 +2323,22 @@ async function handleVoiceWebhook(req, res) {
   }
 }
 
-// ── Bulk voicemail drop (Telnyx detect_beep) ──
-// machine detected → stop the IVR prompt, wait for the beep (greeting.ended) or a fallback
-// timeout, play the campaign's voicemail clip once, then hang up when it finishes.
-const VM_BEEP_WAIT_MS = parseInt(process.env.BULK_VM_BEEP_WAIT_MS || '20000', 10)
-const VM_MAX_PLAY_MS = 120000
+// ── Bulk voicemail drop (Telnyx "greeting_end" AMD) ──
+// machine detected → stop the IVR prompt, wait for the end of the mailbox greeting (greeting.ended) or a
+// fallback timeout, play the campaign's voicemail clip once, then hang up when it finishes.
+// greeting.ended WITHOUT a prior machine result also drops the clip right away (the greeting just ended,
+// so a mailbox is recording). Prod 2026-10-22→26: with 'detect_beep' Telnyx sent NO call.machine.* webhooks
+// at all → 0 of 749 voicemail-drop leads (8 campaigns) ever got a message.
+const VM_AMD_MODES = ['greeting_end', 'detect_words', 'detect_beep', 'detect']
+const VM_AMD_MODE = VM_AMD_MODES.includes(process.env.BULK_VM_AMD_MODE) ? process.env.BULK_VM_AMD_MODE : 'greeting_end'
+const VM_BEEP_WAIT_MS = parseInt(process.env.BULK_VM_BEEP_WAIT_MS || '30000', 10)
+const VM_MAX_PLAY_MS = 180000 // safety stop for a playing voicemail clip (normally playback.ended hangs up first)
+// Per-call cap of voicemail-drop campaigns (maxCallMs = BULK_VM_MAX_CALL_SEC): hang up this much BEFORE the limit.
+// The hang-up webhook lands ~1 s after the command and billing rounds UP to whole minutes, so a cap that fired at
+// exactly 60 s billed 61 s = 2 minutes. Never applies while transferring/bridged or once a voicemail is being left.
+const VM_CAP_MARGIN_MS = Math.max(0, parseFloat(process.env.BULK_VM_CAP_MARGIN_SEC || '3') * 1000)
+const CAP_EXEMPT_PHASES = ['transferring', 'bridged', 'voicemail_wait', 'voicemail_playing']
+const capDelayMs = (maxCallMs) => (maxCallMs > VM_CAP_MARGIN_MS * 2 ? maxCallMs - VM_CAP_MARGIN_MS : maxCallMs)
 
 async function startVoicemailWait(callControlId, session) {
   session.phase = 'voicemail_wait'
@@ -2337,10 +2349,22 @@ async function startVoicemailWait(callControlId, session) {
   await _telnyxApi.gatherStop(callControlId).catch(() => {})
 }
 
-async function playVoicemailDrop(callControlId, reason) {
+async function playVoicemailDrop(callControlId, reason, { fromGreeting = false } = {}) {
   const session = outboundIvrCalls[callControlId]
-  if (!session || session.phase !== 'voicemail_wait' || isCallEnded(callControlId)) return
+  if (!session || isCallEnded(callControlId)) return
+  // Greeting ended but no machine-detection result arrived (or it was 'not_sure') → it is a mailbox: drop now.
+  if (fromGreeting && session.phase === 'playing' && session.campaignId && session.voicemailAudioUrl &&
+      !session.digitPressed && session.answeredBy !== 'human') {
+    session.answeredBy = 'machine'
+    session.phase = 'voicemail_wait' // set BEFORE gather_stop so the stopped prompt's gather.ended is ignored
+    log(`[OutboundIVR] Mailbox greeting ended without a machine result on ${session.targetNumber} (campaign ${session.campaignId}) — leaving voicemail now`)
+    await _telnyxApi.gatherStop(callControlId).catch(() => {})
+    if (isCallEnded(callControlId)) return
+  }
+  if (session.phase !== 'voicemail_wait') return
   if (session._vmTimer) clearTimeout(session._vmTimer)
+  // A message that has started is never cut off by the per-call cap (VM_MAX_PLAY_MS below is the only safety stop).
+  if (session._capTimer) { clearTimeout(session._capTimer); session._capTimer = null }
   session.phase = 'voicemail_playing'
   session.voicemailDropped = true
   log(`[OutboundIVR] Leaving voicemail on ${session.targetNumber} (${reason})`)
@@ -5083,8 +5107,8 @@ async function initiateOutboundIvrCall(params) {
 
   // ── TELNYX PATH (default): Use Telnyx Call Control API ──
   const webhookUrl = `${_selfUrl}/telnyx/voice-webhook`
-  // Voicemail drop needs the beep (call.machine.greeting.ended) so the message records cleanly.
-  const amdOpts = voicemailAudioUrl ? { answering_machine_detection: 'detect_beep' } : {}
+  // Voicemail drop needs the end of the mailbox greeting (call.machine.greeting.ended) so the message records cleanly.
+  const amdOpts = voicemailAudioUrl ? { answering_machine_detection: VM_AMD_MODE } : {}
   const result = await _telnyxApi.createOutboundCall(callerId, targetNumber, webhookUrl, undefined, amdOpts)
 
   if (result.error) {
@@ -5165,14 +5189,15 @@ async function handleOutboundIvrAnswered(payload) {
   session.answerTime = Date.now()
   log(`[OutboundIVR] Answered: ${session.targetNumber} — playing IVR audio`)
 
-  // Bulk campaigns with a voicemail drop: hard cap per call (default 60 s) unless the lead was connected to the owner.
+  // Bulk campaigns with a voicemail drop: hard cap per call (default 60 s, hung up VM_CAP_MARGIN_MS early so it stays
+  // inside the billed minute) unless the lead was connected to the owner or a voicemail message is being left.
   if (session.maxCallMs) {
     session._capTimer = setTimeout(() => {
       const s = outboundIvrCalls[callControlId]
-      if (!s || isCallEnded(callControlId) || ['transferring', 'bridged'].includes(s.phase)) return
+      if (!s || isCallEnded(callControlId) || CAP_EXEMPT_PHASES.includes(s.phase)) return
       log(`[OutboundIVR] Max call length ${Math.round(s.maxCallMs / 1000)}s reached on ${s.targetNumber} (campaign ${s.campaignId}) — hanging up`)
       _telnyxApi.hangupCall(callControlId).catch(() => {})
-    }, session.maxCallMs)
+    }, capDelayMs(session.maxCallMs))
   }
 
   // ── MID-CALL WALLET MONITOR for outbound IVR ──

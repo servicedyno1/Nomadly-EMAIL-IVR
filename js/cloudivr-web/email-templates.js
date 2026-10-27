@@ -94,6 +94,7 @@ const B = {
           { label: c.labels.pressed, value: s.keyPressed || 0, t: 'brand' },
           d.mode === 'transfer' && { label: c.labels.transferred, value: s.transferred || 0 },
           s.voicemail ? { label: c.labels.voicemail, value: s.voicemail } : null,
+          s.voicemailLeft ? { label: c.labels.messagesLeft, value: s.voicemailLeft, t: 'ok' } : null,
           { label: c.labels.noAnswer, value: (s.noAnswer || 0) + (s.hungUp || 0) },
           { label: c.labels.failed, value: (s.failed || 0) + (s.busy || 0) },
         ], 3)

@@ -1,0 +1,27 @@
+{
+  "test": "ONE real Telnyx voicemail-drop call (preview pod, real Telnyx, owner test number)",
+  "when": "2026-10-27T00:07:15Z",
+  "setup": "Alice web account, temp caller +18778570205 (TELNYX_DEFAULT_ANI, removed after), WEB_CLOUDIVR_DRY_RUN=false only during the call (restored true), campaign 4b327277-6db1-481c-afc1-61d5c3b55cf1, lead +13025141000, prompt 'VM test prompt' (TTS ~5 s), voicemail clip 'VM drop real test (long)' 52.2 s TTS",
+  "telnyx_timeline": {
+    "00:07:15.694": "dial answering_machine_detection=greeting_end (accepted)",
+    "00:07:27.209": "call.answered",
+    "00:07:29.820": "call.machine.detection.ended result=machine",
+    "00:07:30.011": "gather_stop (prompt stopped)",
+    "00:07:31.578": "call.machine.greeting.ended result=ended",
+    "00:07:31.869": "playback_start voicemail clip",
+    "00:08:24.937": "call.playback.ended (full 52.2 s played)",
+    "00:08:25.345": "hangup by app (clip finished)",
+    "00:08:25.618": "call.hangup normal_clearing"
+  },
+  "checks": [
+    { "check": "Telnyx accepts greeting_end and sends call.machine.* webhooks", "pass": true },
+    { "check": "clip starts right after greeting.ended (0.3 s)", "pass": true },
+    { "check": "per-call cap (would fire 57 s after answer = 00:08:24.2) did NOT cut the playing clip (ended 00:08:24.9)", "pass": true },
+    { "check": "app hangs up when the clip ends", "pass": true },
+    { "check": "lead status voicemail, voicemailDropped true, stats.voicemailLeft 1", "pass": true },
+    { "check": "billed 58 s → 1 min $0.15 (real time used)", "pass": true },
+    { "check": "web UI: Voicemail 1 / Messages left 1 / 'message left' pill / list '1 message left' (desktop + 390 px, no overflow)", "pass": true }
+  ],
+  "harness": "js/tests/test_bulk_telnyx_2026-10.js 56/56 (new P5-14..P5-21), test_bulk_telnyx_edge_2026-10.js 17/17",
+  "owner_to_check": "Voicemail on +13025141000 left 2026-10-27 00:07 UTC — confirm the message is heard from its first words to 'Thank you, and goodbye.'"
+}

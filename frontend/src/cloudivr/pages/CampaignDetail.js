@@ -12,7 +12,9 @@ import { outcomeLabel } from './ai/AiCalls';
 import { RunPlan, LiveNow, FeedAndAreas } from './campaign/DetailLive';
 
 const STATS = [['total', 'Numbers'], ['completed', 'Called'], ['answered', 'Answered'], ['keyPressed', 'Pressed a key'], ['transferred', 'Transferred'], ['noAnswer', 'No answer']];
+const VM_STATS = [['voicemail', 'Voicemail'], ['voicemailLeft', 'Messages left']];
 const AI_STATS = [['total', 'Numbers'], ['completed', 'Called'], ['answered', 'Talked'], ['booked', 'Booked'], ['interested', 'Interested'], ['callback', 'Call back'], ['skipped', 'Do-not-call']];
+const GRID = (n) => (n > 7 ? 'grid-cols-4 md:grid-cols-8' : n > 6 ? 'grid-cols-4 md:grid-cols-7' : 'grid-cols-3 md:grid-cols-6');
 const LIVE = ['running', 'scheduled'];
 
 // Title with a Rename button (any status — the name is only a label).
@@ -63,6 +65,7 @@ function LeadStatus({ l, i }) {
     <>
       <span className={statusPill(l.status)}>{l.status}</span>
       {l.transferred && <span className="civr-pill civr-pill-on ml-1">transferred</span>}
+      {l.voicemailDropped && <span className="civr-pill civr-pill-on ml-1" data-testid={`campaign-lead-${i}-message-left`}>message left</span>}
       {l.waitingForLine && l.status === 'pending' && <span className="civr-pill civr-pill-warn ml-1" data-testid={`campaign-lead-${i}-waiting-line`}>waiting for a line</span>}
     </>
   );
@@ -141,7 +144,8 @@ export default function CampaignDetail() {
   if (error && !c) return <div data-testid="campaign-detail-page">{back}<ErrorNote error={error} onRetry={reload} /></div>;
   const isAi = c.mode === 'ai';
   const pct = c.stats?.total ? Math.round(((c.stats.completed || 0) / c.stats.total) * 100) : 0;
-  const stats = isAi ? AI_STATS : c.stats?.skipped ? [...STATS, ['skipped', 'Do-not-call']] : STATS;
+  const hasVm = !isAi && !!(c.voicemailAudioName || c.stats?.voicemail);
+  const stats = isAi ? AI_STATS : [...STATS, ...(hasVm ? VM_STATS : []), ...(c.stats?.skipped ? [['skipped', 'Do-not-call']] : [])];
   return (
     <div data-testid="campaign-detail-page">
       {back}
@@ -150,6 +154,7 @@ export default function CampaignDetail() {
           <div className="civr-label">{isAi ? `AI agent conversation · ${c.agentName || ''}` : `${c.mode === 'menu' ? 'Menu' : c.mode === 'transfer' ? `Transfer to ${pv.phone(c.transferNumber)}` : 'Report key presses'} · keys ${c.activeKeys?.join(' ')}`}</div>
           <CampaignName c={c} onSaved={(name) => setData(p => ({ campaign: { ...p.campaign, name } }))} />
           <div className="text-sm text-[#a1a1aa] font-mono mt-1">from {pv.phone(c.callerId)} · created {when(c.createdAt)}{c.scheduledFor ? ` · scheduled ${when(c.scheduledFor)}` : ''}</div>
+          {c.voicemailAudioName && <div className="text-sm text-[#a1a1aa] mt-1" data-testid="campaign-voicemail-drop">{`Voicemail drop: ${c.voicemailAudioName}`}</div>}
           <RunPlan c={c} onChanged={reload} />
         </div>
         <div className="flex items-center gap-2"><span className={statusPill(c.status)} data-testid="campaign-status">{c.status}</span>{c.dryRun && <span className="civr-pill civr-pill-warn">preview</span>}</div>
@@ -158,7 +163,7 @@ export default function CampaignDetail() {
         <div className="flex items-center justify-between mb-3"><span className="text-sm text-[#d4d4d8]">Progress</span><span className="font-mono text-sm" data-testid="campaign-progress">{pct}%</span></div>
         <div className="h-2 rounded-full bg-[#262626] overflow-hidden"><div className={`h-full bg-[#818cf8] transition-[width] duration-700 ${c.status === 'running' ? 'civr-pulse' : ''}`} style={{ width: `${pct}%` }} /></div>
         <LiveNow c={c} />
-        <div className={`grid gap-4 mt-6 ${stats.length > 6 ? 'grid-cols-4 md:grid-cols-7' : 'grid-cols-3 md:grid-cols-6'}`}>{stats.map(([k, l]) => <div key={k} data-testid={`campaign-stat-${k}`}><div className="font-mono text-2xl">{c.stats?.[k] || 0}</div><div className="text-xs text-[#a1a1aa]">{l}</div></div>)}</div>
+        <div className={`grid gap-4 mt-6 ${GRID(stats.length)}`}>{stats.map(([k, l]) => <div key={k} data-testid={`campaign-stat-${k}`}><div className="font-mono text-2xl">{c.stats?.[k] || 0}</div><div className="text-xs text-[#a1a1aa]">{l}</div></div>)}</div>
         <div className="mt-6 flex flex-wrap gap-2"><Controls c={c} act={act} busy={busy} />
           <button className="civr-btn civr-btn-ghost civr-btn-sm" onClick={() => downloadFile(`/campaigns/${id}/report.csv`, `campaign-${String(id).slice(0, 8)}.csv`).catch(e => toast.error(e.message))} data-testid="campaign-report-download-button"><Download className="w-4 h-4" />Download CSV report</button></div>
         <Waiting c={c} />
