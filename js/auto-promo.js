@@ -954,7 +954,7 @@ function initAutoPromo(bot, db, nameOf, stateCol, lifecycleDiet = null) {
     composePromo,
     planAudience,
     buildProfiles,
-    getThemes: () => THEMES,
+    getThemes: () => THEMES.filter(t => !t.startsWith('web_') || promoCopy.themeEnabled(t)), // web-app ads: NomadlyBot only
     getTodayThemes: () => getTodayThemes().map(i => THEMES[i]),
     getPromoMessages: () => promoCopy.legacyPools(getPromoPrices()).hero,
     getCrossSellMessages: () => promoCopy.legacyPools(getPromoPrices()).cross,

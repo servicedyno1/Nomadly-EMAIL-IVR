@@ -6,7 +6,7 @@ let pass = 0, fail = 0
 const ok = (name, cond, extra) => { if (cond) { pass++; console.log(`  ✅ ${name}`) } else { fail++; console.log(`  ❌ ${name}${extra ? ' — ' + extra : ''}`) } }
 const LANGS = ['en', 'fr', 'zh', 'hi']
 const fresh = (m) => { delete require.cache[require.resolve(m)]; return require(m) }
-const NOMADLY = { WEBSITE_URL: 'https://hosta.sh', CLOUDIVR_WEB_ON: 'true', CLOUDIVR_WEB_DOMAIN: 'cloudivr.net' }
+const NOMADLY = { CHAT_BOT_BRAND: 'Nomadly', WEBSITE_URL: 'https://hosta.sh', CLOUDIVR_WEB_ON: 'true', CLOUDIVR_WEB_DOMAIN: 'cloudivr.net' }
 const setEnv = (e) => { for (const k of Object.keys(NOMADLY)) delete process.env[k]; Object.assign(process.env, e) }
 
 ;(async () => {
@@ -20,6 +20,12 @@ const setEnv = (e) => { for (const k of Object.keys(NOMADLY)) delete process.env
   ok('disabled web ad falls back to the in-bot callback button', pc.inlineKeyboard('web_cloudivr', 'en', 'x').inline_keyboard[0][0].callback_data === 'promo_open:web_cloudivr')
   const ap0 = fresh('../auto-promo.js')
   ok('pickTheme never picks a disabled web ad (day schedule → rotation)', ap0.pickTheme({ dayTheme: 'web_cloudivr', hash: 1, dayIndex: 0, env: process.env }).theme !== 'web_cloudivr')
+
+  for (const brand of ['PROSHOP', 'Voodoo Land', 'Smadav']) {
+    setEnv({ ...NOMADLY, CHAT_BOT_BRAND: brand }) // even if a brand box ever gets the web keys
+    web = fresh('../web-access.js'); pc = fresh('../promo-copy')
+    ok(`${brand}: both web ads off + no CloudIVR web button/line`, !pc.themeEnabled('web_hosta') && !pc.themeEnabled('web_cloudivr') && web.cloudivrMenuRows('en').length === 0 && web.cloudivrWelcomeLine('en') === '' && !pc.enabledThemes().some(t => t.startsWith('web_')))
+  }
 
   console.log('\n── Nomadly (hosta.sh + cloudivr.net) ──')
   setEnv(NOMADLY)
@@ -68,6 +74,7 @@ const setEnv = (e) => { for (const k of Object.keys(NOMADLY)) delete process.env
   const pick = ap.pickTheme({ owned: new Set(['cloudphone']), hash: 0, dayIndex: 0, env: process.env })
   ok('Cloud IVR owners can be offered CloudIVR web (cross-sell list)', pc.CROSS_SELL.cloudphone.includes('web_cloudivr') && !!pick)
   const src = fs.readFileSync(path.join(__dirname, '../auto-promo.js'), 'utf8')
+  ok('/ad list + /ad <theme> only offer web ads where enabled (NomadlyBot)', /getThemes: \(\) => THEMES\.filter\(t => !t\.startsWith\('web_'\) \|\| promoCopy\.themeEnabled\(t\)\)/.test(src))
   ok('day schedule: Thu evening cloudivr.net, Fri morning hosta.sh', /4: \[3, 13\]/.test(src) && /5: \[12, 4\]/.test(src) && pc.THEMES[12] === 'web_hosta' && pc.THEMES[13] === 'web_cloudivr')
 
   console.log('\n── _index.js wiring ──')
@@ -76,6 +83,7 @@ const setEnv = (e) => { for (const k of Object.keys(NOMADLY)) delete process.env
   const iBtn = idx.indexOf('if (webAccess.isCloudivrWebButton(message))')
   ok('button handler before the Settings block and the Cloud IVR action handlers', iBtn > 0 && iBtn < idx.indexOf('// ━━━ Settings Menu ━━━') && iBtn < idx.indexOf('if (action === a.submenu5 && phoneConfig.isBtnMatch(message, \'howItWorks\'))'))
   ok('/start greeting + first-start welcome carry the cloudivr.net line', /send\(chatId, greeting \+ webAccess\.cloudivrWelcomeLine\(/.test(idx) && /webWelcomeLine\(_l\) \+ webAccess\.cloudivrWelcomeLine\(_l\)/.test(idx))
+  ok('/ad default theme skips a web ad that is off on this brand', idx.includes('autoPromo.getTodayThemes().find(t => themes.includes(t)) || themes[0]'))
   ok('deep links open_web_hosta / open_web_cloudivr handled', /web_hosta: \(\) =>/.test(idx) && /web_cloudivr: \(\) =>/.test(idx))
 
   console.log('\n── admin alert on new web sign-up ──')

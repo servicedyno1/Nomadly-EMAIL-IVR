@@ -53,9 +53,10 @@ function webAccessMessage(lang) {
 
 // ── CloudIVR on the web (cloudivr.net): only where the web app runs on its own domain (Nomadly app-main) ──
 const CIVR_LABELS = { en: '🌐 Use CloudIVR on the web', fr: '🌐 CloudIVR sur le web', zh: '🌐 网页版 CloudIVR', hi: '🌐 वेब पर CloudIVR' }
+const isNomadly = (env = process.env) => String(env.CHAT_BOT_BRAND || '').trim().toLowerCase() === 'nomadly'
 const cloudivrUrl = (env = process.env) => {
   const d = String(env.CLOUDIVR_WEB_DOMAIN || '').trim().replace(/^https?:\/\//i, '').replace(/\/+$/, '')
-  return env.CLOUDIVR_WEB_ON === 'true' && d ? `https://${d}` : ''
+  return isNomadly(env) && env.CLOUDIVR_WEB_ON === 'true' && d ? `https://${d}` : ''
 }
 const cloudivrHost = () => cloudivrUrl().replace(/^https:\/\//, '')
 
@@ -100,5 +101,5 @@ function cloudivrWebMessage(lang) {
 
 module.exports = {
   LABELS, websiteUrl, webMenuRows, isWebButton, webWelcomeLine, webAccessMessage,
-  CIVR_LABELS, cloudivrUrl, cloudivrMenuRows, isCloudivrWebButton, cloudivrWelcomeLine, cloudivrWebMessage,
+  CIVR_LABELS, isNomadly, cloudivrUrl, cloudivrMenuRows, isCloudivrWebButton, cloudivrWelcomeLine, cloudivrWebMessage,
 }

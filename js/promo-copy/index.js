@@ -3,7 +3,7 @@
 // plus a one-tap deep-link button. Keeps every ad < 320 visible chars and ≤ 4 emoji.
 
 const COPY = { en: require('./en.js'), fr: require('./fr.js'), zh: require('./zh.js'), hi: require('./hi.js') }
-const { websiteUrl, cloudivrUrl } = require('../web-access.js')
+const { websiteUrl, cloudivrUrl, isNomadly } = require('../web-access.js')
 
 const THEMES = ['cloudphone', 'antired_hosting', 'leads_validation', 'domains_shortener', 'digital_products', 'cards_bundles', 'email_validation', 'marketplace', 'vps_rdp', 'bulksms_app', 'email_blast', 'refer_earn', 'web_hosta', 'web_cloudivr']
 
@@ -24,9 +24,9 @@ const THEME_META = {
   web_cloudivr:      { emoji: '📞', hub: 'web_cloudivr' },
 }
 
-// Web-app ads: the button opens the website itself (hosta.sh / cloudivr.net); hidden where the site is not configured.
+// Web-app ads: NomadlyBot only; the button opens the website itself (hosta.sh / cloudivr.net).
 const WEB_URL = { web_hosta: websiteUrl, web_cloudivr: cloudivrUrl }
-const webUrlOf = (theme, env = process.env) => (WEB_URL[theme] ? WEB_URL[theme](env) : '')
+const webUrlOf = (theme, env = process.env) => (WEB_URL[theme] && isNomadly(env) ? WEB_URL[theme](env) : '')
 
 // Owned product → what to cross-sell next (first entry preferred).
 const CROSS_SELL = {

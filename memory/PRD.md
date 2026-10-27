@@ -15,6 +15,8 @@
 - Tests: js/tests/test_web_promos_signup_alert_2026-10.js 64/64, test_promo_pipeline 58/58, test_web_access 43/43, bot sandbox js/tests/bot_ui_web_promos_2026-10.js 60/60
   (mock Telegram :5099 — needs TELEGRAM_API_BASE_URL + WEBSITE_URL + CLOUDIVR_WEB_DOMAIN in backend/.env temporarily; all removed again).
 - To check on prod after deploy: the "country:" line (preview ingress drops cf-ipcountry).
+- 2026-10-27 01:00Z: hard NomadlyBot-only guard — web ads + CloudIVR web button/line also require CHAT_BOT_BRAND=Nomadly (web-access.isNomadly), `/ad list`/`/ad <theme>` hide web ads elsewhere,
+  `/ad` default skips a disabled day theme. Prod check: only app-main has WEBSITE_URL/CLOUDIVR_WEB_DOMAIN (PROSHOP / Voodoo Land / Smadav have neither). test 69/69.
 
 
 ## 2026-10-27 (00:12Z) — Bulk IVR voicemail drop FIXED (greeting_end AMD) + cap/billing + "messages left" visibility — REAL CALL PASS, DEPLOYED

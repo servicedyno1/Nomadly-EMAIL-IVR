@@ -8794,7 +8794,7 @@ bot?.on('message', msg => {
     const args = message.split(/\s+/).slice(1)
     const sub = args[0]
     if (sub === 'list') return send(chatId, `<b>Promo themes</b>\n${themes.map(t => `• <code>${t}</code>`).join('\n')}\n\n<code>/ad &lt;theme&gt;</code> preview · <code>/ad post &lt;theme&gt;</code> publish · <code>/ad bot &lt;theme&gt; [en|fr|zh|hi]</code> in-bot preview`, { parse_mode: 'HTML' })
-    const todayTheme = autoPromo.getTodayThemes()[0] || themes[0]
+    const todayTheme = autoPromo.getTodayThemes().find(t => themes.includes(t)) || themes[0]
     if (sub === 'bot') {
       const theme = args[1] || todayTheme
       const lang = ['en', 'fr', 'zh', 'hi'].includes(args[2]) ? args[2] : 'en'
