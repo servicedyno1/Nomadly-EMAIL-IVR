@@ -58,7 +58,7 @@ const CIVR_LINK = '<a href="https://cloudivr.net">cloudivr.net</a>'
       check('1.greeting ENDS with the Cloud IVR line', greet.text.trim().endsWith(`📞 <i>Cloud IVR on the web: ${CIVR_LINK}</i>`), greet.text.slice(-200))
       check('1.disable_web_page_preview true', String(greet.raw?.disable_web_page_preview) === 'true', JSON.stringify(greet.raw?.disable_web_page_preview))
       check('1.main menu keyboard attached (has Cloud IVR + SIP)', kbOf(greet).flat().map(b => b.text || b).includes('📞 Cloud IVR + SIP'), JSON.stringify(greet.buttons))
-      check('1.main menu keyboard has hosta Use on Web row', kbOf(greet).flat().map(b => b.text || b).includes('🌐 Use on Web'), JSON.stringify(greet.buttons))
+      check('1.main menu keyboard has hosta "Hosting/RDP/VPS on Web" row', kbOf(greet).flat().map(b => b.text || b).includes('🌐 Hosting/RDP/VPS on Web'), JSON.stringify(greet.buttons))
     }
 
     // ── 2. Brand-new user ──
@@ -106,7 +106,7 @@ const CIVR_LINK = '<a href="https://cloudivr.net">cloudivr.net</a>'
     check('4.FR invite localized + url', /CloudIVR sur le web/.test(fiv.text) && inl(fiv).flat()[0]?.url === 'https://cloudivr.net', allText(cs))
 
     // ── 5. hosta Use on Web regression ──
-    cs = await sendText(RET, '🌐 Use on Web', 2500)
+    cs = await sendText(RET, '🌐 Hosting/RDP/VPS on Web', 2500)
     const hv = msgs(cs)[0] || {}
     check('5.Use on Web → inline URL https://hosta.sh', inl(hv).flat().length === 1 && inl(hv).flat()[0].url === 'https://hosta.sh' && /hosta\.sh/.test(hv.text), allText(cs))
 

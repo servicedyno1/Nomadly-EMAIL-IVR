@@ -17,6 +17,8 @@
 - To check on prod after deploy: the "country:" line (preview ingress drops cf-ipcountry).
 - 2026-10-27 01:00Z: hard NomadlyBot-only guard — web ads + CloudIVR web button/line also require CHAT_BOT_BRAND=Nomadly (web-access.isNomadly), `/ad list`/`/ad <theme>` hide web ads elsewhere,
   `/ad` default skips a disabled day theme. Prod check: only app-main has WEBSITE_URL/CLOUDIVR_WEB_DOMAIN (PROSHOP / Voodoo Land / Smadav have neither). test 69/69.
+- 2026-10-27 01:10Z: hosta main-menu button renamed "🌐 Use on Web" → "🌐 Hosting/RDP/VPS on Web" (FR "🌐 Hébergement/RDP/VPS sur le Web", ZH "🌐 网页版 主机/RDP/VPS",
+  HI "🌐 वेब पर होस्टिंग/RDP/VPS"); old labels still handled (LEGACY_LABELS); hosta button + welcome line now also NomadlyBot-only (isNomadly). test_web_access 48/48.
 
 
 ## 2026-10-27 (00:12Z) — Bulk IVR voicemail drop FIXED (greeting_end AMD) + cap/billing + "messages left" visibility — REAL CALL PASS, DEPLOYED

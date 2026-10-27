@@ -16027,7 +16027,7 @@ All verified numbers generated during sourcing.`))
     return goto.displayMainMenuButtons()
   }
 
-  // 🌐 Use on Web (top row of the main menu): invite + inline button to the brand website. Action untouched.
+  // 🌐 Hosting/RDP/VPS on Web (top row of the main menu, NomadlyBot only): invite + inline button to the brand website. Action untouched.
   if (webAccess.isWebButton(message)) {
     const { text: webText, opts: webOpts } = webAccess.webAccessMessage(info?.userLanguage || 'en')
     return send(chatId, webText, webOpts)

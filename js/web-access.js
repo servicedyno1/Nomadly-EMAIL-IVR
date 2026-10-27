@@ -2,25 +2,30 @@
 // "Prefer the web?" entry point: a top-row menu button + a welcome line pointing bot users to the brand's
 // website (WEBSITE_URL in the bot's .env — Nomadly → https://hosta.sh). Unset → nothing is shown.
 
-const LABELS = { en: '🌐 Use on Web', fr: '🌐 Utiliser sur le Web', zh: '🌐 网页版', hi: '🌐 वेब पर इस्तेमाल करें' }
+const LABELS = { en: '🌐 Hosting/RDP/VPS on Web', fr: '🌐 Hébergement/RDP/VPS sur le Web', zh: '🌐 网页版 主机/RDP/VPS', hi: '🌐 वेब पर होस्टिंग/RDP/VPS' }
+// Previous labels — still on keyboards users already have open until the menu is redrawn.
+const LEGACY_LABELS = ['🌐 Use on Web', '🌐 Utiliser sur le Web', '🌐 网页版', '🌐 वेब पर इस्तेमाल करें']
 const OPEN = { en: 'Open', fr: 'Ouvrir', zh: '打开', hi: 'खोलें' }
 
+const isNomadly = (env = process.env) => String(env.CHAT_BOT_BRAND || '').trim().toLowerCase() === 'nomadly'
 const websiteUrl = (env = process.env) => String(env.WEBSITE_URL || '').trim()
+// hosta.sh button / welcome line: NomadlyBot only.
+const hostaUrl = () => (isNomadly() ? websiteUrl() : '')
 const websiteHost = () => websiteUrl().replace(/^https?:\/\//i, '').replace(/\/+$/, '')
 const pick = (map, lang) => map[lang] || map.en
 
 /** Keyboard rows to prepend to the main menu ([] when no website is configured). */
 function webMenuRows(lang) {
-  return websiteUrl() ? [[pick(LABELS, lang)]] : []
+  return hostaUrl() ? [[pick(LABELS, lang)]] : []
 }
 
 function isWebButton(message) {
-  return !!websiteUrl() && Object.values(LABELS).includes(message)
+  return !!hostaUrl() && (Object.values(LABELS).includes(message) || LEGACY_LABELS.includes(message))
 }
 
 /** One-line invite appended to the first-start welcome ('' when no website is configured). */
 function webWelcomeLine(lang) {
-  const url = websiteUrl()
+  const url = hostaUrl()
   if (!url) return ''
   const link = `<a href="${url}">${websiteHost()}</a>`
   const line = {
@@ -32,7 +37,7 @@ function webWelcomeLine(lang) {
   return `\n\n${pick(line, lang)}`
 }
 
-/** Reply for the "🌐 Use on Web" button: short invite + an inline button that opens the website. */
+/** Reply for the "🌐 Hosting/RDP/VPS on Web" button: short invite + an inline button that opens the website. */
 function webAccessMessage(lang) {
   const host = websiteHost()
   const text = {
@@ -53,7 +58,6 @@ function webAccessMessage(lang) {
 
 // ── CloudIVR on the web (cloudivr.net): only where the web app runs on its own domain (Nomadly app-main) ──
 const CIVR_LABELS = { en: '🌐 Use CloudIVR on the web', fr: '🌐 CloudIVR sur le web', zh: '🌐 网页版 CloudIVR', hi: '🌐 वेब पर CloudIVR' }
-const isNomadly = (env = process.env) => String(env.CHAT_BOT_BRAND || '').trim().toLowerCase() === 'nomadly'
 const cloudivrUrl = (env = process.env) => {
   const d = String(env.CLOUDIVR_WEB_DOMAIN || '').trim().replace(/^https?:\/\//i, '').replace(/\/+$/, '')
   return isNomadly(env) && env.CLOUDIVR_WEB_ON === 'true' && d ? `https://${d}` : ''
@@ -100,6 +104,6 @@ function cloudivrWebMessage(lang) {
 }
 
 module.exports = {
-  LABELS, websiteUrl, webMenuRows, isWebButton, webWelcomeLine, webAccessMessage,
+  LABELS, LEGACY_LABELS, websiteUrl, webMenuRows, isWebButton, webWelcomeLine, webAccessMessage,
   CIVR_LABELS, isNomadly, cloudivrUrl, cloudivrMenuRows, isCloudivrWebButton, cloudivrWelcomeLine, cloudivrWebMessage,
 }
