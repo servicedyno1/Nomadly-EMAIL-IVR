@@ -133,4 +133,26 @@ module.exports = {
     price: _p => 'Gratuit · récompenses versées sur le portefeuille',
     button: 'Ouvrir Parrainage',
   },
+  web_hosta: {
+    hooks: ['Domaines, hébergement, VPS et RDP, désormais sur le web', 'Gérez vos sites et serveurs depuis n\'importe quel navigateur'],
+    cross: ['Plutôt navigateur ? Votre prochain serveur sur hosta.sh', 'Vos domaines et votre hébergement, à un onglet'],
+    lines: _p => [
+      'Domaines privés dans les TLD populaires, WHOIS privé inclus',
+      'Hébergement cPanel, VPS Linux et RDP Windows en minutes',
+      'SSL et DNS configurés pour vous, accès root ou admin complet',
+    ],
+    price: _p => 'hosta.sh · inscription avec un simple e-mail · paiement en crypto',
+    button: 'Ouvrir hosta.sh',
+  },
+  web_cloudivr: {
+    hooks: ['Pilotez votre Cloud IVR depuis le web', 'Vos numéros, menus et campagnes dans un onglet'],
+    cross: ['Vous préférez un grand écran ? Essayez CloudIVR sur le web', 'Suivez vos campagnes d\'appels en direct dans le navigateur'],
+    lines: _p => [
+      'Numéros virtuels, menus à touches et messagerie avec transcription',
+      'Campagnes Bulk IVR avec suivi des appels en direct et rapports CSV',
+      'Téléphone navigateur, SIP et agents vocaux IA',
+    ],
+    price: _p => 'cloudivr.net · inscription gratuite par e-mail · recharge en crypto',
+    button: 'Ouvrir cloudivr.net',
+  },
 }

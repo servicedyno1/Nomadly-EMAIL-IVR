@@ -1,0 +1,62 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 1280px; height: 860px; }
+  body { background: #07060f; font-family: 'Inter', sans-serif; color: #fff; position: relative; overflow: hidden; }
+  .glow { position: absolute; width: 900px; height: 900px; right: -260px; top: -40px; border-radius: 50%;
+    background: radial-gradient(circle, rgba(34,230,255,0.20) 0%, rgba(34,230,255,0.06) 38%, rgba(7,6,15,0) 68%); }
+  .glow2 { position: absolute; width: 700px; height: 700px; left: -300px; bottom: -380px; border-radius: 50%;
+    background: radial-gradient(circle, rgba(106,99,192,0.28) 0%, rgba(7,6,15,0) 65%); }
+  .grain { position: absolute; inset: 0; opacity: .06; background-image: radial-gradient(#fff 1px, transparent 1px); background-size: 4px 4px; }
+  .left { position: absolute; left: 84px; top: 92px; width: 600px; }
+  .brand { display: flex; align-items: center; gap: 26px; }
+  .brand img { width: 112px; height: 112px; filter: drop-shadow(0 10px 30px rgba(34,230,255,.25)); }
+  .word { font-weight: 600; font-size: 104px; letter-spacing: -0.04em; line-height: 1; }
+  .word span { color: #22E6FF; }
+  .tag { margin-top: 30px; font-size: 40px; font-weight: 600; letter-spacing: -0.02em; line-height: 1.15; color: #e7ecf3; }
+  .sub { margin-top: 12px; font-size: 25px; color: #9aa6b6; }
+  .rows { margin-top: 42px; display: grid; gap: 18px; }
+  .row { display: flex; align-items: center; gap: 18px; font-size: 26px; color: #e7ecf3; }
+  .ico { width: 48px; height: 48px; border-radius: 12px; border: 1px solid rgba(106,99,192,.55); background: rgba(43,37,96,.45);
+    display: flex; align-items: center; justify-content: center; font-family: 'JetBrains Mono', monospace; font-size: 20px; color: #22E6FF; }
+  .cta { margin-top: 46px; display: inline-flex; align-items: center; gap: 14px; padding: 16px 30px; border-radius: 999px;
+    background: #22E6FF; color: #07060f; font-weight: 700; font-size: 28px; letter-spacing: -0.01em; }
+  .win { position: absolute; right: 70px; top: 190px; width: 520px; border-radius: 18px; border: 1px solid rgba(34,230,255,.45);
+    background: rgba(11,18,32,.88); box-shadow: 0 0 60px rgba(34,230,255,.22), 0 30px 80px rgba(0,0,0,.55); overflow: hidden; }
+  .bar { display: flex; align-items: center; gap: 9px; padding: 14px 18px; border-bottom: 1px solid rgba(34,230,255,.22); }
+  .dot { width: 12px; height: 12px; border-radius: 50%; background: #475569; }
+  .url { margin-left: 14px; padding: 5px 14px; border-radius: 999px; background: rgba(255,255,255,.06); font-family: 'JetBrains Mono', monospace; font-size: 16px; color: #9aa6b6; }
+  .term { padding: 26px 26px 30px; font-family: 'JetBrains Mono', monospace; font-size: 19px; line-height: 1.95; color: #e7ecf3; }
+  .term .p { color: #22E6FF; }
+  .ok { color: #22E6FF; }
+  .dim { color: #6b7686; }
+  .cur { display: inline-block; width: 11px; height: 22px; background: #22E6FF; vertical-align: -4px; box-shadow: 0 0 12px #22E6FF; }
+</style></head>
+<body>
+  <div class="glow"></div><div class="glow2"></div><div class="grain"></div>
+  <div class="left">
+    <div class="brand"><img src="hosta-logo.svg" alt=""><div class="word">hosta<span>.sh</span></div></div>
+    <div class="tag">Domains, hosting, VPS &amp; RDP<br>now on the web</div>
+    <div class="sub">Everything from your browser — no app needed.</div>
+    <div class="rows">
+      <div class="row"><div class="ico">.com</div>Private domains, WHOIS privacy included</div>
+      <div class="row"><div class="ico">cP</div>cPanel hosting with SSL &amp; DNS set up</div>
+      <div class="row"><div class="ico">&gt;_</div>Linux VPS &amp; Windows RDP in minutes</div>
+      <div class="row"><div class="ico">₿</div>Email sign-up · pay with crypto</div>
+    </div>
+    <div class="cta">hosta.sh &nbsp;→</div>
+  </div>
+  <div class="win">
+    <div class="bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="url">https://hosta.sh</span></div>
+    <div class="term">
+      <div><span class="p">$</span> hosta up --private --secure</div>
+      <div><span class="ok">✓</span> yourbrand.com <span class="dim">registered</span></div>
+      <div><span class="ok">✓</span> cPanel hosting <span class="dim">live · SSL on</span></div>
+      <div><span class="ok">✓</span> VPS ubuntu-24 <span class="dim">running</span></div>
+      <div><span class="ok">✓</span> RDP win-2022 <span class="dim">ready</span></div>
+      <div><span class="p">$</span> <span class="cur"></span></div>
+    </div>
+  </div>
+</body></html>

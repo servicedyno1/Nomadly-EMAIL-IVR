@@ -1,0 +1,20 @@
+// Renders the web-app promo banners (real hosta.sh + CloudIVR logos) → js/assets/promo/nomadly/<theme>.jpg
+//   node scripts/promo-banners/render.js
+const path = require('path')
+const puppeteer = require('puppeteer-core')
+
+const OUT = path.join(__dirname, '../../js/assets/promo/nomadly')
+const BANNERS = [['hosta.html', 'web_hosta.jpg'], ['cloudivr.html', 'web_cloudivr.jpg']]
+
+;(async () => {
+  const browser = await puppeteer.launch({ executablePath: process.env.CHROME_PATH || '/usr/bin/chromium', args: ['--no-sandbox', '--allow-file-access-from-files'] })
+  const page = await browser.newPage()
+  await page.setViewport({ width: 1280, height: 860, deviceScaleFactor: 1 })
+  for (const [html, out] of BANNERS) {
+    await page.goto(`file://${path.join(__dirname, html)}`, { waitUntil: 'networkidle0' })
+    await page.evaluate(() => document.fonts.ready)
+    await page.screenshot({ path: path.join(OUT, out), type: 'jpeg', quality: 90 })
+    console.log(`wrote ${out}`)
+  }
+  await browser.close()
+})().catch((e) => { console.error(e); process.exit(1) })

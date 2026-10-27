@@ -743,8 +743,8 @@ function initAutoPromo(bot, db, nameOf, stateCol, lifecycleDiet = null) {
     1: [0, 8],                // Mon: cloudphone, vps_rdp
     2: [1, 6],                // Tue: antired_hosting, email_validation
     3: [8, 2],                // Wed: vps_rdp, leads_validation
-    4: [3, 1],                // Thu: domains_shortener, antired_hosting
-    5: [7, 4],                // Fri: marketplace, digital_products
+    4: [3, 13],               // Thu: domains_shortener, web_cloudivr (cloudivr.net)
+    5: [12, 4],               // Fri: web_hosta (hosta.sh), digital_products
     6: [5, 8],                // Sat: cards_bundles, vps_rdp
   }
 

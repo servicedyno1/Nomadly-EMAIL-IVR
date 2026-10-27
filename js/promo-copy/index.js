@@ -3,8 +3,9 @@
 // plus a one-tap deep-link button. Keeps every ad < 320 visible chars and ≤ 4 emoji.
 
 const COPY = { en: require('./en.js'), fr: require('./fr.js'), zh: require('./zh.js'), hi: require('./hi.js') }
+const { websiteUrl, cloudivrUrl } = require('../web-access.js')
 
-const THEMES = ['cloudphone', 'antired_hosting', 'leads_validation', 'domains_shortener', 'digital_products', 'cards_bundles', 'email_validation', 'marketplace', 'vps_rdp', 'bulksms_app', 'email_blast', 'refer_earn']
+const THEMES = ['cloudphone', 'antired_hosting', 'leads_validation', 'domains_shortener', 'digital_products', 'cards_bundles', 'email_validation', 'marketplace', 'vps_rdp', 'bulksms_app', 'email_blast', 'refer_earn', 'web_hosta', 'web_cloudivr']
 
 const THEME_META = {
   cloudphone:        { emoji: '📞', hub: 'cloudphone' },
@@ -19,22 +20,30 @@ const THEME_META = {
   bulksms_app:       { emoji: '📱', hub: 'bulksms' },
   email_blast:       { emoji: '✉️', hub: 'emailblast' },
   refer_earn:        { emoji: '🤝', hub: 'refer' },
+  web_hosta:         { emoji: '🌐', hub: 'web_hosta' },
+  web_cloudivr:      { emoji: '📞', hub: 'web_cloudivr' },
 }
+
+// Web-app ads: the button opens the website itself (hosta.sh / cloudivr.net); hidden where the site is not configured.
+const WEB_URL = { web_hosta: websiteUrl, web_cloudivr: cloudivrUrl }
+const webUrlOf = (theme, env = process.env) => (WEB_URL[theme] ? WEB_URL[theme](env) : '')
 
 // Owned product → what to cross-sell next (first entry preferred).
 const CROSS_SELL = {
   leads_validation:  ['cloudphone', 'bulksms_app'],
-  cloudphone:        ['leads_validation', 'digital_products'],
-  domains_shortener: ['antired_hosting'],
-  antired_hosting:   ['domains_shortener', 'vps_rdp'],
+  cloudphone:        ['leads_validation', 'digital_products', 'web_cloudivr'],
+  domains_shortener: ['antired_hosting', 'web_hosta'],
+  antired_hosting:   ['domains_shortener', 'vps_rdp', 'web_hosta'],
   email_validation:  ['email_blast'],
   email_blast:       ['email_validation', 'vps_rdp'],
-  vps_rdp:           ['domains_shortener', 'email_blast'],
+  vps_rdp:           ['domains_shortener', 'email_blast', 'web_hosta'],
   bulksms_app:       ['leads_validation'],
   digital_products:  ['cloudphone'],
   marketplace:       ['refer_earn'],
   cards_bundles:     ['digital_products'],
   refer_earn:        [],
+  web_hosta:         [],
+  web_cloudivr:      [],
 }
 
 const FOOTER = {
@@ -50,6 +59,7 @@ function themeEnabled(theme, env = process.env) {
   if (theme === 'vps_rdp') return env.VPS_ENABLED === 'true'
   if (theme === 'bulksms_app') return env.HIDE_SMS_APP !== 'true'
   if (theme === 'email_blast') return env.EMAIL_BLAST_ON === 'true'
+  if (WEB_URL[theme]) return !!webUrlOf(theme, env)
   return true
 }
 
@@ -94,9 +104,10 @@ function deepLink(botUsername, theme) {
 
 // In-bot inline keyboard: one-tap hub open (callback → synthetic /start open_<hub>) + mute.
 function inlineKeyboard(theme, lang, buttonLabel) {
+  const url = webUrlOf(theme)
   return {
     inline_keyboard: [
-      [{ text: buttonLabel, callback_data: `promo_open:${THEME_META[theme].hub}` }],
+      [url ? { text: buttonLabel, url } : { text: buttonLabel, callback_data: `promo_open:${THEME_META[theme].hub}` }],
       [{ text: MUTE_BUTTON[lang] || MUTE_BUTTON.en, callback_data: 'promo_optout' }],
     ],
   }
@@ -106,7 +117,7 @@ function inlineKeyboard(theme, lang, buttonLabel) {
 function renderChannelPost({ theme, lang = 'en', variation = 0, prices, couponLine = null, botUsername }) {
   const r = renderPromo({ theme, lang, variation, mode: 'hero', prices, couponLine, footer: false })
   if (!r) return null
-  const url = deepLink(botUsername, theme)
+  const url = webUrlOf(theme) || deepLink(botUsername, theme)
   return {
     text: r.text,
     reply_markup: { inline_keyboard: [[{ text: r.buttonLabel, url }]] },
@@ -133,7 +144,7 @@ function legacyPools(prices) {
 
 module.exports = {
   THEMES, THEME_META, CROSS_SELL, FOOTER, MUTE_BUTTON,
-  themeEnabled, enabledThemes, copyFor, variantCount,
+  themeEnabled, enabledThemes, copyFor, variantCount, webUrlOf,
   renderPromo, renderChannelPost, inlineKeyboard, deepLink,
   visibleLength, emojiCount, legacyPools,
 }

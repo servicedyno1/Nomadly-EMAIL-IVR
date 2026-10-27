@@ -48,6 +48,9 @@ const clientIp = (req) => {
   return String(req.ip || '')
 }
 const isHttps = (req) => req.secure || /https/i.test(String(req.headers['x-forwarded-proto'] || '')) || /^https:/i.test(String(req.headers.origin || ''))
+// Cloudflare's visitor country (2-letter code); absent off Cloudflare.
+const countryOf = (req) => { const c = String(req.headers['cf-ipcountry'] || '').trim().toUpperCase(); return /^[A-Z]{2}$/.test(c) && c !== 'XX' && c !== 'T1' ? c : null }
+
 
 function parseCookies(req) {
   const out = {}
@@ -93,7 +96,7 @@ function sendMail(to, subject, html, attachments, extra) {
   return mailer.sendMail({ from: `${brand} CloudIVR <${process.env.MAIL_SENDER}>`, to, subject, html, ...(attachments ? { attachments } : {}), ...(extra || {}) }).then(() => true)
 }
 
-function createAuth(db, { log = console.log } = {}) {
+function createAuth(db, { log = console.log, notifyAdmin = () => {} } = {}) {
   const accounts = db.collection('webAccounts')
   const counters = db.collection('webCounters')
   const attempts = db.collection('webLoginAttempts')
@@ -121,7 +124,24 @@ function createAuth(db, { log = console.log } = {}) {
     return r._id
   }
 
-  async function createAccount({ email, name, passwordHash = null, googleSub = null, referredBy = null, ip = null }) {
+  // New web sign-up → admin alert in the bot (HTML; user-supplied text escaped).
+  function alertSignup(acc, country) {
+    const esc = (v) => String(v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    const preview = process.env.WEB_CLOUDIVR_DRY_RUN === 'true' ? ' (preview)' : ''
+    try {
+      notifyAdmin([
+        `🆕 <b>New CloudIVR web sign-up</b>${preview}`,
+        `email: ${esc(acc.email)}`,
+        `name: ${acc.name ? esc(acc.name) : '—'}`,
+        `method: ${acc.googleSub ? 'Google' : 'Email + password'}`,
+        country ? `country: ${esc(country)}` : null,
+        acc.referredBy ? `referred by web account ${acc.referredBy}` : null,
+        `web account: ${acc._id}`,
+      ].filter(Boolean).join('\n'))
+    } catch (e) { log(`[CloudIVR-Web] sign-up alert failed: ${e.message}`) }
+  }
+
+  async function createAccount({ email, name, passwordHash = null, googleSub = null, referredBy = null, ip = null, country = null }) {
     const _id = await nextChatId()
     const acc = { _id, email, name: String(name || '').trim().slice(0, 80), passwordHash, ...(googleSub ? { googleSub } : {}), ...(referredBy ? { referredBy } : {}), signupIp: ip, lastIp: ip, tokenVersion: 0, createdAt: new Date(), lastLoginAt: new Date() }
     await accounts.insertOne(acc)
@@ -129,6 +149,7 @@ function createAuth(db, { log = console.log } = {}) {
     await db.collection('state').updateOne({ _id: String(_id) }, { $setOnInsert: { userLanguage: 'en', webAccount: true } }, { upsert: true })
     await db.collection('nameOf').updateOne({ _id: String(_id) }, { $setOnInsert: { val: acc.name || email.split('@')[0] } }, { upsert: true })
     log(`[CloudIVR-Web] account created ${_id} (${googleSub ? 'google' : 'email'})`)
+    alertSignup(acc, country)
     return acc
   }
 
@@ -175,7 +196,7 @@ function createAuth(db, { log = console.log } = {}) {
       if (await accounts.findOne({ email })) return res.status(409).json({ error: 'email_taken', message: 'An account with this email already exists. Sign in instead.' })
       await recordFailure(ipKey, 15) // counts sign-ups per IP (15 per 15 min)
       const ip = clientIp(req)
-      const acc = await createAccount({ email, name: req.body.name, passwordHash: await bcrypt.hash(password, 12), referredBy: await referrerFor(req.body.ref, ip), ip })
+      const acc = await createAccount({ email, name: req.body.name, passwordHash: await bcrypt.hash(password, 12), referredBy: await referrerFor(req.body.ref, ip), ip, country: countryOf(req) })
       setSession(req, res, acc, req.body.remember ? 30 : SESSION_DAYS)
       res.status(201).json({ account: publicAccount(acc) })
     }))
@@ -208,7 +229,7 @@ function createAuth(db, { log = console.log } = {}) {
       const email = normEmail(info.email)
       let acc = await accounts.findOne({ googleSub: info.sub }) || await accounts.findOne({ email })
       if (acc && !acc.googleSub) await accounts.updateOne({ _id: acc._id }, { $set: { googleSub: info.sub } })
-      if (!acc) acc = await createAccount({ email, name: info.name, googleSub: info.sub, referredBy: await referrerFor(req.body.ref, clientIp(req)), ip: clientIp(req) })
+      if (!acc) acc = await createAccount({ email, name: info.name, googleSub: info.sub, referredBy: await referrerFor(req.body.ref, clientIp(req)), ip: clientIp(req), country: countryOf(req) })
       if (acc.disabled) return res.status(403).json({ error: 'disabled' })
       await accounts.updateOne({ _id: acc._id }, { $set: { lastLoginAt: new Date(), lastIp: clientIp(req) } })
       return mfa.finishLogin(req, res, { ...acc, googleSub: info.sub }, { remember: !!req.body.remember })

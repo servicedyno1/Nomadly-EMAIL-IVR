@@ -9947,7 +9947,7 @@ bot?.on('message', msg => {
         zh: `👋 <b>欢迎使用 ${CHAT_BOT_NAME}</b> — 一站式工具箱：电话号码、主机、域名和数字产品。\n\n<b>您今天需要什么？</b>点击直接进入 — 或点 👀 随便看看 浏览全部。\n\n💸 <i>提示：首次充值 $20+ 即可获得 $${depBonus} 赠金。</i>`,
         hi: `👋 <b>${CHAT_BOT_NAME} में आपका स्वागत है</b> — फ़ोन नंबर, होस्टिंग, डोमेन और डिजिटल प्रोडक्ट के लिए ऑल-इन-वन टूलकिट।\n\n<b>आज आपको क्या चाहिए?</b> सीधे जाने के लिए टैप करें — या सब कुछ देखने के लिए 👀 बस देख रहे हैं।\n\n💸 <i>टिप: $20+ जमा करें और पहली जमा पर $${depBonus} मुफ़्त पाएं।</i>`,
       })[_l] || `👋 <b>Welcome to ${CHAT_BOT_NAME}</b> — what do you need today?`
-      const qWeb = q + webAccess.webWelcomeLine(_l)
+      const qWeb = q + webAccess.webWelcomeLine(_l) + webAccess.cloudivrWelcomeLine(_l)
       const rows = [
         [FIRST_SESSION_INTENT.numbers[_l] || FIRST_SESSION_INTENT.numbers.en],
         [FIRST_SESSION_INTENT.hosting[_l] || FIRST_SESSION_INTENT.hosting.en, FIRST_SESSION_INTENT.domains[_l] || FIRST_SESSION_INTENT.domains.en],
@@ -10697,6 +10697,7 @@ bot?.on('message', msg => {
       }
       const ivrBtnHub = await quickIvrLabel(chatId, pc)
       send(chatId, cpWelcome, k.of([
+        ...webAccess.cloudivrMenuRows(info?.userLanguage || 'en'),
         [pc.testSipFree],
         [ivrBtnHub],
         [pc.buyPhoneNumber],
@@ -14884,6 +14885,9 @@ All verified numbers generated during sourcing.`))
       emailval: () => _synthMenuTap(user.emailValidation),
       emailblast: () => _synthMenuTap(user.emailBlast),
       refer: () => _synthMenuTap(user.referEarn),
+      // Web-app ads (channel posts / old keyboards): the invite card with the website button.
+      web_hosta: () => (webAccess.websiteUrl() ? send(chatId, webAccess.webAccessMessage(info?.userLanguage || 'en').text, webAccess.webAccessMessage(info?.userLanguage || 'en').opts) : goto.displayMainMenuButtons()),
+      web_cloudivr: () => (webAccess.cloudivrUrl() ? send(chatId, webAccess.cloudivrWebMessage(info?.userLanguage || 'en').text, webAccess.cloudivrWebMessage(info?.userLanguage || 'en').opts) : goto.displayMainMenuButtons()),
     }[_hub]
     async function _synthMenuTap(label) {
       await set(state, chatId, 'action', 'none')
@@ -15174,7 +15178,7 @@ All verified numbers generated during sourcing.`))
     }
 
     const greeting = await getMainMenuGreeting()
-    send(chatId, greeting, trans('o'))
+    send(chatId, greeting + webAccess.cloudivrWelcomeLine(info?.userLanguage || 'en'), { ...trans('o'), disable_web_page_preview: true })
     await maybeSendTrialNudge(chatId, info?.userLanguage || 'en')
     return
   }
@@ -16027,6 +16031,11 @@ All verified numbers generated during sourcing.`))
   if (webAccess.isWebButton(message)) {
     const { text: webText, opts: webOpts } = webAccess.webAccessMessage(info?.userLanguage || 'en')
     return send(chatId, webText, webOpts)
+  }
+  // 🌐 Use CloudIVR on the web (Cloud IVR + SIP menu, Nomadly only): invite + inline button to cloudivr.net. Action untouched.
+  if (webAccess.isCloudivrWebButton(message)) {
+    const { text: civrText, opts: civrOpts } = webAccess.cloudivrWebMessage(info?.userLanguage || 'en')
+    return send(chatId, civrText, civrOpts)
   }
 
   // ━━━ Settings Menu ━━━
@@ -25542,6 +25551,7 @@ Please enter valid nameservers (e.g. ns1.example.com), one per line.`), { parse_
     const pc = phoneConfig.getBtn(info?.userLanguage || 'en')
     const ivrBtnHiw = await quickIvrLabel(chatId, pc)
     return send(chatId, cpTxt.howItWorks, k.of([
+      ...webAccess.cloudivrMenuRows(info?.userLanguage || 'en'),
       [pc.testSipFree],
       [ivrBtnHiw],
       [pc.buyPhoneNumber],

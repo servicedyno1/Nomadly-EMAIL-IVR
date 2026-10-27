@@ -133,4 +133,26 @@ module.exports = {
     price: _p => '免费加入 · 奖励发到钱包',
     button: '打开推荐赚钱',
   },
+  web_hosta: {
+    hooks: ['域名、主机、VPS 和 RDP，现已上线网页版', '在任意浏览器中管理您的网站和服务器'],
+    cross: ['更喜欢浏览器？在 hosta.sh 开通下一台服务器', '域名和主机，一个标签页搞定'],
+    lines: _p => [
+      '热门后缀的隐私域名，含 WHOIS 隐私保护',
+      'cPanel 主机、Linux VPS 和 Windows RDP，几分钟上线',
+      '自动配置 SSL 和 DNS，完整 root 或管理员权限',
+    ],
+    price: _p => 'hosta.sh · 仅需邮箱注册 · 加密货币支付',
+    button: '打开 hosta.sh',
+  },
+  web_cloudivr: {
+    hooks: ['在网页上运行您的 Cloud IVR', '电话号码、菜单和活动，一个标签页全搞定'],
+    cross: ['想用大屏幕？试试网页版 CloudIVR', '在浏览器中实时查看您的呼叫活动'],
+    lines: _p => [
+      '虚拟号码、按键菜单和带转写的语音信箱',
+      '批量 IVR 活动，实时查看通话并导出 CSV 报告',
+      '浏览器电话、SIP 和 AI 语音助手',
+    ],
+    price: _p => 'cloudivr.net · 邮箱免费注册 · 加密货币充值',
+    button: '打开 cloudivr.net',
+  },
 }
