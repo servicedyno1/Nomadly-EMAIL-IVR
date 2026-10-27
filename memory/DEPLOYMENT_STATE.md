@@ -283,3 +283,8 @@ The new layout differs from the old in-place `/opt/nomadly/app-main` checkout. O
   until the 60 s cap (24 cap hang-ups on iammills404's running campaign cf4effbb "GWP"; 61 s calls billed as 2 min).
   Proposed: AMD 'greeting_end' (or 'detect') + accept greeting.ended without a prior detection event + don't let the cap cut a
   playing clip; verify with ONE real call to the owner's phone before deploying.
+
+## 2026-10-27 19:00Z — workspace tarball deploy 95e9010 (+17 uncommitted) → release 20261027T190021Z-95e9010 on app-main-a :5000
+- Contents: AutoPromo web ads twice a week (Sun/Mon evening added), campaign Save auto-makes AI voice from script, landing ID-check removal,
+  Trust card removal, 20 AI agent languages. Frontend rebuilt on droplet, health OK, 0 live calls at flip, app-main-b stopped.
+- Rollback: `bash /opt/nomadly/deploy.sh app-main rollback`. ⚠️ Not on GitHub yet → owner must "Save to GitHub" (main).

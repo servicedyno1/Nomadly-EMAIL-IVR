@@ -48,7 +48,7 @@ export function ScriptBox({ value, onChange, onAudio, testid = 'script' }) {
         </div>
       )}
       {filled && filled !== value.text && <div className="text-sm text-[#e4e4e7] border border-[#222] rounded-xl p-3" dir="auto" data-no-translate data-testid={`${testid}-preview-text`}>{filled}</div>}
-      {onAudio && <VoiceMaker text={filled} name={value.templateName || 'Call script'} onMade={onAudio} testid={`${testid}-voice`} />}
+      {onAudio && <VoiceMaker text={filled} name={value.templateName || 'Call script'} onMade={onAudio} choice={value} onChoice={set} testid={`${testid}-voice`} />}
     </div>
   );
 }

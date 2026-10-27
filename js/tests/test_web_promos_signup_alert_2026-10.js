@@ -76,6 +76,7 @@ const setEnv = (e) => { for (const k of Object.keys(NOMADLY)) delete process.env
   const src = fs.readFileSync(path.join(__dirname, '../auto-promo.js'), 'utf8')
   ok('/ad list + /ad <theme> only offer web ads where enabled (NomadlyBot)', /getThemes: \(\) => THEMES\.filter\(t => !t\.startsWith\('web_'\) \|\| promoCopy\.themeEnabled\(t\)\)/.test(src))
   ok('day schedule: Thu evening cloudivr.net, Fri morning hosta.sh', /4: \[3, 13\]/.test(src) && /5: \[12, 4\]/.test(src) && pc.THEMES[12] === 'web_hosta' && pc.THEMES[13] === 'web_cloudivr')
+  ok('day schedule: web ads twice a week (Mon evening cloudivr.net, Sun evening hosta.sh)', /1: \[0, 13\]/.test(src) && /0: \[7, 12\]/.test(src))
 
   console.log('\n── _index.js wiring ──')
   const idx = fs.readFileSync(path.join(__dirname, '../_index.js'), 'utf8')

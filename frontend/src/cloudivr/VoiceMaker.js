@@ -19,13 +19,14 @@ export function VoiceSelect({ value, onChange, voices, testid }) {
 }
 
 // Turns `text` into an AI-voice audio file (saved to the library) and previews it; onMade(audio).
-export function VoiceMaker({ text, name, onMade, testid }) {
+export function VoiceMaker({ text, name, onMade, testid, choice, onChoice }) {
   const { voices, speeds, def } = useVoices();
-  const [voice, setVoice] = useState('');
-  const [speed, setSpeed] = useState(0);
+  const [own, setOwn] = useState({});
   const [busy, setBusy] = useState(false);
   const [made, setMade] = useState(null);
-  const v = voice || def.voice, s = speed || def.speed;
+  const c = choice || own;
+  const pick = onChoice || ((p) => setOwn(x => ({ ...x, ...p })));
+  const v = c.voice || def.voice, s = c.speed || def.speed;
   const make = async () => {
     if (String(text || '').trim().length < 3) { toast.error('Type at least a few words first.'); return; }
     setBusy(true);
@@ -36,8 +37,8 @@ export function VoiceMaker({ text, name, onMade, testid }) {
   };
   return (
     <div className="flex flex-wrap items-center gap-2" data-testid={testid}>
-      <VoiceSelect value={v} onChange={setVoice} voices={voices} testid={`${testid}-voice`} />
-      <select className="civr-input !w-24" value={s} onChange={e => setSpeed(Number(e.target.value))} data-testid={`${testid}-speed`} aria-label="Speed">{speeds.map(x => <option key={x} value={x}>{`${x}×`}</option>)}</select>
+      <VoiceSelect value={v} onChange={(x) => pick({ voice: x })} voices={voices} testid={`${testid}-voice`} />
+      <select className="civr-input !w-24" value={s} onChange={e => pick({ speed: Number(e.target.value) })} data-testid={`${testid}-speed`} aria-label="Speed">{speeds.map(x => <option key={x} value={x}>{`${x}×`}</option>)}</select>
       <button type="button" className="civr-btn civr-btn-ghost civr-btn-sm" onClick={make} disabled={busy} data-testid={`${testid}-make`}>{busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wand2 className="w-4 h-4" />}{busy ? 'Making…' : 'Make AI voice'}</button>
       {made && <audio controls src={playUrl(made.audioUrl)} className="h-9 max-w-full" data-testid={`${testid}-preview`} />}
     </div>

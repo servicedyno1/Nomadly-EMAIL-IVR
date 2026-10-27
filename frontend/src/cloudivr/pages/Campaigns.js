@@ -9,7 +9,8 @@ import { DateTimePicker } from '../DateTimePicker';
 import { cp } from '../paths';
 import { usePrivacy } from '../privacy';
 import { MenuBuilder, menuToApi } from './quick/MenuBuilder';
-import { ScriptBox } from './quick/ScriptBox';
+import { ScriptBox, fillScript, placeholdersOf } from './quick/ScriptBox';
+import { useVoices } from '../VoiceMaker';
 import { CampaignKind, AiCampaignFields } from './ai/AiCampaignFields';
 import { useSearch, SearchBox, NoMatches } from '../search';
 import { useUnsaved, UnsavedPill } from '../guard';
@@ -202,6 +203,7 @@ export function CampaignNew() {
   const [busy, setBusy] = useState('');
   const [error, setError] = useState(null);
   const u = useUnsaved({ f, kind, script });
+  const voiceDef = useVoices().def;
   const set = (k) => (v) => setF({ ...f, [k]: v?.target ? v.target.value : v });
   if (loading) return <SkeletonPage cards={2} rows={0} />;
   if (!numbers.length) return (
@@ -221,13 +223,26 @@ export function CampaignNew() {
   const fromList = f.source === 'list';
   const audience = fromList ? { listId: f.listId, leads: '' } : { listId: undefined, leads: f.leads };
   const estimate = async () => { setBusy('est'); try { setEst(await api('/campaigns/estimate', { method: 'POST', body: audience })); } catch (e) { toast.error(e.message); } finally { setBusy(''); } };
+  // A written script whose "Make AI voice" was never pressed: make the voice now so Save just works.
+  const scriptAudio = async () => {
+    const text = fillScript(script.text, script.values).trim();
+    const left = placeholdersOf(text);
+    if (left.length) throw new Error(`Fill in ${left.map(n => `[${n}]`).join(', ')} in your script first.`);
+    if (text.length < 3) throw new Error('Pick a message from your audio library, or write a script for the AI voice to read.');
+    setBusy('voice');
+    const d = await api('/audio/tts', { method: 'POST', body: { text, voice: script.voice || voiceDef.voice, speed: script.speed || voiceDef.speed, name: script.templateName || text.slice(0, 40) } });
+    reloadAudio(); setF(x => ({ ...x, audioId: d.audio.id })); setScript(null);
+    setBusy('create');
+    return d.audio.id;
+  };
   const create = async (e) => {
     e.preventDefault(); setBusy('create'); setError(null);
     try {
+      const audioId = !isAi && !f.audioId && script ? await scriptAudio() : f.audioId;
       const scheduledFor = f.scheduledFor ? new Date(f.scheduledFor).toISOString() : null;
       const plan = { repeat: f.repeat || null, dailyLimit: f.dailyLimit === '' ? null : Number(f.dailyLimit), tz: TZ };
       const body = isAi ? { mode: 'ai', name: f.name, agentId: f.agentId, callerId, ...audience, concurrency: f.concurrency, scheduledFor, ...plan }
-        : { ...f, ...audience, source: undefined, callerId, menu: f.mode === 'menu' ? menuToApi(f.menu) : undefined, scheduledFor, ...plan };
+        : { ...f, audioId, ...audience, source: undefined, callerId, menu: f.mode === 'menu' ? menuToApi(f.menu) : undefined, scheduledFor, ...plan };
       const d = await api('/campaigns', { method: 'POST', body });
       toast.success(d.skipped ? `Campaign saved · ${d.skipped} line(s) skipped` : 'Campaign saved');
       if (d.doNotCall) toast.message(`${d.doNotCall} number(s) are on your do-not-call list and will be skipped`);
@@ -268,7 +283,7 @@ export function CampaignNew() {
           <RunPlanFields f={f} set={set} />
           {!isAi && f.mode !== 'report_only' && <div className="flex items-center justify-between"><span className="text-sm">Hold music during transfer</span><Toggle checked={f.holdMusic} onChange={set('holdMusic')} testid="campaign-hold-music-toggle" /></div>}
           <ErrorNote error={error} testid="campaign-create-error" />
-          <button className="civr-btn civr-btn-primary w-full" disabled={busy === 'create'} data-testid="campaign-create-button">{busy === 'create' && <Loader2 className="w-4 h-4 animate-spin" />}Save campaign</button>
+          <button className="civr-btn civr-btn-primary w-full" disabled={!!busy && busy !== 'est'} data-testid="campaign-create-button">{(busy === 'create' || busy === 'voice') && <Loader2 className="w-4 h-4 animate-spin" />}{busy === 'voice' ? 'Making AI voice…' : 'Save campaign'}</button>
           <UnsavedPill show={u.dirty} testid="campaign-unsaved-pill" />
         </div>
       </form>

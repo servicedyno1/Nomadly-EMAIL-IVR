@@ -122,7 +122,7 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
     const c = await caller(chatId, b.callerId, 'bulkCall', 'Bulk IVR campaigns')
     if (c.err) return bad(res, ...c.err)
     const audio = await ownAudio(chatId, b.audioId)
-    if (!audio) return bad(res, 400, 'invalid_audio', 'Pick the campaign message from your audio library.')
+    if (!audio) return bad(res, 400, 'invalid_audio', 'Pick a message from your audio library, or write a script and press “Make AI voice”.')
     const vm = b.voicemailAudioId ? await ownAudio(chatId, b.voicemailAudioId) : null
     if (b.voicemailAudioId && !vm) return bad(res, 400, 'invalid_audio', 'Pick the voicemail drop from your audio library.')
     const { leads, errors } = await leadsOf(chatId, b)

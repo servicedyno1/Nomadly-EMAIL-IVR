@@ -739,8 +739,9 @@ function initAutoPromo(bot, db, nameOf, stateCol, lifecycleDiet = null) {
 
   // ─── Day-of-week → default theme (fallback when a user has no browse/ownership signal) ──
   const DAY_SCHEDULE = {
-    0: [7, 3],                // Sun: marketplace, domains_shortener
-    1: [0, 8],                // Mon: cloudphone, vps_rdp
+    // Web ads run twice a week on opposite-parity days so the every-other-day cadence reaches ~2x the users.
+    0: [7, 12],               // Sun: marketplace, web_hosta (hosta.sh)
+    1: [0, 13],               // Mon: cloudphone, web_cloudivr (cloudivr.net)
     2: [1, 6],                // Tue: antired_hosting, email_validation
     3: [8, 2],                // Wed: vps_rdp, leads_validation
     4: [3, 13],               // Thu: domains_shortener, web_cloudivr (cloudivr.net)

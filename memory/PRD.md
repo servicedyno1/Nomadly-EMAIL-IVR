@@ -1,5 +1,19 @@
 # PRD — Nomadly Cloud IVR + Telegram Bot
 
+## 2026-10-27 (19:05Z) — Ads twice a week + campaign "Pick the campaign message" fix — DEPLOYED (workspace tarball, release 20261027T190021Z-95e9010, app-main-a :5000)
+- Owner: "Promo ads not working / hosta + CloudIVR ads never ran". Prod RCA: AutoPromo IS running (e.g. 10-27 EN morning 170 delivered;
+  web_hosta 11 + web_cloudivr 2 already sent via cross-sell since 4005cce went live 10:11Z). Owner (5590563715) got 29 ads, last 10-26 10:00;
+  per-user cadence = every other day + fixed morning/evening slot → owner misses Thu-evening/Fri-morning web slots.
+  Owner choice: "Show the new ads more often" → DAY_SCHEDULE Sun evening = web_hosta (was domains_shortener), Mon evening = web_cloudivr (was vps_rdp).
+  Simulated schedule reach/week ~25% → ~50% each. test_web_promos 71/71; promo_pipeline 58/58 on prod env (preview lacks price envs → 4 env-only fails).
+- fundmyllc@gmail.com (web 5000000000000006, Business, +18777553674): wrote a template script + Auto-fill but never pressed "Make AI voice" →
+  library empty (0 ivrAudioFiles; the 12 ivrAudioStore files are voicemail copies) → POST /campaigns 400 invalid_audio x5 (nginx log).
+  Fix: Campaigns.js Save makes the AI voice from the written script (chosen voice/speed via VoiceMaker choice/onChoice, else account default),
+  blocks unfilled [Placeholders] with a clear error, button shows "Making AI voice…"; server message now "Pick a message from your audio library,
+  or write a script and press “Make AI voice”." Verified on preview (Alice) end-to-end + live bundle.
+- Same deploy carried: landing ID-check removal, Trust card removal, 20 AI agent languages (below). Live checks: /health healthy, "ID check" 0 on
+  cloudivr.net, public catalog has no `verify`, AutoPromo 14 themes, TelnyxSig enforced. ⚠️ Save to GitHub (main) or the next CI deploy rolls back.
+
 ## 2026-10-27 (14:20Z) — Landing: ID-check mentions removed + AI agent 20 languages — TESTED (iteration_160 100% + design follow-ups fixed), NOT DEPLOYED
 - Owner: remove ID-check indication on landing numbers, remove Trust card "Verified accounts, verified numbers", AI agent > 3 languages.
   Choices: ~20 major languages; FAQ "Which countries need an ID check…" also removed (no ID-check wording anywhere on the landing; buyers see it after paying, as before).

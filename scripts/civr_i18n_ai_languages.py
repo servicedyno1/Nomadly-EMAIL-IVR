@@ -28,6 +28,9 @@ S = {
     "Turkish": ("Turc", "Turco"),
     "Vietnamese": ("Vietnamien", "Vietnamita"),
     "Q: Are you open Saturday? A: No, Monday–Friday 9am–5pm.\nCleaning: $90.": ("Q : Êtes-vous ouverts le samedi ? R : Non, du lundi au vendredi de 9 h à 17 h.\nDétartrage : 90 $.", "P: ¿Abren los sábados? R: No, de lunes a viernes de 9 a 17 h.\nLimpieza: 90 $."),
+    "Making AI voice…": ("Création de la voix IA…", "Creando la voz IA…"),
+    "Pick a message from your audio library, or write a script for the AI voice to read.": ("Choisissez un message dans votre bibliothèque audio, ou écrivez un script que la voix IA lira.", "Elige un mensaje de tu biblioteca de audio o escribe un guion para que lo lea la voz IA."),
+    "Pick a message from your audio library, or write a script and press “Make AI voice”.": ("Choisissez un message dans votre bibliothèque audio, ou écrivez un script et appuyez sur « Créer une voix IA ».", "Elige un mensaje de tu biblioteca de audio, o escribe un guion y pulsa «Crear voz IA»."),
 }
 
 
