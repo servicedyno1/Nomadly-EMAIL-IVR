@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, Plus, MessageCircle, Send } from 'lucide-react';
+import { SocialLinks } from './Social';
 import { usd, money, startPrice } from '../../api';
 import { useCivrAuth } from '../../AuthContext';
 import { cp } from '../../paths';
@@ -135,6 +136,7 @@ export function Footer({ catalog }) {
               <Link to={cp('/signup')} className="civr-l-pill civr-l-pill-ink civr-l-pill-sm" data-testid="footer-cta-signup">Get your number</Link>
               <Link to={cp('/login')} className="civr-l-pill civr-l-pill-outline civr-l-pill-sm" data-testid="footer-link-signin">Sign in</Link>
             </div>
+            <SocialLinks />
           </div>
           <div className="lg:col-span-8 grid grid-cols-2 md:grid-cols-4 gap-8">
             <FooterCol title="Product" testid="footer-col-product">{menuLinks(PRODUCTS, 'product')}</FooterCol>

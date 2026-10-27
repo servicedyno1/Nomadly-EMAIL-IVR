@@ -1,5 +1,11 @@
 # PRD — Nomadly Cloud IVR + Telegram Bot
 
+## 2026-10-27 (19:20Z) — Footer social icons (X + Telegram) — CODED ON PREVIEW, NOT VERIFIED, NOT DEPLOYED (session ended by owner)
+- New `frontend/src/cloudivr/pages/landing/Social.js` (SocialLinks: X https://x.com/CloudIVR, Telegram https://t.me/CloudIVRNet — owner typed
+  "t.me.CloudIVRNet", corrected), rendered under the footer CTAs in PricingFaq.js Footer (testids footer-social, footer-social-x, footer-social-telegram).
+- seo.js Organization JSON-LD gets `sameAs` [X, Telegram]. Preview /cloudivr HTML showed no ld+json in the curl check (probably only injected on
+  the cloudivr.net host); still needs checking. Next: screenshot footer at 1920/390, check sameAs on cloudivr.net after deploy, then deploy.
+
 ## 2026-10-27 (19:05Z) — Ads twice a week + campaign "Pick the campaign message" fix — DEPLOYED (workspace tarball, release 20261027T190021Z-95e9010, app-main-a :5000)
 - Owner: "Promo ads not working / hosta + CloudIVR ads never ran". Prod RCA: AutoPromo IS running (e.g. 10-27 EN morning 170 delivered;
   web_hosta 11 + web_cloudivr 2 already sent via cross-sell since 4005cce went live 10:11Z). Owner (5590563715) got 29 ads, last 10-26 10:00;

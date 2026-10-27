@@ -208,6 +208,7 @@ function jsonLd(pathname) {
       url: CANONICAL,
       logo: LOGO,
       description: tagline(),
+      sameAs: ['https://x.com/CloudIVR', 'https://t.me/CloudIVRNet'],
     },
     {
       '@type': 'WebSite',
