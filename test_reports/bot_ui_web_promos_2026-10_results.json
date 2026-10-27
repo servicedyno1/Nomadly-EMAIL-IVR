@@ -1,0 +1,306 @@
+{
+  "pass": 60,
+  "total": 60,
+  "results": [
+    {
+      "name": "1.returning /start greeting has cloudivr link",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "1.greeting ENDS with the Cloud IVR line",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "1.disable_web_page_preview true",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "1.main menu keyboard attached (has Cloud IVR + SIP)",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "1.main menu keyboard has hosta Use on Web row",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "2.new user gets language picker",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "2.first-session intent shown",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "2.intent has hosta.sh line",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "2.intent has cloudivr.net line",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "2.intent no link preview",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "3.EN hub first row = single CloudIVR web button",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "3.EN hub rest unchanged (Test SIP/Buy/Bulk/Audio/MyNumbers/SIP/Usage/HowItWorks)",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "3.FR hub first row = 🌐 CloudIVR sur le web",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "4.exactly one reply",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "4.invite text mentions cloudivr.net/separate account/free sign-up",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "4.single inline URL button → https://cloudivr.net",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "4.no reply keyboard replaced (no keyboard/remove_keyboard)",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "4.action still submenu5",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "4.How It Works still works after invite",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "4.How It Works keyboard first row = CloudIVR web",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "4.FR invite localized + url",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "5.Use on Web → inline URL https://hosta.sh",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "7.deep link open_web_cloudivr → cloudivr card",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "7.deep link open_web_hosta → hosta card",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "6./ad list includes web_hosta + web_cloudivr",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "6./ad bot web_hosta en → sendPhoto",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "6.web_hosta/en caption mentions hosta.sh",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "6.web_hosta/en row1 URL https://hosta.sh",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "6.web_hosta/en row2 promo_optout",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "6.web_hosta/en confirmation says with banner",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "6./ad bot web_cloudivr en → sendPhoto",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "6.web_cloudivr/en caption mentions cloudivr.net",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "6.web_cloudivr/en row1 URL https://cloudivr.net",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "6.web_cloudivr/en row2 promo_optout",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "6.web_cloudivr/en confirmation says with banner",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "6./ad bot web_hosta fr → sendPhoto",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "6.web_hosta/fr caption mentions hosta.sh",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "6.web_hosta/fr row1 URL https://hosta.sh",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "6.web_hosta/fr row2 promo_optout",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "6.web_hosta/fr confirmation says with banner",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "6./ad bot web_cloudivr fr → sendPhoto",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "6.web_cloudivr/fr caption mentions cloudivr.net",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "6.web_cloudivr/fr row1 URL https://cloudivr.net",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "6.web_cloudivr/fr row2 promo_optout",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "6.web_cloudivr/fr confirmation says with banner",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "6./ad web_cloudivr channel preview URL button https://cloudivr.net",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "6./ad web_cloudivr confirmation Button → https://cloudivr.net",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "6./ad web_hosta channel preview URL button https://hosta.sh",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "8.register → 201",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "8.exactly one admin alert",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "8.alert title with (preview)",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "8.alert email/name/method lines",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "8.alert web account 16-digit id",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "8.alert id matches register response",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "8.alert parse_mode HTML",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "8.duplicate register → 409",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "8.login → 200",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "8.no extra alert on 409/login",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "8.register html-name → 201",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "8.html name escaped",
+      "ok": true,
+      "detail": ""
+    }
+  ]
+}

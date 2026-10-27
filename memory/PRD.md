@@ -1,5 +1,22 @@
 # PRD — Nomadly Cloud IVR + Telegram Bot
 
+## 2026-10-27 (00:45Z) — Bot → CloudIVR web entry points + hosta.sh / cloudivr.net Telegram ads + admin alert on web sign-up — TESTED (iteration_157 60/60 + units), NOT DEPLOYED
+- Nomadly-only gating: `web-access.js cloudivrUrl()` = https://<CLOUDIVR_WEB_DOMAIN> when CLOUDIVR_WEB_ON=true (only app-main has the domain); hosta.sh via WEBSITE_URL (app-main only).
+  Other brands (Smadav/Proshop/Voodoo) show nothing new. Preview has neither key → hidden on preview (set both temporarily to test).
+- Cloud IVR + SIP hub + "How it works" keyboards: top row "🌐 Use CloudIVR on the web" (FR/ZH/HI) → invite card + inline URL button https://cloudivr.net (action untouched).
+  /start returning-user greeting + first-start welcome end with "📞 Cloud IVR on the web: cloudivr.net" (link, no preview).
+- Two new auto-promo themes (promo-copy, 4 langs): `web_hosta` (index 12, Fri morning) + `web_cloudivr` (index 13, Thu evening); replaced Thu antired_hosting
+  + Fri marketplace slots. URL buttons straight to the site (+ mute row), channel posts (/ad web_hosta|web_cloudivr, /ad post …) link the site, no bot coupon line
+  (separate web accounts). Cross-sell: cloudphone → web_cloudivr; domains/hosting/vps → web_hosta. Deep links /start open_web_hosta|open_web_cloudivr → invite card.
+- Banners with the REAL logos: js/assets/promo/nomadly/web_hosta.jpg (hosta.sh favicon tile from hosta.sh + wordmark) and web_cloudivr.jpg (parrot icon + CLOUDIVR
+  wordmark + real dashboard shot). Source HTML + renderer: scripts/promo-banners/{hosta,cloudivr}.html + `node scripts/promo-banners/render.js` (puppeteer-core + /usr/bin/chromium).
+- Admin alert: cloudivr-web/auth.js createAccount → notifyAdmin "🆕 New CloudIVR web sign-up" (email, escaped name, method Email+password/Google, country from
+  cf-ipcountry when present, referred-by, web account id; "(preview)" on dry-run). Only on new accounts (not duplicate/login).
+- Tests: js/tests/test_web_promos_signup_alert_2026-10.js 64/64, test_promo_pipeline 58/58, test_web_access 43/43, bot sandbox js/tests/bot_ui_web_promos_2026-10.js 60/60
+  (mock Telegram :5099 — needs TELEGRAM_API_BASE_URL + WEBSITE_URL + CLOUDIVR_WEB_DOMAIN in backend/.env temporarily; all removed again).
+- To check on prod after deploy: the "country:" line (preview ingress drops cf-ipcountry).
+
+
 ## 2026-10-27 (00:12Z) — Bulk IVR voicemail drop FIXED (greeting_end AMD) + cap/billing + "messages left" visibility — REAL CALL PASS, DEPLOYED
 - RCA (prod 10-22→26): AMD 'detect_beep' → Telnyx sent NO call.machine.* webhooks → 0 of 749 voicemail-drop leads got a message; calls hit the 60 s cap (61 s billed as 2 min).
 - voice-service.js: voicemail-drop campaigns dial with AMD `greeting_end` (env BULK_VM_AMD_MODE overrides); call.machine.greeting.ended WITHOUT a machine result

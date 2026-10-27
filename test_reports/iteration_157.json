@@ -1,0 +1,26 @@
+{
+  "summary": "Ran end-to-end sandbox tests of the Nomadly bot (fake webhook updates on :5000, replies read from the mock Telegram API on :5099) and the public CloudIVR web register/login API. New driver js/tests/bot_ui_web_promos_2026-10.js passed 60/60. 1) A returning user's /start greeting ends with '📞 <i>Cloud IVR on the web: <a href=\"https://cloudivr.net\">cloudivr.net</a></i>', is sent with disable_web_page_preview=true and has the main-menu keyboard. 2) A brand-new user goes /start → language picker → English and gets the 'What do you need today?' welcome with both the hosta.sh line and the cloudivr.net line. 3) In the Cloud IVR + SIP hub, the first row is a single '🌐 Use CloudIVR on the web' button (FR: '🌐 CloudIVR sur le web') and the other 9 rows are unchanged. 4) Tapping that button sends one invite (cloudivr.net, separate account, free sign-up) with one inline URL button to https://cloudivr.net. The reply keyboard is not replaced and the action stays submenu5. 'How It Works' still works afterwards and its keyboard also starts with the CloudIVR row. The FR version is translated. 5) 'Use on Web' still opens https://hosta.sh (regression OK). 6) Admin '/ad list' shows web_hosta and web_cloudivr. '/ad bot web_hosta|web_cloudivr' in en and fr each send a sendPhoto with the banner: caption mentions the host, row 1 is the URL button, row 2 is promo_optout. '/ad web_cloudivr' and '/ad web_hosta' channel previews have the right URL button. '/ad post' was not run. 7) The deep links '/start open_web_cloudivr' and '/start open_web_hosta' send the matching invite cards. 8) POST /api/cloudivr-web/auth/register returns 201 and sends exactly one admin sendMessage to 5590563715: '🆕 <b>New CloudIVR web sign-up</b> (preview)' with email, name, 'method: Email + password' and a 16-digit 'web account:' id that matches the response. A duplicate register (409) and a login (200) sent no extra alert. A name with HTML characters is escaped (&lt;b&gt;Evil&lt;/b&gt; &amp;). Unit suites re-run and passing: test_web_promos_signup_alert 62/62, test_web_access 43/43, test_promo_pipeline 58/58. Banners checked by eye: web_hosta.jpg (hosta tile logo + hosta.sh wordmark + terminal card) and web_cloudivr.jpg (parrot logo + CLOUDIVR wordmark + dashboard screenshot). Both are 1280x860, text is readable and nothing important is clipped (the dashboard runs off the right edge on purpose, as a perspective mock-up).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "auto-promo web_hosta / web_cloudivr captions", "issue": "Captions start with the bot's daily coupon ('🎁 TODAY 10% OFF — code NMD10H7MAX3'). The CTA opens a separate web account on hosta.sh or cloudivr.net. cloudivr.net numbers checkout does call numbersApi.checkCoupon, but I did not check whether the code works on hosta.sh. Also, the coupon line is in English even in the FR caption (this was already the case for all themes)."},
+      {"endpoint": "POST /api/cloudivr-web/auth/register", "issue": "Informational: a cf-ipcountry: DE header sent through the preview ingress did not produce a 'country:' line in the alert. Most likely the header is dropped outside Cloudflare, so expected in preview; this needs checking in production."}
+    ]
+  },
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": ["/app/js/tests/bot_ui_web_promos_2026-10.js", "/app/test_reports/bot_ui_web_promos_2026-10_results.json"],
+  "action_items": [
+    "Optional: decide whether the daily bot coupon line should appear on the web_hosta and web_cloudivr ads (the web accounts are separate). If not, pass couponLine=null for the web themes.",
+    "Remove the sandbox-only .env lines (TELEGRAM_API_BASE_URL etc.) and restart nodejs, as planned."
+  ],
+  "critical_code_review_comments": [
+    "web-access.js: CloudIVR gating (CLOUDIVR_WEB_ON=true plus CLOUDIVR_WEB_DOMAIN) is clean, and isCloudivrWebButton matches all 4 locale labels.",
+    "auth.js alertSignup is fire-and-forget inside try/catch and escapes email, name and country. If notifyAdmin is async and rejects, that rejection is not caught by the try/catch. Fine as long as notifyAdmin catches its own errors."
+  ],
+  "updated_files": ["/app/js/tests/bot_ui_web_promos_2026-10.js (new)"],
+  "success_rate": {"backend": "100% (60/60 E2E + 163/163 unit)", "frontend": "N/A (not requested)"},
+  "seed_data_creation": "Throwaway chat ids 990271001-004 plus the leftover 990270001 doc, and a temporary admin state doc (5590563715 had none before). All removed at the end. The 2 web accounts qa.alert<ts>@example.com and qa.alert<ts>h@example.com were deleted from webAccounts. webCounters seq was advanced by 2.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Driver: node js/tests/bot_ui_web_promos_2026-10.js. It needs the mock TG on :5099, nodejs started with TELEGRAM_API_BASE_URL=http://127.0.0.1:5099, and CLOUDIVR_WEB_ON=true, CLOUDIVR_WEB_DOMAIN=cloudivr.net, WEBSITE_URL=https://hosta.sh. A returning user needs firstSessionIntentDone/firstIntentReshown in state to get the normal greeting. The admin chat had no state doc, so the driver creates one temporarily."
+}

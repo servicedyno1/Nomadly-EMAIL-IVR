@@ -87,7 +87,7 @@ function renderPromo({ theme, lang = 'en', variation = 0, mode = 'hero', prices,
   const lines = (ai?.lines?.length === 3 ? ai.lines : c.lines(prices)).map(l => `• ${esc(l)}`)
   const price = c.price(prices)
   const parts = []
-  if (couponLine) parts.push(couponLine, '')
+  if (couponLine && !WEB_URL[theme]) parts.push(couponLine, '') // the bot's coupon is not valid on the separate web apps
   parts.push(`${meta.emoji} <b>${esc(hook)}</b>`, ...lines, `💰 ${esc(price)}`)
   if (footer) parts.push('', FOOTER[lang] || FOOTER.en)
   return {

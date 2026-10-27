@@ -56,8 +56,9 @@ const setEnv = (e) => { for (const k of Object.keys(NOMADLY)) delete process.env
     }
     const kb = pc.inlineKeyboard(theme, 'en', 'Open →')
     ok(`${theme}: in-bot button opens ${url} + mute row`, kb.inline_keyboard[0][0].url === url && kb.inline_keyboard[1][0].callback_data === 'promo_optout')
-    const post = pc.renderChannelPost({ theme, lang: 'en', prices, botUsername: 'Nomadlybot' })
+    const post = pc.renderChannelPost({ theme, lang: 'en', prices, botUsername: 'Nomadlybot', couponLine: '🎁 <b>TODAY 10% OFF</b>' })
     ok(`${theme}: channel post button opens ${url}`, post.url === url && post.reply_markup.inline_keyboard[0][0].url === url)
+    ok(`${theme}: no bot coupon line (separate web account)`, !post.text.includes('TODAY 10% OFF') && !pc.renderPromo({ theme, lang: 'en', prices, couponLine: '🎁 X' }).text.includes('🎁'))
   }
   const ap = fresh('../auto-promo.js')
   for (const [theme, logo] of [['web_hosta', 'hosta'], ['web_cloudivr', 'CloudIVR']]) {
