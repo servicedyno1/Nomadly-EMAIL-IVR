@@ -74,11 +74,11 @@ export default function SupportChat({ supportLink, visitor = false }) {
   return (
     <>
       <button type="button" onClick={() => setOpen(o => !o)} aria-label="Help assistant" data-testid="support-chat-toggle"
-        className={`fixed z-40 right-4 ${bottom} w-14 h-14 rounded-full ${visitor ? 'bg-[#0f172a] shadow-slate-900/25' : 'bg-[#6366f1] shadow-[#818cf8]/25'} text-white shadow-lg ${show} items-center justify-center hover:scale-105 transition-transform`}>
+        className={`fixed z-40 right-4 ${bottom} w-14 h-14 rounded-full ${visitor ? 'civr-visitor-fab bg-[#0f172a] shadow-slate-900/25' : 'bg-[#6366f1] shadow-[#818cf8]/25'} text-white shadow-lg ${show} items-center justify-center hover:scale-105 transition-transform`}>
         {open ? <X className="w-6 h-6" /> : <MessageCircleQuestion className="w-6 h-6" />}
       </button>
       {open && (
-        <div className={`fixed z-50 right-4 left-4 sm:left-auto sm:w-[400px] ${panelBottom} h-[min(560px,65vh)] civr-card !bg-[#0f0f0f] shadow-2xl shadow-black/60 flex flex-col civr-rise text-[#f3f4f6]`} data-testid="support-chat-panel">
+        <div className={`fixed z-50 right-4 left-4 sm:left-auto sm:w-[400px] ${panelBottom} ${visitor ? 'civr-visitor-panel' : ''} h-[min(560px,65vh)] civr-card !bg-[#0f0f0f] shadow-2xl shadow-black/60 flex flex-col civr-rise text-[#f3f4f6]`} data-testid="support-chat-panel">
           <div className="flex items-center gap-2 px-4 h-14 border-b border-[#262626]">
             <MessageCircleQuestion className={`w-5 h-5 ${visitor ? 'text-white' : 'text-[#818cf8]'}`} /><div className="font-semibold flex-1">Help assistant</div>
             {!visitor && <Link to={appPath('help')} onClick={() => setOpen(false)} className="p-2 rounded-lg text-[#a1a1aa] hover:text-white hover:bg-white/5" aria-label="Help center" title="Help center" data-testid="support-chat-help-link"><BookOpen className="w-4 h-4" /></Link>}

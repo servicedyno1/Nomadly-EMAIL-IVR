@@ -6,6 +6,7 @@ import { useCivrAuth } from '../../AuthContext';
 import { cp } from '../../paths';
 import { Slide } from './kit';
 import { HeroTabs } from './HeroTabs';
+import { HearIt } from './HearIt';
 import { useLang } from '../../i18n';
 
 // Whole-sentence titles so the highlighted word lands in the right place in every language.
@@ -29,10 +30,11 @@ export function Hero({ catalog }) {
           <Link to={account ? cp('/app/buy') : cp('/signup')} className="civr-l-pill civr-l-pill-ink" data-testid="civr-hero-cta-buy-btn"><Slide>Get your number</Slide><ArrowRight className="w-4 h-4" /></Link>
           <a href="#try" className="civr-l-pill civr-l-pill-outline" data-testid="civr-hero-cta-test-btn"><PhoneCall className="w-4 h-4" /><Slide>Try a free call</Slide></a>
         </div>
+        <HearIt className="max-w-2xl mx-auto mt-8 civr-rise civr-d3" />
         <div className="flex flex-wrap justify-center items-center gap-x-6 gap-y-2 mt-8 civr-rise civr-d4" data-testid="hero-microcopy">
           {trust.map(x => <span key={x} className="inline-flex items-center gap-2 text-sm text-slate-600"><Check className="w-4 h-4 text-slate-900" />{x}</span>)}
         </div>
-        <p className="text-sm text-slate-500 mt-4 civr-rise civr-d4" data-testid="hero-price-note">Free to sign up{from ? ` · Numbers from ${from}/month` : ''}</p>
+        <p className="text-sm text-slate-500 mt-4 civr-rise civr-d4" data-testid="hero-price-note">Free to sign up{from ? ` · Numbers from ${from}/month` : ''} · Pay with crypto or your wallet (cards coming soon)</p>
       </div>
       <HeroTabs />
     </section>

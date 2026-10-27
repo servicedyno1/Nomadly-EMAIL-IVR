@@ -2,24 +2,32 @@ import React from 'react';
 import { useApi } from '../api';
 import { Hero } from './landing/Hero';
 import { Coverage, HowItWorks, Facts, Statement } from './landing/Sections';
+import { UseCases } from './landing/UseCases';
 import { Platform } from './landing/Platform';
+import { Trust } from './landing/Trust';
 import { TryCall } from './landing/TryCall';
 import { Pricing, Faq, FinalCta, Footer } from './landing/PricingFaq';
 import { LandingNav } from './landing/Nav';
+import { StickyCta } from './landing/StickyCta';
+import { CATALOG_SNAPSHOT } from './landing/catalogSnapshot';
 import SupportChat from '../SupportChat';
 
 export { LANDING_LINKS } from './landing/Nav';
 
 export default function Landing() {
-  const { data: catalog } = useApi('/public/catalog');
+  // The bundled snapshot paints pricing, coverage and facts at once; the live catalogue replaces it when it answers.
+  const { data } = useApi('/public/catalog');
+  const catalog = data || CATALOG_SNAPSHOT;
   return (
-    <div className="civr-l" data-testid="landing-page">
+    <div className="civr-l" data-testid="landing-page" data-catalog={data ? 'live' : 'snapshot'}>
       <LandingNav catalog={catalog} />
       <main>
         <Hero catalog={catalog} />
         <Facts catalog={catalog} />
         <Statement />
+        <UseCases />
         <Platform catalog={catalog} />
+        <Trust />
         <TryCall />
         <Coverage catalog={catalog} />
         <HowItWorks catalog={catalog} />
@@ -28,6 +36,7 @@ export default function Landing() {
         <FinalCta catalog={catalog} />
       </main>
       <Footer catalog={catalog} />
+      <StickyCta />
       <SupportChat visitor supportLink={catalog?.supportLink} />
     </div>
   );

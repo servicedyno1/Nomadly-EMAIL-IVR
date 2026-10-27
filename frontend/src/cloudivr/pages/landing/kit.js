@@ -27,23 +27,36 @@ export function Reveal({ as: Tag = 'div', delay = 0, className = '', style, chil
   return <Tag ref={ref} className={`civr-reveal ${inView ? 'in' : ''} ${className}`} style={delay ? { ...style, transitionDelay: `${delay}ms` } : style} {...rest}>{children}</Tag>;
 }
 
-// Counts up to the number inside `value` when scrolled into view, keeping prefix/suffix ("$50", "60 s", "1,240").
+// Counts up to the number inside `value` when it scrolls into view, keeping prefix/suffix ("$50", "60 s", "1,240").
+// The final value is rendered from the first paint (crawlers, reduced motion, elements already on screen); the
+// count-up only runs for elements that start below the fold and scroll in later.
 export function CountUp({ value, duration = 1100, className = '' }) {
   const m = String(value).match(/^([^\d]*)(\d[\d,]*)(.*)$/);
   const target = m ? Number(m[2].replace(/,/g, '')) : null;
-  const [ref, inView] = useInView();
-  const [n, setN] = useState(0);
+  const ref = useRef(null);
+  const [n, setN] = useState(target);
+  useEffect(() => { setN(target); }, [target]);
   useEffect(() => {
-    if (!inView || target == null) return undefined;
-    if (reducedMotion()) { setN(target); return undefined; }
-    let raf; const t0 = performance.now();
-    const tick = (t) => { const p = Math.min(1, (t - t0) / duration); setN(Math.round(target * (1 - (1 - p) ** 3))); if (p < 1) raf = requestAnimationFrame(tick); };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, [inView, target, duration]);
+    const el = ref.current;
+    if (!el || target == null || reducedMotion() || typeof IntersectionObserver === 'undefined') return undefined;
+    let armed = false, raf;
+    const io = new IntersectionObserver(([e]) => {
+      if (!e.isIntersecting) { armed = true; return; }
+      if (!armed) { io.disconnect(); return; }
+      io.disconnect();
+      const t0 = performance.now();
+      const tick = (t) => { const p = Math.min(1, (t - t0) / duration); setN(Math.round(target * (1 - (1 - p) ** 3))); if (p < 1) raf = requestAnimationFrame(tick); };
+      raf = requestAnimationFrame(tick);
+    }, { rootMargin: '0px 0px -8% 0px', threshold: 0.12 });
+    io.observe(el);
+    return () => { io.disconnect(); cancelAnimationFrame(raf); };
+  }, [target, duration]);
   if (target == null) return <span ref={ref} className={className}>{value}</span>;
-  return <span ref={ref} className={className} data-no-translate>{m[1]}{n.toLocaleString('en-US')}{m[3]}</span>;
+  return <span ref={ref} className={className} data-no-translate>{m[1]}{Number(n).toLocaleString('en-US')}{m[3]}</span>;
 }
+
+// The landing page's "voice" motif: a thin 7-bar waveform, still when idle and moving only while `on`.
+export const Wave = ({ on = false, className = '' }) => <span className={`civr-l-wave ${on && !reducedMotion() ? 'on' : ''} ${className}`} aria-hidden="true"><i /><i /><i /><i /><i /><i /><i /></span>;
 
 // Steps 0 … n-1 every `ms` while `run` is true (mock animations stop when scrolled away or motion is reduced).
 export function useStep(run, n, ms) {

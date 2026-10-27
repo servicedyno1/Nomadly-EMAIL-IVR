@@ -1,7 +1,8 @@
 import React from 'react';
-import { UserPlus, Hash, Wallet, Globe2, Timer, Tag, Languages, Clock3, Coins, ArrowRight } from 'lucide-react';
+import { UserPlus, Hash, Wallet, Globe2, Timer, Tag, Languages, Clock3, Coins, ArrowRight, BadgeCheck } from 'lucide-react';
 import { SectionHead, coinList, planBadge, Reveal, CountUp } from './kit';
 import { startPrice } from '../../api';
+import { Proof } from './Proof';
 
 export { coinList, andList, planBadge } from './kit';
 
@@ -29,6 +30,7 @@ export function Facts({ catalog }) {
             </Reveal>
           ))}
         </div>
+        <Proof />
       </div>
     </section>
   );
@@ -53,18 +55,22 @@ export function Statement() {
 export function Coverage({ catalog }) {
   const list = catalog?.countries || [];
   const tn = catalog?.typeNames || {};
+  const instant = list.filter(c => !c.verify).length;
   return (
     <section id="coverage" className="civr-l-cream scroll-mt-16" data-testid="coverage-section">
       <div className="max-w-7xl mx-auto px-6 md:px-8 py-24">
         <div className="grid lg:grid-cols-12 gap-8 items-end">
-          <div className="lg:col-span-8"><SectionHead label="Coverage" title={`Local presence in ${list.length || 17} countries.`} sub="Local, mobile and toll-free numbers your customers recognise — and pick up. Most go live in about a minute; a few countries ask for a quick ID check first." /></div>
+          <div className="lg:col-span-8"><SectionHead label="Coverage" title={`Local presence in ${list.length || 17} countries.`} sub={`Local, mobile and toll-free numbers your customers recognise — and pick up. ${instant ? `${instant} ${instant === 1 ? 'country goes' : 'countries go'} live in about a minute;` : 'Most go live in about a minute;'} the rest ask for contact details or an ID first (carrier review: usually hours, up to 3 business days, full refund if declined).`} /></div>
           <p className="lg:col-span-4 text-sm civr-l-muted lg:text-right">Voice and SIP on every number · SMS on most</p>
         </div>
         <div className="mt-12 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4" data-testid="coverage-grid">
           {list.map((c, i) => (
             <Reveal key={c.code} delay={Math.min(i, 11) * 50} className="civr-l-card-cream px-4 py-4 min-w-0" data-testid={`coverage-${c.code}`}>
               <div className="flex items-center gap-3 min-w-0"><span className="text-2xl leading-none">{c.flag}</span><span className="font-semibold text-slate-900 truncate">{c.name}</span></div>
-              <div className="text-xs civr-l-muted mt-2 truncate">{c.types.map(t => tn[t] || t).join(' · ')}</div>
+              <div className="flex items-center justify-between gap-2 mt-2 min-w-0">
+                <span className="text-xs civr-l-muted truncate">{c.types.map(t => tn[t] || t).join(' · ')}</span>
+                <span className={`shrink-0 inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider ${c.verify ? 'text-amber-700' : 'text-emerald-700'}`} title={c.verify ? 'Contact details or an ID are collected before the number goes live' : 'No paperwork — live in about a minute'} data-testid={`coverage-${c.code}-${c.verify ? 'idcheck' : 'instant'}`}>{c.verify ? <><BadgeCheck className="w-3 h-3" />ID check</> : 'Instant'}</span>
+              </div>
             </Reveal>
           ))}
         </div>

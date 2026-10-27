@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { ChevronRight, X } from 'lucide-react';
-import { BRAND } from './Brand';
+import { ChevronRight, Cookie, X } from 'lucide-react';
 import { OPTIONAL, readConsent, saveConsent, onOpenCookieSettings } from './consent';
 
 const GROUPS = [
@@ -12,31 +11,37 @@ const GROUPS = [
 
 function Switch({ id, label, on, locked, onChange }) {
   return (
-    <label className="inline-flex items-center gap-3 cursor-pointer select-none" data-testid={`cookie-${id}-switch`}>
+    <label className="inline-flex items-center gap-3 cursor-pointer select-none min-h-[44px]" data-testid={`cookie-${id}-switch`}>
       <span className="text-[15px] font-semibold text-slate-900">{label}</span>
       <button type="button" role="switch" aria-checked={on} aria-label={label} disabled={locked} onClick={() => onChange(!on)} data-testid={`cookie-${id}-toggle`}
-        className={`relative w-12 h-7 rounded-full transition-colors duration-200 ${on ? 'bg-[#0f172a]' : 'bg-slate-800'} ${locked ? 'opacity-70 cursor-not-allowed' : ''}`}>
+        className={`relative w-12 h-7 rounded-full transition-colors duration-200 ${on ? 'bg-[#0f172a]' : 'bg-slate-400'} ${locked ? 'opacity-70 cursor-not-allowed' : ''}`}>
         <span className={`absolute top-1 left-1 w-5 h-5 rounded-full bg-white shadow transition-transform duration-200 ${on ? 'translate-x-5' : ''}`} />
       </button>
     </label>
   );
 }
 
-function Details() {
-  return (
-    <dl className="grid sm:grid-cols-2 gap-x-8 gap-y-3 pt-4 text-sm text-slate-600" data-testid="cookie-details">
-      {GROUPS.map(([id, label, text]) => <div key={id}><dt className="font-semibold text-slate-900">{label}</dt><dd className="mt-0.5 leading-relaxed">{text}</dd></div>)}
-    </dl>
-  );
-}
+const btn = 'h-11 px-4 rounded-full text-sm font-semibold transition-colors duration-200 whitespace-nowrap';
 
-function Buttons({ choose, pick }) {
-  const cls = 'h-12 w-full rounded-lg text-[15px] font-bold transition-colors duration-200';
+// Compact single-line consent bar; "Manage" opens the full choice panel (toggles + what each group does).
+function Manage({ pick, setPick, choose, onBack }) {
+  const [more, setMore] = useState(false);
   return (
-    <div className="flex flex-col gap-2.5 lg:w-64 shrink-0">
-      <button type="button" className={`${cls} bg-[#0f172a] text-white hover:bg-black`} onClick={() => choose({ preferences: true, statistics: true, marketing: true })} data-testid="cookie-allow-all">Allow all</button>
-      <button type="button" className={`${cls} border-2 border-[#0f172a] text-slate-900 hover:bg-slate-100`} onClick={() => choose(pick)} data-testid="cookie-allow-selection">Allow selection</button>
-      <button type="button" className={`${cls} border-2 border-[#0f172a] text-slate-900 hover:bg-slate-100`} onClick={() => choose({})} data-testid="cookie-deny">Deny</button>
+    <div className="p-5 sm:p-6" data-testid="cookie-manage">
+      <div className="flex items-start justify-between gap-4">
+        <div><h2 id="civr-cookie-title" className="text-lg font-bold text-slate-900" data-testid="cookie-title">Cookie settings</h2><p className="mt-2 text-sm text-slate-600 leading-relaxed" data-testid="cookie-text">We use cookies and similar storage to keep you signed in and secure, remember your choices, and — only if you allow it — measure how the site is used and credit the friend who invited you. We don’t sell your data or show ads.</p></div>
+        <button type="button" onClick={onBack} className="w-10 h-10 shrink-0 rounded-full flex items-center justify-center text-slate-500 hover:bg-slate-100 hover:text-slate-900 transition-colors" aria-label="Back" data-testid="cookie-manage-back"><X className="w-5 h-5" /></button>
+      </div>
+      <div className="mt-4 flex flex-wrap items-center gap-x-8 gap-y-1">
+        {GROUPS.map(([id, label]) => <Switch key={id} id={id} label={label} on={id === 'necessary' || !!pick[id]} locked={id === 'necessary'} onChange={v => setPick(p => ({ ...p, [id]: v }))} />)}
+        <button type="button" onClick={() => setMore(m => !m)} aria-expanded={more} className="ml-auto inline-flex items-center gap-1 min-h-[44px] text-sm font-semibold text-[#0f172a] hover:underline" data-testid="cookie-details-toggle">{more ? 'Hide details' : 'Show details'}<ChevronRight className={`w-4 h-4 transition-transform duration-200 ${more ? 'rotate-90' : ''}`} /></button>
+      </div>
+      {more && <dl className="grid sm:grid-cols-2 gap-x-8 gap-y-3 pt-4 text-sm text-slate-600" data-testid="cookie-details">{GROUPS.map(([id, label, text]) => <div key={id}><dt className="font-semibold text-slate-900">{label}</dt><dd className="mt-0.5 leading-relaxed">{text}</dd></div>)}</dl>}
+      <div className="mt-5 pt-4 border-t border-slate-200 flex flex-wrap gap-2 justify-end">
+        <button type="button" className={`${btn} border border-slate-300 text-slate-900 hover:bg-slate-100`} onClick={() => choose({})} data-testid="cookie-deny">Deny</button>
+        <button type="button" className={`${btn} border border-slate-300 text-slate-900 hover:bg-slate-100`} onClick={() => choose(pick)} data-testid="cookie-allow-selection">Allow selection</button>
+        <button type="button" className={`${btn} bg-[#0f172a] text-white hover:bg-black`} onClick={() => choose({ preferences: true, statistics: true, marketing: true })} data-testid="cookie-allow-all">Allow all</button>
+      </div>
     </div>
   );
 }
@@ -44,27 +49,24 @@ function Buttons({ choose, pick }) {
 export function CookieBanner() {
   const [open, setOpen] = useState(() => !readConsent());
   const [pick, setPick] = useState(() => Object.fromEntries(OPTIONAL.map(k => [k, !!readConsent()?.[k]])));
-  const [more, setMore] = useState(false);
-  useEffect(() => onOpenCookieSettings(() => { setPick(Object.fromEntries(OPTIONAL.map(k => [k, !!readConsent()?.[k]]))); setOpen(true); }), []);
+  const [manage, setManage] = useState(false);
+  useEffect(() => onOpenCookieSettings(() => { setPick(Object.fromEntries(OPTIONAL.map(k => [k, !!readConsent()?.[k]]))); setManage(true); setOpen(true); }), []);
   if (!open) return null;
-  const choose = (c) => { saveConsent(c); setOpen(false); };
+  const choose = (c) => { saveConsent(c); setOpen(false); setManage(false); };
   return (
-    <div className="fixed inset-x-0 bottom-0 z-[90] p-2 sm:p-4 pointer-events-none" data-testid="cookie-banner">
-      <section role="dialog" aria-labelledby="civr-cookie-title" className="civr-rise pointer-events-auto relative mx-auto max-w-7xl max-h-[85vh] overflow-y-auto rounded-2xl bg-white text-slate-700 shadow-[0_-8px_40px_-8px_rgba(15,23,42,.35)] border border-slate-200 p-5 sm:p-8" style={{ fontFamily: "'DM Sans', sans-serif" }}>
-        <button type="button" onClick={() => choose({})} className="absolute top-3 right-3 w-10 h-10 rounded-full flex items-center justify-center text-slate-500 hover:bg-slate-100 hover:text-slate-900 transition-colors" aria-label="Close — only necessary cookies" title="Close — only necessary cookies" data-testid="cookie-close"><X className="w-5 h-5" /></button>
-        <div className="flex flex-col lg:flex-row gap-6 lg:gap-10">
-          <img src={BRAND.icon} alt="" aria-hidden="true" className="hidden lg:block w-24 h-24 self-center rounded-2xl" />
-          <div className="flex-1 min-w-0 pr-8 lg:pr-0">
-            <h2 id="civr-cookie-title" className="text-lg font-bold text-slate-900" data-testid="cookie-title">This website uses cookies</h2>
-            <p className="mt-3 text-[15px] leading-relaxed" data-testid="cookie-text">We use cookies and similar storage to keep you signed in and secure, remember your choices, and — only if you allow it — measure how the site is used and credit the friend who invited you. We don’t sell your data or show ads.</p>
+    <div className="civr-l-cookiebar fixed inset-x-0 bottom-0 z-[90] p-2 sm:p-4 pointer-events-none" data-testid="cookie-banner">
+      <section role="dialog" aria-labelledby="civr-cookie-title" aria-describedby="civr-cookie-text" className={`civr-rise civr-l-cookie pointer-events-auto mx-auto text-slate-700 max-h-[85vh] overflow-y-auto ${manage ? 'max-w-3xl' : 'max-w-4xl'}`} style={{ fontFamily: "'DM Sans', sans-serif" }}>
+        {manage ? <Manage pick={pick} setPick={setPick} choose={choose} onBack={() => setManage(false)} /> : (
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 px-4 py-3 sm:px-5" data-testid="cookie-compact">
+            <Cookie className="w-5 h-5 text-slate-900 shrink-0 hidden sm:block" aria-hidden="true" />
+            <p id="civr-cookie-text" className="text-sm text-slate-700 leading-snug flex-1 min-w-0" data-testid="cookie-text"><span id="civr-cookie-title" className="font-semibold text-slate-900">Cookies:</span> sign-in and security always; analytics and referral credit only if you allow them. No ads, no data sales.</p>
+            <div className="flex items-center gap-2 shrink-0">
+              <button type="button" onClick={() => setManage(true)} className={`${btn} text-slate-900 hover:bg-slate-100`} data-testid="cookie-manage-btn">Manage</button>
+              <button type="button" onClick={() => choose({})} className={`${btn} border border-slate-300 text-slate-900 hover:bg-slate-100`} data-testid="cookie-deny">Deny</button>
+              <button type="button" onClick={() => choose({ preferences: true, statistics: true, marketing: true })} className={`${btn} bg-[#0f172a] text-white hover:bg-black flex-1 sm:flex-none`} data-testid="cookie-allow-all">Allow all</button>
+            </div>
           </div>
-          <Buttons choose={choose} pick={pick} />
-        </div>
-        <div className="mt-6 pt-5 border-t border-slate-200 flex flex-wrap items-center gap-x-8 gap-y-4">
-          {GROUPS.map(([id, label]) => <Switch key={id} id={id} label={label} on={id === 'necessary' || !!pick[id]} locked={id === 'necessary'} onChange={v => setPick(p => ({ ...p, [id]: v }))} />)}
-          <button type="button" onClick={() => setMore(m => !m)} aria-expanded={more} className="ml-auto inline-flex items-center gap-1 text-[15px] font-semibold text-[#0f172a] hover:underline" data-testid="cookie-details-toggle">{more ? 'Hide details' : 'Show details'}<ChevronRight className={`w-4 h-4 transition-transform duration-200 ${more ? 'rotate-90' : ''}`} /></button>
-        </div>
-        {more && <Details />}
+        )}
       </section>
     </div>
   );

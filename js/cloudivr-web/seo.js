@@ -57,6 +57,20 @@ function cat() {
 
 const startPrice = (c) => (c && c.plans && c.plans.length ? Math.min(...c.plans.map((p) => Number(p.price) || 0)) : null)
 const plansWith = (c, key) => (c && c.plans ? c.plans.filter((p) => p.access && p.access[key]).map((p) => p.name) : [])
+const verifyCountries = () => { try { return require('./numbers').countries().filter((c) => c.verify).map((c) => c.name) } catch (_) { return [] } }
+
+// Objection FAQs — what the platform does today when things don't go to plan. Shared with the landing page copy.
+function objectionFaqs() {
+  const v = verifyCountries()
+  return [
+    ['What happens if the AI agent can’t help?',
+      'It never pretends to be human and never asks for card numbers, passwords or one-time codes. When a caller wants a person, the agent transfers the call to the number you set — or, if you have not set one, offers to take a message with a name, callback number and the message, which lands in your inbox. On a keypad menu, callers can always reach voicemail. Anyone who asks not to be called again is removed from the list and the call ends politely.'],
+    ['Which countries need an ID check and how long does it take?',
+      `US, Canada, Puerto Rico and Colombia numbers go live in about a minute. ${v.length ? `${andList(v)} ask` : 'Some countries ask'} for contact details, an address and sometimes an ID before the number activates — telecom regulation, not us. You pay first and the number is held for you while you fill in the details (about 2 minutes); the carrier then reviews them, usually within a few hours and up to 3 business days. Your plan starts when the number is active, and you get a full refund if it is not approved.`],
+    ['Do you scrub numbers or enforce quiet hours?',
+      'Your do-not-call list is enforced on every campaign — Bulk IVR and AI agent, web and Telegram bot: numbers on it are never dialed and never billed. We do not check public Do-Not-Call registries for you and we do not enforce quiet hours automatically: you schedule each campaign, set a daily call limit and repeat it daily or weekly, and you are responsible for calling only people who have agreed to hear from you, at reasonable hours where they live.'],
+  ]
+}
 
 // ── Marketing facts (single source for head, noscript, llms.txt) ─────────────
 const FEATURES = [
@@ -109,6 +123,7 @@ function faqs() {
         : 'Numbers are available across the US, Canada and many international countries, including local, mobile and toll-free numbers.'],
     ['Can I put several numbers on one plan?',
       `Yes. Add extra numbers from ${extra}/month each; they share the plan's minutes and SMS and get the same features.`],
+    ...objectionFaqs(),
     ['Is this the same account as the Telegram bot?',
       'No. CloudIVR web accounts are separate from any Telegram bot account — sign up here with your email.'],
   ]
@@ -439,7 +454,7 @@ function llmsFullTxt() {
   const lines = []
   lines.push(`# ${BRAND} — full overview`, '', `> ${tagline()}`, '')
   lines.push(`## What ${BRAND} is`,
-    `${BRAND} turns a virtual phone number into a complete cloud phone system that you set up and run from your web browser — no hardware and no app to install. It is aimed at businesses and individuals who want a professional phone presence: an auto-attendant keypad menu or an AI voice agent to answer calls, call forwarding, voicemail, an SMS inbox, call recording, and automated outbound calls and campaigns. Accounts are paid by card or crypto, or from a prepaid wallet.`, '')
+    `${BRAND} turns a virtual phone number into a complete cloud phone system that you set up and run from your web browser — no hardware and no app to install. It is aimed at businesses and individuals who want a professional phone presence: an auto-attendant keypad menu or an AI voice agent to answer calls, call forwarding, voicemail, an SMS inbox, call recording, and automated outbound calls and campaigns. Accounts are paid with crypto or from a prepaid wallet; card payments are coming soon.`, '')
   lines.push('## Features')
   FEATURES.forEach(([t, d]) => lines.push(`- **${t}** — ${d}`))
   lines.push('')
@@ -491,5 +506,5 @@ module.exports = {
   CANONICAL, DOMAIN, OG_IMAGE,
   injectIndex, headTags, bodyNoscript,
   robotsTxt, llmsTxt, llmsFullTxt, sitemapXml,
-  faqs, sipFaqs, tagline, // exported for tests
+  faqs, sipFaqs, tagline, objectionFaqs, // exported for tests
 }

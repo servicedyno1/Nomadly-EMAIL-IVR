@@ -47,7 +47,8 @@ function countries() {
   const intl = phoneConfig.isTelnyxIntlEnabled() ? [...phoneConfig.telnyxIntlCountries, ...phoneConfig.telnyxIntlMore] : []
   return [...phoneConfig.countries, ...intl].filter(c => c.provider === 'telnyx').map(c => {
     const i = c.name.indexOf(' ')
-    return { code: c.code, flag: c.name.slice(0, i), name: c.name.slice(i + 1), types: c.types || ['local', 'toll_free'] }
+    // verify = the carrier collects contact details / an ID before the number goes live (telnyx-regulatory.js).
+    return { code: c.code, flag: c.name.slice(0, i), name: c.name.slice(i + 1), types: c.types || ['local', 'toll_free'], verify: !!c.verify }
   })
 }
 
@@ -89,6 +90,9 @@ function recommendedPlan() {
   return [want, 'pro', 'business', 'starter'].find(id => phoneConfig.plans[id] && phoneConfig.isPlanAvailable(id)) || null
 }
 
+// US/Canada per-minute rate for outgoing calls (browser phone, softphone, Quick IVR, campaigns); other countries use the forwarding rate.
+const outboundRate = () => { try { return require('../voice-service').IVR_CALL_RATE } catch (_) { return parseFloat(process.env.BULK_CALL_RATE_PER_MIN || '0.15') } }
+
 const catalog = () => {
   const rec = recommendedPlan()
   return {
@@ -96,8 +100,10 @@ const catalog = () => {
     recommendedPlan: rec,
     voicemailLanguages: vmGreeting.publicLangs(),
     countries: countries(), typeNames: TYPE_NAMES,
-    rates: { forwardingPerMin: phoneConfig.CALL_FORWARDING_RATE_MIN, overagePerMin: phoneConfig.OVERAGE_RATE_MIN, overagePerSms: phoneConfig.OVERAGE_RATE_SMS, aiAgentPerMin: require('../ai-agent').RATE(), aiSummaryPerMin: require('./ai-summary').RATE() },
+    rates: { forwardingPerMin: phoneConfig.CALL_FORWARDING_RATE_MIN, overagePerMin: phoneConfig.OVERAGE_RATE_MIN, overagePerSms: phoneConfig.OVERAGE_RATE_SMS, aiAgentPerMin: require('../ai-agent').RATE(), aiSummaryPerMin: require('./ai-summary').RATE(), outboundPerMinUsCa: outboundRate(), outboundPerMinIntl: phoneConfig.CALL_FORWARDING_RATE_MIN },
     sipDomain: phoneConfig.WEB_SIP_DOMAIN, dryRun: dryRun(), livePayments: livePayments(),
+    // Cards show as "coming soon" on the site until this is true (the checkout's card option is still disabled too).
+    cardPayments: String(process.env.CLOUDIVR_CARD_PAYMENTS || '').toLowerCase() === 'true',
     extraNumber: { price: phoneConfig.SUB_NUMBER_BASE_PRICE, limits: Object.fromEntries(Object.keys(phoneConfig.plans).map(id => [id, phoneConfig.getSubNumberLimit(id)])) },
   }
 }

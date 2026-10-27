@@ -8,6 +8,7 @@ import { Wordmark } from '../../Brand';
 import { SectionHead, Slide, coinList, andList, Reveal } from './kit';
 import { PlanFeatures, RecommendedBadge } from '../../PlanFeatures';
 import { PaymentMethods } from './Payments';
+import { PlanCompare, UsageRates } from './PlanTable';
 import { openCookieSettings } from '../../consent';
 import { PRODUCTS, USE_CASES, goTo, hrefOf } from './menu';
 
@@ -41,7 +42,9 @@ export function Pricing({ catalog }) {
             {`Extra usage is paid from your wallet: incoming minutes over your plan ${money(r.overagePerMin)}/min, SMS over your plan ${money(r.overagePerSms)} each, calls forwarded to a phone ${money(r.forwardingPerMin)}/min. Outgoing calls — browser phone, softphone, IVR and AI agent calls — are billed per minute from your wallet and show their price before you start. Extra numbers cost from ${usd(catalog?.extraNumber?.price || 25)}/month each and share the plan's minutes and SMS.`}
           </p>
         )}
-        <PaymentMethods catalog={catalog} className="mt-10 pt-8 border-t civr-l-rule" testid="pricing-payment-methods" />
+        <PlanCompare catalog={catalog} start={start} />
+        <UsageRates catalog={catalog} />
+        <PaymentMethods catalog={catalog} className="mt-12 pt-8 border-t civr-l-rule" testid="pricing-payment-methods" />
       </div>
     </section>
   );
@@ -54,10 +57,12 @@ export function faqItems(c) {
   const on = (k, d) => andList((c?.plans || []).filter(p => p.access?.[k]).map(p => p.name)) || d;
   const ivr = on('ivr', 'Pro and Business'), out = on('ivrOutbound', 'Pro and Business');
   const ex = c?.extraNumber;
+  const verify = (c?.countries || []).filter(x => x.verify).map(x => x.name);
+  const instant = (c?.countries || []).filter(x => !x.verify).map(x => x.name);
   return [
     ['Can I try it before I pay?', 'Yes, twice. Without an account: confirm your email with a 6-digit code and take one free test call of up to 60 seconds — we ring your phone with a demo menu, or you call from your browser. After you sign up: place one free Quick IVR call from our number — it plays your script to anyone you choose, then connects them to you when they press 1 or collects a code you accept or decline.'],
     ['Is the account really free?', `Yes. Creating an account costs nothing. You only pay when you buy a number${from ? ` (from ${from}/month)` : ''}, plus any extra usage.`],
-    ['How do I pay?', `By credit or debit card, with crypto (${coinList(c) || 'BTC, ETH, USDT and more'}), or from your CloudIVR wallet (top-ups from ${usd(c?.minTopup || 10)}). Renewals and calls are paid from the wallet. Card payments are being switched on — until then they show as “coming soon” in the app.`],
+    ['How do I pay?', `With crypto (${coinList(c) || 'BTC, ETH, USDT and more'}) or from your CloudIVR wallet (top-ups from ${usd(c?.minTopup || 10)}). Renewals and calls are paid from the wallet. Card payments are coming soon — until they are switched on, cards show as “coming soon” here and at checkout.`],
     ['What does each plan include?', `Starter gives you a number with call forwarding, the SMS inbox and the browser phone — make and take calls in any browser tab. Pro adds the keypad menu, voicemail, SIP logins for desk phones and softphone apps, call recording, ring groups, Quick IVR calls, Bulk IVR campaigns and code collection. Business adds AI voice agents, text calls, Text Triggers, Quick IVR scheduling and saved presets, redial, your own accept / decline messages for codes, one saved voice for every call and priority support.`],
     ['What’s the difference between the keypad menu and Quick or Bulk IVR?', `They work in opposite directions. The keypad menu answers people who call your number: they hear your greeting and press a key to reach the right person, a message or voicemail (${ivr}). Quick IVR and Bulk IVR call people for you: they hear your message, then press a key to reach you, type a code or pick an option — Quick IVR for up to 10 numbers at once, Bulk IVR campaigns for a whole list (${out}).`],
     ['What’s the difference between the keypad menu and an AI voice agent?', `The keypad menu plays your greeting and callers press a key to reach the right person, message or voicemail — it uses your plan minutes. An AI voice agent talks with callers instead: it answers questions, books appointments and takes messages, billed ${money(r?.aiAgentPerMin ?? 0.2)}/min from your wallet. Each number uses one or the other.`],
@@ -65,6 +70,9 @@ export function faqItems(c) {
     ['Are outgoing calls included in my minutes?', 'No. Plan minutes cover incoming calls you answer. Outgoing calls — browser phone, softphone, Quick IVR, campaigns and AI agent calls — and forwarded calls are billed per minute from your wallet, and the price shows before you call.'],
     ...(ex ? [['Can I put several numbers on one plan?', `Yes. Add extra numbers to a main number from ${usd(ex.price)}/month each — up to ${ex.limits.starter} on Starter, ${ex.limits.pro} on Pro and ${ex.limits.business} on Business. They share its minutes and SMS and get the same features.`]] : []),
     ['Can I cancel?', 'Yes. Plans are month to month. Auto-renew is on by default so your number never lapses — turn it off in the number’s Billing tab and it simply won’t renew, or delete the number any time.'],
+    ['What happens if the AI agent can’t help?', 'It never pretends to be human and never asks for card numbers, passwords or one-time codes. When a caller wants a person, the agent transfers the call to the number you set — or, if you haven’t set one, offers to take a message with a name, callback number and the message, which lands in your inbox. On a keypad menu, callers can always reach voicemail. Anyone who asks not to be called again is removed from the list and the call ends politely.'],
+    ['Which countries need an ID check and how long does it take?', `${instant.length ? `${andList(instant)} numbers go live in about a minute.` : 'Most numbers go live in about a minute.'} ${verify.length ? `${andList(verify)} ask` : 'Some countries ask'} for contact details, an address and sometimes an ID before the number activates — telecom regulation, not us. You pay first and the number is held for you while you fill in the details (about 2 minutes); the carrier then reviews them, usually within a few hours and up to 3 business days. Your plan starts when the number is active, and you get a full refund if it isn’t approved.`],
+    ['Do you scrub numbers or enforce quiet hours?', 'Your do-not-call list is enforced on every campaign — Bulk IVR and AI agent, web and Telegram bot: numbers on it are never dialed and never billed. We don’t check public Do-Not-Call registries for you and we don’t enforce quiet hours automatically: you schedule each campaign, set a daily call limit and repeat it daily or weekly, and you’re responsible for calling only people who have agreed to hear from you, at reasonable hours where they live.'],
     ['Is this the same account as the Telegram bot?', 'No. CloudIVR web accounts are separate from Telegram bot accounts, so sign up here with your email.'],
   ];
 }
