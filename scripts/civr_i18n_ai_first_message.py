@@ -2,12 +2,12 @@
 import json
 T = {
 'Example first message: “Hi {lead_name|there}, this is {name} from {business}. You asked about solar panels last week, do you have a minute?”': (
-  'Exemple de premier message : « Bonjour {lead_name}, ici {name} de {business}. Vous vous êtes renseigné sur les panneaux solaires la semaine dernière, avez-vous une minute ? »',
-  'Ejemplo de primer mensaje: “Hola {lead_name}, soy {name} de {business}. La semana pasada pidió información sobre paneles solares, ¿tiene un minuto?”'),
+  'Exemple de premier message : « Bonjour {lead_name|à vous}, ici {name} de {business}. Vous vous êtes renseigné sur les panneaux solaires la semaine dernière, avez-vous une minute ? »',
+  'Ejemplo de primer mensaje: “Hola {lead_name|qué tal}, soy {name} de {business}. La semana pasada pidió información sobre paneles solares, ¿tiene un minuto?”'),
 'First message (optional)': ('Premier message (facultatif)', 'Primer mensaje (opcional)'),
 'Hi {lead_name|there}, this is {name} from {business}. Do you have a minute?': (
-  'Bonjour {lead_name}, ici {name} de {business}. Avez-vous une minute ?',
-  'Hola {lead_name}, soy {name} de {business}. ¿Tiene un minuto?'),
+  'Bonjour {lead_name|à vous}, ici {name} de {business}. Avez-vous une minute ?',
+  'Hola {lead_name|qué tal}, soy {name} de {business}. ¿Tiene un minuto?'),
 'How to write a script that sounds natural': ('Comment écrire un script qui sonne naturel', 'Cómo escribir un guion que suene natural'),
 'Keep it short and ask one question at a time': ('Restez bref et posez une question à la fois', 'Sé breve y haz una pregunta a la vez'),
 'Lead without a name:': ('Contact sans nom :', 'Contacto sin nombre:'),
@@ -46,12 +46,12 @@ T = {
 'When it answers your number': ('Quand il répond à votre numéro', 'Cuando contesta tu número'),
 'When it calls a lead (sample name “{0}”)': ('Quand il appelle un contact (nom d’exemple « {0} »)', 'Cuando llama a un contacto (nombre de ejemplo “{0}”)'),
 'Write goals and rules, not a word-for-word speech': ('Écrivez des objectifs et des règles, pas un discours mot à mot', 'Escribe objetivos y reglas, no un discurso palabra por palabra'),
-'You play the lead “Alex”. Say “Hello?” first — the agent waits for you, like on a real call.': (
-  'Vous jouez le contact « Alex ». Dites d’abord « Allô ? » : l’agent vous attend, comme lors d’un vrai appel.',
-  'Tú haces de contacto “Alex”. Di primero “¿Diga?”: el agente te espera, como en una llamada real.'),
-'You play the lead “Alex”. The agent speaks first, like when someone picks up.': (
-  'Vous jouez le contact « Alex ». L’agent parle en premier, comme quand quelqu’un décroche.',
-  'Tú haces de contacto “Alex”. El agente habla primero, como cuando alguien contesta.'),
+'You play the lead “Alex”. Say “Hello?” first — the agent waits for you, like on a real call. Tests use the saved settings.': (
+  'Vous jouez le contact « Alex ». Dites d’abord « Allô ? » : l’agent vous attend, comme lors d’un vrai appel. Les tests utilisent les réglages enregistrés.',
+  'Tú haces de contacto “Alex”. Di primero “¿Diga?”: el agente te espera, como en una llamada real. Las pruebas usan la configuración guardada.'),
+'You play the lead “Alex”. The agent speaks first, like when someone picks up. Tests use the saved settings.': (
+  'Vous jouez le contact « Alex ». L’agent parle en premier, comme quand quelqu’un décroche. Les tests utilisent les réglages enregistrés.',
+  'Tú haces de contacto “Alex”. El agente habla primero, como cuando alguien contesta. Las pruebas usan la configuración guardada.'),
 }
 # Appends only the keys that are missing (keeps the file's existing order and lines). Safe to re-run.
 for i, lang in enumerate(('fr', 'es')):

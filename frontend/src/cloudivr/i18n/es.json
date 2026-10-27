@@ -3421,9 +3421,9 @@
 "{0} messages left": "{0} mensajes dejados",
 "{0} message left": "{0} mensaje dejado",
 "Played when an answering machine picks up, right after its greeting ends. Calls end just before 1 minute unless the person is connected to you — a voicemail message that has started always plays to the end.": "Se reproduce cuando contesta un buzón de voz, justo después de que termine su saludo. Las llamadas terminan justo antes de 1 minuto salvo que la persona se conecte contigo — un mensaje de voz que ya empezó siempre se reproduce completo.",
-"Example first message: “Hi {lead_name|there}, this is {name} from {business}. You asked about solar panels last week, do you have a minute?”": "Ejemplo de primer mensaje: “Hola {lead_name}, soy {name} de {business}. La semana pasada pidió información sobre paneles solares, ¿tiene un minuto?”",
+"Example first message: “Hi {lead_name|there}, this is {name} from {business}. You asked about solar panels last week, do you have a minute?”": "Ejemplo de primer mensaje: “Hola {lead_name|qué tal}, soy {name} de {business}. La semana pasada pidió información sobre paneles solares, ¿tiene un minuto?”",
 "First message (optional)": "Primer mensaje (opcional)",
-"Hi {lead_name|there}, this is {name} from {business}. Do you have a minute?": "Hola {lead_name}, soy {name} de {business}. ¿Tiene un minuto?",
+"Hi {lead_name|there}, this is {name} from {business}. Do you have a minute?": "Hola {lead_name|qué tal}, soy {name} de {business}. ¿Tiene un minuto?",
 "How to write a script that sounds natural": "Cómo escribir un guion que suene natural",
 "Keep it short and ask one question at a time": "Sé breve y haz una pregunta a la vez",
 "Lead without a name: “{0}”": "Contacto sin nombre: “{0}”",
@@ -3444,7 +3444,7 @@
 "When it answers your number": "Cuando contesta tu número",
 "When it calls a lead (sample name “{0}”)": "Cuando llama a un contacto (nombre de ejemplo “{0}”)",
 "Write goals and rules, not a word-for-word speech": "Escribe objetivos y reglas, no un discurso palabra por palabra",
-"You play the lead “Alex”. Say “Hello?” first — the agent waits for you, like on a real call.": "Tú haces de contacto “Alex”. Di primero “¿Diga?”: el agente te espera, como en una llamada real.",
-"You play the lead “Alex”. The agent speaks first, like when someone picks up.": "Tú haces de contacto “Alex”. El agente habla primero, como cuando alguien contesta.",
-"Lead without a name:": "Contacto sin nombre:"
+"Lead without a name:": "Contacto sin nombre:",
+"You play the lead “Alex”. Say “Hello?” first — the agent waits for you, like on a real call. Tests use the saved settings.": "Tú haces de contacto “Alex”. Di primero “¿Diga?”: el agente te espera, como en una llamada real. Las pruebas usan la configuración guardada.",
+"You play the lead “Alex”. The agent speaks first, like when someone picks up. Tests use the saved settings.": "Tú haces de contacto “Alex”. El agente habla primero, como cuando alguien contesta. Las pruebas usan la configuración guardada."
 }

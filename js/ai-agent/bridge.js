@@ -174,6 +174,9 @@ class Bridge {
         this.rec?.addAgent(e.delta)
         break
       case 'input_audio_buffer.speech_started':
+        // Waiting for "Hello?": the person is talking → hold the 4 s fallback; speech_stopped opens the call
+        // (a long safety timer still opens it if the end of speech is never detected).
+        if (this.waitHello && !this.opened) { clearTimeout(this.helloTimer); this.helloTimer = setTimeout(() => this.open('long hello'), 10000); break }
         // Caller talks over the agent: stop playback and cut the agent's turn to what was heard.
         if (this.interruptible && !this.ending && this.item) {
           this.toPhone({ event: 'clear' })

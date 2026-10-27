@@ -1,0 +1,35 @@
+{
+  "summary": "Tested the CloudIVR AI agent 'First message' / 'Wait for hello' / opening preview / script guide work. Backend pytest 13/13 passed (CRUD of firstMessage+waitForHello, defaults, no screening/review fields, opening-preview cases a-h, auth required, AI campaign 201 DRY RUN). Node unit tests 13/13 passed (fill/stripNotes/openingInfo/prepare, instructions() has '# How the call started' with exact opening + 'never greet or introduce yourself again', goal has [PAUSE] removed and [Client Full Name]/[First Name] -> Alex, no 'screen' module). text-triggers.js, bulk-call-service.js, campaign-live.js, ai-agent/* load cleanly. Live OpenAI Realtime test talks (3 short runs, ~55 s total): waitForHello:false -> opening spoken first, the next turn did not greet or introduce again; waitForHello:true + 6 s silence -> agent silent, then opening once after ~4 s ('[AIAgent] opening after no hello' logged); waitForHello:true + short 1.2 s 'Hi...' at 0.5 s -> 'opening after hello' logged, opening once. Frontend: the new form fields, toggle, live preview (updates about 1 s after typing, record toggle adds and removes 'This call may be recorded.'), no-name line, added-note, 5 guide tips + example, save + reload keeps both values, Test talk outbound note depends on waitForHello, FR/ES labels translated while the preview sentences stay in English (data-no-translate). No 'In review'/'Blocked'/'safety review' text on the agents list, agent form, campaign new (AI picker) or campaign detail.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "js/ai-agent/bridge.js Bridge (waitForHello)", "issue": "The 4 s hello fallback timer is not paused when the person starts talking (input_audio_buffer.speech_started). If the lead starts speaking before 4 s and is still talking at 4 s, the agent starts the opening over them. Reproduced: caller audio of 4.85 s starting at 0.5 s -> log shows 'opening after no hello' while the caller was still speaking. Fix: in case 'input_audio_buffer.speech_started', if (this.waitHello && !this.opened) clearTimeout(this.helloTimer) (and optionally set a longer safety timer), so speech_stopped opens the call."},
+      {"endpoint": "OpenAI Realtime behaviour (instructions)", "issue": "In one waitForHello run the second agent turn began 'Hi, Alex. Thank you for asking...'. This is a short greeting back after the caller said 'Hi', not a second self-introduction. In another run, with empty FAQs, the model said 'We are open on Saturdays', which is an invented fact (older model-compliance issue, not caused by this change)."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {"flow": "Test talk outbound note", "issue": "ai-test-outbound-note reads the saved agent.waitForHello, so it shows the wrong text after the toggle is changed but not saved yet. Minor.", "affected_selectors": ["[data-testid='ai-test-outbound-note']"]}
+    ],
+    "design_issues": [
+      {"screen": "Agent form script guide (FR/ES)", "issues": ["The translated example first message drops the fallback syntax: FR 'Bonjour {lead_name}, ici {name}...' and ES 'Hola {lead_name}, soy {name}...', while the English is 'Hi {lead_name|there}, ...'. Keep a fallback, e.g. {lead_name|à vous} / {lead_name|qué tal}, or at least {lead_name|...}, in fr.json/es.json key 'Example first message: ...'."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_ai_agent_first_message.py", "/app/backend/tests/test_ai_opening_unit.js", "/app/backend/tests/ws_live.sh", "/app/test_reports/pytest/ai_first_message.xml"],
+  "action_items": [
+    "bridge.js: clear or extend helloTimer on input_audio_buffer.speech_started while waiting for hello, so the agent never opens over a lead who is talking",
+    "fr.json/es.json: keep the {lead_name|fallback} form in the translated script-guide example",
+    "Optional: make the TestTalk outbound note follow the unsaved waitForHello value, or say 'save to apply'"
+  ],
+  "critical_code_review_comments": [
+    "bridge.js helloTimer only opens the call on speech_stopped or after 4 s. There is no handling of speech_started, which causes the overlap described above.",
+    "opening-preview: the inbound preview of a lead-oriented first message turns into 'May I speak with the right person?'. That is correct by design but reads oddly for inbound calls. Consider a hint that {lead_name} is empty on inbound calls."
+  ],
+  "updated_files": ["/app/backend/tests/test_ai_agent_first_message.py", "/app/backend/tests/test_ai_opening_unit.js", "/app/backend/tests/ws_live.sh"],
+  "success_rate": {"backend": "100% (26/26 automated), live WS 3/3 with 1 timing edge case", "frontend": "100% of requested checks (1 minor i18n content issue)"},
+  "seed_data_creation": "Temporary TEST_ agents were created and deleted. One TEST_Camp AI campaign (e0946a7e...) was created by pytest (DRY RUN) and cancelled. Test talk agents were created and deleted by ws_live.sh.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run: REACT_APP_BACKEND_URL=... pytest backend/tests/test_ai_agent_first_message.py; node backend/tests/test_ai_opening_unit.js; live: bash backend/tests/ws_live.sh <true|false> <secs> (env AUD=<ulaw file>, WSJS=<ws client> to vary the caller audio timing; a 1.2 s clip at /tmp/hello.ulaw was cut from q.ulaw with ffmpeg). Header language picker: data-testid topbar-lang-switcher (button text English/Français). The test talk daily cap is 15 min; about 1 min was used."
+}
