@@ -1,5 +1,18 @@
 # PRD — Nomadly Cloud IVR + Telegram Bot
 
+## 2026-10-27 (09:20Z) — cloudivr.net share preview (logo card + "Reach out" text) + Google button flicker FIXED — TESTED (iteration_158 100%), NOT DEPLOYED
+- Share preview: new 1200x630 JPEG card frontend/public/civr/brand/og-share.jpg (45 KB, parrot icon logo + CLOUDIVR wordmark + "Quick IVR & Bulk IVR campaigns" + cloudivr.net,
+  centred so WhatsApp's square crop keeps the logo). Source scripts/promo-banners/cloudivr-share.html → `node scripts/promo-banners/render.js`.
+  seo.js: OG_IMAGE → og-share.jpg (+ og:image:secure_url, og:image:type image/jpeg); home og:description + twitter:description = SHARE_DESC
+  "Reach out: Quick IVR and Bulk IVR campaigns call your list, play your message, connect interested leads and collect codes." (meta description for Google unchanged).
+  Old og-cover.png was 724 KB PNG (too big for WhatsApp). Telegram caches previews → after deploy send https://cloudivr.net to @WebpageBot to refresh.
+- Google button: RCA = GoogleButton returned null until /auth/config answered, then GSI script loaded → button + OR divider popped in and pushed the form ~51 px.
+  Fix: pages/auth/GoogleButton.js reserves the 40 px row + divider from first paint with a pixel-matched "Continue with Google" pill (#202124, 320x40, radius 20)
+  that fades out when Google's iframe loads; AuthContext caches the public config in localStorage 'civr.authConfig' (loaded flag); hidden when no client id
+  or the GSI script fails; seo.js preconnects + preloads https://accounts.google.com/gsi/client on /login and /signup only.
+- Preview has no GOOGLE_OAUTH_CLIENT_ID (set temporarily for the test, removed again).
+
+
 ## 2026-10-27 (00:45Z) — Bot → CloudIVR web entry points + hosta.sh / cloudivr.net Telegram ads + admin alert on web sign-up — TESTED (iteration_157 60/60 + units), NOT DEPLOYED
 - Nomadly-only gating: `web-access.js cloudivrUrl()` = https://<CLOUDIVR_WEB_DOMAIN> when CLOUDIVR_WEB_ON=true (only app-main has the domain); hosta.sh via WEBSITE_URL (app-main only).
   Other brands (Smadav/Proshop/Voodoo) show nothing new. Preview has neither key → hidden on preview (set both temporarily to test).

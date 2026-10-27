@@ -1,0 +1,24 @@
+{
+  "summary": "Verified the CloudIVR auth Google-button layout-shift fix (BUG 2) and the OG share image/meta (BUG 1). On /cloudivr/login and /cloudivr/signup, desktop 1920x800 and mobile 390x844, fresh (civr.authConfig removed) and repeat visits, the email input was sampled every animation frame for 3 s. In every run [data-testid=google-signin-button] (40 px) plus the OR divider and the placeholder pill (opacity 1) were present from the very first frame. The email input moved only through the smooth civr-rise animation: 14 px in total, at most 1.7 px per frame, settling within about 500 ms. There was never a ~50 px jump. data-ready flipped to true at about 500-900 ms and the placeholder faded to opacity 0 with pointer-events none. Clicking the Google button fired a popup page event. On the preview it lands on Google's origin_mismatch error page, because the preview origin is not an authorised JS origin for the client id. Email login with Alice reached /cloudivr/app. The sign-up form shows name/email/password, and the language switcher is present. og-share.jpg returns 200 image/jpeg, 1200x630, 44,955 bytes, and visually shows the parrot logo, the CLOUDIVR wordmark, 'Quick IVR & Bulk IVR campaigns' and cloudivr.net. The node SEO unit test passed 8/8.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": ["/app/js/tests/test_cloudivr_seo_2026-09.js"],
+  "action_items": [
+    "None blocking. Remember to remove the temporary GOOGLE_OAUTH_CLIENT_ID from backend/.env on the preview as planned."
+  ],
+  "critical_code_review_comments": [
+    "GoogleButton.useIframeReady: ready depends only on the iframe 'load' event. If that event fires before the listener is attached (very fast or cached load), ready stays false. The real button wrapper then stays at opacity 0 forever: it is still clickable through the placeholder, but it is not Google's real rendering. Consider a fallback such as setTimeout(setReady, 2500), or checking iframe.contentWindow/readyState when hooking. Also disconnect the MutationObserver once ready.",
+    "On preview the GSI button iframe returns 403 (origin not allowed) and stays 0x0, but 'load' still fires, so ready=true and GSI's in-page HTML button (role=button, 320x40) is what shows and gets clicked. This is fine, just noting it: on prod the iframe should be the 320x40 overlay.",
+    "First-ever visit to a deployment with NO Google client id: the placeholder and OR are shown until /auth/config answers, then removed, which shifts the form up about 50 px once. This is the expected trade-off. Repeat visits use the cache and have no shift. Read from code (config.loaded && !clientId -> null), not exercised, since .env was not edited."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A", "frontend": "100%"},
+  "seed_data_creation": "none",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Frame sampling used add_init_script with a requestAnimationFrame loop recording [data-testid=auth-email-input] top, google-signin-button data-ready and placeholder opacity. Login emailY 420.8->406.8 on desktop and 440.8->426.8 on mobile; signup 464.6->450.6 on desktop and 466.5->452.5 on mobile. Dismiss the cookie banner with [data-testid=cookie-deny]. Google popup on the preview = origin_mismatch (expected)."
+}
