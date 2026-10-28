@@ -1,4 +1,3 @@
-const nodemailer = require('nodemailer')
 require('dotenv').config()
 
 // NOTE: DigitalOcean blocks outbound SMTP ports 25/465/587 on droplets; Brevo's
@@ -7,7 +6,8 @@ require('dotenv').config()
 // whole provisioning flow for ~2 min (2026-09 incident: 587 blocked → creds email
 // stalled the cPanel provision job).
 const MAIL_PORT = Number(process.env.MAIL_PORT) || 2525
-const transporter = nodemailer.createTransport({
+// Routed through js/mailer.js (MailerSend for verified sender domains; this SMTP relay otherwise / as fallback).
+const transporter = require('./mailer').transport({
   host: process.env.MAIL_DOMAIN,
   port: MAIL_PORT,
   secure: MAIL_PORT === 465,

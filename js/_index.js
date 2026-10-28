@@ -19259,7 +19259,7 @@ ${message.replace(/\n/g, '<br>')}
       return send(chatId,
         `📧 <b>Send Test Email</b>\n\n` +
         `Enter your email address to receive a test copy.\n` +
-        `The test will be sent via Brevo so you can preview how it looks in your inbox.\n\n` +
+        `The test will be sent so you can preview how it looks in your inbox.\n\n` +
         `📩 Type your email address:`,
         { parse_mode: 'HTML', reply_markup: { keyboard: [['↩️ Back']], resize_keyboard: true } }
       )
@@ -19401,7 +19401,7 @@ ${message.replace(/\n/g, '<br>')}
     return send(chatId, trans('t.vps_7', priceNGN.toLocaleString(), price, campaign.totalEmails), trans('payBank', url))
   }
 
-  // ━━━ Email Blast: Test Email via Brevo ━━━
+  // ━━━ Email Blast: Test Email (js/mailer.js) ━━━
   if (action === a.ebTestEmail) {
     if (isBackPress(message)) {
       await set(state, chatId, 'action', a.ebPreview)
@@ -19444,8 +19444,8 @@ ${message.replace(/\n/g, '<br>')}
     await send(chatId, trans('t.vps_9', testAddr), { parse_mode: 'HTML' })
 
     try {
-      const nodemailer = require('nodemailer')
-      const brevoTransporter = nodemailer.createTransport({
+      // js/mailer.js: MailerSend when the sender's domain is verified there, else the Brevo SMTP relay.
+      const brevoTransporter = require('./mailer').transport({
         host: process.env.MAIL_DOMAIN || 'smtp-relay.brevo.com',
         port: parseInt(process.env.MAIL_PORT || '587'),
         secure: false,
@@ -19489,7 +19489,7 @@ ${message.replace(/\n/g, '<br>')}
         ], resize_keyboard: true } }
       )
     } catch (err) {
-      console.log('[EmailBlast] Test email via Brevo failed:', err.message)
+      console.log('[EmailBlast] Test email failed:', err.message)
       return send(chatId,
         `❌ <b>Test email failed</b>\n\n` +
         `Error: ${err.message}\n\n` +

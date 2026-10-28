@@ -51,9 +51,9 @@ async function forwardSmsToTelegram(bot, chatId, from, to, body) {
   }
 }
 
-// ── Forward SMS to Email via Brevo ──
+// ── Forward SMS to Email (js/mailer.js: MailerSend for verified sender domains, else Brevo) ──
 async function forwardSmsToEmail(toEmail, from, to, body, web = false) {
-  if (!BREVO_API_KEY || !toEmail) return
+  if ((!BREVO_API_KEY && !process.env.MAILERSEND_API_TOKEN) || !toEmail) return
   const own = web && process.env.CLOUDIVR_MAIL_SENDER
   const sender = own ? { name: 'CloudIVR', email: own } : { name: (process.env.CHAT_BOT_BRAND || 'Nomadly') + ' Cloud Phone', email: MAIL_SENDER }
 
@@ -75,20 +75,10 @@ async function forwardSmsToEmail(toEmail, from, to, body, web = false) {
     </div>`
 
   try {
-    await axios.post('https://api.brevo.com/v3/smtp/email', {
-      sender,
-      to: [{ email: toEmail }],
-      subject: subject,
-      htmlContent: htmlContent,
-    }, {
-      headers: {
-        'api-key': BREVO_API_KEY,
-        'Content-Type': 'application/json',
-      }
-    })
-    log(`SMS forwarded to email=${toEmail} from=${from}`)
+    const r = await require('./mailer').send({ from: sender, to: toEmail, subject, html: htmlContent })
+    log(`SMS forwarded to email=${toEmail} from=${from} via ${r.provider}`)
   } catch (e) {
-    log('forwardSmsToEmail Brevo error:', e.response?.data || e.message)
+    log('forwardSmsToEmail error:', e.provider || '', e.status || '', e.message)
   }
 }
 
