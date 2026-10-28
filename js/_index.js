@@ -208,6 +208,19 @@ const _twilioBilledCallSids = new Set()
 setInterval(() => _twilioBilledCallSids.clear(), 30 * 60 * 1000)
 
 // Health check endpoints - respond immediately
+// Site icon for every brand domain (root + panel): browsers, Google and email tools such as MailerSend fetch
+// /favicon.ico from the domain root to show the brand's logo. Served from assets/brand/<brand>/ (registered on
+// earlyApp so the link shortener's /:id route can't swallow it).
+earlyApp.get(['/favicon.ico', '/favicon.png', '/apple-touch-icon.png', '/apple-touch-icon-precomposed.png'], (req, res, next) => {
+  let slug
+  try { slug = require('./sms-app-brand.js').brandSlug() } catch (_) { return next() }
+  const dir = require('path').join(__dirname, 'assets', 'brand', slug)
+  const p = ['icon.png', 'mark.png', 'logo.png'].map(f => require('path').join(dir, f)).find(f => require('fs').existsSync(f))
+  if (!p) return next()
+  res.type('png')
+  res.setHeader('Cache-Control', 'public, max-age=86400')
+  res.sendFile(p)
+})
 earlyApp.get('/', (req, res) => {
   // On panel domain, serve the React SPA so the panel storefront/login renders (not the greeting).
   // Robust to operators setting PANEL_DOMAIN with a trailing slash or path (e.g.
