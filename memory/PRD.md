@@ -1677,3 +1677,13 @@ calls and SIP are simulated; inbound calls use a pretend-call simulator).
 - ⚠️ Preview BREVO_API_KEY (different value from prod) is disabled in Brevo ("API Key is not enabled") → preview CloudIVR emails
   fail until the key is replaced (asked via secrets card). Also: priv.host is NOT authenticated in the Dynopay Brevo account.
 - PENDING (owner): "Save to GitHub" (main) or the next CI deploy drops both of today's releases.
+
+## 2026-06 — Light email design + bot welcome emails — TESTED ON PREVIEW, NOT DEPLOYED
+- All CloudIVR emails (cloudivr-web/email-layout.js) now use the light "Sample 1" card: logo above, white card with an accent bar,
+  tinted eyebrow pill, ink title, tinted step numbers. layout() also takes `brand` {name, logo, href} for white-label senders; tone() accepts {fg,bg}.
+- Bots (all 4 brands): new optional "Add your email" step right after a new user picks a language (Skip → intent picker as before).
+  Saves accountEmail + lastOrderEmail (prefills hosting checkout). js/bot-welcome-email.js sends one branded welcome email (brand name,
+  /assets/brand/<slug>/logo.png on PANEL_DOMAIN, brands.json accent, bot link, APP_SUPPORT_LINK) the first time a user gives an email
+  (join step OR hosting checkout). state.welcomeEmailSentTo dedupes; reset on send failure so it retries.
+- Verified: sim flow (mock Telegram), cloudivr email tests 38/38, real MailerSend send from hosting@hostbay.io accepted, logos 200 on all 4 domains.
+- Prod MAIL_SENDER per brand: hosting@hostbay.io / smadavhost.com / voodoohost.xyz / proshophost.xyz (all MailerSend-verified).

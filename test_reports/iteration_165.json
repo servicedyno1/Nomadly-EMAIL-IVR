@@ -1,0 +1,28 @@
+{
+  "summary": "LIVE read-only verification of the panel-on-root-domain move + brand favicons. Per domain -- hostbay.io: panel UI YES (Nomadly 'Anti-Red Hosting' storefront, Sign-in nav; no bot dashboard / shortener), logo OK, favicon OK (=nomadly/mark.png), redirect OK. smadavhost.com: panel UI YES (Smadav storefront; Sign in opens login form with id/secret inputs + Telegram QR), logo OK (/brand/logo|mark|wordmark.png all 200 image/png), favicon OK (=smadav/mark.png, decodes 1024x1024), redirect OK. voodoohost.xyz: panel UI YES (Voodoo Land storefront), logo OK, favicon OK (=voodooland/mark.png), redirect OK. proshophost.xyz: panel UI YES (PROSHOP storefront), logo OK, favicon OK (=proshop/icon.png), redirect OK. /favicon.ico, /favicon.png, /apple-touch-icon.png = 200 image/png on all 4, all 4 md5s distinct and match js/assets/brand/<brand>. Old panel hosts (panel.2.hostbay.io, 1.panel.smadavhost.com, panel.voodoohost.xyz, panel.proshophost.xyz) and www.<root> -> 301 to https://<root>/<same path+query>; http -> 301 https. Let's Encrypt certs valid on apex+www (SAN both, expire Jan 2027). cpanel-api / whm-api.hostbay.io -> 200 cPanel HTML (untouched). Preview: /cloudivr loads fine; /api/favicon.ico = 200 image/png (Nomadly mark, md5 match) and /api/brand/mark.png 200, BUT root-path /favicon.ico and /brand/mark.png on the preview URL return 200 text/html (CRA SPA index) because preview ingress sends non-/api paths to the React dev server (port 3000), not Node.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {"flow": "Preview regression: GET <preview>/favicon.ico and /brand/mark.png", "issue": "Return 200 text/html (SPA index.html from CRA dev server), not image/png. Node (port 5000) serves them correctly (local curl 5000 -> image/png) and via /api prefix. Preview-only routing artefact; production unaffected. frontend/public has no favicon.ico.", "affected_selectors": []}
+    ],
+    "design_issues": [
+      {"screen": "All roots", "issues": ["favicon is the full 1024x1024 mark PNG (45-102KB) served as /favicon.ico; works but heavy - consider a 32/48/180px variant", "index.html has no <link rel=icon>; browsers/MailerSend rely on /favicon.ico fallback (works)"]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_panel_root_domains_live.py", "/app/test_reports/pytest/panel_root_live.xml"],
+  "action_items": [
+    "Optional: if the preview root /favicon.ico must be an image, add frontend/public/favicon.ico (Nomadly mark) or proxy /favicon.ico + /brand/* in setupProxy - currently only reachable at /api/favicon.ico in preview",
+    "Optional: ship small favicon sizes and add <link rel='icon'>/<link rel='apple-touch-icon'> to index.html"
+  ],
+  "critical_code_review_comments": [
+    "js/_index.js favicon route uses sync fs.existsSync on every request (3 checks) - cheap but could be memoized per process since brand slug is fixed",
+    "frontend/src/App.js PANEL_DOMAIN falls back to 'panel.hostbay.io' default; host.startsWith('panel.') still matches old hosts (harmless since nginx 301s them)"
+  ],
+  "updated_files": ["/app/backend/tests/test_panel_root_domains_live.py"],
+  "success_rate": {"backend": "N/A (skipped)", "frontend": "~95% (all live checks pass; preview root /favicon.ico not image)"},
+  "seed_data_creation": "None",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Live read-only suite: REACT_APP_BACKEND_URL=... pytest /app/backend/tests/test_panel_root_domains_live.py (12 tests, all pass). No logins/forms submitted. Preview routes non-/api to CRA dev server, so Node-only routes (/favicon.ico, /brand/*) need /api prefix in preview."
+}

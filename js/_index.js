@@ -9950,6 +9950,35 @@ bot?.on('message', msg => {
   // Adds a one-line value prop + a first-deposit-bonus tip, and is RESILIENT:
   // any send failure falls back to the full main menu so the user is NEVER
   // left without a keyboard. Returns true on success, false if it fell back.
+  // Optional email on join + one-time branded welcome email (first email the user gives: join step or hosting checkout).
+  const JOIN_EMAIL_SKIP = { en: '⏭ Skip for now', fr: '⏭ Passer pour l’instant', zh: '⏭ 暂时跳过', hi: '⏭ अभी छोड़ें' }
+  const maybeSendWelcomeEmail = async (email) => {
+    if (!isValidEmail(email || '') || info?.welcomeEmailSentTo) return
+    if (info) info.welcomeEmailSentTo = email
+    await set(state, chatId, 'welcomeEmailSentTo', email)
+    await set(state, chatId, 'welcomeEmailSentAt', new Date())
+    require('./bot-welcome-email.js').sendBotWelcome(email, { name: msg?.from?.first_name, lang: info?.userLanguage })
+      .then(() => log(`[WelcomeEmail] sent to ${email} (chatId=${chatId})`))
+      .catch(async e => {
+        log(`[WelcomeEmail] failed for chatId=${chatId}: ${e.message}`)
+        if (info) info.welcomeEmailSentTo = null
+        await set(state, chatId, 'welcomeEmailSentTo', null).catch(() => {})
+      })
+  }
+  const askJoinEmail = async (lang) => {
+    const _l = lang || info?.userLanguage || 'en'
+    const q = ({
+      en: '📧 <b>Add your email</b> (optional)\n\nWe’ll send your receipts, hosting logins and important account notices there — plus a short welcome guide.\n\nType your email below, or tap Skip.',
+      fr: '📧 <b>Ajoutez votre e-mail</b> (facultatif)\n\nNous y enverrons vos reçus, identifiants d’hébergement et avis importants — plus un petit guide de bienvenue.\n\nTapez votre e-mail ci-dessous, ou touchez Passer.',
+      zh: '📧 <b>添加您的邮箱</b>（可选）\n\n我们会将收据、主机登录信息和重要账户通知发送到该邮箱 — 以及一份简短的欢迎指南。\n\n请在下方输入邮箱，或点击跳过。',
+      hi: '📧 <b>अपना ईमेल जोड़ें</b> (वैकल्पिक)\n\nहम वहाँ आपकी रसीदें, होस्टिंग लॉगिन और ज़रूरी खाता सूचनाएँ भेजेंगे — साथ में एक छोटी वेलकम गाइड।\n\nनीचे अपना ईमेल लिखें, या छोड़ें टैप करें।',
+    })
+    try {
+      await bot.sendMessage(chatId, q[_l] || q.en, { parse_mode: 'HTML', reply_markup: { keyboard: [[JOIN_EMAIL_SKIP[_l] || JOIN_EMAIL_SKIP.en]], resize_keyboard: true } })
+      await set(state, chatId, 'action', a.joinEmail)
+    } catch (e) { await showFirstSessionIntent(_l) }
+  }
+
   const showFirstSessionIntent = async (lang) => {
     const _l = lang || info?.userLanguage || 'en'
     const depBonus = (userConversion && userConversion.FIRST_DEPOSIT_BONUS_USD) || 5
@@ -10009,6 +10038,7 @@ bot?.on('message', msg => {
     useExistingDomain: 'useExistingDomain',
     useExistingDomainFound: 'useExistingDomainFound',
     firstSessionIntent: 'firstSessionIntent',
+    joinEmail: 'joinEmail',
     useMyDomain: 'useMyDomain',
     selectMyDomain: 'selectMyDomain',
     connectExternalDomain: 'connectExternalDomain',
@@ -16012,7 +16042,7 @@ All verified numbers generated during sourcing.`))
       // never left keyboard-less). A short delay lets the $5 welcome-bonus
       // message land first; when no bonus message was shown, fire almost
       // immediately so there's no dead gap after the language pick.
-      setTimeout(() => { showFirstSessionIntent(validLanguage).catch(() => {}) }, welcomeBonusShown ? 1200 : 300)
+      setTimeout(() => { askJoinEmail(validLanguage).catch(() => {}) }, welcomeBonusShown ? 1200 : 300)
 
       return
     } catch (e) { /* non-critical — fall through to normal menu */ }
@@ -16022,6 +16052,26 @@ All verified numbers generated during sourcing.`))
     send(chatId, greeting, trans('o'))
     await maybeSendTrialNudge(chatId, validLanguage || 'en')
     return
+  }
+
+  if (action === a.joinEmail) {
+    const _l = info?.userLanguage || 'en'
+    const typed = String(message || '').trim()
+    if (isValidEmail(typed)) {
+      await set(state, chatId, 'accountEmail', typed)
+      await set(state, chatId, 'lastOrderEmail', typed)
+      info.lastOrderEmail = typed
+      await maybeSendWelcomeEmail(typed)
+      const ok = ({ en: `✅ Saved. A welcome email is on its way to <b>${typed}</b>.`, fr: `✅ Enregistré. Un e-mail de bienvenue arrive à <b>${typed}</b>.`, zh: `✅ 已保存。欢迎邮件正发送至 <b>${typed}</b>。`, hi: `✅ सेव हो गया। वेलकम ईमेल <b>${typed}</b> पर भेजा जा रहा है।` })[_l]
+      await bot.sendMessage(chatId, ok || `✅ Saved: <b>${typed}</b>`, { parse_mode: 'HTML' }).catch(() => {})
+      return showFirstSessionIntent(_l)
+    }
+    if (typed.includes('@') && !Object.values(JOIN_EMAIL_SKIP).includes(typed)) {
+      const bad = ({ en: '⚠️ That doesn’t look like an email. Try again (e.g. name@gmail.com), or tap Skip.', fr: '⚠️ Cela ne ressemble pas à un e-mail. Réessayez (ex. nom@gmail.com), ou touchez Passer.', zh: '⚠️ 这看起来不像邮箱。请重试（例如 name@gmail.com），或点击跳过。', hi: '⚠️ यह ईमेल जैसा नहीं लगता। फिर कोशिश करें (जैसे name@gmail.com), या छोड़ें टैप करें।' })[_l]
+      return bot.sendMessage(chatId, bad || '⚠️ Invalid email — try again or tap Skip.', { reply_markup: { keyboard: [[JOIN_EMAIL_SKIP[_l] || JOIN_EMAIL_SKIP.en]], resize_keyboard: true } }).catch(() => {})
+    }
+    // Skip, or anything else → carry on to the intent picker (never stuck).
+    return showFirstSessionIntent(_l)
   }
 
   // First-session intent funnel routing (audit #17) — set once after language selection. The
@@ -16348,6 +16398,7 @@ All verified numbers generated during sourcing.`))
     }
     await saveInfo('email', email)
     await saveInfo('lastOrderEmail', email)
+    maybeSendWelcomeEmail(email).catch(() => {})
     return goto.proceedWithEmail(info.website_name, info.price)
   }
 
