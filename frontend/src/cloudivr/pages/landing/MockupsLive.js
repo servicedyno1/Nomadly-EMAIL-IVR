@@ -175,3 +175,27 @@ export function TextCallMock() {
     </MockFrame>
   );
 }
+
+const LANDLINE = [['in', 'Hi, is this the dental office on Main St?'], ['out', 'Yes! This is Sunrise Dental. How can we help?'], ['in', 'Can I move my cleaning to Friday?'], ['out', 'Done — Friday 2:30 pm. See you then.']];
+
+// The office landline gets texts: an "enabled" badge, then the thread fills in.
+export function LandlineTextMock() {
+  const [ref, inView] = useInView({ once: false });
+  const step = useStep(inView, LANDLINE.length + 3, 1200);
+  const on = step >= 1;
+  const shown = Math.max(0, Math.min(LANDLINE.length, step - 1));
+  return (
+    <MockFrame url="cloudivr.net/app/texting" testid="feature-hosted-mock">
+      <div className="p-4 min-h-[12rem]" ref={ref}>
+        <div className="flex items-center justify-between gap-2">
+          <span className="flex items-center gap-2 text-xs font-semibold"><Building2 className="w-3.5 h-3.5" />Office landline · +1 312 555 0100</span>
+          <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full transition-colors ${on ? 'bg-emerald-500/15 text-emerald-400' : 'bg-white/5 text-[#a1a1aa]'}`}>{on ? 'Texting on' : 'Calls only'}</span>
+        </div>
+        <div className="mt-3 space-y-1.5">
+          {LANDLINE.slice(0, shown).map(([dir, t]) => <div key={t} className={`flex civr-pop ${dir === 'in' ? 'justify-start' : 'justify-end'}`}><div className={`max-w-[85%] rounded-2xl px-3 py-1.5 text-[11px] leading-snug ${dir === 'in' ? 'bg-[#1c1c22] border border-white/[.06] rounded-bl-md' : 'bg-[#6366f1] text-white rounded-br-md'}`}>{t}</div></div>)}
+        </div>
+        {shown >= 2 && <div className="mt-2 text-[10px] text-[#a1a1aa] civr-pop">Calls still ring at your carrier · $0.05 per text</div>}
+      </div>
+    </MockFrame>
+  );
+}

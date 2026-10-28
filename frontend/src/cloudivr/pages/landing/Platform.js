@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Workflow, Megaphone, Bot, PhoneForwarded, Voicemail, Headphones, MessageSquare, Captions, ArrowRight, PhoneCall } from 'lucide-react';
+import { Workflow, Megaphone, Bot, PhoneForwarded, Voicemail, Headphones, MessageSquare, Captions, ArrowRight, PhoneCall, MessageSquareText } from 'lucide-react';
 import { SectionHead, Reveal, Slide } from './kit';
 import { Badge } from './Sections';
 import { useStart } from './PricingFaq';
 import { IvrMock, OutboundMock, AiMock } from './Mockups';
-import { ForwardingMock, VoicemailMock, SmsMock, BrowserPhoneMock, TextCallMock } from './MockupsLive';
+import { ForwardingMock, VoicemailMock, SmsMock, BrowserPhoneMock, TextCallMock, LandlineTextMock } from './MockupsLive';
 
 const ITEMS = [
   ['ivr', Workflow, 'Inbound', 'Keypad menu (IVR)', 'Route every caller in under a second', 'Sound like a big company from day one. Callers hear your greeting and press 1 for sales, 2 for support or 3 for voicemail — routed in under a second. Start from a template, use a natural AI voice or your own recording, and see which keys people press. Uses your plan minutes.', 'ivr', IvrMock],
@@ -15,7 +15,8 @@ const ITEMS = [
   ['voicemail', Voicemail, 'Inbound', 'Voicemail', 'Every message transcribed', 'Greetings in several languages or your own audio. Every message lands in your inbox and email, transcribed so you can read it in seconds.', 'voicemail', VoicemailMock],
   ['phone', Headphones, 'Anywhere', 'Browser phone', 'Calls from any tab, nothing to install', 'Make and take calls from any browser tab on every plan — nothing to install. On Pro and up, also sign in from a SIP softphone or desk phone. Your office goes wherever you go.', 'browserPhone', BrowserPhoneMock],
   ['sms', MessageSquare, 'Messaging', 'SMS inbox', 'Read and reply to every text', 'Read and reply to every text in one inbox. Push them to email or your own system with webhooks on Pro and up.', null, SmsMock],
-  ['text', Captions, 'Accessibility', 'Text calls', 'Type to talk, read what they say', 'Built for deaf and hard-of-hearing callers: you type, and a natural voice speaks each sentence the moment you finish it; they talk, and you read their words live. Soft typing sounds keep the line from going quiet.', 'textRelay', TextCallMock],
+  ['hosted', MessageSquareText, 'Messaging', 'Landline to Texting', 'Text from the number you already have', 'Your customers already know your office or landline number — now they can text it. We switch on SMS for your existing US or Canada landline while your calls stay with your current carrier. Read and reply to every text in the CloudIVR app. $0.05 per text sent or received.', null, LandlineTextMock],
+  ['text', Captions, 'Calling', 'Text-to-voice calls', 'Type to talk, read what they say', 'Make a real phone call without speaking: you type, and a natural voice speaks each sentence the moment you finish it; they talk, and you read their words live. Soft typing sounds keep the line from going quiet. Handy in a quiet office or a noisy street, and built for deaf and hard-of-hearing callers.', 'textRelay', TextCallMock],
 ];
 const IDS = ITEMS.map(x => x[0]);
 

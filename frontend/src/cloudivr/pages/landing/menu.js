@@ -1,4 +1,4 @@
-import { Hash, Workflow, Bot, Megaphone, Headphones, Inbox, TrendingUp, LifeBuoy, CalendarCheck, Globe2, Captions } from 'lucide-react';
+import { Hash, Workflow, Bot, Megaphone, Headphones, Inbox, TrendingUp, LifeBuoy, CalendarCheck, Globe2, Captions, MessageSquareText } from 'lucide-react';
 
 // Top menu + footer: [id, Icon, title, description, target]. Target = platform tab id, or '#anchor'.
 export const PRODUCTS = [
@@ -7,6 +7,8 @@ export const PRODUCTS = [
   ['ai', Bot, 'AI voice agents', 'Talks with callers in 20 languages, books visits and calls your leads.', 'ai'],
   ['campaigns', Megaphone, 'Quick & Bulk IVR campaigns', 'Call a whole list, watch it live and connect everyone who presses 1.', 'campaigns'],
   ['phone', Headphones, 'Browser phone & SIP', 'Call from any browser tab, or sign in from a softphone or desk phone.', 'phone'],
+  ['text', Captions, 'Text-to-voice calls', 'Type and a natural voice speaks for you; read their reply live.', 'text'],
+  ['hosted', MessageSquareText, 'Landline to Texting', 'Send and receive texts on the landline number you already have.', 'hosted'],
   ['inbox', Inbox, 'SMS & voicemail inbox', 'Every text and transcribed voicemail in one inbox.', 'sms'],
 ];
 

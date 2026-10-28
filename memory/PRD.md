@@ -1734,3 +1734,6 @@ calls and SIP are simulated; inbound calls use a pretend-call simulator).
 - Landing "Who it's for" grid: new tile `usecase-texting` (Landline to Texting, shows only $0.05/text — setup + monthly prices removed 2026-10-28 per owner).
 - Tested: /app/test_reports/iteration_168.json (frontend 100%). Deployed to app-main only (reseller bots untouched).
 - Backlog: white-label CloudIVR sites (need 3 domains), Voodoo email inbox placement, Hosted SMS sales-dashboard mapping.
+- 2026-10-28 18:10Z (LIVE app-main 4c1bc0d): Products menu + footer now list "Text-to-voice calls" and "Landline to Texting"
+  (landing/menu.js); platform tab `platform-tab-hosted` with LandlineTextMock (MockupsLive.js), text tab renamed
+  "Text-to-voice calls"; in-app nav label renamed; Overview card row `dashboard-new-products` (dashboard/NewProducts.js). Self-tested via screenshots.

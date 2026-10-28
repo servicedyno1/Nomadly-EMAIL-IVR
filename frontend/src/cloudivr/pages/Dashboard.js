@@ -9,6 +9,7 @@ import { LogTable } from '../LogTable';
 import { cp } from '../paths';
 import { GetStarted, YourNumbers } from './dashboard/Widgets';
 import { CouponBanner, ChannelCard, TrialCard } from './dashboard/Banners';
+import { NewProducts } from './dashboard/NewProducts';
 
 function Stat({ icon: Icon, label, value, to, testid, delay }) {
   const body = (
@@ -61,6 +62,7 @@ export default function Dashboard() {
       <TrialCard />
       <ChannelCard />
       <CouponBanner />
+      <NewProducts />
       {s?.pendingVerification > 0 && (
         <Link to={cp('/app/verification')} className="civr-card civr-trace p-6 mb-6 flex items-center gap-4" data-testid="dashboard-verification-alert">
           <ShieldCheck className="w-6 h-6 text-[#fbbf24]" />
