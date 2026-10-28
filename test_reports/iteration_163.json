@@ -1,0 +1,25 @@
+{
+  "summary": "Frontend-only test of the X (Twitter) pixel ri2qd on CloudIVR. Everything passed: uwt.js loads once, twq v1.1, page-view adsct requests with txn_id=ri2qd go to t.co and analytics.twitter.com, it still loads after Deny and on reload, it is not re-injected during SPA navigation or after sign-in, the Manage cookie text has the new sentence in EN/FR/ES, and signup works with no twq('event') call. Landing, sign-in and the dashboard render normally.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Cookie banner (compact view)", "issues": ["Optional wording: the compact line says 'No ads, no data sales.' and does not mention X ad measurement. Only the Manage panel discloses it. Not a bug (it means the site shows no ads)."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "xpixel.js is correct: loadXPixel returns early if window.twq already exists (idempotent), and the official snippet inserts a single async script and then calls twq('config','ri2qd').",
+    "trackXSignup only fires when X_SIGNUP_EVENT_ID is set, account.id and createdAt are present, the account is less than 10 minutes old, and the localStorage key civr.xSignup.<id> is not yet set. Backend publicAccount (js/cloudivr-web/auth.js:75) returns id and createdAt, so it will work once the ID is filled in.",
+    "Edge case (acceptable): an account created less than 10 minutes ago that signs in on a second browser will fire the event again there, because the dedupe is per browser. Passing conversion_id signup-<id> lets X dedupe on its side.",
+    "Console noise not caused by this change: React hydration warnings come from the platform visual-edit wrapper spans (data-ve-dynamic) in the PlanTable, and the 401 from /auth/me when logged out is expected."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (skipped)", "frontend": "100%"},
+  "seed_data_creation": "Created a test web account xpx.496920@example.com (name 'TEST Xpx') via the signup UI.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "X pixel verified with Playwright: request capture on ads-twitter/adsct, count of script[src*='ads-twitter'], twq wrapper (window.__twqCalls) before signup submit. Language can be forced with localStorage 'civr.lang'='fr'/'es'. Once X_SIGNUP_EVENT_ID is set, retest that exactly one twq('event', id, {conversion_id:'signup-<id>'}) fires after a new signup and does not fire again on reload."
+}
