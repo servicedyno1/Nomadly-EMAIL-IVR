@@ -25,10 +25,10 @@ export function Trust() {
         </div>
         <div className="grid md:grid-cols-2 lg:grid-cols-6 gap-4 mt-12" data-testid="trust-grid">
           {POINTS.map(([Icon, title, text], i) => (
-            <Reveal key={title} delay={i * 80} className={`civr-l-card-cream p-6 md:p-7 ${i < 3 ? 'lg:col-span-2' : 'lg:col-span-3'} ${i === POINTS.length - 1 && POINTS.length % 2 ? 'md:col-span-2' : ''}`} data-testid={`trust-point-${i}`}>
-              <span className="w-10 h-10 rounded-xl bg-slate-100 text-slate-900 grid place-items-center"><Icon className="w-5 h-5" /></span>
-              <div className="text-lg font-semibold text-slate-900 mt-5">{title}</div>
-              <p className="text-sm text-slate-600 mt-2 leading-relaxed">{text}</p>
+            <Reveal key={title} delay={i * 80} className={`civr-np-card civr-np-${['pink', 'green', 'blue'][i % 3]} p-6 md:p-7 ${i < 3 ? 'lg:col-span-2' : 'lg:col-span-3'} ${i === POINTS.length - 1 && POINTS.length % 2 ? 'md:col-span-2' : ''}`} data-testid={`trust-point-${i}`}>
+              <span className="civr-np-accent w-11 h-11 rounded-xl border border-current grid place-items-center"><Icon className="w-5 h-5" /></span>
+              <div className="text-2xl font-bold text-slate-900 mt-6 leading-tight">{title}</div>
+              <p className="text-[15px] text-slate-600 mt-3 leading-relaxed">{text}</p>
             </Reveal>
           ))}
         </div>

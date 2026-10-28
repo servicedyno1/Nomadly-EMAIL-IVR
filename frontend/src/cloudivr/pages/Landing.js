@@ -11,6 +11,9 @@ import { LandingNav } from './landing/Nav';
 import { StickyCta } from './landing/StickyCta';
 import { CATALOG_SNAPSHOT } from './landing/catalogSnapshot';
 import SupportChat from '../SupportChat';
+import { Bubbles } from './landing/Bubbles';
+import { ProductCards } from './landing/ProductCards';
+import './landing/np.css';
 
 export { LANDING_LINKS } from './landing/Nav';
 
@@ -19,17 +22,19 @@ export default function Landing() {
   const { data } = useApi('/public/catalog');
   const catalog = data || CATALOG_SNAPSHOT;
   return (
-    <div className="civr-l" data-testid="landing-page" data-catalog={data ? 'live' : 'snapshot'}>
+    <div className="civr-l civr-np" data-testid="landing-page" data-catalog={data ? 'live' : 'snapshot'}>
       <LandingNav catalog={catalog} />
       <main>
         <Hero catalog={catalog} />
         <Facts catalog={catalog} />
+        <Bubbles />
         <Statement />
         <UseCases />
         <Platform catalog={catalog} />
-        <Trust />
         <TryCall />
         <Coverage catalog={catalog} />
+        <ProductCards />
+        <Trust />
         <HowItWorks catalog={catalog} />
         <Pricing catalog={catalog} />
         <Faq catalog={catalog} />

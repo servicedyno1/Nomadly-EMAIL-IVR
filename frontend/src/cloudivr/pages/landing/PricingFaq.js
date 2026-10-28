@@ -100,9 +100,10 @@ export function FinalCta({ catalog }) {
     <section className="civr-l-cream py-24" data-testid="final-cta">
       <div className="max-w-7xl mx-auto px-6 md:px-8">
         <Reveal className="relative overflow-hidden rounded-[28px] border civr-l-rule bg-slate-50 px-8 py-16 md:px-16 md:py-20 text-center">
+          <span className="civr-np-stars" aria-hidden="true" />
           <div className="relative">
             <div className="civr-l-eyebrow">Ready when you are</div>
-            <h2 className="civr-l-h text-3xl sm:text-4xl lg:text-5xl text-slate-950 max-w-3xl mx-auto mt-4">Stop missing calls. <span className="text-slate-400">Start closing them.</span></h2>
+            <h2 className="civr-l-h text-3xl sm:text-4xl lg:text-5xl text-slate-950 max-w-3xl mx-auto mt-4">Stop missing calls. <span className="civr-l-hl">Start closing them.</span></h2>
             <p className="text-base mt-5 text-slate-600">Your number can be answering — and calling — in minutes. Free to sign up{from ? ` · Numbers from ${from}/month` : ''} · No contracts</p>
             <div className="flex flex-wrap justify-center gap-3 mt-9">
               <Link to={start()} className="civr-l-pill civr-l-pill-ink" data-testid="final-cta-button"><Slide>Get your number</Slide><ArrowRight className="w-4 h-4" /></Link>
