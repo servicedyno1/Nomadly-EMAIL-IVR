@@ -30,7 +30,7 @@ export function NumberPanel({ item, meta, onChange }) {
       {item.status === 'review' && <Info icon={Hourglass} text="Your documents are with the carrier. We’ll message your Inbox the moment texting is on — usually 1–3 business days." testid="texting-review" />}
       {item.status === 'paused' && <Info icon={PauseCircle} text={`Texting is paused because the $${meta.monthly} monthly fee couldn’t be paid. Top up your wallet — it turns back on within a day.`} testid="texting-paused" />}
       {item.status === 'rejected' && <Info icon={XCircle} text={`This number couldn’t be text-enabled. $${item.paid} was refunded to your wallet.`} testid="texting-rejected" />}
-      {item.status === 'active' && <p className="text-xs text-[#a1a1aa]" data-testid="texting-billing">Next ${meta.monthly} on {String(item.nextBillAt || '').slice(0, 10)} · ${meta.textPrice.toFixed(2)} per text sent or received · incoming texts also land in your Inbox.</p>}
+      {item.status === 'active' && <p className="text-xs text-[#a1a1aa]" data-testid="texting-billing">Next ${meta.monthly} on {String(item.nextBillAt || '').slice(0, 10)} · ${meta.textPrice.toFixed(2)} per text in the US & Canada (other countries priced per country) and per received text · incoming texts also land in your Inbox.</p>}
       {['active', 'paused'].includes(item.status) && <Thread item={item} meta={meta} />}
       {['verify', 'documents'].includes(item.status) && <CancelButton item={item} onChange={onChange} />}
     </div>

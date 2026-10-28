@@ -34,7 +34,7 @@ export default function Texting() {
 }
 
 function Prices({ data }) {
-  const cells = [[`$${data.prices.code}`, 'setup with ownership code'], [`$${data.prices.nocode}`, 'setup without code'], [`$${data.monthly}/mo`, 'after activation'], [`$${data.textPrice.toFixed(2)}`, 'per text, sent or received']];
+  const cells = [[`$${data.prices.code}`, 'setup with ownership code'], [`$${data.prices.nocode}`, 'setup without code'], [`$${data.monthly}/mo`, 'after activation'], [`$${data.textPrice.toFixed(2)}`, 'per text in the US & Canada · received texts too · other countries priced per country']];
   return (
     <div className="civr-card p-5 mb-6 grid grid-cols-2 md:grid-cols-4 gap-4" data-testid="texting-prices">
       {cells.map(([v, l]) => <div key={l}><div className="font-display text-2xl font-bold">{v}</div><div className="text-xs text-[#a1a1aa] mt-1">{l}</div></div>)}

@@ -289,18 +289,22 @@ async function sendText(chatId, id, to, text) {
   if (!E164.test(dest)) return { error: 'Enter the number to text with its country code.' }
   if (!body) return { error: 'Type a message.' }
   if (body.length > MAX_TEXT) return { error: `Keep it to ${MAX_TEXT} characters (one text).` }
-  if (!(await S.w.debit(chatId, TEXT_PRICE))) return { error: `Each text costs $${TEXT_PRICE.toFixed(2)}. Top up your wallet first.` }
+  const senderName = (await S.db.collection('webPrefs').findOne({ _id: chatId }, { projection: { senderName: 1 } }))?.senderName || null
+  const rule = await require('./sms-rules.js').check(d.phoneNumber, dest, senderName, true)
+  if (!rule.ok) return { error: rule.why }
+  const price = rule.price
+  if (!(await S.w.debit(chatId, price))) return { error: `A text to ${rule.country} costs $${price.toFixed(2)}. Top up your wallet first.` }
   let mid = `preview-${crypto.randomUUID()}`
   if (!dry()) {
     try {
-      const r = await axios.post(`${API}/messages`, { from: d.phoneNumber, to: dest, text: body, ...(process.env.TELNYX_MESSAGING_PROFILE_ID ? { messaging_profile_id: process.env.TELNYX_MESSAGING_PROFILE_ID } : {}) }, { headers: { ...hdr(), 'Content-Type': 'application/json' }, timeout: 15000 })
+      const r = await axios.post(`${API}/messages`, { from: rule.from || d.phoneNumber, to: dest, text: body, ...(process.env.TELNYX_MESSAGING_PROFILE_ID ? { messaging_profile_id: process.env.TELNYX_MESSAGING_PROFILE_ID } : {}) }, { headers: { ...hdr(), 'Content-Type': 'application/json' }, timeout: 15000 })
       mid = r.data?.data?.id
-    } catch (e) { await S.w.credit(chatId, TEXT_PRICE); return { error: `The text couldn’t be sent: ${errText(e)}` } }
+    } catch (e) { await S.w.credit(chatId, price); return { error: `The text couldn’t be sent: ${errText(e)}` } }
   }
-  const log = { chatId: String(chatId), phoneNumber: d.phoneNumber, from: d.phoneNumber, to: dest, type: 'sms_out', direction: 'outbound', body, messageId: mid, status: dry() ? 'preview' : 'sent', hosted: true, timestamp: new Date() }
+  const log = { chatId: String(chatId), phoneNumber: d.phoneNumber, from: rule.from || d.phoneNumber, to: dest, country: rule.iso, charge: price, type: 'sms_out', direction: 'outbound', body, messageId: mid, status: dry() ? 'preview' : 'sent', hosted: true, timestamp: new Date() }
   await S.db.collection('phoneLogs').insertOne(log)
-  await txn(chatId, 'hosted-sms-text', TEXT_PRICE, { phoneNumber: d.phoneNumber, hostedId: d._id, to: dest })
-  return { log, charge: TEXT_PRICE }
+  await txn(chatId, 'hosted-sms-text', price, { phoneNumber: d.phoneNumber, hostedId: d._id, to: dest, country: rule.iso })
+  return { log, charge: price }
 }
 
 async function messages(chatId, id, limit = 50) {

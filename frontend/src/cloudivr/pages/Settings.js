@@ -18,6 +18,7 @@ import { Webhooks } from './settings/Webhooks';
 import { InstallApp } from './settings/InstallApp';
 import { EmailPrefs } from './settings/EmailPrefs';
 import { useUnsaved, SaveRow } from '../guard';
+import { SenderName } from './settings/SenderName';
 
 function Profile({ account, setAccount }) {
   const [name, setName] = useState(account.name || '');
@@ -157,7 +158,7 @@ export default function Settings() {
       <PageHeader label="Account" title="Settings" sub="This web account is separate from any Telegram bot account." testid="settings-header">
         <button className="civr-btn civr-btn-ghost civr-btn-sm" onClick={async () => { nav(cp(), { replace: true }); await logout(); }} data-testid="settings-logout-button"><LogOut className="w-4 h-4" />Sign out</button>
       </PageHeader>
-      <div className="grid lg:grid-cols-2 gap-4 max-w-5xl min-[1600px]:max-w-6xl min-[1800px]:max-w-7xl"><Profile account={account} setAccount={setAccount} /><Password account={account} refresh={refresh} /><Security account={account} refresh={refresh} /><Referral /><Suggest admin={account.admin} /><Language /><Appearance /><DefaultVoice /><EmailPrefs /><InstallApp /><Community /><Webhooks /></div>
+      <div className="grid lg:grid-cols-2 gap-4 max-w-5xl min-[1600px]:max-w-6xl min-[1800px]:max-w-7xl"><Profile account={account} setAccount={setAccount} /><Password account={account} refresh={refresh} /><Security account={account} refresh={refresh} /><Referral /><Suggest admin={account.admin} /><Language /><Appearance /><DefaultVoice /><SenderName /><EmailPrefs /><InstallApp /><Community /><Webhooks /></div>
     </div>
   );
 }

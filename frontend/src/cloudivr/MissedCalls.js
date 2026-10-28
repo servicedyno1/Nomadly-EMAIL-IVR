@@ -26,7 +26,7 @@ export function MissedCalls() {
               <span className="text-xs text-[#a1a1aa]" data-testid={`inbox-missed-${i}-to`}>{`Called ${pv.phone(c.phone)} · ${when(c.timestamp)}`}</span>
               {c.type === 'voicemail' && <span className="civr-pill">Voicemail</span>}
             </div>
-            <TextBack id={c.id} reply={c.reply} canReply={c.canReply} onDone={reload} testid={`inbox-missed-${i}-reply`} />
+            <TextBack id={c.id} phone={c.phone} to={c.from} reply={c.reply} canReply={c.canReply} onDone={reload} testid={`inbox-missed-${i}-reply`} />
           </li>
         ))}
       </ul>

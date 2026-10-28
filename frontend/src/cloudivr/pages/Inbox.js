@@ -12,7 +12,7 @@ import { MissedCalls } from '../MissedCalls';
 import { RING_ENDED } from '../Incoming';
 import { useLangTick } from '../i18n';
 import { useSearch, SearchBox, NoMatches } from '../search';
-import { QuickReply, SMS_REPLIES, SmsStatus } from '../QuickReply';
+import { CheckedReply, SMS_REPLIES, SmsStatus } from '../QuickReply';
 import { OtpLive } from './quick/Otp';
 
 const KINDS = [['', 'All', InboxIcon], ['sms', 'SMS', MessageSquare], ['voicemail', 'Voicemail', Voicemail], ['call', 'Calls', Phone], ['campaign', 'Campaigns', Megaphone], ['wallet', 'Wallet', Wallet], ['billing', 'Billing', Receipt], ['coupon', 'Coupons', Ticket], ['info', 'Other', Info]];
@@ -53,7 +53,7 @@ function SmsReply({ n, i, pv, onReplied, reload }) {
     <div className="relative z-10 mt-2 max-w-xl" data-testid={t}>
       {r && !open && <p className="text-xs text-[#818cf8] break-words" data-testid={`${t}-done`}>{`You replied: “${pv.text(r.text, 'Message hidden')}”`}{r.status === 'preview' ? ' (preview — not sent)' : null}</p>}
       {r && !open && <SmsStatus status={r.status} reason={r.reason} testid={`${t}-status`} />}
-      {open ? <div className="mt-2"><QuickReply onSend={send} busy={busy} presets={SMS_REPLIES} autoFocus testid={`${t}-box`} {...(n.meta?.hosted ? { costNote: '$0.05 from your wallet' } : {})} /><button type="button" className="text-xs text-[#a1a1aa] hover:text-white mt-1" onClick={() => setOpen(false)} data-testid={`${t}-cancel`}>Cancel</button></div>
+      {open ? <div className="mt-2"><CheckedReply phone={n.meta?.to} to={n.meta?.from} onSend={send} busy={busy} presets={SMS_REPLIES} autoFocus testid={`${t}-box`} {...(n.meta?.hosted ? { costNote: '$0.05 from your wallet' } : {})} /><button type="button" className="text-xs text-[#a1a1aa] hover:text-white mt-1" onClick={() => setOpen(false)} data-testid={`${t}-cancel`}>Cancel</button></div>
         : !optedOut && <button type="button" onClick={() => setOpen(true)} className={`civr-btn civr-btn-ghost civr-btn-sm ${r ? 'mt-1.5' : ''}`} data-testid={`${t}-button`}><MessageSquareReply className="w-4 h-4" />{r ? 'Reply again' : 'Reply'}</button>}
     </div>
   );

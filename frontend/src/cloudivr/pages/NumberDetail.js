@@ -18,6 +18,7 @@ import { useShell } from '../Shell';
 import { planFor } from '../PlanFeatures';
 import { usePrivacy } from '../privacy';
 import { confirmLeave } from '../guard';
+import { ReachChip } from '../SmsReach';
 
 // Tabs grouped (overview · what callers get · messages · account); a thin divider separates each group.
 const TABS = [
@@ -47,6 +48,7 @@ export default function NumberDetail() {
         <div>
           <div className="civr-label">{n.countryName || n.country} · {n.type?.replace('_', '-')} · {n.planName}</div>
           <h1 className="font-mono text-4xl sm:text-5xl mt-2" data-testid="number-detail-phone">{pv.phone(n.phoneNumber)}</h1>
+          {n.capabilities?.sms !== false && <div className="mt-3"><ReachChip phone={n.phoneNumber} testid="number-sms-reach" /></div>}
         </div>
         <div className="flex items-center gap-2">
           <span className={statusPill(n.status)} data-testid="number-detail-status">{n.status}</span>

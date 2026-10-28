@@ -7,6 +7,7 @@ const crypto = require('crypto')
 const { ObjectId } = require('mongodb')
 const phoneConfig = require('../phone-config')
 const { walletOps } = require('./wallet')
+const smsRules = require('../sms-rules.js')
 
 const MAX = 160
 const REPLY_DAYS = 7
@@ -69,7 +70,7 @@ const oid = (s) => { try { return new ObjectId(String(s)) } catch (_) { return n
 async function giveBack(db, doc) {
   const chatId = doc.chatId != null ? String(doc.chatId) : (await db.collection('phoneNumbersOf').findOne({ 'val.numbers.phoneNumber': doc.phoneNumber }, { projection: { _id: 1 } }))?._id
   if (chatId == null) return null
-  await db.collection('phoneNumbersOf').updateOne({ _id: chatId, 'val.numbers': { $elemMatch: { phoneNumber: doc.phoneNumber, smsUsed: { $gt: 0 } } } }, { $inc: { 'val.numbers.$.smsUsed': -1 } })
+  if (!doc.country || doc.country === 'US' || doc.country === 'CA') await db.collection('phoneNumbersOf').updateOne({ _id: chatId, 'val.numbers': { $elemMatch: { phoneNumber: doc.phoneNumber, smsUsed: { $gt: 0 } } } }, { $inc: { 'val.numbers.$.smsUsed': -1 } })
   if (doc.charge > 0) {
     await walletOps(db).credit(chatId, doc.charge)
     await db.collection('transactions').insertOne({ _id: `smsref-${doc._id}`, chatId: String(chatId), type: 'sms-refund', amount: doc.charge, currency: 'USD', status: 'completed', metadata: { phoneNumber: doc.phoneNumber, to: doc.to, channel: 'web' }, createdAt: new Date(), updatedAt: new Date() }).catch(() => {})
@@ -126,14 +127,19 @@ function createSmsReply({ db, voiceService, log = console.log }) {
     if (num.capabilities?.sms === false) return { error: [400, 'no_sms', 'This number can’t send texts.'] }
     if (num.status !== 'active') return { error: [409, 'not_active', 'This number is suspended. Renew it to send texts again.'] }
     const preview = simulated || dryRun() || !!num.dryRun
+    const senderName = (await db.collection('webPrefs').findOne({ _id: chatId }, { projection: { senderName: 1 } }))?.senderName || null
+    const rule = await smsRules.check(num.phoneNumber, to, senderName)
+    if (!rule.ok) return { error: [400, 'sms_blocked', rule.why] }
+    // US/Canada: plan texts, then the extra-text rate. Other countries: that country's price from the wallet.
+    const home = rule.iso === 'US' || rule.iso === 'CA'
     const ownerNumbers = (await db.collection('phoneNumbersOf').findOne({ _id: chatId }))?.val?.numbers || [num]
-    const overage = voiceService.isSmsLimitReached(num, ownerNumbers) ? phoneConfig.OVERAGE_RATE_SMS : 0
-    if (overage && !(await w.debit(chatId, overage))) return { error: [402, 'insufficient_balance', `Your plan texts are used up; each extra text costs $${overage.toFixed(2)}. Top up first.`] }
-    const out = preview ? { id: `preview-${crypto.randomUUID()}` } : await deliver(num.phoneNumber, to, body)
+    const overage = !home ? rule.price : voiceService.isSmsLimitReached(num, ownerNumbers) ? phoneConfig.OVERAGE_RATE_SMS : 0
+    if (overage && !(await w.debit(chatId, overage))) return { error: [402, 'insufficient_balance', home ? `Your plan texts are used up; each extra text costs $${overage.toFixed(2)}. Top up first.` : `A text to ${rule.country} costs $${overage.toFixed(2)}. Top up first.`] }
+    const out = preview ? { id: `preview-${crypto.randomUUID()}` } : await deliver(rule.from || num.phoneNumber, to, body)
     if (out.error) { if (overage) await w.credit(chatId, overage); return { error: [424, 'sms_failed', out.error] } }
-    await voiceService.incrementSmsUsed(chatId, num.phoneNumber)
+    if (home) await voiceService.incrementSmsUsed(chatId, num.phoneNumber)
     if (overage) await phoneTransactions.insertOne({ chatId, phoneNumber: num.phoneNumber, action: 'sms_reply', amount: overage, paymentMethod: 'wallet_usd', channel: 'web', timestamp: new Date().toISOString() })
-    const doc = { chatId: String(chatId), phoneNumber: num.phoneNumber, from: num.phoneNumber, to, type: 'sms_out', direction: 'outbound', body, messageId: out.id, status: preview ? 'preview' : 'sent', webReply: true, ...(overage ? { charge: overage } : {}), ...(replyTo ? { replyTo } : {}), ...(inboxId ? { inboxId: String(inboxId) } : {}), timestamp: new Date().toISOString() }
+    const doc = { chatId: String(chatId), phoneNumber: num.phoneNumber, from: rule.from || num.phoneNumber, to, country: rule.iso, type: 'sms_out', direction: 'outbound', body, messageId: out.id, status: preview ? 'preview' : 'sent', webReply: true, ...(overage ? { charge: overage } : {}), ...(replyTo ? { replyTo } : {}), ...(inboxId ? { inboxId: String(inboxId) } : {}), timestamp: new Date().toISOString() }
     await phoneLogs.insertOne(doc)
     log(`[SmsReply] ${num.phoneNumber} → ${to}${preview ? ' (PREVIEW)' : ''}${overage ? ` $${overage}` : ''}`)
     return { log: doc, charge: overage }

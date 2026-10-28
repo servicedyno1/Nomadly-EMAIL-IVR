@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import { api, useApi } from '../../api';
 import { ErrorNote } from '../../ui';
 import { useShell } from '../../Shell';
+import { ReachChip, useDestCheck, DestNote } from '../../SmsReach';
 
 // Texts on a hosted number (newest last) + compose.
 export function Thread({ item, meta }) {
@@ -15,6 +16,8 @@ export function Thread({ item, meta }) {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
   const rows = [...(data?.messages || [])].reverse();
+  const dest = useDestCheck(item.status === 'active' ? item.phoneNumber : null, to);
+  const blocked = dest ? !dest.ok : false;
   useEffect(() => { if (box.current) box.current.scrollTop = box.current.scrollHeight; }, [rows.length]);
   const send = async () => {
     setBusy(true); setErr(null);
@@ -22,6 +25,7 @@ export function Thread({ item, meta }) {
   };
   return (
     <div className="space-y-4" data-testid="texting-thread">
+      {item.status === 'active' && <ReachChip phone={item.phoneNumber} testid="texting-reach" />}
       <div ref={box} className="max-h-80 overflow-y-auto space-y-2 pr-1" data-testid="texting-messages">
         {!rows.length && <p className="text-sm text-[#a1a1aa]">No texts yet.</p>}
         {rows.map(m => (
@@ -36,10 +40,11 @@ export function Thread({ item, meta }) {
       {item.status === 'active' && (
         <div className="grid sm:grid-cols-[200px_1fr_auto] gap-2">
           <input className="civr-input font-mono" value={to} onChange={e => setTo(e.target.value)} placeholder="To +1…" data-testid="texting-to-input" />
-          <input className="civr-input" value={text} maxLength={meta.maxText} onChange={e => setText(e.target.value)} onKeyDown={e => e.key === 'Enter' && to && text && !busy && send()} placeholder={`Message (${meta.maxText - text.length} left)`} data-testid="texting-text-input" />
-          <button type="button" onClick={send} disabled={busy || !to || !text.trim()} className="civr-btn civr-btn-primary" data-testid="texting-send-button">{busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}Send</button>
+          <input className="civr-input" value={text} maxLength={meta.maxText} onChange={e => setText(e.target.value)} onKeyDown={e => e.key === 'Enter' && to && text && !busy && !blocked && send()} placeholder={`Message (${meta.maxText - text.length} left)`} data-testid="texting-text-input" />
+          <button type="button" onClick={send} disabled={busy || blocked || !to || !text.trim()} className="civr-btn civr-btn-primary" data-testid="texting-send-button">{busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}Send</button>
         </div>
       )}
+      {item.status === 'active' && <DestNote check={dest} testid="texting-dest-note" />}
       <ErrorNote error={err} testid="texting-send-error" />
     </div>
   );

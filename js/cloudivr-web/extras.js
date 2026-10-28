@@ -154,6 +154,34 @@ function routes(router, { db, h, numbersApi, offers = null, bulkCallService, get
     res.json({ lang, updated })
   }))
 
+  // ── Texting: sender name for brand-name countries + where each number can text ──
+  const SR = require('../sms-rules.js')
+  const senderOf = async (chatId) => (await prefs.findOne({ _id: chatId }, { projection: { senderName: 1 } }))?.senderName || null
+  const ownSender = async (chatId, phone) => {
+    if (await numbersApi.findMine(chatId, phone)) return { hosted: false }
+    const h = (await require('../hosted-sms.js').list(chatId)).find(x => x.phoneNumber === phone && x.status === 'active')
+    return h ? { hosted: true } : null
+  }
+  router.get('/prefs/sender-name', h(async (req, res) => res.json({ senderName: await senderOf(req.webChatId) })))
+  router.put('/prefs/sender-name', h(async (req, res) => {
+    const v = String(req.body.senderName || '').trim()
+    if (v && !/^(?=.*[A-Za-z])[A-Za-z0-9 ]{3,11}$/.test(v)) return bad(res, 400, 'invalid_sender', 'Use 3–11 letters or numbers (spaces allowed), with at least one letter.')
+    await prefs.updateOne({ _id: req.webChatId }, { $set: { senderName: v || null, updatedAt: new Date() } }, { upsert: true })
+    res.json({ senderName: v || null })
+  }))
+  router.get('/sms-reach', h(async (req, res) => {
+    const phone = String(req.query.phone || '')
+    const own = await ownSender(req.webChatId, phone)
+    if (!own) return bad(res, 404, 'not_found', 'Number not found.')
+    res.json(await SR.reach(phone, await senderOf(req.webChatId), own.hosted))
+  }))
+  router.post('/sms-reach/check', h(async (req, res) => {
+    const phone = String(req.body.phone || '')
+    const own = await ownSender(req.webChatId, phone)
+    if (!own) return bad(res, 404, 'not_found', 'Number not found.')
+    res.json(await SR.check(phone, String(req.body.to || '').replace(/[^\d+]/g, ''), await senderOf(req.webChatId), own.hosted))
+  }))
+
   // ── Daily coupon (same codes as the bot) ──
   const todaysCoupon = async () => {
     const codes = getTodayCoupons ? await getTodayCoupons().catch(() => ({})) : {}
