@@ -18,6 +18,7 @@ import { CrashGuard } from './safety';
 import { registerPwa } from './pwa';
 import { UpdateWatcher } from './update';
 import { CookieBanner } from './CookieBanner';
+import { loadXPixel, trackXSignup } from './xpixel';
 
 // The same error twice in a row (e.g. pressing Save again) replaces the first one instead of stacking up.
 if (!toast.error.civrDedupe) {
@@ -40,6 +41,13 @@ function PageFade({ children }) {
   return <div key={inApp ? 'app' : pathname} className={inApp ? undefined : 'civr-page'}>{children}</div>;
 }
 
+// X Ads sign-up conversion (once per brand-new account; see xpixel.js).
+function XSignup() {
+  const { account } = useCivrAuth();
+  useEffect(() => { if (account) trackXSignup(account); }, [account]);
+  return null;
+}
+
 function Protected({ children }) {
   const { account } = useCivrAuth();
   if (account === undefined) return <div className="px-8"><Spinner label="Checking your session…" /></div>;
@@ -58,6 +66,7 @@ export default function CloudIvrApp() {
   useEffect(() => {
     const restoreHead = applyBrandHead();
     registerPwa();
+    loadXPixel();
     return () => { document.title = prevTitle; restoreHead(); };
   }, [prevTitle]);
   return (
@@ -70,6 +79,7 @@ export default function CloudIvrApp() {
         <ConfirmHost />
         <UpdateWatcher />
         <CookieBanner />
+        <XSignup />
         <Guarded>
         <PageFade>
         <Routes>

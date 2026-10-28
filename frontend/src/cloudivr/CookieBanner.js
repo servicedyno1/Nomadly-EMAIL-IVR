@@ -29,7 +29,7 @@ function Manage({ pick, setPick, choose, onBack }) {
   return (
     <div className="p-5 sm:p-6" data-testid="cookie-manage">
       <div className="flex items-start justify-between gap-4">
-        <div><h2 id="civr-cookie-title" className="text-lg font-bold text-slate-900" data-testid="cookie-title">Cookie settings</h2><p className="mt-2 text-sm text-slate-600 leading-relaxed" data-testid="cookie-text">We use cookies and similar storage to keep you signed in and secure, remember your choices, and — only if you allow it — measure how the site is used and credit the friend who invited you. We don’t sell your data or show ads.</p></div>
+        <div><h2 id="civr-cookie-title" className="text-lg font-bold text-slate-900" data-testid="cookie-title">Cookie settings</h2><p className="mt-2 text-sm text-slate-600 leading-relaxed" data-testid="cookie-text">We use cookies and similar storage to keep you signed in and secure, remember your choices, and — only if you allow it — measure how the site is used and credit the friend who invited you. X (Twitter) ad measurement runs on every visit so we know which of our ads bring people here. We don’t sell your data or show ads.</p></div>
         <button type="button" onClick={onBack} className="w-10 h-10 shrink-0 rounded-full flex items-center justify-center text-slate-500 hover:bg-slate-100 hover:text-slate-900 transition-colors" aria-label="Back" data-testid="cookie-manage-back"><X className="w-5 h-5" /></button>
       </div>
       <div className="mt-4 flex flex-wrap items-center gap-x-8 gap-y-1">
