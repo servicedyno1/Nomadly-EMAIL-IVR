@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, TrendingUp, LifeBuoy, Sparkles, Globe2, Coins, Send } from 'lucide-react';
+import { ArrowRight, TrendingUp, LifeBuoy, Sparkles, Globe2, Coins, Send, MessageSquareText } from 'lucide-react';
 import { SectionHead, Reveal } from './kit';
 import { goTo, hrefOf } from './menu';
 import { cp } from '../../paths';
@@ -12,7 +12,8 @@ const TILES = [
   ['founder', Sparkles, 'Solo founder sounding like a company', 'A greeting, a menu and voicemail that reads itself to you — one number, your mobile, no desk.', null, 'voicemail', 'md:col-span-2'],
   ['agency', Globe2, 'Agency managing numbers in several countries', 'A local number in each market, every client in one account.', null, '#coverage', 'md:col-span-2'],
   ['crypto', Coins, 'Crypto-native business paying in USDT', 'Top up a wallet in USDT, BTC or ETH. Every call shows its price before you start it.', null, '#pricing', 'md:col-span-2'],
-  ['telegram', Send, 'Telegram user moving to the web', 'Same calling engine as the bot, now with a dashboard, live map, contacts and campaign history. It’s a separate web account — sign up with your email.', null, 'signup', 'md:col-span-6 md:flex-row md:items-end'],
+  ['telegram', Send, 'Telegram user moving to the web', 'Same calling engine as the bot, now with a dashboard, live map, contacts and campaign history. It’s a separate web account — sign up with your email.', null, 'signup', 'md:col-span-3'],
+  ['texting', MessageSquareText, 'New · Landline to Texting', 'Text from the landline number your customers already know.', 'We turn on SMS for your existing US or Canada landline — calls keep working as before. $300 setup ($500 without a verification code), $50/month, $0.05 per text sent or received.', 'signup', 'md:col-span-3 ink'],
 ];
 
 function Tile({ t, i }) {
@@ -40,7 +41,7 @@ export function UseCases() {
   return (
     <section id="usecases" className="civr-l-cream civr-l-soft scroll-mt-16 border-t civr-l-rule" data-testid="usecases-section">
       <div className="max-w-7xl mx-auto px-6 md:px-8 py-24">
-        <SectionHead label="Who it’s for" title="Pick your situation. We’ll show you the feature." sub="Six ways people run their phone line on CloudIVR — each one points at the part of the platform that does the work." />
+        <SectionHead label="Who it’s for" title="Pick your situation. We’ll show you the feature." sub="Seven ways people run their phone line on CloudIVR — each one points at the part of the platform that does the work." />
         <div className="grid md:grid-cols-6 gap-4 mt-12" data-testid="usecases-grid">{TILES.map((t, i) => <Tile key={t[0]} t={t} i={i} />)}</div>
       </div>
     </section>

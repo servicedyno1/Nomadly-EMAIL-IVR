@@ -68,7 +68,7 @@ function SideNav() {
     <nav className="flex flex-col gap-6" data-testid="nav-header">
       {NAV.map(([group, items]) => (
         <div key={group} data-testid={`nav-group-${group.toLowerCase()}`}>
-          <div className="px-3 mb-2 text-xs font-mono uppercase tracking-widest text-[#a1a1aa]">{group}</div>
+          <div className="civr-side-label px-3 mb-2 text-[11px] font-semibold uppercase tracking-widest text-[#a1a1aa]">{group}</div>
           <div className="flex flex-col gap-1">
             {items.map(([to, label, Icon, id]) => (
               <NavLink key={id} end={to === ''} to={appPath(to)} className={({ isActive }) => `civr-nav-link ${isActive ? 'active' : ''}`} data-testid={id}>
@@ -84,11 +84,11 @@ function SideNav() {
 
 function Sidebar({ supportLink, channelLink }) {
   return (
-    <aside className="hidden lg:flex lg:flex-col w-64 shrink-0 h-screen sticky top-0 border-r border-[#1a1a1a] px-4 py-6 overflow-y-auto">
-      <Link to={cp('/app')} className="font-display text-3xl font-extrabold tracking-tight px-3 mb-8 flex items-center gap-2.5" data-testid="sidebar-logo"><Wordmark iconClass="w-10 h-10" /></Link>
+    <aside className="civr-side hidden lg:flex lg:flex-col w-64 shrink-0 h-screen sticky top-0 border-r border-[#1a1a1a] px-4 py-6 overflow-y-auto" data-testid="app-sidebar">
+      <Link to={cp('/app')} className="civr-side-logo font-display text-2xl font-extrabold tracking-tight px-3 mb-8 flex items-center gap-2.5" data-testid="sidebar-logo"><Wordmark iconClass="w-9 h-9" /></Link>
       <SideNav />
-      <div className="mt-auto pt-6 flex flex-col gap-1" data-testid="nav-group-support">
-        <div className="px-3 mb-1 text-xs font-mono uppercase tracking-widest text-[#a1a1aa]">Support</div>
+      <div className="civr-side-rule mt-auto pt-5 border-t border-[#1a1a1a] flex flex-col gap-1" data-testid="nav-group-support">
+        <div className="civr-side-label px-3 mb-1 text-[11px] font-semibold uppercase tracking-widest text-[#a1a1aa]">Support</div>
         {channelLink && <a href={channelLink} target="_blank" rel="noopener noreferrer" className="civr-nav-link" data-testid="sidebar-channel-link"><Send className="w-4 h-4" />Telegram channel</a>}
         <Link to={cp('/app/settings#suggest')} className="civr-nav-link" data-testid="sidebar-suggest-link"><Lightbulb className="w-4 h-4" />Suggest a feature</Link>
         {supportLink && <a href={supportLink} target="_blank" rel="noopener noreferrer" className="civr-nav-link" data-testid="sidebar-support-link"><LifeBuoy className="w-4 h-4" />Message support</a>}

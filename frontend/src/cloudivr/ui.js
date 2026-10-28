@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Loader2, Lock, RotateCcw } from 'lucide-react';
+import { Loader2, Lock, Plus, RotateCcw } from 'lucide-react';
 import { toast } from 'sonner';
 import { api, enc } from './api';
 import { useLang } from './i18n';
@@ -63,8 +63,8 @@ export function PageHeader({ label, title, sub, children, testid }) {
     <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between mb-8 civr-rise" data-testid={testid}>
       <div className="min-w-0">
         {label && <Label>{label}</Label>}
-        <h1 className="font-display text-4xl sm:text-5xl font-extrabold leading-[1.05] text-[#f3f4f6]">{title}</h1>
-        {sub && <p className="text-sm md:text-base text-[#a1a1aa] mt-3 max-w-2xl">{sub}</p>}
+        <h1 className="civr-page-title text-[28px] sm:text-[32px]" data-testid={testid ? `${testid}-title` : undefined}>{title}</h1>
+        {sub && <p className="text-sm md:text-[15px] text-[#a1a1aa] mt-2 max-w-2xl">{sub}</p>}
       </div>
       {children && <div className="flex flex-wrap gap-2 md:shrink-0 md:justify-end">{children}</div>}
     </div>
@@ -96,14 +96,24 @@ export function ErrorNote({ error, testid = 'error-message', onRetry, className 
   );
 }
 
+// Dashed sheet with the page's icon on each line and a "+" badge.
+function EmptyArt({ icon: Icon }) {
+  return (
+    <div className="civr-empty-art" aria-hidden="true" data-testid="empty-art">
+      {[0, 1, 2].map(k => <i key={k}><Icon className="w-4 h-4 shrink-0" /></i>)}
+      <span className="civr-empty-plus"><Plus className="w-5 h-5" /></span>
+    </div>
+  );
+}
+
 // Empty state: short line + next-step button(s) as children. `bare` drops the card (for use inside another card).
 export function Empty({ icon: Icon, title, sub, children, testid, bare = false }) {
   return (
-    <div className={`${bare ? 'py-10' : 'civr-card p-10'} text-center civr-rise`} data-testid={testid}>
-      {Icon && <span className="w-12 h-12 mx-auto mb-4 rounded-2xl bg-[#818cf8]/10 text-[#818cf8] flex items-center justify-center"><Icon className="w-6 h-6" /></span>}
-      <div className={`font-display font-bold ${bare ? 'text-xl' : 'text-2xl'}`}>{title}</div>
-      {sub && <p className="text-sm text-[#a1a1aa] mt-2 max-w-md mx-auto">{sub}</p>}
-      {children && <div className="mt-6 flex flex-wrap justify-center gap-2">{children}</div>}
+    <div className={`${bare ? 'py-12' : 'civr-card px-6 py-14 md:py-20'} text-center civr-rise`} data-testid={testid}>
+      {Icon && <EmptyArt icon={Icon} />}
+      <div className={`font-semibold tracking-tight ${bare ? 'text-lg' : 'text-xl md:text-2xl'}`}>{title}</div>
+      {sub && <p className="text-sm md:text-[15px] text-[#a1a1aa] mt-3 max-w-md mx-auto">{sub}</p>}
+      {children && <div className="mt-8 flex flex-wrap justify-center gap-2">{children}</div>}
     </div>
   );
 }

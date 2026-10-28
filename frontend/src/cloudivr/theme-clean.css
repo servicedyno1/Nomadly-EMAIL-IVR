@@ -1,0 +1,82 @@
+/* Clean console look (in-app only — html[data-civr-theme] is set by ThemeRoot): navy side menu, plain white pages,
+   one blue accent, underline tabs, quiet cards and dashed empty-state art. Loaded after theme-light.css. */
+html[data-civr-theme] .civr {
+  --c-accent: #7b96ff;
+  --c-emerald: #7b96ff;
+  --c-accent-strong: #3d63f2;
+  --c-accent-hover: #2f54e0;
+  --c-accent-soft: rgba(123, 150, 255, 0.12);
+  --c-side: #0b1533;
+  --c-side-2: #15234b;
+  --radius-card: 12px;
+}
+html[data-civr-theme="light"] .civr {
+  --c-bg: #ffffff;
+  --c-card: #ffffff;
+  --c-card-hover: #fafbfd;
+  --c-border: #e5e8ef;
+  --c-border-hover: #cdd3df;
+  --c-accent: #2f54eb;
+  --c-emerald: #2f54eb;
+  --c-accent-strong: #2f54eb;
+  --c-accent-hover: #2244d1;
+  --c-accent-soft: rgba(47, 84, 235, 0.07);
+  --shadow-card: none;
+  --shadow-card-hover: 0 8px 24px -16px rgba(15, 23, 42, 0.22);
+}
+html[data-civr-theme="light"] body { background: #ffffff; }
+
+/* Type: one clean sans everywhere in the app. */
+html[data-civr-theme] .civr .font-display { font-family: 'DM Sans', sans-serif; letter-spacing: -0.02em; line-height: 1.15; }
+html[data-civr-theme] .civr .font-display.font-extrabold { font-weight: 700; }
+html[data-civr-theme] .civr .civr-label { color: var(--c-muted); font-size: 11.5px; letter-spacing: .07em; }
+html[data-civr-theme] .civr .civr-page-title { font-family: 'DM Sans', sans-serif; font-weight: 600; letter-spacing: -0.02em; line-height: 1.15; color: var(--c-text); }
+
+/* Navy side menu in both themes. */
+html[data-civr-theme] .civr .civr-side { background: var(--c-side); border-right-color: transparent; color: #e7ecf8; }
+html[data-civr-theme] .civr .civr-side .civr-side-logo { color: #ffffff; }
+html[data-civr-theme] .civr .civr-side .civr-side-label { color: #7f8ab0; font-family: 'DM Sans', sans-serif; letter-spacing: .08em; }
+html[data-civr-theme] .civr .civr-side .civr-nav-link { color: #c9d1e8; border: 1px solid transparent; border-radius: 8px; min-height: 42px; }
+html[data-civr-theme] .civr .civr-side .civr-nav-link:hover { color: #ffffff; background: rgba(255, 255, 255, 0.06); }
+html[data-civr-theme] .civr .civr-side .civr-nav-link.active { color: #ffffff; background: var(--c-side-2); border-color: rgba(123, 150, 255, 0.35); font-weight: 600; }
+html[data-civr-theme] .civr .civr-side .civr-nav-link.active::before { background: #6f8cff; left: -1px; height: 22px; }
+html[data-civr-theme] .civr .civr-side .civr-side-rule { border-color: rgba(255, 255, 255, 0.1); }
+html[data-civr-theme] .civr .civr-side { scrollbar-width: thin; scrollbar-color: rgba(255, 255, 255, .15) transparent; }
+
+/* Top bar: solid surface with a hairline, no glass. */
+html[data-civr-theme] .civr [data-civr-topbar] { -webkit-backdrop-filter: none; backdrop-filter: none; }
+html[data-civr-theme="light"] .civr [data-civr-topbar] { background: #ffffff; border-bottom-color: #e5e8ef; }
+html[data-civr-theme="light"] .civr [data-civr-topbar] .hover\:bg-\[\#151515\]:hover { background-color: #f1f3f8; }
+
+/* Controls: squarer buttons, blue primary, calm cards. */
+html[data-civr-theme] .civr .civr-btn { border-radius: 8px; }
+html[data-civr-theme] .civr .civr-btn-primary { background: var(--c-accent-strong); box-shadow: none; }
+html[data-civr-theme] .civr .civr-btn-primary:hover:not(:disabled) { background: var(--c-accent-hover); box-shadow: 0 6px 18px -10px rgba(47, 84, 235, .7); }
+html[data-civr-theme] .civr .civr-btn-ghost:hover:not(:disabled) { border-color: var(--c-accent); color: var(--c-accent); background: var(--c-accent-soft); }
+html[data-civr-theme] .civr .civr-input { border-radius: 8px; }
+html[data-civr-theme] .civr .civr-input:focus { border-color: var(--c-accent); box-shadow: 0 0 0 3px var(--c-accent-soft); }
+html[data-civr-theme] .civr :focus-visible { outline-color: var(--c-accent); }
+html[data-civr-theme] .civr .civr-pill-on { color: var(--c-accent); border-color: color-mix(in srgb, var(--c-accent) 40%, transparent); background: var(--c-accent-soft); }
+html[data-civr-theme] .civr .civr-pill-count { background: var(--c-accent-strong); }
+html[data-civr-theme] .civr .civr-card-link:hover { transform: none; }
+html[data-civr-theme="light"] .civr .civr-table th { background: #f7f8fb; color: #475569; }
+
+/* Underline tabs (Overview · SMTP/API · Email … style). */
+html[data-civr-theme] .civr .civr-tabstrip [role="tab"] { border-bottom: 2px solid transparent; margin-bottom: -1px; }
+html[data-civr-theme] .civr .civr-tabstrip [role="tab"][aria-selected="true"] { color: var(--c-accent); border-bottom-color: var(--c-accent); }
+
+/* Empty state art: dashed sheet with a round "+" badge. */
+html[data-civr-theme] .civr .civr-empty-art { position: relative; width: 104px; height: 88px; margin: 0 auto 28px; border: 2px dashed var(--c-border-hover); border-radius: 12px; background: var(--c-card-hover); display: flex; flex-direction: column; justify-content: center; gap: 10px; padding: 0 18px; color: var(--c-muted); }
+html[data-civr-theme] .civr .civr-empty-art > i { display: flex; align-items: center; gap: 8px; }
+html[data-civr-theme] .civr .civr-empty-art > i::after { content: ''; flex: 1; height: 4px; border-radius: 4px; background: var(--c-border-hover); }
+html[data-civr-theme] .civr .civr-empty-plus { position: absolute; right: -16px; bottom: -14px; width: 40px; height: 40px; border-radius: 999px; display: grid; place-items: center; background: var(--c-accent-soft); color: var(--c-accent); border: 2px solid var(--c-accent); box-shadow: 0 0 0 4px var(--c-card); }
+
+/* The old indigo accent classes follow the new blue. */
+html[data-civr-theme] .civr .text-\[\#818cf8\], html[data-civr-theme] .civr .text-\[\#818cf8\]\/80, html[data-civr-theme] .civr .text-\[\#4f46e5\], html[data-civr-theme] .civr .text-\[\#6366f1\], html[data-civr-theme] .civr .text-\[\#a5b4fc\] { color: var(--c-accent); }
+html[data-civr-theme] .civr .hover\:text-\[\#818cf8\]:hover, html[data-civr-theme] .civr .hover\:text-\[\#4f46e5\]:hover { color: var(--c-accent); }
+html[data-civr-theme] .civr .bg-\[\#6366f1\], html[data-civr-theme] .civr .bg-\[\#818cf8\], html[data-civr-theme] .civr .bg-\[\#4f46e5\] { background-color: var(--c-accent-strong); }
+html[data-civr-theme] .civr .bg-\[\#818cf8\]\/5, html[data-civr-theme] .civr .bg-\[\#818cf8\]\/10, html[data-civr-theme] .civr .bg-\[\#818cf8\]\/12, html[data-civr-theme] .civr .bg-\[\#818cf8\]\/15 { background-color: var(--c-accent-soft); }
+html[data-civr-theme] .civr .border-\[\#818cf8\], html[data-civr-theme] .civr .border-\[\#6366f1\], html[data-civr-theme] .civr .hover\:border-\[\#818cf8\]:hover { border-color: var(--c-accent); }
+html[data-civr-theme] .civr .border-\[\#818cf8\]\/20, html[data-civr-theme] .civr .border-\[\#818cf8\]\/25, html[data-civr-theme] .civr .border-\[\#818cf8\]\/30, html[data-civr-theme] .civr .border-\[\#818cf8\]\/40, html[data-civr-theme] .civr .border-\[\#818cf8\]\/50, html[data-civr-theme] .civr .border-\[\#818cf8\]\/60, html[data-civr-theme] .civr .hover\:border-\[\#818cf8\]\/50:hover { border-color: color-mix(in srgb, var(--c-accent) 40%, transparent); }
+html[data-civr-theme] .civr .accent-\[\#818cf8\] { accent-color: var(--c-accent-strong); }
+html[data-civr-theme] .civr .civr-offer { border-color: color-mix(in srgb, var(--c-accent) 35%, transparent); background: linear-gradient(90deg, var(--c-accent-soft), transparent); }
