@@ -24,8 +24,8 @@ function usePlanParam() {
 
 function SidePanel({ signup }) {
   return (
-    <div className="hidden lg:flex relative flex-col justify-between p-12 border-r border-[#1a1a1a] overflow-hidden">
-      <div className="civr-grain" />
+    <div className="civr-auth-side hidden lg:flex relative flex-col justify-between p-12 overflow-hidden" data-testid="auth-side-panel">
+      <span className="civr-np-stars" aria-hidden="true" />
       <Link to={cp()} className="font-display text-3xl font-extrabold flex items-center gap-2.5 self-start" data-testid="auth-logo-link"><Wordmark iconClass="w-10 h-10" /></Link>
       <div>
       <img src={BRAND.mark} alt="CloudIVR parrot mascot talking by voice and text" className="w-56 xl:w-64 mb-10 civr-parrot-float" data-testid="auth-mascot" />
@@ -35,14 +35,14 @@ function SidePanel({ signup }) {
           <ol className="mt-6 flex flex-col gap-6" data-testid="auth-next-steps">
             {NEXT_STEPS.map((s, i) => (
               <li key={s} className="flex items-center gap-4 font-display text-3xl font-bold">
-                <span className="w-10 h-10 rounded-full border border-[#818cf8]/50 text-[#818cf8] font-mono text-base flex items-center justify-center shrink-0">{i + 1}</span>{s}
+                <span className="civr-auth-step w-10 h-10 rounded-full border-2 font-mono text-base flex items-center justify-center shrink-0">{i + 1}</span>{s}
               </li>
             ))}
           </ol>
         </div>
       ) : <p className="font-display text-5xl font-extrabold leading-[0.95] max-w-md">Your numbers, IVR, campaigns and AI agents — one dashboard.</p>}
       </div>
-      <div className="text-xs text-[#a1a1aa] font-mono uppercase tracking-widest">Free to sign up · First Quick IVR call free · No contracts</div>
+      <div className="civr-auth-foot relative text-xs font-mono uppercase tracking-widest">Free to sign up · First Quick IVR call free · No contracts</div>
     </div>
   );
 }

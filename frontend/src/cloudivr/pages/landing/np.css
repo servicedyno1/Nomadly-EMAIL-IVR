@@ -84,7 +84,7 @@
 .civr .civr-np .civr-l-menu-item:hover, .civr .civr-np .civr-l-menu-item:focus-visible { background: var(--np-card-2); }
 
 /* Star field behind the hero and the closing box. */
-.civr .civr-np .civr-np-stars { position: absolute; inset: 0; pointer-events: none; opacity: .9;
+.civr .civr-np-stars { position: absolute; inset: 0; pointer-events: none; opacity: .9;
   background-image:
     url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='360' height='260'%3E%3Cg fill='%23B7C3D3'%3E%3Cpath opacity='.35' d='M40 30l1.6 7 6.4 1.8-6.4 1.6L40 48l-1.4-7.6L32 38.8l6.6-1.8z'/%3E%3Cpath opacity='.2' d='M210 90l1 4.6 4.4 1.2-4.4 1.1-1 4.9-.9-4.9-4.5-1.1 4.5-1.2z'/%3E%3Cpath opacity='.3' d='M300 200l1.3 5.6 5.2 1.4-5.2 1.3-1.3 5.9-1.1-5.9-5.4-1.3 5.4-1.4z'/%3E%3Cpath opacity='.18' d='M120 220l.9 3.8 3.6 1-3.6.9-.9 4-.8-4-3.7-.9 3.7-1z'/%3E%3Ccircle opacity='.25' cx='160' cy='40' r='1.2'/%3E%3Ccircle opacity='.2' cx='330' cy='60' r='1'/%3E%3Ccircle opacity='.2' cx='70' cy='150' r='1'/%3E%3Ccircle opacity='.3' cx='250' cy='160' r='1.3'/%3E%3C/g%3E%3C/svg%3E");
   background-size: 360px 260px; -webkit-mask-image: linear-gradient(#000 55%, transparent); mask-image: linear-gradient(#000 55%, transparent); }

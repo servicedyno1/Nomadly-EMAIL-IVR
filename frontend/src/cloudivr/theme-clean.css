@@ -1,46 +1,73 @@
-/* Clean console look (in-app only — html[data-civr-theme] is set by ThemeRoot): navy side menu, plain white pages,
-   one blue accent, underline tabs, quiet cards and dashed empty-state art. Loaded after theme-light.css. */
+@import url('https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;500;600;700;800&display=swap');
+/* In-app + sign-in look matching the landing page (html[data-civr-theme] is set by ThemeRoot):
+   graphite side menu, Source Sans 3, blue accent. Dark = graphite pages; light = white pages with a deeper blue. */
 html[data-civr-theme] .civr {
-  --c-accent: #7b96ff;
-  --c-emerald: #7b96ff;
-  --c-accent-strong: #3d63f2;
-  --c-accent-hover: #2f54e0;
-  --c-accent-soft: rgba(123, 150, 255, 0.12);
-  --c-side: #0b1533;
-  --c-side-2: #15234b;
+  --c-accent: #64acff;
+  --c-emerald: #64acff;
+  --c-accent-strong: #2f74d8;
+  --c-accent-hover: #2563c4;
+  --c-accent-soft: rgba(100, 172, 255, 0.12);
+  --c-side: #13171c;
+  --c-side-2: #23272d;
+  --c-lime: #daff7c;
   --radius-card: 12px;
+  font-family: 'Source Sans 3', 'Source Sans Pro', sans-serif;
+  font-size: 16px;
+}
+html[data-civr-theme="dark"] .civr {
+  --c-bg: #1b1e22;
+  --c-card: #23272d;
+  --c-card-hover: #2a2f36;
+  --c-border: #343a42;
+  --c-border-hover: #4a525d;
+  --c-text: #ffffff;
+  --c-text-2: #d5dce6;
+  --c-muted: #b4bfce;
+  --shadow-card: none;
+  --shadow-card-hover: 0 14px 34px -20px rgba(0, 0, 0, 0.8);
 }
 html[data-civr-theme="light"] .civr {
   --c-bg: #ffffff;
   --c-card: #ffffff;
-  --c-card-hover: #fafbfd;
-  --c-border: #e5e8ef;
-  --c-border-hover: #cdd3df;
-  --c-accent: #2f54eb;
-  --c-emerald: #2f54eb;
-  --c-accent-strong: #2f54eb;
-  --c-accent-hover: #2244d1;
-  --c-accent-soft: rgba(47, 84, 235, 0.07);
+  --c-card-hover: #f7f9fc;
+  --c-border: #e3e7ee;
+  --c-border-hover: #c9d1dd;
+  --c-text: #13171c;
+  --c-muted: #556070;
+  --c-accent: #1f6fd6;
+  --c-emerald: #1f6fd6;
+  --c-accent-strong: #1f6fd6;
+  --c-accent-hover: #185bb3;
+  --c-accent-soft: rgba(31, 111, 214, 0.08);
   --shadow-card: none;
-  --shadow-card-hover: 0 8px 24px -16px rgba(15, 23, 42, 0.22);
+  --shadow-card-hover: 0 8px 24px -16px rgba(19, 23, 28, 0.22);
 }
 html[data-civr-theme="light"] body { background: #ffffff; }
-html[data-civr-theme="dark"] body { background: #0a0a0a; }
+html[data-civr-theme="dark"] body { background: #1b1e22; }
+html[data-civr-theme] .civr ::selection { background: var(--c-lime); color: #13171c; }
 
-/* Type: one clean sans everywhere in the app. */
-html[data-civr-theme] .civr .font-display { font-family: 'DM Sans', sans-serif; letter-spacing: -0.02em; line-height: 1.15; }
+/* Dark mode: the old near-black surfaces follow the graphite palette. */
+html[data-civr-theme="dark"] .civr .bg-\[\#0a0a0a\] { background-color: var(--c-bg); }
+html[data-civr-theme="dark"] .civr .bg-\[\#111\], html[data-civr-theme="dark"] .civr .bg-\[\#111113\], html[data-civr-theme="dark"] .civr .bg-\[\#141414\], html[data-civr-theme="dark"] .civr .bg-\[\#1c1c1c\], html[data-civr-theme="dark"] .civr .bg-\[\#1c1c22\] { background-color: var(--c-card); }
+html[data-civr-theme="dark"] .civr .bg-\[\#1a1a1a\], html[data-civr-theme="dark"] .civr .bg-\[\#1f1f1f\], html[data-civr-theme="dark"] .civr .bg-\[\#222\], html[data-civr-theme="dark"] .civr .bg-\[\#262626\], html[data-civr-theme="dark"] .civr .bg-\[\#2a2a2a\], html[data-civr-theme="dark"] .civr .hover\:bg-\[\#1a1a1a\]:hover, html[data-civr-theme="dark"] .civr .hover\:bg-\[\#151515\]:hover { background-color: var(--c-card-hover); }
+html[data-civr-theme="dark"] .civr .bg-\[\#3f3f46\] { background-color: #3a414b; }
+html[data-civr-theme="dark"] .civr .border-\[\#1a1a1a\], html[data-civr-theme="dark"] .civr .border-\[\#1c1c1c\], html[data-civr-theme="dark"] .civr .border-\[\#1f1f1f\], html[data-civr-theme="dark"] .civr .border-\[\#222\], html[data-civr-theme="dark"] .civr .border-\[\#262626\], html[data-civr-theme="dark"] .civr .border-\[\#2a2a2a\], html[data-civr-theme="dark"] .civr .divide-\[\#1f1f1f\] > * + *, html[data-civr-theme="dark"] .civr .divide-\[\#1a1a1a\] > * + * { border-color: var(--c-border); }
+html[data-civr-theme="dark"] .civr .border-\[\#3a3a3a\], html[data-civr-theme="dark"] .civr .hover\:border-\[\#3a3a3a\]:hover, html[data-civr-theme="dark"] .civr .hover\:border-\[\#3f3f46\]:hover { border-color: var(--c-border-hover); }
+
+/* Type: Source Sans 3 everywhere in the app. */
+html[data-civr-theme] .civr .font-display { font-family: 'Source Sans 3', 'Source Sans Pro', sans-serif; letter-spacing: -0.01em; line-height: 1.15; }
 html[data-civr-theme] .civr .font-display.font-extrabold { font-weight: 700; }
-html[data-civr-theme] .civr .civr-label { color: var(--c-muted); font-size: 11.5px; letter-spacing: .07em; }
-html[data-civr-theme] .civr .civr-page-title { font-family: 'DM Sans', sans-serif; font-weight: 600; letter-spacing: -0.02em; line-height: 1.15; color: var(--c-text); }
+html[data-civr-theme] .civr .civr-label { color: var(--c-muted); font-size: 12px; letter-spacing: .08em; }
+html[data-civr-theme] .civr .civr-page-title { font-family: 'Source Sans 3', 'Source Sans Pro', sans-serif; font-weight: 700; letter-spacing: -0.01em; line-height: 1.15; color: var(--c-text); }
 
-/* Navy side menu in both themes. */
-html[data-civr-theme] .civr .civr-side { background: var(--c-side); border-right-color: transparent; color: #e7ecf8; }
+/* Graphite side menu in both themes, blue marker on the active page. */
+html[data-civr-theme] .civr .civr-side { background: var(--c-side); border-right-color: transparent; color: #e7ecf3; }
 html[data-civr-theme] .civr .civr-side .civr-side-logo { color: #ffffff; }
-html[data-civr-theme] .civr .civr-side .civr-side-label { color: #7f8ab0; font-family: 'DM Sans', sans-serif; letter-spacing: .08em; }
-html[data-civr-theme] .civr .civr-side .civr-nav-link { color: #c9d1e8; border: 1px solid transparent; border-radius: 8px; min-height: 42px; }
+html[data-civr-theme] .civr .civr-side .civr-side-label { color: #8593a8; font-family: inherit; letter-spacing: .1em; }
+html[data-civr-theme] .civr .civr-side .civr-nav-link { color: #d5dce6; border: 1px solid transparent; border-radius: 8px; min-height: 42px; }
 html[data-civr-theme] .civr .civr-side .civr-nav-link:hover { color: #ffffff; background: rgba(255, 255, 255, 0.06); }
-html[data-civr-theme] .civr .civr-side .civr-nav-link.active { color: #ffffff; background: var(--c-side-2); border-color: rgba(123, 150, 255, 0.35); font-weight: 600; }
-html[data-civr-theme] .civr .civr-side .civr-nav-link.active::before { background: #6f8cff; left: -1px; height: 22px; }
+html[data-civr-theme] .civr .civr-side .civr-nav-link.active { color: #ffffff; background: var(--c-side-2); border-color: rgba(100, 172, 255, 0.45); font-weight: 600; }
+html[data-civr-theme] .civr .civr-side .civr-nav-link.active::before { background: #64acff; left: -1px; height: 22px; }
 html[data-civr-theme] .civr .civr-side .civr-side-rule { border-color: rgba(255, 255, 255, 0.1); }
 html[data-civr-theme] .civr .civr-side { scrollbar-width: thin; scrollbar-color: rgba(255, 255, 255, .15) transparent; }
 
@@ -52,7 +79,8 @@ html[data-civr-theme="light"] .civr [data-civr-topbar] .hover\:bg-\[\#151515\]:h
 /* Controls: squarer buttons, blue primary, calm cards. */
 html[data-civr-theme] .civr .civr-btn { border-radius: 8px; }
 html[data-civr-theme] .civr .civr-btn-primary { background: var(--c-accent-strong); box-shadow: none; }
-html[data-civr-theme] .civr .civr-btn-primary:hover:not(:disabled) { background: var(--c-accent-hover); box-shadow: 0 6px 18px -10px rgba(47, 84, 235, .7); }
+html[data-civr-theme] .civr .civr-btn-primary { color: #ffffff; }
+html[data-civr-theme] .civr .civr-btn-primary:hover:not(:disabled) { background: var(--c-accent-hover); box-shadow: 0 6px 18px -10px rgba(47, 116, 216, .7); }
 html[data-civr-theme] .civr .civr-btn-ghost:hover:not(:disabled) { border-color: var(--c-accent); color: var(--c-accent); background: var(--c-accent-soft); }
 html[data-civr-theme] .civr .civr-input { border-radius: 8px; }
 html[data-civr-theme] .civr .civr-input:focus { border-color: var(--c-accent); box-shadow: 0 0 0 3px var(--c-accent-soft); }
@@ -81,3 +109,23 @@ html[data-civr-theme] .civr .border-\[\#818cf8\], html[data-civr-theme] .civr .b
 html[data-civr-theme] .civr .border-\[\#818cf8\]\/20, html[data-civr-theme] .civr .border-\[\#818cf8\]\/25, html[data-civr-theme] .civr .border-\[\#818cf8\]\/30, html[data-civr-theme] .civr .border-\[\#818cf8\]\/40, html[data-civr-theme] .civr .border-\[\#818cf8\]\/50, html[data-civr-theme] .civr .border-\[\#818cf8\]\/60, html[data-civr-theme] .civr .hover\:border-\[\#818cf8\]\/50:hover { border-color: color-mix(in srgb, var(--c-accent) 40%, transparent); }
 html[data-civr-theme] .civr .accent-\[\#818cf8\] { accent-color: var(--c-accent-strong); }
 html[data-civr-theme] .civr .civr-offer { border-color: color-mix(in srgb, var(--c-accent) 35%, transparent); background: linear-gradient(90deg, var(--c-accent-soft), transparent); }
+
+/* Dim greys stay readable on both themes. */
+html[data-civr-theme="dark"] .civr .text-\[\#71717a\], html[data-civr-theme="dark"] .civr .text-\[\#52525b\] { color: #9aa6b8; }
+html[data-civr-theme="light"] .civr .text-\[\#71717a\], html[data-civr-theme="light"] .civr .text-\[\#52525b\] { color: #556070; }
+
+/* Sign-in / sign-up: graphite star panel (like the landing page) in both themes; the form follows the theme. */
+html[data-civr-theme] .civr .civr-auth-side { background: #13171c; color: #ffffff; }
+html[data-civr-theme] .civr .civr-auth-side > * { position: relative; }
+html[data-civr-theme] .civr .civr-auth-side > .civr-np-stars { position: absolute; }
+html[data-civr-theme] .civr .civr-auth-side .civr-label { color: #daff7c; }
+html[data-civr-theme] .civr .civr-auth-side .civr-auth-step { border-color: #64acff; color: #64acff; }
+html[data-civr-theme] .civr .civr-auth-side li:nth-child(2) .civr-auth-step { border-color: #ffa3bb; color: #ffa3bb; }
+html[data-civr-theme] .civr .civr-auth-side li:nth-child(3) .civr-auth-step { border-color: #64acff; color: #64acff; }
+html[data-civr-theme] .civr .civr-auth-side li:nth-child(1) .civr-auth-step { border-color: #daff7c; color: #daff7c; }
+html[data-civr-theme] .civr .civr-auth-side .civr-auth-foot { color: #b4bfce; }
+html[data-civr-theme] .civr .civr-auth-side .font-display, html[data-civr-theme] .civr .civr-auth-side li { color: #ffffff; }
+html[data-civr-theme="dark"] .civr [data-civr-topbar] { background: #1b1e22; border-bottom: 1px solid var(--c-border); }
+html[data-civr-theme="dark"] .civr .civr-input { background-color: #1f2328; }
+html[data-civr-theme="dark"] .civr .civr-input::placeholder { color: #8593a8; }
+html[data-civr-theme="dark"] .civr .civr-glass { background: rgba(27, 30, 34, 0.88); }
