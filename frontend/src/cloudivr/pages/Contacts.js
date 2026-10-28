@@ -83,7 +83,7 @@ export default function Contacts() {
         <button type="button" className="civr-btn civr-btn-primary" onClick={() => setDialog('import')} data-testid="contacts-import-button"><FileUp className="w-4 h-4" />Upload contacts</button>
         <button type="button" className="civr-btn civr-btn-ghost" onClick={() => setDialog('add')} data-testid="contacts-add-button"><UserPlus className="w-4 h-4" />Add contact</button>
       </PageHeader>
-      {!none && s.items.length > 0 && <LeadCheck source={{ scope: 'contacts' }} cleanLabel="Delete dead contacts" testid="contacts-lead-check"
+      {!none && s.items.length > 0 && <LeadCheck source={{ scope: 'contacts' }} cleanLabel="Delete dead contacts" testid="contacts-lead-check" className="mb-6"
         onClean={async (keep, dead, job) => { try { const r = await api(`/leads/check/${job.id}/delete-dead`, { method: 'POST', body: {} }); refresh(); toast.success(`${r.deleted} dead contact${r.deleted === 1 ? '' : 's'} deleted`); } catch (e) { toast.error(e.message); } }} />}
       {none ? (
         <Empty icon={Contact} title="No contacts yet" sub="Upload an Excel (.xlsx), .csv or .txt file — we find the phone, name and email columns — or add someone by hand." testid="contacts-empty">

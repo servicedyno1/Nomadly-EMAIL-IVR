@@ -146,7 +146,7 @@ export default function QuickCall() {
               <Field label="Number(s) to call" hint="With country code. Up to 10, separated by commas.">
                 <input className="civr-input font-mono" required value={f.targets} onChange={e => set({ targets: e.target.value })} placeholder="+14155550100, +14155550101" data-testid="quick-call-to-input" />
                 <Recent onPick={(n) => set({ targets: f.targets.includes(n) ? f.targets : [f.targets, n].filter(Boolean).join(', ') })} />
-                <OwnerName targets={f.targets} onUse={(name) => { set({ script: { ...f.script, values: { ...(f.script.values || {}), Name: name } } }); toast.success(`[Name] set to ${name}`); }} />
+                <OwnerName targets={f.targets} onUse={(name) => { set({ script: { ...f.script, values: { ...(f.script.values || {}), Name: name } } }); toast.success(String(f.script.text || '').includes('[Name]') ? `[Name] set to ${name}` : `Saved — type [Name] in your message and the call will say “${name}”`); }} />
               </Field>
             </Section>
             <Section n="2" title="What they hear"><Message f={f} set={set} audios={audios} reloadAudio={reloadAudio} /></Section>

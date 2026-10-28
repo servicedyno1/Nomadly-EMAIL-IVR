@@ -51,6 +51,7 @@ function routes(router, { db, h }) {
   const known = db.collection('webLeadResults')
   const tx = db.collection('transactions')
   const w = walletOps(db)
+  const inFlight = new Set()
   const bad = (res, status, error, message) => res.status(status).json({ error, message })
   const log = (chatId, type, amount, metadata) => tx.insertOne({ _id: `${type}-${crypto.randomUUID()}`, chatId: String(chatId), type, amount: money(amount), currency: 'USD', status: 'completed', metadata: { ...metadata, channel: 'web' }, createdAt: new Date(), updatedAt: new Date() }).catch(() => {})
 
@@ -127,15 +128,19 @@ function routes(router, { db, h }) {
     const key = `${chatId}:${phone}`
     const hit = await cache.findOne({ _id: key })
     if (hit && Date.now() - new Date(hit.at).getTime() < KEEP_MS) return res.json({ phone, name: hit.name, charged: 0, supported: true, cached: true })
-    if (!(await w.debit(chatId, CNAM_RATE))) return bad(res, 402, 'insufficient_balance', `An owner-name lookup costs $${CNAM_RATE}. Top up your wallet first.`)
-    let name
-    try { name = await cnam(phone) } catch {
-      await w.credit(chatId, CNAM_RATE)
-      return bad(res, 502, 'lookup_failed', 'We couldn’t look up this number right now. You were not charged — try again in a minute.')
-    }
-    await log(chatId, 'cnam-lookup', CNAM_RATE, { phoneNumber: phone })
-    await cache.updateOne({ _id: key }, { $set: { name, at: new Date() } }, { upsert: true })
-    res.json({ phone, name, charged: CNAM_RATE, supported: true })
+    if (inFlight.has(key)) return bad(res, 409, 'in_progress', 'Already looking up this number — one moment.')
+    inFlight.add(key)
+    try {
+      if (!(await w.debit(chatId, CNAM_RATE))) return bad(res, 402, 'insufficient_balance', `An owner-name lookup costs $${CNAM_RATE}. Top up your wallet first.`)
+      let name
+      try { name = await cnam(phone) } catch {
+        await w.credit(chatId, CNAM_RATE)
+        return bad(res, 502, 'lookup_failed', 'We couldn’t look up this number right now. You were not charged — try again in a minute.')
+      }
+      await log(chatId, 'cnam-lookup', CNAM_RATE, { phoneNumber: phone })
+      await cache.updateOne({ _id: key }, { $set: { name, at: new Date() } }, { upsert: true })
+      res.json({ phone, name, charged: CNAM_RATE, supported: true })
+    } finally { inFlight.delete(key) }
   }))
 }
 

@@ -45,7 +45,7 @@ export function Onboarding({ data, setData }) {
               })}
             </div>
             <div className="sticky -bottom-6 md:-bottom-10 -mx-6 md:-mx-10 px-6 md:px-10 py-4 mt-6 bg-[var(--c-card)] border-t border-[var(--c-border)] flex flex-wrap items-center justify-between gap-3">
-              <button type="button" className="text-sm text-[#a1a1aa] hover:underline min-h-[44px]" onClick={() => save([])} disabled={busy} data-testid="onboarding-skip">Skip for now</button>
+              <button type="button" className="text-sm text-[#a1a1aa] hover:underline min-h-[44px]" onClick={() => (data.purposes?.length ? setData({ ...data, onboarded: true }) : save([]))} disabled={busy} data-testid="onboarding-skip">{data.purposes?.length ? 'Keep my current picks' : 'Skip for now'}</button>
               <button type="button" className="civr-btn civr-btn-primary" disabled={!pick.length || busy} onClick={() => save(pick)} data-testid="onboarding-continue">{busy ? <Loader2 className="w-4 h-4 animate-spin" /> : null}Continue <ArrowRight className="w-4 h-4" /></button>
             </div>
           </>

@@ -67,8 +67,8 @@ export async function downloadFile(path, name) {
 // `v=2`: Cloudflare cached the HTML that production wrongly returned for these .mp3 URLs (max-age 4 h) before the
 // /api/assets fix in js/_index.js — a new cache key makes every player fetch the real audio straight away.
 export const playUrl = (u) => { const f = String(u || '').split('/assets/user-audio/')[1]; return f ? `${API_ROOT}/api/assets/user-audio/${f}${f.includes('?') ? '&' : '?'}v=2` : u; };
-// Cents normally; 3 decimals only for sub-cent amounts like $0.015.
-export const money = (n) => { const v = Math.round(Number(n || 0) * 1000) / 1000; return `$${Math.abs(v * 100 - Math.round(v * 100)) > 1e-6 ? v.toFixed(3) : v.toFixed(2)}`; };
+// Cents normally; 3 decimals only for small sub-cent prices like $0.015.
+export const money = (n) => { const v = Math.round(Number(n || 0) * 1000) / 1000; return `$${Math.abs(v) < 1 && Math.abs(v * 100 - Math.round(v * 100)) > 1e-6 ? v.toFixed(3) : v.toFixed(2)}`; };
 export const usd = (n) => (Number.isInteger(Number(n)) ? `$${Number(n)}` : money(n));
 export const startPrice = (c) => (c?.plans?.length ? usd(Math.min(...c.plans.map(p => p.price))) : null);
 const locale = () => (typeof document !== 'undefined' && document.documentElement.lang) || undefined;

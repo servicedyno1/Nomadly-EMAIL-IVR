@@ -49,6 +49,7 @@ export function SetupGuide({ n }) {
     try { const d = await api(`/prefs/setup/${encodeURIComponent(n.phoneNumber)}`, { method: 'PUT', body: { items, done } }); setOnboarding({ ...onboarding, setups: { ...(onboarding?.setups || {}), [n.phoneNumber]: d.setup } }); setOpen(false); } catch (e) { toast.error(e.message); } finally { setBusy(false); }
   };
   const goTab = (tab) => { setParams({ tab }, { replace: true }); };
+  const reopen = () => { setStep(0); setAnswer(null); setExtras([]); setOpen(true); };
   if (!onboarding) return null;
 
   const wizard = open && (
@@ -81,12 +82,12 @@ export function SetupGuide({ n }) {
       {wizard}
       <div className="civr-card p-5 mb-6 flex flex-wrap items-center gap-4 civr-rise" data-testid="setup-banner">
         <div className="flex-1 min-w-[14rem]"><div className="font-semibold text-lg">Set up this number in 3 quick questions</div><div className="text-sm text-[#a1a1aa]">We’ll only show what this number and your plan can do.</div></div>
-        <button type="button" className="civr-btn civr-btn-primary" onClick={() => { setStep(0); setOpen(true); }} data-testid="setup-start">Start setup <ArrowRight className="w-4 h-4" /></button>
+        <button type="button" className="civr-btn civr-btn-primary" onClick={reopen} data-testid="setup-start">Start setup <ArrowRight className="w-4 h-4" /></button>
       </div>
     </>
   );
   if (plan.done || !plan.items.length) return wizard || (
-    <div className="flex justify-end -mt-2 mb-4"><button type="button" className="text-sm text-[#a1a1aa] hover:underline min-h-[44px]" onClick={() => { setStep(0); setOpen(true); }} data-testid="setup-open">Guide me through setting up this number</button></div>
+    <div className="flex justify-end -mt-2 mb-4"><button type="button" className="text-sm text-[#a1a1aa] hover:underline min-h-[44px]" onClick={reopen} data-testid="setup-open">Guide me through setting up this number</button></div>
   );
   const items = ALL.filter(it => plan.items.includes(it[0]));
   const doneCount = items.filter(it => it[6](n.features)).length;
@@ -96,7 +97,7 @@ export function SetupGuide({ n }) {
       <div className="civr-card p-5 mb-6 civr-rise" data-testid="setup-checklist">
         <div className="flex flex-wrap items-center gap-3">
           <div className="flex-1"><div className="font-semibold text-lg">Your setup · {doneCount} of {items.length} done</div><div className="h-1.5 rounded-full bg-[#262626] mt-2 max-w-sm overflow-hidden"><div className="h-full bg-[#34d399] transition-all duration-700" style={{ width: `${(doneCount / items.length) * 100}%` }} /></div></div>
-          <button type="button" className="text-sm text-[#a1a1aa] hover:underline min-h-[44px]" onClick={() => { setStep(0); setOpen(true); }} data-testid="setup-redo">Change answers</button>
+          <button type="button" className="text-sm text-[#a1a1aa] hover:underline min-h-[44px]" onClick={reopen} data-testid="setup-redo">Change answers</button>
           <button type="button" className="text-sm text-[#a1a1aa] hover:underline min-h-[44px]" onClick={() => save(plan.items, true)} data-testid="setup-hide">Hide</button>
         </div>
         <div className="flex flex-wrap gap-2 mt-4">

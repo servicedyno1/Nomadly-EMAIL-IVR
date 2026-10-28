@@ -10,7 +10,7 @@ function walletOps(db) {
   const walletOf = db.collection('walletOf')
   const balance = async (chatId) => {
     const w = await walletOf.findOne({ _id: String(chatId) })
-    return round2((w?.usdIn || 0) - (w?.usdOut || 0))
+    return round4((w?.usdIn || 0) - (w?.usdOut || 0))
   }
   // Atomic: only debits when the balance covers it (no overdraft race between two tabs).
   const debit = async (chatId, amount) => {
@@ -47,8 +47,8 @@ function routes(router, { db, h, coins, createCryptoDeposit, offers }) {
     const history = [
       ...ptx.filter(t => Number(t.amount) > 0).map(t => ({ id: String(t._id), at: t.timestamp, type: t.action, description: `${LABEL[t.action] || t.action} · ${t.phoneNumber || ''}`, amount: -Math.abs(Number(t.amount) || 0) })),
       ...tx.filter(t => t.type === 'wallet-topup').map(t => ({ id: String(t._id), at: new Date(t.createdAt).toISOString(), type: t.type, description: `Crypto top-up · ${t.metadata?.value || ''} ${t.metadata?.coin || ''}`.trim(), amount: Math.abs(Number(t.amount) || 0) })),
-      ...tx.filter(t => HOSTED[t.type]).map(t => ({ id: String(t._id), at: new Date(t.createdAt).toISOString(), type: t.type, description: `${HOSTED[t.type]} · ${t.metadata?.phoneNumber || (t.metadata?.count ? `${t.metadata.count} numbers` : '')}`, amount: -Math.abs(Number(t.amount) || 0) })),
-      ...tx.filter(t => CREDITS[t.type]).map(t => ({ id: String(t._id), at: new Date(t.createdAt).toISOString(), type: t.type, description: `${CREDITS[t.type]}${t.metadata?.phoneNumber && t.type === 'hosted-sms-refund' ? ` · ${t.metadata.phoneNumber}` : ''}${t.type === 'lead-check-refund' ? ` · ${t.metadata?.count} numbers` : ''}`, amount: Math.abs(Number(t.amount) || 0) })),
+      ...tx.filter(t => HOSTED[t.type]).map(t => ({ id: String(t._id), at: new Date(t.createdAt).toISOString(), type: t.type, description: `${HOSTED[t.type]} · ${t.metadata?.phoneNumber || (t.metadata?.count ? `${t.metadata.count} number${t.metadata.count === 1 ? '' : 's'}` : '')}`, amount: -Math.abs(Number(t.amount) || 0) })),
+      ...tx.filter(t => CREDITS[t.type]).map(t => ({ id: String(t._id), at: new Date(t.createdAt).toISOString(), type: t.type, description: `${CREDITS[t.type]}${t.metadata?.phoneNumber && t.type === 'hosted-sms-refund' ? ` · ${t.metadata.phoneNumber}` : ''}${t.type === 'lead-check-refund' ? ` · ${t.metadata?.count} number${t.metadata?.count === 1 ? '' : 's'}` : ''}`, amount: Math.abs(Number(t.amount) || 0) })),
     ].sort((a, b) => String(b.at).localeCompare(String(a.at))).slice(0, 50)
     res.json({
       balance: await w.balance(id), currency: 'USD', minTopup: MIN_TOPUP_USD, coins, history,

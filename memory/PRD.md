@@ -1773,3 +1773,14 @@ calls and SIP are simulated; inbound calls use a pretend-call simulator).
   .civr-auth-side). In-app (theme-clean.css): Source Sans 3; dark = graphite #1b1e22/#23272d, accent #64acff, buttons #2f74d8;
   light = white, accent #1f6fd6; graphite side menu (#13171c) + mobile More menu in both themes. Old near-black classes and
   important (!) surfaces remapped; contrast fixed to ~AA in both themes (iteration_171 ~97%).
+
+## 2026-10-28 ~21:10Z — Onboarding, setup guide, reviews, owner-name + lead checks (PREVIEW, tested; deploy awaiting 50-ECU confirm)
+- User choices: CNAM = user taps "Look up owner name", $0.015 each (free again 30 days). Lead check $0.015/number in Contacts +
+  Campaign builder; numbers checked in last 30 days are skipped/free (webLeadResults), "Check all again" re-charges. Publish main only.
+- Backend js/cloudivr-web/leads.js: /leads/quote, /leads/check (numbers | {scope:'contacts'} | {listId}), /leads/check/:id,
+  /leads/check/:id/delete-dead, /cnam (refund on lookup error, in-flight guard). Wallet debit/credit/balance round4 (exact $0.015);
+  transactions rows 'lead-check', 'lead-check-refund', 'cnam-lookup' show in wallet history. POST /reviews gated on answered call.
+- Frontend: LeadCheck.js, quick/OwnerName.js, Onboarding (sticky footer, reopen via Overview "Change what I use CloudIVR for",
+  "Keep my current picks"), interleaved suggestions, mobile More "For you", SetupGuide re-entry link (setup-open). money(): 3
+  decimals only for amounts < $1 with sub-cent value.
+- Tests: iteration_172 (found bugs) -> iteration_173 (backend 10/10, frontend 95%); all 173 findings fixed + self-verified after.

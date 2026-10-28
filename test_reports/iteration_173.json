@@ -1,0 +1,42 @@
+{
+  "summary": "Re-tested all iteration_172 findings for CloudIVR Web. Backend: 10/10 pytest pass. CNAM debit is exactly 0.015, measured in walletOf. A 3-number lead check debits 0.045. The 30-day cache makes repeat numbers free and quote counts cached/fresh correctly. recheck:true charges all numbers. scope:contacts checks all 60+ contacts, not just the 50 loaded. listId works. delete-dead deletes only dead contacts. Wallet history rows 'Owner-name lookup · +1…' and 'Lead check · N numbers' show 3-decimal amounts. POST /reviews returns 403 not_eligible for Bob. Frontend checks that passed: Quick IVR owner-name lookup (button only on tap; '+1415555012' shows no button; charged then free; none case; Use as [Name] fills the placeholder). Campaign lead check: price, clean keeps ',Name' suffixes, result stays after clean, cached note, 'Check all again'. Saved-list source. Contacts check plus delete-dead toast. Onboarding: copy, sticky footer on 390x844, Sales+Texting interleave, Change preselects picks, Start reopens after skip, mobile 'For you' group. Setup guide: re-entry via setup-open after skip-all and after Hide; save error toasts. Regression: HeroPhone, reviews section, dark Terms and SIP pages render. Two new issues: one medium (Skip in the 'Change' flow wipes picks), one minor UX.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/cloudivr-web/wallet", "issue": "balance is round2(): sub-cent debits are exact in DB (usdOut += 0.015) but the API/header shows a rounded balance (e.g. 498.385 -> $498.39 or $498.38). Balance deltas of $0.015 cannot be seen via the API. Consider returning 3 decimals or a raw field."},
+      {"endpoint": "POST /api/cloudivr-web/cnam", "issue": "Not atomic for concurrent requests: two parallel lookups of the same uncached number both debit $0.015 (the cache is written after the debit). Low impact."},
+      {"endpoint": "GET /wallet history", "issue": "A 1-number lead check is labelled 'Lead check · 1 numbers' (no plural handling)."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Onboarding (reopened from dashboard-for-you-change)", "issue": "Opening 'Change what I use CloudIVR for' and then clicking 'Skip for now' saves purposes [] and wipes the user's existing picks: Sales+Texting -> [] and the dashboard falls back to dashboard-for-you-start. In the change flow, Skip should close without saving (or be labelled Cancel).", "selector": "[data-testid=onboarding-skip]", "priority": "MEDIUM"},
+      {"component": "Contacts lead check", "issue": "After 'Delete dead contacts (2)' succeeds, the button stays visible with the same count. Clicking it again calls delete-dead and toasts '0 dead contacts deleted'. Hide it or mark it done after cleaning.", "selector": "[data-testid=contacts-lead-check-clean]", "priority": "LOW"},
+      {"component": "Campaign LeadCheck", "issue": "If the user edits the leads to a subset of numbers already checked, the old summary is kept (LeadCheck.js line 44 skips the new quote). The counts then still include numbers that were removed, e.g. 2 mobile/1 landline after removing Dan.", "selector": "[data-testid=campaign-lead-check-result]", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Contacts", "issues": ["The contacts-lead-check card sits flush against the Lists/All-contacts grid below it (about 2px gap). Add mb-4/mb-6 to the card."]},
+      {"screen": "Quick IVR", "issues": ["'Use as [Name]' toasts '[Name] set to X' even when the script has no [Name] placeholder, so nothing visible changes. Consider hiding the button or inserting [Name]."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_cloudivr_onboarding_leads.py", "/app/test_reports/pytest/pytest_results.xml"],
+  "action_items": [
+    "Onboarding: when reopened from dashboard-for-you-change, make Skip close the modal without PUT purposes [] (keep existing picks)",
+    "Contacts: hide or disable 'Delete dead contacts' after a successful delete-dead",
+    "Optional: GET /wallet balance with 3 decimals so sub-cent charges match the history",
+    "Optional: pluralise 'Lead check · 1 number'; make CNAM debit+cache idempotent under concurrent taps"
+  ],
+  "critical_code_review_comments": [
+    "wallet.js balance() uses round2 while debits use round4. The UI header balance drifts by up to half a cent from the true balance.",
+    "leads.js /cnam: debit happens before the cache upsert, so concurrent requests double-charge. An upsert-first 'pending' marker or findOneAndUpdate would prevent this.",
+    "SetupGuide.js: reopening the wizard (setup-open/setup-redo) does not reset the answer/extras state from the previous run. Harmless but stale.",
+    "LeadCheck.js line 44: the skip-requote check only tests that list ⊆ job.results, so the summary is not refiltered to the current list."
+  ],
+  "updated_files": ["/app/backend/tests/test_cloudivr_onboarding_leads.py"],
+  "success_rate": {"backend": "100% (10/10)", "frontend": "95% (all requested flows pass; 1 medium + 2 low UX issues)"},
+  "seed_data_creation": "Temporary contacts, list, phoneLogs and reviews marked _test173 were created and then deleted. Alice was charged about $1.6 in test lookups and checks. Alice's onboarding was reset to not-onboarded, and reset_ui.js was run (Bob not onboarded, Alice setups cleared).",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Use page.request.post to /api/cloudivr-web/auth/login in browser_automation; it shares cookies with the page. Dismiss cookie-allow-all. Alice shows the onboarding modal unless prefs are set (PUT /prefs/onboarding). Measure exact wallet deltas from Mongo walletOf (usdIn-usdOut), not GET /wallet (round2). The SIP page testid is sip-funnel-page. Quick IVR placeholder inputs only render when the script contains [Name] (quick-script-text / quick-script-ph-Name). The landing reviews-section needs a review with rating >= 4 and text in webReviews. In the mobile More menu, clicking the backdrop with force hits a menu link, so use the More toggle instead."
+}
