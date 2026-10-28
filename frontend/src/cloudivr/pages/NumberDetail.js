@@ -44,7 +44,7 @@ export default function NumberDetail() {
   return (
     <div data-testid="number-detail-page">
       <Link to={cp('/app/numbers')} className="inline-flex items-center gap-2 min-h-[44px] text-sm text-[#a1a1aa] hover:text-[#818cf8] mb-3" data-testid="number-detail-back-link"><ArrowLeft className="w-4 h-4" />All numbers</Link>
-      <div className="flex flex-col md:flex-row md:items-end gap-4 justify-between mb-8 civr-rise">
+      <div className="flex flex-col md:flex-row md:items-start gap-4 justify-between mb-8 civr-rise">
         <div>
           <div className="civr-label">{n.countryName || n.country} · {n.type?.replace('_', '-')} · {n.planName}</div>
           <h1 className="font-mono text-4xl sm:text-5xl mt-2" data-testid="number-detail-phone">{pv.phone(n.phoneNumber)}</h1>

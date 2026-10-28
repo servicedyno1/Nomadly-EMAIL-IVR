@@ -14,7 +14,7 @@ export function SenderName() {
     try { const d = await api('/prefs/sender-name', { method: 'PUT', body: { senderName: v } }); setV(d.senderName || ''); toast.success(d.senderName ? 'Sender name saved' : 'Sender name removed'); } catch (e) { toast.error(e.message); } finally { setBusy(false); }
   };
   return (
-    <div id="sender-name" className="civr-card p-6 space-y-4 scroll-mt-24" data-testid="settings-sender-name-card">
+    <div id="settings-sender-name" className="civr-card p-6 space-y-4 scroll-mt-24" data-testid="settings-sender-name-card">
       <div className="font-display text-2xl font-bold">Text sender name</div>
       <p className="text-sm text-[#a1a1aa]">Some countries (UK, Germany, France, Portugal) show a name instead of a phone number on texts. People can’t reply to a name. Countries that need the name registered first aren’t offered.</p>
       <div className="flex flex-wrap gap-2">

@@ -1,0 +1,36 @@
+{
+  "summary": "Tested SMS carrier rules end to end, both API and UI, in the dry-run preview. Backend: 13 of 13 pytest cases passed. sms-reach returns 'limited', 15 countries and the right prices. Bob's hosted number shows the P2P note; Alice's long-code number shows the 10DLC note. Another account's number gives 404, and no session gives 401. /sms-reach/check gives: CA ok $0.05 (number); US blocked (mode 'approval'); UK 'brand' blocked with no sender name, then ok with from=BOBCO at $0.08 once it is set; IN blocked ('takes weeks'); BR ok $0.06; '12' gets the country-code message; JP is blocked. The sender-name PUT trims spaces and rejects AB, TOOLONGNAME12, 12345, BAD!NAME and ÄBCD (400 invalid_sender); an empty value clears it to null. Hosted send charges CA 0.05, BR 0.06 and UK 0.08 (sent from=BOBCO). The charge is checked in walletOf and phoneLogs. US sends are refused with the P2P message, no charge and no log. Inbox hosted reply to a US number gives 400 with no charge. Missed-call text back from Alice's number to a US number gives 400 sms_blocked (10DLC), and the reply claim is released; to a CA number it gives 200 preview. UI: Bob's Texting page shows the chip 'Limited texting · can text 4 countries' and the US note. Tapping the chip opens the list of all 15 countries with prices or reasons. The To field gives: CA 'Canada · $0.05 per text' with Send enabled; US amber reason with Send disabled; UK with no name shows the reason and a 'Set it now' link with Send disabled. The link goes to Settings; saving an invalid name shows a toast, and BOBCO saves and is still there after reload. The UK note then reads '$0.08 · Shows as “BOBCO”' and Send is enabled; India is disabled; a Canada send shows the toast 'Sent · $0.05'. The price cell and billing line copy are correct. Inbox: the BR hosted reply shows 'Brazil · $0.06 per text' and '$0.06 from your wallet', and sends. The US reply shows the amber note, and presets and Send are disabled. Alice's missed-call Text back to a US number shows the amber 10DLC note with Send disabled. Alice's number detail page shows number-sms-reach-chip 'Limited texting', the note and the country list. No page errors.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "js/sms-rules.js countryOf()", "issue": "Every +1 number that is not a Canadian area code counts as US. That includes Caribbean and other NANP numbers (+1876 Jamaica, +1787 Puerto Rico, +1809 Dominican Republic). Today they are blocked as 'US mobiles'. Once 10DLC or P2P is on, they would be sent and charged the US $0.05 price."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "SenderName card / Settings hash scroll", "issue": "The 'Set it now' link (/app/settings#sender-name) did not scroll to the card. useHashScroll looks for id 'settings-sender-name', but the card's id was 'sender-name'. FIXED by changing the id to settings-sender-name; checked: the card is now at y=96.", "selector": "[data-testid='settings-sender-name-card']", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Inbox hosted SMS reply (US, blocked)", "issues": ["The count line still says '$0.05 from your wallet' while the send is blocked. The costNote is fixed when meta.hosted is set; consider hiding it when blocked."]},
+      {"screen": "Texting / inbox UK note", "issues": ["The copy repeats itself: '…Set yours in Settings → Text sender name. Set it now'. Drop the 'Settings → …' sentence, since the link is right there."]},
+      {"screen": "Number detail header", "issues": ["Opening the reach list in the header pushes the status pills (active / renews / preview) down to the bottom right of the tall header block, which looks unbalanced."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_sms_rules_reach.py", "/app/test_reports/pytest/sms_rules.xml"],
+  "action_items": [
+    "Optional: treat non-US/CA NANP area codes (Caribbean, PR, territories) as their own or unknown countries in sms-rules countryOf",
+    "Optional: hide or adjust the hosted costNote when the destination is blocked; remove the repeated 'Settings → Text sender name' sentence from the brand 'why' text when the 'Set it now' link is shown"
+  ],
+  "critical_code_review_comments": [
+    "sms-reply.send calls smsRules.check without isHosted. That is correct for long codes, but the US 'why' text depends on the flag, so keep it that way.",
+    "facts() caches per phone for 10 minutes, and the P2P switch only happens inside facts(). A number that becomes P2P-eligible opens up only on the next cache miss. That is acceptable, but there is no way to invalidate the cache after a manual change.",
+    "The hosted sendText debit, credit-on-failure and log flow is consistent, and a blocked rule returns before any debit."
+  ],
+  "updated_files": ["/app/frontend/src/cloudivr/pages/settings/SenderName.js", "/app/backend/tests/test_sms_rules_reach.py"],
+  "success_rate": {"backend": "100%", "frontend": "100% (one low-priority hash-scroll bug fixed)"},
+  "seed_data_creation": "Temporary webNotifications (TEST_SMSRULES) and phoneLogs missed calls were seeded and then removed. Wallets were restored by the pytest fixture after the API tests. The UI sends added small preview charges to Bob's wallet ($0.05 CA, $0.06 BR) and preview phoneLogs. Bob's senderName is set to BOBCO.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Bob's hosted id is hs_065c7d748669 (+13125550142). Alice's number is +13346972125 (dry-run). Dry-run means every long code is A2P without 10DLC, so US is blocked; with no sender name, 4 countries are reachable (CA, BR, MX, ZA). Run with: REACT_APP_BACKEND_URL=... pytest backend/tests/test_sms_rules_reach.py. Set webPrefs.senderName to null to retest the 'Set it now' path."
+}

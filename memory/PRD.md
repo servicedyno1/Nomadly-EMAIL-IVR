@@ -1747,3 +1747,14 @@ calls and SIP are simulated; inbound calls use a pretend-call simulator).
 - PENDING (owner choices given 2026-10-28): SMS sending rules — NO US 10DLC approval for now (block US mobiles with notice),
   customer's own brand sender name only where instant (skip countries needing pre-registration), price by country,
   status (Ready / Needs approval / Limited + countries) shown before sending. See memory/TELNYX_SMS_DESTINATIONS_2026-10-28.md.
+
+## 2026-10-28 ~18:55Z — SMS carrier rules (LIVE app-main 5161231) — tested iteration_169 (backend 13/13, frontend 100%)
+- js/sms-rules.js: per sender number (Telnyx profile allow-list, messaging_product, 10DLC campaign, toll-free verification;
+  cached 10 min) × destination country table (mode number/brand/blocked + price). US mobiles need 10DLC or P2P; hosted
+  landlines auto-switch to P2P when Telnyx marks them eligible (Telnyx: P2P needs no 10DLC; receiving never needs it).
+  Brand countries GB/DE/FR/PT use the customer's sender name (webPrefs.senderName, Settings card). AU/IN/NG/GH/KE/PH blocked
+  (pre-registration takes weeks). Caribbean/US-territory +1 codes are not offered. Prices: US/CA 0.05, GB .08, DE .12, FR .10,
+  PT/BR/MX .06, ZA .05 — international texts charged from the wallet (not plan); hosted outbound uses the country price.
+- API: GET /sms-reach?phone, POST /sms-reach/check, GET/PUT /prefs/sender-name. Enforced in sms-reply.send + hosted sendText.
+- UI: SmsReach.js ReachChip (Texting page, number detail) + DestNote/CheckedReply (Inbox reply, missed-call text back, hosted thread).
+- Live check: toll-free = "Needs texting approval"; long code = "Limited" (CA, BR, MX, ZA). No numbers have 10DLC today.

@@ -21,12 +21,15 @@ const COUNTRIES = [
 ]
 const BLOCKED_WHY = 'needs its sender name registered with local carriers first (takes weeks)'
 const CA_AREA = new Set('204 226 236 249 250 257 263 289 306 343 354 365 367 368 382 403 416 418 428 431 437 438 450 468 474 506 514 519 548 579 581 584 587 600 604 613 639 647 672 683 705 709 742 753 778 780 782 807 819 825 867 873 879 902 905'.split(' '))
+// +1 numbers outside the US and Canada (Caribbean, US territories): not offered.
+const NANP_OTHER = new Set('242 246 264 268 284 340 345 441 473 649 658 664 670 671 684 721 758 767 784 787 809 829 849 868 869 876 939'.split(' '))
 const TOLL_FREE = /^\+18(00|33|44|55|66|77|88)\d{7}$/
 const DEFAULT_ALLOWED = ['AU', 'BR', 'CA', 'DE', 'FR', 'GB', 'GH', 'IN', 'KE', 'MX', 'NG', 'PH', 'PT', 'US', 'ZA']
 
 function countryOf(phone) {
   const p = String(phone || '')
   if (!E164.test(p)) return null
+  if (p.startsWith('+1') && NANP_OTHER.has(p.slice(2, 5))) return ['', '', 'that country', 'unknown', 0]
   if (p.startsWith('+1')) return COUNTRIES.find(c => c[1] === (CA_AREA.has(p.slice(2, 5)) ? 'CA' : 'US'))
   return COUNTRIES.filter(c => c[0] !== '1' && p.startsWith(`+${c[0]}`)).sort((a, b) => b[0].length - a[0].length)[0] || ['', '', 'that country', 'unknown', 0]
 }
@@ -72,7 +75,7 @@ function rule(phone, f, c, senderName, isHosted) {
   if (iso === 'US' && !(f.tenDlc || f.product === 'P2P')) return { ok: false, mode: 'approval', price, why: isHosted ? 'Texts to US mobiles open once the carrier clears this number for person-to-person texting — we switch it on automatically. Receiving works now.' : 'US mobile carriers need business texting approval (10DLC) for this number first. Receiving works now.' }
   if (mode === 'blocked') return { ok: false, mode, price, why: `${name} ${BLOCKED_WHY}.` }
   if (mode === 'brand' && f.product !== 'P2P') {
-    if (!senderName) return { ok: false, mode: 'brand', price, why: `${name} shows a sender name instead of a number. Set yours in Settings → Text sender name.` }
+    if (!senderName) return { ok: false, mode: 'brand', price, why: `${name} shows a sender name instead of a number — add your sender name in Settings first.` }
     return { ok: true, mode: 'brand', price, from: senderName, why: `Shows as “${senderName}” — they can’t reply to it.` }
   }
   return { ok: true, mode: 'number', price }

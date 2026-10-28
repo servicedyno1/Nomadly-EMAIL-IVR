@@ -90,5 +90,5 @@ export function TextBack({ id, reply, canReply, onDone, testid, phone, to }) {
 export function CheckedReply({ phone, to, testid, costNote, ...rest }) {
   const c = useDestCheck(phone, to);
   const home = c?.ok && (c.iso === 'US' || c.iso === 'CA');
-  return <QuickReply {...rest} testid={testid} blocked={c ? !c.ok : false} note={<DestNote check={c} testid={`${testid}-dest`} />} costNote={c?.ok && !home ? `$${c.price.toFixed(2)} from your wallet` : costNote} />;
+  return <QuickReply {...rest} testid={testid} blocked={c ? !c.ok : false} note={<DestNote check={c} testid={`${testid}-dest`} />} costNote={c && !c.ok ? 'can’t be sent to this number' : c?.ok && !home ? `$${c.price.toFixed(2)} from your wallet` : costNote} />;
 }
