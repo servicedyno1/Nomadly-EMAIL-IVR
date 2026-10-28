@@ -1699,3 +1699,13 @@ calls and SIP are simulated; inbound calls use a pretend-call simulator).
   Billing renew/upgrade offer notes, Inbox CTA (hidden when expired/used).
 - Light mode: theme.js (civr.theme = system|light|dark, html[data-civr-theme]) mounted in Shell + auth pages only; theme-light.css (vars,
   component overrides, generated map of dark Tailwind hex classes). Toggles: topbar sun/moon, Settings → Appearance, mobile More menu.
+
+## 2026-10-28 — Zoho CPaaS email (replacing MailerSend) — IN PROGRESS
+- Zoho key (ZOHO_CPAAS_API_KEY, secrets) is an EU mail-agent send key: only https://cpaas.zoho.eu/v1.1/email accepts it.
+  Domain APIs need a Zoho OAuth token (we don't have one) → owner adds domains in the Zoho console; agent does DNS in Cloudflare.
+- cloudivr.net: DKIM TXT 28152758._domainkey + CNAME bounce-zem → cluster89.zeptomail.eu (owner added). Test welcome email to
+  moxxcompany@gmail.com arrived fine (owner confirmed). cloudivr.net has NO MX (hi@cloudivr.net can't receive).
+- js/mailer.js: MAIL_PROVIDER=zoho → sendZoho() only, no fallback (owner choice "Zoho only"). Env: MAIL_PROVIDER=zoho,
+  ZOHO_CPAAS_EMAIL_URL=https://cpaas.zoho.eu/v1.1/email (set in preview .env). Rollback: MAIL_PROVIDER=auto (MailerSend).
+- PENDING: owner adds hostbay.io, smadavhost.com, voodoohost.xyz, proshophost.xyz in Zoho (same mail agent) and sends the DNS
+  records; agent adds them in Cloudflare, tests each sender, then sets the 3 env lines on all 4 prod bots + deploys mailer.js.

@@ -4,6 +4,7 @@
 //   MAIL_PROVIDER=auto (default)  → MailerSend when the sender's domain is verified in MailerSend, else Brevo.
 //   MAIL_PROVIDER=mailersend      → always MailerSend (Brevo only as fallback).
 //   MAIL_PROVIDER=brevo           → never MailerSend (rollback switch).
+//   MAIL_PROVIDER=zoho            → always Zoho CPaaS (ZOHO_CPAAS_API_KEY + ZOHO_CPAAS_EMAIL_URL), no fallback.
 // MAIL_FALLBACK=brevo (default) | off — when MailerSend refuses or fails a message, send it through Brevo instead.
 // Customer mailboxes / cPanel SMTP tests and the bulk email-blast servers are NOT handled here.
 const axios = require('axios')
@@ -18,6 +19,7 @@ const provider = () => String(process.env.MAIL_PROVIDER || 'auto').toLowerCase()
 const fallbackOn = () => String(process.env.MAIL_FALLBACK || 'brevo').toLowerCase() !== 'off'
 const msToken = () => process.env.MAILERSEND_API_TOKEN
 const brevoKey = () => process.env.BREVO_API_KEY
+const zohoOn = () => provider() === 'zoho'
 
 // ── address helpers ──
 // '"Name" <a@b.c>' | 'a@b.c' | { name, address|email } → { email, name }
@@ -123,6 +125,47 @@ async function sendMailerSend(m) {
   }
 }
 
+// ── Zoho CPaaS (ZeptoMail engine) ──
+const MIME = { pdf: 'application/pdf', png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif', txt: 'text/plain', csv: 'text/csv', html: 'text/html', zip: 'application/zip', json: 'application/json', wav: 'audio/wav', mp3: 'audio/mpeg' }
+const mimeOf = (name) => MIME[String(name).split('.').pop().toLowerCase()] || 'application/octet-stream'
+const zAddr = (a) => ({ email_address: { address: a.email, ...(a.name ? { name: a.name } : {}) } })
+function zohoPayload(m) {
+  const mime = {}
+  for (const [name, value] of Object.entries(m.headers || {})) if (/^[A-Za-z0-9-]+$/.test(name)) mime[name] = String(value)
+  const body = {
+    from: { address: m.from.email, ...(m.from.name ? { name: m.from.name } : {}) },
+    to: m.to.map(zAddr),
+    subject: m.subject,
+    ...(m.html ? { htmlbody: m.html } : {}),
+    ...(m.text ? { textbody: m.text } : {}),
+    ...(m.cc?.length ? { cc: m.cc.map(zAddr) } : {}),
+    ...(m.bcc?.length ? { bcc: m.bcc.map(zAddr) } : {}),
+    ...(m.replyTo ? { reply_to: [{ address: m.replyTo.email, ...(m.replyTo.name ? { name: m.replyTo.name } : {}) }] } : {}),
+    ...(m.attachments?.length ? { attachments: m.attachments.map(a => ({ name: a.filename, mime_type: mimeOf(a.filename), content: a.content })) } : {}),
+    ...(Object.keys(mime).length ? { mime_headers: mime } : {}),
+  }
+  if (!body.htmlbody && !body.textbody) body.textbody = ' '
+  return body
+}
+function zohoErrorText(e) {
+  const err = e.response?.data?.error
+  return err ? `${err.code || ''} ${err.details?.[0]?.message || err.message || ''}`.trim() : e.message
+}
+async function sendZoho(m) {
+  if (!process.env.ZOHO_CPAAS_API_KEY || !process.env.ZOHO_CPAAS_EMAIL_URL) throw new MailError('zoho', 0, 'ZOHO_CPAAS_API_KEY / ZOHO_CPAAS_EMAIL_URL not set')
+  const body = zohoPayload(m)
+  for (let attempt = 0; ; attempt++) {
+    try {
+      const r = await axios.post(process.env.ZOHO_CPAAS_EMAIL_URL, body, { headers: { Authorization: process.env.ZOHO_CPAAS_API_KEY, 'Content-Type': 'application/json', Accept: 'application/json' }, timeout: 20000 })
+      return { ok: true, provider: 'zoho', id: r.data?.request_id || null }
+    } catch (e) {
+      const status = e.response?.status
+      if ((status === 429 || (status >= 500 && status < 600)) && attempt < 2) { await sleep(2 ** attempt * 1000); continue }
+      throw new MailError('zoho', status || 0, zohoErrorText(e), e.response?.data?.error?.details?.[0]?.code || e.response?.data?.error?.code || null)
+    }
+  }
+}
+
 // ── Brevo (API) ──
 async function sendBrevo(m) {
   if (!brevoKey()) throw new MailError('brevo', 0, 'BREVO_API_KEY is not set')
@@ -150,6 +193,9 @@ async function sendBrevo(m) {
 // Normalised message → { ok, provider, id }. Throws MailError when every provider failed.
 // opts.smtpFallback(original) — used by the SMTP shim to keep the old SMTP relay as the Brevo route.
 async function deliver(m, opts = {}) {
+  if (zohoOn()) {
+    try { return await sendZoho(m) } catch (e) { log(`Zoho refused "${m.subject}" → ${m.to.map(a => a.email).join(',')}: ${e.status} ${e.message}`); throw e }
+  }
   const viaMs = await routeToMailerSend(m.from.email)
   const brevo = () => (opts.smtpFallback ? opts.smtpFallback() : sendBrevo(m))
   if (!viaMs) return brevo()
@@ -195,8 +241,8 @@ function transport(smtpOptions) {
       } catch (e) { if (cb) return cb(e); throw e }
     },
     // MailerSend: the token answers; otherwise the real SMTP check.
-    verify: async () => (msToken() && provider() !== 'brevo' ? (await axios.get(`${MS_API}/api-quota`, { headers: { Authorization: `Bearer ${msToken()}` }, timeout: 10000 }), true) : smtpT().verify()),
+    verify: async () => (zohoOn() ? !!process.env.ZOHO_CPAAS_API_KEY : msToken() && provider() !== 'brevo' ? (await axios.get(`${MS_API}/api-quota`, { headers: { Authorization: `Bearer ${msToken()}` }, timeout: 10000 }), true) : smtpT().verify()),
   }
 }
 
-module.exports = { send, transport, deliver, normalise, msPayload, parseAddress, parseList, verifiedDomains, resetDomainCache, MailError }
+module.exports = { send, transport, deliver, normalise, msPayload, zohoPayload, parseAddress, parseList, verifiedDomains, resetDomainCache, MailError }
