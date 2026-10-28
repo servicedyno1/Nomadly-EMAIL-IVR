@@ -211,11 +211,20 @@ export function PreviewBanner({ show, livePayments }) {
   );
 }
 
+// Same-named clips get their length and date so they can be told apart ("Payment Notification · 0:24 · 28 Oct 7:10 PM").
+const clock = (s) => `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, '0')}`;
+export function audioLabel(a, all) {
+  if ((all || []).filter(x => x.name === a.name).length < 2) return a.name;
+  const when = a.createdAt ? new Date(a.createdAt).toLocaleString(undefined, { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }) : '';
+  const voice = /^tts-([a-z]+)/i.exec(a.originalName || '')?.[1];
+  return [a.name, voice ? `${voice[0].toUpperCase()}${voice.slice(1)} voice` : '', a.duration ? clock(a.duration) : '', when].filter(Boolean).join(' · ');
+}
+
 export function AudioSelect({ value, onChange, audios, testid, placeholder = 'Pick audio…', by = 'audioUrl' }) {
   return (
     <select className="civr-input" value={value || ''} onChange={e => onChange(e.target.value)} data-testid={testid}>
       <option value="">{placeholder}</option>
-      {(audios || []).map(a => <option key={a.id} value={a[by]}>{a.name}</option>)}
+      {(audios || []).map(a => <option key={a.id} value={a[by]}>{audioLabel(a, audios)}</option>)}
     </select>
   );
 }

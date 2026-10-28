@@ -1737,3 +1737,13 @@ calls and SIP are simulated; inbound calls use a pretend-call simulator).
 - 2026-10-28 18:10Z (LIVE app-main 4c1bc0d): Products menu + footer now list "Text-to-voice calls" and "Landline to Texting"
   (landing/menu.js); platform tab `platform-tab-hosted` with LandlineTextMock (MockupsLive.js), text tab renamed
   "Text-to-voice calls"; in-app nav label renamed; Overview card row `dashboard-new-products` (dashboard/NewProducts.js). Self-tested via screenshots.
+
+## 2026-10-28 ~19:40Z — Audio picker "all say Payment Notification" (fundmyllc@gmail.com) — FIXED, LIVE app-main 8109bf1
+- Cause: campaign Save auto-voice named every clip after the template (`script.templateName`), so 9 clips = "Payment Notification".
+- Fix: audio-library-service.saveAudio gives unique names ("Name 2", "Name 3"); campaign auto-voice name = campaign name or
+  "Template · first words…"; AudioSelect (ui.js audioLabel) adds voice + date to same-named clips; publicAudio returns originalName.
+- Prod data: web accounts' duplicate clip names renamed (9 for fundmyllc 5000000000000006 "Payment Notification 2..9",
+  1 for 5000000000000007 "vm.mpeg 2"); field `renamedFrom` keeps the old name. Bot users untouched.
+- PENDING (owner choices given 2026-10-28): SMS sending rules — NO US 10DLC approval for now (block US mobiles with notice),
+  customer's own brand sender name only where instant (skip countries needing pre-registration), price by country,
+  status (Ready / Needs approval / Limited + countries) shown before sending. See memory/TELNYX_SMS_DESTINATIONS_2026-10-28.md.

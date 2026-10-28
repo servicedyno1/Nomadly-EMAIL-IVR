@@ -230,7 +230,7 @@ export function CampaignNew() {
     if (left.length) throw new Error(`Fill in ${left.map(n => `[${n}]`).join(', ')} in your script first.`);
     if (text.length < 3) throw new Error('Pick a message from your audio library, or write a script for the AI voice to read.');
     setBusy('voice');
-    const d = await api('/audio/tts', { method: 'POST', body: { text, voice: script.voice || voiceDef.voice, speed: script.speed || voiceDef.speed, name: script.templateName || text.slice(0, 40) } });
+    const d = await api('/audio/tts', { method: 'POST', body: { text, voice: script.voice || voiceDef.voice, speed: script.speed || voiceDef.speed, name: f.name.trim() || (script.templateName ? `${script.templateName} · ${text.slice(0, 24)}…` : text.slice(0, 40)) } });
     reloadAudio(); setF(x => ({ ...x, audioId: d.audio.id })); setScript(null);
     setBusy('create');
     return d.audio.id;

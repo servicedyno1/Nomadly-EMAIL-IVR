@@ -174,11 +174,21 @@ async function saveBuffer(downloadedBuf, chatId, originalName, mimeType) {
  * @param {object} params
  * @returns {object} The saved audio document
  */
+// "Payment Notification" → "Payment Notification 2", "… 3" so every clip in a library has its own name.
+async function uniqueName(chatId, base) {
+  const esc = base.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const taken = new Set((await _collection.find({ chatId: String(chatId), name: { $regex: `^${esc}( \\d+)?$` } }, { projection: { name: 1 } }).toArray()).map(d => d.name))
+  if (!taken.has(base)) return base
+  let n = 2
+  while (taken.has(`${base} ${n}`)) n++
+  return `${base} ${n}`
+}
+
 async function saveAudio({ chatId, name, filename, originalName, duration, mimeType, size, audioUrl, localPath }) {
   const doc = {
     id: crypto.randomUUID(),
     chatId: String(chatId),
-    name: name || originalName || filename,
+    name: await uniqueName(chatId, String(name || originalName || filename).trim()),
     filename,
     originalName: originalName || filename,
     duration: duration || 0,
