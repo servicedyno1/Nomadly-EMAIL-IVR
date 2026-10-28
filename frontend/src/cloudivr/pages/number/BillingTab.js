@@ -37,7 +37,7 @@ function Renewal({ num, reload, refreshSummary }) {
       <div className="font-display text-2xl font-bold">Renewal</div>
       {held && <HoldNotice num={num} price={price} />}
       {deal > 0 && <div className="civr-offer rounded-xl p-3 text-sm flex items-center gap-2" data-testid="billing-renew-offer"><Ticket className="w-4 h-4 text-[var(--c-accent)] shrink-0" />Today’s offer: renew now for <span className="font-mono">{money(price)}</span> <span className="line-through text-[var(--c-muted)] font-mono">{money(full)}</span> — {deal}% off.</div>}
-      <div className="flex justify-between text-sm"><span className="text-[#a1a1aa]">Plan</span><span>{num.planName} · {money(price)}/month</span></div>
+      <div className="flex justify-between text-sm"><span className="text-[#a1a1aa]">Plan</span><span>{num.planName} · {money(full)}/month</span></div>
       <div className="flex justify-between text-sm"><span className="text-[#a1a1aa]">Paid until</span><span data-testid="billing-expires">{day(num.expiresAt)}</span></div>
       {!held && <div className="flex items-center justify-between"><span className="text-sm">Auto-renew from wallet</span><InstantToggle num={num} feature="autoRenew" label="Auto-renew" checked={num.autoRenew} reload={reload} testid="billing-auto-renew-toggle" /></div>}
       {!waitsForMain && <button className={`civr-btn civr-btn-sm ${held ? 'civr-btn-primary' : 'civr-btn-ghost'}`} onClick={renew} disabled={busy} data-testid="billing-renew-button">{busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}{held ? `Restore for ${money(price)}` : deal ? `Renew now for ${money(price)}` : 'Renew now'}</button>}

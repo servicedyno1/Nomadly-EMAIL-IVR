@@ -1687,3 +1687,15 @@ calls and SIP are simulated; inbound calls use a pretend-call simulator).
   (join step OR hosting checkout). state.welcomeEmailSentTo dedupes; reset on send failure so it retries.
 - Verified: sim flow (mock Telegram), cloudivr email tests 38/38, real MailerSend send from hosting@hostbay.io accepted, logos 200 on all 4 domains.
 - Prod MAIL_SENDER per brand: hosting@hostbay.io / smadavhost.com / voodoohost.xyz / proshophost.xyz (all MailerSend-verified).
+
+## 2026-10-28 — Personal daily offers + in-app light mode — TESTED (iteration_166: backend 11/11, frontend 95% → follow-ups fixed), NOT DEPLOYED
+- js/cloudivr-web/offers.js: one offer per web account per UTC day (webOffers `<day>:<chatId>`), best fit: renewal due ≤7 d / suspended → 15% off
+  renewal; no numbers → 10/15/20% off a number (personal code CIVRxxxxxx, owner-only, single use); never topped up → first top-up +20% (≥$25, max $50);
+  Starter/Pro → alternates 20% off upgrade / top-up tiers ($50→$55, $100→$115, $250→$300); else alternates tiers / number code.
+  Routes GET /offers/current, POST /offers/dismiss (dismissed until next day). Applied in coupons/check + purchase, /renew, /upgrade (+crypto
+  upgrade-checkout offerPct). Top-up bonus: snapshot on webDeposits.bonus, paid by extras.js 60 s tick once the wallet-topup tx exists; the offer is
+  claimed atomically first → ONE bonus per offer. Inbox daily notice marker `offer:<day>:<id>`. Bot daily 10% codes still accepted on web.
+- Frontend: offers.js useOffer hook; dashboard banner (dismiss X), checkout "Your offer" tap, Wallet OfferNote tiers + bonus calc (?amount=),
+  Billing renew/upgrade offer notes, Inbox CTA (hidden when expired/used).
+- Light mode: theme.js (civr.theme = system|light|dark, html[data-civr-theme]) mounted in Shell + auth pages only; theme-light.css (vars,
+  component overrides, generated map of dark Tailwind hex classes). Toggles: topbar sun/moon, Settings → Appearance, mobile More menu.

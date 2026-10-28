@@ -177,9 +177,9 @@ function routes(router, { db, h, numbersApi, offers = null, bulkCallService, get
     let sent = 0
     for (const a of accounts) {
       const id = String(a._id)
-      if (await notices.findOne({ _id: `daily:${day}:${id}` }, { projection: { _id: 1 } })) continue
+      if (await notices.findOne({ _id: `offer:${day}:${id}` }, { projection: { _id: 1 } })) continue
       const o = await offers.current(id)
-      try { await notices.insertOne({ _id: `daily:${day}:${id}`, offer: o._id, at: new Date() }) } catch (e) { if (e.code === 11000) continue; throw e }
+      try { await notices.insertOne({ _id: `offer:${day}:${id}`, offer: o._id, at: new Date() }) } catch (e) { if (e.code === 11000) continue; throw e }
       if (o.used) continue
       const p = offers.present(o)
       await notify.push(id, `Today's offer: ${p.title}. ${p.text} Ends at midnight UTC.`, null, { kind: 'coupon', meta: { ...(o.code ? { coupon: o.code } : {}), discount: o.discount || null, offer: o.kind, cta: p.cta } }).catch(() => {})

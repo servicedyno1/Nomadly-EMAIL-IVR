@@ -11,6 +11,7 @@ import { forget } from '../consent';
 import { BRAND, Wordmark } from '../Brand';
 import { TwoFactorStep, RememberBox, useRefCode } from './auth/TwoFactorStep';
 import { GoogleButton } from './auth/GoogleButton';
+import { ThemeRoot } from '../theme';
 
 const NEXT_STEPS = ['Pick a number and plan', 'Pay with crypto or your wallet (cards coming soon)', 'Choose what callers hear'];
 
@@ -49,6 +50,7 @@ function SidePanel({ signup }) {
 function AuthFrame({ title, sub, children, testid, signup }) {
   return (
     <div className="min-h-screen grid lg:grid-cols-2" data-testid={testid}>
+      <ThemeRoot />
       <SidePanel signup={signup} />
       <div className="flex flex-col min-h-screen">
         <div className="lg:hidden flex items-center justify-between px-6 h-16 border-b border-[#1a1a1a]">

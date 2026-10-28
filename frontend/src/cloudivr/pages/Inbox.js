@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useOffer } from '../offers';
 import { toast } from 'sonner';
 import { Link } from 'react-router-dom';
 import { Inbox as InboxIcon, CheckCheck, MessageSquare, Voicemail, Wallet, Megaphone, Receipt, Phone, Info, Ticket, MessageSquareReply, ChevronRight } from 'lucide-react';
@@ -65,6 +66,10 @@ export default function Inbox() {
   const [kind, setKind] = useState('');
   const { data, error, loading, reload, stale, setData } = useApi(`/notifications?limit=100${kind ? `&kind=${kind}` : ''}`);
   const { data: today } = useApi('/coupons/today');
+  const { offer } = useOffer();
+  // Coupon/offer buttons only on today's notices (offers end at midnight UTC) and never for a used code.
+  const couponLive = (n) => !n.meta.used && new Date(n.createdAt).toISOString().slice(0, 10) === new Date().toISOString().slice(0, 10)
+    && !(today?.coupon?.used && today.coupon.code === n.meta.coupon) && !(offer?.used && (offer.code === n.meta.coupon || (!n.meta.coupon && n.meta.offer === offer.kind)));
   useEffect(() => { window.addEventListener(RING_ENDED, reload); return () => window.removeEventListener(RING_ENDED, reload); }, [reload]);
   const markRead = async () => {
     try {
@@ -118,8 +123,8 @@ export default function Inbox() {
                 <div className="flex-1 min-w-0">
                   <div className="text-sm whitespace-pre-line break-words text-[#f4f4f5]" data-testid={`inbox-item-${i}-text`}>{pv.text(n.text, 'Message hidden')}</div>
                   {n.mediaUrl && /\.(mp3|wav|ogg)(\?|$)/i.test(n.mediaUrl) && <audio controls preload="none" src={playUrl(n.mediaUrl)} className="relative z-10 h-9 mt-2" data-testid={`inbox-item-${i}-audio`} />}
-                  {n.meta?.coupon && !n.meta.used && !(today?.coupon?.used && today.coupon.code === n.meta.coupon) && <Link to={cp(`/app/buy?coupon=${encodeURIComponent(n.meta.coupon)}`)} className="relative z-10 civr-btn civr-btn-ghost civr-btn-sm mt-2" data-testid={`inbox-item-${i}-use-coupon`}><Ticket className="w-4 h-4" />Use coupon {n.meta.coupon}</Link>}
-                  {n.meta?.cta && !n.meta.coupon && !n.meta.used && <Link to={cp(n.meta.cta.to)} className="relative z-10 civr-btn civr-btn-ghost civr-btn-sm mt-2" data-testid={`inbox-item-${i}-offer-cta`}><Ticket className="w-4 h-4" />{n.meta.cta.label}</Link>}
+                  {n.meta?.coupon && couponLive(n) && <Link to={cp(`/app/buy?coupon=${encodeURIComponent(n.meta.coupon)}`)} className="relative z-10 civr-btn civr-btn-ghost civr-btn-sm mt-2" data-testid={`inbox-item-${i}-use-coupon`}><Ticket className="w-4 h-4" />Use coupon {n.meta.coupon}</Link>}
+                  {n.meta?.cta && !n.meta.coupon && couponLive(n) && <Link to={cp(n.meta.cta.to)} className="relative z-10 civr-btn civr-btn-ghost civr-btn-sm mt-2" data-testid={`inbox-item-${i}-offer-cta`}><Ticket className="w-4 h-4" />{n.meta.cta.label}</Link>}
                   {n.canReply && <SmsReply n={n} i={i} pv={pv} onReplied={onReplied} reload={reload} />}
                   {ccid && Date.now() - new Date(n.createdAt).getTime() < 15 * 60000 && (newestTry ? <OtpLive ccid={ccid} compact testid={`inbox-item-${i}-otp`} />
                     : <p className="text-xs text-[#a1a1aa] mt-2" data-testid={`inbox-item-${i}-otp-superseded`}>An earlier try. The newest code for this call is above.</p>)}

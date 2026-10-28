@@ -33,7 +33,7 @@ function present(o) {
   if (o.kind === 'renew') return { title: `${o.discount}% off your renewal`, text: `${o.phones[0]}${o.phones.length > 1 ? ` and ${o.phones.length - 1} more` : ''} ${o.phones.length > 1 ? 'renew' : 'renews'} soon. Renew today from the Billing tab and pay ${o.discount}% less.`, cta: { label: 'Renew now', to: `/app/numbers/${enc(o.phones[0])}?tab=billing` } }
   if (o.kind === 'upgrade') return { title: `${o.discount}% off a plan upgrade`, text: `Move ${o.phone} from ${PLAN_NAME[o.from]} to ${PLAN_NAME[o.to]} today and pay ${o.discount}% less.`, cta: { label: 'See the upgrade', to: `/app/numbers/${enc(o.phone)}?tab=billing&plan=${o.to}` } }
   if (o.kind === 'firstTopup') return { title: `First top-up bonus: +${FIRST.pct}%`, text: `Top up ${usd(FIRST.min)} or more for the first time and get ${FIRST.pct}% extra credit (up to ${usd(FIRST.max)}).`, cta: { label: 'Top up', to: '/app/wallet' } }
-  return { title: 'Top up $100, get $115', text: `${TIERS.map(t => `${usd(t.min)} → ${usd(t.min + t.bonus)}`).join(' · ')}. The bonus lands in your wallet when the payment confirms.`, cta: { label: 'Top up', to: '/app/wallet?amount=100' } }
+  return { title: 'Top up $100, get $115', text: `${TIERS.map(t => `${usd(t.min)} → ${usd(t.min + t.bonus)}`).join(' · ')}. One bonus per day — it lands in your wallet when the payment confirms.`, cta: { label: 'Top up', to: '/app/wallet?amount=100' } }
 }
 
 const publicOffer = (o) => ({
@@ -109,12 +109,13 @@ function createOffers(db, { log = console.log } = {}) {
       const t = await txns.findOne({ chatId: String(d.chatId), type: 'wallet-topup', 'metadata.ref': d.ref })
       if (!t) continue
       const amount = round2(t.amount)
-      const bonus = bonusOf(d.bonus, amount)
+      let bonus = bonusOf(d.bonus, amount)
+      // One bonus per offer: claim the offer first, so several open deposits can't each be paid.
+      if (bonus > 0 && (await offers.updateOne({ _id: d.bonus.offerId, used: false }, { $set: { used: true, usedAt: new Date() } })).modifiedCount !== 1) bonus = 0
       const r = await deposits.updateOne({ _id: d._id, bonusPaidAt: null }, { $set: { bonusPaidAt: new Date(), bonusUsd: bonus } })
       if (r.modifiedCount !== 1 || !(bonus > 0)) continue
       await w.credit(d.chatId, bonus)
       await txns.insertOne({ chatId: String(d.chatId), type: 'topup-bonus', amount: bonus, currency: 'USD', status: 'completed', metadata: { ref: d.ref, offer: d.bonus.offerId, paid: amount }, createdAt: new Date(), updatedAt: new Date() })
-      if (d.bonus.kind === 'firstTopup') await markUsed(d.bonus.offerId)
       await push(String(d.chatId), `Top-up bonus: ${usd(bonus)} extra credit was added to your wallet for your ${usd(amount)} top-up.`).catch(() => {})
       log(`[CloudIVR-Web] top-up bonus $${bonus} for ${d.chatId} (deposit ${d.ref}, paid $${amount})`)
     }

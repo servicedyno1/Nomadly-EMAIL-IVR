@@ -1,0 +1,41 @@
+{
+  "summary": "Tested CloudIVR web dynamic daily offers end-to-end (backend pytest 11/11 + Playwright UI at 1920 and 390) and in-app light mode. All 5 offer kinds work: number code (owner only, used once), renew 15%, upgrade 20% (quote + confirm), topup tiers (bonus paid by the 60s timer, $100 -> +$15), firstTopup (UI calc). Dismiss works and survives reload, and checkout still offers the code afterwards. The Inbox daily offer notice shows a CTA (no code) or 'Use coupon CODE'. Light mode works: follows the device, the topbar, Settings and mobile switches all work, an automated contrast/dark-panel check on 19 app pages and 13 number tabs found nothing, dark mode is unchanged and the /cloudivr landing page is not affected. Found and fixed 1 light-mode CSS bug: native <select> rendered as a solid grey block. Other issues are minor.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "offers.js payBonuses (firstTopup)", "issue": "Abuse/race: the offer is only marked used AFTER a bonus is paid. If a user creates several /wallet/topup deposits before the first one confirms, every deposit carries the firstTopup snapshot and each pays up to $50. Fix: claim atomically before crediting (offers.updateOne({_id: offerId, used:false},{$set:{used:true}}) and skip if modifiedCount!==1)."},
+      {"endpoint": "offers.js topupBonusFor (topup)", "issue": "A 'topup' offer is never marked used, so every top-up that day earns a tier bonus (e.g. 4 x $250 = +$200). Confirm this is intended, or cap it at one bonus per offer."},
+      {"endpoint": "extras.js announceCoupon", "issue": "One-off transition: on the deploy day, accounts that already got the old bot-style notice (marker daily:<day>:<id> with code) get no new offer notice until tomorrow. Verified by deleting the marker: the new notice was sent within 60s."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "theme-light.css select.civr-input", "issue": "FIXED by testing agent. In light mode every native select (Wallet Coin, Settings Default AI voice, ...) showed as a solid slate block with an unreadable value. Root cause: the light rule '.civr-input { background:#fff }' used the background shorthand, which reset background-size/position/repeat, so the chevron gradients filled the whole box. Changed it to background-color.", "selector": "select.civr-input", "priority": "HIGH"},
+      {"component": "BillingTab renewal card", "issue": "With a renew offer, the 'Plan' row shows the discounted price as the monthly price ('Business · $102.00/month') when only this renewal is discounted. Use the full price there.", "selector": "[data-testid=billing-renewal-card]", "priority": "LOW"},
+      {"component": "Inbox coupon notices", "issue": "Offer and coupon notices from past days still show 'Use coupon X' or a CTA after they expire (yesterday's NMD10LW9BB2 still shows the button). Once a CIVR offer code is used, the inbox button still appears. Hide them when expired or used.", "selector": "[data-testid^=inbox-item-][data-testid$=-use-coupon]", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Login/Signup", "issues": ["The auth pages stay dark even when the device or pref is light (the theme applies only inside the app shell), so a light-mode user sees dark login, then light app. Consider applying the theme there too."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_cloudivr_web_offers.py", "/app/test_reports/pytest/offers_results.xml"],
+  "action_items": [
+    "Make firstTopup bonus payout atomic against the offer's used flag (prevents multiple first-top-up bonuses)",
+    "Decide whether 'topup' tier bonus is once per day; if so mark the offer used after the first payout",
+    "BillingTab: show the full monthly price in the 'Plan' row when a renew discount applies",
+    "Inbox: hide Use coupon / offer CTA for expired or used offers"
+  ],
+  "critical_code_review_comments": [
+    "offers.js payBonuses: pays the credit before marking a firstTopup offer used, so concurrent deposits are not protected",
+    "theme-light.css: avoid background shorthand overrides on elements whose base rules set background-image/size (selects); fixed for .civr-input",
+    "Verified that real DynoPay/BlockBee webhooks write transactions{type:'wallet-topup', chatId:String, metadata.ref: deposit ref}, matching the payBonuses lookup"
+  ],
+  "updated_files": ["/app/frontend/src/cloudivr/theme-light.css", "/app/backend/tests/test_cloudivr_web_offers.py"],
+  "success_rate": {"backend": "100% (11/11)", "frontend": "95%"},
+  "seed_data_creation": "None kept. Tests temporarily changed Alice's number expiry and plan and today's webOffers docs, then restored them (Alice: firstTopup used, Business $120; Bob: number CIVR5ECC85 unused, not dismissed, no numbers, $500). Leftover inbox notices (top-up bonus $15, upgrade offer notice, Bob coupon applied) are harmless.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run: REACT_APP_BACKEND_URL=... pytest backend/tests/test_cloudivr_web_offers.py (takes ~2 min, waits for the 60s bonus timer; snapshots and restores Alice/Bob data). Alice's real number is +13346972125 (not +15156445901). The test sets today's offer kind by writing webOffers '<YYYY-MM-DD>:<chatId>' directly. Light-mode UI audit script (luminance contrast + dark panel check) found no issues after the select fix.",
+  "rca of the issue": "Light select bug: html[data-civr-theme=light] .civr .civr-input{background:#fff} has higher specificity than .civr select.civr-input and its shorthand resets background-position/size/repeat to defaults, so the light chevron gradients repeated over the full element. Changed it to background-color: #ffffff and verified visually on the Wallet page."
+}
