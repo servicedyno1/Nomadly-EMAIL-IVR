@@ -80,14 +80,14 @@ function sendMail(to, subject, html, attachments, extra) {
   const own = process.env.CLOUDIVR_MAIL_SENDER
   const mail = { to, subject, html, ...(attachments ? { attachments } : {}), ...(extra || {}) }
   if (own && process.env.BREVO_API_KEY) return require('../mailer').send({ ...mail, from: { name: 'CloudIVR', email: own } }).then(() => true)
-  if (!process.env.MAIL_DOMAIN && !(own && process.env.MAILERSEND_API_TOKEN)) return Promise.resolve(false)
+  if (!process.env.MAIL_DOMAIN && !own) return Promise.resolve(false)
   if (!mailer) {
     const port = Number(process.env.MAIL_PORT) || 2525
     mailer = require('../mailer').transport({ host: process.env.MAIL_DOMAIN, port, secure: port === 465, requireTLS: port !== 465, connectionTimeout: 15000, greetingTimeout: 10000, socketTimeout: 20000, auth: { user: process.env.MAIL_AUTH_USER, pass: process.env.MAIL_AUTH_PASSWORD } })
   }
   const brand = process.env.CHAT_BOT_BRAND || 'Nomadly'
   // Own sender without a Brevo key: MailerSend when verified, else the SMTP relay.
-  return mailer.sendMail({ ...mail, from: own && process.env.MAILERSEND_API_TOKEN ? { name: 'CloudIVR', address: own } : `${brand} CloudIVR <${process.env.MAIL_SENDER}>` }).then(() => true)
+  return mailer.sendMail({ ...mail, from: own ? { name: 'CloudIVR', address: own } : `${brand} CloudIVR <${process.env.MAIL_SENDER}>` }).then(() => true)
 }
 
 function createAuth(db, { log = console.log, notifyAdmin = () => {} } = {}) {

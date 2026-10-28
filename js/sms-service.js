@@ -53,7 +53,7 @@ async function forwardSmsToTelegram(bot, chatId, from, to, body) {
 
 // ── Forward SMS to Email (js/mailer.js: MailerSend for verified sender domains, else Brevo) ──
 async function forwardSmsToEmail(toEmail, from, to, body, web = false) {
-  if ((!BREVO_API_KEY && !process.env.MAILERSEND_API_TOKEN) || !toEmail) return
+  if ((!BREVO_API_KEY && !process.env.MAILERSEND_API_TOKEN && process.env.MAIL_PROVIDER !== 'telnyx') || !toEmail) return
   const own = web && process.env.CLOUDIVR_MAIL_SENDER
   const sender = own ? { name: 'CloudIVR', email: own } : { name: (process.env.CHAT_BOT_BRAND || 'Nomadly') + ' Cloud Phone', email: MAIL_SENDER }
 

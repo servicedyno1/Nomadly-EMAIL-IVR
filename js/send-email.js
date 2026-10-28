@@ -341,7 +341,7 @@ async function sendEmail(info, response, pin) {
 
   try {
     const mailResponse = await transporter.sendMail({
-      from: `${brandName} <${process.env.MAIL_SENDER}>`,
+      from: `${process.env.MAIL_SENDER_NAME || brandName} <${process.env.MAIL_SENDER}>`,
       to: info.email,
       subject: emailSubject(info),
       html: emailHtml,

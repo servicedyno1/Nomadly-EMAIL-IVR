@@ -1709,3 +1709,8 @@ calls and SIP are simulated; inbound calls use a pretend-call simulator).
   ZOHO_CPAAS_EMAIL_URL=https://cpaas.zoho.eu/v1.1/email (set in preview .env). Rollback: MAIL_PROVIDER=auto (MailerSend).
 - PENDING: owner adds hostbay.io, smadavhost.com, voodoohost.xyz, proshophost.xyz in Zoho (same mail agent) and sends the DNS
   records; agent adds them in Cloudflare, tests each sender, then sets the 3 env lines on all 4 prod bots + deploys mailer.js.
+- 2026-10-28 PIVOT → Telnyx Email (owner choice, send-only). scripts/telnyx_email_domains.py setup|verify <domains> registers the domain on
+  Telnyx, publishes DKIM telnyx1._domainkey + ownership TXT in Cloudflare, merges include:spf.telnyx.com into SPF, keeps existing DMARC.
+  cloudivr.net, hostbay.io, smadavhost.com, voodoohost.xyz, proshophost.xyz → all VERIFIED. mailer.js MAIL_PROVIDER=telnyx → sendTelnyx()
+  (POST /v2/email_messages, TELNYX_API_KEY), no fallback. Preview .env MAIL_PROVIDER=telnyx. Test sends to moxxcompany@gmail.com delivered.
+  Zoho code path kept (MAIL_PROVIDER=zoho) but unused. PROD NOT SWITCHED YET (needs MAIL_PROVIDER=telnyx on 4 bots + code deploy).

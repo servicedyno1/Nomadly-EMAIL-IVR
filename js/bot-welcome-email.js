@@ -89,7 +89,7 @@ function build({ name, lang } = {}) {
 
 async function sendBotWelcome(to, opts) {
   const { subject, html } = build(opts)
-  return mailer.send({ from: { name: B.brandName(), address: process.env.MAIL_SENDER }, to, subject, html })
+  return mailer.send({ from: { name: process.env.MAIL_SENDER_NAME || B.brandName(), address: process.env.MAIL_SENDER }, to, subject, html })
 }
 
 module.exports = { build, sendBotWelcome }

@@ -288,3 +288,12 @@ The new layout differs from the old in-place `/opt/nomadly/app-main` checkout. O
 - Contents: AutoPromo web ads twice a week (Sun/Mon evening added), campaign Save auto-makes AI voice from script, landing ID-check removal,
   Trust card removal, 20 AI agent languages. Frontend rebuilt on droplet, health OK, 0 live calls at flip, app-main-b stopped.
 - Rollback: `bash /opt/nomadly/deploy.sh app-main rollback`. ⚠️ Not on GitHub yet → owner must "Save to GitHub" (main).
+
+## 2026-10-28 ~15:30–15:50Z — workspace deploy 4e0d0a0 (+11 uncommitted) → ALL 4 bots + Telnyx email switch
+- Contents: light email design, bot join-email step + branded welcome email, CloudIVR daily personal offers, in-app light mode,
+  js/mailer.js Telnyx provider. Live: app-main-a 20261028T152638Z, app-wl-b 154040Z, app-voodoo-b 154410Z, app-proshop-a 154655Z.
+- Shared envs: MAIL_PROVIDER=telnyx on all 4 (backups backend.env.bak.telnyxmail.20261028T152932Z); app-main MAIL_SENDER_NAME="Nomadly (HostBay)".
+  Rollback email only: set MAIL_PROVIDER=auto (MailerSend) + pm2 reload <slot> --update-env.
+- ⚠️ deploy_workspace_to_droplet.sh returns right after STARTING the remote deploy, and a 2nd run per app followed each real one and
+  failed harmlessly ("tarball extract failed — active release untouched"). Run apps ONE AT A TIME, wait for "DONE" in deploy-<app>.log.
+- ⚠️ Not on GitHub yet → owner must "Save to GitHub" (main + WhiteLabel) or the next CI deploy rolls this back.
