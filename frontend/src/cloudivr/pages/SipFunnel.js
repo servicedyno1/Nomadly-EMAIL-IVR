@@ -12,6 +12,7 @@ import { SipHero } from './sip/Hero';
 import { Apps, Benefits, Steps } from './sip/Sections';
 import { SipFaq, SipFinalCta, SipPlans } from './sip/Plans';
 import { sipPick } from './sip/shared';
+import { useDarkSite } from './landing/kit';
 
 const LINKS = [['#apps', 'Phone apps', 'apps'], ['#how', 'How it works', 'how'], ['#plans', 'Plans', 'plans'], ['#faq', 'FAQ', 'faq']];
 
@@ -68,6 +69,7 @@ function StickyCta({ catalog }) {
 
 // Sales page for SIP buyers (cloudivr.net/sip). The SIP server itself (sip.cloudivr.net) stays a phone-only address.
 export default function SipFunnel() {
+  useDarkSite();
   const { data: catalog, loading } = useApi('/public/catalog');
   // Arriving from another page (e.g. the landing footer) should start at the hero, not the old scroll position.
   useEffect(() => { if (!window.location.hash) window.scrollTo(0, 0); }, []);
@@ -81,7 +83,7 @@ export default function SipFunnel() {
     return () => clearTimeout(t);
   }, [loading]);
   return (
-    <div className="civr-l pb-20 md:pb-0" data-testid="sip-funnel-page">
+    <div className="civr-l civr-np pb-20 md:pb-0" data-testid="sip-funnel-page">
       <Nav />
       <main>
         <SipHero catalog={catalog} />

@@ -1,4 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
+import './np.css';
+
+// Marks <html> so portals (language menu, cookie banner) pick up the dark site look.
+export function useDarkSite() {
+  React.useEffect(() => { document.documentElement.dataset.civrNp = '1'; return () => { delete document.documentElement.dataset.civrNp; }; }, []);
+}
 
 // Shared building blocks for the landing page.
 

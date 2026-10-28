@@ -44,6 +44,7 @@ import { WhatsNew } from './WhatsNew';
 import { UnsavedGuard, confirmLeave } from './guard';
 import { Shortcuts, helpFor } from './shortcuts';
 import { Palette, openPalette, isMac } from './Palette';
+import { Onboarding, ForYouNav, useOnboarding } from './Onboarding';
 
 const ShellCtx = createContext(null);
 export const useShell = () => useContext(ShellCtx);
@@ -82,10 +83,11 @@ function SideNav() {
   );
 }
 
-function Sidebar({ supportLink, channelLink }) {
+function Sidebar({ supportLink, channelLink, purposes }) {
   return (
     <aside className="civr-side hidden lg:flex lg:flex-col w-64 shrink-0 h-screen sticky top-0 border-r border-[#1a1a1a] px-4 py-6 overflow-y-auto" data-testid="app-sidebar">
       <Link to={cp('/app')} className="civr-side-logo font-display text-2xl font-extrabold tracking-tight px-3 mb-8 flex items-center gap-2.5" data-testid="sidebar-logo"><Wordmark iconClass="w-9 h-9" /></Link>
+      <ForYouNav purposes={purposes} />
       <SideNav />
       <div className="civr-side-rule mt-auto pt-5 border-t border-[#1a1a1a] flex flex-col gap-1" data-testid="nav-group-support">
         <div className="civr-side-label px-3 mb-1 text-[11px] font-semibold uppercase tracking-widest text-[#a1a1aa]">Support</div>
@@ -143,6 +145,7 @@ export default function Shell() {
   const closePhone = useCallback(() => setPhoneOpen(false), []);
   const { pathname } = useLocation();
   const { lang } = useLang();
+  const onb = useOnboarding();
   // Spoken IVR menus follow the app language (server swaps default greetings too).
   useEffect(() => { api('/prefs/lang', { method: 'PUT', body: { lang } }).catch(() => {}); }, [lang]);
   useEffect(() => {
@@ -153,7 +156,7 @@ export default function Shell() {
   }, [refreshSummary]);
 
   return (
-    <ShellCtx.Provider value={{ summary, refreshSummary, catalog, openPhone }}>
+    <ShellCtx.Provider value={{ summary, refreshSummary, catalog, openPhone, onboarding: onb.data, setOnboarding: onb.setData }}>
      <PrivacyProvider>
      <RtcProvider>
       <ThemeRoot />
@@ -162,8 +165,9 @@ export default function Shell() {
       <UnsavedGuard />
       <Shortcuts onEscape={closePhone} />
       <Palette openPhone={openPhone} />
+      <Onboarding data={onb.data} setData={onb.setData} />
       <div className="lg:flex">
-        <Sidebar supportLink={catalog?.supportLink} channelLink={catalog?.channelLink} />
+        <Sidebar supportLink={catalog?.supportLink} channelLink={catalog?.channelLink} purposes={onb.data?.purposes} />
         <div className="flex-1 min-w-0">
           <PreviewBanner show={catalog?.dryRun} livePayments={catalog?.livePayments} />
           <OfflineBanner />

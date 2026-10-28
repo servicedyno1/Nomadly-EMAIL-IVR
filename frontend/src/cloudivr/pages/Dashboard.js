@@ -10,6 +10,7 @@ import { cp } from '../paths';
 import { GetStarted, YourNumbers } from './dashboard/Widgets';
 import { CouponBanner, ChannelCard, TrialCard } from './dashboard/Banners';
 import { NewProducts } from './dashboard/NewProducts';
+import { ForYou, ReviewPrompt } from './dashboard/ForYou';
 
 function Stat({ icon: Icon, label, value, to, testid, delay }) {
   const body = (
@@ -62,6 +63,8 @@ export default function Dashboard() {
       <TrialCard />
       <ChannelCard />
       <CouponBanner />
+      <ReviewPrompt />
+      <ForYou />
       <NewProducts />
       {s?.pendingVerification > 0 && (
         <Link to={cp('/app/verification')} className="civr-card civr-trace p-6 mb-6 flex items-center gap-4" data-testid="dashboard-verification-alert">

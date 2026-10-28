@@ -6,6 +6,7 @@ import { cp } from '../paths';
 import { Wordmark } from '../Brand';
 import { Footer } from './landing/PricingFaq';
 import { TERMS, UPDATED } from './terms/content';
+import { useDarkSite } from './landing/kit';
 
 function Header() {
   return (
@@ -44,10 +45,11 @@ function Section({ s, i, supportLink }) {
 }
 
 export default function Terms() {
+  useDarkSite();
   const { data: catalog } = useApi('/public/catalog');
   useEffect(() => { if (!window.location.hash) window.scrollTo(0, 0); }, []);
   return (
-    <div className="civr-l min-h-screen" data-testid="terms-page">
+    <div className="civr-l civr-np min-h-screen" data-testid="terms-page">
       <Header />
       <main className="max-w-6xl mx-auto px-6 md:px-8 py-16 md:py-24">
         <div className="max-w-3xl">

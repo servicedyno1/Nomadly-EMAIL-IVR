@@ -9,6 +9,7 @@ import { HeroTabs } from './HeroTabs';
 import { HearIt } from './HearIt';
 import { useLang } from '../../i18n';
 import { HeroDecor } from './Bubbles';
+import { HeroPhone } from './HeroPhone';
 
 // Whole-sentence titles so the highlighted word lands in the right place in every language.
 const TITLE = { en: ['Every call ', 'answered', '. Every lead called.'], fr: ['Chaque appel ', 'décroché', '. Chaque prospect rappelé.'], es: ['Cada llamada ', 'atendida', '. Cada cliente, llamado.'] };
@@ -37,7 +38,8 @@ export function Hero({ catalog }) {
         <div className="flex flex-wrap justify-center items-center gap-x-6 gap-y-2 mt-8 civr-rise civr-d4" data-testid="hero-microcopy">
           {trust.map(x => <span key={x} className="inline-flex items-center gap-2 text-sm text-slate-600"><Check className="w-4 h-4 text-[#daff7c]" />{x}</span>)}
         </div>
-        <p className="text-sm text-slate-500 mt-4 civr-rise civr-d4" data-testid="hero-price-note">{`Free to sign up${from ? ` · Numbers from ${from}/month` : ''} · Pay with crypto or your wallet (cards coming soon)`}</p>
+        <HeroPhone />
+        <p className="text-sm text-slate-500 mt-10 civr-rise civr-d4" data-testid="hero-price-note">{`Free to sign up${from ? ` · Numbers from ${from}/month` : ''} · Pay with crypto or your wallet (cards coming soon)`}</p>
       </div>
       <HeroTabs />
     </section>

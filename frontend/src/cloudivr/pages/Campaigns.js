@@ -18,6 +18,7 @@ import { TrialLink } from './dashboard/Banners';
 import { useShell } from '../Shell';
 import { showUpgrade } from '../Upgrade';
 import { planFor } from '../PlanFeatures';
+import { LeadCheck } from '../LeadCheck';
 
 const pct = (c) => (c.stats?.total ? Math.round(((c.stats.completed || 0) / c.stats.total) * 100) : 0);
 
@@ -266,6 +267,7 @@ export function CampaignNew() {
           <Field label="Voicemail drop (optional)" hint="Played when an answering machine picks up, right after its greeting ends. Calls end just before 1 minute unless the person is connected to you — a voicemail message that has started always plays to the end."><AudioSelect value={f.voicemailAudioId} onChange={set('voicemailAudioId')} audios={au?.audios} by="id" placeholder="None" testid="campaign-voicemail-audio-select" /></Field>
           </>}
           <LeadsField value={f.leads} onChange={(v) => { set('leads')(v); setEst(null); }} source={f.source} onSource={(v) => { setF(x => ({ ...x, source: v })); setEst(null); }} listId={f.listId} onList={(v) => { setF(x => ({ ...x, listId: v })); setEst(null); }} />
+          {!fromList && <LeadCheck numbers={f.leads} onClean={(keep) => { set('leads')(keep.map(r => r.phone).join('\n')); setEst(null); toast.success('Dead numbers removed from this campaign'); }} testid="campaign-lead-check" />}
           <button type="button" className="civr-btn civr-btn-ghost civr-btn-sm" disabled={(fromList ? !f.listId : !f.leads.trim()) || busy === 'est'} onClick={estimate} data-testid="campaign-estimate-button">{busy === 'est' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Calculator className="w-4 h-4" />}Check numbers &amp; cost</button>
           <Estimate est={est} />
         </div>

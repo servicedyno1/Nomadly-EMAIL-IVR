@@ -19,6 +19,7 @@ import { planFor } from '../PlanFeatures';
 import { usePrivacy } from '../privacy';
 import { confirmLeave } from '../guard';
 import { ReachChip } from '../SmsReach';
+import { SetupGuide } from './number/SetupGuide';
 
 // Tabs grouped (overview · what callers get · messages · account); a thin divider separates each group.
 const TABS = [
@@ -56,6 +57,7 @@ export default function NumberDetail() {
           {n.dryRun && <span className="civr-pill civr-pill-warn">preview</span>}
         </div>
       </div>
+      <SetupGuide n={n} />
       <TabStrip active={tab} testid="number-tabstrip">
         {TABS.map(([id, name, gate, , g], i) => (
           <React.Fragment key={id}>

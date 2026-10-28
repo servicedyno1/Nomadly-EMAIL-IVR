@@ -66,7 +66,7 @@ function Outcome({ o, balance, busy, onFinish }) {
       <div className="font-mono text-3xl mt-3" data-testid="order-assigned-number">{num}</div>
       {o.kind === 'extra' && !o.substitutedFrom && o.message && <p className="text-sm text-[#a1a1aa] mt-2" data-testid="order-message">{o.message}</p>}
       {o.substitutedFrom && <div className="mt-4 flex gap-3 text-sm rounded-xl border border-[#fbbf24]/40 bg-[#fbbf24]/5 p-4" data-testid="order-substituted-notice"><Sparkles className="w-5 h-5 text-[#fbbf24] shrink-0" /><span>{o.message} We also emailed you.</span></div>}
-      <Link to={cp(`/app/numbers/${enc(num)}`)} className="civr-btn civr-btn-primary mt-6" data-testid="order-open-number-btn">Set up {num} <ArrowRight className="w-4 h-4" /></Link>
+      <Link to={cp(`/app/numbers/${enc(num)}?setup=1`)} className="civr-btn civr-btn-primary mt-6" data-testid="order-open-number-btn">Set up {num} <ArrowRight className="w-4 h-4" /></Link>
     </div>
   );
   if (o.status === 'verification') return (

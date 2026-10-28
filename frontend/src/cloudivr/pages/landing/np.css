@@ -140,3 +140,5 @@ html[data-civr-np] .civr-l-cookie .hover\:bg-slate-100:hover { background: #2a2f
 html[data-civr-np] .civr-l-cookie.text-slate-700, html[data-civr-np] .civr-l-cookie .text-slate-700 { color: #d5dce6; }
 html[data-civr-np] .civr-l-cookie .bg-\[\#0f172a\] { background: #64acff; color: #13171c; }
 html[data-civr-np] .civr-l-cookie .border-slate-300 { border-color: rgba(183, 195, 211, .26); }
+.civr .civr-np .bg-white\/80, .civr .civr-np .bg-white\/95 { background-color: rgba(27, 30, 34, .9); }
+.civr .civr-np .border-slate-200\/80 { border-color: var(--np-line); }
