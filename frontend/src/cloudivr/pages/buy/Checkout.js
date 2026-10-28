@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Wallet as WalletIcon, Bitcoin, Loader2, Check, Ticket, X, CreditCard } from 'lucide-react';
 import { api, money, useApi } from '../../api';
+import { useOffer } from '../../offers';
 import { Field, Toggle } from '../../ui';
 
 function Option({ on, onClick, icon: Icon, title, sub, testid }) {
@@ -35,7 +36,9 @@ export function CouponField({ total, coupon, setCoupon, initialCode }) {
     try { const d = await api('/coupons/check', { method: 'POST', body: { code: c, amount: total } }); setCoupon({ code: d.code, discount: d.discount }); setCode(d.code); } catch (e) { setErr(e.message); setCoupon(null); } finally { setBusy(false); }
   };
   useEffect(() => { if (initialCode && !coupon && !tried.current) { tried.current = true; apply(initialCode); } });
-  const today = data?.coupon && !data.coupon.used ? data.coupon : null;
+  const { offer } = useOffer();
+  const mine = offer && offer.kind === 'number' && !offer.used && new Date(offer.expiresAt) > new Date() ? offer : null;
+  const today = mine ? { code: mine.code, discount: mine.discount, mine: true } : data?.coupon && !data.coupon.used ? data.coupon : null;
   if (coupon) return (
     <div className="flex items-center gap-2 text-sm text-[#818cf8] mt-4" data-testid="checkout-coupon-applied"><Ticket className="w-4 h-4" /><span className="font-mono">{coupon.code}</span> · {coupon.discount}% off
       <button type="button" onClick={() => setCoupon(null)} className="p-1 text-[#a1a1aa] hover:text-white" aria-label="Remove coupon" data-testid="checkout-coupon-remove"><X className="w-3.5 h-3.5" /></button></div>
@@ -45,7 +48,7 @@ export function CouponField({ total, coupon, setCoupon, initialCode }) {
       <div className="flex gap-2 max-w-sm"><input className="civr-input font-mono uppercase !h-10" value={code} onChange={e => setCode(e.target.value)} placeholder="Coupon code" data-testid="checkout-coupon-input" />
         <button type="button" className="civr-btn civr-btn-ghost civr-btn-sm" disabled={busy || !code.trim()} onClick={() => apply(code)} data-testid="checkout-coupon-apply">{busy ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Apply'}</button></div>
       {err && <div className="text-xs text-[#fb7185]" data-testid="checkout-coupon-error">{err}</div>}
-      {today && <button type="button" onClick={() => apply(today.code)} className="text-xs text-[#818cf8] flex items-center gap-1.5" data-testid="checkout-coupon-today"><Ticket className="w-3.5 h-3.5" />Today’s coupon <span className="font-mono">{today.code}</span> · {today.discount}% off — tap to use</button>}
+      {today && <button type="button" onClick={() => apply(today.code)} className="text-xs text-[#818cf8] flex items-center gap-1.5" data-testid="checkout-coupon-today"><Ticket className="w-3.5 h-3.5" />{today.mine ? 'Your offer' : 'Today’s coupon'} <span className="font-mono">{today.code}</span> · {today.discount}% off — tap to use</button>}
     </div>
   );
 }

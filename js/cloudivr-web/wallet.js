@@ -27,10 +27,10 @@ function walletOps(db) {
   return { balance, debit, credit }
 }
 
-const CREDITS = { 'admin-credit': 'Credit from CloudIVR', 'referral-reward': 'Referral reward', 'suggestion-reward': 'Free credit · adopted suggestion', 'sms-refund': 'Refund · text not delivered' }
+const CREDITS = { 'topup-bonus': 'Top-up bonus', 'admin-credit': 'Credit from CloudIVR', 'referral-reward': 'Referral reward', 'suggestion-reward': 'Free credit · adopted suggestion', 'sms-refund': 'Refund · text not delivered' }
 const LABEL = { purchase: 'Number purchase', purchase_verification: 'Number purchase (verification)', renew: 'Number renewal', upgrade: 'Plan upgrade', release: 'Number deleted', sms_reply: 'Extra text' }
 
-function routes(router, { db, h, coins, createCryptoDeposit }) {
+function routes(router, { db, h, coins, createCryptoDeposit, offers }) {
   const w = walletOps(db)
 
   router.get('/wallet', h(async (req, res) => {
@@ -62,8 +62,9 @@ function routes(router, { db, h, coins, createCryptoDeposit }) {
       ? { ref: `dry-${Date.now().toString(36)}`, address: 'PREVIEW-MODE-DO-NOT-SEND-FUNDS', amountCrypto: null, provider: 'preview', dryRun: true }
       : await createCryptoDeposit(req.webChatId, amountUsd, coin)
     if (!dep || !dep.address) return res.status(424).json({ error: 'deposit_unavailable', message: 'The crypto payment service did not return an address. Try again or pick another coin.' })
-    await db.collection('webDeposits').insertOne({ chatId: req.webChatId, ref: dep.ref, amountUsd, coin, address: dep.address, amountCrypto: dep.amountCrypto || null, provider: dep.provider, createdAt: new Date() })
-    res.status(201).json({ ref: dep.ref, address: dep.address, amountCrypto: dep.amountCrypto || null, coin, amountUsd, provider: dep.provider, dryRun: !!dep.dryRun, note: dep.dryRun ? 'Preview mode: no payment was created. Do not send any funds.' : 'Send exactly this amount. Your balance updates automatically once the network confirms the payment.' })
+    const bonus = offers ? await offers.topupBonusFor(req.webChatId).catch(() => null) : null
+    await db.collection('webDeposits').insertOne({ chatId: req.webChatId, ref: dep.ref, amountUsd, coin, address: dep.address, amountCrypto: dep.amountCrypto || null, provider: dep.provider, bonus, bonusPaidAt: null, createdAt: new Date() })
+    res.status(201).json({ bonus, ref: dep.ref, address: dep.address, amountCrypto: dep.amountCrypto || null, coin, amountUsd, provider: dep.provider, dryRun: !!dep.dryRun, note: dep.dryRun ? 'Preview mode: no payment was created. Do not send any funds.' : 'Send exactly this amount. Your balance updates automatically once the network confirms the payment.' })
   }))
 }
 

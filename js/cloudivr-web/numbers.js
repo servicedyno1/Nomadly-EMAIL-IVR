@@ -383,7 +383,8 @@ function routes(router, deps) {
       await phoneNumbersOf.updateOne({ _id: chatId }, { $push: { 'val.numbers': doc } }, { upsert: true })
       await phoneTransactions.insertOne({ chatId, phoneNumber: selected, action: sub ? 'purchase_sub' : 'purchase', plan: planKey, amount: price, paymentMethod: viaOrder ? 'crypto_order' : 'wallet_usd', ...(viaOrder ? { orderRef: viaOrder } : {}), ...(sub ? { parentNumber: sub.parentNumber } : {}), ...(coupon ? { coupon: coupon.code, discountPct: coupon.discount } : {}), channel: 'web', timestamp: new Date().toISOString() })
       if (coupon?.code) {
-        if (deps.redeemCoupon) await Promise.resolve(deps.redeemCoupon(chatId, coupon.code, coupon.type)).catch(() => {})
+        if (coupon.type === 'web-offer') await deps.offers?.markCodeUsed(chatId, coupon.code).catch(() => {})
+        else if (deps.redeemCoupon) await Promise.resolve(deps.redeemCoupon(chatId, coupon.code, coupon.type)).catch(() => {})
         await notify.push(chatId, `Coupon ${coupon.code} applied: ${coupon.discount}% off ${selected}. You saved $${round2(base - price).toFixed(2)}.`, null, { kind: 'coupon', meta: { coupon: coupon.code, discount: coupon.discount, used: true } }).catch(() => {})
       }
       await txn(chatId, 'phone-number', price, { phoneNumber: selected, plan: planKey, provider: 'telnyx', country })
@@ -402,7 +403,9 @@ function routes(router, deps) {
   async function checkCoupon(chatId, raw) {
     const code = String(raw || '').trim().toUpperCase().slice(0, 40)
     if (!code) return { error: true, message: 'Enter a coupon code.' }
-    const r = deps.resolveCoupon ? await deps.resolveCoupon(code, chatId).catch(() => null) : null
+    const offer = deps.offers ? await deps.offers.checkCode(chatId, code).catch(() => null) : null
+    if (offer?.error === 'expired') return { error: true, message: 'This offer has ended.' }
+    const r = offer || (deps.resolveCoupon ? await deps.resolveCoupon(code, chatId).catch(() => null) : null)
     if (r?.error === 'already_used') return { error: true, message: 'You have already used this coupon.' }
     if (!r || !(Number(r.discount) > 0)) return { error: true, message: 'That coupon code is not valid.' }
     return { code: String(r.code || code).toUpperCase(), type: r.type || 'static', discount: Math.min(90, Number(r.discount)) }
@@ -645,18 +648,21 @@ function routes(router, deps) {
     const block = lifecycle.renewBlock(numbers, n)
     if (block === 'main_line_suspended') return bad(res, 409, block, 'This extra line comes back when its main line is restored. Renew the main line first.')
     if (block) return bad(res, 409, block, block === 'released' ? 'This number has been released and can no longer be renewed.' : 'We could not work out the renewal price for this line. Please contact support.')
-    const price = round2(lifecycle.renewalPrice(n))
+    const offer = deps.offers ? await deps.offers.renewOffer(req.webChatId, n.phoneNumber).catch(() => null) : null
+    const full = round2(lifecycle.renewalPrice(n))
+    const price = offer ? round2(full * (1 - offer.discount / 100)) : full
     if (price > 0 && !(await w.debit(req.webChatId, price))) return bad(res, 402, 'insufficient_balance', `Renewal costs $${price.toFixed(2)}. Top up your wallet first.`)
     const r = lifecycle.renewPatches(numbers, n)
     await lifecycle.applyDb(phoneNumbersOf, req.webChatId, r.patches)
     const action = r.wasSuspended ? 'restore' : 'renew'
-    await phoneTransactions.insertOne({ chatId: req.webChatId, phoneNumber: n.phoneNumber, action, plan: n.plan, amount: price, paymentMethod: 'wallet_usd', channel: 'web', restoredExtras: r.restored, timestamp: new Date().toISOString() })
+    await phoneTransactions.insertOne({ chatId: req.webChatId, phoneNumber: n.phoneNumber, action, plan: n.plan, amount: price, paymentMethod: 'wallet_usd', channel: 'web', restoredExtras: r.restored, ...(offer ? { offer: offer._id, discountPct: offer.discount } : {}), timestamp: new Date().toISOString() })
     await txn(req.webChatId, 'phone-renewal', price, { phoneNumber: n.phoneNumber, plan: n.plan, action })
-    res.json({ expiresAt: r.expiresAt, price, restored: r.restored, waiting: r.waiting, balance: await w.balance(req.webChatId) })
+    if (offer) await deps.offers.markUsed(offer._id).catch(() => {})
+    res.json({ expiresAt: r.expiresAt, price, discount: offer ? offer.discount : 0, restored: r.restored, waiting: r.waiting, balance: await w.balance(req.webChatId) })
   }))
 
   // Price to move `n` up to `newPlan` now → { charge, credit, newPrice } or { error } (HTTP-style).
-  function upgradeQuote(n, newPlan) {
+  function upgradeQuote(n, newPlan, pct = 0) {
     const order = Object.keys(phoneConfig.plans)
     if (n.isSubNumber) return { error: { status: 400, error: 'is_extra', message: 'Extra numbers follow the plan of their main number.' } }
     if (lifecycle.onHold(n)) return { error: { status: 409, error: 'suspended', message: 'Restore this number first (Renew now), then change its plan.' } }
@@ -664,12 +670,16 @@ function routes(router, deps) {
     const q = phoneConfig.computeUpgradeQuote(n, newPlan)
     // Keep the number's surcharge (e.g. international) on top of the new plan price, as downgrade does.
     const surcharge = Math.max(0, round2((n.planPrice || phoneConfig.plans[n.plan].price) - phoneConfig.plans[n.plan].price))
-    return { charge: round2(q && Number.isFinite(q.chargeAmount) ? q.chargeAmount : phoneConfig.plans[newPlan].price), credit: round2(q?.credit || 0), newPrice: round2(phoneConfig.plans[newPlan].price + surcharge) }
+    const full = round2(q && Number.isFinite(q.chargeAmount) ? q.chargeAmount : phoneConfig.plans[newPlan].price)
+    return { charge: round2(full * (1 - pct / 100)), fullCharge: full, discount: pct, credit: round2(q?.credit || 0), newPrice: round2(phoneConfig.plans[newPlan].price + surcharge) }
   }
 
   // Charges the wallet and switches the plan → { status, body }. viaOrder = crypto order ref that paid for it.
-  async function upgradeNumber(chatId, n, newPlan, viaOrder = null) {
-    const q = upgradeQuote(n, newPlan)
+  const upgradeOffer = (chatId, n, plan) => (deps.offers ? deps.offers.upgradeOffer(chatId, n.phoneNumber, plan).catch(() => null) : null)
+  // pct = offer discount already fixed on a crypto order (null → today's offer, if any).
+  async function upgradeNumber(chatId, n, newPlan, viaOrder = null, pct = null) {
+    const offer = pct === null ? await upgradeOffer(chatId, n, newPlan) : null
+    const q = upgradeQuote(n, newPlan, pct === null ? (offer?.discount || 0) : pct)
     if (q.error) return { status: q.error.status, body: { error: q.error.error, message: q.error.message } }
     if (!(await w.debit(chatId, q.charge))) return { status: 402, body: { error: 'insufficient_balance', message: `The upgrade costs $${q.charge.toFixed(2)}. Top up your wallet first.` } }
     // Switch back on what a downgrade turned off, when the new plan includes it.
@@ -678,13 +688,15 @@ function routes(router, deps) {
     await phoneNumbersOf.updateOne({ _id: chatId }, { $set: { 'val.numbers.$[s].plan': newPlan } }, { arrayFilters: [{ 's.isSubNumber': true, 's.parentNumber': n.phoneNumber }] }).catch(() => {})
     await phoneTransactions.insertOne({ chatId, phoneNumber: n.phoneNumber, action: 'upgrade', oldPlan: n.plan, newPlan, oldPrice: n.planPrice, newPrice: q.newPrice, amount: q.charge.toFixed(2), credit: q.credit.toFixed(2), paymentMethod: viaOrder ? 'crypto_order' : 'wallet_usd', ...(viaOrder ? { orderRef: viaOrder } : {}), channel: 'web', timestamp: new Date().toISOString() })
     await txn(chatId, 'phone-upgrade', q.charge, { phoneNumber: n.phoneNumber, plan: newPlan })
+    if (offer) await deps.offers.markUsed(offer._id).catch(() => {})
     if (viaOrder) notifyAdmin(`🌐 CloudIVR web: ${n.phoneNumber} upgraded ${phoneConfig.plans[n.plan]?.name} → ${phoneConfig.plans[newPlan].name} · crypto checkout $${q.charge}\nweb account: ${chatId}`)
     return { status: 200, body: { plan: newPlan, charged: q.charge, balance: await w.balance(chatId) } }
   }
 
   router.post('/numbers/:phone/upgrade', withNumber(async (req, res) => {
     const newPlan = String(req.body.plan || '')
-    const q = upgradeQuote(req.num, newPlan)
+    const offer = await upgradeOffer(req.webChatId, req.num, newPlan)
+    const q = upgradeQuote(req.num, newPlan, offer?.discount || 0)
     if (q.error) return bad(res, q.error.status, q.error.error, q.error.message)
     if (req.body.confirm !== true) return res.json({ quote: q })
     const r = await upgradeNumber(req.webChatId, req.num, newPlan)
@@ -705,7 +717,7 @@ function routes(router, deps) {
     res.json({ released: true })
   }))
 
-  return { myNumbers, findMine, purchase, pickFromSearch, searchSimilar, setField, checkCoupon, unheld, ownAudioUrls, upgradeQuote, upgradeNumber, rotateSip }
+  return { myNumbers, findMine, purchase, pickFromSearch, searchSimilar, setField, checkCoupon, unheld, ownAudioUrls, upgradeQuote, upgradeNumber, upgradeOffer, rotateSip }
 }
 
 module.exports = { parseBackups, routes, catalog, routeSummary, publicNumber, publicVoicemail, validateIvr, normPhone, countries, E164, webFeatures, recommendedPlan, WEB_FEATURES }

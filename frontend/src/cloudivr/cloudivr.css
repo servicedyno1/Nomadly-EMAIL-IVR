@@ -338,3 +338,6 @@ body[data-civr-sticky="1"] .civr-visitor-panel { bottom: calc(10rem + env(safe-a
 body[data-civr-sticky="1"] .civr-l-cookiebar { bottom: calc(4.5rem + env(safe-area-inset-bottom)); }
 @media (min-width: 768px) { .civr .civr-l-sticky { display: none; } body[data-civr-sticky="1"] .civr-visitor-fab { bottom: calc(1.5rem + env(safe-area-inset-bottom)); } body[data-civr-sticky="1"] .civr-visitor-panel { bottom: calc(6rem + env(safe-area-inset-bottom)); } body[data-civr-sticky="1"] .civr-l-cookiebar { bottom: 0; } }
 @media (prefers-reduced-motion: reduce) { .civr .civr-l-wave.on > i { animation: none; } .civr .civr-l-tile:hover, .civr .civr-l-play:hover { transform: none; } .civr .civr-l-sticky { transition: none; } }
+/* Personal offer surface (dashboard banner, wallet, billing): accent edge + soft tint in both themes. */
+.civr .civr-offer { border: 1px solid rgba(129, 140, 248, .4); background: linear-gradient(90deg, rgba(129, 140, 248, .1), rgba(129, 140, 248, .02)); }
+html[data-civr-theme="light"] .civr .civr-offer { border-color: rgba(79, 70, 229, .25); background: linear-gradient(90deg, rgba(79, 70, 229, .07), rgba(79, 70, 229, .015)); }

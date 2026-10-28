@@ -17,7 +17,7 @@ const MAX_TEMPLATES = 20
 const html = (s) => notify.strip(s)
 const today = () => new Date().toISOString().slice(0, 10)
 
-function routes(router, { db, h, numbersApi, bulkCallService, getTodayCoupons, placeTestMyNumberCall, startTestOutboundSip, notifyAdmin = () => {}, log = console.log }) {
+function routes(router, { db, h, numbersApi, offers = null, bulkCallService, getTodayCoupons, placeTestMyNumberCall, startTestOutboundSip, notifyAdmin = () => {}, log = console.log }) {
   const phoneNumbersOf = db.collection('phoneNumbersOf')
   const phoneTransactions = db.collection('phoneTransactions')
   const prefs = db.collection('webPrefs')
@@ -166,28 +166,34 @@ function routes(router, { db, h, numbersApi, bulkCallService, getTodayCoupons, p
     const end = new Date(); end.setUTCHours(23, 59, 59, 0)
     res.json({ coupon: { code: c.code, discount: c.discount, used: c.usedBy.includes(String(req.webChatId)), expiresAt: end } })
   }))
-  // Once a day every web account gets today's code in its Inbox (one process sends it: unique marker per day).
+  // Once a day every web account gets its own offer in its Inbox (one marker per account per day, so accounts created
+  // later in the day get it on the next run). Top-up bonuses are paid by the same timer once deposits confirm.
   const notices = db.collection('webCouponNotices')
   notices.createIndex({ at: 1 }, { expireAfterSeconds: 3 * 86400 }).catch(() => {})
   async function announceCoupon() {
-    const c = await todaysCoupon()
-    if (!c) return
-    // One marker per account per day, so accounts created later in the day get the notice on the next run.
+    if (!offers) return
     const day = today()
     const accounts = await db.collection('webAccounts').find({}, { projection: { _id: 1 } }).toArray()
     let sent = 0
     for (const a of accounts) {
       const id = String(a._id)
-      if (c.usedBy.includes(id)) continue
-      try { await notices.insertOne({ _id: `daily:${day}:${id}`, code: c.code, at: new Date() }) } catch (e) { if (e.code === 11000) continue; throw e }
-      await notify.push(id, `Today's coupon: ${c.code} — ${c.discount}% off a new number or extra number. Use it at checkout before midnight UTC.`, null, { kind: 'coupon', meta: { coupon: c.code, discount: c.discount } }).catch(() => {})
+      if (await notices.findOne({ _id: `daily:${day}:${id}` }, { projection: { _id: 1 } })) continue
+      const o = await offers.current(id)
+      try { await notices.insertOne({ _id: `daily:${day}:${id}`, offer: o._id, at: new Date() }) } catch (e) { if (e.code === 11000) continue; throw e }
+      if (o.used) continue
+      const p = offers.present(o)
+      await notify.push(id, `Today's offer: ${p.title}. ${p.text} Ends at midnight UTC.`, null, { kind: 'coupon', meta: { ...(o.code ? { coupon: o.code } : {}), discount: o.discount || null, offer: o.kind, cta: p.cta } }).catch(() => {})
       sent++
     }
-    if (sent) log(`[CloudIVR-Web] daily coupon ${c.code} sent to ${sent} web account(s)`)
+    if (sent) log(`[CloudIVR-Web] daily offer sent to ${sent} web account(s)`)
   }
-  const timer = setInterval(() => { announceCoupon().catch(e => log(`[CloudIVR-Web] coupon notice: ${e.message}`)) }, 5 * 60000)
+  const tick = () => {
+    announceCoupon().catch(e => log(`[CloudIVR-Web] offer notice: ${e.message}`))
+    offers?.payBonuses((id, text) => notify.push(id, text, null, { kind: 'coupon', meta: { offer: 'bonus', used: true } })).catch(e => log(`[CloudIVR-Web] top-up bonus: ${e.message}`))
+  }
+  const timer = setInterval(tick, 60000)
   if (timer.unref) timer.unref()
-  setTimeout(() => announceCoupon().catch(() => {}), 20000).unref?.()
+  setTimeout(tick, 20000).unref?.()
 
   // ── Campaign CSV report (same file the bot sends at the end) ──
   router.get('/campaigns/:id/report.csv', h(async (req, res) => {

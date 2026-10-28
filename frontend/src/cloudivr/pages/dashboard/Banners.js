@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Ticket, Send, X, Gift, PhoneOutgoing } from 'lucide-react';
+import { Ticket, Send, X, Gift, PhoneOutgoing, RefreshCw, ArrowUpCircle } from 'lucide-react';
+import { useOffer } from '../../offers';
 import { useApi } from '../../api';
 import { useShell } from '../../Shell';
 import { useCivrAuth } from '../../AuthContext';
@@ -10,27 +11,31 @@ import { recall, remember } from '../../consent';
 const pad = (n) => String(n).padStart(2, '0');
 const hms = (ms) => { const s = Math.max(0, Math.floor(ms / 1000)); return `${pad(Math.floor(s / 3600))}:${pad(Math.floor((s % 3600) / 60))}:${pad(s % 60)}`; };
 
-// Today's coupon with a live countdown to midnight UTC; hidden once used or expired.
+const OFFER_ICON = { number: Ticket, renew: RefreshCw, upgrade: ArrowUpCircle, topup: Gift, firstTopup: Gift };
+// Today's personal offer with a live countdown to midnight UTC; dismissible (stays hidden until the next offer), hidden once used.
 export function CouponBanner() {
-  const { data } = useApi('/coupons/today');
+  const { offer, dismiss } = useOffer();
   const [now, setNow] = useState(Date.now());
-  const c = data?.coupon;
-  const live = !!c && !c.used;
+  const live = !!offer && !offer.used && !offer.dismissed;
   useEffect(() => { if (!live) return undefined; const t = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(t); }, [live]);
   if (!live) return null;
-  const left = new Date(c.expiresAt).getTime() - now;
+  const left = new Date(offer.expiresAt).getTime() - now;
   if (left <= 0) return null;
+  const Icon = OFFER_ICON[offer.kind] || Ticket;
   return (
-    <div className="civr-card civr-rise p-5 sm:p-6 mb-6 flex flex-col sm:flex-row sm:items-center gap-4 !border-[#818cf8]/40 bg-gradient-to-r from-[#818cf8]/10 to-transparent" data-testid="dashboard-coupon-banner">
-      <div className="w-11 h-11 rounded-xl bg-[#818cf8]/15 flex items-center justify-center shrink-0"><Ticket className="w-5 h-5 text-[#818cf8]" /></div>
-      <div className="flex-1 min-w-0">
-        <div className="font-semibold text-base">{`Today's coupon: ${c.discount}% off a new number`}</div>
-        <div className="text-sm text-[#a1a1aa] mt-1 flex flex-wrap items-center gap-x-2">
-          <span>Code</span><span className="font-mono text-[#f3f4f6]" data-testid="dashboard-coupon-code" data-no-translate>{c.code}</span>
-          <span>·</span><span>Ends in</span><span className="font-mono text-[#818cf8] tabular-nums" data-testid="dashboard-coupon-countdown">{hms(left)}</span>
+    <div className="civr-card civr-rise civr-offer p-5 sm:p-6 mb-6 flex flex-col sm:flex-row sm:items-center gap-4 relative" data-testid="dashboard-coupon-banner" data-offer-kind={offer.kind}>
+      <div className="w-11 h-11 rounded-xl bg-[var(--c-accent-soft)] flex items-center justify-center shrink-0"><Icon className="w-5 h-5 text-[var(--c-accent)]" /></div>
+      <div className="flex-1 min-w-0 pr-8 sm:pr-0">
+        <div className="text-xs uppercase tracking-[0.14em] text-[var(--c-accent)] font-semibold">Today’s offer for you</div>
+        <div className="font-semibold text-base mt-1" data-testid="dashboard-offer-title">{offer.title}</div>
+        <div className="text-sm text-[var(--c-muted)] mt-1" data-testid="dashboard-offer-text">{offer.text}</div>
+        <div className="text-xs text-[var(--c-muted)] mt-2 flex flex-wrap items-center gap-x-2">
+          {offer.code && <><span>Code</span><span className="font-mono text-[var(--c-text)]" data-testid="dashboard-coupon-code" data-no-translate>{offer.code}</span><span>·</span></>}
+          <span>Ends in</span><span className="font-mono text-[var(--c-accent)] tabular-nums" data-testid="dashboard-coupon-countdown">{hms(left)}</span>
         </div>
       </div>
-      <Link to={cp(`/app/buy?coupon=${encodeURIComponent(c.code)}`)} className="civr-btn civr-btn-primary civr-btn-sm self-start sm:self-auto" data-testid="dashboard-coupon-use">Use it</Link>
+      <Link to={cp(offer.cta.to)} className="civr-btn civr-btn-primary civr-btn-sm self-start sm:self-auto" data-testid="dashboard-coupon-use">{offer.cta.label}</Link>
+      <button type="button" onClick={dismiss} className="absolute top-3 right-3 w-8 h-8 rounded-lg flex items-center justify-center text-[var(--c-muted)] hover:text-[var(--c-text)] hover:bg-[var(--c-accent-soft)]" aria-label="Dismiss offer" data-testid="dashboard-coupon-dismiss"><X className="w-4 h-4" /></button>
     </div>
   );
 }

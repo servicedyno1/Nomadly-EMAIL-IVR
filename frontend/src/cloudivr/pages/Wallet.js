@@ -2,12 +2,13 @@ import React, { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import QRCode from 'react-qr-code';
-import { Wallet as WalletIcon, Copy, Loader2, RefreshCw, AlertTriangle, Info, Coins, Receipt, Plus, Check } from 'lucide-react';
+import { Wallet as WalletIcon, Copy, Loader2, RefreshCw, AlertTriangle, Info, Coins, Receipt, Plus, Check, Gift } from 'lucide-react';
 import { CardComingSoon } from './buy/Checkout';
 import { api, useApi, money, when } from '../api';
 import { useShell } from '../Shell';
 import { PageHeader, Field, SkeletonCard, SkeletonRows, Empty, ErrorNote, statusPill, useIsPhone } from '../ui';
 import { cp } from '../paths';
+import { useOffer } from '../offers';
 
 const copy = (v) => navigator.clipboard?.writeText(v).then(() => toast.success('Copied'));
 const PRESETS = [25, 50, 100, 250];
@@ -43,7 +44,29 @@ function NeedBanner({ need, forNum }) {
   );
 }
 
+// Bonus the live top-up offer would add for this amount (tiers, or first top-up %).
+const bonusFor = (o, n) => {
+  if (!o || o.used) return 0;
+  if (o.kind === 'topup') return o.tiers.reduce((b, t) => (n >= t.min ? t.bonus : b), 0);
+  if (o.kind === 'firstTopup') return n >= o.first.min ? Math.round(Math.min(o.first.max, n * o.first.pct / 100) * 100) / 100 : 0;
+  return 0;
+};
+
+function OfferNote({ offer, amount, setAmount }) {
+  if (!offer || offer.used || !['topup', 'firstTopup'].includes(offer.kind)) return null;
+  const bonus = bonusFor(offer, Number(amount) || 0);
+  return (
+    <div className="civr-offer rounded-xl p-4 text-sm space-y-2" data-testid="wallet-offer">
+      <div className="flex items-center gap-2 font-semibold"><Gift className="w-4 h-4 text-[var(--c-accent)]" />{offer.title}</div>
+      {offer.kind === 'topup' && <div className="flex flex-wrap gap-2">{offer.tiers.map(t => <button type="button" key={t.min} onClick={() => setAmount(t.min)} className={`civr-pill cursor-pointer ${Number(amount) === t.min ? 'civr-pill-on' : ''}`} data-testid={`wallet-offer-tier-${t.min}`}>{`${money(t.min)} → ${money(t.min + t.bonus)}`}</button>)}</div>}
+      {offer.kind === 'firstTopup' && <div className="text-[var(--c-muted)]">{offer.text}</div>}
+      <div data-testid="wallet-offer-bonus">{bonus > 0 ? <>You’ll get <span className="font-mono">{money(bonus)}</span> extra — <span className="font-mono">{money((Number(amount) || 0) + bonus)}</span> in total, once the payment confirms.</> : <span className="text-[var(--c-muted)]">Pick an amount above to get the bonus today.</span>}</div>
+    </div>
+  );
+}
+
 function TopUp({ coins, min, initial, onCreated }) {
+  const { offer } = useOffer();
   const [amount, setAmount] = useState(initial);
   const [coin, setCoin] = useState(coins[0] || '');
   const [busy, setBusy] = useState(false);
@@ -62,6 +85,7 @@ function TopUp({ coins, min, initial, onCreated }) {
         <div className="civr-card civr-trace p-4 flex gap-4 items-start" data-testid="wallet-method-crypto"><Coins className="w-5 h-5 mt-0.5 shrink-0 text-[#818cf8]" /><div className="flex-1"><div className="font-semibold">Crypto</div><div className="text-xs text-[#a1a1aa] mt-1">{`${coins.map(c => c.replace(/\s*\(.*\)/, '')).filter((c, i, a) => a.indexOf(c) === i).slice(0, 4).join(', ')} and more`}</div></div><Check className="w-4 h-4 text-[#818cf8] shrink-0" /></div>
         <CardComingSoon testid="wallet-method-card" />
       </div>
+      <OfferNote offer={offer} amount={amount} setAmount={setAmount} />
       <div className="flex flex-wrap gap-2">{PRESETS.map(p => <button type="button" key={p} onClick={() => setAmount(p)} className={`civr-pill civr-preset cursor-pointer ${Number(amount) === p ? 'civr-pill-on' : ''}`} data-testid={`wallet-preset-${p}`}>${p}</button>)}</div>
       <div className="grid sm:grid-cols-2 gap-4">
         <Field label={`Amount (USD, min $${min})`}><input type="number" min={min} max={10000} step="1" className="civr-input font-mono" value={amount} onChange={e => setAmount(e.target.value)} data-testid="wallet-amount-input" /></Field>
@@ -167,7 +191,7 @@ export default function Wallet() {
           <div className="font-mono text-4xl xl:text-5xl whitespace-nowrap mt-6" data-testid="wallet-balance">{money(data.balance)}</div>
           <div className="text-xs text-[#a1a1aa] mt-2">USD · credited once the network confirms your deposit</div>
         </div>
-        <div className="lg:col-span-2"><TopUp coins={data.coins} min={data.minTopup} initial={need ? Math.max(data.minTopup, Math.ceil(need)) : 50} onCreated={(d) => { setDep(d); reload(); }} /></div>
+        <div className="lg:col-span-2"><TopUp coins={data.coins} min={data.minTopup} initial={need ? Math.max(data.minTopup, Math.ceil(need)) : Number(params.get('amount')) || 50} onCreated={(d) => { setDep(d); reload(); }} /></div>
       </div>
       {dep && <div className="mt-4"><DepositCard dep={dep} /></div>}
       <Tables data={data} />

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
+import { useTheme } from './theme';
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
-import { Eye, EyeOff, Globe, Lightbulb, LogOut, MoreHorizontal, Send } from 'lucide-react';
+import { Eye, EyeOff, Globe, Lightbulb, LogOut, MoreHorizontal, Send, Sun, Moon } from 'lucide-react';
 import { NAV_ITEMS, appPath } from './nav';
 import { useShell, LiveDot } from './Shell';
 import { useCivrAuth } from './AuthContext';
@@ -24,12 +25,19 @@ function MoreSettings() {
   const { logout } = useCivrAuth();
   const nav = useNavigate();
   const EyeIcon = on ? EyeOff : Eye;
+  const { pref, theme, setPref } = useTheme();
+  const light = theme === 'light';
+  const SunIcon = light ? Sun : Moon;
   return (
     <div className="mt-2 pt-2 border-t border-[#1f1f1f] space-y-1" data-testid="mobile-more-settings">
       <div className="flex items-center justify-between gap-3 pl-3 min-h-[44px] text-sm font-medium text-[#d4d4d8]"><span className="flex items-center gap-3"><Globe className="w-4 h-4" />Language</span><LangSwitcher testid="mobile-lang-switcher" /></div>
       <button type="button" role="switch" aria-checked={on} onClick={toggle} className="civr-nav-link w-full justify-between" data-testid="mobile-private-mode-button" data-private={on ? 'on' : 'off'}>
         <span className="flex items-center gap-3 text-left"><EyeIcon className={`w-4 h-4 shrink-0 ${on ? 'text-[#c4b5fd]' : ''}`} /><span>Private mode<span className="block text-xs font-normal text-[#a1a1aa]">Hide numbers and messages</span></span></span>
         <span className={`relative w-11 h-6 shrink-0 rounded-full transition-colors ${on ? 'bg-[#a78bfa]' : 'bg-[#2a2a2a]'}`}><span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform ${on ? 'translate-x-5' : ''}`} /></span>
+      </button>
+      <button type="button" role="switch" aria-checked={light} onClick={() => setPref(light ? 'dark' : 'light')} className="civr-nav-link w-full justify-between" data-testid="mobile-theme-button" data-theme={theme}>
+        <span className="flex items-center gap-3 text-left"><SunIcon className="w-4 h-4 shrink-0" /><span>Light mode<span className="block text-xs font-normal text-[#a1a1aa]">{pref === 'system' ? 'Following your device' : 'Set on this device'}</span></span></span>
+        <span className={`relative w-11 h-6 shrink-0 rounded-full transition-colors ${light ? 'bg-[#6366f1]' : 'bg-[#2a2a2a]'}`}><span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform ${light ? 'translate-x-5' : ''}`} /></span>
       </button>
       <button type="button" onClick={async () => { if (!(await confirmLeave())) return; nav(cp(), { replace: true }); await logout(); }} className="civr-nav-link w-full !text-[#fb7185]" data-testid="mobile-logout-button"><LogOut className="w-4 h-4" />Sign out</button>
     </div>

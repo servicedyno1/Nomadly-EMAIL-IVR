@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useTheme } from './theme';
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { Toaster, toast } from 'sonner';
 import './cloudivr.css';
@@ -62,6 +63,7 @@ function LegacyPrefixRedirect() {
 }
 
 export default function CloudIvrApp() {
+  const { theme: toastTheme } = useTheme();
   const [prevTitle] = useState(() => document.title);
   useEffect(() => {
     const restoreHead = applyBrandHead();
@@ -75,7 +77,7 @@ export default function CloudIvrApp() {
       <PageTitle />
       <CivrAuthProvider>
         {/* Above the round help button (desktop 24 px + 56 px, phones 88 px + 56 px above the bottom bar). */}
-        <Toaster theme="dark" position="bottom-right" offset={{ bottom: 92, right: 16 }} mobileOffset={{ bottom: 'calc(9.75rem + env(safe-area-inset-bottom))' }} richColors closeButton visibleToasts={3} />
+        <Toaster theme={toastTheme} position="bottom-right" offset={{ bottom: 92, right: 16 }} mobileOffset={{ bottom: 'calc(9.75rem + env(safe-area-inset-bottom))' }} richColors closeButton visibleToasts={3} />
         <ConfirmHost />
         <UpdateWatcher />
         <CookieBanner />

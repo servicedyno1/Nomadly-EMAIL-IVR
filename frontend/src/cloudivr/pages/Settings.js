@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useTheme, THEME_OPTIONS } from '../theme';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Loader2, LogOut, Send, LifeBuoy, Cookie } from 'lucide-react';
@@ -53,6 +54,17 @@ function Password({ account, refresh }) {
       <Field label="New password" hint="At least 8 characters."><input type="password" required minLength={8} className="civr-input" value={f.newPassword} onChange={e => setF({ ...f, newPassword: e.target.value })} data-testid="settings-new-password-input" /></Field>
       <SaveRow dirty={u.dirty} testid="settings-password-unsaved-pill"><button className="civr-btn civr-btn-primary" disabled={busy} data-testid="settings-password-save-button">{busy && <Loader2 className="w-4 h-4 animate-spin" />}Save password</button></SaveRow>
     </form>
+  );
+}
+
+function Appearance() {
+  const { pref, setPref } = useTheme();
+  return (
+    <div className="civr-card p-6 space-y-4" data-testid="settings-appearance-card">
+      <div className="font-display text-2xl font-bold">Appearance</div>
+      <p className="text-sm text-[#a1a1aa]">Light or dark for the app on this device. “Match my device” switches with your phone or computer.</p>
+      <div className="flex flex-wrap gap-2">{THEME_OPTIONS.map(([v, label]) => <button key={v} type="button" onClick={() => setPref(v)} aria-pressed={pref === v} className={`civr-pill cursor-pointer !normal-case !tracking-normal !text-sm h-10 ${pref === v ? 'civr-pill-on' : ''}`} data-testid={`settings-theme-${v}`}>{label}</button>)}</div>
+    </div>
   );
 }
 
@@ -145,7 +157,7 @@ export default function Settings() {
       <PageHeader label="Account" title="Settings" sub="This web account is separate from any Telegram bot account." testid="settings-header">
         <button className="civr-btn civr-btn-ghost civr-btn-sm" onClick={async () => { nav(cp(), { replace: true }); await logout(); }} data-testid="settings-logout-button"><LogOut className="w-4 h-4" />Sign out</button>
       </PageHeader>
-      <div className="grid lg:grid-cols-2 gap-4 max-w-5xl min-[1600px]:max-w-6xl min-[1800px]:max-w-7xl"><Profile account={account} setAccount={setAccount} /><Password account={account} refresh={refresh} /><Security account={account} refresh={refresh} /><Referral /><Suggest admin={account.admin} /><Language /><DefaultVoice /><EmailPrefs /><InstallApp /><Community /><Webhooks /></div>
+      <div className="grid lg:grid-cols-2 gap-4 max-w-5xl min-[1600px]:max-w-6xl min-[1800px]:max-w-7xl"><Profile account={account} setAccount={setAccount} /><Password account={account} refresh={refresh} /><Security account={account} refresh={refresh} /><Referral /><Suggest admin={account.admin} /><Language /><Appearance /><DefaultVoice /><EmailPrefs /><InstallApp /><Community /><Webhooks /></div>
     </div>
   );
 }

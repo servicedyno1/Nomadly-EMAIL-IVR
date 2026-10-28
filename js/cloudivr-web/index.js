@@ -30,6 +30,7 @@ const webhooks = require('./events')
 const aiSummary = require('./ai-summary')
 const { sendMail } = require('./auth')
 const { createEmails } = require('./emails')
+const { createOffers } = require('./offers')
 const { scrubProviderNames } = require('../sanitize-provider')
 
 // API messages (top level, and per-call errors in results / calls lists) never name the carrier or registrar.
@@ -66,11 +67,13 @@ function createCloudIvrWeb(deps) {
     emails.start()
     ai.publicRoutes(r, { h })
     r.use(auth.requireUser)
-    wallet.routes(r, { db, h, coins: deps.coins, createCryptoDeposit: deps.createCryptoDeposit })
+    const offers = createOffers(db, { log })
+    offers.routes(r, { h })
+    wallet.routes(r, { db, h, coins: deps.coins, createCryptoDeposit: deps.createCryptoDeposit, offers })
     // Orders go first so /numbers/orders is not caught by /numbers/:phone; numbersApi is filled in right after.
     const numbersApi = {}
-    orders.routes(r, { ...deps, db, h, numbersApi, sendMail })
-    Object.assign(numbersApi, numbers.routes(r, { ...deps, db, h }))
+    orders.routes(r, { ...deps, db, h, numbersApi, sendMail, offers })
+    Object.assign(numbersApi, numbers.routes(r, { ...deps, db, h, offers }))
     verification.routes(r, { ...deps, db, h, upload })
     audio.routes(r, { ...deps, db, h, upload })
     outbound.routes(r, { ...deps, db, h, numbersApi })
@@ -78,7 +81,7 @@ function createCloudIvrWeb(deps) {
     calls.routes(r, { ...deps, db, h, numbersApi })
     notes.routes(r, { db, h, numbersApi })
     ai.routes(r, { h, numbersApi })
-    extras.routes(r, { ...deps, db, h, numbersApi })
+    extras.routes(r, { ...deps, db, h, numbersApi, offers })
     support.routes(r, { ...deps, db, h, numbersApi })
     referrals.routes(r, { db, h })
     suggestions.routes(r, { ...deps, db, h })

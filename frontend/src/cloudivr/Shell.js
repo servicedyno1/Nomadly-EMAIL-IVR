@@ -1,4 +1,5 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import { ThemeRoot, ThemeButton } from './theme';
 import { NavLink, Navigate, Route, Routes, Link, useLocation, useNavigate } from 'react-router-dom';
 import { Bell, LogOut, Phone, Plus, LifeBuoy, Eye, EyeOff, Send, Lightbulb, HelpCircle, Search } from 'lucide-react';
 import { api, money } from './api';
@@ -119,6 +120,7 @@ function TopBar({ summary, onPhone }) {
       <Link to={cp('/app/wallet')} className="civr-btn civr-btn-ghost civr-btn-sm !hidden md:!inline-flex" data-testid="topbar-add-funds-button"><Plus className="w-4 h-4" />Add funds</Link>
       <LangSwitcher testid="topbar-lang-switcher" className="hidden lg:inline-flex" />
       <PrivateButton className="hidden lg:flex" />
+      <ThemeButton className={`${ICON_BTN} hidden lg:flex`} />
       <button type="button" onClick={openPalette} className={ICON_BTN} data-testid="topbar-search-button" aria-label="Jump to a number, page or action" title={`Jump to… (${isMac ? '⌘' : 'Ctrl'} K)`}><Search className="w-5 h-5" /></button>
       <Link to={helpFor(pathname, search)} className={`${ICON_BTN} hidden sm:flex`} data-testid="topbar-help-button" aria-label="Help for this page" title="Help for this page (?)"><HelpCircle className="w-5 h-5" /></Link>
       <Link to={cp('/app/inbox')} className={ICON_BTN} data-testid="topbar-inbox-button" aria-label="Inbox">
@@ -153,6 +155,7 @@ export default function Shell() {
     <ShellCtx.Provider value={{ summary, refreshSummary, catalog, openPhone }}>
      <PrivacyProvider>
      <RtcProvider>
+      <ThemeRoot />
       <IncomingCalls openPhone={openPhone} />
       <UpgradeHost />
       <UnsavedGuard />

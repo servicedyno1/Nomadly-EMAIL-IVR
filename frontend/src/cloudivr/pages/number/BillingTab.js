@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
-import { RefreshCw, ArrowUpCircle, Trash2, Loader2, PauseCircle } from 'lucide-react';
+import { RefreshCw, ArrowUpCircle, Trash2, Loader2, PauseCircle, Ticket } from 'lucide-react';
 import { api, enc, money, day } from '../../api';
 import { useShell } from '../../Shell';
 import { Field, InstantToggle } from '../../ui';
@@ -9,11 +9,15 @@ import { PlanFeatures, unlocks } from '../../PlanFeatures';
 import { Downgrade, ExtraNumbers } from './BillingExtras';
 import { UpgradePay } from './UpgradePay';
 import { ask } from '../../i18n';
+import { useOffer } from '../../offers';
 
 function Renewal({ num, reload, refreshSummary }) {
   const [busy, setBusy] = useState(false);
   const path = `/numbers/${enc(num.phoneNumber)}`;
-  const price = num.renewalPrice ?? num.planPrice;
+  const { offer, reload: reloadOffer } = useOffer();
+  const full = num.renewalPrice ?? num.planPrice;
+  const deal = offer && offer.kind === 'renew' && !offer.used && offer.phones?.includes(num.phoneNumber) ? offer.discount : 0;
+  const price = deal ? Math.round(full * (100 - deal)) / 100 : full;
   const held = num.status === 'suspended' && !!num.holdUntil;
   const waitsForMain = held && num.isSubNumber;
   const renew = async () => {
@@ -21,7 +25,8 @@ function Renewal({ num, reload, refreshSummary }) {
     setBusy(true);
     try {
       const d = await api(`${path}/renew`, { method: 'POST' });
-      toast.success(held ? `Restored — paid until ${day(d.expiresAt)}` : `Renewed until ${day(d.expiresAt)}`);
+      toast.success(`${held ? `Restored — paid until ${day(d.expiresAt)}` : `Renewed until ${day(d.expiresAt)}`}${d.discount ? ` · ${d.discount}% off applied` : ''}`);
+      reloadOffer();
       if (d.restored?.length) toast.success(`Extra lines back on: ${d.restored.join(', ')}`);
       if (d.waiting?.length) toast.message(`Still suspended (their paid month ended): ${d.waiting.map(w => w.phoneNumber).join(', ')} — renew each one too.`);
       reload(); refreshSummary();
@@ -31,10 +36,11 @@ function Renewal({ num, reload, refreshSummary }) {
     <div className="civr-card p-6 space-y-6" data-testid="billing-renewal-card">
       <div className="font-display text-2xl font-bold">Renewal</div>
       {held && <HoldNotice num={num} price={price} />}
+      {deal > 0 && <div className="civr-offer rounded-xl p-3 text-sm flex items-center gap-2" data-testid="billing-renew-offer"><Ticket className="w-4 h-4 text-[var(--c-accent)] shrink-0" />Today’s offer: renew now for <span className="font-mono">{money(price)}</span> <span className="line-through text-[var(--c-muted)] font-mono">{money(full)}</span> — {deal}% off.</div>}
       <div className="flex justify-between text-sm"><span className="text-[#a1a1aa]">Plan</span><span>{num.planName} · {money(price)}/month</span></div>
       <div className="flex justify-between text-sm"><span className="text-[#a1a1aa]">Paid until</span><span data-testid="billing-expires">{day(num.expiresAt)}</span></div>
       {!held && <div className="flex items-center justify-between"><span className="text-sm">Auto-renew from wallet</span><InstantToggle num={num} feature="autoRenew" label="Auto-renew" checked={num.autoRenew} reload={reload} testid="billing-auto-renew-toggle" /></div>}
-      {!waitsForMain && <button className={`civr-btn civr-btn-sm ${held ? 'civr-btn-primary' : 'civr-btn-ghost'}`} onClick={renew} disabled={busy} data-testid="billing-renew-button">{busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}{held ? `Restore for ${money(price)}` : 'Renew now'}</button>}
+      {!waitsForMain && <button className={`civr-btn civr-btn-sm ${held ? 'civr-btn-primary' : 'civr-btn-ghost'}`} onClick={renew} disabled={busy} data-testid="billing-renew-button">{busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}{held ? `Restore for ${money(price)}` : deal ? `Renew now for ${money(price)}` : 'Renew now'}</button>}
     </div>
   );
 }
@@ -81,6 +87,7 @@ function Upgrade({ num, reload, refreshSummary, plans, coins }) {
           <PlanFeatures plan={{ webFeatures: unlocks(plans, num.plan, plan) }} compact testid="billing-upgrade-unlock" />
         </div>
       )}
+      {quote?.discount > 0 && <div className="civr-offer rounded-xl p-3 text-sm flex items-center gap-2" data-testid="billing-upgrade-offer"><Ticket className="w-4 h-4 text-[var(--c-accent)] shrink-0" />Today’s offer: {quote.discount}% off — <span className="line-through text-[var(--c-muted)] font-mono">{money(quote.fullCharge)}</span> <span className="font-mono">{money(quote.charge)}</span></div>}
       {quote && <div className="text-sm" data-testid="billing-upgrade-quote">{quote.credit > 0
         ? `Pay ${money(quote.charge)} now — includes a ${money(quote.credit)} upgrade credit (25% of your current plan, for upgrading within 14 days of buying). Then ${money(quote.newPrice)}/month — your renewal date stays the same.`
         : `Pay ${money(quote.charge)} now. Then ${money(quote.newPrice)}/month — your renewal date stays the same.`}</div>}
