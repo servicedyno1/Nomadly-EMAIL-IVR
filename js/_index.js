@@ -8396,9 +8396,6 @@ bot?.on('message', msg => {
     }
   }
 
-  // ── Swipe-reply on a forwarded inbound SMS → text back from that Cloud Phone number ──
-  if (msg?.reply_to_message && message && chatId && await require('./sms-reply-bot.js').handle({ bot, db, chatId, msg, message }).catch(e => { log(`[SmsReplyBot] ${e.message}`); return false })) return
-
   // ── Telnyx verification (pay-first): ID / proof-of-address photos & files ──
   if ((msg?.photo || msg?.document) && chatId) {
     const userInfo = await get(state, chatId)

@@ -43,14 +43,10 @@ async function forwardSmsToTelegram(bot, chatId, from, to, body) {
 👤 From: ${formatPhone(from)}
 🕐 ${time}
 
-💬 "${body}"
-
-↩️ <i>Reply to this message to text back.</i>`
+💬 "${body}"`
 
   try {
-    const sent = await bot.sendMessage(chatId, msg, { parse_mode: 'HTML' })
-    // Swipe-reply in Telegram → text back from this number (handled by hosted-sms-bot.js)
-    if (sent?.message_id && _db) await _db.collection('hostedSmsThreads').insertOne({ _id: `${chatId}:${sent.message_id}`, hostedId: null, phone: String(to).replace(/[^+\d]/g, ''), to: from, at: new Date() }).catch(() => {})
+    await bot.sendMessage(chatId, msg, { parse_mode: 'HTML' })
     log(`SMS forwarded to Telegram chatId=${chatId} from=${from}`)
   } catch (e) {
     log('forwardSmsToTelegram error:', e.message)

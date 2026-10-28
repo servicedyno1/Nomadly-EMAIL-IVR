@@ -1718,13 +1718,12 @@ calls and SIP are simulated; inbound calls use a pretend-call simulator).
 ## 2026-10-28 — Landline to Texting (Telnyx Hosted SMS) — WEB ONLY — TESTED (iteration_167 + fixes), NOT DEPLOYED
 - Owner rules: $300 setup with ownership code, $500 without; + $50/month from wallet (unpaid → paused, retried daily);
   full refund if rejected/cancelled; customer uploads bill PDF, WE generate + e-sign the LOA after a consent tick; texts
-  $0.05 each from wallet (agent assumption), receive free; no bulk SMS; NOT in the Telegram bots (web only).
+  $0.05 each from wallet, sent OR received (owner: receiving costs the same; empty wallet → inbound not delivered + 1 notice/day); no bulk SMS; NOT in the Telegram bots (web only).
 - js/hosted-sms.js (core + 30 s/10 min tick: Telnyx review poll, monthly billing), js/cloudivr-web/hosted.js (routes),
   frontend pages/Texting.js + pages/texting/*. Collection hostedSms (unique live phoneNumber via partial index live:true).
   Telnyx API: eligibility_numbers_check → messaging_hosted_number_orders (TELNYX_MESSAGING_PROFILE_ID) → verification_codes /
   validation_codes → actions/file_upload (loa + bill) → status poll. Preview: WEB_CLOUDIVR_DRY_RUN → all simulated (code 123456).
 - Inbound: sms-service no-owner branch → hosted onInbound → web Inbox item meta.hosted (reply via hosted number).
-- Bot: js/sms-reply-bot.js — swipe-reply on a forwarded inbound SMS texts back from that regular Cloud Phone number
-  (hostedSmsThreads map written in forwardSmsToTelegram). Promo copy web_cloudivr (4 langs) advertises Landline to Texting.
+- Bot: NO reply feature (owner removed the swipe-reply; sms-reply-bot.js deleted). Promo copy web_cloudivr (4 langs) advertises Landline to Texting.
 - Open: US 10DLC / toll-free registration for outbound texting not automated; Main has no sales dashboard (txn types
   hosted-sms-setup/renewal/text/refund written to transactions for when WL sales.js is ported).

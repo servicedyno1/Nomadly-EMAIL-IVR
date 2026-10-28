@@ -10,7 +10,7 @@ const { walletOps, round2 } = require('./cloudivr-web/wallet')
 
 const PRICE = { code: 300, nocode: 500 }
 const MONTHLY = 50
-const TEXT_PRICE = 0.05
+const TEXT_PRICE = 0.05 // per text, sent or received
 const MONTH_MS = 30 * 86400000
 const MAX_TEXT = 160
 const E164 = /^\+[1-9]\d{7,14}$/
@@ -40,7 +40,6 @@ function init({ db, log = console.log, tell, brand }) {
   col.createIndex({ chatId: 1 }).catch(() => {})
   col.createIndex({ phoneNumber: 1, status: 1 }).catch(() => {})
   col.createIndex({ phoneNumber: 1 }, { unique: true, partialFilterExpression: { live: true }, name: 'one_live_per_number' }).catch(() => {})
-  db.collection('hostedSmsThreads').createIndex({ at: 1 }, { expireAfterSeconds: 30 * 86400 }).catch(() => {})
   S = { db, col, w: walletOps(db), log, tell, brand }
   col.updateMany({ status: { $in: ['verify', 'documents', 'review', 'active', 'paused'] }, live: { $exists: false } }, { $set: { live: true } }).catch(() => {})
   const t = setInterval(() => tick().catch(e => log(`[HostedSMS] tick: ${e.message}`)), dry() ? 30000 : 10 * 60000)
@@ -268,7 +267,15 @@ async function onInbound({ from, to, body }) {
   const d = await findLive(to)
   if (!d) return false
   if (d.status === 'paused') { S.log(`[HostedSMS] ${d.phoneNumber} paused — inbound from ${from} not delivered`); return true }
-  await S.db.collection('phoneLogs').insertOne({ chatId: d.chatId, phoneNumber: d.phoneNumber, from, to: d.phoneNumber, type: 'sms', direction: 'inbound', body, hosted: true, timestamp: new Date() })
+  // Receiving costs the same as sending. No balance → the text isn't delivered; one "top up" notice per day.
+  if (!(await S.w.debit(d.chatId, TEXT_PRICE))) {
+    S.log(`[HostedSMS] ${d.phoneNumber} inbound from ${from} not delivered — wallet can't cover $${TEXT_PRICE}`)
+    const r = await S.col.updateOne({ _id: d._id, $or: [{ lowBalanceAt: null }, { lowBalanceAt: { $lt: new Date(Date.now() - 86400000) } }] }, { $set: { lowBalanceAt: new Date() } })
+    if (r.modifiedCount) S.tell(d.chatId, `⚠️ A text to ${d.phoneNumber} couldn’t be delivered — each received text costs $${TEXT_PRICE.toFixed(2)} and your wallet is empty. Top up to keep receiving texts.`, { kind: 'billing', meta: { hosted: d._id } })
+    return true
+  }
+  await txn(d.chatId, 'hosted-sms-inbound', TEXT_PRICE, { phoneNumber: d.phoneNumber, hostedId: d._id, from })
+  await S.db.collection('phoneLogs').insertOne({ chatId: d.chatId, phoneNumber: d.phoneNumber, from, to: d.phoneNumber, type: 'sms', direction: 'inbound', body, hosted: true, charge: TEXT_PRICE, timestamp: new Date() })
   await S.tell(d.chatId, `📩 SMS received\n\nTo: ${d.phoneNumber}\nFrom: ${from}\n\n"${body}"`, { kind: 'sms', meta: { from, to: d.phoneNumber, hosted: d._id } })
   return true
 }
