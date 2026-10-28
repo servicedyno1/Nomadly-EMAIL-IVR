@@ -1,0 +1,26 @@
+{
+  "summary": "MailerSend migration (js/mailer.js) backend-only verification. All 6 requested checks PASS: unit suite 16/16; live no-send check -> MailError provider=mailersend status=422 code=MS42207, verifiedDomains()={test-z0vklo6kmd1l7qrx.mlsender.net} only; DNS dry run plans SPF merge 'v=spf1 include:spf.brevo.com include:_spf.mailersend.net ~all' + CNAMEs ms1/ms2._domainkey and mta, wrote nothing (GET-only path); all modules (auth, sms-service, send-email, mailer, vm-instance-setup) load and _index.js passes syntax check; /api/health 200, Alice login 200; stubbed auth.sendMail goes to MailerSend /v1/email (from hi@cloudivr.net, name CloudIVR, base64 mp3) when verified and to Brevo /v3/smtp/email (sender hi@cloudivr.net, attachment base64) when not; no 'Brevo' in js/lang/*.js and lang parity OK. No real emails sent, --apply not run, .env untouched.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "js/mailer.js deliver()/sendBrevo", "issue": "If CLOUDIVR_MAIL_SENDER is set and only MAILERSEND_API_TOKEN exists (no BREVO_API_KEY), auth.sendMail now takes the mailer.send path; for an unverified domain sendBrevo throws 'BREVO_API_KEY is not set' instead of the old SMTP-relay path. Not hit in current env (Brevo key present)."},
+      {"endpoint": "js/mailer.js transport().verify", "issue": "Shim verify() always resolves true (no SMTP check). No current callers, but would mask SMTP misconfig if someone adds one."},
+      {"endpoint": "js/mailer.js readAttachment", "issue": "Attachments with http(s) path or href are silently dropped (nodemailer would fetch them). No current caller uses this."}
+    ]
+  },
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": ["/app/backend/tests/test_mailersend_migration.py", "/app/js/tests/t1_mailer_live_nosend.js", "/app/js/tests/t1_auth_sendmail_stub.js", "/app/js/tests/test_mailer_2026-10.js", "/app/test_reports/pytest/pytest_mailersend.xml"],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "MailerSend custom 'headers' array and list_unsubscribe need Professional plan; until upgrade they may 422 — fallback covers it when MAIL_FALLBACK=brevo, but with MAIL_FALLBACK=off email-blast test sends would fail.",
+    "Retry on 429/5xx can block up to ~20s (2 retries, 10s cap) inside request paths (e.g. 2FA code send) — acceptable but consider fire-and-forget for non-critical mails.",
+    "sms-service forwardSmsToEmail interpolates raw SMS body into HTML without escaping (pre-existing, HTML injection into email)."
+  ],
+  "updated_files": ["/app/backend/tests/test_mailersend_migration.py", "/app/js/tests/t1_mailer_live_nosend.js", "/app/js/tests/t1_auth_sendmail_stub.js"],
+  "success_rate": {"backend": "100%", "frontend": "skipped (not requested)"},
+  "seed_data_creation": "none",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Run: python -m pytest /app/backend/tests/test_mailersend_migration.py (wraps node suites). cloudivr.net NOT verified in MailerSend yet (only trial domain) — real sends go via Brevo by design. Never run scripts/mailersend_dns.js --apply or send real emails.",
+  "test_credentials": "civr.alice@example.com / AliceTest#2026 (from /app/memory/test_credentials.md)"
+}

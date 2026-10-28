@@ -60,13 +60,16 @@ async function routeToMailerSend(fromEmail) {
   return (await verifiedDomains()).has(domainOf(fromEmail))
 }
 
-// ── attachments → { filename, contentBase64 } ──
-function readAttachment(a) {
+// ── attachments → { filename, content (base64) } ── (content | local path | http(s) path/href, like nodemailer)
+async function readAttachment(a) {
   let buf
+  const url = [a.path, a.href].find(u => /^https?:/i.test(String(u || '')))
   if (a.content != null) buf = Buffer.isBuffer(a.content) ? a.content : Buffer.from(String(a.content), a.encoding === 'base64' ? 'base64' : 'utf8')
-  else if (a.path && !/^https?:/i.test(a.path)) buf = fs.readFileSync(a.path)
+  else if (url) buf = Buffer.from((await axios.get(url, { responseType: 'arraybuffer', timeout: 20000 })).data)
+  else if (a.path) buf = fs.readFileSync(a.path)
   else return null
-  return { filename: a.filename || (a.path ? require('path').basename(a.path) : 'attachment'), content: buf.toString('base64') }
+  const name = a.filename || (url || a.path ? require('path').basename(String(url || a.path).split('?')[0]) : 'attachment')
+  return { filename: name, content: buf.toString('base64') }
 }
 
 // ── MailerSend ──
@@ -161,7 +164,7 @@ async function deliver(m, opts = {}) {
   }
 }
 
-function normalise({ from, to, cc, bcc, replyTo, subject, html, text, attachments, headers }) {
+async function normalise({ from, to, cc, bcc, replyTo, subject, html, text, attachments, headers }) {
   const f = parseAddress(from)
   if (!f?.email) throw new MailError('none', 0, 'from address missing')
   const rcpt = parseList(to)
@@ -169,28 +172,30 @@ function normalise({ from, to, cc, bcc, replyTo, subject, html, text, attachment
   return {
     from: f, to: rcpt, cc: parseList(cc), bcc: parseList(bcc), replyTo: parseAddress(replyTo),
     subject: String(subject || ''), html: html || '', text: text || '',
-    attachments: (attachments || []).map(readAttachment).filter(Boolean), headers: headers || {},
+    attachments: (await Promise.all((attachments || []).map(readAttachment))).filter(Boolean), headers: headers || {},
   }
 }
 
 // send({ from, to, subject, html, text?, attachments?: [{ filename, content|path }], headers?, replyTo?, cc?, bcc? })
-const send = (msg) => deliver(normalise(msg))
+const send = async (msg) => deliver(await normalise(msg))
 
 // Drop-in for nodemailer.createTransport(smtpOptions): same sendMail(), but routed through deliver().
 // The original SMTP transport stays the "Brevo" route, so domains not on MailerSend behave exactly as before.
 function transport(smtpOptions) {
   let smtp = null
-  const viaSmtp = (mail) => { smtp = smtp || require('nodemailer').createTransport(smtpOptions); return smtp.sendMail(mail) }
+  const smtpT = () => (smtp = smtp || require('nodemailer').createTransport(smtpOptions))
+  const viaSmtp = (mail) => smtpT().sendMail(mail)
   return {
     sendMail: async (mail, cb) => {
       try {
-        const r = await deliver(normalise(mail), { smtpFallback: () => viaSmtp(mail) })
+        const r = await deliver(await normalise(mail), { smtpFallback: () => viaSmtp(mail) })
         const info = r.provider ? { messageId: r.id, provider: r.provider, accepted: parseList(mail.to).map(a => a.email), response: `250 queued via ${r.provider}` } : r
         if (cb) cb(null, info)
         return info
       } catch (e) { if (cb) return cb(e); throw e }
     },
-    verify: async () => true,
+    // MailerSend: the token answers; otherwise the real SMTP check.
+    verify: async () => (msToken() && provider() !== 'brevo' ? (await axios.get(`${MS_API}/api-quota`, { headers: { Authorization: `Bearer ${msToken()}` }, timeout: 10000 }), true) : smtpT().verify()),
   }
 }
 

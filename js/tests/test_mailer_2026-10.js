@@ -11,7 +11,12 @@ const ok = (c, name, extra = '') => { if (c) { pass++; console.log('PASS', name)
 const calls = []
 let msDomains = [{ name: 'cloudivr.net', is_verified: true }, { name: 'priv.host', is_verified: false }]
 let msPlan = [] // queue of responses for POST /email: { status, data?, headers? }
-axios.get = async (url) => { calls.push({ m: 'GET', url }); return { data: { data: msDomains } } }
+axios.get = async (url) => {
+  calls.push({ m: 'GET', url })
+  if (url.startsWith('https://files.example')) return { data: Buffer.from('REMOTE') }
+  if (url.includes('api-quota')) return { data: { quota: 100 } }
+  return { data: { data: msDomains } }
+}
 axios.post = async (url, body, cfg) => {
   calls.push({ m: 'POST', url, body, cfg })
   if (url.includes('mailersend')) {
@@ -24,7 +29,7 @@ axios.post = async (url, body, cfg) => {
 const smtpSent = []
 const origLoad = Module._load
 Module._load = function (req, ...rest) {
-  if (req === 'nodemailer') return { createTransport: () => ({ sendMail: async (m) => { smtpSent.push(m); return { messageId: 'smtp-1' } } }) }
+  if (req === 'nodemailer') return { createTransport: () => ({ sendMail: async (m) => { smtpSent.push(m); return { messageId: 'smtp-1' } }, verify: async () => 'smtp-verified' }) }
   return origLoad.call(this, req, ...rest)
 }
 
@@ -99,6 +104,17 @@ const lastPost = (host) => calls.filter(c => c.m === 'POST' && c.url.includes(ho
   reset(); delete process.env.MAILERSEND_API_TOKEN
   r = await mailer.send({ from: 'hi@cloudivr.net', to: 'l@x.com', subject: 's', text: 't' })
   ok(r.provider === 'brevo' && calls.filter(c => c.url.includes('mailersend')).length === 0, 'no MailerSend token → Brevo')
+
+  // 10. http(s) attachment is downloaded (like nodemailer), verify() checks the real transport
+  process.env.MAILERSEND_API_TOKEN = 'ms_test'
+  reset()
+  await mailer.send({ from: 'hi@cloudivr.net', to: 'm@x.com', subject: 's', text: 't', attachments: [{ path: 'https://files.example/a/voicemail.mp3?x=1' }] })
+  const att = lastPost('mailersend').body.attachments[0]
+  ok(att && att.filename === 'voicemail.mp3' && att.content === Buffer.from('REMOTE').toString('base64'), 'remote attachment fetched')
+  ok((await mailer.transport({}).verify()) === true, 'verify() with MailerSend token checks the API')
+  process.env.MAIL_PROVIDER = 'brevo'
+  ok((await mailer.transport({}).verify()) === 'smtp-verified', 'verify() on Brevo route checks SMTP')
+  delete process.env.MAIL_PROVIDER
 
   console.log(`RESULT pass=${pass} fail=${fail}`)
   process.exit(fail ? 1 : 0)
