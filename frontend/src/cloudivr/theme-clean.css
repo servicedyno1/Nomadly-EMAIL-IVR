@@ -25,6 +25,7 @@ html[data-civr-theme="light"] .civr {
   --shadow-card-hover: 0 8px 24px -16px rgba(15, 23, 42, 0.22);
 }
 html[data-civr-theme="light"] body { background: #ffffff; }
+html[data-civr-theme="dark"] body { background: #0a0a0a; }
 
 /* Type: one clean sans everywhere in the app. */
 html[data-civr-theme] .civr .font-display { font-family: 'DM Sans', sans-serif; letter-spacing: -0.02em; line-height: 1.15; }

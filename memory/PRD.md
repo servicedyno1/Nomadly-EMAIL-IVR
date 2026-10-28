@@ -1727,3 +1727,10 @@ calls and SIP are simulated; inbound calls use a pretend-call simulator).
 - Bot: NO reply feature (owner removed the swipe-reply; sms-reply-bot.js deleted). Promo copy web_cloudivr (4 langs) advertises Landline to Texting.
 - Open: US 10DLC / toll-free registration for outbound texting not automated; Main has no sales dashboard (txn types
   hosted-sms-setup/renewal/text/refund written to transactions for when WL sales.js is ported).
+
+## 2026-10-28 — Clean console redesign + landing texting tile (LIVE on app-main)
+- Whole in-app UI restyled like Zoho CPaaS (theme-clean.css): navy sidebar in both themes, white light mode, blue primary,
+  squarer buttons, DM Sans titles, underline tabs, dashed empty-state art (ui.js EmptyArt). Light/dark switch kept.
+- Landing "Who it's for" grid: new tile `usecase-texting` (Landline to Texting, $300/$500 setup, $50/mo, $0.05/text).
+- Tested: /app/test_reports/iteration_168.json (frontend 100%). Deployed to app-main only (reseller bots untouched).
+- Backlog: white-label CloudIVR sites (need 3 domains), Voodoo email inbox placement, Hosted SMS sales-dashboard mapping.

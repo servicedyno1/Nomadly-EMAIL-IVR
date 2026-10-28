@@ -303,3 +303,9 @@ The new layout differs from the old in-place `/opt/nomadly/app-main` checkout. O
   Those WL releases ignore MAIL_PROVIDER=telnyx (old mailer → MailerSend). app-main stays on 4e0d0a0 (Telnyx email, new features).
   RULE: NEVER deploy the main workspace to WL apps. WL code = WhiteLabel branch; port main changes as an overlay of ONLY the changed
   files onto the WL release tree after diffing each file against the WL version.
+
+## 2026-10-28 17:47Z — workspace deploy 5521e68 (+12 uncommitted) → app-main ONLY, release 20261028T174729Z-5521e68 on app-main-b :5100
+- Contents: Zoho-style clean app design (frontend/src/cloudivr/theme-clean.css: navy sidebar both themes, white light mode, blue accent,
+  underline tabs, dashed empty-state art), landing "Landline to Texting" use-case tile. Hosted SMS already live from 8e3a8c4.
+- Verified live: health healthy, 0 calls at flip; bundle has new CSS + landing tile; Telnyx eligibility API OK with prod key;
+  Telnyx email to moxxcompany@gmail.com status=completed. WL apps untouched. ⚠️ Save to GitHub (main) or CI rolls it back.

@@ -1,0 +1,20 @@
+{
+  "summary": "Frontend-only test of the clean console redesign and the new landing tile. Everything requested passed. Landing /cloudivr: usecase-texting tile shows inside usecases-grid with the Landline to Texting heading and $300/$500/$50/month/$0.05; usecase-texting-link goes to /cloudivr/signup; the telegram tile still shows. Layout: 4+2 / 2+2+2 / 3+3 bento on 1920, single column with no overflow on 390. In-app sidebar is navy rgb(11,21,51) in both themes. Nav text rgb(201,209,232), active link white on rgb(21,35,75) with a border, group labels rgb(127,138,176). topbar-theme-button toggles the theme and saves it to localStorage civr.theme. Light mode: white page, DM Sans 32px titles, blue rgb(47,84,235) primary buttons, thin-border cards. Dark mode looks coherent with primary rgb(61,99,242). Empty states (Bob contacts, Bob numbers, Alice texting) show the dashed empty-art (2px dashed, 104px) with the + badge, title, sub and buttons. Swept 12 pages (Overview, Numbers, Buy, Texting, Live, Contacts, Campaigns, AI agents, Wallet, Inbox, Settings, Help) plus Alice's number detail page in both themes: 0 page errors, 0 low-contrast text (heuristic contrast < 2.5), no horizontal overflow. Number-detail and AI-agent tabs use underline style: the selected tab is blue with a 2px bottom border, and tab switching works. Mobile 390: sidebar hidden, mobile-bottom-nav shown, scrollWidth 390 on all checked pages.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "In-app dark mode", "issues": ["body background computes to white in dark mode (theme-clean only sets body for light). The .civr wrapper paints dark so nothing visible, but overscroll or rubber-band areas may flash white. Consider html[data-civr-theme=dark] body { background: var(--c-bg) }. Low priority."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": ["Optional: set the dark-mode body background to match --c-bg"],
+  "critical_code_review_comments": ["theme-clean.css is overrides keyed on Tailwind arbitrary-value class names (e.g. .text-\\[\\#818cf8\\]). This is brittle: any new indigo shade or opacity variant will not follow the new accent. Over time, move components to CSS vars."],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (skipped)", "frontend": "100%"},
+  "seed_data_creation": "none",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Use wait_until=domcontentloaded (networkidle times out because of polling). Dismiss cookie-allow-all before logging in. Alice's number is +13346972125. Theme is set with localStorage civr.theme. On the landing page the tile label is CSS-uppercased, so inner_text returns 'LANDLINE TO TEXTING'."
+}
