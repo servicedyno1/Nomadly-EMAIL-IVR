@@ -1,0 +1,47 @@
+{
+  "summary": "I tested Landline to Texting (Hosted SMS) end to end in the DRY-RUN preview: the backend API, the web UI (light and dark modes, desktop and mobile), the inbound-to-Inbox reply, the bot and the promo copy. Backend: 10 of 11 pytest cases pass. These all work: prices and list, eligibility checks (+1 accepted, +44 rejected, duplicate numbers rejected), code and no-code payments, sending the code by text and by call with the preview toast, wrong code vs 123456, the LOA preview PDF, document checks (consent, non-PDF bill, missing fields, missing file), submit moving to review, auto-activation about 60 s later, cancel with refund and no double refund, 402 on insufficient balance, cross-account access returning 400/404, and sending texts ($0.05 charge, over 160 characters blocked, bad number and empty text blocked). Monthly billing works: renewal charges $50, an empty wallet pauses the number and blocks sending with the monthly-fee message, and the number turns back on after a top-up once retryAt passes. Inbound via onInbound creates a webNotifications item (kind sms, meta.hosted), the Inbox reply sends from the hosted number and charges $0.05, and unknown numbers return false. Regular Inbox SMS reply, the dashboard and the wallet still work. The bot has no Hosted SMS menu (only the swipe-reply hook). The promo copy for web_cloudivr has the Landline to Texting hook and line in en, fr, zh and hi, and no web_cloudivr variant fails the promo copy rules. UI: every listed flow worked through Playwright. 1 real failure: the LOA build returns 500 for non-Latin names. I also found several minor UX issues.",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "POST /api/cloudivr-web/hosted-sms/:id/loa-preview and /documents", "issue": "buildLoa uses pdf-lib StandardFonts (WinAnsi only). Any holder field with non-Latin characters (e.g. name 'José 王伟', Hindi, Cyrillic, emoji) throws 'WinAnsi cannot encode \"王\"', so the preview returns 500 and documents can't be submitted. The UI ships in zh/hi, so these users get stuck at the documents step after paying $300–$500. Fix: embed a Unicode TTF via @pdf-lib/fontkit, or transliterate/strip characters WinAnsi can't encode, and validate the fields with a clear 400.", "priority": "HIGH"}
+    ],
+    "minor": [
+      {"endpoint": "hosted-sms.js start()", "issue": "check() then debit then insertOne has no unique guard, so 2 concurrent POST /hosted-sms calls for the same number can both pass and charge twice. Add a unique partial index on phoneNumber for live statuses, or an atomic upsert. Also, if insertOne fails after the debit, nothing refunds the wallet."},
+      {"endpoint": "hosted-sms.js cancel() → reject() tell text", "issue": "The cancel notification reads '❌ Texting for +1… couldn’t be set up. Cancelled by you — refunded to your wallet. $500 was refunded to your wallet.' The refund is stated twice, and 'couldn't be set up' is wrong wording for a cancel the user chose."},
+      {"endpoint": "notify.js linkOf()", "issue": "The 'Open texts' link on a hosted inbound SMS goes to /app/numbers because hosted numbers aren't in the user's numbers. It should go to /app/texting. Hosted status notices (activated, paused, refunded) have no link."},
+      {"endpoint": "wallet.js history", "issue": "'Refund · Landline to Texting' has no phone number, unlike the setup line. 'Text sent · +1…' doesn't say it came from Landline to Texting."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Texting pages (NewSetup pay, Thread send, CancelButton)", "issue": "The topbar balance doesn't refresh after paying, sending or cancelling. It stayed at $1099.90 after a $300 payment until the 30 s poll. Call useShell().refreshSummary() after each wallet change.", "selector": "[data-testid=topbar-balance]", "priority": "LOW"},
+      {"component": "Thread", "issue": "The message list doesn't scroll to the newest message (newest is at the bottom of a max-h-80 box). After sending, the new message sits below the fold.", "selector": "[data-testid=texting-messages]", "priority": "LOW"},
+      {"component": "Inbox QuickReply on hosted SMS", "issue": "The counter says 'uses 1 text from your plan', but hosted replies cost $0.05 from the wallet.", "selector": "[data-testid=inbox-item-N-reply-box-count]", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Texting thread", "issues": ["Hardcoded bg-[#1a1a1a] and text-[#d4d4d8] render correctly in both themes (CSS remaps them), so there is no contrast problem. The LOA preview's blob URL is never revoked (small leak)."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_hosted_sms_web.py", "/app/backend/tests/hosted_sms_inbound.js", "/app/test_reports/pytest/hosted_sms.xml"],
+  "action_items": [
+    "Fix the non-Latin characters crash in buildLoa (embed a Unicode font with fontkit, or sanitise the fields and return a 400).",
+    "Prevent a double order or double charge for the same number when 2 requests arrive at once (unique partial index or atomic claim). Refund if the insert fails.",
+    "Fix the cancel notification text (refund stated twice, wrong 'couldn't be set up' wording).",
+    "Point the hosted SMS inbox link to /app/texting.",
+    "Call refreshSummary after pay, send and cancel on the Texting page.",
+    "Auto-scroll the thread to the newest message, and fix the QuickReply cost hint for hosted numbers."
+  ],
+  "critical_code_review_comments": [
+    "hosted-sms.js init() is guarded by `if (S) return api`, so whichever init runs first wins (_index.js with bot-aware tell, or the web routes). Both tell functions route web ids to notify.push, so it works, but the logic is duplicated.",
+    "onInbound for a paused number returns true and drops the text silently. It isn't stored, so the customer never sees what they missed. Consider logging it as undelivered.",
+    "reject() uses `r?.value || r` to support both driver versions. That works, but it should be pinned to the installed mongodb driver's return shape.",
+    "loa-preview doesn't check status, so it builds an LOA for any order the user owns, including active or cancelled ones. Harmless, but it could be limited to verify/documents."
+  ],
+  "updated_files": ["/app/backend/tests/test_hosted_sms_web.py", "/app/backend/tests/hosted_sms_inbound.js"],
+  "success_rate": {"backend": "91% (10/11 pytest; the failure is the non-Latin LOA 500)", "frontend": "100% of the listed flows work; 3 minor UX issues"},
+  "seed_data_creation": "Test hostedSms docs (+13125557001/7002 and the random +1312555xxxx numbers) were deleted. Wallets were restored: Bob usdIn 500/usdOut 0.05, Alice 620/120. Bob's hs_065c7d748669 is still active, with nextBillAt 2026-11-27. Left in place: a few TEST webNotifications and phoneLogs on Bob's hosted number, and hosted-sms transactions.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run: REACT_APP_BACKEND_URL=... pytest /app/backend/tests/test_hosted_sms_web.py (it takes about 80 s because it waits for the 30 s tick, and it restores wallets and Bob's hosted doc). Inbound test: TEST_BASE=<url> node /app/backend/tests/hosted_sms_inbound.js. Mongo is mongodb://localhost:27017, db 'test'. test_promo_pipeline_2026-06.js already had 4 failures before this change (hosting/leads env prices). Those aren't from web_cloudivr.",
+  "rca of the issue": "The LOA 500 comes from pdf-lib StandardFonts.Helvetica and TimesRomanBoldItalic, which only encode WinAnsi (CP1252). page.drawText throws on any character outside it. Reproduce: POST /hosted-sms/<id>/loa-preview with {holder:{name:'王伟',...}} → 500, and the nodejs log shows 'WinAnsi cannot encode'. Mitigation: pdf.registerFontkit(fontkit) plus an embedded Noto TTF, or sanitise the fields to WinAnsi."
+}

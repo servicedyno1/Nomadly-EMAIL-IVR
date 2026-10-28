@@ -20,7 +20,9 @@ export function DocumentsStep({ item, onChange }) {
     try {
       const r = await fetch(apiUrl(`/hosted-sms/${item.id}/loa-preview`), { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ holder: h }) });
       if (!r.ok) throw new Error('Couldn’t build the preview.');
-      window.open(URL.createObjectURL(await r.blob()), '_blank', 'noopener');
+      const url = URL.createObjectURL(await r.blob());
+      window.open(url, '_blank', 'noopener');
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
     } catch (e) { setErr(e); } finally { setBusy(null); }
   };
   const submit = async () => {

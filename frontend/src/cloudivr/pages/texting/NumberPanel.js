@@ -5,6 +5,7 @@ import { api } from '../../api';
 import { ErrorNote } from '../../ui';
 import { DocumentsStep } from './DocumentsStep';
 import { Thread } from './Thread';
+import { useShell } from '../../Shell';
 
 export const STATUS = {
   verify: { label: 'Waiting for ownership code', tone: 'text-[#fbbf24]' },
@@ -62,11 +63,12 @@ function VerifyStep({ item, onChange }) {
 }
 
 function CancelButton({ item, onChange }) {
+  const { refreshSummary } = useShell();
   const [busy, setBusy] = useState(false);
   const go = async () => {
     if (!window.confirm(`Cancel and refund $${item.paid} to your wallet?`)) return;
     setBusy(true);
-    try { await api(`/hosted-sms/${item.id}/cancel`, { method: 'POST' }); toast.success(`Cancelled — $${item.paid} refunded`); onChange(); } catch (e) { toast.error(e.message); } finally { setBusy(false); }
+    try { await api(`/hosted-sms/${item.id}/cancel`, { method: 'POST' }); toast.success(`Cancelled — $${item.paid} refunded`); refreshSummary(); onChange(); } catch (e) { toast.error(e.message); } finally { setBusy(false); }
   };
   return <button type="button" onClick={go} disabled={busy} className="text-xs text-[#a1a1aa] underline hover:text-[#fb7185]" data-testid="texting-cancel-button">Cancel & refund ${item.paid}</button>;
 }

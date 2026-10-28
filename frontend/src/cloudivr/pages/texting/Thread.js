@@ -1,24 +1,28 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Loader2, Send } from 'lucide-react';
 import { toast } from 'sonner';
 import { api, useApi } from '../../api';
 import { ErrorNote } from '../../ui';
+import { useShell } from '../../Shell';
 
 // Texts on a hosted number (newest last) + compose.
 export function Thread({ item, meta }) {
+  const { refreshSummary } = useShell();
+  const box = useRef(null);
   const { data, reload } = useApi(`/hosted-sms/${item.id}/messages`);
   const [to, setTo] = useState('');
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
   const rows = [...(data?.messages || [])].reverse();
+  useEffect(() => { if (box.current) box.current.scrollTop = box.current.scrollHeight; }, [rows.length]);
   const send = async () => {
     setBusy(true); setErr(null);
-    try { const r = await api(`/hosted-sms/${item.id}/send`, { method: 'POST', body: { to, text } }); toast.success(`Sent · $${r.charge.toFixed(2)}`); setText(''); reload(); } catch (e) { setErr(e); } finally { setBusy(false); }
+    try { const r = await api(`/hosted-sms/${item.id}/send`, { method: 'POST', body: { to, text } }); toast.success(`Sent · $${r.charge.toFixed(2)}`); setText(''); reload(); refreshSummary(); } catch (e) { setErr(e); } finally { setBusy(false); }
   };
   return (
     <div className="space-y-4" data-testid="texting-thread">
-      <div className="max-h-80 overflow-y-auto space-y-2 pr-1" data-testid="texting-messages">
+      <div ref={box} className="max-h-80 overflow-y-auto space-y-2 pr-1" data-testid="texting-messages">
         {!rows.length && <p className="text-sm text-[#a1a1aa]">No texts yet.</p>}
         {rows.map(m => (
           <div key={m.id || m.at} className={`flex ${m.direction === 'outbound' ? 'justify-end' : ''}`}>

@@ -28,7 +28,7 @@ function walletOps(db) {
 }
 
 const CREDITS = { 'hosted-sms-refund': 'Refund · Landline to Texting', 'topup-bonus': 'Top-up bonus', 'admin-credit': 'Credit from CloudIVR', 'referral-reward': 'Referral reward', 'suggestion-reward': 'Free credit · adopted suggestion', 'sms-refund': 'Refund · text not delivered' }
-const HOSTED = { 'hosted-sms-setup': 'Landline to Texting setup', 'hosted-sms-renewal': 'Landline to Texting monthly', 'hosted-sms-text': 'Text sent' }
+const HOSTED = { 'hosted-sms-setup': 'Landline to Texting setup', 'hosted-sms-renewal': 'Landline to Texting monthly', 'hosted-sms-text': 'Text sent · Landline to Texting' }
 const LABEL = { purchase: 'Number purchase', purchase_verification: 'Number purchase (verification)', renew: 'Number renewal', upgrade: 'Plan upgrade', release: 'Number deleted', sms_reply: 'Extra text' }
 
 function routes(router, { db, h, coins, createCryptoDeposit, offers }) {
@@ -46,7 +46,7 @@ function routes(router, { db, h, coins, createCryptoDeposit, offers }) {
       ...ptx.filter(t => Number(t.amount) > 0).map(t => ({ id: String(t._id), at: t.timestamp, type: t.action, description: `${LABEL[t.action] || t.action} · ${t.phoneNumber || ''}`, amount: -Math.abs(Number(t.amount) || 0) })),
       ...tx.filter(t => t.type === 'wallet-topup').map(t => ({ id: String(t._id), at: new Date(t.createdAt).toISOString(), type: t.type, description: `Crypto top-up · ${t.metadata?.value || ''} ${t.metadata?.coin || ''}`.trim(), amount: Math.abs(Number(t.amount) || 0) })),
       ...tx.filter(t => HOSTED[t.type]).map(t => ({ id: String(t._id), at: new Date(t.createdAt).toISOString(), type: t.type, description: `${HOSTED[t.type]} · ${t.metadata?.phoneNumber || ''}`, amount: -Math.abs(Number(t.amount) || 0) })),
-      ...tx.filter(t => CREDITS[t.type]).map(t => ({ id: String(t._id), at: new Date(t.createdAt).toISOString(), type: t.type, description: CREDITS[t.type], amount: Math.abs(Number(t.amount) || 0) })),
+      ...tx.filter(t => CREDITS[t.type]).map(t => ({ id: String(t._id), at: new Date(t.createdAt).toISOString(), type: t.type, description: `${CREDITS[t.type]}${t.metadata?.phoneNumber && t.type === 'hosted-sms-refund' ? ` · ${t.metadata.phoneNumber}` : ''}`, amount: Math.abs(Number(t.amount) || 0) })),
     ].sort((a, b) => String(b.at).localeCompare(String(a.at))).slice(0, 50)
     res.json({
       balance: await w.balance(id), currency: 'USD', minTopup: MIN_TOPUP_USD, coins, history,

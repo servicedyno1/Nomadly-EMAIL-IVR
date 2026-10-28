@@ -39,8 +39,10 @@ function init({ db, log = console.log, tell, brand }) {
   const col = db.collection('hostedSms')
   col.createIndex({ chatId: 1 }).catch(() => {})
   col.createIndex({ phoneNumber: 1, status: 1 }).catch(() => {})
+  col.createIndex({ phoneNumber: 1 }, { unique: true, partialFilterExpression: { live: true }, name: 'one_live_per_number' }).catch(() => {})
   db.collection('hostedSmsThreads').createIndex({ at: 1 }, { expireAfterSeconds: 30 * 86400 }).catch(() => {})
   S = { db, col, w: walletOps(db), log, tell, brand }
+  col.updateMany({ status: { $in: ['verify', 'documents', 'review', 'active', 'paused'] }, live: { $exists: false } }, { $set: { live: true } }).catch(() => {})
   const t = setInterval(() => tick().catch(e => log(`[HostedSMS] tick: ${e.message}`)), dry() ? 30000 : 10 * 60000)
   t.unref?.()
   setTimeout(() => tick().catch(() => {}), 15000).unref?.()
@@ -53,12 +55,12 @@ const pub = (d) => ({
   nextBillAt: d.nextBillAt || null, createdAt: d.createdAt, activatedAt: d.activatedAt || null, holder: d.holder || null,
 })
 const mine = (chatId, id) => S.col.findOne({ _id: String(id), chatId: String(chatId) })
-const list = async (chatId) => (await S.col.find({ chatId: String(chatId), status: { $ne: 'cancelled' } }).sort({ createdAt: -1 }).toArray()).map(pub)
+const list = async (chatId) => (await S.col.find({ chatId: String(chatId), status: { $nin: ['cancelled', 'starting'] } }).sort({ createdAt: -1 }).toArray()).map(pub)
 
 async function check(phone) {
   const p = normPhone(phone)
   if (!E164.test(p)) return { eligible: false, phoneNumber: p, detail: 'Enter the full number with country code, e.g. +1 312 555 0100.' }
-  if (await S.col.findOne({ phoneNumber: p, status: { $in: ['verify', 'documents', 'review', 'active', 'paused'] } })) return { eligible: false, phoneNumber: p, detail: 'This number is already being text-enabled.' }
+  if (await S.col.findOne({ phoneNumber: p, status: { $in: ['starting', 'verify', 'documents', 'review', 'active', 'paused'] } })) return { eligible: false, phoneNumber: p, detail: 'This number is already being text-enabled.' }
   if (dry()) return { eligible: p.startsWith('+1'), phoneNumber: p, detail: p.startsWith('+1') ? 'Eligible (preview)' : 'Only US and Canada numbers can be text-enabled.' }
   try {
     const r = await axios.post(`${API}/messaging_hosted_number_orders/eligibility_numbers_check`, { phone_numbers: [p] }, { headers: hdr(), timeout: 20000 })
@@ -74,8 +76,10 @@ async function start(chatId, phone, mode) {
   const el = await check(phone)
   if (!el.eligible) return { error: el.detail || 'This number can’t be text-enabled.' }
   const price = PRICE[mode]
-  if (!(await S.w.debit(chatId, price))) return { error: `Your wallet needs $${price} for this setup. Top up first.`, code: 'insufficient_balance' }
   const _id = `hs_${crypto.randomBytes(6).toString('hex')}`
+  // Claim the number first (unique while live) so two clicks can't pay twice.
+  try { await S.col.insertOne({ _id, chatId: String(chatId), phoneNumber: el.phoneNumber, mode, status: 'starting', live: true, paid: 0, createdAt: new Date(), updatedAt: new Date() }) } catch (e) { if (e.code === 11000) return { error: 'This number is already being text-enabled.' }; throw e }
+  if (!(await S.w.debit(chatId, price))) { await S.col.deleteOne({ _id }); return { error: `Your wallet needs $${price} for this setup. Top up first.`, code: 'insufficient_balance' } }
   let orderId = `preview-${_id}`
   if (!dry()) {
     try {
@@ -83,12 +87,13 @@ async function start(chatId, phone, mode) {
       orderId = r.data?.data?.id
     } catch (e) {
       await S.w.credit(chatId, price)
+      await S.col.deleteOne({ _id })
       S.log(`[HostedSMS] order failed for ${el.phoneNumber}: ${errText(e)}`)
       return { error: `Telnyx couldn’t open the order: ${errText(e)}. You weren’t charged.` }
     }
   }
-  const doc = { _id, chatId: String(chatId), phoneNumber: el.phoneNumber, mode, status: mode === 'code' ? 'verify' : 'documents', telnyxOrderId: orderId, paid: price, createdAt: new Date(), updatedAt: new Date() }
-  await S.col.insertOne(doc)
+  const doc = { _id, chatId: String(chatId), phoneNumber: el.phoneNumber, mode, status: mode === 'code' ? 'verify' : 'documents', live: true, telnyxOrderId: orderId, paid: price, createdAt: new Date(), updatedAt: new Date() }
+  await S.col.updateOne({ _id }, { $set: { status: doc.status, telnyxOrderId: orderId, paid: price, updatedAt: new Date() } })
   await txn(chatId, 'hosted-sms-setup', price, { phoneNumber: el.phoneNumber, mode, hostedId: _id })
   S.log(`[HostedSMS] ${chatId} started ${el.phoneNumber} (${mode}, $${price})`)
   return { item: pub(doc) }
@@ -127,11 +132,15 @@ function cleanHolder(h = {}) {
   const o = {}
   for (const k of HOLDER_FIELDS) o[k] = String(h[k] || '').replace(/\s+/g, ' ').trim().slice(0, 120)
   const miss = ['name', 'address', 'city', 'state', 'zip', 'carrier'].filter(k => !o[k])
-  return miss.length ? { error: `Fill in: ${miss.join(', ')}.` } : { holder: o }
+  if (miss.length) return { error: `Fill in: ${miss.join(', ')}.` }
+  const bad = HOLDER_FIELDS.filter(k => /[^\x20-\x7E\u00A0-\u00FF’‘“”–—]/.test(o[k]))
+  return bad.length ? { error: `Type ${bad.join(', ')} in Latin letters exactly as on your US/Canada phone bill.` } : { holder: o }
 }
 
 // LOA filled from the customer's details and e-signed with their typed name (they tick a consent box first).
 async function buildLoa(d, holder, { ip }) {
+  const latin = (v) => String(v || '').replace(/[^\x20-\x7E\u00A0-\u00FF]/g, '?')
+  holder = Object.fromEntries(Object.entries(holder).map(([k, v]) => [k, latin(v)]))
   const { PDFDocument, StandardFonts, rgb } = require('pdf-lib')
   const pdf = await PDFDocument.create()
   const page = pdf.addPage([612, 792])
@@ -200,17 +209,17 @@ async function submitDocs(chatId, id, { holder: rawHolder, bill, consent, ip }) 
 async function cancel(chatId, id) {
   const d = await mine(chatId, id)
   if (!d || !['verify', 'documents'].includes(d.status)) return { error: 'Only setups that haven’t been sent for review can be cancelled.' }
-  return { item: pub(await reject(d, 'Cancelled by you — refunded to your wallet.', 'cancelled')) }
+  return { item: pub(await reject(d, null, 'cancelled')) }
 }
 
 async function reject(d, note, status = 'rejected') {
-  const r = await S.col.findOneAndUpdate({ _id: d._id, status: { $in: ['verify', 'documents', 'review'] } }, { $set: { status, note, refunded: d.paid, updatedAt: new Date() } }, { returnDocument: 'after' })
+  const r = await S.col.findOneAndUpdate({ _id: d._id, status: { $in: ['verify', 'documents', 'review'] } }, { $set: { status, note, refunded: d.paid, updatedAt: new Date() }, $unset: { live: '' } }, { returnDocument: 'after' })
   const doc = r?.value || r
   if (!doc || doc.status !== status) return d
   await S.w.credit(d.chatId, d.paid)
   await txn(d.chatId, 'hosted-sms-refund', d.paid, { phoneNumber: d.phoneNumber, hostedId: d._id })
   if (!dry() && d.telnyxOrderId) axios.delete(`${API}/messaging_hosted_number_orders/${d.telnyxOrderId}`, { headers: hdr(), timeout: 20000 }).catch(() => {})
-  S.tell(d.chatId, `❌ Texting for ${d.phoneNumber} couldn’t be set up. ${note} $${d.paid} was refunded to your wallet.`)
+  S.tell(d.chatId, status === 'cancelled' ? `↩️ Landline to Texting setup for ${d.phoneNumber} cancelled — $${d.paid} refunded to your wallet.` : `❌ Texting for ${d.phoneNumber} couldn’t be set up. ${note} $${d.paid} was refunded to your wallet.`, { kind: 'billing', meta: { hosted: d._id } })
   return doc
 }
 
@@ -222,10 +231,10 @@ async function pollOne(d) {
   }
   if (st === 'successful') {
     const r = await S.col.updateOne({ _id: d._id, status: 'review' }, { $set: { status: 'active', note: null, activatedAt: new Date(), nextBillAt: new Date(Date.now() + MONTH_MS), updatedAt: new Date() } })
-    if (r.modifiedCount) S.tell(d.chatId, `✅ ${d.phoneNumber} can now send and receive texts. Incoming texts land in your Inbox — reply right there. $${MONTHLY}/month from your wallet, next on ${new Date(Date.now() + MONTH_MS).toISOString().slice(0, 10)}.`)
+    if (r.modifiedCount) S.tell(d.chatId, `✅ ${d.phoneNumber} can now send and receive texts. Incoming texts land in your Inbox — reply right there. $${MONTHLY}/month from your wallet, next on ${new Date(Date.now() + MONTH_MS).toISOString().slice(0, 10)}.`, { kind: 'billing', meta: { hosted: d._id } })
   } else if (FIX_DOCS.includes(st) && d.status === 'review') {
     await S.col.updateOne({ _id: d._id }, { $set: { status: 'documents', note: REASON[st], updatedAt: new Date() } })
-    S.tell(d.chatId, `⚠️ ${d.phoneNumber}: ${REASON[st]} Please send the details and phone bill again — no extra charge.`)
+    S.tell(d.chatId, `⚠️ ${d.phoneNumber}: ${REASON[st]} Please send the details and phone bill again — no extra charge.`, { kind: 'billing', meta: { hosted: d._id } })
   } else if (REJECTED.includes(st)) {
     await reject(d, REASON[st] || 'Telnyx rejected the request.')
   }
@@ -239,10 +248,10 @@ async function billOne(d) {
     const next = new Date(Math.max(Date.now(), new Date(d.nextBillAt).getTime()) + MONTH_MS)
     await S.col.updateOne({ _id: d._id }, { $set: { status: 'active', nextBillAt: next, retryAt: null, updatedAt: new Date() } })
     await txn(d.chatId, 'hosted-sms-renewal', MONTHLY, { phoneNumber: d.phoneNumber, hostedId: d._id })
-    if (d.status === 'paused') S.tell(d.chatId, `✅ Texting on ${d.phoneNumber} is back on — $${MONTHLY} paid from your wallet.`)
+    if (d.status === 'paused') S.tell(d.chatId, `✅ Texting on ${d.phoneNumber} is back on — $${MONTHLY} paid from your wallet.`, { kind: 'billing', meta: { hosted: d._id } })
   } else {
     await S.col.updateOne({ _id: d._id }, { $set: { status: 'paused', retryAt: new Date(Date.now() + 86400000), updatedAt: new Date() } })
-    if (d.status !== 'paused') S.tell(d.chatId, `⏸ Texting on ${d.phoneNumber} is paused: the $${MONTHLY} monthly fee couldn’t be paid from your wallet. Top up and it turns back on within a day.`)
+    if (d.status !== 'paused') S.tell(d.chatId, `⏸ Texting on ${d.phoneNumber} is paused: the $${MONTHLY} monthly fee couldn’t be paid from your wallet. Top up and it turns back on within a day.`, { kind: 'billing', meta: { hosted: d._id } })
   }
 }
 

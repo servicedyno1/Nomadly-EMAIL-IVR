@@ -5,9 +5,11 @@ import { Link } from 'react-router-dom';
 import { api } from '../../api';
 import { Field, ErrorNote } from '../../ui';
 import { cp } from '../../paths';
+import { useShell } from '../../Shell';
 
 // Step 1–3: number → eligibility → how to prove ownership → pay from wallet.
 export function NewSetup({ data, onDone, onCancel }) {
+  const { refreshSummary } = useShell();
   const [phone, setPhone] = useState('');
   const [check, setCheck] = useState(null);
   const [mode, setMode] = useState('code');
@@ -15,7 +17,7 @@ export function NewSetup({ data, onDone, onCancel }) {
   const [err, setErr] = useState(null);
   const run = async (fn) => { setBusy(true); setErr(null); try { await fn(); } catch (e) { setErr(e); } finally { setBusy(false); } };
   const doCheck = () => run(async () => setCheck(await api('/hosted-sms/check', { method: 'POST', body: { phone } })));
-  const pay = () => run(async () => { const r = await api('/hosted-sms', { method: 'POST', body: { phone: check.phoneNumber, mode } }); toast.success(`Paid $${r.item.paid} — next: ${mode === 'code' ? 'confirm the code' : 'your details & bill'}`); onDone(r.item); });
+  const pay = () => run(async () => { const r = await api('/hosted-sms', { method: 'POST', body: { phone: check.phoneNumber, mode } }); toast.success(`Paid $${r.item.paid} — next: ${mode === 'code' ? 'confirm the code' : 'your details & bill'}`); refreshSummary(); onDone(r.item); });
   const opts = [['code', ShieldCheck, `With ownership code — $${data.prices.code}`, 'We send a code to the number by text or phone call; you enter it here.'], ['nocode', FileText, `Without code — $${data.prices.nocode}`, 'Skip the code — just your details and phone bill.']];
   return (
     <div className="civr-card p-6 space-y-5 mb-6 civr-rise" data-testid="texting-new">

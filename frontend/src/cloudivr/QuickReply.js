@@ -19,7 +19,7 @@ export const SMS_REPLIES = [
 const CHIP = 'rounded-full border border-white/15 px-3 py-1.5 text-xs text-left text-[#e4e4e7] hover:border-[#818cf8] hover:text-white transition-colors disabled:opacity-40';
 
 // Ready-made replies (one tap sends) + a short custom text (one SMS).
-export function QuickReply({ onSend, busy, max = 160, testid, sendLabel = 'Send text', presets = REPLIES, autoFocus = false }) {
+export function QuickReply({ onSend, busy, max = 160, testid, sendLabel = 'Send text', presets = REPLIES, autoFocus = false, costNote = 'uses 1 text from your plan' }) {
   const [text, setText] = useState('');
   const go = () => { if (text.trim()) onSend(text.trim()); };
   return (
@@ -29,7 +29,7 @@ export function QuickReply({ onSend, busy, max = 160, testid, sendLabel = 'Send 
         <input className="civr-input !h-9 text-sm" maxLength={max} value={text} onChange={e => setText(e.target.value)} onKeyDown={e => e.key === 'Enter' && go()} placeholder="Or type your own reply" aria-label="Your reply" autoFocus={autoFocus} data-testid={`${testid}-input`} />
         <button type="button" disabled={busy || !text.trim()} onClick={go} className="civr-btn civr-btn-primary civr-btn-sm shrink-0" data-testid={`${testid}-send-button`}>{busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}{sendLabel}</button>
       </div>
-      <div className="text-[11px] text-[#a1a1aa]" data-testid={`${testid}-count`}>{`${text.length}/${max} · uses 1 text from your plan`}</div>
+      <div className="text-[11px] text-[#a1a1aa]" data-testid={`${testid}-count`}>{`${text.length}/${max} · ${costNote}`}</div>
     </div>
   );
 }
