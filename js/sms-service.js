@@ -21,6 +21,7 @@ let _walletOf = null
 let _payments = null
 let _nanoid = null
 let _bot = null
+let _db = null
 
 function initSmsLimits(deps) {
   _incrementSmsUsed = deps.incrementSmsUsed
@@ -29,6 +30,7 @@ function initSmsLimits(deps) {
   _payments = deps.payments
   _nanoid = deps.nanoid
   _bot = deps.bot
+  _db = deps.db || null
   log('[SmsService] Initialized with real-time limit enforcement + overage billing')
 }
 
@@ -41,10 +43,14 @@ async function forwardSmsToTelegram(bot, chatId, from, to, body) {
 👤 From: ${formatPhone(from)}
 🕐 ${time}
 
-💬 "${body}"`
+💬 "${body}"
+
+↩️ <i>Reply to this message to text back.</i>`
 
   try {
-    await bot.sendMessage(chatId, msg, { parse_mode: 'HTML' })
+    const sent = await bot.sendMessage(chatId, msg, { parse_mode: 'HTML' })
+    // Swipe-reply in Telegram → text back from this number (handled by hosted-sms-bot.js)
+    if (sent?.message_id && _db) await _db.collection('hostedSmsThreads').insertOne({ _id: `${chatId}:${sent.message_id}`, hostedId: null, phone: String(to).replace(/[^+\d]/g, ''), to: from, at: new Date() }).catch(() => {})
     log(`SMS forwarded to Telegram chatId=${chatId} from=${from}`)
   } catch (e) {
     log('forwardSmsToTelegram error:', e.message)
@@ -138,6 +144,7 @@ async function handleInboundSms(webhookData, bot, phoneNumbersOf, phoneLogs) {
     }
 
     if (!ownerChatId || !numberConfig) {
+      if (await require('./hosted-sms.js').onInbound({ from, to: cleanTo, body }).catch(e => { log(`[HostedSMS] inbound: ${e.message}`); return false })) return
       return log(`handleInboundSms: no owner found for ${cleanTo}`)
     }
 

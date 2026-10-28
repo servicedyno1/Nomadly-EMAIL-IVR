@@ -78,6 +78,7 @@ function createCloudIvrWeb(deps) {
     audio.routes(r, { ...deps, db, h, upload })
     outbound.routes(r, { ...deps, db, h, numbersApi })
     contacts.routes(r, { db, h, upload })
+    require('./hosted').routes(r, { db, h, upload, log })
     calls.routes(r, { ...deps, db, h, numbersApi })
     notes.routes(r, { db, h, numbersApi })
     ai.routes(r, { h, numbersApi })

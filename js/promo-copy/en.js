@@ -146,9 +146,10 @@ module.exports = {
     button: 'Open hosta.sh',
   },
   web_cloudivr: {
-    hooks: ['Run your Cloud IVR from the web', 'Your phone numbers, menus and campaigns in one browser tab'],
+    hooks: ['Landline to Texting: text from the number your customers already know', 'Run your Cloud IVR from the web', 'Your phone numbers, menus and campaigns in one browser tab'],
     cross: ['Prefer a big screen? Try CloudIVR on the web', 'Watch your call campaigns live in the browser'],
     lines: _p => [
+      'Landline to Texting — keep your office number and calls, send and receive texts on cloudivr.net',
       'Virtual numbers, keypad menus and voicemail with transcripts',
       'Bulk IVR campaigns with a live call view and CSV reports',
       'Browser phone, SIP and AI voice agents',

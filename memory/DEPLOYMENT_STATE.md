@@ -297,3 +297,9 @@ The new layout differs from the old in-place `/opt/nomadly/app-main` checkout. O
 - ⚠️ deploy_workspace_to_droplet.sh returns right after STARTING the remote deploy, and a 2nd run per app followed each real one and
   failed harmlessly ("tarball extract failed — active release untouched"). Run apps ONE AT A TIME, wait for "DONE" in deploy-<app>.log.
 - ⚠️ Not on GitHub yet → owner must "Save to GitHub" (main + WhiteLabel) or the next CI deploy rolls this back.
+- ❌ 2026-10-28 16:50Z REGRESSION + ROLLBACK: deploying the MAIN workspace to app-wl/app-voodoo/app-proshop wiped 251 WhiteLabel-only
+  files (js/routes/sales.js = sales dashboard, frontend/src/branding.js, pages/SalesDashboard.js, brand logos, .env.production…).
+  Rolled back with `deploy.sh <app> rollback <dir>` → app-wl 20261028T103003Z-e433e1a, app-voodoo 103143Z-e433e1a, app-proshop 103212Z-e433e1a.
+  Those WL releases ignore MAIL_PROVIDER=telnyx (old mailer → MailerSend). app-main stays on 4e0d0a0 (Telnyx email, new features).
+  RULE: NEVER deploy the main workspace to WL apps. WL code = WhiteLabel branch; port main changes as an overlay of ONLY the changed
+  files onto the WL release tree after diffing each file against the WL version.

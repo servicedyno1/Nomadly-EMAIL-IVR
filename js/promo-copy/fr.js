@@ -145,9 +145,10 @@ module.exports = {
     button: 'Ouvrir hosta.sh',
   },
   web_cloudivr: {
-    hooks: ['Pilotez votre Cloud IVR depuis le web', 'Vos numéros, menus et campagnes dans un onglet'],
+    hooks: ['Fixe vers SMS : envoyez des SMS depuis le numéro que vos clients connaissent déjà', 'Pilotez votre Cloud IVR depuis le web', 'Vos numéros, menus et campagnes dans un onglet'],
     cross: ['Vous préférez un grand écran ? Essayez CloudIVR sur le web', 'Suivez vos campagnes d\'appels en direct dans le navigateur'],
     lines: _p => [
+      'Fixe vers SMS — gardez votre numéro et vos appels, envoyez et recevez des SMS sur cloudivr.net',
       'Numéros virtuels, menus à touches et messagerie avec transcription',
       'Campagnes Bulk IVR avec suivi des appels en direct et rapports CSV',
       'Téléphone navigateur, SIP et agents vocaux IA',

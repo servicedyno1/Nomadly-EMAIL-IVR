@@ -133,6 +133,13 @@ function routes(router, { h, numbersApi, smsReply }) {
     const n = _id && await _col.findOne({ _id, chatId: req.webChatId })
     if (!n) return res.status(404).json({ error: 'not_found', message: 'Message not found.' })
     if (n.kind !== 'sms' || !n.meta?.from || !n.meta?.to) return res.status(400).json({ error: 'cannot_reply', message: 'This message can’t be answered from here. Open the number’s Logs tab.' })
+    if (n.meta.hosted) {
+      const hr = await require('../hosted-sms.js').sendText(req.webChatId, n.meta.hosted, n.meta.from, req.body?.text)
+      if (hr.error) return res.status(400).json({ error: 'cannot_reply', message: hr.error })
+      const reply = { text: hr.log.body, at: hr.log.timestamp, status: hr.log.status }
+      await _col.updateOne({ _id }, { $set: { 'meta.reply': reply, read: true } })
+      return res.json({ reply, charge: hr.charge })
+    }
     const num = await numbersApi.findMine(req.webChatId, n.meta.to)
     if (!num) return res.status(404).json({ error: 'not_found', message: 'That number is no longer on your account.' })
     const r = await smsReply.send({ chatId: req.webChatId, num, to: n.meta.from, text: req.body?.text, inboxId: String(_id) })

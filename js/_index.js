@@ -4706,8 +4706,19 @@ const loadData = async () => {
       payments,
       nanoid,
       bot,
+      db,
     })
     log('[CloudPhone] SMS Service limits initialized with overage billing')
+    // Hosted SMS (text-enable an existing number): bot users get a chat message, web users an Inbox item.
+    require('./hosted-sms.js').init({
+      db, log,
+      brand: () => 'CloudIVR',
+      tell: async (id, text, extra) => {
+        const webNotify = require('./cloudivr-web/notify.js')
+        if (webNotify.isWebChatId(id)) { await webNotify.push(id, text, null, extra || { kind: 'system' }).catch(() => {}); return null }
+        return bot?.sendMessage(id, text).catch(() => null)
+      },
+    })
 
     // Defer-register Telnyx webhook routes — they call handleInboundSms (uses
     // sms-service module state from initSmsLimits) and handleVoiceWebhook (from
@@ -8384,6 +8395,9 @@ bot?.on('message', msg => {
       }
     }
   }
+
+  // ── Swipe-reply on a forwarded inbound SMS → text back from that Cloud Phone number ──
+  if (msg?.reply_to_message && message && chatId && await require('./sms-reply-bot.js').handle({ bot, db, chatId, msg, message }).catch(e => { log(`[SmsReplyBot] ${e.message}`); return false })) return
 
   // ── Telnyx verification (pay-first): ID / proof-of-address photos & files ──
   if ((msg?.photo || msg?.document) && chatId) {
