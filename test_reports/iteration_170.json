@@ -1,0 +1,37 @@
+{
+  "summary": "Frontend-only test of the restyled 'night sky' CloudIVR landing page (/cloudivr, logged out) at 1920x800 and 390x800. I ran an automated contrast scan over every element that holds text (WCAG ratio, with the real background worked out from parent layers) and a scan for white blocks, and checked screenshots of every section. Working: Source Sans 3 font; star field and 6 floating outlined circles (desktop only); hero title with the word 'answered' in blue (#64acff); 'Get your number' goes to /cloudivr/signup; 'Try a free call' scrolls to #try; the Hear-it play button switches between play and pause, the timer moves and the transcript opens. Bubbles: all 8 pills go to the right place (hosted opens the Landline to Texting tab, numbers goes to #coverage, inbox opens the sms tab, and ivr/ai/campaigns/phone/text open their own tabs). On mobile, bubbles-cloud-mobile shows and the desktop cloud is hidden; the mobile pills work too. Product slider: 8 cards. Prev is disabled at the start and Next is disabled after 5 clicks at the end. scrollBy steps 380px on desktop and 342px on mobile. Cards are about 328px wide on mobile. Learn more works (inbox opens the sms tab, numbers goes to #coverage). Trust cards alternate pink, green, blue, pink, green. Mega menus (Products, Use cases), all 9 platform tabs with their mockups, the test-call input and keypad, coverage, pricing cards, the compare table (Pro column), the FAQ accordion, the final CTA and the footer are all dark, with no text below 3:1 contrast. Language switch to FR and back works, Sign in goes to /cloudivr/login, the mobile hamburger menu is dark, the support chat panel is dark, and there is no horizontal overflow on mobile. Issues found: the mobile sticky CTA bar is white and its 'Try a call' text is invisible; the language dropdown menu is white; the cookie banner is white; the VISA logo is invisible; white text on the #64acff blue buttons is only 2.36:1.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Mobile sticky CTA (StickyCta.js)", "issue": "The bar background is still rgba(255,255,255,.94) from cloudivr.css:334 (.civr .civr-l-sticky), and np.css has no override for it. Result: a white block at the bottom of the dark mobile page. The ghost 'Try a call' button shows white text on near-white (1.12:1), so it is invisible.", "selector": "[data-testid='mobile-sticky-cta'], [data-testid='sticky-cta-try']", "priority": "HIGH"},
+      {"component": "Language switcher dropdown (i18n/index.js TONES.landing)", "issue": "The menu is a Radix portal outside .civr-np, so np.css does not reach it. TONES.landing.menu = 'bg-white text-slate-900' gives a white dropdown on the dark page (still readable, but a white block). It also uses the DM Sans font.", "selector": "[data-testid='landing-lang-switcher-menu']", "priority": "MEDIUM"},
+      {"component": "Payment method chips (pricing + footer)", "issue": "The VISA wordmark is text-[#1a1f71] on the #23272d chip at opacity .6: contrast 1.06, invisible. The Mastercard/Amex marks are also very faint.", "selector": "[data-testid='pricing-payment-methods-visa'], [data-testid='footer-payment-methods-visa']", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Global cookie banner (CookieBanner.js / .civr-l-cookiebar)", "issues": ["White card with dark text on first visit (readable). It is the one large white block left on the dark landing page and lives outside .civr-np. Consider a dark variant when it shows on the landing page."]},
+      {"screen": "Filled blue buttons/pills", "issues": ["White text on #64acff is 2.36:1, below WCAG AA. Affected: civr-nav-signup-btn, civr-hero-cta-buy-btn, bubbles-cta-start, final-cta-button, footer-cta-signup, sticky-cta-buy, compare-choose-pro, pricing-recommended-pro and compare-head-pro badges, the hear-it play button, and the selected civr-l-tab/ptab icon. The NOWPayments look uses the same colours, so it matches the brief, but using dark ink #13171c on blue (about 8.9:1) would pass AA. Change .civr-l-pill-ink/.civr-l-btn/.bg-slate-900 colour in np.css if wanted."]},
+      {"screen": "Bubbles desktop row 2", "issues": ["The arrow pill rotated 225deg points up-left, which looks odd; the row-1 arrow points right. Minor."]},
+      {"screen": "np.css", "issues": [".civr-np-getstarted (blue get-started box) is defined but not used; FinalCta uses a dark bg-slate-50 box with stars. Either use it or remove the dead CSS."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Add an np.css override: .civr .civr-np .civr-l-sticky { background: rgba(27,30,34,.94); border-top-color: var(--np-line); } so the ghost 'Try a call' is readable (HIGH)",
+    "Make TONES.landing.menu/item in i18n/index.js dark (e.g. bg-[#23272d] text-white border-white/10, focus:bg-[#2a2f36] focus:text-white, on: text-[#64acff]), or add a 'np' tone for the landing nav",
+    "Fix the VISA logo colour on dark chips (e.g. text-white or #c9d4ff) in the pricing-payment-methods and footer-payment-methods components",
+    "Optional: dark variant for the cookie banner on the landing page; dark ink text on blue filled buttons for AA contrast"
+  ],
+  "critical_code_review_comments": [
+    "np.css re-themes by overriding Tailwind utility classes (.bg-white, .text-slate-*). Anything rendered in a portal (Radix dropdown, cookie banner) or styled in cloudivr.css without a utility class (.civr-l-sticky) is missed. Check other .civr-l-* rules in cloudivr.css that set light backgrounds.",
+    "Console errors on load: React 'cannot be a child of' hydration warnings for <span data-ve-dynamic> inside <table>/<tr> in PlanTable. These spans come from the preview visual-edit tooling, not the app's code, so they will not happen in production. A whitespace text node in a PlanTable tfoot <tr> (line ~49) is a real but harmless warning.",
+    "Two 401 responses on load: expected logged-out session probes."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (skipped)", "frontend": "90%"},
+  "seed_data_creation": "none",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Landing root is [data-testid=landing-page].civr-np. For contrast, scan every element that holds text and work out its background from parent layers. Remember portals (landing-lang-switcher-menu) and the mobile sticky bar (mobile-sticky-cta, which shows after scrolling past the hero, mobile only). Bubble ids: numbers, ivr, ai, campaigns, phone, text, hosted, inbox. Platform tab ids: ivr, campaigns, ai, forwarding, voicemail, phone, sms, hosted, text. Dismiss the cookie banner with the 'Deny' button.",
+  "rca of the issue": "Mobile sticky CTA: cloudivr.css:334 hard-codes a white translucent background for .civr-l-sticky. np.css only re-maps .civr-l-btn-ghost to white text with a blue border, and never re-maps the sticky container, so the result is white on white. Language menu: Radix DropdownMenuContent renders into document.body, outside .civr .civr-l.civr-np, and its classes come from TONES.landing (bg-white)."
+}

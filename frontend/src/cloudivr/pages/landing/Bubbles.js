@@ -11,7 +11,7 @@ const P = Object.fromEntries(PRODUCTS.map(p => [p[0], p]));
 // Row recipes: product id + colour + filled?, or an empty / arrow pill.
 const ROWS = [
   [['numbers', 'b', 0], ['_', 'p', 0, 'wide'], ['ivr', 'b', 1], ['>', 'l', 0, 0], ['ai', 'l', 1], ['campaigns', 'p', 0]],
-  [['_', 'l', 1], ['phone', 'p', 0], ['text', 'l', 0], ['>', 'p', 1, 225], ['hosted', 'p', 1], ['_', 'b', 0, 'wide'], ['inbox', 'b', 0]],
+  [['_', 'l', 1], ['phone', 'p', 0], ['text', 'l', 0], ['>', 'p', 1, 0], ['hosted', 'p', 1], ['_', 'b', 0, 'wide'], ['inbox', 'b', 0]],
 ];
 
 function Bubble({ cell }) {

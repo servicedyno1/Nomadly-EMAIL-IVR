@@ -1758,3 +1758,12 @@ calls and SIP are simulated; inbound calls use a pretend-call simulator).
 - API: GET /sms-reach?phone, POST /sms-reach/check, GET/PUT /prefs/sender-name. Enforced in sms-reply.send + hosted sendText.
 - UI: SmsReach.js ReachChip (Texting page, number detail) + DestNote/CheckedReply (Inbox reply, missed-call text back, hosted thread).
 - Live check: toll-free = "Needs texting approval"; long code = "Limited" (CA, BR, MX, ZA). No numbers have 10DLC today.
+
+## 2026-10-28 ~20:00Z — Landing redesign "NOWPayments-grade" (PREVIEW ONLY, not deployed — owner to approve)
+- pages/landing/np.css (scoped .civr-np + html[data-civr-np] for portals): graphite #1b1e22, blue #64acff (dark ink text on
+  blue for AA), lime #daff7c, pink #ffa3bb, Source Sans 3 (same family NOWPayments uses), 8px buttons, star field.
+- New: Bubbles.js (product pill cloud + HeroDecor floating outlined circles), ProductCards.js (coin-card style slider w/ arrows).
+  Trust cards outlined pink/green/blue; FinalCta star box. Order: Hero, Facts, Bubbles, Statement, UseCases, Platform, TryCall,
+  Coverage, ProductCards, Trust, HowItWorks, Pricing, Faq, FinalCta. Kept live call demo + Hear-it sample. No fake press/reviews.
+- Tested: /app/test_reports/iteration_170.json (90%; all reported contrast issues fixed after: sticky bar, lang menu, cookie
+  banner, payment chips, button text). Deploy with scripts/deploy_workspace_to_droplet.sh app-main once approved.

@@ -13,7 +13,7 @@ const CARDS = [
 const COIN = { BTC: ['#f7931a', '₿', 'Bitcoin'], ETH: ['#627eea', 'Ξ', 'Ethereum'], USDT: ['#26a17b', '₮', 'Tether'], LTC: ['#345d9d', 'Ł', 'Litecoin'], DOGE: ['#c2a633', 'Ð', 'Dogecoin'], BCH: ['#0ac18e', 'B', 'Bitcoin Cash'], TRON: ['#eb0029', 'T', 'TRON'] };
 const DEFAULT_COINS = ['BTC', 'ETH', 'USDT', 'LTC'];
 
-const Chip = ({ title, children, testid, translate, soon }) => <span title={title} className={`h-9 px-3 rounded-lg border border-slate-200 bg-white inline-flex items-center gap-1.5 shadow-[0_1px_1px_rgba(15,23,42,.04)] ${soon ? 'opacity-60 grayscale-[.35]' : ''}`} data-testid={testid} data-no-translate={translate ? undefined : ''}>{children}</span>;
+const Chip = ({ title, children, testid, translate, soon }) => <span title={title} className={`civr-pay-chip h-9 px-3 rounded-lg border border-slate-200 bg-white inline-flex items-center gap-1.5 shadow-[0_1px_1px_rgba(15,23,42,.04)] ${soon ? 'opacity-60 grayscale-[.35]' : ''}`} data-testid={testid} data-no-translate={translate ? undefined : ''}>{children}</span>;
 
 export function PaymentMethods({ catalog, label = 'Pay with', className = '', testid = 'payment-methods' }) {
   const coins = [...new Set((catalog?.coins?.length ? catalog.coins : DEFAULT_COINS).map(c => c.replace(/\s*\(.*\)/, '')))].filter(c => COIN[c]);
