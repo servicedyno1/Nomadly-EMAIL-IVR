@@ -13,7 +13,7 @@ const TILES = [
   ['agency', Globe2, 'Agency managing numbers in several countries', 'A local number in each market, every client in one account.', null, '#coverage', 'md:col-span-2'],
   ['crypto', Coins, 'Crypto-native business paying in USDT', 'Top up a wallet in USDT, BTC or ETH. Every call shows its price before you start it.', null, '#pricing', 'md:col-span-2'],
   ['telegram', Send, 'Telegram user moving to the web', 'Same calling engine as the bot, now with a dashboard, live map, contacts and campaign history. It’s a separate web account — sign up with your email.', null, 'signup', 'md:col-span-3'],
-  ['texting', MessageSquareText, 'New · Landline to Texting', 'Text from the landline number your customers already know.', 'We turn on SMS for your existing US or Canada landline — calls keep working as before. $300 setup ($500 without a verification code), $50/month, $0.05 per text sent or received.', 'signup', 'md:col-span-3 ink'],
+  ['texting', MessageSquareText, 'New · Landline to Texting', 'Text from the landline number your customers already know.', 'We turn on SMS for your existing US or Canada landline — calls keep working as before. $0.05 per text sent or received.', 'signup', 'md:col-span-3 ink'],
 ];
 
 function Tile({ t, i }) {

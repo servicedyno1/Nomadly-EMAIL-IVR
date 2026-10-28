@@ -1731,6 +1731,6 @@ calls and SIP are simulated; inbound calls use a pretend-call simulator).
 ## 2026-10-28 — Clean console redesign + landing texting tile (LIVE on app-main)
 - Whole in-app UI restyled like Zoho CPaaS (theme-clean.css): navy sidebar in both themes, white light mode, blue primary,
   squarer buttons, DM Sans titles, underline tabs, dashed empty-state art (ui.js EmptyArt). Light/dark switch kept.
-- Landing "Who it's for" grid: new tile `usecase-texting` (Landline to Texting, $300/$500 setup, $50/mo, $0.05/text).
+- Landing "Who it's for" grid: new tile `usecase-texting` (Landline to Texting, shows only $0.05/text — setup + monthly prices removed 2026-10-28 per owner).
 - Tested: /app/test_reports/iteration_168.json (frontend 100%). Deployed to app-main only (reseller bots untouched).
 - Backlog: white-label CloudIVR sites (need 3 domains), Voodoo email inbox placement, Hosted SMS sales-dashboard mapping.
