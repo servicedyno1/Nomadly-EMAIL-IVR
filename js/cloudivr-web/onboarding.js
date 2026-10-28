@@ -42,6 +42,7 @@ function routes(router, { db, h, numbersApi }) {
     const rating = parseInt(req.body.rating, 10)
     const text = String(req.body.text || '').trim().slice(0, 280)
     const name = String(req.body.name || '').trim().slice(0, 40)
+    if (!(await answeredCall(req.webChatId))) return bad(res, 403, 'not_eligible', 'You can leave a review after your first answered call.')
     if (!(rating >= 1 && rating <= 5)) return bad(res, 400, 'invalid_rating', 'Pick 1 to 5 stars.')
     if (rating >= 4 && text.length < 10) return bad(res, 400, 'too_short', 'Tell us a little more — at least a few words.')
     const doc = { rating, text, name, role: String(req.body.role || '').trim().slice(0, 40), updatedAt: new Date() }

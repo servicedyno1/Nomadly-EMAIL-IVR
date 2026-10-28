@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Check, ArrowRight, Loader2, Sparkles } from 'lucide-react';
 import { api, useApi } from './api';
@@ -14,7 +14,9 @@ export function Onboarding({ data, setData }) {
   const [step, setStep] = useState(0);
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(null);
-  if (!data || data.onboarded) return null;
+  const open = !!data && !data.onboarded;
+  useEffect(() => { if (open) { setPick(data.purposes || []); setStep(0); } }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
+  if (!open) return null;
   const save = async (purposes) => {
     setBusy(true);
     try { const d = await api('/prefs/onboarding', { method: 'PUT', body: { purposes } }); if (!purposes.length) setData({ ...data, ...d }); else { setSaved(d); setStep(1); } } catch { setData({ ...data, onboarded: true }); } finally { setBusy(false); }
@@ -29,7 +31,7 @@ export function Onboarding({ data, setData }) {
         {step === 0 ? (
           <>
             <h2 id="onb-title" className="civr-page-title text-3xl">What will you use CloudIVR for?</h2>
-            <p className="text-[#a1a1aa] mt-2">Pick all that fit — we’ll put the right tools first. You can change this later in Settings.</p>
+            <p className="text-[#a1a1aa] mt-2">Pick all that fit — we’ll put the right tools first. You can change this anytime from your Overview.</p>
             <div className="grid sm:grid-cols-2 gap-3 mt-7" data-testid="onboarding-purposes">
               {PURPOSES.map(([id, Icon, label, sub], i) => {
                 const on = pick.includes(id);
@@ -42,7 +44,7 @@ export function Onboarding({ data, setData }) {
                 );
               })}
             </div>
-            <div className="flex flex-wrap items-center justify-between gap-3 mt-8">
+            <div className="sticky -bottom-6 md:-bottom-10 -mx-6 md:-mx-10 px-6 md:px-10 py-4 mt-6 bg-[var(--c-card)] border-t border-[var(--c-border)] flex flex-wrap items-center justify-between gap-3">
               <button type="button" className="text-sm text-[#a1a1aa] hover:underline min-h-[44px]" onClick={() => save([])} disabled={busy} data-testid="onboarding-skip">Skip for now</button>
               <button type="button" className="civr-btn civr-btn-primary" disabled={!pick.length || busy} onClick={() => save(pick)} data-testid="onboarding-continue">{busy ? <Loader2 className="w-4 h-4 animate-spin" /> : null}Continue <ArrowRight className="w-4 h-4" /></button>
             </div>

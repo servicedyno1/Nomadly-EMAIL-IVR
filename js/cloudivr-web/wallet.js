@@ -2,6 +2,8 @@
 // Wallet for web accounts — the SAME walletOf documents the bot engine bills (calls, forwarding, renewals).
 const MIN_TOPUP_USD = 10
 const round2 = (n) => Math.round(Number(n) * 100) / 100
+// Debits/credits keep sub-cent prices exact (e.g. $0.015 lookups); balances still show cents.
+const round4 = (n) => Math.round(Number(n) * 10000) / 10000
 const livePayments = () => process.env.WEB_CLOUDIVR_DRY_RUN !== 'true' || !!process.env.WEB_DYNO_PAY_API_KEY
 
 function walletOps(db) {
@@ -12,7 +14,7 @@ function walletOps(db) {
   }
   // Atomic: only debits when the balance covers it (no overdraft race between two tabs).
   const debit = async (chatId, amount) => {
-    const amt = round2(amount)
+    const amt = round4(amount)
     if (!(amt > 0)) return amt === 0
     const r = await walletOf.updateOne(
       { _id: String(chatId), $expr: { $gte: [{ $subtract: [{ $ifNull: ['$usdIn', 0] }, { $ifNull: ['$usdOut', 0] }] }, amt] } },
@@ -21,14 +23,14 @@ function walletOps(db) {
     return r.modifiedCount === 1
   }
   const credit = async (chatId, amount) => {
-    const amt = round2(amount)
+    const amt = round4(amount)
     if (amt > 0) await walletOf.updateOne({ _id: String(chatId) }, { $inc: { usdIn: amt } }, { upsert: true })
   }
   return { balance, debit, credit }
 }
 
-const CREDITS = { 'hosted-sms-refund': 'Refund · Landline to Texting', 'topup-bonus': 'Top-up bonus', 'admin-credit': 'Credit from CloudIVR', 'referral-reward': 'Referral reward', 'suggestion-reward': 'Free credit · adopted suggestion', 'sms-refund': 'Refund · text not delivered' }
-const HOSTED = { 'hosted-sms-setup': 'Landline to Texting setup', 'hosted-sms-renewal': 'Landline to Texting monthly', 'hosted-sms-text': 'Text sent · Landline to Texting', 'hosted-sms-inbound': 'Text received · Landline to Texting' }
+const CREDITS = { 'hosted-sms-refund': 'Refund · Landline to Texting', 'topup-bonus': 'Top-up bonus', 'admin-credit': 'Credit from CloudIVR', 'referral-reward': 'Referral reward', 'suggestion-reward': 'Free credit · adopted suggestion', 'sms-refund': 'Refund · text not delivered', 'lead-check-refund': 'Refund · numbers we couldn’t check' }
+const HOSTED = { 'hosted-sms-setup': 'Landline to Texting setup', 'hosted-sms-renewal': 'Landline to Texting monthly', 'hosted-sms-text': 'Text sent · Landline to Texting', 'hosted-sms-inbound': 'Text received · Landline to Texting', 'lead-check': 'Lead check', 'cnam-lookup': 'Owner-name lookup' }
 const LABEL = { purchase: 'Number purchase', purchase_verification: 'Number purchase (verification)', renew: 'Number renewal', upgrade: 'Plan upgrade', release: 'Number deleted', sms_reply: 'Extra text' }
 
 function routes(router, { db, h, coins, createCryptoDeposit, offers }) {
@@ -45,8 +47,8 @@ function routes(router, { db, h, coins, createCryptoDeposit, offers }) {
     const history = [
       ...ptx.filter(t => Number(t.amount) > 0).map(t => ({ id: String(t._id), at: t.timestamp, type: t.action, description: `${LABEL[t.action] || t.action} · ${t.phoneNumber || ''}`, amount: -Math.abs(Number(t.amount) || 0) })),
       ...tx.filter(t => t.type === 'wallet-topup').map(t => ({ id: String(t._id), at: new Date(t.createdAt).toISOString(), type: t.type, description: `Crypto top-up · ${t.metadata?.value || ''} ${t.metadata?.coin || ''}`.trim(), amount: Math.abs(Number(t.amount) || 0) })),
-      ...tx.filter(t => HOSTED[t.type]).map(t => ({ id: String(t._id), at: new Date(t.createdAt).toISOString(), type: t.type, description: `${HOSTED[t.type]} · ${t.metadata?.phoneNumber || ''}`, amount: -Math.abs(Number(t.amount) || 0) })),
-      ...tx.filter(t => CREDITS[t.type]).map(t => ({ id: String(t._id), at: new Date(t.createdAt).toISOString(), type: t.type, description: `${CREDITS[t.type]}${t.metadata?.phoneNumber && t.type === 'hosted-sms-refund' ? ` · ${t.metadata.phoneNumber}` : ''}`, amount: Math.abs(Number(t.amount) || 0) })),
+      ...tx.filter(t => HOSTED[t.type]).map(t => ({ id: String(t._id), at: new Date(t.createdAt).toISOString(), type: t.type, description: `${HOSTED[t.type]} · ${t.metadata?.phoneNumber || (t.metadata?.count ? `${t.metadata.count} numbers` : '')}`, amount: -Math.abs(Number(t.amount) || 0) })),
+      ...tx.filter(t => CREDITS[t.type]).map(t => ({ id: String(t._id), at: new Date(t.createdAt).toISOString(), type: t.type, description: `${CREDITS[t.type]}${t.metadata?.phoneNumber && t.type === 'hosted-sms-refund' ? ` · ${t.metadata.phoneNumber}` : ''}${t.type === 'lead-check-refund' ? ` · ${t.metadata?.count} numbers` : ''}`, amount: Math.abs(Number(t.amount) || 0) })),
     ].sort((a, b) => String(b.at).localeCompare(String(a.at))).slice(0, 50)
     res.json({
       balance: await w.balance(id), currency: 'USD', minTopup: MIN_TOPUP_USD, coins, history,

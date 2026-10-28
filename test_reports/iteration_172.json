@@ -1,0 +1,54 @@
+{
+  "summary": "Backend and frontend testing of onboarding by purpose, the per-number setup guide, reviews (dashboard prompt and landing section), Quick IVR owner name (CNAM), lead checks (campaign builder and Contacts), the hero phone, and the dark Terms and SIP pages. Preview runs in dry-run mode, so CNAM and lead checks return fake data. Backend: 15 of 16 pytest cases pass. One real billing bug: a CNAM lookup takes $0.02 from the wallet, but the UI and the API say $0.015 (the wallet rounds every debit to 2 decimals). All UI flows in the request worked end to end: onboarding overlay, 'For you' sidebar and dashboard, setup guide (locked options on Starter, 3 questions, skip, checklist, tab links, Hide), owner name and 'Use as [Name]', lead check (price, progress, pills, CSV, clean or delete dead), review prompt to landing review (shown as 'Alice T.'), hero phone animation, dark Terms and SIP pages. I scanned the new UI for contrast in light and dark themes and found no problems.",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "POST /api/cloudivr-web/cnam", "issue": "The wallet is charged $0.02 per lookup, not $0.015. walletOps.debit() rounds every amount with round2, and Math.round(1.5)/100 gives 0.02. The response still says charged: 0.015 and the UI says '$0.015'. Seen live: the balance went 500.00 -> 499.98 after one lookup. Users pay 33% more than advertised.", "priority": "HIGH"}
+    ],
+    "minor": [
+      {"endpoint": "POST /api/cloudivr-web/leads/check", "issue": "Odd counts are rounded with toFixed(2): 1 number = $0.01, 3 = $0.04, 5 = $0.07. This does not match the advertised '$0.015 each', and it does not match CNAM, which rounds up to $0.02."},
+      {"endpoint": "POST /leads/check, POST /cnam (and refunds)", "issue": "w.debit and w.credit only change usdOut and usdIn. No transactions or phoneTransactions row is written, so lead-check charges, CNAM charges and refunds never appear in the wallet history. Other paid features, such as SMS overage, do write a row."},
+      {"endpoint": "POST /api/cloudivr-web/reviews", "issue": "There is no server-side check that the user is eligible (has an answered call). Any signed-in account, for example Bob with no number, can post a 5-star review, and it shows on the public landing page right away. There is also no moderation step. Gate this on answeredCall(), or add an approval flag."},
+      {"endpoint": "POST /api/cloudivr-web/cnam (live mode)", "issue": "If the lookup fails (an exception, or cnam() returns null), the user is still charged and the null result is cached for 30 days. There is no refund for a failed lookup, unlike lead checks, which refund numbers they could not check."},
+      {"endpoint": "GET /api/cloudivr-web/public/reviews", "issue": "Cache-Control is public, max-age=600, so a new review can take up to 10 minutes to appear for returning visitors. Probably acceptable, but worth knowing."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Campaign builder LeadCheck clean", "issue": "'Keep only live numbers' replaces the textarea with phones only (keep.map(r => r.phone)). Names entered with the supported '+14155550100,Jane' format are lost. LeadCheck also splits on commas, so the name becomes a separate token.", "selector": "[data-testid=campaign-lead-check-clean]", "priority": "MEDIUM"},
+      {"component": "OwnerName (Quick IVR)", "issue": "Mid-typing bug that costs money. Typing '+1415555012' (10 digits) and pausing for 1.2 s treats the input as a 10-digit national number and builds '+11415555012'. The backend accepts that (+1 followed by 10 digits) and charges a lookup for a wrong number. When the input starts with '+', only accept 11 digits.", "selector": "[data-testid=quick-owner-name]", "priority": "MEDIUM"},
+      {"component": "LeadCheck after clean", "issue": "Removing dead numbers changes the 'numbers' prop, which resets the job. The summary disappears and the card offers 'Check N numbers for $X' again, which invites the user to pay again for numbers already checked. Contacts shows the paid check card at the top every time, even right after a check.", "selector": "[data-testid=campaign-lead-check], [data-testid=contacts-lead-check]", "priority": "LOW"},
+      {"component": "LeadCheck polling", "issue": "If a GET /leads/check/:id poll fails, the error is swallowed by catch(()=>{}) and the job state does not change. Polling then stops for good and the progress view stays stuck.", "selector": "[data-testid=campaign-lead-check-progress]", "priority": "LOW"},
+      {"component": "SetupGuide save", "issue": "save() has try/finally but no catch, so an API error is an unhandled rejection with no toast.", "selector": "[data-testid=setup-guide]", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Onboarding", "issues": ["The copy says 'You can change this later in Settings', but Settings has no control for purposes.", "suggestionsFor() takes the first 3 suggestions in order. With Sales + Texting picked, all 3 come from Sales and Texting is ignored. Interleave the purposes instead.", "Mobile 390x844: Continue and Skip are at y≈815 and cut off at the bottom of the modal; the user has to scroll. Consider a sticky footer."]},
+      {"screen": "Mobile More menu", "issues": ["The 'For you' group (nav-group-for-you) is only in the desktop sidebar. It is missing from the mobile More menu."]},
+      {"screen": "Setup checklist", "issues": ["After 'Hide', or after skipping all 3 questions, there is no way back into the setup guide except the ?setup=1 URL."]},
+      {"screen": "Number detail header (light theme)", "issues": ["The '·' separator is #707883 on #fffaed, a contrast ratio of 4.26:1. Pre-existing and trivial."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_cloudivr_onboarding_leads.py", "/app/test_reports/pytest/pytest_iter172.xml"],
+  "action_items": [
+    "Fix CNAM billing: the wallet rounds 0.015 up to 0.02. Either support sub-cent debits (round to 3-4 decimals in walletOps for these rates) or advertise and charge $0.02. Make lead-check rounding consistent with it.",
+    "Write a transactions/phoneTransactions row for lead-check charges, CNAM charges and their refunds, so they show in the wallet history.",
+    "Gate POST /reviews on the same answeredCall() eligibility (or hold new reviews for approval) so accounts without an answered call cannot post public reviews.",
+    "OwnerName: do not treat a '+'-prefixed 10-digit input as national. Only look up 11-digit numbers that start with 1 when the input starts with '+'.",
+    "Campaign lead-check clean: keep the ',Name' suffix of each kept line (filter the original lines instead of rebuilding from r.phone).",
+    "Keep the lead-check result visible after cleaning (do not reset the job, or remember checked numbers).",
+    "Add Settings UI to change purposes, or change the onboarding copy. Interleave suggestions across picked purposes. Show 'For you' in the mobile More menu."
+  ],
+  "critical_code_review_comments": [
+    "wallet.js debit/credit round2() silently changes any sub-cent price; every caller passing amounts like 0.015 is affected.",
+    "leads.js CNAM live path: the user is charged before the lookup, and failures are cached as null for 30 days with no refund.",
+    "LeadCheck builds its frontend list with a 'digits > 6' filter and no normalising. The backend list uses clean() and removes duplicates. So '4155550101' and '+14155550101' count as 2 on screen but are charged as 1. Harmless (the shown price is too high, not too low) but inconsistent.",
+    "Contacts LeadCheck only checks the contacts already loaded (limit 50), not the whole list. Say so in the UI or check server-side by list."
+  ],
+  "updated_files": ["/app/backend/tests/test_cloudivr_onboarding_leads.py", "/app/tests/tmp/*.js (helper scripts: q.js, plan.js, setplan.js, reset_ui.js, review_seed.js), /app/tests/tmp/contacts_seed.py"],
+  "success_rate": {"backend": "94% (15/16; the failure is the CNAM over-charge)", "frontend": "100% of the requested flows work; 2 medium and 3 low UI bugs listed"},
+  "seed_data_creation": "Temporary only, all cleaned up afterwards: a phoneLogs doc {phoneNumber:+13346972125, duration:30, _test172:true} (deleted), Alice reviews (deleted), TEST_ contacts for Alice (deleted). webPrefs for Alice and Bob were put back from a backup, so both will see onboarding again. Alice's number plan was briefly set to 'starter' to test locked options, then set back to 'business'. Several webCnamCache entries and webLeadChecks jobs for Alice were left in place. Alice and Bob were charged small amounts: Alice about $0.27 in total (CNAM and lead checks), Bob $0.40. One fresh account test172.<ts>@example.com was registered (wallet $0) for the 402 checks.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Chat ids are strings: Alice '5000000000000001', Bob '5000000000000002'. Alice's number is +13346972125 (Business). Fake dry-run data: lead status uses the last 2 digits % 10 (0 = dead; k%3 == 0 = landline, otherwise mobile; odd k = T-Mobile, even = Verizon). CNAM name = ['Jane Doe','Sam Lee',null][last digit % 3]. To reset UI state run node /app/tests/tmp/reset_ui.js (clears Bob's onboarding and Alice's setups, review and review dismissal). To make the review prompt appear, run node /app/tests/tmp/review_seed.js seed, then 'clean' afterwards. Contrast scanner: /app/tests/contrast_scan.js. In browser_automation, do not use f-strings in screenshot paths (the tool rewrites them).",
+  "rca of the issue": "CNAM over-charge: leads.js calls w.debit(chatId, 0.015). In wallet.js, debit does amt = round2(amount) = Math.round(1.5)/100 = 0.02, then $inc usdOut by 0.02. To reproduce: GET /wallet, POST /cnam with a new +1 number, GET /wallet; the balance drops by 0.02. Fix: allow 3-4 decimal precision in walletOps (round to 1e-4), or price CNAM at $0.02."
+}

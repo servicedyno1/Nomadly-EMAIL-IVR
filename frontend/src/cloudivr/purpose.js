@@ -10,8 +10,11 @@ export const PURPOSES = [
   ['other', Sparkles, 'Something else', 'Explore everything', [['Buy a number', '/app/buy'], ['Watch calls live', '/app/live'], ['Help center', '/app/help']]],
 ];
 
-// Up to 3 unique suggestions across the picked purposes.
+// Up to 3 unique suggestions, taking turns across the picked purposes.
 export function suggestionsFor(ids) {
+  const lists = PURPOSES.filter(p => (ids || []).includes(p[0])).map(p => p[4]);
   const seen = new Set();
-  return PURPOSES.filter(p => (ids || []).includes(p[0])).flatMap(p => p[4]).filter(([, to]) => !seen.has(to) && seen.add(to)).slice(0, 3);
+  const out = [];
+  for (let i = 0; i < 3; i += 1) lists.forEach(l => { if (l[i] && out.length < 3 && !seen.has(l[i][1])) { seen.add(l[i][1]); out.push(l[i]); } });
+  return out;
 }

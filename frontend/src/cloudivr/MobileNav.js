@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { useTheme } from './theme';
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
-import { Eye, EyeOff, Globe, Lightbulb, LogOut, MoreHorizontal, Send, Sun, Moon } from 'lucide-react';
+import { Eye, EyeOff, Globe, Lightbulb, LogOut, MoreHorizontal, Send, Sun, Moon, Sparkles } from 'lucide-react';
+import { suggestionsFor } from './purpose';
 import { NAV_ITEMS, appPath } from './nav';
 import { useShell, LiveDot } from './Shell';
 import { useCivrAuth } from './AuthContext';
@@ -59,12 +60,19 @@ export default function MobileNav() {
     window.addEventListener('keydown', esc);
     return () => window.removeEventListener('keydown', esc);
   }, [open]);
+  const forYou = suggestionsFor(shell?.onboarding?.purposes);
   const moreActive = MORE.some(([to]) => pathname.startsWith(appPath(to)));
   return (
     <>
       {open && <button type="button" aria-label="Close menu" className="lg:hidden fixed inset-0 z-40 bg-black/60" onClick={() => setOpen(false)} data-testid="mobile-more-backdrop" />}
       {open && (
         <div className="lg:hidden fixed inset-x-4 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-50 civr-card civr-side p-2 civr-rise max-h-[calc(100dvh-9rem)] overflow-y-auto overscroll-contain" data-testid="mobile-more-menu">
+          {forYou.length > 0 && (
+            <div className="mb-2 pb-2 border-b border-[#1f1f1f]" data-testid="mobile-nav-group-for-you">
+              <div className="px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-[#a1a1aa]">For you</div>
+              {forYou.map(([label, to], i) => <Link key={to} to={cp(to)} className="civr-nav-link" data-testid={`mobile-nav-for-you-${i}`}><Sparkles className="w-4 h-4" />{label}</Link>)}
+            </div>
+          )}
           {MORE.map(([to, label, Icon, id]) => (
             <NavLink key={id} to={appPath(to)} className={({ isActive }) => `civr-nav-link ${isActive ? 'active' : ''}`} data-testid={`mobile-${id}`}><Icon className="w-4 h-4" />{label}{id === 'nav-live' && <LiveDot testid="mobile-nav-live-dot" />}{id === 'nav-quick-call' && shell?.summary?.ivrTrial && <span className="ml-auto text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#6366f1] text-white" data-testid="mobile-quick-call-free-badge">1 free</span>}</NavLink>
           ))}

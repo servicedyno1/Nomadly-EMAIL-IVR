@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { PhoneForwarded, MonitorSmartphone, Workflow, Bot, Voicemail, Disc3, MessageSquare, Headphones, Clock, Lock, Check, ArrowRight, X, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 import { api } from '../../api';
 import { useShell } from '../../Shell';
 
@@ -45,7 +46,7 @@ export function SetupGuide({ n }) {
   const extrasOk = EXTRAS.filter(it => it[0] !== 'sms' || n.capabilities?.sms !== false);
   const save = async (items, done = false) => {
     setBusy(true);
-    try { const d = await api(`/prefs/setup/${encodeURIComponent(n.phoneNumber)}`, { method: 'PUT', body: { items, done } }); setOnboarding({ ...onboarding, setups: { ...(onboarding?.setups || {}), [n.phoneNumber]: d.setup } }); setOpen(false); } finally { setBusy(false); }
+    try { const d = await api(`/prefs/setup/${encodeURIComponent(n.phoneNumber)}`, { method: 'PUT', body: { items, done } }); setOnboarding({ ...onboarding, setups: { ...(onboarding?.setups || {}), [n.phoneNumber]: d.setup } }); setOpen(false); } catch (e) { toast.error(e.message); } finally { setBusy(false); }
   };
   const goTab = (tab) => { setParams({ tab }, { replace: true }); };
   if (!onboarding) return null;
@@ -84,7 +85,9 @@ export function SetupGuide({ n }) {
       </div>
     </>
   );
-  if (plan.done || !plan.items.length) return wizard || null;
+  if (plan.done || !plan.items.length) return wizard || (
+    <div className="flex justify-end -mt-2 mb-4"><button type="button" className="text-sm text-[#a1a1aa] hover:underline min-h-[44px]" onClick={() => { setStep(0); setOpen(true); }} data-testid="setup-open">Guide me through setting up this number</button></div>
+  );
   const items = ALL.filter(it => plan.items.includes(it[0]));
   const doneCount = items.filter(it => it[6](n.features)).length;
   return (

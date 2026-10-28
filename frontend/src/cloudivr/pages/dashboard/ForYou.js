@@ -9,11 +9,14 @@ import { suggestionsFor } from '../../purpose';
 
 // Overview: the 3 next steps picked from the onboarding purposes.
 export function ForYou() {
-  const recs = suggestionsFor(useShell().onboarding?.purposes);
-  if (!recs.length) return null;
+  const { onboarding, setOnboarding } = useShell();
+  const recs = suggestionsFor(onboarding?.purposes);
+  const change = () => setOnboarding({ ...onboarding, onboarded: false });
+  if (!onboarding) return null;
+  if (!recs.length) return <button type="button" className="text-sm text-[#a1a1aa] hover:underline mb-4 min-h-[44px]" onClick={change} data-testid="dashboard-for-you-start">Tell us what you use CloudIVR for — we’ll put the right tools first</button>;
   return (
     <div className="mb-6" data-testid="dashboard-for-you">
-      <div className="civr-label mb-3">Recommended for you</div>
+      <div className="flex items-center justify-between gap-3 mb-3"><div className="civr-label">Recommended for you</div><button type="button" className="text-xs text-[#a1a1aa] hover:underline min-h-[44px]" onClick={change} data-testid="dashboard-for-you-change">Change what I use CloudIVR for</button></div>
       <div className="grid md:grid-cols-3 gap-3">
         {recs.map(([label, to], i) => (
           <Link key={to} to={cp(to)} className="civr-card civr-card-link p-4 flex items-center gap-3 civr-rise" style={{ animationDelay: `${i * 60}ms` }} data-testid={`dashboard-for-you-${i}`}>
