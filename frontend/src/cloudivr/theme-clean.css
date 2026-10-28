@@ -129,3 +129,18 @@ html[data-civr-theme="dark"] .civr [data-civr-topbar] { background: #1b1e22; bor
 html[data-civr-theme="dark"] .civr .civr-input { background-color: #1f2328; }
 html[data-civr-theme="dark"] .civr .civr-input::placeholder { color: #8593a8; }
 html[data-civr-theme="dark"] .civr .civr-glass { background: rgba(27, 30, 34, 0.88); }
+
+/* Important (!) dark utility classes used by dialogs (palette, confirm, upgrade, what's new, contacts modal, support chat). */
+html[data-civr-theme] .civr .\!bg-\[\#111\], html[data-civr-theme] .civr .\!bg-\[\#0f0f0f\], html[data-civr-theme] .civr .\!bg-\[\#0e0e10\] { background-color: var(--c-card) !important; }
+html[data-civr-theme="light"] .civr .\!text-\[\#a1a1aa\] { color: #556070 !important; }
+html[data-civr-theme="light"] .civr .\!text-\[\#fb7185\], html[data-civr-theme="light"] .civr .hover\:\!text-\[\#fb7185\]:hover { color: #e11d48 !important; }
+html[data-civr-theme="light"] .civr .\!text-\[\#fbbf24\] { color: #b45309 !important; }
+html[data-civr-theme="light"] .civr .\!border-\[\#fbbf24\]\/50 { border-color: rgba(180, 83, 9, .45) !important; }
+/* Light: a lighter blue tint keeps #1f6fd6 text above 4.5:1 on pills (balance, "New", presets). */
+html[data-civr-theme="light"] .civr { --c-accent-soft: rgba(31, 111, 214, 0.05); }
+html[data-civr-theme="dark"] .civr .placeholder\:text-\[\#71717a\]::placeholder, html[data-civr-theme="dark"] .civr .placeholder\:text-\[\#52525b\]::placeholder { color: #8593a8; }
+/* Light: the green "IVR" of the wordmark on white needs a deeper green (#34d399 is 1.9:1 on white). */
+html[data-civr-theme="light"] .civr [data-testid="topbar-logo"] span > span, html[data-civr-theme="light"] .civr [data-testid="auth-mobile-logo-link"] span > span { color: #059669 !important; }
+/* Light: sonner rich-colour success/info text a bit deeper so it clears 4.5:1 on its tinted toast. */
+html[data-civr-theme="light"] [data-sonner-toaster] { --success-text: #046c2a; --info-text: #1859b0; }
+html[data-civr-theme="light"] .civr .civr-pill-on { color: #185bb3; }

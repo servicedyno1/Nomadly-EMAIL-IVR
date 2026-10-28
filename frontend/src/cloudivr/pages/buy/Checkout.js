@@ -17,7 +17,7 @@ function Option({ on, onClick, icon: Icon, title, sub, testid }) {
 // Card payments are not switched on yet: shown, but disabled, wherever you can pay.
 export function CardComingSoon({ testid = 'card-coming-soon', className = '' }) {
   return (
-    <div aria-disabled="true" className={`civr-card p-4 flex gap-4 items-start opacity-70 cursor-not-allowed ${className}`} data-testid={testid}>
+    <div aria-disabled="true" className={`civr-card p-4 flex gap-4 items-start opacity-80 cursor-not-allowed ${className}`} data-testid={testid}>
       <CreditCard className="w-5 h-5 mt-0.5 shrink-0 text-[#a1a1aa]" />
       <div className="flex-1"><div className="font-semibold flex flex-wrap items-center gap-2">Credit / debit card<span className="civr-pill !text-[10px]" data-testid={`${testid}-badge`}>Coming soon</span></div><div className="text-xs text-[#a1a1aa] mt-1">Visa, Mastercard and more — available soon.</div></div>
     </div>

@@ -64,7 +64,7 @@ export default function MobileNav() {
     <>
       {open && <button type="button" aria-label="Close menu" className="lg:hidden fixed inset-0 z-40 bg-black/60" onClick={() => setOpen(false)} data-testid="mobile-more-backdrop" />}
       {open && (
-        <div className="lg:hidden fixed inset-x-4 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-50 civr-card p-2 civr-rise max-h-[calc(100dvh-9rem)] overflow-y-auto overscroll-contain" data-testid="mobile-more-menu">
+        <div className="lg:hidden fixed inset-x-4 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-50 civr-card civr-side p-2 civr-rise max-h-[calc(100dvh-9rem)] overflow-y-auto overscroll-contain" data-testid="mobile-more-menu">
           {MORE.map(([to, label, Icon, id]) => (
             <NavLink key={id} to={appPath(to)} className={({ isActive }) => `civr-nav-link ${isActive ? 'active' : ''}`} data-testid={`mobile-${id}`}><Icon className="w-4 h-4" />{label}{id === 'nav-live' && <LiveDot testid="mobile-nav-live-dot" />}{id === 'nav-quick-call' && shell?.summary?.ivrTrial && <span className="ml-auto text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#6366f1] text-white" data-testid="mobile-quick-call-free-badge">1 free</span>}</NavLink>
           ))}

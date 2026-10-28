@@ -1767,3 +1767,9 @@ calls and SIP are simulated; inbound calls use a pretend-call simulator).
   Coverage, ProductCards, Trust, HowItWorks, Pricing, Faq, FinalCta. Kept live call demo + Hear-it sample. No fake press/reviews.
 - Tested: /app/test_reports/iteration_170.json (90%; all reported contrast issues fixed after: sticky bar, lang menu, cookie
   banner, payment chips, button text). Deploy with scripts/deploy_workspace_to_droplet.sh app-main once approved.
+
+## 2026-10-28 ~20:15Z — Landing + sign-in + in-app restyle (LIVE app-main f3ecc64) — tested iteration_170/171
+- Landing: NOWPayments-grade dark page (np.css). Sign-in/up: graphite star side panel in both themes (AuthPages SidePanel
+  .civr-auth-side). In-app (theme-clean.css): Source Sans 3; dark = graphite #1b1e22/#23272d, accent #64acff, buttons #2f74d8;
+  light = white, accent #1f6fd6; graphite side menu (#13171c) + mobile More menu in both themes. Old near-black classes and
+  important (!) surfaces remapped; contrast fixed to ~AA in both themes (iteration_171 ~97%).
