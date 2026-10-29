@@ -1,10 +1,18 @@
 import React, { useEffect, useRef, useState } from 'react';
 import './np.css';
+import { useTheme, ThemeButton } from '../../theme';
 
-// Marks <html> so portals (language menu, cookie banner) pick up the dark site look.
-export function useDarkSite() {
-  React.useEffect(() => { document.documentElement.dataset.civrNp = '1'; return () => { delete document.documentElement.dataset.civrNp; }; }, []);
+// Marks <html> with the public-site look + light/dark (shared setting with the app) so portals follow it too.
+export function useSiteLook() {
+  const { theme } = useTheme();
+  React.useEffect(() => {
+    const d = document.documentElement;
+    d.dataset.civrNp = '1'; d.dataset.civrNpTheme = theme; d.style.colorScheme = theme;
+    return () => { delete d.dataset.civrNp; delete d.dataset.civrNpTheme; d.style.colorScheme = ''; };
+  }, [theme]);
 }
+
+export const SiteThemeButton = ({ testid }) => <ThemeButton testid={testid} className="civr-l-navlink w-11 h-11 !p-0 grid place-items-center rounded-full shrink-0" />;
 
 // Shared building blocks for the landing page.
 

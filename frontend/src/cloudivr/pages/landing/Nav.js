@@ -6,7 +6,7 @@ import { cp } from '../../paths';
 import { Wordmark } from '../../Brand';
 import { LangSwitcher } from '../../i18n';
 import { startPrice } from '../../api';
-import { Slide } from './kit';
+import { Slide, SiteThemeButton } from './kit';
 import { PRODUCTS, USE_CASES, goTo, hrefOf } from './menu';
 
 export const LANDING_LINKS = [['#coverage', 'Coverage', 'coverage'], ['#pricing', 'Pricing', 'pricing'], ['#faq', 'FAQ', 'faq']];
@@ -97,6 +97,7 @@ export function LandingNav({ catalog }) {
           {LANDING_LINKS.map(([href, label, id]) => <a key={id} href={href} onMouseEnter={() => hover(null)} onClick={(e) => goTo(href, e)} className="civr-l-navlink" data-testid={`landing-nav-${id}`}>{label}</a>)}
         </nav>
         {scrolled > 300 && <a href="#try" onClick={(e) => goTo('#try', e)} className="hidden xl:inline-flex items-center gap-2 whitespace-nowrap text-sm font-semibold text-slate-900 hover:text-slate-600 transition-colors civr-rise" data-testid="civr-nav-sticky-cta"><PhoneCall className="w-4 h-4" />Free call</a>}
+        <SiteThemeButton testid="landing-theme-button" />
         <LangSwitcher testid="landing-lang-switcher" tone="landing" />
         {account
           ? <Link to={cp('/app')} className="civr-l-pill civr-l-pill-ink civr-l-pill-sm" data-testid="landing-open-dashboard"><Slide><span className="sm:hidden">Dashboard</span><span className="hidden sm:inline">Open dashboard</span></Slide></Link>

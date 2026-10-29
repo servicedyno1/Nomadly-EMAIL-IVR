@@ -1,5 +1,5 @@
 import React from 'react';
-import { useDarkSite } from './landing/kit';
+import { useSiteLook } from './landing/kit';
 import { useApi } from '../api';
 import { Hero } from './landing/Hero';
 import { Coverage, HowItWorks, Facts, Statement } from './landing/Sections';
@@ -22,7 +22,7 @@ export default function Landing() {
   // The bundled snapshot paints pricing, coverage and facts at once; the live catalogue replaces it when it answers.
   const { data } = useApi('/public/catalog');
   const catalog = data || CATALOG_SNAPSHOT;
-  useDarkSite();
+  useSiteLook();
   return (
     <div className="civr-l civr-np" data-testid="landing-page" data-catalog={data ? 'live' : 'snapshot'}>
       <LandingNav catalog={catalog} />

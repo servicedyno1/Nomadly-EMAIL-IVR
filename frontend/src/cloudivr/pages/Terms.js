@@ -6,7 +6,7 @@ import { cp } from '../paths';
 import { Wordmark } from '../Brand';
 import { Footer } from './landing/PricingFaq';
 import { TERMS, UPDATED } from './terms/content';
-import { useDarkSite } from './landing/kit';
+import { useSiteLook, SiteThemeButton } from './landing/kit';
 
 function Header() {
   return (
@@ -14,6 +14,7 @@ function Header() {
       <div className="max-w-6xl mx-auto px-6 md:px-8 h-16 flex items-center gap-4">
         <Link to={cp()} className="font-display text-2xl font-extrabold mr-auto min-h-[44px] flex items-center" data-testid="terms-logo-link"><Wordmark accent="#059669" iconClass="w-7 h-7" /></Link>
         <Link to={cp()} className="hidden sm:inline-flex items-center gap-2 text-sm font-medium text-slate-600 hover:text-slate-900 py-3" data-testid="terms-home-link"><ArrowLeft className="w-4 h-4" />Home</Link>
+        <SiteThemeButton testid="terms-theme-button" />
         <Link to={cp('/signup')} className="civr-l-btn civr-l-btn-sm" data-testid="terms-signup-link">Get your number</Link>
       </div>
     </header>
@@ -45,7 +46,7 @@ function Section({ s, i, supportLink }) {
 }
 
 export default function Terms() {
-  useDarkSite();
+  useSiteLook();
   const { data: catalog } = useApi('/public/catalog');
   useEffect(() => { if (!window.location.hash) window.scrollTo(0, 0); }, []);
   return (

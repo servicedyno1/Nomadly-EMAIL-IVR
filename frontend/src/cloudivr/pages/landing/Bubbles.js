@@ -6,7 +6,7 @@ import { cp } from '../../paths';
 import { Reveal } from './kit';
 import { PRODUCTS, goTo, hrefOf } from './menu';
 
-const C = { b: '#64acff', p: '#ffa3bb', l: '#daff7c' };
+const C = { b: 'var(--np-blue)', p: 'var(--np-pink)', l: 'var(--np-lime)' };
 const P = Object.fromEntries(PRODUCTS.map(p => [p[0], p]));
 // Row recipes: product id + colour + filled?, or an empty / arrow pill.
 const ROWS = [
@@ -17,7 +17,7 @@ const ROWS = [
 function Bubble({ cell }) {
   const [id, c, filled, extra] = cell;
   const color = C[c];
-  const style = { borderColor: color, background: filled ? color : 'transparent', color: filled ? '#13171c' : (c === 'b' ? color : '#fff') };
+  const style = { borderColor: color, background: filled ? color : 'transparent', color: filled ? 'var(--np-ink)' : (c === 'b' ? color : 'var(--np-strong)') };
   if (id === '_') return <span aria-hidden="true" className={`civr-np-bubble ${extra === 'wide' ? 'civr-np-bubble-wide' : 'civr-np-bubble-empty'}`} style={style} />;
   if (id === '>') return <span aria-hidden="true" className="civr-np-bubble civr-np-bubble-empty" style={style}><ArrowRight className="w-5 h-5" style={{ transform: `rotate(${extra}deg)` }} /></span>;
   const [, , title, , target] = P[id];

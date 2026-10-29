@@ -38,12 +38,12 @@ export function ThemeRoot() {
   return null;
 }
 
-export function ThemeButton({ className = '' }) {
+export function ThemeButton({ className = '', testid = 'topbar-theme-button' }) {
   const { theme } = useTheme();
   const next = theme === 'light' ? 'dark' : 'light';
   const Icon = theme === 'light' ? Moon : Sun;
   const tip = `Switch to ${next} mode`;
-  return <button type="button" onClick={() => setThemePref(next)} aria-label={tip} title={tip} className={className} data-testid="topbar-theme-button" data-theme={theme}><Icon className="w-5 h-5" /></button>;
+  return <button type="button" onClick={() => setThemePref(next)} aria-label={tip} title={tip} className={className} data-testid={testid} data-theme={theme}><Icon className="w-5 h-5" /></button>;
 }
 
 export const THEME_OPTIONS = [['system', 'Match my device'], ['light', 'Light'], ['dark', 'Dark']];

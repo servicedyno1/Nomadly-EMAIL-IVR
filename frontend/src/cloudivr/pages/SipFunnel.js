@@ -12,7 +12,7 @@ import { SipHero } from './sip/Hero';
 import { Apps, Benefits, Steps } from './sip/Sections';
 import { SipFaq, SipFinalCta, SipPlans } from './sip/Plans';
 import { sipPick } from './sip/shared';
-import { useDarkSite } from './landing/kit';
+import { useSiteLook, SiteThemeButton } from './landing/kit';
 
 const LINKS = [['#apps', 'Phone apps', 'apps'], ['#how', 'How it works', 'how'], ['#plans', 'Plans', 'plans'], ['#faq', 'FAQ', 'faq']];
 
@@ -36,6 +36,7 @@ function Nav() {
         <nav className="hidden lg:flex items-center gap-8">
           {LINKS.map(([href, label, id]) => <a key={id} href={href} className="text-sm font-medium text-slate-600 hover:text-slate-900 py-3 transition-colors" data-testid={`sip-nav-${id}`}>{label}</a>)}
         </nav>
+        <SiteThemeButton testid="sip-theme-button" />
         <LangSwitcher tone="landing" testid="sip-lang-switcher" />
         {account
           ? <Link to={cp('/app')} className="civr-l-btn civr-l-btn-sm" data-testid="sip-nav-dashboard"><Slide><span className="sm:hidden">Dashboard</span><span className="hidden sm:inline">Open dashboard</span></Slide></Link>
@@ -69,7 +70,7 @@ function StickyCta({ catalog }) {
 
 // Sales page for SIP buyers (cloudivr.net/sip). The SIP server itself (sip.cloudivr.net) stays a phone-only address.
 export default function SipFunnel() {
-  useDarkSite();
+  useSiteLook();
   const { data: catalog, loading } = useApi('/public/catalog');
   // Arriving from another page (e.g. the landing footer) should start at the hero, not the old scroll position.
   useEffect(() => { if (!window.location.hash) window.scrollTo(0, 0); }, []);
