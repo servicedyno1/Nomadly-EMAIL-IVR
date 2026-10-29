@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import { api, enc } from './api';
 import { useLang } from './i18n';
 import { showUpgrade } from './Upgrade';
+import { AudioAddDialog, EmptyAudio, useAudioAdd } from './AudioAdd';
 
 // True on phone-sized screens (below Tailwind's md breakpoint); follows rotation/resizes.
 export function useIsPhone(query = '(max-width: 767px)') {
@@ -220,12 +221,22 @@ export function audioLabel(a, all) {
   return [a.name, voice ? `${voice[0].toUpperCase()}${voice.slice(1)} voice` : '', a.duration ? clock(a.duration) : '', when].filter(Boolean).join(' · ');
 }
 
-export function AudioSelect({ value, onChange, audios, testid, placeholder = 'Pick audio…', by = 'audioUrl' }) {
+// `audios` undefined = still loading. With `onAdded` (reload the list), an empty library offers upload / text-to-voice in place.
+export function AudioSelect({ value, onChange, audios, testid, placeholder = 'Pick audio…', by = 'audioUrl', onAdded, compact }) {
+  const add = useAudioAdd();
+  const added = (a) => { onAdded(a); onChange(a[by]); };
+  const dialog = onAdded && <AudioAddDialog {...add} onClose={add.close} onAdded={added} testid={testid} />;
+  if (!audios) return <select className="civr-input" disabled aria-label="Loading audio" data-testid={testid}><option>Loading audio…</option></select>;
+  if (!audios.length && onAdded) return <>{<EmptyAudio start={add.start} compact={compact} testid={testid} />}{dialog}</>;
   return (
-    <select className="civr-input" value={value || ''} onChange={e => onChange(e.target.value)} data-testid={testid}>
-      <option value="">{placeholder}</option>
-      {(audios || []).map(a => <option key={a.id} value={a[by]}>{audioLabel(a, audios)}</option>)}
-    </select>
+    <div className="space-y-1">
+      <select className="civr-input" value={value || ''} onChange={e => onChange(e.target.value)} aria-label={placeholder.replace(/…$/, '')} data-testid={testid}>
+        <option value="">{placeholder}</option>
+        {audios.map(a => <option key={a.id} value={a[by]}>{audioLabel(a, audios)}</option>)}
+      </select>
+      {onAdded && <button type="button" className="text-xs text-[#818cf8] hover:underline inline-flex items-center gap-1 min-h-[32px]" onClick={() => add.start('upload')} data-testid={`${testid}-add-new-button`}><Plus className="w-3.5 h-3.5" />New audio</button>}
+      {dialog}
+    </div>
   );
 }
 

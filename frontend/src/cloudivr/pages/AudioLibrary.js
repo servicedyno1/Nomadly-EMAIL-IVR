@@ -6,7 +6,7 @@ import { PageHeader, Field, SkeletonRows, ErrorNote, Empty } from '../ui';
 import { undoable } from '../undo';
 import { useSearch, SearchBox, NoMatches } from '../search';
 
-function UploadCard({ onDone }) {
+export function UploadCard({ onDone }) {
   const [name, setName] = useState('');
   const [file, setFile] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -19,7 +19,7 @@ function UploadCard({ onDone }) {
   const send = async () => {
     const fd = new FormData(); fd.append('file', file); fd.append('name', name || file.name);
     setBusy(true);
-    try { await api('/audio/upload', { method: 'POST', form: fd }); toast.success('Audio added'); setName(''); setFile(null); onDone(); } catch (err) { toast.error(err.message); } finally { setBusy(false); }
+    try { const d = await api('/audio/upload', { method: 'POST', form: fd }); toast.success('Audio added'); setName(''); setFile(null); onDone(d?.audio); } catch (err) { toast.error(err.message); } finally { setBusy(false); }
   };
   return (
     <div className="civr-card p-6 space-y-4" data-testid="audio-upload-card">
@@ -33,13 +33,13 @@ function UploadCard({ onDone }) {
   );
 }
 
-function TtsCard({ onDone }) {
+export function TtsCard({ onDone }) {
   const { data } = useApi('/audio/voices');
   const [f, setF] = useState({ text: '', voice: 'rachel', speed: 1, name: '' });
   const [busy, setBusy] = useState(false);
   const make = async () => {
     setBusy(true);
-    try { await api('/audio/tts', { method: 'POST', body: f }); toast.success('Voice message created'); setF({ ...f, text: '', name: '' }); onDone(); } catch (err) { toast.error(err.message); } finally { setBusy(false); }
+    try { const d = await api('/audio/tts', { method: 'POST', body: f }); toast.success('Voice message created'); setF({ ...f, text: '', name: '' }); onDone(d?.audio); } catch (err) { toast.error(err.message); } finally { setBusy(false); }
   };
   return (
     <div className="civr-card p-6 space-y-4 lg:col-span-2" data-testid="audio-tts-card">

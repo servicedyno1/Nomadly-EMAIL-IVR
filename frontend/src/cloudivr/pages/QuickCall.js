@@ -52,9 +52,9 @@ function Message({ f, set, audios, reloadAudio }) {
       {f.source === 'script' ? <>
         <ScriptBox value={f.script} onChange={(s) => set({ script: s, ...(s.activeKeys ? { activeKeys: s.activeKeys } : {}) })} onAudio={(a) => { reloadAudio(); set({ source: 'audio', audioId: a.id }); }} testid="quick-script" />
         <Field label="Read out with" hint="Or make an AI voice file above for the most natural sound."><VoiceSelect value={f.voice || def.voice} onChange={(v) => set({ voice: v })} voices={voices} testid="quick-voice-select" /></Field>
-      </> : <Field label="Message to play" hint={!audios.length ? <Link to={cp('/app/audio')} className="text-[#818cf8]">Create audio first →</Link> : null}>
-        <AudioSelect value={f.audioId} onChange={(v) => set({ audioId: v })} audios={audios} by="id" testid="quick-call-audio-select" />
-        {f.audioId && <audio controls preload="none" src={playUrl(audios.find(a => a.id === f.audioId)?.audioUrl)} className="h-9 mt-2" data-testid="quick-audio-preview" />}
+      </> : <Field label="Message to play">
+        <AudioSelect value={f.audioId} onChange={(v) => set({ audioId: v })} audios={audios} by="id" onAdded={reloadAudio} testid="quick-call-audio-select" />
+        {f.audioId && <audio controls preload="none" src={playUrl(audios?.find(a => a.id === f.audioId)?.audioUrl)} className="h-9 mt-2" data-testid="quick-audio-preview" />}
       </Field>}
     </div>
   );
@@ -116,7 +116,7 @@ export default function QuickCall() {
   if (loading || (!numbers.length && trialStale)) return <SkeletonPage cards={2} rows={0} />;
   const caller = numbers.find(n => n.phoneNumber === f.callerId) || numbers[0];
   const can = caller?.access || {};
-  const audios = au?.audios || [];
+  const audios = au?.audios;
   const scheduleAt = can.ivrSchedule ? f.scheduleAt : '';
 
   const go = async (e) => {

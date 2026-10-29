@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
 import { Plus, Trash2, BarChart3 } from 'lucide-react';
 import { useApi, enc } from '../../api';
 import { InstantToggle, AudioSelect } from '../../ui';
@@ -8,7 +7,6 @@ import { IvrTemplates } from './IvrTemplates';
 import { useSave } from './SettingsTabs';
 import { OneAnswerNote } from './RouteSummary';
 import { useUnsaved, SaveRow } from '../../guard';
-import { cp } from '../../paths';
 import { LANGS, tr, useLang } from '../../i18n';
 
 // Built-in IVR texts per language (same as js/voicemail-greeting.js).
@@ -32,7 +30,7 @@ function Greeting({ g, set, audios, prefix, label = 'Greeting', onAudio }) {
       <div className="flex items-center gap-2 text-sm"><span className="text-[#d4d4d8] mr-2">{label}</span>
         {[['text', 'Spoken text'], ['audio', 'Audio file']].map(([m, l]) => <button key={m} type="button" onClick={() => set({ mode: m, greetingAudioUrl: m === 'text' ? null : g.greetingAudioUrl })} className={`civr-pill cursor-pointer ${(audio ? 'audio' : 'text') === m ? 'civr-pill-on' : ''}`} data-testid={`${prefix}-greeting-mode-${m}`}>{l}</button>)}
       </div>
-      {audio ? <AudioSelect value={g.greetingAudioUrl} onChange={v => set({ greetingAudioUrl: v || null, mode: 'audio' })} audios={audios} testid={`${prefix}-greeting-audio-select`} />
+      {audio ? <AudioSelect value={g.greetingAudioUrl} onChange={v => set({ greetingAudioUrl: v || null, mode: 'audio' })} audios={audios} onAdded={onAudio} testid={`${prefix}-greeting-audio-select`} />
         : <><textarea rows={2} className="civr-input" value={g.greeting || ''} onChange={e => set({ greeting: e.target.value })} data-testid={`${prefix}-greeting-text-input`} />
           {onAudio && <VoiceMaker text={g.greeting} name={label} onMade={(a) => { onAudio(); set({ greetingAudioUrl: a.audioUrl, mode: 'audio' }); }} testid={`${prefix}-greeting-voice`} />}</>}
     </div>
@@ -51,9 +49,9 @@ function RowHead({ o, set, onRemove, used, depth, prefix }) {
 }
 
 function ActionFields({ o, set, audios, prefix, onAudio }) {
-  if (o.action === 'message' && onAudio) return <div className="space-y-2"><div className="grid md:grid-cols-2 gap-2"><input className="civr-input" value={o.message || ''} onChange={e => set({ message: e.target.value })} placeholder="Text to read out" data-testid={`${prefix}-message-input`} /><AudioSelect value={o.audioUrl} onChange={v => set({ audioUrl: v || null })} audios={audios} placeholder="…or pick audio" testid={`${prefix}-message-audio-select`} /></div>{o.message && !o.audioUrl && <VoiceMaker text={o.message} name={o.label || `Key ${o.digit}`} onMade={(a) => { onAudio(); set({ audioUrl: a.audioUrl }); }} testid={`${prefix}-message-voice`} />}</div>;
+  if (o.action === 'message' && onAudio) return <div className="space-y-2"><div className="grid md:grid-cols-2 gap-2"><input className="civr-input" value={o.message || ''} onChange={e => set({ message: e.target.value })} placeholder="Text to read out" data-testid={`${prefix}-message-input`} /><AudioSelect value={o.audioUrl} onChange={v => set({ audioUrl: v || null })} audios={audios} placeholder="…or pick audio" onAdded={onAudio} compact testid={`${prefix}-message-audio-select`} /></div>{o.message && !o.audioUrl && <VoiceMaker text={o.message} name={o.label || `Key ${o.digit}`} onMade={(a) => { onAudio(); set({ audioUrl: a.audioUrl }); }} testid={`${prefix}-message-voice`} />}</div>;
   if (o.action === 'forward') return <input className="civr-input font-mono" value={o.forwardTo || ''} onChange={e => set({ forwardTo: e.target.value })} placeholder="+14155550100" data-testid={`${prefix}-forward-input`} />;
-  if (o.action === 'message') return <div className="grid md:grid-cols-2 gap-2"><input className="civr-input" value={o.message || ''} onChange={e => set({ message: e.target.value })} placeholder="Text to read out" data-testid={`${prefix}-message-input`} /><AudioSelect value={o.audioUrl} onChange={v => set({ audioUrl: v || null })} audios={audios} placeholder="…or pick audio" testid={`${prefix}-message-audio-select`} /></div>;
+  if (o.action === 'message') return <div className="grid md:grid-cols-2 gap-2"><input className="civr-input" value={o.message || ''} onChange={e => set({ message: e.target.value })} placeholder="Text to read out" data-testid={`${prefix}-message-input`} /><AudioSelect value={o.audioUrl} onChange={v => set({ audioUrl: v || null })} audios={audios} placeholder="…or pick audio" onAdded={onAudio} compact testid={`${prefix}-message-audio-select`} /></div>;
   return null;
 }
 
@@ -121,7 +119,7 @@ export default function IvrTab({ num, reload }) {
   const langName = (LANGS.find(([c]) => c === lang) || LANGS[0])[1];
   const ivr = num.features.ivr || {};
   const { data, reload: reloadAudio } = useApi('/audio');
-  const audios = data?.audios || [];
+  const audios = data?.audios;
   const enabled = !!ivr.enabled;
   const [g, setG] = useState({ greeting: ivr.greeting || defOf(lang).greeting, greetingAudioUrl: ivr.greetingAudioUrl || null });
   const [list, setList] = useState(toList(ivr.options));
@@ -146,7 +144,6 @@ export default function IvrTab({ num, reload }) {
         {num.features.aiAgent?.enabled && <OneAnswerNote testid="ivr-ai-agent-note">Your AI voice agent answers this number now. Turning the keypad menu on switches the AI voice agent off — a number uses one or the other.</OneAnswerNote>}
         <Greeting g={g} set={(p) => setG({ ...g, ...p })} audios={audios} prefix="ivr" onAudio={reloadAudio} />
         <p className="text-xs text-[#a1a1aa] -mt-3" data-testid="ivr-language-note">{`Callers hear typed text in ${langName}, the app's language. Change the app language to change it.`}</p>
-        {!audios.length && <div className="text-xs text-[#a1a1aa]">Want your own recordings? <Link to={cp('/app/audio')} className="text-[#818cf8]" data-testid="ivr-audio-library-link">Open the audio library</Link>.</div>}
         <OptionList list={list} setList={setList} prefix="ivr"
           render={(o, i, u, ch, rm) => <TopRow key={i} o={o} used={u} onChange={ch} onRemove={rm} audios={audios} prefix={`ivr-option-${i}`} onAudio={reloadAudio} />} />
         <SaveRow dirty={u.dirty} testid="ivr-unsaved-pill"><button className="civr-btn civr-btn-primary" disabled={busy} onClick={submit} data-testid="ivr-save-button">Save keypad menu</button></SaveRow>

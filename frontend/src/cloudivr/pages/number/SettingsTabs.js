@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { toast } from 'sonner';
 import { api, enc, useApi } from '../../api';
-import { Field, Toggle, BackupsField, InstantToggle } from '../../ui';
+import { Field, Toggle, BackupsField, InstantToggle, AudioSelect } from '../../ui';
 import { PlanLock } from '../../Upgrade';
 import { useShell } from '../../Shell';
 import { RouteSummary, TestNumber } from './RouteSummary';
@@ -119,10 +119,8 @@ export function VoicemailTab({ num, reload }) {
         {f.greetingType === 'default' && sample && <span className="block text-sm text-[#e4e4e7] italic mt-2" dir="auto" data-no-translate data-testid="voicemail-language-sample">“{sample}”</span>}
       </Field>
       {f.greetingType === 'custom' && (
-        <Field label="Greeting audio" hint={!data?.audios?.length ? 'Add audio in the Audio library first.' : null}>
-          <select className="civr-input" value={f.customGreetingUrl} onChange={e => setF({ ...f, customGreetingUrl: e.target.value })} data-testid="voicemail-greeting-audio-select">
-            <option value="">Pick audio…</option>{(data?.audios || []).map(a => <option key={a.id} value={a.audioUrl}>{a.name}</option>)}
-          </select>
+        <Field label="Greeting audio">
+          <AudioSelect value={f.customGreetingUrl} onChange={v => setF(x => ({ ...x, customGreetingUrl: v }))} audios={data?.audios} onAdded={reloadAudio} testid="voicemail-greeting-audio-select" />
         </Field>
       )}
       <div className="border border-[#222] rounded-xl p-4 space-y-3" data-testid="voicemail-tts-box">
