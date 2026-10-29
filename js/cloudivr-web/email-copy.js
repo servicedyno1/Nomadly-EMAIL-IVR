@@ -8,7 +8,7 @@ const plFr = (n, one, many) => `${n} ${n <= 1 ? one : many}`
 
 const en = {
   hi: (n) => (n ? `Hi ${n},` : 'Hi there,'),
-  labels: { number: 'Number', plan: 'Plan', country: 'Country', renews: 'Renews on', monthly: 'Monthly price', paid: 'Paid from wallet', next: 'Next renewal', balance: 'Wallet balance', added: 'Added', newBalance: 'New balance', from: 'From', to: 'To', when: 'When', length: 'Length', calls: 'Calls', answered: 'Answered', pressed: 'Pressed a key', transferred: 'Transferred', voicemail: 'Voicemail', noAnswer: 'No answer', failed: 'Failed / busy', callsIn: 'Calls received', missed: 'Missed', voicemails: 'Voicemails', texts: 'Texts', outgoing: 'Outgoing calls', minutes: 'Minutes' },
+  labels: { number: 'Number', plan: 'Plan', country: 'Country', renews: 'Renews on', monthly: 'Monthly price', paid: 'Paid from wallet', next: 'Next renewal', balance: 'Wallet balance', added: 'Added', newBalance: 'New balance', from: 'From', to: 'To', when: 'When', length: 'Length', calls: 'Calls', answered: 'Answered', pressed: 'Pressed a key', transferred: 'Transferred', voicemail: 'Voicemail', messagesLeft: 'Messages left', noAnswer: 'No answer', failed: 'Failed / busy', callsIn: 'Calls received', missed: 'Missed', voicemails: 'Voicemails', texts: 'Texts', outgoing: 'Outgoing calls', minutes: 'Minutes' },
   foot: { why: (e) => `You're getting this because ${e} has a CloudIVR account.`, settings: 'Email settings', support: 'Message support', off: { weekly: 'Stop weekly summaries', campaigns: 'Stop campaign reports', voicemail: 'Stop voicemail alerts', missed: 'Stop missed-call alerts' } },
   adds: {
     pro: ['Voicemail with transcripts', 'Keypad menu — press 1 for sales', 'Quick IVR & Bulk IVR campaigns', 'Code collection with Accept / Decline', 'Browser phone, SIP & call recording'],
@@ -23,7 +23,7 @@ const en = {
     intro: () => 'Thanks for joining CloudIVR. You’re three quick steps away from a number that answers every call, routes callers with a keypad menu or an AI voice agent, and calls your whole list for you.',
     steps: [
       { title: 'Pick your number', text: 'Local, mobile or toll-free in 17 countries. Most go live in minutes.' },
-      { title: 'Top up your wallet', text: 'Pay with crypto in seconds. Your wallet covers renewals and calls.' },
+      { title: 'Top up your wallet', text: 'Top up in seconds. Your wallet covers renewals and calls.' },
       { title: 'Switch on the magic', text: 'Voicemail with transcripts, a keypad menu, Quick IVR calls and campaigns — all from one screen.' },
     ],
     cta: () => 'Get your number',
@@ -101,7 +101,7 @@ const en = {
     preheader: () => 'Top up from $10 and everything picks up where it left off.',
     eyebrow: 'Wallet empty', title: () => 'Your calls are on hold.',
     intro: (d, f) => `Your wallet is down to ${f.usd(d.balance)}, which can’t cover outgoing calls. Quick IVR calls, campaigns and forwarded calls are paused until you top up.`,
-    points: ['Top up from $10 with crypto in seconds', 'Paused campaigns resume with one tap', 'Your numbers and settings stay safe'],
+    points: ['Top up from $10 in seconds', 'Paused campaigns resume with one tap', 'Your numbers and settings stay safe'],
     cta: () => 'Top up now',
   },
   campaignDone: {
@@ -149,7 +149,7 @@ const en = {
 
 const fr = {
   hi: (n) => (n ? `Bonjour ${n},` : 'Bonjour,'),
-  labels: { number: 'Numéro', plan: 'Forfait', country: 'Pays', renews: 'Renouvellement le', monthly: 'Prix mensuel', paid: 'Payé (portefeuille)', next: 'Prochain renouvellement', balance: 'Solde du portefeuille', added: 'Ajouté', newBalance: 'Nouveau solde', from: 'De', to: 'Vers', when: 'Quand', length: 'Durée', calls: 'Appels', answered: 'Décrochés', pressed: 'Touche pressée', transferred: 'Transférés', voicemail: 'Messagerie', noAnswer: 'Sans réponse', failed: 'Échecs / occupé', callsIn: 'Appels reçus', missed: 'Manqués', voicemails: 'Messages vocaux', texts: 'SMS', outgoing: 'Appels sortants', minutes: 'Minutes' },
+  labels: { number: 'Numéro', plan: 'Forfait', country: 'Pays', renews: 'Renouvellement le', monthly: 'Prix mensuel', paid: 'Payé (portefeuille)', next: 'Prochain renouvellement', balance: 'Solde du portefeuille', added: 'Ajouté', newBalance: 'Nouveau solde', from: 'De', to: 'Vers', when: 'Quand', length: 'Durée', calls: 'Appels', answered: 'Décrochés', pressed: 'Touche pressée', transferred: 'Transférés', voicemail: 'Messagerie', messagesLeft: 'Messages déposés', noAnswer: 'Sans réponse', failed: 'Échecs / occupé', callsIn: 'Appels reçus', missed: 'Manqués', voicemails: 'Messages vocaux', texts: 'SMS', outgoing: 'Appels sortants', minutes: 'Minutes' },
   foot: { why: (e) => `Vous recevez cet e-mail car ${e} possède un compte CloudIVR.`, settings: 'Paramètres e-mail', support: 'Contacter le support', off: { weekly: 'Ne plus recevoir le résumé hebdo', campaigns: 'Ne plus recevoir les rapports de campagne', voicemail: 'Ne plus recevoir les alertes de messagerie', missed: 'Ne plus recevoir les alertes d’appel manqué' } },
   adds: {
     pro: ['Messagerie vocale avec transcription', 'Menu à touches — 1 pour les ventes', 'Campagnes Quick IVR et Bulk IVR', 'Collecte de codes avec Accepter / Refuser', 'Téléphone navigateur, SIP et enregistrement d’appels'],
@@ -164,7 +164,7 @@ const fr = {
     intro: () => 'Merci d’avoir rejoint CloudIVR. Trois étapes rapides vous séparent d’un numéro qui répond à chaque appel, oriente vos appelants avec un menu à touches ou un agent vocal IA, et appelle toute votre liste à votre place.',
     steps: [
       { title: 'Choisissez votre numéro', text: 'Local, mobile ou gratuit dans 17 pays. La plupart sont actifs en quelques minutes.' },
-      { title: 'Alimentez votre portefeuille', text: 'Payez en crypto en quelques secondes. Votre solde couvre les renouvellements et les appels.' },
+      { title: 'Alimentez votre portefeuille', text: 'Rechargez en quelques secondes. Votre solde couvre les renouvellements et les appels.' },
       { title: 'Activez la magie', text: 'Messagerie vocale avec transcription, menu à touches, appels Quick IVR et campagnes — tout depuis un seul écran.' },
     ],
     cta: () => 'Obtenir mon numéro',
@@ -242,7 +242,7 @@ const fr = {
     preheader: () => 'Rechargez dès 10 $ et tout reprend là où ça s’était arrêté.',
     eyebrow: 'Portefeuille vide', title: () => 'Vos appels sont en attente.',
     intro: (d, f) => `Votre portefeuille est descendu à ${f.usd(d.balance)}, ce qui ne couvre plus les appels sortants. Les appels Quick IVR, les campagnes et les appels renvoyés sont en pause jusqu’à votre recharge.`,
-    points: ['Rechargez dès 10 $ en crypto en quelques secondes', 'Les campagnes en pause reprennent en un clic', 'Vos numéros et réglages restent en sécurité'],
+    points: ['Rechargez dès 10 $ en quelques secondes', 'Les campagnes en pause reprennent en un clic', 'Vos numéros et réglages restent en sécurité'],
     cta: () => 'Recharger maintenant',
   },
   campaignDone: {
@@ -290,7 +290,7 @@ const fr = {
 
 const es = {
   hi: (n) => (n ? `Hola ${n},` : 'Hola,'),
-  labels: { number: 'Número', plan: 'Plan', country: 'País', renews: 'Se renueva el', monthly: 'Precio mensual', paid: 'Pagado (billetera)', next: 'Próxima renovación', balance: 'Saldo de la billetera', added: 'Añadido', newBalance: 'Nuevo saldo', from: 'De', to: 'A', when: 'Cuándo', length: 'Duración', calls: 'Llamadas', answered: 'Contestadas', pressed: 'Pulsaron tecla', transferred: 'Transferidas', voicemail: 'Buzón', noAnswer: 'Sin respuesta', failed: 'Fallidas / ocupado', callsIn: 'Llamadas recibidas', missed: 'Perdidas', voicemails: 'Mensajes de voz', texts: 'SMS', outgoing: 'Llamadas salientes', minutes: 'Minutos' },
+  labels: { number: 'Número', plan: 'Plan', country: 'País', renews: 'Se renueva el', monthly: 'Precio mensual', paid: 'Pagado (billetera)', next: 'Próxima renovación', balance: 'Saldo de la billetera', added: 'Añadido', newBalance: 'Nuevo saldo', from: 'De', to: 'A', when: 'Cuándo', length: 'Duración', calls: 'Llamadas', answered: 'Contestadas', pressed: 'Pulsaron tecla', transferred: 'Transferidas', voicemail: 'Buzón', messagesLeft: 'Mensajes dejados', noAnswer: 'Sin respuesta', failed: 'Fallidas / ocupado', callsIn: 'Llamadas recibidas', missed: 'Perdidas', voicemails: 'Mensajes de voz', texts: 'SMS', outgoing: 'Llamadas salientes', minutes: 'Minutos' },
   foot: { why: (e) => `Recibes este correo porque ${e} tiene una cuenta de CloudIVR.`, settings: 'Configuración de correo', support: 'Escribir a soporte', off: { weekly: 'Dejar de recibir el resumen semanal', campaigns: 'Dejar de recibir informes de campaña', voicemail: 'Dejar de recibir avisos de buzón', missed: 'Dejar de recibir avisos de llamadas perdidas' } },
   adds: {
     pro: ['Buzón de voz con transcripción', 'Menú de teclas — 1 para ventas', 'Campañas Quick IVR y Bulk IVR', 'Recogida de códigos con Aceptar / Rechazar', 'Teléfono en el navegador, SIP y grabación de llamadas'],
