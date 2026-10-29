@@ -8,7 +8,6 @@ import { Reveal, CountUp, Wave } from './kit';
 const COUNTERS = [
   ['callsHandled', 'Calls handled on the platform'],
   ['campaignCalls', 'Campaign calls placed by Bulk IVR and AI agents'],
-  ['numbersActive', 'Numbers live right now'],
   ['countries', 'Countries with numbers'],
 ];
 
