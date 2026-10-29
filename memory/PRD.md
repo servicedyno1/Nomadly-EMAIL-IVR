@@ -1823,3 +1823,8 @@ calls and SIP are simulated; inbound calls use a pretend-call simulator).
 - Source copy cleaned: cloudivr-web/email-copy.js (welcome + wallet-empty EN/FR), bot-welcome-email.js (EN/FR),
   cloudivr-web/orders.js swapped-number message. Telegram/bot texts unchanged (not email).
 - Note: reseller bots (app-wl/voodoo/proshop) were NOT redeployed — their emails still use their own older code.
+- 2026-10-29: White-label bots moved to Telnyx email. Running releases (app-wl 103003Z-e433e1a, app-voodoo 103143Z-e433e1a,
+  app-proshop 103212Z-e433e1a) had an old mailer with NO Telnyx support (MAIL_PROVIDER=telnyx was ignored → MailerSend/Brevo).
+  Patched in place ONLY js/mailer.js (new, with "crypto" filter) + email-copy.js/orders.js wording; backups *.bak-crypto-<ts>;
+  pm2 restarted app-wl-a/app-voodoo-a/app-proshop-b. Test sends via Telnyx ok for all three (to moxxcompany@gmail.com).
+  A future reseller deploy must keep these patches (not yet in their source).
