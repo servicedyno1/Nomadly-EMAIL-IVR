@@ -31,7 +31,7 @@ async function step(col, id) {
   }
   const o = outcomeFor(c, lead), p = `leads.${lead.index}`, now = new Date()
   const inc = { 'stats.completed': 1 }
-  if (o.answered) inc['stats.answered'] = 1
+  if (o.answered && o.status !== 'voicemail') inc['stats.answered'] = 1 // same rule as the real engine: voicemail is counted on its own
   if (o.digit) inc['stats.keyPressed'] = 1
   if (o.transferred) inc['stats.transferred'] = 1
   if (o.status === 'no_answer') inc['stats.noAnswer'] = 1

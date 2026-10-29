@@ -1929,5 +1929,5 @@ calls and SIP are simulated; inbound calls use a pretend-call simulator).
   - Empty leads message fixed; cancel copy for never-started campaigns; voicemail "messages left" hidden before start; friendly lead labels ("no answer", "not called" on ended campaigns).
   - Add-audio + caller-ID dialogs compact (!min-h-0; .civr has min-height 100vh).
   - SMS: 10DLC/toll-free blocked note has "Ask us to register it" -> openHelpChat(prefill). openHelpChat(text) now takes optional text.
-  - Known/left: stats grid counts voicemail as answered, area card counts people only (same in prod engine). Sim completion doesn't create the completion inbox notification. No self-serve 10DLC registration and no "new text" composer (texts only as replies).
+  - Voicemail/answered mismatch was simulator-only (real engine counts voicemail separately); fixed in campaign-sim.js 2026-10-29, preview only (sim never runs in prod). Known/left: Sim completion doesn't create the completion inbox notification. No self-serve 10DLC registration and no "new text" composer (texts only as replies).
   - NOT deployed yet.
