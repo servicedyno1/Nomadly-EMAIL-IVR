@@ -88,6 +88,7 @@ function routes(router, { h, numbersApi }) {
     res.json({ deleted: true })
   }))
   router.post('/ai-agents/:id/test', withAgent(async (req, res) => {
+    if (req.agent.disabled) return bad(res, 403, 'agent_stopped', 'This AI agent was stopped by CloudIVR. Contact support.')
     const r = await ai.createTest(req.webChatId, req.agent.id, req.body?.as)
     if (r.error) return bad(res, ...r.error)
     res.json({ path: `/api/cloudivr-web/ai-agents/test/${r.token}`, maxSeconds: r.maxSeconds })

@@ -163,6 +163,7 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
     const ai = require('../ai-agent')
     const agent = await ai.store.getAgent(b.agentId, chatId)
     if (!agent) return bad(res, 400, 'invalid_agent', 'Pick one of your AI agents.')
+    if (agent.disabled) return bad(res, 403, 'agent_stopped', 'This AI agent was stopped by CloudIVR. Contact support.')
     const { leads, errors } = await leadsOf(chatId, b)
     if (!leads.length) return bad(res, 400, 'no_leads', errors[0] || 'Add at least one number to call (one per line, optional ",name").')
     if (leads.length > bulkCallService.MAX_BULK_LEADS) return bad(res, 400, 'too_many_leads', `Maximum ${bulkCallService.MAX_BULK_LEADS} numbers per campaign.`)

@@ -237,10 +237,14 @@ async function adminSubmitDocs(id, files, { admin } = {}) {
   const out = await PDFDocument.create()
   for (const f of files) {
     const b = f.buffer
-    if (b.slice(0, 5).toString() === '%PDF-') { const src = await PDFDocument.load(b, { ignoreEncryption: true }); (await out.copyPages(src, src.getPageIndices())).forEach(p => out.addPage(p)); continue }
+    if (b.slice(0, 5).toString() === '%PDF-') {
+      try { const src = await PDFDocument.load(new Uint8Array(b), { ignoreEncryption: true }); (await out.copyPages(src, src.getPageIndices())).forEach(p => out.addPage(p)) } catch (_) { return { error: `${f.originalname || 'A PDF'} couldn’t be read.` } }
+      continue
+    }
     const isPng = b[0] === 0x89 && b[1] === 0x50, isJpg = b[0] === 0xff && b[1] === 0xd8
     if (!isPng && !isJpg) return { error: `${f.originalname || 'A file'} isn’t a PDF, JPG or PNG.` }
-    const img = isPng ? await out.embedPng(b) : await out.embedJpg(b)
+    let img
+    try { img = isPng ? await out.embedPng(new Uint8Array(b)) : await out.embedJpg(new Uint8Array(b)) } catch (_) { return { error: `${f.originalname || 'An image'} couldn’t be read — save it again as JPG or PNG.` } }
     const scale = Math.min(1, 560 / img.width, 740 / img.height)
     const page = out.addPage([612, 792])
     page.drawImage(img, { x: (612 - img.width * scale) / 2, y: (792 - img.height * scale) / 2, width: img.width * scale, height: img.height * scale })

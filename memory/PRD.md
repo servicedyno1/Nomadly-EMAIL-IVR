@@ -1800,3 +1800,19 @@ calls and SIP are simulated; inbound calls use a pretend-call simulator).
 - ⚠️ Customer fundmyllc@gmail.com agents "Emily"/"Brian smith" contain explicit fraud script markers (PCH prize impersonation,
   "[Victim Name]", "[Your Fake Name]"). User chose to leave campaigns running and handle blocking manually.
 - Tests: js/tests/ai_bridge_flow.test.js 16/16; iteration_174 backend 100% / frontend 100%; follow-ups all fixed.
+
+## 2026-10-29 08:40Z — Admin dashboard + Landline-to-Texting no-bill flow (LIVE app-main, release f36ca94)
+- cloudivr.net/admin (preview /cloudivr/admin): owner sign-in CIVR_ADMIN_EMAIL + CIVR_ADMIN_PASSWORD_HASH_B64 (bcrypt, base64)
+  → 6-digit email code (10 min) → 12 h httpOnly cookie civr_admin; 5 fails/IP/15 min lock. js/cloudivr-web/admin-auth.js.
+- js/cloudivr-web/admin.js (mounted before customer auth): overview (deposits, net sales − refunds, users bot+web, numbers,
+  campaigns, texting queue counts, flagged AI scripts), users & wallets (search, detail, credit/debit, suspend → webAccounts.disabled
+  + chatIdBlocked), texting queue (upload PDFs/JPG/PNG → merged PDF + signed LOA → Telnyx; message customer; reject & refund),
+  numbers, campaigns (pause/resume/stop), AI agents (flagged filter, stop/allow → agent.disabled blocks dials, campaign creation,
+  tests, inbound), resellers read-only via RESELLER_DBS env (Smadav/Voodoo/PROSHOP DBs), admin audit log (adminAudit). Every
+  change requires a reason.
+- Hosted SMS: customer can skip bill (+$50 NOBILL_FEE) → status admin_docs, admin alerted on Telegram; customer told approval
+  takes 1–3 business days (Telnyx reviews Mon–Fri); review shows submitted date + "expected by" (3 business days).
+- Frontend: pages/admin/* (AdminApp, AdminLogin, Overview, Users, Texting, Cloud[+Resellers, Audit], common); texting
+  DocumentsStep no-bill option, NewSetup timeline, NumberPanel admin_docs + expected date.
+- Tests: backend/tests/test_cloudivr_admin_dashboard.py 16/16 pass; UI smoke-checked by screenshots (testing agent's frontend
+  pass did not complete — credits ran out).
