@@ -11,7 +11,7 @@ const phoneConfig = require('../phone-config')
 const telnyxApi = require('../telnyx-service')
 const { getBalance, smartWalletDeduct } = require('../utils.js')
 
-const RATE = () => parseFloat(process.env.AI_AGENT_RATE_PER_MIN || '0.20')
+const RATE = () => parseFloat(process.env.AI_AGENT_RATE_PER_MIN || '0.30')
 const TEST_MAX_SECS = 180
 const TEST_DAILY_SECS = 15 * 60
 const CLIENT_STATE = Buffer.from('ai_agent').toString('base64')
@@ -79,7 +79,7 @@ async function dialLead(campaign, lead) {
   try {
     const r = await tx('/calls', {
       connection_id: process.env.TELNYX_CALL_CONTROL_APP_ID, to: lead.number, from: campaign.callerId, webhook_url: `${deps.selfUrl}/telnyx/voice-webhook`,
-      client_state: CLIENT_STATE, answering_machine_detection: 'detect', timeout_secs: 30, ...streamParams(token),
+      client_state: CLIENT_STATE, answering_machine_detection: 'premium', timeout_secs: 30, ...streamParams(token),
     })
     const ccid = r.data?.data?.call_control_id
     track(ccid, { kind: 'outbound', rate: leadRate(lead.number, records(agent)), baseRate: leadRate(lead.number), recRate: recRate(agent), calendar, token, chatId: String(campaign.chatId), agent, number: campaign.callerId, other: lead.number, leadName: lead.name || null, campaignId: campaign.id, leadIndex: lead.index, reason: lead.reason || null })
@@ -118,10 +118,22 @@ function watchWallet(s) {
 async function onWebhook(eventType, payload) {
   const s = sessions.get(payload.call_control_id)
   if (!s) return
-  if (eventType === 'call.answered' && !s.answeredAt) { s.answeredAt = Date.now(); watchWallet(s) }
-  else if (eventType === 'call.machine.detection.ended') { s.answeredBy = payload.result || null; if (payload.result === 'machine') s.bridge?.voicemail() }
+  if (eventType === 'call.answered' && !s.answeredAt) { s.answeredAt = Date.now(); watchWallet(s); signal(s, 'answered') }
+  else if (eventType === 'call.machine.detection.ended' || eventType === 'call.machine.premium.detection.ended') {
+    const r = payload.result || null
+    s.answeredBy = /^human/.test(r || '') ? 'human' : r
+    if (r === 'machine' || r === 'fax_detected') signal(s, 'onMachine')
+  } else if (eventType === 'call.machine.greeting.ended' || eventType === 'call.machine.premium.greeting.ended') {
+    if (/beep_detected|ended/.test(payload.result || 'ended')) signal(s, 'beep')
+  }
   else if (eventType === 'streaming.failed') { log(`[AIAgent] stream failed ${s.ccid}: ${payload.failure_reason || ''}`); hangup(s.ccid) }
   else if (eventType === 'call.hangup') await finish(s, payload).catch(e => log(`[AIAgent] finish error: ${e.stack || e.message}`))
+}
+
+// Call events can arrive before Telnyx opens the media stream: queue them for the bridge.
+function signal(s, what) {
+  if (s.bridge) return s.bridge[what]()
+  ;(s.pending = s.pending || []).push(what)
 }
 
 // Telnyx opened the media stream for a tracked call.
@@ -135,6 +147,8 @@ function onStream(token, ws) {
   ws.on('message', (m) => { try { s.bridge.onMedia(JSON.parse(m)) } catch (_) { /* bad frame */ } })
   ws.on('close', () => s.bridge.stop())
   s.bridge.start()
+  for (const what of s.pending || []) s.bridge[what]()
+  s.pending = null
 }
 
 async function transfer(s, to) {
@@ -162,7 +176,8 @@ async function finish(s, payload) {
     duration ? saveRecording(s.bridge?.rec, s.chatId) : null,
   ])
   const machine = res.voicemail || s.answeredBy === 'machine'
-  const outcome = res.optedOut ? 'opted_out' : res.booking ? 'booked' : s.transferredTo ? 'transferred' : machine ? 'voicemail' : res.outcome || (res.message ? 'message' : sum?.outcome) || (duration ? 'no_conversation' : null)
+  const talked = (res.transcript || []).some(x => x.role === 'caller')
+  const outcome = res.optedOut ? 'opted_out' : res.booking ? 'booked' : s.transferredTo ? 'transferred' : machine ? 'voicemail' : res.screened && !res.outcome ? 'screened' : !duration ? 'no_answer' : !talked && !res.outcome ? 'no_conversation' : res.outcome || (res.message ? 'message' : sum?.outcome) || (duration ? 'no_conversation' : null)
   // The recording surcharge only applies when an MP3 was actually saved.
   const baseRate = s.baseRate ?? (s.kind === 'inbound' ? RATE() : leadRate(s.other))
   const recordingRate = recording ? (s.recRate ?? recorder.RECORD_RATE()) : 0

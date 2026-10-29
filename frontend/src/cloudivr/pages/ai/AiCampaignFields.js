@@ -16,7 +16,7 @@ export function CampaignKind({ value, onChange, aiLocked }) {
   return (
     <div className="flex flex-col sm:flex-row gap-2 mb-4" data-testid="campaign-kind">
       {opt('audio', 'Recorded message', 'Play audio, count key presses or transfer.', 'campaign-kind-audio')}
-      {opt('ai', 'AI voice agent conversation', 'Business plan · your AI voice agent talks with each lead · $0.20/min (+$0.02 recorded).', 'campaign-kind-ai', aiLocked)}
+      {opt('ai', 'AI voice agent conversation', 'Business plan · your AI voice agent talks with each lead · $0.30/min (+$0.02 recorded).', 'campaign-kind-ai', aiLocked)}
     </div>
   );
 }
@@ -34,7 +34,7 @@ export function AiCampaignFields({ agentId, onChange }) {
       <ul className="text-xs text-[#a1a1aa] space-y-2" data-testid="campaign-ai-rules">
         <li className="flex gap-2"><Clock className="w-4 h-4 shrink-0 text-[#818cf8]" />Calls only between 8am and 9pm in each lead's local time — others wait and are called when their window opens.</li>
         <li className="flex gap-2"><Ban className="w-4 h-4 shrink-0 text-[#818cf8]" />Numbers on your do-not-call list are skipped; anyone who asks not to be called again is added to it.</li>
-        <li className="flex gap-2"><Bot className="w-4 h-4 shrink-0 text-[#818cf8]" />The agent says it is an AI, leaves a short voicemail on answering machines and bills $0.20 per started minute (+$0.02 when the agent records). Unanswered calls are free. Agents with bookings on add appointments to your Google Calendar.</li>
+        <li className="flex gap-2"><Bot className="w-4 h-4 shrink-0 text-[#818cf8]" />The agent says it is an AI, waits for the person to say hello, introduces itself to call screeners, leaves one voicemail after the beep and bills $0.30 per started minute (+$0.02 when the agent records). Unanswered calls are free. Agents with bookings on add appointments to your Google Calendar.</li>
       </ul>
     </div>
   );

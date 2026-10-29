@@ -14,7 +14,7 @@ const openingLib = require('./opening')
 const PATH = /^(?:\/api)?\/(ai-agent\/stream|cloudivr-web\/ai-agents\/test)\/([A-Za-z0-9_-]{16,64})(?:[/?]|$)/
 
 function init({ db, server, ...deps }) {
-  store.init(db)
+  store.init(db, { notifyAdmin: deps.notifyAdmin })
   gcal.init(db)
   calls.init(deps)
   recorder.setDb(db)

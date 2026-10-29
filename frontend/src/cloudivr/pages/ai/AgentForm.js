@@ -10,7 +10,7 @@ import { AI_LANGS } from './languages';
 import { OpeningPreview, ScriptGuide } from './OpeningPreview';
 
 export const EMPTY_AGENT = {
-  name: '', businessName: '', language: 'en', voice: 'marin', goal: '', greeting: '', firstMessage: '', waitForHello: false, knowledge: '', transferTo: '', takeMessages: true, maxMinutes: 5, record: true,
+  name: '', businessName: '', language: 'en', voice: 'marin', goal: '', greeting: '', firstMessage: '', waitForHello: true, knowledge: '', transferTo: '', takeMessages: true, maxMinutes: 5, record: true,
   booking: { enabled: false, calendarId: 'primary', calendarName: null, slotMinutes: 30, days: [1, 2, 3, 4, 5], start: '09:00', end: '17:00', timeZone: browserZone() },
 };
 
@@ -73,7 +73,7 @@ export function AgentForm({ initial, voices, recordRate, recordingDays, onSaved,
       <Field label="First message (optional)" hint="The exact words that open every call. Use {name}, {business} and {lead_name} (or {lead_name|there} for leads without a name). Leave empty for the standard opening."><Text f={f} set={set} k="firstMessage" rows={2} ph="Hi {lead_name|there}, this is {name} from {business}. Do you have a minute?" testid="ai-agent-first-message-input" /></Field>
       <div className="flex items-center justify-between gap-4" data-testid="ai-agent-wait-hello-row">
         <span className="text-sm">Wait for them to say hello<span className="block text-xs text-[#a1a1aa] mt-0.5">On calls to leads, the agent stays quiet until the person answers (“Hello?”), then speaks. If nobody says anything for 4 seconds, it starts anyway.</span></span>
-        <Toggle checked={!!f.waitForHello} onChange={v => set('waitForHello', v)} testid="ai-agent-wait-hello-toggle" />
+        <Toggle checked={f.waitForHello !== false} onChange={v => set('waitForHello', v)} testid="ai-agent-wait-hello-toggle" />
       </div>
       <OpeningPreview f={f} />
       <Field label="Personality & script" hint="What the agent does after the first message, how it talks and what it should find out."><Text f={f} set={set} k="goal" rows={5} ph="Friendly receptionist. Answer questions, book cleanings and get the caller's name and preferred time." testid="ai-agent-goal-input" /></Field>

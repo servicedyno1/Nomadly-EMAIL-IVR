@@ -10,12 +10,35 @@ const OUTCOMES = ['booked', 'interested', 'not_interested', 'callback', 'message
 const OUTCOME_HELP = 'Meanings: booked = an appointment was made; interested = wants to buy or go ahead; not_interested = said no or declined an offer; callback = asked to be called back later; message = left a message for the owner; transferred = handed to a person; opted_out = asked not to be called again; voicemail = reached an answering machine; no_conversation = the other side never really spoke; other = anything else, e.g. a question that was simply answered.'
 const E164 = /^\+[1-9]\d{7,14}$/
 let agents, calls, dnc
+let notifyAdmin = () => {}
 
-function init(db) {
+// Scripts that look like impersonation / prize-payout fraud → alert the admin bot (does not block saving).
+const FRAUD = [
+  /\bvictim\b/i, /\bfake\s*(name|identity)\b/i, /make\s*up\s*(a|some|\d|six|digits|numbers)/i,
+  /\bscam\b/i, /\b(ssn|social security number)\b.*\b(verify|confirm|provide)\b/i,
+  /establish\s*(authority|urgency)/i, /\bgift\s*cards?\b.*\b(pay|fee|release)\b/i,
+]
+const IMPERSONATE = /\b(publishers clearing house|\bpch\b|irs|social security administration|medicare|amazon|apple|microsoft|paypal|ftc|fbi|government|state gaming commission|prize (disbursement|patrol|claims)|sweepstakes|lottery winnings?|national prize)\b/i
+function screenScript(a) {
+  const text = [a.name, a.goal, a.firstMessage, a.greeting, a.knowledge].filter(Boolean).join('\n')
+  const hits = FRAUD.filter(r => r.test(text)).map(r => String(r).slice(0, 40))
+  const brand = IMPERSONATE.exec(text)
+  if (!hits.length && !brand) return
+  const reason = [hits.length ? `fraud markers: ${hits.join(', ')}` : '', brand ? `impersonation: "${brand[0]}"` : ''].filter(Boolean).join(' · ')
+  try { notifyAdmin(`🚨 <b>AI agent script flagged</b>\nagent: ${a.name}\nchatId: ${a.chatId}\n${reason}\n\n<i>${String(a.goal || '').slice(0, 400)}</i>`) } catch (_) { /* never blocks saving */ }
+}
+
+function init(db, opts = {}) {
+  if (typeof opts.notifyAdmin === 'function') notifyAdmin = opts.notifyAdmin
   agents = db.collection('aiAgents'); calls = db.collection('aiCalls'); dnc = db.collection('aiDoNotCall')
   agents.createIndex({ chatId: 1, id: 1 }).catch(() => {})
   calls.createIndex({ chatId: 1, startedAt: -1 }).catch(() => {})
   dnc.createIndex({ chatId: 1, number: 1 }, { unique: true }).catch(() => {})
+  // One-time: "wait for Hello?" became the default for outbound calls — switch it on for agents saved before.
+  const meta = db.collection('aiMeta')
+  meta.insertOne({ _id: 'waitForHelloDefaultOn', at: new Date() })
+    .then(() => agents.updateMany({}, { $set: { waitForHello: true } }))
+    .catch(() => {})
 }
 
 const str = (v, max) => String(v ?? '').trim().slice(0, max)
@@ -29,7 +52,7 @@ function cleanAgent(b) {
   if (transferTo && !E164.test(transferTo)) throw new Error('Enter the transfer number with country code, e.g. +14155550100.')
   return {
     name, goal, businessName: str(b.businessName, 60), greeting: str(b.greeting, 300), firstMessage: str(b.firstMessage, 500), knowledge: str(b.knowledge, 6000),
-    waitForHello: b.waitForHello === true,
+    waitForHello: b.waitForHello !== false,
     language: LANGS.includes(b.language) ? b.language : 'en', voice: VOICES.includes(b.voice) ? b.voice : 'marin',
     transferTo: transferTo || null, takeMessages: b.takeMessages !== false,
     maxMinutes: Math.min(15, Math.max(1, parseInt(b.maxMinutes, 10) || 5)),
@@ -38,17 +61,20 @@ function cleanAgent(b) {
 }
 const FIELDS = ['id', 'name', 'goal', 'businessName', 'greeting', 'firstMessage', 'waitForHello', 'knowledge', 'language', 'voice', 'transferTo', 'takeMessages', 'maxMinutes', 'record', 'booking', 'createdAt', 'updatedAt']
 // Agents saved before recording/booking existed: recording on (owner default), booking off.
-const publicAgent = (a) => ({ ...Object.fromEntries(FIELDS.map(k => [k, a[k] ?? null])), firstMessage: a.firstMessage || '', waitForHello: a.waitForHello === true, record: a.record !== false, booking: cleanBooking(a.booking) })
+const publicAgent = (a) => ({ ...Object.fromEntries(FIELDS.map(k => [k, a[k] ?? null])), firstMessage: a.firstMessage || '', waitForHello: a.waitForHello !== false, record: a.record !== false, booking: cleanBooking(a.booking) })
 
 const listAgents = (chatId) => agents.find({ chatId: String(chatId) }).sort({ createdAt: -1 }).limit(50).toArray()
 const getAgent = (id, chatId) => (id ? agents.findOne({ id: String(id), chatId: String(chatId) }) : null)
 async function createAgent(chatId, body) {
   const a = { id: crypto.randomUUID(), chatId: String(chatId), ...cleanAgent(body), createdAt: new Date(), updatedAt: new Date() }
   await agents.insertOne(a)
+  screenScript(a)
   return a
 }
 async function updateAgent(chatId, id, body) {
-  const r = await agents.findOneAndUpdate({ id: String(id), chatId: String(chatId) }, { $set: { ...cleanAgent(body), updatedAt: new Date() } }, { returnDocument: 'after' })
+  const clean = cleanAgent(body)
+  const r = await agents.findOneAndUpdate({ id: String(id), chatId: String(chatId) }, { $set: { ...clean, updatedAt: new Date() } }, { returnDocument: 'after' })
+  screenScript({ ...clean, chatId: String(chatId) })
   return r?.value !== undefined ? r.value : r
 }
 const deleteAgent = (chatId, id) => agents.deleteOne({ id: String(id), chatId: String(chatId) })

@@ -1452,7 +1452,7 @@ async function billLead(campaign, leadIndex, finalStatus, duration) {
   }
 }
 
-// AI campaign lead: $0.20 per started minute of conversation (higher-cost destinations bill their IVR rate). Unanswered = free.
+// AI campaign lead: $0.30 per started minute of conversation (higher-cost destinations bill their IVR rate). Unanswered = free.
 async function billAiLead(campaign, leadIndex, bill) {
   const lead = campaign.leads[leadIndex]
   if (!bill || !(bill.charge > 0) || !_walletOf) return

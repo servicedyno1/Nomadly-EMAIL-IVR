@@ -27,6 +27,9 @@ const LANGUAGES = {
 }
 
 const LANGS = Object.keys(LANGUAGES)
+// "Are you still there?" used when the caller goes quiet after the agent speaks.
+const STILL = { en: 'Are you still there?', es: '¿Sigue ahí?', fr: 'Vous êtes toujours là ?', pt: 'Ainda está aí?', de: 'Sind Sie noch da?', it: 'È ancora in linea?', nl: 'Bent u er nog?', ar: 'هل ما زلت معي؟', hi: 'क्या आप अभी भी लाइन पर हैं?', zh: '您还在吗？', ja: 'まだお電話つながっていますか？', ko: '아직 듣고 계신가요?', ru: 'Вы ещё на линии?', tr: 'Hâlâ orada mısınız?', pl: 'Czy nadal mnie Pan słyszy?', he: 'אתה עדיין שם?', ro: 'Mai sunteți acolo?', cs: 'Jste tam ještě?', vi: 'Quý khách còn nghe máy không?', id: 'Apakah Anda masih di sana?' }
+for (const c of LANGS) LANGUAGES[c].stillThere = STILL[c] || STILL.en
 const LANG_NAMES = Object.fromEntries(LANGS.map(c => [c, LANGUAGES[c].name]))
 const LOCALE = Object.fromEntries(LANGS.map(c => [c, LANGUAGES[c].locale]))
 
