@@ -1830,3 +1830,10 @@ calls and SIP are simulated; inbound calls use a pretend-call simulator).
   A future reseller deploy must keep these patches (not yet in their source).
 - 2026-10-29: Shared fixes now flow to WhiteLabel on every Save to GitHub via the `shared` job (manifest
   ops/whitelabel-shared-files.txt). See memory/DEPLOYMENT_STATE.md.
+
+## STANDING RULE (owner, 2026-10-29) — white-label shared fixes
+- Do NOT wait for the owner to say "this should go to the white-label bots too". For EVERY change, the agent decides:
+  if the fix also applies to the white-label bots (Smadav, Voodoo Land, PROSHOP) — e.g. email sending/wording, provider
+  policy, billing/wallet bugs, security fixes, shared bot code — add the changed file(s) to ops/whitelabel-shared-files.txt
+  in the same task, and tell the owner in the summary which files will travel on the next Save to GitHub.
+- Never add CloudIVR-web-only features or brand files. If a file differs heavily on WhiteLabel, warn the owner instead.
