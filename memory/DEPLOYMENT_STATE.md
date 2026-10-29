@@ -318,3 +318,10 @@ The new layout differs from the old in-place `/opt/nomadly/app-main` checkout. O
 - Manifest now: js/mailer.js, js/cloudivr-web/email-copy.js, js/bot-welcome-email.js. Add files there for future shared fixes.
 - WhiteLabel head on 2026-10-29 = e433e1ac (= what the 3 reseller bots run). Those releases were hand-patched the same day
   (mailer + copy); the first shared sync makes git match them.
+
+## 2026-10-29 13:33Z — workspace deploy 42ee773 (+5 uncommitted) → app-main ONLY, release 20261029T133322Z-42ee773 on app-main-a :5000
+- Contents: cross-device usability/accessibility fixes (tap targets, >=12px text, toggle/select labels, contrast, landmarks,
+  keyboard-scrollable tables, number-detail error state, landing mock-up text sizes). Frontend only.
+- Verified live: /health healthy + DB connected, 0 calls at flip; cloudivr.net /, /login, /signup, /sip = 200; bundle main.80cca34b.js
+  contains the new strings; CSS has the new progress bar. app-main-b stopped. WL apps untouched.
+- Rollback: `bash /opt/nomadly/deploy.sh app-main rollback`. ⚠️ Save to GitHub (main) or the next CI deploy rolls this back.
