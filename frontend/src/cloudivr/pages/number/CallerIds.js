@@ -1,14 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { toast } from 'sonner';
-import { BadgeCheck, Loader2, Trash2, ShieldCheck } from 'lucide-react';
+import { BadgeCheck, Loader2, Trash2, ShieldCheck, Clock } from 'lucide-react';
 import { api, useApi, enc, money } from '../../api';
 import { Field, ErrorNote } from '../../ui';
 import { usePrivacy } from '../../privacy';
 
 const split = (s) => String(s || '').split(/[\n,;]+/).map(x => x.trim()).filter(Boolean);
 
-function AddForm({ onSent }) {
+function AddForm({ price, onSent }) {
   const [text, setText] = useState('');
   const [method, setMethod] = useState('sms');
   const [busy, setBusy] = useState(false);
@@ -33,6 +33,36 @@ function AddForm({ onSent }) {
       </div>
       {fails.length > 0 && <ul className="text-xs text-[#fb7185] space-y-1" data-testid="caller-ids-send-failures">{fails.map(f => <li key={f.number}><span className="font-mono">{f.number}</span>: {f.message}</li>)}</ul>}
       <ErrorNote error={fails.length ? null : error} testid="caller-ids-error" />
+      <ReviewForm price={price} onDone={onSent} />
+    </div>
+  );
+}
+
+// For numbers that can't receive a code (main line, toll-free, call center): customer attests, an admin approves.
+function ReviewForm({ price, onDone }) {
+  const [open, setOpen] = useState(false);
+  const [number, setNumber] = useState('');
+  const [note, setNote] = useState('');
+  const [authorized, setAuthorized] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState(null);
+  const submit = async () => {
+    setBusy(true); setError(null);
+    try { const d = await api('/caller-ids/request', { method: 'POST', body: { number, note, authorized } }); toast.success(d.message); setOpen(false); setNumber(''); setNote(''); setAuthorized(false); onDone(); }
+    catch (e) { setError(e); } finally { setBusy(false); }
+  };
+  if (!open) return <button type="button" className="text-sm text-[#818cf8] hover:underline" onClick={() => setOpen(true)} data-testid="caller-ids-review-open">Can’t receive a code? Request a number for review →</button>;
+  return (
+    <div className="border-t border-[#262626] pt-4 space-y-3" data-testid="caller-ids-review-form">
+      <p className="text-sm text-[#a1a1aa]">For a main line, toll-free or call-center number you can’t get a code on, we review it by hand. {money(price)}, refunded if we can’t approve it. Usually takes a business day.</p>
+      <Field label="Number"><input className="civr-input font-mono" inputMode="tel" value={number} onChange={e => setNumber(e.target.value)} placeholder="+18005550100" data-testid="caller-ids-review-number" /></Field>
+      <Field label="Why it’s yours (optional)" hint="e.g. our main office line / toll-free number"><input className="civr-input" value={note} onChange={e => setNote(e.target.value)} maxLength={300} data-testid="caller-ids-review-note" /></Field>
+      <label className="flex items-start gap-2 text-sm"><input type="checkbox" className="mt-1" checked={authorized} onChange={e => setAuthorized(e.target.checked)} data-testid="caller-ids-review-authorized" /><span>I’m authorized to use this number as my caller ID.</span></label>
+      <div className="flex items-center gap-2">
+        <button type="button" className="civr-btn civr-btn-primary civr-btn-sm" disabled={busy || !number.trim() || !authorized} onClick={submit} data-testid="caller-ids-review-submit">{busy && <Loader2 className="w-4 h-4 animate-spin" />}Submit for review · {money(price)}</button>
+        <button type="button" className="text-xs text-[#a1a1aa] hover:underline" onClick={() => setOpen(false)} data-testid="caller-ids-review-cancel">Cancel</button>
+      </div>
+      <ErrorNote error={error} testid="caller-ids-review-error" />
     </div>
   );
 }
@@ -63,6 +93,7 @@ export function CallerIds() {
   const all = data?.items || [];
   const items = all.filter(i => i.status === 'verified');
   const pending = all.filter(i => i.status === 'pending');
+  const review = all.filter(i => i.status === 'review');
   const price = data?.price ?? 25;
   const remove = async (n) => {
     if (!window.confirm(`Stop showing ${n}? Calls using it go back to their CloudIVR number. Verifying it again costs ${money(price)}.`)) return;
@@ -75,7 +106,13 @@ export function CallerIds() {
         <p className="text-sm text-[#a1a1aa] mt-2">Show a number you own, such as your mobile or office line, on Quick IVR calls, Call me first, campaigns, AI agent calls, text triggers and the browser phone. We send a code to that number to prove it’s yours. {money(price)} per number, charged only when the code is accepted. Calls are still billed from your CloudIVR number.</p>
         <div className="mt-4 space-y-2" data-testid="caller-ids-list">
           {pending.map((p, k) => <Pending key={p.number} item={p} price={price} i={k} onDone={reload} />)}
-          {!items.length && !pending.length && <p className="text-sm text-[#a1a1aa]" data-testid="caller-ids-empty">No verified numbers yet.</p>}
+          {review.map((r, k) => (
+            <div key={r.number} className="flex items-center justify-between border border-[#262626] rounded-xl px-4 py-2" data-testid={`caller-ids-review-${k}`}>
+              <span className="font-mono flex items-center gap-2 text-[#a1a1aa]"><Clock className="w-4 h-4" />{pv.phone(r.number)}<span className="civr-pill civr-pill-warn">awaiting approval</span></span>
+              <button type="button" onClick={() => remove(r.number)} className="w-9 h-9 flex items-center justify-center rounded-lg text-[#a1a1aa] hover:text-[#fb7185] hover:bg-[#1f1f1f]" aria-label="Cancel" data-testid={`caller-ids-review-cancel-${k}`}><Trash2 className="w-4 h-4" /></button>
+            </div>
+          ))}
+          {!items.length && !pending.length && !review.length && <p className="text-sm text-[#a1a1aa]" data-testid="caller-ids-empty">No verified numbers yet.</p>}
           {items.map((i, k) => (
             <div key={i.number} className="flex items-center justify-between border border-[#262626] rounded-xl px-4 py-2" data-testid={`caller-ids-item-${k}`}>
               <span className="font-mono flex items-center gap-2"><BadgeCheck className="w-4 h-4 text-[#818cf8]" />{pv.phone(i.number)}</span>
@@ -85,7 +122,7 @@ export function CallerIds() {
         </div>
         {data?.dryRun && <p className="text-xs text-[#a1a1aa] mt-3">Preview mode: no code is sent — use 123456.</p>}
       </div>
-      <AddForm onSent={reload} />
+      <AddForm price={price} onSent={reload} />
     </section>
   );
 }

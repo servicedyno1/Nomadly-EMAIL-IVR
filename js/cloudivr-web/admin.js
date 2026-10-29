@@ -6,6 +6,7 @@ const { MongoClient } = require('mongodb')
 const { walletOps } = require('./wallet')
 const HS = require('../hosted-sms.js')
 const aiStore = require('../ai-agent/store')
+const notify = require('./notify')
 
 const DAY = 864e5
 const esc = (s) => String(s || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
@@ -228,6 +229,21 @@ function createAdmin(db, { log = console.log, bulkCallService, adminAuth }) {
     }))
 
     r.get('/admin/audit', A, h(async (req, res) => res.json({ items: await audit.find({}).sort({ at: -1 }).limit(150).toArray() })))
+
+    // Customer-requested caller IDs waiting for approval (no code — admin vouches; Telnyx still filters the call).
+    const callerIdsAdmin = require('./caller-ids').adminApi(db)
+    r.get('/admin/caller-ids', A, h(async (req, res) => res.json({ items: await callerIdsAdmin.list() })))
+    r.post('/admin/caller-ids/:number/:action', A, h(async (req, res) => {
+      const reason = need(req, res); if (!reason) return
+      const number = String(req.params.number), approve = req.params.action === 'approve'
+      const d = await (approve ? callerIdsAdmin.approve(number) : callerIdsAdmin.reject(number))
+      if (!d) return bad(res, 404, 'not_found', 'That request is no longer waiting for review.')
+      await log1(req, approve ? 'caller_id_approve' : 'caller_id_reject', number, reason, { chatId: d.chatId })
+      notify.push(d.chatId, approve
+        ? `✅ Your caller ID ${number} was approved. You can now show it on your outgoing calls.`
+        : `❌ Your caller ID request for ${number} wasn’t approved, so the $${(d.charged || 0).toFixed(2)} was refunded. Reason: ${reason}`).catch(() => {})
+      res.json({ ok: true })
+    }))
   }
   return { routes }
 }

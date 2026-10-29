@@ -51,11 +51,26 @@ function routes(router, { db, h, numbersApi }) {
   col.createIndex({ chatId: 1 }).catch(() => {})
   const w = walletOps(db)
   const bad = (res, status, error, message) => res.status(status).json({ error, message })
-  const view = (d) => ({ number: d._id, status: d.status, method: d.method, verifiedAt: d.verifiedAt || null })
+  const view = (d) => ({ number: d._id, status: d.status, method: d.method, note: d.note || null, verifiedAt: d.verifiedAt || null })
 
   router.get('/caller-ids', h(async (req, res) => {
     const items = await col.find({ chatId: req.webChatId }).sort({ createdAt: -1 }).toArray()
-    res.json({ price: PRICE, dryRun: dry(), items: items.filter(d => d.status === 'verified' || Date.now() - d.createdAt < PENDING_MS).map(view) })
+    res.json({ price: PRICE, dryRun: dry(), items: items.filter(d => d.status === 'verified' || d.status === 'review' || Date.now() - d.createdAt < PENDING_MS).map(view) })
+  }))
+
+  // Admin-review path: show a number the customer owns but can't receive a code on (main line, toll-free, call center).
+  // No code; the customer attests they are authorized and an admin approves. Telnyx still filters the actual call.
+  router.post('/caller-ids/request', h(async (req, res) => {
+    const chatId = req.webChatId, n = clean(req.body.number)
+    if (!E164.test(n)) return bad(res, 400, 'invalid_number', 'Enter the number with country code, e.g. +14155550100.')
+    if (req.body.authorized !== true) return bad(res, 400, 'not_authorized', 'Confirm you are authorized to use this number as your caller ID.')
+    if (await numbersApi.findMine(chatId, n)) return bad(res, 400, 'own_number', 'That is already one of your CloudIVR numbers — pick it as “Call from” instead.')
+    const cur = await col.findOne({ _id: n })
+    if (cur?.chatId === chatId && (cur.status === 'verified' || cur.status === 'review')) return bad(res, 400, 'already_added', cur.status === 'review' ? 'This number is already waiting for approval.' : 'This number is already on your account.')
+    if (cur && cur.chatId !== chatId && (cur.status === 'verified' || cur.status === 'review' || Date.now() - cur.createdAt < PENDING_MS)) return bad(res, 409, 'number_taken', 'This number is in use on another account. Contact support if it is yours.')
+    if (!(await w.debit(chatId, PRICE))) return bad(res, 402, 'insufficient_balance', `Adding a caller ID for review costs $${PRICE.toFixed(2)}, refunded if we can’t approve it. Top up your wallet first.`)
+    await col.replaceOne({ _id: n }, { _id: n, chatId, status: 'review', method: 'review', charged: PRICE, note: String(req.body.note || '').slice(0, 300), createdAt: Date.now() }, { upsert: true })
+    res.status(201).json({ number: n, status: 'review', charged: PRICE, message: 'Thanks — we’ll review this number and email you. It usually takes a business day.' })
   }))
 
   router.post('/caller-ids', h(async (req, res) => {
@@ -111,7 +126,8 @@ function routes(router, { db, h, numbersApi }) {
     const chatId = req.webChatId, n = clean(req.params.number)
     const doc = await col.findOne({ _id: n, chatId })
     if (!doc) return bad(res, 404, 'not_found', 'That caller ID isn’t on your account.')
-    if (!dry()) await tx('delete', `/${encodeURIComponent(n)}`).catch(() => {})
+    if (doc.status === 'review' && doc.charged) await w.credit(chatId, doc.charged) // cancelled before review → refund
+    if (!dry() && doc.status !== 'review') await tx('delete', `/${encodeURIComponent(n)}`).catch(() => {})
     await col.deleteOne({ _id: n })
     await db.collection('bulkCallCampaigns').updateMany({ chatId, showAs: n }, { $unset: { showAs: '' } }).catch(() => {})
     await db.collection('scheduledCalls').updateMany({ chatId, 'ivrObData.displayCallerId': n }, { $set: { 'ivrObData.displayCallerId': null } }).catch(() => {})
@@ -120,3 +136,26 @@ function routes(router, { db, h, numbersApi }) {
 }
 
 module.exports = { routes, resolve, isVerified, PRICE, DRY_CODE }
+
+// Admin: approve (→ verified) or reject (→ refund + remove) a review request. Returns the affected doc or null.
+function adminApi(db) {
+  const c = db.collection('webCallerIds')
+  const w = walletOps(db)
+  const list = async () => (await c.find({ status: { $in: ['review', 'verified'] } }).sort({ createdAt: -1 }).limit(200).toArray())
+    .map(d => ({ number: d._id, chatId: d.chatId, status: d.status, method: d.method || null, note: d.note || null, charged: d.charged || 0, adminApproved: !!d.adminApproved, at: new Date(d.createdAt || d.verifiedAt || Date.now()).toISOString() }))
+  const approve = async (number) => {
+    const d = await c.findOne({ _id: number, status: 'review' })
+    if (!d) return null
+    await c.updateOne({ _id: number }, { $set: { status: 'verified', adminApproved: true, verifiedAt: new Date() } })
+    return d
+  }
+  const reject = async (number) => {
+    const d = await c.findOne({ _id: number, status: 'review' })
+    if (!d) return null
+    if (d.charged) await w.credit(d.chatId, d.charged)
+    await c.deleteOne({ _id: number })
+    return d
+  }
+  return { list, approve, reject }
+}
+module.exports.adminApi = adminApi

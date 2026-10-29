@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { LayoutDashboard, Users as UsersIcon, MessageSquareText, Phone, Store, ScrollText, LogOut } from 'lucide-react';
+import { LayoutDashboard, Users as UsersIcon, MessageSquareText, Phone, Store, ScrollText, LogOut, BadgeCheck } from 'lucide-react';
 import { api } from '../../api';
 import { Spinner } from '../../ui';
 import AdminLogin from './AdminLogin';
@@ -8,8 +8,9 @@ import Overview from './Overview';
 import Users from './Users';
 import Texting from './Texting';
 import Cloud, { Resellers, Audit } from './Cloud';
+import CallerIdsAdmin from './CallerIds';
 
-const TABS = [['overview', 'Overview', LayoutDashboard, Overview], ['users', 'Users & wallets', UsersIcon, Users], ['texting', 'Texting queue', MessageSquareText, Texting], ['cloudivr', 'CloudIVR', Phone, Cloud], ['resellers', 'Resellers', Store, Resellers], ['log', 'Admin log', ScrollText, Audit]];
+const TABS = [['overview', 'Overview', LayoutDashboard, Overview], ['users', 'Users & wallets', UsersIcon, Users], ['texting', 'Texting queue', MessageSquareText, Texting], ['cloudivr', 'CloudIVR', Phone, Cloud], ['caller-ids', 'Caller IDs', BadgeCheck, CallerIdsAdmin], ['resellers', 'Resellers', Store, Resellers], ['log', 'Admin log', ScrollText, Audit]];
 
 // cloudivr.net/admin — the owner's dashboard (own sign-in; tabs live in ?tab=).
 export default function AdminApp() {

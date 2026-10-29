@@ -1870,3 +1870,14 @@ calls and SIP are simulated; inbound calls use a pretend-call simulator).
   callback → transferCallerId, message → displayCallerId, AI → dialLead campaign.showAs. UI: ShowAsSelect in TriggerParts RuleCard.
 - Bulk verify: POST /caller-ids accepts numbers[] (≤10/batch, 25 codes/day/account); pending items listed with per-number code box.
 - Tests: js/tests/caller_id_show_as.test.js (4/4 incl. press-1 transfer from verified number), preview curl + UI screenshot.
+
+## 2026-10-29 10:44Z — Arbitrary caller ID via admin approval — LIVE app-main (20261029T104423Z-7d70850, healthy)
+- Owner wants to show numbers that can't receive a code (main line, toll-free, call center). No spoofing-by-default:
+  customer submits + attests authorization → admin approves → usable. Telnyx still filters the actual call.
+- Backend caller-ids.js: POST /caller-ids/request (debit $25, status 'review', note, authorized flag); DELETE refunds a review item;
+  adminApi(db) list/approve/reject. admin.js: GET /admin/caller-ids, POST /admin/caller-ids/:number/:action (reason required,
+  audit logged, notify.push customer on approve/reject; reject refunds $25). resolve()/isVerified accept status 'verified' only,
+  so review numbers are unusable until approved; approval sets status 'verified' adminApproved:true.
+- Frontend: ReviewForm + review rows in pages/number/CallerIds.js; new admin tab pages/admin/CallerIds.js (AdminApp tab 'caller-ids').
+- Tested in preview: request charges $25, authorized=false blocked, show-as rejects review number, admin approve→Quick IVR rate 0.15,
+  reject refunds, audit shows caller_id_approve/reject; admin UI screenshot. NOT live-tested with a real approved outbound call.
