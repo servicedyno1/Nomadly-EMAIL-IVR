@@ -1837,3 +1837,13 @@ calls and SIP are simulated; inbound calls use a pretend-call simulator).
   policy, billing/wallet bugs, security fixes, shared bot code — add the changed file(s) to ops/whitelabel-shared-files.txt
   in the same task, and tell the owner in the summary which files will travel on the next Save to GitHub.
 - Never add CloudIVR-web-only features or brand files. If a file differs heavily on WhiteLabel, warn the owner instead.
+
+## 2026-10-29 — Free-call conversion (LIVE app-main cd7c9b7)
+- Prod finding (3 days): 45 web sign-ups, 1 depositor; landing test call used 4× (2 no answer — Nigerian mobiles, 1 voicemail,
+  1 answered no key); free Quick IVR used by 2 accounts, both answered, no key pressed. Calls technically work.
+- Changes: demo greeting clearer + repeats the menu; landing ring time 30→45 s; Overview trial card copy "Make your free
+  call"/"Call me now"; onboarding last step "Make my free call first" (when trial available); emails `tryNudge` (24 h after
+  sign-up, no free call, no number) and `tryFollowup` (~3 min after a Quick IVR trial or landing test call; landing visitors
+  without an account emailed directly; no-answer variant) EN/FR/ES; admin GET /admin/funnel + Overview funnel card
+  (sign-ups → tried → answered → pressed → paid, per-day table). No deposit offer (owner choice).
+- Not done: caller number for Africa test (owner skipped); catch-up nudge for users who signed up >30 h before deploy.

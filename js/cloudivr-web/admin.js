@@ -54,6 +54,34 @@ function createAdmin(db, { log = console.log, bulkCallService, adminAuth }) {
       })
     }))
 
+    // Free-call funnel (web): sign-ups → tried a free call → answered → pressed a key → paid, last 30 days + per day.
+    r.get('/admin/funnel', A, h(async (req, res) => {
+      const since = new Date(Date.now() - 30 * DAY)
+      const day = (d) => new Date(d).toISOString().slice(0, 10)
+      const [accs, quick, landing] = await Promise.all([
+        db.collection('webAccounts').find({ createdAt: { $gt: since } }, { projection: { _id: 1, createdAt: 1 } }).toArray(),
+        db.collection('webQuickCalls').find({ trial: true, at: { $gt: since } }, { projection: { chatId: 1, at: 1 } }).toArray(),
+        db.collection('webTryCalls').find({ createdAt: { $gt: since } }, { projection: { chatId: 1, createdAt: 1, noAnswer: 1, email: 1, triedEmail: 1 } }).toArray(),
+      ])
+      const quickIds = [...new Set(quick.map(q => String(q.chatId)))]
+      const answeredQ = (await db.collection('state').find({ _id: { $in: quickIds.map(id => `ivrTrialUsed_${id}`) }, val: true }).toArray()).length
+      const callIds = [...quickIds, ...landing.map(l => String(l.chatId))]
+      const pressed = new Set((await db.collection('ivrAnalytics').find({ chatId: { $in: [...callIds, ...callIds.map(Number).filter(Boolean)] }, digit: { $nin: [null, ''] } }, { projection: { chatId: 1 } }).toArray()).map(x => String(x.chatId))).size
+      const ids = accs.map(a => String(a._id))
+      const tops = await db.collection('transactions').find({ type: 'wallet-topup', chatId: { $in: ids } }, { projection: { chatId: 1, createdAt: 1 } }).toArray()
+      const rows = {}
+      const bump = (d, k) => { const x = (rows[day(d)] = rows[day(d)] || { day: day(d), signups: 0, trials: 0, firstDeposits: 0 }); x[k] += 1 }
+      accs.forEach(a => bump(a.createdAt, 'signups'))
+      quick.forEach(q => bump(q.at, 'trials')); landing.forEach(l => bump(l.createdAt, 'trials'))
+      const first = {}; tops.forEach(t => { if (!first[t.chatId] || t.createdAt < first[t.chatId]) first[t.chatId] = t.createdAt })
+      Object.values(first).forEach(d => bump(d, 'firstDeposits'))
+      res.json({
+        signups: accs.length, quickTried: quickIds.length, quickAnswered: answeredQ, landingTried: landing.length, landingAnswered: landing.filter(l => !l.noAnswer).length,
+        pressed, paid: Object.keys(first).length,
+        days: Object.values(rows).sort((a, b) => b.day.localeCompare(a.day)).slice(0, 14),
+      })
+    }))
+
     // Users: web accounts + bot users (nameOf). q = chat id, email or name.
     r.get('/admin/users', A, h(async (req, res) => {
       const q = String(req.query.q || '').trim()

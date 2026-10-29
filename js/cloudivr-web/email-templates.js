@@ -38,6 +38,13 @@ const B = {
   welcome: (d, c, f, x) => ({ ...head(c.welcome, d, f), t: 'brand',
     body: P(c.welcome.intro(d, f)) + L.steps(c.welcome.steps) + L.button(c.welcome.cta(d), x.app('/app/buy')) + L.small(c.welcome.ps) }),
 
+  tryNudge: (d, c, f, x) => ({ ...head(c.tryNudge, d, f), t: 'brand',
+    body: P(c.tryNudge.intro(d, f)) + L.steps(c.tryNudge.steps) + L.button(c.tryNudge.cta(d), x.app('/app/quick-call')) + L.small(c.tryNudge.ps) }),
+
+  tryFollowup: (d, c, f, x) => ({ ...head(c.tryFollowup, d, f), t: 'brand',
+    body: P(d.noAnswer ? c.tryFollowup.missed : c.tryFollowup.intro(d, f)) + L.h2(c.tryFollowup.nextTitle) + L.bullets(c.tryFollowup.next, 'ok')
+      + L.button(c.tryFollowup.cta(d), x.app('/app/buy')) + L.small(c.tryFollowup.ps) }),
+
   numberLive: (d, c, f, x) => ({ ...head(c.numberLive, d, f), t: 'ok',
     body: P(c.numberLive.intro(d, f))
       + L.rows([{ k: c.labels.number, v: L.mono(d.phone), html: true }, { k: c.labels.plan, v: d.planName }, d.country && { k: c.labels.country, v: d.country }, d.expiresAt && { k: c.labels.renews, v: f.date(d.expiresAt) }, d.price != null && { k: c.labels.monthly, v: f.usd(d.price) }])

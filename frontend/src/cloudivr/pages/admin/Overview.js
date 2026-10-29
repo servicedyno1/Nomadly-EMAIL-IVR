@@ -18,6 +18,31 @@ function Bars({ series }) {
   );
 }
 
+function Funnel() {
+  return (
+    <Load path="/admin/funnel" testid="admin-funnel">
+      {(f) => {
+        const steps = [['Signed up', f.signups], ['Tried a free call', f.quickTried + f.landingTried, `${f.quickTried} Quick IVR · ${f.landingTried} landing page`], ['Answered', f.quickAnswered + f.landingAnswered], ['Pressed a key', f.pressed], ['Paid (first deposit)', f.paid]];
+        const top = Math.max(1, steps[0][1], steps[1][1]);
+        return (
+          <div className="civr-card p-5 space-y-4" data-testid="admin-funnel">
+            <div className="text-xs uppercase tracking-widest text-[#a1a1aa]">Free-call funnel · web · 30 days</div>
+            <div className="space-y-2">{steps.map(([l, n, sub], i) => (
+              <div key={l} className="flex items-center gap-3 text-sm" data-testid={`admin-funnel-step-${i}`}>
+                <span className="w-40 shrink-0">{l}</span>
+                <div className="flex-1 h-6 rounded bg-[#1f1f1f] overflow-hidden"><div className="h-full bg-[#818cf8]/70" style={{ width: `${Math.max(2, (n / top) * 100)}%` }} /></div>
+                <b className="w-10 text-right tabular-nums">{n}</b>{sub && <span className="text-xs text-[#a1a1aa] hidden lg:inline">{sub}</span>}
+              </div>
+            ))}</div>
+            {f.days.length > 0 && <div className="civr-scroll-x"><table className="civr-table w-full text-sm" data-testid="admin-funnel-days"><thead><tr><th className="text-left">Day</th><th className="text-right">Sign-ups</th><th className="text-right">Free calls</th><th className="text-right">First deposits</th></tr></thead>
+              <tbody>{f.days.map(d => <tr key={d.day}><td>{d.day}</td><td className="text-right">{d.signups}</td><td className="text-right">{d.trials}</td><td className="text-right">{d.firstDeposits}</td></tr>)}</tbody></table></div>}
+          </div>
+        );
+      }}
+    </Load>
+  );
+}
+
 export default function Overview() {
   return (
     <Load path="/admin/overview" testid="admin-overview">
@@ -39,6 +64,7 @@ export default function Overview() {
               <div className="flex justify-between"><span>Flagged AI agent scripts</span><b className={d.flaggedAgents ? 'text-[#f87171]' : ''} data-testid="admin-attn-flagged">{d.flaggedAgents}</b></div>
             </div>
           </div>
+          <Funnel />
           <div className="civr-card p-5" data-testid="admin-revenue-types">
             <div className="text-xs uppercase tracking-widest text-[#a1a1aa] mb-3">Money in & out by type · 30 days</div>
             <div className="civr-scroll-x"><table className="civr-table w-full text-sm"><thead><tr><th className="text-left">Type</th><th className="text-right">Count</th><th className="text-right">Amount</th></tr></thead>

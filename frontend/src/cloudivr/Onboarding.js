@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Check, ArrowRight, Loader2, Sparkles } from 'lucide-react';
 import { api, useApi } from './api';
 import { cp } from './paths';
@@ -14,6 +14,8 @@ export function Onboarding({ data, setData }) {
   const [step, setStep] = useState(0);
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(null);
+  const nav = useNavigate();
+  const { data: trial } = useApi(data && !data.onboarded ? '/calls/trial' : null);
   const open = !!data && !data.onboarded;
   useEffect(() => { if (open) { setPick(data.purposes || []); setStep(0); } }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
   if (!open) return null;
@@ -64,7 +66,10 @@ export function Onboarding({ data, setData }) {
                 </li>
               ))}
             </ol>
-            <div className="flex justify-end mt-8"><button type="button" className="civr-btn civr-btn-ghost" onClick={finish} data-testid="onboarding-done">Go to my Overview</button></div>
+            <div className="flex flex-wrap justify-end gap-2 mt-8">
+              <button type="button" className="civr-btn civr-btn-ghost" onClick={finish} data-testid="onboarding-done">Go to my Overview</button>
+              {trial?.available && <button type="button" className="civr-btn civr-btn-primary" onClick={() => { finish(); nav(cp('/app/quick-call')); }} data-testid="onboarding-free-call">Make my free call first</button>}
+            </div>
           </>
         )}
       </div>

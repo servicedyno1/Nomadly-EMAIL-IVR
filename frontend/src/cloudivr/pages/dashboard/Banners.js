@@ -72,10 +72,10 @@ export function TrialCard() {
     <div className="civr-card civr-rise p-5 sm:p-6 mb-6 flex flex-col sm:flex-row sm:items-center gap-4 !border-[#818cf8]/40 bg-gradient-to-r from-[#818cf8]/10 to-transparent" data-testid="dashboard-trial-card">
       <div className="w-11 h-11 rounded-xl bg-[#818cf8]/15 flex items-center justify-center shrink-0"><Gift className="w-5 h-5 text-[#818cf8]" /></div>
       <div className="flex-1 min-w-0">
-        <div className="font-semibold text-base">Your first Quick IVR call is free</div>
-        <div className="text-sm text-[#a1a1aa] mt-1">Call any phone from our number: they hear your message, then press 1 to reach you or type a code you accept or decline. No number or wallet needed.</div>
+        <div className="font-semibold text-base">Make your free call — hear CloudIVR on your own phone</div>
+        <div className="text-sm text-[#a1a1aa] mt-1">Type a message, enter your phone number, and we ring you in seconds. Press a key to see what your callers and leads will experience. No number or wallet needed.</div>
       </div>
-      <Link to={cp('/app/quick-call')} className="civr-btn civr-btn-primary civr-btn-sm self-start sm:self-auto" data-testid="dashboard-trial-cta"><PhoneOutgoing className="w-4 h-4" />Try it free</Link>
+      <Link to={cp('/app/quick-call')} className="civr-btn civr-btn-primary civr-btn-sm self-start sm:self-auto" data-testid="dashboard-trial-cta"><PhoneOutgoing className="w-4 h-4" />Call me now</Link>
     </div>
   );
 }
