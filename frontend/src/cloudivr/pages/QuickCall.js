@@ -18,6 +18,7 @@ import { OtpLive, OtpHowTo } from './quick/Otp';
 import { PlanLock, LockedNote, showUpgrade } from '../Upgrade';
 import { planFor } from '../PlanFeatures';
 import { OwnerName } from './quick/OwnerName';
+import { ShowAsSelect } from '../CallerIdPick';
 
 // Active numbers allowed to place outbound IVR calls for `feature`.
 export function useCallerNumbers(feature) {
@@ -25,14 +26,14 @@ export function useCallerNumbers(feature) {
   return { loading, all: data?.numbers || [], numbers: (data?.numbers || []).filter(n => n.status === 'active' && n.access[feature]) };
 }
 
-const EMPTY = { callerId: '', targets: '', source: 'script', script: { templateKey: '', text: '', values: {} }, audioId: '', voice: '', mode: 'transfer', transferTo: '', transferBackups: '', activeKeys: ['1'], otp: { length: 6, confirmMsg: '', rejectMsg: '' }, menu: [], holdMusic: false, scheduleAt: '' };
+const EMPTY = { callerId: '', showAs: '', targets: '', source: 'script', script: { templateKey: '', text: '', values: {} }, audioId: '', voice: '', mode: 'transfer', transferTo: '', transferBackups: '', activeKeys: ['1'], otp: { length: 6, confirmMsg: '', rejectMsg: '' }, menu: [], holdMusic: false, scheduleAt: '' };
 const MODES = [['transfer', 'Connect on a key'], ['otp', 'Collect a code (OTP)'], ['menu', 'Route each key']];
 const Pill = ({ on, onClick, children, testid, locked }) => <button type="button" onClick={onClick} className={`civr-pill cursor-pointer !normal-case !tracking-normal !text-sm h-9 ${on ? 'civr-pill-on' : ''}`} data-testid={testid}>{locked && <Lock className="w-3 h-3" />}{children}</button>;
 
 function toBody(f, callerId) {
   const msg = f.source === 'audio' ? { audioId: f.audioId } : { text: fillScript(f.script.text, f.script.values), voice: f.voice || undefined, templateName: f.script.templateName || 'Custom script' };
   const action = f.mode === 'otp' ? { otp: f.otp, transferTo: f.transferTo } : f.mode === 'menu' ? { menu: menuToApi(f.menu) } : { transferTo: f.transferTo, transferBackups: f.transferBackups, activeKeys: f.activeKeys };
-  return { callerId, targets: f.targets, holdMusic: f.holdMusic, mode: f.mode === 'otp' ? 'otp' : 'transfer', ...msg, ...action, ...(f.scheduleAt ? { scheduleAt: new Date(f.scheduleAt).toISOString() } : {}) };
+  return { callerId, showAs: f.showAs || undefined, targets: f.targets, holdMusic: f.holdMusic, mode: f.mode === 'otp' ? 'otp' : 'transfer', ...msg, ...action, ...(f.scheduleAt ? { scheduleAt: new Date(f.scheduleAt).toISOString() } : {}) };
 }
 
 function Recent({ onPick }) {
@@ -143,6 +144,7 @@ export default function QuickCall() {
             <DraftBanner draft={draft} onResume={(d) => { setF({ ...EMPTY, ...d }); toast.success('Draft restored'); }} />
             <Section n="1" title="Who to call">
               <Field label="Call from"><select className="civr-input font-mono" value={caller.phoneNumber} onChange={e => set({ callerId: e.target.value })} data-testid="quick-call-caller-select">{numbers.map(n => <option key={n.phoneNumber} value={n.phoneNumber}>{`${n.phoneNumber} · ${n.planName}`}</option>)}</select></Field>
+              <ShowAsSelect value={f.showAs} onChange={(v) => set({ showAs: v })} testid="quick-call-show-as-select" />
               <Field label="Number(s) to call" hint="With country code. Up to 10, separated by commas.">
                 <input className="civr-input font-mono" required value={f.targets} onChange={e => set({ targets: e.target.value })} placeholder="+14155550100, +14155550101" data-testid="quick-call-to-input" />
                 <Recent onPick={(n) => set({ targets: f.targets.includes(n) ? f.targets : [f.targets, n].filter(Boolean).join(', ') })} />

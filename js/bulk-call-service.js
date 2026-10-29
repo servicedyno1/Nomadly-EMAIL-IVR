@@ -1008,6 +1008,7 @@ function dialTelnyx(campaign, lead) {
   return _voiceService.initiateOutboundIvrCall({
     chatId: campaign.chatId,
     callerId: campaign.callerId,
+    displayCallerId: campaign.showAs || null,
     targetNumber: lead.number,
     ivrNumber: isTransfer ? (campaign.transferNumber || null) : null,
     transferBackups: isTransfer ? (campaign.transferBackups || []) : [],

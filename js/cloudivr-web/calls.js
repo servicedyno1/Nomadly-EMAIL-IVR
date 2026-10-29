@@ -2,6 +2,7 @@
 // Outbound IVR: one-off Quick IVR calls and Bulk IVR campaigns, run by the bot's voice + bulk-call engines.
 const phoneConfig = require('../phone-config')
 const { walletOps } = require('./wallet')
+const callerIds = require('./caller-ids')
 const { normPhone, E164, parseBackups } = require('./numbers')
 const { spokenNumber } = require('../voicemail-greeting')
 const { cleanMenu, firstForward } = require('./outbound')
@@ -14,7 +15,7 @@ const QUICK_MIN_WALLET = 1
 const KEYS = /^[0-9*#]$/
 
 const publicCampaign = (c, withLeads = false) => ({
-  id: c.id, name: c.name || null, callerId: c.callerId, audioName: c.audioName, mode: c.menu ? 'menu' : c.mode, menu: c.menu || null, transferNumber: c.transferNumber, transferBackups: c.transferBackups || [], activeKeys: c.activeKeys,
+  id: c.id, name: c.name || null, callerId: c.callerId, showAs: c.showAs || null, audioName: c.audioName, mode: c.menu ? 'menu' : c.mode, menu: c.menu || null, transferNumber: c.transferNumber, transferBackups: c.transferBackups || [], activeKeys: c.activeKeys,
   concurrency: c.concurrency, status: c.status, stats: c.stats, scheduledFor: c.scheduledFor, startedAt: c.startedAt, completedAt: c.completedAt,
   createdAt: c.createdAt, cancelledReason: c.cancelledReason || null, pausedReason: c.pausedReason || null, dryRun: !!c.dryRun,
   agentId: c.agentId || null, agentName: c.agentName || null, waitingForHours: !!c.waitingForHours,
@@ -121,6 +122,8 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
     if (b.mode === 'ai') return createAiCampaign(req, res)
     const c = await caller(chatId, b.callerId, 'bulkCall', 'Bulk IVR campaigns')
     if (c.err) return bad(res, ...c.err)
+    const showAs = await callerIds.resolve(chatId, b.showAs).catch(e => e)
+    if (showAs instanceof Error) return bad(res, 400, 'invalid_show_as', showAs.message)
     const audio = await ownAudio(chatId, b.audioId)
     if (!audio) return bad(res, 400, 'invalid_audio', 'Pick a message from your audio library, or write a script and press “Make AI voice”.')
     const vm = b.voicemailAudioId ? await ownAudio(chatId, b.voicemailAudioId) : null
@@ -151,8 +154,8 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
       leads, scheduledFor: plan.scheduledFor, repeat: plan.repeat, dailyLimit: plan.dailyLimit, tz: plan.tz, provider: 'telnyx', voicemailAudioUrl: vm?.audioUrl || null, voicemailAudioName: vm?.name || null,
     })
     if (campaign.error) return bad(res, 400, 'create_failed', campaign.error)
-    if (dryRun()) await db.collection('bulkCallCampaigns').updateOne({ id: campaign.id }, { $set: { dryRun: true } })
-    res.status(201).json({ campaign: publicCampaign({ ...campaign, dryRun: dryRun() }), skipped: errors.length, doNotCall: await dncCount(chatId, leads) })
+    if (dryRun() || showAs) await db.collection('bulkCallCampaigns').updateOne({ id: campaign.id }, { $set: { ...(dryRun() ? { dryRun: true } : {}), ...(showAs ? { showAs } : {}) } })
+    res.status(201).json({ campaign: publicCampaign({ ...campaign, showAs, dryRun: dryRun() }), skipped: errors.length, doNotCall: await dncCount(chatId, leads) })
   }))
 
   // AI agent campaign: the agent talks to every lead (8am–9pm lead's local time, do-not-call list skipped).
@@ -160,6 +163,8 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
     const chatId = req.webChatId, b = req.body
     const c = await caller(chatId, b.callerId, 'aiAgent', 'AI agent campaigns')
     if (c.err) return bad(res, ...c.err)
+    const showAs = await callerIds.resolve(chatId, b.showAs).catch(e => e)
+    if (showAs instanceof Error) return bad(res, 400, 'invalid_show_as', showAs.message)
     const ai = require('../ai-agent')
     const agent = await ai.store.getAgent(b.agentId, chatId)
     if (!agent) return bad(res, 400, 'invalid_agent', 'Pick one of your AI agents.')
@@ -175,8 +180,8 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
       concurrency: Math.min(20, Math.max(1, parseInt(b.concurrency, 10) || 5)), leads, scheduledFor: plan.scheduledFor, repeat: plan.repeat, dailyLimit: plan.dailyLimit, tz: plan.tz, provider: 'telnyx',
     })
     if (campaign.error) return bad(res, 400, 'create_failed', campaign.error)
-    await db.collection('bulkCallCampaigns').updateOne({ id: campaign.id }, { $set: { aiRecord: agent.record !== false, ...(dryRun() ? { dryRun: true } : {}) } })
-    res.status(201).json({ campaign: publicCampaign({ ...campaign, dryRun: dryRun() }), skipped: errors.length, doNotCall: dnc, rate: ai.RATE(), recordRate: agent.record !== false ? ai.RECORD_RATE() : 0 })
+    await db.collection('bulkCallCampaigns').updateOne({ id: campaign.id }, { $set: { aiRecord: agent.record !== false, ...(showAs ? { showAs } : {}), ...(dryRun() ? { dryRun: true } : {}) } })
+    res.status(201).json({ campaign: publicCampaign({ ...campaign, showAs, dryRun: dryRun() }), skipped: errors.length, doNotCall: dnc, rate: ai.RATE(), recordRate: agent.record !== false ? ai.RECORD_RATE() : 0 })
   }
 
   const withCampaign = (fn) => h(async (req, res) => {

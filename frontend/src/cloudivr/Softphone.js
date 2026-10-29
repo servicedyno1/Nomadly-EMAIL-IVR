@@ -7,6 +7,7 @@ import { Link } from 'react-router-dom';
 import { cp } from './paths';
 import { usePrivacy } from './privacy';
 import { CallMeFirst, CallNoteBox } from './SoftphoneExtras';
+import { ShowAsSelect } from './CallerIdPick';
 
 const KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '*', '0', '#'];
 const STATUS = { idle: 'Offline', connecting: 'Connecting…', ready: 'Online', error: 'Not connected' };
@@ -18,6 +19,7 @@ export default function Softphone({ open, onClose }) {
   const [nums, setNums] = useState(null);
   const [sel, setSel] = useState('');
   const [dest, setDest] = useState('');
+  const [showAs, setShowAs] = useState('');
   const [cmf, setCmf] = useState(false);
   const [myPhone, setMyPhone] = useState('');
   const [busy, setBusy] = useState(false);
@@ -66,6 +68,7 @@ export default function Softphone({ open, onClose }) {
             <select className="civr-input !h-9 font-mono text-xs" value={sel} onChange={e => { setSel(e.target.value); setInfo(null); }} data-testid="softphone-number-select">{nums.map(n => <option key={n.phoneNumber} value={n.phoneNumber}>{pv.phone(n.phoneNumber)}</option>)}</select>
             {!viaMobile && <button className="civr-btn civr-btn-ghost civr-btn-sm" disabled={status === 'connecting' || !selNum?.access?.browserPhone} onClick={() => connect(sel)} data-testid="softphone-connect-button">{status === 'connecting' ? <Loader2 className="w-4 h-4 animate-spin" /> : status === 'ready' ? 'Online' : 'Connect'}</button>}
           </div>
+          {!viaMobile && <ShowAsSelect compact value={showAs} onChange={setShowAs} testid="softphone-show-as-select" />}
           <CallMeFirst on={cmf} onChange={v => { setCmf(v); setInfo(null); }} myPhone={myPhone} setMyPhone={setMyPhone} allowed={cmfAllowed} />
           <div className="text-xs mb-3" data-testid="softphone-status">
             {viaMobile ? <span className="text-[#a1a1aa]">Rings your mobile first — no browser connection needed.</span> : <span className={status === 'ready' ? 'text-[#818cf8]' : status === 'error' ? 'text-[#fb7185]' : 'text-[#a1a1aa]'}>{call ? `Call ${call.state}` : STATUS[status]}</span>}
@@ -81,7 +84,7 @@ export default function Softphone({ open, onClose }) {
             </div>
           ) : viaMobile ? (
             <button className="civr-btn civr-btn-primary w-full" disabled={busy || !dest || !myPhone} onClick={callMeFirst} data-testid="softphone-call-button">{busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Smartphone className="w-4 h-4" />}Call via my mobile</button>
-          ) : <button className="civr-btn civr-btn-primary w-full" disabled={status !== 'ready' || !dest} onClick={() => dial(dest, sel)} data-testid="softphone-call-button"><Phone className="w-4 h-4" />Call</button>}
+          ) : <button className="civr-btn civr-btn-primary w-full" disabled={status !== 'ready' || !dest} onClick={() => dial(dest, sel, showAs)} data-testid="softphone-call-button"><Phone className="w-4 h-4" />Call</button>}
           {(call || last) && <CallNoteBox key={`${sel}-${last?.peer || ''}`} phone={sel} peer={call?.peer || last?.peer} direction={call ? (call.inbound ? 'inbound' : 'outbound') : last?.direction} />}
         </>
       )}

@@ -58,12 +58,13 @@ export function RtcProvider({ children }) {
   }, [connect]);
   useEffect(() => { autoConnect(); }, [autoConnect]);
 
-  const dial = async (dest, from) => {
+  const dial = async (dest, from, showAs) => {
     if (key.current && Date.parse(key.current.expiresAt) - Date.now() < 3600000) {
       key.current = (await api(`/numbers/${enc(line.current)}/sip?browser=1`).catch(() => null))?.browserKey || key.current;
     }
     const k = key.current;
-    return client.current?.newCall({ destinationNumber: dest, callerNumber: from, audio: true, video: false, ...(k ? { customHeaders: [{ name: k.name, value: k.value }] } : {}) });
+    const headers = [...(k ? [{ name: k.name, value: k.value }] : []), ...(showAs ? [{ name: 'X-Civr-Show-As', value: showAs }] : [])];
+    return client.current?.newCall({ destinationNumber: dest, callerNumber: from, audio: true, video: false, ...(headers.length ? { customHeaders: headers } : {}) });
   };
   return (
     <RtcCtx.Provider value={{ status, call, msg, phone, connect, dial, autoConnect }}>

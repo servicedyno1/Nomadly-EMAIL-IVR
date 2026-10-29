@@ -79,7 +79,7 @@ async function dialLead(campaign, lead) {
   const calendar = await booking.forCall(campaign.chatId, agent, lead.number).catch(() => null)
   try {
     const r = await tx('/calls', {
-      connection_id: process.env.TELNYX_CALL_CONTROL_APP_ID, to: lead.number, from: campaign.callerId, webhook_url: `${deps.selfUrl}/telnyx/voice-webhook`,
+      connection_id: process.env.TELNYX_CALL_CONTROL_APP_ID, to: lead.number, from: campaign.showAs || campaign.callerId, webhook_url: `${deps.selfUrl}/telnyx/voice-webhook`,
       client_state: CLIENT_STATE, answering_machine_detection: 'premium', timeout_secs: 30, ...streamParams(token),
     })
     const ccid = r.data?.data?.call_control_id

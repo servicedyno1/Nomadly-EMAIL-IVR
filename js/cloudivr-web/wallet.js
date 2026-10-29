@@ -30,7 +30,7 @@ function walletOps(db) {
 }
 
 const CREDITS = { 'hosted-sms-refund': 'Refund · Landline to Texting', 'topup-bonus': 'Top-up bonus', 'admin-credit': 'Credit from CloudIVR', 'referral-reward': 'Referral reward', 'suggestion-reward': 'Free credit · adopted suggestion', 'sms-refund': 'Refund · text not delivered', 'lead-check-refund': 'Refund · numbers we couldn’t check' }
-const HOSTED = { 'hosted-sms-setup': 'Landline to Texting setup', 'hosted-sms-renewal': 'Landline to Texting monthly', 'hosted-sms-text': 'Text sent · Landline to Texting', 'hosted-sms-inbound': 'Text received · Landline to Texting', 'lead-check': 'Lead check', 'cnam-lookup': 'Owner-name lookup' }
+const HOSTED = { 'hosted-sms-setup': 'Landline to Texting setup', 'hosted-sms-renewal': 'Landline to Texting monthly', 'hosted-sms-text': 'Text sent · Landline to Texting', 'hosted-sms-inbound': 'Text received · Landline to Texting', 'lead-check': 'Lead check', 'cnam-lookup': 'Owner-name lookup', 'caller-id-verify': 'Caller ID verification' }
 const LABEL = { purchase: 'Number purchase', purchase_verification: 'Number purchase (verification)', renew: 'Number renewal', upgrade: 'Plan upgrade', release: 'Number deleted', sms_reply: 'Extra text' }
 
 function routes(router, { db, h, coins, createCryptoDeposit, offers }) {

@@ -51706,7 +51706,7 @@ const startServer = async () => {
           const callerProvider = ivrObData.callerProvider || 'telnyx'
 
           const result = await voiceService.initiateOutboundIvrCall({
-            chatId, callerId: ivrObData.callerId, targetNumber: ivrObData.targetNumber,
+            chatId, callerId: ivrObData.callerId, displayCallerId: call.web ? ivrObData.displayCallerId || null : null, targetNumber: ivrObData.targetNumber,
             ivrNumber: ivrObData.ivrNumber, transferBackups: ivrObData.menu ? [] : (ivrObData.transferBackups || []), audioUrl: ivrObData.audioUrl,
             activeKeys: ivrObData.activeKeys, templateName: ivrObData.templateName,
             placeholderValues: ivrObData.placeholderValues, voiceName: ivrObData.voiceName,

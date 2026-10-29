@@ -1847,3 +1847,16 @@ calls and SIP are simulated; inbound calls use a pretend-call simulator).
   without an account emailed directly; no-answer variant) EN/FR/ES; admin GET /admin/funnel + Overview funnel card
   (sign-ups → tried → answered → pressed → paid, per-day table). No deposit offer (owner choice).
 - Not done: caller number for Africa test (owner skipped); catch-up nudge for users who signed up >30 h before deploy.
+
+## 2026-10-29 — "Show as" own caller ID (Telnyx Verified Numbers) — LIVE on app-main only
+- Owner choices: any customer after verifying by code; $25 per verified number (charged only when code accepted,
+  wrong code auto-refunds); usable on Quick IVR, Bulk campaigns, AI agent campaigns, browser phone.
+- Backend: js/cloudivr-web/caller-ids.js (GET/POST /caller-ids, POST /caller-ids/verify, DELETE /caller-ids/:n; collection
+  webCallerIds, one account per number, 8 codes/day/account, 5 tries, 15-min code window; RATE_CALLER_ID_VERIFY env, default 25).
+  Wiring: outbound.js cfg.showAs → engine displayCallerId → voice-service createOutboundCall from; campaigns store showAs
+  (bulk-call-service dialTelnyx, ai-agent/calls.js from); browser phone header X-Civr-Show-As verified in handleOutboundSipCall;
+  web scheduled calls pass ivrObData.displayCallerId (_index.js scheduler). Billing/ownership stay on the CloudIVR number.
+- Frontend: pages/number/CallerIds.js card on My numbers (#caller-ids); CallerIdPick.js ShowAsSelect in QuickCall, Campaigns, Softphone.
+- Tested: preview curl flow (send/verify/wrong-code refund/already/taken/delete), js/tests/caller_id_show_as.test.js, UI screenshot.
+  Deployed 10:15Z release 20261029T101526Z-c9f20d5 (app-main-b), /health healthy. NOT live-tested with a real code/call yet.
+- Not covered: "Call me first" / text-trigger callbacks still show the CloudIVR number; Twilio paths unchanged.

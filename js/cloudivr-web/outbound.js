@@ -6,6 +6,7 @@ const crypto = require('crypto')
 const phoneConfig = require('../phone-config')
 const ivrOb = require('../ivr-outbound')
 const { walletOps } = require('./wallet')
+const callerIds = require('./caller-ids')
 const { normPhone, E164, parseBackups } = require('./numbers')
 
 const dryRun = () => process.env.WEB_CLOUDIVR_DRY_RUN === 'true'
@@ -184,6 +185,8 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
       if (!phoneConfig.canAccessFeature(caller.plan, 'ivrOutbound')) return { err: [403, 'plan_upgrade_required', 'Quick IVR calls need the Pro plan or higher on the caller number.'] }
     }
     const callerId = trial ? ivrOb.TRIAL_CALLER_ID : caller.phoneNumber
+    let showAs = null
+    if (!trial) try { showAs = await callerIds.resolve(chatId, b.showAs) } catch (e) { return { err: [400, 'invalid_show_as', e.message] } }
     const targets = parseTargets(b)
     if (!targets.length) return { err: [400, 'invalid_number', 'Enter the number to call with country code, e.g. +14155550100.'] }
     if (targets.length > (trial ? 1 : MAX_TARGETS)) return { err: [400, 'too_many_numbers', trial ? 'The free call goes to one number.' : `Up to ${MAX_TARGETS} numbers per Quick IVR call — use a campaign for more.`] }
@@ -237,7 +240,7 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
     }
     return {
       cfg: {
-        callerId, callerPlan: caller?.plan || null, targets, mode, menu, transferTo, transferBackups, otp, activeKeys, holdMusic: !!b.holdMusic && !trial,
+        callerId, showAs, callerPlan: caller?.plan || null, targets, mode, menu, transferTo, transferBackups, otp, activeKeys, holdMusic: !!b.holdMusic && !trial,
         audioId: audio?.id || null, audioUrl: audio?.audioUrl || null, text, voiceName, templateName: String(b.templateName || audio?.name || 'Custom script').slice(0, 80),
       },
     }
@@ -245,12 +248,12 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
 
   const rateOf = (cfg) => Math.max(...cfg.targets.map(t => voiceService.getIvrCallRate(t)), cfg.transferTo ? voiceService.getIvrCallRate(cfg.transferTo) : 0)
   const engineParams = (chatId, cfg, to, trial) => ({
-    chatId, callerId: cfg.callerId, targetNumber: to, ivrNumber: cfg.menu ? firstForward(cfg.menu) : cfg.transferTo || null, transferBackups: cfg.menu || cfg.mode === 'otp' ? [] : (cfg.transferBackups || []), menu: cfg.menu,
+    chatId, callerId: cfg.callerId, displayCallerId: cfg.showAs || null, targetNumber: to, ivrNumber: cfg.menu ? firstForward(cfg.menu) : cfg.transferTo || null, transferBackups: cfg.menu || cfg.mode === 'otp' ? [] : (cfg.transferBackups || []), menu: cfg.menu,
     audioUrl: cfg.audioUrl, greetingText: cfg.audioUrl ? null : cfg.text, voiceName: cfg.voiceName || undefined, activeKeys: cfg.activeKeys, templateName: cfg.templateName,
     holdMusic: cfg.holdMusic, provider: 'telnyx', isTrial: !!trial, ivrMode: cfg.mode === 'otp' ? 'otp_collect' : 'transfer',
     otpLength: cfg.otp?.length || 6, otpMaxAttempts: 3, otpConfirmMsg: cfg.otp?.confirmMsg || null, otpRejectMsg: cfg.otp?.rejectMsg || null,
   })
-  const publicCall = (d) => ({ id: d._id, at: d.at, callerId: d.cfg.callerId, targets: d.cfg.targets, mode: d.cfg.mode, templateName: d.cfg.templateName, hasMenu: !!d.cfg.menu, transferTo: d.cfg.transferTo, results: d.results || [], dryRun: !!d.dryRun, trial: !!d.trial, scheduledFor: d.scheduledFor || null })
+  const publicCall = (d) => ({ id: d._id, at: d.at, callerId: d.cfg.callerId, showAs: d.cfg.showAs || null, targets: d.cfg.targets, mode: d.cfg.mode, templateName: d.cfg.templateName, hasMenu: !!d.cfg.menu, transferTo: d.cfg.transferTo, results: d.results || [], dryRun: !!d.dryRun, trial: !!d.trial, scheduledFor: d.scheduledFor || null })
 
   // Places (or validates, in preview) the call to every target; records it for Recent / Redial.
   async function run(chatId, body, cfg, { trial = false } = {}) {

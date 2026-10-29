@@ -9,6 +9,7 @@ import { usePrivacy } from '../privacy';
 import { useSearch, SearchBox, NoMatches } from '../search';
 import { useShell } from '../Shell';
 import { DIAL_FROM } from '../Softphone';
+import { CallerIds } from './number/CallerIds';
 
 const on = (f) => !!f?.enabled;
 
@@ -92,6 +93,7 @@ export default function Numbers() {
         </div>
         </>
       )}
+      {nums.some(n => n.status === 'active') && <CallerIds />}
     </div>
   );
 }

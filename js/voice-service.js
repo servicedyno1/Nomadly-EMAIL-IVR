@@ -3496,14 +3496,18 @@ async function handleOutboundSipCall(payload) {
     // which is a single global value — wrong for multi-user. transferCall's `from` param
     // overrides this per-call, ensuring each user's correct phone number displays as caller ID.
 
+    // "Show as": the browser phone may ask to display a caller ID this account verified (X-Civr-Show-As).
+    const showAsHdr = (payload.custom_headers || []).find(x => String(x?.name || '').toLowerCase() === 'x-civr-show-as')?.value
+    const outFrom = showAsHdr && await require('./cloudivr-web/caller-ids').isVerified(chatId, showAsHdr).catch(() => false) ? String(showAsHdr) : num.phoneNumber
+    if (outFrom !== num.phoneNumber) log(`[Voice] Outbound SIP: showing verified caller ID ${outFrom} for ${num.phoneNumber}`)
     try {
       const callState = activeCalls[callControlId]
       if (callState && callState.phase === 'outbound_telnyx') {
-        callState._pendingTransfer = { destination, callerNumber: num.phoneNumber }
+        callState._pendingTransfer = { destination, callerNumber: outFrom }
       }
       // Tag the NEW PSTN leg so its own call.initiated is skipped (no reverse lookup / re-route).
-      _markSelfPstnLeg(payload.connection_id, destination, num.phoneNumber)
-      await _telnyxApi.transferCall(callControlId, destination, num.phoneNumber, { targetLegClientState: PSTN_LEG_STATE })
+      _markSelfPstnLeg(payload.connection_id, destination, outFrom)
+      await _telnyxApi.transferCall(callControlId, destination, outFrom, { targetLegClientState: PSTN_LEG_STATE })
       log(`[Voice] Outbound SIP (Telnyx): Transfer initiated ${callerDisplay} → ${destination} (autoRouted=${isAutoRouted})`)
     } catch (e) {
       const errMsg = e.message || ''
@@ -3517,8 +3521,8 @@ async function handleOutboundSipCall(payload) {
           }
           await new Promise(r => setTimeout(r, 1500))
           try {
-            _markSelfPstnLeg(payload.connection_id, destination, num.phoneNumber)
-            await _telnyxApi.transferCall(callControlId, destination, num.phoneNumber, { targetLegClientState: PSTN_LEG_STATE })
+            _markSelfPstnLeg(payload.connection_id, destination, outFrom)
+            await _telnyxApi.transferCall(callControlId, destination, outFrom, { targetLegClientState: PSTN_LEG_STATE })
             log(`[Voice] Outbound SIP (Telnyx): Transfer retry ${retryCount + 1} succeeded ${callerDisplay} → ${destination}`)
           } catch (retryErr) {
             if ((retryErr.message || '').includes('not been answered') || (retryErr.message || '').includes('not answered')) {
@@ -4918,7 +4922,7 @@ const ivrOutbound = require('./ivr-outbound.js')
  * @returns {{ callControlId, error }}
  */
 async function initiateOutboundIvrCall(params) {
-  const { chatId, callerId, targetNumber, ivrNumber, menu, audioUrl, greetingText, activeKeys, templateName, placeholderValues, voiceName, isTrial, holdMusic, campaignId, leadIndex, bulkMode, ivrMode, otpLength, otpMaxAttempts, otpConfirmMsg, otpRejectMsg, voicemailAudioUrl } = params
+  const { chatId, callerId, displayCallerId, targetNumber, ivrNumber, menu, audioUrl, greetingText, activeKeys, templateName, placeholderValues, voiceName, isTrial, holdMusic, campaignId, leadIndex, bulkMode, ivrMode, otpLength, otpMaxAttempts, otpConfirmMsg, otpRejectMsg, voicemailAudioUrl } = params
   // Backup transfer numbers, tried in order when the transfer number is busy or doesn't answer.
   const transferBackups = ivrNumber ? [...new Set((params.transferBackups || []).map(n => String(n || '').replace(/[^+\d]/g, '')))]
     .filter(n => /^\+[1-9]\d{7,14}$/.test(n) && n !== ivrNumber && !dialGuard.classifyDial(n).blocked).slice(0, 4) : []
@@ -5109,7 +5113,7 @@ async function initiateOutboundIvrCall(params) {
   const webhookUrl = `${_selfUrl}/telnyx/voice-webhook`
   // Voicemail drop needs the end of the mailbox greeting (call.machine.greeting.ended) so the message records cleanly.
   const amdOpts = voicemailAudioUrl ? { answering_machine_detection: VM_AMD_MODE } : {}
-  const result = await _telnyxApi.createOutboundCall(callerId, targetNumber, webhookUrl, undefined, amdOpts)
+  const result = await _telnyxApi.createOutboundCall(displayCallerId || callerId, targetNumber, webhookUrl, undefined, amdOpts)
 
   if (result.error) {
     return { error: result.error, lineLimit: _telnyxApi.isLineLimitError?.(result) || false }
@@ -5119,6 +5123,7 @@ async function initiateOutboundIvrCall(params) {
   outboundIvrCalls[result.callControlId] = {
     chatId,
     callerId,
+    displayCallerId: displayCallerId || null,
     targetNumber,
     ivrNumber,
     audioUrl,

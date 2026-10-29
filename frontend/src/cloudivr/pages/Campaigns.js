@@ -19,6 +19,7 @@ import { useShell } from '../Shell';
 import { showUpgrade } from '../Upgrade';
 import { planFor } from '../PlanFeatures';
 import { LeadCheck } from '../LeadCheck';
+import { ShowAsSelect } from '../CallerIdPick';
 
 const pct = (c) => (c.stats?.total ? Math.round(((c.stats.completed || 0) / c.stats.total) * 100) : 0);
 
@@ -198,7 +199,7 @@ export function CampaignNew() {
   const { data: au, reload: reloadAudio } = useApi('/audio');
   const [params] = useSearchParams();
   // Contacts → "Start a campaign" opens this page with ?list=<id>.
-  const [f, setF] = useState(() => ({ name: '', callerId: '', audioId: '', voicemailAudioId: '', leads: '', source: params.get('list') ? 'list' : 'numbers', listId: params.get('list') || '', mode: 'report_only', transferNumber: '', transferBackups: '', activeKeys: ['1'], menu: [], concurrency: 5, scheduledFor: '', holdMusic: false, agentId: '', repeat: '', dailyLimit: '' }));
+  const [f, setF] = useState(() => ({ name: '', callerId: '', showAs: '', audioId: '', voicemailAudioId: '', leads: '', source: params.get('list') ? 'list' : 'numbers', listId: params.get('list') || '', mode: 'report_only', transferNumber: '', transferBackups: '', activeKeys: ['1'], menu: [], concurrency: 5, scheduledFor: '', holdMusic: false, agentId: '', repeat: '', dailyLimit: '' }));
   const [script, setScript] = useState(null);
   const [est, setEst] = useState(null);
   const [busy, setBusy] = useState('');
@@ -242,8 +243,8 @@ export function CampaignNew() {
       const audioId = !isAi && !f.audioId && script ? await scriptAudio() : f.audioId;
       const scheduledFor = f.scheduledFor ? new Date(f.scheduledFor).toISOString() : null;
       const plan = { repeat: f.repeat || null, dailyLimit: f.dailyLimit === '' ? null : Number(f.dailyLimit), tz: TZ };
-      const body = isAi ? { mode: 'ai', name: f.name, agentId: f.agentId, callerId, ...audience, concurrency: f.concurrency, scheduledFor, ...plan }
-        : { ...f, audioId, ...audience, source: undefined, callerId, menu: f.mode === 'menu' ? menuToApi(f.menu) : undefined, scheduledFor, ...plan };
+      const body = isAi ? { mode: 'ai', name: f.name, agentId: f.agentId, callerId, showAs: f.showAs || undefined, ...audience, concurrency: f.concurrency, scheduledFor, ...plan }
+        : { ...f, audioId, ...audience, source: undefined, callerId, showAs: f.showAs || undefined, menu: f.mode === 'menu' ? menuToApi(f.menu) : undefined, scheduledFor, ...plan };
       const d = await api('/campaigns', { method: 'POST', body });
       toast.success(d.skipped ? `Campaign saved · ${d.skipped} line(s) skipped` : 'Campaign saved');
       if (d.doNotCall) toast.message(`${d.doNotCall} number(s) are on your do-not-call list and will be skipped`);
@@ -260,6 +261,7 @@ export function CampaignNew() {
         <div className="civr-card p-6 space-y-6">
           <Field label="Campaign name (optional)" hint="Shown in your campaign list and reports. Leave empty to use the message name."><input className="civr-input" maxLength={80} value={f.name} onChange={set('name')} placeholder="e.g. June follow-ups" data-testid="campaign-name-input" /></Field>
           <Field label="Caller ID"><select className="civr-input font-mono" value={callerId} onChange={set('callerId')} data-testid="campaign-caller-select">{numbers.map(n => <option key={n.phoneNumber} value={n.phoneNumber}>{n.phoneNumber}</option>)}</select></Field>
+          <ShowAsSelect value={f.showAs} onChange={set('showAs')} testid="campaign-show-as-select" />
           {isAi ? <AiCampaignFields agentId={f.agentId} onChange={set('agentId')} /> : <>
           <Field label="Message"><AudioSelect value={f.audioId} onChange={set('audioId')} audios={au?.audios} by="id" testid="campaign-audio-select" /></Field>
           {script ? <div className="border border-[#262626] rounded-xl p-4"><ScriptBox value={script} onChange={setScript} onAudio={(a) => { reloadAudio(); setF(x => ({ ...x, audioId: a.id })); setScript(null); }} testid="campaign-script" /></div>
