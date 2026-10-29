@@ -82,15 +82,18 @@ def test_campaign_create_now_and_start(s, ctx):
     st = s.post(f"{BASE}/campaigns/{c['id']}/start")
     assert st.status_code in (200, 202)
     got = s.get(f"{BASE}/campaigns/{c['id']}").json()['campaign']
-    # In dry-run nothing is simulated: campaign never progresses
-    assert got['status'] == 'created'
+    # In dry-run the preview simulator runs it (iteration 177+)
+    assert got['status'] in ('running', 'completed')
 
 
 def test_campaign_scheduled_in_preview(s, ctx):
     at = (datetime.now(timezone.utc) + timedelta(minutes=4)).isoformat()
     r = s.post(f'{BASE}/campaigns', json={'name': 'TEST_api sched', 'callerId': ctx['caller'], 'audioId': ctx['audio'], 'leads': LEADS, 'scheduledFor': at})
-    # Documented: preview blocks scheduling entirely
-    assert r.status_code == 400 and r.json().get('error', r.json().get('code', '')) in ('dry_run',) or 'preview' in r.text
+    # Scheduling is allowed in preview since iteration 177 (simulated launcher)
+    assert r.status_code == 201, r.text
+    c = r.json()['campaign']
+    ctx['created'].append(c['id'])
+    assert c['status'] == 'scheduled'
 
 
 def test_campaign_repeat_without_schedule_stop_repeat(s, ctx):

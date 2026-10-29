@@ -330,3 +330,9 @@ The new layout differs from the old in-place `/opt/nomadly/app-main` checkout. O
 - Contents: light mode for public pages (landing, /sip, /terms) — follows device, sun/moon switch shares the app's 'civr.theme' setting.
 - Verified live: health healthy, 0 calls; /, /sip, /terms, /login 200; light device -> white, dark device -> graphite, switch visible. WL apps untouched.
 - Rollback: `bash /opt/nomadly/deploy.sh app-main rollback`. ⚠️ Save to GitHub (main) or the next CI deploy rolls this back.
+
+## 2026-10-29 ~18:15Z — workspace deploy be3f697 (+31 uncommitted) → app-main ONLY
+- Contents: empty-audio-library picker + Add audio dialog, IVR/campaign/SMS set-up fixes, preview-only campaign simulator (inert in prod:
+  tick only runs when SKIP_WEBHOOK_SYNC && WEB_CLOUDIVR_DRY_RUN), prod launcher/recovery skip dryRun docs, POST /campaigns validateOnly.
+- Verified live: health healthy, 0 calls at flip; /, /login 200; bundle has new strings. Live sign-in test skipped (owner account is Google sign-in).
+- Rollback: `bash /opt/nomadly/deploy.sh app-main rollback`. ⚠️ Save to GitHub (main) or the next CI deploy rolls this back.

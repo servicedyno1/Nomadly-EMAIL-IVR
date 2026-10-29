@@ -1,0 +1,39 @@
+{
+  "summary": "Retest of iteration_176 fixes (preview dry-run). All requested flows PASS in the UI and API. Bulk IVR (5 pasted leads, audio from the picker, voicemail drop): Start went created -> running -> completed in about 8s. Per-lead outcomes: completed/key 1, voicemail + 'message left', no_answer, completed, busy. Stats: 5/5 called, 3 answered, 1 key, 1 no answer, 1 voicemail, 1 message left. The Live page showed it while running. The CSV has correct rows. The Start button disappears after one click, and a second API start returns 400. Scheduled (UI, browser in UTC): a one-off and a daily campaign were both saved as 'scheduled' for 17:52 and auto-started at 17:52:00. Both completed. The daily one shows 'Next run Oct 30, 05:52 PM', and in a New York timezone context it shows 01:52 PM, so times are correct. Stop repeating cancelled the next run. Cancel confirm on a scheduled campaign reads 'It will never dial anyone.' with 'Keep it' / 'Cancel campaign'. DateTimePicker: picking today defaults to now+10 min rounded up to 5 (17:48 -> 18:00, 17:54 -> 18:05). Red '-warning' shows for too soon, and for more than 24h on Quick IVR. Written script + no leads, or + past schedule: the error shows and the audio library count stays at 1. With a valid setup the voice and the campaign are created (count 1 -> 2). Empty leads copy is correct. Add audio and caller-ID dialogs are compact at 390px and desktop. Inbox reply to a US number shows 'Ask us to register it', which opens the help chat prefilled. The Help page button opens an empty box on a fresh load. Regressions PASS: Quick IVR now, Quick IVR scheduled + cancel (with Undo toast), number Keypad menu key 'Play a message' + audio saves and persists after reload.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "campaign-sim.js step() completion", "issue": "When a simulated campaign completes, no 'campaign completed / detailed report' inbox notification is created. Cancels do create them. Checked in the DB: 9 sim completions, 0 notifications. So the completion notification can't be tested in preview."},
+      {"endpoint": "campaign-sim.js run()", "issue": "resume overwrites startedAt with the resume time, so the 'Running for' / duration shown is from the resume. tick() claims the campaign to 'created' before run(). If run() returns false (id already in active), the campaign stays 'created' and never starts. This is an unlikely edge."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "SupportChat (OPEN_HELP_CHAT handler)", "issue": "In the same SPA session: click 'Ask us to register it' (prefilled), close the chat, then Help -> 'Ask the help assistant'. The chat reopens with the old prefilled register text, not an empty box. The handler only calls setText when detail.text is given. Consider setText(detail?.text || '') or keep the unsent draft on purpose.", "selector": "[data-testid='help-open-assistant-button']", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Campaign detail", "issues": ["Lead status pills show raw values 'no_answer' (with an underscore) and 'voicemail'. Use friendly labels (No answer).", "Top areas card says '2 answered', but the stats grid says '3 Answered'. The grid counts voicemail as answered and the areas card does not. Align them or relabel.", "A cancelled next run (Run 2) still lists every lead as 'pending'."]},
+      {"screen": "DateTimePicker", "issues": ["A time earlier today shows 'That time is too soon. Pick at least 2 minutes from now.' 'That time has passed' would be clearer. The client minimum (2 min for campaigns) differs from the server message ('between 1 minute and 30 days').", "When nothing is scheduled, the disabled time box still shows 09:00 AM next to 'Not scheduled'."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_cloudivr_campaign_sim.py", "/app/backend/tests/test_cloudivr_outbound_messages.py", "/app/test_reports/pytest/pytest_campaign_sim.xml"],
+  "action_items": [
+    "LOW: Send the normal campaign-completed / detailed-report inbox notification when the preview simulator completes a campaign, so the notification can be tested in preview.",
+    "LOW: SupportChat: clear the input when OPEN_HELP_CHAT fires without text (Help page button), or decide to keep the unsent draft.",
+    "LOW: Use friendly lead status labels (no_answer -> No answer). Make the 'answered' counts match between the Top areas card and the stats grid.",
+    "LOW: DateTimePicker: show a 'time has passed' message for past times, and hide or blank the time box when nothing is scheduled."
+  ],
+  "critical_code_review_comments": [
+    "campaign-sim.js: run() accepts 'running' in its status $in and sets startedAt on every call. Keep the first startedAt ($min, or only set it when missing).",
+    "campaign-sim.js tick(): after claiming to 'created', if run() returns false the campaign is stranded. Revert it to 'scheduled', or run directly from the claim.",
+    "calls.js /start in dry-run: a non-dryRun campaign created before the flag was set gets 'This campaign is not waiting to start.' That message is misleading; say it can't run in preview."
+  ],
+  "updated_files": ["/app/backend/tests/test_cloudivr_campaign_sim.py (new)", "/app/backend/tests/test_cloudivr_outbound_messages.py (updated 2 assertions to the new behaviour: dry-run start simulates, scheduling is allowed in preview)"],
+  "success_rate": {"backend": "100% (17/17 pytest)", "frontend": "100% of requested flows; 1 LOW edge case (help chat keeps the prefilled draft)"},
+  "seed_data_creation": "Inserted a webNotifications sms doc for Alice (chatId 5000000000000001): from +14155550177 to +13346972125, text 'TEST_us inbound for 10DLC'. Created TEST_ campaigns (TEST_sim_bulk, TEST_sched_once, TEST_sched_daily + Run 2 cancelled, TEST_script_camp, TEST_sched_cancel, TEST_sim from pytest). Created 1 TTS audio 'TEST_script_camp' in Alice's library (count 1 -> 2). The IVR keypad menu on +13346972125 now has key 1 = Play a message 'TEST key message' with audio (menu switch off). Quick IVR: 1 preview call + 1 scheduled preview call (cancelled).",
+  "test_credentials": "civr.alice@example.com / AliceTest#2026 (from /app/memory/test_credentials.md)",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Preview sim: CLOUDIVR_SIM_STEP_MS defaults to 1500 ms per lead, and outcomes cycle by lead index: completed+key, voicemail(+left if VM audio), no_answer, completed, busy. The scheduled launcher runs at the minute tick in _index.js, so a schedule at HH:MM:00 starts within about 1s. Alice's audio[0] is now 'TEST_script_camp' (TTS), not 'showas test'. The Playwright browser timezone is UTC; for TZ checks use browser.new_context(timezone_id=..., storage_state=...). Inbox: the reply button testid is inbox-item-{i}-reply-button and the register button is inbox-item-{i}-reply-box-dest-register-button. DateTimePicker testids: {testid}-trigger / -calendar / -time-input / -warning / -clear (campaign-schedule, quick-schedule). The number IVR tab URL is /cloudivr/app/numbers/%2B13346972125?tab=ivr."
+}

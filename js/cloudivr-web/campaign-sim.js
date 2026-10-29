@@ -52,8 +52,9 @@ async function step(col, id) {
 
 async function run(col, id) {
   if (active.has(id)) return false
-  const r = await col.updateOne({ id, dryRun: true, status: { $in: ['created', 'scheduled', 'paused', 'running'] } }, { $set: { status: 'running', startedAt: new Date(), simulated: true } })
+  const r = await col.updateOne({ id, dryRun: true, status: { $in: ['created', 'scheduled', 'paused', 'running'] } }, { $set: { status: 'running', simulated: true } })
   if (!r.matchedCount) return false
+  await col.updateOne({ id, startedAt: null }, { $set: { startedAt: new Date() } })
   active.add(id)
   log(`[CampaignSim] ${id} simulating (preview, nothing dialed)`)
   setTimeout(() => step(col, id).catch(e => { active.delete(id); log(`[CampaignSim] ${id} step error: ${e.message}`) }), STEP_MS)

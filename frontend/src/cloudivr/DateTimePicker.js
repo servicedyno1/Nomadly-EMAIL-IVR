@@ -10,6 +10,7 @@ const toLocal = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getD
 const soon = () => { const x = new Date(Date.now() + 10 * 60000); x.setMinutes(Math.ceil(x.getMinutes() / 5) * 5, 0, 0); return x; };
 function problem(d, minMinutes, maxDays) {
   if (!d) return '';
+  if (d.getTime() < Date.now()) return 'That time has passed. Pick a later time.';
   if (d.getTime() < Date.now() + minMinutes * 60000) return `That time is too soon. Pick at least ${minMinutes} minutes from now.`;
   if (d.getTime() > Date.now() + maxDays * 86400000) return maxDays === 1 ? 'Pick a time within the next 24 hours.' : `Pick a time within the next ${maxDays} days.`;
   return '';
@@ -37,7 +38,7 @@ export function DateTimePicker({ value, onChange, testid, maxDays = 30, minMinut
           <Calendar mode="single" selected={d || undefined} onSelect={(day) => day && pickDay(day)} disabled={[{ before: today }, { after: max }]} initialFocus />
         </PopoverContent>
       </Popover>
-      <input type="time" className="civr-input !w-32 font-mono" value={time} disabled={!d} onChange={e => onChange(toLocal(at(d, e.target.value)))} data-testid={`${testid}-time-input`} />
+      <input type="time" className="civr-input !w-32 font-mono" value={d ? time : ''} aria-label="Time" disabled={!d} onChange={e => onChange(toLocal(at(d, e.target.value)))} data-testid={`${testid}-time-input`} />
       {d && <button type="button" onClick={() => onChange('')} className="p-2 text-[#a1a1aa] hover:text-white" data-testid={`${testid}-clear`} aria-label="Clear schedule"><X className="w-4 h-4" /></button>}
     </div>
     {warn && <p role="alert" className="text-xs text-[#fb7185]" data-testid={`${testid}-warning`}>{warn}</p>}

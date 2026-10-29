@@ -60,10 +60,11 @@ function Controls({ c, act, busy }) {
   );
 }
 
-function LeadStatus({ l, i }) {
+const LEAD_LABEL = { pending: 'waiting', calling: 'calling', ringing: 'ringing', answered: 'talking', completed: 'answered', no_answer: 'no answer', busy: 'busy', failed: 'failed', voicemail: 'voicemail', skipped: 'skipped' };
+function LeadStatus({ l, i, ended }) {
   return (
     <>
-      <span className={statusPill(l.status)}>{l.status}</span>
+      <span className={statusPill(l.status)}>{ended && l.status === 'pending' ? 'not called' : (LEAD_LABEL[l.status] || String(l.status).replace(/_/g, ' '))}</span>
       {l.transferred && <span className="civr-pill civr-pill-on ml-1">transferred</span>}
       {l.voicemailDropped && <span className="civr-pill civr-pill-on ml-1" data-testid={`campaign-lead-${i}-message-left`}>message left</span>}
       {l.waitingForLine && l.status === 'pending' && <span className="civr-pill civr-pill-warn ml-1" data-testid={`campaign-lead-${i}-waiting-line`}>waiting for a line</span>}
@@ -85,7 +86,7 @@ function LeadResult({ l, i, isAi }) {
 }
 
 // Phones: one stacked card per number.
-function LeadCard({ l, i, isAi }) {
+function LeadCard({ l, i, isAi, ended }) {
   const pv = usePrivacy();
   return (
     <li className="py-3 first:pt-0 last:pb-0" data-testid={`campaign-lead-${i}`}>
@@ -93,23 +94,23 @@ function LeadCard({ l, i, isAi }) {
         <div className="min-w-0"><div className="font-mono text-sm break-all">{pv.phone(l.number)}</div>{l.name && <div className="text-xs text-[#a1a1aa] mt-0.5">{pv.text(l.name, '•••')}</div>}</div>
         {l.duration ? <span className="font-mono text-xs text-[#a1a1aa] shrink-0 pt-0.5">{secs(l.duration)}</span> : null}
       </div>
-      <div className="flex flex-wrap items-center gap-y-1 mt-2"><LeadStatus l={l} i={i} /></div>
+      <div className="flex flex-wrap items-center gap-y-1 mt-2"><LeadStatus l={l} i={i} ended={ended} /></div>
       <div className="text-xs mt-2"><span className="text-[#a1a1aa] mr-2">{isAi ? 'AI result' : 'Key'}</span><span className={isAi ? '' : 'font-mono'} data-testid={`campaign-lead-${i}-result`}><LeadResult l={l} i={i} isAi={isAi} /></span></div>
     </li>
   );
 }
 
-function Leads({ leads, isAi }) {
+function Leads({ leads, isAi, ended }) {
   const pv = usePrivacy();
   const phone = useIsPhone();
   const { shown, rest, more } = usePaged(leads, 50);
   return (
     <>
-      {phone ? <ul className="divide-y divide-[#1f1f1f]" data-testid="campaign-leads-table">{shown.map((l, i) => <LeadCard key={`${l.number}-${i}`} l={l} i={i} isAi={isAi} />)}</ul> : (
+      {phone ? <ul className="divide-y divide-[#1f1f1f]" data-testid="campaign-leads-table">{shown.map((l, i) => <LeadCard key={`${l.number}-${i}`} l={l} i={i} isAi={isAi} ended={ended} />)}</ul> : (
         <table className="civr-table" data-testid="campaign-leads-table">
           <thead><tr><th>Number</th><th>Name</th><th>Status</th><th>{isAi ? 'AI result' : 'Key'}</th><th>Length</th></tr></thead>
           <tbody>{shown.map((l, i) => (
-            <tr key={`${l.number}-${i}`} data-testid={`campaign-lead-${i}`}><td className="font-mono text-xs">{pv.phone(l.number)}</td><td>{pv.text(l.name, '•••') || '—'}</td><td><LeadStatus l={l} i={i} /></td><td className={isAi ? 'text-xs max-w-xs' : 'font-mono'} data-testid={`campaign-lead-${i}-result`}><LeadResult l={l} i={i} isAi={isAi} /></td><td className="font-mono text-xs">{l.duration ? secs(l.duration) : '—'}</td></tr>
+            <tr key={`${l.number}-${i}`} data-testid={`campaign-lead-${i}`}><td className="font-mono text-xs">{pv.phone(l.number)}</td><td>{pv.text(l.name, '•••') || '—'}</td><td><LeadStatus l={l} i={i} ended={ended} /></td><td className={isAi ? 'text-xs max-w-xs' : 'font-mono'} data-testid={`campaign-lead-${i}-result`}><LeadResult l={l} i={i} isAi={isAi} /></td><td className="font-mono text-xs">{l.duration ? secs(l.duration) : '—'}</td></tr>
           ))}</tbody>
         </table>
       )}
@@ -173,7 +174,7 @@ export default function CampaignDetail() {
       <FeedAndAreas c={c} isAi={isAi} />
       <div className="civr-card p-5 sm:p-6 overflow-x-auto">
         <div className="font-display text-2xl font-bold mb-3">Numbers</div>
-        <Leads leads={c.leads} isAi={isAi} />
+        <Leads leads={c.leads} isAi={isAi} ended={['completed', 'cancelled'].includes(c.status)} />
       </div>
     </div>
   );
