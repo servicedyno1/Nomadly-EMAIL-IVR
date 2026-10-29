@@ -23,7 +23,7 @@ const en = {
     intro: () => 'Thanks for joining CloudIVR. You’re three quick steps away from a number that answers every call, routes callers with a keypad menu or an AI voice agent, and calls your whole list for you.',
     steps: [
       { title: 'Pick your number', text: 'Local, mobile or toll-free in 17 countries. Most go live in minutes.' },
-      { title: 'Top up your wallet', text: 'Pay with crypto in seconds. Your wallet covers renewals and calls.' },
+      { title: 'Top up your wallet', text: 'Top up in seconds. Your wallet covers renewals and calls.' },
       { title: 'Switch on the magic', text: 'Voicemail with transcripts, a keypad menu, Quick IVR calls and campaigns — all from one screen.' },
     ],
     cta: () => 'Get your number',
@@ -101,7 +101,7 @@ const en = {
     preheader: () => 'Top up from $10 and everything picks up where it left off.',
     eyebrow: 'Wallet empty', title: () => 'Your calls are on hold.',
     intro: (d, f) => `Your wallet is down to ${f.usd(d.balance)}, which can’t cover outgoing calls. Quick IVR calls, campaigns and forwarded calls are paused until you top up.`,
-    points: ['Top up from $10 with crypto in seconds', 'Paused campaigns resume with one tap', 'Your numbers and settings stay safe'],
+    points: ['Top up from $10 in seconds', 'Paused campaigns resume with one tap', 'Your numbers and settings stay safe'],
     cta: () => 'Top up now',
   },
   campaignDone: {
@@ -164,7 +164,7 @@ const fr = {
     intro: () => 'Merci d’avoir rejoint CloudIVR. Trois étapes rapides vous séparent d’un numéro qui répond à chaque appel, oriente vos appelants avec un menu à touches ou un agent vocal IA, et appelle toute votre liste à votre place.',
     steps: [
       { title: 'Choisissez votre numéro', text: 'Local, mobile ou gratuit dans 17 pays. La plupart sont actifs en quelques minutes.' },
-      { title: 'Alimentez votre portefeuille', text: 'Payez en crypto en quelques secondes. Votre solde couvre les renouvellements et les appels.' },
+      { title: 'Alimentez votre portefeuille', text: 'Rechargez en quelques secondes. Votre solde couvre les renouvellements et les appels.' },
       { title: 'Activez la magie', text: 'Messagerie vocale avec transcription, menu à touches, appels Quick IVR et campagnes — tout depuis un seul écran.' },
     ],
     cta: () => 'Obtenir mon numéro',
@@ -242,7 +242,7 @@ const fr = {
     preheader: () => 'Rechargez dès 10 $ et tout reprend là où ça s’était arrêté.',
     eyebrow: 'Portefeuille vide', title: () => 'Vos appels sont en attente.',
     intro: (d, f) => `Votre portefeuille est descendu à ${f.usd(d.balance)}, ce qui ne couvre plus les appels sortants. Les appels Quick IVR, les campagnes et les appels renvoyés sont en pause jusqu’à votre recharge.`,
-    points: ['Rechargez dès 10 $ en crypto en quelques secondes', 'Les campagnes en pause reprennent en un clic', 'Vos numéros et réglages restent en sécurité'],
+    points: ['Rechargez dès 10 $ en quelques secondes', 'Les campagnes en pause reprennent en un clic', 'Vos numéros et réglages restent en sécurité'],
     cta: () => 'Recharger maintenant',
   },
   campaignDone: {

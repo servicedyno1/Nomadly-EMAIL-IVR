@@ -13,7 +13,7 @@ const COPY = {
     title: (n, b) => (n ? `Welcome to ${b}, ${n}.` : `Welcome to ${b}.`),
     intro: (b) => `Thanks for joining ${b}. Receipts, hosting logins and important account notices will come to this address.`,
     steps: [
-      { title: 'Top up your wallet', text: 'Pay with crypto in seconds. Your wallet covers every order and renewal.' },
+      { title: 'Top up your wallet', text: 'Top up in seconds. Your wallet covers every order and renewal.' },
       { title: 'Pick what you need', text: 'Phone numbers & IVR, hosting, domains and digital products — all from the bot menu.' },
       { title: 'Get help anytime', text: 'Message support right inside the bot. Real people, fast answers.' },
     ],
@@ -28,7 +28,7 @@ const COPY = {
     title: (n, b) => (n ? `Bienvenue sur ${b}, ${n}.` : `Bienvenue sur ${b}.`),
     intro: (b) => `Merci d'avoir rejoint ${b}. Reçus, identifiants d'hébergement et avis importants arriveront à cette adresse.`,
     steps: [
-      { title: 'Rechargez votre portefeuille', text: 'Payez en crypto en quelques secondes. Le portefeuille couvre commandes et renouvellements.' },
+      { title: 'Rechargez votre portefeuille', text: 'Rechargez en quelques secondes. Le portefeuille couvre commandes et renouvellements.' },
       { title: 'Choisissez votre service', text: 'Numéros & IVR, hébergement, domaines et produits numériques — depuis le menu du bot.' },
       { title: "De l'aide à tout moment", text: 'Écrivez au support directement dans le bot. De vraies personnes, des réponses rapides.' },
     ],

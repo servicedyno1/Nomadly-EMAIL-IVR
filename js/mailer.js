@@ -169,7 +169,23 @@ async function sendZoho(m) {
 }
 
 // ── Telnyx Email ──
+// Telnyx Email policy: the word "crypto" (and cryptocurrency) must never appear in a message we send through it.
+// Rewrites subject + text + the visible text of the HTML (tags/attributes/URLs are left as they are).
+const POLICY = [
+  [/\bcryptocurrencies\b/gi, 'digital currencies'], [/\bcryptocurrency\b/gi, 'digital currency'],
+  [/\bcryptomonnaies\b/gi, 'monnaies numériques'], [/\bcryptomonnaie\b/gi, 'monnaie numérique'],
+  [/\bcryptos\b/gi, 'digital currencies'], [/\bcrypto\b/gi, 'digital currency'],
+]
+const policyText = (s) => POLICY.reduce((t, [re, to]) => t.replace(re, to), String(s))
+const policyHtml = (h) => String(h)
+  .replace(/(^|>)([^<]+)/g, (_, a, txt) => a + policyText(txt))
+  .replace(/\b(alt|title|aria-label)=("[^"]*"|'[^']*')/gi, (_, k, v) => `${k}=${policyText(v)}`)
+function telnyxSafe(m) {
+  return { ...m, subject: m.subject && policyText(m.subject), ...(m.text ? { text: policyText(m.text) } : {}), ...(m.html ? { html: policyHtml(m.html) } : {}), ...(m.from?.name ? { from: { ...m.from, name: policyText(m.from.name) } } : {}) }
+}
+
 function telnyxPayload(m) {
+  m = telnyxSafe(m)
   const addr = (a) => ({ email: a.email, ...(a.name ? { name: a.name } : {}) })
   const headers = {}
   for (const [name, value] of Object.entries(m.headers || {})) if (/^[A-Za-z0-9-]+$/.test(name)) headers[name] = String(value)

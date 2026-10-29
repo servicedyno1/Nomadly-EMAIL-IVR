@@ -1816,3 +1816,10 @@ calls and SIP are simulated; inbound calls use a pretend-call simulator).
   DocumentsStep no-bill option, NewSetup timeline, NumberPanel admin_docs + expected date.
 - Tests: backend/tests/test_cloudivr_admin_dashboard.py 16/16 pass; UI smoke-checked by screenshots (testing agent's frontend
   pass did not complete — credits ran out).
+
+## 2026-10-29 — Telnyx Email policy: no "crypto" wording (LIVE app-main 229535a)
+- js/mailer.js telnyxPayload → telnyxSafe(): subject, text, visible HTML text and alt/title/aria-label rewrite
+  crypto/cryptos/cryptocurrency/-ies → "digital currency/-ies" (FR cryptomonnaie → monnaie numérique). URLs/tags untouched.
+- Source copy cleaned: cloudivr-web/email-copy.js (welcome + wallet-empty EN/FR), bot-welcome-email.js (EN/FR),
+  cloudivr-web/orders.js swapped-number message. Telegram/bot texts unchanged (not email).
+- Note: reseller bots (app-wl/voodoo/proshop) were NOT redeployed — their emails still use their own older code.

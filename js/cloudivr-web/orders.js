@@ -124,7 +124,7 @@ function routes(router, { db, h, numbersApi, offers = null, coins = [], createCr
         const priceNote = charged < o.price ? `it costs $${charged.toFixed(2)}, so the $${round2(o.price - charged).toFixed(2)} difference stays in your wallet` : 'same price'
         const leftover = extra && o.price > charged ? ` The $${round2(o.price - charged).toFixed(2)} left over stays in your wallet.` : ''
         const message = swapped
-          ? `The number you picked (${o.phoneNumber}) was taken while your crypto payment was confirming, so we gave you ${assigned} instead — same country${o.areaCode ? ' and area code' : ''}, ${extra ? `same price.${leftover}` : priceNote}${extra ? '' : '.'}`
+          ? `The number you picked (${o.phoneNumber}) was taken while your payment was confirming, so we gave you ${assigned} instead — same country${o.areaCode ? ' and area code' : ''}, ${extra ? `same price.${leftover}` : priceNote}${extra ? '' : '.'}`
           : extra ? `Payment confirmed — ${assigned} is now an extra number on ${sub.parentNumber}.${leftover}` : `Payment confirmed — ${assigned} is yours.`
         await save(o._id, { status, assignedNumber: assigned, substitutedFrom: swapped ? o.phoneNumber : null, chargedUsd: charged, message })
         tell(o, `${message}${status === 'verification' ? ' Open Verification to send the details the carrier needs.' : ''}`, swapped ? `Your new CloudIVR number: ${assigned}` : null)
