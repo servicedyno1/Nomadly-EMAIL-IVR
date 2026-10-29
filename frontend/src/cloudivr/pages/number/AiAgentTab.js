@@ -25,7 +25,7 @@ export default function AiAgentTab({ num, reload }) {
     <div className="civr-card p-6 max-w-2xl space-y-6" data-testid="number-ai-tab" {...u.bind}>
       <div>
         <div className="font-display text-2xl font-bold">AI voice agent answers this number</div>
-        <p className="text-sm text-[#a1a1aa] mt-1">{`The agent picks up every call, says it is an AI assistant, answers from your FAQs, books appointments, takes messages or transfers to you. $${Number(data?.rate || 0.2).toFixed(2)} per started minute from your wallet (+$${Number(data?.recordRate ?? 0.02).toFixed(2)} when the agent records); if the wallet runs out it says goodbye and hangs up.`}</p>
+        <p className="text-sm text-[#a1a1aa] mt-1">{`The agent picks up every call, says it is an AI assistant, answers from your FAQs, books appointments, takes messages or transfers to you. $${Number(data?.rate || 0.3).toFixed(2)} per started minute from your wallet (+$${Number(data?.recordRate ?? 0.02).toFixed(2)} when the agent records); if the wallet runs out it says goodbye and hangs up.`}</p>
       </div>
       <div className="flex items-center justify-between"><span className="text-sm">Answer calls with the AI voice agent</span><InstantToggle num={num} feature="aiAgent" label="AI voice agent" checked={enabled} reload={reload} testid="number-ai-enabled-toggle" /></div>
       {num.features?.ivr?.enabled && <OneAnswerNote testid="number-ai-ivr-note">Your keypad menu answers this number now. Turning the AI voice agent on switches the keypad menu off — a number uses one or the other.</OneAnswerNote>}

@@ -96,7 +96,7 @@ function faqs() {
   const start = startPrice(c)
   const fromTxt = start != null ? ` (from ${usd(start)}/month)` : ''
   const minTopup = c && c.minTopup != null ? usd(c.minTopup) : '$10'
-  const ai = perMin(c && c.rates ? c.rates.aiAgentPerMin : 0.2)
+  const ai = perMin(c && c.rates ? c.rates.aiAgentPerMin : 0.3)
   const extra = c && c.extraNumber ? usd(c.extraNumber.price) : '$25'
   const countries = c && c.countryCount ? c.countryCount : null
   const ivrPlans = andList(plansWith(c, 'ivr')) || 'the Business'

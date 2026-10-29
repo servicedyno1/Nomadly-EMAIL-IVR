@@ -172,7 +172,7 @@ export function Locked({ feature, phone, need }) {
 export function Toggle({ checked, onChange, testid, disabled }) {
   return (
     <button type="button" role="switch" aria-checked={checked} disabled={disabled} onClick={() => onChange(!checked)} data-testid={testid}
-      className={`relative w-11 h-6 shrink-0 rounded-full transition-colors before:absolute before:content-[''] before:-inset-x-1 before:-inset-y-2.5 ${checked ? 'bg-[#818cf8]' : 'bg-[#2a2a2a]'} disabled:opacity-40`}>
+      className={`relative w-11 h-6 shrink-0 rounded-full transition-colors before:absolute before:content-[''] before:-inset-x-1 before:-inset-y-2.5 ${checked ? 'bg-[#818cf8]' : 'bg-[#2a2a2a] ring-1 ring-inset ring-[#71717a]/60'} disabled:opacity-40`}>
       <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform ${checked ? 'translate-x-5' : ''}`} />
     </button>
   );

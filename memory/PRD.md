@@ -1784,3 +1784,19 @@ calls and SIP are simulated; inbound calls use a pretend-call simulator).
   "Keep my current picks"), interleaved suggestions, mobile More "For you", SetupGuide re-entry link (setup-open). money(): 3
   decimals only for amounts < $1 with sub-cent value.
 - Tests: iteration_172 (found bugs) -> iteration_173 (backend 10/10, frontend 95%); all 173 findings fixed + self-verified after.
+
+## 2026-10-29 07:31Z — AI voice agent call-quality fixes (LIVE on app-main, release 50513f3)
+- RCA (prod data, fundmyllc@gmail.com, 99 AI calls/4 days): outbound opening spoken BEFORE answer (greeting present even on
+  0-s/no-answer calls) → callee heard silence; slow/unsure voicemail detection → agent chatted with machines/screeners;
+  semantic VAD eagerness 'auto'; droplet ams3 adds ~0.2–0.3 s/turn for US calls.
+- Fixes: js/ai-agent/bridge.js — never speaks on outbound until call.answered (callLive gate, pending signals in calls.js);
+  waits for "Hello?" (default ON, one-time aiMeta migration set all agents waitForHello=true); semantic_vad eagerness 'high' +
+  near_field noise reduction; call-screener detection (one-line intro then wait); voicemail: Telnyx PREMIUM AMD, stop talking,
+  leave one message after beep (9 s fallback), transcript voicemail-greeting fallback; "Are you still there?" after 7 s of
+  silence (from playback-end mark) then polite wrap-up; outcomes screened/no_answer/no_conversation + friendly labels.
+- Model default gpt-realtime (full). Price AI_AGENT default $0.30/min (+$0.02 recorded); UI/i18n/catalog updated.
+- Admin Telegram alert (non-blocking) when an agent script has fraud/impersonation markers (store.screenScript).
+- Cost (30-day real usage ~4.9k in / 860 out tokens per min): full model ~$0.12–0.23/min all-in vs $0.30 price.
+- ⚠️ Customer fundmyllc@gmail.com agents "Emily"/"Brian smith" contain explicit fraud script markers (PCH prize impersonation,
+  "[Victim Name]", "[Your Fake Name]"). User chose to leave campaigns running and handle blocking manually.
+- Tests: js/tests/ai_bridge_flow.test.js 16/16; iteration_174 backend 100% / frontend 100%; follow-ups all fixed.

@@ -35,6 +35,9 @@ const ok = (c, m) => { if (!c) { console.log('FAIL', m); process.exitCode = 1 } 
   ;({ b, sent } = mk()); b.onAi({ type: 'session.updated' }); b.answered(); b.say('caller', "Hi, you've reached John. I can't take your call, please leave a message after the tone.")
   ok(b.machine, 'voicemail greeting heard → machine mode')
 
+  ;({ b, sent } = mk()); b.onAi({ type: 'session.updated' }); b.answered(); b.say('caller', "Hello, who's calling?"); b.say('caller', "Sorry, she's not available right now.")
+  ok(!b.screened && !b.machine, 'normal human phrases are not screener/voicemail')
+
   ;({ b, sent } = mk()); b.onAi({ type: 'session.updated' }); b.answered(); b.open(); b.interruptible = true; b.armIdle(); await sleep(70)
   ok(sent.some(x => x.startsWith('RESP:Say only this, warmly: "Are you still')), 'silence → are you still there?')
   await sleep(70)
@@ -42,6 +45,9 @@ const ok = (c, m) => { if (!c) { console.log('FAIL', m); process.exitCode = 1 } 
 
   ;({ b, sent } = mk('inbound')); b.onAi({ type: 'session.updated' })
   ok(sent.some(x => x.startsWith('RESP:Start the call')), 'inbound speaks right away')
+  const marks = []; b.toPhone = (o) => marks.push(o.mark?.name); b.interruptible = true; b.markIdle()
+  ok(marks.includes('idle') && !b.idleTimer, 'idle watch waits for playback mark'); b.onMark('idle')
+  ok(!!b.idleTimer, 'playback mark arms the idle watch'); b.stop()
   ;({ b, sent } = mk('outbound', { waitForHello: false })); b.onAi({ type: 'session.updated' }); b.answered()
   ok(sent.some(x => x.startsWith('RESP:Start the call')), 'hello-wait off: speaks on answer (never before)')
   process.exit()

@@ -8,8 +8,8 @@ const { opening, prepare } = require('./opening')
 
 const MODEL = () => process.env.AI_AGENT_MODEL || 'gpt-realtime'
 // Call screeners (Google Voice, iPhone "Screen Unknown Callers", carrier screening) and voicemail greetings.
-const SCREENER = /(state your name|say your name|record your name|who'?s calling|who is calling|reason for (your|the) call|screening (service|this call)|google (voice )?(assistant|is screening)|see if (this person|they|he|she) (is|are) available|person you('| a)re calling is using)/i
-const VOICEMAIL = /(leave (me |us )?(a |your )?(message|name and number)|after the (tone|beep)|not available (right now|to take)|can'?t (come to|take) (the|your) (phone|call)|voice ?mail|mailbox (is full|of)|reached the (voicemail|mailbox)|record your message)/i
+const SCREENER = /(state your name|say your name|record your name|(name and )?reason for (your|the) call|screening (service|this call|your call)|call screen|google (voice )?(assistant|is screening)|see if (this person|they|he|she) (is|are) available|person you('| a)re calling is using)/i
+const VOICEMAIL = /(leave (me |us )?(a |your )?(message|name and number)|after the (tone|beep)|voice ?mail (box|service|system)|mailbox (is full|of)|reached the (voicemail|mailbox)|record your message|at the tone)/i
 // "Wait for them to say hello": if nobody speaks this long after the call connects, the agent opens anyway.
 const HELLO_WAIT_MS = () => parseInt(process.env.AI_AGENT_HELLO_WAIT_MS || '4000', 10)
 // The opening (owner's first message or the standard one, always with the AI disclosure and — when recorded — the
@@ -149,6 +149,8 @@ class Bridge {
   beep() { if (this.machine && !this.result.voicemail) { clearTimeout(this.vmTimer); this.voicemail() } }
 
   // Quiet after the agent spoke: nudge once, then wrap up.
+  // Start the silence watch only once the agent's audio has finished playing (Telnyx echoes the mark).
+  markIdle() { if (!this.closed && !this.ending && this.opened && !this.machine && !this.responding && !this.queued) this.toPhone({ event: 'mark', mark: { name: 'idle' } }) }
   armIdle() {
     clearTimeout(this.idleTimer)
     if (this.closed || this.ending || !this.opened || this.machine || !this.interruptible) return
@@ -189,7 +191,7 @@ class Bridge {
 
   // What the far end said tells us who answered: a call screener (Google Voice, iPhone, carrier) or a voicemail box.
   heard(t) {
-    if (!this.screened && !this.machine && SCREENER.test(t)) {
+    if (!this.screened && !this.machine && Date.now() - (this.liveAt || Date.now()) < 20000 && SCREENER.test(t)) {
       this.screened = true
       this.result.screened = true
       clearTimeout(this.helloTimer)
@@ -217,6 +219,7 @@ class Bridge {
   }
 
   onMark(name) {
+    if (name === 'idle') return this.armIdle()
     if (name === 'greeted' && !this.interruptible) {
       this.interruptible = true
       this.send({ type: 'session.update', session: { type: 'realtime', audio: { input: { turn_detection: vad(true) } } } })
@@ -262,7 +265,7 @@ class Bridge {
         break
       case 'response.output_audio_transcript.done': this.say('agent', e.transcript); break
       case 'conversation.item.input_audio_transcription.completed': this.say('caller', e.transcript); break
-      case 'response.done': this.responding = false; this.onResponseDone(e.response || {}); this.flush(); this.armIdle(); break
+      case 'response.done': this.responding = false; this.onResponseDone(e.response || {}); this.flush(); this.markIdle(); break
       case 'error':
         if (e.error?.code !== 'response_cancel_not_active') this.creating = false
         // Our create collided with a response the server started itself (caller spoke): retry after it ends.

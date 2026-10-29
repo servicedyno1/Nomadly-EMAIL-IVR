@@ -177,7 +177,7 @@ async function finish(s, payload) {
   ])
   const machine = res.voicemail || s.answeredBy === 'machine'
   const talked = (res.transcript || []).some(x => x.role === 'caller')
-  const outcome = res.optedOut ? 'opted_out' : res.booking ? 'booked' : s.transferredTo ? 'transferred' : machine ? 'voicemail' : res.screened && !res.outcome ? 'screened' : !duration ? 'no_answer' : !talked && !res.outcome ? 'no_conversation' : res.outcome || (res.message ? 'message' : sum?.outcome) || (duration ? 'no_conversation' : null)
+  const outcome = res.optedOut ? 'opted_out' : res.booking ? 'booked' : s.transferredTo ? 'transferred' : machine ? 'voicemail' : res.screened && !res.outcome && !sum?.outcome && (res.transcript || []).filter(x => x.role === 'caller').length <= 1 ? 'screened' : !duration ? 'no_answer' : !talked && !res.outcome ? 'no_conversation' : res.outcome || (res.message ? 'message' : sum?.outcome) || (duration ? 'no_conversation' : null)
   // The recording surcharge only applies when an MP3 was actually saved.
   const baseRate = s.baseRate ?? (s.kind === 'inbound' ? RATE() : leadRate(s.other))
   const recordingRate = recording ? (s.recRate ?? recorder.RECORD_RATE()) : 0

@@ -1,0 +1,46 @@
+{
+  "summary": "AI voice agent answer-gating / waitForHello / $0.30 price / fraud alert / outcome labels. Unit test js/tests/ai_bridge_flow.test.js: 13/13 ok. New pytest (11/11 pass): catalog + public catalog + ai-agents rate = 0.3, AI webFeature labels show $0.30/min, waitForHello default true, off persists (create+PUT+list), legacy agent with flag $unset returns true, aiMeta migration marker present, flagged goals ('victim', 'Publishers Clearing House') save on create+update (admin Telegram alert seen in [tg-out] logs, non-blocking), browser test WS inbound (agent speaks immediately) and outbound (opened after 4s 'no hello') stream media with no error. UI (Playwright): new agent toggle ON by default, toggling off + save + reload stays off; TestTalk inbound and outbound both go live, transcript shows agent lines, no toasts/page errors; outbound note text switches between 'Say “Hello?” first' (on) and 'agent speaks first' (off); Call history shows friendly labels for voicemail/no_answer/no_conversation/screened; campaign builder AI option + bullet show $0.30; landing /cloudivr, /cloudivr/pricing, /cloudivr/plans show ($0.30/min), no $0.20 left. No [AIAgent] errors in nodejs logs.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "ai-agent/calls.js finish() outcome mapping", "issue": "`res.screened && !res.outcome ? 'screened'` is checked BEFORE talked/summary outcome. If a screener answered and the person then picked up and talked (or a human said 'who's calling?' — matches SCREENER regex), the call is labelled 'Call screener — person didn’t pick up' unless the model called record_outcome. Should only be 'screened' when no caller turn after the screener / sum?.outcome missing."},
+      {"endpoint": "ai-agent/bridge.js SCREENER regex", "issue": "'who'?s calling|who is calling' is a very common human greeting ('Hello, who's calling?') → false screener mode (agent gives a one-line intro, idle wait becomes 20s, outcome mislabelled). Consider requiring screener-specific phrasing or only matching before a human-like 'hello'."},
+      {"endpoint": "ai-agent/bridge.js VOICEMAIL regex", "issue": "'not available right now' / 'can't take the call' within first 25s also matches a human ('She's not available right now') → switches to machine mode and leaves a voicemail to a live person. Low frequency but worth tightening."},
+      {"endpoint": "ai-agent/bridge.js armIdle()", "issue": "Idle 7s timer starts at response.done (generation end), not playback end. Realtime generates faster than real time, so after a long agent answer (>~10s audio) 'Are you still there?' can be spoken almost immediately after (or queued right behind) the agent's own sentence. Start the timer from the playback mark / itemMs."},
+      {"endpoint": "ai-agent/store.js screenScript()", "issue": "agent name / goal inserted into an HTML-parse-mode Telegram message unescaped; a script containing '<' or '&' makes Telegram reject the message, so the fraud alert is silently lost (easy evasion). HTML-escape a.name and goal. Also IMPERSONATE list (amazon, apple, microsoft, government) will produce many false-positive alerts for legit businesses (noise only)."},
+      {"endpoint": "cloudivr-web/seo.js:99, frontend AiAgents.js:19, AiAgentTab.js:28, PricingFaq.js:67", "issue": "Fallback defaults still 0.2 (only used when API rate missing) — update to 0.3 for consistency."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "AiCalls outcomeLabel", "issue": "Only some outcomes are mapped; model outcomes render raw lowercase ('callback', 'interested', 'not interested', 'other') next to friendly labels. Add labels for interested/not_interested/callback/other.", "selector": "[data-testid^='ai-call-row-'][data-testid$='-outcome']", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Agent form (light theme)", "issues": ["Wait-for-hello toggle OFF state is near-white on white card — very low contrast, hard to see it exists"]},
+      {"screen": "i18n es/fr", "issues": ["New $0.30 strings (campaign option, bullet, catalog 'AI voice agent ... ($0.30/min)' labels) have no es/fr entries; old $0.20 keys remain as dead translations → Spanish/French users see these lines in English"]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_ai_agent_answer_gating_price.py", "/app/backend/tests/seed_ai_calls_outcomes.py", "/app/js/tests/ai_bridge_flow.test.js", "/app/test_reports/pytest/pytest_ai_gating.xml"],
+  "action_items": [
+    "Fix 'screened' outcome precedence in calls.js finish() so a screened call that turned into a conversation keeps the real outcome",
+    "Tighten SCREENER ('who's calling') and VOICEMAIL ('not available right now') regexes to avoid human false positives",
+    "Start the 'Are you still there?' idle timer from end of playback, not response.done",
+    "HTML-escape agent name/goal in the fraud admin alert",
+    "Add friendly labels for interested/not_interested/callback/other in AiCalls OUTCOMES",
+    "Add es/fr translations for the new $0.30 strings; update 0.2 fallbacks to 0.3",
+    "Improve contrast of toggle off state in light theme"
+  ],
+  "critical_code_review_comments": [
+    "Migration in store.init sets waitForHello=true for ALL agents once (guarded by aiMeta marker) — correct per spec, idempotent via unique _id insert",
+    "Answer gating (callLive) is sound: outbound never speaks before answered()/onMachine; browser tests are live from start",
+    "bridge.js 378 lines / calls.js 279 — OK size"
+  ],
+  "updated_files": ["/app/backend/tests/test_ai_agent_answer_gating_price.py", "/app/backend/tests/seed_ai_calls_outcomes.py"],
+  "success_rate": {"backend": "100% (11/11 pytest + 13/13 unit)", "frontend": "100% of requested flows"},
+  "test_credentials": "Alice civr.alice@example.com / AliceTest#2026 (from /app/memory/test_credentials.md)",
+  "seed_data_creation": "Temporary TEST_ agents and 4 TEST_outcomes aiCalls were created and cleaned up afterwards (pip installed websocket-client for WS test).",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run `node /app/js/tests/ai_bridge_flow.test.js` and `pytest /app/backend/tests/test_ai_agent_answer_gating_price.py` (needs websocket-client). Seed outcome rows with seed_ai_calls_outcomes.py (--clean to remove). Real PSTN flow not testable in preview."
+}

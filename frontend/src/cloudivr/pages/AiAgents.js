@@ -16,7 +16,7 @@ import { AI_LANG_NAME as LANG_NAME } from './ai/languages';
 const TABS = [['agents', 'Agents'], ['calls', 'Call history'], ['dnc', 'Do-not-call list']];
 
 function PlanNote({ canUse, rate, recordRate }) {
-  if (canUse) return <div className="text-sm text-[#a1a1aa] mb-6" data-testid="ai-agents-rate-note">{`Real calls bill $${Number(rate || 0.2).toFixed(2)} per started minute from your wallet, +$${Number(recordRate ?? 0.02).toFixed(2)} when the agent records. Browser tests are free.`}</div>;
+  if (canUse) return <div className="text-sm text-[#a1a1aa] mb-6" data-testid="ai-agents-rate-note">{`Real calls bill $${Number(rate || 0.3).toFixed(2)} per started minute from your wallet, +$${Number(recordRate ?? 0.02).toFixed(2)} when the agent records. Browser tests are free.`}</div>;
   return (
     <div className="civr-card p-6 mb-6 flex flex-col md:flex-row md:items-center gap-4" data-testid="ai-agents-plan-note">
       <Lock className="w-6 h-6 text-[#fbbf24]" />

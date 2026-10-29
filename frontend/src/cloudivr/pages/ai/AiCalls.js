@@ -8,7 +8,7 @@ import { usePrivacy } from '../../privacy';
 import { useSearch, SearchBox, NoMatches } from '../../search';
 
 const OUTCOME = { booked: 'civr-pill civr-pill-ok', interested: 'civr-pill civr-pill-ok', callback: 'civr-pill civr-pill-warn', transferred: 'civr-pill civr-pill-ok', message: 'civr-pill civr-pill-warn', opted_out: 'civr-pill civr-pill-bad', not_interested: 'civr-pill civr-pill-bad' };
-const OUTCOMES = { voicemail: 'Left a voicemail', screened: 'Call screener — person didn’t pick up', no_answer: 'No answer', no_conversation: 'Answered — no conversation', opted_out: 'Asked not to be called', booked: 'Booked', transferred: 'Transferred', message: 'Took a message' };
+const OUTCOMES = { voicemail: 'Left a voicemail', screened: 'Call screener — person didn’t pick up', no_answer: 'No answer', no_conversation: 'Answered — no conversation', opted_out: 'Asked not to be called', booked: 'Booked', transferred: 'Transferred', message: 'Took a message', interested: 'Interested', not_interested: 'Not interested', callback: 'Wants a call back', other: 'Other' };
 export const outcomeLabel = (o) => OUTCOMES[o || 'no_answer'] || String(o).replace(/_/g, ' ');
 const DIR = { inbound: PhoneIncoming, outbound: PhoneOutgoing, test: Mic };
 

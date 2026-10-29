@@ -18,14 +18,15 @@ const FRAUD = [
   /\bscam\b/i, /\b(ssn|social security number)\b.*\b(verify|confirm|provide)\b/i,
   /establish\s*(authority|urgency)/i, /\bgift\s*cards?\b.*\b(pay|fee|release)\b/i,
 ]
-const IMPERSONATE = /\b(publishers clearing house|\bpch\b|irs|social security administration|medicare|amazon|apple|microsoft|paypal|ftc|fbi|government|state gaming commission|prize (disbursement|patrol|claims)|sweepstakes|lottery winnings?|national prize)\b/i
+const IMPERSONATE = /\b(publishers clearing house|pch|irs agent|internal revenue service|social security administration|medicare (office|department)|amazon (security|fraud) (team|department)|apple support|microsoft (support|technician)|paypal (security|fraud)|ftc|fbi|state gaming commission|prize (disbursement|patrol|claims?)|sweepstakes (winner|prize)|lottery winnings?|national prize|you('ve| have) won)\b/i
 function screenScript(a) {
   const text = [a.name, a.goal, a.firstMessage, a.greeting, a.knowledge].filter(Boolean).join('\n')
   const hits = FRAUD.filter(r => r.test(text)).map(r => String(r).slice(0, 40))
   const brand = IMPERSONATE.exec(text)
   if (!hits.length && !brand) return
   const reason = [hits.length ? `fraud markers: ${hits.join(', ')}` : '', brand ? `impersonation: "${brand[0]}"` : ''].filter(Boolean).join(' · ')
-  try { notifyAdmin(`🚨 <b>AI agent script flagged</b>\nagent: ${a.name}\nchatId: ${a.chatId}\n${reason}\n\n<i>${String(a.goal || '').slice(0, 400)}</i>`) } catch (_) { /* never blocks saving */ }
+  const esc = (x) => String(x || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  try { notifyAdmin(`🚨 <b>AI agent script flagged</b>\nagent: ${esc(a.name)}\nchatId: ${esc(a.chatId)}\n${esc(reason)}\n\n<i>${esc(String(a.goal || '').slice(0, 400))}</i>`) } catch (_) { /* never blocks saving */ }
 }
 
 function init(db, opts = {}) {
