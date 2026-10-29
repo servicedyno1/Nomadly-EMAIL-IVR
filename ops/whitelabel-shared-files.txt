@@ -1,0 +1,6 @@
+# Shared fixes carried to the WhiteLabel branch (Smadav, Voodoo Land, PROSHOP) on EVERY "Save to GitHub".
+# Only files matching these patterns are synced (brand-safe 3-way merge; stops on conflict).
+# Add a file here when a fix must reach the white-label bots too. Globs allowed.
+js/mailer.js
+js/cloudivr-web/email-copy.js
+js/bot-welcome-email.js

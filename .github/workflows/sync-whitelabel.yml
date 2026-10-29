@@ -97,3 +97,45 @@ jobs:
           # branch with their own backend.env. One dispatch, so a queued run can't cancel the other.
           gh workflow run deploy.yml --repo "$GITHUB_REPOSITORY" --ref main -f app=whitelabel
           echo "### 🚢 Started \"Deploy to Droplet\" for app-wl + app-voodoo + app-proshop — see the Actions tab" >> "$GITHUB_STEP_SUMMARY"
+
+  # Shared fixes only (ops/whitelabel-shared-files.txt) — runs on EVERY save even while the full sync above is paused.
+  shared:
+    name: Carry shared fixes → WhiteLabel
+    if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout (full history)
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Fetch latest main + WhiteLabel
+        run: |
+          git fetch --no-tags origin \
+            +refs/heads/main:refs/remotes/origin/main \
+            +refs/heads/WhiteLabel:refs/remotes/origin/WhiteLabel
+      - name: Node (for the post-merge syntax check)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Sync listed shared files (brand-safe 3-way)
+        id: sync
+        env:
+          GIT_AUTHOR_NAME: github-actions[bot]
+          GIT_AUTHOR_EMAIL: 41898282+github-actions[bot]@users.noreply.github.com
+          GIT_COMMITTER_NAME: github-actions[bot]
+          GIT_COMMITTER_EMAIL: 41898282+github-actions[bot]@users.noreply.github.com
+          MODE_FLAG: ${{ inputs.dry_run && '--dry-run' || '--push' }}
+        run: |
+          python3 scripts/sync_whitelabel.py \
+            --source origin/main --target origin/WhiteLabel \
+            --remote origin --target-branch WhiteLabel \
+            --only-listed ops/whitelabel-shared-files.txt "$MODE_FLAG"
+      - name: Redeploy the white-label bots
+        if: ${{ steps.sync.outputs.pushed == 'true' && steps.sync.outputs.runtime_changed == 'true' && (github.event_name == 'push' || inputs.deploy) }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh workflow run deploy.yml --repo "$GITHUB_REPOSITORY" --ref main -f app=whitelabel
+          echo "### 🚢 Shared fixes pushed to WhiteLabel — started \"Deploy to Droplet\" for app-wl + app-voodoo + app-proshop" >> "$GITHUB_STEP_SUMMARY"

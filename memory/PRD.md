@@ -1828,3 +1828,5 @@ calls and SIP are simulated; inbound calls use a pretend-call simulator).
   Patched in place ONLY js/mailer.js (new, with "crypto" filter) + email-copy.js/orders.js wording; backups *.bak-crypto-<ts>;
   pm2 restarted app-wl-a/app-voodoo-a/app-proshop-b. Test sends via Telnyx ok for all three (to moxxcompany@gmail.com).
   A future reseller deploy must keep these patches (not yet in their source).
+- 2026-10-29: Shared fixes now flow to WhiteLabel on every Save to GitHub via the `shared` job (manifest
+  ops/whitelabel-shared-files.txt). See memory/DEPLOYMENT_STATE.md.

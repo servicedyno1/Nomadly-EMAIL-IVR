@@ -309,3 +309,12 @@ The new layout differs from the old in-place `/opt/nomadly/app-main` checkout. O
   underline tabs, dashed empty-state art), landing "Landline to Texting" use-case tile. Hosted SMS already live from 8e3a8c4.
 - Verified live: health healthy, 0 calls at flip; bundle has new CSS + landing tile; Telnyx eligibility API OK with prod key;
   Telnyx email to moxxcompany@gmail.com status=completed. WL apps untouched. ⚠️ Save to GitHub (main) or CI rolls it back.
+
+## 2026-10-29 — Shared-fix auto-sync to WhiteLabel (full sync stays paused)
+- New job `shared` in .github/workflows/sync-whitelabel.yml runs on EVERY push to main ("Save to GitHub"):
+  `scripts/sync_whitelabel.py --only-listed ops/whitelabel-shared-files.txt --push` → brand-safe 3-way merge of ONLY the
+  manifest files onto WhiteLabel (own marker `.whitelabel-sync-shared`; first run starts from `.whitelabel-sync` main=5a1ffad4),
+  stops on conflict/syntax error, then dispatches deploy.yml app=whitelabel (app-wl → app-voodoo → app-proshop).
+- Manifest now: js/mailer.js, js/cloudivr-web/email-copy.js, js/bot-welcome-email.js. Add files there for future shared fixes.
+- WhiteLabel head on 2026-10-29 = e433e1ac (= what the 3 reseller bots run). Those releases were hand-patched the same day
+  (mailer + copy); the first shared sync makes git match them.
