@@ -286,7 +286,7 @@ export function CampaignNew() {
           <Field label="Calls at the same time"><input type="number" min={1} max={20} className="civr-input" value={f.concurrency} onChange={set('concurrency')} data-testid="campaign-concurrency-input" /></Field>
           <Field label="Schedule (optional)" hint={f.repeat ? 'First run. Leave empty to start it yourself — the next runs follow at the same time.' : 'Leave empty to start manually.'}><DateTimePicker value={f.scheduledFor} onChange={set('scheduledFor')} testid="campaign-schedule" /></Field>
           <RunPlanFields f={f} set={set} />
-          {!isAi && f.mode !== 'report_only' && <div className="flex items-center justify-between"><span className="text-sm">Hold music during transfer</span><Toggle checked={f.holdMusic} onChange={set('holdMusic')} testid="campaign-hold-music-toggle" /></div>}
+          {!isAi && f.mode !== 'report_only' && <div className="flex items-center justify-between"><span className="text-sm">Hold music during transfer</span><Toggle checked={f.holdMusic} onChange={set('holdMusic')} testid="campaign-hold-music-toggle" label="Hold music during transfer" /></div>}
           <ErrorNote error={error} testid="campaign-create-error" />
           <button className="civr-btn civr-btn-primary w-full" disabled={!!busy && busy !== 'est'} data-testid="campaign-create-button">{(busy === 'create' || busy === 'voice') && <Loader2 className="w-4 h-4 animate-spin" />}{busy === 'voice' ? 'Making AI voice…' : 'Save campaign'}</button>
           <UnsavedPill show={u.dirty} testid="campaign-unsaved-pill" />

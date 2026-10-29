@@ -1914,3 +1914,8 @@ calls and SIP are simulated; inbound calls use a pretend-call simulator).
 - Added method 'dtmf' (Telnyx calls, user presses 1, no code). /caller-ids/verify for dtmf checks GET /v2/verified_numbers/{n}
   verified_at (debit → refund if not pressed). UI: "Call me — I'll press 1" option; pending row shows "I pressed 1" button.
 - Tested preview (dry-run auto-passes). NOT live-tested: real Telnyx dtmf call + verified_at polling on production.
+
+## 2026-06 — Cross-device usability audit + fixes (preview only, NOT deployed)
+- Programmatic audit (no screenshots): scripts/usability_audit.py (+ usability_report.py, usability_axe_check.py); 27 routes x 6 devices = 162 pages, 0 errors. Clean baseline: test_reports/usability_audit_clean_run.json. Preview visual-edits disabled (DISABLE_VISUAL_EDITS=true) so the DOM matches production.
+- Baseline: no horizontal overflow, focus rings OK, loads under 2s. Fixed: phone tap targets (landing links, Hear-it seek bar, caller-ID "Add" button), sub-12px UI text, unlabeled toggles (Toggle now takes `label`), unlabeled selects/read-only input, Live map ARIA, contrast (payment chips, light-theme error red, SIP mock buttons, SMS reach note), auth pages main/aside landmarks, keyboard-scrollable tables (plan compare, usage rates, wallet), preview banner/SIP sticky CTA landmarks, duplicate sidebar landmark, number-detail error state (h1 + back link), React whitespace warning in plan table.
+- Re-check: axe clean on 25/26 page x device checks; open: phone-mockup illustration text 11px (decorative), AMEX/DISCOVER logo marks (exempt).

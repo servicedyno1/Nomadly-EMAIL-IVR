@@ -55,7 +55,7 @@ function StickyCta({ catalog }) {
   const pick = sipPick(catalog);
   if (!show || !pick) return null;
   return (
-    <div className="md:hidden fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 backdrop-blur-xl px-4 pt-3 civr-rise" style={{ paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom))' }} data-testid="sip-sticky-cta">
+    <div role="region" aria-label="Get started" className="md:hidden fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 backdrop-blur-xl px-4 pt-3 civr-rise" style={{ paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom))' }} data-testid="sip-sticky-cta">
       <div className="flex items-center gap-3">
         <div className="min-w-0 mr-auto">
           <div className="text-sm font-semibold text-slate-900" data-testid="sip-sticky-plan">{pick.name} · {usd(pick.price)}/mo</div>

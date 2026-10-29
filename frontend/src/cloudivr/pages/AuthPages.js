@@ -24,7 +24,7 @@ function usePlanParam() {
 
 function SidePanel({ signup }) {
   return (
-    <div className="civr-auth-side hidden lg:flex relative flex-col justify-between p-12 overflow-hidden" data-testid="auth-side-panel">
+    <aside aria-label="About CloudIVR" className="civr-auth-side hidden lg:flex relative flex-col justify-between p-12 overflow-hidden" data-testid="auth-side-panel">
       <span className="civr-np-stars" aria-hidden="true" />
       <Link to={cp()} className="font-display text-3xl font-extrabold flex items-center gap-2.5 self-start" data-testid="auth-logo-link"><Wordmark iconClass="w-10 h-10" /></Link>
       <div>
@@ -43,7 +43,7 @@ function SidePanel({ signup }) {
       ) : <p className="font-display text-5xl font-extrabold leading-[0.95] max-w-md">Your numbers, IVR, campaigns and AI agents — one dashboard.</p>}
       </div>
       <div className="civr-auth-foot relative text-xs font-mono uppercase tracking-widest">Free to sign up · First Quick IVR call free · No contracts</div>
-    </div>
+    </aside>
   );
 }
 
@@ -52,7 +52,7 @@ function AuthFrame({ title, sub, children, testid, signup }) {
     <div className="min-h-screen grid lg:grid-cols-2" data-testid={testid}>
       <ThemeRoot />
       <SidePanel signup={signup} />
-      <div className="flex flex-col min-h-screen">
+      <main className="flex flex-col min-h-screen">
         <div className="lg:hidden flex items-center justify-between px-6 h-16 border-b border-[#1a1a1a]">
           <Link to={cp()} className="font-display text-2xl font-extrabold min-h-[44px] flex items-center gap-2" data-testid="auth-mobile-logo-link"><Wordmark iconClass="w-8 h-8" /></Link>
           <div className="flex items-center gap-1"><LangSwitcher testid="auth-mobile-lang-switcher" /><Link to={cp()} className="flex items-center gap-2 text-sm text-[#a1a1aa] hover:text-white py-3" data-testid="auth-mobile-home-link"><ArrowLeft className="w-4 h-4" />Home</Link></div>
@@ -65,7 +65,7 @@ function AuthFrame({ title, sub, children, testid, signup }) {
             {children}
           </div>
         </div>
-      </div>
+      </main>
     </div>
   );
 }
@@ -120,7 +120,7 @@ export function AuthPage({ mode }) {
         <ErrorNote error={error} testid="auth-error" />
         <button className="civr-btn civr-btn-primary w-full" disabled={busy} data-testid="auth-submit-button">{busy && <Loader2 className="w-4 h-4 animate-spin" />}{signup ? 'Create free account' : 'Sign in'}</button>
       </form>
-      {signup && <p className="text-xs text-[#a1a1aa] mt-4" data-testid="auth-terms-note">By creating an account you agree to the <Link to={cp('/terms')} target="_blank" className="text-[#818cf8] hover:underline" data-testid="auth-terms-link">Terms of Service</Link>.</p>}
+      {signup && <p className="text-xs text-[#a1a1aa] mt-4" data-testid="auth-terms-note">By creating an account you agree to the <Link to={cp('/terms')} target="_blank" className="text-[#818cf8] underline underline-offset-2" data-testid="auth-terms-link">Terms of Service</Link>.</p>}
       <div className="flex justify-between text-sm mt-6 text-[#a1a1aa]">
         {signup ? <Link to={cp(`/login${q}`)} className="hover:text-[#818cf8] py-2" data-testid="auth-switch-link">Have an account? Sign in</Link>
           : <><Link to={cp(`/signup${q}`)} className="hover:text-[#818cf8] py-2" data-testid="auth-switch-link">Create account</Link><Link to={cp('/forgot')} className="hover:text-[#818cf8] py-2" data-testid="auth-forgot-link">Forgot password?</Link></>}

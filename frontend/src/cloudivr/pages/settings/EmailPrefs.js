@@ -24,7 +24,7 @@ function Switches({ prefs, setPrefs }) {
       {SWITCHES.map(([k, label, sub]) => (
         <div key={k} className="flex items-center justify-between gap-4 py-3">
           <div><div className="text-sm font-medium text-[#e4e4e7]">{label}</div><div className="text-xs text-[#a1a1aa]">{sub}</div></div>
-          <Toggle checked={prefs[k] !== false} onChange={v => flip(k, label, v)} testid={`email-pref-${k}-toggle`} />
+          <Toggle checked={prefs[k] !== false} onChange={v => flip(k, label, v)} testid={`email-pref-${k}-toggle`} label={label} />
         </div>
       ))}
     </div>

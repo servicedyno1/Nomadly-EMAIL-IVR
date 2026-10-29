@@ -110,7 +110,7 @@ export function WhatsNew() {
               <div className="w-9 h-9 rounded-lg bg-[#818cf8]/10 flex items-center justify-center shrink-0"><it.Icon className="w-4 h-4 text-[#818cf8]" /></div>
               <div className="flex-1 min-w-0 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
                 <div className="flex-1 min-w-0">
-                  <div className="font-semibold text-sm flex flex-wrap items-center gap-x-2 gap-y-1">{it.title}{it.plan && <span className="civr-pill !text-[11px] !py-0">{it.plan}</span>}</div>
+                  <div className="font-semibold text-sm flex flex-wrap items-center gap-x-2 gap-y-1">{it.title}{it.plan && <span className="civr-pill !text-xs !py-0">{it.plan}</span>}</div>
                   <p className="text-xs text-[#a1a1aa] mt-1 leading-relaxed">{it.body}</p>
                 </div>
                 <button type="button" className="civr-btn civr-btn-ghost civr-btn-sm shrink-0 self-start sm:self-center" onClick={() => go(it)} data-testid={`whats-new-go-${it.key}`}>Show me<ArrowRight className="w-3.5 h-3.5" /></button>

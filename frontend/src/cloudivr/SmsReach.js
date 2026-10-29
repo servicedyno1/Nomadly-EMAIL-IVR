@@ -21,7 +21,7 @@ export function ReachChip({ phone, testid = 'sms-reach' }) {
   return (
     <div className="space-y-2" data-testid={testid} data-status={data.status}>
       <button type="button" onClick={() => setOpen(o => !o)} aria-expanded={open} className={`${cls} !cursor-pointer`} data-testid={`${testid}-chip`}>
-        <Icon className="w-3.5 h-3.5" />{label}<span className="opacity-70">· {ok.length ? `can text ${ok.length} ${ok.length === 1 ? 'country' : 'countries'}` : 'receiving only'}</span>
+        <Icon className="w-3.5 h-3.5" />{label}<span className="opacity-90">· {ok.length ? `can text ${ok.length} ${ok.length === 1 ? 'country' : 'countries'}` : 'receiving only'}</span>
       </button>
       {data.status !== 'ready' && <p className="text-xs text-[#a1a1aa] max-w-xl" data-testid={`${testid}-note`}>{data.note}</p>}
       {open && (

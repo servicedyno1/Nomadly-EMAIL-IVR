@@ -45,7 +45,7 @@ export function Statement() {
         <Reveal delay={120}><p className="text-base md:text-lg text-slate-600 mt-8 max-w-3xl">So CloudIVR runs all of it on one number. Every call, key press, text, voicemail and recording lands in the same account, and you watch your campaigns live — from the first ring to the hot lead you’re connected to.</p></Reveal>
         <Reveal delay={200} className="mt-8 flex flex-wrap items-center gap-x-8 gap-y-4">
           <p className="font-semibold text-slate-900">Answer every call. Call every lead. Miss nothing.</p>
-          <a href="#features" className="inline-flex items-center gap-2 text-sm font-semibold text-slate-900 hover:text-slate-600 transition-colors group" data-testid="statement-explore-link">Explore the platform<ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" /></a>
+          <a href="#features" className="inline-flex items-center gap-2 min-h-[44px] text-sm font-semibold text-slate-900 hover:text-slate-600 transition-colors group" data-testid="statement-explore-link">Explore the platform<ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" /></a>
         </Reveal>
       </div>
     </section>

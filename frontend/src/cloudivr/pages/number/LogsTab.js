@@ -25,7 +25,7 @@ function AiSummaryBar({ num, reload }) {
         <div className="text-sm font-medium flex items-center gap-2"><Sparkles className="w-4 h-4 text-[#818cf8]" />AI summaries & caller mood</div>
         <div className="text-xs text-[#a1a1aa] mt-1">{`Summarise new voicemails and recorded calls automatically — $${rate}/min from your wallet (per started minute). Or tap Summarize on any one below.`}</div>
       </div>
-      <Toggle checked={!!num.features.aiSummary?.enabled} disabled={busy} onChange={v => save({ enabled: v }, 'PATCH', v ? 'Auto summaries on' : 'Auto summaries off')} testid="ai-summary-auto-toggle" />
+      <Toggle checked={!!num.features.aiSummary?.enabled} disabled={busy} onChange={v => save({ enabled: v }, 'PATCH', v ? 'Auto summaries on' : 'Auto summaries off')} testid="ai-summary-auto-toggle" label="AI summaries & caller mood" />
     </div>
   );
 }

@@ -34,8 +34,8 @@ export function Trust() {
         </div>
         <Reveal delay={200} className="mt-10 pt-8 border-t civr-l-rule flex flex-col md:flex-row md:items-center gap-4 md:gap-8">
           <div className="flex flex-wrap items-center gap-x-6 gap-y-3" data-testid="trust-links">
-            {LINKS.map(([to, label, id]) => <Link key={id} to={cp(to)} className="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-900 hover:text-slate-600 transition-colors group" data-testid={`trust-link-${id}`}>{label}<ArrowRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" /></Link>)}
-            <button type="button" onClick={openCookieSettings} className="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-900 hover:text-slate-600 transition-colors" data-testid="trust-link-cookies">Cookie settings</button>
+            {LINKS.map(([to, label, id]) => <Link key={id} to={cp(to)} className="inline-flex items-center gap-1.5 min-h-[44px] text-sm font-semibold text-slate-900 hover:text-slate-600 transition-colors group" data-testid={`trust-link-${id}`}>{label}<ArrowRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" /></Link>)}
+            <button type="button" onClick={openCookieSettings} className="inline-flex items-center gap-1.5 min-h-[44px] text-sm font-semibold text-slate-900 hover:text-slate-600 transition-colors" data-testid="trust-link-cookies">Cookie settings</button>
           </div>
           <p className="text-xs text-slate-500 md:ml-auto md:text-right max-w-md" data-testid="trust-disclaimer">This describes what CloudIVR does today. It is not legal advice — the rules for calling depend on where you and your callers are.</p>
         </Reveal>

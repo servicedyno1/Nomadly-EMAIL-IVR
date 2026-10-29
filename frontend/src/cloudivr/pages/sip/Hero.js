@@ -33,8 +33,8 @@ function CallArea({ phase }) {
           <div className="min-w-0"><div className="text-sm font-semibold">Incoming call</div><div className="text-xs font-mono text-white/60 mt-0.5" data-no-translate>+1 415 555 0182</div></div>
         </div>
         <div className="grid grid-cols-2 gap-2 mt-4">
-          <span className="h-10 rounded-xl bg-rose-500/90 text-white text-sm font-semibold grid place-items-center"><span className="inline-flex items-center gap-1.5"><PhoneOff className="w-4 h-4" />Decline</span></span>
-          <span className="h-10 rounded-xl bg-emerald-500 text-white text-sm font-semibold grid place-items-center"><span className="inline-flex items-center gap-1.5"><Phone className="w-4 h-4" />Accept</span></span>
+          <span className="h-10 rounded-xl bg-rose-700 text-white text-sm font-semibold grid place-items-center"><span className="inline-flex items-center gap-1.5"><PhoneOff className="w-4 h-4" />Decline</span></span>
+          <span className="h-10 rounded-xl bg-emerald-700 text-white text-sm font-semibold grid place-items-center"><span className="inline-flex items-center gap-1.5"><Phone className="w-4 h-4" />Accept</span></span>
         </div>
       </div>
     );

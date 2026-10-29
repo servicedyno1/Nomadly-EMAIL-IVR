@@ -32,7 +32,7 @@ function Tile({ t, i }) {
         <p className={`civr-l-h text-xl md:text-2xl mt-5 ${ink ? 'text-white' : 'text-slate-900'}`}>{result}</p>
         {more && <p className={`text-sm mt-3 max-w-xl ${ink ? 'text-slate-300' : 'text-slate-600'}`}>{more}</p>}
       </div>
-      <Cta {...props} className={`inline-flex items-center gap-2 text-sm font-semibold shrink-0 group ${ink ? 'text-white' : 'text-slate-900'}`} data-testid={`usecase-${id}-link`}>{link ? 'Create your web account' : 'See how it works'}<ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" /></Cta>
+      <Cta {...props} className={`inline-flex items-center gap-2 min-h-[44px] text-sm font-semibold shrink-0 group ${ink ? 'text-white' : 'text-slate-900'}`} data-testid={`usecase-${id}-link`}>{link ? 'Create your web account' : 'See how it works'}<ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" /></Cta>
     </Reveal>
   );
 }

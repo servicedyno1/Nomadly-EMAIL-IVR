@@ -7,7 +7,7 @@ function Line({ icon: Icon, label, o, testid, extra }) {
     <div className="flex gap-3" data-testid={testid}>
       <Icon className="w-4 h-4 mt-0.5 shrink-0 text-[#818cf8]" />
       <div className="min-w-0">
-        <div className="text-[11px] font-mono uppercase tracking-wider text-[#a1a1aa]">{label}</div>
+        <div className="text-xs font-mono uppercase tracking-wider text-[#a1a1aa]">{label}</div>
         <div className="text-sm text-[#e4e4e7] mt-0.5" data-no-translate data-testid={`${testid}-text`}>{o ? `“${o.text}”` : '…'}</div>
         {extra}
       </div>

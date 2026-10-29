@@ -31,7 +31,7 @@ export function QuickReply({ onSend, busy, max = 160, testid, sendLabel = 'Send 
         <input className="civr-input !h-9 text-sm" maxLength={max} value={text} onChange={e => setText(e.target.value)} onKeyDown={e => e.key === 'Enter' && go()} placeholder="Or type your own reply" aria-label="Your reply" autoFocus={autoFocus} data-testid={`${testid}-input`} />
         <button type="button" disabled={busy || blocked || !text.trim()} onClick={go} className="civr-btn civr-btn-primary civr-btn-sm shrink-0" data-testid={`${testid}-send-button`}>{busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}{sendLabel}</button>
       </div>
-      <div className="text-[11px] text-[#a1a1aa]" data-testid={`${testid}-count`}>{`${text.length}/${max} · ${costNote}`}</div>
+      <div className="text-xs text-[#a1a1aa]" data-testid={`${testid}-count`}>{`${text.length}/${max} · ${costNote}`}</div>
     </div>
   );
 }
@@ -55,7 +55,7 @@ export function useTextBack(id, reply, onDone) {
 
 // What happened to a text we sent (from the carrier's delivery report): Sent → Delivered, or Not delivered + why.
 export function SmsStatus({ status, reason, testid }) {
-  const row = 'flex items-start gap-1 mt-1 text-[11px]';
+  const row = 'flex items-start gap-1 mt-1 text-xs';
   if (status === 'delivered') return <span className={`${row} text-[#34d399]`} data-testid={testid}><CheckCheck className="w-3.5 h-3.5 shrink-0" />Delivered</span>;
   if (status === 'failed') return <span className={`${row} text-[#fbbf24]`} data-testid={testid}><AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-px" /><span>{`Not delivered: ${reason || 'The carrier didn’t deliver this text.'}`}</span></span>;
   if (status === 'sent' || status === 'unconfirmed') return <span className={`${row} text-[#a1a1aa]`} data-testid={testid}><Check className="w-3.5 h-3.5 shrink-0" />Sent</span>;

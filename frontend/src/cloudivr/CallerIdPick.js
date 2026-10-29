@@ -13,7 +13,7 @@ export function ShowAsSelect({ value, onChange, testid, compact = false }) {
   const [open, setOpen] = useState(false);
   const list = (data?.items || []).filter(i => i.status === 'verified').map(i => i.number);
   const onVerified = (n) => { reload(); if (n) { onChange(n); setOpen(false); } };
-  const addBtn = <button type="button" className="text-[#818cf8] hover:underline inline-flex items-center gap-1" onClick={() => setOpen(true)} data-testid={`${testid}-add-button`}><Plus className="w-3.5 h-3.5" />Add or verify a number</button>;
+  const addBtn = <button type="button" className="text-[#818cf8] hover:underline inline-flex items-center gap-1 min-h-[44px]" onClick={() => setOpen(true)} data-testid={`${testid}-add-button`}><Plus className="w-3.5 h-3.5" />Add or verify a number</button>;
   const dialog = (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent className="civr max-w-2xl" data-testid={`${testid}-dialog`}>
@@ -26,7 +26,7 @@ export function ShowAsSelect({ value, onChange, testid, compact = false }) {
     </Dialog>
   );
   const select = (
-    <select className={`civr-input font-mono ${compact ? '!h-9 text-xs' : ''}`} value={list.includes(value) ? value : ''} onChange={e => onChange(e.target.value)} disabled={!list.length} data-testid={testid}>
+    <select className={`civr-input font-mono ${compact ? '!h-9 text-xs' : ''}`} value={list.includes(value) ? value : ''} onChange={e => onChange(e.target.value)} disabled={!list.length} aria-label="Caller ID shown" data-testid={testid}>
       <option value="">Same as calling number</option>
       {list.map(n => <option key={n} value={n}>{pv.phone(n)}</option>)}
     </select>

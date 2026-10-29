@@ -87,7 +87,7 @@ export function ForwardingTab({ num, reload }) {
         <Field label="Forward to" hint="Include the country code, e.g. +14155550100."><input className="civr-input font-mono" value={f.forwardTo} onChange={e => setF({ ...f, forwardTo: e.target.value })} placeholder="+14155550100" data-testid="forwarding-number-input" /></Field>
         <Field label="Ring time before forwarding (seconds)"><input type="number" min={10} max={60} className="civr-input" value={f.ringTimeout} onChange={e => setF({ ...f, ringTimeout: e.target.value })} data-testid="forwarding-ring-timeout-input" /></Field>
         {f.mode !== 'disabled' && <BackupsField value={f.backups} onChange={v => setF({ ...f, backups: v })} testid="forwarding-backups-input" />}
-        <div className="flex items-center justify-between"><span className="text-sm">Play hold music while connecting</span><Toggle checked={f.holdMusic} onChange={v => setF({ ...f, holdMusic: v })} testid="forwarding-hold-music-toggle" /></div>
+        <div className="flex items-center justify-between"><span className="text-sm">Play hold music while connecting</span><Toggle checked={f.holdMusic} onChange={v => setF({ ...f, holdMusic: v })} testid="forwarding-hold-music-toggle" label="Play hold music while connecting" /></div>
       </>}
       <SaveRow dirty={u.dirty} testid="forwarding-unsaved-pill"><button className="civr-btn civr-btn-primary" disabled={busy} onClick={async () => { if (await save(f)) u.reset(); }} data-testid="forwarding-save-button">Save forwarding</button></SaveRow>
     </Card>
@@ -148,7 +148,7 @@ function FaxCard({ num, reload }) {
   if (!num.capabilities?.fax) return null;
   return (
     <Card title="Fax" sub="This number can receive faxes. Each fax arrives in your Inbox as a PDF.">
-      <div className="flex items-center justify-between"><span className="text-sm">Send faxes to my Inbox</span><Toggle checked={num.features.fax?.toInbox !== false} disabled={busy} onChange={v => save({ toInbox: v })} testid="fax-inbox-toggle" /></div>
+      <div className="flex items-center justify-between"><span className="text-sm">Send faxes to my Inbox</span><Toggle checked={num.features.fax?.toInbox !== false} disabled={busy} onChange={v => save({ toInbox: v })} testid="fax-inbox-toggle" label="Send faxes to my Inbox" /></div>
     </Card>
   );
 }

@@ -32,12 +32,12 @@ const h = React.createElement;
 function MapSvg({ states, by, shade, live, move, focus, blur }) {
   const paths = states.map((s) => {
     const a = by[s.name];
-    return h('path', { key: s.name, d: s.d, fill: shade(a?.calls || 0), stroke: '#0a0a0a', strokeWidth: 0.9, className: 'civr-map-state', tabIndex: a ? 0 : -1, 'aria-label': a ? `${s.name}: ${a.calls} calls today` : s.name, onMouseMove: (e) => move(e, s), onFocus: () => focus(s), onBlur: blur, 'data-testid': `live-map-state-${slug(s.name)}` });
+    return h('path', { key: s.name, d: s.d, fill: shade(a?.calls || 0), stroke: '#0a0a0a', strokeWidth: 0.9, className: 'civr-map-state', tabIndex: a ? 0 : -1, role: a ? 'img' : undefined, 'aria-hidden': a ? undefined : 'true', 'aria-label': a ? `${s.name}: ${a.calls} calls today` : undefined, onMouseMove: (e) => move(e, s), onFocus: () => focus(s), onBlur: blur, 'data-testid': `live-map-state-${slug(s.name)}` });
   });
   const dots = live.map(s => h('g', { key: s.name, transform: `translate(${s.c[0]} ${s.c[1]})`, 'data-testid': `live-map-dot-${slug(s.name)}` },
     h('circle', { r: 6, fill: '#34d399', className: 'civr-map-ping' }),
     h('circle', { r: 5, fill: '#34d399', stroke: '#0a0a0a', strokeWidth: 1.5 })));
-  return h('svg', { viewBox: '0 0 975 610', className: 'w-full h-auto', role: 'img', 'aria-label': 'Map of today’s calls by US state', 'data-testid': 'live-map' },
+  return h('svg', { viewBox: '0 0 975 610', className: 'w-full h-auto', role: 'group', 'aria-label': 'Map of today’s calls by US state', 'data-testid': 'live-map' },
     h('g', null, paths), h('g', { pointerEvents: 'none' }, dots));
 }
 

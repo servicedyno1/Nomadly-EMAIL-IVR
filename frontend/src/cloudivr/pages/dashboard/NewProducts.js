@@ -16,7 +16,7 @@ export function NewProducts() {
         <Link key={id} to={cp(to)} className="civr-card civr-card-link p-5 flex items-center gap-4 civr-rise" data-testid={`dashboard-product-${id}`}>
           <span className="w-11 h-11 rounded-xl bg-[#818cf8]/10 text-[#818cf8] flex items-center justify-center shrink-0"><Icon className="w-5 h-5" /></span>
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 flex-wrap"><span className="font-semibold">{title}</span><span className="civr-pill civr-pill-on !text-[10px] !py-0 uppercase tracking-wider">New</span></div>
+            <div className="flex items-center gap-2 flex-wrap"><span className="font-semibold">{title}</span><span className="civr-pill civr-pill-on !text-xs !py-0 uppercase tracking-wider">New</span></div>
             <div className="text-sm text-[#a1a1aa] mt-0.5">{sub}</div>
           </div>
           <ArrowRight className="w-4 h-4 text-[#a1a1aa] shrink-0" />

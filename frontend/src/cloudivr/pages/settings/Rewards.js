@@ -16,7 +16,7 @@ export function Referral() {
     <div className="civr-card p-6 space-y-4" data-testid="settings-referral-card">
       <div className="flex items-center gap-3"><Gift className="w-6 h-6 text-[#818cf8]" /><div className="font-display text-2xl font-bold">Invite friends, earn credit</div></div>
       <p className="text-sm text-[#a1a1aa]">Share your link. When a friend buys their first number you get <b className="text-[#f4f4f5]">{money(data.rewardUsd)}</b> in your wallet and they get <b className="text-[#f4f4f5]">{money(data.friendUsd)}</b>.</p>
-      <div className="flex gap-2"><input className="civr-input font-mono text-xs" readOnly value={link} onFocus={e => e.target.select()} data-testid="referral-link" />
+      <div className="flex gap-2"><input className="civr-input font-mono text-xs" readOnly aria-label="Your referral link" value={link} onFocus={e => e.target.select()} data-testid="referral-link" />
         <button type="button" className="civr-btn civr-btn-primary civr-btn-sm shrink-0" onClick={() => copy(link)} data-testid="referral-copy-button"><Copy className="w-4 h-4" />Copy</button></div>
       <div className="grid grid-cols-3 gap-2 text-center" data-testid="referral-stats">
         {[['Signed up', data.stats.signedUp, 'referral-signed-up'], ['Bought a number', data.stats.rewarded, 'referral-rewarded'], ['You earned', money(data.stats.earned), 'referral-earned']].map(([l, v, t]) => <div key={t} className="civr-card p-3"><div className="font-mono text-lg" data-testid={t}>{v}</div><div className="text-xs text-[#a1a1aa]">{l}</div></div>)}

@@ -65,7 +65,7 @@ export default function Softphone({ open, onClose }) {
       ) : (
         <>
           <div className="flex gap-2 mb-3">
-            <select className="civr-input !h-9 font-mono text-xs" value={sel} onChange={e => { setSel(e.target.value); setInfo(null); }} data-testid="softphone-number-select">{nums.map(n => <option key={n.phoneNumber} value={n.phoneNumber}>{pv.phone(n.phoneNumber)}</option>)}</select>
+            <select className="civr-input !h-9 font-mono text-xs" value={sel} onChange={e => { setSel(e.target.value); setInfo(null); }} aria-label="Call from" data-testid="softphone-number-select">{nums.map(n => <option key={n.phoneNumber} value={n.phoneNumber}>{pv.phone(n.phoneNumber)}</option>)}</select>
             {!viaMobile && <button className="civr-btn civr-btn-ghost civr-btn-sm" disabled={status === 'connecting' || !selNum?.access?.browserPhone} onClick={() => connect(sel)} data-testid="softphone-connect-button">{status === 'connecting' ? <Loader2 className="w-4 h-4 animate-spin" /> : status === 'ready' ? 'Online' : 'Connect'}</button>}
           </div>
           <ShowAsSelect compact value={showAs} onChange={setShowAs} testid="softphone-show-as-select" />

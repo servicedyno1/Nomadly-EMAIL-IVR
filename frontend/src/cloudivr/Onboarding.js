@@ -83,7 +83,7 @@ export function ForYouNav({ purposes }) {
   if (!recs.length) return null;
   return (
     <div className="mb-6" data-testid="nav-group-for-you">
-      <div className="civr-side-label px-3 mb-2 text-[11px] font-semibold uppercase tracking-widest text-[#a1a1aa]">For you</div>
+      <div className="civr-side-label px-3 mb-2 text-xs font-semibold uppercase tracking-widest text-[#a1a1aa]">For you</div>
       {recs.map(([label, to], i) => <Link key={to} to={cp(to)} className="civr-nav-link" data-testid={`nav-for-you-${i}`}><Sparkles className="w-4 h-4" />{label}</Link>)}
     </div>
   );

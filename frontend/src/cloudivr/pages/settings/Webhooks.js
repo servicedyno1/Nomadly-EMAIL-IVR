@@ -61,7 +61,7 @@ function Form({ data, reload }) {
           <div className="flex items-center gap-2 font-display text-2xl font-bold"><Webhook className="w-5 h-5 text-[#818cf8]" />Call events (webhooks & Zapier)</div>
           <p className="text-sm text-[#a1a1aa] mt-1 max-w-2xl">Send calls, voicemails and texts to your CRM as they happen. For Zapier, create a Zap with “Webhooks by Zapier” → Catch Hook and paste its URL here.</p>
         </div>
-        <Toggle checked={f.enabled} onChange={v => setF({ ...f, enabled: v })} testid="webhooks-enabled-toggle" />
+        <Toggle checked={f.enabled} onChange={v => setF({ ...f, enabled: v })} testid="webhooks-enabled-toggle" label="Send call events" />
       </div>
       <Field label="Send events to" hint="A public address that starts with https://. We POST JSON and wait up to 6 seconds.">
         <input className="civr-input font-mono" value={f.url} onChange={e => setF({ ...f, url: e.target.value })} placeholder="https://hooks.zapier.com/hooks/catch/…" data-testid="webhooks-url-input" />

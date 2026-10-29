@@ -20,7 +20,7 @@ function Cond({ label, hint, checked, onChange, testid, children }) {
     <div className="space-y-2">
       <div className="flex items-start justify-between gap-4">
         <div><div className="text-sm">{label}</div>{hint && <div className="text-xs text-[#a1a1aa] mt-0.5">{hint}</div>}</div>
-        <Toggle checked={checked} onChange={onChange} testid={testid} />
+        <Toggle checked={checked} onChange={onChange} testid={testid} label={typeof label === 'string' ? label : undefined} />
       </div>
       {checked && children}
     </div>
@@ -52,7 +52,7 @@ export function RuleCard({ r, i, n, set, move, remove, data }) {
           <button type="button" className="civr-btn civr-btn-ghost civr-btn-sm !px-2" disabled={i === 0} onClick={() => move(-1)} aria-label="Move up" data-testid={`${t}-up`}><ArrowUp className="w-4 h-4" /></button>
           <button type="button" className="civr-btn civr-btn-ghost civr-btn-sm !px-2" disabled={i === n - 1} onClick={() => move(1)} aria-label="Move down" data-testid={`${t}-down`}><ArrowDown className="w-4 h-4" /></button>
           <button type="button" className="civr-btn civr-btn-ghost civr-btn-sm !px-2 hover:!text-[#fb7185]" onClick={remove} aria-label="Remove trigger" data-testid={`${t}-remove`}><Trash2 className="w-4 h-4" /></button>
-          <Toggle checked={r.enabled} onChange={v => set({ enabled: v })} testid={`${t}-enabled-toggle`} />
+          <Toggle checked={r.enabled} onChange={v => set({ enabled: v })} testid={`${t}-enabled-toggle`} label="Trigger on" />
         </div>
       </div>
       <p className="text-xs text-[#a1a1aa] -mt-2">{what}</p>

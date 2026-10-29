@@ -122,7 +122,7 @@ export function BookingFields({ f, set }) {
           <div className="font-semibold">Book appointments</div>
           <div className="text-xs text-[#a1a1aa] mt-0.5">During the call the agent checks your free times, books the caller in and repeats the date and time back.</div>
         </div>
-        <Toggle checked={!!b.enabled && connected} disabled={!connected} onChange={v => setB({ enabled: v })} testid="ai-agent-booking-toggle" />
+        <Toggle checked={!!b.enabled && connected} disabled={!connected} onChange={v => setB({ enabled: v })} testid="ai-agent-booking-toggle" label="Book appointments" />
       </div>
       <Connection cal={cal} reload={reload} />
       {connected && b.enabled && (

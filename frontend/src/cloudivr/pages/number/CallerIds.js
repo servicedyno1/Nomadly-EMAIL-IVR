@@ -28,7 +28,7 @@ function AddForm({ price, onSent }) {
     <div className="space-y-3" data-testid="caller-ids-add-form">
       <Field label="Numbers you own" hint="One per line, with country code. Up to 10 at a time — each gets its own code."><textarea className="civr-input font-mono !h-24 py-2" value={text} onChange={e => setText(e.target.value)} placeholder={'+14155550100\n+14155550101'} data-testid="caller-ids-number-input" /></Field>
       <div className="flex flex-wrap items-center gap-2">
-        <select className="civr-input !w-auto !h-9 text-sm" value={method} onChange={e => setMethod(e.target.value)} data-testid="caller-ids-method-select"><option value="sms">Text the code</option><option value="call">Call with the code</option><option value="dtmf">Call me — I’ll press 1</option></select>
+        <select className="civr-input !w-auto !h-9 text-sm" value={method} onChange={e => setMethod(e.target.value)} aria-label="How to verify" data-testid="caller-ids-method-select"><option value="sms">Text the code</option><option value="call">Call with the code</option><option value="dtmf">Call me — I’ll press 1</option></select>
         <button type="button" className="civr-btn civr-btn-primary civr-btn-sm" disabled={busy || !n} onClick={send} data-testid="caller-ids-send-button">{busy && <Loader2 className="w-4 h-4 animate-spin" />}{n > 1 ? `Send ${n} codes` : 'Send code'}</button>
       </div>
       {fails.length > 0 && <ul className="text-xs text-[#fb7185] space-y-1" data-testid="caller-ids-send-failures">{fails.map(f => <li key={f.number}><span className="font-mono">{f.number}</span>: {f.message}</li>)}</ul>}

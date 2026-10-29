@@ -40,14 +40,14 @@ function Actions({ f, set, recordRate = 0.02, recordingDays = 90 }) {
     <div className="grid sm:grid-cols-2 gap-4 items-start">
       <Field label="Transfer to a human (optional)" hint="When the caller asks for a person or is ready to go ahead."><Text f={f} set={set} k="transferTo" ph="+14155550199" testid="ai-agent-transfer-input" /></Field>
       <Field label="Longest call (minutes)"><input type="number" min={1} max={15} className="civr-input" value={f.maxMinutes} onChange={e => set('maxMinutes', e.target.value)} data-testid="ai-agent-max-minutes-input" /></Field>
-      <div className="flex items-center justify-between sm:col-span-2"><span className="text-sm">Take messages (name, callback number, message)</span><Toggle checked={!!f.takeMessages} onChange={v => set('takeMessages', v)} testid="ai-agent-take-messages-toggle" /></div>
+      <div className="flex items-center justify-between sm:col-span-2"><span className="text-sm">Take messages (name, callback number, message)</span><Toggle checked={!!f.takeMessages} onChange={v => set('takeMessages', v)} testid="ai-agent-take-messages-toggle" label="Take messages" /></div>
       <div className="flex items-center justify-between gap-4 sm:col-span-2" data-testid="ai-agent-record-row">
         <span className="text-sm">Record calls<span className="block text-xs text-[#a1a1aa] mt-0.5">{`The agent says “this call may be recorded” when it answers. +$${Number(recordRate).toFixed(2)} per started minute · kept ${recordingDays} days, then deleted.`}</span></span>
-        <Toggle checked={f.record !== false} onChange={v => set('record', v)} testid="ai-agent-record-toggle" />
+        <Toggle checked={f.record !== false} onChange={v => set('record', v)} testid="ai-agent-record-toggle" label="Record calls" />
       </div>
       <div className="flex items-center justify-between gap-4 sm:col-span-2" data-testid="ai-agent-disclose-row">
         <span className="text-sm">Announce it’s an AI<span className="block text-xs text-[#a1a1aa] mt-0.5">On: the agent says it’s an AI assistant when the call starts. Off: it skips that and talks naturally, but still won’t claim to be human if someone asks. Check the rules where you call — some places require disclosure.</span></span>
-        <Toggle checked={f.discloseAi !== false} onChange={v => set('discloseAi', v)} testid="ai-agent-disclose-toggle" />
+        <Toggle checked={f.discloseAi !== false} onChange={v => set('discloseAi', v)} testid="ai-agent-disclose-toggle" label="Announce it’s an AI" />
       </div>
     </div>
   );
@@ -77,7 +77,7 @@ export function AgentForm({ initial, voices, recordRate, recordingDays, onSaved,
       <Field label="First message (optional)" hint="The exact words that open every call. Use {name}, {business} and {lead_name} (or {lead_name|there} for leads without a name). Leave empty for the standard opening."><Text f={f} set={set} k="firstMessage" rows={2} ph="Hi {lead_name|there}, this is {name} from {business}. Do you have a minute?" testid="ai-agent-first-message-input" /></Field>
       <div className="flex items-center justify-between gap-4" data-testid="ai-agent-wait-hello-row">
         <span className="text-sm">Wait for them to say hello<span className="block text-xs text-[#a1a1aa] mt-0.5">On calls to leads, the agent stays quiet until the person answers (“Hello?”), then speaks. If nobody says anything for 4 seconds, it starts anyway.</span></span>
-        <Toggle checked={f.waitForHello !== false} onChange={v => set('waitForHello', v)} testid="ai-agent-wait-hello-toggle" />
+        <Toggle checked={f.waitForHello !== false} onChange={v => set('waitForHello', v)} testid="ai-agent-wait-hello-toggle" label="Wait for them to say hello" />
       </div>
       <OpeningPreview f={f} />
       <Field label="Personality & script" hint="What the agent does after the first message, how it talks and what it should find out."><Text f={f} set={set} k="goal" rows={5} ph="Friendly receptionist. Answer questions, book cleanings and get the caller's name and preferred time." testid="ai-agent-goal-input" /></Field>

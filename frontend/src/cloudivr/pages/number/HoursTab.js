@@ -15,7 +15,7 @@ function DayRow({ id, label, d, onChange }) {
   return (
     <div className="flex flex-wrap items-center gap-x-4 gap-y-2 py-3 border-b border-[#1a1a1a] last:border-0" data-testid={`hours-day-${id}`}>
       <span className="w-10 text-sm font-medium">{label}</span>
-      <Toggle checked={d.on} onChange={v => onChange({ ...d, on: v })} testid={`hours-day-${id}-toggle`} />
+      <Toggle checked={d.on} onChange={v => onChange({ ...d, on: v })} testid={`hours-day-${id}-toggle`} label={`Open on ${label}`} />
       {d.on ? (
         <div className="flex items-center gap-2">
           <input type="time" className="civr-input !w-[7.5rem] font-mono" value={d.start} onChange={e => onChange({ ...d, start: e.target.value })} aria-label={`${label} opens at`} data-testid={`hours-day-${id}-start-input`} />
@@ -63,7 +63,7 @@ export default function HoursTab({ num, reload }) {
       </div>
       <p className="text-sm text-[#a1a1aa] mt-1 mb-6">Outside these hours your number doesn’t ring. Callers go to voicemail, hear a short closed message, or are forwarded to your backup numbers.</p>
       <div className="space-y-6">
-        <div className="flex items-center justify-between gap-4"><span className="text-sm">Use a weekly schedule</span><Toggle checked={!!saved.enabled} disabled={busy} onChange={v => put(v, v ? 'Weekly schedule turned on' : 'Weekly schedule turned off')} testid="hours-enabled-toggle" /></div>
+        <div className="flex items-center justify-between gap-4"><span className="text-sm">Use a weekly schedule</span><Toggle checked={!!saved.enabled} disabled={busy} onChange={v => put(v, v ? 'Weekly schedule turned on' : 'Weekly schedule turned off')} testid="hours-enabled-toggle" label="Use a weekly schedule" /></div>
         <Field label="Time zone">
           <select className="civr-input" value={f.timezone} onChange={e => setF({ ...f, timezone: e.target.value })} data-testid="hours-timezone-select">
             {zones.map(z => <option key={z} value={z}>{z.replace(/_/g, ' ')}</option>)}

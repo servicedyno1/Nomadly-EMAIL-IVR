@@ -169,9 +169,9 @@ export function Locked({ feature, phone, need }) {
   );
 }
 
-export function Toggle({ checked, onChange, testid, disabled }) {
+export function Toggle({ checked, onChange, testid, disabled, label }) {
   return (
-    <button type="button" role="switch" aria-checked={checked} disabled={disabled} onClick={() => onChange(!checked)} data-testid={testid}
+    <button type="button" role="switch" aria-checked={checked} aria-label={label} disabled={disabled} onClick={() => onChange(!checked)} data-testid={testid}
       className={`relative w-11 h-6 shrink-0 rounded-full transition-colors before:absolute before:content-[''] before:-inset-x-1 before:-inset-y-2.5 ${checked ? 'bg-[#818cf8]' : 'bg-[#2a2a2a] ring-1 ring-inset ring-[#71717a]/60'} disabled:opacity-40`}>
       <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform ${checked ? 'translate-x-5' : ''}`} />
     </button>
@@ -199,13 +199,13 @@ export function useSwitch({ num, feature, checked, label, reload, onSaved }) {
 
 export function InstantToggle({ testid, disabled, ...rest }) {
   const s = useSwitch(rest);
-  return <Toggle checked={s.value} disabled={disabled || s.busy} onChange={s.flip} testid={testid} />;
+  return <Toggle checked={s.value} disabled={disabled || s.busy} onChange={s.flip} testid={testid} label={rest.label} />;
 }
 
 export function PreviewBanner({ show, livePayments }) {
   if (!show) return null;
   return (
-    <div className="text-xs font-mono uppercase tracking-wider text-[#fbbf24] bg-[#fbbf24]/10 border-b border-[#fbbf24]/30 px-4 py-2 text-center" data-testid="preview-mode-banner">
+    <div role="region" aria-label="Preview mode notice" className="text-xs font-mono uppercase tracking-wider text-[#fbbf24] bg-[#fbbf24]/10 border-b border-[#fbbf24]/30 px-4 py-2 text-center" data-testid="preview-mode-banner">
       Preview — purchases and calls are simulated · {livePayments ? 'crypto top-ups are REAL' : 'top-ups too'}
     </div>
   );

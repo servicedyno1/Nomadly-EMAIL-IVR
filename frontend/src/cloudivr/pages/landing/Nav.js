@@ -29,7 +29,7 @@ function Featured({ which, catalog, onPick }) {
     : ['One price per number', `Free to sign up${from ? ` · numbers from ${from}/month` : ''} · no contracts.`, '#pricing', 'See plans', 'pricing'];
   return (
     <a href={href} onClick={(e) => { goTo(href, e); onPick(); }} className="relative overflow-hidden rounded-2xl p-6 flex flex-col justify-between min-h-[200px] group bg-slate-50 border border-slate-200 hover:border-slate-400 transition-colors" data-testid={`nav-menu-featured-${id}`}>
-      <span className="relative"><span className="text-[11px] font-semibold uppercase tracking-[.14em] text-slate-500">{which === 'products' ? 'Try it' : 'Pricing'}</span><span className="block text-lg font-semibold text-slate-900 mt-2">{title}</span><span className="block text-sm text-slate-600 mt-2">{text}</span></span>
+      <span className="relative"><span className="text-xs font-semibold uppercase tracking-[.14em] text-slate-500">{which === 'products' ? 'Try it' : 'Pricing'}</span><span className="block text-lg font-semibold text-slate-900 mt-2">{title}</span><span className="block text-sm text-slate-600 mt-2">{text}</span></span>
       <span className="relative inline-flex items-center gap-2 text-sm font-semibold text-slate-900 mt-6">{cta}<ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" /></span>
     </a>
   );

@@ -11,7 +11,7 @@ function Bars({ series }) {
       <div className="text-xs uppercase tracking-widest text-[#a1a1aa] mb-4">Deposits · last 14 days</div>
       {series.length ? (
         <div className="flex items-end gap-2 h-32">
-          {series.map(s => <div key={s.day} className="flex-1 flex flex-col items-center gap-1" title={`${s.day}: ${fmt(s.usd)} (${s.n})`}><div className="w-full rounded-t bg-[#818cf8]/80" style={{ height: `${(s.usd / max) * 100}%`, minHeight: 2 }} /><span className="text-[10px] text-[#a1a1aa]">{s.day.slice(5)}</span></div>)}
+          {series.map(s => <div key={s.day} className="flex-1 flex flex-col items-center gap-1" title={`${s.day}: ${fmt(s.usd)} (${s.n})`}><div className="w-full rounded-t bg-[#818cf8]/80" style={{ height: `${(s.usd / max) * 100}%`, minHeight: 2 }} /><span className="text-xs text-[#a1a1aa]">{s.day.slice(5)}</span></div>)}
         </div>
       ) : <p className="text-sm text-[#a1a1aa]">No deposits in the last 14 days.</p>}
     </div>

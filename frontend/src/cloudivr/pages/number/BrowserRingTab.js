@@ -93,7 +93,7 @@ export default function BrowserRingTab({ num, reload }) {
         </div>
         <div className="flex items-start justify-between gap-4">
           <div><div className="text-sm">Tell the caller it is a typed call</div><div className="text-xs text-[#a1a1aa] mt-1">A short spoken note when you answer as text.</div></div>
-          <Toggle checked={f.announce} onChange={v => setF({ ...f, announce: v })} testid="browser-ring-announce-toggle" />
+          <Toggle checked={f.announce} onChange={v => setF({ ...f, announce: v })} testid="browser-ring-announce-toggle" label="Tell the caller it is a typed call" />
         </div>
         </> : <LockedNote text="Answering calls by typing (text call) is on the Business plan. You can answer by voice now." feature="Answering calls as text" phone={num.phoneNumber} testid="browser-ring-text-locked" />}
         <Alerts />

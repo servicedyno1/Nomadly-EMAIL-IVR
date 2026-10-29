@@ -133,7 +133,7 @@ html[data-civr-theme="dark"] .civr .civr-glass { background: rgba(27, 30, 34, 0.
 /* Important (!) dark utility classes used by dialogs (palette, confirm, upgrade, what's new, contacts modal, support chat). */
 html[data-civr-theme] .civr .\!bg-\[\#111\], html[data-civr-theme] .civr .\!bg-\[\#0f0f0f\], html[data-civr-theme] .civr .\!bg-\[\#0e0e10\] { background-color: var(--c-card) !important; }
 html[data-civr-theme="light"] .civr .\!text-\[\#a1a1aa\] { color: #556070 !important; }
-html[data-civr-theme="light"] .civr .\!text-\[\#fb7185\], html[data-civr-theme="light"] .civr .hover\:\!text-\[\#fb7185\]:hover { color: #e11d48 !important; }
+html[data-civr-theme="light"] .civr .\!text-\[\#fb7185\], html[data-civr-theme="light"] .civr .hover\:\!text-\[\#fb7185\]:hover { color: #be123c !important; }
 html[data-civr-theme="light"] .civr .\!text-\[\#fbbf24\] { color: #b45309 !important; }
 html[data-civr-theme="light"] .civr .\!border-\[\#fbbf24\]\/50 { border-color: rgba(180, 83, 9, .45) !important; }
 /* Light: a lighter blue tint keeps #1f6fd6 text above 4.5:1 on pills (balance, "New", presets). */

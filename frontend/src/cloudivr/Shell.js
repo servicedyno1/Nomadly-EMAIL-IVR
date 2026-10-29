@@ -54,7 +54,7 @@ const ICON_BTN = 'relative w-11 h-11 shrink-0 flex items-center justify-center r
 export function FreeBadge() {
   const shell = useContext(ShellCtx);
   if (!shell?.summary?.ivrTrial) return null;
-  return <span className="ml-auto text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#6366f1] text-white" data-testid="nav-quick-call-free-badge">1 free</span>;
+  return <span className="ml-auto text-xs font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#6366f1] text-white" data-testid="nav-quick-call-free-badge">1 free</span>;
 }
 
 // Green dot on "Live" while a campaign is calling.
@@ -69,7 +69,7 @@ function SideNav() {
     <nav className="flex flex-col gap-6" data-testid="nav-header">
       {NAV.map(([group, items]) => (
         <div key={group} data-testid={`nav-group-${group.toLowerCase()}`}>
-          <div className="civr-side-label px-3 mb-2 text-[11px] font-semibold uppercase tracking-widest text-[#a1a1aa]">{group}</div>
+          <div className="civr-side-label px-3 mb-2 text-xs font-semibold uppercase tracking-widest text-[#a1a1aa]">{group}</div>
           <div className="flex flex-col gap-1">
             {items.map(([to, label, Icon, id]) => (
               <NavLink key={id} end={to === ''} to={appPath(to)} className={({ isActive }) => `civr-nav-link ${isActive ? 'active' : ''}`} data-testid={id}>
@@ -85,12 +85,12 @@ function SideNav() {
 
 function Sidebar({ supportLink, channelLink, purposes }) {
   return (
-    <aside className="civr-side hidden lg:flex lg:flex-col w-64 shrink-0 h-screen sticky top-0 border-r border-[#1a1a1a] px-4 py-6 overflow-y-auto" data-testid="app-sidebar">
+    <aside aria-label="Main navigation" className="civr-side hidden lg:flex lg:flex-col w-64 shrink-0 h-screen sticky top-0 border-r border-[#1a1a1a] px-4 py-6 overflow-y-auto" data-testid="app-sidebar">
       <Link to={cp('/app')} className="civr-side-logo font-display text-2xl font-extrabold tracking-tight px-3 mb-8 flex items-center gap-2.5" data-testid="sidebar-logo"><Wordmark iconClass="w-9 h-9" /></Link>
       <ForYouNav purposes={purposes} />
       <SideNav />
       <div className="civr-side-rule mt-auto pt-5 border-t border-[#1a1a1a] flex flex-col gap-1" data-testid="nav-group-support">
-        <div className="civr-side-label px-3 mb-1 text-[11px] font-semibold uppercase tracking-widest text-[#a1a1aa]">Support</div>
+        <div className="civr-side-label px-3 mb-1 text-xs font-semibold uppercase tracking-widest text-[#a1a1aa]">Support</div>
         {channelLink && <a href={channelLink} target="_blank" rel="noopener noreferrer" className="civr-nav-link" data-testid="sidebar-channel-link"><Send className="w-4 h-4" />Telegram channel</a>}
         <Link to={cp('/app/settings#suggest')} className="civr-nav-link" data-testid="sidebar-suggest-link"><Lightbulb className="w-4 h-4" />Suggest a feature</Link>
         {supportLink && <a href={supportLink} target="_blank" rel="noopener noreferrer" className="civr-nav-link" data-testid="sidebar-support-link"><LifeBuoy className="w-4 h-4" />Message support</a>}
@@ -128,7 +128,7 @@ function TopBar({ summary, onPhone }) {
       <Link to={helpFor(pathname, search)} className={`${ICON_BTN} hidden sm:flex`} data-testid="topbar-help-button" aria-label="Help for this page" title="Help for this page (?)"><HelpCircle className="w-5 h-5" /></Link>
       <Link to={cp('/app/inbox')} className={ICON_BTN} data-testid="topbar-inbox-button" aria-label="Inbox">
         <Bell className="w-5 h-5" />
-        {summary?.unread > 0 && <span className="absolute top-1 right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-[#6366f1] text-white text-[11px] font-bold flex items-center justify-center" data-testid="topbar-unread-count">{summary.unread > 99 ? '99+' : summary.unread}</span>}
+        {summary?.unread > 0 && <span className="absolute top-1 right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-[#6366f1] text-white text-xs font-bold flex items-center justify-center" data-testid="topbar-unread-count">{summary.unread > 99 ? '99+' : summary.unread}</span>}
       </Link>
       <button onClick={onPhone} className={ICON_BTN} data-testid="topbar-softphone-button" aria-label="Browser phone"><Phone className="w-5 h-5" /></button>
       <button onClick={async () => { if (!(await confirmLeave())) return; nav(cp(), { replace: true }); await logout(); }} className={`${ICON_BTN} hidden lg:flex`} data-testid="topbar-logout-button" aria-label="Sign out"><LogOut className="w-5 h-5" /></button>

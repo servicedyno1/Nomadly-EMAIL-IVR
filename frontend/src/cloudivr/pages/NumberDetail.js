@@ -40,7 +40,13 @@ export default function NumberDetail() {
   const tab = params.get('tab') || 'overview';
   const n = data?.number;
   if (loading && !n) return <Spinner />;
-  if (error) return <ErrorNote error={error} />;
+  if (error) return (
+    <div data-testid="number-detail-error">
+      <Link to={cp('/app/numbers')} className="inline-flex items-center gap-2 min-h-[44px] text-sm text-[#a1a1aa] hover:text-[#818cf8] mb-3" data-testid="number-detail-error-back-link"><ArrowLeft className="w-4 h-4" />All numbers</Link>
+      <h1 className="font-display text-3xl font-extrabold mb-4">Number not available</h1>
+      <ErrorNote error={error} />
+    </div>
+  );
   const [, label, gate, Comp] = TABS.find(t => t[0] === tab) || TABS[0];
   return (
     <div data-testid="number-detail-page">

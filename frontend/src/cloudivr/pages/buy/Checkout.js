@@ -19,7 +19,7 @@ export function CardComingSoon({ testid = 'card-coming-soon', className = '' }) 
   return (
     <div aria-disabled="true" className={`civr-card p-4 flex gap-4 items-start opacity-80 cursor-not-allowed ${className}`} data-testid={testid}>
       <CreditCard className="w-5 h-5 mt-0.5 shrink-0 text-[#a1a1aa]" />
-      <div className="flex-1"><div className="font-semibold flex flex-wrap items-center gap-2">Credit / debit card<span className="civr-pill !text-[10px]" data-testid={`${testid}-badge`}>Coming soon</span></div><div className="text-xs text-[#a1a1aa] mt-1">Visa, Mastercard and more — available soon.</div></div>
+      <div className="flex-1"><div className="font-semibold flex flex-wrap items-center gap-2">Credit / debit card<span className="civr-pill !text-xs" data-testid={`${testid}-badge`}>Coming soon</span></div><div className="text-xs text-[#a1a1aa] mt-1">Visa, Mastercard and more — available soon.</div></div>
     </div>
   );
 }
@@ -80,7 +80,7 @@ export default function Checkout({ pick, planObj, total, balance, coins, busy, o
       {method === 'crypto' && cryptoMin > due && <div className="text-xs text-[#a1a1aa] mt-2" data-testid="civr-checkout-crypto-min">Crypto payments start at {money(cryptoMin)} — anything over {money(due)} stays in your wallet.</div>}
       <div className="flex items-center justify-between gap-4 mt-6 py-4 border-y border-[#1c1c1c]">
         <div><div className="text-sm font-medium">Auto-renew monthly</div><div className="text-xs text-[#a1a1aa] mt-0.5">Renews from your wallet so the number never lapses. Turn it off any time.</div></div>
-        <Toggle checked={autoRenew} onChange={setAutoRenew} testid="civr-checkout-auto-renew-toggle" />
+        <Toggle checked={autoRenew} onChange={setAutoRenew} testid="civr-checkout-auto-renew-toggle" label="Auto-renew monthly" />
       </div>
       {walletShort && <div className="text-sm text-[#fbbf24] mt-4" data-testid="buy-shortfall-note">You need {money(short)} more in your wallet. Add funds — we keep this number and plan selected{cryptoOk ? ' — or pay with crypto instead' : ''}.</div>}
       <div className="mt-6 flex justify-end">

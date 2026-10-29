@@ -1,0 +1,2780 @@
+[
+ {
+  "url": "https://vault-setup-30--5ddhk04r.preview.emergentagent.com/cloudivr",
+  "load_s": 1.72,
+  "console_errors": [],
+  "measure": {
+   "hOverflow": 0,
+   "overflowEls": [
+    {
+     "el": "landing-mobile-menu-button",
+     "right": 378,
+     "cls": "lg:hidden w-11 h-11 -mr-2 grid place-items-center rounded-full hover:bg-slate-10"
+    },
+    {
+     "el": "svg",
+     "right": 378,
+     "cls": "[object SVGAnimatedString]"
+    },
+    {
+     "el": "hero-tab-campaigns",
+     "right": 383,
+     "cls": "civr-l-tabbtn shrink-0"
+    },
+    {
+     "el": "Campaigns",
+     "right": 381,
+     "cls": "inline-flex items-center gap-2 whitespace-nowrap"
+    },
+    {
+     "el": "SPAN",
+     "right": 383,
+     "cls": "bar"
+    },
+    {
+     "el": "platform-tab-campaigns",
+     "right": 490,
+     "cls": "civr-l-ptab"
+    },
+    {
+     "el": "Quick IVR & Bulk IVR campaignsCall a whole list and watch it",
+     "right": 475,
+     "cls": "min-w-0 text-left"
+    },
+    {
+     "el": "Quick IVR & Bulk IVR campaigns",
+     "right": 475,
+     "cls": "block text-sm font-semibold whitespace-nowrap lg:whitespace-normal"
+    }
+   ],
+   "smallTargets": [
+    {
+     "el": "landing-mobile-menu-button",
+     "w": 24,
+     "h": 44,
+     "sev": "warn"
+    },
+    {
+     "el": "hear-it-progress",
+     "w": 125,
+     "h": 24,
+     "sev": "warn"
+    },
+    {
+     "el": "hear-it-show-transcript",
+     "w": 325,
+     "h": 37,
+     "sev": "warn"
+    },
+    {
+     "el": "footer-product-numbers",
+     "w": 148,
+     "h": 32,
+     "sev": "warn"
+    },
+    {
+     "el": "footer-product-ivr",
+     "w": 148,
+     "h": 32,
+     "sev": "warn"
+    },
+    {
+     "el": "footer-product-ai",
+     "w": 148,
+     "h": 32,
+     "sev": "warn"
+    },
+    {
+     "el": "footer-product-phone",
+     "w": 148,
+     "h": 32,
+     "sev": "warn"
+    },
+    {
+     "el": "footer-product-text",
+     "w": 148,
+     "h": 32,
+     "sev": "warn"
+    },
+    {
+     "el": "footer-product-hosted",
+     "w": 148,
+     "h": 32,
+     "sev": "warn"
+    },
+    {
+     "el": "footer-product-inbox",
+     "w": 148,
+     "h": 32,
+     "sev": "warn"
+    },
+    {
+     "el": "footer-usecase-sales",
+     "w": 148,
+     "h": 32,
+     "sev": "warn"
+    },
+    {
+     "el": "footer-usecase-support",
+     "w": 148,
+     "h": 32,
+     "sev": "warn"
+    },
+    {
+     "el": "footer-usecase-global",
+     "w": 148,
+     "h": 32,
+     "sev": "warn"
+    },
+    {
+     "el": "footer-usecase-access",
+     "w": 148,
+     "h": 32,
+     "sev": "warn"
+    },
+    {
+     "el": "footer-link-coverage",
+     "w": 148,
+     "h": 32,
+     "sev": "warn"
+    },
+    {
+     "el": "footer-link-try",
+     "w": 148,
+     "h": 32,
+     "sev": "warn"
+    },
+    {
+     "el": "footer-link-pricing",
+     "w": 148,
+     "h": 32,
+     "sev": "warn"
+    },
+    {
+     "el": "footer-link-faq",
+     "w": 148,
+     "h": 32,
+     "sev": "warn"
+    },
+    {
+     "el": "footer-link-sip",
+     "w": 148,
+     "h": 32,
+     "sev": "warn"
+    },
+    {
+     "el": "footer-channel-link",
+     "w": 148,
+     "h": 32,
+     "sev": "warn"
+    },
+    {
+     "el": "footer-link-terms",
+     "w": 148,
+     "h": 32,
+     "sev": "warn"
+    },
+    {
+     "el": "footer-link-cookies",
+     "w": 148,
+     "h": 32,
+     "sev": "warn"
+    }
+   ],
+   "tinyText": [
+    {
+     "text": "CloudIVR \u00b7 now",
+     "fs": 11
+    },
+    {
+     "text": "+1 415 555 0182",
+     "fs": 11
+    },
+    {
+     "text": "Maria \u00b7 +1 312 555 0119",
+     "fs": 11
+    },
+    {
+     "text": "Booked \u00b7 Friday 3:00 PM",
+     "fs": 11
+    },
+    {
+     "text": "cloudivr.net/app/numbers \u00b7 Keypad menu",
+     "fs": 10
+    },
+    {
+     "text": "Live",
+     "fs": 10
+    },
+    {
+     "text": "Greeting \u00b7 text-to-speech",
+     "fs": 9
+    },
+    {
+     "text": "Forward to +1 415 555 0102",
+     "fs": 10
+    },
+    {
+     "text": "42%",
+     "fs": 10
+    },
+    {
+     "text": "Ring group \u00b7 3 phones",
+     "fs": 10
+    },
+    {
+     "text": "31%",
+     "fs": 10
+    },
+    {
+     "text": "Transcript to your inbox",
+     "fs": 10
+    },
+    {
+     "text": "18%",
+     "fs": 10
+    },
+    {
+     "text": "No key in 10 s \u2192 Voicemail \u00b7 last 30 day",
+     "fs": 10
+    },
+    {
+     "text": "Forwarding",
+     "fs": 9
+    },
+    {
+     "text": "Voicemail",
+     "fs": 9
+    },
+    {
+     "text": "Campaigns",
+     "fs": 9
+    },
+    {
+     "text": "AMEX",
+     "fs": 10
+    },
+    {
+     "text": "DISC",
+     "fs": 10
+    },
+    {
+     "text": "AMEX",
+     "fs": 10
+    },
+    {
+     "text": "DISC",
+     "fs": 10
+    }
+   ],
+   "zoomInputs": [],
+   "clipped": [],
+   "fixedCover": 10,
+   "noViewportMeta": false,
+   "overlaps": [
+    [
+     "hear-it-play",
+     "sticky-cta-buy"
+    ],
+    [
+     "hear-it-progress",
+     "sticky-cta-buy"
+    ]
+   ],
+   "h1": 1,
+   "pageHeight": 23756
+  },
+  "focus_no_ring": [],
+  "focus_total": 12,
+  "axe": [],
+  "device": "iPhone SE",
+  "path": "/cloudivr"
+ },
+ {
+  "url": "https://vault-setup-30--5ddhk04r.preview.emergentagent.com/cloudivr/login",
+  "load_s": 0.8,
+  "console_errors": [],
+  "measure": {
+   "hOverflow": 0,
+   "overflowEls": [],
+   "smallTargets": [
+    {
+     "el": "auth-switch-link",
+     "w": 90,
+     "h": 36,
+     "sev": "warn"
+    },
+    {
+     "el": "auth-forgot-link",
+     "w": 107,
+     "h": 36,
+     "sev": "warn"
+    }
+   ],
+   "tinyText": [],
+   "zoomInputs": [],
+   "clipped": [],
+   "fixedCover": 0,
+   "noViewportMeta": false,
+   "overlaps": [
+    [
+     "auth-password-input",
+     "auth-password-toggle"
+    ]
+   ],
+   "h1": 1,
+   "pageHeight": 667
+  },
+  "focus_no_ring": [],
+  "focus_total": 11,
+  "axe": [],
+  "device": "iPhone SE",
+  "path": "/cloudivr/login"
+ },
+ {
+  "url": "https://vault-setup-30--5ddhk04r.preview.emergentagent.com/cloudivr/signup",
+  "load_s": 0.94,
+  "console_errors": [],
+  "measure": {
+   "hOverflow": 0,
+   "overflowEls": [],
+   "smallTargets": [
+    {
+     "el": "auth-switch-link",
+     "w": 147,
+     "h": 36,
+     "sev": "warn"
+    }
+   ],
+   "tinyText": [],
+   "zoomInputs": [],
+   "clipped": [],
+   "fixedCover": 0,
+   "noViewportMeta": false,
+   "overlaps": [
+    [
+     "auth-password-input",
+     "auth-password-toggle"
+    ]
+   ],
+   "h1": 1,
+   "pageHeight": 771
+  },
+  "focus_no_ring": [],
+  "focus_total": 11,
+  "axe": [],
+  "device": "iPhone SE",
+  "path": "/cloudivr/signup"
+ },
+ {
+  "url": "https://vault-setup-30--5ddhk04r.preview.emergentagent.com/cloudivr/forgot",
+  "load_s": 2.37,
+  "console_errors": [],
+  "measure": {
+   "hOverflow": 0,
+   "overflowEls": [],
+   "smallTargets": [
+    {
+     "el": "forgot-back-link",
+     "w": 327,
+     "h": 36,
+     "sev": "warn"
+    }
+   ],
+   "tinyText": [],
+   "zoomInputs": [],
+   "clipped": [],
+   "fixedCover": 0,
+   "noViewportMeta": false,
+   "overlaps": [],
+   "h1": 1,
+   "pageHeight": 667
+  },
+  "focus_no_ring": [],
+  "focus_total": 11,
+  "axe": [],
+  "device": "iPhone SE",
+  "path": "/cloudivr/forgot"
+ },
+ {
+  "url": "https://vault-setup-30--5ddhk04r.preview.emergentagent.com/cloudivr/sip",
+  "load_s": 1.29,
+  "console_errors": [],
+  "measure": {
+   "hOverflow": 0,
+   "overflowEls": [
+    {
+     "el": "sip-compare-table",
+     "right": 585,
+     "cls": "w-full min-w-[560px] text-sm"
+    },
+    {
+     "el": "FeatureStarterProBusiness",
+     "right": 585,
+     "cls": ""
+    },
+    {
+     "el": "FeatureStarterProBusiness",
+     "right": 585,
+     "cls": "bg-slate-50 text-left"
+    },
+    {
+     "el": "Starter",
+     "right": 447,
+     "cls": "px-4 py-3 font-semibold text-slate-900 text-center"
+    },
+    {
+     "el": "Monthly price$50$75$120Incoming minutes100400600SMS included",
+     "right": 585,
+     "cls": ""
+    },
+    {
+     "el": "Monthly price$50$75$120",
+     "right": 585,
+     "cls": "border-t civr-l-rule"
+    },
+    {
+     "el": "$50",
+     "right": 447,
+     "cls": "px-4 py-3 text-center text-slate-700"
+    },
+    {
+     "el": "Incoming minutes100400600",
+     "right": 585,
+     "cls": "border-t civr-l-rule"
+    }
+   ],
+   "smallTargets": [
+    {
+     "el": "footer-product-numbers",
+     "w": 148,
+     "h": 32,
+     "sev": "warn"
+    },
+    {
+     "el": "footer-product-ivr",
+     "w": 148,
+     "h": 32,
+     "sev": "warn"
+    },
+    {
+     "el": "footer-product-ai",
+     "w": 148,
+     "h": 32,
+     "sev": "warn"
+    },
+    {
+     "el": "footer-product-phone",
+     "w": 148,
+     "h": 32,
+     "sev": "warn"
+    },
+    {
+     "el": "footer-product-text",
+     "w": 148,
+     "h": 32,
+     "sev": "warn"
+    },
+    {
+     "el": "footer-product-hosted",
+     "w": 148,
+     "h": 32,
+     "sev": "warn"
+    },
+    {
+     "el": "footer-product-inbox",
+     "w": 148,
+     "h": 32,
+     "sev": "warn"
+    },
+    {
+     "el": "footer-usecase-sales",
+     "w": 148,
+     "h": 32,
+     "sev": "warn"
+    },
+    {
+     "el": "footer-usecase-support",
+     "w": 148,
+     "h": 32,
+     "sev": "warn"
+    },
+    {
+     "el": "footer-usecase-global",
+     "w": 148,
+     "h": 32,
+     "sev": "warn"
+    },
+    {
+     "el": "footer-usecase-access",
+     "w": 148,
+     "h": 32,
+     "sev": "warn"
+    },
+    {
+     "el": "footer-link-coverage",
+     "w": 148,
+     "h": 32,
+     "sev": "warn"
+    },
+    {
+     "el": "footer-link-try",
+     "w": 148,
+     "h": 32,
+     "sev": "warn"
+    },
+    {
+     "el": "footer-link-pricing",
+     "w": 148,
+     "h": 32,
+     "sev": "warn"
+    },
+    {
+     "el": "footer-link-faq",
+     "w": 148,
+     "h": 32,
+     "sev": "warn"
+    },
+    {
+     "el": "footer-link-sip",
+     "w": 148,
+     "h": 32,
+     "sev": "warn"
+    },
+    {
+     "el": "footer-channel-link",
+     "w": 148,
+     "h": 32,
+     "sev": "warn"
+    },
+    {
+     "el": "footer-link-terms",
+     "w": 148,
+     "h": 32,
+     "sev": "warn"
+    },
+    {
+     "el": "footer-link-cookies",
+     "w": 148,
+     "h": 32,
+     "sev": "warn"
+    }
+   ],
+   "tinyText": [
+    {
+     "text": "AMEX",
+     "fs": 10
+    },
+    {
+     "text": "DISC",
+     "fs": 10
+    },
+    {
+     "text": "AMEX",
+     "fs": 10
+    },
+    {
+     "text": "DISC",
+     "fs": 10
+    }
+   ],
+   "zoomInputs": [],
+   "clipped": [],
+   "fixedCover": 10,
+   "noViewportMeta": false,
+   "overlaps": [],
+   "h1": 1,
+   "pageHeight": 11366
+  },
+  "focus_no_ring": [],
+  "focus_total": 12,
+  "axe": [
+   {
+    "id": "color-contrast",
+    "impact": "serious",
+    "help": "Elements must meet minimum color contrast ratio thresholds",
+    "n": 3,
+    "ex": [
+     ".max-w-3xl.in.civr-reveal > .civr-l-eyebrow",
+     ".max-w-3xl.in.civr-reveal > h2",
+     "summary[data-testid=\"sip-faq-question-0\"]"
+    ]
+   }
+  ],
+  "device": "iPhone SE",
+  "path": "/cloudivr/sip"
+ },
+ {
+  "url": "https://vault-setup-30--5ddhk04r.preview.emergentagent.com/cloudivr/terms",
+  "load_s": 0.96,
+  "console_errors": [],
+  "measure": {
+   "hOverflow": 0,
+   "overflowEls": [],
+   "smallTargets": [
+    {
+     "el": "footer-product-numbers",
+     "w": 148,
+     "h": 32,
+     "sev": "warn"
+    },
+    {
+     "el": "footer-product-ivr",
+     "w": 148,
+     "h": 32,
+     "sev": "warn"
+    },
+    {
+     "el": "footer-product-ai",
+     "w": 148,
+     "h": 32,
+     "sev": "warn"
+    },
+    {
+     "el": "footer-product-phone",
+     "w": 148,
+     "h": 32,
+     "sev": "warn"
+    },
+    {
+     "el": "footer-product-text",
+     "w": 148,
+     "h": 32,
+     "sev": "warn"
+    },
+    {
+     "el": "footer-product-hosted",
+     "w": 148,
+     "h": 32,
+     "sev": "warn"
+    },
+    {
+     "el": "footer-product-inbox",
+     "w": 148,
+     "h": 32,
+     "sev": "warn"
+    },
+    {
+     "el": "footer-usecase-sales",
+     "w": 148,
+     "h": 32,
+     "sev": "warn"
+    },
+    {
+     "el": "footer-usecase-support",
+     "w": 148,
+     "h": 32,
+     "sev": "warn"
+    },
+    {
+     "el": "footer-usecase-global",
+     "w": 148,
+     "h": 32,
+     "sev": "warn"
+    },
+    {
+     "el": "footer-usecase-access",
+     "w": 148,
+     "h": 32,
+     "sev": "warn"
+    },
+    {
+     "el": "footer-link-coverage",
+     "w": 148,
+     "h": 32,
+     "sev": "warn"
+    },
+    {
+     "el": "footer-link-try",
+     "w": 148,
+     "h": 32,
+     "sev": "warn"
+    },
+    {
+     "el": "footer-link-pricing",
+     "w": 148,
+     "h": 32,
+     "sev": "warn"
+    },
+    {
+     "el": "footer-link-faq",
+     "w": 148,
+     "h": 32,
+     "sev": "warn"
+    },
+    {
+     "el": "footer-link-sip",
+     "w": 148,
+     "h": 32,
+     "sev": "warn"
+    },
+    {
+     "el": "footer-channel-link",
+     "w": 148,
+     "h": 32,
+     "sev": "warn"
+    },
+    {
+     "el": "footer-link-terms",
+     "w": 148,
+     "h": 32,
+     "sev": "warn"
+    },
+    {
+     "el": "footer-link-cookies",
+     "w": 148,
+     "h": 32,
+     "sev": "warn"
+    }
+   ],
+   "tinyText": [
+    {
+     "text": "AMEX",
+     "fs": 10
+    },
+    {
+     "text": "DISC",
+     "fs": 10
+    }
+   ],
+   "zoomInputs": [],
+   "clipped": [],
+   "fixedCover": 10,
+   "noViewportMeta": false,
+   "overlaps": [],
+   "h1": 1,
+   "pageHeight": 7100
+  },
+  "focus_no_ring": [],
+  "focus_total": 12,
+  "axe": [],
+  "device": "iPhone SE",
+  "path": "/cloudivr/terms"
+ },
+ {
+  "url": "https://vault-setup-30--5ddhk04r.preview.emergentagent.com/cloudivr/app",
+  "load_s": 0.93,
+  "console_errors": [],
+  "measure": {
+   "hOverflow": 0,
+   "overflowEls": [],
+   "smallTargets": [
+    {
+     "el": "topbar-logo",
+     "w": 32,
+     "h": 44,
+     "sev": "warn"
+    },
+    {
+     "el": "dashboard-coupon-dismiss",
+     "w": 32,
+     "h": 32,
+     "sev": "warn"
+    },
+    {
+     "el": "dashboard-all-numbers-link",
+     "w": 73,
+     "h": 36,
+     "sev": "warn"
+    }
+   ],
+   "tinyText": [],
+   "zoomInputs": [],
+   "clipped": [
+    {
+     "text": "CLOUD",
+     "el": "CLOUDIVR",
+     "extra": 87
+    }
+   ],
+   "fixedCover": 19,
+   "noViewportMeta": false,
+   "overlaps": [
+    [
+     "dashboard-coupon-dismiss",
+     "support-chat-toggle"
+    ]
+   ],
+   "h1": 1,
+   "pageHeight": 2782
+  },
+  "focus_no_ring": [],
+  "focus_total": 12,
+  "axe": [],
+  "device": "iPhone SE",
+  "path": "/cloudivr/app"
+ },
+ {
+  "url": "https://vault-setup-30--5ddhk04r.preview.emergentagent.com/cloudivr/app/numbers",
+  "load_s": 0.99,
+  "console_errors": [],
+  "measure": {
+   "hOverflow": 0,
+   "overflowEls": [],
+   "smallTargets": [
+    {
+     "el": "topbar-logo",
+     "w": 32,
+     "h": 44,
+     "sev": "warn"
+    },
+    {
+     "el": "number-card-0-switch-forwarding",
+     "w": 104,
+     "h": 32,
+     "sev": "warn"
+    },
+    {
+     "el": "number-card-0-switch-ivr",
+     "w": 56,
+     "h": 32,
+     "sev": "warn"
+    },
+    {
+     "el": "number-card-0-switch-hours",
+     "w": 71,
+     "h": 32,
+     "sev": "warn"
+    },
+    {
+     "el": "number-card-0-copy-button",
+     "w": 36,
+     "h": 36,
+     "sev": "warn"
+    },
+    {
+     "el": "number-card-0-call-button",
+     "w": 36,
+     "h": 36,
+     "sev": "warn"
+    }
+   ],
+   "tinyText": [],
+   "zoomInputs": [],
+   "clipped": [
+    {
+     "text": "CLOUD",
+     "el": "CLOUDIVR",
+     "extra": 87
+    }
+   ],
+   "fixedCover": 19,
+   "noViewportMeta": false,
+   "overlaps": [
+    [
+     "number-card-0-link",
+     "number-card-0-switch-forwarding"
+    ],
+    [
+     "number-card-0-link",
+     "number-card-0-switch-ivr"
+    ],
+    [
+     "number-card-0-link",
+     "number-card-0-switch-hours"
+    ],
+    [
+     "number-card-0-link",
+     "number-card-0-copy-button"
+    ],
+    [
+     "number-card-0-link",
+     "number-card-0-call-button"
+    ],
+    [
+     "number-card-0-link",
+     "mobile-nav-dashboard"
+    ],
+    [
+     "number-card-0-link",
+     "mobile-nav-numbers"
+    ],
+    [
+     "number-card-0-link",
+     "mobile-nav-inbox"
+    ],
+    [
+     "number-card-0-link",
+     "mobile-nav-wallet"
+    ],
+    [
+     "number-card-0-link",
+     "mobile-nav-more"
+    ],
+    [
+     "number-card-0-link",
+     "softphone-close-button"
+    ],
+    [
+     "number-card-0-link",
+     "support-chat-toggle"
+    ]
+   ],
+   "h1": 1,
+   "pageHeight": 1464
+  },
+  "focus_no_ring": [],
+  "focus_total": 12,
+  "axe": [],
+  "device": "iPhone SE",
+  "path": "/cloudivr/app/numbers"
+ },
+ {
+  "url": "https://vault-setup-30--5ddhk04r.preview.emergentagent.com/cloudivr/app/numbers/+15156445901",
+  "load_s": 0.96,
+  "console_errors": [
+   "Failed to load resource: the server responded with a status of 404 ()",
+   "Failed to load resource: the server responded with a status of 404 ()"
+  ],
+  "measure": {
+   "hOverflow": 0,
+   "overflowEls": [],
+   "smallTargets": [
+    {
+     "el": "topbar-logo",
+     "w": 32,
+     "h": 44,
+     "sev": "warn"
+    }
+   ],
+   "tinyText": [],
+   "zoomInputs": [],
+   "clipped": [
+    {
+     "text": "CLOUD",
+     "el": "CLOUDIVR",
+     "extra": 87
+    }
+   ],
+   "fixedCover": 19,
+   "noViewportMeta": false,
+   "overlaps": [],
+   "h1": 1,
+   "pageHeight": 667
+  },
+  "focus_no_ring": [],
+  "focus_total": 12,
+  "axe": [
+   {
+    "id": "color-contrast",
+    "impact": "serious",
+    "help": "Elements must meet minimum color contrast ratio thresholds",
+    "n": 1,
+    "ex": [
+     ".flex-wrap > .flex-1.min-w-0"
+    ]
+   }
+  ],
+  "device": "iPhone SE",
+  "path": "/cloudivr/app/numbers/+15156445901"
+ },
+ {
+  "url": "https://vault-setup-30--5ddhk04r.preview.emergentagent.com/cloudivr/app/numbers/%2B13346972125",
+  "load_s": 1.15,
+  "console_errors": [],
+  "measure": {
+   "hOverflow": 0,
+   "overflowEls": [
+    {
+     "el": "number-tab-browser",
+     "right": 388,
+     "cls": "inline-flex items-center gap-1 px-2.5 py-3 text-sm font-medium border-b-2 -mb-px"
+    }
+   ],
+   "smallTargets": [
+    {
+     "el": "topbar-logo",
+     "w": 32,
+     "h": 44,
+     "sev": "warn"
+    }
+   ],
+   "tinyText": [],
+   "zoomInputs": [],
+   "clipped": [
+    {
+     "text": "CLOUD",
+     "el": "CLOUDIVR",
+     "extra": 87
+    }
+   ],
+   "fixedCover": 19,
+   "noViewportMeta": false,
+   "overlaps": [],
+   "h1": 1,
+   "pageHeight": 2117
+  },
+  "focus_no_ring": [],
+  "focus_total": 12,
+  "axe": [
+   {
+    "id": "color-contrast",
+    "impact": "serious",
+    "help": "Elements must meet minimum color contrast ratio thresholds",
+    "n": 1,
+    "ex": [
+     ".\\!cursor-pointer > .opacity-70"
+    ]
+   }
+  ],
+  "device": "iPhone SE",
+  "path": "/cloudivr/app/numbers/%2B13346972125"
+ },
+ {
+  "url": "https://vault-setup-30--5ddhk04r.preview.emergentagent.com/cloudivr/app/buy",
+  "load_s": 0.96,
+  "console_errors": [],
+  "measure": {
+   "hOverflow": 0,
+   "overflowEls": [],
+   "smallTargets": [
+    {
+     "el": "topbar-logo",
+     "w": 32,
+     "h": 44,
+     "sev": "warn"
+    }
+   ],
+   "tinyText": [],
+   "zoomInputs": [],
+   "clipped": [
+    {
+     "text": "CLOUD",
+     "el": "CLOUDIVR",
+     "extra": 87
+    }
+   ],
+   "fixedCover": 19,
+   "noViewportMeta": false,
+   "overlaps": [
+    [
+     "buy-search-button",
+     "mobile-nav-numbers"
+    ],
+    [
+     "buy-search-button",
+     "mobile-nav-inbox"
+    ],
+    [
+     "buy-search-button",
+     "mobile-nav-wallet"
+    ]
+   ],
+   "h1": 1,
+   "pageHeight": 842
+  },
+  "focus_no_ring": [],
+  "focus_total": 12,
+  "axe": [],
+  "device": "iPhone SE",
+  "path": "/cloudivr/app/buy"
+ },
+ {
+  "url": "https://vault-setup-30--5ddhk04r.preview.emergentagent.com/cloudivr/app/audio",
+  "load_s": 1.18,
+  "console_errors": [],
+  "measure": {
+   "hOverflow": 0,
+   "overflowEls": [],
+   "smallTargets": [
+    {
+     "el": "topbar-logo",
+     "w": 32,
+     "h": 44,
+     "sev": "warn"
+    },
+    {
+     "el": "audio-row-0-rename-button",
+     "w": 32,
+     "h": 32,
+     "sev": "warn"
+    },
+    {
+     "el": "audio-row-0-delete-button",
+     "w": 32,
+     "h": 32,
+     "sev": "warn"
+    }
+   ],
+   "tinyText": [],
+   "zoomInputs": [],
+   "clipped": [
+    {
+     "text": "CLOUD",
+     "el": "CLOUDIVR",
+     "extra": 87
+    }
+   ],
+   "fixedCover": 19,
+   "noViewportMeta": false,
+   "overlaps": [
+    [
+     "audio-upload-name-input",
+     "softphone-close-button"
+    ]
+   ],
+   "h1": 1,
+   "pageHeight": 1579
+  },
+  "focus_no_ring": [],
+  "focus_total": 12,
+  "axe": [],
+  "device": "iPhone SE",
+  "path": "/cloudivr/app/audio"
+ },
+ {
+  "url": "https://vault-setup-30--5ddhk04r.preview.emergentagent.com/cloudivr/app/contacts",
+  "load_s": 1.07,
+  "console_errors": [],
+  "measure": {
+   "hOverflow": 0,
+   "overflowEls": [],
+   "smallTargets": [
+    {
+     "el": "topbar-logo",
+     "w": 32,
+     "h": 44,
+     "sev": "warn"
+    }
+   ],
+   "tinyText": [],
+   "zoomInputs": [],
+   "clipped": [
+    {
+     "text": "CLOUD",
+     "el": "CLOUDIVR",
+     "extra": 87
+    }
+   ],
+   "fixedCover": 19,
+   "noViewportMeta": false,
+   "overlaps": [],
+   "h1": 1,
+   "pageHeight": 979
+  },
+  "focus_no_ring": [],
+  "focus_total": 12,
+  "axe": [],
+  "device": "iPhone SE",
+  "path": "/cloudivr/app/contacts"
+ },
+ {
+  "url": "https://vault-setup-30--5ddhk04r.preview.emergentagent.com/cloudivr/app/texting",
+  "load_s": 0.96,
+  "console_errors": [],
+  "measure": {
+   "hOverflow": 0,
+   "overflowEls": [],
+   "smallTargets": [
+    {
+     "el": "topbar-logo",
+     "w": 32,
+     "h": 44,
+     "sev": "warn"
+    }
+   ],
+   "tinyText": [],
+   "zoomInputs": [],
+   "clipped": [
+    {
+     "text": "CLOUD",
+     "el": "CLOUDIVR",
+     "extra": 87
+    }
+   ],
+   "fixedCover": 19,
+   "noViewportMeta": false,
+   "overlaps": [],
+   "h1": 1,
+   "pageHeight": 1182
+  },
+  "focus_no_ring": [],
+  "focus_total": 12,
+  "axe": [],
+  "device": "iPhone SE",
+  "path": "/cloudivr/app/texting"
+ },
+ {
+  "url": "https://vault-setup-30--5ddhk04r.preview.emergentagent.com/cloudivr/app/quick-call",
+  "load_s": 1.13,
+  "console_errors": [],
+  "measure": {
+   "hOverflow": 0,
+   "overflowEls": [],
+   "smallTargets": [
+    {
+     "el": "topbar-logo",
+     "w": 32,
+     "h": 44,
+     "sev": "warn"
+    },
+    {
+     "el": "quick-call-hold-music-toggle",
+     "w": 44,
+     "h": 24,
+     "sev": "warn"
+    }
+   ],
+   "tinyText": [],
+   "zoomInputs": [],
+   "clipped": [
+    {
+     "text": "CLOUD",
+     "el": "CLOUDIVR",
+     "extra": 87
+    }
+   ],
+   "fixedCover": 19,
+   "noViewportMeta": false,
+   "overlaps": [],
+   "h1": 1,
+   "pageHeight": 3147
+  },
+  "focus_no_ring": [],
+  "focus_total": 12,
+  "axe": [],
+  "device": "iPhone SE",
+  "path": "/cloudivr/app/quick-call"
+ },
+ {
+  "url": "https://vault-setup-30--5ddhk04r.preview.emergentagent.com/cloudivr/app/text-call",
+  "load_s": 1.11,
+  "console_errors": [],
+  "measure": {
+   "hOverflow": 0,
+   "overflowEls": [],
+   "smallTargets": [
+    {
+     "el": "topbar-logo",
+     "w": 32,
+     "h": 44,
+     "sev": "warn"
+    },
+    {
+     "el": "text-call-announce-toggle",
+     "w": 44,
+     "h": 24,
+     "sev": "warn"
+    }
+   ],
+   "tinyText": [],
+   "zoomInputs": [],
+   "clipped": [
+    {
+     "text": "CLOUD",
+     "el": "CLOUDIVR",
+     "extra": 87
+    }
+   ],
+   "fixedCover": 19,
+   "noViewportMeta": false,
+   "overlaps": [
+    [
+     "text-call-to-input",
+     "softphone-close-button"
+    ],
+    [
+     "text-call-voice-male",
+     "mobile-nav-inbox"
+    ]
+   ],
+   "h1": 1,
+   "pageHeight": 1640
+  },
+  "focus_no_ring": [],
+  "focus_total": 12,
+  "axe": [],
+  "device": "iPhone SE",
+  "path": "/cloudivr/app/text-call"
+ },
+ {
+  "url": "https://vault-setup-30--5ddhk04r.preview.emergentagent.com/cloudivr/app/ai-agents",
+  "load_s": 1.12,
+  "console_errors": [],
+  "measure": {
+   "hOverflow": 0,
+   "overflowEls": [],
+   "smallTargets": [
+    {
+     "el": "topbar-logo",
+     "w": 32,
+     "h": 44,
+     "sev": "warn"
+    }
+   ],
+   "tinyText": [],
+   "zoomInputs": [],
+   "clipped": [
+    {
+     "text": "CLOUD",
+     "el": "CLOUDIVR",
+     "extra": 87
+    }
+   ],
+   "fixedCover": 19,
+   "noViewportMeta": false,
+   "overlaps": [
+    [
+     "ai-agent-row-0",
+     "support-chat-toggle"
+    ]
+   ],
+   "h1": 1,
+   "pageHeight": 777
+  },
+  "focus_no_ring": [],
+  "focus_total": 12,
+  "axe": [],
+  "device": "iPhone SE",
+  "path": "/cloudivr/app/ai-agents"
+ },
+ {
+  "url": "https://vault-setup-30--5ddhk04r.preview.emergentagent.com/cloudivr/app/ai-agents/new",
+  "load_s": 0.93,
+  "console_errors": [],
+  "measure": {
+   "hOverflow": 0,
+   "overflowEls": [],
+   "smallTargets": [
+    {
+     "el": "topbar-logo",
+     "w": 32,
+     "h": 44,
+     "sev": "warn"
+    },
+    {
+     "el": "ai-agent-wait-hello-toggle",
+     "w": 44,
+     "h": 24,
+     "sev": "warn"
+    },
+    {
+     "el": "ai-agent-take-messages-toggle",
+     "w": 44,
+     "h": 24,
+     "sev": "warn"
+    },
+    {
+     "el": "ai-agent-record-toggle",
+     "w": 44,
+     "h": 24,
+     "sev": "warn"
+    },
+    {
+     "el": "ai-agent-disclose-toggle",
+     "w": 44,
+     "h": 24,
+     "sev": "warn"
+    },
+    {
+     "el": "ai-agent-booking-toggle",
+     "w": 44,
+     "h": 24,
+     "sev": "warn"
+    }
+   ],
+   "tinyText": [],
+   "zoomInputs": [],
+   "clipped": [
+    {
+     "text": "CLOUD",
+     "el": "CLOUDIVR",
+     "extra": 87
+    }
+   ],
+   "fixedCover": 19,
+   "noViewportMeta": false,
+   "overlaps": [
+    [
+     "ai-agent-business-input",
+     "softphone-close-button"
+    ],
+    [
+     "ai-agent-voice-select",
+     "mobile-nav-numbers"
+    ],
+    [
+     "ai-agent-voice-select",
+     "mobile-nav-inbox"
+    ],
+    [
+     "ai-agent-voice-select",
+     "mobile-nav-wallet"
+    ]
+   ],
+   "h1": 1,
+   "pageHeight": 2859
+  },
+  "focus_no_ring": [],
+  "focus_total": 12,
+  "axe": [],
+  "device": "iPhone SE",
+  "path": "/cloudivr/app/ai-agents/new"
+ },
+ {
+  "url": "https://vault-setup-30--5ddhk04r.preview.emergentagent.com/cloudivr/app/campaigns",
+  "load_s": 0.96,
+  "console_errors": [],
+  "measure": {
+   "hOverflow": 0,
+   "overflowEls": [],
+   "smallTargets": [
+    {
+     "el": "topbar-logo",
+     "w": 32,
+     "h": 44,
+     "sev": "warn"
+    }
+   ],
+   "tinyText": [],
+   "zoomInputs": [],
+   "clipped": [
+    {
+     "text": "CLOUD",
+     "el": "CLOUDIVR",
+     "extra": 87
+    }
+   ],
+   "fixedCover": 19,
+   "noViewportMeta": false,
+   "overlaps": [
+    [
+     "campaign-row-0-link",
+     "softphone-close-button"
+    ],
+    [
+     "campaign-row-0-link",
+     "support-chat-toggle"
+    ]
+   ],
+   "h1": 1,
+   "pageHeight": 1418
+  },
+  "focus_no_ring": [],
+  "focus_total": 12,
+  "axe": [],
+  "device": "iPhone SE",
+  "path": "/cloudivr/app/campaigns"
+ },
+ {
+  "url": "https://vault-setup-30--5ddhk04r.preview.emergentagent.com/cloudivr/app/campaigns/new",
+  "load_s": 1.03,
+  "console_errors": [],
+  "measure": {
+   "hOverflow": 0,
+   "overflowEls": [],
+   "smallTargets": [
+    {
+     "el": "topbar-logo",
+     "w": 32,
+     "h": 44,
+     "sev": "warn"
+    }
+   ],
+   "tinyText": [],
+   "zoomInputs": [],
+   "clipped": [
+    {
+     "text": "CLOUD",
+     "el": "CLOUDIVR",
+     "extra": 87
+    }
+   ],
+   "fixedCover": 19,
+   "noViewportMeta": false,
+   "overlaps": [],
+   "h1": 1,
+   "pageHeight": 2722
+  },
+  "focus_no_ring": [],
+  "focus_total": 12,
+  "axe": [],
+  "device": "iPhone SE",
+  "path": "/cloudivr/app/campaigns/new"
+ },
+ {
+  "url": "https://vault-setup-30--5ddhk04r.preview.emergentagent.com/cloudivr/app/live",
+  "load_s": 0.97,
+  "console_errors": [],
+  "measure": {
+   "hOverflow": 0,
+   "overflowEls": [],
+   "smallTargets": [
+    {
+     "el": "topbar-logo",
+     "w": 32,
+     "h": 44,
+     "sev": "warn"
+    }
+   ],
+   "tinyText": [],
+   "zoomInputs": [],
+   "clipped": [
+    {
+     "text": "CLOUD",
+     "el": "CLOUDIVR",
+     "extra": 87
+    }
+   ],
+   "fixedCover": 19,
+   "noViewportMeta": false,
+   "overlaps": [],
+   "h1": 1,
+   "pageHeight": 2031
+  },
+  "focus_no_ring": [],
+  "focus_total": 12,
+  "axe": [],
+  "device": "iPhone SE",
+  "path": "/cloudivr/app/live"
+ },
+ {
+  "url": "https://vault-setup-30--5ddhk04r.preview.emergentagent.com/cloudivr/app/do-not-call",
+  "load_s": 1.08,
+  "console_errors": [],
+  "measure": {
+   "hOverflow": 0,
+   "overflowEls": [],
+   "smallTargets": [
+    {
+     "el": "topbar-logo",
+     "w": 32,
+     "h": 44,
+     "sev": "warn"
+    }
+   ],
+   "tinyText": [],
+   "zoomInputs": [],
+   "clipped": [
+    {
+     "text": "CLOUD",
+     "el": "CLOUDIVR",
+     "extra": 87
+    }
+   ],
+   "fixedCover": 19,
+   "noViewportMeta": false,
+   "overlaps": [],
+   "h1": 1,
+   "pageHeight": 1071
+  },
+  "focus_no_ring": [],
+  "focus_total": 12,
+  "axe": [],
+  "device": "iPhone SE",
+  "path": "/cloudivr/app/do-not-call"
+ },
+ {
+  "url": "https://vault-setup-30--5ddhk04r.preview.emergentagent.com/cloudivr/app/wallet",
+  "load_s": 1.08,
+  "console_errors": [],
+  "measure": {
+   "hOverflow": 0,
+   "overflowEls": [],
+   "smallTargets": [
+    {
+     "el": "topbar-logo",
+     "w": 32,
+     "h": 44,
+     "sev": "warn"
+    }
+   ],
+   "tinyText": [],
+   "zoomInputs": [],
+   "clipped": [
+    {
+     "text": "CLOUD",
+     "el": "CLOUDIVR",
+     "extra": 87
+    }
+   ],
+   "fixedCover": 19,
+   "noViewportMeta": false,
+   "overlaps": [],
+   "h1": 1,
+   "pageHeight": 3940
+  },
+  "focus_no_ring": [],
+  "focus_total": 12,
+  "axe": [],
+  "device": "iPhone SE",
+  "path": "/cloudivr/app/wallet"
+ },
+ {
+  "url": "https://vault-setup-30--5ddhk04r.preview.emergentagent.com/cloudivr/app/inbox",
+  "load_s": 0.89,
+  "console_errors": [],
+  "measure": {
+   "hOverflow": 0,
+   "overflowEls": [],
+   "smallTargets": [
+    {
+     "el": "topbar-logo",
+     "w": 32,
+     "h": 44,
+     "sev": "warn"
+    }
+   ],
+   "tinyText": [],
+   "zoomInputs": [],
+   "clipped": [
+    {
+     "text": "CLOUD",
+     "el": "CLOUDIVR",
+     "extra": 87
+    }
+   ],
+   "fixedCover": 19,
+   "noViewportMeta": false,
+   "overlaps": [
+    [
+     "inbox-item-0-open",
+     "mobile-nav-dashboard"
+    ],
+    [
+     "inbox-item-0-open",
+     "mobile-nav-numbers"
+    ],
+    [
+     "inbox-item-0-open",
+     "mobile-nav-inbox"
+    ],
+    [
+     "inbox-item-0-open",
+     "mobile-nav-wallet"
+    ],
+    [
+     "inbox-item-0-open",
+     "mobile-nav-more"
+    ]
+   ],
+   "h1": 1,
+   "pageHeight": 3003
+  },
+  "focus_no_ring": [],
+  "focus_total": 12,
+  "axe": [],
+  "device": "iPhone SE",
+  "path": "/cloudivr/app/inbox"
+ },
+ {
+  "url": "https://vault-setup-30--5ddhk04r.preview.emergentagent.com/cloudivr/app/settings",
+  "load_s": 1.22,
+  "console_errors": [],
+  "measure": {
+   "hOverflow": 0,
+   "overflowEls": [],
+   "smallTargets": [
+    {
+     "el": "topbar-logo",
+     "w": 32,
+     "h": 44,
+     "sev": "warn"
+    },
+    {
+     "el": "email-pref-weekly-toggle",
+     "w": 44,
+     "h": 24,
+     "sev": "warn"
+    },
+    {
+     "el": "email-pref-campaigns-toggle",
+     "w": 44,
+     "h": 24,
+     "sev": "warn"
+    },
+    {
+     "el": "email-pref-voicemail-toggle",
+     "w": 44,
+     "h": 24,
+     "sev": "warn"
+    },
+    {
+     "el": "email-pref-missed-toggle",
+     "w": 44,
+     "h": 24,
+     "sev": "warn"
+    },
+    {
+     "el": "webhooks-enabled-toggle",
+     "w": 44,
+     "h": 24,
+     "sev": "warn"
+    }
+   ],
+   "tinyText": [],
+   "zoomInputs": [],
+   "clipped": [
+    {
+     "text": "CLOUD",
+     "el": "CLOUDIVR",
+     "extra": 87
+    }
+   ],
+   "fixedCover": 19,
+   "noViewportMeta": false,
+   "overlaps": [],
+   "h1": 1,
+   "pageHeight": 5984
+  },
+  "focus_no_ring": [],
+  "focus_total": 12,
+  "axe": [],
+  "device": "iPhone SE",
+  "path": "/cloudivr/app/settings"
+ },
+ {
+  "url": "https://vault-setup-30--5ddhk04r.preview.emergentagent.com/cloudivr/app/help",
+  "load_s": 1.11,
+  "console_errors": [],
+  "measure": {
+   "hOverflow": 0,
+   "overflowEls": [],
+   "smallTargets": [
+    {
+     "el": "topbar-logo",
+     "w": 32,
+     "h": 44,
+     "sev": "warn"
+    },
+    {
+     "el": "help-terms-link",
+     "w": 293,
+     "h": 36,
+     "sev": "warn"
+    }
+   ],
+   "tinyText": [],
+   "zoomInputs": [],
+   "clipped": [
+    {
+     "text": "CLOUD",
+     "el": "CLOUDIVR",
+     "extra": 87
+    }
+   ],
+   "fixedCover": 19,
+   "noViewportMeta": false,
+   "overlaps": [
+    [
+     "help-article-what-callers-get-toggle",
+     "support-chat-toggle"
+    ],
+    [
+     "help-article-find-fast-toggle",
+     "mobile-nav-numbers"
+    ],
+    [
+     "help-article-find-fast-toggle",
+     "mobile-nav-inbox"
+    ],
+    [
+     "help-article-find-fast-toggle",
+     "mobile-nav-wallet"
+    ]
+   ],
+   "h1": 1,
+   "pageHeight": 4338
+  },
+  "focus_no_ring": [],
+  "focus_total": 12,
+  "axe": [],
+  "device": "iPhone SE",
+  "path": "/cloudivr/app/help"
+ },
+ {
+  "url": "https://vault-setup-30--5ddhk04r.preview.emergentagent.com/cloudivr/app/verification",
+  "load_s": 0.92,
+  "console_errors": [],
+  "measure": {
+   "hOverflow": 0,
+   "overflowEls": [],
+   "smallTargets": [
+    {
+     "el": "topbar-logo",
+     "w": 32,
+     "h": 44,
+     "sev": "warn"
+    }
+   ],
+   "tinyText": [],
+   "zoomInputs": [],
+   "clipped": [
+    {
+     "text": "CLOUD",
+     "el": "CLOUDIVR",
+     "extra": 87
+    }
+   ],
+   "fixedCover": 19,
+   "noViewportMeta": false,
+   "overlaps": [
+    [
+     "verification-buy-link",
+     "mobile-nav-inbox"
+    ]
+   ],
+   "h1": 1,
+   "pageHeight": 871
+  },
+  "focus_no_ring": [],
+  "focus_total": 12,
+  "axe": [],
+  "device": "iPhone SE",
+  "path": "/cloudivr/app/verification"
+ },
+ {
+  "url": "https://vault-setup-30--5ddhk04r.preview.emergentagent.com/cloudivr/app/sip",
+  "load_s": 1.1,
+  "console_errors": [],
+  "measure": {
+   "hOverflow": 0,
+   "overflowEls": [],
+   "smallTargets": [
+    {
+     "el": "topbar-logo",
+     "w": 32,
+     "h": 44,
+     "sev": "warn"
+    }
+   ],
+   "tinyText": [],
+   "zoomInputs": [],
+   "clipped": [
+    {
+     "text": "CLOUD",
+     "el": "CLOUDIVR",
+     "extra": 87
+    }
+   ],
+   "fixedCover": 19,
+   "noViewportMeta": false,
+   "overlaps": [],
+   "h1": 1,
+   "pageHeight": 1754
+  },
+  "focus_no_ring": [],
+  "focus_total": 12,
+  "axe": [],
+  "device": "iPhone SE",
+  "path": "/cloudivr/app/sip"
+ },
+ {
+  "url": "https://vault-setup-30--5ddhk04r.preview.emergentagent.com/cloudivr",
+  "load_s": 1.86,
+  "console_errors": [],
+  "measure": {
+   "hOverflow": 0,
+   "overflowEls": [
+    {
+     "el": "product-card-phone",
+     "right": 2232,
+     "cls": "civr-l-card-cream p-6 flex flex-col w-[340px] max-w-[84vw] shrink-0"
+    },
+    {
+     "el": "Browser phone & SIPSIP",
+     "right": 2207,
+     "cls": "flex items-center gap-3"
+    },
+    {
+     "el": "SPAN",
+     "right": 1945,
+     "cls": "w-12 h-12 rounded-full bg-slate-100 text-slate-900 grid place-items-center shrin"
+    },
+    {
+     "el": "svg",
+     "right": 1931,
+     "cls": "[object SVGAnimatedString]"
+    },
+    {
+     "el": "path",
+     "right": 1929,
+     "cls": "[object SVGAnimatedString]"
+    },
+    {
+     "el": "Works on:",
+     "right": 2207,
+     "cls": "mt-5 text-sm text-slate-500"
+    },
+    {
+     "el": "BrowserSoftphoneDesk phone",
+     "right": 2207,
+     "cls": "flex flex-wrap gap-2 mt-2"
+    },
+    {
+     "el": "Browser",
+     "right": 1966,
+     "cls": "text-sm px-2.5 py-1 rounded-md bg-slate-100 text-slate-700"
+    }
+   ],
+   "smallTargets": [
+    {
+     "el": "civr-nav-sticky-cta",
+     "w": 74,
+     "h": 20,
+     "sev": "fail"
+    }
+   ],
+   "tinyText": [
+    {
+     "text": "CloudIVR \u00b7 now",
+     "fs": 11
+    },
+    {
+     "text": "+1 415 555 0182",
+     "fs": 11
+    },
+    {
+     "text": "Maria \u00b7 +1 312 555 0119",
+     "fs": 11
+    },
+    {
+     "text": "Booked \u00b7 Friday 3:00 PM",
+     "fs": 11
+    },
+    {
+     "text": "cloudivr.net/app/numbers \u00b7 Keypad menu",
+     "fs": 10
+    },
+    {
+     "text": "Live",
+     "fs": 10
+    },
+    {
+     "text": "Greeting \u00b7 text-to-speech",
+     "fs": 9
+    },
+    {
+     "text": "Forward to +1 415 555 0102",
+     "fs": 10
+    },
+    {
+     "text": "42%",
+     "fs": 10
+    },
+    {
+     "text": "Ring group \u00b7 3 phones",
+     "fs": 10
+    },
+    {
+     "text": "31%",
+     "fs": 10
+    },
+    {
+     "text": "Transcript to your inbox",
+     "fs": 10
+    },
+    {
+     "text": "18%",
+     "fs": 10
+    },
+    {
+     "text": "No key in 10 s \u2192 Voicemail \u00b7 last 30 day",
+     "fs": 10
+    },
+    {
+     "text": "Forwarding",
+     "fs": 9
+    },
+    {
+     "text": "Voicemail",
+     "fs": 9
+    },
+    {
+     "text": "Campaigns",
+     "fs": 9
+    },
+    {
+     "text": "AMEX",
+     "fs": 10
+    },
+    {
+     "text": "DISC",
+     "fs": 10
+    },
+    {
+     "text": "AMEX",
+     "fs": 10
+    },
+    {
+     "text": "DISC",
+     "fs": 10
+    }
+   ],
+   "zoomInputs": [],
+   "clipped": [],
+   "fixedCover": 6,
+   "noViewportMeta": false,
+   "overlaps": [],
+   "h1": 1,
+   "pageHeight": 15778
+  },
+  "focus_no_ring": [],
+  "focus_total": 12,
+  "axe": [],
+  "device": "Desktop",
+  "path": "/cloudivr"
+ },
+ {
+  "url": "https://vault-setup-30--5ddhk04r.preview.emergentagent.com/cloudivr/login",
+  "load_s": 0.97,
+  "console_errors": [],
+  "measure": {
+   "hOverflow": 0,
+   "overflowEls": [],
+   "smallTargets": [],
+   "tinyText": [],
+   "zoomInputs": [],
+   "clipped": [],
+   "fixedCover": 0,
+   "noViewportMeta": false,
+   "overlaps": [
+    [
+     "auth-password-input",
+     "auth-password-toggle"
+    ]
+   ],
+   "h1": 1,
+   "pageHeight": 1080
+  },
+  "focus_no_ring": [],
+  "focus_total": 11,
+  "axe": [
+   {
+    "id": "region",
+    "impact": "moderate",
+    "help": "All page content should be contained by landmarks",
+    "n": 3,
+    "ex": [
+     ".text-3xl > span",
+     ".civr-auth-side > div:nth-child(3)",
+     ".civr-auth-foot"
+    ]
+   }
+  ],
+  "device": "Desktop",
+  "path": "/cloudivr/login"
+ },
+ {
+  "url": "https://vault-setup-30--5ddhk04r.preview.emergentagent.com/cloudivr/signup",
+  "load_s": 1.1,
+  "console_errors": [],
+  "measure": {
+   "hOverflow": 0,
+   "overflowEls": [],
+   "smallTargets": [],
+   "tinyText": [],
+   "zoomInputs": [],
+   "clipped": [],
+   "fixedCover": 0,
+   "noViewportMeta": false,
+   "overlaps": [
+    [
+     "auth-password-input",
+     "auth-password-toggle"
+    ]
+   ],
+   "h1": 1,
+   "pageHeight": 1080
+  },
+  "focus_no_ring": [],
+  "focus_total": 11,
+  "axe": [
+   {
+    "id": "region",
+    "impact": "moderate",
+    "help": "All page content should be contained by landmarks",
+    "n": 3,
+    "ex": [
+     ".gap-2\\.5 > span",
+     ".civr-auth-side > div:nth-child(3)",
+     ".civr-auth-foot"
+    ]
+   }
+  ],
+  "device": "Desktop",
+  "path": "/cloudivr/signup"
+ },
+ {
+  "url": "https://vault-setup-30--5ddhk04r.preview.emergentagent.com/cloudivr/forgot",
+  "load_s": 0.92,
+  "console_errors": [],
+  "measure": {
+   "hOverflow": 0,
+   "overflowEls": [],
+   "smallTargets": [],
+   "tinyText": [],
+   "zoomInputs": [],
+   "clipped": [],
+   "fixedCover": 0,
+   "noViewportMeta": false,
+   "overlaps": [],
+   "h1": 1,
+   "pageHeight": 1080
+  },
+  "focus_no_ring": [],
+  "focus_total": 10,
+  "axe": [
+   {
+    "id": "region",
+    "impact": "moderate",
+    "help": "All page content should be contained by landmarks",
+    "n": 3,
+    "ex": [
+     ".text-3xl > span",
+     ".civr-auth-side > div:nth-child(3)",
+     ".civr-auth-foot"
+    ]
+   }
+  ],
+  "device": "Desktop",
+  "path": "/cloudivr/forgot"
+ },
+ {
+  "url": "https://vault-setup-30--5ddhk04r.preview.emergentagent.com/cloudivr/sip",
+  "load_s": 1.35,
+  "console_errors": [],
+  "measure": {
+   "hOverflow": 0,
+   "overflowEls": [],
+   "smallTargets": [
+    {
+     "el": "sip-nav-faq",
+     "w": 23,
+     "h": 44,
+     "sev": "fail"
+    }
+   ],
+   "tinyText": [
+    {
+     "text": "AMEX",
+     "fs": 10
+    },
+    {
+     "text": "DISC",
+     "fs": 10
+    },
+    {
+     "text": "AMEX",
+     "fs": 10
+    },
+    {
+     "text": "DISC",
+     "fs": 10
+    }
+   ],
+   "zoomInputs": [],
+   "clipped": [],
+   "fixedCover": 6,
+   "noViewportMeta": false,
+   "overlaps": [],
+   "h1": 1,
+   "pageHeight": 6395
+  },
+  "focus_no_ring": [],
+  "focus_total": 12,
+  "axe": [
+   {
+    "id": "color-contrast",
+    "impact": "serious",
+    "help": "Elements must meet minimum color contrast ratio thresholds",
+    "n": 2,
+    "ex": [
+     ".text-white\\/60",
+     ".bg-emerald-500 > .gap-1\\.5.inline-flex.items-center"
+    ]
+   }
+  ],
+  "device": "Desktop",
+  "path": "/cloudivr/sip"
+ },
+ {
+  "url": "https://vault-setup-30--5ddhk04r.preview.emergentagent.com/cloudivr/terms",
+  "load_s": 0.85,
+  "console_errors": [],
+  "measure": {
+   "hOverflow": 0,
+   "overflowEls": [],
+   "smallTargets": [],
+   "tinyText": [
+    {
+     "text": "AMEX",
+     "fs": 10
+    },
+    {
+     "text": "DISC",
+     "fs": 10
+    }
+   ],
+   "zoomInputs": [],
+   "clipped": [],
+   "fixedCover": 6,
+   "noViewportMeta": false,
+   "overlaps": [],
+   "h1": 1,
+   "pageHeight": 4630
+  },
+  "focus_no_ring": [],
+  "focus_total": 12,
+  "axe": [],
+  "device": "Desktop",
+  "path": "/cloudivr/terms"
+ },
+ {
+  "url": "https://vault-setup-30--5ddhk04r.preview.emergentagent.com/cloudivr/app",
+  "load_s": 0.95,
+  "console_errors": [],
+  "measure": {
+   "hOverflow": 0,
+   "overflowEls": [],
+   "smallTargets": [],
+   "tinyText": [],
+   "zoomInputs": [],
+   "clipped": [],
+   "fixedCover": 6,
+   "noViewportMeta": false,
+   "overlaps": [],
+   "h1": 1,
+   "pageHeight": 1563
+  },
+  "focus_no_ring": [],
+  "focus_total": 12,
+  "axe": [],
+  "device": "Desktop",
+  "path": "/cloudivr/app"
+ },
+ {
+  "url": "https://vault-setup-30--5ddhk04r.preview.emergentagent.com/cloudivr/app/numbers",
+  "load_s": 1.14,
+  "console_errors": [],
+  "measure": {
+   "hOverflow": 0,
+   "overflowEls": [],
+   "smallTargets": [
+    {
+     "el": "caller-ids-review-open",
+     "w": 316,
+     "h": 20,
+     "sev": "fail"
+    }
+   ],
+   "tinyText": [],
+   "zoomInputs": [],
+   "clipped": [],
+   "fixedCover": 6,
+   "noViewportMeta": false,
+   "overlaps": [
+    [
+     "number-card-0-link",
+     "number-card-0-switch-forwarding"
+    ],
+    [
+     "number-card-0-link",
+     "number-card-0-switch-ivr"
+    ],
+    [
+     "number-card-0-link",
+     "number-card-0-switch-hours"
+    ],
+    [
+     "number-card-0-link",
+     "number-card-0-copy-button"
+    ],
+    [
+     "number-card-0-link",
+     "number-card-0-call-button"
+    ]
+   ],
+   "h1": 1,
+   "pageHeight": 1080
+  },
+  "focus_no_ring": [],
+  "focus_total": 12,
+  "axe": [],
+  "device": "Desktop",
+  "path": "/cloudivr/app/numbers"
+ },
+ {
+  "url": "https://vault-setup-30--5ddhk04r.preview.emergentagent.com/cloudivr/app/numbers/+15156445901",
+  "load_s": 1.08,
+  "console_errors": [
+   "Failed to load resource: the server responded with a status of 404 ()",
+   "Failed to load resource: the server responded with a status of 404 ()"
+  ],
+  "measure": {
+   "hOverflow": 0,
+   "overflowEls": [],
+   "smallTargets": [],
+   "tinyText": [],
+   "zoomInputs": [],
+   "clipped": [],
+   "fixedCover": 6,
+   "noViewportMeta": false,
+   "overlaps": [],
+   "h1": 1,
+   "pageHeight": 1080
+  },
+  "focus_no_ring": [],
+  "focus_total": 12,
+  "axe": [
+   {
+    "id": "color-contrast",
+    "impact": "serious",
+    "help": "Elements must meet minimum color contrast ratio thresholds",
+    "n": 1,
+    "ex": [
+     ".flex-wrap > .flex-1.min-w-0"
+    ]
+   }
+  ],
+  "device": "Desktop",
+  "path": "/cloudivr/app/numbers/+15156445901"
+ },
+ {
+  "url": "https://vault-setup-30--5ddhk04r.preview.emergentagent.com/cloudivr/app/numbers/%2B13346972125",
+  "load_s": 1.23,
+  "console_errors": [],
+  "measure": {
+   "hOverflow": 0,
+   "overflowEls": [],
+   "smallTargets": [],
+   "tinyText": [],
+   "zoomInputs": [],
+   "clipped": [],
+   "fixedCover": 6,
+   "noViewportMeta": false,
+   "overlaps": [],
+   "h1": 1,
+   "pageHeight": 1387
+  },
+  "focus_no_ring": [],
+  "focus_total": 12,
+  "axe": [
+   {
+    "id": "color-contrast",
+    "impact": "serious",
+    "help": "Elements must meet minimum color contrast ratio thresholds",
+    "n": 1,
+    "ex": [
+     ".\\!cursor-pointer > .opacity-70"
+    ]
+   }
+  ],
+  "device": "Desktop",
+  "path": "/cloudivr/app/numbers/%2B13346972125"
+ },
+ {
+  "url": "https://vault-setup-30--5ddhk04r.preview.emergentagent.com/cloudivr/app/buy",
+  "load_s": 0.99,
+  "console_errors": [],
+  "measure": {
+   "hOverflow": 0,
+   "overflowEls": [],
+   "smallTargets": [],
+   "tinyText": [],
+   "zoomInputs": [],
+   "clipped": [],
+   "fixedCover": 6,
+   "noViewportMeta": false,
+   "overlaps": [],
+   "h1": 1,
+   "pageHeight": 1080
+  },
+  "focus_no_ring": [],
+  "focus_total": 12,
+  "axe": [],
+  "device": "Desktop",
+  "path": "/cloudivr/app/buy"
+ },
+ {
+  "url": "https://vault-setup-30--5ddhk04r.preview.emergentagent.com/cloudivr/app/audio",
+  "load_s": 0.97,
+  "console_errors": [],
+  "measure": {
+   "hOverflow": 0,
+   "overflowEls": [],
+   "smallTargets": [],
+   "tinyText": [],
+   "zoomInputs": [],
+   "clipped": [],
+   "fixedCover": 6,
+   "noViewportMeta": false,
+   "overlaps": [],
+   "h1": 1,
+   "pageHeight": 1080
+  },
+  "focus_no_ring": [],
+  "focus_total": 12,
+  "axe": [],
+  "device": "Desktop",
+  "path": "/cloudivr/app/audio"
+ },
+ {
+  "url": "https://vault-setup-30--5ddhk04r.preview.emergentagent.com/cloudivr/app/contacts",
+  "load_s": 1.13,
+  "console_errors": [],
+  "measure": {
+   "hOverflow": 0,
+   "overflowEls": [],
+   "smallTargets": [],
+   "tinyText": [],
+   "zoomInputs": [],
+   "clipped": [],
+   "fixedCover": 6,
+   "noViewportMeta": false,
+   "overlaps": [],
+   "h1": 1,
+   "pageHeight": 1080
+  },
+  "focus_no_ring": [],
+  "focus_total": 12,
+  "axe": [],
+  "device": "Desktop",
+  "path": "/cloudivr/app/contacts"
+ },
+ {
+  "url": "https://vault-setup-30--5ddhk04r.preview.emergentagent.com/cloudivr/app/texting",
+  "load_s": 1.2,
+  "console_errors": [],
+  "measure": {
+   "hOverflow": 0,
+   "overflowEls": [],
+   "smallTargets": [],
+   "tinyText": [],
+   "zoomInputs": [],
+   "clipped": [],
+   "fixedCover": 6,
+   "noViewportMeta": false,
+   "overlaps": [],
+   "h1": 1,
+   "pageHeight": 1080
+  },
+  "focus_no_ring": [],
+  "focus_total": 12,
+  "axe": [],
+  "device": "Desktop",
+  "path": "/cloudivr/app/texting"
+ },
+ {
+  "url": "https://vault-setup-30--5ddhk04r.preview.emergentagent.com/cloudivr/app/quick-call",
+  "load_s": 1.08,
+  "console_errors": [],
+  "measure": {
+   "hOverflow": 0,
+   "overflowEls": [],
+   "smallTargets": [],
+   "tinyText": [],
+   "zoomInputs": [],
+   "clipped": [],
+   "fixedCover": 6,
+   "noViewportMeta": false,
+   "overlaps": [],
+   "h1": 1,
+   "pageHeight": 2066
+  },
+  "focus_no_ring": [],
+  "focus_total": 12,
+  "axe": [],
+  "device": "Desktop",
+  "path": "/cloudivr/app/quick-call"
+ },
+ {
+  "url": "https://vault-setup-30--5ddhk04r.preview.emergentagent.com/cloudivr/app/text-call",
+  "load_s": 1.06,
+  "console_errors": [],
+  "measure": {
+   "hOverflow": 0,
+   "overflowEls": [],
+   "smallTargets": [],
+   "tinyText": [],
+   "zoomInputs": [],
+   "clipped": [],
+   "fixedCover": 6,
+   "noViewportMeta": false,
+   "overlaps": [],
+   "h1": 1,
+   "pageHeight": 1080
+  },
+  "focus_no_ring": [],
+  "focus_total": 12,
+  "axe": [],
+  "device": "Desktop",
+  "path": "/cloudivr/app/text-call"
+ },
+ {
+  "url": "https://vault-setup-30--5ddhk04r.preview.emergentagent.com/cloudivr/app/ai-agents",
+  "load_s": 1.02,
+  "console_errors": [],
+  "measure": {
+   "hOverflow": 0,
+   "overflowEls": [],
+   "smallTargets": [],
+   "tinyText": [],
+   "zoomInputs": [],
+   "clipped": [],
+   "fixedCover": 6,
+   "noViewportMeta": false,
+   "overlaps": [],
+   "h1": 1,
+   "pageHeight": 1080
+  },
+  "focus_no_ring": [],
+  "focus_total": 12,
+  "axe": [],
+  "device": "Desktop",
+  "path": "/cloudivr/app/ai-agents"
+ },
+ {
+  "url": "https://vault-setup-30--5ddhk04r.preview.emergentagent.com/cloudivr/app/ai-agents/new",
+  "load_s": 3.09,
+  "console_errors": [],
+  "measure": {
+   "hOverflow": 0,
+   "overflowEls": [],
+   "smallTargets": [],
+   "tinyText": [],
+   "zoomInputs": [],
+   "clipped": [],
+   "fixedCover": 6,
+   "noViewportMeta": false,
+   "overlaps": [],
+   "h1": 1,
+   "pageHeight": 1946
+  },
+  "focus_no_ring": [],
+  "focus_total": 12,
+  "axe": [],
+  "device": "Desktop",
+  "path": "/cloudivr/app/ai-agents/new"
+ },
+ {
+  "url": "https://vault-setup-30--5ddhk04r.preview.emergentagent.com/cloudivr/app/campaigns",
+  "load_s": 1.02,
+  "console_errors": [],
+  "measure": {
+   "hOverflow": 0,
+   "overflowEls": [],
+   "smallTargets": [],
+   "tinyText": [],
+   "zoomInputs": [],
+   "clipped": [],
+   "fixedCover": 6,
+   "noViewportMeta": false,
+   "overlaps": [],
+   "h1": 1,
+   "pageHeight": 1080
+  },
+  "focus_no_ring": [],
+  "focus_total": 12,
+  "axe": [],
+  "device": "Desktop",
+  "path": "/cloudivr/app/campaigns"
+ },
+ {
+  "url": "https://vault-setup-30--5ddhk04r.preview.emergentagent.com/cloudivr/app/campaigns/new",
+  "load_s": 1.01,
+  "console_errors": [],
+  "measure": {
+   "hOverflow": 0,
+   "overflowEls": [],
+   "smallTargets": [],
+   "tinyText": [],
+   "zoomInputs": [],
+   "clipped": [],
+   "fixedCover": 6,
+   "noViewportMeta": false,
+   "overlaps": [],
+   "h1": 1,
+   "pageHeight": 1474
+  },
+  "focus_no_ring": [],
+  "focus_total": 12,
+  "axe": [],
+  "device": "Desktop",
+  "path": "/cloudivr/app/campaigns/new"
+ },
+ {
+  "url": "https://vault-setup-30--5ddhk04r.preview.emergentagent.com/cloudivr/app/live",
+  "load_s": 1.06,
+  "console_errors": [],
+  "measure": {
+   "hOverflow": 0,
+   "overflowEls": [],
+   "smallTargets": [],
+   "tinyText": [],
+   "zoomInputs": [],
+   "clipped": [],
+   "fixedCover": 6,
+   "noViewportMeta": false,
+   "overlaps": [],
+   "h1": 1,
+   "pageHeight": 1898
+  },
+  "focus_no_ring": [],
+  "focus_total": 12,
+  "axe": [],
+  "device": "Desktop",
+  "path": "/cloudivr/app/live"
+ },
+ {
+  "url": "https://vault-setup-30--5ddhk04r.preview.emergentagent.com/cloudivr/app/do-not-call",
+  "load_s": 1.11,
+  "console_errors": [],
+  "measure": {
+   "hOverflow": 0,
+   "overflowEls": [],
+   "smallTargets": [],
+   "tinyText": [],
+   "zoomInputs": [],
+   "clipped": [],
+   "fixedCover": 6,
+   "noViewportMeta": false,
+   "overlaps": [],
+   "h1": 1,
+   "pageHeight": 1080
+  },
+  "focus_no_ring": [],
+  "focus_total": 12,
+  "axe": [],
+  "device": "Desktop",
+  "path": "/cloudivr/app/do-not-call"
+ },
+ {
+  "url": "https://vault-setup-30--5ddhk04r.preview.emergentagent.com/cloudivr/app/wallet",
+  "load_s": 1.08,
+  "console_errors": [],
+  "measure": {
+   "hOverflow": 0,
+   "overflowEls": [],
+   "smallTargets": [],
+   "tinyText": [],
+   "zoomInputs": [],
+   "clipped": [],
+   "fixedCover": 6,
+   "noViewportMeta": false,
+   "overlaps": [],
+   "h1": 1,
+   "pageHeight": 2412
+  },
+  "focus_no_ring": [],
+  "focus_total": 12,
+  "axe": [],
+  "device": "Desktop",
+  "path": "/cloudivr/app/wallet"
+ },
+ {
+  "url": "https://vault-setup-30--5ddhk04r.preview.emergentagent.com/cloudivr/app/inbox",
+  "load_s": 1.06,
+  "console_errors": [],
+  "measure": {
+   "hOverflow": 0,
+   "overflowEls": [],
+   "smallTargets": [],
+   "tinyText": [],
+   "zoomInputs": [],
+   "clipped": [],
+   "fixedCover": 6,
+   "noViewportMeta": false,
+   "overlaps": [],
+   "h1": 1,
+   "pageHeight": 1852
+  },
+  "focus_no_ring": [],
+  "focus_total": 12,
+  "axe": [],
+  "device": "Desktop",
+  "path": "/cloudivr/app/inbox"
+ },
+ {
+  "url": "https://vault-setup-30--5ddhk04r.preview.emergentagent.com/cloudivr/app/settings",
+  "load_s": 1.34,
+  "console_errors": [],
+  "measure": {
+   "hOverflow": 0,
+   "overflowEls": [],
+   "smallTargets": [],
+   "tinyText": [],
+   "zoomInputs": [],
+   "clipped": [],
+   "fixedCover": 6,
+   "noViewportMeta": false,
+   "overlaps": [],
+   "h1": 1,
+   "pageHeight": 3055
+  },
+  "focus_no_ring": [],
+  "focus_total": 12,
+  "axe": [],
+  "device": "Desktop",
+  "path": "/cloudivr/app/settings"
+ },
+ {
+  "url": "https://vault-setup-30--5ddhk04r.preview.emergentagent.com/cloudivr/app/help",
+  "load_s": 1.01,
+  "console_errors": [],
+  "measure": {
+   "hOverflow": 0,
+   "overflowEls": [],
+   "smallTargets": [],
+   "tinyText": [],
+   "zoomInputs": [],
+   "clipped": [],
+   "fixedCover": 6,
+   "noViewportMeta": false,
+   "overlaps": [],
+   "h1": 1,
+   "pageHeight": 3447
+  },
+  "focus_no_ring": [],
+  "focus_total": 12,
+  "axe": [],
+  "device": "Desktop",
+  "path": "/cloudivr/app/help"
+ },
+ {
+  "url": "https://vault-setup-30--5ddhk04r.preview.emergentagent.com/cloudivr/app/verification",
+  "load_s": 1.02,
+  "console_errors": [],
+  "measure": {
+   "hOverflow": 0,
+   "overflowEls": [],
+   "smallTargets": [],
+   "tinyText": [],
+   "zoomInputs": [],
+   "clipped": [],
+   "fixedCover": 6,
+   "noViewportMeta": false,
+   "overlaps": [],
+   "h1": 1,
+   "pageHeight": 1080
+  },
+  "focus_no_ring": [],
+  "focus_total": 12,
+  "axe": [],
+  "device": "Desktop",
+  "path": "/cloudivr/app/verification"
+ },
+ {
+  "url": "https://vault-setup-30--5ddhk04r.preview.emergentagent.com/cloudivr/app/sip",
+  "load_s": 1.03,
+  "console_errors": [],
+  "measure": {
+   "hOverflow": 0,
+   "overflowEls": [],
+   "smallTargets": [],
+   "tinyText": [],
+   "zoomInputs": [],
+   "clipped": [],
+   "fixedCover": 6,
+   "noViewportMeta": false,
+   "overlaps": [],
+   "h1": 1,
+   "pageHeight": 1080
+  },
+  "focus_no_ring": [],
+  "focus_total": 12,
+  "axe": [],
+  "device": "Desktop",
+  "path": "/cloudivr/app/sip"
+ }
+]

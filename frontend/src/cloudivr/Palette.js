@@ -81,7 +81,7 @@ export function Palette({ openPhone }) {
         <div className="flex items-center gap-3 px-4 h-14 border-b border-[#222]">
           <Search className="w-4 h-4 text-[#71717a] shrink-0" />
           <input ref={input} value={q} onChange={e => setQ(e.target.value)} onKeyDown={key} role="combobox" aria-expanded="true" aria-controls="civr-palette-list" aria-activedescendant={items[sel] ? `civr-pi-${items[sel].id}` : undefined} aria-label="Search numbers, pages and actions" placeholder="Type a number, a page or an action…" autoComplete="off" className="flex-1 bg-transparent outline-none text-[15px] text-[#f3f4f6] placeholder:text-[#71717a]" data-testid="palette-input" />
-          <kbd className="hidden sm:inline-flex items-center h-6 px-1.5 rounded-md border border-[#2a2a2a] font-mono text-[11px] text-[#71717a]" data-no-translate>Esc</kbd>
+          <kbd className="hidden sm:inline-flex items-center h-6 px-1.5 rounded-md border border-[#2a2a2a] font-mono text-xs text-[#71717a]" data-no-translate>Esc</kbd>
         </div>
         <div ref={listRef} id="civr-palette-list" role="listbox" className="max-h-[50vh] overflow-y-auto py-2" data-testid="palette-list">
           {!items.length && <div className="px-4 py-8 text-sm text-center text-[#a1a1aa]" data-testid="palette-empty">{`Nothing matches “${q.trim()}”.`}</div>}
@@ -89,7 +89,7 @@ export function Palette({ openPhone }) {
             const head = it.group !== lastGroup; lastGroup = it.group;
             return (
               <React.Fragment key={it.id}>
-                {head && <div className="px-4 pt-3 pb-1 text-[11px] font-mono uppercase tracking-widest text-[#71717a]">{it.group}</div>}
+                {head && <div className="px-4 pt-3 pb-1 text-xs font-mono uppercase tracking-widest text-[#71717a]">{it.group}</div>}
                 <button type="button" id={`civr-pi-${it.id}`} role="option" aria-selected={i === sel} data-idx={i} onMouseEnter={() => setSel(i)} onClick={() => run(it)} data-testid={`palette-item-${it.id}`}
                   className={`w-full flex items-center gap-3 px-4 min-h-[44px] text-left text-sm transition-colors ${i === sel ? 'bg-[#818cf8]/12 text-[#f3f4f6]' : 'text-[#d4d4d8]'}`}>
                   <it.Icon className={`w-4 h-4 shrink-0 ${i === sel ? 'text-[#818cf8]' : 'text-[#71717a]'}`} />
@@ -101,7 +101,7 @@ export function Palette({ openPhone }) {
             );
           })}
         </div>
-        <div className="hidden sm:flex items-center gap-4 px-4 h-9 border-t border-[#222] text-[11px] text-[#71717a]" data-no-translate>
+        <div className="hidden sm:flex items-center gap-4 px-4 h-9 border-t border-[#222] text-xs text-[#71717a]" data-no-translate>
           <span><kbd className="font-mono">↑↓</kbd> move</span><span><kbd className="font-mono">↵</kbd> open</span><span><kbd className="font-mono">{isMac ? '⌘' : 'Ctrl'} K</kbd> toggle</span>
         </div>
       </div>

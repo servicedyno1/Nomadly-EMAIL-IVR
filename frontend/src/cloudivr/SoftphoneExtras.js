@@ -15,7 +15,7 @@ export function CallMeFirst({ on, onChange, myPhone, setMyPhone, allowed }) {
           <div className="text-sm font-medium">Call me first</div>
           <div className="text-xs text-[#a1a1aa]">{allowed ? 'We ring your mobile, then connect the call' : 'Needs the Pro plan or higher on this number'}</div>
         </div>
-        <Toggle checked={on && allowed} disabled={!allowed} onChange={onChange} testid="softphone-call-me-first-toggle" />
+        <Toggle checked={on && allowed} disabled={!allowed} onChange={onChange} testid="softphone-call-me-first-toggle" label="Call me first" />
       </div>
       {on && allowed && (
         <input className={`civr-input !h-9 font-mono text-xs mt-3 ${pv.input}`} inputMode="tel" autoComplete="off" value={myPhone} onChange={e => setMyPhone(e.target.value)} placeholder="My mobile, e.g. +14155550111" aria-label="My mobile" data-testid="softphone-my-mobile-input" />

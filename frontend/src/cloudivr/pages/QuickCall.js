@@ -83,7 +83,7 @@ function Answer({ f, set, can, phone }) {
         <Field label="Connect to (when they press a key)"><input className="civr-input font-mono" value={f.transferTo} onChange={e => set({ transferTo: e.target.value })} placeholder="+14155550199" data-testid="quick-call-transfer-input" /></Field>
         <BackupsField value={f.transferBackups} onChange={(v) => set({ transferBackups: v })} testid="quick-call-backups-input" />
         <Field label="Keys that connect"><KeyPicker value={f.activeKeys} onChange={(v) => set({ activeKeys: v })} testid="quick-call-keys" /></Field>
-        <div className="flex items-center justify-between"><span className="text-sm">Hold music while connecting</span><Toggle checked={f.holdMusic} onChange={(v) => set({ holdMusic: v })} testid="quick-call-hold-music-toggle" /></div>
+        <div className="flex items-center justify-between"><span className="text-sm">Hold music while connecting</span><Toggle checked={f.holdMusic} onChange={(v) => set({ holdMusic: v })} testid="quick-call-hold-music-toggle" label="Hold music while connecting" /></div>
       </>}
       {f.mode === 'otp' && <div className="space-y-4" data-testid="quick-otp-fields">
         <OtpHowTo />

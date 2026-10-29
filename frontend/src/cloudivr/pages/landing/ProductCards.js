@@ -43,7 +43,7 @@ export function ProductCards() {
                 <div className="mt-5 text-sm text-slate-500">Works on:</div>
                 <div className="flex flex-wrap gap-2 mt-2">{on.map(x => <span key={x} className="text-sm px-2.5 py-1 rounded-md bg-slate-100 text-slate-700">{x}</span>)}</div>
                 <ul className="mt-6 space-y-3 text-[15px] text-slate-600 flex-1">{facts.map(f => <li key={f} className="pl-4 relative before:content-[''] before:absolute before:left-0 before:top-[9px] before:w-1.5 before:h-1.5 before:rounded-full before:bg-[#daff7c]">{f}</li>)}</ul>
-                <a href={hrefOf('', target)} onClick={(e) => goTo(target, e)} className="mt-6 text-[15px] font-semibold underline underline-offset-4 decoration-[#64acff] hover:text-slate-600 self-start" data-testid={`product-card-${id}-more`}>Learn more</a>
+                <a href={hrefOf('', target)} onClick={(e) => goTo(target, e)} className="mt-6 min-h-[44px] inline-flex items-center text-[15px] font-semibold underline underline-offset-4 decoration-[#64acff] hover:text-slate-600 self-start" data-testid={`product-card-${id}-more`}>Learn more</a>
               </article>
             );
           })}
