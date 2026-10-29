@@ -1889,3 +1889,13 @@ calls and SIP are simulated; inbound calls use a pretend-call simulator).
 - Admin UI pages/admin/CallerIds.js: per-row checkboxes + Select all + BulkBar (approve/reject selected with one reason).
 - Tested preview: bulk approve 2 → verified, bulk reject 1 → refund +$25, audit shows caller_id_approve/reject; lint clean. Email send is
   skipped in dry-run (no error). NOT verified with a real delivered email.
+
+## 2026-10-29 11:17Z — AI disclosure now optional per agent — LIVE app-main (20261029T111743Z-e5ff333, healthy)
+- New agent field discloseAi (default true). Off = opening skips the "I'm an AI assistant" line (recording notice unaffected);
+  bridge screener line + rules relaxed (won't volunteer AI, still never claims to be human if asked). Owner's custom first
+  message: AI phrase added only when discloseAi on and missing.
+- languages.js: added inPlain/outPlain (no-AI intro) for all 20 languages. opening.js standard()/withNotices() honor discloseAi.
+  store.js cleanAgent/FIELDS/publicAgent include discloseAi. ai.js opening-preview passes discloseAi.
+- UI: AgentForm "Announce it's an AI" toggle (on by default) + OpeningPreview reflects it. Landing copy updated:
+  ProductCards ai bullet + Trust.js card ("You choose how it introduces itself").
+- Tested: opening preview ON/OFF, all 20 plain openings AI-free, ai_bridge_flow.test.js 10/10, UI screenshot. Lint clean.

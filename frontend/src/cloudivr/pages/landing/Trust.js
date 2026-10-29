@@ -9,7 +9,7 @@ import { openCookieSettings } from '../../consent';
 const POINTS = [
   [ShieldCheck, 'Consent is yours to hold', 'Automated, pre-recorded and AI calls need the consent the law requires. Before any campaign runs you confirm you have it — and that you may contact everyone on your list. It’s in our terms, and we enforce them.'],
   [PhoneOff, 'Opt-outs are honoured everywhere', 'Your do-not-call list applies to every campaign — Bulk IVR and AI, web and Telegram bot. Numbers on it are never dialled and never billed. Tell the AI agent “don’t call me again” and it apologises, removes you and ends the call.'],
-  [Bot, 'An AI that says it’s an AI', 'The agent never claims to be human — ask, and it says so. It never asks for card numbers, passwords or one-time codes, and it passes callers to a person on request or takes a message.'],
+  [Bot, 'You choose how it introduces itself', 'Turn the “I’m an AI” intro on or off per agent — on by default. Either way it never claims to be human if asked, never asks for card numbers, passwords or one-time codes, and passes callers to a person on request or takes a message. Check the rules where you call.'],
   [Disc3, 'Recording stays your call', 'Some places need everyone on a call to agree before it’s recorded. Recording, voicemail, transcripts and AI summaries are off until you switch them on — and when you do, telling callers is on you. Our terms spell it out.'],
   [Fingerprint, 'Your caller ID is yours', 'Campaigns dial from your own CloudIVR number, never a spoofed one. Code collection is only for verifying your own customers, and accounts that break the rules are stopped — campaigns included.'],
 ];

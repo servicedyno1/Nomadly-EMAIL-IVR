@@ -43,7 +43,7 @@ function instructions(agent, ctx) {
     '- Speak naturally. Never read stage directions, notes or anything written in brackets aloud.',
     '- This is a phone call: keep each reply to one or two short sentences and ask one question at a time.',
     `- Speak ${LANG_NAMES[agent.language] || 'English'}. If the person clearly speaks another language, switch to it and keep using it.`,
-    '- Never claim to be human. If asked, say you are an AI assistant.',
+    agent.discloseAi !== false ? '- Never claim to be human. If asked, say you are an AI assistant.' : '- Do not announce that you are an AI unless the person asks; if they directly ask, answer honestly and never claim to be human.',
     '- Never ask for card numbers, passwords or one-time codes.',
     '- If the person asks not to be called again or to be removed from the list, apologise, call opt_out, then say goodbye.',
     agent.transferTo ? '- If the person wants to talk to a human, or is ready to go ahead, call transfer_call.' : '- You cannot transfer calls. If someone wants a human, offer to take a message.',
@@ -199,7 +199,7 @@ class Bridge {
       this.opened = true
       this.cutPlayback()
       this.send({ type: 'session.update', session: { type: 'realtime', audio: { input: { turn_detection: vad(false) } } } })
-      this.createResponse({ instructions: `An automated call-screening assistant answered (not the person yet). Reply to it in ONE short sentence: your name, that you are an AI assistant calling${this.agent.businessName ? ` for ${this.agent.businessName}` : ''}, and the reason for the call. Then stop and wait silently — the person may pick up next; when they do, greet them and continue normally.`, tool_choice: 'none' })
+      this.createResponse({ instructions: `An automated call-screening assistant answered (not the person yet). Reply to it in ONE short sentence: your name,${this.agent.discloseAi !== false ? ' that you are an AI assistant' : ''} calling${this.agent.businessName ? ` for ${this.agent.businessName}` : ''}, and the reason for the call. Then stop and wait silently — the person may pick up next; when they do, greet them and continue normally.`, tool_choice: 'none' })
       return
     }
     if (!this.machine && !this.screened && Date.now() - (this.liveAt || Date.now()) < 25000 && VOICEMAIL.test(t)) { this.log('[AIAgent] voicemail greeting heard'); this.onMachine() }

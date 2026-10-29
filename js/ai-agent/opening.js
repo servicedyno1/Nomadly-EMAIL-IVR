@@ -66,7 +66,8 @@ const upFirst = (s) => s.charAt(0).toLocaleUpperCase() + s.slice(1)
 // Adds the missing notices where they sound natural: before the closing question, after a short "Hi," — else at the end.
 function withNotices(text, { agent, recorded }) {
   const o = lang(agent)
-  const needAi = !hasAi(text), needRec = !!recorded && !hasRec(text)
+  const discloseAi = agent.discloseAi !== false
+  const needAi = discloseAi && !hasAi(text), needRec = !!recorded && !hasRec(text)
   if (!needAi && !needRec) return { text, aiAdded: false, recAdded: false }
   const named = agent.name && text.toLowerCase().includes(String(agent.name).toLowerCase())
   const add = [needAi ? (named ? o.aiBare : o.ai(agent.name || 'Ava')) : '', needRec ? o.rec : ''].filter(Boolean).join(' ')
@@ -82,9 +83,12 @@ function withNotices(text, { agent, recorded }) {
 }
 
 // The standard opening (no first message): intro + recording notice + the old "opening line" or a default question.
+// When the owner turns the AI disclosure off, a plain intro (no "AI assistant") is used.
 function standard(agent, direction, recorded) {
   const o = lang(agent), out = direction === 'outbound'
-  return `${out ? o.out(agent.name, agent.businessName) : o.in(agent.name, agent.businessName)}${recorded ? ` ${o.rec}` : ''} ${agent.greeting || (out ? o.askOut : o.askIn)}`
+  const disclose = agent.discloseAi !== false
+  const intro = out ? (disclose ? o.out : o.outPlain)(agent.name, agent.businessName) : (disclose ? o.in : o.inPlain)(agent.name, agent.businessName)
+  return `${intro}${recorded ? ` ${o.rec}` : ''} ${agent.greeting || (out ? o.askOut : o.askIn)}`
 }
 
 // → { text, custom, aiAdded, recAdded }

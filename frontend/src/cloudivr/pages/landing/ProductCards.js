@@ -7,7 +7,7 @@ import { PRODUCTS, goTo, hrefOf } from './menu';
 const CARDS = {
   numbers: ['NUM', ['Browser', 'Telegram bot'], ['Local, mobile and toll-free numbers in many countries.', 'Calls ring in your browser, on a SIP phone or forward anywhere.', 'Keep it monthly — no contracts.']],
   ivr: ['IVR', ['Browser', 'Telegram bot'], ['Press 1, 2, 3 menus with your own recording or an AI voice.', 'Route callers to people, voicemail or other numbers.', 'Change it any time — live in seconds.']],
-  ai: ['AI', ['Browser'], ['Answers in natural speech, day and night.', 'Takes messages and books appointments.', 'Always says it’s an AI and hands over on request.']],
+  ai: ['AI', ['Browser'], ['Answers in natural speech, day and night.', 'Takes messages and books appointments.', 'Can introduce itself as an AI, and hands over on request.']],
   campaigns: ['IVR+', ['Browser', 'Telegram bot'], ['Upload a list and call everyone with one message.', 'Watch progress live; anyone who presses 1 is connected to you.', 'Do-not-call list is honoured automatically.']],
   phone: ['SIP', ['Browser', 'Softphone', 'Desk phone'], ['Call and answer from any browser tab.', 'Sign in from a softphone or desk phone with SIP.', 'Included on every plan.']],
   text: ['TTS', ['Browser'], ['Type and a natural voice speaks for you on a real call.', 'Read what they say as live captions.', 'Great for quiet offices and noisy streets.']],

@@ -10,7 +10,7 @@ import { AI_LANGS } from './languages';
 import { OpeningPreview, ScriptGuide } from './OpeningPreview';
 
 export const EMPTY_AGENT = {
-  name: '', businessName: '', language: 'en', voice: 'marin', goal: '', greeting: '', firstMessage: '', waitForHello: true, knowledge: '', transferTo: '', takeMessages: true, maxMinutes: 5, record: true,
+  name: '', businessName: '', language: 'en', voice: 'marin', goal: '', greeting: '', firstMessage: '', waitForHello: true, knowledge: '', transferTo: '', takeMessages: true, maxMinutes: 5, record: true, discloseAi: true,
   booking: { enabled: false, calendarId: 'primary', calendarName: null, slotMinutes: 30, days: [1, 2, 3, 4, 5], start: '09:00', end: '17:00', timeZone: browserZone() },
 };
 
@@ -45,13 +45,17 @@ function Actions({ f, set, recordRate = 0.02, recordingDays = 90 }) {
         <span className="text-sm">Record calls<span className="block text-xs text-[#a1a1aa] mt-0.5">{`The agent says “this call may be recorded” when it answers. +$${Number(recordRate).toFixed(2)} per started minute · kept ${recordingDays} days, then deleted.`}</span></span>
         <Toggle checked={f.record !== false} onChange={v => set('record', v)} testid="ai-agent-record-toggle" />
       </div>
+      <div className="flex items-center justify-between gap-4 sm:col-span-2" data-testid="ai-agent-disclose-row">
+        <span className="text-sm">Announce it’s an AI<span className="block text-xs text-[#a1a1aa] mt-0.5">On: the agent says it’s an AI assistant when the call starts. Off: it skips that and talks naturally, but still won’t claim to be human if someone asks. Check the rules where you call — some places require disclosure.</span></span>
+        <Toggle checked={f.discloseAi !== false} onChange={v => set('discloseAi', v)} testid="ai-agent-disclose-toggle" />
+      </div>
     </div>
   );
 }
 
 // Create / edit an AI agent: personality + script, FAQs, transfer and message taking.
 export function AgentForm({ initial, voices, recordRate, recordingDays, onSaved, onDeleted }) {
-  const [f, setF] = useState({ ...EMPTY_AGENT, ...initial, transferTo: initial?.transferTo || '', record: initial?.record !== false, booking: { ...EMPTY_AGENT.booking, ...(initial?.booking || {}) } });
+  const [f, setF] = useState({ ...EMPTY_AGENT, ...initial, transferTo: initial?.transferTo || '', record: initial?.record !== false, discloseAi: initial?.discloseAi !== false, booking: { ...EMPTY_AGENT.booking, ...(initial?.booking || {}) } });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
   const u = useUnsaved(f);

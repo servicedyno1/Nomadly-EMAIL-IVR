@@ -67,7 +67,7 @@ function routes(router, { h, numbersApi }) {
   router.post('/ai-agents/opening-preview', h(async (req, res) => {
     const b = req.body || {}
     const str = (v, n) => String(v ?? '').trim().slice(0, n)
-    const a = { name: str(b.name, 40) || 'Ava', businessName: str(b.businessName, 60), language: s.LANGS.includes(b.language) ? b.language : 'en', firstMessage: str(b.firstMessage, 500), greeting: str(b.greeting, 300) }
+    const a = { name: str(b.name, 40) || 'Ava', businessName: str(b.businessName, 60), language: s.LANGS.includes(b.language) ? b.language : 'en', firstMessage: str(b.firstMessage, 500), greeting: str(b.greeting, 300), discloseAi: b.discloseAi !== false }
     const recorded = b.record !== false
     const sample = ai.opening.SAMPLE_LEAD
     const inbound = ai.opening.openingInfo(a, 'inbound', recorded)

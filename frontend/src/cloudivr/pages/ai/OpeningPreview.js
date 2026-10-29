@@ -19,16 +19,16 @@ function Line({ icon: Icon, label, o, testid, extra }) {
 export function OpeningPreview({ f }) {
   const [p, setP] = useState(null);
   const [failed, setFailed] = useState(false);
-  const { name, businessName, language, firstMessage, greeting, record } = f;
+  const { name, businessName, language, firstMessage, greeting, record, discloseAi } = f;
   useEffect(() => {
     let live = true;
     const t = setTimeout(() => {
-      api('/ai-agents/opening-preview', { method: 'POST', body: { name, businessName, language, firstMessage, greeting, record: record !== false } })
+      api('/ai-agents/opening-preview', { method: 'POST', body: { name, businessName, language, firstMessage, greeting, record: record !== false, discloseAi: discloseAi !== false } })
         .then(d => { if (live) { setP(d); setFailed(false); } })
         .catch(() => { if (live) setFailed(true); });
     }, 400);
     return () => { live = false; clearTimeout(t); };
-  }, [name, businessName, language, firstMessage, greeting, record]);
+  }, [name, businessName, language, firstMessage, greeting, record, discloseAi]);
   if (failed && !p) return null;
   const added = p && (p.outbound.aiAdded || p.outbound.recAdded || p.inbound.aiAdded || p.inbound.recAdded);
   return (
