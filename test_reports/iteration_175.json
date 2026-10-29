@@ -1,0 +1,32 @@
+{
+  "summary": "Frontend-only test of public-site light mode (landing /cloudivr, /cloudivr/sip, /cloudivr/terms). PASS: device preference (prefers-color-scheme light -> white bg rgb(255,255,255), dark -> graphite rgb(27,30,34)) with no saved 'civr.theme'; landing/sip/terms theme buttons flip html data-civr-np-theme instantly and survive reload (localStorage civr.theme); choice carries to /cloudivr/login (data-civr-theme=light) and into the signed-in app (Alice); topbar-theme-button change in app (light->dark) is reflected on landing. Desktop 1920 light mode: nav, hero, facts, bubbles, statement, use-case tiles (ink tiles stay dark), features (dark mock-ups), try-call keypad, coverage, product cards, trust, how-it-works, pricing cards, compare table, usage rates, final CTA, footer, cookie banner + Cookie settings dialog, language menu, Products/Use cases mega menus all readable. Dark mode on all 3 pages looks unchanged. FAIL: mobile header does not fit at 375/320 (and SIP even at 390) - the new theme button pushes Start/menu button/CTA off-screen.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Landing Nav (mobile)", "issue": "Header content needs ~390px. At 375 the menu button is half clipped (left 366px, 24px of 44px visible); at 320 both the 'Start' CTA (left 286) and the hamburger (left 366) are entirely off-screen, so the mobile menu cannot be opened (Playwright: 'element is outside of the viewport'). Items do not shrink: logo 123px + theme 44 + lang 79 + Start 72 + menu 44 + gaps. Happens in light AND dark (layout, not colour). Regression caused by adding SiteThemeButton.", "selector": "[data-testid='civr-nav'] > div; landing-mobile-menu-button; civr-nav-signup-btn", "priority": "HIGH"},
+      {"component": "SIP Nav (mobile)", "issue": "Header inner scrollWidth 409px at every phone width: 'Plans' CTA (sip-nav-cta, left 338 width 71) is clipped at 390/375 and off-screen at 320; sign-in icon at the edge.", "selector": "[data-testid='sip-nav'] > div; sip-nav-cta", "priority": "HIGH"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Terms header (mobile 320)", "issues": ["terms-signup-link ends at 364px on a 320px viewport - 'Get your number' button is cut off"]},
+      {"screen": "Terms header (desktop)", "issues": ["Minor: terms-logo-link lacks gap between parrot icon and wordmark (pre-existing, other navs use gap-2); 'Home' link and theme button sit very close."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Make the landing mobile header fit 320px: e.g. on <sm hide the logo wordmark text (icon only) or shrink logo, reduce gap to gap-1, drop -mr-2 trick, or move the theme switch into the mobile menu below lg (mobile menu already lists items) and keep a compact 40px button; add min-w-0/shrink to logo. Verify hamburger fully visible at 320/360/375.",
+    "Same for SIP nav (needs 409px today): hide lang label/condense, reduce gap-3, or move theme button into a menu below sm; verify sip-nav-cta fully visible at 320/375/390.",
+    "Terms header also overflows on phones: terms-signup-link right edge = 364px at both 375 and 320 viewports ('Get your number' clipped at 320). Use a shorter label below sm or px-4, and verify at 320."
+  ],
+  "critical_code_review_comments": [
+    "useSiteLook cleanup deletes data-civr-np-theme and colorScheme on unmount; ThemeRoot in app sets data-civr-theme - works, but brief flash possible on route change (not observed).",
+    "Header overflow is a layout issue independent of the colour palette; main agent's axe-only verification at 320 could not catch it - measure getBoundingClientRect().right <= innerWidth for header controls."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A", "frontend": "85% (all theme/persistence/readability checks pass; mobile header fit fails on landing & SIP)"},
+  "seed_data_creation": "none",
+  "test_credentials": "civr.alice@example.com / AliceTest#2026 worked",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Measure header children rects at 320/375/390: landing items currently logo16-139, theme147-191, lang199-278, Start286-358, menu366-390 regardless of viewport; SIP inner scrollWidth 409. Terms at 320: logo 24-139, theme 155-199, signup 215-364 (also overflows 320). Theme features all pass; re-verify only header fit + quick light/dark visual."
+}

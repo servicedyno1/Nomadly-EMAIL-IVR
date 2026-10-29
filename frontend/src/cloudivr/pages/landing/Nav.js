@@ -86,8 +86,8 @@ export function LandingNav({ catalog }) {
   return (
     <>
     <header className={`civr-l-navbar fixed top-0 inset-x-0 z-50 text-slate-900 ${scrolled > 8 ? 'scrolled' : ''}`} onMouseLeave={() => hover(null)} data-testid="civr-nav">
-      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 md:px-8 h-16 flex items-center gap-2 sm:gap-4">
-        <Link to={cp()} className="font-display text-2xl font-extrabold tracking-tight min-h-[44px] flex items-center gap-2 mr-auto lg:mr-6" data-testid="civr-nav-logo"><Wordmark accent="#059669" iconClass="w-7 h-7 sm:w-8 sm:h-8" /></Link>
+      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 md:px-8 h-16 flex items-center gap-1 min-[420px]:gap-2 sm:gap-4">
+        <Link to={cp()} className="font-display text-2xl font-extrabold tracking-tight min-h-[44px] flex items-center gap-2 mr-auto lg:mr-6" data-testid="civr-nav-logo"><Wordmark accent="#059669" iconClass="w-7 h-7 sm:w-8 sm:h-8" textClass="max-[419px]:sr-only" /></Link>
         <nav className="hidden lg:flex items-center gap-1 mr-auto" aria-label="Main">
           {MENUS.map(([id, label]) => (
             <button key={id} type="button" className={`civr-l-navlink ${open === id ? 'on' : ''}`} aria-expanded={open === id} aria-controls={`nav-menu-${id}`} onMouseEnter={() => hover(id)} onClick={() => setOpen(o => (o === id ? null : id))} data-testid={`nav-${id}-dropdown`}>

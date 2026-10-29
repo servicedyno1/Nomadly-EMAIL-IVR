@@ -31,8 +31,8 @@ function Nav() {
   const { account } = useCivrAuth();
   return (
     <header className="fixed top-0 inset-x-0 z-50 backdrop-blur-xl bg-white/80 border-b border-slate-200/80 text-slate-900" data-testid="sip-nav">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-8 h-16 flex items-center gap-3 sm:gap-6">
-        <Link to={cp()} onClick={() => window.scrollTo(0, 0)} className="font-display text-2xl font-extrabold tracking-tight mr-auto min-h-[44px] flex items-center gap-2" data-testid="sip-nav-logo"><Wordmark accent="#059669" iconClass="w-7 h-7 sm:w-8 sm:h-8" /></Link>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-8 h-16 flex items-center gap-1 min-[420px]:gap-3 sm:gap-6">
+        <Link to={cp()} onClick={() => window.scrollTo(0, 0)} className="font-display text-2xl font-extrabold tracking-tight mr-auto min-h-[44px] flex items-center gap-2" data-testid="sip-nav-logo"><Wordmark accent="#059669" iconClass="w-7 h-7 sm:w-8 sm:h-8" textClass="max-[419px]:sr-only" /></Link>
         <nav className="hidden lg:flex items-center gap-8">
           {LINKS.map(([href, label, id]) => <a key={id} href={href} className="text-sm font-medium text-slate-600 hover:text-slate-900 py-3 transition-colors" data-testid={`sip-nav-${id}`}>{label}</a>)}
         </nav>

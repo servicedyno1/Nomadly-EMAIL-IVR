@@ -12,7 +12,7 @@ export function useSiteLook() {
   }, [theme]);
 }
 
-export const SiteThemeButton = ({ testid }) => <ThemeButton testid={testid} className="civr-l-navlink w-11 h-11 !p-0 grid place-items-center rounded-full shrink-0" />;
+export const SiteThemeButton = ({ testid }) => <ThemeButton testid={testid} className="civr-l-navlink w-10 h-10 sm:w-11 sm:h-11 !p-0 grid place-items-center rounded-full shrink-0" />;
 
 // Shared building blocks for the landing page.
 

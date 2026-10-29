@@ -325,3 +325,8 @@ The new layout differs from the old in-place `/opt/nomadly/app-main` checkout. O
 - Verified live: /health healthy + DB connected, 0 calls at flip; cloudivr.net /, /login, /signup, /sip = 200; bundle main.80cca34b.js
   contains the new strings; CSS has the new progress bar. app-main-b stopped. WL apps untouched.
 - Rollback: `bash /opt/nomadly/deploy.sh app-main rollback`. ⚠️ Save to GitHub (main) or the next CI deploy rolls this back.
+
+## 2026-10-29 13:56Z — workspace deploy bee80af (+23 uncommitted) → app-main ONLY, release 20261029T135655Z-bee80af on app-main-b :5100
+- Contents: light mode for public pages (landing, /sip, /terms) — follows device, sun/moon switch shares the app's 'civr.theme' setting.
+- Verified live: health healthy, 0 calls; /, /sip, /terms, /login 200; light device -> white, dark device -> graphite, switch visible. WL apps untouched.
+- Rollback: `bash /opt/nomadly/deploy.sh app-main rollback`. ⚠️ Save to GitHub (main) or the next CI deploy rolls this back.

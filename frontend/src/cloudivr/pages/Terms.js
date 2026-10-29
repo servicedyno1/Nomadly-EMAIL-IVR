@@ -11,11 +11,11 @@ import { useSiteLook, SiteThemeButton } from './landing/kit';
 function Header() {
   return (
     <header className="sticky top-0 z-40 backdrop-blur-xl bg-white/80 border-b border-slate-200/80" data-testid="terms-header">
-      <div className="max-w-6xl mx-auto px-6 md:px-8 h-16 flex items-center gap-4">
-        <Link to={cp()} className="font-display text-2xl font-extrabold mr-auto min-h-[44px] flex items-center" data-testid="terms-logo-link"><Wordmark accent="#059669" iconClass="w-7 h-7" /></Link>
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 md:px-8 h-16 flex items-center gap-2 sm:gap-4">
+        <Link to={cp()} className="font-display text-2xl font-extrabold mr-auto min-h-[44px] flex items-center gap-2" data-testid="terms-logo-link"><Wordmark accent="#059669" iconClass="w-7 h-7" textClass="max-[419px]:sr-only" /></Link>
         <Link to={cp()} className="hidden sm:inline-flex items-center gap-2 text-sm font-medium text-slate-600 hover:text-slate-900 py-3" data-testid="terms-home-link"><ArrowLeft className="w-4 h-4" />Home</Link>
         <SiteThemeButton testid="terms-theme-button" />
-        <Link to={cp('/signup')} className="civr-l-btn civr-l-btn-sm" data-testid="terms-signup-link">Get your number</Link>
+        <Link to={cp('/signup')} className="civr-l-btn civr-l-btn-sm" data-testid="terms-signup-link"><span className="sm:hidden">Start</span><span className="hidden sm:inline">Get your number</span></Link>
       </div>
     </header>
   );
