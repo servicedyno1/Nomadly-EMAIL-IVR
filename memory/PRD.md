@@ -1881,3 +1881,11 @@ calls and SIP are simulated; inbound calls use a pretend-call simulator).
 - Frontend: ReviewForm + review rows in pages/number/CallerIds.js; new admin tab pages/admin/CallerIds.js (AdminApp tab 'caller-ids').
 - Tested in preview: request charges $25, authorized=false blocked, show-as rejects review number, admin approve→Quick IVR rate 0.15,
   reject refunds, audit shows caller_id_approve/reject; admin UI screenshot. NOT live-tested with a real approved outbound call.
+
+## 2026-10-29 11:06Z — Caller-ID decision emails + bulk approve — LIVE app-main (20261029T110611Z-9e4346e, healthy)
+- admin.js: on approve/reject (single or bulk) now emails the customer via auth.sendMail (approved → how to use; rejected → reason + refund note),
+  in addition to the in-app notify.push. Email lookup = webAccounts.email by numeric chatId. Shared decide() helper.
+- New POST /admin/caller-ids/bulk { action, numbers[], reason } (≤100, reason required, each decision audited + emailed/refunded).
+- Admin UI pages/admin/CallerIds.js: per-row checkboxes + Select all + BulkBar (approve/reject selected with one reason).
+- Tested preview: bulk approve 2 → verified, bulk reject 1 → refund +$25, audit shows caller_id_approve/reject; lint clean. Email send is
+  skipped in dry-run (no error). NOT verified with a real delivered email.

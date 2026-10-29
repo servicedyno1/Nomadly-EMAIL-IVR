@@ -232,17 +232,35 @@ function createAdmin(db, { log = console.log, bulkCallService, adminAuth }) {
 
     // Customer-requested caller IDs waiting for approval (no code — admin vouches; Telnyx still filters the call).
     const callerIdsAdmin = require('./caller-ids').adminApi(db)
-    r.get('/admin/caller-ids', A, h(async (req, res) => res.json({ items: await callerIdsAdmin.list() })))
-    r.post('/admin/caller-ids/:number/:action', A, h(async (req, res) => {
-      const reason = need(req, res); if (!reason) return
-      const number = String(req.params.number), approve = req.params.action === 'approve'
+    const { sendMail } = require('./auth')
+    const emailOf = async (chatId) => (/^\d+$/.test(String(chatId)) ? (await db.collection('webAccounts').findOne({ _id: Number(chatId) }, { projection: { email: 1 } }))?.email : null)
+    const decide = async (req, number, approve, reason) => {
       const d = await (approve ? callerIdsAdmin.approve(number) : callerIdsAdmin.reject(number))
-      if (!d) return bad(res, 404, 'not_found', 'That request is no longer waiting for review.')
+      if (!d) return false
       await log1(req, approve ? 'caller_id_approve' : 'caller_id_reject', number, reason, { chatId: d.chatId })
       notify.push(d.chatId, approve
         ? `✅ Your caller ID ${number} was approved. You can now show it on your outgoing calls.`
         : `❌ Your caller ID request for ${number} wasn’t approved, so the $${(d.charged || 0).toFixed(2)} was refunded. Reason: ${reason}`).catch(() => {})
-      res.json({ ok: true })
+      const to = await emailOf(d.chatId).catch(() => null)
+      if (to) sendMail(to, approve ? `Your caller ID ${number} is approved` : `Your caller ID ${number} wasn’t approved`, approve
+        ? `<p>Good news — <b>${number}</b> is approved as a caller ID on your CloudIVR account.</p><p>Pick it under “Show as” on Quick IVR calls, campaigns, Call me first, text triggers or the browser phone. Calls are still billed from your CloudIVR number, and carriers may still filter some calls.</p>`
+        : `<p>We couldn’t approve <b>${number}</b> as your caller ID, so the $${(d.charged || 0).toFixed(2)} was refunded to your wallet.</p><p><b>Reason:</b> ${String(reason).replace(/[<>]/g, '')}</p><p>If this number is yours, reply with proof and we’ll take another look.</p>`).catch(() => {})
+      return true
+    }
+    r.get('/admin/caller-ids', A, h(async (req, res) => res.json({ items: await callerIdsAdmin.list() })))
+    r.post('/admin/caller-ids/bulk', A, h(async (req, res) => {
+      const reason = need(req, res); if (!reason) return
+      const approve = req.body?.action === 'approve'
+      const numbers = [...new Set((Array.isArray(req.body?.numbers) ? req.body.numbers : []).map(String))].slice(0, 100)
+      if (!numbers.length) return bad(res, 400, 'no_numbers', 'Pick at least one request.')
+      let done = 0
+      for (const n of numbers) if (await decide(req, n, approve, reason)) done++
+      res.json({ ok: true, done })
+    }))
+    r.post('/admin/caller-ids/:number/:action', A, h(async (req, res) => {
+      const reason = need(req, res); if (!reason) return
+      if (await decide(req, String(req.params.number), req.params.action === 'approve', reason)) return res.json({ ok: true })
+      bad(res, 404, 'not_found', 'That request is no longer waiting for review.')
     }))
   }
   return { routes }
