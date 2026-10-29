@@ -16,7 +16,7 @@ export function Keypad({ lit = [], labels = {}, onPress }) {
     <div className="grid grid-cols-3 gap-2" data-testid="civr-try-keypad">
       {KEYS.map(k => (
         <button key={k} type="button" disabled={!onPress} onClick={() => onPress?.(k)} className={`civr-l-key flex flex-col items-center justify-center ${lit.includes(k) ? 'lit' : ''} ${last === k ? 'civr-pulse' : ''}`} data-testid={`civr-try-key-${keyId(k)}`}>
-          {k}{labels[k] && <span className="text-[9px] uppercase tracking-widest opacity-70 font-sans mt-0.5">{labels[k]}</span>}
+          {k}{labels[k] && <span className="text-xs uppercase tracking-widest opacity-70 font-sans mt-0.5">{labels[k]}</span>}
         </button>
       ))}
     </div>

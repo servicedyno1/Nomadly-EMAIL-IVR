@@ -22,11 +22,11 @@ export function HeroPhone() {
       <div className="rounded-[40px] border-[6px] border-[#2a2f36] bg-[#13171c] p-3 shadow-[0_40px_80px_-30px_rgba(0,0,0,.9)]">
         <div className="mx-auto w-24 h-5 rounded-full bg-[#23272d]" />
         <div className="h-[300px] mt-4 flex flex-col gap-3">
-          <div className="text-center text-[11px] text-[#8593a8]">CloudIVR · now</div>
+          <div className="text-center text-xs text-[#8593a8]">CloudIVR · now</div>
           {SCENES.map(([id, Icon, title, who, body], k) => (
             <div key={id} className={`rounded-2xl border p-3 text-left transition-all duration-500 ${k <= i ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3'} ${k === i ? 'border-[#64acff] bg-[#64acff]/10' : 'border-[#343a42] bg-[#23272d]'}`} data-testid={`hero-phone-${id}`}>
               <div className="flex items-center gap-2 text-xs font-semibold text-white"><Icon className={`w-4 h-4 ${['text-[#daff7c]', 'text-[#ffa3bb]', 'text-[#64acff]'][k]}`} />{title}</div>
-              <div className="text-[11px] text-[#b4bfce] mt-1">{who}</div>
+              <div className="text-xs text-[#b4bfce] mt-1">{who}</div>
               <div className="text-[12px] text-white mt-1 leading-snug">{body}</div>
             </div>
           ))}
