@@ -43,6 +43,11 @@ const checkCode = async (n, code) => {
   if (dry()) return code === DRY_CODE
   return tx('post', `/${encodeURIComponent(n)}/actions/verify`, { verification_code: code }).then(() => true, () => false)
 }
+// Press-1 call: no code — Telnyx marks the number verified once they press 1.
+const checkPressed = async (n) => {
+  if (dry()) return true
+  return tx('get', `/${encodeURIComponent(n)}`).then(r => !!r.data?.data?.verified_at, () => false)
+}
 
 function routes(router, { db, h, numbersApi }) {
   col = db.collection('webCallerIds')
@@ -75,7 +80,7 @@ function routes(router, { db, h, numbersApi }) {
 
   router.post('/caller-ids', h(async (req, res) => {
     const chatId = req.webChatId
-    const method = req.body.method === 'call' ? 'call' : 'sms'
+    const method = ['call', 'dtmf'].includes(req.body.method) ? req.body.method : 'sms'
     const list = [...new Set((Array.isArray(req.body.numbers) ? req.body.numbers : [req.body.number]).map(clean))].filter(n => n !== '+')
     if (!list.length) return bad(res, 400, 'invalid_number', 'Enter the number with country code, e.g. +14155550100.')
     if (list.length > MAX_BATCH) return bad(res, 400, 'too_many_numbers', `Up to ${MAX_BATCH} numbers at a time.`)
@@ -87,7 +92,7 @@ function routes(router, { db, h, numbersApi }) {
     if (list.length === 1 && !sent.length) return bad(res, results[0].status, results[0].error, results[0].message)
     res.status(sent.length ? 201 : 400).json({
       number: sent[0]?.number, method, dryRun: dry(), results,
-      message: dry() ? `Preview mode: no code was sent. Enter ${DRY_CODE}.` : sent.length > 1 ? `Codes sent to ${sent.length} numbers.` : method === 'call' ? 'We’re calling that number now — listen for the code.' : 'We texted a code to that number.',
+      message: method === 'dtmf' ? `We’re calling ${sent.length > 1 ? 'those numbers' : 'that number'} now — answer and press 1, then tap “I pressed 1”.` : dry() ? `Preview mode: no code was sent. Enter ${DRY_CODE}.` : sent.length > 1 ? `Codes sent to ${sent.length} numbers.` : method === 'call' ? 'We’re calling that number now — listen for the code.' : 'We texted a code to that number.',
     })
   }))
 
@@ -110,12 +115,13 @@ function routes(router, { db, h, numbersApi }) {
     const doc = await col.findOne({ _id: n, chatId, status: 'pending' })
     if (!doc || Date.now() - doc.createdAt > PENDING_MS) return bad(res, 400, 'no_pending', 'That code expired. Send a new one.')
     if (doc.tries >= MAX_TRIES) return bad(res, 429, 'too_many_tries', 'Too many wrong codes. Send a new one.')
-    if (!code) return bad(res, 400, 'invalid_code', 'Enter the code you received.')
+    const press = doc?.method === 'dtmf'
+    if (!press && !code) return bad(res, 400, 'invalid_code', 'Enter the code you received.')
     if (!(await w.debit(chatId, PRICE))) return bad(res, 402, 'insufficient_balance', `Verifying a caller ID costs $${PRICE.toFixed(2)}. Top up your wallet first.`)
-    if (!(await checkCode(n, code))) {
+    if (!(await (press ? checkPressed(n) : checkCode(n, code)))) {
       await w.credit(chatId, PRICE)
       await col.updateOne({ _id: n }, { $inc: { tries: 1 } })
-      return bad(res, 400, 'wrong_code', 'That code didn’t match. Check it and try again.')
+      return bad(res, 400, press ? 'not_pressed' : 'wrong_code', press ? 'We haven’t seen the 1 press yet. Answer our call and press 1, then try again — or send a new call.' : 'That code didn’t match. Check it and try again.')
     }
     await col.updateOne({ _id: n }, { $set: { status: 'verified', verifiedAt: new Date(), charged: PRICE } })
     await db.collection('transactions').insertOne({ _id: `caller-id-verify-${crypto.randomUUID()}`, chatId: String(chatId), type: 'caller-id-verify', amount: PRICE, currency: 'USD', status: 'completed', metadata: { number: n, channel: 'web' }, createdAt: new Date(), updatedAt: new Date() }).catch(() => {})

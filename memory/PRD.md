@@ -1908,3 +1908,9 @@ calls and SIP are simulated; inbound calls use a pretend-call simulator).
 - Also fixed AiCampaignFields disclosure bullet to say "(as an AI if you turned that on)".
 - NOTE: other empty-state links (buy number / create audio / create agent / upload contacts) already route forward (not true
   dead-ends); inline-creation modals for those were NOT built. Revisit if the owner names specific stuck screens.
+
+## 2026-10-29 11:51Z — Press-1 caller-ID verification — LIVE app-main (20261029T115129Z-eb764f0)
+- Telnyx Verified Numbers SMS/call can't be rebranded (no sender/template option) — told owner.
+- Added method 'dtmf' (Telnyx calls, user presses 1, no code). /caller-ids/verify for dtmf checks GET /v2/verified_numbers/{n}
+  verified_at (debit → refund if not pressed). UI: "Call me — I'll press 1" option; pending row shows "I pressed 1" button.
+- Tested preview (dry-run auto-passes). NOT live-tested: real Telnyx dtmf call + verified_at polling on production.
