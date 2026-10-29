@@ -1899,3 +1899,12 @@ calls and SIP are simulated; inbound calls use a pretend-call simulator).
 - UI: AgentForm "Announce it's an AI" toggle (on by default) + OpeningPreview reflects it. Landing copy updated:
   ProductCards ai bullet + Trust.js card ("You choose how it introduces itself").
 - Tested: opening preview ON/OFF, all 20 plain openings AI-free, ai_bridge_flow.test.js 10/10, UI screenshot. Lint clean.
+
+## 2026-10-29 11:38Z — Add/verify caller ID inline from the "Show as" picker — LIVE app-main (20261029T113812Z-e638c37)
+- CallerIds.js refactored: reusable <CallerIdManager onVerified> (list + add/verify + bulk + review); page section wraps it.
+- CallerIdPick.js ShowAsSelect now has "Add or verify a number" button → Dialog with CallerIdManager; on code-verify the new
+  number is auto-selected and the dialog closes. Compact (browser phone) variant now always renders the add button even with no
+  verified numbers (was a dead-end). Tested: popup verify flow on Quick IVR selects the number; lint clean.
+- Also fixed AiCampaignFields disclosure bullet to say "(as an AI if you turned that on)".
+- NOTE: other empty-state links (buy number / create audio / create agent / upload contacts) already route forward (not true
+  dead-ends); inline-creation modals for those were NOT built. Revisit if the owner names specific stuck screens.

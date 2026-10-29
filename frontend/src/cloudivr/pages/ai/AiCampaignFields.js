@@ -34,7 +34,7 @@ export function AiCampaignFields({ agentId, onChange }) {
       <ul className="text-xs text-[#a1a1aa] space-y-2" data-testid="campaign-ai-rules">
         <li className="flex gap-2"><Clock className="w-4 h-4 shrink-0 text-[#818cf8]" />Calls only between 8am and 9pm in each lead's local time — others wait and are called when their window opens.</li>
         <li className="flex gap-2"><Ban className="w-4 h-4 shrink-0 text-[#818cf8]" />Numbers on your do-not-call list are skipped; anyone who asks not to be called again is added to it.</li>
-        <li className="flex gap-2"><Bot className="w-4 h-4 shrink-0 text-[#818cf8]" />The agent says it is an AI, waits for the person to say hello, introduces itself to call screeners, leaves one voicemail after the beep and bills $0.30 per started minute (+$0.02 when the agent records). Unanswered calls are free. Agents with bookings on add appointments to your Google Calendar.</li>
+        <li className="flex gap-2"><Bot className="w-4 h-4 shrink-0 text-[#818cf8]" />The agent introduces itself (as an AI if you turned that on for the agent), waits for the person to say hello, introduces itself to call screeners, leaves one voicemail after the beep and bills $0.30 per started minute (+$0.02 when the agent records). Unanswered calls are free. Agents with bookings on add appointments to your Google Calendar.</li>
       </ul>
     </div>
   );

@@ -73,7 +73,7 @@ function Pending({ item, price, i, onDone }) {
   const [busy, setBusy] = useState(false);
   const verify = async () => {
     setBusy(true);
-    try { await api('/caller-ids/verify', { method: 'POST', body: { number: item.number, code } }); toast.success(`${item.number} verified · ${money(price)} charged`); onDone(); }
+    try { await api('/caller-ids/verify', { method: 'POST', body: { number: item.number, code } }); toast.success(`${item.number} verified · ${money(price)} charged`); onDone(item.number); }
     catch (e) { toast.error(e.message); } finally { setBusy(false); }
   };
   return (
@@ -85,27 +85,25 @@ function Pending({ item, price, i, onDone }) {
   );
 }
 
-export function CallerIds() {
+// List of a user's caller IDs + the add / verify / review forms. `onVerified(number)` fires when one becomes usable.
+export function CallerIdManager({ onVerified }) {
   const { data, reload } = useApi('/caller-ids');
-  const { hash } = useLocation();
-  useEffect(() => { if (data && hash === '#caller-ids') document.getElementById('caller-ids')?.scrollIntoView({ behavior: 'smooth' }); }, [data, hash]);
   const pv = usePrivacy();
   const all = data?.items || [];
   const items = all.filter(i => i.status === 'verified');
   const pending = all.filter(i => i.status === 'pending');
   const review = all.filter(i => i.status === 'review');
   const price = data?.price ?? 25;
+  const afterVerify = (n) => { reload(); onVerified?.(n); };
   const remove = async (n) => {
     if (!window.confirm(`Stop showing ${n}? Calls using it go back to their CloudIVR number. Verifying it again costs ${money(price)}.`)) return;
     try { await api(`/caller-ids/${enc(n)}`, { method: 'DELETE' }); toast.success('Caller ID removed'); reload(); } catch (e) { toast.error(e.message); }
   };
   return (
-    <section id="caller-ids" className="civr-card p-6 mt-8 grid lg:grid-cols-2 gap-8 scroll-mt-24" data-testid="caller-ids-card">
+    <div className="grid lg:grid-cols-2 gap-8" data-testid="caller-ids-manager">
       <div>
-        <div className="flex items-center gap-2 font-display text-xl font-bold"><ShieldCheck className="w-5 h-5 text-[#818cf8]" />Your own caller IDs</div>
-        <p className="text-sm text-[#a1a1aa] mt-2">Show a number you own, such as your mobile or office line, on Quick IVR calls, Call me first, campaigns, AI agent calls, text triggers and the browser phone. We send a code to that number to prove it’s yours. {money(price)} per number, charged only when the code is accepted. Calls are still billed from your CloudIVR number.</p>
-        <div className="mt-4 space-y-2" data-testid="caller-ids-list">
-          {pending.map((p, k) => <Pending key={p.number} item={p} price={price} i={k} onDone={reload} />)}
+        <div className="space-y-2" data-testid="caller-ids-list">
+          {pending.map((p, k) => <Pending key={p.number} item={p} price={price} i={k} onDone={afterVerify} />)}
           {review.map((r, k) => (
             <div key={r.number} className="flex items-center justify-between border border-[#262626] rounded-xl px-4 py-2" data-testid={`caller-ids-review-${k}`}>
               <span className="font-mono flex items-center gap-2 text-[#a1a1aa]"><Clock className="w-4 h-4" />{pv.phone(r.number)}<span className="civr-pill civr-pill-warn">awaiting approval</span></span>
@@ -123,6 +121,18 @@ export function CallerIds() {
         {data?.dryRun && <p className="text-xs text-[#a1a1aa] mt-3">Preview mode: no code is sent — use 123456.</p>}
       </div>
       <AddForm price={price} onSent={reload} />
+    </div>
+  );
+}
+
+export function CallerIds() {
+  const { hash } = useLocation();
+  useEffect(() => { if (hash === '#caller-ids') setTimeout(() => document.getElementById('caller-ids')?.scrollIntoView({ behavior: 'smooth' }), 300); }, [hash]);
+  return (
+    <section id="caller-ids" className="civr-card p-6 mt-8 scroll-mt-24" data-testid="caller-ids-card">
+      <div className="flex items-center gap-2 font-display text-xl font-bold mb-2"><ShieldCheck className="w-5 h-5 text-[#818cf8]" />Your own caller IDs</div>
+      <p className="text-sm text-[#a1a1aa] mb-6 max-w-2xl">Show a number you own, such as your mobile or office line, on Quick IVR calls, Call me first, campaigns, AI agent calls, text triggers and the browser phone. We send a code to that number to prove it’s yours. $25 per number, charged only when the code is accepted. Calls are still billed from your CloudIVR number.</p>
+      <CallerIdManager />
     </section>
   );
 }
