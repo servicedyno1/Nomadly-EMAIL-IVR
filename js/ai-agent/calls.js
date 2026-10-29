@@ -50,7 +50,7 @@ async function tryInbound({ payload, chatId, num }) {
   const cfg = num.features?.aiAgent
   if (!cfg?.enabled || !phoneConfig.canAccessFeature(num.plan, 'aiAgent')) return false
   const agent = await store.getAgent(cfg.agentId, chatId)
-  if (!agent || !process.env.APP_OPEN_API_KEY) return false
+  if (!agent || agent.disabled || !process.env.APP_OPEN_API_KEY) return false
   const rate = RATE() + recRate(agent)
   const { usdBal } = await getBalance(deps.walletOf, chatId)
   if (usdBal < rate + committed(chatId)) { log(`[AIAgent] ${num.phoneNumber}: wallet $${usdBal} < $${rate}/min — normal routing`); return false }
@@ -74,6 +74,7 @@ async function tryInbound({ payload, chatId, num }) {
 async function dialLead(campaign, lead) {
   const agent = await store.getAgent(campaign.agentId, campaign.chatId)
   if (!agent) return { error: 'The AI agent for this campaign was deleted.' }
+  if (agent.disabled) return { error: 'This AI agent was stopped by CloudIVR. Contact support.' }
   const token = newToken()
   const calendar = await booking.forCall(campaign.chatId, agent, lead.number).catch(() => null)
   try {

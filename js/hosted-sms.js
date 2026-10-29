@@ -10,6 +10,8 @@ const { walletOps, round2 } = require('./cloudivr-web/wallet')
 
 const PRICE = { code: 300, nocode: 500 }
 const MONTHLY = 50
+const NOBILL_FEE = 50 // customer has no phone bill: CloudIVR collects proof of ownership and submits it
+const REVIEW_DAYS = '1–3 business days' // Telnyx reviews Mon–Fri, 9am–5pm US Central
 const TEXT_PRICE = 0.05 // per text, sent or received
 const MONTH_MS = 30 * 86400000
 const MAX_TEXT = 160
@@ -34,14 +36,14 @@ const errText = (e) => { const x = e.response?.data?.errors?.[0]; return x ? `${
 
 let S = null // { db, col, w, log, tell, brand }
 
-function init({ db, log = console.log, tell, brand }) {
+function init({ db, log = console.log, tell, brand, notifyAdmin }) {
   if (S) return api
   const col = db.collection('hostedSms')
   col.createIndex({ chatId: 1 }).catch(() => {})
   col.createIndex({ phoneNumber: 1, status: 1 }).catch(() => {})
   col.createIndex({ phoneNumber: 1 }, { unique: true, partialFilterExpression: { live: true }, name: 'one_live_per_number' }).catch(() => {})
-  S = { db, col, w: walletOps(db), log, tell, brand }
-  col.updateMany({ status: { $in: ['verify', 'documents', 'review', 'active', 'paused'] }, live: { $exists: false } }, { $set: { live: true } }).catch(() => {})
+  S = { db, col, w: walletOps(db), log, tell, brand, notifyAdmin }
+  col.updateMany({ status: { $in: ['verify', 'documents', 'admin_docs', 'review', 'active', 'paused'] }, live: { $exists: false } }, { $set: { live: true } }).catch(() => {})
   const t = setInterval(() => tick().catch(e => log(`[HostedSMS] tick: ${e.message}`)), dry() ? 30000 : 10 * 60000)
   t.unref?.()
   setTimeout(() => tick().catch(() => {}), 15000).unref?.()
@@ -52,14 +54,21 @@ const txn = (chatId, type, amount, meta) => S.db.collection('transactions').inse
 const pub = (d) => ({
   id: d._id, phoneNumber: d.phoneNumber, mode: d.mode, status: d.status, note: d.note || null, paid: d.paid, monthly: MONTHLY,
   nextBillAt: d.nextBillAt || null, createdAt: d.createdAt, activatedAt: d.activatedAt || null, holder: d.holder || null,
+  noBill: !!d.noBill, docsAt: d.docsAt || null, expectedBy: d.docsAt ? addBusinessDays(d.docsAt, 3) : null,
 })
+// Telnyx reviews Mon–Fri only: "usually approved by" date for the customer.
+function addBusinessDays(from, n) {
+  const d = new Date(from)
+  while (n > 0) { d.setUTCDate(d.getUTCDate() + 1); if (d.getUTCDay() % 6) n -= 1 }
+  return d
+}
 const mine = (chatId, id) => S.col.findOne({ _id: String(id), chatId: String(chatId) })
 const list = async (chatId) => (await S.col.find({ chatId: String(chatId), status: { $nin: ['cancelled', 'starting'] } }).sort({ createdAt: -1 }).toArray()).map(pub)
 
 async function check(phone) {
   const p = normPhone(phone)
   if (!E164.test(p)) return { eligible: false, phoneNumber: p, detail: 'Enter the full number with country code, e.g. +1 312 555 0100.' }
-  if (await S.col.findOne({ phoneNumber: p, status: { $in: ['starting', 'verify', 'documents', 'review', 'active', 'paused'] } })) return { eligible: false, phoneNumber: p, detail: 'This number is already being text-enabled.' }
+  if (await S.col.findOne({ phoneNumber: p, status: { $in: ['starting', 'verify', 'documents', 'admin_docs', 'review', 'active', 'paused'] } })) return { eligible: false, phoneNumber: p, detail: 'This number is already being text-enabled.' }
   if (dry()) return { eligible: p.startsWith('+1'), phoneNumber: p, detail: p.startsWith('+1') ? 'Eligible (preview)' : 'Only US and Canada numbers can be text-enabled.' }
   try {
     const r = await axios.post(`${API}/messaging_hosted_number_orders/eligibility_numbers_check`, { phone_numbers: [p] }, { headers: hdr(), timeout: 20000 })
@@ -183,12 +192,13 @@ async function buildLoa(d, holder, { ip }) {
   return Buffer.from(await pdf.save())
 }
 
-async function submitDocs(chatId, id, { holder: rawHolder, bill, consent, ip }) {
+async function submitDocs(chatId, id, { holder: rawHolder, bill, consent, ip, noBill }) {
   const d = await mine(chatId, id)
   if (!d || d.status !== 'documents') return { error: 'This number isn’t waiting for documents.' }
   if (!consent) return { error: 'Tick the box to let us sign the authorization letter for you.' }
   const { holder, error } = cleanHolder(rawHolder)
   if (error) return { error }
+  if (noBill) return noBillHandoff(d, holder, ip)
   if (!Buffer.isBuffer(bill) || bill.slice(0, 5).toString() !== '%PDF-') return { error: 'Upload your phone bill as a PDF.' }
   if (bill.length > 5 * 1024 * 1024) return { error: 'The bill PDF must be under 5 MB.' }
   const loa = await buildLoa(d, holder, { ip })
@@ -205,14 +215,75 @@ async function submitDocs(chatId, id, { holder: rawHolder, bill, consent, ip }) 
   return { item: pub({ ...d, status: 'review', holder }) }
 }
 
+// No phone bill: +$50, the order waits in the admin queue; CloudIVR collects proof from the customer and submits it.
+async function noBillHandoff(d, holder, ip) {
+  if (!(await S.w.debit(d.chatId, NOBILL_FEE))) return { error: `Your wallet needs $${NOBILL_FEE} for us to collect the bill for you. Top up first.`, code: 'insufficient_balance' }
+  await txn(d.chatId, 'hosted-sms-nobill', NOBILL_FEE, { phoneNumber: d.phoneNumber, hostedId: d._id })
+  const paid = round2((d.paid || 0) + NOBILL_FEE)
+  await S.col.updateOne({ _id: d._id }, { $set: { status: 'admin_docs', holder, noBill: true, paid, signedIp: ip || null, handoffAt: new Date(), note: null, updatedAt: new Date() } })
+  S.tell(d.chatId, `📄 We’ll collect the proof for ${d.phoneNumber}. Within 1 business day we’ll email you what to send — usually a photo or screenshot of your phone account showing the name, service address and this number (your carrier’s app or website works). Once we submit it, approval usually takes ${REVIEW_DAYS}.`, { kind: 'billing', meta: { hosted: d._id } })
+  try { S.notifyAdmin?.(`📄 <b>Landline to Texting — bill needed</b>\n${d.phoneNumber} · chatId ${d.chatId}\nholder: ${holder.name}${holder.business ? ` (${holder.business})` : ''}, ${holder.carrier || ''}\nOpen cloudivr.net/admin → Texting queue to upload and submit.`) } catch (_) { /* best effort */ }
+  S.log(`[HostedSMS] ${d._id} handed to admin (no bill, +$${NOBILL_FEE})`)
+  return { item: pub({ ...d, status: 'admin_docs', holder, noBill: true, paid }) }
+}
+
+// Admin: proof collected from the customer (PDFs and/or photos) → one PDF → with the signed LOA to Telnyx → review.
+async function adminSubmitDocs(id, files, { admin } = {}) {
+  const d = await S.col.findOne({ _id: String(id) })
+  if (!d || !['admin_docs', 'documents'].includes(d.status)) return { error: 'This order isn’t waiting for documents.' }
+  if (!d.holder) return { error: 'The customer hasn’t entered the account holder details yet.' }
+  if (!files?.length) return { error: 'Add the bill or proof of ownership (PDF, JPG or PNG).' }
+  const { PDFDocument } = require('pdf-lib')
+  const out = await PDFDocument.create()
+  for (const f of files) {
+    const b = f.buffer
+    if (b.slice(0, 5).toString() === '%PDF-') { const src = await PDFDocument.load(b, { ignoreEncryption: true }); (await out.copyPages(src, src.getPageIndices())).forEach(p => out.addPage(p)); continue }
+    const isPng = b[0] === 0x89 && b[1] === 0x50, isJpg = b[0] === 0xff && b[1] === 0xd8
+    if (!isPng && !isJpg) return { error: `${f.originalname || 'A file'} isn’t a PDF, JPG or PNG.` }
+    const img = isPng ? await out.embedPng(b) : await out.embedJpg(b)
+    const scale = Math.min(1, 560 / img.width, 740 / img.height)
+    const page = out.addPage([612, 792])
+    page.drawImage(img, { x: (612 - img.width * scale) / 2, y: (792 - img.height * scale) / 2, width: img.width * scale, height: img.height * scale })
+  }
+  const bill = Buffer.from(await out.save())
+  if (bill.length > 5 * 1024 * 1024) return { error: 'Together the files must be under 5 MB — use smaller photos.' }
+  const loa = await buildLoa(d, d.holder, { ip: d.signedIp })
+  if (!dry()) {
+    try {
+      const form = new FormData()
+      form.append('loa', loa, { filename: `loa-${d._id}.pdf`, contentType: 'application/pdf' })
+      form.append('bill', bill, { filename: `bill-${d._id}.pdf`, contentType: 'application/pdf' })
+      await axios.post(`${API}/messaging_hosted_number_orders/${d.telnyxOrderId}/actions/file_upload`, form, { headers: { ...hdr(), ...form.getHeaders() }, timeout: 60000, maxBodyLength: 20 * 1024 * 1024 })
+    } catch (e) { return { error: `Telnyx didn’t accept the documents: ${errText(e)}` } }
+  }
+  const docsAt = new Date()
+  await S.col.updateOne({ _id: d._id }, { $set: { status: 'review', note: null, docsAt, submittedBy: admin || 'admin', updatedAt: docsAt } })
+  S.tell(d.chatId, `📨 We sent the documents for ${d.phoneNumber} to the carrier. Approval usually takes ${REVIEW_DAYS} — expected by ${addBusinessDays(docsAt, 3).toISOString().slice(0, 10)}. We’ll message you the moment texting is on.`, { kind: 'billing', meta: { hosted: d._id } })
+  S.log(`[HostedSMS] admin ${admin || ''} submitted documents for ${d.phoneNumber} (${d._id})`)
+  return { item: pub({ ...d, status: 'review', docsAt }) }
+}
+
+// Admin message to the customer (what proof to send, a question…). Lands in their Inbox/notifications.
+async function adminMessage(id, text) {
+  const d = await S.col.findOne({ _id: String(id) })
+  if (!d) return { error: 'Order not found.' }
+  await S.tell(d.chatId, `💬 CloudIVR about texting for ${d.phoneNumber}: ${String(text).slice(0, 1000)}`, { kind: 'billing', meta: { hosted: d._id } })
+  return { ok: true }
+}
+async function adminReject(id, note) {
+  const d = await S.col.findOne({ _id: String(id) })
+  if (!d || !['verify', 'documents', 'admin_docs', 'review'].includes(d.status)) return { error: 'Only orders not yet active can be rejected.' }
+  return { item: pub(await reject(d, String(note || 'The setup was rejected.').slice(0, 300))) }
+}
+
 async function cancel(chatId, id) {
   const d = await mine(chatId, id)
-  if (!d || !['verify', 'documents'].includes(d.status)) return { error: 'Only setups that haven’t been sent for review can be cancelled.' }
+  if (!d || !['verify', 'documents', 'admin_docs'].includes(d.status)) return { error: 'Only setups that haven’t been sent for review can be cancelled.' }
   return { item: pub(await reject(d, null, 'cancelled')) }
 }
 
 async function reject(d, note, status = 'rejected') {
-  const r = await S.col.findOneAndUpdate({ _id: d._id, status: { $in: ['verify', 'documents', 'review'] } }, { $set: { status, note, refunded: d.paid, updatedAt: new Date() }, $unset: { live: '' } }, { returnDocument: 'after' })
+  const r = await S.col.findOneAndUpdate({ _id: d._id, status: { $in: ['verify', 'documents', 'admin_docs', 'review'] } }, { $set: { status, note, refunded: d.paid, updatedAt: new Date() }, $unset: { live: '' } }, { returnDocument: 'after' })
   const doc = r?.value || r
   if (!doc || doc.status !== status) return d
   await S.w.credit(d.chatId, d.paid)
@@ -232,7 +303,7 @@ async function pollOne(d) {
     const r = await S.col.updateOne({ _id: d._id, status: 'review' }, { $set: { status: 'active', note: null, activatedAt: new Date(), nextBillAt: new Date(Date.now() + MONTH_MS), updatedAt: new Date() } })
     if (r.modifiedCount) S.tell(d.chatId, `✅ ${d.phoneNumber} can now send and receive texts. Incoming texts land in your Inbox — reply right there. $${MONTHLY}/month from your wallet, next on ${new Date(Date.now() + MONTH_MS).toISOString().slice(0, 10)}.`, { kind: 'billing', meta: { hosted: d._id } })
   } else if (FIX_DOCS.includes(st) && d.status === 'review') {
-    await S.col.updateOne({ _id: d._id }, { $set: { status: 'documents', note: REASON[st], updatedAt: new Date() } })
+    await S.col.updateOne({ _id: d._id }, { $set: { status: d.noBill ? 'admin_docs' : 'documents', note: REASON[st], updatedAt: new Date() } })
     S.tell(d.chatId, `⚠️ ${d.phoneNumber}: ${REASON[st]} Please send the details and phone bill again — no extra charge.`, { kind: 'billing', meta: { hosted: d._id } })
   } else if (REJECTED.includes(st)) {
     await reject(d, REASON[st] || 'Telnyx rejected the request.')
@@ -313,5 +384,5 @@ async function messages(chatId, id, limit = 50) {
   return S.db.collection('phoneLogs').find({ chatId: String(chatId), phoneNumber: d.phoneNumber, hosted: true }).sort({ timestamp: -1 }).limit(limit).toArray()
 }
 
-const api = { init, check, start, sendCode, submitCode, submitDocs, cancel, list, mine, pub, onInbound, sendText, messages, tick, buildLoa, normPhone, PRICE, MONTHLY, TEXT_PRICE, MAX_TEXT }
+const api = { init, check, start, sendCode, submitCode, submitDocs, cancel, adminSubmitDocs, adminMessage, adminReject, addBusinessDays, NOBILL_FEE, REVIEW_DAYS, list, mine, pub, onInbound, sendText, messages, tick, buildLoa, normPhone, PRICE, MONTHLY, TEXT_PRICE, MAX_TEXT }
 module.exports = api

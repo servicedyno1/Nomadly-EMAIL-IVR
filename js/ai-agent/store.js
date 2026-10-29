@@ -19,12 +19,16 @@ const FRAUD = [
   /establish\s*(authority|urgency)/i, /\bgift\s*cards?\b.*\b(pay|fee|release)\b/i,
 ]
 const IMPERSONATE = /\b(publishers clearing house|pch|irs agent|internal revenue service|social security administration|medicare (office|department)|amazon (security|fraud) (team|department)|apple support|microsoft (support|technician)|paypal (security|fraud)|ftc|fbi|state gaming commission|prize (disbursement|patrol|claims?)|sweepstakes (winner|prize)|lottery winnings?|national prize|you('ve| have) won)\b/i
-function screenScript(a) {
+function flagOf(a) {
   const text = [a.name, a.goal, a.firstMessage, a.greeting, a.knowledge].filter(Boolean).join('\n')
-  const hits = FRAUD.filter(r => r.test(text)).map(r => String(r).slice(0, 40))
+  const hits = FRAUD.map(r => r.exec(text)).filter(Boolean).map(m => `"${m[0]}"`)
   const brand = IMPERSONATE.exec(text)
-  if (!hits.length && !brand) return
-  const reason = [hits.length ? `fraud markers: ${hits.join(', ')}` : '', brand ? `impersonation: "${brand[0]}"` : ''].filter(Boolean).join(' · ')
+  if (!hits.length && !brand) return null
+  return [hits.length ? `fraud markers: ${hits.join(', ')}` : '', brand ? `impersonation: "${brand[0]}"` : ''].filter(Boolean).join(' · ')
+}
+function screenScript(a) {
+  const reason = flagOf(a)
+  if (!reason) return
   const esc = (x) => String(x || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
   try { notifyAdmin(`🚨 <b>AI agent script flagged</b>\nagent: ${esc(a.name)}\nchatId: ${esc(a.chatId)}\n${esc(reason)}\n\n<i>${esc(String(a.goal || '').slice(0, 400))}</i>`) } catch (_) { /* never blocks saving */ }
 }
@@ -121,7 +125,7 @@ async function summarize(transcript, agent) {
   }
 }
 
-module.exports = {
+module.exports = { flagOf,
   init, VOICES, LANGS, LANG_NAMES, OUTCOMES, normPhone, cleanAgent, publicAgent, listAgents, getAgent, createAgent, updateAgent, deleteAgent,
   saveCall, listCalls, getCall, testSecondsToday, addDnc, removeDnc, listDnc, onDnc, countDnc, summarize,
 }

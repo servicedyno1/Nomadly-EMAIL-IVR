@@ -19,9 +19,11 @@ export function NewSetup({ data, onDone, onCancel }) {
   const doCheck = () => run(async () => setCheck(await api('/hosted-sms/check', { method: 'POST', body: { phone } })));
   const pay = () => run(async () => { const r = await api('/hosted-sms', { method: 'POST', body: { phone: check.phoneNumber, mode } }); toast.success(`Paid $${r.item.paid} — next: ${mode === 'code' ? 'confirm the code' : 'your details & bill'}`); refreshSummary(); onDone(r.item); });
   const opts = [['code', ShieldCheck, `With ownership code — $${data.prices.code}`, 'We send a code to the number by text or phone call; you enter it here.'], ['nocode', FileText, `Without code — $${data.prices.nocode}`, 'Skip the code — just your details and phone bill.']];
+  const timeline = `After payment: confirm the code (if chosen) → your details and phone bill (no bill? we collect it for +$${data.noBillFee ?? 50}) → carrier review, usually ${data.reviewDays || '1–3 business days'}.`;
   return (
     <div className="civr-card p-6 space-y-5 mb-6 civr-rise" data-testid="texting-new">
       <div className="font-display text-2xl font-bold">Text-enable a number</div>
+      <p className="text-sm text-[#a1a1aa]" data-testid="texting-timeline">{timeline}</p>
       <div className="flex flex-col sm:flex-row gap-2 sm:items-end">
         <div className="flex-1"><Field label="Your existing number" hint="With country code, e.g. +1 312 555 0100"><input className="civr-input font-mono" value={phone} onChange={e => { setPhone(e.target.value); setCheck(null); }} placeholder="+1 312 555 0100" data-testid="texting-phone-input" /></Field></div>
         <button type="button" onClick={doCheck} disabled={busy || phone.replace(/\D/g, '').length < 10} className="civr-btn civr-btn-ghost sm:mb-6" data-testid="texting-check-button">{busy && !check ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}Check number</button>

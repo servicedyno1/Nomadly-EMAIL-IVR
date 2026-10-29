@@ -10,6 +10,7 @@ import { useShell } from '../../Shell';
 export const STATUS = {
   verify: { label: 'Waiting for ownership code', tone: 'text-[#fbbf24]' },
   documents: { label: 'Waiting for details & phone bill', tone: 'text-[#fbbf24]' },
+  admin_docs: { label: 'CloudIVR is collecting your phone bill', tone: 'text-[#fbbf24]' },
   review: { label: 'Under review · 1–3 business days', tone: 'text-[#818cf8]' },
   active: { label: 'Active for texting', tone: 'text-[#34d399]' },
   paused: { label: 'Paused · monthly fee due', tone: 'text-[#fb7185]' },
@@ -27,12 +28,13 @@ export function NumberPanel({ item, meta, onChange }) {
       </div>
       {item.status === 'verify' && <VerifyStep item={item} onChange={onChange} />}
       {item.status === 'documents' && <DocumentsStep item={item} onChange={onChange} />}
-      {item.status === 'review' && <Info icon={Hourglass} text="Your documents are with the carrier. We’ll message your Inbox the moment texting is on — usually 1–3 business days." testid="texting-review" />}
+      {item.status === 'admin_docs' && <Info icon={Hourglass} text="We’re collecting the proof of ownership for you. Check your email and Inbox — we’ll ask for a photo or screenshot of your phone account, then submit it. Approval usually takes 1–3 business days after that." testid="texting-admin-docs" />}
+      {item.status === 'review' && <Info icon={Hourglass} text={`Your documents are with the carrier${item.docsAt ? ` since ${String(item.docsAt).slice(0, 10)}` : ''}. Usually approved within 1–3 business days${item.expectedBy ? ` — expected by ${String(item.expectedBy).slice(0, 10)}` : ''}. We’ll message your Inbox the moment texting is on.`} testid="texting-review" />}
       {item.status === 'paused' && <Info icon={PauseCircle} text={`Texting is paused because the $${meta.monthly} monthly fee couldn’t be paid. Top up your wallet — it turns back on within a day.`} testid="texting-paused" />}
       {item.status === 'rejected' && <Info icon={XCircle} text={`This number couldn’t be text-enabled. $${item.paid} was refunded to your wallet.`} testid="texting-rejected" />}
       {item.status === 'active' && <p className="text-xs text-[#a1a1aa]" data-testid="texting-billing">Next ${meta.monthly} on {String(item.nextBillAt || '').slice(0, 10)} · ${meta.textPrice.toFixed(2)} per text in the US & Canada (other countries priced per country) and per received text · incoming texts also land in your Inbox.</p>}
       {['active', 'paused'].includes(item.status) && <Thread item={item} meta={meta} />}
-      {['verify', 'documents'].includes(item.status) && <CancelButton item={item} onChange={onChange} />}
+      {['verify', 'documents', 'admin_docs'].includes(item.status) && <CancelButton item={item} onChange={onChange} />}
     </div>
   );
 }

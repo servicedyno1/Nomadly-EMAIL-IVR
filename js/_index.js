@@ -4711,7 +4711,7 @@ const loadData = async () => {
     log('[CloudPhone] SMS Service limits initialized with overage billing')
     // Hosted SMS (text-enable an existing number): bot users get a chat message, web users an Inbox item.
     require('./hosted-sms.js').init({
-      db, log,
+      db, log, notifyAdmin,
       brand: () => 'CloudIVR',
       tell: async (id, text, extra) => {
         const webNotify = require('./cloudivr-web/notify.js')

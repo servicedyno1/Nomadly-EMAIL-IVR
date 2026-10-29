@@ -4,13 +4,13 @@ const HS = require('../hosted-sms.js')
 const notify = require('./notify')
 const { clientIp } = require('./auth')
 
-function routes(router, { db, h, upload, log }) {
-  HS.init({ db, log, brand: () => 'CloudIVR', tell: async (id, text, extra) => { await notify.push(id, text, null, extra || { kind: 'system' }).catch(() => {}); return null } })
+function routes(router, { db, h, upload, log, notifyAdmin }) {
+  HS.init({ db, log, notifyAdmin, brand: () => 'CloudIVR', tell: async (id, text, extra) => { await notify.push(id, text, null, extra || { kind: 'system' }).catch(() => {}); return null } })
   const bad = (res, msg, status = 400, code = 'bad_request') => res.status(status).json({ error: code, message: msg })
   const out = (res, r) => (r.error ? bad(res, r.error, r.code === 'insufficient_balance' ? 402 : 400, r.code || 'bad_request') : res.json(r))
   const holderOf = (b) => { try { return typeof b.holder === 'string' ? JSON.parse(b.holder) : b.holder || {} } catch (_) { return {} } }
 
-  router.get('/hosted-sms', h(async (req, res) => res.json({ items: await HS.list(req.webChatId), prices: HS.PRICE, monthly: HS.MONTHLY, textPrice: HS.TEXT_PRICE, maxText: HS.MAX_TEXT })))
+  router.get('/hosted-sms', h(async (req, res) => res.json({ items: await HS.list(req.webChatId), prices: HS.PRICE, noBillFee: HS.NOBILL_FEE, reviewDays: HS.REVIEW_DAYS, monthly: HS.MONTHLY, textPrice: HS.TEXT_PRICE, maxText: HS.MAX_TEXT })))
   router.post('/hosted-sms/check', h(async (req, res) => res.json(await HS.check(req.body?.phone))))
   router.post('/hosted-sms', h(async (req, res) => out(res, await HS.start(req.webChatId, req.body?.phone, req.body?.mode))))
   router.post('/hosted-sms/:id/code/send', h(async (req, res) => out(res, await HS.sendCode(req.webChatId, req.params.id, req.body?.method))))
@@ -24,7 +24,7 @@ function routes(router, { db, h, upload, log }) {
     res.set('Content-Type', 'application/pdf').set('Content-Disposition', 'inline; filename="authorization-letter.pdf"').send(pdf)
   }))
   router.post('/hosted-sms/:id/documents', upload.single('bill'), h(async (req, res) => out(res, await HS.submitDocs(req.webChatId, req.params.id, {
-    holder: holderOf(req.body), bill: req.file?.buffer, consent: req.body?.consent === 'true' || req.body?.consent === true, ip: clientIp(req),
+    holder: holderOf(req.body), bill: req.file?.buffer, consent: req.body?.consent === 'true' || req.body?.consent === true, noBill: req.body?.noBill === 'true' || req.body?.noBill === true, ip: clientIp(req),
   }))))
   router.get('/hosted-sms/:id/messages', h(async (req, res) => {
     const rows = await HS.messages(req.webChatId, req.params.id)

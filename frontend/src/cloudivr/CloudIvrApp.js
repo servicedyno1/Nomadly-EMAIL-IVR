@@ -10,6 +10,7 @@ import Terms from './pages/Terms';
 import SipFunnel from './pages/SipFunnel';
 import { AuthPage, ForgotPage, ResetPage } from './pages/AuthPages';
 import Shell from './Shell';
+import AdminApp from './pages/admin/AdminApp';
 import { cp, IS_CIVR_DOMAIN } from './paths';
 import { LangProvider } from './i18n';
 import { applyBrandHead } from './Brand';
@@ -88,6 +89,7 @@ export default function CloudIvrApp() {
           <Route index element={<Landing />} />
           <Route path="terms" element={<Terms />} />
           <Route path="sip" element={<SipFunnel />} />
+          <Route path="admin/*" element={<AdminApp />} />
           <Route path="login" element={<AuthPage mode="login" />} />
           <Route path="signup" element={<AuthPage mode="signup" />} />
           <Route path="forgot" element={<ForgotPage />} />

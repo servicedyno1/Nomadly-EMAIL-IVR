@@ -215,3 +215,9 @@
   Alice `civr.alice@example.com` / `AliceTest#2026` ($380 after a dry-run Business number `+13346972125`), Bob `civr.bob@example.com` /
   `BobTest#2026` ($500). Alice has AI agent "Ava · Sunrise Dental". Production read-only access: SSH droplet key from
   `DROPLET_SSH_KEY_B64` → `/root/.ssh/nomadly_droplet`, prod Mongo only via scripts run ON the droplet.
+
+## CloudIVR admin dashboard (owner) — added 2026-10-29
+- URL: preview `<REACT_APP_BACKEND_URL>/cloudivr/admin`, production `https://cloudivr.net/admin`
+- Email: moxxcompany@gmail.com  Password: Katiekendra123@
+- Second step: 6-digit code emailed to that address. In preview (WEB_CLOUDIVR_DRY_RUN=true) POST /api/cloudivr-web/admin/login also returns `devCode` and the login form pre-fills it.
+- Env: CIVR_ADMIN_EMAIL, CIVR_ADMIN_PASSWORD_HASH_B64 (base64 of bcrypt hash) in backend/.env

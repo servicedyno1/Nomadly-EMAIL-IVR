@@ -8,13 +8,14 @@ const FIELDS = [['name', 'Account holder’s full name', 'As on the phone bill']
 const REQUIRED = ['name', 'address', 'city', 'state', 'zip', 'carrier'];
 
 // Details → we fill in + e-sign the authorization letter (after consent) → bill PDF → sent for review.
-export function DocumentsStep({ item, onChange }) {
+export function DocumentsStep({ item, onChange, fee = 50 }) {
   const [h, setH] = useState(() => Object.fromEntries(FIELDS.map(([k]) => [k, item.holder?.[k] || ''])));
   const [bill, setBill] = useState(null);
   const [consent, setConsent] = useState(false);
+  const [noBill, setNoBill] = useState(false);
   const [busy, setBusy] = useState(null);
   const [err, setErr] = useState(null);
-  const ready = REQUIRED.every(k => h[k].trim()) && bill && consent;
+  const ready = REQUIRED.every(k => h[k].trim()) && (bill || noBill) && consent;
   const preview = async () => {
     setBusy('preview'); setErr(null);
     try {
@@ -29,9 +30,10 @@ export function DocumentsStep({ item, onChange }) {
     setBusy('send'); setErr(null);
     try {
       const form = new FormData();
-      form.append('bill', bill); form.append('holder', JSON.stringify(h)); form.append('consent', 'true');
+      if (bill && !noBill) form.append('bill', bill);
+      form.append('holder', JSON.stringify(h)); form.append('consent', 'true'); if (noBill) form.append('noBill', 'true');
       await api(`/hosted-sms/${item.id}/documents`, { method: 'POST', form });
-      toast.success('Documents sent for review'); onChange();
+      toast.success(noBill ? `Paid $${fee} — we’ll email you what to send` : 'Documents sent for review'); onChange();
     } catch (e) { setErr(e); } finally { setBusy(null); }
   };
   const pick = (f) => { if (f && f.type !== 'application/pdf') return toast.error('Upload the bill as a PDF.'); if (f && f.size > 5 * 1024 * 1024) return toast.error('The PDF must be under 5 MB.'); setBill(f || null); };
@@ -44,12 +46,17 @@ export function DocumentsStep({ item, onChange }) {
         <input type="checkbox" checked={consent} onChange={e => setConsent(e.target.checked)} className="mt-1 accent-[#818cf8]" data-testid="texting-consent-checkbox" />
         <span>I am the account holder (or authorized by them) and I allow CloudIVR to sign the Letter of Authorization in my name.</span>
       </label>
-      <label className="civr-card border-dashed p-5 flex items-center gap-3 cursor-pointer" data-testid="texting-bill-drop">
+      <label className="flex items-start gap-3 text-sm cursor-pointer" data-testid="texting-nobill-option">
+        <input type="checkbox" checked={noBill} onChange={e => setNoBill(e.target.checked)} className="mt-1 accent-[#818cf8]" data-testid="texting-nobill-checkbox" />
+        <span>I don’t have a phone bill — <b>CloudIVR collects the proof for me (+${fee})</b>. We’ll email you within 1 business day; usually a photo or screenshot of your phone account is enough.</span>
+      </label>
+      {!noBill && <label className="civr-card border-dashed p-5 flex items-center gap-3 cursor-pointer" data-testid="texting-bill-drop">
         <Upload className="w-5 h-5 text-[#818cf8]" />
         <span className="text-sm flex-1">{bill ? bill.name : 'Upload your most recent phone bill (PDF, under 5 MB)'}</span>
         <input type="file" accept="application/pdf" className="hidden" onChange={e => pick(e.target.files?.[0])} data-testid="texting-bill-input" />
-      </label>
-      <button type="button" onClick={submit} disabled={!ready || !!busy} className="civr-btn civr-btn-primary" data-testid="texting-documents-submit">{busy === 'send' && <Loader2 className="w-4 h-4 animate-spin" />}Sign & send for review</button>
+      </label>}
+      <button type="button" onClick={submit} disabled={!ready || !!busy} className="civr-btn civr-btn-primary" data-testid="texting-documents-submit">{busy === 'send' && <Loader2 className="w-4 h-4 animate-spin" />}{noBill ? `Pay $${fee} & let CloudIVR collect the bill` : 'Sign & send for review'}</button>
+      <p className="text-xs text-[#a1a1aa]" data-testid="texting-approval-time">After the documents are sent, approval usually takes 1–3 business days (the carrier reviews Mon–Fri).</p>
       <ErrorNote error={err} testid="texting-documents-error" />
     </div>
   );
