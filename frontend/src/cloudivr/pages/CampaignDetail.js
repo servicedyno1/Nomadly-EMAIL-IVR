@@ -129,7 +129,8 @@ export default function CampaignDetail() {
   useEffect(() => { if (!c || !LIVE.includes(c.status)) return undefined; const t = setInterval(reload, 5000); return () => clearInterval(t); }, [c, reload]);
 
   const act = async (action) => {
-    if (action === 'cancel' && !(await ask('Cancel this campaign? No more numbers are dialed. Calls still ringing or playing the message end now; calls already transferred to you keep going.', { danger: true, ok: 'Cancel campaign', cancel: 'Keep it running' }))) return;
+    const started = !['created', 'scheduled'].includes(c.status);
+    if (action === 'cancel' && !(await ask(started ? 'Cancel this campaign? No more numbers are dialed. Calls still ringing or playing the message end now; calls already transferred to you keep going.' : 'Cancel this campaign? It will never dial anyone.', { danger: true, ok: 'Cancel campaign', cancel: started ? 'Keep it running' : 'Keep it' }))) return;
     setBusy(true);
     try {
       const d = await api(`/campaigns/${id}/${action}`, { method: 'POST' });

@@ -351,7 +351,7 @@ const STALE_CAMPAIGN_HOURS = 24  // Campaigns with no progress for 24h are consi
 
 async function recoverRunningCampaigns() {
   if (!_collection) return
-  const runningCampaigns = await _collection.find({ status: 'running' }).toArray()
+  const runningCampaigns = await _collection.find({ status: 'running', dryRun: { $ne: true } }).toArray()
   if (runningCampaigns.length === 0) {
     log('[BulkCall] Recovery: No running campaigns to recover')
     return
@@ -744,7 +744,7 @@ async function launchDueScheduledCampaigns() {
   const launched = []
   if (!_collection) return launched
   const now = new Date()
-  const due = await _collection.find({ status: 'scheduled', scheduledFor: { $lte: now } }).limit(20).toArray()
+  const due = await _collection.find({ status: 'scheduled', scheduledFor: { $lte: now }, dryRun: { $ne: true } }).limit(20).toArray()
   for (const c of due) {
     // Repeat run while the previous run is still calling → that run finishes first; this one moves to the next slot.
     if (c.seriesId && await _collection.findOne({ seriesId: c.seriesId, id: { $ne: c.id }, status: { $in: ['running', 'paused'] } }, { projection: { id: 1 } })) {
@@ -829,6 +829,7 @@ async function startCampaign(campaignId) {
   const campaign = await _collection.findOne({ id: campaignId })
   if (!campaign) return { error: 'Campaign not found' }
   if (campaign.status === 'running') return { error: 'Campaign already running' }
+  if (campaign.dryRun) return { error: 'Preview campaigns are never dialed.' }
   const isTelnyx = campaignProvider(campaign) === 'telnyx'
 
   // Reversible guard: legacy Twilio campaigns can't dial while Twilio is disabled.

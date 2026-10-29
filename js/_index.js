@@ -4577,7 +4577,10 @@ const loadData = async () => {
   // claim so each campaign launches exactly once even if multiple instances run.
   try {
     schedule.scheduleJob('* * * * *', async function () {
-      if (process.env.SKIP_WEBHOOK_SYNC === 'true') return // dev sandbox: don't auto-launch / place calls
+      if (process.env.SKIP_WEBHOOK_SYNC === 'true') { // dev sandbox: never place calls; preview dry-run campaigns are simulated instead
+        if (process.env.WEB_CLOUDIVR_DRY_RUN === 'true' && db) await require('./cloudivr-web/campaign-sim').tick(db.collection('bulkCallCampaigns'), bulkCallService).catch(e => log('[CampaignSim] tick error:', e.message))
+        return
+      }
       try {
         const launched = await bulkCallService.launchDueScheduledCampaigns()
         for (const l of launched) {

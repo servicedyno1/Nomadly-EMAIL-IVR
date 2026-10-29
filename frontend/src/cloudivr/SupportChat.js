@@ -45,7 +45,7 @@ export default function SupportChat({ supportLink, visitor = false }) {
   // The Help center's "Ask the help assistant" button opens this panel.
   useEffect(() => {
     if (visitor) return undefined;
-    const o = () => setOpen(true);
+    const o = (e) => { setOpen(true); if (e?.detail?.text) setText(e.detail.text); };
     window.addEventListener(OPEN_HELP_CHAT, o);
     return () => window.removeEventListener(OPEN_HELP_CHAT, o);
   }, [visitor]);

@@ -16,7 +16,7 @@ export function ShowAsSelect({ value, onChange, testid, compact = false }) {
   const addBtn = <button type="button" className="text-[#818cf8] hover:underline inline-flex items-center gap-1 min-h-[44px]" onClick={() => setOpen(true)} data-testid={`${testid}-add-button`}><Plus className="w-3.5 h-3.5" />Add or verify a number</button>;
   const dialog = (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent className="civr max-w-2xl" data-testid={`${testid}-dialog`}>
+      <DialogContent className="civr !min-h-0 content-start max-w-2xl" data-testid={`${testid}-dialog`}>
         <DialogHeader>
           <DialogTitle>Your own caller IDs</DialogTitle>
           <DialogDescription>Verify a number you own with a code, or request one we review by hand. $25 each, charged only when it’s accepted. Calls are still billed from your CloudIVR number.</DialogDescription>

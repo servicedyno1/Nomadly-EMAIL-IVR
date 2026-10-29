@@ -9,6 +9,7 @@ const { cleanMenu, firstForward } = require('./outbound')
 const { listLeads } = require('./contacts')
 const live = require('./campaign-live')
 const sched = require('../campaign-schedule')
+const sim = require('./campaign-sim')
 
 const dryRun = () => process.env.WEB_CLOUDIVR_DRY_RUN === 'true'
 const QUICK_MIN_WALLET = 1
@@ -63,7 +64,6 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
       if (isNaN(d.getTime()) || d.getTime() < Date.now() + 60000 || d.getTime() > Date.now() + 30 * 86400000) return { err: [400, 'invalid_schedule', 'Schedule between 1 minute and 30 days from now.'] }
       scheduledFor = d
     }
-    if (dryRun() && scheduledFor) return { err: [400, 'dry_run', 'Scheduling is turned off in preview mode — calls would be dialed for real.'] }
     const repeat = b.repeat ? String(b.repeat) : null
     if (repeat && !sched.REPEATS.includes(repeat)) return { err: [400, 'invalid_repeat', 'Pick how often the campaign repeats: every day or every week.'] }
     let dailyLimit = null
@@ -126,12 +126,13 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
     if (c.err) return bad(res, ...c.err)
     const showAs = await callerIds.resolve(chatId, b.showAs).catch(e => e)
     if (showAs instanceof Error) return bad(res, 400, 'invalid_show_as', showAs.message)
-    const audio = await ownAudio(chatId, b.audioId)
+    // validateOnly + audioPending: check everything before the browser pays for the AI voice of a written script.
+    const audio = b.validateOnly && b.audioPending ? {} : await ownAudio(chatId, b.audioId)
     if (!audio) return bad(res, 400, 'invalid_audio', 'Pick a message from your audio library, or write a script and press “Make AI voice”.')
     const vm = b.voicemailAudioId ? await ownAudio(chatId, b.voicemailAudioId) : null
     if (b.voicemailAudioId && !vm) return bad(res, 400, 'invalid_audio', 'Pick the voicemail drop from your audio library.')
     const { leads, errors } = await leadsOf(chatId, b)
-    if (!leads.length) return bad(res, 400, 'no_leads', errors[0] || 'Add at least one number to call (one per line, optional ",name").')
+    if (!leads.length) return bad(res, 400, 'no_leads', (!b.listId && !String(b.leads || '').trim() ? '' : errors[0]) || 'Add at least one number to call (one per line, optional ",name").')
     if (leads.length > bulkCallService.MAX_BULK_LEADS) return bad(res, 400, 'too_many_leads', `Maximum ${bulkCallService.MAX_BULK_LEADS} numbers per campaign.`)
     // 'menu' = route each key (forward / message / sub-menu); the engine runs it as a transfer campaign.
     const mode = ['transfer', 'menu'].includes(b.mode) ? 'transfer' : 'report_only'
@@ -150,6 +151,7 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
     if (bk.error) return bad(res, 400, 'invalid_backup', bk.error)
     const plan = runPlan(b)
     if (plan.err) return bad(res, ...plan.err)
+    if (b.validateOnly) return res.json({ ok: true })
     const campaign = await bulkCallService.createCampaign({
       chatId, callerId: c.n.phoneNumber, audioUrl: audio.audioUrl, audioName: audio.name, name: b.name, mode, transferNumber, transferBackups: bk.list, menu,
       activeKeys, concurrency: Math.min(20, Math.max(1, parseInt(b.concurrency, 10) || 5)), holdMusic: !!b.holdMusic,
@@ -172,7 +174,7 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
     if (!agent) return bad(res, 400, 'invalid_agent', 'Pick one of your AI agents.')
     if (agent.disabled) return bad(res, 403, 'agent_stopped', 'This AI agent was stopped by CloudIVR. Contact support.')
     const { leads, errors } = await leadsOf(chatId, b)
-    if (!leads.length) return bad(res, 400, 'no_leads', errors[0] || 'Add at least one number to call (one per line, optional ",name").')
+    if (!leads.length) return bad(res, 400, 'no_leads', (!b.listId && !String(b.leads || '').trim() ? '' : errors[0]) || 'Add at least one number to call (one per line, optional ",name").')
     if (leads.length > bulkCallService.MAX_BULK_LEADS) return bad(res, 400, 'too_many_leads', `Maximum ${bulkCallService.MAX_BULK_LEADS} numbers per campaign.`)
     const plan = runPlan(b)
     if (plan.err) return bad(res, ...plan.err)
@@ -217,7 +219,10 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
     const ai = req.campaign.mode === 'ai'
     const c = await caller(req.webChatId, req.campaign.callerId, ai ? 'aiAgent' : 'bulkCall', ai ? 'AI agent campaigns' : 'Bulk IVR campaigns')
     if (c.err) return bad(res, ...c.err)
-    if (req.campaign.dryRun || dryRun()) return res.status(202).json({ dryRun: true, message: 'Preview mode: the campaign is saved but no numbers were dialed.' })
+    if (req.campaign.dryRun || dryRun()) {
+      if (!req.campaign.dryRun || !(await sim.run(db.collection('bulkCallCampaigns'), req.campaign.id))) return bad(res, 400, 'start_failed', 'This campaign is not waiting to start.')
+      return res.status(202).json({ dryRun: true, message: 'Preview mode: simulating the calls with made-up results. Nobody is dialed.' })
+    }
     const r = await bulkCallService.startCampaign(req.campaign.id)
     if (r?.error) return bad(res, r.lowBalance ? 402 : 400, 'start_failed', String(r.error).replace(/<[^>]+>/g, ''))
     res.json({ started: true })
@@ -225,7 +230,10 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
 
   for (const [action, fn] of [['pause', 'pauseCampaign'], ['resume', 'resumeCampaign'], ['cancel', 'cancelCampaign']]) {
     router.post(`/campaigns/:id/${action}`, withCampaign(async (req, res) => {
-      if (action === 'resume' && (req.campaign.dryRun || dryRun())) return res.status(202).json({ dryRun: true, message: 'Preview mode: no numbers are dialed.' })
+      if (action === 'resume' && (req.campaign.dryRun || dryRun())) {
+        if (req.campaign.dryRun) await sim.run(db.collection('bulkCallCampaigns'), req.campaign.id)
+        return res.status(202).json({ dryRun: true, message: 'Preview mode: simulating the rest of the calls. Nobody is dialed.' })
+      }
       const r = await bulkCallService[fn](req.campaign.id, ...(action === 'cancel' ? ['Cancelled by user'] : []))
       if (r?.error) return bad(res, r.lowBalance ? 402 : 400, `${action}_failed`, String(r.error).replace(/<[^>]+>/g, ''))
       res.json({ ok: true, campaign: publicCampaign(await bulkCallService.getCampaign(req.campaign.id)) })

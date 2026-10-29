@@ -45,7 +45,7 @@ function Contact({ supportLink }) {
     <div className="civr-card p-6 space-y-4" data-testid="help-contact-card">
       <div className="font-display text-2xl font-bold">Still stuck?</div>
       <p className="text-sm text-[#a1a1aa]">The help assistant answers right away, in your language. A person from our team can take over on Telegram.</p>
-      <button type="button" className="civr-btn civr-btn-primary w-full" onClick={openHelpChat} data-testid="help-open-assistant-button"><MessageCircleQuestion className="w-4 h-4" />Ask the help assistant</button>
+      <button type="button" className="civr-btn civr-btn-primary w-full" onClick={() => openHelpChat()} data-testid="help-open-assistant-button"><MessageCircleQuestion className="w-4 h-4" />Ask the help assistant</button>
       {supportLink && <a href={supportLink} target="_blank" rel="noopener noreferrer" className="civr-btn civr-btn-ghost w-full" data-testid="help-support-link"><LifeBuoy className="w-4 h-4" />Message support</a>}
       <Link to={cp('/terms')} target="_blank" className="block text-center text-sm text-[#a1a1aa] hover:text-[#818cf8] py-2" data-testid="help-terms-link">Terms of Service</Link>
     </div>

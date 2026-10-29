@@ -8,7 +8,7 @@ export function AudioAddDialog({ open, mode, setMode, onClose, onAdded, testid }
   const done = (a) => { onClose(); if (a) onAdded(a); };
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="civr max-w-2xl max-h-[90dvh] overflow-y-auto" data-testid={`${testid}-dialog`}>
+      <DialogContent className="civr !min-h-0 content-start max-w-2xl max-h-[90dvh] overflow-y-auto" data-testid={`${testid}-dialog`}>
         <DialogHeader>
           <DialogTitle className="font-display text-2xl">Add audio</DialogTitle>
           <DialogDescription>It is saved to your audio library and picked here straight away.</DialogDescription>

@@ -48,7 +48,7 @@ function CampaignRow({ c, i, pv, onChange }) {
       <div className="flex flex-col md:flex-row md:items-center gap-3">
         <div className="flex-1 min-w-0"><div className="font-semibold truncate" data-testid={`campaign-row-${i}-name`}>{c.name || c.audioName || 'Campaign'}</div><div className="text-xs text-[#a1a1aa] font-mono">{pv.phone(c.callerId)} · {when(c.createdAt)}</div></div>
         <div className="font-mono text-sm text-[#d4d4d8]" data-testid={`campaign-row-${i}-progress-text`}>{c.stats?.completed || 0}/{c.stats?.total || 0} called</div>
-        {c.voicemailAudioName && <div className="font-mono text-sm text-[#a1a1aa]" data-testid={`campaign-row-${i}-voicemail-left`}>{`${c.stats?.voicemailLeft || 0} ${c.stats?.voicemailLeft === 1 ? 'message' : 'messages'} left`}</div>}
+        {c.voicemailAudioName && c.startedAt && <div className="font-mono text-sm text-[#a1a1aa]" data-testid={`campaign-row-${i}-voicemail-left`}>{`${c.stats?.voicemailLeft || 0} ${c.stats?.voicemailLeft === 1 ? 'message' : 'messages'} left`}</div>}
         {c.repeat && <span className="civr-pill civr-pill-on" data-testid={`campaign-row-${i}-repeat`}><Repeat className="w-3 h-3" />{c.repeat === 'weekly' ? 'weekly' : 'daily'}{c.runNumber > 1 ? ` · run ${c.runNumber}` : ''}</span>}
         {c.waitingForDailyLimit && c.status === 'running' && <span className="civr-pill civr-pill-warn" data-testid={`campaign-row-${i}-daily-limit`}>daily limit reached</span>}
         <span className={statusPill(c.status)} data-testid={`campaign-row-${i}-status`}>{c.status}</span>
@@ -226,11 +226,12 @@ export function CampaignNew() {
   const audience = fromList ? { listId: f.listId, leads: '' } : { listId: undefined, leads: f.leads };
   const estimate = async () => { setBusy('est'); try { setEst(await api('/campaigns/estimate', { method: 'POST', body: audience })); } catch (e) { toast.error(e.message); } finally { setBusy(''); } };
   // A written script whose "Make AI voice" was never pressed: make the voice now so Save just works.
-  const scriptAudio = async () => {
+  const scriptAudio = async (check) => {
     const text = fillScript(script.text, script.values).trim();
     const left = placeholdersOf(text);
     if (left.length) throw new Error(`Fill in ${left.map(n => `[${n}]`).join(', ')} in your script first.`);
     if (text.length < 3) throw new Error('Pick a message from your audio library, or write a script for the AI voice to read.');
+    await check();
     setBusy('voice');
     const d = await api('/audio/tts', { method: 'POST', body: { text, voice: script.voice || voiceDef.voice, speed: script.speed || voiceDef.speed, name: f.name.trim() || (script.templateName ? `${script.templateName} · ${text.slice(0, 24)}…` : text.slice(0, 40)) } });
     reloadAudio(); setF(x => ({ ...x, audioId: d.audio.id })); setScript(null);
@@ -240,11 +241,12 @@ export function CampaignNew() {
   const create = async (e) => {
     e.preventDefault(); setBusy('create'); setError(null);
     try {
-      const audioId = !isAi && !f.audioId && script ? await scriptAudio() : f.audioId;
       const scheduledFor = f.scheduledFor ? new Date(f.scheduledFor).toISOString() : null;
       const plan = { repeat: f.repeat || null, dailyLimit: f.dailyLimit === '' ? null : Number(f.dailyLimit), tz: TZ };
+      const base = { ...f, ...audience, source: undefined, callerId, showAs: f.showAs || undefined, menu: f.mode === 'menu' ? menuToApi(f.menu) : undefined, scheduledFor, ...plan };
+      const audioId = !isAi && !f.audioId && script ? await scriptAudio(() => api('/campaigns', { method: 'POST', body: { ...base, validateOnly: true, audioPending: true } })) : f.audioId;
       const body = isAi ? { mode: 'ai', name: f.name, agentId: f.agentId, callerId, showAs: f.showAs || undefined, ...audience, concurrency: f.concurrency, scheduledFor, ...plan }
-        : { ...f, audioId, ...audience, source: undefined, callerId, showAs: f.showAs || undefined, menu: f.mode === 'menu' ? menuToApi(f.menu) : undefined, scheduledFor, ...plan };
+        : { ...base, audioId };
       const d = await api('/campaigns', { method: 'POST', body });
       toast.success(d.skipped ? `Campaign saved · ${d.skipped} line(s) skipped` : 'Campaign saved');
       if (d.doNotCall) toast.message(`${d.doNotCall} number(s) are on your do-not-call list and will be skipped`);
@@ -284,7 +286,7 @@ export function CampaignNew() {
           {f.mode === 'menu' ? <MenuBuilder value={f.menu} onChange={set('menu')} testid="campaign-menu" /> : <Field label="Keys that count"><KeyPicker value={f.activeKeys} onChange={set('activeKeys')} testid="campaign-keys" /></Field>}
           </>}
           <Field label="Calls at the same time"><input type="number" min={1} max={20} className="civr-input" value={f.concurrency} onChange={set('concurrency')} data-testid="campaign-concurrency-input" /></Field>
-          <Field label="Schedule (optional)" hint={f.repeat ? 'First run. Leave empty to start it yourself — the next runs follow at the same time.' : 'Leave empty to start manually.'}><DateTimePicker value={f.scheduledFor} onChange={set('scheduledFor')} testid="campaign-schedule" /></Field>
+          <Field label="Schedule (optional)" hint={f.repeat ? 'First run. Leave empty to start it yourself — the next runs follow at the same time.' : 'Leave empty to start manually.'}><DateTimePicker value={f.scheduledFor} onChange={set("scheduledFor")} minMinutes={2} testid="campaign-schedule" /></Field>
           <RunPlanFields f={f} set={set} />
           {!isAi && f.mode !== 'report_only' && <div className="flex items-center justify-between"><span className="text-sm">Hold music during transfer</span><Toggle checked={f.holdMusic} onChange={set('holdMusic')} testid="campaign-hold-music-toggle" label="Hold music during transfer" /></div>}
           <ErrorNote error={error} testid="campaign-create-error" />
