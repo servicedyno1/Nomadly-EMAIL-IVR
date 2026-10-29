@@ -5,7 +5,8 @@ const crypto = require('crypto')
 const { walletOps } = require('./wallet')
 
 const PRICE = Number(process.env.RATE_CALLER_ID_VERIFY || 25)
-const MAX_SENDS_PER_DAY = 8
+const MAX_SENDS_PER_DAY = 25
+const MAX_BATCH = 10
 const MAX_TRIES = 5
 const PENDING_MS = 15 * 60000
 const DRY_CODE = '123456'
@@ -58,21 +59,36 @@ function routes(router, { db, h, numbersApi }) {
   }))
 
   router.post('/caller-ids', h(async (req, res) => {
-    const chatId = req.webChatId, n = clean(req.body.number)
+    const chatId = req.webChatId
     const method = req.body.method === 'call' ? 'call' : 'sms'
-    if (!E164.test(n)) return bad(res, 400, 'invalid_number', 'Enter the number with country code, e.g. +14155550100.')
-    if (await numbersApi.findMine(chatId, n)) return bad(res, 400, 'own_number', 'That is already one of your CloudIVR numbers — pick it as “Call from” instead.')
-    const cur = await col.findOne({ _id: n })
-    if (cur?.chatId === chatId && cur.status === 'verified') return bad(res, 400, 'already_verified', 'This number is already verified on your account.')
-    if (cur && cur.chatId !== chatId && (cur.status === 'verified' || Date.now() - cur.createdAt < PENDING_MS)) return bad(res, 409, 'number_taken', 'This number is in use on another account. Contact support if it is yours.')
+    const list = [...new Set((Array.isArray(req.body.numbers) ? req.body.numbers : [req.body.number]).map(clean))].filter(n => n !== '+')
+    if (!list.length) return bad(res, 400, 'invalid_number', 'Enter the number with country code, e.g. +14155550100.')
+    if (list.length > MAX_BATCH) return bad(res, 400, 'too_many_numbers', `Up to ${MAX_BATCH} numbers at a time.`)
     const bal = await w.balance(chatId)
     if (bal < PRICE) return bad(res, 402, 'insufficient_balance', `Verifying a caller ID costs $${PRICE.toFixed(2)}, charged once the code is accepted. Your balance is $${bal.toFixed(2)} — top up first.`)
-    if (await sends.countDocuments({ chatId }) >= MAX_SENDS_PER_DAY) return bad(res, 429, 'too_many_codes', 'Too many codes sent today. Try again tomorrow.')
-    try { await requestCode(n, method) } catch (e) { return bad(res, 424, 'send_failed', `We couldn’t send the code: ${e.message}`) }
+    const results = []
+    for (const n of list) results.push({ number: n, ...(await sendOne(chatId, n, method)) })
+    const sent = results.filter(r => r.ok)
+    if (list.length === 1 && !sent.length) return bad(res, results[0].status, results[0].error, results[0].message)
+    res.status(sent.length ? 201 : 400).json({
+      number: sent[0]?.number, method, dryRun: dry(), results,
+      message: dry() ? `Preview mode: no code was sent. Enter ${DRY_CODE}.` : sent.length > 1 ? `Codes sent to ${sent.length} numbers.` : method === 'call' ? 'We’re calling that number now — listen for the code.' : 'We texted a code to that number.',
+    })
+  }))
+
+  async function sendOne(chatId, n, method) {
+    const no = (status, error, message) => ({ ok: false, status, error, message })
+    if (!E164.test(n)) return no(400, 'invalid_number', 'Enter the number with country code, e.g. +14155550100.')
+    if (await numbersApi.findMine(chatId, n)) return no(400, 'own_number', 'That is already one of your CloudIVR numbers — pick it as “Call from” instead.')
+    const cur = await col.findOne({ _id: n })
+    if (cur?.chatId === chatId && cur.status === 'verified') return no(400, 'already_verified', 'This number is already verified on your account.')
+    if (cur && cur.chatId !== chatId && (cur.status === 'verified' || Date.now() - cur.createdAt < PENDING_MS)) return no(409, 'number_taken', 'This number is in use on another account. Contact support if it is yours.')
+    if (await sends.countDocuments({ chatId }) >= MAX_SENDS_PER_DAY) return no(429, 'too_many_codes', 'Too many codes sent today. Try again tomorrow.')
+    try { await requestCode(n, method) } catch (e) { return no(424, 'send_failed', `We couldn’t send the code: ${e.message}`) }
     await sends.insertOne({ chatId, number: n, at: new Date() })
     await col.replaceOne({ _id: n }, { _id: n, chatId, status: 'pending', method, tries: 0, createdAt: Date.now() }, { upsert: true })
-    res.status(201).json({ number: n, method, dryRun: dry(), message: dry() ? `Preview mode: no code was sent. Enter ${DRY_CODE}.` : method === 'call' ? 'We’re calling that number now — listen for the code.' : 'We texted a code to that number.' })
-  }))
+    return { ok: true }
+  }
 
   router.post('/caller-ids/verify', h(async (req, res) => {
     const chatId = req.webChatId, n = clean(req.body.number), code = String(req.body.code || '').replace(/\D/g, '')

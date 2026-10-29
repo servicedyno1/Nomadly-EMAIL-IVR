@@ -94,14 +94,16 @@ function routes(router, { db, h, numbersApi, audioLibraryService, voiceService, 
     }
     if (me === c.n.phoneNumber || to === c.n.phoneNumber) return bad(res, 400, 'same_number', 'Use numbers other than your CloudIVR number.')
     if (me === to) return bad(res, 400, 'same_number', 'Your mobile and the number to call must be different.')
+    const showAs = await callerIds.resolve(chatId, req.body.showAs).catch(e => e)
+    if (showAs instanceof Error) return bad(res, 400, 'invalid_show_as', showAs.message)
     const rateMe = voiceService.getIvrCallRate(me), rateTo = voiceService.getIvrCallRate(to)
     const rate = Math.round((rateMe + rateTo) * 100) / 100
     const bal = await w.balance(chatId)
     if (bal < Math.max(QUICK_MIN_WALLET, rate)) return bad(res, 402, 'insufficient_balance', `Call me first bills both calls — about $${rate.toFixed(2)}/min together after your plan minutes. Your balance is $${bal.toFixed(2)} — top up first.`)
     await prefs.updateOne({ _id: chatId }, { $set: { callbackPhone: me, updatedAt: new Date() } }, { upsert: true })
-    if (dryRun()) return res.status(202).json({ dryRun: true, rate, message: `Preview mode: we would ring ${me}, and after you press 1 connect you to ${to} showing ${c.n.phoneNumber}. Nothing was dialed.` })
+    if (dryRun()) return res.status(202).json({ dryRun: true, rate, message: `Preview mode: we would ring ${me}, and after you press 1 connect you to ${to} showing ${showAs || c.n.phoneNumber}. Nothing was dialed.` })
     const greetingText = `This is your CloudIVR line. Press 1 to call ${spokenNumber(to)}. To cancel, just hang up.`
-    const r = await voiceService.initiateOutboundIvrCall({ chatId, callerId: c.n.phoneNumber, targetNumber: me, ivrNumber: to, greetingText, activeKeys: ['1'], ivrMode: 'transfer', templateName: 'Call me first', holdMusic: false, provider: 'telnyx' })
+    const r = await voiceService.initiateOutboundIvrCall({ chatId, callerId: c.n.phoneNumber, transferCallerId: showAs, targetNumber: me, ivrNumber: to, greetingText, activeKeys: ['1'], ivrMode: 'transfer', templateName: 'Call me first', holdMusic: false, provider: 'telnyx' })
     if (r?.error) return bad(res, 424, 'call_failed', String(r.error).replace(/<[^>]+>/g, '').slice(0, 200))
     log(`[CloudIVR-Web] call-me-first ${c.n.phoneNumber}: ${me} → ${to} by ${chatId}`)
     res.status(201).json({ started: true, callId: r?.callControlId || null, rate })

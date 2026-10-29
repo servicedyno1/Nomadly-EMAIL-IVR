@@ -1860,3 +1860,13 @@ calls and SIP are simulated; inbound calls use a pretend-call simulator).
 - Tested: preview curl flow (send/verify/wrong-code refund/already/taken/delete), js/tests/caller_id_show_as.test.js, UI screenshot.
   Deployed 10:15Z release 20261029T101526Z-c9f20d5 (app-main-b), /health healthy. NOT live-tested with a real code/call yet.
 - Not covered: "Call me first" / text-trigger callbacks still show the CloudIVR number; Twilio paths unchanged.
+
+## 2026-10-29 10:31Z — Show-as extended + bulk verify — LIVE app-main (release 20261029T103132Z-350c5dc, app-main-a, healthy)
+- Owner asked for arbitrary/unverified caller ID via Telnyx CLI override → DECLINED (illegal spoofing + known fraud scripts on
+  platform); not tested with a spoofed call. Only verified numbers can be shown. Do not build free-text caller ID.
+- Call me first: body.showAs → transferCallerId (owner's mobile sees CloudIVR number; connected person sees verified number).
+  voice-service legFrom(s) = s.transferCallerId || s.callerId used for key-press/menu/backup/OTP transfers + transfer-leg matcher.
+- Text triggers: per-rule showAs (validated verified on save; falls back to CloudIVR number at run time if removed).
+  callback → transferCallerId, message → displayCallerId, AI → dialLead campaign.showAs. UI: ShowAsSelect in TriggerParts RuleCard.
+- Bulk verify: POST /caller-ids accepts numbers[] (≤10/batch, 25 codes/day/account); pending items listed with per-number code box.
+- Tests: js/tests/caller_id_show_as.test.js (4/4 incl. press-1 transfer from verified number), preview curl + UI screenshot.

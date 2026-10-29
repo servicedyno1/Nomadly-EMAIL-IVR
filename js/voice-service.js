@@ -4921,8 +4921,11 @@ const ivrOutbound = require('./ivr-outbound.js')
  * @param {object} params - Call parameters from bot flow
  * @returns {{ callControlId, error }}
  */
+// Caller ID on the leg a key press connects to (a verified "Show as" number for Call me first / text callbacks).
+const legFrom = (s) => s.transferCallerId || s.callerId
+
 async function initiateOutboundIvrCall(params) {
-  const { chatId, callerId, displayCallerId, targetNumber, ivrNumber, menu, audioUrl, greetingText, activeKeys, templateName, placeholderValues, voiceName, isTrial, holdMusic, campaignId, leadIndex, bulkMode, ivrMode, otpLength, otpMaxAttempts, otpConfirmMsg, otpRejectMsg, voicemailAudioUrl } = params
+  const { chatId, callerId, displayCallerId, transferCallerId, targetNumber, ivrNumber, menu, audioUrl, greetingText, activeKeys, templateName, placeholderValues, voiceName, isTrial, holdMusic, campaignId, leadIndex, bulkMode, ivrMode, otpLength, otpMaxAttempts, otpConfirmMsg, otpRejectMsg, voicemailAudioUrl } = params
   // Backup transfer numbers, tried in order when the transfer number is busy or doesn't answer.
   const transferBackups = ivrNumber ? [...new Set((params.transferBackups || []).map(n => String(n || '').replace(/[^+\d]/g, '')))]
     .filter(n => /^\+[1-9]\d{7,14}$/.test(n) && n !== ivrNumber && !dialGuard.classifyDial(n).blocked).slice(0, 4) : []
@@ -5124,6 +5127,7 @@ async function initiateOutboundIvrCall(params) {
     chatId,
     callerId,
     displayCallerId: displayCallerId || null,
+    transferCallerId: transferCallerId || null,
     targetNumber,
     ivrNumber,
     audioUrl,
@@ -5291,8 +5295,8 @@ async function handleOutboundMenuDigit(callControlId, session, digits) {
       _bot?.sendMessage(session.chatId, ivrOutbound.formatCallNotification('key_pressed', { ...session, digit: session.digitPressed }), { parse_mode: 'HTML' }).catch(() => {})
     }
     session._pendingTransferTo = opt.forwardTo
-    session._pendingTransferFrom = session.callerId
-    await playHoldMusicAndTransfer(callControlId, opt.forwardTo, session.callerId, { holdMusic: session.holdMusic })
+    session._pendingTransferFrom = legFrom(session)
+    await playHoldMusicAndTransfer(callControlId, opt.forwardTo, legFrom(session), { holdMusic: session.holdMusic })
     log(`[OutboundIVR] Menu forward: key=${session.digitPressed} → ${opt.forwardTo}`)
     return true
   }
@@ -5486,10 +5490,10 @@ async function handleOutboundIvrGatherEnded(payload) {
     // Register pending transfer so we can recognize the new call leg
     // Telnyx creates a new outbound call to ivrNumber with a different callControlId
     session._pendingTransferTo = session.ivrNumber
-    session._pendingTransferFrom = session.callerId
+    session._pendingTransferFrom = legFrom(session)
 
     // Transfer to IVR number — use session's holdMusic flag
-    await playHoldMusicAndTransfer(callControlId, session.ivrNumber, session.callerId, { holdMusic: session.holdMusic })
+    await playHoldMusicAndTransfer(callControlId, session.ivrNumber, legFrom(session), { holdMusic: session.holdMusic })
     log(`[OutboundIVR] Transferring to ${session.ivrNumber}${session.holdMusic ? ' (with hold music)' : ''}`)
   } else if (!session.ivrRetried) {
     // No valid key — replay audio once
@@ -5753,7 +5757,7 @@ async function handleIvrTransferLegInitiated(payload) {
   for (const [parentId, session] of Object.entries(outboundIvrCalls)) {
     if (session.phase === 'transferring' &&
         session.ivrNumber === to &&
-        session.callerId === from) {
+        legFrom(session) === from) {
       // This is the transfer leg — register it
       ivrTransferLegs[callControlId] = {
         parentCallControlId: parentId,
@@ -5905,7 +5909,7 @@ async function failoverNativeTransfer(parentId) {
   log(`[OutboundIVR] ${s.ivrNumber} did not answer — trying backup ${next} for ${s.targetNumber}`)
   s.ivrNumber = next
   s._pendingTransferTo = next
-  await _telnyxApi.transferCall(parentId, next, s.callerId)
+  await _telnyxApi.transferCall(parentId, next, legFrom(s))
   return true
 }
 
@@ -6007,7 +6011,7 @@ async function resolveOtp(callControlId, action) {
     session.otpStatus = 'confirmed'
     await _telnyxApi.speakOnCall(callControlId, session.otpConfirmMsg || (session.ivrNumber ? 'Your code has been verified. Connecting you now.' : 'Your code has been verified. Thank you, goodbye.'), voice).catch(() => {})
     setTimeout(() => {
-      const next = session.ivrNumber ? _telnyxApi.transferCall(callControlId, session.ivrNumber, session.callerId) : _telnyxApi.hangupCall(callControlId)
+      const next = session.ivrNumber ? _telnyxApi.transferCall(callControlId, session.ivrNumber, legFrom(session)) : _telnyxApi.hangupCall(callControlId)
       Promise.resolve(next).catch(e => log(`[OTP-Web] after accept: ${e.message}`))
     }, session.ivrNumber ? 3000 : 5000)
     return { phase: session.phase }

@@ -45,7 +45,7 @@ export default function Softphone({ open, onClose }) {
   const callMeFirst = async () => {
     setBusy(true); setInfo(null);
     try {
-      const d = await api('/calls/callback', { method: 'POST', body: { callerId: sel, myPhone, to: dest } });
+      const d = await api('/calls/callback', { method: 'POST', body: { callerId: sel, myPhone, to: dest, showAs: showAs || undefined } });
       setInfo({ ok: true, text: d.dryRun ? d.message : `Ringing your mobile now — answer and press 1 to connect. Both calls bill about $${Number(d.rate).toFixed(2)}/min from your wallet.` });
       toast.success(d.dryRun ? 'Validated (preview — not dialed)' : 'Calling your mobile…');
       setLast({ peer: dest, direction: 'outbound' });
@@ -68,7 +68,7 @@ export default function Softphone({ open, onClose }) {
             <select className="civr-input !h-9 font-mono text-xs" value={sel} onChange={e => { setSel(e.target.value); setInfo(null); }} data-testid="softphone-number-select">{nums.map(n => <option key={n.phoneNumber} value={n.phoneNumber}>{pv.phone(n.phoneNumber)}</option>)}</select>
             {!viaMobile && <button className="civr-btn civr-btn-ghost civr-btn-sm" disabled={status === 'connecting' || !selNum?.access?.browserPhone} onClick={() => connect(sel)} data-testid="softphone-connect-button">{status === 'connecting' ? <Loader2 className="w-4 h-4 animate-spin" /> : status === 'ready' ? 'Online' : 'Connect'}</button>}
           </div>
-          {!viaMobile && <ShowAsSelect compact value={showAs} onChange={setShowAs} testid="softphone-show-as-select" />}
+          <ShowAsSelect compact value={showAs} onChange={setShowAs} testid="softphone-show-as-select" />
           <CallMeFirst on={cmf} onChange={v => { setCmf(v); setInfo(null); }} myPhone={myPhone} setMyPhone={setMyPhone} allowed={cmfAllowed} />
           <div className="text-xs mb-3" data-testid="softphone-status">
             {viaMobile ? <span className="text-[#a1a1aa]">Rings your mobile first — no browser connection needed.</span> : <span className={status === 'ready' ? 'text-[#818cf8]' : status === 'error' ? 'text-[#fb7185]' : 'text-[#a1a1aa]'}>{call ? `Call ${call.state}` : STATUS[status]}</span>}

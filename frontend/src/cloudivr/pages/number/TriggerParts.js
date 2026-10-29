@@ -6,6 +6,7 @@ import { api, enc, when } from '../../api';
 import { Field, Toggle } from '../../ui';
 import { cp } from '../../paths';
 import { usePrivacy } from '../../privacy';
+import { ShowAsSelect } from '../../CallerIdPick';
 
 export const ACTIONS = [
   ['callback', 'Auto Callback', PhoneCall, 'We ring your phone first and read you the text. Press 1 to call them back.'],
@@ -67,6 +68,7 @@ export function RuleCard({ r, i, n, set, move, remove, data }) {
         </Field>
       )}
       {r.action === 'ai' && <AgentPick r={r} set={set} data={data} t={t} />}
+      <ShowAsSelect value={r.showAs || ''} onChange={v => set({ showAs: v || null })} testid={`${t}-show-as-select`} />
       <div className="space-y-4 border-t border-[#1a1a1a] pt-4">
         <Cond label="Only when the text has a keyword" checked={r.keywordOnly} onChange={v => set({ keywordOnly: v })} testid={`${t}-keyword-toggle`}>
           <input className="civr-input" value={r.keywords} onChange={e => set({ keywords: e.target.value })} placeholder="call me, urgent, quote" data-testid={`${t}-keywords-input`} />

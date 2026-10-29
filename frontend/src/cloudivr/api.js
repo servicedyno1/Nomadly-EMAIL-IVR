@@ -23,6 +23,7 @@ export class ApiError extends Error {
     super(body?.message || fallbackMessage(status));
     this.status = status;
     this.code = body?.error;
+    this.body = body;
   }
 }
 
