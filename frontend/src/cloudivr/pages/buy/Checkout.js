@@ -76,7 +76,7 @@ export default function Checkout({ pick, planObj, total, balance, coins, busy, o
       </div>
       {setCoupon && <CouponField total={total} coupon={coupon} setCoupon={setCoupon} initialCode={initialCode} />}
       {method === 'crypto' && (
-        <div className="mt-4 max-w-xs"><Field label="Coin"><CoinSelect coins={coins} value={coin} onChange={setCoin} testid="civr-checkout-coin-select" /></Field></div>
+        <div className="mt-4 max-w-xs"><Field label="Coin"><CoinSelect coins={coins} value={coin} onChange={setCoin} amountUsd={Math.max(due, cryptoMin)} testid="civr-checkout-coin-select" /></Field></div>
       )}
       {method === 'crypto' && cryptoMin > due && <div className="text-xs text-[#a1a1aa] mt-2" data-testid="civr-checkout-crypto-min">Crypto payments start at {money(cryptoMin)} — anything over {money(due)} stays in your wallet.</div>}
       <div className="flex items-center justify-between gap-4 mt-6 py-4 border-y border-[#1c1c1c]">

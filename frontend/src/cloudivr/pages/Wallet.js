@@ -9,7 +9,7 @@ import { useShell } from '../Shell';
 import { PageHeader, Field, SkeletonCard, SkeletonRows, Empty, ErrorNote, statusPill, useIsPhone } from '../ui';
 import { cp } from '../paths';
 import { useOffer } from '../offers';
-import { Coin, CoinIcon, CoinSelect } from '../Pickers';
+import { Coin, CoinIcon, CoinSelect, PayWindow } from '../Pickers';
 
 const copy = (v) => navigator.clipboard?.writeText(v).then(() => toast.success('Copied'));
 const PRESETS = [25, 50, 100, 250];
@@ -29,6 +29,7 @@ function DepositCard({ dep }) {
           </div>
           <p className="text-xs text-[#a1a1aa]">{dep.note}</p>
           {!preview && <p className="text-xs text-[#a1a1aa]" data-testid="wallet-deposit-polling-note">We check for your payment every 20 seconds while this page is open.</p>}
+          {!preview && dep.expiresAt && <PayWindow expiresAt={dep.expiresAt} testid="wallet-deposit-expiry" />}
         </div>
       </div>
     </div>
@@ -90,7 +91,7 @@ function TopUp({ coins, min, initial, onCreated }) {
       <div className="flex flex-wrap gap-2">{PRESETS.map(p => <button type="button" key={p} onClick={() => setAmount(p)} className={`civr-pill civr-preset cursor-pointer ${Number(amount) === p ? 'civr-pill-on' : ''}`} data-testid={`wallet-preset-${p}`}>${p}</button>)}</div>
       <div className="grid sm:grid-cols-2 gap-4">
         <Field label={`Amount (USD, min $${min})`}><input type="number" min={min} max={10000} step="1" className="civr-input font-mono" value={amount} onChange={e => setAmount(e.target.value)} data-testid="wallet-amount-input" /></Field>
-        <Field label="Coin"><CoinSelect coins={coins} value={coin} onChange={setCoin} testid="wallet-coin-select" /></Field>
+        <Field label="Coin"><CoinSelect coins={coins} value={coin} onChange={setCoin} amountUsd={amount} testid="wallet-coin-select" /></Field>
       </div>
       <ErrorNote error={error} testid="wallet-topup-error" />
       <button className="civr-btn civr-btn-primary" disabled={busy} data-testid="wallet-topup-button">{busy && <Loader2 className="w-4 h-4 animate-spin" />}Get payment address</button>
@@ -98,7 +99,9 @@ function TopUp({ coins, min, initial, onCreated }) {
   );
 }
 
-const depStatus = (d) => (d.address === 'PREVIEW-MODE-DO-NOT-SEND-FUNDS' ? 'preview' : d.status);
+const DEP_LABEL = { waiting: 'Waiting for payment', paid: 'Paid', credited: 'Paid', paid_late: 'Paid (late)', expired: 'Expired', test: 'Test only' };
+const depStatus = (d) => DEP_LABEL[d.status] || d.status;
+const DepStatus = ({ d }) => <span className={`${statusPill(d.status)} shrink-0 whitespace-nowrap`} title={d.status === 'expired' ? 'Not paid within 6 hours. If you already sent it, it is still credited when it arrives.' : d.status === 'test' ? 'Preview mode: no real payment was created.' : d.status === 'waiting' && d.expiresAt ? `Expires ${when(d.expiresAt)}` : undefined}>{depStatus(d)}</span>;
 const signed = (h) => `${h.amount > 0 ? '+' : '−'}${money(Math.abs(h.amount))}`;
 const CARD_ROW = 'py-3 first:pt-0 last:pb-0 flex items-start justify-between gap-3';
 
@@ -108,13 +111,13 @@ function Deposits({ list }) {
     <ul className="divide-y divide-[#1f1f1f]" data-testid="wallet-deposits-table">{list.map((d, i) => (
       <li key={d.ref} className={CARD_ROW} data-testid={`wallet-deposit-${i}`}>
         <div className="min-w-0"><div className="font-mono">{money(d.amountUsd)} <span className="text-xs text-[#a1a1aa] inline-flex items-center gap-1 align-middle"><CoinIcon coin={d.coin} size={14} />{d.coin}</span></div><div className="text-xs text-[#a1a1aa] mt-0.5">{when(d.createdAt)}</div></div>
-        <span className={`${statusPill(d.status)} shrink-0`}>{depStatus(d)}</span>
+        <DepStatus d={d} />
       </li>
     ))}</ul>
   );
   return (
     <div className="overflow-x-auto -mx-1 px-1" tabIndex={0} role="region" aria-label="Deposits"><table className="civr-table" data-testid="wallet-deposits-table"><thead><tr><th>Amount</th><th>Coin</th><th>Status</th><th>When</th></tr></thead>
-      <tbody>{list.map((d, i) => <tr key={d.ref} data-testid={`wallet-deposit-${i}`}><td className="font-mono">{money(d.amountUsd)}</td><td><Coin coin={d.coin} size={16} /></td><td><span className={statusPill(d.status)}>{depStatus(d)}</span></td><td className="text-xs text-[#a1a1aa] whitespace-nowrap">{when(d.createdAt)}</td></tr>)}</tbody></table></div>
+      <tbody>{list.map((d, i) => <tr key={d.ref} data-testid={`wallet-deposit-${i}`}><td className="font-mono">{money(d.amountUsd)}</td><td><Coin coin={d.coin} size={16} /></td><td><DepStatus d={d} /></td><td className="text-xs text-[#a1a1aa] whitespace-nowrap">{when(d.createdAt)}</td></tr>)}</tbody></table></div>
   );
 }
 

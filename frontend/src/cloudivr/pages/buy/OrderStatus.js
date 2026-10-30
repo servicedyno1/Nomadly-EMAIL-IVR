@@ -7,7 +7,7 @@ import { api, useApi, money, enc } from '../../api';
 import { useShell } from '../../Shell';
 import { PageHeader, Spinner, ErrorNote } from '../../ui';
 import { cp } from '../../paths';
-import { CoinIcon } from '../../Pickers';
+import { CoinIcon, PayWindow } from '../../Pickers';
 
 const STEPS = ['Waiting for payment', 'Payment confirmed', 'Activating your line', 'Ready'];
 const UPGRADE_STEPS = ['Waiting for payment', 'Payment confirmed', 'Upgrading your plan', 'Done'];
@@ -40,6 +40,7 @@ function Deposit({ o, busy, onCheck, onCancel, onSimulate }) {
             <div className="flex items-center gap-2"><code className="text-sm break-all" data-testid="order-deposit-address">{o.address}</code>{!o.preview && <button onClick={() => copy(o.address)} className="w-11 h-11 shrink-0 flex items-center justify-center text-[#a1a1aa] hover:text-[#818cf8]" aria-label="Copy address" data-testid="order-copy-address-btn"><Copy className="w-4 h-4" /></button>}</div>
           </div>
           <p className="text-xs text-[#a1a1aa]">We check for your payment every 15 seconds. You can leave this page — the number activates on its own and you’ll see it in your inbox.</p>
+          {!o.preview && o.expiresAt && <PayWindow expiresAt={o.expiresAt} testid="order-pay-window" />}
         </div>
       </div>
       <div className="flex flex-wrap gap-2 mt-6">
@@ -125,6 +126,7 @@ export default function OrderStatus() {
           : `${o.phoneNumber} · ${o.planName} plan · ${money(o.price)} · auto-renew ${o.autoRenew ? 'on' : 'off'}`} testid="order-header" />
       <Steps status={status} upgrade={o.kind === 'upgrade'} />
       <div className="mb-4"><ErrorNote error={err} testid="order-error" /></div>
+      {o.expired && <div className="civr-card p-4 mb-4 text-sm flex flex-wrap items-center gap-3" data-testid="order-expired-note"><AlertTriangle className="w-4 h-4 text-[#fb7185] shrink-0" /><span className="flex-1">This order expired: no payment arrived within 6 hours. If you already sent it, the number still activates when it arrives.</span><Link to={cp('/app/buy')} className="civr-btn civr-btn-ghost civr-btn-sm" data-testid="order-expired-buy-link">Start a new order</Link></div>}
       {status === 'awaiting_payment'
         ? <Deposit o={o} busy={busy} onCheck={() => { setBusy('check'); reload().finally(() => setBusy('')); }} onCancel={() => act('cancel')} onSimulate={() => act('simulate-payment')} />
         : <Outcome o={o} balance={data.balance} busy={busy} onFinish={() => act('finish')} />}

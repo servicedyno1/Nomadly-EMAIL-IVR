@@ -11,6 +11,7 @@ const dryRun = () => process.env.WEB_CLOUDIVR_DRY_RUN === 'true'
 const POLL_MS = 30000
 const MAX_AGE_MS = 7 * 86400000
 const OPEN = ['awaiting_payment', 'underpaid']
+const { PAY_WINDOW_MS } = require('./wallet')
 const bad = (res, status, error, message) => res.status(status).json({ error, message })
 
 // USD the wallet must hold to finish the order (extras/upgrades may deposit more than they cost: crypto minimum).
@@ -22,6 +23,8 @@ const publicOrder = (o) => ({
   coin: o.coin, address: o.address, amountCrypto: o.amountCrypto || null, autoRenew: o.autoRenew !== false, status: o.status,
   paidUsd: o.paidUsd || 0, assignedNumber: o.assignedNumber || null, substitutedFrom: o.substitutedFrom || null,
   message: o.message || null, dryRun: !!o.dryRun, preview: o.provider === 'preview', createdAt: o.createdAt, updatedAt: o.updatedAt,
+  // Still awaiting_payment in the DB so a late payment is picked up (see tick); shown as expired after the window.
+  expiresAt: new Date(new Date(o.createdAt).getTime() + PAY_WINDOW_MS), expired: o.status === 'awaiting_payment' && Date.now() > new Date(o.createdAt).getTime() + PAY_WINDOW_MS,
 })
 
 function routes(router, { db, h, numbersApi, offers = null, coins = [], createCryptoDeposit, sendMail = async () => false, notifyAdmin = () => {}, log = console.log }) {
@@ -257,7 +260,8 @@ function routes(router, { db, h, numbersApi, offers = null, coins = [], createCr
   }))
 
   router.get('/numbers/orders', h(async (req, res) => {
-    const q = { chatId: req.webChatId, ...(req.query.open ? { status: { $in: OPEN } } : {}) }
+    const fresh = { $or: [{ status: 'underpaid' }, { status: 'awaiting_payment', createdAt: { $gt: new Date(Date.now() - PAY_WINDOW_MS) } }] }
+    const q = { chatId: req.webChatId, ...(req.query.open ? fresh : {}) }
     res.json({ orders: (await orders.find(q).sort({ createdAt: -1 }).limit(10).toArray()).map(publicOrder) })
   }))
 

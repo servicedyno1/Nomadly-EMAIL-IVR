@@ -39137,6 +39137,7 @@ if (CLOUDIVR_WEB_ON) app.use('/cloudivr-web', cloudivrWeb.createCloudIvrWeb({
     return { required, supported: !required || txReg.analyze(rq.reqs).supported, note: required ? txReg.prePayNote(rq.reqs, countryName, 'en') : null }
   },
   coins: Object.keys(tickerOfDyno),
+  cryptoPerUsd: (coin) => convert(1, 'usd', tickerOf[coin]),
   createCryptoDeposit: async (chatId, amountUsd, coin) => {
     const ref = nanoid()
     const r = await getDynopayCryptoAddress(amountUsd, tickerOfDyno[coin], `${SELF_URL}/dynopay/crypto-wallet`, { product_name: dynopayActions.walletFund, refId: ref }, process.env.WEB_DYNO_PAY_API_KEY)

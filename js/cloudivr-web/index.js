@@ -76,7 +76,7 @@ function createCloudIvrWeb(deps) {
     r.use(auth.requireUser)
     const offers = createOffers(db, { log })
     offers.routes(r, { h })
-    wallet.routes(r, { db, h, coins: deps.coins, createCryptoDeposit: deps.createCryptoDeposit, offers })
+    wallet.routes(r, { db, h, coins: deps.coins, createCryptoDeposit: deps.createCryptoDeposit, offers, cryptoPerUsd: deps.cryptoPerUsd })
     // Orders go first so /numbers/orders is not caught by /numbers/:phone; numbersApi is filled in right after.
     const numbersApi = {}
     orders.routes(r, { ...deps, db, h, numbersApi, sendMail, offers })

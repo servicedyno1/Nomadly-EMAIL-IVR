@@ -253,7 +253,7 @@ export function KeyPicker({ value, onChange, testid }) {
   );
 }
 
-export const statusPill = (s) => (['active', 'running', 'completed', 'credited'].includes(s) ? 'civr-pill civr-pill-ok' : ['paused', 'scheduled', 'created', 'waiting', 'collecting'].includes(s) ? 'civr-pill civr-pill-warn' : ['cancelled', 'suspended', 'expired', 'failed', 'released'].includes(s) ? 'civr-pill civr-pill-bad' : 'civr-pill');
+export const statusPill = (s) => (['active', 'running', 'completed', 'credited', 'paid', 'paid_late'].includes(s) ? 'civr-pill civr-pill-ok' : ['paused', 'scheduled', 'created', 'waiting', 'collecting', 'test'].includes(s) ? 'civr-pill civr-pill-warn' : ['cancelled', 'suspended', 'expired', 'failed', 'released'].includes(s) ? 'civr-pill civr-pill-bad' : 'civr-pill');
 
 // Backup numbers rung in order when the main number is busy or doesn't answer (comma separated, up to 4).
 export function BackupsField({ value, onChange, testid }) {

@@ -4,6 +4,14 @@ const MIN_TOPUP_USD = 10
 const round2 = (n) => Math.round(Number(n) * 100) / 100
 // Debits/credits keep sub-cent prices exact (e.g. $0.015 lookups); balances still show cents.
 const round4 = (n) => Math.round(Number(n) * 10000) / 10000
+// Unpaid crypto payments show as expired after this; a late payment is still credited (shown as 'paid_late').
+const PAY_WINDOW_MS = 6 * 3600000
+const expiresAt = (d) => new Date(new Date(d.createdAt).getTime() + PAY_WINDOW_MS)
+const depositStatus = (d, paidAt) => {
+  if (paidAt) return new Date(paidAt) > expiresAt(d) ? 'paid_late' : 'paid'
+  if (d.provider === 'preview') return 'test'
+  return Date.now() > expiresAt(d).getTime() ? 'expired' : 'waiting'
+}
 const livePayments = () => process.env.WEB_CLOUDIVR_DRY_RUN !== 'true' || !!process.env.WEB_DYNO_PAY_API_KEY
 
 function walletOps(db) {
@@ -33,8 +41,20 @@ const CREDITS = { 'hosted-sms-refund': 'Refund · Landline to Texting', 'topup-b
 const HOSTED = { 'hosted-sms-setup': 'Landline to Texting setup', 'hosted-sms-renewal': 'Landline to Texting monthly', 'hosted-sms-text': 'Text sent · Landline to Texting', 'hosted-sms-inbound': 'Text received · Landline to Texting', 'lead-check': 'Lead check', 'cnam-lookup': 'Owner-name lookup', 'caller-id-verify': 'Caller ID verification' }
 const LABEL = { purchase: 'Number purchase', purchase_verification: 'Number purchase (verification)', renew: 'Number renewal', upgrade: 'Plan upgrade', release: 'Number deleted', sms_reply: 'Extra text' }
 
-function routes(router, { db, h, coins, createCryptoDeposit, offers }) {
+function routes(router, { db, h, coins, createCryptoDeposit, offers, cryptoPerUsd }) {
   const w = walletOps(db)
+  const rateCache = { at: 0, rates: null }
+
+  // Coins per 1 USD for every coin (display only; the exact amount comes with the address). Cached for a minute.
+  router.get('/wallet/rates', h(async (req, res) => {
+    if (!rateCache.rates || Date.now() - rateCache.at > 60000) {
+      const got = await Promise.all(coins.map(c => (cryptoPerUsd ? cryptoPerUsd(c).catch(() => null) : null)))
+      const rates = Object.fromEntries(coins.map((c, i) => [c, Number(got[i]) > 0 ? Number(got[i]) : null]))
+      if (Object.values(rates).some(Boolean)) Object.assign(rateCache, { at: Date.now(), rates })
+      else return res.json({ rates, at: null })
+    }
+    res.json({ rates: rateCache.rates, at: new Date(rateCache.at).toISOString() })
+  }))
 
   router.get('/wallet', h(async (req, res) => {
     const id = req.webChatId
@@ -43,7 +63,7 @@ function routes(router, { db, h, coins, createCryptoDeposit, offers }) {
       db.collection('phoneTransactions').find({ chatId: id }).sort({ timestamp: -1 }).limit(50).toArray(),
       db.collection('webDeposits').find({ chatId: id }).sort({ createdAt: -1 }).limit(20).toArray(),
     ])
-    const paidRefs = new Set(tx.filter(t => t.type === 'wallet-topup').map(t => t.metadata?.ref).filter(Boolean))
+    const paidAt = new Map(tx.filter(t => t.type === 'wallet-topup' && t.metadata?.ref).map(t => [t.metadata.ref, t.createdAt]))
     const history = [
       ...ptx.filter(t => Number(t.amount) > 0).map(t => ({ id: String(t._id), at: t.timestamp, type: t.action, description: `${LABEL[t.action] || t.action} · ${t.phoneNumber || ''}`, amount: -Math.abs(Number(t.amount) || 0) })),
       ...tx.filter(t => t.type === 'wallet-topup').map(t => ({ id: String(t._id), at: new Date(t.createdAt).toISOString(), type: t.type, description: `Crypto top-up · ${t.metadata?.value || ''} ${t.metadata?.coin || ''}`.trim(), amount: Math.abs(Number(t.amount) || 0) })),
@@ -52,7 +72,7 @@ function routes(router, { db, h, coins, createCryptoDeposit, offers }) {
     ].sort((a, b) => String(b.at).localeCompare(String(a.at))).slice(0, 50)
     res.json({
       balance: await w.balance(id), currency: 'USD', minTopup: MIN_TOPUP_USD, coins, history,
-      deposits: deposits.map(d => ({ ref: d.ref, amountUsd: d.amountUsd, coin: d.coin, address: d.address, amountCrypto: d.amountCrypto, createdAt: d.createdAt, status: paidRefs.has(d.ref) ? 'credited' : 'waiting' })),
+      deposits: deposits.map(d => ({ ref: d.ref, amountUsd: d.amountUsd, coin: d.coin, address: d.address, amountCrypto: d.amountCrypto, createdAt: d.createdAt, expiresAt: expiresAt(d), status: depositStatus(d, paidAt.get(d.ref)) })),
     })
   }))
 
@@ -68,8 +88,8 @@ function routes(router, { db, h, coins, createCryptoDeposit, offers }) {
     if (!dep || !dep.address) return res.status(424).json({ error: 'deposit_unavailable', message: 'The crypto payment service did not return an address. Try again or pick another coin.' })
     const bonus = offers ? await offers.topupBonusFor(req.webChatId).catch(() => null) : null
     await db.collection('webDeposits').insertOne({ chatId: req.webChatId, ref: dep.ref, amountUsd, coin, address: dep.address, amountCrypto: dep.amountCrypto || null, provider: dep.provider, bonus, bonusPaidAt: null, createdAt: new Date() })
-    res.status(201).json({ bonus, ref: dep.ref, address: dep.address, amountCrypto: dep.amountCrypto || null, coin, amountUsd, provider: dep.provider, dryRun: !!dep.dryRun, note: dep.dryRun ? 'Preview mode: no payment was created. Do not send any funds.' : 'Send exactly this amount. Your balance updates automatically once the network confirms the payment.' })
+    res.status(201).json({ bonus, expiresAt: expiresAt({ createdAt: new Date() }), ref: dep.ref, address: dep.address, amountCrypto: dep.amountCrypto || null, coin, amountUsd, provider: dep.provider, dryRun: !!dep.dryRun, note: dep.dryRun ? 'Preview mode: no payment was created. Do not send any funds.' : 'Send exactly this amount. Your balance updates automatically once the network confirms the payment.' })
   }))
 }
 
-module.exports = { walletOps, routes, MIN_TOPUP_USD, round2, livePayments }
+module.exports = { walletOps, routes, MIN_TOPUP_USD, round2, livePayments, PAY_WINDOW_MS }
