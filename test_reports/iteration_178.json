@@ -1,0 +1,36 @@
+{
+  "summary": "Frontend-only test of flags/coin logos (CloudIVR web). Tested at 1366 and 375, dark and light, as Alice. Working: Buy country dropdown (17 options, each with a real flag-icons flag in the box and the list; GB switches Number type to Mobile; keyboard Enter/arrows/type-ahead/Escape work; search finds 12 results). Checkout coin dropdown (8 coins with logos, USDT TRC20/ERC20 have the TRON/ETH badge); the dry-run USDT (TRC20) payment opens /orders/dry-… and order-deposit-amount shows the logo with its badge. Wallet coin dropdown, the 'Get payment address' panel (ETH logo) and the deposits list (desktop table and phone list) all show coin logos. Language menus (topbar, landing, SIP, auth, phone More sheet) show flags in the button and the menu, and switching EN→FR→ES→EN works (html lang updates). Landing coverage has 17 flag images and no emoji. On phones every menu fits on screen. No page errors. Problems found: 1 contrast bug in the phone More sheet in light theme, plus 4 minor theme or coverage gaps.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "MobileNav Language row (phone, light theme)", "issue": "In light theme the More sheet stays dark (bg rgb(19,23,28)). But theme-light.css:116 changes .text-[#d4d4d8] to #1e293b, and both the 'Language' label and the LangSwitcher pill (tone 'app') use that class. Result: dark slate text on a dark sheet, so the 'Language' label and 'EN' are nearly invisible (zoomed PNG checked). Only the flag shows.", "selector": "[data-testid='mobile-lang-switcher'] and its parent row in MobileNav.js:34", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "SIP page (/cloudivr/sip), dark theme", "issues": ["The language menu stays white (bg #fff) on the dark page. np.css:133-135 only darkens [data-testid='landing-lang-switcher-menu']; add sip-lang-switcher-menu to those rules (or key them on tone='landing')."]},
+      {"screen": "App topbar, auth page and phone More sheet, light theme", "issues": ["LangSwitcher tone 'app' always uses bg-[#141414] text-[#e4e4e7], so the language menu is a dark box on the light app. The coin and country menus correctly use var(--c-card). It is readable but does not match."]},
+      {"screen": "Terms page (/cloudivr/terms)", "issues": ["There is no language switcher at all (no *lang-switcher testid). The review request expects one on Terms; only terms-theme-button exists."]},
+      {"screen": "Checkout / Wallet coin dropdown", "issues": ["The menu has max-h-80 (320px) and 8 coins × 40px plus padding, so the last coin (TRON) is hidden behind a scroll arrow. Raising max height slightly (about 22rem) would show all coins."]},
+      {"screen": "App in Spanish (not in scope, seen while testing)", "issues": ["The sidebar is only partly translated: 'Start a Bulk IVR campaign', 'Import contactos'."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Fix the contrast of the phone More sheet 'Language' row in light theme: either make the sheet follow the light theme or stop theme-light.css from darkening text-[#d4d4d8] inside that dark sheet (MobileNav.js:34, i18n TONES.app.pill).",
+    "Add sip-lang-switcher-menu to the dark-mode rules in np.css:133-135 so the SIP language menu is dark in dark theme.",
+    "Optional: make the 'app' LangSwitcher menu follow the theme (use var(--c-card)/var(--c-text) like IconSelect).",
+    "Optional: add a language switcher to the Terms page if expected; raise the coin menu max height so TRON shows without scrolling."
+  ],
+  "critical_code_review_comments": [
+    "Pickers.js IconSelect: value={value || undefined}. If value goes from a coin to '', Radix Select switches from controlled to uncontrolled and may keep showing the old item.",
+    "Checkout.js: useState(coins[0] || '') only runs on mount. If coins arrive after mount, coin stays '' and the Pay button stays disabled until the user picks one (did not happen in this test because coins were already loaded).",
+    "Pickers.js parseCoin handles 'USDT (TRC20)' and 'USDT-TRC20'. Coins missing from COIN render no icon (null). Fine, but a generic fallback icon would keep alignment."
+  ],
+  "updated_files": ["/app/test_reports/iteration_178.json"],
+  "success_rate": {"backend": "skipped (frontend only)", "frontend": "about 92%: all functional flows pass; 1 medium contrast bug and 4 minor theme or coverage gaps"},
+  "test_credentials": "civr.alice@example.com / AliceTest#2026 (from /app/memory/test_credentials.md); click cookie-allow-all first",
+  "seed_data_creation": "Dry-run data created for Alice: pending number order dry-10c70729-994 (+14235150163, Pro, $75 USDT TRC20; not cancelled) and preview wallet deposits $50 ETH and $75 USDT(TRC20). No real funds.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Theme is stored in localStorage 'civr.theme' (light/dark/system); html gets data-civr-theme. The Radix Select testids are trigger = testid, menu = testid-menu, options = testid-option-<slug>, e.g. civr-checkout-coin-select-option-usdt-trc20. LangSwitcher testids: X, X-menu, X-option-en/fr/es. On phones the topbar switcher is hidden; use More tab → mobile-lang-switcher. Login: input[type=password] (no testid). Playwright JPEG screenshots of the phone More sheet looked white but a PNG clip and the computed bg show it is dark; trust the PNG and computed styles."
+}

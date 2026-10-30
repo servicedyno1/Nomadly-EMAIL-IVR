@@ -69,6 +69,7 @@ html[data-civr-theme] .civr .civr-side .civr-nav-link:hover { color: #ffffff; ba
 html[data-civr-theme] .civr .civr-side .civr-nav-link.active { color: #ffffff; background: var(--c-side-2); border-color: rgba(100, 172, 255, 0.45); font-weight: 600; }
 html[data-civr-theme] .civr .civr-side .civr-nav-link.active::before { background: #64acff; left: -1px; height: 22px; }
 html[data-civr-theme] .civr .civr-side .civr-side-rule { border-color: rgba(255, 255, 255, 0.1); }
+html[data-civr-theme] .civr .civr-side .text-\[\#d4d4d8\] { color: #d5dce6; }
 html[data-civr-theme] .civr .civr-side { scrollbar-width: thin; scrollbar-color: rgba(255, 255, 255, .15) transparent; }
 
 /* Top bar: solid surface with a hairline, no glass. */

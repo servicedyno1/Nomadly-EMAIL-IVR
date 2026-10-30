@@ -56,7 +56,7 @@ export function LangProvider({ children }) {
 // A real menu (not a hidden native <select>, which some browsers never open): tap the pill, pick a language.
 const TONES = {
   landing: { pill: 'text-slate-600 hover:text-slate-900 hover:bg-slate-100 data-[state=open]:bg-slate-100 data-[state=open]:text-slate-900 focus-visible:ring-slate-900/30', menu: 'bg-white text-slate-900 border-slate-200 shadow-[0_20px_50px_-20px_rgba(15,23,42,.35)]', item: 'focus:bg-slate-100 focus:text-slate-900', on: 'text-slate-900' },
-  app: { pill: 'text-[#d4d4d8] hover:text-white hover:bg-white/5 data-[state=open]:bg-white/5 data-[state=open]:text-white focus-visible:ring-[#818cf8]/50', menu: 'bg-[#141414] text-[#e4e4e7] border-[#262626] shadow-[0_20px_50px_-20px_rgba(0,0,0,.8)]', item: 'focus:bg-white/5 focus:text-white', on: 'text-[#818cf8]' },
+  app: { pill: 'text-[#d4d4d8] hover:text-white hover:bg-white/5 data-[state=open]:bg-white/5 data-[state=open]:text-white focus-visible:ring-[#818cf8]/50', menu: 'civr !min-h-0 !bg-[var(--c-card)] !text-[var(--c-text)] !border-[var(--c-border)] shadow-xl', item: 'focus:!bg-[var(--c-accent-soft)] focus:!text-[var(--c-text)]', on: 'text-[var(--c-accent)]' },
 };
 
 export function LangSwitcher({ testid = 'lang-switcher', className = '', tone = 'app' }) {
@@ -68,7 +68,7 @@ export function LangSwitcher({ testid = 'lang-switcher', className = '', tone = 
       <DropdownMenuTrigger asChild>
         <button type="button" aria-label={`Language: ${name}`} title="Language" className={`group inline-flex items-center gap-1.5 h-11 px-2.5 rounded-full transition-colors outline-none focus-visible:ring-2 ${t.pill} ${className}`} data-no-translate data-testid={testid}>
           {LANG_FLAG[lang] ? <Flag code={LANG_FLAG[lang]} className="!w-5 !h-[15px]" /> : <Globe className="w-4 h-4 shrink-0" />}
-          <span className="text-sm font-medium hidden sm:inline">{name}</span><span className="text-sm font-semibold uppercase sm:hidden">{lang}</span>
+          <span className={`text-sm font-medium hidden ${tone === 'landing' ? 'xl:inline' : 'sm:inline'}`}>{name}</span><span className={`text-sm font-semibold uppercase ${tone === 'landing' ? 'xl:hidden' : 'sm:hidden'}`}>{lang}</span>
           <ChevronDown className="w-3.5 h-3.5 opacity-70 transition-transform duration-200 group-data-[state=open]:rotate-180" />
         </button>
       </DropdownMenuTrigger>

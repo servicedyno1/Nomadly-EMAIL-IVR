@@ -7,6 +7,7 @@ import { Wordmark } from '../Brand';
 import { Footer } from './landing/PricingFaq';
 import { TERMS, UPDATED } from './terms/content';
 import { useSiteLook, SiteThemeButton } from './landing/kit';
+import { LangSwitcher } from '../i18n';
 
 function Header() {
   return (
@@ -15,6 +16,7 @@ function Header() {
         <Link to={cp()} className="font-display text-2xl font-extrabold mr-auto min-h-[44px] flex items-center gap-2" data-testid="terms-logo-link"><Wordmark accent="#059669" iconClass="w-7 h-7" textClass="max-[419px]:sr-only" /></Link>
         <Link to={cp()} className="hidden sm:inline-flex items-center gap-2 text-sm font-medium text-slate-600 hover:text-slate-900 py-3" data-testid="terms-home-link"><ArrowLeft className="w-4 h-4" />Home</Link>
         <SiteThemeButton testid="terms-theme-button" />
+        <LangSwitcher testid="terms-lang-switcher" tone="landing" />
         <Link to={cp('/signup')} className="civr-l-btn civr-l-btn-sm" data-testid="terms-signup-link"><span className="sm:hidden">Start</span><span className="hidden sm:inline">Get your number</span></Link>
       </div>
     </header>
