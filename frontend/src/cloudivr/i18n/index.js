@@ -2,6 +2,8 @@ import React, { createContext, useContext, useEffect, useLayoutEffect, useReduce
 import { Globe, ChevronDown, Check } from 'lucide-react';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '../../components/ui/dropdown-menu';
 import { setDictionary, tr } from './engine';
+import { Flag } from '../Pickers';
+const LANG_FLAG = { en: 'us', fr: 'fr', es: 'es' };
 
 export { tr };
 export const LANGS = [['en', 'English'], ['fr', 'Français'], ['es', 'Español']];
@@ -65,7 +67,7 @@ export function LangSwitcher({ testid = 'lang-switcher', className = '', tone = 
     <DropdownMenu modal={false}>
       <DropdownMenuTrigger asChild>
         <button type="button" aria-label={`Language: ${name}`} title="Language" className={`group inline-flex items-center gap-1.5 h-11 px-2.5 rounded-full transition-colors outline-none focus-visible:ring-2 ${t.pill} ${className}`} data-no-translate data-testid={testid}>
-          <Globe className="w-4 h-4 shrink-0" />
+          {LANG_FLAG[lang] ? <Flag code={LANG_FLAG[lang]} className="!w-5 !h-[15px]" /> : <Globe className="w-4 h-4 shrink-0" />}
           <span className="text-sm font-medium hidden sm:inline">{name}</span><span className="text-sm font-semibold uppercase sm:hidden">{lang}</span>
           <ChevronDown className="w-3.5 h-3.5 opacity-70 transition-transform duration-200 group-data-[state=open]:rotate-180" />
         </button>
@@ -73,7 +75,7 @@ export function LangSwitcher({ testid = 'lang-switcher', className = '', tone = 
       <DropdownMenuContent align="end" sideOffset={8} className={`z-[100] min-w-[11rem] rounded-xl p-1.5 font-['DM_Sans',sans-serif] ${t.menu}`} data-no-translate data-testid={`${testid}-menu`}>
         {LANGS.map(([c, n]) => (
           <DropdownMenuItem key={c} onSelect={() => setLang(c)} aria-current={c === lang ? 'true' : undefined} className={`min-h-[40px] rounded-lg px-3 text-sm font-medium cursor-pointer ${t.item}`} data-testid={`${testid}-option-${c}`}>
-            <span className="flex-1">{n}</span>{c === lang && <Check className={`w-4 h-4 ${t.on}`} />}
+            <Flag code={LANG_FLAG[c]} className="!w-5 !h-[15px] mr-2.5" /><span className="flex-1">{n}</span>{c === lang && <Check className={`w-4 h-4 ${t.on}`} />}
           </DropdownMenuItem>
         ))}
       </DropdownMenuContent>

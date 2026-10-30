@@ -9,6 +9,7 @@ import { cp } from '../paths';
 import Checkout from './buy/Checkout';
 import { PlanFeatures, RecommendedBadge, availablePlans } from '../PlanFeatures';
 import { usePrivacy } from '../privacy';
+import { Flag, IconSelect } from '../Pickers';
 
 // The chosen number + plan survive the wallet top-up detour (Wallet links back with ?resume=1).
 const RESUME_KEY = 'civr.buyResume';
@@ -24,9 +25,8 @@ function SearchForm({ catalog, q, setQ, onSearch, busy }) {
   return (
     <form onSubmit={onSearch} className="civr-card p-6 grid sm:grid-cols-2 xl:grid-cols-4 gap-4 items-end" data-testid="buy-search-form">
       <Field label="Country">
-        <select className="civr-input" value={q.country} onChange={e => setCountry(e.target.value)} data-testid="buy-country-select">
-          {catalog.countries.map(c => <option key={c.code} value={c.code}>{`${c.flag} ${c.name}`}</option>)}
-        </select>
+        <IconSelect value={q.country} onChange={setCountry} label="Country" testid="buy-country-select"
+          options={catalog.countries.map(c => ({ value: c.code, label: c.name, icon: <Flag code={c.code} /> }))} />
       </Field>
       <Field label="Number type">
         <select className="civr-input" value={q.type} onChange={e => setQ({ ...q, type: e.target.value })} data-testid="buy-type-select">

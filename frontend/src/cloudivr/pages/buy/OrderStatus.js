@@ -7,6 +7,7 @@ import { api, useApi, money, enc } from '../../api';
 import { useShell } from '../../Shell';
 import { PageHeader, Spinner, ErrorNote } from '../../ui';
 import { cp } from '../../paths';
+import { CoinIcon } from '../../Pickers';
 
 const STEPS = ['Waiting for payment', 'Payment confirmed', 'Activating your line', 'Ready'];
 const UPGRADE_STEPS = ['Waiting for payment', 'Payment confirmed', 'Upgrading your plan', 'Done'];
@@ -34,7 +35,7 @@ function Deposit({ o, busy, onCheck, onCancel, onSimulate }) {
       <div className="flex flex-col sm:flex-row gap-6 items-start">
         {!o.preview && <div className="bg-white p-4 rounded-xl shrink-0" data-testid="order-deposit-qr"><QRCode value={o.address} size={148} /></div>}
         <div className="min-w-0 space-y-4">
-          <div><div className="text-xs text-[#a1a1aa]">Send exactly</div><div className="font-mono text-2xl" data-testid="order-deposit-amount">{o.amountCrypto ? `${o.amountCrypto} ${o.coin}` : `${money(o.price)} in ${o.coin}`}</div></div>
+          <div><div className="text-xs text-[#a1a1aa]">Send exactly</div><div className="font-mono text-2xl" data-testid="order-deposit-amount"><span className="inline-flex items-center gap-2"><CoinIcon coin={o.coin} size={26} />{o.amountCrypto ? `${o.amountCrypto} ${o.coin}` : `${money(o.price)} in ${o.coin}`}</span></div></div>
           <div><div className="text-xs text-[#a1a1aa]">To address</div>
             <div className="flex items-center gap-2"><code className="text-sm break-all" data-testid="order-deposit-address">{o.address}</code>{!o.preview && <button onClick={() => copy(o.address)} className="w-11 h-11 shrink-0 flex items-center justify-center text-[#a1a1aa] hover:text-[#818cf8]" aria-label="Copy address" data-testid="order-copy-address-btn"><Copy className="w-4 h-4" /></button>}</div>
           </div>

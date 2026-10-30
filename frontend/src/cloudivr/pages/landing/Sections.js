@@ -3,6 +3,7 @@ import { UserPlus, Hash, Wallet, Globe2, Timer, Tag, Languages, Clock3, Coins, A
 import { SectionHead, coinList, planBadge, Reveal, CountUp } from './kit';
 import { startPrice } from '../../api';
 import { Proof } from './Proof';
+import { Flag } from '../../Pickers';
 
 export { coinList, andList, planBadge } from './kit';
 
@@ -65,7 +66,7 @@ export function Coverage({ catalog }) {
         <div className="mt-12 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4" data-testid="coverage-grid">
           {list.map((c, i) => (
             <Reveal key={c.code} delay={Math.min(i, 11) * 50} className="civr-l-card-cream px-4 py-4 min-w-0" data-testid={`coverage-${c.code}`}>
-              <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 min-w-0"><span className="text-2xl leading-none">{c.flag}</span><span className="font-semibold text-slate-900 leading-snug min-w-0">{c.name}</span></div>
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 min-w-0"><Flag code={c.code} className="!w-8 !h-6 !rounded" /><span className="font-semibold text-slate-900 leading-snug min-w-0">{c.name}</span></div>
               <div className="text-xs civr-l-muted truncate mt-2">{c.types.map(t => tn[t] || t).join(' · ')}</div>
             </Reveal>
           ))}
