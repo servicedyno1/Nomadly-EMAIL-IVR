@@ -1,0 +1,36 @@
+{
+  "summary": "Tested Landline to Texting plan pricing on the backend and in the UI (preview dry-run). Backend: 11 of 12 pytest checks pass. Passing: GET planPrices/planLimits/plans; needs_plan (Bob); pick_plan (no planNumber or a number Alice doesn't own); plan_inactive; Starter 5/$150 and Pro 10/$120 limits (plan_limit on the next one, price charged right); Business $100 in both code and nocode modes, with item planNumber/plan/monthly 0 and exactly one hosted-sms-setup transaction; three parallel clicks give one debit; cancel refunds $100 and a second cancel does not refund again; admin reject refunds $100. Full flow verify, documents, review and auto-active works with no nextBillAt. Plan sync works: plan expired leads to paused with a note within one tick, and plan active again turns texting back on with the note cleared. Bob's legacy $50/month docs keep their nextBillAt. Inbound hosted text goes to the Inbox (regression script). The one failure is copy: sending a text on a paused plan-attached number returns 'the $50 monthly fee is due'. UI (1920 and 390): price cells show $150/$120/$100/$0.05; steps 1-3 appear in order; the plan card shows 'Business plan $100 · Unlimited · 0 added'; mode cards show no price; the button reads 'Pay $100 from wallet'; after paying come the code step (123456), then details and bill, then review, then active (~1 min). The panel shows 'Renews with your business plan on +13346972125, no monthly fee'. The paused panel shows the plan-specific copy. Inactive and full (5 of 5) plan cards are disabled and the pay button shows 'Pick a plan'. Bob sees texting-needs-plan, and its link goes to /cloudivr/app/buy. No page errors.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/cloudivr-web/hosted-sms/:id/send", "issue": "On a paused plan-attached number the error says 'Texting is paused — the $50 monthly fee is due. Top up your wallet.' (js/hosted-sms.js sendText, line ~389). It should say the plan on <planNumber> isn't active, renew it. Same problem in onInbound logs only (fine)."},
+      {"endpoint": "POST /api/cloudivr-web/hosted-sms", "issue": "The plan-limit check (plansFor count, then insert) is not atomic. Parallel setups for different numbers on a Starter/Pro plan with 4 of 5 used can all pass and go over the limit. Low risk."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Texting NumberPanel (paused, plan-attached)", "issues": ["Shows the same message twice: texting-panel-note 'Paused: the plan on +1… isn't active.' plus the texting-paused info line. Hide the note when status is paused and planNumber is set."]},
+      {"screen": "Texting NumberPanel (active)", "issues": ["The plan name is lowercase in 'Renews with your business plan'. Consider capitalising it ('Business plan') to match the plan cards."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_hosted_sms_plans.py", "/app/backend/tests/hosted_sms_inbound.js", "/app/test_reports/pytest/hosted_sms_plans.xml"],
+  "action_items": [
+    "In sendText, make the paused error plan-aware when d.planNumber is set: 'Texting is paused because the plan on X isn't active. Renew the plan.'",
+    "Optional: enforce the plan limit atomically, e.g. re-count after the insert and roll back if over the limit.",
+    "Optional: remove the duplicate paused note in NumberPanel for plan-attached numbers."
+  ],
+  "critical_code_review_comments": [
+    "hosted-sms.js sendText still uses legacy $MONTHLY copy for paused plan-attached numbers.",
+    "Race on the plan limit in start(): there is a gap between plansFor() and insertOne. Only the unique index on the same phone protects against double charge; that index works (verified: 3 parallel clicks gave 1 debit).",
+    "Old test file backend/tests/test_hosted_sms_web.py depends on /app/memory/_hsid and _bill.pdf, which are missing now, and expects legacy $300/$500 standalone pricing without planNumber. It is out of date for the new flow. Use test_hosted_sms_plans.py."
+  ],
+  "updated_files": ["/app/backend/tests/test_hosted_sms_plans.py"],
+  "success_rate": {"backend": "92% (11/12)", "frontend": "100%"},
+  "seed_data_creation": "None kept. Test hostedSms docs were deleted. Alice's plan number is back to business/active. Alice's wallet usdOut is back to 426.665 and Bob's to 11250.4. Alice's hosted-sms transactions from this run were deleted.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run: export REACT_APP_BACKEND_URL; pytest backend/tests/test_hosted_sms_plans.py (~80 s, waits for the 30 s tick). The tests change Alice's plan via Mongo phoneNumbersOf (_id 5000000000000001), put it back to business/active in teardown, and restore wallets. Sending to US mobiles from hosted numbers is blocked by the sms-rules P2P/10DLC rule (existing behavior), so use a Canada number (+1416…) for send tests. Bob has a first-login onboarding modal: click 'Skip for now'. The review step in dry-run activates about 60 s after docsAt.",
+  "test_credentials": "Alice civr.alice@example.com / AliceTest#2026 (business +13346972125); Bob civr.bob@example.com / BobTest#2026 (no numbers)"
+}

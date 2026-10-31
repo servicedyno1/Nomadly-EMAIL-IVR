@@ -105,6 +105,8 @@ async function start(chatId, phone, mode, planNumber) {
   const _id = `hs_${crypto.randomBytes(6).toString('hex')}`
   // Claim the number first (unique while live) so two clicks can't pay twice.
   try { await S.col.insertOne({ _id, chatId: String(chatId), phoneNumber: el.phoneNumber, mode, planNumber: parent.phoneNumber, plan: parent.plan, status: 'starting', live: true, paid: 0, createdAt: new Date(), updatedAt: new Date() }) } catch (e) { if (e.code === 11000) return { error: 'This number is already being text-enabled.' }; throw e }
+  // Re-count after claiming so parallel setups can't go over the plan's limit.
+  if (parent.limit != null && (await S.col.countDocuments({ chatId: String(chatId), planNumber: parent.phoneNumber, live: true })) > parent.limit) { await S.col.deleteOne({ _id }); return { error: `Your ${parent.plan} plan on ${parent.phoneNumber} already has ${parent.limit} texting numbers.`, code: 'plan_limit' } }
   if (!(await S.w.debit(chatId, price))) { await S.col.deleteOne({ _id }); return { error: `Your wallet needs $${price} for this setup. Top up first.`, code: 'insufficient_balance' } }
   let orderId = `preview-${_id}`
   if (!dry()) {
@@ -386,7 +388,7 @@ async function onInbound({ from, to, body }) {
 async function sendText(chatId, id, to, text) {
   const d = await mine(chatId, id)
   if (!d) return { error: 'That number isn’t on your account.' }
-  if (d.status !== 'active') return { error: d.status === 'paused' ? `Texting is paused — the $${MONTHLY} monthly fee is due. Top up your wallet.` : 'This number isn’t active for texting yet.' }
+  if (d.status !== 'active') return { error: d.status === 'paused' ? (d.planNumber ? `Texting is paused because the plan on ${d.planNumber} isn’t active. Renew the plan and it turns back on.` : `Texting is paused — the $${MONTHLY} monthly fee is due. Top up your wallet.`) : 'This number isn’t active for texting yet.' }
   const dest = normPhone(to)
   const body = String(text || '').trim()
   if (!E164.test(dest)) return { error: 'Enter the number to text with its country code.' }

@@ -24,7 +24,7 @@ export function NumberPanel({ item, meta, onChange }) {
       <div>
         <div className="font-mono text-2xl font-bold" data-no-translate data-testid="texting-panel-number">{item.phoneNumber}</div>
         <div className={`text-sm mt-1 ${s.tone}`} data-testid="texting-panel-status">{s.label}</div>
-        {item.note && <div className="text-sm text-[#fbbf24] mt-2" data-testid="texting-panel-note">{item.note}</div>}
+        {item.note && !(item.status === 'paused' && item.planNumber) && <div className="text-sm text-[#fbbf24] mt-2" data-testid="texting-panel-note">{item.note}</div>}
       </div>
       {item.status === 'verify' && <VerifyStep item={item} onChange={onChange} />}
       {item.status === 'documents' && <DocumentsStep item={item} onChange={onChange} />}
@@ -32,7 +32,7 @@ export function NumberPanel({ item, meta, onChange }) {
       {item.status === 'review' && <Info icon={Hourglass} text={`Your documents are with the carrier${item.docsAt ? ` since ${String(item.docsAt).slice(0, 10)}` : ''}. Usually approved within 1–3 business days${item.expectedBy ? ` — expected by ${String(item.expectedBy).slice(0, 10)}` : ''}. We’ll message your Inbox the moment texting is on.`} testid="texting-review" />}
       {item.status === 'paused' && <Info icon={PauseCircle} text={item.planNumber ? `Texting is paused because the plan on ${item.planNumber} isn’t active. Renew that plan and texting turns back on by itself.` : `Texting is paused because the $${meta.monthly} monthly fee couldn’t be paid. Top up your wallet — it turns back on within a day.`} testid="texting-paused" />}
       {item.status === 'rejected' && <Info icon={XCircle} text={`This number couldn’t be text-enabled. $${item.paid} was refunded to your wallet.`} testid="texting-rejected" />}
-      {item.status === 'active' && <p className="text-xs text-[#a1a1aa]" data-testid="texting-billing">{item.planNumber ? <>Renews with your {item.plan} plan on <span className="font-mono" data-no-translate>{item.planNumber}</span>, no monthly fee</> : <>Next ${meta.monthly} on {String(item.nextBillAt || '').slice(0, 10)}</>} · ${meta.textPrice.toFixed(2)} per text in the US & Canada (other countries priced per country) and per received text · incoming texts also land in your Inbox.</p>}
+      {item.status === 'active' && <p className="text-xs text-[#a1a1aa]" data-testid="texting-billing">{item.planNumber ? <>Renews with your {item.plan[0].toUpperCase() + item.plan.slice(1)} plan on <span className="font-mono" data-no-translate>{item.planNumber}</span>, no monthly fee</> : <>Next ${meta.monthly} on {String(item.nextBillAt || '').slice(0, 10)}</>} · ${meta.textPrice.toFixed(2)} per text in the US & Canada (other countries priced per country) and per received text · incoming texts also land in your Inbox.</p>}
       {['active', 'paused'].includes(item.status) && <Thread item={item} meta={meta} />}
       {['verify', 'documents', 'admin_docs'].includes(item.status) && <CancelButton item={item} onChange={onChange} />}
     </div>
