@@ -8,8 +8,12 @@ const crypto = require('crypto')
 const FormData = require('form-data')
 const { walletOps, round2 } = require('./cloudivr-web/wallet')
 
-const PRICE = { code: 300, nocode: 500 }
+const PRICE = { code: 300, nocode: 500 } // legacy standalone setups (before plan pricing); MONTHLY still bills them
 const MONTHLY = 50
+// Plan pricing: one-time setup per number, attached to one of the customer's plan numbers and renewed with that plan.
+const PLAN_PRICE = { starter: 150, pro: 120, business: 100 }
+const PLAN_LIMIT = { starter: 5, pro: 10, business: null }
+const LIVE = ['starting', 'verify', 'documents', 'admin_docs', 'review', 'active', 'paused']
 const NOBILL_FEE = 50 // customer has no phone bill: CloudIVR collects proof of ownership and submits it
 const REVIEW_DAYS = '1–3 business days' // Telnyx reviews Mon–Fri, 9am–5pm US Central
 const TEXT_PRICE = 0.05 // per text, sent or received
@@ -52,7 +56,8 @@ function init({ db, log = console.log, tell, brand, notifyAdmin }) {
 
 const txn = (chatId, type, amount, meta) => S.db.collection('transactions').insertOne({ chatId: String(chatId), type, amount: round2(amount), currency: 'USD', status: 'completed', metadata: { ...meta, channel: 'hosted-sms' }, createdAt: new Date(), updatedAt: new Date() })
 const pub = (d) => ({
-  id: d._id, phoneNumber: d.phoneNumber, mode: d.mode, status: d.status, note: d.note || null, paid: d.paid, monthly: MONTHLY,
+  id: d._id, phoneNumber: d.phoneNumber, mode: d.mode, status: d.status, note: d.note || null, paid: d.paid, monthly: d.planNumber ? 0 : MONTHLY,
+  planNumber: d.planNumber || null, plan: d.plan || null,
   nextBillAt: d.nextBillAt || null, createdAt: d.createdAt, activatedAt: d.activatedAt || null, holder: d.holder || null,
   noBill: !!d.noBill, docsAt: d.docsAt || null, expectedBy: d.docsAt ? addBusinessDays(d.docsAt, 3) : null,
 })
@@ -61,6 +66,13 @@ function addBusinessDays(from, n) {
   const d = new Date(from)
   while (n > 0) { d.setUTCDate(d.getUTCDate() + 1); if (d.getUTCDay() % 6) n -= 1 }
   return d
+}
+// The customer's plan numbers, with how many texting numbers each already carries.
+async function plansFor(chatId) {
+  const nums = ((await S.db.collection('phoneNumbersOf').findOne({ _id: String(chatId) }))?.val?.numbers || []).filter(n => PLAN_PRICE[n.plan] && n.status !== 'released')
+  const used = await S.col.aggregate([{ $match: { chatId: String(chatId), live: true, planNumber: { $in: nums.map(n => n.phoneNumber) } } }, { $group: { _id: '$planNumber', n: { $sum: 1 } } }]).toArray()
+  const count = Object.fromEntries(used.map(u => [u._id, u.n]))
+  return nums.map(n => ({ phoneNumber: n.phoneNumber, plan: n.plan, status: n.status, expiresAt: n.expiresAt || null, price: PLAN_PRICE[n.plan], limit: PLAN_LIMIT[n.plan], used: count[n.phoneNumber] || 0 }))
 }
 const mine = (chatId, id) => S.col.findOne({ _id: String(id), chatId: String(chatId) })
 const list = async (chatId) => (await S.col.find({ chatId: String(chatId), status: { $nin: ['cancelled', 'starting'] } }).sort({ createdAt: -1 }).toArray()).map(pub)
@@ -78,15 +90,21 @@ async function check(phone) {
 }
 
 // Pays the setup and opens the Telnyx order.
-async function start(chatId, phone, mode) {
+async function start(chatId, phone, mode, planNumber) {
   if (!require('./cloudivr-web/notify.js').isWebChatId(chatId)) return { error: 'Landline to Texting is available on cloudivr.net.' }
   if (!PRICE[mode]) return { error: 'Choose with or without the ownership code.' }
+  const plans = await plansFor(chatId)
+  if (!plans.length) return { error: 'Landline to Texting is added to a plan. Get a phone number with a plan first.', code: 'needs_plan' }
+  const parent = plans.find(p => p.phoneNumber === planNumber)
+  if (!parent) return { error: 'Pick which of your plans this number goes on.', code: 'pick_plan' }
+  if (parent.status !== 'active') return { error: `The plan on ${parent.phoneNumber} isn’t active. Renew it first.`, code: 'plan_inactive' }
+  if (parent.limit != null && parent.used >= parent.limit) return { error: `Your ${parent.plan[0].toUpperCase()}${parent.plan.slice(1)} plan on ${parent.phoneNumber} already has ${parent.limit} texting numbers. Upgrade or pick another plan.`, code: 'plan_limit' }
   const el = await check(phone)
   if (!el.eligible) return { error: el.detail || 'This number can’t be text-enabled.' }
-  const price = PRICE[mode]
+  const price = PLAN_PRICE[parent.plan]
   const _id = `hs_${crypto.randomBytes(6).toString('hex')}`
   // Claim the number first (unique while live) so two clicks can't pay twice.
-  try { await S.col.insertOne({ _id, chatId: String(chatId), phoneNumber: el.phoneNumber, mode, status: 'starting', live: true, paid: 0, createdAt: new Date(), updatedAt: new Date() }) } catch (e) { if (e.code === 11000) return { error: 'This number is already being text-enabled.' }; throw e }
+  try { await S.col.insertOne({ _id, chatId: String(chatId), phoneNumber: el.phoneNumber, mode, planNumber: parent.phoneNumber, plan: parent.plan, status: 'starting', live: true, paid: 0, createdAt: new Date(), updatedAt: new Date() }) } catch (e) { if (e.code === 11000) return { error: 'This number is already being text-enabled.' }; throw e }
   if (!(await S.w.debit(chatId, price))) { await S.col.deleteOne({ _id }); return { error: `Your wallet needs $${price} for this setup. Top up first.`, code: 'insufficient_balance' } }
   let orderId = `preview-${_id}`
   if (!dry()) {
@@ -100,9 +118,9 @@ async function start(chatId, phone, mode) {
       return { error: `Telnyx couldn’t open the order: ${errText(e)}. You weren’t charged.` }
     }
   }
-  const doc = { _id, chatId: String(chatId), phoneNumber: el.phoneNumber, mode, status: mode === 'code' ? 'verify' : 'documents', live: true, telnyxOrderId: orderId, paid: price, createdAt: new Date(), updatedAt: new Date() }
+  const doc = { _id, chatId: String(chatId), phoneNumber: el.phoneNumber, mode, planNumber: parent.phoneNumber, plan: parent.plan, status: mode === 'code' ? 'verify' : 'documents', live: true, telnyxOrderId: orderId, paid: price, createdAt: new Date(), updatedAt: new Date() }
   await S.col.updateOne({ _id }, { $set: { status: doc.status, telnyxOrderId: orderId, paid: price, updatedAt: new Date() } })
-  await txn(chatId, 'hosted-sms-setup', price, { phoneNumber: el.phoneNumber, mode, hostedId: _id })
+  await txn(chatId, 'hosted-sms-setup', price, { phoneNumber: el.phoneNumber, mode, hostedId: _id, planNumber: parent.phoneNumber, plan: parent.plan })
   S.log(`[HostedSMS] ${chatId} started ${el.phoneNumber} (${mode}, $${price})`)
   return { item: pub(doc) }
 }
@@ -304,8 +322,8 @@ async function pollOne(d) {
     try { st = (await axios.get(`${API}/messaging_hosted_number_orders/${d.telnyxOrderId}`, { headers: hdr(), timeout: 20000 })).data?.data?.status } catch (e) { return }
   }
   if (st === 'successful') {
-    const r = await S.col.updateOne({ _id: d._id, status: 'review' }, { $set: { status: 'active', note: null, activatedAt: new Date(), nextBillAt: new Date(Date.now() + MONTH_MS), updatedAt: new Date() } })
-    if (r.modifiedCount) S.tell(d.chatId, `✅ ${d.phoneNumber} can now send and receive texts. Incoming texts land in your Inbox — reply right there. $${MONTHLY}/month from your wallet, next on ${new Date(Date.now() + MONTH_MS).toISOString().slice(0, 10)}.`, { kind: 'billing', meta: { hosted: d._id } })
+    const r = await S.col.updateOne({ _id: d._id, status: 'review' }, { $set: { status: 'active', note: null, activatedAt: new Date(), ...(d.planNumber ? {} : { nextBillAt: new Date(Date.now() + MONTH_MS) }), updatedAt: new Date() } })
+    if (r.modifiedCount) S.tell(d.chatId, `✅ ${d.phoneNumber} can now send and receive texts. Incoming texts land in your Inbox — reply right there. ${d.planNumber ? `No monthly fee: it renews with your plan on ${d.planNumber}.` : `$${MONTHLY}/month from your wallet, next on ${new Date(Date.now() + MONTH_MS).toISOString().slice(0, 10)}.`}`, { kind: 'billing', meta: { hosted: d._id } })
   } else if (FIX_DOCS.includes(st) && d.status === 'review') {
     await S.col.updateOne({ _id: d._id }, { $set: { status: d.noBill ? 'admin_docs' : 'documents', note: REASON[st], updatedAt: new Date() } })
     S.tell(d.chatId, `⚠️ ${d.phoneNumber}: ${REASON[st]} Please send the details and phone bill again — no extra charge.`, { kind: 'billing', meta: { hosted: d._id } })
@@ -329,9 +347,19 @@ async function billOne(d) {
   }
 }
 
+// Plan-attached numbers: texting is on while the parent plan number is active, paused while it is expired/suspended/gone.
+async function syncPlan(d) {
+  const parent = ((await S.db.collection('phoneNumbersOf').findOne({ _id: d.chatId }))?.val?.numbers || []).find(n => n.phoneNumber === d.planNumber && n.status !== 'released')
+  const on = parent?.status === 'active'
+  if (on === (d.status === 'active')) return
+  await S.col.updateOne({ _id: d._id, status: d.status }, { $set: { status: on ? 'active' : 'paused', note: on ? null : `Paused: the plan on ${d.planNumber} isn’t active.`, updatedAt: new Date() } })
+  S.tell(d.chatId, on ? `✅ Texting on ${d.phoneNumber} is back on — your plan on ${d.planNumber} is active again.` : `⏸ Texting on ${d.phoneNumber} is paused because the plan on ${d.planNumber} isn’t active. Renew the plan and texting turns back on by itself.`, { kind: 'billing', meta: { hosted: d._id } })
+}
+
 async function tick() {
   for (const d of await S.col.find({ status: 'review' }).limit(200).toArray()) await pollOne(d)
-  for (const d of await S.col.find({ status: { $in: ['active', 'paused'] }, nextBillAt: { $lte: new Date() } }).limit(200).toArray()) await billOne(d)
+  for (const d of await S.col.find({ status: { $in: ['active', 'paused'] }, planNumber: null, nextBillAt: { $lte: new Date() } }).limit(200).toArray()) await billOne(d)
+  for (const d of await S.col.find({ status: { $in: ['active', 'paused'] }, planNumber: { $ne: null } }).limit(500).toArray()) await syncPlan(d)
 }
 
 const findLive = (phone) => S?.col.findOne({ phoneNumber: normPhone(phone), status: { $in: ['active', 'paused'] } })
@@ -388,5 +416,5 @@ async function messages(chatId, id, limit = 50) {
   return S.db.collection('phoneLogs').find({ chatId: String(chatId), phoneNumber: d.phoneNumber, hosted: true }).sort({ timestamp: -1 }).limit(limit).toArray()
 }
 
-const api = { init, check, start, sendCode, submitCode, submitDocs, cancel, adminSubmitDocs, adminMessage, adminReject, addBusinessDays, NOBILL_FEE, REVIEW_DAYS, list, mine, pub, onInbound, sendText, messages, tick, buildLoa, normPhone, PRICE, MONTHLY, TEXT_PRICE, MAX_TEXT }
+const api = { init, check, start, sendCode, submitCode, submitDocs, cancel, adminSubmitDocs, adminMessage, adminReject, addBusinessDays, NOBILL_FEE, REVIEW_DAYS, list, mine, pub, onInbound, sendText, messages, tick, buildLoa, normPhone, PRICE, MONTHLY, TEXT_PRICE, MAX_TEXT, PLAN_PRICE, PLAN_LIMIT, plansFor }
 module.exports = api

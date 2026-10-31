@@ -10,9 +10,9 @@ function routes(router, { db, h, upload, log, notifyAdmin }) {
   const out = (res, r) => (r.error ? bad(res, r.error, r.code === 'insufficient_balance' ? 402 : 400, r.code || 'bad_request') : res.json(r))
   const holderOf = (b) => { try { return typeof b.holder === 'string' ? JSON.parse(b.holder) : b.holder || {} } catch (_) { return {} } }
 
-  router.get('/hosted-sms', h(async (req, res) => res.json({ items: await HS.list(req.webChatId), prices: HS.PRICE, noBillFee: HS.NOBILL_FEE, reviewDays: HS.REVIEW_DAYS, monthly: HS.MONTHLY, textPrice: HS.TEXT_PRICE, maxText: HS.MAX_TEXT })))
+  router.get('/hosted-sms', h(async (req, res) => res.json({ items: await HS.list(req.webChatId), prices: HS.PRICE, planPrices: HS.PLAN_PRICE, planLimits: HS.PLAN_LIMIT, plans: await HS.plansFor(req.webChatId), noBillFee: HS.NOBILL_FEE, reviewDays: HS.REVIEW_DAYS, monthly: HS.MONTHLY, textPrice: HS.TEXT_PRICE, maxText: HS.MAX_TEXT })))
   router.post('/hosted-sms/check', h(async (req, res) => res.json(await HS.check(req.body?.phone))))
-  router.post('/hosted-sms', h(async (req, res) => out(res, await HS.start(req.webChatId, req.body?.phone, req.body?.mode))))
+  router.post('/hosted-sms', h(async (req, res) => out(res, await HS.start(req.webChatId, req.body?.phone, req.body?.mode, req.body?.planNumber))))
   router.post('/hosted-sms/:id/code/send', h(async (req, res) => out(res, await HS.sendCode(req.webChatId, req.params.id, req.body?.method))))
   router.post('/hosted-sms/:id/code', h(async (req, res) => out(res, await HS.submitCode(req.webChatId, req.params.id, req.body?.code))))
   router.post('/hosted-sms/:id/cancel', h(async (req, res) => out(res, await HS.cancel(req.webChatId, req.params.id))))
