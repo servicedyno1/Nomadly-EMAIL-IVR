@@ -1,0 +1,34 @@
+{
+  "summary": "Frontend-only Playwright test of the reorganised CloudIVR landing (/cloudivr): the 3 product families, the grouped Products mega menu and mobile menu, the #esim section and the on-page eSIM checkout. Tested at 1920x1080 and 390x844. Everything requested passed. Families: the calling, texting and mobile cards are present. The calling CTA scrolls to #pricing. The texting CTA links to /cloudivr/signup?plan=texting. The mobile CTA opens the checkout. The 'more' links go to #features-ivr, #features-hosted and #esim. The old pillars, channel-slider and product-cards-section are all gone. Mega menu groups: calling has 7 items, texting has Landline to Texting, mobile has CloudIVR eSIM, and that item scrolls to #esim. The mobile menu lists the eSIM item and it scrolls there too. The esim-section shows the T-Mobile copy, 3 points and the SPENZA_001 card ($100 / 30 days, 'T-Mobile network'). Checkout validation: Next is disabled for 14 digits and for a 3-digit ZIP, and enabled for 15 digits with an empty ZIP or a 5-digit ZIP. Escape and the close button both close the checkout. Logged-out flow: 'Your account' step → wrong password shows 'Wrong email or password.' → signed up qa.esimco1793566138@example.com → 'Pay' step with esim-co-need '$0.00… Add $100', 8 coins → deposit shows the preview warning and the PREVIEW-MODE address. Alice: Continue went straight to Pay, with no account step. The draft prefilled /app/esim with IMEI 356938035643809 and ZIP 10011. Pay $100 from wallet → done → esim-co-open went to /cloudivr/app/esim. The new line es_5a56951918b2 showed 'Creating your eSIM…' and turned Active, then was cancelled through the confirm dialog and removed. es_69fcb8db0c34 was untouched. Spanish: families, esim section, menu groups, checkout steps and the error are all translated. Public /api/cloudivr-web/public/esim-plans returns carrier 'T-Mobile network' and price 100. /esim needs sign-in (not_signed_in), as expected. At 390px the families stack in one column, there is no horizontal scroll, and the checkout fits (366px wide, account step 620px tall).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "EsimCheckout Details ZIP input", "issue": "maxLength=5 is applied before non-digits are stripped, so pasting '10a011' gives '1001', which silently blocks Continue", "selector": "[data-testid='esim-co-zip']", "priority": "LOW"}
+    ],
+    "integration_issues": [
+      {"flow": "Draft prefill on /app/esim", "issue": "The civr.esimDraft draft is only removed after a successful buy. Pressing Cancel on the buy form (esim-buy-cancel) keeps it, so every later visit to /app/esim reopens the buy form. The draft is also not tied to a user, so a different account in the same browser gets the same prefill.", "affected_selectors": ["[data-testid='esim-buy']", "[data-testid='esim-buy-cancel']"]},
+      {"flow": "Checkout Pay step", "issue": "useApi('/wallet') has no error branch. If /wallet fails, the Pay step spins forever.", "affected_selectors": ["[data-testid='esim-co-pay']"]}
+    ],
+    "design_issues": [
+      {"screen": "Landing #esim section (desktop)", "issues": ["With only one plan, the card sits alone in a 3-column grid and leaves a big empty area to the right"]},
+      {"screen": "Landing UseCases (es)", "issues": ["The subtitle 'Seven ways people run their phone line on CloudIVR…' is missing from es.json and shows in English (outside this change, but visible next to the translated sections)"]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Clear (or ignore) civr.esimDraft when the user cancels the /app/esim buy form, and consider storing it with the account id",
+    "Strip non-digits before limiting the checkout ZIP length (remove maxLength or slice after replace)",
+    "Add an error state for the /wallet fetch in the checkout Pay step",
+    "Optional: centre or widen the eSIM plan grid when there is a single plan; translate the UseCases subtitle in es/fr"
+  ],
+  "critical_code_review_comments": [
+    "EsimCheckout Pay: the crypto auto-order only runs while the modal stays open (polling in the component). If the visitor closes it after paying, the wallet is funded but no order is placed. The /app/esim draft prefill partly covers this; consider an explicit notice.",
+    "EsimCheckoutHost: if the plans fetch fails or comes back empty, the Buy eSIM / family-mobile-cta buttons silently do nothing"
+  ],
+  "updated_files": ["/app/test_reports/iteration_187.json"],
+  "success_rate": {"backend": "skipped (frontend only; 1 public API checked via curl)", "frontend": "100% of requested flows"},
+  "seed_data_creation": "New sign-up qa.esimco1793566138@example.com / QaTest#2026x ($0 wallet, one simulated BTC top-up address requested). Alice bought one simulated eSIM (es_5a56951918b2, $100) and it was cancelled. Alice's wallet is now about $599.93.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Use the https://vault-setup-30--5ddhk04r.preview.emergentagent.com/cloudivr host. Dismiss cookie-allow-all first. Login fields: auth-email-input, input[type=password], auth-submit-button. A simulated eSIM turns Active after about 30 s, and esim-cancel-<id> only shows once it is Active. Never cancel es_69fcb8db0c34. The checkout testids are esim-co-*."
+}

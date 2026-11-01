@@ -3825,5 +3825,7 @@
 "Paid — your eSIM is on its way": "Pagado: tu eSIM está en camino",
 "It’s usually ready in minutes. Open CloudIVR eSIM to scan the QR code and install it on your phone.": "Suele estar lista en minutos. Abre eSIM de CloudIVR para escanear el código QR e instalarla en tu teléfono.",
 "Open CloudIVR eSIM": "Abrir eSIM de CloudIVR",
-"CloudIVR eSIM · {0} · ${1}": "eSIM de CloudIVR · {0} · ${1}"
+"CloudIVR eSIM · {0} · ${1}": "eSIM de CloudIVR · {0} · ${1}",
+"Seven ways people run their phone line on CloudIVR — each one points at the part of the platform that does the work.": "Siete formas en que la gente usa su línea en CloudIVR: cada una apunta a la parte de la plataforma que hace el trabajo.",
+"Closed it after paying? The money stays in your wallet. Open CloudIVR eSIM and your details will be filled in to finish the order.": "¿La cerraste después de pagar? El dinero queda en tu billetera. Abre eSIM de CloudIVR y tus datos estarán listos para terminar el pedido."
 }

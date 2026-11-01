@@ -2452,3 +2452,12 @@ User-approved order: #4 → #7 → #2 → #3 → #5 → #6. Sandbox-verified; pr
 - Optional 5-digit ZIP on buy form → Spenza `zipcode` (area steering only; Spenza has no number search/pick API).
 - Copy: "Ready in minutes" (Spenza says up to ~45 min). SIP gateway transport fixed to lowercase 'udp'. i18n: scripts/i18n_esim4.py.
 - Verified: API + pytest 22 passed/1 skipped; simulated order stored simId SIM_J + zip 10011. SIM_J shows 0 in stock at Spenza.
+
+## 2026-11-01 (g) — Landing grouped into 3 families + on-page eSIM checkout — PREVIEW ONLY
+- New landing/Families.js (#products): Calling & IVR · Texting (Landline to Texting) · Mobile (CloudIVR eSIM). Removed Pillars, ChannelSlider, ProductCards (merged).
+- Products mega menu groups = calling / texting / mobile (menu.js adds 'esim' item → #esim). Footer picks it up too.
+- EsimPlans: T-Mobile network + instant QR + calls/texts in app copy; "Buy eSIM" opens landing/EsimCheckout.js modal:
+  details (IMEI, optional ZIP) → sign up / sign in inline (2FA → /login?plan=esim) → pay from wallet, or crypto top-up then auto-order while open → done.
+  Draft (civr.esimDraft, tied to account id) prefills /app/esim buy form; cleared on buy or Cancel. Plans fetch failure → Buy goes to signup/app.
+- Customer carrier label is now "T-Mobile network" (owner statement). i18n: scripts/i18n_esim5.py.
+- Tests: iteration_187 frontend 100%; follow-ups (ZIP paste, draft scope/cancel, wallet error state, single-plan width, UseCases es/fr) fixed + self-verified.

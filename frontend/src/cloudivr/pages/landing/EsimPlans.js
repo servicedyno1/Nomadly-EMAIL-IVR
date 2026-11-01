@@ -21,7 +21,7 @@ export function EsimPlans() {
         </Reveal>
         <div className="grid sm:grid-cols-3 gap-4 mt-8" data-testid="esim-points">{POINTS.map(([I, t, s]) => <div key={t} className="flex gap-3"><span className="w-10 h-10 rounded-xl grid place-items-center v2-hero shrink-0"><I className="w-5 h-5" /></span><div><div className="font-semibold">{t}</div><div className="text-sm v2-muted mt-0.5">{s}</div></div></div>)}</div>
         {plans.length ? (
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5 mt-10">{plans.map(p => (
+          <div className={`grid gap-5 mt-10 ${plans.length === 1 ? 'max-w-md' : 'sm:grid-cols-2 lg:grid-cols-3'}`}>{plans.map(p => (
             <div key={p.planId} className="v2-surface p-6 flex flex-col v2-lift" data-testid={`esim-landing-plan-${slug(p.planId)}`}>
               <div className="flex items-center justify-between gap-2"><span className="font-semibold">{p.name}</span><span className="text-xs v2-muted">{p.carrier}</span></div>
               <div className="civr-l-h text-4xl mt-4">{`$${p.price}`} <span className="text-base font-medium v2-muted">{`/ ${p.validityDays} days`}</span></div>

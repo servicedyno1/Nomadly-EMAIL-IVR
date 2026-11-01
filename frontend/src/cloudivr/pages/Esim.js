@@ -7,8 +7,10 @@ import { PageHeader, Field, ErrorNote, Spinner, Empty } from '../ui';
 import { useShell } from '../Shell';
 import { ask } from '../confirm';
 import { DRAFT_KEY } from './landing/EsimCheckout';
+import { useCivrAuth } from '../AuthContext';
 
 const readDraft = () => { try { return JSON.parse(localStorage.getItem(DRAFT_KEY)) || null; } catch (_) { return null; } };
+const dropDraft = () => { try { localStorage.removeItem(DRAFT_KEY); } catch (_) { /* private mode */ } };
 
 const STATUS = { provisioning: ['Creating your eSIM… usually ready in minutes', 'text-[#fbbf24]'], active: ['Active', 'text-[#34d399]'], suspended: ['Paused · monthly fee due', 'text-[#fbbf24]'], failed: ['Couldn’t be created · refunded', 'text-[#fb7185]'] };
 
@@ -32,12 +34,12 @@ function BuyForm({ plan, draft, onDone, onCancel }) {
   const [zip, setZip] = useState(draft?.zip || '');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
-  const go = async () => { setBusy(true); setErr(null); try { await api('/esim', { method: 'POST', body: { planId: plan.planId, imei, zipcode: zip.trim() } }); toast.success(`Paid $${plan.price}. Creating your eSIM — usually ready in minutes`); refreshSummary(); try { localStorage.removeItem(DRAFT_KEY); } catch (_) { /* private mode */ } onDone(); } catch (e) { setErr(e); } finally { setBusy(false); } };
+  const go = async () => { setBusy(true); setErr(null); try { await api('/esim', { method: 'POST', body: { planId: plan.planId, imei, zipcode: zip.trim() } }); toast.success(`Paid $${plan.price}. Creating your eSIM — usually ready in minutes`); refreshSummary(); dropDraft(); onDone(); } catch (e) { setErr(e); } finally { setBusy(false); } };
   return (
     <div className="civr-card p-6 space-y-4" data-testid="esim-buy">
       <div className="font-semibold">{plan.label || plan.planId}</div>
       <Field label="Your phone’s IMEI" hint="Dial *#06# on the phone that will use the eSIM. Use the first IMEI if it shows two."><input className="civr-input font-mono" inputMode="numeric" maxLength={17} value={imei} onChange={e => setImei(e.target.value)} placeholder="15 digits" data-testid="esim-imei-input" /></Field>
-      <Field label="ZIP code for your number (optional)" hint="We’ll ask for a number near this US ZIP code. The exact area code can’t be guaranteed."><input className="civr-input font-mono max-w-[160px]" inputMode="numeric" maxLength={5} value={zip} onChange={e => setZip(e.target.value.replace(/\D/g, ''))} placeholder="e.g. 10011" data-testid="esim-zip-input" /></Field>
+      <Field label="ZIP code for your number (optional)" hint="We’ll ask for a number near this US ZIP code. The exact area code can’t be guaranteed."><input className="civr-input font-mono max-w-[160px]" inputMode="numeric" value={zip} onChange={e => setZip(e.target.value.replace(/\D/g, '').slice(0, 5))} placeholder="e.g. 10011" data-testid="esim-zip-input" /></Field>
       <div className="flex flex-wrap gap-2">
         <button type="button" onClick={go} disabled={busy || imei.replace(/\D/g, '').length !== 15 || (zip.length > 0 && zip.length !== 5)} className="civr-btn civr-btn-primary" data-testid="esim-pay-button">{busy && <Loader2 className="w-4 h-4 animate-spin" />}{`Pay $${plan.price} from wallet`}</button>
         <button type="button" onClick={onCancel} className="civr-btn civr-btn-ghost" data-testid="esim-buy-cancel">Cancel</button>
@@ -132,7 +134,8 @@ function Line({ item, reload }) {
 export default function Esim() {
   const { data, error, reload } = useApi('/esim');
   const [buying, setBuying] = useState(null);
-  const [draft] = useState(readDraft);
+  const { account } = useCivrAuth();
+  const [draft] = useState(() => { const x = readDraft(); return x && (!x.account || x.account === account?.id) ? x : null; });
   const used = useRef(false);
   useEffect(() => { if (draft && data?.plans && !used.current) { used.current = true; const p = data.plans.find(x => x.planId === draft.planId); if (p) setBuying(p); } }, [draft, data?.plans]);
   const waiting = !!data?.items?.some(x => x.status === 'provisioning');
@@ -144,7 +147,7 @@ export default function Esim() {
       <PageHeader label="CloudIVR eSIM" title="A US mobile line, ready in minutes" sub="Get an eSIM with a US number, calls, texts and data. It’s usually ready a few minutes after you pay: scan the QR code and it’s on your phone. Add as many lines as you need." testid="esim-header" />
       {data.items.length > 0 && <div className="space-y-4">{data.items.map(x => <Line key={x.id} item={x} reload={reload} />)}</div>}
       {data.items.length > 0 && !buying && data.plans.length > 0 && <h2 className="font-display text-xl font-bold" data-testid="esim-add-another">Add another eSIM</h2>}
-      {buying ? <BuyForm plan={buying} draft={draft?.planId === buying.planId ? draft : null} onCancel={() => setBuying(null)} onDone={() => { setBuying(null); reload(); }} /> : (
+      {buying ? <BuyForm plan={buying} draft={draft?.planId === buying.planId ? draft : null} onCancel={() => { dropDraft(); setBuying(null); }} onDone={() => { setBuying(null); reload(); }} /> : (
         data.plans.length ? <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4" data-testid="esim-plans">{data.plans.map(p => <PlanCard key={p.planId} p={p} onBuy={setBuying} />)}</div>
           : <Empty icon={Smartphone} title="eSIM plans are coming soon" sub="We’re adding mobile plans. Check back shortly." testid="esim-empty" />
       )}

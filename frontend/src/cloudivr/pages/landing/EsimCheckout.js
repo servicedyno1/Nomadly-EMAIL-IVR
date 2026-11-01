@@ -25,7 +25,7 @@ function Details({ plans, d, set, onNext }) {
     <div className="space-y-5" data-testid="esim-co-details">
       {plans.length > 1 && <Label text="Plan"><select className={IN} value={d.planId} onChange={e => set({ planId: e.target.value })} data-testid="esim-co-plan-select">{plans.map(p => <option key={p.planId} value={p.planId}>{`${p.name} · $${p.price}`}</option>)}</select></Label>}
       <Label text="Your phone’s IMEI" hint="Dial *#06# on the phone that will use the eSIM. Use the first IMEI if it shows two."><input className={`${IN} font-mono`} inputMode="numeric" maxLength={17} value={d.imei} onChange={e => set({ imei: e.target.value })} placeholder="15 digits" data-testid="esim-co-imei" /></Label>
-      <Label text="ZIP code for your number (optional)" hint="We’ll ask for a number near this US ZIP code. The exact area code can’t be guaranteed."><input className={`${IN} font-mono max-w-[180px]`} inputMode="numeric" maxLength={5} value={d.zip} onChange={e => set({ zip: e.target.value.replace(/\D/g, '') })} placeholder="e.g. 10011" data-testid="esim-co-zip" /></Label>
+      <Label text="ZIP code for your number (optional)" hint="We’ll ask for a number near this US ZIP code. The exact area code can’t be guaranteed."><input className={`${IN} font-mono max-w-[180px]`} inputMode="numeric" value={d.zip} onChange={e => set({ zip: e.target.value.replace(/\D/g, '').slice(0, 5) })} placeholder="e.g. 10011" data-testid="esim-co-zip" /></Label>
       <Btn onClick={onNext} disabled={!imeiOk || !zipOk} data-testid="esim-co-next">Continue<ArrowRight className="w-4 h-4" /></Btn>
     </div>
   );
@@ -42,7 +42,7 @@ function Account({ onDone, onMfa }) {
     try {
       const r = await api(mode === 'signup' ? '/auth/register' : '/auth/login', { method: 'POST', body: f });
       if (r.twoFactor) { onMfa(); return; }
-      setAccount(r.account); onDone();
+      setAccount(r.account); onDone(r.account);
     } catch (e) { setErr(e); } finally { setBusy(false); }
   };
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
@@ -73,6 +73,7 @@ function Deposit({ dep }) {
         </div>
       </div>
       <p className="text-xs text-slate-500">Keep this window open. We check every 15 seconds and place your eSIM order as soon as the payment confirms.</p>
+      <p className="text-xs text-slate-500" data-testid="esim-co-deposit-later">Closed it after paying? The money stays in your wallet. Open CloudIVR eSIM and your details will be filled in to finish the order.</p>
     </div>
   );
 }
@@ -94,7 +95,7 @@ function TopUp({ w, need, onDep }) {
 }
 
 function Pay({ plan, d, onPaid }) {
-  const { data: w, reload } = useApi('/wallet');
+  const { data: w, error: wErr, reload } = useApi('/wallet');
   const [dep, setDep] = useState(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
@@ -107,6 +108,7 @@ function Pay({ plan, d, onPaid }) {
   useEffect(() => { if (!dep) return undefined; const t = setInterval(reload, 15000); return () => clearInterval(t); }, [dep, reload]);
   const enough = w && w.balance >= plan.price;
   useEffect(() => { if (dep && enough) order(); }, [dep, enough, order]);
+  if (!w && wErr) return <div className="space-y-3" data-testid="esim-co-wallet-error"><Err e={wErr} /><Btn onClick={reload} data-testid="esim-co-wallet-retry">Try again</Btn></div>;
   if (!w) return <div className="py-8 grid place-items-center"><Loader2 className="w-6 h-6 animate-spin text-slate-400" /></div>;
   return (
     <div className="space-y-4" data-testid="esim-co-pay">
@@ -140,7 +142,8 @@ function Checkout({ plans, first, onClose }) {
   const plan = plans.find(p => p.planId === d.planId) || plans[0];
   const box = useRef(null);
   useEffect(() => { const k = (e) => e.key === 'Escape' && onClose(); window.addEventListener('keydown', k); box.current?.querySelector('input,select')?.focus(); return () => window.removeEventListener('keydown', k); }, [onClose, step]);
-  const next = () => { saveDraft(d); setStep(account ? 'pay' : 'account'); };
+  const next = () => { if (account) saveDraft({ ...d, account: account.id }); setStep(account ? 'pay' : 'account'); };
+  const signedIn = (acc) => { saveDraft({ ...d, account: acc?.id || null }); setStep('pay'); };
   const paid = useCallback(() => { dropDraft(); setStep('done'); }, []);
   return (
     <div className="fixed inset-0 z-[70] bg-slate-900/50 grid place-items-center p-3 sm:p-6" onMouseDown={(e) => e.target === e.currentTarget && onClose()} data-testid="esim-checkout">
@@ -150,7 +153,7 @@ function Checkout({ plans, first, onClose }) {
           <button type="button" onClick={onClose} className="w-11 h-11 grid place-items-center rounded-full hover:bg-slate-100 shrink-0" aria-label="Close" data-testid="esim-co-close"><X className="w-5 h-5" /></button>
         </div>
         {step === 'details' && <Details plans={plans} d={d} set={set} onNext={next} />}
-        {step === 'account' && <Account onDone={() => setStep('pay')} onMfa={() => nav(cp('/login?plan=esim'))} />}
+        {step === 'account' && <Account onDone={signedIn} onMfa={() => { saveDraft({ ...d, account: null }); nav(cp('/login?plan=esim')); }} />}
         {step === 'pay' && <Pay plan={plan} d={d} onPaid={paid} />}
         {step === 'done' && <Done onClose={onClose} />}
       </div>
@@ -160,10 +163,16 @@ function Checkout({ plans, first, onClose }) {
 
 // Mounted once on the landing page; any "Buy eSIM" button opens it via openEsimCheckout().
 export function EsimCheckoutHost() {
-  const { data } = useApi('/public/esim-plans');
+  const { data, error } = useApi('/public/esim-plans');
+  const { account } = useCivrAuth();
+  const nav = useNavigate();
   const [open, setOpen] = useState(undefined);
-  useEffect(() => { const f = (e) => setOpen(e.detail || null); window.addEventListener('civr-esim-checkout', f); return () => window.removeEventListener('civr-esim-checkout', f); }, []);
   const plans = data?.plans || [];
+  const ready = plans.length > 0, failed = !!error || (data && !ready);
+  useEffect(() => {
+    const f = (e) => (failed ? nav(cp(account ? '/app/esim' : '/signup?plan=esim')) : setOpen(e.detail || null));
+    window.addEventListener('civr-esim-checkout', f); return () => window.removeEventListener('civr-esim-checkout', f);
+  }, [failed, account, nav]);
   if (open === undefined || !plans.length) return null;
   return <Checkout plans={plans} first={open} onClose={() => setOpen(undefined)} />;
 }
