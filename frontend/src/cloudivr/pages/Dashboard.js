@@ -11,6 +11,7 @@ import { GetStarted, YourNumbers } from './dashboard/Widgets';
 import { CouponBanner, ChannelCard, TrialCard } from './dashboard/Banners';
 import { NewProducts } from './dashboard/NewProducts';
 import { ForYou, ReviewPrompt } from './dashboard/ForYou';
+import { TextingHome } from './dashboard/TextingHome';
 
 function Stat({ icon: Icon, label, value, to, testid, delay }) {
   const body = (
@@ -55,17 +56,22 @@ export default function Dashboard() {
   const fresh = !!s && !s.numbers?.total;
   const { data: act } = useApi(s && !fresh ? '/activity?limit=12' : null);
   const { data: nums } = useApi(s && !fresh ? '/numbers' : null);
+  const { data: hosted } = useApi(fresh ? '/hosted-sms' : null);
+  const textingOnly = fresh && hosted?.items?.some(x => !['rejected', 'cancelled'].includes(x.status));
   return (
     <div data-testid="dashboard-page">
-      <PageHeader label="Overview" title={`Hi ${account?.name?.split(' ')[0] || 'there'}`} sub={fresh ? 'Three quick steps and your number is live.' : 'Your numbers, wallet and live activity at a glance.'} testid="dashboard-header">
+      <PageHeader label="Overview" title={`Hi ${account?.name?.split(' ')[0] || 'there'}`} sub={textingOnly ? 'Your texting numbers and the latest texts from your customers.' : fresh ? 'Three quick steps and your number is live.' : 'Your numbers, wallet and live activity at a glance.'} testid="dashboard-header">
         {s && !fresh && <Link to={cp('/app/buy')} className="civr-btn civr-btn-primary" data-testid="dashboard-buy-number-button"><ShoppingCart className="w-4 h-4" />Buy a number</Link>}
+        {textingOnly && <Link to={cp('/app/texting?add=1')} className="civr-btn civr-btn-primary" data-testid="dashboard-add-texting-button">Add a number</Link>}
       </PageHeader>
-      <TrialCard />
-      <ChannelCard />
-      <CouponBanner />
-      <ReviewPrompt />
-      <ForYou />
-      <NewProducts />
+      {!textingOnly && <>
+        <TrialCard />
+        <ChannelCard />
+        <CouponBanner />
+        <ReviewPrompt />
+        <ForYou />
+        <NewProducts />
+      </>}
       {s?.pendingVerification > 0 && (
         <Link to={cp('/app/verification')} className="civr-card civr-trace p-6 mb-6 flex items-center gap-4" data-testid="dashboard-verification-alert">
           <ShieldCheck className="w-6 h-6 text-[#fbbf24]" />
@@ -73,7 +79,7 @@ export default function Dashboard() {
           <ArrowRight className="w-4 h-4" />
         </Link>
       )}
-      {!s ? <SkeletonPage header={false} cards={3} rows={3} /> : fresh ? <GetStarted balance={s.balance} /> : (
+      {!s || (fresh && !hosted) ? <SkeletonPage header={false} cards={3} rows={3} /> : textingOnly ? <TextingHome items={hosted.items} balance={s.balance} /> : fresh ? <GetStarted balance={s.balance} /> : (
         <>
           <Stats s={s} />
           <div className="grid lg:grid-cols-12 gap-6 mt-6 items-start">

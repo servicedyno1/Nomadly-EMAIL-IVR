@@ -8,6 +8,7 @@ import { cp } from './paths';
 import { usePrivacy } from './privacy';
 import { CallMeFirst, CallNoteBox } from './SoftphoneExtras';
 import { ShowAsSelect } from './CallerIdPick';
+import { MicStatus } from './MicStatus';
 
 const KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '*', '0', '#'];
 const STATUS = { idle: 'Offline', connecting: 'Connecting…', ready: 'Online', error: 'Not connected' };
@@ -25,7 +26,7 @@ export default function Softphone({ open, onClose }) {
   const [busy, setBusy] = useState(false);
   const [info, setInfo] = useState(null);
   const [last, setLast] = useState(null); // current / last call, for notes
-  const { status: rtcStatus, call, msg: rtcMsg, connect, dial, phone: rtcPhone } = useRtc();
+  const { status: rtcStatus, call, msg: rtcMsg, connect, dial, answer, phone: rtcPhone, mic } = useRtc();
   const here = rtcPhone === sel; // the browser line is registered for the selected number
   const status = here ? rtcStatus : 'idle';
   const msg = here ? rtcMsg : '';
@@ -72,14 +73,15 @@ export default function Softphone({ open, onClose }) {
           <CallMeFirst on={cmf} onChange={v => { setCmf(v); setInfo(null); }} myPhone={myPhone} setMyPhone={setMyPhone} allowed={cmfAllowed} />
           <div className="text-xs mb-3" data-testid="softphone-status">
             {viaMobile ? <span className="text-[#a1a1aa]">Rings your mobile first — no browser connection needed.</span> : <span className={status === 'ready' ? 'text-[#818cf8]' : status === 'error' ? 'text-[#fb7185]' : 'text-[#a1a1aa]'}>{call ? `Call ${call.state}` : STATUS[status]}</span>}
-            {!viaMobile && msg && <span className="block text-[#a1a1aa] mt-1">{msg}</span>}
+            {!viaMobile && msg && <span className="block text-[#a1a1aa] mt-1" data-testid="softphone-message">{msg}</span>}
             {info && <span className={`block mt-1 ${info.ok ? 'text-[#818cf8]' : 'text-[#fb7185]'}`} data-testid="softphone-callback-result">{info.text}</span>}
           </div>
+          {!viaMobile && <MicStatus mic={mic} />}
           <div className="flex items-center gap-2 mb-3"><input className={`civr-input font-mono ${pv.input}`} inputMode="tel" autoComplete="off" value={dest} onChange={e => setDest(e.target.value)} placeholder="+14155550100" aria-label="Number to call" data-testid="softphone-destination-input" /><button onClick={() => setDest(d => d.slice(0, -1))} className="w-11 h-11 shrink-0 flex items-center justify-center rounded-full text-[#a1a1aa] hover:text-white hover:bg-white/5" data-testid="softphone-backspace-button" aria-label="Delete digit"><Delete className="w-4 h-4" /></button></div>
           <div className="grid grid-cols-3 gap-2 mb-4">{KEYS.map(k => <button key={k} className="civr-key" onClick={() => press(k)} data-testid={`softphone-key-${k === '*' ? 'star' : k === '#' ? 'hash' : k}`}>{k}</button>)}</div>
           {call ? (
             <div className="flex gap-2">
-              {call.inbound && call.state === 'ringing' && <button className="civr-btn civr-btn-primary flex-1" onClick={() => call.ref.answer()} data-testid="softphone-answer-button"><Phone className="w-4 h-4" />Answer</button>}
+              {call.inbound && call.state === 'ringing' && <button className="civr-btn civr-btn-primary flex-1" onClick={() => answer(call.ref)} data-testid="softphone-answer-button"><Phone className="w-4 h-4" />Answer</button>}
               <button className="civr-btn civr-btn-danger flex-1" onClick={() => call.ref.hangup()} data-testid="softphone-hangup-button"><PhoneOff className="w-4 h-4" />Hang up</button>
             </div>
           ) : viaMobile ? (

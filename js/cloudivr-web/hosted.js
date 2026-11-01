@@ -30,6 +30,10 @@ function routes(router, { db, h, log, notifyAdmin }) {
     res.set('Content-Type', 'application/pdf').set('Content-Disposition', 'inline; filename="authorization-letter.pdf"').send(pdf)
   }))
   router.post('/hosted-sms/:id/documents', upload.array('files', 6), h(async (req, res) => out(res, await HS.submitDocs(req.webChatId, req.params.id, req.files || []))))
+  router.get('/hosted-sms/recent', h(async (req, res) => {
+    const rows = await HS.recent(req.webChatId, Number(req.query.limit) || 10)
+    res.json({ messages: rows.map(m => ({ id: String(m._id), phoneNumber: m.phoneNumber, from: m.from, body: m.body, at: m.timestamp })) })
+  }))
   router.get('/hosted-sms/:id/messages', h(async (req, res) => {
     const rows = await HS.messages(req.webChatId, req.params.id)
     if (!rows) return bad(res, 'Not found.', 404, 'not_found')

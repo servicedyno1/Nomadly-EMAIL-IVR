@@ -452,5 +452,9 @@ async function messages(chatId, id, limit = 50) {
   return S.db.collection('phoneLogs').find({ chatId: String(chatId), phoneNumber: d.phoneNumber, hosted: true }).sort({ timestamp: -1 }).limit(limit).toArray()
 }
 
-const api = { init, check, start, sendCode, submitCode, skipCode, signLoa, submitDocs, requestHelp, cancel, adminSubmitDocs, adminMessage, adminReject, addBusinessDays, REVIEW_DAYS, list, mine, pub, onInbound, sendText, messages, tick, buildLoa, normPhone, PRICE, MONTHLY, TEXT_PRICE, MAX_TEXT, PLAN_PRICE, PLAN_LIMIT, TEXTING, plansFor }
+async function recent(chatId, limit = 10) {
+  return S.db.collection('phoneLogs').find({ chatId: String(chatId), hosted: true, direction: 'inbound' }).sort({ timestamp: -1 }).limit(Math.min(50, limit)).toArray()
+}
+
+const api = { init, check, start, recent, sendCode, submitCode, skipCode, signLoa, submitDocs, requestHelp, cancel, adminSubmitDocs, adminMessage, adminReject, addBusinessDays, REVIEW_DAYS, list, mine, pub, onInbound, sendText, messages, tick, buildLoa, normPhone, PRICE, MONTHLY, TEXT_PRICE, MAX_TEXT, PLAN_PRICE, PLAN_LIMIT, TEXTING, plansFor }
 module.exports = api

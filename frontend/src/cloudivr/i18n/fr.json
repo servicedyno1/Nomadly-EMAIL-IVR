@@ -3641,5 +3641,22 @@
 "Add the phone bill (PDF, JPG or PNG).": "Ajoutez la facture téléphonique (PDF, JPG ou PNG).",
 "Type the account holder’s full name exactly to sign.": "Tapez exactement le nom complet du titulaire pour signer.",
 "Tick the box to sign the authorization letter.": "Cochez la case pour signer la lettre d’autorisation.",
-"This number receives texts only. Your customers text it and you read them here.": "Ce numéro reçoit uniquement des SMS. Vos clients lui écrivent et vous les lisez ici."
+"This number receives texts only. Your customers text it and you read them here.": "Ce numéro reçoit uniquement des SMS. Vos clients lui écrivent et vous les lisez ici.",
+"Microphone allowed": "Micro autorisé",
+"Microphone not allowed yet": "Micro pas encore autorisé",
+"Microphone blocked. Click the lock icon next to the web address, set Microphone to Allow, then reload this page.": "Micro bloqué. Cliquez sur le cadenas à côté de l’adresse web, réglez Micro sur Autoriser, puis rechargez la page.",
+"No microphone found. Plug one in or pick one in your computer’s sound settings.": "Aucun micro trouvé. Branchez-en un ou choisissez-le dans les réglages son de l’ordinateur.",
+"This browser can’t use a microphone here. Try Chrome, Edge, Safari or Firefox.": "Ce navigateur ne peut pas utiliser de micro ici. Essayez Chrome, Edge, Safari ou Firefox.",
+"Allow microphone": "Autoriser le micro",
+"Check again": "Vérifier à nouveau",
+"Allow the microphone to answer in the browser. Open the browser phone for help.": "Autorisez le micro pour répondre dans le navigateur. Ouvrez le téléphone du navigateur pour de l’aide.",
+"Your texting numbers and the latest texts from your customers.": "Vos numéros SMS et les derniers SMS de vos clients.",
+"Your texting numbers": "Vos numéros SMS",
+"Latest texts": "Derniers SMS",
+"No texts yet. When a customer texts one of your numbers, it shows up here.": "Pas encore de SMS. Quand un client écrit à l’un de vos numéros, il apparaît ici.",
+"Open texting": "Ouvrir les SMS",
+"Want calls too?": "Vous voulez aussi les appels ?",
+"Get a CloudIVR number for menus, forwarding and AI agents.": "Obtenez un numéro CloudIVR pour les menus, renvois et agents IA.",
+"Landline to Texting lets customers text the office number they already call. Calls stay with your carrier.": "SMS sur votre fixe permet à vos clients d’écrire au numéro de bureau qu’ils appellent déjà. Les appels restent chez votre opérateur.",
+"from {0}": "de {0}"
 }

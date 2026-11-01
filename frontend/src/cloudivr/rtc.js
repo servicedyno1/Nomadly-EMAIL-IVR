@@ -1,6 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { TelnyxRTC } from '@telnyx/webrtc';
 import { api, enc } from './api';
+import { useMic, MIC_TEXT } from './mic';
 
 // SDK errors can carry carrier wording — show our own text instead.
 const friendly = (e) => {
@@ -23,11 +24,17 @@ export function RtcProvider({ children }) {
   const [call, setCall] = useState(null);
   const [msg, setMsg] = useState('');
   const [phone, setPhone] = useState('');
+  const mic = useMic();
   useEffect(() => () => client.current?.disconnect(), []);
 
   // quiet = automatic connect: a line that isn't live stays "Offline" instead of showing an error.
   const connect = useCallback(async (p, { quiet = false } = {}) => {
     setMsg(''); setStatus('connecting'); setPhone(p); line.current = p;
+    // A manual Connect asks for the microphone now, so a ringing call never waits on the prompt.
+    if (!quiet) {
+      const m = await mic.ask();
+      if (m !== 'granted') { setStatus('error'); setMsg(MIC_TEXT[m]); return; }
+    }
     try {
       const c = await api(`/numbers/${enc(p)}/sip?browser=1`);
       key.current = c.browserKey || null;
@@ -48,7 +55,7 @@ export function RtcProvider({ children }) {
       rtc.connect();
       client.current = rtc;
     } catch (e) { setStatus(quiet ? 'idle' : 'error'); setMsg(e.status ? e.message : friendly(e)); }
-  }, []);
+  }, [mic.ask]);
 
   // Numbers with "Ring me in the browser" on keep the browser phone online while the app is open.
   const autoConnect = useCallback(async () => {
@@ -58,7 +65,16 @@ export function RtcProvider({ children }) {
   }, [connect]);
   useEffect(() => { autoConnect(); }, [autoConnect]);
 
+  // Answer only once the mic is allowed; otherwise say why.
+  const answer = async (ref) => {
+    const m = await mic.ask();
+    if (m !== 'granted') { setMsg(MIC_TEXT[m]); return false; }
+    ref.answer();
+    return true;
+  };
   const dial = async (dest, from, showAs) => {
+    const m = await mic.ask();
+    if (m !== 'granted') { setMsg(MIC_TEXT[m]); return null; }
     if (key.current && Date.parse(key.current.expiresAt) - Date.now() < 3600000) {
       key.current = (await api(`/numbers/${enc(line.current)}/sip?browser=1`).catch(() => null))?.browserKey || key.current;
     }
@@ -67,7 +83,7 @@ export function RtcProvider({ children }) {
     return client.current?.newCall({ destinationNumber: dest, callerNumber: from, audio: true, video: false, ...(headers.length ? { customHeaders: headers } : {}) });
   };
   return (
-    <RtcCtx.Provider value={{ status, call, msg, phone, connect, dial, autoConnect }}>
+    <RtcCtx.Provider value={{ status, call, msg, phone, connect, dial, answer, autoConnect, mic }}>
       <audio id="civr-remote-audio" autoPlay />
       {children}
     </RtcCtx.Provider>

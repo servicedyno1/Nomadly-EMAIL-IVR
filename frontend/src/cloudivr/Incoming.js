@@ -133,7 +133,7 @@ function IncomingBanner({ c, more, skew, drop, ringing, openPhone }) {
       if (e.code === 'not_ringing') { drop(c.id); toast.error(e.message); } else { setErr(e.message); setBusy(''); }
     }
   };
-  const answerRtc = useCallback((r) => { r.ref.answer(); drop(c.id); openPhone(); }, [c.id, drop, openPhone]);
+  const answerRtc = useCallback(async (r) => { setWaitVoice(false); const ok = await rtc.answer(r.ref); if (!ok) { setErr('Allow the microphone to answer in the browser. Open the browser phone for help.'); openPhone(); return; } drop(c.id); openPhone(); }, [c.id, drop, openPhone, rtc]);
   useEffect(() => { if (waitVoice && ringing) answerRtc(ringing); }, [waitVoice, ringing, answerRtc]);
   const voice = () => {
     setAuto(null); setErr('');
