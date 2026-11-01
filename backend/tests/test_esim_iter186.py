@@ -44,7 +44,7 @@ def test_public_plans_no_spenza():
     r = requests.get(f"{API}/public/esim-plans")
     assert r.status_code == 200
     p = next(x for x in r.json()['plans'] if x['planId'] == 'SPENZA_001')
-    assert p['name'] == 'US Starter eSIM' and p['price'] == 100 and p['carrier'] == 'US network'
+    assert p['name'] == 'US Starter eSIM' and p['price'] == 75 and p['carrier'] == 'US network'
     assert 'spenzaj' not in json.dumps(r.json()).lower()
     assert 'cost' not in p
 
@@ -60,7 +60,7 @@ def test_admin_catalog_fleet(admin):
     assert d['error'] is None and d['configured'] is True
     p = next(x for x in d['plans'] if x['planId'] == 'SPENZA_001')
     assert p['cost'] == 7 and p['data'] == '20 MB' and p['voiceMinutes'] == 20 and p['sms'] == 'Unlimited'
-    assert p['enabled'] is True and p['price'] == 100
+    assert p['enabled'] is True and p['price'] == 75
     sim = next(s for s in d['fleet']['sims'] if s['phoneNumber'] == NUM)
     assert sim['linkedTo'] == ALICE[2]
     assert len(d['fleet']['credit']) >= 1
@@ -68,9 +68,9 @@ def test_admin_catalog_fleet(admin):
 
 def test_admin_set_plan_validation_keeps_price(admin):
     assert admin.put(f"{API}/admin/esim/plans/SPENZA_001", json={'enabled': True, 'price': 0}).status_code == 400
-    r = admin.put(f"{API}/admin/esim/plans/SPENZA_001", json={'enabled': True, 'price': 100, 'label': 'US Starter eSIM'})
+    r = admin.put(f"{API}/admin/esim/plans/SPENZA_001", json={'enabled': True, 'price': 75, 'label': 'US Starter eSIM'})
     assert r.status_code == 200
-    assert db.esimPlans.find_one({'_id': 'SPENZA_001'})['price'] == 100
+    assert db.esimPlans.find_one({'_id': 'SPENZA_001'})['price'] == 75
 
 
 def test_admin_usage(admin):
@@ -168,7 +168,7 @@ def test_buy_provision_and_cancel(alice):
     r = alice.post(f"{API}/esim", json={'planId': 'SPENZA_001', 'imei': '490154203237518'})
     assert r.status_code == 200, r.text
     item = r.json()['item']
-    assert item['status'] == 'provisioning' and abs(bal() - (b0 - 100)) < 1e-6
+    assert item['status'] == 'provisioning' and abs(bal() - (b0 - 75)) < 1e-6
     lid = item['id']
     assert db.esimLines.find_one({'_id': lid})['simulated'] is True
     st, it = None, None

@@ -1737,7 +1737,7 @@
 "Pay for a number directly with crypto, or top up your CloudIVR wallet (from {0}) and pay from it. Renewals and call charges come out of your wallet.": "Paga un número directamente con crypto, o recarga tu billetera CloudIVR (desde {0}) y paga desde ella. Renovaciones y cargos por llamadas se descuentan de tu billetera.",
 "Pay for a number directly with {0}, or top up your CloudIVR wallet (from {1}) and pay from it. Renewals and calls are paid from the wallet.": "Paga un número directamente con {0}, o recarga tu billetera CloudIVR (desde {1}) y paga desde ella. Renovaciones y llamadas se pagan desde la billetera.",
 "Pay from wallet": "Pagar desde billetera",
-"Pay with crypto": "Pagar con crypto",
+"Pay with crypto": "Pagar con cripto",
 "Pay with crypto or wallet": "Pagar con crypto o billetera",
 "Pay with crypto or your wallet": "Paga con cripto o tu billetera",
 "Pay with crypto, or top up your CloudIVR wallet (from {0}) and pay from it. Renewals and call charges come out of your wallet. Card payments are coming soon.": "Paga con crypto o recarga tu billetera CloudIVR (desde {0}) y paga desde ella. Renovaciones y cargos por llamadas se descuentan de tu billetera. Pronto pagos con tarjeta.",
@@ -3827,5 +3827,15 @@
 "Open CloudIVR eSIM": "Abrir eSIM de CloudIVR",
 "CloudIVR eSIM · {0} · ${1}": "eSIM de CloudIVR · {0} · ${1}",
 "Seven ways people run their phone line on CloudIVR — each one points at the part of the platform that does the work.": "Siete formas en que la gente usa su línea en CloudIVR: cada una apunta a la parte de la plataforma que hace el trabajo.",
-"Closed it after paying? The money stays in your wallet. Open CloudIVR eSIM and your details will be filled in to finish the order.": "¿La cerraste después de pagar? El dinero queda en tu billetera. Abre eSIM de CloudIVR y tus datos estarán listos para terminar el pedido."
+"Closed it after paying? The money stays in your wallet. Open CloudIVR eSIM and your details will be filled in to finish the order.": "¿La cerraste después de pagar? El dinero queda en tu billetera. Abre eSIM de CloudIVR y tus datos estarán listos para terminar el pedido.",
+"Pay with crypto instead": "Pagar con cripto",
+"Send ${0} in crypto. It goes to your wallet and pays for this right away.": "Envía ${0} en cripto. Llega a tu billetera y paga esto al momento.",
+"Your wallet has {0}. Send ${1} in crypto and this is paid automatically once it confirms.": "Tu billetera tiene {0}. Envía ${1} en cripto y se paga automáticamente al confirmarse.",
+"Send ${0} in crypto and we’ll place the order as soon as it confirms.": "Envía ${0} en cripto y haremos el pedido en cuanto se confirme.",
+"We check every 15 seconds and finish this automatically once the payment confirms. If you leave, the money stays in your wallet.": "Revisamos cada 15 segundos y lo terminamos automáticamente al confirmarse el pago. Si te vas, el dinero queda en tu billetera.",
+"Auto-renew off: the line ends after this paid month": "Renovación desactivada: la línea termina al acabar este mes pagado",
+"Renew ${0} from wallet": "Renovar ${0} desde la billetera",
+"Texting is back on": "Los mensajes vuelven a estar activos",
+"Only active eSIMs have auto-renew.": "Solo las eSIM activas tienen renovación automática.",
+"Nothing to renew.": "No hay nada que renovar."
 }

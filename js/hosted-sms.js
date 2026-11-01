@@ -361,6 +361,16 @@ async function pollOne(d) {
   }
 }
 
+// Customer taps Renew on a paused standalone plan (e.g. right after a crypto top-up).
+async function renew(chatId, id) {
+  const d = await S.col.findOne({ _id: String(id), chatId: String(chatId) })
+  if (!d || d.status !== 'paused' || d.planNumber) return { error: 'Nothing to renew.' }
+  await S.col.updateOne({ _id: d._id }, { $set: { retryAt: new Date(0) } })
+  await billOne({ ...d, retryAt: new Date(0) })
+  const x = await S.col.findOne({ _id: d._id })
+  return x.status === 'active' ? { item: pub(x) } : { error: `Your wallet needs $${monthlyOf(d)}. Top up first.`, code: 'insufficient_balance' }
+}
+
 async function billOne(d) {
   if (d.status === 'paused' && !(d.retryAt && new Date(d.retryAt) <= new Date())) return
   const r = await S.col.updateOne({ _id: d._id, nextBillAt: d.nextBillAt, status: d.status }, { $set: { billingAt: new Date() } })
@@ -456,5 +466,5 @@ async function recent(chatId, limit = 10) {
   return S.db.collection('phoneLogs').find({ chatId: String(chatId), hosted: true, direction: 'inbound' }).sort({ timestamp: -1 }).limit(Math.min(50, limit)).toArray()
 }
 
-const api = { init, check, start, recent, sendCode, submitCode, skipCode, signLoa, submitDocs, requestHelp, cancel, adminSubmitDocs, adminMessage, adminReject, addBusinessDays, REVIEW_DAYS, list, mine, pub, onInbound, sendText, messages, tick, buildLoa, normPhone, PRICE, MONTHLY, TEXT_PRICE, MAX_TEXT, PLAN_PRICE, PLAN_LIMIT, TEXTING, plansFor }
+const api = { init, check, start, recent, renew, sendCode, submitCode, skipCode, signLoa, submitDocs, requestHelp, cancel, adminSubmitDocs, adminMessage, adminReject, addBusinessDays, REVIEW_DAYS, list, mine, pub, onInbound, sendText, messages, tick, buildLoa, normPhone, PRICE, MONTHLY, TEXT_PRICE, MAX_TEXT, PLAN_PRICE, PLAN_LIMIT, TEXTING, plansFor }
 module.exports = api

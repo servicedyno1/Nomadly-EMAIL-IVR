@@ -94,7 +94,7 @@ async function linkSim(iccid, email) {
 }
 
 // ---------- customer lines ----------
-const pub = (d) => ({ id: d._id, iccid: d.iccid || null, phoneNumber: d.phoneNumber || null, planId: d.planId, price: d.price, status: d.status, note: d.note || null, callsTo: d.callsTo || 'device', nextBillAt: d.nextBillAt || null, createdAt: d.createdAt, linked: !!d.linked, hasQr: !!(d.qrCode || d.iccid) })
+const pub = (d) => ({ autoRenew: d.autoRenew !== false, id: d._id, iccid: d.iccid || null, phoneNumber: d.phoneNumber || null, planId: d.planId, price: d.price, status: d.status, note: d.note || null, callsTo: d.callsTo || 'device', nextBillAt: d.nextBillAt || null, createdAt: d.createdAt, linked: !!d.linked, hasQr: !!(d.qrCode || d.iccid) })
 const luhn = (s) => { let sum = 0; for (let i = 0; i < s.length; i++) { let n = +s[s.length - 1 - i]; if (i % 2) { n *= 2; if (n > 9) n -= 9 } sum += n } return sum % 10 === 0 }
 const txn = (chatId, type, amount, meta) => S.db.collection('transactions').insertOne({ chatId: String(chatId), type, amount: round2(amount), currency: 'USD', status: 'completed', metadata: { ...meta, channel: 'esim' }, createdAt: new Date(), updatedAt: new Date() })
 
@@ -163,6 +163,7 @@ async function setService(d, on) {
   await call('patch', `/api/v1.1/sims/${encodeURIComponent(d.iccid)}/service-state`, { voice: on, sms: on, data: on }).catch(e => S.log(`[Spenza] service-state ${d.iccid}: ${e.message}`))
 }
 async function billOne(d) {
+  if (d.autoRenew === false && d.status === 'active') return expire(d)
   if (!d.price) return S.col.updateOne({ _id: d._id }, { $set: { nextBillAt: new Date(Date.now() + MONTH_MS) } })
   if (await S.w.debit(d.chatId, d.price)) {
     await txn(d.chatId, 'esim-renewal', d.price, { lineId: d._id })
@@ -176,6 +177,19 @@ async function billOne(d) {
     S.tell(d.chatId, `⏸️ Your eSIM ${d.phoneNumber || ''} is paused: the $${d.price} monthly fee couldn’t be paid. Top up your wallet and tap Renew.`, { kind: 'billing', meta: { esim: d._id } })
   }
   return false
+}
+// Auto-renew off: at the end of the paid month the line stops and its plan is cancelled with the carrier.
+async function expire(d) {
+  if (!dry() && !d.simulated && d.iccid && !d.linked) await call('post', `/api/v1.1/subscriptions/${encodeURIComponent(d.iccid)}/cancel`, {}).catch(e => S.log(`[Spenza] expire ${d.iccid}: ${e.message}`))
+  await S.col.updateOne({ _id: d._id }, { $set: { status: 'cancelled', note: 'Ended: auto-renew was off.', updatedAt: new Date() } })
+  if (d.callsTo === 'browser') await syncSip()
+  S.tell(d.chatId, `📴 Your eSIM ${d.phoneNumber || ''} ended at the end of its paid month because auto-renew was off.`, { kind: 'billing', meta: { esim: d._id } })
+}
+async function setAutoRenew(chatId, id, on) {
+  const d = await mine(chatId, id)
+  if (!d || !['active', 'suspended', 'provisioning'].includes(d.status)) return { error: 'Only active eSIMs have auto-renew.' }
+  await S.col.updateOne({ _id: d._id }, { $set: { autoRenew: !!on, updatedAt: new Date() } })
+  return { item: pub({ ...d, autoRenew: !!on }) }
 }
 async function renew(chatId, id) { const d = await mine(chatId, id); if (!d || d.status !== 'suspended') return { error: 'Nothing to renew.' }; return (await billOne(d)) ? { item: pub({ ...d, status: 'active' }) } : { error: `Your wallet needs $${d.price}. Top up first.` } }
 async function cancel(chatId, id) {
@@ -236,7 +250,7 @@ async function registerWebhook(baseUrl) {
   const url = `${baseUrl.replace(/\/$/, '')}/api/cloudivr-web/public/spenza/webhook`
   if (dry()) return { ok: true, url, preview: true }
   try {
-    const r = await call('post', '/api/v1.1/webhooks', { operator: 'SpenzaJ', network: 'SpenzaJ', eventType: 'both', webhookUrls: { messageUrl: url, voiceUrl: url }, authentication: { type: 'none' } })
+    const r = await call('post', '/api/v1.1/webhooks', { operator: 'SpenzaJ', network: 'SpenzaJ', eventType: 'both', webhookUrls: { messageUrl: url, voiceUrl: url }, authentication: { type: 'none' }, update: true })
     await S.db.collection('spenzaConfig').updateOne({ _id: 'webhook' }, { $set: { url, at: new Date(), id: r?.data?.id || null, signingSecret: r?.data?.signingSecret } }, { upsert: true })
     return { ok: true, url }
   } catch (e) { return errOf(e) }
@@ -277,11 +291,11 @@ async function prelink() {
   }
 }
 
-// One-off owner decision: US Starter eSIM sells at $100.
+// One-off owner decision: US Starter eSIM sells at $75.
 async function defaultPrice() {
-  const flag = 'price:SPENZA_001:100'
+  const flag = 'price:SPENZA_001:75'
   if (await S.db.collection('spenzaConfig').findOne({ _id: flag })) return
-  await S.db.collection('esimPlans').updateOne({ _id: 'SPENZA_001' }, { $set: { price: 100, enabled: true, updatedAt: new Date() }, $setOnInsert: { label: 'US Starter eSIM' } }, { upsert: true })
+  await S.db.collection('esimPlans').updateOne({ _id: 'SPENZA_001' }, { $set: { price: 75, enabled: true, updatedAt: new Date() }, $setOnInsert: { label: 'US Starter eSIM' } }, { upsert: true })
   await S.db.collection('spenzaConfig').insertOne({ _id: flag, at: new Date() })
 }
 
@@ -302,5 +316,5 @@ function init({ db, log = console.log, tell }) {
   return api
 }
 
-const api = { init, catalog, setPlan, forSale, plansForCustomers, fleet, usage, linkSim, list, buy, qr, lineUsage, renew, cancel, sendSms, messages, onWebhook, registerWebhook, setCallsTo, syncSip, TEXT_PRICE }
+const api = { init, setAutoRenew, catalog, setPlan, forSale, plansForCustomers, fleet, usage, linkSim, list, buy, qr, lineUsage, renew, cancel, sendSms, messages, onWebhook, registerWebhook, setCallsTo, syncSip, TEXT_PRICE }
 module.exports = api

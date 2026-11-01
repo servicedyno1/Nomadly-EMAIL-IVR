@@ -21,6 +21,7 @@ function routes(router, { db, h, log, notifyAdmin }) {
   router.post('/hosted-sms/:id/code/skip', h(async (req, res) => out(res, await HS.skipCode(req.webChatId, req.params.id))))
   router.post('/hosted-sms/:id/loa', h(async (req, res) => out(res, await HS.signLoa(req.webChatId, req.params.id, { holder: holderOf(req.body), signature: req.body?.signature, consent: req.body?.consent === true, ip: clientIp(req) }))))
   router.post('/hosted-sms/:id/help', h(async (req, res) => out(res, await HS.requestHelp(req.webChatId, req.params.id))))
+  router.post('/hosted-sms/:id/renew', h(async (req, res) => out(res, await HS.renew(req.webChatId, req.params.id))))
   router.post('/hosted-sms/:id/cancel', h(async (req, res) => out(res, await HS.cancel(req.webChatId, req.params.id))))
   // The letter exactly as it will be signed, so the customer can read it first.
   router.post('/hosted-sms/:id/loa-preview', h(async (req, res) => {

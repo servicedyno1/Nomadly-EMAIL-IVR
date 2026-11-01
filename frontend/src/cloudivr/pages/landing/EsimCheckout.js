@@ -86,7 +86,7 @@ function TopUp({ w, need, onDep }) {
   const go = async () => { setBusy(true); setErr(null); try { onDep(await api('/wallet/topup', { method: 'POST', body: { amountUsd: amount, coin } })); } catch (e) { setErr(e); } finally { setBusy(false); } };
   return (
     <div className="space-y-4" data-testid="esim-co-topup">
-      <p className="text-sm text-slate-600" data-testid="esim-co-need">{`Your wallet has $${w.balance.toFixed(2)}. Add $${amount} with crypto and we’ll place the order automatically.`}</p>
+      <p className="text-sm text-slate-600" data-testid="esim-co-need">{w.balance >= need ? `Send $${amount} in crypto and we’ll place the order as soon as it confirms.` : `Your wallet has $${w.balance.toFixed(2)}. Add $${amount} with crypto and we’ll place the order automatically.`}</p>
       <Label text="Pay with"><select className={IN} value={coin} onChange={e => setCoin(e.target.value)} data-testid="esim-co-coin">{w.coins.map(c => <option key={c} value={c}>{c}</option>)}</select></Label>
       <Err e={err} testid="esim-co-topup-error" />
       <Btn busy={busy} onClick={go} data-testid="esim-co-topup-button">{`Get a $${amount} payment address`}</Btn>
@@ -97,9 +97,11 @@ function TopUp({ w, need, onDep }) {
 function Pay({ plan, d, onPaid }) {
   const { data: w, error: wErr, reload } = useApi('/wallet');
   const [dep, setDep] = useState(null);
+  const [crypto, setCrypto] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
   const placing = useRef(false);
+  const base = useRef(0);
   const order = useCallback(async () => {
     if (placing.current) return;
     placing.current = true; setBusy(true); setErr(null);
@@ -107,14 +109,17 @@ function Pay({ plan, d, onPaid }) {
   }, [plan.planId, d.imei, d.zip, onPaid]);
   useEffect(() => { if (!dep) return undefined; const t = setInterval(reload, 15000); return () => clearInterval(t); }, [dep, reload]);
   const enough = w && w.balance >= plan.price;
-  useEffect(() => { if (dep && enough) order(); }, [dep, enough, order]);
+  const paidIn = !!(dep && w && w.balance > base.current && enough);
+  useEffect(() => { if (paidIn) order(); }, [paidIn, order]);
+  const startDep = (x) => { base.current = w.balance; setDep(x); };
   if (!w && wErr) return <div className="space-y-3" data-testid="esim-co-wallet-error"><Err e={wErr} /><Btn onClick={reload} data-testid="esim-co-wallet-retry">Try again</Btn></div>;
   if (!w) return <div className="py-8 grid place-items-center"><Loader2 className="w-6 h-6 animate-spin text-slate-400" /></div>;
   return (
     <div className="space-y-4" data-testid="esim-co-pay">
       <div className="rounded-2xl bg-slate-50 p-4 flex items-center justify-between gap-3 text-sm"><span className="text-slate-600">{plan.name}</span><span className="font-mono font-semibold text-slate-900" data-testid="esim-co-total">{`$${plan.price}`}</span></div>
-      {enough ? <Btn busy={busy} onClick={order} data-testid="esim-co-pay-wallet">{`Pay $${plan.price} from wallet`}</Btn>
-        : dep ? <Deposit dep={dep} /> : <TopUp w={w} need={plan.price - w.balance} onDep={setDep} />}
+      {dep ? <Deposit dep={dep} />
+        : enough && !crypto ? <><Btn busy={busy} onClick={order} data-testid="esim-co-pay-wallet">{`Pay $${plan.price} from wallet`}</Btn><button type="button" onClick={() => setCrypto(true)} className="w-full text-sm font-semibold text-slate-700 underline underline-offset-4 py-2" data-testid="esim-co-use-crypto">Pay with crypto instead</button></>
+        : <TopUp w={w} need={enough ? plan.price : plan.price - w.balance} onDep={startDep} />}
       <Err e={err} testid="esim-co-pay-error" />
     </div>
   );

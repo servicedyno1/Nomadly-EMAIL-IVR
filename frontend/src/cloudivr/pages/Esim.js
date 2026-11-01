@@ -8,6 +8,7 @@ import { useShell } from '../Shell';
 import { ask } from '../confirm';
 import { DRAFT_KEY } from './landing/EsimCheckout';
 import { useCivrAuth } from '../AuthContext';
+import { CryptoPay } from '../CryptoPay';
 
 const readDraft = () => { try { return JSON.parse(localStorage.getItem(DRAFT_KEY)) || null; } catch (_) { return null; } };
 const dropDraft = () => { try { localStorage.removeItem(DRAFT_KEY); } catch (_) { /* private mode */ } };
@@ -42,6 +43,7 @@ function BuyForm({ plan, draft, onDone, onCancel }) {
       <Field label="ZIP code for your number (optional)" hint="We’ll ask for a number near this US ZIP code. The exact area code can’t be guaranteed."><input className="civr-input font-mono max-w-[160px]" inputMode="numeric" value={zip} onChange={e => setZip(e.target.value.replace(/\D/g, '').slice(0, 5))} placeholder="e.g. 10011" data-testid="esim-zip-input" /></Field>
       <div className="flex flex-wrap gap-2">
         <button type="button" onClick={go} disabled={busy || imei.replace(/\D/g, '').length !== 15 || (zip.length > 0 && zip.length !== 5)} className="civr-btn civr-btn-primary" data-testid="esim-pay-button">{busy && <Loader2 className="w-4 h-4 animate-spin" />}{`Pay $${plan.price} from wallet`}</button>
+        {imei.replace(/\D/g, '').length === 15 && (!zip || zip.length === 5) && <CryptoPay price={plan.price} onReady={go} testid="esim-crypto" />}
         <button type="button" onClick={onCancel} className="civr-btn civr-btn-ghost" data-testid="esim-buy-cancel">Cancel</button>
       </div>
       <ErrorNote error={err} testid="esim-buy-error" />
@@ -101,6 +103,17 @@ function UsageLine({ id }) {
   return <p className="text-xs text-[#a1a1aa]" data-testid={`esim-usage-${id}`}><span>This cycle:</span> {parts.map((x, i) => <span key={x}>{i ? ' · ' : ''}<span>{x}</span></span>)}</p>;
 }
 
+function AutoRenew({ item, reload }) {
+  const [busy, setBusy] = useState(false);
+  const flip = async () => { setBusy(true); try { await api(`/esim/${item.id}/auto-renew`, { method: 'POST', body: { on: !item.autoRenew } }); toast.success(item.autoRenew ? 'Auto-renew off: the line ends after this paid month' : 'Auto-renew on'); reload(); } catch (e) { toast.error(e.message); } finally { setBusy(false); } };
+  return (
+    <button type="button" role="switch" aria-checked={item.autoRenew} disabled={busy} onClick={flip} className="civr-btn civr-btn-ghost civr-btn-sm" data-testid={`esim-autorenew-${item.id}`}>
+      <span className={`w-8 h-4 rounded-full relative transition-colors ${item.autoRenew ? 'bg-[#818cf8]' : 'bg-[#3f3f46]'}`}><span className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-transform ${item.autoRenew ? 'translate-x-4' : 'translate-x-0.5'}`} /></span>
+      {item.autoRenew ? 'Auto-renew on' : 'Auto-renew off'}
+    </button>
+  );
+}
+
 function Line({ item, reload }) {
   const [open, setOpen] = useState(item.status === 'active' && !item.linked);
   const [was, setWas] = useState(item.status);
@@ -125,6 +138,8 @@ function Line({ item, reload }) {
       </>}
       <div className="flex flex-wrap gap-2">
         {item.status === 'suspended' && <button type="button" onClick={() => act('renew', 'Renewed')} className="civr-btn civr-btn-primary civr-btn-sm" data-testid={`esim-renew-${item.id}`}>{`Renew $${item.price}`}</button>}
+        {item.status === 'suspended' && <CryptoPay price={item.price} onReady={() => act('renew', 'Renewed')} testid={`esim-renew-crypto-${item.id}`} />}
+        {['active', 'suspended'].includes(item.status) && item.price > 0 && <AutoRenew item={item} reload={reload} />}
         {['active', 'suspended'].includes(item.status) && <button type="button" onClick={cancel} className="civr-btn civr-btn-ghost civr-btn-sm" data-testid={`esim-cancel-${item.id}`}>Cancel eSIM</button>}
       </div>
     </div>
