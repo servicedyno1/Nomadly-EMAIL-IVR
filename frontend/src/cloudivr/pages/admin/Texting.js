@@ -4,8 +4,8 @@ import { toast } from 'sonner';
 import { api } from '../../api';
 import { Act, Load, Pill, fmt, dt } from './common';
 
-const ST = { admin_docs: ['Bill to collect', 'warn'], documents: ['Waiting for customer', ''], verify: ['Code check', ''], review: ['With the carrier', 'on'], active: ['Active', 'ok'], paused: ['Paused (unpaid)', 'warn'], rejected: ['Rejected', 'bad'], cancelled: ['Cancelled', ''] };
-const FILTERS = [['admin_docs', 'Bill to collect'], ['review', 'With carrier'], ['documents', 'Waiting for customer'], ['active', 'Active'], ['', 'All']];
+const ST = { admin_docs: ['Bill help requested', 'warn'], documents: ['Waiting for bill', ''], loa: ['Signing letter', ''], verify: ['Code check', ''], review: ['With the carrier', 'on'], active: ['Active', 'ok'], paused: ['Paused (unpaid)', 'warn'], rejected: ['Rejected', 'bad'], cancelled: ['Cancelled', ''] };
+const FILTERS = [['admin_docs', 'Bill help requested'], ['review', 'With carrier'], ['documents', 'Waiting for customer'], ['active', 'Active'], ['', 'All']];
 
 function Submit({ item, done }) {
   const [files, setFiles] = useState([]);
@@ -38,16 +38,16 @@ function Row({ x, reload }) {
   return (
     <div className="civr-card p-4 space-y-3" data-testid={`admin-hosted-${x.id}`}>
       <div className="flex flex-wrap items-center gap-3">
-        <b className="tabular-nums">{x.phoneNumber}</b><Pill tone={tone}>{label}</Pill>{x.noBill && <Pill tone="warn">No bill (+$50)</Pill>}
-        <span className="text-xs text-[#a1a1aa]">{x.email || x.chatId} · paid {fmt(x.paid)} · {x.mode === 'code' ? 'with code' : 'no code'} · started {dt(x.createdAt)}</span>
+        <b className="tabular-nums">{x.phoneNumber}</b><Pill tone={tone}>{label}</Pill>{x.noBill && <Pill tone="warn">Asked support</Pill>}
+        <span className="text-xs text-[#a1a1aa]">{x.email || x.chatId} · paid {fmt(x.paid)} · {x.mode === 'code' ? 'code verified' : x.mode === 'nocode' ? 'letter + bill' : 'code pending'}{x.telnyxOrderId ? ` · Telnyx ${x.telnyxOrderId}` : ''} · started {dt(x.createdAt)}</span>
       </div>
       {x.holder && <div className="text-sm text-[#d4d4d8]">Holder: <b>{h.name}</b>{h.business ? ` (${h.business})` : ''} · {[h.address, h.city, h.state, h.zip].filter(Boolean).join(', ')} · carrier {h.carrier || '—'}{h.account ? ` · acct ${h.account}` : ''}</div>}
       {x.note && <div className="text-sm text-[#fbbf24]">{x.note}</div>}
       {x.status === 'review' && <div className="text-xs text-[#a1a1aa]">Submitted {dt(x.docsAt)}{x.submittedBy ? ` by ${x.submittedBy}` : ''} · usually approved by {String(x.expectedBy || '').slice(0, 10)}</div>}
       <div className="flex flex-wrap items-center gap-2">
-        {['admin_docs', 'documents'].includes(x.status) && x.holder && <Submit item={x} done={reload} />}
+        {['admin_docs', 'documents'].includes(x.status) && (x.holder ? <Submit item={x} done={reload} /> : <span className="text-xs text-[#fbbf24]">Customer must sign the letter first</span>)}
         {!['active', 'cancelled', 'rejected'].includes(x.status) && <Message item={x} />}
-        {['verify', 'documents', 'admin_docs', 'review'].includes(x.status) && <Act label="Reject & refund" danger path={`/admin/hosted/${x.id}/reject`} done={reload} testid={`admin-hosted-reject-${x.id}`} />}
+        {['verify', 'loa', 'documents', 'admin_docs', 'review'].includes(x.status) && <Act label="Reject & refund" danger path={`/admin/hosted/${x.id}/reject`} done={reload} testid={`admin-hosted-reject-${x.id}`} />}
       </div>
     </div>
   );
@@ -57,7 +57,7 @@ export default function Texting() {
   const [st, setSt] = useState('admin_docs');
   return (
     <div className="space-y-4" data-testid="admin-texting">
-      <p className="text-sm text-[#a1a1aa]">Customers without a phone bill pay $50 extra. Collect a photo/screenshot of their carrier account (name, service address, number), upload it here and submit — we merge the files into one PDF and attach the signed authorization letter. Telnyx usually approves in 1–3 business days.</p>
+      <p className="text-sm text-[#a1a1aa]">When a customer taps “Contact support” at the bill step, the order lands here and we email you. Collect a photo/screenshot of their carrier account (name, service address, number), upload it here and submit — we merge the files into one PDF and attach the signed authorization letter. Telnyx usually approves in 1–3 business days.</p>
       <div className="flex gap-2 flex-wrap">{FILTERS.map(([k, l]) => <button key={k || 'all'} type="button" className={`civr-btn civr-btn-sm ${st === k ? 'civr-btn-primary' : 'civr-btn-ghost'}`} onClick={() => setSt(k)} data-testid={`admin-texting-filter-${k || 'all'}`}>{l}</button>)}</div>
       <Load path={`/admin/hosted?status=${st}`} testid="admin-texting-list">
         {(d, reload) => d.items.length ? <div className="space-y-3">{d.items.map(x => <Row key={x.id} x={x} reload={reload} />)}</div> : <p className="text-sm text-[#a1a1aa]" data-testid="admin-texting-empty">Nothing here.</p>}

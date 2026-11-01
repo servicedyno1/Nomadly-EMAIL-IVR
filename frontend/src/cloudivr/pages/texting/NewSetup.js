@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Loader2, Search, ShieldCheck, FileText, Layers, Check } from 'lucide-react';
+import { Loader2, Search, Layers, Check } from 'lucide-react';
 import { toast } from 'sonner';
 import { Link } from 'react-router-dom';
 import { api } from '../../api';
@@ -34,25 +34,25 @@ const NoPlan = () => (
   </div>
 );
 
-// number → eligibility → plan it joins → how to prove ownership → pay from wallet. The phone bill is asked for after payment.
+const AFTER = [['Ownership code', 'The carrier calls or texts the number with a code. Enter it and you’re done.'], ['Or: authorization letter', 'Skip the code? Sign the letter in the app.'], ['Then: phone bill', 'Upload a recent bill, or ask support to help.']];
+
+// Step 1: number → eligibility → plan it joins → pay. Code / LOA / bill come after payment.
 export function NewSetup({ data, onDone, onCancel }) {
   const { refreshSummary } = useShell();
   const plans = data.plans || [];
   const [phone, setPhone] = useState('');
   const [check, setCheck] = useState(null);
   const [planNumber, setPlanNumber] = useState((plans.find(usable) || {}).phoneNumber || '');
-  const [mode, setMode] = useState('code');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
   const plan = plans.find(p => p.phoneNumber === planNumber);
   const run = async (fn) => { setBusy(true); setErr(null); try { await fn(); } catch (e) { setErr(e); } finally { setBusy(false); } };
   const doCheck = () => run(async () => setCheck(await api('/hosted-sms/check', { method: 'POST', body: { phone } })));
-  const pay = () => run(async () => { const r = await api('/hosted-sms', { method: 'POST', body: { phone: check.phoneNumber, mode, planNumber } }); toast.success(`Paid $${r.item.paid}. Next: ${mode === 'code' ? 'confirm the code' : 'your details and phone bill'}`); refreshSummary(); onDone(r.item); });
-  const opts = [['code', ShieldCheck, 'With ownership code', 'We send a code to the number by text or phone call; you enter it here.'], ['nocode', FileText, 'Without code', 'Skip the code. Your phone bill proves you own it.']];
+  const pay = () => run(async () => { const r = await api('/hosted-sms', { method: 'POST', body: { phone: check.phoneNumber, planNumber } }); toast.success(`Paid $${r.item.paid}. Next: the ownership code`); refreshSummary(); onDone(r.item); });
   return (
     <div className="civr-card p-6 space-y-6 mb-6 civr-rise" data-testid="texting-new">
       <div><div className="font-display text-2xl font-bold">Text-enable a number</div>
-        <p className="text-sm text-[#a1a1aa] mt-1" data-testid="texting-timeline">{`Pay once, then confirm the code (if chosen) and upload a recent phone bill (no bill? we collect it for +$${data.noBillFee ?? 50}). Carrier review usually takes ${data.reviewDays || '1–3 business days'}.`}</p></div>
+        <p className="text-sm text-[#a1a1aa] mt-1" data-testid="texting-timeline">{`Pay once, then prove you own the number: enter the carrier’s code, or sign a letter and add a phone bill. Carrier review usually takes ${data.reviewDays || '1–3 business days'}.`}</p></div>
       {!plans.length ? <NoPlan /> : <>
         <Step n={1} title="Your existing number" testid="texting-step-number">
           <div className="flex flex-col sm:flex-row gap-2 sm:items-start">
@@ -65,12 +65,8 @@ export function NewSetup({ data, onDone, onCancel }) {
         {check?.eligible && <>
           <Step n={2} title="Which plan it joins" testid="texting-step-plan"><PlanPick plans={plans} value={planNumber} onChange={setPlanNumber} />
             <p className="text-xs text-[#a1a1aa]">One-time fee. No monthly fee: texting renews and pauses with that plan. Texts are ${data.textPrice ?? 0.05} each from your wallet.</p></Step>
-          <Step n={3} title="How you prove it’s yours" testid="texting-step-mode">
-            <div className="grid md:grid-cols-2 gap-3">{opts.map(([v, Icon, title, sub]) => (
-              <button key={v} type="button" onClick={() => setMode(v)} aria-pressed={mode === v} className={`civr-card text-left p-4 ${mode === v ? 'ring-1 ring-[#818cf8]/70' : ''}`} data-testid={`texting-mode-${v}`}>
-                <div className="flex items-center gap-2 font-semibold"><Icon className="w-4 h-4 text-[#818cf8]" />{title}</div><div className="text-xs text-[#a1a1aa] mt-1">{sub}</div>
-              </button>
-            ))}</div></Step>
+          <Step n={3} title="After you pay" testid="texting-step-after">
+            <ol className="grid md:grid-cols-3 gap-3">{AFTER.map(([t, sub], i) => <li key={t} className="rounded-xl border border-[#27272a] p-3 text-sm"><div className="font-semibold">{i + 1}. {t}</div><div className="text-xs text-[#a1a1aa] mt-1">{sub}</div></li>)}</ol></Step>
           <div className="flex flex-wrap items-center gap-2">
             <button type="button" onClick={pay} disabled={busy || !plan || !usable(plan)} className="civr-btn civr-btn-primary" data-testid="texting-pay-button">{busy && <Loader2 className="w-4 h-4 animate-spin" />}{plan ? `Pay $${plan.price} from wallet` : 'Pick a plan'}</button>
             <button type="button" onClick={onCancel} className="civr-btn civr-btn-ghost" data-testid="texting-new-cancel">Cancel</button>
