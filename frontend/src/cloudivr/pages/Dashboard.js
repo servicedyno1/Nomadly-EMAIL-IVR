@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Wallet, Hash, Clock, MessageSquare, Megaphone, Bell, ShieldCheck, ArrowRight, ShoppingCart, PhoneOutgoing, Workflow } from 'lucide-react';
+import { Wallet, Hash, Clock, MessageSquare, Megaphone, ShieldCheck, ArrowRight, ShoppingCart, PhoneOutgoing, Workflow } from 'lucide-react';
 import { useApi, money } from '../api';
 import { useShell } from '../Shell';
 import { useCivrAuth } from '../AuthContext';
@@ -38,7 +38,7 @@ function Stats({ s }) {
 function QuickActions({ unread }) {
   const items = [[cp('/app/numbers'), Workflow, 'Set up a keypad menu', 'Greet callers and let them press a key', 'quick-action-ivr'],
     [cp('/app/quick-call'), PhoneOutgoing, 'Place a Quick IVR call', 'We call up to 10 people with your message', 'quick-action-quick-call'],
-    [cp('/app/inbox'), Bell, `Inbox${unread ? ` · ${unread} new` : ''}`, 'SMS, voicemail and call alerts', 'quick-action-inbox']];
+    [cp('/app/messages'), MessageSquare, `Messages${unread ? ` · ${unread} new` : ''}`, 'Texts, voicemails and calls with each person', 'quick-action-inbox']];
   return (
     <div className="flex flex-col gap-4" data-testid="dashboard-quick-actions">
       {items.map(([to, Icon, t, sub, id]) => (
@@ -84,7 +84,7 @@ export default function Dashboard() {
           <Stats s={s} />
           <div className="grid lg:grid-cols-12 gap-6 mt-6 items-start">
             <div className="lg:col-span-7"><YourNumbers nums={nums?.numbers} balance={s.balance} /></div>
-            <div className="lg:col-span-5"><div className="civr-label !text-[#a1a1aa] mb-3">Quick actions</div><QuickActions unread={s.unread} /></div>
+            <div className="lg:col-span-5"><div className="civr-label !text-[#a1a1aa] mb-3">Quick actions</div><QuickActions unread={s.messagesUnread} /></div>
           </div>
           <div className="civr-card p-6 mt-6">
             <div className="font-display text-2xl font-bold mb-4">Recent activity</div>

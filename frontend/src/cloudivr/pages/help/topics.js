@@ -16,7 +16,7 @@ const PAGES = [
   [/\/app\/live/, 'campaigns', 'Live'],
   [/\/app\/do-not-call/, 'campaigns', 'Do-not-call list'],
   [/\/app\/wallet/, 'wallet', 'Wallet'],
-  [/\/app\/inbox/, 'inbox', 'Inbox'],
+  [/\/app\/inbox/, 'inbox', 'Notifications'],
   [/\/app\/settings/, 'settings', 'Settings'],
   [/\/app\/help/, 'help', 'Help center'],
 ];
@@ -51,7 +51,7 @@ export const GROUPS = [
 export const TOPIC_NAMES = {
   overview: 'Overview', number: 'Number details', numbers: 'My numbers', sip: 'SIP & softphones', buy: 'Buy a number', verification: 'Verification',
   audio: 'Audio library', 'quick-call': 'Quick IVR call', 'text-call': 'Text calls', ai: 'AI voice agents', campaigns: 'Bulk IVR campaigns', wallet: 'Wallet',
-  inbox: 'Inbox', settings: 'Settings', forwarding: 'Forwarding', hours: 'Hours', keypad: 'Keypad menu', voicemail: 'Voicemail', billing: 'Billing',
+  inbox: 'Notifications', settings: 'Settings', forwarding: 'Forwarding', hours: 'Hours', keypad: 'Keypad menu', voicemail: 'Voicemail', billing: 'Billing',
   browser: 'Browser ring', recording: 'Recording', ringgroup: 'Ring group', triggers: 'Text Triggers', logs: 'Logs',
 };
 

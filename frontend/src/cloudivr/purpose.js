@@ -3,9 +3,9 @@ import { TrendingUp, LifeBuoy, CalendarCheck, MessageSquareText, Captions, Spark
 // Onboarding purposes → what the app puts first for them ([label, app path]).
 export const PURPOSES = [
   ['sales', TrendingUp, 'Sales & lead calling', 'Call lists, connect the hot leads', [['Start a Bulk IVR campaign', '/app/campaigns/new'], ['Quick IVR call', '/app/quick-call'], ['Import contacts', '/app/contacts']]],
-  ['support', LifeBuoy, 'Customer support line', 'Menus, forwarding, voicemail', [['Buy a number', '/app/buy'], ['Watch calls live', '/app/live'], ['Read your inbox', '/app/inbox']]],
-  ['bookings', CalendarCheck, 'Appointments & bookings', 'An AI agent answers 24/7', [['Set up an AI voice agent', '/app/ai-agents'], ['Buy a number', '/app/buy'], ['Read your inbox', '/app/inbox']]],
-  ['texting', MessageSquareText, 'Business texting', 'Text from your number or landline', [['Landline to Texting', '/app/texting'], ['Read your inbox', '/app/inbox'], ['Buy a number', '/app/buy']]],
+  ['support', LifeBuoy, 'Customer support line', 'Menus, forwarding, voicemail', [['Buy a number', '/app/buy'], ['Watch calls live', '/app/live'], ['Read your messages', '/app/messages']]],
+  ['bookings', CalendarCheck, 'Appointments & bookings', 'An AI agent answers 24/7', [['Set up an AI voice agent', '/app/ai-agents'], ['Buy a number', '/app/buy'], ['Read your messages', '/app/messages']]],
+  ['texting', MessageSquareText, 'Business texting', 'Text from your number or landline', [['Landline to Texting', '/app/texting'], ['Read your messages', '/app/messages'], ['Buy a number', '/app/buy']]],
   ['accessible', Captions, 'Type-to-talk calls', 'Type; a voice speaks for you', [['Make a text-to-voice call', '/app/text-call'], ['Buy a number', '/app/buy'], ['Contacts', '/app/contacts']]],
   ['other', Sparkles, 'Something else', 'Explore everything', [['Buy a number', '/app/buy'], ['Watch calls live', '/app/live'], ['Help center', '/app/help']]],
 ];

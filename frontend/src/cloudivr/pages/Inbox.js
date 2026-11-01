@@ -92,7 +92,7 @@ export default function Inbox() {
   const s = useSearch(items, n => [n.text, n.kind, NAME[n.kind], n.meta?.coupon]);
   return (
     <div data-testid="inbox-page">
-      <PageHeader label="Inbox" title="Inbox" sub="Texts, voicemails, call alerts, campaign reports and wallet updates for your numbers. Tap one to open it where it happened." testid="inbox-header">
+      <PageHeader label="Account" title="Notifications" sub="Wallet, billing, campaign and system alerts, plus a note for each text, voicemail and call. Conversations themselves live in Messages." testid="inbox-header">
         <button className="civr-btn civr-btn-ghost civr-btn-sm" onClick={markRead} disabled={!unreadOf(kind)} data-testid="inbox-mark-read-button"><CheckCheck className="w-4 h-4" />{kind ? 'Mark these as read' : 'Mark all read'}{unreadOf(kind) ? <span data-testid="inbox-mark-read-count"> ({unreadOf(kind)})</span> : null}</button>
       </PageHeader>
       <div className="flex flex-col lg:flex-row lg:items-center gap-3 mb-6">

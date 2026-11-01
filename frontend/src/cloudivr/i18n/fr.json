@@ -3940,5 +3940,9 @@
 "Scheduled · {0} {1}": "Programmé · {0} {1}",
 "Not sent": "Non envoyé",
 "Cancel scheduled text": "Annuler le SMS programmé",
-"Scheduled text cancelled": "SMS programmé annulé"
+"Scheduled text cancelled": "SMS programmé annulé",
+"Notifications": "Notifications",
+"Read your messages": "Lire vos messages",
+"Texts, voicemails and calls with each person": "SMS, messages vocaux et appels avec chaque personne",
+"Wallet, billing, campaign and system alerts, plus a note for each text, voicemail and call. Conversations themselves live in Messages.": "Alertes portefeuille, facturation, campagnes et système, plus un avis pour chaque SMS, message vocal et appel. Les conversations sont dans Messages."
 }

@@ -2036,3 +2036,9 @@ calls and SIP are simulated; inbound calls use a pretend-call simulator).
 - Tested: iteration_190 (17/17 backend, all UI flows) + fixes (tag+search filter, AI retry throttle, mobile header, picker theme,
   media check on schedule, dismiss failed). Retest pytest 17/17.
 
+
+## 2026-11-01 (i) — Sidebar cleanup — PREVIEW ONLY
+- Inbox removed from sidebar/mobile menu; the top-bar bell opens it, renamed "Notifications" (route /app/inbox unchanged; in Ctrl-K palette).
+- Sidebar regrouped by daily use: Home (Overview, Messages, Live) · Numbers (My numbers, Buy, eSIM, Texting, SIP) · Calling (Contacts,
+  Quick IVR, Text-to-voice, Campaigns, AI agents, Audio, Do-not-call) · Account (Wallet, Settings, Help). Compact rows (theme-clean.css).
+- Dashboard quick action now opens Messages (messagesUnread); onboarding "Read your inbox" → "Read your messages".

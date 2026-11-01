@@ -9,7 +9,7 @@ const PAGES = { terms: 'Terms of Service', sip: 'SIP phone numbers', login: 'Sig
 const APP = [
   [/^numbers\/[^/]+$/, 'Number settings'], [/^orders\//, 'Order status'], [/^verification/, 'Number verification'],
   [/^ai-agents\/new$/, 'New agent'], [/^ai-agents\/[^/]+$/, 'Edit agent'], [/^campaigns\/new$/, 'New campaign'],
-  [/^campaigns\/[^/]+$/, 'Campaign report'], [/^admin\/suggestions/, 'Suggestions inbox'],
+  [/^campaigns\/[^/]+$/, 'Campaign report'], [/^admin\/suggestions/, 'Suggestions inbox'], [/^inbox$/, 'Notifications'],
 ];
 
 export function pageName(pathname) {

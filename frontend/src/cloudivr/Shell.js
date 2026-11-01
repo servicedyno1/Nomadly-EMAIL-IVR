@@ -68,11 +68,11 @@ export function LiveDot({ testid = 'nav-live-dot' }) {
 
 function SideNav() {
   return (
-    <nav className="flex flex-col gap-6" data-testid="nav-header">
+    <nav className="flex flex-col gap-5" data-testid="nav-header">
       {NAV.map(([group, items]) => (
         <div key={group} data-testid={`nav-group-${group.toLowerCase()}`}>
-          <div className="civr-side-label px-3 mb-2 text-xs font-semibold uppercase tracking-widest text-[#a1a1aa]">{group}</div>
-          <div className="flex flex-col gap-1">
+          <div className="civr-side-label px-3 mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-[#a1a1aa]">{group}</div>
+          <div className="flex flex-col gap-0.5">
             {items.map(([to, label, Icon, id]) => (
               <NavLink key={id} end={to === ''} to={appPath(to)} className={({ isActive }) => `civr-nav-link ${isActive ? 'active' : ''}`} data-testid={id}>
                 <Icon className="w-4 h-4" />{label}{id === 'nav-quick-call' && <FreeBadge />}{id === 'nav-live' && <LiveDot />}{id === 'nav-messages' && <MsgBadge />}
@@ -87,11 +87,11 @@ function SideNav() {
 
 function Sidebar({ supportLink, channelLink, purposes }) {
   return (
-    <aside aria-label="Main navigation" className="civr-side hidden lg:flex lg:flex-col w-64 shrink-0 h-screen sticky top-0 border-r border-[#1a1a1a] px-4 py-6 overflow-y-auto" data-testid="app-sidebar">
-      <Link to={cp('/app')} className="civr-side-logo font-display text-2xl font-extrabold tracking-tight px-3 mb-8 flex items-center gap-2.5" data-testid="sidebar-logo"><Wordmark iconClass="w-9 h-9" /></Link>
+    <aside aria-label="Main navigation" className="civr-side hidden lg:flex lg:flex-col w-60 shrink-0 h-screen sticky top-0 border-r border-[#1a1a1a] px-3 py-5 overflow-y-auto" data-testid="app-sidebar">
+      <Link to={cp('/app')} className="civr-side-logo font-display text-2xl font-extrabold tracking-tight px-3 mb-6 flex items-center gap-2.5" data-testid="sidebar-logo"><Wordmark iconClass="w-8 h-8" /></Link>
       <SideNav />
-      <div className="civr-side-rule mt-auto pt-5 border-t border-[#1a1a1a] flex flex-col gap-1" data-testid="nav-group-support">
-        <div className="civr-side-label px-3 mb-1 text-xs font-semibold uppercase tracking-widest text-[#a1a1aa]">Support</div>
+      <div className="civr-side-rule mt-auto pt-4 border-t border-[#1a1a1a] flex flex-col gap-0.5" data-testid="nav-group-support">
+        <div className="civr-side-label px-3 mb-1 text-[11px] font-semibold uppercase tracking-wider text-[#a1a1aa]">Support</div>
         {channelLink && <a href={channelLink} target="_blank" rel="noopener noreferrer" className="civr-nav-link" data-testid="sidebar-channel-link"><Send className="w-4 h-4" />Telegram channel</a>}
         <Link to={cp('/app/settings#suggest')} className="civr-nav-link" data-testid="sidebar-suggest-link"><Lightbulb className="w-4 h-4" />Suggest a feature</Link>
         {supportLink && <a href={supportLink} target="_blank" rel="noopener noreferrer" className="civr-nav-link" data-testid="sidebar-support-link"><LifeBuoy className="w-4 h-4" />Message support</a>}
@@ -127,7 +127,7 @@ function TopBar({ summary, onPhone }) {
       <ThemeButton className={`${ICON_BTN} hidden lg:flex`} />
       <button type="button" onClick={openPalette} className={ICON_BTN} data-testid="topbar-search-button" aria-label="Jump to a number, page or action" title={`Jump to… (${isMac ? '⌘' : 'Ctrl'} K)`}><Search className="w-5 h-5" /></button>
       <Link to={helpFor(pathname, search)} className={`${ICON_BTN} hidden sm:flex`} data-testid="topbar-help-button" aria-label="Help for this page" title="Help for this page (?)"><HelpCircle className="w-5 h-5" /></Link>
-      <Link to={cp('/app/inbox')} className={ICON_BTN} data-testid="topbar-inbox-button" aria-label="Inbox">
+      <Link to={cp('/app/inbox')} className={ICON_BTN} data-testid="topbar-inbox-button" aria-label="Notifications" title="Notifications">
         <Bell className="w-5 h-5" />
         {summary?.unread > 0 && <span className="absolute top-1 right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-[#6366f1] text-white text-xs font-bold flex items-center justify-center" data-testid="topbar-unread-count">{summary.unread > 99 ? '99+' : summary.unread}</span>}
       </Link>
