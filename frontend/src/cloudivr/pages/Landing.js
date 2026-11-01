@@ -2,7 +2,9 @@ import React from 'react';
 import { useSiteLook } from './landing/kit';
 import { useApi } from '../api';
 import { Hero } from './landing/Hero';
-import { Pillars, ChannelSlider, Quotes } from './landing/V2Sections';
+import { Quotes } from './landing/V2Sections';
+import { Families } from './landing/Families';
+import { EsimCheckoutHost } from './landing/EsimCheckout';
 import { EsimPlans } from './landing/EsimPlans';
 import { Coverage, HowItWorks, Facts, Statement } from './landing/Sections';
 import { UseCases } from './landing/UseCases';
@@ -11,7 +13,6 @@ import { Trust } from './landing/Trust';
 import { TryCall } from './landing/TryCall';
 import { Pricing, Faq, FinalCta, Footer } from './landing/PricingFaq';
 import { Bubbles } from './landing/Bubbles';
-import { ProductCards } from './landing/ProductCards';
 import { LandingNav } from './landing/Nav';
 import { StickyCta } from './landing/StickyCta';
 import { CATALOG_SNAPSHOT } from './landing/catalogSnapshot';
@@ -33,14 +34,12 @@ export default function Landing() {
         <Facts catalog={catalog} />
         <Bubbles />
         <Statement />
-        <Pillars />
-        <EsimPlans />
-        <UseCases />
+        <Families />
         <Platform catalog={catalog} />
-        <ChannelSlider />
         <TryCall />
         <Coverage catalog={catalog} />
-        <ProductCards />
+        <EsimPlans />
+        <UseCases />
         <Quotes />
         <Reviews />
         <Trust />
@@ -51,6 +50,7 @@ export default function Landing() {
       </main>
       <Footer catalog={catalog} />
       <StickyCta />
+      <EsimCheckoutHost />
       <SupportChat visitor supportLink={catalog?.supportLink} />
     </div>
   );

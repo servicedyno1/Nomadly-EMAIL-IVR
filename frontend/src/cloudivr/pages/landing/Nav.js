@@ -11,7 +11,7 @@ import { PRODUCTS, USE_CASES, goTo, hrefOf } from './menu';
 
 export const LANDING_LINKS = [['#pricing', 'Pricing', 'pricing'], ['#coverage', 'Coverage', 'coverage'], ['#faq', 'Help', 'faq']];
 // Products mega menu groups (ids from menu.js PRODUCTS).
-const GROUPS = [['Calling', ['numbers', 'phone', 'inbox']], ['Automation', ['ivr', 'campaigns']], ['Texting', ['hosted']], ['AI', ['ai', 'text']]];
+const GROUPS = [['Calling & IVR', ['numbers', 'ivr', 'campaigns', 'phone', 'ai', 'text', 'inbox'], 'calling'], ['Texting', ['hosted'], 'texting'], ['Mobile', ['esim'], 'mobile']];
 const MENUS = [['products', 'Products', PRODUCTS], ['usecases', 'Use cases', USE_CASES]];
 
 function Item({ it, onPick, testid }) {
@@ -42,8 +42,8 @@ function MegaPanel({ which, catalog, onPick }) {
   return (
     <div id={`nav-menu-${which}`} role="region" aria-label={label} className="civr-l-menu absolute left-4 right-4 sm:left-6 sm:right-6 md:left-8 md:right-8 top-[calc(100%+8px)] p-3 grid grid-cols-12 gap-3" data-testid={`nav-menu-${which}`}>
       {which === 'products'
-        ? <div className="col-span-8 grid grid-cols-2 gap-x-2 gap-y-4 content-start p-2">{GROUPS.map(([g, ids]) => (
-            <div key={g} data-testid={`nav-menu-group-${g.toLowerCase()}`}><div className="civr-l-eyebrow text-xs px-3 mb-1">{g}</div>{ids.map(id => items.find(x => x[0] === id)).filter(Boolean).map(it => <Item key={it[0]} it={it} onPick={onPick} testid={`nav-menu-${which}-item`} />)}</div>
+        ? <div className="col-span-8 grid grid-cols-2 gap-x-2 gap-y-4 content-start p-2">{GROUPS.map(([g, ids, gid]) => (
+            <div key={g} className={gid === 'calling' ? 'row-span-2' : ''} data-testid={`nav-menu-group-${gid}`}><div className="civr-l-eyebrow text-xs px-3 mb-1">{g}</div>{ids.map(id => items.find(x => x[0] === id)).filter(Boolean).map(it => <Item key={it[0]} it={it} onPick={onPick} testid={`nav-menu-${which}-item`} />)}</div>
           ))}</div>
         : <div className="col-span-8 grid grid-cols-2 gap-1 content-start p-2">{items.map(it => <Item key={it[0]} it={it} onPick={onPick} testid={`nav-menu-${which}-item`} />)}</div>}
       <div className="col-span-4"><Featured which={which} catalog={catalog} onPick={onPick} /></div>

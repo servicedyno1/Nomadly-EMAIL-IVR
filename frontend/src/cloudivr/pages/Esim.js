@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Loader2, Smartphone, QrCode, Globe2, MessageSquare, Phone, Send, CheckCircle2, Circle } from 'lucide-react';
 import { toast } from 'sonner';
 import QRCode from 'react-qr-code';
@@ -6,6 +6,9 @@ import { api, useApi, when } from '../api';
 import { PageHeader, Field, ErrorNote, Spinner, Empty } from '../ui';
 import { useShell } from '../Shell';
 import { ask } from '../confirm';
+import { DRAFT_KEY } from './landing/EsimCheckout';
+
+const readDraft = () => { try { return JSON.parse(localStorage.getItem(DRAFT_KEY)) || null; } catch (_) { return null; } };
 
 const STATUS = { provisioning: ['Creating your eSIM… usually ready in minutes', 'text-[#fbbf24]'], active: ['Active', 'text-[#34d399]'], suspended: ['Paused · monthly fee due', 'text-[#fbbf24]'], failed: ['Couldn’t be created · refunded', 'text-[#fb7185]'] };
 
@@ -23,13 +26,13 @@ function PlanCard({ p, onBuy }) {
   );
 }
 
-function BuyForm({ plan, onDone, onCancel }) {
+function BuyForm({ plan, draft, onDone, onCancel }) {
   const { refreshSummary } = useShell();
-  const [imei, setImei] = useState('');
-  const [zip, setZip] = useState('');
+  const [imei, setImei] = useState(draft?.imei || '');
+  const [zip, setZip] = useState(draft?.zip || '');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
-  const go = async () => { setBusy(true); setErr(null); try { await api('/esim', { method: 'POST', body: { planId: plan.planId, imei, zipcode: zip.trim() } }); toast.success(`Paid $${plan.price}. Creating your eSIM — usually ready in minutes`); refreshSummary(); onDone(); } catch (e) { setErr(e); } finally { setBusy(false); } };
+  const go = async () => { setBusy(true); setErr(null); try { await api('/esim', { method: 'POST', body: { planId: plan.planId, imei, zipcode: zip.trim() } }); toast.success(`Paid $${plan.price}. Creating your eSIM — usually ready in minutes`); refreshSummary(); try { localStorage.removeItem(DRAFT_KEY); } catch (_) { /* private mode */ } onDone(); } catch (e) { setErr(e); } finally { setBusy(false); } };
   return (
     <div className="civr-card p-6 space-y-4" data-testid="esim-buy">
       <div className="font-semibold">{plan.label || plan.planId}</div>
@@ -129,6 +132,9 @@ function Line({ item, reload }) {
 export default function Esim() {
   const { data, error, reload } = useApi('/esim');
   const [buying, setBuying] = useState(null);
+  const [draft] = useState(readDraft);
+  const used = useRef(false);
+  useEffect(() => { if (draft && data?.plans && !used.current) { used.current = true; const p = data.plans.find(x => x.planId === draft.planId); if (p) setBuying(p); } }, [draft, data?.plans]);
   const waiting = !!data?.items?.some(x => x.status === 'provisioning');
   useEffect(() => { if (!waiting) return undefined; const t = setInterval(reload, 5000); return () => clearInterval(t); }, [waiting, reload]);
   if (error) return <ErrorNote error={error} onRetry={reload} />;
@@ -138,7 +144,7 @@ export default function Esim() {
       <PageHeader label="CloudIVR eSIM" title="A US mobile line, ready in minutes" sub="Get an eSIM with a US number, calls, texts and data. It’s usually ready a few minutes after you pay: scan the QR code and it’s on your phone. Add as many lines as you need." testid="esim-header" />
       {data.items.length > 0 && <div className="space-y-4">{data.items.map(x => <Line key={x.id} item={x} reload={reload} />)}</div>}
       {data.items.length > 0 && !buying && data.plans.length > 0 && <h2 className="font-display text-xl font-bold" data-testid="esim-add-another">Add another eSIM</h2>}
-      {buying ? <BuyForm plan={buying} onCancel={() => setBuying(null)} onDone={() => { setBuying(null); reload(); }} /> : (
+      {buying ? <BuyForm plan={buying} draft={draft?.planId === buying.planId ? draft : null} onCancel={() => setBuying(null)} onDone={() => { setBuying(null); reload(); }} /> : (
         data.plans.length ? <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4" data-testid="esim-plans">{data.plans.map(p => <PlanCard key={p.planId} p={p} onBuy={setBuying} />)}</div>
           : <Empty icon={Smartphone} title="eSIM plans are coming soon" sub="We’re adding mobile plans. Check back shortly." testid="esim-empty" />
       )}

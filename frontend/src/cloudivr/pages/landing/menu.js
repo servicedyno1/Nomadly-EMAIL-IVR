@@ -1,4 +1,4 @@
-import { Hash, Workflow, Bot, Megaphone, Headphones, Inbox, TrendingUp, LifeBuoy, CalendarCheck, Globe2, Captions, MessageSquareText } from 'lucide-react';
+import { Hash, Workflow, Bot, Megaphone, Headphones, Inbox, TrendingUp, LifeBuoy, CalendarCheck, Globe2, Captions, MessageSquareText, Smartphone } from 'lucide-react';
 
 // Top menu + footer: [id, Icon, title, description, target]. Target = platform tab id, or '#anchor'.
 export const PRODUCTS = [
@@ -10,6 +10,7 @@ export const PRODUCTS = [
   ['text', Captions, 'Text-to-voice calls', 'Type and a natural voice speaks for you; read their reply live.', 'text'],
   ['hosted', MessageSquareText, 'Landline to Texting', 'Get texts on the landline number you already have.', 'hosted'],
   ['inbox', Inbox, 'SMS & voicemail inbox', 'Every text and transcribed voicemail in one inbox.', 'sms'],
+  ['esim', Smartphone, 'CloudIVR eSIM', 'A US mobile line on T-Mobile — install instantly with a QR code.', '#esim'],
 ];
 
 export const USE_CASES = [

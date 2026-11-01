@@ -31,7 +31,7 @@ async function call(method, path, data, extra = {}) {
 const unwrap = (r) => (Array.isArray(r?.data) ? r.data : r?.data?.items || r?.data || [])
 const FRIENDLY = 'The eSIM service didn’t respond. Try again in a minute.'
 const errOf = (e) => { S?.log(`[eSIM] provider: ${e.message}`); return { error: FRIENDLY } }
-const custPlan = (p) => ({ planId: p.planId, label: p.label || null, price: p.price, validityDays: p.validityDays, data: p.data, voiceMinutes: p.voiceMinutes, sms: p.sms, carrier: 'US network' })
+const custPlan = (p) => ({ planId: p.planId, label: p.label || null, price: p.price, validityDays: p.validityDays, data: p.data, voiceMinutes: p.voiceMinutes, sms: p.sms, carrier: 'T-Mobile network' })
 
 const planOut = (p, cfg, sim) => ({
   planId: p.productId, cost: p.price, simId: sim?.simId || null, simCost: sim?.price ?? null, lineCost: round2((p.price || 0) + (sim?.price || 0)), currency: p.currency, validityDays: p.validityDays, recurring: !!p.recurring,
