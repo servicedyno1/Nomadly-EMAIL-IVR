@@ -1,101 +1,116 @@
 {
-  "project_name": "CloudIVR Marketing Landing & Live Operations Platform",
-  "archetype": "Clean Editorial Swiss & High-Contrast Ink (cm.com style)",
-  "theme_strategy": {
-    "landing_hero": "Pure White (#ffffff) background, near-black ink typography (#0f172a / #000000), crisp dark buttons",
-    "landing_body": "Minimalist White & Light Slate (#ffffff & #f8fafc) alternating sections, zero checker patterns, zero purple gradients",
-    "live_dashboard": "Dark Command Center Obsidian (#0a0a0a with #141414 cards, #34d399 emerald, #818cf8 indigo, #fbbf24 amber)"
-  },
-  "palette_tokens": {
-    "ink": "#0f172a",
-    "ink_hover": "#1e293b",
-    "paper": "#ffffff",
-    "paper_alt": "#f8fafc",
-    "line": "#e2e8f0",
-    "line_dark": "#cbd5e1",
-    "muted": "#64748b",
-    "accent_live_dot": "#10b981"
+  "palette": {
+    "light": {
+      "bg": "#F7FAF5",
+      "surface": "#FFFFFF",
+      "ink": "#0D150C",
+      "ink_2": "#3A4A38",
+      "muted": "#687A65",
+      "line": "#E1EAD9",
+      "hero_tint": "#C0FFA5",
+      "secondary_tint": "#E8FAD8",
+      "accent": "#1FA84F",
+      "accent_ink": "#FFFFFF",
+      "link": "#0B8237"
+    },
+    "dark": {
+      "bg": "#0A1109",
+      "surface": "#121E11",
+      "ink": "#F2F7F0",
+      "ink_2": "#C3D4C0",
+      "muted": "#829680",
+      "line": "#223520",
+      "hero_tint": "#173B14",
+      "secondary_tint": "#112C0E",
+      "accent": "#22C55E",
+      "accent_ink": "#0A1109",
+      "link": "#4ADE80"
+    }
   },
   "typography": {
-    "heading_font": "DM Sans, sans-serif",
-    "body_font": "DM Sans, sans-serif",
-    "mono_font": "JetBrains Mono, monospace",
-    "h1": "text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight text-slate-900 leading-[1.1] text-center",
-    "h2": "text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight text-slate-900 text-center",
-    "body": "text-base sm:text-lg text-slate-600 leading-relaxed"
-  },
-  "component_styles": {
-    "button_primary": "bg-slate-900 text-white hover:bg-slate-800 rounded-full px-6 py-3 font-medium transition-all shadow-sm",
-    "button_secondary": "bg-white text-slate-900 border border-slate-300 hover:bg-slate-50 rounded-full px-6 py-3 font-medium transition-all",
-    "nav_bar": "sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-slate-200 text-slate-900",
-    "tab_bar": "bg-slate-100 p-1.5 rounded-full border border-slate-200 inline-flex gap-2",
-    "browser_frame": "rounded-xl border border-slate-200 bg-white shadow-2xl overflow-hidden"
-  },
-  "landing_page_structure": {
-    "sticky_nav": "Logo + Products & Use Cases mega dropdowns + Coverage, Pricing, FAQ + EN/FR/ES language switcher + Sign in + Get your number CTA",
-    "centered_hero": {
-      "eyebrow": "BEHIND EVERY CALL — CLOUD PHONE INFRASTRUCTURE",
-      "h1": "Every call answered. Every lead called.",
-      "subheadline": "Instant phone numbers in 17 countries, visual keypad IVR menus, outbound phone campaigns, and AI voice agents.",
-      "ctas": ["Get your number (Primary Ink)", "Try a free call (Secondary Outline)"],
-      "trust_checklist": ["Instant 60s setup", "No credit card needed", "$1.99/mo starting price"]
-    },
-    "product_tabs": {
-      "tabs": ["Dashboard", "Keypad menus", "Campaigns", "Live map"],
-      "behavior": "Auto-advancing progress bar showing dark UI screenshots (#0a0a0a) inside a clean light browser-window frame"
-    },
-    "sections": [
-      "Facts Strip (Key metrics on light background)",
-      "Statement / Vision Block",
-      "The Platform (Interactive feature picker with mockups)",
-      "Free 60-second Test Call Widget",
-      "Coverage Grid (17 countries with pricing & capabilities)",
-      "How It Works (3 step walkthrough)",
-      "Pricing Catalog (Starter, Pro, Business)",
-      "FAQ Accordion",
-      "Final CTA Banner & Clean Multi-column Footer"
-    ]
-  },
-  "live_page_map_spec": {
-    "page_route": "/app/live",
-    "container_style": "bg-[#141414] border border-[#222222] rounded-xl p-6 shadow-xl text-white mb-8",
-    "map_visuals": {
-      "projection": "US Interactive State Map (SVG map with shaded paths based on call density)",
-      "shading_scale": {
-        "zero_calls": "#1a1a24",
-        "low_calls": "#241b40",
-        "mid_calls": "#3b206e",
-        "high_calls": "#581c87",
-        "peak_calls": "#6d28d9"
+    "fonts": {
+      "display": {
+        "family": "Outfit",
+        "weights": [600, 700],
+        "usage": "H1, H2 display headlines, hero rotating words"
       },
-      "live_dots": "Glowing cyan (#38bdf8) and emerald (#34d399) pulsing call nodes positioned on state centroids with CSS ping animation representing active ringing/talking calls",
-      "tooltip": "Hover card showing state name, today's call volume, answer rate %, and currently ringing count",
-      "legend": "Color gradient bar for call intensity + pulsing dots indicator for live active calls"
+      "text": {
+        "family": "Plus Jakarta Sans",
+        "weights": [400, 500, 600],
+        "usage": "Subtitles, body copy, card titles, navigation, buttons"
+      }
     },
-    "outside_us_panel": "Side/Bottom widget listing Canada provinces and international live traffic summary",
-    "dashboard_position": "Sits directly above the live call feed table and campaign pipeline queues"
+    "type_scale": {
+      "desktop": {
+        "h1": "52px / 1.1 line-height, tracking-tight, font-semibold",
+        "h2": "38px / 1.2 line-height, tracking-tight, font-semibold",
+        "h3": "24px / 1.3 line-height, font-semibold",
+        "body": "16px / 1.6 line-height, font-normal",
+        "small": "13px / 1.5 line-height, font-medium"
+      },
+      "phone": {
+        "h1": "36px / 1.15 line-height, tracking-tight, font-semibold",
+        "h2": "28px / 1.25 line-height, tracking-tight, font-semibold",
+        "h3": "20px / 1.3 line-height, font-semibold",
+        "body": "15px / 1.5 line-height, font-normal",
+        "small": "12px / 1.4 line-height, font-medium"
+      }
+    }
   },
-  "live_dashboard": {
-    "theme": "Dark Command Center Obsidian (#0a0a0a with #141414 cards, #34d399 emerald, #818cf8 indigo, #fbbf24 amber)"
+  "radii": {
+    "button": "16px (rounded-2xl)",
+    "card": "24px (rounded-3xl)",
+    "hero_block": "32px top/right, 64px rounded bottom-left corner (Brevo signature shape)",
+    "badge": "9999px (rounded-full)"
   },
-  "motion_and_interactions": {
-    "smooth_scroll": "Lenis smooth scrolling engine on marketing pages",
-    "scroll_reveal": "Framer motion staggered entrance (y: 16 -> 0, opacity: 0 -> 1)",
-    "reduced_motion": "Full support via prefers-reduced-motion"
+  "shadows": {
+    "subtle": "0 2px 8px -2px rgba(13,21,12,0.06), 0 1px 3px 0 rgba(13,21,12,0.04)",
+    "card_lift": "0 12px 32px -4px rgba(13,21,12,0.08), 0 4px 12px -2px rgba(13,21,12,0.04)",
+    "mega_menu": "0 20px 40px -6px rgba(13,21,12,0.12)"
   },
-  "explicit_do_not_list": [
-    "NO deep purple or violet backgrounds/gradients anywhere on the landing page.",
-    "NO grid, mesh, or checkerboard background pattern overlays.",
-    "NO colored background glow blobs or heavy gradients.",
-    "NO fully transparent backgrounds for header nav or dropdown menus."
-  ],
-  "testing_attributes": {
-    "rule": "All interactive elements, buttons, inputs, tabs, and nav links MUST include data-testid in kebab-case."
+  "spacing_and_layout": {
+    "section_spacing_desktop": "96px to 128px (py-24 to py-32)",
+    "section_spacing_phone": "56px to 64px (py-14 to py-16)",
+    "container_max_width": "1280px (max-w-7xl px-4 sm:px-6 lg:px-8)",
+    "card_padding": "p-8 or p-10 (generous interior spacing)"
   },
-  "UNIVERSAL GUIDELINES FOR MAIN AGENT": [
-    "Maintain high contrast ink-on-paper aesthetic inspired by cm.com.",
-    "Keep landing page background pure white (#ffffff) with light slate (#f8fafc) section highlights.",
-    "Ensure dark screenshots are framed inside light browser containers.",
-    "Include data-testid on all interactive elements."
-  ]
+  "button_specs": {
+    "primary": "Solid near-black ink background (#0D150C), accent text on hover, rounded-2xl (16px), px-6 py-3.5, font-medium",
+    "secondary": "Outlined ink-2 border, semi-transparent background, rounded-2xl (16px), px-6 py-3.5",
+    "cta": "Brevo-style high contrast primary CTA placed on tinted background block",
+    "mobile_rules": "Full-width (w-full) on phone screens"
+  },
+  "card_specs": {
+    "border": "1px solid #E1EAD9 (light) / #223520 (dark)",
+    "bg": "#FFFFFF (light) / #121E11 (dark)",
+    "radius": "24px (rounded-3xl)",
+    "shadow": "Subtle hover lift (-translate-y-1) with soft ambient shadow"
+  },
+  "motion_rules": {
+    "transitions": "Explicit property transitions only: transform 0.2s ease, opacity 0.2s ease (NEVER transition: all)",
+    "rotating_word": "Vertical slide & fade animation cycling through 'calls' -> 'leads' -> 'bookings' -> 'texts'",
+    "app_previews": "Live-style micro-animated elements inside browser/mobile device frames (typing indicators, call waves, audio pulsing)"
+  },
+  "illustration_style_prompt": "Clean vector 3D flat-hybrid editorial SaaS illustrations for virtual telephony and cloud communications. Vibrant parrot-green accents (#1FA84F) with soft warm sage greens, clay whites, and soft mint shadows. Smooth rounded geometry, minimal isometric perspective, clean lines without black strokes, representing voice waves, mobile device frames, AI call routing nodes, and landline text bubbles in a unified, modern tech aesthetic matching Brevo style.",
+  "key_functionalities_and_sections": {
+    "brand_identity": "Keep CloudIVR logo (green parrot icon + wordmark)",
+    "mega_menu": "Products mega menu grouping Calling (Browser phone, SIP), Automation (IVR keypad, Bulk IVR, Quick IVR), Texting (Landline to Texting), and AI (AI Voice Agents, Text-to-Voice)",
+    "hero_section": "Outcome headline with rotating word (calls -> leads -> bookings -> texts), tinted hero block (#C0FFA5) with large rounded bottom-left corner, left-aligned hero copy, proof chip, solid near-black primary CTA, outlined secondary CTA, layered UI card preview on right",
+    "trust_strip": "True facts proof strip: 17 countries supported, free test call available, crypto/wallet payments, EN/ES/FR multi-language support",
+    "value_pillars": "3 pillars: 'Every call answered', 'Automate outreach', 'AI that talks for you' with matching custom vector illustrations",
+    "channel_slider": "Interactive channel slider showcasing Browser Phone, SIP Trunking, Texting, AI Voice Agents, and Quick IVR",
+    "product_tour_tabs": "Tabbed interactive feature preview with device frames and live animated previews",
+    "use_cases": "Targeted use cases for E-commerce, Local Services, Sales Outreach, Healthcare & Booking",
+    "how_it_works": "3 simple steps: 1. Choose Number, 2. Pick Workflow / AI Agent, 3. Go Live",
+    "pricing_teaser": "4 plans teaser: Starter ($50), Pro ($75), Business ($120), Texting Plan / Landline to Texting ($200 setup + $50/mo standalone)",
+    "faq_section": "Accordion FAQ covering setup, landline texting, crypto wallet payments, and international numbers",
+    "final_cta": "Full-width Brevo-style tinted CTA banner with bold headline and conversion button",
+    "footer": "Multi-column footer with product links, legal compliance, language switcher (EN/ES/FR), and dark mode toggle"
+  },
+  "instructions_to_main_agent": {
+    "file_format": "Use React JS files (.js / .jsx), not TypeScript (.tsx)",
+    "testing_attributes": "All interactive elements (buttons, inputs, links, tabs, toggles) MUST include data-testid attributes",
+    "header_style": "Header background must use glassmorphism backdrop-blur-xl with light/dark translucent background, never fully transparent",
+    "css_theme_vars": "Integrate theme variables cleanly with light (#F7FAF5 / #C0FFA5) and dark (#0A1109 / #173B14) mode support"
+  }
 }
