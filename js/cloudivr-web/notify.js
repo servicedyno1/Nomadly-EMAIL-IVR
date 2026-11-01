@@ -134,6 +134,13 @@ function routes(router, { h, numbersApi, smsReply }) {
     const n = _id && await _col.findOne({ _id, chatId: req.webChatId })
     if (!n) return res.status(404).json({ error: 'not_found', message: 'Message not found.' })
     if (n.kind !== 'sms' || !n.meta?.from || !n.meta?.to) return res.status(400).json({ error: 'cannot_reply', message: 'This message can’t be answered from here. Open the number’s Logs tab.' })
+    if (n.meta.esim) {
+      const er = await require('../spenza.js').sendSms(req.webChatId, n.meta.esim, n.meta.from, req.body?.text)
+      if (er.error) return res.status(400).json({ error: 'cannot_reply', message: er.error })
+      const reply = { text: er.log.body, at: er.log.timestamp, status: er.log.status }
+      await _col.updateOne({ _id }, { $set: { 'meta.reply': reply, read: true } })
+      return res.json({ reply, charge: 0.05 })
+    }
     if (n.meta.hosted) {
       const hr = await require('../hosted-sms.js').sendText(req.webChatId, n.meta.hosted, n.meta.from, req.body?.text)
       if (hr.error) return res.status(400).json({ error: 'cannot_reply', message: hr.error })
