@@ -10,6 +10,7 @@ import { cp } from '../../paths';
 export const openEsimCheckout = (planId) => window.dispatchEvent(new CustomEvent('civr-esim-checkout', { detail: planId || null }));
 export const DRAFT_KEY = 'civr.esimDraft';
 const IN = 'w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[color:var(--np-blue)]';
+export const EMAIL_OK = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 const saveDraft = (d) => { try { localStorage.setItem(DRAFT_KEY, JSON.stringify(d)); } catch (_) { /* private mode */ } };
 const dropDraft = () => { try { localStorage.removeItem(DRAFT_KEY); } catch (_) { /* private mode */ } };
 
@@ -20,13 +21,14 @@ const Err = ({ e, testid }) => (e ? <p role="alert" className="text-sm text-rose
 const Btn = ({ busy, children, ...p }) => <button type="button" className="civr-l-btn w-full inline-flex items-center justify-center gap-2 min-h-[48px] disabled:opacity-50" disabled={busy || p.disabled} {...p}>{busy && <Loader2 className="w-4 h-4 animate-spin" />}{children}</button>;
 
 function Details({ plans, d, set, onNext }) {
-  const imeiOk = d.imei.replace(/\D/g, '').length === 15, zipOk = !d.zip || d.zip.length === 5;
+  const imeiOk = d.imei.replace(/\D/g, '').length === 15, zipOk = !d.zip || d.zip.length === 5, emailOk = EMAIL_OK.test(d.email.trim());
   return (
     <div className="space-y-5" data-testid="esim-co-details">
       {plans.length > 1 && <Label text="Plan"><select className={IN} value={d.planId} onChange={e => set({ planId: e.target.value })} data-testid="esim-co-plan-select">{plans.map(p => <option key={p.planId} value={p.planId}>{`${p.name} · $${p.price}`}</option>)}</select></Label>}
       <Label text="Your phone’s IMEI" hint="Dial *#06# on the phone that will use the eSIM. Use the first IMEI if it shows two."><input className={`${IN} font-mono`} inputMode="numeric" maxLength={17} value={d.imei} onChange={e => set({ imei: e.target.value })} placeholder="15 digits" data-testid="esim-co-imei" /></Label>
       <Label text="ZIP code for your number (optional)" hint="We’ll ask for a number near this US ZIP code. The exact area code can’t be guaranteed."><input className={`${IN} font-mono max-w-[180px]`} inputMode="numeric" value={d.zip} onChange={e => set({ zip: e.target.value.replace(/\D/g, '').slice(0, 5) })} placeholder="e.g. 10011" data-testid="esim-co-zip" /></Label>
-      <Btn onClick={onNext} disabled={!imeiOk || !zipOk} data-testid="esim-co-next">Continue<ArrowRight className="w-4 h-4" /></Btn>
+      <Label text="Email for your QR code" hint="We send the eSIM QR code here as soon as it’s ready. It’s also in the app."><input className={IN} type="email" autoComplete="email" value={d.email} onChange={e => set({ email: e.target.value })} placeholder="you@example.com" data-testid="esim-co-qr-email" /></Label>
+      <Btn onClick={onNext} disabled={!imeiOk || !zipOk || !emailOk} data-testid="esim-co-next">Continue<ArrowRight className="w-4 h-4" /></Btn>
     </div>
   );
 }
@@ -105,8 +107,8 @@ function Pay({ plan, d, onPaid }) {
   const order = useCallback(async () => {
     if (placing.current) return;
     placing.current = true; setBusy(true); setErr(null);
-    try { await api('/esim', { method: 'POST', body: { planId: plan.planId, imei: d.imei, zipcode: d.zip } }); onPaid(); } catch (e) { setErr(e); placing.current = false; } finally { setBusy(false); }
-  }, [plan.planId, d.imei, d.zip, onPaid]);
+    try { await api('/esim', { method: 'POST', body: { planId: plan.planId, imei: d.imei, zipcode: d.zip, email: (d.email || '').trim() } }); onPaid(); } catch (e) { setErr(e); placing.current = false; } finally { setBusy(false); }
+  }, [plan.planId, d.imei, d.zip, d.email, onPaid]);
   useEffect(() => { if (!dep) return undefined; const t = setInterval(reload, 15000); return () => clearInterval(t); }, [dep, reload]);
   const enough = w && w.balance >= plan.price;
   const paidIn = !!(dep && w && w.balance > base.current && enough);
@@ -142,7 +144,7 @@ function Checkout({ plans, first, onClose }) {
   const { account } = useCivrAuth();
   const nav = useNavigate();
   const [step, setStep] = useState('details');
-  const [d, setD] = useState({ planId: first || plans[0].planId, imei: '', zip: '' });
+  const [d, setD] = useState({ planId: first || plans[0].planId, imei: '', zip: '', email: account?.email || '' });
   const set = (x) => setD(v => ({ ...v, ...x }));
   const plan = plans.find(p => p.planId === d.planId) || plans[0];
   const box = useRef(null);

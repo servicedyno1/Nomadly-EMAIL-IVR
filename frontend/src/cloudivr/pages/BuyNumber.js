@@ -10,6 +10,7 @@ import Checkout from './buy/Checkout';
 import { PlanFeatures, RecommendedBadge, availablePlans } from '../PlanFeatures';
 import { usePrivacy } from '../privacy';
 import { Flag, IconSelect } from '../Pickers';
+import { MobileOffer } from './buy/MobileOffer';
 
 // The chosen number + plan survive the wallet top-up detour (Wallet links back with ?resume=1).
 const RESUME_KEY = 'civr.buyResume';
@@ -150,6 +151,7 @@ export default function BuyNumber() {
       {fromParam && <div className="text-sm text-[#818cf8] mb-4 flex items-center gap-2" data-testid="buy-plan-hint"><Check className="w-4 h-4" />{planObj.name} plan picked — search for a number below.</div>}
       <Label>1 · Find a number</Label>
       <SearchForm catalog={catalog} q={q} setQ={setQ} onSearch={search} busy={busy === 'search'} />
+      {!extraOf && q.country === 'US' && <MobileOffer onBought={() => nav(cp('/app/numbers'))} />}
       <div className="mt-4"><ErrorNote error={error} testid="buy-error" /></div>
       {res && <div className="mt-8"><Label>2 · Pick a number</Label><Results res={res} pick={pick} setPick={setPick} /></div>}
       {pick && (

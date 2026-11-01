@@ -10,16 +10,17 @@ import { CryptoPay } from './CryptoPay';
 export function useBalance(need = 0, poll = true) {
   const shell = useShell();
   const bal = shell?.summary?.balance;
+  const loading = bal == null;
   const short = bal == null ? 0 : Math.max(0, Math.round((need - bal) * 100) / 100);
   const refresh = shell?.refreshSummary;
   useEffect(() => { if (!poll || !(short > 0) || !refresh) return undefined; const t = setInterval(refresh, 15000); return () => clearInterval(t); }, [poll, short, refresh]);
-  return { balance: bal, short, enough: !(short > 0), refresh };
+  return { balance: bal, short, enough: need <= 0 || (!loading && !(short > 0)), loading, refresh };
 }
 
 // Auto-renew on, but the wallet won't cover the next charge.
 export function RenewWarning({ price, date, on = true, testid }) {
   const { balance, short, enough } = useBalance(on && price ? price : 0, false);
-  if (!on || !price || enough) return null;
+  if (!on || !price || enough || balance == null) return null;
   const when = date ? new Date(date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : null;
   return (
     <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-[#b45309]" role="status" data-testid={testid}>
@@ -30,6 +31,7 @@ export function RenewWarning({ price, date, on = true, testid }) {
 }
 
 export function ShortNote({ balance, short, testid }) {
+  if (balance == null) return null;
   return (
     <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-[var(--c-muted)]" data-testid={testid}>
       <Wallet className="w-4 h-4" />{`Wallet ${money(balance)} · ${money(short)} short`}

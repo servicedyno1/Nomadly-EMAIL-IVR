@@ -94,14 +94,17 @@ async function linkSim(iccid, email) {
 }
 
 // ---------- customer lines ----------
-const pub = (d) => ({ numberChange: d.numberChange ? { status: d.numberChange.status, at: d.numberChange.at, oldNumber: d.numberChange.oldNumber, newNumber: d.numberChange.newNumber || null } : null, formerNumbers: (d.formerNumbers || []).map(f => f.phone), autoRenew: d.autoRenew !== false, id: d._id, iccid: d.iccid || null, phoneNumber: d.phoneNumber || null, planId: d.planId, price: d.price, status: d.status, note: d.note || null, callsTo: d.callsTo || 'device', nextBillAt: d.nextBillAt || null, createdAt: d.createdAt, linked: !!d.linked, hasQr: !!(d.qrCode || d.iccid) })
+const pub = (d) => ({ numberChange: d.numberChange ? { status: d.numberChange.status, at: d.numberChange.at, oldNumber: d.numberChange.oldNumber, newNumber: d.numberChange.newNumber || null } : null, formerNumbers: (d.formerNumbers || []).map(f => f.phone), autoRenew: d.autoRenew !== false, id: d._id, iccid: d.iccid || null, phoneNumber: d.phoneNumber || null, planId: d.planId, price: d.price, status: d.status, note: d.note || null, callsTo: d.callsTo || 'device', nextBillAt: d.nextBillAt || null, createdAt: d.createdAt, linked: !!d.linked, kind: d.kind || 'esim', zipcode: d.zipcode || null, hasQr: !!(d.qrCode || d.iccid), qrEmail: d.qrEmail || null, qrEmailedAt: d.qrEmailedAt || null })
 const luhn = (s) => { let sum = 0; for (let i = 0; i < s.length; i++) { let n = +s[s.length - 1 - i]; if (i % 2) { n *= 2; if (n > 9) n -= 9 } sum += n } return sum % 10 === 0 }
 const txn = (chatId, type, amount, meta) => S.db.collection('transactions').insertOne({ chatId: String(chatId), type, amount: round2(amount), currency: 'USD', status: 'completed', metadata: { ...meta, channel: 'esim' }, createdAt: new Date(), updatedAt: new Date() })
 
-async function list(chatId) { return (await S.col.find({ chatId: String(chatId), status: { $ne: 'cancelled' } }).sort({ createdAt: -1 }).toArray()).map(pub) }
+async function list(chatId, kind = 'esim') { return (await S.col.find({ chatId: String(chatId), status: { $ne: 'cancelled' }, kind: kind === 'mobile' ? 'mobile' : { $ne: 'mobile' } }).sort({ createdAt: -1 }).toArray()).map(pub) }
 async function mine(chatId, id) { return S.col.findOne({ _id: String(id), chatId: String(chatId) }) }
 
-async function buy(chatId, { planId, imei, zipcode }) {
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/
+async function buy(chatId, { planId, imei, zipcode, email }) {
+  const qrEmail = String(email || '').trim().toLowerCase()
+  if (!EMAIL_RE.test(qrEmail)) return { error: 'Enter the email address where we should send your eSIM QR code.' }
   const im = String(imei || '').replace(/\D/g, '')
   if (im.length !== 15 || !luhn(im)) return { error: 'Enter your phone’s 15-digit IMEI (dial *#06# to see it).' }
   const zip = String(zipcode || '').trim()
@@ -111,7 +114,7 @@ async function buy(chatId, { planId, imei, zipcode }) {
   if (!plan.simId) return { error: 'eSIMs are temporarily unavailable. Try again later.' }
   if (!(await S.w.debit(chatId, plan.price))) return { error: `Your wallet needs $${plan.price} for this eSIM. Top up first.`, code: 'insufficient_balance' }
   const _id = 'es_' + crypto.randomBytes(6).toString('hex')
-  const doc = { _id, chatId: String(chatId), planId, price: plan.price, imei: im, zipcode: zip || null, simId: plan.simId, status: 'provisioning', callsTo: 'device', createdAt: new Date(), updatedAt: new Date() }
+  const doc = { _id, chatId: String(chatId), planId, price: plan.price, imei: im, zipcode: zip || null, simId: plan.simId, qrEmail, status: 'provisioning', callsTo: 'device', createdAt: new Date(), updatedAt: new Date() }
   await S.col.insertOne(doc)
   await txn(chatId, 'esim-purchase', plan.price, { planId, lineId: _id })
   if (dry()) { await S.col.updateOne({ _id }, { $set: { transactionId: 'preview-' + _id, simulated: true } }); return { item: pub(doc) } }
@@ -128,29 +131,89 @@ async function buy(chatId, { planId, imei, zipcode }) {
   }
 }
 
+// ---------- US mobile number for texting ($75/month): an eSIM line held by CloudIVR, number shown once assigned ----------
+const MOBILE_PRICE = 75
+const mobileImei = () => (dry() ? '356938035643809' : String(process.env.SPENZA_TEXT_LINE_IMEI || '').replace(/\D/g, ''))
+async function mobileOffer() {
+  const plan = (await forSale().catch(() => [])).find(p => p.simId)
+  return { available: !!plan && mobileImei().length === 15, price: MOBILE_PRICE }
+}
+async function buyMobile(chatId, { zipcode }) {
+  const zip = String(zipcode || '').trim()
+  if (!/^\d{5}$/.test(zip)) return { error: 'Enter a 5-digit US ZIP code so we can ask for a number near it.' }
+  const im = mobileImei()
+  const plan = (await forSale()).find(p => p.simId)
+  if (!plan || im.length !== 15) return { error: 'US mobile numbers are temporarily unavailable. Try again later.' }
+  if (!(await S.w.debit(chatId, MOBILE_PRICE))) return { error: `Your wallet needs $${MOBILE_PRICE} for this number. Top up first.`, code: 'insufficient_balance' }
+  const _id = 'mn_' + crypto.randomBytes(6).toString('hex')
+  const doc = { _id, kind: 'mobile', chatId: String(chatId), planId: plan.planId, price: MOBILE_PRICE, imei: im, zipcode: zip, simId: plan.simId, status: 'provisioning', callsTo: 'device', createdAt: new Date(), updatedAt: new Date() }
+  await S.col.insertOne(doc)
+  await txn(chatId, 'mobile-number-purchase', MOBILE_PRICE, { lineId: _id, zipcode: zip })
+  if (dry()) { await S.col.updateOne({ _id }, { $set: { transactionId: 'preview-' + _id, simulated: true } }); return { item: pub(doc) } }
+  try {
+    const r = await call('post', '/api/v1.1/esim', { imei: im, simId: plan.simId, planId: plan.planId, activateNow: true, zipcode: zip }, { 'Idempotency-Key': _id })
+    await S.col.updateOne({ _id }, { $set: { transactionId: r?.data?.transactionId || r?.transactionId } })
+    return { item: pub(doc) }
+  } catch (e) {
+    await S.w.credit(chatId, MOBILE_PRICE); await txn(chatId, 'mobile-number-refund', MOBILE_PRICE, { lineId: _id })
+    S.log(`[mobile] create ${_id}: ${e.message}`)
+    await S.col.updateOne({ _id }, { $set: { status: 'failed', note: 'The number couldn’t be set up. Your payment was refunded.', providerError: e.message, updatedAt: new Date() } })
+    return { error: `We couldn’t set up the number right now. Your $${MOBILE_PRICE} was refunded to your wallet.`, code: 'mobile_failed' }
+  }
+}
+const ready = async (d, phone) => (d.kind === 'mobile'
+  ? S.tell(d.chatId, `📱 Your US mobile number is ready: ${phone || ''}. Texts to and from it are in Messages.`, { kind: 'billing', meta: { mobile: d._id } })
+  : null)
+
 // Poll provisioning; a finished one gets its number, ICCID and QR.
 async function pollOne(d) {
   if (d.simulated) {
     if (Date.now() - new Date(d.createdAt).getTime() < 20000) return
     const iccid = '8901' + String(Date.now()).slice(-15)
-    return S.col.updateOne({ _id: d._id }, { $set: { status: 'active', iccid, phoneNumber: '+1555' + String(Date.now()).slice(-7), qrCode: `LPA:1$preview.spenza.test$${d._id}`, nextBillAt: new Date(Date.now() + MONTH_MS), updatedAt: new Date() } })
+    const phone = '+1555' + String(Date.now()).slice(-7)
+    await S.col.updateOne({ _id: d._id }, { $set: { status: 'active', iccid, phoneNumber: phone, qrCode: `LPA:1$preview.spenza.test$${d._id}`, nextBillAt: new Date(Date.now() + MONTH_MS), updatedAt: new Date() } })
+    return d.kind === 'mobile' ? ready(d, phone) : emailQr({ ...d, phoneNumber: phone })
   }
   const r = await axios.get(`${API}/api/v3/transactions/${encodeURIComponent(d.transactionId)}`, { timeout: 15000 }).then(x => x.data?.data).catch(() => null)
   const st = String(r?.status || '').toLowerCase()
   if (['completed', 'succeeded', 'success'].includes(st)) {
     const x = r.result || {}
     await S.col.updateOne({ _id: d._id }, { $set: { status: 'active', iccid: x.iccid || null, phoneNumber: x.mdn ? (String(x.mdn).startsWith('+') ? x.mdn : '+1' + String(x.mdn).replace(/\D/g, '').slice(-10)) : null, qrCode: x.qrCode || null, orderId: x.orderId || null, nextBillAt: new Date(Date.now() + MONTH_MS), updatedAt: new Date() } })
-    S.tell(d.chatId, '📱 Your eSIM is ready. Open CloudIVR eSIM and scan the QR code with your phone to install it.', { kind: 'billing', meta: { esim: d._id } })
+    if (d.kind === 'mobile') return ready(d, x.mdn ? '+1' + String(x.mdn).replace(/\D/g, '').slice(-10) : null)
+    const sent = await emailQr({ ...d, phoneNumber: x.mdn || null })
+    S.tell(d.chatId, `📱 Your eSIM is ready. Open CloudIVR eSIM and scan the QR code with your phone to install it.${sent ? ` We also emailed it to ${d.qrEmail}.` : ''}`, { kind: 'billing', meta: { esim: d._id } })
   } else if (['failed', 'error'].includes(st) || Date.now() - new Date(d.createdAt).getTime() > 86400000) {
     await S.w.credit(d.chatId, d.price); await txn(d.chatId, 'esim-refund', d.price, { lineId: d._id })
     await S.col.updateOne({ _id: d._id }, { $set: { status: 'failed', note: 'The eSIM couldn’t be created. Your payment was refunded.', providerError: r?.error?.message || (st ? null : 'timed out after 24 h'), updatedAt: new Date() } })
-    S.tell(d.chatId, `⚠️ Your eSIM couldn’t be created. $${d.price} was refunded to your wallet.`, { kind: 'billing', meta: { esim: d._id } })
+    S.tell(d.chatId, d.kind === 'mobile' ? `⚠️ Your US mobile number couldn’t be set up. $${d.price} was refunded to your wallet.` : `⚠️ Your eSIM couldn’t be created. $${d.price} was refunded to your wallet.`, { kind: 'billing', meta: d.kind === 'mobile' ? { mobile: d._id } : { esim: d._id } })
   }
+}
+
+// The QR code goes only to the app and to the email given at checkout.
+async function emailQr(d) {
+  if (!d.qrEmail) return false
+  const got = await qr(d.chatId, d._id).catch(() => ({}))
+  const code = got?.qrCode || null
+  if (!code && !got?.image) return false
+  const png = code ? await require('qrcode').toBuffer(code, { width: 360, margin: 2 }) : Buffer.from(got.image.split(',')[1], 'base64')
+  const html = `<p>Your CloudIVR eSIM${d.phoneNumber ? ` for <b>${d.phoneNumber}</b>` : ''} is ready.</p><p>On the phone that will use it: Settings → Mobile / Cellular → Add eSIM → Use QR code, then scan the attached QR code. Keep the phone on Wi-Fi while it installs. Each QR code can be installed once.</p>${code ? `<p>Manual code: <code>${code}</code></p>` : ''}<p>You can also open the QR code any time in the CloudIVR app under CloudIVR eSIM.</p>`
+  const ok = await require('./cloudivr-web/auth').sendMail(d.qrEmail, 'Your CloudIVR eSIM QR code', html, [{ filename: 'cloudivr-esim-qr.png', content: png, contentType: 'image/png' }]).catch(e => { S.log(`[eSIM] QR email ${d._id}: ${e.message}`); return false })
+  await S.col.updateOne({ _id: d._id }, { $set: { qrEmailedAt: ok ? new Date() : null } })
+  return ok
+}
+async function resendQr(chatId, id, email) {
+  const d = await mine(chatId, id)
+  if (!d || d.kind === 'mobile' || !['active', 'suspended'].includes(d.status)) return { error: 'This eSIM isn’t ready yet.' }
+  const to = String(email || d.qrEmail || '').trim().toLowerCase()
+  if (!EMAIL_RE.test(to)) return { error: 'Enter a valid email address.' }
+  if (d.qrEmailedAt && Date.now() - new Date(d.qrEmailedAt).getTime() < 60000) return { error: 'We just sent it. Check your inbox and spam folder.' }
+  await S.col.updateOne({ _id: d._id }, { $set: { qrEmail: to } })
+  return (await emailQr({ ...d, qrEmail: to })) ? { ok: true, email: to } : { error: 'The email couldn’t be sent right now. Try again in a few minutes.' }
 }
 
 async function qr(chatId, id) {
   const d = await mine(chatId, id)
-  if (!d) return { error: 'Not found.' }
+  if (!d || d.kind === 'mobile') return { error: 'Not found.' }
   if (d.qrCode && (d.simulated || !d.iccid)) return { qrCode: d.qrCode }
   if (!d.iccid) return { error: 'The eSIM is still being created.' }
   try { const r = await call('get', `/api/v1.1/esim/${encodeURIComponent(d.iccid)}/qr`); const q = typeof r?.data?.activationCode === 'string' ? r.data.activationCode : r?.data?.qrCode || null; if (q) await S.col.updateOne({ _id: d._id }, { $set: { qrCode: q } }); if (q) return { qrCode: q }; const u = r?.data?.qrCodeUrl; if (!u) return { qrCode: null }; const img = await axios.get(u, { responseType: 'arraybuffer', timeout: 15000 }); return { image: `data:${img.headers['content-type'] || 'image/png'};base64,${Buffer.from(img.data).toString('base64')}` } } catch (e) { return errOf(e) }
@@ -285,7 +348,7 @@ async function onWebhook(raw, headers, body) {
   const dup = await S.db.collection('phoneLogs').findOne(mid ? { esim: d._id, providerId: mid } : { esim: d._id, from, body: text, direction: 'inbound', timestamp: { $gt: new Date(Date.now() - 10 * 60000) } })
   if (dup) return { status: 200 }
   await S.db.collection('phoneLogs').insertOne({ chatId: d.chatId, phoneNumber: d.phoneNumber, from, to: d.phoneNumber, type: 'sms', direction: 'inbound', body: text, esim: d._id, providerId: mid, charge: 0, timestamp: new Date() })
-  await S.tell(d.chatId, `💬 Text to your eSIM ${d.phoneNumber} from ${from}: ${text}`, { kind: 'sms', meta: { from, to: d.phoneNumber, esim: d._id } })
+  await S.tell(d.chatId, `💬 Text to your ${d.kind === 'mobile' ? 'mobile number' : 'eSIM'} ${d.phoneNumber} from ${from}: ${text}`, { kind: 'sms', meta: { from, to: d.phoneNumber, esim: d._id } })
   return { status: 200 }
 }
 async function registerWebhook(baseUrl) {
@@ -360,5 +423,5 @@ function init({ db, log = console.log, tell }) {
   return api
 }
 
-const api = { init, replaceNumber, REPLACE_PRICE, setAutoRenew, catalog, setPlan, forSale, plansForCustomers, fleet, usage, linkSim, list, buy, qr, lineUsage, renew, cancel, sendSms, messages, onWebhook, registerWebhook, setCallsTo, syncSip, TEXT_PRICE }
+const api = { init, MOBILE_PRICE, mobileOffer, buyMobile, resendQr, emailQr, replaceNumber, REPLACE_PRICE, setAutoRenew, catalog, setPlan, forSale, plansForCustomers, fleet, usage, linkSim, list, buy, qr, lineUsage, renew, cancel, sendSms, messages, onWebhook, registerWebhook, setCallsTo, syncSip, TEXT_PRICE }
 module.exports = api

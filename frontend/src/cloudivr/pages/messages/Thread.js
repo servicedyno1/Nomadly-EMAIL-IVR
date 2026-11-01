@@ -47,7 +47,7 @@ function Header({ t, onBack, reload, onNotes }) {
         <div className="font-semibold truncate" data-testid="thread-title">{t.name || <span className="font-mono" data-no-translate>{t.contact}</span>}</div>
         <div className="text-xs text-[var(--c-muted)] flex items-center gap-x-2 gap-y-1 overflow-x-auto sm:flex-wrap whitespace-nowrap">
           {t.name && <span className="font-mono" data-no-translate>{t.contact}</span>}
-          <span>to <span className="font-mono" data-no-translate>{t.number.phone}</span><span className="hidden sm:inline"> · {KIND[t.number.kind]}</span></span><span className="hidden sm:inline-flex"><Caps n={t.number} /></span>
+          <span>to <span className="font-mono" data-no-translate>{t.number.phone}</span><span className="hidden sm:inline"> · {t.number.mobile ? 'Mobile number' : KIND[t.number.kind]}</span></span><span className="hidden sm:inline-flex"><Caps n={t.number} /></span>
           {t.tags?.map(x => <span key={x} className="text-[11px] px-2 py-0.5 rounded-full bg-[var(--c-accent-soft)] text-[var(--c-accent)]" data-no-translate data-testid={`thread-tag-${x}`}>{x}</span>)}
         </div>
       </div>

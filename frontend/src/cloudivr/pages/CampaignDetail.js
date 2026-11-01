@@ -10,6 +10,7 @@ import { cp } from '../paths';
 import { usePrivacy } from '../privacy';
 import { outcomeLabel } from './ai/AiCalls';
 import { RunPlan, LiveNow, FeedAndAreas } from './campaign/DetailLive';
+import { useBalance, ShortNote } from '../WalletPay';
 
 const STATS = [['total', 'Numbers'], ['completed', 'Called'], ['answered', 'Answered'], ['keyPressed', 'Pressed a key'], ['transferred', 'Transferred'], ['noAnswer', 'No answer']];
 const VM_STATS = [['voicemail', 'Voicemail'], ['voicemailLeft', 'Messages left']];
@@ -48,10 +49,14 @@ function Waiting({ c }) {
   return <div className="text-xs text-[#fbbf24] mt-3" data-testid="campaign-waiting-note">{text}</div>;
 }
 
+// Same minimum the server enforces before a campaign starts (bulk-call-service BULK_CALL_MIN_WALLET).
+const CAMPAIGN_MIN_WALLET = 20;
 function Controls({ c, act, busy }) {
-  const btn = (action, label, Icon, cls = 'civr-btn-ghost') => <button className={`civr-btn ${cls} civr-btn-sm`} disabled={busy} onClick={() => act(action)} data-testid={`campaign-${action}-button`}><Icon className="w-4 h-4" />{label}</button>;
+  const funds = useBalance(['created', 'paused'].includes(c.status) ? CAMPAIGN_MIN_WALLET : 0);
+  const btn = (action, label, Icon, cls = 'civr-btn-ghost') => <button className={`civr-btn ${cls} civr-btn-sm`} disabled={busy || (['start', 'resume'].includes(action) && !funds.enough)} onClick={() => act(action)} data-testid={`campaign-${action}-button`}><Icon className="w-4 h-4" />{label}</button>;
   return (
-    <div className="flex flex-wrap gap-2">
+    <div className="flex flex-wrap gap-2 items-center">
+      {!funds.enough && <div className="basis-full"><ShortNote balance={funds.balance} short={funds.short} testid="campaign-start-short" /></div>}
       {c.status === 'created' && btn('start', 'Start calling', Play, 'civr-btn-primary')}
       {c.status === 'running' && btn('pause', 'Pause', Pause)}
       {c.status === 'paused' && btn('resume', 'Resume', RotateCcw, 'civr-btn-primary')}

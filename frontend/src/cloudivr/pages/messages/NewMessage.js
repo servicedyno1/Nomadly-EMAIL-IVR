@@ -31,7 +31,7 @@ export function NewMessage({ numbers, onStart }) {
           <div className="civr-card w-full max-w-md p-5 space-y-4" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between"><span className="font-display text-xl font-bold">New message</span><button type="button" onClick={() => setOpen(false)} className="w-10 h-10 grid place-items-center rounded-full" aria-label="Close" data-testid="new-message-close"><X className="w-4 h-4" /></button></div>
             <label className="block text-sm"><span className="block text-xs text-[var(--c-muted)] mb-1">From</span>
-              <select value={from} onChange={e => setFrom(e.target.value)} className="civr-input w-full font-mono" data-testid="new-message-from">{senders.map(n => <option key={n.phone} value={n.phone}>{n.phone} · {n.kind === 'esim' ? 'CloudIVR eSIM' : 'Calling number'}</option>)}</select>
+              <select value={from} onChange={e => setFrom(e.target.value)} className="civr-input w-full font-mono" data-testid="new-message-from">{senders.map(n => <option key={n.phone} value={n.phone}>{n.phone} · {n.kind === 'esim' ? (n.mobile ? 'Mobile number' : 'CloudIVR eSIM') : 'Calling number'}</option>)}</select>
             </label>
             <label className="block text-sm"><span className="block text-xs text-[var(--c-muted)] mb-1">To</span>
               <input autoFocus value={to} onChange={e => setTo(e.target.value)} onKeyDown={e => e.key === 'Enter' && ok && go(dest)} placeholder="+1 415 555 0123 or a contact name" className="civr-input w-full" data-testid="new-message-to" />

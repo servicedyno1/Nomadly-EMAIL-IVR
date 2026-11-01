@@ -1,0 +1,38 @@
+{
+  "summary": "Frontend-only test of dynamic wallet gating (WalletPay/ShortNote/RenewWarning/useBalance). Alice's balance was set to $0.03 in Mongo and two TEST eSIM lines were seeded (suspended $75 and active+auto-renew $75). Low-balance results: eSIM buy hides the wallet button, shows esim-pay-short with Top up, and the crypto button appears (primary) only once the IMEI is valid. The suspended eSIM's renew button is hidden and its short note is shown. The renew warning shows on active auto-renew lines with price>0 and not on the $0 line es_69fcb8db0c34. eSIM replace hides the pay button and shows a $24.97 short note. On Billing, the renew button is hidden, the short note and a primary crypto button show, and billing-renew-warning appears. Replace number hides replace-pay and shows its short note. Buy checkout shows civr-checkout-wallet-short and selects crypto ('Pay $75.00 with BTC'). Texting new setup hides texting-pay-button, shows a $199.97 short note and a primary crypto button. The eSIM thread composer is replaced by composer-topup ($0.02 short) while plan-number threads keep the composer. Quick call shows its short note with submit disabled; text call shows $0.15 short with start disabled; the campaign estimate shows $19.97 short against the $20 minimum. Dynamic check: restoring the balance in Mongo while on the eSIM buy form brought the wallet button back after ~10 s without reload and turned crypto back to ghost. With enough balance, all wallet buttons are back and no warnings show. Not tested: Upgrade (Alice is on the top plan and no other test user has a number), and the paused texting renew (no paused hostedSms line exists); both were checked by code review only.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "eSIM AutoRenew toggle (Esim.js ~L113)", "issue": "The label renders as '\\uto-renew on': the toggle pill/knob overlaps the first letter of 'Auto-renew'. This is an existing issue, not part of this change.", "selector": "[data-testid^='esim-autorenew-']", "priority": "LOW"}
+    ],
+    "integration_issues": [
+      {"flow": "Campaign start", "issue": "Only the estimate shows the shortfall. 'Start calling' on CampaignDetail.js L55 (status 'created') and 'Save campaign' are not gated by balance, so the user clicks and gets a backend error instead of being blocked up front. The request asked that campaigns 'show shortfall and block starting'.", "affected_selectors": ["campaign-create-button", "CampaignDetail start button"]},
+      {"flow": "eSIM card inline texting (Esim.js Line > Texts)", "issue": "The inline 'Send' box on each active eSIM card stays enabled when the wallet is below $0.05. Only the Messages composer was switched to 'Top up to send'.", "affected_selectors": ["eSIM card texting Send"]}
+    ],
+    "design_issues": [
+      {"screen": "Billing tab (low balance)", "issues": ["RenewWarning and the ShortNote show stacked with almost the same message (both have Top up links). Consider hiding one when both apply."]},
+      {"screen": "Buy checkout (short)", "issues": ["The auto-renew toggle ('Renews from your wallet') has no hint that the wallet is short for the next renewal."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Gate campaign 'Start calling' (CampaignDetail.js) with useBalance(minWallet) + ShortNote and a disabled button, like quick-call.",
+    "Optional: gate the inline eSIM-card texting Send (Esim.js) with useBalance(cost.each), like Composer.js.",
+    "Optional: fix the esim-autorenew toggle overlapping its label text.",
+    "Optional: each WalletPay/useBalance instance that is short starts its own 15 s /dashboard poll (the eSIM page with several short lines plus the buy form makes N calls per 15 s). Consider one shared poll in Shell driven by a 'needs refresh' counter.",
+    "Optional: while shell.summary is still loading (balance==null), useBalance reports enough=true, so the wallet button can flash before switching to the short note."
+  ],
+  "critical_code_review_comments": [
+    "WalletPay.useBalance: when bal is null, short is 0 and enough is true, so the wallet button renders before the balance loads.",
+    "Polling is per instance (setInterval per component), which duplicates /dashboard calls; Shell already polls every 30 s.",
+    "Checkout gets balance as a prop and relies on Shell's 30 s poll (no 15 s re-check). It still updates, just more slowly.",
+    "After a top-up, Checkout keeps method='crypto'; it does not switch back to wallet even though the wallet option card returns. This is acceptable."
+  ],
+  "updated_files": ["/app/test_reports/iteration_191.json"],
+  "success_rate": {"backend": "N/A (skipped)", "frontend": "~93% (all requested gating checks passed; campaign start not blocked)"},
+  "seed_data_creation": "Temporarily set Alice walletOf.usdOut=3024.97 ($0.03) and inserted esimLines es_TESTsusp01 and es_TESTact01. NOTE: when the balance was restored, the backend cron auto-renewed the suspended test line and charged $75. Restored usdOut=2400.0649999999996 (balance $624.935) and deleted both TEST lines. es_69fcb8db0c34 was not touched.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Scripts used /tmp/seed.js, /tmp/restore.js and /tmp/cleanup.js (mongosh). When you lower the balance with a suspended eSIM seeded, the backend auto-renews it as soon as the balance is restored, so restore usdOut again afterwards. Testids: eSIM crypto opener is esim-crypto-open (buy), esim-renew-crypto-<id>-open, esim-replace-crypto-<id>-open; billing crypto is billing-renew-crypto-open; replace crypto is replace-crypto-open. The campaign estimate needs a click on campaign-estimate-button. The eSIM thread in Messages is +13125550111 to +16462556424.",
+  "test_credentials": "Alice civr.alice@example.com / AliceTest#2026 (from /app/memory/test_credentials.md)"
+}

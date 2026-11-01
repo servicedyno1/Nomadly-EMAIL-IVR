@@ -10,6 +10,7 @@ import { useSearch, SearchBox, NoMatches } from '../search';
 import { useShell } from '../Shell';
 import { DIAL_FROM } from '../Softphone';
 import { CallerIds } from './number/CallerIds';
+import { MobileLines } from './number/MobileLines';
 
 const on = (f) => !!f?.enabled;
 
@@ -93,6 +94,7 @@ export default function Numbers() {
         </div>
         </>
       )}
+      <MobileLines />
       {nums.some(n => n.status === 'active') && <CallerIds />}
     </div>
   );

@@ -25,6 +25,8 @@ function publicRoutes(r, { db, h, log, A }) {
 
 function routes(r, { h }) {
   r.get('/esim', h(async (req, res) => res.json({ plans: await ES.plansForCustomers().catch(() => []), items: await ES.list(req.webChatId), textPrice: ES.TEXT_PRICE, replacePrice: ES.REPLACE_PRICE })))
+  r.get('/mobile-numbers', h(async (req, res) => res.json({ ...(await ES.mobileOffer()), items: await ES.list(req.webChatId, 'mobile') })))
+  r.post('/mobile-numbers', h(async (req, res) => out(res, await ES.buyMobile(req.webChatId, req.body || {}))))
   r.post('/esim', h(async (req, res) => out(res, await ES.buy(req.webChatId, req.body || {}))))
   r.get('/esim/:id/qr', h(async (req, res) => out(res, await ES.qr(req.webChatId, req.params.id))))
   r.get('/esim/:id/usage', h(async (req, res) => out(res, await ES.lineUsage(req.webChatId, req.params.id))))
@@ -33,6 +35,7 @@ function routes(r, { h }) {
   r.post('/esim/:id/calls', h(async (req, res) => out(res, await ES.setCallsTo(req.webChatId, req.params.id, req.body?.to))))
   r.post('/esim/:id/auto-renew', h(async (req, res) => out(res, await ES.setAutoRenew(req.webChatId, req.params.id, req.body?.on === true))))
   r.post('/esim/:id/renew', h(async (req, res) => out(res, await ES.renew(req.webChatId, req.params.id))))
+  r.post('/esim/:id/email-qr', h(async (req, res) => out(res, await ES.resendQr(req.webChatId, req.params.id, req.body?.email))))
   r.post('/esim/:id/replace-number', h(async (req, res) => out(res, await ES.replaceNumber(req.webChatId, req.params.id))))
   r.post('/esim/:id/cancel', h(async (req, res) => out(res, await ES.cancel(req.webChatId, req.params.id))))
 }

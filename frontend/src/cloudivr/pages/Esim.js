@@ -1,16 +1,18 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Loader2, Smartphone, QrCode, Globe2, MessageSquare, Phone, Send, CheckCircle2, Circle } from 'lucide-react';
+import { Smartphone, QrCode, Globe2, MessageSquare, Phone, CheckCircle2, Circle, Download } from 'lucide-react';
 import { toast } from 'sonner';
 import QRCode from 'react-qr-code';
-import { api, useApi, when } from '../api';
+import { api, useApi } from '../api';
 import { PageHeader, Field, ErrorNote, Spinner, Empty } from '../ui';
 import { useShell } from '../Shell';
 import { ask } from '../confirm';
-import { DRAFT_KEY } from './landing/EsimCheckout';
+import { DRAFT_KEY, EMAIL_OK } from './landing/EsimCheckout';
 import { useCivrAuth } from '../AuthContext';
-import { CryptoPay } from '../CryptoPay';
+import { Link } from 'react-router-dom';
+import { cp } from '../paths';
 import { WalletPay, RenewWarning } from '../WalletPay';
 import { NewNumber } from './esim/NewNumber';
+import { EmailQr } from './esim/EmailQr';
 
 const readDraft = () => { try { return JSON.parse(localStorage.getItem(DRAFT_KEY)) || null; } catch (_) { return null; } };
 const dropDraft = () => { try { localStorage.removeItem(DRAFT_KEY); } catch (_) { /* private mode */ } };
@@ -35,18 +37,22 @@ function BuyForm({ plan, draft, onDone, onCancel }) {
   const { refreshSummary } = useShell();
   const [imei, setImei] = useState(draft?.imei || '');
   const [zip, setZip] = useState(draft?.zip || '');
+  const { account } = useCivrAuth();
+  const [email, setEmail] = useState(draft?.email || account?.email || '');
+  const emailOk = EMAIL_OK.test(email.trim());
   const seen = useRef(false);
   if (imei.replace(/\D/g, '').length === 15 && (!zip || zip.length === 5)) seen.current = true;
   const cryptoOk = seen.current;
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
-  const go = async () => { setBusy(true); setErr(null); try { await api('/esim', { method: 'POST', body: { planId: plan.planId, imei, zipcode: zip.trim() } }); toast.success(`Paid $${plan.price}. Creating your eSIM — usually ready in minutes`); refreshSummary(); dropDraft(); onDone(); } catch (e) { setErr(e); } finally { setBusy(false); } };
+  const go = async () => { setBusy(true); setErr(null); try { await api('/esim', { method: 'POST', body: { planId: plan.planId, imei, zipcode: zip.trim(), email: email.trim() } }); toast.success(`Paid $${plan.price}. Creating your eSIM — usually ready in minutes`); refreshSummary(); dropDraft(); onDone(); } catch (e) { setErr(e); } finally { setBusy(false); } };
   return (
     <div className="civr-card p-6 space-y-4" data-testid="esim-buy">
       <div className="font-semibold">{plan.label || plan.planId}</div>
       <Field label="Your phone’s IMEI" hint="Dial *#06# on the phone that will use the eSIM. Use the first IMEI if it shows two."><input className="civr-input font-mono" inputMode="numeric" maxLength={17} value={imei} onChange={e => setImei(e.target.value)} placeholder="15 digits" data-testid="esim-imei-input" /></Field>
       <Field label="ZIP code for your number (optional)" hint="We’ll ask for a number near this US ZIP code. The exact area code can’t be guaranteed."><input className="civr-input font-mono max-w-[160px]" inputMode="numeric" value={zip} onChange={e => setZip(e.target.value.replace(/\D/g, '').slice(0, 5))} placeholder="e.g. 10011" data-testid="esim-zip-input" /></Field>
-      <WalletPay price={plan.price} onWallet={go} busy={busy} disabled={imei.replace(/\D/g, '').length !== 15 || (zip.length > 0 && zip.length !== 5)} crypto={cryptoOk} testid="esim-pay" walletTestid="esim-pay-button" cryptoTestid="esim-crypto">
+      <Field label="Email for your QR code" hint="We send the eSIM QR code here as soon as it’s ready. It’s also on this page."><input className="civr-input" type="email" autoComplete="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@example.com" data-testid="esim-email-input" /></Field>
+      <WalletPay price={plan.price} onWallet={go} busy={busy} disabled={imei.replace(/\D/g, '').length !== 15 || (zip.length > 0 && zip.length !== 5) || !emailOk} crypto={cryptoOk} testid="esim-pay" walletTestid="esim-pay-button" cryptoTestid="esim-crypto">
         <button type="button" onClick={onCancel} className="civr-btn civr-btn-ghost" data-testid="esim-buy-cancel">Cancel</button>
       </WalletPay>
       <ErrorNote error={err} testid="esim-buy-error" />
@@ -57,12 +63,20 @@ function BuyForm({ plan, draft, onDone, onCancel }) {
 function QrBlock({ id }) {
   const { data, error } = useApi(`/esim/${id}/qr`);
   const [broken, setBroken] = useState(false);
+  const box = useRef(null);
+  const download = () => {
+    const png = data.image && !broken, svg = box.current?.querySelector('svg');
+    const href = png ? data.image : svg ? URL.createObjectURL(new Blob([new XMLSerializer().serializeToString(svg)], { type: 'image/svg+xml' })) : null;
+    if (!href) return;
+    const a = document.createElement('a'); a.href = href; a.download = `cloudivr-esim-qr.${png ? 'png' : 'svg'}`; a.click();
+  };
   if (error) return <ErrorNote error={error} />;
   if (!data) return <Spinner />;
   return data.qrCode || data.image ? (
     <div className="flex flex-col sm:flex-row gap-4 items-start" data-testid="esim-qr">
-      <div className="bg-white p-3 rounded-xl">{data.image && !broken ? <img src={data.image} alt="eSIM install QR code" onError={() => setBroken(true)} className="w-[168px] h-[168px]" data-testid="esim-qr-image" /> : data.qrCode ? <QRCode value={data.qrCode} size={168} /> : <p className="w-[168px] text-sm text-[#52525b]" data-testid="esim-qr-broken">The QR code didn’t load. Reload the page to try again.</p>}</div>
-      <p className="text-sm text-[#d4d4d8]">On your phone open Settings → Mobile data (or Cellular) → Add eSIM → Use QR code, and scan this. Keep this page private: the code installs your line.</p>
+      <div ref={box} className="bg-white p-3 rounded-xl">{data.image && !broken ? <img src={data.image} alt="eSIM install QR code" onError={() => setBroken(true)} className="w-[168px] h-[168px]" data-testid="esim-qr-image" /> : data.qrCode ? <QRCode value={data.qrCode} size={168} /> : <p className="w-[168px] text-sm text-[#52525b]" data-testid="esim-qr-broken">The QR code didn’t load. Reload the page to try again.</p>}</div>
+      <div className="space-y-3"><p className="text-sm text-[#d4d4d8]">On your phone open Settings → Mobile data (or Cellular) → Add eSIM → Use QR code, and scan this. Keep this page private: the code installs your line.</p>
+        <button type="button" onClick={download} className="civr-btn civr-btn-ghost civr-btn-sm" data-testid="esim-qr-download"><Download className="w-4 h-4" />Download QR code</button></div>
     </div>
   ) : <p className="text-sm text-[#a1a1aa]">The QR code isn’t ready yet.</p>;
 }
@@ -73,25 +87,6 @@ function CallsChoice({ item, onChange }) {
   return (
     <div className="grid sm:grid-cols-2 gap-2" role="radiogroup" aria-label="Where calls ring" data-testid="esim-calls">
       {opts.map(([k, I, t, s]) => { const on = item.callsTo === k; const Mark = on ? CheckCircle2 : Circle; return <button key={k} type="button" role="radio" aria-checked={on} onClick={() => !on && set(k)} className={`civr-card text-left p-3 border-2 transition-colors ${on ? 'border-[#818cf8] bg-[#818cf8]/15' : 'border-transparent opacity-80 hover:opacity-100'}`} data-testid={`esim-calls-${k}`}><div className="flex items-center gap-2 font-semibold text-sm"><I className="w-4 h-4 text-[#818cf8]" />{t}<Mark className={`w-4 h-4 ml-auto ${on ? 'text-[#818cf8]' : 'text-[#52525b]'}`} aria-hidden="true" /></div><div className="text-xs text-[#a1a1aa] mt-1">{s}</div>{on && <div className="text-xs font-semibold text-[#818cf8] mt-1.5" data-testid={`esim-calls-${k}-selected`}>Selected</div>}</button>; })}
-    </div>
-  );
-}
-
-function Texts({ item }) {
-  const { data, reload } = useApi(`/esim/${item.id}/messages`);
-  const [to, setTo] = useState('');
-  const [text, setText] = useState('');
-  const [busy, setBusy] = useState(false);
-  const send = async () => { setBusy(true); try { await api(`/esim/${item.id}/sms`, { method: 'POST', body: { to, text } }); setText(''); reload(); toast.success('Sent'); } catch (e) { toast.error(e.message); } finally { setBusy(false); } };
-  return (
-    <div className="space-y-3" data-testid="esim-texts">
-      <ul className="space-y-2 max-h-64 overflow-y-auto">{(data?.messages || []).map(m => <li key={m.id} className={`rounded-xl px-3 py-2 text-sm ${m.direction === 'inbound' ? 'bg-[#1a1a1a]' : 'bg-[#818cf8]/15 ml-8'}`}><div className="text-xs text-[#a1a1aa] font-mono" data-no-translate>{m.direction === 'inbound' ? m.from : `→ ${m.to}`} · {when(m.at)}</div>{m.body}</li>)}
-        {data && !data.messages.length && <li className="text-sm text-[#a1a1aa]">No texts yet. Texts sent to this number also land in your Inbox.</li>}</ul>
-      <div className="grid sm:grid-cols-[180px_1fr_auto] gap-2">
-        <input className="civr-input font-mono" value={to} onChange={e => setTo(e.target.value)} placeholder="+1 US number" aria-label="Send to (US number)" data-testid="esim-sms-to" />
-        <input className="civr-input" value={text} onChange={e => setText(e.target.value)} placeholder="Message" aria-label="Message" data-testid="esim-sms-text" />
-        <button type="button" onClick={send} disabled={busy || !to || !text} className="civr-btn civr-btn-primary" data-testid="esim-sms-send"><Send className="w-4 h-4" />Send</button>
-      </div>
     </div>
   );
 }
@@ -110,8 +105,8 @@ function AutoRenew({ item, reload }) {
   const [busy, setBusy] = useState(false);
   const flip = async () => { setBusy(true); try { await api(`/esim/${item.id}/auto-renew`, { method: 'POST', body: { on: !item.autoRenew } }); toast.success(item.autoRenew ? 'Auto-renew off: the line ends after this paid month' : 'Auto-renew on'); reload(); } catch (e) { toast.error(e.message); } finally { setBusy(false); } };
   return (
-    <button type="button" role="switch" aria-checked={item.autoRenew} disabled={busy} onClick={flip} className="civr-btn civr-btn-ghost civr-btn-sm" data-testid={`esim-autorenew-${item.id}`}>
-      <span className={`shrink-0 inline-block w-8 h-4 rounded-full relative transition-colors ${item.autoRenew ? 'bg-[#818cf8]' : 'bg-[#3f3f46]'}`}><span className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-transform ${item.autoRenew ? 'translate-x-4' : 'translate-x-0.5'}`} /></span>
+    <button type="button" role="switch" aria-checked={item.autoRenew} disabled={busy} onClick={flip} className="civr-btn civr-btn-ghost civr-btn-sm gap-2" data-testid={`esim-autorenew-${item.id}`}>
+      <span className={`shrink-0 inline-block w-8 h-4 rounded-full relative overflow-hidden transition-colors ${item.autoRenew ? 'bg-[#818cf8]' : 'bg-[#3f3f46]'}`}><span className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-transform ${item.autoRenew ? 'translate-x-4' : 'translate-x-0.5'}`} /></span>
       {item.autoRenew ? 'Auto-renew on' : 'Auto-renew off'}
     </button>
   );
@@ -137,8 +132,9 @@ function Line({ item, reload }) {
         <UsageLine id={item.id} />
         <button type="button" onClick={() => setOpen(!open)} className="civr-btn civr-btn-ghost civr-btn-sm" data-testid={`esim-qr-toggle-${item.id}`}><QrCode className="w-4 h-4" />{open ? 'Hide install QR' : 'Show install QR'}</button>
         {open && <QrBlock id={item.id} />}
+        <EmailQr item={item} reload={reload} />
         <div><div className="text-sm font-semibold mb-2 flex items-center gap-2"><Phone className="w-4 h-4" />Where should calls ring?</div><CallsChoice item={item} onChange={reload} /></div>
-        <div><div className="text-sm font-semibold mb-2 flex items-center gap-2"><MessageSquare className="w-4 h-4" />Texts</div><Texts item={item} /></div>
+        <p className="text-sm text-[var(--c-muted)] flex items-center gap-2" data-testid={`esim-texts-in-messages-${item.id}`}><MessageSquare className="w-4 h-4" />Texts to and from this number are in <Link to={cp('/app/messages')} className="underline font-semibold text-[var(--c-accent)]">Messages</Link>.</p>
       </>}
       <div className="flex flex-wrap items-start gap-2">
         {item.status === 'suspended' && <WalletPay price={item.price} small onWallet={() => act('renew', 'Renewed')} label={`Renew $${item.price}`} testid={`esim-renew-pay-${item.id}`} walletTestid={`esim-renew-${item.id}`} cryptoTestid={`esim-renew-crypto-${item.id}`} />}

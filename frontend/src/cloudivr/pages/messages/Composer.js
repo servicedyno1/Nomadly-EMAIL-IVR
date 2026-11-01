@@ -79,7 +79,7 @@ export function Composer({ t, onSent, seed, onScheduled }) {
   };
   const max = t.maxLength;
   const funds = useBalance(t.number.kind === 'esim' ? t.cost.each : 0, false);
-  if (!funds.enough) return <div className="border-t border-[var(--c-border)] p-4 flex flex-col items-center gap-1 text-center" data-testid="composer-topup"><span className="text-sm">{`Each text costs ${money(t.cost.each)} from your wallet. Top up to send.`}</span><ShortNote balance={funds.balance} short={funds.short} testid="composer-short" /></div>;
+  if (!funds.enough && !funds.loading) return <div className="border-t border-[var(--c-border)] p-4 flex flex-col items-center gap-1 text-center" data-testid="composer-topup"><span className="text-sm">{`Each text costs ${money(t.cost.each)} from your wallet. Top up to send.`}</span><ShortNote balance={funds.balance} short={funds.short} testid="composer-short" /></div>;
   const segs = Math.max(1, Math.ceil(text.length / 160));
   const cost = t.number.kind === 'esim' ? `${money(t.cost.each)} from your wallet` : `Uses a plan text, then ${money(t.cost.each)} from your wallet`;
   return (
