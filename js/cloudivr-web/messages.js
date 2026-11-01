@@ -143,12 +143,27 @@ function event(l) {
 
 function routes(r, { db, h, numbersApi, smsReply }) {
   const M = create({ db, numbersApi, smsReply })
-  r.get('/messages', h(async (req, res) => res.json(await M.threads(req.webChatId, { filter: String(req.query.filter || 'all'), q: String(req.query.q || '').slice(0, 80) }))))
+  const X = require('./messages-extra').routes(r, { db, h, M })
+  r.get('/messages', h(async (req, res) => {
+    const [d, meta] = await Promise.all([M.threads(req.webChatId, { filter: String(req.query.filter || 'all'), q: String(req.query.q || '').slice(0, 80) }), X.metaMap(req.webChatId)])
+    const tag = String(req.query.tag || '')
+    let threads = d.threads.map(t => ({ ...t, tags: meta[t.contact]?.tags || [] }))
+    if (tag) threads = threads.filter(t => t.tags.includes(tag))
+    const q = String(req.query.q || '').trim().toLowerCase()
+    if (q) {
+      const extra = Object.values(meta).filter(m => (m.notes || '').toLowerCase().includes(q) || (m.tags || []).some(x => x.toLowerCase().includes(q))).map(m => m.contact)
+      if (extra.length) {
+        const all = (await M.threads(req.webChatId, { filter: String(req.query.filter || 'all') })).threads.filter(t => extra.includes(t.contact) && !threads.some(x => x.id === t.id))
+        threads = [...threads, ...all.map(t => ({ ...t, tags: meta[t.contact]?.tags || [] }))]
+      }
+    }
+    res.json({ ...d, threads, allTags: await X.tagsOf(req.webChatId) })
+  }))
   r.get('/messages/unread', h(async (req, res) => res.json({ unread: await M.unreadCount(req.webChatId) })))
   r.get('/messages/thread', h(async (req, res) => {
     const t = await M.thread(req.webChatId, String(req.query.number || ''), String(req.query.contact || ''))
     if (!t) return bad(res, 404, 'not_found', 'Conversation not found.')
-    res.json(t)
+    res.json(await X.decorate(req.webChatId, t))
   }))
   r.post('/messages/read', h(async (req, res) => { await M.markRead(req.webChatId, String(req.body?.number || ''), String(req.body?.contact || '')); res.json({ ok: true }) }))
   r.post('/messages/send', h(async (req, res) => {

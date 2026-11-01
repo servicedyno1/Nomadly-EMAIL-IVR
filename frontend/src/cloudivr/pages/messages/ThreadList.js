@@ -12,7 +12,7 @@ function Last({ l }) {
 }
 const stamp = (d) => (dayOf(d) === 'Today' ? timeOf(d) : dayOf(d));
 
-export function ThreadList({ data, sel, onPick, filter, setFilter, q, setQ, multi }) {
+export function ThreadList({ data, sel, onPick, filter, setFilter, q, setQ, multi, tag, setTag }) {
   return (
     <div className="flex flex-col h-full min-h-0" data-testid="thread-list">
       <div className="p-3 space-y-3 border-b border-[var(--c-border)]">
@@ -23,6 +23,7 @@ export function ThreadList({ data, sel, onPick, filter, setFilter, q, setQ, mult
         <div className="flex gap-1.5 overflow-x-auto pb-1" role="tablist" aria-label="Filter conversations">
           {FILTERS.map(([k, label]) => <button key={k} type="button" role="tab" aria-selected={filter === k} onClick={() => setFilter(k)} className={`shrink-0 h-9 px-2.5 rounded-full text-sm transition-colors ${filter === k ? 'bg-[var(--c-accent-strong)] text-white' : 'border border-[var(--c-border)] text-[var(--c-muted)] hover:text-[var(--c-text)]'}`} data-testid={`messages-filter-${k}`}>{label}</button>)}
         </div>
+        {data?.allTags?.length > 0 && <select value={tag} onChange={e => setTag(e.target.value)} aria-label="Filter by tag" className="civr-input !h-9 w-full text-sm" data-testid="messages-tag-filter"><option value="">All tags</option>{data.allTags.map(x => <option key={x} value={x}>{x}</option>)}</select>}
       </div>
       <ul className="flex-1 min-h-0 overflow-y-auto" data-testid="thread-list-items">
         {(data?.threads || []).map(t => {
@@ -37,6 +38,7 @@ export function ThreadList({ data, sel, onPick, filter, setFilter, q, setQ, mult
                     <span className="ml-auto shrink-0 text-xs text-[var(--c-muted)]">{stamp(t.at)}</span>
                   </span>
                   <span className={`flex text-sm min-w-0 ${t.unread ? 'text-[var(--c-text)]' : 'text-[var(--c-muted)]'}`} data-testid={`thread-last-${t.id}`}><Last l={t.last} /></span>
+                  {t.tags?.length > 0 && <span className="flex flex-wrap gap-1 mt-1">{t.tags.slice(0, 3).map(x => <span key={x} className="text-[10px] px-1.5 py-0.5 rounded-full bg-[var(--c-accent-soft)] text-[var(--c-accent)]" data-no-translate>{x}</span>)}</span>}
                   {(multi || t.old) && <span className="block text-[11px] text-[var(--c-muted)] mt-0.5">to <span className="font-mono" data-no-translate>{t.number}</span>{t.old ? ' · Old number' : ''}{t.blocked ? ' · Blocked' : ''}</span>}
                 </span>
               </button>

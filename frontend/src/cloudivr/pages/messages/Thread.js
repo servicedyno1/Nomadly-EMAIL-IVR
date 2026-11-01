@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
-import { ArrowLeft, Phone, UserPlus, Ban, Loader2 } from 'lucide-react';
+import { ArrowLeft, Phone, UserPlus, Ban, Loader2, StickyNote } from 'lucide-react';
 import { api, enc } from '../../api';
 import { useShell } from '../../Shell';
 import { DIAL_FROM } from '../../Softphone';
@@ -8,6 +8,7 @@ import { ask } from '../../i18n';
 import { ErrorNote } from '../../ui';
 import { Timeline, Viewer } from './Events';
 import { Composer, ReceiveOnly } from './Composer';
+import { ContactPanel, AiCard, ScheduledList } from './Extras';
 
 const KIND = { calling: 'Calling number', esim: 'CloudIVR eSIM', texting: 'Landline to Texting' };
 export function Caps({ n }) {
@@ -31,7 +32,7 @@ function SaveContact({ t, onSaved }) {
   );
 }
 
-function Header({ t, onBack, reload }) {
+function Header({ t, onBack, reload, onNotes }) {
   const { openPhone } = useShell();
   const call = () => { window.dispatchEvent(new CustomEvent(DIAL_FROM, { detail: { from: t.number.kind === 'calling' && !t.number.old ? t.number.phone : t.replyFrom, to: t.contact } })); openPhone(); };
   const block = async () => {
@@ -47,29 +48,33 @@ function Header({ t, onBack, reload }) {
         <div className="text-xs text-[var(--c-muted)] flex flex-wrap items-center gap-x-2 gap-y-1">
           {t.name && <span className="font-mono" data-no-translate>{t.contact}</span>}
           <span>to <span className="font-mono" data-no-translate>{t.number.phone}</span> · {KIND[t.number.kind]}</span><Caps n={t.number} />
+          {t.tags?.map(x => <span key={x} className="text-[11px] px-2 py-0.5 rounded-full bg-[var(--c-accent-soft)] text-[var(--c-accent)]" data-no-translate data-testid={`thread-tag-${x}`}>{x}</span>)}
         </div>
       </div>
       <div className="flex items-center gap-2">
         <button type="button" onClick={call} className="civr-btn civr-btn-primary civr-btn-sm" aria-label={missed ? 'Call back' : 'Call'} data-testid="thread-call"><Phone className="w-4 h-4" /><span className="hidden sm:inline">{missed ? 'Call back' : 'Call'}</span></button>
         <SaveContact t={t} onSaved={reload} />
+        <button type="button" onClick={onNotes} className="civr-btn civr-btn-ghost civr-btn-sm" aria-label="Notes and tags" data-testid="thread-notes"><StickyNote className="w-4 h-4" /><span className="hidden sm:inline">Notes</span></button>
         <button type="button" onClick={block} className="civr-btn civr-btn-ghost civr-btn-sm" aria-label={t.blocked ? 'Unblock' : 'Block'} data-testid="thread-block"><Ban className="w-4 h-4" /><span className="hidden sm:inline">{t.blocked ? 'Unblock' : 'Block'}</span></button>
       </div>
     </div>
   );
 }
 
-function Footer({ t, onSent }) {
+function Footer({ t, onSent, seed, reload }) {
   if (t.blocked) return <ReceiveOnly text="You blocked this contact. Unblock them to text." />;
   if (t.number.kind === 'texting') return <ReceiveOnly text="This number receives texts only" />;
   if (!t.replyFrom) return <ReceiveOnly text="This number can’t send texts right now." />;
   if (!t.canText) return <ReceiveOnly text="You can text people after they call or text this number." />;
-  return <Composer t={t} onSent={onSent} />;
+  return <><ScheduledList items={t.scheduled} reload={reload} /><Composer t={t} onSent={onSent} seed={seed} onScheduled={reload} /></>;
 }
 
 export function Thread({ number, contact, onBack, onChange }) {
   const [t, setT] = useState(null);
   const [err, setErr] = useState(null);
   const [view, setView] = useState(null);
+  const [notesOpen, setNotesOpen] = useState(false);
+  const [seed, setSeed] = useState(null);
   const end = useRef(null);
   const q = `number=${enc(number)}&contact=${enc(contact)}`;
   const load = useCallback(async () => {
@@ -82,13 +87,15 @@ export function Thread({ number, contact, onBack, onChange }) {
   if (!t) return <div className="flex-1 grid place-items-center text-[var(--c-muted)]" data-testid="thread-loading"><Loader2 className="w-5 h-5 animate-spin" /></div>;
   return (
     <div className="flex flex-col h-full min-h-0 civr-thread-in" data-testid="thread">
-      <Header t={t} onBack={onBack} reload={load} />
+      <Header t={t} onBack={onBack} reload={load} onNotes={() => setNotesOpen(o => !o)} />
+      {notesOpen && <ContactPanel t={t} onSaved={() => { load(); onChange(); }} onClose={() => setNotesOpen(false)} />}
       <div className="flex-1 min-h-0 overflow-y-auto px-3 sm:px-5 py-3" aria-live="polite" data-testid="thread-events">
+        <AiCard ai={t.ai} onPick={(text) => setSeed({ text, n: Date.now() })} />
         {t.number.old && <p className="text-xs text-center text-[#b45309] mb-2" data-testid="thread-old-number">Old number: replaced by <span className="font-mono" data-no-translate>{t.number.old.newNumber}</span>{t.number.kind === 'calling' && t.number.old.until ? `, keeps working until ${new Date(t.number.old.until).toLocaleDateString()}` : ''}</p>}
         <Timeline events={t.events} onView={setView} />
         <div ref={end} />
       </div>
-      <Footer t={t} onSent={(e, pending) => { onSent(e); if (!pending) onChange(); }} />
+      <Footer t={t} seed={seed} reload={load} onSent={(e, pending) => { onSent(e); if (!pending) onChange(); }} />
       <Viewer id={view} onClose={() => setView(null)} />
     </div>
   );

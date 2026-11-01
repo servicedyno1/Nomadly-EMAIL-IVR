@@ -46,7 +46,7 @@ import { WhatsNew } from './WhatsNew';
 import { UnsavedGuard, confirmLeave } from './guard';
 import { Shortcuts, helpFor } from './shortcuts';
 import { Palette, openPalette, isMac } from './Palette';
-import { Onboarding, ForYouNav, useOnboarding } from './Onboarding';
+import { Onboarding, useOnboarding } from './Onboarding';
 
 const ShellCtx = createContext(null);
 export const useShell = () => useContext(ShellCtx);
@@ -89,7 +89,6 @@ function Sidebar({ supportLink, channelLink, purposes }) {
   return (
     <aside aria-label="Main navigation" className="civr-side hidden lg:flex lg:flex-col w-64 shrink-0 h-screen sticky top-0 border-r border-[#1a1a1a] px-4 py-6 overflow-y-auto" data-testid="app-sidebar">
       <Link to={cp('/app')} className="civr-side-logo font-display text-2xl font-extrabold tracking-tight px-3 mb-8 flex items-center gap-2.5" data-testid="sidebar-logo"><Wordmark iconClass="w-9 h-9" /></Link>
-      <ForYouNav purposes={purposes} />
       <SideNav />
       <div className="civr-side-rule mt-auto pt-5 border-t border-[#1a1a1a] flex flex-col gap-1" data-testid="nav-group-support">
         <div className="civr-side-label px-3 mb-1 text-xs font-semibold uppercase tracking-widest text-[#a1a1aa]">Support</div>

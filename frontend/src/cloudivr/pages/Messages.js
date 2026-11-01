@@ -14,8 +14,9 @@ export default function Messages() {
   const [params, setParams] = useSearchParams();
   const [filter, setFilter] = useState('all');
   const [q, setQ] = useState('');
+  const [tag, setTag] = useState('');
   const dq = useDebounced(q, 300);
-  const { data, error, reload } = useApi(`/messages?filter=${filter}&q=${encodeURIComponent(dq)}`);
+  const { data, error, reload } = useApi(`/messages?filter=${filter}&q=${encodeURIComponent(dq)}&tag=${encodeURIComponent(tag)}`);
   const { refreshSummary } = useShell();
   const sel = params.get('number') && params.get('contact') ? { number: params.get('number'), contact: params.get('contact') } : null;
   useEffect(() => { const t = setInterval(reload, 10000); return () => clearInterval(t); }, [reload]);
@@ -34,8 +35,8 @@ export default function Messages() {
       ) : (
         <div className="civr-card !p-0 overflow-hidden grid md:grid-cols-[340px_1fr] lg:grid-cols-[380px_1fr] h-[calc(100dvh-14rem)] md:h-[calc(100dvh-18rem)] min-h-[440px]" data-testid="messages-layout">
           <div className={`min-h-0 md:border-r border-[var(--c-border)] ${sel ? 'hidden md:block' : ''}`}>
-            {!data ? <div className="p-4"><SkeletonRows rows={6} card={false} /></div> : <ThreadList data={data} sel={sel} onPick={pick} filter={filter} setFilter={setFilter} q={q} setQ={setQ} multi={multi} />}
-            {data && !data.threads.length && <p className="px-6 py-10 text-center text-sm text-[var(--c-muted)]" data-testid="messages-empty">{q || filter !== 'all' ? 'No conversations match.' : 'No conversations yet. When someone texts or calls your numbers, it shows up here.'}</p>}
+            {!data ? <div className="p-4"><SkeletonRows rows={6} card={false} /></div> : <ThreadList data={data} sel={sel} onPick={pick} filter={filter} setFilter={setFilter} q={q} setQ={setQ} multi={multi} tag={tag} setTag={setTag} />}
+            {data && !data.threads.length && <p className="px-6 py-10 text-center text-sm text-[var(--c-muted)]" data-testid="messages-empty">{q || tag || filter !== 'all' ? 'No conversations match.' : 'No conversations yet. When someone texts or calls your numbers, it shows up here.'}</p>}
           </div>
           <div className={`min-h-0 ${sel ? '' : 'hidden md:grid place-items-center'}`}>
             {sel ? <Thread key={`${sel.number}|${sel.contact}`} number={sel.number} contact={sel.contact} onBack={() => setParams({})} onChange={changed} />
