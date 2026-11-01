@@ -16,7 +16,7 @@ export function EsimPlans() {
     <section id="esim" className="py-16 md:py-24 scroll-mt-24" data-testid="esim-section">
       <div className="max-w-7xl mx-auto px-5 sm:px-6 lg:px-8">
         <Reveal>
-          <div className="civr-l-kicker"><Zap className="w-3.5 h-3.5" />Available instantly</div>
+          <div className="civr-l-kicker"><Zap className="w-3.5 h-3.5" />Ready in minutes</div>
           <h2 className="civr-l-h text-3xl sm:text-4xl lg:text-5xl mt-4 max-w-3xl">CloudIVR eSIM: a US mobile line on your phone</h2>
           <p className="v2-muted mt-4 max-w-2xl text-lg">Pay from your wallet, scan the QR code and your new number works in minutes, with calls, texts and data. Read and send its texts in CloudIVR too.</p>
         </Reveal>

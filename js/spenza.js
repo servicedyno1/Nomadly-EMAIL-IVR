@@ -33,8 +33,8 @@ const FRIENDLY = 'The eSIM service didn’t respond. Try again in a minute.'
 const errOf = (e) => { S?.log(`[eSIM] provider: ${e.message}`); return { error: FRIENDLY } }
 const custPlan = (p) => ({ planId: p.planId, label: p.label || null, price: p.price, validityDays: p.validityDays, data: p.data, voiceMinutes: p.voiceMinutes, sms: p.sms, carrier: 'US network' })
 
-const planOut = (p, cfg) => ({
-  planId: p.productId, cost: p.price, currency: p.currency, validityDays: p.validityDays, recurring: !!p.recurring,
+const planOut = (p, cfg, sim) => ({
+  planId: p.productId, cost: p.price, simId: sim?.simId || null, simCost: sim?.price ?? null, lineCost: round2((p.price || 0) + (sim?.price || 0)), currency: p.currency, validityDays: p.validityDays, recurring: !!p.recurring,
   data: p.data ? `${p.data.value} ${p.data.unit}` : null, voiceMinutes: p.voiceMinutes ?? null,
   sms: p.smsCount == null ? null : p.smsCount >= 999999 ? 'Unlimited' : p.smsCount,
   operator: p.operator, network: p.network, isEsim: !!p.isEsim, planType: p.planType,
@@ -43,15 +43,21 @@ const planOut = (p, cfg) => ({
 
 // ---------- catalog (admin sets price + enabled per plan) ----------
 async function catalog() {
-  const [plans, cfgs] = await Promise.all([call('get', '/api/v1.1/plans?page=1&pageSize=100'), S.db.collection('esimPlans').find().toArray()])
+  const [plans, cfgs, prods] = await Promise.all([call('get', '/api/v1.1/plans?page=1&pageSize=100'), S.db.collection('esimPlans').find().toArray(), call('get', '/api/v1.1/sim-products?page=1&pageSize=100')])
   const by = Object.fromEntries(cfgs.map(c => [c._id, c]))
-  return unwrap(plans).map(p => planOut(p, by[p.productId]))
+  return unwrap(plans).map(p => planOut(p, by[p.productId], simFor(p, unwrap(prods))))
 }
 async function setPlan(planId, { price, enabled, label }) {
   const p = Number(price)
   if (enabled && !(p > 0)) return { error: 'Set a customer price above $0 before turning this plan on.' }
   await S.db.collection('esimPlans').updateOne({ _id: String(planId) }, { $set: { price: p > 0 ? round2(p) : null, enabled: !!enabled, label: label ? String(label).slice(0, 60) : null, updatedAt: new Date() } }, { upsert: true })
   return { ok: true }
+}
+// The line product an eSIM order needs (required simId): same carrier, eSIM + in stock first; env can pin one.
+function simFor(plan, prods) {
+  if (process.env.SPENZA_ESIM_SIM_ID) return prods.find(x => x.simId === process.env.SPENZA_ESIM_SIM_ID) || { simId: process.env.SPENZA_ESIM_SIM_ID, price: null }
+  const same = prods.filter(x => x.operator === plan.operator)
+  return [...same].sort((a, b) => (b.isEsim - a.isEsim) || ((b.inStock > 0) - (a.inStock > 0)))[0] || null
 }
 async function forSale() { return (await catalog()).filter(p => p.enabled && p.price > 0) }
 async function plansForCustomers() { return (await forSale()).map(custPlan) }
@@ -95,19 +101,22 @@ const txn = (chatId, type, amount, meta) => S.db.collection('transactions').inse
 async function list(chatId) { return (await S.col.find({ chatId: String(chatId), status: { $ne: 'cancelled' } }).sort({ createdAt: -1 }).toArray()).map(pub) }
 async function mine(chatId, id) { return S.col.findOne({ _id: String(id), chatId: String(chatId) }) }
 
-async function buy(chatId, { planId, imei, simId }) {
+async function buy(chatId, { planId, imei, zipcode }) {
   const im = String(imei || '').replace(/\D/g, '')
   if (im.length !== 15 || !luhn(im)) return { error: 'Enter your phone’s 15-digit IMEI (dial *#06# to see it).' }
+  const zip = String(zipcode || '').trim()
+  if (zip && !/^\d{5}$/.test(zip)) return { error: 'Enter a 5-digit US ZIP code, or leave it empty.' }
   const plan = (await forSale()).find(p => p.planId === planId)
   if (!plan) return { error: 'That plan isn’t available.' }
+  if (!plan.simId) return { error: 'eSIMs are temporarily unavailable. Try again later.' }
   if (!(await S.w.debit(chatId, plan.price))) return { error: `Your wallet needs $${plan.price} for this eSIM. Top up first.`, code: 'insufficient_balance' }
   const _id = 'es_' + crypto.randomBytes(6).toString('hex')
-  const doc = { _id, chatId: String(chatId), planId, price: plan.price, imei: im, status: 'provisioning', callsTo: 'device', createdAt: new Date(), updatedAt: new Date() }
+  const doc = { _id, chatId: String(chatId), planId, price: plan.price, imei: im, zipcode: zip || null, simId: plan.simId, status: 'provisioning', callsTo: 'device', createdAt: new Date(), updatedAt: new Date() }
   await S.col.insertOne(doc)
   await txn(chatId, 'esim-purchase', plan.price, { planId, lineId: _id })
   if (dry()) { await S.col.updateOne({ _id }, { $set: { transactionId: 'preview-' + _id, simulated: true } }); return { item: pub(doc) } }
   try {
-    const r = await call('post', '/api/v1.1/esim', { imei: im, simId: simId || process.env.SPENZA_ESIM_SIM_ID || undefined, planId, activateNow: true }, { 'Idempotency-Key': _id })
+    const r = await call('post', '/api/v1.1/esim', { imei: im, simId: plan.simId, planId, activateNow: true, ...(zip ? { zipcode: zip } : {}) }, { 'Idempotency-Key': _id })
     await S.col.updateOne({ _id }, { $set: { transactionId: r?.data?.transactionId || r?.transactionId } })
     return { item: pub(doc) }
   } catch (e) {
@@ -239,7 +248,7 @@ async function syncSip() {
   const ip = process.env.SPENZA_SIP_INGRESS_IP
   const pending = !ip || dry()
   if (!pending) {
-    try { await call('post', '/api/v1/customer/register-sip', { sipIngressIp: ip, sipPort: Number(process.env.SPENZA_SIP_PORT || 5060), transport: 'UDP', didRanges: nums, isSIPEnabled: nums.length > 0 }) } catch (e) { S.log(`[Spenza] SIP sync: ${e.message}`); return { error: e.message } }
+    try { await call('post', '/api/v1/customer/register-sip', { sipIngressIp: ip, sipPort: Number(process.env.SPENZA_SIP_PORT || 5060), transport: 'udp', didRanges: nums, isSIPEnabled: nums.length > 0 }) } catch (e) { S.log(`[Spenza] SIP sync: ${e.message}`); return { error: e.message } }
   }
   await S.db.collection('spenzaConfig').updateOne({ _id: 'sip' }, { $set: { numbers: nums, ip: ip || null, pending, at: new Date() } }, { upsert: true })
   return { ok: true, pending }
@@ -268,6 +277,14 @@ async function prelink() {
   }
 }
 
+// One-off owner decision: US Starter eSIM sells at $100.
+async function defaultPrice() {
+  const flag = 'price:SPENZA_001:100'
+  if (await S.db.collection('spenzaConfig').findOne({ _id: flag })) return
+  await S.db.collection('esimPlans').updateOne({ _id: 'SPENZA_001' }, { $set: { price: 100, enabled: true, updatedAt: new Date() }, $setOnInsert: { label: 'US Starter eSIM' } }, { upsert: true })
+  await S.db.collection('spenzaConfig').insertOne({ _id: flag, at: new Date() })
+}
+
 async function tick() {
   for (const d of await S.col.find({ status: 'provisioning' }).limit(50).toArray()) await pollOne(d).catch(e => S.log(`[Spenza] poll ${d._id}: ${e.message}`))
   for (const d of await S.col.find({ status: { $in: ['active', 'suspended'] }, nextBillAt: { $lte: new Date() } }).limit(50).toArray()) await billOne(d).catch(e => S.log(`[Spenza] bill ${d._id}: ${e.message}`))
@@ -281,6 +298,7 @@ function init({ db, log = console.log, tell }) {
   setInterval(() => tick().catch(() => {}), 15000).unref?.()
   const pl = () => prelink().catch(e => log(`[eSIM] prelink: ${e.message}`))
   pl(); setInterval(pl, 10 * 60000).unref?.()
+  defaultPrice().catch(e => log(`[eSIM] default price: ${e.message}`))
   return api
 }
 

@@ -2445,3 +2445,10 @@ User-approved order: #4 → #7 → #2 → #3 → #5 → #6. Sandbox-verified; pr
 - +16462556424 → onarrival21@gmail.com: that account isn't in the preview DB (line stays on Alice in preview). PRELINK in spenza.js links it
   automatically in production once deployed (account exists there). No text rate limit (owner choice). Spenza credit $1 < $7 plan: buys refund on failure.
 - Before go-live: top up Spenza credit; after deploy, Admin → eSIM → "Reconnect texts" so inbound texts point at production.
+
+## 2026-11-01 (f) — eSIM ordering fixes from Spenza doc review — PREVIEW ONLY
+- Orders now send the required line product (simId auto-picked per carrier: SIM_J, $3; env SPENZA_ESIM_SIM_ID pins one); refuses before charging if none.
+- Admin shows true cost: plan $7/mo + line $3 = $10 first month. Customer price set to $100 (one-off migration flag price:SPENZA_001:100 in spenzaConfig, runs in prod on deploy).
+- Optional 5-digit ZIP on buy form → Spenza `zipcode` (area steering only; Spenza has no number search/pick API).
+- Copy: "Ready in minutes" (Spenza says up to ~45 min). SIP gateway transport fixed to lowercase 'udp'. i18n: scripts/i18n_esim4.py.
+- Verified: API + pytest 22 passed/1 skipped; simulated order stored simId SIM_J + zip 10011. SIM_J shows 0 in stock at Spenza.

@@ -3774,5 +3774,15 @@
 "Texts from this eSIM aren’t switched on yet. We’ve let support know. You weren’t charged.": "Los mensajes de esta eSIM aún no están activados. Avisamos a soporte. No se te cobró.",
 "The text couldn’t be sent. You weren’t charged. Try again in a minute.": "No se pudo enviar el mensaje. No se te cobró. Inténtalo en un minuto.",
 "The eSIM service didn’t respond. Try again in a minute.": "El servicio de eSIM no respondió. Inténtalo en un minuto.",
-"Your wallet needs ${0} for this eSIM. Top up first.": "Tu billetera necesita ${0} para esta eSIM. Recarga primero."
+"Your wallet needs ${0} for this eSIM. Top up first.": "Tu billetera necesita ${0} para esta eSIM. Recarga primero.",
+"Ready in minutes": "Lista en minutos",
+"A US mobile line on your phone, ready in minutes.": "Una línea móvil de EE. UU. en tu teléfono, lista en minutos.",
+"Creating your eSIM… usually ready in minutes": "Creando tu eSIM… suele estar lista en minutos",
+"Paid ${0}. Creating your eSIM — usually ready in minutes": "Pagado ${0}. Creando tu eSIM: suele estar lista en minutos",
+"Get an eSIM with a US number, calls, texts and data. It’s usually ready a few minutes after you pay: scan the QR code and it’s on your phone. Add as many lines as you need.": "Consigue una eSIM con número de EE. UU., llamadas, mensajes y datos. Suele estar lista pocos minutos después de pagar: escanea el código QR y ya está en tu teléfono. Añade todas las líneas que necesites.",
+"ZIP code for your number (optional)": "Código postal para tu número (opcional)",
+"We’ll ask for a number near this US ZIP code. The exact area code can’t be guaranteed.": "Pediremos un número cercano a este código postal de EE. UU. No se puede garantizar el código de área exacto.",
+"e.g. 10011": "p. ej. 10011",
+"Enter a 5-digit US ZIP code, or leave it empty.": "Escribe un código postal de EE. UU. de 5 dígitos o déjalo vacío.",
+"eSIMs are temporarily unavailable. Try again later.": "Las eSIM no están disponibles por ahora. Inténtalo más tarde."
 }

@@ -7,7 +7,7 @@ import { PageHeader, Field, ErrorNote, Spinner, Empty } from '../ui';
 import { useShell } from '../Shell';
 import { ask } from '../confirm';
 
-const STATUS = { provisioning: ['Creating your eSIM…', 'text-[#fbbf24]'], active: ['Active', 'text-[#34d399]'], suspended: ['Paused · monthly fee due', 'text-[#fbbf24]'], failed: ['Couldn’t be created · refunded', 'text-[#fb7185]'] };
+const STATUS = { provisioning: ['Creating your eSIM… usually ready in minutes', 'text-[#fbbf24]'], active: ['Active', 'text-[#34d399]'], suspended: ['Paused · monthly fee due', 'text-[#fbbf24]'], failed: ['Couldn’t be created · refunded', 'text-[#fb7185]'] };
 
 function PlanCard({ p, onBuy }) {
   return (
@@ -26,15 +26,17 @@ function PlanCard({ p, onBuy }) {
 function BuyForm({ plan, onDone, onCancel }) {
   const { refreshSummary } = useShell();
   const [imei, setImei] = useState('');
+  const [zip, setZip] = useState('');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
-  const go = async () => { setBusy(true); setErr(null); try { await api('/esim', { method: 'POST', body: { planId: plan.planId, imei } }); toast.success(`Paid $${plan.price}. Creating your eSIM`); refreshSummary(); onDone(); } catch (e) { setErr(e); } finally { setBusy(false); } };
+  const go = async () => { setBusy(true); setErr(null); try { await api('/esim', { method: 'POST', body: { planId: plan.planId, imei, zipcode: zip.trim() } }); toast.success(`Paid $${plan.price}. Creating your eSIM — usually ready in minutes`); refreshSummary(); onDone(); } catch (e) { setErr(e); } finally { setBusy(false); } };
   return (
     <div className="civr-card p-6 space-y-4" data-testid="esim-buy">
       <div className="font-semibold">{plan.label || plan.planId}</div>
       <Field label="Your phone’s IMEI" hint="Dial *#06# on the phone that will use the eSIM. Use the first IMEI if it shows two."><input className="civr-input font-mono" inputMode="numeric" maxLength={17} value={imei} onChange={e => setImei(e.target.value)} placeholder="15 digits" data-testid="esim-imei-input" /></Field>
+      <Field label="ZIP code for your number (optional)" hint="We’ll ask for a number near this US ZIP code. The exact area code can’t be guaranteed."><input className="civr-input font-mono max-w-[160px]" inputMode="numeric" maxLength={5} value={zip} onChange={e => setZip(e.target.value.replace(/\D/g, ''))} placeholder="e.g. 10011" data-testid="esim-zip-input" /></Field>
       <div className="flex flex-wrap gap-2">
-        <button type="button" onClick={go} disabled={busy || imei.replace(/\D/g, '').length !== 15} className="civr-btn civr-btn-primary" data-testid="esim-pay-button">{busy && <Loader2 className="w-4 h-4 animate-spin" />}{`Pay $${plan.price} from wallet`}</button>
+        <button type="button" onClick={go} disabled={busy || imei.replace(/\D/g, '').length !== 15 || (zip.length > 0 && zip.length !== 5)} className="civr-btn civr-btn-primary" data-testid="esim-pay-button">{busy && <Loader2 className="w-4 h-4 animate-spin" />}{`Pay $${plan.price} from wallet`}</button>
         <button type="button" onClick={onCancel} className="civr-btn civr-btn-ghost" data-testid="esim-buy-cancel">Cancel</button>
       </div>
       <ErrorNote error={err} testid="esim-buy-error" />
@@ -133,7 +135,7 @@ export default function Esim() {
   if (!data) return <Spinner />;
   return (
     <div className="space-y-8" data-testid="esim-page">
-      <PageHeader label="CloudIVR eSIM" title="A US mobile line, ready in minutes" sub="Get an eSIM with a US number, calls, texts and data. It’s ready right after you pay: scan the QR code and it’s on your phone. Add as many lines as you need." testid="esim-header" />
+      <PageHeader label="CloudIVR eSIM" title="A US mobile line, ready in minutes" sub="Get an eSIM with a US number, calls, texts and data. It’s usually ready a few minutes after you pay: scan the QR code and it’s on your phone. Add as many lines as you need." testid="esim-header" />
       {data.items.length > 0 && <div className="space-y-4">{data.items.map(x => <Line key={x.id} item={x} reload={reload} />)}</div>}
       {data.items.length > 0 && !buying && data.plans.length > 0 && <h2 className="font-display text-xl font-bold" data-testid="esim-add-another">Add another eSIM</h2>}
       {buying ? <BuyForm plan={buying} onCancel={() => setBuying(null)} onDone={() => { setBuying(null); reload(); }} /> : (

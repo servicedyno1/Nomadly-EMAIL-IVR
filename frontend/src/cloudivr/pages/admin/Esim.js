@@ -19,7 +19,7 @@ function PlanRow({ p, reload }) {
     <tr className="border-t border-[#27272a] align-top" data-testid={`admin-esim-plan-${id}`}>
       <td className="py-3 pr-3"><div className="font-semibold">{p.planId}</div><div className="text-xs text-[#a1a1aa]">{p.operator} · {p.isEsim ? 'eSIM' : 'physical SIM'} · {p.planType}{p.recurring ? ' · renews' : ''}</div></td>
       <td className="py-3 pr-3 text-sm">{p.data || '—'} data<br />{p.voiceMinutes ?? '—'} min · {p.sms ?? '—'} texts<br /><span className="text-[#a1a1aa]">{p.validityDays} days</span></td>
-      <td className="py-3 pr-3 font-mono">{fmt(p.cost)}</td>
+      <td className="py-3 pr-3 font-mono text-sm" data-testid={`admin-esim-cost-${id}`}>{fmt(p.cost)}<span className="text-[#a1a1aa]"> plan/mo</span>{p.simId && <><br />{p.simCost != null ? fmt(p.simCost) : '—'}<span className="text-[#a1a1aa]">{` line (${p.simId})`}</span><br /><span className="font-semibold">{`${fmt(p.lineCost)} first month`}</span></>}{!p.simId && <><br /><span className="text-[#fb7185]">No line product — orders will fail</span></>}</td>
       <td className="py-3 pr-3 space-y-2 min-w-[200px]">
         <input className="civr-input" inputMode="decimal" value={price} onChange={e => setPrice(e.target.value)} placeholder="Customer price $" aria-label={`Customer price for ${p.planId}`} data-testid={`admin-esim-price-${id}`} />
         <input className="civr-input" value={label} onChange={e => setLabel(e.target.value)} placeholder="Name shown to customers (optional)" aria-label={`Customer name for ${p.planId}`} data-testid={`admin-esim-label-${id}`} />
@@ -69,7 +69,7 @@ export default function EsimAdmin() {
       <section className="civr-card p-5 overflow-x-auto" data-testid="admin-esim-plans">
         <h2 className="font-display text-xl font-bold mb-1">Spenza plans</h2>
         <p className="text-sm text-[#a1a1aa] mb-4">Everything your Spenza account can sell. Set a customer price, then turn a plan on. Customers pay it from their wallet every month.</p>
-        <table className="w-full text-left"><thead><tr className="text-xs text-[#a1a1aa]"><th className="pb-2">Plan</th><th className="pb-2">Includes</th><th className="pb-2">Spenza cost</th><th className="pb-2">Customer price</th><th className="pb-2">Status</th></tr></thead>
+        <table className="w-full text-left"><thead><tr className="text-xs text-[#a1a1aa]"><th className="pb-2">Plan</th><th className="pb-2">Includes</th><th className="pb-2">Your cost</th><th className="pb-2">Customer price</th><th className="pb-2">Status</th></tr></thead>
           <tbody>{data.plans.map(p => <PlanRow key={p.planId} p={p} reload={reload} />)}</tbody></table>
         {f?.simProducts?.length > 0 && <p className="text-xs text-[#a1a1aa] mt-3" data-testid="admin-esim-products">{`SIM products: ${f.simProducts.map(s => `${s.simId} (${s.isEsim ? 'eSIM' : 'physical'}, $${s.price}, ${s.inStock} in stock)`).join(', ')}`}</p>}
       </section>

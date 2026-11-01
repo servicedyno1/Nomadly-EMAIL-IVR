@@ -3774,5 +3774,15 @@
 "Texts from this eSIM aren’t switched on yet. We’ve let support know. You weren’t charged.": "Les SMS de cette eSIM ne sont pas encore activés. Nous avons prévenu le support. Vous n’avez pas été débité.",
 "The text couldn’t be sent. You weren’t charged. Try again in a minute.": "Le SMS n’a pas pu être envoyé. Vous n’avez pas été débité. Réessayez dans une minute.",
 "The eSIM service didn’t respond. Try again in a minute.": "Le service eSIM n’a pas répondu. Réessayez dans une minute.",
-"Your wallet needs ${0} for this eSIM. Top up first.": "Votre portefeuille doit contenir {0} $ pour cette eSIM. Rechargez d’abord."
+"Your wallet needs ${0} for this eSIM. Top up first.": "Votre portefeuille doit contenir {0} $ pour cette eSIM. Rechargez d’abord.",
+"Ready in minutes": "Prête en quelques minutes",
+"A US mobile line on your phone, ready in minutes.": "Une ligne mobile américaine sur votre téléphone, prête en quelques minutes.",
+"Creating your eSIM… usually ready in minutes": "Création de votre eSIM… prête en général en quelques minutes",
+"Paid ${0}. Creating your eSIM — usually ready in minutes": "{0} $ payés. Création de votre eSIM : prête en général en quelques minutes",
+"Get an eSIM with a US number, calls, texts and data. It’s usually ready a few minutes after you pay: scan the QR code and it’s on your phone. Add as many lines as you need.": "Obtenez une eSIM avec un numéro américain, appels, SMS et données. Elle est en général prête quelques minutes après le paiement : scannez le QR code et elle est sur votre téléphone. Ajoutez autant de lignes que nécessaire.",
+"ZIP code for your number (optional)": "Code ZIP pour votre numéro (facultatif)",
+"We’ll ask for a number near this US ZIP code. The exact area code can’t be guaranteed.": "Nous demanderons un numéro proche de ce code ZIP américain. L’indicatif exact ne peut pas être garanti.",
+"e.g. 10011": "ex. 10011",
+"Enter a 5-digit US ZIP code, or leave it empty.": "Saisissez un code ZIP américain à 5 chiffres, ou laissez vide.",
+"eSIMs are temporarily unavailable. Try again later.": "Les eSIM sont momentanément indisponibles. Réessayez plus tard."
 }
