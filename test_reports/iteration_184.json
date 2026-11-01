@@ -1,0 +1,41 @@
+{
+  "summary": "Frontend-only test of light-only CloudIVR public landing redesign (/cloudivr), SIP (/cloudivr/sip) and Terms (/cloudivr/terms) at 1440/1280/1100/1024/390/320, with emulated prefers-color-scheme: dark. Everything requested passed. Only one small issue found: one missing Spanish/French translation in the Products menu.",
+  "verified": [
+    "Landing is light: html data-civr-np-theme='light', color-scheme light, white body/hero background, blue (#1d6fd8) hero button, 'Source Sans 3' font. Stays light with OS dark mode emulated. Data from the live catalog loaded.",
+    "landing-theme-button, sip-theme-button and terms-theme-button are absent on all three public pages. SIP and Terms are light at 1440 and 390 with no horizontal overflow.",
+    "Section order matches the spec: hero (with the hear-it 30-second player) > facts > bubbles > statement > pillars > usecases > features/platform > channel-slider > try > coverage > product cards > trust > how > pricing > faq > final-cta > footer. Quotes are hidden because PROOF.quotes is empty. Reviews are hidden because /api/cloudivr-web/public/reviews returns [].",
+    "Products mega menu has the groups calling (3 items), automation (2), texting (1) and ai (2). Esc closes it. The Use cases menu has 5 items; clicking bookings opens the AI tab and closes the menu. The hosted item opens the hosted tab.",
+    "Nav links Pricing, Coverage and Help scroll to #pricing, #coverage and #faq. civr-nav-sticky-cta goes to #try. Sign up free goes to /cloudivr/signup.",
+    "Pillar links open the platform tabs ivr, campaigns and ai. calls/outreach/ai.webp load at naturalWidth 720.",
+    "channel-next/prev scroll the rail (0 > 266 > 532 > 266). The 9 card hrefs are correct; channel-8 opens the hosted tab and channel-0 goes to coverage.",
+    "4 pricing cards, including texting ('Landline to Texting'). pricing-choose-texting goes to /cloudivr/signup?plan=texting. Hero 'Get your number' goes to /cloudivr/signup; hero 'Try a free call' goes to #try.",
+    "Mobile 390: the full-screen menu opens. The pricing link scrolls and closes the menu, the AI product item opens its tab, Esc closes the menu, the CTA goes to signup and body overflow is restored. No page-level horizontal overflow at 320 or 390; the plan compare table is wider but sits inside its own scroll container.",
+    "Spanish translates the nav (Productos, Casos de uso, Precios, Cobertura, Ayuda, Prueba una llamada gratis, Regístrate gratis), the mega menu group labels, all pillar text and all 9 channel cards. The ES nav fits at 1280, 1100 and 1024.",
+    "Leaving the landing page for login removes the data-civr-np attributes from html, so the app theme is not affected."
+  ],
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Products mega menu + mobile menu (es/fr)", "issues": ["The text-to-voice item description in menu.js ('Type and a natural voice speaks for you; read their reply live.') has no key in es.json or fr.json, so it shows a half-translated mix: 'Escribe and a natural voice speaks for you; read their reply live.'"]},
+      {"screen": "Landing mobile 390", "issues": ["The support chat button (bottom-right) covers some content as you scroll, e.g. the hero microcopy 'Browser phone on every plan' and the Try section heading. This is minor and pre-existing."]},
+      {"screen": "Nav at 1024 in Spanish", "issues": ["The right-most nav control ends 2px past the viewport (right edge 1026 at 1024px). It causes no scrollbar and is cosmetic."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Add es.json and fr.json entries for 'Type and a natural voice speaks for you; read their reply live.' (menu.js, text item)."
+  ],
+  "critical_code_review_comments": [
+    "kit.js useSiteLook is hard-coded to 'light' and SiteThemeButton returns null. Nav.js still renders <SiteThemeButton/>; this is harmless but is now dead code.",
+    "np.css still has many html[data-civr-np]:not([data-civr-np-theme=light]) dark rules that can never apply now. Consider removing them to shrink the CSS.",
+    "The channel rail has no arrow buttons below the sm breakpoint (the 'hidden sm:flex' class). Swipe works, but there is no visible hint that the rail scrolls apart from the clipped card."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (skipped)", "frontend": "98%"},
+  "seed_data_creation": "None",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "The public pages are light-only. Dismiss the cookie banner with cookie-allow-all. Platform tabs: platform-tab-{ivr,campaigns,ai,phone,text,hosted,sms}. Channel cards: channel-0..8 inside channel-rail. Language options: landing-lang-switcher-option-{en,fr,es}."
+}

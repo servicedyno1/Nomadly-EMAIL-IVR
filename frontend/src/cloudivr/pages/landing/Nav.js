@@ -100,7 +100,7 @@ export function LandingNav({ catalog }) {
               {label}<ChevronDown className={`w-4 h-4 transition-transform duration-200 ${open === id ? 'rotate-180' : ''}`} />
             </button>
           ))}
-          {LANDING_LINKS.map(([href, label, id]) => <a key={id} href={href} onMouseEnter={() => hover(null)} onClick={(e) => goTo(href, e)} className="civr-l-navlink" data-testid={`landing-nav-${id}`}>{label}</a>)}
+          {LANDING_LINKS.map(([href, label, id]) => <a key={id} href={href} onMouseEnter={() => hover(null)} onClick={(e) => goTo(href, e)} className={`civr-l-navlink ${id === 'coverage' ? 'max-xl:!hidden' : ''}`} data-testid={`landing-nav-${id}`}>{label}</a>)}
         </nav>
         {<a href="#try" onClick={(e) => goTo('#try', e)} className="hidden xl:inline-flex items-center gap-2 whitespace-nowrap text-sm font-semibold text-slate-900 hover:text-slate-600 transition-colors civr-rise" data-testid="civr-nav-sticky-cta"><PhoneCall className="w-4 h-4" />Try a free call</a>}
         <SiteThemeButton testid="landing-theme-button" />

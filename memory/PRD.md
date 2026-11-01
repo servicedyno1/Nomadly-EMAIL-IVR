@@ -1977,3 +1977,12 @@ calls and SIP are simulated; inbound calls use a pretend-call simulator).
 - Texting-only Overview (no CloudIVR numbers + live hosted orders): pages/dashboard/TextingHome.js — numbers (max 5 + See all), wallet,
   latest inbound texts (GET /hosted-sms/recent), "Want calls too?" card; calling banners hidden; header "Add a number".
 - Landing Texting plan card: eyebrow "Landline to Texting" + explainer line.
+
+## 2026-11-01 (e) — Public site refresh — PREVIEW ONLY (iteration_184: 98%, remaining items fixed)
+- Brevo live study → /app/memory/brevo_study.md. A full "Mint" redesign was built, then the user chose to KEEP the original light
+  colours + original layout and sections (Hero, Facts, Bubbles, Statement, Product cards). Public pages (landing/SIP/Terms) are LIGHT ONLY
+  (kit.js useSiteLook forces light; SiteThemeButton renders nothing). The logged-in app keeps its own light/dark.
+- Kept new: Products mega menu grouped Calling/Automation/Texting/AI; nav Pricing/Coverage(xl+)/Help; "Try a free call"; "Sign up free".
+- New sections (landing/V2Sections.js): Pillars (3 illustrated cards, art in /frontend/public/cloudivr/art/*.webp), Channel slider (9 cards),
+  Quotes (renders only when landing/ownerProof.js has real quotes). ownerProof.js also holds customers/callsHandled/rating/logos (empty = hidden).
+- Phase 2 (app restyle) not started — user preferred the original colours.
