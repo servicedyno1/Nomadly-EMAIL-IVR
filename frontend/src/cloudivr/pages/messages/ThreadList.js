@@ -1,6 +1,7 @@
 import React from 'react';
 import { Search, PhoneMissed, Voicemail, PhoneOutgoing, PhoneIncoming, Image as ImageIcon } from 'lucide-react';
 import { timeOf, dayOf } from './Events';
+import { NewMessage } from './NewMessage';
 
 export const FILTERS = [['all', 'All'], ['unread', 'Unread'], ['texts', 'Texts'], ['voicemail', 'Voicemail'], ['missed', 'Missed calls']];
 
@@ -16,6 +17,7 @@ export function ThreadList({ data, sel, onPick, filter, setFilter, q, setQ, mult
   return (
     <div className="flex flex-col h-full min-h-0" data-testid="thread-list">
       <div className="p-3 space-y-3 border-b border-[var(--c-border)]">
+        <NewMessage numbers={data?.numbers} onStart={onPick} />
         <label className="relative block">
           <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[var(--c-muted)]" />
           <input value={q} onChange={e => setQ(e.target.value)} placeholder="Search name, number or text" aria-label="Search conversations" className="civr-input !pl-9 w-full" data-testid="messages-search" />

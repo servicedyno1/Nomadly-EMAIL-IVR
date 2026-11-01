@@ -2042,3 +2042,8 @@ calls and SIP are simulated; inbound calls use a pretend-call simulator).
 - Sidebar regrouped by daily use: Home (Overview, Messages, Live) · Numbers (My numbers, Buy, eSIM, Texting, SIP) · Calling (Contacts,
   Quick IVR, Text-to-voice, Campaigns, AI agents, Audio, Do-not-call) · Account (Wallet, Settings, Help). Compact rows (theme-clean.css).
 - Dashboard quick action now opens Messages (messagesUnread); onboarding "Read your inbox" → "Read your messages".
+
+## 2026-11-01 (j) — Messages: start a new conversation — PREVIEW ONLY
+- "New message" button (messages-new) → dialog: From (any number that can send: eSIM + calling), To (type a number or pick from
+  Contacts via /contacts?q=). Owner chose that calling numbers may text anyone too: the "must have contacted you" rule is removed in
+  messages.js; carrier rules (10DLC check in sms-reply send) still apply and a hint warns about US mobiles. Self-tested (curl + UI).

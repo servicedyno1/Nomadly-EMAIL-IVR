@@ -65,7 +65,7 @@ function Footer({ t, onSent, seed, reload }) {
   if (t.blocked) return <ReceiveOnly text="You blocked this contact. Unblock them to text." />;
   if (t.number.kind === 'texting') return <ReceiveOnly text="This number receives texts only" />;
   if (!t.replyFrom) return <ReceiveOnly text="This number can’t send texts right now." />;
-  if (!t.canText) return <ReceiveOnly text="You can text people after they call or text this number." />;
+  if (!t.canText) return <ReceiveOnly text="This number can’t receive texts." />;
   return <><ScheduledList items={t.scheduled} reload={reload} /><Composer t={t} onSent={onSent} seed={seed} onScheduled={reload} /></>;
 }
 

@@ -91,8 +91,7 @@ function create({ db, numbersApi, smsReply }) {
     const isBlocked = !!(await blocked.findOne({ _id: `${chatId}|${contact}` }))
     // Replies go out from this number; if it can't text (old or receive-only), say which one would.
     const replyFrom = biz.caps.send ? biz.phone : (biz.old && nums.find(n => n.phone === biz.old.newNumber && n.caps.send)?.phone) || null
-    const contacted = rows.some(r => r.direction !== 'outbound' && !['sms_out', 'outbound_sip', 'outbound_ivr'].includes(r.type))
-    return { number: biz, contact, name, blocked: isBlocked, replyFrom, canText: !!replyFrom && !isBlocked && (biz.kind === 'esim' || contacted), events: rows.reverse().map(event), cost: costOf(biz), maxLength: biz.kind === 'esim' ? 1000 : smsReply.MAX }
+    return { number: biz, contact, name, blocked: isBlocked, replyFrom, canText: !!replyFrom && !isBlocked && E164.test(contact), events: rows.reverse().map(event), cost: costOf(biz), maxLength: biz.kind === 'esim' ? 1000 : smsReply.MAX }
   }
   const costOf = (n) => (n.kind === 'esim' ? { each: ES.TEXT_PRICE, note: 'wallet' } : { each: phoneConfig.OVERAGE_RATE_SMS, note: 'plan' })
 
@@ -106,7 +105,7 @@ function create({ db, numbersApi, smsReply }) {
     if (!t) return { error: [404, 'not_found', 'Conversation not found.'] }
     if (t.blocked) return { error: [400, 'blocked', 'You blocked this contact. Unblock them to text.'] }
     if (!t.replyFrom) return { error: [400, 'receive_only', t.number.kind === 'texting' ? 'This number receives texts only.' : 'This number can’t send texts right now.'] }
-    if (!t.canText) return { error: [400, 'not_contacted', 'You can text people who called or texted this number.'] }
+    if (!t.canText) return { error: [400, 'invalid_number', 'Enter the number in international format, like +14155550123.'] }
     if (!E164.test(contact)) return { error: [400, 'invalid_number', 'This contact’s number can’t receive texts.'] }
     const from = nums => nums.find(n => n.phone === t.replyFrom)
     const biz = from(await numbers(chatId))

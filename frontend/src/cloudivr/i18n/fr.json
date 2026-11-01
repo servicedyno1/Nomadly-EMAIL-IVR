@@ -3944,5 +3944,11 @@
 "Notifications": "Notifications",
 "Read your messages": "Lire vos messages",
 "Texts, voicemails and calls with each person": "SMS, messages vocaux et appels avec chaque personne",
-"Wallet, billing, campaign and system alerts, plus a note for each text, voicemail and call. Conversations themselves live in Messages.": "Alertes portefeuille, facturation, campagnes et système, plus un avis pour chaque SMS, message vocal et appel. Les conversations sont dans Messages."
+"Wallet, billing, campaign and system alerts, plus a note for each text, voicemail and call. Conversations themselves live in Messages.": "Alertes portefeuille, facturation, campagnes et système, plus un avis pour chaque SMS, message vocal et appel. Les conversations sont dans Messages.",
+"New message": "Nouveau message",
+"Start conversation": "Démarrer la conversation",
+"+1 415 555 0123 or a contact name": "+1 415 555 0123 ou le nom d’un contact",
+"Type the full number with country code, like +14155550123.": "Saisissez le numéro complet avec l’indicatif, comme +14155550123.",
+"US carriers may block business texts to US mobiles until your number is registered for business texting.": "Les opérateurs américains peuvent bloquer les SMS professionnels vers les mobiles américains tant que votre numéro n’est pas enregistré pour l’envoi professionnel.",
+"This number can’t receive texts.": "Ce numéro ne peut pas recevoir de SMS."
 }
