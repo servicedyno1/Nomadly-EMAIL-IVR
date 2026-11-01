@@ -2434,3 +2434,14 @@ User-approved order: #4 → #7 → #2 → #3 → #5 → #6. Sandbox-verified; pr
 - PWA: manifests, 512/maskable icons, offline page, service worker offline fallback, Settings "Install the app".
 - `messageOnly` outbound IVR calls; one-off outbound AI calls bill directly; plan keys ringGroup/textTriggers/aiSummary (Pro+).
 - Tests: js/tests/test_ring_group_triggers_2026-06.js 16/16; bulk + SIP suites still green. Details: CLOUDIVR_3CX_FEATURES_2026-06.md.
+
+## 2026-11-01 (e) — CloudIVR eSIM hardening (iteration_185 fixes) — PREVIEW ONLY
+- Customer/public plan APIs strip wholesale cost/operator/network (carrier "US network"); QR served as data: URL (no provider file name).
+- Provider errors never reach customers (friendly text + server log); failed buy → refund + Inbox notice; real provisioning stuck >24 h → failed + refund.
+- registerWebhook returns {preview:true} under DRY_RUN; webhook rejections are logged; re-linking keeps the customer's callsTo.
+- UI: /app/esim polls every 5 s while provisioning (QR opens when ready), cancel confirm dialog, clear selected call option, MB usage units,
+  signup ?plan=esim copy/steps, Inbox eSIM reply "$0.05 from your wallet", eSIM notifications → /app/esim, es/fr strings (scripts/i18n_esim3.py).
+- Tests: iteration_186 backend 100% / frontend 100%; backend/tests/test_esim_iter186.py + test_esim_fixes_iter187.py → 22 passed, 1 skipped (real text off).
+- +16462556424 → onarrival21@gmail.com: that account isn't in the preview DB (line stays on Alice in preview). PRELINK in spenza.js links it
+  automatically in production once deployed (account exists there). No text rate limit (owner choice). Spenza credit $1 < $7 plan: buys refund on failure.
+- Before go-live: top up Spenza credit; after deploy, Admin → eSIM → "Reconnect texts" so inbound texts point at production.

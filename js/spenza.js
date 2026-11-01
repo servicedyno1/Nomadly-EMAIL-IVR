@@ -132,9 +132,9 @@ async function pollOne(d) {
     const x = r.result || {}
     await S.col.updateOne({ _id: d._id }, { $set: { status: 'active', iccid: x.iccid || null, phoneNumber: x.mdn ? (String(x.mdn).startsWith('+') ? x.mdn : '+1' + String(x.mdn).replace(/\D/g, '').slice(-10)) : null, qrCode: x.qrCode || null, orderId: x.orderId || null, nextBillAt: new Date(Date.now() + MONTH_MS), updatedAt: new Date() } })
     S.tell(d.chatId, '📱 Your eSIM is ready. Open CloudIVR eSIM and scan the QR code with your phone to install it.', { kind: 'billing', meta: { esim: d._id } })
-  } else if (['failed', 'error'].includes(st)) {
+  } else if (['failed', 'error'].includes(st) || Date.now() - new Date(d.createdAt).getTime() > 86400000) {
     await S.w.credit(d.chatId, d.price); await txn(d.chatId, 'esim-refund', d.price, { lineId: d._id })
-    await S.col.updateOne({ _id: d._id }, { $set: { status: 'failed', note: 'The eSIM couldn’t be created. Your payment was refunded.', providerError: r?.error?.message || null, updatedAt: new Date() } })
+    await S.col.updateOne({ _id: d._id }, { $set: { status: 'failed', note: 'The eSIM couldn’t be created. Your payment was refunded.', providerError: r?.error?.message || (st ? null : 'timed out after 24 h'), updatedAt: new Date() } })
     S.tell(d.chatId, `⚠️ Your eSIM couldn’t be created. $${d.price} was refunded to your wallet.`, { kind: 'billing', meta: { esim: d._id } })
   }
 }

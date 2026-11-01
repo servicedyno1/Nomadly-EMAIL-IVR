@@ -88,12 +88,16 @@ function UsageLine({ id }) {
   const { data } = useApi(`/esim/${id}/usage`);
   const u = data?.usage;
   if (!u || u.simulated) return null;
-  const parts = [u.data && `Data ${u.data.used} of ${u.data.allowance} ${u.data.unit}`, u.voice && `Calls ${u.voice.usedMinutes} of ${u.voice.allowanceMinutes} min`, u.sms && `Texts ${u.sms.used}${u.sms.allowance === 'unlimited' ? ' (unlimited)' : ` of ${u.sms.allowance}`}`].filter(Boolean);
+  const mb = u.data && /^gb$/i.test(u.data.unit) && Number(u.data.allowance) < 1;
+  const amt = (v) => (mb ? +(Number(v) * 1000).toFixed(1) : v);
+  const parts = [u.data && `Data ${amt(u.data.used)} of ${amt(u.data.allowance)} ${mb ? 'MB' : u.data.unit}`, u.voice && `Calls ${u.voice.usedMinutes} of ${u.voice.allowanceMinutes} min`, u.sms && `Texts ${u.sms.used}${u.sms.allowance === 'unlimited' ? ' (unlimited)' : ` of ${u.sms.allowance}`}`].filter(Boolean);
   return <p className="text-xs text-[#a1a1aa]" data-testid={`esim-usage-${id}`}><span>This cycle:</span> {parts.map((x, i) => <span key={x}>{i ? ' · ' : ''}<span>{x}</span></span>)}</p>;
 }
 
 function Line({ item, reload }) {
   const [open, setOpen] = useState(item.status === 'active' && !item.linked);
+  const [was, setWas] = useState(item.status);
+  if (was !== item.status) { setWas(item.status); if (was === 'provisioning' && item.status === 'active') setOpen(true); }
   const [s, tone] = STATUS[item.status] || [item.status, ''];
   const cancel = async () => { if (await ask(`Cancel the eSIM ${item.phoneNumber || ''}? The line stops working and its number can’t be recovered. Monthly fees already paid aren’t refunded.`, { danger: true, ok: 'Cancel eSIM', cancel: 'Keep eSIM', title: 'Cancel this eSIM?' })) act('cancel', 'Cancelled'); };
   const act = async (path, msg) => { try { await api(`/esim/${item.id}/${path}`, { method: 'POST' }); toast.success(msg); reload(); } catch (e) { toast.error(e.message); } };

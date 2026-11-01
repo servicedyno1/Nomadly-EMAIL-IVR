@@ -1,0 +1,35 @@
+{
+  "summary": "Re-tested all the CloudIVR eSIM fixes from iteration_185. Backend: test_esim_iter186.py gave 15 passed and 1 skipped (the real-text test, which is off on purpose). The new test_esim_fixes_iter187.py gave 7/7 passed. Checked: the customer and public plan fields are an exact match, carrier is 'US network', the QR is a data:image/png URL, admin webhook in preview returns {ok,url,preview:true}, customer error messages never mention Spenza, and eSIM notifications link to /app/esim. Frontend (Playwright, 1920x1080): signup?plan=esim shows the right copy and the eSIM steps on the side panel. The landing #esim card shows '$14 / 30 days'. /app/esim shows the usage line and the plan card. The selected calls option has a border, background, check icon and the 'Selected' label. The real line's QR renders as esim-qr-image from a data URL (naturalWidth 150). A bad IMEI shows a friendly message. A simulated buy with IMEI 356938035643809 showed 'Creating your eSIM…' and turned Active without a reload after 33 s (7 polls of /esim). The cancel dialog works: Keep eSIM keeps the line, Cancel eSIM removes it. Inbox eSIM reply note reads '$0.05 from your wallet' and links to /cloudivr/app/esim. es and fr translations on /app/esim are all present, including the usage line, plan lines, Selected and the dialog. The real line es_69fcb8db0c34 was never cancelled and no real texts were sent.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "spenza.js pollOne (simulated)", "issue": "The simulated line turns active after 20 s, but the 15 s tick plus the 5 s UI poll make it show Active after about 33 s, not 'within ~30 s'. This is only the preview timing."},
+      {"endpoint": "spenza.js pollOne (real)", "issue": "A real transaction that never reaches completed/failed stays 'provisioning' forever. There is no timeout and no auto-refund, so the customer has paid but gets no line."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "/app/esim (es/fr)", "issues": ["The status badge is lowercase: 'activo' / 'actif'. English shows 'Active'.", "In es, the SMS 'to' placeholder is cut off: 'Número de EE. UU. ('", "The usage line shows 'Data 0 of 0.02 GB' while the plan card says '20 MB', so the units don't match."]},
+      {"screen": "/app/esim", "issues": ["The install QR stays closed on a new line after it turns Active from polling. Line.open is set once at mount, while the line is still provisioning."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_esim_iter186.py", "/app/backend/tests/test_esim_fixes_iter187.py", "/app/test_reports/pytest/pytest_esim_iter186.xml", "/app/test_reports/pytest/pytest_esim_iter187.xml"],
+  "action_items": [
+    "Optional: show eSIM lines as 'Active' in es and fr (Activo / Active), not lowercase.",
+    "Optional: auto-open the QR when a polled line changes from provisioning to active.",
+    "Optional: time out real provisioning (e.g. after 24 h): refund and mark it failed.",
+    "Optional: use the same data unit (MB) in the usage line and the plan card."
+  ],
+  "critical_code_review_comments": [
+    "Real-mode pollOne has no timeout for stuck provisioning, so the wallet charge is never refunded.",
+    "The admin webhook toast was only checked in the code (admin/Esim.js shows the preview message when r.preview is set). The admin UI was not driven, but the API returns preview:true."
+  ],
+  "updated_files": ["/app/backend/tests/test_esim_fixes_iter187.py"],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "seed_data_creation": "One simulated eSIM (es_9dea8d5c5419) was bought and then cancelled through the UI. Alice's wallet went down by $14, as expected: fees aren't refunded on cancel. The pytest buy test also buys one simulated line and cancels it.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "The CloudIVR UI is under /cloudivr (e.g. /cloudivr/login, /cloudivr/app/esim). Plan testids keep the underscore: esim-plan-buy-SPENZA_001. Run test_esim_iter186.py and test_esim_fixes_iter187.py; both are safe in preview. Never confirm cancel on es_69fcb8db0c34 and never send real texts."
+}
