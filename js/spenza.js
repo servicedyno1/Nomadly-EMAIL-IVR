@@ -207,8 +207,9 @@ async function resendQr(chatId, id, email) {
   const to = String(email || d.qrEmail || '').trim().toLowerCase()
   if (!EMAIL_RE.test(to)) return { error: 'Enter a valid email address.' }
   if (d.qrEmailedAt && Date.now() - new Date(d.qrEmailedAt).getTime() < 60000) return { error: 'We just sent it. Check your inbox and spam folder.' }
+  if (!(await emailQr({ ...d, qrEmail: to }))) return { error: 'The email couldn’t be sent right now. Try again in a few minutes.' }
   await S.col.updateOne({ _id: d._id }, { $set: { qrEmail: to } })
-  return (await emailQr({ ...d, qrEmail: to })) ? { ok: true, email: to } : { error: 'The email couldn’t be sent right now. Try again in a few minutes.' }
+  return { ok: true, email: to }
 }
 
 async function qr(chatId, id) {
@@ -262,7 +263,7 @@ async function renew(chatId, id) {
 }
 async function cancel(chatId, id) {
   const d = await mine(chatId, id)
-  if (!d || !['active', 'suspended'].includes(d.status)) return { error: 'Only active eSIMs can be cancelled.' }
+  if (!d || !['active', 'suspended'].includes(d.status)) return { error: d?.kind === 'mobile' ? 'This number can be cancelled once it’s assigned.' : 'Only active eSIMs can be cancelled.' }
   if (!dry() && !d.simulated && d.iccid && !d.linked) await call('post', `/api/v1.1/subscriptions/${encodeURIComponent(d.iccid)}/cancel`, {}).catch(e => S.log(`[Spenza] cancel ${d.iccid}: ${e.message}`))
   await S.col.updateOne({ _id: d._id }, { $set: { status: 'cancelled', updatedAt: new Date() } })
   if (d.callsTo === 'browser') await syncSip()

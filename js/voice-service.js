@@ -4374,8 +4374,9 @@ async function handleGatherEnded(payload) {
       const r = await sendIvrText(chatId, option, session.from)
       const said = r.ok ? (option.message || ivrL.textSent) : ivrL.textFailed
       if (option.after === 'menu') {
-        session.ivrPath = null; session.ivrRetried = false
-        await _telnyxApi.gatherDTMF(callControlId, `${said} ${ivrConfig.greeting || ivrL.fallback}`, { minDigits: 1, maxDigits: 1, timeout: 15000, validDigits: Object.keys(ivrConfig.options || {}).join(''), language: ivrL.tts })
+        session.ivrRetried = false
+        const menu = inSubMenu ? ivrConfig.options[session.ivrPath].subMenu : ivrConfig
+        await _telnyxApi.gatherDTMF(callControlId, `${said} ${menu.greeting || (inSubMenu ? ivrL.sub : ivrL.fallback)}`, { minDigits: 1, maxDigits: 1, timeout: 15000, validDigits: Object.keys(menu.options || {}).join(''), language: ivrL.tts })
       } else {
         await _telnyxApi.speakOnCall(callControlId, said, 'female', ivrL.tts)
         setTimeout(() => _telnyxApi.hangupCall(callControlId), 6000)

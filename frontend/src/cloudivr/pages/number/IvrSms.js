@@ -12,7 +12,8 @@ export function IvrSms({ o, set, prefix }) {
   const lines = [...(es.data?.items || []), ...(mn.data?.items || [])].filter(shown);
   const loaded = es.data && mn.data;
   const first = lines[0]?.id;
-  useEffect(() => { if (first && !o.smsFrom) set({ smsFrom: first }); }, [first, o.smsFrom]); // eslint-disable-line react-hooks/exhaustive-deps
+  const known = lines.some(x => x.id === o.smsFrom);
+  useEffect(() => { if (loaded && first && !known) set({ smsFrom: first }); }, [loaded, first, known]); // eslint-disable-line react-hooks/exhaustive-deps
   const bought = () => { setBuying(false); mn.reload(); };
   return (
     <div className="space-y-2" data-testid={`${prefix}-sms`}>
@@ -20,7 +21,7 @@ export function IvrSms({ o, set, prefix }) {
         <div className="space-y-2" data-testid={`${prefix}-sms-none`}>
           <p className="text-sm text-[var(--c-muted)]">You need a texting number to send texts to callers. Texts go to US callers only.</p>
           {!buying ? <button type="button" onClick={() => setBuying(true)} className="civr-btn civr-btn-ghost civr-btn-sm" data-testid={`${prefix}-sms-buy`}>Get a US mobile number</button>
-            : <MobileOffer onBought={bought} open />}
+            : mn.data.available ? <MobileOffer onBought={bought} open /> : <p className="text-sm text-[#fbbf24]" data-testid={`${prefix}-sms-unavailable`}>US mobile numbers are temporarily unavailable. Try again later.</p>}
         </div>
       ) : (
         <select className="civr-input font-mono" value={o.smsFrom || ''} onChange={e => set({ smsFrom: e.target.value })} aria-label="Send the text from" data-testid={`${prefix}-sms-from`}>

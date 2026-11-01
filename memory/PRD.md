@@ -2047,3 +2047,10 @@ calls and SIP are simulated; inbound calls use a pretend-call simulator).
 - "New message" button (messages-new) → dialog: From (any number that can send: eSIM + calling), To (type a number or pick from
   Contacts via /contacts?q=). Owner chose that calling numbers may text anyone too: the "must have contacted you" rule is removed in
   messages.js; carrier rules (10DLC check in sms-reply send) still apply and a hint warns about US mobiles. Self-tested (curl + UI).
+
+## 2026-11 — Spenza split + IVR "Send the caller a text" (PREVIEW ONLY, not live)
+- eSIM page: ordering/management only (no SMS UI). QR view + download + email to any address (checkout email saved; resend). Preview mail provider fails all emails ("domain not found") — delivery unproven.
+- US mobile number for texting: $75/mo, ZIP required (preference), number shown only after payment/assignment. Kind `mobile` in esimLines; GET/POST /mobile-numbers; listed on My numbers; texts in Messages (no calls, no pictures). Live sales need env SPENZA_TEXT_LINE_IMEI (Spenza requires an IMEI); confirm with Spenza that many lines can share one IMEI and that SMS works on an uninstalled line.
+- IVR key action `sms` {smsFrom, smsText, message, after: hangup|menu}; every press sends ($0.05); no texting number → buy US mobile number inline. voice-service sendIvrText; owner notified on failure.
+- Wallet gating: campaign Start/Resume blocked with shortfall.
+- Tests: iteration_192 (20/20 backend pytest), backend/tests/ivr_sms_key.test.js PASS; fixes after report applied (thread call hidden for mobile, knob, Luhn, IvrSms reset, sub-menu replay, resendQr order).

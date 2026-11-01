@@ -13,6 +13,8 @@ const ES = require('../../js/spenza.js')
   VS.initVoiceService({ db, telnyxApi, phoneNumbersOf: null, phoneLogs: db.collection('phoneLogs'), bot: null })
   const line = await db.collection('esimLines').findOne({ kind: 'mobile', status: 'active' })
   const chatId = line.chatId
+  const start = new Date()
+  const wallet = await db.collection('walletOf').findOne({ _id: chatId })
   const run = async (opt, digits = '1') => {
     calls.length = 0
     const id = 'test-ivr-' + Date.now()
@@ -33,5 +35,8 @@ const ES = require('../../js/spenza.js')
     b.sent === 1 && b.telnyx.some(t => t[0] === 'gatherDTMF' && /We have sent you a text message\. Main menu/.test(t[1])) &&
     c.sent === 0 && c.telnyx.some(t => t[0] === 'speakOnCall' && /could not send/.test(t[1]))
   console.log(ok ? 'PASS' : 'FAIL')
+  if (wallet) await db.collection('walletOf').replaceOne({ _id: chatId }, wallet)
+  await db.collection('phoneLogs').deleteMany({ esim: line._id, to: '+14155550199', timestamp: { $gte: start } })
+  await db.collection('transactions').deleteMany({ chatId, type: 'esim-sms', 'metadata.to': '+14155550199', createdAt: { $gte: start } })
   await cli.close(); process.exit(ok ? 0 : 1)
 })().catch(e => { console.error(e); process.exit(1) })

@@ -14,6 +14,7 @@ import { WalletPay, RenewWarning } from '../WalletPay';
 import { NewNumber } from './esim/NewNumber';
 import { EmailQr } from './esim/EmailQr';
 
+const imeiOk = (v) => { const s = String(v).replace(/\D/g, ''); if (s.length !== 15) return false; let sum = 0; for (let i = 0; i < 15; i++) { let n = +s[14 - i]; if (i % 2) { n *= 2; if (n > 9) n -= 9; } sum += n; } return sum % 10 === 0; };
 const readDraft = () => { try { return JSON.parse(localStorage.getItem(DRAFT_KEY)) || null; } catch (_) { return null; } };
 const dropDraft = () => { try { localStorage.removeItem(DRAFT_KEY); } catch (_) { /* private mode */ } };
 
@@ -52,7 +53,7 @@ function BuyForm({ plan, draft, onDone, onCancel }) {
       <Field label="Your phone’s IMEI" hint="Dial *#06# on the phone that will use the eSIM. Use the first IMEI if it shows two."><input className="civr-input font-mono" inputMode="numeric" maxLength={17} value={imei} onChange={e => setImei(e.target.value)} placeholder="15 digits" data-testid="esim-imei-input" /></Field>
       <Field label="ZIP code for your number (optional)" hint="We’ll ask for a number near this US ZIP code. The exact area code can’t be guaranteed."><input className="civr-input font-mono max-w-[160px]" inputMode="numeric" value={zip} onChange={e => setZip(e.target.value.replace(/\D/g, '').slice(0, 5))} placeholder="e.g. 10011" data-testid="esim-zip-input" /></Field>
       <Field label="Email for your QR code" hint="We send the eSIM QR code here as soon as it’s ready. It’s also on this page."><input className="civr-input" type="email" autoComplete="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@example.com" data-testid="esim-email-input" /></Field>
-      <WalletPay price={plan.price} onWallet={go} busy={busy} disabled={imei.replace(/\D/g, '').length !== 15 || (zip.length > 0 && zip.length !== 5) || !emailOk} crypto={cryptoOk} testid="esim-pay" walletTestid="esim-pay-button" cryptoTestid="esim-crypto">
+      <WalletPay price={plan.price} onWallet={go} busy={busy} disabled={!imeiOk(imei) || (zip.length > 0 && zip.length !== 5) || !emailOk} crypto={cryptoOk} testid="esim-pay" walletTestid="esim-pay-button" cryptoTestid="esim-crypto">
         <button type="button" onClick={onCancel} className="civr-btn civr-btn-ghost" data-testid="esim-buy-cancel">Cancel</button>
       </WalletPay>
       <ErrorNote error={err} testid="esim-buy-error" />
@@ -106,7 +107,7 @@ function AutoRenew({ item, reload }) {
   const flip = async () => { setBusy(true); try { await api(`/esim/${item.id}/auto-renew`, { method: 'POST', body: { on: !item.autoRenew } }); toast.success(item.autoRenew ? 'Auto-renew off: the line ends after this paid month' : 'Auto-renew on'); reload(); } catch (e) { toast.error(e.message); } finally { setBusy(false); } };
   return (
     <button type="button" role="switch" aria-checked={item.autoRenew} disabled={busy} onClick={flip} className="civr-btn civr-btn-ghost civr-btn-sm gap-2" data-testid={`esim-autorenew-${item.id}`}>
-      <span className={`shrink-0 inline-block w-8 h-4 rounded-full relative overflow-hidden transition-colors ${item.autoRenew ? 'bg-[#818cf8]' : 'bg-[#3f3f46]'}`}><span className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-transform ${item.autoRenew ? 'translate-x-4' : 'translate-x-0.5'}`} /></span>
+      <span className={`shrink-0 inline-block w-8 h-4 rounded-full relative overflow-hidden transition-colors ${item.autoRenew ? 'bg-[#818cf8]' : 'bg-[#3f3f46]'}`}><span className={`absolute left-0 top-0.5 w-3 h-3 rounded-full bg-white transition-transform ${item.autoRenew ? 'translate-x-4' : 'translate-x-0.5'}`} /></span>
       {item.autoRenew ? 'Auto-renew on' : 'Auto-renew off'}
     </button>
   );
