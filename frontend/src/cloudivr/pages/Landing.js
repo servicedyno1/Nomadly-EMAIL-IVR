@@ -1,14 +1,16 @@
 import React from 'react';
 import { useSiteLook } from './landing/kit';
 import { useApi } from '../api';
-import { HeroV2 } from './landing/HeroV2';
-import { TrustStrip, Pillars, ChannelSlider, FinalCtaV2, Quotes } from './landing/V2Sections';
-import { Coverage, HowItWorks } from './landing/Sections';
+import { Hero } from './landing/Hero';
+import { Pillars, ChannelSlider, Quotes } from './landing/V2Sections';
+import { Coverage, HowItWorks, Facts, Statement } from './landing/Sections';
 import { UseCases } from './landing/UseCases';
 import { Platform } from './landing/Platform';
 import { Trust } from './landing/Trust';
 import { TryCall } from './landing/TryCall';
-import { Pricing, Faq, Footer } from './landing/PricingFaq';
+import { Pricing, Faq, FinalCta, Footer } from './landing/PricingFaq';
+import { Bubbles } from './landing/Bubbles';
+import { ProductCards } from './landing/ProductCards';
 import { LandingNav } from './landing/Nav';
 import { StickyCta } from './landing/StickyCta';
 import { CATALOG_SNAPSHOT } from './landing/catalogSnapshot';
@@ -26,21 +28,24 @@ export default function Landing() {
     <div className="civr-l civr-np" data-testid="landing-page" data-catalog={data ? 'live' : 'snapshot'}>
       <LandingNav catalog={catalog} />
       <main>
-        <HeroV2 catalog={catalog} />
-        <TrustStrip catalog={catalog} />
+        <Hero catalog={catalog} />
+        <Facts catalog={catalog} />
+        <Bubbles />
+        <Statement />
         <Pillars />
-        <ChannelSlider />
-        <Platform catalog={catalog} />
         <UseCases />
+        <Platform catalog={catalog} />
+        <ChannelSlider />
         <TryCall />
-        <HowItWorks catalog={catalog} />
         <Coverage catalog={catalog} />
+        <ProductCards />
         <Quotes />
         <Reviews />
-        <Pricing catalog={catalog} />
         <Trust />
+        <HowItWorks catalog={catalog} />
+        <Pricing catalog={catalog} />
         <Faq catalog={catalog} />
-        <FinalCtaV2 />
+        <FinalCta catalog={catalog} />
       </main>
       <Footer catalog={catalog} />
       <StickyCta />

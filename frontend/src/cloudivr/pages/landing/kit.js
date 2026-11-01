@@ -1,10 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
 import './np.css';
-import { useTheme, ThemeButton } from '../../theme';
 
-// Marks <html> with the public-site look + light/dark (shared setting with the app) so portals follow it too.
+// Marks <html> with the public-site look so portals follow it too. Public pages are light only.
 export function useSiteLook() {
-  const { theme } = useTheme();
+  const theme = 'light';
   React.useEffect(() => {
     const d = document.documentElement;
     d.dataset.civrNp = '1'; d.dataset.civrNpTheme = theme; d.style.colorScheme = theme;
@@ -12,7 +11,7 @@ export function useSiteLook() {
   }, [theme]);
 }
 
-export const SiteThemeButton = ({ testid }) => <ThemeButton testid={testid} className="civr-l-navlink w-10 h-10 sm:w-11 sm:h-11 !p-0 grid place-items-center rounded-full shrink-0" />;
+export const SiteThemeButton = () => null; // public pages have no dark mode
 
 // Shared building blocks for the landing page.
 

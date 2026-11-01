@@ -1,34 +1,10 @@
 import React, { useRef } from 'react';
-import { Link } from 'react-router-dom';
-import { Globe2, PhoneCall, Wallet, Languages, ChevronLeft, ChevronRight, Hash, Workflow, Megaphone, Zap, Headphones, Server, Bot, Captions, MessageSquareText, ArrowRight, Star } from 'lucide-react';
-import { Reveal, Slide } from './kit';
+import { ChevronLeft, ChevronRight, Hash, Workflow, Megaphone, Zap, Headphones, Server, Bot, Captions, MessageSquareText, ArrowRight } from 'lucide-react';
+import { Reveal } from './kit';
 import { goTo, hrefOf } from './menu';
-import { useStart } from './PricingFaq';
 import { PROOF } from './ownerProof';
 
 const ART = (n) => `${process.env.PUBLIC_URL || ''}/cloudivr/art/${n}.webp`;
-
-// Only facts that are true today; owner-supplied proof (PROOF) appears when filled in.
-export function TrustStrip({ catalog }) {
-  const n = catalog?.countries?.length || 17;
-  const facts = [[Globe2, `${n} countries`, 'Local, mobile and toll-free numbers'], [PhoneCall, 'Free test call', 'Hear it on your own phone, no card'], [Wallet, 'Crypto & wallet', 'Pay with 8 coins or your balance'], [Languages, 'EN · ES · FR', 'App and voice in three languages']];
-  return (
-    <section className="py-12 md:py-16 border-b civr-l-rule" data-testid="trust-strip">
-      <div className="max-w-7xl mx-auto px-5 sm:px-6 lg:px-8 grid lg:grid-cols-12 gap-8 items-center">
-        <div className="lg:col-span-4">
-          {PROOF.customers ? <p className="text-lg font-semibold" data-testid="proof-customers">{`Join ${PROOF.customers} businesses that run their phones on CloudIVR`}</p> : <p className="text-lg font-semibold" data-testid="trust-title">Everything a business phone line needs, ready in minutes</p>}
-          {PROOF.rating && <span className="v2-chip mt-3" data-testid="proof-rating"><Star className="w-4 h-4 fill-current" />{`${PROOF.rating.score} on ${PROOF.rating.site}`}</span>}
-        </div>
-        <div className="lg:col-span-8 grid grid-cols-2 md:grid-cols-4 gap-5">
-          {facts.map(([I, t, s], i) => (
-            <div key={t} data-testid={`trust-fact-${i}`}><I className="w-5 h-5 v2-link" /><div className="font-semibold mt-2">{t}</div><div className="text-sm v2-muted mt-0.5">{s}</div></div>
-          ))}
-        </div>
-        {PROOF.logos?.length > 0 && <div className="lg:col-span-12 flex flex-wrap gap-8 items-center opacity-80" data-testid="proof-logos">{PROOF.logos.map(l => <img key={l.name} src={l.src} alt={l.name} className="h-8 w-auto" />)}</div>}
-      </div>
-    </section>
-  );
-}
 
 const PILLARS = [
   ['calls', 'Every call answered', 'A keypad menu routes callers in a second, voicemail is transcribed and calls ring your browser, desk phone or mobile.', 'ivr', 'See keypad menus'],
@@ -92,27 +68,6 @@ export function Quotes() {
         {PROOF.quotes.slice(0, 3).map((q, i) => (
           <figure key={i} className="v2-surface p-8" data-testid={`proof-quote-${i}`}><blockquote className="text-lg leading-relaxed">{`“${q.text}”`}</blockquote><figcaption className="v2-muted text-sm mt-5">{`${q.name} · ${q.role}, ${q.company}`}</figcaption></figure>
         ))}
-      </div>
-    </section>
-  );
-}
-
-export function FinalCtaV2() {
-  const start = useStart();
-  return (
-    <section className="py-16 md:py-24" data-testid="final-cta">
-      <div className="max-w-7xl mx-auto px-5 sm:px-6 lg:px-8">
-        <Reveal className="v2-hero rounded-[32px] overflow-hidden grid md:grid-cols-2 items-center">
-          <div className="p-8 sm:p-12 lg:p-16">
-            <h2 className="civr-l-h text-3xl sm:text-4xl lg:text-5xl">Ready to answer every call?</h2>
-            <p className="v2-muted mt-4 text-lg">Free to sign up. Your number can be live in minutes, no contracts.</p>
-            <div className="flex flex-col sm:flex-row gap-3 mt-8">
-              <Link to={start()} className="civr-l-pill civr-l-pill-ink" data-testid="final-cta-button"><Slide>Sign up free</Slide><ArrowRight className="w-4 h-4" /></Link>
-              <Link to={start('texting')} className="civr-l-pill civr-l-pill-outline" data-testid="final-cta-texting-button"><Slide>Start texting</Slide></Link>
-            </div>
-          </div>
-          <div className="v2-art m-4 md:m-6 aspect-[3/2]"><img src={ART('landline')} alt="" loading="lazy" className="w-full h-full object-cover" /></div>
-        </Reveal>
       </div>
     </section>
   );
