@@ -8,7 +8,7 @@ import { cp } from '../../paths';
 import { useShell } from '../../Shell';
 
 const cap = (s) => s[0].toUpperCase() + s.slice(1);
-const planState = (p) => (p.status !== 'active' ? (p.plan === 'texting' ? 'Add more numbers once it’s active' : 'Plan not active, renew it first') : p.limit != null && p.used >= p.limit ? `Full: ${p.used} of ${p.limit} used` : p.limit == null ? `Unlimited · ${p.used} added` : `${p.used} of ${p.limit} used`);
+const planState = (p) => (p.status !== 'active' ? (p.plan === 'texting' ? (p.status === 'paused' ? 'Paused: monthly fee due' : 'Add more numbers once it’s active') : 'Plan not active, renew it first') : p.limit != null && p.used >= p.limit ? `Full: ${p.used} of ${p.limit} used` : p.limit == null ? `Unlimited · ${p.used} added` : `${p.used} of ${p.limit} used`);
 const usable = (p) => p.status === 'active' && (p.limit == null || p.used < p.limit);
 
 function Step({ n, title, children, testid }) {
@@ -26,11 +26,11 @@ function PlanPick({ plans, t, value, onChange }) {
     <div className="grid sm:grid-cols-2 gap-3" role="radiogroup" aria-label="Plan this number goes on">
       <Card on={value === 'new'} onClick={() => onChange('new')} testid="texting-plan-new">
         <div className="flex items-center gap-2 font-semibold"><MessageSquareText className="w-4 h-4 text-[#818cf8]" />New Texting plan<span className="ml-auto font-mono">${t.setup}</span></div>
-        <div className="text-xs text-[#a1a1aa] mt-1">Then ${t.monthly}/month · {t.inbound} incoming texts a month included · more numbers ${t.extra} each</div>
+        <div className="text-xs text-[#a1a1aa] mt-1">{`Then $${t.monthly}/month · ${t.inbound} incoming texts a month included · more numbers $${t.extra} each`}</div>
       </Card>
       {plans.map(p => (
         <Card key={p.phoneNumber} on={value === p.phoneNumber} disabled={!usable(p)} onClick={() => onChange(p.phoneNumber)} testid={`texting-plan-${p.phoneNumber.replace(/\D/g, '')}`}>
-          <div className="flex items-center gap-2 font-semibold"><Layers className="w-4 h-4 text-[#818cf8]" />Add to {cap(p.plan)} plan<span className="ml-auto font-mono">${p.price}</span></div>
+          <div className="flex items-center gap-2 font-semibold"><Layers className="w-4 h-4 text-[#818cf8]" />{`Add to ${cap(p.plan)} plan`}<span className="ml-auto font-mono">${p.price}</span></div>
           <div className="text-xs text-[#a1a1aa] mt-1"><span className="font-mono" data-no-translate>{p.phoneNumber}</span> · {planState(p)}{p.plan === 'texting' ? '' : ' · no monthly fee'}</div>
         </Card>
       ))}

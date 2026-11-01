@@ -1936,3 +1936,18 @@ calls and SIP are simulated; inbound calls use a pretend-call simulator).
 - 2026-10-30: Landline to Texting plan pricing (preview only, NOT deployed). js/hosted-sms.js PLAN_PRICE {starter 150, pro 120, business 100} one-time per number, PLAN_LIMIT {5, 10, unlimited} per plan number; start(chatId, phone, mode, planNumber) (codes needs_plan / pick_plan / plan_inactive / plan_limit, limit re-checked after claim); no monthly fee: syncPlan in tick pauses/resumes with the parent plan number's status. Legacy standalone docs (planNumber null) keep $300/$500 + $50/month billOne. Texts stay $0.05. UI pages/texting/NewSetup.js rewritten as steps (number -> plan cards -> ownership -> pay; bill after payment). Tested: iteration_179 + backend/tests/test_hosted_sms_plans.py 12/12 (run with REACT_APP_BACKEND_URL env).
 - 2026-10-30: REAL Telnyx hosted order opened for +18557574001 (eligible): order 8001a194-4ebc-4d91-bfc6-c14803cd96d6, number record 0021a194-4ebc-4d4f-aff8-3a2fe472c856, status pending, messaging profile 40019c71-…. NOT linked to any customer/DB doc. Next: ownership code by call to the number, or LOA + bill upload; cancel it on Telnyx if not pursued. Scripts: scripts/hosted_sms_real_check.js, scripts/hosted_sms_real_order.js (run with NODE_PATH=/app/js/node_modules).
 - Owner idea pending decision: texting number bought WITH its own plan (no Telnyx calling number). Recommendation given: a "Texting plan" instead of reusing Starter/Pro/Business.
+
+## 2026-11-01 — Business texting (Hosted SMS) redesign — PREVIEW ONLY, NOT deployed (tested: iteration_180, 22/22 backend)
+- Flow after payment: Telnyx CALLS the number with a code (SMS option removed) → code OK = straight to review (no LOA/bill)
+  → or "Skip the code" → in-app LOA signed by typing holder name (must match) → bill upload (PDF/JPG/PNG, merged)
+  or "No bill? Contact support" (help chat prefilled + email to CIVR_ADMIN_EMAIL + admin notify, status admin_docs, NO fee).
+  Admin uploads bill from /admin → Texting → "Sign LOA & submit to Telnyx". $50 no-bill fee removed everywhere.
+- Nothing about code/LOA/bill shown before payment.
+- New standalone Texting plan: $150 once + $100/mo, 50 INCOMING texts/mo included (shared), then $0.05; extra numbers $150 each
+  (only while the Texting plan is active), sharing its renewal. CloudIVR plan add-on unchanged (Starter $150/5, Pro $120/10, Business $100/unlimited).
+- Hosted numbers: replying to US mobiles needs 10DLC (sms-rules message + "Ask us to register it"); receiving works now.
+- Entry points: Buy a number → "Use my existing business number" (?mode=existing) and Texting page "Add a number".
+- Statuses: verify → loa → documents → admin_docs → review → active/paused. hostedSms.realOrder=true makes a preview record use real Telnyx.
+- Real order (855) 757-4001 (Telnyx 8001a194-…, pending) carried into preview as hs_855real4001 on Alice (Business plan +13346972125), status verify, paid 0.
+  It does NOT exist in the production DB. Sending the code from preview places a REAL call.
+- Backlog: deploy to app-main; self-serve 10DLC; production record for the 855 order.

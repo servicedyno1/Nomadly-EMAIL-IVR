@@ -4,7 +4,7 @@ import { toast } from 'sonner';
 import { api } from '../../api';
 import { Act, Load, Pill, fmt, dt } from './common';
 
-const ST = { admin_docs: ['Bill help requested', 'warn'], documents: ['Waiting for bill', ''], loa: ['Signing letter', ''], verify: ['Code check', ''], review: ['With the carrier', 'on'], active: ['Active', 'ok'], paused: ['Paused (unpaid)', 'warn'], rejected: ['Rejected', 'bad'], cancelled: ['Cancelled', ''] };
+const ST = { admin_docs: ['Bill help requested', 'warn'], documents: ['Waiting for bill', ''], loa: ['Signing letter', ''], verify: ['Code check', ''], review: ['With the carrier', 'on'], active: ['Active', 'ok'], paused: ['Paused', 'warn'], rejected: ['Rejected', 'bad'], cancelled: ['Cancelled', ''] };
 const FILTERS = [['admin_docs', 'Bill help requested'], ['review', 'With carrier'], ['documents', 'Waiting for customer'], ['active', 'Active'], ['', 'All']];
 
 function Submit({ item, done }) {

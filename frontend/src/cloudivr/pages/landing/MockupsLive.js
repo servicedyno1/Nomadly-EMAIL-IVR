@@ -194,7 +194,7 @@ export function LandlineTextMock() {
         <div className="mt-3 space-y-1.5">
           {LANDLINE.slice(0, shown).map(([dir, t]) => <div key={t} className={`flex civr-pop ${dir === 'in' ? 'justify-start' : 'justify-end'}`}><div className={`max-w-[85%] rounded-2xl px-3 py-1.5 text-xs leading-snug ${dir === 'in' ? 'bg-[#1c1c22] border border-white/[.06] rounded-bl-md' : 'bg-[#6366f1] text-white rounded-br-md'}`}>{t}</div></div>)}
         </div>
-        {shown >= 2 && <div className="mt-2 text-xs text-[#a1a1aa] civr-pop">Calls still ring at your carrier · $0.05 per text</div>}
+        {shown >= 2 && <div className="mt-2 text-xs text-[#a1a1aa] civr-pop">Calls still ring at your carrier · texts land here</div>}
       </div>
     </MockFrame>
   );

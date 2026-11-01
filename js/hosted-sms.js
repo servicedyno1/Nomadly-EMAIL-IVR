@@ -1,6 +1,6 @@
 'use strict'
 // Hosted SMS ("Landline to Texting"): the customer keeps their number + calls with their carrier, texting moves to Telnyx.
-// Flow: pay → Telnyx code (call/text) → verified = straight to review; or skip → sign LOA in-app → bill upload
+// Flow: pay → Telnyx code (phone call) → verified = straight to review; or skip → sign LOA in-app → bill upload
 // (or ask support, who uploads it from admin) → Telnyx review → active. Rejected → full refund.
 const axios = require('axios')
 const crypto = require('crypto')
@@ -17,7 +17,7 @@ const TEXTING = { setup: 150, monthly: 100, inbound: 50, extra: 150 }
 const monthlyOf = (d) => (d.planNumber ? 0 : d.plan === 'texting' ? TEXTING.monthly : MONTHLY)
 const LIVE = ['starting', 'verify', 'loa', 'documents', 'admin_docs', 'review', 'active', 'paused']
 const REVIEW_DAYS = '1–3 business days' // Telnyx reviews Mon–Fri, 9am–5pm US Central
-const TEXT_PRICE = 0.05 // per text, sent or received
+const TEXT_PRICE = 0.05 // per text beyond any included ones
 const MONTH_MS = 30 * 86400000
 const MAX_TEXT = 160
 const E164 = /^\+[1-9]\d{7,14}$/
@@ -79,7 +79,7 @@ async function plansFor(chatId) {
   const out = nums.map(n => ({ phoneNumber: n.phoneNumber, plan: n.plan, status: n.status, expiresAt: n.expiresAt || null, price: PLAN_PRICE[n.plan], limit: PLAN_LIMIT[n.plan], used: count[n.phoneNumber] || 0 }))
   // Texting plans: the first number is the plan; more numbers join it at TEXTING.extra each.
   for (const t of await S.col.find({ chatId: String(chatId), live: true, plan: 'texting', planNumber: null }).toArray()) {
-    out.push({ phoneNumber: t.phoneNumber, plan: 'texting', status: t.status === 'active' ? 'active' : 'pending', expiresAt: t.nextBillAt || null, price: TEXTING.extra, limit: null, used: 1 + (await S.col.countDocuments({ chatId: String(chatId), live: true, planNumber: t.phoneNumber })) })
+    out.push({ phoneNumber: t.phoneNumber, plan: 'texting', status: t.status === 'active' ? 'active' : t.status === 'paused' ? 'paused' : 'pending', expiresAt: t.nextBillAt || null, price: TEXTING.extra, limit: null, used: 1 + (await S.col.countDocuments({ chatId: String(chatId), live: true, planNumber: t.phoneNumber })) })
   }
   return out
 }
@@ -106,7 +106,7 @@ async function start(chatId, phone, planNumber) {
   const fresh = planNumber === 'new'
   const parent = fresh ? { phoneNumber: null, plan: 'texting', status: 'active', limit: null, used: 0, price: TEXTING.setup } : plans.find(p => p.phoneNumber === planNumber)
   if (!parent) return { error: 'Pick the plan this number goes on.', code: 'pick_plan' }
-  if (parent.status !== 'active') return { error: parent.plan === 'texting' ? `The Texting plan on ${parent.phoneNumber} isn’t active yet. Add more numbers once it is.` : `The plan on ${parent.phoneNumber} isn’t active. Renew it first.`, code: 'plan_inactive' }
+  if (parent.status !== 'active') return { error: parent.plan === 'texting' ? (parent.status === 'paused' ? `The Texting plan on ${parent.phoneNumber} is paused: its $${TEXTING.monthly} monthly fee is due. Top up your wallet first.` : `The Texting plan on ${parent.phoneNumber} isn’t active yet. Add more numbers once it is.`) : `The plan on ${parent.phoneNumber} isn’t active. Renew it first.`, code: 'plan_inactive' }
   if (parent.limit != null && parent.used >= parent.limit) return { error: `Your ${parent.plan[0].toUpperCase()}${parent.plan.slice(1)} plan on ${parent.phoneNumber} already has ${parent.limit} texting numbers. Upgrade or pick another plan.`, code: 'plan_limit' }
   const el = await check(phone)
   if (!el.eligible) return { error: el.detail || 'This number can’t be text-enabled.' }

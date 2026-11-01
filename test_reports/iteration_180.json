@@ -1,0 +1,43 @@
+{
+  "summary": "Tested the Landline to Texting redesign end to end in DRY-RUN preview. Backend: new pytest suite test_hosted_sms_texting_plan.py has 10 tests and all 10 pass. The older test_hosted_sms_plans.py was updated and all 12 pass. Covered: the GET config (texting block, no noBillFee), a new Texting plan for Bob, plan_inactive when the parent Texting plan is not active, an extra number on an active Texting plan ($150, anchored to the plan number), Business price $100, 402 when the wallet is too low, call-only code send with preview 123456, right and wrong codes (right code goes straight to review), skip -> LOA (signature must match the holder name, consent required) -> help (400 before the letter is signed, then admin_docs with no charge) -> documents (PDF+PNG merged) going to review, a bad file type rejected, full refunds on cancel at verify/loa/documents/admin_docs, and admin upload from admin_docs moving the order to review. A node check of onInbound confirmed the 50-text allowance is shared by the plan's numbers and the 51st text is charged $0.05. Frontend (Playwright, desktop): Buy ?mode=existing toggle, Check number, plan cards ('New Texting plan' $150 plus the existing Texting plan), notes change with the selection, no LOA/bill/letter/ownership-code mention before paying, pay redirects to /app/texting?id=<id> with that number's panel and the 5-step progress bar, verify step has only the Call button (no SMS), wrong-code error, code 123456 goes to review with Letter/Bill 'Not needed', skip -> LOA form with the signature matching rule -> Bill step -> 'No bill? Contact support' opens the help chat with prefilled text and sets status admin_docs, customer upload from admin_docs goes to review, the 'Add a number' button opens the same flow, the prices card is correct, admin Texting queue 'Bill help requested' filter -> upload -> 'Sign LOA & submit to Telnyx' moves the order to 'With carrier', and no '$50' anywhere. Landing page has no '$0.05 per text sent or received' and no 'send and receive'. Spanish: static strings are translated, but many of the new texting strings are still in English (see below). hs_855real4001 was NOT touched (still verify). All test-created hostedSms records were deleted and the Alice/Bob wallets restored.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "plansFor (GET /hosted-sms plans)", "issue": "A Texting-plan anchor that is 'paused' (unpaid monthly) is reported as status 'pending', so the error is 'isn't active yet. Add more numbers once it is', when the real cause is an unpaid monthly fee."},
+      {"endpoint": "js/hosted-sms.js", "issue": "Stale comments: line 3 says 'Telnyx code (call/text)' and TEXT_PRICE says 'per text, sent or received'. Code only, not shown to users."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Spanish (es) on /app/texting and Buy ?mode=existing", "issues": [
+        "Untranslated strings built from values: 'Texting plan · then $100/mo, 50 incoming texts included', 'once per number on a CloudIVR plan', 'per text after included ones', 'Full refund to your wallet if the number isn't approved.', the 'Then $100/month · 50 incoming texts a month included · more numbers $150 each' card text, 'Add to Texting plan', 'Unlimited · N added', 'Add more numbers once it's active', the pickNote sentences ('One-time $150, then $100/month…'), 'Pay $150 from wallet', 'Number with country code', 'US or Canada landline or toll-free…'",
+        "Half-translated text: the 'texting-timeline' paragraph renders 'Keep your número y your calls with your current provider…' and the button renders 'Check número'. Word-level replacement is mixing languages. These need full-sentence {0}-slot keys in es.json/fr.json.",
+        "'Add a number' becomes 'Agregar un número' (the request expected 'Añadir un número'; both are valid Spanish, so this is the main agent's choice)."
+      ]},
+      {"screen": "Texting panel bill step + help chat", "issues": ["After 'No bill? Contact support', the Help assistant panel opens on top of the right part of the bill-step card (the upload text is cut off). Acceptable for a chat drawer, but it could open shifted or minimised."]},
+      {"screen": "Landing MockupsLive.js:197", "issues": ["The mockup caption still says 'Calls still ring at your carrier · $0.05 per text'. It is not the banned phrase, but it is outdated pricing next to the new Texting plan copy."]},
+      {"screen": "Admin Texting queue", "issues": ["The status label 'Paused (unpaid)' is also used for plan-attached numbers paused because the parent plan expired. The label is misleading."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_hosted_sms_texting_plan.py", "/app/backend/tests/test_hosted_sms_plans.py", "/app/test_reports/pytest/hosted_texting_plan.xml", "/app/test_reports/pytest/hosted_plans.xml"],
+  "action_items": [
+    "Add es/fr dictionary entries with {0} slots for the new dynamic texting strings (Prices card, PlanPick cards, planState, pickNote, pay button, NewSetup field label/hint/timeline), and fix the mixed-language 'Check número' / timeline output",
+    "Optional: update the MockupsLive.js '$0.05 per text' caption to match the new pricing",
+    "Optional: in plansFor, report a paused Texting-plan anchor as 'paused' with a 'monthly fee due' message instead of 'not active yet'",
+    "Optional: change the admin ST.paused label to 'Paused' (not always unpaid)"
+  ],
+  "critical_code_review_comments": [
+    "onInbound: the allowance check-and-increment is a single atomic updateOne with $lt 50, so it is safe under concurrency. Verified that it is shared between the anchor and extra numbers",
+    "start(): the claim-then-debit pattern protects against double-click; a new Texting plan ignores limits, as designed",
+    "requestHelp is idempotent when already admin_docs (returns the item without notifying again). Good",
+    "The /hosted-sms/:id/loa-preview route accepts any status; harmless, but it could be limited to loa/documents"
+  ],
+  "updated_files": ["/app/backend/tests/test_hosted_sms_texting_plan.py (new)", "/app/backend/tests/test_hosted_sms_plans.py (test_no_plan_account updated for the Texting plan, since needs_plan no longer exists; fill() skips when n<=0 because Alice already has 4 live plan numbers)"],
+  "success_rate": {"backend": "100% (22/22)", "frontend": "~92% (all flows work; only the Spanish translation gaps)"},
+  "seed_data_creation": "None kept. Temporary orders created by the tests/UI were deleted and the wallets restored to Bob usdIn 11750/usdOut 11400.45 and Alice usdIn 1925/usdOut 926.665.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Admin API login: POST /api/cloudivr-web/admin/login -> {challenge, devCode} -> POST /admin/verify {challenge, code} (sets a cookie). hs_166f867fcda2 is ACTIVE, not admin_docs; create your own admin_docs order (skip -> loa -> help). Never touch hs_855real4001. Node scripts need to run from /app (dotenv lives in /app/node_modules). The old plans test takes ~90s (waits for the dry-run tick)."
+}

@@ -43,6 +43,8 @@ def set_plan(**kw):
 
 
 def fill(n, plan):
+    if n <= 0:
+        return
     db.hostedSms.insert_many([{"_id": f"hs_TEST_{plan}_{i}", "chatId": ALICE[2], "phoneNumber": f"+1312556{i:04d}", "mode": "code", "planNumber": PLAN, "plan": plan, "status": "active", "live": True, "paid": 0, "_test": True} for i in range(n)])
 
 
@@ -89,10 +91,11 @@ def test_get_plans(alice):
 
 
 def test_no_plan_account(bob):
+    # Bob has no CloudIVR plans: only Texting plans are listed; someone else's plan number -> pick_plan (no needs_plan any more)
     d = bob.get(f"{API}/hosted-sms").json()
-    assert d['plans'] == []
-    r = bob.post(f"{API}/hosted-sms", json={"phone": rnd(), "mode": "code", "planNumber": PLAN})
-    assert r.status_code == 400 and r.json()['error'] == 'needs_plan'
+    assert all(p['plan'] == 'texting' for p in d['plans'])
+    r = bob.post(f"{API}/hosted-sms", json={"phone": rnd(), "planNumber": PLAN})
+    assert r.status_code == 400 and r.json()['error'] == 'pick_plan'
 
 
 def test_pick_plan_errors(alice):
