@@ -1,5 +1,5 @@
 import React, { useRef } from 'react';
-import { ChevronLeft, ChevronRight, Hash, Workflow, Megaphone, Zap, Headphones, Server, Bot, Captions, MessageSquareText, ArrowRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Hash, Workflow, Megaphone, Zap, Headphones, Server, Bot, Captions, MessageSquareText, ArrowRight, Smartphone } from 'lucide-react';
 import { Reveal } from './kit';
 import { goTo, hrefOf } from './menu';
 import { PROOF } from './ownerProof';
@@ -33,7 +33,7 @@ export function Pillars() {
   );
 }
 
-const CHANNELS = [[Hash, 'Phone numbers', 'Local, mobile and toll-free numbers in many countries.', '#coverage'], [Workflow, 'IVR menus', 'Press 1 for sales, 2 for support.', 'ivr'], [Megaphone, 'Bulk campaigns', 'Call a whole list and connect the hot leads.', 'campaigns'], [Zap, 'Quick IVR', 'Call up to 10 people with one message.', 'campaigns'], [Headphones, 'Browser phone', 'Make and take calls in any browser tab.', 'phone'], [Server, 'SIP', 'Sign in from a desk phone or softphone.', 'phone'], [Bot, 'AI agents', 'A voice that answers, books and follows up.', 'ai'], [Captions, 'Text-to-voice', 'Type and a natural voice speaks for you.', 'text'], [MessageSquareText, 'Landline to Texting', 'Customers text the office number you already have.', 'hosted']];
+const CHANNELS = [[Hash, 'Phone numbers', 'Local, mobile and toll-free numbers in many countries.', '#coverage'], [Workflow, 'IVR menus', 'Press 1 for sales, 2 for support.', 'ivr'], [Megaphone, 'Bulk campaigns', 'Call a whole list and connect the hot leads.', 'campaigns'], [Zap, 'Quick IVR', 'Call up to 10 people with one message.', 'campaigns'], [Headphones, 'Browser phone', 'Make and take calls in any browser tab.', 'phone'], [Server, 'SIP', 'Sign in from a desk phone or softphone.', 'phone'], [Bot, 'AI agents', 'A voice that answers, books and follows up.', 'ai'], [Captions, 'Text-to-voice', 'Type and a natural voice speaks for you.', 'text'], [MessageSquareText, 'Landline to Texting', 'Customers text the office number you already have.', 'hosted'], [Smartphone, 'CloudIVR eSIM', 'A US mobile line on your phone, ready instantly.', '#esim']];
 export function ChannelSlider() {
   const rail = useRef(null);
   const move = (d) => rail.current?.scrollBy({ left: d * 280, behavior: 'smooth' });

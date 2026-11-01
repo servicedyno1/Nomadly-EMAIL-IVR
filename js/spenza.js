@@ -1,7 +1,7 @@
 'use strict'
 // Spenza Partner API: eSIM lines resold in CloudIVR (paid from the USD wallet), admin fleet view,
 // inbound SMS → Inbox, outbound SMS, and optional call routing to CloudIVR via Spenza's SIP gateway.
-// Preview (WEB_CLOUDIVR_DRY_RUN=true): reads are real; purchases, SMS sends and SIP changes are simulated.
+// Preview (WEB_CLOUDIVR_DRY_RUN=true): purchases and SIP changes are simulated; texts on real lines are real.
 const axios = require('axios')
 const crypto = require('crypto')
 const { walletOps, round2 } = require('./cloudivr-web/wallet')
@@ -29,7 +29,7 @@ async function call(method, path, data, extra = {}) {
   }
 }
 const unwrap = (r) => (Array.isArray(r?.data) ? r.data : r?.data?.items || r?.data || [])
-const errOf = (e) => ({ error: e.message || 'Spenza didn’t respond. Try again.' })
+const errOf = (e) => ({ error: e.message || 'The eSIM service didn’t respond. Try again.' })
 
 const planOut = (p, cfg) => ({
   planId: p.productId, cost: p.price, currency: p.currency, validityDays: p.validityDays, recurring: !!p.recurring,
@@ -110,7 +110,7 @@ async function buy(chatId, { planId, imei, simId }) {
   } catch (e) {
     await S.w.credit(chatId, plan.price); await txn(chatId, 'esim-refund', plan.price, { lineId: _id })
     await S.col.updateOne({ _id }, { $set: { status: 'failed', note: e.message, updatedAt: new Date() } })
-    return { error: `Spenza couldn’t create the eSIM: ${e.message} Your $${plan.price} was refunded.` }
+    return { error: `We couldn’t create the eSIM: ${e.message} Your $${plan.price} was refunded.` }
   }
 }
 
@@ -129,7 +129,7 @@ async function pollOne(d) {
     S.tell(d.chatId, '📱 Your eSIM is ready. Open Mobile eSIM and scan the QR code with your phone to install it.', { kind: 'billing', meta: { esim: d._id } })
   } else if (['failed', 'error'].includes(st)) {
     await S.w.credit(d.chatId, d.price); await txn(d.chatId, 'esim-refund', d.price, { lineId: d._id })
-    await S.col.updateOne({ _id: d._id }, { $set: { status: 'failed', note: r?.error?.message || 'Spenza couldn’t create the eSIM.', updatedAt: new Date() } })
+    await S.col.updateOne({ _id: d._id }, { $set: { status: 'failed', note: r?.error?.message || 'The eSIM couldn’t be created.', updatedAt: new Date() } })
     S.tell(d.chatId, `⚠️ Your eSIM couldn’t be created. $${d.price} was refunded to your wallet.`, { kind: 'billing', meta: { esim: d._id } })
   }
 }
@@ -178,14 +178,14 @@ async function sendSms(chatId, id, to, text) {
   const d = await mine(chatId, id)
   if (!d || d.status !== 'active' || !d.phoneNumber) return { error: 'This eSIM can’t send texts right now.' }
   const dest = String(to || '').replace(/[^\d+]/g, ''), body = String(text || '').trim().slice(0, 1000)
-  if (!/^\+\d{8,15}$/.test(dest)) return { error: 'Enter the number with its country code.' }
+  if (!/^\+1[2-9]\d{2}[2-9]\d{6}$/.test(dest)) return { error: 'Texts can go to US numbers: enter +1 and the 10-digit number.' }
   if (!body) return { error: 'Type a message.' }
   if (!(await S.w.debit(chatId, TEXT_PRICE))) return { error: `Your wallet needs $${TEXT_PRICE} to send a text.` }
-  if (!dry() && !d.simulated) {
+  if (!d.simulated) {
     try { await call('post', '/api/v1.1/sms', { fromNumber: d.phoneNumber, toNumber: dest, text: body }) } catch (e) { await S.w.credit(chatId, TEXT_PRICE); return { error: e.code === 'FORBIDDEN' || e.status === 401 || e.status === 403 ? 'Sending texts needs the Admin role on the Spenza account. We’ve let support know.' : e.message } }
   }
   await txn(chatId, 'esim-sms', TEXT_PRICE, { lineId: d._id, to: dest })
-  const log = { chatId: String(chatId), phoneNumber: d.phoneNumber, from: d.phoneNumber, to: dest, type: 'sms', direction: 'outbound', body, esim: d._id, charge: TEXT_PRICE, status: dry() || d.simulated ? 'preview' : 'sent', timestamp: new Date() }
+  const log = { chatId: String(chatId), phoneNumber: d.phoneNumber, from: d.phoneNumber, to: dest, type: 'sms', direction: 'outbound', body, esim: d._id, charge: TEXT_PRICE, status: d.simulated ? 'preview' : 'sent', timestamp: new Date() }
   await S.db.collection('phoneLogs').insertOne(log)
   return { log }
 }
@@ -204,19 +204,21 @@ async function onWebhook(raw, headers, body) {
   const b = body?.data || body || {}
   if ((b.eventType || body?.eventType) === 'webhook.test') { S.log('[Spenza] webhook test received'); return { status: 200 } }
   const norm = (n) => { const x = String(n || '').replace(/[^\d+]/g, ''); return x.startsWith('+') ? x : x.length === 10 ? '+1' + x : x ? '+' + x : '' }
-  const from = norm(b.from || b.fromNumber || b.source || b.sender), to = norm(b.to || b.toNumber || b.mdn || b.destination), text = String(b.text || b.message || b.body || '').slice(0, 2000)
+  const first = (v) => (Array.isArray(v) ? v[0] : v)
+  const from = norm(b.From || b.from || b.fromNumber || b.source), to = norm(b.Owner || first(b.To) || b.to || b.toNumber || b.mdn), text = String(b.Message_Body || b.text || b.message || b.body || '').slice(0, 2000)
+  const mid = b.Message_ID || null
+  if (String(b.Direction || 'inbound').toLowerCase() !== 'inbound') return { status: 200 }
   const d = to && await S.col.findOne({ phoneNumber: to, status: { $in: ['active', 'suspended'] } })
-  if (!d || !text) { S.log(`[Spenza] webhook unmatched (to ${to || '?'})`); return { status: 200 } }
-  const dup = await S.db.collection('phoneLogs').findOne({ esim: d._id, from, body: text, direction: 'inbound', timestamp: { $gt: new Date(Date.now() - 10 * 60000) } })
+  if (!d || !text) { S.log(`[eSIM] webhook unmatched (${body?.event || '?'})`); return { status: 200 } }
+  const dup = await S.db.collection('phoneLogs').findOne(mid ? { esim: d._id, providerId: mid } : { esim: d._id, from, body: text, direction: 'inbound', timestamp: { $gt: new Date(Date.now() - 10 * 60000) } })
   if (dup) return { status: 200 }
-  await S.db.collection('phoneLogs').insertOne({ chatId: d.chatId, phoneNumber: d.phoneNumber, from, to: d.phoneNumber, type: 'sms', direction: 'inbound', body: text, esim: d._id, charge: 0, timestamp: new Date() })
+  await S.db.collection('phoneLogs').insertOne({ chatId: d.chatId, phoneNumber: d.phoneNumber, from, to: d.phoneNumber, type: 'sms', direction: 'inbound', body: text, esim: d._id, providerId: mid, charge: 0, timestamp: new Date() })
   await S.tell(d.chatId, `💬 Text to your eSIM ${d.phoneNumber} from ${from}: ${text}`, { kind: 'sms', meta: { from, to: d.phoneNumber, esim: d._id } })
   return { status: 200 }
 }
 async function registerWebhook(baseUrl) {
   if (!baseUrl) return { error: 'SELF_URL isn’t set, so Spenza has nowhere to send texts.' }
   const url = `${baseUrl.replace(/\/$/, '')}/api/cloudivr-web/public/spenza/webhook`
-  if (dry()) { await S.db.collection('spenzaConfig').updateOne({ _id: 'webhook' }, { $set: { url, at: new Date(), signingSecret: 'whsec_preview', preview: true } }, { upsert: true }); return { ok: true, url, preview: true } }
   try {
     const r = await call('post', '/api/v1.1/webhooks', { operator: 'SpenzaJ', network: 'SpenzaJ', eventType: 'both', webhookUrls: { messageUrl: url, voiceUrl: url }, authentication: { type: 'none' } })
     await S.db.collection('spenzaConfig').updateOne({ _id: 'webhook' }, { $set: { url, at: new Date(), id: r?.data?.id || null, signingSecret: r?.data?.signingSecret } }, { upsert: true })
@@ -244,6 +246,21 @@ async function setCallsTo(chatId, id, to) {
   return { item: pub({ ...d, callsTo: v }), pending: !!r.pending }
 }
 
+// One-off: lines the owner asked to hand to an existing account (runs until the account exists).
+const PRELINK = [{ phone: '+16462556424', email: 'onarrival21@gmail.com' }]
+async function prelink() {
+  for (const p of PRELINK) {
+    const done = await S.db.collection('spenzaConfig').findOne({ _id: 'prelink:' + p.phone })
+    if (done) continue
+    const acct = await S.db.collection('webAccounts').findOne({ email: p.email }, { projection: { _id: 1 } })
+    if (!acct || !process.env.SPENZA_API_KEY) continue
+    const sim = unwrap(await call('get', '/api/v1.1/sims?page=1&pageSize=100')).find(s => s.phoneNumber === p.phone)
+    if (!sim) continue
+    const r = await linkSim(sim.iccid, p.email)
+    if (r.ok) { await S.db.collection('spenzaConfig').insertOne({ _id: 'prelink:' + p.phone, at: new Date() }); S.log(`[eSIM] linked ${p.phone} to ${p.email}`) }
+  }
+}
+
 async function tick() {
   for (const d of await S.col.find({ status: 'provisioning' }).limit(50).toArray()) await pollOne(d).catch(e => S.log(`[Spenza] poll ${d._id}: ${e.message}`))
   for (const d of await S.col.find({ status: { $in: ['active', 'suspended'] }, nextBillAt: { $lte: new Date() } }).limit(50).toArray()) await billOne(d).catch(e => S.log(`[Spenza] bill ${d._id}: ${e.message}`))
@@ -255,6 +272,8 @@ function init({ db, log = console.log, tell }) {
   S.col.createIndex({ chatId: 1, status: 1 }).catch(() => {})
   S.col.createIndex({ phoneNumber: 1 }).catch(() => {})
   setInterval(() => tick().catch(() => {}), 15000).unref?.()
+  const pl = () => prelink().catch(e => log(`[eSIM] prelink: ${e.message}`))
+  pl(); setInterval(pl, 10 * 60000).unref?.()
   return api
 }
 

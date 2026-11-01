@@ -14,7 +14,7 @@ import { openCookieSettings } from '../../consent';
 import { PRODUCTS, USE_CASES, goTo, hrefOf } from './menu';
 
 // Plan button target: signed-in → Buy with the plan picked, otherwise sign-up keeps it (?plan=pro). Also used by the SIP page.
-export const useStart = () => { const { account } = useCivrAuth(); return (plan) => (plan === 'texting' && account ? cp('/app/texting?start=texting') : account ? cp(`/app/buy${plan ? `?plan=${plan}` : ''}`) : cp(`/signup${plan ? `?plan=${plan}` : ''}`)); };
+export const useStart = () => { const { account } = useCivrAuth(); return (plan) => (plan === 'esim' && account ? cp('/app/esim') : plan === 'texting' && account ? cp('/app/texting?start=texting') : account ? cp(`/app/buy${plan ? `?plan=${plan}` : ''}`) : cp(`/signup${plan ? `?plan=${plan}` : ''}`)); };
 
 function PlanCard({ p, plans, hot, start, delay }) {
   return (

@@ -15,7 +15,7 @@ function PlanCard({ p, onBuy }) {
       <div className="font-display text-3xl font-bold mt-2">{`$${p.price}`}<span className="text-sm font-normal text-[#a1a1aa]">{` / ${p.validityDays} days`}</span></div>
       <ul className="text-sm text-[#d4d4d8] mt-3 space-y-1 flex-1">
         {p.data && <li>{`${p.data} data`}</li>}{p.voiceMinutes != null && <li>{`${p.voiceMinutes} minutes of calls`}</li>}{p.sms != null && <li>{p.sms === 'Unlimited' ? 'Unlimited texts' : `${p.sms} texts`}</li>}
-        <li className="text-[#a1a1aa]">{`${p.network} network · renews monthly from your wallet`}</li>
+        <li className="text-[#a1a1aa]">{`${p.network === 'SpenzaJ' ? 'US network' : p.network} · renews monthly from your wallet`}</li>
       </ul>
       <button type="button" onClick={() => onBuy(p)} className="civr-btn civr-btn-primary mt-4" data-testid={`esim-plan-buy-${p.planId.replace(/\W/g, '')}`}>Get this eSIM</button>
     </div>
@@ -74,7 +74,7 @@ function Texts({ item }) {
       <ul className="space-y-2 max-h-64 overflow-y-auto">{(data?.messages || []).map(m => <li key={m.id} className={`rounded-xl px-3 py-2 text-sm ${m.direction === 'inbound' ? 'bg-[#1a1a1a]' : 'bg-[#818cf8]/15 ml-8'}`}><div className="text-xs text-[#a1a1aa] font-mono" data-no-translate>{m.direction === 'inbound' ? m.from : `→ ${m.to}`} · {when(m.at)}</div>{m.body}</li>)}
         {data && !data.messages.length && <li className="text-sm text-[#a1a1aa]">No texts yet. Texts sent to this number also land in your Inbox.</li>}</ul>
       <div className="grid sm:grid-cols-[180px_1fr_auto] gap-2">
-        <input className="civr-input font-mono" value={to} onChange={e => setTo(e.target.value)} placeholder="+1 555 123 4567" aria-label="Send to" data-testid="esim-sms-to" />
+        <input className="civr-input font-mono" value={to} onChange={e => setTo(e.target.value)} placeholder="+1 US number" aria-label="Send to (US number)" data-testid="esim-sms-to" />
         <input className="civr-input" value={text} onChange={e => setText(e.target.value)} placeholder="Message" aria-label="Message" data-testid="esim-sms-text" />
         <button type="button" onClick={send} disabled={busy || !to || !text} className="civr-btn civr-btn-primary" data-testid="esim-sms-send"><Send className="w-4 h-4" />Send</button>
       </div>
@@ -124,8 +124,9 @@ export default function Esim() {
   if (!data) return <Spinner />;
   return (
     <div className="space-y-8" data-testid="esim-page">
-      <PageHeader label="Mobile eSIM" title="A mobile line on your phone" sub="Get an eSIM with calls, texts and data. Install it by scanning a QR code; no store visit or physical SIM." testid="esim-header" />
+      <PageHeader label="CloudIVR eSIM" title="A US mobile line, ready in minutes" sub="Get an eSIM with a US number, calls, texts and data. It’s ready right after you pay: scan the QR code and it’s on your phone. Add as many lines as you need." testid="esim-header" />
       {data.items.length > 0 && <div className="space-y-4">{data.items.map(x => <Line key={x.id} item={x} reload={reload} />)}</div>}
+      {data.items.length > 0 && !buying && data.plans.length > 0 && <h2 className="font-display text-xl font-bold" data-testid="esim-add-another">Add another eSIM</h2>}
       {buying ? <BuyForm plan={buying} onCancel={() => setBuying(null)} onDone={() => { setBuying(null); reload(); }} /> : (
         data.plans.length ? <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4" data-testid="esim-plans">{data.plans.map(p => <PlanCard key={p.planId} p={p} onBuy={setBuying} />)}</div>
           : <Empty icon={Smartphone} title="eSIM plans are coming soon" sub="We’re adding mobile plans. Check back shortly." testid="esim-empty" />

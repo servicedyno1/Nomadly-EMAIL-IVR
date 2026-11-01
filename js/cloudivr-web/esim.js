@@ -8,6 +8,7 @@ const tell = async (id, text, extra) => { await notify.push(id, text, null, extr
 
 function publicRoutes(r, { db, h, log, A }) {
   ES.init({ db, log, tell })
+  r.get('/public/esim-plans', h(async (req, res) => res.json({ plans: (await ES.forSale().catch(() => [])).map(p => ({ planId: p.planId, name: p.label || p.planId, price: p.price, validityDays: p.validityDays, data: p.data, voiceMinutes: p.voiceMinutes, sms: p.sms, carrier: p.network === 'SpenzaJ' ? 'US network' : p.network })) })))
   r.post('/public/spenza/webhook', h(async (req, res) => {
     const x = await ES.onWebhook(req.rawBody ? req.rawBody.toString('utf8') : JSON.stringify(req.body || {}), req.headers, req.body)
     res.status(x.status).json({ ok: x.status === 200 })

@@ -3,6 +3,7 @@ import { useSiteLook } from './landing/kit';
 import { useApi } from '../api';
 import { Hero } from './landing/Hero';
 import { Pillars, ChannelSlider, Quotes } from './landing/V2Sections';
+import { EsimPlans } from './landing/EsimPlans';
 import { Coverage, HowItWorks, Facts, Statement } from './landing/Sections';
 import { UseCases } from './landing/UseCases';
 import { Platform } from './landing/Platform';
@@ -33,6 +34,7 @@ export default function Landing() {
         <Bubbles />
         <Statement />
         <Pillars />
+        <EsimPlans />
         <UseCases />
         <Platform catalog={catalog} />
         <ChannelSlider />

@@ -1986,3 +1986,15 @@ calls and SIP are simulated; inbound calls use a pretend-call simulator).
 - New sections (landing/V2Sections.js): Pillars (3 illustrated cards, art in /frontend/public/cloudivr/art/*.webp), Channel slider (9 cards),
   Quotes (renders only when landing/ownerProof.js has real quotes). ownerProof.js also holds customers/callsHandled/rating/logos (empty = hidden).
 - Phase 2 (app restyle) not started — user preferred the original colours.
+
+## 2026-11-01 (f) — CloudIVR eSIM (Spenza Partner API) — PREVIEW, not deployed
+- Keys: SPENZA_API_KEY / SPENZA_API_SECRET (backend). Base https://api.spenza.com, bearer token from /api/v1.1/auth/token (1h, cached).
+- js/spenza.js + js/cloudivr-web/esim.js. Collections: esimPlans (admin price/enabled/label), esimLines (customer lines), spenzaConfig (webhook signingSecret, sip, prelink flags).
+- Account catalog today: 1 plan SPENZA_001 (cost $7/30d, 20MB, 20 min, unlimited SMS, physical-SIM plan), SIM product SIM_J (physical, 0 stock), credit $1, 1 active eSIM +16462556424.
+  Preview DB: SPENZA_001 on sale at $14 "US Starter eSIM" (set in Admin → CloudIVR eSIM); production needs the owner to set price there.
+- Customer: /app/esim (buy with IMEI → wallet → provision via POST /api/v1.1/esim, poll /api/v3/transactions; QR from /esim/{iccid}/qr → qrCodeUrl image),
+  usage, US-only SMS send ($0.05), texts thread, Inbox reply (meta.esim), calls "Ring on my phone"/"Ring in CloudIVR" (SIP gateway needs SPENZA_SIP_INGRESS_IP + Admin key; until then pending), renew/cancel, monthly wallet renewal (unpaid → service-state off).
+- Preview: purchases SIMULATED (credit $1); real lines' SMS are REAL. Verified: real send from +16462556424 and real inbound webhook (payload data.{From,To[],Owner,Message_Body,Message_ID,Direction}).
+- Webhook is account-wide on Spenza and currently points to the PREVIEW URL — after deploy click Admin → CloudIVR eSIM → "Reconnect texts" on cloudivr.net.
+- PRELINK: +16462556424 auto-links (no charge) to onarrival21@gmail.com when that account exists (production) — checked every 10 min.
+- Landing: EsimPlans section (#esim, live plans from /public/esim-plans) + channel card; signup?plan=esim → /app/esim. Name shown: "CloudIVR eSIM" (no Spenza branding to customers).

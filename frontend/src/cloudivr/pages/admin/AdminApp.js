@@ -11,7 +11,7 @@ import EsimAdmin from './Esim';
 import Cloud, { Resellers, Audit } from './Cloud';
 import CallerIdsAdmin from './CallerIds';
 
-const TABS = [['overview', 'Overview', LayoutDashboard, Overview], ['users', 'Users & wallets', UsersIcon, Users], ['texting', 'Texting queue', MessageSquareText, Texting], ['esim', 'eSIM (Spenza)', Smartphone, EsimAdmin], ['cloudivr', 'CloudIVR', Phone, Cloud], ['caller-ids', 'Caller IDs', BadgeCheck, CallerIdsAdmin], ['resellers', 'Resellers', Store, Resellers], ['log', 'Admin log', ScrollText, Audit]];
+const TABS = [['overview', 'Overview', LayoutDashboard, Overview], ['users', 'Users & wallets', UsersIcon, Users], ['texting', 'Texting queue', MessageSquareText, Texting], ['esim', 'CloudIVR eSIM', Smartphone, EsimAdmin], ['cloudivr', 'CloudIVR', Phone, Cloud], ['caller-ids', 'Caller IDs', BadgeCheck, CallerIdsAdmin], ['resellers', 'Resellers', Store, Resellers], ['log', 'Admin log', ScrollText, Audit]];
 
 // cloudivr.net/admin — the owner's dashboard (own sign-in; tabs live in ?tab=).
 export default function AdminApp() {

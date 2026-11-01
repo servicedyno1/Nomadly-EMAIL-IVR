@@ -20,7 +20,7 @@ const TEXTING_STEPS = ['Enter your business number', 'Pay from your wallet', 'Re
 function usePlanParam() {
   const [params] = useSearchParams();
   const plan = (params.get('plan') || '').toLowerCase().replace(/[^a-z]/g, '');
-  return { plan, q: plan ? `?plan=${plan}` : '', dest: plan === 'texting' ? cp('/app/texting?start=texting') : plan ? cp(`/app/buy?plan=${plan}`) : cp('/app') };
+  return { plan, q: plan ? `?plan=${plan}` : '', dest: plan === 'texting' ? cp('/app/texting?start=texting') : plan === 'esim' ? cp('/app/esim') : plan ? cp(`/app/buy?plan=${plan}`) : cp('/app') };
 }
 
 function SidePanel({ signup, texting }) {
