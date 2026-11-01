@@ -2064,3 +2064,4 @@ calls and SIP are simulated; inbound calls use a pretend-call simulator).
 - Verified: synthetic INVITE → relay → Telnyx → preview webhook → IVR answered (scripts/esim_sip_invite_test.py). NOT verified: Spenza never sent INVITEs to the relay for +16462556424 after register-sip (isSIPEnabled true, didRanges that DID); 3 real test calls produced no SIP at the droplet. Spenza SIP is set back to isSIPEnabled:false and the line to "Ring on my phone". Needs Spenza support.
 - Spenza fee/limit for renew-number is undocumented ("monthly quota enforced separately"); line cost at Spenza = $3 SIM + $7 plan.
 - Live env needed at go-live: SPENZA_SIP_INGRESS_IP=146.190.238.190, SPENZA_TEXT_LINE_IMEI.
+- 2026-11-01: +16462556424 (prelinked to onarrival21@gmail.com in prod; to Alice in preview) converted to kind 'mobile' (web-only texting, no QR, auto caller ID) via one-off spenza.toMobile() (flag spenzaConfig 'mobile:+16462556424'). Runs in prod on next deploy.

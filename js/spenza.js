@@ -82,19 +82,19 @@ async function usage(iccid) {
 }
 
 // Admin: attach an existing Spenza SIM to a CloudIVR account (e.g. the test eSIM), no charge.
-async function linkSim(iccid, email) {
+async function linkSim(iccid, email, kind) {
   const acct = await S.db.collection('webAccounts').findOne({ email: String(email || '').trim().toLowerCase() }, { projection: { _id: 1 } })
   if (!acct) return { error: 'No CloudIVR account with that email.' }
   const sim = unwrap(await call('get', '/api/v1.1/sims?page=1&pageSize=100')).find(s => s.iccid === iccid)
   if (!sim) return { error: 'That SIM isn’t on your Spenza account.' }
   const sub = await call('get', `/api/v1.1/sims/${encodeURIComponent(iccid)}/subscription`).catch(() => null)
   const _id = 'es_' + crypto.randomBytes(6).toString('hex')
-  await S.col.updateOne({ iccid }, { $set: { chatId: String(acct._id), iccid, phoneNumber: sim.phoneNumber || null, isEsim: !!sim.isEsim, planId: sub?.data?.productId || sub?.data?.planId || null, status: 'active', price: 0, linked: true, updatedAt: new Date() }, $setOnInsert: { _id, callsTo: 'device', createdAt: new Date() } }, { upsert: true })
+  await S.col.updateOne({ iccid }, { $set: { chatId: String(acct._id), iccid, phoneNumber: sim.phoneNumber || null, isEsim: !!sim.isEsim, planId: sub?.data?.productId || sub?.data?.planId || null, status: 'active', price: 0, linked: true, ...(kind === 'mobile' ? { kind: 'mobile', callsTo: 'device', ivrNumber: null } : {}), updatedAt: new Date() }, $setOnInsert: { _id, callsTo: 'device', createdAt: new Date() } }, { upsert: true })
   return { ok: true }
 }
 
 // ---------- customer lines ----------
-const pub = (d) => ({ numberChange: d.numberChange ? { status: d.numberChange.status, at: d.numberChange.at, oldNumber: d.numberChange.oldNumber, newNumber: d.numberChange.newNumber || null } : null, formerNumbers: (d.formerNumbers || []).map(f => f.phone), autoRenew: d.autoRenew !== false, id: d._id, iccid: d.iccid || null, phoneNumber: d.phoneNumber || null, planId: d.planId, price: d.price, status: d.status, note: d.note || null, callsTo: d.callsTo || 'device', ivrNumber: d.ivrNumber || null, nextBillAt: d.nextBillAt || null, createdAt: d.createdAt, linked: !!d.linked, kind: d.kind || 'esim', zipcode: d.zipcode || null, hasQr: !!(d.qrCode || d.iccid), qrEmail: d.qrEmail || null, qrEmailedAt: d.qrEmailedAt || null })
+const pub = (d) => ({ numberChange: d.numberChange ? { status: d.numberChange.status, at: d.numberChange.at, oldNumber: d.numberChange.oldNumber, newNumber: d.numberChange.newNumber || null } : null, formerNumbers: (d.formerNumbers || []).map(f => f.phone), autoRenew: d.autoRenew !== false, id: d._id, iccid: d.iccid || null, phoneNumber: d.phoneNumber || null, planId: d.planId, price: d.price, status: d.status, note: d.note || null, callsTo: d.callsTo || 'device', ivrNumber: d.ivrNumber || null, nextBillAt: d.nextBillAt || null, createdAt: d.createdAt, linked: !!d.linked, kind: d.kind || 'esim', zipcode: d.zipcode || null, hasQr: d.kind !== 'mobile' && !!(d.qrCode || d.iccid), qrEmail: d.qrEmail || null, qrEmailedAt: d.qrEmailedAt || null })
 const luhn = (s) => { let sum = 0; for (let i = 0; i < s.length; i++) { let n = +s[s.length - 1 - i]; if (i % 2) { n *= 2; if (n > 9) n -= 9 } sum += n } return sum % 10 === 0 }
 const txn = (chatId, type, amount, meta) => S.db.collection('transactions').insertOne({ chatId: String(chatId), type, amount: round2(amount), currency: 'USD', status: 'completed', metadata: { ...meta, channel: 'esim' }, createdAt: new Date(), updatedAt: new Date() })
 
@@ -403,7 +403,7 @@ async function setCallsTo(chatId, id, to, ivrNumber) {
 }
 
 // One-off: lines the owner asked to hand to an existing account (runs until the account exists).
-const PRELINK = [{ phone: '+16462556424', email: 'onarrival21@gmail.com' }]
+const PRELINK = [{ phone: '+16462556424', email: 'onarrival21@gmail.com', kind: 'mobile' }]
 async function prelink() {
   for (const p of PRELINK) {
     const done = await S.db.collection('spenzaConfig').findOne({ _id: 'prelink:' + p.phone })
@@ -412,8 +412,24 @@ async function prelink() {
     if (!acct || !process.env.SPENZA_API_KEY) continue
     const sim = unwrap(await call('get', '/api/v1.1/sims?page=1&pageSize=100')).find(s => s.phoneNumber === p.phone)
     if (!sim) continue
-    const r = await linkSim(sim.iccid, p.email)
+    const r = await linkSim(sim.iccid, p.email, p.kind)
     if (r.ok) { await S.db.collection('spenzaConfig').insertOne({ _id: 'prelink:' + p.phone, at: new Date() }); S.log(`[eSIM] linked ${p.phone} to ${p.email}`) }
+  }
+}
+
+// One-off owner decision: the linked 646 line is a web-only US mobile number (texts in Messages, no QR), not a QR eSIM.
+async function toMobile() {
+  for (const p of PRELINK.filter(x => x.kind === 'mobile')) {
+    const flag = 'mobile:' + p.phone
+    if (await S.db.collection('spenzaConfig').findOne({ _id: flag })) continue
+    const d = await S.col.findOne({ phoneNumber: p.phone, linked: true, status: { $in: ['active', 'suspended'] } })
+    if (!d) continue
+    if (d.callsTo === 'browser') await S.col.updateOne({ _id: d._id }, { $set: { callsTo: 'device' } })
+    await S.col.updateOne({ _id: d._id }, { $set: { kind: 'mobile', callsTo: 'device', ivrNumber: null, updatedAt: new Date() } })
+    await S.db.collection('spenzaConfig').insertOne({ _id: flag, at: new Date() })
+    S.log(`[mobile] ${p.phone} is now a web-only mobile number`)
+    if (d.callsTo === 'browser') await syncSip()
+    await CID().autoVerify(S.db, d.chatId, p.phone).catch(e => S.log(`[mobile] caller ID ${p.phone}: ${e.message}`))
   }
 }
 
@@ -437,8 +453,8 @@ function init({ db, log = console.log, tell }) {
   S.col.createIndex({ chatId: 1, status: 1 }).catch(() => {})
   S.col.createIndex({ phoneNumber: 1 }).catch(() => {})
   setInterval(() => tick().catch(() => {}), 15000).unref?.()
-  const pl = () => prelink().catch(e => log(`[eSIM] prelink: ${e.message}`))
-  pl(); setInterval(pl, 10 * 60000).unref?.()
+  const pl2 = () => prelink().then(toMobile).catch(e => log(`[eSIM] prelink: ${e.message}`))
+  pl2(); setInterval(pl2, 10 * 60000).unref?.()
   defaultPrice().catch(e => log(`[eSIM] default price: ${e.message}`))
   return api
 }

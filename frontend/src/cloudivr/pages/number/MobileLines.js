@@ -22,18 +22,18 @@ function MobileLine({ item, reload }) {
         <span className="civr-pill">US mobile · texting</span>
         <span className="text-sm text-[var(--c-muted)]" data-testid={`mobile-line-status-${item.id}`}>{STATUS[item.status] || item.status}</span>
         {item.status === 'provisioning' && <Loader2 className="w-4 h-4 animate-spin text-[var(--c-muted)]" />}
-        <span className="text-xs text-[var(--c-muted)] ml-auto">{item.autoRenew ? `${money(item.price)}/month${date ? ` · next ${date}` : ''}` : `Auto-renew off${date ? ` · ends ${date}` : ''}`}</span>
+        <span className="text-xs text-[var(--c-muted)] ml-auto">{!item.price ? 'Linked by CloudIVR' : item.autoRenew ? `${money(item.price)}/month${date ? ` · next ${date}` : ''}` : `Auto-renew off${date ? ` · ends ${date}` : ''}`}</span>
       </div>
       {item.status === 'provisioning' && <p className="text-sm text-[var(--c-muted)]" data-testid={`mobile-line-pending-${item.id}`}>{`Paid. We asked for a number near ${item.zipcode || 'your ZIP code'}; it appears here as soon as the carrier assigns it.`}</p>}
       {item.note && <p className="text-sm text-[#fbbf24]">{item.note}</p>}
       {item.status === 'active' && <Link to={cp('/app/messages')} className="text-sm underline font-semibold text-[var(--c-accent)] inline-flex items-center gap-2" data-testid={`mobile-line-messages-${item.id}`}><MessageSquare className="w-4 h-4" />Open texts in Messages</Link>}
       <div className="flex flex-wrap items-start gap-2">
         {item.status === 'suspended' && <WalletPay price={item.price} small onWallet={() => act('renew', {}, 'Renewed')} label={`Renew ${money(item.price)}`} testid={`mobile-renew-pay-${item.id}`} walletTestid={`mobile-renew-${item.id}`} />}
-        {['active', 'suspended'].includes(item.status) && <button type="button" role="switch" aria-checked={item.autoRenew} disabled={busy} onClick={() => act('auto-renew', { on: !item.autoRenew }, item.autoRenew ? 'Auto-renew off' : 'Auto-renew on')} className="civr-btn civr-btn-ghost civr-btn-sm" data-testid={`mobile-autorenew-${item.id}`}>{item.autoRenew ? 'Auto-renew on' : 'Auto-renew off'}</button>}
+        {['active', 'suspended'].includes(item.status) && item.price > 0 && <button type="button" role="switch" aria-checked={item.autoRenew} disabled={busy} onClick={() => act('auto-renew', { on: !item.autoRenew }, item.autoRenew ? 'Auto-renew off' : 'Auto-renew on')} className="civr-btn civr-btn-ghost civr-btn-sm" data-testid={`mobile-autorenew-${item.id}`}>{item.autoRenew ? 'Auto-renew on' : 'Auto-renew off'}</button>}
         <NewNumber item={item} reload={reload} />
         {['active', 'suspended'].includes(item.status) && <button type="button" onClick={cancel} disabled={busy} className="civr-btn civr-btn-ghost civr-btn-sm" data-testid={`mobile-cancel-${item.id}`}>Cancel number</button>}
       </div>
-      <RenewWarning price={item.price} date={item.nextBillAt} on={item.status === 'active' && item.autoRenew} testid={`mobile-renew-warning-${item.id}`} />
+      <RenewWarning price={item.price} date={item.nextBillAt} on={item.status === 'active' && item.autoRenew && item.price > 0} testid={`mobile-renew-warning-${item.id}`} />
     </div>
   );
 }
