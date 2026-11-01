@@ -11,7 +11,8 @@ export default function Texting() {
   const { data, error, loading, reload } = useApi('/hosted-sms');
   const [params] = useSearchParams();
   const [sel, setSel] = useState(params.get('id'));
-  const [adding, setAdding] = useState(false);
+  const preset = params.get('start') === 'texting' ? 'new' : null;
+  const [adding, setAdding] = useState(!!preset || params.get('add') === '1');
   if (loading && !data) return <Spinner />;
   const items = (data?.items || []).filter(x => x.status !== 'cancelled');
   const current = items.find(x => x.id === sel) || (!adding && items[0]) || null;
@@ -23,7 +24,7 @@ export default function Texting() {
       </PageHeader>
       <ErrorNote error={error} onRetry={reload} className="mb-6" />
       {data && <Prices data={data} />}
-      {adding && <NewSetup data={data} onDone={done} onCancel={() => setAdding(false)} />}
+      {adding && data && <NewSetup data={data} initialKind={preset} onDone={done} onCancel={() => setAdding(false)} />}
       {!adding && !items.length && <Empty icon={Landmark} title="No texting numbers yet" sub="Bring the number your customers already know. We check it in seconds." testid="texting-empty"><button type="button" onClick={() => setAdding(true)} className="civr-btn civr-btn-primary" data-testid="texting-empty-add">Add a number</button></Empty>}
       {!adding && items.length > 0 && (
         <div className="grid lg:grid-cols-[280px_1fr] gap-6">
@@ -38,7 +39,7 @@ export default function Texting() {
 function Prices({ data }) {
   const pp = data.planPrices || {};
   const t = data.texting || {};
-  const cells = [[`$${t.setup}`, `Texting plan · then $${t.monthly}/mo, ${t.inbound} incoming texts included`], [`$${pp.business}–$${pp.starter}`, 'once per number on a CloudIVR plan · no monthly fee'], [`$${data.textPrice.toFixed(2)}`, 'per text after included ones']];
+  const cells = [[`$${t.setup}`, `Texting plan · then $${t.monthly}/mo, ${t.inbound} incoming texts included`], [`$${pp.business}–$${pp.starter}`, 'Texting add-on per number on Starter, Pro or Business · no monthly fee'], [`$${data.textPrice.toFixed(2)}`, 'per text after included ones']];
   return (
     <div className="civr-card p-5 mb-6 grid grid-cols-1 sm:grid-cols-3 gap-4" data-testid="texting-prices">
       {cells.map(([v, l]) => <div key={l}><div className="font-display text-2xl font-bold">{v}</div><div className="text-xs text-[#a1a1aa] mt-1">{l}</div></div>)}

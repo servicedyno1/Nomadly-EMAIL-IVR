@@ -15,7 +15,7 @@ const ITEMS = [
   ['voicemail', Voicemail, 'Inbound', 'Voicemail', 'Every message transcribed', 'Greetings in several languages or your own audio. Every message lands in your inbox and email, transcribed so you can read it in seconds.', 'voicemail', VoicemailMock],
   ['phone', Headphones, 'Anywhere', 'Browser phone', 'Calls from any tab, nothing to install', 'Make and take calls from any browser tab on every plan — nothing to install. On Pro and up, also sign in from a SIP softphone or desk phone. Your office goes wherever you go.', 'browserPhone', BrowserPhoneMock],
   ['sms', MessageSquare, 'Messaging', 'SMS inbox', 'Read and reply to every text', 'Read and reply to every text in one inbox. Push them to email or your own system with webhooks on Pro and up.', null, SmsMock],
-  ['hosted', MessageSquareText, 'Messaging', 'Landline to Texting', 'Text from the number you already have', 'Your customers already know your office or landline number — now they can text it. We switch on texting for your existing US or Canada number while your calls stay with your current carrier. Read every text in the CloudIVR app. Texting plan $150 once, then $100/month with 50 incoming texts, or add it to any CloudIVR plan from $100.', null, LandlineTextMock],
+  ['hosted', MessageSquareText, 'Messaging', 'Landline to Texting', 'Text from the number you already have', 'Your customers already know your office or landline number — now they can text it. We switch on texting for your existing US or Canada number while your calls stay with your current carrier. Read every text in the CloudIVR app. Start with the Texting plan, or add texting to a Starter, Pro or Business number.', null, LandlineTextMock],
   ['text', Captions, 'Calling', 'Text-to-voice calls', 'Type to talk, read what they say', 'Make a real phone call without speaking: you type, and a natural voice speaks each sentence the moment you finish it; they talk, and you read their words live. Soft typing sounds keep the line from going quiet. Handy in a quiet office or a noisy street, and built for deaf and hard-of-hearing callers.', 'textRelay', TextCallMock],
 ];
 const IDS = ITEMS.map(x => x[0]);
@@ -62,7 +62,7 @@ export function Platform({ catalog }) {
               <p className="text-sm md:text-base text-slate-600 mt-3 max-w-2xl">{text}</p>
               <div className="mt-8"><Mock /></div>
               <div className="mt-8 flex flex-wrap gap-3">
-                <Link to={start()} className="civr-l-btn civr-l-btn-sm" data-testid="platform-panel-cta"><Slide>Get your number</Slide><ArrowRight className="w-4 h-4" /></Link>
+                <Link to={start(sel === 'hosted' ? 'texting' : undefined)} className="civr-l-btn civr-l-btn-sm" data-testid="platform-panel-cta"><Slide>{sel === 'hosted' ? 'Start texting' : 'Get your number'}</Slide><ArrowRight className="w-4 h-4" /></Link>
                 <a href="#try" className="civr-l-btn civr-l-btn-sm civr-l-btn-ghost" data-testid="platform-panel-try"><PhoneCall className="w-4 h-4" /><Slide>Try a free call</Slide></a>
               </div>
             </div>

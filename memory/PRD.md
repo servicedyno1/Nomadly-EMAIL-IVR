@@ -1951,3 +1951,14 @@ calls and SIP are simulated; inbound calls use a pretend-call simulator).
 - Real order (855) 757-4001 (Telnyx 8001a194-…, pending) carried into preview as hs_855real4001 on Alice (Business plan +13346972125), status verify, paid 0.
   It does NOT exist in the production DB. Sending the code from preview places a REAL call.
 - Backlog: deploy to app-main; self-serve 10DLC; production record for the 855 order.
+
+## 2026-11-01 (b) — Texting plan as 4th plan + setup only on Texting page — PREVIEW ONLY
+- UX review script: /app/scripts/texting_ux_review.py (phone 390 + desktop 1440, en + es) → /app/test_reports/texting_ux_review.json.
+  Findings fixed: mixed "plan" wording (add-on vs plan), duplicate setup heading, setup split across Buy + Texting,
+  untranslated billing/reach lines, small "Add texting to it" link. No horizontal overflow found. Remember checkbox 16px (pre-existing, label is the tap target).
+- Landing pricing: 4th card "Texting plan" ($150 to start, then $100/mo, 50 incoming texts) → "Start texting" → /signup?plan=texting
+  → after sign-up (email or Google) lands on /app/texting?start=texting with "Start a Texting plan" preselected.
+- Public catalog now has `texting` {setup, monthly, inbound, extra, textPrice, addOn, addOnLimits}.
+- Buy a number: new numbers only + link "Already have a business number? Add texting to it" → /app/texting?add=1.
+- Texting setup step 1: "Start a Texting plan" | "Add texting to one of my plans" (only if they have plans); add-on/extra-number wording.
+- Phase 2 backlog: self-serve 10DLC, usage meter + low-allowance notice. Phase 3: upgrade Texting plan ↔ calling plans, texting-only dashboard.

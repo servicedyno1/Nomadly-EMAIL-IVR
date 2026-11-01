@@ -1,84 +1,69 @@
-# CloudIVR.net landing page — 2026 audit and upgrade plan
+# Business Texting: clear plans and a cleaner setup flow (UX review + fixes)
 
-A refresh of the cloudivr.net landing page so a first-time visitor hears the product within ten seconds, sees complete pricing and coverage on first paint, and finds the trust, compliance and proof signals that 2026 buyers of virtual numbers, IVR and AI voice agents now expect.
-Nothing about the product, plans or prices changes — only how the page presents, proves and sells them.
+Makes the Texting plan a 4th plan that stands apart from Starter, Pro and Business, everywhere a customer sees plans. Texting setup moves out of "Buy a number", and new visitors can sign up straight onto the Texting plan from the landing page.
 
 ## Who it's for
-
-- Small businesses and solo founders who want a professional phone line (keypad menu, voicemail, forwarding) without a per-seat phone system.
-- Sales and lead-gen teams running outbound Quick IVR / Bulk IVR campaigns who need to see compliance and live-tracking credibility before they commit a list.
-- Crypto-native and international operators who pick CloudIVR for 17-country numbers and USDT/BTC payment, and need to trust the operator behind it.
-- Returning Telegram-bot users who were sent to the web app and need a quick "is this the same thing?" answer.
-
-## Audit — where cloudivr.net stands today vs. 2026 pages in this niche
-
-What works and should stay: the one-number positioning ("Every call answered. Every lead called."), the rotating real app screenshots in a browser frame, the live "press 1/2/3 and watch it light up" test call, the honest facts row (no made-up customers), the clean cream/ink editorial look, mega-menu navigation with Products / Use cases, and a thorough FAQ.
-
-Gaps, ranked by impact:
-
-| # | Area | Today | 2026 benchmark in this niche | Severity |
-|---|------|-------|------------------------------|----------|
-| 1 | Hear-it proof | No audio on the page; the only way to hear the product is a test call that needs an email + 6-digit code | Voice-AI and telephony pages let visitors press play and hear an unedited sample call with a synced transcript within 10 seconds, no form | High |
-| 2 | First paint completeness | Pricing cards, coverage grid and nav/footer details wait for a live API call; the stat counters render "0", "0 s", "$0", "0/7" until scrolled into view. Crawlers, link scanners and slow connections see an empty pricing section and zero stats | Pricing and coverage visible instantly; numbers readable without animation; skeletons while data refreshes | High |
-| 3 | Trust & compliance | No section on consent, recording notices, acceptable use, opt-out or data handling — on a page that sells outbound campaigns to lists | Outbound/RVM/IVR vendors show a compliance block (consent responsibility, opt-out, quiet hours where applicable, DNC stance, recording notice) and link policies prominently | High |
-| 4 | Social proof | None. No testimonials, no usage figures, no ratings | Attributed quotes, or — where none exist yet — real live platform counters placed next to the claims they back | High |
-| 5 | Payment messaging | Pricing shows Visa/Mastercard/AMEX/Discover as "accepted", while How-it-works and FAQ say cards are "coming soon" | One truthful statement everywhere | Medium (trust) |
-| 6 | Pricing depth | Three plan cards only; outbound per-minute, AI-agent $0.20/min and SMS rates are buried in FAQ text | Plan comparison table plus a transparent usage-rate table ("price shows before you call" is a selling point — show the prices) | Medium |
-| 7 | Use-case framing | Features are listed by feature; no outcome-led "for sales teams / for support lines / for agencies" tiles on the page itself | Bento-style use-case grid routing to the relevant feature | Medium |
-| 8 | Mobile conversion | No sticky CTA on mobile; the cookie banner is a large card with four toggles covering the lower screen | Compact consent bar; persistent "Get your number / Try a call" bar after the hero | Medium |
-| 9 | Objection handling | Setup time is covered; "what happens when the AI agent can't handle it" and "what if my country needs ID" are not | Explicit fallbacks: human handover, voicemail fallback, ID-check timing | Medium |
-| 10 | Search visibility | Title/description/OG are in place; FAQ and plan data are not exposed as structured data | FAQPage + SoftwareApplication/Offer JSON-LD, hreflang for the languages the switcher offers | Low-Medium |
-| 11 | Competitive positioning | No "why CloudIVR instead of a per-seat phone system" | Comparison strip with verified public prices | Low (deferred — needs fact-checking) |
+- Businesses that want texts on the office, landline or toll-free number they already have, without moving their calls.
+- Existing CloudIVR customers who want to add texting to a number on their current plan.
+- The owner/admin, who handles bill-help requests and approvals.
 
 ## Core features and experience
-
-Phase 1 delivers the high- and medium-severity fixes above as one coherent page update:
-
-1. **"Hear it" in the hero.** A play button beside the CTAs opens a 20–30 second sample recorded on the real platform: the keypad greeting, a key press, then a short AI-agent exchange ending in a handover. A transcript highlights word-by-word as it plays. Works muted-by-default on mobile with captions; no form, no account.
-2. **Complete first paint.** A snapshot of the public catalogue (plan names and prices, country list, coin list, start price) ships with the page so pricing cards, coverage grid and facts render immediately; the live catalogue refreshes them silently. Stat counters show their final values for crawlers and for visitors who prefer reduced motion; pricing cards show skeletons only during a true refresh.
-3. **Trust & compliance block.** A section between the platform tabs and the test call, titled along the lines of "Built for calling you can stand behind": who is responsible for consent, how callers opt out of campaigns, recording-notice guidance, the account-verification and country ID checks that already exist, cookie/data controls, and direct links to Acceptable Use, Privacy and Terms. Copy is sourced from the compliance answers already drafted for Twilio so nothing is claimed that the platform does not do.
-4. **Real proof strip.** The facts row gains live platform counters (calls connected, active numbers, countries live, uptime) pulled from real data and refreshed daily. No fabricated customers or logos. A testimonial slot is built but hidden until real, attributed quotes exist.
-5. **One truthful payment story.** Card logos carry a "coming soon" badge (or are moved to a "soon" row) until card payments are live; hero microcopy, How-it-works, pricing and FAQ all say the same thing.
-6. **Pricing that answers everything.** Under the three plan cards: a feature comparison table (Starter / Pro / Business, "Most popular" highlight) and a usage-rate table for outbound minutes, forwarded minutes, AI agent per-minute, SMS and wallet top-up minimum.
-7. **Use-case bento.** Six outcome tiles — Sales team calling a list, Support line with a menu, Solo founder sounding like a company, Agency managing numbers in several countries, Crypto-native business paying in USDT, Telegram user moving to the web — each with a one-line result and a link into the matching platform tab.
-8. **Mobile conversion.** A compact single-line cookie bar (details behind "Manage"), and a sticky bottom CTA bar on mobile that appears after the hero and hides when the final CTA or a form is on screen.
-9. **Objection FAQ additions.** "What happens if the AI agent can't help?", "Which countries need an ID check and how long does it take?", "Do you scrub numbers or enforce quiet hours?" (answered honestly with what the platform does today).
-10. **Structured data.** FAQPage and SoftwareApplication/Offer JSON-LD generated from the same plan and FAQ data; hreflang tags for the languages the existing switcher supports.
+1. **UX review first (programmatic, phone + desktop, English + Spanish)**
+   - A walk-through of every texting touchpoint: landing pricing, sign-up, Buy a number, Texting page, setup steps after payment, number panel, admin queue.
+   - Checked for confusing or mixed plan wording, duplicate headings, dead ends, prices that don't match, untranslated text, layout breaks and tap-target problems.
+   - Findings are written up as a short list, and each one is fixed in this phase or noted as a later item.
+2. **Four distinct plans**
+   - Starter, Pro and Business stay the calling plans.
+   - **Texting plan** is the 4th plan: $150 once, then $100/month, 50 incoming texts a month included, then $0.05 per text. Extra numbers are $150 each and share the plan's renewal.
+   - Adding texting to an existing calling plan is shown separately as an **add-on**, never called a "plan": Starter $150 (up to 5 numbers), Pro $120 (up to 10), Business $100 (unlimited), no monthly fee, renews with that plan.
+   - The same names and prices appear on the landing page, in the app, on wallet lines and in admin.
+3. **Setup flow (Texting page only)**
+   - Remove the "Use my existing business number" option from Buy a number.
+   - Buy a number keeps one short line linking to the Texting page.
+   - The setup on the Texting page opens with a clear first choice:
+     - **Start a Texting plan** (for anyone, including people with no CloudIVR number).
+     - **Add texting to one of my plans** (only shown when they have one).
+   - After that choice it asks for the number, checks it and takes payment.
+   - The texting setup's duplicate heading is removed.
+4. **Landing page**
+   - The pricing section gets a 4th card, "Texting plan": price, "50 incoming texts/month", "keep your number and calls", and a "Start texting" button.
+   - Other "Landline to Texting" copy points to that card.
+5. **Sign up straight onto the Texting plan**
+   - "Start texting" on the landing card goes to sign-up, then lands on the Texting page with "Start a Texting plan" already picked.
+   - Google sign-in keeps the same intent.
+6. **Rules kept from the last round**
+   - Nothing about the code, letter or bill shows before payment. The code comes by phone call only.
+   - A verified code means no letter or bill is needed.
+   - No-bill help is free and goes to the admin queue.
+   - Replying to US mobiles needs 10DLC, with "Ask us to register it".
 
 ## User flow
-
-1. Visitor lands. Hero loads with real screenshots, the headline, two CTAs and a play button. Pricing, coverage and facts are already filled in below.
-2. They press play and hear the greeting, a key press and the AI agent — transcript follows along. Ten seconds in, they know what the product sounds like.
-3. They scroll: use-case tiles name their situation; the platform tabs show the feature; the compliance block answers "can I legally run this?"; the live proof strip answers "is anyone using this?".
-4. They take the free test call (phone or browser) if they want to feel it themselves.
-5. Pricing shows the plan, the comparison table and the per-minute rates — nothing hidden. Payment methods read consistently.
-6. On mobile the sticky bar keeps "Get your number" one tap away; on desktop the nav CTA does the same.
-7. They sign up (email or Google). The admin Telegram alert already fires.
+- **New visitor:** Landing → Pricing → Texting plan "Start texting" → Sign up → Texting page (Texting plan picked) → enter number → Check → Pay $150 → code call (or skip → sign letter → bill / contact support) → review → active.
+- **Existing customer with a plan:** Texting page → "Add a number" → "Add texting to one of my plans" or "Start a Texting plan" → number → Pay → same steps after payment.
+- **Buy a number:** new numbers only, plus a one-line link: "Already have a business number? Add texting to it."
 
 ## UI/UX feel
-
-- Keep the current editorial cream-and-ink system, DM Sans, generous spacing, rule lines and left-aligned section heads. This is a refinement, not a redesign.
-- Introduce one recurring "voice" motif: a thin animated waveform used on the hero play button, the sample-call transcript and the proof strip. Still when idle, moving only during playback, and static for reduced-motion users.
-- New sections (compliance, use-case bento, comparison table) use the existing card, eyebrow and reveal patterns so the page reads as one piece.
-- Everything visible without JavaScript-driven animation; motion is additive only.
-- Mobile first at 390px: tap targets ≥ 48px, the sticky bar never overlaps the cookie bar or the chat bubble.
+- Same CloudIVR look as today. The Texting plan card matches the other plan cards but has its own icon and label so it reads as a separate product.
+- Plain wording: "plan" only for the four plans, "add-on" for texting on a calling plan.
+- Phone-first layouts with large tap targets. English, Spanish and French all have full sentences, with no half-translated lines.
 
 ## Implementation phases
-
-**Phase 1 — built now (MVP):** items 1–10 above: hero audio sample with transcript, instant-complete first paint with static catalogue snapshot and readable counters, trust & compliance block, live proof strip (real counters, hidden testimonial slot), consistent payment messaging, plan comparison + usage-rate tables, use-case bento, compact cookie bar + mobile sticky CTA, objection FAQs, JSON-LD and hreflang. Verified on desktop and 390px mobile, then staged on preview for approval.
-
-**Phase 2 — after real material exists:** attributed testimonials and one short case study; a fact-checked comparison strip against per-seat systems (Quo/OpenPhone, Aircall, Grasshopper) with dated public prices; a 60–90 second product walkthrough video in the hero tabs; French and Spanish landing variants matching the AI-agent languages; an "I'm not ready yet" email capture that sends the pricing sheet.
-
-**Phase 3 — growth layer:** country auto-detection that shows the visitor's local number price and currency in the hero; a browser-microphone live demo of the AI agent (not just the keypad menu); a missed-calls ROI calculator; a live anonymised activity teaser from the existing Live Map; A/B testing of headline and CTA wording.
+1. **Phase 1 (MVP, built now)**
+   - The UX review and its fixes.
+   - The Texting plan as a 4th plan with consistent naming.
+   - The landing pricing card.
+   - Texting setup removed from Buy a number (link kept) and the first-choice step on the Texting page.
+   - Sign-up straight onto the Texting plan.
+   - Updated translations.
+   - Preview only until you say "push live".
+2. **Phase 2:** self-serve 10DLC registration from the number panel, and a usage meter for the 50 included texts with a low-allowance notice.
+3. **Phase 3:** upgrade between the Texting plan and calling plans (e.g. Texting plan → Pro keeps the number and its texting), plus a texting-only dashboard view for Texting-plan-only customers.
 
 ## Assumptions
-
-- The existing visual system, headline and section order are kept; new sections slot in without a redesign.
-- The sample call audio is recorded on the real platform (text-to-speech greeting, real keypad routing, the real AI agent) — not a studio mock — and is 20–30 seconds long with an English script. A written transcript is produced from that recording.
-- No testimonials, customer names, logos or ratings are invented; social proof in Phase 1 is limited to real platform counters, and counters are only shown if real data is available for them.
-- The compliance block states only what the platform does today, taken from the Twilio compliance answers already drafted; the owner reviews that copy before it goes live, and it is not legal advice.
-- Card payments are still "coming soon"; the page says so consistently until they are switched on.
-- Plan names, prices and per-minute rates are unchanged; the page reads them from the live catalogue, with a bundled snapshot only as the first-paint fallback.
-- The landing page stays English-only in Phase 1; the existing language switcher behaviour is untouched.
-- The competitor comparison is deferred to Phase 2 because competitor prices need verification before publishing.
-- Phase 1 is reviewed on the preview URL first. Deploying to the production droplet — which will also carry the pending Telnyx voicemail, Telegram bot, OG-image and Google-button fixes — happens only on an explicit go-ahead.
+- The UX review is automated (screen checks on phone and desktop), not a test with real users. It runs in preview with demo accounts.
+- The Texting plan card on the landing page shows "$150 to start, then $100/month". It doesn't show it as "$100/month" alone.
+- Customers with only a Texting plan still see the normal app menu, with texting near the top. A texting-only view is phase 3.
+- "Add a number" on the Texting page stays the main button. It is the only way into setup inside the app.
+- Prices are fixed in the app, not editable from admin.
+- The real (855) 757-4001 order and its preview record are left as they are.
+- Nothing goes live on cloudivr.net until you approve deployment.

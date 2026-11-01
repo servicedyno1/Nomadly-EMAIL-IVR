@@ -1,0 +1,286 @@
+[
+ {
+  "view": "phone",
+  "lang": "en",
+  "page": "landing-pricing",
+  "overflow": 0,
+  "small": [],
+  "old_wording": [
+   "\\$50\\b(?!0)"
+  ],
+  "english_in_es": []
+ },
+ {
+  "view": "phone",
+  "lang": "en",
+  "page": "signup-texting",
+  "overflow": 0,
+  "small": [
+   "auth-remember-checkbox 16x16",
+   "auth-terms-link 81x17"
+  ],
+  "old_wording": [],
+  "english_in_es": []
+ },
+ {
+  "view": "phone",
+  "lang": "en",
+  "page": "buy",
+  "overflow": 0,
+  "small": [
+   "Add texting to it 95x20"
+  ],
+  "old_wording": [],
+  "english_in_es": []
+ },
+ {
+  "view": "phone",
+  "lang": "en",
+  "page": "texting",
+  "overflow": 0,
+  "small": [],
+  "old_wording": [],
+  "english_in_es": []
+ },
+ {
+  "view": "phone",
+  "lang": "en",
+  "page": "texting-add",
+  "overflow": 0,
+  "small": [],
+  "old_wording": [],
+  "english_in_es": []
+ },
+ {
+  "view": "phone",
+  "lang": "en",
+  "page": "texting-start",
+  "overflow": 0,
+  "small": [],
+  "old_wording": [],
+  "english_in_es": []
+ },
+ {
+  "view": "phone",
+  "lang": "es",
+  "page": "landing-pricing",
+  "overflow": 0,
+  "small": [],
+  "old_wording": [
+   "\\$50\\b(?!0)"
+  ],
+  "english_in_es": [
+   "Registro gratis. Un precio mensual por n\u00famero, sin contratos. Cada plan se basa en el ante",
+   "El uso extra se paga desde tu billetera: minutos entrantes por encima del plan $0.15/min, ",
+   "Todo lo que incluye cada plan.",
+   "N\u00fameros extra en el plan",
+   "Los minutos del plan cubren las llamadas entrantes que atiendes. Todo lo dem\u00e1s se paga des",
+   "Minutos entrantes por encima del plan",
+   "SMS por encima del plan",
+   "N\u00fameros extra en un plan"
+  ]
+ },
+ {
+  "view": "phone",
+  "lang": "es",
+  "page": "signup-texting",
+  "overflow": 0,
+  "small": [
+   "auth-remember-checkbox 16x16",
+   "auth-terms-link 103x17"
+  ],
+  "old_wording": [],
+  "english_in_es": []
+ },
+ {
+  "view": "phone",
+  "lang": "es",
+  "page": "buy",
+  "overflow": 0,
+  "small": [
+   "A\u00f1\u00e1dele mensajes 108x20"
+  ],
+  "old_wording": [],
+  "english_in_es": []
+ },
+ {
+  "view": "phone",
+  "lang": "es",
+  "page": "texting",
+  "overflow": 0,
+  "small": [],
+  "old_wording": [],
+  "english_in_es": [
+   "incoming texts used this month",
+   "per text \u00b7 incoming texts also land in your Inbox.",
+   "can text 8 countries",
+   "Texting US mobiles from this number needs business texting registration (10DLC) first. Rec"
+  ]
+ },
+ {
+  "view": "phone",
+  "lang": "es",
+  "page": "texting-add",
+  "overflow": 0,
+  "small": [],
+  "old_wording": [],
+  "english_in_es": [
+   "Empezar un plan de mensajes",
+   "N\u00famero extra en tu plan de mensajes",
+   "Pago \u00fanico de $150. Comparte la renovaci\u00f3n mensual de ese plan de mensajes y sus 50 mensaj"
+  ]
+ },
+ {
+  "view": "phone",
+  "lang": "es",
+  "page": "texting-start",
+  "overflow": 0,
+  "small": [],
+  "old_wording": [],
+  "english_in_es": [
+   "Empezar un plan de mensajes"
+  ]
+ },
+ {
+  "view": "desktop",
+  "lang": "en",
+  "page": "landing-pricing",
+  "overflow": 0,
+  "small": [],
+  "old_wording": [
+   "\\$50\\b(?!0)"
+  ],
+  "english_in_es": []
+ },
+ {
+  "view": "desktop",
+  "lang": "en",
+  "page": "signup-texting",
+  "overflow": 0,
+  "small": [
+   "auth-remember-checkbox 16x16",
+   "auth-terms-link 81x17"
+  ],
+  "old_wording": [],
+  "english_in_es": []
+ },
+ {
+  "view": "desktop",
+  "lang": "en",
+  "page": "buy",
+  "overflow": 0,
+  "small": [
+   "Add texting to it 95x20"
+  ],
+  "old_wording": [],
+  "english_in_es": []
+ },
+ {
+  "view": "desktop",
+  "lang": "en",
+  "page": "texting",
+  "overflow": 0,
+  "small": [],
+  "old_wording": [],
+  "english_in_es": []
+ },
+ {
+  "view": "desktop",
+  "lang": "en",
+  "page": "texting-add",
+  "overflow": 0,
+  "small": [],
+  "old_wording": [],
+  "english_in_es": []
+ },
+ {
+  "view": "desktop",
+  "lang": "en",
+  "page": "texting-start",
+  "overflow": 0,
+  "small": [],
+  "old_wording": [],
+  "english_in_es": []
+ },
+ {
+  "view": "desktop",
+  "lang": "es",
+  "page": "landing-pricing",
+  "overflow": 0,
+  "small": [],
+  "old_wording": [
+   "\\$50\\b(?!0)"
+  ],
+  "english_in_es": [
+   "Registro gratis. Un precio mensual por n\u00famero, sin contratos. Cada plan se basa en el ante",
+   "El uso extra se paga desde tu billetera: minutos entrantes por encima del plan $0.15/min, ",
+   "Todo lo que incluye cada plan.",
+   "N\u00fameros extra en el plan",
+   "Los minutos del plan cubren las llamadas entrantes que atiendes. Todo lo dem\u00e1s se paga des",
+   "Minutos entrantes por encima del plan",
+   "SMS por encima del plan",
+   "N\u00fameros extra en un plan"
+  ]
+ },
+ {
+  "view": "desktop",
+  "lang": "es",
+  "page": "signup-texting",
+  "overflow": 0,
+  "small": [
+   "auth-remember-checkbox 16x16",
+   "auth-terms-link 103x17"
+  ],
+  "old_wording": [],
+  "english_in_es": []
+ },
+ {
+  "view": "desktop",
+  "lang": "es",
+  "page": "buy",
+  "overflow": 0,
+  "small": [
+   "A\u00f1\u00e1dele mensajes 108x20"
+  ],
+  "old_wording": [],
+  "english_in_es": []
+ },
+ {
+  "view": "desktop",
+  "lang": "es",
+  "page": "texting",
+  "overflow": 0,
+  "small": [],
+  "old_wording": [],
+  "english_in_es": [
+   "incoming texts used this month",
+   "per text \u00b7 incoming texts also land in your Inbox.",
+   "can text 8 countries",
+   "Texting US mobiles from this number needs business texting registration (10DLC) first. Rec"
+  ]
+ },
+ {
+  "view": "desktop",
+  "lang": "es",
+  "page": "texting-add",
+  "overflow": 0,
+  "small": [],
+  "old_wording": [],
+  "english_in_es": [
+   "Empezar un plan de mensajes",
+   "N\u00famero extra en tu plan de mensajes",
+   "Pago \u00fanico de $150. Comparte la renovaci\u00f3n mensual de ese plan de mensajes y sus 50 mensaj"
+  ]
+ },
+ {
+  "view": "desktop",
+  "lang": "es",
+  "page": "texting-start",
+  "overflow": 0,
+  "small": [],
+  "old_wording": [],
+  "english_in_es": [
+   "Empezar un plan de mensajes"
+  ]
+ }
+]

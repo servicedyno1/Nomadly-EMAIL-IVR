@@ -14,15 +14,16 @@ import { GoogleButton } from './auth/GoogleButton';
 import { ThemeRoot } from '../theme';
 
 const NEXT_STEPS = ['Pick a number and plan', 'Pay with crypto or your wallet (cards coming soon)', 'Choose what callers hear'];
+const TEXTING_STEPS = ['Enter your business number', 'Pay from your wallet', 'Read your customers’ texts'];
 
 // Plan picked on the pricing section (?plan=pro) — kept through sign-up so Buy opens with it selected.
 function usePlanParam() {
   const [params] = useSearchParams();
   const plan = (params.get('plan') || '').toLowerCase().replace(/[^a-z]/g, '');
-  return { plan, q: plan ? `?plan=${plan}` : '', dest: plan ? cp(`/app/buy?plan=${plan}`) : cp('/app') };
+  return { plan, q: plan ? `?plan=${plan}` : '', dest: plan === 'texting' ? cp('/app/texting?start=texting') : plan ? cp(`/app/buy?plan=${plan}`) : cp('/app') };
 }
 
-function SidePanel({ signup }) {
+function SidePanel({ signup, texting }) {
   return (
     <aside aria-label="About CloudIVR" className="civr-auth-side hidden lg:flex relative flex-col justify-between p-12 overflow-hidden" data-testid="auth-side-panel">
       <span className="civr-np-stars" aria-hidden="true" />
@@ -33,7 +34,7 @@ function SidePanel({ signup }) {
         <div>
           <div className="civr-label">What happens next</div>
           <ol className="mt-6 flex flex-col gap-6" data-testid="auth-next-steps">
-            {NEXT_STEPS.map((s, i) => (
+            {(texting ? TEXTING_STEPS : NEXT_STEPS).map((s, i) => (
               <li key={s} className="flex items-center gap-4 font-display text-3xl font-bold">
                 <span className="civr-auth-step w-10 h-10 rounded-full border-2 font-mono text-base flex items-center justify-center shrink-0">{i + 1}</span>{s}
               </li>
@@ -47,11 +48,11 @@ function SidePanel({ signup }) {
   );
 }
 
-function AuthFrame({ title, sub, children, testid, signup }) {
+function AuthFrame({ title, sub, children, testid, signup, texting }) {
   return (
     <div className="min-h-screen grid lg:grid-cols-2" data-testid={testid}>
       <ThemeRoot />
-      <SidePanel signup={signup} />
+      <SidePanel signup={signup} texting={texting} />
       <main className="flex flex-col min-h-screen">
         <div className="lg:hidden flex items-center justify-between px-6 h-16 border-b border-[#1a1a1a]">
           <Link to={cp()} className="font-display text-2xl font-extrabold min-h-[44px] flex items-center gap-2" data-testid="auth-mobile-logo-link"><Wordmark iconClass="w-8 h-8" /></Link>
@@ -104,10 +105,11 @@ export function AuthPage({ mode }) {
   };
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
   return (
-    <AuthFrame signup={signup} testid={signup ? 'signup-page' : 'login-page'} title={signup ? 'Create your free account' : 'Welcome back'}
-      sub={signup ? 'Free to create. Next you pick a number and choose how to pay.' : 'Sign in to manage your numbers.'}>
+    <AuthFrame signup={signup} texting={plan === 'texting'} testid={signup ? 'signup-page' : 'login-page'} title={signup ? 'Create your free account' : 'Welcome back'}
+      sub={signup ? (plan === 'texting' ? 'Free to create. Next you add your business number.' : 'Free to create. Next you pick a number and choose how to pay.') : 'Sign in to manage your numbers.'}>
       {mfa ? <TwoFactorStep mfa={mfa} remember={remember} onDone={done} onBack={() => setMfa(null)} /> : <>
-      {plan && <div className="flex items-center gap-2 text-sm text-[#818cf8] mb-6" data-testid="auth-chosen-plan"><Check className="w-4 h-4" /><span><span className="capitalize">{plan}</span> plan picked — you’ll choose your number next.</span></div>}
+      {plan === 'texting' ? <div className="flex items-center gap-2 text-sm text-[#818cf8] mb-6" data-testid="auth-chosen-plan"><Check className="w-4 h-4" /><span>Texting plan picked — you’ll add your business number next.</span></div>
+        : plan && <div className="flex items-center gap-2 text-sm text-[#818cf8] mb-6" data-testid="auth-chosen-plan"><Check className="w-4 h-4" /><span><span className="capitalize">{plan}</span> plan picked — you’ll choose your number next.</span></div>}
       {signup && refCode && <div className="flex items-center gap-2 text-sm text-[#818cf8] mb-6" data-testid="auth-referral-note"><Check className="w-4 h-4" />A friend invited you — you get a welcome credit after your first number.</div>}
       <GoogleButton dest={dest} signup={signup} refCode={refCode} onMfa={setMfa} />
       <form onSubmit={submit} className="space-y-4">
