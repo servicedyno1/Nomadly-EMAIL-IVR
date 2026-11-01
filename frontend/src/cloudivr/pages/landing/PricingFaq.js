@@ -30,14 +30,13 @@ function PlanCard({ p, plans, hot, start, delay }) {
 
 // The 4th plan: texting on a number the customer already has (calls stay with their carrier).
 function TextingCard({ t, start, delay }) {
-  const pts = [`${t.inbound} incoming texts/month included`, 'Keep your number and your calls', 'Read every text in the app', `Extra numbers ${usd(t.extra)} each`];
+  const pts = ['Incoming texts are free', 'Keep your number and your calls', 'Read every text in the app', 'US & Canada landline or toll-free'];
   return (
     <Reveal delay={delay} className="civr-l-card-cream p-8 flex flex-col" data-testid="civr-plan-card-texting">
       <div className="flex items-center justify-between gap-2"><div className="text-lg font-semibold text-slate-900">Texting plan</div><span className="w-9 h-9 rounded-xl bg-slate-100 text-slate-900 grid place-items-center"><MessageSquareText className="w-4 h-4" /></span></div>
       <div className="civr-l-h text-5xl text-slate-900 mt-6" data-testid="pricing-price-texting">{usd(t.setup)}<span className="text-base font-medium tracking-normal text-slate-500"> to start</span></div>
-      <div className="text-sm text-slate-500 mt-2" data-testid="pricing-allowance-texting">{`then ${usd(t.monthly)}/month · for the business number you already have`}</div>
+      <div className="text-sm text-slate-500 mt-2" data-testid="pricing-allowance-texting">{`first month included, then ${usd(t.monthly)}/month · receive texts on the number you already have`}</div>
       <ul className="mt-6 pt-6 border-t civr-l-rule flex-1 space-y-2.5 text-sm text-slate-700">{pts.map(x => <li key={x} className="flex gap-2"><Check className="w-4 h-4 mt-0.5 text-emerald-600 shrink-0" />{x}</li>)}</ul>
-      <p className="text-xs text-slate-500 mt-4" data-testid="pricing-texting-addon">{`Already on Starter, Pro or Business? Add texting from ${usd(t.addOn.business)} per number, no monthly fee.`}</p>
       <Link to={start('texting')} className="civr-l-btn civr-l-btn-ghost mt-8 w-full" data-testid="pricing-choose-texting"><Slide>Start texting</Slide></Link>
     </Reveal>
   );

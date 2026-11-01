@@ -4,7 +4,7 @@ import { ArrowRight, Captions, MessageSquareText } from 'lucide-react';
 import { cp } from '../../paths';
 
 const ITEMS = [
-  ['texting', MessageSquareText, 'Landline to Texting', 'Get texts on the business number you already have, on the Texting plan or as an add-on.', '/app/texting'],
+  ['texting', MessageSquareText, 'Landline to Texting', 'Get texts on the business number you already have. Incoming texts are free.', '/app/texting'],
   ['text-call', Captions, 'Text-to-voice calls', 'Type and a natural voice speaks for you; read what they say live.', '/app/text-call'],
 ];
 

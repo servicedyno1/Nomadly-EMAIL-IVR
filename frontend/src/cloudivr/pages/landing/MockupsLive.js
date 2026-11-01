@@ -176,7 +176,7 @@ export function TextCallMock() {
   );
 }
 
-const LANDLINE = [['in', 'Hi, is this the dental office on Main St?'], ['out', 'Yes! This is Sunrise Dental. How can we help?'], ['in', 'Can I move my cleaning to Friday?'], ['out', 'Done — Friday 2:30 pm. See you then.']];
+const LANDLINE = [['in', 'Hi, is this the dental office on Main St?'], ['in', 'Can I move my cleaning to Friday?'], ['in', 'Running 10 min late, sorry!']];
 
 // The office landline gets texts: an "enabled" badge, then the thread fills in.
 export function LandlineTextMock() {

@@ -3579,5 +3579,21 @@
 "can text {0} countries": "peut écrire vers {0} pays",
 "can text {0} country": "peut écrire vers {0} pays",
 "receiving only": "réception uniquement",
-"Texting US mobiles from this number needs business texting registration (10DLC) first. Receiving works now.": "Pour écrire aux mobiles américains depuis ce numéro, l’enregistrement SMS professionnel (10DLC) est d’abord nécessaire. La réception fonctionne déjà."
+"Texting US mobiles from this number needs business texting registration (10DLC) first. Receiving works now.": "Pour écrire aux mobiles américains depuis ce numéro, l’enregistrement SMS professionnel (10DLC) est d’abord nécessaire. La réception fonctionne déjà.",
+"${0} once, includes your first month. Then ${1}/month from your wallet. Incoming texts are free.": "{0} $ une fois, premier mois inclus. Puis {1} $/mois depuis votre portefeuille. Les SMS reçus sont gratuits.",
+"Your business number, with country code": "Votre numéro professionnel, avec indicatif",
+"Receives texts only. Your customers text this number and you read every message here. Usually live within {0}.": "Réception de SMS uniquement. Vos clients écrivent à ce numéro et vous lisez chaque message ici. Généralement actif sous {0}.",
+"Texting plan · next ${0} on {1} · incoming texts are free": "Forfait SMS · prochain {0} $ le {1} · SMS reçus gratuits",
+"No texts yet. Ask someone to text this number to see it arrive here.": "Pas encore de SMS. Demandez à quelqu’un d’écrire à ce numéro pour le voir arriver ici.",
+"once per number · includes the first month": "une fois par numéro · premier mois inclus",
+"per month after that": "par mois ensuite",
+"Free": "Gratuit",
+"incoming texts, as many as you get": "SMS reçus, autant que vous en recevez",
+"Incoming texts are free": "Les SMS reçus sont gratuits",
+"US & Canada landline or toll-free": "Fixe ou gratuit États-Unis et Canada",
+"first month included, then ${0}/month · receive texts on the number you already have": "premier mois inclus, puis {0} $/mois · recevez des SMS sur votre numéro actuel",
+"Your customers already know your office or landline number — now they can text it. We switch on incoming texts for your existing US or Canada number while your calls stay with your current carrier. Read every text in the CloudIVR app. $200 to start, then $50/month, incoming texts free.": "Vos clients connaissent déjà votre numéro de bureau ou fixe — désormais ils peuvent lui écrire. Nous activons la réception de SMS sur votre numéro des États-Unis ou du Canada, vos appels restent chez votre opérateur. Lisez chaque SMS dans l’app CloudIVR. 200 $ pour commencer, puis 50 $/mois, SMS reçus gratuits.",
+"Get texts on the business number you already have. Incoming texts are free.": "Recevez des SMS sur votre numéro professionnel actuel. Les SMS reçus sont gratuits.",
+"This number receives texts only.": "Ce numéro reçoit uniquement des SMS.",
+"Running 10 min late, sorry!": "J’ai 10 min de retard, désolé !"
 }

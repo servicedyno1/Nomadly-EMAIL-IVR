@@ -103,7 +103,7 @@ const catalog = () => {
     sipDomain: phoneConfig.WEB_SIP_DOMAIN, dryRun: dryRun(), livePayments: livePayments(),
     // Cards show as "coming soon" on the site until this is true (the checkout's card option is still disabled too).
     cardPayments: String(process.env.CLOUDIVR_CARD_PAYMENTS || '').toLowerCase() === 'true',
-    texting: (({ TEXTING, PLAN_PRICE, PLAN_LIMIT, TEXT_PRICE }) => ({ ...TEXTING, textPrice: TEXT_PRICE, addOn: PLAN_PRICE, addOnLimits: PLAN_LIMIT }))(require('../hosted-sms.js')),
+    texting: require('../hosted-sms.js').TEXTING,
     extraNumber: { price: phoneConfig.SUB_NUMBER_BASE_PRICE, limits: Object.fromEntries(Object.keys(phoneConfig.plans).map(id => [id, phoneConfig.getSubNumberLimit(id)])) },
   }
 }

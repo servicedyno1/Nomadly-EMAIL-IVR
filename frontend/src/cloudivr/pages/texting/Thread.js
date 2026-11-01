@@ -6,7 +6,7 @@ import { ErrorNote } from '../../ui';
 import { useShell } from '../../Shell';
 import { ReachChip, useDestCheck, DestNote } from '../../SmsReach';
 
-// Texts on a hosted number (newest last) + compose.
+// Texts on a hosted number (newest last). Texting-plan numbers are receive-only; older add-on numbers can compose.
 export function Thread({ item, meta }) {
   const { refreshSummary } = useShell();
   const box = useRef(null);
@@ -16,7 +16,8 @@ export function Thread({ item, meta }) {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
   const rows = [...(data?.messages || [])].reverse();
-  const dest = useDestCheck(item.status === 'active' ? item.phoneNumber : null, to);
+  const canSend = item.status === 'active' && item.plan !== 'texting';
+  const dest = useDestCheck(canSend ? item.phoneNumber : null, to);
   const blocked = dest ? !dest.ok : false;
   useEffect(() => { if (box.current) box.current.scrollTop = box.current.scrollHeight; }, [rows.length]);
   const send = async () => {
@@ -25,26 +26,26 @@ export function Thread({ item, meta }) {
   };
   return (
     <div className="space-y-4" data-testid="texting-thread">
-      {item.status === 'active' && <ReachChip phone={item.phoneNumber} testid="texting-reach" />}
+      {canSend && <ReachChip phone={item.phoneNumber} testid="texting-reach" />}
       <div ref={box} className="max-h-80 overflow-y-auto space-y-2 pr-1" data-testid="texting-messages">
-        {!rows.length && <p className="text-sm text-[#a1a1aa]">No texts yet.</p>}
+        {!rows.length && <p className="text-sm text-[#a1a1aa]" data-testid="texting-no-messages">{item.status === 'active' ? 'No texts yet. Ask someone to text this number to see it arrive here.' : 'No texts yet.'}</p>}
         {rows.map(m => (
           <div key={m.id || m.at} className={`flex ${m.direction === 'outbound' ? 'justify-end' : ''}`}>
-            <button type="button" onClick={() => m.direction === 'inbound' && setTo(m.from)} className={`max-w-[80%] text-left rounded-2xl px-4 py-2 text-sm ${m.direction === 'outbound' ? 'bg-[#818cf8]/15' : 'bg-[#1a1a1a]'}`} data-testid="texting-message">
+            <button type="button" onClick={() => canSend && m.direction === 'inbound' && setTo(m.from)} className={`max-w-[80%] text-left rounded-2xl px-4 py-2 text-sm ${m.direction === 'outbound' ? 'bg-[#818cf8]/15' : 'bg-[#1a1a1a]'}`} data-testid="texting-message">
               <div className="text-xs text-[#a1a1aa] mb-0.5 font-mono">{m.direction === 'outbound' ? `to ${m.to}` : `from ${m.from}`} · {new Date(m.at).toLocaleString()}</div>
               {m.body}
             </button>
           </div>
         ))}
       </div>
-      {item.status === 'active' && (
+      {canSend && (
         <div className="grid sm:grid-cols-[200px_1fr_auto] gap-2">
           <input className="civr-input font-mono" value={to} onChange={e => setTo(e.target.value)} placeholder="To +1…" data-testid="texting-to-input" />
           <input className="civr-input" value={text} maxLength={meta.maxText} onChange={e => setText(e.target.value)} onKeyDown={e => e.key === 'Enter' && to && text && !busy && !blocked && send()} placeholder={`Message (${meta.maxText - text.length} left)`} data-testid="texting-text-input" />
           <button type="button" onClick={send} disabled={busy || blocked || !to || !text.trim()} className="civr-btn civr-btn-primary" data-testid="texting-send-button">{busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}Send</button>
         </div>
       )}
-      {item.status === 'active' && <DestNote check={dest} testid="texting-dest-note" />}
+      {canSend && <DestNote check={dest} testid="texting-dest-note" />}
       <ErrorNote error={err} testid="texting-send-error" />
     </div>
   );

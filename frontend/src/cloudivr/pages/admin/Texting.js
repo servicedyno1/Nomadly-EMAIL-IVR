@@ -39,7 +39,7 @@ function Row({ x, reload }) {
     <div className="civr-card p-4 space-y-3" data-testid={`admin-hosted-${x.id}`}>
       <div className="flex flex-wrap items-center gap-3">
         <b className="tabular-nums">{x.phoneNumber}</b><Pill tone={tone}>{label}</Pill>{x.noBill && <Pill tone="warn">Asked support</Pill>}
-        <span className="text-xs text-[#a1a1aa]">{x.email || x.chatId} · {x.plan === 'texting' ? (x.planNumber ? `Texting plan of ${x.planNumber}` : 'Texting plan') : x.plan ? `${x.plan} plan ${x.planNumber}` : 'legacy'} · paid {fmt(x.paid)} · {x.mode === 'code' ? 'code verified' : x.mode === 'nocode' ? 'letter + bill' : 'code pending'}{x.telnyxOrderId ? ` · Telnyx ${x.telnyxOrderId}` : ''} · started {dt(x.createdAt)}</span>
+        <span className="text-xs text-[#a1a1aa]">{x.email || x.chatId} · {x.plan === 'texting' ? 'Texting plan' : x.plan ? `${x.plan} plan ${x.planNumber}` : 'legacy'} · paid {fmt(x.paid)} · {x.mode === 'code' ? 'code verified' : x.mode === 'nocode' ? 'letter + bill' : 'code pending'}{x.telnyxOrderId ? ` · Telnyx ${x.telnyxOrderId}` : ''} · started {dt(x.createdAt)}</span>
       </div>
       {x.holder && <div className="text-sm text-[#d4d4d8]">Holder: <b>{h.name}</b>{h.business ? ` (${h.business})` : ''} · {[h.address, h.city, h.state, h.zip].filter(Boolean).join(', ')} · carrier {h.carrier || '—'}{h.account ? ` · acct ${h.account}` : ''}</div>}
       {x.note && <div className="text-sm text-[#fbbf24]">{x.note}</div>}

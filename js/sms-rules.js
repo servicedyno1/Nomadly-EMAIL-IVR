@@ -72,7 +72,7 @@ function rule(phone, f, c, senderName, isHosted) {
     if (iso !== 'US' && iso !== 'CA') return { ok: false, mode: 'blocked', price, why: 'Toll-free numbers can only text the US and Canada.' }
     return f.tollFreeOk ? { ok: true, mode: 'number', price } : { ok: false, mode: 'approval', price, why: 'This toll-free number needs texting approval before it can send.' }
   }
-  if (iso === 'US' && !(f.tenDlc || f.product === 'P2P')) return { ok: false, mode: 'approval', price, why: isHosted ? 'Texting US mobiles from this number needs business texting registration (10DLC) first. Receiving works now.' : 'US mobile carriers need business texting approval (10DLC) for this number first. Receiving works now.' }
+  if (iso === 'US' && !(f.tenDlc || f.product === 'P2P')) return { ok: false, mode: 'approval', price, why: isHosted ? 'This number receives texts only.' : 'US mobile carriers need business texting approval (10DLC) for this number first. Receiving works now.' }
   if (mode === 'blocked') return { ok: false, mode, price, why: `${name} ${BLOCKED_WHY}.` }
   if (mode === 'brand' && f.product !== 'P2P') {
     if (!senderName) return { ok: false, mode: 'brand', price, why: `${name} shows a sender name instead of a number — add your sender name in Settings first.` }

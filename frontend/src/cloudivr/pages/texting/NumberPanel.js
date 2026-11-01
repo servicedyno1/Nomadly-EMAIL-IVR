@@ -34,11 +34,7 @@ export function NumberPanel({ item, meta, onChange }) {
       {item.status === 'review' && <Info icon={Hourglass} text={`${item.mode === 'code' ? 'Ownership confirmed with the code. Your number is' : 'Your documents are'} with the carrier${item.docsAt ? ` since ${String(item.docsAt).slice(0, 10)}` : ''}. Usually approved within 1–3 business days${item.expectedBy ? ` — expected by ${String(item.expectedBy).slice(0, 10)}` : ''}. We’ll message your Inbox the moment texting is on.`} testid="texting-review" />}
       {item.status === 'paused' && <Info icon={PauseCircle} text={item.planNumber ? `Texting is paused because the plan on ${item.planNumber} isn’t active. Renew that plan and texting turns back on by itself.` : `Texting is paused because the $${item.monthly} monthly fee couldn’t be paid. Top up your wallet and it turns back on within a day.`} testid="texting-paused" />}
       {item.status === 'rejected' && <Info icon={XCircle} text={`This number couldn’t be text-enabled. $${item.paid} was refunded to your wallet.`} testid="texting-rejected" />}
-      {item.status === 'active' && <div className="text-xs text-[#a1a1aa] space-y-1" data-testid="texting-billing">
-        <p>{item.planNumber ? `Texting add-on · renews with your ${item.plan[0].toUpperCase() + item.plan.slice(1)} plan on ${item.planNumber}, no monthly fee` : `Texting plan · next $${item.monthly} on ${String(item.nextBillAt || '').slice(0, 10)}`}</p>
-        {item.inboundIncluded ? <p data-testid="texting-inbound-used">{`${item.inboundUsed} of ${item.inboundIncluded} included incoming texts used this month`}</p> : null}
-        <p>{`Then $${meta.textPrice.toFixed(2)} per text. Incoming texts also land in your Inbox.`}</p>
-      </div>}
+      {item.status === 'active' && <p className="text-xs text-[#a1a1aa]" data-testid="texting-billing">{item.planNumber ? `Texting add-on · renews with your ${item.plan[0].toUpperCase() + item.plan.slice(1)} plan on ${item.planNumber}, no monthly fee` : `Texting plan · next $${item.monthly} on ${String(item.nextBillAt || '').slice(0, 10)} · incoming texts are free`}</p>}
       {['active', 'paused'].includes(item.status) && <Thread item={item} meta={meta} />}
       {['verify', 'loa', 'documents', 'admin_docs'].includes(item.status) && <CancelButton item={item} onChange={onChange} />}
     </div>
