@@ -34,7 +34,7 @@ export function DateTimePicker({ value, onChange, testid, maxDays = 30, minMinut
             {d ? d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }) : <span className="text-[#a1a1aa]">Not scheduled</span>}
           </button>
         </PopoverTrigger>
-        <PopoverContent className="w-auto p-0 bg-[#141414] border-[#2a2a2a] text-[#f3f4f6]" align="start" data-testid={`${testid}-calendar`}>
+        <PopoverContent className="w-auto p-0 bg-[var(--c-card)] border-[var(--c-border)] text-[var(--c-text)]" align="start" data-testid={`${testid}-calendar`}>
           <Calendar mode="single" selected={d || undefined} onSelect={(day) => day && pickDay(day)} disabled={[{ before: today }, { after: max }]} initialFocus />
         </PopoverContent>
       </Popover>

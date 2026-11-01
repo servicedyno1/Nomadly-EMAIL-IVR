@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { toast } from 'sonner';
-import { X, Loader2, Sparkles, Clock, Trash2 } from 'lucide-react';
+import { X, Loader2, Sparkles, Clock, Trash2, ChevronDown } from 'lucide-react';
 import { api } from '../../api';
 import { timeOf, dayOf } from './Events';
 
@@ -31,14 +31,15 @@ export function ContactPanel({ t, onSaved, onClose }) {
 }
 
 export function AiCard({ ai, onPick }) {
+  const [open, setOpen] = useState(() => typeof window === 'undefined' || window.innerWidth >= 768);
   if (!ai) return null;
   return (
-    <div className="rounded-2xl border border-[var(--c-border)] bg-[var(--c-accent-soft)] p-4 mb-3 space-y-2" data-testid="thread-ai-summary">
-      <div className="flex items-center gap-2 text-sm font-semibold"><Sparkles className="w-4 h-4 text-[var(--c-accent)]" />AI summary{ai.updating && <Loader2 className="w-3.5 h-3.5 animate-spin text-[var(--c-muted)]" aria-label="Updating" />}</div>
-      {ai.summary ? <p className="text-sm" data-no-translate data-testid="thread-ai-summary-text">{ai.summary}</p> : <p className="text-sm text-[var(--c-muted)]">Summarizing this conversation…</p>}
-      {ai.replies?.length > 0 && <div className="flex flex-wrap gap-1.5 pt-1" data-testid="thread-ai-replies">
+    <div className="mx-3 sm:mx-5 mt-3 rounded-2xl border border-[var(--c-border)] bg-[var(--c-accent-soft)] p-3 sm:p-4 space-y-2" data-testid="thread-ai-summary">
+      <button type="button" onClick={() => setOpen(o => !o)} aria-expanded={open} className="w-full flex items-center gap-2 text-sm font-semibold text-left" data-testid="thread-ai-toggle"><Sparkles className="w-4 h-4 text-[var(--c-accent)]" />AI summary{ai.updating && <Loader2 className="w-3.5 h-3.5 animate-spin text-[var(--c-muted)]" aria-label="Updating" />}<ChevronDown className={`w-4 h-4 ml-auto transition-transform ${open ? 'rotate-180' : ''}`} /></button>
+      {ai.summary ? <p className={`text-sm ${open ? '' : 'line-clamp-1'}`} data-no-translate data-testid="thread-ai-summary-text">{ai.summary}</p> : <p className="text-sm text-[var(--c-muted)]">Summarizing this conversation…</p>}
+      {open && ai.replies?.length > 0 && <div className="flex flex-wrap gap-1.5 pt-1" data-testid="thread-ai-replies">
         <span className="text-xs text-[var(--c-muted)] w-full">Suggested replies</span>
-        {ai.replies.map((r, i) => <button key={r} type="button" onClick={() => onPick(r)} className="text-left text-xs px-3 py-1.5 rounded-full border border-[var(--c-border)] bg-[var(--c-card)] hover:border-[var(--c-accent)] transition-colors" data-no-translate data-testid={`thread-ai-reply-${i}`}>{r}</button>)}
+        {ai.replies.map((r, i) => <button key={`${i}-${r}`} type="button" onClick={() => onPick(r)} className="text-left text-xs px-3 py-1.5 rounded-full border border-[var(--c-border)] bg-[var(--c-card)] hover:border-[var(--c-accent)] transition-colors" data-no-translate data-testid={`thread-ai-reply-${i}`}>{r}</button>)}
       </div>}
     </div>
   );
@@ -46,14 +47,14 @@ export function AiCard({ ai, onPick }) {
 
 export function ScheduledList({ items, reload }) {
   if (!items?.length) return null;
-  const cancel = async (id) => { try { await api(`/messages/schedule/${id}`, { method: 'DELETE' }); toast.success('Scheduled text cancelled'); reload(); } catch (e) { toast.error(e.message); } };
+  const cancel = async (id) => { const failed = items.find(x => x.id === id)?.status === 'failed'; try { await api(`/messages/schedule/${id}`, { method: 'DELETE' }); if (!failed) toast.success('Scheduled text cancelled'); reload(); } catch (e) { toast.error(e.message); } };
   return (
     <div className="border-t border-[var(--c-border)] px-3 pt-2 space-y-1.5" data-testid="scheduled-list">
       {items.map(s => (
         <div key={s.id} className={`flex items-start gap-2 text-xs rounded-xl px-3 py-2 ${s.status === 'failed' ? 'bg-[#fb7185]/10 text-[#e11d48]' : 'bg-[var(--c-card-hover)]'}`} data-testid={`scheduled-${s.id}`}>
           <Clock className="w-3.5 h-3.5 mt-0.5 shrink-0" />
           <span className="flex-1 min-w-0"><span className="font-semibold">{s.status === 'failed' ? 'Not sent' : `Scheduled · ${dayOf(s.sendAt)} ${timeOf(s.sendAt)}`}</span> <span className="text-[var(--c-muted)]" data-no-translate>{s.text}{s.media?.length ? ` (+${s.media.length} picture)` : ''}</span>{s.error && <span className="block">{s.error}</span>}</span>
-          {s.status === 'scheduled' && <button type="button" onClick={() => cancel(s.id)} className="w-8 h-8 -my-1 grid place-items-center rounded-full hover:bg-[var(--c-accent-soft)]" aria-label="Cancel scheduled text" data-testid={`scheduled-cancel-${s.id}`}><Trash2 className="w-3.5 h-3.5" /></button>}
+          <button type="button" onClick={() => cancel(s.id)} className="w-8 h-8 -my-1 grid place-items-center rounded-full hover:bg-[var(--c-accent-soft)]" aria-label={s.status === 'failed' ? 'Dismiss' : 'Cancel scheduled text'} data-testid={`scheduled-cancel-${s.id}`}>{s.status === 'failed' ? <X className="w-3.5 h-3.5" /> : <Trash2 className="w-3.5 h-3.5" />}</button>
         </div>
       ))}
     </div>

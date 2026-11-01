@@ -1,0 +1,44 @@
+{
+  "summary": "Iter190 Messages extras tested end-to-end (backend pytest + Playwright desktop 1920, mobile 390, Spanish). Contact notes/tags, tag filter, search on notes/tags, scheduled texts (validation, cancel, 20s worker send to CA, failure to US 10DLC -> status failed + error + Inbox webNotifications kind sms + no charge), AI summary (real OpenAI) with <=3 replies, null for <10 events, no replies when canText false, all work. 'For you' removed from sidebar and mobile More. One backend bug: ?tag filter is bypassed when ?q also matches notes/tags of other contacts. iter189 regression (non-replace subset) 12/12 pass.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/cloudivr-web/messages?tag=X&q=Y", "issue": "The tag filter runs before the notes/tags search adds extra threads (messages.js lines 151-158). Those added threads skip the tag check, so ?tag=Lead&q=test_kiwi returned +15125550199 (no Lead tag) because its notes matched. Fix: apply the tag filter after the q merge, or filter `all` by tag too. In the UI this happens when the user picks a tag and also types a search."},
+      {"endpoint": "messages-extra.js summaryFor", "issue": "If the OpenAI call fails (ai() returns null), no summary doc is written. With cur null there is no 2-minute throttle, so every 8 s poll retries OpenAI and the card stays on 'Summarizing…' forever. Store a failure timestamp so retries are throttled too."},
+      {"endpoint": "messages-extra.js runDue", "issue": "A doc stays in status 'sending' forever if the process crashes mid-send; nothing recovers it. schedule() also doesn't check that the media ids exist or fit the size limit, so bad media only fails at send time. Both are low risk."},
+      {"endpoint": "PUT /messages/contact", "issue": "contact isn't checked against the account's threads (any string is upserted). Minor."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {"flow": "Tag filter + search together", "issue": "Shows threads without the selected tag (backend bug above)", "affected_selectors": ["messages-tag-filter", "messages-search"]}
+    ],
+    "design_issues": [
+      {"screen": "Thread on mobile 390px", "issues": ["Header is very cramped. The contact number is cut to '+1416…', and the 'to +1334… · Calling number', caps chips and tag chips stack in one column about 220px tall. With the Notes panel open, almost no event area is left. Suggestion: move caps/tags to one horizontal scrolling row, or hide caps on mobile."]},
+      {"screen": "Composer schedule picker", "issues": ["The calendar popover is hard-coded dark (#141414) while the app is in light theme. Time uses the browser's native input type=time ('-- : -- --')."]},
+      {"screen": "Scheduled list", "issues": ["The success toast at bottom-right sits over the scheduled-cancel button area right after scheduling. 'Not sent' failed items can't be dismissed (they stay 3 days)."]},
+      {"screen": "AI summary", "issues": ["Suggested replies can contain placeholders such as '[link]'; tell the prompt to avoid placeholders. The card sits at the top of thread-events, so on long threads it's out of view after the auto-scroll to the bottom."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_messages_extras_iter190.py", "/app/test_reports/pytest/pytest_iter190.xml", "/app/backend/tests/test_messages_replace_iter189.py"],
+  "action_items": [
+    "Fix GET /messages so ?tag still applies to threads added by the notes/tags search",
+    "Throttle AI summary retries when OpenAI fails (store a failure 'at')",
+    "Improve the mobile thread header layout (tags + caps chips)",
+    "Make the DateTimePicker popover follow the theme (light mode)",
+    "Optional: prompt the AI to avoid placeholders like [link]; recover stuck 'sending' scheduled docs"
+  ],
+  "critical_code_review_comments": [
+    "messages.js GET /messages calls M.threads twice when q matches meta; merge order breaks the tag filter",
+    "summaryFor returns updating:true during the 2-min 'recent' window, so the spinner shows even when no AI work is running",
+    "AiCard uses key={r}; duplicate replies would collide (minor)"
+  ],
+  "updated_files": ["/app/backend/tests/test_messages_extras_iter190.py"],
+  "success_rate": {"backend": "94% (16/17 iter190 + 12/12 iter189 regression)", "frontend": "100% of requested flows work; design notes only"},
+  "seed_data_creation": "Tests seed phoneLogs with seed TEST_iter190 (+14165550190, +14165550191) and remove them. Teardown also deletes TEST_iter190 sent logs and scheduled docs and restores +14165550188 notes/tags and Alice's wallet. A +15125550199 webThreadMeta doc with empty notes/tags remains (harmless).",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run pytest backend/tests/test_messages_extras_iter190.py (~90 s, it waits for the 20 s scheduled worker). test_tag_filter_combined_with_note_search reproduces the tag+q bug. UI: login with auth-email-input / input[type=password] / auth-submit-button. Thread URL /cloudivr/app/messages?number=%2B13346972125&contact=%2B14165550188. Calendar day buttons are [data-testid=composer-schedule-picker-calendar] button[name=day]. The mobile More backdrop is mostly covered by the menu; use goto instead of clicking it. Spanish labels verified (Resumen IA, Notas y etiquetas, Enviar más tarde, Todas las etiquetas, Añadir etiqueta).",
+  "rca of the issue": "Tag+q bug: in messages.js routes() GET /messages, `threads` is filtered by tag at line 151. The q-meta branch (lines 153-158) then appends `all` threads whose notes/tags match q without re-applying the tag. Repro: tag +15125550199 notes 'TEST_kiwi', then GET /messages?tag=Lead&q=test_kiwi -> it's included. Fix: run `if (tag) threads = threads.filter(...)` after the q merge."
+}

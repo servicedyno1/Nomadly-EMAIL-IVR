@@ -45,13 +45,13 @@ function Header({ t, onBack, reload, onNotes }) {
       <button type="button" onClick={onBack} className="md:hidden w-11 h-11 -ml-2 grid place-items-center rounded-full" aria-label="Back to conversations" data-testid="thread-back"><ArrowLeft className="w-5 h-5" /></button>
       <div className="min-w-0 flex-1">
         <div className="font-semibold truncate" data-testid="thread-title">{t.name || <span className="font-mono" data-no-translate>{t.contact}</span>}</div>
-        <div className="text-xs text-[var(--c-muted)] flex flex-wrap items-center gap-x-2 gap-y-1">
+        <div className="text-xs text-[var(--c-muted)] flex items-center gap-x-2 gap-y-1 overflow-x-auto sm:flex-wrap whitespace-nowrap">
           {t.name && <span className="font-mono" data-no-translate>{t.contact}</span>}
-          <span>to <span className="font-mono" data-no-translate>{t.number.phone}</span> · {KIND[t.number.kind]}</span><Caps n={t.number} />
+          <span>to <span className="font-mono" data-no-translate>{t.number.phone}</span><span className="hidden sm:inline"> · {KIND[t.number.kind]}</span></span><span className="hidden sm:inline-flex"><Caps n={t.number} /></span>
           {t.tags?.map(x => <span key={x} className="text-[11px] px-2 py-0.5 rounded-full bg-[var(--c-accent-soft)] text-[var(--c-accent)]" data-no-translate data-testid={`thread-tag-${x}`}>{x}</span>)}
         </div>
       </div>
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
         <button type="button" onClick={call} className="civr-btn civr-btn-primary civr-btn-sm" aria-label={missed ? 'Call back' : 'Call'} data-testid="thread-call"><Phone className="w-4 h-4" /><span className="hidden sm:inline">{missed ? 'Call back' : 'Call'}</span></button>
         <SaveContact t={t} onSaved={reload} />
         <button type="button" onClick={onNotes} className="civr-btn civr-btn-ghost civr-btn-sm" aria-label="Notes and tags" data-testid="thread-notes"><StickyNote className="w-4 h-4" /><span className="hidden sm:inline">Notes</span></button>
@@ -89,8 +89,8 @@ export function Thread({ number, contact, onBack, onChange }) {
     <div className="flex flex-col h-full min-h-0 civr-thread-in" data-testid="thread">
       <Header t={t} onBack={onBack} reload={load} onNotes={() => setNotesOpen(o => !o)} />
       {notesOpen && <ContactPanel t={t} onSaved={() => { load(); onChange(); }} onClose={() => setNotesOpen(false)} />}
+      {!notesOpen && <AiCard ai={t.ai} onPick={(text) => setSeed({ text, n: Date.now() })} />}
       <div className="flex-1 min-h-0 overflow-y-auto px-3 sm:px-5 py-3" aria-live="polite" data-testid="thread-events">
-        <AiCard ai={t.ai} onPick={(text) => setSeed({ text, n: Date.now() })} />
         {t.number.old && <p className="text-xs text-center text-[#b45309] mb-2" data-testid="thread-old-number">Old number: replaced by <span className="font-mono" data-no-translate>{t.number.old.newNumber}</span>{t.number.kind === 'calling' && t.number.old.until ? `, keeps working until ${new Date(t.number.old.until).toLocaleDateString()}` : ''}</p>}
         <Timeline events={t.events} onView={setView} />
         <div ref={end} />

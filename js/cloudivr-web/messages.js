@@ -148,7 +148,6 @@ function routes(r, { db, h, numbersApi, smsReply }) {
     const [d, meta] = await Promise.all([M.threads(req.webChatId, { filter: String(req.query.filter || 'all'), q: String(req.query.q || '').slice(0, 80) }), X.metaMap(req.webChatId)])
     const tag = String(req.query.tag || '')
     let threads = d.threads.map(t => ({ ...t, tags: meta[t.contact]?.tags || [] }))
-    if (tag) threads = threads.filter(t => t.tags.includes(tag))
     const q = String(req.query.q || '').trim().toLowerCase()
     if (q) {
       const extra = Object.values(meta).filter(m => (m.notes || '').toLowerCase().includes(q) || (m.tags || []).some(x => x.toLowerCase().includes(q))).map(m => m.contact)
@@ -157,6 +156,7 @@ function routes(r, { db, h, numbersApi, smsReply }) {
         threads = [...threads, ...all.map(t => ({ ...t, tags: meta[t.contact]?.tags || [] }))]
       }
     }
+    if (tag) threads = threads.filter(t => t.tags.includes(tag))
     res.json({ ...d, threads, allTags: await X.tagsOf(req.webChatId) })
   }))
   r.get('/messages/unread', h(async (req, res) => res.json({ unread: await M.unreadCount(req.webChatId) })))

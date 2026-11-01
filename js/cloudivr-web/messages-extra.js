@@ -15,7 +15,7 @@ async function ai(lines, canText) {
     const r = await axios.post('https://api.openai.com/v1/chat/completions', {
       model: process.env.AI_AGENT_SUMMARY_MODEL || 'gpt-4.1-mini', temperature: 0.3, response_format: { type: 'json_object' },
       messages: [
-        { role: 'system', content: `You help a small business owner keep up with a conversation with one customer (texts, voicemails, calls). Write in the language the customer uses. Reply as JSON {"summary": "2-3 short sentences: who they are, what they want, what was agreed, what is still open", "replies": [${canText ? '"up to 3 short text replies the owner could send next, under 160 characters each, friendly and specific"' : ''}]}.` },
+        { role: 'system', content: `You help a small business owner keep up with a conversation with one customer (texts, voicemails, calls). Write in the language the customer uses. Reply as JSON {"summary": "2-3 short sentences: who they are, what they want, what was agreed, what is still open", "replies": [${canText ? '"up to 3 short text replies the owner could send next, under 160 characters each, friendly and specific, ready to send as is: no placeholders or brackets like [link] or [name]"' : ''}]}.` },
         { role: 'user', content: lines.join('\n').slice(-12000) },
       ],
     }, { headers: { Authorization: `Bearer ${process.env.APP_OPEN_API_KEY}` }, timeout: 30000 })
@@ -60,16 +60,24 @@ function create({ db, M, log = console.log }) {
     if (!body && !media.length) return { error: 'Type a message.' }
     if (body.length > t.maxLength) return { error: `Keep it to ${t.maxLength} characters.` }
     if (media.length && !t.number.caps.pictures) return { error: 'This number can’t send pictures.' }
+    const ids = media.slice(0, 5).map(String)
+    const pics = ids.length ? await db.collection('webMedia').find({ _id: { $in: ids }, chatId: String(chatId), isDeleted: false }).toArray() : []
+    if (pics.length !== ids.length) return { error: 'A picture couldn’t be found. Attach it again.' }
+    if (pics.reduce((a, p) => a + p.size, 0) > 600 * 1024) return { error: 'Pictures must be under 600 KB in total.' }
     const doc = { _id: 'st_' + crypto.randomBytes(6).toString('hex'), chatId: String(chatId), number, contact, text: body, media: media.slice(0, 5).map(String), sendAt: at, status: 'scheduled', createdAt: new Date() }
     await sched.insertOne(doc)
     return { item: pubSched(doc) }
   }
   const pubSched = (d) => ({ id: d._id, text: d.text, media: (d.media || []).map(id => ({ id })), sendAt: d.sendAt, status: d.status, error: d.error || null })
   async function cancelSched(chatId, id) {
-    const r = await sched.updateOne({ _id: String(id), chatId: String(chatId), status: 'scheduled' }, { $set: { status: 'cancelled', updatedAt: new Date() } })
+    const r = await sched.updateOne({ _id: String(id), chatId: String(chatId), status: { $in: ['scheduled', 'failed'] } }, { $set: { status: 'cancelled', updatedAt: new Date() } })
     return r.modifiedCount ? { ok: true } : { error: 'That text was already sent or cancelled.' }
   }
   async function runDue() {
+    // A send cut off by a restart is not retried (it may have gone out); the owner is told.
+    for (const s of await sched.find({ status: 'sending', updatedAt: { $lt: new Date(Date.now() - 5 * 60000) } }).limit(20).toArray()) {
+      await sched.updateOne({ _id: s._id }, { $set: { status: 'failed', error: 'We couldn’t confirm this text was sent. Check the conversation before sending it again.', updatedAt: new Date() } })
+    }
     for (;;) {
       const d = await sched.findOneAndUpdate({ status: 'scheduled', sendAt: { $lte: new Date() } }, { $set: { status: 'sending', updatedAt: new Date() } }, { returnDocument: 'after' })
       const doc = d && d.value !== undefined ? d.value : d
@@ -91,14 +99,15 @@ function create({ db, M, log = console.log }) {
     const real = t.events.filter(e => !String(e.id).startsWith('tmp-'))
     if (real.length < LONG) return null
     const lastAt = new Date(real[real.length - 1].at)
-    const fresh = cur && new Date(cur.upTo) >= lastAt
-    const recent = cur && Date.now() - new Date(cur.at).getTime() < 120000
+    const fresh = cur?.summary && new Date(cur.upTo) >= lastAt
+    const recent = cur && Date.now() - new Date(cur.at || cur.failedAt).getTime() < 120000
     if (!fresh && !recent && !working.has(id)) {
       working.add(id)
-      ai(real.slice(-80).map(lineOf), t.canText).then(s => s && sums.updateOne({ _id: id }, { $set: { chatId: String(chatId), ...s, upTo: lastAt, at: new Date() } }, { upsert: true }))
+      ai(real.slice(-80).map(lineOf), t.canText).then(s => sums.updateOne({ _id: id }, { $set: s ? { chatId: String(chatId), ...s, upTo: lastAt, at: new Date() } : { chatId: String(chatId), failedAt: new Date() } }, { upsert: true }))
         .catch(e => log(`[Messages] summary: ${e.message}`)).finally(() => working.delete(id))
     }
-    return cur ? { summary: cur.summary, replies: cur.replies || [], at: cur.at, updating: !fresh } : { summary: null, replies: [], updating: true }
+    const busy = working.has(id)
+    return cur?.summary ? { summary: cur.summary, replies: cur.replies || [], at: cur.at, updating: busy } : busy ? { summary: null, replies: [], updating: true } : null
   }
 
   async function decorate(chatId, t) {

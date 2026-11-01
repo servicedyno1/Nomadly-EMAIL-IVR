@@ -2023,3 +2023,16 @@ calls and SIP are simulated; inbound calls use a pretend-call simulator).
   live SIP credential move. Orphan uploaded pictures are not cleaned up (storage has no delete API).
 - Next: owner says "push live" → deploy app-main only (active calls 0); then verify live eSIM $75, +1646 line in onarrival21 account Inbox/Messages.
 
+
+## 2026-11-01 (h) — Messages: contact notes + tags, scheduled texts, AI summary; "For you" removed — PREVIEW ONLY, NOT deployed
+- Owner choices: AI free; summary automatic on conversations with ≥10 items; free-form tags (earlier tags suggested); failed scheduled
+  text → marked failed + Inbox notice, no retry, no charge.
+- Backend `js/cloudivr-web/messages-extra.js`: `webThreadMeta` (notes, tags per contact; PUT /messages/contact), `webScheduledTexts`
+  (POST /messages/schedule, DELETE /messages/schedule/:id cancels or dismisses failed; 20 s worker sends via Messages send(); stuck
+  'sending' >5 min → failed "couldn't confirm"), `webThreadSummaries` (OpenAI gpt-4.1-mini via existing APP_OPEN_API_KEY, last 80 items,
+  refresh when new items arrive, throttled 2 min incl. failures). GET /messages adds tags, allTags, ?tag=, search also hits notes/tags.
+- Frontend: Notes panel (thread-notes), tags in header/list + tag filter, AI summary card (collapsible, collapsed by default on phones,
+  suggested reply fills composer), "Send later" with DateTimePicker (now theme-aware) and scheduled list. Sidebar + mobile "For you" removed.
+- Tested: iteration_190 (17/17 backend, all UI flows) + fixes (tag+search filter, AI retry throttle, mobile header, picker theme,
+  media check on schedule, dismiss failed). Retest pytest 17/17.
+
