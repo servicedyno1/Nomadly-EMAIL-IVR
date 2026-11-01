@@ -3658,5 +3658,7 @@
 "Want calls too?": "¿También quieres llamadas?",
 "Get a CloudIVR number for menus, forwarding and AI agents.": "Consigue un número CloudIVR para menús, desvíos y agentes IA.",
 "Landline to Texting lets customers text the office number they already call. Calls stay with your carrier.": "Mensajes desde tu fijo permite a tus clientes escribir al número de oficina al que ya llaman. Las llamadas siguen con tu operador.",
-"from {0}": "de {0}"
+"from {0}": "de {0}",
+"Microphone not allowed yet. Tap Allow microphone, then choose Allow in your browser.": "El micrófono aún no está permitido. Toca Permitir micrófono y elige Permitir en tu navegador.",
+"See all {0} numbers": "Ver los {0} números"
 }

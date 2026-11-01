@@ -16,13 +16,14 @@ export function TextingHome({ items, balance }) {
     <div className="grid lg:grid-cols-12 gap-6 items-start" data-testid="texting-home">
       <div className="lg:col-span-5 space-y-4">
         <div className="civr-label !text-[#a1a1aa]">Your texting numbers</div>
-        {live.map(x => (
+        {live.slice(0, 5).map(x => (
           <Link key={x.id} to={cp(`/app/texting?id=${enc(x.id)}`)} className="civr-card civr-card-link p-4 flex items-center gap-3" data-testid={`texting-home-number-${x.phoneNumber.replace(/\D/g, '')}`}>
             <MessageSquareText className="w-5 h-5 text-[#818cf8] shrink-0" />
             <div className="flex-1 min-w-0"><div className="font-mono" data-no-translate>{pv.phone(x.phoneNumber)}</div><div className={`text-xs mt-0.5 ${STATUS[x.status]?.tone || ''}`}>{STATUS[x.status]?.label || x.status}</div></div>
             <ArrowRight className="w-4 h-4 text-[#a1a1aa]" />
           </Link>
         ))}
+        {live.length > 5 && <Link to={cp('/app/texting')} className="inline-block py-2 text-sm text-[#818cf8] underline underline-offset-2" data-testid="texting-home-see-all">{`See all ${live.length} numbers`}</Link>}
         <Link to={cp('/app/wallet')} className="civr-card civr-card-link p-4 flex items-center gap-3" data-testid="texting-home-wallet">
           <Wallet className="w-5 h-5 text-[#818cf8]" /><div className="flex-1"><div className="text-xs text-[#a1a1aa]">Wallet</div><div className="font-mono text-xl" data-testid="texting-home-balance">{money(balance)}</div></div>
         </Link>

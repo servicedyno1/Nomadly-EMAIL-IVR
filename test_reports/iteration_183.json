@@ -1,0 +1,30 @@
+{
+  "summary": "Iter183 (preview DRY RUN). Tested browser-phone mic permission handling, the texting-only Overview, the GET /hosted-sms/recent endpoint, the landing Texting plan card, Spanish strings and the 390px layout. Backend: 5 of 5 pytest passed (1 skipped: no /summary route at that path, not a bug). Frontend: every requested flow passed. Mic states tested by overriding getUserMedia and permissions.query with an init script: granted, prompt, denied, nomic. The tool's Chromium already auto-grants the mic because it runs with fake-UI flags. Results: granted shows 'Microphone allowed' in green with no button. Prompt shows 'Microphone not allowed yet' with an Allow microphone button. Denied shows the blocked text with 'Check again'. Connect with a denied mic sets status 'Not connected' with the blocked message, does not hang on 'Connecting…', and the button goes back to 'Connect'. NotFoundError shows the 'No microphone found' text. Connect with a granted mic goes on to the expected 'This line isn’t live on the network yet…' message. Bob's texting-only home works: correct sub-header; 7 number cards linking to /app/texting?id=hs_…; balance $49.55; 8 latest inbound texts including +13125558801; Add a number goes to /app/texting?add=1 and the setup form opens; the Want calls too card shows. Trial card, coupon, ForYou, quick actions and the Buy button are hidden. Alice's dashboard is unchanged (stats, Your numbers, Quick actions, Buy a number). A new sign-up still sees the GetStarted text 'Three quick steps…' and the use-case modal. The pricing card has the eyebrow 'Landline to Texting', the title 'Texting plan' and the explainer line, all translated in Spanish. Spanish mic and texting-home strings are translated. At 390px Bob's Overview and the softphone have no horizontal overflow (scrollWidth is 390).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Browser phone (mic blocked)", "issues": ["The same long 'Microphone blocked…' text appears twice in a row: once in softphone-message under 'Not connected' and again in softphone-mic-status. Consider leaving softphone-message empty for mic errors, since MicStatus already explains."]},
+      {"screen": "Browser phone (prompt dismissed)", "issues": ["If the user closes the Chrome prompt without choosing, getUserMedia throws NotAllowedError while the permission is still 'prompt'. askMic() then returns 'denied' and the panel tells them to use the lock icon and reload. A softer 'You didn’t allow the microphone — try again' would fit this case better. Possible fix: re-query permissions after the error and keep 'prompt' if it hasn't changed."]},
+      {"screen": "Texting-only Overview", "issues": ["Bob has 7 numbers, so the Wallet and 'Want calls too?' cards end up below the fold on desktop. Consider capping the list (e.g. 5 plus 'See all')."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_hosted_sms_recent_iter183.py", "/app/test_reports/pytest/iter183.xml"],
+  "action_items": [
+    "Optional: remove the duplicated blocked-mic text (softphone-message plus mic-status).",
+    "Optional: tell 'prompt dismissed' apart from 'blocked' in askMic().",
+    "Optional: cap the number list on TextingHome."
+  ],
+  "critical_code_review_comments": [
+    "hosted.js: GET /hosted-sms/recent is registered before /hosted-sms/:id/messages, so there is no route clash. It returns only chatId-scoped rows with hosted:true and direction:'inbound', capped at 50 with a default of 10. Verified.",
+    "hosted-sms.recent(): a negative ?limit gives Math.min(50,-5) = -5. Mongo treats a negative limit as a single batch, so this is harmless; clamping to at least 1 would be cleaner.",
+    "recent() still includes texts on cancelled numbers, while TextingHome hides cancelled numbers in the list. Probably fine, but worth a conscious decision."
+  ],
+  "updated_files": ["/app/backend/tests/test_hosted_sms_recent_iter183.py"],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "seed_data_creation": "One new sign-up account, qa.iter183.1793497100@example.com / QaTest#2026x (empty, no numbers). The test inserted and then deleted one outbound phoneLog. hs_855real4001 was not touched.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run: REACT_APP_BACKEND_URL=<url> pytest /app/backend/tests/test_hosted_sms_recent_iter183.py. For mic states, use ctx.add_init_script to override navigator.mediaDevices.getUserMedia (reject with DOMException NotAllowedError or NotFoundError) and navigator.permissions.query for 'microphone'. The tool's Chromium grants the mic by default. Language is set with localStorage 'civr.lang'='es'."
+}

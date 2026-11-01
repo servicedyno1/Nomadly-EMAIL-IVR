@@ -14,13 +14,15 @@ export async function askMic() {
     s.getTracks().forEach(t => t.stop());
     return 'granted';
   } catch (e) {
-    return e?.name === 'NotFoundError' || e?.name === 'OverconstrainedError' ? 'nomic' : 'denied';
+    if (e?.name === 'NotFoundError' || e?.name === 'OverconstrainedError') return 'nomic';
+    // Prompt closed without a choice: still askable, not blocked.
+    return (await micState()) === 'prompt' ? 'prompt' : 'denied';
   }
 }
 
 export const MIC_TEXT = {
   granted: 'Microphone allowed',
-  prompt: 'Microphone not allowed yet',
+  prompt: 'Microphone not allowed yet. Tap Allow microphone, then choose Allow in your browser.',
   unknown: 'Microphone not allowed yet',
   denied: 'Microphone blocked. Click the lock icon next to the web address, set Microphone to Allow, then reload this page.',
   nomic: 'No microphone found. Plug one in or pick one in your computer’s sound settings.',

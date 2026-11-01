@@ -1,7 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { TelnyxRTC } from '@telnyx/webrtc';
 import { api, enc } from './api';
-import { useMic, MIC_TEXT } from './mic';
+import { useMic } from './mic';
 
 // SDK errors can carry carrier wording — show our own text instead.
 const friendly = (e) => {
@@ -33,7 +33,7 @@ export function RtcProvider({ children }) {
     // A manual Connect asks for the microphone now, so a ringing call never waits on the prompt.
     if (!quiet) {
       const m = await mic.ask();
-      if (m !== 'granted') { setStatus('error'); setMsg(MIC_TEXT[m]); return; }
+      if (m !== 'granted') { setStatus('error'); setMsg(''); return; } // MicStatus explains
     }
     try {
       const c = await api(`/numbers/${enc(p)}/sip?browser=1`);
@@ -68,13 +68,13 @@ export function RtcProvider({ children }) {
   // Answer only once the mic is allowed; otherwise say why.
   const answer = async (ref) => {
     const m = await mic.ask();
-    if (m !== 'granted') { setMsg(MIC_TEXT[m]); return false; }
+    if (m !== 'granted') return false;
     ref.answer();
     return true;
   };
   const dial = async (dest, from, showAs) => {
     const m = await mic.ask();
-    if (m !== 'granted') { setMsg(MIC_TEXT[m]); return null; }
+    if (m !== 'granted') return null;
     if (key.current && Date.parse(key.current.expiresAt) - Date.now() < 3600000) {
       key.current = (await api(`/numbers/${enc(line.current)}/sip?browser=1`).catch(() => null))?.browserKey || key.current;
     }

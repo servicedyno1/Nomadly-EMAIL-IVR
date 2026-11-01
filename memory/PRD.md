@@ -1970,3 +1970,10 @@ calls and SIP are simulated; inbound calls use a pretend-call simulator).
 - Legacy preview add-on records (plan starter/pro/business with planNumber) still bill with their plan; no new ones can be created.
 - Sign-up via /signup?plan=texting saves onboarding purpose 'texting' and skips the onboarding modal.
 - Cancel uses the in-app confirm dialog (translated). ES uses "billetera" consistently.
+
+## 2026-11-01 (d) — Browser phone mic + Texting-only home + landing label — PREVIEW ONLY (iteration_183: 100%)
+- Mic: /frontend/src/cloudivr/mic.js (micState/askMic/useMic/MIC_TEXT) + MicStatus.js in Softphone. Manual Connect asks for the mic first
+  (auto-connect stays quiet); answer()/dial() in rtc.js check the mic; dismissed prompt stays 'prompt' (not 'blocked'). Incoming answerRtc shows a clear error.
+- Texting-only Overview (no CloudIVR numbers + live hosted orders): pages/dashboard/TextingHome.js — numbers (max 5 + See all), wallet,
+  latest inbound texts (GET /hosted-sms/recent), "Want calls too?" card; calling banners hidden; header "Add a number".
+- Landing Texting plan card: eyebrow "Landline to Texting" + explainer line.
