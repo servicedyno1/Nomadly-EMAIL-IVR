@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Loader2, MessageSquare, PhoneCall, Hourglass, PauseCircle, XCircle, Check } from 'lucide-react';
+import { Loader2, PhoneCall, Hourglass, PauseCircle, XCircle, Check } from 'lucide-react';
 import { toast } from 'sonner';
 import { api } from '../../api';
 import { ErrorNote } from '../../ui';
@@ -32,9 +32,9 @@ export function NumberPanel({ item, meta, onChange }) {
       {(item.status === 'loa' || (item.status === 'documents' && !item.holder)) && <LoaStep item={item} onChange={onChange} />}
       {['documents', 'admin_docs'].includes(item.status) && item.holder && <BillStep item={item} onChange={onChange} />}
       {item.status === 'review' && <Info icon={Hourglass} text={`${item.mode === 'code' ? 'Ownership confirmed with the code. Your number is' : 'Your documents are'} with the carrier${item.docsAt ? ` since ${String(item.docsAt).slice(0, 10)}` : ''}. Usually approved within 1–3 business days${item.expectedBy ? ` — expected by ${String(item.expectedBy).slice(0, 10)}` : ''}. We’ll message your Inbox the moment texting is on.`} testid="texting-review" />}
-      {item.status === 'paused' && <Info icon={PauseCircle} text={item.planNumber ? `Texting is paused because the plan on ${item.planNumber} isn’t active. Renew that plan and texting turns back on by itself.` : `Texting is paused because the $${meta.monthly} monthly fee couldn’t be paid. Top up your wallet — it turns back on within a day.`} testid="texting-paused" />}
+      {item.status === 'paused' && <Info icon={PauseCircle} text={item.planNumber ? `Texting is paused because the plan on ${item.planNumber} isn’t active. Renew that plan and texting turns back on by itself.` : `Texting is paused because the $${item.monthly} monthly fee couldn’t be paid. Top up your wallet and it turns back on within a day.`} testid="texting-paused" />}
       {item.status === 'rejected' && <Info icon={XCircle} text={`This number couldn’t be text-enabled. $${item.paid} was refunded to your wallet.`} testid="texting-rejected" />}
-      {item.status === 'active' && <p className="text-xs text-[#a1a1aa]" data-testid="texting-billing">{item.planNumber ? <>Renews with your {item.plan[0].toUpperCase() + item.plan.slice(1)} plan on <span className="font-mono" data-no-translate>{item.planNumber}</span>, no monthly fee</> : <>Next ${meta.monthly} on {String(item.nextBillAt || '').slice(0, 10)}</>} · ${meta.textPrice.toFixed(2)} per text in the US & Canada (other countries priced per country) and per received text · incoming texts also land in your Inbox.</p>}
+      {item.status === 'active' && <p className="text-xs text-[#a1a1aa]" data-testid="texting-billing">{item.planNumber ? <>Renews with your {item.plan[0].toUpperCase() + item.plan.slice(1)} plan on <span className="font-mono" data-no-translate>{item.planNumber}</span>, no monthly fee</> : <>Texting plan · next ${item.monthly} on {String(item.nextBillAt || '').slice(0, 10)}{item.inboundIncluded ? <> · <span data-testid="texting-inbound-used">{item.inboundUsed} of {item.inboundIncluded}</span> incoming texts used this month</> : null}</>} · then ${meta.textPrice.toFixed(2)} per text · incoming texts also land in your Inbox.</p>}
       {['active', 'paused'].includes(item.status) && <Thread item={item} meta={meta} />}
       {['verify', 'loa', 'documents', 'admin_docs'].includes(item.status) && <CancelButton item={item} onChange={onChange} />}
     </div>
@@ -65,16 +65,13 @@ function VerifyStep({ item, onChange }) {
   const [busy, setBusy] = useState(null);
   const [err, setErr] = useState(null);
   const run = async (k, fn) => { setBusy(k); setErr(null); try { await fn(); } catch (e) { setErr(e); } finally { setBusy(null); } };
-  const send = (method) => run(method, async () => { const r = await api(`/hosted-sms/${item.id}/code/send`, { method: 'POST', body: { method } }); toast.success(`Code sent by ${method === 'call' ? 'phone call' : 'text'}${r.preview ? ` · ${r.preview}` : ''}`); });
+  const send = (method) => run(method, async () => { const r = await api(`/hosted-sms/${item.id}/code/send`, { method: 'POST', body: { method } }); toast.success(`Calling ${item.phoneNumber} now${r.preview ? ` · ${r.preview}` : ''}`); });
   const submit = () => run('code', async () => { await api(`/hosted-sms/${item.id}/code`, { method: 'POST', body: { code } }); toast.success('Ownership confirmed. No letter or bill needed'); onChange(); });
   const skip = () => run('skip', async () => { await api(`/hosted-sms/${item.id}/code/skip`, { method: 'POST' }); onChange(); });
   return (
     <div className="space-y-4" data-testid="texting-verify">
-      <p className="text-sm text-[#d4d4d8]">The carrier sends a one-time code to <span className="font-mono" data-no-translate>{item.phoneNumber}</span>. Landline? Choose a phone call: someone at that number answers and hears the code. With the code you’re done, no letter or bill needed.</p>
-      <div className="flex flex-wrap gap-2">
-        <button type="button" onClick={() => send('sms')} disabled={!!busy} className="civr-btn civr-btn-ghost" data-testid="texting-code-sms">{busy === 'sms' ? <Loader2 className="w-4 h-4 animate-spin" /> : <MessageSquare className="w-4 h-4" />}Send by text</button>
-        <button type="button" onClick={() => send('call')} disabled={!!busy} className="civr-btn civr-btn-ghost" data-testid="texting-code-call">{busy === 'call' ? <Loader2 className="w-4 h-4 animate-spin" /> : <PhoneCall className="w-4 h-4" />}Send by call</button>
-      </div>
+      <p className="text-sm text-[#d4d4d8]">We call <span className="font-mono" data-no-translate>{item.phoneNumber}</span> and read out a short code. Whoever answers there types it below, and you’re done.</p>
+      <button type="button" onClick={() => send('call')} disabled={!!busy} className="civr-btn civr-btn-ghost" data-testid="texting-code-call">{busy === 'call' ? <Loader2 className="w-4 h-4 animate-spin" /> : <PhoneCall className="w-4 h-4" />}Call the number with the code</button>
       <div className="flex gap-2 max-w-sm">
         <input className="civr-input font-mono tracking-widest" value={code} onChange={e => setCode(e.target.value)} placeholder="Code" inputMode="numeric" data-testid="texting-code-input" />
         <button type="button" onClick={submit} disabled={!!busy || !code.trim()} className="civr-btn civr-btn-primary" data-testid="texting-code-submit">{busy === 'code' && <Loader2 className="w-4 h-4 animate-spin" />}Confirm</button>

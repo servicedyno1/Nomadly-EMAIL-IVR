@@ -12,6 +12,9 @@ const MONTHLY = 50
 // Plan pricing: one-time setup per number, attached to one of the customer's plan numbers and renewed with that plan.
 const PLAN_PRICE = { starter: 150, pro: 120, business: 100 }
 const PLAN_LIMIT = { starter: 5, pro: 10, business: null }
+// Texting plan: standalone, for a business number the customer already has. Receiving-first (US sending needs 10DLC).
+const TEXTING = { setup: 150, monthly: 100, inbound: 50, extra: 150 }
+const monthlyOf = (d) => (d.planNumber ? 0 : d.plan === 'texting' ? TEXTING.monthly : MONTHLY)
 const LIVE = ['starting', 'verify', 'loa', 'documents', 'admin_docs', 'review', 'active', 'paused']
 const REVIEW_DAYS = '1–3 business days' // Telnyx reviews Mon–Fri, 9am–5pm US Central
 const TEXT_PRICE = 0.05 // per text, sent or received
@@ -56,9 +59,10 @@ function init({ db, log = console.log, tell, brand, notifyAdmin, mailSupport }) 
 
 const txn = (chatId, type, amount, meta) => S.db.collection('transactions').insertOne({ chatId: String(chatId), type, amount: round2(amount), currency: 'USD', status: 'completed', metadata: { ...meta, channel: 'hosted-sms' }, createdAt: new Date(), updatedAt: new Date() })
 const pub = (d) => ({
-  id: d._id, phoneNumber: d.phoneNumber, mode: d.mode, status: d.status, note: d.note || null, paid: d.paid, monthly: d.planNumber ? 0 : MONTHLY,
+  id: d._id, phoneNumber: d.phoneNumber, mode: d.mode, status: d.status, note: d.note || null, paid: d.paid,
   planNumber: d.planNumber || null, plan: d.plan || null,
   nextBillAt: d.nextBillAt || null, createdAt: d.createdAt, activatedAt: d.activatedAt || null, holder: d.holder || null,
+  monthly: monthlyOf(d), inboundIncluded: d.plan === 'texting' && !d.planNumber ? TEXTING.inbound : null, inboundUsed: d.plan === 'texting' && !d.planNumber ? d.inboundUsed || 0 : null,
   noBill: !!d.noBill, signedAt: d.signedAt || null, docsAt: d.docsAt || null, expectedBy: d.docsAt ? addBusinessDays(d.docsAt, 3) : null,
 })
 // Telnyx reviews Mon–Fri only: "usually approved by" date for the customer.
@@ -72,7 +76,12 @@ async function plansFor(chatId) {
   const nums = ((await S.db.collection('phoneNumbersOf').findOne({ _id: String(chatId) }))?.val?.numbers || []).filter(n => PLAN_PRICE[n.plan] && n.status !== 'released')
   const used = await S.col.aggregate([{ $match: { chatId: String(chatId), live: true, planNumber: { $in: nums.map(n => n.phoneNumber) } } }, { $group: { _id: '$planNumber', n: { $sum: 1 } } }]).toArray()
   const count = Object.fromEntries(used.map(u => [u._id, u.n]))
-  return nums.map(n => ({ phoneNumber: n.phoneNumber, plan: n.plan, status: n.status, expiresAt: n.expiresAt || null, price: PLAN_PRICE[n.plan], limit: PLAN_LIMIT[n.plan], used: count[n.phoneNumber] || 0 }))
+  const out = nums.map(n => ({ phoneNumber: n.phoneNumber, plan: n.plan, status: n.status, expiresAt: n.expiresAt || null, price: PLAN_PRICE[n.plan], limit: PLAN_LIMIT[n.plan], used: count[n.phoneNumber] || 0 }))
+  // Texting plans: the first number is the plan; more numbers join it at TEXTING.extra each.
+  for (const t of await S.col.find({ chatId: String(chatId), live: true, plan: 'texting', planNumber: null }).toArray()) {
+    out.push({ phoneNumber: t.phoneNumber, plan: 'texting', status: t.status === 'active' ? 'active' : 'pending', expiresAt: t.nextBillAt || null, price: TEXTING.extra, limit: null, used: 1 + (await S.col.countDocuments({ chatId: String(chatId), live: true, planNumber: t.phoneNumber })) })
+  }
+  return out
 }
 const mine = (chatId, id) => S.col.findOne({ _id: String(id), chatId: String(chatId) })
 const list = async (chatId) => (await S.col.find({ chatId: String(chatId), status: { $nin: ['cancelled', 'starting'] } }).sort({ createdAt: -1 }).toArray()).map(pub)
@@ -90,17 +99,18 @@ async function check(phone) {
 }
 
 // Pays the setup and opens the Telnyx order.
+// planNumber 'new' = start a Texting plan with this number; otherwise the plan number it joins.
 async function start(chatId, phone, planNumber) {
-  if (!require('./cloudivr-web/notify.js').isWebChatId(chatId)) return { error: 'Landline to Texting is available on cloudivr.net.' }
+  if (!require('./cloudivr-web/notify.js').isWebChatId(chatId)) return { error: 'Business texting is available on cloudivr.net.' }
   const plans = await plansFor(chatId)
-  if (!plans.length) return { error: 'Landline to Texting is added to a plan. Get a phone number with a plan first.', code: 'needs_plan' }
-  const parent = plans.find(p => p.phoneNumber === planNumber)
-  if (!parent) return { error: 'Pick which of your plans this number goes on.', code: 'pick_plan' }
-  if (parent.status !== 'active') return { error: `The plan on ${parent.phoneNumber} isn’t active. Renew it first.`, code: 'plan_inactive' }
+  const fresh = planNumber === 'new'
+  const parent = fresh ? { phoneNumber: null, plan: 'texting', status: 'active', limit: null, used: 0, price: TEXTING.setup } : plans.find(p => p.phoneNumber === planNumber)
+  if (!parent) return { error: 'Pick the plan this number goes on.', code: 'pick_plan' }
+  if (parent.status !== 'active') return { error: parent.plan === 'texting' ? `The Texting plan on ${parent.phoneNumber} isn’t active yet. Add more numbers once it is.` : `The plan on ${parent.phoneNumber} isn’t active. Renew it first.`, code: 'plan_inactive' }
   if (parent.limit != null && parent.used >= parent.limit) return { error: `Your ${parent.plan[0].toUpperCase()}${parent.plan.slice(1)} plan on ${parent.phoneNumber} already has ${parent.limit} texting numbers. Upgrade or pick another plan.`, code: 'plan_limit' }
   const el = await check(phone)
   if (!el.eligible) return { error: el.detail || 'This number can’t be text-enabled.' }
-  const price = PLAN_PRICE[parent.plan]
+  const price = parent.price
   const _id = `hs_${crypto.randomBytes(6).toString('hex')}`
   // Claim the number first (unique while live) so two clicks can't pay twice.
   try { await S.col.insertOne({ _id, chatId: String(chatId), phoneNumber: el.phoneNumber, mode: null, planNumber: parent.phoneNumber, plan: parent.plan, status: 'starting', live: true, paid: 0, createdAt: new Date(), updatedAt: new Date() }) } catch (e) { if (e.code === 11000) return { error: 'This number is already being text-enabled.' }; throw e }
@@ -126,12 +136,14 @@ async function start(chatId, phone, planNumber) {
   return { item: pub(doc) }
 }
 
-async function sendCode(chatId, id, method = 'sms') {
+// Eligible numbers are landlines / toll-free: the code always comes by phone call.
+async function sendCode(chatId, id) {
+  const method = 'call'
   const d = await mine(chatId, id)
   if (!d || d.status !== 'verify') return { error: 'Nothing to verify for this number.' }
   if (!real(d)) return { ok: true, method, preview: 'Preview: use code 123456' }
   try {
-    await axios.post(`${API}/messaging_hosted_number_orders/${d.telnyxOrderId}/verification_codes`, { phone_numbers: [d.phoneNumber], verification_method: method === 'call' ? 'call' : 'sms' }, { headers: hdr(), timeout: 20000 })
+    await axios.post(`${API}/messaging_hosted_number_orders/${d.telnyxOrderId}/verification_codes`, { phone_numbers: [d.phoneNumber], verification_method: 'call' }, { headers: hdr(), timeout: 20000 })
     return { ok: true, method }
   } catch (e) { return { error: `Couldn’t send the code: ${errText(e)}` } }
 }
@@ -345,8 +357,8 @@ async function pollOne(d) {
     try { st = (await axios.get(`${API}/messaging_hosted_number_orders/${d.telnyxOrderId}`, { headers: hdr(), timeout: 20000 })).data?.data?.status } catch (e) { return }
   }
   if (st === 'successful') {
-    const r = await S.col.updateOne({ _id: d._id, status: 'review' }, { $set: { status: 'active', note: null, activatedAt: new Date(), ...(d.planNumber ? {} : { nextBillAt: new Date(Date.now() + MONTH_MS) }), updatedAt: new Date() } })
-    if (r.modifiedCount) S.tell(d.chatId, `✅ ${d.phoneNumber} can now send and receive texts. Incoming texts land in your Inbox — reply right there. ${d.planNumber ? `No monthly fee: it renews with your plan on ${d.planNumber}.` : `$${MONTHLY}/month from your wallet, next on ${new Date(Date.now() + MONTH_MS).toISOString().slice(0, 10)}.`}`, { kind: 'billing', meta: { hosted: d._id } })
+    const r = await S.col.updateOne({ _id: d._id, status: 'review' }, { $set: { status: 'active', note: null, activatedAt: new Date(), ...(d.planNumber ? {} : { nextBillAt: new Date(Date.now() + MONTH_MS), inboundUsed: 0 }), updatedAt: new Date() } })
+    if (r.modifiedCount) S.tell(d.chatId, `✅ ${d.phoneNumber} is on for texting. Incoming texts land in your Inbox. ${d.planNumber ? `No monthly fee: it renews with your plan on ${d.planNumber}.` : `$${monthlyOf(d)}/month from your wallet${d.plan === 'texting' ? ` with ${TEXTING.inbound} incoming texts included` : ''}, next on ${new Date(Date.now() + MONTH_MS).toISOString().slice(0, 10)}.`}`, { kind: 'billing', meta: { hosted: d._id } })
   } else if (FIX_DOCS.includes(st) && d.status === 'review') {
     const back = st === 'loa_file_invalid' ? 'loa' : d.noBill ? 'admin_docs' : 'documents'
     await S.col.updateOne({ _id: d._id }, { $set: { status: back, note: REASON[st], updatedAt: new Date() } })
@@ -360,20 +372,23 @@ async function billOne(d) {
   if (d.status === 'paused' && !(d.retryAt && new Date(d.retryAt) <= new Date())) return
   const r = await S.col.updateOne({ _id: d._id, nextBillAt: d.nextBillAt, status: d.status }, { $set: { billingAt: new Date() } })
   if (!r.modifiedCount) return
-  if (await S.w.debit(d.chatId, MONTHLY)) {
+  const fee = monthlyOf(d)
+  if (await S.w.debit(d.chatId, fee)) {
     const next = new Date(Math.max(Date.now(), new Date(d.nextBillAt).getTime()) + MONTH_MS)
-    await S.col.updateOne({ _id: d._id }, { $set: { status: 'active', nextBillAt: next, retryAt: null, updatedAt: new Date() } })
-    await txn(d.chatId, 'hosted-sms-renewal', MONTHLY, { phoneNumber: d.phoneNumber, hostedId: d._id })
-    if (d.status === 'paused') S.tell(d.chatId, `✅ Texting on ${d.phoneNumber} is back on — $${MONTHLY} paid from your wallet.`, { kind: 'billing', meta: { hosted: d._id } })
+    await S.col.updateOne({ _id: d._id }, { $set: { status: 'active', nextBillAt: next, retryAt: null, inboundUsed: 0, updatedAt: new Date() } })
+    await txn(d.chatId, 'hosted-sms-renewal', fee, { phoneNumber: d.phoneNumber, hostedId: d._id })
+    if (d.status === 'paused') S.tell(d.chatId, `✅ Texting on ${d.phoneNumber} is back on — $${fee} paid from your wallet.`, { kind: 'billing', meta: { hosted: d._id } })
   } else {
     await S.col.updateOne({ _id: d._id }, { $set: { status: 'paused', retryAt: new Date(Date.now() + 86400000), updatedAt: new Date() } })
-    if (d.status !== 'paused') S.tell(d.chatId, `⏸ Texting on ${d.phoneNumber} is paused: the $${MONTHLY} monthly fee couldn’t be paid from your wallet. Top up and it turns back on within a day.`, { kind: 'billing', meta: { hosted: d._id } })
+    if (d.status !== 'paused') S.tell(d.chatId, `⏸ Texting on ${d.phoneNumber} is paused: the $${fee} monthly fee couldn’t be paid from your wallet. Top up and it turns back on within a day.`, { kind: 'billing', meta: { hosted: d._id } })
   }
 }
 
 // Plan-attached numbers: texting is on while the parent plan number is active, paused while it is expired/suspended/gone.
 async function syncPlan(d) {
-  const parent = ((await S.db.collection('phoneNumbersOf').findOne({ _id: d.chatId }))?.val?.numbers || []).find(n => n.phoneNumber === d.planNumber && n.status !== 'released')
+  const parent = d.plan === 'texting'
+    ? await S.col.findOne({ chatId: d.chatId, phoneNumber: d.planNumber, live: true, planNumber: null })
+    : ((await S.db.collection('phoneNumbersOf').findOne({ _id: d.chatId }))?.val?.numbers || []).find(n => n.phoneNumber === d.planNumber && n.status !== 'released')
   const on = parent?.status === 'active'
   if (on === (d.status === 'active')) return
   await S.col.updateOne({ _id: d._id, status: d.status }, { $set: { status: on ? 'active' : 'paused', note: on ? null : `Paused: the plan on ${d.planNumber} isn’t active.`, updatedAt: new Date() } })
@@ -394,15 +409,19 @@ async function onInbound({ from, to, body }) {
   const d = await findLive(to)
   if (!d) return false
   if (d.status === 'paused') { S.log(`[HostedSMS] ${d.phoneNumber} paused — inbound from ${from} not delivered`); return true }
+  // Texting plan: first TEXTING.inbound incoming texts each month are included (shared by the plan's numbers).
+  const anchor = d.plan === 'texting' ? (d.planNumber ? d.planNumber : d.phoneNumber) : null
+  const free = anchor && (await S.col.updateOne({ chatId: d.chatId, phoneNumber: anchor, live: true, planNumber: null, $or: [{ inboundUsed: { $exists: false } }, { inboundUsed: { $lt: TEXTING.inbound } }] }, { $inc: { inboundUsed: 1 } })).modifiedCount > 0
+  const charge = free ? 0 : TEXT_PRICE
   // Receiving costs the same as sending. No balance → the text isn't delivered; one "top up" notice per day.
-  if (!(await S.w.debit(d.chatId, TEXT_PRICE))) {
+  if (!free && !(await S.w.debit(d.chatId, TEXT_PRICE))) {
     S.log(`[HostedSMS] ${d.phoneNumber} inbound from ${from} not delivered — wallet can't cover $${TEXT_PRICE}`)
     const r = await S.col.updateOne({ _id: d._id, $or: [{ lowBalanceAt: null }, { lowBalanceAt: { $lt: new Date(Date.now() - 86400000) } }] }, { $set: { lowBalanceAt: new Date() } })
     if (r.modifiedCount) S.tell(d.chatId, `⚠️ A text to ${d.phoneNumber} couldn’t be delivered — each received text costs $${TEXT_PRICE.toFixed(2)} and your wallet is empty. Top up to keep receiving texts.`, { kind: 'billing', meta: { hosted: d._id } })
     return true
   }
-  await txn(d.chatId, 'hosted-sms-inbound', TEXT_PRICE, { phoneNumber: d.phoneNumber, hostedId: d._id, from })
-  await S.db.collection('phoneLogs').insertOne({ chatId: d.chatId, phoneNumber: d.phoneNumber, from, to: d.phoneNumber, type: 'sms', direction: 'inbound', body, hosted: true, charge: TEXT_PRICE, timestamp: new Date() })
+  if (!free) await txn(d.chatId, 'hosted-sms-inbound', TEXT_PRICE, { phoneNumber: d.phoneNumber, hostedId: d._id, from })
+  await S.db.collection('phoneLogs').insertOne({ chatId: d.chatId, phoneNumber: d.phoneNumber, from, to: d.phoneNumber, type: 'sms', direction: 'inbound', body, hosted: true, charge, timestamp: new Date() })
   await S.tell(d.chatId, `📩 SMS received\n\nTo: ${d.phoneNumber}\nFrom: ${from}\n\n"${body}"`, { kind: 'sms', meta: { from, to: d.phoneNumber, hosted: d._id } })
   return true
 }
@@ -410,7 +429,7 @@ async function onInbound({ from, to, body }) {
 async function sendText(chatId, id, to, text) {
   const d = await mine(chatId, id)
   if (!d) return { error: 'That number isn’t on your account.' }
-  if (d.status !== 'active') return { error: d.status === 'paused' ? (d.planNumber ? `Texting is paused because the plan on ${d.planNumber} isn’t active. Renew the plan and it turns back on.` : `Texting is paused — the $${MONTHLY} monthly fee is due. Top up your wallet.`) : 'This number isn’t active for texting yet.' }
+  if (d.status !== 'active') return { error: d.status === 'paused' ? (d.planNumber ? `Texting is paused because the plan on ${d.planNumber} isn’t active. Renew the plan and it turns back on.` : `Texting is paused — the $${monthlyOf(d)} monthly fee is due. Top up your wallet.`) : 'This number isn’t active for texting yet.' }
   const dest = normPhone(to)
   const body = String(text || '').trim()
   if (!E164.test(dest)) return { error: 'Enter the number to text with its country code.' }
@@ -440,5 +459,5 @@ async function messages(chatId, id, limit = 50) {
   return S.db.collection('phoneLogs').find({ chatId: String(chatId), phoneNumber: d.phoneNumber, hosted: true }).sort({ timestamp: -1 }).limit(limit).toArray()
 }
 
-const api = { init, check, start, sendCode, submitCode, skipCode, signLoa, submitDocs, requestHelp, cancel, adminSubmitDocs, adminMessage, adminReject, addBusinessDays, REVIEW_DAYS, list, mine, pub, onInbound, sendText, messages, tick, buildLoa, normPhone, PRICE, MONTHLY, TEXT_PRICE, MAX_TEXT, PLAN_PRICE, PLAN_LIMIT, plansFor }
+const api = { init, check, start, sendCode, submitCode, skipCode, signLoa, submitDocs, requestHelp, cancel, adminSubmitDocs, adminMessage, adminReject, addBusinessDays, REVIEW_DAYS, list, mine, pub, onInbound, sendText, messages, tick, buildLoa, normPhone, PRICE, MONTHLY, TEXT_PRICE, MAX_TEXT, PLAN_PRICE, PLAN_LIMIT, TEXTING, plansFor }
 module.exports = api

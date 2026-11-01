@@ -11,7 +11,7 @@ const CARDS = {
   campaigns: ['IVR+', ['Browser', 'Telegram bot'], ['Upload a list and call everyone with one message.', 'Watch progress live; anyone who presses 1 is connected to you.', 'Do-not-call list is honoured automatically.']],
   phone: ['SIP', ['Browser', 'Softphone', 'Desk phone'], ['Call and answer from any browser tab.', 'Sign in from a softphone or desk phone with SIP.', 'Included on every plan.']],
   text: ['TTS', ['Browser'], ['Type and a natural voice speaks for you on a real call.', 'Read what they say as live captions.', 'Great for quiet offices and noisy streets.']],
-  hosted: ['SMS', ['Browser'], ['Turn on texting for the landline you already have.', 'Calls stay with your current carrier.', 'Read and reply to every text in the app.']],
+  hosted: ['SMS', ['Browser'], ['Turn on texting for the landline you already have.', 'Calls stay with your current carrier.', 'Read every text in the app.']],
   inbox: ['INBOX', ['Browser', 'Telegram bot'], ['Every text and voicemail in one place.', 'Voicemails arrive transcribed.', 'Reply to texts in one tap.']],
 };
 

@@ -7,9 +7,10 @@ API = f"{BASE_URL}/api/cloudivr-web"
 ALICE = ('civr.alice@example.com', 'AliceTest#2026', '5000000000000001')
 BOB = ('civr.bob@example.com', 'BobTest#2026', '5000000000000002')
 PLAN = '+13346972125'
-BILL = b"%PDF-1.4\n1 0 obj<<>>endobj\ntrailer<<>>\n%%EOF"
+BILL = b"%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj\n3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 612 792]>>endobj\ntrailer<</Root 1 0 R>>\n%%EOF"  # bill is now parsed + merged by pdf-lib
 HOLDER = {"name": "TEST Holder", "business": "TEST Biz", "address": "1 Test St", "city": "Austin", "state": "TX", "zip": "73301", "carrier": "AT&T", "account": "999"}
 db = MongoClient('mongodb://localhost:27017')['test']
+KEEP = [d['_id'] for d in db.hostedSms.find({"chatId": ALICE[2], "phoneNumber": {"$regex": "^\\+131255"}}, {"_id": 1})]  # pre-existing seed records
 
 
 def login(acc):
@@ -59,10 +60,11 @@ def wait_for(pred, t=80):
 def restore():
     w = {c: db.walletOf.find_one({"_id": c}) for c in (ALICE[2], BOB[2])}
     bob_legacy = list(db.hostedSms.find({"chatId": BOB[2], "status": "active"}))
+    db.walletOf.update_one({"_id": ALICE[2]}, {"$inc": {"usdIn": 1000}})  # restored in teardown
     yield
     set_plan(plan='business', status='active')
     db.hostedSms.delete_many({"_test": True})
-    db.hostedSms.delete_many({"chatId": ALICE[2], "phoneNumber": {"$regex": "^\\+131255"}})
+    db.hostedSms.delete_many({"chatId": ALICE[2], "phoneNumber": {"$regex": "^\\+131255"}, "_id": {"$nin": KEEP}})
     for c, x in w.items():
         db.walletOf.update_one({"_id": c}, {"$set": {"usdIn": x['usdIn'], "usdOut": x['usdOut']}})
 
@@ -99,8 +101,6 @@ def test_pick_plan_errors(alice):
     assert r.status_code == 400 and r.json()['error'] == 'pick_plan'
     r = alice.post(f"{API}/hosted-sms", json={"phone": rnd(), "mode": "code", "planNumber": "+15555550000"})
     assert r.status_code == 400 and r.json()['error'] == 'pick_plan'
-    r = alice.post(f"{API}/hosted-sms", json={"phone": rnd(), "mode": "bogus", "planNumber": PLAN})
-    assert r.status_code == 400
     assert bal(ALICE[2]) == b0
 
 
@@ -112,7 +112,7 @@ def test_business_charge_and_refund(alice, mode):
     assert r.status_code == 200, r.text
     it = r.json()['item']
     assert it['paid'] == 100 and it['planNumber'] == PLAN and it['plan'] == 'business' and it['monthly'] == 0
-    assert it['status'] == ('verify' if mode == 'code' else 'documents')
+    assert it['status'] == 'verify'  # 'mode' is ignored now: every order starts at the code step
     assert bal(ALICE[2]) == b0 - 100
     tx = list(db.transactions.find({"metadata.hostedId": it['id']}))
     assert [t['type'] for t in tx] == ['hosted-sms-setup'] and tx[0]['amount'] == 100
@@ -155,7 +155,8 @@ def test_plan_inactive(alice):
 def test_plan_limits(alice, plan, limit, price):
     set_plan(plan=plan)
     try:
-        fill(limit - 1, plan)
+        pre = db.hostedSms.count_documents({"chatId": ALICE[2], "planNumber": PLAN, "live": True})  # seed records already on the plan
+        fill(limit - 1 - pre, plan)
         p = [x for x in alice.get(f"{API}/hosted-sms").json()['plans'] if x['phoneNumber'] == PLAN][0]
         assert p['used'] == limit - 1 and p['limit'] == limit and p['price'] == price
         b0 = bal(ALICE[2])
@@ -180,9 +181,7 @@ def test_full_flow_and_plan_sync(alice, bob):
     assert r.status_code == 200, r.text
     hid = r.json()['item']['id']
     assert alice.post(f"{API}/hosted-sms/{hid}/code/send", json={"method": "sms"}).status_code == 200
-    assert alice.post(f"{API}/hosted-sms/{hid}/code", json={"code": "123456"}).json()['item']['status'] == 'documents'
-    r = alice.post(f"{API}/hosted-sms/{hid}/documents", files={"bill": ("b.pdf", BILL, "application/pdf")}, data={"holder": json.dumps(HOLDER), "consent": "true"})
-    assert r.status_code == 200 and r.json()['item']['status'] == 'review', r.text
+    assert alice.post(f"{API}/hosted-sms/{hid}/code", json={"code": "123456"}).json()['item']['status'] == 'review'  # code = no LOA/bill
     db.hostedSms.update_one({"_id": hid}, {"$set": {"docsAt": time.time() * 0 or __import__('datetime').datetime.utcnow().replace(year=2020)}})
     d = wait_for(lambda: (x := db.hostedSms.find_one({"_id": hid, "status": "active"})) and x)
     assert d, 'review did not auto-activate'
@@ -219,7 +218,10 @@ def test_reject_refund_plan_price(alice):
     b0 = bal(ALICE[2])
     r = alice.post(f"{API}/hosted-sms", json={"phone": rnd(), "mode": "nocode", "planNumber": PLAN})
     hid = r.json()['item']['id']
-    alice.post(f"{API}/hosted-sms/{hid}/documents", files={"bill": ("b.pdf", BILL, "application/pdf")}, data={"holder": json.dumps(HOLDER), "consent": "true"})
+    alice.post(f"{API}/hosted-sms/{hid}/code/skip")
+    alice.post(f"{API}/hosted-sms/{hid}/loa", json={"holder": HOLDER, "signature": HOLDER['name'], "consent": True})
+    r = alice.post(f"{API}/hosted-sms/{hid}/documents", files={"files": ("b.pdf", BILL, "application/pdf")})
+    assert r.status_code == 200 and r.json()['item']['status'] == 'review', r.text
     import subprocess
     out = subprocess.run(['node', '-e', f"""
 require('dotenv').config({{path:'/app/backend/.env'}});const {{MongoClient}}=require('mongodb');

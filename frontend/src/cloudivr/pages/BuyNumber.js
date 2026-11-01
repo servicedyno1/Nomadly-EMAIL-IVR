@@ -10,6 +10,7 @@ import Checkout from './buy/Checkout';
 import { PlanFeatures, RecommendedBadge, availablePlans } from '../PlanFeatures';
 import { usePrivacy } from '../privacy';
 import { Flag, IconSelect } from '../Pickers';
+import { NewSetup } from './texting/NewSetup';
 
 // The chosen number + plan survive the wallet top-up detour (Wallet links back with ?resume=1).
 const RESUME_KEY = 'civr.buyResume';
@@ -79,6 +80,24 @@ function PlanPicker({ plans, value, onChange, surcharge }) {
   );
 }
 
+// "Use my existing business number": the texting setup, then on to its page on the Texting screen.
+function ExistingNumber() {
+  const nav = useNavigate();
+  const { data, error, reload } = useApi('/hosted-sms');
+  if (error) return <ErrorNote error={error} onRetry={reload} />;
+  if (!data) return <Spinner />;
+  return <NewSetup data={data} onDone={(item) => nav(cp(`/app/texting?id=${enc(item.id)}`))} />;
+}
+
+const MODES = [['new', 'Get a new number'], ['existing', 'Use my existing business number']];
+function ModeSwitch({ mode, setMode }) {
+  return (
+    <div className="inline-flex rounded-full border border-[#27272a] p-1 mb-6" role="tablist" aria-label="Number source" data-testid="buy-mode-switch">
+      {MODES.map(([k, l]) => <button key={k} type="button" role="tab" aria-selected={mode === k} onClick={() => setMode(k)} className={`civr-btn civr-btn-sm rounded-full ${mode === k ? 'civr-btn-primary' : 'civr-btn-ghost border-0'}`} data-testid={`buy-mode-${k}`}>{l}</button>)}
+    </div>
+  );
+}
+
 // A crypto checkout still waiting for its payment.
 function OpenOrder({ order }) {
   return (
@@ -93,7 +112,9 @@ function OpenOrder({ order }) {
 export default function BuyNumber() {
   const { catalog, summary, refreshSummary } = useShell();
   const nav = useNavigate();
-  const [params] = useSearchParams();
+  const [params, setParams] = useSearchParams();
+  const mode = params.get('mode') === 'existing' ? 'existing' : 'new';
+  const setMode = (m) => setParams(m === 'existing' ? { mode: 'existing' } : {}, { replace: true });
   const [saved] = useState(() => readResume(params));
   const [q, setQ] = useState(saved?.q || { country: 'US', type: 'local', areaCode: '' });
   const [res, setRes] = useState(saved?.res || null);
@@ -143,7 +164,9 @@ export default function BuyNumber() {
   return (
     <div data-testid="buy-page">
       {extraOf ? <PageHeader label="Extra number" title="Add an extra number" sub={`Shares the plan of ${pv.phone(extraOf)} — ${money(extra?.price || 25)}/month, same features, and uses its minutes and SMS. Pay from your wallet or with crypto.${extra ? ` ${extra.used} of ${extra.limit} used.` : ''}`} testid="buy-header" />
-        : <PageHeader label="Buy" title="Get a new number" sub={`${catalog.countries.length} countries. Pay with crypto or your wallet, renews monthly.`} testid="buy-header" />}
+        : <PageHeader label="Buy" title={mode === 'existing' ? 'Add texting to your number' : 'Get a new number'} sub={mode === 'existing' ? 'Keep your number and its calls with your current provider. Get your customers’ texts here.' : `${catalog.countries.length} countries. Pay with crypto or your wallet, renews monthly.`} testid="buy-header" />}
+      {!extraOf && <ModeSwitch mode={mode} setMode={setMode} />}
+      {!extraOf && mode === 'existing' ? <ExistingNumber /> : <>
       {open?.orders?.[0] && <OpenOrder order={open.orders[0]} />}
       {saved?.pick && <div className="civr-card p-4 mb-4 text-sm flex items-center gap-2" data-testid="buy-resume-note"><Check className="w-4 h-4 text-[#818cf8]" />Welcome back — {saved.pick.phoneNumber} and the {planObj?.name} plan are still selected below.</div>}
       {fromParam && <div className="text-sm text-[#818cf8] mb-4 flex items-center gap-2" data-testid="buy-plan-hint"><Check className="w-4 h-4" />{planObj.name} plan picked — search for a number below.</div>}
@@ -162,6 +185,7 @@ export default function BuyNumber() {
             coupon={coupon} setCoupon={setCoupon} initialCode={params.get('coupon') || ''} cryptoMin={extraOf ? catalog.minTopup : 0} label={extraOf ? `Extra number on ${pv.phone(extraOf)} · monthly` : null} />
         </div>
       )}
+      </>}
     </div>
   );
 }

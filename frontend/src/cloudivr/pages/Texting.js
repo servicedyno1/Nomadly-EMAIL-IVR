@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { MessageSquareText, Plus, Landmark } from 'lucide-react';
 import { useApi } from '../api';
 import { PageHeader, Spinner, ErrorNote, Empty } from '../ui';
@@ -8,7 +9,8 @@ import { NumberPanel, STATUS } from './texting/NumberPanel';
 // Landline to Texting (hosted SMS): text from a number the customer already owns; calls stay with their carrier.
 export default function Texting() {
   const { data, error, loading, reload } = useApi('/hosted-sms');
-  const [sel, setSel] = useState(null);
+  const [params] = useSearchParams();
+  const [sel, setSel] = useState(params.get('id'));
   const [adding, setAdding] = useState(false);
   if (loading && !data) return <Spinner />;
   const items = (data?.items || []).filter(x => x.status !== 'cancelled');
@@ -16,13 +18,13 @@ export default function Texting() {
   const done = (item) => { setAdding(false); setSel(item?.id || null); reload(); };
   return (
     <div data-testid="texting-page">
-      <PageHeader label="Landline to Texting" title="Text from your own number" sub="Keep your office or landline number and its calls with your carrier — send and receive texts from it here. US & Canada numbers." testid="texting-header">
-        <button type="button" onClick={() => { setAdding(true); setSel(null); }} className="civr-btn civr-btn-primary" data-testid="texting-add-button"><Plus className="w-4 h-4" />Text-enable a number</button>
+      <PageHeader label="Business texting" title="Texts on your own number" sub="Keep your office, landline or toll-free number and its calls with your provider. Customers text it and you read every message here. US & Canada numbers." testid="texting-header">
+        <button type="button" onClick={() => { setAdding(true); setSel(null); }} className="civr-btn civr-btn-primary" data-testid="texting-add-button"><Plus className="w-4 h-4" />Add a number</button>
       </PageHeader>
       <ErrorNote error={error} onRetry={reload} className="mb-6" />
       {data && <Prices data={data} />}
       {adding && <NewSetup data={data} onDone={done} onCancel={() => setAdding(false)} />}
-      {!adding && !items.length && <Empty icon={Landmark} title="No text-enabled numbers yet" sub="Bring the number your customers already know. We check it in seconds." testid="texting-empty"><button type="button" onClick={() => setAdding(true)} className="civr-btn civr-btn-primary" data-testid="texting-empty-add">Text-enable a number</button></Empty>}
+      {!adding && !items.length && <Empty icon={Landmark} title="No texting numbers yet" sub="Bring the number your customers already know. We check it in seconds." testid="texting-empty"><button type="button" onClick={() => setAdding(true)} className="civr-btn civr-btn-primary" data-testid="texting-empty-add">Add a number</button></Empty>}
       {!adding && items.length > 0 && (
         <div className="grid lg:grid-cols-[280px_1fr] gap-6">
           <div className="space-y-2" data-testid="texting-list">{items.map(x => <ListItem key={x.id} x={x} on={current?.id === x.id} onClick={() => setSel(x.id)} />)}</div>
@@ -35,11 +37,12 @@ export default function Texting() {
 
 function Prices({ data }) {
   const pp = data.planPrices || {};
-  const cells = [[`$${pp.starter}`, 'per number on Starter · up to 5'], [`$${pp.pro}`, 'per number on Pro · up to 10'], [`$${pp.business}`, 'per number on Business · unlimited'], [`$${data.textPrice.toFixed(2)}`, 'per text, sent or received']];
+  const t = data.texting || {};
+  const cells = [[`$${t.setup}`, `Texting plan · then $${t.monthly}/mo, ${t.inbound} incoming texts included`], [`$${pp.business}–$${pp.starter}`, 'once per number on a CloudIVR plan · no monthly fee'], [`$${data.textPrice.toFixed(2)}`, 'per text after included ones']];
   return (
-    <div className="civr-card p-5 mb-6 grid grid-cols-2 md:grid-cols-4 gap-4" data-testid="texting-prices">
+    <div className="civr-card p-5 mb-6 grid grid-cols-1 sm:grid-cols-3 gap-4" data-testid="texting-prices">
       {cells.map(([v, l]) => <div key={l}><div className="font-display text-2xl font-bold">{v}</div><div className="text-xs text-[#a1a1aa] mt-1">{l}</div></div>)}
-      <p className="col-span-2 md:col-span-4 text-xs text-[#a1a1aa] flex items-center gap-2"><MessageSquareText className="w-4 h-4 text-[#818cf8]" />Full refund to your wallet if the number isn’t approved.</p>
+      <p className="sm:col-span-3 text-xs text-[#a1a1aa] flex items-center gap-2"><MessageSquareText className="w-4 h-4 text-[#818cf8]" />Full refund to your wallet if the number isn’t approved.</p>
     </div>
   );
 }
