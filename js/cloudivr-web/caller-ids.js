@@ -49,6 +49,27 @@ const checkPressed = async (n) => {
   return tx('get', `/${encodeURIComponent(n)}`).then(r => !!r.data?.data?.verified_at, () => false)
 }
 
+// US mobile number bought in CloudIVR: we text ourselves the code and read it from the inbound webhook (free).
+async function autoVerify(db, chatId, n) {
+  const c = db.collection('webCallerIds')
+  const cur = await c.findOne({ _id: n })
+  if (cur?.status === 'verified' && cur.chatId === String(chatId)) return 'verified'
+  if (dry()) { await c.replaceOne({ _id: n }, { _id: n, chatId: String(chatId), status: 'verified', method: 'auto', charged: 0, createdAt: Date.now(), verifiedAt: new Date() }, { upsert: true }); return 'verified' }
+  await requestCode(n, 'sms')
+  await c.replaceOne({ _id: n }, { _id: n, chatId: String(chatId), status: 'pending', method: 'auto', auto: true, tries: 0, createdAt: Date.now() }, { upsert: true })
+  return 'pending'
+}
+async function autoCode(db, n, text) {
+  const c = db.collection('webCallerIds')
+  const d = await c.findOne({ _id: n, status: 'pending', auto: true })
+  if (!d || Date.now() - d.createdAt > PENDING_MS || d.tries >= MAX_TRIES) return null
+  const code = (String(text).match(/\b(\d{4,8})\b/) || [])[1]
+  if (!code) return null
+  if (!(await checkCode(n, code))) { await c.updateOne({ _id: n }, { $inc: { tries: 1 } }); return 'wrong' }
+  await c.updateOne({ _id: n }, { $set: { status: 'verified', verifiedAt: new Date(), charged: 0 } })
+  return 'verified'
+}
+
 function routes(router, { db, h, numbersApi }) {
   col = db.collection('webCallerIds')
   const sends = db.collection('webCallerIdSends')
@@ -141,7 +162,7 @@ function routes(router, { db, h, numbersApi }) {
   }))
 }
 
-module.exports = { routes, resolve, isVerified, PRICE, DRY_CODE }
+module.exports = { routes, resolve, isVerified, autoVerify, autoCode, PRICE, DRY_CODE }
 
 // Admin: approve (→ verified) or reject (→ refund + remove) a review request. Returns the affected doc or null.
 function adminApi(db) {

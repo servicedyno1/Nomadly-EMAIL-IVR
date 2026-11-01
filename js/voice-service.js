@@ -2447,7 +2447,7 @@ function _sipPlanNotice(chatId) {
 
 async function handleCallInitiated(payload) {
   const callControlId = payload.call_control_id
-  const to = (payload.to || '').replace(/[^+\d]/g, '')
+  let to = (payload.to || '').replace(/[^+\d]/g, '')
   const from = (payload.from || '').replace(/[^+\d]/g, '')
   const direction = payload.direction
   const connectionId = payload.connection_id || ''
@@ -2486,8 +2486,14 @@ async function handleCallInitiated(payload) {
   // With numbers assigned to Call Control App, all inbound calls arrive here
   // with direction='incoming'. We answer and apply IVR/forwarding/voicemail.
 
+  // eSIM set to "Ring in CloudIVR" (Spenza SIP gateway): the call runs the menu of the calling number the owner picked.
+  const esimLine = _db && /^\+1\d{10}$/.test(to) ? await _db.collection('esimLines').findOne({ phoneNumber: to, status: 'active', callsTo: 'browser', ivrNumber: { $ne: null } }).catch(() => null) : null
+  if (esimLine) log(`[Voice] eSIM ${to} → menu of ${esimLine.ivrNumber}`)
   // Lookup number owner — get FRESH data from DB
-  const { chatId, num, numbers: ownerNumbers } = await findNumberOwner(to)
+  const owner = await findNumberOwner(esimLine ? esimLine.ivrNumber : to)
+  if (esimLine && owner.chatId && String(owner.chatId) !== String(esimLine.chatId)) owner.chatId = null
+  const { chatId, num, numbers: ownerNumbers } = owner
+  if (esimLine) { to = esimLine.ivrNumber; payload.esimNumber = esimLine.phoneNumber }
   if (!chatId || !num) {
     log(`[Voice] ⚠️ ORPHANED NUMBER: No owner found for ${to} — inbound call from ${from} rejected. Number may need cleanup.`)
     // Reject BEFORE answering. A robocaller/scanner flooding an orphaned or
@@ -2569,6 +2575,7 @@ async function handleCallInitiated(payload) {
     num,
     from,
     to,
+    esimNumber: payload.esimNumber || null,
     startedAt: new Date(),
     phase: 'answering',
     recordingEnabled: num.features?.recording === true && canAccessFeature(num.plan, 'callRecording'),

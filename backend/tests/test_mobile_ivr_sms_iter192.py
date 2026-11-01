@@ -181,7 +181,7 @@ def test_ivr_sms_cancelled_line_rejected(s):
 
 def test_ivr_sms_save_and_persist(s):
     body = ivr({'1': {'action': 'sms', 'smsFrom': MN, 'smsText': 'TEST_iter192 addr', 'message': 'Sent!', 'after': 'menu', 'label': 'Addr'},
-                '2': {'action': 'submenu', 'subMenu': {'greeting': 'Sub', 'options': {'3': {'action': 'sms', 'smsFrom': 'es_069da6dee178', 'smsText': 'sub text', 'after': 'weird'}}}}})
+                '2': {'action': 'submenu', 'subMenu': {'greeting': 'Sub', 'options': {'3': {'action': 'sms', 'smsFrom': MN, 'smsText': 'sub text', 'after': 'weird'}}}}})
     r = s.put(f"{API}/numbers/{A_NUM}/ivr", json=body)
     assert r.status_code == 200, r.text
     o = r.json()['ivr']['options']
@@ -203,3 +203,8 @@ def test_bob_mobile_offer():
     r = b.get(f"{API}/mobile-numbers")
     assert r.status_code == 200 and r.json()['items'] == []
     assert b.get(f"{API}/esim/{MN}/qr").status_code == 400
+
+
+def test_ivr_sms_qr_esim_rejected(s):
+    r = s.put(f"{API}/numbers/{A_NUM}/ivr", json=ivr({'1': {'action': 'sms', 'smsFrom': 'es_069da6dee178', 'smsText': 'x'}}))
+    assert r.status_code == 400 and r.json()['message'].startswith('Pick one of your own texting numbers')

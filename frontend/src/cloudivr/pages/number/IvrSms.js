@@ -7,10 +7,10 @@ const nameOf = (x) => `${x.phoneNumber || 'Number coming'} · ${x.kind === 'mobi
 
 // IVR key that texts the caller from one of the owner's eSIM / mobile numbers; no number → buy one right here.
 export function IvrSms({ o, set, prefix }) {
-  const es = useApi('/esim'), mn = useApi('/mobile-numbers');
+  const mn = useApi('/mobile-numbers');
   const [buying, setBuying] = useState(false);
-  const lines = [...(es.data?.items || []), ...(mn.data?.items || [])].filter(shown);
-  const loaded = es.data && mn.data;
+  const lines = (mn.data?.items || []).filter(shown);
+  const loaded = !!mn.data;
   const first = lines[0]?.id;
   const known = lines.some(x => x.id === o.smsFrom);
   useEffect(() => { if (loaded && first && !known) set({ smsFrom: first }); }, [loaded, first, known]); // eslint-disable-line react-hooks/exhaustive-deps

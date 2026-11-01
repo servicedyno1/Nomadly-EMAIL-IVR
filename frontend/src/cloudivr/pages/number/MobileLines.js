@@ -6,6 +6,7 @@ import { api, money, useApi } from '../../api';
 import { ask } from '../../confirm';
 import { cp } from '../../paths';
 import { WalletPay, RenewWarning } from '../../WalletPay';
+import { NewNumber } from '../esim/NewNumber';
 
 const STATUS = { provisioning: 'Assigning your number…', active: 'Active', suspended: 'Paused · monthly fee due', failed: 'Couldn’t be set up · refunded' };
 
@@ -29,6 +30,7 @@ function MobileLine({ item, reload }) {
       <div className="flex flex-wrap items-start gap-2">
         {item.status === 'suspended' && <WalletPay price={item.price} small onWallet={() => act('renew', {}, 'Renewed')} label={`Renew ${money(item.price)}`} testid={`mobile-renew-pay-${item.id}`} walletTestid={`mobile-renew-${item.id}`} />}
         {['active', 'suspended'].includes(item.status) && <button type="button" role="switch" aria-checked={item.autoRenew} disabled={busy} onClick={() => act('auto-renew', { on: !item.autoRenew }, item.autoRenew ? 'Auto-renew off' : 'Auto-renew on')} className="civr-btn civr-btn-ghost civr-btn-sm" data-testid={`mobile-autorenew-${item.id}`}>{item.autoRenew ? 'Auto-renew on' : 'Auto-renew off'}</button>}
+        <NewNumber item={item} reload={reload} />
         {['active', 'suspended'].includes(item.status) && <button type="button" onClick={cancel} disabled={busy} className="civr-btn civr-btn-ghost civr-btn-sm" data-testid={`mobile-cancel-${item.id}`}>Cancel number</button>}
       </div>
       <RenewWarning price={item.price} date={item.nextBillAt} on={item.status === 'active' && item.autoRenew} testid={`mobile-renew-warning-${item.id}`} />

@@ -94,7 +94,7 @@ async function linkSim(iccid, email) {
 }
 
 // ---------- customer lines ----------
-const pub = (d) => ({ numberChange: d.numberChange ? { status: d.numberChange.status, at: d.numberChange.at, oldNumber: d.numberChange.oldNumber, newNumber: d.numberChange.newNumber || null } : null, formerNumbers: (d.formerNumbers || []).map(f => f.phone), autoRenew: d.autoRenew !== false, id: d._id, iccid: d.iccid || null, phoneNumber: d.phoneNumber || null, planId: d.planId, price: d.price, status: d.status, note: d.note || null, callsTo: d.callsTo || 'device', nextBillAt: d.nextBillAt || null, createdAt: d.createdAt, linked: !!d.linked, kind: d.kind || 'esim', zipcode: d.zipcode || null, hasQr: !!(d.qrCode || d.iccid), qrEmail: d.qrEmail || null, qrEmailedAt: d.qrEmailedAt || null })
+const pub = (d) => ({ numberChange: d.numberChange ? { status: d.numberChange.status, at: d.numberChange.at, oldNumber: d.numberChange.oldNumber, newNumber: d.numberChange.newNumber || null } : null, formerNumbers: (d.formerNumbers || []).map(f => f.phone), autoRenew: d.autoRenew !== false, id: d._id, iccid: d.iccid || null, phoneNumber: d.phoneNumber || null, planId: d.planId, price: d.price, status: d.status, note: d.note || null, callsTo: d.callsTo || 'device', ivrNumber: d.ivrNumber || null, nextBillAt: d.nextBillAt || null, createdAt: d.createdAt, linked: !!d.linked, kind: d.kind || 'esim', zipcode: d.zipcode || null, hasQr: !!(d.qrCode || d.iccid), qrEmail: d.qrEmail || null, qrEmailedAt: d.qrEmailedAt || null })
 const luhn = (s) => { let sum = 0; for (let i = 0; i < s.length; i++) { let n = +s[s.length - 1 - i]; if (i % 2) { n *= 2; if (n > 9) n -= 9 } sum += n } return sum % 10 === 0 }
 const txn = (chatId, type, amount, meta) => S.db.collection('transactions').insertOne({ chatId: String(chatId), type, amount: round2(amount), currency: 'USD', status: 'completed', metadata: { ...meta, channel: 'esim' }, createdAt: new Date(), updatedAt: new Date() })
 
@@ -161,9 +161,14 @@ async function buyMobile(chatId, { zipcode }) {
     return { error: `We couldn’t set up the number right now. Your $${MOBILE_PRICE} was refunded to your wallet.`, code: 'mobile_failed' }
   }
 }
-const ready = async (d, phone) => (d.kind === 'mobile'
-  ? S.tell(d.chatId, `📱 Your US mobile number is ready: ${phone || ''}. Texts to and from it are in Messages.`, { kind: 'billing', meta: { mobile: d._id } })
-  : null)
+const CID = () => require('./cloudivr-web/caller-ids')
+async function ready(d, phone) {
+  if (d.kind !== 'mobile') return
+  await S.tell(d.chatId, `📱 Your US mobile number is ready: ${phone || ''}. Texts to and from it are in Messages.`, { kind: 'billing', meta: { mobile: d._id } })
+  if (!phone) return
+  const r = await CID().autoVerify(S.db, d.chatId, phone).catch(e => { S.log(`[mobile] caller ID ${d._id}: ${e.message}`); return null })
+  if (r === 'verified') await S.tell(d.chatId, `✅ ${phone} is now one of your caller IDs, free. Pick it as “Show as” on calls and campaigns.`, { kind: 'system', meta: { mobile: d._id } })
+}
 
 // Poll provisioning; a finished one gets its number, ICCID and QR.
 async function pollOne(d) {
@@ -246,6 +251,7 @@ async function billOne(d) {
 async function expire(d) {
   if (!dry() && !d.simulated && d.iccid && !d.linked) await call('post', `/api/v1.1/subscriptions/${encodeURIComponent(d.iccid)}/cancel`, {}).catch(e => S.log(`[Spenza] expire ${d.iccid}: ${e.message}`))
   await S.col.updateOne({ _id: d._id }, { $set: { status: 'cancelled', note: 'Ended: auto-renew was off.', updatedAt: new Date() } })
+  if (d.kind === 'mobile' && d.phoneNumber) await S.db.collection('webCallerIds').deleteOne({ _id: d.phoneNumber, method: 'auto' })
   if (d.callsTo === 'browser') await syncSip()
   S.tell(d.chatId, `📴 Your eSIM ${d.phoneNumber || ''} ended at the end of its paid month because auto-renew was off.`, { kind: 'billing', meta: { esim: d._id } })
 }
@@ -267,6 +273,7 @@ async function cancel(chatId, id) {
   if (!dry() && !d.simulated && d.iccid && !d.linked) await call('post', `/api/v1.1/subscriptions/${encodeURIComponent(d.iccid)}/cancel`, {}).catch(e => S.log(`[Spenza] cancel ${d.iccid}: ${e.message}`))
   await S.col.updateOne({ _id: d._id }, { $set: { status: 'cancelled', updatedAt: new Date() } })
   if (d.callsTo === 'browser') await syncSip()
+  if (d.kind === 'mobile' && d.phoneNumber) await S.db.collection('webCallerIds').deleteOne({ _id: d.phoneNumber, method: 'auto' })
   return { ok: true }
 }
 
@@ -299,6 +306,7 @@ async function pollNumber(d) {
   if (fresh) {
     await S.col.updateOne({ _id: d._id }, { $set: { phoneNumber: fresh, 'numberChange.status': 'done', 'numberChange.newNumber': fresh, 'numberChange.doneAt': new Date(), updatedAt: new Date() }, $push: { formerNumbers: { phone: nc.oldNumber, until: new Date() } } })
     if (d.callsTo === 'browser') await syncSip()
+    if (d.kind === 'mobile') CID().autoVerify(S.db, d.chatId, fresh).catch(e => S.log(`[mobile] caller ID ${d._id}: ${e.message}`))
     S.tell(d.chatId, `📱 Your eSIM has its new number: ${fresh} (was ${nc.oldNumber}). Texts and calls now use the new number.`, { kind: 'billing', meta: { esim: d._id, replaced: { old: nc.oldNumber, new: fresh } } })
   } else if (Date.now() - new Date(nc.at).getTime() > 86400000) {
     await S.w.credit(d.chatId, nc.paid || REPLACE_PRICE); await txn(d.chatId, 'esim-number-refund', nc.paid || REPLACE_PRICE, { lineId: d._id })
@@ -311,7 +319,8 @@ async function pollNumber(d) {
 // ---------- texting ----------
 async function sendSms(chatId, id, to, text) {
   const d = await mine(chatId, id)
-  if (!d || d.status !== 'active' || !d.phoneNumber) return { error: 'This eSIM can’t send texts right now.' }
+  if (d && d.kind !== 'mobile') return { error: 'Texts from a QR eSIM are sent from your phone, not from CloudIVR.' }
+  if (!d || d.status !== 'active' || !d.phoneNumber) return { error: 'This number can’t send texts right now.' }
   const dest = String(to || '').replace(/[^\d+]/g, ''), body = String(text || '').trim().slice(0, 1000)
   if (!/^\+1[2-9]\d{2}[2-9]\d{6}$/.test(dest)) return { error: 'Texts can go to US numbers: enter +1 and the 10-digit number.' }
   if (!body) return { error: 'Type a message.' }
@@ -346,6 +355,10 @@ async function onWebhook(raw, headers, body) {
   if (String(b.Direction || 'inbound').toLowerCase() !== 'inbound') return { status: 200 }
   const d = to && await S.col.findOne({ phoneNumber: to, status: { $in: ['active', 'suspended'] } })
   if (!d || !text) { S.log(`[eSIM] webhook unmatched (${body?.event || '?'})`); return { status: 200 } }
+  if (d.kind !== 'mobile') return { status: 200 }
+  const cid = await CID().autoCode(S.db, d.phoneNumber, text).catch(() => null)
+  if (cid === 'verified') { await S.tell(d.chatId, `✅ ${d.phoneNumber} is now one of your caller IDs, free. Pick it as “Show as” on calls and campaigns.`, { kind: 'system', meta: { mobile: d._id } }); return { status: 200 } }
+  if (cid) return { status: 200 }
   const dup = await S.db.collection('phoneLogs').findOne(mid ? { esim: d._id, providerId: mid } : { esim: d._id, from, body: text, direction: 'inbound', timestamp: { $gt: new Date(Date.now() - 10 * 60000) } })
   if (dup) return { status: 200 }
   await S.db.collection('phoneLogs').insertOne({ chatId: d.chatId, phoneNumber: d.phoneNumber, from, to: d.phoneNumber, type: 'sms', direction: 'inbound', body: text, esim: d._id, providerId: mid, charge: 0, timestamp: new Date() })
@@ -374,13 +387,19 @@ async function syncSip() {
   await S.db.collection('spenzaConfig').updateOne({ _id: 'sip' }, { $set: { numbers: nums, ip: ip || null, pending, at: new Date() } }, { upsert: true })
   return { ok: true, pending }
 }
-async function setCallsTo(chatId, id, to) {
+async function setCallsTo(chatId, id, to, ivrNumber) {
   const d = await mine(chatId, id)
-  if (!d || d.status !== 'active') return { error: 'Only active eSIMs can change where calls ring.' }
+  if (!d || d.kind === 'mobile' || d.status !== 'active') return { error: 'Only active eSIMs can change where calls ring.' }
   const v = to === 'browser' ? 'browser' : 'device'
-  await S.col.updateOne({ _id: d._id }, { $set: { callsTo: v, updatedAt: new Date() } })
+  let menu = d.ivrNumber || null
+  if (v === 'browser') {
+    const nums = ((await S.db.collection('phoneNumbersOf').findOne({ _id: chatId }))?.val?.numbers || []).filter(n => n.status === 'active')
+    menu = nums.find(n => n.phoneNumber === ivrNumber)?.phoneNumber || null
+    if (!menu) return { error: nums.length ? 'Pick which calling number’s menu these calls should use.' : 'You need an active calling number: its keypad menu, forwarding and voicemail answer these calls.' }
+  }
+  await S.col.updateOne({ _id: d._id }, { $set: { callsTo: v, ivrNumber: menu, updatedAt: new Date() } })
   const r = await syncSip()
-  return { item: pub({ ...d, callsTo: v }), pending: !!r.pending }
+  return { item: pub({ ...d, callsTo: v, ivrNumber: menu }), pending: !!r.pending }
 }
 
 // One-off: lines the owner asked to hand to an existing account (runs until the account exists).

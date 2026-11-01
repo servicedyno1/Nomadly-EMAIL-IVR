@@ -83,11 +83,20 @@ function QrBlock({ id }) {
 }
 
 function CallsChoice({ item, onChange }) {
-  const set = async (to) => { try { const r = await api(`/esim/${item.id}/calls`, { method: 'POST', body: { to } }); toast.success(r.pending && to === 'browser' ? 'Saved. We’ll switch calls to CloudIVR once routing is connected' : 'Saved'); onChange(); } catch (e) { toast.error(e.message); } };
-  const opts = [['device', Smartphone, 'Ring on my phone', 'Calls go to the eSIM on your phone.'], ['browser', Globe2, 'Ring in CloudIVR', 'Calls go to the browser phone and your IVR menus.']];
+  const { data: nd } = useApi('/numbers');
+  const nums = (nd?.numbers || []).filter(n => n.status === 'active');
+  const [menu, setMenu] = useState(item.ivrNumber || '');
+  const pick = menu || nums[0]?.phoneNumber || '';
+  const set = async (to, ivrNumber = pick) => { try { const r = await api(`/esim/${item.id}/calls`, { method: 'POST', body: { to, ivrNumber } }); toast.success(r.pending && to === 'browser' ? 'Saved. We’ll switch calls to CloudIVR once routing is connected' : 'Saved'); onChange(); } catch (e) { toast.error(e.message); } };
+  const opts = [['device', Smartphone, 'Ring on my phone', 'Calls go to the eSIM on your phone.'], ['browser', Globe2, 'Ring in CloudIVR', 'Calls get the keypad menu, forwarding and voicemail of a calling number you pick.']];
   return (
+    <div className="space-y-2">
     <div className="grid sm:grid-cols-2 gap-2" role="radiogroup" aria-label="Where calls ring" data-testid="esim-calls">
       {opts.map(([k, I, t, s]) => { const on = item.callsTo === k; const Mark = on ? CheckCircle2 : Circle; return <button key={k} type="button" role="radio" aria-checked={on} onClick={() => !on && set(k)} className={`civr-card text-left p-3 border-2 transition-colors ${on ? 'border-[#818cf8] bg-[#818cf8]/15' : 'border-transparent opacity-80 hover:opacity-100'}`} data-testid={`esim-calls-${k}`}><div className="flex items-center gap-2 font-semibold text-sm"><I className="w-4 h-4 text-[#818cf8]" />{t}<Mark className={`w-4 h-4 ml-auto ${on ? 'text-[#818cf8]' : 'text-[#52525b]'}`} aria-hidden="true" /></div><div className="text-xs text-[#a1a1aa] mt-1">{s}</div>{on && <div className="text-xs font-semibold text-[#818cf8] mt-1.5" data-testid={`esim-calls-${k}-selected`}>Selected</div>}</button>; })}
+    </div>
+      {nd && !nums.length && <p className="text-xs text-[var(--c-muted)]" data-testid={`esim-calls-no-number-${item.id}`}>To ring in CloudIVR you need an active calling number: its menu answers these calls.</p>}
+      {nums.length > 0 && <label className="flex flex-wrap items-center gap-2 text-sm" data-testid={`esim-calls-menu-${item.id}`}><span className="text-[var(--c-muted)]">Use the menu of</span>
+        <select className="civr-input !w-auto font-mono" value={pick} onChange={e => { setMenu(e.target.value); if (item.callsTo === 'browser') set('browser', e.target.value); }} data-testid={`esim-calls-menu-select-${item.id}`}>{nums.map(n => <option key={n.phoneNumber} value={n.phoneNumber}>{n.phoneNumber}</option>)}</select></label>}
     </div>
   );
 }
@@ -135,7 +144,7 @@ function Line({ item, reload }) {
         {open && <QrBlock id={item.id} />}
         <EmailQr item={item} reload={reload} />
         <div><div className="text-sm font-semibold mb-2 flex items-center gap-2"><Phone className="w-4 h-4" />Where should calls ring?</div><CallsChoice item={item} onChange={reload} /></div>
-        <p className="text-sm text-[var(--c-muted)] flex items-center gap-2" data-testid={`esim-texts-in-messages-${item.id}`}><MessageSquare className="w-4 h-4" />Texts to and from this number are in <Link to={cp('/app/messages')} className="underline font-semibold text-[var(--c-accent)]">Messages</Link>.</p>
+        <p className="text-sm text-[var(--c-muted)] flex items-center gap-2" data-testid={`esim-texts-in-messages-${item.id}`}><MessageSquare className="w-4 h-4" />Texts on this eSIM are on your phone. Need texting in CloudIVR? Get a <Link to={cp('/app/buy')} className="underline font-semibold text-[var(--c-accent)]">US mobile number</Link>.</p>
       </>}
       <div className="flex flex-wrap items-start gap-2">
         {item.status === 'suspended' && <WalletPay price={item.price} small onWallet={() => act('renew', 'Renewed')} label={`Renew $${item.price}`} testid={`esim-renew-pay-${item.id}`} walletTestid={`esim-renew-${item.id}`} cryptoTestid={`esim-renew-crypto-${item.id}`} />}

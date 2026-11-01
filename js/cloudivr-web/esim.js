@@ -32,7 +32,7 @@ function routes(r, { h }) {
   r.get('/esim/:id/usage', h(async (req, res) => out(res, await ES.lineUsage(req.webChatId, req.params.id))))
   r.get('/esim/:id/messages', h(async (req, res) => res.json({ messages: (await ES.messages(req.webChatId, req.params.id)).map(m => ({ id: String(m._id), direction: m.direction, from: m.from, to: m.to, body: m.body, at: m.timestamp, status: m.status || null })) })))
   r.post('/esim/:id/sms', h(async (req, res) => out(res, await ES.sendSms(req.webChatId, req.params.id, req.body?.to, req.body?.text))))
-  r.post('/esim/:id/calls', h(async (req, res) => out(res, await ES.setCallsTo(req.webChatId, req.params.id, req.body?.to))))
+  r.post('/esim/:id/calls', h(async (req, res) => out(res, await ES.setCallsTo(req.webChatId, req.params.id, req.body?.to, req.body?.ivrNumber))))
   r.post('/esim/:id/auto-renew', h(async (req, res) => out(res, await ES.setAutoRenew(req.webChatId, req.params.id, req.body?.on === true))))
   r.post('/esim/:id/renew', h(async (req, res) => out(res, await ES.renew(req.webChatId, req.params.id))))
   r.post('/esim/:id/email-qr', h(async (req, res) => out(res, await ES.resendQr(req.webChatId, req.params.id, req.body?.email))))

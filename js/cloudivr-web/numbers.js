@@ -582,7 +582,7 @@ function routes(router, deps) {
     try { value = validateIvr(req.body, req.num.plan, (u) => urls.has(u)) } catch (e) { return bad(res, 400, 'invalid_ivr', e.message) }
     const lines = [...Object.values(value.options), ...Object.values(value.options).flatMap(o => Object.values(o.subMenu?.options || {}))].filter(o => o.action === 'sms').map(o => o.smsFrom)
     if (lines.length) {
-      const ok = await deps.db.collection('esimLines').countDocuments({ _id: { $in: [...new Set(lines)] }, chatId: String(req.webChatId), status: { $in: ['provisioning', 'active', 'suspended'] } })
+      const ok = await deps.db.collection('esimLines').countDocuments({ _id: { $in: [...new Set(lines)] }, kind: 'mobile', chatId: String(req.webChatId), status: { $in: ['provisioning', 'active', 'suspended'] } })
       if (ok !== new Set(lines).size) return bad(res, 400, 'invalid_ivr', 'Pick one of your own texting numbers to send the text from.')
     }
     await setField(req.webChatId, req.num.phoneNumber, 'features.ivr', value)

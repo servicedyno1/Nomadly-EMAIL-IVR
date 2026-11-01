@@ -2054,3 +2054,13 @@ calls and SIP are simulated; inbound calls use a pretend-call simulator).
 - IVR key action `sms` {smsFrom, smsText, message, after: hangup|menu}; every press sends ($0.05); no texting number → buy US mobile number inline. voice-service sendIvrText; owner notified on failure.
 - Wallet gating: campaign Start/Resume blocked with shortfall.
 - Tests: iteration_192 (20/20 backend pytest), backend/tests/ivr_sms_key.test.js PASS; fixes after report applied (thread call hidden for mobile, knob, Luhn, IvrSms reset, sub-menu replay, resendQr order).
+
+## 2026-11-01 — QR eSIM vs mobile number split, eSIM → CloudIVR call relay (PREVIEW; relay infra is on the live server)
+- Only `kind:'mobile'` lines text in-app (send, receive, IVR text key, inbound webhook storage). QR eSIM text history stays read-only in Messages.
+- Mobile number auto-verified as caller ID, free (preview: instant; live: Telnyx Verified Numbers SMS code read from the Spenza inbound webhook via caller-ids.autoCode). Removed on cancel/expire. Re-verified after a replacement ($25).
+- eSIM "Ring in CloudIVR" needs a calling number whose menu answers (esimLines.ivrNumber); voice-service maps the eSIM DID → that number.
+- SIP relay: Kamailio 5.7 on app-main droplet 146.190.238.190 udp/5060 (config /app/scripts/esim-sip-relay.cfg → /etc/kamailio/kamailio.cfg, ufw 5060/udp open, open to anyone for now; pike flood limit). It rewrites INVITEs to sip:+1DID@cloudivresim.sip.telnyx.com.
+- Telnyx apps: "CloudIVR eSIM SIP" 3083912763118978262 (subdomain cloudivresim; webhook currently = PREVIEW URL, switch to prod https://2.speechcue.com/telnyx/voice-webhook at go-live); "CloudIVR eSIM test dialer" 3083912774443599066.
+- Verified: synthetic INVITE → relay → Telnyx → preview webhook → IVR answered (scripts/esim_sip_invite_test.py). NOT verified: Spenza never sent INVITEs to the relay for +16462556424 after register-sip (isSIPEnabled true, didRanges that DID); 3 real test calls produced no SIP at the droplet. Spenza SIP is set back to isSIPEnabled:false and the line to "Ring on my phone". Needs Spenza support.
+- Spenza fee/limit for renew-number is undocumented ("monthly quota enforced separately"); line cost at Spenza = $3 SIM + $7 plan.
+- Live env needed at go-live: SPENZA_SIP_INGRESS_IP=146.190.238.190, SPENZA_TEXT_LINE_IMEI.

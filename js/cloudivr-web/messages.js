@@ -29,7 +29,7 @@ function create({ db, numbersApi, smsReply }) {
       out.push({ phone: n.phoneNumber, kind: 'calling', status: n.status, since: n.purchaseDate || null, caps: { send: cur && sms, receive: sms, pictures: cur && sms && canMms(n), calls: cur }, old: n.replacedBy ? { newNumber: n.replacedBy, until: n.releaseAt } : null })
     }
     for (const d of await db.collection('esimLines').find({ chatId: String(chatId), status: { $in: ['active', 'suspended', 'cancelled'] } }).toArray()) {
-      if (d.phoneNumber && d.status !== 'cancelled') out.push({ phone: d.phoneNumber, kind: 'esim', mobile: d.kind === 'mobile', status: d.status, since: d.createdAt, lineId: d._id, caps: { send: d.status === 'active', receive: true, pictures: false, calls: d.kind !== 'mobile' && d.callsTo === 'browser' && d.status === 'active' }, old: null })
+      if (d.phoneNumber && d.status !== 'cancelled') out.push({ phone: d.phoneNumber, kind: 'esim', mobile: d.kind === 'mobile', status: d.status, since: d.createdAt, lineId: d._id, caps: { send: d.kind === 'mobile' && d.status === 'active', receive: d.kind === 'mobile', pictures: false, calls: false }, old: null })
       for (const f of d.formerNumbers || []) out.push({ phone: f.phone, kind: 'esim', status: 'replaced', since: d.createdAt, lineId: d._id, caps: { send: false, receive: false, pictures: false, calls: false }, old: { newNumber: d.phoneNumber, until: f.until } })
     }
     for (const d of await db.collection('hostedSms').find({ chatId: String(chatId), status: { $nin: ['cancelled', 'rejected', 'failed'] } }).toArray()) {
@@ -104,7 +104,7 @@ function create({ db, numbersApi, smsReply }) {
     const t = await thread(chatId, number, contact)
     if (!t) return { error: [404, 'not_found', 'Conversation not found.'] }
     if (t.blocked) return { error: [400, 'blocked', 'You blocked this contact. Unblock them to text.'] }
-    if (!t.replyFrom) return { error: [400, 'receive_only', t.number.kind === 'texting' ? 'This number receives texts only.' : 'This number can’t send texts right now.'] }
+    if (!t.replyFrom) return { error: [400, 'receive_only', t.number.kind === 'texting' ? 'This number receives texts only.' : t.number.kind === 'esim' && !t.number.mobile ? 'Texts on a QR eSIM are on your phone. Older texts stay here to read.' : 'This number can’t send texts right now.'] }
     if (!t.canText) return { error: [400, 'invalid_number', 'Enter the number in international format, like +14155550123.'] }
     if (!E164.test(contact)) return { error: [400, 'invalid_number', 'This contact’s number can’t receive texts.'] }
     const from = nums => nums.find(n => n.phone === t.replyFrom)
