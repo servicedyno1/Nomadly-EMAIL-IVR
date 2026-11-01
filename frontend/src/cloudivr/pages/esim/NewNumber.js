@@ -3,7 +3,7 @@ import { toast } from 'sonner';
 import { Repeat, Loader2, Info } from 'lucide-react';
 import { api } from '../../api';
 import { ask } from '../../confirm';
-import { CryptoPay } from '../../CryptoPay';
+import { WalletPay } from '../../WalletPay';
 import { ErrorNote } from '../../ui';
 
 const PRICE = 25;
@@ -28,11 +28,9 @@ export function NewNumber({ item, reload }) {
       <div className="font-semibold">{`New number for this eSIM · $${PRICE}`}</div>
       <p className="flex gap-2 text-[var(--c-muted)]"><Info className="w-4 h-4 shrink-0 mt-0.5" />{WHY}</p>
       {nc?.status === 'done' && nc.oldNumber && <p className="text-xs text-[var(--c-muted)]">{`Last change: ${nc.oldNumber} → ${nc.newNumber}`}</p>}
-      <div className="flex flex-wrap items-start gap-2">
-        <button type="button" onClick={confirmPay} disabled={busy} className="civr-btn civr-btn-primary civr-btn-sm" data-testid={`esim-replace-pay-${item.id}`}>{busy && <Loader2 className="w-4 h-4 animate-spin" />}{`Pay $${PRICE} from wallet`}</button>
+      <WalletPay price={PRICE} small onWallet={confirmPay} onCrypto={go} busy={busy} testid={`esim-replace-paybox-${item.id}`} walletTestid={`esim-replace-pay-${item.id}`} cryptoTestid={`esim-replace-crypto-${item.id}`}>
         <button type="button" onClick={() => setOpen(false)} className="civr-btn civr-btn-ghost civr-btn-sm" data-testid={`esim-replace-cancel-${item.id}`}>Cancel</button>
-      </div>
-      <CryptoPay price={PRICE} onReady={go} testid={`esim-replace-crypto-${item.id}`} />
+      </WalletPay>
       <ErrorNote error={err} testid={`esim-replace-error-${item.id}`} />
     </div>
   );

@@ -9,6 +9,7 @@ import { ask } from '../confirm';
 import { DRAFT_KEY } from './landing/EsimCheckout';
 import { useCivrAuth } from '../AuthContext';
 import { CryptoPay } from '../CryptoPay';
+import { WalletPay, RenewWarning } from '../WalletPay';
 import { NewNumber } from './esim/NewNumber';
 
 const readDraft = () => { try { return JSON.parse(localStorage.getItem(DRAFT_KEY)) || null; } catch (_) { return null; } };
@@ -45,11 +46,9 @@ function BuyForm({ plan, draft, onDone, onCancel }) {
       <div className="font-semibold">{plan.label || plan.planId}</div>
       <Field label="Your phone’s IMEI" hint="Dial *#06# on the phone that will use the eSIM. Use the first IMEI if it shows two."><input className="civr-input font-mono" inputMode="numeric" maxLength={17} value={imei} onChange={e => setImei(e.target.value)} placeholder="15 digits" data-testid="esim-imei-input" /></Field>
       <Field label="ZIP code for your number (optional)" hint="We’ll ask for a number near this US ZIP code. The exact area code can’t be guaranteed."><input className="civr-input font-mono max-w-[160px]" inputMode="numeric" value={zip} onChange={e => setZip(e.target.value.replace(/\D/g, '').slice(0, 5))} placeholder="e.g. 10011" data-testid="esim-zip-input" /></Field>
-      <div className="flex flex-wrap gap-2">
-        <button type="button" onClick={go} disabled={busy || imei.replace(/\D/g, '').length !== 15 || (zip.length > 0 && zip.length !== 5)} className="civr-btn civr-btn-primary" data-testid="esim-pay-button">{busy && <Loader2 className="w-4 h-4 animate-spin" />}{`Pay $${plan.price} from wallet`}</button>
+      <WalletPay price={plan.price} onWallet={go} busy={busy} disabled={imei.replace(/\D/g, '').length !== 15 || (zip.length > 0 && zip.length !== 5)} crypto={cryptoOk} testid="esim-pay" walletTestid="esim-pay-button" cryptoTestid="esim-crypto">
         <button type="button" onClick={onCancel} className="civr-btn civr-btn-ghost" data-testid="esim-buy-cancel">Cancel</button>
-      </div>
-      {cryptoOk && <CryptoPay price={plan.price} onReady={go} testid="esim-crypto" />}
+      </WalletPay>
       <ErrorNote error={err} testid="esim-buy-error" />
     </div>
   );
@@ -142,12 +141,12 @@ function Line({ item, reload }) {
         <div><div className="text-sm font-semibold mb-2 flex items-center gap-2"><MessageSquare className="w-4 h-4" />Texts</div><Texts item={item} /></div>
       </>}
       <div className="flex flex-wrap items-start gap-2">
-        {item.status === 'suspended' && <button type="button" onClick={() => act('renew', 'Renewed')} className="civr-btn civr-btn-primary civr-btn-sm" data-testid={`esim-renew-${item.id}`}>{`Renew $${item.price}`}</button>}
-        {item.status === 'suspended' && <CryptoPay price={item.price} onReady={() => act('renew', 'Renewed')} testid={`esim-renew-crypto-${item.id}`} />}
+        {item.status === 'suspended' && <WalletPay price={item.price} small onWallet={() => act('renew', 'Renewed')} label={`Renew $${item.price}`} testid={`esim-renew-pay-${item.id}`} walletTestid={`esim-renew-${item.id}`} cryptoTestid={`esim-renew-crypto-${item.id}`} />}
         {['active', 'suspended'].includes(item.status) && item.price > 0 && <AutoRenew item={item} reload={reload} />}
         <NewNumber item={item} reload={reload} />
         {['active', 'suspended'].includes(item.status) && <button type="button" onClick={cancel} className="civr-btn civr-btn-ghost civr-btn-sm" data-testid={`esim-cancel-${item.id}`}>Cancel eSIM</button>}
       </div>
+      <RenewWarning price={item.price} date={item.nextBillAt} on={item.status === 'active' && item.autoRenew && item.price > 0} testid={`esim-renew-warning-${item.id}`} />
     </div>
   );
 }

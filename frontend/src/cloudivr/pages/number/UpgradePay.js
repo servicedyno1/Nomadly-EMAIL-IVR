@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import { Wallet as WalletIcon, Bitcoin, Loader2 } from 'lucide-react';
 import { api, enc, money } from '../../api';
 import { cp } from '../../paths';
+import { useBalance, ShortNote } from '../../WalletPay';
 
 // After the upgrade price is shown: pay it from the wallet, or send crypto for it (opens the order page).
 export function UpgradePay({ num, plan, quote, coins = [], busy, onWallet }) {
@@ -14,9 +15,11 @@ export function UpgradePay({ num, plan, quote, coins = [], busy, onWallet }) {
     setSending(true);
     try { const d = await api(`/numbers/${enc(num.phoneNumber)}/upgrade-checkout`, { method: 'POST', body: { plan, coin } }); nav(cp(`/app/orders/${enc(d.order.id)}`)); } catch (e) { toast.error(e.message); } finally { setSending(false); }
   };
+  const { balance, short, enough } = useBalance(quote.charge);
   return (
     <div className="flex flex-wrap gap-3" data-testid="billing-upgrade-pay">
-      <button className="civr-btn civr-btn-primary flex-[1_1_15rem] !min-h-[44px]" disabled={busy} onClick={onWallet} data-testid="billing-upgrade-confirm-button">{busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <WalletIcon className="w-4 h-4" />}Pay {money(quote.charge)} from wallet</button>
+      {enough ? <button className="civr-btn civr-btn-primary flex-[1_1_15rem] !min-h-[44px]" disabled={busy} onClick={onWallet} data-testid="billing-upgrade-confirm-button">{busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <WalletIcon className="w-4 h-4" />}Pay {money(quote.charge)} from wallet</button>
+        : <div className="basis-full"><ShortNote balance={balance} short={short} testid="billing-upgrade-short" /></div>}
       {coins.length > 0 && (
         <div className="flex flex-[1_1_16rem] gap-2 min-w-0">
           <select className="civr-input !w-24 shrink-0" value={coin} onChange={e => setCoin(e.target.value)} aria-label="Coin" data-testid="billing-upgrade-coin-select">{coins.map(c => <option key={c} value={c}>{c}</option>)}</select>

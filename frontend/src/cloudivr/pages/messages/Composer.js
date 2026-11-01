@@ -3,6 +3,7 @@ import { toast } from 'sonner';
 import { ImagePlus, Loader2, SendHorizontal, X, Lock, Clock } from 'lucide-react';
 import { api, money } from '../../api';
 import { DateTimePicker } from '../../DateTimePicker';
+import { useBalance, ShortNote } from '../../WalletPay';
 import { shrink } from './shrink';
 import { mediaSrc } from './Events';
 import { SMS_REPLIES } from '../../QuickReply';
@@ -77,6 +78,8 @@ export function Composer({ t, onSent, seed, onScheduled }) {
     } catch (e) { toast.error(e.message); } finally { setBusy(false); }
   };
   const max = t.maxLength;
+  const funds = useBalance(t.number.kind === 'esim' ? t.cost.each : 0, false);
+  if (!funds.enough) return <div className="border-t border-[var(--c-border)] p-4 flex flex-col items-center gap-1 text-center" data-testid="composer-topup"><span className="text-sm">{`Each text costs ${money(t.cost.each)} from your wallet. Top up to send.`}</span><ShortNote balance={funds.balance} short={funds.short} testid="composer-short" /></div>;
   const segs = Math.max(1, Math.ceil(text.length / 160));
   const cost = t.number.kind === 'esim' ? `${money(t.cost.each)} from your wallet` : `Uses a plan text, then ${money(t.cost.each)} from your wallet`;
   return (

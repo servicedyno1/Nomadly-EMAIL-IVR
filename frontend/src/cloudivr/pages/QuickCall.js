@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { PhoneOutgoing, Loader2, Lock } from 'lucide-react';
 import { api, useApi, playUrl } from '../api';
+import { useBalance, ShortNote } from '../WalletPay';
 import { useShell } from '../Shell';
 import { PageHeader, Field, SkeletonPage, Empty, AudioSelect, KeyPicker, Toggle, ErrorNote, BackupsField } from '../ui';
 import { cp } from '../paths';
@@ -107,6 +108,7 @@ export default function QuickCall() {
   // Contacts → "Set up IVR call" opens this page with ?to=<number>&from=<caller>.
   const [f, setF] = useState(() => ({ ...EMPTY, targets: params.get('to') || '', callerId: params.get('from') || '' }));
   const [busy, setBusy] = useState(false);
+  const funds = useBalance(1);
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
   const [stamp, setStamp] = useState(0);
@@ -160,7 +162,8 @@ export default function QuickCall() {
               <ErrorNote error={error} testid="quick-call-error" />
               {result && <div className="civr-card p-4 text-sm" data-testid="quick-call-result">{result.message || (result.scheduled ? `Scheduled ${result.scheduled} call(s).` : `Started ${result.started} call(s) · about $${Number(result.rate).toFixed(2)}/min.`)}</div>}
               {result?.mode === 'otp' && (result.results || []).filter(r => r.callControlId).map((r, i) => <OtpLive key={r.callControlId} ccid={r.callControlId} testid={`quick-otp-live-${i}`} />)}
-              <button className="civr-btn civr-btn-primary" disabled={busy} data-testid="quick-call-submit-button">{busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <PhoneOutgoing className="w-4 h-4" />}{scheduleAt ? 'Schedule call' : 'Place call'}</button>
+              {!funds.enough && <ShortNote balance={funds.balance} short={funds.short} testid="quick-call-short" />}
+              <button className="civr-btn civr-btn-primary" disabled={busy || !funds.enough} data-testid="quick-call-submit-button">{busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <PhoneOutgoing className="w-4 h-4" />}{scheduleAt ? 'Schedule call' : 'Place call'}</button>
             </Section>
           </form>
           <div className="space-y-4">

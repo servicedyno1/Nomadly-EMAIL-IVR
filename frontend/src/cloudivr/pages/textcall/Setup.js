@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Captions, Loader2, PhoneCall } from 'lucide-react';
 import { api, money } from '../../api';
+import { useBalance, ShortNote } from '../../WalletPay';
 import { Field, SkeletonCard, Empty, Locked, Toggle, ErrorNote } from '../../ui';
 import { cp } from '../../paths';
 import { useCallerNumbers } from '../QuickCall';
@@ -28,6 +29,7 @@ export function Setup({ info, onStarted }) {
   const { catalog } = useShell();
   const [f, setF] = useState(() => ({ callerId: '', to: '', lang: 'en', voice: 'female', name: '', announce: true, ...load() }));
   const [busy, setBusy] = useState(false);
+  const funds = useBalance(info ? info.usRate + info.relayRate : 1);
   const [err, setErr] = useState(null);
   const set = (k) => (v) => setF(p => ({ ...p, [k]: v?.target ? v.target.value : v }));
   if (loading) return <SkeletonCard lines={4} />;
@@ -62,8 +64,9 @@ export function Setup({ info, onStarted }) {
         <label className="flex items-center justify-between gap-3 civr-card !bg-[#0f0f0f] px-4 h-[68px]"><span className="text-sm"><span className="block font-medium">Tell them it’s a typed call</span><span className="text-xs text-[#a1a1aa]">So they speak clearly and wait for your reply.</span></span><Toggle checked={f.announce} onChange={set('announce')} testid="text-call-announce-toggle" /></label>
       </div>
       <ErrorNote error={err} testid="text-call-error" />
+      {!funds.enough && <ShortNote balance={funds.balance} short={funds.short} testid="text-call-short" />}
       <div className="flex flex-wrap items-center gap-4">
-        <button className="civr-btn civr-btn-primary h-12 px-6 text-base" disabled={busy || locked} data-testid="text-call-start-button">{busy ? <Loader2 className="w-5 h-5 animate-spin" /> : <PhoneCall className="w-5 h-5" />}Start text call</button>
+        <button className="civr-btn civr-btn-primary h-12 px-6 text-base" disabled={busy || locked || !funds.enough} data-testid="text-call-start-button">{busy ? <Loader2 className="w-5 h-5 animate-spin" /> : <PhoneCall className="w-5 h-5" />}Start text call</button>
         {info && <span className="text-xs text-[#a1a1aa]" data-testid="text-call-rate-hint">{`From ${money(info.usRate + info.relayRate)}/min, billed per started minute.`}</span>}
       </div>
     </form>

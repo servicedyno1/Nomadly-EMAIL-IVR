@@ -6,7 +6,7 @@ import { api, enc, day } from '../../api';
 import { ask } from '../../confirm';
 import { cp } from '../../paths';
 import { ErrorNote } from '../../ui';
-import { CryptoPay } from '../../CryptoPay';
+import { WalletPay } from '../../WalletPay';
 
 const PRICE = 25;
 const MOVES = ['Plan and renewal date', 'Keypad menu (IVR) and AI agent', 'Forwarding, hours and ring group', 'Voicemail and greeting', 'Caller ID and SIP login', 'Extra lines on this plan'];
@@ -76,11 +76,9 @@ export function ReplaceNumber({ num, refreshSummary }) {
           <div className="flex justify-between"><span>{num.phoneNumber} → <span className="font-mono" data-no-translate>{pick}</span></span><span className="font-semibold">${PRICE}</span></div>
           <div><div className="text-xs text-[var(--c-muted)] mb-1">Moves to the new number</div><ul className="grid sm:grid-cols-2 gap-x-4 list-disc pl-5">{MOVES.map(m => <li key={m}>{m}</li>)}</ul></div>
           <p className="flex gap-2 text-xs text-[var(--c-muted)]"><Info className="w-4 h-4 shrink-0" />{`${num.phoneNumber} keeps receiving calls and texts for 7 days (marked “Old number” in Messages), then it’s released. Your renewal date stays ${day(num.expiresAt)}.`}</p>
-          <div className="flex flex-wrap items-start gap-2">
-            <button type="button" onClick={async () => { if (await ask(`Replace ${num.phoneNumber} with ${pick} for $${PRICE} from your wallet?`, { ok: `Pay $${PRICE}`, title: 'Replace this number?' })) go(); }} disabled={!!busy} className="civr-btn civr-btn-primary" data-testid="replace-pay">{busy === 'pay' && <Loader2 className="w-4 h-4 animate-spin" />}{`Pay $${PRICE} from wallet`}</button>
+          <WalletPay price={PRICE} onWallet={async () => { if (await ask(`Replace ${num.phoneNumber} with ${pick} for $${PRICE} from your wallet?`, { ok: `Pay $${PRICE}`, title: 'Replace this number?' })) go(); }} onCrypto={go} busy={busy === 'pay'} disabled={!!busy && busy !== 'pay'} testid="replace-paybox" walletTestid="replace-pay" cryptoTestid="replace-crypto">
             <button type="button" onClick={() => { setOpen(false); setList(null); setPick(''); }} className="civr-btn civr-btn-ghost" data-testid="replace-cancel">Cancel</button>
-          </div>
-          <CryptoPay price={PRICE} onReady={go} testid="replace-crypto" />
+          </WalletPay>
         </div>}
         <ErrorNote error={err} testid="replace-error" />
       </>}

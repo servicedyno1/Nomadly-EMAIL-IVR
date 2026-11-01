@@ -20,6 +20,7 @@ import { showUpgrade } from '../Upgrade';
 import { planFor } from '../PlanFeatures';
 import { LeadCheck } from '../LeadCheck';
 import { ShowAsSelect } from '../CallerIdPick';
+import { useBalance, ShortNote } from '../WalletPay';
 
 const pct = (c) => (c.stats?.total ? Math.round(((c.stats.completed || 0) / c.stats.total) * 100) : 0);
 
@@ -161,11 +162,13 @@ function LeadsField({ value, onChange, source, onSource, listId, onList }) {
 }
 
 function Estimate({ est }) {
+  const funds = useBalance(est ? Math.max(est.minWallet || 0, est.estimate?.total || 0) : 0, false);
   if (!est) return null;
   return (
     <div className="civr-card p-4 text-sm space-y-1" data-testid="campaign-estimate">
       <div><span className="font-mono text-lg">{est.count}</span> valid numbers (max {est.max}) · about <span className="font-mono">{money(est.estimate.total)}</span> for 1 minute each</div>
       <div className="text-xs text-[#a1a1aa]">{est.estimate.rateLine}. Wallet needs at least {money(est.minWallet)} to start.</div>
+      {!funds.enough && <ShortNote balance={funds.balance} short={funds.short} testid="campaign-estimate-short" />}
       {est.estimate.blockedLine && <div className="text-xs text-[#fbbf24]">{est.estimate.blockedLine.replace(/^\W+/, '')}</div>}
       {est.errors?.length > 0 && <div className="text-xs text-[#fb7185]">{est.errors.length} line(s) skipped: {est.errors.slice(0, 3).join(' · ')}</div>}
     </div>

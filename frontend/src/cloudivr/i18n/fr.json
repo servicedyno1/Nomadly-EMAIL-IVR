@@ -3950,5 +3950,14 @@
 "+1 415 555 0123 or a contact name": "+1 415 555 0123 ou le nom d’un contact",
 "Type the full number with country code, like +14155550123.": "Saisissez le numéro complet avec l’indicatif, comme +14155550123.",
 "US carriers may block business texts to US mobiles until your number is registered for business texting.": "Les opérateurs américains peuvent bloquer les SMS professionnels vers les mobiles américains tant que votre numéro n’est pas enregistré pour l’envoi professionnel.",
-"This number can’t receive texts.": "Ce numéro ne peut pas recevoir de SMS."
+"This number can’t receive texts.": "Ce numéro ne peut pas recevoir de SMS.",
+"Wallet {0} · {1} short": "Portefeuille {0} · il manque {1}",
+"Top up": "Recharger",
+"Top up {0}": "Recharger {0}",
+"Your wallet ({0}) won’t cover the {1} renewal on {2}.": "Votre portefeuille ({0}) ne couvrira pas le renouvellement de {1} le {2}.",
+"Your wallet ({0}) won’t cover the {1} renewal.": "Votre portefeuille ({0}) ne couvrira pas le renouvellement de {1}.",
+"Each text costs {0} from your wallet. Top up to send.": "Chaque SMS coûte {0} sur votre portefeuille. Rechargez pour envoyer.",
+"Renew now for {0}": "Renouveler maintenant pour {0}",
+"Wallet {0}": "Portefeuille {0}",
+"{0} short ·": "il manque {0} ·"
 }

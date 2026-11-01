@@ -59,6 +59,7 @@ export default function Checkout({ pick, planObj, total, balance, coins, busy, o
   const due = coupon ? Math.round(total * (1 - coupon.discount / 100) * 100) / 100 : total;
   const short = Math.max(0, Math.round((due - (balance || 0)) * 100) / 100);
   const [method, setMethod] = useState(short > 0 && cryptoOk ? 'crypto' : 'wallet');
+  useEffect(() => { if (short > 0 && cryptoOk && method === 'wallet') setMethod('crypto'); }, [short, cryptoOk, method]);
   const [coin, setCoin] = useState(coins[0] || '');
   const [autoRenew, setAutoRenew] = useState(true);
   const walletShort = method === 'wallet' && short > 0;
@@ -69,7 +70,9 @@ export default function Checkout({ pick, planObj, total, balance, coins, busy, o
         <div className="text-right">{coupon && <div className="font-mono text-sm text-[#a1a1aa] line-through" data-testid="buy-total-before">{money(total)}</div>}<div className="font-mono text-3xl" data-testid="buy-total">{money(due)}</div>{coupon && <div className="text-xs text-[#a1a1aa]">first month · then {money(total)}/month</div>}</div>
       </div>
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3 mt-6">
-        <Option on={method === 'wallet'} onClick={() => setMethod('wallet')} icon={WalletIcon} title="Pay from wallet" sub={`Balance ${money(balance)}${short > 0 ? ` · ${money(short)} short` : ' · activates instantly'}`} testid="civr-checkout-wallet-option" />
+        {short > 0 && cryptoOk
+          ? <div className="civr-card p-4 text-sm" data-testid="civr-checkout-wallet-short"><div className="flex items-center gap-2 font-semibold"><WalletIcon className="w-4 h-4" />Wallet {money(balance)}</div><div className="text-xs text-[#a1a1aa] mt-1">{money(short)} short · <button type="button" onClick={() => onTopUp(short)} className="underline font-semibold text-[var(--c-accent)]" data-testid="civr-checkout-wallet-topup">Top up</button></div></div>
+          : <Option on={method === 'wallet'} onClick={() => setMethod('wallet')} icon={WalletIcon} title="Pay from wallet" sub={`Balance ${money(balance)}${short > 0 ? ` · ${money(short)} short` : ' · activates instantly'}`} testid="civr-checkout-wallet-option" />}
         {cryptoOk ? <Option on={method === 'crypto'} onClick={() => setMethod('crypto')} icon={Bitcoin} title="Pay with crypto" sub="Send the exact price — the number activates once the network confirms." testid="civr-checkout-crypto-option" />
           : <div className="civr-card p-4 text-xs text-[#a1a1aa] flex gap-3"><Bitcoin className="w-5 h-5 shrink-0 text-[#a1a1aa]" />Crypto isn’t available for this payment. Pay from your wallet — short? Add funds with crypto first.</div>}
         <CardComingSoon testid="civr-checkout-card-option" />

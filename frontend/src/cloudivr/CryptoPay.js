@@ -24,7 +24,7 @@ function Address({ dep, testid }) {
   );
 }
 
-export function CryptoPay({ price, onReady, testid = 'crypto-pay' }) {
+export function CryptoPay({ price, onReady, testid = 'crypto-pay', primary = false }) {
   const { data: w, error, reload } = useApi('/wallet');
   const [open, setOpen] = useState(false);
   const [coin, setCoin] = useState('');
@@ -40,7 +40,7 @@ export function CryptoPay({ price, onReady, testid = 'crypto-pay' }) {
   const amount = Math.max(w.minTopup || 0, Math.ceil(Math.max(0, price - w.balance)) || Math.ceil(price));
   const go = async () => { setBusy(true); setErr(null); try { base.current = w.balance; setDep(await api('/wallet/topup', { method: 'POST', body: { amountUsd: amount, coin: coin || w.coins[0] } })); } catch (e) { setErr(e); } finally { setBusy(false); } };
   if (dep) return <Address dep={dep} testid={testid} />;
-  if (!open) return <button type="button" onClick={() => setOpen(true)} className="civr-btn civr-btn-ghost" data-testid={`${testid}-open`}><Bitcoin className="w-4 h-4" />Pay with crypto</button>;
+  if (!open) return <button type="button" onClick={() => setOpen(true)} className={`civr-btn ${primary ? 'civr-btn-primary' : 'civr-btn-ghost'}`} data-testid={`${testid}-open`}><Bitcoin className="w-4 h-4" />Pay with crypto</button>;
   return (
     <div className="civr-card p-4 space-y-3 w-full" data-testid={testid}>
       <p className="text-sm text-[#d4d4d8]" data-testid={`${testid}-note`}>{w.balance >= price ? `Send $${amount} in crypto. It goes to your wallet and pays for this right away.` : `Your wallet has ${money(w.balance)}. Send $${amount} in crypto and this is paid automatically once it confirms.`}</p>

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
-import { RefreshCw, ArrowUpCircle, Trash2, Loader2, PauseCircle, Ticket } from 'lucide-react';
+import { ArrowUpCircle, Trash2, Loader2, PauseCircle, Ticket } from 'lucide-react';
 import { api, enc, money, day } from '../../api';
 import { useShell } from '../../Shell';
 import { Field, InstantToggle } from '../../ui';
@@ -9,6 +9,7 @@ import { PlanFeatures, unlocks } from '../../PlanFeatures';
 import { Downgrade, ExtraNumbers } from './BillingExtras';
 import { UpgradePay } from './UpgradePay';
 import { ReplaceNumber } from './ReplaceNumber';
+import { WalletPay, RenewWarning } from '../../WalletPay';
 import { ask } from '../../i18n';
 import { useOffer } from '../../offers';
 
@@ -23,6 +24,9 @@ function Renewal({ num, reload, refreshSummary }) {
   const waitsForMain = held && num.isSubNumber;
   const renew = async () => {
     if (!(await ask(`${held ? 'Restore' : 'Renew'} ${num.phoneNumber} for ${money(price)}?`, { ok: held ? 'Restore' : 'Renew' }))) return;
+    renewNow();
+  };
+  const renewNow = async () => {
     setBusy(true);
     try {
       const d = await api(`${path}/renew`, { method: 'POST' });
@@ -41,7 +45,8 @@ function Renewal({ num, reload, refreshSummary }) {
       <div className="flex justify-between text-sm"><span className="text-[#a1a1aa]">Plan</span><span>{num.planName} · {money(full)}/month</span></div>
       <div className="flex justify-between text-sm"><span className="text-[#a1a1aa]">Paid until</span><span data-testid="billing-expires">{day(num.expiresAt)}</span></div>
       {!held && <div className="flex items-center justify-between"><span className="text-sm">Auto-renew from wallet</span><InstantToggle num={num} feature="autoRenew" label="Auto-renew" checked={num.autoRenew} reload={reload} testid="billing-auto-renew-toggle" /></div>}
-      {!waitsForMain && <button className={`civr-btn civr-btn-sm ${held ? 'civr-btn-primary' : 'civr-btn-ghost'}`} onClick={renew} disabled={busy} data-testid="billing-renew-button">{busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}{held ? `Restore for ${money(price)}` : deal ? `Renew now for ${money(price)}` : 'Renew now'}</button>}
+      {!held && num.autoRenew && <RenewWarning price={full} date={num.expiresAt} testid="billing-renew-warning" />}
+      {!waitsForMain && <WalletPay price={price} small onWallet={renew} onCrypto={renewNow} busy={busy} label={held ? `Restore for ${money(price)}` : `Renew now for ${money(price)}`} testid="billing-renew-pay" walletTestid="billing-renew-button" cryptoTestid="billing-renew-crypto" />}
     </div>
   );
 }

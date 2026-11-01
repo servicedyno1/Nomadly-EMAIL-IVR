@@ -7,7 +7,7 @@ import { LoaStep, BillStep } from './DocumentsStep';
 import { Thread } from './Thread';
 import { useShell } from '../../Shell';
 import { ask } from '../../confirm';
-import { CryptoPay } from '../../CryptoPay';
+import { WalletPay, RenewWarning } from '../../WalletPay';
 
 export const STATUS = {
   verify: { label: 'Step 2 · Ownership code', tone: 'text-[#fbbf24]' },
@@ -38,6 +38,7 @@ export function NumberPanel({ item, meta, onChange }) {
       {item.status === 'paused' && !item.planNumber && <RenewPaused item={item} onChange={onChange} />}
       {item.status === 'rejected' && <Info icon={XCircle} text={`This number couldn’t be text-enabled. $${item.paid} was refunded to your wallet.`} testid="texting-rejected" />}
       {item.status === 'active' && <p className="text-xs text-[#a1a1aa]" data-testid="texting-billing">{item.planNumber ? `Texting add-on · renews with your ${item.plan[0].toUpperCase() + item.plan.slice(1)} plan on ${item.planNumber}, no monthly fee` : `Texting plan · next $${item.monthly} on ${String(item.nextBillAt || '').slice(0, 10)} · incoming texts are free`}</p>}
+      {item.status === 'active' && !item.planNumber && <RenewWarning price={item.monthly} date={item.nextBillAt} testid="texting-renew-warning" />}
       {['active', 'paused'].includes(item.status) && <Thread item={item} meta={meta} />}
       {['verify', 'loa', 'documents', 'admin_docs'].includes(item.status) && <CancelButton item={item} onChange={onChange} />}
     </div>
@@ -50,9 +51,8 @@ function RenewPaused({ item, onChange }) {
   const [busy, setBusy] = useState(false);
   const renew = async () => { setBusy(true); try { await api(`/hosted-sms/${item.id}/renew`, { method: 'POST' }); toast.success('Texting is back on'); refreshSummary(); onChange(); } catch (e) { toast.error(e.message); } finally { setBusy(false); } };
   return (
-    <div className="flex flex-wrap gap-2 items-start" data-testid="texting-renew">
-      <button type="button" onClick={renew} disabled={busy} className="civr-btn civr-btn-primary civr-btn-sm" data-testid="texting-renew-wallet">{busy && <Loader2 className="w-4 h-4 animate-spin" />}{`Renew $${item.monthly} from wallet`}</button>
-      <CryptoPay price={item.monthly} onReady={renew} testid="texting-renew-crypto" />
+    <div data-testid="texting-renew">
+      <WalletPay price={item.monthly} small onWallet={renew} busy={busy} label={`Renew $${item.monthly} from wallet`} testid="texting-renew-pay" walletTestid="texting-renew-wallet" cryptoTestid="texting-renew-crypto" />
     </div>
   );
 }
