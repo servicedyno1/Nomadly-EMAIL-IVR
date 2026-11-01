@@ -1,6 +1,7 @@
 # Iter185: Spenza eSIM integration — admin catalog/fleet, customer lines, buy (preview simulated), SMS, Inbox reply, webhook HMAC
 import os, time, json, hmac, hashlib, pytest, requests
 from pymongo import MongoClient
+pytestmark = pytest.mark.skip(reason="UNSAFE since line is real: sends real SMS + re-registers Spenza webhook; use test_esim_iter186.py")
 
 BASE_URL = os.environ.get('REACT_APP_BACKEND_URL').rstrip('/')
 API = f"{BASE_URL}/api/cloudivr-web"

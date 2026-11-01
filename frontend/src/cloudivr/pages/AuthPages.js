@@ -15,6 +15,7 @@ import { ThemeRoot } from '../theme';
 
 const NEXT_STEPS = ['Pick a number and plan', 'Pay with crypto or your wallet (cards coming soon)', 'Choose what callers hear'];
 const TEXTING_STEPS = ['Enter your business number', 'Pay from your wallet', 'Read your customers’ texts'];
+const ESIM_STEPS = ['Pick an eSIM plan', 'Pay from your wallet', 'Scan the QR code on your phone'];
 
 // Plan picked on the pricing section (?plan=pro) — kept through sign-up so Buy opens with it selected.
 function usePlanParam() {
@@ -34,7 +35,7 @@ function SidePanel({ signup, texting }) {
         <div>
           <div className="civr-label">What happens next</div>
           <ol className="mt-6 flex flex-col gap-6" data-testid="auth-next-steps">
-            {(texting ? TEXTING_STEPS : NEXT_STEPS).map((s, i) => (
+            {(texting === 'esim' ? ESIM_STEPS : texting ? TEXTING_STEPS : NEXT_STEPS).map((s, i) => (
               <li key={s} className="flex items-center gap-4 font-display text-3xl font-bold">
                 <span className="civr-auth-step w-10 h-10 rounded-full border-2 font-mono text-base flex items-center justify-center shrink-0">{i + 1}</span>{s}
               </li>
@@ -105,10 +106,11 @@ export function AuthPage({ mode }) {
   };
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
   return (
-    <AuthFrame signup={signup} texting={plan === 'texting'} testid={signup ? 'signup-page' : 'login-page'} title={signup ? 'Create your free account' : 'Welcome back'}
-      sub={signup ? (plan === 'texting' ? 'Free to create. Next you add your business number.' : 'Free to create. Next you pick a number and choose how to pay.') : 'Sign in to manage your numbers.'}>
+    <AuthFrame signup={signup} texting={plan === 'esim' ? 'esim' : plan === 'texting'} testid={signup ? 'signup-page' : 'login-page'} title={signup ? 'Create your free account' : 'Welcome back'}
+      sub={signup ? (plan === 'texting' ? 'Free to create. Next you add your business number.' : plan === 'esim' ? 'Free to create. Next you pick your eSIM plan.' : 'Free to create. Next you pick a number and choose how to pay.') : 'Sign in to manage your numbers.'}>
       {mfa ? <TwoFactorStep mfa={mfa} remember={remember} onDone={done} onBack={() => setMfa(null)} /> : <>
       {plan === 'texting' ? <div className="flex items-center gap-2 text-sm text-[#818cf8] mb-6" data-testid="auth-chosen-plan"><Check className="w-4 h-4" /><span>Texting plan picked — you’ll add your business number next.</span></div>
+        : plan === 'esim' ? <div className="flex items-center gap-2 text-sm text-[#818cf8] mb-6" data-testid="auth-chosen-plan"><Check className="w-4 h-4" /><span>CloudIVR eSIM picked — you’ll choose your plan and scan the QR code next.</span></div>
         : plan && <div className="flex items-center gap-2 text-sm text-[#818cf8] mb-6" data-testid="auth-chosen-plan"><Check className="w-4 h-4" /><span><span className="capitalize">{plan}</span> plan picked — you’ll choose your number next.</span></div>}
       {signup && refCode && <div className="flex items-center gap-2 text-sm text-[#818cf8] mb-6" data-testid="auth-referral-note"><Check className="w-4 h-4" />A friend invited you — you get a welcome credit after your first number.</div>}
       <GoogleButton dest={dest} signup={signup} refCode={refCode} onMfa={setMfa} />

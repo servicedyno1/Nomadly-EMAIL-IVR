@@ -24,7 +24,7 @@ export function EsimPlans() {
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5 mt-10">{plans.map(p => (
             <div key={p.planId} className="v2-surface p-6 flex flex-col v2-lift" data-testid={`esim-landing-plan-${slug(p.planId)}`}>
               <div className="flex items-center justify-between gap-2"><span className="font-semibold">{p.name}</span><span className="text-xs v2-muted">{p.carrier}</span></div>
-              <div className="civr-l-h text-4xl mt-4">{`$${p.price}`}<span className="text-base font-medium v2-muted">{` / ${p.validityDays} days`}</span></div>
+              <div className="civr-l-h text-4xl mt-4">{`$${p.price}`} <span className="text-base font-medium v2-muted">{`/ ${p.validityDays} days`}</span></div>
               <ul className="mt-4 space-y-1.5 text-sm flex-1">{[p.data && `${p.data} data`, p.voiceMinutes != null && `${p.voiceMinutes} minutes of calls`, p.sms && (p.sms === 'Unlimited' ? 'Unlimited texts' : `${p.sms} texts`), 'US phone number included'].filter(Boolean).map(x => <li key={x}>{x}</li>)}</ul>
               <Link to={start('esim')} className="civr-l-pill civr-l-pill-ink mt-6" data-testid={`esim-landing-order-${slug(p.planId)}`}>Order eSIM<ArrowRight className="w-4 h-4" /></Link>
             </div>

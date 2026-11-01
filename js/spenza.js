@@ -29,7 +29,9 @@ async function call(method, path, data, extra = {}) {
   }
 }
 const unwrap = (r) => (Array.isArray(r?.data) ? r.data : r?.data?.items || r?.data || [])
-const errOf = (e) => ({ error: e.message || 'The eSIM service didn’t respond. Try again.' })
+const FRIENDLY = 'The eSIM service didn’t respond. Try again in a minute.'
+const errOf = (e) => { S?.log(`[eSIM] provider: ${e.message}`); return { error: FRIENDLY } }
+const custPlan = (p) => ({ planId: p.planId, label: p.label || null, price: p.price, validityDays: p.validityDays, data: p.data, voiceMinutes: p.voiceMinutes, sms: p.sms, carrier: 'US network' })
 
 const planOut = (p, cfg) => ({
   planId: p.productId, cost: p.price, currency: p.currency, validityDays: p.validityDays, recurring: !!p.recurring,
@@ -52,6 +54,7 @@ async function setPlan(planId, { price, enabled, label }) {
   return { ok: true }
 }
 async function forSale() { return (await catalog()).filter(p => p.enabled && p.price > 0) }
+async function plansForCustomers() { return (await forSale()).map(custPlan) }
 
 // ---------- admin fleet ----------
 async function fleet() {
@@ -80,7 +83,7 @@ async function linkSim(iccid, email) {
   if (!sim) return { error: 'That SIM isn’t on your Spenza account.' }
   const sub = await call('get', `/api/v1.1/sims/${encodeURIComponent(iccid)}/subscription`).catch(() => null)
   const _id = 'es_' + crypto.randomBytes(6).toString('hex')
-  await S.col.updateOne({ iccid }, { $set: { chatId: String(acct._id), iccid, phoneNumber: sim.phoneNumber || null, isEsim: !!sim.isEsim, planId: sub?.data?.productId || sub?.data?.planId || null, status: 'active', price: 0, linked: true, callsTo: 'device', updatedAt: new Date() }, $setOnInsert: { _id, createdAt: new Date() } }, { upsert: true })
+  await S.col.updateOne({ iccid }, { $set: { chatId: String(acct._id), iccid, phoneNumber: sim.phoneNumber || null, isEsim: !!sim.isEsim, planId: sub?.data?.productId || sub?.data?.planId || null, status: 'active', price: 0, linked: true, updatedAt: new Date() }, $setOnInsert: { _id, callsTo: 'device', createdAt: new Date() } }, { upsert: true })
   return { ok: true }
 }
 
@@ -109,8 +112,10 @@ async function buy(chatId, { planId, imei, simId }) {
     return { item: pub(doc) }
   } catch (e) {
     await S.w.credit(chatId, plan.price); await txn(chatId, 'esim-refund', plan.price, { lineId: _id })
-    await S.col.updateOne({ _id }, { $set: { status: 'failed', note: e.message, updatedAt: new Date() } })
-    return { error: `We couldn’t create the eSIM: ${e.message} Your $${plan.price} was refunded.` }
+    S.log(`[eSIM] create ${_id}: ${e.message}`)
+    await S.col.updateOne({ _id }, { $set: { status: 'failed', note: 'The eSIM couldn’t be created. Your payment was refunded.', providerError: e.message, updatedAt: new Date() } })
+    S.tell(chatId, `⚠️ Your eSIM couldn’t be created. $${plan.price} was refunded to your wallet.`, { kind: 'billing', meta: { esim: _id } })
+    return { error: `We couldn’t create the eSIM right now. Your $${plan.price} was refunded to your wallet.`, code: 'esim_failed' }
   }
 }
 
@@ -126,10 +131,10 @@ async function pollOne(d) {
   if (['completed', 'succeeded', 'success'].includes(st)) {
     const x = r.result || {}
     await S.col.updateOne({ _id: d._id }, { $set: { status: 'active', iccid: x.iccid || null, phoneNumber: x.mdn ? (String(x.mdn).startsWith('+') ? x.mdn : '+1' + String(x.mdn).replace(/\D/g, '').slice(-10)) : null, qrCode: x.qrCode || null, orderId: x.orderId || null, nextBillAt: new Date(Date.now() + MONTH_MS), updatedAt: new Date() } })
-    S.tell(d.chatId, '📱 Your eSIM is ready. Open Mobile eSIM and scan the QR code with your phone to install it.', { kind: 'billing', meta: { esim: d._id } })
+    S.tell(d.chatId, '📱 Your eSIM is ready. Open CloudIVR eSIM and scan the QR code with your phone to install it.', { kind: 'billing', meta: { esim: d._id } })
   } else if (['failed', 'error'].includes(st)) {
     await S.w.credit(d.chatId, d.price); await txn(d.chatId, 'esim-refund', d.price, { lineId: d._id })
-    await S.col.updateOne({ _id: d._id }, { $set: { status: 'failed', note: r?.error?.message || 'The eSIM couldn’t be created.', updatedAt: new Date() } })
+    await S.col.updateOne({ _id: d._id }, { $set: { status: 'failed', note: 'The eSIM couldn’t be created. Your payment was refunded.', providerError: r?.error?.message || null, updatedAt: new Date() } })
     S.tell(d.chatId, `⚠️ Your eSIM couldn’t be created. $${d.price} was refunded to your wallet.`, { kind: 'billing', meta: { esim: d._id } })
   }
 }
@@ -139,7 +144,7 @@ async function qr(chatId, id) {
   if (!d) return { error: 'Not found.' }
   if (d.qrCode && (d.simulated || !d.iccid)) return { qrCode: d.qrCode }
   if (!d.iccid) return { error: 'The eSIM is still being created.' }
-  try { const r = await call('get', `/api/v1.1/esim/${encodeURIComponent(d.iccid)}/qr`); const q = typeof r?.data?.activationCode === 'string' ? r.data.activationCode : r?.data?.qrCode || null; if (q) await S.col.updateOne({ _id: d._id }, { $set: { qrCode: q } }); return { qrCode: q, image: r?.data?.qrCodeUrl || null } } catch (e) { return errOf(e) }
+  try { const r = await call('get', `/api/v1.1/esim/${encodeURIComponent(d.iccid)}/qr`); const q = typeof r?.data?.activationCode === 'string' ? r.data.activationCode : r?.data?.qrCode || null; if (q) await S.col.updateOne({ _id: d._id }, { $set: { qrCode: q } }); if (q) return { qrCode: q }; const u = r?.data?.qrCodeUrl; if (!u) return { qrCode: null }; const img = await axios.get(u, { responseType: 'arraybuffer', timeout: 15000 }); return { image: `data:${img.headers['content-type'] || 'image/png'};base64,${Buffer.from(img.data).toString('base64')}` } } catch (e) { return errOf(e) }
 }
 async function lineUsage(chatId, id) { const d = await mine(chatId, id); if (!d?.iccid) return { usage: null }; return d.simulated ? { usage: { simulated: true } } : usage(d.iccid) }
 
@@ -182,7 +187,7 @@ async function sendSms(chatId, id, to, text) {
   if (!body) return { error: 'Type a message.' }
   if (!(await S.w.debit(chatId, TEXT_PRICE))) return { error: `Your wallet needs $${TEXT_PRICE} to send a text.` }
   if (!d.simulated) {
-    try { await call('post', '/api/v1.1/sms', { fromNumber: d.phoneNumber, toNumber: dest, text: body }) } catch (e) { await S.w.credit(chatId, TEXT_PRICE); return { error: e.code === 'FORBIDDEN' || e.status === 401 || e.status === 403 ? 'Sending texts needs the Admin role on the Spenza account. We’ve let support know.' : e.message } }
+    try { await call('post', '/api/v1.1/sms', { fromNumber: d.phoneNumber, toNumber: dest, text: body }) } catch (e) { await S.w.credit(chatId, TEXT_PRICE); S.log(`[eSIM] sms ${d._id}: ${e.message}`); return { error: e.code === 'FORBIDDEN' || e.status === 401 || e.status === 403 ? 'Texts from this eSIM aren’t switched on yet. We’ve let support know. You weren’t charged.' : 'The text couldn’t be sent. You weren’t charged. Try again in a minute.' } }
   }
   await txn(chatId, 'esim-sms', TEXT_PRICE, { lineId: d._id, to: dest })
   const log = { chatId: String(chatId), phoneNumber: d.phoneNumber, from: d.phoneNumber, to: dest, type: 'sms', direction: 'outbound', body, esim: d._id, charge: TEXT_PRICE, status: d.simulated ? 'preview' : 'sent', timestamp: new Date() }
@@ -200,7 +205,8 @@ function verify(raw, sig, ts, secret) {
 }
 async function onWebhook(raw, headers, body) {
   const cfg = await S.db.collection('spenzaConfig').findOne({ _id: 'webhook' })
-  if (!verify(raw, headers['x-spenza-signature'], headers['x-spenza-timestamp'], cfg?.signingSecret)) return { status: 401 }
+  if (!cfg?.signingSecret) { S.log('[eSIM] webhook rejected: no signing secret saved — reconnect incoming texts in Admin → eSIM'); return { status: 401 } }
+  if (!verify(raw, headers['x-spenza-signature'], headers['x-spenza-timestamp'], cfg.signingSecret)) { S.log('[eSIM] webhook rejected: bad signature'); return { status: 401 } }
   const b = body?.data || body || {}
   if ((b.eventType || body?.eventType) === 'webhook.test') { S.log('[Spenza] webhook test received'); return { status: 200 } }
   const norm = (n) => { const x = String(n || '').replace(/[^\d+]/g, ''); return x.startsWith('+') ? x : x.length === 10 ? '+1' + x : x ? '+' + x : '' }
@@ -219,6 +225,7 @@ async function onWebhook(raw, headers, body) {
 async function registerWebhook(baseUrl) {
   if (!baseUrl) return { error: 'SELF_URL isn’t set, so Spenza has nowhere to send texts.' }
   const url = `${baseUrl.replace(/\/$/, '')}/api/cloudivr-web/public/spenza/webhook`
+  if (dry()) return { ok: true, url, preview: true }
   try {
     const r = await call('post', '/api/v1.1/webhooks', { operator: 'SpenzaJ', network: 'SpenzaJ', eventType: 'both', webhookUrls: { messageUrl: url, voiceUrl: url }, authentication: { type: 'none' } })
     await S.db.collection('spenzaConfig').updateOne({ _id: 'webhook' }, { $set: { url, at: new Date(), id: r?.data?.id || null, signingSecret: r?.data?.signingSecret } }, { upsert: true })
@@ -277,5 +284,5 @@ function init({ db, log = console.log, tell }) {
   return api
 }
 
-const api = { init, catalog, setPlan, forSale, fleet, usage, linkSim, list, buy, qr, lineUsage, renew, cancel, sendSms, messages, onWebhook, registerWebhook, setCallsTo, syncSip, TEXT_PRICE }
+const api = { init, catalog, setPlan, forSale, plansForCustomers, fleet, usage, linkSim, list, buy, qr, lineUsage, renew, cancel, sendSms, messages, onWebhook, registerWebhook, setCallsTo, syncSip, TEXT_PRICE }
 module.exports = api

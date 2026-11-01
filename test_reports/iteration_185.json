@@ -1,0 +1,58 @@
+{
+  "summary": "Tested the CloudIVR eSIM (Spenza) integration end to end: backend pytest (15 of 16 passed) and UI checks with Playwright on the landing page, signup?plan=esim, Alice's /app/esim, Inbox, Spanish, and the admin tab. Everything requested works: public plans return 'US Starter eSIM' at $14 with carrier 'US network'; the landing eSIM section and Order eSIM link go to /cloudivr/signup?plan=esim (after signup the user lands on /app/esim); the 'CloudIVR eSIM' channel card links to #esim; nav-esim is visible; the real line +16462556424 shows Active and 'Linked by CloudIVR' with a usage line; the real install QR image renders; the calls radio saves (the 'pending' toast shows); the Texts thread lists inbound and outbound messages; a non-US number returns 400 and nothing is charged; exactly ONE real text was sent, to +16462556424 (status 'sent', $0.05 charged, and it came back as an inbound text through the webhook); the Inbox eSIM notification has a Reply button (canReply true; no reply was sent); the simulated buy flow works (Pay button disabled for short IMEIs, a bad Luhn number shows the IMEI error, insufficient wallet returns 402, a good IMEI is paid and the line becomes Active with a QR, and Cancel removes it); the admin tab shows credit, the SPENZA_001 plan ($7 cost, 20 MB, 20 min, Unlimited texts, price 14, Stop selling / Save price), the SIM list with Usage output and a Link button, and the Texts and calls section. No 'Spenza' text appears on customer pages in English or Spanish. Problems found: the customer API leaks the provider name and wholesale cost; the provisioning line does not update without a page reload; Cancel eSIM has no confirmation; and a few copy, translation and test-id problems.",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "GET /api/cloudivr-web/esim", "issue": "Customer response 'plans' is the raw ES.forSale() output. It includes cost: 7 (the wholesale Spenza price), operator: 'SpenzaJ' and network: 'SpenzaJ'. A customer can see the provider name and the margin in DevTools. Map plans the same way /public/esim-plans does: no cost, operator or network fields, and carrier 'US network'.", "priority": "HIGH"}
+    ],
+    "minor": [
+      {"endpoint": "POST /api/cloudivr-web/esim/:id/sms and the Inbox reply", "issue": "Customer-facing error text 'Sending texts needs the Admin role on the Spenza account…' names Spenza. Raw provider error messages are also passed straight to customers (errOf(e).message, and 'We couldn’t create the eSIM: ${e.message}' in buy())."},
+      {"endpoint": "GET /api/cloudivr-web/esim/:id/qr", "issue": "The real line returns image = https://esim-activation-code.s3.amazonaws.com/.../spenzaJ-…png, so the file name exposes 'spenzaJ' if the customer opens the image. The simulated QR payload is 'LPA:1$preview.spenza.test$…' (preview only)."},
+      {"endpoint": "spenza.js pollOne / notification text", "issue": "The ready notification says 'Open Mobile eSIM', but the product is now called 'CloudIVR eSIM'. The eSIM SMS notifications have link /app/numbers, so 'Open texts' in the Inbox goes to My numbers instead of /app/esim."},
+      {"endpoint": "POST /api/cloudivr-web/admin/esim/webhook", "issue": "The frontend checks r.preview, but registerWebhook never returns preview and always calls the real Spenza API, even in DRY_RUN. Not exercised, as instructed."},
+      {"endpoint": "Production readiness", "issue": "The Spenza credit balance is 1 USD but the SPENZA_001 cost is $7, so real purchases in production will fail (refund path). Admin also shows SPENZA_001 with isEsim=false ('physical SIM') while it is sold as an eSIM through POST /v1.1/esim. Verify the plan accepts eSIM activation."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Esim page / Line", "issue": "A newly bought line stays on 'Creating your eSIM…' and never turns Active unless the page is reloaded (waited 48 s; the backend had activated it at about 20 s). Add polling while any item.status === 'provisioning'.", "selector": "[data-testid^='esim-status-']", "priority": "HIGH"},
+      {"component": "Esim page / Line cancel", "issue": "'Cancel eSIM' cancels right away with no confirmation dialog. It is a destructive action on a paid line, and the same button sits on the real linked line es_69fcb8db0c34.", "selector": "[data-testid^='esim-cancel-']", "priority": "HIGH"},
+      {"component": "Test ids", "issue": "slug() uses /\\W/g, which keeps the underscore, so the ids are esim-landing-plan-SPENZA_001, esim-landing-order-SPENZA_001, esim-plan-SPENZA_001 and admin-esim-plan-SPENZA_001, not the SPENZA001 form given in the review request. Pick one convention.", "selector": "[data-testid='esim-landing-plan-SPENZA_001']", "priority": "LOW"},
+      {"component": "Signup ?plan=esim", "issue": "The chosen-plan note reads 'Esim plan picked — you’ll choose your number next.' This is wrong copy for the eSIM flow, and the side panel still shows the number-buying steps.", "selector": "[data-testid='auth-chosen-plan']", "priority": "MEDIUM"},
+      {"component": "Inbox eSIM reply", "issue": "The reply hint says '0/160 · uses 1 text from your plan', but eSIM replies cost $0.05 from the wallet.", "selector": "[data-testid^='inbox-item-'][data-testid$='-reply-input']", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "/app/esim Where should calls ring?", "issues": ["The selected option (aria-checked=true) cannot be told apart from the other one in the screenshots; the ring-1 ring-[#818cf8] does not show on civr-card in this theme. Use a stronger selected style."]},
+      {"screen": "/app/esim and landing in Spanish", "issues": ["Not translated: 'This cycle: Data … of … GB · Calls … min · Texts …', '/ 30 days', '20 MB data', '20 minutes of calls', 'Unlimited texts', 'renews monthly from your wallet', the placeholder '+1 US número' (mixed language).", "The status shows lowercase 'activo' next to 'Vinculada' (gender and capitalization mismatch)."]},
+      {"screen": "Admin top nav", "issues": ["The 'Reseller' tab label is cut off as 'Reselle' at 1920 px.", "Usage shows as raw JSON; a formatted summary would be easier to read."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_esim_iter186.py", "/app/test_reports/pytest/pytest_iter186.xml"],
+  "action_items": [
+    "Remove cost, operator and network from the GET /esim plans (customer API) and use carrier 'US network' as /public/esim-plans does",
+    "Poll /esim every ~5 s while any line is provisioning so it turns Active without a reload",
+    "Add a confirmation dialog to 'Cancel eSIM'",
+    "Remove 'Spenza' from customer error messages (sendSms FORBIDDEN text, raw provider errors in buy, qr and usage)",
+    "Fix the signup chosen-plan copy for plan=esim",
+    "Set the eSIM notification link to /app/esim and rename 'Mobile eSIM' to 'CloudIVR eSIM' in the ready message",
+    "Translate the remaining eSIM strings (usage line, plan card lines) into es and fr",
+    "Make the selected calls option visually clear",
+    "Fix the Inbox reply hint for eSIM ($0.05 from wallet)",
+    "Make registerWebhook respect DRY_RUN or return preview, so it matches the frontend",
+    "Top up the Spenza credit (1 USD < $7 plan cost) before going live"
+  ],
+  "critical_code_review_comments": [
+    "esim.js routes(): GET /esim returns forSale() untouched, which leaks the wholesale price and provider name.",
+    "spenza.js linkSim(): re-linking sets callsTo:'device' and overwrites the customer's routing choice (seen in the earlier test).",
+    "spenza.js sendSms(): the wallet is debited before the provider call and credited back on failure, which is fine. There is no rate limit on texts per minute, so spam or abuse is possible.",
+    "spenza.js onWebhook(): if signingSecret is missing (registerWebhook got no signingSecret back), every inbound webhook is rejected with 401 without any log line. Add a log.",
+    "Admin and customer QrBlock: no loading or error state for a broken img src (no onError fallback to react-qr-code from the qrCode string).",
+    "The old test /app/backend/tests/test_spenza_esim_iter185.py is now UNSAFE: it sends real SMS to +13125550111 and calls admin/esim/webhook. I marked it module-skip."
+  ],
+  "updated_files": ["/app/backend/tests/test_esim_iter186.py", "/app/backend/tests/test_spenza_esim_iter185.py (added pytestmark skip: unsafe against the real line)"],
+  "success_rate": {"backend": "94% (15/16)", "frontend": "85%"},
+  "seed_data_creation": "No seeds. Simulated eSIMs bought and cancelled for Alice (es_c2b63cfed572 via API, es_8c62fff2d3e2 via UI); about $28 plus $0.05 debited from Alice's wallet (now about $941.93). One real text sent to +16462556424 ('TEST_iter186 self text'). The real line es_69fcb8db0c34 is untouched (active, callsTo restored to browser). The SPENZA_001 price is still 14 and on sale.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Use /app/backend/tests/test_esim_iter186.py. It is safe: the real text only runs with ESIM_SEND_REAL_TEXT=1, so run it WITHOUT that variable next time. Do not run test_spenza_esim_iter185.py (now skipped). The testids use SPENZA_001 (with the underscore). Admin login: get devCode from the /admin/login response. Alice login: auth-email-input, input[type=password], auth-submit-button; dismiss cookie-allow-all first. Never click esim-cancel-es_69fcb8db0c34 or admin-esim-webhook-button. Language key in localStorage: civr.lang."
+}

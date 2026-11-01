@@ -1,0 +1,10 @@
+require('/app/node_modules/dotenv').config({ path: '/app/.env' })
+const { MongoClient } = require('/app/node_modules/mongodb')
+;(async () => {
+  const c = await new MongoClient(process.env.MONGO_URL).connect(); const db = c.db(process.env.DB_NAME)
+  const a = await db.collection('webAccounts').findOne({ email: 'onarrival21@gmail.com' }, { projection: { _id: 1, email: 1 } })
+  console.log('acct', a ? String(a._id) : null)
+  console.log(await db.collection('esimLines').find({ phoneNumber: '+16462556424' }, { projection: { _id: 1, chatId: 1, status: 1, callsTo: 1, linked: 1 } }).toArray())
+  console.log(await db.collection('spenzaConfig').findOne({ _id: 'prelink:+16462556424' }))
+  await c.close()
+})()

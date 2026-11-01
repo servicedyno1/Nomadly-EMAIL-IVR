@@ -1,5 +1,5 @@
 'use strict'
-// Mobile eSIM (Spenza) routes: public webhook, owner admin, customer lines.
+// CloudIVR eSIM (Spenza) routes: public webhook, owner admin, customer lines.
 const ES = require('../spenza.js')
 const notify = require('./notify')
 
@@ -8,7 +8,7 @@ const tell = async (id, text, extra) => { await notify.push(id, text, null, extr
 
 function publicRoutes(r, { db, h, log, A }) {
   ES.init({ db, log, tell })
-  r.get('/public/esim-plans', h(async (req, res) => res.json({ plans: (await ES.forSale().catch(() => [])).map(p => ({ planId: p.planId, name: p.label || p.planId, price: p.price, validityDays: p.validityDays, data: p.data, voiceMinutes: p.voiceMinutes, sms: p.sms, carrier: p.network === 'SpenzaJ' ? 'US network' : p.network })) })))
+  r.get('/public/esim-plans', h(async (req, res) => res.json({ plans: (await ES.plansForCustomers().catch(() => [])).map(p => ({ ...p, name: p.label || p.planId })) })))
   r.post('/public/spenza/webhook', h(async (req, res) => {
     const x = await ES.onWebhook(req.rawBody ? req.rawBody.toString('utf8') : JSON.stringify(req.body || {}), req.headers, req.body)
     res.status(x.status).json({ ok: x.status === 200 })
@@ -24,7 +24,7 @@ function publicRoutes(r, { db, h, log, A }) {
 }
 
 function routes(r, { h }) {
-  r.get('/esim', h(async (req, res) => res.json({ plans: await ES.forSale().catch(() => []), items: await ES.list(req.webChatId), textPrice: ES.TEXT_PRICE })))
+  r.get('/esim', h(async (req, res) => res.json({ plans: await ES.plansForCustomers().catch(() => []), items: await ES.list(req.webChatId), textPrice: ES.TEXT_PRICE })))
   r.post('/esim', h(async (req, res) => out(res, await ES.buy(req.webChatId, req.body || {}))))
   r.get('/esim/:id/qr', h(async (req, res) => out(res, await ES.qr(req.webChatId, req.params.id))))
   r.get('/esim/:id/usage', h(async (req, res) => out(res, await ES.lineUsage(req.webChatId, req.params.id))))

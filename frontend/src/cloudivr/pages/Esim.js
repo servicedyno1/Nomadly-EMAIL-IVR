@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
-import { Loader2, Smartphone, QrCode, Globe2, MessageSquare, Phone, Send } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { Loader2, Smartphone, QrCode, Globe2, MessageSquare, Phone, Send, CheckCircle2, Circle } from 'lucide-react';
 import { toast } from 'sonner';
 import QRCode from 'react-qr-code';
 import { api, useApi, when } from '../api';
 import { PageHeader, Field, ErrorNote, Spinner, Empty } from '../ui';
 import { useShell } from '../Shell';
+import { ask } from '../confirm';
 
 const STATUS = { provisioning: ['Creating your eSIM…', 'text-[#fbbf24]'], active: ['Active', 'text-[#34d399]'], suspended: ['Paused · monthly fee due', 'text-[#fbbf24]'], failed: ['Couldn’t be created · refunded', 'text-[#fb7185]'] };
 
@@ -12,10 +13,10 @@ function PlanCard({ p, onBuy }) {
   return (
     <div className="civr-card p-5 flex flex-col" data-testid={`esim-plan-${p.planId.replace(/\W/g, '')}`}>
       <div className="font-semibold">{p.label || p.planId}</div>
-      <div className="font-display text-3xl font-bold mt-2">{`$${p.price}`}<span className="text-sm font-normal text-[#a1a1aa]">{` / ${p.validityDays} days`}</span></div>
+      <div className="font-display text-3xl font-bold mt-2">{`$${p.price}`} <span className="text-sm font-normal text-[#a1a1aa]">{`/ ${p.validityDays} days`}</span></div>
       <ul className="text-sm text-[#d4d4d8] mt-3 space-y-1 flex-1">
         {p.data && <li>{`${p.data} data`}</li>}{p.voiceMinutes != null && <li>{`${p.voiceMinutes} minutes of calls`}</li>}{p.sms != null && <li>{p.sms === 'Unlimited' ? 'Unlimited texts' : `${p.sms} texts`}</li>}
-        <li className="text-[#a1a1aa]">{`${p.network === 'SpenzaJ' ? 'US network' : p.network} · renews monthly from your wallet`}</li>
+        <li className="text-[#a1a1aa]">{`${p.carrier} · renews monthly from your wallet`}</li>
       </ul>
       <button type="button" onClick={() => onBuy(p)} className="civr-btn civr-btn-primary mt-4" data-testid={`esim-plan-buy-${p.planId.replace(/\W/g, '')}`}>Get this eSIM</button>
     </div>
@@ -43,11 +44,12 @@ function BuyForm({ plan, onDone, onCancel }) {
 
 function QrBlock({ id }) {
   const { data, error } = useApi(`/esim/${id}/qr`);
+  const [broken, setBroken] = useState(false);
   if (error) return <ErrorNote error={error} />;
   if (!data) return <Spinner />;
   return data.qrCode || data.image ? (
     <div className="flex flex-col sm:flex-row gap-4 items-start" data-testid="esim-qr">
-      <div className="bg-white p-3 rounded-xl">{data.image ? <img src={data.image} alt="eSIM install QR code" className="w-[168px] h-[168px]" data-testid="esim-qr-image" /> : <QRCode value={data.qrCode} size={168} />}</div>
+      <div className="bg-white p-3 rounded-xl">{data.image && !broken ? <img src={data.image} alt="eSIM install QR code" onError={() => setBroken(true)} className="w-[168px] h-[168px]" data-testid="esim-qr-image" /> : data.qrCode ? <QRCode value={data.qrCode} size={168} /> : <p className="w-[168px] text-sm text-[#52525b]" data-testid="esim-qr-broken">The QR code didn’t load. Reload the page to try again.</p>}</div>
       <p className="text-sm text-[#d4d4d8]">On your phone open Settings → Mobile data (or Cellular) → Add eSIM → Use QR code, and scan this. Keep this page private: the code installs your line.</p>
     </div>
   ) : <p className="text-sm text-[#a1a1aa]">The QR code isn’t ready yet.</p>;
@@ -58,7 +60,7 @@ function CallsChoice({ item, onChange }) {
   const opts = [['device', Smartphone, 'Ring on my phone', 'Calls go to the eSIM on your phone.'], ['browser', Globe2, 'Ring in CloudIVR', 'Calls go to the browser phone and your IVR menus.']];
   return (
     <div className="grid sm:grid-cols-2 gap-2" role="radiogroup" aria-label="Where calls ring" data-testid="esim-calls">
-      {opts.map(([k, I, t, s]) => <button key={k} type="button" role="radio" aria-checked={item.callsTo === k} onClick={() => set(k)} className={`civr-card text-left p-3 ${item.callsTo === k ? 'ring-1 ring-[#818cf8]' : ''}`} data-testid={`esim-calls-${k}`}><div className="flex items-center gap-2 font-semibold text-sm"><I className="w-4 h-4 text-[#818cf8]" />{t}</div><div className="text-xs text-[#a1a1aa] mt-1">{s}</div></button>)}
+      {opts.map(([k, I, t, s]) => { const on = item.callsTo === k; const Mark = on ? CheckCircle2 : Circle; return <button key={k} type="button" role="radio" aria-checked={on} onClick={() => !on && set(k)} className={`civr-card text-left p-3 border-2 transition-colors ${on ? 'border-[#818cf8] bg-[#818cf8]/15' : 'border-transparent opacity-80 hover:opacity-100'}`} data-testid={`esim-calls-${k}`}><div className="flex items-center gap-2 font-semibold text-sm"><I className="w-4 h-4 text-[#818cf8]" />{t}<Mark className={`w-4 h-4 ml-auto ${on ? 'text-[#818cf8]' : 'text-[#52525b]'}`} aria-hidden="true" /></div><div className="text-xs text-[#a1a1aa] mt-1">{s}</div>{on && <div className="text-xs font-semibold text-[#818cf8] mt-1.5" data-testid={`esim-calls-${k}-selected`}>Selected</div>}</button>; })}
     </div>
   );
 }
@@ -87,12 +89,13 @@ function UsageLine({ id }) {
   const u = data?.usage;
   if (!u || u.simulated) return null;
   const parts = [u.data && `Data ${u.data.used} of ${u.data.allowance} ${u.data.unit}`, u.voice && `Calls ${u.voice.usedMinutes} of ${u.voice.allowanceMinutes} min`, u.sms && `Texts ${u.sms.used}${u.sms.allowance === 'unlimited' ? ' (unlimited)' : ` of ${u.sms.allowance}`}`].filter(Boolean);
-  return <p className="text-xs text-[#a1a1aa]" data-testid={`esim-usage-${id}`}>{`This cycle: ${parts.join(' · ')}`}</p>;
+  return <p className="text-xs text-[#a1a1aa]" data-testid={`esim-usage-${id}`}><span>This cycle:</span> {parts.map((x, i) => <span key={x}>{i ? ' · ' : ''}<span>{x}</span></span>)}</p>;
 }
 
 function Line({ item, reload }) {
   const [open, setOpen] = useState(item.status === 'active' && !item.linked);
   const [s, tone] = STATUS[item.status] || [item.status, ''];
+  const cancel = async () => { if (await ask(`Cancel the eSIM ${item.phoneNumber || ''}? The line stops working and its number can’t be recovered. Monthly fees already paid aren’t refunded.`, { danger: true, ok: 'Cancel eSIM', cancel: 'Keep eSIM', title: 'Cancel this eSIM?' })) act('cancel', 'Cancelled'); };
   const act = async (path, msg) => { try { await api(`/esim/${item.id}/${path}`, { method: 'POST' }); toast.success(msg); reload(); } catch (e) { toast.error(e.message); } };
   return (
     <div className="civr-card p-5 space-y-4" data-testid={`esim-line-${item.id}`}>
@@ -111,7 +114,7 @@ function Line({ item, reload }) {
       </>}
       <div className="flex flex-wrap gap-2">
         {item.status === 'suspended' && <button type="button" onClick={() => act('renew', 'Renewed')} className="civr-btn civr-btn-primary civr-btn-sm" data-testid={`esim-renew-${item.id}`}>{`Renew $${item.price}`}</button>}
-        {['active', 'suspended'].includes(item.status) && <button type="button" onClick={() => act('cancel', 'Cancelled')} className="civr-btn civr-btn-ghost civr-btn-sm" data-testid={`esim-cancel-${item.id}`}>Cancel eSIM</button>}
+        {['active', 'suspended'].includes(item.status) && <button type="button" onClick={cancel} className="civr-btn civr-btn-ghost civr-btn-sm" data-testid={`esim-cancel-${item.id}`}>Cancel eSIM</button>}
       </div>
     </div>
   );
@@ -120,6 +123,8 @@ function Line({ item, reload }) {
 export default function Esim() {
   const { data, error, reload } = useApi('/esim');
   const [buying, setBuying] = useState(null);
+  const waiting = !!data?.items?.some(x => x.status === 'provisioning');
+  useEffect(() => { if (!waiting) return undefined; const t = setInterval(reload, 5000); return () => clearInterval(t); }, [waiting, reload]);
   if (error) return <ErrorNote error={error} onRetry={reload} />;
   if (!data) return <Spinner />;
   return (

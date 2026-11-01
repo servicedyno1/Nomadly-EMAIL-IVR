@@ -93,6 +93,7 @@ function linkOf(n, mine) {
   const num = (tab) => (found ? `/app/numbers/${encodeURIComponent(found)}?tab=${tab}` : '/app/numbers')
   if (n.meta?.otp) return '/app/quick-call'
   if (n.meta?.hosted) return '/app/texting'
+  if (n.meta?.esim) return '/app/esim'
   switch (n.kind) {
     case 'sms': case 'voicemail': case 'call': return num('logs')
     case 'billing': return num('billing')
