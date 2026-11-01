@@ -130,6 +130,7 @@ async function runExpiryCheck() {
         if (num.status !== 'active' && num.status !== 'suspended') continue
         // Internal test lines (e.g. the live-call test number) never expire on their own.
         if (lifecycle.isInternalTest(num)) continue
+        if (num.replacedBy) continue
 
         // ── Twilio paused (TWILIO_ENABLED=false — account suspended) ──
         // Dead Twilio numbers are HELD for migration to Telnyx: no renewal

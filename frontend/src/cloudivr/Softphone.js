@@ -38,7 +38,7 @@ export default function Softphone({ open, onClose }) {
   }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (call) setLast({ peer: call.peer, direction: call.inbound ? 'inbound' : 'outbound' }); }, [call]);
   // "Call from this number" on a number card picks that line before the phone opens.
-  useEffect(() => { const on = (e) => { if (e.detail?.from) setSel(e.detail.from); }; window.addEventListener(DIAL_FROM, on); return () => window.removeEventListener(DIAL_FROM, on); }, []);
+  useEffect(() => { const on = (e) => { if (e.detail?.from) setSel(e.detail.from); if (e.detail?.to) setDest(e.detail.to); }; window.addEventListener(DIAL_FROM, on); return () => window.removeEventListener(DIAL_FROM, on); }, []);
   const selNum = nums?.find(n => n.phoneNumber === sel);
   const cmfAllowed = !!selNum?.access?.ivrOutbound;
   const viaMobile = cmf && cmfAllowed;

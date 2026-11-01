@@ -9,6 +9,7 @@ import { ask } from '../confirm';
 import { DRAFT_KEY } from './landing/EsimCheckout';
 import { useCivrAuth } from '../AuthContext';
 import { CryptoPay } from '../CryptoPay';
+import { NewNumber } from './esim/NewNumber';
 
 const readDraft = () => { try { return JSON.parse(localStorage.getItem(DRAFT_KEY)) || null; } catch (_) { return null; } };
 const dropDraft = () => { try { localStorage.removeItem(DRAFT_KEY); } catch (_) { /* private mode */ } };
@@ -33,6 +34,9 @@ function BuyForm({ plan, draft, onDone, onCancel }) {
   const { refreshSummary } = useShell();
   const [imei, setImei] = useState(draft?.imei || '');
   const [zip, setZip] = useState(draft?.zip || '');
+  const seen = useRef(false);
+  if (imei.replace(/\D/g, '').length === 15 && (!zip || zip.length === 5)) seen.current = true;
+  const cryptoOk = seen.current;
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
   const go = async () => { setBusy(true); setErr(null); try { await api('/esim', { method: 'POST', body: { planId: plan.planId, imei, zipcode: zip.trim() } }); toast.success(`Paid $${plan.price}. Creating your eSIM — usually ready in minutes`); refreshSummary(); dropDraft(); onDone(); } catch (e) { setErr(e); } finally { setBusy(false); } };
@@ -43,9 +47,9 @@ function BuyForm({ plan, draft, onDone, onCancel }) {
       <Field label="ZIP code for your number (optional)" hint="We’ll ask for a number near this US ZIP code. The exact area code can’t be guaranteed."><input className="civr-input font-mono max-w-[160px]" inputMode="numeric" value={zip} onChange={e => setZip(e.target.value.replace(/\D/g, '').slice(0, 5))} placeholder="e.g. 10011" data-testid="esim-zip-input" /></Field>
       <div className="flex flex-wrap gap-2">
         <button type="button" onClick={go} disabled={busy || imei.replace(/\D/g, '').length !== 15 || (zip.length > 0 && zip.length !== 5)} className="civr-btn civr-btn-primary" data-testid="esim-pay-button">{busy && <Loader2 className="w-4 h-4 animate-spin" />}{`Pay $${plan.price} from wallet`}</button>
-        {imei.replace(/\D/g, '').length === 15 && (!zip || zip.length === 5) && <CryptoPay price={plan.price} onReady={go} testid="esim-crypto" />}
         <button type="button" onClick={onCancel} className="civr-btn civr-btn-ghost" data-testid="esim-buy-cancel">Cancel</button>
       </div>
+      {cryptoOk && <CryptoPay price={plan.price} onReady={go} testid="esim-crypto" />}
       <ErrorNote error={err} testid="esim-buy-error" />
     </div>
   );
@@ -126,9 +130,10 @@ function Line({ item, reload }) {
       <div className="flex flex-wrap items-center gap-3">
         <Smartphone className="w-5 h-5 text-[#818cf8]" /><span className="font-mono text-lg" data-no-translate>{item.phoneNumber || 'Number coming'}</span>
         <span className={`text-sm ${tone}`} data-testid={`esim-status-${item.id}`}>{s}</span>
-        <span className="text-xs text-[#a1a1aa] ml-auto">{item.price ? `$${item.price}/month · next ${String(item.nextBillAt || '').slice(0, 10) || '—'}` : 'Linked by CloudIVR'}</span>
+        <span className="text-xs text-[#a1a1aa] ml-auto">{item.price ? (item.autoRenew ? `$${item.price}/month · next ${String(item.nextBillAt || '').slice(0, 10) || '—'}` : `Auto-renew off · ends ${String(item.nextBillAt || '').slice(0, 10) || '—'}`) : 'Linked by CloudIVR'}</span>
       </div>
       {item.note && <p className="text-sm text-[#fbbf24]">{item.note}</p>}
+      {item.formerNumbers?.length > 0 && <p className="text-xs text-[var(--c-muted)]" data-testid={`esim-former-${item.id}`}>Previous numbers: <span className="font-mono" data-no-translate>{item.formerNumbers.join(', ')}</span></p>}
       {item.status === 'active' && <>
         <UsageLine id={item.id} />
         <button type="button" onClick={() => setOpen(!open)} className="civr-btn civr-btn-ghost civr-btn-sm" data-testid={`esim-qr-toggle-${item.id}`}><QrCode className="w-4 h-4" />{open ? 'Hide install QR' : 'Show install QR'}</button>
@@ -136,10 +141,11 @@ function Line({ item, reload }) {
         <div><div className="text-sm font-semibold mb-2 flex items-center gap-2"><Phone className="w-4 h-4" />Where should calls ring?</div><CallsChoice item={item} onChange={reload} /></div>
         <div><div className="text-sm font-semibold mb-2 flex items-center gap-2"><MessageSquare className="w-4 h-4" />Texts</div><Texts item={item} /></div>
       </>}
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap items-start gap-2">
         {item.status === 'suspended' && <button type="button" onClick={() => act('renew', 'Renewed')} className="civr-btn civr-btn-primary civr-btn-sm" data-testid={`esim-renew-${item.id}`}>{`Renew $${item.price}`}</button>}
         {item.status === 'suspended' && <CryptoPay price={item.price} onReady={() => act('renew', 'Renewed')} testid={`esim-renew-crypto-${item.id}`} />}
         {['active', 'suspended'].includes(item.status) && item.price > 0 && <AutoRenew item={item} reload={reload} />}
+        <NewNumber item={item} reload={reload} />
         {['active', 'suspended'].includes(item.status) && <button type="button" onClick={cancel} className="civr-btn civr-btn-ghost civr-btn-sm" data-testid={`esim-cancel-${item.id}`}>Cancel eSIM</button>}
       </div>
     </div>
@@ -153,7 +159,7 @@ export default function Esim() {
   const [draft] = useState(() => { const x = readDraft(); return x && (!x.account || x.account === account?.id) ? x : null; });
   const used = useRef(false);
   useEffect(() => { if (draft && data?.plans && !used.current) { used.current = true; const p = data.plans.find(x => x.planId === draft.planId); if (p) setBuying(p); } }, [draft, data?.plans]);
-  const waiting = !!data?.items?.some(x => x.status === 'provisioning');
+  const waiting = !!data?.items?.some(x => x.status === 'provisioning' || x.numberChange?.status === 'pending');
   useEffect(() => { if (!waiting) return undefined; const t = setInterval(reload, 5000); return () => clearInterval(t); }, [waiting, reload]);
   if (error) return <ErrorNote error={error} onRetry={reload} />;
   if (!data) return <Spinner />;

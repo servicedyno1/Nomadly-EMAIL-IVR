@@ -223,3 +223,4 @@
 - Env: CIVR_ADMIN_EMAIL, CIVR_ADMIN_PASSWORD_HASH_B64 (base64 of bcrypt hash) in backend/.env
 - Testing agent (iter 181) sign-up via /signup?plan=texting: `qa.texting582973@example.com` / `QaTest#2026x` (no wallet, no numbers).
 - iter182 testing-agent sign-up (via /signup?plan=texting): `qa.texting572785@example.com` / `QaTest#2026x` (onboarded with purposes=['texting']).
+- iter188 testing-agent landing-checkout sign-up (no balance): `qa.crypto1793567668@example.com` / `QaTest#2026x`.

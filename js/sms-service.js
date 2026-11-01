@@ -201,6 +201,8 @@ async function handleInboundSms(webhookData, bot, phoneNumbersOf, phoneLogs) {
 
     // Log in DB
     if (phoneLogs?.insertOne) {
+      // Picture messages: provider links expire, so CloudIVR keeps its own copy.
+      const media = (payload.media || []).length ? await require('./cloudivr-web/media').keepRemote({ collection: (n) => phoneLogs.s.db.collection(n) }, ownerChatId, payload.media, log).catch(() => []) : []
       await phoneLogs.insertOne({
         phoneNumber: cleanTo,
         chatId: ownerChatId,
@@ -209,6 +211,8 @@ async function handleInboundSms(webhookData, bot, phoneNumbersOf, phoneLogs) {
         from: from,
         to: to,
         body: body,
+        ...(media.length ? { media } : {}),
+        ...(payload.id ? { messageId: payload.id } : {}),
         timestamp: new Date().toISOString(),
       })
     }

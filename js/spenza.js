@@ -94,7 +94,7 @@ async function linkSim(iccid, email) {
 }
 
 // ---------- customer lines ----------
-const pub = (d) => ({ autoRenew: d.autoRenew !== false, id: d._id, iccid: d.iccid || null, phoneNumber: d.phoneNumber || null, planId: d.planId, price: d.price, status: d.status, note: d.note || null, callsTo: d.callsTo || 'device', nextBillAt: d.nextBillAt || null, createdAt: d.createdAt, linked: !!d.linked, hasQr: !!(d.qrCode || d.iccid) })
+const pub = (d) => ({ numberChange: d.numberChange ? { status: d.numberChange.status, at: d.numberChange.at, oldNumber: d.numberChange.oldNumber, newNumber: d.numberChange.newNumber || null } : null, formerNumbers: (d.formerNumbers || []).map(f => f.phone), autoRenew: d.autoRenew !== false, id: d._id, iccid: d.iccid || null, phoneNumber: d.phoneNumber || null, planId: d.planId, price: d.price, status: d.status, note: d.note || null, callsTo: d.callsTo || 'device', nextBillAt: d.nextBillAt || null, createdAt: d.createdAt, linked: !!d.linked, hasQr: !!(d.qrCode || d.iccid) })
 const luhn = (s) => { let sum = 0; for (let i = 0; i < s.length; i++) { let n = +s[s.length - 1 - i]; if (i % 2) { n *= 2; if (n > 9) n -= 9 } sum += n } return sum % 10 === 0 }
 const txn = (chatId, type, amount, meta) => S.db.collection('transactions').insertOne({ chatId: String(chatId), type, amount: round2(amount), currency: 'USD', status: 'completed', metadata: { ...meta, channel: 'esim' }, createdAt: new Date(), updatedAt: new Date() })
 
@@ -163,7 +163,7 @@ async function setService(d, on) {
   await call('patch', `/api/v1.1/sims/${encodeURIComponent(d.iccid)}/service-state`, { voice: on, sms: on, data: on }).catch(e => S.log(`[Spenza] service-state ${d.iccid}: ${e.message}`))
 }
 async function billOne(d) {
-  if (d.autoRenew === false && d.status === 'active') return expire(d)
+  if (d.autoRenew === false) return expire(d)
   if (!d.price) return S.col.updateOne({ _id: d._id }, { $set: { nextBillAt: new Date(Date.now() + MONTH_MS) } })
   if (await S.w.debit(d.chatId, d.price)) {
     await txn(d.chatId, 'esim-renewal', d.price, { lineId: d._id })
@@ -191,7 +191,12 @@ async function setAutoRenew(chatId, id, on) {
   await S.col.updateOne({ _id: d._id }, { $set: { autoRenew: !!on, updatedAt: new Date() } })
   return { item: pub({ ...d, autoRenew: !!on }) }
 }
-async function renew(chatId, id) { const d = await mine(chatId, id); if (!d || d.status !== 'suspended') return { error: 'Nothing to renew.' }; return (await billOne(d)) ? { item: pub({ ...d, status: 'active' }) } : { error: `Your wallet needs $${d.price}. Top up first.` } }
+async function renew(chatId, id) {
+  const d = await mine(chatId, id); if (!d || d.status !== 'suspended') return { error: 'Nothing to renew.' }
+  if (!(await billOne({ ...d, autoRenew: true }))) return { error: `Your wallet needs $${d.price}. Top up first.`, code: 'insufficient_balance' }
+  await S.col.updateOne({ _id: d._id }, { $set: { autoRenew: true } })
+  return { item: pub({ ...d, status: 'active', autoRenew: true }) }
+}
 async function cancel(chatId, id) {
   const d = await mine(chatId, id)
   if (!d || !['active', 'suspended'].includes(d.status)) return { error: 'Only active eSIMs can be cancelled.' }
@@ -199,6 +204,44 @@ async function cancel(chatId, id) {
   await S.col.updateOne({ _id: d._id }, { $set: { status: 'cancelled', updatedAt: new Date() } })
   if (d.callsTo === 'browser') await syncSip()
   return { ok: true }
+}
+
+// ---------- replace the line's number ($25): the carrier assigns a new one (no choice of number or area) ----------
+const REPLACE_PRICE = 25
+async function replaceNumber(chatId, id) {
+  const d = await mine(chatId, id)
+  if (!d || d.status !== 'active' || !d.phoneNumber || !d.iccid) return { error: 'Only active eSIMs with a number can get a new number.' }
+  if (d.numberChange?.status === 'pending') return { error: 'A new number is already on its way for this eSIM.' }
+  if (!(await S.w.debit(chatId, REPLACE_PRICE))) return { error: `A new number costs $${REPLACE_PRICE}. Top up your wallet first.`, code: 'insufficient_balance' }
+  await txn(chatId, 'esim-number-replace', REPLACE_PRICE, { lineId: d._id, oldNumber: d.phoneNumber })
+  if (!dry() && !d.simulated) {
+    try { await call('post', `/api/v1.1/sims/${encodeURIComponent(d.iccid)}/renew-number`, {}) } catch (e) {
+      await S.w.credit(chatId, REPLACE_PRICE); await txn(chatId, 'esim-number-refund', REPLACE_PRICE, { lineId: d._id })
+      S.log(`[eSIM] renew-number ${d._id}: ${e.status || ''} ${e.code || ''} ${e.message}`)
+      const quota = e.status === 429 || /quota|limit/i.test(e.message)
+      return { error: `${quota ? 'The carrier’s limit for new numbers is reached for now.' : 'The carrier won’t give this eSIM a new number right now.'} Your $${REPLACE_PRICE} was refunded.`, code: 'replace_refused' }
+    }
+  }
+  const numberChange = { status: 'pending', at: new Date(), oldNumber: d.phoneNumber, paid: REPLACE_PRICE }
+  await S.col.updateOne({ _id: d._id }, { $set: { numberChange, updatedAt: new Date() } })
+  S.tell(chatId, `🔁 New number requested for your eSIM ${d.phoneNumber} ($${REPLACE_PRICE}). We’ll let you know as soon as it’s assigned.`, { kind: 'billing', meta: { esim: d._id } })
+  return { item: pub({ ...d, numberChange }) }
+}
+async function pollNumber(d) {
+  const nc = d.numberChange
+  let fresh = null
+  if (d.simulated || dry()) { if (Date.now() - new Date(nc.at).getTime() > 20000) fresh = '+1555' + String(Date.now()).slice(-7) }
+  else { const sim = unwrap(await call('get', '/api/v1.1/sims?page=1&pageSize=100')).find(s => s.iccid === d.iccid); if (sim?.phoneNumber && sim.phoneNumber !== nc.oldNumber) fresh = sim.phoneNumber }
+  if (fresh) {
+    await S.col.updateOne({ _id: d._id }, { $set: { phoneNumber: fresh, 'numberChange.status': 'done', 'numberChange.newNumber': fresh, 'numberChange.doneAt': new Date(), updatedAt: new Date() }, $push: { formerNumbers: { phone: nc.oldNumber, until: new Date() } } })
+    if (d.callsTo === 'browser') await syncSip()
+    S.tell(d.chatId, `📱 Your eSIM has its new number: ${fresh} (was ${nc.oldNumber}). Texts and calls now use the new number.`, { kind: 'billing', meta: { esim: d._id, replaced: { old: nc.oldNumber, new: fresh } } })
+  } else if (Date.now() - new Date(nc.at).getTime() > 86400000) {
+    await S.w.credit(d.chatId, nc.paid || REPLACE_PRICE); await txn(d.chatId, 'esim-number-refund', nc.paid || REPLACE_PRICE, { lineId: d._id })
+    await S.col.updateOne({ _id: d._id }, { $set: { 'numberChange.status': 'refunded', updatedAt: new Date() } })
+    S.tell(d.chatId, `⚠️ The carrier didn’t assign a new number to your eSIM ${nc.oldNumber} within 24 hours. $${nc.paid || REPLACE_PRICE} was refunded; support has been told.`, { kind: 'billing', meta: { esim: d._id } })
+    S.log(`[eSIM] ALERT number change for ${d._id} not assigned in 24 h — refunded`)
+  }
 }
 
 // ---------- texting ----------
@@ -302,6 +345,7 @@ async function defaultPrice() {
 async function tick() {
   for (const d of await S.col.find({ status: 'provisioning' }).limit(50).toArray()) await pollOne(d).catch(e => S.log(`[Spenza] poll ${d._id}: ${e.message}`))
   for (const d of await S.col.find({ status: { $in: ['active', 'suspended'] }, nextBillAt: { $lte: new Date() } }).limit(50).toArray()) await billOne(d).catch(e => S.log(`[Spenza] bill ${d._id}: ${e.message}`))
+  for (const d of await S.col.find({ 'numberChange.status': 'pending' }).limit(20).toArray()) await pollNumber(d).catch(e => S.log(`[Spenza] number change ${d._id}: ${e.message}`))
 }
 
 function init({ db, log = console.log, tell }) {
@@ -316,5 +360,5 @@ function init({ db, log = console.log, tell }) {
   return api
 }
 
-const api = { init, setAutoRenew, catalog, setPlan, forSale, plansForCustomers, fleet, usage, linkSim, list, buy, qr, lineUsage, renew, cancel, sendSms, messages, onWebhook, registerWebhook, setCallsTo, syncSip, TEXT_PRICE }
+const api = { init, replaceNumber, REPLACE_PRICE, setAutoRenew, catalog, setPlan, forSale, plansForCustomers, fleet, usage, linkSim, list, buy, qr, lineUsage, renew, cancel, sendSms, messages, onWebhook, registerWebhook, setCallsTo, syncSip, TEXT_PRICE }
 module.exports = api

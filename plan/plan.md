@@ -1,91 +1,101 @@
-# CloudIVR redesign to Brevo-level quality
+# CloudIVR Messages — unified inbox + $25 number replacement
 
-A redesign of the cloudivr.net public website, raising it to the polish of brevo.com. It brings a new colour palette, one confident display typeface, custom illustrations, live-style product previews and a clear mega menu, and keeps the CloudIVR logo. The logged-in app takes on the same look in a later phase.
+One inbox where each conversation is a person, not a feature: their texts, pictures, voicemails and calls in one timeline, like iPhone Messages and Phone combined.
+Plus a self-serve "Replace this number" for $25, for CloudIVR calling numbers and eSIM lines.
 
 ## Who it's for
-- Small businesses, call centres and sales teams comparing IVR / virtual number providers, who judge trust by how professional the site looks.
-- Existing customers, who should see the same brand when they sign in (phase 2).
-- The owner, who needs pages that turn visitors into sign-ups and Texting-plan buyers.
+- CloudIVR customers with one or more numbers (calling plans, CloudIVR eSIM, Landline to Texting) who today jump between Inbox, number logs, Texting and eSIM pages to follow one customer.
+- Owners and staff answering customers from a phone or laptop.
 
 ## Core features and experience
-0. **Live study of brevo.com first**
-   - Before any design work, brevo.com is opened in a real browser on desktop (1440px) and phone (390px).
-   - The study captures:
-     - Section order.
-     - Headline and body sizes, line spacing and section spacing.
-     - Colour use, button and card shapes.
-     - Menu behaviour, motion and how illustrations and product shots are used.
-   - The result is a one-page reference sheet: "what makes it feel premium" and how each point maps to CloudIVR.
-   - When phase 1 ends, the new CloudIVR homepage and brevo.com are screenshotted side by side at both sizes. Any gap in polish is fixed before review.
-   - Already known from published teardowns:
-     - A light layout with one display grotesk.
-     - Fully rounded pill buttons.
-     - An outcome headline with a few rotating words.
-     - A "join 600,000+ customers" proof line.
-     - Three value pillars and a channel slider.
-     - A dedicated AI section and a sticky top menu.
-1. **New visual system (website)**
-   - A fresh palette: a calm off-white base and deep ink text, plus one signature accent for buttons and highlights and one soft secondary tint for sections. Light mode leads and dark mode is redone to match.
-   - One distinctive display typeface for headlines and a clean, readable text face for everything else. The type scale is larger and there is generous white space.
-   - One shared set of cards, buttons, icons, badges and section layouts, so every page feels made by one hand.
-2. **Visuals: custom illustrations and live-style product previews**
-   - Custom illustrations in the new palette, used for the hero, use cases, empty spaces and the footer. No stock photos.
-   - Live-style previews: animated app screens in device frames, for example an IVR menu being built, a call ringing in the browser phone, a campaign report filling in, and a landline receiving texts. They replace and upgrade the current mockups.
-3. **Mega menu and navigation**
-   - A sticky top bar with a Products mega menu: groups (Calling, Automation, Texting, AI), each item with an icon and a one-line benefit, plus a featured card.
-   - It also has Use cases, Pricing, Coverage and Help, and two clear actions: "Sign up free" and "Try a free call".
-   - On phones it becomes a full-screen, easy-to-tap menu.
-4. **Homepage, rebuilt section by section**
-   - **Hero:** an outcome headline, with a few words rotating gently (calls → leads → bookings → texts). Below it a short subline, the two pill actions and a large live preview.
-   - **Trust strip:** proof elements (see below).
-   - **Three value pillars:** "Every call answered", "Automate outreach" and "AI that talks for you", each with an illustration.
-   - **Channel slider:** Phone numbers, IVR menus, Bulk campaigns, Quick IVR, Browser phone, SIP, AI agents, Text-to-voice and Landline to Texting.
-   - **Product tour:** tabs that switch the live preview (IVR, Bulk campaigns, Browser phone, AI agents, Landline to Texting).
-   - **Use cases:** illustrated cards (sales, support, bookings, texting, accessibility).
-   - **How it works:** 3 steps.
-   - **Pricing teaser:** the four plans, with the Texting plan shown as Landline to Texting.
-   - **FAQ, final call to action and a rich footer.**
-5. **Proof elements, so the owner can fill them in with real facts**
-   - Facts already true today, shown now: countries covered, the "try a free call" offer, payment methods accepted, and languages offered (EN/ES/FR).
-   - Slots built but hidden until the owner supplies real values:
-     - Customer count.
-     - Calls handled.
-     - 2–3 customer quotes with name, role and company.
-     - Customer logos.
-     - A review-site rating.
-   - No invented numbers, quotes or logos ever appear.
-6. **Other public pages** carry the same system: Pricing (full comparison), SIP, Terms, Sign up / Sign in, and the Landline to Texting section.
-7. **Kept behaviour:** translations, the light/dark switch, the free trial call, the sign-up-to-plan paths (including "Start texting"), accessibility (contrast, tap targets, keyboard) and fast loading on phones.
+**Unified Messages**
+- Conversation list (left) and thread (right); on phones the thread opens full screen. Sorted by latest activity, with unread dots, search by name, number or message text, and filters: All, Unread, Texts, Voicemail, Missed calls.
+- One thread per contact per business number. If the same person contacts two of your numbers, they are two threads, each labelled with the number.
+- The timeline mixes:
+  - text bubbles (sent on the right, received on the left)
+  - picture messages, with a full-screen viewer
+  - voicemail cards with a play button, the length and the transcript
+  - call rows ("Missed call 2:14 PM", "Answered · 3 min", "Outgoing · 1 min")
+- Delivery status under sent texts: Sending, Sent, Delivered, Failed (with the reason). Day separators and grouped bubbles, like iMessage.
+- **Smart number capabilities:** for each business number the app knows whether it can send, receive, send pictures and make calls, and shows only what works:
+  - **Calling numbers bought in CloudIVR:** texts and pictures in and out where the number supports them, plus calls.
+  - **CloudIVR eSIM:** texts in and out. Pictures can't be sent, because the eSIM provider's texting system has no picture support. Calls appear in the thread once calls are connected to CloudIVR.
+  - **Landline to Texting:** receive-only. The reply box is replaced by "This number receives texts only".
+  - If the person texted a different number than the one you would reply from, the thread shows which number your reply will come from.
+- **Composer:**
+  - text box, a cost hint (for example "$0.05 from your wallet") and a character or segment count
+  - photo attach (camera or gallery) only on numbers that can send pictures; up to 5 images and about 600 KB total, shrunk automatically
+  - quick replies, already in the app
+  - "Call" and "Call back" buttons in the thread header open the browser phone
+- Contact header with name (from Contacts if saved), number, "Save contact", "Block / do not contact", and the business number in use.
+- Notifications, the unread count in the menu, and the existing Inbox bell all feed from the same conversations.
+- The current Inbox stays as the activity and alerts feed (wallet, campaigns, system notices). Texts, voicemail and calls move to Messages.
+- Old history is pulled in: past texts, voicemails and calls for each number show up in their conversations from day one.
+
+**Replace a number ($25)**
+- Button "Replace number" on a CloudIVR calling number's page and on each eSIM line.
+- **Calling numbers:**
+  - the customer picks the new number the same way as when buying (same country, type and area search)
+  - $25 is paid from the wallet or with crypto
+  - the plan, renewal date, IVR menu, forwarding, voicemail, caller ID settings and SIP access move to the new number
+  - the old number keeps receiving calls and texts for 7 days (tagged "Old number" in Messages), then is released
+- **eSIM lines (provider behaviour):**
+  - the provider's "new number" request has no way to choose the number or area, and doesn't return the new number right away; it is "assigned soon"
+  - the SIM switches to the new number, so the old number cannot stay active 7 days on an eSIM
+  - the provider says replacements are limited by a monthly quota and lists no price
+  - in CloudIVR: confirm → pay $25 → status "New number coming". The app checks until the new number appears, then updates the line, Messages and call routing, and notifies the customer
+  - if the provider refuses (not allowed right now, or quota reached), the $25 is refunded automatically
+- Landline to Texting numbers can't be replaced; they belong to the customer.
+- Every replacement appears in wallet history and sends an Inbox notice with old and new numbers.
 
 ## User flow
-- **Visitor:** lands on the hero → watches the live preview or switches product tabs → opens the mega menu or a use case → compares plans → "Sign up free" or "Try a free call" → sign-up keeps the chosen plan.
-- **Texting visitor:** Landline to Texting in the menu or pricing card → "Start texting" → sign-up → texting setup.
-- **Owner:** shares real proof facts → they appear in the trust strip and testimonials.
+1. A customer texts the business number → a new conversation appears at the top with an unread dot and a notification.
+2. The owner opens it, sees the earlier missed call and voicemail in the same thread, plays the voicemail, attaches a photo and replies (or sees "receives texts only").
+3. The owner taps Call to call back from the browser phone; the call shows up in the thread afterwards.
+4. Replace number: Numbers → number → Replace number.
+   - **Calling number:** pick a new number → see the $25 summary and what moves over → pay from the wallet or with crypto → the new number is live, and the old one shows "keeps working until <date>".
+   - **eSIM:** confirm → pay $25 → "New number coming" → notified when it's assigned.
 
 ## UI/UX feel
-- Calm, bright and confident, like Brevo: lots of space, big clear headlines, soft rounded cards and gentle motion when sections come into view.
-- Illustrations feel friendly and human. Previews feel real and alive, never cluttered.
-- Phone-first: every section reads well at 320–390px and tap targets stay large.
-- One accent colour used sparingly, so the actions stand out.
+- Calm and familiar like iMessage: rounded bubbles, sent bubbles in the app's accent colour, received in neutral grey, soft timestamps, smooth slide-in for threads on mobile.
+- Voicemail cards and call rows sit quietly between bubbles and never look like errors; missed calls use a gentle red icon.
+- Capability chips under the business number (Texts · Pictures · Calls · Receive-only) so nobody guesses.
+- Fast: the list loads first, then threads stream in; new messages appear live.
+- Fully usable at 320px, keyboard-friendly, with screen-reader labels. English, Spanish and French.
 
 ## Implementation phases
-1. **Phase 1 (MVP, built now):**
-   - The new palette, type and components on the public website.
-   - The mega menu, the rebuilt homepage, custom illustrations, live-style previews and proof slots, with only true facts shown.
-   - Restyled Pricing, SIP, Terms and the sign-in/sign-up pages.
-   - Light and dark modes and full EN/ES/FR translations.
-   - Preview only until "push live".
-2. **Phase 2:** the logged-in app takes on the same palette, type, cards and spacing: sidebar, Overview, number pages, Texting, Wallet and the browser phone.
-3. **Phase 3:**
-   - Dedicated product pages for each feature, built from the same sections.
-   - Customer story pages once real quotes exist, and an integrations/coverage showcase.
+**Phase 1 — MVP (built now)**
+- Messages page with the conversation list and threads mixing texts, pictures, voicemails and calls for all number types.
+- Smart capabilities (send, receive, pictures, calls) per number.
+- Sending and receiving pictures on calling numbers that support it; received pictures saved so they don't expire.
+- Composer with costs and status, history pulled in, live updates and unread counts.
+- Replace number for $25 on calling numbers (7-day overlap) and eSIM lines (provider-assigned number, auto refund on refusal), paid from the wallet or with crypto.
+
+**Phase 2**
+- Contact cards with notes and tags.
+- Pin and archive threads.
+- Saved replies per team member.
+- Scheduled texts.
+- Choosing the default reply number per contact.
+
+**Phase 3**
+- Group texts.
+- AI thread summary and suggested replies.
+- Assigning conversations to staff.
+- Search across attachments.
+- Picture messages on eSIM if the provider adds support.
 
 ## Assumptions
-- The answer to scope was read as: public website now (phase 1), app later (phase 2).
-- The logo stays as it is. The palette, typefaces and illustrations are new and chosen to suit CloudIVR. Nothing is copied from Brevo's actual artwork, fonts or text.
-- Illustrations are AI-generated to one consistent style, then placed by hand. Previews are built as animated app screens, not videos.
-- Browser tools are switched off while planning, so the live study of brevo.com is the first build step once this plan is approved.
-- If the live study shows something that contradicts this plan, the study wins for the look and feel. Features and scope stay as written.
-- Proof slots stay hidden until the owner supplies real figures, quotes or logos.
-- Page text keeps today's meaning and prices. Only headlines and layout are rewritten for clarity.
-- Existing links and sign-up paths keep working, and nothing goes live without approval.
+- One thread per contact per business number; threads are not merged across numbers.
+- The current Inbox remains for non-conversation alerts; texts, voicemails and calls live in Messages.
+- Picture limits follow the carriers: about 600 KB total per message, up to 5 images. Received pictures are stored by CloudIVR (cloud file storage) because the provider's links expire after 30 days.
+- Sending a picture costs the same as sending a text for now ($0.05 from the wallet); it can be changed later.
+- Replacement price is a flat $25 for both number types; the next renewal date and plan stay the same.
+- Calling-number replacements are limited to the same country and number type as the old number.
+- eSIM replacement cannot keep the old number for 7 days and cannot choose the area. This is how the provider works, and the screen explains it before payment.
+- If an eSIM replacement isn't assigned within 24 hours, the customer is refunded and support is alerted.
+- Unfinished items from the last step are completed and re-checked before this work starts:
+  - crypto payments for eSIM, Texting and renewals
+  - the eSIM auto-renew switch
+  - the $75 price
+- This work stays in preview until the owner says "push live".

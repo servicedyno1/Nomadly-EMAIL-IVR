@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="1" skipped="1" tests="34" time="116.539" timestamp="2026-11-01T21:07:28.389636+00:00" hostname="agent-env-c4ea8f4e-6caa-4734-adf8-0f01a828b5c7"><testcase classname="test_crypto_autorenew_iter188" name="test_public_price_75" time="0.682" /><testcase classname="test_crypto_autorenew_iter188" name="test_customer_plan_price_75" time="0.604" /><testcase classname="test_crypto_autorenew_iter188" name="test_wallet_topup_preview" time="0.209"><failure message="AssertionError: {&#10;    &quot;bonus&quot;: {&#10;      &quot;offerId&quot;: &quot;2026-11-01:5000000000000001&quot;,&#10;      &quot;kind&quot;: &quot;topup&quot;,&#10;      &quot;tiers&quot;: [&#10;        {&#10;          &quot;min&quot;: 50,&#10;          &quot;bonus&quot;: 5&#10;        },&#10;        {&#10;          &quot;min&quot;: 100,&#10;          &quot;bonus&quot;: 15&#10;        },&#10;        {&#10;          &quot;min&quot;: 250,&#10;          &quot;bonus&quot;: 50&#10;        }&#10;      ]&#10;    },&#10;    &quot;expiresAt&quot;: &quot;2026-11-02T03:07:30.024Z&quot;,&#10;    &quot;ref&quot;: &quot;dry-mvybmr8m&quot;,&#10;    &quot;address&quot;: &quot;PREVIEW-MODE-DO-NOT-SEND-FUNDS&quot;,&#10;    &quot;amountCrypto&quot;: null,&#10;    &quot;coin&quot;: &quot;BTC&quot;,&#10;    &quot;amountUsd&quot;: 75,&#10;    &quot;provider&quot;: &quot;preview&quot;,&#10;    &quot;dryRun&quot;: true,&#10;    &quot;note&quot;: &quot;Preview mode: no payment was created. Do not send any funds.&quot;&#10;  }&#10;assert 201 == 200&#10; +  where 201 = &lt;Response [201]&gt;.status_code">test_crypto_autorenew_iter188.py:69: in test_wallet_topup_preview
+    assert r.status_code == 200, r.text
+E   AssertionError: {
+E       "bonus": {
+E         "offerId": "2026-11-01:5000000000000001",
+E         "kind": "topup",
+E         "tiers": [
+E           {
+E             "min": 50,
+E             "bonus": 5
+E           },
+E           {
+E             "min": 100,
+E             "bonus": 15
+E           },
+E           {
+E             "min": 250,
+E             "bonus": 50
+E           }
+E         ]
+E       },
+E       "expiresAt": "2026-11-02T03:07:30.024Z",
+E       "ref": "dry-mvybmr8m",
+E       "address": "PREVIEW-MODE-DO-NOT-SEND-FUNDS",
+E       "amountCrypto": null,
+E       "coin": "BTC",
+E       "amountUsd": 75,
+E       "provider": "preview",
+E       "dryRun": true,
+E       "note": "Preview mode: no payment was created. Do not send any funds."
+E     }
+E   assert 201 == 200
+E    +  where 201 = &lt;Response [201]&gt;.status_code</failure></testcase><testcase classname="test_crypto_autorenew_iter188" name="test_autorenew_default_and_toggle" time="22.821" /><testcase classname="test_crypto_autorenew_iter188" name="test_autorenew_unknown_id" time="0.099" /><testcase classname="test_crypto_autorenew_iter188" name="test_autorenew_off_expires_at_period_end_no_charge" time="15.481" /><testcase classname="test_crypto_autorenew_iter188" name="test_autorenew_on_bills_75" time="42.368" /><testcase classname="test_crypto_autorenew_iter188" name="test_protected_line_untouched" time="0.001" /><testcase classname="test_crypto_autorenew_iter188" name="test_hosted_renew_unknown" time="0.095" /><testcase classname="test_crypto_autorenew_iter188" name="test_hosted_renew_non_paused" time="0.094" /><testcase classname="test_crypto_autorenew_iter188" name="test_hosted_renew_paused_standalone" time="0.208" /><testcase classname="test_esim_iter186" name="test_public_plans_no_spenza" time="0.526" /><testcase classname="test_esim_iter186" name="test_admin_requires_admin" time="0.699" /><testcase classname="test_esim_iter186" name="test_admin_catalog_fleet" time="1.343" /><testcase classname="test_esim_iter186" name="test_admin_set_plan_validation_keeps_price" time="0.171" /><testcase classname="test_esim_iter186" name="test_admin_usage" time="0.138" /><testcase classname="test_esim_iter186" name="test_customer_list" time="0.153" /><testcase classname="test_esim_iter186" name="test_customer_api_spenza_leak" time="0.353" /><testcase classname="test_esim_iter186" name="test_customer_qr_usage" time="0.553" /><testcase classname="test_esim_iter186" name="test_calls_toggle" time="0.281" /><testcase classname="test_esim_iter186" name="test_sms_validation_no_charge" time="0.276" /><testcase classname="test_esim_iter186" name="test_one_real_text_to_self" time="0.000"><skipped type="pytest.skip" message="real text only when ESIM_SEND_REAL_TEXT=1">/app/backend/tests/test_esim_iter186.py:126: real text only when ESIM_SEND_REAL_TEXT=1</skipped></testcase><testcase classname="test_esim_iter186" name="test_messages_thread" time="0.087" /><testcase classname="test_esim_iter186" name="test_inbox_can_reply" time="0.117" /><testcase classname="test_esim_iter186" name="test_buy_invalid_imei" time="0.079" /><testcase classname="test_esim_iter186" name="test_buy_insufficient_402" time="0.148" /><testcase classname="test_esim_iter186" name="test_buy_provision_and_cancel" time="25.888" /><testcase classname="test_esim_fixes_iter187" name="test_customer_plan_keys" time="0.748" /><testcase classname="test_esim_fixes_iter187" name="test_public_plan_keys" time="0.223" /><testcase classname="test_esim_fixes_iter187" name="test_qr_data_url" time="0.342" /><testcase classname="test_esim_fixes_iter187" name="test_admin_webhook_preview" time="0.955" /><testcase classname="test_esim_fixes_iter187" name="test_admin_webhook_requires_admin" time="0.096" /><testcase classname="test_esim_fixes_iter187" name="test_errors_no_spenza" time="0.418" /><testcase classname="test_esim_fixes_iter187" name="test_esim_notification_link" time="0.082" /></testsuite></testsuites>

@@ -14,7 +14,7 @@ function Address({ dep, testid }) {
       <div className="flex flex-col sm:flex-row gap-4 items-start">
         {!dep.dryRun && <div className="bg-white p-3 rounded-xl shrink-0"><QRCode value={dep.address} size={128} /></div>}
         <div className="min-w-0 space-y-2 text-sm">
-          <div><div className="text-xs text-[#a1a1aa]">Send exactly</div><div className="font-mono text-lg inline-flex items-center gap-2" data-testid={`${testid}-amount`}><CoinIcon coin={dep.coin} size={20} />{dep.amountCrypto ? `${dep.amountCrypto} ${dep.coin}` : `${money(dep.amountUsd)} in ${dep.coin}`}</div></div>
+          <div><div className="text-xs text-[#a1a1aa]">Send exactly</div><div className="font-mono text-lg inline-flex items-center gap-2" data-testid={`${testid}-amount`}><CoinIcon coin={dep.coin} size={20} />{dep.amountCrypto ? `${dep.amountCrypto} ${dep.coin}` : <><span>{money(dep.amountUsd)}</span> <span>in</span> <span>{dep.coin}</span></>}</div></div>
           <div><div className="text-xs text-[#a1a1aa]">To address</div><div className="flex items-center gap-2"><code className="break-all" data-testid={`${testid}-address`}>{dep.address}</code>{!dep.dryRun && <button type="button" onClick={() => navigator.clipboard?.writeText(dep.address).then(() => toast.success('Copied'))} className="w-10 h-10 shrink-0 grid place-items-center text-[#a1a1aa] hover:text-[#818cf8]" aria-label="Copy address" data-testid={`${testid}-copy`}><Copy className="w-4 h-4" /></button>}</div></div>
           {!dep.dryRun && dep.expiresAt && <PayWindow expiresAt={dep.expiresAt} testid={`${testid}-expiry`} />}
         </div>

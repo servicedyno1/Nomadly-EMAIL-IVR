@@ -35,11 +35,11 @@ export function NewSetup({ data, onDone, onCancel }) {
         <p className="text-xs text-[#a1a1aa] flex gap-1.5" data-testid="texting-receive-note"><Inbox className="w-3.5 h-3.5 mt-px shrink-0 text-[#818cf8]" />{`Receives texts only. Your customers text this number and you read every message here. Usually live within ${data.reviewDays}.`}</p>
         <div className="flex flex-wrap items-center gap-2">
           <button type="button" onClick={pay} disabled={busy} className="civr-btn civr-btn-primary" data-testid="texting-pay-button">{busy && <Loader2 className="w-4 h-4 animate-spin" />}{`Pay $${t.setup} from wallet`}</button>
-          <CryptoPay price={t.setup} onReady={pay} testid="texting-crypto" />
           {onCancel && <button type="button" onClick={onCancel} className="civr-btn civr-btn-ghost" data-testid="texting-new-cancel">Cancel</button>}
           <span className="text-xs text-[#a1a1aa]">Full refund if the number isn’t approved. <Link to={cp('/app/wallet')} className="underline">Wallet</Link></span>
         </div>
       </>}
+      {check?.eligible && <CryptoPay price={t.setup} onReady={pay} testid="texting-crypto" />}
       <ErrorNote error={err} testid="texting-new-error" />
     </div>
   );

@@ -44,7 +44,7 @@ def test_public_plans_no_spenza():
     r = requests.get(f"{API}/public/esim-plans")
     assert r.status_code == 200
     p = next(x for x in r.json()['plans'] if x['planId'] == 'SPENZA_001')
-    assert p['name'] == 'US Starter eSIM' and p['price'] == 75 and p['carrier'] == 'US network'
+    assert p['name'] == 'US Starter eSIM' and p['price'] == 75 and p['carrier'] == 'T-Mobile network'
     assert 'spenzaj' not in json.dumps(r.json()).lower()
     assert 'cost' not in p
 

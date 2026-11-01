@@ -141,6 +141,7 @@ function publicNumber(n, numbers) {
     plan: n.plan, planName: plan.name || n.plan, planPrice: n.planPrice, status: n.status, autoRenew: n.autoRenew !== false,
     renewalPrice: lifecycle.renewalPrice(n), holdUntil: lifecycle.onHold(n) ? n._holdUntil : null, suspendReason: lifecycle.onHold(n) ? n._suspendReason || null : null,
     purchaseDate: n.purchaseDate, expiresAt: n.expiresAt, isSubNumber: !!n.isSubNumber, parentNumber: n.parentNumber || null, dryRun: !!n.dryRun,
+    replacedBy: n.replacedBy || null, releaseAt: n.releaseAt || null, replaces: n.replaces || null,
     routeSummary: routeSummary(n),
     capabilities: n.capabilities || { voice: true, sms: true, fax: false },
     usage: { minutesUsed: pool.minutesUsed, minutesIncluded: poolPlan.minutes ?? null, smsUsed: pool.smsUsed, smsIncluded: poolPlan.sms ?? null, shared: pool.lines.length > 1 },
@@ -365,7 +366,7 @@ function routes(router, deps) {
         const cred = await telnyxApi.createSIPCredential(tr.sipConnectionId, sipUsername, sipPassword, selected)
         if (cred?.sip_username) { tUser = sipUsername = cred.sip_username; tPass = sipPassword = cred.sip_password || sipPassword; tCredId = cred.id || null }
       }
-      const caps = { voice: true, sms: !!hit.capabilities.sms, fax: !!hit.capabilities.fax }
+      const caps = { voice: true, sms: !!hit.capabilities.sms, mms: !!hit.capabilities.mms, fax: !!hit.capabilities.fax }
       const expiresAt = new Date(); expiresAt.setMonth(expiresAt.getMonth() + 1)
       const doc = {
         phoneNumber: selected, telnyxOrderId: order.id, provider: 'telnyx', country, countryName: c.name,
@@ -718,7 +719,74 @@ function routes(router, deps) {
     res.json({ released: true })
   }))
 
-  return { myNumbers, findMine, purchase, pickFromSearch, searchSimilar, setField, checkCoupon, unheld, ownAudioUrls, upgradeQuote, upgradeNumber, upgradeOffer, rotateSip }
+  // ---------- Replace a number ($25): same country + type, settings move over, the old one keeps working 7 days ----------
+  const REPLACE_PRICE = 25, OVERLAP_DAYS = 7
+  router.post('/numbers/:phone/replace', withNumber(async (req, res) => {
+    const old = req.num, chatId = req.webChatId
+    if (old.replacedBy) return bad(res, 409, 'already_replaced', `This number was already replaced by ${old.replacedBy}.`)
+    if (old.status !== 'active') return bad(res, 409, 'not_active', 'Only active numbers can be replaced. Renew it first.')
+    const picked = await pickFromSearch(chatId, req.body?.phoneNumber)
+    if (!picked) return bad(res, 400, 'search_again', 'That number is no longer in your search results. Search again and pick a number.')
+    if (picked.country !== old.country || picked.type !== old.type) return bad(res, 400, 'same_kind', `Pick a ${old.countryName || old.country} ${TYPE_NAMES[old.type] || old.type} number, the same kind as the one you have.`)
+    const phone = normPhone(req.body.phoneNumber)
+    try { await locks.insertOne({ _id: phone, chatId, at: new Date() }) } catch (e) { if (e.code === 11000) return bad(res, 409, 'number_taken', 'Someone is buying that number right now. Pick another one.'); throw e }
+    try {
+      if (await holderOf(phone) !== null) return bad(res, 409, 'number_taken', 'Someone just took that number. Pick another one.')
+      const c = countries().find(x => x.code === old.country)
+      const ver = await verificationInfo(old.country, old.type, `${c?.flag || ''} ${c?.name || old.country}`)
+      if (ver.error) return bad(res, 424, 'lookup_failed', ver.error)
+      if (ver.required) return bad(res, 400, 'needs_documents', 'Numbers in this country need ID documents, so they can’t be replaced online. Message support and we’ll help.')
+      if (!(await w.debit(chatId, REPLACE_PRICE))) return bad(res, 402, 'insufficient_balance', `Replacing a number costs $${REPLACE_PRICE}. Your wallet has $${(await w.balance(chatId)).toFixed(2)} — top up first.`)
+      try {
+        const live = !dryRun() && !old.dryRun
+        const tr = getTelnyxResources() || {}
+        const order = live ? await paidCheckout(chatId, phone, { countryCode: old.country, numberType: old.type, areaCode: picked.areaCode, planKey: old.plan, price: REPLACE_PRICE, paymentMethod: 'wallet_usd', refund: { currency: 'usd', amount: REPLACE_PRICE }, capabilities: picked.hit.capabilities, numberCost: picked.hit.cost, countryName: c?.name, lang: 'en', hold: true }) : { id: `dryrun-${crypto.randomUUID().slice(0, 8)}` }
+        if (!order || order._verification) throw new Error('The new number could not be reserved — it may have just been taken. Pick another one.')
+        const selected = order._retriedNumber || phone
+        if (live && tr.callControlAppId) await telnyxApi.assignNumberToCallControlApp(selected, tr.callControlAppId)
+        // SIP apps keep their login: the credential moves to the new number.
+        let sip = { telnyxSipUsername: old.telnyxSipUsername || null, telnyxSipPassword: old.telnyxSipPassword || null, telnyxCredentialId: old.telnyxCredentialId || null }
+        if (live && tr.sipConnectionId) {
+          if (old.telnyxCredentialId) await telnyxApi.deleteSIPCredential(old.telnyxCredentialId).catch(() => {})
+          const cred = await telnyxApi.createSIPCredential(tr.sipConnectionId, old.sipUsername, old.sipPassword, selected)
+          if (cred?.sip_username) sip = { telnyxSipUsername: cred.sip_username, telnyxSipPassword: cred.sip_password || old.sipPassword, telnyxCredentialId: cred.id || null }
+        }
+        const caps = { voice: true, sms: !!picked.hit.capabilities.sms, mms: !!picked.hit.capabilities.mms, fax: !!picked.hit.capabilities.fax }
+        const { _reminder3Sent, _reminder1Sent, ...keep } = old
+        const doc = { ...keep, ...sip, phoneNumber: selected, telnyxOrderId: order.id, capabilities: caps, purchaseDate: new Date().toISOString(), replaces: old.phoneNumber, messagingProfileId: caps.sms ? tr.messagingProfileId || old.messagingProfileId || null : null, features: { ...(old.features || {}), sms: caps.sms }, ...(live ? {} : { dryRun: true }) }
+        const releaseAt = new Date(Date.now() + OVERLAP_DAYS * 86400000).toISOString()
+        await phoneNumbersOf.updateOne({ _id: chatId, 'val.numbers.phoneNumber': old.phoneNumber }, { $set: { 'val.numbers.$.replacedBy': selected, 'val.numbers.$.releaseAt': releaseAt, 'val.numbers.$.autoRenew': false, 'val.numbers.$.telnyxCredentialId': null } })
+        await phoneNumbersOf.updateOne({ _id: chatId }, { $push: { 'val.numbers': doc } })
+        await phoneNumbersOf.updateOne({ _id: chatId }, { $set: { 'val.numbers.$[s].parentNumber': selected } }, { arrayFilters: [{ 's.isSubNumber': true, 's.parentNumber': old.phoneNumber }] }).catch(() => {})
+        await phoneTransactions.insertOne({ chatId, phoneNumber: selected, action: 'replace', oldNumber: old.phoneNumber, plan: old.plan, amount: REPLACE_PRICE, paymentMethod: 'wallet_usd', channel: 'web', timestamp: new Date().toISOString() })
+        await txn(chatId, 'number-replace', REPLACE_PRICE, { phoneNumber: selected, oldNumber: old.phoneNumber })
+        await notify.push(chatId, `🔁 ${old.phoneNumber} was replaced by ${selected} for $${REPLACE_PRICE}. Your plan, renewal date and settings moved over. The old number keeps working until ${releaseAt.slice(0, 10)}, then it’s released.`, null, { kind: 'billing', meta: { replaced: { old: old.phoneNumber, new: selected } } }).catch(() => {})
+        notifyAdmin(`🔁 CloudIVR web: ${old.phoneNumber} replaced by ${selected}${live ? '' : ' (DRY RUN)'} · $${REPLACE_PRICE}\nweb account: ${chatId}`)
+        await searchCache.deleteOne({ _id: chatId })
+        res.status(201).json({ number: publicNumber(doc), oldNumber: old.phoneNumber, releaseAt, charged: REPLACE_PRICE, balance: await w.balance(chatId) })
+      } catch (e) {
+        await w.credit(chatId, REPLACE_PRICE)
+        log(`[CloudIVR-Web] replace ${old.phoneNumber} → ${phone} failed: ${e.message} — refunded`)
+        bad(res, 424, 'replace_failed', `${e.message && e.message.length < 160 ? e.message : 'The new number could not be activated.'} You were refunded $${REPLACE_PRICE}.`)
+      }
+    } finally { await locks.deleteOne({ _id: phone }).catch(() => {}) }
+  }))
+  // After the overlap the old number is released.
+  async function releaseReplaced() {
+    const now = new Date().toISOString()
+    for (const acct of await phoneNumbersOf.find({ 'val.numbers': { $elemMatch: { replacedBy: { $ne: null }, status: 'active', releaseAt: { $lte: now } } } }).toArray()) {
+      for (const n of (acct.val?.numbers || []).filter(x => x.replacedBy && x.status === 'active' && x.releaseAt <= now)) {
+        if (!dryRun() && !n.dryRun) { const ok = n.telnyxOrderId ? await telnyxApi.releaseNumber(n.telnyxOrderId).catch(() => false) : false; if (!ok) await telnyxApi.releaseByPhoneNumber(n.phoneNumber).catch(() => {}) }
+        await setField(acct._id, n.phoneNumber, 'status', 'released')
+        await notify.push(acct._id, `${n.phoneNumber} was released. Calls and texts now reach ${n.replacedBy} only.`, null, { kind: 'billing' }).catch(() => {})
+        log(`[CloudIVR-Web] released replaced number ${n.phoneNumber} (now ${n.replacedBy})`)
+      }
+    }
+  }
+  const relT = setInterval(() => releaseReplaced().catch(e => log(`[CloudIVR-Web] release replaced: ${e.message}`)), 10 * 60000)
+  relT.unref?.()
+
+  return { myNumbers, findMine, purchase, REPLACE_PRICE, releaseReplaced, pickFromSearch, searchSimilar, setField, checkCoupon, unheld, ownAudioUrls, upgradeQuote, upgradeNumber, upgradeOffer, rotateSip }
 }
 
 module.exports = { parseBackups, routes, catalog, routeSummary, publicNumber, publicVoicemail, validateIvr, normPhone, countries, E164, webFeatures, recommendedPlan, WEB_FEATURES }

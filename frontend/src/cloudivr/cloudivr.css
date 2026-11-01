@@ -341,3 +341,11 @@ body[data-civr-sticky="1"] .civr-l-cookiebar { bottom: calc(4.5rem + env(safe-ar
 /* Personal offer surface (dashboard banner, wallet, billing): accent edge + soft tint in both themes. */
 .civr .civr-offer { border: 1px solid rgba(129, 140, 248, .4); background: linear-gradient(90deg, rgba(129, 140, 248, .1), rgba(129, 140, 248, .02)); }
 html[data-civr-theme="light"] .civr .civr-offer { border-color: rgba(79, 70, 229, .25); background: linear-gradient(90deg, rgba(79, 70, 229, .07), rgba(79, 70, 229, .015)); }
+
+/* Messages */
+.civr .civr-bubble-in { background: color-mix(in srgb, var(--c-text) 9%, var(--c-card)); color: var(--c-text); }
+.civr .civr-msg-in { animation: civr-msg-in .22s ease-out both; }
+@keyframes civr-msg-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.civr .civr-thread-in { animation: civr-thread-in .24s ease-out both; }
+@keyframes civr-thread-in { from { opacity: 0; transform: translateX(24px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .civr .civr-msg-in, .civr .civr-thread-in { animation: none; } }

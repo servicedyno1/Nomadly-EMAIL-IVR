@@ -1,0 +1,40 @@
+{
+  "summary": "Iter188 tested pay-with-crypto, the $75 eSIM price, eSIM auto-renew and Texting paused renew, on both backend and frontend (DRY_RUN preview). Backend: 33 of 34 pytest checks passed. The new file is test_crypto_autorenew_iter188.py; the iter186 and iter187 files ran without ESIM_SEND_REAL_TEXT. The one failure is a real bug: if auto-renew is off and the line is suspended, the 15-second biller still takes $75 and turns the line back on. Frontend: every requested flow works end to end. /app/esim CryptoPay goes open → panel → address → deposit with the preview warning, and the Pay button reads $75. In the landing checkout, Alice sees both pay-wallet and use-crypto; use-crypto shows 'Send $75 in crypto…' and the deposit card, and no order was placed after waiting 18 s (one poll). A new account goes straight to topup. Texting: the new setup shows texting-crypto next to 'Pay $200 from wallet' and works through to the deposit card. A paused standalone item (temporary TEST DB row) shows Renew $50 from the wallet and texting-renew-crypto with $50. The auto-renew switch works off → reload keeps it off → on. A simulated line was cancelled through the confirm dialog. Spanish works for the switch, the toast and the crypto panel. es_69fcb8db0c34 was not touched.",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "js/spenza.js billOne() (15s tick)", "issue": "Auto-renew off is ignored when a line is suspended. billOne only expires lines where autoRenew===false && status==='active'. A suspended line with autoRenew=false still gets debited $75 on the next tick as soon as the wallet has funds, and goes back to active. Reproduced: test_suspended_with_autorenew_off_not_charged showed status active and a $75 debit. The customer is charged even though they turned auto-renew off.", "priority": "HIGH"}
+    ],
+    "minor": [
+      {"endpoint": "POST /api/cloudivr-web/esim/:id/renew", "issue": "The 'wallet needs $X' error comes back without code 'insufficient_balance', so the status is 400, not 402. hosted-sms renew does set the code."},
+      {"endpoint": "eSIM carrier label", "issue": "custPlan carrier is now 'T-Mobile network'. The iter186/187 tests expected 'US network'; I updated them, assuming the change was intentional."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "/app/esim BuyForm and /app/texting NewSetup", "issues": ["Once the CryptoPay deposit card shows, it sits inside the flex-wrap button row. With the default align-items:stretch, the 'Pay $X from wallet' and 'Cancel' buttons stretch to the full height of the deposit card. Add items-start to the row, or render the panel/deposit on its own full-width row.", "When the panel opens (w-full), the Cancel button wraps under the crypto panel, away from the Pay button."]},
+      {"screen": "CryptoPay deposit (Spanish)", "issues": ["The amount reads '$75.00 in BTC': the word 'in' is not translated (the template string is built outside i18n)."]},
+      {"screen": "eSIM line with auto-renew off", "issues": ["The header still says '$75/month · next <date>'. It should say 'ends <date>' so the customer knows the line will stop."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_crypto_autorenew_iter188.py", "/app/backend/tests/test_esim_iter186.py", "/app/backend/tests/test_esim_fixes_iter187.py", "/app/test_reports/pytest/pytest_iter188.xml"],
+  "action_items": [
+    "spenza.js billOne: if d.autoRenew === false, expire the line whether it is active or suspended. Explicit renew() from a suspended line should still work: either debit directly in renew, or turn autoRenew back on first.",
+    "Fix the CryptoPay layout inside the BuyForm and Texting NewSetup button rows (items-start / separate row).",
+    "Optional: translate the 'in' in the '$X in COIN' deposit amount; show the 'ends <date>' wording when auto-renew is off; return 402 from esim renew when the wallet is short."
+  ],
+  "critical_code_review_comments": [
+    "spenza.js billOne ignores autoRenew=false for suspended lines (confirmed by test).",
+    "In BuyForm and NewSetup, CryptoPay is rendered only while the IMEI/phone check is valid. If the user edits the IMEI or phone after creating a deposit, the component unmounts: the deposit card and the auto-order watcher are lost, and the money stays in the wallet with no order placed.",
+    "CryptoPay and the landing Pay both place the order when ANY balance rise after the deposit is created reaches the price (including unrelated credits). That is acceptable, but worth knowing.",
+    "setAutoRenew allows status 'provisioning', but the UI only shows the switch on active and suspended lines. That is consistent but not documented."
+  ],
+  "updated_files": ["/app/backend/tests/test_crypto_autorenew_iter188.py", "/app/backend/tests/test_esim_iter186.py", "/app/backend/tests/test_esim_fixes_iter187.py", "/app/memory/test_credentials.md"],
+  "success_rate": {"backend": "97% (33/34; the 1 failure is a confirmed bug)", "frontend": "100% of requested flows (3 design nits)"},
+  "seed_data_creation": "Simulated eSIM lines were bought and then cancelled; all are now status cancelled. A temporary hostedSms rows hs_TEST_* was inserted and then deleted. Alice's wallet was reset to usdIn 2125 / usdOut 1600.065, about $524.93. New sign-up: qa.crypto1793567668@example.com / QaTest#2026x ($0).",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Plan testid uses the planId with the underscore kept: esim-plan-buy-SPENZA_001, esim-landing-order-SPENZA_001. The hosted-sms check returns eligible (preview) for numbers such as +13125557789. To show texting-renew, insert a paused standalone hostedSms doc (planNumber null, plan 'texting', chatId 5000000000000001) and delete it afterwards. test_suspended_with_autorenew_off_not_charged should pass once billOne is fixed. Wallet guard fixtures restore Alice's wallet; check usdOut afterwards anyway.",
+  "rca of the issue": "billOne(d) starts with `if (d.autoRenew === false && d.status === 'active') return expire(d)`. tick() picks up both active and suspended lines whose nextBillAt <= now. A suspended line keeps its old nextBillAt, so it is retried on every tick, skips the expire branch and calls S.w.debit(price). Repro: buy a simulated line, set status=suspended, autoRenew=false, nextBillAt in the past, wait 15–30 s: $75 is debited and status becomes active. Fix: expire whenever autoRenew===false inside the tick path, and keep the explicit renew() path separate."
+}

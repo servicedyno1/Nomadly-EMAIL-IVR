@@ -34,14 +34,14 @@ def test_customer_plan_keys(alice):
     assert plans
     for p in plans:
         assert set(p.keys()) == KEYS, p
-        assert p['carrier'] == 'US network'
+        assert p['carrier'] == 'T-Mobile network'
 
 
 def test_public_plan_keys():
     plans = requests.get(f"{API}/public/esim-plans").json()['plans']
     for p in plans:
         assert set(p.keys()) == KEYS | {'name'}, p
-        assert p['carrier'] == 'US network'
+        assert p['carrier'] == 'T-Mobile network'
 
 
 # QR returns data URL, no provider file name

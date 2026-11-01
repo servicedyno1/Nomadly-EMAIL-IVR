@@ -31,6 +31,7 @@ import Live from './pages/Live';
 import DoNotCall from './pages/DoNotCall';
 import Wallet from './pages/Wallet';
 import Inbox from './pages/Inbox';
+import Messages from './pages/Messages';
 import Settings from './pages/Settings';
 import SipPage from './pages/Sip';
 import { AiAgents, AiAgentEdit } from './pages/AiAgents';
@@ -74,7 +75,7 @@ function SideNav() {
           <div className="flex flex-col gap-1">
             {items.map(([to, label, Icon, id]) => (
               <NavLink key={id} end={to === ''} to={appPath(to)} className={({ isActive }) => `civr-nav-link ${isActive ? 'active' : ''}`} data-testid={id}>
-                <Icon className="w-4 h-4" />{label}{id === 'nav-quick-call' && <FreeBadge />}{id === 'nav-live' && <LiveDot />}
+                <Icon className="w-4 h-4" />{label}{id === 'nav-quick-call' && <FreeBadge />}{id === 'nav-live' && <LiveDot />}{id === 'nav-messages' && <MsgBadge />}
               </NavLink>
             ))}
           </div>
@@ -135,6 +136,11 @@ function TopBar({ summary, onPhone }) {
       <button onClick={async () => { if (!(await confirmLeave())) return; nav(cp(), { replace: true }); await logout(); }} className={`${ICON_BTN} hidden lg:flex`} data-testid="topbar-logout-button" aria-label="Sign out"><LogOut className="w-5 h-5" /></button>
     </header>
   );
+}
+
+function MsgBadge() {
+  const n = useShell()?.summary?.messagesUnread || 0;
+  return n > 0 ? <span className="ml-auto min-w-[20px] h-5 px-1.5 rounded-full bg-[var(--c-accent-strong)] text-white text-xs font-bold flex items-center justify-center" data-testid="nav-messages-unread">{n > 99 ? '99+' : n}</span> : null;
 }
 
 export default function Shell() {
@@ -202,6 +208,7 @@ export default function Shell() {
               <Route path="do-not-call" element={<DoNotCall />} />
               <Route path="wallet" element={<Wallet />} />
               <Route path="inbox" element={<Inbox />} />
+              <Route path="messages" element={<Messages />} />
               <Route path="settings" element={<Settings />} />
               <Route path="admin/suggestions" element={<AdminSuggestions />} />
               <Route path="help" element={<Help />} />

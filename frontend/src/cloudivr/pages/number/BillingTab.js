@@ -8,6 +8,7 @@ import { Field, InstantToggle } from '../../ui';
 import { PlanFeatures, unlocks } from '../../PlanFeatures';
 import { Downgrade, ExtraNumbers } from './BillingExtras';
 import { UpgradePay } from './UpgradePay';
+import { ReplaceNumber } from './ReplaceNumber';
 import { ask } from '../../i18n';
 import { useOffer } from '../../offers';
 
@@ -122,6 +123,7 @@ export default function BillingTab({ num, reload, onDeleted }) {
         <Renewal num={num} reload={reload} refreshSummary={refreshSummary} />
         {catalog && <Downgrade num={num} reload={reload} refreshSummary={refreshSummary} plans={catalog.plans} />}
         <ExtraNumbers num={num} />
+        <ReplaceNumber num={num} refreshSummary={refreshSummary} />
       </div>
       {catalog && !num.isSubNumber && <Upgrade num={num} reload={reload} refreshSummary={refreshSummary} plans={catalog.plans} coins={catalog.coins || []} />}
       <Danger num={num} onDeleted={onDeleted} refreshSummary={refreshSummary} />

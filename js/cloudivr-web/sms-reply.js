@@ -20,6 +20,8 @@ const recent = (l) => Date.now() - new Date(l.timestamp).getTime() < REPLY_DAYS 
 const STALE_CLAIM_MS = 120000
 // A reply that is still "sending" after 2 min (crashed mid-send) no longer blocks a new one.
 const replied = (l) => !!l.reply && !(l.reply.status === 'sending' && Date.now() - new Date(l.reply.at).getTime() > STALE_CLAIM_MS)
+// Pictures: numbers that report MMS, else US/Canada numbers that can text (they take MMS on our carrier).
+const canMms = (n) => (n.capabilities?.mms != null ? !!n.capabilities.mms : n.capabilities?.sms !== false && ['US', 'CA'].includes(n.country || 'US'))
 const canReply = (l) => REPLYABLE.includes(l.type) && !replied(l) && E164.test(String(l.from || '')) && recent(l)
 // Which missed call each text answered: Text back stores replyTo (the call's id); "Decline with a text message" is sent
 // around the time that call's log is written, so it belongs to the closest call from that caller within 2 min.
@@ -106,9 +108,9 @@ function createSmsReply({ db, voiceService, log = console.log }) {
   const phoneTransactions = db.collection('phoneTransactions')
   const w = walletOps(db)
 
-  async function deliver(from, to, text) {
+  async function deliver(from, to, text, mediaUrls = []) {
     try {
-      const r = await axios.post('https://api.telnyx.com/v2/messages', { from, to, text, ...(process.env.TELNYX_MESSAGING_PROFILE_ID ? { messaging_profile_id: process.env.TELNYX_MESSAGING_PROFILE_ID } : {}) },
+      const r = await axios.post('https://api.telnyx.com/v2/messages', { from, to, ...(text ? { text } : {}), ...(mediaUrls.length ? { media_urls: mediaUrls, type: 'MMS' } : {}), ...(process.env.TELNYX_MESSAGING_PROFILE_ID ? { messaging_profile_id: process.env.TELNYX_MESSAGING_PROFILE_ID } : {}) },
         { headers: { Authorization: `Bearer ${process.env.TELNYX_API_KEY}`, 'Content-Type': 'application/json' }, timeout: 15000 })
       return { id: r.data?.data?.id || null }
     } catch (e) {
@@ -119,9 +121,10 @@ function createSmsReply({ db, voiceService, log = console.log }) {
   }
 
   // → { log } | { error: [status, code, message] }
-  async function send({ chatId, num, to, text, simulated = false, replyTo = null, inboxId = null }) {
+  async function send({ chatId, num, to, text, simulated = false, replyTo = null, inboxId = null, media = [] }) {
     const body = clean(text)
-    if (!body) return { error: [400, 'empty', 'Type a reply or pick one.'] }
+    if (!body && !media.length) return { error: [400, 'empty', 'Type a reply or pick one.'] }
+    if (media.length && !canMms(num)) return { error: [400, 'no_mms', 'This number can’t send pictures.'] }
     if (body.length > MAX) return { error: [400, 'too_long', `Keep it to ${MAX} characters (one text).`] }
     if (!E164.test(String(to || ''))) return { error: [400, 'invalid_number', 'This caller’s number can’t receive texts.'] }
     if (num.capabilities?.sms === false) return { error: [400, 'no_sms', 'This number can’t send texts.'] }
@@ -135,11 +138,11 @@ function createSmsReply({ db, voiceService, log = console.log }) {
     const ownerNumbers = (await db.collection('phoneNumbersOf').findOne({ _id: chatId }))?.val?.numbers || [num]
     const overage = !home ? rule.price : voiceService.isSmsLimitReached(num, ownerNumbers) ? phoneConfig.OVERAGE_RATE_SMS : 0
     if (overage && !(await w.debit(chatId, overage))) return { error: [402, 'insufficient_balance', home ? `Your plan texts are used up; each extra text costs $${overage.toFixed(2)}. Top up first.` : `A text to ${rule.country} costs $${overage.toFixed(2)}. Top up first.`] }
-    const out = preview ? { id: `preview-${crypto.randomUUID()}` } : await deliver(rule.from || num.phoneNumber, to, body)
+    const out = preview ? { id: `preview-${crypto.randomUUID()}` } : await deliver(rule.from || num.phoneNumber, to, body, media.map(m => require('./media').publicUrl(m.id)))
     if (out.error) { if (overage) await w.credit(chatId, overage); return { error: [424, 'sms_failed', out.error] } }
     if (home) await voiceService.incrementSmsUsed(chatId, num.phoneNumber)
     if (overage) await phoneTransactions.insertOne({ chatId, phoneNumber: num.phoneNumber, action: 'sms_reply', amount: overage, paymentMethod: 'wallet_usd', channel: 'web', timestamp: new Date().toISOString() })
-    const doc = { chatId: String(chatId), phoneNumber: num.phoneNumber, from: rule.from || num.phoneNumber, to, country: rule.iso, type: 'sms_out', direction: 'outbound', body, messageId: out.id, status: preview ? 'preview' : 'sent', webReply: true, ...(overage ? { charge: overage } : {}), ...(replyTo ? { replyTo } : {}), ...(inboxId ? { inboxId: String(inboxId) } : {}), timestamp: new Date().toISOString() }
+    const doc = { chatId: String(chatId), phoneNumber: num.phoneNumber, from: rule.from || num.phoneNumber, to, country: rule.iso, type: 'sms_out', direction: 'outbound', body, messageId: out.id, status: preview ? 'preview' : 'sent', webReply: true, ...(media.length ? { media } : {}), ...(overage ? { charge: overage } : {}), ...(replyTo ? { replyTo } : {}), ...(inboxId ? { inboxId: String(inboxId) } : {}), timestamp: new Date().toISOString() }
     await phoneLogs.insertOne(doc)
     log(`[SmsReply] ${num.phoneNumber} → ${to}${preview ? ' (PREVIEW)' : ''}${overage ? ` $${overage}` : ''}`)
     return { log: doc, charge: overage }
@@ -185,4 +188,4 @@ function routes(router, { db, h, numbersApi, smsReply }) {
   }))
 }
 
-module.exports = { createSmsReply, routes, canReply, markReplied, clean, MAX, applyDeliveryReport, reasonOf }
+module.exports = { createSmsReply, routes, canReply, canMms, markReplied, clean, MAX, applyDeliveryReport, reasonOf }
