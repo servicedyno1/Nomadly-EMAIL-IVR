@@ -9,10 +9,10 @@ import { WalletPay } from '../../WalletPay';
 import { cp } from '../../paths';
 
 // US mobile number for texting: the carrier assigns it after payment, near the ZIP given.
-export function MobileOffer({ onBought }) {
+export function MobileOffer({ onBought, open: startOpen = false }) {
   const { data } = useApi('/mobile-numbers');
   const { refreshSummary } = useShell();
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(startOpen);
   const [zip, setZip] = useState('');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);

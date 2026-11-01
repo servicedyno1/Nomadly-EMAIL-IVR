@@ -4369,10 +4369,32 @@ async function handleGatherEnded(payload) {
       notifyUser(chatId, num, 'ivr_message', session, { digit: digits, message: option.message })
       break
 
+    case 'sms': {
+      session.phase = 'ivr_sms'
+      const r = await sendIvrText(chatId, option, session.from)
+      const said = r.ok ? (option.message || ivrL.textSent) : ivrL.textFailed
+      if (option.after === 'menu') {
+        session.ivrPath = null; session.ivrRetried = false
+        await _telnyxApi.gatherDTMF(callControlId, `${said} ${ivrConfig.greeting || ivrL.fallback}`, { minDigits: 1, maxDigits: 1, timeout: 15000, validDigits: Object.keys(ivrConfig.options || {}).join(''), language: ivrL.tts })
+      } else {
+        await _telnyxApi.speakOnCall(callControlId, said, 'female', ivrL.tts)
+        setTimeout(() => _telnyxApi.hangupCall(callControlId), 6000)
+      }
+      break
+    }
+
     default:
       await _telnyxApi.speakOnCall(callControlId, ivrL.goodbye, 'female', ivrL.tts)
       setTimeout(() => _telnyxApi.hangupCall(callControlId), 2000)
   }
+}
+
+// IVR "send a text" key: the caller gets the owner's text from one of their eSIM / mobile texting numbers.
+async function sendIvrText(chatId, option, caller) {
+  const r = await require('./spenza.js').sendSms(chatId, option.smsFrom, caller, option.smsText).catch(e => ({ error: e.message }))
+  log(`[Voice] IVR text to ${caller}: ${r.error ? 'failed — ' + r.error : 'sent'}`)
+  if (r.error) require('./cloudivr-web/notify').push(chatId, `⚠️ A caller (${caller}) pressed a key for a text, but it wasn't sent: ${r.error}`, null, { kind: 'sms' }).catch(() => {})
+  return r.error ? { error: r.error } : { ok: true }
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

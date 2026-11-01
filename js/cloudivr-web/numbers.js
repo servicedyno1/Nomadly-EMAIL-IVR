@@ -189,6 +189,12 @@ function validateIvr(body, plan, audioOk = () => true) {
       } else if (action === 'message') {
         if (!o.message && !o.audioUrl) throw new Error(`Key ${digit}: add a message or pick an audio file.`)
         out[digit] = { action, message: String(o.message || '').slice(0, 1000), audioUrl: audio(o.audioUrl, `Key ${digit}`), label }
+      } else if (action === 'sms') {
+        const smsFrom = String(o.smsFrom || '')
+        const smsText = String(o.smsText || '').trim().slice(0, 1000)
+        if (!/^(es|mn)_[0-9a-f]+$/.test(smsFrom)) throw new Error(`Key ${digit}: pick the number the text is sent from.`)
+        if (!smsText) throw new Error(`Key ${digit}: write the text to send.`)
+        out[digit] = { action, smsFrom, smsText, message: String(o.message || '').slice(0, 500), after: o.after === 'menu' ? 'menu' : 'hangup', label }
       } else if (action === 'voicemail') {
         if (!phoneConfig.canAccessFeature(plan, 'voicemail')) throw new Error('Voicemail needs the Pro plan or higher.')
         out[digit] = { action, label }
@@ -574,6 +580,11 @@ function routes(router, deps) {
     const urls = await ownAudioUrls(req.webChatId)
     let value
     try { value = validateIvr(req.body, req.num.plan, (u) => urls.has(u)) } catch (e) { return bad(res, 400, 'invalid_ivr', e.message) }
+    const lines = [...Object.values(value.options), ...Object.values(value.options).flatMap(o => Object.values(o.subMenu?.options || {}))].filter(o => o.action === 'sms').map(o => o.smsFrom)
+    if (lines.length) {
+      const ok = await deps.db.collection('esimLines').countDocuments({ _id: { $in: [...new Set(lines)] }, chatId: String(req.webChatId), status: { $in: ['provisioning', 'active', 'suspended'] } })
+      if (ok !== new Set(lines).size) return bad(res, 400, 'invalid_ivr', 'Pick one of your own texting numbers to send the text from.')
+    }
     await setField(req.webChatId, req.num.phoneNumber, 'features.ivr', value)
     // One answers a number: the keypad menu going on switches the AI voice agent off.
     const ai = req.num.features?.aiAgent

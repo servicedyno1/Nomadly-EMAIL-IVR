@@ -4,6 +4,7 @@ import { useApi, enc } from '../../api';
 import { InstantToggle, AudioSelect } from '../../ui';
 import { VoiceMaker } from '../../VoiceMaker';
 import { IvrTemplates } from './IvrTemplates';
+import { IvrSms } from './IvrSms';
 import { useSave } from './SettingsTabs';
 import { OneAnswerNote } from './RouteSummary';
 import { useUnsaved, SaveRow } from '../../guard';
@@ -18,7 +19,7 @@ const DEFAULTS = {
 const defOf = (lang) => DEFAULTS[lang] || DEFAULTS.en;
 const isDef = (text, keys) => !String(text || '').trim() || Object.values(DEFAULTS).some(d => keys.some(k => d[k] === String(text).trim()));
 
-const ACTIONS = [['forward', 'Forward to a phone'], ['message', 'Play a message'], ['voicemail', 'Take a voicemail'], ['submenu', 'Open a sub-menu']];
+const ACTIONS = [['forward', 'Forward to a phone'], ['message', 'Play a message'], ['sms', 'Send the caller a text'], ['voicemail', 'Take a voicemail'], ['submenu', 'Open a sub-menu']];
 const DIGITS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'];
 const toList = (opts) => Object.entries(opts || {}).map(([digit, o]) => ({ digit, ...o, subMenu: o.subMenu ? { ...o.subMenu, options: toList(o.subMenu.options) } : undefined }));
 const toObj = (list) => Object.fromEntries(list.map(({ digit, subMenu, ...o }) => [digit, { ...o, ...(o.action === 'submenu' ? { subMenu: { ...(subMenu || {}), options: toObj(subMenu?.options || []) } } : {}) }]));
@@ -49,6 +50,7 @@ function RowHead({ o, set, onRemove, used, depth, prefix }) {
 }
 
 function ActionFields({ o, set, audios, prefix, onAudio }) {
+  if (o.action === 'sms') return <IvrSms o={o} set={set} prefix={prefix} />;
   if (o.action === 'message' && onAudio) return <div className="space-y-2"><div className="grid md:grid-cols-2 gap-2"><input className="civr-input" value={o.message || ''} onChange={e => set({ message: e.target.value })} placeholder="Text to read out" data-testid={`${prefix}-message-input`} /><AudioSelect value={o.audioUrl} onChange={v => set({ audioUrl: v || null })} audios={audios} placeholder="…or pick audio" onAdded={onAudio} compact testid={`${prefix}-message-audio-select`} /></div>{o.message && !o.audioUrl && <VoiceMaker text={o.message} name={o.label || `Key ${o.digit}`} onMade={(a) => { onAudio(); set({ audioUrl: a.audioUrl }); }} testid={`${prefix}-message-voice`} />}</div>;
   if (o.action === 'forward') return <input className="civr-input font-mono" value={o.forwardTo || ''} onChange={e => set({ forwardTo: e.target.value })} placeholder="+14155550100" data-testid={`${prefix}-forward-input`} />;
   if (o.action === 'message') return <div className="grid md:grid-cols-2 gap-2"><input className="civr-input" value={o.message || ''} onChange={e => set({ message: e.target.value })} placeholder="Text to read out" data-testid={`${prefix}-message-input`} /><AudioSelect value={o.audioUrl} onChange={v => set({ audioUrl: v || null })} audios={audios} placeholder="…or pick audio" onAdded={onAudio} compact testid={`${prefix}-message-audio-select`} /></div>;

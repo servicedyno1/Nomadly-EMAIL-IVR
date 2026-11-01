@@ -10,7 +10,7 @@ const LANGS = {
     ivr: {
       greeting: 'Thank you for calling. Please select an option.', fallback: 'Thank you for calling. Please listen to the following options.',
       sub: 'Please select an option.', invalid: 'Sorry, that was not a valid option. Please try again.', goodbye: 'Goodbye.',
-      leaveMessage: 'Please leave a message after the tone.', thanks: 'Thank you for calling.', error: 'An error occurred. Goodbye.',
+      leaveMessage: 'Please leave a message after the tone.', textSent: 'We have sent you a text message.', textFailed: 'Sorry, we could not send you a text right now.', thanks: 'Thank you for calling.', error: 'An error occurred. Goodbye.',
     },
   },
   fr: {
@@ -21,7 +21,7 @@ const LANGS = {
     ivr: {
       greeting: 'Merci de votre appel. Veuillez choisir une option.', fallback: 'Merci de votre appel. Veuillez écouter les options suivantes.',
       sub: 'Veuillez choisir une option.', invalid: 'Désolé, cette option n’est pas valide. Veuillez réessayer.', goodbye: 'Au revoir.',
-      leaveMessage: 'Veuillez laisser un message après le bip.', thanks: 'Merci de votre appel.', error: 'Une erreur est survenue. Au revoir.',
+      leaveMessage: 'Veuillez laisser un message après le bip.', textSent: 'Nous vous avons envoyé un SMS.', textFailed: 'Désolé, nous n’avons pas pu vous envoyer de SMS pour le moment.', thanks: 'Merci de votre appel.', error: 'Une erreur est survenue. Au revoir.',
     },
   },
   es: {
@@ -32,7 +32,7 @@ const LANGS = {
     ivr: {
       greeting: 'Gracias por llamar. Por favor, seleccione una opción.', fallback: 'Gracias por llamar. Por favor, escuche las siguientes opciones.',
       sub: 'Por favor, seleccione una opción.', invalid: 'Lo sentimos, esa opción no es válida. Por favor, inténtelo de nuevo.', goodbye: 'Adiós.',
-      leaveMessage: 'Por favor, deje un mensaje después del tono.', thanks: 'Gracias por llamar.', error: 'Ocurrió un error. Adiós.',
+      leaveMessage: 'Por favor, deje un mensaje después del tono.', textSent: 'Le hemos enviado un mensaje de texto.', textFailed: 'Lo sentimos, no pudimos enviarle un mensaje de texto en este momento.', thanks: 'Gracias por llamar.', error: 'Ocurrió un error. Adiós.',
     },
   },
   pt: {
